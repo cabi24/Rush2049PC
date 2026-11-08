@@ -44,21 +44,9 @@ s32 HAL_GetTextWidth(char *, s32);
 /* game.frame_rate 60: the scroller moves a pixel a 30 Hz frame, as on the N64 (docs/port/FRAMERATE.md 7) */
 #define PC_SCROLL_DEC(v) ((v) -= PC_STEPS(1))
 
-void gfx_lock_cdh(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-s32 font_set_cdh(s32 font)
-{
-    s32 old;
 
-    gfx_lock_cdh();
-    old = HAL_SetFontInternal(font);
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-    return old;
-}
-
+s32 HAL_SetFont(s32 fontID);
 void DrawNoControllers(void)
 {
     char str[256];
@@ -82,7 +70,7 @@ void DrawNoControllers(void)
     sprintf(str, "%s%s%s%s%s%d%s", gText.single[124], num, gText.single[125], num,
             gText.single[126], numPlayers, gText.single[127]);
     game_strcat(str, gText.single[128]);
-    font_set_cdh(11);
+    HAL_SetFont(11);
     TB_SetTextColor(22);
     if (!(gGameState & 1) && !(gGameState & 2)) {
         if ((gGameState & 0x40000000) || (gGameState & 4) || (gGameState & 8)) {

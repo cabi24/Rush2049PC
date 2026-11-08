@@ -6,7 +6,7 @@
  *                       (MAT3 0x80065338) written in place.
  * . Pattern from the audio pair (groups/audioscr_update/init_w36q.c; for audioscr).
  * Helpers vi_gfx_lock / vi_gfx_unlock / vi_SetFont (GC HAL_SetFont: no old-font value is kept, retail has no
- * `move s0,v0`) and vi_setButtonColor (GC ZOID_SetColor) are non-static and not on keep (stub rule).
+ * `move s0,v0`) are non-static and not on keep (stub rule); the button colours go through ZOID_SetColor, as MAT3.
  * DISCLOSED DEVICE: unused locals u0..u3 in particle_collision = the exact frame residual: retail frame 136, without
  * them 120 (4 slots, 16 B at the frame top; every sp-relative access is identical with and without them). The same
  * 16 B appear in drone_pathfind_main (GC initScreen@audioscr.c, also with initButtons written in place): most likely
@@ -73,13 +73,13 @@ void ZeroCameras(void);
 void ClearRushControls(void);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
-void vi_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void vi_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
+void text_lock(void);
+void text_unlock(void);
 void vi_SetFont(s32 font)
 {
-    vi_gfx_lock();
+    text_lock();
     HAL_SetFontInternal(font);
-    vi_gfx_unlock();
+    text_unlock();
 }
 
 void video_calcMenuRect(void)
@@ -114,8 +114,8 @@ void video_calcMenuRect(void)
     video_menuRect.cx = video_menuRect.x + optionWidth + 5;
 }
 
-void vi_setButtonColor(s16 objnum, Color *col) { ObjInstanceList[objnum].color = col->rgba; }
 
+void ZOID_SetColor(s16 objnum, Color *col);
 void video_initScreen(void)
 {
     s32 u0, u1, u2, u3;
@@ -138,7 +138,7 @@ void video_initScreen(void)
                         &video_buttonInfo[buttonIdx].mat, -1,
                         (video_buttonInfo[buttonIdx].type == 0 || video_buttonInfo[buttonIdx].type == 1 ||
                          video_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
-                    vi_setButtonColor(video_buttonInfo[buttonIdx].handle, &buttonColor);
+                    ZOID_SetColor(video_buttonInfo[buttonIdx].handle, &buttonColor);
                 }
             }
             tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);

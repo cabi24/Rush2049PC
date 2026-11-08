@@ -67,26 +67,10 @@ void HAL_SetTextDepth(f32);
 void TB_SetTextColor(s32);
 void TB_Printf(s16, s16, char *, s32, s32);
 
-void gfx_lock_EDC(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_EDC(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_EDC(s32 font)
-{
-    s32 old;
 
-    gfx_lock_EDC();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_EDC();
-    return old;
-}
-
+s32 HAL_SetFont(s32 fontID);
 s32 animLapCount(void *item)
 {
     s32 i;
@@ -100,9 +84,9 @@ s32 animLapCount(void *item)
     gJust.b = 3;
     gJust.a = 1;
     if (gNumWindows == 1) {
-        font_set_EDC(11);
+        HAL_SetFont(11);
     } else {
-        font_set_EDC(12);
+        HAL_SetFont(12);
     }
     for (i = 0; i < gNumWindows; i++) {
         if (gNumLaps == PC_MODEL_LAP(i)) {

@@ -39,32 +39,12 @@ extern s8 HAL_SetFontFixedWidth(s8 value);
 extern void TB_SetTextColor(s32);
 extern void TB_DrawText(s16, s16, char *);
 
-void gfx_lock_761C(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_761C(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_761C(s32 font)
-{
-    s32 old;
 
-    gfx_lock_761C();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_761C();
-    return old;
-}
 
-void pair_set_761C(s32 first, s32 second)
-{
-    gJust.second = second;
-    gJust.first = first;
-}
-
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 s32 animElapsedTimerText(s32 arg0)
 {
     s32 t;
@@ -92,11 +72,11 @@ s32 animElapsedTimerText(s32 arg0)
     digits[7] = t / 10 % 10 + '0';
     digits[8] = t % 10 + '0';
     HAL_SetTextDepth(0.0f);
-    pair_set_761C(1, 3);
+    TB_SetJust(1, 3);
     if (gNumWindows == 1) {
-        font_set_761C(1);
+        HAL_SetFont(1);
     } else {
-        font_set_761C(2);
+        HAL_SetFont(2);
     }
     digitW = HAL_GetCharWidth('8') + 1;
     fixedWidth = HAL_SetFontFixedWidth(0);
@@ -120,7 +100,7 @@ s32 animElapsedTimerText(s32 arg0)
             x += digitW;
         }
     }
-    pair_set_761C(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

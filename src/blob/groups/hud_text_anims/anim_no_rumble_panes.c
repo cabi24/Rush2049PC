@@ -87,25 +87,8 @@ void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 void ChangePaneColor(void *, u8 *, u8 *);
 void RemovePane(void *);
 
-void gfx_lock_6874(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_6874(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_6874(s32 font)
-{
-    s32 old;
-
-    gfx_lock_6874();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_6874();
-    return old;
-}
 
 s32 getB6_6874(s32 ctl)
 {
@@ -121,6 +104,7 @@ s32 Hidden_6874(Blit *blt, s32 hide)
     return blt->hidden;
 }
 
+s32 HAL_SetFont(s32 fontID);
 s32 anim_no_rumble_panes(Blit *blt)
 {
     s32 w;
@@ -130,11 +114,11 @@ s32 anim_no_rumble_panes(Blit *blt)
     s32 x;
     s32 y;
 
-    font_set_6874(11);
+    HAL_SetFont(11);
     w = HAL_GetTextWidth(gText_single->text, -1);
     limit = (gNumWindows >= 3) ? 160 : ((gNumWindows >= 2) ? 240 : 320);
     if (limit + 8 < w) {
-        font_set_6874(12);
+        HAL_SetFont(12);
         w = HAL_GetTextWidth(gText_single->text, -1);
     }
     h = TB_GetFontLineHeight();

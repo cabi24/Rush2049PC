@@ -10,8 +10,7 @@
  * nested helpers (op_gfx_lock/op_gfx_unlock). The three-level form (op_SetFont -> op_font_set -> lock)
  *    is inlined at zero growth BEFORE the single-caller helpers are considered and pushes them over umerge's
  *    per-edge size limit; this form goes through umerge's later knapsack pass, after both helpers are inlined.
- *  - ZOID_SetColor with one nested level (op_setButtonColor -> op_ZOID_SetColorP), as the same file's
- *    updateButtons (ZOID_SetColor_da -> ZOID_SetColorP_da, buttons.c): +8 B of inline area below buttonColor.
+ *  - the button colours go through ZOID_SetColor, as MAT3 initButtons does (the N64 inlined it).
  *  - Dreamcast optionscr.c confirms the N64 height base 210 (GC 214).
  * DISCLOSED DEVICE: one unused local `u0` in replay_save_prompt = the exact frame residual. Retail frame 256, without
  * it 248 (every sp-relative offset already retail's); one 4-byte slot, frame rounded to 8 -> 256. GC DWARF lists only
@@ -80,39 +79,22 @@ void options_TitlePane(void);                    /* _TitlePane@optionscr.c */
 void *InitPane(s32, s32, s32, s32, s32, s32, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
-void op_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void op_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s32 op_HAL_SetFont(s32 sel)
-{
-    s32 old;
-    op_gfx_lock();
-    old = HAL_SetFontInternal(sel);
-    op_gfx_unlock();
-    return old;
-}
-void op_ZOID_SetColorP(s16 objnum, Color *col)
-{
-    ObjInstanceList[objnum].color = col->rgba;
-}
 
-void op_setButtonColor(s16 objnum, Color *col)
-{
-    op_ZOID_SetColorP(objnum, col);
-}
 
 
 
 void op_calcOptionMenuMaxSize(void);
 void op_initButtons(void);
 
+s32 HAL_SetFont(s32 fontID);
 void op_calcOptionMenuMaxSize(void)
 {
     s32 height;
     s32 i;
 
-    op_HAL_SetFont(13);
+    HAL_SetFont(13);
     height = 210 - TB_GetFontLineHeight() * 2;
-    op_HAL_SetFont(11);
+    HAL_SetFont(11);
     height -= TB_GetFontLineHeight();
     gMenuCount = 0;
     for (i = 0; i < 14; i++) {
@@ -121,6 +103,7 @@ void op_calcOptionMenuMaxSize(void)
     gOptionMenuSize = gMenuCount < height / TB_GetFontLineHeight() ? gMenuCount : height / TB_GetFontLineHeight();
 }
 
+void ZOID_SetColor(s16 objnum, Color *col);
 void op_initButtons(void)
 {
     Color buttonColor = { { 255, 255, 255, 255 } };
@@ -136,7 +119,7 @@ void op_initButtons(void)
                 &options_buttonInfo[buttonIdx].mat, -1,
                 (options_buttonInfo[buttonIdx].type == 0 || options_buttonInfo[buttonIdx].type == 1 ||
                  options_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
-            op_setButtonColor(options_buttonInfo[buttonIdx].handle, &buttonColor);
+            ZOID_SetColor(options_buttonInfo[buttonIdx].handle, &buttonColor);
         }
     }
     tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);

@@ -94,25 +94,8 @@ u32 HAL_GetTextWidth(void *, s32);
 void TB_SetTextColor(s32);
 void TB_DrawText(s16, s16, void *);
 
-void gfx_lock_BC84(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_BC84(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_BC84(s32 font)
-{
-    s32 old;
-
-    gfx_lock_BC84();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_BC84();
-    return old;
-}
 
 s32 Hidden_BC84(Blit *blt, s32 hide)
 {
@@ -128,11 +111,9 @@ s32 getB6_BC84(s32 ctl)
     return gPaks[ctl].b6;
 }
 
-s16 TB_CenterText_BC84(void *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_CenterText(void *text, s16 centerX);
 s32 animRumbleText(Blit *blt)
 {
     u16 i;
@@ -154,21 +135,21 @@ s32 animRumbleText(Blit *blt)
         }
     }
     if (!ok) {
-        font_set_BC84(10);
+        HAL_SetFont(10);
         x = pause_gPlayerRects[0][1].x;
         y = pause_gPlayerRects[0][1].y - TB_GetFontLineHeight() / 2;
         TB_SetTextColor(22);
         str = gText.hdr->title;
-        TB_DrawText(TB_CenterText_BC84(str, x), y, str);
+        TB_DrawText(TB_CenterText(str, x), y, str);
     }
-    font_set_BC84(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     for (i = 0; i < gNumPlayers; i++) {
         x = pause_gPlayerRects[gNumPlayers - 1][i].x;
         y = pause_gPlayerRects[gNumPlayers - 1][i].y - TB_GetFontLineHeight();
         TB_SetTextColor(playerTextColor[i]);
         str = (char *)(*gPlayers[i].name + PROFILE_OFS(20));
-        TB_DrawText(TB_CenterText_BC84(str, x), y, str);
+        TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
         ctl = gPlayers[i].control;
         if (getB6_BC84(ctl)) {
@@ -177,7 +158,7 @@ s32 animRumbleText(Blit *blt)
             str = gText.hdr->ok;
         }
         TB_SetTextColor(1);
-        TB_DrawText(TB_CenterText_BC84(str, x), y, str);
+        TB_DrawText(TB_CenterText(str, x), y, str);
     }
     HAL_SetTextDepth(-1.0f);
     return 1;

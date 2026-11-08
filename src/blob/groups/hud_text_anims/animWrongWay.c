@@ -74,36 +74,21 @@ void HAL_SetTextTranslucency(f32);
 void TB_SetTextColor(s32);
 void TB_DrawText(s16, s16, void *);
 
-void gfx_lock_8AB0(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_8AB0(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_select_8AB0(s32 font)
-{
-    return HAL_SetFontInternal(font);
-}
 
+void text_lock(void);
+void text_unlock(void);
 s32 font_set_8AB0(s32 font)
 {
     s32 old;
 
-    gfx_lock_8AB0();
-    old = font_select_8AB0(font);
-    gfx_unlock_8AB0();
+    text_lock();
+    old = HAL_SetFontInternal(font);
+    text_unlock();
     return old;
 }
 
-void TB_SetJust_8AB0(s32 h, s32 v)
-{
-    gJust.h = h;
-    gJust.v = v;
-}
 
 f32 TB_GetFlashTextCycle_8AB0(void)
 {
@@ -115,6 +100,7 @@ void HAL_SetFont_8AB0(s32 font)
     font_set_8AB0(font);
 }
 
+void TB_SetJust(u32 first, u32 second);
 s32 animWrongWay(void *item)
 {
     s32 x;
@@ -126,7 +112,7 @@ s32 animWrongWay(void *item)
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    TB_SetJust_8AB0(1, 1);
+    TB_SetJust(1, 1);
     for (slot = 0; slot < gNumWindows; slot++) {
         if ((-1.5707964f <= PC_CAR_HEADING(slot) && PC_CAR_HEADING(slot) <= 1.5707964f) ||
             !(gGameState & 0x400000) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == 1) {
@@ -151,7 +137,7 @@ s32 animWrongWay(void *item)
         TB_SetTextColor(14);
         TB_DrawText(x, y, gText.hdr->text);
     }
-    TB_SetJust_8AB0(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextTranslucency(-1.0f);
     HAL_SetTextDepth(-1.0f);
     return 1;

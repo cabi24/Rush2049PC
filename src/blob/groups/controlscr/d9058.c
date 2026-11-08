@@ -28,16 +28,14 @@ s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32 font);          /* font select core (IPA s2 parameter) */
 
-void gfx_lock_CS(void);
-void gfx_unlock_CS(void);
-s32 font_set_CS(s32 font);
 s32 controls_validOption(s8, s32);              /* validOption */
 
+s32 HAL_SetFont(s32 fontID);
 void calcControlMenuMaxSize(void) {
     s32 rectHeight = controls_gPlayerRects[gNumWindows - 1][0].h;
     s32 i;
     s32 gControlMenuCount;
-    font_set_CS(11);
+    HAL_SetFont(11);
     rectHeight -= 24;
     gControlMenuSize = rectHeight / 16;
     gControlMenuCount = 2;
@@ -50,14 +48,3 @@ void calcControlMenuMaxSize(void) {
         gControlMenuSize = gControlMenuCount;
 }
 
-void gfx_lock_CS(void) { osRecvMesg(&text_lock_queue, (void *)0, 1); }
-void gfx_unlock_CS(void) { osSendMesg(&text_lock_queue, (void *)0, 0); }
-s32 font_set_CS(s32 font)                /* HAL_SetFont */
-{
-    s32 old;
-
-    gfx_lock_CS();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_CS();
-    return old;
-}

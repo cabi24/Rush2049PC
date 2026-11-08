@@ -48,11 +48,9 @@ u32 HAL_GetTextWidth(void *text, s16 numChars);
 void TB_SetTextColor(s32 color);
 void TB_DrawText(s16 x, s16 y, void *text);
 
-void _GetSemaphore_Gear(void);
-void _ReleaseSemaphore_Gear(void);
-s32 HAL_SetFont_Gear(s32 fontID);
-s16 TB_RightText_Gear(void *text, s16 rightX);
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_RightText(void *text, s16 rightX);
 s32 animGear(void *blt)
 {
     u8 str[2];
@@ -62,11 +60,11 @@ s32 animGear(void *blt)
 
     HAL_SetTextDepth(0.0f);
     if (gNumWindows == 1)
-        HAL_SetFont_Gear(10);
+        HAL_SetFont(10);
     else if (gNumWindows == 2)
-        HAL_SetFont_Gear(11);
+        HAL_SetFont(11);
     else
-        HAL_SetFont_Gear(12);
+        HAL_SetFont(12);
     for (slot = 0; slot < gNumWindows; slot++) {
         gear = PC_MODEL_GEAR(slot);
         if (slot >= gNumWindows || !gShowShifter || PC_MODEL_AUTOTRANS(slot) ||
@@ -75,9 +73,9 @@ s32 animGear(void *blt)
         x = gearPos[gNumWindows - 1][slot][0] - 4;
         y = gearPos[gNumWindows - 1][slot][1];
         TB_SetTextColor(0);
-        TB_DrawText(TB_RightText_Gear(gText.single[204], x + 1), y + 1, gText.single[204]);
+        TB_DrawText(TB_RightText(gText.single[204], x + 1), y + 1, gText.single[204]);
         TB_SetTextColor(1);
-        TB_DrawText(TB_RightText_Gear(gText.single[204], x), y, gText.single[204]);
+        TB_DrawText(TB_RightText(gText.single[204], x), y, gText.single[204]);
         x = gearPos[gNumWindows - 1][slot][0] + 4;
         y = gearPos[gNumWindows - 1][slot][1];
         if (gear == -1)
@@ -96,10 +94,4 @@ s32 animGear(void *blt)
     return 1;
 }
 
-void _GetSemaphore_Gear(void) { osRecvMesg(&gFontSem, (void **)0, 1); }
-void _ReleaseSemaphore_Gear(void) { osSendMesg(&gFontSem, (void *)0, 0); } s32 HAL_SetFont_Gear(s32 fontID) { s32 old; _GetSemaphore_Gear(); old = HAL_SetFontInternal(fontID); _ReleaseSemaphore_Gear(); return old; }
-
-s16 TB_RightText_Gear(void *text, s16 rightX)
-{
-    return rightX - HAL_GetTextWidth(text, -1);
-}
+ 

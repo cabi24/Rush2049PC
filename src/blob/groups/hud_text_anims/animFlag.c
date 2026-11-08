@@ -95,31 +95,9 @@ void TB_SetTextColor(s32);
 void TB_Printf(s16, s16, char *, ...);
 void SelectBlit(Blit *blt, s32 index, s32 w, s32 h);
 
-void gfx_lock_9F54(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_9F54(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_9F54(s32 font)
-{
-    s32 old;
 
-    gfx_lock_9F54();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_9F54();
-    return old;
-}
-
-void TB_SetJust_9F54(s32 h, s32 v)
-{
-    gJust.h = h;
-    gJust.v = v;
-}
 
 s32 Hidden_9F54(Blit *blt, s32 hide)
 {
@@ -130,6 +108,8 @@ s32 Hidden_9F54(Blit *blt, s32 hide)
     return blt->hide;
 }
 
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 s32 animFlag(Blit *blt)
 {
     s32 x, y, width, height, w, h, xoff, yoff;
@@ -160,16 +140,16 @@ s32 animFlag(Blit *blt)
     if (Hidden_9F54(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & 8))) {
         if (gRace != 1 && !(gGameState & 8)) {
             if (gNumWindows < 4)
-                font_set_9F54(6);
+                HAL_SetFont(6);
             else
-                font_set_9F54(7);
+                HAL_SetFont(7);
             HAL_SetTextDepth(0.0f);
-            TB_SetJust_9F54(1, 1);
+            TB_SetJust(1, 1);
             TB_SetTextColor(0);
             TB_Printf(x + 1, y + 1, "%d", gNumLapsLeft);
             TB_SetTextColor(11);
             TB_Printf(x, y, "%d", gNumLapsLeft);
-            TB_SetJust_9F54(0, 3);
+            TB_SetJust(0, 3);
             HAL_SetTextDepth(-1.0f);
         }
         return 1;

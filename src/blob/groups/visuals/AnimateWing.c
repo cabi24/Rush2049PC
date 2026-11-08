@@ -58,12 +58,6 @@ void AudChangeEffect(s32 h, f32 x, f32 y, f32 z, f32 w);
 s32 osRecvMesg(void *, void *, s32);
 s32 osSendMesg(void *, void *, s32);
 extern s32 audio_lock_queue;
-__inline void ehu_inline(s32 h, f32 value)
-{
-    osRecvMesg(&audio_lock_queue, 0, 1);
-    AudChangeEffect(h, -2.0f, -2.0f, -2.0f, value);
-    osSendMesg(&audio_lock_queue, 0, 0);
-}
 void AudChangeEffectVol(s32 h, f32 opacity);
 void AudStopEffect(s32 h);
 void InitWingSmoke(s16 arg0, s16 arg1);
@@ -78,10 +72,11 @@ s32 CheckVisible(Visual *v, s32 show, s32 part);
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
  * between one frame and two, so the steps keep the N64's 30 a second. */
 #define PC_GAP30(x) (pc_fps60 ? (x) * 2.0f : (x))
+void AudChangeEffectPitch(s32 handle, f32 value);
 __inline void tire_sound_on(Model2056 *model)
 {
     model->sound = AudPlayEffect(61, model->player, 2, 2);
-    ehu_inline(model->sound, 0.75f);
+    AudChangeEffectPitch(model->sound, 0.75f);
     AudChangeEffectVol(model->sound, 0.5f);
 }
 __inline void tire_extend(Visual *v, Model2056 *model)
@@ -130,7 +125,7 @@ void AnimateWing(Visual *v, s16 op)
             v->flags |= 0x1200;
             if (model->sound == -1) {
                 model->sound = AudPlayEffect(61, model->player, 2, 2);
-                ehu_inline(model->sound, 0.75f);
+                AudChangeEffectPitch(model->sound, 0.75f);
                 AudChangeEffectVol(model->sound, 0.5f);
             }
         } else if (!(v->flags & 0x1000)) {

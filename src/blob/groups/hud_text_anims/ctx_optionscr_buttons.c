@@ -4,9 +4,7 @@
  * options_updateButtons = updateButtons (unsaved s0-s8/f20-f30). DB1E0 body unchanged; DA2C0
  * pad-free rewrite (GC statics cursorSpeed$472/scrollSpeed$473 = options_cursorSpeed/options_scrollSpeed as function-local statics,
  * GC order of sel_y, 255 spellings, alpha reuse) plus closing levers:
- *  - GC ZOID_SetColor(s16 objnum, union *col)@zoidtexture.c as an inlined helper with one nested level
- *    (ZOID_SetColor_da -> ZOID_SetColorP_da, both non-static, not on keep): the 32 B of frame below `color`
- *    were these two sites' inline areas (2 sites x 2 levels x 8 B); 202 -> 59 rows, frame 120 -> 152 exact.
+ *  - the button colours go through GC ZOID_SetColor(s16 objnum, union *col)@zoidtexture.c, which the N64 inlined here.
  *  - DISCLOSED DEVICES (compiled-out, no code):
  *    * two `if (yi) {}` after the button loop (weight-1 uses): yi's priority 22/14 = 1.57 sits between the
  *      &options_buttonsJustInited address web (1.48-1.55) and the two pointer webs (&B[i].pos, &validOption[i], 1.94), so yi
@@ -96,15 +94,7 @@ void RemoveObjectTree(s16 arg0, s32 arg1, s32 arg2);
 
 void options_uninitScreen(void);
 
-void ZOID_SetColorP_da(s16 objnum, Color *col)
-{
-    ObjInstanceList[objnum].color.rgba = col->rgba;
-}
 
-void ZOID_SetColor_da(s16 objnum, Color *col)
-{
-    ZOID_SetColorP_da(objnum, col);
-}
 
 
 typedef struct {

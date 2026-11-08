@@ -65,24 +65,14 @@ extern OSMesgQueue text_lock_queue;
 s32 osRecvMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32);u32 HAL_GetTextWidth(void *,s16);s16 TB_GetFontLineHeight(void);void *TB_Strcpy(void *,void *);
 s32 audio_validOption(s32 i);   /* validOption (audio_options_menu member) */
-void cmr_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void cmr_gfx_unlock(void);
-s32 cmr_font_set(s32 font)
-{
-    s32 old;
-    cmr_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    cmr_gfx_unlock();
-    return old;
-}
-void cmr_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
+s32 HAL_SetFont(s32 fontID);
 void audio_calcMenuRect(void)
 {
     s32 menuIdx,u0,menuCount,optionWidth,valueWidth;
     u8 str[40];
     u8 *charPtr;
     s32 songIdx;
-    cmr_font_set(10);
+    HAL_SetFont(10);
     optionWidth=0;
     valueWidth=0;
     menuCount=0;

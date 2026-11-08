@@ -63,25 +63,8 @@ s32 HAL_SetFontInternal(s32 selection);
 void UpdateBlit(void *);
 s32 HAL_GetCharWidth(u16 id);
 
-void gfx_lock_dust(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_dust(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_dust(s32 font)
-{
-    s32 old;
-
-    gfx_lock_dust();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_dust();
-    return old;
-}
 
 s32 Hidden_dust(Blit *blt, s32 hide)
 {
@@ -92,6 +75,7 @@ s32 Hidden_dust(Blit *blt, s32 hide)
     return blt->hidden;
 }
 
+s32 HAL_SetFont(s32 fontID);
 s32 animSpeed(Blit *blt)
 {
     s32 x;          /* unused (frame residual) */
@@ -116,9 +100,9 @@ s32 animSpeed(Blit *blt)
         return 1;
     }
     if (gNumWindows == 1) {
-        font_set_dust(4);
+        HAL_SetFont(4);
     } else {
-        font_set_dust(1);
+        HAL_SetFont(1);
     }
     digitW = HAL_GetCharWidth(56);
     blt->x = speedPos[gNumWindows - 1][win].x - digitW * 2 - 2;

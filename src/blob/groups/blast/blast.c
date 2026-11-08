@@ -111,10 +111,6 @@ void ZOID_SetColor(s16 objnum, tRGBA *col);
 
 int MBOX_NewObject(int objnum, tUVMatrix *mat, int parent, unsigned int flags);
 
-static void SetObjColor(int objnum, tRGBA *col)
-{
-    ObjInstanceList[objnum].color = col->rgba;
-}
 
 void AddToEnvList(tVisual *v);
 
@@ -170,7 +166,7 @@ void StartNewBlast(s16 slot)
             clr.c[1] = 255;
             clr.c[2] = 255;
             clr.c[3] = gBlastObjs[slot].alpha;
-            SetObjColor(gBlastObjs[slot].glowIdx, &clr);
+            ZOID_SetColor(gBlastObjs[slot].glowIdx, &clr);
         }
         gBlastObjs[slot].lifeTime = 0.7f;
         gBlastObjs[slot].incTime = 0.0333333f;
@@ -200,7 +196,7 @@ static void StartNewBlastRing(s16 slot)
         gBlastRingObjs[slot].ringIdx = MBOX_NewObject(gObjList[163], &gBlastRingObjs[slot].mat, -1, 0x42000);
         gBlastRingObjs[slot].ralpha = 240;
         gBlastRingObjs[slot].ralphaCnt = 0;
-        SetObjColor(gBlastRingObjs[slot].ringIdx, &clr);
+        ZOID_SetColor(gBlastRingObjs[slot].ringIdx, &clr);
         gBlastRingObjs[slot].incTime = 0.0333333f;
         AddToEnvList(v);
     }

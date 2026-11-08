@@ -62,12 +62,10 @@ u32 HAL_GetCharWidth(u16 ch);
 void TB_SetTextColor(s32 color);
 void TB_DrawText(s16 x, s16 y, void *text);
 
-void _GetSemaphore_Countdown(void);
-void _ReleaseSemaphore_Countdown(void);
-s32 HAL_SetFont_Countdown(s32 fontID);
-void TB_SetJust_Countdown(s32 hJust, s32 vJust);
 s32 PlayGameSound_Countdown(s32 fxid, s32 subId, s32 replace, u8 priority);
 
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 s32 animCountdownTimer(void *blt)
 {
     s32 t;
@@ -106,11 +104,11 @@ skip:
     x = countdownTimerPos[gNumWindows - 1][0];
     y = countdownTimerPos[gNumWindows - 1][1];
     HAL_SetTextDepth(0.0f);
-    TB_SetJust_Countdown(1, 3);
+    TB_SetJust(1, 3);
     if (gRace == 4 && gNumWindows > 1) {
         x = mapPos[gNumWindows - 1][0];
         y = mapPos[gNumWindows - 1][1];
-        TB_SetJust_Countdown(1, 1);
+        TB_SetJust(1, 1);
     }
     digits[0] = t / 600 + '0';
     digits[1] = (t / 60) % 10 + '0';
@@ -118,11 +116,11 @@ skip:
     digits[3] = (t / 10) % 6 + '0';
     digits[4] = t % 10 + '0';
     if (gNumWindows == 1)
-        HAL_SetFont_Countdown(9);
+        HAL_SetFont(9);
     else if (gNumWindows <= 3)
-        HAL_SetFont_Countdown(8);
+        HAL_SetFont(8);
     else
-        HAL_SetFont_Countdown(5);
+        HAL_SetFont(5);
     digitW = HAL_GetCharWidth('8') + 1;
     colonW = HAL_GetCharWidth(':') + 1;
     x -= (3 * digitW + colonW) / 2;
@@ -140,19 +138,12 @@ skip:
         else
             x += digitW;
     }
-    TB_SetJust_Countdown(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
-void _GetSemaphore_Countdown(void) { osRecvMesg(&gFontSem, (void **)0, 1); }
-void _ReleaseSemaphore_Countdown(void) { osSendMesg(&gFontSem, (void *)0, 0); } s32 HAL_SetFont_Countdown(s32 fontID) { s32 old; _GetSemaphore_Countdown(); old = HAL_SetFontInternal(fontID); _ReleaseSemaphore_Countdown(); return old; }
-
-void TB_SetJust_Countdown(s32 hJust, s32 vJust)
-{
-    gJust.h = hJust;
-    gJust.v = vJust;
-}
+ 
 
 s32 PlayGameSound_Countdown(s32 fxid, s32 subId, s32 replace, u8 priority)
 {

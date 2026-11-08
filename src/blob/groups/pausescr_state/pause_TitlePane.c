@@ -34,13 +34,13 @@ s16 TB_GetFontLineHeight(void);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 void ChangePaneSize(void *,s32,s32,s32,s32);
-void vs_header_lock(void) { osRecvMesg(text_lock_queue,0,1); } void vs_header_unlock(void) { osSendMesg(text_lock_queue,0,0); } s32 vs_header_font(s32 font) { s32 old; vs_header_lock(); old=HAL_SetFontInternal(font); vs_header_unlock(); return old; }
-void pause_TitlePane(void)
+s32 HAL_SetFont(s32 fontID);
+  void pause_TitlePane(void)
 {
     s32 x,y,width;
     unsigned char *str;
     unsigned char text[64];
-    vs_header_font(13);
+    HAL_SetFont(13);
     str = text;
     if(pause_gControllerRemoved) {
         TB_Sprintf(text,pause_title_format,playerInPause+1,F(F(gText,void *,TXH(4)),char *,TXS(932)));

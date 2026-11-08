@@ -8,10 +8,8 @@
  * record pos, &matrix). Otherwise lifts pos by 10 + Random(10) into delta, lets CameraCollision(delta,
  * pos) settle it and respawns there with fix_camera_in_space(0, ...). N64 rewrite of the arcade
  * resurrect_car idea (game/sresurrect.c); no line-for-line ancestor.
- * Helpers (non-static so the unit leaves no deleted-procedure stubs; integrate with unit_overrides
- * force_internal wod_rand, wod_random, wod_dist2d): wod_rand/wod_random are verbatim copies of the locked kept game_rand / Random (libc rand,
- * arcade LIB/fmath.c Random(max)), which umerge inlines in the unit; dist2d is an inlined static
- * (its float parameters are the f2/f12 webs; with rand/Random it also sizes the 144-byte frame).
+ * It calls the game's Random and Distance2D, which the N64 build had inlined here as copies (wod_rand,
+ * wod_random, wod_dist2d: the same code as game_rand, Random and Distance2D).
  * Shaping (all natural forms): `(s16)(speed >> 6) + 4` (the narrowing as1 deletes pops t6/t7),
  * the point walk on one line (as1 line tie-break), `if (dist > 200.0f) continue;` (numbers the 200.0f
  * web before -999.0f, giving f14/f16), `e` declared before the arrays.
@@ -32,31 +30,11 @@ typedef struct { s8 flag; u8 pad1[3]; Vec3 pos; } Respawn;
 extern Path gDronePaths[];
 extern Respawn *trackSpots[];
 extern s8 gTrackNum;
-extern s32 rand_seed;
-extern f32 sqrtf(f32);
-#pragma intrinsic(sqrtf)
 extern s16 NextPathPt(s16, s16);
 extern s32 CameraCollision(void *arg0, void *arg1);
 extern void fix_camera_in_space(s16 mode, Object *object, f32 *pos, Mat3 *matrix);
-
-int wod_rand(void)
-{
-    rand_seed = rand_seed * 1103515245 + 12345;
-    return (rand_seed >> 16) & 0x7fff;
-}
-
-f32 wod_dist2d(f32 x, f32 z)
-{
-    return sqrtf(x * x + z * z);
-}
-
-f32 wod_random(f32 max)
-{
-    f32 rannum;
-
-    rannum = ((f32)(wod_rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
+extern f32 Distance2D(f32 x, f32 y);   /* sqrtf(x * x + y * y) */
+extern f32 Random(f32 max);            /* 0 <= Random(max) < max, from the game's rand */
 
 void init_camera_on_track(Object *object)
 {
@@ -79,7 +57,7 @@ void init_camera_on_track(Object *object)
             delta[0] = e->pos[0] - pos[0];
             delta[1] = e->pos[1] - pos[1];
             delta[2] = e->pos[2] - pos[2];
-            if (wod_dist2d(delta[0], delta[2]) > 200.0f) continue;
+            if (Distance2D(delta[0], delta[2]) > 200.0f) continue;
             if (e->flag) {
                 fix_camera_in_space(1, object, e->pos, &matrix);
             } else {
@@ -89,7 +67,7 @@ void init_camera_on_track(Object *object)
         }
     }
     delta[0] = pos[0];
-    delta[1] = pos[1] + 10.0f + wod_random(10.0f);
+    delta[1] = pos[1] + 10.0f + Random(10.0f);
     delta[2] = pos[2];
     CameraCollision(delta, pos);
     fix_camera_in_space(0, object, delta, &matrix);

@@ -57,25 +57,8 @@ u32 HAL_GetTextWidth(void *, s32);
 void TB_SetTextColor(s32);
 void TB_DrawText(s16, s16, void *);
 
-void gfx_lock_B7FC(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_B7FC(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_B7FC(s32 font)
-{
-    s32 old;
-
-    gfx_lock_B7FC();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_B7FC();
-    return old;
-}
 
 s32 item_refresh_B7FC(MenuItem *item)
 {
@@ -86,11 +69,9 @@ s32 item_refresh_B7FC(MenuItem *item)
     return item->dirty;
 }
 
-s16 TB_CenterText_B7FC(void *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_CenterText(void *text, s16 centerX);
 s32 animPauseText(MenuItem *item) {
     s32 i;
     s32 x;
@@ -101,14 +82,14 @@ s32 animPauseText(MenuItem *item) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    font_set_B7FC(13);
+    HAL_SetFont(13);
     x = pause_titlePos[0];
     y = pause_titlePos[1] + TB_GetFontLineHeight() * 2;
-    font_set_B7FC(10);
+    HAL_SetFont(10);
     for (i = 0; i < 8; i++) {
         TB_SetTextColor(i == pauseMenuSelect ? 22 : 1);
         str = gText.strings[gText.info->lang + i + 1];
-        TB_DrawText(TB_CenterText_B7FC((void *)str, x), y, (void *)str);
+        TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
         y += TB_GetFontLineHeight();
     }
     HAL_SetTextDepth(-1.0f);

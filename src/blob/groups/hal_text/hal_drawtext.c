@@ -38,8 +38,6 @@ extern s8 gFontIndex;
 extern s32 gBufLen;
 extern u8 gBuffer[800];  /* gBuffer */
 
-void _GetSemaphore_DrawText(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void _ReleaseSemaphore_DrawText(void) { osSendMesg(&text_lock_queue, 0, 0); }
 
 u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
 {
@@ -62,6 +60,8 @@ u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
     return len;
 }
 
+void text_lock(void);
+void text_unlock(void);
 void HAL_DrawText(void *text, s16 numChars)
 {
     s32 size;
@@ -83,7 +83,7 @@ void HAL_DrawText(void *text, s16 numChars)
         if (numChars < 0) game_strcpy(str, text);
         else game_strncpy(str, text, numChars);
     }
-    _GetSemaphore_DrawText();
+    text_lock();
     if (!gBufferInited) {
         gBufferInited = 1;
         gBufLen = 0;
@@ -99,7 +99,7 @@ void HAL_DrawText(void *text, s16 numChars)
     length = TextLen(text, numChars);
     size += length + 2;
     if (gBufLen + size >= 800) {
-        _ReleaseSemaphore_DrawText();
+        text_unlock();
         return;
     }
     if (lastFontIndex != gFontIndex) {
@@ -144,5 +144,5 @@ void HAL_DrawText(void *text, s16 numChars)
     gBuffer[gBufLen++] = length;
     memcpy(gBuffer + gBufLen, text, length);
     gBufLen += length;
-    _ReleaseSemaphore_DrawText();
+    text_unlock();
 }

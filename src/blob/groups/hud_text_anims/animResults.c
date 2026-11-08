@@ -76,17 +76,13 @@ extern void ChangePaneColor(void *, void *, void *);
 
 s32 ar_font_set(s32 font);
 
-void ar_SetJust(s32 h, s32 v)
-{
-    gJust[0] = h;
-    gJust[1] = v;
-}
 
 void ar_SetFont(s32 font)
 {
     ar_font_set(font);
 }
 
+void TB_SetJust(u32 first, u32 second);
 s32 animResults(s32 arg0)
 {
     s32 playerIdx;
@@ -103,7 +99,7 @@ s32 animResults(s32 arg0)
         if (PC_CAR_FINISHED(PC_MODEL_SLOT(playerIdx)) == 1) numFinished++;
     }
     HAL_SetTextDepth(0.0f);
-    ar_SetJust(1, 1);
+    TB_SetJust(1, 1);
     ar_SetFont(10);
     if (gNumWindows >= 2 && numFinished == gNumWindows && (!gDeathMode || (gDeathMode && aFinished))) {
         if (resultPane[4] == 0) {
@@ -179,7 +175,7 @@ s32 animResults(s32 arg0)
         TB_DrawTextScrollBox(x, y, 160, 110, -1, 0, str);
     }
     HAL_SetTextDepth(-1.0f);
-    ar_SetJust(0, 3);
+    TB_SetJust(0, 3);
     return 1;
 }
 

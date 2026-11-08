@@ -57,12 +57,12 @@ void TB_DrawText(s16 x, s16 y, void *text);
 void _GetSemaphore_Speed(void);
 void _ReleaseSemaphore_Speed(void);
 s32 HAL_SetFont(s32 fontID);
-void TB_SetJust_Speed(s32 hJust, s32 vJust);
 u8 HAL_GetFontAscent_Speed(void);
 u8 HAL_GetFontDescent_Speed(void);
 s16 TB_GetFontHeight_Speed(void);
 s16 TB_GetFontHeight(void);
 
+void TB_SetJust(u32 first, u32 second);
 s32 animSpeedText(void *blt)
 {
     f32 mph;
@@ -73,7 +73,7 @@ s32 animSpeedText(void *blt)
     if (!gShowSpeed)
         return 1;
     HAL_SetTextDepth(0.0f);
-    TB_SetJust_Speed(1, 3);
+    TB_SetJust(1, 3);
     if (gNumWindows == 1)
         HAL_SetFont(4);
     else
@@ -126,16 +126,11 @@ s32 animSpeedText(void *blt)
             TB_DrawText(x, y, gText.single[202]);
         }
     }
-    TB_SetJust_Speed(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
-void TB_SetJust_Speed(s32 hJust, s32 vJust)
-{
-    gJust.h = hJust;
-    gJust.v = vJust;
-}
 
 u8 HAL_GetFontAscent_Speed(void)
 {

@@ -15,7 +15,7 @@
  * game: nonmatching/game/updatePauseScreen.c nonmatching/game/PrePlay.c
  * game: src/blob/PauseTargets.c src/blob/InitBattlePoints.c
  * game: src/blob/groups/SetupCarColor/ctx_func_800C8918.c
- * game: src/blob/InitStunt.c src/blob/ZOID_Reset.c
+ * game: src/blob/InitStunt.c src/blob/ZOID_Reset.c src/blob/groups/state/halfont.c src/blob/ZOID_SetColor.c
  */
 #include <stddef.h>
 #include <stdint.h>

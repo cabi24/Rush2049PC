@@ -90,20 +90,10 @@ extern void TB_SetTextColor(s32);
 extern void TB_DrawText(s16, s16, char *);
 extern s32 TB_Sprintf(char *, char *, ...);
 
-void du_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void du_gfx_unlock(void);
-s32 du_font_set(s32 font)
-{
-    s32 old;
-    du_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    du_gfx_unlock();
-    return old;
-}
 
-void du_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s16 hs_CenterText(char *text, s16 centerX);
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_CenterText(void *text, s16 centerX);
 void DrawUnlocked(void)
 {
     s32 x;
@@ -113,7 +103,7 @@ void DrawUnlocked(void)
     char str[64];
     s32 stuffCount;
 
-    du_font_set(11);
+    HAL_SetFont(11);
     for (p = 0; p < gNumPlayers; p++) {
         if (p) {}   /* : disclosed compiled-out holder (p over &str priority) */
         if (gStuffUnlocked[p] == 0) continue;
@@ -133,55 +123,55 @@ void DrawUnlocked(void)
                 y + stuffCount * TB_GetFontLineHeight() + 4);
         }
         TB_SetTextColor(1);
-        TB_DrawText(hs_CenterText(gText.fixed[55], x), y, gText.fixed[55]);
+        TB_DrawText(TB_CenterText(gText.fixed[55], x), y, gText.fixed[55]);
         y += TB_GetFontLineHeight();
-        TB_DrawText(hs_CenterText(gText.fixed[56], x), y, gText.fixed[56]);
+        TB_DrawText(TB_CenterText(gText.fixed[56], x), y, gText.fixed[56]);
         y += TB_GetFontLineHeight() * 2;
         TB_SetTextColor(22);
         for (i = 0; i < 19; i++) {
             if (gUnlockedTracks[p][i] && !gPrevUnlockedTracks[p][i]) {
-                TB_DrawText(hs_CenterText(gTrackTitles[i], x), y, gTrackTitles[i]);
+                TB_DrawText(TB_CenterText(gTrackTitles[i], x), y, gTrackTitles[i]);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 13; i++) {
             if (gUnlockedCars[p][i] && !gPrevUnlockedCars[p][i]) {
-                TB_DrawText(hs_CenterText(CarTitles[i], x), y, CarTitles[i]);
+                TB_DrawText(TB_CenterText(CarTitles[i], x), y, CarTitles[i]);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 4; i++) {
             if (gUnlockedCircuits[p][i] && !gPrevUnlockedCircuits[p][i]) {
                 TB_Sprintf(str, unlocked_circuit_format, gText.strings[gText.indices->h[44] + i], gText.fixed[42]);
-                TB_DrawText(hs_CenterText(str, x), y, str);
+                TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 8; i++) {
             if (gUnlockedTrans[p][i] && !gPrevUnlockedTrans[p][i]) {
                 TB_Sprintf(str, unlocked_trans_format, gText.strings[gText.indices->h[4] + i], gText.strings[gText.indices->h[2] + 1]);
-                TB_DrawText(hs_CenterText(str, x), y, str);
+                TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 9; i++) {
             if (gUnlockedEngines[p][i] && !gPrevUnlockedEngines[p][i]) {
                 TB_Sprintf(str, unlocked_engine_format, gText.strings[gText.indices->h[6] + i], gText.strings[gText.indices->h[2] + 3]);
-                TB_DrawText(hs_CenterText(str, x), y, str);
+                TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 5; i++) {
             if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) {
                 TB_Sprintf(str, unlocked_tires_format, gText.strings[gText.indices->h[7] + i], gText.strings[gText.indices->h[2] + 4]);
-                TB_DrawText(hs_CenterText(str, x), y, str);
+                TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 6; i++) {
             if (gUnlockedFrames[p][i] && !gPrevUnlockedFrames[p][i]) {
                 TB_Sprintf(str, unlocked_frame_format, gText.strings[gText.indices->h[8] + i], gText.strings[gText.indices->h[2] + 5]);
-                TB_DrawText(hs_CenterText(str, x), y, str);
+                TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
@@ -222,21 +212,12 @@ extern char *gPS_PakName[];                       /* gPS_PakName[pak] ("1".."4")
 extern s32 gJust[2];                        /* TB_SetJust pair */
 extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
 
-s16 hs_CenterText(char *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
-s16 hs_RightText(char *text, s16 rightX)
-{
-    return rightX - HAL_GetTextWidth(text, -1);
-}
 
-s32 hs_font_set(s32 font);
 
 void hs_SetFont(s32 font)
 {
-    hs_font_set(font);
+    HAL_SetFont(font);
 }
 
 /* DrawName = GC DrawName(p)@highscorescr.c: name-entry grid for player p (internal; p arrives in s5). */
@@ -252,17 +233,17 @@ void DrawName(s32 p)
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 4;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
     TB_SetTextColor(1);
-    TB_DrawText(hs_CenterText(gText.fixed[150], x), y, gText.fixed[150]);
+    TB_DrawText(TB_CenterText(gText.fixed[150], x), y, gText.fixed[150]);
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 15;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
     TB_SetTextColor(22);
-    TB_DrawText(hs_CenterText(gScoreName[p], x), y, gScoreName[p]);
+    TB_DrawText(TB_CenterText(gScoreName[p], x), y, gScoreName[p]);
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 30;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx - 48;
     for (i = 0; i < 54; i++) {
         ltr[0] = gPlayerNameChars[i];
         TB_SetTextColor(i == highscore_gNameSelect[p] ? 22 : 1);
-        TB_DrawText(hs_CenterText(ltr, x), y, ltr);
+        TB_DrawText(TB_CenterText(ltr, x), y, ltr);
         if ((i + 1) % 9 == 0) {
             y += 10;
             x = highscore_gPlayerRects[gNumWindows - 1][p].cx - 48;
@@ -272,13 +253,13 @@ void DrawName(s32 p)
     }
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx - 36;
     TB_SetTextColor(highscore_gNameSelect[p] == -3 ? 22 : 16);
-    TB_DrawText(hs_CenterText(name_entry_space_label, x), y, name_entry_space_label);
+    TB_DrawText(TB_CenterText(name_entry_space_label, x), y, name_entry_space_label);
     x += 36;
     TB_SetTextColor(highscore_gNameSelect[p] == -2 ? 22 : 16);
-    TB_DrawText(hs_CenterText(name_entry_del_label, x), y, name_entry_del_label);
+    TB_DrawText(TB_CenterText(name_entry_del_label, x), y, name_entry_del_label);
     x += 36;
     TB_SetTextColor(highscore_gNameSelect[p] == -1 ? 22 : 16);
-    TB_DrawText(hs_CenterText(name_entry_end_label, x), y, name_entry_end_label);
+    TB_DrawText(TB_CenterText(name_entry_end_label, x), y, name_entry_end_label);
 }
 
 void DrawCircuitCode(void)
@@ -289,10 +270,10 @@ void DrawCircuitCode(void)
     s32 length;
     char str[64];
 
-    hs_font_set(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
-    TB_DrawText(hs_CenterText(gText.fixed[64], 160), 80, gText.fixed[64]);
-    TB_DrawText(hs_CenterText(gText.fixed[65], 160), 120, gText.fixed[65]);
+    TB_DrawText(TB_CenterText(gText.fixed[64], 160), 80, gText.fixed[64]);
+    TB_DrawText(TB_CenterText(gText.fixed[65], 160), 120, gText.fixed[65]);
     if (TB_Strlen(highscore_gCircuitCode) > 22) length = 22;
     else length = TB_Strlen(highscore_gCircuitCode);
     str[1] = 0;
@@ -300,7 +281,7 @@ void DrawCircuitCode(void)
     y = 95;
     for (i = 0; i < length; i++) {
         str[0] = highscore_gCircuitCode[i];
-        TB_DrawText(hs_CenterText(str, x + 5), y, str);
+        TB_DrawText(TB_CenterText(str, x + 5), y, str);
         if ((i + 1) % ((length + 1) / 2) == 0) {
             x = 160 - (length + 1) / 2 * 10 / 2;
             y += 10;
@@ -310,6 +291,7 @@ void DrawCircuitCode(void)
     }
 }
 
+s16 TB_RightText(void *text, s16 rightX);
 void DrawScores(void)
 {
     s32 i;
@@ -317,52 +299,40 @@ void DrawScores(void)
     char str[96];
     char label[256];
 
-    hs_font_set(13);
+    HAL_SetFont(13);
     TB_SetTextColor(1);
-    TB_DrawText(hs_CenterText(gText.strings[((HsIdx *)gText.indices)->tableNames + gTable], 160), 10, gText.strings[((HsIdx *)gText.indices)->tableNames + gTable]);
+    TB_DrawText(TB_CenterText(gText.strings[((HsIdx *)gText.indices)->tableNames + gTable], 160), 10, gText.strings[((HsIdx *)gText.indices)->tableNames + gTable]);
     for (i = 0; i < 5; i++) {
         sprintf(str, "%d", i + 1);
-        hs_font_set(5);
+        HAL_SetFont(5);
         TB_SetTextColor(gNewTotalScore[gTable][i] == -1 ? 1 : playerTextColor[gNewTotalScore[gTable][i]]);
         numWid = HAL_GetTextWidth(str, -1);
         TB_DrawText(16, 76 + i * 24, str);
-        hs_font_set(11);
+        HAL_SetFont(11);
         TB_DrawText(numWid + 16, 78 + i * 24, gText.strings[((HsIdx *)gText.indices)->scoreNames + i]);
     }
     for (i = 0; i < 5; i++) {
-        hs_font_set(10);
+        HAL_SetFont(10);
         TB_SetTextColor(gNewTotalScore[gTable][i] == -1 ? 1 : playerTextColor[gNewTotalScore[gTable][i]]);
         TB_EllipseText(label, gScoreNames[i], 160);
         TB_DrawText(69, 80 + i * 24, label);
     }
     for (i = 0; i < 5; i++) {
-        hs_font_set(2);
+        HAL_SetFont(2);
         TB_SetTextColor(gNewTotalScore[gTable][i] == -1 ? 1 : playerTextColor[gNewTotalScore[gTable][i]]);
-        TB_DrawText(hs_RightText(gScoreTimes[i], 304), 80 + i * 24, gScoreTimes[i]);
+        TB_DrawText(TB_RightText(gScoreTimes[i], 304), 80 + i * 24, gScoreTimes[i]);
     }
 }
 
 /* DrawGhost = GC DrawGhost@highscorescr.c (internal; only caller highscore_animText state 4). */
-void hs_SetJust(s32 h, s32 v)
-{
-    gJust[0] = h;
-    gJust[1] = v;
-}
 
-s32 gh_font_set(s32 font)
-{
-    s32 old;
-    du_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    osSendMesg(&text_lock_queue, 0, 0);
-    return old;
-}
 
 void gh_SetFont(s32 font)
 {
-    gh_font_set(font);
+    HAL_SetFont(font);
 }
 
+void TB_SetJust(u32 first, u32 second);
 void DrawGhost(void)
 {
     s32 i;
@@ -375,44 +345,44 @@ void DrawGhost(void)
     gh_SetFont(13);
     TB_SetTextColor(1);
     str = gText.fixed[219];
-    TB_DrawText(hs_CenterText(str, 160), 10, str);
+    TB_DrawText(TB_CenterText(str, 160), 10, str);
     gh_SetFont(11);
     str = gText.fixed[220];
-    TB_DrawText(hs_CenterText(str, 160), 55, str);
+    TB_DrawText(TB_CenterText(str, 160), 55, str);
     gh_SetFont(10);
     y = TB_GetFontLineHeight() + 55;
     str = (*gSavedGhost)->name;
-    TB_DrawText(hs_CenterText(str, 160), y, str);
+    TB_DrawText(TB_CenterText(str, 160), y, str);
     y += TB_GetFontLineHeight();
     gh_SetFont(2);
     TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gSavedGhost)->time / 60.0f), (s32)(*gSavedGhost)->time % 60,
                  (s32)((*gSavedGhost)->time * 1000.0f) % 1000);
-    TB_DrawText(hs_CenterText(time, 160), y, time);
+    TB_DrawText(TB_CenterText(time, 160), y, time);
     if (gGhostMenuConflict == 1) {
         gh_SetFont(10);
         TB_Sprintf(str1, gText.fixed[223], (*gPakGhosts[gGhostPak])->name);
-        hs_SetJust(1, 3);
+        TB_SetJust(1, 3);
         TB_DrawTextScrollBox(160, 110, 130, TB_GetFontLineHeight() * 6, -1, 0, str1);
-        hs_SetJust(0, 3);
+        TB_SetJust(0, 3);
     } else if (gGhostMenuConfirm == 1) {
         gh_SetFont(10);
         y = TB_GetFontLineHeight();
-        hs_SetJust(1, 3);
+        TB_SetJust(1, 3);
         TB_DrawTextScrollBox(160, 110, 130, y * 4, -1, 0, gText.fixed[221]);
-        hs_SetJust(0, 3);
+        TB_SetJust(0, 3);
         y = TB_GetFontLineHeight() * 2 + 110;
         TB_SetTextColor(highscore_gYes ? 22 : 1);
         str = gText.strings[gText.indices->h[24]];
-        TB_DrawText(hs_CenterText(str, 145), y, str);
+        TB_DrawText(TB_CenterText(str, 145), y, str);
         TB_SetTextColor(highscore_gYes ? 1 : 22);
         str = gText.strings[gText.indices->h[24] + 1];
-        TB_DrawText(hs_CenterText(str, 175), y, str);
+        TB_DrawText(TB_CenterText(str, 175), y, str);
     } else if (gGhostMenuNotify == 1) {
         gh_SetFont(10);
         TB_Sprintf(str1, gText.fixed[222], gPS_PakName[gGhostPak]);
-        hs_SetJust(1, 3);
+        TB_SetJust(1, 3);
         TB_DrawTextScrollBox(160, 110, 130, TB_GetFontLineHeight() * 6, -1, 0, str1);
-        hs_SetJust(0, 3);
+        TB_SetJust(0, 3);
     } else {
         gh_SetFont(10);
         y = 110;
@@ -454,16 +424,16 @@ void DrawGhost(void)
             }
             if (i == 2 && gGhostStatus[gGhostPak] != 0 && gGhostStatus[gGhostPak] != 1) TB_SetTextColor(4);
             if (i == 1) {
-                TB_DrawText(hs_CenterText(str, 160), y, str);
+                TB_DrawText(TB_CenterText(str, 160), y, str);
                 y += TB_GetFontLineHeight();
                 if (time[0]) {
                     gh_SetFont(2);
-                    TB_DrawText(hs_CenterText(time, 160), y, time);
+                    TB_DrawText(TB_CenterText(time, 160), y, time);
                     gh_SetFont(10);
                 }
             } else {
                 TB_DrawText(95, y, str);
-                if (i == 0) TB_DrawText(hs_RightText(gPS_PakName[gGhostPak], 225), y, gPS_PakName[gGhostPak]);
+                if (i == 0) TB_DrawText(TB_RightText(gPS_PakName[gGhostPak], 225), y, gPS_PakName[gGhostPak]);
             }
             TB_SetTextColor(1);
             y += TB_GetFontLineHeight();

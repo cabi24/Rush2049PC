@@ -97,25 +97,8 @@ void ZOID_ProjectWindow(s32, f32 *, void *, f32 *, s16 *);
 void ZeroCameras(void);
 void TB_Sprintf(char *, char *, ...);
 
-void gfx_lock_AEAC(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_AEAC(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_AEAC(s32 font)
-{
-    s32 old;
-
-    gfx_lock_AEAC();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_AEAC();
-    return old;
-}
 
 void TB_FlashTextColors_AEAC(Color a, Color b)
 {
@@ -123,16 +106,7 @@ void TB_FlashTextColors_AEAC(Color a, Color b)
     gFlashColor2.rgba = b.rgba;
 }
 
-void TB_SetJust_AEAC(s32 h, s32 v)
-{
-    gJust.v = v;
-    gJust.h = h;
-}
 
-s16 TB_CenterText_AEAC(void *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
 void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 {
@@ -153,6 +127,9 @@ void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 
 #define OPT_VALUE(k) gText.strings[gText.info->base + gOptions[k]]
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_CenterText(void *text, s16 centerX);
+void TB_SetJust(u32 first, u32 second);
 void options_animButtonText(void)
 {
     s32 i;
@@ -162,16 +139,16 @@ void options_animButtonText(void)
     s16 screenPos[2];
 
     HAL_SetTextDepth(0.0f);
-    TB_SetJust_AEAC(0, 1);
+    TB_SetJust(0, 1);
     HAL_SetTextDepth(32320.0f);
     ZOID_ProjectWindow(0, options_title_button_pos, gCamera, 0, screenPos);
     x = screenPos[0];
     y = screenPos[1];
-    font_set_AEAC(13);
+    HAL_SetFont(13);
     TB_SetTextColor(1);
     str = gText.hdr->str[50];
-    TB_DrawText(TB_CenterText_AEAC(str, x), y, str);
-    font_set_AEAC(11);
+    TB_DrawText(TB_CenterText(str, x), y, str);
+    HAL_SetFont(11);
     for (i = 0; i < 14; i++) {
         if ((0.69813168f < options_buttonInfo[i].ang && options_buttonInfo[i].ang < 2.443461f) || !options_buttonInfo[i].alpha) {
             continue;
@@ -227,7 +204,7 @@ void options_animButtonText(void)
         }
     }
     ZeroCameras();
-    TB_SetJust_AEAC(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextTranslucency(-1.0f);
     TB_FlashTextColors_AEAC(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
@@ -248,18 +225,18 @@ s32 options_animText(void *item)
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    font_set_AEAC(13);
+    HAL_SetFont(13);
     TB_SetTextColor(1);
     gs = gGameState;
     if ((gs & 0x7C0000) && options_gControllerRemoved) {
         TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.hdr->str[233]);
-        TB_DrawText(TB_CenterText_AEAC(str1, 160), 10, str1);
+        TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {
         str = gText.hdr->str[50];
-        TB_DrawText(TB_CenterText_AEAC(str, 160), 10, str);
+        TB_DrawText(TB_CenterText(str, 160), 10, str);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
-    font_set_AEAC(11);
+    HAL_SetFont(11);
     itemsDrawn = 0;
     for (i = 0; i < 14; i++) {
         if (!options_validOption[i]) {

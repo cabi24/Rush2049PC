@@ -9,7 +9,7 @@
  * and records what they are given. The values and the strings are made up.
  * game: src/blob/groups/hud_text_anims/animPlace.c src/blob/hud_updateFrame.c src/blob/groups/showhud/showhud.c
  * game: src/blob/animDot.c src/blob/animRadarBlip.c src/blob/groups/gameoverscr_draw/results_table.c
- * game: src/blob/animPause.c
+ * game: src/blob/animPause.c src/blob/groups/state/halfont.c src/blob/TB_SetJust.c
  */
 #include <stdarg.h>
 #include <string.h>

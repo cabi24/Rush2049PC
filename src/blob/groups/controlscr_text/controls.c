@@ -90,33 +90,12 @@ void TB_FlashTextColors(TextColor first, TextColor second);   /* TB_FlashTextCol
 void controls_animButtonText(s8 p);
 void TB_DrawEllipseText(s16 x, s16 y, s16 width, void *name);   /* TB_DrawEllipseText (locked, kept) */
 
-void ct_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void ct_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s32 ct_font_set(s32 font)
-{
-    s32 old;
-    ct_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    ct_gfx_unlock();
-    return old;
-}
-s16 ct_CenterText(char *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
-s16 ct_RightText(char *text, s16 rightX)
-{
-    return rightX - HAL_GetTextWidth(text, -1);
-}
 s8 PS_PakRumble(s32 pak);                       /* PS_PakRumble (locked, SaveInit) */
 s32 controls_validOption(s8 player, s32 item);          /* validOption (group member) */
 
 void ct_DrawEllipseText(s16 x, s16 y, s16 w, void *text);
-void ct_SetJust(s32 h, s32 v)
-{
-    gJust[0] = h;
-    gJust[1] = v;
-}
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 void controls_animButtonText(s8 p)
 {
     s32 i;
@@ -130,33 +109,33 @@ void controls_animButtonText(s8 p)
 
     gTextPosScale = controls_gButtonScale;
     if (gNumWindows > 1) gTextPosScale *= 0.5f;
-    ct_font_set(11);
-    ct_SetJust(1, 1);
+    HAL_SetFont(11);
+    TB_SetJust(1, 1);
     if (gPlayers[p].pak != 5 && (controlScrActive[p] == 1 || (gGameState & 0x7C0000))) {
         ZOID_ProjectWindow(p, controls_buttonInfo[p][13].pos, &gCamera[p], 0, screenPos);
         x = screenPos[0];
         y = screenPos[1];
-        if (gNumWindows > 1) ct_font_set(11);
-        else ct_font_set(13);
+        if (gNumWindows > 1) HAL_SetFont(11);
+        else HAL_SetFont(13);
         TB_SetTextColor(1);
         w = gNumWindows == 1 ? 150 : 69;
         str = *gPlayers[p].name + PROFILE_OFS(20);
         ct_DrawEllipseText(x, y, w, str);
-        ct_SetJust(0, 1);
+        TB_SetJust(0, 1);
         if (!controlScrActive[p]) {
             if (gGameState & 0x7C0000) {
-                if (gNumWindows == 1) ct_font_set(10);
-                else ct_font_set(11);
+                if (gNumWindows == 1) HAL_SetFont(10);
+                else HAL_SetFont(11);
                 TB_SetTextColor(1);
-                ct_SetJust(1, 1);
+                TB_SetJust(1, 1);
                 TB_DrawTextScrollBox(controls_gPlayerRects[gNumWindows - 1][p].x, controls_gPlayerRects[gNumWindows - 1][p].f20,
                                    controls_gPlayerRects[gNumWindows - 1][p].w, controls_gPlayerRects[gNumWindows - 1][p].h,
                                    -1, 0, gText.fixed[38]);
-                ct_SetJust(0, 3);
+                TB_SetJust(0, 3);
             }
         } else {
-            if (gNumWindows == 1) ct_font_set(11);
-            else ct_font_set(12);
+            if (gNumWindows == 1) HAL_SetFont(11);
+            else HAL_SetFont(12);
             for (i = 0; i < 12; i++) {
                 if (controls_buttonInfo[p][i].angle > 0.69813168f && controls_buttonInfo[p][i].angle < 2.443461f) continue;
                 if (!controls_buttonInfo[p][i].alpha) continue;
@@ -188,7 +167,7 @@ void controls_animButtonText(s8 p)
             }
         }
     }
-    ct_SetJust(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextTranslucency(-1.0f);
     HAL_SetTextDepth(0.0f);
 }
@@ -199,6 +178,8 @@ void ct_DrawEllipseText(s16 x, s16 y, s16 w, void *text)
     TB_EllipseText((char *)str, text, w);
     TB_DrawText(x, y, (char *)str);
 }
+s16 TB_CenterText(void *text, s16 centerX);
+s16 TB_RightText(void *text, s16 rightX);
 s32 controls_animText(s32 arg0)
 {
     s32 i;
@@ -216,7 +197,7 @@ s32 controls_animText(s32 arg0)
             controls_animButtonText(p);
             continue;
         }
-        ct_font_set(11);
+        HAL_SetFont(11);
         if (gPlayers[p].pak != 5 && (controlScrActive[p] == 1 || (gGameState & 0x7C0000))) {
             y = controls_gPlayerRects[gNumWindows - 1][p].y + 10;
             x = controls_gPlayerRects[gNumWindows - 1][p].x;
@@ -227,16 +208,16 @@ s32 controls_animText(s32 arg0)
                 TB_EllipseText(pName, *gPlayers[p].name + PROFILE_OFS(20), 69);
                 TB_Sprintf(str1, gText.fixed[37], pName);
             }
-            TB_DrawText(ct_CenterText(str1, x), y, str1);
+            TB_DrawText(TB_CenterText(str1, x), y, str1);
             TB_GetFontLineHeight();
             if (!controlScrActive[p]) {
                 if (gGameState & 0x7C0000) {
                     TB_SetTextColor(1);
-                    ct_SetJust(1, 1);
+                    TB_SetJust(1, 1);
                     TB_DrawTextScrollBox(controls_gPlayerRects[gNumWindows - 1][p].x, controls_gPlayerRects[gNumWindows - 1][p].f20,
                                        controls_gPlayerRects[gNumWindows - 1][p].w / 2, controls_gPlayerRects[gNumWindows - 1][p].h,
                                        -1, 0, gText.fixed[38]);
-                    ct_SetJust(0, 3);
+                    TB_SetJust(0, 3);
                 }
             } else {
                 itemsDrawn = 0;
@@ -251,9 +232,9 @@ s32 controls_animText(s32 arg0)
                             TB_SetTextColor(i == gControlSelect[p] ? 22 : 1);
                         str = gText.strings[gText.indices->controlNames + i];
                         if (i == 11)
-                            TB_DrawText(ct_CenterText(str, controls_gPlayerRects[gNumWindows - 1][p].x), y, str);
+                            TB_DrawText(TB_CenterText(str, controls_gPlayerRects[gNumWindows - 1][p].x), y, str);
                         else
-                            TB_DrawText(ct_RightText(str, x), y, str);
+                            TB_DrawText(TB_RightText(str, x), y, str);
                         if (i == 10) {
                             if (!PS_PakRumble(gPlayers[p].pak))
                                 str = gText.strings[gText.indices->rumbleOff];

@@ -104,15 +104,15 @@ s32 Hidden_6B3C(Blit *blt, s32 hide)
     return blt->hidden;
 }
 
-void gfx_lock_6B3C(void);
-void gfx_unlock_6B3C(void);
-s32 font_set_6B3C(s32 font);
 
 s32 getB6_6B3C(s32 ctl)
 {
     return gPaks[ctl].b6;
 }
 
+s32 HAL_SetFont(s32 fontID);
+void text_lock(void);
+void text_unlock(void);
 s32 anim_no_rumble_text(Blit *blt)
 {
     u32 width;
@@ -127,13 +127,13 @@ s32 anim_no_rumble_text(Blit *blt)
         return 0;
     }
     TB_SetJust_6B3C(1, 1);
-    font_set_6B3C(11);
+    HAL_SetFont(11);
     width = HAL_GetTextWidth(gText_single->text, -1);
     limit = (gNumWindows >= 3) ? 160 : ((gNumWindows >= 2) ? 240 : 320);
     if (limit + 8 < width) {
-        gfx_lock_6B3C();
+        text_lock();
         HAL_SetFontInternal(12);
-        gfx_unlock_6B3C();
+        text_unlock();
     }
     for (i = 0; i < gNumWindows; i++) {
         if ((gGameState & 0x200000) && !gPauseState) {
@@ -150,23 +150,6 @@ s32 anim_no_rumble_text(Blit *blt)
     return 1;
 }
 
-void gfx_lock_6B3C(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_6B3C(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_6B3C(s32 font)
-{
-    s32 old;
-
-    gfx_lock_6B3C();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_6B3C();
-    return old;
-}
 

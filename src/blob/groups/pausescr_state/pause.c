@@ -52,19 +52,10 @@ void updatePauseStateCleanup(void);
 void pause_TitlePane(void);                     /* _TitlePane@pausescr.c */
 s32 animControllerDimInternal();                       /* animRumblePane */
 
-void ps_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void ps_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s32 ps_font_set(s32 font)
-{
-    s32 old;
-    ps_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    ps_gfx_unlock();
-    return old;
-}
+s32 HAL_SetFont(s32 fontID);
 void ps_SetFont(s32 font)
 {
-    ps_font_set(font);
+    HAL_SetFont(font);
 }
 
 void ps_updatePauseStateCreate(void)

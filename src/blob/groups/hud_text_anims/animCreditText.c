@@ -60,16 +60,8 @@ void UpdateBlit(void *);
 void TB_SetTextColor(s32);
 void TB_DrawText(s16, s16, void *);
 
-s32 font_set_A53C(s32 font)
-{
-    s32 old;
 
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-    old = HAL_SetFontInternal(font);
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-    return old;
-}
-
+s32 HAL_SetFont(s32 fontID);
 s32 animCreditText(Blit *blt)
 {
     s32 x;
@@ -104,7 +96,7 @@ s32 animCreditText(Blit *blt)
         y = 155 - gNumCreditNames * 10;
         break;
     }
-    font_set_A53C(11);
+    HAL_SetFont(11);
     TB_SetTextColor(14);
     sx = x;
     TB_DrawText(sx, y, gText.strings[gText.info->lang + gCredit]);

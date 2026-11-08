@@ -62,25 +62,8 @@ s32 HAL_GetCharWidth(u16 id);
 s8 HAL_SetFontFixedWidth(s8 value);
 s16 TB_GetFontLineHeight(void);
 
-void gfx_lock_8154(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_8154(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_8154(s32 font)
-{
-    s32 old;
-
-    gfx_lock_8154();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_8154();
-    return old;
-}
 
 s32 Hidden_8154(Blit *blt, s32 hide)
 {
@@ -91,6 +74,7 @@ s32 Hidden_8154(Blit *blt, s32 hide)
     return blt->hidden;
 }
 
+s32 HAL_SetFont(s32 fontID);
 s32 animLapTime(Blit *blt)
 {
     s32 x;
@@ -112,9 +96,9 @@ s32 animLapTime(Blit *blt)
         return 1;
     }
     if (gNumWindows == 1) {
-        font_set_8154(1);
+        HAL_SetFont(1);
     } else {
-        font_set_8154(2);
+        HAL_SetFont(2);
     }
     digitW = HAL_GetCharWidth(56) + 1;
     fixedWidth = HAL_SetFontFixedWidth(0);

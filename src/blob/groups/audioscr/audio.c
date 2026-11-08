@@ -64,24 +64,6 @@ void TB_FlashTextColors(TextColor first, TextColor second)   /* TB_FlashTextColo
     gFlashColor2.rgba = second.rgba;
 }
 
-void au_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void au_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s32 au_font_set(s32 font)
-{
-    s32 old;
-    au_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    au_gfx_unlock();
-    return old;
-}
-s16 au_CenterText(char *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
-s16 au_RightText(char *text, s16 rightX)
-{
-    return rightX - HAL_GetTextWidth(text, -1);
-}
 
 void au_SetJust(s32 h, s32 v)
 {
@@ -89,9 +71,10 @@ void au_SetJust(s32 h, s32 v)
     gJust[0] = h;
 }
 
+s32 HAL_SetFont(s32 fontID);
 void au_SetFont(s32 font)
 {
-    au_font_set(font);
+    HAL_SetFont(font);
 }
 
 s8 au_validOption(s32 i)
@@ -99,6 +82,7 @@ s8 au_validOption(s32 i)
     return 1;
 }
 
+s16 TB_CenterText(void *text, s16 centerX);
 void audio_animButtonText(void)
 {
     s32 i;
@@ -115,8 +99,8 @@ void audio_animButtonText(void)
     ZOID_ProjectWindow(0, audio_title_button_pos, gCamera, 0, screenPos);
     x = screenPos[0];
     y = screenPos[1];
-    TB_DrawText(au_CenterText(gText.fixed[52], x), y, gText.fixed[52]);
-    au_font_set(11);
+    TB_DrawText(TB_CenterText(gText.fixed[52], x), y, gText.fixed[52]);
+    HAL_SetFont(11);
     for (i = 0; i < 4; i++) {
         if (audio_buttonInfo[i].angle > 0.69813168f && audio_buttonInfo[i].angle < 2.443461f) continue;
         if (!au_validOption(i)) continue;
@@ -167,6 +151,7 @@ void audio_animButtonText(void)
 }
 
 
+s16 TB_RightText(void *text, s16 rightX);
 s32 audio_animText(s32 arg0)
 {
     s32 i;
@@ -184,17 +169,17 @@ s32 audio_animText(s32 arg0)
     TB_SetTextColor(1);
     if ((gGameState & 0x7C0000) && audio_gControllerRemoved) {
         TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
-        TB_DrawText(au_CenterText(str, 160), 10, str);
+        TB_DrawText(TB_CenterText(str, 160), 10, str);
     } else {
-        TB_DrawText(au_CenterText(gText.fixed[52], 160), 10, gText.fixed[52]);
+        TB_DrawText(TB_CenterText(gText.fixed[52], 160), 10, gText.fixed[52]);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
-    au_font_set(10);
+    HAL_SetFont(10);
     x = audio_menuRect_cx;
     for (i = 0; i < 4; i++) {
         if (!au_validOption(i)) continue;
         TB_SetTextColor(i == gAudioMenuSelect ? 22 : 1);
-        TB_DrawText(au_RightText(gText.strings[gText.indices->optionNames + i], x - 5), y,
+        TB_DrawText(TB_RightText(gText.strings[gText.indices->optionNames + i], x - 5), y,
                       gText.strings[gText.indices->optionNames + i]);
         switch (i) {
         case 0:

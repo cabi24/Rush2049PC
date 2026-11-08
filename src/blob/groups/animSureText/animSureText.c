@@ -83,17 +83,6 @@ extern PlayerRec gPlayers[];
 extern s32 playerTextColor[];
 void TB_DrawText(s16, s16, void *);
 
-void gfx_lock_B9C8(void);
-void gfx_unlock_B9C8(void);
-s32 font_set_B9C8(s32 font)
-{
-    s32 old;
-
-    gfx_lock_B9C8();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_B9C8();
-    return old;
-}
 
 s32 item_disable_B9C8(MenuItem *item, s32 off)
 {
@@ -104,11 +93,9 @@ s32 item_disable_B9C8(MenuItem *item, s32 off)
     return item->dirty;
 }
 
-s16 TB_CenterText_B9C8(void *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
+s32 HAL_SetFont(s32 fontID);
+s16 TB_CenterText(void *text, s16 centerX);
 s32 animSureText(MenuItem *item) {
     s32 w;
     s32 x;
@@ -119,34 +106,26 @@ s32 animSureText(MenuItem *item) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    font_set_B9C8(13);
+    HAL_SetFont(13);
     x = pause_titlePos[0];
     y = pause_titlePos[1] + TB_GetFontLineHeight() * 2;
-    font_set_B9C8(10);
+    HAL_SetFont(10);
     TB_SetTextColor(1);
     str = gText.hdr->unk360;
-    TB_DrawText(TB_CenterText_B9C8((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
     y += TB_GetFontLineHeight();
     w = HAL_GetTextWidth((void *)gText.hdr->unk360, -1);
     x = pause_titlePos[0] - w / 4;
     str = gText.strings[gText.info->sel];
     TB_SetTextColor(pause_gYes ? 22 : 1);
-    TB_DrawText(TB_CenterText_B9C8((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
     x = pause_titlePos[0] + w / 4;
     str = gText.strings[gText.info->sel + 1];
     TB_SetTextColor(pause_gYes ? 1 : 22);
-    TB_DrawText(TB_CenterText_B9C8((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
-void gfx_lock_B9C8(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_B9C8(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 

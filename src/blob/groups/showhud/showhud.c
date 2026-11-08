@@ -79,9 +79,6 @@ extern OSMesgQueue text_lock_queue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32 fontID);
-void _GetSemaphore_ShowHUD(void);
-void _ReleaseSemaphore_ShowHUD(void);
-s32 HAL_SetFont_ShowHUD(s32 fontID);
 extern u32 HAL_GetTextWidth(void *, s16);
 
 extern f32 Random(f32);
@@ -139,6 +136,7 @@ static s16 pc_hud_race_n(void)
 #define PC_HUD_RACE_SET pc_hud_race_set()
 #define PC_HUD_RACE_N pc_hud_race_n()
 
+s32 HAL_SetFont(s32 fontID);
 void ShowHUD(void) {
     s32 created = 0;
     s32 x;
@@ -187,7 +185,7 @@ void ShowHUD(void) {
             nextSwitch += delay;
             gCredit++;
             gCorner = Random(4.0f);
-            HAL_SetFont_ShowHUD(11);
+            HAL_SetFont(11);
             gCreditWidth = HAL_GetTextWidth((void *)gText.ptrs2[gText.data1[0] + gCredit], -1);
             for (gNumCreditNames = 0; cStrCreditNames[gCredit][gNumCreditNames]; gNumCreditNames++) {
                 if (gCreditWidth < HAL_GetTextWidth(cStrCreditNames[gCredit][gNumCreditNames], -1)) {
@@ -218,5 +216,4 @@ void ShowHUD(void) {
     }
 }
 
-void _GetSemaphore_ShowHUD(void) { osRecvMesg(&text_lock_queue, (void **)0, 1); }
-void _ReleaseSemaphore_ShowHUD(void) { osSendMesg(&text_lock_queue, (void *)0, 0); } s32 HAL_SetFont_ShowHUD(s32 fontID) { s32 old; _GetSemaphore_ShowHUD(); old = HAL_SetFontInternal(fontID); _ReleaseSemaphore_ShowHUD(); return old; }
+ 

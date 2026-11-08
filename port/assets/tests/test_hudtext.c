@@ -4,7 +4,7 @@
  * slots (N64 layout), and its units from the text bank's string table (a host pointer at +8, ModelTables); the
  * panes' InitPane takes a pointer-sized sixth argument. The test stands in for the font and
  * text functions and records what they draw.
- * game: nonmatching/game/animSpeedText.c nonmatching/game/video_animPanes.c
+ * game: nonmatching/game/animSpeedText.c nonmatching/game/video_animPanes.c src/blob/TB_SetJust.c
  */
 #include <stddef.h>
 #include <string.h>

@@ -13,7 +13,7 @@
  * game: src/blob/SetControls.c src/blob/groups/game_sounds/StartListeners.c
  * game: src/blob/groups/listeners/AudRemoveListener.c src/blob/UpdateListeners.c src/blob/NewCircuit.c
  * game: src/blob/groups/animTitleText/animTitleText.c src/blob/groups/animPauseText/animPauseText.c
- * game: src/blob/groups/animSureText/animSureText.c
+ * game: src/blob/groups/animSureText/animSureText.c src/blob/groups/state/halfont.c src/blob/TB_CenterText.c
  */
 #include <stddef.h>
 #include <string.h>

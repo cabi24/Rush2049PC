@@ -145,13 +145,6 @@ extern void drawBattleStandings(void),drawStuntStandings(void),drawBattleScore(v
 void drawRaceStandings(void);
 void drawStuntScore(void);
 extern s32 gameover_validOption(s32),TB_GetFontLineHeight(void);
-void rt_gfx_lock(void) {osRecvMesg(&text_lock_queue,0,1);}
-void rt_gfx_unlock(void) {osSendMesg(&text_lock_queue,0,0);}
-s32 rt_font_set(s32 font) {
-    s32 previous;
-    rt_gfx_lock();previous=HAL_SetFontInternal(font);rt_gfx_unlock();
-    return previous;
-}
 s16 rs_CenterText(char *text, s16 centerX);
 void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text)
 {
@@ -160,11 +153,6 @@ void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text)
     TB_DrawText(x, y, str);
 }
 
-void rs_SetJust(s32 h, s32 v)
-{
-    gJust[0] = h;
-    gJust[1] = v;
-}
 
 /* PC: the finishing place's text (docs/port/MORECARS.md 7). The text bank holds six ordinals from `first`, first to
  * sixth, in the language in effect; what follows them is other text (in English, Dutch and French each ordinal's
@@ -196,6 +184,8 @@ static char *pc_place_text(char **strings, s32 first, s32 place)
 }
 #define PC_PLACE_TEXT(strings, first, place) pc_place_text(strings, first, place)
 
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 void drawRaceStandings(void)
 {
     s32 x;
@@ -232,15 +222,15 @@ void drawRaceStandings(void)
         }
     }
     HAL_SetTextDepth(0.0f);
-    rs_SetJust(1, 1);
-    rt_font_set(11);
+    TB_SetJust(1, 1);
+    HAL_SetFont(11);
     for (row = 0; row < rows; row++) {
         for (col = 0; col < cols; col++) {
             x = 160 - cols * 60 / 2 + col * 60;
             y = 36 + row * 14;
             if (row == 0 && col == 0) continue;
             if (col == 0) {
-                rt_font_set(11);
+                HAL_SetFont(11);
                 if (gRankedPlayer[row - 1] < gNumPlayers) {
                     TB_SetTextColor(playerTextColor[gRankedPlayer[row - 1]]);
                     str = gPlayers[gRankedPlayer[row - 1]].name[0] + PROFILE_OFS(20);
@@ -250,7 +240,7 @@ void drawRaceStandings(void)
                 }
                 rs_DrawEllipseText(x + 30, y + 7, 60, str);
             } else if (row == 0) {
-                rt_font_set(11);
+                HAL_SetFont(11);
                 TB_SetTextColor(1);
                 if (col == 1) str = gText.fixed[208];
                 else if (col == 2) str = gText.fixed[210];
@@ -259,29 +249,29 @@ void drawRaceStandings(void)
                 if (col == 1) {
                     if (gLap[gRankedPlayer[row - 1]] == gNumLaps) {
                         time = PC_CAR_TIME(gRankedPlayer[row - 1]);
-                        rt_font_set(3);
+                        HAL_SetFont(3);
                         TB_SetTextColor(1);
                         TB_Sprintf(str1, race_standings_time_format, (u32)(time / 60.0f), (u32)time % 60, (u32)(time * 1000.0f) % 1000);
                         str = str1;
                     } else {
-                        rt_font_set(11);
+                        HAL_SetFont(11);
                         TB_SetTextColor(1);
                         str = gText.fixed[215];
                     }
                 } else if (col == 2) {
                     if (gLap[gRankedPlayer[row - 1]] > 0) {
                         time2 = gBestLapTime[gRankedPlayer[row - 1]];
-                        rt_font_set(3);
+                        HAL_SetFont(3);
                         TB_SetTextColor(1);
                         TB_Sprintf(str1, race_standings_lap_format, (u32)(time2 / 60.0f), (u32)time2 % 60, (u32)(time2 * 1000.0f) % 1000);
                         str = str1;
                     } else {
-                        rt_font_set(11);
+                        HAL_SetFont(11);
                         TB_SetTextColor(1);
                         str = gText.fixed[215];
                     }
                 } else if (col == 3) {
-                    rt_font_set(11);
+                    HAL_SetFont(11);
                     TB_SetTextColor(1);
                     str = PC_PLACE_TEXT(gText.strings, ((TextIdx2 *)gText.indices)->cars, PC_CAR_PLACE(PC_MODEL_SLOT(gRankedPlayer[row - 1])));
                 }
@@ -290,7 +280,7 @@ void drawRaceStandings(void)
         }
     }
     HAL_SetTextDepth(-1.0f);
-    rs_SetJust(0, 3);
+    TB_SetJust(0, 3);
 }
 
 void drawBattleStandings(void)
@@ -420,7 +410,7 @@ void drawStuntStandings(void)
                     s32 i;
                     x=column*60+100;
                     y=row*14+43;
-                    rt_font_set(11);
+                    HAL_SetFont(11);
                     if(gRankedPlayer[row-1]<gNumPlayers) {
                         TB_SetTextColor(playerTextColor[gRankedPlayer[row-1]]);
                         text=gPlayers[gRankedPlayer[row-1]].name[0]+PROFILE_OFS(20);
@@ -431,7 +421,7 @@ void drawStuntStandings(void)
                     TB_EllipseText(label,text,60);
                     TB_DrawText(x,y,label);
                 } else if(row==0) {
-                    rt_font_set(12);
+                    HAL_SetFont(12);
                     if(column==1) {
                         TB_SetTextColor(1);
                         text=gText.fixed[130];
@@ -522,7 +512,7 @@ void drawStuntScore(void)
                     TB_EllipseText(label,text,60);
                     TB_DrawText(left+x+30,y+7,label);
                 } else if(column==0) {
-                    rt_font_set(12);
+                    HAL_SetFont(12);
                     if(row==1) {
                         TB_SetTextColor(1);
                         text=gText.fixed[130];
@@ -548,7 +538,7 @@ void drawStuntScore(void)
                     text=value;
                 }
                 if(row!=0) TB_DrawText(column*60-columns*60/2+190,y+7,text);
-                rt_font_set(11);
+                HAL_SetFont(11);
             }
         }
     }
@@ -565,13 +555,13 @@ void drawMain(void)
     s16 y;
     HAL_SetTextDepth(0.0f);
     gJust[0]=1;gJust[1]=3;
-    rt_font_set(13);
+    HAL_SetFont(13);
     TB_SetTextColor(1);
     x=gameover_titlePos[0];y=gameover_titlePos[1];
     text=gText.fixed[63];
     TB_DrawText(x,y,text);
     y=118;
-    rt_font_set(10);
+    HAL_SetFont(10);
     for(item=0;item<7;item++) {
         if(!gameover_validOption(item)) continue;
         {
@@ -598,6 +588,7 @@ extern s32 gGameOverState;
 extern f32 best_lap_time_by_column[];
 extern f32 gLapTimes[][8];
 extern char race_score_time_format[],race_score_best_lap_format[],race_score_lap_time_format[];
+void text_lock(void);
 void drawBattleScore(void)
 {
     s32 x;
@@ -659,7 +650,7 @@ void drawBattleScore(void)
     }
     HAL_SetTextDepth(0.0f);
     gJust[0]=1;gJust[1]=1;
-    rt_gfx_lock(); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+    text_lock(); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
@@ -703,11 +694,6 @@ void drawBattleScore(void)
     }
     HAL_SetTextDepth(-1.0f);
     gJust[1]=3;gJust[0]=0;
-}
-s32 rt_font_set_b(s32 font) {
-    s32 previous;
-    rt_gfx_lock();previous=HAL_SetFontInternal(font);osSendMesg(&text_lock_queue,0,0);
-    return previous;
 }
 s32 gameover_animText(s32 arg0)
 {
@@ -772,7 +758,7 @@ s32 gameover_animText(s32 arg0)
             }
             HAL_SetTextDepth(0.0f);
             gJust[0]=1;gJust[1]=1;
-            rt_font_set_b(11);
+            HAL_SetFont(11);
             for(row=0;row<rows;row++) {
                 for(column=0;column<columns;column++) {
                     if(row==0 && column==0) continue;
@@ -780,7 +766,7 @@ s32 gameover_animText(s32 arg0)
                         y=row*16-rows*16/2+110;
                         if(row>=3) y+=8;
                         if(row==0) {
-                            rt_font_set_b(11);
+                            HAL_SetFont(11);
                             TB_SetTextColor(playerTextColor[column-1]);
                             text=gPlayers[column-1].name[0]+PROFILE_OFS(20);
                             left=160-columns*60/2;
@@ -788,7 +774,7 @@ s32 gameover_animText(s32 arg0)
                             TB_EllipseText(label,text,60);
                             TB_DrawText(left+x+30,y+8,label);
                         } else if(column==0) {
-                            rt_font_set_b(11);
+                            HAL_SetFont(11);
                             if(row==1) {
                                 TB_SetTextColor(1);
                                 text=gText.fixed[208];
@@ -803,36 +789,36 @@ s32 gameover_animText(s32 arg0)
                         } else if(row==1) {
                             if(gLap[gPlayers[column-1].vehicle]==gNumLaps) {
                                 t=PC_CAR_TIME(gPlayers[column-1].vehicle);
-                                rt_font_set(3);
+                                HAL_SetFont(3);
                                 TB_SetTextColor(1);
                                 TB_Sprintf(value,race_score_time_format,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);
                                 text=value;
                             } else {
-                                rt_font_set_b(11);
+                                HAL_SetFont(11);
                                 TB_SetTextColor(1);
                                 text=gText.fixed[215];
                             }
                         } else if(row==2) {
                             if(gLap[gPlayers[column-1].vehicle]>0) {
                                 t=best_lap_time_by_column[column];
-                                rt_font_set(3);
+                                HAL_SetFont(3);
                                 TB_SetTextColor(1);
                                 TB_Sprintf(value,race_score_best_lap_format,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);
                                 text=value;
                             } else {
-                                rt_font_set_b(11);
+                                HAL_SetFont(11);
                                 TB_SetTextColor(1);
                                 text=gText.fixed[215];
                             }
                         } else {
                             if(row-3<gLap[gPlayers[column-1].vehicle]) {
                                 t=gLapTimes[column-1][row-3];
-                                rt_font_set(3);
+                                HAL_SetFont(3);
                                 TB_SetTextColor(1);
                                 TB_Sprintf(value,race_score_lap_time_format,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);
                                 text=value;
                             } else {
-                                rt_font_set_b(11);
+                                HAL_SetFont(11);
                                 TB_SetTextColor(1);
                                 text=gText.fixed[215];
                             }

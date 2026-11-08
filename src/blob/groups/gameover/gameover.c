@@ -108,26 +108,10 @@ void setGameOverState(s32 mode);
 void gameover_uninitScreen(void);
 void controlMain(void);
 
-void gfx_lock_go(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_go(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_go(s32 font)
-{
-    s32 old;
 
-    gfx_lock_go();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_go();
-    return old;
-}
-
+s32 HAL_SetFont(s32 fontID);
 void setGameOverState(s32 mode)
 {
     s32 width;
@@ -145,13 +129,13 @@ void setGameOverState(s32 mode)
     }
     gGameOverState = mode;
     if (gGameOverState == 1) {
-        font_set_go(13);
+        HAL_SetFont(13);
         width = HAL_GetTextWidth(gText.single[63], -1);
         x = gameover_titlePos[0];
         y = gameover_titlePos[1];
         h = TB_GetFontLineHeight();
         InitPane(x - width / 2 - 8, y - 4, width / 2 + x + 8, h + y + 4, 176, 0, 0, 0);
-        font_set_go(10);
+        HAL_SetFont(10);
         width = 0;
         count = 0;
         for (i = 0; i < 7; i++) {

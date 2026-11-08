@@ -11,7 +11,7 @@
  *    di_ProcessCommand (GC AudKillSong -> _ProcessCommand(cmd)); calling the shared kept AudKillSong is not
  *    inlined in the unit (same knapsack). `task = GetCmd(); task->type = 1;` on one line gives retail's
  *    `li t8,1; sb t8,2(v0); move s0,v0` order (as1 line tie).
- * - di_setButtonColor = GC ZOID_SetColor (non-static, not on keep: stub rule).
+ * - the button colours go through ZOID_SetColor, as MAT3 initButtons does (the N64 inlined it).
  * N64 differences from GC kept as in: 12 named songs + random/off, table indices, random song 6, button y 55.2.
  * DISCLOSED DEVICES:
  *  1. `do {} while (0);` after the last ZOID_SetTexture (ZOID_SetTexture(buttonInfo[11]...)): a block end that adds a
@@ -60,7 +60,6 @@ void createBG(void); void ZeroCameras(void); void ClearRushControls(void);
 Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 void audio_calcMenuRect(void);void AudKillSong(void);void AudSetMusicVol(f32,f32);void AudPlaySong(s32,s32);void StartGameMusic(void);
 s16 MBOX_NewObject(s32,void *,s32,u32);void SaveGlobals(void);
-void di_setButtonColor(s16 objnum,Color *col) { ObjInstanceList[objnum].color=col->rgba; }
 typedef struct OSMesgQueue OSMesgQueue;
 typedef struct Msg { s16 id; s8 type, used; u8 payload[20]; } Msg;
 extern s32 audio_command_queue;
@@ -87,6 +86,7 @@ void di_post_type1(void)
     di_ProcessCommand(task);
 }
 extern void SaveGlobals(void);
+void ZOID_SetColor(s16 objnum, Color *col);
 void audio_initScreen(void)
 {
     s32 u0, u1, u2, u3;
@@ -110,7 +110,7 @@ void audio_initScreen(void)
                     (audio_buttonInfo[buttonIdx].type == 0 ||
                      audio_buttonInfo[buttonIdx].type == 1 ||
                      audio_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
-                di_setButtonColor(audio_buttonInfo[buttonIdx].handle, &buttonColor);
+                ZOID_SetColor(audio_buttonInfo[buttonIdx].handle, &buttonColor);
             }
         }
         tex = MBOX_FindTexture_WORK(audio_init_texture_name_1, &texIdx, 0, (s8)(gNumModels - 1), 1);

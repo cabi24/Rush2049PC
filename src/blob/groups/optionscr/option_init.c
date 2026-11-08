@@ -10,8 +10,7 @@
  * nested helpers (op_gfx_lock/op_gfx_unlock). The three-level form (op_SetFont -> op_font_set -> lock)
  *    is inlined at zero growth BEFORE the single-caller helpers are considered and pushes them over umerge's
  *    per-edge size limit; this form goes through umerge's later knapsack pass, after both helpers are inlined.
- *  - ZOID_SetColor with one nested level (op_setButtonColor -> op_ZOID_SetColorP), as the same file's
- *    updateButtons (ZOID_SetColor_da -> ZOID_SetColorP_da, buttons.c): +8 B of inline area below buttonColor.
+ *  - the button colours go through ZOID_SetColor, as MAT3 initButtons does (the N64 inlined it).
  *  - Dreamcast optionscr.c confirms the N64 height base 210 (GC 214).
  * DISCLOSED DEVICE: one unused local `u0` in replay_save_prompt = the exact frame residual. Retail frame 256, without
  * it 248 (every sp-relative offset already retail's); one 4-byte slot, frame rounded to 8 -> 256. GC DWARF lists only
@@ -80,13 +79,13 @@ void options_TitlePane(void);                    /* _TitlePane@optionscr.c */
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
-s32 op_HAL_SetFont(s32 sel);
 
 
 
 void op_calcOptionMenuMaxSize(void);
 void op_initButtons(void);
 
+s32 HAL_SetFont(s32 fontID);
 void options_initScreen(void)
 {
     s16 y;
@@ -106,10 +105,10 @@ void options_initScreen(void)
         options_blit = NewMultiBlit(0, 0, &options_frontEndBlit, 1);
     } else {
         options_gControllerRemoved = !gControllerData[playerInPause].attached;
-        op_HAL_SetFont(13);
+        HAL_SetFont(13);
         options_TitlePane();
         y = TB_GetFontLineHeight() * 2 + 10;
-        op_HAL_SetFont(11);
+        HAL_SetFont(11);
         InitPane(40, y - 4, 280, y + (gOptionMenuSize * TB_GetFontLineHeight() + 4), 176, 0, 0, 0);
         options_blit = NewMultiBlit(0, 0, &options_pauseBlit, 1);
     }

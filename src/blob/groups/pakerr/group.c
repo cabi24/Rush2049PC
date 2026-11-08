@@ -90,51 +90,23 @@ extern void SetControllerActive(s32, s32);
 extern void SetControllerStickEdges(s32, s32);
 extern void UpdateRushControls(void);
 
-void gfx_lock_DC(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_DC(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_DC(s32 font)
-{
-    s32 old;
 
-    gfx_lock_DC();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_DC();
-    return old;
-}
 
-s32 font_set1_DC(s32 font)
-{
-    s32 old;
 
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-    old = HAL_SetFontInternal(font); osSendMesg(&text_lock_queue, (void *)0, 0);
-    return old;
-}
-
-void pair_set_DC(s32 first, s32 second)
-{
-    gJust.first = first;
-    gJust.second = second;
-}
-
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 void DrawPakErrNQA(s32 row, s32 col, u8 *text)
 {
     Cell *c;
 
-    font_set1_DC(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     c = &gPakError[row][col];
-    pair_set_DC(1, 1);
+    TB_SetJust(1, 1);
     TB_DrawTextScrollBox(c->w / 2 + c->x, c->h / 2 + c->y, c->w, c->h, -1, 0, text);
-    pair_set_DC(0, 3);
+    TB_SetJust(0, 3);
 }
 
 void DrawChoice3(s32 row, s32 col, u8 *text, char *s1, char *s2, char *s3, s32 sel1, s32 sel2)
@@ -144,24 +116,24 @@ void DrawChoice3(s32 row, s32 col, u8 *text, char *s1, char *s2, char *s3, s32 s
     s32 fh;
     s32 x;
 
-    pair_set_DC(1, 1);
-    font_set_DC(11);
+    TB_SetJust(1, 1);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     c = &gPakError[row][col];
     TB_DrawTextScrollBox(c->w / 2 + c->x, (c->h - 40) / 2 + c->y + 20, c->w, c->h - 40, -1, 0, text);
     fh = TB_GetFontLineHeight();
     x = c->w / 2 + c->x;
     y = c->h + c->y - fh * 3;
-    font_set_DC(sel1 ? 10 : 11);
+    HAL_SetFont(sel1 ? 10 : 11);
     TB_SetTextColor(sel1 ? 22 : 1);
     TB_DrawText(x, y - (sel1 ? 1 : 0), s1);
-    font_set_DC(sel2 ? 10 : 11);
+    HAL_SetFont(sel2 ? 10 : 11);
     TB_SetTextColor(sel2 ? 22 : 1);
     TB_DrawText(x, y - (sel2 ? 1 : 0) + fh, s2);
-    font_set_DC((sel1 || sel2) ? 11 : 10);
+    HAL_SetFont((sel1 || sel2) ? 11 : 10);
     TB_SetTextColor((sel1 || sel2) ? 1 : 22);
     TB_DrawText(x, y - ((sel1 || sel2) ? 0 : 1) + fh * 2, s3);
-    pair_set_DC(0, 3);
+    TB_SetJust(0, 3);
 }
 
 void ControlPakErrNQA(s32 arg1, s32 arg2)
@@ -203,20 +175,20 @@ void DrawChoice(s32 row, s32 col, intptr_t text, char *a, char *b, s32 sel)
     s32 x;
 
     TB_SetTextColor(1);
-    font_set_DC(11);
+    HAL_SetFont(11);
     c = &gPakError[row][col];
-    pair_set_DC(1, 1);
+    TB_SetJust(1, 1);
     TB_DrawTextScrollBox(c->w / 2 + c->x, (c->h - 40) / 2 + c->y + 20, c->w, c->h - 40, -1, 0, (u8 *)text);
     fh = TB_GetFontLineHeight();
     x = c->w / 2 + c->x;
     y = c->h + c->y - fh * 3;
-    font_set_DC(sel ? 11 : 10);
+    HAL_SetFont(sel ? 11 : 10);
     TB_SetTextColor(sel ? 1 : 22);
     TB_DrawText(x, y - (sel ? 0 : 1) + fh, gText.msg[944 / 4]);
-    font_set_DC(sel ? 10 : 11);
+    HAL_SetFont(sel ? 10 : 11);
     TB_SetTextColor(sel ? 22 : 1);
     TB_DrawText(x, y - (sel ? 1 : 0), gText.strings[gText.lang[25]]);
-    pair_set_DC(0, 3);
+    TB_SetJust(0, 3);
 }
 
 void DrawPakErrNoPak(s32 row, s32 col)
@@ -228,53 +200,43 @@ void DrawPakErrNoPak(s32 row, s32 col)
     s32 big;
 
     big = !(gGameState & 0x7C03FFFE);
-    font_set_DC(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     TB_Strcpy(buf, gText.msg[416 / 4]);
     TB_Strcat(buf, (u8 *)(big ? gText.msg[412 / 4] : gText.msg[408 / 4]));
-    pair_set_DC(1, 1);
+    TB_SetJust(1, 1);
     TB_DrawTextScrollBox(gPakError[row][col].x + gPakError[row][col].w / 2, gPakError[row][col].y + (gPakError[row][col].h - (big ? 40 : 20)) / 2 + 20, gPakError[row][col].w, gPakError[row][col].h - (big ? 40 : 20),
                        -1, 0, buf);
     if (big) {
         fh = TB_GetFontLineHeight();
         x = gPakError[row][col].x + gPakError[row][col].w / 2;
         y = gPakError[row][col].y + gPakError[row][col].h - fh * 3;
-        font_set_DC(gPakError[row][col].sel1 ? 11 : 10);
+        HAL_SetFont(gPakError[row][col].sel1 ? 11 : 10);
         TB_SetTextColor(gPakError[row][col].sel1 ? 1 : 22);
         TB_DrawText(x, y - (gPakError[row][col].sel1 ? 0 : 1) + fh, gText.msg[944 / 4]);
-        font_set_DC(gPakError[row][col].sel1 ? 10 : 11);
+        HAL_SetFont(gPakError[row][col].sel1 ? 10 : 11);
         TB_SetTextColor(gPakError[row][col].sel1 ? 22 : 1);
         TB_DrawText(x, y - (gPakError[row][col].sel1 ? 1 : 0), gText.strings[gText.lang[25]]);
     }
-    pair_set_DC(0, 3);
-    font_set_DC(11);
+    TB_SetJust(0, 3);
+    HAL_SetFont(11);
 }
 
-s32 fsS_DC(s32 font)
-{
-    s32 old;
 
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-    old = HAL_SetFontInternal(font); osSendMesg(&text_lock_queue, (void *)0, 0);
-    return old;
-}
-
-s16 TB_CenterText_DC(char *text, s16 centerX);
-s32 fsL_DC(s32 font);
 #define C (gPakError[row][col])
 void cs_draw1_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    font_set_DC(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     TB_Strcpy(str, gText.msg[404 / 4]);
     TB_Strcat(str, (u8 *)pakerr_newlines_no_controller);
     TB_Strcat(str, (u8 *)gText.msg[408 / 4]);
-    pair_set_DC(1, 1);
+    TB_SetJust(1, 1);
     TB_DrawTextScrollBox(C.x + C.w / 2, C.y + (C.h - 20) / 2 + 20, C.w, C.h - 20, -1, 0, str);
-    pair_set_DC(0, 3);
-    font_set_DC(11);
+    TB_SetJust(0, 3);
+    HAL_SetFont(11);
 }
 
 void cs_draw3_DC(s32 row, s32 col)
@@ -375,6 +337,7 @@ void cs_ctl10_DC(Cell *c)
     }
 }
 
+s16 TB_CenterText(void *text, s16 centerX);
 void ShowPakError(s32 row, s8 *sel1, s8 *sel2, s8 *done, s32 (*poll)(void))
 {
     s32 col;
@@ -403,12 +366,12 @@ void ShowPakError(s32 row, s8 *sel1, s8 *sel2, s8 *done, s32 (*poll)(void))
     }
     C.buttons = gActiveEdges;
     C.held = gActiveLevels;
-    fsS_DC(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
-    fsL_DC(11);
+    HAL_SetFont(11);
     TB_SetTextColor(1);
     sprintf(num, pak_error_title_format, row + 1);
-    TB_DrawText(TB_CenterText_DC(num, C.x + C.w / 2), C.y, num);
+    TB_DrawText(TB_CenterText(num, C.x + C.w / 2), C.y, num);
     switch (C.type) {
     case 1:
         ControlChoice(row, col);
@@ -482,16 +445,4 @@ apply:
     }
 }
 
-s16 TB_CenterText_DC(char *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
 
-s32 fsL_DC(s32 font)
-{
-    s32 old;
-
-    gfx_lock_DC();
-    old = HAL_SetFontInternal(font); osSendMesg(&text_lock_queue, (void *)0, 0);
-    return old;
-}

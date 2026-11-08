@@ -54,31 +54,9 @@ extern void TB_DrawText(s16, s16, char *);
 extern s32 AreWeSolid(s16);
 extern void HAL_SetTextColor(s32, s32, s32, s32);
 
-void gfx_lock_7AF4(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_7AF4(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_7AF4(s32 font)
-{
-    s32 old;
 
-    gfx_lock_7AF4();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_7AF4();
-    return old;
-}
-
-void pair_set_7AF4(s32 first, s32 second)
-{
-    gJust.second = second;
-    gJust.first = first;
-}
 
 /* PC: the place's and the count's digits (docs/port/MORECARS.md 7), n from 1 to 99: one or two. */
 static s32 place_digits_7AF4(char *out, s32 n)
@@ -92,12 +70,14 @@ static s32 place_digits_7AF4(char *out, s32 n)
     return 1;
 }
 
+s32 HAL_SetFont(s32 fontID);
 /* PC: animPlace with numbers of two digits (docs/port/MORECARS.md 7). The N64 makes the place and the car count one
  * character each, '1' + place and '0' + cars, so a race of 10 or more cars gave ':', ';' and '<', which the font has
  * no glyph for: the place vanished, and in split screen a '/' was left. Here each number has its digits. A place of
  * two digits starts one digit further left, so the '/' and the count's first digit stay where the N64 draws them; a
  * count's second digit follows its first by a digit of the count's own font. Up to 9 cars this makes the N64's calls
  * in the N64's order, at the same places. */
+void TB_SetJust(u32 first, u32 second);
 s32 animPlace(s32 arg0)
 {
     char str[8];
@@ -115,11 +95,11 @@ s32 animPlace(s32 arg0)
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    pair_set_7AF4(1, 3);
+    TB_SetJust(1, 3);
     if (gNumWindows == 1) {
-        font_set_7AF4(8);
+        HAL_SetFont(8);
     } else {
-        font_set_7AF4(5);
+        HAL_SetFont(5);
     }
     w = HAL_GetCharWidth('8');
     for (i = 0; i < gNumWindows; i++) {
@@ -138,15 +118,15 @@ s32 animPlace(s32 arg0)
             ch[1] = 0;
             if (k <= slash) {
                 if (gNumWindows == 1) {
-                    font_set_7AF4(8);
+                    HAL_SetFont(8);
                 } else {
-                    font_set_7AF4(5);
+                    HAL_SetFont(5);
                 }
             } else {
                 if (gNumWindows == 1) {
-                    font_set_7AF4(5);
+                    HAL_SetFont(5);
                 } else {
-                    font_set_7AF4(6);
+                    HAL_SetFont(6);
                 }
                 if (k == slash + 1 && n > slash + 2) {
                     cw = HAL_GetCharWidth('8');   /* the count's font: its second digit */
@@ -163,7 +143,7 @@ s32 animPlace(s32 arg0)
             x += k > slash ? cw : w;
         }
     }
-    pair_set_7AF4(0, 3);
+    TB_SetJust(0, 3);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

@@ -51,7 +51,9 @@ s16 TB_GetFontLineHeight(void);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
-void gfx_lock_slp(void) { osRecvMesg(&text_lock_queue, (void *)0, 1); } void gfx_unlock_slp(void) { osSendMesg(&text_lock_queue, (void *)0, 0); } s32 font_select_slp(s32 font) { return HAL_SetFontInternal(font); } s32 font_set_slp(s32 font) { s32 old; gfx_lock_slp(); old = font_select_slp(font); gfx_unlock_slp(); return old; }
+void text_lock(void);
+void text_unlock(void);
+   s32 font_set_slp(s32 font) { s32 old; text_lock(); old = HAL_SetFontInternal(font); text_unlock(); return old; }
 
 void video_TitlePane(void)
 {

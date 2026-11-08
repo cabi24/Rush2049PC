@@ -83,25 +83,22 @@ extern s32 osSendMesg(void *, void *, s32);
 s32 HAL_SetFontInternal(s32 fontID);
 
 typedef struct OSMesgQueue OSMesgQueue;
-void _GetSemaphore_Coins(void);
-void _ReleaseSemaphore_Coins(void);
-s32 HAL_SetFont_Coins(s32 fontID);
-void TB_SetJust_Coins(s32 h, s32 v);
-void HAL_SetTextDepth_Coins(f32 d);
 
+s32 HAL_SetFont(s32 fontID);
+void TB_SetJust(u32 first, u32 second);
 s32 animCoins(void *arg0) {
     Pos pos;
     char buf[8];
     s16 i;
     s16 j;
 
-    HAL_SetTextDepth_Coins(0.0f);
+    HAL_SetTextDepth(0.0f);
     if (gNumWindows == 1) {
-        HAL_SetFont_Coins(10);
+        HAL_SetFont(10);
     } else {
-        HAL_SetFont_Coins(12);
+        HAL_SetFont(12);
     }
-    TB_SetJust_Coins(0, 1);
+    TB_SetJust(0, 1);
     for (i = 0; i < gNumWindows; i++) {
         for (j = 0; j < 2; j++) {
             if (gPlayerCoin[i].slot[j].id == -1) {
@@ -144,18 +141,10 @@ s32 animCoins(void *arg0) {
             }
         }
     }
-    TB_SetJust_Coins(0, 3);
-    HAL_SetTextDepth_Coins(-1.0f);
+    TB_SetJust(0, 3);
+    HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
-void _GetSemaphore_Coins(void) { osRecvMesg(text_lock_queue, (void **)0, 1); }
-void _ReleaseSemaphore_Coins(void) { osSendMesg(text_lock_queue, (void *)0, 0); } s32 HAL_SetFont_Coins(s32 fontID) { s32 old; _GetSemaphore_Coins(); old = HAL_SetFontInternal(fontID); _ReleaseSemaphore_Coins(); return old; }
+ 
 
-void TB_SetJust_Coins(s32 h, s32 v)
-{
-    gJust.first = h;
-    gJust.second = v;
-}
-
-void HAL_SetTextDepth_Coins(f32 d) { HAL_SetTextDepth(d); }

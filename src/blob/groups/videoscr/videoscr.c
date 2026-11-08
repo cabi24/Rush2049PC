@@ -111,37 +111,15 @@ void vs_setWidth(s16 *width)
 }
 void video_animButtonText(void);
 
-void vs_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
-void vs_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
-s32 vs_font_set(s32 font)
-{
-    s32 old;
-    vs_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    vs_gfx_unlock();
-    return old;
-}
+s32 HAL_SetFont(s32 fontID);
 void vs_SetFont(s32 font)
 {
-    vs_font_set(font);
-}
-s16 vs_CenterText(char *text, s16 centerX)
-{
-    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
-}
-s16 vs_RightText(char *text, s16 rightX)
-{
-    return rightX - HAL_GetTextWidth(text, -1);
+    HAL_SetFont(font);
 }
 s8 vs_validOption(s32 item)
 {
     s8 valid = video_optionValid[item];
     return valid;
-}
-void vs_SetJust(s32 h, s32 v)
-{
-    gJust[0] = h;
-    gJust[1] = v;
 }
 
 void vs_drawColorBars(void)
@@ -181,6 +159,8 @@ void vs_drawColorBars(void)
     gDPPipeSync(blit_dl++);
 }
 
+s16 TB_CenterText(void *text, s16 centerX);
+s16 TB_RightText(void *text, s16 rightX);
 s32 video_animText(s32 arg0)
 {
     s32 i;
@@ -199,19 +179,19 @@ s32 video_animText(s32 arg0)
     TB_SetTextColor(1);
     if ((gGameState & 0x7C0000) && video_gControllerRemoved) {
         TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
-        TB_DrawText(vs_CenterText(str1, 160), 10, str1);
+        TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {
         str = gText.fixed[53];
-        TB_DrawText(vs_CenterText(str, 160), 10, str);
+        TB_DrawText(TB_CenterText(str, 160), 10, str);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
-    vs_font_set(11);
+    HAL_SetFont(11);
     x = video_menu_center_x + 5;
     for (i = 0; i < 4; i++) {
         if (!video_optionValid[i]) continue;
         TB_SetTextColor(i == gVideoMenuSelect ? 22 : 1);
         str = gText.strings[gText.indices->optionNames + i];
-        TB_DrawText(vs_RightText(str, video_menu_center_x - 5), y, str);
+        TB_DrawText(TB_RightText(str, video_menu_center_x - 5), y, str);
         switch (i) {
         case 0:
             TB_Sprintf(str1, "%s%d", gVertCenter > 0 ? "+" : "", gVertCenter);
@@ -230,6 +210,7 @@ s32 video_animText(s32 arg0)
     return 1;
 }
 
+void TB_SetJust(u32 first, u32 second);
 void video_animButtonText(void)
 {
     s32 i;
@@ -246,15 +227,15 @@ void video_animButtonText(void)
     vs_setWidth(&confirmWidth);
     testWidth = 160;
     HAL_SetTextDepth(0.0f);
-    vs_SetJust(0, 1);
-    vs_font_set(13);
+    TB_SetJust(0, 1);
+    HAL_SetFont(13);
     TB_SetTextColor(1);
     ZOID_ProjectWindow(0, video_title_button_pos, gCamera, 0, screenPos);
     x = screenPos[0];
     y = screenPos[1];
     str = gText.fixed[53];
-    TB_DrawText(vs_CenterText(str, x), y, str);
-    vs_font_set(11);
+    TB_DrawText(TB_CenterText(str, x), y, str);
+    HAL_SetFont(11);
     for (i = 0; i < 4; i++) {
         if (vs_validOption(i)) {
             if (video_buttonInfo[i].angle > 0.69813168f && video_buttonInfo[i].angle < 2.443461f) continue;
@@ -287,13 +268,13 @@ void video_animButtonText(void)
             }
         }
     }
-    vs_SetJust(1, 3);
+    TB_SetJust(1, 3);
     HAL_SetTextTranslucency(-1.0f);
     TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     if (gTestFrequency == 1) {
         static s16 height = 1;
-        vs_font_set(10);
+        HAL_SetFont(10);
         if (gTestPane == 0) {
             lines = TB_GetTextNumLines(testWidth, gText.fixed[217]);
             height = TB_GetFontLineHeight() * lines;
@@ -306,7 +287,7 @@ void video_animButtonText(void)
     }
     if (gConfirmFrequency == 1) {
         static s16 height = 1;
-        vs_font_set(10);
+        HAL_SetFont(10);
         if (gConfirmPane == 0) {
             lines = TB_GetTextNumLines(confirmWidth, gText.fixed[218]) + 1;
             height = TB_GetFontLineHeight() * lines;
@@ -326,5 +307,5 @@ void video_animButtonText(void)
         RemovePane(gConfirmPane);
         gConfirmPane = 0;
     }
-    vs_SetJust(0, 3);
+    TB_SetJust(0, 3);
 }

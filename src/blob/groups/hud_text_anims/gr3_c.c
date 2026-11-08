@@ -39,31 +39,15 @@ void TB_SetTextColor(s32);
 void TB_DrawTextScrollBox(s32, s32, s32, s32, s32, s32, char *);
 void audio_TitlePane(void);
 void options_TitlePane(void);
-void gfx_lock_g3c(void)
-{
-    osRecvMesg(&text_lock_queue, (void *)0, 1);
-}
 
-void gfx_unlock_g3c(void)
-{
-    osSendMesg(&text_lock_queue, (void *)0, 0);
-}
 
-s32 font_set_g3c(s32 font)
-{
-    s32 old;
-
-    gfx_lock_g3c();
-    old = HAL_SetFontInternal(font);
-    gfx_unlock_g3c();
-    return old;
-}
+s32 HAL_SetFont(s32 fontID);
 void audio_TitlePane(void)
 {
     char buf[76];
     s32 w;
 
-    font_set_g3c(13);
+    HAL_SetFont(13);
     if (audio_gControllerRemoved) {
         TB_Sprintf(buf, audio_title_player_format, playerInPause + 1, gText_single[233]);
         w = HAL_GetTextWidth(buf, -1);
@@ -83,7 +67,7 @@ void options_TitlePane(void)
     char buf[76];
     s32 w;
 
-    font_set_g3c(13);
+    HAL_SetFont(13);
     if (options_gControllerRemoved) {
         TB_Sprintf(buf, options_title_format, playerInPause + 1, gText_single[233]);
         w = HAL_GetTextWidth(buf, -1);

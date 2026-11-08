@@ -43,21 +43,12 @@ typedef struct { s32 opaque[6]; } OSMesgQueue;
 extern OSMesgQueue text_lock_queue;
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32);
-void hs_gfx_lock(void) { osRecvMesg(&text_lock_queue, (void *)0, 1); }
-void hs_gfx_unlock(void) { osSendMesg(&text_lock_queue, (void *)0, 0); }
-s32 hs_font_set(s32 font)
-{
-    s32 old;
-    hs_gfx_lock();
-    old = HAL_SetFontInternal(font);
-    hs_gfx_unlock();
-    return old;
-}
 extern s32 HAL_GetTextWidth(char *,s32);
 extern s16 TB_GetFontLineHeight(void);
 extern void FindGhosts(s32), PrintScores(void);
 extern intptr_t NewMultiBlit(s32,s32,void *,s32);
 
+s32 HAL_SetFont(s32 fontID);
 void SetHighScoreState(s32 newState)
 {
     s32 p;
@@ -152,16 +143,16 @@ void SetHighScoreState(s32 newState)
     case 4: {
         s32 pak;
         if (ghostPanes[0] == 0) {
-            hs_font_set(13);
+            HAL_SetFont(13);
             width = HAL_GetTextWidth(ghost_menu_title_text, -1);
             ghostPanes[0] = InitPane(160 - width / 2 - 8, 6, width / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
         }
         if (ghostPanes[1] == 0) {
-            hs_font_set(10);
+            HAL_SetFont(10);
             ghostPanes[1] = InitPane(91, 51, 229, TB_GetFontLineHeight() * 3 + 59, 176, 0, 0, 0);
         }
         if (ghostPanes[2] == 0) {
-            hs_font_set(10);
+            HAL_SetFont(10);
             ghostPanes[2] = InitPane(91, 106, 229, TB_GetFontLineHeight() * 5 + 114, 176, 0, 0, 0);
         }
         SetCountdownTimer(600.0f);
@@ -176,7 +167,7 @@ void SetHighScoreState(s32 newState)
         gTable = (gRace == 2) ? 2 : 0;
         PrintScores();
         if (scorePanes[0] == 0) {
-            hs_font_set(13);
+            HAL_SetFont(13);
             width = HAL_GetTextWidth(gText.strings[gText.info->index + gTable], -1);
             scorePanes[0] = InitPane(160 - width / 2 - 8, 6, width / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
         }

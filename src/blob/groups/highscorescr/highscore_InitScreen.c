@@ -128,16 +128,13 @@ void AudPlaySong_TTL(s32 song, s32 loop)
 }
 
 /* GC AudSetMusicVol(vol, rate): N64 wrapper over AudSetMasterVol (hypothesis) */
-void AudSetMusicVol_TTL(f32 vol, f32 rate)
-{
-    AudSetMasterVol(vol, rate, 1, 0);
-}
 
 /* GC SaveFlush(0) after ClearRushControls: empty on the N64? (frame hypothesis) */
 void SaveFlush_TTL(s32 x)
 {
 }
 
+void AudSetMusicVol(f32 blend, f32 amount);
 void highscore_InitScreen(void)
 {
     s32 p;
@@ -152,7 +149,7 @@ void highscore_InitScreen(void)
     AudKillSong_TTL();
     if (gOptions.song < 13) {
         AudPlaySong_TTL(5, 1);
-        AudSetMusicVol_TTL(gOptions.musicVol / 10.0f, 0.05f);
+        AudSetMusicVol(gOptions.musicVol / 10.0f, 0.05f);
     }
     memcpy(gPrevUnlockedTracks, gUnlockedTracks, 76);
     memcpy(gPrevUnlockedCars, gUnlockedCars, 52);
