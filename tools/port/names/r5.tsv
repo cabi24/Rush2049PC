@@ -1,0 +1,908 @@
+# r5: the game image from 0x800E847C to its end (0x8010FD7C): names for the functions, the data they use,
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
+# struct fields read by raw offset, and files. docs/code/r5.md is the map of this area. Format: docs/port/PCONLY.md 3.
+# old	new	kind	source	confidence	note
+#
+# functions, in address order
+func_800E8CB0	UpdateDroneObjects_stub	func	mat3	likely	empty 8-byte deleted-procedure stub, no callers: where MAT3 camera.c's static _UpdateDroneObjects stands (right before update_car_object); IDO inlined its body into CheckCameraView's last loop; deletable
+func_800E8CB8	update_car_object	func	mat3	sure	MAT3 camera.c update_car_object: CopyUV, uvs[0..2][1] *= FSCLS by gFrameScale, ZOID_UpdateObject(car->objnum) when objnum >= 0
+func_800E8D50	point_at_car	func	mat3	sure	MAT3 point_at_car: optional update_car_object, elasticity 0 when resurrecting else 0.6*elastic_factor scaled by gLastFrameCount 3/4/5 (0.75/0.6/0.5), blend camera pos, LookInDir
+func_800E8F10	maxpath_cam	func	mat3	sure	MAT3 maxpath_cam: mode 0 stores start/last point, path, gModelTime, 0; else walks NextPathPt by (100 + 1.4666667*(rwmph>>2))*dt feet, +10 up, point_at_car
+func_800E9234	init_view3	func	mat3	sure	MAT3 init_view3: saveview = view = 2, rear_y/rear_z by gGameState & 8, view3_switch = 1 (N64 attract height differs from GC's)
+func_800E92C8	UpdateRearCamera	func	mat3	sure	MAT3 camera.c static _UpdateRearCamera(car, behind, side, camoff) (underscore dropped as the tree does): view 8/4 cases, MAX 100 ft/s, Interpolate, elastic_factor
+func_800E95DC	steady_move_cam	func	mat3	sure	MAT3 steady_move_cam: mode 0 sets start pos and LookInDir; stages 0/1 blend toward _UpdateRearCamera offset over legDuration, stage 2 init_view3 + saved view (GetPlayerCarView); prototype in include/game/camera.h
+func_800E9C70	fix_camera_in_space	func	mat3	sure	MAT3 fix_camera_in_space: modes 0/1 store cam_pos/cam_mode, else zoom by (dist-50)*k+20 and point_at_car
+func_800E9E2C	circle_camera_around_car	func	mat3	sure	MAT3 circle_camera_around_car: finish_cam 1 -> 2 after 10 s, angle from ms % 6000, radius 15, height 10
+func_800EA108	DeathCam	func	mat3	sure	MAT3 DeathCam: ZOID_UpdateObject, elasticity 0.13, _UpdateRearCamera(car, 30, 16), blend, LookInDir
+func_800EA2DC	UpdateCarObj	func	mat3	sure	MAT3 UpdateCarObj: update_car_object, _UpdateRearCamera with -rear_z for view 10, point_at_car(car, carpos, 0, res)
+func_800EA3F4	View3Cam	func	mat3	sure	MAT3 View3Cam: rear_z/rear_y (-6/-2 for view 3), zf/yf blends from gTireCnt/gSusAvg, last_zvec/last_yvec elastic, uvector/rvector, builds fcam uvs and pos
+func_800EAFDC	view1_suscomp_offset	func	mat3	sure	MAT3 view1_suscomp_offset: 0.5*(reckon.suscomp[0]+[1]) - 0.3 clamped at 0 (model +0x75C/+0x760)
+func_800EB028	update_camera	func	mat3	sure	MAT3 update_camera: switch on car view 0..10 calling update_car_object/View3Cam/UpdateCarObj/DeathCam/circle/fix/steady/maxpath cams, CameraCollision; N64 has no rear-view button
+world_object_destroy	init_camera_on_track	func	mat3	sure	MAT3 init_camera_on_track: (rwmph>>6)+n NextPathPt steps, trackSpots[gTrackNum] up to the -999 terminator within 200 ft (Distance2D), fix_camera_in_space(zoom), else random height + CameraCollision; was a wrong guess
+func_800EB90C	CheckCameraView	func	mat3	sure	MAT3 CheckCameraView: ghost-race camera cycling on pad 2, attract view switching (Random(11), lastSwitch/nextSwitch), view button, SavePlayerCarView, update_camera, gTireCnt/gSusAvg, BlinkResurrectingCars, inlined _UpdateDroneObjects
+race_init_helper	Update_MDrive	func	mat3	sure	MAT3 mdrive.c Update_MDrive: update_game_data, ZOID_UpdateObject of cars 1..gNumPlayers-1 in a ghost race (gRace 2), CheckCameraView; prototype in include/game/car.h
+func_800EC190	fake_init	func	mat3	sure	MAT3 fake_init(trk): attract race, gTrackNum, gNumCars = 6, gLink owner/polepos/flags/track, attractSlot++ wrap 6 to gPlayers[0].slot and gCamera[0].slot, gUseCatchup = 2
+func_800EC270	InitCarPath	func	mat3	sure	MAT3 maxpath.c InitCarPath(m, gc): mpctl idx/xrel/yrel/interval_time/newIdx, drone path from static p (0..3), started if gCheckpoints.startPt == 0, lastResPath -1
+world_physics_tick	init_cars	func	mat3	sure	MAT3 mdrive.c init_cars: clears model (keeping fastin.dt) and car, gCarModels[0], views 2, distance, collsize radius, gCarHandling..gTireRims tables, InitCarPath, sched_to_use (+7 for 2+ humans); was a wrong guess. port/assets/tests/test_roster.c has an unrelated static init_cars: rename that
+func_800EC914	munge_gLink_data	func	mat3	sure	MAT3 munge_gLink_data: we_control/drone_type/in_game from gLink, slot lists humans[]/drones[]/our_drones[], gModelIteration = 0
+world_bounds_check	find_closest_res_path_point	func	code	likely	returns the index of the gResPath point nearest a short[3] position (squared distance, from 1e20); uncalled; no MAT3 function with this shape (FindClosestPathPt takes a drone path)
+world_gravity_apply	FindMaxpathIntervals	func	mat3	sure	MAT3 maxpath.c FindMaxpathIntervals: per active car the nearest gResPath point (5-point search, 10000/40000/2500 thresholds, alt paths skipping resurrect 2, FindResPt) and gc->distance from laps, checkpoints and GetPathDistance; was a wrong guess
+func_800ED66C	HAL_SetTextTranslucency	func	mat3	sure	MAT3 HAL_text.c HAL_SetTextTranslucency: gTrans = x, attribute bit 0x20 off outside 0..255 else on + BlitXLU; already #defined to this in ovl_b/func_80392894.c
+mode_byte_set	HAL_SetFontSpacing	func	mat3	sure	MAT3 HAL_SetFontSpacing: < 0 -> SetupFontData(0) and the font header's spacing, else the value (N64 without GC's *2); was a wrong guess
+mode_byte2_set	HAL_SetFontLeading	func	mat3	sure	MAT3 HAL_SetFontLeading: < 0 -> SetupFontData(0) and the font header's leading, else the value; was a wrong guess
+world_velocity_integrate	HAL_FinishText	func	mat3	sure	MAT3 HAL_FinishText(end): replays the buffered text commands 0..6 (font, leading, spacing, pos, translucency, colour, DrawText) under the text semaphore; was a wrong guess
+world_collision_response	EndGraphics	func	mat3	likely	N64 EndGraphics (MAT3 ngcGraph.c EndGraphics is the GC stub of the same platform call, Pal60 pairs it with StartGraphics): HAL_FinishText(1), closes the frame DL and the text DL, fills the frame's RSP task (rspboot, gfx ucode, stack, FIFO, yield), bumps gRenderInProgress, posts it to the scheduler; was a wrong guess
+gfx_frame_begin	StartGraphics	func	mat3	likely	N64 StartGraphics (MAT3 ngcGraph.c StartGraphics: ClearFrame, BlitInit, HAL_StartText): sets up the frame's display list, clears Z and colour buffers, split-screen bars, filter/dither/VI options, then the blit init and HAL_StartText
+world_trigger_activate	process_scheduler_message	func	code	sure	the N64 main (graphics) thread's step: one message from main_thread_queue: 4 pre-NMI, 1 retrace (StartGraphics and wake the game thread when no frame is in flight), 2750 frame end (EndGraphics), 2 task done; no MAT3 counterpart (threads); was a wrong guess
+func_800EE7AC	ExitSystem	func	mat3	sure	MAT3 Init.c ExitSystem: empty; its one call, the start screen's option 9 after AudKillSong and AudStopAllEffects (ovl_a start_screen), is MAT3 startscr.c's exactly
+func_800EE7B4	text_lock_init_stub	func	mat3	likely	empty retail stub of MAT3 HAL_text.c static _InitSemaphore, inlined into HAL_InitText; deletable
+sync_init_conditional	HAL_InitText	func	mat3	sure	MAT3 HAL_InitText: _InitSemaphore (once: creates and posts the text semaphore queue on the N64) and gFontIndex = -1; was a wrong guess
+effect_spawn	InitRushControls	func	mat3	sure	MAT3 controls.c InitRushControls: InitControlSys, SetDefaultControls(gDefaultControls), copies gDefaultControls to gNewControls[4] (10 bytes each on the N64, 11 on GC); was a wrong guess
+collision_check_thunk	InitCameras	func	mat3	sure	MAT3 camera.c InitCameras: its whole body is ZeroCameras() (particle_velocity_set, which the screens' initScreen call as MAT3's do); InitGraphics inlines it, so this copy is uncalled; was a wrong guess
+func_800EE8AC	InitGfx	func	mat3	likely	8-byte deleted-procedure stub of N64 _InitGfx (MAT3 ngcGraph.c _InitGfx, underscore dropped): video options, field of view, framebuffers, frame records; the body is inlined into InitGraphics (src/blob/groups/initgraphics/initgfx.c keeps a C copy)
+world_effect_update	InitGraphics	func	mat3	sure	MAT3 gfx.c InitGraphics: _InitGfx, ZOID_Init, InitBlits, InitCameras (here ZeroCameras inlined); InitSystem inlines it, so this copy is uncalled; was a wrong guess
+game_late_init	InitSystem	func	mat3	sure	MAT3 Init.c InitSystem: SaveInit, InitGraphics, AudioInit, InitRushControls, SetControllerActive(-1, 0), pak and options init, timer, HAL_InitText; called by game_init (boot); was a wrong guess
+func_800EF288	animGear	func	mat3	sure	MAT3 hud.c animGear: per player GEAR label at gearPos-4 and R/N/digit at gearPos+4, font by window count (src/blob/groups/animgear/animgear.c header)
+func_800EF5B0	RenameBlit	func	mat3	sure	MAT3 RenameBlit@blit.c: sets blit->name; preserve: MBOX_FindTexture(name, &texIndex, 0, gNumModels-1, warn) into the texture, else InitBlit; then UpdateBlit; animTach calls it with the TACHOMETER_MD/_SM names and 0 as MAT3 does
+func_800EF62C	animTach	func	mat3	sure	MAT3 animTach@hud.c: slot=(animID>>4)&15, type=animID&15, hidden past gNumWindows (animFunc 0 past gNumPlayers), RenameBlit TACHOMETER_MD/_SM, tachPos[gNumWindows-1][slot], needle 1.35*rpm*0.0001 clamped to 1, alpha 254
+dust_cloud_effect	animSpeed	func	mat3	sure	MAT3 animSpeed@hud.c: win=animID&15, show=(animID>>4)&15, the two Hidden tests (window count; !gShowSpeed or place_locked), font 4/1, x=speedPos-2*width('8'); draws no dust
+skid_mark_render	ShowHUD	func	mat3	sure	MAT3 ShowHUD@hud.c: first call clears gCheckPtTimeout/gLapTime/gElapsedTime/gPlayerCoin, creates the HUD blit sets (NewMultiBlit), markers_valid 0; attract credits cycle (gCredit, gCorner, panes); no skid marks (include/game/hud.h already declares ShowHUD(void): the same function)
+func_800F0674	fixword	func	mat3	sure	MAT3 fixword@highscorescr.c (also the arcade hiscore.c's): recursive match of an obscene word in the entered name, repeated letters tolerated, hits overwritten with '!'; statics op1/sp/cnt as MAT3
+func_800F084C	censor	func	mat3	sure	MAT3 censor@highscorescr.c: ORs fixword over every word of the obscenities list; ControlName calls it on the finished name
+func_800F1114	highscore_UninitScreen	func	mat3	sure	MAT3 _UninitScreen@highscorescr.c (static, also in two other screens; prefix as highscore_InitScreen): removes codePane, namePanes, score and ghost panes, inited 0, setGameState(0x800000) inlined
+func_800F1928	ControlScores_stub	func	code	likely	empty 8-byte function, never called: IDO's leftover of an inlined static; it sits where MAT3's ControlScores would be in callee-first order (after SetHighScoreState), and updateHighScoreScreen inlines ControlScores (state 5)
+func_800F1930	ControlGhost	func	mat3	sure	MAT3 ControlGhost@highscorescr.c: ghost-save menu input (gGhostMenuSelect up/down skipping unusable rows, gGhostPak left/right on gActiveLevels 0x3000, SaveGhost(pak, player, gSavedGhost, 0/1)), SetHighScoreState(5) on exit, then FindGhosts(gGhostPak); N64 confirm is a yes/no toggle
+func_800F1D04	FindTempNameIdx	func	mat3	sure	MAT3 FindTempNameIdx@gamerecords.c: ages the 20 temp names (13 bytes, gTempNameAges), returns the slot holding the name, else an empty one, else one no gTotalNames[12][3][5] entry uses, else the oldest; strcpy, age 0
+func_800F207C	ControlName	func	mat3	sure	MAT3 ControlName(p)@highscorescr.c: 9-column name grid with -1/-2/-3 end/delete/space cells on autoEdges 0x400/0x800/0x1000/0x2000, 12-character limit, censor, FindTempNameIdx, gTotalNames for the gNewTotalScore hits
+func_800F2710	ControlCircuitCode_stub	func	code	likely	empty 8-byte function, never called: IDO's leftover of an inlined static; it sits where MAT3's ControlCircuitCode would be (between ControlName and ControlUnlocked), and updateHighScoreScreen inlines ControlCircuitCode (state 2)
+func_800F2718	ControlUnlocked	func	mat3	sure	MAT3 ControlUnlocked@highscorescr.c: per player dismisses gStuffUnlocked on A/B or timeout (namePanes removed), then SetHighScoreState(circuitCode ? 2 : race 0/2/3 ? 3 : 0)
+func_800F2888	RankScores	func	mat3	sure	MAT3 _RankScores@highscorescr.c (underscore dropped as the tree does for PrintScores/FindGhosts/SetHighScoreState): gThisPlayer from gLastPlayer[controller] or the profile, gDrawName for gNewTotalScore hits, gScoreName from the temp names or the profile
+net_state_validate	CalcUnlockedStuff	func	mat3	sure	MAT3 CalcUnlockedStuff@gamerecords.c: unlocked cars, transmissions, engines, tires, frames, tracks and circuits per player from coin counts (CountBits(...,16), thresholds 48/24/36/32/16/24) and stats, the three cheat overrides; nothing networked
+func_800F34D0	CircuitRandom_stub	func	code	likely	empty 8-byte function, never called, right before ContinueCircuit: IDO's leftover of MAT3's static _CircuitRandom(max) (rand_r(&gCircuitSeed) % (max+1)), which ContinueCircuit inlines (net_session_update.c's header says the same)
+net_session_update	ContinueCircuit	func	mat3	sure	MAT3 ContinueCircuit@circuit.c: gCircuitSeed from the save's circuit, gCircuitSize, drone names without repeats, shuffled drone order and 12 skill columns, gCircuitTracks (no repeats, fog/wind by type), 3-bit rank decode into places/points, totalPlace sort; nothing networked
+func_800F42C8	GetCircuitCode	func	mat3	sure	MAT3 GetCircuitCode(code)@circuit.c: ContinueCircuit, gCircuitTrack--, NewPassword(86,14), StorePasswordElement type 3, death 1, track 5, seed 20, difficulty 3, six totalPoints of 9 bits, GetPasswordString
+func_800F43B8	RecordCircuit	func	mat3	sure	MAT3 RecordCircuit@gamerecords.c: circuitStats[circuit.type] of the circuit player's save and gTotalCircuitStats: count, 1st/2nd/3rd from gCircuitCars[0].totalPlace, death mode, points, best points and time; SavePlayerCircuitStats
+func_800F45F8	UpdateCircuit	func	mat3	sure	MAT3 UpdateCircuit(ranks, time)@circuit.c: swaps ranks 0/1 for player 1, packs 3-bit ranks, track++, totalTime += time, ContinueCircuit, gCircuitTrack--, RecordCircuit at the end, difficulty bump (spreads 20/6), SavePlayerCircuit
+graphics_chunk	RecordBattle	func	mat3	sure	MAT3 RecordBattle@gamerecords.c: battleStats[gTrackNum-6] of each save and gTotalBattleStats: kills/deaths from gBattlePoints, matches, wins (ranked first, same gCarTeam or tied); SavePlayerStats; no graphics
+graphics_chunk_b	RecordObstacle	func	mat3	sure	MAT3 RecordObstacle@gamerecords.c: obstacleStats[gTrackNum-18]: time, races, finished (gLap == 1) with best time, crashes, death mode counts
+audio_update_a	RecordStunt	func	mat3	sure	MAT3 RecordStunt@gamerecords.c: stuntStats[gTrackNum-14]: best stunt, best average (points / gStuntModeMins), points, time, crashes, the 10 stunt counters; no audio
+assign_drones	RecordGhost	func	mat3	sure	MAT3 RecordGhost@gamerecords.c: a finished ghost race's time into the top-5 scores[2] (save and gTotalRaceStats, gNewTotalScore/gTotalNames shifted), races, ghosts, laps, time, miles; no drones
+place_cars_in_order	RecordPractice	func	mat3	sure	MAT3 RecordPractice@gamerecords.c: mileage/528 into raceStats[track].totalMiles of the save and the totals, SavePlayerStats; places nothing
+func_800F56E0	RecordRace	func	mat3	sure	MAT3 RecordRace@gamerecords.c: best-lap and average-lap top-5 tables (gLapTimes), 1st/2nd/3rd, death mode, crashes, laps, time, miles for each save and gTotalRaceStats, SavePlayerStats
+track_lighting_setup	RecordGameOver	func	mat3	sure	MAT3 RecordGameOver@gamerecords.c: switch on gRace: 0/3 RecordRace, 1 RecordPractice, 2 RecordGhost, 4 RecordStunt, 5 RecordObstacle, 6 RecordBattle; no lighting
+billboard_render	updateHighScoreScreen	func	mat3	sure	MAT3 updateHighScoreScreen@highscorescr.c: _InitScreen first, soft reset -> state 0, then 1 ControlUnlocked, 2 ControlCircuitCode (inlined), 3 ControlName per player then the ghost compress and save prompt, 4 ControlGhost, 5 ControlScores (inlined); no billboards
+func_800F68A4	font_get_char_list	func	code	likely	after SetupFontData(0) copies the character code (byte +4 of each 12-byte gFontLetters entry) of the current font's gFontHeader->numChars letters into out, NUL-terminated; no MAT3 counterpart, no caller in the C
+func_800F6928	HAL_SetMenuTextDepth	func	mat3	sure	MAT3 HAL_SetMenuTextDepth@HAL_text.c: controls_animButtonText calls it with a button's depth - 10 as MAT3 controlscr.c does; the N64 maps the depth through menu_text_depth_curve first, then HAL_SetTextDepth's tail (gDepth, attribute bit 0x10, BlitZDist)
+UpdateActiveObjects	DrawBlits	func	mat3	sure	MAT3 DrawBlits@blit.c: calls each of the NumBlits BlitPtrs' animFunc (name != -1), RemoveBlit and step back when it returns 0; symbols.json also has the alias update_active_objects at this address
+audio_update_b	UpdateGraphics	func	mat3	sure	MAT3 UpdateGraphics(drawBlits, updateEnvirons)@gfx.c: DrawBlits if drawBlits, UpdateEnvirons if updateEnvirons, UpdateCameras, ZOID_EndFrame(0); no audio
+func_800F7448	ClearScreen	func	mat3	sure	MAT3 ClearScreen: updateGameOverScreen's soft reset calls ClearScreen(1) there, func_800F7448(1) here (the GC body is an empty NGC stub); N64-only body: fill the current RGBA16 colour image with the colour (gDPSetColorImage, FillRectangle)
+func_800F7564	IsCircuitUnlocked	func	mat3	sure	MAT3 IsCircuitUnlocked(circuit)@gamerecords.c: any player's gUnlockedCircuits[p][circuit]; the seven Is*Unlocked sit here in reverse MAT3 order
+func_800F75B0	IsFrameUnlocked	func	mat3	sure	MAT3 IsFrameUnlocked(p, frame)@gamerecords.c: gUnlockedFrames[p][frame]
+func_800F75D0	IsTiresUnlocked	func	mat3	sure	MAT3 IsTiresUnlocked(p, tires)@gamerecords.c: gUnlockedTires[p][tires]
+func_800F75EC	IsTransUnlocked	func	mat3	sure	MAT3 IsTransUnlocked(p, trans)@gamerecords.c: gUnlockedTrans[p][trans]
+func_800F7604	IsEngineUnlocked	func	mat3	sure	MAT3 IsEngineUnlocked(p, engine)@gamerecords.c: gUnlockedEngines[p][engine]
+func_800F7620	IsCarUnlocked	func	mat3	sure	MAT3 IsCarUnlocked(p, car)@gamerecords.c: gUnlockedCars[p][car]
+func_800F7644	IsTrackUnlocked	func	mat3	sure	MAT3 IsTrackUnlocked(track)@gamerecords.c: any player's gUnlockedTracks[p][track]
+func_800F769C	AddPlayerStats	func	mat3	sure	MAT3 AddPlayerStats(player)@gamerecords.c: adds a profile's 12 race, 4 stunt, 8 battle, 1 obstacle and 4 circuit stat records into the gTotal*Stats tables (sums, maxima, ORed coins, smallest best time)
+func_800F7A98	IsCoinFound	func	mat3	sure	MAT3 IsCoinFound(p, coin)@gamerecords.c: 1 in attract mode, else the coin bit of raceStats[gTrackNum] (tracks 0-5) or stuntStats[gTrackNum-14] (14-17) of the player's save or gJustPlayers' record
+linear_interp	FoundCoin	func	mat3	sure	MAT3 FoundCoin(p, coin)@gamerecords.c: sets the coin bit in raceStats[track] and [track+6] (tracks 0-5) or stuntStats[track-14], SavePlayerCoins; interpolates nothing
+func_800F7E30	RecordBattlePoints	func	mat3	sure	MAT3 RecordBattlePoints(to, from, points)@gamerecords.c: gBattlePoints[to][from] += points
+audio_update_c	InitBattlePoints	func	mat3	sure	MAT3 InitBattlePoints@gamerecords.c: clears gBattlePoints (16) and gTeamPoints (4); no audio. The name exists as a PC stand-in copy of this function (display_list_flush's group)
+func_800F7EB0	ResetHighScores	func	mat3	sure	MAT3 ResetHighScores@gamerecords.c: gLap 0 and gBestLapTime 5999.999 per player, gNewTotalScore all -1
+func_800F857C	setGameOverState	func	mat3	sure	MAT3 setGameOverState(newState)@gameoverscr.c: leaving state 1 RemovePanes(0); entering 1 the title pane at titlePos and a menu pane as wide as the widest valid option
+func_800F874C	gameover_initScreen_stub	func	code	likely	empty 8-byte function, never called: IDO's leftover of MAT3's static initScreen, which updateGameOverScreen inlines (gameover.c's header)
+audio_update_d	gameover_uninitScreen	func	mat3	sure	MAT3 uninitScreen@gameoverscr.c (static, in nine screens): setGameOverState(0), RemovePanes(1), RemoveBlit(blit), inited 0; no audio
+func_800F87A0	controlMain	func	mat3	sure	MAT3 controlMain@gameoverscr.c: A/B runs gMainSelect (score, race again, new mode/track/car, next race, quit via gSkipToGameState), up/down skip invalid options
+func_800F8B68	gameover_controlScore_stub	func	code	likely	empty 8-byte function, never called: IDO's leftover of MAT3's static controlScore, which updateGameOverScreen inlines (state 2; gameover.c's header)
+finish_state_alt	updateGameOverScreen	func	mat3	sure	MAT3 updateGameOverScreen@gameoverscr.c: initScreen inlined (state 1, first valid option, NewMultiBlit), BlinkResurrectingCars, soft reset path (UnloadTrack, RemoveEnvirons, ClearScreen(1)), controlMain / controlScore
+func_800F8E90	SetCameraView	func	mat3	sure	MAT3 camera.c SetCameraView(camera): zeroes cur_acc[camera] (D_801526A8, f32[4][3]); PlayGame calls it when a restarted car gets its view back, as in MAT3
+func_800F8EC8	CheckCPs	func	mat3	sure	MAT3 checkpoint.c CheckCPs: mileage += magnitude(dr_pos - gPrevPos), plane test against gCheckpoints.points[next_cp] -> PassedCP, then FindMaxpathIntervals, PlaceUnlockedCars and the 3 s first-place sound; only a never-defined prototype in include/game/checkpoint.h has the name
+func_800F92C8	LinearInterp	func	mat3	sure	MAT3 drones.c static _LinearInterp (leading underscore dropped: reserved identifier): same clamps, 1e-3 midpoint case, slope/offset; the N64 argument order is (in1, in2, input, out1, out2)
+func_800F9398	AssignDrones_stub	func	mat3	likely	empty 8-byte deleted-procedure stub, no callers: MAT3 drones.c's static _AssignDrones, which IDO inlined into DoDrones (its body follows SetCatchup there), emitted right before DoDrones; deletable
+render_large_objects	DoDrones	func	mat3	sure	MAT3 drones.c DoDrones: SetCatchup (func_800DE860), then the inlined _AssignDrones body (place scale, 1 - gDifficulty/5, circuit skill [track + 6*backwards], boost/brake bounds through LinearInterp); renders nothing; only a prototype in include/game/drone.h has the name
+render_viewport_init	PlayGame	func	mat3	sure	MAT3 game.c PlayGame: Update_MDrive, race switch (stunt CheckForStunt, battle overlay shots/powerups, obstacle GetResPt, else DoDrones + CheckCPs), UpdateSmoke, UpdateArrowVis, per-car restart block (StartBlast, sounds, view save, SetCameraView), TextureAnimation, DetectDroneAbort, ShowHUD unless gRestartGame
+func_800FAD50	init_steady_move_cam	func	mat3	sure	MAT3 camera.c init_steady_move_cam(car): pos = dr_pos + 80*dr_uvs[2] + 20*dr_uvs[0], y + 5, then steady_move_cam(0, car, pos, uvs); include/game/camera.h has a stale void prototype of the name
+render_post_process	init_views	func	mat3	sure	MAT3 camera.c init_views (N64 without the attract branch): per window car = gCamera[i].slot, car->camera = i, init_view3, view = 7, init_steady_move_cam; clears finish_cam[]; no post-processing
+func_800FAEE4	InitDrones	func	mat3	sure	MAT3 drones.c InitDrones: old_drone_scale[6] and old_boost[6] set to 1.0; include/game/drone.h has a prototype of the name
+func_800FAF50	InitCPS	func	mat3	sure	MAT3 checkpoint.c InitCPS: gEndGame = 0, gNumLapsLeft = gNumLaps; include/game/checkpoint.h has a prototype of the name
+vsync_wait	EnableGameSounds	func	mat3	sure	MAT3 audio.c EnableGameSounds(enabled): gGameSoundsEnabled = enabled, effects volume enabled ? 0 : gOptions[13]/10 through AudSetMasterVol(.., music 0, sfx 1); PrePlay's first call as in MAT3; nothing to do with vsync
+display_list_flush	PrePlay	func	mat3	sure	MAT3 game.c PrePlay(useHud, cancel): SetOptions, EnableGameSounds, the high-score replay branch, AudKillSong/ZOID_Reset/InitWaves, munge_gLink_data, GhostStart, ResetHighScores, LoadTrack between the loading effects, InitCPS, init_cars, carsetup_flag[6] = 0, InitDrones, gGravity, Init_MDrive, init_views, ShowHUD
+game_state_check_handler	update_frame_on_game_thread	func	code	likely	runs one UpdateFrame when the caller is thread 7 (the game thread, src/rom/lib_2cf0.c), the test save_settings makes in its wait loop; two unused args, no direct caller (a callback); MAT3's stripped UpdateFrameForPad/UpdateFrameForMC are candidates
+countdown_handler	DrawNoControllers	func	mat3	likely	MAT3 game.c _DrawNoControllers with its blit's _animScrollText merged in: finds the first unplugged controller (gControllerData[i].attached), scrolls the controller-removed text from x = 320 one pixel a call; GameLoop calls it where MAT3 calls _DrawNoControllers
+func_800FBE20	EndGame	func	mat3	likely	MAT3 game.c static _EndGame: End_MDrive each car, appearance &= ~8, UpdateVisuals, modelstop, StopListeners, SetCountdownTimer(4), setGameState(0x2000000); retail has an 8-byte deleted stub here (inlined into UpdateGame), the tree's C body is _EndGame's
+func_800FBE28	update_game_inlined_stub	func	code	likely	8-byte jr-ra stub, no caller: IDO's leftover of a procedure inlined at every call site, emitted among UpdateGame's callees; which procedure is not known
+func_800FBE30	CheckButtons	func	mat3	sure	MAT3 game.c static _CheckButtons: an empty loop over gNumPlayers; UpdateGame calls it after CountDown and after PlayGame as in MAT3
+func_800FBE60	InitCPTime	func	mat3	sure	MAT3 checkpoint.c InitCPTime: gInFirstPlace = 0, gFirstPlaceTime = 0, per car mileage = 0 and gPrevPos = dr_pos
+func_800FBED8	CalcRaceTime	func	mat3	sure	MAT3 checkpoint.c CalcRaceTime: ghostRaceTimes[gTrackNum] for a ghost race on tracks 0..5, else 600
+func_800FBF2C	CountDown	func	mat3	sure	MAT3 countdown.c CountDown: gCountDown = GetCountdownTimeRemaining + 0.999, setGameState(0x100000) at <= 0; include/game/state.h has a prototype of the name
+countdown	UpdateGame	func	mat3	sure	MAT3 game.c static _UpdateGame: the race state machine on gGameState 0x40000..0x2000000 (pole positions, PrePlay, countdown, start, play and the stunt/battle/race end rules, end, high-score and game-over screens); the symbol table's state_*_handler labels inside it are its case labels
+func_800FC9F8	updateBG	func	mat3	sure	MAT3 front.c updateBG: scrolls the four background polys' texture coordinates by gFrameSeconds * gBackRects[gNumWindows-1][poly].del, the -4/+4 wrap vote, records the offsets, offsetsValid[gNumWindows-1] = 1
+func_800FCDF0	endDemoGame	func	mat3	sure	MAT3 demo.c static endDemoGame (retail: deleted stub, inlined into playDemoGame; tree C has the body): End_MDrive, modelstop, StopListeners, RemoveHUD, RemoveEnvirons, RemoveCar each car, gPlayers[i].slot = i
+debug_stats	playDemoGame	func	mat3	sure	MAT3 demo.c static playDemoGame(show): gDemoInited, gNumWindows = 1, gRace = 0 + fake_init(gCurrentDemoTrack), PrePlay then CarSetup/Update_MDrive/InitCPTime, else PlayGame; the hide path ends the demo and unloads the track
+func_800FD00C	uninitDemoGame	func	mat3	sure	MAT3 demo.c static uninitDemoGame (retail: deleted stub, inlined): RemoveBlit(blit), playDemoGame(0, 0), inited = 0
+func_800FD014	nextAvailDemoTrack	func	mat3	sure	MAT3 demo.c static nextAvailDemoTrack (retail: deleted stub, inlined): gCurrentDemoTrack++, wraps after 6 tracks setting gShowCredits; the N64 also wraps after 5 (setting gShowCredits) while D_80156994 is 0
+func_800FD01C	initDemoGame	func	mat3	sure	MAT3 demo.c static initDemoGame (retail: deleted stub, inlined): NewMultiBlit(multiblit), SetCountdownTimer(30), nextAvailDemoTrack, inited = 1, ClearRushControls
+debug_collision	updateDemoGame	func	mat3	sure	MAT3 demo.c updateDemoGame: initDemoGame once, playDemoGame(1, 0), soft reset or start/A or the timeout end the demo (setGameState 4, or 2 after the last track); no collision debugging
+input_aux_handler	updateFrontEnd	func	mat3	sure	MAT3 front.c updateFrontEnd: one update*Screen per gGameState bit in MAT3's order (license, warning, title, demo, start with gMirrorWaves = 0, records, player, mode, circuit, track, car, options, controls, audio, video, pak, cheat), then updateBG and SaveServer(0, 0)
+func_800FD41C	get_input_idle_seconds	func	code	likely	(scheduler tick - gLastKeyTime) * seconds per tick: the time since a controller was last used; the same expression is inlined in GameLoop's 300 s idle test; no direct caller
+game_loop	GameLoop	func	mat3	sure	MAT3 game.c GameLoop: sInited/gFrames, updateGameState, updateFrontEnd on 0x7C03FFFE, updatePauseScreen on 0x200000|0x400000, UpdateGame on 0x3FC0000, DrawNoControllers + the graphics update when gNewGameState == gGameState; N64 adds the 300 s idle blit
+func_800FD724	dot_uv_y_axis	func	code	likely	returns a[0]*b[3] + a[1]*b[4] + a[2]*b[5]: vector a dotted with row 1 of the 3x3 matrix b (BodyVector's y component alone); no caller in the image or the overlays
+func_800FD754	ScaleUVXYZ	func	mat3	sure	MAT3 fmath.c ScaleUVXYZ(a, b, sx, sy, sz): b's rows are a's rows times sx, sy, sz; called by overlay A
+random_seed_init	FindPlayerNum	func	mat3	sure	MAT3 controls.c FindPlayerNum(num, force): if forced or the player is unassigned (controller 5) and pressed start, controller = num and edges/levels/autoEdges/analog copied from gContEdges/gContLevels/gAutoEdges/gContStick, SetControllerActive; nothing random
+random_int	MiniForceApart	func	mat3	sure	MAT3 collision.c MiniForceApart(m, dir): force magnitude by crashflag, x-only below the 1e-4 length, BodyVector into reckon.uvs, added to centerForce
+random_float	setMiniFBCollisionForce	func	mat3	sure	MAT3 collision.c setMiniFBCollisionForce(m, m1, m2, dir, pos): same 2500/4000/10000/20000/100 constants, bbox front/back/left/right tests, MiniForceApart early out, mass average, gSuicideMode and 0.8*crashthreshold crash rule
+func_800FDF88	NewCircuit	func	mat3	sure	MAT3 circuit.c NewCircuit(type): clears the player's tCircuit (0x4C) and writes it, type, seed = gSeconds & 0xFFFFF, active = 1, totalTime = 0, death from gOptions[31], difficulty = gCircuitDiff[type]
+stat_race_start	SetCircuitCode	func	mat3	sure	MAT3 circuit.c SetCircuitCode(code): NewPassword(86, 14), SetPasswordString, GetPasswordElement 3/1/5/20/3 bits and 6x9, the track and points checks against gNumCircuitTracks/gCircuitPoints, NewCircuit, ContinueCircuit
+stat_race_end	free_car_palette	func	code	likely	under the heap lock (heap_lock_queue) frees (DeallocateMemoryInternal) the data of car palette record [index] (D_8013FEF4 = palBase of the 24-byte records at D_8013FEE0); called by overlay B; no statistics
+game_timer_reset	move_blit_chain	func	code	likely	adds dx, dy to a blit's x, y, UpdateBlit, and recurses down its child link (+0x3C); no MAT3 counterpart found; no timer
+stat_race_update	SelectBlit	func	mat3	sure	MAT3 blit.c SelectBlit(blt, index, hSize, vSize): RenameBlit if the texture is missing, then the cell's top/bot/left/right (flipped when blt->flip), UpdateBlit
+func_800FE73C	are_sound_voices_idle	func	code	likely	returns 1 when no record of the sound voice table (gSfxInstances, sound_voice_count entries of 24 bytes) has its active byte set; no direct caller
+func_800FE788	sequence_inlined_stub	func	code	likely	8-byte jr-ra stub, no caller, among the audio sequence functions: IDO's leftover of an inlined procedure; which one is not known
+func_800FE790	noop_two_args	func	code	likely	stores its two register arguments to their home slots and returns; no caller in the code (perhaps a callback slot); does nothing else
+func_800FE79C	find_sequence	func	code	likely	deleted stub (retail) of the lookup inlined into stop_sequence: tag -1 or a tag whose record's id differs gives 0, else &gSequences[tag & gTagMask] (MAT3 ConvertTag's pattern, for sequences); the tree's game_timer_pause.c holds the body
+game_timer_pause	stop_sequence	func	code	likely	under the audio lock (D_80142728) marks the sound sequence with tag h stopped (stop byte +0xE = 1), which the sequence processing then frees; MAT3 has only _StopAllSequences; no timer
+game_timer_resume	change_effect_fb_pan	func	code	likely	under the audio lock: AudChangeEffect(tag, -2, -2, clamp(value, -1, 1), -2), the front/back pan of a playing effect; sibling of MAT3 AudChangeEffectVol/AudChangeEffectPitch (entity_transform_calc = AudChangeEffect)
+stat_lap_complete	change_effect_lr_pan	func	code	likely	under the audio lock: AudChangeEffect(tag, -2, clamp(value, -1, 1), -2, -2), the left/right pan of a playing effect; sibling of MAT3 AudChangeEffectVol/AudChangeEffectPitch
+stat_lap_split	PlayTargetSound	func	mat3	sure	MAT3 audio.c PlayTargetSound(fxid, slot, pos, priority): gGameSoundsEnabled and human-owner checks, BodyVector of pos - dr_pos, 0.924^2 sector test into a bump index, AudPlayEffectVP with gBumpLRTab/gBumpFBTab pans
+resource_type_select_simple	PlayExitSound	func	mat3	sure	MAT3 audio.c PlayExitSound(edges): AudPlayEffect((edges & 1) ? one sound : another, 0, 1, 0) (N64 sound ids)
+func_800FEC9C	menu_sound_inlined_stub	func	code	likely	8-byte jr-ra stub, no caller, right after PlayExitSound: IDO's leftover of an inlined procedure (MAT3's next functions are PlayStartABSound, PlayLRSound, PlayUDSound); which one is not known
+game_timer_display	audio_animPanes	func	mat3	sure	MAT3 audioscr.c static animPanes (screen prefix as audio_animText): once, outside the front end, HAL_SetFont(13), gControllerRemoved, _TitlePane, InitPane around menuRect, panesCreated = 1; no timer
+func_80100B8C	demo_animText	func	mat3	sure	MAT3 demo.c static animText (screen prefix): TB_SetJust(1,1), font 11, colour 22, TB_DrawTextScrollBox(160, ~188, 320, ~112, -1, 0, the press-start text), colour 1, TB_SetJust(0,3); the N64 adds the attract_alt_text_flag branch as the title screen's animText (overlay A) does
+func_80100D24	animate_blit_unchanged	func	code	likely	blit AnimFunc that leaves its blit as it is and returns 1 (homes its argument); just before animControllerDim, no caller in the C (reached through blit tables)
+callback_init	animControllerDim	func	mat3	likely	MAT3 animControllerDimInternal (live in pausescr.c, erased in game.c): palette = &its static colour, UpdateBlit, return 1, 44 bytes as on GC; on the N64 the animator of GameLoop's idle-warning blit (idle_warning_multiblit, after 300 s without input), its data in game.c's .data; test_hudblit.c
+func_80100D5C	drawRect	func	mat3	sure	MAT3 gameoverscr drawRect(x, y, w, h, color[4]): one primitive-colour fill rectangle; every standings/score cell goes through it
+func_80101904	drawBattleStandings	func	mat3	sure	MAT3 gameoverscr drawBattleStandings: drawMain's kBattle (6) case; rows gNumActiveCars+1 x 3, gCarTeam colour switch, points and the sum of abs(gBattlePoints)
+func_80101D84	drawStuntStandings	func	mat3	sure	MAT3 gameoverscr drawStuntStandings: drawMain's kStunt (4) case; gRankedPlayer colour switch, gStuntPlayer totalPoints and maxStuntPoints columns
+func_80102448	drawStuntScore	func	mat3	sure	MAT3 gameoverscr drawStuntScore: 13 rows x players+1, gStuntPlayer totalPoints/maxStuntPoints/totalStunts[row-3]; gameover_animText's kStunt case
+func_80102F30	gameover_animText	func	mat3	sure	MAT3 gameoverscr animText: switch gGameOverState (1 drawMain, 2 score by gRace: stunt/battle/race); drawRaceScore is inlined (laps+3 rows, the three time formats)
+func_80105B74	hud_updateFrame	func	mat3	sure	MAT3 hud.c updateFrame (static): cvt_time of each of 4 slots' score or gModelTime into TrackTimeStr, dot_order_list cleared then filled humans-last/drones, markers_valid = 1; prefixed: game.c's UpdateFrame exists
+func_80105DA8	animBones	func	mat3	sure	MAT3 hud.c animBones: hidden unless gDeathMode, the window exists and the car isn't place_locked; position from bonesPos[gNumWindows-1][animID] (test_hudblit.c)
+func_80106874	anim_no_rumble_panes	func	code	likely	N64-only hud blit AnimFunc: during the countdown (game state bit 21), unpaused, a pane per window whose controller has no rumble pak (pak record +6, PS_PakRumble as in pausescr animRumbleText); removes them after; bit 22 retires the blit
+func_80106B3C	anim_no_rumble_text	func	code	likely	N64-only hud blit AnimFunc, the text in anim_no_rumble_panes' panes: text table entry 0x388/4 in player colour at the same per-window positions
+func_80106D94	animOdometer	func	mat3	sure	MAT3 hud.c animOdometer: animID bits 4-7 player, 0-3 digit; car mileage (+0x108) / 0.6 when the metric option is set; the 528/5280/52800/528000 digit wheels with the 9-carry flip
+func_80107AEC	hud_inlined_stub	func	code	likely	empty 8-byte function, never called: IDO -O3's leftover of a static it inlined everywhere, between animElapsedTimerText and animPlace in the HUD run; which static is not known (MAT3 hud.c has none there); deletable
+func_80107EDC	animLapCount	func	mat3	sure	MAT3 hud.c animLapCount: per window unless laps == gNumLaps or place_locked, shadowed text of the lap format with laps+1 and gNumLaps, font 11 or 12
+func_80108DA8	animRadar	func	mat3	sure	MAT3 hud.c animRadar: hidden past the windows / attract / < 2 cars; radarPos[gNumWindows-1][slot]; RenameBlit "RADAR_MD" + alpha 96 in split screen; publishes radarWidth/radarHeight
+func_80108F40	animRadarBlip	func	mat3	sure	MAT3 hud.c animRadarBlip: car[slot].dr_pos - car[me].dr_pos into the viewer's frame, scaled by 480 into the radar (radarWidth/radarHeight), SelectBlit human/drone icon
+func_80109468	hud_animTrackMap	func	mat3	sure	MAT3 hud.c animTrackMap: "MAP_MD" for 4 windows, mapPos, kMapSize, gPathMax - gPathMin scaling, plots every gResPath point (alt sets without resurrect skipped), mirrored unless gMirrorWaves; MAT3 has a second animTrackMap in trackscr.c
+func_80109A60	animDot	func	mat3	sure	MAT3 hud.c animDot: dot_order_list slot, track-map scaling of dr_pos, flashes on crash/not solid/hidden/resurrecting, SelectBlit by drone_type
+func_8010A53C	animCreditText	func	mat3	sure	MAT3 hud.c animCreditText: hidden unless attract (state bit 3) and gShowCredits; gCorner picks x 30 / 290 - gCreditWidth, y 30 / ... - 10 * gNumCreditNames; title colour 14, names colour 1 10 px apart
+func_8010B520	options_calcOptionMenuMaxSize_stub	func	code	likely	empty 8-byte function, never called: IDO -O3's leftover of an inlined static; it sits right after optionscr's animators where MAT3's next static, calcOptionMenuMaxSize, comes (options_initScreen inlines it: op_calcOptionMenuMaxSize); position only; deletable
+struct_callback_init	animate_pause_dim	func	code	likely	pausescr blit AnimFunc: palette = &pause_dim_color, UpdateBlit, AnimFunc = 0 (one update); MAT3 pausescr animControllerDimInternal without the Hidden test, settings-dialog backdrop (test_hudblit.c)
+state_update_global	animPause	func	mat3	sure	MAT3 pausescr animPause: Hidden(blt, pauseMenuSelect != 0), palette = &its colour static, UpdateBlit, animFunc = 0 (no ZOID_IgnoreDrawFirstBlit on the N64)
+func_8010B5D0	animTitleText	func	mat3	sure	MAT3 pausescr animTitleText: titlePos, font 13; gControllerRemoved -> "CONTROLLER %d %s"; gPauseState 7/8 its strings, 6 empty, else name + title in playerTextColor[playerInPause]
+func_8010B7FC	animPauseText	func	mat3	sure	MAT3 pausescr animPauseText: titlePos.y + 2 lines, font 10, the menu items coloured 22 for pauseMenuSelect (8 items on the N64, 6 on MAT3)
+func_8010B9C8	animSureText	func	mat3	sure	MAT3 pausescr animSureText: hidden while gPauseState < 7; question line, then yes/no at titlePos.x -/+ width/4 coloured by gYes
+func_8010BC84	animRumbleText	func	mat3	sure	MAT3 pausescr animRumbleText: hidden unless gPauseState 6; the "not all rumble paks" line if any player lacks one, then per player name and rumble status at gPlayerRects[gNumPlayers-1][i]
+func_8010C02C	TargetCollBBox	func	mat3	sure	MAT3 targets.c _TargetCollBBox: sphere pre-test, then each of the car's 4 corners into the target's body frame against its x/y/z min/max; first in gTargetCollFuncPtrs' source order (BBox, Trigger, Cylinder, MineCylinder, Radius, 3Piece), as here
+func_8010C2E4	TargetCollTrigger	func	mat3	sure	MAT3 targets.c _TargetCollTrigger: skips crashed/resurrecting cars; the 4 tire surfaces' snd_flags (0x20 and 0xF800 == collIdx << 11) set or clear the car's bit (slot + 24) in the path target's flags, 0x200 when it was empty
+func_8010C448	TargetCollCylinder	func	mat3	sure	MAT3 targets.c _TargetCollCylinder: collidable test, xz gap to radius + 3.5, writes *dist, hit when -2 < dy < 18
+func_8010C588	TargetCollMineCylinder	func	mat3	sure	MAT3 targets.c _TargetCollMineCylinder: as TargetCollCylinder but -2 < dy < 4
+steering_apply	TargetCollRadius	func	mat3	sure	MAT3 targets.c _TargetCollRadius: collidable test, 3D gap to radius + 3.5, writes *dist, returns gap <= 0; nothing to do with steering
+func_8010C7CC	TargetColl3Piece	func	mat3	sure	MAT3 targets.c _TargetColl3Piece: returns 0 (the four arguments of the gTargetCollFuncPtrs signature)
+func_8010C7F4	StartMine	func	mat3	sure	MAT3 targets.c _StartMine: returns if the car's crashflag; weapon type 5 -> body-frame z sign picks 280 or 800 damage, else 800 (BattleDamage); clears flag 2, plays targetInfo startSnd
+func_8010C974	AnimateMine	func	mat3	sure	MAT3 targets.c _AnimateMine: on release frees gAlwaysColList entries and gTargetList; first run keeps at most 3 mines per owner in gPlayerMines (oldest aged to 121), builds the mine and two glow rings (gWprObjList, gMineTextures, gMineRingColors by team)
+func_8010D680	AnimateWeaponIcon	func	mat3	sure	MAT3 targets.c _AnimateWeaponIcon: spins the icon (angV * gFrameSeconds) once flag 2 is set; otherwise maps target types 350..360 to weapons and shows the icon when no car holds that weapon (test_weapons.c)
+func_8010D85C	AnimateFlag	func	mat3	sure	MAT3 targets.c _AnimateFlag: strings BLU/GRN pick the flag palette (flag_pals), _OFF + digit the frame index, 10 frames, then the visual's function becomes the obj-swap animator
+func_8010D9CC	StartCactus	func	mat3	sure	MAT3 targets.c _StartCactus: 7 frames, GrabEnvEntry visual with 1/30 s timeStamp, LookInDir of 0.125 * the car's velocity, clears flags 6, AddToEnvList, startSnd
+func_8010DAF8	StartFence	func	mat3	sure	MAT3 targets.c _StartFence: 12 frames, GrabEnvEntry visual with 1/30 s timeStamp, clears flags 6, AddToEnvList, startSnd
+func_8010DBB8	StartWindow	func	mat3	sure	MAT3 targets.c _StartWindow: 7 frames, visual with 1/30 s, YawUV by pi when the car moves along the window's z axis, startSnd
+func_8010DF90	StartCoin	func	mat3	sure	MAT3 targets.c _StartCoin: if the car has a camera and hasn't found coin whichcoin: FoundCoin, hide both objects for that camera, clear its camera bit, flag 0x80 when none left, startSnd
+func_8010E0FC	AnimateCoin	func	mat3	sure	MAT3 targets.c _AnimateCoin: first run numbers gold (gWhichGoldCoin + 8) or silver (gWhichSilverCoin) coins, glow object, gold/silver coin objects and colours, hides it for players who found it; spins at angV * gFrameSeconds
+func_8010E4E4	AnimateVelRotGeneric	func	mat3	sure	MAT3 targets.c _AnimateVelRotGeneric: vel += 0.15 * gravity, pos += vel + 0.15 * gravity, RotateUV by angV * gFrameSeconds, freed when the timeStamp runs out
+func_8010E694	AnimateRotGeneric	func	mat3	sure	MAT3 targets.c _AnimateRotGeneric: ReleaseEnviron on op 0; unpaused, RotateUV by angV * gFrameSeconds
+func_8010E72C	StartKnockdown	func	mat3	sure	MAT3 targets.c _StartKnockdown: GrabEnvEntry visual (1/30 s, 8 frames), clears flags 6, LookInDir of the car's velocity copied into the target, AddToEnvList, startSnd
+func_8010E828	AnimateKnockdown	func	mat3	sure	MAT3 targets.c _AnimateKnockdown: ReleaseEnviron on op 0; unpaused, rotates the target by its angV
+func_8010E8B4	video_animPanes	func	mat3	sure	MAT3 videoscr.c animPanes: once (panesCreated): in the pause screen font 13, gControllerRemoved from gControllerData[playerInPause], _TitlePane and the menuRect pane; always the colour-bar pane (20,136)-(300,204)
+sync_acquire_menu	musyx_wait_audio_task	func	code	sure	MusyX service slot 1 (port/main.c musyx_services): blocks on musyx_task_done_queue until the audio task submitted by musyx_submit_audio_task is done; N64-only, no menu involved
+func_8010FBE0	musyx_submit_audio_task	func	code	sure	MusyX service slot 0: copies the library's OSTask into a static OSScTask (done queue musyx_task_done_queue, flags 2) and sends it to the scheduler's task queue, then the 670 message; N64-only
+func_8010FC60	musyx_set_retrace_callback	func	code	sure	MusyX service slot 2: stores the callback the audio thread calls each retrace (musyx_retrace_callback, called by dma_wait_complete); returns 0
+func_8010FC70	musyx_clear_retrace_callback	func	code	sure	MusyX service slot 3: clears musyx_retrace_callback
+resource_alloc_init	musyx_alloc	func	code	sure	MusyX service slot 6: AllocateMemoryHeap(0, size) then PurgeableMemory(block, 0) (not purgeable); the library's sample/voice buffers
+synced_model_render	musyx_free	func	code	sure	MusyX service slot 7: the memory lock (osRecvMesg on the heap queue), DeallocateMemoryInternal(block, 0), unlock: a copy of memsys DeallocateMemory (whose own definition is elsewhere); renders nothing
+struct_init_and_call	musyx_start_dma_list	func	code	sure	MusyX service slot 4: records a sample DMA request list (list, count, done flag), marks it active and starts the first transfer (the DMA service walks the rest, test_musyx.c)
+func_8010FD60	musyx_cart_address	func	code	sure	MusyX service slot 5: (address & 0x0FFFFFFF) or 0xB0000000, the cartridge (KSEG1 PI) address of a sample offset
+#
+# data used only by this area's functions, in address order
+D_8002E4A0	rdp_init_dl	data	code	likely	Gfx[17]: static display list StartGraphics calls second at each frame start (RDP state setup by its position)
+D_8002E528	rsp_init_dl	data	code	likely	Gfx[11]: static display list StartGraphics calls first at each frame start (RSP state setup by its position)
+D_8002E928	scheduler_interrupt_queue	data	code	sure	OSMesgQueue at gScheduler + 0x40 (PC_ALIAS in lib_1050_sdk.c): the game sends its 670 message here (EndGraphics, the 60 fps path)
+D_8002E960	scheduler_task_queue	data	code	sure	OSMesgQueue at gScheduler + 0x78: EndGraphics posts the frame task here
+D_8002E998	scheduler_thread	data	code	sure	OSThread at gScheduler + 0xB0, the scheduler's thread; EndGraphics stops it around gRenderInProgress++
+D_8002EBB0	zbuffer	data	code	sure	u32 (pointer): the Z buffer, 64-aligned heap block from InitGfx, set as the depth image by StartGraphics
+D_8007BA50	rsp_dram_stack	data	code	sure	u64[128]: the graphics task's DRAM stack (1024 bytes)
+D_8007BE50	rsp_yield_buffer	data	code	sure	u64[384]: the graphics task's yield data buffer (3072 bytes)
+D_8007CA50	rdp_fifo_buffer	data	code	sure	u64[0x1000]: the graphics task's RDP output FIFO (output_buff)
+D_80084A50	rdp_fifo_buffer_end	data	code	sure	u64[]: the end of rdp_fifo_buffer (the task's output_buff_size is this pointer)
+D_801105A4	audio_title_button_pos	data	code	likely	f32[3]; interior symbol = audio_buttonInfo[11].mat.pos (D_801102B4 + 0x2F0), the title's projected position in audio_animButtonText
+D_8011065C	audio_menuRect_cx	data	mat3	sure	s32; interior symbol = audio_menuRect.cx (MAT3 audioscr.c menuRect.cx, the option column x audio_animText right-aligns labels to)
+D_80110688	view0_eye_height	data	code	sure	f32: update_camera view 0 (in-car) eye height above view1_suscomp_offset (a literal in MAT3)
+D_8011068C	view0_eye_forward	data	code	sure	f32: update_camera view 0 eye offset forward (MAT3 literal, +/- for the rear look the N64 lacks)
+D_80110690	view1_eye_x	data	code	sure	f32: update_camera view 1 (bumper) eye offset x before the acceleration sway (MAT3 literal)
+D_80110694	view1_eye_y	data	code	sure	f32: update_camera view 1 eye offset y (MAT3 literal)
+D_80110698	view1_eye_z	data	code	sure	f32: update_camera view 1 eye offset z (MAT3 literal)
+D_8011069C	view1_accel_filter	data	code	sure	f32: update_camera view 1 low-pass factor of the sideways/forward sway (MAT3 literal; through PC_FILTER)
+D_801106A0	view1_spring_filter	data	code	sure	f32: update_camera view 1 low-pass factor of the vertical sway against view2spring (MAT3 literal)
+D_801106A4	lastSwitch	data	mat3	sure	f32[4]: per camera, the model time of the last attract view switch (MAT3 camera.c static lastSwitch; CheckCameraView)
+D_801106B4	camera_nextSwitch	data	mat3	sure	f32[4]: per camera, seconds until the next attract view switch (MAT3 camera.c static nextSwitch; hud.c has its own nextSwitch: file prefix)
+D_801106C0	FSCLS_from_one	data	code	sure	f32[]: MAT3 FSCLS seen from one entry before (FSCLS itself is D_801106C4, as ovl_a's group #defines it): IDO folded update_car_object's FSCLS[gFrameScale - 1] into this label [gFrameScale]; it overlaps nextSwitch[3]; wave 2 should index FSCLS and drop this name
+D_801108B0	trackSpots	data	mat3	sure	anon_zoom_unused_10 *[6]: per track, the attract camera spots (zoom flag, pos[3]; -999 y ends a list) init_camera_on_track searches
+D_801108C8	steady_leg_duration	data	mat3	sure	f32[2]: MAT3 steady_move_cam's static legDuration (seconds of stage 0 and 1), qualified (function-local static)
+D_80111560	carSuspensions	data	mat3	sure	_tSusp *[3]: loose/normal/tight suspension angles (update_game_data's pitch/roll)
+D_8011176C	gCircuitPoints	data	mat3	sure	s32[6], circuit.c: points for places 1-6; ContinueCircuit's points[j] = gCircuitPoints[places[j]]
+D_80111794	gCircuitFog	data	mat3	sure	s32[4] seen as {u16,u16} pairs, circuit.c: fog random range per circuit type (ContinueCircuit)
+D_801117A4	gCircuitWind	data	mat3	sure	s32[4] seen as {u16,u16} pairs, circuit.c: wind random range per circuit type (ContinueCircuit)
+D_801117B4	gCircuitDiff	data	mat3	sure	s32[4]; MAT3 circuit.c static gCircuitDiff[circuitType], NewCircuit's difficulty
+D_801117C4	circuit_drone_skills	data	mat3	sure	s32[6][12]: MAT3 ContinueCircuit's static local skills[6][12], copied into each drone's tCircuitCar.skill and then shuffled
+D_8011407C	controls_idMap	data	mat3	sure	s32[28]; MAT3 controlscr.c animControls' static idMap: control value -> button picture cell for SelectBlit
+D_801140E8	controls_idMap_conflict	data	mat3	likely	s32; interior symbol = controls_idMap[27], the conflict picture cell animControls selects (MAT3 idMap[27])
+D_80114128	demo_multiblit	data	mat3	sure	tBlitDef[1] (0x24); MAT3 demo.c static multiblit (the press-start text blit, anim demo_animText), NewMultiBlit's argument in initDemoGame
+D_8011414C	demo_inited	data	mat3	sure	s8; MAT3 demo.c static inited (initDemoGame sets, uninitDemoGame clears)
+D_80114150	demo_blit	data	mat3	sure	_tBlit *; MAT3 demo.c static blit (the multiblit made by initDemoGame, removed by uninitDemoGame)
+D_80114154	demo_preplayDone	data	mat3	sure	s8; MAT3 demo.c static preplayDone (PrePlay finished for the demo race)
+D_80114158	gCurrentDemoTrack	data	mat3	sure	s16; MAT3 demo.c static gCurrentDemoTrack (nextAvailDemoTrack, fake_init's track)
+D_8011415C	gDemoInited	data	mat3	sure	s8; MAT3 demo.c playDemoGame's static gDemoInited
+D_801141BC	uvector	data	mat3	sure	f32[3]: the world up unit vector (View3Cam's y blend start, MAT3 uvector)
+D_80114654	gGamePointPlayed	data	mat3	sure	s8; MAT3 game.c gGamePointPlayed (battle game-point sound played once; PrePlay/UpdateGame)
+D_801146C4	idle_warning_multiblit	data	code	likely	tBlitDef[1] (0x24): the blit GameLoop creates after 300 s without controller input outside the attract states (handle in game_state_flags), removed on input
+D_801146FC	controller_dim_color	data	mat3	likely	u32 colour animControllerDim makes its blit's palette (MAT3 animControllerDimInternal's static colour); in game.c's .data next to idle_warning_multiblit
+D_80114700	gameover_multiblit	data	mat3	sure	tBlitDef[1] (struct pc_multiblit on the PC), gameoverscr.c's static multiblit (animText draw callback) for NewMultiBlit
+D_80114724	gameover_titlePos	data	mat3	sure	u8[2], gameoverscr.c's static titlePos (x, y of the title pane)
+D_80114728	gameover_inited	data	mat3	sure	s8, gameoverscr.c's static inited
+D_8011472C	gameover_blit	data	mat3	sure	_tBlit_2 *, gameoverscr.c's static blit
+D_80114730	gfx_tasks_pending	data	code	sure	s32: graphics tasks posted and not done (EndGraphics flags the task by it; the main thread starts a frame only below 2)
+D_80114734	ghost_gInited	data	mat3	sure	s8, ghost.c's static gInited (GhostStart's one-time pointer setup)
+D_80114750	menu_text_depth_curve	data	code	sure	{f32 x, f32 y}[] ending with x >= 32000: HAL_SetMenuTextDepth maps a depth through it piecewise linearly (N64 only)
+D_801147C0	text_lock_inited	data	mat3	sure	s8: MAT3 _InitSemaphore's static sInited (qualified): the text semaphore queue exists
+D_801148A4	highscore_inited	data	mat3	sure	s8, highscorescr.c's static inited
+D_801148A8	highscore_mblit	data	mat3	sure	tBlitDef[1] (struct pc_multiblit on the PC), highscorescr.c's static mblit (its animText)
+D_801148CC	highscore_blit	data	mat3	sure	_tBlit_2 *, highscorescr.c's static blit
+D_801148D0	gTable	data	mat3	sure	s8, highscorescr.c: which score table is shown (0 lap, 1 average, 2 ghost)
+D_801148D4	gLastPlayer	data	mat3	sure	tPlayerProfile **[4] (temp-name index or -1 on the N64), highscorescr.c: last name entered per controller
+D_801148E8	highscore_gPlayerRects	data	mat3	sure	{s32 x, y, w, h}[4][4], highscorescr.c's static gPlayerRects: name pane per window count and player
+D_801149A8	name_entry_del_label	data	mat3	sure	char[] DrawName's static del (MAT3 highscorescr DrawName del$1225: the delete key's label)
+D_801149AC	name_entry_end_label	data	mat3	sure	char[] DrawName's static end (MAT3 end$1226: the end key's label)
+D_801149B0	name_entry_space_label	data	mat3	sure	char[] DrawName's static spc (MAT3 spc$1227: the space key's label)
+D_801149B4	obscenities	data	mat3	sure	char *[22] (last ""), MAT3 censor's local obscenities list (static data on the N64)
+D_80114A0C	cStrCreditNames	data	mat3	sure	char *[14][11], hud.c: the credit names, NULL-terminated per page (ShowHUD's credits)
+D_801158DC	HudMultiBlit	data	mat3	sure	tBlitDef[] (8 on the N64), hud.c: the HUD blit set ShowHUD creates
+D_801159FC	TwoPlayerMultiBlit	data	mat3	sure	tBlitDef[], hud.c: the two-player divider blit set
+D_80115A20	ThreePlayerMultiBlit	data	mat3	sure	tBlitDef[], hud.c: the three-player divider blit set
+D_80115A44	OverlayMultiBlit	data	mat3	sure	tBlitDef[], hud.c: the attract/credits overlay blit set
+D_80115A68	speedPos	data	mat3	sure	s32[4][4][2], hud.c: speedometer x,y per window count and player (the tree already #defines speedPos to it)
+D_80115AE8	odometerPos	data	mat3	sure	s32[4][4][2] {x, y} by window count - 1 and player (MAT3 hud.c odometerPos); animOdometer
+D_80115B68	tachPos	data	mat3	sure	s32[4][4][2], hud.c: tachometer x,y per window count and player (animTach)
+D_80115C88	elapsedTimerPos	data	mat3	sure	s32[4][2] {x, y} by window count - 1 (MAT3 hud.c elapsedTimerPos); animElapsedTimer, animElapsedTimerText
+D_80115CA8	placePos	data	mat3	sure	s32[4][4][2] (MAT3 hud.c placePos); animPlace
+D_80115DA8	lapCountPos	data	mat3	sure	s32[4][4][2] (MAT3 hud.c lapCountPos); animLapCount
+D_80115EA8	lapTimePos	data	mat3	sure	s32[4][4][2] (MAT3 hud.c lapTimePos); animLapTime, animLapTimeText
+D_80115FA8	no_rumble_text_pos	data	code	likely	s32[4][4][2] {x, y} by window count - 1 and player: where anim_no_rumble_panes/anim_no_rumble_text centre their pane and text
+D_80116028	radarPos	data	mat3	sure	s32[4][4][2] (MAT3 hud.c radarPos); animRadar, animRadarBlip
+D_801160A8	hud_mapPos	data	mat3	sure	s32[4][2] track-map centre by window count - 1 (MAT3 hud.c static mapPos); prefixed: a function-local static mapPos exists in overlay A
+D_801160C8	bonesPos	data	mat3	sure	s32[4][4][2] (MAT3 hud.c bonesPos); animBones
+D_80116148	hud_playerPaneColors	data	mat3	sure	u8[4][2][4] the two RGBA colours of each player's result pane (MAT3 hud.c static playerPaneColors); animResults; prefixed: hudextra.c has its own (overlay B, D_80394250)
+D_80116168	hud_playerColor	data	mat3	sure	u8[4][4] RGBA per player (MAT3 hud.c static playerColor); animPlace's place digit; prefixed: overlay B's hudextra code has its own playerColor (D_80394270)
+D_8011617C	radarWidth	data	mat3	sure	s32 half the radar blit's width, set by animRadar, read by animRadarBlip (MAT3 hud.c radarWidth)
+D_80116180	radarHeight	data	mat3	sure	s32 (MAT3 hud.c radarHeight: height / 2); set by animRadar, read by animRadarBlip
+D_80116184	hud_box_color	data	code	likely	u8[4] RGBA of the HUD's digit boxes; its alpha byte [3] is the speed box's (animSpeed reads it as D_80116187) and the elapsed-time box's (animElapsedTimer); MAT3 uses the constant 128 there
+D_80116187	hud_box_alpha	data	code	likely	u8 hud_box_color[3] seen alone (hud_box_color + 3): animSpeed's blit alpha; interior: wave 2 should write hud_box_color[3]
+D_80116188	lapTimeBGColor	data	mat3	sure	u8[4][4] RGBA per window of the lap-time box, alpha faded over the last 3 s (MAT3 hud.c lapTimeBGColor)
+D_80116198	no_rumble_pane_colors	data	code	likely	u8[4][2][4] the two RGBA colours of each player's pane in anim_no_rumble_panes (a second copy of the playerPaneColors shape)
+D_801161C4	kMapSize	data	mat3	sure	s32 the track-map blit's width, set by animTrackMap, read by animDot (MAT3 hud.c kMapSize)
+D_801161CC	task_done_parity	data	code	likely	s32: process_scheduler_message's static, toggled on every task-done message; nothing reads it
+D_801161D0	next_drone_path	data	mat3	sure	s32: MAT3 InitCarPath's static p (qualified): the next drone path 0..3 handed to a drone
+D_801163F4	attractSlot	data	mat3	sure	s16: MAT3 fake_init's static attractSlot: the car the attract camera follows, cycling 0..5
+D_801164C0	cheat_all_cars	data	code	sure	s16, element 14 of the cheat flags (s16 array at 0x801164A4; MAT3 gCheatState[16]): CalcUnlockedStuff unlocks all 13 cars when 1
+D_801164C2	cheat_all_tracks	data	code	sure	s16, element 15 of the cheat flags (MAT3 gCheatState[17]): all 19 tracks unlocked when 1
+D_801164C4	cheat_all_parts	data	code	sure	s16, element 16 of the cheat flags (MAT3 gCheatState[18]): all transmissions (but 6, 7), engines, tires and frames when 1
+D_801164D0	cStrLanguageNames	data	mat3	sure	char *[6] language names (MAT3 optionscr.c cStrLanguageNames, indexed by gLang)
+D_80116CFC	options_title_button_pos	data	mat3	likely	f32[3] the title button's position: options_buttonInfo[31]'s matrix translation (MAT3 animButtonText projects buttonInfo[31].mat.uvs[3]); interior of options_buttonInfo
+D_80116DE0	pause_dim_color	data	code	likely	u32 colour animate_pause_dim makes its blit's palette
+D_80117100	pause_gPlayerRects	data	mat3	sure	struct[4][4] of 0x18 bytes {x, y, w, h, cx, cy} by player count - 1 and player (MAT3 pausescr gPlayerRects, 5 files have one); animRumbleText
+D_80117358	animPause_color	data	mat3	sure	u32 colour animPause makes its blit's palette (MAT3 pausescr animPause's static color)
+D_8011754C	target_info_start_sounds	data	mat3	sure	s32 targetInfo[0].startSnd seen alone (targetInfo + 0x1C, read with stride 0x30 per infoIdx); interior of targetInfo: wave 2 should write targetInfo[i].startSnd
+D_80118E08	flag_pals	data	mat3	sure	char *[3] flag palette names by colour (MAT3 targets.c flag_pals); AnimateFlag
+D_80118E14	coin_gold_glow_color	data	mat3	sure	u32 RGBA of a gold coin's glow (MAT3 _AnimateCoin local gClr)
+D_80118E18	coin_silver_glow_color	data	mat3	sure	u32 RGBA of a silver coin's glow (MAT3 _AnimateCoin local sClr)
+D_8011AC84	video_title_button_pos	data	mat3	likely	f32[3] the title button's position: video_buttonInfo + 0x2F0, its last entry's matrix translation (as options_title_button_pos); interior of video_buttonInfo
+D_8011AD60	gTestPane	data	mat3	sure	void * pane of the test-frequency box (MAT3 videoscr gTestPane)
+D_8011AD64	gConfirmPane	data	mat3	sure	void * pane of the confirm box (MAT3 videoscr gConfirmPane)
+D_8011AD7C	video_menu_center_x	data	mat3	sure	s32 video_menuRect.cx (video_menuRect + 0xC): the options' right edge / values' left edge; interior: wave 2 should write video_menuRect.cx
+D_8011AD80	video_test_box_height	data	mat3	sure	s16 animButtonText's static height (MAT3 videoscr height$637)
+D_8011AD84	video_confirm_box_height	data	mat3	sure	s16 animButtonText's static height (MAT3 videoscr height$646)
+D_80120240	controller_removed_format	data	code	likely	char[]: the 'controller N removed' printf format controls_animText uses (audio_animText writes the same format as a literal)
+D_8012029C	demo_alt_message	data	code	likely	char[] (<= 0x4C): the top line demo_animText draws in font 13 when attract_alt_text_flag is 1
+D_801202F8	gravityArray	data	mat3	sure	f32[4]; MAT3 game.c const gravityArray[gGravityScale], PrePlay's gGravity = 32.2 * gravityArray[...]
+D_8012031C	race_standings_drone_name	data	mat3	sure	char[] the name drones get in drawRaceStandings (MAT3 literal)
+D_80120324	race_standings_time_format	data	mat3	sure	char[] minutes:seconds.milliseconds format of the race-time column (drawRaceStandings)
+D_80120334	race_standings_lap_format	data	mat3	sure	char[] minutes:seconds.milliseconds format of the best-lap column (drawRaceStandings)
+D_80120344	stunt_standings_drone_name	data	mat3	sure	char[] the name drones get in drawStuntStandings (MAT3 literal)
+D_8012034C	stunt_standings_points_format	data	mat3	sure	char[] integer format of the total-points column (drawStuntStandings)
+D_80120350	stunt_standings_best_format	data	mat3	sure	char[] integer format of the best-stunt column (drawStuntStandings)
+D_80120354	battle_standings_drone_name	data	mat3	sure	char[] the name drones get in drawBattleStandings (MAT3 literal)
+D_8012035C	battle_standings_total_format	data	mat3	sure	char[] integer format of drawBattleStandings' cells
+D_80120360	race_score_time_format	data	mat3	sure	char[] minutes:seconds.milliseconds format of the race-time row (drawRaceScore, inlined in gameover_animText); not in the loader table
+D_80120370	race_score_best_lap_format	data	mat3	sure	char[] the same format for the best-lap row; not in the loader table
+D_80120380	race_score_lap_time_format	data	mat3	sure	char[] the same format for each lap row; not in the loader table
+D_80120390	stunt_score_total_format	data	mat3	sure	char[] integer format, drawStuntScore's total-points row
+D_80120394	stunt_score_best_format	data	mat3	sure	char[] integer format, drawStuntScore's best-stunt row
+D_80120398	stunt_score_count_format	data	mat3	sure	char[] integer format, drawStuntScore's per-stunt-type count rows
+D_8012039C	battle_score_total_format	data	mat3	sure	char[] integer format, drawBattleScore's totals
+D_801203A0	battle_score_cell_format	data	mat3	sure	char[] integer format, drawBattleScore's head-to-head cells
+D_80120600	ghost_menu_title_text	data	code	likely	char[], the title of the ghost-save pane (SetHighScoreState state 4 measures it; MAT3 uses gText.single[230])
+D_8012060C	default_score_time_format	data	mat3	sure	char[], the "%01d:%02d.%03d" sprintf format of PrintScores' default (empty) rows (a literal in MAT3 _PrintScores)
+D_8012061C	score_time_format	data	mat3	sure	char[], the same time format for PrintScores' recorded rows
+D_8012062C	unlocked_circuit_format	data	mat3	sure	char[] two-string format of an unlocked circuit line (DrawUnlocked, MAT3 TB_Sprintf with gText.taba[tab[45] + i])
+D_80120634	unlocked_trans_format	data	mat3	sure	char[] two-string format of an unlocked transmission line (DrawUnlocked)
+D_8012063C	unlocked_engine_format	data	mat3	sure	char[] two-string format of an unlocked engine line (DrawUnlocked)
+D_80120644	unlocked_tires_format	data	mat3	sure	char[] two-string format of an unlocked tires line (DrawUnlocked)
+D_8012064C	unlocked_frame_format	data	mat3	sure	char[] two-string format of an unlocked frame line (DrawUnlocked)
+D_80120D9C	tachometer_md_name	data	mat3	sure	char[], the "TACHOMETER_MD" texture name animTach renames to in two-player (a literal in MAT3 animTach)
+D_80120DAC	tachometer_sm_name	data	mat3	sure	char[], the "TACHOMETER_SM" texture name for three and four players
+D_80120E34	radar_md_blit_name	data	mat3	sure	char[] the split-screen radar texture's name animRadar renames its blit to (MAT3 literal "RADAR_MD")
+D_801210CC	pause_controller_removed_format	data	mat3	sure	char[] animTitleText's controller-removed line format (MAT3 literal: controller number and a text)
+D_801210E0	pause_player_title_format	data	mat3	sure	char[] animTitleText's two-string format: player name and the pause title
+D_80121D54	gMineRingColors	data	mat3	sure	u8[4][3] RGB of a mine's glow rings by team (MAT3 targets.c gMineRingColors)
+D_80121D60	ammoCnts	data	mat3	sure	s32[8] ammunition a weapon icon gives, by weapon (MAT3 targets.c ammoCnts); StartWeaponIcon
+D_80121DB0	coin_glow_object_name	data	mat3	sure	char[] object name of a coin's glow (MAT3 _AnimateCoin literal)
+D_80121DBC	gold_coin_object_name	data	mat3	sure	char[] object name of the gold coin model (MAT3 _AnimateCoin literal)
+D_80121DCC	silver_coin_object_name	data	mat3	sure	char[] object name of the silver coin model (MAT3 _AnimateCoin literal)
+D_80121DDC	velrot_gravity	data	mat3	sure	f32[3] gravity of AnimateVelRotGeneric's flying debris (MAT3 _AnimateVelRotGeneric static const gravity)
+D_801244D4	fixed_cam_zoom_rate	data	code	sure	f32 literal: fix_camera_in_space's zoom feet per foot beyond 50 (a MAT3 constant)
+D_801244EC	view3_speed_stretch	data	code	sure	f32 literal: View3Cam's distance stretch per ft/s up to 100 (MAT3 constant)
+D_801244F0	view3_elastic_range	data	code	sure	f32 literal: View3Cam's elasticity drop over 0..140 ft/s (MAT3 constant)
+D_801244F4	view3_elastic_max	data	code	sure	f32 literal: View3Cam's elasticity at rest (MAT3 constant)
+D_801244F8	view3_elastic_min	data	code	sure	f32 literal: View3Cam's elasticity at 140 ft/s and above (MAT3 constant)
+D_801244FC	view3_yf_rate_range	data	code	sure	f32 literal: View3Cam's yf rate term over suspension 0.5..1.5 (MAT3 constant)
+D_80124500	view3_yf_rate_base	data	code	sure	f32 literal: View3Cam's yf rate base (MAT3 constant)
+D_80124504	view3_zvec_min_len	data	code	sure	f32 literal: View3Cam's shortest blended z vector before falling back to -dr_uvs[2] (MAT3 constant)
+D_80124508	view3_zvec_elastic_min_len	data	code	sure	f32 literal: the same test after the elastic blend with last_zvec (MAT3 constant)
+D_8012450C	view3_yvec_min_len	data	code	sure	f32 literal: View3Cam's shortest blended y vector before falling back to dr_uvs[1] (MAT3 constant)
+D_80124510	view3_yvec_elastic_min_len	data	code	sure	f32 literal: the same test after the elastic blend with last_yvec (MAT3 constant)
+D_80124514	view3_xvec_min_len	data	code	sure	f32 literal: View3Cam's shortest cross product before using rvector (MAT3 constant)
+D_80124518	view1_suscomp_bias	data	code	sure	f32 literal: view1_suscomp_offset's subtracted suspension compression (MAT3 constant)
+D_80124570	res_path_search_start_dist	data	code	sure	f32 literal: find_closest_res_path_point's starting squared distance (1e20 in MAT3's searches)
+D_801247EC	fx_volume_fade_time	data	code	likely	f32 rodata literal: EnableGameSounds' fade time for AudSetMasterVol (MAT3 writes 0.1f)
+D_801247F8	countdown_round_up	data	code	likely	f32 rodata literal: CountDown's addend to the remaining time (MAT3 writes 0.999f)
+D_801247FC	mini_force_normal	data	code	likely	f32 rodata literal: MiniForceApart's force when the car is not crashing (MAT3 writes 250000.0f)
+D_80124800	mini_force_crashed	data	code	likely	f32 rodata literal: MiniForceApart's force when crashflag is set (MAT3 writes 100000.0f)
+D_80124804	mini_force_min_dist2	data	code	likely	f32 rodata literal: MiniForceApart's squared length below which the push goes along x (MAT3 writes 0.0001f)
+D_801249BC	cactus_frame_time	data	mat3	sure	f32 literal (.rodata), StartCactus's visual timeStamp (MAT3 0.0333333f, 1/30 s)
+D_801249C0	fence_frame_time	data	mat3	sure	f32 literal (.rodata), StartFence's visual timeStamp (MAT3 0.0333333f, 1/30 s)
+D_8012E638	fixed_cam_pos	data	mat3	sure	f32[4][3]: MAT3 fix_camera_in_space's static cam_pos, per camera (qualified)
+D_8012E670	fixed_cam_mode	data	mat3	sure	s8[4]: MAT3 fix_camera_in_space's static cam_mode (1 = zoom), per camera (qualified)
+D_8012E690	steady_start_pos	data	mat3	sure	f32[4][3]: MAT3 steady_move_cam's static startPos, per camera (qualified)
+D_8012E6C8	steady_stage	data	mat3	sure	s16[4]: MAT3 steady_move_cam's static stage 0..2, per camera (qualified)
+D_8012E6E8	steady_leg_time	data	mat3	sure	f32[4]: MAT3 steady_move_cam's static legTime, per camera (qualified)
+D_80138660	gShowCredits	data	mat3	sure	s32, hud.c: attract mode shows the credits (ShowHUD)
+D_80138668	maxpath_cam_start_point	data	mat3	sure	s16[4]: MAT3 maxpath_cam's static startPoint, per camera (qualified)
+D_80138870	gGameOverState	data	mat3	sure	s32 enum, gameoverscr.c: 0 none, 1 main menu, 2 score
+D_80138878	maxpath_cam_start_path	data	mat3	sure	s16[4]: MAT3 maxpath_cam's static startPath, per camera (qualified)
+D_801391E0	gMainSelect	data	mat3	sure	s32 enum, gameoverscr.c: the selected game-over option (0-6)
+D_801391E8	maxpath_cam_last_point	data	mat3	sure	s16[4]: MAT3 maxpath_cam's static lastPoint, per camera (qualified)
+D_801392B8	maxpath_cam_start_time	data	mat3	sure	f32[4]: MAT3 maxpath_cam's static startTime, per camera (qualified)
+D_80139308	maxpath_cam_last_dist	data	mat3	sure	f32[4]: MAT3 maxpath_cam's static lastDist, per camera (qualified)
+D_801409F0	gGhostPlayers	data	mat3	sure	tPlayerProfile *[4], ghost.c: point at gRealGhostPlayers (GhostStart)
+D_80140A18	gRealGhostPlayers	data	mat3	sure	tPlayerProfile[4], 0x30 each on the N64, ghost.c
+D_80140AF8	gNewGhosts	data	mat3	sure	tGhostFile *[4], ghost.c: point at gRealNewGhosts
+D_80140B28	gRealNewGhosts	data	mat3	sure	tGhostFile[4], 0x2C each, ghost.c
+D_801424F0	gThisPlayer	data	mat3	sure	tPlayerProfile **[4] (or a temp-name index), highscorescr.c: whose name each player's row holds
+D_80142500	gNewGhostHeaders	data	mat3	sure	tSaveHeader *[4], ghost.c: point at gRealNewGhostHeaders
+D_80142528	gThisTrack	data	mat3	sure	s16, highscorescr.c: gTrackNum + 6 when backwards
+D_80142530	gRealNewGhostHeaders	data	mat3	sure	tSaveHeader[], 0x58 each on the N64, ghost.c: the recording headers
+D_80142694	gStuffUnlocked	data	mat3	sure	s8[4] (5 in MAT3), highscorescr.c: something new was unlocked for the player
+D_801426A0	gPrevUnlockedTracks	data	mat3	sure	s8[4][19], highscorescr.c: gUnlockedTracks before the race
+D_801426F0	gPrevUnlockedCars	data	mat3	sure	s8[4][13], highscorescr.c
+D_80142750	gPrevUnlockedCircuits	data	mat3	sure	s8[4][4], highscorescr.c
+D_80142780	gPrevUnlockedTrans	data	mat3	sure	s8[4][8], highscorescr.c
+D_80142AD8	gPrevUnlockedEngines	data	mat3	sure	s8[4][9], highscorescr.c
+D_80142D70	markers_valid	data	mat3	sure	s16, hud.c: ShowHUD clears it, updateFrame sets it when dot_order_list is built
+D_80142D78	gPrevUnlockedTires	data	mat3	sure	s8[4][5], highscorescr.c
+D_80142D90	frame_start_msg	data	code	likely	the message process_scheduler_message sends to game_thread_queue when it started a frame (its address is the message)
+D_80142DB4	dot_order_list	data	mat3	sure	s8[6] the track-map dots' car order, humans last (MAT3 hud.c dot_order_list); hud_updateFrame, animDot
+D_80142DC0	gPrevUnlockedFrames	data	mat3	sure	s8[4][6], highscorescr.c
+D_801439D8	TrackTimeStr	data	mat3	sure	u8[4][8] (the PC view declares [6][8]) each slot's time as text, written by hud_updateFrame with cvt_time (MAT3 hud.c TrackTimeStr)
+D_801439F8	carsetup_flag	data	mat3	sure	s8[6]; MAT3 game.c carsetup_flag[slot] (CarSetup ran SetupCar once; PrePlay clears it)
+D_80143A40	humans	data	mat3	sure	s16[]: the slots of the human cars (munge_gLink_data, MAT3 humans[]); render_large_objects' group has locals humans/num_humans/num_drones that shadow it
+D_80143A50	gScoreName	data	mat3	sure	u8[4][13], highscorescr.c: the name being entered per player
+D_80143CE8	circuitCode	data	mat3	sure	s8, highscorescr.c: show the circuit code state
+D_80143EF0	highscore_gCircuitCode	data	mat3	sure	u8[32], highscorescr.c's static gCircuitCode (GetCircuitCode's password text)
+D_80143F18	gDrawName	data	mat3	sure	s8[4], highscorescr.c: player enters a name
+D_80143F20	gScoreTimes	data	mat3	sure	u8[5][10], highscorescr.c: the five rows' time strings
+D_80143F54	gRankedPlayer	data	mat3	sure	s8[4], gamerecords.c: FindWinner's ranking of the windows' players
+D_80143FE0	gScoreNames	data	mat3	sure	u8 *[5], highscorescr.c: the five rows' names
+D_80144010	highscore_gNameSelect	data	mat3	sure	s16[4], highscorescr.c's static gNameSelect: grid cell per player (-1 end, -2 delete, -3 space)
+D_8014401C	save_server_tick_time	data	code	likely	f32: game time of UpdateGame's last 3-second SaveServer tick in the race state (N64 only)
+D_80144C40	highscore_gNameLen	data	mat3	sure	s16[4], highscorescr.c's static gNameLen
+D_80144DA0	gGhostMenuSelect	data	mat3	sure	s32 enum, highscorescr.c: ghost-save menu row
+D_80144DA4	best_lap_time_by_column	data	code	sure	f32 view of gBestLapTime one element low (gBestLapTime - 1, the symbol 0x80144DA8 - 4): IDO folded drawRaceScore's [col - 1] into the base; not in the loader table; wave 2: gBestLapTime[column - 1]
+D_801460C0	gGhostPak	data	mat3	sure	s8, highscorescr.c: the controller pak chosen for the ghost
+D_801460F0	gGhostMenuConflict	data	mat3	sure	s8, highscorescr.c
+D_801460FC	gGhostMenuConfirm	data	mat3	sure	s8, highscorescr.c: the overwrite confirm is up
+D_80146127	gOptions_circuit_death	data	mat3	likely	s8; interior symbol = gOptions[31] (D_80146108 + 0x1F), the option NewCircuit copies into circuit->death (MAT3 gOptions[31])
+D_80146131	highscore_gYes	data	mat3	likely	s8, the confirm's yes/no toggle (left/right flips it, save when 1); MAT3 has a static gYes there but drives the confirm with gGhostConfirmMenuSelect
+D_80146148	gGhostMenuNotify	data	mat3	sure	s8, highscorescr.c: the saved/failed notice is up
+D_80146198	gPakGhosts	data	mat3	sure	tGhostFile **[4], highscorescr.c: this player's ghost found on each pak
+D_801461A8	gSavedGhost	data	mat3	sure	tGhostFile **, highscorescr.c: the compressed ghost to save
+D_801461C0	gGhostStatus	data	mat3	sure	s32 enum[4], highscorescr.c: per pak (-4 none, -1/-2/-3 errors, 0 free, 1 own ghost, 2 another)
+D_801461FC	text_lock_msg	data	code	sure	OSMesg[1]: text_lock_queue's message buffer (HAL_InitText)
+D_80149428	gBattlePoints	data	mat3	sure	s8[4][4], gamerecords.c: points scored by [to] on [from]
+D_80149778	scorePanes	data	mat3	sure	tBlitSet *[2] (3 in MAT3), highscorescr.c: the score table's panes
+D_80149798	ghostPanes	data	mat3	sure	tBlitSet *[3], highscorescr.c: the ghost-save menu's panes
+D_80150B60	ties	data	mat3	sure	s32, gamerecords.c: players tied with the winner (FindWinner)
+D_80150B68	tied	data	mat3	sure	s8[4], gamerecords.c: player i is tied with the winner
+D_80150C04	first_camera_slot	data	code	sure	u8: gCamera[0].slot (an interior label: gCamera 0x80150B70 + 0x94); fake_init points camera 0 at attractSlot
+D_80151510	old_drone_scale	data	mat3	sure	f32[6]; MAT3 drones.c old_drone_scale (InitDrones sets 1.0); the symbol-table bound (4) is cut by an interior symbol
+D_801515D8	old_boost	data	mat3	sure	f32[6]; MAT3 drones.c old_boost (InitDrones sets 1.0)
+D_80151AC0	gNewTotalScore	data	mat3	sure	s8[3][5], gamerecords.c: player who set each new total score (-1 none)
+D_80151AE0	retraces_since_frame	data	code	sure	s32: retraces since the main thread last started a frame (process_scheduler_message)
+D_80151CEE	checkpoints_start_pt	data	code	sure	s16: gCheckpoints.startPt (interior label, +6); InitCarPath marks the car started when it is 0
+D_80151CF4	gCheckpoints_points	data	mat3	likely	anon_pos_normal_50[]; interior symbol = gCheckpoints.points (gCheckpoints at D_80151CE8, points at +0xC), CheckCPs' checkpoint planes (pos, normal, radius)
+D_80152018	gFirstPlaceTime	data	mat3	sure	f32; MAT3 checkpoint.c static gFirstPlaceTime (CheckCPs, InitCPTime)
+D_80152031	gInFirstPlace	data	mat3	sure	s8; MAT3 checkpoint.c static gInFirstPlace (CheckCPs, InitCPTime)
+D_8015204C	stunt_player_total_points	data	mat3	sure	s32 view of gStuntPlayer[0].totalPoints (gStuntPlayer + 0x14, stride 0x78); interior: wave 2 should write gStuntPlayer[p].totalPoints
+D_8015256C	gTeamPoints	data	mat3	sure	s8[4], gamerecords.c: battle team points
+D_80152574	view3_switch	data	mat3	sure	s8[4]: per camera, View3Cam starts without elasticity (MAT3 camera.c static view3_switch; init_view3 sets it)
+D_801525F8	gTireCnt	data	mat3	sure	s8[4]: per camera, tires on the ground (CheckCameraView, MAT3 static gTireCnt)
+D_80152680	gSusAvg	data	mat3	sure	f32[4]: per camera, mean compression of the grounded tires (MAT3 static gSusAvg)
+D_801526A8	cur_acc	data	mat3	sure	f32[4][3]: per camera, view 1's filtered acceleration sway (MAT3 static cur_acc)
+D_801526E0	rear_y	data	mat3	sure	f32[4]: per camera, the chase camera height (MAT3 static rear_y; init_view3)
+D_801526F8	rear_z	data	mat3	sure	f32[4]: per camera, the chase camera distance (MAT3 static rear_z; init_view3)
+D_80152708	elasticity	data	mat3	sure	f32[4]: per camera, this frame's position blend (MAT3 static elasticity; point_at_car, DeathCam)
+D_80152720	elastic_factor	data	mat3	sure	f32[4]: per camera, the speed-based elasticity (MAT3 static elastic_factor; _UpdateRearCamera)
+D_80152800	gFirstLapDistance	data	mat3	sure	f32: race distance of the first lap (FindMaxpathIntervals); also used by FindPathDistances
+D_80152BD0	car1_objnum	data	code	sure	s32: car record 1's objnum (an interior label of the car array, +0x3B8 + 0xF4 low half via NODE_LOW), read with the car stride by Update_MDrive
+D_80152BD8	car1_dr_pos	data	code	sure	f32[3]: car record 1's dr_pos (interior label, +0x3B8 + 8), read with the car stride by Update_MDrive
+D_80152C20	car1_dr_car_uvs	data	code	sure	f32[3][3]: car record 1's dr_car_uvs (interior label, +0x3B8 + 0x50), read with the car stride by Update_MDrive
+D_80153E84	sched_to_use	data	mat3	sure	volatile s16: the drone_sched row (our drones, +7 with 2+ humans; init_cars); also used by update_drone_models
+D_80153F24	sched_index	data	mat3	sure	s16: position in the drone_sched row (-1 at init_cars); also used by update_drone_models
+D_80154394	gCredit	data	mat3	sure	s32, hud.c: current credits page
+D_801543A0	gCorner	data	mat3	sure	s32, hud.c: corner the credits pane is in (Random(4))
+D_801543A8	gCreditWidth	data	mat3	sure	s32, hud.c: widest line of the credits page
+D_801543B0	gNumCreditNames	data	mat3	sure	s32, hud.c: names on the credits page
+D_801543B8	wrongWayTime	data	mat3	sure	f32[4] per window, how long the car has faced the wrong way (MAT3 hud.c wrongWayTime); animWrongWay
+D_80154484	gCircuitCars_skill	data	mat3	likely	s16; interior symbol = gCircuitCars[0].skill (tCircuitCar 0x4C at D_80154450, skill[12] at +0x34), read by DoDrones as [slot][track + 6*backwards] with a 38-short stride
+D_80154658	gCircuitSeed	data	mat3	sure	u32, circuit.c: the circuit's rand_r seed
+D_80154FD0	gCircuitNumTrackRaces	data	mat3	sure	u8[6], circuit.c: races per track in a random circuit (at most 4)
+D_80155140	gTempCircuitFirstTrack	data	mat3	sure	u8[4], circuit.c: per controller, first track of a circuit entered by code
+D_80155148	gTempCircuitPoints	data	mat3	sure	u16[4][6], circuit.c: per controller, points given by a circuit code
+D_80155178	last_zvec	data	mat3	sure	f32[4][3]: per camera, View3Cam's last z direction (MAT3 static last_zvec)
+D_801551A8	last_yvec	data	mat3	sure	f32[4][3]: per camera, View3Cam's last y direction (MAT3 static last_yvec)
+D_801551D8	zf	data	mat3	sure	f32[4]: per camera, View3Cam's velocity-to-heading blend 0..1 (MAT3 static zf)
+D_8015697C	gContLevels_pad2	data	code	sure	u32: gContLevels[1], the second controller's held buttons (interior label of D_80156978); CheckCameraView's ghost-camera chord
+D_80156988	video_test_box_width	data	mat3	sure	s16 animButtonText's static width (MAT3 videoscr width$636: the test-frequency box, 160)
+D_8015699C	gContEdges_pad2	data	code	sure	u32: gContEdges[1], the second controller's new presses (interior label of D_80156998)
+D_801569B0	video_confirm_box_width	data	mat3	sure	s16 animButtonText's static width (MAT3 videoscr width$645: the confirm box, 160)
+D_80156BCC	last_frame_text_dl_end	data	code	likely	Gfx *: the text display list's cursor when EndGraphics closed it; nothing reads it
+D_80156BE0	frame_records	data	code	sure	Frame[2] (0x80 each on the N64): per buffered frame, the OSScTask, the command buffer base +0x58, +0x5C, the framebuffer +0x7C
+D_80156C5C	frame_color_buffers	data	code	likely	the colour-image field of the frame-buffer records (frame record 0 at D_80156BE0 + 0x7C, 0x80-byte records indexed by the frame number D_8015F72D); ClearScreen fills it (N64 only)
+D_80156CEC	framebuffer_a	data	code	sure	u32 (pointer): the first colour buffer, 64-aligned heap block (InitGfx), frame_records[0].buffer
+D_80157240	framebuffer_b	data	code	sure	u32 (pointer): the second colour buffer (InitGfx), frame_records[1].buffer
+D_8015F738	video_texture_filter	data	code	sure	s32: texture filter option 0 bilerp, 1 average, 2 point (StartGraphics; InitGfx clears it)
+D_80161380	video_color_dither	data	code	sure	s32: colour dither option 0 none, 1 Bayer, 2 magic square, 3 noise
+D_801613A4	video_divot	data	code	sure	s32: VI divot option on/off
+D_801613B0	first_unplugged_controller	data	code	likely	s32: DrawNoControllers' result, the first player whose controller is not attached (the player count when all are)
+D_80399B2C	gWprObjList_mine	data	mat3	sure	s32 interior label: gWprObjList[5], the mine model (MAT3 _AnimateMine); wave 2 writes gWprObjList[5]
+D_80399B30	gWprObjList_mine_glow	data	mat3	sure	s32 interior label: gWprObjList[6], the mine glow ring
+#
+# fields read by raw offset (old = MAT3 type . N64 offset)
+Options.0xC	music_volume	field	mat3	sure	s8 gOptions[12]: the audio group's view calls it sfxVolume, but MAT3 updateAudioScreen sets AudSetMusicVol from gOptions[12]
+Options.0xD	sfx_volume	field	mat3	sure	s8 gOptions[13]: the audio group's view calls it musicVolume, but MAT3 sets AudSetFxVol from gOptions[13] and EnableGameSounds reads it
+Options.0xF	music_type	field	mat3	sure	s8 gOptions[15]: the audio screen's fourth option (musicType in the view)
+Sched.0x27C	retrace_count	field	code	likely	volatile u32 of the scheduler record D_8002E8E8, advanced by the scheduler thread each retrace (MAT3 GVSyncCount's role); get_input_idle_seconds calls it frameCount, GameLoop tick
+_tBlit.0x3C	child	field	mat3	sure	_tBlit *; move_blit_chain follows it (its Config64 view calls it next)
+anon_checksum_bestStunt_40.0xC	totalPoints	field	mat3	sure	u32 (CalcUnlockedStuff's cup2[k].unk0C)
+anon_checksum_bestStunt_40.0x3C	coinsFound	field	mat3	sure	u16 coin bits (CalcUnlockedStuff's unk3C)
+anon_checksum_numCircuits_1c.0xC	numDeathAttempted	field	mat3	sure	u16 (RecordCircuit's rec->unkC)
+anon_checksum_numCircuits_1c.0xE	numDeathCompleted	field	mat3	sure	u16 (RecordCircuit's rec->unkE)
+anon_checksum_scores_60.0x58	totalMiles	field	mat3	sure	u32 (CalcUnlockedStuff's unk58, RecordPractice's p + 88)
+anon_checksum_scores_60.0x5C	coinsFound	field	mat3	sure	u16 coin bits (CalcUnlockedStuff's unk5C, FoundCoin/IsCoinFound)
+anon_checksum_totalMatches_c.0x8	totalKills	field	mat3	sure	u16 (CalcUnlockedStuff's stunt[q].unk8: a battle record, the view misnames it)
+anon_mat_n64_98.0x60	fcam.mat.uvs[0]	field	mat3	sure	f32[3] row 0: View3Cam's OF(0x60..0x68); fcam is tUVMatrix uvs[3][3] then pos
+anon_mat_n64_98.0x6C	fcam.mat.uvs[1]	field	mat3	sure	row 1: OF(0x6C..0x74)
+anon_mat_n64_98.0x78	fcam.mat.uvs[2]	field	mat3	sure	row 2: OF(0x78..0x80), vector_copy_scale's destination
+anon_mat_n64_98.0x84	fcam.mat.pos	field	mat3	sure	f32[3]: OF(0x84..0x8C); the views call it v84/out_pos
+anon_mat_n64_98.0x94	slot	field	mat3	sure	u8: the car the camera follows (first_camera_slot is gCamera[0]'s)
+anon_name_start_18.0x14	palBase	field	mat3	likely	the palette data pointer free_car_palette frees (its RaceEntry view calls it allocation)
+anon_pos_normal_50.0x22	pathPts	field	mat3	sure	s16[]: FindMaxpathIntervals' D_80151CE8[i].unk2E (= points[i] + 0x22 through a 0x58-stride view from the table)
+anon_pos_normal_50.0x4C	distToNext	field	mat3	sure	f32: FindMaxpathIntervals' TrackLen.unk58 (points[i - 1] + 0x4C through the same view)
+anon_startTime_loopPt_32c.0x2	loopPt	field	mat3	sure	s16: FindMaxpathIntervals' D_80151CE8[0].unk2
+anon_startTime_loopPt_32c.0x4	finishPt	field	mat3	sure	s16: unk4
+anon_startTime_loopPt_32c.0x6	startPt	field	mat3	sure	s16: InitCarPath's D_80151CEE
+anon_startTime_loopPt_32c.0x8	numPoints	field	mat3	sure	s16: unk8
+tCarData.0x8	dr_pos	field	mat3	sure	f32[3]; InitCPTime (+8/+12/+16) and init_steady_move_cam (f[2..4])
+tCarData.0x14	dr_vel	field	mat3	sure	f32[3]: View3Cam's car + 0x14
+tCarData.0x2C	dr_uvs[0]	field	mat3	sure	f32[3][3]; init_steady_move_cam reads f[11], f[13] (row 0) and f[17], f[19] (row 2)
+tCarData.0x38	dr_uvs[1]	field	mat3	sure	f32[3][3] row 1 (+0x2C + 0xC): View3Cam's CF(0x38)
+tCarData.0x44	dr_uvs[2]	field	mat3	sure	row 2 (+0x2C + 0x18): View3Cam's CF(0x44)
+tCarData.0x50	dr_car_uvs	field	mat3	sure	f32[3][3]: View3Cam passes car + 0x50 to update_car_object; Update_MDrive's car1 label
+tCarData.0xAC	v[2]	field	mat3	sure	v[2] (+0xA4 + 8): View3Cam's CF(0xAC) < 0
+tCarData.0xEE	place	field	mat3	sure	s8: munge_gLink_data's unkEE, init_cars' byte238 (munge's view calls +0x35B place)
+tCarData.0xEF	place_locked	field	mat3	sure	s8: FindMaxpathIntervals' unkEF
+tCarData.0xFA	lastResPath	field	mat3	sure	s16: InitCarPath/FindMaxpathIntervals unkFA
+tCarData.0xFC	lastResIdx	field	mat3	sure	s16: unkFC
+tCarData.0xFE	resIdx	field	mat3	sure	s16: unkFE
+tCarData.0x100	distance	field	mat3	sure	f32: FindMaxpathIntervals' unk100
+tCarData.0x108	mileage	field	mat3	sure	f32; InitCPTime zeroes it (+264), CheckCPs adds the distance driven
+tCarData.0x314	mpctl.xrel	field	mat3	sure	f32: mpctl (tPathPoint, 0x2C; N64 +0x314, MAT3 +0x32C) .xrel, its first member (InitCarPath, SyncMaxpathToLastCheckpoint)
+tCarData.0x318	mpctl.yrel	field	mat3	sure	f32: InitCarPath unk318
+tCarData.0x334	mpctl.interval_time	field	mat3	sure	f32: InitCarPath unk334
+tCarData.0x338	mpctl.idx	field	mat3	sure	s16: InitCarPath unk338
+tCarData.0x33A	mpctl.newIdx	field	mat3	sure	s16: InitCarPath unk33A
+tCarData.0x33C	mpctl.path	field	mat3	sure	s16: InitCarPath unk33C
+tCarData.0x33E	mpctl.basePath	field	mat3	sure	s16: InitCarPath unk33E
+tCarData.0x35B	slot	field	mat3	sure	s8: init_cars' byte859; the camera views call this member car
+tCarData.0x35C	camera	field	mat3	sure	s8: init_view3/fix_camera_in_space/View3Cam CAR_OFS(0x35C), init_cars' byte860; the camera views call it slot
+tCarData.0x35D	view	field	mat3	sure	s8: init_view3/View3Cam CAR_OFS(0x35D), init_cars' byte861
+tCarData.0x35E	saveview	field	mat3	sure	s8: init_view3 CAR_OFS(0x35E), init_cars' byte862; the camera views call it view2
+tCarData.0x384	battle	field	mat3	sure	the battle record (MAT3 anon_weapon_health_30 at GC +0x39C; after the visuals every N64 field is 0x18 lower): StartMine reads its first byte, battle.weapon.type (with type 5 the damage depends on which side of the car the mine is)
+tCircuit.0x4	active	field	mat3	sure	u8; NewCircuit (raw +4)
+tCircuit.0x5	death	field	mat3	sure	u8 (GetCircuitCode's temp_s0 + 5, 1 bit)
+tCircuit.0x7	difficulty	field	mat3	sure	u8 (GetCircuitCode's + 7, 3 bits)
+tCircuit.0x8	type	field	mat3	sure	s8 (GetCircuitCode's + 8, 3 bits)
+tCircuit.0x9	track	field	mat3	sure	s8 (GetCircuitCode's - -9, 5 bits)
+tCircuit.0xC	seed	field	mat3	sure	u32 (GetCircuitCode's + 0xC, 20 bits)
+tCircuit.0x10	totalTime	field	mat3	sure	f32; NewCircuit (raw +0x10)
+tCircuitCar.0x1	totalPlace	field	mat3	sure	u8 (RecordCircuit's D_80154450.unk1)
+tCircuitCar.0x2	totalPoints	field	mat3	sure	u16 (RecordCircuit's .unk2, GetCircuitCode's + 2)
+tModelData.0xA	autotrans	field	mat3	sure	s8: init_cars' byte10
+tModelData.0xC	engine_type	field	mat3	sure	s8: init_cars' byte12
+tModelData.0xF	tireRims	field	mat3	sure	s8: init_cars' byte15
+tModelData.0x124	centerForce	field	mat3	sure	f32[3]; MiniForceApart adds to it (random_int's unk124), setMiniFBCollisionForce subtracts
+tModelData.0x3FC	wingSnd	field	mat3	sure	s32: init_cars' word1020 = -1
+tModelData.0x5CC	suscomp	field	mat3	sure	f32[4]: CheckCameraView's view calls it sus
+tModelData.0x75C	reckon.suscomp	field	mat3	sure	f32[4] at +0x734 + 0x28: view1_suscomp_offset reads [0] and [1] (+0x75C, +0x760)
+tModelData.0x7A0	reckon.uvs	field	mat3	sure	f32[3][3]; reckon (0x734) + 0x6C, the BodyVector matrix of MiniForceApart (unk7A0)
+tModelData.0x7C4	obResPt	field	mat3	sure	s16: init_cars' half1988
+tModelData.0x7CA	we_control	field	mat3	sure	s16: init_cars' half1994
+tModelData.0x7CD	paint_colors	field	code	likely	u8[3]: init_cars' byte1997..1999 from the link's three colours (N64; GC has PaintJob + unused here)
+tModelData.0x7DC	started	field	mat3	sure	s8: InitCarPath's unk7DC
+tModelData.0x7DD	data_valid	field	mat3	sure	s8: init_cars' byte2013
+tModelData.0x7E2	last_cp_index	field	mat3	sure	s16: init_cars' half2018, FindMaxpathIntervals' unk7E2
+tModelData.0x7E4	next_cp_index	field	mat3	sure	s16: init_cars' half2020, unk7E4
+tModelData.0x7E6	drone_target	field	mat3	sure	s16: init_cars' half2022
+tModelData.0x7E8	laps	field	mat3	sure	s8: FindMaxpathIntervals' unk7E8
+tPadState.0x8	levels	field	mat3	sure	u32; FindPlayerNum (InputRecord unk08)
+tPadState.0xC	autoEdges	field	mat3	sure	u32; FindPlayerNum (InputRecord unk0C)
+tPadState.0x10	analog	field	mat3	sure	f32[2]; FindPlayerNum (InputRecord unk10, unk14)
+tSaveData.0x8C	raceStats	field	mat3	sure	anon_checksum_scores_60[12] (GC +0x90; the N64 record is 4 bytes shorter before it): Record* and FoundCoin's raw 140/232/808
+tSaveData.0x50C	stuntStats	field	mat3	sure	anon_checksum_bestStunt_40[4] (GC +0x510): RecordStunt's 1292, IsCoinFound/FoundCoin's 456 + track*64
+tSaveData.0x60C	battleStats	field	mat3	sure	anon_checksum_totalMatches_c[8] (GC +0x610): RecordBattle's 0x60C
+tSaveData.0x66C	obstacleStats	field	mat3	sure	anon_checksum_bestTime_18[1] (GC +0x670): RecordObstacle's 1644
+tSaveData.0x684	circuitStats	field	mat3	sure	anon_checksum_numCircuits_1c[4] (GC +0x688): RecordCircuit, CalcUnlockedStuff
+tSaveData.0x6F4	circuit	field	mat3	sure	tCircuit (GC +0x6F8): GetCircuitCode's 0x6F4, UpdateCircuit's 1780
+tSaveData.0x6FC	circuit_type	field	mat3	sure	circuit.type seen directly (base->unk6FC in RecordCircuit): MAT3 tSaveData.circuit.type
+tSaveData.0x704	circuit_totalTime	field	mat3	sure	circuit.totalTime seen directly (base->unk704 in RecordCircuit)
+tStuntPlayer.0x8	maxStuntPoints	field	mat3	sure	s32 (MAT3 tStuntPlayer.maxStuntPoints; the results views' words[2]); drawStuntStandings, drawStuntScore
+tStuntPlayer.0x14	totalPoints	field	mat3	sure	s32 (MAT3 tStuntPlayer.totalPoints; words[5]); drawStuntStandings, drawStuntScore, animResults
+tStuntPlayer.0x48	totalStunts	field	mat3	sure	s16[10] stunts of each type (MAT3 tStuntPlayer.totalStunts; the results view's laps[]); drawStuntScore
+tTarget.0x4	Flags	field	mat3	sure	u8 target flags (MAT3 tTarget.Flags): bit 0 initialised, bits 1-2 cleared on start, 0x80 coin gone; StartCactus/StartFence/StartCoin read it by offset
+tTarget.0xC	dlIdx	field	mat3	sure	s32 the target's zoid object (MAT3 tTarget.dlIdx); StartCoin
+tTarget.0x10	infoIdx	field	mat3	sure	s16 index into targetInfo (MAT3 tTarget.infoIdx); StartMine, StartCactus, StartFence, StartCoin
+tTarget.0x14	mat	field	mat3	sure	tUVMatrix uvs[3][3] + pos[3] (MAT3 tTarget.mat); StartCactus LookInDir's output; +0x38 is mat.mat3.pos, the sound position
+tTarget.0x44	pos	field	mat3	sure	f32[3] (MAT3 tTarget.pos); StartMine's car-to-mine vector
+tTarget.0x5A	frames	field	mat3	sure	s16 animation frames (MAT3 tTarget.frames); StartCactus 7, StartFence 12
+tTarget.0x5C	slot	field	mat3	sure	s8 the car that hit it (MAT3 tTarget.slot)
+tTarget.0x65	owner	field	mat3	sure	s8 the car that owns it (a mine's layer; MAT3 tTarget.owner)
+tTargetInfo.0xC	animFunc	field	mat3	sure	the visual's animator (MAT3 tTargetInfo.animFunc); StartFence (TINFO_OFS(0xC))
+tTargetInfo.0x1C	startSnd	field	mat3	sure	s32 sound played when the target starts (MAT3 tTargetInfo.startSnd); the Start* functions
+tTargetStructCoin.0x0	dlIdx	field	mat3	sure	s32 the coin model's zoid object (MAT3 tTargetStructCoin.dlIdx); StartCoin
+tTargetStructCoin.0x48	cameras	field	mat3	sure	u16 bit per camera still showing the coin (MAT3 tTargetStructCoin.cameras)
+tTargetStructCoin.0x4A	whichcoin	field	mat3	sure	u16 the coin's number (MAT3 tTargetStructCoin.whichcoin)
+#
+# files and group directories named after an address or a wrong guess
+nonmatching/game/display_list_flush.c	nonmatching/game/PrePlay.c	file	code	sure	holds PrePlay (display_list_flush)
+nonmatching/game/func_8010D680.c	nonmatching/game/AnimateWeaponIcon.c	file	mat3	sure	holds AnimateWeaponIcon
+nonmatching/game/func_8010E8B4.c	nonmatching/game/video_animPanes.c	file	mat3	sure	holds video_animPanes
+src/blob/UpdateActiveObjects.c	src/blob/DrawBlits.c	file	mat3	sure	holds DrawBlits
+src/blob/assign_drones.c	src/blob/RecordGhost.c	file	mat3	sure	holds RecordGhost
+src/blob/audio_update_a.c	src/blob/RecordStunt.c	file	mat3	sure	holds RecordStunt
+src/blob/audio_update_b.c	src/blob/UpdateGraphics.c	file	mat3	sure	holds UpdateGraphics
+src/blob/audio_update_c.c	src/blob/InitBattlePoints.c	file	mat3	sure	holds InitBattlePoints
+src/blob/callback_init.c	src/blob/animControllerDim.c	file	mat3	likely	holds animControllerDim
+src/blob/collision_check_thunk.c	src/blob/InitCameras.c	file	code	sure	holds InitCameras only
+src/blob/effect_spawn.c	src/blob/InitRushControls.c	file	code	sure	holds InitRushControls only
+src/blob/func_800E8CB0.c	src/blob/UpdateDroneObjects_stub.c	file	mat3	likely	holds UpdateDroneObjects_stub
+src/blob/func_800E8D50.c	src/blob/point_at_car.c	file	code	sure	holds point_at_car only
+src/blob/func_800E8F10.c	src/blob/maxpath_cam.c	file	code	sure	holds maxpath_cam only
+src/blob/func_800E9234.c	src/blob/init_view3.c	file	code	sure	holds init_view3 only
+src/blob/func_800E9E2C.c	src/blob/circle_camera_around_car.c	file	code	sure	holds circle_camera_around_car only
+src/blob/func_800EAFDC.c	src/blob/view1_suscomp_offset.c	file	code	sure	holds view1_suscomp_offset only
+src/blob/func_800EB028.c	src/blob/update_camera.c	file	code	sure	holds update_camera only
+src/blob/func_800EB90C.c	src/blob/CheckCameraView.c	file	code	sure	holds CheckCameraView only
+src/blob/func_800EC190.c	src/blob/fake_init.c	file	code	sure	holds fake_init only
+src/blob/func_800EC270.c	src/blob/InitCarPath.c	file	code	sure	holds InitCarPath only
+src/blob/func_800EC914.c	src/blob/munge_gLink_data.c	file	code	sure	holds munge_gLink_data only
+src/blob/func_800ED66C.c	src/blob/HAL_SetTextTranslucency.c	file	code	sure	holds HAL_SetTextTranslucency only
+src/blob/func_800EE7AC.c	src/blob/ExitSystem.c	file	code	sure	holds ExitSystem only
+src/blob/func_800EE7B4.c	src/blob/text_lock_init_stub.c	file	mat3	likely	holds text_lock_init_stub
+src/blob/func_800EF5B0.c	src/blob/RenameBlit.c	file	mat3	sure	holds RenameBlit
+src/blob/func_800EF62C.c	src/blob/animTach.c	file	mat3	sure	holds animTach
+src/blob/func_800F0674.c	src/blob/fixword.c	file	mat3	sure	holds fixword
+src/blob/func_800F084C.c	src/blob/censor.c	file	mat3	sure	holds censor
+src/blob/func_800F1928.c	src/blob/ControlScores_stub.c	file	code	likely	holds ControlScores_stub
+src/blob/func_800F1D04.c	src/blob/FindTempNameIdx.c	file	mat3	sure	holds FindTempNameIdx
+src/blob/func_800F2710.c	src/blob/ControlCircuitCode_stub.c	file	code	likely	holds ControlCircuitCode_stub
+src/blob/func_800F34D0.c	src/blob/CircuitRandom_stub.c	file	code	likely	holds CircuitRandom_stub
+src/blob/func_800F42C8.c	src/blob/GetCircuitCode.c	file	mat3	sure	holds GetCircuitCode
+src/blob/func_800F43B8.c	src/blob/RecordCircuit.c	file	mat3	sure	holds RecordCircuit
+src/blob/func_800F45F8.c	src/blob/UpdateCircuit.c	file	mat3	sure	holds UpdateCircuit
+src/blob/func_800F56E0.c	src/blob/RecordRace.c	file	mat3	sure	holds RecordRace
+src/blob/func_800F6928.c	src/blob/HAL_SetMenuTextDepth.c	file	mat3	sure	holds HAL_SetMenuTextDepth
+src/blob/func_800F7448.c	src/blob/ClearScreen.c	file	mat3	sure	holds ClearScreen
+src/blob/func_800F7564.c	src/blob/IsCircuitUnlocked.c	file	mat3	sure	holds IsCircuitUnlocked
+src/blob/func_800F75B0.c	src/blob/IsFrameUnlocked.c	file	mat3	sure	holds IsFrameUnlocked
+src/blob/func_800F75D0.c	src/blob/IsTiresUnlocked.c	file	mat3	sure	holds IsTiresUnlocked
+src/blob/func_800F75EC.c	src/blob/IsTransUnlocked.c	file	mat3	sure	holds IsTransUnlocked
+src/blob/func_800F7604.c	src/blob/IsEngineUnlocked.c	file	mat3	sure	holds IsEngineUnlocked
+src/blob/func_800F7620.c	src/blob/IsCarUnlocked.c	file	mat3	sure	holds IsCarUnlocked
+src/blob/func_800F7644.c	src/blob/IsTrackUnlocked.c	file	mat3	sure	holds IsTrackUnlocked
+src/blob/func_800F769C.c	src/blob/AddPlayerStats.c	file	mat3	sure	holds AddPlayerStats
+src/blob/func_800F7A98.c	src/blob/IsCoinFound.c	file	mat3	sure	holds IsCoinFound
+src/blob/func_800F7E30.c	src/blob/RecordBattlePoints.c	file	mat3	sure	holds RecordBattlePoints
+src/blob/func_800F7EB0.c	src/blob/ResetHighScores.c	file	mat3	sure	holds ResetHighScores
+src/blob/func_800F874C.c	src/blob/gameover_initScreen_stub.c	file	code	likely	holds gameover_initScreen_stub
+src/blob/func_800F8B68.c	src/blob/gameover_controlScore_stub.c	file	code	likely	holds gameover_controlScore_stub
+src/blob/func_800F8E90.c	src/blob/SetCameraView.c	file	code	sure	holds SetCameraView
+src/blob/func_800F9398.c	src/blob/AssignDrones_stub.c	file	mat3	likely	holds AssignDrones_stub
+src/blob/func_800FAD50.c	src/blob/init_steady_move_cam.c	file	code	sure	holds init_steady_move_cam
+src/blob/func_800FAEE4.c	src/blob/InitDrones.c	file	code	sure	holds InitDrones
+src/blob/func_800FAF50.c	src/blob/InitCPS.c	file	code	sure	holds InitCPS
+src/blob/func_800FBE28.c	src/blob/update_game_inlined_stub.c	file	code	likely	holds the stub
+src/blob/func_800FBE30.c	src/blob/CheckButtons.c	file	code	sure	holds CheckButtons
+src/blob/func_800FBE60.c	src/blob/InitCPTime.c	file	code	sure	holds InitCPTime
+src/blob/func_800FBED8.c	src/blob/CalcRaceTime.c	file	code	sure	holds CalcRaceTime
+src/blob/func_800FBF2C.c	src/blob/CountDown.c	file	code	sure	holds CountDown
+src/blob/func_800FC9F8.c	src/blob/updateBG.c	file	code	sure	holds updateBG
+src/blob/func_800FD41C.c	src/blob/get_input_idle_seconds.c	file	code	likely	holds get_input_idle_seconds
+src/blob/func_800FD724.c	src/blob/dot_uv_y_axis.c	file	code	likely	holds dot_uv_y_axis
+src/blob/func_800FD754.c	src/blob/ScaleUVXYZ.c	file	code	sure	holds ScaleUVXYZ
+src/blob/func_800FDF88.c	src/blob/NewCircuit.c	file	code	sure	holds NewCircuit
+src/blob/func_800FE73C.c	src/blob/are_sound_voices_idle.c	file	code	likely	holds are_sound_voices_idle
+src/blob/func_800FE788.c	src/blob/sequence_inlined_stub.c	file	code	likely	holds the stub
+src/blob/func_800FE790.c	src/blob/noop_two_args.c	file	code	likely	holds noop_two_args
+src/blob/func_800FE79C.c	src/blob/find_sequence.c	file	code	likely	holds the find_sequence stub
+src/blob/func_800FEC9C.c	src/blob/menu_sound_inlined_stub.c	file	code	likely	holds the stub
+src/blob/func_80100D24.c	src/blob/animate_blit_unchanged.c	file	code	likely	holds animate_blit_unchanged
+src/blob/func_80105B74.c	src/blob/hud_updateFrame.c	file	mat3	sure	holds hud.c's updateFrame
+src/blob/func_80105DA8.c	src/blob/animBones.c	file	mat3	sure	holds animBones
+src/blob/func_80106D94.c	src/blob/animOdometer.c	file	mat3	sure	holds animOdometer
+src/blob/func_80107AEC.c	src/blob/hud_inlined_stub.c	file	code	likely	holds hud_inlined_stub
+src/blob/func_80108DA8.c	src/blob/animRadar.c	file	mat3	sure	holds animRadar
+src/blob/func_80108F40.c	src/blob/animRadarBlip.c	file	mat3	sure	holds animRadarBlip
+src/blob/func_80109468.c	src/blob/hud_animTrackMap.c	file	mat3	sure	holds hud_animTrackMap
+src/blob/func_80109A60.c	src/blob/animDot.c	file	mat3	sure	holds animDot
+src/blob/func_8010B520.c	src/blob/options_calcOptionMenuMaxSize_stub.c	file	code	likely	holds options_calcOptionMenuMaxSize_stub
+src/blob/func_8010C02C.c	src/blob/TargetCollBBox.c	file	mat3	sure	holds TargetCollBBox
+src/blob/func_8010C2E4.c	src/blob/TargetCollTrigger.c	file	mat3	sure	holds TargetCollTrigger
+src/blob/func_8010C448.c	src/blob/TargetCollCylinder.c	file	mat3	sure	holds TargetCollCylinder
+src/blob/func_8010C588.c	src/blob/TargetCollMineCylinder.c	file	mat3	sure	holds TargetCollMineCylinder
+src/blob/func_8010C7CC.c	src/blob/TargetColl3Piece.c	file	mat3	sure	holds TargetColl3Piece
+src/blob/func_8010C7F4.c	src/blob/StartMine.c	file	mat3	sure	holds StartMine
+src/blob/func_8010C974.c	src/blob/AnimateMine.c	file	mat3	sure	holds AnimateMine
+src/blob/func_8010D85C.c	src/blob/AnimateFlag.c	file	mat3	sure	holds AnimateFlag
+src/blob/func_8010D9CC.c	src/blob/StartCactus.c	file	mat3	sure	holds StartCactus
+src/blob/func_8010DAF8.c	src/blob/StartFence.c	file	mat3	sure	holds StartFence
+src/blob/func_8010DBB8.c	src/blob/StartWindow.c	file	mat3	sure	holds StartWindow
+src/blob/func_8010DF90.c	src/blob/StartCoin.c	file	mat3	sure	holds StartCoin
+src/blob/func_8010E0FC.c	src/blob/AnimateCoin.c	file	mat3	sure	holds AnimateCoin
+src/blob/func_8010E4E4.c	src/blob/AnimateVelRotGeneric.c	file	mat3	sure	holds AnimateVelRotGeneric
+src/blob/func_8010E694.c	src/blob/AnimateRotGeneric.c	file	mat3	sure	holds AnimateRotGeneric
+src/blob/func_8010E72C.c	src/blob/StartKnockdown.c	file	mat3	sure	holds StartKnockdown
+src/blob/func_8010E828.c	src/blob/AnimateKnockdown.c	file	mat3	sure	holds AnimateKnockdown
+src/blob/func_8010FBE0.c	src/blob/musyx_submit_audio_task.c	file	code	sure	holds musyx_submit_audio_task
+src/blob/func_8010FC60.c	src/blob/musyx_set_retrace_callback.c	file	code	sure	holds musyx_set_retrace_callback
+src/blob/func_8010FC70.c	src/blob/musyx_clear_retrace_callback.c	file	code	sure	holds musyx_clear_retrace_callback
+src/blob/func_8010FD60.c	src/blob/musyx_cart_address.c	file	code	sure	holds musyx_cart_address
+src/blob/game_state_check_handler.c	src/blob/update_frame_on_game_thread.c	file	code	likely	holds update_frame_on_game_thread
+src/blob/game_timer_pause.c	src/blob/stop_sequence.c	file	code	likely	holds stop_sequence and find_sequence's body
+src/blob/game_timer_reset.c	src/blob/move_blit_chain.c	file	code	likely	holds move_blit_chain
+src/blob/gfx_frame_begin.c	src/blob/StartGraphics.c	file	code	sure	holds StartGraphics only
+src/blob/graphics_chunk.c	src/blob/RecordBattle.c	file	mat3	sure	holds RecordBattle
+src/blob/graphics_chunk_b.c	src/blob/RecordObstacle.c	file	mat3	sure	holds RecordObstacle
+src/blob/groups/billboard_render/	src/blob/groups/highscorescr/	file	mat3	sure	the high-score screen's logic (PrintScores, FindGhosts, SetHighScoreState, ControlGhost, ControlName, ControlUnlocked, _InitScreen, updateHighScoreScreen)
+src/blob/groups/billboard_render/billboard_render.c	src/blob/groups/highscorescr/updateHighScoreScreen.c	file	mat3	sure	holds updateHighScoreScreen
+src/blob/groups/billboard_render/func_800F0914.c	src/blob/groups/highscorescr/PrintScores.c	file	mat3	sure	holds PrintScores
+src/blob/groups/billboard_render/func_800F0F44.c	src/blob/groups/highscorescr/FindGhosts.c	file	mat3	sure	holds FindGhosts
+src/blob/groups/billboard_render/func_800F1210.c	src/blob/groups/highscorescr/SetHighScoreState.c	file	mat3	sure	holds SetHighScoreState
+src/blob/groups/billboard_render/func_800F1930.c	src/blob/groups/highscorescr/ControlGhost.c	file	mat3	sure	holds ControlGhost
+src/blob/groups/billboard_render/func_800F207C.c	src/blob/groups/highscorescr/ControlName.c	file	mat3	sure	holds ControlName
+src/blob/groups/billboard_render/func_800F2718.c	src/blob/groups/highscorescr/ControlUnlocked.c	file	mat3	sure	holds ControlUnlocked
+src/blob/groups/billboard_render/track_texture_load.c	src/blob/groups/highscorescr/highscore_InitScreen.c	file	mat3	sure	holds highscore_InitScreen (MAT3 _InitScreen)
+src/blob/groups/car_checkpoints/car_checkpoints_func_800F8EC8.c	src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c	file	code	sure	holds CheckCPs
+src/blob/groups/car_checkpoints/race_tail.c	src/blob/groups/car_checkpoints/PlayGame.c	file	code	sure	holds PlayGame (render_viewport_init) only
+src/blob/groups/car_checkpoints/render_large_objects_group.c	src/blob/groups/car_checkpoints/DoDrones.c	file	code	sure	context copy of DoDrones
+src/blob/groups/controls/	src/blob/groups/controlscr_text/	file	code	likely	the controls screen's text animators (MAT3 controlscr.c); MAT3 controls.c is the unrelated input-mapping module, and groups/controlscr already exists
+src/blob/groups/credits_scroll_grp/gr3_5ea8.c	src/blob/groups/credits_scroll_grp/animResults.c	file	mat3	sure	holds animResults
+src/blob/groups/credits_scroll_grp/gr3_6874.c	src/blob/groups/credits_scroll_grp/anim_no_rumble_panes.c	file	code	likely	holds anim_no_rumble_panes
+src/blob/groups/credits_scroll_grp/gr3_73d8.c	src/blob/groups/credits_scroll_grp/animElapsedTimer.c	file	mat3	sure	holds animElapsedTimer
+src/blob/groups/credits_scroll_grp/gr3_761c.c	src/blob/groups/credits_scroll_grp/animElapsedTimerText.c	file	mat3	sure	holds animElapsedTimerText
+src/blob/groups/credits_scroll_grp/gr3_7af4.c	src/blob/groups/credits_scroll_grp/animPlace.c	file	mat3	sure	holds animPlace
+src/blob/groups/credits_scroll_grp/gr3_8154.c	src/blob/groups/credits_scroll_grp/animLapTime.c	file	mat3	sure	holds animLapTime
+src/blob/groups/credits_scroll_grp/gr3_84d4.c	src/blob/groups/credits_scroll_grp/animLapTimeText.c	file	mat3	sure	holds animLapTimeText
+src/blob/groups/credits_scroll_grp/gr3_8ab0.c	src/blob/groups/credits_scroll_grp/animWrongWay.c	file	mat3	sure	holds animWrongWay
+src/blob/groups/credits_scroll_grp/gr3_9f54.c	src/blob/groups/credits_scroll_grp/animFlag.c	file	mat3	sure	holds animFlag
+src/blob/groups/credits_scroll_grp/gr3_a53c.c	src/blob/groups/credits_scroll_grp/animCreditText.c	file	mat3	sure	holds animCreditText
+src/blob/groups/credits_scroll_grp/gr3_d.c	src/blob/groups/credits_scroll_grp/audio_animPanes_demo_animText.c	file	code	likely	holds audio_animPanes (game_timer_display) and demo_animText (func_80100B8C); the group dir is part D's
+src/blob/groups/credits_scroll_grp/gr3_edc.c	src/blob/groups/credits_scroll_grp/animLapCount.c	file	mat3	sure	holds animLapCount
+src/blob/groups/defaults/ctx_func_800ED66C.c	src/blob/groups/defaults/ctx_HAL_SetTextTranslucency.c	file	code	sure	the defaults group's context copy of HAL_SetTextTranslucency
+src/blob/groups/demo_pair/car_checkpoints_func_800F8EC8.c	src/blob/groups/demo_pair/car_checkpoints_CheckCPs.c	file	code	sure	holds CheckCPs
+src/blob/groups/demo_pair/race_tail.c	src/blob/groups/demo_pair/PlayGame.c	file	code	sure	holds PlayGame (render_viewport_init) only
+src/blob/groups/demo_pair/render_large_objects_group.c	src/blob/groups/demo_pair/DoDrones.c	file	code	sure	context copy of DoDrones
+src/blob/groups/dispatch/	src/blob/groups/record_game_over/	file	mat3	sure	holds RecordGameOver (track_lighting_setup), not a dispatcher of lights
+src/blob/groups/dma_queue_next/struct_init_and_call.c	src/blob/groups/dma_queue_next/musyx_start_dma_list.c	file	code	sure	a context copy of musyx_start_dma_list in dma_queue_next's group
+src/blob/groups/dust/	src/blob/groups/hud_speed/	file	code	sure	the group holds animSpeed (dust_cloud_effect), not a dust effect
+src/blob/groups/dust/dust.c	src/blob/groups/hud_speed/animSpeed.c	file	mat3	sure	holds animSpeed
+src/blob/groups/func_800E92C8/	src/blob/groups/rear_camera/	file	code	sure	the group of UpdateRearCamera, DeathCam and UpdateCarObj (steady_move_cam as context)
+src/blob/groups/func_800EA3F4/	src/blob/groups/view3_camera/	file	code	sure	the group of View3Cam with update_car_object and Interpolate
+src/blob/groups/func_800F1114_grp/	src/blob/groups/highscore_uninit/	file	mat3	sure	holds highscore_UninitScreen
+src/blob/groups/func_800F1114_grp/func_800F1114.c	src/blob/groups/highscore_uninit/highscore_UninitScreen.c	file	mat3	sure	holds highscore_UninitScreen
+src/blob/groups/func_800F2718_grp/	src/blob/groups/highscore_unlocked/	file	mat3	sure	holds ControlUnlocked (with SetHighScoreState as context)
+src/blob/groups/func_800F2718_grp/func_800F2718.c	src/blob/groups/highscore_unlocked/ControlUnlocked.c	file	mat3	sure	holds ControlUnlocked
+src/blob/groups/func_800F2888_grp/	src/blob/groups/highscore_rank/	file	mat3	sure	holds RankScores
+src/blob/groups/func_800F2888_grp/func_800F2888.c	src/blob/groups/highscore_rank/RankScores.c	file	mat3	sure	holds RankScores
+src/blob/groups/func_80106B3C	src/blob/groups/anim_no_rumble_text	file	code	likely	group of anim_no_rumble_text
+src/blob/groups/func_80106B3C/f6b3c.c	src/blob/groups/anim_no_rumble_text/anim_no_rumble_text.c	file	code	likely	holds anim_no_rumble_text (new path after its directory's rename)
+src/blob/groups/func_8010AEAC	src/blob/groups/options_anim	file	mat3	sure	group of optionscr.c's resident animators (options_animText, options_animButtonText, options_printOption)
+src/blob/groups/func_8010AEAC/faeac.c	src/blob/groups/options_anim/options_anim.c	file	mat3	sure	holds the three optionscr animators (new path after its directory's rename)
+src/blob/groups/func_8010B5D0	src/blob/groups/animTitleText	file	mat3	sure	group of pausescr's animTitleText
+src/blob/groups/func_8010B5D0/fb5d0.c	src/blob/groups/animTitleText/animTitleText.c	file	mat3	sure	holds animTitleText (new path after its directory's rename)
+src/blob/groups/func_8010B7FC	src/blob/groups/animPauseText	file	mat3	sure	group of pausescr's animPauseText
+src/blob/groups/func_8010B7FC/fb7fc.c	src/blob/groups/animPauseText/animPauseText.c	file	mat3	sure	holds animPauseText (new path after its directory's rename)
+src/blob/groups/func_8010B9C8	src/blob/groups/animSureText	file	mat3	sure	group of pausescr's animSureText
+src/blob/groups/func_8010B9C8/fb9c8.c	src/blob/groups/animSureText/animSureText.c	file	mat3	sure	holds animSureText (new path after its directory's rename)
+src/blob/groups/func_8010BC84	src/blob/groups/animRumbleText	file	mat3	sure	group of pausescr's animRumbleText
+src/blob/groups/func_8010BC84/fbc84.c	src/blob/groups/animRumbleText/animRumbleText.c	file	mat3	sure	holds animRumbleText (new path after its directory's rename)
+src/blob/groups/highscore_anim	src/blob/groups/highscorescr_draw	file	mat3	sure	highscorescr.c's drawing functions (DrawUnlocked, DrawName, DrawGhost, with highscore_animText as context)
+src/blob/groups/input_aux/	src/blob/groups/front_end/	file	code	sure	the group of updateFrontEnd (input_aux_handler); no auxiliary input
+src/blob/groups/input_aux/countdown_handler.c	src/blob/groups/input_aux/DrawNoControllers.c	file	code	sure	holds DrawNoControllers (countdown_handler); path before the dir rename above
+src/blob/groups/input_aux/ctx_countdown.c	src/blob/groups/input_aux/ctx_UpdateGame.c	file	code	sure	context copy of UpdateGame
+src/blob/groups/input_aux/ctx_init_state_continue.c	src/blob/groups/input_aux/ctx_CalcPolePositions.c	file	code	sure	context copy of CalcPolePositions
+src/blob/groups/input_aux/game_loop.c	src/blob/groups/input_aux/GameLoop.c	file	code	sure	holds GameLoop
+src/blob/groups/menu_save_options/props.c	src/blob/groups/menu_save_options/GhostStart.c	file	mat3	sure	holds GhostStart (props.c's header calls it props_render)
+src/blob/groups/motion_norm/	src/blob/groups/fix_camera_in_space/	file	code	sure	holds fix_camera_in_space only (wrong guess)
+src/blob/groups/render_large_objects/	src/blob/groups/drones/	file	code	sure	the group of DoDrones and LinearInterp (MAT3 drones.c); renders nothing
+src/blob/groups/results_table	src/blob/groups/gameoverscr_draw	file	mat3	sure	gameoverscr.c's drawing functions (drawRect, the standings and score tables, gameover_animText)
+src/blob/groups/update_game/countdown.c	src/blob/groups/update_game/UpdateGame.c	file	code	sure	holds UpdateGame (countdown) and EndGame
+src/blob/groups/update_game/ctx_game_loop.c	src/blob/groups/update_game/ctx_GameLoop.c	file	code	sure	context copy of GameLoop
+src/blob/groups/update_game/ctx_input_aux.c	src/blob/groups/update_game/ctx_updateFrontEnd.c	file	code	sure	context copy of updateFrontEnd
+src/blob/groups/update_game/init_state_continue.c	src/blob/groups/update_game/CalcPolePositions.c	file	code	sure	holds CalcPolePositions only
+src/blob/groups/vsync/	src/blob/groups/game_sounds/	file	code	likely	the group of EnableGameSounds (vsync_wait), AudSetMasterVol (speed_set) and its music/effects wrappers; no vsync
+src/blob/linear_interp.c	src/blob/FoundCoin.c	file	mat3	sure	holds FoundCoin
+src/blob/net_session_update.c	src/blob/ContinueCircuit.c	file	mat3	sure	holds ContinueCircuit
+src/blob/net_state_validate.c	src/blob/CalcUnlockedStuff.c	file	mat3	sure	holds CalcUnlockedStuff
+src/blob/place_cars_in_order.c	src/blob/RecordPractice.c	file	mat3	sure	holds RecordPractice
+src/blob/race_init_helper.c	src/blob/Update_MDrive.c	file	code	sure	holds Update_MDrive only
+src/blob/random_float.c	src/blob/setMiniFBCollisionForce.c	file	code	sure	holds setMiniFBCollisionForce
+src/blob/random_int.c	src/blob/MiniForceApart.c	file	code	sure	holds MiniForceApart
+src/blob/random_seed_init.c	src/blob/FindPlayerNum.c	file	code	sure	holds FindPlayerNum
+src/blob/render_post_process.c	src/blob/init_views.c	file	code	sure	holds init_views (and defines the finish-camera state on the N64 side)
+src/blob/resource_alloc_init.c	src/blob/musyx_alloc.c	file	code	sure	holds musyx_alloc
+src/blob/resource_type_select_simple.c	src/blob/PlayExitSound.c	file	code	sure	holds PlayExitSound
+src/blob/stat_lap_split.c	src/blob/PlayTargetSound.c	file	code	sure	holds PlayTargetSound
+src/blob/stat_race_start.c	src/blob/SetCircuitCode.c	file	code	sure	holds SetCircuitCode
+src/blob/stat_race_update.c	src/blob/SelectBlit.c	file	code	sure	holds SelectBlit
+src/blob/state_update_global.c	src/blob/animPause.c	file	mat3	sure	holds pausescr's animPause (and the kept Hidden copy)
+src/blob/steering_apply.c	src/blob/TargetCollRadius.c	file	mat3	sure	holds TargetCollRadius
+src/blob/struct_callback_init.c	src/blob/animate_pause_dim.c	file	code	likely	holds animate_pause_dim
+src/blob/struct_init_and_call.c	src/blob/musyx_start_dma_list.c	file	code	sure	holds musyx_start_dma_list
+src/blob/sync_acquire_menu.c	src/blob/musyx_wait_audio_task.c	file	code	sure	holds musyx_wait_audio_task
+src/blob/sync_init_conditional.c	src/blob/HAL_InitText.c	file	code	sure	holds HAL_InitText only
+src/blob/world_bounds_check.c	src/blob/find_closest_res_path_point.c	file	code	sure	holds find_closest_res_path_point only
+src/blob/world_collision_response.c	src/blob/EndGraphics.c	file	code	sure	holds EndGraphics only
+src/blob/world_gravity_apply.c	src/blob/FindMaxpathIntervals.c	file	code	sure	holds FindMaxpathIntervals only
+src/blob/world_object_destroy.c	src/blob/init_camera_on_track.c	file	code	sure	holds init_camera_on_track only
+src/blob/world_physics_tick.c	src/blob/init_cars.c	file	code	sure	holds init_cars only
+#
+# shared
+# data also used outside this area (other ranges of the game image, the overlays, src/rom); then renames of
+# existing data names that are wrong. The lead reconciles these across the areas.
+D_80027DD0	rspbootTextStart	data	code	sure	u64[]: the RSP boot microcode, the task's ucode_boot (EndGraphics); declared under this name in include/types.h; also used by func_80011910
+D_80027EA0	rspbootTextEnd	data	code	sure	libultra: end of rspboot (ucode_boot_size = end - start); also where an unreferenced second audio microcode starts
+D_8002EB70	gRenderInProgress	data	mat3	likely	s16: frames handed to the RSP and not done (MAT3 gfx.c gRenderInProgress); EndGraphics increments it under osStopThread; already #defined to this in two files; also used by dma_wait, func_8038B388, func_8038B930
+D_8002EB98	gLastFrameCount	data	mat3	sure	volatile s32: retraces the last frame took (MAT3 gLastFrameCount: point_at_car's 3/4/5 elasticity scale); EndGraphics sets it from the scheduler; also used by race_setup_1
+D_8002ECC0	game_thread_queue	data	code	sure	OSMesgQueue: wakes the game thread when the main thread has started a frame (UpdateFrame drains it); also used by UpdateFrame
+D_8002ECF8	main_thread_queue	data	code	sure	OSMesgQueue: the main (graphics) thread's queue: scheduler retrace/pre-NMI/done messages and UpdateFrame's 2750 frame-end request; tasks' msgQ; also used by UpdateFrame
+D_80035470	frame_start_pending	data	code	sure	s8: set by the main thread when it started a frame and woke the game thread, cleared by UpdateFrame; also used by UpdateFrame
+D_80035471	game_frame_building	data	code	likely	s8: 1 while the game thread builds a frame, 0 while UpdateFrame waits for the next one; also used by UpdateFrame
+D_80035472	frame_end_requested	data	code	sure	s8: set by UpdateFrame when it sends the 2750 frame-end message, cleared when the main thread runs EndGraphics; also used by UpdateFrame
+D_80110030	gSongNames	data	mat3	sure	char *[] (MAT3 20); MAT3 gSongNames, the audio screen's song titles (audio_animText case 2)
+D_80111754	ghostRaceTimes	data	mat3	sure	f32[6], per track: GhostStart sizes the recording for (time + 10) * gRetraceRate frames
+D_80111784	gNumCircuitTracks	data	mat3	sure	s32[4], circuit.c: tracks per circuit type
+D_80111958	gLastKeyTime	data	mat3	sure	MAT3 controlsys.c gLastKeyTime: frame of the last key press (UpdateControls)
+D_80113EE0	controls_gPlayerRects	data	mat3	sure	anon_x_y_18[4][4] {x, y, w, h, cx, cy}; MAT3 controlscr.c static gPlayerRects[gNumWindows-1][p]
+D_80114650	gRestartGame	data	mat3	sure	s8, game.c: restart the race (GhostStart, controlMain)
+D_801146AC	playerTextColor	data	mat3	sure	s32[4]; MAT3 game.c playerTextColor[p], each player's text colour
+D_8011473C	gFinished	data	mat3	sure	s8: HAL_text.c static gFinished (HAL_FinishText's end flag); generic name: keep it file-static; also used by menu_input_process
+D_80114748	gTrans	data	mat3	sure	f32: HAL_text.c static gTrans, the text translucency (HAL_SetTextTranslucency); also used by __standin_func_800B6748, menu_input_process
+D_8011474C	gBufferInited	data	mat3	sure	s8: HAL_text.c static gBufferInited: text commands buffered since HAL_StartText; also used by menu_input_process
+D_801147C8	gDefaultNames	data	mat3	sure	u8 *[55] on the N64 (58 in MAT3), highscorescr.c: names for empty score rows (include/game/hiscore.h already declares gDefaultNames: the same datum)
+D_801148E4	gSaveGhostFiles	data	mat3	sure	s8, save.c: LoadPlayerData sets it only for the developer's profile name; updateHighScoreScreen opens the ghost-save prompt only when set (as MAT3's gSaveGhostFile && gSaveGhostFiles)
+D_801170FC	gPauseState	data	mat3	sure	s32; MAT3 gPauseState (GameLoop's pause test); its name already appears in comments and macros as this symbol
+D_80117280	pause_titlePos	data	mat3	sure	s32[2] {x, y} of the pause screen's title (MAT3 pausescr static titlePos)
+D_80117420	gPlayerNameChars	data	mat3	sure	const char *, the name-entry grid's characters (ControlName, DrawName)
+D_801174B4	gGameState	data	mat3	sure	u32, state.c: the game state bits (8 attract, 0x400000 racing ...); the symbol table also names this address state_word_a, to merge into this name; several files already #define gGameState to it
+D_80117530	targetInfo	data	mat3	sure	tTargetInfo[] per target type: names, start/anim functions, collision function index, sounds (MAT3 targets.c targetInfo); N64 stride 0x30 (PC 0x40)
+D_80118E20	gJust	data	mat3	sure	anon_h_v_8 {h, v}; MAT3 TB_text.c static gJust, written by every TB_SetJust copy (D_80118E20[0] = h, [1] = v); groups/countdown #defines the name to this symbol
+D_8011AD40	video_optionValid	data	mat3	sure	MAT3 videoscr.c static table behind validOption (s32[4])
+D_8011AD6C	video_gControllerRemoved	data	mat3	sure	s8 (MAT3 videoscr static gControllerRemoved), set by video_animPanes from gControllerData
+D_8011EAA8	musyx_retrace_callback	data	code	sure	function pointer the audio thread calls on each retrace message (dma_wait_complete), set/cleared by MusyX services 2 and 3
+D_8011F844	collsize	data	mat3	sure	anon_colfront_colrear_10[13]: per body colfront/colrear/colside/colheight, the drones' bodyR and colrad (init_cars); declared in include/game/car.h; also used by func_8038FCE0, track_info_display
+D_801391F0	gEnvList	data	mat3	sure	tVisual *, visuals.c's static gEnvList: head of the environment visuals; RemoveEnvirons' loop (ReleaseEnviron until empty) is inlined in controlMain/updateGameOverScreen
+D_801407B4	gPathMax	data	mat3	sure	s16[3] the track path's bounding-box maximum (MAT3 gPathMax); animTrackMap, animDot, animFlag
+D_801407D4	gPathMin	data	mat3	sure	s16[3] the bounding-box minimum (MAT3 gPathMin)
+D_80140804	gStuntModeMins	data	mat3	sure	s32, game.c: stunt mode length in minutes (RecordStunt's average)
+D_80140A04	gMirrorWaves	data	mat3	sure	s32; MAT3 gMirrorWaves (updateFrontEnd clears it before MirrorWaveInstance(FindWaveInstance(..)) as MAT3)
+D_80142690	gOutOfTime	data	mat3	sure	s8; MAT3 game.c gOutOfTime
+D_80142699	gRetireGame	data	mat3	sure	s8; MAT3 game.c gRetireGame
+D_80142740	gCheckPtTimeout	data	mat3	sure	f32[4], hud.c: per-player checkpoint time display timeout
+D_80142760	gDeathMode	data	mat3	sure	s8, game.c: death (no-continue) mode (resurrect.c already #defines gDeathMode to it)
+D_80142770	gLapTime	data	mat3	sure	f32[4], hud.c: per-player lap time display
+D_80143FC8	gTargetList	data	mat3	sure	tStatList the live targets (MAT3 targets.c gTargetList); FreeStatLLE'd by AnimateMine
+D_80144018	gLap	data	mat3	sure	u8[4], gamerecords.c: laps completed per player
+D_80144DA8	gBestLapTime	data	mat3	sure	f32[4], gamerecords.c: best lap per player (5999.999 reset)
+D_80146150	gJustPlayers	data	mat3	sure	tPlayerProfile *[4], save.c: per-controller profile used when a player has none (gPlayers[p].save = &gJustPlayers[controller])
+D_801461D0	text_lock_queue	data	code	sure	OSMesgQueue: the text system lock (HAL_InitText creates it with one message; text_lock / text_unlock take and give it); MAT3 _GetSemaphore is empty on GC
+D_8014978C	gTrackNum	data	mat3	sure	s8: the track (fake_init sets it; trackSpots[gTrackNum]); already #defined to this in save_option.c; also used by AnimateFrame, CompressGhost, GetCarsIRColor, LoadTrack (+45)
+D_801497C8	frame_dl	data	code	sure	Gfx *: the cursor of the frame display list (glistp in SDK terms), as blit_dl is the 2D one; the loader also names it msgq_ptr
+D_801497F4	frame_dl_start	data	code	likely	Gfx *: where the game thread's part of the frame display list starts (InitGraphics and UpdateFrame copy the cursor to it); also used by UpdateFrame
+D_80149A78	gLapTimes	data	mat3	sure	f32[4][8], gamerecords.c: lap times per player
+D_80149B08	font_image_format	data	code	sure	s32: the font texture's RDP image format, G_IM_FMT_I (4) for header mode 1 else IA (3): N64 SetupFontData sets it beside a texel-size flag (D_80149B28); DrawText reads it; also used by audio_doppler_calc, func_80096288, sound_update_channel
+D_80149B70	gSpacing	data	mat3	sure	s8 (s32 slot): HAL_text.c static gSpacing (HAL_SetFontSpacing); also used by HAL_GetFontSpacing, __standin_func_800B6748, func_800BDEB0, menu_input_process (+2)
+D_80149B88	gFontAttribute	data	mat3	sure	s32: HAL_text.c static gFontAttribute (0x20 translucent, 0x8000 high-res); also used by render_helper
+D_80149D98	pauseMenuSelect	data	mat3	sure	s32 the highlighted pause item (MAT3 pausescr pauseMenuSelect); animPause, animPauseText
+D_80149DA0	gFontIndex	data	mat3	sure	s16: HAL_text.c static gFontIndex (-1 none; HAL_InitText); also used by __standin_func_800B6748, menu_input_process, slot_state_setup
+D_8014A100	gControlFirst	data	mat3	sure	s16[4]; MAT3 controlscr.c static gControlFirst[p]
+D_8014A160	gPlayers_save	data	mat3	sure	tPlayerProfile ** field view: gPlayers[0].save (gPlayers + 0x48), indexed with the 0x4C gPlayers stride; FindGhosts' and SaveGhost's ghost player
+D_80150DD8	gUnlockedTracks	data	mat3	sure	s8[4][19], gamerecords.c
+D_80150E30	gUnlockedCars	data	mat3	sure	s8[4][13], gamerecords.c
+D_80150E88	gUnlockedCircuits	data	mat3	sure	s8[4][4], gamerecords.c gUnlockedCircuits (CalcUnlockedStuff's cheat branch writes one row past the player data: docs/code/r5.md section 8)
+D_80150EB8	gUnlockedTrans	data	mat3	sure	s8[4][8], gamerecords.c
+D_80150ED8	gUnlockedEngines	data	mat3	sure	u8[]: MAT3 gUnlockedEngines (drawUnlockedParts, IsEngineUnlocked)
+D_80150F00	gUnlockedTires	data	mat3	sure	s8[4][5], gamerecords.c
+D_80150F14	gUseCatchup	data	mat3	sure	s8: rubber-band catch-up mode (fake_init sets 2; countdown); also used by func_800DE860
+D_80150F40	gUnlockedFrames	data	mat3	sure	s8[4][6], gamerecords.c
+D_80150F7C	gForceUnlockedCircuits	data	mat3	sure	s8[4], gamerecords.c: circuits unlocked regardless of results (CalcUnlockedStuff)
+D_80150F88	gTotalRaceStats	data	mat3	sure	anon_checksum_scores_60[12], gamerecords.c: all players' race stats and top-5 tables
+D_80151410	gTotalStuntStats	data	mat3	sure	anon_checksum_bestStunt_40[4], gamerecords.c
+D_80151578	gTotalBattleStats	data	mat3	sure	anon_checksum_totalMatches_c[8], gamerecords.c
+D_801515F8	gTotalObstacleStats	data	mat3	sure	anon_checksum_bestTime_18[1], gamerecords.c
+D_80151618	gTotalCircuitStats	data	mat3	sure	anon_checksum_numCircuits_1c[4], gamerecords.c
+D_80151968	gTempNames	data	mat3	sure	u8[20][13], gamerecords.c: names entered without a profile
+D_80152014	gNumLapsLeft	data	mat3	sure	s8; MAT3 checkpoint.c gNumLapsLeft (InitCPS)
+D_80152038	gStuntPlayer	data	mat3	sure	tStuntPlayer[4], 0x78 each: stunt scoring per player (overlay B already #defines gStuntPlayer to it)
+D_80152570	gBackwards	data	mat3	sure	s8: MAT3 gBackwards, with gMirrorWaves sets the carousel direction in showTrackSelect
+D_80152734	gNumLaps	data	mat3	sure	s16, game.c: laps in the race (resurrect.c already #defines gNumLaps to it)
+D_80152744	gNumActiveCars	data	mat3	sure	s8: cars in the race (munge_gLink_data, init_cars); also used by car_setup_confirm, func_800D1AB0, func_800D5A04, func_800D60AC (+4)
+D_8015274C	num_our_drones	data	mat3	sure	s16: drones this machine simulates (munge_gLink_data); also used by func_800E56F8, update_drone_models
+D_80152750	musyx_task_done_queue	data	code	sure	OSMesgQueue the scheduler signals when the MusyX audio task is done (musyx_submit_audio_task's msgQ, musyx_wait_audio_task waits on it; created in the audio init)
+D_80152768	num_drones	data	mat3	sure	volatile s16: AI cars (munge_gLink_data); also used by func_800E451C
+D_80153F08	new_sched_to_use	data	mat3	sure	s16: the next drone_sched row (init_cars); also used by func_800E56F8, update_drone_models
+D_80153FD2	num_humans	data	mat3	sure	volatile s16: human cars (munge_gLink_data); also used by model_iteration
+D_801541A4	multiPlayerBlit	data	mat3	sure	_tBlit *, hud.c: the 2/3-player divider set (RemoveMultiplayerHUD inlined in controlMain)
+D_80154350	resultPane	data	mat3	sure	void *[5] the result panes, [4] the header (MAT3 hud.c resultPane); animResults; anim_no_rumble_panes also keeps its panes in [0..3]
+D_801543CA	gNumCars	data	mat3	sure	volatile s16: cars in the race record (fake_init sets 6); the unused header include/game/carsel.h declares an unrelated s32 gNumCars; also used by car_setup_confirm, func_8038D498, func_8038D798, func_8038DA78 (+4)
+D_801543CC	gModelTime	data	mat3	sure	f32: the model clock in seconds (game_reckon_all's argument, maxpath_cam's start time); #defined to this in several files; also used by RaceStateMachine_Update, StartNewBlastRing, StartShadow, StartTire (+21)
+D_801543D4	gCircuitPlayer	data	mat3	sure	u8, circuit.c: the player whose save holds the circuit
+D_80154450	gCircuitCars	data	mat3	sure	tCircuitCar[6], 0x4C each (name, totalPlace, totalPoints, places[24], points[24], skill[12]), circuit.c
+D_80154640	gCircuitSize	data	mat3	sure	s8, circuit.c: races in the circuit
+D_80156BA8	last_frame_dl_end	data	code	likely	Gfx *: the frame display list's cursor when EndGraphics closed it; nothing in the game reads it; also used by effect_system_init
+D_80156BDC	gShowTrackMap	data	mat3	sure	s8 HUD option (MAT3 hud.c gShowTrackMap); set by SetOptions
+D_80156CE8	gShowRadar	data	mat3	sure	s8 HUD option (MAT3 gShowRadar)
+D_8015723C	gShowElapsed	data	mat3	sure	s8 HUD option (MAT3 gShowElapsed)
+D_8015B250	frame_dynamic	data	code	sure	Dynamic *: the current frame's command buffer (matrices, then glist[4000] at +0x9CC0); also used by func_8009F058, particle_system, track_collision_wall
+D_8015B260	frame_matrix_cursor	data	code	sure	Mtx *: the next free node matrix of the frame (frame_dynamic + 1728, advanced per node by the scene draw)
+D_8015F72D	frame_record_index	data	code	sure	volatile s8: which frame_records entry is being built (toggled per frame); also used by Input_ProcessGameplayPad
+D_8016137C	gShowPlace	data	mat3	sure	s8 HUD option (MAT3 gShowPlace)
+D_80161398	video_dither_filter	data	code	sure	s32: VI dither filter option on/off; also used by physics_sym
+D_801613E8	attract_alt_text_flag	data	code	likely	s8: when 1 the title screen's animText (overlay A func_803AE51C) and demo_animText draw another message in font 13 instead of the press-start prompt (N64 only)
+state_word_a	gGameState	data	mat3	sure	the loader table's second name for 0x801174B4 (D_801174B4), MAT3 gGameState: both names merge into gGameState
+msgq_ptr	frame_dl	data	code	sure	alias: the loader's wrong name for D_801497C8 (no message queue); both rows map to frame_dl
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+D_8002E870	gDefStartTimes	data	mat3	likely	f32[25] (0x64 bytes): MAT3 gDefStartTimes, the default start times by track (+19 in one mode); func_800F0914 reads it by this name and the blob loader table names this address so
+gSyncMagic	frame_start_msg	data	code	likely	alias: main_thread_entry's name for D_80142D90 (it stores 0xABF there); both map to frame_start_msg
+func_800FE4AC	free_car_palette	func	code	likely	alias: the address spelling of stat_race_end (same function); both rows map to free_car_palette

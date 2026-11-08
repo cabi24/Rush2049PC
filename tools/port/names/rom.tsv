@@ -1,0 +1,1056 @@
+# names-ovl (rom): the boot segment (src/rom: entry, threads, timer, scheduler, video mode, unzip, libultra, libc, the MusyX sound library, the speech streams and GSM decoder) and the low image's data (0x80000000-0x80086A50). Sections by module; data the game image also uses is under # shared, last.
+# Reconciled with the other areas' maps (wave 1): docs/code/NAMING.md has the conventions, which override this
+# header where they differ, and every decision; each old name has one row over all the maps; labels to delete
+# rather than rename are in drop.tsv.
+# old	new	kind	source	confidence	note
+# lib_11050: the sound library's DMA request queue (ROM reads the library asks for, folded into the audio frame's DMA list)
+func_80010450	sound_dma_flush_requests	func	code	sure	moves the up-to-4 queued ROM reads into the frame DMA list, wakes the waiter; installed as the frame DMA hook
+func_800105C4	sound_dma_install_queue	func	code	sure	once: creates the done queue, clears the request count, installs sound_dma_flush_requests as the hook
+func_8001061C	sound_dma_remove_queue	func	code	sure	clears the frame DMA hook; called by speech_exit
+func_80010628	sound_dma_read_blocking	func	code	sure	(dst, src, size): queues a 16-aligned ROM read under the lock and waits on the done queue; speech bank loads
+func_80010714	sound_dma_read_async	func	code	sure	(dst, src, size): queues a ROM read without waiting; the speech stream input callback
+# lib_113e0: the sound library's init and exit (the game calls these)
+func_800107E0	sound_lib_init_layers	func	code	sure	resets groups, registries, sequencer, synth (with the frequency), streams, emitters, then sets the initialized flag
+func_80010840	sound_lib_init	func	code	sure	(frequency, voices<=32, music voices, sfx voices, delay ms, flags): hardware init with its own AI thread, then layers; AudioInitSys calls it
+func_800108E0	sound_lib_init_shared_output	func	code	likely	as sound_lib_init but the hardware init that only sets the AI frequency (no output thread); nothing calls it
+func_80010980	sound_lib_exit	func	code	sure	if initialized: hardware exit (stops the output thread), emitter exit, clears the flag
+func_800109C0	sound_lib_exit_shared_output	func	code	likely	the exit that pairs with sound_lib_init_shared_output (no output thread to stop)
+func_80010A00	sound_is_initialized	func	code	sure	returns the library initialized flag
+func_80010A0C	sound_set_option	func	code	likely	empty body taking one u32; no callers in the C
+func_80010A14	sound_get_output_info	func	code	sure	returns the output description record (frequency, mode, sample bits, driver text) when initialized
+# lib_11640: the sound library's hardware layer: the AI output thread, the RSP task, subframe (SFD) building, sample caches, envelopes
+func_80010A40	sound_hw_run_output_thread	func	code	sure	thread body: allocates the ring of 768-byte AI buffers, answers each AI event with osAiSetNextBuffer, stops on message 255
+func_80010C68	sound_hw_start_output_thread	func	code	sure	creates the AI event queue, sets the AI frequency, creates and starts the output thread (priority 122)
+func_80010D3C	sound_hw_set_output_frequency	func	code	sure	osAiSetFrequency only; returns the real frequency through the pointer
+func_80010D74	sound_hw_stop_output_thread	func	code	sure	sends 255 to the output thread and frees the AI buffers and its stack
+func_80010DD8	sound_hw_alloc_delay_line	func	code	sure	(rate, ms): allocates the delay line, its length rounded up to 192-sample subframes
+func_80010E80	sound_hw_set_delay	func	code	sure	builds the 72-byte delay-effect state (taps, gains, feedback, filter) from a configuration; docs/port/AUDIO.md
+func_80011074	sound_hw_remove_delay	func	code	sure	waits for the task, frees the delay state
+func_800110C4	sound_hw_free_delay_line	func	code	sure	removes the delay effect and frees its line
+func_80011104	sound_hw_alloc_voices	func	code	sure	(count, frequency): voice records, the two SFD sets (count x 2576 B), the 664-byte mix state
+func_8001144C	sound_hw_free_voices	func	code	sure	frees what sound_hw_alloc_voices allocated
+func_800114C0	sound_hw_alloc_dma	func	code	sure	sizes the frame DMA list, creates its done queue, sets up the codebook and sample caches
+func_80011848	sound_hw_free_dma	func	code	sure	waits for the DMA to finish, frees the DMA list
+func_80011894	sound_hw_reset_dma_list	func	code	sure	empties the frame DMA list and resets its cache cursor
+func_800118C0	sound_hw_wait_task	func	code	sure	if a task was submitted: waits for it through the wait service, yields
+func_80011910	sound_hw_submit_task	func	code	sure	fills the OSTask (type 2, rspboot + audio microcode, data = SFDs, data_size = count) and submits it
+func_800119E0	sound_hw_submit_sfds	func	code	sure	submits the current SFD set and its count
+func_80011A10	sound_hw_start_envelope	func	code	sure	envelope to attack: state 0, value 0, count = attack time, scale 1
+func_80011A3C	sound_hw_release_envelope	func	code	sure	envelope to release: state 3 from the current value over the release time
+func_80011A64	sound_hw_advance_envelope	func	code	sure	one subframe of the attack/decay/sustain/release envelope; ends the voice after release
+func_80011C1C	sound_hw_reset_voice	func	code	sure	clears a voice record: inactive, rate 4096, held, levels 0
+func_80011C84	sound_hw_activate_voice	func	code	sure	starts the envelope and marks the voice active
+func_80011CD8	sound_hw_wait_dma	func	code	sure	if the frame DMA list is in flight: waits for its done message, yields
+func_80011D24	sound_hw_start_dma	func	code	sure	issues the frame DMA list through the DMA service if it has entries
+func_80011D74	sound_hw_advance_voice_position	func	code	sure	advances a voice's sample position by rate x samples, looping or clamping at the end
+func_80011F60	sound_hw_init_codebook_cache	func	code	sure	(count): 256-byte ADPCM codebook cache nodes on a free list
+func_800121BC	sound_hw_free_codebook_cache	func	code	sure	frees the codebook cache and its nodes
+func_80012200	sound_hw_age_codebook_cache	func	code	sure	counts every used codebook node's countdown down by one per frame
+func_80012234	sound_hw_fetch_codebook	func	code	sure	(cart address): returns the cached 256-byte codebook, or takes a node and queues its DMA
+func_800123A8	sound_hw_init_sample_cache	func	code	sure	(count): 1536-byte sample block cache nodes
+func_8001261C	sound_hw_free_sample_cache	func	code	sure	frees the sample cache and its nodes
+func_80012660	sound_hw_take_sample_block	func	code	sure	takes a free sample block or recycles the least recently used one, moving it to the tail
+func_80012730	sound_hw_fetch_sample_range	func	code	sure	(fetch, address, length, sample): finds or loads the cached blocks covering a range, up to two pieces
+func_80012D18	sound_hw_build_voice_command	func	code	sure	writes one 0x50-byte voice record of the current SFD: windows, ADPCM/PCM fetches, volumes and ramps; docs/port/AUDIO.md
+func_80013964	sound_hw_begin_sfd_set	func	code	sure	selects the SFD set to build into and empties it
+func_800139D4	sound_hw_build_subframe	func	code	sure	one SFD: every active voice's record, release mask, output buffer, mix state, delay position
+func_80013C84	sound_hw_latch_voice_positions	func	code	sure	stores each active voice's integer position before rendering
+func_80013D70	sound_hw_render_subframe	func	code	sure	(buffer, offset): runs the library tick every N subframes, then builds the SFD for that AI buffer
+func_80013DEC	sound_hw_service_frame	func	code	sure	the retrace callback: frame hook, renders the AI buffers played since last time, DMA, submits last frame's task
+func_800140F8	sound_hw_install_callback	func	code	sure	clears the hooks and installs sound_hw_service_frame through the retrace service
+func_80014140	sound_hw_remove_callback	func	code	sure	lets the AI ring drain, then removes the retrace callback
+func_80014198	sound_hw_init_synth	func	code	sure	(frequency, voices, delay ms, mode): voices, DMA, delay line, callback; ticks per subframe; output info
+func_80014374	sound_hw_cache_mode_from_flags	func	code	likely	maps init flag bits 16-19 to a mode 0-4 that sizes the sample cache per voice
+func_800143C0	sound_hw_init	func	code	sure	hardware init with its own output thread; sets the half-rate flag from init flag 0x100000
+func_80014434	sound_hw_init_shared_output	func	code	likely	hardware init that only sets the AI frequency (no output thread)
+func_80014488	sound_hw_exit	func	code	sure	removes the callback, waits, frees delay, DMA, caches, voices, stops the output thread
+func_800144F0	sound_hw_exit_shared_output	func	code	likely	as sound_hw_exit without stopping an output thread
+func_80014550	sound_hw_init_lock	func	code	sure	creates the library lock: a one-message queue holding its token
+func_80014594	sound_hw_lock	func	code	sure	recursive lock: takes the token on the first level; every API entry takes it
+func_800145DC	sound_hw_unlock	func	code	sure	recursive unlock: returns the token when the depth reaches 0
+func_80014624	sound_hw_lock_frame	func	code	sure	takes the lock token unconditionally (the frame service)
+func_80014650	sound_hw_unlock_frame	func	code	sure	returns the lock token (the frame service)
+func_8001467C	sound_hw_is_voice_active	func	code	sure	a voice record's active byte
+func_800146AC	sound_hw_is_busy	func	code	likely	returns 0; sound_is_idle asks it before checking the voices
+func_800146B4	sound_hw_set_voice_sample	func	code	sure	(voice, sample info, reset envelope): data, position, length, loop, format; cart address sets flag 1
+func_8001489C	sound_hw_stop_sample	func	code	sure	sets a short release and optionally releases the envelope (macro STOPSAMPLE)
+func_800148F8	sound_hw_set_envelope	func	code	sure	(voice, attack, decay, sustain, release) from a table entry (macro 0x0C)
+func_800149BC	sound_hw_start_voice	func	code	sure	activates a voice (starts its envelope)
+func_800149DC	sound_hw_release_hold	func	code	sure	clears the voice's hold flag so its envelope enters release at the next subframe
+func_80014A04	sound_hw_set_priority	func	code	likely	empty body taking a voice; no callers in the C
+func_80014A0C	sound_hw_set_pitch	func	code	sure	sets a voice's rate (Q4.12), capped at 2.0
+func_80014A74	sound_hw_set_volume	func	code	sure	(voice, volume, pan, span, aux) to the four channel gains
+func_80014AF0	sound_hw_break_voice	func	code	sure	stops an active voice at once and marks its slot for release folding
+func_80014B3C	sound_hw_key_off	func	code	sure	short release; drops the hold or releases the envelope
+func_80014BB0	sound_hw_kill_voice	func	code	sure	clears the active byte; no callers in the C
+func_80014BD8	sound_hw_set_delay_effect	func	code	sure	wrapper of sound_hw_set_delay
+func_80014BF8	sound_hw_remove_delay_effect	func	code	sure	wrapper of sound_hw_remove_delay
+func_80014C18	sound_hw_get_voice_position	func	code	sure	a voice's latched integer position (stream service)
+func_80014C40	sound_hw_flush_stream	func	code	sure	writes back a range of a stream buffer
+func_80014C60	sound_hw_flush_stream_wrap	func	code	sure	copies a stream buffer's first 4 samples past its end (interpolation wrap) and writes them back
+func_80014CAC	sound_hw_translate_address	func	code	sure	leaves RAM (0x80) and cart (0xB0) addresses, translates others through the service
+func_80014CF4	sound_hw_init_sample_memory	func	code	likely	empty; called by sound_reset_registries
+func_80014CFC	sound_hw_save_sample	func	code	likely	empty (descriptor, data); called when a sample is first referenced
+func_80014D08	sound_hw_remove_sample	func	code	likely	empty (descriptor, data); called when a sample loses its last reference
+func_80014D14	sound_hw_commit_voices	func	code	likely	empty; called at the end of the synth voice update
+func_80014D1C	sound_hw_freeze_output	func	code	sure	sets the flag that makes the output thread ignore AI events
+# lib_15930: rate conversion
+func_80014D30	sound_rate_to_pitch	func	code	sure	sample rate to a Q4.12 pitch against the synth frequency
+func_80014E00	sound_get_version_text	func	code	likely	returns a boot-data byte string; no callers
+# lib_15a10: groups (sndPushGroup / pop): walking the project file and registering its pools
+func_80014E10	sound_reset_groups	func	code	sure	clears the pushed group count
+func_80014E1C	sound_find_pool_entry	func	code	sure	(id, list): walks {size, id} entries until size 0xFFFFFFFF; docs/port/MUSYX_DATA.md 3.2
+func_80014E64	sound_find_pool_macro	func	code	sure	pool list 0 (macros)
+func_80014E90	sound_find_pool_table	func	code	sure	pool list 1 (tables)
+func_80014EBC	sound_find_pool_keymap	func	code	sure	pool list 2 (keymaps)
+func_80014EE8	sound_find_pool_layer	func	code	sure	pool list 3 (layers)
+func_80014F14	sound_register_macros	func	code	sure	adds every macro of an id list (ends 0xFFFF) to the macro registry
+func_80014F80	sound_register_tables	func	code	sure	adds every table of an id list
+func_80014FEC	sound_register_keymaps	func	code	sure	adds every keymap of an id list
+func_80015058	sound_register_layers	func	code	sure	adds every layer of an id list, with its count
+func_800150C8	sound_unregister_macros	func	code	sure	removes every macro of an id list
+func_80015120	sound_unregister_tables	func	code	sure	removes every table of an id list
+func_80015178	sound_unregister_keymaps	func	code	sure	removes every keymap of an id list
+func_800151D0	sound_unregister_layers	func	code	sure	removes every layer of an id list
+func_80015228	sound_register_samples	func	code	sure	adds the sample directory, then references every sample of an id list
+func_800152A8	sound_unregister_samples	func	code	sure	releases every sample of an id list, last first
+func_80015318	sound_register_sfx_table	func	code	sure	adds a group's sfx table (count, entries)
+func_80015348	sound_unregister_sfx_table	func	code	sure	removes a group's sfx table
+func_8001536C	sound_push_group	func	code	sure	(project, group id, sample base, sample directory, pool): registers the group's data (the docs call it sndPushGroup)
+func_800154A4	sound_pop_group	func	code	sure	unregisters the last pushed group
+func_80015574	sound_set_studio	func	code	likely	returns 0, four arguments; no callers in the C
+func_8001558C	sound_start_song_in_group	func	code	sure	(group, song id, song data, options, unlocked): finds the song group's MIDI setup and starts the sequencer
+func_800156E8	sound_start_song	func	code	sure	sound_start_song_in_group under the lock; the game's song start
+# lib_16320: the registries of macros, tables, keymaps, layers, samples and sfx tables (sorted by id, reference counted)
+func_80015720	sound_add_keymap	func	code	sure	sorted insert or reference count of a keymap (2048 slots)
+func_800158D8	sound_remove_keymap	func	code	sure	drops a reference; removes the keymap at 0
+func_80015A0C	sound_add_layer	func	code	sure	sorted insert or reference count of a layer with its count (256 slots)
+func_80015C0C	sound_remove_layer	func	code	sure	drops a reference; removes the layer at 0
+func_80015D68	sound_add_table	func	code	sure	sorted insert or reference count of a table (2048 slots)
+func_80015F28	sound_remove_table	func	code	sure	drops a reference; removes the table at 0
+func_8001605C	sound_add_sample_directory	func	code	sure	registers a sample directory with its base (8 slots), clears its references
+func_800161A0	sound_remove_sample_directory	func	code	sure	unregisters a sample directory
+func_800162AC	sound_add_sample	func	code	sure	first reference sets a sample's address = base + offset; counts references
+func_800163A8	sound_remove_sample	func	code	sure	drops a sample reference; removes an unused directory
+func_800164D0	sound_add_sfx_table	func	code	sure	registers an sfx table (128 slots), sets each entry's volume group to 31
+func_8001661C	sound_remove_sfx_table	func	code	sure	unregisters an sfx table
+func_8001671C	sound_add_macro	func	code	sure	sorted insert or reference count in the macro registry, bucketed by id >> 6 (512 buckets)
+func_80016998	sound_remove_macro	func	code	sure	drops a reference; removes the macro and shifts the buckets
+func_80016BF8	sound_compare_macro_ids	func	code	sure	bsearch comparator: the u16 id at +4 of a macro record
+func_80016C20	sound_find_macro	func	code	sure	bsearch in the id's bucket; returns the macro's steps
+func_80016CE0	sound_compare_sample_ids	func	code	sure	bsearch comparator: the leading u16 id of a sample record
+func_80016CF0	sound_find_sample	func	code	sure	fills a sample info (rate, address, length, loop, format) from the directories by id
+func_80016E40	sound_compare_record_ids	func	code	sure	bsearch comparator: the u16 id at +4 (tables, keymaps)
+func_80016E68	sound_find_table	func	code	sure	bsearch the table registry by id
+func_80016EE0	sound_find_keymap	func	code	sure	bsearch the keymap registry by id
+func_80016F58	sound_compare_layer_ids	func	code	sure	bsearch comparator: the u16 id at +4 of a layer record
+func_80016F80	sound_find_layer	func	code	sure	bsearch the layer registry; returns entries and their count
+func_80017018	sound_compare_sfx_ids	func	code	sure	bsearch comparator: the leading u16 id of a 12-byte sfx entry
+func_80017040	sound_find_sfx	func	code	sure	finds an sfx entry by id in every registered sfx table
+func_80017108	sound_reset_registries	func	code	sure	empties every registry and the macro buckets
+# lib_17dc0: the sequencer (songs: tracks, patterns, tempo, 8 players)
+func_800171C0	sound_seq_init_notes	func	code	sure	links the 256 note nodes into the free list
+func_8001729C	sound_seq_free_player_notes	func	code	sure	moves a player's playing and released note lists to the free list
+func_8001734C	sound_seq_stop_player_notes	func	code	sure	stops the sound of every note of a player
+func_800173B4	sound_seq_alloc_note	func	code	sure	takes a free note node onto the current player's playing list
+func_80017410	sound_seq_free_note	func	code	sure	returns a playing note node to the free list
+func_80017470	sound_seq_free_released_note	func	code	sure	returns a released note node to the free list
+func_800174D0	sound_seq_release_note	func	code	sure	moves a note from the playing to the released list
+func_80017540	sound_seq_reap_released_notes	func	code	sure	frees released notes whose sound has ended
+func_800175A8	sound_seq_reset_ids	func	code	sure	restarts the player id counter
+func_800175B4	sound_seq_assign_id	func	code	sure	gives a player slot a fresh id not used by another playing slot
+func_80017644	sound_seq_find_slot	func	code	sure	player id to slot (bit 31 kept: a pending crossfade request)
+func_80017720	sound_seq_set_program	func	code	sure	program change: the channel's macro, priority and voice limit from the normal or drum page (channel 9)
+func_800177EC	sound_seq_set_channel_pressure	func	code	likely	pattern event with velocity 1: sets MIDI controller 130 of the channel
+func_80017824	sound_seq_set_channel_volume	func	code	sure	MIDI controller 7 of the channel; track event volume
+func_8001785C	sound_seq_build_program_map	func	code	sure	program number to page entry index (255 none), from a page's entries
+func_800178B0	sound_seq_start	func	code	sure	(normal page, drum page, MIDI setup, song, params): sets up a free player and returns its id
+func_80017D38	sound_seq_play_note_events	func	code	sure	plays every due pattern event of the current player: notes, program, controllers
+func_800180A0	sound_seq_advance_pattern_clocks	func	code	sure	adds the tick step to every active pattern's clock
+func_80018184	sound_seq_end_due_notes	func	code	sure	keys off notes whose duration has passed; advances the others' clocks
+func_8001824C	sound_seq_play_pitch_bend_streams	func	code	sure	pattern pitch-bend streams to controllers 128/129
+func_80018448	sound_seq_play_modulation_streams	func	code	sure	pattern modulation streams to controllers 1/33
+func_80018634	sound_seq_play_tracks	func	code	sure	track events: start patterns, loop (0xFFFE), end (0xFFFF); counts loops
+func_8001897C	sound_seq_update_tick_step	func	code	sure	tempo and speed to the per-tick clock step
+func_80018A30	sound_seq_play_tempo_track	func	code	sure	applies the tempo track's due changes
+func_80018AEC	sound_seq_advance_tempo_clock	func	code	sure	advances the tempo track's clock
+func_80018B3C	sound_seq_rewind_tempo_track	func	code	sure	restarts the tempo track at a loop time
+func_80018B8C	sound_seq_get_loop_count	func	code	sure	how many times a player has looped
+func_80018BEC	sound_seq_is_playing	func	code	sure	whether a player id is live
+func_80018C2C	sound_seq_pause_unlocked	func	code	sure	pauses a player: stops and frees its notes
+func_80018D00	sound_seq_pause	func	code	sure	sound_seq_pause_unlocked under the lock
+func_80018D40	sound_seq_stop_unlocked	func	code	sure	stops a player and frees its slot
+func_80018E2C	sound_seq_stop	func	code	sure	sound_seq_stop_unlocked under the lock
+func_80018E6C	sound_seq_stop_all	func	code	sure	stops the 8 players
+func_80018EB4	sound_seq_set_looping	func	code	sure	enables or disables a player's loop events
+func_80018F20	sound_seq_set_speed_unlocked	func	code	sure	a player's speed (256 = normal)
+func_80018FA4	sound_seq_set_speed	func	code	sure	sound_seq_set_speed_unlocked under the lock
+func_80018FEC	sound_seq_resume_unlocked	func	code	sure	restarts a paused player
+func_8001906C	sound_seq_resume	func	code	sure	sound_seq_resume_unlocked under the lock
+func_800190AC	sound_seq_set_track_mask_unlocked	func	code	sure	the 64-bit mask of tracks that play
+func_80019144	sound_seq_set_track_mask	func	code	sure	sound_seq_set_track_mask_unlocked under the lock
+func_80019194	sound_seq_fade_unlocked	func	code	sure	(volume, time, id, mode): fades a player's volume groups, then stops, pauses or mutes it
+func_80019370	sound_seq_fade	func	code	sure	sound_seq_fade_unlocked under the lock
+func_800193C8	sound_seq_get_volume_group	func	code	sure	a player's default volume group
+func_80019420	sound_seq_set_studio_group	func	code	likely	(id, selector, group): stores a group in the player's 2-entry table and sets the group's type to 2
+func_80019490	sound_seq_crossfade_unlocked	func	code	sure	fades the current song out and the next in (or starts it), with the request record
+func_80019850	sound_seq_crossfade	func	code	sure	sound_seq_crossfade_unlocked under the lock
+func_8001989C	sound_seq_crossfade_done	func	code	sure	whether a crossfade result is final (bit 31 clear)
+func_800198C8	sound_seq_tick	func	code	sure	runs every active player for one library tick; frees a player that has nothing left
+func_800199F4	sound_seq_init	func	code	sure	frees the 8 players, the note pool and the ids
+# lib_1a660: the synth (voices, pitch, volume groups, sound effects by id)
+func_80019A60	sound_synth_set_tempo	func	code	sure	a player's (or, 255, the effects') tick rate from its tempo
+func_80019AA8	sound_synth_get_tick_rate	func	code	sure	the tick rate of a voice's player
+func_80019AD4	sound_synth_apply_portamento	func	code	sure	glides a voice's pitch toward its target while portamento is on
+func_80019BE4	sound_synth_start_portamento	func	code	sure	sets the glide start for a voice and marks its channel
+func_80019C8C	sound_synth_retrigger_legato	func	code	sure	legato: moves the held voices of a channel to the new key instead of starting voices
+func_80019ED0	sound_synth_try_legato	func	code	sure	legato retrigger when the channel's mode is on
+func_80019F48	sound_synth_start_layer	func	code	sure	starts every layer entry whose key range holds the key, chaining the voices
+func_8001A270	sound_synth_start_note	func	code	sure	starts a macro, keymap (0x4000) or layer (0x8000) id for a key
+func_8001A5D8	sound_synth_key_to_pitch	func	code	sure	key (with a fraction) and sample root to a pitch
+func_8001A658	sound_synth_update_voices	func	code	sure	per tick: macros, LFOs, vibrato, sweeps, portamento, pitch, envelopes, volume and pan for every voice; the volume group faders
+func_8001B154	sound_synth_tick	func	code	sure	sets the tick step from the samples per tick and updates the voices
+func_8001B1D0	sound_start_sfx_unlocked	func	code	sure	(sfx id, volume, pan): starts an effect from its sfx table entry
+func_8001B29C	sound_set_sfx_pan_unlocked	func	code	sure	controller 10 on every voice of a sound
+func_8001B3A0	sound_set_sfx_span_unlocked	func	code	sure	controller 131 (surround span) on every voice of a sound
+func_8001B4A4	sound_set_sfx_doppler_unlocked	func	code	sure	controllers 132/133 (doppler pitch factor) on every voice of a sound
+func_8001B5F4	sound_set_sfx_pitch_bend_unlocked	func	code	sure	controllers 128/129 on every voice of a sound
+func_8001B744	sound_synth_copy_controllers	func	code	sure	copies volume, pan, reverb, pitch bend and doppler from one voice to another
+func_8001B7C0	sound_set_sfx_volume_unlocked	func	code	sure	controller 7 on every voice of a sound
+func_8001B8C4	sound_key_off_unlocked	func	code	sure	sets the key-off flag on every voice of a sound (the macro reacts)
+func_8001B968	sound_get_output_volume	func	code	sure	a sound's last output volume
+func_8001B9F8	sound_fade_volume_group_unlocked	func	code	sure	(volume, time, group or class 250-255, mode, player): starts volume fades
+func_8001BDB8	sound_is_group_fading_out	func	code	sure	whether a volume group is fading down
+func_8001BE14	sound_fade_pause_volume_unlocked	func	code	sure	as sound_fade_volume_group_unlocked for the pause faders
+func_8001C19C	sound_set_group_type	func	code	sure	sets a volume group's type byte
+func_8001C1D8	sound_synth_init	func	code	sure	(frequency): voices, faders, the effects' tempo, allocation lists, global variables
+# lib_1cf90: streams (CPU-filled voices) and 3D emitters and listeners
+func_8001C390	sound_stream_reset_all	func	code	sure	marks every stream slot free
+func_8001C3CC	sound_stream_refill	func	code	sure	per frame: asks each stream's callback to refill the part its voice has played
+func_8001C508	sound_stream_flush_wraps	func	code	sure	per frame: copies each stream's wrap samples
+func_8001C580	sound_stream_start	func	code	sure	(priority, buffer, samples, rate, volume, pan, span, aux, callback, context): starts a PCM16 stream voice
+func_8001C770	sound_stream_buffer_size	func	code	sure	bytes for a stream buffer: 2 per sample plus the 8-byte wrap
+func_8001C77C	sound_stream_set_volume	func	code	sure	a stream voice's volume, pan, span, aux
+func_8001C7F4	sound_stream_stop	func	code	sure	stops and frees a stream voice
+func_8001C860	sound_emitter_compute	func	code	sure	distance attenuation, doppler and pans of an emitter against every listener
+func_8001CC9C	sound_clamp_midi_value	func	code	sure	clamps to 127
+func_8001CCC0	sound_clamp_pitch_value	func	code	sure	clamps to 16383
+func_8001CCDC	sound_emitter_apply	func	code	sure	sets an emitter's sound volume, pan, span and doppler
+func_8001D084	sound_emitter_unlink	func	code	sure	removes an emitter from the list and keys off its sound
+func_8001D0F0	sound_emitter_update	func	code	sure	new position, velocity and volume of an emitter
+func_8001D1C0	sound_emitter_is_active	func	code	sure	an emitter's active flag
+func_8001D1F4	sound_emitter_add	func	code	sure	adds an emitter (or plays a one-shot 3D effect when none is given)
+func_8001D3F0	sound_emitter_add_sfx	func	code	sure	sound_emitter_add with the effect id as its own context
+func_8001D460	sound_emitter_add_with_context	func	code	sure	sound_emitter_add with a caller context
+func_8001D4CC	sound_emitter_remove	func	code	sure	sound_emitter_unlink under the lock
+func_8001D518	sound_emitter_get_sound	func	code	sure	the handle of an emitter's playing sound
+func_8001D578	sound_emitter_remove_all	func	code	sure	removes every emitter
+func_8001D5C0	sound_listener_build_matrix	func	code	sure	listener basis (side = up x forward) and its inverse transform
+func_8001D660	sound_listener_update	func	code	sure	new position, velocity, orientation and volume of a listener
+func_8001D764	sound_listener_add	func	code	sure	adds a listener with its surround distances and sound speed
+func_8001D8B0	sound_listener_remove	func	code	sure	removes a listener
+func_8001D928	sound_emitter_reset_groups	func	code	sure	empties the per-frame voice-limit groups
+func_8001D944	sound_emitter_note_playing	func	code	sure	records a playing emitter in its group, sorted by volume
+func_8001DA74	sound_emitter_note_candidate	func	code	sure	records an emitter waiting for a voice, sorted by volume
+func_8001DC08	sound_emitter_start_candidates	func	code	sure	starts waiting emitters that are clearly louder than the quietest playing one
+func_8001DDE0	sound_emitter_update_all	func	code	sure	per frame: every emitter's 3D values, starts, stops and fades
+func_8001E0C0	sound_emitter_init	func	code	sure	empties the emitter and listener lists
+func_8001E0D4	sound_emitter_exit	func	code	sure	empty; called by sound_lib_exit
+# lib_1ece0: gains and pitch tables
+func_8001E0E0	sound_compute_gains	func	code	sure	(volume, pan, span, aux) to left, right, surround and aux gains through the curve tables
+func_8001E440	sound_pitch_up_semitone	func	code	sure	multiplies a pitch by the one-semitone ratio
+func_8001E50C	sound_note_to_pitch	func	code	sure	key and sample (root key, rate) to a pitch through the semitone ratio tables
+func_8001E688	sound_truncate	func	code	sure	double truncated through an unsigned int
+# lib_1f340: helpers
+func_8001E740	sound_alloc	func	code	sure	allocates through the alloc service
+func_8001E768	sound_free	func	code	sure	frees through the free service
+func_8001E790	sound_random	func	code	sure	multiplicative generator; 26 bits
+func_8001E7BC	sound_sine	func	code	sure	4096-step sine from a 1024-entry quarter table
+func_8001E864	sound_bsearch	func	code	sure	binary search (key, base, count, size, compare)
+func_8001E930	sound_ms_to_time	func	code	sure	milliseconds to the synth's time units (x 256)
+func_8001E940	sound_ticks_to_time	func	code	sure	tempo ticks to time units at the voice's player rate
+func_8001E9A0	sound_time_to_ms	func	code	sure	time units to milliseconds (/ 256)
+# lib_1f5b0: sound handles and voice allocation by priority
+func_8001E9B0	sound_init_handles	func	code	sure	links the handle nodes into the free list
+func_8001EAA0	sound_find_handle	func	code	sure	the handle node of a key in the sorted used list
+func_8001EAEC	sound_next_handle_key	func	code	sure	the next handle key (never 0xFFFFFFFF)
+func_8001EB10	sound_unlink_voice	func	code	sure	removes a voice from its sound's voice chain and frees the handle with the last one
+func_8001ECE0	sound_new_handle	func	code	sure	gives a voice a new handle in the sorted used list
+func_8001EDF4	sound_resolve_handle	func	code	sure	handle to the first voice id, or -1
+func_8001EE34	sound_init_priority_lists	func	code	sure	empties the per-priority voice lists
+func_8001EE9C	sound_remove_voice_priority	func	code	sure	takes a voice out of its priority list
+func_8001EF8C	sound_set_voice_priority	func	code	sure	moves a voice to a priority list, keeping the levels sorted
+func_8001F13C	sound_alloc_voice	func	code	sure	(priority, max voices, allocation id, effect flag): free voice or the oldest stealable one
+func_8001F6EC	sound_free_voice	func	code	sure	returns a voice to the free list
+func_8001F7EC	sound_init_free_voices	func	code	sure	every voice free
+func_8001F864	sound_init_voice_allocation	func	code	sure	free list, priority lists, usage counts
+func_8001F898	sound_alloc_stream_voice	func	code	sure	a voice for a stream at a priority
+func_8001F954	sound_free_stream_voice	func	code	sure	stops and frees a stream voice
+func_8001F9D0	sound_end_voice	func	code	sure	unlinks a voice, clears its macro flags, frees it
+func_8001FA18	sound_stop_unlocked	func	code	sure	ends every voice of a sound now (its macro and its sample)
+func_8001FAE4	sound_stop_all_voices	func	code	sure	ends every voice (optionally keeping effects)
+# lib_207b0: the locked public API
+func_8001FBB0	sound_set_modulation	func	code	sure	controllers 1/33 on every voice of a sound, locked
+func_8001FD2C	sound_set_reverb	func	code	sure	controller 91 on every voice of a sound, locked
+func_8001FE58	sound_key_off	func	code	sure	sound_key_off_unlocked under the lock
+func_8001FEA4	sound_set_volume	func	code	sure	sound_set_sfx_volume_unlocked under the lock
+func_8001FEF8	sound_set_pitch_bend	func	code	sure	sound_set_sfx_pitch_bend_unlocked under the lock
+func_8001FF4C	sound_set_span	func	code	sure	sound_set_sfx_span_unlocked under the lock
+func_8001FFA0	sound_set_doppler	func	code	sure	sound_set_sfx_doppler_unlocked under the lock (docs/port/AUDIO.md: the pitch fix)
+func_8001FFF4	sound_set_pan	func	code	sure	sound_set_sfx_pan_unlocked under the lock
+func_80020048	sound_set_pedal	func	code	sure	controller 64 on every voice of a sound, locked
+func_80020174	sound_start_sfx	func	code	sure	sound_start_sfx_unlocked under the lock
+func_800201D0	sound_check	func	code	sure	a handle if its sound still plays, else 0xFFFFFFFF
+func_80020200	sound_get_global_variable	func	code	sure	one of the 16 macro global variables
+func_8002021C	sound_set_global_variable	func	code	sure	sets a macro global variable; returns the old value
+func_80020274	sound_stop_everything	func	code	sure	stops the players, the emitters and every voice
+func_800202C4	sound_is_idle	func	code	sure	whether no voice is active
+func_80020370	sound_set_sfx_volume_group	func	code	sure	an effect's volume group (byte 9 of its sfx entry)
+func_800203EC	sound_fade_pause_volume	func	code	sure	pause-fader version of sound_fade_volume, locked
+func_8002043C	sound_fade_volume	func	code	sure	sound_fade_volume_group_unlocked under the lock
+func_80020494	sound_fade_master_volume	func	code	sure	fades the music (group 21) and/or effects (22) master volume
+func_80020518	sound_set_mono	func	code	sure	the mono flag (centre pan, no surround)
+func_80020528	sound_set_delay_effect	func	code	sure	the delay effect, when initialized
+func_80020558	sound_remove_delay_effect	func	code	sure	removes the delay effect, locked
+func_80020598	sound_set_services	func	code	sure	copies the 8 platform service hooks (task, retrace, DMA, address, alloc, free)
+func_800205E4	sound_freeze_output	func	code	sure	wrapper of sound_hw_freeze_output
+# lib_21210: MIDI controller state per channel and per voice
+func_80020610	sound_midi_set_controller	func	code	sure	(controller, channel, set, value): a player channel's or a voice's controller byte
+func_800206AC	sound_midi_set_controller14	func	code	sure	a 14-bit controller pair
+func_80020820	sound_midi_reset_channel	func	code	sure	clears a channel's controllers and sets the defaults
+func_80020A04	sound_midi_get_controller14	func	code	sure	a controller as a 14-bit value (switches 0/16383)
+func_80020DA8	sound_midi_copy_voice_controller	func	code	sure	copies one controller from voice to voice
+func_80020F4C	sound_midi_set_last_key	func	code	sure	a channel's last played key (legato, LASTNOTE)
+func_80020F98	sound_midi_get_last_key	func	code	sure	a channel's last played key
+func_80020FDC	sound_midi_set_portamento_state	func	code	sure	a channel's portamento-active flag
+func_80021028	sound_midi_get_portamento_state	func	code	sure	a channel's portamento-active flag
+func_8002106C	sound_synth_init_controller_inputs	func	code	sure	routes the 9 voice inputs to their default controllers (7, 10, 131, 128, 132, 1, 64, 65, 91)
+func_80021150	sound_synth_read_input	func	code	sure	combines an input's up-to-4 controller sources (set, add, multiply)
+func_80021428	sound_synth_get_volume_input	func	code	sure	input 0 (+0xC4)
+func_80021448	sound_synth_get_pan_input	func	code	sure	input 1 (+0xD6)
+func_80021468	sound_synth_get_span_input	func	code	sure	input 2 (+0xE8)
+func_80021488	sound_synth_get_pitch_bend_input	func	code	sure	input 3 (+0xFA)
+func_800214A8	sound_synth_get_doppler_input	func	code	sure	input 4 (+0x10C)
+func_800214C8	sound_synth_get_modulation_input	func	code	sure	input 5 (+0x11E)
+func_800214E8	sound_synth_get_pedal_input	func	code	sure	input 6 (+0x130)
+func_80021508	sound_synth_get_portamento_input	func	code	sure	input 7 (+0x142)
+func_80021528	sound_synth_get_reverb_input	func	code	sure	input 8 (+0x154)
+func_80021548	sound_macro_map_controller	func	code	sure	macro controller numbers 0x80-0x85 to the internal ones (LFOs 160/161)
+func_800215A8	sound_macro_get_controller	func	code	sure	a voice's controller or LFO value for a macro
+func_8002165C	sound_macro_set_controller	func	code	sure	sets a voice's controller from a macro
+# lib_22300: the macro interpreter (one handler per opcode; docs/port/MUSYX_DATA.md 3.2)
+func_80021700	sound_synth_key_off_voice	func	code	sure	sets the key-off flag of one voice id
+func_80021764	sound_synth_owns_channel	func	code	sure	whether a voice is its channel's current owner
+func_800217E4	sound_synth_claim_channel	func	code	sure	makes a voice its channel's owner
+func_80021844	sound_synth_release_channel	func	code	sure	gives up channel ownership
+func_800218CC	sound_synth_init_channel_owners	func	code	sure	no channel owned
+func_8002193C	sound_macro_wait	func	code	sure	opcode 0x04 WAIT (ticks or ms, key-off and sample-end breaks, random)
+func_80021B9C	sound_macro_wait_ms	func	code	sure	opcode 0x07: WAIT with the milliseconds flag
+func_80021BC0	sound_macro_end	func	code	sure	opcode 0x00: unlinks and frees the voice
+func_80021BF0	sound_macro_return	func	code	sure	opcode 0x01: back to the saved position, or end
+func_80021C58	sound_macro_split_key	func	code	sure	opcode 0x02: jump when the key is at least the operand
+func_80021CDC	sound_macro_split_velocity	func	code	sure	opcode 0x03: jump when the velocity is at least the operand
+func_80021D5C	sound_macro_split_modulation	func	code	sure	opcode 0x0A: jump on the modulation input
+func_80021DF8	sound_macro_split_random	func	code	sure	opcode 0x13: jump on a random byte
+func_80021E74	sound_macro_gosub	func	code	sure	opcode 0x06: saves the position and jumps to a macro step
+func_80021F08	sound_macro_trap_key_off	func	code	sure	opcode 0x28: the step to run on key off
+func_80021F68	sound_macro_untrap_key_off	func	code	sure	opcode 0x29
+func_80021F84	sound_macro_loop	func	code	sure	opcode 0x05: loop count (random, endless), key-off and sample-end breaks
+func_80022160	sound_macro_play_macro	func	code	sure	opcode 0x08: starts a child voice running another macro
+func_80022324	sound_macro_send_key_off	func	code	sure	opcode 0x09: keys off the voices of another macro and key
+func_800223D0	sound_macro_add_age	func	code	sure	opcode 0x30: voice age counter
+func_8002243C	sound_macro_set_age	func	code	sure	opcode 0x31
+func_8002245C	sound_macro_set_age_speed	func	code	sure	opcode 0x38
+func_800224B0	sound_macro_set_age_by_velocity	func	code	sure	opcode 0x39
+func_80022514	sound_macro_add_priority	func	code	sure	opcode 0x37
+func_80022580	sound_macro_set_priority	func	code	sure	opcode 0x36
+func_800225AC	sound_macro_send_flag	func	code	sure	opcode 0x32: sets a global variable to a byte
+func_800225DC	sound_macro_set_pitch_wheel_range	func	code	sure	opcode 0x33: down and up ranges
+func_800225FC	sound_macro_set_note	func	code	sure	opcode 0x19: key and detune, then waits
+func_80022678	sound_macro_add_note	func	code	sure	opcode 0x18: key relative to the current or original key
+func_8002279C	sound_macro_last_note	func	code	sure	opcode 0x1A: key relative to the channel's last key
+func_80022874	sound_macro_start_sample	func	code	sure	opcode 0x10: starts a sample by id (offset modes by velocity)
+func_80022A40	sound_macro_stop_sample	func	code	sure	opcode 0x11
+func_80022A78	sound_macro_key_off	func	code	sure	opcode 0x12: releases the hold at the next update
+func_80022A98	sound_macro_vibrato	func	code	sure	opcode 0x1C: vibrato range and period
+func_80022C58	sound_macro_setup_lfo	func	code	sure	opcode 0x50: one of the two LFOs' period
+func_80022CD4	sound_macro_set_pitch	func	code	sure	opcode 0x1F: a frequency to key and detune against the sample rate
+func_80022F24	sound_macro_set_adsr	func	code	sure	opcode 0x0C: envelope from a table (stored little-endian)
+func_8002300C	sound_macro_pitch_sweep	func	code	sure	opcodes 0x1D/0x1E: the two pitch sweeps
+func_800230B0	sound_macro_panning	func	code	sure	opcode 0x0E: pan ramp
+func_80023190	sound_macro_piano_pan	func	code	sure	opcode 0x0B: pan from the key
+func_8002321C	sound_macro_apply_curve	func	code	sure	a volume through a 128-entry curve table
+func_800232A4	sound_macro_scale_volume	func	code	sure	opcode 0x0D
+func_800233B0	sound_macro_start_envelope	func	code	sure	volume ramp to a target over a time
+func_80023520	sound_macro_envelope	func	code	sure	opcode 0x0F: ramp from the current volume
+func_80023544	sound_macro_fade_in	func	code	sure	opcode 0x14: ramp from silence
+func_80023564	sound_macro_random_note	func	code	sure	opcode 0x17
+func_80023710	sound_macro_track_pitch_wheel	func	code	likely	opcode 0x35: sets the flag that makes the voice read its pitch-bend input every update
+func_80023734	sound_macro_set_reverb_send	func	code	sure	opcode 0x34: reverb scale and offset
+func_80023754	sound_macro_add_input_source	func	code	sure	adds (or restarts) a controller source of a voice input
+func_80023818	sound_macro_select_volume	func	code	sure	opcode 0x40
+func_80023844	sound_macro_select_pan	func	code	sure	opcode 0x41
+func_80023870	sound_macro_select_pitch_bend	func	code	sure	opcode 0x42
+func_8002389C	sound_macro_select_modulation	func	code	sure	opcode 0x43
+func_800238C8	sound_macro_select_pedal	func	code	sure	opcode 0x44
+func_800238F4	sound_macro_select_portamento	func	code	sure	opcode 0x45
+func_80023920	sound_macro_select_reverb	func	code	sure	opcode 0x46
+func_8002394C	sound_macro_select_span	func	code	sure	opcode 0x47
+func_80023978	sound_macro_select_doppler	func	code	sure	opcode 0x48
+func_800239A4	sound_macro_portamento	func	code	sure	opcode 0x1B: portamento on/off and time
+func_80023AD4	sound_macro_get_variable	func	code	sure	a local (0-15) or global (16-31) variable, or a controller
+func_80023B50	sound_macro_set_variable	func	code	sure	sets a variable or controller
+func_80023BDC	sound_macro_variable_arithmetic	func	code	sure	opcodes 0x60-0x64: add, subtract, multiply, divide, add immediate
+func_80023D70	sound_macro_set_variable_immediate	func	code	sure	opcode 0x65
+func_80023DB8	sound_macro_compare	func	code	sure	opcodes 0x70/0x71: jump if equal / less
+func_80023E9C	sound_macro_run	func	code	sure	the interpreter: sets up a new voice, runs up to 32 steps until one waits, handles traps and waits
+func_80024988	sound_macro_start	func	code	sure	allocates a voice for a macro and sets it up; returns its id or handle
+# lib_257f0: 3D vector helpers of the emitters
+func_80024BF0	sound_transform_point	func	code	sure	3x3 matrix times vector plus translation
+func_80024C9C	sound_normalize	func	code	sure	normalizes a vector, returns its length
+func_80024D04	sound_cross	func	code	sure	cross product
+func_80024D74	sound_invert_transform	func	code	sure	inverse of a 3x3 + translation transform
+# lib_25bb0 / lib_26ab0: speech streams (GSM 06.10 speech from the ROM, two at a time)
+func_80024FB0	speech_adjust_decode_budget	func	code	sure	doubles a stream's per-frame decode budget in half-rate mode
+func_80024FD4	speech_consume	func	code	sure	the stream voice's refill callback: consumes decoded samples
+func_8002506C	speech_read_input	func	code	sure	input callback: async ROM read then a message on the stream's queue
+func_800250AC	speech_init_lock	func	code	sure	the speech lock (one-message queue)
+func_800250F0	speech_lock	func	code	sure	takes the speech lock
+func_80025120	speech_unlock	func	code	sure	returns the speech lock
+func_80025150	speech_lock_frame	func	code	sure	takes the speech lock (frame service)
+func_8002517C	speech_unlock_frame	func	code	sure	returns the speech lock (frame service)
+func_800251A8	speech_assign_token	func	code	sure	a fresh token for a stream slot
+func_80025264	speech_find_stream	func	code	sure	token to stream slot, or -1
+func_800252AC	speech_play	func	code	sure	(index, rate, priority, volume, pan, span, aux mode): starts a bank entry; returns a token
+func_800254D4	speech_stop_stream	func	code	sure	stops a stream slot
+func_80025594	speech_stop	func	code	sure	stops the stream of a token
+func_800255F0	speech_is_playing	func	code	sure	whether a token's stream is busy
+func_80025670	speech_set_volume	func	code	sure	a stream's volume, pan, span, aux
+func_8002574C	speech_service	func	code	sure	the frame hook: decodes, starts the voice when primed, stops and frees ended streams
+func_800259A8	speech_get_position	func	code	sure	seconds played, and the stream's length through the pointer
+func_80025AB4	speech_set_bank	func	code	sure	the speech bank: an offset table and data, read from the ROM or given in RAM
+func_80025C68	speech_init	func	code	sure	(flags): clears the streams, the lock, optional static buffers, installs the frame hook
+func_80025D84	speech_wait_idle	func	code	sure	spins until no stream is busy
+func_80025DC0	speech_exit	func	code	sure	stops the streams, removes the hooks, frees the bank and buffers
+func_80025EB0	speech_reset_decoder	func	code	sure	clears a stream's decoder and input state
+func_80025F74	speech_decode	func	code	sure	reads ahead from the ROM and decodes 160-sample GSM frames into the output ring within the budget
+func_800262BC	speech_take_samples	func	code	sure	consumes decoded samples; ends the stream when its last block is played
+func_80026328	speech_mark_playing	func	code	sure	stream state primed (2) to playing (3)
+func_80026348	speech_mark_stopped	func	code	sure	stream state to stopped (4)
+# lib_26f60 and the boot tail: the GSM 06.10 decoder (spec procedure names; port/ultra/gsm.c has the kernels in C)
+func_80026360	gsm_short_term_synthesis	func	code	sure	LAR decoding and interpolation, then the short-term synthesis kernel (GSM 06.10 4.2.8-4.2.10)
+func_80026558	gsm_decode_parameters	func	code	sure	four subframes of RPE decoding and long-term synthesis, then short-term synthesis
+func_80026640	gsm_decode_frame	func	code	sure	unpacks a 33-byte packed frame and decodes it; no callers in the C
+func_800268D0	gsm_decode_stream_frame	func	code	sure	reads one frame's bits (with silence and repeat runs) from the stream ring and decodes it
+func_800277D0	gsm_rpe_decode	func	code	sure	hand-written kernel: APCM inverse quantization and RPE grid positioning (4.2.15-4.2.17)
+func_800278C4	gsm_long_term_synthesis	func	code	sure	hand-written kernel: long-term synthesis filtering (4.3.2)
+func_80027B44	gsm_short_term_filter	func	code	sure	hand-written kernel: short-term synthesis filter, deemphasis, upscaling (4.3.4-4.3.7)
+func_8002C5E0	dcache_create_dirty_lines	func	code	sure	hand-written loop of cache 0x0D (create dirty exclusive) over 16-byte lines; returns the end
+# lib_10d60: libultra pfsisplug.c
+func_80010110	osYieldThread	func	code	sure	libultra: osYieldThread at that address (lib_10d10.c defines it by name; the boot-tail asm spells it by address)
+func_80004990	game_sprintf	func	code	sure	the IDO libc sprintf at that address (lib_34a0.c); image A calls it by address and port/ultra/libc.c defines it on the PC; not sprintf: the host's is linked
+func_800103A0	__osPfsGetInitData	func	code	sure	libultra: __osPfsGetInitData (ultralib src/io/pfsisplug.c), the static the body reproduces
+# the sound library's data (boot BSS and boot data)
+D_80037FA0	sound_dma_request_count	data	code	sure	u8 (volatile): queued ROM reads, at most 4
+D_80037FA8	sound_dma_requests	data	code	sure	TransferRequest[4] {dst, src, size}
+D_80037FD8	sound_dma_waiting	data	code	sure	u8: a flushed request's waiter is to be woken next frame
+D_80037FE0	sound_dma_done_queue	data	code	sure	OSMesgQueue the blocking read waits on
+D_80037FF8	sound_dma_done_message	data	code	sure	OSMesg[1] of sound_dma_done_queue
+D_80038000	sound_services	data	code	sure	8 platform hooks set by sound_set_services: submit task, wait task, add/remove retrace callback, DMA list, translate address, alloc, free
+D_80038004	sound_service_wait_task	data	code	sure	hook 1 of sound_services (inside it)
+D_80038008	sound_service_add_callback	data	code	sure	hook 2: installs the retrace callback
+D_8003800C	sound_service_remove_callback	data	code	sure	hook 3: removes the retrace callback
+D_80038010	sound_service_start_dma	data	code	sure	hook 4: runs a DMA list (list, count, done queue)
+D_80038014	sound_service_translate_address	data	code	sure	hook 5: address translation
+D_80038018	sound_service_alloc	data	code	sure	hook 6: allocation (size, flags)
+D_8003801C	sound_service_free	data	code	sure	hook 7: free
+D_80038020	sound_dma_flush_hook	data	code	sure	void (*)(void): run each frame before the DMA list is issued
+D_80038024	sound_frame_hook	data	code	sure	void (*)(void): run first in each frame service (speech_service)
+D_80038028	sound_dma_list_count	data	code	sure	u16: entries in the frame DMA list
+D_8003802C	sound_dma_list	data	code	sure	DMA entry array {length, source, destination}, 12 B each on the N64
+D_80038030	sound_sfd_write_end	data	code	sure	u32: end of the SFD bytes written so far (cache-line bookkeeping)
+D_80038034	sound_sfd_cache_cursor	data	code	sure	u32: SFD cache lines created so far
+D_80038038	sound_dma_list_end	data	code	sure	u32: end of the DMA list bytes written so far
+D_8003803C	sound_dma_list_cache_cursor	data	code	sure	u32: DMA list cache lines created so far
+D_80038040	sound_output_thread	data	code	sure	OSThread of the AI output thread
+D_800381F0	sound_output_stack	data	code	sure	u8 *: the output thread's 1 KB stack
+D_800381F8	sound_output_queue	data	code	sure	OSMesgQueue of AI events and the stop message
+D_80038210	sound_output_messages	data	code	sure	OSMesg[4] of sound_output_queue
+D_80038220	sound_output_event	data	code	sure	u8 message value 1 sent on each AI event
+D_80038228	sound_output_buffers	data	code	sure	u8 *[24]: the ring of 768-byte AI buffers
+D_80038288	sound_output_index	data	code	sure	u16: AI buffer being played
+D_8003828C	sound_output_frequency	data	code	sure	u32: the AI's real output frequency
+D_80038290	sound_half_rate	data	code	sure	u8: init flag 0x100000: 25 Hz ticks, 24 AI buffers
+D_80038291	sound_output_frozen	data	code	sure	u8: the output thread ignores AI events
+D_80038292	sound_output_buffer_count	data	code	sure	u16: AI buffers in the ring (8 to 24)
+D_80038294	sound_hw_voices	data	code	sure	AudioState *: the hardware voice records (0x68 B each)
+D_80038298	sound_hw_voice_block	data	code	sure	the allocation holding the voice records
+D_8003829C	sound_hw_voice_count	data	code	sure	u16
+D_8003829E	sound_sfd_set	data	code	sure	u16: which of the two SFD sets is being built (0/1)
+D_800382A0	sound_tick_countdown	data	code	sure	u32: subframes until the next library tick
+D_800382A4	sound_subframes_per_tick	data	code	sure	u32: subframes per 60 Hz library tick
+D_800382A8	sound_dma_capacity	data	code	sure	u32: frame DMA list entries
+D_800382AC	sound_sample_cache_size	data	code	sure	u32: computed but unused size
+D_800382B0	sound_dma_queue	data	code	sure	OSMesgQueue: the frame DMA list's done message
+D_800382C8	sound_dma_message	data	code	sure	OSMesg of sound_dma_queue
+D_800382CC	sound_dma_busy	data	code	sure	u8: the frame DMA list is in flight
+D_800382CD	sound_task_busy	data	code	sure	u8: an audio task was submitted and not waited for
+D_800382CE	sound_sfds_per_task	data	code	sure	u16: SFD capacity of one task
+D_800382D0	sound_sfd_current	data	code	sure	void *: the SFD set being built
+D_800382D4	sound_sfd_count	data	code	sure	u16 *: its SFD count
+D_800382D8	sound_sfd_sets	data	code	sure	void *[2]: the two SFD sets
+D_800382E0	sound_sfd_counts	data	code	sure	u16[2]
+D_800382E4	sound_mix_state	data	code	sure	void *: the 664-byte state the microcode carries between tasks
+D_800382E8	sound_delay	data	code	sure	delay-effect state (72 B) or NULL
+D_800382EC	sound_delay_position	data	code	sure	u32: delay-line write position, in samples
+D_800382F0	sound_delay_line	data	code	sure	void *
+D_800382F4	sound_delay_length	data	code	sure	u32: delay line samples
+D_800382F8	sound_task	data	code	sure	OSTask of the audio task
+D_80038338	sound_codebook_nodes	data	code	sure	AudioNode *: codebook cache nodes
+D_8003833C	sound_codebook_cache	data	code	sure	u8 *: 256 B per node; docs/port/AUDIO.md
+D_80038340	sound_codebook_last	data	code	likely	AudioNode *: cleared at init, read by nothing
+D_80038344	sound_codebook_used	data	code	sure	AudioNode *: used list
+D_80038348	sound_codebook_free	data	code	sure	AudioNode *: free list
+D_8003834C	sound_sample_cache	data	code	sure	u8 *: 1536-byte sample blocks
+D_80038350	sound_sample_nodes	data	code	sure	AudioCacheNode *
+D_80038354	sound_sample_lru_head	data	code	sure	AudioCacheNode *: least recently used
+D_80038358	sound_sample_lru_tail	data	code	sure	AudioCacheNode *: most recently used
+D_8003835C	sound_sample_free	data	code	sure	AudioCacheNode *: free list
+D_80038360	sound_render_index	data	code	sure	u16: next AI buffer to render (0xFFFF before the first frame)
+D_80038362	sound_drain_count	data	code	sure	s16: AI buffers left before the callback may be removed
+D_80038368	sound_lock_queue	data	code	sure	OSMesgQueue: the library lock
+D_80038380	sound_lock_message	data	code	sure	OSMesg of sound_lock_queue
+D_80038390	sound_group_count	data	code	sure	u32: pushed groups (max 128)
+D_80038398	sound_groups	data	code	sure	ResourceGroup *[128]: pushed groups
+D_800385A0	sound_sample_directory_count	data	code	sure	u32
+D_800385A8	sound_sample_directories	data	code	sure	{records, base, count}[8]
+D_80038608	sound_table_count	data	code	sure	u32
+D_80038610	sound_tables	data	code	sure	{payload, id, refs}[2048]
+D_8003C610	sound_keymap_count	data	code	sure	u32
+D_8003C618	sound_keymaps	data	code	sure	{payload, id, refs}[2048]
+D_8003CE18	sound_layer_count	data	code	sure	u32
+D_8003CE20	sound_layers	data	code	sure	{payload, id, count, refs}[256]
+D_8003DA20	sound_macro_count	data	code	sure	u32
+D_8003DA28	sound_macro_buckets	data	code	sure	{count, first}[512], by id >> 6
+D_8003E228	sound_macros	data	code	sure	{payload, id, refs}[2048]
+D_80042228	sound_sfx_table_count	data	code	sure	u32
+D_80042230	sound_sfx_tables	data	code	sure	{id, count, entries}[128]
+D_800426B0	sound_seq_note_pool	data	code	sure	SequenceNode[256]
+D_80043EB0	sound_seq_free_notes	data	code	sure	SequenceNode *
+D_80043EB8	sound_seq_players	data	code	sure	SequenceContext[8]: the song players
+D_800443E0	sound_seq_studio_groups	data	code	likely	u8 [8][2]: per player, two group numbers set by sound_seq_set_studio_group
+D_8004BE78	sound_seq_current_index	data	code	sure	u32: the player being ticked (0-7); lib_22300 also reads it as an s16 array base (see the notes)
+D_8004BE7B	sound_seq_current_index_byte	data	code	sure	u8: low byte of sound_seq_current_index (on the PC a macro of it; docs/port/OPTIMIZED.md 8)
+D_8004BE7C	sound_seq_fading_out	data	code	sure	u32: the current player's group fades down (new notes get priority - 1)
+D_8004BE80	sound_seq_current	data	code	sure	SequenceContext *: the player being ticked
+D_8004BE84	sound_seq_next_id	data	code	sure	u32
+D_8004BE90	sound_tick_step	data	code	sure	u32: time units per library tick
+D_8004BE94	sound_voices_locked	data	code	sure	u8 (volatile): voice allocation refused (set while sound_is_idle scans)
+D_8004BE98	sound_global_variables	data	code	sure	s16[16]: the macros' global variables
+D_8004BEB8	sound_synth_voices	data	code	sure	synth voice records (0x1A0 B), 32 on the N64 (PC data on the PC)
+D_8004F2B8	sound_track_volumes	data	code	sure	u8[64]: per-track volume, 127 at song start
+D_8004F2F8	sound_mono	data	code	sure	u8: mono output (centre pan, no span)
+D_8004F300	sound_volume_faders	data	code	sure	MasterFader[32] (0x28 B): the volume groups' faders
+D_8004F314	sound_volume_fader_types	data	code	sure	u8 [32][0x28] view at +0x14: each fader's type byte
+D_8004F800	sound_synth_frequency	data	code	sure	u32: output frequency the pitch math divides by
+D_8004F804	sound_synth_unread_setting	data	code	likely	u32: set to 10240 by sound_synth_init, read by nothing in the C
+D_8004F808	sound_samples_per_tick	data	code	sure	u32
+D_8004F810	sound_output_info	data	code	sure	{frequency, mode, sample bits, driver text}: what sound_get_output_info returns
+D_8004FA18	sound_voice_count	data	code	sure	u8: voices (<= 32 on the N64)
+D_8004FA19	sound_music_voice_limit	data	code	sure	u8: voices songs may hold
+D_8004FA1A	sound_sfx_voice_limit	data	code	sure	u8: voices effects may hold
+D_8004FA20	sound_tick_rates	data	code	sure	u32[9]: tick rate per player, [8] the effects'
+D_8004FA50	sound_streams	data	code	sure	stream records per voice {mode, buffer, samples, position, callback, context}
+D_8004FD50	sound_emitters	data	code	sure	emitter list head
+D_8004FD54	sound_listeners	data	code	sure	listener list head
+D_8004FD58	sound_oneshot_emitter	data	code	sure	the emitter record a one-shot 3D effect uses
+D_8004FDA0	sound_emitter_groups	data	code	sure	{id, candidates, playing}[32]: emitters per voice-limit group, this frame
+D_8004FF20	sound_emitter_group_count	data	code	sure	u32
+D_8004FF28	sound_emitter_candidates	data	code	sure	candidate nodes[32]
+D_800502A8	sound_emitter_candidate_count	data	code	sure	u32
+D_800502B0	sound_emitter_playing	data	code	sure	playing-emitter nodes
+D_80050430	sound_emitter_playing_count	data	code	sure	u32
+D_80050440	sound_voice_free_links	data	code	sure	{previous, next, flags}[32]
+D_800504C0	sound_voice_free_head	data	code	sure	u8 (255 none)
+D_800504C1	sound_voice_free_tail	data	code	sure	u8
+D_800504C2	sound_sfx_voices_used	data	code	sure	u8
+D_800504C3	sound_music_voices_used	data	code	sure	u8
+D_800504C8	sound_voice_priority_links	data	code	sure	{previous, next, active}[32]
+D_80050548	sound_priority_first_voice	data	code	sure	u8[256]: first voice at each priority (255 none)
+D_80050648	sound_priority_levels	data	code	sure	{next, previous}[256]: the non-empty priorities, sorted
+D_80050A48	sound_lowest_priority	data	code	sure	u16: first non-empty priority (0xFFFF none)
+D_80050A4C	sound_handle_counter	data	code	sure	u32
+D_80050A50	sound_handle_nodes	data	code	sure	SequenceNode[32] {next, previous, key, voice}
+D_80050C50	sound_handles_used	data	code	sure	SequenceNode *: used handle nodes, sorted by key
+D_80050C54	sound_handles_free	data	code	sure	SequenceNode *: free handle nodes
+D_80050C60	sound_midi_last_keys	data	code	sure	u8 [8][16]: per player channel
+D_80050CE0	sound_voice_last_keys	data	code	sure	u8[32]: per voice (set 255)
+D_80050D00	sound_midi_controllers	data	code	sure	u8 [8][16][134]: per player channel
+D_80055000	sound_voice_controllers	data	code	sure	u8 [32][134]: per voice
+D_800560C0	sound_midi_portamento	data	code	sure	u8 [8][16]
+D_80056140	sound_voice_portamento	data	code	sure	u8[32]
+D_80056160	sound_midi_channel_owners	data	code	sure	u8 [8][16]: the voice that owns each channel (255 none)
+D_800561E0	sound_voice_channel_owners	data	code	sure	u8[32]
+D_8002C5D0	sound_sample_blocks_per_voice	data	code	sure	u8[5] by cache mode (boot data)
+D_8002C5DC	sound_lock_depth	data	code	sure	s32: recursion depth of the library lock
+D_8002C604	sound_version_text	data	code	likely	byte string returned by sound_get_version_text
+D_8002C630	sound_initialized	data	code	sure	u8: every API entry tests it
+D_8002C640	sound_semitone_up_ratios	data	code	sure	f32[128]: pitch ratio n semitones up
+D_8002C840	sound_semitone_down_ratios	data	code	sure	f32[128]: pitch ratio n semitones down
+D_8002CA40	sound_volume_curve	data	code	sure	f32[129]: gain per volume step (interpolated)
+D_8002CC44	sound_pan_curve	data	code	sure	f32[3]: pan gain, interpolated in 2^22 steps
+D_8002CC50	sound_random_seed	data	code	sure	u32
+D_8002CC54	sound_sine_table	data	code	sure	s16[1024]: a quarter sine
+D_8002D452	sound_sine_table_end	data	code	sure	s16: the last entry of sound_sine_table, base of its mirrored reads
+D_8002D480	speech_initialized	data	code	sure	u8
+D_8002D484	speech_bank_owned	data	code	sure	u8: the offset table was allocated (ROM bank)
+D_8002D890	sound_driver_name	data	code	likely	char[]: its length decides how many bytes of sound_driver_name_copy go into the output info (see the notes)
+D_8002D8A4	sound_driver_name_copy	data	code	likely	char[]: the bytes copied into the output info's text
+D_8002D8B8	sound_sfd_margin	data	code	sure	f32: SFDs-per-task factor, 50 Hz ticks
+D_8002D8BC	sound_sfd_margin_half_rate	data	code	sure	f32: the same, 25 Hz ticks
+D_8002D8C0	sound_dma_margin	data	code	sure	f32: DMA entries factor, 50 Hz
+D_8002D8C4	sound_dma_margin_half_rate	data	code	sure	f32: DMA entries factor, 25 Hz
+D_8002D8C8	sound_sample_cache_factor	data	code	sure	f32: the unused sample cache size's factor
+D_8002D904	sound_emitter_steal_margin	data	code	sure	f32: above it a louder waiting emitter takes a voice at once
+D_8002D908	sound_emitter_keep_margin	data	code	sure	f32: at or below it a waiting emitter never takes the voice
+D_8002D90C	sound_emitter_fade_step	data	code	sure	f32: per-frame fade-in of a started emitter
+D_8002D924	sound_semitone_ratio	data	code	sure	f32: the one-semitone pitch ratio
+D_80056230	speech_streams	data	code	sure	StreamState_80025264[2] (0x1228 B): decoder, input ring, output, voice
+D_80057430	speech_stream_busy	data	code	sure	u8 [2][0x1228] view at +0x1200: each stream's busy byte
+D_80058680	speech_next_token	data	code	sure	u32
+D_80058684	speech_bank	data	code	sure	the bank's header address (ROM or RAM)
+D_80058688	speech_bank_data	data	code	sure	base the bank offsets add to
+D_8005868C	speech_bank_offsets	data	code	sure	u32 *: rate << 24 | offset per entry
+D_80058690	speech_bank_count	data	code	sure	u32
+D_80058698	speech_static_buffers	data	code	sure	s16 *[2]: output buffers kept for the session (init flag 1)
+D_800586A0	speech_flags	data	code	sure	u32: init flags
+D_800586A8	speech_lock_queue	data	code	sure	OSMesgQueue
+D_800586C0	speech_lock_message	data	code	sure	OSMesg
+D_800278BC	gsm_small_xmaxc_table	data	code	sure	u8[8] inline in the RPE kernel: exponent and mantissa of xmaxc 0-7 (port/ultra/gsm.c)
+D_80027978	gsm_ltp_gain_levels	data	code	sure	s16[4] inline in the long-term kernel: QLB (GSM 06.10 table 4.3)
+# microcode and libultra globals in the boot segment
+D_8002A050	audio_ucode_text	data	code	sure	the audio task's ucode: Factor 5's MusyX v1 microcode, not the SDK aspMain (docs/port/AUDIO.md 1)
+D_8002E210	audio_ucode_data	data	code	sure	its ucode_data
+# unzip.c (MAT3: the N64 build links the game's gzip-derived inflater into the boot segment, lib_5610)
+inflate_flush_window	init_zip_mem	func	mat3	sure	MAT3 init_zip_mem@unzip.c: stores the work region and size, zeroes the used count
+huft_alloc	alloc_zip_mem	func	mat3	sure	MAT3 alloc_zip_mem@unzip.c: bump allocator over the work region
+inflate_free_window	inflate_codes	func	mat3	sure	MAT3 inflate_codes@unzip.c: (tl, td, bl, bd), decodes literal/length and distance codes
+inflate_loop	unzip_inflate	func	mat3	sure	MAT3 inflate@unzip.c (bk = bb = 0, inflate_block until the last); prefixed: zlib's inflate is linked on the PC
+inflate_read_bits	get_buffer	func	mat3	sure	MAT3 get_buffer@unzip.c, the input refill NEXT_PAIR falls back to; the N64 version double-buffers 4 KB ROM DMA
+inflate_entry_alt	unzipdata	func	mat3	likely	MAT3 unzipdata@unzip.c: sets incoming, last_incoming, unzip_buffer, init_zip_mem, inflate (asm only, read from its stores and calls)
+inflate_entry	unzipdata_from_rom	func	code	likely	unzipdata whose input is DMA'd from the ROM in 4 KB halves; inflates the game image at boot
+gDisplayListHead	zmregion	data	mat3	sure	MAT3 zmregion@unzip.c: the inflater's work region (not a display list)
+gDisplayListSize	zmused	data	mat3	sure	MAT3 zmused@unzip.c
+gDisplayListEnd	zmmax	data	mat3	sure	MAT3 zmmax@unzip.c
+gInflateBorder	unzip_border	data	mat3	sure	MAT3 border@unzip.c, u32[19]; prefixed (file static, a common word)
+gInflateCplens	unzip_cplens	data	mat3	sure	MAT3 cplens@unzip.c, u16[31]
+gInflateCplext	unzip_cplext	data	mat3	sure	MAT3 cplext@unzip.c, u16[31]
+gInflateCpdist	unzip_cpdist	data	mat3	sure	MAT3 cpdist@unzip.c, u16[30]
+gInflateCpdext	unzip_cpdext	data	mat3	sure	MAT3 cpdext@unzip.c, u16[30]
+gInflateMaskBits	unzip_mask_bits	data	mat3	sure	MAT3 mask_bits@unzip.c, u16[17]; prefixed like the other unzip.c tables (cplens is a local in port/data/datacheck.c)
+gInflateBitBuf	unzip_bb	data	mat3	sure	MAT3 bb@unzip.c (bit buffer); prefixed
+gInflateBitCount	unzip_bk	data	mat3	sure	MAT3 bk@unzip.c (bits in it); prefixed
+gInflateInPtr	incoming	data	mat3	sure	MAT3 incoming@unzip.c
+gInflateInEnd	last_incoming	data	mat3	sure	MAT3 last_incoming@unzip.c
+gInflateOutPtr	unzip_buffer	data	mat3	sure	MAT3 unzip_buffer@unzip.c
+gInflateSrc	unzip_rom_source	data	code	sure	ROM address of the next 4 KB input half
+gInflateToggle	unzip_input_half	data	code	sure	which input buffer get_buffer reads next
+gInflateDmaState	unzip_dma_request	data	code	sure	OSIoMesg of the input DMA
+gInflateMsgQueue	unzip_dma_queue	data	code	sure	OSMesgQueue the input DMA completes on
+# timer.c (MAT3: the frame timer and countdown, linked into the boot segment, lib_1050)
+viTickStart	InitializeTimer	func	mat3	sure	MAT3 InitializeTimer@timer.c: last counter = frame count, seconds = frame seconds (2 frames on the N64)
+viEnableAccum	PauseTimer	func	mat3	sure	MAT3 PauseTimer@timer.c: gTimerPaused = 1
+viDisableAccum	ResumeTimer	func	mat3	sure	MAT3 ResumeTimer@timer.c: gTimerPaused = 0
+viUpdateTime	UpdateFrameTimer	func	mat3	sure	MAT3 UpdateFrameTimer@timer.c: same statements, clamp 5 included
+viScheduleTick	SetCountdownTimer	func	mat3	sure	MAT3 SetCountdownTimer@timer.c
+viAddTicks	AddCountdownTime	func	mat3	sure	MAT3 AddCountdownTime@timer.c
+viGetTimeToDeadline	GetCountdownTimeRemaining	func	mat3	sure	MAT3 GetCountdownTimeRemaining@timer.c
+viDeadlinePassed	CountdownTimeOut	func	mat3	sure	MAT3 CountdownTimeOut@timer.c
+gScTimeEnabled	gTimerPaused	data	mat3	sure	MAT3 gTimerPaused@timer.c, s32 (set by PauseTimer)
+gViLastTick	gLastFrameCounter	data	mat3	sure	MAT3 gLastFrameCounter@timer.c, volatile u32
+gViFrameDelta	gLastFrameCount	data	mat3	sure	MAT3 gLastFrameCount@timer.c, s32
+gViAccumTotal	gCountdownStart	data	mat3	sure	MAT3 gCountdownStart@timer.c
+gViAccumTime	gCountdownEnd	data	mat3	sure	MAT3 gCountdownEnd@timer.c
+__osScElapsedTime	gSeconds	data	mat3	sure	MAT3 gSeconds@timer.c, f32 (not libultra)
+__osScDeltaTime	gFrameSeconds	data	mat3	sure	MAT3 gFrameSeconds@timer.c, f32 (not libultra)
+gScaleTicksPerSecond	gRetraceRate	data	mat3	sure	MAT3 gRetraceRate@timer.c, f32: 60 or 50 (set by video_set_mode)
+gScaleSecondsPerTick	gRetraceTime	data	mat3	sure	MAT3 gRetraceTime@timer.c, f32: 1/60 or 1/50
+# decompression lock (lib_3140)
+dma_queue_init	init_decompress_lock	func	code	sure	one-message queue holding a token: a lock around the decompressors, not a DMA queue
+dma_wait	acquire_decompress_lock	func	code	sure	(block): takes the token (inits the lock on first use)
+dma_signal	release_decompress_lock	func	code	sure	returns the token
+gDmaInitialized	decompress_lock_ready	data	code	sure	s32
+gDmaMessageQueue	decompress_lock_queue	data	code	sure	OSMesgQueue
+gDmaMessageBuffer	decompress_lock_message	data	code	sure	OSMesg
+# boot and threads (lib_2cf0)
+game_init	main_thread_entry	func	code	sure	thread 6's body: queues, scheduler, inflates the game image, starts the other threads, then the main loop; not an init
+audio_thread_entry	game_thread_entry	func	code	sure	thread 7's body: game_loop() forever; not audio
+gGameThread	main_thread	data	code	sure	OSThread of thread 6 (main_thread_entry)
+gGameThreadStack	game_thread_stack	data	code	sure	u8[0x12C0] of thread 7
+gSchedulerThread	model_thread	data	code	sure	alias: main_thread_entry's name for D_80034840 (thread 5 runs ModelThread, not the scheduler)
+# video mode and screen position (lib_21f0; N64 VI only)
+display_update	video_build_adjusted_mode	func	code	sure	copies the base VI mode into the other of two buffers with the screen offset and size applied; applies 2 frames later
+viewport_setup	video_set_mode	func	code	sure	(tv type, mode, width, height): retrace rate and time, base VI mode, its edges
+display_mode_tick	video_apply_pending_mode	func	code	sure	per retrace: sets the adjusted VI mode when its countdown ends
+get_tv_offset	video_mode_base_index	func	code	sure	first VI mode of the TV type (0, 14 or 28)
+apply_display_mode	video_restore_base_mode	func	code	sure	osViSetMode of the unadjusted mode
+get_viewport_pos	video_get_default_offset	func	code	sure	the TV type's default screen offset
+get_viewport_offset	video_get_offset	func	code	sure	the screen offset relative to the default
+update_viewport	video_set_offset	func	code	sure	moves the picture within the TV type's bounds (the options screen's screen position)
+gViewportStruct	video_base_mode	data	code	sure	OSViMode *
+gViewportBuffer	video_adjusted_modes	data	code	sure	OSViMode[2]
+gViewportDataPtr	video_adjusted_mode	data	code	sure	OSViMode *: the one last built
+gViewportLeftEdge	video_h_start	data	code	sure	s16: base mode horizontal start
+gViewportRightEdge	video_h_end	data	code	sure	s16
+gViewportTopEdge	video_v_start	data	code	sure	s16
+gViewportBottomEdge	video_v_end	data	code	sure	s16
+gViewportScaleX	video_offset_x	data	code	sure	s16: current horizontal offset
+gViewportScaleY	video_offset_y	data	code	sure	s16
+gViewportXOverflow	video_extra_width	data	code	sure	s16
+gViewportYOverflow	video_extra_height	data	code	sure	s16
+gViewportScale	video_width	data	code	sure	s16: framebuffer width
+gViewportScaleYAlt	video_height	data	code	sure	s16: framebuffer height
+gViewportX	video_tv_type	data	code	sure	s16: 0 PAL, 1 NTSC, 2 MPAL
+gViewportY	video_mode_index	data	code	sure	s16
+gViewportFloatA	video_x_scale_factor	data	code	sure	f32
+gViewportFloatB	video_y_scale_factor	data	code	sure	f32
+gViewportFloatC	retrace_time_pal	data	code	sure	f32: gRetraceTime at 50 Hz
+gViewportFloatD	retrace_time_ntsc	data	code	sure	f32: gRetraceTime at 60 Hz
+gViewportPendingFrames	video_pending_frames	data	code	sure	s32
+gViewportBoundsTable	video_offset_bounds	data	code	sure	s16 [3][8]: limits per TV type
+gViewportOffsetXExtra	video_default_extra_width	data	code	sure	s16 [3][4] table, column 0: default extra width per TV type (docs/port/DATA.md 1)
+gViewportOffsetYExtra	video_default_extra_height	data	code	sure	column 1 of the same table
+gViModeTableBase	osViModeTable	data	code	likely	libultra: osViModeTable, OSViMode[] indexed by video_mode_base_index + mode
+# libultra internals found under invented names
+vi_manager_main	viMgrMain	func	code	sure	libultra: viMgrMain (ultralib src/io/vimgr.c static), the VI manager thread body
+bzero_alt	__osSpGetStatus	func	code	sure	libultra: __osSpGetStatus (ultralib src/rsp/spgetstat.c), returns SP_STATUS_REG; rom_tu.h says so
+osSpTaskLoad_full	__osDevMgrMain	func	code	sure	libultra: __osDevMgrMain (ultralib src/io/devmgr.c), the PI manager thread body (64DD checks)
+__osPfsRequestType	__osContLastCmd	data	code	likely	libultra: __osContLastCmd; __osPfsRequestData stores its command there as ultralib pfsisplug.c does
+__osPfsRequestType2	__osMaxControllers	data	code	likely	libultra: __osMaxControllers, the loop bound of osPfsIsPlug and __osPfsRequestData; the byte after __osContLastCmd
+__osPfsBuffer	__osPfsPifRam	data	code	likely	libultra: __osPfsPifRam (pfsisplug.c), the PIF RAM image those functions fill
+# types: address-named or meaningless typedefs in src/rom and its headers
+AudioState	SoundHwVoice	type	code	sure	the hardware voice record (0x68 B): sample window, rate, envelope; "audio state" said nothing (include/boot_tail_audio_record.h)
+Voice_80012D18	SoundHwVoiceView	type	code	sure	sound_hw_build_voice_command's view of SoundHwVoice
+Command_80012D18	SfdVoice	type	code	sure	one 0x50-byte voice record of an SFD (port/audio/musyx_abi.h)
+Block_80012D18	SfdBlock	type	code	sure	a subframe descriptor: 16-byte header and voice records
+Fetch_80012730	SfdSampleRange	type	code	sure	up to two cached pieces of a sample range
+DmaEntry_80010450	SoundDmaEntry	type	code	sure	a frame DMA list entry {length, source, destination}
+DmaEntry_80012234	SoundDmaEntryCodebook	type	code	sure	the same entry as sound_hw_fetch_codebook declares it
+DmaEntry_80012730	SoundDmaEntrySamples	type	code	sure	the same entry as sound_hw_fetch_sample_range declares it
+AudioConfiguration_80010E80	SoundDelayConfig	type	code	sure	delay effect parameters given to sound_hw_set_delay
+AudioDelayState_80010E80	SoundDelayState	type	code	sure	the 72-byte delay state the microcode reads
+SampleInfo_800146B4	SoundHwSampleInfo	type	code	sure	what sound_hw_set_voice_sample takes
+SampleHeader_80016CF0	SampleDirectoryInfo	type	code	sure	the info words of a sample directory record
+SampleInfo_80016CF0	SampleLookup	type	code	sure	what sound_find_sample fills
+SampleInfo_80022874	MacroSampleInfo	type	code	sure	sound_macro_start_sample's view of it
+RecordFields_8003C618	KeymapRecord	type	code	sure	{payload, id, refs} of sound_keymaps
+RecordStorage_8003C618	KeymapRecordStorage	type	code	sure	union of KeymapRecord and two words
+RecordFields_8003CE20	LayerRecord	type	code	sure	{payload, id, count, refs} of sound_layers
+RecordStorage_8003CE20	LayerRecordStorage	type	code	sure	union of the record and its words (the registries copy records as words)
+RecordFields_80038610	TableRecord	type	code	sure	{payload, id, refs} of sound_tables
+RecordStorage_80038610	TableRecordStorage	type	code	sure	union of the record and its words (the registries copy records as words)
+RecordFields_8003E228	MacroRecord	type	code	sure	{payload, id, refs} of sound_macros
+RecordStorage_8003E228	MacroRecordStorage	type	code	sure	union of the record and its words (the registries copy records as words)
+FxKey_80017040	SfxSearchKey	type	code	sure	bsearch key of sound_find_sfx
+Layer_80019F48	LayerEntry	type	code	sure	one entry of a layer (key range, transpose, volume, priority, pan)
+SynthVoice_8001A658	SynthVoice	type	code	sure	the synth voice record (0x1A0 B) as sound_synth_update_voices sees it: macro, flags, pitch, volume, LFOs
+SynthVoice_80023E9C	SynthVoiceMacroView	type	code	sure	the macro interpreter's view of SynthVoice
+SynthLfo_8001A658	SynthLfo	type	code	sure	{time, period, value, last value}
+SynthFader_8001A658	SynthFader	type	code	sure	volume group fader (same layout as MasterFader)
+VoiceState_80019C8C	SynthVoiceLegatoView	type	code	sure	sound_synth_retrigger_legato's view
+VoiceState_80021150	SynthVoiceInputView	type	code	sure	sound_synth_read_input's view
+VoiceState_800230B0	SynthVoicePanView	type	code	sure	sound_macro_panning's view
+VoiceAlloc_8001F13C	SynthVoiceAllocView	type	code	sure	sound_alloc_voice's view
+VoiceVariables_80023AD4	SynthVoiceVariablesView	type	code	sure	the variables view (locals at +0x180)
+VoicePrefix_8001EE9C	SynthVoicePriorityView	type	code	sure	sound_remove_voice_priority's view
+ChannelLink_8001EE9C	VoicePriorityLink	type	code	sure	{previous, next, active} per voice
+GroupLink_8001EE9C	PriorityLevelLink	type	code	sure	{next, previous} per priority
+MacroControl_80022C58	MacroLfoControl	type	code	sure	an LFO's {time, period} as sound_macro_setup_lfo sees it
+ControlEntry_80023754	MacroInputSource	type	code	sure	{controller, combination, scale}
+MacroControl_80023818	MacroInput	type	code	sure	a voice input: 4 sources and a count
+PitchState_80022CD4	MacroStateSetPitch	type	code	sure	sound_macro_set_pitch's voice view
+PitchCommand_80022CD4	MacroCommandSetPitch	type	code	sure	its step view
+MacroVoice_80023DB8	MacroStateCompare	type	code	sure	sound_macro_compare's voice view
+Emitter_8001C860	SoundEmitter	type	code	sure	3D emitter {links, flags, position, velocity, distance, volumes}
+Listener_8001C860	SoundListener	type	code	sure	3D listener {links, flags, position, velocity, basis, inverse, surround distances, sound speed, volume}
+Vec_8001C860	SoundVector	type	code	sure	x, y, z
+Emitter_8001D0F0	SoundEmitterUpdateView	type	code	sure	sound_emitter_update's view
+Emitter_8001D1F4	SoundEmitterAddView	type	code	sure	sound_emitter_add's view
+SpatialState_8001D660	SoundListenerUpdateView	type	code	sure	sound_listener_update's view
+SpatialState_8001D764	SoundListenerAddView	type	code	sure	sound_listener_add's view
+Seq_80017720	SequenceProgramView	type	code	sure	sound_seq_set_program's view of a player
+ProgramEntry_80017720	SequenceProgramEntry	type	code	sure	page entry as sound_seq_set_program reads it
+Seq_800178B0	SequencePlayer	type	code	sure	a song player (0xFF8 B) as sound_seq_start writes it
+Page_800178B0	SequencePageEntry	type	code	sure	normal/drum page entry {macro, priority, voices, slot, program}
+MidiChannel_800178B0	MidiSetupChannel	type	code	sure	{program, volume, pan, reverb, chorus}
+MidiSetup_800178B0	MidiSetup	type	code	sure	a song's MIDI setup (132 B)
+VolDef_800178B0	SequenceTrackGroup	type	code	sure	{track, volume group}
+PlayPara_800178B0	SequencePlayParams	type	code	sure	optional song start parameters
+Arr_800178B0	SongHeader	type	code	sure	a song file header (track table, patterns, channel map, tempo track, tempo)
+Track_800178B0	SequenceTrackCursor	type	code	sure	{address, base, patterns}
+TrackState_800178B0	SequencePatternState	type	code	sure	per-track pattern playback state
+SequenceTime_17D38	SequenceTime	type	code	sure	{fraction, whole}
+SequenceEvent_80018634	SongTrackEvent	type	code	sure	12-byte track event
+SequenceHeader_80018634	SongHeaderView	type	code	sure	sound_seq_play_tracks' view of SongHeader
+SequencePattern_80018634	SongPattern	type	code	sure	pattern header and events
+SequenceEventTrack_80018634	SongTrackCursor	type	code	sure	{start, cursor, fraction, time}
+SequencePlayback_80018634	SongPatternPlayback	type	code	sure	a pattern's playback state
+SequenceContextHead_80018634	SequencePlayerSongView	type	code	sure	view of a player up to its song pointer
+StreamState_80025264	SpeechStream	type	code	sure	a speech stream (0x1228 B): GSM state, input ring, output, voice settings
+StreamState_80025F74	SpeechStreamDecodeView	type	code	sure	speech_decode's view
+StreamState_80026328	SpeechStreamPlayView	type	code	sure	speech_mark_playing's view
+StreamState_80026348	SpeechStreamStopView	type	code	sure	speech_mark_stopped's view
+ServiceHooks_8002574C	SpeechServiceHooks	type	code	sure	speech_service's view of sound_services (alloc, free)
+SampleCallback_8002574C	SpeechStreamCallback	type	code	sure	the stream refill callback type
+GsmState_26F60	GsmState	type	code	sure	GSM 06.10 decoder state (0x190 B: dp0, LARpp, j, repeat, silence)
+GsmStream_26F60	GsmStream	type	code	sure	GsmState plus the stream's input ring and bit position
+OSSched_2cf0	MainThreadScheduler	type	code	likely	main_thread_entry's opaque scheduler type
+OSScMsg_2cf0	MainThreadSchedulerMessage	type	code	likely	main_thread_entry's view of a scheduler message {type}
+MacroState_8002193C	MacroStateWait	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_wait; one SynthVoice in wave 2
+MacroState_80021BF0	MacroStateReturn	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_return; one SynthVoice in wave 2
+MacroControl_80021BF0	MacroControlReturn	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_return; one SynthVoice in wave 2
+MacroState_80021C58	MacroStateSplitKey	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_split_key; one SynthVoice in wave 2
+MacroState_80021CDC	MacroStateSplitVelocity	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_split_velocity; one SynthVoice in wave 2
+MacroState_80021D5C	MacroStateSplitModulation	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_split_modulation; one SynthVoice in wave 2
+MacroState_80021DF8	MacroStateSplitRandom	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_split_random; one SynthVoice in wave 2
+MacroState_80021E74	MacroStateGosub	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_gosub; one SynthVoice in wave 2
+MacroState_80021F08	MacroStateTrapKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_trap_key_off; one SynthVoice in wave 2
+MacroState_80021F68	MacroStateUntrapKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_untrap_key_off; one SynthVoice in wave 2
+MacroCommand_80021F68	MacroCommandUntrapKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_untrap_key_off; one SynthVoice in wave 2
+MacroState_80021F84	MacroStateLoop	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_loop; one SynthVoice in wave 2
+MacroState_80022160	MacroStatePlayMacro	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_play_macro; one SynthVoice in wave 2
+MacroState_80022324	MacroStateSendKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_send_key_off; one SynthVoice in wave 2
+MacroState_800223D0	MacroStateAddAge	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_add_age; one SynthVoice in wave 2
+MacroCommand_800223D0	MacroCommandAddAge	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_add_age; one SynthVoice in wave 2
+MacroState_8002243C	MacroStateSetAge	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age; one SynthVoice in wave 2
+MacroCommand_8002243C	MacroCommandSetAge	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age; one SynthVoice in wave 2
+MacroState_8002245C	MacroStateSetAgeSpeed	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age_speed; one SynthVoice in wave 2
+MacroCommand_8002245C	MacroCommandSetAgeSpeed	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age_speed; one SynthVoice in wave 2
+MacroState_800224B0	MacroStateSetAgeByVelocity	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age_by_velocity; one SynthVoice in wave 2
+MacroCommand_800224B0	MacroCommandSetAgeByVelocity	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_age_by_velocity; one SynthVoice in wave 2
+MacroState_80022514	MacroStateAddPriority	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_add_priority; one SynthVoice in wave 2
+MacroState_800225AC	MacroStateSendFlag	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_send_flag; one SynthVoice in wave 2
+MacroCommand_800225AC	MacroCommandSendFlag	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_send_flag; one SynthVoice in wave 2
+MacroState_800225DC	MacroStateSetPitchWheelRange	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_pitch_wheel_range; one SynthVoice in wave 2
+MacroCommand_800225DC	MacroCommandSetPitchWheelRange	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_pitch_wheel_range; one SynthVoice in wave 2
+MacroState_800225FC	MacroStateSetNote	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_note; one SynthVoice in wave 2
+MacroState_80022678	MacroStateAddNote	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_add_note; one SynthVoice in wave 2
+MacroState_8002279C	MacroStateLastNote	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_last_note; one SynthVoice in wave 2
+MacroState_80022874	MacroStateStartSample	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_start_sample; one SynthVoice in wave 2
+MacroState_80022A40	MacroStateStopSample	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_stop_sample; one SynthVoice in wave 2
+MacroState_80022A78	MacroStateKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_key_off; one SynthVoice in wave 2
+MacroCommand_80022A78	MacroCommandKeyOff	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_key_off; one SynthVoice in wave 2
+MacroState_80022A98	MacroStateVibrato	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_vibrato; one SynthVoice in wave 2
+MacroCommand_80022C58	MacroCommandSetupLfo	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_setup_lfo; one SynthVoice in wave 2
+MacroState_80022C58	MacroStateSetupLfo	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_setup_lfo; one SynthVoice in wave 2
+MacroState_80022F24	MacroStateSetAdsr	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_adsr; one SynthVoice in wave 2
+MacroState_8002300C	MacroStatePitchSweep	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_pitch_sweep; one SynthVoice in wave 2
+MacroState_800232A4	MacroStateScaleVolume	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_scale_volume; one SynthVoice in wave 2
+MacroState_800233B0	MacroStateStartEnvelope	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_start_envelope; one SynthVoice in wave 2
+MacroState_80023520	MacroStateEnvelope	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_envelope; one SynthVoice in wave 2
+MacroState_80023710	MacroStateTrackPitchWheel	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_track_pitch_wheel; one SynthVoice in wave 2
+MacroCommand_80023710	MacroCommandTrackPitchWheel	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_track_pitch_wheel; one SynthVoice in wave 2
+MacroState_80023734	MacroStateSetReverbSend	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_reverb_send; one SynthVoice in wave 2
+MacroCommand_80023734	MacroCommandSetReverbSend	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_set_reverb_send; one SynthVoice in wave 2
+MacroState_80023818	MacroStateSelectVolume	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_select_volume; one SynthVoice in wave 2
+MacroCommand_80023818	MacroCommandSelectVolume	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_select_volume; one SynthVoice in wave 2
+MacroState_800239A4	MacroStatePortamento	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_portamento; one SynthVoice in wave 2
+MacroState_80024988	MacroStateStart	type	code	sure	per-handler view of the synth voice (or its step) in sound_macro_start; one SynthVoice in wave 2
+# function-local statics and macros with address suffixes
+cstep_80056228	macro_step_copy	data	code	sure	static MacroCommand in sound_macro_run: the step being executed
+sample_80056208	macro_sample_info	data	code	sure	static sample info of sound_macro_start_sample
+debugMacroSteps_80056200	macro_steps_this_update	data	code	sure	static u8: steps run in this update (limit 32)
+base_80016C20	macro_lookup_first	data	code	sure	static of sound_find_macro: the bucket's first index
+main_80016C20	macro_lookup_bucket	data	code	sure	static of sound_find_macro: id >> 6
+key_80016C20	macro_lookup_key	data	code	sure	static bsearch key of sound_find_macro
+result_80016C20	macro_lookup_result	data	code	sure	static of sound_find_macro
+key_80016CF0	sample_lookup_key	data	code	sure	static bsearch key of sound_find_sample
+result_80016CF0	sample_lookup_result	data	code	sure	static of sound_find_sample
+header_80016CF0	sample_lookup_info	data	code	sure	static of sound_find_sample
+key_80038610	table_lookup_key	data	code	sure	static bsearch key of sound_find_table
+result_80038610	table_lookup_result	data	code	sure	static of sound_find_table
+key_8003C618	keymap_lookup_key	data	code	sure	static bsearch key of sound_find_keymap
+result_8003C618	keymap_lookup_result	data	code	sure	static of sound_find_keymap
+key_8003CE20	layer_lookup_key	data	code	sure	static bsearch key of sound_find_layer
+result_8003CE20	layer_lookup_result	data	code	sure	static of sound_find_layer
+key_80017040	sfx_lookup_key	data	code	sure	static bsearch key of sound_find_sfx
+SEQ_17720	SEQ_PLAYER	data	code	sure	macro in lib_17dc0.c: the current player as SequenceProgramView
+VOICE_233B0	ENVELOPE_VOICE	data	code	sure	macro in lib_22300.c: the voice as sound_macro_start_envelope sees it
+FADER_8001A658	VOLUME_FADERS	data	code	sure	macro in lib_1a660.c: sound_volume_faders as SynthFader[]
+# fields named by offset (value20, unknown60, field_11C8 ...)
+AudioState.0x01	held	field	code	sure	was "pending": while set the envelope sustains; cleared by key off (sound_hw_release_hold)
+AudioState.0x20	attack_time	field	code	sure	was "initial_count"/"value20": the attack length the envelope starts with
+AudioState.0x22	decay_time	field	code	sure	was "value22": the decay length
+AudioState.0x24	sustain_level	field	code	sure	was "value24": f32 sustain level (0-1)
+AudioState.0x28	release_time	field	code	sure	was "release_count"
+AudioState.0x40	gain_right	field	code	likely	was "value40": second output of sound_compute_gains
+AudioState.0x42	gain_left	field	code	likely	was "value42": first output of sound_compute_gains
+AudioState.0x44	gain_span	field	code	sure	was "value44": the surround gain
+AudioState.0x46	gain_aux	field	code	sure	was "value46": the aux (delay) send
+AudioState.0x60	slot	field	code	sure	was "unknown60": the voice's SFD slot (255 none), its bit in the release mask
+StreamState_80025264.0x11C8	bit_position	field	code	sure	was field_11C8: the decoder's bit position in the input ring (speech_decode's view names it)
+StreamState_80025264.0x11CC	consumed_input	field	code	sure	was field_11CC
+StreamState_80025264.0x11D0	received	field	code	sure	was field_11D0: input bytes received
+StreamState_80025264.0x11DC	input_pending	field	code	sure	was field_11DC: an input read is in flight
+StreamState_80025264.0x11DE	decode_budget	field	code	sure	was "scale": frames decoded per service
+StreamState_80025264.0x1220	duration	field	code	sure	was field_1220: seconds of speech in the entry
+# files named after a ROM offset
+src/rom/lib_1050.c	src/rom/timer.c	file	mat3	sure	MAT3 timer.c (InitializeTimer ... CountdownTimeOut)
+src/rom/lib_1050_sdk.c	src/rom/scheduler.c	file	code	likely	the SDK-style scheduler (osCreateScheduler, __sc*) and its storage
+src/rom/lib_21f0.c	src/rom/video_mode.c	file	code	likely	VI mode and screen position
+src/rom/lib_2cf0.c	src/rom/boot.c	file	code	likely	main, the idle, main and game threads
+src/rom/lib_3140.c	src/rom/decompress.c	file	code	likely	the decompression lock and the LZSS / inflate entries
+src/rom/lib_3330.c	src/rom/libc/memchr.c	file	code	likely	memchr
+src/rom/lib_3390.c	src/rom/libc/memset.c	file	code	likely	memset
+src/rom/lib_34a0.c	src/rom/libc/printf.c	file	code	likely	the IDO libc: modf, modff, fcvt, sprintf
+src/rom/lib_5610.c	src/rom/unzip.c	file	mat3	sure	MAT3 unzip.c (the inflater)
+src/rom/lib_10280.c	src/rom/libultra/contramwrite.c	file	code	sure	libultra __osContRamWrite
+src/rom/lib_105f0.c	src/rom/libultra/crc.c	file	code	sure	libultra __osContAddressCrc, __osContDataCrc
+src/rom/lib_10760.c	src/rom/libultra/ai.c	file	code	sure	libultra __osAiDeviceBusy
+src/rom/lib_107a0.c	src/rom/libultra/destroythread.c	file	code	sure	libultra osDestroyThread
+src/rom/lib_10970.c	src/rom/libultra/si.c	file	code	sure	libultra __osSiDeviceBusy
+src/rom/lib_109a0.c	src/rom/libultra/resetglobalintmask.c	file	code	sure	libultra __osResetGlobalIntMask
+src/rom/lib_10a00.c	src/rom/libultra/epiwrite.c	file	code	sure	libultra __osEPiRawWriteIo
+src/rom/lib_10b60.c	src/rom/libultra/epiread.c	file	code	sure	libultra __osEPiRawReadIo
+src/rom/lib_10cc0.c	src/rom/libultra/setglobalintmask.c	file	code	sure	libultra __osSetGlobalIntMask
+src/rom/lib_10d10.c	src/rom/libultra/yieldthread.c	file	code	sure	libultra osYieldThread
+src/rom/lib_10d60.c	src/rom/libultra/pfsisplug.c	file	code	sure	libultra osPfsIsPlug and its helpers
+src/rom/lib_7600.c	src/rom/libultra/createmesgqueue.c	file	code	sure	libultra osCreateMesgQueue
+src/rom/lib_7630.c	src/rom/libultra/vimgr.c	file	code	sure	libultra osCreateViManager, viMgrMain
+src/rom/lib_7940.c	src/rom/libultra/visetmode.c	file	code	sure	libultra osViSetMode
+src/rom/lib_79a0.c	src/rom/libultra/viblack.c	file	code	sure	libultra osViBlack
+src/rom/lib_7a10.c	src/rom/libultra/seteventmesg.c	file	code	sure	libultra osSetEventMesg
+src/rom/lib_7ad0.c	src/rom/libultra/visetevent.c	file	code	sure	libultra osViSetEvent
+src/rom/lib_7b30.c	src/rom/libultra/createthread.c	file	code	sure	libultra osCreateThread
+src/rom/lib_7c80.c	src/rom/libultra/startthread.c	file	code	sure	libultra osStartThread, osRecvMesg
+src/rom/lib_7fb0.c	src/rom/libultra/gettime.c	file	code	sure	libultra osGetTime
+src/rom/lib_8040.c	src/rom/libultra/viswapbuf.c	file	code	sure	libultra osViSwapBuffer
+src/rom/lib_8040_msg.c	src/rom/libultra/jammesg.c	file	code	sure	libultra osJamMesg
+src/rom/lib_81e0.c	src/rom/libultra/sendmesg.c	file	code	sure	libultra osSendMesg
+src/rom/lib_8330.c	src/rom/libultra/sptaskyielded.c	file	code	sure	libultra osSpTaskYielded, osViGetCurrentFramebuffer
+src/rom/lib_83d0.c	src/rom/libultra/vigetnextframebuf.c	file	code	sure	libultra osViGetNextFramebuffer
+src/rom/lib_8440.c	src/rom/libultra/sptask.c	file	code	sure	libultra osSpTaskLoad, osSpTaskStartGo
+src/rom/lib_8700.c	src/rom/libultra/sptaskyield.c	file	code	sure	libultra osDpSetNextBuffer, osSpTaskYield
+src/rom/lib_8800.c	src/rom/libc/string.c	file	code	likely	strchr, strlen, memcpy
+src/rom/lib_8920.c	src/rom/libultra/visetspecial.c	file	code	sure	libultra osViSetSpecialFeatures
+src/rom/lib_8a80.c	src/rom/libultra/initialize.c	file	code	sure	libultra __osInitialize_common
+src/rom/lib_8dd0.c	src/rom/libultra/piread.c	file	code	sure	libultra osPiReadIo
+src/rom/lib_8e10.c	src/rom/libultra/setthreadpri.c	file	code	sure	libultra osSetThreadPri
+src/rom/lib_8e10_pi.c	src/rom/libultra/pimgr.c	file	code	sure	libultra osCreatePiManager
+src/rom/lib_9230.c	src/rom/libultra/pidma.c	file	code	sure	libultra osPiStartDma
+src/rom/lib_92f0.c	src/rom/libultra/syncprintf.c	file	code	sure	libultra osSyncPrintf, rmonPrintf
+src/rom/lib_9330.c	src/rom/libultra/sinf_cosf.c	file	code	sure	libultra sinf, cosf
+src/rom/lib_9660.c	src/rom/libultra/ortho.c	file	code	sure	libultra guOrtho
+src/rom/lib_9820.c	src/rom/libultra/perspective.c	file	code	sure	libultra guPerspective
+src/rom/lib_9ab0.c	src/rom/libultra/lookat.c	file	code	sure	libultra guLookAt
+src/rom/lib_9de0.c	src/rom/libultra/mtxutil.c	file	code	sure	libultra guMtx*
+src/rom/lib_a050.c	src/rom/libultra/controller.c	file	code	sure	libultra osContInit
+src/rom/lib_a330.c	src/rom/libultra/contquery.c	file	code	sure	libultra osContStartQuery ... osContGetReadData
+src/rom/lib_a5b0.c	src/rom/libultra/dpgetcounters.c	file	code	sure	libultra osDpGetCounters
+src/rom/lib_a5f0.c	src/rom/libultra/llcvt.c	file	code	sure	libultra llcvt.c
+src/rom/lib_a800.c	src/rom/libultra/physicaltovirtual.c	file	code	sure	libultra osPhysicalToVirtual
+src/rom/lib_a810.c	src/rom/libultra/pfsinitpak.c	file	code	sure	libultra osPfsInitPak
+src/rom/lib_ab20.c	src/rom/libultra/motor.c	file	code	sure	libultra motor.c, osPfsRepairId
+src/rom/lib_af50.c	src/rom/libultra/pfssearchfile.c	file	code	sure	libultra osPfsFindFile
+src/rom/lib_b120.c	src/rom/libultra/pfsfilestate.c	file	code	sure	libultra osPfsFileState
+src/rom/lib_b300.c	src/rom/libultra/pfsdeletefile.c	file	code	sure	libultra osPfsDeleteFile
+src/rom/lib_b570.c	src/rom/libultra/pfsallocatefile.c	file	code	sure	libultra osPfsAllocateFile
+src/rom/lib_b9f0.c	src/rom/libultra/pfsreadwritefile.c	file	code	sure	libultra osPfsReadWriteFile
+src/rom/lib_be40.c	src/rom/libultra/pfsfreeblocks.c	file	code	sure	libultra osPfsFreeBlocks
+src/rom/lib_bfe0.c	src/rom/libultra/pfschecker.c	file	code	sure	libultra osPfsChecker
+src/rom/lib_c990.c	src/rom/libultra/stopthread.c	file	code	sure	libultra osStopThread, osGetThreadId
+src/rom/lib_ca70.c	src/rom/libultra/ai_buffer.c	file	code	sure	libultra osAiSetNextBuffer, osAiSetFrequency
+src/rom/lib_cc50.c	src/rom/libultra/timerintr.c	file	code	sure	libultra thread queue and timer services
+src/rom/lib_d140.c	src/rom/libultra/viinit.c	file	code	sure	libultra osViInit
+src/rom/lib_d260.c	src/rom/libultra/getactivequeue.c	file	code	sure	libultra osGetActiveQueue
+src/rom/lib_d270.c	src/rom/libultra/viswapcontext.c	file	code	sure	libultra __osViSwapContext
+src/rom/lib_d580.c	src/rom/libultra/thread_sp.c	file	code	sure	libultra __osPopThread, __osSpGetStatus
+src/rom/lib_e1c0.c	src/rom/libultra/virtualtophysical.c	file	code	sure	libultra osVirtualToPhysical
+src/rom/lib_e240.c	src/rom/libultra/spsetstat.c	file	code	sure	libultra __osSpSetStatus
+src/rom/lib_e250.c	src/rom/libultra/spsetpc.c	file	code	sure	libultra __osSpSetPc
+src/rom/lib_e280.c	src/rom/libultra/sprawdma.c	file	code	sure	libultra __osSpRawStartDma
+src/rom/lib_e310.c	src/rom/libultra/sp.c	file	code	sure	libultra __osSpDeviceBusy
+src/rom/lib_e340.c	src/rom/libultra/dp.c	file	code	sure	libultra osDpIsBusy
+src/rom/lib_e390.c	src/rom/libultra/sirawread.c	file	code	sure	libultra __osSiRawReadIo
+src/rom/lib_e3f0.c	src/rom/libultra/sirawwrite.c	file	code	sure	libultra __osSiRawWriteIo
+src/rom/lib_e4f0.c	src/rom/libultra/ll.c	file	code	sure	libultra ll.c
+src/rom/lib_e7c0.c	src/rom/libultra/piacs.c	file	code	sure	libultra piacs.c, __osPiRawReadIo
+src/rom/lib_e8d0.c	src/rom/libultra/pirawdma.c	file	code	sure	libultra __osPiRawStartDma
+src/rom/lib_e9a0.c	src/rom/libultra/devmgr.c	file	code	sure	libultra __osEPiRawStartDma, __osDevMgrMain, osPiGetCmdQueue
+src/rom/lib_efd0.c	src/rom/libultra/settimer.c	file	code	sure	libultra osSetTimer
+src/rom/lib_f0b0.c	src/rom/libultra/sirawdma.c	file	code	sure	libultra __osSiRawStartDma
+src/rom/lib_f160.c	src/rom/libultra/pfsgetstatus.c	file	code	sure	libultra siacs.c, pfsgetstatus.c
+src/rom/lib_f450.c	src/rom/libultra/pfsselectbank.c	file	code	sure	libultra __osPfsSelectBank
+src/rom/lib_f4d0.c	src/rom/libultra/contramread.c	file	code	sure	libultra __osContRamRead
+src/rom/lib_f700.c	src/rom/libultra/contpfs.c	file	code	sure	libultra contpfs.c
+src/rom/lib_11050.c	src/rom/sound/dma_queue.c	file	code	likely	the sound library's DMA request queue
+src/rom/lib_113e0.c	src/rom/sound/init.c	file	code	likely	sound_init / sound_exit
+src/rom/lib_11640.c	src/rom/sound/hardware.c	file	code	likely	the hardware layer: output thread, task, SFDs, caches
+src/rom/lib_15930.c	src/rom/sound/rate.c	file	code	likely	rate conversion
+src/rom/lib_15a10.c	src/rom/sound/groups.c	file	code	likely	push/pop group, song start
+src/rom/lib_16320.c	src/rom/sound/registry.c	file	code	likely	the data registries
+src/rom/lib_17dc0.c	src/rom/sound/sequencer.c	file	code	likely	the sequencer
+src/rom/lib_1a660.c	src/rom/sound/synth.c	file	code	likely	the synth voice update and the effect API
+src/rom/lib_1cf90.c	src/rom/sound/streams_3d.c	file	code	likely	streams, emitters, listeners
+src/rom/lib_1ece0.c	src/rom/sound/gains.c	file	code	likely	gains and pitch
+src/rom/lib_1f340.c	src/rom/sound/util.c	file	code	likely	alloc, random, sine, bsearch, time
+src/rom/lib_1f5b0.c	src/rom/sound/voices.c	file	code	likely	handles and voice allocation
+src/rom/lib_207b0.c	src/rom/sound/api.c	file	code	likely	the locked public API
+src/rom/lib_21210.c	src/rom/sound/controllers.c	file	code	likely	MIDI controllers and voice inputs
+src/rom/lib_22300.c	src/rom/sound/macros.c	file	code	likely	the macro interpreter
+src/rom/lib_257f0.c	src/rom/sound/vector.c	file	code	likely	3D vector helpers
+src/rom/lib_25bb0.c	src/rom/speech/streams.c	file	code	likely	speech streams
+src/rom/lib_26ab0.c	src/rom/speech/decode.c	file	code	likely	speech decode loop
+src/rom/lib_26f60.c	src/rom/speech/gsm.c	file	code	likely	the GSM 06.10 decoder
+include/boot_tail_audio_record.h	include/sound_hw_voice.h	file	code	likely	the SoundHwVoice record
+include/boot_tail_sample_contract.h	include/sound_sample_record.h	file	code	likely	the sample directory record
+# shared
+D_80028CC0	gspF3DEX2_NoN_fifoTextStart	data	code	likely	u64[]: the graphics microcode text, the task ucode (EndGraphics); F3DEX2 NoN fifo, the GBI port/gfx decodes
+D_8002DDF0	gspF3DEX2_NoN_fifoDataStart	data	code	likely	u64[]: the graphics microcode data, the task ucode_data (F3DEX2 NoN fifo)
+gInflateBufferA	unzip_input_a	data	code	sure	u8[4096]: input half A
+gInflateBufferB	unzip_input_b	data	code	sure	u8[4096]: input half B
+gViTickCounter	scheduler_retrace_count	data	code	sure	s32 at gScheduler + 0x27C: the scheduler's retrace count (MAT3 sc.frameCount)
+game_loop_tick	scheduler_retrace_count	data	code	likely	a second invented name at the same address as gViTickCounter in the symbol tables; the game image declares it
+gStackGame	main_thread_stack	data	code	sure	u8[0x960] of thread 6
+gViewportOffsetX	video_default_x	data	code	sure	column 2: default horizontal offset
+gViewportOffsetY	video_default_y	data	code	sure	column 3: default vertical offset
+D_8002AFA0	scheduler_audio_task	data	code	likely	OSScTask *: the audio task the scheduler is running (lib_1050_sdk.c sets it, as __osScCurAudioTask); audio_retrace_thread_entry spins while it is the scheduler's current task
+D_8002AFC2	screen_width_low	data	code	likely	s16 view of screen_width's low half; no code use
+D_8002AFC6	screen_height_low	data	code	likely	s16 view of screen_height's low half; no code use
+D_8002E440	build_date_text	data	code	likely	char[] of the build-info record (docs/memory_map.md 1.1a); image A prints it with build_time_text
+D_8002E444	build_time_text	data	code	likely	char[] of the build-info record
+D_8002E8E8	gScheduler	data	code	sure	the OSSched; lib_1050_sdk.c aliases D_8002E8E8 to gScheduler
+D_8002EB5C	scheduler_current_rsp_task	data	code	sure	gScheduler's curRSPTask (PC_ALIAS + 0x2B0)
+D_8002EB64	scheduler_retrace_count	data	code	sure	alias of gViTickCounter (gScheduler + 0x27C)
+D_8002EB6C	scheduler_spare_word	data	code	likely	s32 defined beside the scheduler, used by nothing
+D_8002EB88	scheduler_spare_time	data	code	likely	u64 defined beside the scheduler, used by nothing
+gEventMesgQueue	game_thread_queue	data	code	sure	alias: main_thread_entry's name for D_8002ECC0 (created with 8 messages); both rows map to game_thread_queue
+gRetraceMesgQueue	main_thread_queue	data	code	sure	alias: main_thread_entry's name for D_8002ECF8 (osScAddClient's queue); both rows map to main_thread_queue
+D_8002F660	audio_retrace_thread_stack_top	data	code	sure	the top of thread 9 (audio_retrace_thread) stack; gStackIdle starts here
+D_800329F0	rumble_thread_stack_top	data	code	sure	the top of thread 2 (rumble_thread) stack, passed to osCreateThread
+D_800339F0	audio_manager_thread_stack_top	data	code	likely	the top of thread 10 (audio_manager_thread) stack, passed to osCreateThread by AudioInit
+D_80033EA0	sample_dma_thread_stack_top	data	code	sure	the top of thread 3 (sample_dma_thread) stack; gSchedulerStack starts here
+D_800344E0	game_thread	data	code	sure	OSThread of thread 7 (game_thread_entry)
+D_80034690	bg_load_thread	data	code	sure	OSThread of thread 8, whose entry is BGLoadWaveMain (main_thread_entry: osCreateThread(&gAudioThread, 8, brake_force_apply...)); BGLoadWaveMain raises its priority
+D_80034840	model_thread	data	code	sure	OSThread stopped around car appearance changes in SetupCar (the model/physics thread)
+D_800349F0	rumble_thread	data	code	sure	OSThread of thread 2, rumble_thread_entry (PS_InitPakSys starts it)
+D_80034F00	audio_manager_thread	data	code	sure	OSThread of thread 10, audio_manager_thread_entry (AudioInit creates and starts it)
+D_800350B0	audio_retrace_thread	data	code	sure	OSThread of thread 9, audio_retrace_thread_entry (AudioInitSys starts it)
+D_80035260	sample_dma_thread	data	code	sure	OSThread of thread 3, sample_dma_thread_entry (AudioInitSys starts it)
+D_80035410	rom_dma_queue	data	code	sure	OSMesgQueue PI DMA reads complete on (same address as gDmaMesgQueue, 8 messages)
+gDmaMesgQueue	rom_dma_queue	data	code	sure	alias: main_thread_entry's name for D_80035410; both rows map to rom_dma_queue
+gSyncMesgQueue	bg_load_idle_queue	data	code	sure	alias: main_thread_entry creates D_80035440 with one message under this name; both rows map to bg_load_idle_queue
+gGameStateFlag	frame_end_requested	data	code	sure	alias: main_thread_entry clears D_80035472 under this name before the main loop; both rows map to frame_end_requested
+D_800586D0	frame_command_buffer_a	data	code	sure	first frame's display-list buffer (docs: initsystem)
+D_8006A090	frame_command_buffer_b	data	code	sure	second frame's display-list buffer, 0x119C0 B after the first
+
+# reconciliation (wave 1): rows placed in this area by docs/code/NAMING.md (a shared datum goes to the area
+# whose functions use it most), and alias rows: the address spelling of a symbol mapped above
+__osScCurAudioTask	scheduler_audio_task	data	code	likely	alias: the scheduler-side name of D_8002AFA0 (both rows map to scheduler_audio_task); "__osSc" is not libultra
+__osScTaskCount	gRenderInProgress	data	mat3	likely	alias: lib_1050_sdk.c's own definition of D_8002EB70 (PC_ALIAS D_8002EB70 = __osScTaskCount); both map to gRenderInProgress
+gStackAudio	bg_load_thread_stack	data	code	sure	u8[0x960]: thread 8's stack (BGLoadWaveMain), not audio's
+gRenderThreadStack	model_thread_stack	data	code	sure	u8[0x960]: thread 5's stack (ModelThread)
+gAudioThread	bg_load_thread	data	code	sure	alias: main_thread_entry's wrong name for D_80034690 (thread 8 runs BGLoadWaveMain, nothing audio)
+audio_channel_free	RemoveEnvirons	data	code	likely	alias: the loader's second name of func_800B0618; seven context files declare it
+set_race_state	ClearRushControls	data	code	likely	alias: the loader's second name of entity_audio_update's address (0x800B6138); image A's cleanup_colortrace calls it
+effects_update_emitters	UpdateCameras	data	code	likely	alias: the loader's second name of Effects_UpdateEmitters' address (0x800B811C); cleanup_colortrace calls it
