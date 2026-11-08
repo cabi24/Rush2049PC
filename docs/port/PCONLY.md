@@ -235,9 +235,11 @@ One agent took what the apply left in the game's code (each commit through the g
   declaration can't express it; the macros that stood for labels are gone; the loops end at `gOPPFuncs + 10` and
   `gStuntInfo + 4`; the overlay loader's BSS bounds are `extra_overlay_bss_start` and `start_overlay_bss_start`. The
   labels nothing reads left the loader's tables (drop.tsv); eighteen keep their symbol_addrs.us.txt line, each ending
-  the extent by gap of the object before it. Left: resultPane4 and object_list_scale_view (folding them would change
-  what the game does), and five whose bytes lie past their object's extent (unitmatrix_origin, gWingAngVDrag_1,
-  controls_idMap_conflict, start_screen_egg, FSCLS_from_one).
+  the extent by gap of the object before it. Left: resultPane4 and object_list_scale_view, two latent port bugs that
+  folding would change (animResults writes resultPane[4] past the PC's own storage; the trophy's scale goes to the
+  arena's ObjInstanceList, not the PC's), and seven whose bytes lie past their object's extent, where folding grows the
+  object and so the layout (unitmatrix_origin, gWingAngVDrag_1, controls_idMap_conflict, start_screen_egg,
+  FSCLS_from_one, the tire scales' rows).
 - **Locals** sharing a global's name: DoDrones' lists, maxpath's `interp`.
 - **Original-game bugs**, commented where they are and kept: InitPane, RemoveBlit, FindWinner, CalcUnlockedStuff,
   ZOID_ChangeTexture, UpdateModel, SetPakError, CalcChecksumInternal, updateBG (`/* Original game: ... */`).
