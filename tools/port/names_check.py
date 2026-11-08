@@ -807,6 +807,11 @@ def row_key(r):
     return (r.kind, old, r.new.replace("\\", "/").rstrip("/") if r.kind == "file" else r.new)
 
 
+def drop_key(d):
+    """A drop row's key in the ledger: drop, label, table."""
+    return ("drop", d.name, d.table)
+
+
 def read_ledger(root):
     """The rows rename.py --apply applied (tools/port/names/applied.tsv): {row_key}."""
     p = Path(root) / MAPS_DIR / APPLIED_FILE
@@ -1122,8 +1127,8 @@ def check_drops(drops, rows, tree):
     for d in drops:
         w = d.where()
         tables = {t for t, _ in tree.table_addr.get(d.name, ()) if t in DROP_TABLES}
-        if d.name in tree.symfile_names:
-            tables.add(SYMBOL_FILE_TABLE)
+        if d.table == SYMBOL_FILE_TABLE:   # its own kind of table: the label's line, or none
+            tables = {SYMBOL_FILE_TABLE} if d.name in tree.symfile_names else set()
         for key in ((d.name, d.table), (d.name, "*")) if d.table != "*" else [(d.name, t) for t in DROP_TABLES]:
             if key in seen:
                 errors.append((w, f"{d.name} is dropped by another row too ({seen[key]})"))
@@ -1186,11 +1191,14 @@ def run_checks(root, paths, tree=None):
         errors_, warnings_, applied = check_rows(good, tree, drops, read_ledger(root))
         errors += errors_
         warnings += warnings_
+    ledger = read_ledger(root)
+    done = [d for d in drops if drop_key(d) in ledger]   # dropped by an --apply: not checked again
+    drops = [d for d in drops if drop_key(d) not in ledger]
     if drops:
         errors_, warnings_, dropped = check_drops(drops, good, tree)
         errors += errors_
         warnings += warnings_
-    return rows, errors, warnings, applied, drops, dropped
+    return rows, errors, warnings, applied, drops + done, dropped + done
 
 
 def main(argv=None):

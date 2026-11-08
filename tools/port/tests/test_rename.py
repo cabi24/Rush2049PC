@@ -351,6 +351,21 @@ class Tables(Fixture):
         self.assertNotIn("0x80F00B00", syms)
         self.assertIn("stale_name = 0x80F00100; // type:data", syms)
 
+    def test_dropped_name_given_again(self):
+        """drop.tsv takes a stale label out; a map gives its name to another address; a second --apply must not
+        drop the new entry (the ledger keeps the drop)."""
+        m = self.write_map([("D_80F00100", "zeta_unused", "data", "code", "sure", "the name, at its true address")])
+        self.apply(m, DROP)
+        table = json.loads(self.text("asm/us/blob/symbols.json"))["symbols"]
+        self.assertEqual(table["zeta_unused"], "0x80F00100")
+        self.assertIn("drop\tzeta_unused\tblob", self.text("tools/port/names/applied.tsv"))
+        after = snapshot(self.root)
+        out = self.apply(m, DROP)
+        self.assertIn("0 files changed, 0 moved", out)
+        self.assertEqual(snapshot(self.root), after)
+        status, out = run("--root", self.root, "--check", m, DROP)
+        self.assertEqual(status, 0, out)
+
     def test_self_alias(self):
         (self.root / "src/rom").mkdir(parents=True)
         (self.root / "src/rom/sdk.c").write_text(

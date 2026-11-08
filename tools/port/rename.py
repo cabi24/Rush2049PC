@@ -922,13 +922,14 @@ def move_all(root, moves):
     return moved
 
 
-def write_ledger(root, rows):
-    """Add the rows applied to tools/port/names/applied.tsv (kind, old, new): with it names_check.py and a second
-    --apply know them applied, which a chain's names alone can't tell."""
+def write_ledger(root, rows, drops=()):
+    """Add the rows applied to tools/port/names/applied.tsv (kind, old, new; drop, label, table): with it
+    names_check.py and a second --apply know them applied, which a chain's names alone can't tell, and a label
+    dropped once is never dropped again (a map may have given its name to the right address since)."""
     p = Path(root) / nc.MAPS_DIR / nc.APPLIED_FILE
     p.parent.mkdir(parents=True, exist_ok=True)
     have = nc.read_ledger(root)
-    new = sorted({nc.row_key(r) for r in rows if r.kind != "field"} - have)
+    new = sorted(({nc.row_key(r) for r in rows if r.kind != "field"} | {nc.drop_key(d) for d in drops}) - have)
     if not new:
         return 0
     text = nc.read_text(p) if p.is_file() else (
@@ -1138,9 +1139,10 @@ def main(argv=None):
     files = scope_files(root, a.exclude)
     rows, format_errs = nc.read_maps(maps)
     drops, drop_errs = nc.read_drops(drop_files)
+    ledger = nc.read_ledger(root)
+    drops = [d for d in drops if nc.drop_key(d) not in ledger]   # dropped once: never again
     format_errs += drop_errs + [(r.where(), m) for r in rows for m in nc.check_format(r)]
     rows = [r for r in rows if not nc.check_format(r)]
-    ledger = nc.read_ledger(root)
     tree = nc.Tree(root, watch={r.new for r in rows if r.kind in nc.IDENT_KINDS} | {d.name for d in drops})
     if a.check:
         for where, msg in format_errs:
@@ -1203,7 +1205,7 @@ def main(argv=None):
         print(describe(plan, a.verbose, a.report))
         return 0
     moved, sums = apply(plan, texts)
-    logged = write_ledger(root, rows) if (texts or moved or plan.dropped) else 0
+    logged = write_ledger(root, rows, drops) if (texts or moved or plan.dropped) else 0
     if a.report:
         describe(plan, a.verbose, a.report)
     left = sum(len(v) for v in plan.left.values())
