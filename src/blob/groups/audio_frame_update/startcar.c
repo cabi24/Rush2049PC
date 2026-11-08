@@ -24,18 +24,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct tVisual {         /* 0x18 bytes; gGameCar[slot].visuals[] at 0x110 */
-#ifdef TARGET_PC
     void *next;                  /* a host pointer on the PC */
-#else
-    u8 pad00[4];
-#endif
     s16 index;                   /* 0x04 */
     s16 objnum;                  /* 0x06 */
     s16 slot;                    /* 0x08 */
@@ -47,11 +39,7 @@ typedef struct tVisual {         /* 0x18 bytes; gGameCar[slot].visuals[] at 0x11
 typedef struct tCarData {        /* gGameCar[slot], 0x3B8 bytes */
     u8 pad000[0x110];
     tVisual visuals[20];         /* 0x110 */
-#ifdef TARGET_PC
     struct pc_visual pad2F0[1]; u8 pad2F0_308[0x380 - 0x308]; void *input; u8 pad2F0_384[0x3B8 - 0x384];
-#else
-    u8 pad2F0[0x3B8 - 0x2F0];
-#endif
 } tCarData;
 typedef struct tCarParts {       /* gCarParts[slot], 0x40 bytes */
     s32 frame;
@@ -60,26 +48,16 @@ typedef struct tCarParts {       /* gCarParts[slot], 0x40 bytes */
     u8 pad2C[0x14];
 } tCarParts;
 typedef struct { u16 uv[8]; } tUVPair;
-#ifdef TARGET_PC
 /* PC: D_8013FEF4 is the data field of the car palette descriptors D_8013FEE0, which keep a palette record's N64
  * layout (24 bytes, data a u32 window address). */
 typedef struct { u32 data; u8 pad[0x14]; } tCarModel;
-#else
-typedef struct { u8 *data; u8 pad[0x14]; } tCarModel;
-#endif
 
 extern s32 state_word_a;
 extern s32 gameplay_mode;            /* gRace */
 extern s8 D_80156994;
 extern s8 D_8014978C;            /* gTrackNum */
 extern f32 D_801543CC;           /* gModelTime */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];    /* gGameCar */
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_VISUALS(i) player_array[i].visuals
-#endif
 extern tCarParts D_80139320[];   /* gCarParts */
 extern tCarModel D_8013FEF4[];
 extern tUVPair D_8011B58C, D_8011B5AC;

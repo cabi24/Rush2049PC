@@ -42,9 +42,6 @@ typedef struct TextState { void *word0; char **fixed; void *word8; CtIdx *indice
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 typedef struct CtRect { s32 f0; s32 y; s32 w; s32 h; s32 x; s32 f20; } CtRect;          /* 24 B */
 typedef struct PakSlot { s8 b0, b1, b2, b3, b4, b5, b6; u8 rest[765]; } PakSlot;          /* 772 B */
 typedef struct ContData { s8 b0; u8 rest[15]; } ContData;                                   /* 16 B */
@@ -63,12 +60,7 @@ extern s16 D_8014A100[];                         /* gControlFirst[p] */
 extern s16 D_8014A0F8[];                         /* gControlSelect[p] */
 extern s16 D_8014A10A;                           /* gControlMenuSize */
 extern PakSlot D_80144030[];
-#ifndef TARGET_PC
-/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) s32 D_80118E20[2];   /* gJust (TB_SetJust pair): tentative definition, as credits_scroll_grp/gr3_d.c, countdown,
+extern s32 D_80118E20[2];   /* gJust (TB_SetJust pair): tentative definition, as credits_scroll_grp/gr3_d.c, countdown,
                         coins: the two TB_SetJust stores share one `lui at` only with gJust defined in the group's
                         program; in the shadow unit gr3_d.c is the one definition (unit_overrides extern_data) */
 extern char D_80120240[];                        /* "CONTROLLER %d %s" */

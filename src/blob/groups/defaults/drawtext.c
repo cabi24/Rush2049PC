@@ -15,7 +15,6 @@ typedef struct anon_version_type_10 {
     unsigned char version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth;
     unsigned char spacing, nonProp, kern, numTextures, numChars, pad16[3];
 } anon_version_type_10;
-#ifdef TARGET_PC
 /* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c);
  * FONT_KERNS reads it as a pointer. */
 typedef struct anon_kerns_value_c {
@@ -24,22 +23,10 @@ typedef struct anon_kerns_value_c {
     signed short pad12;
 } anon_kerns_value_c;
 #define FONT_KERNS(k) ((unsigned char *)PC_N64P(k))
-#else
-typedef struct anon_kerns_value_c {
-    unsigned char *kerns;
-    unsigned char value, texIdx, uls, ult, lrs, lrt;
-    signed short pad12;
-} anon_kerns_value_c;
-#define FONT_KERNS(k) k
-#endif
 typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
-#ifdef TARGET_PC
 /* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
  * 32-bit RDRAM-window address. */
 #define TXHD_IMAGE unsigned int image
-#else
-#define TXHD_IMAGE void *image
-#endif
 typedef struct tTexture {
     unsigned char pad00[16];
     unsigned short width;           /* 0x10 */

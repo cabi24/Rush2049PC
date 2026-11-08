@@ -32,37 +32,15 @@ typedef struct MODELDAT {
     u8 pad7F8[2056 - 2040];
 } MODELDAT;
 typedef struct CAR_DATA {
-#ifdef TARGET_PC
     u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x359 - 0x308];
-#else
-    u8 pad0[857];
-#endif
     S08 state;              /* 857 */
-#ifdef TARGET_PC
     u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
-#else
-    u8 pad35A[952 - 858];
-#endif
 } CAR_DATA;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[6];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA D_80152818[6];
-#define PC_CAR_STATE(i) D_80152818[i].state
-#endif
 void math_utility(void *src, void *dst);
 void sound_position_set(F32 *rv, void *uvs);
 
-#ifndef TARGET_PC
-/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
-#define PC_RACE_CARS 6
-#endif
 void battle_mode_setup(F32 time) {
     MODELDAT *m;
     S32 i;

@@ -12,29 +12,16 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
-#ifdef TARGET_PC
 typedef struct Tgt { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; u8 **blk; } Tgt;
-#else
-typedef struct Tgt { u8 pad[0x2C]; u8 **blk; } Tgt;
-#endif
 typedef struct Rec { u8 b0; u8 idx; u8 pad2[0x46]; Tgt **tgt; } Rec;
-#ifdef TARGET_PC
 typedef struct Car { u8 pad[264]; f32 dist; u8 pad2[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad2_308[0x380 - 0x308]; void *input; u8 pad2_384[0x3B8 - 0x384]; } Car;
-#else
-typedef struct Car { u8 pad[264]; f32 dist; u8 pad2[952 - 268]; } Car;
-#endif
 extern s16 active_player_count;
 extern s8 D_8014978C;
 extern s8 D_80152570;
 extern Rec D_8014A118[];
 extern void *D_80146150[];
 extern u8 D_80150F88[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 void func_800CD8EC(void **arg0, u8 arg1);
 
 void place_cars_in_order(void)

@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,7 +3688,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: the controller/pak records D_80144030 have their host layout (paksys' PakRecord, 0x310 bytes, docs/port/
  * POINTERS.md 9); the m2c body adds arg0 * 0x304 to an N64 address in D_80144030[0]. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -3711,8 +3697,3 @@ typedef struct { u8 changed; s8 inserted, b2, b3, b4, damaged, b6, b7, b8, b9, b
 s32 func_800A3598(s32 arg0) {
     return ((PcPak *) &D_80144030)[arg0].FreeSpace;
 }
-#else
-s32 func_800A3598(s32 arg0) {
-    return M2C_FIELD(((arg0 * 0x304) + 0x80140000), s32 *, 0x40A8);
-}
-#endif

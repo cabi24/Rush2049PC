@@ -64,11 +64,7 @@ typedef struct CAR_DATA {
     f32 dr_uvs[3][3];       /* 44 */
     u8 pad50[0xEF - 80];
     s8 state;
-#ifdef TARGET_PC
     u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-#else
-    u8 padF0[952 - 0xF0];
-#endif
 } CAR_DATA;
 typedef struct { s32 x, y; } Pos;
 
@@ -78,19 +74,8 @@ extern s8 D_80156CE8;
 extern s8 D_80140A04;
 extern s32 state_word_a, D_8011617C, D_80116180;
 extern Pos D_80116028[][4];
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CAR_FINISHED(i) D_80152818[i].state
-#endif
 extern void Input_ApplyPadConfig(void *);
 extern s32 func_800CF604(s16);
 extern void func_800A61B0(f32 *, f32 *, f32 *);

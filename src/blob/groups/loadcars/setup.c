@@ -21,26 +21,14 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 
 typedef struct Owner Owner;
-#ifdef TARGET_PC
 /* PC: the car palette descriptors D_8013FEE0 have a WAD palette record's (PLHD) N64 layout, which the model draw
  * reads them through: data is a u32 window address (a heap block). docs/port/LOADERS.md */
 #define DESC_PTR(name) u32 name
-#else
-#define DESC_PTR(name) void *name
-#endif
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 typedef struct Link { u8 state; u8 kind; u8 payload[3]; u8 other5[3]; } Link;
 
 extern Slot24 D_8013FEE0[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link D_80153E88[];
-#define PC_LINK_CAR(i) D_80153E88[i].kind
-#define PC_LINK_COLOR0(i) D_80153E88[i].payload[0]
-#define PC_LINK_COLOR1(i) D_80153E88[i].payload[1]
-#define PC_LINK_COLOR2(i) D_80153E88[i].payload[2]
-#endif
 extern u32 audio_output_setup(Owner *);
 extern void *AllocateMemoryHeap(int, int);
 

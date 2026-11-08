@@ -9,10 +9,6 @@
  */
 typedef unsigned char u8;
 typedef int s32;
-#ifndef TARGET_PC
-typedef s32 intptr_t;
-#endif
-#ifdef TARGET_PC
 /* PC: the nodes are audio_fade_control's (group.c): InsertLLE links them through two pointers, prev and next, and
  * the key is the node's entry pointer (+0x18), which the caller passes (docs/port/LAYOUT.md 5). */
 typedef struct Node {
@@ -22,15 +18,6 @@ typedef struct Node {
     u8 pad[3];
     intptr_t key;
 } Node;
-#else
-typedef struct Node {
-    s32 word0;
-    struct Node *next;
-    u8 kind;
-    u8 pad[3];
-    s32 key;
-} Node;
-#endif
 typedef struct { s32 words[3]; Node *head; } List;
 extern volatile List D_80146160;
 Node *func_800956BC(intptr_t key) {

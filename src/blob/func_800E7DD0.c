@@ -23,24 +23,14 @@ extern s16 active_player_count;
 extern s32 D_80143F10;
 extern f32 D_801525F4;
 extern f32 D_8002EB94;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_8014A250[];
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].unk7CC
-#define PC_MODEL_SPEED(i) D_8014A250[i].unk3F0
-#define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
-#define PC_MODEL_SLOT(i) D_8014A250[i].unk7C6
-#endif
 extern s16 D_80152734;
 extern s16 D_8015273A;
-#ifdef TARGET_PC
 /* D_8015273A is the low half of gStuntsDone (D_80152738, s32), which camera_scene_manager sets to 1 when the stunt
    round's time is up and the cars have settled: on the N64, big-endian, its halfword at +2. On a little-endian host
    that halfword is the high one, always 0, and a stunt round never ended (docs/port/QA.md 4). */
 extern s32 D_80152738;
 #define D_8015273A ((s16)D_80152738)
-#endif
 extern s32 gameplay_mode;
 extern s8 D_80152744;
 

@@ -27,7 +27,6 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     uintptr_t word0;
@@ -45,49 +44,17 @@ typedef struct Blit {
     intptr_t state;     /* AnimFunc */
     s32 data;
 } Blit;
-#else
-typedef struct Blit {
-    u32 word0;
-    void *rgba;
-    u32 word8;
-    u16 half12;
-    s16 x, y;
-    u16 half18;
-    s16 w, h;
-    u8 alpha, byte25;
-    s8 hidden;
-    u8 byte27;
-    s16 left, right, top, bottom;
-    u32 word36;
-    s32 state;
-    s32 data;
-} Blit;
-#endif
 
 typedef struct Model { u8 pad0[1990]; s16 slot; u8 pad7C8[2056 - 1992]; } Model;   /* model[] 0x808 B */
-#ifdef TARGET_PC
 typedef struct Car { u8 pad0[239]; s8 f239; u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384]; } Car;
-#else
-typedef struct Car { u8 pad0[239]; s8 f239; u8 padF0[952 - 240]; } Car;
-#endif
 typedef struct Pos { s32 x, y; } Pos;
 
 extern OSMesgQueue D_801461D0;
 extern s16 D_80151AD0;
 #define gNumWindows D_80151AD0
 extern s8 D_8015F72C;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].f239
-#endif
 extern u8 D_80116187;
 extern Pos D_80115A68[][4];
 

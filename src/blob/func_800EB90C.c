@@ -42,20 +42,12 @@ typedef struct {
     Mat3 uvs;           /* 80 */
     u8 other116[128];
     s32 node;           /* 244 */
-#ifdef TARGET_PC
     u8 other248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 other248_308[0x35B - 0x308];
-#else
-    u8 other248[611];
-#endif
     s8 car;             /* 859 */
     s8 slot;            /* 860 */
     s8 view;            /* 861 */
     s8 view2;           /* 862 */
-#ifdef TARGET_PC
     u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
-#else
-    u8 other863[89];
-#endif
 } Object;               /* 952 */
 typedef struct {
     u8 other0[1484];
@@ -80,11 +72,7 @@ typedef struct {
     u8 target;          /* 148 */
     u8 other149[3];
 } Camera;               /* 152 */
-#ifdef TARGET_PC
 typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;   /* the profile, pc_prelude.h */
-#else
-typedef struct { u8 other0[44]; s32 resource; } HObject;
-#endif
 typedef struct { HObject *object; } Handle;
 typedef struct {
     u8 index;
@@ -95,50 +83,23 @@ typedef struct {
     u8 other56[16];
     Handle *handle;     /* 72 */
 } Player76;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; Camera *cam; f32 scale, w; unsigned short model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Node68;
-#else
-typedef struct { u8 other0[8]; Camera *cam; u8 other12[56]; } Node68;
-#endif
 extern s32 gameplay_mode;
 extern s32 D_8015697C, D_8015699C;
 extern s32 state_word_a;
 extern volatile s16 D_801543CA;
 extern s16 gNumWindows;
 extern f32 D_801543CC;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Object D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CAR_NODE(i) D_80152818[i].node
-#define PC_CAR_POS(i) D_80152818[i].pos
-#define PC_CAR_UVS50(i) D_80152818[i].uvs
-#define PC_CAR_VIEW(i) D_80152818[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_ACTIVE(i) D_8014A250[i].active
-#define PC_MODEL_HIDE_CAR(i) D_8014A250[i].f2015
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].f1996
-#endif
 extern Camera gCamera[];
 extern Player76 input_rec0[];
 extern Vec3 D_801526A8[];
 extern f32 D_801106A4[], D_801106B4[];
-#ifdef TARGET_PC
 /* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7), and
  * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */
 #define RACE_CARS PC_RACE_CARS
-#else
-extern s8 D_80110680[];
-#define PC_FINISH_CAM(i) D_80110680[i]
-#define RACE_CARS 6
-#endif
 extern s8 D_801525F8[];
 extern f32 D_80152680[];
 extern Node68 D_8012E700[];

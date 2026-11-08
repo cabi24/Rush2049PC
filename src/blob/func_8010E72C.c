@@ -18,7 +18,6 @@
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual {
     struct Visual *next;    /* 0x00 */
@@ -30,20 +29,7 @@ typedef struct Visual {
     f32 timeStamp;          /* 0x10 */
     void *func;             /* 0x14 */
 } Visual;
-#else
-typedef struct Visual {
-    struct Visual *next;    /* 0x00 */
-    s16 index;              /* 0x04 */
-    s16 objnum;             /* 0x06 */
-    s16 slot;               /* 0x08 */
-    u8 padA[2];
-    void *data;             /* 0x0C */
-    f32 timeStamp;          /* 0x10 */
-    void *func;             /* 0x14 */
-} Visual;
-#endif
 
-#ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
  * (docs/port/POINTERS.md 10). */
@@ -60,15 +46,6 @@ typedef struct TargInfo {
     s32 w20, w24, w28;
     f32 f2C;
 } TargInfo;
-#else
-typedef struct TargInfo {
-    u8 pad0[12];
-    void *visFunc;          /* 0x0C */
-    u8 pad10[12];
-    s32 sound;              /* 0x1C */
-    u8 pad20[16];
-} TargInfo;                 /* 0x30 */
-#endif
 
 typedef struct Target {
     u8 pad0[4];
@@ -87,11 +64,7 @@ typedef struct Target {
 typedef struct GameCar {
     u8 pad0[20];
     f32 RWV[3];             /* 0x14 */
-#ifdef TARGET_PC
     u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
-#else
-    u8 pad20[920];
-#endif
 } GameCar;                  /* 0x3B8 */
 
 typedef struct MATRIX {
@@ -99,20 +72,10 @@ typedef struct MATRIX {
     f32 pos[3];
 } MATRIX;
 
-#ifdef TARGET_PC
 #define N64P(x) ((void *)PC_N64P(x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern TargInfo D_80117530[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern Visual *D_801391F0;
 
 Visual *func_80090284(void);

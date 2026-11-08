@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2265,11 +2252,7 @@ extern s32 D_8013C098;
 extern s32 D_8013C128;
 extern s32 D_8013C228;
 extern s32 D_8013C234;
-#ifdef TARGET_PC
 extern void *D_8013C238[50];   /* gBlastMats: blast.c's tBlastMat, one matrix pointer an entry */
-#else
-extern s32 D_8013C238;
-#endif
 extern s32 D_8013C300;
 extern s32 D_8013C304;
 extern s32 D_8013C308;
@@ -2841,22 +2824,13 @@ extern s8 D_80154640;
 extern f32 D_80154644;
 extern s32 D_80154648;
 extern s32 D_80154658;
-#ifdef TARGET_PC
 /* tables of words, through a byte pointer: on the PC the blasts and their rings, pc_blasts and pc_blast_rings,
  * PC_MAX_LINKS long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6), declared whole (OPTIMIZED.md
  * 2.7); InitBlasts sets up all PC_MAX_LINKS of them, on the N64 the 6 it has */
 #define D_80154660 (*(s32 *)PC_BLASTS)
-#else
-extern s32 D_80154660;
-#define PC_MAX_LINKS 6
-#endif
 extern f32 D_80154FC0;
 extern s32 D_80154FD0;
-#ifdef TARGET_PC
 #define D_80154FD8 (*(s32 *)PC_BLAST_RINGS)
-#else
-extern s32 D_80154FD8;
-#endif
 extern s8 D_80155140;
 extern s32 D_80155148;
 extern s32 D_80155178;
@@ -3817,15 +3791,10 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* The 50 blast matrices func_800A7D6C hands out are kept as pointers, 8 bytes an entry on the PC
  * (docs/port/CASTS.md). */
 #define BLAST_MAT(p, i) (((void **) (p))[i])
 #define BLAST_MAT_PTR
-#else
-#define BLAST_MAT(p, i) *((s32 *) (p + i * 4))
-#define BLAST_MAT_PTR (s32)
-#endif
 void camera_smooth_lerp(void)
 {
   s16 i;

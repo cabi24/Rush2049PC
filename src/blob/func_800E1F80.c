@@ -20,10 +20,6 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct Push {
     u16 pad0;
@@ -37,10 +33,7 @@ typedef struct Surface {
     u8 pad4[20];
 } Surface;
 
-#ifdef TARGET_PC
 enum n64p_Push { n64p_Push_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Car {
     u8 pad0[100];
     f32 wheelForce[4][3];   /* +100 */
@@ -62,37 +55,9 @@ typedef struct Car {
     u8 pad1592[16];
     enum n64p_Push push;             /* +1608 */
 } Car;
-#else
-typedef struct Car {
-    u8 pad0[100];
-    f32 wheelForce[4][3];   /* +100 */
-    u8 pad148[144];
-    f32 force[3];           /* +292 */
-    u8 pad304[240];
-    f32 uv[3];              /* +544 */
-    f32 torque[3];          /* +556 */
-    u8 pad568[180];
-    f32 bodyUV[9];          /* +748 */
-    u8 pad784[656];
-    u16 surface[4];         /* +1440 */
-    u8 pad1448[24];
-    f32 mass;               /* +1472 */
-    u8 pad1476[40];
-    f32 tireLoad[4];        /* +1516 */
-    u8 pad1532[56];
-    f32 scale;              /* +1588 */
-    u8 pad1592[16];
-    Push *push;             /* +1608 */
-} Car;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Push: (Push *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 
 extern Surface *D_801497F8;
 extern void func_800A61B0(f32 *in, f32 *out, f32 *uv);

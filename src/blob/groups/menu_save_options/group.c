@@ -43,20 +43,11 @@ typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsign
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
 #define NULL ((void *)0)
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
-#ifdef TARGET_PC
 /* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
  * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
  * it keeps its N64 layout; its sample buffer `start` is a window address. */
 #define SLOT_DATA PROFILE_OFS(44)   /* SaveSlot.data */
 #define N64W(x) PC_N64W(x)
-#else
-#define SLOT_DATA 44
-#define PSF_OFS(n) n
-#define PROFILE_OFS(n) n
-#define GHOST_OFS(n) n
-#define N64W(x) x
-typedef s32 intptr_t;
-#endif
 typedef void **Handle;
 
 void *memset(void *, s32, u32);
@@ -356,18 +347,12 @@ void func_800CD058(Handle h) {
 
 typedef struct { char c[9]; } Name9;
 extern Handle D_8013C128[][16];
-#ifdef TARGET_PC
 /* the profile records (save.c's SaveSlot, 64 bytes; one-element arrays, so D_8013E5D8[pak][slot] is a pointer as
  * the N64's byte array is) and the four tDLLists (24 bytes) */
 typedef struct { void *next, *prev; Handle fileh; u8 pad0C[0x2C - 0x0C]; Handle data; } ProfileRec;
 extern ProfileRec D_8013E5D8[][16][1];
 extern u8 D_8012E6D8[];
 extern u8 D_80144D60[][24];
-#else
-extern u8 D_8013E5D8[][16][48];
-extern u8 D_8012E6D8[];
-extern u8 D_80144D60[][16];
-#endif
 extern s32 D_8002E8E8[];
 extern char D_801211F8[], D_801211DC[], D_801211E0[], D_80121204[];
 
@@ -389,12 +374,8 @@ Handle func_800C7EC0(s32 pak, s32 slot) {   /* deleted static at 0x800C7EC0: GC 
 }
 
 /* GC save.c CreatePlayer(int pak, unsigned char *name) */
-#ifdef TARGET_PC
 /* A profile keeps its handle's N64 address: the handle's own (pc_n64_identity, pc_prelude.h; LOCKSTEP.md 5). */
 #define N64A(x) pc_n64_identity(x)
-#else
-#define N64A(x) (u32)x
-#endif
 void **CreatePlayer(s32 pak, u8 *name) {
     Handle player;
     Handle before;
@@ -545,11 +526,7 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
-#ifdef TARGET_PC
     u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-#else
-    u8 *start;                    /* 0x4C */
-#endif
     u32 offset;                   /* 0x50 */
     u32 size;                     /* 0x54 */
 } GhostHeader;
@@ -611,15 +588,10 @@ s32 draw_ui_element(Ghost **ghosth, s32 data, s32 repair) {
  * IPA: decode s0, ghosth s1, select s3 ===== */
 void menu_transition(Ghost **ghosth);            /* frees the ghost data (GC _FreeGhostData-like) */
 void DecodeGhost(Ghost **ghosth);                  /* GC _DecodeGhost */
-#ifdef TARGET_PC
 /* The heap's resize takes the handle's 32-bit N64 address (its definition's u32): N64A0(p) is a window pointer's
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 void menu_item_select(u32 headerh, s32 offset);
 #define N64A0(x) PC_N64A(x)
-#else
-void menu_item_select(GhostHeader **headerh, s32 offset);
-#define N64A0(x) x
-#endif
 void func_800CB9D0(void *h);
 
 s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
@@ -660,7 +632,6 @@ s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select) {
 /* ===== func_800C813C = GC save.c SaveServer(forceUpdate, rumbleOnly) ===== */
 extern char D_801211BC[];      /* "RUSH2049" */
 extern char D_801211C8[];      /* "P" */
-#ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -674,15 +645,6 @@ typedef struct PakChannel {
     PcPfs pfs;
     u8 pad74[0x304 - 0x74];
 } PakChannel;
-#else
-typedef struct PakChannel {
-    s8 present;                /* 0x00 */
-    s8 state;                  /* 0x01 */
-    u8 unk02[4];
-    s8 busy;                   /* 0x06 */
-    u8 unk07[0x304 - 7];
-} PakChannel;
-#endif
 extern PakChannel D_80144030[];
 /* pak-TU channel getters (locked singles, re-typed on the D_80144030 record so the inlined copies share one
  * address CSE in SaveServer; each still compiles to its locked body) */
@@ -698,14 +660,10 @@ s8 func_80094FC4(s32 pak) {
     return D_80144030[pak].busy;
 }
 extern u8 D_80152020[];        /* GC gGhostFiles (list head at +8) */
-#ifdef TARGET_PC
 void track_render_process(s32 forceUpdate, s32 rumbleOnly);
 /* SaveServer calls it before touching a0/a1, so on the N64 it receives SaveServer's own forceUpdate and
  * rumbleOnly; the decomp's call passes nothing (docs/port/PROTOTYPES.md). */
 #define track_render_process() track_render_process(forceUpdate, rumbleOnly)
-#else
-void track_render_process(void);
-#endif
                  /* GC PS_PakServer */
 s32 func_800950AC(char *, char *, s32);          /* strncmp */
 Handle func_800C7200(void);                      /* GC _NewGhost */

@@ -60,32 +60,17 @@ void best_times_display(s16 idx)
 
 typedef unsigned int u32;
 typedef struct State20 {s32 handle;float a,b,c,d;} State20;
-#ifdef TARGET_PC
 /* PC: the engine sound table D_8010FD80 (ROM data) with the fields func_800E0050 reads (mode.c's EngTbl): the loader
  * swaps each element by this declaration, and as rest[28] the rev points and levels stayed big-endian, which made
  * every engine's level 0 (docs/port/AUDIO.md 9). */
 typedef struct Definition32 {s32 object;unsigned short r0,r1,b0,b1,b2;u8 padE[2];f32 p0,p1,p2;u8 pad1C[4];} Definition32;
-#else
-typedef struct Definition32 {s32 object;u8 rest[28];} Definition32;
-#endif
 typedef struct Definitions64 {Definition32 item[2];} Definitions64;
 typedef struct Player84 {Definitions64 *definition;State20 pair[3];State20 extra;} Player84;
 typedef struct States60 {State20 values[3];} States60;
 typedef struct Vehicle2056 {u8 prefix[12];s8 category;u8 gap13[1587];s8 disabled;u8 gap1601[389];s16 player;u8 gap1992[4];s8 mode;u8 tail[59];} Vehicle2056;
-#ifdef TARGET_PC
 /* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
 extern s8 D_8010FFC0;
-#else
-extern s8 D_8010FFC0,D_8010FFC4[];
-#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
-#endif
 extern Definitions64 D_8010FD80[];
-#ifndef TARGET_PC
-extern Player84 D_80140420[];
-extern State20 D_80140640[];
-#define PC_ENGINE_SOUND(i) &D_80140420[i]
-#define PC_SCREECH(i) &D_80140640[i]
-#endif
 extern States60 D_801406C0[];
 extern s32 D_801407E0[],D_801407C0[];
 extern char D_801141B0[];

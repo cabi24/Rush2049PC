@@ -2,19 +2,11 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct {
     u8 pad00[4];
     s32 unk04;
-#ifdef TARGET_PC
     u8 pad08[0x48 - 0x8]; void *ref;
-#else
-    u8 pad08[0x4C - 8];
-#endif
 } InputRecord;
 
 extern s16 active_player_count;

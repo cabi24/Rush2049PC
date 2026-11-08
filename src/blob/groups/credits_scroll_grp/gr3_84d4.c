@@ -27,11 +27,7 @@ typedef struct { s32 x, y; } Pos;
 typedef struct Car {
     u8 pad0[239];
     s8 place_locked;
-#ifdef TARGET_PC
     u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-#else
-    u8 padF0[952 - 240];
-#endif
 } Car;
 
 extern OSMesgQueue D_801461D0;
@@ -41,12 +37,7 @@ extern s16 gNumWindows;
 extern Pair D_80118E20;
 extern f32 D_80142740[];
 extern f32 D_80142770[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].place_locked
-#endif
 extern Pos D_80115EA8[][4];
 extern s32 D_801170FC;
 extern volatile f32 D_8002EB94;

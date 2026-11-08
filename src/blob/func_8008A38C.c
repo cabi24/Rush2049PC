@@ -3,10 +3,6 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct { u8 a; u8 b; u8 c; u8 d; } S;
 extern S D_8011EACC;
 extern intptr_t D_8012E6D0;

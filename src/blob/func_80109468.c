@@ -21,21 +21,12 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
  * address of the texels. */
 #define TXHD_DATA u32 data
 #define TEXELS(tex) ((u8 *)PC_N64P((tex)->data))
-#else
-#define TXHD_DATA u8 *data
-#define TEXELS(tex) tex->data
-#endif
 typedef struct TexDef {
     /* 0x00 */ char name[16];
     /* 0x10 */ u16 width, height;

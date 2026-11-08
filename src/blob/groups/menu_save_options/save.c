@@ -19,16 +19,8 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 
 typedef struct SaveData {
     char pad0[13];
@@ -36,11 +28,7 @@ typedef struct SaveData {
 } SaveData; /* 0x810 */
 
 typedef struct SaveSlot {
-#ifdef TARGET_PC
     void *next; void *prev; void *fileh; char pad0_C[0x14 - 0xC];
-#else
-    char pad0[20];
-#endif
     char name[24];
     SaveData **data;
 } SaveSlot; /* 0x30 */
@@ -53,7 +41,6 @@ typedef struct ListHead {   /* tDLList: the head and tail are pointers (audio_vo
     intptr_t unkC;
 } ListHead;
 
-#ifdef TARGET_PC
 typedef struct Record {     /* a ghost (menu_save_options' Ghost), 64 bytes on the PC (docs/port/POINTERS.md 9.10) */
     void *ll;
     void **fileh;
@@ -61,11 +48,6 @@ typedef struct Record {     /* a ghost (menu_save_options' Ghost), 64 bytes on t
     void **datah;
     void **header;
 } Record;
-#else
-typedef struct Record {
-    char pad[44];
-} Record;
-#endif
 
 extern SaveSlot *D_80146150[4];
 extern SaveSlot D_801391F8[4];

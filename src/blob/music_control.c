@@ -24,39 +24,20 @@ typedef struct tVisual {
     s16 objnum;                 /* 0x06 */
     s16 slot;                   /* 0x08 */
     u8 pad0A[2];
-#ifdef TARGET_PC
     u32 data;                   /* 0x0C: flags (a u32 on the PC) */
-#else
-    void *data;                 /* 0x0C */
-#endif
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
-#ifdef TARGET_PC
 /* PC: the view counts the car's visuals from 0xF8, one before the first (+0x110). Visuals are 0x20 bytes on
  * the PC, so that fake one can't stay in place: the PC view starts at the first, and VISUAL(n) is n - 1. */
 typedef struct tCarData { u8 pad0[0x110]; tVisual visuals[21]; u8 pad308[0x380 - 0x308]; void *input; u8 pad308_384[0x3B8 - 0x384]; } tCarData;
 #define VISUAL(n) ((n) - 1)
-#else
-typedef struct tCarData { u8 pad0[0xF8]; tVisual visuals[22]; u8 pad308[952 - 0x308]; } tCarData;
-#define VISUAL(n) n
-#endif
 typedef struct tModelData { u8 pad0[0x7C8]; s16 in_game; u8 pad7CA[0x808 - 0x7CA]; } tModelData;
 typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; } tPoly;
 typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];         /* gGameCar */
-#define PC_CAR_VISUALS(i) player_array[i].visuals
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];         /* model */
-#define PC_MODEL_ACTIVE(i) D_8014A250[i].in_game
-#endif
 extern f32 D_801543CC;                  /* gModelTime */
 extern tRGBA D_8011AD8C;                /* gShadowColor */
 extern f32 D_8011AD90[4][3];            /* gDummyVtx */
@@ -68,12 +49,7 @@ extern s8 gCarTeam[];                 /* gCarTeam */
 extern s32 D_8014A110;                  /* gRace */
 extern s16 D_80151AD0;                  /* gNumWindows */
 extern s16 active_player_count;         /* gNumPlayers */
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tLink D_80153E88[];              /* gLink */
-#define PC_LINK_OWNER(i) D_80153E88[i].owner
-#endif
 
 void music_seq_load(s16 slot, s16 camlink, int for_game);          /* CreateCar */
 void audio_frame_update(s16 slot);                                  /* StartCar */
@@ -139,10 +115,6 @@ static void StartArrow(s16 slot)
     }
 }
 
-#ifndef TARGET_PC
-/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
-#define PC_RACE_CARS 6
-#endif
 void music_control(void)
 {
     s16 i;

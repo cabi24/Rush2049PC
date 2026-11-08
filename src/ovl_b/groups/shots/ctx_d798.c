@@ -32,35 +32,15 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct Player {
     u8 unknown000[8]; f32 position[3];
-#ifdef TARGET_PC
     u8 unknown014[0x110 - 0x14]; struct pc_visual visuals[21]; s8 active;
-#else
-    u8 unknown014[756]; s8 active;
-#endif
     u8 unknown309[80]; s8 blocked;
     u8 unknown35A; s8 index;
-#ifdef TARGET_PC
     u8 unknown35C[0x380 - 0x35C]; void *input; s8 kind;
-#else
-    u8 unknown35C[40]; s8 kind;
-#endif
     u8 unknown385[51];
 } Player;
 typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CARS D_80152818
-#define PC_CARS_END(n) D_80152818 + n
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Vehicle D_8014A250[];
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].disabled
-#endif
 extern volatile s16 D_801543CA;
 extern void func_800A61B0(f32 *,f32 *,f32 *);
 extern f32 func_8008C768(f32,f32);

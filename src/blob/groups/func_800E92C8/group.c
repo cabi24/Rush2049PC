@@ -17,10 +17,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -450,20 +446,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3729,11 +3716,7 @@ typedef s64 M2C_UNK64;
  * func_800E95DC = arcade steady_move_cam, rebuilt for N64 per-player legs.
  */
 /* group members */
-#ifdef TARGET_PC
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;   /* the profile, pc_prelude.h */
-#else
-typedef struct HN { u8 p[0x2C]; s32 f2c; } HN;
-#endif
 typedef struct Q { u8 p[0x48]; HN **h; } Q;
 typedef struct Cr {
     u8 p0[8];
@@ -3743,21 +3726,12 @@ typedef struct Cr {
     f32 m[9];
     u8 p50[0x58];
     f32 f_a8, f_ac;
-#ifdef TARGET_PC
     /* PC: +0xF4 is the car's scene-node handle, an s32; s_f6 is its low half, the second s16 on the N64 and the
      * first on a little-endian host (docs/port/ENDIAN.md 3.1). */
     u8 pb0[0x44];
     s16 s_f6;
     s16 s_f6_high;
-#else
-    u8 pb0[0x46];
-    s16 s_f6;
-#endif
-#ifdef TARGET_PC
     u8 pf8[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 pf8_308[0x35C - 0x308];
-#else
-    u8 pf8[0x264];
-#endif
     s8 player;
     s8 mode;
     s8 mode2;
@@ -3767,13 +3741,9 @@ typedef struct Cr {
 void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff);
 void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs);
 #define MAX_VEL 100.0f
-#ifdef TARGET_PC
 /* game.frame_rate 60: func_800EA108 moves the camera a gain g of the way to its target each frame of two retraces; a
  * frame of one keeps (1 - g)^(1/2) of the way (pc_game_fps.h, docs/port/FRAMERATE.md 7). */
 #define PC_GAIN(g) (pc_fps60 ? 1.0f - pc_fps_filter(1.0f - (g)) : (g))
-#else
-#define PC_GAIN(g) g
-#endif
 void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 void func_800EA2DC(Cr *arg0, void *arg1, void *arg2, intptr_t arg3);
 

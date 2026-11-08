@@ -35,10 +35,6 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
@@ -59,54 +55,27 @@ typedef struct tVisual {
     s16 objnum;                 /* 0x06 */
     s16 slot;                   /* 0x08 */
     u8 pad0A[2];
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     u32 data;                   /* 0x0C */
-#else
-    void *data;                 /* 0x0C */
-#endif
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
-#ifdef TARGET_PC
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
-#else
-typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
-#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x808 - 0x641]; } tModelData;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInstance { unsigned int flags, w4; tUVMatrix *mat; float scale; float w; u16 index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
-#else
-typedef struct ObjInstance { unsigned int flags; char pad4[4]; tUVMatrix *mat; float scale; float w; u16 index; char pad16[0x26]; unsigned int color; unsigned int envcolor; } ObjInstance;
-#endif
 
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;         /* gFrameSeconds */
 extern f32 D_801543CC;                  /* gModelTime */
-#ifdef TARGET_PC
 /* On the PC the blasts and their rings are pc_blasts and pc_blast_rings, PC_MAX_LINKS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 6), with these views' MAT3 field names. */
 #define D_80154660 pc_blasts
 #define D_80154FD8 pc_blast_rings
-#else
-extern tBlastStruct D_80154660[];       /* gBlastObjs */
-extern tBlastRingStruct D_80154FD8[];   /* gBlastRingObjs */
-#endif
 extern tBlastMat D_8013C238[];          /* gBlastMats */
 extern s16 D_8013C094;                  /* gBlastMatCnt */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];         /* gGameCar */
-#define PC_CAR_POS(i) player_array[i].dr_pos
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];         /* model */
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
-#endif
 extern ObjInstance D_8012E700[];        /* ObjInstanceList */
 extern u16 D_801427C0[];                /* gObjList */
 extern float D_8011418C[4][3];          /* unitmatrix */
@@ -263,13 +232,9 @@ static void StartNewBlastRing(s16 slot)
     }
 }
 
-#ifdef TARGET_PC
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a blast on no car steps its animation once a frame, the N64's 30 a
  * second: at 60 it steps on the frames that complete a 30 Hz frame (pc_game_fps.h). */
 #define PC_EACH30_IF(c) ((c) && (!pc_fps60 || pc_frame_steps))
-#else
-#define PC_EACH30_IF(c) c
-#endif
 /* AnimateBlast */
 void entity_physics_update(tVisual *v, s16 op)
 {

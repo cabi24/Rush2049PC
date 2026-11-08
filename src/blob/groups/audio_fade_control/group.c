@@ -27,13 +27,9 @@ extern u32 D_801460F4,D_80110288;
 void func_8009211C(List *,Node *);
 void func_80091FBC(List *,Node *,Node *);
 Node *func_800956BC(Entry *key);
-#ifdef TARGET_PC
 /* PC: an effect start that finds no free entry (AudioSfxInit's, D_801460F4 of them) is counted (--log-voices,
  * port/config/voices.c, docs/port/AUDIO.md 10). */
 #define PC_COUNTED(what, value) (pc_snd_count(what), value)
-#else
-#define PC_COUNTED(what, value) value
-#endif
 void func_800953B4(List *list,Node *node) {
  func_80091FBC(list,node,list->tail);
 }

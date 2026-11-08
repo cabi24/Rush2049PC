@@ -71,7 +71,7 @@ else()
 endif()
 
 # ---------------------------------------------------------------- game code
-# Every C file of the game, compiled for the host with TARGET_PC.
+# Every C file of the game.
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # The functions the N64 decompilation never byte-matched (the "matching ceiling") have their C in nonmatching/
 # (nonmatching/README.md) where no file under src/ defines them. The runtime images' 8-byte stubs (deleted bodies of
@@ -92,7 +92,6 @@ list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
 
 # Compile settings shared by the probe and the real build.
 add_library(game_flags INTERFACE)
-target_compile_definitions(game_flags INTERFACE TARGET_PC)
 # The game defines its own main and these C library functions. Renamed, the game keeps calling its own N64
 # versions, and the host C library (and SDL, GPU drivers) keeps its own.
 foreach(name main memcpy memset memchr strlen strchr sinf cosf)

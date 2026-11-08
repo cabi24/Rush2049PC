@@ -28,10 +28,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct ResSlot {
     /* 0x00 */ u8 unk0;
@@ -43,15 +39,10 @@ typedef struct ResSlot {
 } ResSlot; /* 0x14 */
 
 extern ResSlot gWaveInstance[];
-#ifdef TARGET_PC
 /* PurgeableMemory's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 void PurgeableMemory(u32 ptr, s32 dec);
 #define N64A(x) PC_N64A(x)
-#else
-void PurgeableMemory(void *ptr, s32 dec);
-#define N64A(x) x
-#endif
 
 extern s32 D_80149B08;
 void func_80096288(s32 arg0, s32 arg1, s32 arg2)
@@ -117,18 +108,12 @@ typedef struct Bank {
     /* 0xC */ u8 f12;
 } Bank;
 
-#ifdef TARGET_PC
 /* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c).
  * A wave handle points to a heap slot that holds the block's address (PC_SLOT_N64; pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
 #define FONT_SLOT(p) PC_N64A(p)
 #define WAVE_HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
-#else
-typedef struct { u8 *ptr; u8 id; u8 pad[7]; } Entry;
-#define FONT_SLOT(p) p
-#define WAVE_HANDLE_BLOCK(h) *(u8 **)h
-#endif
 typedef struct { s32 first; s32 second; } Pair;
 
 extern Bank *D_801497F0;
@@ -137,14 +122,10 @@ extern s32 D_801497A4;
 extern Entry *D_80149800;
 extern s16 D_80149878[256];
 extern intptr_t D_80149820[];
-#ifdef TARGET_PC
 /* PC: the gTexDefPtrs pairs are {tTexture *, s32}, 16 bytes, as SetupWaveModel declares them. first is the window
  * address of the slot's TXHD records, widened without sign extension. */
 typedef struct { uintptr_t first; s32 second; } TexDefPair;
 #define TEXDEF_PAIR TexDefPair
-#else
-#define TEXDEF_PAIR Pair
-#endif
 extern TEXDEF_PAIR gTexDefPtrs[];
 extern u8 D_80149B60;
 extern u8 D_80149B70;

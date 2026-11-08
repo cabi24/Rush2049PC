@@ -21,10 +21,6 @@ typedef short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct Record {        /* 0x60 per track */
@@ -48,29 +44,17 @@ typedef struct SaveBlock {
 } SaveBlock;
 
 typedef struct Profile {
-#ifdef TARGET_PC
     void *next, *prev;
     void *valid;               /* the pak file handle (pc_prelude.h) */
-#else
-    u8 pad00[8];
-    s32 valid;                 /* 0x08 */
-#endif
     u8 pad0C[0x2C - 0x0C];
     SaveBlock **save;          /* 0x2C */
 } Profile;
 
-#ifdef TARGET_PC
 /* gTotalNames on the PC: every slot is pointer-sized, a name index or a profile handle (docs/port/CASTS.md). */
 typedef struct Owner {         /* 0x3C per track (0x78 on the PC) */
     intptr_t names[2][5];
     Profile **who[5];          /* 0x28 */
 } Owner;
-#else
-typedef struct Owner {         /* 0x3C per track */
-    u8 pad00[0x28];
-    Profile **who[5];          /* 0x28 */
-} Owner;
-#endif
 
 typedef struct Player {        /* 0x4C */
     u8 car;                    /* 0x00 */
@@ -87,11 +71,7 @@ typedef struct CarData {       /* 0x3B8 */
     f32 time;                  /* 0xF0 */
     u8 padF4[0x108 - 0xF4];
     f32 dist;                  /* 0x108 */
-#ifdef TARGET_PC
     u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x380 - 0x308]; void *input; u8 pad10C_384[0x3B8 - 0x384];
-#else
-    u8 pad10C[0x3B8 - 0x10C];
-#endif
 } CarData;
 
 extern s8 D_8014978C;          /* track */
@@ -101,13 +81,7 @@ extern Player D_8014A118[];
 extern Profile *D_80146150[];
 extern u8 D_80144018[];        /* laps driven per player */
 extern f32 D_80149A78[][8];    /* lap times per player */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarData D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CAR_FINISHED(i) D_80152818[i].finished
-#endif
 extern Record D_80150F88[];
 extern Owner gTotalNames[];
 extern s8 D_80151AC0[];

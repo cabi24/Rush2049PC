@@ -45,7 +45,6 @@ typedef struct Object {
 
 typedef s32 (*HitFunc)(void *, void *, void *, s32);
 
-#ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
  * (docs/port/POINTERS.md 10). */
@@ -61,22 +60,12 @@ typedef struct ObjType {
     s32 sound, w20, w24, w28;
     f32 f2C;
 } ObjType;
-#else
-typedef struct ObjType {
-    char pad0[8];
-    void (*onHit)(Object *);
-    char padC[4];
-    s16 shape;
-    char pad12[30];
-} ObjType;
-#endif
 
 typedef struct Node {
     struct Node *next;
     Object *obj;
 } Node;
 
-#ifdef TARGET_PC
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct Pool {
@@ -86,23 +75,11 @@ typedef struct Pool {
     Node *active;
     Node *free;
 } Pool;
-#else
-typedef struct Pool {
-    u8 doubly;
-    char pad1[15];
-    Node *active;
-    Node *free;
-} Pool;
-#endif
 
 typedef struct Car {
     char pad0[8];
     f32 pos[3];
-#ifdef TARGET_PC
     char pad14[0x110 - 0x14]; struct pc_visual visuals[21]; char pad14_308[0x380 - 0x308]; void *input; char pad14_384[0x3B8 - 0x384];
-#else
-    char pad14[0x3B8 - 0x14];
-#endif
 } Car;
 
 typedef struct Tree {
@@ -121,12 +98,7 @@ typedef struct Tree {
 extern s32 D_801174B4;
 extern s32 D_8014A110;
 extern s8 D_80156994;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern Pool D_80151AA8;
 extern ObjType D_80117530[];
 extern HitFunc D_80117518[];

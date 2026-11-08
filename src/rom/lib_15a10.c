@@ -249,12 +249,8 @@ void func_800151D0(u16 *ids)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: the sample directory's 0x1C-byte record, as include/boot_tail_sample_contract.h declares it there. */
 typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; u32 data; u8 descriptor[16]; } SampleRecord;
-#else
-typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]; } SampleRecord;
-#endif
 extern void *func_80014CAC(void *);
 extern int func_8001605C(SampleRecord *, void *);
 extern int func_800162AC(u16, SampleRecord *);
@@ -411,12 +407,8 @@ typedef struct MidiSetup_800178B0 MidiSetup_800178B0;
 typedef struct Arr_800178B0 Arr_800178B0;
 typedef struct PlayPara_800178B0 PlayPara_800178B0;
 extern u32 func_800178B0(Page_800178B0 *, Page_800178B0 *, MidiSetup_800178B0 *, Arr_800178B0 *, PlayPara_800178B0 *);
-#ifdef TARGET_PC
 /* PC: stream and options are pointers passed as integers (options is on the caller's 64-bit stack). */
 int func_8001558C(u16 id, u16 program_id, uintptr_t stream, uintptr_t options, u8 unlocked)
-#else
-int func_8001558C(u16 id, u16 program_id, u32 stream, u32 options, u8 unlocked)
-#endif
 {
     int i;
     ResourceHeader *resource;
@@ -461,13 +453,8 @@ int func_8001558C(u16 id, u16 program_id, u32 stream, u32 options, u8 unlocked)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 extern int func_8001558C(unsigned short, unsigned short, uintptr_t, uintptr_t, unsigned char);
 int func_800156E8(unsigned short group, unsigned short item, uintptr_t context, uintptr_t option)
-#else
-extern int func_8001558C(unsigned short, unsigned short, unsigned int, unsigned int, unsigned char);
-int func_800156E8(unsigned short group, unsigned short item, unsigned int context, unsigned int option)
-#endif
 {
     return func_8001558C(group, item, context, option, 0);
 }

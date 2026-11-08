@@ -21,19 +21,7 @@ typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
 
-/* Pointer-sized integer types (on PC from port/include/pc_prelude.h) */
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
-
-/* What only one build runs (the PC side is in port/include/pc_prelude.h) */
-#ifndef TARGET_PC
-#define PC_SPIN(site)
-#define PC_IDLE()
-#define N64_ONLY(stmt) stmt
-#define PC_ONLY(stmt)
-#endif
+/* Pointer-sized integer types: uintptr_t and intptr_t come from port/include/pc_prelude.h */
 
 /* Volatile types (for hardware registers) */
 typedef volatile u8  vu8;

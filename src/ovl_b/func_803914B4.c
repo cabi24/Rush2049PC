@@ -14,11 +14,7 @@ typedef int s32;
 typedef float f32;
 
 typedef struct Player {
-#ifdef TARGET_PC
     u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x3A3 - 0x384];
-#else
-    u8 unknown000[0x3A3];
-#endif
     s8 remaining;
     u8 unknown3A4[0x14];
 } Player;
@@ -38,12 +34,7 @@ typedef struct Event {
 
 extern void func_800F7E30(s8 row, s8 column, s8 delta);
 extern s8 D_80146130;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR_POINTS(i) D_80152818[i].remaining
-#endif
 extern s8 D_80395ED0;
 extern Event D_80395E70[];
 extern s16 D_80151AD0;

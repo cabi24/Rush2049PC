@@ -105,20 +105,12 @@ void func_80393004(void)
 
 /* Bounded storage views follow only observed offsets; names are descriptive. */
 typedef struct { s8 enabled; unsigned char remaining[15]; } PlayerSlot;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); unsigned char slot; } ListOwner;
-#else
-typedef struct { unsigned char prefix[16]; unsigned char slot; } ListOwner;
-#endif
 typedef struct { ListOwner *owner; } ListObject;
 typedef struct ListNode ListNode;
-#ifdef TARGET_PC
 /* PC: the profile's host layout (pc_prelude.h); flags2C is its save data handle */
 typedef struct { ListNode *next, *prev; ListObject *object; unsigned char unknown0C[8]; char text[24]; void *flags2C; } ListPayload;
-#else
-typedef struct { ListNode *next, *prev; ListObject *object; unsigned char unknown0C[8]; char text[24]; s32 flags2C; } ListPayload;
-#endif
 struct ListNode { ListPayload *payload; };
 typedef struct { s32 prefix[2]; ListNode *head, *tail; } ListRoot;
 extern PlayerSlot D_80156CF0[];
@@ -263,12 +255,8 @@ void func_80394058(void)
 extern s32 D_803BA808;
 extern char D_803BA840[];
 extern ListNode D_80146150[4];
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct { char *prefix[0x2C4 / 4]; const char *label; } ResourceNames;
-#else
-typedef struct { unsigned char prefix[0x2C4]; const char *label; } ResourceNames;
-#endif
 extern ResourceNames *D_8017A4E4;
 extern s32 func_800CD544(ListNode *);
 extern s32 func_800CCEFC(ListNode *);
@@ -511,33 +499,22 @@ extern char *D_803B5EF0[];
 extern f32 D_8011418C[3][3];
 extern volatile u8 D_80140BDC;
 extern char D_803B8C10[], D_803B8C20[], D_803B8C28[], D_803B8C2C[];
-#ifdef TARGET_PC
 extern struct pc_multiblit D_803B6504[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
-#else
-extern unsigned char D_803B6504[];
-#endif
 extern void particle_lifetime_set(void), particle_velocity_set(void);
 extern void *memcpy(void *, const void *, u32);
 extern s32 string_copy_format(char *, s8, s8, s8);
 extern s32 sign_extend_call(s32, f32 (*)[3], s32, u32);
 extern void func_8008E06C(s16, Color4 *);
-#ifdef TARGET_PC
 /* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
-#else
-#define PC_WORD_ALIGNED
-#endif
 extern void model_data_load(s32, s32, s32), model_transform_setup(s32, s32, s32);
 extern void *func_800B24EC(char *, s16 *, s32, s8, s32);
 extern void func_8008D870(s16, void *, s32);
 extern void func_800B5898(f32, f32 (*)[3]), func_800B5940(f32, f32 (*)[3]);
 extern void func_8008B32C(f32 (*)[3], f32 (*)[3], f32);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern void *func_800B3B4C(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-#else
-extern void *func_800B3B4C(s32, s32, s32, s32, s32, s32, s32, s32);
-#endif
 extern void *sound_control(s16, s16, void *, s16);
 
 /* func_80393B3C = initRecordScreen@recordscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/recordscr.c, GC 0x8008077C)

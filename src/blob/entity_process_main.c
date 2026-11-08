@@ -32,15 +32,10 @@ extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
 typedef struct Visual {
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     /* 0x00 */ void *pad0;
     /* 0x04 */ u8 pad4[2];
     /* 0x06 */ s16 objnum;
-#else
-    /* 0x00 */ u8 pad0[6];
-    /* 0x06 */ s16 objnum;
-#endif
     /* 0x08 */ s16 slot;
     /* 0x0A */ u8 padA[0x14 - 0x0A];
     /* 0x14 */ void (*func)(struct Visual *v, s16 op);
@@ -57,20 +52,12 @@ typedef struct {
     /* 0x074 */ f32 dr_tirepos[4][3];
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
     /* 0x0E8 */ u32 flags;
-#ifdef TARGET_PC
     /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x35C - 0x308];
-#else
-    /* 0x0EC */ u8 padEC[0x35C - 0xEC];
-#endif
     /* 0x35C */ s8 unk35C;
     /* 0x35D */ s8 unk35D;
     /* 0x35E */ s8 unk35E;
     /* 0x35F */ s8 unk35F;
-#ifdef TARGET_PC
     /* 0x360 */ u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
-#else
-    /* 0x360 */ u8 pad360[0x3B8 - 0x360];
-#endif
 } CarData;
 
 typedef struct {
@@ -85,25 +72,11 @@ typedef struct {
     /* 0x7E0 */ u8 pad7E0[0x808 - 0x7E0];
 } ModelDat;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarData D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern ModelDat D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern Poly D_8015B268[];
 extern s8 D_80140418;
-#ifdef TARGET_PC
 extern f32 D_8011F914[14][4];   /* shadow_scale: body types 0-13 (13 when appearance & 0x10); text follows */
-#else
-extern f32 D_8011F914[][4];
-#endif
 extern u8 D_8011AD8C[4];
 
 extern void func_8008D0C0(Poly *p);

@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -949,14 +936,10 @@ extern s32 D_801146BC;
 extern s32 D_801146C0;
 extern s32 D_801146C4;
 extern s8 D_801146F4;
-#ifdef TARGET_PC
 /* PC: a colour, R, G, B, A in memory: the blit's Image, which the 2D draw fills its rectangle with byte by byte
  * (func_8008A46C). Bytes, so the loader keeps them in order (an s32 reversed them). */
 typedef struct { u8 r, g, b, a; } BlitColor;
 extern BlitColor D_801146FC;
-#else
-extern s32 D_801146FC;
-#endif
 extern s32 D_80114700;
 extern s32 D_80114724;
 extern s8 D_80114728;
@@ -3708,7 +3691,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: the idle overlay's blit (game_loop's, after 300 s without a button, multiblit D_801146C4) takes its colour as
  * its Image, over the Blit's host layout (sound_control.c's, docs/port/POINTERS.md 9.3): the Image is the pointer at
  * +8. The m2c body's 8-byte store at the N64 +4 split the colour's address over the Name and the Image, and the
@@ -3734,10 +3716,3 @@ s32 callback_init(void *arg0) {
     Input_ApplyPadConfig(blt);
     return 1;
 }
-#else
-s32 callback_init(void *arg0) {
-    M2C_FIELD(arg0, s32 **, 4) = &D_801146FC;
-    Input_ApplyPadConfig(arg0);
-    return 1;
-}
-#endif

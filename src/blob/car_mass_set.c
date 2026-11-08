@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2214,12 +2201,8 @@ extern s32 D_8012E6D0;
 extern s32 D_8012E6D8;
 extern f32 D_8012E6E8;
 extern s32 D_8012E6F8;
-#ifdef TARGET_PC
 /* the 0x44-byte node table: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
 extern s32 D_8012E700[];
-#else
-extern s32 D_8012E700;
-#endif
 extern s32 D_8012E708;
 extern f32 D_8012E70C;
 extern f32 D_8012E710;
@@ -3805,7 +3788,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. Unlinks node
  * arg0 from its parent's child list, its older sibling or the root list (D_8015B254), then links it under arg1
  * (render_mode_select); nothing when it is arg1's child already. */
@@ -3838,41 +3820,3 @@ void car_mass_set(s16 arg0, s16 arg1)
     render_mode_select(arg0, arg1);
   }
 }
-#else
-void car_mass_set(s16 arg0, s16 arg1)
-{
-  s16 temp_a0;
-  s16 temp_v0;
-  s16 temp_v0_2;
-  s16 new_var;
-  temp_a0 = arg0;
-  arg0 = temp_a0;
-  temp_v0 = func_8009002C(temp_a0);
-  if ((temp_v0 == (-1)) || (temp_v0 != arg1))
-  {
-    if (temp_v0 >= 0)
-    {
-      new_var = (s16) (*((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (arg0 * 0x44)))) + 0x18)));
-      *((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (temp_v0 * 0x44)))) + 0x16)) = new_var;
-    }
-    else
-    {
-      arg0 = arg0;
-      if (arg0 == D_8015B254)
-      {
-        D_8015B254 = *((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (arg0 * 0x44)))) + 0x18));
-      }
-      else
-      {
-        temp_v0_2 = func_8008FFD0(arg0);
-        if (temp_v0_2 >= 0)
-        {
-          *((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (temp_v0_2 * 0x44)))) + 0x18)) = (s16) (*((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (arg0 * 0x44)))) + 0x18)));
-        }
-      }
-    }
-    *((s16 *) (((s8 *) ((s32 *) (((u8 *) (&D_8012E700)) + (arg0 * 0x44)))) + 0x18)) = -1;
-    render_mode_select(arg0, arg1);
-  }
-}
-#endif

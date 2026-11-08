@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -408,11 +404,7 @@ typedef struct {
     s32 unk0C;
     f32 unk10;
     f32 unk14;
-#ifdef TARGET_PC
     u8 _pad18[0x48 - 0x18]; void *ref; u8 _pad18_4C[0x4D - 0x4C];
-#else
-    u8 _pad18[0x4D - 0x18];
-#endif
     u8 unk4D;
 } InputRecord;
 extern InputRecord input_rec0;
@@ -448,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -1316,12 +1299,8 @@ void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
 
-#ifdef TARGET_PC
 /* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
 #define INPUT_SIZE 80
-#else
-#define INPUT_SIZE 0x4C
-#endif
 
 void entity_audio_update(void) {
     s8 *var_v0;

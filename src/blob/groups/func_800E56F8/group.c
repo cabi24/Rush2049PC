@@ -46,10 +46,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -454,11 +450,7 @@ typedef struct {
 } InputRecord;
 typedef struct Inp {
     u8 car;
-#ifdef TARGET_PC
     u8 pad1[0x48 - 0x1]; void *ref;
-#else
-    u8 pad1[0x4B];
-#endif
 } Inp;
 extern Inp input_rec0[];
 extern s32 D_80156978[4];
@@ -492,50 +484,25 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
 typedef struct GC2 {
     u8 pad00[0xEF];
     s8 bEF;
-#ifdef TARGET_PC
     u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x358 - 0x308];
-#else
-    u8 padF0[0x358 - 0xF0];
-#endif
     s8 b358;
     s8 b359;
     u8 pad35A[0x380 - 0x35A];
-#ifdef TARGET_PC
     void *w380;                      /* the car's input record, a host pointer */
-#else
-    s32 w380;
-#endif
     u8 pad384[0x3B8 - 0x384];
 } GC2;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[8];
-#define PC_CAR(i) &player_array[i]
-#define PC_CARS player_array
-#define PC_CAR_INPUT(i) ((GC2 *) player_array)[i].w380
-#define PC_CAR_STATE(i) ((GC2 *) player_array)[i].b359
-#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -695,13 +662,7 @@ typedef struct {
     f32 f7EC; /* 0x7EC */
     u8 pad7F0[0x18];
 } D_8014A250_Record;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern D_8014A250_Record D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODELS &D_8014A250
-#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -1135,15 +1096,10 @@ extern f32 D_801161D4;
 extern f32 D_801161E4;
 extern s32 D_801161F4;
 extern s16 D_801163F4;
-#ifdef TARGET_PC
 /* PC: the rumble's 36 rising thresholds (the race counts how many the car's speed passes for the rumble request
  * D_801440AD), ROM data the loader swaps by its declaration: as one s32 the other 35 stayed big-endian (DATA.md 8). */
 extern s32 D_801163F8[36];
 #define RUMBLE_STEPS D_801163F8
-#else
-extern s32 D_801163F8;
-#define RUMBLE_STEPS &D_801163F8
-#endif
 extern s8 D_80116488;
 extern s8 D_801164A1;
 extern s32 D_801164A4;
@@ -2416,13 +2372,9 @@ extern s8 D_80144030;
 extern s8 D_80144031;
 extern s8 D_80144036;
 extern s8 D_80144038;
-#ifdef TARGET_PC
 /* a byte of each pak record: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
 extern s8 D_801440AD[];
 #define D_801440AD (D_801440AD[0])
-#else
-extern s8 D_801440AD;
-#endif
 extern s8 D_801440B5;
 extern s8 D_801440B6;
 extern s8 D_80144334;
@@ -2726,12 +2678,7 @@ extern s16 D_801527D0;
 extern s32 D_801527E4;
 extern s32 D_801527E8;
 extern f32 D_80152800;
-#ifdef TARGET_PC
 /* On the PC our_drones is pc_our_drones, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
-#else
-extern s16 D_80152808[];
-#define PC_OUR_DRONE(j) D_80152808[j]
-#endif
 extern f32 D_80152820;
 extern f32 D_80152824;
 extern f32 D_80152828;
@@ -2754,12 +2701,7 @@ extern s32 D_80153E80;
 extern s16 D_80153E84;
 extern s32 D_80153E88;
 extern u8 D_80153E89;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern u8 D_80153E8F;
-#define PC_LINK_OWNER(i) *(&D_80153E8F + (i * 8))
-#endif
 extern u8 D_80153E97;
 extern s32 D_80153EB8;
 extern s32 D_80153EF0;
@@ -3880,7 +3822,6 @@ void func_800E4B58(D_8014A250_Record *car);
 void func_800E56F8(s32 ipa_s4);
 void model_iteration(void);
 
-#ifdef TARGET_PC
 /* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
 #define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
 /* A ghost (menu_save_options' Ghost, 64 bytes on the PC) has its header handle at +0x38 (docs/port/CASTS.md). */
@@ -3888,18 +3829,6 @@ void model_iteration(void);
 /* The controller/pak records D_80144030 are 0x310 bytes on the PC (paksys' PakRecord, docs/port/POINTERS.md 9.6);
  * D_801440AD, the rumble request, is placed at its PC offset in record 0. */
 #define PAK_RECORD 0x310
-#else
-#define PAD0EC(a, x) a[x]
-#define CAR_OFS(n) n
-#define GHOST_HEADER 0x28
-#define PAK_RECORD 0x304
-#define PROFILE_OFS(n) n
-#endif
-#ifndef TARGET_PC
-/* model_iteration's walk of every car: the race's on the PC (PC_RACE_CARS, pc_game_types.h). */
-#define PC_RACE_CARS 6
-#endif
-#ifdef TARGET_PC
 /* The drone schedule on the PC (docs/port/DECOUPLE.md 8). Row r is for n drones with one human or none (r = n) or
  * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
  * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
@@ -3927,10 +3856,6 @@ static s16 pc_drone_sched(s32 row, s32 k)
     return (s16) (n / groups + (k < n % groups));
 }
 #define PC_DRONE_SCHED(row, k) pc_drone_sched(row, k)
-#else
-#define PC_DRONE_SCHED(row, k) D_80120E74[row].v[k]
-#define PC_DRONE_SCHED_TWO 7
-#endif
 void func_800E56F8(s32 ipa_s4) {
     GameCar *temp_s2;
     f32 temp_f0;

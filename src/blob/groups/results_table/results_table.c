@@ -61,10 +61,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct OSMesgQueue OSMesgQueue;
 typedef struct { u32 w0; uintptr_t w1; } Gwords;
@@ -106,15 +102,8 @@ typedef struct RGBA {u8 r,g,b,a;} RGBA;
 typedef struct PlayerRow {u8 vehicle;u8 other[71];char **name;} PlayerRow;
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 (PROFILE_OFS,
  * pc_prelude.h; docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
-#ifdef TARGET_PC
 /* PC: a car record seen from +0x3A3 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct VehicleScore {s8 score;u8 other[PC_CAR_SIZE - 1];} VehicleScore;
-#else
-typedef struct VehicleScore {s8 score;u8 other[951];} VehicleScore;
-#endif
 typedef struct PlayerStats {s32 words[18];s16 laps[24];} PlayerStats;
 typedef struct TextIndices {u8 other[74];u16 records;u8 other2[14];u16 menu;} TextIndices;
 typedef struct TextState {void *word0;char **fixed;void *word8;TextIndices *indices;char **strings;} TextState;
@@ -122,51 +111,20 @@ extern s8 D_80152744,D_80143F54[],gCarTeam[];
 extern s8 D_80149428[][4];
 extern s16 active_player_count;
 extern PlayerRow input_rec0[];
-#ifdef TARGET_PC
-#else
-extern VehicleScore D_80152BBB[];
-#endif
 extern PlayerStats D_80152038[];
 extern s32 D_801146AC[],D_80118E20[2],D_801391E0,gameplay_mode;
 extern u8 D_80114724[];
 extern char D_8012039C[],D_801203A0[],D_80120390[],D_80120394[],D_80120398[],D_80120354[],D_8012035C[],D_80120344[],D_8012034C[],D_80120350[];
-#ifdef TARGET_PC
 /* PC: a car record seen from +0xEE (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct CarB6 {s8 lap;u8 rest[PC_CAR_SIZE - 1];} CarB6;
-#else
-typedef struct CarB6 {s8 lap;u8 rest[951];} CarB6;
-#endif
-#ifdef TARGET_PC
 /* PC: a car record seen from +0xEF (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct CarB7 {s8 flag;u8 rest[PC_CAR_SIZE - 1];} CarB7;
-#else
-typedef struct CarB7 {s8 flag;u8 rest[951];} CarB7;
-#endif
-#ifdef TARGET_PC
 /* PC: a car record seen from +0xF0 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct CarF8 {f32 best;u8 rest[PC_CAR_SIZE - 4];} CarF8;
-#else
-typedef struct CarF8 {f32 best;u8 rest[948];} CarF8;
-#endif
 typedef struct Rec808 {s16 car;u8 rest[2054];} Rec808;
 typedef struct TextIdx2 {u8 other[108];u16 cars;} TextIdx2;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarB6 D_80152906[];
-extern CarB7 D_80152907[];
-extern CarF8 D_80152908[];
-#define PC_CAR_FINISHED(i) D_80152907[i].flag
-#define PC_CAR_PLACE(i) D_80152906[i].lap
-#define PC_CAR_POINTS(i) D_80152BBB[i].score
-#define PC_CAR_TIME(i) D_80152908[i].best
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Rec808 D_8014AA16[];
-#define PC_MODEL_SLOT(i) D_8014AA16[i].car
-#endif
 extern volatile s16 D_801543CA;
 extern s16 D_80152734;
 extern u8 D_801543D4,D_80144018[];
@@ -208,7 +166,6 @@ void rs_SetJust(s32 h, s32 v)
     D_80118E20[1] = v;
 }
 
-#ifdef TARGET_PC
 /* PC: the finishing place's text (docs/port/MORECARS.md 7). The text bank holds six ordinals from `first`, first to
  * sixth, in the language in effect; what follows them is other text (in English, Dutch and French each ordinal's
  * suffix alone, in Italian the six again, in Spanish and German empty strings), so a 7th to 12th place read there
@@ -238,9 +195,6 @@ static char *pc_place_text(char **strings, s32 first, s32 place)
     return text;
 }
 #define PC_PLACE_TEXT(strings, first, place) pc_place_text(strings, first, place)
-#else
-#define PC_PLACE_TEXT(strings, first, place) strings[first + place]
-#endif
 
 void drawRaceStandings(void)
 {

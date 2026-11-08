@@ -28,7 +28,6 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 
-#ifdef TARGET_PC
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
  * (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))
@@ -40,15 +39,6 @@ typedef unsigned int u32;
 #define RELOC_SEG(w, b, bits) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
 #define LOD_KEEP(sum, bits, w, b) pc_rcp_reloc(w, b, -1)
 #define LOD_SEG(sum, bits, w, b) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
-#else
-#define DLW(w) w
-#define DLW_SET(w, v) w = v
-#define DL_AT(addr) (u32 *) addr
-#define RELOC_KEEP(w, b) ((w + b) & 0x00FFFFFF) | (w & 0x0F000000)
-#define RELOC_SEG(w, b, bits) ((w + b) & 0x00FFFFFF) | bits
-#define LOD_KEEP(sum, bits, w, b) (sum & 0x00FFFFFF) | bits
-#define LOD_SEG(sum, bits, w, b) (sum & 0x00FFFFFF) | bits
-#endif
 void func_800966D8(s32 arg0, s32 arg1);
 
 void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {

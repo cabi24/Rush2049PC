@@ -57,7 +57,8 @@ Rush2049PC/
 - **One source tree, two targets** (as sm64-port did): game C stays buildable for the N64, and PC-only changes go
   under `#ifdef TARGET_PC`. The matching N64 build then proves every shared change (shared headers, data turned
   into C, renames) is byte-identical. It needs IDO, so it runs on the x86-64 Rocky host. The PC build runs
-  anywhere.
+  anywhere. *(Until 2026-11-08: the N64 build was dropped then, and the game C is PC code;
+  [port/PCONLY.md](port/PCONLY.md).)*
 - **Threads first, frame loop later.** The game runs idle, game, audio and render threads plus the libultra
   scheduler, and it busy-waits on variables other threads change (v5 found 14 such loops). Bring-up keeps the
   threads: each N64 thread is a host thread, only one runs at a time, and switches happen in the blocking libultra

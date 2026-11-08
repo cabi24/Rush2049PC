@@ -52,11 +52,7 @@ void fcvt_wrapper(char *, char *, ...);
 u32 object_manager_update(void *, s32);
 void crowd_cheer_play(void *, s32, s32, s32, s32);
 s16 object_bytes_sum_global(void);
-#ifdef TARGET_PC
 void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
-#else
-void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
-#endif
 
 s32 func_8010E8B4(void *item)
 {

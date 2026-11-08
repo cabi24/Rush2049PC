@@ -33,61 +33,32 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef void *OSMesg;
-#ifdef TARGET_PC
 /* PC: the native OSScTask's shape, pointer fields where it has them (N64 0x58 bytes, host 0xA0) */
 typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
                  void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
                  void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
                  void *msgQ; void *msg; } PcScTaskShape;
-#endif
 typedef struct {
-#ifdef TARGET_PC
     PcScTaskShape task0;
-#else
-    u8 other0[88];
-#endif
     void *buf88;        /* 88 */
     s16 n92;            /* 92 */
     u8 other94[30];
-#ifdef TARGET_PC
     uintptr_t f124;     /* 124: the color buffer, pointer-sized */
-#else
-    s32 f124;           /* 124 */
-#endif
-#ifdef TARGET_PC
     PcScTaskShape task1;
-#else
-    u8 other128[88];
-#endif
     void *buf216;       /* 216 */
     s16 n220;           /* 220 */
     u8 other222[30];
-#ifdef TARGET_PC
     uintptr_t f252;     /* 252 */
-#else
-    s32 f252;           /* 252 */
-#endif
 } Segs;
-#ifdef TARGET_PC
 #define PC_ZEXT(x) ((uintptr_t)PC_N64P((u32)(x)))   /* an RDRAM-window address held as s32: its pointer */
 /* The heap's API and the color buffers take 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64A0(x) PC_N64A(x)
 #define N64AS(x) (s32)PC_N64A(x)
-#else
-#define PC_ZEXT(x) x
-#define N64A(x) (u32)x
-#define N64A0(x) x
-#define N64AS(x) (s32)x
-#endif
 extern OSMesgQueue D_801461D0;
 extern OSMesg D_801461FC[];
 extern OSMesgQueue D_80152770;
@@ -95,15 +66,10 @@ extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
 extern f32 D_80154188;
 extern s32 D_80000300;
 extern s32 D_8002AFC0, D_8002AFC4;
-#ifdef TARGET_PC
 extern intptr_t D_8002EBB0;
 extern s32 D_80156CEC, D_80157240;
-#else
-extern s32 D_8002EBB0, D_80156CEC, D_80157240;
-#endif
 extern Segs D_80156BE0;
 extern u8 D_800586D0[], D_8006A090[];
-#ifdef TARGET_PC
 /* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's D_800586D0 /
  * D_8006A090 (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
  * and the display list's PC_GLIST_LEN commands from PC_GLIST_OFFSET, where the N64 has 600 and 4000 from +0x9CC0
@@ -111,11 +77,6 @@ extern u8 D_800586D0[], D_8006A090[];
 u8 pc_frame_dl[2][PC_FRAME_BYTES] __attribute__((aligned(16)));
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]
-#else
-#define DL_BUFFER_0 D_800586D0
-#define DL_BUFFER_1 D_8006A090
-#define PC_GLIST_OFFSET 0x9CC0
-#endif
 extern u8 *D_8015B250, *D_8015B260;
 extern u8 *D_801497C8, *D_801497F4;
 extern s8 D_80156994;

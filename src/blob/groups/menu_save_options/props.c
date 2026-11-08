@@ -26,13 +26,8 @@
 typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
 #define NULL ((void *)0)
-#ifdef TARGET_PC
 /* PC: the ghost header keeps its N64 layout, file data; the profile record is 64 bytes (docs/port/POINTERS.md 9.10) */
 #define N64W(x) PC_N64W(x)
-#else
-#define N64W(x) x
-#define PROFILE_OFS(n) n
-#endif
 
 typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 headerChecksum;           /* 0x00 */
@@ -53,11 +48,7 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
-#ifdef TARGET_PC
     u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-#else
-    u8 *start;                    /* 0x4C */
-#endif
     u32 offset;                   /* 0x50 */
     s32 size;                     /* 0x54 */
 } GhostHeader;
@@ -76,11 +67,7 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 } Ghost;
 
 typedef struct PlayerRec {        /* GC player record (0x4C); N64 0x30 */
-#ifdef TARGET_PC
     void *next; void *prev; void *fileh;
-#else
-    u8 pad0[12];
-#endif
     u32 playerId[2];              /* 0x0C */
     u8 name[13];                  /* 0x14 */
     u8 pad21[44 - 33];
@@ -132,26 +119,8 @@ extern Ghost *D_80140AF8[];                                 /* GC gGhostPlayers 
 extern Ghost D_80140B28[];                                  /* GC gGhostPlayers + 0x2A0 */
 extern Ghost **D_80152698[];                                /* GC gGhosts */
 extern Player input_rec0[];                                 /* GC gPlayers */
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link D_80153E88[];                                   /* GC gLink */
-#define PC_LINK_TRACK(i) D_80153E88[i].track
-#define PC_LINK_CAR(i) D_80153E88[i].car
-#define PC_LINK_COLOR0(i) D_80153E88[i].b2
-#define PC_LINK_COLOR1(i) D_80153E88[i].b3
-#define PC_LINK_COLOR2(i) D_80153E88[i].b4
-#define PC_LINK_PLACE(i) D_80153E88[i].np
-#define PC_LINK_FLAGS(i) D_80153E88[i].b6
-#define PC_LINK_OWNER(i) D_80153E88[i].b7
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];                                  /* GC model */
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].state
-#define PC_MODEL_DT(i) D_8014A250[i].frameTime
-#endif
 extern s8 D_8014978C;                                       /* GC gTrackNum */
 extern s8 D_80152570;                                       /* GC gBackwards */
 extern f32 D_8002AFB8;                                      /* GC gRetraceTime */

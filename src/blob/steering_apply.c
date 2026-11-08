@@ -23,24 +23,10 @@ typedef struct ProximityEnabled {
 typedef struct ProximityPlayer {
     unsigned char unknown0[8];
     float position[3];
-#ifdef TARGET_PC
     unsigned char unknown14[0x110 - 0x14]; struct pc_visual visuals[21]; unsigned char unknown14_308[0x380 - 0x308]; void *input; unsigned char unknown14_384[0x3B8 - 0x384];
-#else
-    unsigned char unknown14[0x3B8 - 0x14];
-#endif
 } ProximityPlayer;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern ProximityEnabled D_8014AA3A[];
-#define PC_MODEL_COLLIDABLE(i) D_8014AA3A[i].enabled
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern ProximityPlayer player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 
 int steering_apply(short *player_index, float *point, float *radius_in,
                   float *radial_error)

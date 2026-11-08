@@ -12,40 +12,25 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifdef TARGET_PC
 /* PC: gWaveInstance's host layout (waves.c): ptr and lastPtr are pointer-sized, so 0x20 bytes a slot. The
  * {pointer, count} tables are 16 bytes an entry. */
 typedef struct Slot20 { u8 pad0[6]; u8 resource; u8 pad7; u32 word8; uintptr_t allocation, word16; } Slot20;
 #define WAVE_PAIR 16
-#else
-typedef struct Slot20 { u8 pad0[6]; u8 resource; u8 pad7; u32 word8, allocation, word16; } Slot20;
-#define WAVE_PAIR 8
-#endif
 extern Slot20 gWaveInstance[64];
 extern volatile s16 D_8002EB70;
 extern u8 gRomObjDefPtrs[], gTexDefPtrs[], gPalDefPtrs[];
 void *memset(void *, int, u32);
-#ifdef TARGET_PC
 /* func_800960CC's manifest owner is the empty deleted-procedure stub; audio_effect_process (heap_release/group.c)
  * is its body under a name the link keeps (docs/port/PROTOTYPES.md). */
 #define func_800960CC audio_effect_process
-#endif
 void func_800960CC(u32 address);
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
-
-#ifdef TARGET_PC
 /* The free takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) x
-#endif
 static void dma_wait(void)
 {
-    while (D_8002EB70 != 0) { PC_SPIN("func_80096130")
+    while (D_8002EB70 != 0) { pc_os_spin_yield("func_80096130");
     }
 }
 

@@ -20,36 +20,20 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct Rect { s16 x,y,w,h; s16 unknown[2]; } Rect;
 typedef struct TextInfo { char unknown[54]; u16 index; } TextInfo;
-#ifdef TARGET_PC
 /* PC: gText's header has host pointers (port/assets/text.c), so info and strings sit at host offsets. */
 typedef struct TextState { void *unknown[3]; TextInfo *info; char **strings; } TextState;
-#else
-typedef struct TextState { s32 unknown[3]; TextInfo *info; char **strings; } TextState;
-#endif
 extern TextState countdown_state;
-#ifdef TARGET_PC
 extern intptr_t D_801148CC;
 extern s32 gHighScoreState, D_8014A110, D_80144DA0;
-#else
-extern s32 gHighScoreState, D_801148CC, D_8014A110, D_80144DA0;
-#endif
 extern s16 active_player_count, gNumWindows;
 extern s8 *namePanes[], *codePane, *D_80149798[3], *D_80149778[2];
 extern s8 D_801460C0, D_801148D0;
 extern Rect D_801148E8[][4];
-#ifdef TARGET_PC
 extern char D_80120600[];
 extern struct pc_multiblit D_801148A8[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
-#else
-extern char D_80120600[], D_801148A8[];
-#endif
 extern void sound_stop(intptr_t);
 extern void RemovePane(s8 *);
 extern void func_800F1114(void);

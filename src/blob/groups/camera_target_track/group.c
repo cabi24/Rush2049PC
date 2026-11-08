@@ -41,17 +41,10 @@
  *  - `char buf[4]` is an unused local that supplies 4 frame bytes (result home at sp+32).
  */
 typedef unsigned char u8;typedef unsigned int u32;typedef int s32;typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct Link {struct Link *next,*prev;} Link;
 typedef struct List {u8 indirect,doubly,pad[2];u32 count;Link *head,*tail;} List;
-#ifdef TARGET_PC /* p64 holds a pointer */
+/* p64 holds a pointer */
 typedef struct Node68 {Link link;List *list;u32 tag;s32 state;s32 p20;u8 flag,code,live,mode;u32 p28;f32 f32,f36,f40,f44,f48;u32 index,value,p60; uintptr_t p64;} Node68;
-#else
-typedef struct Node68 {Link link;List *list;u32 tag;s32 state;s32 p20;u8 flag,code,live,mode;u32 p28;f32 f32,f36,f40,f44,f48;u32 index,value,p60,p64;} Node68;
-#endif
 typedef struct Object24 {u8 p0,p1,kind,p3;u32 value;f32 f8,f12,f16;Node68 *node;} Object24;
 typedef struct Queue24 {u32 opaque[6];} Queue24;
 extern List D_80143FF8,D_80144C50;extern u32 D_80110254,D_801460F8,D_80146104;
@@ -59,16 +52,11 @@ extern Queue24 D_80142728,D_801427A8;extern u8 D_8011F5CC[];
 s32 osRecvMesg(Queue24 *,void **,s32);s32 osSendMesg(Queue24 *,void *,s32);
 Object24 *func_80091B00(void);
 void func_8009211C(List *,Link *);void func_80091FBC(List *,Link *,Link *);
-#ifdef TARGET_PC
 /* PC: the pools' high-water marks (--log-voices, docs/port/AUDIO.md 10): the fx tags in use after one is taken (of
  * D_80110264), the emitters active after one is put in their list. */
 extern s32 D_80110264;
 #define PC_TAGS_MOST() pc_snd_most(PC_SND_MOST_TAGS, D_80110264 - (s32)D_80143FF8.count);
 #define PC_EMITTERS_MOST(list) pc_snd_most(PC_SND_MOST_EMITTERS, (s32)(list).count);
-#else
-#define PC_TAGS_MOST()
-#define PC_EMITTERS_MOST(list)
-#endif
 Node68 *func_80092278(void) {
  Node68 *node=(Node68*)D_80143FF8.head;
  if(node==0){}
@@ -82,7 +70,6 @@ Node68 *func_80092278(void) {
  node->list=&D_80144C50;
  return node;
 }
-#ifdef TARGET_PC
 /* PC: the message pool and the manager's queue can run out (transform/group.c's entity_transform_calc says
  * when): a sound start that finds no message is not started (handle -1, which every handle lookup takes as
  * none; camera_target_track gives its emitter back), and one the full queue refuses gives its message back,
@@ -99,14 +86,6 @@ extern List D_801461B0;
 #define PC_TAG_OR_UNLOCK(o) if(D_80143FF8.head==0){(o)->p3=0;osSendMesg(&D_80142728,0,0);return (u32)-1;}
 #define PC_TAG_OR_UNLOCK_CAM(o,c) if(D_80143FF8.head==0){(o)->p3=0; \
     func_80091FBC(&D_801461B0,(Link*)(c),D_801461B0.head);osSendMesg(&D_80142728,0,0);return -1;}
-#else
-#define PC_ONLY(stmt)
-#define PC_OBJ_OR_UNLOCK(o)
-#define PC_OBJ_OR_UNLOCK_CAM(o,c)
-#define PC_OBJ_SEND(q,o) osSendMesg(q,o,0)
-#define PC_TAG_OR_UNLOCK(o)
-#define PC_TAG_OR_UNLOCK_CAM(o,c)
-#endif
 u32 entity_flags_apply(u32 index,u32 other,u32 value,u8 mode) {
  Object24 *object;u32 result;
  osRecvMesg(&D_80142728,0,1);
@@ -146,20 +125,16 @@ typedef struct Cam {Link link;signed char active;signed char queued;u8 pad[2];f3
 extern intptr_t D_80110260;
 extern List D_801461E8;
 Cam *func_800AED20(void);
-#ifdef TARGET_PC
 /* a1 is never read, and every caller passes a pointer there. On the N64 (o32) everything after the leading
  * pointer travels in GPRs, so its type was moot; on the PC an f32 would take s0 and shift every float after it
  * (docs/port/PROTOTYPES.md). */
 #define CTT_A1 void *
-#else
-#define CTT_A1 f32
-#endif
 s32 camera_target_track(f32 *pos,CTT_A1 a1,f32 volume,f32 a3,f32 x,f32 y,u32 index,u32 other,u32 value,u8 mode) {
  Object24 *object;Cam *cam;char buf[4];u32 result;
  if(D_80110260==0)return -1;
  osRecvMesg(&D_80142728,0,1);
  cam=func_800AED20();
- if(cam==0){PC_ONLY(pc_snd_count(PC_SND_NO_EMITTER);)osSendMesg(&D_80142728,0,0);return -1;}
+ if(cam==0){pc_snd_count(PC_SND_NO_EMITTER);osSendMesg(&D_80142728,0,0);return -1;}
  cam->pos[0]=pos[0];
  cam->pos[1]=pos[1];
  cam->pos[2]=pos[2];

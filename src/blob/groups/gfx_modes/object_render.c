@@ -47,10 +47,6 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef signed long long s64;
 typedef unsigned long long u64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct {
@@ -217,12 +213,7 @@ typedef union {
 extern u32 D_8012E608;
 extern s32 D_8012E680;
 extern void *D_8012E684;
-#ifndef TARGET_PC
-/* PC: port/data defines D_8012E688 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) s64 D_8012E688;
+extern s64 D_8012E688;
 extern Gfx *D_80149438;
 extern s32 D_8014A248;
 extern void func_80086A50();

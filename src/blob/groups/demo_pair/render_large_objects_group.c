@@ -50,13 +50,9 @@ typedef signed int S32;
 typedef unsigned int U32;
 typedef float F32;
 
-#ifdef TARGET_PC
 /* DoDrones' locals are indexed by a car slot or count the cars: on the PC as many as a race may hold
  * (pc_game_types.h, docs/port/DECOUPLE.md 8). MAX_LINKS has no other use here. */
 #define MAX_LINKS PC_MAX_LINKS
-#else
-#define MAX_LINKS 6
-#endif
 #define DRONE 1
 #define HUMAN 2
 
@@ -83,42 +79,15 @@ typedef struct {
     /* 0x0EE */ S8 place;
     /* 0x0EF */ U8 pad0EF[0x100 - 0xEF];
     /* 0x100 */ F32 distance;
-#ifdef TARGET_PC
     /* 0x104 */ U8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; U8 pad104_308[0x356 - 0x308];
-#else
-    /* 0x104 */ U8 pad104[0x356 - 0x104];
-#endif
     /* 0x356 */ S16 weight_index;
     /* 0x358 */ U8 pad358;
     /* 0x359 */ S8 state;
-#ifdef TARGET_PC
     /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
-#else
-    /* 0x35A */ U8 pad35A[0x3B8 - 0x35A];
-#endif
 } CAR_DATA;
 
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[];
-#define PC_MODEL_DRONE_SCALE(i) model[i].drone_scale
-#define PC_MODEL_DRONE_TARGET(i) model[i].drone_target
-#define PC_MODEL_DRONE_TYPE(i) model[i].drone_type
-#define PC_MODEL_SLOT(i) model[i].slot
-#define PC_MODEL_TIME_BOOST(i) model[i].time_boost
-#define PC_MODEL_WE_CONTROL(i) model[i].we_control
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA player_array[];
-#define PC_CAR(i) &game_car[i]
-#define PC_CAR_DISTANCE(i) game_car[i].distance
-#define PC_CAR_PLACE(i) game_car[i].place
-#define PC_CAR_POS(i) game_car[i].dr_pos
-#define PC_CAR_WEIGHT_INDEX(i) game_car[i].weight_index
-#endif
 #define model D_8014A250
 #define game_car player_array
 extern S8 D_80152744;

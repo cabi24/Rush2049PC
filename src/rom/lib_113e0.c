@@ -40,11 +40,7 @@ int func_800107E0(unsigned int frequency)
 extern unsigned char D_8004FA18;
 extern unsigned char D_8004FA19;
 extern unsigned char D_8004FA1A;
-#ifdef TARGET_PC
 #define PC_MX_CAP(n) PC_MX_VOICE_SLOTS   /* the most voices the PC gives (pc_game_types.h, docs/port/AUDIO.md 10) */
-#else
-#define PC_MX_CAP(n) n
-#endif
 extern int func_800143C0(unsigned int *, unsigned short, unsigned short, unsigned int);
 extern int func_800107E0(unsigned int);
 int func_80010840(unsigned int frequency, unsigned char voices,

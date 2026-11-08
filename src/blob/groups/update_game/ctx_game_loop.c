@@ -22,20 +22,12 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 
 extern volatile s32 frame_counter;      /* gFrames */
 extern void *game_state_flags;          /* _PAD controller-warning blit */
-#ifdef TARGET_PC
 extern struct pc_multiblit D_801146C4[1];   /* its multiblit (pc_prelude.h) */
-#else
-extern u8 D_801146C4[];                 /* its multiblit */
-#endif
 extern OSMesgQueue *msgq_ptr;
 extern s32 state_word_a;                /* gGameState */
 extern s32 state_word_b;                /* gNewGameState */

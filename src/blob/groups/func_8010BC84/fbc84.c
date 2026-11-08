@@ -20,7 +20,6 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     void *name, *image, *info;
@@ -31,14 +30,7 @@ typedef struct Blit {
     u8 alpha, flip;
     s8 hidden;
 } Blit;
-#else
-typedef struct Blit {
-    u8 pad0[0x1A];
-    s8 hidden;
-} Blit;
-#endif
 
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
     char *pad0[0x2A8 / 4];
@@ -47,15 +39,6 @@ typedef struct TblHdr {
     char *pad2B0[(0x388 - 0x2B0) / 4];
     char *title;
 } TblHdr;
-#else
-typedef struct TblHdr {
-    u8 pad0[0x2A8];
-    char *ok;
-    char *notOk;
-    u8 pad2B0[0x388 - 0x2B0];
-    char *title;
-} TblHdr;
-#endif
 
 typedef struct StrTable {
     u8 pad0[4];
@@ -66,19 +49,11 @@ typedef struct Player {
     u8 b0;
     u8 control;
     u8 pad2[70];
-#ifdef TARGET_PC
     intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
-#else
-    s32 *name;
-#endif
 } Player;
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 
-#ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -90,15 +65,7 @@ typedef struct Control {
     PcPfs pfs;
     u8 pad74[0x304 - 0x74];
 } Control;
-#else
-typedef struct Control {
-    u8 pad0[6];
-    s8 b6;
-    u8 pad7[772 - 7];
-} Control;
-#endif
 
-#ifdef TARGET_PC
 /* PC: gPlayerRects' layout (pause.c's Rect: x, y, w, h, cx, cy as s32). x reads the low half of the s32 centre cx on
  * the N64; here the whole word, which the s16 local takes the same. The PC loader fills initialized data by its
  * declarations, and the bytes of the N64 view would stay big-endian (docs/port/ENDIAN.md). */
@@ -107,13 +74,6 @@ typedef struct TPos {
     s32 x;
     s32 y;
 } TPos;
-#else
-typedef struct TPos {
-    u8 pad0[18];
-    s16 x;
-    s32 y;
-} TPos;
-#endif
 
 extern OSMesgQueue D_801461D0;
 extern s32 D_801170FC;

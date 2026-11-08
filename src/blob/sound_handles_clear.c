@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,7 +3787,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: a pane group (FiveParts, ambient_sound_set.c) keeps its five blits pointer-sized from +0x10; the m2c body
  * reads them as s32 at the N64 offsets (+0xC, 4 apart) and stops at the address after the 16 groups, D_80116FE4,
  * which is a variable of its own on the PC. */
@@ -3826,34 +3812,4 @@ void sound_handles_clear(s32 arg0)
     }
   }
 }
-#else
-void sound_handles_clear(s32 arg0)
-{
-  s8 *entry;
-  s8 *handle;
-  s32 i;
-  s32 h;
-
-  do { entry = (s8 *) &D_80116DE4; do
-  {
-    if ((entry[0] != 0) && (((i = 0, arg0 != 0)) || (entry[1] == 0)))
-    {
-      handle = entry;
-      do
-      {
-        h = *((s32 *) (handle + 0xC));
-        if (h != 0)
-        {
-          sound_stop(h);
-          *((s32 *) (handle + 0xC)) = 0;
-        }
-        i += 4;
-        handle += 4;
-      } while (i != 0x14);
-      entry[0] = 0;
-    }
-    entry += 0x20;
-  } while (entry != (s8 *) &D_80116FE4); } while (0);
-}
-#endif
 

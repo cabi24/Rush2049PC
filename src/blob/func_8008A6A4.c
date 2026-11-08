@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,13 +3688,9 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: the controller/pak records D_80144030 are 0x310 bytes (paksys' PakRecord, docs/port/POINTERS.md 9.6); +1 is
  * before the OSPfs's pointer, so it is where the N64 has it. */
 #define PAK_RECORD 0x310
-#else
-#define PAK_RECORD 0x304
-#endif
 s32 func_8008A6A4(s32 arg0) {
     return *(&D_80144031 + (arg0 * PAK_RECORD)) == 0;
 }

@@ -10,7 +10,6 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
  * (camera_target_track's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
 typedef struct CamSlot {
@@ -41,47 +40,13 @@ typedef struct Msg {
     /* 0x08 */ Entity *ent;
     u8 pad10[16];
 } Msg; /* 0x20 */
-#else
-typedef struct CamSlot {
-    /* 0x00 */ u8 pad0[12];
-    /* 0x0C */ f32 x, y, z;
-    /* 0x18 */ u8 pad18[4];
-    /* 0x1C */ f32 blend;
-    /* 0x20 */ u8 pad20[4];
-    /* 0x24 */ f32 extra;
-} CamSlot;
-
-typedef struct Entity {
-    /* 0x00 */ u8 pad0[12];
-    /* 0x0C */ s32 id;
-    /* 0x10 */ s32 state;
-    /* 0x14 */ u8 pad14[6];
-    /* 0x1A */ u8 msgCount;
-    /* 0x1B */ u8 pad1B[0x3C - 0x1B];
-    /* 0x3C */ s32 link;
-    /* 0x40 */ CamSlot *cam;
-} Entity; /* 0x44 */
-
-typedef struct Msg {
-    /* 0x00 */ s16 id;
-    /* 0x02 */ s8 type;
-    /* 0x03 */ s8 used;
-    /* 0x04 */ Entity *ent;
-    /* 0x08 */ u8 pad8[16];
-} Msg; /* 0x18 */
-#endif
 
 extern Entity *D_80110244;
 extern s32 D_80146104;
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern Msg D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern s32 D_80142728;
 extern s32 D_801427A8;
 
@@ -219,15 +184,10 @@ void camera_clip_planes(s32 h, f32 *p, s32 unused, f32 a, f32 b)
     osSendMesg(&D_80142728, 0, 0);
 }
 
-#ifdef TARGET_PC
 /* PC: a stop that finds the message pool empty, or the manager's queue full, as entity_transform_calc
  * (transform/group.c) handles a change. */
 #define PC_MSG_OR_UNLOCK(m) if((m)==0){osSendMesg(&D_80142728,0,0);return;}
 #define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->msgCount--;(m)->used=0;}
-#else
-#define PC_MSG_OR_UNLOCK(m)
-#define PC_SEND_OR_GIVE_BACK(q,m,e) osSendMesg(q,m,0)
-#endif
 void scheduler_recv(s32 h)
 {
     Msg *m = 0;

@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -157,11 +153,6 @@ void func_800E8CB8(void *car, void *vel, void *mat) {
 #define CF(off) (*(f32 *)(car + (off)))
 #define CB(off) (*(s8 *)(car + (off)))
 /* arg0 is a car (func_800EB028): its fields past the visuals are at CAR_OFS(n) on the PC (docs/port/CARS.md 2.3). */
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-/* PC: game.frame_rate 60: f12 is the share of the last frame's camera directions kept each frame (pc_game_fps.h) */
-#define PC_FILTER(e) e
-#endif
 #define OF(off) (*(f32 *)(gCamera[idx] + (off)))
 #define A1(off) (*(f32 *)((u8 *)arg1 + (off)))
 void func_800EA3F4(void *arg0, void *arg1) {

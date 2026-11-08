@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -883,15 +870,11 @@ extern s32 D_8011176C;
 extern s32 D_80111784;
 extern s32 D_80111794;
 extern s32 D_801117A4;
-#ifdef TARGET_PC
 /* PC: a table of four, indexed below as (&D_801117B4)[arg0] (the gap to D_801117C4). Declared as one, the loader
  * converted only the first and left the other three in the ROM's byte order; the name stands for its first element,
  * so the code reads as before (docs/port/SYNTH.md 3). */
 extern s32 D_801117B4[4];
 #define D_801117B4 D_801117B4[0]
-#else
-extern s32 D_801117B4;
-#endif
 extern s32 D_801117C4;
 extern s32 D_801118E4;
 extern s8 D_8011194C;
@@ -3670,17 +3653,10 @@ typedef s64 M2C_UNK64;
 
 /* Unknown field access, like `*(type_ptr) &expr->unk_offset` */
 #define M2C_FIELD(expr, type_ptr, offset) (*(type_ptr)((s8 *)(expr) + (offset)))
-#ifdef TARGET_PC
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #define INPUT_SIZE 80  /* an input record (D_8014A118): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);
                        * the profile's save data, at SaveSlot.data, is read pointer-sized (intptr_t) */
 #define DATA_PTR(x) (void *)(x)
-#else
-#define SLOT_DATA 0x2C
-#define INPUT_SIZE 0x4C
-#define DATA_PTR(x) x
-#define PROFILE_OFS(n) n
-#endif
 
 /* Bitwise (reinterpret) cast */
 #define M2C_BITWISE(type, expr) ((type)(expr))

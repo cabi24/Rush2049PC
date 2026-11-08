@@ -67,11 +67,7 @@ extern OSMesgQueue D_801461D0;  /* font semaphore */
 extern u8 D_80114724[2];        /* titlePos */
 extern s8 D_80114728;           /* inited */
 extern Voice *D_8011472C;       /* blit */
-#ifdef TARGET_PC
 extern struct pc_multiblit D_80114700[1];   /* multiblit (pc_prelude.h) */
-#else
-extern u8 D_80114700[];         /* multiblit */
-#endif
 extern s32 D_8015694C;          /* gActiveEdges */
 extern s32 D_80149784;          /* gActiveAutoEdges */
 extern s8 D_80157244;           /* gSoftReset */
@@ -91,11 +87,8 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 void sound_handles_clear(s32 arg0);
 s32 object_manager_update(void *obj, s32 arg1);
 s16 object_bytes_sum_global(void);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
-#else
-void *ambient_sound_set(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, s32 word40, s32 word44, s32 own);
-#endif
 s32 slot_state_setup(s32 selection);
 s32 gameover_validOption(s32);
 void resource_type_select(s32 arg0);
@@ -188,7 +181,6 @@ void audio_update_d(void)
     D_80114728 = 0;
 }
 
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The stop of the song or of every effect posted on the
  * way out of a race is then dropped, but nothing else is: with no message it is written into a scratch message
@@ -198,10 +190,6 @@ static SceneMsg pc_scratch_msg;
 static SceneMsg *pc_cmd(SceneMsg *m) { return m ? m : &pc_scratch_msg; }
 #define PC_CMD(m) pc_cmd(m)
 #define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
-#else
-#define PC_CMD(m) m
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void func_800F87A0(void)
 {
     SceneMsg *msg;

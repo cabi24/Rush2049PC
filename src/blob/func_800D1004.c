@@ -18,32 +18,13 @@ typedef struct Car {
     u8 opaque1630[360]; s16 index1990;
 } Car;
 typedef struct Player952 {
-#ifdef TARGET_PC
     u8 opaque0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 opaque0_308[0x358 - 0x308]; u8 x856;
-#else
-    u8 opaque0[856]; u8 x856;
-#endif
-#ifdef TARGET_PC
     u8 opaque857[0x380 - 0x359]; void *input; u8 opaque857_384[0x386 - 0x384]; s16 x902;
-#else
-    u8 opaque857[45]; s16 x902;
-#endif
     u8 opaque904[4]; u32 x908;
     u8 opaque912[16]; u8 x928, x929, x930;
     u8 opaque931[13]; f32 x944, x948;
 } Player952;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player952 player_array[];
-#define PC_CAR_B358(i) player_array[i].x856
-#define PC_CAR_B3A0(i) player_array[i].x928
-#define PC_CAR_B3A2(i) player_array[i].x930
-#define PC_CAR_BATTLE_FLAGS(i) player_array[i].x908
-#define PC_CAR_F3B0(i) player_array[i].x944
-#define PC_CAR_F3B4(i) player_array[i].x948
-#define PC_CAR_HEALTH(i) player_array[i].x902
-#endif
 extern f32 D_8011418C[9];
 extern f32 D_80124160, D_80124164, D_80124168;
 extern s8 D_801427A1;

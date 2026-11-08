@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2786,13 +2773,9 @@ extern s32 D_8017A4B8;
 extern s8 D_8017A4D8;
 extern s32 D_8017A4EC;
 extern s32 D_8017A4F0;
-#ifdef TARGET_PC
 /* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the ZOID windows, whose first and
  * bounds func_800A5518 writes */
 extern s32 D_8017A510[];
-#else
-extern s32 D_8017A510;
-#endif
 extern s32 D_8017A558;
 extern s32 D_8017A5A0;
 extern f32 D_8017A630;
@@ -3707,7 +3690,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: a ZOID window (D_8017A510) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
  * 10); the m2c body uses the N64 stride. Stores a window's first and bounds. */
 typedef struct { void *first, *bounds; u8 rest[0x48 - 8]; } PcWindow;
@@ -3717,12 +3699,3 @@ void func_800A5518(s32 arg0, void *arg1, void *arg2) {
     w->first = arg1;
     w->bounds = arg2;
 }
-#else
-void func_800A5518(s32 arg0, s32 arg1, s32 arg2) {
-    void *temp_v0;
-
-    temp_v0 = (s32 *) ((arg0 * 0x48) + (u8 *) &D_8017A510);
-    M2C_FIELD(temp_v0, s32 *, 0) = arg1;
-    M2C_FIELD(temp_v0, s32 *, 4) = arg2;
-}
-#endif

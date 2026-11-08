@@ -142,11 +142,7 @@ typedef struct tPathPoint {
 typedef struct tCarData {       /* N64 0x3B8 */
     u8 pad000[0xED];
     s8 restart;                 /* 0x0ed */
-#ifdef TARGET_PC
     u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21];
-#else
-    u8 pad0EE[0x308 - 0xEE];
-#endif
     s8 collidable;              /* 0x308 */
     s8 solid;                   /* 0x309 */
     float collide_time;         /* 0x30c */
@@ -155,11 +151,7 @@ typedef struct tCarData {       /* N64 0x3B8 */
     tPathPoint mpctl;           /* 0x314 */
     u8 pad340[0x344 - 0x340];
     u16 sound_flags[4];         /* 0x344 */
-#ifdef TARGET_PC
     u8 pad34C[0x380 - 0x34C]; void *input; u8 pad34C_384[0x3B8 - 0x384];
-#else
-    u8 pad34C[0x3B8 - 0x34C];
-#endif
 } tCarData;
 
 typedef struct tLink {          /* GC gLink (0x0A); N64 0x08 */
@@ -233,33 +225,15 @@ typedef struct surftyp {
 #define RES_START 0
 #define MPH_TO_FTPS 1.4666667f
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData D_80152818[];       /* gGameCar */
-#define PC_CAR(i) &gGameCar[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];     /* model */
-#define PC_MODEL_MODELRUN(i) model[i].fastin.modelrun
-#define PC_MODEL_MOVING_STATE(i) model[i].resurrect.moving_state
-#define PC_MODEL_RESURRECT_POS(i) model[i].resurrect.pos
-#define PC_MODEL_RWR(i) model[i].rwr
-#endif
 extern float D_8011418C[3][3];      /* unitmatrix */
 extern s8 D_80142760;               /* gDeathMode */
 extern int D_8014A110;              /* gRace */
 extern tDronePath D_8012E5E8[];     /* gDronePaths */
 extern tCheckpoints D_80151CE8;     /* gCheckpoints */
 extern tResPath D_801407F0;         /* gResPath */
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tLink D_80153E88[];          /* gLink */
-#define PC_LINK_OWNER(i) gLink[i].owner
-#endif
 extern u32 D_801174B4;              /* gGameState */
 extern s8 D_801407B0;               /* gResurrectInPlace */
 extern s16 D_8014A108;              /* gNumPlayers */
@@ -276,9 +250,6 @@ extern float D_801210E8[12][3];     /* pole_pos_offset */
 #define gDronePaths D_8012E5E8
 #define gCheckpoints D_80151CE8
 #define gResPath D_801407F0
-#ifndef TARGET_PC
-#define gLink D_80153E88
-#endif
 #define gGameState D_801174B4
 #define gResurrectInPlace D_801407B0
 #define gNumPlayers D_8014A108
@@ -313,7 +284,6 @@ f32 func_8008B2E4(f32 max);                                                   /*
 void func_800D348C(tModelData *m, int *outPath, int *outIdx);
 void func_800D3B20(float *q1, float *q2);
 
-#ifdef TARGET_PC
 /* PC: a start-grid row for each of PC_MAX_LINKS places (pc_game_types.h, docs/port/MORECARS.md 4). Places 0-5 are
  * pole_pos_offset's rows, read from the loaded table when a car is placed, so the build holds none of its values.
  * The table's grid is two cars a row, 3 rows; each later place continues the places of its column parity two rows
@@ -473,12 +443,6 @@ float *pc_grid_start(tModelData *m, int what)
 #define PC_START_POS(m) pc_grid_start(m, 0)
 #define PC_START_UVS(m) ((float (*)[3]) pc_grid_start(m, 1))
 #define PC_POLE_ROW(p) pc_grid_start(m, 2)
-#else
-#define PC_RESPAWN_BASE 6
-#define PC_START_POS(m) m->resurrect.save_pos
-#define PC_START_UVS(m) m->resurrect.uvs
-#define PC_POLE_ROW(p) pole_pos_offset[p]
-#endif
 
 /* Respawn point for a human car (MAT3 FindHumanResPt). */
 void func_800D348C(tModelData *m, int *outPath, int *outIdx)

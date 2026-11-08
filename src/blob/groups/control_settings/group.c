@@ -28,10 +28,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef struct { s32 first, second; } Pair;

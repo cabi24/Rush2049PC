@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3706,17 +3693,11 @@ typedef s64 M2C_UNK64;
 void entity_flag_check(s32 *ipa_s0);
 void func_800988D8(void);
 
-#ifdef TARGET_PC
 /* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links: its id is at +0x10 and its free and
  * active flags at +0x14, +0x15 (docs/port/SYNTH.md). A list header keeps its head at +8. */
 #define SEQ_ID 0x10
 #define SEQ_FREE 0x14
 #define SEQ_ACTIVE 0x15
-#else
-#define SEQ_ID 8
-#define SEQ_FREE 0xC
-#define SEQ_ACTIVE 0xD
-#endif
 
 void entity_flag_check(s32 *ipa_s0) {
     M2C_FIELD(ipa_s0, s32 *, SEQ_ID) = (s32) (M2C_FIELD(ipa_s0, s32 *, SEQ_ID) & D_80146104);

@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,7 +3688,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: a pane group (FiveParts, ambient_sound_set.c) keeps its five blits pointer-sized from +0x10; the m2c body
  * reads them as s32 at the N64 offsets (+0xC, 4 apart). */
 typedef struct { s8 active; u8 own; u8 rgba1[4]; u8 rgba2[4]; u8 other10[2]; void *part[5]; } PcFiveParts;
@@ -3719,27 +3705,3 @@ void RemovePane(s8 *arg0) {
         group->active = 0;
     }
 }
-#else
-void RemovePane(s8 *arg0) {
-    s32 temp_a0;
-    s32 var_s1;
-    s8 *var_s0;
-
-    if (arg0 != NULL) {
-        var_s1 = 0;
-        var_s0 = arg0;
-        if (*arg0 != 0) {
-            do {
-                temp_a0 = M2C_FIELD(var_s0, s32 *, 0xC);
-                if (temp_a0 != 0) {
-                    sound_stop(temp_a0);
-                    M2C_FIELD(var_s0, s32 *, 0xC) = 0;
-                }
-                var_s1 += 4;
-                var_s0 += 4;
-            } while (var_s1 != 0x14);
-            *arg0 = 0;
-        }
-    }
-}
-#endif

@@ -3,10 +3,6 @@
  * callee menu_back (s1) must be in this group's program for func_800CBF2C's register convention. */
 typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
 typedef signed int s32;typedef unsigned int u32;typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 #define NULL ((void *)0)
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 typedef struct OSMesgQueue OSMesgQueue;
@@ -15,34 +11,15 @@ extern intptr_t D_801527C8;
 extern OSMesgQueue D_80152770;
 
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
 enum n64p_u32 { n64p_u32_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#else
-typedef struct Block {u32 pad0;struct Block *next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#endif
-#ifdef TARGET_PC
 typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
-#else
-typedef struct Pool {s32 count;u32 *base;struct Pool *next;} Pool;
-#endif
-#ifdef TARGET_PC
 typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool pool;} Heap;
-#else
-typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 void func_80095EC0(void *,u32);
 void *func_80095F8C(u32 arg0) {
     s32 var_v0;
@@ -148,7 +125,6 @@ struct Obj {
     void **h36;       /* 36 */
     void **h40;       /* 40 */
 };
-#ifdef TARGET_PC
 /* PC: paksys' tPS_File (96 bytes, docs/port/POINTERS.md 9.10). menu_transition also reaches the ghost header's
  * start (N64 0x4C, 32 bits in the file data) through this view, as f76: on the PC through HeaderStart. */
 typedef struct Slot {
@@ -165,24 +141,6 @@ typedef struct Slot {
 typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
 #define START_VIEW HeaderStart
 typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
-#else
-typedef struct Slot {
-    u8 pad0[8];
-    void *update;     /* 8 */
-    void *render;     /* 12 */
-    u8 id;            /* 16 */
-    u8 seat;          /* 17 */
-    u8 pad18[46];
-    s32 catchup;      /* 64 */
-    u8 pad68[4];
-    void **data;      /* 72 */
-    s32 f76;          /* 76 */
-} Slot;
-#define START_VIEW Slot
-#define PROFILE_OFS(n) n
-#define PSF_OFS(n) n
-typedef struct List { s32 pad0; s32 pad4; Handle head; } List;
-#endif
 
 extern List D_80152020;
 extern Handle D_80152698[4];
@@ -200,12 +158,7 @@ s32 PS_FlushFile(void *, s32);
 s32 PS_FlushPak(s32, s32);
 void func_80091FBC(List *, Handle, Handle);
 void drone_set_catchup(void *, s32, s32);
-#ifdef TARGET_PC
 void *AllocateHandleHeap(void *, s32);
-#else
-s32 AllocateHandleHeap(void *, s32);
-#endif
-#ifdef TARGET_PC
 /* The ghost's buffer is kept as its 32-bit N64 address (MenuData.buffer), read from its handle's slot (PC_SLOT_N64);
  * inflate_entry_alt and format_string_parse take the pointer at it, N64PTR0(T, a) (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
@@ -213,17 +166,10 @@ s32 inflate_entry_alt(void *, s32, void *);
 s32 format_string_parse(void *, s32);
 #define N64PTR0(T, a) ((T)PC_N64P(a))
 #define SLOT_S32(h) (s32)PC_SLOT_N64(h)
-#else
-s32 inflate_entry_alt(void *, s32, s32);
-s32 format_string_parse(s32, s32);
-#define N64PTR0(T, a) a
-#define SLOT_S32(h) *(s32 *)h
-#endif
 s32 draw_ui_element(Handle, s32, s32);
 void menu_item_select(void *, s32);
 void func_800CB9D0(void *);
 
-#ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -235,14 +181,6 @@ typedef struct {
     u8 busy;          /* file entry +2 */
     u8 pad3[37];
 } SeatEntry;
-#else
-typedef struct {
-    u8 pad0[0x22];
-    u8 busy;          /* 0x22 */
-    u8 pad23[5];
-} SeatEntry;
-#endif          /* 0x28 */
-#ifdef TARGET_PC
 typedef struct {
     u8 pad0[12];
     PcPfs pfs;
@@ -250,22 +188,11 @@ typedef struct {
     u8 pad7C[8];
     SeatEntry seat[16];  /* the file entries */
 } PlayerSeats;
-#else
-typedef struct {
-    u8 pad0[0x64];
-    SeatEntry seat[16];  /* 0x64 */
-    u8 pad2E4[0x304 - 0x2E4];
-} PlayerSeats;
-#endif        /* 0x304, D_80144030 */
 extern PlayerSeats D_80144030[];
 
 /* AdjustSteer (historical label): release a slot's data block and clear its seat flag. */
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 void AdjustSteer(Handle h) {
     Slot *s = *(Slot **)h;
 

@@ -29,12 +29,8 @@ typedef struct ResSlot {
     /* 0x10 */ s32 unk10;
 } ResSlot;
 
-#ifdef TARGET_PC
 /* PC: the OBHD record keeps its N64 layout (port/assets/wad.c); dl is a 32-bit RDRAM-window address. */
 #define PART_DL u32
-#else
-#define PART_DL u32 *
-#endif
 typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;
 typedef struct { u8 pad0[0x18]; Part part[4]; } Model;
 typedef struct { Model *models; s32 count; } ModelList;

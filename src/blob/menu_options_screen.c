@@ -60,22 +60,14 @@ typedef struct Model {
 } Model;
 
 typedef struct Car {
-#ifdef TARGET_PC
     /* 0x000 */ char pad0[0x110 - 0x0]; struct pc_visual visuals[21]; char pad0_308[0x358 - 0x308];
-#else
-    /* 0x000 */ char pad0[0x358];
-#endif
     /* 0x358 */ s8 unk358;
     /* 0x359 */ s8 unk359;
     /* 0x35A */ s8 unk35A;
     /* 0x35B */ s8 unk35B;
     /* 0x35C */ char pad35C[3];
     /* 0x35F */ s8 unk35F;
-#ifdef TARGET_PC
     /* 0x360 */ char pad360[0x380 - 0x360]; void *input;
-#else
-    /* 0x360 */ char pad360[0x24];
-#endif
     /* 0x384 */ s8 unk384;
     /* 0x385 */ s8 unk385;
     /* 0x386 */ char pad386[0x26];
@@ -83,12 +75,7 @@ typedef struct Car {
     /* 0x3B0 */ char pad3B0[8];
 } Car;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern s32 gameplay_mode;
 extern s8 gCarTeam[];
 extern s8 D_8017A634;

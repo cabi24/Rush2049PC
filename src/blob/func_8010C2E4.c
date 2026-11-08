@@ -39,7 +39,6 @@ typedef struct Car {
     u8 pad6C6[0x808 - 0x6C6];
 } Car;
 
-#ifdef TARGET_PC
 /* PC: a camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a track
  * WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
  * (docs/port/POINTERS.md 10). */
@@ -59,32 +58,10 @@ typedef struct Camera {
     enum n64p_CamCtl ctl;
 } Camera;
 #define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), default: (x))
-#else
-typedef struct CamScene {
-    u8 pad00[0x10];
-    u32 flags;
-    s16 count;
-    s16 id;
-} CamScene;
-typedef struct CamCtl {
-    CamScene *scene;
-} CamCtl;
-typedef struct Camera {
-    u8 pad00[0x6C];
-    CamCtl *ctl;
-} Camera;
-#define N64P(x) x
-#endif
 
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern Poly24 *D_801497F8;
 
-#ifdef TARGET_PC
 /* PC: a scene's cars (docs/port/MORECARS.md 3.1). Bits 24-31 of its flags are cars 0-7, as on the N64; a race of
  * more cars has no bit there for car 8 on (1 << 32 is undefined in C, and a shift that takes its count's low 5 bits,
  * as sllv and x86-64's do, would set the scene's flag 1). Car 8 and up keep theirs in their car record instead,
@@ -119,11 +96,6 @@ static void scene_car(CamScene *sc, s32 idx, s32 in)
 #define SCENE_CARS(sc) ((sc->flags >> 24) | scene_cars_past_8(sc))
 #define SCENE_CAR_IN(sc, idx) scene_car(sc, idx, 1)
 #define SCENE_CAR_OUT(sc, idx) scene_car(sc, idx, 0)
-#else
-#define SCENE_CARS(sc) (sc->flags >> 24)
-#define SCENE_CAR_IN(sc, idx) sc->flags |= 1 << (idx + 24)
-#define SCENE_CAR_OUT(sc, idx) sc->flags &= ~(1 << (idx + 24))
-#endif
 
 s32 func_8010C2E4(Camera *cam, s16 *player, s32 arg2, s32 arg3) {
     s32 idx;

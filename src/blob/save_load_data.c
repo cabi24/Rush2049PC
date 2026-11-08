@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,29 +537,15 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[8];
-#define PC_CAR(i) &player_array[i]
-#endif
 typedef struct 
 {
   u8 pad00[0x39];
@@ -2341,12 +2323,8 @@ extern s32 D_801392F0;
 extern s8 D_80139300;
 extern f32 D_80139308;
 extern f32 D_80139318;
-#ifdef TARGET_PC
 /* 64-byte records: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
 extern s32 D_80139320[];
-#else
-extern s32 D_80139320;
-#endif
 extern s32 D_80139334;
 extern s8 D_8013A020;
 extern s32 D_8013A028;
@@ -2694,12 +2672,7 @@ extern s8 D_8014A1FD;
 extern s8 D_8014A23E;
 extern s32 D_8014A240;
 extern s32 D_8014A248;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern u8 D_8014A258;
-#define PC_MODEL_BODY(i) *((&D_8014A258) + (i * 0x808))
-#endif
 extern s8 D_8014A259;
 extern s8 D_8014A25A;
 extern s8 D_8014A25F;
@@ -4222,9 +4195,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
 void save_load_data(s16 arg0)
 {
   GameCar *temp_s1;

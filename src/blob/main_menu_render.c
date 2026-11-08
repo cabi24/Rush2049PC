@@ -16,28 +16,17 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: an input record is 80 bytes (its pointer at +0x48 is 8 bytes). The node at +0x44 stays 32 bits: it is a
  * packet's window address (a heap block, func_800D63EC) or -1 (docs/port/POINTERS.md 10). */
 typedef struct { u8 model; u8 pad1[67]; u32 node; void *ref; } CarRec;
 #define NO_NODE 0xFFFFFFFFu
 #define NODE(n) (void *)PC_N64P(n)
-#else
-typedef struct { u8 model; u8 pad1[67]; void *node; u8 pad48[4]; } CarRec;   /* 76 */
-#define NO_NODE (void *) -1
-#define NODE(n) n
-#endif
 typedef struct { u8 pad0[556]; f32 pos[3]; u8 pad238[2056 - 568]; } ModelDat; /* 0x808 */
 typedef struct { u8 pad0[12]; f32 a[3]; f32 b[3]; u8 pad24[152 - 36]; } View;  /* 152 */
 
 extern s16 D_8014A108;
 extern CarRec D_8014A118[];
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern ModelDat D_8014A250[];
-#define PC_MODEL_RWR(i) D_8014A250[i].pos
-#endif
 extern f32 D_801141B0[];
 extern View gCamera[];
 

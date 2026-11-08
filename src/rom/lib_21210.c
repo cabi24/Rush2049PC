@@ -11,16 +11,12 @@
  * Gate:     full-ROM SHA-1
  */
 extern unsigned char D_80050D00[][16][134];
-#ifdef TARGET_PC
 /* On the PC the library's per-voice storage is PC data, PC_MX_VOICE_SLOTS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 9): an effect voice is its own channel in set 255, so its 134 controllers
  * and its two bytes here are a voice's. */
 #define D_80055000 (*(unsigned char (*)[PC_MX_VOICE_SLOTS][134])pc_mx_fx_ctrl)
 #define D_80050CE0 (*(unsigned char (*)[PC_MX_VOICE_SLOTS])pc_mx_fx_chan_a)
 #define D_80056140 (*(unsigned char (*)[PC_MX_VOICE_SLOTS])pc_mx_fx_chan_b)
-#else
-extern unsigned char D_80055000[][134];
-#endif
 void func_80020610(unsigned char controller, unsigned char channel,
                    unsigned char set, unsigned char value)
 {
@@ -61,9 +57,6 @@ void func_800206AC(u8 controller, u8 channel, u8 set, u16 value)
  * Gate:     full-ROM SHA-1
  */
 extern u8 D_80050D00[][16][134];
-#ifndef TARGET_PC
-extern u8 D_80055000[][134];
-#endif
 extern void func_80020610(u8, u8, u8, u8);
 extern void func_80020F4C(u8, u8, u8);
 extern void func_80020FDC(u8, u8, u8);
@@ -187,9 +180,6 @@ void func_80020DA8(u8 controller, VoicePrefix *destination, VoicePrefix *source)
  * Gate:     full-ROM SHA-1
  */
 extern unsigned char D_80050C60[][16];
-#ifndef TARGET_PC
-extern unsigned char D_80050CE0[];
-#endif
 void func_80020F4C(unsigned char channel, unsigned char set,
                    unsigned char value)
 {
@@ -222,9 +212,6 @@ unsigned char func_80020F98(unsigned char channel, unsigned char set)
  * Gate:     full-ROM SHA-1
  */
 extern unsigned char D_800560C0[][16];
-#ifndef TARGET_PC
-extern unsigned char D_80056140[];
-#endif
 void func_80020FDC(unsigned char channel, unsigned char set,
                    unsigned char value)
 {

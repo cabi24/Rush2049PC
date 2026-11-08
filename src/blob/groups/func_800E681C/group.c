@@ -39,12 +39,8 @@ typedef struct {
     /* 0x00 */ u8 player;
     /* 0x01 */ u8 pad;
     /* 0x02 */ u8 pad2[0x18 - 2];
-#ifdef TARGET_PC
     /* 0x18 */ u32 map[12];
     /* 0x48 */ void *ref;
-#else
-    /* 0x18 */ u32 map[13];
-#endif
 } InputRecord;                          /* 0x4C */
 
 typedef struct {
@@ -66,17 +62,9 @@ typedef struct {
 typedef struct {
     /* 0x000 */ u8 pad0[0xF8];
     /* 0x0F8 */ s16 speed;
-#ifdef TARGET_PC
     /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x359 - 0x308];
-#else
-    /* 0x0FA */ u8 padFA[0x359 - 0xFA];
-#endif
     /* 0x359 */ s8 f359;
-#ifdef TARGET_PC
     /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
-#else
-    /* 0x35A */ u8 pad35A[0x3B8 - 0x35A];
-#endif
 } Car;                                  /* 0x3B8 */
 
 typedef struct {
@@ -87,19 +75,8 @@ typedef struct {
 } PadState;                             /* 0x10 */
 
 extern InputRecord input_rec0[];
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarState D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car player_array[8];
-#define PC_CAR_MPH(i) player_array[i].speed
-#define PC_CAR_STATE(i) player_array[i].f359
-#endif
 extern s16 active_player_count;
 extern s32 state_word_a;
 extern s32 D_801170FC;
@@ -217,11 +194,9 @@ void func_800E6460(CarState *st, InputRecord *in)
     st->brake = (f32) (s32) q / 15;
 }
 
-#ifdef TARGET_PC
 /* The manifest owner of func_800E6AE8 is the empty deleted-procedure stub (src/blob/func_800E6AE8.c), which
  * the call below binds to on PC. The gear code written here gets its own name (docs/port/PROTOTYPES.md). */
 #define func_800E6AE8 pc_func_800E6AE8
-#endif
 void func_800E6AE8(CarState *st, InputRecord *in);
 void func_800E681C(void)
 {

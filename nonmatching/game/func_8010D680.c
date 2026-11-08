@@ -17,7 +17,6 @@ typedef struct Battle {
     s8 type; s8 ammoCnt; s16 health;
     u8 pad04[0x34 - 4];
 } Battle;
-#ifdef TARGET_PC
 /* PC: the car record's layout (0x468 bytes, docs/port/CARS.md). */
 typedef struct Car {
     u8 pad00[0x110];
@@ -26,12 +25,6 @@ typedef struct Car {
     void *input;
     Battle battle;        /* 0x384, PC 0x430 */
 } Car;
-#else
-typedef struct Car {
-    u8 pad00[0x384];
-    Battle battle;        /* 0x384 */
-} Car;
-#endif
 typedef struct Visual {
     struct Visual *next;  /* 0x00 */
     s16 index;            /* 0x04 */
@@ -51,43 +44,24 @@ typedef struct Target {
     u8 pad38[0x50 - 0x38];
     s16 type;             /* 0x50 */
     u8 pad52[0x6c - 0x52];
-#ifdef TARGET_PC
     u32 data;             /* 0x6c: a window address (the node keeps its N64 layout) */
-#else
-    f32 *data;            /* 0x6c */
-#endif
 } Target;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9.2); flags is its first word. */
 typedef struct ObjInstance {
     u32 flags, lights; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip;
     intptr_t pal; u32 prim, env;
 } ObjInstance;
 #define N64P(x) ((void *)PC_N64P(x))
-#else
-typedef struct ObjInstance { u32 flags; u8 pad04[0x44 - 4]; } ObjInstance;
-#define N64P(x) x
-#endif
 
 extern s32 D_801170FC;               /* gPauseState */
 extern volatile f32 D_8002EB94;      /* gFrameSeconds */
 extern s16 D_8014A108;               /* gNumPlayers */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];             /* gGameCar */
-#define PC_CAR_KIND(i) D_80152818[i].battle.type
-#endif
 extern ObjInstance D_8012E700[];     /* ObjInstanceList */
 void entity_transform_apply(Visual *v, s32 flag);           /* ReleaseEnviron */
 void sound_position_set(f32 *angV, f32 (*uvs)[3]);          /* RotateUV */
-#ifdef TARGET_PC
 void model_transform_setup(s32 a, s32 mode, u32 v);
 void model_data_load(s32 a, s32 mode, u32 v);
-#else
-void model_transform_setup(s32 dl, s32 a, s32 b);           /* MBOX_ShowObject */
-void model_data_load(s32 dl, s32 a, s32 b);                 /* MBOX_HideObject */
-#endif
 
 static u32 ZOID_ObjectFlags(s16 objnum)
 {

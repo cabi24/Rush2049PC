@@ -32,17 +32,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Block next;
@@ -53,20 +46,7 @@ typedef struct Block {
     /* 0x15 */ u8 tag;
     /* 0x16 */ u8 pad16[10];
 } Block; /* 0x20 */
-#else
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Block *next;
-    /* 0x08 */ struct Block *prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ void *owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ u8 tag;
-    /* 0x16 */ u8 pad16[10];
-} Block; /* 0x20 */
-#endif
 
-#ifdef TARGET_PC
 typedef struct Heap {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Heap next;
@@ -74,27 +54,10 @@ typedef struct Heap {
     /* 0x0C */ enum n64p_Block last;
     /* 0x10 */ u32 end;
 } Heap;
-#else
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Heap *next;
-    /* 0x08 */ Block *first;
-    /* 0x0C */ Block *last;
-    /* 0x10 */ u32 end;
-} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
 /* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
 
 extern s32 D_80152770;
@@ -103,15 +66,10 @@ s32 osRecvMesg(void *mq, void **msg, s32 flags);
 s32 osSendMesg(void *mq, void *msg, s32 flags);
 Heap *func_80095F8C(u32 addr);
 
-#ifdef TARGET_PC
 /* The block's place is a 32-bit N64 address: N64A(p) is a window pointer's, N64PTR(T, a) the pointer at one
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
-#else
-#define N64A(x) (u32)x
-#define N64PTR(T, a) (T)a
-#endif
 void *NextMaxPath(u32 addr, u32 size) {
     Heap *heap;
     Block *b;
@@ -185,7 +143,7 @@ void *NextMaxPath(u32 addr, u32 size) {
     }
     b->owner = 0;
     b->used = 1;
-    b->tag = 0; PC_ONLY(pc_heap_allocated(heap);)
+    b->tag = 0; pc_heap_allocated(heap);
     osSendMesg(&D_80152770, 0, 0);
     return result;
 }

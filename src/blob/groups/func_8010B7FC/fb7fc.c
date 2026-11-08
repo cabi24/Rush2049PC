@@ -14,14 +14,9 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
  * layout (sound_control.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
  * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
@@ -34,32 +29,18 @@ typedef struct {
     u8 Alpha, Flip;
     s8 dirty;
 } MenuItem;
-#else
-typedef struct {
-    u8 pad0[0x1A];
-    s8 dirty;
-} MenuItem;
-#endif
 
 typedef struct {
     u8 pad0[0x70];
     u16 lang;
 } LangInfo;
 
-#ifdef TARGET_PC
 /* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
 typedef struct {
     void *pad0[3];
     LangInfo *info;
     intptr_t *strings;
 } StrTable;
-#else
-typedef struct {
-    u8 pad0[0xC];
-    LangInfo *info;
-    s32 *strings;
-} StrTable;
-#endif
 
 extern OSMesgQueue D_801461D0;
 extern s16 D_80117280[2];

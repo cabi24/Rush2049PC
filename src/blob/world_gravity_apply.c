@@ -102,27 +102,12 @@ typedef struct Car {
     /* 0x0FC */ s16 unkFC;
     /* 0x0FE */ s16 unkFE;
     /* 0x100 */ f32 unk100;
-#ifdef TARGET_PC
     /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x380 - 0x308]; void *input; char pad104_384[0x3B8 - 0x384];
-#else
-    /* 0x104 */ char pad104[0x2B4];
-#endif
 } Car; /* 0x3B8 */
 
 extern s8 D_80152744;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern PathGraph D_801407F0;
 extern Track D_80151CE8[];
 extern f32 D_801543AC;

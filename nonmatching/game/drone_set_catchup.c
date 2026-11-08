@@ -97,11 +97,7 @@ typedef struct PakHandle { tPS_File *file; } PakHandle;
 /* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
 struct tPS_File {
     PakHandle *next;
-#ifdef TARGET_PC
     PakHandle *prev;                  /* PC: a pointer (InsertLLE's link); the record is 96 bytes (pc_prelude.h) */
-#else
-    u32 prev;
-#endif
     void (*RemoveFile)(PakHandle *);
     void (*MoveFile)(PakHandle *, PakHandle *);
     u8 pak, fileNo;
@@ -374,12 +370,8 @@ void prpf_nop(void)
 }
 
 /* 0x800A2990: PS_ReadPartialFile(fileh, offset, numBytes) */
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 void drone_set_catchup(PakHandle *fileh, s32 offset, u32 numBytes)
 {
     tPS_File *psfile;

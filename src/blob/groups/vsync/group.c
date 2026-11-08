@@ -24,17 +24,12 @@ extern s32 osRecvMesg(OSMesgQueue *,void *,s32);
 extern s32 osSendMesg(OSMesgQueue *,void *,s32);
 extern f32 D_801247EC;
 extern s8 D_80146115,D_8010FFC0;
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). A volume change (command 10) is then dropped: with no
  * message the lock is given back and nothing is sent, and a message the full queue refuses is given back (its
  * in-use byte, +3); the volume stays as it was until the next change. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg((OSMesgQueue *)&D_80142728,NULL,0);return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)M2C_FIELD(m,s8 *,3)=0
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void speed_set(f32 blend,f32 amount,s32 first,s32 second) {
     f32 var_f0;
     void *temp_v0;

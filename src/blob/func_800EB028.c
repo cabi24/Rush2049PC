@@ -29,11 +29,7 @@ typedef struct {
     u8 other20[24];
     Mat3 uvs44;         /* 44 */
     Mat3 uvs;           /* 80 */
-#ifdef TARGET_PC
     u8 other116[0x110 - 0x74]; struct pc_visual visuals[21]; u8 other116_308[0x35B - 0x308];
-#else
-    u8 other116[743];
-#endif
     s8 car;             /* 859 */
     s8 slot;            /* 860 */
     u8 view;            /* 861 */
@@ -55,12 +51,7 @@ typedef struct {
     f32 spring;         /* 144 */
     u8 other148[4];
 } Camera;               /* 152 */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern Camera gCamera[];
 extern Vec3 D_801526A8[];
 extern OSThread D_80034840;
@@ -78,15 +69,10 @@ extern void func_800E9E2C(Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E9C70(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E95DC(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
 extern void func_800E8F10(s16 mode, Object *object, f32 *pos, Mat3 *uvs);
-#ifdef TARGET_PC
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): the driver's eye smooths the car's peak forces once a frame, a filter
  * tuned to a frame of two retraces (PC_FILTER, pc_game_fps.h); the vertical one also takes the spring each frame, which
  * a shorter frame takes in proportion, so that y = y * e - spring settles where the N64's does. */
 #define PC_DECAY_IN(u, e) (pc_fps60 && pc_frame_scale != 1.0f && (e) < 1.0f ? (u) * (1.0f - pc_fps_filter(e)) / (1.0f - (e)) : (u))
-#else
-#define PC_FILTER(e) e
-#define PC_DECAY_IN(u, e) u
-#endif
 extern s32 entity_iterate(void *arg0, void *arg1);
 
 #define CAM (gCamera[slot])

@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,12 +3787,7 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 void *memcpy(void *, const void *, u32);
-#else
-M2C_UNK memcpy(s32, void *, M2C_UNK);
-#endif
-#ifdef TARGET_PC
 /* PC: the N64 version assigns new_var in one memcpy argument and reads it in the next, which only IDO's
  * left-to-right evaluation makes defined (x86-64 gcc reads it first). The same copies, in order. */
 void listener_position_set(s32 arg0)
@@ -3822,27 +3804,3 @@ void listener_position_set(s32 arg0)
     }
   }
 }
-#else
-void listener_position_set(s32 arg0)
-{
-  intptr_t var_s0;
-  s32 var_s1;
-  int new_var;
-  var_s0 = D_801525EC;
-  var_s1 = 0;
-  if (((s32) D_8015267C) > 0)
-  {
-    do
-    {
-      if (arg0 == (*((u16 *) (((s8 *) var_s0) + 0))))
-      {
-        memcpy((D_801497F8 + ((*((u16 *) (((s8 *) var_s0) + 2))) * 0x18)) + (new_var = 4), var_s0 + new_var, 0x12);
-        memcpy(((*((u16 *) (((s8 *) var_s0) + 0x16))) * 8) + D_8015201C, var_s0 + 0x18, 8);
-      }
-      var_s1 += 1;
-      var_s0 += 0x20;
-    }
-    while (var_s1 < ((s32) D_8015267C));
-  }
-}
-#endif

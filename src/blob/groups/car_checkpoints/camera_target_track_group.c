@@ -41,17 +41,10 @@
  *  - `char buf[4]` is an unused local that supplies 4 frame bytes (result home at sp+32).
  */
 typedef unsigned char u8;typedef unsigned int u32;typedef int s32;typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct Link {struct Link *next,*prev;} Link;
 typedef struct List {u8 indirect,doubly,pad[2];u32 count;Link *head,*tail;} List;
-#ifdef TARGET_PC /* p64 holds a pointer */
+/* p64 holds a pointer */
 typedef struct Node68 {Link link;List *list;u32 tag;s32 state;s32 p20;u8 flag,code,live,mode;u32 p28;f32 f32,f36,f40,f44,f48;u32 index,value,p60; uintptr_t p64;} Node68;
-#else
-typedef struct Node68 {Link link;List *list;u32 tag;s32 state;s32 p20;u8 flag,code,live,mode;u32 p28;f32 f32,f36,f40,f44,f48;u32 index,value,p60,p64;} Node68;
-#endif
 typedef struct Object24 {u8 p0,p1,kind,p3;u32 value;f32 f8,f12,f16;Node68 *node;} Object24;
 typedef struct Queue24 {u32 opaque[6];} Queue24;
 extern List D_80143FF8,D_80144C50;extern u32 D_80110254,D_801460F8,D_80146104;

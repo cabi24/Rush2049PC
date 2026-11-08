@@ -3,26 +3,13 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
-#ifdef TARGET_PC
 typedef struct {            /* the profile's host layout (pc_prelude.h): unk08 is its pak file handle */
     void *next, *prev;
     void *unk08;
     u8 pad0C[8];
     char name[1];
 } PlayerProfile;
-#else
-typedef struct {
-    u8 pad00[8];
-    s32 unk08;
-    u8 pad0C[8];
-    char name[1];
-} PlayerProfile;
-#endif
 
 typedef struct {
     u8 pad00;
@@ -33,15 +20,10 @@ typedef struct {
 
 extern s16 active_player_count;
 extern InputRecord input_rec0[];
-#ifdef TARGET_PC
 /* Each player's name slot (an index into D_80151968, -1 for none) or profile handle (&D_80146150[n], host storage),
  * pointer-sized on the PC like the high-score table gTotalNames it is copied into (docs/port/CASTS.md). */
 extern intptr_t D_801424F0[];
 #define NO_NAME (-1)
-#else
-extern s32 D_801424F0[];
-#define NO_NAME 0xFFFFFFFF
-#endif
 extern s8 D_80143F18[];
 extern char D_80143A50[][13];
 extern s16 D_80144010[];

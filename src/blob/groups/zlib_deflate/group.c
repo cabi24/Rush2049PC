@@ -50,11 +50,7 @@ extern void *memset(void *, int, size_t);
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
-#ifdef TARGET_PC
 typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
-#else
-typedef unsigned long  uLong;
-#endif
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
 typedef int   FAR intf;
@@ -65,16 +61,8 @@ typedef unsigned char  uch;
 typedef uch FAR uchf;
 typedef unsigned short ush;
 typedef ush FAR ushf;
-#ifdef TARGET_PC
 typedef unsigned int  ulg;
-#else
-typedef unsigned long  ulg;
-#endif
-#ifdef TARGET_PC
 #define N64_LONG int
-#else
-#define N64_LONG long
-#endif
 
 #define Z_NO_FLUSH      0
 #define Z_FINISH        4
@@ -155,11 +143,7 @@ typedef struct internal_state {
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
-#ifdef TARGET_PC
     int block_start;      /* 0x44 */
-#else
-    long block_start;     /* 0x44 */
-#endif
     uInt match_length;
     IPos prev_match;
     int match_available;
@@ -281,12 +265,10 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
 extern int extra_lbits[LENGTH_CODES];
 extern int extra_dbits[D_CODES];
 extern int extra_blbits[BL_CODES];
-#ifdef TARGET_PC
 /* PC: only static_bl_desc's extra_bits reaches extra_blbits, so no code names it, and the data loader left it in the
  * ROM's byte order (the bit-length tree's extra bits, when a ghost is compressed). Referenced here, it is described
  * as the int[19] it is (docs/port/BRINGUP.md 13). */
 int *const pc_extra_blbits = extra_blbits;
-#endif
 extern uch bl_order[BL_CODES];
 extern ct_data static_ltree[L_CODES+2];
 extern ct_data static_dtree[D_CODES];
@@ -1579,15 +1561,11 @@ local block_state deflate_slow(s)
  * Hand-written from the assembly; NOT MATCHING yet (context), see STATUS.md.
  */
 extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
-#ifdef TARGET_PC
 /* audio_reverb_update(address, tag) takes its arguments in a1/a2 under IDO's IPA, so the N64 call passes a
  * dummy first; on the PC the address goes first. Heap blocks are RDRAM-window addresses
  * (docs/port/PROTOTYPES.md). */
 extern void audio_reverb_update(unsigned int address, int tag);
 #define audio_reverb_update(opaque, ptr, flag) audio_reverb_update(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
-#else
-extern void audio_reverb_update(voidpf opaque, voidpf ptr, int flag);
-#endif
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 extern char D_80152770[];

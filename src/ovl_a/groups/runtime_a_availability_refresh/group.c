@@ -54,18 +54,10 @@
  */
 typedef signed char s8;typedef unsigned char u8;
 typedef short s16;typedef unsigned short u16;typedef int s32;typedef unsigned int u32;typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 extern s16 D_8014A108;
 extern s8 D_803BADBC[],D_803BADC0[],D_803BAD78[];
-#ifdef TARGET_PC
 extern intptr_t D_803BAC68[];
 extern s32 D_803BAC20[], D_803BACE0[];
-#else
-extern s32 D_803BAC20[],D_803BAC68[],D_803BACE0[];
-#endif
 extern s8 D_803BAD00[][14],D_803BAD40[][14];
 
 void func_80394564(s32 player)
@@ -103,12 +95,8 @@ void func_80394564(s32 player)
 }
 
 typedef struct Owner Owner;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10); player is its pak */
 typedef struct Item {void *next,*prev;void (*RemoveFile)(void *),(*MoveFile)(void *,void *);u8 player;} Item;
-#else
-typedef struct Item {u8 other[16];u8 player;} Item;
-#endif
 typedef struct Selection {Item *item;} Selection;
 typedef struct OwnerBody {Owner *next,*previous;Selection *selection;u8 unknown0C[8];u8 name[1];} OwnerBody;
 struct Owner {OwnerBody *body;};
@@ -351,13 +339,9 @@ extern void *memcpy(void *,const void *,u32);
 extern void *string_copy_format(char *,s32,s8,s32);
 extern s32 sign_extend_call(void *,f32 (*)[3],s32,u32);
 extern void func_8008E06C(s16,u8 *),model_data_load(s32,s32,s32),model_transform_setup(s32,s32,s32);
-#ifdef TARGET_PC
 /* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
-#else
-#define PC_WORD_ALIGNED
-#endif
 extern void *func_800B24EC(char *,s16 *,s8,s8,s32);
 extern void func_8008D870(s16,void *,s32);
 extern void func_800B5898(f32,f32 (*)[3]),func_800B5940(f32,f32 (*)[3]);
@@ -814,14 +798,10 @@ void func_80395E8C(s32 p)
     }
 }
 
-#ifdef TARGET_PC
 /* func_80396EE8/func_80396F44 (playerBeingDeleted/Created) take `skip` in a1 under IDO's IPA: their owners
  * (src/ovl_a/func_80396EE8.c, func_80396F44.c) read it as a second parameter after a dummy, and these calls
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
-#else
-#define PC_IPA_A0
-#endif
 /* playerBeingDeleted / playerBeingCreated: installed bodies, IPA context */
 s32 func_80396EE8(PC_IPA_A0 s32 skip)
 {
@@ -837,10 +817,8 @@ s32 func_80396F44(PC_IPA_A0 s32 skip)
     for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==3)found=1;
     return found;
 }
-#ifdef TARGET_PC
 #define func_80396EE8(skip) func_80396EE8(0, skip)
 #define func_80396F44(skip) func_80396F44(0, skip)
-#endif
 void func_803968B8(s32,Owner *);
 void func_80396FA0(s32 p)
 {

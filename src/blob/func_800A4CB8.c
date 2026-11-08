@@ -28,13 +28,9 @@ typedef struct List {
 } List;
 
 typedef struct { u8 bytes[24]; } Rec24;
-#ifdef TARGET_PC
 /* PC: the record is a sound request (audio_fade_control/group.c's Node), whose entry pointer moves its
  * values: 48 bytes natively */
 typedef struct { Link link; u8 kind, busy, pad[2]; void *entry; f32 values[4]; } Rec32;
-#else
-typedef struct { Link link; u8 bytes[24]; } Rec32;
-#endif
 
 extern List D_80146160;
 extern List D_80146138;
@@ -47,15 +43,10 @@ extern volatile s8 D_8011028C;
 extern s8 D_80110284;
 
 void *AllocateMemoryHeap(s32 arg0, s32 arg1);
-#ifdef TARGET_PC
 /* PurgeableMemory's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 void PurgeableMemory(u32 arg0, s32 arg1);
 #define N64A(x) PC_N64A(x)
-#else
-void PurgeableMemory(void *arg0, s32 arg1);
-#define N64A(x) x
-#endif
 void *memset(void *, s32, u32);
 void func_80091FBC(List *list, Link *object, Link *before);
 

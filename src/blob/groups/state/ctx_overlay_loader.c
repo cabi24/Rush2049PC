@@ -39,7 +39,6 @@ void *NextMaxPath(u32 addr, u32 size);
 void PurgeableMemory(void *ptr, s32 flag);
 void inflate_decompress(u8 *src, u8 *dst, s32 flag);
 void bzero(void *p, u32 n);
-#ifdef TARGET_PC
 /* PC (docs/port/DATA.md): both runtime images are linked in, and a load resets the image's data to its ROM
  * values and zeroes its BSS: 0 = image A ("Start", flag D_8011ED00), 1 = image B ("Extra", flag
  * D_8011ED04). The game-heap reservation at the image address stays. */
@@ -49,10 +48,6 @@ void pc_data_overlay_load(int overlay);
 #define D_00BDA100 0
 #define D_8002B020 0
 #define D_8002B024 0
-#else
-#define N64_ONLY(stmt) stmt
-#define PC_ONLY(stmt)
-#endif
 
 void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom) {
     void *p;
@@ -69,8 +64,7 @@ void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bss
     if (bssStart) {}
     p = NextMaxPath((u32) dst, end - dst);
     PurgeableMemory(p, 0);
-    N64_ONLY(inflate_decompress(rom, dst, 1);) PC_ONLY(pc_data_overlay_load(loaded == &D_8011ED04);)
-    N64_ONLY(bzero(bssStart, bssEnd - bssStart);)
+    pc_data_overlay_load(loaded == &D_8011ED04);
     *loaded = 1;
 }
 

@@ -20,10 +20,6 @@ typedef signed short s16;
 typedef unsigned char u8;
 typedef signed char s8;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct Blit {
     /* 0x00 */ char *name;

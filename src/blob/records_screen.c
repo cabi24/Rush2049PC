@@ -20,10 +20,6 @@
 typedef signed short s16;
 typedef int s32;
 typedef unsigned char u8;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct Voice Voice;
 typedef struct RecordSlot { s16 id; u8 pad2[50]; } RecordSlot;       /* 52 bytes */

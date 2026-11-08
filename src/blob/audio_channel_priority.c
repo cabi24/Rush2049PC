@@ -14,10 +14,6 @@
  */
 typedef float f32;
 typedef unsigned char u8;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 
 typedef struct WeightRecord {
     u8 prefix[4];

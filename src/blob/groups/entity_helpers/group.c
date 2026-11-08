@@ -9,13 +9,8 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
  * (camera_target_track's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
 typedef struct CamSlot {
@@ -46,47 +41,13 @@ typedef struct Msg {
     /* 0x08 */ Entity *ent;
     u8 pad10[16];
 } Msg; /* 0x20 */
-#else
-typedef struct CamSlot {
-    /* 0x00 */ u8 pad0[12];
-    /* 0x0C */ f32 x, y, z;
-    /* 0x18 */ u8 pad18[4];
-    /* 0x1C */ f32 blend;
-    /* 0x20 */ u8 pad20[4];
-    /* 0x24 */ f32 extra;
-} CamSlot;
-
-typedef struct Entity {
-    /* 0x00 */ u8 pad0[12];
-    /* 0x0C */ s32 id;
-    /* 0x10 */ s32 state;
-    /* 0x14 */ u8 pad14[6];
-    /* 0x1A */ u8 msgCount;
-    /* 0x1B */ u8 pad1B[0x3C - 0x1B];
-    /* 0x3C */ s32 link;
-    /* 0x40 */ CamSlot *cam;
-} Entity; /* 0x44 */
-
-typedef struct Msg {
-    /* 0x00 */ s16 id;
-    /* 0x02 */ s8 type;
-    /* 0x03 */ s8 used;
-    /* 0x04 */ Entity *ent;
-    /* 0x08 */ u8 pad8[16];
-} Msg; /* 0x18 */
-#endif
 
 extern Entity *D_80110244;
 extern s32 D_80146104;
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern Msg D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern s32 D_80142728;
 extern s32 D_801427A8;
 
@@ -95,12 +56,10 @@ s32 osSendMesg(void *, void *, s32);
 s32 entity_state_check(s32);
 
 Entity *func_80091BA8(s32 h);
-#ifdef TARGET_PC
 /* The manifest owner of func_800BF01C is an empty deleted-procedure stub (src/blob/func_800BF01C.c),
  * which this group's calls bind to on PC. The body written here gets its own name
  * (docs/port/PROTOTYPES.md). */
 #define func_800BF01C pc_func_800BF01C
-#endif
 void func_800BF01C(CamSlot *c);
 Msg *func_80091B00(void);
 

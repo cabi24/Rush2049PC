@@ -263,9 +263,9 @@ rows `results_table.c:308, 391`, the place tests `func_800F56E0.c:172-176`), and
 
 **Done** (item 3, the first part, 2026-10-29: da9d3a4 and ee4bdac on 8ff5be1). The sites of the table above that are
 item 3's, the locals of 2.5 outside other items' files, car_setup_confirm's locals and the scene trigger follow the
-race's cars. `PC_RACE_CARS` is `pc_race_cars()` (pc_game_types.h); each game file defines its N64 side as 6
-(`#ifndef TARGET_PC`), so the N64 tokens are the original ones. With the count at 6 the game is the N64's, to the
-trace (the proof below).
+race's cars. `PC_RACE_CARS` is `pc_race_cars()` (pc_game_types.h); each game file defined its N64 side as 6
+(`#ifndef TARGET_PC`, until the N64 build was dropped), so the N64 tokens were the original ones. With the count at 6
+the game is the N64's, to the trace (the proof below).
 
 | Site | On the PC |
 |---|---|

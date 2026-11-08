@@ -26,19 +26,12 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 #define NULL ((void *)0)
 #define BLOCK_MAGIC 0xFEDCBA98
 
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
 enum n64p_u32 { n64p_u32_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Block next;
@@ -50,43 +43,16 @@ typedef struct Block {
     /* 0x16 */ u8 lock;
     /* 0x17 */ u8 pad17[9];
 } Block;                           /* 0x20 */
-#else
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Block *next;
-    /* 0x08 */ struct Block *prev;
-    /* 0x0C */ u32 size;           /* payload bytes, header excluded */
-    /* 0x10 */ u32 *ref;           /* owner's pointer to the payload, or NULL */
-    /* 0x14 */ s8 used;
-    /* 0x15 */ s8 tag;
-    /* 0x16 */ u8 lock;
-    /* 0x17 */ u8 pad17[9];
-} Block;                           /* 0x20 */
-#endif
 
-#ifdef TARGET_PC
 typedef struct Heap {
     /* 0x00 */ u32 unk0;
     /* 0x04 */ enum n64p_Heap next;
     /* 0x08 */ enum n64p_Block first;
     /* 0x0C */ enum n64p_Block last;
 } Heap;
-#else
-typedef struct Heap {
-    /* 0x00 */ u32 unk0;
-    /* 0x04 */ struct Heap *next;
-    /* 0x08 */ Block *first;
-    /* 0x0C */ Block *last;
-} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 
 typedef struct OSMesgQueue OSMesgQueue;
 extern Heap *D_801527C8;
@@ -96,25 +62,18 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 void audio_reverb_update(u32 address, s32 tag);
 void *func_800A47C0(void *dst, const void *src, u32 n);
 
-#ifdef TARGET_PC
 /* The manifest owner of func_800A51D8 is the empty deleted-procedure stub (src/blob/func_800A51D8.c), which
  * the weak copies bind to on PC. This inlined helper gets its own name there. */
 #define func_800A51D8 car_damage_visual_heap
-#endif
 Heap *func_800A51D8(Heap *heap) {
     if (heap) return heap;
     return D_801527C8;
 }
 
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's; a block's owner is a handle slot, which the
  * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define SLOT_SET(s, v) PC_SLOT_SET(N64P(s), v)
-#else
-#define N64A(x) (u32)x
-#define SLOT_SET(s, v) *N64P(s) = v
-#endif
 void car_damage_visual(Heap *hint) {
     Heap *heap;
     Block *block, *cursor, *after, *tail, *previous;

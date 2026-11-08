@@ -7,17 +7,10 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef f32 Vec3[3];
 typedef struct Parameters {f32 rear_force_blend;} Parameters;
-#ifdef TARGET_PC
 enum n64p_Parameters { n64p_Parameters_ };
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Model2056 {
     enum n64p_void car;
     enum n64p_Parameters parameters;
@@ -54,52 +47,9 @@ typedef struct Model2056 {
     s8 mode;
     u8 tail[59];
 } Model2056;
-#else
-typedef struct Model2056 {
-    void *car;
-    Parameters *parameters;
-    u8 car_type;
-    u8 to_force[7];
-    Vec3 force,moment,acceleration,angular_acceleration,velocity,angular_velocity,drag;
-    Vec3 tire_force[4];
-    u8 to_body_force[48];
-    Vec3 body_force[4];
-    u8 to_center_force[48];
-    Vec3 center_force;
-    u8 to_gravity[216];
-    Vec3 gravity;
-    u8 to_position[28];
-    Vec3 position;
-    Vec3 previous_position;
-    u8 to_world_gravity[140];
-    Vec3 world_gravity;
-    u8 to_basis[12];
-    f32 basis[9];
-    u8 to_gear[232];
-    s16 gear;
-    u8 to_no_thrust[431];
-    s8 no_thrust;
-    u8 to_mass[22];
-    f32 mass;
-    u8 to_road[80];
-    s32 road[4];
-    u8 to_contact_magnitude[44];
-    f32 contact_magnitude;
-    u8 to_player[370];
-    s16 player;
-    u8 to_mode[4];
-    s8 mode;
-    u8 tail[59];
-} Model2056;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern f32 D_80142764;
 extern f32 D_80114178[];
 extern s8 D_8011128C[][13];

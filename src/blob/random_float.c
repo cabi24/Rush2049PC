@@ -36,7 +36,6 @@ typedef short s16;
 typedef int s32;
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: the car record's layout (its visuals and input pointer are pointer-sized). This view's CENTERFORCE is
  * MODELDAT's (below), never read through a car. */
 typedef struct {
@@ -48,15 +47,6 @@ typedef struct {
     void *input;
     char pad384[0x3B8 - 0x384];
 } Car;
-#else
-typedef struct {
-    char pad0[0x124];
-    f32 CENTERFORCE[3];         /* 0x124 */
-    char pad130[0x359 - 0x130];
-    s8 unk359;
-    char pad35A[0x3B8 - 0x35A];
-} Car;
-#endif
 
 typedef struct {
     char pad0[0x124];
@@ -82,7 +72,6 @@ typedef struct {
     f32 mass;                   /* 0x1C */
 } Body;
 
-#ifdef TARGET_PC
 /* PC: a dead-reckoning record (D_80150F38, a heap block of 64-byte records) keeps its N64 layout, its body a 32-bit
  * window address of game data at D_80118C10 (func_8010C02C's CollisionReckon, level_objects' Matrix64;
  * docs/port/POINTERS.md 10.2). */
@@ -93,24 +82,10 @@ typedef struct {
     f32 RWV[3];                 /* 0x34 */
 } Reckon;
 #define BODY(r) ((Body *)PC_N64P((r)->body))
-#else
-typedef struct {
-    Body *body;                 /* 0x00 */
-    f32 UV[3][3];               /* 0x04 */
-    f32 RWR[3];                 /* 0x28 */
-    f32 RWV[3];                 /* 0x34 */
-} Reckon;
-#define BODY(r) r->body
-#endif
 
 extern s8 D_8017A634;
 extern s32 D_8014A110;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_STATE(i) D_80152818[i].unk359
-#endif
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)

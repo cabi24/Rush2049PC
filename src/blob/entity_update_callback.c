@@ -47,47 +47,20 @@ typedef struct tBlastStruct {
     float lifeTime;             /* 0x188 */
     float incTime;              /* 0x18C */
 } tBlastStruct;
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual { void *next; u8 pad4[2]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
-#else
-typedef struct tVisual { u8 pad0[6]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
-#endif
-#ifdef TARGET_PC
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
-#else
-typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
-#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x6C4 - 0x641]; s16 moving_state; u8 pad6C6[0x808 - 0x6C6]; } tModelData;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInstance { unsigned int flags, w4; void *mat; float scale; float w; unsigned short index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
-#else
-typedef struct ObjInstance { unsigned int flags; char pad4[8]; float scale; char pad10[0x2C]; unsigned int color; unsigned int envcolor; } ObjInstance;
-#endif
 
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;                  /* gFrameSeconds */
-#ifdef TARGET_PC
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
 #define D_80154660 pc_blasts
-#else
-extern tBlastStruct D_80154660[];       /* gBlastObjs */
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];         /* gGameCar */
-#define PC_CAR_POS(i) player_array[i].dr_pos
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];         /* model */
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
-#define PC_MODEL_MOVING_STATE(i) D_8014A250[i].moving_state
-#endif
 extern ObjInstance D_8012E700[];        /* ObjInstanceList */
 extern s8 D_80156994;
 extern s8 D_8014978C;                   /* gTrackNum */

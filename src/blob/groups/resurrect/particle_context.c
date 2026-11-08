@@ -60,10 +60,6 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef signed long long s64;
 typedef unsigned long long u64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct {
@@ -239,16 +235,11 @@ typedef union {
 #define TEX_MIRROR_S 0x00040000
 #define TEX_CLAMP_T 0x00020000
 #define TEX_CLAMP_S 0x00010000
-#ifdef TARGET_PC
 /* PC: Texture, Palette and LodSet are a WAD's TXHD, PLHD and OBHD records, which keep their N64 layout
  * (port/assets/wad.c): image, table and dl are 32-bit RDRAM-window addresses, unsigned so they widen to host
  * pointers by zero extension. */
 #define WADP(type) u32
 #define WAD_ADDR u32
-#else
-#define WADP(type) type *
-#define WAD_ADDR s32
-#endif
 typedef struct {
     u8 pad0[16];
     u16 width;

@@ -41,13 +41,9 @@ struct tVisual {
 typedef struct tCarData {
     u8 unknown000[0x110];
     tVisual visuals[21];            /* 0x110; weapon = visuals[20] at 0x2F0 */
-#ifdef TARGET_PC
     u8 unknown308[0x380 - 0x308];
     void *input;                    /* 0x380: the car's input record (D_8014A118[]), a host pointer */
     u8 unknown384[0x3b8 - 0x384];
-#else
-    u8 unknown308[0x3b8 - 0x110 - 21 * 0x18];
-#endif
 } tCarData;                         /* 0x3B8 */
 
 typedef struct tCarParts {
@@ -63,19 +59,9 @@ typedef struct tModel {
     u8 unknown09[0x7ff];
 } tModel;                           /* 0x808 */
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData D_80152818[];
-#define PC_CAR_VISUALS(i) D_80152818[i].visuals
-#endif
 extern tCarParts D_80139320[];
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModel D_8014A250[];
-#define PC_MODEL_BODY(i) D_8014A250[i].body_type
-#endif
 extern f32 D_803943A4[8][13][3];
 extern volatile f32 D_8002EB90;
 extern u16 D_8014254C[];

@@ -10,21 +10,13 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct InputRecord {
     u8 unk0, player_id;
     u8 unk2[2];
     u32 pressed;
     u32 unk8;
     u32 repeated;
-#ifdef TARGET_PC
     u8 unk10[0x48 - 0x10]; void *ref;
-#else
-    u8 unk10[60];
-#endif
 } InputRecord;
 extern InputRecord input_rec0[];
 extern s16 D_80144010[];

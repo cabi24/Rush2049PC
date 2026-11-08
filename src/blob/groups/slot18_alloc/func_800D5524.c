@@ -47,19 +47,7 @@ typedef struct {
     s8 unk7CC;
 } MODELDAT;
 
-#ifdef TARGET_PC
 /* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-#else
-extern s8 D_8010FFC4[];
-extern s8 D_8010FFCC[];
-extern SndSet D_80140420[];
-extern SndRec D_80140640[];
-#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
-#define PC_ENGINE_PHASE(i) D_8010FFCC[i]
-#define PC_ENGINE_SOUND_HANDLE(i, k) D_80140420[i].rec[k].handle
-#define PC_ENGINE_SOUND_REC(i, k) &D_80140420[i].rec[k]
-#define PC_SCREECH(i) &D_80140640[i]
-#endif
 extern SndRec D_801406C0[][3];
 extern s32 D_80140AE0[];
 extern s16 D_80140A08[];

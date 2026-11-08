@@ -50,18 +50,12 @@ typedef struct AudioMsg {
 extern s32 D_80146200;              /* gMaxSfx */
 extern s32 D_80110250;              /* gNumStopCmds */
 extern s32 D_8011024C;              /* gNumStartCmds */
-#ifdef TARGET_PC
 /* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
 #define D_80143CF0 (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define D_80143AE8 (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
-#else
-extern AudioMsg *D_80143CF0[];      /* gStopCmds */
-extern AudioMsg *D_80143AE8[];      /* gStartCmds */
-#endif
 AudioMsg *func_80091B00(void);      /* _GetCmd */
 s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
 
-#ifdef TARGET_PC
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */
 #define PC_CMD_OR_RETURN(c) if ((c) == 0) return;
@@ -70,10 +64,6 @@ s32 func_80095198(f32 startTime, f32 interval);   /* AudioTimeout */
  * is the same comparison. */
 #define PC_OVER_BUDGET(tag, rank, budget) \
     pc_snd_over_budget((tag)->id, rank, budget, (tag)->state == 2 || (tag)->vol > 0.1f)
-#else
-#define PC_CMD_OR_RETURN(c)
-#define PC_OVER_BUDGET(tag, rank, budget) rank >= budget
-#endif
 void sound_position_update(void *element, int elNum)
 {
     SortedTag *stag = element;

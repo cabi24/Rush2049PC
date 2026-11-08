@@ -37,45 +37,15 @@ typedef struct {
     /* 0x0F0 */ f32 score;
     /* 0x0F4 */ char padF4[0xC];
     /* 0x100 */ f32 distance;
-#ifdef TARGET_PC
     /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x359 - 0x308];
-#else
-    /* 0x104 */ char pad104[0x255];
-#endif
     /* 0x359 */ s8 unk359;
-#ifdef TARGET_PC
     /* 0x35A */ char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
-#else
-    /* 0x35A */ char pad35A[0x5E];
-#endif
 } GameCar; /* 0x3B8 */
 
 extern s8 D_80152744;
 extern s16 D_80152734;
-#ifdef TARGET_PC
-#else
-extern Model D_8014A250[];
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar D_80152818[];
-#define PC_CAR_DISTANCE(i) D_80152818[i].distance
-#define PC_CAR_FINISHED(i) D_80152818[i].place_locked
-#define PC_CAR_PLACE(i) D_80152818[i].place
-#define PC_CAR_STATE(i) D_80152818[i].unk359
-#define PC_CAR_TIME(i) D_80152818[i].score
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250_alias[]; /* second symbol for 0x8014A250, see header */
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODELS D_8014A250_alias
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].drone_type
-#define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
 extern s32 D_8014A110;
 extern s16 D_8014A108;
 extern s8 D_80152718;
@@ -86,15 +56,10 @@ f32 viGetTimeToDeadline(void);
 void viAddTicks(f32);
 void func_800D1AB0(void);
 
-#ifdef TARGET_PC
 /* PC: the locked cars in score order, by slot, and their scores, as many as the race's cars (up to PC_MAX_LINKS,
  * pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's are 7 and 6, the 7 for its frame. */
 #define PLACE_N (PC_MAX_LINKS + 1)
 #define SCORES_N PC_MAX_LINKS
-#else
-#define PLACE_N 7
-#define SCORES_N 6
-#endif
 void car_setup_confirm(s32 slot, f32 score) {
     s16 i, j, index, temp, num_locked, place[PLACE_N], num_humans_locked;
     f32 scores[SCORES_N];

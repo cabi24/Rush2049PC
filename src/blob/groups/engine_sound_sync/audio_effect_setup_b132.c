@@ -7,10 +7,6 @@
  */
 typedef unsigned char u8;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
 typedef struct Link {struct Link *next, *prev;} Link;
 typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
 void func_80091FBC(List *list, Link *object, Link *before) {

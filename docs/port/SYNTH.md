@@ -403,4 +403,4 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - When the boot stops at a new place: `RUSH_TRACE_WAVES=1` shows each file's load and conversion; the fault report's
   backtrace names the function. Ask whether the N64 would stop there on the same bytes: if so it is data, and the
   value goes in the generator with its reason; if not, it is a port bug (a layout, a width, a host pointer where the
-  N64 has 4 bytes, a host ABI difference): fix it in the game C under `TARGET_PC`, with a test.
+  N64 has 4 bytes, a host ABI difference): fix it in the game C, with a test.

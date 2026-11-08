@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2693,15 +2680,8 @@ extern s32 D_80152034;
 extern s32 D_80152038;
 extern s32 D_80152040;
 extern s32 D_80152050;
-#ifdef TARGET_PC
 /* On the PC the cars' last positions (12-byte records, x, y, z) are pc_cp_last_pos, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-#else
-extern s32 D_80152218;
-#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *) &D_80152218 + i * 12)
-#define PC_CP_LAST_POS_Y(i) *(f32 *) ((u8 *) &D_80152218 + i * 12 + 4)
-#define PC_CP_LAST_POS_Z(i) *(f32 *) ((u8 *) &D_80152218 + i * 12 + 8)
-#endif
 extern u8 D_80152260;
 extern u8 D_80152360;
 extern s32 D_80152460;
@@ -3809,15 +3789,7 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern u8 D_80152818[];
-#define PC_CARS D_80152818
-#endif
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
 
 void func_800FBE60(void)
 {

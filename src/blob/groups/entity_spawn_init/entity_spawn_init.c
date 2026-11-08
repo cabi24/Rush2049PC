@@ -43,52 +43,22 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
-#ifdef TARGET_PC
 typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x35C - 0x308]; s8 viewport; s8 visibility; u8 pad862[0x380 - 0x35E]; void *input; u8 pad862_384[0x3B8 - 0x384]; } Car;
-#else
-typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[610]; s8 viewport; s8 visibility; u8 pad862[90]; } Car;
-#endif
 typedef struct Model {u8 pad0[8];u8 type;u8 pad9[1555];u16 surface[8];u8 pad1580[304];f32 suspension[4];u8 pad1900[156];} Model;
-#ifdef TARGET_PC
 /* PC: the handle is the s32 MBOX_NewObject returned, and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; struct {s16 id,bank;} part; } handle; s32 unknown56; f32 lifetime; f32 timestep; f32 velocity[3]; u32 flags; s16 slot; s16 object; } Effect;
-#else
-typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; struct {s16 bank,id;} part; } handle; s32 unknown56; f32 lifetime; f32 timestep; f32 velocity[3]; u32 flags; s16 slot; s16 object; } Effect;
-#endif
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Scene { u32 flags; u32 flags4; void *owner; f32 scaleA; f32 scaleB; u16 id; s16 links[3]; void *words[8]; union { u8 byte[4]; u32 word; } rgba; s32 tail; } Scene;
-#else
-typedef struct Scene {u32 flags;u32 flags4;void *owner;f32 scaleA;f32 scaleB;u16 id;s16 links[3];s32 words[8];union { u8 byte[4]; u32 word; } rgba;s32 tail;} Scene;
-#endif
 typedef struct Bank {u8 *data;u32 other;} Bank;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_BODY(i) D_8014A250[i].type
-#define PC_MODEL_SUSPENSION(i) D_8014A250[i].suspension
-#endif
 extern Scene D_8012E700[];
-#ifdef TARGET_PC
 /* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define D_801392D8 pc_tire_fx
 #define D_8013A020 pc_smoke_shade
 #define D_8013C098 pc_trail_pts
-#else
-extern u32 D_801392D8[];
-extern u8 D_8013A020[];
-extern f32 D_8013C098[][6];
-#endif
 extern u8 D_8013F1E0[];
 extern u16 D_8013F380[];
 extern u16 D_80142948[];
@@ -98,14 +68,6 @@ extern f32 D_8011744C[];
 extern s32 D_8011749C,D_801174A0,D_801174A4,D_801174A8,D_801174AC,D_801174B0;
 /* PC: the six surface colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
  * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
-#ifndef TARGET_PC
-#define PC_RGBA(x) x
-/* PC: game.frame_rate 60 spawns the continuous effects (tire smoke, dust, the exhaust trail) once a frame of two
- * retraces, as the N64 does, so their density, their cadence (the alternation bits, the dust's every second or third
- * call, its fading colour) and the random numbers they take keep the N64's rate; a blast's (type 5) is an event,
- * and the latched wheel effect (fast) once a wheel (docs/port/FRAMERATE.md 7). */
-#define PC_ONLY(stmt)
-#endif
 void func_8008D870(s16 handle,void *resource,s32 mode);
 f32 func_8008E0B8(f32 *v);
 s32 func_8008E26C(s32 object,void *basis,s16 parent,s32 flags);
@@ -207,7 +169,7 @@ void entity_spawn_init(s16 slot, u32 type, s32 fast, f32 *offset)
     s32 pD43;
 
     
-    if (!D_80143F14 && type < 4 && !fast) return; PC_ONLY(if (pc_fps60 && !pc_frame_steps && !fast && type != 5) return;)
+    if (!D_80143F14 && type < 4 && !fast) return; if (pc_fps60 && !pc_frame_steps && !fast && type != 5) return;
     
     
     i = 0;

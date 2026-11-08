@@ -10,27 +10,15 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct Slot64 {
     s32 unknown0,id;
     f32 angle,matrix[3][3],position[3];
     s32 unknown3C;
 } Slot64;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Resource;
-#else
-typedef struct Resource { u8 unknown0[16]; u8 player; } Resource;
-#endif
-#ifdef TARGET_PC
 typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;   /* the profile, pc_prelude.h */
-#else
-typedef struct Owner { u32 unknown0,unknown4; Resource **resource; } Owner;
-#endif
 typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
 typedef struct Blit Blit;
 extern s16 D_8014A108;
@@ -218,13 +206,9 @@ void func_80399D10(void)
     }
 }
 
-#ifdef TARGET_PC
 /* PC: the buttons' colour D_803B46A4 is R,G,B,A bytes in the ROM, copied whole into the scene nodes (read as bytes).
  * The PC loader fills initialized data by its declarations: as a word it would swap them (docs/port/ENDIAN.md). */
 typedef struct Color4 { u8 c[4]; } Color4;
-#else
-typedef struct Color4 { u32 word; } Color4;
-#endif
 typedef struct MultiBlit {
     const char *texname;
     s16 dulx,duly,width,height,top,bot,left,right;
@@ -241,13 +225,9 @@ extern void particle_velocity_set(void),entity_audio_update(void);
 extern s32 string_copy_format(char *,s8,s8,s8);
 extern s32 sign_extend_call(u32,uintptr_t,s32,u32);
 extern void func_8008E06C(s16,Color4 *);
-#ifdef TARGET_PC
 /* PC: func_8008E06C reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
-#else
-#define PC_WORD_ALIGNED
-#endif
 extern Blit *sound_control(s16,s16,const MultiBlit *,s16);
 extern u8 func_800CDED8(void **);
 

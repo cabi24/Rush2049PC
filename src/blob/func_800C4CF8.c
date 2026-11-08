@@ -7,32 +7,19 @@ typedef unsigned char u8;
 typedef struct Position { s16 x,y,z; } Position;
 typedef struct SearchPoint { s16 x,y,z,flag; } SearchPoint;
 typedef struct PositionEntry { u8 pad[12]; Position *points; } PositionEntry;
-#ifdef TARGET_PC
 /* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (audio_effect_apply), so these views take host offsets and strides */
 typedef struct CountEntry { u16 count; u8 pad[14]; } CountEntry;
-#else
-typedef struct CountEntry { u16 count; u8 pad[6]; } CountEntry;
-#endif
 typedef struct PointEntry { SearchPoint *points; u8 pad[4]; } PointEntry;
 typedef struct Waypoint { s16 index[40]; } Waypoint;
 typedef struct Region { u8 pad[40]; s16 path; } Region;
-#ifdef TARGET_PC
 typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; Region region; u8 rest[0x380 - 0x33E]; void *input; u8 rest_384[0x3B8 - 0x384]; } Player;
-#else
-typedef struct Player { u8 pad[788]; Region region; u8 rest[122]; } Player;
-#endif
 typedef struct State { u8 pad[1990]; s16 player; u8 gap[26]; s16 next, previous; } State;
 extern PositionEntry *D_801407FC;
 extern Position *D_801407F4;
 extern CountEntry D_8012E5E8[];
 extern PointEntry D_8012E5EC[];
 extern Waypoint D_80151D18[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player player_array[];
-#define PC_CAR_NAV(i) player_array[i].region
-#endif
 extern f32 D_80123F88;
 extern s16 func_800B9338(s16,s16);
 extern void func_800C4C9C(State *,s16);

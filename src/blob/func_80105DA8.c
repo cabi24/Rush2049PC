@@ -16,10 +16,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -449,20 +445,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -786,35 +773,17 @@ float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
 /* referenced data (types guessed from access width) */
-#ifdef TARGET_PC
 /* PC: the crossbones' positions, {x, y} per window count and player: bonesPos[4][4][2] of the GC's hud.c. The
  * complete declaration gives the table its extent (an M2C_UNK described only its first word to the loader). */
 typedef struct { s32 x, y; } BonesPos;
 extern BonesPos D_801160C8[4][4];
-#else
-extern M2C_UNK D_801160C8;
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern M2C_UNK D_8014AA16;
-#define PC_MODEL_SLOT(i) *(s16 *)((u8 *)&D_8014AA16 + i * 0x808)
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern M2C_UNK D_80152907;
-#define PC_CAR_FINISHED(i) *((s8 *) &D_80152907 + (i * CAR_OFS(0x3B8)))
-#endif
 
 /* group functions */
 s32 func_80105DA8(void *arg0);
 
 
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
-#ifdef TARGET_PC
 /* PC: animBones (GC hud.c), the crossbones by the speedometer in deaths mode, over the Blit's host layout
  * (sound_control.c's, docs/port/POINTERS.md 9.3): the name, image and info are pointers, so X..Hide are 0x0C later
  * than on the N64 and the AnimID (the player) is at +0x40. The N64 offsets of the m2c body below hid nothing on the
@@ -849,23 +818,4 @@ s32 func_80105DA8(void *arg0) {
     Input_ApplyPadConfig(blt);
     return 1;
 }
-#else
-s32 func_80105DA8(void *arg0) {
-    s32 temp_v0;
-    u32 temp_v1;
-
-    if (((s8) D_80142760 == 0) || (temp_v1 = M2C_FIELD(arg0, u32 *, 0x2C), (temp_v1 >= (u32) (s16) gNumWindows)) || (PC_CAR_FINISHED(PC_MODEL_SLOT(temp_v1)) == 1)) {
-        if (M2C_FIELD(arg0, s8 *, 0x1A) != 1) {
-            M2C_FIELD(arg0, s8 *, 0x1A) = 1;
-            Input_ApplyPadConfig(arg0);
-            }
-        return M2C_FIELD(arg0, s8 *, 0x1A);
-    }
-    temp_v0 = temp_v1 * 8;
-    M2C_FIELD(arg0, s16 *, 0xE) = (s16) (M2C_FIELD(((u8 *) &D_801160C8 + ((s16) gNumWindows << 5) + temp_v0), s32 *, -0x20) - ((s16) M2C_FIELD(arg0, s16 *, 0x14) / 2));
-    M2C_FIELD(arg0, s16 *, 0x10) = (s16) M2C_FIELD(((u8 *) &D_801160C8 + ((s16) gNumWindows << 5) + temp_v0), s32 *, -0x1C);
-    Input_ApplyPadConfig(arg0);
-    return 1;
-}
-#endif
 

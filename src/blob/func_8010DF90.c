@@ -16,10 +16,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -449,20 +445,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -787,12 +774,7 @@ float sqrtf(float);
 
 /* referenced data (types guessed from access width) */
 extern M2C_UNK D_8011754C;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern M2C_UNK D_80152B74;
-#define PC_CAR_VIEW(i) *((s8 *) &D_80152B74 + (i * CAR_OFS(0x3B8)))
-#endif
 
 /* callees outside the group */
 s32 func_800F7A98();
@@ -804,15 +786,9 @@ void stat_lap_split();
 void func_8010DF90(void *arg0);
 
 
-#ifdef TARGET_PC
 /* PC: the target arg0 (a level-object node) keeps its N64 layout: its state (+0x6C) is a 32-bit window address
  * (docs/port/POINTERS.md 10). */
 #define NODE_STATE(t) (void *) PC_N64P(M2C_FIELD(t, u32 *, 0x6C))
-#else
-#define CAR_OFS(n) n
-#define TINFO_OFS(n) n
-#define NODE_STATE(t) M2C_FIELD(t, void **, 0x6C)
-#endif
 void func_8010DF90(void *arg0) {
     s8 temp_a2;
     void *temp_s1;

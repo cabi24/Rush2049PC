@@ -26,7 +26,6 @@ typedef struct Battle {
     s32 loaded;           /* 0x20 */
     f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
 } Battle;
-#ifdef TARGET_PC
 /* PC: the car record's layout (0x468 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
 typedef struct Car {
     u8 pad00[0xe8];
@@ -37,14 +36,6 @@ typedef struct Car {
     void *input;
     Battle battle;        /* 0x384, PC 0x430 */
 } Car;
-#else
-typedef struct Car {
-    u8 pad00[0xe8];
-    u32 appearance;       /* 0xe8 */
-    u8 padec[0x384 - 0xec];
-    Battle battle;        /* 0x384 */
-} Car;
-#endif
 typedef struct Model {
     u8 pad00[8];
     u8 body_type;         /* 0x08 */
@@ -55,7 +46,6 @@ typedef struct Model {
     u8 pad658[0x808 - 0x658];
 } Model;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
-#ifdef TARGET_PC
 /* PC: a target info record is 0x40 bytes (its first four words are pointers), every field spelled out as in the
  * other views, whichever one the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
 typedef struct TargetInfo {
@@ -71,9 +61,6 @@ typedef struct TargetInfo {
     s32 w20, w24, w28;
     f32 f2C;
 } TargetInfo;
-#else
-typedef struct TargetInfo { u8 pad00[0x1c]; s32 startSnd; u8 pad20[0x30 - 0x20]; } TargetInfo;
-#endif
 typedef struct Target {
     u8 pad00[4];
     u8 Flags;             /* 0x04 */
@@ -88,35 +75,16 @@ typedef struct Target {
     s8 slot;              /* 0x5c */
 } Target;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];        /* gGameCar */
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];      /* model */
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern TargetInfo D_80117530[]; /* targetInfo */
-#ifdef TARGET_PC
 /* PC: the eight weapons' counts. Without a size the loader would take its extent from the gap to the next known
  * address and swap the 48 bytes after it as words too. */
 extern s32 D_80121D60[8];       /* ammoCnts */
-#else
-extern s32 D_80121D60[];        /* ammoCnts */
-#endif
 extern CollSize D_8011F844[];   /* collsize */
-#ifdef TARGET_PC
 /* PC: the definitions' prototypes. */
 s32 stat_lap_split(s32 sound, s32 slot, f32 *position, u8 mode);
 void model_data_load(s32 a, s32 mode, u32 v);
-#else
-void stat_lap_split(s32 snd, s32 slot, f32 *pos, s32 n);  /* PlayTargetSound */
-void model_data_load(s32 dl, s32 a, s32 b);                /* MBOX_HideObject */
-#endif
 void func_80391490(void);                                  /* IncBattlePowerUps */
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)

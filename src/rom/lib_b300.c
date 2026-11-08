@@ -55,11 +55,7 @@ s32 osPfsDeleteFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name, 
 
 /* A page link {bank, page} as its u16: on the N64 that is bank << 8 + page. On the PC, ipage is a host-order
  * u16 and the links are read through the byte fields, so the u16 is the one whose bytes are {bank, page}. */
-#ifdef TARGET_PC
 #define PFS_IPAGE(bank, page) (u16)((page) << 8 | (bank))
-#else
-#define PFS_IPAGE(bank, page) (bank << 8) + page
-#endif
 
 /* PROMOTED 2026-10-01 — __osPfsReleasePages (formerly labelled osPfsFindFile)
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)

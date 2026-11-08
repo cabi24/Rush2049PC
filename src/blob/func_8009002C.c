@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3801,7 +3788,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node whose
  * first child is arg0, or -1. */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
@@ -3817,28 +3803,3 @@ s16 func_8009002C(s16 arg0)
   }
   return -1;
 }
-#else
-s16 func_8009002C(s16 arg0)
-{
-  s16 new_var;
-  int var_v1;
-  s32 *var_a1;
-  var_v1 = 0;
-  new_var = arg0;
-  if (D_80156990 > 0)
-  {
-    var_a1 = &D_8012E700;
-    loop_2:
-    if (new_var == (*((s16 *) (((s8 *) var_a1) + 0x16))))
-    {
-      new_var = var_v1;
-      return new_var;
-    }
-
-    var_v1 += 1;
-    var_a1 = var_a1 + 0x11;
-    if (var_v1 < D_80156990) goto loop_2;
-  }
-  return -1;
-}
-#endif

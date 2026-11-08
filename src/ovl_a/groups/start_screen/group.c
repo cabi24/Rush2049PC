@@ -38,13 +38,11 @@ typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]
 typedef union tRGBA { u8 c[4]; u32 w; } tRGBA;
 typedef struct MultiBlit MultiBlit;
 typedef struct Egg Egg;
-#ifdef TARGET_PC
 /* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/sound_control.c (MultiBlit)
    and src/ovl_a/groups/cheat_screen/eggs.c (Egg). */
 struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                    s32 (*animfunc)(Blit *); u32 animid; };
 struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; };
-#endif
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 extern volatile f32 D_8002EB94;            /* gFrameSeconds */
@@ -121,23 +119,16 @@ void func_8038FFD0(void);
 void func_8038F734(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
 void func_8038F73C(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
 void func_8038F79C(void);
-#ifdef TARGET_PC
 /* This file's InitEgg (inlined on the N64) points at the main menu's code, D_803B41D4; eggs.c's InitEgg at cheat
    `egg` of D_803B3460. Under one name the PC linked eggs.c's for both, so InitEgg(23) pointed past the table and
    the cheat screen could never be opened (docs/port/QA.md). */
 #define InitEgg startscr_InitEgg
-#endif
-#ifdef TARGET_PC
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8, never valid on the
    N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_EXIT(e) ((e) = pc_start_exit((e), D_803B6A68))
-#else
-#define PC_START_VALID(i, v) v
-#define PC_START_EXIT(e) e
-#endif
 void InitEgg(s32);
 void func_80390418(void);
 

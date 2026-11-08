@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,7 +3688,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: GetStatLLE over the header's host layout (shots.c's StatLL, docs/port/POINTERS.md 9): takes the first free
  * element and puts it at the head of the active list (and links it back when the list is doubly linked); the m2c
  * body uses the N64 offsets. An element's links are its first two words: pointers, or window addresses in a list
@@ -3724,24 +3710,3 @@ void *func_8008E3C0(void *arg0) {
     }
     return e;
 }
-#else
-void *func_8008E3C0(void *arg0) {
-    void *temp_v0;
-    void *temp_v1;
-
-    temp_v1 = M2C_FIELD(arg0, void **, 0x14);
-    if (temp_v1 != NULL) {
-        M2C_FIELD(arg0, void **, 0x14) = (void *) M2C_FIELD(temp_v1, void **, 0);
-        M2C_FIELD(temp_v1, void **, 0) = (void *) M2C_FIELD(arg0, void **, 0x10);
-        if (M2C_FIELD(arg0, u8 *, 0) != 0) {
-            M2C_FIELD(temp_v1, s32 *, 4) = 0;
-            temp_v0 = M2C_FIELD(arg0, void **, 0x10);
-            if (temp_v0 != NULL) {
-                M2C_FIELD(temp_v0, void **, 4) = temp_v1;
-            }
-        }
-        M2C_FIELD(arg0, void **, 0x10) = temp_v1;
-    }
-    return temp_v1;
-}
-#endif

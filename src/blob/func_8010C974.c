@@ -32,7 +32,6 @@ typedef struct MineData {
  s32 base,ring[2]; f32 timer; f32 mat[2][4][3];
  f32 elapsed[2]; s8 step[2]; u8 alpha[2]; f32 scale[2]; s16 phase,active;
 } MineData;
-#ifdef TARGET_PC
 /* PC: a target (a level-object node, 112 bytes) keeps its N64 layout: next and its state, the mine's data (a heap
  * record of its category), are 32-bit window addresses (docs/port/POINTERS.md 10). */
 enum n64p_Target { n64p_Target_ };
@@ -42,45 +41,21 @@ typedef struct Target {
  f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
  s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;enum n64p_MineData data;
 } Target;
-#else
-typedef struct Target {
- struct Target *next;u8 flags,pad5[7];s32 model;s16 info;u8 pad18[2];
- f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
- s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;MineData *data;
-} Target;
-#endif
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
-#else
-typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];Target *data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
-#endif
-#ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). The colour is a member of its own:
  * a union of the eight pointer slots and the colour would be padded to 72 bytes. */
 typedef struct Object68 {u32 flags;s32 w4;void *owner;f32 scaleA,scaleB;u16 id;s16 link[3];void *slots[8];Color color;s32 w64;} Object68;
-#else
-typedef struct Object68 {u32 flags;s32 w4;void *owner;f32 scaleA,scaleB;u16 id;s16 link[3];union {s32 words[9];struct {s32 prefix[8];Color color;} view;} body;s32 w64;} Object68;
-#endif
 typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
 typedef struct MineSlots {Target *target[4];s32 count;} MineSlots;
 typedef struct Link {struct Link *next;Target *target;} Link;
-#ifdef TARGET_PC
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
-#else
-typedef struct Pool {u8 doubly,pad1[15];Link *active,*free;} Pool;
-#endif
 extern s32 D_801170FC,D_80399B2C,D_80399B30;
 extern volatile f32 D_8002EB94;
 extern MineSlots D_80151528[];
@@ -101,13 +76,8 @@ extern void func_8038D798(f32 *,f32 *,s32,f32,s32);
 extern void save_write_data(f32 *,s32,f32,s32);
 extern void entity_spawn_callback(s16,s32,s32);
 static s16 MBOX_NewObject(s32 obj,void *mat,s32 parent,u32 flags){s16 dlidx;dlidx=func_8008E26C(obj,mat,parent,flags);return dlidx;}
-#ifdef TARGET_PC
 static void ZOID_SetColor(s16 objnum,Color *col){D_8012E700[objnum].color.word=col->word;}
 static Color *ZOID_GetColor(s16 objnum){return &D_8012E700[objnum].color;}
-#else
-static void ZOID_SetColor(s16 objnum,Color *col){D_8012E700[objnum].body.view.color.word=col->word;}
-static Color *ZOID_GetColor(s16 objnum){return &D_8012E700[objnum].body.view.color;}
-#endif
 static u32 _ObjFlags(s16 objnum){return D_8012E700[objnum].flags;}
 static u32 ZOID_ObjectFlags(s16 objnum){return _ObjFlags(objnum);}
 static void _SetObjFlags(s32 objnum,u32 flags){D_8012E700[objnum].flags=flags;}

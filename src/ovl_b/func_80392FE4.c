@@ -25,13 +25,8 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: a palette has its WAD record's N64 layout (waves.c's PLHD), which the 2D draw reads: palBase is a u32 window
  * address at +0x14, so healthColor (arena data) fits (PAL_BASE). As a pointer it lay at +0x18 and the draw read a
  * palette of 0 (docs/port/BRINGUP.md 10). */
@@ -42,15 +37,6 @@ typedef struct tPalette {
     u32 palBase;
 } tPalette;
 #define PAL_BASE(p) PC_N64W(p)
-#else
-typedef struct tPalette {            /* anon_name_start_18 */
-    char name[16];
-    u8 start, end;
-    u16 format;
-    char *palBase;
-} tPalette;
-#define PAL_BASE(p) p
-#endif
 typedef struct _tBlit_2 {
     const char *name;
     tPalette *palette;
@@ -80,22 +66,13 @@ typedef struct tBlitInstance {       /* anon_palette_texture_20, N64 form */
     u8 pad16[10];
 } tBlitInstance;
 typedef struct tCarData {
-#ifdef TARGET_PC
     u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x386 - 0x384];
-#else
-    u8 unknown000[0x386];
-#endif
     s16 health;                      /* battle.health */
     u8 unknown388[0x30];
 } tCarData;
 
 extern s16 active_player_count, D_80151AD0;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];
-#define PC_CAR_HEALTH(i) gGameCar[i].health
-#endif
 extern tBlitInstance pad_config[];
 extern s32 D_80394150[4][4][2];
 extern u8 D_80394280[4][2][4];

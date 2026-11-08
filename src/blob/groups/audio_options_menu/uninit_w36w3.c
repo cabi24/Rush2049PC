@@ -16,10 +16,6 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct OSMesgQueue OSMesgQueue;
 typedef struct Msg { s16 id; s8 type, used; u8 payload[20]; } Msg;
 typedef struct {
@@ -44,17 +40,12 @@ void sound_handles_clear(s32 arg0);
 void sound_stop(intptr_t sound_id);
 void ambient_sounds_clear(void);
 
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The stop of the song (command 1) that us_AudKillSong posts
  * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){func_80091AF8();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void us_ProcessCommand(Msg *task)
 {
     PC_CMD_SEND((OSMesgQueue *) &D_801427A8, task);

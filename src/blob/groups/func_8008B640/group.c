@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,29 +440,15 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[8];
-#define PC_CAR(i) &player_array[i]
-#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -581,10 +563,6 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
-#ifdef TARGET_PC
-#else
-extern D_8014A250_Record D_8014A250;
-#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3704,7 +3682,6 @@ typedef s64 M2C_UNK64;
 
 
 /* group members */
-#ifdef TARGET_PC
 /* PC: the objects are car visuals (tVisual, docs/port/CARS.md 3), 0x20 bytes: next is a host pointer, so index,
  * objnum and slot (state, model and player here) are at +8, +0xA and +0xC. */
 typedef struct {
@@ -3713,27 +3690,13 @@ typedef struct {
     /* 0xA */ s16 model;
     /* 0xC */ s16 player;
 } ModelObj;
-#else
-typedef struct {
-    /* 0x0 */ u8 pad0[4];
-    /* 0x4 */ s16 state;
-    /* 0x6 */ s16 model;
-    /* 0x8 */ s16 player;
-} ModelObj;
-#endif
 
 typedef struct {
     /* 0x0 */ f32 v;
     /* 0x4 */ u8 pad4[0x804];
 } Rec808;
 
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Rec808 D_8014A640[];
-#define PC_MODEL_SPEED(i) D_8014A640[i].v
-#define PC_MODEL(i) &((Rec808 *) &D_8014A250)[i]
-#endif
 s32 model_bounds_calc(ModelObj *obj, s32 flag);
 void func_8008B640(s32 idx, f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz);
 void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ipa_f20, f32 ipa_f22, f32 ipa_f24, s16 arg0);
@@ -3764,25 +3727,15 @@ static f32 Random(f32 max)
     return rannum;
 }
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; f32 *m; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ModelSlot;
 #define TBL ((ModelSlot *) &D_8012E700)
-#else
-typedef struct { f32 *m; u8 pad4[0x40]; } ModelSlot;
-#define TBL ((ModelSlot *) &D_8012E708)
-#endif
 /* deleted static: the 0x44-byte model slot's matrix pointer; inlined at all
  * three uses (this is what puts the index in a0 and the pointer in a1) */
 static f32 *model_mat(s16 idx) { return TBL[idx].m; }
-#ifdef TARGET_PC
 /* game.frame_rate 60: the flame's frame index steps once a frame of two retraces, so it flickers and dies out at the
  * N64's rate (pc_game_fps.h, docs/port/FRAMERATE.md 7) */
 #define PC_IF30(c) ((!pc_fps60 || pc_frame_steps) && (c))
-#else
-#define PC_STEPS(n) n
-#define PC_IF30(c) c
-#endif
 void func_8008B640(s32 idx, f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz) {
     f32 *v;
 

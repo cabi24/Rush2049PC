@@ -58,15 +58,11 @@ extern void sound_stop(Blit *);
 extern void ambient_sounds_clear(void);
 extern void func_800B5570(s32);
 extern s32 func_8038F648(void);
-#ifdef TARGET_PC
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
    cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT
    switch it and draw it bright take it as set. The flags aren't written; off, the N64's. */
 int pc_cheat_active(int active);
 #define PC_CHEAT_ACTIVE(a) pc_cheat_active(a)
-#else
-#define PC_CHEAT_ACTIVE(a) a
-#endif
 
 extern void InitEgg(s32 egg);
 void func_8039C908(void);

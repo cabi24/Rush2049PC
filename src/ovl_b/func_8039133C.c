@@ -9,18 +9,12 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: the objects are the level-object nodes of the pool D_80143FC8 (D_80143FD8 is its active list). They keep their
  * N64 layout in the arena block D_8014D280: the link is a 32-bit window address and the flags byte is at +4
  * (docs/port/POINTERS.md 10). A slot holds a host pointer, so it is 16 bytes, and the heap block holds count of them. */
 typedef struct Object { u32 next; u8 flags; } Object;
 #define NEXT(object) ((Object *)PC_N64P((object)->next))
 #define SLOT_SIZE (s32)sizeof(Slot)
-#else
-typedef struct Object { struct Object *next; u8 flags; } Object;
-#define NEXT(object) object->next
-#define SLOT_SIZE 8
-#endif
 typedef struct Slot { Object *object; s16 active; s16 count; } Slot;
 typedef struct State {
     s8 count;

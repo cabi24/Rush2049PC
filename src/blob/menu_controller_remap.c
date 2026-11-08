@@ -61,22 +61,14 @@ typedef struct {
     s16 padFE;
     f32 distance;           /* 0x100 */
     f32 last_distance;      /* 0x104 */
-#ifdef TARGET_PC
     u8 pad108[0x110 - 0x108]; struct pc_visual visuals[21]; u8 pad108_308[0x340 - 0x308];
-#else
-    u8 pad108[0x340 - 0x108];
-#endif
     f32 fwd_progress_t;     /* 0x340 */
     u8 pad344[0x358 - 0x344];
     s8 we_died;             /* 0x358 */
     s8 unk359;              /* 0x359 */
     u8 pad35A[0x364 - 0x35A];
     f32 stray_angle;        /* 0x364 */
-#ifdef TARGET_PC
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
-#else
-    u8 pad368[0x3B8 - 0x368];
-#endif
 } CAR_DATA;
 
 typedef struct {
@@ -85,11 +77,7 @@ typedef struct {
     s32 unk8;
     u8 padC[0x2C - 0xC];
     s32 unk2C;
-#ifdef TARGET_PC
     u8 pad30[0x48 - 0x30]; void *ref;
-#else
-    u8 pad30[0x4C - 0x30];
-#endif
 } Player;
 
 typedef struct {
@@ -111,28 +99,9 @@ typedef struct {
 
 extern f32 D_801543CC;
 extern s8 D_80152744;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#define PC_MODEL_STUCK_TIME(i) D_8014A250[i].stuck_time
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CAR_FWD_PROGRESS(i) D_80152818[i].fwd_progress_t
-#define PC_CAR_HEADING(i) D_80152818[i].stray_angle
-#endif
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern NodeInfo D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].unk7
-#endif
 extern s32 D_8014A110;
 extern u32 D_801174B4;
 extern s8 D_801403D0;
@@ -149,10 +118,6 @@ void func_800B9F60(s32 idx, s32 seg, s32 *nidx, s32 *nseg);
 void func_800A61B0(f32 *in, f32 *out, f32 (*uvs)[3]);
 f32 func_8008C768(f32 x, f32 z);
 
-#ifndef TARGET_PC
-/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
-#define PC_RACE_CARS 6
-#endif
 void menu_controller_remap(void) {
     s16 i;
     s16 node;

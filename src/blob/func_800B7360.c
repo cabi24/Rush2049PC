@@ -1,8 +1,4 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 /* Update the four-byte cached state only when it changes, then invalidate it. */
 extern unsigned char D_80149B48[4];
 extern intptr_t D_8012E6D0;

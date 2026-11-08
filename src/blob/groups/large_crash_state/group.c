@@ -6,25 +6,12 @@ typedef signed int s32;
 typedef float f32;
 
 typedef struct CarView {
-#ifdef TARGET_PC
     u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x359 - 0x308];
-#else
-    u8 prefix[857];
-#endif
     s8 state;
-#ifdef TARGET_PC
     u8 remaining[0x380 - 0x35A]; void *input; u8 remaining_384[0x3B8 - 0x384];
-#else
-    u8 remaining[94];
-#endif
 } CarView;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarView player_array[];
-#define PC_CAR_STATE(i) player_array[i].state
-#endif
 extern s32 gameplay_mode;
 extern s8 D_80142B00;
 extern f32 D_80124394, D_80124398, D_8012439C, D_801243A0;

@@ -116,7 +116,7 @@ void pc_wave_released(int wave, void *buf);
 
 /* ---------------------------------------------------------------- graphics (port/gfx), host main thread */
 
-/* Display-list command words on TARGET_PC: Gfx (and Acmd) keep w0 as 32 bits and widen w1 to hold a host
+/* Display-list command words on the PC: Gfx (and Acmd) keep w0 as 32 bits and widen w1 to hold a host
  * pointer. 16 bytes per command. Lists in a pc_mem_register_be range are N64 form instead: 8 bytes, big-endian,
  * 32-bit (segmented or K0) addresses. */
 typedef struct {

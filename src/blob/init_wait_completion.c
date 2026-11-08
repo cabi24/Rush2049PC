@@ -12,10 +12,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -445,20 +441,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3705,10 +3692,6 @@ typedef s64 M2C_UNK64;
 M2C_UNK func_80020274();                            /* extern */
 s32 func_800202c4();                                /* extern */
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the audio threads run (pc_prelude.h) */
-#endif
-
 void init_wait_completion(void)
 {
   wheel_params_set();
@@ -3717,7 +3700,7 @@ void init_wait_completion(void)
   if (func_800202c4() == 0)
   {
     do
-    { PC_SPIN("init_wait_completion")
+    { pc_os_spin_yield("init_wait_completion");
     } while (func_800202c4() == 0);
   }
 }

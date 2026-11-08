@@ -5,16 +5,11 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 /* The sprite list D_80140BF0: palette and texture are pointer-sized (particle_knot's Sprite on the PC). */
 typedef struct {uintptr_t word0,word4;u16 half8,halfA,halfC,padE,half10,half12;u8 tail[12];} Record;
 extern Record D_80140BF0[];
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9): Name, the
  * palette (Image) and the texture (Info) are pointer-sized, and so are AnimFunc and AnimDTA in the tail. */
 typedef struct {
@@ -42,28 +37,6 @@ typedef struct {
     /* 0x48 */ intptr_t animDTA;
     /* 0x50 */ u16 index;
 } Sprite;
-#else
-typedef struct {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ u32 unk4;
-    /* 0x08 */ u32 unk8;
-    /* 0x0C */ u16 unkC;
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ s16 unk10;
-    /* 0x12 */ u16 unk12;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ s16 unk16;
-    /* 0x18 */ u8 unk18;
-    /* 0x19 */ u8 unk19;
-    /* 0x1A */ s8 unk1A;
-    /* 0x1C */ s16 unk1C;
-    /* 0x1E */ s16 unk1E;
-    /* 0x20 */ s16 unk20;
-    /* 0x22 */ s16 unk22;
-    /* 0x24 */ u8 pad24[0x10];
-    /* 0x34 */ u16 index;
-} Sprite;
-#endif
 
 void Input_SetAnalogBounds(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 void input_status_update(s32 arg0, s32 arg1, s32 arg2, unsigned short arg3);

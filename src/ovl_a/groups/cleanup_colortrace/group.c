@@ -40,23 +40,15 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller;} FileInfo;
-#else
-typedef struct FileInfo {u8 unknown00[16],controller;} FileInfo;
-#endif
 typedef struct Profile Profile;
 struct Profile {Profile **next,**previous;FileInfo **file;u32 id0,id1;u8 name[24];u8 **stats;};
 typedef struct Player {u32 held,pressed,unknown08,repeated;u8 unknown10[50];u8 paint,unknown43[5];Profile **owner;} Player;
 typedef struct RecordedCar {u8 unknown00[8],car,unknown09[3];s8 component;u8 unknown0D[2],red,green;s8 blue,part,unknown13,stat0,stat1;} RecordedCar;
 typedef struct Record Record;
-#ifdef TARGET_PC
 /* A ghost (menu_save_options' Ghost): +0x24 is its data handle, pointer-sized on the PC (docs/port/CASTS.md). */
 struct Record {Record **next;FileInfo **file;s8 track;u8 mode,name[14];u32 id0,id1;f32 time;void *unknown24;RecordedCar **active;};
-#else
-struct Record {Record **next;FileInfo **file;s8 track;u8 mode,name[14];u32 id0,id1;f32 time;u32 unknown24;RecordedCar **active;};
-#endif
 extern Player D_8014A118[];
 typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Record **first, **last;} RecordList;
 extern RecordList D_80152020;
@@ -94,11 +86,8 @@ extern CarSlot D_803B9BC8[][13];
 extern MultiBlit D_803B2AB8[];
 extern Blit *D_803B28AC;
 extern char D_803B85B0[],D_803B85BC[];
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern void audio_frame_sync(s32,s32,s32,s32,void *);
-#else
-extern void audio_frame_sync(s32,s32,s32,s32,s32);
-#endif
 extern void *func_800A7D6C(void);
 extern void init_state_begin(void);
 extern void func_800A5A40(void);
@@ -106,11 +95,8 @@ extern void car_render_full(s16);
 extern void audio_interrupt_handler(s32);
 extern void sfx_position_3d(s32);
 extern void particle_lifetime_set(void);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-#else
-extern FiveParts *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
-#endif
 extern void math_utility(void *,void *);
 extern s32 string_copy_format(char *,s8,s8,s32); /* : 4th parameter int (MAT3 MBOX_FindObject_WORK) */
 extern s32 sign_extend_call(s32,void *,s32,u32);
@@ -142,16 +128,7 @@ extern s8 D_80157244,D_803BA04C[],D_8012E67C[],D_80138664[];
 extern s16 D_801164BE,D_803B28B0[];
 extern Slot D_803AF9A8[][44];
 extern Vec3 D_803B3030;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern PreparedCar D_80153E88[];
-#define PC_LINK_CAR(i) D_80153E88[i].car
-#define PC_LINK_COLOR0(i) D_80153E88[i].color[0]
-#define PC_LINK_COLOR1(i) D_80153E88[i].color[1]
-#define PC_LINK_COLOR2(i) D_80153E88[i].color[2]
-#define PC_LINK_FLAGS(i) D_80153E88[i].flags
-#endif
 extern u8 D_803B857C[],D_803B8590[],D_803B85A0[];
 extern s8 D_80110E78[][13],D_8011103C[][13],D_80111080[][13],D_8011119C[][13],D_80111230[][13],D_8011128C[][13];
 extern s8 D_80111604[][13],D_80111648[][13],D_8011168C[][13],D_8011157C[][13],D_801115C0[][13];
@@ -596,12 +573,7 @@ void func_8039D300(s32);
 /* PC: game.frame_rate 60 (pc_game_fps.h). The car select counts the frames since every player was ready (D_803BA030)
  * and leaves at 10, turning the cars to the front over them: once a 30 Hz frame, and the turn's share of what is
  * left, 1 / (frames left - 1) a frame, taken to the frame's length (PC_EASE_DIV(a, n): a / n at original). */
-#ifdef TARGET_PC
 #define PC_EASE_DIV(a, n) (pc_fps60 ? (a) * (1.0f - pc_fps_filter(1.0f - 1.0f / (n))) : (a) / (n))
-#else
-#define PC_EACH30(stmt) stmt
-#define PC_EASE_DIV(a, n) a / n
-#endif
 void func_803A1EAC(void)
 {
     s16 i;
@@ -1372,14 +1344,10 @@ typedef struct CompRec { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CompRec;
 #define gCarComponents ((CompRec (*)[11])D_803B2618)
 typedef struct CompLightDir { u8 col[3], pad0, colc[3], pad1; s8 dir[3], pad2; u8 pad3[4]; } CompLightDir;
 typedef struct CompLight { u8 col[3], pad0, colc[3], pad1; CompLightDir l[2]; } CompLight;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
  * D_8012E708 is node 0's object slot (N64 +0x08): on the PC, a field of the node. */
 typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
 #define D_8012E708 D_8012E700
-#else
-typedef struct ObjInstance { void *mat; u8 unknown04[64]; } ObjInstance;
-#endif
 typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
 CompLight D_803B2858[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},

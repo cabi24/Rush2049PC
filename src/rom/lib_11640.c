@@ -159,11 +159,7 @@ void func_80010DD8(unsigned int rate, unsigned short duration)
  */
 typedef struct AudioConfiguration_80010E80 { unsigned short duration; unsigned short delays[8]; unsigned char gains[8]; unsigned char count; unsigned char feedback; unsigned char mode; unsigned char unknown1D; short filter[4]; } AudioConfiguration_80010E80;
 typedef struct AudioDelayState_80010E80 { void *buffer; unsigned int length; unsigned short count; unsigned short feedback; unsigned int delays[8]; unsigned short gains[8]; unsigned int unknown3C; short filter[4]; } AudioDelayState_80010E80;
-#ifdef TARGET_PC
 #define DELAY_STATE_SIZE sizeof(AudioDelayState_80010E80)   /* 72 bytes on the N64; buffer is a host pointer */
-#else
-#define DELAY_STATE_SIZE 72
-#endif
 extern void *D_800382F0;
 extern void *D_800382E8;
 extern int D_800382EC;
@@ -256,7 +252,6 @@ extern unsigned short D_800382CE;
 extern unsigned short *D_800382D8[2];
 extern unsigned short D_800382E0[2];
 extern void *D_800382E4;
-#ifdef TARGET_PC
 static unsigned int pc_sfd_size(void);   /* sizeof(Block_80012D18) with 32 voices: 2576 bytes on the N64 */
 #define SFD_SIZE pc_sfd_size()
 /* PC: with more voices than 32 ([audio] voices, docs/port/AUDIO.md 10) an SFD holds a voice record a voice slot and the
@@ -265,14 +260,10 @@ static unsigned int pc_sfd_size(void);   /* sizeof(Block_80012D18) with 32 voice
 static void pc_sfd_layout(unsigned short count);
 static unsigned int pc_sfd_state_size(void);
 #define PC_MX_STATE(n) pc_sfd_state_size()
-#else
-#define SFD_SIZE 2576U
-#define PC_MX_STATE(n) n
-#endif
 void func_80011104(unsigned short count, unsigned int frequency)
 {
     unsigned short i;
-    D_8003829C = count; PC_ONLY(pc_sfd_layout(count);)
+    D_8003829C = count; pc_sfd_layout(count);
     D_80038298 = D_80038018(D_8003829C * sizeof(AudioState), 0);
     D_80038294 = D_80038298;
     D_8003829E = 0;
@@ -334,11 +325,7 @@ extern volatile unsigned char D_800382CC;
 extern unsigned short D_8002C5D0[];
 extern void func_80011F60(int);
 extern void func_800123A8(unsigned short);
-#ifdef TARGET_PC
 #define DMA_ENTRY_SIZE 16U   /* sizeof(DmaEntry_80012234): 12 bytes on the N64, the destination is a host pointer */
-#else
-#define DMA_ENTRY_SIZE 12U
-#endif
 void func_800114C0(unsigned short count, unsigned int frequency, unsigned char mode)
 {
     if (D_80038290 == 0) {
@@ -369,7 +356,7 @@ extern volatile unsigned char D_800382CC;
 extern void *D_8003802C;
 void func_80011848(void)
 {
-    while (D_800382CC != 0) { PC_SPIN("func_80011848")
+    while (D_800382CC != 0) { pc_os_spin_yield("func_80011848");
     }
     D_8003801C(D_8003802C);
 }
@@ -654,7 +641,7 @@ void func_80011F60(int count)
     int i;
     D_80038338 = D_80038018(count * sizeof(AudioNode), 0);
     D_8003833C = D_80038018(count * 256, 0);
-    osInvalDCache(D_8003833C, count * 256); PC_ONLY(pc_mem_register_be(D_8003833C, count * 256);)
+    osInvalDCache(D_8003833C, count * 256); pc_mem_register_be(D_8003833C, count * 256);
     D_80038344 = 0;
     D_80038348 = D_80038338;
     D_80038338[0].buffer = D_8003833C;
@@ -678,7 +665,7 @@ extern unsigned char *D_8003833C;
 extern AudioNode *D_80038338;
 void func_800121BC(void)
 {
-    PC_ONLY(pc_mem_unregister_be(D_8003833C);) D_8003801C(D_8003833C);
+    pc_mem_unregister_be(D_8003833C); D_8003801C(D_8003833C);
     D_8003801C(D_80038338);
 }
 
@@ -705,9 +692,7 @@ void func_80012200(void)
  * Gate:     full-ROM SHA-1
  */
 typedef struct DmaEntry_80012234 { int length; unsigned int source; unsigned char *destination; } DmaEntry_80012234;
-#ifdef TARGET_PC
 typedef char pc_dma_entry_check[sizeof(DmaEntry_80012234) == DMA_ENTRY_SIZE ? 1 : -1];
-#endif
 extern unsigned int func_8002C5E0(unsigned int, unsigned int);
 unsigned char *func_80012234(unsigned int source)
 {
@@ -763,7 +748,7 @@ void func_800123A8(unsigned short count)
 {
     int i;
     D_8003834C = D_80038018(count * 1536, 0);
-    osInvalDCache(D_8003834C, count * 1536); PC_ONLY(pc_mem_register_be(D_8003834C, count * 1536);)
+    osInvalDCache(D_8003834C, count * 1536); pc_mem_register_be(D_8003834C, count * 1536);
     D_80038350 = D_80038018(count * sizeof(AudioCacheNode), 0);
     D_80038354 = 0;
     D_80038358 = 0;
@@ -789,7 +774,7 @@ extern unsigned char *D_8003834C;
 void func_8001261C(void)
 {
     D_8003801C(D_80038350);
-    PC_ONLY(pc_mem_unregister_be(D_8003834C);) D_8003801C(D_8003834C);
+    pc_mem_unregister_be(D_8003834C); D_8003801C(D_8003834C);
 }
 
 /* PROMOTED 2026-10-04 — func_80012660
@@ -979,24 +964,14 @@ extern unsigned int D_80038030;
  * Gate:     full-ROM SHA-1
  */
 typedef struct Voice_80012D18 { unsigned char active, pending; unsigned short flags; unsigned short rate; unsigned char unknown06[2]; double position; unsigned char unknown10[8]; short level[4]; unsigned char unknown20[12]; unsigned char *data; unsigned int length; unsigned int loop_start; unsigned int loop_length; unsigned int tail; short target[4]; unsigned char unknown48[4]; float gain; unsigned char unknown50[13]; unsigned char format; unsigned char unknown5E[2]; unsigned char slot; } Voice_80012D18;
-#ifdef TARGET_PC
 /* PC: 0x44 is the SFD's output pointer (set in func_800139D4), so it is pointer-sized (docs/port/AUDIO.md). */
 typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fraction; unsigned short rate; Fetch_80012730 main; Fetch_80012730 loop; unsigned char main_blocks, loop_blocks, main_offset, loop_offset; union { void *book; struct { short main_count, loop_count; } pcm; } u; void *unknown44; short end48, end4A, position4C, start4E; } Command_80012D18;
-#else
-typedef struct Command_80012D18 { int volume[4]; int delta[4]; unsigned short fraction; unsigned short rate; Fetch_80012730 main; Fetch_80012730 loop; unsigned char main_blocks, loop_blocks, main_offset, loop_offset; union { void *book; struct { short main_count, loop_count; } pcm; } u; unsigned int unknown44; short end48, end4A, position4C, start4E; } Command_80012D18;
-#endif
-#ifdef TARGET_PC
 /* PC: the view's commands[] holds the most voices the PC gives (PC_MX_VOICE_SLOTS); an SFD holds pc_sfd_slots of them,
  * then its release mask's words for slots 32 and up, so the SFDs of a task step by pc_sfd_size() (PC_SFD), not by the
  * view's size (docs/port/AUDIO.md 10). At 32 slots it is the N64's SFD, sizeof(Block_80012D18) with 32 commands. */
 #define PC_SFD_COMMANDS PC_MX_VOICE_SLOTS
 #define PC_SFD(T, base, i) (*(T *)((unsigned char *)(base) + (__SIZE_TYPE__)(i) * pc_sfd_size()))
-#else
-#define PC_SFD_COMMANDS 32
-#define PC_SFD(T, base, i) ((T *)base)[i]
-#endif
 typedef struct Block_80012D18 { unsigned short count; unsigned short sample; unsigned int changed; void *work; void *loop; Command_80012D18 commands[PC_SFD_COMMANDS]; } Block_80012D18;
-#ifdef TARGET_PC
 extern void pc_audio_set_sfd_voices(unsigned n);
 extern __SIZE_TYPE__ pc_audio_sfd_size(unsigned n, int form);
 extern void pc_log(const char *fmt, ...);
@@ -1016,7 +991,6 @@ static void pc_sfd_layout(unsigned short count)
         pc_log("audio: the game's SFD of %u voices is %u bytes, the interpreter's %u", pc_sfd_slots, pc_sfd_size(),
                (unsigned)pc_audio_sfd_size(pc_sfd_slots, 0));
 }
-#endif
 extern double func_8001E688(double value);
 extern void func_80011A64(AudioState *audio, unsigned short samples, unsigned char *active);
 extern void func_80011D74(AudioState *audio, unsigned short samples);
@@ -1244,7 +1218,6 @@ void func_80013964(void)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: these are N64 byte views of the SFD (Block_80012D18) and the delay state (AudioDelayState_80010E80), whose
  * pointers are host-sized natively, so the fields sit at the native records' offsets (docs/port/AUDIO.md).
  * status is main.first_length, output the pointer at 0x44 (unknown44). */
@@ -1254,12 +1227,7 @@ typedef union AudioCommand {
     struct { unsigned char pad_status[__builtin_offsetof(Command_80012D18, main.first_length)]; unsigned short status; };
     struct { unsigned char pad_output[__builtin_offsetof(Command_80012D18, unknown44)]; void *output; };
 } AudioCommand;
-#else
-typedef struct AudioLoop { unsigned int unknown00; unsigned int length; } AudioLoop;
-typedef struct AudioCommand { unsigned char unknown00[44]; unsigned short status; unsigned char unknown2E[22]; void *output; unsigned char unknown48[8]; } AudioCommand;
-#endif
 typedef struct AudioBlock { unsigned short count; unsigned short sample; unsigned int changed; void *work; AudioLoop *loop; AudioCommand commands[PC_SFD_COMMANDS]; } AudioBlock;
-#ifdef TARGET_PC
 typedef char pc_audio_block_check[sizeof(AudioBlock) == sizeof(Block_80012D18) ? 1 : -1];
 /* PC: a stopped voice's slot is its bit in the release mask: slots 0-31 in the header's word, as on the N64 (whose
  * shift takes the slot's low five bits, so a voice that never had a slot, 255, is bit 31), the others in the words
@@ -1283,9 +1251,6 @@ static void pc_sfd_mask_out(AudioBlock *block)
     }
 }
 #define PC_RELEASE(mask, slot) pc_release(&(mask), (slot))
-#else
-#define PC_RELEASE(mask, slot) mask |= 1U << slot
-#endif
 extern unsigned short D_8003829C;
 extern unsigned short D_800382CE;
 extern int D_800382EC;
@@ -1314,7 +1279,7 @@ void func_800139D4(void *output, unsigned short samples)
         PC_SFD(AudioBlock, D_800382D0, *D_800382D4).commands[PC_SFD(AudioBlock, D_800382D0, *D_800382D4).count - 1].output = output;
     }
     PC_SFD(AudioBlock, D_800382D0, *D_800382D4).work = D_800382E4;
-    PC_SFD(AudioBlock, D_800382D0, *D_800382D4).changed = changed; PC_ONLY(pc_sfd_mask_out(&PC_SFD(AudioBlock, D_800382D0, *D_800382D4));)
+    PC_SFD(AudioBlock, D_800382D0, *D_800382D4).changed = changed; pc_sfd_mask_out(&PC_SFD(AudioBlock, D_800382D0, *D_800382D4));
     PC_SFD(AudioBlock, D_800382D0, *D_800382D4).loop = D_800382E8;
     if (PC_SFD(AudioBlock, D_800382D0, *D_800382D4).loop != 0) {
         PC_SFD(AudioBlock, D_800382D0, *D_800382D4).sample = D_800382EC / 192;
@@ -1402,7 +1367,6 @@ extern void func_80011D24(void);
 extern void func_8001C508(void);
 extern void func_800119E0(void);
 extern void func_8001C3CC(void);
-#ifdef TARGET_PC
 /* PC: the wrapping range's second loop starts at the ring's start only once the first loop got to its end. Stopped
  * short by the per-task cap, the N64's loop set index to 0 anyway, and the buffers between were never rendered:
  * they played their last turn's sound again. The PC's retraces come in bunches (a swap waiting for vsync), so more
@@ -1414,10 +1378,6 @@ extern void func_8001C3CC(void);
  * this callback's SFDs instead of its own, which are lost, and the next two render the sets out of order, one of
  * them twice. So wait for it first (func_800118C0 waits once; the wait before the submit then returns at once). */
 #define PC_SFD_WAIT() func_800118C0();
-#else
-#define PC_RING_START(index) 0
-#define PC_SFD_WAIT()
-#endif
 void func_80013DEC(void)
 {
     unsigned short index;
@@ -1513,7 +1473,7 @@ extern void (*D_8003800C)(void (*)(void));
 void func_80014140(void)
 {
     D_80038362 = D_80038292;
-    while (D_80038362 > 0) { PC_SPIN("func_80014140")
+    while (D_80038362 > 0) { pc_os_spin_yield("func_80014140");
     }
     D_8003800C(func_80013DEC);
 }
@@ -1533,11 +1493,7 @@ extern void func_80011104(unsigned short, unsigned int);
 extern void func_800114C0(unsigned short, unsigned int, unsigned char);
 extern void func_80010DD8(unsigned int, unsigned short);
 extern void func_800140F8(void);
-#ifdef TARGET_PC
 #define PC_MX_CAP(n) PC_MX_VOICE_SLOTS   /* the most voices the PC gives (pc_game_types.h, docs/port/AUDIO.md 10) */
-#else
-#define PC_MX_CAP(n) n
-#endif
 void func_80014198(unsigned int *frequency, unsigned short count,
                    unsigned short size, unsigned char mode)
 {
@@ -1745,7 +1701,6 @@ void func_80014650(void) {
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: the synth's tick found driver voice `index` playing with its macro ended (lib_1a660.c): counted when its sample
  * loops, which then plays until the voice is taken again (--log-voices, docs/port/AUDIO.md 10.5). */
 void pc_mx_note_macroless(int index)
@@ -1753,7 +1708,6 @@ void pc_mx_note_macroless(int index)
     if (D_80038294[index].loop_length != 0)
         pc_snd_count(PC_SND_MX_LOOP_ORPHAN);
 }
-#endif
 unsigned char func_8001467C(int index)
 {
     return D_80038294[index].active != 0;
@@ -1805,7 +1759,7 @@ void func_800146B4(unsigned int index, SampleInfo_800146B4 *sample, unsigned cha
     } else {
         D_80038294[index].tail = 0;
     }
-    if (PC_ONLY(((uintptr_t)sample->data >> 32) == 0 &&) ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
+    if (((uintptr_t)sample->data >> 32) == 0 && ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
         D_80038294[index].flags |= 1;
     }
 }
@@ -1830,9 +1784,7 @@ void func_8001489C(int index, unsigned char release)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 #define __unaligned   /* IDO's qualifier; the PC targets load unaligned u16 natively */
-#endif
 void func_800148F8(int index, __unaligned unsigned short *data)
 {
     D_80038294[index].value20 = data[0];
@@ -2026,7 +1978,7 @@ extern void *(*D_80038014)(void *);
 void *func_80014CAC(void *address)
 {
     unsigned int region;
-    PC_ONLY(if ((uintptr_t)address >> 32 || pc_rdram_k0_high((unsigned int)(uintptr_t)address)) return address;) region = (unsigned int)address & 0xFF000000;
+    if ((uintptr_t)address >> 32 || pc_rdram_k0_high((unsigned int)(uintptr_t)address)) return address; region = (unsigned int)address & 0xFF000000;
     if (region != 0x80000000 && region != 0xB0000000) {
         address = D_80038014(address);
     }

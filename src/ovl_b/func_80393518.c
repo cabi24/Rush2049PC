@@ -4,24 +4,14 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned char u8;
 typedef struct Player952 {
-#ifdef TARGET_PC
     u8 before_kind[0x110 - 0x0]; struct pc_visual visuals[21]; u8 before_kind_308[0x380 - 0x308]; void *input;
-#else
-    u8 before_kind[0x384];
-#endif
     s8 kind;
     s8 lives;
     u8 tail[0x32];
 } Player952;
 typedef struct TextPosition { s16 x, y; } TextPosition;
 extern s16 D_80151AD0;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player952 player_array[];
-#define PC_CAR_KIND(i) player_array[i].kind
-#define PC_CAR_LIVES(i) player_array[i].lives
-#endif
 extern TextPosition D_803941D0[4][4];
 extern char D_80394AB0[];
 extern void render_helper(float);

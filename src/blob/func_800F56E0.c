@@ -38,13 +38,8 @@ typedef struct StatsPayload {
     u8 *data;
 } StatsPayload;
 typedef struct ResourceRoot {
-#ifdef TARGET_PC
     void *next, *prev;
     void *enabled;      /* the profile's pak file handle (pc_prelude.h) */
-#else
-    u32 unknown00[2];
-    s32 enabled;
-#endif
     u8 unknown12[32];
     StatsPayload *payload;
 } ResourceRoot;
@@ -63,11 +58,7 @@ typedef struct CarRecord {
     s8 finished;
     u8 unknown240[24];
     float distance;
-#ifdef TARGET_PC
     u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
-#else
-    u8 unknown268[684];
-#endif
 } CarRecord;
 
 extern s8 D_8014978C;
@@ -80,12 +71,7 @@ extern float D_80149A78[][8];
 extern RaceStats D_80150F88[];
 extern ResourceHandle gTotalNames[][15];
 extern s8 D_80151AC0[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarRecord D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern s8 D_80152744;
 extern s8 D_80142760;
 extern s16 D_80152734;

@@ -41,12 +41,8 @@ s32 slot_state_setup(s32 selection);
 void dispatch_handler(s32);
 void state_utility(s16, s16, char *);
 s32 object_manager_update(char *, s32);
-#ifdef TARGET_PC
 /* game.frame_rate 60: the scroller moves a pixel a 30 Hz frame, as on the N64 (docs/port/FRAMERATE.md 7) */
 #define PC_SCROLL_DEC(v) ((v) -= PC_STEPS(1))
-#else
-#define PC_SCROLL_DEC(v) --v
-#endif
 
 void gfx_lock_cdh(void)
 {

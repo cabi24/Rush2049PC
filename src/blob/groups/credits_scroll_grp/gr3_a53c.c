@@ -17,7 +17,6 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     void *name, *image, *info;
@@ -28,31 +27,17 @@ typedef struct Blit {
     u8 alpha, flip;
     s8 hidden;
 } Blit;
-#else
-typedef struct Blit {
-    u8 pad0[0x1A];
-    s8 hidden;
-} Blit;
-#endif
 
 typedef struct LangInfo {
     u16 lang;
 } LangInfo;
 
-#ifdef TARGET_PC
 /* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
 typedef struct StrTable {
     void *pad0[3];
     LangInfo *info;
     char **strings;
 } StrTable;
-#else
-typedef struct StrTable {
-    u8 pad0[12];
-    LangInfo *info;
-    char **strings;
-} StrTable;
-#endif
 
 typedef struct CreditPage {
     char *names[11];

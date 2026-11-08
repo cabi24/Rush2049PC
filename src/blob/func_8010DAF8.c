@@ -16,10 +16,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -449,20 +445,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -799,7 +786,6 @@ void stat_lap_split();
 void func_8010DAF8(void *arg0);
 
 
-#ifdef TARGET_PC
 /* PC: the target arg0 (a level-object node) keeps its N64 layout, but its visual is a struct pc_visual (data a
  * 32-bit window address) and its target info record is 0x40 bytes with the visual function a pointer; the m2c body
  * uses the N64 offsets of both (docs/port/CARS.md, POINTERS.md 10). */
@@ -821,24 +807,4 @@ void func_8010DAF8(void *arg0) {
         stat_lap_split(*(s32 *)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
-#else
-void func_8010DAF8(void *arg0) {
-    void *temp_v0;
-    void *sp18;
-
-    sp18 = (M2C_FIELD(arg0, s16 *, 0x10) * 0x30) + (u8 *) &D_80117530;
-    M2C_FIELD(arg0, s16 *, 0x5A) = 0xC;
-    temp_v0 = func_80090284();
-    if (temp_v0 != NULL) {
-        M2C_FIELD(temp_v0, s16 *, 4) = 0;
-        M2C_FIELD(temp_v0, s32 *, 0x14) = (s32) M2C_FIELD(sp18, s32 *, 0xC);
-        M2C_FIELD(temp_v0, void **, 0xC) = arg0;
-        M2C_FIELD(temp_v0, f32 *, 0x10) = (f32) D_801249C0;
-        M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
-        M2C_FIELD(temp_v0, void **, 0) = (void *) D_801391F0;
-        D_801391F0 = temp_v0;
-        stat_lap_split(*(s32 *)((u8 *) &D_8011754C + (M2C_FIELD(arg0, s16 *, 0x10) * 0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
-    }
-}
-#endif
 

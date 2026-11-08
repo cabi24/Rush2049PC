@@ -21,10 +21,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 float sqrtf(float);
@@ -32,11 +28,7 @@ float sqrtf(float);
 
 typedef struct EffectObj {
     /* 0x00 */ struct EffectObj *next;   /* pool list link */
-#ifdef TARGET_PC
     void *prev;                         /* the list's back link (func_8008E3C0), pointer-sized here */
-#else
-    /* 0x04 */ u8 pad4[4];
-#endif
     /* 0x08 */ f32 f8;
     /* 0x0C */ void *dl;                 /* display handle */
     /* 0x10 */ f32 pos[3];
@@ -60,11 +52,7 @@ typedef struct {
     /* 0x074 */ f32 wheelPos[4][3];
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
     /* 0x0E8 */ u32 wheelFlags;
-#ifdef TARGET_PC
     /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x380 - 0x308]; void *input; u8 padEC_384[0x3B8 - 0x384];
-#else
-    /* 0x0EC */ u8 padEC[0x3B8 - 0xEC];
-#endif
 } Car;                                  /* 0x3B8 */
 
 typedef struct {
@@ -85,26 +73,11 @@ typedef struct {
     /* 0x4 */ u8 pad4[0x18 - 4];
 } Surface;                              /* 0x18 */
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car player_array[8];
-#define PC_CAR_FLAGS(i) player_array[i].wheelFlags
-#define PC_CAR_WHEEL_POS(i) player_array[i].wheelPos
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarState D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
 #define D_80155290 pc_skids
-#else
-extern WheelSlot D_80155290[][4];
-#endif
 extern s16 active_player_count;
 extern s32 state_word_a;
 extern u32 D_8011743C[4];               /* per-wheel flag masks */
@@ -116,11 +89,7 @@ extern f32 D_80123C08;
 extern f32 D_80123C0C;                  /* minimum travel before a mark starts */
 extern f32 D_8002EB90[];
 extern char D_80155220[];               /* EffectObj pool */
-#ifdef TARGET_PC
 #define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */
-#else
-#define POOL_HEAD 4
-#endif
 typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
@@ -179,13 +148,11 @@ void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     func_8008C074(obj->dl, 4, slot->quad, 0, obj->color, 0, 0);
 }
 
-#ifdef TARGET_PC
 /* The manifest owners of func_800AFB30 and func_800AFD54 are empty deleted-procedure stubs
  * (src/blob/func_800AFB30.c, func_800AFD54.c), which this group's calls bind to on PC. The bodies
  * written here get their own names (docs/port/PROTOTYPES.md). */
 #define func_800AFB30 pc_func_800AFB30
 #define func_800AFD54 pc_func_800AFD54
-#endif
 /* func_800AFB30 = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
  * Not `static`, not in `keep`: umerge inlines it into its only caller and leaves the retail `jr ra` stub. */
 EffectObj *func_800AFB30(u8 *color)

@@ -32,19 +32,12 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_HandleTable { n64p_HandleTable_ };
 enum n64p_Heap { n64p_Heap_ };
 enum n64p_u32 { n64p_u32_ };
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Block next;
@@ -55,34 +48,13 @@ typedef struct Block {
     /* 0x15 */ u8 tag;
     /* 0x16 */ u8 pad16[10];
 } Block; /* 0x20 */
-#else
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Block *next;
-    /* 0x08 */ struct Block *prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ void *owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ u8 tag;
-    /* 0x16 */ u8 pad16[10];
-} Block; /* 0x20 */
-#endif
 
-#ifdef TARGET_PC
 typedef struct HandleTable {
     /* 0x0 */ u32 count;
     /* 0x4 */ enum n64p_u32 slots;
     /* 0x8 */ enum n64p_HandleTable next;
 } HandleTable;
-#else
-typedef struct HandleTable {
-    /* 0x0 */ u32 count;
-    /* 0x4 */ u32 *slots;
-    /* 0x8 */ struct HandleTable *next;
-} HandleTable;
-#endif
 
-#ifdef TARGET_PC
 typedef struct Heap {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Heap next;
@@ -94,20 +66,6 @@ typedef struct Heap {
     /* 0x18 */ HandleTable tbl;
     /* 0x24 */ u8 pad24[4];
 } Heap;
-#else
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Heap *next;
-    /* 0x08 */ Block *first;
-    /* 0x0C */ Block *last;
-    /* 0x10 */ u32 end;
-    /* 0x14 */ u16 maxHandles;
-    /* 0x16 */ u16 pad16;
-    /* 0x18 */ HandleTable tbl;
-    /* 0x24 */ u8 pad24[4];
-} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_HandleTable: (struct HandleTable *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_u32: (uintptr_t *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
@@ -116,15 +74,7 @@ typedef struct Heap {
  * window address zero-extended, so the u32 readers of a slot (the font waves, the compaction's owner update) see
  * the address in its first four bytes as well (docs/port/POINTERS.md 9.10). */
 #define HANDLE_SLOT 8
-#else
-#define N64P(x) x
-#define N64W(x) x
-#define HANDLE_SLOT 4
-#endif
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
 /* PC (port/ultra/heap.c, docs/port/MEMORY.md 4): the heap's making, each block taken, and an allocation no free block
  * holds, which the N64 game takes as a null block, are reported; nothing in the game's own code changes. */
 
@@ -138,17 +88,11 @@ extern u32 D_80000318;
 s32 osRecvMesg();
 s32 osSendMesg();
 void osCreateMesgQueue();
-#ifdef TARGET_PC
 void *memset(void *, int, unsigned int);   /* the slots are enum n64p_u32 window addresses: N64P gives the pointer */
 /* The heap's own arithmetic is on 32-bit N64 addresses: its start, a block's place, a heap's end. N64A(p) is a window
  * pointer's N64 address, N64PTR(T, a) the pointer at N64 address a (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
-#else
-void *memset();
-#define N64A(x) (u32)x
-#define N64PTR(T, a) (T)a
-#endif
 
 void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag);
 void func_800E7B44(Heap *heap, u16 count, u16 a);
@@ -186,7 +130,7 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
             }
         }
     }
-    PC_ONLY(if (b == 0) pc_heap_none(heap, size, total, largest);) bs = b->size;
+    if (b == 0) pc_heap_none(heap, size, total, largest); bs = b->size;
     if (bs - size >= 64) {
         n = (Block *)((u8 *)b + size + 32);
         n->next = b->next;
@@ -207,7 +151,7 @@ void *audio_helper(Heap *heap, u32 size, void *owner, s32 tag)
     }
     b->used = 1;
     b->owner = N64W(owner);
-    b->tag = tag; PC_ONLY(pc_heap_allocated(heap);)
+    b->tag = tag; pc_heap_allocated(heap);
     return (u8 *)b + 32;
 }
 
@@ -331,5 +275,5 @@ void func_800E7D0C(u16 count, u16 a)
         osSendMesg(D_80152770, 0, 0);
     }
     func_800E7D04();
-    func_800E7B44(D_801527C8, count, a); PC_ONLY(pc_heap_created(D_801527C8);)
+    func_800E7B44(D_801527C8, count, a); pc_heap_created(D_801527C8);
 }

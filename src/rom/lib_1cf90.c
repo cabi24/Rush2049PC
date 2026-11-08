@@ -12,13 +12,9 @@
  */
 #include "boot_tail_sample_contract.h"
 extern unsigned char D_8004FA18;
-#ifdef TARGET_PC
 /* On the PC a voice's stream record is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9): a stream plays on the voice func_8001F898 gives it, so its record is that voice's. */
 #define D_8004FA50 (*(SampleBuffer (*)[PC_MX_VOICE_SLOTS])pc_mx_streams)
-#else
-extern SampleBuffer D_8004FA50[];
-#endif
 void func_8001C390(void)
 {
     int i;
@@ -35,9 +31,6 @@ void func_8001C390(void)
  */
 #include "boot_tail_sample_contract.h"
 extern u8 D_8004FA18;
-#ifndef TARGET_PC
-extern SampleBuffer D_8004FA50[];
-#endif
 extern u32 func_80014C18(int);
 extern void func_80014C40(short *, u32);
 void func_8001C3CC(void)
@@ -316,14 +309,9 @@ extern int func_8001B7C0(u32, u8);
 extern int func_8001B29C(u32, u8);
 extern int func_8001B3A0(u32, u8);
 extern int func_8001B4A4(u32, u16);
-#ifdef TARGET_PC
 /* PC: IDO's float to u32 (pc_prelude.h), here also the implicit one of the doppler factor, which is negative once
  * a source closes in faster than sound: 0xFFFFFFFF, the top pitch, on the N64 and x86-64, 0 on AArch64. */
 #define F2U_ARG(x) pc_mips_f2u(x)
-#else
-#define F2U_ARG(x) x
-#define N64_F2U(x) (u32)(x)
-#endif
 void func_8001CCDC(StateNode *em, float vol, float xPan, float yPan,
                    float zPan, float doppler)
 {
@@ -546,13 +534,9 @@ void func_8001D578(void)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: a listener (Listener_8001C860, func_8001D764's view) has two host-sized links before its flags, so its vectors
  * start at +0x14, not +0xC. */
 typedef struct SpatialState { LinkNode *next, *previous; u32 flags08; Vector position; unsigned char unknown18[12]; Vector forward; Vector side; Vector up; float inverse[12]; } SpatialState;
-#else
-typedef struct SpatialState { unsigned char unknown00[12]; Vector position; unsigned char unknown18[12]; Vector forward; Vector side; Vector up; float inverse[12]; } SpatialState;
-#endif
 extern void func_80024D04(Vector *, const Vector *, const Vector *);
 extern void func_80024D74(float *, const float *);
 void func_8001D5C0(SpatialState *state)
@@ -580,12 +564,8 @@ void func_8001D5C0(SpatialState *state)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: the same listener, as func_8001D764 links it (SpatialState above). */
 typedef struct SpatialState_8001D660 { LinkNode *next, *previous; u32 flags08; Vector position; Vector velocity; Vector forward; Vector side; Vector up; float inverse[12]; u8 unknown78[12]; float gain84; } SpatialState_8001D660;
-#else
-typedef struct SpatialState_8001D660 { u8 unknown00[12]; Vector position; Vector velocity; Vector forward; Vector side; Vector up; float inverse[12]; u8 unknown78[12]; float gain84; } SpatialState_8001D660;
-#endif
 extern void func_8001D5C0(SpatialState *);
 int func_8001D660(SpatialState_8001D660 *state, const Vector *position, const Vector *velocity,
                   const Vector *forward, const Vector *up, u8 level)

@@ -58,20 +58,8 @@ extern s8 D_80154628;
 extern s8 D_8014978C;
 extern u8 D_801543D4;
 extern Player D_80154450[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Config D_80153E88[];
-#define PC_LINK Config
-#define PC_LINKS D_80153E88
-#define PC_LINK_PLACE(i) D_80153E88[i].selection
-#define PC_LINKP_TRACK(p) p->type
-#define PC_LINKP_PLACE(p) p->selection
-#define PC_LINKP_FLAGS(p) p->flags
-#define PC_LINKP_OWNER(p) p->kind
-#endif
 
-#ifdef TARGET_PC
 /* PC: a race holds up to the setting's cars (pc_game_types.h, docs/port/MORECARS.md 3.1). The race's start latches
  * the setting; the results screen calls this again for the cars that race on behind it (display_list_flush, state
  * 0x2000000), which keep the race's count. The drones fill up to the race's cars, but the circuit stays the N64's 6
@@ -81,11 +69,6 @@ extern u32 state_word_a;
 #define PC_LATCH_CARS() if (!(state_word_a & 0x2000000)) pc_race_cars_begin();
 #define RACE_CARS (D_8014A110 == 3 ? PC_N64_CARS : PC_RACE_CARS)
 #define LINK_SLOTS PC_MAX_LINKS
-#else
-#define PC_LATCH_CARS()
-#define RACE_CARS 6
-#define LINK_SLOTS 6
-#endif
 
 f32 func_8008B2E4(f32 max);
 void CalcPolePositions(void)

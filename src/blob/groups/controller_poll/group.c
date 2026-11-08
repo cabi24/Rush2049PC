@@ -11,13 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-/* PC: port/data defines D_80156958, D_80149B64 and D_80149B74 at their N64 addresses, which aren't as aligned as
- * the host gives a common, so here they are declarations (docs/port/DATA.md). */
-#define PC_ONLY(x)
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -423,7 +416,7 @@ typedef struct {
     f32 unk0;
     f32 unk4;
 } D_80156958_Entry;
-PC_ONLY(extern) D_80156958_Entry D_80156958[4];
+extern D_80156958_Entry D_80156958[4];
 typedef struct {
     u8 pad0000[0x9CC0];
     OSMesgQueue unk9CC0;
@@ -447,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -890,21 +874,12 @@ extern s32 D_801117B4;
 extern s32 D_801117C4;
 extern s32 D_801118E4;
 extern s8 D_8011194C;
-#ifdef TARGET_PC
 /* PC: the osContInit bit pattern, gResetTick and gSkipFrames are bytes (the macros below, func_800E7038.c). The
  * PC loader fills initialized data by its declarations, and as words their first byte would be the ROM's fourth. */
 extern u8 D_80111950;
-#else
-extern s32 D_80111950;
-#endif
 extern s8 D_80111954;
-#ifdef TARGET_PC
 extern s8 D_8011195C;
 extern u8 D_80111960;
-#else
-extern s32 D_8011195C;
-extern s32 D_80111960;
-#endif
 extern u8 D_80111964;
 extern s8 D_80111968;
 extern s32 D_8011196C;
@@ -2157,14 +2132,10 @@ extern s32 D_801403D8;
 extern s8 D_80140418;
 extern s32 D_80140420;
 extern s8 D_8014061A;
-#ifdef TARGET_PC
 /* The scaled sticks, [pad][x, y], written through gStickF. Declared as one f32, an optimizing GCC (mingw-w64 12, Linux
  * 13 on x86-64) takes gStickF[i][0] and gStickF[i][1], 4-byte stores into a 4-byte object, for two stores to the
  * whole object and drops the first: the x never reached the car, which then didn't steer. */
 extern f32 D_80140620[][2];
-#else
-extern f32 D_80140620;
-#endif
 extern f32 D_80140624;
 extern s32 D_80140640;
 extern s32 D_801406C0;
@@ -2391,13 +2362,9 @@ extern s32 D_80149870;
 extern s16 D_80149878;
 extern f32 D_80149A4C;
 extern s32 D_80149A78;
-#ifdef TARGET_PC
 /* the sticks' calibration, gStickCal: [pad][x, y], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
 extern s8 D_80149AF8[4][2];
 #define D_80149AF8 (D_80149AF8[0][0])
-#else
-extern s8 D_80149AF8;
-#endif
 extern s8 D_80149AF9;
 extern s8 D_80149AFA;
 extern s8 D_80149AFB;
@@ -2408,12 +2375,8 @@ extern s8 D_80149AFF;
 extern s32 D_80149B00;
 extern s32 D_80149B08;
 extern u16 D_80149B0A;
-#ifdef TARGET_PC
 /* the previous buttons, gPrevPressed: one per pad, declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
 extern s32 D_80149B10[4];
-#else
-extern s32 D_80149B10;
-#endif
 extern s32 D_80149B14;
 extern s32 D_80149B18;
 extern s32 D_80149B1C;
@@ -2424,21 +2387,17 @@ extern s32 D_80149B30;
 extern s32 D_80149B40;
 extern s32 D_80149B48;
 extern s8 D_80149B4B;
-#ifdef TARGET_PC
 /* the raw sticks, gStickRaw: s8 [pad][x, y], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
 extern s32 D_80149B50[2];
-#else
-extern s32 D_80149B50;
-#endif
 extern s32 D_80149B58;
 extern s8 D_80149B60;
-PC_ONLY(extern) s8 D_80149B64[4];
+extern s8 D_80149B64[4];
 extern s8 D_80149B65;
 extern s8 D_80149B66;
 extern s8 D_80149B67;
 extern s32 D_80149B68;
 extern s8 D_80149B70;
-PC_ONLY(extern) s8 D_80149B74[4];
+extern s8 D_80149B74[4];
 extern s8 D_80149B75;
 extern s8 D_80149B76;
 extern s8 D_80149B77;
@@ -2446,12 +2405,8 @@ extern s32 D_80149B78;
 extern s32 D_80149B80;
 extern s16 D_80149B84;
 extern s32 D_80149B88;
-#ifdef TARGET_PC
 /* the repeat times, gRepeatTime: u32 [pad][32], declared whole for an optimizing GCC (OPTIMIZED.md 2.7) */
 extern s32 D_80149B90[128];
-#else
-extern s32 D_80149B90;
-#endif
 extern s16 D_80149D90;
 extern s16 D_80149D92;
 extern s32 D_80149D94;
@@ -3769,10 +3724,6 @@ void process_inputs(void);
 typedef struct { u8 pad[636]; volatile s32 tick; } SysBlk;
 #define gPadHeld ((volatile u32 *) D_80156978)
 #define gTick (((SysBlk *) &D_8002E8E8)->tick)
-#ifndef TARGET_PC
-/* PC: game.frame_rate 60 counts the frames of input skipped as frames of two retraces (pc_game_fps.h) */
-#define PC_EACH30(stmt) stmt
-#endif
 
 /* read the pads: sticks, held/pressed masks and auto-repeat per button */
 void controller_poll(void)

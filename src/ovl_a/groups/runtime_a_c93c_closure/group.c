@@ -25,14 +25,6 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#define PC_EACH30(stmt) stmt   /* PC: game.frame_rate 60, once a 30 Hz frame (pc_game_fps.h) */
-#endif
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
@@ -41,12 +33,8 @@ typedef struct MultiBlit {
 typedef struct MenuObjectSlot {s32 other,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} MenuObjectSlot;
 typedef union Color {u32 word;u8 channel[4];} Color;
 typedef struct Texture Texture;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller;} FileInfo;
-#else
-typedef struct FileInfo {u8 unknown00[16],controller;} FileInfo;
-#endif
 typedef struct Profile Profile;
 struct Profile {Profile **next,**previous;FileInfo **file;u32 id0,id1;u8 name[24];u8 **stats;};
 typedef struct Player {u32 held,pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;
@@ -62,20 +50,14 @@ extern Player D_8014A118[];        /* gPlayers */
 extern s8 D_8014978C;              /* gTrackNum */
 extern s8 D_80146108[];            /* gOptions */
 extern s8 D_80146125;             /* gOptions[29] under its own name (retail case-14 store) */
-#ifdef TARGET_PC
 /* PC: one name for one place. An optimizing GCC takes two external variables for two objects, so after the store
  * through this name updateTrackScreen could go on with a value of gOptions[29] it had read before
  * (docs/port/OPTIMIZED.md, tools/port/alias_check.py). */
 #define D_80146125 (D_80146108[29])
-#endif
-#ifdef TARGET_PC
 /* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, func_800CCB40) stay 5, so a player who never touches it races 6 cars. */
 #define PC_DRONES_MAX (pc_cars_setting() - 1)
-#else
-#define PC_DRONES_MAX 5
-#endif
 extern s8 D_80157244;              /* gSoftReset */
 extern u32 D_8015694C;             /* gActiveEdges */
 extern u32 D_80156944;             /* gActiveLevels */
@@ -267,31 +249,21 @@ extern s32 D_803B77D4[][21];   /* validOption */
 extern s8 D_803B8314[19];      /* TrackValid static trackReady */
 extern s32 D_803AF980;
 /* SetFogIntensity: research body */
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
-#else
-struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
-    u8 other28[24];u16 resource;};
-#endif
 typedef struct RGB { u8 r, g, b; } RGB;
 extern s8 D_801427A0;
 extern s8 D_8013F1D8;
 extern RGB D_80114658[];
 extern u8 D_803BA1E0[8];
 extern u8 D_803BA1E8[];
-#ifdef TARGET_PC
 /* PC: the fog blit's palette D_803BA1E8 is a Palette (gfx's draw reads its colour table at +0x14 as a u32 window
  * address): that word is this one, which must stay in the arena at its N64 address. It holds the colour pair
  * D_803BA1E0's address, a window address (FOG_TABLE). As a host pointer it had storage of its own, and the draw read
  * a table of 0 (docs/port/BRINGUP.md 7). */
 extern u32 D_803BA1FC;
 #define FOG_TABLE(p) PC_N64W(p)
-#else
-extern u8 *D_803BA1FC;
-#define FOG_TABLE(p) p
-#endif
 extern Blit *D_803B8288,*D_803B828C;
 extern void Input_ApplyPadConfig(Blit *);
 /* BlowFog (inlined into _InitScreen); MAT3 static fogTileSize (anon_uls_ult_8) */
@@ -303,15 +275,10 @@ extern void sound_call_minimal(s16);  /* ZOID_RemoveObject */
 extern void ambient_sounds_clear(void);  /* removeBG */
 extern void func_800A5B3C(void);  /* ZOID_Reset */
 /* ---- context (region): _UninitScreen, buildTrackMap, animTrackMap: option_parent research bodies ---- */
-#ifdef TARGET_PC
 /* PC: the loaded WAD's OBHD records keep their N64 layout (port/assets/wad.c), so a LOD's display list and
  * vertices are u32 RDRAM-window addresses here too (docs/port/LOADERS.md). */
 typedef struct MapLod {u16 texidx,flags;f32 lodRad;u32 displayList;u32 verts;} MapLod;
 #define MAPLOD_PTR(x) (uintptr_t) x
-#else
-typedef struct MapLod {u16 texidx,flags;f32 lodRad;u32 *displayList;void *verts;} MapLod;   /* N64 16-byte model LOD */
-#define MAPLOD_PTR(x) x
-#endif
 typedef struct RomObjDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lod[4];} RomObjDef;   /* 88 B */
 typedef struct ModelBank {RomObjDef *romObjDefs;s32 count;} ModelBank;
 typedef struct Slot72 {s32 handle;f32 offset_x,offset_y,angle,scale_from,scale_to;f32 matrix[3][3],position[3];} Slot72;   /* trackMap: anon_objIdx_cityX_48 */
@@ -322,45 +289,25 @@ extern MapLod D_803BAAE8[7];   /* mapObj */
 extern void *D_803BABC8[7],*D_803BABE8[7];
 extern ModelBank D_801161F4[];   /* gRomObjDefPtrs */
 extern char *D_803B7738[];       /* trackMapObjNames */
-#ifdef TARGET_PC
 /* DeallocateMemory's definition (audio_effect_process) takes the block's 32-bit N64 address: N64A0(p) is a window
  * pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 extern void func_800960D4(u32);
 #define N64A0(x) PC_N64A(x)
-#else
-extern void func_800960D4(void *);  /* DeallocateMemory */
-#define N64A0(x) x
-#endif
-#ifdef TARGET_PC
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
-#else
-typedef struct ImageMeta {u8 other0[21];u8 flags;u8 other22[10];} ImageMeta;
-#endif
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
 extern ImageMeta D_80140BF0[];
 extern char *D_803B7788[];
 extern char D_803B9260[];
 extern Color D_803B8328;
 extern s32 D_803B7CD8;          /* kNumMapSects */
-#ifdef TARGET_PC
 extern u32 D_803BAB50;             /* mapObj[6].displayList (MapLod) */
-#else
-extern Gfx *D_803BAB50;            /* mapObj[6].displayList */
-#endif
-#ifdef TARGET_PC
 /* PC: mapObj[6].displayList under one name, as for D_80146125: clearTrackMaps and buildRaceTrackMaps write it
  * through mapObj and buildTrackMap reads it, and the three may be inlined into updateTrackScreen. */
 #define D_803BAB50 (D_803BAAE8[6].displayList)
-#endif
-#ifdef TARGET_PC
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
 #define MAP_DL_SECTION_BYTES 80
 #define MAP_DL_FIXED_BYTES 112
-#else
-#define MAP_DL_SECTION_BYTES 40
-#define MAP_DL_FIXED_BYTES 56
-#endif
 extern f32 D_803B8254[12],D_803BAC30[12],D_803B832C[3];
 extern Blit *func_800B3704(char *,s16,s16,s16);
 extern void func_80094EC8(Blit *);
@@ -962,7 +909,7 @@ void func_8038B388(void)
 {
     func_8038AE50();
     if (D_803B8284 != -1) { sound_call_minimal((s16)D_803B8284); D_803B8284 = -1; }
-    while (D_8002EB70) { PC_SPIN("func_8038B388") }
+    while (D_8002EB70) { pc_os_spin_yield("func_8038B388"); }
 }
 
 /* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
@@ -1256,7 +1203,7 @@ void func_8038B930(void)
                 D_803B7CE4[i].handle = -1;
             }
         }
-        while (D_8002EB70) { PC_SPIN("func_8038B930") }
+        while (D_8002EB70) { pc_os_spin_yield("func_8038B930"); }
         for (i = 0; i < 7; i++) {
             model = string_copy_format(D_803B7738[i < 6 ? i : 19],0,D_80140BDC - 1,1);
             def = &D_801161F4[model >> 10].romObjDefs[model & 0x3FF];

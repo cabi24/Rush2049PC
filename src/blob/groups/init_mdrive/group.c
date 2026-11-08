@@ -40,40 +40,12 @@ typedef struct Vehicle2056 {
  u8 gap1992[48];
  float wheels[4];
 } Vehicle2056;
-#ifdef TARGET_PC
 typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 gap8_308[0x358 - 0x308];s8 clear,active;u8 gap858[10];float drift;u8 tail[0x380 - 0x368]; void *input; u8 tail_384[0x3B8 - 0x384];} Model952;
-#else
-typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[848];s8 clear,active;u8 gap858[10];float drift;u8 tail[80];} Model952;
-#endif
 typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
 extern s8 D_80142760;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_B358(i) player_array[i].clear
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Vehicle2056 D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Config8 D_80153E88[];
-#define PC_LINK Config8
-#define PC_LINKS D_80153E88
-#define PC_LINK_PLACE(i) D_80153E88[i].camera
-#define PC_LINKP_OWNER(p) p->mode
-#endif
-#ifndef TARGET_PC
-/* A respawn is coded as a place of PC_RESPAWN_BASE or more; on the PC that is past every start place
- * (pc_game_types.h, docs/port/MORECARS.md 4). */
-#define PC_RESPAWN_BASE 6
-#endif
 extern int gameplay_mode;
 extern volatile s16 D_801525F0;
 extern void car_setup_confirm(int,float);

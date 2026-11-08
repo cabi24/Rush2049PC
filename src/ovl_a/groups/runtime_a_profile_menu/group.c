@@ -27,12 +27,8 @@ typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { s32 kind,handle; f32 angle,matrix[3][3],position[3]; u8 alpha,unknown3D[3]; } Slot;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller; } FileInfo;
-#else
-typedef struct FileInfo { u8 unknown00[16],controller; } FileInfo;
-#endif
 typedef struct Profile Profile;
 struct Profile { Profile **next,**previous; FileInfo **file; u8 unknown0C[8]; u8 name[1]; };
 typedef struct Player { u8 unknown00[4];u32 pressed;u8 unknown08[4];u32 repeat;u8 unknown10[56]; Profile **owner; } Player;
@@ -94,14 +90,10 @@ s32 func_80395E24(s32 skip,Profile **owner)
     if(owner)for(i=0;i<D_8014A108;i++)if(i!=skip && owner==D_8014A118[i].owner)found=1;
     return found;
 }
-#ifdef TARGET_PC
 /* func_80396EE8/func_80396F44 (playerBeingDeleted/Created) take `skip` in a1 under IDO's IPA: their owners
  * (src/ovl_a/func_80396EE8.c, func_80396F44.c) read it as a second parameter after a dummy, and these calls
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
-#else
-#define PC_IPA_A0
-#endif
 s32 func_80396EE8(PC_IPA_A0 s32 skip)
 {
     s8 i;
@@ -119,10 +111,8 @@ s32 func_80396F44(PC_IPA_A0 s32 skip)
 s32 func_80395E24(s32,Profile **);
 s32 func_80396F44(PC_IPA_A0 s32);
 s32 func_80396EE8(PC_IPA_A0 s32);
-#ifdef TARGET_PC
 #define func_80396EE8(skip) func_80396EE8(0, skip)
 #define func_80396F44(skip) func_80396F44(0, skip)
-#endif
 void func_803A7B58(s32 player)
 {
     s32 draw_x,y,x;

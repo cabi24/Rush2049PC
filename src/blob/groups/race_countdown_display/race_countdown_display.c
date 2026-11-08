@@ -29,22 +29,14 @@ typedef struct GameCar {
     u8 pad000[0xEE];
     s8 place;
     s8 place_locked;
-#ifdef TARGET_PC
     u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21];
-#else
-    u8 pad0F0[0x308 - 0xF0];
-#endif
     s8 finish_a;
     s8 finish_b;
     u8 pad30A[2];
     f32 finish_timer;
     u8 pad310;
     s8 flags311;
-#ifdef TARGET_PC
     u8 pad312[0x380 - 0x312]; void *input; u8 pad312_384[0x3B8 - 0x384];
-#else
-    u8 pad312[0x3B8 - 0x312];
-#endif
 } GameCar;
 
 typedef struct Player {
@@ -62,33 +54,14 @@ typedef struct Track {
 } Track;
 
 extern Track D_80151CE8;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80153E88[];
-#define PC_LINK Player
-#define PC_LINKS D_80153E88
-#define PC_LINKP_OWNER(p) p->type
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern s32 D_8014A110;
 extern u32 D_801174B4;
 extern s16 D_80152734;
 extern s8 D_80152014;
 extern s8 D_80152015;
-#ifdef TARGET_PC
 /* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-#else
-extern s8 D_80110680[];
-extern f32 D_80110668[];
-#define PC_FINISH_CAM(i) D_80110680[i]
-#define PC_FINISH_CAM_TIME(i) D_80110668[i]
-#endif
 extern volatile f32 D_8002EB90;
 void func_800D2458(s32 player, f32 time);
 void func_800D2054(s32 player, f32 time);

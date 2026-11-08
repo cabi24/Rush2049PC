@@ -2,9 +2,6 @@
 typedef int s32;
 typedef short s16;
 typedef unsigned char u8;
-#ifndef TARGET_PC
-#define PSF_OFS(n) n   /* the pak file record's PC offsets (pc_prelude.h) */
-#endif
 typedef struct Slot {
     void **head;
     s32 pad[3];

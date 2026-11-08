@@ -45,17 +45,9 @@ typedef struct {
 typedef struct {
     /* 0x000 */ u8 pad0[0xEE];
     /* 0x0EE */ u8 unkEE;
-#ifdef TARGET_PC
     /* 0x0EF */ u8 padEF[0x110 - 0xEF]; struct pc_visual visuals[21]; u8 padEF_308[0x35B - 0x308];
-#else
-    /* 0x0EF */ u8 padEF[0x26C];
-#endif
     /* 0x35B */ s8 place;
-#ifdef TARGET_PC
     /* 0x35C */ u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
-#else
-    /* 0x35C */ u8 pad35C[0x5C];
-#endif
 } CAR_DATA; /* 0x3B8 */
 
 typedef struct {
@@ -67,44 +59,16 @@ typedef struct {
 
 extern volatile s16 D_801543CA;        /* number of cars */
 extern s8 D_80152744;         /* num_active_cars */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[]; /* model */
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].drone_type
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA D_80152818[]; /* game_car */
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link D_80153E88[];     /* gLink */
-#define PC_LINK_PLACE(i) D_80153E88[i].unk5
-#define PC_LINK_FLAGS(i) D_80153E88[i].flags
-#define PC_LINK_OWNER(i) D_80153E88[i].owner
-#endif
 extern s16 D_8015274C;        /* num_our_drones */
 extern volatile s16 D_80152768; /* num_drones */
 extern volatile s16 D_80153FD2; /* num_humans */
 extern s16 D_80143A40[];      /* humans */
-#ifdef TARGET_PC
 /* On the PC the drone lists are pc_drones and pc_our_drones, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 8), and the slots after the race's are cleared up to the model records' PC_MODEL_SLOTS. The
  * human list keeps its N64 storage: the humans are the players, 4 at most. */
-#else
-extern s16 D_801527D8[];      /* drones */
-extern s16 D_80152808[];      /* our_drones */
-#define PC_DRONE(j) D_801527D8[j]
-#define PC_OUR_DRONE(j) D_80152808[j]
-#define PC_MODEL_SLOTS MAX_LINKS
-#endif
 extern s32 D_80143FF4;
 
 void func_800EC914(void) {

@@ -31,20 +31,12 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-#ifdef TARGET_PC
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
  * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
-#else
-typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
-#endif
 typedef struct Puff {
     struct Puff *next;  /* 0 */
     Mat3 matrix;        /* 4 */
@@ -68,18 +60,10 @@ typedef struct Player {
     Vec3 exhaust[4];    /* 116 */
     u8 pad164[84];
     s16 speed;          /* 248 */
-#ifdef TARGET_PC
     u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x35C - 0x308];
-#else
-    u8 pad250[610];
-#endif
     s8 slot;            /* 860 */
     s8 view;            /* 861 */
-#ifdef TARGET_PC
     u8 pad862[0x380 - 0x35E]; void *input; u8 pad862_384[0x3B8 - 0x384];
-#else
-    u8 pad862[90];
-#endif
 } Player;
 typedef struct Car {
     u8 pad0[8];
@@ -90,7 +74,6 @@ typedef struct Car {
     s8 enabled;         /* 1600 */
     u8 pad1601[455];
 } Car;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource {
     u32 flags, w4;
@@ -104,40 +87,13 @@ typedef struct Resource {
     u8 alpha;           /* N64 63 */
     u8 pad64[4];
 } Resource;
-#else
-typedef struct Resource {
-    u8 pad0[12];
-    f32 scale;          /* 12 */
-    u8 pad16[4];
-    s16 frame;          /* 20 */
-    u8 pad22[41];
-    u8 alpha;           /* 63 */
-    u8 pad64[4];
-} Resource;
-#endif
 extern Puff *D_8013F1F0;
 extern s32 D_8013F1E0;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_8014A250[];
-#define PC_MODEL_BODY(i) D_8014A250[i].model
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
-#define PC_MODEL_VISCODE(i) D_8014A250[i].exhaust
-#endif
-#ifdef TARGET_PC
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define D_801392D8 pc_tire_fx
-#else
-extern u32 D_801392D8[];
-#endif
 extern s32 D_8011735C;
 extern Resource D_8012E700[];
 extern u16 D_80142948[2][9];
@@ -156,13 +112,7 @@ extern f32 fabsf(f32);
 /* PC: game.frame_rate 60 (pc_game_fps.h). The glow's pulse and the puffs' fade, jitter and growth are per frame of
  * two retraces on the N64: scaled to the frame, or run once a 30 Hz frame; PC_ON30(c) is c on a frame that
  * completes a 30 Hz frame, false on the others. */
-#ifdef TARGET_PC
 #define PC_ON30(c) ((c) && (!pc_fps60 || pc_frame_steps))
-#else
-#define PC_ON30(c) c
-#define PC_FSCALE(x) x
-#define PC_EACH30(stmt) stmt
-#endif
 
 int func_8008B2B4(void) {
     D_8011735C = D_8011735C * 1103515245 + 12345;

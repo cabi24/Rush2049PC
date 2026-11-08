@@ -44,10 +44,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
@@ -96,11 +92,7 @@ typedef struct Car {
     f32 vel[3];           /* 0x14 */
     f32 acc[3];           /* 0x20 */
     f32 uvs[3][3];        /* 0x2c */
-#ifdef TARGET_PC
     u8 pad50[0x110 - 0x50]; struct pc_visual visuals[21];
-#else
-    u8 pad50[0x308 - 0x50];
-#endif
     s8 collidable;        /* 0x308 */
     u8 pad309[0x34c - 0x309];
     RGBA IRclr;           /* 0x34c */
@@ -179,32 +171,14 @@ typedef struct HitPoly { struct HitPoly *next; void *poly; } HitPoly;
 typedef struct Shield { s32 dlIdx; UVMat mat; } Shield;
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
-#else
-typedef struct ObjInst { u8 pad00[12]; f32 scale; u8 pad10[0x44 - 16]; } ObjInst;
-#endif
 
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
 extern f32 D_80142764;          /* gGravity */
 extern volatile s16 D_801543CA;          /* gNumCars */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];        /* gGameCar */
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CARS D_80152818
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];      /* model */
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_BODY(i) D_8014A250[i].body_type
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
-#define PC_MODEL_MOVING_STATE(i) D_8014A250[i].moving_state
-#endif
 extern s8 D_8012E67C[];         /* gCarTeam */
 extern ColSize D_8011F844[];    /* collsize */
 extern f32 D_8011418C[];        /* unitmatrix */
@@ -273,18 +247,11 @@ static f32 gShieldSizes[13] = {
     0.85f, 0.8f, 0.75f, 0.77f, 0.83f, 0.85f, 0.75f, 0.75f, 0.65f, 0.85f, 1.1f, 0.8f, 0.73f
 };
 static s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };
-#ifdef TARGET_PC
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a weapon's reload counts down by the time of the 30 Hz frames
  * completed, so it ends on the frame the N64's would: a reload is set afresh at each shot, and counted by the frame
  * time at 60 it ended up to a retrace sooner than the N64's frames of two (0.0666667 s: 5 retraces against 6, a
  * machine gun's 12 shots a second against 10). */
 #define PC_DT30(dt) (pc_fps60 ? (pc_frame_steps ? (f32)pc_frame_steps * ((dt) / pc_frame_scale) : 0.0f) : (dt))
-#else
-#define PC_FSCALE(x) x
-#define PC_FILTER(e) e
-#define PC_EACH30(stmt) stmt
-#define PC_DT30(dt) dt
-#endif
 
 /* 0x8038F568 ElevateGun */
 void func_8038F568(Car *car)

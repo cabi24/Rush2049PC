@@ -110,11 +110,7 @@ extern OSMesg D_8015439C;
 extern OSMesgQueue D_801497D0;   /* one-slot queue used as the SI lock */
 extern OSMesg D_801527E4;
 typedef struct {
-#ifdef TARGET_PC
     char pad[0x2B0];   /* gScheduler's curRSPTask (D_8002EB5C) natively: docs/port/ULTRA.md */
-#else
-    char pad[0x274];
-#endif
     void *volatile cur;
 } Sched;
 extern Sched D_8002E8E8;         /* scheduler */
@@ -147,9 +143,6 @@ void controller_rumble_thunk(void) {
     func_800205E4();
 }
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
 
 void dma_wait_complete(void *arg) {
     OSScClient client;
@@ -163,7 +156,7 @@ void dma_wait_complete(void *arg) {
         switch (*msg) {
         case 1:
             if (D_8011EAA8 != 0) {
-                while (D_8002AFA0 != 0 && D_8002AFA0 == D_8002E8E8.cur) { PC_SPIN("dma_wait_complete")
+                while (D_8002AFA0 != 0 && D_8002AFA0 == D_8002E8E8.cur) { pc_os_spin_yield("dma_wait_complete");
                 }
                 D_8011EAA8(D_8011EAA8);
             }

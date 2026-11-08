@@ -16,10 +16,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct PV { s16 x, y, z; u16 w; } PV;
 extern PV *D_8015201C;
@@ -64,36 +60,17 @@ typedef struct CCar {
     s16 pidx;
 } CCar;
 typedef struct PCar {
-#ifdef TARGET_PC
     u8 p0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 p0_308[0x358 - 0x308];
-#else
-    u8 p0[0x358];
-#endif
     s8 f358;
     s8 f359;
-#ifdef TARGET_PC
     u8 p35A[0x380 - 0x35A]; void *input; u8 p35A_384[0x3B8 - 0x384];
-#else
-    u8 p35A[0x3B8 - 0x35A];
-#endif
 } PCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern PCar player_array[8];
-#define PC_CAR_B358(i) ((PCar *) player_array)[i].f358
-#define PC_CAR_STATE(i) ((PCar *) player_array)[i].f359
-#endif
 typedef struct Link {
     u8 p0[7];
     u8 kind;
 } Link;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].kind
-#endif
 void func_800C36A0(CCar *car, CCol *col);
 void camera_play_script(CCar *car, Poly *poly, CCol *col);
 

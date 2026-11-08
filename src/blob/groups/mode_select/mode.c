@@ -5,10 +5,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct Entity {
     u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
@@ -128,29 +124,13 @@ void func_800DFBA0(ModelView *model)
     }
 }
 #define FIELD(p,t,o) (*(t *)((u8 *)(p)+(o)))
-#ifdef TARGET_PC
 /* PC: an input record (D_8014A118) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
 #define INPUT_SIZE 80
-#else
-#define INPUT_SIZE 76
-#endif
-#ifdef TARGET_PC
 /* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
 extern s8 D_8010FFC0;
-#else
-extern s8 D_8010FFC0,D_8010FFCC[],D_8010FFC4[];
-#define PC_ENGINE_PHASE(i) D_8010FFCC[i]
-#define PC_CAR_SOUNDS_ON(i) D_8010FFC4[i]
-#endif
 extern s8 D_801115CD[][13];
 extern volatile f32 D_8002EB90;
 extern f32 D_8011F060[],D_80110020[],D_8012438C,D_80124390;
-#ifndef TARGET_PC
-extern LayerState D_80140640[];
-#define PC_SCREECH(i) &D_80140640[i]
-#define PC_SCREECH_LEVEL(i) D_80140640[i].level
-#define PC_SCREECH_STYLE(i) D_80140640[i].style
-#endif
 extern s32 D_801407E0[],D_801407C0[];
 extern f32 D_801141B0[3];
 extern u8 input_rec0[];
@@ -189,10 +169,6 @@ typedef struct {
     s16 rpm;         /* 0x7D0 */
 } MODELDAT;
 extern u32 state_word_a;
-#ifndef TARGET_PC
-extern SndSet D_80140420[];
-#define PC_ENGINE_SOUND(i) &D_80140420[i]
-#endif
 extern s32 gameplay_mode;
 extern s16 active_player_count;
 extern s16 gCountDown;

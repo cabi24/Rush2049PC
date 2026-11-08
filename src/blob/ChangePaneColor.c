@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,7 +3688,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: a pane group (FiveParts, ambient_sound_set.c) keeps its five blits pointer-sized from +0x10, and a Blit has its
  * host layout (sound_control.c): the palette (Image) at +8, Alpha at +0x24. The m2c body uses the N64 offsets. The
  * middle part takes the first colour, the frame parts the second. */
@@ -3732,32 +3718,3 @@ void ChangePaneColor(void *arg0, void *arg1, void *arg2) {
         Input_ApplyPadConfig(part);
     }
 }
-#else
-void ChangePaneColor(void *arg0, void *arg1, void *arg2) {
-    s32 var_s1;
-    void *var_s0;
-
-    M2C_FIELD(arg0, u8 *, 2) = (u8) M2C_FIELD(arg1, u8 *, 0);
-    var_s0 = arg0;
-    M2C_FIELD(arg0, u8 *, 3) = (u8) M2C_FIELD(arg1, u8 *, 1);
-    var_s1 = 0;
-    M2C_FIELD(arg0, u8 *, 4) = (u8) M2C_FIELD(arg1, u8 *, 2);
-    M2C_FIELD(arg0, u8 *, 5) = (u8) M2C_FIELD(arg1, u8 *, 3);
-    M2C_FIELD(arg0, u8 *, 6) = (u8) M2C_FIELD(arg2, u8 *, 0);
-    M2C_FIELD(arg0, u8 *, 7) = (u8) M2C_FIELD(arg2, u8 *, 1);
-    M2C_FIELD(arg0, u8 *, 8) = (u8) M2C_FIELD(arg2, u8 *, 2);
-    M2C_FIELD(arg0, u8 *, 9) = (u8) M2C_FIELD(arg2, u8 *, 3);
-    do {
-        if (var_s1 == 8) {
-            M2C_FIELD(M2C_FIELD(var_s0, void **, 0xC), void **, 4) = (void *) ((u8 *) arg0 + 2);
-            M2C_FIELD(M2C_FIELD(var_s0, void **, 0xC), u8 *, 0x18) = (u8) M2C_FIELD(arg1, u8 *, 3);
-        } else {
-            M2C_FIELD(M2C_FIELD(var_s0, void **, 0xC), void **, 4) = (void *) ((u8 *) arg0 + 6);
-            M2C_FIELD(M2C_FIELD(var_s0, void **, 0xC), u8 *, 0x18) = (u8) M2C_FIELD(arg2, u8 *, 3);
-        }
-        Input_ApplyPadConfig(M2C_FIELD(var_s0, void **, 0xC));
-        var_s1 += 4;
-        var_s0 = (u8 *) var_s0 + 4;
-    } while (var_s1 != 0x14);
-}
-#endif

@@ -18,10 +18,6 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
 typedef int s32; typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 #define NULL ((void *)0)
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
@@ -30,28 +26,14 @@ void audio_reverb_update(u32 address, s32 tag);
 
 extern OSMesgQueue D_80152770;
 
-#ifdef TARGET_PC
 enum n64p_Heap { n64p_Heap_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Heap {
     u32 pad0;
     enum n64p_Heap next;  /* 4 */
 } Heap;
-#else
-typedef struct Heap {
-    u32 pad0;
-    struct Heap *next;  /* 4 */
-} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Heap: (struct Heap *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern Heap *D_801527C8;
 
 static Heap *heap_or_default(Heap *heap)
@@ -62,12 +44,8 @@ static Heap *heap_or_default(Heap *heap)
     return D_801527C8;
 }
 
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 void func_800E7A98(Heap *heap)
 {
     Heap *p;

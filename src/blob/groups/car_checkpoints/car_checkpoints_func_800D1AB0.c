@@ -18,45 +18,19 @@ typedef struct {
     s8 unkEF;
     char padF0[0x10];
     f32 distance;
-#ifdef TARGET_PC
     char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x359 - 0x308];
-#else
-    char pad104[0x255];
-#endif
     s8 unk359;
-#ifdef TARGET_PC
     char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
-#else
-    char pad35A[0x5E];
-#endif
 } GameCar; /* 0x3B8 */
 
 extern s8 D_80152744;
 extern s16 D_80152734;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL_LAP(i) D_8014A250[i].unk7E8
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar D_80152818[];
-#define PC_CAR_DISTANCE(i) D_80152818[i].distance
-#define PC_CAR_FINISHED(i) D_80152818[i].unkEF
-#define PC_CAR_PLACE(i) D_80152818[i].place
-#define PC_CAR_STATE(i) D_80152818[i].unk359
-#endif
 
-#ifdef TARGET_PC
 /* PC: the cars still racing, by slot, and their distances by slot, as many as the race's cars (up to
  * PC_MAX_LINKS, pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's 6. */
 #define CARS_N PC_MAX_LINKS
-#else
-#define CARS_N 6
-#endif
 void func_800D1AB0(void) {
     s16 i;
     s16 j;

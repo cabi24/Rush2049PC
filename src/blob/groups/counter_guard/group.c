@@ -1,45 +1,18 @@
 typedef signed char s8;typedef unsigned char u8;typedef signed int s32;typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 #define NULL ((void *)0)
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
 enum n64p_u32 { n64p_u32_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#else
-typedef struct Block {u32 pad0;struct Block *next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#endif
-#ifdef TARGET_PC
 typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
-#else
-typedef struct Pool {s32 count;u32 *base;struct Pool *next;} Pool;
-#endif
-#ifdef TARGET_PC
 typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool pool;} Heap;
-#else
-typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 typedef struct OSMesgQueue OSMesgQueue;
-#ifdef TARGET_PC
 extern intptr_t D_801527C8;
 extern s32 D_80152770;
-#else
-extern s32 D_801527C8,D_80152770;
-#endif
 extern s8 D_8011ED04,D_8011ED00;
 extern u8 D_8038A400[];
 typedef struct RaceEntry {u32 allocation;u8 pad4[20];} RaceEntry;
