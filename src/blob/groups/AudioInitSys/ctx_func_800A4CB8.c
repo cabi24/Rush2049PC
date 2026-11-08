@@ -49,9 +49,4 @@ void InsertLLE(List *list, Link *object, Link *before);
 
 void ClearLL(List *list);
 
-static void list_init(List *list, s8 indirect, s8 doubly) {
-    list->indirect = indirect;
-    list->doubly = doubly;
-    ClearLL(list);
-}
 

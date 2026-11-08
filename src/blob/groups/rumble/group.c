@@ -106,9 +106,6 @@ void si_lock(void) {
     osRecvMesg(&si_lock_queue, &msg, 1);
 }
 
-static void si_unlock_inline(void) {
-    osSendMesg(&si_lock_queue, 0, 0);
-}
 
 void rumble_thread_entry(void *arg) {
     OSScClient client;
@@ -178,7 +175,7 @@ check2:
             if (rumble_duty_masks[level] & (1 << gPaks[i].phase)) goto on;
             goto off;
         }
-        si_unlock_inline();
+        si_unlock();
     }
 }
 

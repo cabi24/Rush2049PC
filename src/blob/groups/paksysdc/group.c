@@ -149,7 +149,6 @@ s32 pak_error_from_pfs(s32 error);
 
 /* the inlined pak lock helpers (bodies as group pak_write_cluster pfs_*; own names: the unit renames duplicated internal names) */
 void paksys_lock(void);
-void paksys_unlock(void);
 
 /* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
 void pak_insert_file(PakHandle *fileh)
@@ -160,6 +159,7 @@ void pak_insert_file(PakHandle *fileh)
 /* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
 PakHandle *pfs_get_node(void);
 
+void si_unlock(void);
 /* 0x800A2D4C */
 PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
 {
@@ -181,7 +181,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
                                   game_name, ext_name, (numBytes + 255) & ~255U, &file);
         if (error) {
             gPaks[pak].error = pak_error_from_pfs(error);
-            paksys_unlock();
+            si_unlock();
             gErrPak = pak;
             gErrorFunc(pak, gPaks[pak].error, (numBytes + 255) >> 8, 0, &retry, &status,
                        gPaks[pak].error == 3 ? 0 : pak_removed);
@@ -198,7 +198,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
                         company == state->company_code) break;
                 }
                 if (file == 16) continue;
-                paksys_unlock();
+                si_unlock();
                 for (fileh = gPS_Files[pak].head; fileh != 0; fileh = fileh->file->next) {
                     if (fileh->file->fileNo == file) {
                         PS_DeleteFile(fileh);
@@ -209,7 +209,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
             }
             if (gPaks[pak].error == 6 && retry) retry = 0;
             if (!retry) {
-                paksys_unlock();
+                si_unlock();
                 return 0;
             }
         } else break;
@@ -219,7 +219,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
         error = osPfsFileState(&gPaks[pak].pfs, file, &gPaks[pak].files[file].state);
         if (!error && gPaks[pak].files[file].state.file_size != 0) break;
         gPaks[pak].error = pak_error_from_pfs(error);
-        paksys_unlock();
+        si_unlock();
         gErrPak = pak;
         gErrorFunc(pak, gPaks[pak].error, (numBytes + 255) >> 8, 0,
                    &retry, &status, pak_removed);
@@ -230,7 +230,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
         }
         paksys_lock();
         if (!retry) {
-            paksys_unlock();
+            si_unlock();
             gPaks[pak].files[file].state.file_size = 0;
             return 0;
         }
@@ -253,7 +253,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
     pak_decode_name(psfile->name, gPaks[pak].files[file].state.game_name, 16);
     pak_decode_name(psfile->ext, gPaks[pak].files[file].state.ext_name, 4);
     pak_insert_file(fileh);
-    paksys_unlock();
+    si_unlock();
     return fileh;
 }
 
@@ -291,7 +291,7 @@ delete_retry:
                             state->game_name, state->ext_name);
     if (error) {
         gPaks[pak].error = pak_error_from_pfs(error);
-        paksys_unlock();
+        si_unlock();
         gErrPak = pak;
         gErrorFunc(pak, gPaks[pak].error, 0, 0, &retry, &status, pak_removed);
         gErrPak = -1;
@@ -301,7 +301,7 @@ delete_retry:
         if (cur == 0) return;
         paksys_lock();
         if (retry) goto delete_retry;
-        paksys_unlock();
+        si_unlock();
         return;
     }
     pdf_free_blocks(pak);
@@ -312,7 +312,7 @@ delete_retry:
         psfile->data = 0;
     }
     pdf_release(fileh);
-    paksys_unlock();
+    si_unlock();
 }
 
 /* ---- PS_PakServer and its private callees ---- */
@@ -442,7 +442,7 @@ init:
                 changed[i] = 0;
                 continue;
             }
-            paksys_unlock();
+            si_unlock();
 prompt:
             gErrPak = i;
             gErrorFunc(i, 10, 0, 0, &retry, &status, pak_removed);
@@ -457,7 +457,7 @@ prompt:
                 ret = osPfsInitPak(&si_event_queue, &pfs, i);
                 if (!ret) goto inited;
                 ret = osPfsRepairId(&pfs);
-                paksys_unlock();
+                si_unlock();
                 if (ret) {
                     gErrPak = i;
                     gErrorFunc(i, 12, 0, 0, &retry, &status, 0);
@@ -548,7 +548,7 @@ locked:
             continue;
         }
 flush:
-        paksys_unlock();
+        si_unlock();
         if (!PS_FlushPak(i, 0)) {
             changed[i] = 0;
             si_lock();
@@ -593,7 +593,7 @@ flush:
             }
         }
     }
-    paksys_unlock();
+    si_unlock();
     for (i = 0; i < 4; i++) gPaks[i].changed = changed[i];
     if (forceUpdate) {}     /* disclosed umerge-budget device (one branch) */
 }

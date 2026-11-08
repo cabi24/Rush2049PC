@@ -170,16 +170,7 @@ void audio_retrace_thread_entry(void *arg) {
     }
 }
 
-/* ---- , bodies unchanged (see header) ---- */
-static void si_lock_init(void) {
-    si_lock_inited = 1;
-    osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
-    osSendMesg(&si_lock_queue, 0, 0);
-}
 
-static void si_unlock_inline(void) {
-    osSendMesg(&si_lock_queue, 0, 0);
-}
 
 void si_unlock(void);
 

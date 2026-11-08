@@ -35,14 +35,10 @@ extern PcViewport vp0, vp1, vp2, vpul, vpur, vpll, vplr;
 extern s16 scissor0[4], scissor1[4], scissor2[4], scissorul[4], scissorur[4], scissorll[4], scissorlr[4];
 extern ArbEntry ZoidWinInfo[];
 
-ArbEntry *view_bind_w(s32 k, void *vp, s16 *r) {
-    ZoidWinInfo[k].f0 = vp;
-    ZoidWinInfo[k].f4 = r;
-    return &ZoidWinInfo[k];
-}
 
 ArbEntry *ZOID_InitializeWindow(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
 
+ArbEntry *view_bind(s32 k, void *vp, s16 *r);
 s32 ZOID_SplitMenuScreen(s32 n) {
     if (n > 0) {
         gNumZoidWindows = n;
@@ -56,7 +52,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissor0[2] = w;
                 scissor0[0] = 0;
                 scissor0[1] = 0;
-                view_bind_w(0, &vp0, scissor0);
+                view_bind(0, &vp0, scissor0);
             }
             gSplitScreen = 0;
         } else if (n == 2) {
@@ -69,7 +65,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissor1[2] = w;
                 scissor1[0] = 2;
                 scissor1[1] = 0;
-                view_bind_w(0, &vp1, scissor1);
+                view_bind(0, &vp1, scissor1);
             }
             ZOID_InitializeWindow(1, &vp2, scissor2, HFOV, 0.0f,
                          (f32)(screen_width * 3 / 4), (f32)(screen_height / 2), (f32)(screen_width * 3 / 8 + 2), (f32)(screen_height * 3 / 4));
@@ -80,7 +76,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissor2[0] = 2;
                 scissor2[2] = w;
                 scissor2[1] = y;
-                view_bind_w(1, &vp2, scissor2);
+                view_bind(1, &vp2, scissor2);
             }
             gSplitScreen = 1;
         } else if (n == 3 || n == 4) {
@@ -93,7 +89,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissorul[2] = w;
                 scissorul[0] = 0;
                 scissorul[1] = 0;
-                view_bind_w(0, &vpul, scissorul);
+                view_bind(0, &vpul, scissorul);
             }
             ZOID_InitializeWindow(1, &vpur, scissorur, HFOV * 0.95f, 0.0f,
                          (f32)(screen_width / 2), (f32)(screen_height / 2), (f32)(screen_width * 3 / 4 - 2), (f32)(screen_height / 4 + 1));
@@ -104,7 +100,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissorur[2] = w;
                 scissorur[0] = x;
                 scissorur[1] = 0;
-                view_bind_w(1, &vpur, scissorur);
+                view_bind(1, &vpur, scissorur);
             }
             ZOID_InitializeWindow(2, &vpll, scissorll, HFOV * 0.95f, 0.0f,
                          (f32)(screen_width / 2), (f32)(screen_height / 2 + 2), (f32)(screen_width / 4 + 1), (f32)(screen_height * 3 / 4 + 2));
@@ -115,7 +111,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissorll[2] = w;
                 scissorll[1] = y;
                 scissorll[0] = 0;
-                view_bind_w(2, &vpll, scissorll);
+                view_bind(2, &vpll, scissorll);
             }
             ZOID_InitializeWindow(3, &vplr, scissorlr, HFOV * 0.95f, 0.0f,
                          (f32)(screen_width / 2), (f32)(screen_height / 2 + 2), (f32)(screen_width * 3 / 4 - 2), (f32)(screen_height * 3 / 4 + 2));
@@ -126,7 +122,7 @@ s32 ZOID_SplitMenuScreen(s32 n) {
                 scissorlr[2] = w;
                 scissorlr[1] = y;
                 scissorlr[0] = x;
-                view_bind_w(3, &vplr, scissorlr);
+                view_bind(3, &vplr, scissorlr);
             }
             gSplitScreen = 2;
         }

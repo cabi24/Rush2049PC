@@ -66,16 +66,9 @@ s32 HAL_GetCharWidth(u16 id);
 
 
 
-s32 Hidden_dust(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hidden;
-}
 
 s32 HAL_SetFont(s32 fontID);
+s32 Hidden(Blit *blt, s32 hide);
 s32 animSpeed(Blit *blt)
 {
     s32 x;          /* unused (frame residual) */
@@ -91,12 +84,12 @@ s32 animSpeed(Blit *blt)
     win = blt->data & 15;
     mode = ((u32)blt->data & 0xF0) >> 4;
     hide = (mode == 1 && gNumWindows >= 2) || (mode == 2 && gNumWindows < 2) || win >= gNumWindows;
-    if (Hidden_dust(blt, hide)) {
+    if (Hidden(blt, hide)) {
         blt->state = 0;
         return 1;
     }
     hide = !gShowSpeed || PC_CAR_FINISHED(PC_MODEL_SLOT(win)) == 1;
-    if (Hidden_dust(blt, hide)) {
+    if (Hidden(blt, hide)) {
         return 1;
     }
     if (gNumWindows == 1) {

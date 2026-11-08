@@ -65,16 +65,9 @@ s16 TB_GetFontLineHeight(void);
 
 
 
-s32 Hidden_8154(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hidden;
-}
 
 s32 HAL_SetFont(s32 fontID);
+s32 Hidden(Blit *blt, s32 hide);
 s32 animLapTime(Blit *blt)
 {
     s32 x;
@@ -88,11 +81,11 @@ s32 animLapTime(Blit *blt)
     win = blt->data;
     if (win >= gNumWindows) {
         blt->state = 0;
-        Hidden_8154(blt, 1);
+        Hidden(blt, 1);
         return 1;
     }
     show = (gGameState & 8) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_FINISHED(win) == 1;
-    if (Hidden_8154(blt, show)) {
+    if (Hidden(blt, show)) {
         return 1;
     }
     if (gNumWindows == 1) {

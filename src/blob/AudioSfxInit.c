@@ -52,21 +52,17 @@ void InsertLLE(List *list, Link *object, Link *before);
 
 void ClearLL(List *list);
 
-static void list_init(List *list, s8 indirect, s8 doubly) {
-    list->indirect = indirect;
-    list->doubly = doubly;
-    ClearLL(list);
-}
 
+void sound_list_init(List *list, s8 indirect, s8 doubly);
 void AudioSfxInit(s32 count) {
     s32 i;
     s32 n;
 
-    list_init(&gCmdQ, 0, 1);
+    sound_list_init(&gCmdQ, 0, 1);
     if (count == 0) {
     }
     gNumInstances = count;
-    list_init(&gFreeQ, 0, 1);
+    sound_list_init(&gFreeQ, 0, 1);
     gSfxInstances = AllocateMemoryHeap(0, gNumInstances * sizeof(Rec24));
     PurgeableMemory(N64A(gSfxInstances), 0);
     memset(gSfxInstances, 0, gNumInstances * sizeof(Rec24));

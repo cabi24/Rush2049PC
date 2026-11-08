@@ -95,16 +95,9 @@ s32 getB6_6874(s32 ctl)
     return gPaks[ctl].b6;
 }
 
-s32 Hidden_6874(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hidden;
-}
 
 s32 HAL_SetFont(s32 fontID);
+s32 Hidden(Blit *blt, s32 hide);
 s32 anim_no_rumble_panes(Blit *blt)
 {
     s32 w;
@@ -138,7 +131,7 @@ s32 anim_no_rumble_panes(Blit *blt)
     }
     if (gGameState & 0x400000) {
         blt->state = 0;
-        Hidden_6874(blt, 1);
+        Hidden(blt, 1);
         return 0;
     }
     return 1;

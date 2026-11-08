@@ -69,19 +69,15 @@ void InsertLLE(List *list, Link *object, Link *before);
 
 void ClearLL(List *list);
 
-static void list_init(List *list, s8 indirect, s8 doubly) {
-    list->indirect = indirect;
-    list->doubly = doubly;
-    ClearLL(list);
-}
 
+void sound_list_init(List *list, s8 indirect, s8 doubly);
 void AudInit3D(s32 numA, s32 numB, f32 arg2, f32 arg3, s32 arg4) {
     s32 i;
 
-    list_init(&gFreeListeners, 0, 1);
-    list_init(&gActiveListeners, 0, 1);
-    list_init(&gFreeEmitters, 0, 1);
-    list_init(&gActiveEmitters, 0, 1);
+    sound_list_init(&gFreeListeners, 0, 1);
+    sound_list_init(&gActiveListeners, 0, 1);
+    sound_list_init(&gFreeEmitters, 0, 1);
+    sound_list_init(&gActiveEmitters, 0, 1);
     if (numA > 0 && numB > 0) {
         gNumListeners = numA;
         gListeners = AllocateMemoryHeap(0, gNumListeners * sizeof(RecA));

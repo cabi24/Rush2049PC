@@ -151,9 +151,6 @@ void paksys_lock(void) {
     paksys_queue_init();
     osRecvMesg(&si_lock_queue, &message, 1);
 }
-void paksys_unlock(void) {
-    osSendMesg(&si_lock_queue, 0, 0);
-}
 
 /* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
 void pak_insert_file(PakHandle *fileh);
@@ -215,6 +212,7 @@ void prpf_nop(void)
 /* 0x800A2990: PS_ReadPartialFile(fileh, offset, numBytes) */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+void si_unlock(void);
 void PS_ReadPartialFile(PakHandle *fileh, s32 offset, u32 numBytes)
 {
     tPS_File *psfile;
@@ -245,11 +243,11 @@ read_retry:
     if (error) {
         gPaks[pak].error = pak_error_from_pfs(error);
         if (gPaks[pak].error == 9) {
-            paksys_unlock();
+            si_unlock();
             PS_DeleteFile(fileh);
             return;
         }
-        paksys_unlock();
+        si_unlock();
         gErrPak = pak;
         gErrorFunc(pak, gPaks[pak].error, 0, 0, &retry, &status, pak_removed);
         gErrPak = -1;
@@ -264,10 +262,10 @@ read_retry:
                 break;
             }
         }
-        paksys_unlock();
+        si_unlock();
         return;
     }
-    paksys_unlock();
+    si_unlock();
     gPaks[pak].files[fileNo].flag2 = numBytes != psfile->size;
 }
 

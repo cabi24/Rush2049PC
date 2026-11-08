@@ -22,7 +22,7 @@
  * game: src/blob/game_strncmp.c src/blob/game_memcmp.c src/blob/game_strcpy.c src/blob/SetDefaultControls.c
  * game: src/blob/groups/memsys/group.c src/blob/GhostUpdate.c src/ovl_a/pakscr_FindFile.c
  * game: src/blob/groups/pak_error_from_pfs/func_800A1E94.o3.c
- * game: src/blob/groups/save_default_car/dn.c
+ * game: src/blob/groups/save_default_car/dn.c src/blob/si_unlock.c
  */
 #include <stddef.h>
 #include <stdio.h>

@@ -106,9 +106,6 @@ void pfs_lock(void) {
     pfs_queue_init();
     osRecvMesg(&si_lock_queue, &message, 1);
 }
-void pfs_unlock(void) {
-    osSendMesg(&si_lock_queue, 0, 0);
-}
 void ClearFlush(s32 index) {
     C96Handle *p, *next;
     C96File *data;
@@ -174,6 +171,7 @@ void pak_mark_dirty(C96Handle *handle, u8 *address, u32 bytes, s32 mark) {
     }
     if (first) {}
 }
+void si_unlock(void);
 s32 PS_FlushFileInternal(C96Handle *handle, s32 mode) {
     s32 result;
     s32 index, slot_index;
@@ -198,7 +196,7 @@ write_retry:
                     if (gPaks[index].flag6) gPaks[index].error = 3;
                     else if (gPaks[index].state && !gPaks[index].flag9) gPaks[index].error = 3;
                     else if (!gPaks[index].state) gPaks[index].error = 2;
-                    pfs_unlock();
+                    si_unlock();
                     gErrPak = index;
                     gErrorFunc(index, gPaks[index].error, 0, 0, &retry, &callback_value, 0);
                     gErrPak = -1;
@@ -235,7 +233,7 @@ s32 PS_FlushPak(s32 index, s32 mode) {
         node = next;
     }
     gPaks[index].busy = 0;
-    pfs_unlock();
+    si_unlock();
     return node == 0;
 }
 s32 PS_FlushFile(C96Handle *handle, s32 mode) {
@@ -244,7 +242,7 @@ s32 PS_FlushFile(C96Handle *handle, s32 mode) {
     gPaks[handle->file->channel].result = 0;
     gPaks[handle->file->channel].result = PS_FlushFileInternal(handle, mode);
     gPaks[handle->file->channel].busy = 0;
-    pfs_unlock();
+    si_unlock();
     return gPaks[handle->file->channel].result;
 }
 void PS_WriteFile(C96Handle *handle, u8 *address, u32 bytes) {

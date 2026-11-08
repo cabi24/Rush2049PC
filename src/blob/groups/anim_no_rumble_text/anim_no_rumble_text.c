@@ -95,14 +95,6 @@ void TB_SetJust_6B3C(u32 first, u32 second)
     p->b = second;
 }
 
-s32 Hidden_6B3C(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hidden;
-}
 
 
 s32 getB6_6B3C(s32 ctl)
@@ -113,6 +105,7 @@ s32 getB6_6B3C(s32 ctl)
 s32 HAL_SetFont(s32 fontID);
 void text_lock(void);
 void text_unlock(void);
+s32 Hidden(Blit *blt, s32 hide);
 s32 anim_no_rumble_text(Blit *blt)
 {
     u32 width;
@@ -122,7 +115,7 @@ s32 anim_no_rumble_text(Blit *blt)
     s32 y;
     s32 ctl;
 
-    if (Hidden_6B3C(blt, gGameState & 0x400000)) {
+    if (Hidden(blt, gGameState & 0x400000)) {
         blt->state = 0;
         return 0;
     }

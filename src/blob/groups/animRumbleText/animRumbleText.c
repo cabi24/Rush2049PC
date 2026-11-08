@@ -97,14 +97,6 @@ void TB_DrawText(s16, s16, void *);
 
 
 
-s32 Hidden_BC84(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hidden;
-}
 
 s32 getB6_BC84(s32 ctl)
 {
@@ -114,6 +106,7 @@ s32 getB6_BC84(s32 ctl)
 
 s32 HAL_SetFont(s32 fontID);
 s16 TB_CenterText(void *text, s16 centerX);
+s32 Hidden(Blit *blt, s32 hide);
 s32 animRumbleText(Blit *blt)
 {
     u16 i;
@@ -124,7 +117,7 @@ s32 animRumbleText(Blit *blt)
     s32 ctl;
 
     ok = 1;
-    if (Hidden_BC84(blt, gPauseState != 6)) {
+    if (Hidden(blt, gPauseState != 6)) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
