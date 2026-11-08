@@ -58,7 +58,7 @@ copies those as they are, so they are bytes, or zero.
 | | `audio_driver_services` | the MusyX service table: the eight functions (MUSYX_DATA.md 8.1) |
 | | `boot_sfx_groups` | the sfx groups pushed at boot (12-15), which the project has |
 | | `rdp_init_dl`, `rsp_init_dl` | the two static display lists: G_ENDDL (a list of zeros runs off its end) |
-| | `gNewGameState` (gNewGameState) | 1: the first frame runs initGameState; 0 is a game with no state |
+| | `gNewGameState` | 1: the first frame runs initGameState; 0 is a game with no state |
 | | `gSkipToGameState` | 1, no screen skipped: a screen whose state isn't this one passes straight on (0 skipped the start prompt and the main menu) |
 | math | `gSinCoeffs`, `gCosCoeffs` and their reductions (boot, f64) | libultra's sinf and cosf: reduction by pi (1/pi, pi in a 21-bit and a rest part), a sine polynomial P1-P4 fitted by least squares here (2e-8), 0 past 2^28. Zero gave sin x = x, cos x = -abs(x) |
 | | `gOrthoScale` | guPerspectiveF's degrees to radians, pi/180 |
@@ -108,7 +108,7 @@ which fits `track_fog_texture_name`'s 4 bytes) and `SYN_BAR`.
 | NewMultiBlit tables declared without their layout: the demo's blit (a NULL name), the game over title, the controls screens' first buttons, the menu backgrounds (createBG), the video and audio screens' second blits (BUTTON blits) | the generator's kind check needs the PC layout, and a second blit inside its table (1, 9) |
 | the car types' names (`SYNC00`..) after `shadow_scales`, the songs' after `boot_sfx_groups`, a car select blit's name ("") after `warningscr_blits` (`strings_after`) | strings where the images keep them, which a table sized by the gap would cover: the generator refuses (2) |
 | the tire curves in `D_8011F814[2][6]` (the descriptors' four `tire_info` words point there) | the records only those u32 fields reach, declared in car_resistance (3) |
-| `gGameState` (gGameState) -1, the game's own "no state" (UpdateHUDPostCamera tests for it) | a start value `--until-state` must not take for a state (6) |
+| `gGameState` -1, the game's own "no state" (UpdateHUDPostCamera tests for it) | a start value `--until-state` must not take for a state (6) |
 | option 14 valid in a single race, `track_fog_texture_name` the name of `SYN_FOG`, an IA8 texture | the track select's fog blit and its palette word (7) |
 | track 0's palette animation and object animation (two frames), in bytes no symbol covers | tables only pointers reach, converted by `port/data/reached.txt` (8) |
 | battle HUD: an IA blit (`SYN_FOG`) and player 1's health bar (`SYN_BAR`, I8, animHealth) | the health bar's palette (10) |
@@ -275,7 +275,7 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 17 | `carsetup` faults at 0x78 | no car physics descriptor | data | descriptor, tire curves |
 | 18 | `updownleaf` on a garbage node | **CollideCarBody read the tires' road nodes in the model record as 8-byte pointers; they are u32 window addresses** | **port bug** | VCar's u32 fields |
 | 19 | `CreateCar` faults | gTrackColors is zero | data | colours |
-| 20 | SetupCarColor (`SetupCarColor`) faults at 0x14 | no palette by its name | data | palettes |
+| 20 | SetupCarColor faults at 0x14 | no palette by its name | data | palettes |
 | 21 | `update_game_data` faults | no suspension records | data | `_tSusp` |
 | 22 | the audio manager faults in its tree insert | **the sorted-tag order (OrderFx) read the tag and its priority at N64 offsets** | **port bug** | PC offsets |
 | 23 | the model thread faults at 0x10008 | **enginetorque read the model's tune pointer as a host pointer** | **port bug** | u32 field |

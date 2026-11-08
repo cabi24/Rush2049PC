@@ -6,7 +6,7 @@ bytes were read: the formats below are what the game's code reads, and the tests
 ## 1. Summary
 
 - **Four file kinds** feed the sound library in the boot segment: the project (wave 6), the pool (7), the sample
-  directory (8) and twelve songs (10–21). `AudioInitSys` (`AudioInitSys`) loads 6–8 at boot and pushes the
+  directory (8) and twelve songs (10–21). `AudioInitSys` loads 6–8 at boot and pushes the
   sfx groups 12–15; the song start (`AudioSongPlay`) loads wave `song + 10`. The samples stay in the ROM at
   0x39B40 and are DMA'd on demand.
 - **Strategy: swap in place.** `pc_assets_musyx` swaps every field to host order at the width the library reads
@@ -219,7 +219,7 @@ it then has the native field sequence. All the edits are N64-neutral (`n64_neutr
 
 ### 8.1 The service callbacks and the DMA request list
 
-`AudioInitSys` (AudioInitSys) hands `&audio_driver_services`, eight function addresses in game data, to
+`AudioInitSys` hands `&audio_driver_services`, eight function addresses in game data, to
 `sound_set_services`, which copies them to `sound_services`. The slots, from how the library calls them:
 
 | Slot | Library's name | Function | Called as |
@@ -302,7 +302,7 @@ a hex offset (`flags24`, `id60`, `field2E`, `lfo17C`, …) is at that offset, in
 
 ### 8.4 Found on the way
 
-- **The audio manager's sound requests.** `AudioSfxInit` (AudioSfxInit) builds a pool of request nodes, which
+- **The audio manager's sound requests.** `AudioSfxInit` builds a pool of request nodes, which
   `audiosfx/group.c` reads as `Node` {two links, kind, busy, entry pointer, four floats}: 48 bytes natively,
   but the pool's records `{Link; u8[24]}` were 40. Its PC record has the node's sequence. `AudioSfxServer`
   (`audiosfx_play/group.c`, the request walk of `_PeriodicMaintenance`, m2c) read the nodes and the list

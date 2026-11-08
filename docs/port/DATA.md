@@ -53,8 +53,8 @@ is too long is worse than one that is too short. That is what the bound fixes:
 
 | Symbol | Was | Is | Evidence |
 |---|---|---|---|
-| `gGameCar` (`gGameCar`) | `GameCar[8]`, 17 files | 6 cars, 0x1650 B | `sample_dma_pi_queue` (an `OSMesgQueue`) at +0x1650; the symbol file says 6 entries; `Car gGameCar[6]` in `path_D169C`. `gAltPaths` (`gAltPaths`), `gPathPtList` (`gPathPtList`), `gPathWave` (`gPathWave`) and the rest were inside its storage, the pointer-sized ones overlapping their neighbours |
-| `gResPath` (`gResPath`) | 28-byte `Header` | 16 B | `{numPts, pts, numAlt, alt}`; `gGhostToSave` (`GhostHeader *`) at +0x10. The 28-byte views were written to the PC layout, and `gResPath_pts` (`pts`) sat at host +4 instead of +8 |
+| `gGameCar` | `GameCar[8]`, 17 files | 6 cars, 0x1650 B | `sample_dma_pi_queue` (an `OSMesgQueue`) at +0x1650; the symbol file says 6 entries; `Car gGameCar[6]` in `path_D169C`. `gAltPaths`, `gPathPtList`, `gPathWave` and the rest were inside its storage, the pointer-sized ones overlapping their neighbours |
+| `gResPath` | 28-byte `Header` | 16 B | `{numPts, pts, numAlt, alt}`; `gGhostToSave` (`GhostHeader *`) at +0x10. The 28-byte views were written to the PC layout, and `gResPath_pts` (`pts`) sat at host +4 instead of +8 |
 | the ghost headers (`gRealNewGhostHeaders`) | 1 of 0x58 (the gap) | 4 | `GhostStart`: `gNewGhostHeaders[i] = &gRealNewGhostHeaders[i]`, i < 4 |
 | `gInterruptedFxTags` | ap.c's 20-byte `Node` | 16 B | the list head of 6 files' `List`/`tDLList`; `pak_file_handles` (`PakHandle[]`, 64 pointers) follows |
 | `D_80110680` | 2-byte `Flags` | 6 B (`u8[6]`) | per car, cleared for 6 by `init_views`, which defines it |
@@ -243,7 +243,7 @@ data:
 |---|---|---|
 | `StartWeaponIcon` | `_StartWeaponIcon`: a weapon icon's start function: set-up (hide it, one more power-up) or a car's pickup (weapon and shots, health, invisibility, shield) | the target info table `targetInfo` (its start slot): `SetTargetDef` (flag 4, and flag 0x4000 without a NULL check), `CheckTargetCollision` on a hit |
 | `AnimateWeaponIcon` | `_AnimateWeaponIcon`: spins a shown icon, shows a hidden one again once no car has its weapon | the table's visual slot: the environment visual `SetTargetDef` grabs for the node |
-| `animSpeedText` | the HUD's digital speedometer and its units | a MultiBlit entry of the HUD tables ShowHUD (`ShowHUD`) passes to NewMultiBlit |
+| `animSpeedText` | the HUD's digital speedometer and its units | a MultiBlit entry of the HUD tables ShowHUD passes to NewMultiBlit |
 | `video_animPanes` | `animPanes@videoscr.c`: the video screen's title and menu frame | the video screen's MultiBlit tables `video_frontEndBlit`/`video_pauseBlit` (video_initScreen) |
 | `carscr_animText` | `animText@carscr.c`: each player's name, ghosts and option values on the car-select screen | a callback of the car-select MultiBlit table `carscr_mb` (initScreen@carscr.c) |
 | 18 stubs: 14 in image A (`circuitscr_first_deleted_stub` ... `trackscr_button_text_stub_third`), 4 in image B | the deleted bodies of inlined helpers: `jr ra; nop` on the N64, empty functions here | nothing (an address in data would now resolve) |
@@ -446,7 +446,7 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
   `taillight_colors_dim` and `headlight_colors_night` (`tUVPair`, read as u16) and `vp0` (a viewport, s16), whose `s32` views only
   take the address; `gPaneBlits`, an `s32` view over a byte place that is neutral; `gPlayerRects_biased` (section 3).
 - The report: no `text-in-words`. The `undescribed` targets that aren't text are those BRINGUP.md "What's next"
-  lists: `gTrackColors` (`gTrackColors`) to the colours `Track1Colors` (bytes); pointer tables of short labels shorter
+  lists: `gTrackColors` to the colours `Track1Colors` (bytes); pointer tables of short labels shorter
   than the text mark (`gDefaultNames`, `obscenities`, `cStrCreditNames`, `cStrLanguageNames`, `gPS_PakName`, `targetInfo`); and the
   shared frames `texture_swap_shared_frames`'s pointers into the bytes after `text_wave_inited`.
 - Words after a declared table that read as floats, addresses or integers in the ROM's order, which no PC C reads:

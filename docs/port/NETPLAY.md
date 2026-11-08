@@ -1189,7 +1189,7 @@ then has (a `--fast` replay with the default takes the same course).
   control's values, `do { controls[slot]--; } while (!controls_validControl(p))` (`src/blob/groups/controlscr/caller.c`
   251-268, the same for ++), which never ends when no value passes the predicate; the predicate reads row
   `gNewControls[gPlayers[car].row]` while the loop changes `gNewControls[gPlayers[p].controller]`, and its table
-  `gControlValid` (`gControlValid`) is cartridge data. Not looked into further here (game C). The fuzzer says such a
+  `gControlValid` is cartridge data. Not looked into further here (game C). The fuzzer says such a
   hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reaches it on rocky's
   cartridge.
 

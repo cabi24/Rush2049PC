@@ -39,7 +39,7 @@ Not tried yet: a race to its finish line, saving a ghost, sound through a device
 
 ### 1. The attract demo's blit: NewMultiBlit's tables without their layout
 
-The demo faulted in its first frame, in `strcpy` from InitBlit (`InitBlit`). NewMultiBlit
+The demo faulted in its first frame, in `strcpy` from InitBlit. NewMultiBlit
 (`NewMultiBlit`) reads its descriptor table as `MultiBlit`, whose texture name and animation function are pointers;
 the demo's table `demo_multiblit` was declared `s32` in every file, so the loader kept it as words in the N64 layout, and
 the name, read as 8 bytes, took in the field after it.
@@ -187,7 +187,7 @@ offset hardly matters), the cut-out trees (their holes show what is behind), the
 
 A player's single race with the default options (2026-10-27) showed a skull and crossbones at the top left, by the
 speedometer, which the N64 shows only in deaths mode; a headless race on the Pi showed it too. A temporary print in
-NewMultiBlit (`NewMultiBlit`) listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
+NewMultiBlit listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
 `HudMultiBlit` (8), whose crossbones blits, one per player as in the GC's HudMultiBlit, run animBones
 (`animBones`, the GC's hud.c). It hides them unless gDeathMode (`gDeathMode`, option 31, 0 by default) is on, and
 for a player past the windows or whose car is locked in place. The function was still m2c code at the blit's N64 offsets: on the PC's Blit

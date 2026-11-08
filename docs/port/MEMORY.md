@@ -31,7 +31,7 @@ no environment variable.
 - **It applies at the next start.** The window is mapped before the ROM is read (main: `pc_mem_set_size`, then
   `pc_mem_init`) and can't grow while the game holds addresses in it. The overlay's item is marked `*` ("applies
   after a restart") and its change is saved like the others.
-- **What the game sees.** It reads its memory from osMemSize (`osMemSize`) in one place, the heap's set-up
+- **What the game sees.** It reads its memory from osMemSize in one place, the heap's set-up
   (`locate_main_heap`, `memsys/group.c:308-316`): the heap's end is `osMemSize | 0x80000000`, and the Expansion Pak
   flag is set when that end is past 0x80400000. Nothing else in the game reads the size (every `osMemSize` in the
   game C is an `extern` but that one).

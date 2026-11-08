@@ -276,7 +276,7 @@ storage). These are the synthetic paths' sites; another path can reach others, a
 
 ### 3.2 The misaligned colour
 
-`ZOID_SetColor` (ZOID_SetColor) reads the colour it is given as one word, `col->w`. Image A's `playerscr_updateButtons` passes
+`ZOID_SetColor` reads the colour it is given as one word, `col->w`. Image A's `playerscr_updateButtons` passes
 its `u8 buttonColor[4]`, which GCC put at 2 mod 4 (UBSan's alignment check, in 32 of the runs, from image A's front
 end). An N64 `lw` there would have taken an address error, so IDO's frame had it on a word. The same in five more
 locals: `playerscr_initButtons`'s `u8 color[4]`, `modescr_initButtons`'s `Color4` (a struct of four bytes only on the PC: its

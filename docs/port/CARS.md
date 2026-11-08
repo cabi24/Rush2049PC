@@ -93,7 +93,7 @@ original token):
 | `gameover_validOption` (+ weak copy), `Update_MDrive`, `AreWeSolid`, `StartCoin`, `animBones` | `* 0x3B8` strides on names inside the array |
 | `InitCPTime` (race start) | `* 952` strides on `gGameCar` (+0x108, the position at +8) |
 | `StartWingFlame`, `StartWing` (StartWingFlame, StartWing; both group copies) | the wing visuals at +0x2C0 and +0x290 |
-| `StartFrame` (StartFrame) | visual 14's func (stored pointer-sized now: it was `(s32)AnimateFrame`), objnum, slot, the scale at +0x374 |
+| `StartFrame` | visual 14's func (stored pointer-sized now: it was `(s32)AnimateFrame`), objnum, slot, the scale at +0x374 |
 | `SyncMaxpathToLastCheckpoint`, `StartMine`, `init_view3`, `fix_camera_in_space` (`motion_norm`), `BlinkResurrectingCars`, `UpdateModel` | fields past the visuals through car pointers (+0x33A, +0x384, +0x35C–E, +0x30C, +0x380, +0x388) |
 | `dead_reckon_all`, `SetNewPathIndex`, `AbortCar` (3 copies), `CheckCrash`, `BlinkResurrectingCars`, `UpdateModel` | `GameCar`'s `pad0EC[x]` used as a byte window from +0xEC: `PAD0EC(p->pad0EC, x)` is `CAR_OFS(0xEC + x)` on the PC |
 | `RemoveCar` (the car visuals' stop loop) | `VIS_OFS` for the func, objnum and stride |
@@ -161,7 +161,7 @@ The physics descriptor keeps its N64 layout too, since it is arena data: its tir
 - `python3 tools/port/view_pads.py ... --name "0x110=visuals:struct pc_visual" --name 0x380=input [--pad REGEX]
   [--apply]`: the padding split of section 2.2. It lists what it leaves for a hand edit.
 - `test_cars` (`port/assets/tests/test_cars.c`, ctest `assets_cars`) runs the game's own code on synthetic records:
-  init_cars (`init_cars` with `InitCarVisuals` and `InitCarPath`), StartEnvironment (`StartEnvironment`) and
+  init_cars (`init_cars` with `InitCarVisuals` and `InitCarPath`), StartEnvironment and
   StartCar with every starter (StartFrame, StartSparks, StartWing, StartWingFlame, StartWeapon, brake lights,
   tires, StartShadow, StartArrow) in a normal and a battle race, the stop loop `RemoveCar`, the environment pool,
   the raw-offset functions of section 2.3, and the model set-up `carsetup` with `steer_constants` and

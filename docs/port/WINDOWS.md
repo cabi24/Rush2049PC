@@ -112,7 +112,7 @@ window symbols were tentatively defined in eleven game files. They are declarati
 `port/data/extents.txt`:
 
 - D_80110680
-- gJust (gJust)
+- gJust
 - blit_cache_tile
 - gDriveHulk
 - gContStickRange

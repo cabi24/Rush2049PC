@@ -479,7 +479,7 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/groups/front_end/GameLoop.c:92 | GameLoop | the idle overlay after 300 s, retraces × seconds a retrace | delta | |
 | src/blob/groups/front_end/GameLoop.c:125 | GameLoop | `frame_counter++` (gFrames) | unchanged | nothing reads it but GameLoop's reset, by any of its names |
 | src/blob/groups/mainloop/mainloop.c:97, 101-104, 111 | process_scheduler_message, MainEndFrame | the frame's start test, the tasks pending, `retraces_since_frame` (retraces since the frame began) | unchanged | scheduling, not time; right at one retrace (7.2) |
-| src/blob/EndGraphics.c:178, 179 | EndGraphics (EndGraphics) | the frame's task; `gLastFrameCount = frameCount` | changed / unchanged | wakes the scheduler at 60 (7.2) |
+| src/blob/EndGraphics.c:178, 179 | EndGraphics | the frame's task; `gLastFrameCount = frameCount` | changed / unchanged | wakes the scheduler at 60 (7.2) |
 | **Cameras** | | | | |
 | src/blob/point_at_car.c:56-59 | point_at_car (UpdateCarObj) | the follow camera's elasticity a frame | changed | `PC_CAM_ELASTIC`: √e for a frame of one retrace (7.2) |
 | src/blob/update_camera.c:138 | update_camera (setcamview, the driver's eye) | `cur = cur·e + in·(1 − e)` on the car's peak forces | changed | `PC_FILTER` |
@@ -496,10 +496,10 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/groups/steady_camera/group.c:3945; rear_camera/group.c:3943 | steady_move_cam | `v84[1] += 4` | unchanged | after point_at_car sets the place, elasticity 0: an offset |
 | src/blob/CheckCameraView.c:209, 241, 268, 285 | CheckCameraView (the attract demo's cameras) | the switch by model time and a deadline; the view button; averages | delta / unchanged | |
 | src/blob/groups/zoid_draw/group.c:1238-1500 | zoid_draw_window and the view set-up | the projection, lookat, fog | unchanged | made again each frame |
-| src/blob/groups/zoid_draw/group.c:1761-1810 | InterpQuats (InterpQuats) | a quaternion blend | unchanged | its caller's frac is absolute time |
-| src/blob/CameraCollision.c:36-38 | CameraCollision (CameraCollision) | the eye moved a quarter unit on a hit | unchanged | a correction of a place made again each frame |
+| src/blob/groups/zoid_draw/group.c:1761-1810 | InterpQuats | a quaternion blend | unchanged | its caller's frac is absolute time |
+| src/blob/CameraCollision.c:36-38 | CameraCollision | the eye moved a quarter unit on a hit | unchanged | a correction of a place made again each frame |
 | **The cars, the drones and the race** | | | | |
-| src/blob/groups/drones/group.c:431, 435, 445, 449 | DoDrones (DoDrones) | the drones' brake scale and time boost, ±.01 a frame toward their targets (the drones' physics reads both) | changed | `PC_FSCALE` |
+| src/blob/groups/drones/group.c:431, 435, 445, 449 | DoDrones | the drones' brake scale and time boost, ±.01 a frame toward their targets (the drones' physics reads both) | changed | `PC_FSCALE` |
 | src/blob/groups/drones/group.c:171-458 | DoDrones | the targets, from places and distances | unchanged | decided once a frame, as on the N64: at 60 every retrace (7.4) |
 | src/blob/SetCatchup.c:151 | SetCatchup (set_catchup, from DoDrones) | each human car's catch-up scale (the model's +0x400, which its physics reads), 0.03 of the way to its target a frame | changed | `PC_FILTER(0.97f)` and `PC_FILTER_REST(0.97f, 0.03f)`, its other weight 1 − e^f |
 | src/blob/BlinkResurrectingCars.c:3855 | BlinkResurrectingCars | a car's blink (its appearance bit 8), counted in frames | changed | `PC_EACH30` |
@@ -518,7 +518,7 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/are_all_cars_stopped.c:56, 63 | are_all_cars_stopped | the race end's settle timer | time | |
 | src/blob/groups/update_game/UpdateGame.c:171-325 | UpdateGame | the race's state machine | time | deadlines in retraces, model time |
 | src/blob/groups/countdown/animCountdownTimer.c:112, 115 | animCountdownTimer | the beeps; the blink by the retrace count | delta | |
-| nonmatching/game/PrePlay.c:379 | PrePlay (PrePlay) | the track's load, a wave a call (LoadTrack waits on four waves), a call a frame | changed | `PC_LOAD_ON30`: at 60 called on the frames that complete a 30 Hz frame (the countdown began 5 or 6 retraces sooner) |
+| nonmatching/game/PrePlay.c:379 | PrePlay | the track's load, a wave a call (LoadTrack waits on four waves), a call a frame | changed | `PC_LOAD_ON30`: at 60 called on the frames that complete a 30 Hz frame (the countdown began 5 or 6 retraces sooner) |
 | src/blob/DetectDroneAbort.c:197-226 | DetectDroneAbort (detect_drone_abort, from PlayGame) | a car under 25 ft/s for 6 s of model time aborted and resurrected | time | its test at a frame: at 60 the abort can come a retrace sooner (7.4) |
 | src/blob/groups/hud_text_anims/animLapTimeText.c:120; animFlag.c:185-188 | animLapTimeText, animFlag | the lap time's display, the flag's frames by dt × 1000 | time | |
 | src/blob/race_countdown_display.c:116 | PassedCP | `laps++` | unchanged | a checkpoint event |
@@ -530,12 +530,12 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/UpdateSmoke.c:326-328 | UpdateSmoke | a type-4 puff's jitter, three random draws a frame | changed | `PC_EACH30` |
 | src/blob/UpdateSmoke.c:329, 350, 352 | UpdateSmoke | the puffs' growth, +0.05 and +0.03 a frame | changed | `PC_FSCALE` |
 | src/blob/UpdateSmoke.c:262, 312, 331, 354-356 | UpdateSmoke | the puffs' timers, life and motion | time | |
-| src/blob/groups/start_smoke/StartSmoke.c:210 | StartSmoke (StartSmoke) | the continuous spawns each frame: tire smoke, dust (its every second or third call, its fading colour), the exhaust trail; their random draws | changed | at 60 on the frames that complete a 30 Hz frame (`PC_ONLY`); a blast's burst (an event) and the latched wheel effect at any frame |
+| src/blob/groups/start_smoke/StartSmoke.c:210 | StartSmoke | the continuous spawns each frame: tire smoke, dust (its every second or third call, its fading colour), the exhaust trail; their random draws | changed | at 60 on the frames that complete a 30 Hz frame (`PC_ONLY`); a blast's burst (an event) and the latched wheel effect at any frame |
 | src/blob/groups/sparks/group.c:3824, 3825, 3831 | HandleASpark | the backfire flame's frame, +1 a frame, a random one at 3, −1 to die out | changed | `PC_STEPS`, `PC_IF30` |
-| src/blob/groups/blast/blast.c:291 | AnimateBlast (AnimateBlast) | a blast on no car steps every frame, its 1/30 s timer bypassed | changed | `PC_EACH30_IF` |
+| src/blob/groups/blast/blast.c:291 | AnimateBlast | a blast on no car steps every frame, its 1/30 s timer bypassed | changed | `PC_EACH30_IF` |
 | src/blob/groups/blast/blast.c:290-296 | AnimateBlast | a blast on a car, a step every 0.0333 s | time | |
 | src/blob/AnimateNewBlastRing.c:111-135 | AnimateNewBlastRing (the blast ring) | its phases every 0.0333 s | time | |
-| src/blob/AnimateNewBlast.c:141, 171-208 | AnimateNewBlast (AnimateNewBlast) | life and steps behind a 0.0333 s gate | time | |
+| src/blob/AnimateNewBlast.c:141, 171-208 | AnimateNewBlast | life and steps behind a 0.0333 s gate | time | |
 | src/blob/AnimateObjSwapGeneric.c:109-114; TB_TextOncePerFrame.c:19; UpdateHUDPostCamera.c:19; AnimateCoin.c:213-215; AnimateRotGeneric.c:821-823; AnimateMine.c:206-254; AnimateVelRotGeneric.c:135-139 | the animated objects, coins, icons | timers, phases, spins by rate × dt | time | |
 | src/blob/TextureAnimation.c:89, 174 | TextureAnimation | the palette and object animations' delays | time | |
 | src/blob/TextureAnimation.c:154, 160 | TextureAnimation | a texture scroll that runs every few 30 Hz frames adds step × the frame's retraces | changed | `PC_SCROLL_RETRACES`: the N64's 2 at 60; every frame (ticks 0) it was by the retraces already |
@@ -543,7 +543,7 @@ display-list building, text layout and init code are counted in the last row of 
 | **Front end and HUD** | | | | |
 | src/ovl_a/groups/carscr/carscr.c:644, 917 | updateCarScreen (the car select) | the frames since every player was ready, the screen leaving at 10 | changed | `PC_EACH30` (at 60 the race began 11 retraces early) |
 | src/ovl_a/groups/carscr/carscr.c:1608 | showCarSelect | the cars turned to the front, angle −= angle/(frames left − 1) a frame | changed | `PC_EASE_DIV`: a·(1 − (1 − 1/n)^f) |
-| src/ovl_a/groups/trackscr/trackscr.c:820-822 | SetFogIntensity (SetFogIntensity) | the fog colour, an integer tenth of the way a frame | changed | `PC_EACH30` |
+| src/ovl_a/groups/trackscr/trackscr.c:820-822 | SetFogIntensity | the fog colour, an integer tenth of the way a frame | changed | `PC_EACH30` |
 | src/ovl_a/groups/trackscr/trackscr.c:739-767, 966-976, 1340, 1461-1508 | the track select | the map's angle, the carousel, the fog height, the buttons | time | the carousel `pos += frames·(target − pos)/10`, frames = dt·30: at 60 0.9025 of the way a 30 Hz frame against 0.9 |
 | src/blob/groups/front_end/DrawNoControllers.c:98 | DrawNoControllers | the "controller removed" scroller, a pixel a frame | changed | `PC_SCROLL_DEC`: `PC_STEPS(1)` |
 | src/blob/groups/controlsys/group.c:3796 | UpdateControls | the frames of input skipped | changed | `PC_EACH30` |
@@ -600,7 +600,7 @@ decisions come every retrace, at retraces a run at original doesn't decide at:
 - **The stuck detector** (`DetectDroneAbort`, the arcade's detect_drone_abort,
   `src/blob/DetectDroneAbort.c:197-226`, once a frame from PlayGame,
   `car_checkpoints/PlayGame.c:184`): a car under 25 ft/s starts a timer at
-  its model time, and one still under it 6 s of model time later is aborted: SetResurrectionData (`SetResurrectionData`),
+  its model time, and one still under it 6 s of model time later is aborted: SetResurrectionData,
   the car record's dead state (`+0x359`, which stops the model thread's step of it, `update_model/group.c:4156`) and
   the resurrection. The timer is model time, but its test runs at a frame: at 60 every retrace, at original every
   other one, so the abort comes at the first retrace past the 6 s at 60 and at the first frame past it at original,

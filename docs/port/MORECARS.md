@@ -26,7 +26,7 @@ humans first).
 
 | Variable | MAT3 | Type | Set by | Meaning |
 |---|---|---|---|---|
-| `gNumPlayers` (`gNumPlayers`) | `gNumPlayers` | s16 | the main menu (`src/ovl_a/groups/start_screen/group.c:177-201`), `InitOptions` (game_sounds/InitOptions.c:133, 1), GhostStart (`save/GhostStart.c:194, 263`), `GhostEnd.c:123`, `state/state.c:153` | the human players, 1-4 |
+| `gNumPlayers` | `gNumPlayers` | s16 | the main menu (`src/ovl_a/groups/start_screen/group.c:177-201`), `InitOptions` (game_sounds/InitOptions.c:133, 1), GhostStart (`save/GhostStart.c:194, 263`), `GhostEnd.c:123`, `state/state.c:153` | the human players, 1-4 |
 | `gNumDrones` | `gNumDrones` | s16 | `SetOptions` (`options_set/group.c:100-219`, per mode), `InitOptions.c:156` (boot: option 22) | the drones asked for |
 | `gNumCars` | `gNumCars` | volatile s16 | `CalcPolePositions` (`update_game/CalcPolePositions.c:90`), `fake_init.c:51` (the attract demo: 6), GhostStart (`GhostStart.c:193, 261`) | the roster slots in the race |
 | `gNumActiveCars` | `gNumActiveCars` | s8 | `munge_gLink_data.c:103-111` (munge), `init_cars.c:253, 286` (init_cars) | the slots with `LINK_ACTIVE`, counted; `pc_models[i].slot` lists them |
@@ -34,7 +34,7 @@ humans first).
 | `humans`, `D_801527D8`, `D_80152808` | `humans[]`, `drones[]`, `our_drones[]` | s16 lists | the same | slots by kind (section 2.3) |
 
 The race's cars are `gNumCars` roster slots; each active one gets a model record and a car record of the same
-index. `munge_gLink_data` (MAT3 `munge_gLink_data`) and `init_cars` (`init_cars`) walk `i < gNumCars` and
+index. `munge_gLink_data` (MAT3 `munge_gLink_data`) and `init_cars` walk `i < gNumCars` and
 build `gNumActiveCars` and the lists; everything after that walks `gNumActiveCars` (or the lists), or a literal 6
 (section 3).
 
@@ -112,7 +112,7 @@ raised in `munge_gLink_data.c` would make every human a drone.
 |---|---|---|---|---|
 | the roster `pc_links` (`D_80153E88`) | 13 × 8 B | decoupled | 13 | enough: `PC_LINK_SLOTS` is the larger of 13 and `PC_MAX_LINKS` |
 | the model records `pc_models` (`D_8014A250`) | 6 × 0x808 | decoupled | `PC_MODEL_SLOTS` | 8 at 25f43c8 (the larger of 6 and `PC_MAX_LINKS`); 12 with `PC_MAX_LINKS` 12 |
-| the car records `gGameCar` (`gGameCar`) | 6 × 0x3B8 (0x80152818-0x80153E68) | own, 0x468 a car | 6 | in progress (`pc_cars[12]`). `sample_dma_pi_queue` (an `OSMesgQueue`) follows on the N64 |
+| the car records `gGameCar` | 6 × 0x3B8 (0x80152818-0x80153E68) | own, 0x468 a car | 6 | in progress (`pc_cars[12]`). `sample_dma_pi_queue` (an `OSMesgQueue`) follows on the N64 |
 | the input records `gPlayers` | 4 × 0x4C (304 B; DECOUPLE.md 4's "6 × 76" is 4) | own, 80 B | 4 | per human: `init_cars.c:291` gives `&gPlayers[i]` to human slots, which are 0-3. Stays 4 |
 | the car-part records `gCarParts` `gCarParts` | 52 × 0x40 (3,328 B) | arena BSS | 13 in a race | per roster slot in a race (`InitVisuals.c:77-87`: cleared, then `InitCarDynamicObjs` for 13 slots; `startcar.c:146`, `rocket.c:319-554`, `CreateCar.c:119-124`); 4 players × 13 parts at the car select (`SetSheen.c`). Enough for 12 |
 | the car palette descriptors `car_palettes` | 12 × 24 B (0x8013FEE0-0x80140000) | arena BSS | 12 | per roster slot (`car_palette_init.c:51-70` from LoadCars, `SetupCarColor.c:168`, `startcar.c:115`, `AnimateBrakeLights.c:40`, `heap_release/group.c:150`). The tables list 24 B for it and 264 B for `car_palettes_palBase` (+0x14, a name inside); the range holds 12. Enough for 12 |
@@ -131,7 +131,7 @@ noted.
 | Array | N64 | Count | Users | Neighbour; what an overrun hits | Found by |
 |---|---|---|---|---|---|
 | **Sound** | | | | | |
-| `D_80140420` (engine sound set: the engine table pointer and four handle records; `SndSet`/`Player84`) | 0x80140420, 504 B | 6 × 84 (own, 88 host) | StartCarSounds `car_sounds/d5e64.c:92-110`, StopCarSounds `StopCarSounds.c:87-92`, the engine update `car_sounds/mode.c:233` | own `gLights`, then own `gResPath` (`gResPath`): a 7th car's record overwrote the resurrection path's header (the spike's first crash) | static, the first crash (gdb), UBSan |
+| `D_80140420` (engine sound set: the engine table pointer and four handle records; `SndSet`/`Player84`) | 0x80140420, 504 B | 6 × 84 (own, 88 host) | StartCarSounds `car_sounds/d5e64.c:92-110`, StopCarSounds `StopCarSounds.c:87-92`, the engine update `car_sounds/mode.c:233` | own `gLights`, then own `gResPath`: a 7th car's record overwrote the resurrection path's header (the spike's first crash) | static, the first crash (gdb), UBSan |
 | `D_80140640` (screech handle per car, `State20`) | 0x80140640, 120 B | 6 × 20 | `d5e64.c:106`, `StopCarSounds.c:94`, `mode.c:343-366` (`UpdateCarSounds`, and `update_skid_emitter` through a pointer) | own `gLights` (dead bytes), then `gRoadNoises` (the humans' sound records) | static, UBSan |
 | `D_8010FFC4` (car sounds started) | 0x8010FFC4, 8 B by the gap, ROM (zero) | 6 | `d5e64.c:91, 116`, `StopCarSounds.c:82-83`, `mode.c:329` | `D_8010FFCC` | static, UBSan |
 | `D_8010FFCC` (engine update phase: each car's engine is updated every other frame) | 0x8010FFCC, 8 B, ROM (an alternating pattern) | 6 | `mode.c:325-330`, `StopCarSounds.c:84` (`(slot & 1) == 0`) | `sTrackSongs` (ROM `s32[]`) | static, UBSan |
@@ -140,7 +140,7 @@ noted.
 | `D_80152808` (`our_drones[]`) | 0x80152808, 16 B | 6 (8 by the gap) | written `munge_gLink_data.c:138`, `PrePlay.c:307, 316`; read `update_drone_models` (`update_model/group.c:4040`), `:3924` | `gGameCar` (own): dead window bytes on the PC, the car records on the N64 | static, UBSan |
 | `D_80153F28` (drone steer) | 0x80153F28, 24 B | 6 | `maxpath/group.c:750-751`; cleared for 6 by `InitPathData.c:3808-3812` | `cur_drone` (`update_drone_models`' cursor) | static, UBSan |
 | `D_80153F48`, `D_80153F68` (drone brake, gas) | 0x80153F48, 0x80153F68, 32 B each | 6 (8 by the gap) | `maxpath/group.c:697-733`; cleared for 6 by `InitPathData.c` | each other, then `D_80153F88` | static, UBSan |
-| `D_80153F88` (drone heading, f32[3]) | 0x80153F88, 72 B | 6 | `maxpath/group.c:444-563` (`AvoidAreas`) | `num_humans` (`num_humans`): a 7th drone set the human count to a float's high half, and the model thread walked 16,076 input records (the spike's second crash) | static, UBSan, crash |
+| `D_80153F88` (drone heading, f32[3]) | 0x80153F88, 72 B | 6 | `maxpath/group.c:444-563` (`AvoidAreas`) | `num_humans`: a 7th drone set the human count to a float's high half, and the model thread walked 16,076 input records (the spike's second crash) | static, UBSan, crash |
 | `D_80154138` (drone saved heading, f32[3]) | 0x80154138, 72 B | 6 | `maxpath/group.c:549-563` | `current_drone` (the drone the camera selected) | static, UBSan |
 | **Checkpoints, places, results** | | | | | |
 | `D_80152218` (last position, f32[3]) | 0x80152218, 72 B | 6 | `car_checkpoints_CheckCPs.c:132` (CheckCPs); set at the race's start by `InitCPTime.c:3822-3824` (a 12-byte m2c stride, for `gNumActiveCars` cars) | `D_80152260` (`uch[512]`) | static, UBSan |
@@ -174,7 +174,7 @@ by a window (`gNumWindows`, the camera's `slot`), or by a player: none needs mor
 | Kind | Arrays |
 |---|---|
 | sound, humans only (`if (player < 4)` in `d5e64.c:107`, `MODE(model) != 2` returns at `mode.c:372`, `unk7CC == 2` in `StopCarSounds.c:95`) | `gRoadNoises` (`SndRec[4][3]`), `gBogSounds`, `gHornSounds`, `gScrapes` (s32[4]), `gBump` (impacts), `gScrapeState`, `gScrapeTime`, `gBumpTime`, `gThumpTime`, `sLastHornTime` |
-| cameras, per window | `gCamera` (`gCamera`), `cur_acc`, `rear_y`, `rear_z`, `elasticity`, `elastic_factor`, `lastSwitch`, `camera_nextSwitch`, `gTireCnt`, `gSusAvg`, `last_zvec`, `last_yvec`, `zf`, `yf`, `maxpath_cam_start_point`, `maxpath_cam_start_path`, `maxpath_cam_last_point`, `maxpath_cam_start_time`, `maxpath_cam_last_dist` |
+| cameras, per window | `gCamera`, `cur_acc`, `rear_y`, `rear_z`, `elasticity`, `elastic_factor`, `lastSwitch`, `camera_nextSwitch`, `gTireCnt`, `gSusAvg`, `last_zvec`, `last_yvec`, `zf`, `yf`, `maxpath_cam_start_point`, `maxpath_cam_start_path`, `maxpath_cam_last_point`, `maxpath_cam_start_time`, `maxpath_cam_last_dist` |
 | HUD, per window | `gCheckPtTimeout`, `gLapTime`, `gElapsedTime`, `wrongWayTime`, `gRankedPlayer` (`gRankedPlayer`, `FindWinner.c:51-53` fills `gNumWindows`), `TrackTimeStr` (4 time strings, `hud_updateFrame.c:88-90`) |
 | race records, per player | `gLapTimes` lap splits and `gLap` (`RecordLap.c:33`: `player < gNumPlayers`), `gBestLapTime`, `gDriveHulk` (`init_cars.c:292`) |
 | battle and stunt (no drones) | `gCurWeaponType`, `gGattMuzzleObjs`, `gCannMuzzleObjs` (`[4]`, image B), `gCarTeam` `gCarTeam`, `gStuntPlayer` (stunt), `gTeamPoints` |
@@ -321,7 +321,7 @@ file's byte arithmetic on a data symbol's address (27 sites) found no other per-
 | `assets_roster`, `assets_models`, `assets_carrecs`, `assets_targets` (test_race_cars 12) | pass. With each change undone, checks fail: the drone cap at 6, 190; the circuit at the setting, 6; the roster filled to the race's cars only, 20; the demo at 6, 93; its camera wrapping at 6, 2; a human's distance at -(6 - i), 4, at -(PC_RACE_CARS - i), 2; init_cars' reset to 6, 46; LoadCars' drones to 6, 33; the model clock to 6, 12; the collision's end at 6, 3; the stuck times to 6, 12; set_catchup's first loop and its leader's to 6, 6 and 1; the scene's cars 0-7 only, 1; car 8 at the shift's low 5 bits, 5. The locals at 6 fail none: an overrun of a local isn't seen without ASan (next row) |
 | the same tests and `assets_cars` under ASan + UBSan (Pi 5, GCC 12) | no report. With CarReportsGameOver's `scores[6]` or `place[7]`, or CalcPlaces' locals at 6, ASan stops at a stack-buffer-overflow in the function (`car_checkpoints_car_setup_confirm.c:110`, `:109`; `car_checkpoints_func_800D1AB0.c:76`, `place`) |
 
-**The tests.** `assets_roster` now also builds init_cars (init_cars) and LoadCars: the demo's 6 and 12 cars and
+**The tests.** `assets_roster` now also builds init_cars and LoadCars: the demo's 6 and 12 cars and
 its camera's car round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones, the option above the cap, the
 default 5 drones at the setting 12 (6 cars), battle and stunt, the circuit's first race (6 cars, places drawn) and a
 later one (the standings'), and 6 cars after 12; munge counting 12; the first distances for 6, 8 and 12 cars and the
@@ -360,7 +360,7 @@ of its own (section 10).
 **How a car gets its place.** `CalcPolePositions` gives each roster slot a place: drones 0, 1, 2... and humans after
 them (`CalcPolePositions.c:100-103`: a human's place is the drone count plus its index), random places in a circuit's
 first race (`:105-116`), the circuit's standings after it (`:92-99`). `init_cars` copies it to the car record
-(+0xEE). At PrePlay `Init_MDrive` (`Init_MDrive`) calls `multiinit_n64` (`init_mdrive/group.c:100-110`): the start
+(+0xEE). At PrePlay `Init_MDrive` calls `multiinit_n64` (`init_mdrive/group.c:100-110`): the start
 sets `initin.polepos` to the roster's place (0 in a ghost race), a respawn to `index + 6`.
 `SetResurrectionData` (`SetResurrectionData`, `resurrect/camera_pair.c:160-210`) puts every car on one point: the
 resurrection path's point of the checkpoint the car is at (`gResPath.points[checkpoint.pathPts[0]]`, checkpoint 0 at
@@ -462,7 +462,7 @@ N64.
 one player and 11 drones the player starts at place 11, at the back; init_cars gives the humans the first distances
 behind the drones', `-(max(6, cars) - slot)`.
 
-**The test.** `assets_grid` builds Init_MDrive (`Init_MDrive`) and Resurrect (`Resurrect`) with tables and
+**The test.** `assets_grid` builds Init_MDrive and Resurrect with tables and
 paths of its own: places 0-5 at the start point with the table's rows bit for bit; places 6-11's rows by the rule (two
 tables: columns staggered forward; rows shifted sideways every other row); on a straight path the continued rows where
 the straight rows are; on a bent one (a right angle 30 ft behind the start) each at its distance along the path,
@@ -599,7 +599,7 @@ dots but not the player's):
   suffix, in the place column's font, in its cell.
 With 6 cars the same moments look as before: "4/6", and sixth in the standings.
 
-**Tests.** `assets_carshud` runs animPlace, hud_updateFrame, ShowHUD (`ShowHUD`), animDot, animRadarBlip
+**Tests.** `assets_carshud` runs animPlace, hud_updateFrame, ShowHUD, animDot, animRadarBlip
 and drawRaceStandings on the game's code with made-up data: the N64's glyphs and calls for 6 and 9 cars; "9/10",
 "12/12" and, in split screen, "1/12" and "11/12", at their places, fonts and colours; the HUD order for 12, 8 and 6
 cars; the race set at 6, 8, 10 and 12 cars and in battle; the dots of entries 8-11 (the human's last) and slot 11's

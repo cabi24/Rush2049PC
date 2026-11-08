@@ -354,7 +354,7 @@ that is open.
 | `animate_pause_dim` | the same, and a 4-byte write at N64 +0x28 (AnimFunc; PC Top) |
 | `anim_show_on_high_score` | 1-byte read and write at N64 +0x1A (Hide; PC X) |
 
-Each is typed through UpdateBlit (`UpdateBlit`), its argument at +0. The selftest has the same kinds of
+Each is typed through UpdateBlit, its argument at +0. The selftest has the same kinds of
 case on an invented record (a hide flag, a pointer store over the first pointer's high half, a pointer argument, a
 symbol declared as the record, a role, an N64-shaped view) and the ones that must give nothing (PC code, a PC macro, a typed pointer into
 the record passed to a helper, an N64-layout record, an offset before the first pointer).

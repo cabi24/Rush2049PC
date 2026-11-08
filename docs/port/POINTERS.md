@@ -130,7 +130,7 @@ declared with pointer types today, so on PC they are larger than the data; Phase
 | `tTexture` (TXHD) | `waves.c:73` and ~25 readers | `texBase`/`image` |
 | PLHD | `waves.c:84`, `zoid_draw/group.c` (`pal->table`) | `palBase`/`table` |
 | `tBasicTargetPath` (PTHD), `Scene36` | `waves.c:91`, `targets/group.c:59` | `trigPtr`, `pts`, `parent`, `resources` |
-| text bank header `gText` (`gText`) | 17 files, four views (`ShowPakError`, `runtime_a_text_helpers`, `runtime_a_menu_renderers`, `options_anim.c`) | `ptrs0/2/5`, `strings`, `msg`, `hdr->unk360` |
+| text bank header `gText` | 17 files, four views (`ShowPakError`, `runtime_a_text_helpers`, `runtime_a_menu_renderers`, `options_anim.c`) | `ptrs0/2/5`, `strings`, `msg`, `hdr->unk360` |
 | WHDR entry / `NameEntry` | `loadtrack.c:120`, `NewWorld.c:28` | `woff`/`node` |
 | GTLD keys | `targets/group.c:464`, `CheckTargetCollision.c:155` | key -> `Object *` in place |
 | font letter (12 B) | `slot_sound/group.c:108` | `ptr` |
@@ -173,7 +173,7 @@ hid nothing on the PC ([BRINGUP.md](BRINGUP.md) 15). The car record's raw offset
   `-Wno-int-conversion`.
 - **Prototype mismatches across files**, which aarch64 punishes and MIPS o32 tolerates: `AudEmitEffect`'s
   second parameter is `f32` in its owner, but three callers pass a pointer as `s32` (o32 passes both in `a1`; aarch64
-  uses `s0` for the float). `MBOX_NewObject` (MBOX_NewObject) is `void` in its owner while every caller uses its
+  uses `s0` for the float). `MBOX_NewObject` is `void` in its owner while every caller uses its
   result. The m2c contexts declare hundreds of prototypes that disagree with owners. A tool comparing each file's
   prototype with the owner's definition (param classes int/float/pointer, return) would find the rest.
 - **gen_data:** its "Pointer conflicts" list now also shows `intptr_t`/`uintptr_t` declarations against pointers.
@@ -337,10 +337,10 @@ A **Blit** (NewMultiBlit.c's) is 0x68 bytes on the PC:
 | 0x34 | 0x50 | `BLIdx` (the sprite) |
 | 0x38 | 0x58 | `data`, `child` |
 
-- `AnimDTA` is pointer-sized because InitPane (`InitPane`) keeps the pane group there. Its view had the
+- `AnimDTA` is pointer-sized because InitPane keeps the pane group there. Its view had the
   group pointer at host 0x48 while the other views read `BLIdx` from 0x48: every pane's sprite index was overwritten.
 - InitBlits spaced the 200 blits 64 bytes apart in the 0x3200-byte arena block `Blits`; the blits overlapped.
-  On the PC the pool is host storage in InitBlits.c, and BlitPtrs (`BlitPtrs`) was pointer-sized already.
+  On the PC the pool is host storage in InitBlits.c, and BlitPtrs was pointer-sized already.
 - Views made to agree: the all-`u32` ones (animControls, dust, gr3_73d8, gr3_8154), the byte-pad ones (gr3_6874,
   gr3_a53c, f6b3c, fbc84, animOdometer, DelBlit's, runtime_a_c93c_closure's, carscr_animNewSlider), UpdateBlit's
   (`update_blit/group.c`) and `animControllerDimInternal`'s, ChangePaneSize's, and the views that call the `AnimFunc`
@@ -361,7 +361,7 @@ versions. Their `RemoveBlit` views take `intptr_t`.
 The list header (shots.c's `StatLL`) is 40 bytes on the PC: doubly flag, element count and size, then the element
 array, the active list and the free list pointer-sized. The views disagreed (24, 32 and 40 bytes; FreeStatLLE's
 active and free 8 bytes early behind a 15-byte pad; `ClearStatLL`'s active list an `s32`), and InitStatLL
-(`InitStatLL`) and GetStatLLE (`GetStatLLE`) were m2c code at N64 offsets. Every live header view now
+(`InitStatLL`) and GetStatLLE were m2c code at N64 offsets. Every live header view now
 has the layout, InitStatLL and GetStatLLE have PC versions, and the views that left a header 24 bytes of storage
 are whole.
 
@@ -433,7 +433,7 @@ have PC versions. 18 views agree. Test: `assets_pak`.
 The controller pak's file layer (paksys, MAT3 `paksysdc.c`) keeps a record per file it finds on a pak, and the
 save code keeps a record per profile and per ghost that points to its file. Each is reached through a handle
 (`T **`), and the lists that hold them (`gPS_Files` `gPS_Files[4]`, the free handles `pak_free_handles`, the profiles
-`gPlayerFiles`, the ghosts `gGhostFiles`) are indirect: `InsertLLE` (`InsertLLE`) links a record through its
+`gPlayerFiles`, the ghosts `gGhostFiles`) are indirect: `InsertLLE` links a record through its
 first two words as `{next, prev}` pointers. On the PC the views disagreed on all of them: paksys had the file
 record at 96 bytes and its readers at 76, the save code wrote the file functions at raw N64 offsets, and the
 profile's views put its file handle where the list keeps `prev`.
@@ -567,7 +567,7 @@ record's name with the first `strlen` characters of each of the 122). On the PC:
 | N64 | PC | Field (the views' names) | |
 |---:|---:|---|---|
 | 0x00 | 0x00 | `name`, `file` | strings in the game data |
-| 0x08 | 0x10 | `callback`, `start`, `onHit` | the start function: `SetTargetDef` (flags 4, 0x4000) and `CheckTargetCollision` (a hit) call it with the node: `StartCone`, `StartWindow`/`StartKnockdown` (StartKnockdown), `StartFence`, `StartCactus`, `StartMine`, `StartCoin` |
+| 0x08 | 0x10 | `callback`, `start`, `onHit` | the start function: `SetTargetDef` (flags 4, 0x4000) and `CheckTargetCollision` (a hit) call it with the node: `StartCone`, `StartWindow`/`StartKnockdown`, `StartFence`, `StartCactus`, `StartMine`, `StartCoin` |
 | 0x0C | 0x18 | `animation`, `visFunc`, `f12`, `w0C` | the visual's function, which the start functions and `SetTargetDef` put in the visual they grab |
 | 0x10 | 0x20 | `kind`, `shape`, `mode` | the collision shape: `CheckTargetCollision` indexes the hit tests `gTargetCollFuncPtrs` by it; 4 is a dead-reckoned object |
 | 0x12 | 0x22 | `flags` | |
@@ -605,9 +605,9 @@ over the next node's link, while the other views had the N64 one.
 
 - **32-bit links.** The generic StatLL code links elements through pointer-sized words (9.5). A list whose
   elements keep their N64 layout is flagged `n64` in its header's first padding byte, and InitStatLL
-  (`ClearStatLL`), GetStatLLE (`GetStatLLE`) and FreeStatLLE (`FreeStatLLE`) read and write the links
+  (`ClearStatLL`), GetStatLLE and FreeStatLLE read and write the links
   through `pc_statll_link`/`pc_statll_set_link` (pc_prelude.h). `initTargetStructs` sets the flag before it
-  builds the node pool (`PC_ONLY` on the `pool_init` line); InitStatLL (`InitStatLL`) clears it.
+  builds the node pool (`PC_ONLY` on the `pool_init` line); InitStatLL clears it.
 - **Node views** with `enum n64p_` fields and `N64P()`/`N64W()` (N64W is main's `PC_N64W`): `level_objects`
   (`Node`, `Matrix64`, and the camera controller's scene through `STATE_SCENE`/`SCENE_OF`), `StartCone` (the
   motion), the mine `AnimateMine` (`next`, `data`), the debris `AnimateVelRotGeneric`, the flag `AnimateFlag` (its

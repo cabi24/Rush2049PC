@@ -43,11 +43,11 @@ Function names are the repository's (often historical labels); the real role is 
 |---|---|---|---|---|---|---|
 | `unzipdata_from_rom(rom, dst, 0)` from `main_thread_entry` | 0x80006814, call 0x80002334 (`src/rom/boot.c:91`) | game image | ROM 0xB0CB10 (`gRomCompressedData`) | raw DEFLATE | 0x80086A50 fixed; Huffman tables at fixed 0x803FD120 (0x2EE0 B) | C |
 | `load_overlay` (overlay load); callers `load_start_overlay` 0x800A133C ("Start" = image A), `load_extra_overlay` 0x800A1244 ("Extra" = image B), `LoadFrontEndOverlay` 0x800C8FA4 | 0x800A11E4 (`src/blob/groups/heap_release/overlay_loader.c:43-69`) | runtime image A or B | ROM pointers `start_overlay_rom` (A, 0xB5C534) / `extra_overlay_rom` (B, 0xB6FEC4) | raw DEFLATE via `inflate_decompress` 0x800026C0 | 0x8038A400, reserved in the heap by `allocate_memory_at` (allocate at address, 0x8038A400–0x803BB380); BSS zeroed | C |
-| `LoadWave` (`LoadWave`) | 0x80097798 (`src/blob/groups/waves/loadwave.c:72`) | wave *n* | file table §2.2 | per wave | heap block of `(gWaveSizes[n] + 31) & ~31` from `AllocateMemoryHeap` 0x80097470 or `AllocateHandleHeap` 0x800974EC | C |
+| `LoadWave` | 0x80097798 (`src/blob/groups/waves/loadwave.c:72`) | wave *n* | file table §2.2 | per wave | heap block of `(gWaveSizes[n] + 31) & ~31` from `AllocateMemoryHeap` 0x80097470 or `AllocateHandleHeap` 0x800974EC | C |
 | `_NewWaveInstance` (`NewWaveInstance`, inlined) | 0x800972BC (`loadwave.c:43`) | allocates the slot in `gWaveInstance[64]` 0x80156D38 | | | | C |
 | `_ReadWave` (`ReadWave`) | 0x80097164 (`src/blob/groups/waves/waves.c:220-255`) | the wave's bytes | `wave_rom_offsets[n]` | `wave_storage_kinds[n]`: 0 raw PI DMA (inlined `wave_rom_read`, queue `rom_dma_queue`), 1 `lzss_decompress` 0x80002660, 2 `inflate_decompress` 0x800026C0 | wave buffer; then `SetupWaveModel(slot, 1)` | C |
-| `BGLoadWaveMain` (`BGLoadWaveMain`) | 0x800AC75C, thread 8 (`waves/group.c:3764`) | background loads (`LoadTrack(.., background=1)`) | request queue `bg_load_request_queue`, done queue `bg_load_idle_queue` | as `_ReadWave` | wave buffer | C |
-| `ReplaceWave` (`ReplaceWave`) | 0x800A501C (`replacewave.c:40`) | swaps the text bank in its slot | | | reuses the buffer, sized by the first (largest) text wave | C, M (`gLargestTextWave`) |
+| `BGLoadWaveMain` | 0x800AC75C, thread 8 (`waves/group.c:3764`) | background loads (`LoadTrack(.., background=1)`) | request queue `bg_load_request_queue`, done queue `bg_load_idle_queue` | as `_ReadWave` | wave buffer | C |
+| `ReplaceWave` | 0x800A501C (`replacewave.c:40`) | swaps the text bank in its slot | | | reuses the buffer, sized by the first (largest) text wave | C, M (`gLargestTextWave`) |
 | `SetupWaveModel` / `MBSetupWad` / `MBOffsetWad` / `MBGetFromWad` | 0x80096CA8 / 0x80096C28 / 0x80096BBC / 0x80096B5C | WAD relocation (§3.1) | | | in place | C |
 | MusyX sample DMA: `musyx_start_dma_list` (no direct caller; reached through the MusyX callback table `sound_services`) → `sample_dma_next` → `osPiStartDma`; thread `sample_dma_thread_entry` | 0x8010FD1C, 0x8008ABE4 (`groups/sample_dma_next/sample_dma_next.c:40-50`), 0x8008AC74 | sample data | cart address of ROM 0x39B40 + sample offset, from the address callback `sound_service_translate_address` (by signature `musyx_cart_address`: `(a & 0x0FFFFFFF) \| 0xB0000000`) | none (ADPCM) | MusyX RAM buffers from the alloc callback `sound_service_alloc` (by signature `musyx_alloc` 0x8010FC80, heap) | C |
 | `main` | 0x800020F0 (`boot.c:16-20`) | 16 words at cart 0xFFB000 via `osPiReadIo`, then discarded | | | stack | C |
@@ -69,7 +69,7 @@ Decompressors [C, from `asm/us/nonmatchings/rom/lib_5610/*.s`]:
 | Table | Address | Element | Region | Tag |
 |---|---|---|---|---|
 | ROM offset | `wave_rom_offsets` | u32 | game .data | C (`waves.c:235`) |
-| size in RAM (after decompression) | `gWaveSizes` (`gWaveSizes`) | u32 | boot .data | C (`loadwave.c:56`) |
+| size in RAM (after decompression) | `gWaveSizes` | u32 | boot .data | C (`loadwave.c:56`) |
 | storage kind (0 raw, 1 LZSS, 2 DEFLATE) | `wave_storage_kinds` | s32 | game .data | C (`waves.c:229-251`) |
 | model flag (1 = WAD, relocate) | `wave_is_model` | s8 | game .data | C (`waves/group.c:3812`) |
 | initial text wave | `gLargestTextWave` | u8 | boot .data | C (`src/blob/InitTextWave.c:19`) |
@@ -157,7 +157,7 @@ Table of contents [C `src/blob/MBSetupWad.c:10-44`, `MBGetFromWad.c`, `MBFindInW
 Tags fetched by name: `OBHD` 0x4F424844, `TXHD` 0x54584844, `PLHD` 0x504C4844, `PTHD` 0x50544844 (waves 101–119
 only), `TXLD` 0x54584C44, `IMAG` 0x494D4147 (`waves.c:175-182`); `WHDR` 0x57484452, `GDAT` 0x47444154, `GTLD`
 0x47544C44 (`loadtrack.c:116-125`). `OBJS`, `PATH` and `WOBJ` are reached only through pointers [R for their names].
-The handle `{base, count, TOC}` is a 12-byte stack struct. `MBOffsetWad` (`MBOffsetWad`) addresses it by raw
+The handle `{base, count, TOC}` is a 12-byte stack struct. `MBOffsetWad` addresses it by raw
 offsets +0/+4/+8.
 
 Chunks:
@@ -184,7 +184,7 @@ Model handle = `(waveSlot << 10) | index` (`zoid_draw_object` 0x8009C8F0, really
 | `relocate_model_dl` | 0x80096734 (`src/blob/relocate_model_dl.c`; copy `waves/group.c:3818-3900`) | Walks one LOD list with a 10-deep stack. For ops 0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 (before 0x04 or 0xDD) and ≥ 0xFD it sets `w1 = (w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)`. It rewrites the conditional `E0 01 cccc` into `DE010000` / target when load-flag bit `cccc` is clear. The flags are 2 = 1 player, 4 = 2 players, 8 = forward, 0x10 = backward (`waves.c:144-160`). It calls `mirror_vertex_texcoords` on the first VTX, does not enter `G_DL`, follows 0xE1+0x04, and stops at 0xDF | C |
 | `mirror_vertex_texcoords` | 0x800966D8 | Vertex chain from that VTX: `p = addr \| 0x80000000`, stride 0x10. It reads the u16 at +6 (bit 15 = next vertex follows, bit 14 = done, bits 0–8 = texture width), sets bit 14, and when mirrored sets `s(+8) = width*32 - s` | C |
 | `relocate_texture_loads` | 0x80096A00 | TXLD rebase (§3.1) | C |
-| `MirrorWaveInstance` (`MirrorWaveInstance`) | 0x800965BC (`groups/slot_sound/MirrorWaveInstance.c:44`) | When the mirror state `gMirrorWaves` changes, walks every LOD list with `display_list_traverse(dl, 0, 0, 2, flip_triangle_winding)` | C |
+| `MirrorWaveInstance` | 0x800965BC (`groups/slot_sound/MirrorWaveInstance.c:44`) | When the mirror state `gMirrorWaves` changes, walks every LOD list with `display_list_traverse(dl, 0, 0, 2, flip_triangle_winding)` | C |
 | `display_list_traverse` | 0x800963E8 (`src/blob/display_list_traverse.c:10-57`) | Generic walker: 0xDF ends, 0xDE calls or branches, 0xE1+0x04 branches. Its address rule: `addr &= 0xF0FFFFFF` when a segment nibble is set, else `addr += 0x80000000`, then a `u32 *` cast. With flags & 8 it replaces matching w1 | C |
 | `flip_triangle_winding` | 0x8008AD6C | TRI1 (0x05): swaps the 2nd and 3rd vertex-index bytes of w0. TRI2/QUAD (0x06/0x07): does the same in w0 and w1 (winding flip) | C |
 | Texture animation | setup `InitTextureAnimation` 0x800BDAA8, update `TextureAnimation` 0x800BD2C8, helpers `displaylist_get_texture_image` 0x800BDA24 (read the first SETTIMG w1), `displaylist_set_texture_image` 0x800BD080 (write it), `displaylist_set_tile_size` 0x800BD104 (rewrite G_SETTILESIZE uls/ult) | Patches TXLD lists, TXHD `texBase`, and TLUT entries (palette kinds 0–8 store RGBA16 constants, `TextureAnimation.c`) once per frame. Tables `0x8011A31C` / `0x8011A840` [R] | C, R |

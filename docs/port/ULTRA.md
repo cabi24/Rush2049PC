@@ -419,7 +419,7 @@ the offsets the game reads it at:
 - host-sized pointers after them.
 
 It defines those names as aliases into its own storage: `gScheduler`, `scheduler_interrupt_queue`, `scheduler_task_queue`, `scheduler_thread`,
-`scheduler_retrace_count`, `scheduler_retrace_count`, `scheduler_current_rsp_task` (`curRSPTask`), `gRenderInProgress` (`gRenderInProgress`), and
+`scheduler_retrace_count`, `scheduler_retrace_count`, `scheduler_current_rsp_task` (`curRSPTask`), `gRenderInProgress`, and
 `gSeconds`/`94`/`98`.
 
 The scheduler reads tasks through `include/m2c_types.h`'s `OSScTask`. Its PC version has the OSTask in place with

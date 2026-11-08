@@ -163,11 +163,11 @@ the real value first or an ignored extra (`sound_seq_stop(id, id)`, `osGetThread
 - `HAL_InstallOncePerFrameFunc` stores function pointers in its callback table `gOPPFuncs`, which `HAL_CallOncePerFrameFuncs` walks up
   to `&yf`, the next N64 variable. The table is `intptr_t[10]`, and in those two files its end is
   `&gOPPFuncs[10]` on the PC. `yf` itself stays a variable for its other users.
-- InitPane (`InitPane`) stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
+- InitPane stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
   (`PadConfig`) gets the blit's two pointer-sized fields (`Info`, `AnimFunc`), so position, size and the animation
   function land where `Blit` has them. The title panes it returns (`audio_gTitlePane`, `options_gTitlePane`) are `intptr_t` in
   all their users, and so are `ChangePaneSize`'s and its own views in `gr3_c.c`.
-- Blits from `NewMultiBlit` (NewMultiBlit) kept in `s32`: `highscore_blit`, `backBlit`, `PS_ErrorFunc`' `snd`,
+- Blits from `NewMultiBlit` kept in `s32`: `highscore_blit`, `backBlit`, `PS_ErrorFunc`' `snd`,
   `RemoveMultiplayerHUD`'s `handle`; `RemoveBlit`'s parameter is `intptr_t` in the views that pass them.
 - MBOX wrappers: `InitCarObj`, `MBOX_NewObjectCam` and `MBOX_NewObject` end in a call to `ZOID_AddObject`
   (MBOX_NewObject), whose result stays in `v0` through their `void` return, and every caller reads it. On the PC
@@ -196,8 +196,8 @@ The first run found 20 views of three functions, all passing a constant 0:
 
 | Function | Argument | Views | Fix |
 |---|---|---|---|
-| `LoadWave` (LoadWave) | 5: the heap, `void *` | `AudioInitSys.c`, `loadtrack.c`, `slots.c` (`LockAndLoad`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
-| `InitPane` (InitPane) | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `InitPane` | `intptr_t` on the PC |
+| `LoadWave` | 5: the heap, `void *` | `AudioInitSys.c`, `loadtrack.c`, `slots.c` (`LockAndLoad`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
+| `InitPane` | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `InitPane` | `intptr_t` on the PC |
 | `CylinderInSurf` | 6: `f32 *` | the weak copy in `stree_tiresurf/group.c` | reviewed: its only calls are the matching stand-ins `__standin_input_process_controller_a/b`, which nothing calls |
 
 `LockAndLoad`'s `LoadWave(id, 0, 0, 0, 0)` is what every synthetic boot reached first on Windows: LoadWave

@@ -315,7 +315,7 @@ each of them wrote through the NULL too. The list is the linked program's, not t
 functions. The 33 calls in the group copies' bodies are dead: `gen_weak.py` makes those copies weak, and nothing
 reaches their code. That covers the copies in credits_scroll_grp, mode_init and input_aux, the transform_b109.c
 files and the camera_target_track_group.c files. Fix 6 had 7 of the 29. Nothing else takes a message from the pool.
-Only `GetCmd` sets the in-use bytes. The manager clears them, `AudioInit` (AudioInit) clears the pool, and
+Only `GetCmd` sets the in-use bytes. The manager clears them, `AudioInit` clears the pool, and
 the shutdown reads it. The other 22 are guarded the same way, under `TARGET_PC` with file-scope macros
 (n64_neutral: shifted):
 
@@ -336,7 +336,7 @@ the shutdown reads it. The other 22 are guarded the same way, under `TARGET_PC` 
   manager frees a message; with the queue full, they send with `OS_MESG_BLOCK` (the lock is free by then). This
   waits on nothing new: the shutdown waits on the same manager right after.
 - **The way out of a race goes on after its stop.** The game over screen's choice (`controlMain`, three posts),
-  `updateGameOverScreen` and AbortGame (`AbortGame`) stop the cars, release the environs and set the next state
+  `updateGameOverScreen` and AbortGame stop the cars, release the environs and set the next state
   after posting. An early return would leave the exit half done. With no message, they write the command into a
   file-static scratch message, which is never sent; with the queue full, they give the message back.
 - `__standin_a` (aud_stop_effect/group.c) takes two messages and keeps them, but nothing calls it

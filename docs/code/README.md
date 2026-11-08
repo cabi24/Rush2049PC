@@ -6,6 +6,11 @@ it: what each part does, where the original source files are, the main data, how
 what only the N64 has. They use the names of `tools/port/names/*.tsv`, the maps that rename the tree in wave 2;
 [NAMING.md](NAMING.md) has their conventions and how the six areas' names were made one set.
 
+These pages (and NAMING.md) were written before the maps were applied (2026-11-08, wave 2's first step) and are kept
+as written: where they give an old name or a file's old path beside a new name (`SaveRaceSetting` (voice_stop_2)),
+it is the tree's name before `tools/port/rename.py`; `tools/port/names/applied.tsv` maps every one to the name the
+tree has now.
+
 | Page | Covers |
 |---|---|
 | [boot.md](boot.md) | the boot segment (`src/rom`): entry, threads, timer, scheduler, video mode, inflater, libultra, libc, the MusyX sound library, speech; the low image's data |

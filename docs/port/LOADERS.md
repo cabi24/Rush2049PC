@@ -63,7 +63,7 @@ The loader:
     `*(u8 **)` read 8 bytes, half of them the next slot. This mattered for the font data, which is loaded as handles.
 - **The WAD handle** is `MBSetupWad`'s native `Table` (`{Header *, s32, Entry *}`) in every view:
   - `MBFindInWad`'s `H12` got a pointer-sized first field.
-  - `MBOffsetWad` (`MBOffsetWad`) was m2c code at the N64 offsets. It has a PC version.
+  - `MBOffsetWad` was m2c code at the N64 offsets. It has a PC version.
 
 The display-list walkers already used big-endian accessors (POINTERS.md §2): `relocate_model_dl`,
 `relocate_texture_loads`, `display_list_traverse`, `flip_triangle_winding` and `mirror_vertex_texcoords`.
@@ -166,7 +166,7 @@ leaves a file that doesn't as it is (with a message): a bogus file is not half c
 | Font data | 38–53 | none (all bytes); checks the letters and kern table fit | the 12-byte letter keeps its 4-byte kern slot as a u32 window address in `SetupFontData` (writer), `_DrawText`, `HAL_GetTextWidth`, `HAL_GetCharWidth`; `SetupFontData` reads the u32 heap handle slot |
 | World WAD | 120–138 | swap WHDR (count, offsets), WOBJ (0x68-byte nodes), GDAT (0x1C), GTLD (u32 keys). Chunks are found through the WAD TOC in either byte order | `LoadTrack` gets GTLD as a native array of the keys (`pc_world_chunk`), since race setup writes object pointers over them; `NewWorld`'s WHDR entry view is 0x14 bytes (u32 node); its comparator `world_name_compare` takes pointers and returns its result |
 | Road | 139–157 | swap by section; vlist and slist stay bytes | `ResetCollisionObject`'s save-record cursor is `intptr_t` |
-| Path | 158–182 | swap the checkpoint block, the resurrection, alternative and drone path headers and points (drone mph and hints stay bytes) | `ReadPathData` (`ReadPathData`) has a PC version: headers copied field by field into the native `gResPath`/`gDronePaths`, alternative paths in a native array; eleven reader files get host offsets or strides (below) |
+| Path | 158–182 | swap the checkpoint block, the resurrection, alternative and drone path headers and points (drone mph and hints stay bytes) | `ReadPathData` has a PC version: headers copied field by field into the native `gResPath`/`gDronePaths`, alternative paths in a native array; eleven reader files get host offsets or strides (below) |
 
 **Text bank views.** The header gText (`gText`, alias `gText`; `gText_single` = the single table) has
 host pointers, so its fields sit at host offsets (8, 24, 32, ...) and its string tables have 8-byte entries. Views
