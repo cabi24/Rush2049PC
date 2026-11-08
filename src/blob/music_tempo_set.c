@@ -22,43 +22,18 @@
  *    before the branch, the 2056 multiply's addu in the delay slot).
  */
 typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef unsigned short u16;typedef unsigned int u32;
-#ifdef TARGET_PC
 typedef struct Model952 {u8 prefix[232];u32 flags;u8 gap236[8];int model;u8 gap248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 gap248_308[0x35D - 0x308];s8 selection;u8 tail[0x380 - 0x35E]; void *input; u8 tail_384[0x3B8 - 0x384];} Model952;
-#else
-typedef struct Model952 {u8 prefix[232];u32 flags;u8 gap236[8];int model;u8 gap248[613];s8 selection;u8 tail[90];} Model952;
-#endif
 typedef struct Vehicle2056 {u8 prefix[15];s8 type;u8 gap16[1988];u32 flags;u8 tail[48];} Vehicle2056;
 typedef struct Slot64 {int root;u8 gap4[12];int body;u8 gap20[8];int wheels[4],extras[5];} Slot64;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource68 { u32 flags, w4; void *obj; float scale, w; u16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Resource68;
-#else
-typedef struct Resource68 {u8 prefix[20];u16 object;u8 tail[46];} Resource68;
-#endif
 typedef struct Config8 {u8 prefix[7];u8 mode;} Config8;
 typedef struct OSThread OSThread;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_FLAGS(i) player_array[i].flags
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Vehicle2056 D_8014A250[];
-#define PC_MODEL_B00F(i) D_8014A250[i].type
-#define PC_MODEL_FLAGS(i) D_8014A250[i].flags
-#endif
 extern Slot64 D_80139320[];
 extern Resource68 D_8012E700[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Config8 D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].mode
-#endif
 extern OSThread D_80034840;
 extern s8 D_80146180[],D_80156994,D_8014978C;
 extern u16 D_801427C2[],D_801428F8;
@@ -69,10 +44,7 @@ extern u16 func_80092B80(s16,u8);
 extern void func_8008D870(s16,void *,int);
 extern void model_transform_setup(int,int,int);
 extern void model_data_load(int,int,int);
-static void resource_set_object(s16 index, u16 object)
-{
-    D_8012E700[index].object = object;
-}
+void func_80090770(s16 index, u16 object);
 
 void music_tempo_set(s16 player,u8 mode,int apply)
 {
@@ -96,10 +68,10 @@ void music_tempo_set(s16 player,u8 mode,int apply)
  if(model){}
  color=func_80092B80(player,mode);
  slot=&D_80139320[player];
- resource_set_object(slot->root,color);
+ func_80090770(slot->root,color);
  model->model=slot->root;
- resource_set_object(slot->body,D_801427C2[(s16)(player*3)]);
- for(i=0;i<4;i++)resource_set_object(D_80139320[player].wheels[i],D_801428F8);
+ func_80090770(slot->body,D_801427C2[(s16)(player*3)]);
+ for(i=0;i<4;i++)func_80090770(D_80139320[player].wheels[i],D_801428F8);
  if(D_80156994 || D_8014978C>=6) {
   func_8008D870((s16)slot->wheels[0],D_80143F74[PC_MODEL_B00F(player)],-1);
  } else {

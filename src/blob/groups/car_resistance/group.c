@@ -1,25 +1,14 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef unsigned short u16;
 typedef struct Vec3 {float x,y,z;} Vec3;
 typedef struct Tire92 {float values[23];} Tire92;
 typedef struct Tune44 {float values[11];} Tune44;
 typedef struct Collision16 {float front,rear,side,height;} Collision16;
-#ifdef TARGET_PC
 enum n64p_Car { n64p_Car_ };
 enum n64p_Tune44 { n64p_Tune44_ };
 enum n64p_u16 { n64p_u16_ };
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Car {u8 prefix[80];float mass,engine_inertia;u8 gap88[8];enum n64p_void tire_info[4];u8 gap112[8];Vec3 tire_positions[4];} Car;
-#else
-typedef struct Car {u8 prefix[80];float mass,engine_inertia;u8 gap88[8];void *tire_info[4];u8 gap112[8];Vec3 tire_positions[4];} Car;
-#endif
-#ifdef TARGET_PC
 typedef struct Vehicle2056 {
  enum n64p_Car car;
  enum n64p_Tune44 tune;
@@ -87,110 +76,28 @@ typedef struct Vehicle2056 {
  s8 mode;
  u8 tail1997[59];
 } Vehicle2056;
-#else
-typedef struct Vehicle2056 {
- Car * car;
- Tune44 * tune;
- u8 car_type;
- u8 gap9[2];
- s8 tune_type;
- u8 gap12[1];
- s8 traction_type;
- s8 mass_type;
- u8 gap15[57];
- float velocity;
- u8 gap76[12];
- Vec3 time;
- Vec3 center_moment;
- Vec3 tire_force[3];
- Vec3 tire_velocity[4];
- u8 gap196[48];
- Vec3 body_corner[4];
- u8 gap292[24];
- Vec3 delta;
- u8 gap328[192];
- Vec3 angular;
- u8 gap532[192];
- Vec3 gravity;
- u8 gap736[228];
- float steer[2];
- u8 gap972[8];
- float brake;
- u8 gap984[4];
- float brake_gain[4];
- u8 gap1004[10];
- s16 gear[2];
- u8 gap1018[10];
- float engine_torque;
- u8 gap1032[4];
- u16 * torque_curve;
- float clutch;
- float drive_inertia;
- float trans_ratio;
- float total_ratio;
- float drive_values[4];
- Tire92 tires[4];
- u8 gap1440[8];
- u8 flags[2];
- u8 gap1450[2];
- float drag;
- float rolling_resistance;
- float torque_scale;
- float parameter1464;
- float mass;
- float mass_scale;
- float spring;
- float wheelbase;
- float compression[4];
- u8 gap1500[92];
- float inverse_dt;
- float damping;
- u8 gap1600[20];
- float collision_radius;
- u8 gap1624[216];
- u8 ignition;
- u8 gap1841[149];
- s16 active_index;
- u8 gap1992[4];
- s8 mode;
- u8 tail1997[59];
-} Vehicle2056;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Car: (struct Car *)PC_N64P(x), enum n64p_Tune44: (Tune44 *)PC_N64P(x), enum n64p_u16: (u16 *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern Car *D_80110D08[];
 extern Tune44 D_801116D0[];
-#ifdef TARGET_PC
 /* PC: a table of 13-entry rows, indexed mode * 13 + type (mode up to 4); declared with its first row's size, an
  * optimizer may take every index for one below 13 (docs/port/SANITIZE.md, OPTIMIZED.md 2.7) */
 extern s8 D_8011128C[],D_801114E4[];
-#else
-extern s8 D_8011128C[13],D_801114E4[];
-#endif
 extern float D_801112D0[],D_80111274[],D_8011121C[],D_80110E0C[],D_80110E44[],D_80110DA4[];
 extern float D_80124158,D_8012415C,D_80142764;
-#ifdef TARGET_PC
 extern u16 D_8011F724[10 * 12];   /* the torque curve, short[10][12] (func_800E2D18) */
 /* After it, the two tire records (front and rear, six floats each: func_800D09E8 copies them), which only the
  * physics descriptors' u32 tire_info fields reach. Declared and referenced here, so that the data loader swaps them
  * as floats; the torque curve's extent ran over them as u16s before (docs/port/BRINGUP.md 3). */
 extern float D_8011F814[2][6];
 float (*const pc_tire_records)[6] = D_8011F814;
-#else
-extern u16 D_8011F724[];
-#endif
 extern Collision16 D_8011F844[];
 extern float func_800D0B14(Vehicle2056 *),func_800D0AA0(Vehicle2056 *),func_800D0A34(Vehicle2056 *);
 extern void func_800D09E8(void *,Tire92 *),track_preview_handler(Vehicle2056 *,Tire92 *,float),func_800D0894(Vehicle2056 *);
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
-float func_800D0A1C(Vehicle2056 *m) {return D_8011121C[m->traction_type];}
+float func_800D0A1C(Vehicle2056 *m);
 void track_info_display(Vehicle2056 *m)
 {
  Car *car;

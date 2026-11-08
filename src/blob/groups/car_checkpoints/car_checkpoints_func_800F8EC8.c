@@ -32,10 +32,6 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef unsigned int u32;
 typedef int s32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct {
@@ -46,17 +42,9 @@ typedef struct {
     s8 blocked;             /* +0x0EE */
     u8 padEF[0x108 - 0xEF];
     f32 distance;           /* +0x108 */
-#ifdef TARGET_PC
     u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x358 - 0x308];
-#else
-    u8 pad10C[0x358 - 0x10C];
-#endif
     s8 crashed;             /* +0x358 */
-#ifdef TARGET_PC
     u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
-#else
-    u8 pad359[0x3B8 - 0x359];
-#endif
 } CarData;                  /* 0x3B8 */
 
 typedef struct {
@@ -81,36 +69,11 @@ typedef struct {
     u8 type;
 } Player;                   /* 8 */
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarData D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#define PC_CAR_PLACE(i) D_80152818[i].blocked
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) (Model *)((uintptr_t)D_8014A250 + i * sizeof(Model))
-#endif
-#ifdef TARGET_PC
 /* On the PC the cars' checkpoint state is PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-#else
-extern f32 D_80152218[][3];
-#define PC_CP_LAST_POS(i) D_80152218[i]
-#endif
 extern CheckPoint D_80151CF4[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].type
-#endif
-#ifndef TARGET_PC
-extern f32 D_801527E8[];
-#define PC_CP_PLANE(i) D_801527E8[i]
-#endif
 extern volatile s16 D_801543CA;
 extern s32 D_8014A110;
 extern f32 D_80152018;

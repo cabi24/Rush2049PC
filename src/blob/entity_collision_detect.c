@@ -28,19 +28,11 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];intptr_t state;} Node;
-#else
-typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];s32 state;} Node;
-#endif
-#ifdef TARGET_PC
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
  * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id {s32 handle;struct {s16 index,high;} part;} Id;
-#else
-typedef union Id {s32 handle;struct {s16 high,index;} part;} Id;
-#endif
 typedef struct Vec3 {f32 x,y,z;} Vec3;
 typedef struct Effect {
     Id id;
@@ -50,40 +42,16 @@ typedef struct Effect {
     f32 delay;
 } Effect;
 typedef struct Car {u8 opaque0[1600];s8 enabled;u8 opaque1601[455];} Car;
-#ifdef TARGET_PC
 typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[0x110 - 0x14]; struct pc_visual visuals[21]; u8 opaque20_308[0x380 - 0x308]; void *input; u8 opaque20_384[0x3B8 - 0x384];} Player;
-#else
-typedef struct Player {u8 opaque0[8];Vec3 position;u8 opaque20[932];} Player;
-#endif
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 opaque64[4]; } Resource;
-#else
-typedef struct Resource {u8 opaque0[60];u32 color;u8 opaque64[4];} Resource;
-#endif
 typedef union Color {struct {u8 red,green,blue,alpha;} component;u32 word;} Color;
 extern s32 D_801170FC;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_8014A250[];
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].enabled
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR_POS_X(i) D_80152818[i].position.x
-#define PC_CAR_POS_Y(i) D_80152818[i].position.y
-#define PC_CAR_POS_Z(i) D_80152818[i].position.z
-#endif
-#ifdef TARGET_PC
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
 #define D_80154FD8 (*(Effect (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
-#else
-extern Effect D_80154FD8[];
-#endif
 extern Resource D_8012E700[];
 extern volatile f32 D_8002EB94;
 extern void entity_spawn_callback(s16,s32,s32);

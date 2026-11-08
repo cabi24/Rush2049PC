@@ -19,8 +19,8 @@ filled), [LOADERS.md](LOADERS.md) (ROM files), [GFX.md](GFX.md) (what the render
   files read words leaves those words big-endian, and a word view of bytes reverses them.
 
 `PC_RGBA(x)` (`port/include/pc_prelude.h`) is the one conversion macro: a colour word as the N64 holds it in a
-register (`0xRRGGBBAA`) to the word whose bytes in memory are R, G, B, A. It is `__builtin_bswap32` on the PC; each
-game file that uses it defines the N64 side as `x`.
+register (`0xRRGGBBAA`) to the word whose bytes in memory are R, G, B, A. It is `__builtin_bswap32` (on the N64,
+until its build was dropped, `x`).
 
 ## 2. The detector
 

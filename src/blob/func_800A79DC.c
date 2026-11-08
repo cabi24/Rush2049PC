@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,7 +3688,6 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: frees sprite arg0 (state 2) in the sprite list's host layout (particle_knot's Sprite, 0x28 bytes, docs/port/
  * POINTERS.md 9); the m2c body adds arg0 * 32 to the N64 address 0x80140C06 = &D_80140BF0[0].state. */
 typedef struct { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color, flags; s8 state; u8 pad17;
@@ -3709,8 +3695,3 @@ typedef struct { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 co
 void func_800A79DC(s32 arg0) {
     ((PcSprite *) &pad_config)[arg0].state = 2;
 }
-#else
-void func_800A79DC(s32 arg0) {
-    M2C_FIELD(((arg0 << 5) + 0x80140000), s8 *, 0xC06) = 2;
-}
-#endif

@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,7 +3787,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the record is the car's model (D_8014A250), which keeps its N64 layout: its car and tune pointers at +0 and +4
  * are u32 window addresses (docs/port/CARS.md 2.2), which m2c's `*(s8 **)` read as 8-byte host pointers. */
 #define MODEL_AT(p, o) ((s8 *)PC_N64P(*((u32 *) ((p) + (o)))))
@@ -3809,11 +3795,4 @@ void func_800E2C70(s8 *arg0)
   *((f32 *) (arg0 + 0x428)) = (*((f32 *) (MODEL_AT(arg0, 4) + 0xC))) * (*((f32 *) (((s8 *) (&D_80110EC0)) + (((*((s16 *) (arg0 + 0x3F4))) * 4) + ((*((s8 *) (arg0 + 9))) * 0x18)))));
   *((f32 *) (arg0 + 0x42C)) = (*((f32 *) (MODEL_AT(arg0, 0) + 0xA4))) * (*((f32 *) (arg0 + 0x428)));
 }
-#else
-void func_800E2C70(s8 *arg0)
-{
-  *((f32 *) (arg0 + 0x428)) = (*((f32 *) ((*((s8 **) (arg0 + 4))) + 0xC))) * (*((f32 *) (((s8 *) (&D_80110EC0)) + (((*((s16 *) (arg0 + 0x3F4))) * 4) + ((*((s8 *) (arg0 + 9))) * 0x18)))));
-  *((f32 *) (arg0 + 0x42C)) = (*((f32 *) ((*((s8 **) (arg0 + 0))) + 0xA4))) * (*((f32 *) (arg0 + 0x428)));
-}
-#endif
 

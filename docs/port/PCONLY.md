@@ -99,3 +99,32 @@ from the cartridge, that is the one thing that must know it.
 3. **Wave 3**: the memory model: the game's data out of the 0x80000000 window into ordinary PC storage (the recipe of
    [DECOUPLE.md](DECOUPLE.md), at scale), native pointers in data, the heap and the overlays as PC memory; the last
    data in the N64's byte order converted.
+
+### Wave 1: flatten (2026-11-08)
+
+Three commits, each through the gate (section 2: every one of the 63 paths `same`, the whole ctest suite):
+
+1. **The N64 build's files out**: 1,012 files. The Makefile, splat.us.yaml, the N64 linker scripts and lists, the 180
+   `group.json` IDO recipes, IDO's tools (asm-processor, zlib 1.0.4, romkit, build_image.py ...), `ido_check.sh`,
+   `n64_neutral.py` and its CI job; 716 files of the cartridge's assembly; the 54 `src/rom` units port/ultra replaces;
+   the 11 drafts in `nonmatching/` the PC never compiled. Kept because the PC build reads them: `asm/us/*/symbols.json`
+   and `boot_data/kernels.s`, `symbol_addrs.us.txt`, `undefined_syms_auto.us.txt`, `rom_symbol_aliases.ld`,
+   `layout/`.
+2. **`TARGET_PC` resolved** (`tools/port/flatten_pc.py`): 3,105 conditional groups in 963 files as if `TARGET_PC`
+   were defined, and 79 uses of PC_SPIN, PC_IDLE, PC_ONLY and N64_ONLY unwrapped to their PC expansion. Proved by the
+   preprocessor: all 2,721 units of compile_commands.json give the base's token stream under `gcc -E -P`. `TARGET_PC`
+   is no longer defined; nothing tests it. The scripts that wrote `#ifdef TARGET_PC` blocks (ptr64_*.py,
+   view_pads.py) went.
+3. **One definition per function** (`tools/port/drop_copies.py`): the 803 weak copies of 332 functions out, the
+   one the program linked kept (a declaration left where the file still calls it); the 33 stand-in callers nothing
+   called; 62 file-static copies whose -O0 code is a global's replaced by calls to it; the 227 files that then
+   defined nothing; gen_weak.py, the probe, weak_copies_check.py and `manifest/` (its assembly-routine table is
+   `port/data/asm_functions.txt`). Two data declarations only weak copies made had decided the data loader's layout
+   (the audio queue D_801427A8's host storage, the drag table D_8011121C's extent); the live files declare them now,
+   and data.c's tables are the base's but for names only the removed code used.
+
+`src/` went from 1,349 files and 1,688,920 lines to 1,068 files and 1,451,803 lines. Left for wave 2: the 246
+file-scope macros that had an N64 side (N64P, N64W, SLOT_DATA, PC_CMD_SEND ...), now single PC definitions; global
+functions that are copies of each other under other names (rand: func_8008B2B4 and wod_rand; ZOID_SetColor:
+func_8008E06C, di_setButtonColor, op_ZOID_SetColorP ...); the file-static copies that differ from every global; the
+headers nothing includes (include/game/*.h but nine, game_types.h, game_globals.h, macros.h).

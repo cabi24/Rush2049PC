@@ -12,7 +12,7 @@
  *   PATH 0x44   the points a PTHD record's pts reaches, 17 x 32 bits each
  * The pointer fields among them (displayList, vtxList, texBase, palBase, trigPtr, pts, parent) are offsets in the
  * file: SetupWaveModel adds the file's or the IMAG chunk's address, so on PC they become 32-bit RDRAM-window
- * addresses, valid host pointers once widened (the game views declare them u32 under TARGET_PC).
+ * addresses, valid host pointers once widened (the game's views declare them u32).
  *
  * Everything else stays big-endian: the TXLD texture-load lists, the model display lists and their Vtx, IMAG
  * texels and TLUTs. port/gfx reads them in N64 form, and the game's own walkers (entity_lod_select,

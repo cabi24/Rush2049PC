@@ -103,6 +103,9 @@ zero-size files.
 
 ### 3.1 Techniques (all N64-neutral)
 
+Made while the C also built the N64 ROM (until 2026-11-08, [PCONLY.md](PCONLY.md)): the `#else` branches and the
+N64 typedefs are gone since, and the PC side of each is the code.
+
 | Technique | When | Example |
 |---|---|---|
 | `s32` → `intptr_t`, `u32` → `uintptr_t` | an integer that carries a pointer: parameter, declaration, local, struct field or data symbol. The files' guarded typedefs make it the same type for IDO, so no `#ifdef` | `func_800B4DA4(intptr_t arg0)` |

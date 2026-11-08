@@ -1,5 +1,9 @@
 # The matching ceiling
 
+*History: the N64 build this page describes was dropped on 2026-11-08 ([port/PCONLY.md](port/PCONLY.md)), with the
+assembly and the drafts the PC never compiled. The identities below stay as evidence for names;
+[`nonmatching/README.md`](../nonmatching/README.md) says where each function's C is now.*
+
 The ROM is byte-identical, but not every function in it is built from C. This page lists the functions that are
 not, why, and where their best C drafts are. Every function here is built from its retail assembly
 (`asm/us/blob`, `asm/us/ovl_a`, `asm/us/ovl_b`) and is **not counted as matched**; the drafts in

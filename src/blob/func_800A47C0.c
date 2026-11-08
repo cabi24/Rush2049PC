@@ -1,9 +1,5 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
 void *func_800A47C0(void *dst, const void *src, u32 n) {
     char *d = (char *)dst;
     const char *s = (const char *)src;

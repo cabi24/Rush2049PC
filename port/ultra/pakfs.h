@@ -50,7 +50,7 @@ typedef struct {
     uint32_t id[2];             /* the player's id words (the profile's +4, the ghost's playerId) */
 } PcNoteInfo;
 
-/* The save code's checksum (format_string_parse, src/blob/groups/save_option/hash_a80.c): the same bytes give the
+/* The save code's checksum (format_string_parse, src/blob/groups/hash/group.c): the same bytes give the
  * same word as the game's. */
 uint32_t pc_save_hash(const uint8_t *data, uint32_t size);
 void pc_note_info(const PcNote *note, PcNoteInfo *info);

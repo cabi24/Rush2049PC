@@ -40,7 +40,6 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     void *Name, *Image, *Info;
@@ -61,36 +60,13 @@ typedef struct Blit {
     intptr_t AnimDTA;   /* the AnimFunc slot */
     u32 AnimID;
 } Blit;
-#else
-typedef struct Blit {
-    /* 0x00 */ char pad0[0xE];
-    /* 0x0E */ s16 X;
-    /* 0x10 */ s16 Y;
-    /* 0x12 */ s16 pad12;
-    /* 0x14 */ s16 Width;
-    /* 0x16 */ s16 Height;
-    /* 0x18 */ u8 pad18[2];
-    /* 0x1A */ s8 Hide;
-    /* 0x1C */ s16 Top;
-    /* 0x1E */ s16 Bot;
-    /* 0x20 */ s16 Left;
-    /* 0x22 */ s16 Right;
-    /* 0x24 */ s32 pad24;
-    /* 0x28 */ s32 AnimDTA;
-    /* 0x2C */ u32 AnimID;
-} Blit;
-#endif
 
 typedef struct {
     /* 0x000 */ char pad0[0xEF];
     /* 0x0EF */ s8 unkEF;
     /* 0x0F0 */ char padF0[0x18];
     /* 0x108 */ f32 distance;
-#ifdef TARGET_PC
     /* 0x10C */ char pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; char pad10C_308[0x380 - 0x308]; void *input; char pad10C_384[0x3B8 - 0x384];
-#else
-    /* 0x10C */ char pad10C[0x2AC];
-#endif
 } Car; /* 0x3B8 */
 
 typedef struct {
@@ -104,19 +80,8 @@ typedef struct {
     s32 y;
 } Pos;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_F108(i) D_80152818[i].distance
-#define PC_CAR_FINISHED(i) D_80152818[i].unkEF
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL_SLOT(i) D_8014A250[i].unk7C6
-#endif
 extern s8 D_80146111;
 extern s16 gNumWindows;
 extern s32 D_8014A110;

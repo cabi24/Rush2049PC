@@ -482,7 +482,6 @@ typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopSt
 
 /* A sequence slot as the game lays it out on the PC (include/sequence_context.h, which every view of a slot in
  * lib_17dc0.c follows), with the header's storage names moved out of the way of this test's own. */
-#define TARGET_PC 1
 #define D_80043EB0 header_D_80043EB0
 #define D_80043EB8 header_D_80043EB8
 #define D_8004BE80 header_D_8004BE80
@@ -496,7 +495,6 @@ typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopSt
 #undef D_8004BE78
 #undef D_8004BE7C
 #undef D_8004F808
-#undef TARGET_PC
 
 /* The boot library's storage these units use (gen_bss defines it in the game). */
 #define STORAGE(name, bytes) unsigned char name[bytes] __attribute__((aligned(16)))

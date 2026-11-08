@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,7 +3787,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: a ZOID window (D_8017A510) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
  * 10); the m2c body uses the N64 stride and offsets. Reads window arg6's fog range and colour. */
 typedef struct { void *first, *bounds; u8 pad08[0x40 - 8]; u16 range_start, range_end; u8 red, green, blue, alpha; }
@@ -3815,16 +3801,3 @@ void func_800A7428(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5,
   *arg4 = w->blue;
   *arg5 = w->alpha;
 }
-#else
-void func_800A7428(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5, s32 arg6)
-{
-  void *temp_v0;
-  temp_v0 = (arg6 * 0x48) + (&D_8017A510);
-  *arg0 = *((u16 *) (((s8 *) temp_v0) + 0x40));
-  *arg1 = *((u16 *) (((s8 *) temp_v0) + 0x42));
-  *arg2 = *((u8 *) (((s8 *) temp_v0) + 0x44));
-  *arg3 = *((u8 *) (((s8 *) temp_v0) + 0x45));
-  *arg4 = *((u8 *) (((s8 *) temp_v0) + 0x46));
-  *arg5 = *((u8 *) (((s8 *) temp_v0) + 0x47));
-}
-#endif

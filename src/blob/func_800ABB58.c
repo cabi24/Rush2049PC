@@ -12,10 +12,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -445,20 +441,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3703,12 +3690,8 @@ typedef s64 M2C_UNK64;
 #endif
 
 typedef struct { u8 *ptr; s32 count; } ABBEnt;
-#ifdef TARGET_PC
 /* PC: gRomObjDefPtrs entries are {model *, s32}, 16 bytes; the model records keep their N64 layout. */
 #define ABB_STRIDE sizeof(ABBEnt)
-#else
-#define ABB_STRIDE 8
-#endif
 f32 func_800ABB58(s32 arg0) {
     s32 idx;
     s32 sub;

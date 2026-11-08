@@ -15,39 +15,22 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
-#ifdef TARGET_PC
 typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x3A3 - 0x384]; s8 remaining; u8 unknown3A4[0x14]; } Player;
-#else
-typedef struct Player { u8 unknown000[0x3A3]; s8 remaining; u8 unknown3A4[0x14]; } Player;
-#endif
 typedef struct Event {
     s8 active, age, column, row;
     f32 from_x, from_y, to_x, to_y;
     s8 delta;
     u8 unknown15[3];
 } Event;
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct Texts { char *before108[108 / 4]; char *same_player; char *other_player; } Texts;
-#else
-typedef struct Texts { u8 before108[108]; char *same_player; char *other_player; } Texts;
-#endif
 typedef struct LanguageState { s32 unknown0; Texts *texts; } LanguageState;
-#ifdef TARGET_PC
 /* PC: the data is the player's profile record (save.c's SaveSlot), 64 bytes, its name at +0x20 (PROFILE_OFS,
  * docs/port/POINTERS.md 9.10). */
 typedef struct NameData { u8 before_name[0x20]; char name[1]; } NameData;
-#else
-typedef struct NameData { u8 before_name[20]; char name[1]; } NameData;
-#endif
 typedef struct NameRef { NameData *data; } NameRef;
 typedef struct PlayerInfo { NameRef *name_ref; u8 unknown04[72]; } PlayerInfo;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR_POINTS(i) D_80152818[i].remaining
-#endif
 extern Event D_80395E70[4];
 extern s16 D_8014A108, D_80151AD0;
 extern s32 D_803940D0[4][4][2], D_80115F28[4][4][2];
@@ -65,10 +48,6 @@ extern void dispatch_handler(s32);
 extern void state_utility(s16, s16, void *);
 extern void camera_auto_follow(s16, s16, s16, s16, s16, s16, u8 *);
 extern void func_800F7E30(s8, s8, s8);
-
-#ifndef TARGET_PC
-#define PC_EACH30(stmt) stmt   /* PC: game.frame_rate 60, once a 30 Hz frame (pc_game_fps.h) */
-#endif
 
 s32 func_803936A8(void *callback_context)
 {

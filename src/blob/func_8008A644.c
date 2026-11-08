@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3796,7 +3783,6 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
-#ifdef TARGET_PC
 /* PC: the same G_SETPRIMDEPTH with host Gfx (16-byte commands); D_80149438 holds a Gfx pointer. */
 void func_8008A644(unsigned short arg0)
 {
@@ -3811,18 +3797,3 @@ void func_8008A644(unsigned short arg0)
   }
   func_800878E0(0x10);
 }
-#else
-void func_8008A644(unsigned short arg0)
-{
-  s32 temp_v1;
-  if ((u16) D_8012E67A != arg0)
-  {
-    temp_v1 = D_80149438;
-    D_80149438 = temp_v1 + 8;
-    if (arg0 << 0x10) {}
-    *((s32 *) (temp_v1 + 0x0)) = 0xEE000000;     *((s32 *) (temp_v1 + 0x4)) = (s32) ((((u32) arg0 & 0xFFFF) << 0x10) | 0);
-    D_8012E67A = arg0;
-  }
-  func_800878E0(0x10);
-}
-#endif

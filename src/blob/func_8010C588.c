@@ -20,11 +20,7 @@ typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct GameCar {
     u8 pad0[8];
     f32 RWR[3];             /* 0x08 */
-#ifdef TARGET_PC
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
-#else
-    u8 pad14[932];
-#endif
 } GameCar;                  /* 0x3B8 */
 
 typedef struct ModelDat {
@@ -33,18 +29,8 @@ typedef struct ModelDat {
     u8 pad7EB[0x808 - 0x7EB];
 } ModelDat;                 /* 0x808 */
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[];
-#define PC_CARS player_array
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern ModelDat D_8014A250[];
-#define PC_MODEL_COLLIDABLE(i) D_8014A250[i].collidable
-#endif
 
 s32 func_8010C588(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
 {

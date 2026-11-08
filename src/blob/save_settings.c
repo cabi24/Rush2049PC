@@ -14,20 +14,12 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef s32 OSId;
 typedef struct OSThread OSThread;
 
 extern s16 gNumWindows;
-#ifdef TARGET_PC
 extern struct pc_multiblit D_80116DBC[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
-#else
-extern s32 D_80116DBC;
-#endif
 
 extern intptr_t sound_control(s16 arg0, s16 arg1, void *arg2, s16 arg3);
 extern void sound_stop(intptr_t sound_id);

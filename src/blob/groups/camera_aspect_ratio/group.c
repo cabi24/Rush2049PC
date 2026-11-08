@@ -34,10 +34,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -70,7 +66,6 @@ typedef f32 Mat4f[4][4];
 typedef f32 MtxF[4][4];
 struct OSPfs;
 /* : camera structures (hand-derived from the retail words) */
-#ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function (w0C)
  * are pointers. A camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a
  * track WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
@@ -96,44 +91,17 @@ typedef struct CamTbl {
     s32 s28;
     f32 f2C;
 } CamTbl;
-#else
-typedef struct CamTbl {          /* D_80117530[], 0x30 bytes */
-    u8 pad00[0xC];
-    s32 w0C;
-    s16 mode;                    /* 0x10 */
-    s16 s12;
-    s16 s14;
-    s16 s16_;
-    s32 s18;
-    s32 trackA;                  /* 0x1C */
-    s32 s20;
-    s32 trackB;                  /* 0x24 */
-    s32 s28;
-    f32 f2C;
-} CamTbl;
-#endif
 extern CamTbl D_80117530[];
-#ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Camera: (struct Camera *)PC_N64P(x), enum n64p_CamCtl: (struct CamCtl *)PC_N64P(x), enum n64p_CamScene: (struct CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 typedef struct CamNode {         /* pool entry from func_80090284 */
     struct CamNode *next;        /* 0x00 */
     s16 s04;
     u8 pad06[6];
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     enum n64p_Camera cam;        /* 0x0C: the camera's window address */
     f32 f10;                     /* 0x10 */
     void *w14;
-#else
-    struct Camera *cam;          /* 0x0C */
-    f32 f10;                     /* 0x10 */
-    s32 w14;
-#endif
 } CamNode;
 struct Camera;
 struct CamCtl;
@@ -147,7 +115,6 @@ typedef struct CamKey {          /* 0x44 bytes */
     f32 f3C;
     s32 flags;                   /* 0x40 */
 } CamKey;
-#ifdef TARGET_PC
 typedef struct CamScene {
     u8 pad00[0x10];
     s32 flags;                   /* 0x10 */
@@ -159,19 +126,6 @@ typedef struct CamScene {
 } CamScene;
 typedef struct CamCtl {
     enum n64p_CamScene scene;    /* 0x00 */
-#else
-typedef struct CamScene {
-    u8 pad00[0x10];
-    s32 flags;                   /* 0x10 */
-    s16 count;                   /* 0x14 */
-    s16 id;                      /* 0x16 */
-    struct CamScene *link;       /* 0x18 */
-    CamKey *keys;                /* 0x1C */
-    struct CamCtl *cur;          /* 0x20 */
-} CamScene;
-typedef struct CamCtl {
-    CamScene *scene;             /* 0x00 */
-#endif
     f32 t;                       /* 0x04 */
     u8 pad08[4];
     s16 idx;                     /* 0x0C */
@@ -184,15 +138,10 @@ typedef struct CamCtl {
 typedef struct Camera {
     u8 pad00[4];
     u8 flags;                    /* 0x04 */
-#ifdef TARGET_PC
     /* PC: the slot is the low half of the camera node's handle (an s32 at +0xC), at +0xC on a little-endian
      * host, not +0xE: the view reads the word (docs/port/POINTERS.md 10). */
     u8 pad05[7];
     s32 slot;                    /* 0x0C */
-#else
-    u8 pad05[9];
-    s16 slot;                    /* 0x0E */
-#endif
     s16 tbl;                     /* 0x10 */
     u8 pad12[2];
     f32 m[3][3];                 /* 0x14 */
@@ -207,11 +156,7 @@ typedef struct Camera {
     s8 state;                    /* 0x64 */
     s8 s65;
     u8 pad66[6];
-#ifdef TARGET_PC
     enum n64p_CamCtl ctl;        /* 0x6C */
-#else
-    CamCtl *ctl;                 /* 0x6C */
-#endif
 } Camera;
 extern u8 rspbootTextStart[], rspbootTextEnd[];
 extern u8 gspF3DEX2_fifoTextStart[], gspF3DEX2_fifoTextEnd[];
@@ -611,29 +556,15 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[8];
-#define PC_CARS &player_array
-#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -2229,12 +2160,8 @@ extern s32 D_8012E6D0;
 extern s32 D_8012E6D8;
 extern f32 D_8012E6E8;
 extern s32 D_8012E6F8;
-#ifdef TARGET_PC
 /* the 0x44-byte node table: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
 extern s32 D_8012E700[];
-#else
-extern s32 D_8012E700;
-#endif
 extern s32 D_8012E708;
 extern f32 D_8012E70C;
 extern f32 D_8012E710;
@@ -4167,23 +4094,12 @@ void camera_track_spline(Camera *cam) {
  * not kept) so that the stub remains.  Its two parameters give retail's v0/v1 pair; with its two
  * locals it reserves the four frame slots per call site that both callers' frames need.
  */
-#ifdef TARGET_PC
 /* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's
  * model id (N64 +0x14, D_8012E714 of node 0). */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
 void func_800C15FC(s32 slot, u16 v) {
     ((PcNode *) &D_8012E700)[slot].model = v;
 }
-#else
-void func_800C15FC(s32 slot, u16 v) {
-    u8 *base;
-    u16 *p;
-
-    base = (u8 *) &D_8012E714;
-    p = (u16 *) (base + slot * 0x44);
-    *p = v;
-}
-#endif
 
 /*
  * camera_process_input(cam): first-frame set-up of a scripted camera.  state = 2; unless already started
@@ -4599,25 +4515,9 @@ block_99:
 }
 
 /* stand-in caller: keeps camera_aspect_ratio out of line under -O3 */
-void __standin_camera_aspect_ratio(void)
-{
-    camera_aspect_ratio(0);
-}
 
 /* stand-in caller: keeps camera_fov_control out of line under -O3 */
-void __standin_camera_fov_control(void)
-{
-    camera_fov_control(0);
-}
 
 /* stand-in caller: keeps camera_free_look out of line under -O3 */
-void __standin_camera_free_look(void)
-{
-    camera_free_look(0);
-}
 
 /* stand-in caller: keeps camera_look_at_point out of line under -O3 */
-void __standin_camera_look_at_point(void)
-{
-    PlayMoveSound(0);
-}

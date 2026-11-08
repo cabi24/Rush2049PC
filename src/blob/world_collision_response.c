@@ -28,17 +28,9 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef unsigned long long u64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef void *OSMesg;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
-#ifdef TARGET_PC
 typedef struct { u32 w0; uintptr_t w1; } Gwords;
-#else
-typedef struct { u32 w0, w1; } Gwords;
-#endif
 typedef union { Gwords words; long long force_structure_alignment; } Gfx;
 #define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (uintptr_t)(s); }
 #define gSPDisplayList(pkt, dl) gDma1p_(pkt, 0xDE000000, dl)
@@ -70,17 +62,11 @@ typedef struct OSScTask {
     OSTask_t t;             /* 0x10 */
     OSMesgQueue *msgQ;      /* 0x50 */
     OSMesg msg;             /* 0x54 */
-#ifdef TARGET_PC
     void *pad58;            /* the DL base pointer (other views) */
-#else
-    u8 pad58[4];
-#endif
     u8 doneMsg[0x7C - 0x5C];/* 0x5C */
     void *buffer;           /* 0x7C */
 } Frame;                    /* 0x80 */
-#ifdef TARGET_PC
 typedef char pc_frame_size_check[(sizeof(Frame) == 0xD0 && __builtin_offsetof(Frame, pad58) == 0xA0) ? 1 : -1];
-#endif
 
 extern Gfx *D_801497C8;             /* display-list cursor (msgq_ptr) */
 extern volatile s8 D_8015F72D;               /* current frame record */
@@ -88,18 +74,12 @@ extern Frame D_80156BE0[];
 extern Gfx *D_80156BA8;
 extern s32 D_80156BCC;
 extern intptr_t D_80149438;
-#ifdef TARGET_PC
 /* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
  * its list pc_frame_pools checks the list, the frame's matrices (D_8015B260) and its lookats, which the SDK's empty
  * `if` didn't: a Debug build stops when one ran past its end (docs/port/MORECARS.md 8). */
 #define GLIST_LEN PC_GLIST_LEN
 #define PC_FRAME_OVER pc_frame_pools(D_8015B250, D_801497C8, D_8015B260)
 extern u8 *D_8015B260;
-#else
-#define GLIST_LEN 4000
-#define PC_GLIST_OFFSET 0x9CC0
-#define PC_FRAME_OVER D_801497C8 > &D_8015B250->glist[GLIST_LEN]
-#endif
 typedef struct {
     u8 pad[PC_GLIST_OFFSET];
     Gfx glist[GLIST_LEN];
@@ -117,16 +97,12 @@ extern s16 D_8002EB70;
 extern volatile s32 D_8002EB98;
 typedef struct { u8 pad[636]; s32 frameCount; } Sched;
 extern volatile Sched D_8002E8E8;
-#ifdef TARGET_PC
 /* PC, game.frame_rate 60 (docs/port/FRAMERATE.md 7): the frame's task waits in the scheduler's task queue until a
  * message on its command queue wakes it (__scMain, 670: schedule). In real time on the PC the RSP finishes the
  * retrace's audio task at once, before the frame is done, so the next message was the next retrace: the frame's
  * task ran a retrace late and was shown two after the frame began, every frame. At 60 the frame's task wakes the
  * scheduler itself, as the audio task's sender does (func_8010FBE0). Original keeps the N64's messages. */
 extern OSMesgQueue D_8002E928;
-#else
-#define PC_ONLY(stmt)
-#endif
 void world_velocity_integrate(s32);
 Gfx *audio_start(void);
 void osStopThread(void *);
@@ -175,6 +151,6 @@ void world_collision_response(void)
     osStopThread(D_8002E998);
     D_8002EB70++;
     osStartThread(D_8002E998);
-    osSendMesg(&D_8002E960, f, 1); PC_ONLY(if (pc_fps60) osSendMesg(&D_8002E928, (OSMesg)670, 0);)
+    osSendMesg(&D_8002E960, f, 1); if (pc_fps60) osSendMesg(&D_8002E928, (OSMesg)670, 0);
     D_8002EB98 = D_8002E8E8.frameCount;
 }

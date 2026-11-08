@@ -41,7 +41,6 @@ typedef struct Motion {
     f32 vel[3];
 } Motion;
 
-#ifdef TARGET_PC
 /* PC: a target (a level-object node) keeps its N64 layout; its state, the cone's motion, is a heap record of its
  * category, held as a 32-bit window address (docs/port/POINTERS.md 10). */
 enum n64p_Motion { n64p_Motion_ };
@@ -62,27 +61,7 @@ typedef struct Obj {
     u8 pad5D[108 - 93];
     enum n64p_Motion motion;
 } Obj;
-#else
-typedef struct Obj {
-    u8 pad0[4];
-    u8 flags;
-    u8 pad5[7];
-    s32 model;
-    s16 type;
-    u8 pad12[2];
-    f32 pos[3];
-    u8 pad20[56 - 32];
-    u8 f56[12];
-    u8 f68[12];
-    s16 kind;
-    u8 pad52[92 - 82];
-    s8 car;
-    u8 pad5D[108 - 93];
-    Motion *motion;
-} Obj;
-#endif
 
-#ifdef TARGET_PC
 /* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
  * (docs/port/POINTERS.md 10). */
@@ -99,32 +78,13 @@ typedef struct ObjType {
     s32 w20, w24, w28;
     f32 f2C;
 } ObjType;
-#else
-typedef struct ObjType {
-    u8 pad0[12];
-    s32 f12;
-    u8 pad10[4];
-    s16 id;
-    u8 pad16[6];
-    s32 f28;
-    u8 pad20[48 - 32];
-} ObjType;
-#endif
 
 typedef struct Car {
     u8 pad0[20];
     f32 vel[3];
-#ifdef TARGET_PC
     u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x35F - 0x308];
-#else
-    u8 pad20[863 - 32];
-#endif
     u8 f863;
-#ifdef TARGET_PC
     u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
-#else
-    u8 pad360[952 - 864];
-#endif
 } Car;
 
 typedef struct Lap {
@@ -133,7 +93,6 @@ typedef struct Lap {
     u8 pad641[2056 - 1601];
 } Lap;
 
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Node {
     struct Node *next;
@@ -143,39 +102,14 @@ typedef struct Node {
     f32 f16;
     void *f20;
 } Node;
-#else
-typedef struct Node {
-    struct Node *next;
-    s16 f4;
-    u8 pad6[6];
-    Obj *obj;
-    f32 f16;
-    s32 f20;
-} Node;
-#endif
 
-#ifdef TARGET_PC
 #define N64P(x) _Generic((x), enum n64p_Motion: (Motion *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern s8 D_8013FECD;
 extern s8 D_8013FECC;
 extern ObjType D_80117530[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Lap D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern Node *D_801391F0;
 
 void model_data_load(s32, s32, s32);

@@ -27,12 +27,8 @@ typedef struct TexDef TexDef;
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad40[4]; } Ent;
-#else
-typedef struct { u8 pad0[60]; u32 color; u8 pad40[4]; } Ent;                                 /* 0x44 */
-#endif
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
 typedef struct { s32 x, w, h, cx; } MenuRect;
@@ -45,12 +41,8 @@ extern char *D_8011A970[];                 /* buttonNames */
 extern Ent D_8012E700[];
 extern volatile u8 gNumModels;
 extern f32 D_8011418C[3][3];               /* unitmatrix */
-#ifdef TARGET_PC
 extern const struct pc_multiblit D_8011ACA0[2], D_8011ACE8[2];   /* frontEndBlit, pauseBlit: two blits each, as
                                          * NewMultiBlit gets them (the second ran past a one-blit table) */
-#else
-extern const MultiBlit D_8011ACA0, D_8011ACE8;   /* frontEndBlit, pauseBlit */
-#endif
 extern Blit *D_8011AD34;                   /* blit */
 extern s32 D_8011AC94, D_8011AC98;         /* buttonsInited, buttonsJustInited */
 extern s8 D_80146108[];                    /* gOptions */

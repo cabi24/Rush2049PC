@@ -32,14 +32,9 @@ extern u32 HAL_GetCharWidth(u16 ch);             /* HAL_GetCharWidth */
 extern u32 object_manager_update(void *text, s16 numChars);  /* HAL_GetTextWidth */
 extern void menu_input_process(void *text, s16 numChars);    /* HAL_DrawText */
 
-s8 func_800BDEB0(void) {
-    return D_80149B70;
-}
+s8 func_800BDEB0(void);
 
-void func_800B70EC(s16 x, s16 y) {
-    if (x != -32768) D_80149D92 = x;
-    if (y != -32768) D_80149D9E = y;
-}
+void func_800B70EC(s16 x, s16 y);
 
 void camera_auto_follow(s16 x, s16 y, s16 width, s16 height, s16 page, s16 line, void *text)
 {

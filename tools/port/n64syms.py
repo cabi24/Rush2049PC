@@ -1,6 +1,6 @@
 """Shared helpers for the PC port tools: the decompilation's symbol file, N64 memory regions, nm output.
 
-Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py, gen_weak.py and gen_data.py.
+Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py and gen_data.py.
 """
 import json
 import re
@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The four images whose data the PC build fills from the ROM (tools/extract_rom.py, docs/memory_map.md):
+# The four images whose data the PC build fills from the ROM (docs/memory_map.md):
 # name, how it is stored, ROM offset, stored length, image size, N64 base. "raw" is a plain copy (the boot
 # segment tail); "deflate" a raw DEFLATE stream.
 IMAGES = [

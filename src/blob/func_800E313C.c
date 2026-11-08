@@ -2,13 +2,9 @@
 typedef signed char s8; typedef signed short s16; typedef signed int s32; typedef unsigned char u8; typedef float f32;
 #define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
 extern f32 D_80110EBC[][6];
-#ifdef TARGET_PC
 /* PC: the model record keeps its N64 layout; its descriptor (+0) and tune (+4) pointers are u32 window
  * addresses (docs/port/CARS.md). */
 #define M2C_N64P(e, o) ((void *) PC_N64P(M2C_FIELD(e, unsigned int *, o)))
-#else
-#define M2C_N64P(e, o) M2C_FIELD(e, void **, o)
-#endif
 void func_800E313C(void *arg0, f32 arg1, f32 arg2) {
     M2C_FIELD(arg0, s16 *, 0x3F4) = 1;
     if (M2C_FIELD(arg0, s16 *, 0x3F4) < 4) {

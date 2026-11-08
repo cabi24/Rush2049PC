@@ -35,42 +35,15 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
 typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
-#else
-typedef struct Visual { u8 opaque0[4]; s16 index, object, slot, opaque10; u32 flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
-#endif
 typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[966]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
-#ifdef TARGET_PC
 typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
-#else
-typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[624]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
-#endif
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Model68 { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
-#else
-typedef struct Model68 { u32 flags; u8 opaque4[64]; } Model68;
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model2056 D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_INPUT_AS(T, i) player_array[i].pose
-#endif
 extern Model68 D_8012E700[];
 extern f32 D_8011B4B4[][3];
 extern f32 D_8011418C[9];
@@ -104,11 +77,7 @@ s32 matrix_scale_apply(Visual *v, s32 show, s32 part);
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
  * between one frame and two, so the steps keep the N64's 30 a second. */
-#ifdef TARGET_PC
 #define PC_GAP30(x) (pc_fps60 ? (x) * 2.0f : (x))
-#else
-#define PC_GAP30(x) x
-#endif
 __inline void tire_sound_on(Model2056 *model)
 {
     model->sound = entity_flags_apply(61, model->player, 2, 2);

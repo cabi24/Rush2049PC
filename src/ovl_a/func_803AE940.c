@@ -18,10 +18,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct Blit {
     char *Name; void *Image; void *Info;
     s16 TexIndex, X, Y; u16 State;
@@ -36,12 +32,8 @@ typedef struct ResourceTables {
     u16 count0; u32 *ptrs0; u16 count1, count2;
     ResourceIndices *indices; char **strings;
 } ResourceTables;
-#ifdef TARGET_PC
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Texture { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } Texture;
-#else
-typedef struct Texture { char pad[21]; u8 flags; char tail[10]; } Texture;
-#endif
 extern s32 D_803B7714;
 extern s16 D_803BA878, D_803BA898, D_803BA85A, D_803BA8B0[];
 extern s8 D_803BA908;

@@ -21,7 +21,6 @@ extern void func_8038D1A8(void);
 /* Same qualified view as both accepted lookup implementations; noncausal here. */
 extern volatile u8 D_80140BDC;
 extern s16 D_80394F88;
-#ifdef TARGET_PC
 /* PC: the list headers have the StatLL host layout (40 bytes) and the element arrays their elements' host layout,
  * shots.c's Shot (104 bytes on the N64, 120 here), HitPoly (8, 16), ShotObj (60, 72) and ShotCase (72, 80), which
  * are linked through their first pointer. These declarations give them that storage (gen_data), and the lists the
@@ -38,11 +37,6 @@ extern PcHitPoly D_8039A538[24];
 extern PcShotObj D_8039AE98[24];
 extern PcShotCase D_8039A610[30];
 #define ELEMENT_SIZE(n64, type) sizeof(type)
-#else
-extern u8 D_8039A520[], D_80399B60[], D_8039A5F8[], D_8039A538[];
-extern u8 D_80394F70[], D_8039AE98[], D_8039AE80[], D_8039A610[];
-#define ELEMENT_SIZE(n64, type) n64
-#endif
 extern char *D_803942EC[10], *D_80394314[7];
 extern char *D_80394330[5], *D_80394344[5];
 extern s32 D_80399B18[10], D_80399B40[7];

@@ -13,22 +13,13 @@ typedef struct ReplayStream {
     u8 pad6[0x34 - 6];
     f32 dt;
     u8 pad38[0x4C - 0x38];
-#ifdef TARGET_PC
     u32 data;           /* a heap block (the window): the ghost header keeps its N64 layout, file data */
-#else
-    u8 *data;
-#endif
     u32 pos;
     u32 count;
 } ReplayStream;
-#ifdef TARGET_PC
 /* PC: a ghost's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10): its header handle at +56 */
 typedef struct ReplayOwner { void *ll; void **fileh; u8 pad10[0x24 - 0x08]; void **datah; ReplayStream **stream; } ReplayOwner;
 #define DATA(s) ((u8 *)PC_N64P((s)->data))
-#else
-typedef struct ReplayOwner { u8 pad0[0x28]; ReplayStream **stream; } ReplayOwner;
-#define DATA(s) s->data
-#endif
 typedef struct ReplaySlot { ReplayOwner *owner; } ReplaySlot;
 typedef struct Model {
     u8 pad0[0x720];
@@ -41,33 +32,14 @@ typedef struct Model {
     s8 flagA;
     u8 pad733[0x808 - 0x733];
 } Model;
-#ifdef TARGET_PC
 typedef struct Car { u8 pad0[239]; s8 locked; u8 pad1[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad1_308[0x380 - 0x308]; void *input; u8 pad1_384[0x3B8 - 0x384]; } Car;
-#else
-typedef struct Car { u8 pad0[239]; s8 locked; u8 pad1[952 - 240]; } Car;
-#endif
 
 extern f32 D_8002AFB8;
 extern volatile s8 D_80114738;
 extern ReplaySlot *D_80152698[];
 extern s32 D_80143FF4;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL_BRAKE(i) D_8014A250[i].brake
-#define PC_MODEL_FLAG_A(i) D_8014A250[i].flagA
-#define PC_MODEL_FLAG_B(i) D_8014A250[i].flagB
-#define PC_MODEL_GAS(i) D_8014A250[i].gas
-#define PC_MODEL_GEAR(i) D_8014A250[i].gear
-#define PC_MODEL_STEER(i) D_8014A250[i].steer
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].locked
-#endif
 
 #define ABS(x) ((x) >= 0 ? (x) : -(x))
 

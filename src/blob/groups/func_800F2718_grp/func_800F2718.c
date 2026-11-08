@@ -2,19 +2,11 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct {
     u8 pad00[4];
     s32 unk04;
-#ifdef TARGET_PC
     u8 pad08[0x48 - 0x8]; void *ref;
-#else
-    u8 pad08[0x4C - 8];
-#endif
 } InputRecord;
 
 extern s16 active_player_count;
@@ -34,53 +26,7 @@ void sound_stop(s32 arg0);
 extern s8 *codePane;
 extern s8 *D_80149798[3];
 
-void SetHighScoreState(s32 mode)
-{
-    s32 i;
-
-    if (mode == gHighScoreState) {
-        return;
-    }
-    if (D_801148CC != 0) {
-        sound_stop(D_801148CC);
-        D_801148CC = 0;
-    }
-    switch (gHighScoreState) {
-    case 1:
-        for (i = 0; i < active_player_count; i++) {
-            if (namePanes[i] != 0) {
-                RemovePane(namePanes[i]);
-                namePanes[i] = 0;
-            }
-        }
-        break;
-    case 2:
-        if (codePane != 0) {
-            RemovePane(codePane);
-            codePane = 0;
-        }
-        break;
-    case 3:
-        for (i = 0; i < 3; i++) {
-            if (D_80149798[i] != 0) {
-                RemovePane(D_80149798[i]);
-                D_80149798[i] = 0;
-            }
-        }
-        break;
-    case 4:
-        for (i = 0; i < active_player_count; i++) {
-            sound_stop(i);
-            resource_type_select(i);
-        }
-        break;
-    case 5:
-        sound_stop(5);
-        resource_type_select(7);
-        break;
-    }
-    gHighScoreState = mode;
-}
+void SetHighScoreState(s32 mode);
 
 void func_800F2718(void)
 {
@@ -115,7 +61,3 @@ void func_800F2718(void)
     }
 }
 
-void __standin_a(void) { func_800F2718(); }
-void __standin_b(void) { func_800F2718(); }
-void __standin_c(void) { SetHighScoreState(1); }
-void __standin_d(void) { SetHighScoreState(4); }

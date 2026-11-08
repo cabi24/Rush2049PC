@@ -27,9 +27,10 @@ No ROM bytes are read here or written into the build.
    layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at the
    matching host offsets. Where declarations overlap in an arena at other element widths (bytes included), the
    most informative one decides and the rest are reported.
-4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the matching build links
+4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the N64 build linked
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
-   address (layout/*.json, the symbol file) go in a table, through weak references, so the loader can turn N64
+   address (layout/*.json, the symbol file, port/data/asm_functions.txt) go in a table, through weak references, so
+   the loader can turn N64
    function pointers into host ones; the game's data defined in C is listed the same way.
 5. Names the game calls under another label of a defined function (audio_dma_sync = AllocateMemoryHeap) get a
    branch thunk.
@@ -1120,9 +1121,10 @@ def generate(a):
     entries = []
     for img in ("game", "ovl_a", "ovl_b"):
         entries += [(addr, name, img) for addr, name in n64syms.load_layout_functions(img, root)]
-    static = json.loads((root / "manifest" / "static.json").read_text())
-    for name, info in static["asm"].items():
-        entries.append((int(info["vaddr"], 16), name, "boot"))
+    for line in (root / "port" / "data" / "asm_functions.txt").read_text().splitlines():
+        f = line.split("#", 1)[0].split()
+        if f:   # NAME ADDRESS: the boot code's hand-written assembly routines
+            entries.append((int(f[1], 16), f[0], "boot"))
     for name, (addr, kind, _) in symfile.items():
         if kind == "func" and n64syms.CODE["boot"][0] <= addr < n64syms.CODE["boot"][1]:
             entries.append((addr, name, "boot"))

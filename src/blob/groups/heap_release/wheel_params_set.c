@@ -19,10 +19,6 @@
 typedef signed char s8;
 typedef unsigned char u8;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
 
 typedef struct List16 { u8 indirect, doubly, pad2[2]; u32 count; void *head, *tail; } List16;
 typedef struct OSMesgQueue OSMesgQueue;
@@ -30,49 +26,26 @@ typedef struct OSMesgQueue OSMesgQueue;
 extern volatile s8 D_8011028C;
 extern s8 D_80110284;
 extern volatile List16 D_80146160;
-#ifdef TARGET_PC
 extern uintptr_t D_80144C48;
 extern uintptr_t D_80146100;
-#else
-extern u32 D_80144C48, D_80146100;
-#endif
 extern char D_80152770[];
 int osRecvMesg(OSMesgQueue *, void **, int);
 int osSendMesg(OSMesgQueue *, void *, int);
 void audio_reverb_update(u32 address, int tag);
 void func_800958B8(void);
 
-void func_80095CF4(void)
-{
-    osRecvMesg((OSMesgQueue *)D_80152770, 0, 1);
-}
+void func_800960CC(u32 address);
 
-void func_80095CFC(void)
-{
-    osSendMesg((OSMesgQueue *)D_80152770, 0, 0);
-}
-
-void func_800960CC(u32 address)
-{
-    func_80095CF4();
-    audio_reverb_update(address, 0);
-    func_80095CFC();
-}
-
-#ifdef TARGET_PC
 /* This file's func_800960CC is a weak copy; the link keeps the empty stub of that name, and the heap free
  * itself as audio_effect_process (heap_release/group.c, docs/port/PROTOTYPES.md). */
 #define func_800960CC audio_effect_process
 void audio_effect_process(u32 address);
-#else
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
 
 void wheel_params_set(void)
 {
     func_800958B8();
-    while (D_8011028C != 0) { PC_SPIN("wheel_params_set 1") }
-    while (D_80146160.head != 0) { PC_SPIN("wheel_params_set 2") }
+    while (D_8011028C != 0) { pc_os_spin_yield("wheel_params_set 1"); }
+    while (D_80146160.head != 0) { pc_os_spin_yield("wheel_params_set 2"); }
     D_80110284 = 0;
     func_800960CC(D_80144C48);
     func_800960CC(D_80146100);

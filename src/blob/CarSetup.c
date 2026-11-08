@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -576,13 +563,7 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern D_8014A250_Record D_8014A250;
-#define PC_MODEL(i) (D_8014A250_Record *) ((u8 *) &D_8014A250 + (i * 0x808))
-#define PC_MODEL_SLOT(i) M2C_FIELD(((D_8014A250_Record *) ((u8 *) &D_8014A250 + (i * 0x808))), s16 *, 0x7C6)
-#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -2247,14 +2228,9 @@ extern s8 D_80142DB0;
 extern s8 D_80142DC0;
 extern s32 D_80142DD8;
 extern s32 D_801439D8;
-#ifdef TARGET_PC
 /* On the PC carsetup_flag is pc_carsetup_flags, a flag per car slot with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 8); CarSetup steps from its first byte by the slot. */
 #define D_801439F8 PC_CARSETUP_FLAG(0)
-#else
-extern s32 D_801439F8;
-extern s32 D_801439FE;
-#endif
 extern s32 D_80143A04;
 extern s32 D_80143A08;
 extern s32 D_80143A0C;

@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2756,18 +2743,12 @@ extern s8 D_80152B70;
 extern s8 D_80152B71;
 extern s32 D_80152B98;
 extern s8 D_80152BBB;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md).
  * These names were inside them: car 1's +0, its position (+8) and +0x50, which the loop below steps from by
  * CAR_OFS(0x3B8) to car j + 1. */
 #define D_80152BD0 (*(s32 *) PC_CAR(1))
 #define D_80152BD8 (*(s32 *) PC_CAR_POS(1))
 #define D_80152C20 (*(s32 *) PC_CAR_UVS50(1))
-#else
-extern s32 D_80152BD0;
-extern s32 D_80152BD8;
-extern s32 D_80152C20;
-#endif
 extern s8 D_80152CBE;
 extern s32 D_80153E68;
 extern s32 D_80153E80;
@@ -3809,16 +3790,9 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
-#ifdef TARGET_PC
 /* PC: +0xF4 is a car's scene-node handle, an s32, and the s16 read is its low half: the second s16 on the N64, the
  * first on a little-endian host (docs/port/ENDIAN.md 3.1). */
 #define NODE_LOW 0xF4
-#else
-#define NODE_LOW 0xF6
-#endif
 void race_init_helper(void)
 {
   s32 i;

@@ -63,9 +63,9 @@ Every view declares the visuals and the input pointer as pointer-sized members, 
 them, so the compiler gives each one the layout above and gen_data computes the right N64 offsets from the PC
 DWARF:
 
-- **Padding over the pointers** is split under `TARGET_PC` by `tools/port/view_pads.py` (`u8 pad0F0[0x35B - 0xF0]`
-  becomes `u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x35B - 0x308];`), the original
-  line kept as the `#else` branch, in about 140 files (overlay B's and the nonmatching drafts among them); and in
+- **Padding over the pointers** was split under `TARGET_PC` by `tools/port/view_pads.py` (`u8 pad0F0[0x35B - 0xF0]`
+  became `u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x35B - 0x308];`), the original
+  line kept as the `#else` branch for the N64 build (both gone since 2026-11-08), in about 140 files (overlay B's and the nonmatching drafts among them); and in
   every copy of `include/game_types.h`'s `GameCar` context block (426 files, most of which never use it).
 - **Views that name fields there**, by hand: StartSparks' `CarSlot` (visuals 1–5 seen from +4, its last word is the
   next visual's `next`), the wing visuals as `Side24` (`entity_anim_texture`), the `SndSlot` sound slots of the

@@ -56,8 +56,9 @@ runtime images' C data, which `gen_data.py --check` finds in the executable, sti
 (`--link-objects-list game_objects.txt`): an optimized object has fewer statics (`cityPos.4`, `mapPos.2`, `del.0`
 folded away; `gShieldSizes` and `sWeaponFx`, never written, in read-only data). gen_data refuses an object whose
 DWARF producer line records optimization (`-O` other than `-O0`), so it can't happen again unnoticed. The probe that
-gen_weak reads, and pc_data_test's declarations, are compiled at `-O0` too, and view_check, view_audit, view_pads and
-proto_check read `types_objects.txt`.
+gen_weak read (until the weak copies left the C, 2026-11-08, [PCONLY.md](PCONLY.md) 4), and pc_data_test's
+declarations, are compiled at `-O0` too, and view_check, view_audit, view_pads and proto_check read
+`types_objects.txt`.
 
 Result: `data.c` and `data_symbols.txt` are the same files in Debug and RelWithDebInfo, on both architectures and in
 the Windows cross build, and Debug's are the files it made before. CI compares them (section 4).
@@ -306,8 +307,8 @@ a constant offset past it: no store or load to confuse. `[200]` would change the
 | `-fno-aggressive-loop-optimizations` | game C | the declarations are views shorter than their data (2.4) | no change |
 | `-fno-toplevel-reorder` | data.c (`pcdata`) | own storage in N64 address order (2.2) | no change: `-O0` keeps the order |
 | `-O0 -g -UNDEBUG` | `game_types`, the second copy of the game objects for gen_data's types (non-Debug only) | DWARF with every declaration (2.1) | not built: the game objects are used |
-| `-O0` | `game_probe` (gen_weak) and `pc_data_test_decls` | the same at every build type; the probe is quicker | no change |
-| `no_reorder` (attribute) | gen_weak's PE anchor | first global of its file (2.6) | no change |
+| `-O0` | `pc_data_test_decls` (and `game_probe`, gen_weak's, until 2026-11-08) | the same at every build type | no change |
+| `no_reorder` (attribute) | gen_weak's PE anchor (until 2026-11-08) | first global of its file (2.6) | no change |
 
 Already there, and needed for the same reason: `-fwrapv`, `-fno-strict-aliasing`, `-fcommon`.
 

@@ -9,7 +9,6 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef int s32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: the record is an fx tag (audiomgr_thread.c's tFxSequence: state, loop, priority, startTime, vol), whose
  * links and list are host-sized (docs/port/SYNTH.md). */
 typedef struct Record {
@@ -24,30 +23,9 @@ typedef struct Record {
     f32 start;
     f32 scale;
 } Record;
-#else
-typedef struct Record {
-    u8 unknown00[0x10];
-    s32 kind;
-    u8 unknown14[5];
-    s8 flag;
-    u8 unknown1A;
-    u8 value;
-    u8 unknown1C[4];
-    f32 start;
-    f32 scale;
-} Record;
-#endif
 extern f32 D_80152748;
 
-f32 func_800986DC(f32 arg0, f32 arg1) {
-    f32 var_f2;
-
-    var_f2 = D_80152748;
-    if (D_80152748 < arg0) {
-        var_f2 = D_80152748 + 14400.0f;
-    }
-    return (var_f2 - arg0) / arg1;
-}
+f32 func_800986DC(f32 arg0, f32 arg1);
 
 s32 func_80098710(Record *record) {
     s32 result;

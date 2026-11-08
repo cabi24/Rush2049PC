@@ -12,10 +12,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -49,11 +45,7 @@ typedef f32 MtxF[4][4];
 struct OSPfs;
 /* : hand-derived from the retail words */
 typedef struct SndSlot {         /* 0x18 bytes; player_array[p].snd[] starts at 0x110 */
-#ifdef TARGET_PC
     void *next;                  /* a car visual (tVisual): next is a host pointer */
-#else
-    u8 pad00[4];
-#endif
     s16 f4;                      /* 0x04 */
     s16 handle;                  /* 0x06 */
     s16 slot;                    /* 0x08 */
@@ -65,11 +57,7 @@ typedef struct SndSlot {         /* 0x18 bytes; player_array[p].snd[] starts at 
 typedef struct CarS {            /* player_array[p], 0x3B8 bytes */
     u8 pad000[0x110];
     SndSlot snd[20];             /* 0x110 */
-#ifdef TARGET_PC
     struct pc_visual pad2F0[1]; u8 pad2F0_308[0x380 - 0x308]; void *input; u8 pad2F0_384[0x3B8 - 0x384];
-#else
-    u8 pad2F0[0x3B8 - 0x2F0];
-#endif
 } CarS;
 typedef struct SndCtl {          /* D_80139320[player], 0x40 bytes */
     s32 first;
@@ -77,11 +65,7 @@ typedef struct SndCtl {          /* D_80139320[player], 0x40 bytes */
     s32 vals[4];                 /* 0x1C */
     u8 pad2C[0x14];
 } SndCtl;
-#ifdef TARGET_PC
 typedef struct PCarX { u8 pad[PC_CAR_SIZE]; } PCarX;    /* a car record (docs/port/CARS.md) */
-#else
-typedef struct PCarX { u8 pad[0x3B8]; } PCarX;
-#endif
 typedef struct HudRec {          /* D_8014A250[player], 0x808 bytes */
     u8 pad000[8];
     u8 b8;
@@ -487,29 +471,15 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[8];
-#define PC_CAR(i) &player_array[i]
-#endif
 typedef struct {
     u8 pad00[0x39];
     u8 unk39;
@@ -625,12 +595,7 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern D_8014A250_Record D_8014A250;
-#define PC_MODEL(i) &((HudRec *) &D_8014A250)[i]
-#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -3765,9 +3730,6 @@ void func_800B0A88(s16 ipa_s1, s16 ipa_s2);
 
 intptr_t func_8008B3A0(s16);
 
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
 void func_800B08FC(s16 slot, s16 idx) {
     HudRec *h;
     s32 k;
@@ -3787,83 +3749,9 @@ void func_800B08FC(s16 slot, s16 idx) {
 }
 
 
-void func_800B0A88(s16 slot, s16 idx) {
-    HudRec *h;
-    f32 vec[3];
-    s32 k;
-    s32 b8;
+void func_800B0A88(s16 slot, s16 idx);
 
-    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = PC_MODEL(slot), h->s7CA != 0)) {
-        ((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx].cb = 0;
-        return;
-    }
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->cb = (void *) buffer_swap;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->slot = slot;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->idx = idx;
-    b8 = h->b8;
-    vec[0] = 0.0f;
-    vec[2] = 0.0f;
-    vec[1] = *(f32 *) ((u8 *) &D_8011B4B8 + b8 * 0xC);
-    k = D_80111299[slot * 13 + b8] * 4 + idx + 0xE0;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle = save_slot_valid(D_801427C0[k], 0xF, ((SndCtl *) &D_80139320)[slot].first, 0, slot, -1, 1);
-    func_8008D6FC((&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle, vec, NULL);
-    model_data_load((&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle, 1, 0xF);
-    func_80092484(slot, idx);
-}
-
-void audio_frame_update(s16 slot) {
-    u8 *dst;
-    CarS *car;
-    s16 i;
-    s32 t;
-
-    save_load_data(slot);
-    func_800AC8D4(slot);
-    t = state_word_a & 8;
-    if (t == 0 || (t != 0 && D_80156994 != 0)) {
-        func_800B0A88(slot, 0);
-        func_800B0A88(slot, 1);
-        func_800B08FC(slot, 0);
-        func_800B08FC(slot, 1);
-    }
-    if (gameplay_mode == 6) {
-        func_8038c910(slot);
-    }
-    dst = *(u8 **) ((u8 *) &D_8013FEF4 + (u32) slot * 0x18);
-    if (D_8014978C == 3 || D_8014978C == 5) {
-        ((u16 *) (dst + 0x140))[0] = ((u16 *) &D_8011B58C)[0];
-        ((u16 *) (dst + 0x140))[1] = ((u16 *) &D_8011B58C)[1];
-        ((u16 *) (dst + 0x140))[2] = ((u16 *) &D_8011B58C)[2];
-        ((u16 *) (dst + 0x140))[3] = ((u16 *) &D_8011B58C)[3];
-        ((u16 *) (dst + 0x140))[4] = ((u16 *) &D_8011B58C)[4];
-        ((u16 *) (dst + 0x140))[5] = ((u16 *) &D_8011B58C)[5];
-        ((u16 *) (dst + 0x140))[6] = ((u16 *) &D_8011B58C)[6];
-        ((u16 *) (dst + 0x140))[7] = ((u16 *) &D_8011B58C)[7];
-        ((u16 *) (dst + 0x150))[0] = ((u16 *) &D_8011B5AC)[0];
-        ((u16 *) (dst + 0x150))[1] = ((u16 *) &D_8011B5AC)[1];
-        ((u16 *) (dst + 0x150))[2] = ((u16 *) &D_8011B5AC)[2];
-        ((u16 *) (dst + 0x150))[3] = ((u16 *) &D_8011B5AC)[3];
-        ((u16 *) (dst + 0x150))[4] = ((u16 *) &D_8011B5AC)[4];
-        ((u16 *) (dst + 0x150))[5] = ((u16 *) &D_8011B5AC)[5];
-        ((u16 *) (dst + 0x150))[6] = ((u16 *) &D_8011B5AC)[6];
-        ((u16 *) (dst + 0x150))[7] = ((u16 *) &D_8011B5AC)[7];
-    }
-    car = (CarS *) PC_CAR(slot);
-    car->snd[0].cb = (void *) &D_8008BEA4;
-    car->snd[0].slot = slot;
-    i = 0;
-    do {
-        car->snd[6 + i].f4 = i;
-        car->snd[6 + i].cb = (void *) anim_state_update;
-        car->snd[6 + i].slot = slot;
-        car->snd[6 + i].idx = 0;
-        car->snd[6 + i].t = D_801543CC;
-        car->snd[6 + i].handle = ((SndCtl *) &D_80139320)[slot].vals[i];
-        i++;
-    } while (i < 4);
-}
+void audio_frame_update(s16 slot);
 
 
-intptr_t func_8008B3A0(s16 arg0) {
-    return *((s32 *) ((u8 *) &D_8012E708 + (arg0 * 0x44)));
-}
+intptr_t func_8008B3A0(s16 arg0);

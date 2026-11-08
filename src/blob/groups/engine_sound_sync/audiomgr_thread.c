@@ -35,11 +35,7 @@ typedef struct OSSched OSSched;
 
 typedef struct tDLLE { void *next; void *prev; } tDLLE;
 typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
-#ifdef TARGET_PC
 typedef struct tOrderedList { int (*OrderFunc)(void *, void *); int numElements; void *root; } tOrderedList;
-#else
-typedef struct tOrderedList { int (*OrderFunc)(void *, void *); long numElements; void *root; } tOrderedList;
-#endif
 typedef struct tBSTE { void *left; void *right; } tBSTE;
 
 typedef struct tFxSequence {
@@ -113,18 +109,12 @@ extern int D_80110250;                     /* gNumStopCmds */
 extern int D_80110278;                     /* gNumFxPlaying */
 extern int D_8011027C;                     /* gNumFxPending */
 extern int D_80110280;                     /* gNumFxInterrupted */
-#ifdef TARGET_PC
 /* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
  * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
  * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
 #define D_80143AE8 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 #define D_80143CF0 (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern tAudioMsg *D_80143AE8[];            /* gStartCmds */
-extern tAudioMsg *D_80143CF0[];            /* gStopCmds */
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern tOrderedList D_80143F58;            /* gSortedFxTagTree */
 extern tDLList D_80144020;                 /* gPlayingFxTags */
 extern tDLList D_80144C50;                 /* gInterruptedFxTags */
@@ -181,10 +171,7 @@ static void ClearBST(tOrderedList *tree)
     tree->numElements = 0;
 }
 
-static void InsertBSTE(tOrderedList *tree, void *element)
-{
-    camera_update_b(tree, &tree->root, element);
-}
+void pointer_offset8_call(tOrderedList *tree, void *element);
 
 static void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, int))
 {
@@ -197,17 +184,16 @@ static void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, int))
 static int _AudioNop(void) { return 0; }
 /* N64 UNLOCK (audio mutex queue). Its inlined lines sit above the thread, so as1 puts `cmd->hdr.used = 0` (a later
  * line) in the jal delay slot as retail does. */
-static void _UnlockAudio(void) { osSendMesg(&D_80142728, 0, 0); }
+void func_80091AF8(void);
 
 static void _InsertSorted(tFxSequence *tag)
 {
     anon_te_tag_c *stag;
     stag = &gSortedFxTags[gSortedFxTagTree.numElements];
     stag->tag = tag;
-    InsertBSTE(&gSortedFxTagTree, stag);
+    pointer_offset8_call(&gSortedFxTagTree, stag);
 }
 
-#ifdef TARGET_PC
 /* PC: a start or stop the full queue refuses gives its message back (transform/group.c's entity_transform_calc says
  * when the queue and the pool run out); the next priority pass sends it again. */
 static void _SendCmd(tAudioMsg *cmd)
@@ -223,18 +209,13 @@ static void _SendCmd(tAudioMsg *cmd)
  * queue each retrace and that never happens; a second start would give the tag a second voice and lose the first,
  * a loop then playing on with nothing to stop it (with more voices nothing takes it back: docs/port/AUDIO.md 10.6). */
 #define PC_START_PLAYING(tag) if ((tag)->state == 2) { pc_snd_count(PC_SND_START_PLAYING); break; }
-#else
-static void _SendCmd(tAudioMsg *cmd) { osSendMesg(&D_801427A8, cmd, 0); }
-#define PC_ONLY(stmt)
-#define PC_START_PLAYING(tag)
-#endif
 
 static void _ProcessPriorities(void)
 {
     tFxSequence *tag, *next;
     int i;
     osRecvMesg(&D_80142728, 0, 1);
-    ClearBST(&gSortedFxTagTree); PC_ONLY(pc_snd_walk_begin();)
+    ClearBST(&gSortedFxTagTree); pc_snd_walk_begin();
     gNumStopCmds = 0;
     gNumStartCmds = 0;
     for (tag = gPlayingFxTags.head; tag; tag = next) {
@@ -496,7 +477,7 @@ void entity_ai_pathfind(void *arg)
                 break;
             }
             cmd->hdr.used = 0;
-            _UnlockAudio();
+            func_80091AF8();
         }
     }
 }

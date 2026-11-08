@@ -21,14 +21,9 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef f32 Vec3[3];
 typedef f32 Matrix3[3][3];
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual {
     void *prefix;
@@ -36,14 +31,6 @@ typedef struct Visual {
     f32 angle,time;
     void (*callback)(void);
 } Visual;
-#else
-typedef struct Visual {
-    u8 prefix[4];
-    s16 tire,object,slot,reserved;
-    f32 angle,time;
-    void (*callback)(void);
-} Visual;
-#endif
 typedef struct Tire92 {
     u8 prefix[64];
     f32 angular_velocity;
@@ -73,71 +60,30 @@ typedef struct Car952 {
     u32 appearance;
     u8 to_mph[12];
     s16 mph;
-#ifdef TARGET_PC
     u8 to_controller[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 to_controller_308[0x35C - 0x308];
-#else
-    u8 to_controller[610];
-#endif
     s8 controller,render_state,reserved,hidden;
-#ifdef TARGET_PC
     u8 tail[0x380 - 0x360]; void *input; u8 tail_384[0x3B8 - 0x384];
-#else
-    u8 tail[88];
-#endif
 } Car952;
-#ifdef TARGET_PC
 enum n64p_f32 { n64p_f32_ };
-#endif
-#ifdef TARGET_PC
 typedef struct CarConfig {
     u8 prefix[96];
     enum n64p_f32 radius[4];
     Vec3 tire_position[4];
 } CarConfig;
-#else
-typedef struct CarConfig {
-    u8 prefix[96];
-    f32 *radius[4];
-    Vec3 tire_position[4];
-} CarConfig;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_f32: (f32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 typedef struct Control152 {
     u8 prefix[144];
     f32 spring_save;
     u8 tail[4];
 } Control152;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Object68 {
     u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
 } Object68;
-#else
-typedef struct Object68 {
-    u32 flags;
-    u8 tail[64];
-} Object68;
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model2056 D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_VISCODE(i) D_8014A250[i].visual_code
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern CarConfig *D_80110D08[];
 extern Control152 gCamera[];
 extern Object68 D_8012E700[];
@@ -160,18 +106,12 @@ extern void func_8008D6FC(s16,Vec3,Matrix3);
 
 extern f32 func_8008B2E4(f32);
 #define Random(range) func_8008B2E4(range)
-#ifdef TARGET_PC
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
  * so the bob keeps the N64's spread (an AR(1) whose stationary variance is the same), instead of stepping once a 30 Hz
  * frame, a camera moving at 30 a second. At original both are the N64's. */
 #define PC_SPRING_KEEP(e) PC_FILTER(e)
 #define PC_SPRING_NOISE(x, e) (pc_fps60 ? (x) * pc_fps_noise(e) : (x))
-#else
-#define PC_FSCALE(x) x   /* PC: game.frame_rate 60 (pc_game_fps.h): a step per frame of two retraces, scaled */
-#define PC_SPRING_KEEP(e) e
-#define PC_SPRING_NOISE(x, e) x
-#endif
 void anim_state_update(Visual *v, s16 op)
 {
     f32 pos[3], mat[3][3], rpy[3], spring, spring2, t, vel, lastpos;

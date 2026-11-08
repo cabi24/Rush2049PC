@@ -32,11 +32,7 @@ typedef struct {
     u8 pad000[238];
     s8 place;        /* 238 */
     s8 finished;     /* 239 */
-#ifdef TARGET_PC
     u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x380 - 0x308]; void *input; u8 pad0F0_384[0x3B8 - 0x384];
-#else
-    u8 pad0F0[952 - 240];
-#endif
 } Player952;
 extern OSMesgQueue D_801461D0;
 extern s32 state_word_a;
@@ -47,13 +43,7 @@ extern s16 gNumWindows;
 extern Pair D_80118E20;
 extern Pos D_80115CA8[4][4];
 extern Rgba D_80116168[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player952 player_array[];
-#define PC_CAR_FINISHED(i) player_array[i].finished
-#define PC_CAR_PLACE(i) player_array[i].place
-#endif
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 slot_state_setup(s32 selection);
@@ -90,7 +80,6 @@ void pair_set_7AF4(s32 first, s32 second)
     D_80118E20.first = first;
 }
 
-#ifdef TARGET_PC
 /* PC: the place's and the count's digits (docs/port/MORECARS.md 7), n from 1 to 99: one or two. */
 static s32 place_digits_7AF4(char *out, s32 n)
 {
@@ -178,68 +167,3 @@ s32 animPlace(s32 arg0)
     render_helper(-1.0f);
     return 1;
 }
-#else
-s32 animPlace(s32 arg0)
-{
-    char str[4];
-    char ch[2];
-    s32 w;
-    s32 i;
-    s32 x;
-    s32 y;
-    s32 k;
-
-    if ((state_word_a & 8) || D_801543CA < 2 || gameplay_mode == 1 || !D_8016137C) {
-        return 1;
-    }
-    render_helper(0.0f);
-    pair_set_7AF4(1, 3);
-    if (gNumWindows == 1) {
-        font_set_7AF4(8);
-    } else {
-        font_set_7AF4(5);
-    }
-    w = HAL_GetCharWidth('8');
-    str[1] = '/';
-    str[2] = D_801543CA + '0';
-    for (i = 0; i < gNumWindows; i++) {
-        if (func_800CF604(i) == 0 || PC_CAR_FINISHED(i) == 1) {
-            continue;
-        }
-        x = D_80115CA8[gNumWindows - 1][i].x;
-        y = D_80115CA8[gNumWindows - 1][i].y;
-        str[0] = PC_CAR_PLACE(i) + '1';
-        x -= w;
-        for (k = 0; k < 3; k++) {
-            ch[0] = str[k];
-            ch[1] = 0;
-            if (k < 2) {
-                if (gNumWindows == 1) {
-                    font_set_7AF4(8);
-                } else {
-                    font_set_7AF4(5);
-                }
-            } else {
-                if (gNumWindows == 1) {
-                    font_set_7AF4(5);
-                } else {
-                    font_set_7AF4(6);
-                }
-            }
-            dispatch_handler(0);
-            state_utility(x + 1, y + 1, ch);
-            if (k == 0) {
-                func_800B7360(D_80116168[i].r, D_80116168[i].g, D_80116168[i].b, 255);
-            } else {
-                dispatch_handler(1);
-            }
-            state_utility(x, y, ch);
-            x += w;
-        }
-        if (i) {}
-    }
-    pair_set_7AF4(0, 3);
-    render_helper(-1.0f);
-    return 1;
-}
-#endif

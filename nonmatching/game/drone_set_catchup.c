@@ -97,11 +97,7 @@ typedef struct PakHandle { tPS_File *file; } PakHandle;
 /* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
 struct tPS_File {
     PakHandle *next;
-#ifdef TARGET_PC
     PakHandle *prev;                  /* PC: a pointer (InsertLLE's link); the record is 96 bytes (pc_prelude.h) */
-#else
-    u32 prev;
-#endif
     void (*RemoveFile)(PakHandle *);
     void (*MoveFile)(PakHandle *, PakHandle *);
     u8 pak, fileNo;
@@ -141,23 +137,7 @@ extern void *AllocateHandleHeap(void *, u32);      /* AllocateHandleHeap */
 extern void *memset(void *, s32, u32);
 void no_catchup(PakHandle *fileh);
 /* context: byte-identical copy of the locked pfs_status body (internal here: IPA register facts) */
-s32 func_800A1E94(s32 error) {
-    switch (error) {
-        case 0: return 0;
-        case 1: return 2;
-        case 2: return 3;
-        case 3: return 4;
-        case 4: return 5;
-        case 5: return 7;
-        case 7: return 6;
-        case 8: return 6;
-        case 9: return 8;
-        case 6: return 9;
-        case 10:
-        case 11: return 10;
-        default: return 15;
-    }
-}
+s32 func_800A1E94(s32 error);
 
 /* the inlined pak lock helpers (bodies as group pak_write_cluster pfs_*; own names: the unit renames duplicated internal names) */
 void paksys_queue_init(void) {
@@ -176,10 +156,7 @@ void paksys_unlock(void) {
 }
 
 /* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
-void no_catchup(PakHandle *fileh)
-{
-    func_80091FBC(&D_80144D60[fileh->file->pak], fileh, D_80144D60[fileh->file->pak].head);
-}
+void no_catchup(PakHandle *fileh);
 
 /* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
 PakHandle *pfs_get_node(void)
@@ -192,101 +169,6 @@ PakHandle *pfs_get_node(void)
 }
 
 /* 0x800A2D4C */
-PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
-{
-    s32 error;
-    s32 file;
-    u8 game_name[16];
-    u8 ext_name[4];
-    s8 retry;
-    s8 status;
-    PakHandle *fileh;
-    tPS_File *psfile;
-    OSPfsState *state;
-
-    paksys_lock();
-    func_800A150C(game_name, name, 16);
-    func_800A150C(ext_name, ext, 4);
-    for (;;) {
-        error = osPfsAllocateFile(&D_80144030[pak].pfs, (u16)company, (u32)gameCode,
-                                  game_name, ext_name, (numBytes + 255) & ~255U, &file);
-        if (error) {
-            D_80144030[pak].error = func_800A1E94(error);
-            paksys_unlock();
-            D_8011EAE8 = pak;
-            D_80144008(pak, D_80144030[pak].error, (numBytes + 255) >> 8, 0, &retry, &status,
-                       D_80144030[pak].error == 3 ? 0 : func_8008A6A4);
-            D_8011EAE8 = -1;
-            if (D_80144030[pak].error != 3 && !D_80144030[pak].inserted) return 0;
-            paksys_lock();
-            if (D_80144030[pak].error == 8 && retry) {
-                /* the file exists: find its slot and delete our handle for it */
-                for (file = 0; file < 16; file++) {
-                    state = &D_80144030[pak].files[file].state;
-                    if (func_8008AD04(state->game_name, game_name) == 0 &&
-                        func_8008AD04(state->ext_name, ext_name) == 0 &&
-                        state->game_code == (u32)gameCode &&
-                        company == state->company_code) break;
-                }
-                if (file == 16) continue;
-                paksys_unlock();
-                for (fileh = D_80144D60[pak].head; fileh != 0; fileh = fileh->file->next) {
-                    if (fileh->file->fileNo == file) {
-                        pak_delete_file_retry(fileh);
-                        break;
-                    }
-                }
-                paksys_lock();
-            }
-            if (D_80144030[pak].error == 6 && retry) retry = 0;
-            if (!retry) {
-                paksys_unlock();
-                return 0;
-            }
-        } else break;
-    }
-    osPfsFreeBlocks(&D_80144030[pak].pfs, &D_80144030[pak].FreeSpace);
-    for (;;) {
-        error = osPfsFileState(&D_80144030[pak].pfs, file, &D_80144030[pak].files[file].state);
-        if (!error && D_80144030[pak].files[file].state.file_size != 0) break;
-        D_80144030[pak].error = func_800A1E94(error);
-        paksys_unlock();
-        D_8011EAE8 = pak;
-        D_80144008(pak, D_80144030[pak].error, (numBytes + 255) >> 8, 0,
-                   &retry, &status, func_8008A6A4);
-        D_8011EAE8 = -1;
-        if (!D_80144030[pak].inserted) {
-            D_80144030[pak].files[file].state.file_size = 0;
-            return 0;
-        }
-        paksys_lock();
-        if (!retry) {
-            paksys_unlock();
-            D_80144030[pak].files[file].state.file_size = 0;
-            return 0;
-        }
-    }
-    fileh = pfs_get_node();
-    psfile = fileh->file;
-    psfile->RemoveFile = 0;
-    psfile->MoveFile = 0;
-    psfile->pak = pak;
-    psfile->fileNo = file;
-    psfile->size = D_80144030[pak].files[file].state.file_size;
-    psfile->blocks = (psfile->size + 255) >> 8;
-    D_80144030[pak].files[file].mapBytes = (((psfile->size + 31) >> 5) + 7) >> 3;
-    psfile->data = AllocateHandleHeap(0, D_80144030[pak].files[file].mapBytes + psfile->size);
-    memset(*psfile->data, 0, psfile->size);
-    memset(*psfile->data + psfile->size, 255, D_80144030[pak].files[file].mapBytes);
-    D_80144030[pak].files[file].flush = 0;
-    D_80144030[pak].files[file].flag1 = 0;
-    D_80144030[pak].files[file].flag2 = 0;
-    func_800A1644(psfile->name, D_80144030[pak].files[file].state.game_name, 16);
-    func_800A1644(psfile->ext, D_80144030[pak].files[file].state.ext_name, 4);
-    no_catchup(fileh);
-    paksys_unlock();
-    return fileh;
-}
 
 
 
@@ -319,50 +201,7 @@ void pdf_release(PakHandle *fileh)
 }
 
 /* 0x800A2680: PS_DeleteFile */
-void pak_delete_file_retry(PakHandle *fileh)
-{
-    s32 pak;
-    s32 fileNo;
-    OSPfsState *state;
-    PakHandle *cur;
-    s8 retry;
-    s8 status;
-    tPS_File *psfile;
-    s32 error;
-
-    paksys_lock();
-    psfile = fileh->file;
-    pak = psfile->pak;
-    fileNo = psfile->fileNo;
-    state = (OSPfsState *)&D_80144030[pak].files[fileNo].state;
-delete_retry:
-    error = osPfsDeleteFile((OSPfs *)&D_80144030[pak].pfs, state->company_code, state->game_code,
-                            state->game_name, state->ext_name);
-    if (error) {
-        D_80144030[pak].error = func_800A1E94(error);
-        paksys_unlock();
-        D_8011EAE8 = pak;
-        D_80144008(pak, D_80144030[pak].error, 0, 0, &retry, &status, func_8008A6A4);
-        D_8011EAE8 = -1;
-        for (cur = D_80144D60[pak].head; cur != 0; cur = cur->file->next) {
-            if (fileh == cur) break;
-        }
-        if (cur == 0) return;
-        paksys_lock();
-        if (retry) goto delete_retry;
-        paksys_unlock();
-        return;
-    }
-    pdf_free_blocks(pak);
-    if (psfile->RemoveFile) psfile->RemoveFile(fileh);
-    state->file_size = 0;
-    if (psfile->data) {
-        pdf_dealloc((u32)psfile->data);
-        psfile->data = 0;
-    }
-    pdf_release(fileh);
-    paksys_unlock();
-}
+void pak_delete_file_retry(PakHandle *fileh);
 
 
 /* ---- PS_ReadPartialFile (0x800A2990) ---- */
@@ -374,12 +213,8 @@ void prpf_nop(void)
 }
 
 /* 0x800A2990: PS_ReadPartialFile(fileh, offset, numBytes) */
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 void drone_set_catchup(PakHandle *fileh, s32 offset, u32 numBytes)
 {
     tPS_File *psfile;
@@ -453,41 +288,8 @@ extern void audio_reverb_update(u32, s32);  /* DeallocateMemory */
 extern void func_800A370C(tDLList *);       /* ClearLL */
 
 /* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
-void func_800A3640(s32 pak)
-{
-    PakHandle *fileh;
-    PakHandle *next;
-    tPS_File *psfile;
-
-    fileh = D_80144D60[pak].head;
-    while (fileh != 0) {
-        psfile = fileh->file;
-        next = psfile->next;
-        if (psfile->RemoveFile != 0) {
-            psfile->RemoveFile(fileh);
-        }
-        if (psfile->data != 0) {
-            u8 **data = psfile->data;
-            osRecvMesg(&D_80152770, 0, 1);
-            audio_reverb_update((u32)data, 0);
-            osSendMesg(&D_80152770, 0, 0);
-            psfile->data = 0;
-        }
-        func_8009211C(&D_80144D60[fileh->file->pak], fileh);
-        func_80091FBC(&D_801460E0, fileh, D_801460E0.head);
-        fileh = next;
-    }
-}
 
 /* 0x800A3724: _ClearPak (private IPA: pak in a3) */
-void ClearPak(u8 pak)
-{
-    s8 damaged;
-
-    damaged = D_80144030[pak].damaged;
-    memset((void *)&D_80144030[pak], 0, sizeof(PakRecord));
-    D_80144030[pak].damaged = damaged;
-}
 
 /* inlined: does the file's write bitmap have dirty bytes */
 s32 _FileChanged(tPS_File *psfile)
@@ -514,228 +316,6 @@ void _StopRumble(s32 pak)
 }
 
 /* 0x800A377C: PS_PakServer */
-void track_render_process(s32 forceUpdate, s32 rumbleOnly)
-{
-    s32 i;
-    s32 j;
-    s32 ret;
-    s32 err;                /* unreferenced: frame slot sp+416 (disclosed) */
-    OSPfs pfs;
-    s8 X;                   /* unreferenced: frame slot sp+311 (disclosed) */
-    s8 status = 0;
-    s8 retry = 0;
-    s8 changed[4];
-    s8 dup;
-    s8 same;
-    PakHandle *fileh;
-    tPS_File *psfile;
-
-    if (!D_8011EAE0) return;
-    for (i = 0; i < 4; i++) changed[i] = 0;
-    func_8008A704();
-    for (i = 0; i < 4; i++) {
-        if (D_8011EAE8 >= 0 && i != D_8011EAE8) continue;
-        if (!gControllerData[i].present || !D_80144030[i].opaque2 || D_80144030[i].opaque3) {
-            D_80144030[i].opaque3 = 0;
-            if (D_80144030[i].inserted) {
-                D_80144030[i].inserted = 0;
-                D_80144030[i].opaque9 = 0;
-                D_80144030[i].error = 0;
-                if (D_80144030[i].opaque6) {
-                    _StopRumble(i);
-                    changed[i] = 1;
-                    continue;
-                }
-                if (D_80144030[i].opaque10) goto rj;
-                if (!D_80144030[i].flush) {
-                    if (D_80144030[i].flushing) goto rj;
-                    func_800A3640(i);
-                    ClearPak(i);
-                }
-rj:
-                D_80144030[i].damaged = 0;
-                changed[i] = 1;
-            } else if (D_80144030[i].opaque4 && !D_80144030[i].opaque10 && !D_80144030[i].flush && !D_80144030[i].flushing) {
-                func_800A3640(i);
-                ClearPak(i);
-            }
-            continue;
-        }
-        if (D_80144030[i].inserted) continue;
-        changed[i] = 1;
-        D_80144030[i].inserted = 1;
-        dup = 0; same = 0; memcpy(&pfs, (void *)&D_80144030[i].pfs, sizeof(OSPfs));
-init:
-        pfs.queue = 0;
-        ret = osPfsInitPak(&D_80035458, &pfs, i);
-        if (!pfs.queue) ret = 1;
-        D_80144030[i].error = func_800A1E94(ret);
-        if (D_80144030[i].error == 10) {
-            if (!osMotorInit(&D_80035458, &pfs, i)) {
-                if (!D_80144030[i].opaque6) D_80144030[i].opaque6 = 1;
-                else changed[i] = 0;
-                continue;
-            }
-            if (rumbleOnly) {
-                D_80144030[i].inserted = 0;
-                changed[i] = 0;
-                continue;
-            }
-            paksys_unlock();
-prompt:
-            D_8011EAE8 = i;
-            D_80144008(i, 10, 0, 0, &retry, &status, func_8008A6A4);
-            D_8011EAE8 = -1;
-            if (!D_80144030[i].inserted) {
-                func_8008A704();
-                changed[i] = 0;
-                continue;
-            }
-            if (status) {
-                func_8008A704();
-                ret = osPfsInitPak(&D_80035458, &pfs, i);
-                if (!ret) goto inited;
-                ret = osPfsRepairId(&pfs);
-                paksys_unlock();
-                if (ret) {
-                    D_8011EAE8 = i;
-                    D_80144008(i, 12, 0, 0, &retry, &status, 0);
-                    D_8011EAE8 = -1;
-                    goto prompt;
-                }
-                D_8011EAE8 = i;
-                D_80144008(i, 13, 0, 0, &retry, &status, 0);
-                D_8011EAE8 = -1;
-            } else if (retry) {
-                func_8008A704();
-                D_80144030[i].damaged = 1;
-                D_80144030[i].opaque9 = 0;
-                changed[i] = 0;
-                continue;
-            } else {
-                D_8011EAE8 = i;
-                D_80144008(i, 11, 0, 0, &retry, &status, 0);
-                D_8011EAE8 = -1;
-            }
-            func_8008A704();
-            goto init;
-        }
-inited:
-        D_80144030[i].opaque6 = 0;
-        D_80144030[i].phase = 0;
-        D_80144030[i].level = 0;
-        D_80144030[i].request = 0;
-        D_80144030[i].motorOn = 0;
-        if (ret == 2) D_80144030[i].error = 0;
-        else if (ret) {
-            changed[i] = 0;
-            D_80144030[i].damaged = 1;
-            D_80144030[i].opaque9 = 0;
-            continue;
-        }
-        if (!D_80144030[i].opaque4) {
-            D_80144030[i].opaque4 = 1;
-        } else if (!func_800A1910((u8 *)D_80144030[i].pfs.id, pfs.id, 32)) {
-            changed[i] = 0;
-            memcpy((void *)&D_80144030[i].pfs, &pfs, sizeof(OSPfs));
-            osPfsFreeBlocks((OSPfs *)&D_80144030[i].pfs, (s32 *)&D_80144030[i].FreeSpace);
-            D_80144030[i].opaque9 = 1;
-            if (!D_80144030[i].flushing) {
-                for (fileh = D_80144D60[i].head; fileh; fileh = fileh->file->next) {
-                    if (_FileChanged(fileh->file)) {
-                        D_80144030[i].files[fileh->file->fileNo].flag1 = 1;
-                        D_80144030[i].flush = 1;
-                    }
-                }
-                same = 1;
-                goto flush;
-            }
-            continue;
-        }
-        for (j = 0; j < 4; j++) {
-            if (i == j) continue;
-            if (D_80144030[j].opaque4 && !func_800A1910(pfs.id, (u8 *)D_80144030[j].pfs.id, 32)) {
-                if (D_80144030[i].opaque4) {
-                    dup = 1;
-                    goto locked;
-                }
-move:
-                memcpy((void *)&D_80144030[i].pfs, &pfs, sizeof(OSPfs));
-                osPfsFreeBlocks((OSPfs *)&D_80144030[i].pfs, (s32 *)&D_80144030[i].FreeSpace);
-                D_80144030[i].opaque9 = 1;
-                memcpy(&D_80144D60[i], &D_80144D60[j], sizeof(tDLList));
-                func_800A370C(&D_80144D60[j]);
-                for (fileh = D_80144D60[i].head; fileh; fileh = fileh->file->next)
-                    fileh->file->pak = i;
-                memcpy((void *)D_80144030[i].files, (void *)D_80144030[j].files, sizeof(D_80144030[i].files));
-                changed[i] = 0;
-                D_80144030[j].opaque4 = 0;
-                D_80144030[j].opaque9 = 0;
-                if (D_80144030[j].inserted && !D_80144030[j].damaged) D_80144030[j].opaque3 = 1;
-                changed[j] = 1;
-                break;
-            }
-        }
-        if (j < 4) continue;
-        if (D_80144030[i].flushing) {
-            changed[i] = 0;
-            continue;
-        }
-locked:
-        if (D_80144030[i].opaque10) {
-            changed[i] = 0;
-            continue;
-        }
-flush:
-        paksys_unlock();
-        if (!PS_FlushPak(i, 0)) {
-            changed[i] = 0;
-            func_8008A704();
-            continue;
-        }
-        func_8008A704();
-        if (D_80144030[i].flushed && !same) {
-            dup = 0;
-            same = 0;
-            goto init;
-        }
-        if (same) continue;
-        func_800A3640(i);
-        if (dup) goto move;
-        D_80144030[i].opaque9 = 1;
-        D_80144030[i].opaque10 = 0;
-        D_80144030[i].flush = 0;
-        memcpy((void *)&D_80144030[i].pfs, &pfs, sizeof(OSPfs));
-        osPfsFreeBlocks((OSPfs *)&D_80144030[i].pfs, (s32 *)&D_80144030[i].FreeSpace);
-        for (j = 0; j < 16; j++) {
-            ret = osPfsFileState((OSPfs *)&D_80144030[i].pfs, j, (OSPfsState *)&D_80144030[i].files[j].state);
-            if (ret) D_80144030[i].files[j].state.file_size = 0;
-            D_80144030[i].files[j].flush = 0;
-            D_80144030[i].files[j].flag1 = 0;
-            D_80144030[i].files[j].flag2 = 0;
-            D_80144030[i].files[j].mapBytes = (((D_80144030[i].files[j].state.file_size + 31) >> 5) + 7) >> 3;
-            D_80144030[i].error = func_800A1E94(ret);
-            if (D_80144030[i].files[j].state.file_size) {
-                fileh = pfs_get_node();
-                psfile = fileh->file;
-                psfile->RemoveFile = 0;
-                psfile->MoveFile = 0;
-                psfile->pak = i;
-                psfile->fileNo = j;
-                psfile->size = D_80144030[i].files[j].state.file_size;
-                psfile->blocks = (psfile->size + 255) >> 8;
-                func_800A1644(psfile->name, (u8 *)D_80144030[i].files[j].state.game_name, 16);
-                func_800A1644(psfile->ext, (u8 *)D_80144030[i].files[j].state.ext_name, 4);
-                if (psfile->ext[0]) psfile->ext[1] = 0;
-                psfile->data = 0;
-                no_catchup(fileh);
-            }
-        }
-    }
-    paksys_unlock();
-    for (i = 0; i < 4; i++) D_80144030[i].changed = changed[i];
-    if (forceUpdate) {}     /* disclosed umerge-budget device (one branch) */
-}
 
 /* ---- PS_InitPakSys ---- */
 extern PakHandle D_80144C60[];          /* the 64 tPS_File handles */
@@ -749,23 +329,3 @@ extern void func_800A43FC(void);        /* poll pak presence (_CompleteCallback 
 extern void func_800A44E8(tDLList *, u8, u8);   /* InitLL (MAT3 char = unsigned) */
 
 /* 0x800A4508: PS_InitPakSys */
-void car_lod_select(PakErrorFunc errorFunc)
-{
-    s32 i;
-
-    D_80144008 = errorFunc;
-    func_800A44E8(&D_801460E0, 1, 1);
-    for (i = 0; i < 64; i++) {
-        D_80144C60[i].file = &D_80144DC0[i];
-        func_80091FBC(&D_801460E0, &D_80144C60[i], D_801460E0.head);
-    }
-    for (i = 0; i < 4; i++) {
-        func_800A44E8(&D_80144D60[i], 1, 1);
-        D_80144030[i].damaged = 0;
-        ClearPak(i);
-    }
-    osCreateThread(D_800349F0, 2, audio_queue_process, 0, D_800329F0, 6);
-    osStartThread(D_800349F0);
-    D_8011EAE0 = 1;
-    func_800A43FC();
-}

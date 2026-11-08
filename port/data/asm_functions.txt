@@ -1,0 +1,49 @@
+# The boot code's routines that were hand-written assembly on the N64 (libultra's assembly files, the inflate
+# helpers, the boot entry point, the GSM kernels of the boot segment's tail), for tools/port/gen_data.py's table of
+# functions by address (docs/port/DATA.md): a function pointer the game holds as one of these N64 addresses reaches
+# the PC's function of that name, where the PC layer has one. From the N64 build's manifest/static.json (2026-11-08).
+#
+#   NAME                        ADDRESS     WHAT IT WAS
+__osCleanupThread             0x8000D298  ultralib:src/os/exceptasm.s
+__osDisableInt                0x8000C4B0  ultralib:src/os/interrupt.s
+__osDispatchThread            0x8000D11C  ultralib:src/os/exceptasm.s
+__osEnqueueAndYield           0x8000CFC4  ultralib:src/os/exceptasm.s
+__osEnqueueThread             0x8000D0C4  ultralib:src/os/exceptasm.s
+__osException                 0x8000C990  ultralib:src/os/exceptasm.s
+__osExceptionPreamble         0x8000C980  ultralib:src/os/exceptasm.s
+__osGetCause                  0x8000DBB0  ultralib:src/os/getcause.s
+__osGetSR                     0x8000D780  ultralib:src/os/getsr.s
+__osProbeTLB                  0x8000FCB0  ultralib:src/os/probetlb.s
+__osRestoreInt                0x8000C520  ultralib:src/os/interrupt.s
+__osSetCompare                0x8000FB90  ultralib:src/os/setcompare.s
+__osSetFpcCsr                 0x8000D790  ultralib:src/os/setfpccsr.s
+__osSetSR                     0x8000D770  ultralib:src/os/setsr.s
+__setfpcsr                    0x800049F0  handwritten:ctc1 a0,$31; nop; nop; jr ra: writes the FPU control register, which C cannot; not an ultralib routine
+bcmp                          0x8000F8D0  ultralib:src/libc/bcmp.s
+bcopy                         0x8000D2B0  ultralib:src/libc/bcopy.s
+bzero                         0x80008590  ultralib:src/libc/bzero.s
+entrypoint                    0x80000400  handwritten:boot stub: clears BSS from 0x8002E8E0, sets sp, jumps to main
+func_800277D0                 0x800277D0  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
+func_800278C4                 0x800278C4  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
+func_80027980                 0x80027980  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
+func_80027B44                 0x80027B44  handwritten:frameless bal calls into 0x80027980/0x80027C98 and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)
+func_80027C98                 0x80027C98  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
+func_80027D3C                 0x80027D3C  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
+func_80027D54                 0x80027D54  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
+func_80027D64                 0x80027D64  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
+func_80027D7C                 0x80027D7C  handwritten:shared tail of the PC-relative coefficient callbacks (libgsm LARp_to_rp)
+func_8002C5E0                 0x8002C5E0  handwritten:cache 0xd (create dirty exclusive) loop; C cannot emit cache
+inflate_entry                 0x80006814  handwritten:hand-edited compiler output: li a1,12000 + addiu a0,zero,0 after a one-argument call; no C order reaches it
+inflate_entry_alt             0x8000697C  handwritten:same hand edit as inflate_entry
+inflate_io_wait               0x80004A10  handwritten:non-ABI: returns in t1 and clobbers s0-s4 unsaved
+lzss_decode                   0x80004AFC  handwritten:non-ABI register contract: reads t1 after each call and spills s0 itself
+osGetCount                    0x8000C970  ultralib:src/os/getcount.s
+osInvalDCache                 0x800084E0  ultralib:src/os/invaldcache.s
+osInvalICache                 0x80008460  ultralib:src/os/invalicache.s
+osMapTLBRdb                   0x8000D890  ultralib:src/os/maptlbrdb.s
+osSetIntMask                  0x800071D0  ultralib:src/os/setintmask.s
+osUnmapTLBAll                 0x8000D840  ultralib:src/os/unmaptlball.s
+osWritebackDCache             0x80007CA0  ultralib:src/os/writebackdcache.s
+osWritebackDCacheAll          0x80007810  ultralib:src/os/writebackdcacheall.s
+send_mesg                     0x8000CEDC  ultralib:src/os/exceptasm.s
+sqrtf                         0x8000E3C0  ultralib:src/gu/sqrtf.s

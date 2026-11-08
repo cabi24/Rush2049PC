@@ -37,25 +37,9 @@ typedef struct Blit {
     u32 AnimID;
 } Blit;
 typedef struct { u8 other0[10]; s8 flag; u8 other11[1979]; s16 index; u8 other1992[8]; s16 value; u8 other2002[54]; } Car2056;
-#ifdef TARGET_PC
 typedef struct { u8 other0[239]; s8 mode; u8 other240[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 other240_308[0x380 - 0x308]; void *input; u8 other240_384[0x3B8 - 0x384]; } Object952;
-#else
-typedef struct { u8 other0[239]; s8 mode; u8 other240[712]; } Object952;
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car2056 D_8014A250[];
-#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].flag
-#define PC_MODEL_S7D0(i) D_8014A250[i].value
-#define PC_MODEL_SLOT(i) D_8014A250[i].index
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Object952 D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].mode
-#endif
 extern s16 gNumWindows,D_8014A108;
 extern s8 D_8015B25C;
 extern char D_80120D9C[],D_80120DAC[];

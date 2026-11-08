@@ -18,11 +18,3 @@ static void func_8008A6FC(void) {
     osSendMesg(&D_801497D0, 0, 0);
 }
 
-void func_8008A704(void) {
-    OSMesg msg;
-
-    if (!D_8011194C) {
-        func_8008A6FC();
-    }
-    osRecvMesg(&D_801497D0, &msg, 1);
-}

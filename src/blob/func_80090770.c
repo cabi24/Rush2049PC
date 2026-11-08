@@ -8,7 +8,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct IndexedRecord44 {
     unsigned int flags, w4;
@@ -19,13 +18,6 @@ typedef struct IndexedRecord44 {
     void *light, *tex[4], *rect, *clip, *pal;
     unsigned int prim, env;
 } IndexedRecord44;
-#else
-typedef struct IndexedRecord44 {
-    u8 unknown00[0x14];
-    u16 value;
-    u8 unknown16[0x2E];
-} IndexedRecord44;
-#endif
 
 extern IndexedRecord44 D_8012E700[];
 

@@ -5,10 +5,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 /* The sprite list D_80140BF0: palette and texture are pointer-sized (particle_knot's Sprite on the PC). */
 typedef struct {uintptr_t word0,word4;u16 half8,halfA,halfC,padE,half10,half12;u8 tail[12];} Record;

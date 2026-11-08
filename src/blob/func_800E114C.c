@@ -38,17 +38,8 @@ typedef struct ModelView {
     u8 other1532[56];f32 dt;u8 other1592[8];s8 sliding;
     u8 other1601[15];f32 damping;u8 other1620[370];s16 node;
 } ModelView;
-#ifdef TARGET_PC
 typedef struct Car952 {u8 other0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other0_308[0x359 - 0x308];s8 mode;u8 other858[0x380 - 0x35A]; void *input; u8 other858_384[0x3B8 - 0x384];} Car952;
-#else
-typedef struct Car952 {u8 other0[857];s8 mode;u8 other858[94];} Car952;
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 D_80152818[];
-#define PC_CAR_STATE(i) D_80152818[i].mode
-#endif
 extern f32 D_80114184,D_80114188;
 extern f32 fabsf(f32),func_8008B3C8(f32 *);
 #pragma intrinsic (fabsf)

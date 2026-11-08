@@ -22,17 +22,9 @@ typedef signed int s32;
 typedef signed short s16;
 typedef signed char s8;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 /* 76-byte records at input_rec0 */
-#ifdef TARGET_PC
 typedef struct Rec76 { s32 w0; u32 w4; s32 rest[16]; void *ref; } Rec76;
-#else
-typedef struct Rec76 { s32 w0; u32 w4; s32 rest[17]; } Rec76;
-#endif
 
 extern s8 D_801148A4;
 extern s8 D_80157244;
@@ -46,14 +38,10 @@ extern intptr_t D_80140800;
 extern s8 D_8014978C;
 extern void *D_801461A8;
 extern s8 D_801148E4;
-#ifdef TARGET_PC
 /* PC: game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt"): the save prompt
    after a ghost race for every profile, not only the developer's (D_801148E4, LoadPlayerData); off, the N64's. */
 int pc_ghost_prompt(int developer);
 #define PC_GHOST_PROMPT(v) pc_ghost_prompt(v)
-#else
-#define PC_GHOST_PROMPT(v) v
-#endif
 extern s8 D_801460C0;
 extern void *D_8014A160;
 extern u32 D_8015694C;

@@ -65,19 +65,12 @@ extern s8 D_8014978C;              /* gTrackNum */
 extern s16 gNumWindows;             /* gNumWindows */
 extern char *D_8011A924[];         /* gWorldNames (N64: indexed by track) */
 
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, void *heap);
-#else
-s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, s32 a4);   /* GC LoadWave */
-#endif
 s8 player_state_get(s32 idx);                                            /* GC WaveInstanceReady */
 void *slot_value_get(s32 idx);                                           /* GC GetWaveInstanceAddr */
 void MBSetupWad(Wad *wad, void *ptr);                                 /* GC MBSetupWad */
-#ifdef TARGET_PC
 u32 MBGetFromWad(Wad *wad, s32 tag, s32 *count);       /* a WAD entry: a 32-bit window address */
-#else
-void *MBGetFromWad(Wad *wad, s32 tag, s32 *count);                 /* GC MBGetFromWad */
-#endif
 void camera_lerp_position(s16 track);                                    /* GC initTargetStructs */
 void camera_reset(void);                                                 /* GC SkyInit */
 void func_800B2BDC(void);                                                /* GC InitEnvs */
@@ -94,21 +87,15 @@ void func_8038A8CC(void);                                                /* over
 s16 wheel_torque_apply(u8 *World, s16 Parent);                        /* GC NewWorld (world.c, locked) */
 void mode_flags_clear(void);                                            /* N64 InitCheckpointData wrapper (locked) */
 
-#ifdef TARGET_PC
 /* PC: the GTLD keys become object pointers at race setup (engine_sound_update), which don't fit the file's 4-byte
  * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned
  * as they are. */
 uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
-#endif
 
-#ifdef TARGET_PC
 /* The world headers' offsets become 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
 s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     Wad wad;
     WorldHdr *whdr;

@@ -15,7 +15,6 @@
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32;
 
-#ifdef TARGET_PC
 /* PC: the node is a blit (sound_control.c's Blit, 0x68 bytes, docs/port/POINTERS.md 9.3): its name, image and info
  * are pointers, so the rest is 0x0C later, and the AnimFunc slot (word28) is pointer-sized at +0x38 with the AnimID
  * (the player index) after it at +0x40. */
@@ -37,44 +36,15 @@ typedef struct MenuNode {
     intptr_t word28;    /* 0x38 */
     s32 index;          /* 0x40: player index */
 } MenuNode;
-#else
-typedef struct MenuNode {
-    s32 next;           /* 0x00 */
-    s16 flags, pad6;    /* 0x04 */
-    s32 pad8;           /* 0x08 */
-    s16 padC;           /* 0x0C */
-    s16 x;              /* 0x0E */
-    s16 y;              /* 0x10 */
-    s16 pad12;          /* 0x12 */
-    s16 w;              /* 0x14 */
-    s16 h;              /* 0x16 */
-    s8 alpha;           /* 0x18 */
-    s8 pad19;
-    s8 hidden;          /* 0x1A */
-    s8 pad1B;
-    s32 pad1C, pad20, pad24;
-    s32 word28;         /* 0x28 */
-    s32 index;          /* 0x2C: player index */
-} MenuNode;
-#endif
 
 typedef struct { s32 x, y; } Pos;
-#ifdef TARGET_PC
 /* PC: a car record seen from +0xD8 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct { u8 pad[0x17]; s8 state; u8 pad18[PC_CAR_SIZE - 0x18]; } Player;
-#else
-typedef struct { u8 pad[0x17]; s8 state; u8 pad18[0x3B8 - 0x18]; } Player;  /* 0x3B8 */
-#endif
 
 extern s16 gNumWindows;                  /* player count */
 extern volatile s16 D_801543CA;
 extern s8 D_80156CE8;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_801528F0[];
-#define PC_CAR_FINISHED(i) D_801528F0[i].state
-#endif
 extern s32 state_word_a, D_8011617C, D_80116180;
 extern Pos D_80116028[][4];     /* row = player count - 1 */
 extern char D_80120E34[];

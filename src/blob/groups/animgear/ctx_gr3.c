@@ -5,10 +5,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct Bank {
@@ -44,83 +40,15 @@ extern u8 D_80149B70;
 extern s32 D_80149B08;
 extern s32 D_80149B28;
 
-void func_80096288(s32 a,s32 b,s32 c) { if(0) { switch(a+b+c) {case 1: D_80149B08=1;break;case 2:D_80149B08=2;break;case 3:D_80149B08=3;break;} } if(c) {} }
 extern s32 func_80097694(s32, s32);
 
 extern int __unit_dead[];
-void sound_update_channel(s32 force)
-{
-    Bank *b;
-    u8 *p;
-    s32 i;
-    s16 *q;
-    s32 *r;
-    s32 v;
-
-    func_80096288(D_80149780, 0, 0);
-    b = D_80156D44[D_80149780].hdr->bank;
-    if (force || b != D_801497F0) {
-        D_801497F0 = b;
-        D_80149800 = (Entry *)((u8 *)b + 16);
-        p = (u8 *)b + 16 + D_801497F0->f12 * 12;
-        if (D_801497F0->f10 != 0) {
-            for (i = 0; i < D_801497F0->f12; i++) {
-                D_80149800[i].ptr = p;
-                p += D_801497F0->f12;
-            }
-        }
-        for (q = D_80149878; q < &D_80149878[256]; q++) {
-            *q = -1;
-        }
-        for (i = 0; i < D_801497F0->f12; i++) {
-            D_80149878[D_80149800[i].id] = i;
-        }
-    }
-    if (force) {
-        v = gTexDefPtrs[D_801497A4].first;
-        r = D_80149820;
-        for (i = 0; i < D_801497F0->f11; i++) {
-            *r++ = v;
-            v += 36;
-        }
-        D_80149B60 = D_801497F0->f4;
-        D_80149B70 = D_801497F0->f8;
-    }
-    D_80149B08 = (D_801497F0->mode == 1) ? 4 : 3;
-    D_80149B28 = (D_801497F0->mode == 1) ? 0 : 1;
-
-}
+void sound_update_channel(s32 force);
 
 
-void mode_byte2_set(s16 a) {
- if (a < 0) { sound_update_channel(0); D_80149B60 = D_801497F0->f4; }
- else D_80149B60 = a;
-}
-u8 object_type_byte2_get(void) { sound_update_channel(0); return *((u8 *)D_801497F0 + 2); }
-u8 object_type_byte3_get(void) { sound_update_channel(0); return *((u8 *)D_801497F0 + 3); }
+u8 object_type_byte2_get(void);
+u8 object_type_byte3_get(void);
 
-void *slot_value_get(s32 arg) { func_80096288(arg, 0, 0); return D_80156D44[arg].hdr; }
-
-void mode_byte_set(s16 a) { if (a < 0) { sound_update_channel(0); D_80149B70=D_801497F0->f8; } else D_80149B70=a; }
-
-s8 HAL_SetFontFixedWidth(s8 value) {
- s8 old;
- sound_update_channel(0);
- old = D_801497F0->f9;
- D_801497F0->f9 = value;
- return old;
-  if (0) { /* : dead block, stops umerge inlining this context copy (the whole-program unit's inline-blocker device) */
-    __unit_dead[0] = 1;
-    __unit_dead[1] = 2;
-    __unit_dead[2] = 3;
-    __unit_dead[3] = 4;
-    __unit_dead[4] = 5;
-    __unit_dead[5] = 6;
-    __unit_dead[6] = 7;
-    __unit_dead[7] = 8;
-  }
-
-}
 s16 object_bytes23_sum(void) { u8 first; first=object_type_byte2_get(); return (s16)(first + object_type_byte3_get()); }
 s16 object_bytes_sum_global(void) {
  u8 first;
@@ -128,23 +56,4 @@ s16 object_bytes_sum_global(void) {
  first = *((u8 *)D_801497F0 + 3);
  sound_update_channel(0);
  return (s16)(D_80149B60 + *((u8 *)D_801497F0 + 2) + first);
-}
-void func_800F68A4(u8 *out) {
- s32 offset;
- s32 i;
- sound_update_channel(0);
- for (i = 0, offset = 0; i < D_801497F0->f12; offset += 12, i++) {
-  out[i] = *((u8 *)D_80149800 + offset + 4);
- }
- out[i] = 0;
-}
-s32 HAL_GetCharWidth(u16 id) {
- s16 index;
- sound_update_channel(0);
- if ((u8)D_801497F0->f9 != 0) return D_801497F0->f6;
- if (id == 32 || id >= 256) return D_801497F0->f7;
- if (id == 10) return 0;
- index = D_80149878[id];
- if (index < 0) return D_801497F0->f7;
- return D_80149800[index].pad[3] - D_80149800[index].pad[1] + 1;
 }

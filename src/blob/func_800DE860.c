@@ -51,59 +51,24 @@ typedef struct {
     /* 0x0EE */ s8 place;
     /* 0x0EF */ u8 pad0EF[0x100 - 0xEF];
     /* 0x100 */ f32 dist;
-#ifdef TARGET_PC
     /* 0x104 */ u8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; u8 pad104_308[0x356 - 0x308];
-#else
-    /* 0x104 */ u8 pad104[0x356 - 0x104];
-#endif
     /* 0x356 */ s16 slot;
     /* 0x358 */ u8 pad358;
     /* 0x359 */ s8 state;
-#ifdef TARGET_PC
     /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
-#else
-    /* 0x35A */ u8 pad35A[0x3B8 - 0x35A];
-#endif
 } Rec;
 
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_8014A250[];
-#define PC_MODEL_ACTIVE(i) D_8014A250[i].active
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].kind
-#define PC_MODEL_SCALE(i) D_8014A250[i].scale
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Rec player_array[];
-#define PC_CAR_DISTANCE(i) player_array[i].dist
-#define PC_CAR_STATE(i) player_array[i].state
-#endif
 extern s16 active_player_count;
 extern s8 D_80152030;
 extern s8 D_80150F14;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Slot D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].flag
-#endif
 
-#ifndef TARGET_PC
-/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
-#define PC_RACE_CARS 6
-#endif
-#ifdef TARGET_PC
 /* PC: game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7). The catch-up scale moves 0.03 of the way to its
  * target a frame of two retraces, a filter the cars' physics reads: e^frames and its other weight, 1 - e^frames
  * (0.03, as written, at original). */
 #define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
-#else
-#define PC_FILTER(e) e
-#define PC_FILTER_REST(e, rest) rest
-#endif
 void func_800DE860(void)
 {
     s16 i;

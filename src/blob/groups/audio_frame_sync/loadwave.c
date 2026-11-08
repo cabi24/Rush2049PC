@@ -39,15 +39,10 @@ int func_80097694(int waveNum, signed char handle);          /* _FindWaveInstanc
 void entity_render_mode(int idx);                            /* MirrorWaveInstance */
 unsigned char *AllocateHandleHeap(void *heap, unsigned int size); /* AllocateHandleHeap */
 unsigned char *AllocateMemoryHeap(void *heap, unsigned int size);      /* AllocateMemoryHeap */
-#ifdef TARGET_PC
 /* GetPtrSize's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 unsigned int audio_buffer_sync(unsigned int ptr);
 #define N64A(x) PC_N64A(x)
-#else
-unsigned int audio_buffer_sync(void *ptr);                   /* GetPtrSize */
-#define N64A(x) x
-#endif
 void func_800972C4(int idx);                                 /* _SetWaveInstanceModel */
 void func_80097164(int idx);                                 /* _ReadWave */
 

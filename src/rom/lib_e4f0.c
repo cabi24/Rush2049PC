@@ -109,5 +109,3 @@ long long __ll_mod(long long a0, long long a1) {
 long long __ll_rshift(long long a0, long long a1) {
     return a0 >> a1;
 }
-
-#pragma GLOBAL_ASM("asm/us/nonmatchings/rom/lib_e4f0/__osGetCause.s")

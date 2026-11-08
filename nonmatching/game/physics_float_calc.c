@@ -30,17 +30,10 @@ typedef struct {
     f32 max[3];             /* 0x5C */
 } tModelPart; /* 0x68 */
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct {
     u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
 } ObjInstance;
-#else
-typedef struct {
-    u32 flags;
-    char pad4[0x40];
-} ObjInstance; /* 0x44 on the N64 */
-#endif
 
 extern tModelPart *D_80149B80;      /* WorldBase */
 extern s8 D_8014978C;               /* gTrackNum */
@@ -89,7 +82,6 @@ static void WorldDistance(tModelPart *Wnode, f32 *pos, s32 *best, f32 *dist, s32
     }
 }
 
-#ifdef TARGET_PC
 /* PC: video.draw_distance (docs/port/DETAIL.md 2.1). The table row of the part the eye is in (WorldDistance's best)
  * says which of the world's parts are drawn. Far draws the parts any row lets through whose part lies within
  * PC_VIS_FAR feet of the eye (the distance to its box, as WorldDistance places the eye in one): what the parts the
@@ -219,76 +211,3 @@ void physics_float_calc(s32 unused, f32 *pos, s32 show)
         mask <<= 1;
     }
 }
-#else
-void physics_float_calc(s32 unused, f32 *pos, s32 show)
-{
-    s32 dlindex;
-    s32 windex;
-    f32 dist;
-    s32 best;
-    s32 parts;
-    s32 i;
-    u32 mask;
-    s32 w;
-    u32 *ptr;
-    u32 *ptr_no_clip;
-
-    dlindex = 0;
-    windex = 0;
-    best = -1;
-    ptr_no_clip = 0;
-    if (!D_80149B80) {
-        return;
-    }
-    WorldDistance(D_80149B80, pos, &best, &dist, &windex, &dlindex);
-    if (best < 0) {
-        ptr = D_8011E75C;
-    } else {
-        switch (D_8014978C) {
-        case 0: ptr = D_8011B898[best]; break;
-        case 1: ptr = D_8011BFE8[best]; break;
-        case 2: ptr = D_8011C738[best]; break;
-        case 3: ptr = D_8011CE88[best]; break;
-        case 4: ptr = D_8011D618[best]; break;
-        case 5: ptr = D_8011DC88[best]; break;
-        case 6: ptr = D_8011E428[best]; break;
-        case 7: ptr = D_8011E438[best]; break;
-        case 8: ptr = D_8011E448[best]; break;
-        case 9: ptr = D_8011E458[best]; break;
-        case 10: ptr = D_8011E468[best]; break;
-        case 11: ptr = D_8011E548[best]; break;
-        case 12: ptr = D_8011E558[best]; break;
-        case 13: ptr = D_8011E568[best]; break;
-        case 14: ptr = D_8011E578[best]; break;
-        case 15: ptr = D_8011E588[best]; break;
-        case 16: ptr = D_8011E598[best]; break;
-        case 17: ptr = D_8011E5A8[best]; break;
-        case 18: ptr = D_8011E5B8[best]; break;
-        default: break;
-        }
-    }
-    parts = D_8011E748[D_8014978C];
-    mask = 1;
-    w = 0;
-    for (i = 0; i < parts; i++) {
-        if (ptr) {}
-         if (show) {} 
-        if (i && !(i & 31)) {
-            w++;
-            mask = 1;
-        }
-        if (ptr_no_clip) {
-            ShowCull(&D_8012E700[D_80149D90 + i]);
-        }
-        if (((mask & ptr[w]) || (ptr_no_clip && (mask & ptr_no_clip[w])) || show) && !D_8014061A) {
-            D_8012E700[D_80149D90 + i].flags &= ~0x80000000;
-        } else {
-            D_8012E700[D_80149D90 + i].flags |= 0x80000000;
-        }
-        mask <<= 1;
-        if (ptr) {}
-         if (show) {} 
-    }
-     if (parts) {} 
-}
-#endif

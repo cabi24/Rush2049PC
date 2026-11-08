@@ -34,12 +34,8 @@
  */
 typedef signed char s8; typedef unsigned char u8;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
-#ifdef TARGET_PC
 /* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links and list host-sized (docs/port/SYNTH.md). */
 typedef struct Effect {u8 pad0[28];s32 kind;u8 pad32[4];s8 state,delay;u8 persistent;u8 pad39[33];s32 voice;void *data;} Effect;
-#else
-typedef struct Effect {u8 pad0[16];s32 kind;u8 pad20[4];s8 state,delay;u8 persistent;u8 pad27[33];s32 voice;} Effect;
-#endif
 typedef struct Source {struct Source *next,*prev;u32 flags;f32 position[3];f32 radius,nearVolume,farVolume,parameter;s32 handle;} Source;
 typedef struct Listener {struct Listener *next,*prev;u32 flags;f32 position[3];u8 pad24[12];f32 right[3],forward[3];} Listener;
 typedef struct List {u8 flags[4];s32 count;Listener *head,*tail;} List;
@@ -56,7 +52,6 @@ s32 osSendMesg(void *,void *,s32);
 void func_80091AF0(void);
 void func_80091AF8(void);
 
-#ifdef TARGET_PC
 /* PC: [audio] engines (port/config/voices.c, docs/port/AUDIO.md 10). Before the pass, each drone engine layer's
  * distance to each listener goes to pc_engines_note (the voices module knows which emitters are the drones' engines),
  * which then picks, per listener, the drones whose engines play; the pass sends each emitter's gain through
@@ -81,10 +76,6 @@ static void pc_engines_gather(void)
     pc_engines_choose(D_80146188.count);
 }
 #define PC_ENGINE_GAIN(source, gain) pc_engine_gain((source)->handle, gain)
-#else
-#define PC_ENGINE_GAIN(source, gain) gain
-#define PC_ONLY(stmt)
-#endif
 void func_80098ADC(f32 *d, f32 v)
 {
     *d = v<0.0f?0.0f:v>1.0f?1.0f:v;
@@ -102,12 +93,12 @@ void engine_sound_sync(void)
     s32 pad3;
     f32 panValues[5], depthValues[5], gains[5];
 
-    func_80091AF0(); PC_ONLY(pc_engines_gather();)
+    func_80091AF0(); pc_engines_gather();
     source=D_801461F0;
     while (source) {
         next=source->next;
         effect=func_80091BA8(source->handle);
-        kind=effect->kind; PC_ONLY(pc_engine_state(source->handle, kind);)
+        kind=effect->kind; pc_engine_state(source->handle, kind);
         if (kind==2 && !effect->persistent && !effect->delay &&
             !entity_state_check(effect->voice)) {
             audio_effect_setup(effect);
@@ -162,10 +153,6 @@ void engine_sound_sync(void)
     func_80091AF8();
 }
 
-void func_80091AF0(void) {
-    osRecvMesg(D_80142728, 0, 1);
-}
+void func_80091AF0(void);
 
-void func_80091AF8(void) {
-    osSendMesg(D_80142728, 0, 0);
-}
+void func_80091AF8(void);

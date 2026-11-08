@@ -16,21 +16,12 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[0x48 - 0x8]; void *ref; } Player76;
-#else
-typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[68]; } Player76;
-#endif
 typedef struct Controller16 { s8 attached; u8 pad[15]; } Controller16;
-#ifdef TARGET_PC
 /* PC: a target is a level-object node, which keeps its N64 layout in the arena: the link is a 32-bit window address
  * (the node pool's n64 flag), so the sound and the state are at +0x60 and +0x64 (docs/port/POINTERS.md 10). */
 typedef struct Target { u32 next; u8 pad04[92]; s32 f96; s8 f100; } Target;
 #define TARGET_NEXT(t) ((Target *)PC_N64P((t)->next))
-#else
-typedef struct Target { struct Target *next; u8 pad04[92]; s32 f96; s8 f100; } Target;
-#define TARGET_NEXT(t) t->next
-#endif
 typedef struct AudMsg { u8 pad0[2]; s8 type; } AudMsg;
 
 extern s32 D_801170FC;          /* gPauseState */
@@ -88,7 +79,6 @@ void AudUnlock(void)
     osSendMesg(D_80142728, 0, 0);
 }
 
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * src/blob/groups/transform/group.c's entity_transform_calc says when). A stop, pause or resume posted here is
  * then dropped: with no message the lock is given back and nothing is sent, and a message the full queue refuses
@@ -96,10 +86,6 @@ void AudUnlock(void)
  * AudStopAllEffects (display_list_flush.c, RaceStateMachine_Update.c) is the same. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){AudUnlock();return;}
 #define PC_GIVE_BACK(m) ((s8 *)(m))[3]=0;
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_GIVE_BACK(m)
-#endif
 void AudSend(AudMsg *msg)
 {
     if (osSendMesg(D_801427A8, msg, 0)) { PC_GIVE_BACK(msg)

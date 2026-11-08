@@ -18,10 +18,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -451,20 +447,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -838,7 +825,6 @@ s32 draw_ui_element(void **ipa_t0, s32 ipa_t1, s32 ipa_t2);
 extern void **func_800C7EC8(void **);
 
 
-#ifdef TARGET_PC
 /* _NewGhost on the PC. A ghost (Ghost below: 0x2C bytes on the N64, 64 with its four pointers) and its handle (8
  * bytes) don't fit the N64's storage, 64 four-byte handle slots at D_8013F1F8 and 64 records 0x2C apart at
  * D_8013F390 in the game arena: the PC keeps both here. Same search order; none free gives NULL
@@ -856,38 +842,6 @@ void **func_800C7200(void) {
     }
     return NULL;
 }
-#else
-void **func_800C7200(void) {
-    void **var_a0;
-    s32 var_v1;
-
-    var_v1 = 0; var_a0 = (void **)&D_8013F1F8;
-loop_1:
-    if (M2C_FIELD(var_a0, void **, 0) == NULL) {
-        M2C_FIELD(var_a0, void **, 0) = (void *) ((var_v1 * 0x2C) + (u8 *) &D_8013F390);
-        return var_a0;
-    }
-    if (M2C_FIELD(var_a0, void **, 4) == NULL) {
-        M2C_FIELD(var_a0, void **, 4) = (void *) ((var_v1 * 0x2C) + 0x2C + (u8 *) &D_8013F390);
-        return (void **)((u8 *)var_a0 + 4);
-    }
-    if (M2C_FIELD(var_a0, void **, 8) == NULL) {
-        M2C_FIELD(var_a0, void **, 8) = (void *) ((var_v1 * 0x2C) + 0x58 + (u8 *) &D_8013F390);
-        return (void **)((u8 *)var_a0 + 8);
-    }
-    if (M2C_FIELD(var_a0, void **, 0xC) == NULL) {
-        M2C_FIELD(var_a0, void **, 0xC) = (void *) ((var_v1 * 0x2C) + 0x84 + (u8 *) &D_8013F390);
-        return (void **)((u8 *)var_a0 + 0xC);
-    }
-    var_v1 += 4;
-    var_a0 = (void **)((u8 *) var_a0 + 0x10);
-    if (var_v1 == 0x40) {
-        goto exhausted;
-    }
-    goto loop_1;
-exhausted:;
-}
-#endif
 
 
 /* SaveServer: defined in group.c */
@@ -918,11 +872,7 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
-#ifdef TARGET_PC
     u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-#else
-    u8 *start;                    /* 0x4C */
-#endif
     u32 offset;                   /* 0x50 */
     u32 size;                     /* 0x54 */
 } GhostHeader;
@@ -942,16 +892,10 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 
 void *memcpy(void *, const void *, u32);
 void ghost_free_start(GhostHeader *header);
-#ifdef TARGET_PC
 /* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes. The heap's API
  * takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define START(x) ((u8 *)PC_N64P(x))
 #define N64A(x) PC_N64A(x)
-#else
-#define START(x) x
-#define N64A(x) (u32)x
-#define GHOST_OFS(n) n
-#endif
 
 s32 ghost_blocks_from_size(s32 size) {   /* GC PS_GetBlocks */
     return (size + 255) >> 8;

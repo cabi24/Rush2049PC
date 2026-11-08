@@ -25,10 +25,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 extern u8 D_80151968[20][13];
 extern u16 D_80151A78[20];

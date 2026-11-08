@@ -7,108 +7,10 @@
  */
 typedef unsigned char u8;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
 typedef struct Link {struct Link *next, *prev;} Link;
 typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
-void func_80091FBC(List *list, Link *object, Link *before) {
-    Link *node, *at, *current, *header, *next;
-    if (object == 0) return;
-    if (list->indirect) {
-        node = object->next;
-        if (before) at = before->next;
-        else at = 0;
-    } else {
-        node = object;
-        at = before;
-    }
-    if (before) {
-        if (list->doubly) {
-            if (at->prev) {
-                if (list->indirect) at->prev->next->next = object;
-                else at->prev->next = object;
-            } else list->head = object;
-            node->prev = at->prev;
-            at->prev = object;
-        } else if (before == list->head) list->head = object;
-        else if (list->indirect) {
-            current = list->head;
-            while (current) {
-                header = current->next;
-                next = header->next;
-                if (before == next) {
-                    header->next = object;
-                    next = current->next->next;
-                }
-                current = next;
-            }
-        } else {
-            current = list->head;
-            while (current) {
-                header = current->next;
-                if (before == header) {
-                    current->next = object;
-                    header = object;
-                }
-                current = header;
-            }
-        }
-    } else {
-        if (list->doubly) node->prev = list->tail;
-        if (list->tail) {
-            if (list->indirect) list->tail->next->next = object;
-            else list->tail->next = object;
-        } else list->head = object;
-        list->tail = object;
-    }
-    node->next = before;
-    list->count++;
-}
-void func_8009211C(List *list, Link *object) {
-    Link *node, *current, *header, *next;
-    if (object == 0) return;
-    if (list->indirect) node = object->next;
-    else node = object;
-    if (list->doubly) {
-        if (node->next) {
-            if (list->indirect) node->next->next->prev = node->prev;
-            else node->next->prev = node->prev;
-        } else list->tail = node->prev;
-        if (node->prev) {
-            if (list->indirect) node->prev->next->next = node->next;
-            else node->prev->next = node->next;
-        } else list->head = node->next;
-    } else if (object == list->head) {
-        list->head = node->next;
-        if (list->head == 0) list->tail = 0;
-    } else if (list->indirect) {
-        current = list->head;
-        while (current) {
-            header = current->next;
-            next = header->next;
-            if (object == next) {
-                header->next = node->next;
-                if (node->next == 0) list->tail = current;
-                break;
-            }
-            current = next;
-        }
-    } else {
-        current = list->head;
-        while (current) {
-            header = current->next;
-            if (object == header) {
-                current->next = node->next;
-                if (node->next == 0) list->tail = current;
-                break;
-            }
-            current = header;
-        }
-    }
-    list->count--;
-}
+void func_80091FBC(List *list, Link *object, Link *before);
+void func_8009211C(List *list, Link *object);
 
 typedef int s32;
 typedef signed char s8;
@@ -170,21 +72,8 @@ void audio_effect_setup(Effect *input) {
         effect->list=&D_80143FF8;
     }
 }
-void audio_pitch_adjust(s32 *effect) {
-    M2C_FIELD(effect,s32 *,16)=3;
-    func_8009211C(M2C_FIELD(effect,List **,8),(Link *)effect);
-    func_80091FBC(&D_80144C50,(Link *)effect,D_80144C50.head);
-    M2C_FIELD(effect,List **,8)=&D_80144C50;
-}
-void entity_flag_check(s32 *ipa_s0) {
-    M2C_FIELD(ipa_s0, s32 *, 8) = (s32) (M2C_FIELD(ipa_s0, s32 *, 8) & D_80146104);
-    if (M2C_FIELD(ipa_s0, s8 *, 0xD) != 0) {
-        func_8009211C(&D_80149860, ipa_s0);
-        M2C_FIELD(ipa_s0, s8 *, 0xD) = 0;
-    }
-    func_80091FBC(&D_80149808, ipa_s0, M2C_FIELD(&D_80149808, s32 **, 8));
-    M2C_FIELD(ipa_s0, s8 *, 0xC) = 1;
-}
+void audio_pitch_adjust(s32 *effect);
+void entity_flag_check(s32 *ipa_s0);
 
 /* func_800988D8 = _ProcessSequences@audiomgr.c (MAT3 GameCube audiomgr.c, GC 0x800A44D8; DWARF locals s, next, t).
  * Body: research packet refs/pr/408 (

@@ -95,26 +95,12 @@ typedef struct MODELDAT {
 typedef struct CAR_DATA {
     /* 0x000 */ U8 pad000[0xEF];
     /* 0x0EF */ S8 place_locked;
-#ifdef TARGET_PC
     /* 0x0F0 */ U8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; U8 pad0F0_308[0x359 - 0x308];
-#else
-    /* 0x0F0 */ U8 pad0F0[0x359 - 0xF0];
-#endif
     /* 0x359 */ S8 unk359;
-#ifdef TARGET_PC
     /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
-#else
-    /* 0x35A */ U8 pad35A[0x3B8 - 0x35A];
-#endif
 } CAR_DATA;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA player_array[];
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_STATE(i) player_array[i].unk359
-#endif
 extern S8 D_80152718;
 extern S8 D_8013FECB;
 extern void func_800E32CC(MODELDAT *m);
@@ -187,14 +173,10 @@ void func_800E3430(MODELDAT *m) {
     }
 }
 
-#ifdef TARGET_PC
 /* PC: the engine speed to s16, which a car's engine spinning past +-32767 rpm overruns (seen in a 12-car race,
  * docs/port/MORECARS.md 4); undefined in C. Through s32, whose low half the conversion keeps, as the N64's trunc.w.s
  * and sh do (docs/port/SANITIZE.md, particle_knot's V16). */
 #define TRUNC_W (S32)
-#else
-#define TRUNC_W
-#endif
 void func_800E3724(MODELDAT *m) {
     S32 absvel, i, j;
 

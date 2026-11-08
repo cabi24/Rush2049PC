@@ -31,54 +31,34 @@ typedef short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 #define NULL ((void *)0)
 
-#ifdef TARGET_PC
 /* PC: a command is 32 bytes (func_80091B00.c). The wait for the audio manager to take every command is a
  * busy-wait, which lets it run (docs/port/ULTRA.md 6). */
 typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[28]; } ShutdownMsg;
-#else
-typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMsg;
-#define PC_SPIN(site)
-#endif
 typedef struct OSMesgQueue OSMesgQueue;
 typedef void *OSMesg;
 
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern volatile ShutdownMsg D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern s8 D_8011023C;
-#ifdef TARGET_PC
 extern uintptr_t D_80110244;
 extern uintptr_t D_80110248;
 extern uintptr_t D_80110270;
 extern u32 D_8011025C, D_80110260;
-#else
-extern u32 D_8011025C, D_80110260, D_80110244, D_80110248, D_80110270;
-#endif
 extern s32 D_801427A8;
 void init_wait_completion(void);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 ShutdownMsg *func_80091B00(void);
 
-#ifdef TARGET_PC
 /* func_800960CC's manifest owner is the empty deleted-procedure stub (src/blob/func_800960CC.c): its body, the
  * locked heap free, was inlined here. audio_effect_process (heap_release/group.c) is that body under a name the
  * link keeps (docs/port/PROTOTYPES.md). */
 #define func_800960CC audio_effect_process
-#endif
 void func_800960CC(u32 address);
 void func_800C885C(void);
 void func_80091AF0(void);
@@ -93,7 +73,7 @@ void func_800C8918(void) {
         func_800C885C();
         post_type1();
         post_type7();
-        do { PC_SPIN("func_800C8918")
+        do { pc_os_spin_yield("func_800C8918");
             for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
                 if (D_80142DD8[i].used) {
                     break;
@@ -108,38 +88,15 @@ void func_800C8918(void) {
     }
 }
 
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The shutdown's stop of the song and of every effect are
  * not dropped: func_800C8918 frees the effects' blocks next, once the manager has drained the pool, so a post
  * that finds no message gives the lock back and waits for the manager to free one, and a full queue is waited
  * on (the lock is free by then). The other copy of these two (carcolor/ctx_func_800C8918.c,
  * heap_release/func_800C8918.c) is the same. */
-#define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();PC_SPIN("post_type")func_80091AF0();(m)=func_80091B00();}
+#define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();pc_os_spin_yield("post_type");func_80091AF0();(m)=func_80091B00();}
 #define PC_CMD_SEND(q,m) osSendMesg(q,m,1)
-#else
-#define PC_CMD_OR_WAIT(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
-void post_type1(void) {
-    ShutdownMsg *sp1C;
-    ShutdownMsg *temp_v0;
+void post_type1(void);
 
-    func_80091AF0();
-    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 1; func_80091AF8();
-    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
-}
-
-void post_type7(void) {
-    ShutdownMsg *sp1C;
-    ShutdownMsg *temp_v0;
-
-    func_80091AF0();
-    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 7; func_80091AF8();
-    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
-}
+void post_type7(void);
 

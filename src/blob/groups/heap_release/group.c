@@ -1,107 +1,38 @@
 typedef signed char s8;typedef unsigned char u8;typedef signed int s32;typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 #define NULL ((void *)0)
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
 enum n64p_u32 { n64p_u32_ };
 enum n64p_MBlock { n64p_MBlock_ };
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#else
-typedef struct Block {u32 pad0;struct Block *next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
-#endif
-#ifdef TARGET_PC
 typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
-#else
-typedef struct Pool {s32 count;u32 *base;struct Pool *next;} Pool;
-#endif
-#ifdef TARGET_PC
 typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool pool;} Heap;
-#else
-typedef struct Heap {u32 pad0;u32 pad4;Block *blocks;u32 padc[3];Pool pool;} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), enum n64p_MBlock: (struct MBlock *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
-#ifdef TARGET_PC
 /* The heap's links and addresses are 32-bit N64 addresses: N64A(p) is a window pointer's, N64PTR(T, a) the pointer
  * at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). A block's owner is the handle slot that holds it
  * (AllocateHandleHeap), cleared as a slot (PC_SLOT_SET). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
 #define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
-#else
-#define N64A(x) (u32)x
-#define N64PTR(T, a) (T)a
-#define SLOT_CLEAR(o) *(u32 *)o=0
-#endif
 typedef struct OSMesgQueue OSMesgQueue;
-#ifdef TARGET_PC
 extern intptr_t D_801527C8;
 extern s32 D_80152770;
-#else
-extern s32 D_801527C8,D_80152770;
-#endif
 extern s8 D_8011ED04,D_8011ED00;
 extern u8 D_8038A400[];
 typedef struct RaceEntry {u32 allocation;u8 pad4[20];} RaceEntry;
 extern RaceEntry D_8013FEF4[];
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 void func_80095EC0(void *,u32);
-void *func_80095F8C(u32 arg0) {
-    s32 var_v0;
-    s32 var_v1;
-
-    var_v0 = D_801527C8;
-    var_v1 = 0;
-    if (var_v0 != 0) {
-        do {
-            if ((arg0 >= (u32) M2C_FIELD(var_v0, u32 *, 8)) && (arg0 < (u32) M2C_FIELD(var_v0, u32 *, 0x10))) {
-                var_v1 = var_v0;
-            }
-            var_v0 = M2C_FIELD(var_v0, s32 *, 4);
-        } while (var_v0 != 0);
-    }
-    return (void *) var_v1;
-}
-Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
-    Pool *p;
-    Block *b;
-    p = &heap->pool;
-    while (1) {
-        if (p == 0 || p->base == 0) break;
-        if (addr >= (u32)p->base && addr < (u32)(N64P(p->base) + p->count)) {
-            addr = *(u32 *)addr;
-            break;
-        }
-        p = N64P(p->next);
-    }
-    b = N64P(heap->blocks);
-    while (b != 0) {
-        if (tag != b->tag || addr < (u32)b || (b->next != 0 && addr >= (u32)b->next)) {
-            b = N64P(b->next);
-        } else break;
-    }
-    return b;
-}
-#ifdef TARGET_PC
+void *func_80095F8C(u32 arg0);
+Block *func_80095EF4(Heap *heap, u32 addr, s32 tag);
 /* PC: the free's first step poisons the freed block (block + 32, size). Whatever was registered big-endian in
  * it (a wave's file) goes with it (port/assets). The other two calls clear merged headers. */
 void pc_heap_block_freed(void *p, __SIZE_TYPE__ size);
 #define func_80095EC0(p, n) (pc_heap_block_freed(p, n), func_80095EC0(p, n))
-#endif
 void audio_reverb_update(u32 address,s32 tag) {
  Heap *heap; Block *block,*next,*prev;
  heap=func_80095F8C(address);
@@ -126,9 +57,7 @@ void audio_reverb_update(u32 address,s32 tag) {
   func_80095EC0(block,32);
  }
 }
-#ifdef TARGET_PC
 #undef func_80095EC0
-#endif
 /* : __inline + four unused locals: umerge inlines it into func_800C885C below, and each inlined
  * instance reserves its callee's locals in the caller's frame (retail spill homes 56 / 32, frame 64). */
 __inline void audio_effect_process(u32 address) {
@@ -165,33 +94,6 @@ void stat_race_end(s32 index) {
  audio_reverb_update(address,0);
  osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
 }
-void *audio_buffer_sync(u32 address) {
- void *owner,*block,*result;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- owner=func_80095F8C(address);
- block=func_80095EF4(owner,address,0);
- result=M2C_FIELD(block,void **,12);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
- return result;
-}
-void object_counter_decrement(u32 address) {
- void *owner,*block; s32 count;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- owner=func_80095F8C(address);
- block=func_80095EF4(owner,address,0);
- count=M2C_FIELD(block,u8 *,22);
- if(count>0)M2C_FIELD(block,u8 *,22)=count-1;
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
-}
-void object_counter_increment(u32 address) {
- void *owner,*block; s32 count;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- owner=func_80095F8C(address);
- block=func_80095EF4(owner,address,0);
- count=M2C_FIELD(block,u8 *,22);
- if(count<255)M2C_FIELD(block,u8 *,22)=count+1;
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
-}
 
 /*
  * menu_item_select (historical label, misleading): heap block resize in place.
@@ -217,7 +119,6 @@ void object_counter_increment(u32 address) {
  * field expression (v1) while `next` is its own variable (a1); the grow path
  * reads the successor size once into a local for the test only.
  */
-#ifdef TARGET_PC
 /* PC: the heap's block and heap headers keep their N64 layout in the RDRAM window (alloc_at.c's Block and Heap,
  * docs/port/POINTERS.md 1): the links, the owner and the heap's last block are 32-bit window addresses. */
 typedef struct MBlock {
@@ -234,26 +135,7 @@ typedef struct MHeap {
     u32 pad0[3];
     enum n64p_MBlock tail;
 } MHeap;
-#else
-typedef struct MBlock {
-    u32 magic;
-    struct MBlock *next;
-    struct MBlock *prev;
-    u32 size;
-    void *owner;
-    s8 used;
-    s8 tag;
-    u8 count;
-} MBlock;
-typedef struct MHeap {
-    u32 pad0[3];
-    MBlock *tail;
-} MHeap;
-#endif
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
 /* PC: a block that grows takes from the heap: reported as an allocation (port/ultra/heap.c). */
 
 void menu_item_select(u32 address, u32 desired) {
@@ -340,7 +222,7 @@ void menu_item_select(u32 address, u32 desired) {
         }
         block->size = desired;
     }
-    PC_ONLY(pc_heap_allocated(heap);) osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
+    pc_heap_allocated(heap); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
 }
 
 /* : func_800C885C -- frees the two cached audio heap handles D_8011025C / D_80110260 (the first half

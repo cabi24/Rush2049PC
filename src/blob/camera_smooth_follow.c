@@ -1,13 +1,8 @@
 typedef signed int s32;typedef unsigned int u32;typedef unsigned char u8;
 typedef struct Command {u32 first,second;} Command;
-#ifdef TARGET_PC
 /* PC: the WAD's TXLD lists stay in N64 form, 8-byte big-endian commands (port/assets/wad.c). */
 #define DLW(w) pc_be32_get(&(w))
 #define DLW_SET(w, v) pc_be32_set(&(w), v)
-#else
-#define DLW(w) w
-#define DLW_SET(w, v) w = v
-#endif
 void camera_smooth_follow(Command *commands,s32 x,s32 y,s32 right,s32 bottom) {
     s32 width=-1,height=-1,size;
     u8 opcode;

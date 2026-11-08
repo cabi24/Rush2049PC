@@ -14,22 +14,13 @@
  */
 typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef unsigned short u16;typedef signed int s32;
 #define F(p,t,o) (*(t *)((u8 *)(p)+(o)))
-#ifdef TARGET_PC
 /* PC: gText (countdown_state) has host pointers (port/assets/text.c), so its header fields and string-table
  * entries sit at host offsets: TXH maps an N64 header offset, TXS an N64 string-table byte offset. */
 #define TXH(o) ((o) == 4 ? 8 : (o) == 12 ? 24 : (o) == 16 ? 32 : (o))
 #define TXS(o) ((o) / 4 * (int)sizeof(char *))
 #define INPUT_SIZE 80   /* an input record (D_8014A118): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */
-#else
-#define TXH(o) o
-#define TXS(o) o
-#define INPUT_SIZE 76
-#endif
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 extern u8 D_801461D0[],D_80117280[],D_8014A160[],countdown_state[];
 extern char D_801210B0[],D_801210C4[];
 extern s32 D_801170FC,D_8015698C;
@@ -40,11 +31,8 @@ s32 slot_state_setup(s32);
 void fcvt_wrapper(char *,const char *,...);
 s32 object_manager_update(u8 *,s16);
 s16 object_bytes_sum_global(void);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *ambient_sound_set(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-#else
-void *ambient_sound_set(s32,s32,s32,s32,s32,s32,s32,s32);
-#endif
 void crowd_cheer_play(void *,s32,s32,s32,s32);
 void vs_header_lock(void) { osRecvMesg(D_801461D0,0,1); } void vs_header_unlock(void) { osSendMesg(D_801461D0,0,0); } s32 vs_header_font(s32 font) { s32 old; vs_header_lock(); old=slot_state_setup(font); vs_header_unlock(); return old; }
 void voice_stop(void)

@@ -22,19 +22,11 @@ typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 pad1[0x43];
     /* 0x44 */ s32 message;
-#ifdef TARGET_PC
     /* 0x48 */ void *ref;
-#else
-    /* 0x48 */ u8 pad48[4];
-#endif
 } PlayerRec; /* 0x4C */
-#ifdef TARGET_PC
 /* PC: an input record is 80 bytes; +0x44 stays 32 bits: a packet is a heap block, so its window address
  * (docs/port/POINTERS.md 10; pc_prelude.h's PC_N64A, docs/port/NOFIXED.md 2.3). */
 #define PACKET(p) (s32)PC_N64A(p)
-#else
-#define PACKET(p) (s32)p
-#endif
 
 extern PlayerRec D_8014A118[];
 extern s32 D_801174B4;

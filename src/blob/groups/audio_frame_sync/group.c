@@ -15,10 +15,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -496,20 +492,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3789,35 +3776,13 @@ void brake_force_apply(void *arg) {
 /* copy of the locked leaf (src/blob/groups/resource_slot_clear/audio.c): its
  * temporaries stay in $t6-$t9, which is what lets suspension_setup and
  * audio_frame_sync keep values in $a3/$t0 across the calls */
-s32 func_80097694(s32 arg0, s8 arg1) {
-    s32 i;
-
-    for (i = 0; i < 64; i++) {
-        if ((gWaveInstance[i].p0C != 0) && (arg0 == gWaveInstance[i].type) && ((arg1 < 0) || (arg1 == gWaveInstance[i].f5))) {
-            return i;
-        }
-    }
-    return -1;
-}
+s32 func_80097694(s32 arg0, s8 arg1);
 
 /* two small leaves that the ROM compiles inside the same IPA unit: they leave
  * $a3/$t0 alone, so suspension_setup keeps its values there across the calls.
  * : func_80096288 is the locked body from src/blob/groups/slot_sound/group.c verbatim (dead if (0)
  * switch = its inline blocker), so that it stays out of line as in retail now that suspension_setup is a member */
-void func_80096288(s32 arg0, s32 arg1, s32 arg2)
-{
-  s32 t;
-  if (arg0) {}
-  if (arg1) {}
-  t = !arg2;
-  if (arg2 != 0)
-  {
-    if (t) {}
-    if (t) {}
-  }
-  if (t) {}
-  if (0) { switch (arg0 + arg1) { case 1: D_80149B08 = 1; break; case 2: D_80149B08 = 2; break; case 3: D_80149B08 = 3; break; } }
-}
+void func_80096288(s32 arg0, s32 arg1, s32 arg2);
 
 void func_800972C4(s32 arg0) {
     if ((gWaveInstance[arg0].f3 = D_801234AC[gWaveInstance[arg0].type]) != 0) {
@@ -3827,79 +3792,4 @@ void func_800972C4(s32 arg0) {
     }
 }
 
-void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
-    u32 w4new;
-    u32 saved;
-    u8 op;
-    u8 op2;
-    s32 first;
-    u32 a3;
-    u32 **sp;
-    u32 *cmd;
-    u32 *stk[10];
-    u32 pad[25];
-
-    first = 1;
-    stk[0] = dl;
-    sp = &stk[0];
-    do {
-        cmd = *sp;
-        op = (cmd[0] & 0xFF000000) >> 24;
-        if ((op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 9 && op < 64) || (op >= 192 && op < 214)) {
-            goto next;
-        }
-        op2 = (cmd[2] & 0xFF000000) >> 24;
-        if (op == 1 || op == 221 || op == 222 || op == 218 || op == 220 || (op == 225 && (op2 == 4 || op2 == 221)) || op >= 253) {
-            if (seg < 0) {
-                w4new = (cmd[1] & 0x0F000000) | ((cmd[1] + base) & 0xFFFFFF);
-            } else {
-                w4new = ((cmd[1] + base) & 0xFFFFFF) | ((seg & 0xF) << 24);
-            }
-            cmd[1] = w4new;
-        }
-        if (op < 5) {
-            if (op == 1) {
-                if (first != 0) {
-                    first = 0;
-                    func_800966D8(w4new, flag);
-                }
-            } else if (op == 4) {
-                *sp = (u32 *) saved;
-            }
-        } else {
-            switch (op) {
-            case 219:
-            case 220:
-            case 221:
-                break;
-            case 222:
-                *sp = (u32 *) ((u8 *) *sp + 8);
-                break;
-            case 223:
-                sp--;
-                break;
-            case 224:
-                a3 = cmd[0] & 0xFFFF;
-                if (((cmd[0] & 0xFF0000) >> 16) == 1 && !((1 << a3) & mask)) {
-                    if (seg < 0) {
-                        w4new = (cmd[1] & 0x0F000000) | ((cmd[1] + base) & 0xFFFFFF);
-                    } else {
-                        w4new = ((cmd[1] + base) & 0xFFFFFF) | ((seg & 0xF) << 24);
-                    }
-                    cmd[0] = 0xDE010000;
-                    cmd[1] = w4new;
-                }
-                break;
-            case 225:
-                saved = cmd[1];
-                break;
-            }
-        }
-next:
-        if (op != 222) {
-            if (sp >= &stk[0]) {
-                *sp = (u32 *) ((u8 *) *sp + 8);
-            }
-        }
-    } while (sp >= &stk[0] && sp < &stk[10]);
-}
+void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask);

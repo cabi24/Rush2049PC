@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,7 +3787,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the same with host Gfx (16-byte commands). D_80149438 holds a Gfx pointer; the two buffers are
  * pc_text_dl (groups/gfx_modes/init.c). */
 extern Gfx pc_text_dl[2][2400];
@@ -3817,14 +3803,4 @@ void *audio_start(void)
   *head = (void *) 0;
   return pc_text_dl[D_8012E6C0];
 }
-#else
-void *audio_start(void)
-{
-  s32 temp_v0;
-  u8 *new_var;
- new_var = (D_8012E6C0 * 0x4B00) + ((u8 *) (&D_80124FE8)); do { temp_v0 = D_80149438; if (D_80149438 == 0) { return (void *) 0; } D_80149438 = temp_v0 + 8; *((s32 *) (((s8 *) temp_v0) + 0)) = 0xDF000000; *((s32 *) (((s8 *) temp_v0) + 4)) = 0; } while (0);
-  D_80149438 = 0;
-  return (s32 *) new_var;
-}
-#endif
 

@@ -29,7 +29,6 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Node {
     u32 flags;
@@ -43,16 +42,6 @@ typedef struct Node {
     void *light, *tex[4], *rect, *clip, *pal;
     u32 prim, env;
 } Node; /* 0x68 */
-#else
-typedef struct Node {
-    /* 0x00 */ u32 flags;
-    /* 0x04 */ u8 pad4[0x10];
-    /* 0x14 */ u16 id;
-    /* 0x16 */ s16 child;
-    /* 0x18 */ s16 sibling;
-    /* 0x1A */ u8 pad1A[0x2A];
-} Node; /* 0x44 */
-#endif
 
 extern Node D_8012E700[];
 extern s32 D_80156990;

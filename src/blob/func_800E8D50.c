@@ -19,31 +19,18 @@ typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
 typedef f32 Mat3[3][3];
-#ifdef TARGET_PC
 typedef struct { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other_308[0x35B - 0x308]; s8 car,slot; } Object;
-#else
-typedef struct { u8 other[859]; s8 car,slot; } Object;
-#endif
 typedef struct { s16 status;u8 other[2054]; } CarField2056;
 typedef struct { u8 other[96];Mat3 matrix;f32 position[3];u8 tail[8]; } Slot152;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarField2056 D_8014A914[];
-#define PC_MODEL_MOVING_STATE(i) D_8014A914[i].status
-#endif
 extern f32 D_80152708[],D_80152720[];
 extern volatile s32 D_8002EB98;
 extern Slot152 gCamera[];
 extern void func_800E8CB8(void *,void *,void *);
 extern void vector_normalize_length(f32 *,f32 [3][3]);
-#ifdef TARGET_PC
 /* game.frame_rate 60: the elasticity is per frame of two retraces, e; a frame of one gets e^(1/2), so two of them
  * follow the car as one of two retraces does (docs/port/FRAMERATE.md 7). The N64's own scaling stays for 3-5. */
 #define PC_CAM_ELASTIC(e) (pc_fps60 && D_8002EB98 == 1 ? __builtin_sqrtf(e) : (e))
-#else
-#define PC_CAM_ELASTIC(e) e
-#endif
 void func_800E8D50(Object *object,f32 *carpos,Mat3 *matrix,f32 *res)
 {
     s32 i;

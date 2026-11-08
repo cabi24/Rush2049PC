@@ -24,21 +24,13 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-#else
-typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[10]; } Player76;
-#endif
 typedef struct Car952 {
     u8 pad000[232];
     s32 appearance;         /* 0x0E8 */
     u8 pad0EC[3];
     s8 place_locked;        /* 0x0EF */
-#ifdef TARGET_PC
     u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x359 - 0x308];
-#else
-    u8 pad0F0[857 - 240];
-#endif
     s8 dead;                /* 0x359 */
     u8 pad35A[896 - 858];
     void *player;           /* 0x380 */
@@ -74,48 +66,15 @@ extern s8 D_80114654;           /* gGamePointPlayed */
 extern s32 gameplay_mode;       /* gRace */
 extern s16 active_player_count; /* gNumPlayers */
 extern Player76 input_rec0[];   /* gPlayers */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model2056 D_8014A250[];  /* model */
-#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].autotrans
-#define PC_MODEL_BODY(i) D_8014A250[i].body_type
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].drone_type
-#define PC_MODEL_FLAGS(i) D_8014A250[i].appearance
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].we_control
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 player_array[];   /* gGameCar */
-#define PC_CAR_FINISHED(i) player_array[i].place_locked
-#define PC_CAR_FLAGS(i) player_array[i].appearance
-#define PC_CAR_HEALTH(i) player_array[i].health
-#define PC_CAR_INPUT(i) player_array[i].player
-#define PC_CAR_POINTS(i) player_array[i].points
-#define PC_CAR_RELOADING_TIME(i) player_array[i].reloadingTime
-#define PC_CAR_STATE(i) player_array[i].dead
-#endif
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link8 D_80153E88[];      /* gLink */
-#define PC_LINK_OWNER(i) D_80153E88[i].owner
-#endif
 extern s8 D_80152744;           /* gNumActiveCars */
 extern s16 D_8015274C;          /* num_our_drones */
 extern s16 D_80152768;          /* num_drones */
 extern s16 D_80153FD2;          /* num_humans */
-#ifdef TARGET_PC
 /* On the PC the drone lists and CarSetup's flags are pc_drones, pc_our_drones and pc_carsetup_flags, PC_MAX_LINKS
  * long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
-#else
-extern s16 D_801527D8[];        /* drones */
-extern s16 D_80152808[];        /* our_drones */
-#define PC_DRONE(j) D_801527D8[j]
-#define PC_OUR_DRONE(j) D_80152808[j]
-#endif
 extern s16 D_80153E84;          /* sched_to_use */
 extern s16 D_80153F08;          /* new_sched_to_use */
 extern s16 D_80153F24;          /* sched_index */
@@ -130,18 +89,9 @@ extern f32 D_80154188;          /* HFOV */
 extern s16 gNumWindows;
 extern Cam152 gCamera[];
 extern u8 gFogColors[][3]; /* gFogColors */
-#ifndef TARGET_PC
-extern s8 D_801439F8[6];        /* carsetup_flag */
-#define PC_CARSETUP_FLAG(i) D_801439F8[i]
-#define PC_MAX_LINKS 6
-#endif
-#ifdef TARGET_PC
 /* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
  * is called on the frames that complete a 30 Hz frame: the countdown begins within a retrace of original's. */
 #define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)
-#else
-#define PC_LOAD_ON30(call) call
-#endif
 extern s8 D_801543C8;           /* gGravityScale */
 extern f32 D_801202F8[];        /* gravityArray */
 extern u8 D_80142728[];         /* audio lock queue */
@@ -192,11 +142,7 @@ extern s32 D_80156990, D_80156CE0, D_801613AC, D_80156BAC, D_801613B4;
 extern s16 D_8015B254;
 extern f32 D_801613B8;
 extern s16 D_80140618;
-#ifdef TARGET_PC
 extern intptr_t D_801406B8;   /* Lights2 *: pointer-sized on the PC */
-#else
-extern s32 D_801406B8;
-#endif
 extern u8 D_8011EA18[];
 AudMsg *func_80091B00(void);
 s32 osRecvMesg(void *mq, void *msg, s32 flag);
@@ -210,35 +156,12 @@ void leEndLoadingEffect(void)
 {
 }
 
-static void ZOID_Reset(void)
-{
-    D_80156990 = 0;
-    D_80156CE0 = 0;
-    D_801613AC = 0;
-    D_80156BAC = 0;
-    D_801613B4 = 0;
-    D_8015B254 = -1;
-    ZOID_ResetWindows();
-    D_801613B8 = 1.0f;
-    D_80140618 = 0;
-#ifdef TARGET_PC
-    D_801406B8 = (intptr_t)D_8011EA18;
-#else
-    D_801406B8 = (s32)D_8011EA18;
-#endif
-}
+void func_800A5B3C(void);
 
-void AudLock(void)
-{
-    osRecvMesg(D_80142728, 0, 1);
-}
+void AudLock(void);
 
-void AudUnlock(void)
-{
-    osSendMesg(D_80142728, 0, 0);
-}
+void AudUnlock(void);
 
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * src/blob/groups/transform/group.c's entity_transform_calc says when). A stop, pause or resume posted here is
  * then dropped: with no message the lock is given back and nothing is sent, and a message the full queue refuses
@@ -246,15 +169,7 @@ void AudUnlock(void)
  * AudStopAllEffects (display_list_flush.c, RaceStateMachine_Update.c) is the same. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){AudUnlock();return;}
 #define PC_GIVE_BACK(m) ((s8 *)(m))[3]=0;
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_GIVE_BACK(m)
-#endif
-void AudSend(AudMsg *msg)
-{
-    if (osSendMesg(D_801427A8, msg, 0)) { PC_GIVE_BACK(msg)
-    }
-}
+void AudSend(AudMsg *msg);
 
 void AudKillSong(void)
 {
@@ -266,15 +181,7 @@ void AudKillSong(void)
     AudSend(msg);
 }
 
-void AudStopAllEffects(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 7;
-    AudUnlock();
-    AudSend(msg);
-}
+void AudStopAllEffects(void);
 
 typedef struct StuntInfo { s32 active; u8 pad[120]; } StuntInfo;
 extern u8 D_80152038[480];      /* gStuntPlayer */
@@ -291,13 +198,7 @@ static void ResetStunts(void)
     }
 }
 
-void effect_system_init(void)
-{
-    memset(D_80152038, 0, sizeof(D_80152038));
-    ResetStunts();
-    D_8016139C = 0.0f;
-    D_80152738 = 0;
-}
+void effect_system_init(void);
 
 void InitBattlePoints(void)
 {
@@ -360,7 +261,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
         }
         D_80154188 = 90.0f;
         if (!(state_word_a & 8)) AudKillSong();
-        if (D_80114650) { ZOID_Reset(); InitBlits(); }
+        if (D_80114650) { func_800A5B3C(); InitBlits(); }
         else if (!(state_word_a & 8)) InitWaves();
         func_800EC914();
         GhostStart();

@@ -7,7 +7,6 @@ typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
 
-#ifdef TARGET_PC
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
  * (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))
@@ -16,12 +15,6 @@ typedef unsigned int u32;
 /* A K0 address past 16 MiB of a larger window (game.memory: what entity_lod_select's relocation gives there) is no
  * segmented one, whatever its bits 24-27 (docs/port/MEMORY.md 3); at original none reaches 16 MiB. */
 #define SEGMENTED(a) ((a & 0x0F000000) && !pc_rdram_k0_high(a))
-#else
-#define DLW(w) w
-#define DLW_SET(w, v) w = v
-#define DL_AT(addr) (u32 *) addr
-#define SEGMENTED(a) (a & 0x0F000000)
-#endif
 void display_list_traverse(u32 *dl, u32 match, u32 replace, s32 flags, s32 (*cb)(u32 *)) {
     u32 w0;
     u32 addr;

@@ -32,15 +32,11 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the car record's layout (0x468 bytes, docs/port/CARS.md). */
 typedef struct tCarData {
     u8 pad000[0xEF]; s8 place_locked; u8 pad0F0[8]; s16 rwmph; u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21];
     u8 pad0FA_308[0x380 - 0x308]; void *input; u8 pad0FA_384[952 - 0x384];
 } tCarData;
-#else
-typedef struct tCarData { u8 pad000[0xEF]; s8 place_locked; u8 pad0F0[8]; s16 rwmph; u8 pad0FA[952 - 0xFA]; } tCarData;
-#endif
 typedef struct tModelData { u8 pad000[0x7C6]; s16 slot; u8 pad7C8[0x808 - 0x7C8]; } tModelData;
 typedef struct tJust { s32 h, v; } tJust;
 typedef struct tText { u16 numSingle; u8 **single; } tText;
@@ -49,19 +45,8 @@ typedef struct tFontHeader { u8 pad0[2]; u8 ascent; u8 descent; } tFontHeader;
 extern s8 gShowSpeed;                /* D_8015F72C */
 extern tJust gJust;
 extern s16 gNumWindows;              /* D_80151AD0 */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData model[];           /* D_8014A250 */
-#define PC_MODEL_SLOT(i) model[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData gGameCar[];          /* D_80152818 */
-#define PC_CAR_FINISHED(i) gGameCar[i].place_locked
-#define PC_CAR_MPH(i) gGameCar[i].rwmph
-#endif
 extern s8 gShowMetric;               /* D_801613AA */
 extern s32 speedPos[4][4][2];        /* D_80115A68 */
 extern tText gText;                  /* D_8017A4E0 */

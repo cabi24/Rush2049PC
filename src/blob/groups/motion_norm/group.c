@@ -1,15 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 typedef short s16;typedef signed char s8;typedef unsigned char u8;typedef int s32;typedef float f32;
 #define M2C_FIELD(p,t,o) (*(t)((u8*)(p)+(o)))
 extern f32 D_801244D4;extern f32 D_8012E638[][3];extern s8 D_8012E670[];extern f32 D_80152720[];
 extern f32 func_8008B3C8(f32 *);extern void func_800E8D50(void*,void*,intptr_t,f32*);
-#ifndef TARGET_PC
-#define CAR_OFS(n) n
-#endif
 void func_800E9C70(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
     f32 vector[3];
     f32 temp_f0;
@@ -53,6 +46,4 @@ void func_800E9C70(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
 
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
-f32 func_8008B3C8(f32 *v) {
-    return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
+f32 func_8008B3C8(f32 *v);

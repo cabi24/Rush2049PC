@@ -31,14 +31,10 @@ typedef struct MODELDAT {
 void func_800D1004(MODELDAT *m);
 void func_800CF06C(MODELDAT *m);
 void func_800D0424(MODELDAT *m);
-#ifdef TARGET_PC
 /* PC: the engine speed to s16, which a car's engine spinning past +-32767 rpm overruns (seen in a 12-car race,
  * docs/port/MORECARS.md 4); undefined in C. Through s32, whose low half the conversion keeps, as the N64's trunc.w.s
  * and sh do (docs/port/SANITIZE.md, particle_knot's V16). */
 #define TRUNC_W (int)
-#else
-#define TRUNC_W
-#endif
 void func_800D11BC(MODELDAT *m)
 {
     func_800D1004(m);

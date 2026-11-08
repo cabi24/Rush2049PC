@@ -417,8 +417,8 @@ physics was per retrace already (section 1) and stays as it is. `original`, the 
   `D_8002EB94` and the frame delta `D_8002EB98` are the game's own, 1/60 s and 1 at 60. On a host that can't keep up,
   a frame of two retraces at 60 has a scale of 1 and a step of 1: the N64's frame.
 - **The steps.** What steps by the frame time or the retraces keeps its speed by itself. What steps by a constant
-  tuned to a frame of two retraces goes through `port/include/pc_game_fps.h`'s macros, each file defining the N64 side
-  at file scope (the original tokens: [DECOUPLE.md](DECOUPLE.md) 1's conventions, `n64_neutral.py`):
+  tuned to a frame of two retraces goes through `port/include/pc_game_fps.h`'s macros (until 2026-11-08 each file
+  also defined their N64 side, the original tokens, for the N64 build):
 
 | Macro | For | At 60 | At original |
 |---|---|---|---|

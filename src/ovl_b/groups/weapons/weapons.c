@@ -34,20 +34,12 @@ typedef struct Battle {
 } Battle;
 
 typedef struct Car {
-#ifdef TARGET_PC
     u8 pad00[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad00_308[0x34C - 0x308];
-#else
-    u8 pad00[0x34c];
-#endif
     RGBA IRclr;           /* 0x34c */
     u8 pad350[0x35c - 0x350];
     s8 camera;            /* 0x35c */
     s8 view;              /* 0x35d */
-#ifdef TARGET_PC
     u8 pad35e[0x380 - 0x35E]; void *input;
-#else
-    u8 pad35e[0x384 - 0x35e];
-#endif
     Battle battle;        /* 0x384 */
 } Car;
 
@@ -100,19 +92,8 @@ typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
 extern volatile f32 D_8002EB94;          /* gFrameSeconds */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];                 /* gGameCar, stride 0x3b8 */
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];               /* model */
-#define PC_MODEL_BODY(i) D_8014A250[i].body_type
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
-#endif
 extern CarParts D_80139320[];            /* gCarParts */
 extern u16 D_8014254C[];                 /* gObjList */
 extern s32 D_80399B40[7];                /* gWfxObjList */
@@ -157,24 +138,16 @@ f32 D_803943A4[8][13][3] = {
     -0.9f, 0.0f, 3.1f, -0.9f, 0.0f, 3.52f, -2.0f, 0.0f, 3.4f, -0.33f, 0.0f, 4.38f, -4.39f, 0.0f,
     3.25f, -2.05f, 0.0f, 3.12f, -1.11f
 };
-#ifdef TARGET_PC
 /* PC: func_8038CA24 (the weapon reset on a resurrect) writes these by their addresses, which on the N64 are this
  * file's statics. Declared here, they are one storage on the PC too: image B's BSS arena (port/data), zeroed on
  * every load of the image. */
 #define WEAPON_STATE extern
-#else
-#define WEAPON_STATE static
-#endif
-#ifdef TARGET_PC
 /* PC: battle.type 8 is no weapon. The update reads its row of D_803943A4 when a car loses its weapon, and doesn't
  * use it: past the table's 8 rows, on the N64 into the data after it, on the PC into whatever the linker put there
  * (UBSan, docs/port/SANITIZE.md 3). It reads zeros instead. The table keeps its N64 size: port/data maps the N64
  * addresses a C-defined symbol covers to it, and a ninth row took the next data's. */
 static const f32 pc_no_weapon[13][3];
 #define WEAPON_OFF(type) ((type) < 8 ? D_803943A4[type] : pc_no_weapon)
-#else
-#define WEAPON_OFF(type) D_803943A4[type]
-#endif
 WEAPON_STATE s8 D_80399118[4];            /* gCurWeaponType */
 WEAPON_STATE MuzzleObj D_80399120[4];     /* gGattMuzzleObjs */
 WEAPON_STATE CMuzzleObj D_80399550[4];    /* gCannMuzzleObjs */

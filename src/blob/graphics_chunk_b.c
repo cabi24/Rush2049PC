@@ -1,18 +1,10 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
 typedef unsigned char u8;typedef signed char s8;typedef unsigned short u16;typedef signed short s16;typedef float f32;
 typedef struct Resource {u8 *data;} Resource;
-#ifdef TARGET_PC
 typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
-#else
-typedef struct Object {u8 opaque[44];Resource *resource;} Object;
-#endif
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 index,selector;u8 opaque[62];u16 count;u8 rest[6];Handle *handle;} Player;
-#ifdef TARGET_PC
 typedef struct Model952 {u8 opaque[240];f32 time;u8 rest[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 rest_308[0x380 - 0x308]; void *input; u8 rest_384[0x3B8 - 0x384];} Model952;
-#else
-typedef struct Model952 {u8 opaque[240];f32 time;u8 rest[708];} Model952;
-#endif
 typedef struct Stats24 {int unknown;f32 minimum,total;u16 count,finished,sum,enabled,enabled_finished;u8 tail[2];} Stats24;
 extern s8 D_8014978C,D_80142760;
 extern s16 active_player_count;
@@ -20,12 +12,7 @@ extern Player input_rec0[];
 extern Object *D_80146150[];
 extern u8 D_80144018[];
 extern Stats24 D_801515F8[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern void func_800CD8EC(Handle *,u8);
 void graphics_chunk_b(void) {
  int player,which,table=D_8014978C-18;

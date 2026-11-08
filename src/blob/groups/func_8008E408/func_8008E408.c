@@ -41,19 +41,11 @@ typedef struct Car {
     f32 wheel[4][3];     /* +0x74 */
     u8 pad164[84];
     s16 h248;            /* +0xF8 */
-#ifdef TARGET_PC
     u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x380 - 0x308]; void *input; u8 pad250_384[0x3B8 - 0x384];
-#else
-    u8 pad250[0x3B8 - 250];
-#endif
 } Car;
 
 typedef struct Obj {
-#ifdef TARGET_PC
     void *next;          /* the pool link: a puff (hud_render's Puff), pointer-sized here */
-#else
-    u8 pad0[4];
-#endif
     f32 m[3][3];         /* +0x04 */
     f32 pos[3];          /* +0x28 */
     s32 w52;             /* +0x34 */
@@ -65,20 +57,11 @@ typedef struct Obj {
     s16 h86;             /* +0x56 */
 } Obj;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern s32 D_80117498;
-#ifdef TARGET_PC
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define D_801392D8 pc_tire_fx
-#else
-extern u32 D_801392D8[];
-#endif
 extern u8 D_8013F1E0[];
 extern u16 D_8014295A[];
 extern int D_8011735C;

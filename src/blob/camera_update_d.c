@@ -95,9 +95,4 @@ void camera_update_d(LookAt *l, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, 
 }
 
 /* Inlined twice above at -O3; defined after its caller so camera_update_d starts the section. */
-f32 func_8008B3F4(f32 value) {
-    if (value < 0.0001f) {
-        value = 0.0001f;
-    }
-    return 1.0f / sqrtf(value);
-}
+f32 func_8008B3F4(f32 value);

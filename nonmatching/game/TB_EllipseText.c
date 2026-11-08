@@ -10,7 +10,7 @@ u32 object_manager_update(u8 *text, s16 numChars); /* HAL_GetTextWidth */
 u8 *func_800BE4F0(u8 *str1, u8 *str2);             /* TB_Strcat */
 u8 *func_800BE6A4(u8 *str1, u8 *str2);             /* TB_Strcpy */
 u32 TB_Strlen(u8 *s);                          /* TB_Strlen */
-static s8 HAL_GetFontSpacing(void) { return D_80149B70; }
+s8 func_800BDEB0(void);
 void TB_EllipseText(void *dst, void *src, s16 width)
 {
     u8 *d = dst; s32 w; s32 dbl; s32 len; u8 eStr[16]; s32 ew; const u8 *ellipse = (const u8 *)"...";
@@ -35,7 +35,7 @@ void TB_EllipseText(void *dst, void *src, s16 width)
             *end = 0;
         }
         ew = width - object_manager_update(eStr, -1);
-        while (w > ew - HAL_GetFontSpacing()) {
+        while (w > ew - func_800BDEB0()) {
             len--;
             if (dbl) { d[len*2+1] = 0; d[len*2+2] = 0; } else d[len] = 0;
             if (len == 0) break;

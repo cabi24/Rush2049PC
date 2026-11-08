@@ -31,35 +31,19 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
-#ifdef TARGET_PC
 typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
-#else
-typedef struct Player { u8 unknown000[0x384]; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
-#endif
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
 typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Scene { u32 flags, w4; void *obj; f32 scaleA; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Scene;
-#else
-typedef struct Scene { u8 unknown00[16]; f32 scale; u8 unknown14[48]; } Scene;
-#endif
 typedef struct Point { s16 x, y; } Point;
 typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
-#ifdef TARGET_PC
 /* PC: the fade's alpha passes 255 while a score's start is ahead of the clock; a float out of a u8's range is
  * undefined in C, so it goes through an int and keeps its low byte, as the N64's trunc.w.s and sb do
  * (docs/port/SANITIZE.md). */
 #define ALPHA_U8 (u8)(s32)
-#else
-#define ALPHA_U8 (u8)
-#endif
 typedef struct NameQuad { char *name[4]; } NameQuad;
 typedef struct ScoreState {
     s16 active, lock;
@@ -77,13 +61,7 @@ typedef struct ScoreState {
 typedef struct Effect { s16 state, handle; f32 uv[3][3], position[3], alpha; s16 x,y,from_x,from_y,to_x,to_y; f32 timer; } Effect;
 extern s16 D_80151AD0, D_8014A108;
 extern s32 D_8014A110, D_80393B74[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR_BATTLE_FLAGS(i) D_80152818[i].flags
-#define PC_CAR_KIND(i) D_80152818[i].kind
-#endif
 extern Status D_80395C00[], D_80395CD0[];
 extern Handle D_80395DA0[];
 extern Camera D_80150B70[];

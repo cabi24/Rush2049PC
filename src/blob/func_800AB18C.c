@@ -29,10 +29,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct {
@@ -45,22 +41,14 @@ typedef struct {
 } Region; /* 0xC */
 
 typedef struct {
-#ifdef TARGET_PC
     void *first; void *bounds; char pad0_8[0x3C - 0x8];
-#else
-    char pad0[0x3C];
-#endif
     f32 fog;        /* 0x3C */
     u16 near_clip;  /* 0x40 */
     u16 far_clip;   /* 0x42 */
     char pad44[4];
 } View; /* 0x48 */
-#ifdef TARGET_PC
 /* PC: a window is 80 bytes, its first two words are pointers (docs/port/POINTERS.md 10). */
 #define VIEW_SIZE (s32)sizeof(View)
-#else
-#define VIEW_SIZE 72
-#endif
 
 extern s8 D_8013F1D8;
 extern s8 D_8014978C;

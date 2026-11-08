@@ -23,7 +23,6 @@ typedef signed char s8;
 typedef unsigned char u8;
 typedef short s16;
 
-#ifdef TARGET_PC
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct Pool {
@@ -40,41 +39,16 @@ typedef struct { void *next; float matrix[3][3], position[3]; int id; u8 pad56[4
 extern Pool D_8013F1E0;
 extern PcPuff D_8013C378[100];
 #define ELEMENT_SIZE(n64, type) sizeof(type)
-#else
-typedef struct Pool {
-    u8 flag;
-    int count;
-    int size;
-    void *mem;
-} Pool;
-
-extern Pool D_8013F1E0;
-extern char D_8013C378[];
-#define ELEMENT_SIZE(n64, type) n64
-#endif
-#ifdef TARGET_PC
 /* On the PC the tire-effect latches are pc_tire_fx, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6),
  * and the reset clears all PC_MAX_LINKS of them: on the N64 the 6 it has. */
 #define D_801392D8 pc_tire_fx
-#else
-extern int D_801392D8[6];
-#define PC_MAX_LINKS 6
-#endif
 extern s8 D_80156994;
 extern s8 D_8014978C;
-#ifdef TARGET_PC
 extern char *D_80117480[6];   /* the six model names: N64 pointers in the data, host pointers once loaded */
-#else
-extern int D_80117480[6];
-#endif
 extern s16 D_8013F380[6];
 extern u8 gNumModels;
 void pool_linked_list_init(Pool *pool);
-#ifdef TARGET_PC
 void func_800B24EC(char *a, s16 *b, int c, int d, int e);
-#else
-void func_800B24EC(int a, s16 *b, int c, int d, int e);
-#endif
 
 /* one-line multi-statement macro: stands in for the inlined kept struct_fields_init (one .loc) */
 #define POOL_SETUP(pool, m, n, sz) { (pool).mem = (m); (pool).count = (n); (pool).size = (sz); (pool).flag = 0; }

@@ -42,7 +42,6 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { f32 x, y, z; } Vec3;
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Ent {
     s32 flags;
@@ -56,31 +55,13 @@ typedef struct Ent {
     s32 w60;
     s32 w64;
 } Ent;
-#else
-typedef struct Ent {
-    s32 flags;
-    s32 w4;
-    f32 *owner;
-    f32 scaleA;
-    f32 scaleB;
-    u16 id;
-    s16 link[3];
-    s32 w28[9];
-    s32 w64;
-} Ent;
-#endif
 
 typedef struct Resource68 { u8 prefix[64]; u32 flags; } Resource68;
 
-#ifdef TARGET_PC
 /* PC: Scene36 is a track WAD's PTHD record, which keeps its N64 layout (port/assets/wad.c): resources (pts) is a
  * 32-bit window address of the path points. */
 #define PTHD_PTS_FIELD u32 resources
 #define PTHD_PTS(scene) ((Resource68 *)PC_N64P((scene)->resources))
-#else
-#define PTHD_PTS_FIELD Resource68 *resources
-#define PTHD_PTS(scene) scene->resources
-#endif
 typedef struct Scene36 {
     char name[16];
     u32 flags;
@@ -91,7 +72,6 @@ typedef struct Scene36 {
     s32 key;
 } Scene36;
 
-#ifdef TARGET_PC
 /* PC: a level-object node (a target, 112 bytes) keeps its N64 layout: the nodes are the arena block D_8014D280, and
  * next and state hold 32-bit window addresses (state: a heap record of the node's category, a track WAD record or
  * a static table). So does the dead-reckoning record Matrix64 (a heap block), whose record is arena data
@@ -119,30 +99,7 @@ typedef struct Node {
     f32 f104;
     enum n64p_void state;
 } Node;
-#else
-typedef struct Node {
-    struct Node *next;
-    u8 flags;
-    s32 key;
-    s32 handle;
-    s16 metadata;
-    f32 matrix[9];
-    f32 pos[3];
-    u8 xform[12];
-    s16 f80;
-    f32 f84;
-    s16 texture;
-    s16 f90;
-    s8 f92;
-    s32 f96;
-    s8 f100;
-    s8 index;
-    f32 f104;
-    void *state;
-} Node;
-#endif
 
-#ifdef TARGET_PC
 /* PC: every field spelled out, whichever view the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
 typedef struct Metadata48 {
     char *name;
@@ -158,25 +115,9 @@ typedef struct Metadata48 {
     s32 sound, w20, w24, w28;
     f32 f2C;
 } Metadata48;
-#else
-typedef struct Metadata48 {
-    char *name;
-    char *file;
-    void (*callback)(Node *);
-    void *animation;
-    s16 kind;
-    u16 flags;
-    s16 f20;
-    s8 category;
-    s8 element;
-    f32 value;
-    u8 tail[20];
-} Metadata48;
-#endif
 
 typedef struct Place { char name[16]; f32 matrix[9]; f32 pos[3]; u32 flags; s32 w68; s32 w72; s32 key; } Place;
 typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
-#ifdef TARGET_PC
 typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
 #define N64P(x) _Generic((x), enum n64p_Node: (Node *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), \
     enum n64p_u8: (u8 *)PC_N64P(x), default: (x))
@@ -190,32 +131,16 @@ typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f
  * is the track WAD's (the heap, in the window), except for the mine shots.c drops, which passes its name, a host
  * string: that one is not kept, the state stays 0 (docs/port/LAYOUT.md 6). */
 #define PLACE_STATE(x) ((uintptr_t)(x) >> 16 >> 16 ? 0u : N64W(x))
-#else
-typedef struct Matrix64 { u8 *record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
-#define N64P(x) x
-#define N64W(x) x
-#define STATE_SCENE(s) *(Scene36 **)s
-#define SCENE_OF(s) *(Scene36 **)s
-#define KEY(k) (void *)k
-#define PLACE_STATE(x) N64W(x)
-#endif
 typedef struct Animation24 {
     struct Animation24 *next;
     s16 state;
     u16 field6;
     u32 field8;
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     u32 node;
     f32 time;
     void *data;
 } Animation24;
-#else
-    Node *node;
-    f32 time;
-    void *data;
-} Animation24;
-#endif
 typedef struct Pool { u8 b0; s32 count; s32 size; u8 *mem; Node *head; u8 *free; } Pool;
 
 extern u32 D_801174B4;
@@ -238,26 +163,17 @@ extern s32 D_801497EC;
 extern void **D_801497C0;
 extern Pool D_80143FC8;
 extern Pool D_80151AA8;
-#ifdef TARGET_PC
 extern Metadata48 D_80117530[122];
-#else
-extern Metadata48 D_80117530[];
-#endif
 extern u16 D_801427C0[];
 extern Ent D_8012E700[];
 extern Animation24 *D_801391F0;
 extern f32 D_8011418C[];
-#ifdef TARGET_PC
 /* PC: D_80118C10 is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: bodies of 32
  * bytes (CollisionReckon's Body in random_float.c: the bounds, then mass at +0x1C), then the static state records
  * of categories 0-2 (D_80118DDC). As u8[] the floats stayed big-endian, so a kind-4 object's bounds and mass read as
  * about 0 (docs/port/DATA.md 8). The record address is still taken in bytes. */
 extern f32 D_80118C10[115];
 #define BODY_TABLE ((u8 *)D_80118C10)
-#else
-extern u8 D_80118C10[];
-#define BODY_TABLE D_80118C10
-#endif
 extern Vec3 D_80118DFC;
 extern volatile u8 gNumModels;
 extern s32 D_801515F0;
@@ -358,9 +274,6 @@ void func_800AB7D0(Node *node,Metadata48 *metadata,s32 category)
 }
 s32 func_8008AE64(s16 id);
 
-#ifndef TARGET_PC
-#define PC_DETAIL_PLAYERS(n) n
-#endif
 /* PC: video.detail high gives a level object whose metadata says one player only (0x100) its scene node in split
  * screen too, as one player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
 s32 transmission_ratio_get(Place *rec, s16 parent, f32 *pos, void *src, s8 index, s32 place, s32 other)

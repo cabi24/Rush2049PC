@@ -35,21 +35,13 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-#ifdef TARGET_PC
 typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-#else
-typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[10]; } Player76;
-#endif
 typedef struct Car952 {
     u8 pad000[232];
     s32 appearance;         /* 0x0E8 */
     u8 pad0EC[3];
     s8 place_locked;        /* 0x0EF */
-#ifdef TARGET_PC
     u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x359 - 0x308];
-#else
-    u8 pad0F0[857 - 240];
-#endif
     s8 dead;                /* 0x359 */
     u8 pad35A;
     s8 slot;                /* 0x35B */
@@ -69,13 +61,9 @@ typedef struct Model2056 {
 typedef struct Stunt120 { u8 pad00[20]; s32 totalPoints; u8 pad18[96]; } Stunt120;
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
 typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
-#ifdef TARGET_PC
 /* A ghost (menu_save_options' Ghost): link, file and data handles before its header, pointer-sized on the PC
  * (docs/port/CASTS.md). */
 typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **header; } Ghost40;
-#else
-typedef struct Ghost40 { u8 pad0[40]; Inner5 **header; } Ghost40;
-#endif
 
 extern u32 state_word_a;        /* gGameState */
 extern u32 state_word_b;        /* gNewGameState */
@@ -86,24 +74,8 @@ extern s8 D_80114654;           /* gGamePointPlayed */
 extern s32 gameplay_mode;       /* gRace */
 extern s16 active_player_count; /* gNumPlayers */
 extern Player76 input_rec0[];   /* gPlayers */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model2056 D_8014A250[];  /* model */
-#define PC_MODEL_LAP(i) D_8014A250[i].laps
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 player_array[];   /* gGameCar */
-#define PC_CAR_SLOT(i) player_array[i].slot
-#define PC_CAR_FINISHED(i) player_array[i].place_locked
-#define PC_CAR_FLAGS(i) player_array[i].appearance
-#define PC_CAR_INPUT_AS(T, i) player_array[i].player
-#define PC_CAR_POINTS(i) player_array[i].battlePoints
-#define PC_CAR_STATE(i) player_array[i].dead
-#endif
 extern s8 D_80150F14;           /* gUseCatchup */
 extern s8 D_80150EFC;           /* gCatchup */
 extern s32 D_801407BC;          /* gStuntMode */

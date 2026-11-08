@@ -1,71 +1,37 @@
 # 64-bit pointers in the game C
 
-How the game C (`src/blob`, `src/ovl_a`, `src/ovl_b`, `include`) was made 64-bit clean for the PC build without
-changing what the N64 build compiles, what is left, and why. 2026-10-26. Related: [ASSETS.md](ASSETS.md) (the 32-bit
-asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.md) (the renderer's side).
+How the game C (`src/blob`, `src/ovl_a`, `src/ovl_b`, `include`) was made 64-bit clean for the PC build, what is
+left, and why. 2026-10-26. Related: [ASSETS.md](ASSETS.md) (the 32-bit asset world), [DATA.md](DATA.md) (where data
+symbols live on PC), [GFX.md](GFX.md) (the renderer's side).
+
+Until 2026-11-08 the same C also built the N64 ROM, so every PC difference below was made without changing what IDO
+compiled: under `#ifdef TARGET_PC` (the N64's tokens in the `#else`), or as file-scope macros whose N64 expansion was
+the original tokens, and no line moved inside a function. With the N64 build gone ([PCONLY.md](PCONLY.md)) the PC
+branch of every conditional is simply the code (`tools/port/flatten_pc.py`), and where this page says "under
+`TARGET_PC`" it describes how a change was first made.
 
 ## 1. Mechanism
 
-- **Prelude.** `port/include/pc_prelude.h` is force-included first into every game file on `TARGET_PC`
-  (`CMakeLists.txt`, `game_flags`). It defines `uintptr_t`/`intptr_t` from `__UINTPTR_TYPE__`/`__INTPTR_TYPE__` (no
-  system headers), big-endian accessors `pc_be32_get/set`, `pc_be16_get/set` for N64-form ROM data, and declares
+- **Prelude.** `port/include/pc_prelude.h` is force-included first into every game file (`CMakeLists.txt`,
+  `game_flags`). It defines `uintptr_t`/`intptr_t` from `__UINTPTR_TYPE__`/`__INTPTR_TYPE__` (no system headers),
+  big-endian accessors `pc_be32_get/set`, `pc_be16_get/set` for N64-form ROM data, and declares
   `pc_n64_ptr`/`pc_n64_addr` (port/ultra).
-- **N64 side.** A game file that uses `uintptr_t`/`intptr_t` declares them itself, as `u32`/`s32`, under
-  `#ifndef TARGET_PC`. The 427 m2c-context files that already had `typedef u32 uintptr_t; typedef s32 intptr_t;`
-  got the guard; others got the guarded block after their integer typedefs. So `(u32)p` -> `(uintptr_t)p`,
-  `s32 x` -> `intptr_t x` are the same types for IDO and pointer-sized on PC.
-- **Other PC-only differences** are `#ifdef TARGET_PC ... #else <original> #endif` at file scope, or file-scope
-  macros whose N64 expansion is the original token sequence (`DLW(w)` -> `w`, `TEXT_DL` -> `D_80124FE8`,
-  `N64_LONG` -> `long`, `N64_HI_80150000` -> `0x80150000`). No line is added or removed inside a function body.
-- **Scripts** (all idempotent, all checked by `n64_neutral.py`):
-  - `tools/port/ptr64_edit.py guard | need FILE... | gfx | gbi | casts [FILE...]`: the typedef guards and blocks,
-    the Gfx widening, the GBI address macros, and the cast rewrite at each `-Wpointer-to-int-cast`.
-    `N64_WORLD` there lists the files whose casts are kept (section 4.1).
-  - `tools/port/ptr64_decls.py [SYMBOL...]`: integer declarations of data symbols that other files declare as
-    pointers become `intptr_t`/`uintptr_t` (from gen_data's DWARF survey, `build/pc/pc-data/data_layout.txt`).
-  - `tools/port/ptr64_u32fields.py --types T,... FILE...`: records that stay in their N64 layout on PC (the heap
-    headers; usable for Phase 4's ROM records). Each pointer field becomes a 4-byte `enum n64p_X` under
-    `TARGET_PC`; `N64P(x)` (a `_Generic` cast to the host pointer) and `N64W(x)` (a pointer stored as `u32`) are
-    inserted where the compiler rejects a use; both are `x` on the N64. It lists `field +`/`-`/`++` sites, which
-    would silently become integer arithmetic, for review.
-  - `tools/port/view_audit.py` and `tools/port/view_pads.py`: one host layout for every view of a record, checked
-    from DWARF against a reference view, and padding over the reference's pointers split under `TARGET_PC`
-    (the car record, [CARS.md](CARS.md)).
-  - The rest (ROM-list walkers, buffers, prototypes, `long`) are small hand edits, one commit each.
+- **Pointer-sized integers.** `(u32)p` -> `(uintptr_t)p`, `s32 x` -> `intptr_t x` where an integer carries a pointer.
+  (The 427 m2c-context files' own `typedef u32 uintptr_t;` were the N64's and are gone.)
+- **PC types and macros.** Records that hold pointers have their PC layout; file-scope macros (`DLW(w)`, `TEXT_DL`,
+  `N64_LONG`, `N64P`, `N64W`) are the PC's helpers, once paired with an N64 expansion that was the original tokens.
+- **Scripts.** The edits were made by `tools/port/ptr64_edit.py`, `ptr64_decls.py`, `ptr64_u32fields.py` and
+  `view_pads.py`, which wrote `#ifdef TARGET_PC` blocks; they went with the N64 build (they are in the history).
+  `tools/port/view_audit.py` still checks one host layout for every view of a record from DWARF against a reference
+  view (the car record, [CARS.md](CARS.md)). `N64P(x)` (a `_Generic` cast to the host pointer) and `N64W(x)` (a
+  pointer stored as `u32`) read and write records that stay in their N64 layout on the PC (`enum n64p_X` fields).
 
-### The neutrality check
+### The neutrality check (gone)
 
-The definitive check is IDO itself: `tools/port/ido_check.sh [base]` (with `IDO53_DIR`, `IDO71_DIR` and
-`MIPS_BIN` set) builds every N64 object at the base and at HEAD and compares what a linked ROM would contain;
-it needs IDO but not the ROM. The script below is the fast proxy that runs anywhere, and in CI.
-
-
-`tools/port/n64_neutral.py [--base REV] [FILE...]` (default: every changed `src/`/`include/` file vs `HEAD`)
-preprocesses each file as the N64 build does (no `TARGET_PC`; `-Iinclude -Iinclude/PR -D_LANGUAGE_C` for `src/rom`,
-nothing for game files, which IDO compiles with no `-I`/`-D`; IDO-like predefines) with `gcc -E -undef -nostdinc`,
-at the base revision and in the working tree, then:
-
-1. compares token streams after spelling-normalizing basic types (`unsigned int` == `unsigned`) and resolving
-   simple file-scope typedefs from their declaration on (`uintptr_t` == `u32` where the file says so; `long` !=
-   `s32`); a typedef name may not be redeclared or change type;
-2. compares lines: **exact**, **code-exact** (only declarations outside functions moved), or **shifted** (each
-   function body moved by one constant; same-line and order relations kept). Anything else fails. `as1` breaks
-   scheduling ties by source line (COMPILER_SETTINGS.md), which depends on the order and sameness of lines, never
-   on their absolute values; header comments of matched files change length all the time;
-3. text rules: an added `#if`/`#ifdef`/`#ifndef`/`#elif` must test `TARGET_PC`; no added `//` comments in game files
-   (IDO compiles them without `-Xcpluscomm`).
-
-A changed header is checked through every `src/rom` file. Results:
-- this work, against main with the other parts merged (`--base main`): 663 files, 107 code-exact, 556 shifted,
-  0 failures. The only typedef names introduced are `uintptr_t`/`intptr_t`;
-- the whole branch against `d28fbb3`: 670 files, 18 fail, all from other parts' edits. Thirteen are `TARGET_PC`
-  blocks added inside functions (the busy-wait yields, the overlay loaders, `src/rom`): tokens equal, lines
-  inside one function moved, which this check refuses by policy. Five yields (`InitWaves.c:95`,
-  `replacewave.c:46`, `wheel_params_set.c:56`, `runtime_a_c93c_closure/group.c:884`, `lib_2cf0.c:37`) split a
-  one-line `while (c) {}` across lines, which changes which tokens share a line. A same-line form,
-  `while (c) { PC_YIELD(); }` with `PC_YIELD()` empty on the N64, would keep both tokens and lines.
-  `lib_1050_sdk.c` adds `#if defined(__APPLE__)`, presumably nested inside a `TARGET_PC` block.
-Still to do on the x86 host: `make` and the SHA-1 check, which nothing here can replace.
+Until 2026-11-08 every change to the game C also had to leave the N64 build byte-identical: `tools/port/ido_check.sh`
+built every N64 object with IDO at a base and at HEAD, and `tools/port/n64_neutral.py` (in CI) compared the
+preprocessed tokens and lines IDO would see. Both went with the N64 build ([PCONLY.md](PCONLY.md)); a change to the
+game C is now proven by running the game (PCONLY.md 2).
 
 ## 2. Gfx
 
@@ -292,12 +258,12 @@ shared records.
   slot zero-extended; it must not pass through an `s32` on the way (section 5). Records loaded from the ROM keep
   their u32 fields (4.2, [LOADERS.md](LOADERS.md)); none of the records below is one. If the data arenas move into
   the RDRAM window, nothing here changes.
-- **One layout in every live view.** Each live view gets the record's full typed skeleton under `#ifdef TARGET_PC`
-  (or `s32` -> `intptr_t` where that is enough), with the file's own names on the fields it uses. Pointers are typed
-  as pointers rather than padded, so gen_data still computes the N64 layout from the DWARF. Weak context copies
-  never run and are left as they are.
-- **Extents.** A table's size comes from one complete declaration under `TARGET_PC`, which must be the first
-  declaration in its file: GCC's DWARF keeps the first declaration's (incomplete) type.
+- **One layout in every live view.** Each live view gets the record's full typed skeleton (or `s32` -> `intptr_t`
+  where that is enough), with the file's own names on the fields it uses. Pointers are typed as pointers rather than
+  padded, so gen_data still computes the N64 layout from the DWARF. Weak context copies never run and are left as
+  they are.
+- **Extents.** A table's size comes from one complete declaration, which must be the first declaration in its file:
+  GCC's DWARF keeps the first declaration's (incomplete) type.
 - **m2c code** that adds N64 strides and offsets, or addresses a field of element 0 by its own name
   (`D_8012E708` = node 0's object), gets a whole PC version over the host layout.
 - **`tools/port/view_check.py`** checks it from the PC build's DWARF (gen_data's parser and layout rules). It lays

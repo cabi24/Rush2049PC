@@ -26,10 +26,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct FontHdr {
     /* 0x0 */ u8 pad0;
@@ -47,7 +43,6 @@ typedef struct FontHdr {
     /* 0xC */ u8 count;
 } FontHdr;
 
-#ifdef TARGET_PC
 /* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c);
  * FONT_KERNS reads it as a pointer. */
 typedef struct Glyph {
@@ -60,18 +55,6 @@ typedef struct Glyph {
     /* 0x9 */ u8 pad9[3];
 } Glyph;
 #define FONT_KERNS(k) ((u8 *)PC_N64P(k))
-#else
-typedef struct Glyph {
-    /* 0x0 */ u8 *kern;
-    /* 0x4 */ u8 id;
-    /* 0x5 */ u8 pad5;
-    /* 0x6 */ u8 left;
-    /* 0x7 */ u8 pad7;
-    /* 0x8 */ u8 right;
-    /* 0x9 */ u8 pad9[3];
-} Glyph;
-#define FONT_KERNS(k) k
-#endif
 
 extern FontHdr *D_801497F0;
 extern Glyph *D_80149800;

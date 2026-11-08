@@ -40,31 +40,18 @@ typedef float f32;
 typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
 typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
 typedef struct Cam152 { u8 pad[152]; } Cam152;
-#ifdef TARGET_PC
 typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x380 - 0x308]; void *input; u8 pad0F0_384[0x3B8 - 0x384]; } Car952;
-#else
-typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[952 - 240]; } Car952;
-#endif
 typedef struct Pair { s32 first, second; } Pair;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
  * D_8012E710 is node 0 + 0x10: on the PC the field is the node's, at host +0x14. */
 typedef struct Model68 { u32 flags, w4; void *obj; f32 w; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
 #define D_8012E710 D_8012E700
-#else
-typedef struct Model68 { f32 scale; u8 pad[64]; } Model68;
-#endif
 typedef struct Pos { s16 x, y; } Pos;
 
 extern s16 D_80151AD0;
 extern s16 D_8014A108;
 extern s32 gameplay_mode;
-#ifndef TARGET_PC
-/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) Pair D_80118E20;   /* tentative definition (as credits_scroll_grp/gr3_d.c): see header */
+extern Pair D_80118E20;   /* tentative definition (as credits_scroll_grp/gr3_d.c): see header */
 extern RecordRow D_801541A8[];
 extern Cam152 D_80150B70[];
 extern volatile u8 D_80140BDC;
@@ -73,12 +60,7 @@ extern f32 D_80116178;
 extern s32 D_80394050[][4][2];
 extern s32 D_80115E28[][4][2];
 extern s8 D_80146113;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 player_array[];
-#define PC_CAR_FINISHED(i) player_array[i].mode
-#endif
 extern s32 D_80114C48[];
 extern u8 D_801461D0[];
 extern char D_80120E0C[], D_80120E1C[]; /* "GOLDCOING_COIN", "SILVERCOINS_COI" */

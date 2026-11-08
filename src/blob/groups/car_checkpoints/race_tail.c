@@ -19,19 +19,11 @@ typedef float f32;
 typedef struct Car952 {
     u8 pad000[237];
     s8 restart;            /* 0x0ED */
-#ifdef TARGET_PC
     u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21]; u8 pad0EE_308[0x35C - 0x308];
-#else
-    u8 pad0EE[860 - 238];
-#endif
     s8 cam;                 /* 0x35C */
     s8 camMode;             /* 0x35D */
     s8 camModeSave;         /* 0x35E */
-#ifdef TARGET_PC
     u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
-#else
-    u8 pad35F[952 - 863];
-#endif
 } Car952;
 typedef struct Game2056 {
     u8 pad000[556];
@@ -42,53 +34,27 @@ typedef struct Game2056 {
     s8 type;                /* 0x7CC */
     u8 pad7CD[2056 - 1997];
 } Game2056;
-#ifdef TARGET_PC
 typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-#else
-typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[10]; } Player76;
-#endif
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[84]; f32 savepos[3]; u8 pad90[8]; } Cam152;
 typedef struct Info8 { u8 pad0[7]; u8 state; } Info8;
 typedef struct Inner5 { u8 pad0[5]; s8 f5; } Inner5;
-#ifdef TARGET_PC
 /* A ghost (menu_save_options' Ghost): link, file and data handles before its header, pointer-sized on the PC
  * (docs/port/CASTS.md). */
 typedef struct Obj40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **inner; } Obj40;
-#else
-typedef struct Obj40 { u8 pad0[40]; Inner5 **inner; } Obj40;
-#endif
 
 extern s32 D_8014A110;
 extern s16 D_8014A108;
 extern Player76 D_8014A118[];
 extern s8 D_80152744;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Game2056 D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].type
-#define PC_MODEL_RWR(i) D_8014A250[i].snd
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
 extern u32 D_801174B4;
 extern Cam152 gCamera[];
 extern s8 D_8010FFC0;
 extern Obj40 **D_80152698[];
 extern u8 D_801141B0[];
 extern u32 D_801392D8[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Info8 D_80153E88[];
-#define PC_LINK_OWNER(i) D_80153E88[i].state
-#endif
 extern s8 D_80114650;
 
 void race_init_helper(void);

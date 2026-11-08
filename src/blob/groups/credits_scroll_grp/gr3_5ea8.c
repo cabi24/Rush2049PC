@@ -36,17 +36,10 @@ typedef struct OSMesgQueue OSMesgQueue;
 typedef struct ArIdx { u16 h[64]; } ArIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; ArIdx *indices; char **strings; } TextState;
 typedef struct Model { u8 pad0[1990]; s16 car; u8 pad1992[4]; s8 f1996; u8 pad1997[27]; s8 lap; u8 pad2025[31]; } Model; /* 2056 B */
-#ifdef TARGET_PC
 typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 pad244_308[0x380 - 0x308]; void *input; u8 pad244_384[0x3A3 - 0x384]; s8 f931; u8 pad932[20]; } GameCar; /* 952 B */
-#else
-typedef struct GameCar { u8 pad0[238]; s8 place; s8 f239; f32 time; u8 pad244[687]; s8 f931; u8 pad932[20]; } GameCar; /* 952 B */
-#endif
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 typedef struct Pos { s32 x, y; } Pos;
 typedef struct StuntPlayer { s32 score; u8 pad[116]; } StuntPlayer;                      /* 120 B */
 
@@ -54,23 +47,8 @@ extern OSMesgQueue D_801461D0;
 extern TextState countdown_state;                /* gText */
 extern s16 gNumWindows;
 extern s16 D_80152734;                           /* gNumLaps */
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];                       /* model */
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].f1996
-#define PC_MODEL_LAP(i) D_8014A250[i].lap
-#define PC_MODEL_SLOT(i) D_8014A250[i].car
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[];                   /* gGameCar */
-#define PC_CAR_FINISHED(i) player_array[i].f239
-#define PC_CAR_PLACE(i) player_array[i].place
-#define PC_CAR_POINTS(i) player_array[i].f931
-#define PC_CAR_TIME(i) player_array[i].time
-#endif
 extern PlayerRow input_rec0[];                   /* gPlayers */
 extern Pos D_80115F28[][4];                      /* wrongWayPos */
 extern s32 gameplay_mode;                        /* gRace */
@@ -80,14 +58,10 @@ extern s32 D_80150B60;                           /* ties */
 extern u8 D_80144018[];                          /* gLap[p] */
 extern StuntPlayer D_8015204C[];                 /* gStuntPlayer[p] (+0x14 in GC) */
 extern s32 *D_80154350[];                        /* result panes [p], [4] = the header pane */
-#ifdef TARGET_PC
 /* PC: playerPaneColors, the two R,G,B,A colours ChangePaneColor reads as bytes. The PC loader fills initialized data
  * by its declarations, and as words their bytes would come out reversed (docs/port/ENDIAN.md). */
 typedef struct PaneColors { u8 x[4], y[4]; } PaneColors;
 extern PaneColors D_80116148[];
-#else
-extern Pos D_80116148[];
-#endif
 extern s32 D_80118E20[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 slot_state_setup(s32);
@@ -95,11 +69,8 @@ extern s16 object_bytes_sum_global(void);        /* TB_GetFontLineHeight */
 extern void dispatch_handler(s32);               /* TB_SetTextColor */
 extern s32 fcvt_wrapper(char *, char *, ...);    /* TB_Sprintf */
 extern void render_helper(f32);                  /* HAL_SetTextDepth */
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern s32 *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-#else
-extern s32 *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);   /* CreatePane-like */
-#endif
 extern void camera_auto_follow(s16, s16, s16, s16, s16, s16, char *);   /* TB_DrawTextScrollBox */
 extern void ChangePaneColor(void *, void *, void *);
 

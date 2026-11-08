@@ -120,21 +120,7 @@ void camera_first_person(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     }
 }
 
-void func_800AD650(s16 *p, f32 *o) {
-    o[0] = (f32) p[0] * 0.00006103515625f;
-    o[1] = (f32) p[1] * 0.00006103515625f;
-    o[2] = (f32) p[2] * 0.00006103515625f;
-    o[3] = (f32) p[3] * 0.00006103515625f;
-    o[4] = (f32) p[4] * 0.00006103515625f;
-    o[5] = (f32) p[5] * 0.00006103515625f;
-    o[6] = (f32) p[6] * 0.00006103515625f;
-    o[7] = (f32) p[7] * 0.00006103515625f;
-    o[8] = (f32) p[8] * 0.00006103515625f;
-}
+void func_800AD650(s16 *p, f32 *o);
 
 /* stand-in: retail func_800AD650 has callers outside this group (func_800C3AD0, input_process_controller);
  * this kept caller only keeps it out of line here.  Not a claimed member. */
-void __standin_func_800AD650_a(s16 *p, f32 *o) {
-    func_800AD650(p, o);
-    func_800AD650(p + 9, o + 9);
-}

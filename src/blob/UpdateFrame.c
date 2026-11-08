@@ -17,10 +17,6 @@ typedef short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef void *OSMesg;
 typedef struct OSMesgQueue OSMesgQueue;
 

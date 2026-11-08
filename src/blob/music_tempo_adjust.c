@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3703,7 +3690,6 @@ typedef s64 M2C_UNK64;
 
 s32 fcvt(s8 *, s32, void *);        /* extern */
 
-#ifdef TARGET_PC
 /* PC: printf at (x, y), formatted by the host as fcvt_wrapper does. The N64 version hands fcvt the address of
  * its stack arguments as an IDO va_list, and its format (arg2) is a pointer every caller passes
  * (docs/port/PROTOTYPES.md). */
@@ -3717,14 +3703,4 @@ void music_tempo_adjust(s16 arg0, s16 arg1, const char *arg2, ...) {
     __builtin_va_end(ap);
     state_utility(arg0, (s32) arg1, buf);
 }
-#else
-void music_tempo_adjust(s16 arg0, s16 arg1, s32 arg2, ...) {
-    s8 buf[0x100];
-    s8 *ap;
-
-    ap = (s8 *) &arg2 + 4;
-    fcvt(buf, arg2, ap);
-    state_utility(arg0, (s32) arg1, buf);
-}
-#endif
 

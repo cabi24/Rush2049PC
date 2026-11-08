@@ -3,7 +3,6 @@
  * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
  * passthrough lines. */
 #include "rom_tu.h"
-#ifdef TARGET_PC
 /* PC: the registries below keep their payloads as 32-bit window addresses (into the pool, wave 7, in the heap):
  * N64A(p) is a window pointer's, N64A0(p) the same where the N64 stores the pointer itself, N64PTR(T, a) and
  * N64PTR0(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -11,12 +10,6 @@
 #define N64A0(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define N64A(x) (unsigned int)x
-#define N64A0(x) x
-#define N64PTR(T, a) (T)a
-#define N64PTR0(T, a) a
-#endif
 
 /* PROMOTED 2026-10-11 — func_80015720
  * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
@@ -24,18 +17,12 @@
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: the keymap and macro registries hold window addresses into the pool (wave 7, in the heap) as u32, so a
  * record stays 8 bytes with its id at +4: func_80016C20 searches with a stride of 8, and the comparators read
  * the id at +4 (docs/port/MUSYX_DATA.md). */
 #pragma pack(1)
 typedef struct { unsigned int payload; u16 id; u16 references; } RecordFields_8003C618;
 #pragma pack()
-#else
-#pragma pack(1)
-typedef struct { void *payload; u16 id; u16 references; } RecordFields_8003C618;
-#pragma pack()
-#endif
 typedef union { RecordFields_8003C618 fields; unsigned int words[2]; } RecordStorage_8003C618;
 extern int D_8003C610;
 extern RecordStorage_8003C618 D_8003C618[];
@@ -481,16 +468,10 @@ typedef struct ResourceRange { u16 count; u16 first; } ResourceRange;
  */
 #pragma pack(1)
 #pragma pack(0)
-#ifdef TARGET_PC
 /* PC: a u32 window address, as RecordFields_8003C618. */
 #pragma pack(1)
 typedef struct { unsigned int payload; u16 id; u16 references; } RecordFields_8003E228;
 #pragma pack()
-#else
-#pragma pack(1)
-typedef struct { void *payload; u16 id; u16 references; } RecordFields_8003E228;
-#pragma pack()
-#endif
 typedef union { RecordFields_8003E228 fields; unsigned int words[2]; } RecordStorage_8003E228;
 extern int D_8003DA20;
 extern ResourceRange D_8003DA28[512];
@@ -646,18 +627,11 @@ int func_80016CE0(const unsigned short *left, const unsigned short *right)
  * Evidence: identical bytes in the full-ROM SHA-1 build
  * Gate:     full-ROM SHA-1
  */
-#ifdef TARGET_PC
 /* PC: the layout func_800146B4 (lib_11640.c) reads, whose data pointer is 8 bytes: offset is a u32 there. */
 #pragma pack(1)
 typedef struct SampleHeader_80016CF0 { u32 info; u32 length; u32 loopOffset; u32 loopLength; } SampleHeader_80016CF0;
 typedef struct SampleInfo_80016CF0 { u32 info; void *addr; u32 offset; u32 length; u32 loop; u32 loopLength; u8 compType; } SampleInfo_80016CF0;
 #pragma pack()
-#else
-#pragma pack(1)
-typedef struct SampleHeader_80016CF0 { u32 info; u32 length; u32 loopOffset; u32 loopLength; } SampleHeader_80016CF0;
-typedef struct SampleInfo_80016CF0 { u32 info; void *addr; void *offset; u32 length; u32 loop; u32 loopLength; u8 compType; } SampleInfo_80016CF0;
-#pragma pack()
-#endif
 int func_80016CE0(const unsigned short *left, const unsigned short *right);
 int func_80016CF0(u16 id, SampleInfo_80016CF0 *sample)
 {

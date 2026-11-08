@@ -60,10 +60,6 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef signed long long s64;
 typedef unsigned long long u64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct {
@@ -239,16 +235,11 @@ typedef union {
 #define TEX_MIRROR_S 0x00040000
 #define TEX_CLAMP_T 0x00020000
 #define TEX_CLAMP_S 0x00010000
-#ifdef TARGET_PC
 /* PC: Texture, Palette and LodSet are a WAD's TXHD, PLHD and OBHD records, which keep their N64 layout
  * (port/assets/wad.c): image, table and dl are 32-bit RDRAM-window addresses, unsigned so they widen to host
  * pointers by zero extension. */
 #define WADP(type) u32
 #define WAD_ADDR u32
-#else
-#define WADP(type) type *
-#define WAD_ADDR s32
-#endif
 typedef struct {
     u8 pad0[16];
     u16 width;
@@ -604,13 +595,9 @@ typedef struct {
 
 extern GfxBuf *D_8015B250;
 extern Mtx *D_8015B260;
-#ifdef TARGET_PC
 /* PC: the table's extent, 600 nodes to 0x80138660, for gen_data (every other view is open-ended). This Node is
  * the layout every view of the table has on the PC (docs/port/POINTERS.md 9). */
 extern Node D_8012E700[600];
-#else
-extern Node D_8012E700[];
-#endif
 extern View gCamera[];
 extern LodTable gRomObjDefPtrs[];
 extern TexTable gTexDefPtrs[];
@@ -839,14 +826,9 @@ f32 func_8009C3F8(f32 x, s32 flag)
     return r;
 }
 
-#ifdef TARGET_PC
 /* PC: a vertex's float coordinate to s16, out of range for far geometry (32800); undefined in C. Through s32, whose
  * low half the conversion keeps, as the N64's trunc.w.s and sh do (docs/port/SANITIZE.md). */
 #define V16 (s32)
-#else
-#define V16
-#endif
-#ifdef TARGET_PC
 /* PC: video.draw_distance and video.detail (docs/port/DETAIL.md 2). PC_DRAW_REACH (a model's last level of detail,
  * PC_LOD_REACH, and the fog's radius), PC_LOD_DIST (the level chosen) and PC_SCENE (the scene's counts) are
  * pc_game_types.h's; a node past its last level is counted, a level forced by its flags (CreateCar's tires with 2-4
@@ -862,17 +844,6 @@ f32 func_8009C3F8(f32 x, s32 flag)
  * out and counted as the cull's */
 s32 pc_scenery_unplaced(s32 idx, void *obj, s32 absolute);
 #define PC_SCENERY_CHECK(view, obj, count) if (pc_scenery_unplaced(view, obj, count)) { PC_SCENE(VIEW_HIDDEN) goto next; }
-#else
-#define PC_SCENERY_CHECK(view, obj, count)
-#define PC_DRAW_REACH(d) d
-#define PC_LOD_REACH(d, flags) d
-#define PC_LOD_DIST(d) d
-#define PC_LOD_FORCED(l) l
-#define PC_SCENE(k)
-#define PC_SCENE_LEVEL(lod)
-#define PC_LOD_CUT
-#define PC_VIEW_BEGIN
-#endif
 s32 particle_system(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32 view, Palette *pal)
 {
     Gfx *gfx = *gp;
@@ -1562,11 +1533,7 @@ extern volatile s8 D_8015F72D;
 extern Vtx D_80161498[][3200];
 extern u8 D_80146204;
 extern s32 D_801613AC;
-#ifdef TARGET_PC
 extern Sprite D_80140BF0[200];   /* the sprite list's extent, to 0x801424F0, for gen_data */
-#else
-extern Sprite D_80140BF0[];
-#endif
 extern u8 D_8011ED08[4];
 extern u16 D_8011ED0C[];
 void func_8008705C(u32 mask);
@@ -1580,13 +1547,9 @@ void object_render(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls,
                    u16 pal, s32 tile);
 void func_80087110(s32 x, s32 y, s32 right, s32 bottom, s32 s, s32 t);
 
-#ifdef TARGET_PC
 /* A palette's table is a 32-bit N64 address its loader reads through: N64PTR(T, a) the pointer at one (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64PTR(T, a) ((T)PC_N64P(a))
-#else
-#define N64PTR(T, a) (T)a
-#endif
 void Input_ProcessGameplayPad(s32 arg0)
 {
     s32 i;

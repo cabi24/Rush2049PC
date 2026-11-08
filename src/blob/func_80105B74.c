@@ -35,11 +35,7 @@ typedef struct {
     s8 place;
     s8 finished;
     f32 time;
-#ifdef TARGET_PC
     char padF4[0x110 - 0xF4]; struct pc_visual visuals[21]; char padF4_308[0x380 - 0x308]; void *input; char padF4_384[0x3B8 - 0x384];
-#else
-    char padF4[0x3B8 - 0xF4];
-#endif
 } Car;
 
 typedef struct {
@@ -52,28 +48,11 @@ typedef struct {
 
 typedef struct {
     u8 slot;
-#ifdef TARGET_PC
     char pad1[0x48 - 0x1]; void *ref;
-#else
-    char pad1[0x4B];
-#endif
 } Pad;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].finished
-#define PC_CAR_PLACE(i) D_80152818[i].place
-#define PC_CAR_TIME(i) D_80152818[i].time
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL_DRONE_TYPE(i) D_8014A250[i].active
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
 extern Pad D_8014A118[];
 extern u8 D_801439D8[6][8];
 extern f32 D_801543CC;
@@ -84,17 +63,12 @@ extern s16 D_80142D70;
 
 s32 func_800D2128(f32 value, u8 *digits, u8 format);
 
-#ifdef TARGET_PC
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
  * 8 hold its 6; AddressSanitizer saw 12 cars write past them), and in a race of more than 6 cars the HUD order
  * D_80142DB4 (12 entries by the gap), which the minimap's dots read by their AnimID, is cleared whole, so a dot past
  * the race's cars is hidden. A race of 6 clears the N64's 6, as the N64 does. */
 #define PC_HUD_ORDER_N PC_MAX_LINKS
 #define PC_HUD_CLEAR_N (PC_RACE_CARS > PC_N64_CARS ? PC_MAX_LINKS : 6)
-#else
-#define PC_HUD_ORDER_N 8
-#define PC_HUD_CLEAR_N 6
-#endif
 
 s32 func_80105B74(s32 arg0) {
     s16 order[PC_HUD_ORDER_N];

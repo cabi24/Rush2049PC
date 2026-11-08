@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -794,13 +781,9 @@ extern s32 D_8011027C;
 extern s32 D_80110280;
 extern s8 D_80110284;
 extern s32 D_80110288;
-#ifdef TARGET_PC
 /* PC: a byte flag, as every other file has it (func_800A4CB8.c); camera_transform only tests and clears it. The PC
  * loader fills initialized data by its declarations, and as a word its byte would be the ROM's fourth. */
 extern s8 D_8011028C;
-#else
-extern s32 D_8011028C;
-#endif
 extern s32 D_80110290;
 extern s32 D_801102B4;
 extern s32 D_801102C0;
@@ -3710,7 +3693,6 @@ typedef s64 M2C_UNK64;
 M2C_UNK func_8001fea4();                    /* extern */
 M2C_UNK func_8001fff4(s32, s32);                    /* extern */
 s32 func_80020174(u16, M2C_UNK, M2C_UNK);           /* extern */
-#ifdef TARGET_PC
 /* PC: the sound entry's resource (audio_fade_control/group.c's Entry, s32 at +0xC) is the effect to start, read
  * as its low half, the u16 at +0xE on the N64 and at +0xC here; +0xE is its high half, 0, so every effect started
  * sfx 0 (docs/port/AUDIO.md 9). The volume and pan conversions are IDO's (pc_prelude.h). */
@@ -3720,12 +3702,6 @@ s32 func_80020174(u16, M2C_UNK, M2C_UNK);           /* extern */
  * C for NaN or out of range, which the synthetic cartridge's sounds reach (a NaN front/back pan at a race's set-up:
  * the sanitizers' float-cast-overflow). There IDO's code gives -1, the low byte 0xFF; AArch64 gave 0. */
 #define PC_CVT_S32(f) ((f) > -2147483648.0f && (f) < 2147483648.0f ? (s32)(f) : -1)
-#else
-#define SFX_ENTRY_ITEM 0xE
-#define N64_F2U(x) (u32)(x)
-#define PC_ONLY(stmt)
-#define PC_CVT_S32(f) (s32) f
-#endif
 
 
 /* group members */
@@ -3734,7 +3710,7 @@ void camera_transform(void);
 
 s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
     if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = func_80020174(M2C_FIELD(ipa_s0, u16 *, SFX_ENTRY_ITEM), 0xFF, 0xFF)) == -1) {
-        PC_ONLY(pc_snd_count(PC_SND_FX_REFUSED);) return 0;
+        pc_snd_count(PC_SND_FX_REFUSED); return 0;
     }
     func_8001fea4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
     func_8001fff4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));
@@ -3742,7 +3718,6 @@ s32 MP_TargetSteerPos(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
     return 1;
 }
 
-#ifdef TARGET_PC
 /* PC: camera_transform walks the sound request list (audio_fade_control/group.c's List and Node), whose pointers
  * are 8 bytes here; its 24-byte entries have none. Its offsets into a node and the list header are these
  * (docs/port/MUSYX_DATA.md 8.4). */
@@ -3757,25 +3732,12 @@ typedef struct { u32 pad[2]; void *tail, *head; } PcSfxList;
 #define SFX_NODE_PRIORITY __builtin_offsetof(PcSfxNode, priority)
 #define SFX_NODE_ROUTE __builtin_offsetof(PcSfxNode, route)
 #define SFX_LIST_HEAD __builtin_offsetof(PcSfxList, head)
-#else
-#define SFX_NODE_NEXT 4
-#define SFX_NODE_KIND 8
-#define SFX_NODE_BUSY 9
-#define SFX_NODE_ENTRY 0xC
-#define SFX_NODE_VALUE 0x10
-#define SFX_NODE_STREAM 0x14
-#define SFX_NODE_PRIORITY 0x18
-#define SFX_NODE_ROUTE 0x1C
-#define SFX_LIST_HEAD 0xC
-#endif
-#ifdef TARGET_PC
 /* PC: the pitch change below is func_8001FFA0(identifier, value) (lib_207b0.c): in the ROM a0 holds the effect's
  * voice id (entry +0x10) and a1 the pitch, but m2c spelled the call with a 0 in front. The PC passed that 0 as the
  * identifier and the id as the pitch, so no effect's pitch ever changed (the engines kept their start pitch) and
  * voice id 0 got pitch bends from the ids (docs/port/AUDIO.md 9). */
 s32 func_8001ffa0(u32 identifier, u16 value);
 #define func_8001ffa0(m2c_zero, identifier, value) func_8001ffa0(identifier, value)
-#endif
 
 void camera_transform(void) {
     f32 temp_f0;
@@ -4097,7 +4059,3 @@ block_104:
 }
 
 /* stand-in caller: keeps MP_TargetSteerPos out of line under -O3 */
-void __standin_MP_TargetSteerPos(void)
-{
-    MP_TargetSteerPos(0, 0, 0);
-}

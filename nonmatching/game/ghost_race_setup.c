@@ -43,11 +43,7 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 unzippedSize;             /* 0x40 */
     u32 zippedChecksum;           /* 0x44 */
     u32 unzippedChecksum;         /* 0x48 */
-#ifdef TARGET_PC
     u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-#else
-    u8 *start;                    /* 0x4C */
-#endif
     u32 offset;                   /* 0x50 */
     s32 size;                     /* 0x54 */
 } GhostHeader;
@@ -65,26 +61,11 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     GhostHeader **header;         /* 0x28 */
 } Ghost;
 
-#ifdef TARGET_PC
 typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 tail_308[0x380 - 0x308]; void *input; u8 tail_384[0x3B8 - 0x384]; } GhostPlayer;
-#else
-typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[708]; } GhostPlayer;
-#endif
 typedef struct GhostObject { u8 pad0[1820]; s16 reset; u8 tail[234]; } GhostObject;
 extern Ghost **D_80152698[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GhostPlayer D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].ready
-#define PC_CAR_TIME(i) D_80152818[i].value
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GhostObject D_8014A250[];
-#define PC_MODEL_MODELRUN(i) D_8014A250[i].reset
-#endif
 extern GhostHeader *D_80140800;
 extern s16 D_8014A108;
 extern s32 D_8014A110;

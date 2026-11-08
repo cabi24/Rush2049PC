@@ -32,19 +32,8 @@ extern s32 D_80143FF4;
 extern f32 D_801543CC;
 extern f32 D_8002AFB8;
 extern s32 gameplay_mode;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[6];
-#define PC_MODEL_MODEL_TIME(i) D_8014A250[i].unk714
-#define PC_MODEL_DT(i) D_8014A250[i].unk718
-#define PC_MODEL_ITERATION(i) D_8014A250[i].unk710
-#endif
 
-#ifndef TARGET_PC
-/* PC: the cars a race holds, pc_race_cars() (pc_game_types.h, docs/port/MORECARS.md 3.1); the N64's 6. */
-#define PC_RACE_CARS 6
-#endif
 void func_800E762C(s32 arg0)
 {
     f32 q;

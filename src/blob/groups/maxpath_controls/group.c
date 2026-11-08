@@ -139,66 +139,26 @@ typedef struct { /* 0x0 */ s16 x, y, z; /* 0x6 */ u8 flag; /* 0x7 */ u8 pad7; } 
 typedef struct { /* 0x0 */ u16 numPoints; /* 0x2 */ u16 pad2; /* 0x4 */ TrackPt *points; } Track;
 
 typedef struct GameCar {
-#ifdef TARGET_PC
     u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x314 - 0x308];
-#else
-    u8 prefix[0x314];
-#endif
     Nav nav;
-#ifdef TARGET_PC
     u8 suffix[0x380 - 0x340]; void *input; u8 suffix_384[0x3B8 - 0x384];
-#else
-    u8 suffix[0x3B8 - 0x340];
-#endif
 } GameCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[];
-#define PC_CAR_NAV(i) player_array[i].nav
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern D_8014A250_Record D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_CAN_CHEAT(i) D_8014A250[i].b7DE
-#define PC_MODEL_SLOT(i) D_8014A250[i].unk7C6
-#define PC_MODEL_RECKON_RWR(i) D_8014A250[i].pos
-#define PC_MODEL_WE_CONTROL(i) D_8014A250[i].s7CA
-#endif
 extern Section D_80151CE8[];
 extern Track D_8012E5E8[];
 extern volatile s16 D_80152768;
-#ifdef TARGET_PC
 /* On the PC the drone list and maxpath's controls per car slot are pc_drones, pc_mp_steer, pc_mp_brake, pc_mp_gas,
  * pc_mp_dir and pc_mp_save_dir, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 extern s16 D_80154182;
-#else
-extern s16 D_80154182, D_801527D8[];
-#define PC_DRONE(j) D_801527D8[j]
-#define PC_MP_STEER(slot) D_80153F28[slot]
-#define PC_MP_BRAKE(slot) D_80153F48[slot]
-#define PC_MP_GAS(slot) D_80153F68[slot]
-#define PC_MP_DIR(slot) D_80153F88[slot]
-#define PC_MP_SAVE_DIR(slot) D_80154138[slot]
-#endif
 extern s8 D_80152744;
 extern s8 D_801543C8;
-#ifdef TARGET_PC
 /* PC: D_80120E50 is TB_DrawText's message, characters in the ROM. The PC loader fills initialized data by its
  * declarations: as an s32 it would swap the first four (docs/port/ENDIAN.md). The rest up to the next symbol is
  * copied as it is. */
 typedef struct PcText4 { char c[4]; } PcText4;
 extern PcText4 D_80120E50;
-#else
-extern s32 D_80120E50;
-#endif
 extern f32 D_801161D4[], D_801161E4[];
-#ifndef TARGET_PC
-extern f32 D_80153F28[], D_80153F48[], D_80153F68[];
-extern f32 D_80153F88[][3], D_80154138[][3];
-#endif
 extern f32 D_80154190, D_801543CC;
 
 extern f32 sqrtf(f32), fabsf(f32);

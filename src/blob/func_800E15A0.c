@@ -13,22 +13,11 @@ typedef int s32;
 typedef short s16;
 typedef signed char s8;
 typedef unsigned char u8;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef f32 Vec3[3];
 typedef struct Model { u8 pad[16]; f32 x, y; } Model;
-#ifdef TARGET_PC
 typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; Model *model; u8 rest[52]; } Player;
-#else
-typedef struct Player { u8 pad[896]; Model *model; u8 rest[52]; } Player;
-#endif
 typedef struct Parameters { u8 pad[112]; Vec3 tireArm[4]; } Parameters;
-#ifdef TARGET_PC
 enum n64p_Parameters { n64p_Parameters_ };
-#endif
-#ifdef TARGET_PC
 typedef struct State {
     enum n64p_Parameters parameters;
     u8 pad4[24];
@@ -56,50 +45,11 @@ typedef struct State {
     u8 pad1992[12];
     s32 flags;
 } State;
-#else
-typedef struct State {
-    Parameters *parameters;
-    u8 pad4[24];
-    Vec3 sum;
-    u8 pad40[60];
-    Vec3 tireForce[4];
-    u8 pad148[48];
-    Vec3 bodyForce[4];
-    u8 pad244[72];
-    Vec3 extra;
-    u8 pad328[680];
-    f32 factor;
-    u8 pad1012[4];
-    s16 active;
-    u8 pad1018[446];
-    f32 gain;
-    u8 pad1468[16];
-    f32 delta[4];
-    u8 pad1500[16];
-    f32 check[4];
-    u8 pad1532[309];
-    s8 enabled;
-    u8 pad1842[148];
-    s16 player;
-    u8 pad1992[12];
-    s32 flags;
-} State;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern s32 gameplay_mode;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern s8 D_80140A04;
 /* Native Y is the arcade vertical Z; vectors follow native axes.
  * Arcade ancestry: drivsym.c:torques, vecmath.h vector macros.

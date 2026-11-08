@@ -3,17 +3,10 @@
 typedef float f32;
 typedef signed short s16;
 typedef unsigned char u8;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 typedef struct Parameters {u8 prefix[172]; f32 upshift,downshift;} Parameters;
 typedef struct Tuning {u8 prefix[20]; f32 shift_gain;} Tuning;
-#ifdef TARGET_PC
 enum n64p_Parameters { n64p_Parameters_ };
 enum n64p_Tuning { n64p_Tuning_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Model2056 {
     enum n64p_Parameters parameters; enum n64p_Tuning tuning;
     u8 to_throttle[968]; f32 throttle;
@@ -21,23 +14,9 @@ typedef struct Model2056 {
     u8 to_engangvel[16]; f32 engangvel;
     u8 tail[1020];
 } Model2056;
-#else
-typedef struct Model2056 {
-    Parameters *parameters; Tuning *tuning;
-    u8 to_throttle[968]; f32 throttle;
-    u8 to_gear[32]; s16 gear,commandgear;
-    u8 to_engangvel[16]; f32 engangvel;
-    u8 tail[1020];
-} Model2056;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), enum n64p_Tuning: (Tuning *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 extern void func_800E313C(Model2056 *,f32,f32);
 extern void func_800E30F4(Model2056 *);
 extern void func_800E30AC(Model2056 *);

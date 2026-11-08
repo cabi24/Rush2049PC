@@ -25,19 +25,12 @@ typedef struct NameKey {
     u32 hdr;
     char name[20];
 } NameKey;
-#ifdef TARGET_PC
 /* PC: the entry is the world file's 0x14-byte WHDR record; LoadTrack has made node a window address
  * (port/assets/world.c), which converts to the Node104 pointer as it is. */
 typedef struct NameEntry {
     u32 node;
     char name[16];
 } NameEntry;
-#else
-typedef struct NameEntry {
-    Node104 *node;
-    char name[16];
-} NameEntry;
-#endif
 
 extern s16 D_80149D90;
 extern Node104 *D_80149B80;
@@ -49,16 +42,13 @@ extern void *entity_name_copy(void *key, void *base, u32 n, u32 size, s32 (*comp
 extern void differential_output(Node104 *node, s16 parent);
 extern void func_800AB638(void);
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
 /* PC: a world's name entry keeps its node's 32-bit N64 address, which the node found becomes the pointer at
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 static void wheel_find_node(u8 *name, Node104 **out) {
     NameKey key;
     func_800A473C((u8 *) key.name, name);
     *out = ((NameEntry *) entity_name_copy(&key, D_80149818, *D_801497FC, sizeof(NameEntry),
-                                           (s32 (*)(void *, void *)) pointer_offset_wrapper))->node; PC_ONLY(*out = (Node104 *)PC_N64P((u32)(uintptr_t)*out);)
+                                           (s32 (*)(void *, void *)) pointer_offset_wrapper))->node; *out = (Node104 *)PC_N64P((u32)(uintptr_t)*out);
 }
 
 s16 wheel_torque_apply(u8 *arg0, s16 arg1) {

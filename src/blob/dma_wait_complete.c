@@ -110,11 +110,7 @@ extern OSMesg D_8015439C;
 extern OSMesgQueue D_801497D0;   /* one-slot queue used as the SI lock */
 extern OSMesg D_801527E4;
 typedef struct {
-#ifdef TARGET_PC
     char pad[0x2B0];   /* gScheduler's curRSPTask (D_8002EB5C) natively: docs/port/ULTRA.md */
-#else
-    char pad[0x274];
-#endif
     void *volatile cur;
 } Sched;
 extern Sched D_8002E8E8;         /* scheduler */
@@ -143,13 +139,8 @@ extern f32 D_8002AFB8;           /* increment per retrace */
 
 void func_800205E4(void);
 
-void controller_rumble_thunk(void) {
-    func_800205E4();
-}
+void controller_rumble_thunk(void);
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
 
 void dma_wait_complete(void *arg) {
     OSScClient client;
@@ -163,7 +154,7 @@ void dma_wait_complete(void *arg) {
         switch (*msg) {
         case 1:
             if (D_8011EAA8 != 0) {
-                while (D_8002AFA0 != 0 && D_8002AFA0 == D_8002E8E8.cur) { PC_SPIN("dma_wait_complete")
+                while (D_8002AFA0 != 0 && D_8002AFA0 == D_8002E8E8.cur) { pc_os_spin_yield("dma_wait_complete");
                 }
                 D_8011EAA8(D_8011EAA8);
             }
@@ -186,92 +177,9 @@ static void func_8008A6FC(void) {
     osSendMesg(&D_801497D0, 0, 0);
 }
 
-void func_8008A704(void) {
-    OSMesg msg;
-
-    if (!D_8011194C) {
-        func_8008A6FC();
-    }
-    osRecvMesg(&D_801497D0, &msg, 1);
-}
-
 static void func_8008A774(void) {
     osSendMesg(&D_801497D0, 0, 0);
 }
 
-void audio_queue_process(void *arg) {
-    OSScClient client;
-    OSMesg msg;
-    s32 i;
-    s32 retried;
-    s32 level;
-    Controller *p;
-
-    osCreateMesgQueue(&D_80154378, &D_8015439C, 1);
-    osScAddClient(&D_8002E8E8, &client, &D_80154378);
-    for (;;) {
-        osRecvMesg(&D_80154378, &msg, 1);
-        func_8008A704();
-        for (i = 0; i < 4; i++) {
-            switch (D_80144030[i].present) {
-            case 0:
-skip:
-                continue;
-            }
-            retried = 0;
-            if (++D_80144030[i].phase >= 10) {
-                D_80144030[i].phase = 0;
-            }
-            level = D_80144030[i].request;
-            if (level > 40) {
-                level = 40;
-            }
-            if (level < D_80144030[i].level) {
-                level = D_80144030[i].level - 1;
-            }
-            D_80144030[i].level = level;
-            if (D_8011EAE4 == 0) goto off;
-            if (level > 0) goto check;
-off:
-            if (D_80144030[i].motorOn) {
-                if (!D_8011EAE4) {
-                    osMotorInit(&D_80035458, D_80144030[i].pfs, i);
-                }
-                while (1) {
-                    if (__osMotorAccess(D_80144030[i].pfs, 0) == 0) {
-                        D_80144030[i].motorOn = 0;
-                        break;
-                    }
-                    if (retried) break;
-                    if (osMotorInit(&D_80035458, D_80144030[i].pfs, i) != 0) break;
-                    retried = 1;
-                }
-            }
-            goto skip;
-check:
-            if (level < 10) goto check2;
-on:
-            if (!D_80144030[i].motorOn) {
-                while (1) {
-                    if (__osMotorAccess(D_80144030[i].pfs, 1) == 0) {
-                        D_80144030[i].motorOn = 1;
-                        break;
-                    }
-                    if (retried) break;
-                    if (osMotorInit(&D_80035458, D_80144030[i].pfs, i) != 0) break;
-                    retried = 1;
-                }
-            }
-            goto skip;
-check2:
-            if (D_8011ECEC[level] & (1 << D_80144030[i].phase)) goto on;
-            goto off;
-        }
-        func_8008A774();
-    }
-}
-
-void sync_release_video(void) {
-    osSendMesg(&D_801497D0, 0, 0);
-}
+void sync_release_video(void);
 

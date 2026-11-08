@@ -36,7 +36,6 @@ extern ModelTables D_8017A4E0;
 
 void *slot_value_get(s32 index);
 
-#ifdef TARGET_PC
 /* PC: the bank is already in host order (port/assets/text.c). The offsets stay in the file, since a host pointer
  * doesn't fit their 4-byte slots; the three pointer sections are native char * tables built from them, and the
  * header points at those. Readers index them as char ** with host strides. */
@@ -66,39 +65,3 @@ void func_800A4E58(void) {
     D_8017A4E0.count5 = *p++;
     D_8017A4E0.ptrs5 = (u32 *)pc_text_strings(5, p, D_8017A4E0.count5, base);
 }
-#else
-void func_800A4E58(void) {
-    u32 *base;
-    u32 *p;
-    s32 i;
-
-    base = slot_value_get(D_80140AF0);
-    p = base;
-    D_8017A4E0.count0 = *p++;
-    D_8017A4E0.ptrs0 = p;
-    p += D_8017A4E0.count0;
-    D_8017A4E0.count1 = *p++;
-    D_8017A4E0.data1 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((D_8017A4E0.count1 + 1) & ~1));
-    D_8017A4E0.count2 = *p++;
-    D_8017A4E0.ptrs2 = p;
-    p += D_8017A4E0.count2;
-    D_8017A4E0.count3 = *p++;
-    D_8017A4E0.data3 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((D_8017A4E0.count3 + 1) & ~1));
-    D_8017A4E0.count4 = *p++;
-    D_8017A4E0.data4 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((D_8017A4E0.count4 + 1) & ~1));
-    D_8017A4E0.count5 = *p++;
-    D_8017A4E0.ptrs5 = p;
-    for (i = 0; i < D_8017A4E0.count0; i++) {
-        D_8017A4E0.ptrs0[i] += (u32) base;
-    }
-    for (i = 0; i < D_8017A4E0.count2; i++) {
-        D_8017A4E0.ptrs2[i] += (u32) base;
-    }
-    for (i = 0; i < D_8017A4E0.count5; i++) {
-        D_8017A4E0.ptrs5[i] += (u32) base;
-    }
-}
-#endif

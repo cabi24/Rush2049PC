@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,16 +3787,11 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* D_80124FD0 holds each window's camera matrix (func_800A7D6C's pool in the game arena) as a 32-bit RDRAM-window
  * address: zero-extend it into a pointer (docs/port/CASTS.md). */
 #define MTX_WORD u32
 /* ... and N64PTR(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64PTR(T, a) ((T)PC_N64P(a))
-#else
-#define MTX_WORD s32
-#define N64PTR(T, a) (T)a
-#endif
 void particles_spawn_emitter(s32 arg0)
 {
   MTX_WORD *temp_v0;

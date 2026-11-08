@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3706,17 +3693,11 @@ typedef s64 M2C_UNK64;
 void entity_flag_check(s32 *ipa_s0);
 void func_800988D8(void);
 
-#ifdef TARGET_PC
 /* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links: its id is at +0x10 and its free and
  * active flags at +0x14, +0x15 (docs/port/SYNTH.md). A list header keeps its head at +8. */
 #define SEQ_ID 0x10
 #define SEQ_FREE 0x14
 #define SEQ_ACTIVE 0x15
-#else
-#define SEQ_ID 8
-#define SEQ_FREE 0xC
-#define SEQ_ACTIVE 0xD
-#endif
 
 void entity_flag_check(s32 *ipa_s0) {
     M2C_FIELD(ipa_s0, s32 *, SEQ_ID) = (s32) (M2C_FIELD(ipa_s0, s32 *, SEQ_ID) & D_80146104);
@@ -3728,83 +3709,6 @@ void entity_flag_check(s32 *ipa_s0) {
     M2C_FIELD(ipa_s0, s8 *, SEQ_FREE) = 1;
 }
 
-void func_800988D8(void) {
-    f32 temp_f0;
-    f32 temp_f14;
-    f32 var_f12;
-    s32 temp_a0;
-    s32 temp_s5;
-    s32 temp_v0;
-    s32 temp_v0_2;
-    s32 var_s3;
-    s32 var_v0;
-    u8 temp_t7;
-    u8 var_v0_2;
-
-    var_s3 = D_80149868;
-    if (var_s3 != 0) {
-        do {
-            temp_s5 = M2C_FIELD(var_s3, s32 *, 0);
-            if (M2C_FIELD(var_s3, s8 *, 0xE) == 0) {
-                temp_a0 = M2C_FIELD(var_s3, s32 *, 0x38);
-                if (temp_a0 == -1) {
-                    temp_f0 = M2C_FIELD(var_s3, f32 *, 0x10);
-                    temp_f14 = temp_f0 + M2C_FIELD(var_s3, f32 *, 0x14);
-                    var_f12 = temp_f14;
-                    if (D_80152748 < temp_f0) {
-                        var_f12 = temp_f14 - 14400.0f;
-                    }
-                    var_v0 = 0;
-                    if (var_f12 < D_80152748) {
-                        var_v0 = 1;
-                    }
-                    if (var_v0 != 0) {
-                        goto block_9;
-                    }
-                    goto block_10;
-                }
-block_10:
-                temp_v0 = func_80091BA8(temp_a0);
-                if (temp_v0 != 0) {
-                    if ((M2C_FIELD(temp_v0, s32 *, 0x10) == 2) && (M2C_FIELD(temp_v0, u8 *, 0x1A) == 0) && (entity_state_check(M2C_FIELD(temp_v0, s32 *, 0x3C)) == 0)) {
-                        audio_effect_setup(temp_v0);
-                        goto block_15;
-                    }
-                } else {
-block_15:
-                    var_v0_2 = M2C_FIELD(var_s3, u8 *, 0x18);
-                    if (M2C_FIELD((var_s3 + (var_v0_2 * 4)), s32 *, 0x1C) == -1) {
-loop_16:
-                        temp_t7 = var_v0_2 + 1;
-                        var_v0_2 = temp_t7 & 0xFF;
-                        M2C_FIELD(var_s3, u8 *, 0x18) = temp_t7;
-                        if ((s32) var_v0_2 < 4) {
-                            if (M2C_FIELD((var_s3 + (var_v0_2 * 4)), s32 *, 0x1C) == -1) {
-                                goto loop_16;
-                            }
-                        }
-                    }
-                    if ((s32) var_v0_2 >= 4) {
-                        entity_flag_check(var_s3);
-                    } else {
-                        M2C_FIELD(var_s3, u8 *, 0x18) = (u8) (var_v0_2 + 1);
-                        temp_v0_2 = entity_flags_apply(M2C_FIELD((var_s3 + (var_v0_2 * 4)), s32 *, 0x1C), M2C_FIELD(var_s3, s32 *, 0x2C), M2C_FIELD(var_s3, s32 *, 0x30), M2C_FIELD(var_s3, u8 *, 0x34));
-                        M2C_FIELD(var_s3, s32 *, 0x38) = temp_v0_2;
-                        M2C_FIELD(func_80091BA8(temp_v0_2), s32 *, 0x40) = var_s3;
-                    }
-                }
-            } else {
-block_9:
-                scheduler_recv(M2C_FIELD(var_s3, s32 *, 0x38));
-                entity_flag_check(var_s3);
-            }
-            var_s3 = temp_s5;
-        } while (temp_s5 != 0);
-    }
-}
+void func_800988D8(void);
 
 /* stand-in caller: keeps entity_flag_check out of line under -O3 */
-void __standin_entity_flag_check(void)
-{
-    entity_flag_check(0);
-}

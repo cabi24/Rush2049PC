@@ -54,7 +54,6 @@ typedef struct { s32 w[6]; } OSMesgQueue;
 typedef void *OSMesg;
 typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
 
-#ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -72,20 +71,6 @@ typedef struct {
     volatile s16 phase;
     char pad82[0x282];
 } Controller;
-#else
-typedef struct {
-    /* 0x000 */ char pad0[6];
-    /* 0x006 */ s8 present;
-    /* 0x007 */ char pad7[5];
-    /* 0x00C */ char pfs[0x70];
-    /* 0x07C */ s8 motorOn;
-    /* 0x07D */ s8 request;
-    /* 0x07E */ volatile s8 level;
-    /* 0x07F */ s8 unk7F;
-    /* 0x080 */ volatile s16 phase;
-    /* 0x082 */ char pad82[0x282];
-} Controller;
-#endif /* 0x304 */
 
 extern OSMesgQueue D_80154378;   /* retrace queue of this thread */
 extern OSMesg D_8015439C;
@@ -197,6 +182,4 @@ check2:
     }
 }
 
-void sync_release_video(void) {
-    osSendMesg(&D_801497D0, 0, 0);
-}
+void sync_release_video(void);

@@ -9,37 +9,16 @@
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
 typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct ModelObj {void *opaque0;u8 opaque4[2];s16 model,player;u16 opaque10;u32 flags,opaque16;intptr_t active;} ModelObj;
-#else
-typedef struct ModelObj {u8 opaque0[6];s16 model,player;u16 opaque10;u32 flags,opaque16,active;} ModelObj;
-#endif
 typedef struct Pose {f32 values[9];} Pose;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Model68 { u32 flags, opaque4; Pose *pose; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
-#else
-typedef struct Model68 {u32 flags,opaque4;Pose *pose;u8 opaque12[56];} Model68;
-#endif
-#ifdef TARGET_PC
 /* PC: side[i] starts at the data word of car visual 16 + i (0x20 bytes on the PC); its func and the next
  * visual's next pointer are host pointers. */
 typedef struct Side24 {u32 flags;u8 opaque4[4];void *func,*next;u8 opaque24[8];} Side24;
-#else
-typedef struct Side24 {u32 flags;u8 opaque4[20];} Side24;
-#endif
-#ifdef TARGET_PC
 typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[16]; void *opaque236_290; u8 opaque236_294[0x29C - 0x294];Side24 side[2];u8 opaque716[0x2D4 - 0x2CC]; void *opaque716_2D4; struct pc_visual opaque716_2D8[2]; u8 opaque716_308[0x35C - 0x308];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
-#else
-typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[432];Side24 side[2];u8 opaque716[144];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player952 player_array[];
-#define PC_CAR(i) &player_array[i]
-#endif
 extern Model68 D_8012E700[];
 extern Pose D_8011418C;
 extern s8 D_80140418;
@@ -48,7 +27,7 @@ void model_transform_setup(s16,s32,s32);
 void math_utility(void *,void *);
 s32 model_bounds_calc(ModelObj *,s32);
 s32 matrix_scale_apply(ModelObj *,s32,s32);
-Pose *func_8008B3A0(s16 objnum) { return D_8012E700[objnum].pose; }
+Pose *func_8008B3A0(s16 objnum);
 /* MAT3 helper/body evidence with N64 separate side-index lifetime and
  * trace-supported native homes for the used inv and pose locals. */
 void entity_anim_texture(ModelObj *record,s16 mode) {

@@ -103,16 +103,11 @@ void func_80019BE4(VoiceState *state)
  * unknown ranges; every offset and the 0x1A0 size are unchanged. */
 typedef struct VoiceState_80019C8C { u32 command00;u8 unknown04[12];u32 child,parent;u8 unknown18[12]; u32 flags;u32 age28;u8 unknown2C[2];u8 channel2E,unknown2F;u32 volume30;u8 unknown34[4];u32 panning38;u8 unknown3C[4];u32 words40[2];u8 status48,status49;u8 channel,set;u8 unknown4C[2]; u16 base_key,key;u8 unknown52[3];u8 channel55;u8 unknown56[10];u32 identifier; u8 unknown64[4];u16 loop68;u8 unknown6A[34];u32 glide;u8 unknown90[4];u32 pitch; u8 state98,depth99,flag9A;u8 unknown9B[34];u8 activeBD,groupBE,unknownBF;s8 cents;u8 original_key;u16 valueC2;u8 unknownC4[168];u32 word16C;u16 half170;u8 unknown172[6];u32 word178;u16 half17C;u8 unknown17E[34]; } VoiceState_80019C8C;
 #pragma pack(0)
-#ifdef TARGET_PC
 /* On the PC the voices are PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9), seen here in this file's view; PC_MX_LOOP(32) is the run's voices where the N64 sets up
  * its 32 (docs/port/AUDIO.md 10). */
 #define D_8004BEB8 (*(VoiceState_80019C8C (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
 #define PC_MX_LOOP(n) PC_MX_SLOTS
-#else
-extern VoiceState_80019C8C D_8004BEB8[];
-#define PC_MX_LOOP(n) n
-#endif
 extern u8 D_8004FA18;
 extern u8 func_8001467C(u32);
 extern void func_8001EB10(VoiceState_80019C8C *);
@@ -348,17 +343,10 @@ struct VoiceState;
 struct VoiceState_80019C8C;
 #pragma pack(1)
 typedef struct SynthLfo_8001A658 { u32 time; u32 period; s16 value; s16 lastValue; } SynthLfo_8001A658;
-#ifdef TARGET_PC
 /* PC: +0 is the voice's macro start, a 32-bit window address (lib_22300.c) */
 typedef struct SynthVoice_8001A658 { u32 addr00; u8 unknown04[0x20]; u32 cFlags24; u32 age28; u16 ageSpeed2C; u8 unknown2E; u8 track2F; s32 volume30; u8 unknown34[4]; s32 panning38; s32 panDelta3C; s32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 fxFlag4C; u8 unknown4D[3]; u16 curNote50; u8 unknown52[0x18]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u32 vibCurTime6C; u32 vibPeriod70; s32 vibCurOffset74; u8 vibKeyRange78; u8 vibCentRange79; u8 unknown7A[2]; s32 sweepAdd7C[2]; s32 envDelta84; s32 envTarget88; u8 unknown8C[0xD]; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B[0xD]; u32 panTimeA8; s32 panTargetAC; u8 sweepCntB0[2]; u8 unknownB2[2]; u32 envTimeB4; u16 pbLastB8; u8 unknownBA[3]; u8 blockedBD; u8 vGroupBE; u8 unknownBF; s8 curDetuneC0; u8 unknownC1; u16 curOutputVolumeC2; u8 unknownC4[0xA4]; SynthLfo_8001A658 lfo168[2]; s16 localVars180[16]; } SynthVoice_8001A658;
-#else
-typedef struct SynthVoice_8001A658 { void *addr00; u8 unknown04[0x20]; u32 cFlags24; u32 age28; u16 ageSpeed2C; u8 unknown2E; u8 track2F; s32 volume30; u8 unknown34[4]; s32 panning38; s32 panDelta3C; s32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 fxFlag4C; u8 unknown4D[3]; u16 curNote50; u8 unknown52[0x18]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u32 vibCurTime6C; u32 vibPeriod70; s32 vibCurOffset74; u8 vibKeyRange78; u8 vibCentRange79; u8 unknown7A[2]; s32 sweepAdd7C[2]; s32 envDelta84; s32 envTarget88; u8 unknown8C[0xD]; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B[0xD]; u32 panTimeA8; s32 panTargetAC; u8 sweepCntB0[2]; u8 unknownB2[2]; u32 envTimeB4; u16 pbLastB8; u8 unknownBA[3]; u8 blockedBD; u8 vGroupBE; u8 unknownBF; s8 curDetuneC0; u8 unknownC1; u16 curOutputVolumeC2; u8 unknownC4[0xA4]; SynthLfo_8001A658 lfo168[2]; s16 localVars180[16]; } SynthVoice_8001A658;
-#endif
 #pragma pack(0)
 typedef struct SynthFader_8001A658 { s32 volume; s32 target; s32 delta; s32 time; u32 seqId; u8 type; u8 seqMode; u8 unknown16[2]; s32 pauseVolume; s32 pauseTarget; s32 pauseDelta; s32 pauseTime; } SynthFader_8001A658;
-#ifndef TARGET_PC
-extern struct VoiceState_80019C8C D_8004BEB8[];
-#endif
 extern u8 D_8004F2B8[];
 extern u8 D_8004F2F8;
 extern u32 func_80019AD4(struct RampState *, u32);
@@ -383,11 +371,9 @@ extern void func_80014D14(void);
 extern void func_80018C2C(unsigned int);
 extern void func_80018D40(unsigned int);
 extern void func_800190AC(u32, u32, u32);
-#ifdef TARGET_PC
 /* PC: a voice the driver still plays whose macro has ended, counted when its sample loops (--log-voices: such a
  * voice plays until it is taken again; lib_11640.c's pc_mx_note_macroless). */
 extern void pc_mx_note_macroless(int index);
-#endif
 #define FADER_8001A658 ((SynthFader_8001A658 *)D_8004F300)
 void func_8001A658(void)
 {
@@ -411,7 +397,7 @@ void func_8001A658(void)
         } else if (!func_8001467C(i)) {
             continue;
         }
-        PC_ONLY(if (sv->addr00 == 0) pc_mx_note_macroless(i);) if (sv->blockedBD != 0) {
+        if (sv->addr00 == 0) pc_mx_note_macroless(i); if (sv->blockedBD != 0) {
             continue;
         }
         for (j = 0; j < 2; j++) {

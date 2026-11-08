@@ -26,10 +26,6 @@ typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef unsigned short u16;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct { u8 id,other1,mode,other3; s32 word4,word8; void *hdr; s32 word16; } Resource20;
 typedef struct { u16 other,id; } Instrument4;
 extern u8 D_80151960;
@@ -38,28 +34,16 @@ extern s32 D_8011EAA0;
 extern u8 D_80152750[],D_8015276C[];
 extern u8 D_80035260[],D_800350B0[],D_80033EA0[],D_8002F660[];
 extern Resource20 D_80156D38[];
-#ifdef TARGET_PC
 extern Instrument4 D_8011F0A0[4];   /* the four sfx groups pushed at boot; the song names' text follows */
-#else
-extern Instrument4 D_8011F0A0[];
-#endif
 extern void *D_80152464,*D_801526D8,*D_80152690;
 extern intptr_t D_801525FC;
 extern u8 D_00039B40[];
-#ifdef TARGET_PC
 /* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
  * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
 #define N64AS(x) (s32)PC_N64A(x)
-#else
-#define N64AS(x) (s32)x
-#endif
-#ifdef TARGET_PC
 /* the MusyX service table: 8 function addresses, which the data loader makes host functions
  * (docs/port/MUSYX_DATA.md 8.1) */
 extern void (*D_8011EAAC[8])(void);
-#else
-extern s8 D_8011EAAC;
-#endif
 extern void task_complete_signal(void *);
 extern void dma_wait_complete(void *);
 extern void osCreateMesgQueue(void *,void *,s32);

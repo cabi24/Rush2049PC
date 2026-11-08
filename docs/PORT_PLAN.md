@@ -57,7 +57,8 @@ Rush2049PC/
 - **One source tree, two targets** (as sm64-port did): game C stays buildable for the N64, and PC-only changes go
   under `#ifdef TARGET_PC`. The matching N64 build then proves every shared change (shared headers, data turned
   into C, renames) is byte-identical. It needs IDO, so it runs on the x86-64 Rocky host. The PC build runs
-  anywhere.
+  anywhere. *(Until 2026-11-08: the N64 build was dropped then, and the game C is PC code;
+  [port/PCONLY.md](port/PCONLY.md).)*
 - **Threads first, frame loop later.** The game runs idle, game, audio and render threads plus the libultra
   scheduler, and it busy-waits on variables other threads change (v5 found 14 such loops). Bring-up keeps the
   threads: each N64 thread is a host thread, only one runs at a time, and switches happen in the blocking libultra
@@ -111,7 +112,8 @@ What was learned, and how the build handles it:
   `#pragma weak` lines for the copies (788), and the build force-includes it. The linker then binds every call to
   the owner's definition, and the compiler won't inline a weak copy. The source is untouched. 32 names (mostly
   `__standin_*`, which nothing references) have no manifest owner, and the first copy is kept
-  (`build/pc/weak/report.txt`).
+  (`build/pc/weak/report.txt`). *(Until 2026-11-08: the copies the linker never used left the C then, with the
+  stand-ins, gen_weak and the manifests; [port/PCONLY.md](port/PCONLY.md) 4.)*
 - **BSS keeps the N64 layout.** `tools/port/gen_bss.py` defines all 895 boot and game BSS symbols at their N64
   offsets inside one zeroed array per region (assembler `.set` aliases), so code that indexes from one symbol into
   its neighbor still works. The 106 symbols declared with a pointer type get their own storage, since an 8-byte

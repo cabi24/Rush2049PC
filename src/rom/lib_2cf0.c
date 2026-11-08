@@ -34,7 +34,7 @@ void idle_thread_entry(void *argument) {
     osSetThreadPri(NULL, 0);
     osCreateThread(&gGameThread, 6, game_init, argument, gStackGame + 0x960, 4);
     osStartThread(&gGameThread);
-    for (;;) { PC_IDLE() }
+    for (;;) { pc_os_idle(); }
 }
 
 /* PROMOTED 2026-10-12 — game_init
@@ -89,7 +89,6 @@ void game_init(void *arg) {
     osInvalICache(gDecompressedDataStart, gDecompressedDataEnd1 - gDecompressedDataStart);
     osInvalDCache(gDecompressedDataEnd1, gBssStart - gDecompressedDataEnd1);
     inflate_entry(gRomCompressedData, gDecompressedDataStart, 0);
-    N64_ONLY(bzero(gBssStart, gBssEnd - gBssStart);)
     osScAddClient(&gScheduler, &client, &gRetraceMesgQueue);
     osCreateThread(&gAudioThread, 8, brake_force_apply, 0, gStackAudio + 0x960, 3);
     osCreateMesgQueue(&gSyncMesgQueue, gSyncMesgBuf, 1);

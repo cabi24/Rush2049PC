@@ -1,13 +1,8 @@
 /* port/include/pc_game_types.h: game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md).
- * pc_prelude.h includes it, so every game C file sees it on TARGET_PC; the N64 build never does. Each item has one
- * PC declaration here, storage gen_data defines in data.c (port/data/decoupled.txt: outside the RDRAM window, zero
- * at startup, or filled from the image if the N64's was initialized data), and accessors the game C reaches it
- * through. A game file that uses an accessor defines its N64 side itself, with its own view of the record, so the
- * N64 tokens are the original ones:
- *     #ifndef TARGET_PC
- *     #define PC_LINK_OWNER(i) D_80153E88[i].owner
- *     #endif
- * No system headers, as for pc_prelude.h. */
+ * pc_prelude.h includes it, so every game C file sees it. Each item has one declaration here, storage gen_data
+ * defines in data.c (port/data/decoupled.txt: outside the RDRAM window, zero at startup, or filled from the image if
+ * the N64's was initialized data), and accessors the game C reaches it through. No system headers, as for
+ * pc_prelude.h. */
 #ifndef PC_GAME_TYPES_H
 #define PC_GAME_TYPES_H
 
@@ -39,8 +34,7 @@ int pc_cars_setting(void);
  * else 6 to PC_MAX_LINKS; the front end reads it (the track select's Drones option goes up to it less one). */
 
 /* ---- Draw distance and detail (video.draw_distance, video.detail; docs/port/DETAIL.md; port/config/detail.c).
- * The game's scene walk reads the settings through these, every view of every frame. Each game file defines the
- * N64 side of the macros it uses under #ifndef TARGET_PC, expanding to the original tokens.
+ * The game's scene walk reads the settings through these, every view of every frame.
  *   PC_DRAW_REACH(d)     a distance limit d (a model's last level of detail, the fog's radius D_80151AA0, the far
  *                        scenery's 1,600 ft): d at original, PC_DRAW_FAR_FACTOR times it at far, none (1e30) at max
  *   PC_LOD_DIST(d)       the distance the level of detail is chosen by: -1 (the nearest level) with detail high

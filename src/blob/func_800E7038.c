@@ -26,12 +26,7 @@ typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,ms
 
 extern s8 D_80111954;              /* controller subsystem initialised (also read by func_800E7134) */
 extern u8 D_80111950;              /* osContInit bit pattern */
-#ifndef TARGET_PC
-/* PC: port/data defines D_80149AF8 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) s8 D_80149AF8[4][2];               /* gStickCal: per-controller x/y stick calibration */
+extern s8 D_80149AF8[4][2];               /* gStickCal: per-controller x/y stick calibration */
 extern OSMesgQueue D_801497A8;     /* SI lock queue */
 extern OSMesg D_80152730;          /* its one-message buffer */
 void SetControllerActive(s32 player, s32 value);
@@ -39,10 +34,6 @@ void SetControllerStickEdges(s32 player, s32 value);
 void controller_poll(void);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
 
 void func_800E7038(void)
 {
@@ -62,7 +53,7 @@ void func_800E7038(void)
         osCreateMesgQueue(&D_801497A8, &D_80152730, 1);
         osSendMesg(&D_801497A8, 0, 0);
     }
-    while (*(volatile u8 *)&D_80111950 == 0x80) { PC_SPIN("func_800E7038")
+    while (*(volatile u8 *)&D_80111950 == 0x80) { pc_os_spin_yield("func_800E7038");
     }
     controller_poll();
 }

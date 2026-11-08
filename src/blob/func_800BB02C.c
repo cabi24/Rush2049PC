@@ -21,36 +21,20 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 
 typedef struct Owner Owner;
-#ifdef TARGET_PC
 /* PC: the car palette descriptors D_8013FEE0 have a WAD palette record's (PLHD) N64 layout, which the model draw
  * reads them through: data is a u32 window address (a heap block). docs/port/LOADERS.md */
 #define DESC_PTR(name) u32 name
 /* ... so a block's address goes in as its 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define DESC_PTR(name) void *name
-#define N64A(x) x
-#endif
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 typedef struct Link { u8 state; u8 kind; u8 payload[3]; u8 other5[3]; } Link;
 
 extern Slot24 D_8013FEE0[];
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Link D_80153E88[];
-#define PC_LINK_CAR(i) D_80153E88[i].kind
-#define PC_LINK_COLOR0(i) D_80153E88[i].payload[0]
-#define PC_LINK_COLOR1(i) D_80153E88[i].payload[1]
-#define PC_LINK_COLOR2(i) D_80153E88[i].payload[2]
-#endif
 extern u32 audio_output_setup(Owner *);
 extern void *AllocateMemoryHeap(int, int);
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
 /* PC: the heap too short for the paint, where a car shares another's, is logged (port/ultra/heap.c). */
 
 void func_800BB02C(int index, int kind, void *data)
@@ -63,7 +47,7 @@ void func_800BB02C(int index, int kind, void *data)
     D_8013FEE0[index].value = 0x8000;
     if (data != 0) {
         D_8013FEE0[index].data = N64A(data);
-    } else if (audio_output_setup(0) < 512) { PC_ONLY(pc_heap_short("a car's paint", 512);)
+    } else if (audio_output_setup(0) < 512) { pc_heap_short("a car's paint", 512);
         for (i = 0; i < index; i++) {
             if (kind == PC_LINK_CAR(i)) {
                 D_8013FEE0[index].data = D_8013FEE0[i].data;

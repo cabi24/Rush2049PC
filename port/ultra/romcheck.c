@@ -1,7 +1,7 @@
 /* port/ultra/romcheck.c: what a ROM file is (docs/port/RELEASE.md, "The ROM"). Its byte order (put right in
  * place), its SHA-1, its header, and whether it is the cartridge the port runs, San Francisco Rush 2049 (USA); if
  * not, a sentence for the player saying what it is instead. Pure: no files and no messages, so the tests run it on
- * images they make. The USA cartridge's header fields are the decompilation's asm/us/header.s. */
+ * images they make. The USA cartridge's header fields are the retail cartridge's. */
 #include <stdio.h>
 #include <string.h>
 

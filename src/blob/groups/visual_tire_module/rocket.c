@@ -56,7 +56,6 @@ typedef struct Node {
 } Node;
 
 /* table at 0x8012E700, 0x44 bytes each; flags bit 31 = hidden */
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ModelSlot {
     /* 0x00 */ u32 flags;
@@ -71,20 +70,6 @@ typedef struct ModelSlot {
     /* 0x60 */ u32 colA;
     /* 0x64 */ u32 colB;
 } ModelSlot;
-#else
-typedef struct ModelSlot {
-    /* 0x00 */ u32 flags;
-    /* 0x04 */ u8 pad4[4];
-    /* 0x08 */ Node *node;
-    /* 0x0C */ u8 padC[8];
-    /* 0x14 */ u16 tex;
-    /* 0x16 */ s16 child;
-    /* 0x18 */ s16 sibling;
-    /* 0x1A */ u8 pad1A[0x22];
-    /* 0x3C */ u32 colA;
-    /* 0x40 */ u32 colB;
-} ModelSlot;
-#endif
 
 /* table at 0x80139320, 0x40 bytes each: four model-slot ids per car */
 typedef struct CarModels {
@@ -100,11 +85,7 @@ typedef struct Car {
     /* 0x0E8 */ u32 flagsE8;
     /* 0x0EC */ u8 padEC[0xF8 - 0xEC];
     /* 0x0F8 */ s16 sF8;
-#ifdef TARGET_PC
     /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x344 - 0x308];
-#else
-    /* 0x0FA */ u8 padFA[0x344 - 0xFA];
-#endif
     /* 0x344 */ u16 pal[4];
     /* 0x34C */ u32 irColor;
     /* 0x350 */ u32 prevIRColor;
@@ -119,12 +100,7 @@ typedef struct Car {
     /* 0x360 */ u32 alpha;
     /* 0x364 */ u8 pad364[0x374 - 0x364];
     /* 0x374 */ f32 scale[3];
-#ifdef TARGET_PC
     /* 0x380 */ void *input;         /* the car's input record, a host pointer */
-#else
-    /* 0x380 */ u8 pad380;
-    /* 0x381 */ u8 b381[3];
-#endif
     /* 0x384 */ s8 b384;
     /* 0x385 */ u8 pad385[0x38C - 0x385];
     /* 0x38C */ u32 f38C;
@@ -150,7 +126,6 @@ typedef struct CarState {
 
 /* the entity drone_ai_update is called with */
 typedef struct Entity {
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     /* 0x00 */ void *pad0;
     /* 0x04 */ u8 pad4[2];
@@ -158,29 +133,12 @@ typedef struct Entity {
     /* 0x08 */ s16 car;
     /* 0x0A */ u8 padA[0x14 - 0xA];
     /* 0x14 */ intptr_t field14;
-#else
-    /* 0x00 */ u8 pad0[6];
-    /* 0x06 */ s16 slot;
-    /* 0x08 */ s16 car;
-    /* 0x0A */ u8 padA[0x14 - 0xA];
-    /* 0x14 */ s32 field14;
-#endif
 } Entity;
 
 extern ModelSlot D_8012E700[];
 extern CarModels D_80139320[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CarState D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern s32 D_8014A110;          /* gameplay_mode */
 extern s32 D_8011735C;          /* rng state */
 extern Color D_8011B464;
@@ -212,10 +170,7 @@ f32 func_8008B2E4(f32 max);
 
 Node *func_8008B3A0(s16 objnum);
 
-void func_8008E06C(s16 objnum, Color *color)
-{
-    D_8012E700[objnum].colA = color->w;
-}
+void func_8008E06C(s16 objnum, Color *color);
 
 void AnimateRocketFlame(s16 ipa_s5, s32 flag);
 
@@ -224,14 +179,7 @@ void ZOID_SetObjectDef(s16 objnum, u16 def)
 {
     D_8012E700[objnum].tex = def;
 }
-u32 func_8008AE64(s16 objnum)
-{
-    return D_8012E700[objnum].flags;
-}
-void func_8008AE48(s32 objnum, u32 flags)
-{
-    D_8012E700[objnum].flags = flags;
-}
+u32 func_8008AE64(s16 objnum);
 
 
 /* GetCarsIRColor: N64 form (no colour smoothing); inlined into AnimateFrame. */
@@ -286,10 +234,6 @@ Color GetCarsIRColor(Car *car, CarState *m)
     return clr;
 }
 
-#ifndef TARGET_PC
-#define PC_FSCALE(x) x   /* PC: game.frame_rate 60 (pc_game_fps.h): a step per frame of two retraces, scaled */
-#define PC_EACH30(stmt) stmt   /* PC: run once a 30 Hz frame */
-#endif
 /* AnimateFrame */
 void AnimateFrame(Entity *ent, s16 alive)
 {

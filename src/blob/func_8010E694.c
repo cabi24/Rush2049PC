@@ -16,10 +16,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -449,20 +445,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -796,15 +783,10 @@ void sound_position_set();
 void func_8010E694(void *arg0, s16 arg1);
 
 
-#ifdef TARGET_PC
 /* PC: arg0 is a visual (struct pc_visual) whose data is the target, a level-object node in its N64 layout; both the
  * data and the target's state (+0x6C) are 32-bit window addresses (docs/port/CARS.md, POINTERS.md 10). */
 #define VIS_DATA(v) (void *) PC_N64P(M2C_FIELD(v, u32 *, VIS_OFS(0xC)))
 #define NODE_STATE(t) (void *) PC_N64P(M2C_FIELD(t, u32 *, 0x6C))
-#else
-#define VIS_DATA(v) M2C_FIELD(v, void **, 0xC)
-#define NODE_STATE(t) M2C_FIELD(t, void **, 0x6C)
-#endif
 void func_8010E694(void *arg0, s16 arg1) {
     void *temp_v0;
     void *temp_v1;

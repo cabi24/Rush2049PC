@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3701,14 +3688,10 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-#ifdef TARGET_PC
 /* PC: D_80143FD8 is the active list of the level-object node pool D_80143FC8, whose nodes keep their N64 layout in the
  * arena block D_8014D280 and link each other by 32-bit window addresses (the pool's n64 flag; docs/port/POINTERS.md
  * 10). Read as a pointer, the link would take the node's flags at +4 as its upper half. */
 #define NODE_NEXT(v) ((D_80143FD8_Record *) PC_N64P(M2C_FIELD(v, u32 *, 0)))
-#else
-#define NODE_NEXT(v) M2C_FIELD(v, D_80143FD8_Record **, 0)
-#endif
 void func_800BEA6C(void) {
     D_80143FD8_Record *var_v0;
 

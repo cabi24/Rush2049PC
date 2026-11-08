@@ -20,14 +20,9 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
  * layout (sound_control.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
  * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
@@ -40,19 +35,12 @@ typedef struct {
     u8 Alpha, Flip;
     s8 dirty;
 } MenuItem;
-#else
-typedef struct {
-    u8 pad0[0x1A];
-    s8 dirty;
-} MenuItem;
-#endif
 
 typedef struct {
     u8 pad0[0x70];
     u16 lang;
 } LangInfo;
 
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct {
     char *pad0[0x3A4 / 4];
@@ -66,20 +54,6 @@ typedef struct {
     LangInfo *info;
     intptr_t *strings;
 } StrTable;
-#else
-typedef struct {
-    u8 pad0[0x3A4];
-    s32 unk3A4;
-} TblHdr;
-
-typedef struct {
-    u8 pad0[4];
-    TblHdr *hdr;
-    u8 pad8[4];
-    LangInfo *info;
-    s32 *strings;
-} StrTable;
-#endif
 
 extern OSMesgQueue D_801461D0;
 extern s16 D_80117280[2];
@@ -98,17 +72,10 @@ void fcvt_wrapper(char *, char *, ...);
 
 typedef struct {
     u8 pad0[0x48];
-#ifdef TARGET_PC
     intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
-#else
-    s32 *name;
-#endif
 } PlayerRec;
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 
 extern s8 D_80117350;
 extern s32 D_801170FC;

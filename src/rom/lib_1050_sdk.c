@@ -3,12 +3,9 @@
  * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
  * passthrough lines. */
 
-#ifdef TARGET_PC
 #define __scAppendList pc_m2c_scAppendList   /* m2c_types.h's prototypes take its OSSched, not PcSched */
 #define __scExec pc_m2c_scExec
-#endif
 #include "rom_tu.h"
-#ifdef TARGET_PC
 #undef __scAppendList
 #undef __scExec
 /* PC: the scheduler keeps the N64 offsets the game reads it at (docs/port/ULTRA.md). The game takes the
@@ -55,7 +52,7 @@ s32 gViAccumTime = 0;
 s32 gViAccumTotal = 0;
 volatile s32 gViLastTick = 0;
 /* The game's names for this storage, by N64 address (port/data leaves these to the libultra layer). */
-#if defined(TARGET_PC) && defined(__APPLE__)
+#if defined(__APPLE__)
 #define PC_SYM(name) "_" name
 #else
 #define PC_SYM(name) name
@@ -72,26 +69,7 @@ __asm__(PC_ALIAS("D_8002E8E8", "gScheduler")
         PC_ALIAS("D_8002EB90", "__osScElapsedTime")
         PC_ALIAS("D_8002EB94", "__osScDeltaTime")
         PC_ALIAS("D_8002EB98", "gViFrameDelta"));
-#else
-/* owned .bss of __scMain (__scMain, __scExec): C definitions in place of the companion */
-volatile OSTime __osScRetraceTime;
-OSSched gScheduler;
-s32 D_8002EB6C;
-s16 __osScTaskCount;
-volatile OSTime __osScAudioStart;
-volatile OSTime __osScFrameTime;
-u64 D_8002EB88;
-f32 __osScElapsedTime;
-f32 __osScDeltaTime;
-s32 gViFrameDelta;
-s32 gViAccumTime;
-s32 gViAccumTotal;
-volatile s32 gViLastTick;
-#endif
 #include "scheduler_declarations.h"
-#ifndef TARGET_PC
-#define PC_SWAP_RETRACES 2U
-#endif
 
 
 /* PROMOTED 2026-10-02 — osCreateScheduler
@@ -240,15 +218,10 @@ void __scSchedule(OSSched *scheduler)
 extern s32 __osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osViSwapBuffer(void *mode);
-#ifdef TARGET_PC
 /* The pending swap keeps the frame buffer as a 32-bit N64 address: N64AS(p) is a window pointer's, N64PTR(T, a) the
  * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64AS(x) (s32)PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
-#else
-#define N64AS(x) (s32)x
-#define N64PTR(T, a) (T)a
-#endif
 extern void display_mode_tick(void);
 extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 void __scHandleRetrace(OSSched *scheduler) {

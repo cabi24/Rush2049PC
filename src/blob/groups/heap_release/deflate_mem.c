@@ -43,11 +43,7 @@ extern void *memset(void *, int, size_t);
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
-#ifdef TARGET_PC
 typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
-#else
-typedef unsigned long  uLong;
-#endif
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
 typedef int   FAR intf;
@@ -58,11 +54,7 @@ typedef unsigned char  uch;
 typedef uch FAR uchf;
 typedef unsigned short ush;
 typedef ush FAR ushf;
-#ifdef TARGET_PC
 typedef unsigned int  ulg;
-#else
-typedef unsigned long  ulg;
-#endif
 
 #define Z_NO_FLUSH      0
 #define Z_FINISH        4
@@ -143,11 +135,7 @@ typedef struct internal_state {
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
-#ifdef TARGET_PC
     int block_start;      /* 0x44 */
-#else
-    long block_start;     /* 0x44 */
-#endif
     uInt match_length;
     IPos prev_match;
     int match_available;
@@ -217,26 +205,8 @@ extern int osSendMesg(void *mq, void *msg, int flag);
 extern void audio_reverb_update(unsigned int address, int tag);
 extern char D_80152770[];
 
-__inline void heap_free_locked(unsigned int address)
-{
-    osRecvMesg(D_80152770, 0, 1);
-    audio_reverb_update(address, 0);
-    osSendMesg(D_80152770, 0, 0);
-}
-__inline void mem_free(unsigned int address)
-{
-    heap_free_locked(address);
-}
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (unsigned int)x
-#endif
-__inline void zcfree(voidpf ptr)
-{
-    mem_free(N64A(ptr));
-}
 #define FREECALL(p) zcfree((voidpf)(p))
 
 extern void func_800AAB3C(deflate_state *s);

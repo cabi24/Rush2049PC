@@ -27,12 +27,8 @@ typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { s32 kind,handle; f32 angle,matrix[3][3],position[3]; u8 alpha,unknown3D[3]; } Slot;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller; } FileInfo;
-#else
-typedef struct FileInfo { u8 unknown00[16],controller; } FileInfo;
-#endif
 typedef struct Profile Profile;
 struct Profile { Profile **next,**previous; FileInfo **file; u8 unknown0C[8]; u8 name[1]; };
 typedef struct Player { u8 unknown00[4];u32 pressed;u8 unknown08[4];u32 repeat;u8 unknown10[56]; Profile **owner; } Player;
@@ -94,35 +90,17 @@ s32 func_80395E24(s32 skip,Profile **owner)
     if(owner)for(i=0;i<D_8014A108;i++)if(i!=skip && owner==D_8014A118[i].owner)found=1;
     return found;
 }
-#ifdef TARGET_PC
 /* func_80396EE8/func_80396F44 (playerBeingDeleted/Created) take `skip` in a1 under IDO's IPA: their owners
  * (src/ovl_a/func_80396EE8.c, func_80396F44.c) read it as a second parameter after a dummy, and these calls
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
-#else
-#define PC_IPA_A0
-#endif
-s32 func_80396EE8(PC_IPA_A0 s32 skip)
-{
-    s8 i;
-    s32 found=0;
-    for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==4)found=1;
-    return found;
-}
-s32 func_80396F44(PC_IPA_A0 s32 skip)
-{
-    s8 i;
-    s32 found=0;
-    for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==3)found=1;
-    return found;
-}
+s32 func_80396EE8(PC_IPA_A0 s32 skip);
+s32 func_80396F44(PC_IPA_A0 s32 skip);
 s32 func_80395E24(s32,Profile **);
 s32 func_80396F44(PC_IPA_A0 s32);
 s32 func_80396EE8(PC_IPA_A0 s32);
-#ifdef TARGET_PC
 #define func_80396EE8(skip) func_80396EE8(0, skip)
 #define func_80396F44(skip) func_80396F44(0, skip)
-#endif
 void func_803A7B58(s32 player)
 {
     s32 draw_x,y,x;
@@ -584,147 +562,3 @@ extern void func_800A3424(FileInfo **,s8);
 extern s8 D_8015418C[];
 extern s32 D_803BA888[],D_803B5ED4;
 
-void func_80396FA0(s32 player)
-{
-    while (!D_803BAD00[player][D_803BAD80[player]] ||
-           func_80395E24(player,D_803BAC80[player])==1 ||
-           (D_803BAD80[player]==11 && func_80396F44(player)==1) ||
-           (D_803BAD80[player]==12 && func_80396EE8(player)==1)) {
-        D_803BADB8[player]=0;
-        D_803BAD80[player]--;
-        if(D_803BAD80[player]<0)D_803BAD80[player]=13;
-        if(D_803BAD80[player]>=3 && D_803BAD80[player]<11 && D_803BAD00[player][D_803BAD80[player]]) {
-            if(D_803BAC80[player]) {
-                do {
-                    D_803BAC80[player]=(*D_803BAC80[player])->previous;
-                } while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player]);
-            }
-            if(!D_803BAC80[player]) {
-                D_803BAC80[player]=D_8012E6E4;
-                while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player])
-                    D_803BAC80[player]=(*D_803BAC80[player])->previous;
-            }
-        } else D_803BAC80[player]=0;
-    }
-    if(D_8014A118[player].pressed&1) {
-        resource_type_select(D_8014A118[player].pressed);
-        if(D_803BAD80[player]>=3 && D_803BAD80[player]<11) {
-            D_8014A118[player].owner=D_803BAC80[player];
-            func_80394564(-1);
-        } else {
-            D_8014A118[player].owner=&D_80146150[player];
-            func_80394564(-1);
-        }
-        func_80394B00(player,1);
-    } else if(D_8014A118[player].pressed&2) {
-        resource_type_select(D_8014A118[player].pressed);
-        if(D_803BAD80[player]>=3 && D_803BAD80[player]<11) {
-            D_8014A118[player].owner=D_803BAC80[player];
-            func_80394564(-1);
-            if(D_803BADB8[player]==1) {
-                if(func_800CCEFC(D_8014A118[player].owner)) {
-                    D_8015418C[player]=1;
-                    func_800A3424((*D_8014A118[player].owner)->file,1);
-                    func_80394B00(player,2);
-                }
-            } else func_80394B00(player,1);
-        } else switch(D_803BAD80[player]) {
-        case 0:
-            D_8014A118[player].owner=&D_80146150[player];
-            func_80394564(-1);
-            if(D_803BADB8[player]==1) {
-                D_8015418C[player]=1;
-                func_800A3424((*D_8014A118[player].owner)->file,1);
-                func_80394B00(player,2);
-            } else func_80394B00(player,1);
-            break;
-        case 11:func_80394B00(player,3);break;
-        case 12:D_803BADC8[player]=0;func_80394B00(player,4);break;
-        case 13:func_80394B00(player,6);break;
-        }
-    } else if(D_8014A118[player].pressed&4) {
-        resource_type_select(D_8014A118[player].pressed);
-        D_803B5ED4=2;
-    }
-    if(D_8014A118[player].repeat&0x2000) {
-        if(D_803BAD80[player]==0 || (D_803BAD80[player]>=3 && D_803BAD80[player]<11)) {
-            D_803BADB8[player]=!D_803BADB8[player];
-            audio_doppler(D_8014A118[player].pressed);
-        } else if(D_803BAD80[player]==1) {
-            D_803BADBC[player]++;
-            if(D_803BADBC[player]>=4)D_803BADBC[player]=0;
-            func_80394564(player);
-            D_803BA888[player]=1;
-            audio_doppler(D_8014A118[player].pressed);
-        }
-    } else if(D_8014A118[player].repeat&0x1000) {
-        if(D_803BAD80[player]==0 || (D_803BAD80[player]>=3 && D_803BAD80[player]<11)) {
-            D_803BADB8[player]=!D_803BADB8[player];
-            audio_doppler(D_8014A118[player].pressed);
-        } else if(D_803BAD80[player]==1) {
-            D_803BADBC[player]--;
-            if(D_803BADBC[player]<0)D_803BADBC[player]=3;
-            func_80394564(player);
-            D_803BA888[player]=1;
-            audio_doppler(D_8014A118[player].pressed);
-        }
-    } else if(D_8014A118[player].repeat&0x400) {
-        audio_distance_atten(D_8014A118[player].pressed);
-        D_803BADB8[player]=0;
-        do {
-            if(D_803BAD80[player]==3 && D_803BAD00[player][D_803BAD80[player]]) {
-                if(D_803BAC80[player]) {
-                    do {
-                        D_803BAC80[player]=(*D_803BAC80[player])->previous;
-                    } while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player]);
-                }
-                if(D_803BAC80[player])break;
-            }
-            D_803BAD80[player]--;
-            if(D_803BAD80[player]<0)D_803BAD80[player]=13;
-            if(D_803BAD80[player]>=3 && D_803BAD80[player]<11 && D_803BAD00[player][D_803BAD80[player]]) {
-                if(D_803BAC80[player]) {
-                    do {
-                        D_803BAC80[player]=(*D_803BAC80[player])->previous;
-                    } while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player]);
-                }
-                if(!D_803BAC80[player]) {
-                    D_803BAC80[player]=D_8012E6E4;
-                    while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player])
-                        D_803BAC80[player]=(*D_803BAC80[player])->previous;
-                }
-            } else D_803BAC80[player]=0;
-        } while(!D_803BAD00[player][D_803BAD80[player]] || func_80395E24(player,D_803BAC80[player])==1 ||
-                (D_803BAD80[player]==11 && func_80396F44(player)==1) ||
-                (D_803BAD80[player]==12 && func_80396EE8(player)==1));
-    } else if(D_8014A118[player].repeat&0x800) {
-        audio_distance_atten(D_8014A118[player].pressed);
-        D_803BADB8[player]=0;
-        do {
-            if(D_803BAD80[player]==10 && D_803BAD00[player][D_803BAD80[player]]) {
-                if(D_803BAC80[player]) {
-                    do {
-                        D_803BAC80[player]=(*D_803BAC80[player])->next;
-                    } while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player]);
-                }
-                if(D_803BAC80[player])break;
-            }
-            D_803BAD80[player]++;
-            if(D_803BAD80[player]>=14)D_803BAD80[player]=0;
-            if(D_803BAD80[player]>=3 && D_803BAD80[player]<11 && D_803BAD00[player][D_803BAD80[player]]) {
-                if(D_803BAC80[player]) {
-                    do {
-                        D_803BAC80[player]=(*D_803BAC80[player])->next;
-                    } while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player]);
-                }
-                if(!D_803BAC80[player]) {
-                    D_803BAC80[player]=D_8012E6E0;
-                    while(D_803BAC80[player] && (*(*D_803BAC80[player])->file)->controller!=D_803BADBC[player])
-                        D_803BAC80[player]=(*D_803BAC80[player])->next;
-                }
-            } else D_803BAC80[player]=0;
-        } while(!D_803BAD00[player][D_803BAD80[player]] || func_80395E24(player,D_803BAC80[player])==1 ||
-                (D_803BAD80[player]==11 && func_80396F44(player)==1) ||
-                (D_803BAD80[player]==12 && func_80396EE8(player)==1));
-    }
-}

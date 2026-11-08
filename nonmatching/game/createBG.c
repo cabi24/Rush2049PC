@@ -45,11 +45,9 @@ typedef struct {
 
 typedef struct SoundClearRecord SoundClearRecord;
 typedef struct SoundState SoundState;
-#ifdef TARGET_PC
 /* gcc rejects arrays of an incomplete type, which IDO accepts. NewMultiBlit's descriptor (MultiBlit): its first
  * word is the texture name, a pointer, so the data loader gives the two tables the PC layout (pc_prelude.h). */
 struct SoundClearRecord { struct pc_multiblit m; };
-#endif
 
 extern BackRect D_80114264[4][4];        /* gBackRects */
 extern s32 D_801145E4[4][4];             /* gBackCamera */

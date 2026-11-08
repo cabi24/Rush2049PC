@@ -31,7 +31,6 @@ extern s8 D_80156CF0[][16];
 extern s32 D_8011AD70[3];
 extern void *D_8011AD68;
 
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
     char *pad0[0xD4 / 4];
@@ -39,14 +38,6 @@ typedef struct TblHdr {
     char *padD8[(0x3A4 - 0xD8) / 4];
     char *ctrl;
 } TblHdr;
-#else
-typedef struct TblHdr {
-    u8 pad0[0xD4];
-    char *title;
-    u8 padD8[0x3A4 - 0xD8];
-    char *ctrl;
-} TblHdr;
-#endif
 
 extern TblHdr *D_8017A4E4;
 
@@ -57,11 +48,8 @@ void fcvt_wrapper(char *, char *, ...);
 u32 object_manager_update(void *, s32);
 void crowd_cheer_play(void *, s32, s32, s32, s32);
 s16 object_bytes_sum_global(void);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-#else
-void *ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
-#endif
 
 void gfx_lock_slp(void) { osRecvMesg(&D_801461D0, (void *)0, 1); } void gfx_unlock_slp(void) { osSendMesg(&D_801461D0, (void *)0, 0); } s32 font_select_slp(s32 font) { return slot_state_setup(font); } s32 font_set_slp(s32 font) { s32 old; gfx_lock_slp(); old = font_select_slp(font); gfx_unlock_slp(); return old; }
 

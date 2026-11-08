@@ -37,9 +37,9 @@ to storage the PC owns outright, with one PC declaration and no N64 address. The
    defined by game C. `--check` (after linking `rush2049pc_datacheck`) fails if the PC symbol is missing, has another
    size or is in the window, or if a retired name is defined. Initialized data of the game or the boot segment takes
    `init=image`: the loader then fills the PC symbol from the image's bytes at the retired address (section 7).
-4. **Readers and aliases.** Each use goes through an accessor (`PC_LINK_OWNER(i)`) whose PC side
-   `pc_game_types.h` defines. Each game file defines the N64 side under `#else`, with its own view and its own field
-   names, so the N64 tokens are the original ones and `n64_neutral.py` passes. An alias inside the extent becomes
+4. **Readers and aliases.** Each use goes through an accessor (`PC_LINK_OWNER(i)`) that `pc_game_types.h` defines.
+   (Until the N64 build was dropped on 2026-11-08, each game file also defined the N64 side under `#else`, with its
+   own view, so the N64 tokens stayed the original ones; [PCONLY.md](PCONLY.md).) An alias inside the extent becomes
    the accessor of the field it named (`D_80153E8F[slot * 8]` is `PC_LINK_OWNER(slot)`). Where the record keeps its
    N64 layout, code that takes a record's address may keep reading it through its own view (`PC_MODEL(i)`, a
    `void *`); `view_audit.py` checks every such view against the PC declaration.

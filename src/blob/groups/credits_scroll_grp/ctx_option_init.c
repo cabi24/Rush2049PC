@@ -34,12 +34,8 @@ typedef struct TexDef TexDef;
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad40[4]; } Ent;
-#else
-typedef struct { u8 pad0[60]; u32 color; u8 pad40[4]; } Ent;                                 /* 0x44 */
-#endif
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 typedef struct { s8 attached; u8 pad[15]; } ContData;
 
@@ -108,36 +104,6 @@ void op_setButtonColor(s16 objnum, Color *col)
 
 void op_calcOptionMenuMaxSize(void);
 void op_initButtons(void);
-
-void options_initScreen(void)
-{
-    s16 y;
-    s32 u0;
-
-    func_800B8810();
-    op_calcOptionMenuMaxSize();
-    D_80116D9C = 0;
-    while (!D_80116D14[D_80116D9C]) {
-        if (++D_80116D9C >= 14) D_80116D9C = 0;
-    }
-    D_80149DA2 = D_80116D9C;
-    D_80116DA0 = 0;
-    if (state_word_a & 0x7C03FFFE) {
-        createBG();
-        op_initButtons();
-        D_80116D98 = sound_control(0, 0, &D_80116D4C, 1);
-    } else {
-        D_80116DA8 = !gControllerData[D_8015698C].attached;
-        op_HAL_SetFont(13);
-        options_TitlePane();
-        y = object_bytes_sum_global() * 2 + 10;
-        op_HAL_SetFont(11);
-        ambient_sound_set(40, y - 4, 280, y + (D_80149B84 * object_bytes_sum_global() + 4), 176, 0, 0, 0);
-        D_80116D98 = sound_control(0, 0, &D_80116D70, 1);
-    }
-    entity_audio_update();
-    D_80116D94 = 1;
-}
 
 void op_calcOptionMenuMaxSize(void)
 {

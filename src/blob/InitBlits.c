@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3796,7 +3783,6 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
-#ifdef TARGET_PC
 /* PC: a Blit is 0x68 bytes on the host (sound_control.c, docs/port/POINTERS.md 9), and the 0x3200-byte arena block
  * D_80146210 holds the 200 at the N64's 64. The pool is host storage here; BlitPtrs is pointer-sized. */
 static long long pc_blits[200][0x68 / 8];
@@ -3809,14 +3795,3 @@ void InitBlits(void)
   D_80149788 = 0;
   game_state_flags = 0;
 }
-#else
-void InitBlits(void)
-{
-  s32 i;
-  for (i = 0; i < 200; i++) {
-    (&D_80149450)[i] = (intptr_t) ((&D_80146210) + (i << 6));
-  }
-  D_80149788 = 0;
-  game_state_flags = 0;
-}
-#endif

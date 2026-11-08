@@ -53,24 +53,13 @@ typedef struct {
     s8 place;           /* +0xEE */
     s8 finished;        /* +0xEF */
     f32 time;           /* +0xF0 */
-#ifdef TARGET_PC
     u8 padF4[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 padF4_308[0x380 - 0x308]; void *input; u8 padF4_384[0x3B8 - 0x384];
-#else
-    u8 padF4[952 - 0xF4];
-#endif
 } GameCar;              /* 952 bytes */
 
-#ifdef TARGET_PC
 typedef struct {
     void *next, *prev;
     void *f8;           /* the profile's pak file handle (pc_prelude.h) */
 } PlayerRec;
-#else
-typedef struct {
-    s32 pad0[2];
-    s32 f8;
-} PlayerRec;
-#endif
 
 typedef struct {
     PlayerRec **rec;    /* gPlayers[i] + 0x4C */
@@ -98,14 +87,7 @@ extern u8 D_801148A4;               /* inited */
 extern u8 D_80143CE8;               /* circuitCode */
 extern s32 gameplay_mode;           /* gRace */
 extern u8 D_801543D4;               /* gCircuitPlayer */
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern GameCar player_array[];      /* gGameCar */
-#define PC_CAR_FINISHED(i) player_array[i].finished
-#define PC_CAR_PLACE(i) player_array[i].place
-#define PC_CAR_TIME(i) player_array[i].time
-#endif
 extern s8 D_80154628;               /* gCircuitTrack */
 extern PlayerTail D_8014A160[];
 extern s8 D_80154640;               /* gCircuitSize */
@@ -227,17 +209,12 @@ void highscore_InitScreen(void)
 }
 
 /* = object_type1_create (GC AudKillSong), inlined by umerge in retail (its locked copy is an -O2 single) */
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The stop of the song (command 1) posted here
  * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&D_80142728,(void *)0,0);return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)((s8 *)(m))[3]=0
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void AudKillSong_TTL(void)
 {
     AudMsg *msg;

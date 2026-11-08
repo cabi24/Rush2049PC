@@ -22,10 +22,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 #define NULL ((void *)0)
 
@@ -55,7 +51,6 @@ typedef struct CCol {
     f32 k;
 } CCol;
 
-#ifdef TARGET_PC
 /* PC: the car's model record (D_8014A250) keeps its N64 layout, and its tires' road nodes are u32 window addresses
  * there (docs/port/CARS.md), as entity_update.c's view has them. */
 enum n64p_QNode { n64p_QNode_ };
@@ -67,16 +62,6 @@ typedef struct VCar {
     enum n64p_QNode node[4];     /* 928 */
 } VCar;
 #define N64P(x) _Generic((x), enum n64p_QNode: (QNode *)PC_N64P(x), default: (x))
-#else
-typedef struct VCar {
-    u8 p0[628];
-    f32 pos[4][3];      /* 628: wheel positions */
-    f32 old[4][3];      /* 676: previous wheel positions */
-    u8 p724[204];
-    QNode *node[4];     /* 928 */
-} VCar;
-#define N64P(x) x
-#endif
 
 extern Poly *D_801497F8;
 extern u8 *D_80152460;

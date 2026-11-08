@@ -1,8 +1,4 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef int intptr_t;
-#endif
 typedef float f32;
 typedef struct State {
     unsigned char prefix[0xC4];
@@ -15,13 +11,9 @@ typedef struct State {
     int state[4];
 } State;
 extern intptr_t D_80124EEC;
-#ifdef TARGET_PC
 /* The model's quad nodes keep 32-bit N64 addresses (camera_victory's enum n64p_QNode): N64A(p) is a window pointer's
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) x
-#endif
 void func_800D0810(State *p) {
     int i,j;
     for (i=0;i<3;i++) {

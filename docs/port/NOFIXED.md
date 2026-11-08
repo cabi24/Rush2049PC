@@ -177,14 +177,16 @@ python3 tools/port/nofixed_audit.py --build build/pc [--jobs 8] [--out build/nof
 Stdlib Python; 21 s on the build host with the compiler pass (1,308 files at -j8) and nm, 16 s on the Pi 5 for the
 sources alone (no `--build`). Three sources:
 
-1. **The compiler**: every game C file in `compile_commands.json` (those built with `TARGET_PC`) compiled again with
+1. **The compiler**: every game C file in `compile_commands.json` (those built with `pc_prelude.h`) compiled again with
    `-fsyntax-only`, `-Wno-int-conversion` taken out and `-Wint-conversion -Wint-to-pointer-cast -Wpointer-to-int-cast`
    on. Each warning is placed at its use site (the outermost "in expansion of macro" note) and marked `.weak` when
-   its function is in the file's `build/pc/weak/*.h` (a weak copy: never linked). `--warnings LOG` parses a build log
+   its function is in the file's `build/pc/weak/*.h` (a weak copy: never linked; none since the copies left the C,
+   2026-11-08). `--warnings LOG` parses a build log
    instead. The raw counts are kept too (`context.cc_warnings.*`), and they are the measured ones: 111, 206, 60.
-2. **The sources**, with comments and strings told from code and the lines only the N64 build compiles (inside
-   `#ifndef TARGET_PC`, or the `#else` of `#ifdef TARGET_PC`) marked `.n64only`; with `--build`, code in a `.c` the PC
-   doesn't compile (the libultra units port/ultra replaces) is `.unbuilt`.
+2. **The sources**, with comments and strings told from code and the lines only the N64 build compiled (inside
+   `#ifndef TARGET_PC`, or the `#else` of `#ifdef TARGET_PC`; none since 2026-11-08) marked `.n64only`; with
+   `--build`, code in a `.c` the PC doesn't compile is `.unbuilt` (none since the libultra units port/ultra replaces
+   went, 2026-11-08).
 3. **The tables** (`--build`): `pc-data/data_layout.json`, `pc-data/aliases.ld`, and nm over the game's objects and
    the PC layer's.
 

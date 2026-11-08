@@ -30,17 +30,10 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
-#ifdef TARGET_PC
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
 enum n64p_ptr { n64p_ptr_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Block {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Block next;
@@ -52,62 +45,28 @@ typedef struct Block {
     /* 0x16 */ u8 count;
     /* 0x17 */ u8 pad17[9];
 } Block; /* 0x20 */
-#else
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Block *next;
-    /* 0x08 */ struct Block *prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ void **owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ s8 tag;
-    /* 0x16 */ u8 count;
-    /* 0x17 */ u8 pad17[9];
-} Block; /* 0x20 */
-#endif
 
-#ifdef TARGET_PC
 typedef struct Heap {
     /* 0x00 */ u32 magic;
     /* 0x04 */ enum n64p_Heap next;
     /* 0x08 */ enum n64p_Block first;
     /* 0x0C */ enum n64p_Block last;
 } Heap;
-#else
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ struct Heap *next;
-    /* 0x08 */ Block *first;
-    /* 0x0C */ Block *last;
-} Heap;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_ptr: (void **)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 
 typedef struct OSMesgQueue OSMesgQueue;
 extern OSMesgQueue D_80152770;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-#ifdef TARGET_PC
 /* The heap's functions take a block's 32-bit N64 address (their definitions' u32): N64A(p) is a window pointer's
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 Heap *func_80095F8C(u32 addr);
 Block *func_80095EF4(Heap *heap, u32 addr, s32 tag);
 void audio_reverb_update(u32 addr, s32 tag);
 #define N64A(x) PC_N64A(x)
-#else
-Heap *func_80095F8C(void *addr);
-Block *func_80095EF4(Heap *heap, void *addr, s32 tag);
-void audio_reverb_update(void *addr, s32 tag);
-#define N64A(x) x
-#endif
 void *func_800A47C0(void *dst, void *src, u32 n);
 
 void func_800CB9D0(void *addr)

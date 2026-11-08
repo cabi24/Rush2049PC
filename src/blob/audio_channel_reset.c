@@ -17,12 +17,7 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9): Name, the
  * palette (Image) and the texture (Info) are pointer-sized, and so are AnimFunc and AnimDTA in the tail. */
 typedef struct {
@@ -50,40 +45,13 @@ typedef struct {
     /* 0x48 */ intptr_t animDTA;
     /* 0x50 */ u16 index;
 } Sprite;
-#else
-typedef struct {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ u32 unk4;
-    /* 0x08 */ u32 unk8;
-    /* 0x0C */ u16 unkC;
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ s16 unk10;
-    /* 0x12 */ u16 unk12;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ s16 unk16;
-    /* 0x18 */ u8 unk18;
-    /* 0x19 */ u8 unk19;
-    /* 0x1A */ s8 unk1A;
-    /* 0x1C */ s16 unk1C;
-    /* 0x1E */ s16 unk1E;
-    /* 0x20 */ s16 unk20;
-    /* 0x22 */ s16 unk22;
-    /* 0x24 */ u8 pad24[0x10];
-    /* 0x34 */ u16 index;
-} Sprite;
-#endif
 
 typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 port;
-#ifdef TARGET_PC
     /* 0x02 */ u8 pad2[0x48 - 0x2]; void *ref;
-#else
-    /* 0x02 */ u8 pad2[0x4A];
-#endif
 } InputRec; /* 0x4C */
 
-#ifdef TARGET_PC
 /* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
  * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
 typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
@@ -95,13 +63,6 @@ typedef struct {
     PcPfs pfs;
     u8 pad74[0x304 - 0x74];
 } Controller;
-#else
-typedef struct {
-    /* 0x000 */ u8 pad0[6];
-    /* 0x006 */ s8 present;
-    /* 0x007 */ u8 pad7[0x2FD];
-} Controller;
-#endif /* 0x304 */
 
 extern s16 D_8014A108;
 extern InputRec D_8014A118[];

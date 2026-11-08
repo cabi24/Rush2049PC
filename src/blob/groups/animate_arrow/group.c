@@ -9,32 +9,18 @@ typedef struct Effect {
     s16 view;       /* 4 */
     s16 mesh;       /* 6 */
     s16 player;     /* 8 */
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     u8 pad10[2];
     u32 data;
     f32 time;
-#else
-    u8 pad10[2];
-    void *data;
-    f32 time;
-#endif
     void (*callback)(struct Effect *, s16);
 } Effect;
 typedef struct CAR_DATA {
     u8 pad0[8];
     f32 pos[3];             /* 8 */
-#ifdef TARGET_PC
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
-#else
-    u8 pad14[856 - 20];
-#endif
     s8 hidden;              /* 856 */
-#ifdef TARGET_PC
     u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x38C - 0x384];
-#else
-    u8 pad359[908 - 857];
-#endif
     u32 flags;              /* 908 */
     u8 pad390[928 - 912];
     s8 color_index;         /* 928 */
@@ -58,11 +44,7 @@ typedef struct Camera {
     u8 pad54[152 - 84];
 } Camera;
 typedef struct View {
-#ifdef TARGET_PC
     void *first; void *bounds; u8 pad0_8[0xC - 0x8];
-#else
-    u8 pad0[12];
-#endif
     f32 radius;             /* 12 */
     f32 scale;              /* 16 */
     u8 pad14[72 - 20];
@@ -70,18 +52,8 @@ typedef struct View {
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct Mesh {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Mesh;
 
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern CAR_DATA D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern Camera D_80150B70[];
 extern View D_8017A510[];
 extern Mesh D_8015B268[];

@@ -26,10 +26,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 #define NULL ((void *)0)
 float fabsf(float);
@@ -64,11 +60,8 @@ void steering_sensitivity(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f3
 void traction_control(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
 f32 func_8008E0B8(f32 *v);
 
-#ifdef TARGET_PC
 enum n64p_Poly { n64p_Poly_ };
 enum n64p_QNode { n64p_QNode_ };
-#endif
-#ifdef TARGET_PC
 typedef struct EUCar {
     u8 pad0[928];
     enum n64p_QNode node[4];
@@ -89,61 +82,19 @@ typedef struct EUCar {
     u8 pad1742[1990 - 1742];
     s16 id;
 } EUCar;
-#else
-typedef struct EUCar {
-    u8 pad0[928];
-    QNode *node[4];
-    u8 pad944[1440 - 944];
-    u16 hint[4];
-    u8 pad1448[1564 - 1448];
-    s16 kind[4];
-    s16 slope[4];
-    u16 attr[4];
-    u8 pad1588[1600 - 1588];
-    u8 b1600;
-    u8 pad1601[7];
-    Poly *p1608;
-    u8 pad1612[1732 - 1612];
-    s16 s1732;
-    u8 pad1734[1741 - 1734];
-    u8 b1741;
-    u8 pad1742[1990 - 1742];
-    s16 id;
-} EUCar;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Poly: (Poly *)PC_N64P(x), enum n64p_QNode: (QNode *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 typedef struct EUSlot {
     f32 dr_pos[3];          /* 0x000 arcade CAR_DATA dr_pos */
-#ifdef TARGET_PC
     u8 pad00C[0x110 - 0xC]; struct pc_visual visuals[21]; u8 pad00C_308[0x358 - 0x308];
-#else
-    u8 pad00C[856 - 12];
-#endif
     s8 b856;
     s8 b857;                /* 0x359 state (battle_mode_setup) */
     u8 pad35A;
     s8 place;               /* 0x35B (func_800EC914) */
-#ifdef TARGET_PC
     u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
-#else
-    u8 pad35C[952 - 860];
-#endif
 } EUSlot;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern EUSlot D_80152818[];
-#define PC_CAR_B358(i) D_80152818[i].b856
-#define PC_CAR_SLOT(i) D_80152818[i].place
-#define PC_CAR_STATE(i) D_80152818[i].b857
-#endif
 extern s8 D_8010FFC0;
 extern f32 D_8011418C[];
 void effect_cleanup(s8 a, s8 b, s8 c);

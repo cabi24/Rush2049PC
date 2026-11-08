@@ -29,24 +29,13 @@ typedef signed char s8;
 typedef short s16;
 typedef unsigned int u32;
 typedef int s32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct Reference {
     u32 word0;
     u8 opaque4[62];
     u8 flags;
-#ifdef TARGET_PC
     u8 opaque67[0x48 - 0x43]; void *ref;
-#else
-    u8 opaque67[9];
-#endif
 } Reference;
-#ifdef TARGET_PC
 enum n64p_void { n64p_void_ };
-#endif
-#ifdef TARGET_PC
 typedef struct Car {
     enum n64p_void object;
     u8 opaque4[4];
@@ -105,74 +94,9 @@ typedef struct Car {
     float time_boost;
     u8 opaque2036[20];
 } Car;
-#else
-typedef struct Car {
-    void * object;
-    u8 opaque4[4];
-    s8 byte8;
-    s8 byte9;
-    s8 byte10;
-    s8 byte11;
-    s8 byte12;
-    s8 byte13;
-    s8 byte14;
-    s8 byte15;
-    u8 opaque16[228];
-    float value244;
-    float value248;
-    float value252;
-    float value256;
-    float value260;
-    float value264;
-    float value268;
-    float value272;
-    float value276;
-    float value280;
-    float value284;
-    float value288;
-    u8 opaque292[728];
-    s32 word1020;
-    float value1024;
-    u8 opaque1028[592];
-    float radius;
-    u8 opaque1624[108];
-    s16 half1732;
-    u8 opaque1734[82];
-    float preserved;
-    u8 opaque1820[168];
-    s16 half1988;
-    s16 half1990;
-    s16 half1992;
-    s16 half1994;
-    s8 byte1996;
-    s8 byte1997;
-    s8 byte1998;
-    s8 byte1999;
-    u8 opaque2000[4];
-    s32 word2004;
-    u8 opaque2008[4];
-    s8 byte2012;
-    s8 byte2013;
-    u8 opaque2014[4];
-    s16 half2018;
-    s16 half2020;
-    s16 half2022;
-    u8 opaque2024[2];
-    s8 byte2026;
-    s8 byte2027;
-    float scale;
-    float time_boost;
-    u8 opaque2036[20];
-} Car;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 typedef struct Player {
     u8 opaque0[232];
     s32 word232;
@@ -182,11 +106,7 @@ typedef struct Player {
     u8 opaque239[17];
     float distance;
     float last_distance;
-#ifdef TARGET_PC
     u8 opaque264[0x110 - 0x108]; struct pc_visual visuals[21]; u8 opaque264_308[0x309 - 0x308];
-#else
-    u8 opaque264[513];
-#endif
     s8 byte777;
     u8 opaque778[7];
     s8 byte785;
@@ -204,33 +124,9 @@ typedef struct Player {
 typedef struct Config {u8 field0,body,field2,field3,field4,place,flags,owner;} Config;
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 typedef struct Route {s16 field0,first,field4,field6,count;} Route;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-Car D_8014A250[6];
-#define PC_MODEL(i) &D_8014A250[i]
-#define PC_MODEL_AUTOTRANS(i) D_8014A250[i].byte10
-#define PC_MODEL_INPUT_FLAGS(i) D_8014A250[i].byte9
-#define PC_MODEL_SLOT(i) D_8014A250[i].half1990
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Config D_80153E88[];
-#define PC_LINK_CAR(i) D_80153E88[i].body
-#define PC_LINK_COLOR0(i) D_80153E88[i].field2
-#define PC_LINK_COLOR1(i) D_80153E88[i].field3
-#define PC_LINK_COLOR2(i) D_80153E88[i].field4
-#define PC_LINK_PLACE(i) D_80153E88[i].place
-#define PC_LINK_FLAGS(i) D_80153E88[i].flags
-#define PC_LINK_OWNER(i) D_80153E88[i].owner
-#endif
 extern Reference D_8014A118[];
 extern Bounds D_8011F844[];
 extern Route D_80151CE8;
@@ -242,29 +138,19 @@ extern volatile s16 D_801543CA;
 extern volatile s16 D_80153E84;
 extern volatile s16 D_80153FD2;
 extern s16 D_8014A108,D_8015274C,D_80153F08,D_80153F24,D_80153F40;
-#ifndef TARGET_PC
-/* The drone schedule's rows for two humans or more start at 7 on the N64; on the PC past the most drones a race may
- * hold (pc_game_types.h, docs/port/DECOUPLE.md 8). */
-#define PC_DRONE_SCHED_TWO 7
-#endif
 extern void *D_80110D08;
 extern s32 state_word_a;
 extern void func_800B27E4(Player *);
 extern void func_800EC270(Car *,Player *);
 extern float sqrtf(float);
 #pragma intrinsic (sqrtf)
-#ifdef TARGET_PC
 /* PC: a race of more cars than the N64's 6 (docs/port/MORECARS.md 3.1). A human's first distance puts it behind
  * every drone: minus the larger of 6 and the race's cars, plus its slot, which is the N64's -(6 - i) in any race of
  * 6 or fewer. The records after the race's cars are reset up to the most a PC race holds, whatever an earlier race
  * of more cars left in them. */
 #define GRID_CARS (D_801543CA > PC_N64_CARS ? D_801543CA : PC_N64_CARS)
 #define CLEAR_SLOTS PC_MODEL_SLOTS
-#else
-#define GRID_CARS 6
-#define CLEAR_SLOTS 6
-#endif
-s32 func_800B930C(s32 index) {if(index+1 == D_80151CE8.count)return D_80151CE8.first;return index+1;}
+s32 func_800B930C(s32 index);
 void world_physics_tick(void) {
     s32 i,j,index;
     Car *car;

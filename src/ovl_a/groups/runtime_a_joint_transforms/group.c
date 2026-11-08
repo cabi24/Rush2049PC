@@ -21,10 +21,6 @@
 typedef signed char s8;typedef unsigned char u8;
 typedef short s16;typedef unsigned short u16;
 typedef int s32;typedef unsigned int u32;typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef union Color {u32 word;u8 channel[4];} Color;
 typedef union tRGBA {u8 c[4];u32 rgba;} tRGBA;      /* MAT3 rush_types.h */
 typedef struct ModelState {
@@ -42,12 +38,8 @@ typedef struct LoadState {
 } LoadState;
 typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 typedef struct ModelDescription {u8 unaccessed[112];f32 joint_position[4][3];} ModelDescription;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjectFlags { u32 flags, word4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjectFlags;
-#else
-typedef struct ObjectFlags {u32 flags,word4;u8 other[60];} ObjectFlags;
-#endif
 extern ModelState D_80139320[];
 extern LoadState D_803BA2F0[];
 extern ModelDescription *D_80110D08[13];
@@ -56,17 +48,12 @@ extern s8 D_80111589[][13];
 extern s8 D_8011157C[5][13];      /* gTireRims */
 extern intptr_t D_80143F68[];
 extern f32 D_8011418C[3][3],D_801106C0[];
-#ifdef TARGET_PC
 /* PC: D_801106C4 is FSCLS[3] and then, up to D_801108B0, the tracks' respawn records world_object_destroy reads
  * ({s8 flag; f32 pos[3]}, 16 bytes; D_801108B0 points at each track's). The loader converts ROM data by its
  * declaration: as f32[] each flag byte was swapped as part of an f32 and read as 0 (docs/port/DATA.md 8). */
 typedef struct PcRespawn { s8 flag; u8 pad1[3]; f32 pos[3]; } PcRespawn;
 extern struct PcFscls { f32 fscls[3]; PcRespawn respawn[30]; } D_801106C4;
 #define FSCLS D_801106C4.fscls
-#else
-extern f32 D_801106C4[];         /* FSCLS[3] */
-#define FSCLS D_801106C4
-#endif
 extern s16 D_80151AD0,D_80142B08[];
 extern s8 D_801613AB,D_80156994,D_8014978C;
 extern Color D_803B65B4;

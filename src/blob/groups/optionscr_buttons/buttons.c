@@ -32,10 +32,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef union {
@@ -53,7 +49,6 @@ typedef struct {
     u8 pad3D[3];
 } Button; /* 0x40 */
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct {
     u32 flags, w4;
@@ -65,13 +60,6 @@ typedef struct {
     Color color;         /* 0x60 */
     u8 pad40[4];
 } Model68;
-#else
-typedef struct {
-    u8 pad0[60];
-    Color color;         /* 0x3C */
-    u8 pad40[4];
-} Model68;
-#endif
 
 extern s32 D_80116D0C;
 extern s32 D_80116D10;
@@ -130,15 +118,7 @@ void func_800DA0BC(void)
     D_80116D94 = 0;
 }
 
-void ZOID_SetColorP_da(s16 objnum, Color *col)
-{
-    D_8012E700[objnum].color.rgba = col->rgba;
-}
-
-void ZOID_SetColor_da(s16 objnum, Color *col)
-{
-    ZOID_SetColorP_da(objnum, col);
-}
+void ZOID_SetColor_da(s16 objnum, Color *col);
 
 void func_800DA2C0(void) {
     static f32 D_8015273C;

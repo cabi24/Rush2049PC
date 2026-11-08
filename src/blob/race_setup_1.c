@@ -28,18 +28,9 @@
  * - source order of the three light cases is 6, 5, 4 (image order).
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
-#ifdef TARGET_PC
 typedef struct Gfx { u32 w0; uintptr_t w1; } Gfx;
-#else
-typedef struct Gfx { u32 w0,w1; } Gfx;
-#endif
 typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
 typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 action; s16 ticks; f32 delay; AnimatedData data; } PaletteAnimation20;
-#ifdef TARGET_PC
 /* PC: ObjectView is a texture record (TXHD) of a WAD, which keeps its N64 layout: commands (texBase) is a 32-bit
  * RDRAM-window address. The palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists
  * (port/assets/wad.c). */
@@ -48,27 +39,14 @@ typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 act
 /* ... which func_800BD080 writes the frame's address into: N64PTR0(T, a) is the pointer at N64 address a
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define TXHD_PTR(type) type *
-#define PAL_SET(entry, value) entry = value
-#define N64PTR0(T, a) a
-#endif
 typedef struct ObjectView { u8 before24[24]; TXHD_PTR(Gfx) commands; u32 flags; } ObjectView;
-#ifdef TARGET_PC
 /* PC: the frame's first word is its name, a pointer (camera_shake_start's Item12; docs/port/POINTERS.md 10). */
 typedef struct AnimationFrame12 { char *tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
-#else
-typedef struct AnimationFrame12 { u32 tag; ObjectView *object; Gfx *commands; } AnimationFrame12;
-#endif
 typedef struct ObjectAnimation20 { s16 count,object_index,direction,index; f32 delay,interval; AnimationFrame12 *frames; } ObjectAnimation20;
 /* PC: game.frame_rate 60 (pc_game_fps.h). The texture scrolls (actions 9 and 10) add step x the frame's retraces each
  * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
-#ifdef TARGET_PC
 #define PC_SCROLL_RETRACES(d, ticks) (pc_fps60 && (ticks) > 0 ? 2 : (d))
-#else
-#define PC_SCROLL_RETRACES(d, ticks) d
-#endif
 extern u32 D_801174B4;
 extern s8 D_80156994,D_8014978C;
 extern PaletteAnimation20 *D_8011A840[];

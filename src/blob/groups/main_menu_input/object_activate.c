@@ -36,29 +36,17 @@ typedef struct OSMesgQueue OSMesgQueue;
 typedef struct Entry {
     /* 0x00 */ s32 unk0[17];
     /* 0x44 */ s32 object;
-#ifdef TARGET_PC
     /* 0x48 */ void *unk48;
-#else
-    /* 0x48 */ s32 unk48;
-#endif
 } Entry;
-#ifdef TARGET_PC
 /* PC: a packet's type (N64 +8) and ready (+9) bytes follow its Link, two host pointers here (func_800D63EC's
  * Packet, hud_speed_display's RecA), so they are at host +16 and +17. At the N64 offsets object_activate read and
  * wrote the low bytes of the link's prev pointer: quitting a two-player battle unlinked through it and faulted
  * (docs/port/QA.md 5). */
 #define PKT(n) (2 * (s32)sizeof(void *) + (n) - 8)
-#else
-#define PKT(n) n
-#endif
-#ifdef TARGET_PC
 /* PC: an input record is 80 bytes (its pointer at +0x48 is 8 bytes); +0x44 stays 32 bits and holds a packet's
  * window address (the packets are a heap block, func_800D63EC) or -1, which the node pointer zero-extends from
  * and -1 keeps (docs/port/POINTERS.md 10). */
 #define OBJECT(x) ((x) == -1 ? (s32 *)-1 : (s32 *)PC_N64P((u32)(x)))
-#else
-#define OBJECT(x) (s32 *)x
-#endif
 
 extern OSMesgQueue D_80142728;
 extern List D_80146170;

@@ -24,10 +24,6 @@ typedef float f32;
 typedef signed char s8;
 typedef signed short s16;
 typedef int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 
 typedef struct {
     char pad0[80];
@@ -42,10 +38,7 @@ typedef struct {
     f32 unk1C;
 } Sub;
 
-#ifdef TARGET_PC
 enum n64p_Sub { n64p_Sub_ };
-#endif
-#ifdef TARGET_PC
 typedef struct {
     char pad0[4];
     enum n64p_Sub sub;
@@ -69,39 +62,9 @@ typedef struct {
     char pad63C[0x720 - 0x63C];
     f32 unk720;
 } Model;
-#else
-typedef struct {
-    char pad0[4];
-    Sub *sub;
-    char pad8[1];
-    s8 unk9;
-    s8 unkA;
-    s8 unkB;
-    s8 unkC;
-    char padD[0x3F4 - 0xD];
-    s16 unk3F4;
-    char pad3F6[0x430 - 0x3F6];
-    Tire tires[4];
-    char pad5A0[16];
-    f32 unk5B0;
-    f32 unk5B4;
-    char pad5B8[4];
-    f32 weight;
-    f32 mass;
-    char pad5C4[0x638 - 0x5C4];
-    f32 idt;
-    char pad63C[0x720 - 0x63C];
-    f32 unk720;
-} Model;
-#endif
-#ifdef TARGET_PC
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Sub: (Sub *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-#else
-#define N64P(x) x
-#define N64W(x) x
-#endif
 
 extern f32 D_80111130[][3];
 extern f32 D_80110F80[][6];

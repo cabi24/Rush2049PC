@@ -61,22 +61,13 @@ extern f32 D_8013C090;
 extern u8 D_801497E8;
 
 void *AllocateMemoryHeap(s32 arg0, s32 arg1);
-#ifdef TARGET_PC
 /* PurgeableMemory's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 void PurgeableMemory(u32 arg0, s32 arg1);
 #define N64A(x) PC_N64A(x)
-#else
-void PurgeableMemory(void *arg0, s32 arg1);
-#define N64A(x) x
-#endif
 void func_80091FBC(List *list, Link *object, Link *before);
 
-void func_800A370C(List *list) {
-    list->head = 0;
-    list->tail = 0;
-    list->count = 0;
-}
+void func_800A370C(List *list);
 
 static void list_init(List *list, s8 indirect, s8 doubly) {
     list->indirect = indirect;

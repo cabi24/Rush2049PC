@@ -4,7 +4,6 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links, list and data host-sized; a command
  * (tAudioMsg) 32: a change's four floats from +4, its tag at +24; a stop's tag at +8 (docs/port/SYNTH.md). */
 typedef unsigned int u32;
@@ -19,48 +18,17 @@ typedef struct Msg {
     Entity *ent;
 } Msg;
 #define target t.target
-#else
-typedef struct Entity {
-    u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
-    u8 msgCount; u8 pad1B[9]; f32 x,y,z,w; u8 pad34[16];
-} Entity;
-typedef struct Msg {
-    s16 id; s8 type,used;
-    union { struct { f32 x,y,z,w; } value; Entity *target; } payload;
-    Entity *ent;
-} Msg;
-#endif
 extern Entity *D_80110244;
 extern s32 D_80146104;
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern Msg D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern s32 D_80142728, D_801427A8;
 s32 osRecvMesg(void *,void *,s32);
 s32 osSendMesg(void *,void *,s32);
-Entity *func_80091BA8(s32 h) {
-    if(h==-1)return 0;
-    if(D_80110244[h&D_80146104].id!=h)return 0;
-    return &D_80110244[h&D_80146104];
-}
-Msg *func_80091B00(void) {
-    s32 i;
-    for(i=0;i<PC_SND_MSG_LOOP(128);i++){
-        if(D_80142DD8[i].used==0){
-            D_80142DD8[i].used=1;
-            D_80142DD8[i].id=-1;
-            return &D_80142DD8[i];
-        }
-    }
-    return 0;
-}
-#ifdef TARGET_PC
+Entity *func_80091BA8(s32 h);
+Msg *func_80091B00(void);
 /* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
  * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
  * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the
@@ -68,10 +36,6 @@ Msg *func_80091B00(void) {
  * or a message lost for good (docs/port/QA.md "Integration soak"). */
 #define PC_MSG_OR_RETURN(m) if((m)==0)return;
 #define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->msgCount--;(m)->used=0;}
-#else
-#define PC_MSG_OR_RETURN(m)
-#define PC_SEND_OR_GIVE_BACK(q,m,e) osSendMesg(q,m,0)
-#endif
 void entity_transform_calc(s32 h,f32 x,f32 y,f32 z,f32 w) {
     Msg *m=0;
     Entity *e=func_80091BA8(h);
@@ -100,20 +64,6 @@ void entity_hierarchy_update(s32 h,f32 value) {
     osRecvMesg(&D_80142728,0,1);
     entity_transform_calc(h,-2.0f,-2.0f,-2.0f,value);
     osSendMesg(&D_80142728,0,0);
-}
-void scheduler_recv(s32 h) {
-    Msg *m=0;
-    Entity *e;
-    osRecvMesg(&D_80142728,0,1);
-    e=func_80091BA8(h);
-    if(e!=0) {
-        m=func_80091B00();
-        m->type=6;
-        m->payload.target=e;
-        e->msgCount++;
-    }
-    osSendMesg(&D_80142728,0,0);
-    if(m!=0)osSendMesg(&D_801427A8,m,0);
 }
 
 void stat_lap_complete(s32 h,f32 value) {

@@ -58,10 +58,7 @@ static void pak_lock(void)
     osRecvMesg(&D_801497D0,&message,1);
 }
 
-static void pak_unlock(void)
-{
-    osSendMesg(&D_801497D0,0,0);
-}
+void sync_release_video(void);
 
 s32 ControllerUpdate(void)
 {
@@ -84,12 +81,12 @@ s32 ControllerUpdate(void)
         func_800A43FC();
     }
     if (osContStartReadData(&D_80035458) != 0) {
-        pak_unlock();
+        sync_release_video();
         return 0;
     }
     osRecvMesg(&D_80035458, &msg, 1);
     osContGetReadData(pads);
-    pak_unlock();
+    sync_release_video();
     for (i = 0; i < 4; i++) {
         if ((D_80149440[i].errno & 8) || (pads[i].errno & 8)) {
             if (gControllerData[i].connected) {

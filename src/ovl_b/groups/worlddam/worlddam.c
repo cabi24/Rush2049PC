@@ -44,12 +44,7 @@ typedef struct DamageRing {
     tPoly *polys[25];
 } DamageRing;
 
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern DamageRing D_80399A70;
 extern u16 D_80399AD8;
 extern f32 D_80394888[4][3];

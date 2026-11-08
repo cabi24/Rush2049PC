@@ -5,7 +5,6 @@
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct Blit Blit;
-#ifdef TARGET_PC
 /* PC: WarningBlit is an array, which gcc wants complete: the MultiBlit of the other image-A screens. */
 typedef struct MultiBlit {
     const char *texname;
@@ -14,9 +13,6 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-#else
-typedef struct MultiBlit MultiBlit;
-#endif
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 extern s8 D_80116DB4;
@@ -24,12 +20,8 @@ extern void *D_8012E6E0;
 extern Controller gControllerData[4];  /* gControllerData */
 extern u32 D_8015694C;            /* gActiveEdges */
 extern u8 D_803BA7EB;             /* gBlocksNeeded */
-#ifdef TARGET_PC
 extern MultiBlit D_803B83A4[1];   /* WarningBlit: one, as NewMultiBlit gets it. By the gap it ran over the strings after
                                    * it, which other screens' blits name, and turned them into words */
-#else
-extern MultiBlit D_803B83A4[];    /* WarningBlit */
-#endif
 
 extern s8 func_800A1A3C(s32);     /* PS_PakInserted */
 extern s8 func_800A35F8(s32);     /* PS_PakDamaged */
@@ -45,7 +37,6 @@ extern void audio_distance_atten(u32);  /* PlayUDSound */
 extern void resource_type_select(u32);  /* PlayStartABSound */
 extern void func_800B5570(s32);   /* setGameState */
 
-#ifdef TARGET_PC
 /* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (worlddam.c), which the name
  * func_8038A400 is there. Image A's is updateWarningScreen, which updateFrontEnd (input_aux_handler) calls in
  * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics
@@ -55,10 +46,6 @@ extern void func_800B5570(s32);   /* setGameState */
 #define numPaksFound D_803B83A0
 extern s8 gPakScr;
 extern u8 numPaksFound;
-#else
-static s8 gPakScr = 0;            /* D_803B839C */
-static u8 numPaksFound = 0;       /* D_803B83A0 (DC byte_8C0D19E1) */
-#endif
 
 void func_8038A400(void)
 {

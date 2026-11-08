@@ -25,7 +25,6 @@
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
 typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Ent {
     /* 0x00 */ s32 w0;
@@ -39,20 +38,6 @@ typedef struct Ent {
     u32 color;
     /* 0x64 */ s32 w64;
 } Ent; /* size 0x68 */
-#else
-typedef struct Ent {
-    /* 0x00 */ s32 w0;
-    /* 0x04 */ s32 w4;
-    /* 0x08 */ void *owner;
-    /* 0x0C */ f32 scaleA;
-    /* 0x10 */ f32 scaleB;
-    /* 0x14 */ u16 id;          /* 0xFFFF = free */
-    /* 0x16 */ s16 link[3];     /* -1 = none */
-    /* 0x1C */ s32 w28[8];
-    u32 color;
-    /* 0x40 */ s32 w64;
-} Ent; /* size 0x44 */
-#endif
 
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
@@ -61,11 +46,7 @@ extern AudioCfg D_80146108;
 extern Button D_801102B4[12]; extern Ent D_8012E700[];
 extern char *D_80110290[]; extern u8 gNumModels; extern f32 D_8011418C[3][3];
 extern char D_8011F6F0[],D_8011F6F8[],D_8011F6FC[];
-#ifdef TARGET_PC
 extern const struct pc_multiblit D_801105C0[1],D_801105E4[2];   /* one blit and two, as NewMultiBlit gets them */
-#else
-extern const MultiBlit D_801105C0,D_801105E4;
-#endif
 extern Blit *D_80110630;
 extern s32 D_801105B4,D_801105B8,D_80110638,D_8011063C,D_80110640;
 extern s8 D_80117428,D_8011062C; extern u32 state_word_a;
@@ -87,17 +68,12 @@ Msg *func_80091B00(void);
 void func_80091AF0(void);
 void func_80091AF8(void);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The stop of the song (command 1) that di_post_type1 posts
  * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){func_80091AF8();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-#else
-#define PC_CMD_OR_UNLOCK(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void di_ProcessCommand(Msg *task)
 {
     PC_CMD_SEND((OSMesgQueue *) &D_801427A8, task);

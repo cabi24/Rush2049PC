@@ -13,10 +13,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -87,27 +83,13 @@ extern Ply D_801569B8[];
 typedef struct PCar {            /* player_array[], 0x3B8 bytes */
     u8 pad00[0xE8];
     s32 fE8;
-#ifdef TARGET_PC
     u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x358 - 0x308];
-#else
-    u8 padEC[0x358 - 0xEC];
-#endif
     s8 f358;
     u8 pad359[0x368 - 0x359];
     f32 vx, vy, vz;
-#ifdef TARGET_PC
     u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
-#else
-    u8 pad374[0x3B8 - 0x374];
-#endif
 } PCar;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern PCar player_array[];
-#define PC_CAR(i) &player_array[i]
-#define PC_CAR_FLAGS(i) player_array[i].fE8
-#endif
 typedef struct HudRec {          /* D_8014A250[], 0x808 bytes */
     u8 pad000[0x3F8];
     s16 f3F8;
@@ -518,20 +500,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -650,12 +623,7 @@ typedef struct {
     u8 pad7C8[0x7E8 - 0x7C8];
     u8 unk7E8;
 } D_8014A250_Record;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern D_8014A250_Record D_8014A250;
-#define PC_MODEL(i) &((HudRec *) &D_8014A250)[i]
-#endif
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -4136,14 +4104,12 @@ void func_800C3578(s32 idx) {
     D_801569B8[idx].flags |= 0x15000000;
 }
 /* camera_scene_manager: NOT matched. */
-#ifdef TARGET_PC
 /* The manifest owners of func_800C2418, func_800C2420 and func_800C2428 are empty deleted-procedure
  * stubs (src/blob/func_800C2418.c, func_800C2420.c, func_800C2428.c), which this group's calls bind
  * to on PC. The bodies written here get their own names (docs/port/PROTOTYPES.md). */
 #define func_800C2418 pc_func_800C2418
 #define func_800C2420 pc_func_800C2420
 #define func_800C2428 pc_func_800C2428
-#endif
 /* camera_scene_manager (0x800C2BE0, 614 words) -- strict MATCH in this real -O3 unit.
  * Per-frame stunt/trick driver over all players (nothing here is a camera; the label is historical):
  * idle-timer bookkeeping (D_8016139C, 2.69 s), wheel-contact counters from the HUD record, axis-flip

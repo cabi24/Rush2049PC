@@ -48,12 +48,8 @@ typedef struct Profile Profile;
 struct Profile { Profile **next, **previous; FileInfo **file; u32 id0, id1; u8 name[24]; u8 **stats; };
 typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]; u8 paint, unknown43[5]; Profile **owner; } Player;
 typedef struct Record Record;
-#ifdef TARGET_PC
 /* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
 struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
-#else
-struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; u32 unknown24; void **active; };
-#endif
 typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 typedef struct Slot { s32 kind, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, unknown3D[3]; } Slot;

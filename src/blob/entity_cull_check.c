@@ -13,7 +13,6 @@ typedef struct Gfx {
     u32 w1;
 } Gfx;
 
-#ifdef TARGET_PC
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
  * (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))
@@ -21,11 +20,6 @@ typedef struct Gfx {
 /* The rebased address past 16 MiB of a larger window (game.memory) is the K0 one, not the 24-bit offset; at
  * original, the N64's (pc_rcp_reloc, docs/port/MEMORY.md 3). */
 #define REBASE(w, b) pc_rcp_reloc(w, b, -1)
-#else
-#define DLW(w) w
-#define DLW_SET(w, v) w = v
-#define REBASE(w, b) (w & 0x0F000000) | ((w + b) & 0x00FFFFFF)
-#endif
 void entity_cull_check(Gfx *start, Gfx *end, s32 base) {
     Gfx *gfx;
     u8 cmd;

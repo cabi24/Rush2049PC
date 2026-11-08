@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3796,7 +3783,6 @@ void world_object_destroy(void *arg0);
 void world_physics_tick(void);
 void world_trigger_activate(void);
 s32 world_velocity_integrate();
-#ifdef TARGET_PC
 /* PC: the Blit's host layout (sound_control.c, docs/port/POINTERS.md 9); the m2c body reads AnimFunc and Name as s32
  * at the N64 offsets (+0x28, +0) and keeps the blit in an s32. A blit whose AnimFunc returns 0 is deleted (DelBlit
  * swaps the last active one into its slot, which is looked at next). */
@@ -3823,39 +3809,3 @@ void UpdateActiveObjects(void)
     } while (p < &((PcBlit **) &D_80149450)[D_80149788]);
   }
 }
-#else
-void UpdateActiveObjects(void)
-{
-  s32 (*temp_v0)(s32);
-  s32 *var_s1;
-  s32 *var_v1;
-  s32 var_s0;
-  s32 (*new_var)(s32);
-  if (D_80149788 > 0)
-  {
-    var_s1 = &D_80149450;
-    loop_2:
-    var_s0 = *var_s1;
-    temp_v0 = *((s32 *) (var_s0 + 0x28));
-
-    new_var = temp_v0;
-    if (((new_var != ((void *) 0)) && ((*((s32 *) (var_s0 + 0x0))) != (-1))) && (0 == temp_v0(var_s0)))
-    {
-      sound_stop(var_s0);
-      var_s1 -= 1;
-      var_v1 = &(&D_80149450)[D_80149788];
-    }
-    else
-    {
-      ;
-    }
- goto dummy_label_90098; dummy_label_90098: ; if (D_80149788 != 0) { }
- ;
-    var_s1 += 1;
-    if (((uintptr_t) var_s1) < ((uintptr_t) (&(&D_80149450)[D_80149788])))
-    {
-      goto loop_2;
-    }
-  }
-}
-#endif

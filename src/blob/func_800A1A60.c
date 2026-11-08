@@ -34,12 +34,8 @@ typedef struct Pak772 {
     u8 opaque116[16];
     PakFile40 files[16];
 } Pak772;
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct Object {void *next,*prev;void (*RemoveFile)(void *),(*MoveFile)(void *,void *);u8 port,file;} Object;
-#else
-typedef struct Object {u8 opaque[16];u8 port,file;} Object;
-#endif
 typedef struct Handle {Object *object;} Handle;
 extern Pak772 D_80144030[];
 extern s8 D_8011194C;
@@ -67,10 +63,7 @@ static void pak_lock(void)
     osRecvMesg(&D_801497D0,&message,1);
 }
 
-static void pak_unlock(void)
-{
-    osSendMesg(&D_801497D0,0,0);
-}
+void sync_release_video(void);
 
 int func_800A1A60(Handle *handle)
 {
@@ -85,7 +78,7 @@ int func_800A1A60(Handle *handle)
     pak_lock();
     error = osPfsFileState(&pak->pfs,file,&state);
     if (error) {}
-    pak_unlock();
+    sync_release_video();
     if (error) return 0;
     if (func_800A1910(&state,&D_80144030[port].files[file].state,32)) return 0;
     return 1;

@@ -12,6 +12,7 @@
  * game: src/blob/groups/camera_target_track/group.c src/blob/groups/slot18_alloc/func_80091B00.c
  * game: src/blob/func_800AED20.c src/blob/car_stats_display.c src/blob/func_800D18D8.c src/blob/game_timer_pause.c
  * game: src/blob/draw_sprites.c src/blob/func_80091FBC.c src/blob/func_8009211C.c
+ * game: src/blob/func_80095CE8.c
  */
 #include <stddef.h>
 #include <string.h>

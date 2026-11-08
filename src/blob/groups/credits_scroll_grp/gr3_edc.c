@@ -17,18 +17,11 @@ typedef unsigned int u32;
 typedef float f32;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#ifdef TARGET_PC
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
     char *pad0[0x338 / 4];
     char *text;
 } TblHdr;
-#else
-typedef struct TblHdr {
-    u8 pad0[0x338];
-    char *text;
-} TblHdr;
-#endif
 
 typedef struct StrTable {
     u8 pad0[4];
@@ -52,11 +45,7 @@ typedef struct Lap {
 typedef struct Car {
     u8 pad0[239];
     s8 f239;
-#ifdef TARGET_PC
     u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-#else
-    u8 padF0[952 - 240];
-#endif
 } Car;
 
 extern OSMesgQueue D_801461D0;
@@ -67,18 +56,8 @@ extern Pair D_80118E20;
 extern StrTable D_8017A4E0;
 extern s16 gNumWindows;
 extern s16 D_80152734;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Lap D_8014A250[];
-#define PC_MODEL_LAP(i) D_8014A250[i].lap
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR_FINISHED(i) D_80152818[i].f239
-#endif
 extern Pos D_80115DA8[][4];
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);

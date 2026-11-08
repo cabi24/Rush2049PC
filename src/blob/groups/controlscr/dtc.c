@@ -25,26 +25,15 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
-#else
-typedef struct Node { u8 pad[60]; u32 color; u8 tail[4]; } Node;
-#endif
 
 extern s32 D_801140EC;
 /* PC: the button colour is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared; PC_RGBA gives
  * back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
-#ifndef TARGET_PC
-#define PC_RGBA(x) x
-#endif
 extern Item D_80111998[4][17];
 extern char *D_8011196C[];
 extern f32 D_8011418C[3][3];

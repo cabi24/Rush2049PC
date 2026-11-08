@@ -25,12 +25,7 @@ extern s8 D_80116DA8;
 extern s32 D_80116DA4;
 extern char D_80121004[];
 typedef struct { u32 first, second; } Pair;
-#ifndef TARGET_PC
-/* PC: port/data defines D_80118E20 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) Pair D_80118E20;   /* defined here: the two tail stores share one lui at */
+extern Pair D_80118E20;   /* defined here: the two tail stores share one lui at */
 void func_800B669C(u32 first, u32 second);
 extern s8 D_801613E8;
 extern char D_8012029C[];
@@ -38,11 +33,8 @@ void fcvt_wrapper(char *, char *, ...);
 s32 object_manager_update(char *, s32);
 s16 object_bytes_sum_global(void);
 void crowd_cheer_play(s32, s32, s32, s32, s32);
-#ifdef TARGET_PC   /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
+/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-#else
-s32 ambient_sound_set(s32, s32, s32, s32, s32, s32, s32, s32);
-#endif
 void render_helper(f32);
 void dispatch_handler(s32);
 void camera_auto_follow(s32, s32, s32, s32, s32, s32, char *);

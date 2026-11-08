@@ -24,7 +24,6 @@ typedef struct CamKey {          /* 0x44 bytes */
     f32 f3C;
     s32 flags;                   /* 0x40 */
 } CamKey;
-#ifdef TARGET_PC
 /* PC: a camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a track
  * WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
  * (docs/port/POINTERS.md 10). */
@@ -52,29 +51,6 @@ typedef struct Camera {
     enum n64p_CamCtl ctl;        /* 0x6C */
 } Camera;
 #define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
-#else
-typedef struct CamScene {
-    u8 pad00[0x10];
-    s32 flags;                   /* 0x10 */
-    s16 count;                   /* 0x14 */
-    s16 id;                      /* 0x16 */
-    struct CamScene *link;       /* 0x18 */
-    CamKey *keys;                /* 0x1C */
-} CamScene;
-typedef struct CamCtl {
-    CamScene *scene;             /* 0x00 */
-    f32 t;                       /* 0x04 */
-    u8 pad08[4];
-    s16 idx;                     /* 0x0C */
-    u16 mode;                    /* 0x0E */
-    f32 f10;                     /* 0x10 */
-} CamCtl;
-typedef struct Camera {
-    u8 pad00[0x6C];
-    CamCtl *ctl;                 /* 0x6C */
-} Camera;
-#define N64P(x) x
-#endif
 
 extern Camera *D_8013C300[];
 extern s32 D_8013F1DC;

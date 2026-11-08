@@ -14,6 +14,7 @@
  * game: src/blob/groups/gameover/gameover.c src/blob/groups/slot18_alloc/group.c
  * game: nonmatching/game/RaceStateMachine_Update.c nonmatching/game/display_list_flush.c
  * game: src/blob/groups/carcolor/ctx_func_800C8918.c
+ * game: src/blob/effect_system_init.c src/blob/func_800A5B3C.c
  */
 #include <stddef.h>
 #include <stdint.h>

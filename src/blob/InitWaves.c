@@ -18,10 +18,6 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
-#ifndef TARGET_PC
-typedef unsigned int uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef void *OSMesg;
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
@@ -73,35 +69,19 @@ static int _BGLoadWaveCheck(int wait)
     return 1;
 }
 
-static void ZOID_Reset(void)
-{
-    D_80156990 = 0;
-    D_80156CE0 = 0;
-    D_801613AC = 0;
-    D_80156BAC = 0;
-    D_801613B4 = 0;
-    D_8015B254 = -1;
-    ZOID_ResetWindows();
-    D_801613B8 = 1.0f;
-    D_80140618 = 0;
-    D_801406B8 = (intptr_t) &D_8011EA18;
-}
+void func_800A5B3C(void);
 
 static void ClearMemory(void)
 {
     car_damage_visual(0);
 }
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
-
 void InitWaves(void)
 {
     int i;
     _BGLoadWaveCheck(1);
-    while (*(volatile s16 *)&gRenderInProgress) { PC_SPIN("InitWaves") }
-    ZOID_Reset(); InitBlits();
+    while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
+    func_800A5B3C(); InitBlits();
     for (i = 0; i < 64; i++) {
         if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) func_80096130(i);
     }

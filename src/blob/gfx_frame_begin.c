@@ -18,12 +18,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-/* The frame's display list starts at +0x9CC0; on the PC further on (pc_game_types.h, docs/port/MORECARS.md 8). */
-#define PC_GLIST_OFFSET 0x9CC0
-#endif
 typedef float f32;
 
 typedef struct {
@@ -123,19 +117,13 @@ typedef union {
 }
 #define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, word)
 
-#ifdef TARGET_PC
 /* PC: the native OSScTask's shape, pointer fields where it has them (N64 0x58 bytes, host 0xA0) */
 typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
                  void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
                  void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
                  void *msgQ; void *msg; } PcScTaskShape;
-#endif
 typedef struct {
-#ifdef TARGET_PC
     PcScTaskShape task;
-#else
-    u8 pad00[88];
-#endif
     u8 *commands;      /* 88 */
     u8 pad5C[32];
     void *colorBuffer; /* 124 */

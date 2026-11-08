@@ -7,6 +7,7 @@
  * start it twice. The thread loops for ever: the test's osRecvMesg feeds it a script and leaves at its end. Made-up
  * values only.
  * game: src/blob/groups/engine_sound_sync/audiomgr_thread.c
+ * game: src/blob/groups/heap_release/func_80091AF8.c src/blob/pointer_offset8_call.c
  */
 #include <setjmp.h>
 #include <stddef.h>

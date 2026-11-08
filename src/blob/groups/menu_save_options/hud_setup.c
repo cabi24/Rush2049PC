@@ -24,10 +24,6 @@ typedef short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef void *OSMesg;
 typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
@@ -41,7 +37,6 @@ typedef struct List {
     u32 count;
     Link *head, *tail;
 } List;
-#ifdef TARGET_PC
 /* PC: an fx tag (audiomgr_thread.c's tFxSequence, 0x44 bytes on the N64) is 88 bytes: its links, list and data
  * pointer are host-sized. The sorted-tag nodes (anon_te_tag_c: two tree links and the tag) are 24 bytes, and a
  * command (tAudioMsg) 32 (docs/port/SYNTH.md). */
@@ -53,15 +48,6 @@ typedef struct Voice {
     void *data;             /* 0x50 */
 } Voice;
 #define SORTED_TAG_SIZE 24
-#else
-typedef struct Voice {      /* 0x44 */
-    Link link;
-    List *owner;            /* 0x08 */
-    s32 index;              /* 0x0C */
-    u8 pad10[0x34];
-} Voice;
-#define SORTED_TAG_SIZE 12
-#endif
 typedef struct Chan {       /* 0x3C */
     Link link;
     s32 index;              /* 0x08 */
@@ -69,26 +55,17 @@ typedef struct Chan {       /* 0x3C */
     s8 unkD;
     u8 padE[0x2E];
 } Chan;
-#ifdef TARGET_PC
 typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[28]; } Slot24;
-#else
-typedef struct Slot24 { u8 pad0[3]; u8 active; u8 pad4[20]; } Slot24;
-#endif
 typedef struct Handler { void (*func)(void); s32 unk4; intptr_t unk8; } Handler;   /* tOrderedList: unk8 is its root */
 
 extern s8 D_8011023C;
 
 extern s32 D_80146200;
 extern s32 D_80149410;
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(Slot24 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern Slot24 D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern OSMesgQueue D_80142728;
 extern OSMesg D_80142768[1];
 extern OSThread D_80034F00;
@@ -128,27 +105,18 @@ void sound_list_init(List *list, s8 indirect, s8 doubly) {
     func_800A370C(list);
 }
 
-#ifndef TARGET_PC
-#define PC_ONLY(stmt)
-#endif
-#ifdef TARGET_PC
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-#else
-#define N64A(x) (u32)x
-#endif
-#ifdef TARGET_PC
 /* PC: [audio] voices (docs/port/AUDIO.md 10) gives the Expansion Pak's set-up (32 voices: 16 for the effects, 64
  * positional emitters) more voices, the effects all but the songs' 16, and 128 emitters: pc_snd_setup, before
  * anything reads the arguments. The effects' share (arg1) is also the sound manager's gMaxSfx (D_80146200: its
  * budget is 3/4 of it), the fx tags' count and AudioSfxInit's entries; at original nothing changes. */
-#endif
 void hud_setup(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6, s32 arg7) {
     static s8 D_80110274 = 0;
     s32 i;
     s32 reinit;
 
-    reinit = 0; PC_ONLY(pc_snd_setup(&arg0, &arg1, &numB);)
+    reinit = 0; pc_snd_setup(&arg0, &arg1, &numB);
     if (D_8011023C) {
         reinit = 1;
         if (D_80146200 == arg1 && D_80149410 == arg2) {

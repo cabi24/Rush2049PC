@@ -83,17 +83,12 @@ extern s32 __osContRamWrite(OSMesgQueue *mq, s32 channel, u16 address,
  * with the viewport index scaled by 8 bytes (4 s16s) per symbol_addrs.us.txt,
  * which also documents adjacent gViewportOffsetXExtra/YExtra 4 bytes
  * earlier in the same table. */
-#ifdef TARGET_PC
 /* PC: the table at gViewportOffsetXExtra is s16[3][4], a row per TV type (gViewportX = osTvType, 0-2), up to
  * gViewportPendingFrames at 0x8002B010. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
  * last one read. Declared s16[32], they ran over gViewportPendingFrames, gViewportDataPtr, gInitFlag and
  * gDmaInitialized, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
 extern s16 gViewportOffsetX[9];
 extern s16 gViewportOffsetY[9];
-#else
-extern s16 gViewportOffsetX[32];
-extern s16 gViewportOffsetY[32];
-#endif
 
 /* --- Decompression DMA sync helpers (src/util/dma.c, not visible to m2c's
  * type context since that's a .c file, not a header). */
@@ -116,7 +111,6 @@ extern s32 __osContRamRead(OSMesgQueue *mq, s32 channel, u16 address,
  * void pointers; m2c needs real field types since it decompiles
  * __scAppendList/__scExec's own bodies directly from ROM asm, not through
  * those macros). */
-#ifdef TARGET_PC
 /* PC: the task as the game builds it (world_collision_response.c's Frame, func_8010FBE0's static task): its
  * OSTask is in place from type on, and the OSTask's pointers are host-sized, which moves output_buff (unk38),
  * output_buff_size (unk3C) and msgQueue (docs/port/MUSYX_DATA.md 8.4). */
@@ -138,21 +132,6 @@ typedef struct OSScTask_s {
     OSMesgQueue *msgQueue;        /* 0x50 */
     OSMesg msg;                    /* 0x54 */
 } OSScTask;
-#else
-typedef struct OSScTask_s {
-    struct OSScTask_s *next;   /* 0x00 */
-    s32 state;                  /* 0x04 */
-    s32 flags;                  /* 0x08 */
-    void *framebuffer;          /* 0x0C */
-    s32 type;                   /* 0x10 */
-    u8 pad14[0x38 - 0x14];
-    void *unk38;                 /* 0x38 */
-    s32 *unk3C;                  /* 0x3C */
-    u8 pad40[0x50 - 0x40];
-    OSMesgQueue *msgQueue;        /* 0x50 */
-    OSMesg msg;                    /* 0x54 */
-} OSScTask;
-#endif
 
 typedef struct OSScClient_s {
     struct OSScClient_s *next;  /* 0x00 */

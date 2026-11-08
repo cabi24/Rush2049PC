@@ -37,17 +37,13 @@ void func_800A5014(int idx, int newWave)  /* _ReplaceWaveInstance (deleted stub 
     func_800972C4(idx);
 }
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#endif
-
 void suspension_setup(int curWave, int newWave)
 {
     int idx;
     if (func_80097694(newWave, -1) < 0) {
         idx = func_80097694(curWave, -1);
         if (idx >= 0) {
-            while (*(volatile s16 *)&gRenderInProgress) { PC_SPIN("ReplaceWave") }
+            while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("ReplaceWave"); }
             func_800A5014(idx, newWave); func_80097164(idx);
         }
     }

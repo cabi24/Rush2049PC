@@ -32,15 +32,10 @@ typedef struct Trail Trail;
 typedef struct Fade Fade;
 struct Trail { Trail *next; u32 unknown04, flags; f32 lifetime; f32 origin[3], previous[3], lower[3], upper[3]; };
 struct Fade { Fade *next; u32 unknown04; Record88 *object; f32 lifetime, interval; u8 color[4]; Trail *source; };
-#ifdef TARGET_PC
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct FadePool { u8 dbl; s32 numElements, elementSize; void *list; Fade *active; void *store; } FadePool;
 typedef struct TrailPool { u8 dbl; s32 numElements, elementSize; void *list; Trail *active; void *store; } TrailPool;
-#else
-typedef struct FadePool { u8 unknown00[16]; Fade *active; } FadePool;
-typedef struct TrailPool { u8 unknown00[16]; Trail *active; } TrailPool;
-#endif
 extern FadePool D_80396B80;
 extern TrailPool D_80395EE8;
 extern f32 D_8002EB94;
@@ -51,13 +46,9 @@ extern void func_800AFA84(void *,void *);
 extern void *func_8008E3C0(void *);
 extern Record88 *func_800A78BC(s32,f32 *,u16,u8 *,u16,s32);
 extern void func_8008C074(Record88 *,s32,f32 *,u16,u8 *,u16,s32);
-#ifdef TARGET_PC
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a fade whose interval is 0 steps once a frame, 1/30 s on the N64; at
  * 60 it takes the other branch's 1/30 s, which the frame time counts down to a step every two frames. */
 #define PC_FRAME_INTERVAL(x) (pc_fps60 ? 0.0333333f : (x))
-#else
-#define PC_FRAME_INTERVAL(x) x
-#endif
 
 void func_8038CB20(void)
 {

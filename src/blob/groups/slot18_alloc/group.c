@@ -17,12 +17,7 @@ typedef signed char s8;typedef short s16;typedef unsigned char u8;typedef signed
 typedef struct Vehicle2056 {u8 prefix[1990];s16 resource;u8 tail[64];} Vehicle2056;
 typedef struct MessageNode {s16 id;s8 operation,used;float payload[4];void *entity;} MessageNode;
 extern MessageNode D_80142DD8[128];
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Vehicle2056 D_8014A250[];
-#define PC_MODEL_SLOT(i) D_8014A250[i].resource
-#endif
 extern s8 D_80152744,D_80114650,D_8014978C;
 extern void *D_801541A4,*D_801391F0;
 extern u8 D_80142728[],D_801427A8[];
@@ -46,7 +41,6 @@ void playgame_state_change(void);
 void func_8038F454();
 void entity_audio_update(void);
 void func_800D5524(void *);
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). Abandoning a race then drops its stop of every effect,
  * but nothing else: with no message it is written into a scratch message that is never sent, so the cars, the
@@ -54,10 +48,6 @@ void func_800D5524(void *);
 static MessageNode pc_scratch_msg;
 #define PC_CMD_OR_SCRATCH(m) if((m)==0)(m)=&pc_scratch_msg;
 #define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
-#else
-#define PC_CMD_OR_SCRATCH(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void func_800D5A04(void)
 {
     s16 i;

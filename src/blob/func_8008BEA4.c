@@ -1,33 +1,16 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
-#ifdef TARGET_PC
 /* PC: the visual (tVisual, pc_prelude.h's struct pc_visual) has a host-sized link: its car slot is at +0xC, where
  * +8 is its index (docs/port/LAYOUT.md). */
 typedef struct { void *next; s16 index, objnum; s16 idx; } In;
-#else
-typedef struct { u8 pad0[8]; s16 idx; } In;
-#endif
 typedef struct { u8 pad[320]; u16 v[8]; } Out;
-#ifdef TARGET_PC
 /* PC: a car record seen from +0xE8 (a name inside player_array): only its stride, PC_CAR_SIZE, matters here. */
 typedef struct { u32 flags; u8 pad[PC_CAR_SIZE - 4]; } PF;
-#else
-typedef struct { u32 flags; u8 pad[948]; } PF;
-#endif
-#ifdef TARGET_PC
 /* PC: D_8013FEF4 is the data field of the car palette descriptors D_8013FEE0, which keep a palette record's N64
  * layout (24 bytes, data a u32 window address). */
 typedef struct { u32 o; u8 pad[20]; } PO;
-#else
-typedef struct { Out *o; u8 pad[20]; } PO;
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern PF D_80152900[];
-#define PC_CAR_FLAGS(i) D_80152900[i].flags
-#endif
 extern PO D_8013FEF4[];
 extern s8 D_8014978C;
 extern u16 D_8011B57C[8];
@@ -37,13 +20,9 @@ extern u16 D_8011B59C[8];
     o->v[0] = (src)[0]; o->v[1] = (src)[1]; o->v[2] = (src)[2]; o->v[3] = (src)[3]; \
     o->v[4] = (src)[4]; o->v[5] = (src)[5]; o->v[6] = (src)[6]; o->v[7] = (src)[7]; } while (0)
 
-#ifdef TARGET_PC
 /* The descriptor's data is a 32-bit N64 address: N64PTR0(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md
  * 2.3). */
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define N64PTR0(T, a) a
-#endif
 void func_8008BEA4(In *in, s16 flag)
 {
 s32 i; Out *o; s32 ok;

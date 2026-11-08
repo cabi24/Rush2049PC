@@ -22,20 +22,12 @@ typedef unsigned char u8;
 typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 
 extern volatile s32 frame_counter;      /* gFrames */
 extern void *game_state_flags;          /* _PAD controller-warning blit */
-#ifdef TARGET_PC
 extern struct pc_multiblit D_801146C4[1];   /* its multiblit (pc_prelude.h) */
-#else
-extern u8 D_801146C4[];                 /* its multiblit */
-#endif
 extern OSMesgQueue *msgq_ptr;
 extern s32 state_word_a;                /* gGameState */
 extern s32 state_word_b;                /* gNewGameState */
@@ -63,11 +55,6 @@ s32 PhysicsObjectList_Update(void);
 void Effects_UpdateEmitters(void);
 void Input_ProcessGameplayPad(s32);
 
-#ifndef TARGET_PC
-#define PC_SPIN(site)   /* PC: the busy-wait lets the writer run (pc_prelude.h) */
-#define PC_ONLY(stmt)   /* PC: the state changes, game.frame_rate is latched and a race watched (pc_game_fps.h) */
-#endif
-
 s32 game_loop(void)
 {
     s32 renderFlag;
@@ -82,9 +69,9 @@ s32 game_loop(void)
     if (state_word_b == state_word_a) {
         UpdateFrame();
     } else {
-        while (D_8002EB70) { PC_SPIN("game_loop")
+        while (D_8002EB70) { pc_os_spin_yield("game_loop");
         }
-        D_80149438 = 0; PC_ONLY(pc_game_fps_begin(); pc_game_fps_state(state_word_b);)
+        D_80149438 = 0; pc_game_fps_begin(); pc_game_fps_state(state_word_b);
         gfx_frame_begin();
         D_801497F4 = msgq_ptr;
         process_inputs();

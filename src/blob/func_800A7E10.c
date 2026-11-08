@@ -29,7 +29,6 @@ typedef union {
     long long force_structure_alignment;
 } Vtx;
 
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct {
     u32 unk0;
@@ -41,13 +40,6 @@ typedef struct {
     void *light, *tex[4], *rect, *clip, *pal;
     u32 prim, env;
 } Entry;
-#else
-typedef struct {
-    u32 unk0;
-    u32 flags;
-    char pad8[0x3C];
-} Entry;
-#endif
 
 extern s32 D_80156CE0;
 extern s32 D_80156D30;

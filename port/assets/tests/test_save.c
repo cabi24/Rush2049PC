@@ -22,6 +22,7 @@
  * game: src/blob/func_800950AC.c src/blob/func_800A1910.c src/blob/func_800A473C.c src/blob/func_800C77C4.c
  * game: src/blob/groups/audio_heap/group.c src/blob/func_800E5D64.c src/ovl_a/func_80398BF0.c
  * game: src/blob/groups/pfs_status/func_800A1E94.o3.c
+ * game: src/blob/groups/draw_number/dn.c
  */
 #include <stddef.h>
 #include <stdio.h>

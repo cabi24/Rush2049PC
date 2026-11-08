@@ -56,7 +56,6 @@ typedef struct anon_loaded_ready_14 {   /* gWaveInstance[64], 0x14 */
 
 typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } anon_base_TOCentries_c; /* mb_wad.c */
 
-#ifdef TARGET_PC
 /* The loaded records keep their N64 layout on PC (port/assets/wad.c swaps their scalars in place): their pointer
  * fields are 32-bit RDRAM-window addresses, which widen to host pointers (docs/port/ASSETS.md section 5). */
 #define WADP(type) u32
@@ -69,14 +68,6 @@ typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } 
 #define N64AS(x) (s32)PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define WADP(type) type *
-#define HANDLE_BLOCK(h) *(u8 **)h
-#define N64A(x) (u32)x
-#define N64AS(x) (s32)x
-#define N64PTR(T, a) (T)a
-#define N64PTR0(T, a) a
-#endif
 
 typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
     u16 texidx;
@@ -140,7 +131,6 @@ extern OSMesgQueue D_80035410;                      /* PI DMA completion queue *
 
 void MBSetupWad(anon_base_TOCentries_c *wad, u8 *WADptr);              /* MBSetupWad */
 void func_80096BBC(anon_base_TOCentries_c *wad, s32 WADptr, s32 offset);  /* MBOffsetWad */
-#ifdef TARGET_PC
 /* A TOC entry's address is a u32 window address: zero-extended, not sign-extended, into a pointer. */
 u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
@@ -148,10 +138,6 @@ u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
 void entity_cull_check(void *start, void *end, s32 IMAGptr);
 #define entity_cull_check(start, end, IMAGptr) \
     entity_cull_check((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
-#else
-s32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count); /* MBGetFromWad */
-void entity_cull_check(u32 start, u32 end, s32 IMAGptr);
-#endif
 void entity_lod_select(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask);
 void entity_render_mode(s32 idx);                                         /* MirrorWaveInstance */
 void osInvalICache(void *vaddr, s32 nbytes);
@@ -161,9 +147,6 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 void lzss_decompress(s32 src, void *dst);
 void inflate_decompress(s32 src, void *dst, s32 flag);
 
-#ifndef TARGET_PC
-#define PC_DETAIL_PLAYERS(n) n
-#endif
 /* PC: video.detail high keeps the one-player sections of the models' display lists in split screen too (the LOD
  * markers entity_lod_select rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
@@ -245,11 +228,9 @@ void SetupWaveModel(s32 idx, s32 first) {
     entity_render_mode(idx);
 }
 
-#ifdef TARGET_PC
 /* _ReadWave's SetupWaveModel(slot, 1): convert the file to the host's byte order first (port/assets). The
  * re-setup after a heap move (first = 0) converts nothing. */
 #define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? HANDLE_BLOCK(gWaveInstance[slot].ptr) : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
-#endif
 
 void func_8009715C(u8 *dst, s32 rom, s32 size) {
     OSIoMesg mb;

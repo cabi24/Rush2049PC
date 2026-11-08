@@ -28,20 +28,11 @@ typedef struct Slot {
 
 extern s8 D_8014978C;
 extern volatile s16 D_801543CA;
-#ifdef TARGET_PC
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Slot D_80153E88[6];
-#define PC_LINK_TRACK(i) D_80153E88[i].owner
-#define PC_LINK_PLACE(i) D_80153E88[i].ordinal
-#define PC_LINK_FLAGS(i) D_80153E88[i].flags
-#define PC_LINK_OWNER(i) D_80153E88[i].index
-#endif
 extern s8 D_8014A118;
 extern s8 D_80150C04;
 extern s8 D_80150F14;
 
-#ifdef TARGET_PC
 /* PC: the attract demo races the setting's cars, all drones (pc_game_types.h, docs/port/MORECARS.md 3.1), latched
  * here at its start; the camera's car (the counter) goes round them all. The loop walks every slot a PC race can
  * use, so the slots after the demo's cars take the loop's own arm for slots past the count, which the N64's 6
@@ -49,11 +40,6 @@ extern s8 D_80150F14;
 #define PC_LATCH_CARS() pc_race_cars_begin();
 #define DEMO_CARS PC_RACE_CARS
 #define LINK_SLOTS PC_MAX_LINKS
-#else
-#define PC_LATCH_CARS()
-#define DEMO_CARS 6
-#define LINK_SLOTS 6
-#endif
 void func_800EC190(s8 owner)
 {
     s16 i;

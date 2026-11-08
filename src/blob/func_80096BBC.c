@@ -10,10 +10,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -541,20 +537,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3801,7 +3788,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the same steps on MBSetupWad's handle as the PC build lays it out ({u32 *base; s32 count; void *TOC} with
  * host pointers; the N64 code addresses it at +0/+4/+8). The WAD is in the RDRAM window, so its 32-bit address
  * widens to the host pointer. As on the N64, the base is arg1 + arg2. */
@@ -3823,38 +3809,3 @@ void func_80096BBC(void *arg0, s32 arg1, s32 arg2)
     }
   }
 }
-#else
-void func_80096BBC(void *arg0, s32 arg1, s32 arg2)
-{
-  s32 *temp_v0;
-  s32 *temp_v1;
-  s32 temp_t2;
-  s32 temp_t9;
-  s32 var_a3;
-  s32 var_v1;
-  void *temp_v0_2;
-  temp_v0 = arg1 + arg2;
-  if (arg0 != ((void *) 0))
-  {
-    temp_v0_2 = (*((s32 *) (((s8 *) arg0) + 8))) + var_v1;
-    *((s32 **) (((s8 *) arg0) + 0)) = temp_v0;
-    var_a3 = 0;
-    *temp_v0 += arg2;
-    temp_v1 = *((s32 **) (((s8 *) arg0) + 0));
-    *((s32 *) (((s8 *) arg0) + 8)) = (s32) (*((s32 *) (((s8 *) temp_v1) + 0)));
-    *((s32 *) (((s8 *) arg0) + 4)) = *((s32 *) (((s8 *) temp_v1) + 4));
-    if (*((s32 *) (((s8 *) arg0) + 4)) > 0)
-    {
-      var_v1 = 0;
-      do
-      {
-        var_a3 += 1;
-        temp_v0_2 = (*((s32 *) (((s8 *) arg0) + 8))) + var_v1;
-        var_v1 += 0xC;
-        *((s32 *) (((s8 *) temp_v0_2) + 4)) += arg2;
-      }
-      while (var_a3 < (*((s32 *) (((s8 *) arg0) + 4))));
-    }
-  }
-}
-#endif

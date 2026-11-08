@@ -17,10 +17,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -450,20 +446,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3729,11 +3716,7 @@ typedef s64 M2C_UNK64;
  * func_800E95DC = arcade steady_move_cam, rebuilt for N64 per-player legs.
  */
 /* group members */
-#ifdef TARGET_PC
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;   /* the profile, pc_prelude.h */
-#else
-typedef struct HN { u8 p[0x2C]; s32 f2c; } HN;
-#endif
 typedef struct Q { u8 p[0x48]; HN **h; } Q;
 typedef struct Cr {
     u8 p0[8];
@@ -3745,11 +3728,7 @@ typedef struct Cr {
     f32 f_a8, f_ac;
     u8 pb0[0x46];
     s16 s_f6;
-#ifdef TARGET_PC
     u8 pf8[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 pf8_308[0x35C - 0x308];
-#else
-    u8 pf8[0x264];
-#endif
     s8 player;
     s8 mode;
     s8 mode2;
@@ -3762,92 +3741,7 @@ void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs);
 void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 void func_800EA2DC(Cr *arg0, void *arg1, void *arg2, s32 arg3);
 
-void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff) {
-    f32 vec[3], res[3], temp[3], A, a, B, b, fact, magvel, uvs[3][3];
-    s16 fixed_cam, flag;
-    char buf[8];
-
-    s32 pl;
-
-    pl = car->player;
-    if (car->mode == 8)
-        magvel = 0;
-    else
-        magvel = sqrtf(car->vx*car->vx + car->vz*car->vz);
-
-    if (magvel <= MAX_VEL) {
-        vec[0] = 0.0f;
-        vec[1] = AB;
-        vec[2] = -ab;
-        if (car->mode == 8) {
-            temp[0] = vec[0];
-            temp[1] = vec[1];
-            temp[2] = vec[2];
-        } else
-            func_8009E820(vec, temp, car->m);
-        temp[1] = fabsf(temp[1]);
-    }
-
-    if (magvel > 1) {
-        if (car->mode == 4) {
-            vec[0] = car->f_ac;
-            vec[1] = car->f_a8;
-            vec[2] = 0.0f;
-            func_8009E820(vec, res, car->m);
-            res[0] = -res[0];
-            res[2] = -res[2];
-        } else {
-            res[0] = car->vx;
-            res[1] = car->vy;
-            res[2] = car->vz;
-            if (ab < 0)
-                res[1] = -res[1];
-            func_800A61B0(res, vec, car->m);
-            vec[2] = fabsf(vec[2]);
-            func_8009E820(vec, res, car->m);
-            res[0] = -res[0];
-            res[2] = -res[2];
-        }
-
-        fact = ab / magvel;
-        res[0] *= fact;
-        res[1] *= fact;
-        res[2] *= fact;
-
-        a = res[1];
-        b = sqrtf(res[0]*res[0] + res[2]*res[2]);
-
-        if (b > .001f) {
-            A = -a * AB / ab;
-            fact = (b - A) / b;
-            res[0] *= fact;
-            res[2] *= fact;
-        }
-
-        B = b * AB / ab;
-        res[1] = fabsf(B - res[1]);
-
-        if (magvel < MAX_VEL)
-            func_800CFDEC(temp, res, 3, 1, MAX_VEL, magvel, res);
-    } else {
-        res[0] = temp[0];
-        res[1] = temp[1];
-        res[2] = temp[2];
-    }
-
-    if (car->mode == 8)
-        D_80152720[pl] = 0.0f;
-    else if (car->mode == 4)
-        D_80152720[pl] = 1.0f - magvel / MAX_VEL;
-    else if (magvel < MAX_VEL)
-        D_80152720[pl] = 1.0f - magvel * .01f;
-    else
-        D_80152720[pl] = 0.0f;
-
-    camoff[0] = res[0];
-    camoff[1] = res[1];
-    camoff[2] = res[2];
-}
+void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff);
 
 /* func_800E95DC, 0x800E95DC..0x800E9C70 (1,684 bytes).
  * N64 per-player descendant of arcade camera.c:steady_move_cam.
@@ -3954,34 +3848,7 @@ void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs) {
     }
 }
 
-void func_800EA108(Cr *car, f32 *pos, f32 *uvs) {
-    s32 i, j;
-    f32 rpos[3], res[3];
-    s32 slot;
+void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 
-    slot = car->player;
-    func_8008D6FC(car->s_f6, pos, uvs);
-    D_80152708[slot] = .13f;
-    func_800E92C8(car, 30, 16, res);
-    for (i = 0; i < 3; i++)
-        gCamera[slot].v84[i] = (gCamera[slot].v84[i]*(1.0f-D_80152708[slot]) + (pos[i]+res[i])*D_80152708[slot]);
-    for (i = 0; i < 3; i++)
-        rpos[i] = pos[i] - gCamera[slot].v84[i];
-    vector_normalize_length(rpos, &gCamera[slot].n60);
-}
-
-void func_800EA2DC(Cr *car, void *arg1, void *arg2, s32 arg3) {
-    volatile s32 padv[5];
-    f32 v[3];
-    s32 pl;
-
-    pl = car->player;
-    func_800E8CB8(car, arg1, arg2);
-    if (car->mode == 0xA) {
-        func_800E92C8(car, -D_801526F8[pl], D_801526E0[pl], v);
-    } else {
-        func_800E92C8(car, D_801526F8[pl], D_801526E0[pl], v);
-    }
-    func_800E8D50(car, arg3, 0, v);
-}
+void func_800EA2DC(Cr *car, void *arg1, void *arg2, s32 arg3);
 

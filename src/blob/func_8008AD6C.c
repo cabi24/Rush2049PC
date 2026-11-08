@@ -9,14 +9,9 @@
 typedef unsigned int u32;
 typedef int s32;
 
-#ifdef TARGET_PC
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))
 #define DLW_SET(w, v) pc_be32_set(&(w), v)
-#else
-#define DLW(w) w
-#define DLW_SET(w, v) w = v
-#endif
 s32 func_8008AD6C(u32 *gfx) {
     u32 mid;
     u32 low;

@@ -31,7 +31,6 @@
 typedef unsigned char u8; typedef signed char s8; typedef unsigned short u16; typedef signed short s16;
 typedef unsigned int u32; typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: Resource32 is a WAD's texture (TXHD: data = texBase at +24) or palette record (PLHD: bank = palBase at +20),
  * which keep their N64 layout: the pointers are 32-bit RDRAM-window addresses (port/assets/wad.c). */
 #define WAD_PTR_BASE u32
@@ -39,11 +38,6 @@ typedef unsigned int u32; typedef float f32;
 /* A row's palette or texture list is written through (race_setup_1): N64PTR0(T, a) is the pointer at N64 address a
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). An item's output stays the 32-bit address the display list takes. */
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define WAD_PTR_BASE void
-#define WAD_PTR(name) *name
-#define N64PTR0(T, a) a
-#endif
 typedef struct Resource32 { u8 opaque[20]; WAD_PTR_BASE WAD_PTR(bank), WAD_PTR(data); u32 flags; } Resource32;
 typedef struct Row20 { char *name; u8 opaque[5]; s8 kind; u8 gap[2]; f32 time; void *data; } Row20;
 typedef struct Item12 { char *name; Resource32 *resource; void *output; } Item12;
@@ -57,11 +51,7 @@ extern s8 D_80156994, D_80114650, D_8014978C;
 extern u8 gNumModels;
 extern Resource32 *func_800B24EC(char *, u16 *, s8, s8, int);
 extern Resource32 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, int);
-#ifdef TARGET_PC
 extern u32 func_800BDA24(void *);   /* the SETTIMG address of a TXLD list (a u32 in its definition) */
-#else
-extern void *func_800BDA24(void *);
-#endif
 
 void camera_shake_start(void) {
     Row20 *row;

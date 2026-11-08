@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -4121,17 +4108,6 @@ void func_800B6748(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *vari
 }
 
 /* menu_input_process (HAL_DrawText) and func_800B66B0 (_TextLen) are defined in hal_drawtext.c */
-void HAL_StartText(void) {
-    osRecvMesg((OSMesgQueue *) &D_801461D0, NULL, 1);
-    func_800B6748((u8 *)&D_80149B48,&D_80114748,&D_80149D92,&D_80149D9E,&D_80149DA0,&D_80149B60,&D_80149B70);
-    slot_state_setup(D_80149DA0);
-    D_80149B88 = 0;
-    if (D_8002AFC4 >= 0xDD) {
-        D_80149B88 = 0x8000;
-    }
-    D_8011474C = 0;
-    D_8011473C = 0;
-    osSendMesg((OSMesgQueue *) &D_801461D0, NULL, 0);
-}
+void HAL_StartText(void);
 
 /* world_velocity_integrate (HAL_FinishText) is defined in finishtext.c */

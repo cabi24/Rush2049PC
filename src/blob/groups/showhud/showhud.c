@@ -41,18 +41,11 @@ typedef struct MultiBlit {
 typedef struct RecordSlot { s16 id; u8 pad02[50]; } RecordSlot;   /* 52 bytes */
 typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */
 /* Complete native resource-table layout, shared with its actual loader. */
-#ifdef TARGET_PC
 /* PC: gText's pointer sections are native char * tables (port/assets/text.c) */
 typedef struct ModelTables {
     u16 count0; char **ptrs0; u16 count1,count2; u16 *data1; char **ptrs2;
     u16 count3,count4,count5; u16 *data3,*data4; char **ptrs5;
 } ModelTables;
-#else
-typedef struct ModelTables {
-    u16 count0; u32 *ptrs0; u16 count1,count2; u16 *data1; u32 *ptrs2;
-    u16 count3,count4,count5; u16 *data3,*data4; u32 *ptrs5;
-} ModelTables;
-#endif
 
 extern Voice *D_80154198;
 extern Voice *D_801541A0;
@@ -93,7 +86,6 @@ extern u32 object_manager_update(void *, s16);
 
 extern f32 func_8008B2E4(f32);
 
-#ifdef TARGET_PC
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
  * set (D_80114C58, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, func_80109A60: AnimID
  * the entry) and, for each of the 4 viewers, a blip for each of car slots 0-7 (AnimateTraffic, func_80108F40: AnimID
@@ -146,10 +138,6 @@ static s16 pc_hud_race_n(void)
 }
 #define PC_HUD_RACE_SET pc_hud_race_set()
 #define PC_HUD_RACE_N pc_hud_race_n()
-#else
-#define PC_HUD_RACE_SET D_80114C58
-#define PC_HUD_RACE_N 89
-#endif
 
 void skid_mark_render(void) {
     s32 created = 0;

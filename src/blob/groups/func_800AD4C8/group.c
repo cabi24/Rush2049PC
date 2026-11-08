@@ -11,10 +11,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -444,20 +440,11 @@ extern D_8012E6E0_Node *D_8012E6E0;
 typedef struct {
     u8 pad000[0xE8];
     s32 unkE8;
-#ifdef TARGET_PC
     u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-    u8 pad0EC[0x35B - 0xEC];
-#endif
     u8 unk35B;
     u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
     void *unk380;
     u8 pad384[0x3A3 - 0x384];
-#else
-    u8 unk380;
-    u8 pad381[0x3A3 - 0x381];
-#endif
     u8 unk3A3;
     u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3755,41 +3742,7 @@ s32 func_800AD4C8(f32 *a, f32 *p, f32 *out, f32 rad2) {
 }
 /* context: strict single match, unchanged */
 
-s32 func_800AD5D0(u8 *arg0, s32 arg1, s16 *arg2)
-{
-  u32 val;
-  s32 cnt;
-  s32 t;
-  if (arg1 > 0)
-  {
-    do
-    {
-      val = (arg0[0] << 8) + arg0[1];
-      arg0 += 2;
-      if ((arg1 >= 2) && ((t = *arg0), (t >= 0xE0)))
-      {
-        cnt = t & ~0xE0;
-        arg0 += 1;
-      }
-      else
-      {
-        cnt = 0;
-      }
-      arg1 = (arg1 - cnt) - 1;
-      do
-      {
-        *arg2 = val;
-        cnt -= 1;
-        val += 1;
-        arg2 += 1;
-      }
-      while (cnt >= 0);
-    }
-    while (arg1 > 0);
-  }
-  val = (arg0[0] << 8) + arg0[1];
-  return val & 0xFFFF;
-}
+s32 func_800AD5D0(u8 *arg0, s32 arg1, s16 *arg2);
 
 /* parameter order (out): callers set up a1 (out) before a0 -- proven by camera_first_person. */
 void func_800AD650(void *arg0, void *arg1) {
@@ -3930,137 +3883,16 @@ done:
  * retail frame.  Parameter order is the real one: argument registers are s1,s2,s3,a3,s5,s6,s7,s8,f24.
  * Real caller input_deadzone_apply is unmatched -> two stand-in call sites -> PROVISIONAL.
  */
-s16 input_process_controller(f32 *p1, f32 *p2, f32 *out, Poly *poly, s16 *outIdx, s32 flag, f32 *vcOut, f32 *mat, f32 rad2) {
-    s32 k;
-    u32 n;
-    u16 idx[16];
-    s32 res;
-    f32 vp[3];
-    f32 vq[3];
-    f32 va[3];
-    f32 ve[3];
-    f32 v0[3];
-    f32 vprev[3];
-    f32 t;
-    f32 c;
-    s32 i;
-    PV *e;
-    f32 vd[3];
-
-    res = 1;
-    func_800AD650(poly->body, mat);
-    n = poly->cnt & 0xF;
-    *outIdx = func_800AD5D0((u8 *) (D_80152568 + poly->off), n, (s16 *) idx);
-    i = idx[0];
-    e = i + D_8015201C;
-    DECODE(v0, e);
-    va[0] = p1[0] - v0[0];
-    va[1] = p1[1] - v0[1];
-    va[2] = p1[2] - v0[2];
-    func_800A61B0(va, vp, mat);
-    if (vp[1] < 0.0f) {
-        return 0;
-    }
-    va[0] = p2[0] - v0[0];
-    va[1] = p2[1] - v0[1];
-    va[2] = p2[2] - v0[2];
-    func_800A61B0(va, vq, mat);
-    if (vq[1] > 0.0f) {
-        return 0;
-    }
-    va[0] = vq[0] - vp[0];
-    va[1] = vq[1] - vp[1];
-    va[2] = vq[2] - vp[2];
-    if (va[1] > 0.0f) {
-        return 0;
-    }
-    if (va[1] < 0.0f) {
-        t = vp[1] / va[1];
-        vp[0] -= va[0] * t;
-        vp[1] -= va[1] * t;
-        vp[2] -= va[2] * t;
-    }
-    i = idx[n - 1];
-    e = i + D_8015201C;
-    DECODE(ve, e);
-    c = ((ve[2] - vp[2]) * ve[0]) - ((ve[0] - vp[0]) * ve[2]);
-    if (c < 0) {
-        if (flag > 0) {
-            return 0;
-        }
-        if (func_800AD4C8(ve, vp, vcOut, rad2) == 0) {
-            return 0;
-        }
-        res = -1;
-        goto done;
-    }
-    i = idx[1];
-    e = i + D_8015201C;
-    DECODE(ve, e);
-    c = (vp[2] * ve[0]) - (vp[0] * ve[2]);
-    if (c < 0) {
-        if (flag > 0) {
-            return 0;
-        }
-        if (func_800AD4C8(ve, vp, vcOut, rad2) == 0) {
-            return 0;
-        }
-        res = -1;
-        goto done;
-    }
-    for (k = 2; k < n; k++) {
-        vprev[0] = ve[0];
-        vprev[2] = ve[2];
-        i = idx[k];
-        e = i + D_8015201C;
-        DECODE(ve, e);
-        va[0] = ve[0] - vprev[0];
-        va[1] = 0.0f;
-        va[2] = ve[2] - vprev[2];
-        vd[0] = vp[0] - vprev[0];
-        vd[1] = 0.0f;
-        vd[2] = vp[2] - vprev[2];
-        c = (vd[2] * va[0]) - (vd[0] * va[2]);
-        if (c < 0) {
-            if (flag > 0) {
-                return 0;
-            }
-            if (func_800AD4C8(va, vd, vcOut, rad2) == 0) {
-                return 0;
-            }
-            res = -1;
-            goto done;
-        }
-    }
-done:
-    func_8009E820(vp, out, mat);
-    out[0] = out[0] + v0[0];
-    out[1] = out[1] + v0[1];
-    out[2] = out[2] + v0[2];
-    return res;
-}
+s16 input_process_controller(f32 *p1, f32 *p2, f32 *out, Poly *poly, s16 *outIdx, s32 flag, f32 *vcOut, f32 *mat, f32 rad2);
 
 
 
 /* stand-in caller: keeps func_800AD4C8 out of line under -O3 */
-void __standin_func_800AD4C8(void)
-{
-    func_800AD4C8(0, 0, 0, 0);
-}
 
 /* stand-in callers for input_process_controller, whose real caller (input_deadzone_apply) is outside
  * the unit: two call sites keep it out of line without `keep`, so it gets IPA registers like the ROM's.
  * (the former func_800C3AD0 stand-ins are removed -- its real callers camera_trigger_check and
  * camera_victory are members of this group, and entity_update is locked in entity_update.) */
-void __standin_input_process_controller_a(void)
-{
-    input_process_controller(0, 0, 0, 0, 0, 0, 0, 0, 0);
-}
-
-void __standin_input_process_controller_b(void)
-{
-    input_process_controller(0, 0, 0, 0, 0, 0, 0, 0, 1);
-}
 
 /* quadtree lookup (handbrake_apply is the ROM name, it is a point-in-region search) */
 typedef struct QNode {
@@ -4076,19 +3908,7 @@ typedef struct QNode {
 extern QNode *D_80124EEC;
 
 
-void *func_800AC9BC(QNode *n, s16 x, s16 y, s16 *out) {
-    s16 q;
-    for (;;) {
-        q = 1;
-        if (x < (n->x0 + n->x1) / 2) q = 0;
-        if (y < (n->y0 + n->y1) / 2) q += 2;
-        if (!(n->mask & (1 << q))) break;
-        n = &D_80124EEC[n->child[q]];
-        if (n == D_80124EEC) return 0;
-    }
-    *out = q;
-    return n;
-}
+void *func_800AC9BC(QNode *n, s16 x, s16 y, s16 *out);
 void *handbrake_apply(QNode *n, s16 x, s16 y, s16 *out) {
     s16 outside;
     if (n == 0) {
@@ -4216,5 +4036,3 @@ void func_800C36A0(CCar *car, CCol *col) {
     }
 }
 
-void __standin_c36a0_a(CCar *c, CCol *o) { func_800C36A0(c, o); }
-void __standin_c36a0_b(CCar *c, CCol *o) { func_800C36A0((CCar *) o, (CCol *) c); }

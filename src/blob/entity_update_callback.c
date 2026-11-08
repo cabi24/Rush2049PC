@@ -47,47 +47,20 @@ typedef struct tBlastStruct {
     float lifeTime;             /* 0x188 */
     float incTime;              /* 0x18C */
 } tBlastStruct;
-#ifdef TARGET_PC
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual { void *next; u8 pad4[2]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
-#else
-typedef struct tVisual { u8 pad0[6]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
-#endif
-#ifdef TARGET_PC
 typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384]; } tCarData;
-#else
-typedef struct tCarData { u8 pad0[8]; float dr_pos[3]; u8 pad14[952 - 0x14]; } tCarData;
-#endif
 typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x6C4 - 0x641]; s16 moving_state; u8 pad6C6[0x808 - 0x6C6]; } tModelData;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInstance { unsigned int flags, w4; void *mat; float scale; float w; unsigned short index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
-#else
-typedef struct ObjInstance { unsigned int flags; char pad4[8]; float scale; char pad10[0x2C]; unsigned int color; unsigned int envcolor; } ObjInstance;
-#endif
 
 extern s32 D_801170FC;                  /* gPauseState */
 extern volatile f32 D_8002EB94;                  /* gFrameSeconds */
-#ifdef TARGET_PC
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
 #define D_80154660 pc_blasts
-#else
-extern tBlastStruct D_80154660[];       /* gBlastObjs */
-#endif
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tCarData player_array[];         /* gGameCar */
-#define PC_CAR_POS(i) player_array[i].dr_pos
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern tModelData D_8014A250[];         /* model */
-#define PC_MODEL_CRASHFLAG(i) D_8014A250[i].crashflag
-#define PC_MODEL_MOVING_STATE(i) D_8014A250[i].moving_state
-#endif
 extern ObjInstance D_8012E700[];        /* ObjInstanceList */
 extern s8 D_80156994;
 extern s8 D_8014978C;                   /* gTrackNum */
@@ -99,34 +72,18 @@ void entity_transform_apply(tVisual *v, s32 unlink);       /* ReleaseEnviron */
 void PitchUV(float angle, float uvs[3][3]);          /* PitchUV */
 void func_80090E9C(float angle, float uvs[3][3]);          /* YawUV */
 
-static int rand(void)
-{
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
+int func_8008B2B4(void);
 
-static f32 Random(f32 max)
-{
-    f32 rannum;
+f32 func_8008B2E4(f32 max);
 
-    rannum = ((f32)(rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
-
-static void ZOID_RemoveObjectTree(s16 objnum, int removeChildren)
-{
-    entity_spawn_callback(objnum, removeChildren, 0);
-}
+void sound_call_simple(s16 objnum, int removeChildren);
 
 static void ZOID_RemoveObject(s16 objnum)
 {
-    ZOID_RemoveObjectTree(objnum, 0);
+    sound_call_simple(objnum, 0);
 }
 
-static void ZOID_SetColor(s16 objnum, tRGBA *col)
-{
-    D_8012E700[objnum].color = col->rgba;
-}
+void func_8008E06C(s16 objnum, tRGBA *col);
 
 void entity_update_callback(tVisual *v, s16 op)
 {
@@ -173,7 +130,7 @@ release:
         if (D_80154660[v->slot].alphaCnt == 0) D_80154660[v->slot].alpha -= 31;
         else if (D_80154660[v->slot].alphaCnt == 1) D_80154660[v->slot].alpha += 31;
         else if (D_80154660[v->slot].alphaCnt > 1) {
-            D_80154660[v->slot].alphaCnt = (int)Random(3.0f) * -1;
+            D_80154660[v->slot].alphaCnt = (int)func_8008B2E4(3.0f) * -1;
             D_80154660[v->slot].alpha = 95;
         }
         D_80154660[v->slot].alphaCnt++;
@@ -182,7 +139,7 @@ release:
             clr.c[1] = 255;
             clr.c[2] = 255;
             clr.c[3] = D_80154660[v->slot].alpha;
-            ZOID_SetColor(D_80154660[v->slot].glowIdx, &clr);
+            func_8008E06C(D_80154660[v->slot].glowIdx, &clr);
             if (D_8012E700[D_80154660[v->slot].glowIdx].scale < 1.0f)
                 D_8012E700[D_80154660[v->slot].glowIdx].scale += 0.05f;
         }
@@ -214,7 +171,7 @@ release:
                 clr.c[2] = 20;
                 clr.c[3] = b->alpha;
                 if (b->alpha > b->alphaInc) b->alpha -= b->alphaInc;
-                ZOID_SetColor(b->mbIdx, &clr);
+                func_8008E06C(b->mbIdx, &clr);
             }
         }
         D_80154660[v->slot].incTime = 0.0333333f;

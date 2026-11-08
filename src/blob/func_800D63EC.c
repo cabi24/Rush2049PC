@@ -47,18 +47,14 @@ static void packet_post(Packet *p) {
     p->ready = 1;
 }
 
-static void packet_lock(void) {
-    osRecvMesg(&D_80142728,0,1);
-}
+void func_80091AF0(void);
 
-static void packet_unlock(void) {
-    osSendMesg(&D_80142728,0,0);
-}
+void func_80091AF8(void);
 
 Packet *func_800D63EC(Vec3 *a,Vec3 *b,Vec3 *c,Vec3 *d) {
     Packet *packet;
     if(!D_8011025C) return (Packet *)-1;
-    packet_lock();
+    func_80091AF0();
     if (D_80146170.head) {}
     packet = packet_alloc();
     packet->a.x=a->x;
@@ -74,6 +70,6 @@ Packet *func_800D63EC(Vec3 *a,Vec3 *b,Vec3 *c,Vec3 *d) {
     packet->d.y=d->y;
     packet->d.z=d->z;
     packet_post(packet);
-    packet_unlock();
+    func_80091AF8();
     return packet;
 }

@@ -33,7 +33,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifdef TARGET_PC
 /* PC: Resource24 is a palette record, a WAD's PLHD (MBOX_FindPalette_WORK) or a car's descriptor D_8013FEE0, both
  * in the N64 layout (port/assets/wad.c): data is a 32-bit window address. The WAD's TLUT stays big-endian; the
  * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
@@ -50,27 +49,13 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
  * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-#else
-#define PAL_DATA u16 *data
-#define TLUT_COPY_IN memcpy
-#define N64A(x) (u32)x
-#define N64PTR0(T, a) a
-#endif
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
-#ifdef TARGET_PC
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 typedef union Handle { s32 value; struct { s16 id, bank; } halves; } Handle;
-#else
-typedef union Handle { s32 value; struct { s16 bank, id; } halves; } Handle;
-#endif
 typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Model68 { u32 flags, w4; void *obj; float scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip; Resource24 *palette; u32 texture0, texture1; } Model68;
-#else
-typedef struct Model68 { u8 model_fields[56]; Resource24 *palette; u32 texture0, texture1; } Model68;
-#endif
 extern u8 D_8013FE90[];          /* gCarPaintJobInited */
 extern u32 D_8013F300[];         /* paint colour table */
 extern Resource24 D_8013FEE0[];  /* per-slot palette descriptors */
@@ -85,7 +70,6 @@ extern void *memcpy(void *, const void *, u32);
 extern void audio_reverb_update(u32, s32);                         /* _DeallocateMemory (internal, IPA a1/a2) */
 void func_80095CF4(void);   /* _GetSemaphore@memsys.c */
 void func_80095CFC(void);   /* _ReleaseSemaphore@memsys.c */
-#ifdef TARGET_PC
 /* Their manifest owners are empty deleted-procedure stubs (src/blob/func_80095CF4.c, func_80095CFC.c); the
  * bodies (heap_release/wheel_params_set.c) were inlined here (docs/port/PROTOTYPES.md). */
 extern struct OSMesgQueue D_80152770;
@@ -93,7 +77,6 @@ int osRecvMesg(struct OSMesgQueue *, void **, int);
 int osSendMesg(struct OSMesgQueue *, void *, int);
 #define func_80095CF4() osRecvMesg(&D_80152770, 0, 1)
 #define func_80095CFC() osSendMesg(&D_80152770, 0, 0)
-#endif
 
 u32 func_800B0EA0(u32 left, u32 right, s32 ratio)
 {

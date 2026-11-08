@@ -22,13 +22,8 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
-#ifdef TARGET_PC
 /* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct { void *next, *prev; void (*RemoveFile)(void *); void (*MoveFile)(void *, void *); u8 pak; } PSFile;
 typedef struct {
@@ -39,16 +34,6 @@ typedef struct {
     s8 rumble;
     void *data;
 } Profile;
-#else
-typedef struct { u8 pad0[16]; u8 pak; } PSFile;                /* tPS_File: pak 0x10 */
-typedef struct {
-    u8 ll[8];
-    PSFile **fileh;      /* 0x08 */
-    u8 padC[21];
-    s8 controls[10];     /* 0x21 */
-    s8 rumble;           /* 0x2B */
-} Profile;               /* tPlayerProfile */
-#endif
 typedef struct {
     u8 slot;
     u8 controller;       /* 0x01 */
@@ -93,18 +78,10 @@ extern Profile *D_80146150[4];           /* gJustPlayers */
 extern s8 D_80139300[4];                 /* gControlsSet */
 extern s8 D_80157244;                    /* gSoftReset */
 extern s8 D_80113ED4;                    /* inited */
-#ifdef TARGET_PC
 extern void *D_80113ED8;                 /* blit: pointer-sized storage */
-#else
-extern s32 D_80113ED8;                   /* blit */
-#endif
 extern s32 D_80113EDC;                   /* exitControlScreen */
 extern f32 D_80112A98, D_80112A9C, D_80112AA0, D_80112AA4, D_80112AA8, D_80112AAC, D_80112AB0, D_80112AB4;
-#ifdef TARGET_PC
 extern struct pc_multiblit D_80112AB8[81], D_8011361C[21], D_80113910[41];   /* NewMultiBlit's (pc_prelude.h) */
-#else
-extern u8 D_80112AB8[], D_8011361C[], D_80113910[];  /* buttonsFrontEnd, buttonsPauseSingle, buttonsPauseMulti */
-#endif
 
 s8 func_80094FC4(s32 pak);                                       /* PS_PakRumble (locked, menu_save_options) */
 s8 func_800A1A3C(s32 pak);                                       /* PS_PakInserted (locked, menu_save_options) */

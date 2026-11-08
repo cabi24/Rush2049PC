@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -3800,7 +3787,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: arg0 is the car's model (D_8014A250), which keeps its N64 layout: its car descriptor pointer at +0 is a u32
  * window address (docs/port/CARS.md 2.2), not the 8-byte pointer `*arg0` reads. */
 void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
@@ -3810,12 +3796,4 @@ void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
   arg2[1] = arg1[1] * car[4];
   arg2[2] = arg1[2] * car[5];
 }
-#else
-void func_800E1500(void **arg0, f32 *arg1, f32 *arg2)
-{
-  arg2[0] = arg1[0] * ((f32 *) (*arg0))[3];
-  arg2[1] = arg1[1] * ((f32 *) (*arg0))[4];
-  arg2[2] = arg1[2] * ((f32 *) (*arg0))[5];
-}
-#endif
 

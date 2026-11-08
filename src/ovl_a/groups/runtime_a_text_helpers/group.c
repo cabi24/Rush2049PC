@@ -35,10 +35,6 @@
  * patches, padding arrays, or historical-source spelling claims are used.
  */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef struct { u8 pad0[4]; u8 u4; u8 pad5[3]; s8 b8; s8 b9; } Cfg;
 extern Cfg *D_803BAD90;
 extern s8 D_80154640;
@@ -148,12 +144,8 @@ void func_8039B214(void)
  * Production definitions and locks are unchanged. */
 extern s32 sign_extend_call(u32 value, uintptr_t data, s32 index, u32 flags);
 
-#ifdef TARGET_PC
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct Item { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Item;
-#else
-typedef struct Item { u8 other[16]; u8 player; } Item;
-#endif
 typedef struct Selection { Item *item; } Selection;
 typedef struct Resource { u8 *bytes; } Resource;
 typedef struct MenuOwner MenuOwner;
@@ -167,9 +159,6 @@ struct MenuOwner { OwnerBody *body; };
 typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
-#ifndef TARGET_PC
-#define PROFILE_OFS(n) n
-#endif
 typedef struct Object { u8 other[32]; f32 scale; u8 tail[32]; } Object;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;

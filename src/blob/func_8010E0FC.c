@@ -36,14 +36,9 @@ typedef struct Coin {
     u16 missing;        /* 72 */
     s16 number;         /* 74 */
 } Coin;
-#ifdef TARGET_PC
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
  * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
-#else
-typedef union Id { s32 handle; struct { s16 high, index; } part; } Id;
-#endif
-#ifdef TARGET_PC
 /* PC: node is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data the target, a
  * level-object node, which keeps its N64 layout: both as 32-bit window addresses, as is the target's state, the
  * coin (a heap record of its category) (docs/port/CARS.md, POINTERS.md 10). The low half of the coin's s32
@@ -64,58 +59,23 @@ typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
 typedef struct Node { void *next; u8 pad8[8]; enum n64p_Entity entity; } Node;
 #define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)PC_N64P(x), enum n64p_Entity: (Entity *)PC_N64P(x), \
     default: (x))
-#else
-typedef struct Entity {
-    u8 pad0[4];
-    u8 flags;           /* 4 */
-    u8 pad5[7];
-    Id id;              /* 12 */
-    u8 pad16[40];
-    f32 position[3];    /* 56 */
-    u8 pad68[40];
-    Coin *coin;         /* 108 */
-} Entity;
-typedef struct EntityHdr { u8 pad0[2]; s16 handle; } EntityHdr;
-typedef struct Node { u8 pad0[12]; Entity *entity; } Node;
-#define N64P(x) x
-#endif
-#ifdef TARGET_PC
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; s16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad64[4]; } Resource;
-#else
-typedef struct Resource { u8 pad0[20]; s16 object; u8 pad22[38]; u32 color; u8 pad64[4]; } Resource;
-#endif
-#ifdef TARGET_PC
 typedef struct Player { u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x35C - 0x308]; s8 slot; u8 pad861[0x380 - 0x35D]; void *input; u8 pad861_384[0x3B8 - 0x384]; } Player;
-#else
-typedef struct Player { u8 pad0[860]; s8 slot; u8 pad861[91]; } Player;
-#endif
-#ifdef TARGET_PC
 /* PC: a player's view bit; a slot of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
 #define SLOT_BIT(s) 1 << ((s) & 31)
-#else
-#define SLOT_BIT(s) 1 << s
-#endif
 extern s32 D_801170FC;
 extern u32 D_80118E14, D_80118E18;
 /* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
  * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
-#ifndef TARGET_PC
-#define PC_RGBA(x) x
-#endif
 extern s32 D_80151610, D_80151964;
 extern u8 gNumModels;
 extern s16 D_8014A108;
 extern char D_80121DB0[], D_80121DBC[], D_80121DCC[];
 extern Mat3 D_8011418C;
 extern Resource D_8012E700[];
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
 extern volatile f32 D_8002EB94;
 extern s32 D_80143FC8;
 extern void entity_transform_apply(Node *, s32);
@@ -127,15 +87,9 @@ extern void math_utility(void *, void *);
 extern u32 func_800F7A98(s32, s32);
 extern void model_data_load(s32, s32, u32);
 extern void sound_position_set(void *, void *);
-static void resource_set_object(s16 index, s16 object)
-{
-    D_8012E700[index].object = object;
-}
+void func_80090770(s16 index, s16 object);
 
-static void resource_set_color(s16 index, u32 *color)
-{
-    D_8012E700[index].color = *color;
-}
+void func_8008E06C(s16 index, u32 *color);
 
 void func_8010E0FC(Node *node, s16 update)
 {
@@ -173,7 +127,7 @@ void func_8010E0FC(Node *node, s16 update)
             coin->number = number;
             D_80151964++;
         }
-        resource_set_object(entity->id.part.index, string_copy_format(D_80121DB0, 0, gNumModels - 1, 1));
+        func_80090770(entity->id.part.index, string_copy_format(D_80121DB0, 0, gNumModels - 1, 1));
         coin->spin[0] = 0.0f;
         coin->spin[2] = 0.0f;
         coin->spin[1] = 3.0f;
@@ -183,10 +137,10 @@ void func_8010E0FC(Node *node, s16 update)
         coin->position[2] = entity->position[2];
         if (entity->flags & 0x40) {
             coin->model = func_8008E26C(string_copy_format(D_80121DBC, 0, gNumModels - 1, 1), coin->matrix, -1, 0x40000);
-            resource_set_color(entity->id.part.index, gold);
+            func_8008E06C(entity->id.part.index, gold);
         } else {
             coin->model = func_8008E26C(string_copy_format(D_80121DCC, 0, gNumModels - 1, 1), coin->matrix, -1, 0x40000);
-            resource_set_color(entity->id.part.index, silver);
+            func_8008E06C(entity->id.part.index, silver);
         }
         coin->missing = 0;
         alone = 1;

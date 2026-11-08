@@ -4,15 +4,8 @@
  * latched where the game changes its state (game_loop, pc_game_fps_begin): from the next screen, never in the middle
  * of one. The game's per-frame logic then steps by the frame's length: what already steps by the frame time
  * (D_8002EB94) or the retraces (D_8002EB98) does so by itself; what steps by a constant tuned to a frame of two
- * retraces goes through the macros below. Included by pc_prelude.h, so the PC sides are in every game file; each
- * game file that uses one defines its N64 side at file scope, giving the original tokens:
- *     #ifndef TARGET_PC
- *     #define PC_FSCALE(x) x
- *     #define PC_STEPS(n) n
- *     #define PC_EACH30(stmt) stmt
- *     #define PC_FILTER(e) e
- *     #endif
- * At `original` each macro gives exactly the N64's value (no float operation is added), so the game is the N64's. */
+ * retraces goes through the macros below. Included by pc_prelude.h, so they are in every game file. At `original`
+ * each macro gives exactly the N64's value (no float operation is added), so the game is the N64's. */
 #ifndef PC_GAME_FPS_H
 #define PC_GAME_FPS_H
 

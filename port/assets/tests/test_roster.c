@@ -18,6 +18,7 @@
  * game: src/ovl_a/func_8039156C.c src/blob/func_800EC190.c src/blob/groups/update_game/init_state_continue.c
  * game: src/blob/func_800EC914.c src/blob/stat_lap_split.c src/blob/world_physics_tick.c
  * game: src/blob/groups/loadcars/root.c
+ * game: src/blob/func_800B930C.c
  */
 #include <stddef.h>
 #include <string.h>

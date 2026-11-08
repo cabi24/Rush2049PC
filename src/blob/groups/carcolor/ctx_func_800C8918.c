@@ -31,10 +31,6 @@ typedef short s16;
 typedef unsigned short u16;
 typedef int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 #define NULL ((void *)0)
 
@@ -42,24 +38,15 @@ typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMs
 typedef struct OSMesgQueue OSMesgQueue;
 typedef void *OSMesg;
 
-#ifdef TARGET_PC
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define D_80142DD8 (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-#else
-extern volatile ShutdownMsg D_80142DD8[128];
-#define PC_SND_MSG_LOOP(n) n
-#endif
 extern s8 D_8011023C;
-#ifdef TARGET_PC
 extern uintptr_t D_80110244;
 extern uintptr_t D_80110248;
 extern uintptr_t D_80110270;
 extern u32 D_8011025C, D_80110260;
-#else
-extern u32 D_8011025C, D_80110260, D_80110244, D_80110248, D_80110270;
-#endif
 extern s32 D_801427A8;
 void init_wait_completion(void);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
@@ -73,41 +60,14 @@ void func_80091AF8(void);
 void post_type1(void);
 void post_type7(void);
 
-void func_800C8918(void) {
-    s32 i;
-
-    if (D_8011023C) {
-        func_800C885C();
-        post_type1();
-        post_type7();
-        do {
-            for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
-                if (D_80142DD8[i].used) {
-                    break;
-                }
-            }
-        } while (i < PC_SND_MSG_LOOP(128));
-        D_8011023C = 0;
-        init_wait_completion();
-        func_800960CC(D_80110244);
-        func_800960CC(D_80110248);
-        func_800960CC(D_80110270);
-    }
-}
-
-#ifdef TARGET_PC
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The shutdown's stop of the song and of every effect are
  * not dropped: func_800C8918 frees the effects' blocks next, once the manager has drained the pool, so a post
  * that finds no message gives the lock back and waits for the manager to free one, and a full queue is waited
  * on (the lock is free by then). The other copy of these two (carcolor/ctx_func_800C8918.c,
  * heap_release/func_800C8918.c) is the same. */
-#define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();PC_SPIN("post_type")func_80091AF0();(m)=func_80091B00();}
+#define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();pc_os_spin_yield("post_type");func_80091AF0();(m)=func_80091B00();}
 #define PC_CMD_SEND(q,m) osSendMesg(q,m,1)
-#else
-#define PC_CMD_OR_WAIT(m)
-#define PC_CMD_SEND(q,m) osSendMesg(q,m,0)
-#endif
 void post_type1(void) {
     ShutdownMsg *sp1C;
     ShutdownMsg *temp_v0;

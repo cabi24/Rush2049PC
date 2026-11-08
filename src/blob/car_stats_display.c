@@ -20,36 +20,18 @@
 typedef float f32;
 typedef unsigned char u8;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef int intptr_t;
-#endif
 
-#ifdef TARGET_PC
 /* PC: IDO's va_list walks the o32 stack after the last named argument; a host ABI passes the variable arguments
  * in registers (docs/port/SYNTH.md). */
 typedef __builtin_va_list va_list;
 #define va_start(list, parmN) __builtin_va_start(list, parmN)
 #define va_arg(list, mode) __builtin_va_arg(list, mode)
 #define va_end(list) __builtin_va_end(list)
-#else
-typedef char *va_list;
-#define va_start(list, parmN) (list = ((char *)&parmN + sizeof(parmN)))
-#define va_arg(list, mode) ((mode *)(list = \
-    (char *)((sizeof(mode) > 4 ? ((intptr_t)list + 7) & -8 \
-                               : ((intptr_t)list + 3) & -4) + sizeof(mode))))[-1]
-#define va_end(list) (void)0
-#endif
 
-#ifdef TARGET_PC
 /* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
  * (docs/port/SYNTH.md). */
 #define EVENT_LINK0 void *pad0;
 #define EVENT_LINK1 void *pad4;
-#else
-#define EVENT_LINK0 u32 pad0;
-#define EVENT_LINK1 u32 pad4;
-#endif
 typedef struct Event {
     EVENT_LINK0
     EVENT_LINK1
@@ -84,10 +66,7 @@ int osSendMesg(void *, void *, int);
 Event *func_800D18D8(void);
 void func_80091FBC(EventList *, Event *, Event *);
 
-static f32 get_time(void)
-{
-    return D_80152748;
-}
+f32 func_80095CE8(void);
 
 u32 car_stats_display(int type, f32 delay, int func, int data, int nargs, ...)
 {
@@ -99,7 +78,7 @@ u32 car_stats_display(int type, f32 delay, int func, int data, int nargs, ...)
     osRecvMesg(D_80142728, 0, 1);
     e = func_800D18D8();
     e->type = type;
-    e->start = get_time();
+    e->start = func_80095CE8();
     e->delay = delay;
     e->func = func;
     e->data = data;

@@ -19,6 +19,7 @@
  * game: src/blob/func_800D18D8.c src/blob/car_stats_display.c src/blob/game_timer_pause.c
  * game: src/blob/groups/entity_flag_check/group.c src/blob/func_800AED20.c
  * game: src/blob/groups/audio_fade_control/func_800956BC.c src/blob/pointer_offset8_call.c src/blob/camera_update_b.c
+ * game: src/blob/func_80095CE8.c src/blob/func_800986DC.c
  */
 #include <stddef.h>
 #include <string.h>

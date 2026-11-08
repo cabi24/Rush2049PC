@@ -28,14 +28,9 @@ typedef struct {
     s8 unk42;
     u8 pad43;
     s32 unk44;
-#ifdef TARGET_PC
     void *ref;              /* 0x48: a pointer into D_80146150 (Player76.ref), so 8 bytes and 80-byte records here */
-#else
-    u8 pad48[4];
-#endif
 } Player;
 
-#ifdef TARGET_PC
 /* PC: the cheat flags gCheatState are s16[21] (cheatscr.c); the PC loader fills initialized data by its declarations,
  * and bytes here, or past the end, would stay big-endian (docs/port/ENDIAN.md). */
 typedef struct {
@@ -48,26 +43,10 @@ typedef struct {
     s16 unk20;
     s16 unk22[4];
 } Rec164A4;
-#else
-typedef struct {
-    u8 pad0[6];
-    s16 unk06;
-    u8 pad8[0x1A - 8];
-    s16 unk1A;
-    s16 unk1C;
-    s16 unk1E;
-    s16 unk20;
-} Rec164A4;
-#endif
 
 Player input_rec0[4];
 extern s8 D_80146108[];
-#ifndef TARGET_PC
-/* PC: port/data defines D_80146180 at its N64 address in the RDRAM window, where Windows' code can't reach
- * it PC-relatively, so here it is a declaration (docs/port/WINDOWS.md). */
-#define PC_ONLY(x)
-#endif
-PC_ONLY(extern) s8 D_80146180[4];
+extern s8 D_80146180[4];
 extern Rec164A4 D_801164A4;
 extern s16 D_80151AD0;
 extern s16 D_8014A108;

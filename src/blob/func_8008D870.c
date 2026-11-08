@@ -9,10 +9,6 @@ typedef signed long long s64;
 typedef unsigned long long u64;
 typedef float f32;
 typedef double f64;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef volatile u8 vu8;
 typedef volatile u16 vu16;
 typedef volatile u32 vu32;
@@ -540,20 +536,11 @@ typedef struct
 {
   u8 pad000[0xE8];
   s32 unkE8;
-#ifdef TARGET_PC
   u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-#else
-  u8 pad0EC[0x35B - 0xEC];
-#endif
   u8 unk35B;
   u8 pad35C[0x380 - 0x35C];
-#ifdef TARGET_PC
   void *unk380;
   u8 pad384[0x3A3 - 0x384];
-#else
-  u8 unk380;
-  u8 pad381[0x3A3 - 0x381];
-#endif
   u8 unk3A3;
   u8 pad3A4[0x3B8 - 0x3A4];
 } GameCar;
@@ -2214,13 +2201,9 @@ extern s32 D_8012E6D0;
 extern s32 D_8012E6D8;
 extern f32 D_8012E6E8;
 extern s32 D_8012E6F8;
-#ifdef TARGET_PC
 /* PC: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7): the scene nodes, whose four
  * texture slots func_8008D870 writes */
 extern s32 D_8012E700[];
-#else
-extern s32 D_8012E700;
-#endif
 extern s32 D_8012E708;
 extern f32 D_8012E70C;
 extern f32 D_8012E710;
@@ -3806,7 +3789,6 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-#ifdef TARGET_PC
 /* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. ZOID_SetTexture
  * keeps the whole texture pointer in the node's tex[] slots (all four LODs when arg2 < 0); the m2c body writes it
  * as an s32 at the N64 offsets. */
@@ -3824,24 +3806,4 @@ void func_8008D870(s16 arg0, void *arg1, s32 arg2)
   }
   node->tex[arg2] = arg1;
 }
-#else
-void func_8008D870(s16 arg0, s32 arg1, s32 arg2)
-{
-  void *temp_v0;
-  s8 *new_var;
-  if (arg2 < 0)
-  {
-    new_var = &D_8012E700;
-    temp_v0 = (arg0 * 0x44) + new_var;
-    *((s32 *) (((s8 *) temp_v0) + 0x20)) = arg1;
-    *((s32 *) (((s8 *) temp_v0) + 0x24)) = arg1;
-    new_var = (s8 *) temp_v0;
-    *((s32 *) (new_var + 0x28)) = arg1;
-    *((s32 *) (((s8 *) temp_v0) + 0x2C)) = arg1;
-    return;
- do { } while (0);
-  }
-  *((s32 *) (((s8 *) (&D_8012E720)) + ((arg0 * 0x44) + (arg2 * 4)))) = arg1;
-}
-#endif
 

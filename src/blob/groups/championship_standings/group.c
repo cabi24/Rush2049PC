@@ -99,17 +99,7 @@ s32 func_800DC120(void)
 }
 
 /* append the low `nbits` bits of `value` (also called by func_800F42C8); locked source src/blob/func_800DC1AC.c, unchanged */
-s32 func_800DC1AC(u32 value, u32 nbits)
-{
-    s32 i;
-    if (nbits > 32) return 0;
-    if (D_801170EC < D_801170F4 + nbits) return 0;
-    for (i = 0; i < nbits; D_801170F4++, value >>= 1, i++) {
-        D_8012E618[D_801170F4 >> 3] |= (value & 1) << (D_801170F4 & 7);
-
-    }
-    return 1;
-}
+s32 func_800DC1AC(u32 value, u32 nbits);
 
 /*
  * append the checksum to the bit buffer and encode the whole buffer as password characters

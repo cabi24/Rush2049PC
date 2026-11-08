@@ -22,11 +22,7 @@ typedef struct {
 
 typedef struct {
     u8 node;
-#ifdef TARGET_PC
     u8 pad1[0x48 - 0x1]; void *ref;
-#else
-    u8 pad1[0x4B];
-#endif
 } Player;
 
 static s8 D_80114154 = 0;
@@ -37,12 +33,7 @@ extern s32 gSkipToGameState;
 extern s32 D_8014A110;
 static s16 D_80114158 = -1;
 extern s8 D_80152744;
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern MODELDAT D_8014A250[];
-#define PC_MODEL_SLOT(i) D_8014A250[i].slot
-#endif
 typedef struct DemoVisual DemoVisual;
 extern DemoVisual *D_801391F0;
 extern Player D_8014A118[4];
@@ -50,11 +41,7 @@ extern s8 D_8014978C;
 static s8 D_8011414C = 0;
 typedef struct DemoBlit DemoBlit;
 static DemoBlit *D_80114150 = 0;
-#ifdef TARGET_PC
 extern struct pc_multiblit D_80114128[1];   /* the demo's blit, NewMultiBlit's descriptor (pc_prelude.h) */
-#else
-extern s32 D_80114128;
-#endif
 extern s32 D_80138660;
 extern s8 D_80156994;
 extern s8 D_80157244;

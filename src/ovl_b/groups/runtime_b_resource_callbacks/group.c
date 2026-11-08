@@ -24,22 +24,14 @@ typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
-#ifdef TARGET_PC
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 #define OBJECT_HANDLE union { s32 scene; struct { s16 index, upper; } parts; }
-#else
-#define OBJECT_HANDLE union { s32 scene; struct { s16 upper, index; } parts; }
-#endif
 typedef struct Object {
-#ifdef TARGET_PC
     /* PC: the power-ups are level-object nodes (func_8039133C's slots), which keep their N64 layout in the arena:
      * the link is a 32-bit window address, so flags, the handle and resource (+0x50) are where the N64 has them
      * (docs/port/POINTERS.md 10). */
     u32 next;
-#else
-    struct Object *next;
-#endif
     u8 flags;
     u8 unknown05[7];
     OBJECT_HANDLE handle;
@@ -53,11 +45,7 @@ typedef struct State {
     Slot *slots;
 } State;
 typedef struct Player {
-#ifdef TARGET_PC
     u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x38C - 0x384];
-#else
-    u8 unknown000[908];
-#endif
     u32 flags;
     u8 unknown390[16];
     s8 countdown;
@@ -67,21 +55,12 @@ typedef struct Player {
     f32 timer;
     u8 unknown3AC[12];
 } Player;
-#ifdef TARGET_PC
 #define N64_ULONG uintptr_t /* a pointer through an integer: long is 32 bits on Windows */
-#else
-#define N64_ULONG unsigned long
-#endif
 extern State D_80399AE0;
 extern f32 D_8002EB94;
 extern u16 D_80142A82, D_80142A84, D_80142A8E;
 extern s16 D_8014A108;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Player D_80152818[];
-#define PC_CAR(i) &gGameCar[i]
-#endif
 extern f32 func_8008B2E4(f32);
 extern void func_80090770(s16, u16);
 extern void model_transform_setup(s32, s32, u32);
@@ -92,18 +71,9 @@ extern void model_transform_setup(s32, s32, u32);
 #define Random func_8008B2E4
 #define ZOID_SetObjectDef func_80090770
 #define MBOX_ShowObject model_transform_setup
-#ifndef TARGET_PC
-/* PC: game.frame_rate 60, steps and counts of a 30 Hz frame (pc_game_fps.h) */
-#define PC_STEPS(n) n
-#define PC_EACH30(stmt) stmt
-#endif
-#ifdef TARGET_PC
 /* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
  * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */
 #define PC_FADE_STEP(n, a) (pc_fps60 && PC_STEPS(n) > (a) ? (a) : PC_STEPS(n))
-#else
-#define PC_FADE_STEP(n, a) n
-#endif
 void func_80390B00(void) /* UpdateInvs */
 {
     s32 i;

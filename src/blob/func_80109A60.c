@@ -25,10 +25,6 @@ typedef signed short s16;
 typedef unsigned short u16;
 typedef signed int s32;
 typedef unsigned int u32;
-#ifndef TARGET_PC
-typedef u32 uintptr_t;
-typedef s32 intptr_t;
-#endif
 typedef float f32;
 
 typedef struct Blit {
@@ -54,18 +50,10 @@ typedef struct Blit {
 typedef struct Car {
     u8 pad0[8];
     f32 position[3];
-#ifdef TARGET_PC
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
-#else
-    u8 pad14[856 - 20];
-#endif
     s8 dead;
     s8 active;
-#ifdef TARGET_PC
     u8 tail[0x380 - 0x35A]; void *input; u8 tail_384[0x3B8 - 0x384];
-#else
-    u8 tail[952 - 858];
-#endif
 } Car;
 
 typedef struct Model {
@@ -84,12 +72,8 @@ typedef struct Model {
 
 typedef struct WorldPoint { s16 x, y, z; } WorldPoint;
 typedef struct MapOrigin { s32 x, y; } MapOrigin;
-#ifdef TARGET_PC
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct RenderRec { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } RenderRec;
-#else
-typedef struct RenderRec { u8 pad0[21]; u8 flags; u8 tail[10]; } RenderRec;
-#endif
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 
 extern s8 D_80142DB4[];
@@ -99,18 +83,8 @@ extern WorldPoint D_801407B4, D_801407D4;
 extern s32 D_801161C4;
 extern MapOrigin D_801160A8[];
 extern s8 D_80140A04;
-#ifdef TARGET_PC
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Car D_80152818[];
-#define PC_CAR(i) &D_80152818[i]
-#endif
-#ifdef TARGET_PC
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-#else
-extern Model D_8014A250[];
-#define PC_MODEL(i) &D_8014A250[i]
-#endif
 extern RenderRec D_80140BF0[];
 extern volatile s16 D_801543CA;
 extern volatile Clock D_8002E8E8;
@@ -118,14 +92,7 @@ extern volatile Clock D_8002E8E8;
 void Input_ApplyPadConfig(Blit *blt);
 void stat_race_update(Blit *blt, s32 index, s32 w, s32 h);
 
-static s32 Hidden(Blit *blt, s32 hide)
-{
-    if (hide != blt->Hide) {
-        blt->Hide = hide;
-        Input_ApplyPadConfig(blt);
-    }
-    return blt->Hide;
-}
+s32 Hidden(Blit *blt, s32 hide);
 
 s32 func_80109A60(Blit *blt)
 {
