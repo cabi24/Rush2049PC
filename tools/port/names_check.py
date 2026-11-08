@@ -23,6 +23,8 @@ Errors (exit status 1):
 - an address left in a new name (8 and seven hex digits, func_, D_8, sym_, jtbl_), or in a new file path;
 - an old name that doesn't exist (neither in the C of those folders nor in the symbol tables); an old file that
   doesn't exist, or a new file that does; a field row whose struct is no type of the C;
+  (a row the tree has had applied already, its old name gone and its new one there, is checked for its format, its
+  new name's form and duplicates only: the maps stay in the tree after rename.py applied them);
 - a kind that contradicts the C: a func row whose old name the C only declares as data or a type, a data row whose
   old name the C defines as a function, a type row whose old name is no typedef or struct, union or enum tag.
 
@@ -490,12 +492,30 @@ class Tree:
     def in_c(self, name):
         return norm(name) in self.idents_norm
 
+    def has(self, name):
+        """Is the name in the tree in this exact spelling (the C, or a symbol table)?"""
+        return name in self.idents or name in self.table_names
+
+
+def is_applied(r, tree):
+    """Has the tree had this row applied already? Its old name is gone in the spelling the row gives and its new
+    name is there (a file row: the old file is gone, the new one there). Such a row is checked for its format only:
+    the maps stay in the tree after rename.py applied them."""
+    if r.kind in IDENT_KINDS:
+        return not tree.has(r.old) and tree.has(r.new)
+    if r.kind == "file":
+        return not (tree.root / r.old).exists() and (tree.root / r.new).exists()
+    return False
+
 
 # ---------------------------------------------------------------------------------------------------- the checks
 
 def check_rows(rows, tree):
-    """(errors, warnings) of rows that passed the format check, against each other and the tree: [(where, msg)]."""
+    """(errors, warnings, applied) of rows that passed the format check, against each other and the tree: [(where,
+    msg)], and the rows the tree has had applied already (is_applied)."""
     errors, warnings = [], []
+    applied = [r for r in rows if is_applied(r, tree)]
+    done = {id(r) for r in applied}
     olds = collections.defaultdict(list)
     news = collections.defaultdict(list)
     field_news = collections.defaultdict(list)
@@ -519,6 +539,8 @@ def check_rows(rows, tree):
             for r in rs[1:]:
                 errors.append((r.where(), f"new {r.new} is used by another row too ({rs[0].where()}: {rs[0].old})"))
     renamed_away = {k[1] for k in olds if k[0] == "id"}
+    type_names = {x for r in rows if r.kind == "type" for x in (r.old, r.new)
+                  if r.old in tree.types or r.new in tree.types}
     for r in rows:
         w = r.where()
         if r.kind in IDENT_KINDS or r.kind == "field":
@@ -545,6 +567,8 @@ def check_rows(rows, tree):
                 r"(?:^|[a-z0-9])" + x.capitalize() + r"(?:[A-Z0-9]|$)", new)]
             if bad:
                 warnings.append((w, f"new {new} uses {', '.join(bad)} (PCONLY.md 3: never unk, temp, data2, helper)"))
+        if id(r) in done:
+            continue
         if r.kind in IDENT_KINDS:
             new, old = r.new, r.old
             if tree.exists(new) and norm(new) not in renamed_away:
@@ -588,7 +612,8 @@ def check_rows(rows, tree):
                 errors.append((w, f"old {old} is no typedef name or struct, union or enum tag in the C"))
         elif r.kind == "field":
             struct = FIELD_OLD.match(r.old).group(1)
-            if struct not in tree.types:
+            # the struct by its name in the C, or by either name a type row of the maps gives it
+            if struct not in tree.types and struct not in type_names:
                 errors.append((w, f"struct {struct} of {r.old} is no type of the C"))
         elif r.kind == "file":
             old, new = r.old.replace("\\", "/"), r.new.replace("\\", "/")
@@ -600,13 +625,13 @@ def check_rows(rows, tree):
                 errors.append((w, f"new file {new} still has an address in its name"))
             if Path(old).suffix != Path(new).suffix:
                 warnings.append((w, f"file {old} changes its extension"))
-    return errors, warnings
+    return errors, warnings, applied
 
 
 def run_checks(root, paths, tree=None):
-    """(rows, errors, warnings) for the maps at paths."""
+    """(rows, errors, warnings, applied) for the maps at paths."""
     rows, errors = read_maps(paths)
-    warnings = []
+    warnings, applied = [], []
     good = []
     for r in rows:
         bad = check_format(r)
@@ -615,10 +640,10 @@ def run_checks(root, paths, tree=None):
             good.append(r)
     if good:
         tree = tree or Tree(root)
-        e, w = check_rows(good, tree)
-        errors += e
-        warnings += w
-    return rows, errors, warnings
+        errors_, warnings_, applied = check_rows(good, tree)
+        errors += errors_
+        warnings += warnings_
+    return rows, errors, warnings, applied
 
 
 def main(argv=None):
@@ -632,7 +657,7 @@ def main(argv=None):
     if not paths:
         print(f"names_check: no maps in {a.root / MAPS_DIR}")
         return 0
-    rows, errors, warnings = run_checks(a.root, paths)
+    rows, errors, warnings, applied = run_checks(a.root, paths)
     for where, msg in sorted(errors, key=lambda x: _where_key(x[0])):
         print(f"{where}: error: {msg}")
     if not a.quiet:
@@ -640,7 +665,8 @@ def main(argv=None):
             print(f"{where}: warning: {msg}")
     kinds = collections.Counter(r.kind for r in rows)
     print(f"names_check: {len(paths)} map{'s' if len(paths) != 1 else ''}, {len(rows)} rows "
-          f"({', '.join(f'{k} {kinds[k]}' for k in KINDS if kinds[k])}): {len(errors)} errors, "
+          f"({', '.join(f'{k} {kinds[k]}' for k in KINDS if kinds[k])}"
+          + (f"; {len(applied)} applied already" if applied else "") + f"): {len(errors)} errors, "
           f"{len(warnings)} warnings")
     return 1 if errors or (a.strict and warnings) else 0
 

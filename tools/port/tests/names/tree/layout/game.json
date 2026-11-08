@@ -1,0 +1,24 @@
+{
+ "image": "game",
+ "regions": [
+  {
+   "entries": [
+    {
+     "kind": "function",
+     "size": 64,
+     "target_id": "func_80F00010",
+     "vaddr": 2163212304
+    },
+    {
+     "kind": "function",
+     "size": 16,
+     "target_id": "draft_old",
+     "vaddr": 2163213312
+    }
+   ],
+   "name": "fixture",
+   "vaddr_start": 2163212288,
+   "vaddr_end": 2163213568
+  }
+ ]
+}

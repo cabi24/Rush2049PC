@@ -82,11 +82,25 @@ Each area's names are one file, `tools/port/names/<area>.tsv`, tab separated, `#
 `kind` is func, data, type, field (old = `Struct.offset`, e.g. `tModelData.0x5AC`) or file (old = a source path);
 `source` is mat3 or code; `confidence` is sure or likely. The note says what it is and the evidence, in one line.
 
-`tools/port/rename.py` applies the maps to the whole tree at merge time (the C, the headers, the data loader's symbol
-tables and extents, the sanitizer suppressions, the docs), and `tools/port/names_check.py` checks them (duplicates,
-collisions, reserved words, addresses left). The N64 address stays in exactly one place: the data loader's symbol
-tables (`asm/us/*/symbols.json`), which say where in the cartridge's image each datum lives; while the data comes
-from the cartridge, that is the one thing that must know it.
+`tools/port/names_check.py` checks the maps (format, duplicates across maps, collisions with the tree's identifiers,
+the symbol tables, keywords, reserved and library names, addresses left, old names missing, kinds the C
+contradicts); ctest's `names_check` runs it on every map. `tools/port/rename.py --dry-run` says what the maps would
+change, per row and per file, `--apply` changes the tree at merge time and `--check` lists every old name left; its
+docstring has the details. In one pass over every file it renames whole identifier tokens: the C's code and
+comments, the strings that name a symbol (asm and alias strings, a literal that is exactly one name), the loader's
+symbol tables (`asm/us/*/symbols.json`) and `symbol_addrs.us.txt`, the tools and press scripts, `port/data/*.txt`,
+the suppressions, CMake, the manifest and layouts, the docs. A file row moves its file (`git mv`) and every
+reference to its path; a function's file named after it (`src/ovl_a/func_8038F454.c`) moves with its name. Left and
+reported, for a hand edit: field rows (the struct's layout is needed), strings that only mention a name (output),
+another spelling of an address name (`func_800a3424` beside `func_800A3424`: another C identifier, often with another
+prototype), folders named after a function, derived identifiers (`func_800D6E00_1`), names built by `##`.
+`tools/port/pconly_gate.sh` runs section 2's gate as one command on Rocky.
+
+The N64 address stays in the data loader's symbol tables (`asm/us/*/symbols.json`), which say where in the
+cartridge's image each datum lives; while the data comes from the cartridge, that is the one thing that must know
+it. Until the tools stop reading it from a name's spelling (n64syms.address_of and kind_of: gen_data.py,
+gen_stubs.py, synth_rom.py take a D_/func_ name's address and kind from its digits), rename.py also writes each
+renamed address name's address and kind into `symbol_addrs.us.txt` (`car_resistance = 0x800D0A34; // type:func`).
 
 ## 4. The waves
 

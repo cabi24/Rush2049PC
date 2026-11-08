@@ -75,9 +75,9 @@ DEFAULT_EXCLUDES = (
 SYMBOL_FILE = "symbol_addrs.us.txt"
 SYMBOL_TABLES = re.compile(r"^asm/us/[^/]+/symbols\.json$")
 C_EXTS = nc.C_EXTS
-# The extensions that make a token followed by `.ext` a file name.
-PATH_EXTS = {"c", "h", "s", "inc", "o", "obj", "json", "txt", "md", "py", "ld", "press", "cmake", "png", "log", "sh",
-             "yml", "yaml", "supp", "tsv", "wav", "z64", "bin", "hex", "mk", "rc", "bat", "d", "a", "elf", "map"}
+# The extensions that make a token followed by `.ext` a file name (not .a, .d or .o: one-letter struct members).
+PATH_EXTS = {"c", "h", "s", "inc", "json", "txt", "md", "py", "ld", "press", "cmake", "png", "log", "sh", "yml",
+             "yaml", "supp", "tsv", "wav", "z64", "hex", "mk", "rc", "bat"}
 PATH_CH = re.compile(r"[A-Za-z0-9_./\-]")
 ASM_CONTEXT = {"asm", "__asm__", "__asm", "alias", "__alias__", "weakref", "__weakref__"}
 ASM_QUALIFIERS = {"volatile", "__volatile__", "__volatile", "goto", "inline", "__inline__"}
@@ -112,10 +112,11 @@ class Plan:
         self.errors = []
         self.ident = {nc.norm(r.old): r for r in rows if r.kind in nc.IDENT_KINDS}
         self.moves = {}            # old path -> (new path, row, implied)
-        for r in rows:
-            if r.kind == "file":
-                self.moves[r.old.replace("\\", "/")] = (r.new.replace("\\", "/"), r, False)
         tracked = set(files)
+        for r in rows:
+            old, new = r.old.replace("\\", "/"), r.new.replace("\\", "/")
+            if r.kind == "file" and not (old not in tracked and (self.root / new).exists()):   # not done already
+                self.moves[old] = (new, r, False)
         if follow_files:
             for f in files:
                 if not (f.startswith(("src/", "nonmatching/")) and f.endswith((".c", ".h"))):
@@ -141,6 +142,9 @@ class Plan:
                     if j == len(parts):
                         self.suffixes[s].add(f)
         self.moved_stems = {Path(old).stem for old in self.moves}
+        self.moves_by_base = collections.defaultdict(list)   # a moved file's name -> [its old path]
+        for old in self.moves:
+            self.moves_by_base[old.rsplit("/", 1)[-1]].append(old)
         self.explicit_stems = {Path(old).stem: (Path(new).stem, r) for old, (new, r, implied) in self.moves.items()
                                if not implied}
         self.edits = {}            # path -> (text, [(start, end, new text, row, category)])
@@ -217,10 +221,8 @@ class Plan:
         none; 'ambiguous' if it could name files that don't all move alike."""
         parts = run.split("/")
         k, base = len(parts), parts[-1]
-        if Path(base).stem not in self.moved_stems:
-            return None
         cands = []
-        for old in self.moves:
+        for old in self.moves_by_base.get(base, ()):
             op = old.split("/")
             n = min(k, len(op))
             if op[-1] == base and op[-n:] == parts[-n:]:
@@ -239,10 +241,7 @@ class Plan:
         return news.pop(), self.moves[sorted(cands)[0]][1]
 
     def stem_row(self, stem):
-        for old, (new, r, implied) in self.moves.items():
-            if Path(old).stem == stem:
-                return r
-        return None
+        return self.explicit_stems.get(stem, (None, None))[1]
 
     def note_derived(self, f, text, pos, tok):
         for m in ADDR_SEARCH.finditer(tok):
@@ -492,6 +491,12 @@ def scope_files(root, extra_excludes=()):
     return [f for f in nc.tracked_files(root) if not any(fnmatch.fnmatchcase(f, g) for g in globs)]
 
 
+def write_text(path, text):
+    """Write text as it is: no newline translation (Windows' text mode would write CRLF)."""
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
 def update_checksums(root, changed):
     """Rewrite the SHA256SUMS lines of the changed files next to them; the SHA256SUMS files rewritten."""
     by_dir = collections.defaultdict(dict)
@@ -511,7 +516,7 @@ def update_checksums(root, changed):
                 line = f"{digest}  {parts[1]}"
             new_lines.append(line)
         if new_lines != lines:
-            sums.write_text("\n".join(new_lines) + "\n")
+            write_text(sums, "\n".join(new_lines) + "\n")
             out.append(str(sums.relative_to(root)))
     return out
 
@@ -604,17 +609,17 @@ def describe(plan, verbose=False, report=None):
 def apply(plan, texts):
     """Write the new texts, add the symbol file's names, move the files, update the checksums."""
     for f, t in texts.items():
-        (plan.root / f).write_text(t, encoding="utf-8")
+        write_text(plan.root / f, t)
     changed = set(texts)
     if plan.symfile_add:
         p = plan.root / SYMBOL_FILE
-        text = p.read_text()
+        text = nc.read_text(p)
         lines = [] if text.endswith("\n") else [""]
         header = "// Names from the name maps (docs/port/PCONLY.md 3, tools/port/rename.py):"
         if header not in text:
             lines += ["", header, "// the N64 address and the kind their old name spelled, which the tools read from it."]
         lines += [f"{row.new} = 0x{addr:08X}; // type:{kind}" for row, addr, kind in plan.symfile_add]
-        p.write_text(text + "\n".join(lines) + "\n")
+        write_text(p, text + "\n".join(lines) + "\n")
         changed.add(SYMBOL_FILE)
     moved = []
     for old, (new, row, implied) in sorted(plan.moves.items()):
@@ -682,7 +687,9 @@ def main(argv=None):
         rows, errs = nc.read_maps(paths)
         errs += [(r.where(), m) for r in rows for m in nc.check_format(r)]
     else:
-        rows, errs, _ = nc.run_checks(root, paths)
+        rows, errs, _, applied = nc.run_checks(root, paths)
+        if applied:
+            print(f"rename.py: {len(applied)} rows applied already")
     if errs:
         for where, msg in errs:
             print(f"{where}: error: {msg}")

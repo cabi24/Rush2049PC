@@ -1,0 +1,9 @@
+{
+  "generated_by": "rename.py's fixture",
+  "symbols": {
+    "D_80F00100": "0x80F00100",
+    "func_80F00010": "0x80F00010",
+    "helper_old_name": "0x80F00200",
+    "zeta_keep": "0x80F00300"
+  }
+}
