@@ -189,6 +189,18 @@ def line_span(text, pos):
     return a, (b if b >= 0 else len(text))
 
 
+def newline_of(text):
+    """The line end a text uses: CRLF when its first line ends so (a Windows checkout with autocrlf), else LF.
+    What rename.py writes into a file, whole or added, uses the file's own."""
+    i = text.find("\n")
+    return "\r\n" if i > 0 and text[i - 1] == "\r" else "\n"
+
+
+def table_json(d, nl):
+    """A symbol table in the tables' style (sorted keys, two spaces, a final newline), with line ends nl."""
+    return (json.dumps(d, indent=2, sort_keys=True) + "\n").replace("\n", nl)
+
+
 # An old name that is also an English word (UpdateGame's old name `countdown`, the stem `renderer`): in prose and
 # in the text of other files it is renamed only where it reads as code (code_like); in C code always.
 PLAIN_WORD = re.compile(r"^[a-z]+$")
@@ -781,7 +793,7 @@ class Plan:
         try:
             d = json.loads(text)
             syms = d["symbols"]
-            styled = json.dumps(d, indent=2, sort_keys=True) + "\n" == text
+            styled = table_json(d, newline_of(text)) == text   # LF, or CRLF throughout
         except (ValueError, KeyError, TypeError):
             styled = False
         if not styled:
@@ -803,7 +815,7 @@ class Plan:
             new_syms.setdefault(nk, v)
         if changed or len(new_syms) != len(syms) or any(k in drop for k in syms):
             d["symbols"] = new_syms
-            self.edit(f, edits, 0, len(text), json.dumps(d, indent=2, sort_keys=True) + "\n", None, "symbol table")
+            self.edit(f, edits, 0, len(text), table_json(d, newline_of(text)), None, "symbol table")
             for row in changed:
                 self.counts[id(row)]["symbol table"] += 1
                 self.row_files[id(row)].add(f)
@@ -910,7 +922,7 @@ class Plan:
         for name in names:
             # a type (words and stars) before the name: `extern s32 x[4];`, `void x(s16 a);`, never `x(1);`
             decl = re.compile(r"^([ \t]*)(?:extern[ \t]+)?((?:[A-Za-z_]\w*[ \t*]+)+" + re.escape(name)
-                              + r"\b[^;{}=\n]*);[ \t]*(?:/\*.*?\*/|//.*)?[ \t]*$")
+                              + r"\b[^;{}=\n]*);[ \t]*(?:/\*.*?\*/|//[^\r]*)?[ \t]*\r?$")
             seen = {}   # indent -> [(line, normalized declaration)]
             for i, line in enumerate(lines):
                 m = decl.match(line) if name in line else None
@@ -989,7 +1001,9 @@ def update_checksums(root, changed):
         sums = Path(root) / d / "SHA256SUMS"
         if not sums.is_file():
             continue
-        lines = sums.read_text().splitlines()
+        raw = nc.read_text(sums) or ""
+        nl = newline_of(raw)
+        lines = raw.splitlines()
         new_lines = []
         for line in lines:
             parts = line.split(None, 1)
@@ -998,8 +1012,8 @@ def update_checksums(root, changed):
                 line = f"{digest}  {parts[1]}"
             new_lines.append(line)
         if new_lines != lines:
-            write_text(sums, "\n".join(new_lines) + "\n")
-            out.append(str(sums.relative_to(root)))
+            write_text(sums, nl.join(new_lines) + nl)
+            out.append(sums.relative_to(root).as_posix())
     return out
 
 
@@ -1048,7 +1062,8 @@ def write_ledger(root, rows, drops=()):
     text = nc.read_text(p) if p.is_file() else (
         "# The rows tools/port/rename.py applied (kind, old, new), written by --apply: names_check.py and a second\n"
         "# --apply read them as applied (a chain, A to B and B to C, can't be told by its names).\n")
-    write_text(p, text + "".join("\t".join(k) + "\n" for k in new))
+    nl = newline_of(text)
+    write_text(p, text + "".join("\t".join(k) + nl for k in new))
     return len(new)
 
 
@@ -1184,6 +1199,7 @@ def apply(plan, texts):
     if plan.symfile_add:
         p = plan.root / SYMBOL_FILE
         text = nc.read_text(p)
+        nl = newline_of(text)
         lines = [] if text.endswith("\n") else [""]
         header = "// Names from the name maps (docs/port/PCONLY.md 3, tools/port/rename.py):"
         if header not in text:
@@ -1191,7 +1207,7 @@ def apply(plan, texts):
                       "`renamed`: gen_data.py", "// places the datum as it placed the address name (no extent by gap "
                       "ends at it)."]
         lines += [f"{row.new} = 0x{addr:08X}; // type:{kind} renamed" for row, addr, kind in plan.symfile_add]
-        write_text(p, text + "\n".join(lines) + "\n")
+        write_text(p, text + nl.join(lines) + nl)
         changed.add(SYMBOL_FILE)
     moved = move_all(plan.root, {o: n for o, (n, row, how) in plan.moves.items() if (plan.root / o).exists()})
     remove_empty_dirs(plan.root, [o for o, n in moved])
@@ -1333,7 +1349,7 @@ def main(argv=None):
           + (f", {len(plan.symfile_add)} names added to {SYMBOL_FILE}" if plan.symfile_add else "")
           + (f", {len(plan.dropped)} labels dropped" if plan.dropped else "")
           + (f", checksums updated in {', '.join(sums)}" if sums else "")
-          + (f", {logged} rows in {nc.MAPS_DIR / nc.APPLIED_FILE}" if logged else "")
+          + (f", {logged} rows in {(nc.MAPS_DIR / nc.APPLIED_FILE).as_posix()}" if logged else "")
           + f"; left for hand edits: {left} places, {len(plan.merges)} alias notes, {len(plan.pastes)} pasted names, "
           f"{len(plan.derived)} derived identifiers, {sum(1 for r in rows if r.kind == 'field')} field rows "
           f"(--dry-run lists them)")

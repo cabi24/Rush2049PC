@@ -454,6 +454,44 @@ class AfterTheApply(Fixture):
                          "s32 thing_count_read(void *thing);\n")
 
 
+class CrlfCheckout(Fixture):
+    """A Windows checkout with autocrlf: every text file of the tree ends its lines with CRLF. The symbol tables are in
+    the tables' style all the same, and what rename.py writes keeps each file's line ends (CI's windows job)."""
+
+    def setUp(self):
+        super().setUp()
+        for p in self.root.rglob("*"):
+            if p.is_file():
+                data = p.read_bytes()
+                if b"\0" not in data:
+                    p.write_bytes(data.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+
+    def crlf_only(self, rel):
+        data = (self.root / rel).read_bytes()
+        self.assertIn(b"\r\n", data, rel)
+        self.assertEqual(data.count(b"\n"), data.count(b"\r\n"), f"{rel} has a bare LF")
+        return data
+
+    def test_apply(self):
+        out = self.apply()
+        self.assertIn("19 files changed, 5 moved, 2 names added to symbol_addrs.us.txt, 1 labels dropped", out)
+        self.assertIn("rows in tools/port/names/applied.tsv", out)
+        self.assertIn("checksums updated in asm/us/blob/SHA256SUMS", out)
+        table = self.crlf_only("asm/us/blob/symbols.json")
+        self.assertEqual(json.loads(table)["symbols"], {
+            "gTargetInfo": "0x80F00800", "game_state": "0x80F00600", "thing_assist": "0x80F00200",
+            "thing_count_read": "0x80F00010", "thing_table": "0x80F00100", "zeta_keep": "0x80F00300"})
+        sums = self.crlf_only("asm/us/blob/SHA256SUMS").decode()
+        digests = dict(reversed(line.split("  ")) for line in sums.splitlines())
+        self.assertEqual(digests["symbols.json"], hashlib.sha256(table).hexdigest())
+        syms = self.crlf_only("symbol_addrs.us.txt").decode()
+        self.assertIn("thing_table = 0x80F00100; // type:data", syms)
+        self.assertEqual(self.crlf_only("src/blob/alias_a.c").decode().count("extern s32 game_state;"), 1)
+        status, out = run("--root", self.root, "--check", MAP, DROP)
+        self.assertEqual(status, 1, out)   # the same places left as on LF (test_check)
+        self.assertIn("rename.py --check: 5 places still have an old name", out)
+
+
 class Tables(Fixture):
     def test_symbol_file_drop(self):
         with open(self.root / "symbol_addrs.us.txt", "a") as f:
