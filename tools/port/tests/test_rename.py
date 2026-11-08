@@ -10,8 +10,10 @@ symbol_addrs.us.txt and the address an old name spelled, the port's C, a tool, a
 lists of stems and of paths, the layout, the docs), a folder row, two aliases made one symbol, a dropped label, and
 what is left and reported (struct members, a macro's parameter, a parameter and a local of the same spelling,
 another spelling, a string that only mentions a name, a folder named after a function, token pasting, derived names,
-field rows); --check; a second --apply that changes nothing; git mv in a git tree; the refusals; and a map of 5,000
-rows over a tree of 400 files. Stdlib only, Python 3.9+.
+field rows); --check; a second --apply that changes nothing; git mv in a git tree; the refusals; what the tree's
+apply found wrong (paths to a file one folder deeper, relative #includes, a declaration whose initialiser has commas
+in parentheses, English words, a file whose stem is only the same word, prose listing an old name beside its new
+one); and a map of 5,000 rows over a tree of 400 files. Stdlib only, Python 3.9+.
 """
 import contextlib
 import hashlib
@@ -313,7 +315,7 @@ class Chains(Fixture):
 
     def setUp(self):
         super().setUp()
-        (self.root / "src/blob/draft_old.c").write_text("s32 draft_old(void);\n")
+        (self.root / "src/blob/draft_old.c").write_text("s32 draft_old(void) { return 0; }\n")
         (self.root / "src/blob/helper_old_name.c").write_text("s32 helper_old_name(s32 x) { return x; }\n")
 
     def test_chain(self):
@@ -325,7 +327,7 @@ class Chains(Fixture):
                          ["s32 thing_draft(void)", "{"])
         self.assertIn("return draft_old(1);", self.text("nonmatching/game/thing_draft.c"))
         # the file chain in one folder: draft_old.c became thing_draft.c before helper_old_name.c became draft_old.c
-        self.assertEqual(self.text("src/blob/thing_draft.c"), "s32 thing_draft(void);\n")
+        self.assertEqual(self.text("src/blob/thing_draft.c"), "s32 thing_draft(void) { return 0; }\n")
         self.assertEqual(self.text("src/blob/draft_old.c"), "s32 draft_old(s32 x) { return x; }\n")
         self.assertFalse((self.root / "src/blob/helper_old_name.c").exists())
         syms = self.text("symbol_addrs.us.txt")
@@ -343,9 +345,113 @@ class Chains(Fixture):
         m = self.write_map([("draft_old", "helper_old_name", "func", "code", "sure", "a swap"),
                             ("helper_old_name", "draft_old", "func", "code", "sure", "a swap")])
         self.apply(m)
-        self.assertEqual(self.text("src/blob/helper_old_name.c"), "s32 helper_old_name(void);\n")
+        self.assertEqual(self.text("src/blob/helper_old_name.c"), "s32 helper_old_name(void) { return 0; }\n")
         self.assertEqual(self.text("src/blob/draft_old.c"), "s32 draft_old(s32 x) { return x; }\n")
         self.assertEqual([p.name for p in (self.root / "src/blob").glob("*.rename-*")], [])
+
+
+class AfterTheApply(Fixture):
+    """What the tree's apply (2026-11-08) left wrong, each now right: paths to files one folder deeper, relative
+    #includes, a declaration whose initialiser has commas in parentheses, English words, a file whose stem is only
+    the same word, and prose that lists an old name beside its new one."""
+
+    def rom_file(self):
+        (self.root / "src/rom").mkdir(parents=True)
+        (self.root / "src/rom/rom_tu.h").write_text("#define ROM_TU 1\n")
+        (self.root / "src/rom/lib_tu.c").write_text('/* src/rom/lib_tu.c */\n#include "rom_tu.h"\n'
+                                                    'void voice_start(void) { }\n')
+        return self.write_map([("src/rom/lib_tu.c", "src/rom/sound/voices.c", "file", "code", "sure", "deeper")])
+
+    def test_path_one_folder_deeper(self):
+        m = self.rom_file()
+        (self.root / "docs/port/ROM.md").write_text("See src/rom/lib_tu.c, rom/lib_tu.c and lib_tu.c.\n")
+        (self.root / "port/test_voices.c").write_text('#include "../src/rom/lib_tu.c"\n')
+        self.apply(m)
+        self.assertEqual(self.text("docs/port/ROM.md"),
+                         "See src/rom/sound/voices.c, rom/sound/voices.c and voices.c.\n")
+        self.assertEqual(self.text("port/test_voices.c"), '#include "../src/rom/sound/voices.c"\n')
+        self.assertTrue(self.text("src/rom/sound/voices.c").startswith("/* src/rom/sound/voices.c */"))
+
+    def test_folder_one_deeper(self):
+        m = self.write_map([("src/blob/groups/old_group", "src/blob/groups/sub/new_group", "file", "code", "sure",
+                             "a folder one deeper")])
+        self.apply(m)
+        doc = self.text("docs/port/THING.md")
+        self.assertIn("The folder src/blob/groups/sub/new_group holds member.c (groups/sub/new_group/member.c).", doc)
+        self.assertIn("src/blob/groups/sub/new_group/member.c)", self.text("CMakeLists.txt"))
+
+    def test_relative_include(self):
+        """The C file moves: its "rom_tu.h" is ../rom_tu.h from the new folder; the included file moves: the
+        path to its new place."""
+        m = self.rom_file()
+        (self.root / "src/rom/sound.h").write_text("void voice_start(void);\n")
+        (self.root / "src/rom/user.c").write_text('#include "sound.h"\n#include "rom_tu.h"\n')
+        m2 = self.write_map([("src/rom/sound.h", "src/rom/audio/sound.h", "file", "code", "sure", "a header")],
+                            "m2.tsv")
+        self.apply(m, m2)
+        self.assertIn('#include "../rom_tu.h"\n', self.text("src/rom/sound/voices.c"))
+        self.assertEqual(self.text("src/rom/user.c"), '#include "audio/sound.h"\n#include "rom_tu.h"\n')
+
+    def test_declaration_with_commas_in_parentheses(self):
+        (self.root / "src/blob/gear.c").write_text(
+            "extern f32 D_80F00100[4];\nvoid gear(f32 *a)\n{\n    f32 p = (a[0] * f(a, 1)) * D_80F00100[a[1]];\n"
+            "    f32 q, r = D_80F00100[0];\n    f32 D_80F00100 = 2;\n}\n")
+        m = self.write_map([("D_80F00100", "thing_table", "data", "code", "sure", "the table")])
+        self.apply(m)
+        c = self.text("src/blob/gear.c")
+        self.assertIn("f32 p = (a[0] * f(a, 1)) * thing_table[a[1]];", c)
+        self.assertIn("f32 q, r = thing_table[0];", c)
+        self.assertIn("f32 D_80F00100 = 2;", c)   # a local of that spelling: still left
+
+    def test_words(self):
+        """countdown, an old name and an English word; renderer, a moved file's stem: renamed where they read as
+        code. groups/countdown/countdown.c holds another function: it stays."""
+        (self.root / "src/blob/game.c").write_text(
+            "/* The countdown starts; countdown() runs it. */\nvoid countdown(void) { }\n"
+            "void caller(void) { countdown(); }\n")
+        (self.root / "src/blob/groups/countdown").mkdir(parents=True)
+        (self.root / "src/blob/groups/countdown/countdown.c").write_text(
+            "void animCountdownTimer(void) { /* the countdown */ }\n")
+        (self.root / "src/blob/renderer.c").write_text("void zoid_draw(void) { }\n")
+        (self.root / "docs/port/RACE.md").write_text("The countdown shows 3, 2, 1. `countdown` is the update.\n")
+        with open(self.root / "symbol_addrs.us.txt", "a") as f:
+            f.write("countdown = 0x80F00900; // type:func the race countdown\n")
+        with open(self.root / "CMakeLists.txt", "a") as f:
+            f.write("set(AUDIO_TESTS mixer renderer)\nadd_library(zoid src/blob/renderer.c)\n")
+        m = self.write_map([("countdown", "UpdateGame", "func", "mat3", "sure", "the game's update"),
+                            ("src/blob/renderer.c", "src/blob/zoid_draw.c", "file", "code", "sure", "its function")])
+        status, out = run("--root", self.root, "--dry-run", m)
+        self.assertEqual(status, 0, out)
+        self.assertIn("src/blob/groups/countdown/countdown.c: countdown -> UpdateGame is defined elsewhere", out)
+        self.apply(m)
+        self.assertEqual(self.text("src/blob/game.c"),
+                         "/* The countdown starts; UpdateGame() runs it. */\nvoid UpdateGame(void) { }\n"
+                         "void caller(void) { UpdateGame(); }\n")
+        self.assertEqual(self.text("src/blob/groups/countdown/countdown.c"),
+                         "void animCountdownTimer(void) { /* the countdown */ }\n")
+        self.assertEqual(self.text("docs/port/RACE.md"), "The countdown shows 3, 2, 1. `UpdateGame` is the update.\n")
+        self.assertIn("UpdateGame = 0x80F00900; // type:func the race countdown\n", self.text("symbol_addrs.us.txt"))
+        cmake = self.text("CMakeLists.txt")
+        self.assertIn("set(AUDIO_TESTS mixer renderer)\nadd_library(zoid src/blob/zoid_draw.c)\n", cmake)
+        status, out = run("--root", self.root, "--check", "-v", m)
+        self.assertEqual(status, 0, out)
+        self.assertIn("src/blob/groups/countdown/countdown.c:1: countdown (plain word: another thing, it stays)", out)
+
+    def test_beside_its_new_name(self):
+        (self.root / "docs/port/NAMES.md").write_text(
+            "| `func_80F00010` | `thing_count_read` | the fixture's function |\n"
+            "thing_count_read (func_80F00010) counts.\nfunc_80F00010 counts.\n")
+        (self.root / "src/blob/note.c").write_text(
+            "/* func_80F00010 is thing_count_read now */\n/* func_80F00010 counts */\n"
+            "s32 func_80F00010(void *thing);\n")
+        m = self.write_map([("func_80F00010", "thing_count_read", "func", "code", "sure", "the function")])
+        self.apply(m)
+        self.assertEqual(self.text("docs/port/NAMES.md"),
+                         "| `func_80F00010` | `thing_count_read` | the fixture's function |\n"
+                         "thing_count_read (func_80F00010) counts.\nthing_count_read counts.\n")
+        self.assertEqual(self.text("src/blob/note.c"),
+                         "/* func_80F00010 is thing_count_read now */\n/* thing_count_read counts */\n"
+                         "s32 thing_count_read(void *thing);\n")
 
 
 class Tables(Fixture):

@@ -48,12 +48,23 @@ the same file, so it is reported and left (gen_stubs.py still links it to the re
 - Paths. A token inside a path (a run like src/blob/func_800A1234.c, or a tracked folder such as
   src/blob/groups/heap_release) is part of a file's name, not the symbol's: it changes only with the file. A file row
   moves its file (git mv) and rewrites every reference to its path, by its full path or any trailing part of it
-  (blob/x.c, x.c), #include lines included; a reference whose trailing part matches several files that don't all
-  get the same new name is reported and left. A file row may name a folder (src/blob/groups/carcolor): its files
-  move, and references to the folder and to paths in it follow. A func, data or type row whose old name is the stem
-  of a file under src/ or nonmatching/ (src/ovl_a/func_8038F454.c) moves that file to the new stem as well (an
-  implied file row; --no-follow-files turns that off), so a CMake list of stems (nonmatching/game/${f}.c) stays
-  true. In CMake files an explicit file row's bare stem is renamed too.
+  (blob/x.c, x.c), #include lines included. A trailing part goes on naming the file from the same folder: when
+  src/rom/x.c moves one folder deeper to src/rom/sound/y.c, src/rom/x.c becomes src/rom/sound/y.c and rom/x.c
+  rom/sound/y.c. A reference whose trailing part matches several files that don't all get the same new name is
+  reported and left. A quoted #include that names a file from its C file's own folder ("rom_tu.h", "../x.h") is
+  the path from the C file's new folder to the included file's new place, when either moves. A file row may name a
+  folder (src/blob/groups/carcolor): its files move, and references to the folder and to paths in it follow. A
+  func, data or type row whose old name is the stem of a file under src/ or nonmatching/
+  (src/ovl_a/func_8038F454.c) moves that file to the new stem as well, when the file defines the symbol (an implied
+  file row; --no-follow-files turns that off), so a CMake list of stems (nonmatching/game/${f}.c) stays true; a file
+  whose stem is only the same word (groups/countdown/countdown.c, which holds animCountdownTimer, not the function
+  countdown) stays and is reported. In CMake files an explicit file row's bare stem is renamed too.
+- Words. An old name that is also an English word (lower-case letters only: `countdown`, the stem `renderer`) is
+  renamed in C code, but in prose and in other files' text only where it reads as code: quoted on both sides by one
+  quote character (`countdown`, "countdown"), called (countdown()), or defined at the start of a line (countdown =
+  0x...; in symbol_addrs.us.txt); elsewhere it is the word, left and reported. In prose (C comments, Markdown) an
+  old name on a line that also has its new name is the line speaking of the rename (a list of old and new names,
+  "SaveRaceSetting (func_800A1234)"): left, not made "SaveRaceSetting (SaveRaceSetting)".
 - SHA256SUMS files list the checksums of the files next to them: a line for a file rename.py changes is updated.
 
 Left, and said so per row: field rows (Struct.0xOFFSET: renaming a field needs the struct's layout, wave 2's hand
@@ -80,6 +91,7 @@ import fnmatch
 import hashlib
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -177,6 +189,37 @@ def line_span(text, pos):
     return a, (b if b >= 0 else len(text))
 
 
+# An old name that is also an English word (UpdateGame's old name `countdown`, the stem `renderer`): in prose and
+# in the text of other files it is renamed only where it reads as code (code_like); in C code always.
+PLAIN_WORD = re.compile(r"^[a-z]+$")
+# Prose: an old name on a line that also has its new name is the line speaking of the rename ("SaveRaceSetting
+# (func_800A1234)", a table of old and new names): left, not made "SaveRaceSetting (SaveRaceSetting)".
+PROSE = {"comment", "docs"}
+
+
+def code_like(text, s, e):
+    """Does the token text[s:e] read as code in a text: quoted on both sides by one quote character (`countdown`,
+    "countdown"), called (countdown(), no space), or a name being defined at the start of a line (countdown = 0x...;
+    of symbol_addrs.us.txt)?"""
+    before = text[s - 1] if s > 0 else ""
+    after = text[e] if e < len(text) else ""
+    if before and before in "\"'`" and after == before:
+        return True
+    if after == "(":
+        return True
+    j = e
+    while j < len(text) and text[j] in " \t":
+        j += 1
+    a, _ = line_span(text, s)
+    return text[a:s].strip() == "" and j < len(text) and text[j] == "=" and text[j + 1:j + 2] != "="
+
+
+def beside(text, s, new):
+    """Does the line of text[s] also have the identifier new?"""
+    a, b = line_span(text, s)
+    return re.search(r"(?<![\w])" + re.escape(new) + r"(?![\w])", text[a:b]) is not None
+
+
 class Plan:
     """What the maps change in the tree: built once, then printed (--dry-run) or applied (--apply)."""
 
@@ -197,6 +240,7 @@ class Plan:
         # drop.tsv's rows for symbol_addrs.us.txt: lines that go before the rename (a stale gNumPlayers = 0x80166004
         # whose name a map gives to another address)
         self.symfile_drops = {d.name for d in self.drops if d.table == nc.SYMBOL_FILE_TABLE}
+        self.tracked = set(files)
         self.plan_moves(follow_files)
         # The tree's paths by every trailing part: a path in a text names one of these.
         self.suffixes = collections.defaultdict(set)       # trailing part of a file's path -> {path}
@@ -238,6 +282,7 @@ class Plan:
         self.dir_moves: old folder -> (new folder, row)."""
         tracked = set(self.files)
         explicit, self.dir_moves, self.moves = {}, {}, {}
+        self.not_moved = []   # (file, row): named after an old name it doesn't define
         for r in self.rows:
             if r.kind != "file":
                 continue
@@ -264,8 +309,11 @@ class Plan:
             r = self.ident.get(nc.norm(stem))
             if follow_files and r and r.old == stem and f.startswith(("src/", "nonmatching/")) \
                     and f.endswith((".c", ".h")):
-                new = new.rsplit("/", 1)[0] + "/" + r.new + Path(f).suffix
-                row, how = row or r, how or "implied"
+                if self.defines(f, r):
+                    new = new.rsplit("/", 1)[0] + "/" + r.new + Path(f).suffix
+                    row, how = row or r, how or "implied"
+                else:   # its stem is only the same word (groups/countdown/countdown.c holds animCountdownTimer)
+                    self.not_moved.append((f, r))
             if new != f:
                 self.moves[f] = (new, row, how)
         targets = collections.Counter(new for new, _, _ in self.moves.values())
@@ -274,6 +322,17 @@ class Plan:
                 self.errors.append(f"{r.where()}: {old} and another file would both become {new}")
             elif new in tracked and new not in self.moves:
                 self.errors.append(f"{r.where()}: {old} would become {new}, which exists")
+
+    def defines(self, f, row):
+        """Does the C file f define the symbol of a func, data or type row (a function with its body, a datum
+        not extern, a typedef or a tag)? Only then is the file named after it."""
+        text = nc.read_text(self.root / f)
+        if text is None or row.old not in text:
+            return False
+        c = nc.classify_c(text)
+        if row.kind == "type":
+            return row.old in c["types"]
+        return row.old in c["func_def"] or row.old in c["data_def"] or row.old in c["func_static"]
 
     # ------------------------------------------------------------------------------------------------ helpers
     def row_for(self, tok):
@@ -334,6 +393,18 @@ class Plan:
         cut = run.find("/", rel)
         return cut > 0 and run[:cut] in self.known
 
+    @staticmethod
+    def moved_tail(old, new, n):
+        """The last n parts of the path old (a list of its parts) name it from some folder; the parts that name
+        new from that same folder. The folder is old's first len(old) - n parts: when new is in it too, new's path
+        from there (src/rom/x.c to src/rom/sound/y.c: rom/x.c becomes rom/sound/y.c, src/rom/x.c the whole new
+        path), else new's last n parts (the best a trailing part can say of a file that left the folder). A bare
+        name (n = 1) is the file's name: y.c."""
+        prefix = old[:len(old) - n]
+        if n > 1 and new[:len(prefix)] == prefix:
+            return new[len(prefix):]
+        return new[len(new) - n:] if n <= len(new) else new
+
     def move_for_run(self, run):
         """(new text, row) for a run that names a moved file by a trailing part of its path, or a moved folder or
         a path inside one; None if it names none; 'ambiguous' if it could name things that don't all move alike."""
@@ -352,7 +423,7 @@ class Plan:
             for old in cands:
                 new, op = self.moves[old][0].split("/"), old.split("/")
                 n = min(k, len(op))
-                news.add("/".join(parts[:k - n] + (new[len(new) - n:] if n <= len(new) else new)))
+                news.add("/".join(parts[:k - n] + self.moved_tail(op, new, n)))
             if len(news) != 1:
                 return "ambiguous"
             return news.pop(), self.moves[sorted(cands)[0]][1]
@@ -365,9 +436,24 @@ class Plan:
                 if any(d not in self.dir_moves for d in self.dir_suffixes.get("/".join(parts[i + 1 - n:i + 1]), ())):
                     return "ambiguous"
                 nd = self.dir_moves[old][0].split("/")
-                return "/".join(parts[:i + 1 - n] + (nd[len(nd) - n:] if n <= len(nd) else nd)
-                                + parts[i + 1:]), self.dir_moves[old][1]
+                return "/".join(parts[:i + 1 - n] + self.moved_tail(od, nd, n) + parts[i + 1:]), \
+                    self.dir_moves[old][1]
         return None
+
+    def relative_include(self, f, text, a, b, edits):
+        """A quoted #include of a C file that names a file relative to the file's own folder (rom_tu.h beside it,
+        ../x.h): when the file or the one it includes moves, the path from the new folder to the included file's
+        new place. True when the include is relative (handled here), False for one the -I folders resolve."""
+        rel = text[a:b]
+        target = posixpath.normpath(posixpath.join(posixpath.dirname(f), rel))
+        if target.startswith("../") or not (target in self.tracked or (self.root / target).is_file()):
+            return False
+        new_f, frow = self.moves.get(f, (f, None, None))[:2]
+        new_t, trow = self.moves.get(target, (target, None, None))[:2]
+        new_rel = posixpath.relpath(new_t, posixpath.dirname(new_f) or ".")
+        if new_rel != rel and posixpath.normpath(posixpath.join(posixpath.dirname(new_f), rel)) != new_t:
+            self.edit(f, edits, a, b, new_rel, trow or frow, "include")
+        return True
 
     def stem_row(self, stem):
         return self.explicit_stems.get(stem, (None, None))[1]
@@ -397,8 +483,8 @@ class Plan:
                 self.scan_text(f, text, 0, len(text), edits, category_of(f))
                 self.edits[f] = (text, edits)   # its dropped lines go in new_texts, edits or none
                 continue
-            elif not any(self.interesting(t) for t in set(nc.IDENT.findall(text))):
-                continue
+            elif f not in self.moves and not any(self.interesting(t) for t in set(nc.IDENT.findall(text))):
+                continue   # (a C file that moves is read for its relative #includes)
             elif f.endswith(C_EXTS):
                 self.scan_c(f, text, edits)
             else:
@@ -446,7 +532,10 @@ class Plan:
             if not row:
                 if cmake and tok in self.explicit_stems:
                     new, srow = self.explicit_stems[tok]
-                    self.edit(f, edits, s, e, new, srow, "cmake stem")
+                    if PLAIN_WORD.match(tok) and not code_like(text, s, e):
+                        self.leave(f, text, s, "plain word", tok, srow)
+                    else:
+                        self.edit(f, edits, s, e, new, srow, "cmake stem")
                 continue
             if strings == "mention" and not self.strings_all:
                 self.leave(f, text, s, "string", tok, row)
@@ -454,6 +543,13 @@ class Plan:
             if strings in (None, "mention") and after_member_op(text, s, lo):
                 self.leave(f, text, s, "struct member", tok, row)
                 continue
+            if strings is None:
+                if category in PROSE and beside(text, s, row.new):
+                    self.leave(f, text, s, "beside its new name", tok, row)
+                    continue
+                if PLAIN_WORD.match(tok) and not code_like(text, s, e):
+                    self.leave(f, text, s, "plain word", tok, row)
+                    continue
             self.edit(f, edits, s, e, row.new, row, category if strings is None else f"string ({strings})")
 
     def scan_c(self, f, text, edits):
@@ -485,6 +581,8 @@ class Plan:
                 continue
             if k == "inc":
                 q = max(v.find('"'), v.find("<"))
+                if v[q] == '"' and self.moves and self.relative_include(f, text, s + q + 1, e - 1, edits):
+                    continue
                 self.scan_text(f, text, s + q + 1, e - 1, edits, "include", path_only=True)
                 continue
             prev, prev2, nxt = tok(ci - 1), tok(ci - 2), tok(ci + 1)
@@ -626,7 +724,16 @@ class Plan:
             return False
         if fptr and nxt == ")" and depth == 1:
             return True
-        last_comma = max((i for i, x in enumerate(stmt[:-1]) if x == ","), default=-1)
+        # the last comma of the declarator list: one outside parentheses and brackets (`f32 p = (a, b) * x[i]`
+        # has none, so its x is in p's initialiser)
+        last_comma, nest = -1, 0
+        for i, x in enumerate(stmt[:-1]):
+            if x in ("(", "["):
+                nest += 1
+            elif x in (")", "]"):
+                nest = max(0, nest - 1)
+            elif x == "," and nest == 0:
+                last_comma = i
         if "=" in stmt[last_comma + 1:-1]:
             return False   # in an initialiser: a use
         return depth == 0 and nxt in (";", ",", "=", "[") and (typeish or prev in ("*", ","))
@@ -1012,6 +1119,9 @@ def describe(plan, verbose=False, report=None):
             if dropped:
                 c["(dropped labels)"] = len(dropped)
         out.append(f"  {f}: " + ", ".join(f"{o} x{k}" for o, k in sorted(c.items())))
+    if plan.not_moved:
+        out += ["", "files named after an old name they don't define (not moved):"]
+        out += [f"  {f}: {r.old} -> {r.new} is defined elsewhere" for f, r in plan.not_moved]
     left_items = [(f, x) for f in sorted(plan.left) for x in plan.left[f]]
     out += ["", f"left for hand edits ({len(left_items)}):"]
     shown = left_items if verbose else left_items[:40]
@@ -1056,6 +1166,7 @@ def describe(plan, verbose=False, report=None):
                                                   "folder": " (its folder's row)"}.get(how, ""))
         for name, tables in sorted(plan.dropped.items()):
             lines.append(f"{name}: dropped from {', '.join(tables)}")
+        lines += [f"{f}: not moved: named after {r.old}, which it doesn't define" for f, r in plan.not_moved]
         lines += [f"{f}:{ln}: {what}" for f, ln, what in plan.merges]
         lines += [f"{f}:{ln}: LEFT {cat}: {tok}: {ex}" for f, (ln, cat, tok, row, ex) in left_items]
         lines += [f"{f}:{ln}: LEFT token pasting: {macro}: {what}" for f, ln, macro, what, row in plan.pastes]
@@ -1092,7 +1203,8 @@ def apply(plan, texts):
 # What rename.py leaves because it is another thing of the old name's spelling, not the symbol: --check lists it
 # apart and doesn't count it.
 OTHER_THINGS = {"struct member", "macro parameter", "parameter of the same name", "local of the same name",
-                "use of a local of the same name", "comment in a file that has the name only as another thing"}
+                "use of a local of the same name", "comment in a file that has the name only as another thing",
+                "plain word", "beside its new name"}
 
 
 def check(plan):
