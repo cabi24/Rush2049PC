@@ -192,3 +192,52 @@ preambles' declarations of 959 address names nothing uses (about 310,000 lines; 
 87 address names the code uses that no map names (func_80090F44, func_8009EA68, D_8014A250 ...), the 8,229 other
 spellings (func_800a3424) in preambles that declare both, the preambles' four view types (D_8012E6E0_Node ...),
 the 388 field rows, and addresses in comments.
+
+### Wave 2: what the names left (2026-11-08)
+
+One agent took what the apply left in the game's code (each commit through the gate, section 2):
+
+- **rename.py** after the apply: a path to a file moved one folder deeper keeps its first folder (src/rom/x.c to
+  src/rom/sound/y.c), a relative `#include` follows its file or the file it includes, a declaration whose
+  initialiser has commas in parentheses is read as one, an English word that is an old name (`countdown`) is
+  renamed only where it reads as code, a file is moved with a name only when it defines it, and prose that lists an
+  old name beside its new one is left as it is; each with a test (test_rename.py's AfterTheApply).
+- **The last address names the code used**: `tools/port/names/wave2.tsv`, 58 rows (47 from MAT3: the overlays'
+  spellings of PitchUV, RollUV, ZOID_ResetWindows and CreatePlayer, `model`, RaceMultiBlit and the pause screen's
+  MultiBlits, controlsys.c's statics, percentTable, drone_sched, gMatrices, zlib's tables ...), the 30 `#define NAME
+  D_x` they made identities, 16 function-local statics and three boot calls that kept an address spelling. No
+  address name is used in a function body, an initialiser or a macro now; left: the m2c preambles' declarations,
+  include/game_globals.h (no file includes it), gen_data's test fixtures (test_pc_data_decls.c: named for their
+  addresses on purpose) and AudioInitSys's ROM offset `D_00039B40`.
+- **Retail stubs**: the 107 `_stub`/`stub_*` functions (105 empty, two copies of ConvertHeap and FindWaveInstance
+  whose callers call those), and 16 more empty ones with MAT3 names nothing called (CleanupOverlay, SetDefaultOptions,
+  si_lock_init ... and ExitSystem, whose one call did nothing). GhostEnd's call to the empty DeallocateMemory_stub
+  went too: MAT3 frees the unfinished ghost recording there and the PC never has (a comment says so; restoring it is
+  a behaviour change to decide). Left: seven empty stubs whose code lives in a group as `pc_<name>`
+  (Check2WheelSide, GetSkid, ReadShifter ...: the function table reaches the empty one) and the called empty
+  heap_lock/heap_unlock.
+- **Copies under other names**: 182 functions that were the same code as a global one are gone, their callers call it:
+  text_lock and text_unlock (77 copies: gfx_lock_B7FC ...), HAL_SetFont (41) and HAL_SetFontInternal (2), TB_SetJust
+  (15), TB_CenterText (10), TB_RightText (5), ZOID_SetColor (7), AudKillSong (5), Hidden (6), si_unlock (4),
+  sound_list_init (3), view_bind, AudSetMusicVol, AudChangeEffectPitch, HAL_SetTextDepth, and init_camera_on_track's
+  wod_rand, wod_random, wod_dist2d (game_rand, Random, Distance2D). UnloadWaveInstance's static
+  acquire_decompress_lock is wait_for_render (the global of that name is the decompressor's lock). Left: copies of
+  each other with no global (the pak lock's queue_init family, item_refresh_*, getB6_*), and MAT3 pairs that are the
+  same code (AudPauseAllEffects/AudStopAllEffects, controlPakDamaged/controlPakFull, ControlRumblePak/ControlDamaged).
+- **Alias macros**: powerups.c's volatile view of gFrameSeconds (a volatile declaration, as MAT3's), circuitscr.c's
+  u32 HAL_GetTextWidth (a typed helper, text_width), carscr.c's gCarComponents view (a typed local: the declaration
+  the loader converts the table by stays). Left: typed view macros over preamble declarations of the wrong width
+  (controlsys's gResetTick ... gRepeatTime, gBlitInstanceList (x[0]) ...), for the shared headers.
+- **Interior labels** (NAMING.md 7 items 8 and 11): 104 names of an address inside another object are gone from
+  the code (224 uses in 90 game files, 75 in 18 tests): each is the element or field of the object, reading the
+  same bytes (`gObjList[156]`, `gText.single[n]`, `gOptions[9]`, `gCheckpoints.points[cp]`, `carTransGearRatio[class]
+  [gear + 1]`, `gObjList[def]` for `gObjList_biased[def + 314]`), with a typed local view where a preamble's
+  declaration can't express it; the macros that stood for labels are gone; the loops end at `gOPPFuncs + 10` and
+  `gStuntInfo + 4`; the overlay loader's BSS bounds are `extra_overlay_bss_start` and `start_overlay_bss_start`. The
+  labels nothing reads left the loader's tables (drop.tsv); eighteen keep their symbol_addrs.us.txt line, each ending
+  the extent by gap of the object before it. Left: resultPane4 and object_list_scale_view (folding them would change
+  what the game does), and five whose bytes lie past their object's extent (unitmatrix_origin, gWingAngVDrag_1,
+  controls_idMap_conflict, start_screen_egg, FSCLS_from_one).
+- **Locals** sharing a global's name: DoDrones' lists, maxpath's `interp`.
+- **Original-game bugs**, commented where they are and kept: InitPane, RemoveBlit, FindWinner, CalcUnlockedStuff,
+  ZOID_ChangeTexture, UpdateModel, SetPakError, CalcChecksumInternal, updateBG (`/* Original game: ... */`).
