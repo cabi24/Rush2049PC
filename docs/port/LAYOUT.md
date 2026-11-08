@@ -323,7 +323,7 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
    - in PC code (under `#ifdef TARGET_PC`) it is a host offset and must start a field of its width (score 3). Since
      the N64 build went (2026-11-08, [PCONLY.md](PCONLY.md)) the game C has no such lines: every access is judged as
      code both builds compiled, and the PC offsets the flattened lines used came back as 12 unconfirmed (score 2)
-     sites and 53 more untyped ones, none open;
+     sites and 425 untyped raw accesses where there were 410 (the weak copies' went with them), none open;
    - in code both builds compile it is an N64 offset, from a base whose N64 position the flow knows where its steps
      were typed (a caller's `&rec->field`), else from a base taken as right on the PC (a raw step that made it is
      judged where it is written, at a caller's argument). A finding when the N64 field there is at another host
