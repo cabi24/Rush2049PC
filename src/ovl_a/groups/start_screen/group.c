@@ -103,7 +103,6 @@ extern void removeBG(void);
 extern void ZOID_RemoveObject(s16);
 extern void AudKillSong(void);
 extern void AudStopAllEffects(void);
-extern void ExitSystem(void);
 extern void MBOX_HideObject(s32, s32, s32);
 extern void MBOX_ShowObject(s32, s32, s32);
 extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
@@ -231,9 +230,10 @@ void updateStartScreen(void)
                     case 6: setGameState(0x8000000); break;
                     case 7: setGameState(0x10000000); break;
                     case 9:
+                        /* MAT3 then calls ExitSystem: the N64's is an empty function (a console has nothing to
+                         * exit to), so the PC calls nothing. */
                         AudKillSong();
                         AudStopAllEffects();
-                        ExitSystem();
                         break;
                 }
                 break;
