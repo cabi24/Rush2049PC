@@ -902,6 +902,7 @@ def check_rows(rows, tree, drops=(), ledger=frozenset()):
                            + (", and the old names are no aliases at one address" if key[0] == "id" else "")))
     renamed_away = {k[1] for k in olds if k[0] == "id"}
     renames_to = {norm(r.old): r.new for r in rows if r.kind in IDENT_KINDS}
+    new_names = {r.new for r in rows if r.kind in IDENT_KINDS}
     type_names = {x for r in rows if r.kind == "type" for x in (r.old, r.new)
                   if r.old in tree.types or r.new in tree.types}
     for r in rows:
@@ -1006,6 +1007,10 @@ def check_rows(rows, tree, drops=(), ledger=frozenset()):
                 errors.append((w, f"new file or folder {new} exists already"))
             if ADDR_IN_NAME.search(Path(new).stem):
                 errors.append((w, f"new {new} still has an address in its name"))
+            if Path(new).suffix in (".c", ".h") and norm(Path(new).stem) in renames_to \
+                    and Path(new).stem not in new_names:   # a chain's middle (no_catchup) is a name again
+                warnings.append((w, f"new file {new} is named after {Path(new).stem}, which a map renames to "
+                                    f"{renames_to[norm(Path(new).stem)]}: rename.py would move it again"))
             if (tree.root / old).is_file() and Path(old).suffix != Path(new).suffix:
                 warnings.append((w, f"file {old} changes its extension"))
     return errors, warnings, applied
