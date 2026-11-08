@@ -46,22 +46,40 @@ tree=$(pwd)
 logs=$tree/build/pconly-gate
 mkdir -p "$logs"
 
-# Stop everything this script started (ctest's tests, synth_compare's games) when it ends, however it ends.
+# Stop everything this script started (ctest's tests, synth_compare's games) when it ends, however it ends. Each step
+# runs in the background, in a process group of its own (set -m), and the script waits for it: bash runs a trap only
+# once the foreground command returns, but a signal interrupts `wait` at once. On the way out the step's group goes,
+# then any process left under the script, children before their parents, TERM and then KILL.
+set -m
+exec 3>&2   # the gate's own stderr, whatever a step's redirection is when a trap runs
+step=""
+run() {
+    "$@" &
+    step=$!
+    wait "$step"
+    local rc=$?
+    step=""
+    return $rc
+}
 kill_tree() {
-    local pid=$1 child
+    local sig=$1 pid=$2 child
     for child in $(ps -o pid= --ppid "$pid" 2>/dev/null); do
-        kill_tree "$child"
-        kill -TERM "$child" 2>/dev/null
+        kill_tree "$sig" "$child"
     done
+    kill -"$sig" "$pid" 2>/dev/null
 }
 cleanup() {
     trap - EXIT INT TERM HUP PIPE
-    kill_tree $$
-    sleep 1
-    for child in $(ps -o pid= --ppid $$ 2>/dev/null); do kill -KILL "$child" 2>/dev/null; done
+    local sig child
+    for sig in TERM KILL; do
+        [ -n "$step" ] && kill -"$sig" -- -"$step" 2>/dev/null
+        for child in $(ps -o pid= --ppid $$ 2>/dev/null); do kill_tree "$sig" "$child"; done
+        [ $sig = TERM ] && sleep 1
+    done
+    return 0
 }
 trap cleanup EXIT
-trap 'echo "pconly_gate: interrupted" >&2; exit 130' INT TERM HUP PIPE
+trap 'echo "pconly_gate: interrupted" >&3; exit 130' INT TERM HUP PIPE
 
 declare -A result detail
 order=(build ctest realtime compare)
@@ -80,13 +98,13 @@ fi
 # ---------------------------------------------------------------------------------------------------------- build
 if ! skipped build; then
     say "build: $tree/$build"
-    {
+    build_step() {
         if [ ! -f "$build/CMakeCache.txt" ]; then
-            cmake -S . -B "$build" $(command -v ninja >/dev/null && echo -G Ninja) || exit 1
+            cmake -S . -B "$build" $(command -v ninja >/dev/null && echo -G Ninja) || return 1
         fi
         cmake --build "$build" -j"$jobs_build"
-    } > "$logs/build.log" 2>&1
-    if [ $? -eq 0 ]; then
+    }
+    if run build_step > "$logs/build.log" 2>&1; then
         result[build]=PASS
     else
         result[build]=FAIL
@@ -120,7 +138,7 @@ if ! skipped ctest; then
         result[ctest]=FAIL; detail[ctest]="not built"
     else
         say "ctest: -j$jobs_ctest -LE realtime"
-        ctest --test-dir "$build" -j"$jobs_ctest" -LE realtime --output-on-failure > "$logs/ctest.log" 2>&1
+        run ctest --test-dir "$build" -j"$jobs_ctest" -LE realtime --output-on-failure > "$logs/ctest.log" 2>&1
         rc=$?
         detail[ctest]=$(ctest_totals "$logs/ctest.log")
         if [ $rc -eq 0 ]; then result[ctest]=PASS; else
@@ -137,7 +155,7 @@ if ! skipped realtime; then
     else
         say "realtime: ctest -L realtime under $lock"
         mkdir -p "$(dirname "$lock")"
-        flock "$lock" ctest --test-dir "$build" -L realtime --output-on-failure > "$logs/realtime.log" 2>&1
+        run flock "$lock" ctest --test-dir "$build" -L realtime --output-on-failure > "$logs/realtime.log" 2>&1
         rc=$?
         detail[realtime]=$(ctest_totals "$logs/realtime.log")
         if [ $rc -eq 0 ]; then result[realtime]=PASS; else
@@ -158,7 +176,7 @@ if ! skipped compare; then
         cmp=(python3 tools/port/synth_compare.py --exe "$base_exe" --exe "$build/rush2049pc" --rom "$base_rom"
              --same --shots --audio)
         # shellcheck disable=SC2086
-        "${cmp[@]}" -j "$jobs_compare" --logs build/pconly-compare $paths > "$logs/compare.log" 2>&1
+        run "${cmp[@]}" -j "$jobs_compare" --logs build/pconly-compare $paths > "$logs/compare.log" 2>&1
         declare -A verdict
         while read -r name v; do verdict[$name]=$v; done < <(verdicts "$logs/compare.log")
         total=${#verdict[@]}
@@ -168,7 +186,7 @@ if ! skipped compare; then
         for name in $(printf '%s\n' "${rerun[@]}" | sort); do
             for try in 1 2; do
                 say "compare: $name was ${verdict[$name]}; alone, run $try"
-                "${cmp[@]}" -j 2 --logs "build/pconly-compare/again-$try" "$name" > "$logs/compare-$name-$try.log" 2>&1
+                run "${cmp[@]}" -j 2 --logs "build/pconly-compare/again-$try" "$name" > "$logs/compare-$name-$try.log" 2>&1
                 v=$(verdicts "$logs/compare-$name-$try.log" | awk '{print $2}')
                 again="$again $name:${v:-none}"
                 if [ "$v" = same ]; then verdict[$name]=same; break; fi
@@ -185,7 +203,7 @@ if ! skipped compare; then
             [ "$total" -eq 0 ] && detail[compare]="no verdicts: see $logs/compare.log"
             [ ${#not_same[@]} -gt 0 ] && detail[compare]="${detail[compare]}; not same: ${not_same[*]}"
         fi
-        grep -E '^synth_compare: [0-9]+ of [0-9]+ paths agree' "$logs/compare.log" | sed 's/^/  /'
+        grep -aE '^synth_compare: [0-9]+ of [0-9]+ paths agree' "$logs/compare.log" | sed 's/^/  /'
     fi
 fi
 
