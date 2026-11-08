@@ -60,28 +60,6 @@ void func_80091AF8(void);
 void post_type1(void);
 void post_type7(void);
 
-void func_800C8918(void) {
-    s32 i;
-
-    if (D_8011023C) {
-        func_800C885C();
-        post_type1();
-        post_type7();
-        do {
-            for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
-                if (D_80142DD8[i].used) {
-                    break;
-                }
-            }
-        } while (i < PC_SND_MSG_LOOP(128));
-        D_8011023C = 0;
-        init_wait_completion();
-        func_800960CC(D_80110244);
-        func_800960CC(D_80110248);
-        func_800960CC(D_80110270);
-    }
-}
-
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's entity_transform_calc says when). The shutdown's stop of the song and of every effect are
  * not dropped: func_800C8918 frees the effects' blocks next, once the manager has drained the pool, so a post

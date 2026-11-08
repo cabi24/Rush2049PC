@@ -117,15 +117,8 @@ extern void func_8008D6FC(s16, void *, void *);
 extern f32 func_8008B424(f32 *);
 extern f32 D_801106C0[];
 extern s8 D_801613AB;
-f32 func_8008B3C8(f32 *v) {
-    return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
-void vector_copy_scale(f32 *a, f32 *b) {
-    f32 s = func_8008B424(a);
-    b[0] = a[0] * s;
-    b[1] = a[1] * s;
-    b[2] = a[2] * s;
-}
+f32 func_8008B3C8(f32 *v);
+void vector_copy_scale(f32 *a, f32 *b);
 void func_800CFDEC(f32 *a, f32 *b, s16 n, f32 lo, f32 hi, f32 t, f32 *out) {
     f32 k;
     s16 i;
@@ -346,7 +339,3 @@ void func_800EA3F4(void *arg0, void *arg1) {
     OF(0x74) = OF(0x78) * OF(0x64) - OF(0x7C) * OF(0x60);
 }
 
-void __standin_func_800EA3F4(void)
-{
-    func_800EA3F4(0, 0);
-}

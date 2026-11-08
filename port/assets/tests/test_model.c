@@ -5,6 +5,7 @@
  * (docs/port/SYNTH.md): the first race of the synthetic cartridge faulted in each. The record, the descriptor and
  * the tune are in an RDRAM window the test maps (exit 77, skipped, if it can't), as the game's are.
  * game: src/blob/func_800E1500.c src/blob/func_800E2C70.c src/blob/func_800E2D18.c
+ * game: src/blob/func_800E2CC0.c
  */
 #include <string.h>
 

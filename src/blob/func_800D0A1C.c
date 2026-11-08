@@ -844,7 +844,7 @@ extern f32 D_80111130;
 extern s8 D_8011119C;
 extern s8 D_801111A9;
 extern f32 D_801111E0;
-extern f32 D_8011121C;
+extern f32 D_8011121C[];   /* by traction type */
 extern s8 D_80111230;
 extern s8 D_8011123D;
 extern f32 D_80111274;
@@ -3689,5 +3689,5 @@ typedef s64 M2C_UNK64;
 #endif
 
 f32 func_800D0A1C(void *arg0) {
-    return (&D_8011121C)[M2C_FIELD(arg0, s8 *, 0xD)];
+    return D_8011121C[M2C_FIELD(arg0, s8 *, 0xD)];
 }

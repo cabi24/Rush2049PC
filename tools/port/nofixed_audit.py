@@ -8,7 +8,7 @@ Today the RDRAM window is at host 0x80000000 and a 32-bit N64 address of game da
 every place that relies on that, by file:line and class, so that moving the window (phase B) can be planned and
 checked. Three sources:
 
-1. The compiler (--build: its compile_commands.json and weak/*.h). Every game C file (built with pc_prelude.h) is
+1. The compiler (--build: its compile_commands.json). Every game C file (built with pc_prelude.h) is
    compiled again with -fsyntax-only and the warnings the build turns off: -Wint-conversion (an integer used as a
    pointer, or a pointer as an integer, with no cast) and the casts between a pointer and an integer of another
    size (-Wint-to-pointer-cast, -Wpointer-to-int-cast). A warning in a function the file's weak header lists is a

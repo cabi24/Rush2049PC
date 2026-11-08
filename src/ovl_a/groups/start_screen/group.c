@@ -276,19 +276,7 @@ void func_8038F73C(void) /* uninitScreen (non-static, named after its retail stu
 }
 
 /* optionValid: installed body (group runtime_a_option_eligibility), IPA context only */
-s8 func_8038F744(s32 index)
-{
-    s8 *entry = &D_803B65E4[index];
-    s32 value = *entry;
-
-    if (index == 7 && !(D_80156944 & 0x100)) {
-        value = 0;
-    }
-    if (index == 6) {
-        value = D_801164A1;
-    }
-    return PC_START_VALID(index, value);
-}
+s8 func_8038F744(s32 index);
 
 void func_8038FFD0(void) /* initButtons */
 {

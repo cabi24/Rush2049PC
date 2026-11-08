@@ -92,12 +92,7 @@ extern void func_8008B32C(Matrix3,Matrix3,f32);
 extern void func_8008D6FC(s16,Vec3,Matrix3);
 #endif
 
-s32 model_bounds_calc(Visual *v,s32 show)
-{
-    if(show) model_transform_setup(v->object,0,15);
-    else model_data_load(v->object,1,15);
-    return show;
-}
+s32 model_bounds_calc(Visual *v,s32 show);
 s32 matrix_scale_apply(Visual *v,s32 show,s32 part)
 {
     if(part<0) return model_bounds_calc(v,show);

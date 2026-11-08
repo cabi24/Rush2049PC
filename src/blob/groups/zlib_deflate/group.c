@@ -27,7 +27,6 @@
 #define fill_window         car_reset_position
 #define deflate_slow        car_spawn_at_checkpoint
 #define _tr_init            func_800AAB3C
-#define deflate_mem         car_angular_velocity_clamp
 
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
@@ -1619,43 +1618,4 @@ __inline void deflate_init(z_streamp strm, int level, int windowBits, int memLev
     s->max_lazy_match   = configuration_table[level].max_lazy;
     s->nice_match       = configuration_table[level].nice_length;
     s->max_chain_length = configuration_table[level].max_chain;
-}
-
-uLong deflate_mem(Bytef *next_in, uInt avail_in, Bytef *next_out, uInt avail_out,
-                  int level, int windowBits, int memLevel)
-{
-    z_stream strm;
-    deflate_state *s;
-
-    strm.next_in = next_in;
-    strm.avail_in = avail_in;
-    strm.next_out = next_out;
-    strm.avail_out = avail_out;
-    deflate_init(&strm, level, windowBits, memLevel);
-
-    /* deflateReset */
-    s = strm.state;
-    s->pending = 0;
-    s->pending_out = s->pending_buf;
-    _tr_init(s);
-
-    /* lm_init */
-    s->window_size = (ulg)2L*s->w_size;
-    CLEAR_HASH(s);
-    s->strstart = 0;
-    s->block_start = 0L;
-    s->lookahead = 0;
-    s->match_length = s->prev_length = MIN_MATCH-1;
-    s->match_available = 0;
-    s->ins_h = 0;
-
-    deflate_slow(strm.state);
-
-    /* deflateEnd */
-    TRY_FREE(s->pending_buf);
-    TRY_FREE(s->head);
-    TRY_FREE(s->prev);
-    TRY_FREE(s->window);
-    TRY_FREE(s);
-    return strm.total_out;
 }

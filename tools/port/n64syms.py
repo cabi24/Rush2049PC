@@ -1,6 +1,6 @@
 """Shared helpers for the PC port tools: the decompilation's symbol file, N64 memory regions, nm output.
 
-Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py, gen_weak.py and gen_data.py.
+Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py and gen_data.py.
 """
 import json
 import re

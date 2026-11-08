@@ -25,18 +25,3 @@ static void dma_wait(void)
     }
 }
 
-void func_80096130(s32 index)
-{
-    Slot20 *slot = &gWaveInstance[index];
-
-    if (slot->allocation == 0) {
-        return;
-    }
-    dma_wait();
-    func_800960CC(slot->allocation);
-    if (slot) {}
-    slot->allocation = 0;
-    memset(gRomObjDefPtrs + index * 8, 0, 8);
-    memset(gTexDefPtrs + index * 8, 0, 8);
-    memset(gPalDefPtrs + index * 8, 0, 8);
-}

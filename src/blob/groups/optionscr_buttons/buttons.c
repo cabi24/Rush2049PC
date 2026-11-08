@@ -118,15 +118,7 @@ void func_800DA0BC(void)
     D_80116D94 = 0;
 }
 
-void ZOID_SetColorP_da(s16 objnum, Color *col)
-{
-    D_8012E700[objnum].color.rgba = col->rgba;
-}
-
-void ZOID_SetColor_da(s16 objnum, Color *col)
-{
-    ZOID_SetColorP_da(objnum, col);
-}
+void ZOID_SetColor_da(s16 objnum, Color *col);
 
 void func_800DA2C0(void) {
     static f32 D_8015273C;

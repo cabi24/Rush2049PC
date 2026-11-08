@@ -47,10 +47,3 @@ static void wheel_find_node(u8 *name, Node104 **out) {
                                            (s32 (*)(void *, void *)) pointer_offset_wrapper))->node;
 }
 
-s16 wheel_torque_apply(u8 *arg0, s16 arg1) {
-    D_80149D90 = -1;
-    wheel_find_node(arg0, &D_80149B80);
-    differential_output(D_80149B80, arg1);
-    func_800AB638();
-    return D_80149D90;
-}

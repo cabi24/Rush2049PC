@@ -298,38 +298,7 @@ extern void sound_call_minimal(s16),sound_handles_array_clear(FiveParts *);
 extern void render_results_screen(void),sound_stop(Blit *),ambient_sounds_clear(void);
 extern void func_800A5A40(void),func_800A5B3C(void);
 
-void func_803949CC(void)
-{
-    s32 i,j;
-    s8 player;
-    Slot64 *slot;
-    for(i=0;i<D_8014A108;i++) {
-        player=i;
-        for(j=0;j<22;j++) {
-            slot=&D_803B470C[player][j];
-            if(slot->id!=-1) {
-                sound_call_minimal(slot->id);
-                slot->id=-1;
-            }
-        }
-        D_803BA868[player]=0;
-        if(D_803BAC08[i]) {
-            sound_handles_array_clear(D_803BAC08[i]);
-            D_803BAC08[i]=0;
-        }
-    }
-    render_results_screen();
-    if(D_803B5ED8) {
-        sound_stop(D_803B5ED8);
-        D_803B5ED8=0;
-    }
-    ambient_sounds_clear();
-    D_80154188=90.0f;
-    D_80151AD0=1;
-    func_800A5A40();
-    func_800A5B3C();
-    D_803B5ED0=0;
-}
+void func_803949CC(void);
 
 extern volatile u8 D_80140BDC;
 extern char *D_803B46DC[];
@@ -623,13 +592,7 @@ extern u8 D_803BADD8[][13];
 extern s32 D_803BA888[];
 extern s8 D_803BAD00[][14];
 /* playerClaimed: installed body of group runtime_a_profile_menu (IPA context: owner in a0, skip in a2) */
-s32 func_80395E24(s32 skip,Owner *owner)
-{
-    s8 i;
-    s32 found=0;
-    if(owner)for(i=0;i<D_8014A108;i++)if(i!=skip && owner==D_8014A118[i].owner)found=1;
-    return found;
-}
+s32 func_80395E24(s32 skip,Owner *owner);
 extern void audio_doppler(u32),audio_distance_atten(u32);
 extern void func_800F084C(char *);
 extern Owner *func_800CD104(s8,char *);
@@ -803,20 +766,8 @@ void func_80395E8C(s32 p)
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
 /* playerBeingDeleted / playerBeingCreated: installed bodies, IPA context */
-s32 func_80396EE8(PC_IPA_A0 s32 skip)
-{
-    s8 i;
-    s32 found=0;
-    for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==4)found=1;
-    return found;
-}
-s32 func_80396F44(PC_IPA_A0 s32 skip)
-{
-    s8 i;
-    s32 found=0;
-    for(i=0;i<D_8014A108;i++)if(i!=skip && D_803BACE0[i]==3)found=1;
-    return found;
-}
+s32 func_80396EE8(PC_IPA_A0 s32 skip);
+s32 func_80396F44(PC_IPA_A0 s32 skip);
 #define func_80396EE8(skip) func_80396EE8(0, skip)
 #define func_80396F44(skip) func_80396F44(0, skip)
 void func_803968B8(s32,Owner *);

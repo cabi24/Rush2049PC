@@ -153,10 +153,6 @@ void engine_sound_sync(void)
     func_80091AF8();
 }
 
-void func_80091AF0(void) {
-    osRecvMesg(D_80142728, 0, 1);
-}
+void func_80091AF0(void);
 
-void func_80091AF8(void) {
-    osSendMesg(D_80142728, 0, 0);
-}
+void func_80091AF8(void);

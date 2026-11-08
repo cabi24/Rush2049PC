@@ -4086,65 +4086,10 @@ typedef s64 M2C_UNK64;
 
 
 extern f32 D_801241A8;
-void speed_set(f32 blend,f32 amount,s8 first,s8 second) {
-    f32 var_f0;
-    void *temp_v0;
-
-    osRecvMesg((OSMesgQueue *) &D_80142728, NULL, 1);
-    temp_v0 = func_80091B00();
-    M2C_FIELD(temp_v0, s8 *, 2) = 0xA;
-    if (blend < 0.0f) {
-        M2C_FIELD(temp_v0, f32 *, 4) = 0.0f;
-    } else {
-        if (blend > 1.0f) {
-            var_f0 = 1.0f;
-        } else {
-            var_f0 = blend;
-        }
-        M2C_FIELD(temp_v0, f32 *, 4) = var_f0;
-    }
-    if (amount < 0.0f) {
-        M2C_FIELD(temp_v0, f32 *, 8) = 0.0f;
-    } else {
-        M2C_FIELD(temp_v0, f32 *, 8) = (f32) amount;
-    }
-    M2C_FIELD(temp_v0, s8 *, 0xC) = (s8) first;
-    M2C_FIELD(temp_v0, s8 *, 0xD) = (s8) second;
-    osSendMesg((OSMesgQueue *) &D_80142728, NULL, 0);
-    osSendMesg((OSMesgQueue *) &D_801427A8, temp_v0, 0);
-}
-void sync_entry_register(s32 arg0, s32 arg1) {
-    s32 *sp1C;
-    s32 *temp_v0;
-
-    osRecvMesg((OSMesgQueue *) &D_80142728, NULL, 1);
-    temp_v0 = func_80091B00();
-    sp1C = temp_v0;
-    M2C_FIELD(temp_v0, s8 *, 2) = 0;
-    M2C_FIELD(temp_v0, s32 *, 4) = arg0;
-    M2C_FIELD(temp_v0, s8 *, 8) = (s8) arg1;
-    osSendMesg((OSMesgQueue *) &D_80142728, NULL, 0);
-    osSendMesg((OSMesgQueue *) &D_801427A8, sp1C, 0);
-}
-void func_800D6160(s32 mode) {
- s32 selected; s8 level; u32 seed; f32 amount;
- level=M2C_FIELD(&D_80146108,s8 *,12);
- if(level) {
-  selected=D_8010FFD4[D_8014978C];
-  if(selected == -1) {
-   do {
-    seed=(u32)D_8011735C*0x41C64E6D+12345;
-    D_8011735C=seed;
-    selected=(s32)((f32)(((s32)seed>>16)&0x7FFF)*12.0f/32768.0f);
-   } while(selected == 5);
-  }
-  if(mode) amount=1.0f; else amount=D_801241A8;
-  speed_set((f32)level/10.0f,amount,1,0);
-  if(M2C_FIELD(&D_80146108,s8 *,14)==12) sync_entry_register(selected,1);
-  else if(M2C_FIELD(&D_80146108,s8 *,14)<12) sync_entry_register(M2C_FIELD(&D_80146108,s8 *,14),1);
- }
-}
+void speed_set(f32 blend,f32 amount,s8 first,s8 second);
+void sync_entry_register(s32 arg0, s32 arg1);
+void func_800D6160(s32 mode);
 void physics_init_mode0(void) {func_800D6160(0);}
 void physics_init_mode1(void) {func_800D6160(1);}
-void speed_mode0_wrapper(f32 blend,f32 amount) {speed_set(blend,amount,1,0);}
-void speed_mode1_wrapper(f32 blend,f32 amount) {speed_set(blend,amount,0,1);}
+void speed_mode0_wrapper(f32 blend,f32 amount);
+void speed_mode1_wrapper(f32 blend,f32 amount);

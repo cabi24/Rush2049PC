@@ -69,120 +69,17 @@ Entity *func_80091BA8(s32 h)
     return &D_80110244[h & D_80146104];
 }
 
-void func_800BF01C(CamSlot *c)
-{
-    if (0) {
-        switch (D_80146104) {
-        case 0:
-            D_80146104 = 1;
-            break;
-        case 1:
-            D_80146104 = 2;
-            break;
-        case 2:
-            D_80146104 = 3;
-            break;
-        case 3:
-            D_80146104 = 4;
-            break;
-        }
-    }
-}
+void func_800BF01C(CamSlot *c);
 
-Msg *func_80091B00(void)
-{
-    s32 i;
-
-    for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
-        if (D_80142DD8[i].used == 0) {
-            D_80142DD8[i].used = 1;
-            D_80142DD8[i].id = -1;
-            return &D_80142DD8[i];
-        }
-    }
-    return 0;
-}
+Msg *func_80091B00(void);
 
 void results_screen_update(s32 h);
 s32 results_time_display(s32 h);
 void scheduler_recv(s32 h);
 
-void results_screen_update(s32 h)
-{
-    Entity *e;
+void results_screen_update(s32 h);
 
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e == 0) {
-        osSendMesg(&D_80142728, 0, 0);
-        return;
-    }
-    func_800BF01C(e->cam);
-    osSendMesg(&D_80142728, 0, 0);
-    scheduler_recv(h);
-}
-
-s32 leaderboard_update(s32 h)
-{
-    Entity *e;
-
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e == 0) {
-        osSendMesg(&D_80142728, 0, 0);
-        return 0;
-    }
-    func_800BF01C(e->cam);
-    osSendMesg(&D_80142728, 0, 0);
-    return results_time_display(h);
-}
-
-s32 results_time_display(s32 h)
-{
-    s32 r;
-    Entity *e;
-
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e != 0) {
-        if (e->state == 1 || e->state == 3) {
-            r = 1;
-        } else if (e->state != 2) {
-            r = 0;
-        } else {
-            r = entity_state_check(e->link);
-        }
-    } else {
-        r = 0;
-    }
-    osSendMesg(&D_80142728, 0, 0);
-    return r;
-}
-
-void camera_clip_planes(s32 h, f32 *p, s32 unused, f32 a, f32 b)
-{
-    Entity *e;
-    CamSlot *c;
-
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e != 0) {
-        c = e->cam;
-        func_800BF01C(c);
-        c->x = p[0];
-        c->y = p[1];
-        c->z = p[2];
-        if (a < 0.0f) {
-            c->blend = 0.0f;
-        } else if (a > 1.0f) {
-            c->blend = 1.0f;
-        } else {
-            c->blend = a;
-        }
-        c->extra = b;
-    }
-    osSendMesg(&D_80142728, 0, 0);
-}
+s32 results_time_display(s32 h);
 
 /* PC: a stop that finds the message pool empty, or the manager's queue full, as entity_transform_calc
  * (transform/group.c) handles a change. */
@@ -207,10 +104,3 @@ void scheduler_recv(s32 h)
     }
 }
 
-void __standin_a(void)
-{
-    func_80091B00();
-    func_80091B00();
-    results_time_display(0);
-    results_time_display(1);
-}

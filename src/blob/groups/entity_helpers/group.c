@@ -63,16 +63,7 @@ Entity *func_80091BA8(s32 h);
 void func_800BF01C(CamSlot *c);
 Msg *func_80091B00(void);
 
-Entity *func_80091BA8(s32 h)
-{
-    if (h == -1) {
-        return 0;
-    }
-    if (D_80110244[h & D_80146104].id != h) {
-        return 0;
-    }
-    return &D_80110244[h & D_80146104];
-}
+Entity *func_80091BA8(s32 h);
 
 void func_800BF01C(CamSlot *c)
 {
@@ -95,19 +86,7 @@ void func_800BF01C(CamSlot *c)
     }
 }
 
-Msg *func_80091B00(void)
-{
-    s32 i;
-
-    for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
-        if (D_80142DD8[i].used == 0) {
-            D_80142DD8[i].used = 1;
-            D_80142DD8[i].id = -1;
-            return &D_80142DD8[i];
-        }
-    }
-    return 0;
-}
+Msg *func_80091B00(void);
 
 void results_screen_update(s32 h);
 s32 results_time_display(s32 h);
@@ -143,27 +122,7 @@ s32 leaderboard_update(s32 h)
     return results_time_display(h);
 }
 
-s32 results_time_display(s32 h)
-{
-    s32 r;
-    Entity *e;
-
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e != 0) {
-        if (e->state == 1 || e->state == 3) {
-            r = 1;
-        } else if (e->state != 2) {
-            r = 0;
-        } else {
-            r = entity_state_check(e->link);
-        }
-    } else {
-        r = 0;
-    }
-    osSendMesg(&D_80142728, 0, 0);
-    return r;
-}
+s32 results_time_display(s32 h);
 
 void camera_clip_planes(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
 {
@@ -191,22 +150,5 @@ void camera_clip_planes(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
     osSendMesg(&D_80142728, 0, 0);
 }
 
-void scheduler_recv(s32 h)
-{
-    Msg *m = 0;
-    Entity *e;
-
-    osRecvMesg(&D_80142728, 0, 1);
-    e = func_80091BA8(h);
-    if (e != 0) {
-        m = func_80091B00();
-        m->type = 6;
-        m->ent = e;
-        e->msgCount++;
-    }
-    osSendMesg(&D_80142728, 0, 0);
-    if (m != 0) {
-        osSendMesg(&D_801427A8, m, 0);
-    }
-}
+void scheduler_recv(s32 h);
 

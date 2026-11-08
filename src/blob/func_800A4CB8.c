@@ -50,11 +50,7 @@ void PurgeableMemory(u32 arg0, s32 arg1);
 void *memset(void *, s32, u32);
 void func_80091FBC(List *list, Link *object, Link *before);
 
-void func_800A370C(List *list) {
-    list->head = 0;
-    list->tail = 0;
-    list->count = 0;
-}
+void func_800A370C(List *list);
 
 static void list_init(List *list, s8 indirect, s8 doubly) {
     list->indirect = indirect;

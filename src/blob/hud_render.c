@@ -114,18 +114,7 @@ extern f32 fabsf(f32);
  * completes a 30 Hz frame, false on the others. */
 #define PC_ON30(c) ((c) && (!pc_fps60 || pc_frame_steps))
 
-int func_8008B2B4(void) {
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
-
-f32 func_8008B2E4(f32 max)
-{
-    f32 rannum;
-
-    rannum = ((f32)(func_8008B2B4() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
+f32 func_8008B2E4(f32 max);
 
 static void resource_set_frame(s16 index, u16 frame)
 {

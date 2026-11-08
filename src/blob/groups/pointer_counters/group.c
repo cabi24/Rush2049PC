@@ -4085,22 +4085,7 @@ typedef s64 M2C_UNK64;
 
 
 
-void *func_80095F8C(u32 arg0) {
-    s32 var_v0;
-    s32 var_v1;
-
-    var_v0 = D_801527C8;
-    var_v1 = 0;
-    if (var_v0 != 0) {
-        do {
-            if ((arg0 >= (u32) M2C_FIELD(var_v0, u32 *, 8)) && (arg0 < (u32) M2C_FIELD(var_v0, u32 *, 0x10))) {
-                var_v1 = var_v0;
-            }
-            var_v0 = M2C_FIELD(var_v0, s32 *, 4);
-        } while (var_v0 != 0);
-    }
-    return (void *) var_v1;
-}
+void *func_80095F8C(u32 arg0);
 void *audio_buffer_sync(u32 address) {
  void *owner,*block,*result;
  osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);

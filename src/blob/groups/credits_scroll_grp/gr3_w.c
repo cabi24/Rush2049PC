@@ -17,16 +17,7 @@ extern s32 D_80149B88;
 extern s32 D_8002AFC4;
 extern s8 D_8011474C, D_8011473C;
 
-void func_800B6748(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *variant) {
- rgba[0]=rgba[1]=rgba[2]=230;
- rgba[3]=255;
- *amount=-1.0f;
- *x=0;
- *y=0;
- *bank=-1;
- *mode=-1;
- *variant=-1;
-}
+void func_800B6748(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *variant);
 
 void HAL_StartText(void)
 {
@@ -43,7 +34,3 @@ void HAL_StartText(void)
 }
 
 /* stand-in caller (context, kept): keeps func_800B6748 out of line as in retail (three callers there) */
-void __standin_func_800B6748(void)
-{
-    func_800B6748((u8 *)&D_80149B48, &D_80114748, &D_80149D92, &D_80149D9E, &D_80149DA0, &D_80149B60, &D_80149B70);
-}

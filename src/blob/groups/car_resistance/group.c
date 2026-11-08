@@ -97,7 +97,7 @@ extern float func_800D0B14(Vehicle2056 *),func_800D0AA0(Vehicle2056 *),func_800D
 extern void func_800D09E8(void *,Tire92 *),track_preview_handler(Vehicle2056 *,Tire92 *,float),func_800D0894(Vehicle2056 *);
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
-float func_800D0A1C(Vehicle2056 *m) {return D_8011121C[m->traction_type];}
+float func_800D0A1C(Vehicle2056 *m);
 void track_info_display(Vehicle2056 *m)
 {
  Car *car;

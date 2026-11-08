@@ -7,9 +7,9 @@
 #     N64 records are its design, not bugs. AddressSanitizer leaves the game's own C data alone (asan-globals=0):
 #     a runtime image's C data is one range the loader saves and puts back whole (port/data/overlays.ld), and the
 #     game walks from one symbol to the next as the N64's layout allows, so redzones between them don't belong;
-#   targets with the PC_NO_SANITIZE property, none: the probe and the -O0 types copy, whose nm and DWARF the
-#     generators read (gen_data's tables stay the same files), and data.c, whose own storage must stay in N64 order
-#     without redzones between.
+#   targets with the PC_NO_SANITIZE property, none: the -O0 types copy, whose nm and DWARF the generators read
+#     (gen_data's tables stay the same files), and data.c, whose own storage must stay in N64 order without redzones
+#     between.
 #
 # AddressSanitizer needs aarch64: on x86-64 its shadow memory starts at 0x7FFF8000 and covers the RDRAM window
 # (0x80000000, and 0xA0000000 is in its shadow gap), which the game needs at those addresses. ThreadSanitizer's

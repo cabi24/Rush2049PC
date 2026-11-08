@@ -232,14 +232,7 @@ s16 hs_RightText(char *text, s16 rightX)
     return rightX - object_manager_update(text, -1);
 }
 
-s32 hs_font_set(s32 font)
-{
-    s32 old;
-    du_gfx_lock();
-    old = slot_state_setup(font);
-    osSendMesg(&D_801461D0, 0, 0);
-    return old;
-}
+s32 hs_font_set(s32 font);
 
 void hs_SetFont(s32 font)
 {

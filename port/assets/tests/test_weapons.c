@@ -5,6 +5,7 @@
  * and the model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field
  * at its N64 offset lands somewhere else. The window is mapped by the test (exit 77, skipped, if it can't).
  * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/func_8010D680.c
+ * game: src/blob/func_8008AE64.c
  */
 #include <math.h>
 #include <stddef.h>

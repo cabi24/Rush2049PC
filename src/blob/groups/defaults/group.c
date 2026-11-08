@@ -4108,17 +4108,6 @@ void func_800B6748(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *vari
 }
 
 /* menu_input_process (HAL_DrawText) and func_800B66B0 (_TextLen) are defined in hal_drawtext.c */
-void HAL_StartText(void) {
-    osRecvMesg((OSMesgQueue *) &D_801461D0, NULL, 1);
-    func_800B6748((u8 *)&D_80149B48,&D_80114748,&D_80149D92,&D_80149D9E,&D_80149DA0,&D_80149B60,&D_80149B70);
-    slot_state_setup(D_80149DA0);
-    D_80149B88 = 0;
-    if (D_8002AFC4 >= 0xDD) {
-        D_80149B88 = 0x8000;
-    }
-    D_8011474C = 0;
-    D_8011473C = 0;
-    osSendMesg((OSMesgQueue *) &D_801461D0, NULL, 0);
-}
+void HAL_StartText(void);
 
 /* world_velocity_integrate (HAL_FinishText) is defined in finishtext.c */

@@ -145,39 +145,11 @@ extern void *AllocateHandleHeap(void *, u32);      /* AllocateHandleHeap */
 extern void *memset(void *, s32, u32);
 void no_catchup(PakHandle *fileh);
 /* context: byte-identical copy of the locked pfs_status body (internal here: IPA register facts) */
-s32 func_800A1E94(s32 error) {
-    switch (error) {
-        case 0: return 0;
-        case 1: return 2;
-        case 2: return 3;
-        case 3: return 4;
-        case 4: return 5;
-        case 5: return 7;
-        case 7: return 6;
-        case 8: return 6;
-        case 9: return 8;
-        case 6: return 9;
-        case 10:
-        case 11: return 10;
-        default: return 15;
-    }
-}
+s32 func_800A1E94(s32 error);
 
 /* the inlined pak lock helpers (bodies as group pak_write_cluster pfs_*; own names: the unit renames duplicated internal names) */
-void paksys_queue_init(void) {
-    if (!D_8011194C) {
-        D_8011194C = 1; osCreateMesgQueue(&D_801497D0, &D_801527E4, 1);
-        osSendMesg(&D_801497D0, 0, 0);
-    }
-}
-void paksys_lock(void) {
-    OSMesg message;
-    paksys_queue_init();
-    osRecvMesg(&D_801497D0, &message, 1);
-}
-void paksys_unlock(void) {
-    osSendMesg(&D_801497D0, 0, 0);
-}
+void paksys_lock(void);
+void paksys_unlock(void);
 
 /* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
 void no_catchup(PakHandle *fileh)
@@ -186,14 +158,7 @@ void no_catchup(PakHandle *fileh)
 }
 
 /* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
-PakHandle *pfs_get_node(void)
-{
-    PakHandle *fileh;
-    if (D_801460E0.head) {}
-    fileh = D_801460E0.head;
-    func_8009211C(&D_801460E0, fileh);
-    return fileh;
-}
+PakHandle *pfs_get_node(void);
 
 /* 0x800A2D4C */
 PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
@@ -298,29 +263,9 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
 extern s32 osPfsDeleteFile(OSPfs *, u16, u32, u8 *, u8 *);
 extern OSMesgQueue D_80152770;          /* heap semaphore */
 extern void audio_reverb_update(u32, s32);  /* DeallocateMemory core (IPA a1/a2) */
-void pdf_heap_lock(void)
-{
-    osRecvMesg(&D_80152770, 0, 1);
-}
-void pdf_heap_unlock(void)
-{
-    osSendMesg(&D_80152770, 0, 0);
-}
-void pdf_dealloc(u32 address)
-{
-    pdf_heap_lock();
-    audio_reverb_update(address, 0);
-    pdf_heap_unlock();
-}
-void pdf_free_blocks(s32 pak)
-{
-    osPfsFreeBlocks((OSPfs *)&D_80144030[pak].pfs, (s32 *)&D_80144030[pak].FreeSpace);
-}
-void pdf_release(PakHandle *fileh)
-{
-    func_8009211C(&D_80144D60[fileh->file->pak], fileh);
-    func_80091FBC(&D_801460E0, fileh, D_801460E0.head);
-}
+void pdf_dealloc(u32 address);
+void pdf_free_blocks(s32 pak);
+void pdf_release(PakHandle *fileh);
 
 /* 0x800A2680: PS_DeleteFile */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -424,28 +369,10 @@ void ClearPak(u8 pak)
 }
 
 /* inlined: does the file's write bitmap have dirty bytes */
-s32 _FileChanged(tPS_File *psfile)
-{
-    u8 *map;
-    u32 i;
-
-    if (!psfile->data) return 0;
-    map = *psfile->data + psfile->size;
-    for (i = 0; i < D_80144030[psfile->pak].files[psfile->fileNo].mapBytes; i++) {
-        if (map[i]) return 1;
-    }
-    return 0;
-}
+s32 _FileChanged(tPS_File *psfile);
 
 /* inlined: motor off and rumble state cleared */
-void _StopRumble(s32 pak)
-{
-    D_80144030[pak].opaque6 = 0;
-    D_80144030[pak].phase = 0;
-    D_80144030[pak].level = 0;
-    D_80144030[pak].request = 0;
-    D_80144030[pak].motorOn = 0;
-}
+void _StopRumble(s32 pak);
 
 /* 0x800A377C: PS_PakServer */
 void track_render_process(s32 forceUpdate, s32 rumbleOnly)

@@ -23,18 +23,10 @@ extern ObjInstance D_8012E700[];
 extern CarParts D_80139320[];
 
 /* ZOID_SetColor */
-void func_8008E06C(short objnum, Color *col)
-{
-    D_8012E700[objnum].color = col->w;
-}
+void func_8008E06C(short objnum, Color *col);
 
 /* ZOID_SetEnvColor */
-void func_80092BC8(short objnum, Color *col)
-{
-    ObjInstance *obj;
-    obj = &D_8012E700[objnum];
-    obj->envcolor = col->w;
-}
+void func_80092BC8(short objnum, Color *col);
 
 /* SetSheenColor */
 void func_80092BF4(short slot, Color *col, Color *env)

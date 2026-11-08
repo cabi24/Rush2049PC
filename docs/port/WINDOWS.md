@@ -133,9 +133,10 @@ moves. So on Windows:
 
 The 85 names that come out 0 are the same as Linux's undefined weak references.
 
-**Weak definitions.** gen_weak's `#pragma weak` copies ([PORT_PLAN.md](../PORT_PLAN.md), Phase 0) work on PE: a
-strong definition beats the weak ones, and calls inside the copying file reach the strong one. Some details
-differ:
+**Weak definitions.** gen_weak's `#pragma weak` copies ([PORT_PLAN.md](../PORT_PLAN.md), Phase 0) worked on PE: a
+strong definition beats the weak ones, and calls inside the copying file reach the strong one. (Since 2026-11-08 the
+game C has one definition per function and gen_weak is gone, with its anchors below; [PCONLY.md](PCONLY.md) 4.) Some
+details differ:
 
 - GNU as keeps a weak definition's body under `.weak.<name>.<a global the file defines>`, the first it meets. A
   file whose globals are all weak copies got `.weak.<name>.` in every such file, and ld reported them as multiple

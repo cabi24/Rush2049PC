@@ -47,13 +47,7 @@ extern OSMesgQueue D_80152770;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-static Heap *heap_or_default(Heap *heap)
-{
-    if (heap != 0) {
-        return heap;
-    }
-    return D_801527C8;
-}
+Heap *func_80097468(Heap *heap);
 
 void *sound_play_menu(Heap *heap, u32 size)
 {
@@ -66,7 +60,7 @@ void *sound_play_menu(Heap *heap, u32 size)
     osRecvMesg(&D_80152770, 0, 1);
     total = 0;
     largest = 0;
-    heap = heap_or_default(heap);
+    heap = func_80097468(heap);
     size = (size + 31) & ~31;
     for (b = N64P(heap->last); b != 0; b = N64P(b->prev)) {
         if (b->used == 0) {

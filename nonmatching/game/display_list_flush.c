@@ -156,29 +156,11 @@ void leEndLoadingEffect(void)
 {
 }
 
-static void ZOID_Reset(void)
-{
-    D_80156990 = 0;
-    D_80156CE0 = 0;
-    D_801613AC = 0;
-    D_80156BAC = 0;
-    D_801613B4 = 0;
-    D_8015B254 = -1;
-    ZOID_ResetWindows();
-    D_801613B8 = 1.0f;
-    D_80140618 = 0;
-    D_801406B8 = (intptr_t)D_8011EA18;
-}
+void func_800A5B3C(void);
 
-void AudLock(void)
-{
-    osRecvMesg(D_80142728, 0, 1);
-}
+void AudLock(void);
 
-void AudUnlock(void)
-{
-    osSendMesg(D_80142728, 0, 0);
-}
+void AudUnlock(void);
 
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * src/blob/groups/transform/group.c's entity_transform_calc says when). A stop, pause or resume posted here is
@@ -187,11 +169,7 @@ void AudUnlock(void)
  * AudStopAllEffects (display_list_flush.c, RaceStateMachine_Update.c) is the same. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){AudUnlock();return;}
 #define PC_GIVE_BACK(m) ((s8 *)(m))[3]=0;
-void AudSend(AudMsg *msg)
-{
-    if (osSendMesg(D_801427A8, msg, 0)) { PC_GIVE_BACK(msg)
-    }
-}
+void AudSend(AudMsg *msg);
 
 void AudKillSong(void)
 {
@@ -203,15 +181,7 @@ void AudKillSong(void)
     AudSend(msg);
 }
 
-void AudStopAllEffects(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 7;
-    AudUnlock();
-    AudSend(msg);
-}
+void AudStopAllEffects(void);
 
 typedef struct StuntInfo { s32 active; u8 pad[120]; } StuntInfo;
 extern u8 D_80152038[480];      /* gStuntPlayer */
@@ -228,13 +198,7 @@ static void ResetStunts(void)
     }
 }
 
-void effect_system_init(void)
-{
-    memset(D_80152038, 0, sizeof(D_80152038));
-    ResetStunts();
-    D_8016139C = 0.0f;
-    D_80152738 = 0;
-}
+void effect_system_init(void);
 
 void InitBattlePoints(void)
 {
@@ -297,7 +261,7 @@ s32 display_list_flush(s32 useHud, s32 cancel)
         }
         D_80154188 = 90.0f;
         if (!(state_word_a & 8)) AudKillSong();
-        if (D_80114650) { ZOID_Reset(); InitBlits(); }
+        if (D_80114650) { func_800A5B3C(); InitBlits(); }
         else if (!(state_word_a & 8)) InitWaves();
         func_800EC914();
         GhostStart();

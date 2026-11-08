@@ -59,14 +59,7 @@ void results_screen_update(s32 handle);
 void scheduler_recv(s32 handle);
 void player_conditional_call(SndRec *rec);
 
-void player_conditional_check(SndRec *rec, s32 arg1) {
-    if (arg1 != 0) {
-        results_screen_update(rec->handle);
-    } else {
-        scheduler_recv(rec->handle);
-    }
-    player_conditional_call(rec);
-}
+void player_conditional_check(SndRec *rec, s32 arg1);
 
 void func_800D5524(MODELDAT *m) {
     s32 slot = m->slot;

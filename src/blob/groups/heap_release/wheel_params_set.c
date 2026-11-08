@@ -34,22 +34,7 @@ int osSendMesg(OSMesgQueue *, void *, int);
 void audio_reverb_update(u32 address, int tag);
 void func_800958B8(void);
 
-void func_80095CF4(void)
-{
-    osRecvMesg((OSMesgQueue *)D_80152770, 0, 1);
-}
-
-void func_80095CFC(void)
-{
-    osSendMesg((OSMesgQueue *)D_80152770, 0, 0);
-}
-
-void func_800960CC(u32 address)
-{
-    func_80095CF4();
-    audio_reverb_update(address, 0);
-    func_80095CFC();
-}
+void func_800960CC(u32 address);
 
 /* This file's func_800960CC is a weak copy; the link keeps the empty stub of that name, and the heap free
  * itself as audio_effect_process (heap_release/group.c, docs/port/PROTOTYPES.md). */

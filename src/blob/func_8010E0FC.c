@@ -87,15 +87,9 @@ extern void math_utility(void *, void *);
 extern u32 func_800F7A98(s32, s32);
 extern void model_data_load(s32, s32, u32);
 extern void sound_position_set(void *, void *);
-static void resource_set_object(s16 index, s16 object)
-{
-    D_8012E700[index].object = object;
-}
+void func_80090770(s16 index, s16 object);
 
-static void resource_set_color(s16 index, u32 *color)
-{
-    D_8012E700[index].color = *color;
-}
+void func_8008E06C(s16 index, u32 *color);
 
 void func_8010E0FC(Node *node, s16 update)
 {
@@ -133,7 +127,7 @@ void func_8010E0FC(Node *node, s16 update)
             coin->number = number;
             D_80151964++;
         }
-        resource_set_object(entity->id.part.index, string_copy_format(D_80121DB0, 0, gNumModels - 1, 1));
+        func_80090770(entity->id.part.index, string_copy_format(D_80121DB0, 0, gNumModels - 1, 1));
         coin->spin[0] = 0.0f;
         coin->spin[2] = 0.0f;
         coin->spin[1] = 3.0f;
@@ -143,10 +137,10 @@ void func_8010E0FC(Node *node, s16 update)
         coin->position[2] = entity->position[2];
         if (entity->flags & 0x40) {
             coin->model = func_8008E26C(string_copy_format(D_80121DBC, 0, gNumModels - 1, 1), coin->matrix, -1, 0x40000);
-            resource_set_color(entity->id.part.index, gold);
+            func_8008E06C(entity->id.part.index, gold);
         } else {
             coin->model = func_8008E26C(string_copy_format(D_80121DCC, 0, gNumModels - 1, 1), coin->matrix, -1, 0x40000);
-            resource_set_color(entity->id.part.index, silver);
+            func_8008E06C(entity->id.part.index, silver);
         }
         coin->missing = 0;
         alone = 1;

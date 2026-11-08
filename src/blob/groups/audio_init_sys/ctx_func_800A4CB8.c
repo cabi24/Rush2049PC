@@ -47,11 +47,7 @@ void PurgeableMemory(void *arg0, s32 arg1);
 void *memset(void *, s32, u32);
 void func_80091FBC(List *list, Link *object, Link *before);
 
-void func_800A370C(List *list) {
-    list->head = 0;
-    list->tail = 0;
-    list->count = 0;
-}
+void func_800A370C(List *list);
 
 static void list_init(List *list, s8 indirect, s8 doubly) {
     list->indirect = indirect;
@@ -59,29 +55,3 @@ static void list_init(List *list, s8 indirect, s8 doubly) {
     func_800A370C(list);
 }
 
-void func_800A4CB8(s32 count) {
-    s32 i;
-    s32 n;
-
-    list_init(&D_80146160, 0, 1);
-    if (count == 0) {
-    }
-    D_801460F4 = count;
-    list_init(&D_80146138, 0, 1);
-    D_80144C48 = AllocateMemoryHeap(0, D_801460F4 * sizeof(Rec24));
-    PurgeableMemory(D_80144C48, 0);
-    memset(D_80144C48, 0, D_801460F4 * sizeof(Rec24));
-    n = count * 3;
-    D_80146100 = AllocateMemoryHeap(0, n * sizeof(Rec32));
-    PurgeableMemory(D_80146100, 0);
-    memset(D_80146100, 0, n * sizeof(Rec32));
-    for (i = 0; i < n; i++) {
-        func_80091FBC(&D_80146138, &D_80146100[i].link, D_80146138.head);
-    }
-    D_80144DB8 = count;
-    for (i = 0; i < 5; i++) {
-        D_801460C8[i] = 0;
-    }
-    D_8011028C = 0;
-    D_80110284 = 1;
-}

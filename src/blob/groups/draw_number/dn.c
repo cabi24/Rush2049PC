@@ -33,5 +33,3 @@ void draw_number(void *p, s32 idx)
     func_800C7578(p, (u8)idx, 11, (s8)(D_801113E0[idx] * 100.0f - 75.0f));
 }
 
-void caller_a(void *p, s32 i) { draw_number(p, i); draw_number(p, i + 1); }
-void caller_b(void *p, s32 i) { draw_number(p, i); }

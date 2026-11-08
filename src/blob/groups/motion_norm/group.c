@@ -46,6 +46,4 @@ void func_800E9C70(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
 
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
-f32 func_8008B3C8(f32 *v) {
-    return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
+f32 func_8008B3C8(f32 *v);

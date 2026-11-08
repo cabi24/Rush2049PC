@@ -27,22 +27,8 @@ extern s32 D_80146104;
 extern s32 D_80142728, D_801427A8;
 s32 osRecvMesg(void *,void *,s32);
 s32 osSendMesg(void *,void *,s32);
-Entity *func_80091BA8(s32 h) {
-    if(h==-1)return 0;
-    if(D_80110244[h&D_80146104].id!=h)return 0;
-    return &D_80110244[h&D_80146104];
-}
-Msg *func_80091B00(void) {
-    s32 i;
-    for(i=0;i<PC_SND_MSG_LOOP(128);i++){
-        if(D_80142DD8[i].used==0){
-            D_80142DD8[i].used=1;
-            D_80142DD8[i].id=-1;
-            return &D_80142DD8[i];
-        }
-    }
-    return 0;
-}
+Entity *func_80091BA8(s32 h);
+Msg *func_80091B00(void);
 /* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
  * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
  * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the
@@ -78,20 +64,6 @@ void entity_hierarchy_update(s32 h,f32 value) {
     osRecvMesg(&D_80142728,0,1);
     entity_transform_calc(h,-2.0f,-2.0f,-2.0f,value);
     osSendMesg(&D_80142728,0,0);
-}
-void scheduler_recv(s32 h) {
-    Msg *m=0;
-    Entity *e;
-    osRecvMesg(&D_80142728,0,1);
-    e=func_80091BA8(h);
-    if(e!=0) {
-        m=func_80091B00();
-        m->type=6;
-        m->payload.target=e;
-        e->msgCount++;
-    }
-    osSendMesg(&D_80142728,0,0);
-    if(m!=0)osSendMesg(&D_801427A8,m,0);
 }
 
 void stat_lap_complete(s32 h,f32 value) {

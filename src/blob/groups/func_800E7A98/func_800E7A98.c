@@ -36,13 +36,7 @@ typedef struct Heap {
 #define N64W(x) PC_N64W(x)
 extern Heap *D_801527C8;
 
-static Heap *heap_or_default(Heap *heap)
-{
-    if (heap != 0) {
-        return heap;
-    }
-    return D_801527C8;
-}
+Heap *func_80097468(Heap *heap);
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
@@ -54,7 +48,7 @@ void func_800E7A98(Heap *heap)
     if (heap == NULL) {
     }
     osRecvMesg(&D_80152770, NULL, 1);
-    h = heap_or_default(heap);
+    h = func_80097468(heap);
     for (p = D_801527C8; p != NULL; p = N64P(p->next)) {
         if (N64P(p->next) == h) {
             p->next = h->next;

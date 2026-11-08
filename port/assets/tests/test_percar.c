@@ -21,6 +21,7 @@
  * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c
  * game: src/blob/groups/race_countdown_display/race_countdown_display.c src/blob/func_800E9E2C.c
  * game: src/blob/func_800EB90C.c src/blob/render_post_process.c src/blob/mode_flags_clear.c
+ * game: src/blob/func_8008B3A0.c
  */
 #include <math.h>
 #include <stddef.h>

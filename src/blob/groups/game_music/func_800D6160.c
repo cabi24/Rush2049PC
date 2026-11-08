@@ -28,5 +28,3 @@ void func_800D6160(s32 resume)
   else if(D_80146108.track < 12) sync_entry_register(D_80146108.track,1);
  }
 }
-void physics_init_mode0(void) {func_800D6160(0);}
-void physics_init_mode1(void) {func_800D6160(1);}

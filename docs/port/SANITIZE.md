@@ -44,8 +44,8 @@ read now:
 (CMakeLists.txt's `-fno-aggressive-loop-optimizations` note), so a bounds finding is either such a view (section 4)
 or a real read past an object. Both kinds turned up (section 3).
 
-**Not instrumented.** gen_weak reads the probe's symbols and gen_data the `-O0` types copy's DWARF and nm, so
-those stay as in every other build: a sanitizer build compiles `game_types` even as Debug, and `data.c`, `data_layout`
+**Not instrumented.** gen_data reads the `-O0` types copy's DWARF and nm (and, until 2026-11-08, gen_weak read the
+probe's symbols), so those stay as in every other build: a sanitizer build compiles `game_types` even as Debug, and `data.c`, `data_layout`
 and `data_symbols.txt` are the same files as a normal build's. data.c's own storage has to stay in N64 address
 order with nothing between (OPTIMIZED.md 2.2), so it gets no redzones.
 
@@ -95,8 +95,8 @@ unwinder, which allocates, and addr2line runs through `popen`, neither safe in a
 - **Threads.** Each N64 thread is a host thread made by `pthread_create`, which the runtimes intercept; one runs at
   a time, handing a baton over a mutex and condition variables, which TSan sees as the happens-before it is. The 2 MiB
   stacks are enough with ASan's redzones (no stack overflow in any run).
-- **Weak symbols.** gen_weak's `#pragma weak` copies and port/ultra/defaults.c's weak no-ops link as before. Strong
-  and weak definitions are both instrumented; nothing about them changes.
+- **Weak symbols.** port/ultra/defaults.c's weak no-ops (and, until 2026-11-08, gen_weak's `#pragma weak` copies)
+  link as before. Strong and weak definitions are both instrumented; nothing about them changes.
 - **Absolute symbols** (gen_stubs' `aliases.ld`, data.c's arenas) are not globals the compiler emits, so ASan
   registers nothing for them and their shadow is the window's, all addressable. The GOT fix-up
   (`pc_mem_fix_absolute`) runs as before; the runtimes' own relocations aren't at 0x80000000 or above.

@@ -48,9 +48,7 @@ extern f32 D_801110C4[][3];
 
 #define RPM_SCALE 1150
 
-s16 func_800E2CC0(s32 a, s32 b, s32 rem, s32 total) {
-    return (a + (((b - a) * rem) / total));
-}
+s16 func_800E2CC0(s32 a, s32 b, s32 rem, s32 total);
 
 s16 func_800E2D18(EngineState *m, s16 rpm, s16 throttle, s16 *torquecurve)
 {

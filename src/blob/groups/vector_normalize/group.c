@@ -10,10 +10,7 @@ typedef float f32;
 f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
-f32 func_8008E098(f32 x, f32 y, f32 z)
-{
-    return sqrtf((x * x + y * y) + z * z);
-}
+f32 func_8008E098(f32 x, f32 y, f32 z);
 
 extern f32 D_8012394C;
 

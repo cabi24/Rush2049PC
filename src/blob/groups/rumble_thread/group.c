@@ -182,6 +182,4 @@ check2:
     }
 }
 
-void sync_release_video(void) {
-    osSendMesg(&D_801497D0, 0, 0);
-}
+void sync_release_video(void);

@@ -43,7 +43,7 @@ void input_status_update(s32 arg0, s32 arg1, s32 arg2, unsigned short arg3);
 void Input_SetPadSecondaryFlag(s32 arg0, s32 arg1);
 void Input_SetPadEnabledFlag(s32 arg0, s32 arg1);
 
-void Input_InitPadHandlers(u32 index,u32 h8,uintptr_t w4,uintptr_t w0,u32 hA,u32 hC,u32 h10,u32 h12) {Record *r=&D_80140BF0[index];r->word4=w4;r->word0=w0;r->half8=h8;r->halfA=hA;r->halfC=hC;r->half10=h10;r->half12=h12;}
+void Input_InitPadHandlers(u32 index,u32 h8,uintptr_t w4,uintptr_t w0,u32 hA,u32 hC,u32 h10,u32 h12);
 
 void Input_ApplyPadConfig(Sprite *spr) {
     Input_InitPadHandlers(spr->index, spr->unkC, spr->unk8, spr->unk4, spr->unkE, spr->unk10, spr->unk14, spr->unk16);

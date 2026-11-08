@@ -3718,80 +3718,13 @@ s16 input_process_controller(Poly *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut,
  * denominator in $f0 and evaluates it before the numerator); operand order inside it matters.
  * rad2 is an IPA register parameter ($f18): the body only reproduces with its real callers in the unit.
  */
-f32 lsq(f32 *v) { return (v[0] * v[0]) + (v[2] * v[2]); }
-s32 func_800AD4C8(f32 *a, f32 *p, f32 *out, f32 rad2) {
-    f32 t;
-    t = ((a[2] * p[2]) + (p[0] * a[0])) / lsq(a);
-    if (t < 0.0f) {
-        out[0] = D_8011418C[3][0] - p[0];
-        out[1] = 0.0f;
-        out[2] = D_8011418C[3][2] - p[2];
-    } else if (t > 1.0f) {
-        out[0] = a[0] - p[0];
-        out[1] = 0.0f;
-        out[2] = a[2] - p[2];
-    } else {
-        out[0] = (a[0] * t) - p[0];
-        out[1] = 0.0f;
-        out[2] = (a[2] * t) - p[2];
-    }
-    if (rad2 <= ((out[0] * out[0]) + (out[2] * out[2]))) {
-        return 0;
-    }
-    return 1;
-}
+s32 func_800AD4C8(f32 *a, f32 *p, f32 *out, f32 rad2);
 /* context: strict single match, unchanged */
 
-s32 func_800AD5D0(u8 *arg0, s32 arg1, s16 *arg2)
-{
-  u32 val;
-  s32 cnt;
-  s32 t;
-  if (arg1 > 0)
-  {
-    do
-    {
-      val = (arg0[0] << 8) + arg0[1];
-      arg0 += 2;
-      if ((arg1 >= 2) && ((t = *arg0), (t >= 0xE0)))
-      {
-        cnt = t & ~0xE0;
-        arg0 += 1;
-      }
-      else
-      {
-        cnt = 0;
-      }
-      arg1 = (arg1 - cnt) - 1;
-      do
-      {
-        *arg2 = val;
-        cnt -= 1;
-        val += 1;
-        arg2 += 1;
-      }
-      while (cnt >= 0);
-    }
-    while (arg1 > 0);
-  }
-  val = (arg0[0] << 8) + arg0[1];
-  return val & 0xFFFF;
-}
+s32 func_800AD5D0(u8 *arg0, s32 arg1, s16 *arg2);
 
 /* parameter order (out): callers set up a1 (out) before a0 -- proven by camera_first_person. */
-void func_800AD650(void *arg0, void *arg1) {
-    f32 *o = (f32 *) arg1;
-    s16 *p = (s16 *) arg0;
-    o[0] = (f32) p[0] * 0.00006103515625f;
-    o[1] = (f32) p[1] * 0.00006103515625f;
-    o[2] = (f32) p[2] * 0.00006103515625f;
-    o[3] = (f32) p[3] * 0.00006103515625f;
-    o[4] = (f32) p[4] * 0.00006103515625f;
-    o[5] = (f32) p[5] * 0.00006103515625f;
-    o[6] = (f32) p[6] * 0.00006103515625f;
-    o[7] = (f32) p[7] * 0.00006103515625f;
-    o[8] = (f32) p[8] * 0.00006103515625f;
-}
+void func_800AD650(void *arg0, void *arg1);
 
 
 /* compressed vertex: three s16 with 5 extra fraction bits each packed in w */
@@ -3819,93 +3752,7 @@ void func_800AD650(void *arg0, void *arg1) {
  * callers (camera_trigger_check, camera_victory, entity_update) are unmatched, so two stand-in call sites
  * keep it out of line here -> PROVISIONAL.
  */
-s16 func_800C3AD0(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin) {
-    s32 res;
-    f32 va[3];
-    f32 vb[3];
-    f32 vc[3];
-    f32 vd[3];
-    f32 ve[3];
-    s32 i;
-    PV *e;
-    u16 idx[16];
-    s32 k;
-    u32 n;
-    f32 c;
-
-    n = poly->cnt & 0xF;
-    res = 1;
-    *outIdx = func_800AD5D0((u8 *) (D_80152568 + poly->off), n, (s16 *) idx);
-    func_800AD650(poly->body, mat);
-    i = idx[0];
-    e = i + D_8015201C;
-    DECODE(vb, e);
-    va[0] = wp[0] - vb[0];
-    va[1] = wp[1] - vb[1];
-    va[2] = wp[2] - vb[2];
-    func_800A61B0(va, pt, mat);
-    if ((pt[1] <= zmin) || (*bound < pt[1])) {
-        return 0;
-    }
-    i = idx[n - 1];
-    e = i + D_8015201C;
-    DECODE(vb, e);
-    c = ((vb[2] - pt[2]) * vb[0]) - ((vb[0] - pt[0]) * vb[2]);
-    if (c < 0) {
-        if (func_800AD4C8(vb, pt, vc, D_80123F70) == 0) {
-            return 0;
-        }
-        res = -1;
-        goto done;
-    }
-    i = idx[1];
-    e = i + D_8015201C;
-    DECODE(vb, e);
-    c = (pt[2] * vb[0]) - (pt[0] * vb[2]);
-    if (c < 0) {
-        if (func_800AD4C8(vb, pt, vc, D_80123F74) == 0) {
-            return 0;
-        }
-        res = -1;
-        goto done;
-    }
-    for (k = 2; k < n; k++) {
-        ve[0] = vb[0];
-        ve[2] = vb[2];
-        i = idx[k];
-        e = i + D_8015201C;
-        DECODE(vb, e);
-        va[0] = vb[0] - ve[0];
-        va[1] = 0.0f;
-        va[2] = vb[2] - ve[2];
-        vd[0] = pt[0] - ve[0];
-        vd[1] = 0.0f;
-        vd[2] = pt[2] - ve[2];
-        c = (vd[2] * va[0]) - (vd[0] * va[2]);
-        if (c < 0) {
-            if (func_800AD4C8(va, vd, vc, D_80123F78) == 0) {
-                return 0;
-            }
-            res = -1;
-            goto done;
-        }
-    }
-done:
-    *bound = pt[1];
-    if ((q != NULL) && (((poly->type & 0xF) == 5) || ((poly->type & 0xF) == 6))) {
-        i = idx[0];
-    e = i + D_8015201C;
-    DECODE(vb, e);
-        va[0] = q[0] - vb[0];
-        va[1] = q[1] - vb[1];
-        va[2] = q[2] - vb[2];
-        func_800A61B0(va, vb, mat);
-        if ((vb[1] <= *bound) || (vb[1] < D_80123F7C)) {
-            return 0;
-        }
-    }
-    return res;
-}
+s16 func_800C3AD0(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin);
 
 /* input_process_controller (0x800AD734, 363 words).
  * Does the segment p1->p2 cross convex polygon `poly` from above?  Both ends go into the polygon frame
@@ -4054,34 +3901,6 @@ typedef struct QNode {
 extern QNode *D_80124EEC;
 
 
-void *func_800AC9BC(QNode *n, s16 x, s16 y, s16 *out) {
-    s16 q;
-    for (;;) {
-        q = 1;
-        if (x < (n->x0 + n->x1) / 2) q = 0;
-        if (y < (n->y0 + n->y1) / 2) q += 2;
-        if (!(n->mask & (1 << q))) break;
-        n = &D_80124EEC[n->child[q]];
-        if (n == D_80124EEC) return 0;
-    }
-    *out = q;
-    return n;
-}
-void *handbrake_apply(QNode *n, s16 x, s16 y, s16 *out) {
-    s16 outside;
-    if (n == 0) {
-        n = D_80124EEC;
-    }
-    while (1) {
-        outside = (x >= n->x1 || x < n->x0 || y >= n->y1 || y < n->y0);
-        if (!outside) break;
-        if (n->next == -1) {
-            return 0;
-        }
-        n = &D_80124EEC[n->next];
-    }
-    return func_800AC9BC(n, x, y, out);
-}
 
 float fabsf(float);
 #pragma intrinsic (fabsf)
@@ -4129,70 +3948,5 @@ typedef struct CCar {
 
 void func_800C36A0(CCar *car, CCol *col);
 
-void func_800C36A0(CCar *car, CCol *col) {
-    f32 v[3];
-    f32 w[3];
-    s32 i;
-    f32 f12;
-    f32 k;
-    s32 idx;
-    CPoly *poly;
+void func_800C36A0(CCar *car, CCol *col);
 
-    k = col->k;
-    poly = col->poly;
-    idx = D_801174C4[col->idx];
-    v[0] = k * col->m[3];
-    v[1] = k * col->m[4];
-    v[2] = col->m[5] * k;
-    car->f556[0] = v[0] + car->f556[0];
-    car->f556[1] = v[1] + car->f556[1];
-    car->f556[2] = v[2] + car->f556[2];
-    car->f1940[0] = v[0] + car->f1940[0];
-    car->f1940[1] = v[1] + car->f1940[1];
-    car->f1940[2] = v[2] + car->f1940[2];
-    for (i = 0; i < 4; i++) {
-        car->B628[i][0] = v[0] + car->B628[i][0];
-        car->B628[i][1] = v[1] + car->B628[i][1];
-        car->B628[i][2] = v[2] + car->B628[i][2];
-        car->B580[i][0] = v[0] + car->B580[i][0];
-        car->B580[i][1] = v[1] + car->B580[i][1];
-        car->B580[i][2] = v[2] + car->B580[i][2];
-    }
-    v[0] = car->A244[idx][1] * car->v76[2] - car->A244[idx][2] * car->v76[1];
-    v[1] = car->A244[idx][2] * car->v76[0] - car->A244[idx][0] * car->v76[2];
-    v[2] = car->A244[idx][0] * car->v76[1] - car->A244[idx][1] * car->v76[0];
-    v[0] = v[0] + car->v64[0];
-    v[1] = v[1] + car->v64[1];
-    v[2] = v[2] + car->v64[2];
-    func_8009E820(v, w, car->mat);
-    func_800A61B0(w, v, col->m);
-    car->flags2004 |= 0x100000;
-    i = poly->type & 0xF;
-    f12 = D_80123F54 / car->f1472;
-    if (i == 5 || (poly->type & 0x2000) || i == 6) {
-        k = car->f1592 * f12 * D_80123F58;
-    } else {
-        k = car->f1592 * f12 * D_80123F5C;
-    }
-    w[0] = -v[0] * k;
-    w[2] = -v[2] * k;
-    if (car->b1996 == 1) {
-        k = fabsf((car->mat[6] * col->m[3] + car->mat[7] * col->m[4]) + car->mat[8] * col->m[5]) * D_80123F60 + D_80123F64;
-    } else {
-        k = fabsf((car->mat[6] * col->m[3] + car->mat[7] * col->m[4]) + car->mat[8] * col->m[5]) * D_80123F68 + D_80123F6C;
-    }
-    w[1] = -v[1] * f12 * car->f1592 * k;
-    func_8009E820(w, v, col->m);
-    func_800A61B0(v, w, car->mat);
-    if ((i == 5 || i == 6) && car->w1548[idx] == 8 && fabsf(w[2]) < 4000.0f && fabsf(w[1]) < 4000.0f) {
-        car->f300 += w[2];
-        car->A196[idx][0] += w[0];
-    } else {
-        car->A196[idx][0] += w[0];
-        car->A196[idx][1] += w[1];
-        car->A196[idx][2] += w[2];
-    }
-}
-
-void __standin_c36a0_a(CCar *c, CCol *o) { func_800C36A0(c, o); }
-void __standin_c36a0_b(CCar *c, CCol *o) { func_800C36A0((CCar *) o, (CCol *) c); }

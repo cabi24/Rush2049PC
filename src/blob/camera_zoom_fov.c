@@ -35,9 +35,7 @@ typedef int s32;
 extern s8 D_80149B70;
 s32 HAL_GetCharWidth(u16 ch);
 
-s8 func_800BDEB0(void) {
-    return D_80149B70;
-}
+s8 func_800BDEB0(void);
 
 s16 camera_zoom_fov(s16 width, u8 *text) {
     u8 *start;

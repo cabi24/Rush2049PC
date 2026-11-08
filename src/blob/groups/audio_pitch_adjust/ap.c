@@ -20,24 +20,4 @@ void audio_pitch_adjust(Node *n)
 }
 
 /* stand-in callers (real ones: entity_ai_pathfind, func_80098FB8) */
-void caller_a(Node *n, s32 k)
-{
-    while (n) {
-        Node *nx = n->next;
-        if (func_800987E8(k) == 0) {
-            if (*((char *)n + 25)) audio_pitch_adjust(n); else audio_effect_setup(n);
-        }
-        n = nx;
-    }
-}
 
-void caller_b(Node *n, s32 k)
-{
-    Node *h = n;
-    while (h) {
-        if (func_800987E8(k) == 0) {
-            if (*((char *)h + 25)) audio_pitch_adjust(h); else audio_effect_setup(h);
-        }
-        h = h->next;
-    }
-}

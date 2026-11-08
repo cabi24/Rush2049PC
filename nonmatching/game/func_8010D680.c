@@ -63,10 +63,7 @@ void sound_position_set(f32 *angV, f32 (*uvs)[3]);          /* RotateUV */
 void model_transform_setup(s32 a, s32 mode, u32 v);
 void model_data_load(s32 a, s32 mode, u32 v);
 
-static u32 ZOID_ObjectFlags(s16 objnum)
-{
-    return D_8012E700[objnum].flags;
-}
+u32 func_8008AE64(s16 objnum);
 
 void func_8010D680(Visual *v, s16 op)
 {
@@ -89,7 +86,7 @@ void func_8010D680(Visual *v, s16 op)
         angVF[1] = angV[1] * D_8002EB94;
         angVF[2] = angV[2] * D_8002EB94;
         sound_position_set(angVF, t->uvs);
-    } else if (ZOID_ObjectFlags(t->dlIdx) & 0x80000000) {
+    } else if (func_8008AE64(t->dlIdx) & 0x80000000) {
         switch (t->type) {
         case 350: wep = 0; break;
         case 351: wep = 1; break;

@@ -57,13 +57,7 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 u32 func_800BAF90(Heap *heap);
 
-static Heap *heap_or_default(Heap *heap)
-{
-    if (heap != 0) {
-        return heap;
-    }
-    return D_801527C8;
-}
+Heap *func_80097468(Heap *heap);
 
 u32 audio_output_setup(Heap *heap)
 {
@@ -80,7 +74,7 @@ u32 func_800BAF90(Heap *heap)
     u32 sum;
     Block *block;
 
-    block = N64P(heap_or_default(heap)->first);
+    block = N64P(func_80097468(heap)->first);
     sum = 0;
     while (block != 0) {
         if (block->used == 0) {

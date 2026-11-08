@@ -170,10 +170,7 @@ f32 func_8008B2E4(f32 max);
 
 Node *func_8008B3A0(s16 objnum);
 
-void func_8008E06C(s16 objnum, Color *color)
-{
-    D_8012E700[objnum].colA = color->w;
-}
+void func_8008E06C(s16 objnum, Color *color);
 
 void AnimateRocketFlame(s16 ipa_s5, s32 flag);
 
@@ -182,14 +179,7 @@ void ZOID_SetObjectDef(s16 objnum, u16 def)
 {
     D_8012E700[objnum].tex = def;
 }
-u32 func_8008AE64(s16 objnum)
-{
-    return D_8012E700[objnum].flags;
-}
-void func_8008AE48(s32 objnum, u32 flags)
-{
-    D_8012E700[objnum].flags = flags;
-}
+u32 func_8008AE64(s16 objnum);
 
 
 /* GetCarsIRColor: N64 form (no colour smoothing); inlined into AnimateFrame. */

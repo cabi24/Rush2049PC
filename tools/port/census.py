@@ -44,10 +44,7 @@ def load_entries(build):
     if not path.exists():
         sys.exit(f"census: {path} not found; configure with CMake first (it exports it)")
     entries = []
-    probe = (build / "probe").resolve()
     for e in json.loads(path.read_text()):
-        if probe in Path(e["file"]).resolve().parents:
-            continue   # gen_weak's probe wrappers: the same files again
         if Path(e["file"]).name == "stubs.c":
             continue   # the link test's stand-ins for what is still missing
         args = e["arguments"] if "arguments" in e else shlex.split(e["command"])
@@ -138,7 +135,7 @@ def main():
     defined = set(defs)
     undefined -= defined | n64syms.HOST_LIBC | n64syms.LINKER_DEFINED
     undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
-    # One strong definition per symbol (tools/port/gen_weak.py makes the non-owned copies weak).
+    # One strong definition per symbol; the weak ones are the PC layer's defaults (port/ultra/defaults.c and the like).
     strong_dups = sorted(n for n, d in defs.items() if sum(1 for _, t in d if t in "TDBRS") > 1)
     weak_resolved = sum(1 for d in defs.values() for _, t in d if t in "WV")
     classes = collections.Counter()
@@ -178,7 +175,7 @@ def main():
     L += ["## Link", "", f"Defined: {len(defined)}. Still undefined: **{len(undefined)}**.", "",
           f"Defined more than once (strong): **{len(strong_dups)}**"
           + (": " + ", ".join(f"`{n}`" for n in strong_dups[:40]) if strong_dups else "")
-          + f". Non-owned copies made weak by `gen_weak.py`: {weak_resolved}.", "",
+          + f". Weak definitions (the PC layer's defaults): {weak_resolved}.", "",
           "| Kind | Region | Undefined |", "|---|---|---:|"]
     L += [f"| {k} | {r} | {n} |" for (k, r), n in sorted(classes.items())]
     L += [f"| ? | not in the symbol file | {len(unknown)} |", ""]

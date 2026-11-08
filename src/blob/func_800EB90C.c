@@ -112,24 +112,11 @@ extern void func_800EB028(Object *object);
 extern void func_800CFCA8(void);
 extern void math_utility(void *src, void *dst);
 
-static int rand(void)
-{
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
+int func_8008B2B4(void);
 
-static f32 Random(f32 max)
-{
-    f32 rannum;
+f32 func_8008B2E4(f32 max);
 
-    rannum = ((f32)(rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
-
-static Camera *node_camera(s16 node)
-{
-    return D_8012E700[node].cam;
-}
+Camera *func_8008B3A0(s16 node);
 
 void func_800EB90C(void)
 {
@@ -169,8 +156,8 @@ void func_800EB90C(void)
         if (state_word_a & 8) {
             if ((D_801543CC - D_801106A4[slot] > D_801106B4[slot] || D_801543CC < D_801106A4[slot]) && view != 4 && viGetTimeToDeadline() > 3.0f) {
                 D_801106A4[slot] = D_801543CC;
-                D_801106B4[slot] = Random(1.0f) + 2.5;
-                switch ((u32)Random(11.0f)) {
+                D_801106B4[slot] = func_8008B2E4(1.0f) + 2.5;
+                switch ((u32)func_8008B2E4(11.0f)) {
                 case 0:
                     view = 0;
                     break;
@@ -239,7 +226,7 @@ void func_800EB90C(void)
     func_800CFCA8();
     for (j = 0; j < RACE_CARS; j++) {
         if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
-            cam = node_camera(PC_CAR_NODE(j));
+            cam = func_8008B3A0(PC_CAR_NODE(j));
             cam->pos[0] = PC_CAR_POS(j)[0];
             cam->pos[1] = PC_CAR_POS(j)[1];
             cam->pos[2] = PC_CAR_POS(j)[2];

@@ -68,25 +68,7 @@ void func_8008D870(s16 objnum, void *texdef, int bank);                 /* ZOID_
 void sound_bank_unload(s16 slot, u8 car, u8 a, u8 b, u8 c);             /* SetupCarColor */
 void func_80092FE0(s16 slot, tRGBA *col);                               /* SetFrameColor */
 
-void func_8008E06C(s16 objnum, tRGBA *col)
-{
-    D_8012E700[objnum].color = col->rgba;
-}
-
-void func_80092BC8(s16 objnum, tRGBA *col)
-{
-    ObjInstance *obj;
-    obj = &D_8012E700[objnum];
-    obj->envcolor = col->rgba;
-}
-
-void func_80092BF4(s16 slot, tRGBA *col, tRGBA *env)
-{
-    CarParts *car;
-    car = &D_80139320[slot];
-    func_8008E06C(car->sheen, col);
-    func_80092BC8(car->sheen, env);
-}
+void func_80092BF4(s16 slot, tRGBA *col, tRGBA *env);
 
 void music_seq_load(s16 slot, s16 camlink, int for_game)
 {

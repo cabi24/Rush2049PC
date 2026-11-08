@@ -72,34 +72,18 @@ void entity_transform_apply(tVisual *v, s32 unlink);       /* ReleaseEnviron */
 void PitchUV(float angle, float uvs[3][3]);          /* PitchUV */
 void func_80090E9C(float angle, float uvs[3][3]);          /* YawUV */
 
-static int rand(void)
-{
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
+int func_8008B2B4(void);
 
-static f32 Random(f32 max)
-{
-    f32 rannum;
+f32 func_8008B2E4(f32 max);
 
-    rannum = ((f32)(rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
-
-static void ZOID_RemoveObjectTree(s16 objnum, int removeChildren)
-{
-    entity_spawn_callback(objnum, removeChildren, 0);
-}
+void sound_call_simple(s16 objnum, int removeChildren);
 
 static void ZOID_RemoveObject(s16 objnum)
 {
-    ZOID_RemoveObjectTree(objnum, 0);
+    sound_call_simple(objnum, 0);
 }
 
-static void ZOID_SetColor(s16 objnum, tRGBA *col)
-{
-    D_8012E700[objnum].color = col->rgba;
-}
+void func_8008E06C(s16 objnum, tRGBA *col);
 
 void entity_update_callback(tVisual *v, s16 op)
 {
@@ -146,7 +130,7 @@ release:
         if (D_80154660[v->slot].alphaCnt == 0) D_80154660[v->slot].alpha -= 31;
         else if (D_80154660[v->slot].alphaCnt == 1) D_80154660[v->slot].alpha += 31;
         else if (D_80154660[v->slot].alphaCnt > 1) {
-            D_80154660[v->slot].alphaCnt = (int)Random(3.0f) * -1;
+            D_80154660[v->slot].alphaCnt = (int)func_8008B2E4(3.0f) * -1;
             D_80154660[v->slot].alpha = 95;
         }
         D_80154660[v->slot].alphaCnt++;
@@ -155,7 +139,7 @@ release:
             clr.c[1] = 255;
             clr.c[2] = 255;
             clr.c[3] = D_80154660[v->slot].alpha;
-            ZOID_SetColor(D_80154660[v->slot].glowIdx, &clr);
+            func_8008E06C(D_80154660[v->slot].glowIdx, &clr);
             if (D_8012E700[D_80154660[v->slot].glowIdx].scale < 1.0f)
                 D_8012E700[D_80154660[v->slot].glowIdx].scale += 0.05f;
         }
@@ -187,7 +171,7 @@ release:
                 clr.c[2] = 20;
                 clr.c[3] = b->alpha;
                 if (b->alpha > b->alphaInc) b->alpha -= b->alphaInc;
-                ZOID_SetColor(b->mbIdx, &clr);
+                func_8008E06C(b->mbIdx, &clr);
             }
         }
         D_80154660[v->slot].incTime = 0.0333333f;

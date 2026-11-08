@@ -92,14 +92,7 @@ extern volatile Clock D_8002E8E8;
 void Input_ApplyPadConfig(Blit *blt);
 void stat_race_update(Blit *blt, s32 index, s32 w, s32 h);
 
-static s32 Hidden(Blit *blt, s32 hide)
-{
-    if (hide != blt->Hide) {
-        blt->Hide = hide;
-        Input_ApplyPadConfig(blt);
-    }
-    return blt->Hide;
-}
+s32 Hidden(Blit *blt, s32 hide);
 
 s32 func_80109A60(Blit *blt)
 {

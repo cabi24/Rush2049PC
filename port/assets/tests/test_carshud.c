@@ -9,6 +9,7 @@
  * and records what they are given. The values and the strings are made up.
  * game: src/blob/groups/credits_scroll_grp/gr3_7af4.c src/blob/func_80105B74.c src/blob/groups/showhud/showhud.c
  * game: src/blob/func_80109A60.c src/blob/func_80108F40.c src/blob/groups/results_table/results_table.c
+ * game: src/blob/state_update_global.c
  */
 #include <stdarg.h>
 #include <string.h>
@@ -66,6 +67,7 @@ int8_t D_80156994, D_8014978C;
 int16_t D_80151AD0;
 struct pc_multiblit D_80115A44[1], D_801159FC[1], D_80115A20[1], D_80114C58[89], D_801158DC[8];
 int32_t D_80138660, D_80154394, D_801543A0, D_801543A8, D_801543B0;
+int32_t D_80149D98; uint32_t D_80117358;       /* state_update_global.c's, where Hidden is */
 volatile float D_8002EB90;
 char *D_80114A0C[4][11];
 struct {

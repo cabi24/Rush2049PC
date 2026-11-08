@@ -4059,7 +4059,3 @@ block_104:
 }
 
 /* stand-in caller: keeps MP_TargetSteerPos out of line under -O3 */
-void __standin_MP_TargetSteerPos(void)
-{
-    MP_TargetSteerPos(0, 0, 0);
-}

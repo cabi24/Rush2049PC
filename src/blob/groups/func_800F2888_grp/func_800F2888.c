@@ -76,5 +76,3 @@ void func_800F2888(void)
     }
 }
 
-void __standin_a(void) { func_800F2888(); }
-void __standin_b(void) { func_800F2888(); }

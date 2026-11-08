@@ -3727,23 +3727,7 @@ void audio_frame_update(s16 arg0);
 void func_800B08FC(s16 ipa_t0, s16 ipa_t3);
 void func_800B0A88(s16 ipa_s1, s16 ipa_s2);
 
-void func_800B08FC(s16 slot, s16 idx) {
-    HudRec *h;
-    s32 k;
-    s32 hd;
-    if (gameplay_mode == 2 || gameplay_mode == 6 || (h = PC_MODEL(slot), h->s7CA != 0)) {
-        ((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx].cb = 0;
-        return;
-    }
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->cb = (void *) entity_anim_texture;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->slot = slot;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->idx = idx;
-    k = D_80111299[slot * 13 + h->b8] * 4 + idx + 0xE2;
-    (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->handle = save_slot_valid(D_801427C0[k], 0xF, ((SndSlot *) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290)))[idx].handle, 0, slot, -1, 1);
-    hd = (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->handle;
-    *(f32 *) (*(s32 *) ((u8 *) &D_8012E708 + hd * 0x44) + 0x28) = D_80123C1C;
-    model_data_load((&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->handle, 1, 0xF);
-}
+void func_800B08FC(s16 slot, s16 idx);
 
 
 void func_800B0A88(s16 slot, s16 idx) {
@@ -3773,13 +3757,5 @@ void func_800B0A88(s16 slot, s16 idx) {
 /* audio_frame_update (StartCar) is defined in startcar.c */
 
 /* stand-in caller: keeps func_800B08FC out of line under -O3 */
-void __standin_func_800B08FC(void)
-{
-    func_800B08FC(0, 0);
-}
 
 /* stand-in caller: keeps func_800B0A88 out of line under -O3 */
-void __standin_func_800B0A88(void)
-{
-    func_800B0A88(0, 0);
-}

@@ -43,11 +43,6 @@ void func_800F1114(void)
     state_word_b = 0x800000;
 }
 
-void __standin_func_800F1114(void)
-{
-    func_800F1114();
-}
-
 void __standin2_func_800F1114(void)
 {
     func_800F1114();

@@ -27,7 +27,7 @@ void model_transform_setup(s16,s32,s32);
 void math_utility(void *,void *);
 s32 model_bounds_calc(ModelObj *,s32);
 s32 matrix_scale_apply(ModelObj *,s32,s32);
-Pose *func_8008B3A0(s16 objnum) { return D_8012E700[objnum].pose; }
+Pose *func_8008B3A0(s16 objnum);
 /* MAT3 helper/body evidence with N64 separate side-index lifetime and
  * trace-supported native homes for the used inv and pose locals. */
 void entity_anim_texture(ModelObj *record,s16 mode) {

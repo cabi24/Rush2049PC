@@ -150,7 +150,7 @@ extern float sqrtf(float);
  * of more cars left in them. */
 #define GRID_CARS (D_801543CA > PC_N64_CARS ? D_801543CA : PC_N64_CARS)
 #define CLEAR_SLOTS PC_MODEL_SLOTS
-s32 func_800B930C(s32 index) {if(index+1 == D_80151CE8.count)return D_80151CE8.first;return index+1;}
+s32 func_800B930C(s32 index);
 void world_physics_tick(void) {
     s32 i,j,index;
     Car *car;

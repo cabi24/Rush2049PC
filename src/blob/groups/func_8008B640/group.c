@@ -3713,19 +3713,9 @@ s32 model_bounds_calc(ModelObj *obj, s32 flag) {
 /* arcade LIB/fmath.c rand()/Random(max): static copies of the kept, locked
  * func_8008B2B4 / func_8008B2E4 (umerge inlines them into _a in the unit) */
 extern int D_8011735C;
-static int rand(void)
-{
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
+int func_8008B2B4(void);
 
-static f32 Random(f32 max)
-{
-    f32 rannum;
-
-    rannum = ((f32)(rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
+f32 func_8008B2E4(f32 max);
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; f32 *m; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ModelSlot;
@@ -3776,7 +3766,7 @@ void physics_velocity_integrate_a(ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ip
             }
             ipa_s1->state = ipa_s1->state + PC_STEPS(1);
             if (PC_IF30(ipa_s1->state >= 3)) {
-                ipa_s1->state = Random(4.0f) + 2.0f;
+                ipa_s1->state = func_8008B2E4(4.0f) + 2.0f;
             }
         } else if (ipa_s1->state >= 4) {
             ipa_s1->state = 3;
@@ -3900,7 +3890,3 @@ void physics_velocity_integrate_f(ModelObj *arg0, s16 arg1) {
 }
 
 /* stand-in caller: keeps model_bounds_calc out of line under -O3 */
-void __standin_model_bounds_calc(void)
-{
-    model_bounds_calc(0, 0);
-}

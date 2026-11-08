@@ -53,45 +53,10 @@ s32 func_800B98D8(s32 node, s32 depth);
 s32 minimap_render(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 *dist, s32 stopAtTyped, s32 depth);
 
 /* record `node` at `depth` in the walk; 0 if it was already visited or is a dead end */
-s32 func_800B98D8(s32 node, s32 depth)
-{
-    s32 i;
-
-    if (node >= 0 && D_801407F0.nodes[node].type != 0) {
-        if ((D_801407F0.nodes[node].next >= 0 &&
-             D_801407F0.nodes[D_801407F0.nodes[node].next].type == 0) ||
-            (D_801407F0.nodes[node].prev >= 0 &&
-             D_801407F0.nodes[D_801407F0.nodes[node].prev].type == 0)) {
-            return 0;
-        }
-    }
-    D_80143A88[depth] = node;
-    for (i = 0; i < depth; i++) {
-        if (node == D_80143A88[i]) {
-            return 0;
-        }
-    }
-    return 1;
-}
+s32 func_800B98D8(s32 node, s32 depth);
 
 /* follow `prev` links from `node`, summing the distance walked */
-s32 minimap_render(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 *dist, s32 stopAtTyped, s32 depth)
-{
-    if (!func_800B98D8(node, depth)) {
-        return 0;
-    }
-    if (depth == 0) {
-        *dist = 0;
-    }
-    if (node < 0 || (stopAtTyped && D_801407F0.nodes[node].type != 0)) {
-        *outNode = node;
-        *outPos = pos;
-        return 1;
-    }
-    *dist += D_801407F0.nodes[node].numPoints - pos;
-    return minimap_render(D_801407F0.nodes[node].prev, D_801407F0.nodes[node].prevPos,
-                          outNode, outPos, dist, stopAtTyped, depth + 1);
-}
+s32 minimap_render(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 *dist, s32 stopAtTyped, s32 depth);
 
 extern s32 D_80124F88[];      /* nodes visited by the current search */
 
@@ -118,104 +83,9 @@ s32 time_of_day_select(s32 node, s32 pos, s32 *outNode, s32 *dist, s32 depth)
 }
 
 /* walk `remain` points back along `next` links; result node/point in outNode/outPos */
-void split_time_display(s32 node, s32 pos, s32 remain, s32 *outNode, s32 *outPos)
-{
-    if (node < 0) {
-        *outNode = node;
-        *outPos = pos - remain;
-        if (pos < D_80151CE8[D_80151CE8[0].last].start) {
-            if (*outPos < 0) {
-                *outPos = 0;
-            }
-        } else {
-            node = *outPos;
-            while (node < D_80151CE8[D_80151CE8[0].last].start) {
-                node = node + D_801407F0.numPoints - D_80151CE8[D_80151CE8[0].last].start;
-                *outPos = node;
-            }
-        }
-    } else if (pos >= remain) {
-        *outNode = node;
-        *outPos = pos - remain;
-    } else {
-        split_time_display(D_801407F0.nodes[node].next, D_801407F0.nodes[node].nextPos, remain - pos,
-                           outNode, outPos);
-    }
-}
+void split_time_display(s32 node, s32 pos, s32 remain, s32 *outNode, s32 *outPos);
 
-s32 func_800D2FA8(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 stopAtTyped, s32 depth)
-{
-    s32 i;
-    volatile s32 padv[2];
-    s32 dist1, total, dist2, start1, node2, pos2, start2;
-    s32 v;
-
-    if (depth == 0) {
-        *outNode = node;
-        *outPos = pos;
-    }
-    D_80124F88[depth] = node;
-    for (i = 0; i < depth; i++) {
-        if (node == D_80124F88[i]) {
-            return 0;
-        }
-    }
-    if (D_801407F0.nodes[node].next == D_801407F0.nodes[node].prev) {
-        if (D_801407F0.nodes[node].nextPos < D_801407F0.nodes[node].prevPos) {
-            *outPos = pos * (D_801407F0.nodes[node].prevPos - D_801407F0.nodes[node].nextPos + 1) /
-                          D_801407F0.nodes[node].numPoints + D_801407F0.nodes[node].nextPos;
-        } else {
-            if (D_801407F0.nodes[node].next != -1) {
-                return 0;
-            }
-            *outPos = pos * (D_801407F0.nodes[node].prevPos - D_80151CE8[D_80151CE8[0].last].start +
-                             D_801407F0.numPoints - D_801407F0.nodes[node].nextPos + 1) /
-                          D_801407F0.nodes[node].numPoints + D_801407F0.nodes[node].nextPos;
-            if (*outPos >= D_801407F0.numPoints) {
-                *outPos = D_80151CE8[D_80151CE8[0].last].start + *outPos - D_801407F0.numPoints;
-            }
-        }
-        *outNode = D_801407F0.nodes[node].next;
-        if (*outNode < 0 || (stopAtTyped && D_801407F0.nodes[*outNode].type != 0)) {
-            return 1;
-        }
-        return func_800D2FA8(*outNode, *outPos, outNode, outPos, stopAtTyped, depth + 1);
-    }
-    if (!time_of_day_select(node, pos, &start1, &dist1, 0)) {
-        return 0;
-    }
-    if (!minimap_render(node, pos, &node2, &pos2, &total, stopAtTyped, 0)) {
-        return 0;
-    }
-    if (!time_of_day_select(node2, pos2, &start2, &dist2, 0)) {
-        return 0;
-    }
-    if (start2 < start1) {
-        v = start2 + D_801407F0.numPoints - start1 - D_80151CE8[D_80151CE8[0].last].start;
-        if (start1 - start2 < v) {
-            dist1 = dist1 + start1 - start2;
-            start1 = start2;
-        } else {
-            dist2 = dist2 + v;
-        }
-    } else if (start1 + D_801407F0.numPoints - start2 < start2 - start1) {
-        start1 = start2;
-        dist1 = dist1 + start1 + D_801407F0.numPoints - start2;
-    } else {
-        dist2 = dist2 + start2 - start1;
-    }
-    total = total + dist1;
-    split_time_display(node2, pos2, dist2 - dist1 * dist2 / total, outNode, outPos);
-    return 1;
-}
+s32 func_800D2FA8(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 stopAtTyped, s32 depth);
 
 /* stand-in callers: keep the callees out of line under -O3 */
-void __standin_split_time_display(void)
-{
-    split_time_display(0, 0, 0, 0, 0);
-}
 
-void __standin_time_of_day_select(void)
-{
-    time_of_day_select(0, 0, 0, 0, 0);
-}

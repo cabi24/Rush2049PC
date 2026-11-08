@@ -2190,7 +2190,7 @@ extern f32 D_8014277C;
 extern s8 D_80142780;
 extern s8 D_801427A0;
 extern s8 D_801427A1;
-extern s32 D_801427A8;
+extern OSMesgQueue D_801427A8;   /* the audio command queue, which audiomgr_thread.c creates */
 extern u16 D_801427C0;
 extern u16 D_801427C2;
 extern s32 D_801427C8;

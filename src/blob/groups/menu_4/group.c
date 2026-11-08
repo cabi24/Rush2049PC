@@ -6,25 +6,7 @@ typedef struct Object {void *next; void *prev;void *lookup;u8 other12[32];Resour
 typedef struct Handle {Object *object;} Handle;
 extern u32 format_string_parse(u8 *,u32);
 extern void PS_WriteFile(void *,u32 *,int);
-u32 format_string_parse(u8 *data,u32 size)
-{
-    u8 *cursor=data;
-    u32 result=0,value;
-    while(size!=0) {
-        value=*cursor;
-        switch(value&7) {
-        case 0:result-=value;cursor++;break;
-        case 1:result|=value;cursor++;break;
-        case 2:result&=value;cursor++;break;
-        case 3:result^=value;cursor++;break;
-        case 4:result*=value;cursor++;break;
-        case 5:result/=value;cursor++;break;
-        default:result+=value;cursor++;break;
-        }
-        size--;
-    }
-    return result;
-}
+u32 format_string_parse(u8 *data,u32 size);
 
 extern void object_byte71_set_sync(Handle *,int);
 void menu_text_input(Handle *handle,int selector,u8 value)

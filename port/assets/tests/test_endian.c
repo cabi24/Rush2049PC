@@ -7,6 +7,7 @@
  *   declared; the scene node's colour, read as bytes by the model draw, must come out R,G,B,A again. A car's colour
  *   (func_80092FE0) goes to the six nodes its parts' handles name.
  * game: src/blob/func_8010E0FC.c src/blob/groups/carcolor/carcolor.c src/blob/func_80092FE0.c
+ * game: src/blob/func_8008E06C.c src/blob/func_80090770.c
  */
 #include <string.h>
 

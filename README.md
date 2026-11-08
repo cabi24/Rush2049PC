@@ -268,7 +268,6 @@ port/               the PC layer: libultra, rendering, audio, input, the data lo
 asm/us/             the three code images' symbol tables (symbols.json), which the data loader reads, and the boot
                     tail's GSM kernels (test_gsm's reference)
 layout/             the three images' layouts: every function extent, the data tail
-manifest/           which file owns each function (tools/port/gen_weak.py)
 tools/port/         the PC build's generators and checks; tools/mods, tools/texpack, tools/upscale
 docs/               docs/port/ for the PC port; the memory map, the symbol notes, the matching ceiling's identities
 ```

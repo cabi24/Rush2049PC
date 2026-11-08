@@ -180,7 +180,8 @@ sources alone (no `--build`). Three sources:
 1. **The compiler**: every game C file in `compile_commands.json` (those built with `pc_prelude.h`) compiled again with
    `-fsyntax-only`, `-Wno-int-conversion` taken out and `-Wint-conversion -Wint-to-pointer-cast -Wpointer-to-int-cast`
    on. Each warning is placed at its use site (the outermost "in expansion of macro" note) and marked `.weak` when
-   its function is in the file's `build/pc/weak/*.h` (a weak copy: never linked). `--warnings LOG` parses a build log
+   its function is in the file's `build/pc/weak/*.h` (a weak copy: never linked; none since the copies left the C,
+   2026-11-08). `--warnings LOG` parses a build log
    instead. The raw counts are kept too (`context.cc_warnings.*`), and they are the measured ones: 111, 206, 60.
 2. **The sources**, with comments and strings told from code and the lines only the N64 build compiled (inside
    `#ifndef TARGET_PC`, or the `#else` of `#ifdef TARGET_PC`; none since 2026-11-08) marked `.n64only`; with

@@ -89,14 +89,7 @@ static s32 validOption(u8 player, s32 item)
     return valid;
 }
 
-static s32 Hidden(Blit *blt, s32 hide)
-{
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
-        Input_ApplyPadConfig(blt);
-    }
-    return blt->hidden;
-}
+s32 Hidden(Blit *blt, s32 hide);
 
 s32 animControls(Blit *blt)
 {

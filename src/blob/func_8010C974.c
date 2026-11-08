@@ -76,14 +76,14 @@ extern void func_8038D798(f32 *,f32 *,s32,f32,s32);
 extern void save_write_data(f32 *,s32,f32,s32);
 extern void entity_spawn_callback(s16,s32,s32);
 static s16 MBOX_NewObject(s32 obj,void *mat,s32 parent,u32 flags){s16 dlidx;dlidx=func_8008E26C(obj,mat,parent,flags);return dlidx;}
-static void ZOID_SetColor(s16 objnum,Color *col){D_8012E700[objnum].color.word=col->word;}
+void func_8008E06C(s16 objnum,Color *col);
 static Color *ZOID_GetColor(s16 objnum){return &D_8012E700[objnum].color;}
-static u32 _ObjFlags(s16 objnum){return D_8012E700[objnum].flags;}
-static u32 ZOID_ObjectFlags(s16 objnum){return _ObjFlags(objnum);}
-static void _SetObjFlags(s32 objnum,u32 flags){D_8012E700[objnum].flags=flags;}
-static void ZOID_SetObjectFlags(s32 objnum,u32 flags){_SetObjFlags(objnum,flags);}
-static void ZOID_RemoveObjectTree(s16 objnum,s32 removeChildren){entity_spawn_callback(objnum,removeChildren,0);}
-static void ZOID_RemoveObject(s16 objnum){ZOID_RemoveObjectTree(objnum,0);}
+u32 func_8008AE64(s16 objnum);
+static u32 ZOID_ObjectFlags(s16 objnum){return func_8008AE64(objnum);}
+void func_8008AE48(s32 objnum,u32 flags);
+static void ZOID_SetObjectFlags(s32 objnum,u32 flags){func_8008AE48(objnum,flags);}
+void sound_call_simple(s16 objnum,s32 removeChildren);
+static void ZOID_RemoveObject(s16 objnum){sound_call_simple(objnum,0);}
 void func_8010C974(Visual *v, s16 op)
 {
     int i;
@@ -135,9 +135,9 @@ void func_8010C974(Visual *v, s16 op)
         clr.c.g = 255;
         clr.c.b = 255;
         clr.c.a = 255;
-        ZOID_SetColor(m->base, &clr);
+        func_8008E06C(m->base, &clr);
         ZOID_SetObjectFlags(t->model, ZOID_ObjectFlags(t->model) | 0x2000);
-        ZOID_SetColor(t->model, &clr);
+        func_8008E06C(t->model, &clr);
         func_8008D870(m->base, &D_80151AE8[D_80399AF8[4] >> 10].base[D_80399AF8[4] & 1023], -1);
         m->timer = 0.0f;
         m->phase = 0;
@@ -159,9 +159,9 @@ void func_8010C974(Visual *v, s16 op)
         m->mat[1][3][0] = m->mat[1][3][0] + m->mat[1][1][0];
         m->mat[1][3][1] = m->mat[1][3][1] + m->mat[1][1][1]; m->mat[1][3][2] = m->mat[1][3][2] + m->mat[1][1][2];
         m->ring[0] = MBOX_NewObject(D_80399B30, m->mat[0], -1, 0x42000);
-        ZOID_SetColor(m->ring[0], &clr);
+        func_8008E06C(m->ring[0], &clr);
         m->ring[1] = MBOX_NewObject(D_80399B30, m->mat[1], -1, 0x42000);
-        ZOID_SetColor(m->ring[1], &clr);
+        func_8008E06C(m->ring[1], &clr);
         m->alpha[0] = 255;
         m->alpha[1] = 255;
         m->step[0] = 0;

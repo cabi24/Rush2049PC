@@ -205,22 +205,8 @@ extern int osSendMesg(void *mq, void *msg, int flag);
 extern void audio_reverb_update(unsigned int address, int tag);
 extern char D_80152770[];
 
-__inline void heap_free_locked(unsigned int address)
-{
-    osRecvMesg(D_80152770, 0, 1);
-    audio_reverb_update(address, 0);
-    osSendMesg(D_80152770, 0, 0);
-}
-__inline void mem_free(unsigned int address)
-{
-    heap_free_locked(address);
-}
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-__inline void zcfree(voidpf ptr)
-{
-    mem_free(N64A(ptr));
-}
 #define FREECALL(p) zcfree((voidpf)(p))
 
 extern void func_800AAB3C(deflate_state *s);

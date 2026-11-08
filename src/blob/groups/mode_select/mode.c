@@ -25,11 +25,7 @@ Entity *func_80091BA8(s32 h);
 Msg *func_80091B00(void);
 void entity_transform_calc(s32 h,f32 x,f32 y,f32 z,f32 w);
 void client_sync(s32 h,f32 opacity);
-__inline void entity_hierarchy_update(s32 h,f32 value) {
-    osRecvMesg(&D_80142728,0,1);
-    entity_transform_calc(h,-2.0f,-2.0f,-2.0f,value);
-    osSendMesg(&D_80142728,0,0);
-}
+void entity_hierarchy_update(s32 h,f32 value);
 void scheduler_recv(s32 h);
 typedef struct LayerState {s32 handle;f32 level,style;u8 other12[8];} LayerState;
 typedef struct LayerSet {LayerState layer[3];} LayerSet;

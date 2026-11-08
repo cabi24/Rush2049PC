@@ -66,10 +66,7 @@ int osSendMesg(void *, void *, int);
 Event *func_800D18D8(void);
 void func_80091FBC(EventList *, Event *, Event *);
 
-static f32 get_time(void)
-{
-    return D_80152748;
-}
+f32 func_80095CE8(void);
 
 u32 car_stats_display(int type, f32 delay, int func, int data, int nargs, ...)
 {
@@ -81,7 +78,7 @@ u32 car_stats_display(int type, f32 delay, int func, int data, int nargs, ...)
     osRecvMesg(D_80142728, 0, 1);
     e = func_800D18D8();
     e->type = type;
-    e->start = get_time();
+    e->start = func_80095CE8();
     e->delay = delay;
     e->func = func;
     e->data = data;

@@ -53,10 +53,7 @@ extern u8 D_80154FD0[];
 extern u8 D_80155140[];
 extern u16 D_80155148[][6];
 #define RI(e) D_80154450[(e) + active_player_count]
-s32 func_800D50E4(u32 *seed) {
-    *seed = *seed * 1103515245 + 12345;
-    return (*seed >> 16) & 0x7fff;
-}
+s32 func_800D50E4(u32 *seed);
 static u16 irand(u16 max) {
     return (u32)func_800D50E4(&D_80154658) % (max + 1);
 }

@@ -112,33 +112,23 @@ static void _InitSemaphore_Init(void)     /* MAT3 _InitSemaphore@HAL_text.c, N64
     static s8 sInited = 0; if (!sInited) { sInited = 1; osCreateMesgQueue(&D_801461D0, D_801461FC, 1); osSendMesg(&D_801461D0, (OSMesg)0, 0); }
 }
 
-void HAL_InitText_Init(void)     /* MAT3 HAL_InitText@HAL_text.c */
-{
-    _InitSemaphore_Init();
-    D_80149DA0 = -1;
-}
+void HAL_InitText_Init(void)     /* MAT3 HAL_InitText@HAL_text.c */;
 
 static void _InitGfx_Init(void)     /* N64 _InitGfx (GC ngcGraph.c has its own) */
 {
     D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(N64A0(D_8002EBB0), 0); D_80156CEC = N64AS(sound_play_menu(0, 0x22620)); PurgeableMemory(D_80156CEC, 0); D_80157240 = N64AS(sound_play_menu(0, 0x22620)); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = PC_ZEXT(D_80156CEC); D_80156BE0.f252 = PC_ZEXT(D_80157240); D_80156BE0.buf88 = DL_BUFFER_0; D_80156BE0.buf216 = DL_BUFFER_1; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + PC_GLIST_OFFSET;
 }
 
-static void ZOID_Init_Init(void)
-{
-    func_800A5B3C();
-}
+void object_process_thunk(void);
 
-static void InitCameras_Init(void)
-{
-    particle_velocity_set();
-}
+void collision_check_thunk(void);
 
 static void InitGraphics_Init(void)
 {
     _InitGfx_Init();
-    ZOID_Init_Init();
+    object_process_thunk();
     InitBlits();
-    InitCameras_Init();
+    collision_check_thunk();
 }
 
 static void FreeBuffers_Init(void)
@@ -175,9 +165,4 @@ void game_late_init(void)
 }
 
 
-void DeallocateMemory_Init(u32 address)     /* MAT3 DeallocateMemory@memsys.c */
-{
-    func_80095CF4();
-    audio_reverb_update(address, 0);
-    func_80095CFC();
-}
+void DeallocateMemory_Init(u32 address)     /* MAT3 DeallocateMemory@memsys.c */;

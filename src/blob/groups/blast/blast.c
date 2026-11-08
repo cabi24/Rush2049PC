@@ -99,34 +99,18 @@ void entity_update_callback(tVisual *v, s16 op);                /* AnimateNewBla
 void entity_physics_update(tVisual *v, s16 op);
 void func_80090B68(tVisual *v, s16 op);                         /* AnimateNewBlastRing */
 
-static int rand(void)
-{
-    D_8011735C = D_8011735C * 1103515245 + 12345;
-    return (D_8011735C >> 16) & 0x7fff;
-}
+int func_8008B2B4(void);
 
-static f32 Random(f32 max)
-{
-    f32 rannum;
+f32 func_8008B2E4(f32 max);
 
-    rannum = ((f32)(rand() & 0x07FFF) * max) / 32768.0f;
-    return rannum;
-}
-
-static void ZOID_RemoveObjectTree(s16 objnum, int removeChildren)
-{
-    entity_spawn_callback(objnum, removeChildren, 0);
-}
+void sound_call_simple(s16 objnum, int removeChildren);
 
 static void ZOID_RemoveObject(s16 objnum)
 {
-    ZOID_RemoveObjectTree(objnum, 0);
+    sound_call_simple(objnum, 0);
 }
 
-static void ZOID_SetColor(s16 objnum, tRGBA *col)
-{
-    D_8012E700[objnum].color = col->rgba;
-}
+void func_8008E06C(s16 objnum, tRGBA *col);
 
 static int MBOX_NewObject(int objnum, tUVMatrix *mat, int parent, unsigned int flags)
 {
@@ -169,17 +153,17 @@ void func_80090308(s16 slot)
             b->mat.pos[2] = PC_CAR_POS(slot)[2];
             b->mbIdx = MBOX_NewObject(D_801427C0[158 + i], &b->mat, -1, 0x42000);
             b->scale = 0.4f;
-            b->scaleInc = 0.05f + Random(0.005f);
+            b->scaleInc = 0.05f + func_8008B2E4(0.005f);
             b->mat.uvs[0][0] = b->mat.uvs[1][1] = b->mat.uvs[2][2] = b->scale;
-            b->yawInc = 0.1f - Random(0.2f);
-            b->pitchInc = 0.1f - Random(0.2f);
+            b->yawInc = 0.1f - func_8008B2E4(0.2f);
+            b->pitchInc = 0.1f - func_8008B2E4(0.2f);
             b->ht = 0.0f;
             b->yaw = 0.0f;
             b->pitch = 0.0f;
             b->alpha = 128;
             clr.c[3] = b->alpha;
-            b->alphaInc = (int)Random(10.0f) + 25;
-            ZOID_SetColor(b->mbIdx, &clr);
+            b->alphaInc = (int)func_8008B2E4(10.0f) + 25;
+            func_8008E06C(b->mbIdx, &clr);
         }
         if (active_player_count < 4 && (D_80156994 || D_8014978C >= 6)) {
             math_utility(D_8011418C, D_80154660[slot].mat.uvs);

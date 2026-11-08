@@ -171,10 +171,7 @@ static void ClearBST(tOrderedList *tree)
     tree->numElements = 0;
 }
 
-static void InsertBSTE(tOrderedList *tree, void *element)
-{
-    camera_update_b(tree, &tree->root, element);
-}
+void pointer_offset8_call(tOrderedList *tree, void *element);
 
 static void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, int))
 {
@@ -187,14 +184,14 @@ static void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, int))
 static int _AudioNop(void) { return 0; }
 /* N64 UNLOCK (audio mutex queue). Its inlined lines sit above the thread, so as1 puts `cmd->hdr.used = 0` (a later
  * line) in the jal delay slot as retail does. */
-static void _UnlockAudio(void) { osSendMesg(&D_80142728, 0, 0); }
+void func_80091AF8(void);
 
 static void _InsertSorted(tFxSequence *tag)
 {
     anon_te_tag_c *stag;
     stag = &gSortedFxTags[gSortedFxTagTree.numElements];
     stag->tag = tag;
-    InsertBSTE(&gSortedFxTagTree, stag);
+    pointer_offset8_call(&gSortedFxTagTree, stag);
 }
 
 /* PC: a start or stop the full queue refuses gives its message back (transform/group.c's entity_transform_calc says
@@ -480,7 +477,7 @@ void entity_ai_pathfind(void *arg)
                 break;
             }
             cmd->hdr.used = 0;
-            _UnlockAudio();
+            func_80091AF8();
         }
     }
 }

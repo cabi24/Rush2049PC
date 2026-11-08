@@ -96,25 +96,7 @@ void func_800C8918(void) {
  * heap_release/func_800C8918.c) is the same. */
 #define PC_CMD_OR_WAIT(m) while((m)==0){func_80091AF8();pc_os_spin_yield("post_type");func_80091AF0();(m)=func_80091B00();}
 #define PC_CMD_SEND(q,m) osSendMesg(q,m,1)
-void post_type1(void) {
-    ShutdownMsg *sp1C;
-    ShutdownMsg *temp_v0;
+void post_type1(void);
 
-    func_80091AF0();
-    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 1; func_80091AF8();
-    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
-}
-
-void post_type7(void) {
-    ShutdownMsg *sp1C;
-    ShutdownMsg *temp_v0;
-
-    func_80091AF0();
-    temp_v0 = func_80091B00(); PC_CMD_OR_WAIT(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 7; func_80091AF8();
-    PC_CMD_SEND((OSMesgQueue *) &D_801427A8, sp1C);
-}
+void post_type7(void);
 

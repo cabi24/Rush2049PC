@@ -105,36 +105,6 @@ void op_setButtonColor(s16 objnum, Color *col)
 void op_calcOptionMenuMaxSize(void);
 void op_initButtons(void);
 
-void options_initScreen(void)
-{
-    s16 y;
-    s32 u0;
-
-    func_800B8810();
-    op_calcOptionMenuMaxSize();
-    D_80116D9C = 0;
-    while (!D_80116D14[D_80116D9C]) {
-        if (++D_80116D9C >= 14) D_80116D9C = 0;
-    }
-    D_80149DA2 = D_80116D9C;
-    D_80116DA0 = 0;
-    if (state_word_a & 0x7C03FFFE) {
-        createBG();
-        op_initButtons();
-        D_80116D98 = sound_control(0, 0, &D_80116D4C, 1);
-    } else {
-        D_80116DA8 = !gControllerData[D_8015698C].attached;
-        op_HAL_SetFont(13);
-        options_TitlePane();
-        y = object_bytes_sum_global() * 2 + 10;
-        op_HAL_SetFont(11);
-        ambient_sound_set(40, y - 4, 280, y + (D_80149B84 * object_bytes_sum_global() + 4), 176, 0, 0, 0);
-        D_80116D98 = sound_control(0, 0, &D_80116D70, 1);
-    }
-    entity_audio_update();
-    D_80116D94 = 1;
-}
-
 void op_calcOptionMenuMaxSize(void)
 {
     s32 height;

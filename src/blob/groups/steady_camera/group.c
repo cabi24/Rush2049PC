@@ -3741,92 +3741,7 @@ void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs);
 void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 void func_800EA2DC(Cr *arg0, void *arg1, void *arg2, s32 arg3);
 
-void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff) {
-    f32 vec[3], res[3], temp[3], A, a, B, b, fact, magvel, uvs[3][3];
-    s16 fixed_cam, flag;
-    char buf[8];
-
-    s32 pl;
-
-    pl = car->player;
-    if (car->mode == 8)
-        magvel = 0;
-    else
-        magvel = sqrtf(car->vx*car->vx + car->vz*car->vz);
-
-    if (magvel <= MAX_VEL) {
-        vec[0] = 0.0f;
-        vec[1] = AB;
-        vec[2] = -ab;
-        if (car->mode == 8) {
-            temp[0] = vec[0];
-            temp[1] = vec[1];
-            temp[2] = vec[2];
-        } else
-            func_8009E820(vec, temp, car->m);
-        temp[1] = fabsf(temp[1]);
-    }
-
-    if (magvel > 1) {
-        if (car->mode == 4) {
-            vec[0] = car->f_ac;
-            vec[1] = car->f_a8;
-            vec[2] = 0.0f;
-            func_8009E820(vec, res, car->m);
-            res[0] = -res[0];
-            res[2] = -res[2];
-        } else {
-            res[0] = car->vx;
-            res[1] = car->vy;
-            res[2] = car->vz;
-            if (ab < 0)
-                res[1] = -res[1];
-            func_800A61B0(res, vec, car->m);
-            vec[2] = fabsf(vec[2]);
-            func_8009E820(vec, res, car->m);
-            res[0] = -res[0];
-            res[2] = -res[2];
-        }
-
-        fact = ab / magvel;
-        res[0] *= fact;
-        res[1] *= fact;
-        res[2] *= fact;
-
-        a = res[1];
-        b = sqrtf(res[0]*res[0] + res[2]*res[2]);
-
-        if (b > .001f) {
-            A = -a * AB / ab;
-            fact = (b - A) / b;
-            res[0] *= fact;
-            res[2] *= fact;
-        }
-
-        B = b * AB / ab;
-        res[1] = fabsf(B - res[1]);
-
-        if (magvel < MAX_VEL)
-            func_800CFDEC(temp, res, 3, 1, MAX_VEL, magvel, res);
-    } else {
-        res[0] = temp[0];
-        res[1] = temp[1];
-        res[2] = temp[2];
-    }
-
-    if (car->mode == 8)
-        D_80152720[pl] = 0.0f;
-    else if (car->mode == 4)
-        D_80152720[pl] = 1.0f - magvel / MAX_VEL;
-    else if (magvel < MAX_VEL)
-        D_80152720[pl] = 1.0f - magvel * .01f;
-    else
-        D_80152720[pl] = 0.0f;
-
-    camoff[0] = res[0];
-    camoff[1] = res[1];
-    camoff[2] = res[2];
-}
+void func_800E92C8(Cr *car, f32 ab, f32 AB, f32 *camoff);
 
 /* func_800E95DC, 0x800E95DC..0x800E9C70 (1,684 bytes).
  * N64 per-player descendant of arcade camera.c:steady_move_cam.
@@ -3933,34 +3848,7 @@ void func_800E95DC(s16 mode, Cr *car, f32 *pos, intptr_t uvs) {
     }
 }
 
-void func_800EA108(Cr *car, f32 *pos, f32 *uvs) {
-    s32 i, j;
-    f32 rpos[3], res[3];
-    s32 slot;
+void func_800EA108(Cr *car, f32 *pos, f32 *uvs);
 
-    slot = car->player;
-    func_8008D6FC(car->s_f6, pos, uvs);
-    D_80152708[slot] = .13f;
-    func_800E92C8(car, 30, 16, res);
-    for (i = 0; i < 3; i++)
-        gCamera[slot].v84[i] = (gCamera[slot].v84[i]*(1.0f-D_80152708[slot]) + (pos[i]+res[i])*D_80152708[slot]);
-    for (i = 0; i < 3; i++)
-        rpos[i] = pos[i] - gCamera[slot].v84[i];
-    vector_normalize_length(rpos, &gCamera[slot].n60);
-}
-
-void func_800EA2DC(Cr *car, void *arg1, void *arg2, s32 arg3) {
-    volatile s32 padv[5];
-    f32 v[3];
-    s32 pl;
-
-    pl = car->player;
-    func_800E8CB8(car, arg1, arg2);
-    if (car->mode == 0xA) {
-        func_800E92C8(car, -D_801526F8[pl], D_801526E0[pl], v);
-    } else {
-        func_800E92C8(car, D_801526F8[pl], D_801526E0[pl], v);
-    }
-    func_800E8D50(car, arg3, 0, v);
-}
+void func_800EA2DC(Cr *car, void *arg1, void *arg2, s32 arg3);
 

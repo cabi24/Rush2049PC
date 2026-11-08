@@ -112,7 +112,8 @@ What was learned, and how the build handles it:
   `#pragma weak` lines for the copies (788), and the build force-includes it. The linker then binds every call to
   the owner's definition, and the compiler won't inline a weak copy. The source is untouched. 32 names (mostly
   `__standin_*`, which nothing references) have no manifest owner, and the first copy is kept
-  (`build/pc/weak/report.txt`).
+  (`build/pc/weak/report.txt`). *(Until 2026-11-08: the copies the linker never used left the C then, with the
+  stand-ins, gen_weak and the manifests; [port/PCONLY.md](port/PCONLY.md) 4.)*
 - **BSS keeps the N64 layout.** `tools/port/gen_bss.py` defines all 895 boot and game BSS symbols at their N64
   offsets inside one zeroed array per region (assembler `.set` aliases), so code that indexes from one symbol into
   its neighbor still works. The 106 symbols declared with a pointer type get their own storage, since an 8-byte

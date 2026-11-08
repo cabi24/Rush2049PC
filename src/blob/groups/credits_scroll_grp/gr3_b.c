@@ -38,15 +38,6 @@ s32 slot_state_setup(s32 selection) {
     }
     return old;
 }
-s32 object_create(s32 sel)
-{
-    s32 old;
-    osRecvMesg(&D_801461D0, (void*)0, 1);
-    old = slot_state_setup(sel);
-    osSendMesg(&D_801461D0, (void*)0, 0);
-    return old;
-}
 
 typedef struct { u32 first, second; } Pair;
 extern Pair D_80118E20;
-void func_800B669C(u32 first, u32 second) { Pair *p = &D_80118E20; p->first = first; p->second = second; }

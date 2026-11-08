@@ -25,15 +25,7 @@ typedef struct Record {
 } Record;
 extern f32 D_80152748;
 
-f32 func_800986DC(f32 arg0, f32 arg1) {
-    f32 var_f2;
-
-    var_f2 = D_80152748;
-    if (D_80152748 < arg0) {
-        var_f2 = D_80152748 + 14400.0f;
-    }
-    return (var_f2 - arg0) / arg1;
-}
+f32 func_800986DC(f32 arg0, f32 arg1);
 
 s32 func_80098710(Record *record) {
     s32 result;

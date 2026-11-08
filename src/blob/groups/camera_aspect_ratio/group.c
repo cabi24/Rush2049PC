@@ -4515,25 +4515,9 @@ block_99:
 }
 
 /* stand-in caller: keeps camera_aspect_ratio out of line under -O3 */
-void __standin_camera_aspect_ratio(void)
-{
-    camera_aspect_ratio(0);
-}
 
 /* stand-in caller: keeps camera_fov_control out of line under -O3 */
-void __standin_camera_fov_control(void)
-{
-    camera_fov_control(0);
-}
 
 /* stand-in caller: keeps camera_free_look out of line under -O3 */
-void __standin_camera_free_look(void)
-{
-    camera_free_look(0);
-}
 
 /* stand-in caller: keeps camera_look_at_point out of line under -O3 */
-void __standin_camera_look_at_point(void)
-{
-    PlayMoveSound(0);
-}

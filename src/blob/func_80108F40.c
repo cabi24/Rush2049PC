@@ -81,14 +81,7 @@ extern s32 func_800CF604(s16);
 extern void func_800A61B0(f32 *, f32 *, f32 *);
 extern void stat_race_update(Blit *, s32, s32, s32);
 
-static s32 Hidden(Blit *blt, s32 hide)
-{
-    if (hide != blt->Hide) {
-        blt->Hide = hide;
-        Input_ApplyPadConfig(blt);
-    }
-    return blt->Hide;
-}
+s32 Hidden(Blit *blt, s32 hide);
 
 s32 func_80108F40(Blit *blt) {
     s32 me;

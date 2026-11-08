@@ -69,7 +69,7 @@ s16 func_800B9338(s16, s16);
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 
-s32 func_800B930C(s32 index) {if(index+1 == D_80151CE8.count)return D_80151CE8.first;return index+1;}
+s32 func_800B930C(s32 index);
 
 void physics_response(void) {
     s32 p;

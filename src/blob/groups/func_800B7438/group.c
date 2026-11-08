@@ -27,4 +27,3 @@ void func_800B7438(intptr_t arg0)
     if (p == &D_80155210) break;
   }
 }
-void input_init_flag_get(void) { void (**p)(void); if (D_801147C4 == 0) { func_800B73E4(); } p = (void (**)(void)) &D_801551E8; do { if (*p != 0) { (*p)(); } p++; } while (p != (void (**)(void)) &D_80155210); }

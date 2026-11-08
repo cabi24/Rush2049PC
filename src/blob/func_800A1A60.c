@@ -63,10 +63,7 @@ static void pak_lock(void)
     osRecvMesg(&D_801497D0,&message,1);
 }
 
-static void pak_unlock(void)
-{
-    osSendMesg(&D_801497D0,0,0);
-}
+void sync_release_video(void);
 
 int func_800A1A60(Handle *handle)
 {
@@ -81,7 +78,7 @@ int func_800A1A60(Handle *handle)
     pak_lock();
     error = osPfsFileState(&pak->pfs,file,&state);
     if (error) {}
-    pak_unlock();
+    sync_release_video();
     if (error) return 0;
     if (func_800A1910(&state,&D_80144030[port].files[file].state,32)) return 0;
     return 1;

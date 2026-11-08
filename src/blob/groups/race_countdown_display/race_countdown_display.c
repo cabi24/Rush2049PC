@@ -66,7 +66,7 @@ extern volatile f32 D_8002EB90;
 void func_800D2458(s32 player, f32 time);
 void func_800D2054(s32 player, f32 time);
 void car_setup_confirm(s32 player, f32 time);
-static s32 func_800B61A8(s32 code, s32 player, s32 value, u8 mode);
+s32 func_800B61A8(s32 code, s32 player, s32 value, u8 mode);
 u32 car_stats_display(s32 type, f32 delay, s32 callback, s32 data,
                       s32 nargs, ...);
 
@@ -146,13 +146,4 @@ void race_countdown_display(Model *m, f32 time)
 }
 extern signed char D_8010FFC0;
 s32 entity_flags_apply(s32, s32, s32, u8);
-static s32 func_800B61A8(s32 a0, s32 a1, s32 a2, u8 a3)
-{
-  if (D_8010FFC0 == 0) {
-    return -1;
-  }
-  if (a0 == -1) {
-    return -1;
-  }
-  return entity_flags_apply(a0, a1, a2, a3);
-}
+s32 func_800B61A8(s32 a0, s32 a1, s32 a2, u8 a3);

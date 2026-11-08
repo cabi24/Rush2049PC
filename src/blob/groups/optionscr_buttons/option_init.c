@@ -80,25 +80,7 @@ void options_TitlePane(void);                    /* _TitlePane@optionscr.c */
 void *ambient_sound_set(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 Blit *sound_control(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
 
-void op_gfx_lock(void) { osRecvMesg(&D_801461D0, 0, 1); }
-void op_gfx_unlock(void) { osSendMesg(&D_801461D0, 0, 0); }
-s32 op_HAL_SetFont(s32 sel)
-{
-    s32 old;
-    op_gfx_lock();
-    old = slot_state_setup(sel);
-    op_gfx_unlock();
-    return old;
-}
-void op_ZOID_SetColorP(s16 objnum, Color *col)
-{
-    D_8012E700[objnum].color = col->rgba;
-}
-
-void op_setButtonColor(s16 objnum, Color *col)
-{
-    op_ZOID_SetColorP(objnum, col);
-}
+s32 op_HAL_SetFont(s32 sel);
 
 
 
@@ -135,63 +117,6 @@ void options_initScreen(void)
     D_80116D94 = 1;
 }
 
-void op_calcOptionMenuMaxSize(void)
-{
-    s32 height;
-    s32 i;
+void op_calcOptionMenuMaxSize(void);
 
-    op_HAL_SetFont(13);
-    height = 210 - object_bytes_sum_global() * 2;
-    op_HAL_SetFont(11);
-    height -= object_bytes_sum_global();
-    D_80149D9C = 0;
-    for (i = 0; i < 14; i++) {
-        if (D_80116D14[i]) D_80149D9C++;
-    }
-    D_80149B84 = D_80149D9C < height / object_bytes_sum_global() ? D_80149D9C : height / object_bytes_sum_global();
-}
-
-void op_initButtons(void)
-{
-    Color buttonColor = { { 255, 255, 255, 255 } };
-    TexDef *tex;
-    u16 texIdx;
-    s32 buttonIdx;
-
-    for (buttonIdx = 0; buttonIdx < 32; buttonIdx++) {
-        if (D_8011650C[buttonIdx].handle == -1) {
-            memcpy(D_8011650C[buttonIdx].mat, D_8011418C, 36);
-            D_8011650C[buttonIdx].handle = sign_extend_call(
-                string_copy_format(D_801164E8[D_8011650C[buttonIdx].type], 0, gNumModels - 1, 1),
-                &D_8011650C[buttonIdx].mat, -1,
-                (D_8011650C[buttonIdx].type == 0 || D_8011650C[buttonIdx].type == 1 ||
-                 D_8011650C[buttonIdx].type == 2) ? 0x42000 : 0);
-            op_setButtonColor(D_8011650C[buttonIdx].handle, &buttonColor);
-        }
-    }
-    tex = func_800B24EC("CURSOR", &texIdx, 0, gNumModels - 1, 1);
-    func_8008D870(D_8011650C[28].handle, tex, -1);
-    tex = func_800B24EC("B1", &texIdx, 0, gNumModels - 1, 1);
-    func_8008D870(D_8011650C[29].handle, tex, -1);
-    memcpy(D_8011650C[29].mat, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_8011650C[29].mat);
-    D_8011650C[29].pos[0] = -75.1f;
-    D_8011650C[29].pos[1] = 55.2f;
-    D_8011650C[29].pos[2] = 100.0f;
-    func_8008B32C(D_8011650C[29].mat, D_8011650C[29].mat, 0.5f);
-    memcpy(D_8011650C[30].mat, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_8011650C[30].mat);
-    D_8011650C[30].pos[0] = -87.1f;
-    D_8011650C[30].pos[1] = 55.2f;
-    D_8011650C[30].pos[2] = 100.0f;
-    tex = func_800B24EC("BUTTON_TITLE", &texIdx, 0, gNumModels - 1, 1);
-    func_8008D870(D_8011650C[31].handle, tex, -1);
-    memcpy(D_8011650C[31].mat, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_8011650C[31].mat);
-    D_8011650C[31].pos[0] = 0.0f;
-    D_8011650C[31].pos[1] = 115.0f;
-    D_8011650C[31].pos[2] = 200.0f;
-    D_80116D0C = 1;
-    D_80116D10 = 1;
-    particle_velocity_set();
-}
+void op_initButtons(void);

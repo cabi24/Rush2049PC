@@ -50,23 +50,5 @@ static void pak_lock(void)
     osRecvMesg(&D_801497D0,&message,1);
 }
 
-static void pak_unlock(void)
-{
-    osSendMesg(&D_801497D0,0,0);
-}
+void sync_release_video(void);
 
-void func_800E7710(void)
-{
-    static s16 si_message;  /* 0x80150F58, only referenced here */
-    s32 i;
-
-    osCreateMesgQueue(&D_80035458, D_80150F18, 8);
-    si_message = 5;
-    osSetEventMesg(5, &D_80035458, &si_message);
-    pak_lock();
-    osContInit(&D_80035458, &D_80111950, D_80149440);
-    pak_unlock();
-    for (i = 0; i < 4; i++) {
-        gControllerData[i].flag = 0;
-    }
-}

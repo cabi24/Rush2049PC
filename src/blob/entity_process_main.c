@@ -95,15 +95,9 @@ static void ZOID_ShowPoly(Poly *poly)
     poly->flags &= ~0x8000;
 }
 
-static void ZOID_ClearPolyFlags(Poly *poly, unsigned short flags)
-{
-    poly->flags &= ~flags;
-}
+void func_8008D098(Poly *poly, unsigned short flags);
 
-static void ZOID_SetPolyFlags(Poly *poly, unsigned short flags)
-{
-    poly->flags |= flags;
-}
+void func_8008D084(Poly *poly, unsigned short flags);
 
 void entity_process_main(Visual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
@@ -185,7 +179,7 @@ void entity_process_main(Visual *v, s16 op) {
     }
 
     if (car->unk35C >= 0 && (car->unk35D == 0 || car->unk35D == 1))
-        ZOID_ClearPolyFlags(&D_8015B268[v->objnum], 1 << car->unk35C);
-    else ZOID_SetPolyFlags(&D_8015B268[v->objnum], 15);
+        func_8008D098(&D_8015B268[v->objnum], 1 << car->unk35C);
+    else func_8008D084(&D_8015B268[v->objnum], 15);
     func_8008C074(&D_8015B268[v->objnum], 4, xyz, 0, D_8011AD8C, 0, 0);
 }

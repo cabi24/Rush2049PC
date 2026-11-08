@@ -21,76 +21,9 @@ typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool p
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 void func_80095EC0(void *,u32);
-void *func_80095F8C(u32 arg0) {
-    s32 var_v0;
-    s32 var_v1;
+void audio_reverb_update(u32 address,s32 tag);
 
-    var_v0 = D_801527C8;
-    var_v1 = 0;
-    if (var_v0 != 0) {
-        do {
-            if ((arg0 >= (u32) M2C_FIELD(var_v0, u32 *, 8)) && (arg0 < (u32) M2C_FIELD(var_v0, u32 *, 0x10))) {
-                var_v1 = var_v0;
-            }
-            var_v0 = M2C_FIELD(var_v0, s32 *, 4);
-        } while (var_v0 != 0);
-    }
-    return (void *) var_v1;
-}
-Block *func_80095EF4(Heap *heap, u32 addr, s32 tag) {
-    Pool *p;
-    Block *b;
-    p = &heap->pool;
-    while (1) {
-        if (p == 0 || p->base == 0) break;
-        if (addr >= (u32)p->base && addr < (u32)(N64P(p->base) + p->count)) {
-            addr = *(u32 *)addr;
-            break;
-        }
-        p = N64P(p->next);
-    }
-    b = N64P(heap->blocks);
-    while (b != 0) {
-        if (tag != b->tag || addr < (u32)b || (b->next != 0 && addr >= (u32)b->next)) {
-            b = N64P(b->next);
-        } else break;
-    }
-    return b;
-}
-void audio_reverb_update(u32 address,s32 tag) {
- Heap *heap; Block *block,*next,*prev;
- heap=func_80095F8C(address);
- block=func_80095EF4(heap,address,tag);
- func_80095EC0((u8 *)block+32,block->pad8[1]);
- if(block->pad8[2]) *(u32 *)block->pad8[2]=0;
- next=N64P(block->next);
- if(next && next->pad14==0) {
-  block->next=next->next;
-  if(block->next) N64P(block->next)->pad8[0]=(u32)block;
-  else heap->padc[0]=(u32)block;
-  block->pad8[1]+=next->pad8[1]+32;
-  func_80095EC0(next,32);
- }
- prev=(Block *)block->pad8[0];
- block->pad8[2]=0;block->pad14=0;block->tag=0;block->counter=0;
- if(prev && prev->pad14==0) {
-  prev->next=block->next;
-  if(prev->next) N64P(prev->next)->pad8[0]=(u32)prev;
-  else heap->padc[0]=(u32)prev;
-  prev->pad8[1]+=block->pad8[1]+32;
-  func_80095EC0(block,32);
- }
-}
-
-void *audio_buffer_sync(u32 address) {
- void *owner,*block,*result;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- owner=func_80095F8C(address);
- block=func_80095EF4(owner,address,0);
- result=M2C_FIELD(block,void **,12);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
- return result;
-}
+void *audio_buffer_sync(u32 address);
 
 /* ---- menu objects ---- */
 typedef struct MenuData {

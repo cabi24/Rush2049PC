@@ -44,10 +44,7 @@ extern u16 func_80092B80(s16,u8);
 extern void func_8008D870(s16,void *,int);
 extern void model_transform_setup(int,int,int);
 extern void model_data_load(int,int,int);
-static void resource_set_object(s16 index, u16 object)
-{
-    D_8012E700[index].object = object;
-}
+void func_80090770(s16 index, u16 object);
 
 void music_tempo_set(s16 player,u8 mode,int apply)
 {
@@ -71,10 +68,10 @@ void music_tempo_set(s16 player,u8 mode,int apply)
  if(model){}
  color=func_80092B80(player,mode);
  slot=&D_80139320[player];
- resource_set_object(slot->root,color);
+ func_80090770(slot->root,color);
  model->model=slot->root;
- resource_set_object(slot->body,D_801427C2[(s16)(player*3)]);
- for(i=0;i<4;i++)resource_set_object(D_80139320[player].wheels[i],D_801428F8);
+ func_80090770(slot->body,D_801427C2[(s16)(player*3)]);
+ for(i=0;i<4;i++)func_80090770(D_80139320[player].wheels[i],D_801428F8);
  if(D_80156994 || D_8014978C>=6) {
   func_8008D870((s16)slot->wheels[0],D_80143F74[PC_MODEL_B00F(player)],-1);
  } else {

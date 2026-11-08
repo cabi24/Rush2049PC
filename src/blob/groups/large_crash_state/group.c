@@ -18,12 +18,7 @@ extern f32 D_80124394, D_80124398, D_8012439C, D_801243A0;
 extern f32 D_801243A4, D_801243A8, D_801243AC, D_801243B0;
 extern f32 func_8008B3C8(f32 *);
 extern void func_803914B4(s8, s8, s8);
-void effect_cleanup(s8 a,s8 b,s8 c)
-{
-    if (gameplay_mode == 6 || gameplay_mode == 4) {
-        func_803914B4(a,b,c);
-    }
-}
+void effect_cleanup(s8 a,s8 b,s8 c);
 
 #define MF(offset) (*(f32 *)(model + (offset)))
 #define MB(offset) (*(s8 *)(model + (offset)))

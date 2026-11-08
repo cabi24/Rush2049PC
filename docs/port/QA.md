@@ -170,6 +170,10 @@ gen_weak keeps one copy of a function several files define when the manifest nam
 bodies differ between its files (comments and spacing ignored), unless reviewed: one equivalent spelling
 (`hs_font_set`) and four stand-in callers nothing calls. On a report with InitEgg's two copies it fails.
 
+Since 2026-11-08 the class can't happen: every function has one definition in the C (the copies the linker never used
+went with the N64 build, `tools/port/drop_copies.py`, [PCONLY.md](PCONLY.md) 4), and a second definition of a name is
+a link error. gen_weak and the check went with them.
+
 ### 4. A stunt round never ended (gStuntsDone's low half)
 
 When a stunt round's time is up and the cars have settled, camera_scene_manager sets gStuntsDone, the s32
