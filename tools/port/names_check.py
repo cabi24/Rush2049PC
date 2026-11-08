@@ -1,41 +1,56 @@
 #!/usr/bin/env python3
-"""Check the name maps (tools/port/names/*.tsv, docs/port/PCONLY.md 3) before tools/port/rename.py applies them.
+"""Check the name maps (tools/port/names/*.tsv) and the drop list (tools/port/names/drop.tsv), docs/port/PCONLY.md 3,
+before tools/port/rename.py applies them.
 
-    python3 tools/port/names_check.py                          # every map in tools/port/names/
-    python3 tools/port/names_check.py tools/port/names/cars.tsv [--root DIR] [--strict] [--quiet]
+    python3 tools/port/names_check.py                          # every map in tools/port/names/, and drop.tsv
+    python3 tools/port/names_check.py tools/port/names/cars.tsv [drop.tsv] [--root DIR] [--strict] [--quiet]
 
-A map is tab separated (a run of tabs is one separator), `#` starts a comment line, and its rows are
+A map is tab separated (a run of tabs is one separator), `#` starts a comment line (the namer's notes: never
+checked), and its rows are
 
     old  new  kind  source  confidence  note
 
-kind is func, data, type, field (old = Struct.0xOFFSET) or file (old = a path from the top of the tree); source is
-mat3 or code; confidence is sure or likely; the note is required. An optional header row names the columns.
+kind is func, data, type, field (old = Struct.0xOFFSET; new = a member, or a path into an array member such as
+visuals[14].func) or file (old = a file or a folder, from the top of the tree); source is mat3 or code; confidence
+is sure or likely; the note is required. An optional header row names the columns. A file named drop.tsv is the drop
+list: `name  table  note`, the labels the loader's symbol tables lose (table blob, boot_tail, ovl_a, ovl_b, or * for
+every table that has the label).
 
 Errors (exit status 1):
 - the format: a row without six fields, an unknown kind, source or confidence, an old or new name that is no C
-  identifier (a path for file rows, Struct.0xOFFSET for field rows), an empty note;
-- an old name in two rows, or a new name used twice, across all the maps given (a field's new name twice in one
-  struct; the same new path twice);
-- a new name that collides with an identifier already in src/, include/, port/ or nonmatching/ (other than an old
-  name a row renames away), or with a name in the symbol tables (asm/us/*/symbols.json, symbol_addrs.us.txt,
-  undefined_syms_auto.us.txt, layout/*.json), with a C keyword, a reserved identifier (a leading underscore), or
-  a name of the C library, POSIX, zlib or SDL;
+  identifier (a path for file rows, Struct.0xOFFSET and a member path for field rows), an empty note;
+- an old name in two rows that disagree (two maps that agree on a shared datum are a warning), or a new name used
+  twice, across all the maps given, unless the old names are aliases: names of one address in the symbol tables
+  (D_801174B4 and state_word_a), which rename.py makes one symbol (a field's new name twice in one struct; one new
+  path twice);
+- a new name that collides with what the tree has already: an identifier of the C of src/, include/, port/ and
+  nonmatching/ (other than an old name a row renames away), said with where it is (a static function in a file,
+  defined in, used in), or a name in the symbol tables (asm/us/*/symbols.json, symbol_addrs.us.txt,
+  undefined_syms_auto.us.txt, layout/*.json) at another address. Not collisions, but warnings: a name of the old
+  one's address already (an alias), and a name the C has only as `#define NEW OLD` (the same after the rename), in a
+  header no .c file includes (the arcade headers) or as a struct member;
+- a C keyword, a reserved identifier (__x, _X, or _x at file scope: a warning for source mat3 rows, whose names
+  are kept verbatim, _PS_FlushFile), a name of the C library, POSIX, zlib or SDL;
 - an address left in a new name (8 and seven hex digits, func_, D_8, sym_, jtbl_), or in a new file path;
-- an old name that doesn't exist (neither in the C of those folders nor in the symbol tables); an old file that
-  doesn't exist, or a new file that does; a field row whose struct is no type of the C;
-  (a row the tree has had applied already, its old name gone and its new one there, is checked for its format, its
-  new name's form and duplicates only: the maps stay in the tree after rename.py applied them);
+- an old name that doesn't exist (neither in the C of those folders nor in the symbol tables); an old file or
+  folder that doesn't exist, or a new one that does (a row the tree has had applied already, its new name there and
+  its old one in no table and declared nowhere at file scope, is checked for its format, its new name's form and
+  duplicates only: the maps stay in the tree after rename.py applied them);
 - a kind that contradicts the C: a func row whose old name the C only declares as data or a type, a data row whose
-  old name the C defines as a function, a type row whose old name is no typedef or struct, union or enum tag.
+  old name the C defines as a function, a type row whose old name is no typedef or struct, union or enum tag;
+- the drop list: a label not in the table named, also renamed by a map or a map's new name, or still used: by the C
+  (code and asm strings; not comments or struct members) or by the tools' Python (code and strings). A label in no
+  table and used nowhere counts as dropped already.
 
 Warnings (errors with --strict): the naming style of PCONLY.md 3 for source `code` rows (functions and data in
 lower_snake_case, types in CamelCase), the words it bans (unk, temp, tmp, data2, helper), the PC layer's prefixes
 (pc_, PC_), a POSIX-reserved _t suffix, an old name only the symbol tables have, an old address name the C also
 spells otherwise (func_800a3424 beside func_800A3424: rename.py renames the spelling given), a func or data row the C
-gives no evidence of its kind for, and names Windows' headers define as macros.
+gives no evidence of its kind for, a field row's struct the C has under no such name (MAT3's tWindowInfo: the hand
+edit finds it), names Windows' headers define as macros, and the benign overlaps above.
 
-The module is also the library rename.py uses: the map reader, the C lexer and the tree scan. Stdlib only,
-Python 3.9+.
+The module is also the library rename.py uses: the map and drop list readers, the C lexer and the tree scan. Stdlib
+only, Python 3.9+.
 """
 import argparse
 import collections
@@ -50,6 +65,12 @@ ROOT = Path(__file__).resolve().parents[2]
 MAPS_DIR = Path("tools/port/names")
 
 COLUMNS = ("old", "new", "kind", "source", "confidence", "note")
+# tools/port/names/drop.tsv: labels the loader's symbol tables lose, not renamed (stale guesses, labels inside other
+# functions, second names nothing uses): name, table (blob, boot_tail, ovl_a, ovl_b, or * for every table that has
+# it), note.
+DROP_FILE = "drop.tsv"
+DROP_COLUMNS = ("name", "table", "note")
+DROP_TABLES = ("blob", "boot_tail", "ovl_a", "ovl_b", "*")
 KINDS = ("func", "data", "type", "field", "file")
 IDENT_KINDS = ("func", "data", "type")
 SOURCES = ("mat3", "code")
@@ -66,6 +87,8 @@ IDENT_FULL = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ADDR_NAME = re.compile(r"^(D|func|sym|jtbl)_([0-9A-Fa-f]{8})$")
 ADDR_IN_NAME = re.compile(r"8[0-9A-Fa-f]{7}|(?:^|_)func_|(?:^|_)D_8|(?:^|_)sym_|(?:^|_)jtbl_", re.I)
 FIELD_OLD = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\.(0x[0-9A-Fa-f]+)$")
+# A field's new name: a member, or a path into an array member (tCarData.0x274 is visuals[14].func)
+FIELD_PATH = re.compile(r"^[A-Za-z_]\w*(?:\[\d+\])*(?:\.[A-Za-z_]\w*(?:\[\d+\])*)*$")
 SNAKE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 CAMEL = re.compile(r"^[A-Z][A-Za-z0-9]*$")
 BANNED_WORDS = {"unk", "temp", "tmp", "data2", "helper"}
@@ -157,12 +180,69 @@ class Row:
         return f"Row({self.old!r} -> {self.new!r}, {self.kind}, {self.where()})"
 
 
+def is_drop_file(path):
+    return Path(path).name == DROP_FILE
+
+
 def map_paths(root, given=None):
-    """The maps: the files given, else every tools/port/names/*.tsv under root, sorted."""
+    """The maps and drop files: the files given, else every tools/port/names/*.tsv under root, sorted. (A file named
+    drop.tsv is a drop file: split_paths.)"""
     if given:
         return [Path(p) for p in given]
     d = Path(root) / MAPS_DIR
     return sorted(d.glob("*.tsv")) if d.is_dir() else []
+
+
+def split_paths(paths):
+    """(maps, drop files) of a list of paths."""
+    return [p for p in paths if not is_drop_file(p)], [p for p in paths if is_drop_file(p)]
+
+
+class Drop:
+    """A row of drop.tsv: a label to remove from a loader symbol table (asm/us/<table>/symbols.json), or from
+    every table that has it (table *)."""
+    __slots__ = ("path", "line", "name", "table", "note")
+
+    def __init__(self, path, line, name, table, note):
+        self.path, self.line, self.name, self.table, self.note = path, line, name, table, note
+
+    def where(self):
+        return f"{self.path}:{self.line}"
+
+
+def read_drops(paths):
+    """(drops, errors): every row of the drop files (name, table, note; tab separated, # comments), and the format
+    errors as (where, message)."""
+    drops, errors = [], []
+    for path in paths:
+        try:
+            text = Path(path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            errors.append((str(path), f"cannot read: {e}"))
+            continue
+        header_seen = False
+        for n, line in enumerate(text.splitlines(), 1):
+            where = f"{path}:{n}"
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            f = [x.strip() for x in re.split(r"\t+", line.strip("\r\n"))]
+            if not header_seen and [x.lower() for x in f[:3]] == list(DROP_COLUMNS):
+                header_seen = True
+                continue
+            header_seen = True
+            if len(f) < 3 or "\t" not in line:
+                errors.append((where, f"{len(f)} fields, expected 3, tab separated: {' | '.join(DROP_COLUMNS)}"))
+                continue
+            d = Drop(str(path), n, f[0], f[1], " ".join(f[2:]))
+            if not IDENT_FULL.match(d.name):
+                errors.append((where, f"name {d.name!r} is no C identifier"))
+            elif d.table not in DROP_TABLES:
+                errors.append((where, f"table {d.table!r} is none of {', '.join(DROP_TABLES)}"))
+            elif not d.note:
+                errors.append((where, "no note: say why the label goes"))
+            else:
+                drops.append(d)
+    return drops, errors
 
 
 def read_maps(paths):
@@ -214,8 +294,8 @@ def check_format(row):
     elif row.kind == "field":
         if not FIELD_OLD.match(row.old):
             out.append(f"old {row.old!r}: a field row's old name is Struct.0xOFFSET (tModelData.0x5AC)")
-        if not IDENT_FULL.match(row.new):
-            out.append(f"new field name {row.new!r} is no C identifier")
+        if not FIELD_PATH.match(row.new):
+            out.append(f"new field name {row.new!r} is no member path (a name, or visuals[14].func)")
     elif row.kind == "file":
         for col, v in (("old", row.old), ("new", row.new)):
             p = v.replace("\\", "/")
@@ -285,13 +365,16 @@ def read_text(path):
 
 _PREV_NOT_DECL = {"return", "sizeof", "case", "else", "do", "goto", "if", "while", "for", "switch"}
 # The classifier's lexer: only code tokens matter, and findall is several times quicker than finditer here.
-# Groups: an identifier, a punctuator, or a literal (a string, a character or a number); comments match no group.
+# Groups: an #include's file name, an identifier, a literal (a string, a character or a number), a punctuator;
+# comments match no group.
 _C_CODE = re.compile(r"""
-    /\*.*?(?:\*/|\Z) | //(?:\\\r?\n|[^\n])* | \#[ \t]*include[^\n]*
+    /\*.*?(?:\*/|\Z) | //(?:\\\r?\n|[^\n])* | \#[ \t]*include[ \t]*["<]([^">\n]*)[">]?
    |([A-Za-z_][A-Za-z0-9_]*)
    |((?:u8|[uUL])?"(?:\\.|[^"\\\n])*"?|[uUL]?'(?:\\.|[^'\\\n])*'?|\.?[0-9](?:[eEpP][+-]|[0-9A-Za-z_.])*)
    |(\#\#|->|\S)
 """, re.S | re.X)
+# An object-like macro whose body is one identifier: #define gRace D_8014A110
+_DEFINE_ALIAS = re.compile(r"^[ \t]*#[ \t]*define[ \t]+([A-Za-z_]\w*)[ \t]+([A-Za-z_]\w*)[ \t]*(?:/[/*].*)?$", re.M)
 
 
 _ASM_OPEN = re.compile(r"\b(?:__asm__|__asm|asm|alias|__alias__|weakref|__weakref__)\s*(?:(?:volatile|__volatile__)\s*)?\(")
@@ -319,42 +402,61 @@ def asm_string_names(text):
     return out
 
 
+CLASSES = ("idents", "nonmember", "func_def", "func_static", "func_decl", "func_use", "data_decl", "types")
+
+
 def classify_c(text):
-    """What one C file says of its names: (identifiers in the code and in asm strings, functions defined, functions
-    declared, functions called or declared, variables declared at file scope or by extern, typedef names and struct,
-    union and enum tags), as sets."""
-    idents, func_def, func_decl, func_use, data_decl, types = set(), set(), set(), set(), set(), set()
+    """What one C file says of its names: a dict of sets, CLASSES (identifiers in the code and in asm strings, those
+    of them used otherwise than as a struct member (declared in a struct body, or after . or ->), functions defined, those of them defined static, functions declared, functions called or declared, variables
+    declared at file scope or by extern, typedef names and struct, union and enum tags), plus `defines` ((macro,
+    identifier) of each #define of one identifier) and `includes` (the base names of the files it includes)."""
+    out = {c: set() for c in CLASSES}
+    idents, nonmember, func_def, func_static, func_decl, func_use, data_decl, types = (out[c] for c in CLASSES)
+    out["defines"] = set(_DEFINE_ALIAS.findall(text)) if "define" in text else set()
+    out["includes"] = includes = set()
     if "asm" in text or "alias" in text or "weakref" in text:
         idents |= asm_string_names(text)
+        nonmember |= idents
     code = []   # (is identifier, text)
-    for ident, lit, punct in _C_CODE.findall(text):
+    for inc, ident, lit, punct in _C_CODE.findall(text):
         if ident:
             code.append((True, ident))
         elif punct:
             code.append((False, punct))
         elif lit:
             code.append((False, "0"))
+        elif inc:
+            includes.add(inc.rsplit("/", 1)[-1])
     n = len(code)
     brace = paren = 0
-    in_typedef = in_extern = False   # the statement being read began with typedef / extern
-    stmt_brace = 0                   # the brace depth that statement began at
+    in_typedef = in_extern = in_static = False   # the statement being read began with typedef / extern; has static
+    stmt_brace = 0                               # the brace depth that statement began at
+    kinds = []                                   # per open brace: is it a struct, union or enum body?
     for i in range(n):
         is_id, v = code[i]
         if not is_id:
             if v == "{":
+                p1, p2 = code[i - 1][1] if i else "", code[i - 2][1] if i > 1 else ""
+                kinds.append(p1 in ("struct", "union", "enum") or p2 in ("struct", "union", "enum"))
                 brace += 1
                 if not in_typedef and not in_extern:
                     stmt_brace = brace
             elif v == "}":
+                if kinds:
+                    kinds.pop()
                 brace = max(0, brace - 1)
                 if not in_typedef and not in_extern:
                     stmt_brace = brace
+                    if brace == 0:
+                        in_static = False
             elif v == "(":
                 paren += 1
             elif v == ")":
                 paren = max(0, paren - 1)
             elif v == ";" and brace <= stmt_brace:
                 in_typedef = in_extern = False
+                if brace == 0:
+                    in_static = False
                 stmt_brace = brace
                 paren = 0
             continue
@@ -362,12 +464,17 @@ def classify_c(text):
         prev_id, prev = code[i - 1] if i else (False, "")
         prev2 = code[i - 2][1] if i > 1 else ""
         nxt = code[i + 1][1] if i + 1 < n else ""
+        if not (prev in (".", "->") or (kinds and kinds[-1] and paren == 0 and nxt in (";", ",", "[", ":"))):
+            nonmember.add(v)
         if v == "typedef" or v == "extern":
             if v == "typedef":
                 in_typedef = True
             else:
                 in_extern = True
             stmt_brace = brace
+            continue
+        if v == "static" and brace == 0:
+            in_static = True
             continue
         if prev in ("struct", "union", "enum"):
             types.add(v)
@@ -398,6 +505,8 @@ def classify_c(text):
                 if brace == 0 and not in_extern and (after == "{" or (
                         a_id and after not in ("__attribute__", "asm", "__asm__", "__asm"))):
                     func_def.add(v)
+                    if in_static:
+                        func_static.add(v)
                 else:
                     func_decl.add(v)
             continue
@@ -406,7 +515,7 @@ def classify_c(text):
             data_decl.add(v)
         elif file_scope and prev == "*" and prev2 == "(" and nxt == ")":
             data_decl.add(v)   # a function pointer variable: T (*name)(...)
-    return idents, func_def, func_decl, func_use, data_decl, types
+    return out
 
 
 def _classify_path(path):
@@ -430,25 +539,46 @@ def _classify_all(paths):
     return [_classify_path(p) for p in paths]
 
 
+OVERLAY_BASE = 0x8038A400   # both runtime images load here: an address above it is one image's (n64syms.CODE)
+
+
 class Tree:
     """What the tree says of its names: the C of SCAN_DIRS (identifiers in code, and the evidence of each name's
-    kind) and the symbol tables."""
+    kind) and the symbol tables. For the names in `watch` (the maps' new names) also where they are: the files
+    that use them, the files that define them as functions (static or not) and the #defines that name them."""
 
-    def __init__(self, root, files=None):
+    def __init__(self, root, files=None, watch=()):
         self.root = Path(root)
         self.files = files if files is not None else tracked_files(root)
-        self.idents = set()
-        self.func_def, self.func_decl, self.func_use = set(), set(), set()
-        self.data_decl, self.types = set(), set()
+        for c in CLASSES:
+            setattr(self, c, set())
+        self.includes_of = {}                            # file -> base names of the files it includes
+        self.where = collections.defaultdict(list)       # watched name -> [file using it, not as a member]
+        self.member_in = collections.defaultdict(list)   # watched name -> [file using it only as a struct member]
+        self.defined_in = collections.defaultdict(list)  # watched name -> [(file, static)] defining it
+        self.defines = collections.defaultdict(set)      # file -> {(watched macro, identifier)}
         self.table_names = {}   # name -> where (a symbol table)
         self.table_kind = {}    # name -> func or data (symbol_addrs.us.txt's type:func, layout functions)
-        paths = [self.root / f for f in self.files
-                 if f.startswith(tuple(d + "/" for d in SCAN_DIRS)) and f.endswith(C_EXTS)]
-        for res in _classify_all(paths):
-            if res:
-                for mine, theirs in zip((self.idents, self.func_def, self.func_decl, self.func_use, self.data_decl,
-                                         self.types), res):
-                    mine |= theirs
+        self.table_addr = collections.defaultdict(set)   # name -> {(table, address)}
+        watch = set(watch)
+        rels = [f for f in self.files if f.startswith(tuple(d + "/" for d in SCAN_DIRS)) and f.endswith(C_EXTS)]
+        for f, res in zip(rels, _classify_all([self.root / f for f in rels])):
+            if not res:
+                continue
+            for c in CLASSES:
+                getattr(self, c).update(res[c])
+            self.includes_of[f] = res["includes"]
+            if watch:
+                for name in res["nonmember"] & watch:
+                    self.where[name].append(f)
+                for name in (res["idents"] - res["nonmember"]) & watch:
+                    self.member_in[name].append(f)
+                for name in res["func_def"] & watch:
+                    self.defined_in[name].append((f, name in res["func_static"]))
+                for macro, target in res["defines"]:
+                    if macro in watch:
+                        self.defines[f].add((macro, target))
+        self.included = self._reachable()
         self._tables()
         self.spellings = collections.defaultdict(set)   # norm(address name) -> its spellings in the C
         for x in self.idents:
@@ -456,22 +586,39 @@ class Tree:
                 self.spellings[norm(x)].add(x)
         self.idents_norm = {norm(x) for x in self.idents}
 
+    def _reachable(self):
+        """The base names of the headers some .c file includes, directly or through other headers."""
+        by_base = collections.defaultdict(list)
+        for f in self.includes_of:
+            by_base[f.rsplit("/", 1)[-1]].append(f)
+        seen, todo = set(), [b for f, inc in self.includes_of.items() if f.endswith(".c") for b in inc]
+        while todo:
+            b = todo.pop()
+            if b in seen:
+                continue
+            seen.add(b)
+            for f in by_base.get(b, ()):
+                todo += self.includes_of.get(f, ())
+        return seen
+
     def _tables(self):
         r = self.root
         for p in sorted((r / "asm").glob("us/*/symbols.json")) if (r / "asm").is_dir() else []:
             try:
-                for name in json.loads(p.read_text())["symbols"]:
+                for name, addr in json.loads(p.read_text())["symbols"].items():
                     self.table_names.setdefault(name, str(p.relative_to(r)))
-            except (ValueError, KeyError, OSError):
+                    self.table_addr[name].add((p.parent.name, int(addr, 16)))
+            except (ValueError, KeyError, OSError, TypeError):
                 pass
         for name in ("symbol_addrs.us.txt", "undefined_syms_auto.us.txt", "undefined_funcs_auto.us.txt"):
             p = r / name
             if p.is_file():
                 for line in p.read_text(errors="replace").splitlines():
-                    m = re.match(r"^\s*([A-Za-z_]\w*)\s*=\s*0x[0-9A-Fa-f]+\s*;(.*)$", line)
+                    m = re.match(r"^\s*([A-Za-z_]\w*)\s*=\s*0x([0-9A-Fa-f]+)\s*;(.*)$", line)
                     if m:
                         self.table_names.setdefault(m.group(1), name)
-                        kind = "func" if "type:func" in m.group(2) or name == "undefined_funcs_auto.us.txt" else None
+                        self.table_addr[m.group(1)].add(("symbol file", int(m.group(2), 16)))
+                        kind = "func" if "type:func" in m.group(3) or name == "undefined_funcs_auto.us.txt" else None
                         if kind:
                             self.table_kind.setdefault(m.group(1), kind)
         for p in sorted((r / "layout").glob("*.json")) if (r / "layout").is_dir() else []:
@@ -484,6 +631,23 @@ class Tree:
             except (ValueError, KeyError, OSError):
                 pass
         self.table_norm = {norm(x): x for x in self.table_names}
+
+    def addresses(self, name):
+        """{(table, N64 address)} the symbol tables give the name, with ("name", address) for an address name."""
+        out = set(self.table_addr.get(name, ()))
+        a = address_of_name(name)
+        if a is not None:
+            out.add(("name", a))
+        return out
+
+    def aliases(self, a, b):
+        """Are a and b names of one symbol: one address, below the runtime images, or the same in one image's
+        table (both images load at 0x8038A400, so an address there alone says nothing)?"""
+        x, y = self.addresses(a), self.addresses(b)
+        if not x or not y or len({v for _, v in x} | {v for _, v in y}) != 1:
+            return False
+        (v,) = {v for _, v in x}
+        return v < OVERLAY_BASE or bool({t for t, _ in x} & {t for t, _ in y} - {"name", "symbol file"})
 
     def exists(self, name):
         k = norm(name)
@@ -498,11 +662,14 @@ class Tree:
 
 
 def is_applied(r, tree):
-    """Has the tree had this row applied already? Its old name is gone in the spelling the row gives and its new
-    name is there (a file row: the old file is gone, the new one there). Such a row is checked for its format only:
-    the maps stay in the tree after rename.py applied them."""
+    """Has the tree had this row applied already? Its new name is there and its old one, in the spelling the row
+    gives, is in no table and declared nowhere at file scope (a file row: the old file or folder is gone, the new
+    one there). Such a row is checked for its format only: the maps stay in the tree after rename.py applied them."""
     if r.kind in IDENT_KINDS:
-        return not tree.has(r.old) and tree.has(r.new)
+        # the old name may stay as another thing of the same spelling (a struct member, a local): applied when no
+        # table has it and the C declares it nowhere at file scope
+        declared = any(r.old in s for s in (tree.data_decl, tree.func_def, tree.func_decl, tree.types))
+        return tree.has(r.new) and r.old not in tree.table_names and not declared
     if r.kind == "file":
         return not (tree.root / r.old).exists() and (tree.root / r.new).exists()
     return False
@@ -518,7 +685,6 @@ def check_rows(rows, tree):
     done = {id(r) for r in applied}
     olds = collections.defaultdict(list)
     news = collections.defaultdict(list)
-    field_news = collections.defaultdict(list)
     for r in rows:
         if r.kind in IDENT_KINDS:
             olds[("id", norm(r.old))].append(r)
@@ -526,31 +692,53 @@ def check_rows(rows, tree):
         elif r.kind == "field":
             m = FIELD_OLD.match(r.old)
             olds[("field", m.group(1), int(m.group(2), 16))].append(r)
-            field_news[(m.group(1), r.new)].append(r)
+            news[("field", m.group(1), r.new)].append(r)
         else:
             olds[("file", r.old)].append(r)
             news[("file", r.new)].append(r)
     for key, rs in olds.items():
-        if len(rs) > 1:
-            for r in rs[1:]:
-                errors.append((r.where(), f"old {r.old} is in another row too ({rs[0].where()})"))
-    for key, rs in list(news.items()) + list(field_news.items()):
-        if len(rs) > 1:
-            for r in rs[1:]:
-                errors.append((r.where(), f"new {r.new} is used by another row too ({rs[0].where()}: {rs[0].old})"))
+        for r in rs[1:]:
+            if (r.new, r.kind) == (rs[0].new, rs[0].kind):   # two maps that agree (shared data): one rename
+                warnings.append((r.where(), f"old {r.old} is in another row too ({rs[0].where()}), to the same "
+                                            f"new name"))
+            else:
+                errors.append((r.where(), f"old {r.old} is in another row too ({rs[0].where()}: {rs[0].new})"))
+    for key, rs in news.items():
+        firsts = {}
+        for r in rs:   # rows that agree count once
+            firsts.setdefault(norm(r.old) if r.kind != "field" else r.old, r)
+        rs = list(firsts.values())
+        if len(rs) < 2:
+            continue
+        if key[0] == "id" and all(r.kind in ("func", "data") for r in rs):
+            # many to one: names of one symbol (aliases at one address in the tables) become one name
+            if any(id(r) in done for r in rs):
+                continue
+            if all(tree.aliases(rs[0].old, r.old) for r in rs[1:]):
+                (addr,) = {v for _, v in tree.addresses(rs[0].old)}
+                warnings.append((rs[0].where(), f"new {rs[0].new}: {len(rs)} rows merge the aliases "
+                                 f"{', '.join(r.old for r in rs)} (0x{addr:08X}) into one symbol "
+                                 f"({', '.join(r.where() for r in rs[1:])})"))
+                continue
+        for r in rs[1:]:
+            errors.append((r.where(), f"new {r.new} is used by another row too ({rs[0].where()}: {rs[0].old})"
+                           + (", and the old names are no aliases at one address" if key[0] == "id" else "")))
     renamed_away = {k[1] for k in olds if k[0] == "id"}
+    renames_to = {norm(r.old): r.new for r in rows if r.kind in IDENT_KINDS}
     type_names = {x for r in rows if r.kind == "type" for x in (r.old, r.new)
                   if r.old in tree.types or r.new in tree.types}
     for r in rows:
         w = r.where()
         if r.kind in IDENT_KINDS or r.kind == "field":
-            new = r.new
+            new = r.new if r.kind != "field" else re.match(r"\w+", r.new).group()
             if new in C_KEYWORDS:
                 errors.append((w, f"new {new} is a C keyword"))
+            # MAT3's names are kept verbatim (_PS_FlushFile): a reserved form is a warning there
+            reserved = (errors if r.source == "code" else warnings)
             if new.startswith("__") or re.match(r"^_[A-Z]", new):
-                errors.append((w, f"new {new} is a reserved identifier (__ or _ and a capital)"))
+                reserved.append((w, f"new {new} is a reserved identifier (__ or _ and a capital)"))
             elif new.startswith("_") and r.kind != "field":
-                errors.append((w, f"new {new} starts with an underscore: reserved at file scope"))
+                reserved.append((w, f"new {new} starts with an underscore: reserved at file scope"))
             if r.kind != "field":
                 if library_name(new):
                     errors.append((w, f"new {new} is a name of the C library, POSIX, zlib or SDL"))
@@ -560,20 +748,21 @@ def check_rows(rows, tree):
                     warnings.append((w, f"new {new}: POSIX reserves the _t suffix"))
                 if new.startswith(PC_PREFIXES):
                     warnings.append((w, f"new {new} has the PC layer's prefix (pc_, PC_)"))
-            if ADDR_IN_NAME.search(new):
-                errors.append((w, f"new {new} still has an address in it (PCONLY.md 3: no address in any name)"))
-            words = set(new.lower().split("_"))
+            if ADDR_IN_NAME.search(r.new):
+                errors.append((w, f"new {r.new} still has an address in it (PCONLY.md 3: no address in any name)"))
+            words = set(re.split(r"[_\W]+", r.new.lower()))
             bad = sorted(words & BANNED_WORDS) or [x for x in BANNED_WORDS if re.search(
-                r"(?:^|[a-z0-9])" + x.capitalize() + r"(?:[A-Z0-9]|$)", new)]
+                r"(?:^|[a-z0-9])" + x.capitalize() + r"(?:[A-Z0-9]|$)", r.new)]
             if bad:
-                warnings.append((w, f"new {new} uses {', '.join(bad)} (PCONLY.md 3: never unk, temp, data2, helper)"))
+                warnings.append((w, f"new {r.new} uses {', '.join(bad)} (PCONLY.md 3: never unk, temp, data2, "
+                                    f"helper)"))
         if id(r) in done:
             continue
         if r.kind in IDENT_KINDS:
             new, old = r.new, r.old
             if tree.exists(new) and norm(new) not in renamed_away:
-                where = "the C" if tree.in_c(new) else tree.table_names.get(tree.table_norm.get(norm(new)), "a table")
-                errors.append((w, f"new {new} already exists in {where}"))
+                level, msg = collision(r, tree, renames_to)
+                (errors if level == "error" else warnings).append((w, msg))
             if r.source == "code":
                 if r.kind in ("func", "data") and not SNAKE.match(new):
                     warnings.append((w, f"new {new}: source code {r.kind} names are lower_snake_case"))
@@ -611,44 +800,155 @@ def check_rows(rows, tree):
             elif r.kind == "type" and not is_type:
                 errors.append((w, f"old {old} is no typedef name or struct, union or enum tag in the C"))
         elif r.kind == "field":
+            # the struct by its C tag or typedef, or by either name a type row gives it; a MAT3 name (tWindowInfo)
+            # is the hand edit's to find
             struct = FIELD_OLD.match(r.old).group(1)
-            # the struct by its name in the C, or by either name a type row of the maps gives it
             if struct not in tree.types and struct not in type_names:
-                errors.append((w, f"struct {struct} of {r.old} is no type of the C"))
+                warnings.append((w, f"struct {struct} of {r.old} is no type of the C (by that name)"))
         elif r.kind == "file":
             old, new = r.old.replace("\\", "/"), r.new.replace("\\", "/")
-            if not (tree.root / old).is_file():
-                errors.append((w, f"old file {old} doesn't exist"))
+            if not (tree.root / old).exists():
+                errors.append((w, f"old file or folder {old} doesn't exist"))
             if (tree.root / new).exists():
-                errors.append((w, f"new file {new} exists already"))
+                errors.append((w, f"new file or folder {new} exists already"))
             if ADDR_IN_NAME.search(Path(new).stem):
-                errors.append((w, f"new file {new} still has an address in its name"))
-            if Path(old).suffix != Path(new).suffix:
+                errors.append((w, f"new {new} still has an address in its name"))
+            if (tree.root / old).is_file() and Path(old).suffix != Path(new).suffix:
                 warnings.append((w, f"file {old} changes its extension"))
     return errors, warnings, applied
 
 
+def collision(r, tree, renames_to):
+    """('error' or 'warning', message) for a row whose new name the tree has already. Not a collision: the new name
+    is already a name of the old one's address (an alias: one symbol afterwards); the new name is in the C only as
+    `#define NEW OLD` (an identity after the rename) or in a header no file includes. Otherwise say where it is:
+    the symbol table, the files that define it (static or not), the files that use it."""
+    new, old = r.new, r.old
+    if tree.aliases(old, new):
+        (addr,) = {v for _, v in tree.addresses(old)}
+        return "warning", f"new {new} is already a name of {old}'s address 0x{addr:08X} (an alias): one symbol afterwards"
+    benign, bad = [], []
+    for f in tree.where.get(new, ()):
+        targets = {t for m, t in tree.defines.get(f, ()) if m == new}
+        if any(t == new or renames_to.get(norm(t)) == new for t in targets):
+            benign.append(f"#define {new} {sorted(targets)[0]} in {f}")
+        elif f.endswith(".h") and Path(f).name not in tree.included:
+            benign.append(f"{f}, which no .c file includes")
+        else:
+            bad.append(f)
+    benign += [f"a struct member in {f}" for f in tree.member_in.get(new, ())[:2]]
+    table = tree.table_names.get(new) or tree.table_names.get(tree.table_norm.get(norm(new), ""), None)
+    if not bad and not table:
+        return "warning", (f"new {new} is in the C only as {'; '.join(benign[:3])}"
+                           + (f" (+{len(benign) - 3})" if len(benign) > 3 else "")
+                           + " (not a collision; after the rename drop the #define, fix or drop the header)")
+    where = []
+    statics = [f for f, st in tree.defined_in.get(new, ()) if st]
+    defs = [f for f, st in tree.defined_in.get(new, ()) if not st]
+    if statics:
+        where.append(f"a static function in {', '.join(statics[:4])}" + (f" (+{len(statics) - 4})" if len(statics) > 4
+                                                                          else ""))
+    if defs:
+        where.append(f"defined in {', '.join(defs[:4])}" + (f" (+{len(defs) - 4})" if len(defs) > 4 else ""))
+    used = [f for f in bad if f not in statics and f not in defs]
+    if used:
+        where.append(f"used in {', '.join(used[:3])}" + (f" (+{len(used) - 3} files)" if len(used) > 3 else ""))
+    if table:
+        where.append(f"named in {table}")
+    if benign:
+        where.append(f"and harmlessly {'; '.join(benign[:2])}")
+    return "error", f"new {new} already exists: {'; '.join(where) or 'in the C'}"
+
+
+def tool_names(root, files, names):
+    """{name: first file} for the names the tools use: tools/**/*.py's identifiers and the identifiers inside their
+    string literals (lookups by name), not their comments."""
+    import tokenize
+    out = {}
+    for f in files:
+        if not (f.startswith("tools/") and f.endswith(".py")):
+            continue
+        try:
+            with open(Path(root) / f, "rb") as fh:
+                for t in tokenize.tokenize(fh.readline):
+                    if t.type == tokenize.NAME:
+                        found = {t.string} & names
+                    elif t.type == tokenize.STRING:
+                        found = set(IDENT.findall(t.string)) & names
+                    else:
+                        continue
+                    for x in found:
+                        out.setdefault(x, f)
+        except (OSError, SyntaxError, tokenize.TokenError, UnicodeDecodeError):
+            continue
+    return out
+
+
+def check_drops(drops, rows, tree):
+    """(errors, dropped) of the drop rows: the label is in the table named (or in some table, for *), it is in no
+    map row, and nothing uses it: the C of src/, include/, port/ and nonmatching/ (code and asm strings, not
+    comments or struct members) and the tools' Python (code and strings). A label in no table at all and used
+    nowhere was dropped already."""
+    errors, dropped = [], []
+    seen = {}
+    old_names = {norm(r.old): r for r in rows if r.kind in IDENT_KINDS}
+    new_names = {r.new: r for r in rows if r.kind in IDENT_KINDS}
+    used_by_tools = tool_names(tree.root, tree.files, {d.name for d in drops})
+    for d in drops:
+        w = d.where()
+        tables = {t for t, _ in tree.table_addr.get(d.name, ()) if t not in ("symbol file", "name")}
+        for key in ((d.name, d.table), (d.name, "*")) if d.table != "*" else [(d.name, t) for t in DROP_TABLES]:
+            if key in seen:
+                errors.append((w, f"{d.name} is dropped by another row too ({seen[key]})"))
+                break
+        seen[(d.name, d.table)] = w
+        if norm(d.name) in old_names:
+            errors.append((w, f"{d.name} is also renamed by a map ({old_names[norm(d.name)].where()})"))
+        if d.name in new_names:
+            errors.append((w, f"{d.name} is a map's new name ({new_names[d.name].where()})"))
+        users = tree.where.get(d.name, [])
+        if users:
+            errors.append((w, f"{d.name} is still used in the C: {', '.join(users[:3])}"
+                              + (f" (+{len(users) - 3})" if len(users) > 3 else "") + ": it can't leave the tables"))
+        elif d.name in used_by_tools:
+            errors.append((w, f"{d.name} is still used by {used_by_tools[d.name]}: it can't leave the tables"))
+        if not tables:
+            if not users and d.name not in used_by_tools:
+                dropped.append(d)
+        elif d.table != "*" and d.table not in tables:
+            errors.append((w, f"{d.name} is not in {d.table}'s table (it is in {', '.join(sorted(tables))})"))
+    return errors, dropped
+
+
 def run_checks(root, paths, tree=None):
-    """(rows, errors, warnings, applied) for the maps at paths."""
-    rows, errors = read_maps(paths)
-    warnings, applied = [], []
+    """(rows, errors, warnings, applied, drops, dropped) for the maps and drop files at paths: the map rows, the
+    errors and warnings as (where, message), the rows applied already, the drop rows and those dropped already."""
+    maps, drop_files = split_paths(paths)
+    rows, errors = read_maps(maps)
+    drops, drop_errors = read_drops(drop_files)
+    errors += drop_errors
+    warnings, applied, dropped = [], [], []
     good = []
     for r in rows:
         bad = check_format(r)
         errors += [(r.where(), m) for m in bad]
         if not bad:
             good.append(r)
+    if good or drops:
+        tree = tree or Tree(root, watch={r.new for r in good if r.kind in IDENT_KINDS} | {d.name for d in drops})
     if good:
-        tree = tree or Tree(root)
         errors_, warnings_, applied = check_rows(good, tree)
         errors += errors_
         warnings += warnings_
-    return rows, errors, warnings, applied
+    if drops:
+        errors_, dropped = check_drops(drops, good, tree)
+        errors += errors_
+    return rows, errors, warnings, applied, drops, dropped
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("maps", nargs="*", help="maps to check (default: every tools/port/names/*.tsv)")
+    ap.add_argument("maps", nargs="*", help="maps and drop files to check (default: every tools/port/names/*.tsv)")
     ap.add_argument("--root", type=Path, default=ROOT, help="the top of the tree (default: this checkout)")
     ap.add_argument("--strict", action="store_true", help="warnings fail too")
     ap.add_argument("--quiet", action="store_true", help="the summary and the errors only")
@@ -657,17 +957,20 @@ def main(argv=None):
     if not paths:
         print(f"names_check: no maps in {a.root / MAPS_DIR}")
         return 0
-    rows, errors, warnings, applied = run_checks(a.root, paths)
+    rows, errors, warnings, applied, drops, dropped = run_checks(a.root, paths)
     for where, msg in sorted(errors, key=lambda x: _where_key(x[0])):
         print(f"{where}: error: {msg}")
     if not a.quiet:
         for where, msg in sorted(warnings, key=lambda x: _where_key(x[0])):
             print(f"{where}: warning: {msg}")
+    maps, drop_files = split_paths(paths)
     kinds = collections.Counter(r.kind for r in rows)
-    print(f"names_check: {len(paths)} map{'s' if len(paths) != 1 else ''}, {len(rows)} rows "
+    print(f"names_check: {len(maps)} map{'s' if len(maps) != 1 else ''}, {len(rows)} rows "
           f"({', '.join(f'{k} {kinds[k]}' for k in KINDS if kinds[k])}"
-          + (f"; {len(applied)} applied already" if applied else "") + f"): {len(errors)} errors, "
-          f"{len(warnings)} warnings")
+          + (f"; {len(applied)} applied already" if applied else "") + ")"
+          + (f", {len(drops)} labels to drop" + (f" ({len(dropped)} dropped already)" if dropped else "")
+             if drop_files else "")
+          + f": {len(errors)} errors, {len(warnings)} warnings")
     return 1 if errors or (a.strict and warnings) else 0
 
 

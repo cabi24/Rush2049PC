@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""tools/port/rename.py on its fixture (tools/port/tests/names/tree and map.tsv: made-up names), as ctest's
-rename_tool runs it:
+"""tools/port/rename.py on its fixture (tools/port/tests/names: tree/, map.tsv and drop.tsv, made-up names), as
+ctest's rename_tool runs it:
 
     python3 tools/port/tests/test_rename.py [-v]
 
 Each test copies the fixture tree to a temporary folder and runs rename.py there: every place a name lives (the C's
 code, comments and symbol-name strings, asm and alias strings, #include lines, the symbol tables and their checksums,
 symbol_addrs.us.txt and the address an old name spelled, the port's C, a tool, a suppression, extents.txt, CMake's
-lists of stems and of paths, the layout, the docs), what is left and reported (another spelling, a string that only
-mentions a name, a folder named after a function, token pasting, derived names, field rows), --check, a second
---apply that changes nothing, git mv in a git tree, the refusals, and a map of 5,000 rows over a tree of 400 files.
-Stdlib only, Python 3.9+.
+lists of stems and of paths, the layout, the docs), a folder row, two aliases made one symbol, a dropped label, and
+what is left and reported (struct members, a macro's parameter, a parameter and a local of the same spelling,
+another spelling, a string that only mentions a name, a folder named after a function, token pasting, derived names,
+field rows); --check; a second --apply that changes nothing; git mv in a git tree; the refusals; and a map of 5,000
+rows over a tree of 400 files. Stdlib only, Python 3.9+.
 """
 import contextlib
 import hashlib
@@ -31,6 +32,8 @@ import rename  # noqa: E402
 
 FIXTURE = HERE / "names" / "tree"
 MAP = HERE / "names" / "map.tsv"
+DROP = HERE / "names" / "drop.tsv"
+HEADER = "old\tnew\tkind\tsource\tconfidence\tnote\n"
 
 
 def run(*args):
@@ -58,38 +61,51 @@ class Fixture(unittest.TestCase):
     def text(self, rel):
         return (self.root / rel).read_text()
 
-    def apply(self, map_path=MAP):
-        status, out = run("--root", self.root, "--apply", map_path)
+    def apply(self, *maps):
+        status, out = run("--root", self.root, "--apply", *(maps or (MAP, DROP)))
         self.assertEqual(status, 0, out)
         return out
+
+    def write_map(self, rows, name="m.tsv"):
+        p = self.tmp / name
+        p.write_text(HEADER + "".join("\t".join(r) + "\n" for r in rows))
+        return p
 
 
 class DryRun(Fixture):
     def test_reports_without_changing(self):
         before = snapshot(self.root)
         report = self.tmp / "report.txt"
-        status, out = run("--root", self.root, "--dry-run", "--report", report, MAP)
+        status, out = run("--root", self.root, "--dry-run", "--report", report, MAP, DROP)
         self.assertEqual(status, 0, out)
         self.assertEqual(snapshot(self.root), before, "a dry run changed the tree")
-        self.assertIn("7 rows (func 3, data 1, type 1, field 1, file 1), 2 implied file moves", out)
-        self.assertIn("func_80F00010 -> thing_count_read [func]", out)
-        self.assertIn("moves src/blob/func_80F00010.c -> src/blob/thing_count_read.c", out)
-        self.assertIn("symbol_addrs.us.txt += thing_table = 0x80F00100 type:data", out)
-        self.assertIn("OldThing.0x0 -> total [field]: LEFT for wave 2", out)
-        self.assertIn("other spelling: func_80f00010", out)
-        self.assertIn("string: func_80F00010", out)
-        self.assertIn("path: func_80F00010: src/blob/groups/func_80F00010/group.c", out)
-        self.assertIn("PASTE: func_80F00010", out)
-        self.assertIn("func_80F00010_1 (func_80F00010 -> thing_count_read)", out)
+        for want in ("11 rows (func 3, data 4, type 1, field 1, file 2), 2 implied file moves, 1 labels to drop",
+                     "func_80F00010 -> thing_count_read [func]",
+                     "moves src/blob/func_80F00010.c -> src/blob/thing_count_read.c",
+                     "symbol_addrs.us.txt += thing_table = 0x80F00100 type:data",
+                     "OldThing.0x0 -> total [field]: LEFT for wave 2",
+                     "moves the folder src/blob/groups/old_group -> src/blob/groups/new_group (2 files)",
+                     "D_80F00600 -> game_state [data]", "one symbol with state_word_a",
+                     "zeta_unused [blob]: leaves blob",
+                     "other spelling: func_80f00010", "string: func_80F00010",
+                     "path: func_80F00010: src/blob/groups/func_80F00010/group.c",
+                     "PASTE: func_80F00010", "func_80F00010_1 (func_80F00010 -> thing_count_read)",
+                     "src/blob/alias_a.c:3: dropped a second declaration of game_state (line 2)",
+                     "src/blob/alias_b.c:3: declarations of game_state differ: line 2 `s32 game_state`, "
+                     "line 3 `u32 game_state`: by hand"):
+            self.assertIn(want, out)
         lines = report.read_text()
         self.assertIn("port/main.c:6: string (name): D_80F00100 -> thing_table", lines)
         self.assertIn("src/blob/func_80F00010.c: moved to src/blob/thing_count_read.c (implied", lines)
+        self.assertIn("src/blob/groups/old_group/member.c: moved to src/blob/groups/new_group/member.c (its folder's",
+                      lines)
+        self.assertIn("zeta_unused: dropped from blob", lines)
 
 
 class Apply(Fixture):
     def test_every_place(self):
         out = self.apply()
-        self.assertIn("13 files changed, 3 moved, 2 names added to symbol_addrs.us.txt", out)
+        self.assertIn("18 files changed, 5 moved, 2 names added to symbol_addrs.us.txt, 1 labels dropped", out)
         # the function's file follows its name; the header moves; the draft CMake lists by stem follows its name
         self.assertFalse((self.root / "src/blob/func_80F00010.c").exists())
         self.assertFalse((self.root / "include/game/old_header.h").exists())
@@ -115,24 +131,28 @@ class Apply(Fixture):
         self.assertIn("#ifndef OLD_HEADER_H", h)   # an include guard is derived text: left
         group = self.text("src/blob/groups/func_80F00010/group.c")   # the folder keeps its name
         self.assertIn("return thing_count_read(0);", group)
-        self.assertEqual(self.text("CMakeLists.txt").splitlines()[1], "foreach(f thing_draft other_draft)")
-        self.assertIn("add_executable(fixture src/blob/thing_count_read.c include/game/thing.h)",
-                      self.text("CMakeLists.txt"))
+        cmake = self.text("CMakeLists.txt")
+        self.assertEqual(cmake.splitlines()[1], "foreach(f thing_draft other_draft)")
+        self.assertIn("add_executable(fixture src/blob/thing_count_read.c include/game/thing.h "
+                      "src/blob/groups/new_group/member.c)", cmake)
         doc = self.text("docs/port/THING.md")
         self.assertIn("`thing_count_read` (src/blob/thing_count_read.c) reads thing_table/2C and Thing.count", doc)
         self.assertIn("src/blob/groups/func_80F00010/group.c. See thing_count_read.c and blob/thing_count_read.c",
                       doc)
         self.assertIn("include/game/thing.h.", doc)
+        self.assertIn("The folder src/blob/groups/new_group holds member.c (groups/new_group/member.c).", doc)
         self.assertIn('{"thing_table", thing_table}', self.text("port/main.c"))
         self.assertIn('NAMES = ("thing_table", "thing_assist")', self.text("tools/port/gen_thing.py"))
         self.assertIn("bounds:^thing_count_read$", self.text("tools/port/sanitize/ubsan.supp"))
         self.assertIn("thing_table 0x10", self.text("port/data/extents.txt"))
         self.assertEqual([e["target_id"] for e in json.loads(self.text("layout/game.json"))["regions"][0]["entries"]],
                          ["thing_count_read", "thing_draft"])
-        # the symbol table: keys renamed, in its own style; its checksum line follows; the assembly is left
+        # the symbol table: keys renamed, the aliases one key, the dropped label gone, in its own style; its
+        # checksum line follows; the assembly is left
         table = self.text("asm/us/blob/symbols.json")
         d = json.loads(table)
-        self.assertEqual(d["symbols"], {"thing_assist": "0x80F00200", "thing_count_read": "0x80F00010",
+        self.assertEqual(d["symbols"], {"gTargetInfo": "0x80F00800", "game_state": "0x80F00600",
+                                        "thing_assist": "0x80F00200", "thing_count_read": "0x80F00010",
                                         "thing_table": "0x80F00100", "zeta_keep": "0x80F00300"})
         self.assertEqual(table, json.dumps(d, indent=2, sort_keys=True) + "\n")
         sums = dict(reversed(line.split("  ")) for line in self.text("asm/us/blob/SHA256SUMS").splitlines())
@@ -144,33 +164,68 @@ class Apply(Fixture):
         self.assertIn("thing_draft = 0x80F00400; // type:func", syms)
         self.assertIn("thing_table = 0x80F00100; // type:data", syms)
         self.assertIn("thing_count_read = 0x80F00010; // type:func", syms)
+        self.assertEqual(syms.count("game_state = 0x80F00600;"), 1)   # the alias' line, renamed; none added
         self.assertNotIn("D_80F00100", syms)
+
+    def test_other_things_of_the_same_spelling(self):
+        """Struct members, a macro's parameter, a function's parameter, a local and its uses stay; the globals
+        are renamed. port/gfx's Windows member, and the comment that names it, stay."""
+        self.apply()
+        s = self.text("src/blob/shadow.c")
+        for want in ("extern s32 gTargetInfo;", "extern s32 thing_table[4];",
+                     "    s32 targetInfo;                /* a member */",
+                     "    s32 (*D_80F00100)(void);       /* a function pointer member */",
+                     "#define USE(D_80F00100) ((D_80F00100) + gTargetInfo)",
+                     "static Win gWin = { .targetInfo = 1 };",
+                     "return w->targetInfo + v.targetInfo + gTargetInfo;",
+                     "s32 shadow_param(s32 D_80F00100)\n{\n    return D_80F00100 + 1;",
+                     "    s32 targetInfo = 2;\n    {\n        targetInfo++;\n    }\n    return targetInfo + USE(3);",
+                     "s32 sum = gTargetInfo + thing_table[1];"):
+            self.assertIn(want, s)
+        self.assertEqual(self.text("port/gfx/gfx_display.c"), (FIXTURE / "port/gfx/gfx_display.c").read_text())
+
+    def test_aliases_made_one(self):
+        self.apply()
+        self.assertEqual(self.text("src/blob/alias_a.c").count("extern s32 game_state;"), 1)
+        self.assertIn("return game_state + game_state;", self.text("src/blob/alias_a.c"))
+        b = self.text("src/blob/alias_b.c")   # the two types: both stay, for a hand edit
+        self.assertIn("extern s32 game_state;\nextern u32 game_state;", b)
+
+    def test_folder(self):
+        self.apply()
+        self.assertFalse((self.root / "src/blob/groups/old_group").exists())
+        self.assertTrue((self.root / "src/blob/groups/new_group/member.c").exists())
+        self.assertIn('"dir": "src/blob/groups/new_group"', self.text("src/blob/groups/new_group/group.json"))
 
     def test_again_changes_nothing(self):
         self.apply()
         after = snapshot(self.root)
         out = self.apply()
-        self.assertIn("6 rows applied already", out)
+        self.assertIn("10 rows applied already", out)
         self.assertIn("0 files changed, 0 moved", out)
         self.assertEqual(snapshot(self.root), after)
 
     def test_check(self):
-        status, out = run("--root", self.root, "--check", MAP)
+        status, out = run("--root", self.root, "--check", MAP, DROP)
         self.assertEqual(status, 1)
         self.apply()
-        status, out = run("--root", self.root, "--check", MAP)
+        status, out = run("--root", self.root, "--check", "-v", MAP, DROP)
         self.assertEqual(status, 1, out)   # what is left for hand edits
-        self.assertIn("src/blob/thing_count_read.c:6: func_80f00010", out)
-        self.assertIn("src/blob/thing_count_read.c:10: func_80F00010", out)
-        self.assertIn("docs/port/THING.md:4: func_80F00010", out)
-        self.assertIn("rename.py --check: 3 places still have an old name; 1 field rows not checked", out)
+        for want in ("src/blob/thing_count_read.c:6: func_80f00010 (other spelling)",
+                     "src/blob/thing_count_read.c:10: func_80F00010 (string)",
+                     "docs/port/THING.md:4: func_80F00010 (path)",
+                     "src/blob/thing_count_read.c:18: func_80F00010 (token pasting in PASTE)",
+                     "src/blob/thing_count_read.c:7: func_80F00010_1 (derived identifier)",
+                     "src/blob/shadow.c:27: targetInfo (local of the same name: another thing, it stays)",
+                     "rename.py --check: 5 places still have an old name; 16 places of the old spellings are other "
+                     "things"):
+            self.assertIn(want, out)
 
     def test_check_clean(self):
-        clean = self.tmp / "clean.tsv"
-        clean.write_text("old\tnew\tkind\tsource\tconfidence\tnote\n"
-                         "helper_old_name\tthing_assist\tfunc\tcode\tsure\ta named function\n")
-        self.apply(clean)
-        status, out = run("--root", self.root, "--check", clean)
+        clean = self.write_map([("helper_old_name", "thing_assist", "func", "code", "sure", "a named function")],
+                               "clean.tsv")
+        self.apply(clean, DROP)
+        status, out = run("--root", self.root, "--check", clean, DROP)
         self.assertEqual(status, 0, out)
         self.assertIn("0 places still have an old name", out)
 
@@ -184,23 +239,29 @@ class Apply(Fixture):
         self.apply()
         status = subprocess.run(g + ["status", "--porcelain"], capture_output=True, text=True, check=True).stdout
         moves = {line[3:] for line in status.splitlines() if line.startswith("R")}   # RM: moved, then edited
-        self.assertIn("include/game/old_header.h -> include/game/thing.h", moves)
-        self.assertIn("src/blob/func_80F00010.c -> src/blob/thing_count_read.c", moves)
-        self.assertIn("nonmatching/game/draft_old.c -> nonmatching/game/thing_draft.c", moves)
+        for want in ("include/game/old_header.h -> include/game/thing.h",
+                     "src/blob/func_80F00010.c -> src/blob/thing_count_read.c",
+                     "nonmatching/game/draft_old.c -> nonmatching/game/thing_draft.c",
+                     "src/blob/groups/old_group/member.c -> src/blob/groups/new_group/member.c"):
+            self.assertIn(want, moves)
 
 
 class Refusals(Fixture):
-    def write_map(self, rows):
-        p = self.tmp / "m.tsv"
-        p.write_text("old\tnew\tkind\tsource\tconfidence\tnote\n" + "".join("\t".join(r) + "\n" for r in rows))
-        return p
-
     def test_bad_map_changes_nothing(self):
         before = snapshot(self.root)
         m = self.write_map([("func_80F00010", "zeta_keep", "func", "code", "sure", "collides")])
         status, out = run("--root", self.root, "--apply", m)
         self.assertEqual(status, 1)
         self.assertIn("new zeta_keep already exists", out)
+        self.assertEqual(snapshot(self.root), before)
+
+    def test_drop_of_a_used_label(self):
+        before = snapshot(self.root)
+        d = self.tmp / "drop.tsv"
+        d.write_text("name\ttable\tnote\nzeta_keep\tblob\tthe header still declares it\n")
+        status, out = run("--root", self.root, "--apply", MAP, d)
+        self.assertEqual(status, 1)
+        self.assertIn("zeta_keep is still used in the C: include/game/old_header.h", out)
         self.assertEqual(snapshot(self.root), before)
 
     def test_move_onto_a_file(self):

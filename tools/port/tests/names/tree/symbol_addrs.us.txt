@@ -1,3 +1,4 @@
 // rename.py's fixture symbol file
 helper_old_name = 0x80F00200; // type:func a named function
 draft_old = 0x80F00400; // type:func
+state_word_a = 0x80F00600; // type:data a second name of D_80F00600

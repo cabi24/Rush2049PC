@@ -82,19 +82,30 @@ Each area's names are one file, `tools/port/names/<area>.tsv`, tab separated, `#
 `kind` is func, data, type, field (old = `Struct.offset`, e.g. `tModelData.0x5AC`) or file (old = a source path);
 `source` is mat3 or code; `confidence` is sure or likely. The note says what it is and the evidence, in one line.
 
-`tools/port/names_check.py` checks the maps (format, duplicates across maps, collisions with the tree's identifiers,
-the symbol tables, keywords, reserved and library names, addresses left, old names missing, kinds the C
-contradicts); ctest's `names_check` runs it on every map. `tools/port/rename.py --dry-run` says what the maps would
-change, per row and per file, `--apply` changes the tree at merge time and `--check` lists every old name left; its
-docstring has the details. In one pass over every file it renames whole identifier tokens: the C's code and
-comments, the strings that name a symbol (asm and alias strings, a literal that is exactly one name), the loader's
-symbol tables (`asm/us/*/symbols.json`) and `symbol_addrs.us.txt`, the tools and press scripts, `port/data/*.txt`,
-the suppressions, CMake, the manifest and layouts, the docs. A file row moves its file (`git mv`) and every
-reference to its path; a function's file named after it (`src/ovl_a/func_8038F454.c`) moves with its name. Left and
-reported, for a hand edit: field rows (the struct's layout is needed), strings that only mention a name (output),
-another spelling of an address name (`func_800a3424` beside `func_800A3424`: another C identifier, often with another
-prototype), folders named after a function, derived identifiers (`func_800D6E00_1`), names built by `##`.
-`tools/port/pconly_gate.sh` runs section 2's gate as one command on Rocky.
+A field row's new name may be a path into an array member (`tCarData.0x274` → `visuals[14].func`); a file row may
+name a folder. Two rows may give one new name to two names of one address (aliases in the symbol tables, such as
+`D_801174B4` and `state_word_a`): they become one symbol. `tools/port/names/drop.tsv` (`name  table  note`, table
+blob, boot_tail, ovl_a, ovl_b or `*`) lists the labels the loader's tables lose instead: stale guesses, labels inside
+other functions, second names nothing uses.
+
+`tools/port/names_check.py` checks the maps and the drop list (format, duplicates and disagreements across maps,
+collisions with what the tree has, said with where and how: a static function in a file, a use, a table entry;
+keywords, reserved and library names, addresses left, old names missing, kinds the C contradicts, labels still
+used); ctest's `names_check` runs it on everything in `tools/port/names`. `tools/port/rename.py --dry-run` says what
+the maps would change, per row and per file, `--apply` changes the tree at merge time and `--check` lists every
+place an old name still names its symbol; its docstring has the details. In one pass over every file it renames
+whole identifier tokens: the C's code and comments, the strings that name a symbol (asm and alias strings, a literal
+that is exactly one name), the loader's symbol tables (`asm/us/*/symbols.json`, where it also drops drop.tsv's
+labels) and `symbol_addrs.us.txt`, the tools and press scripts, `port/data/*.txt`, the suppressions, CMake, the
+manifest and layouts, the docs. A file row moves its file or folder (`git mv`) and every reference to its path; a
+function's file named after it (`src/ovl_a/func_8038F454.c`) moves with its name. Aliases made one keep one table
+key, one symbol file line and one declaration per C file. Left and reported, for a hand edit: field rows (the
+struct's layout is needed), strings that only mention a name (output), another spelling of an address name
+(`func_800a3424` beside `func_800A3424`: another C identifier, often with another prototype), two declarations of
+merged aliases that differ in type, folders named after a function, derived identifiers (`func_800D6E00_1`), names
+built by `##`. Left as what they are, not the symbol: struct members of the same spelling (after `.` or `->`, in a
+struct body: port/gfx's Windows `targetInfo`), macro parameters, function parameters and locals that shadow the
+global. `tools/port/pconly_gate.sh` runs section 2's gate as one command on Rocky.
 
 The N64 address stays in the data loader's symbol tables (`asm/us/*/symbols.json`), which say where in the
 cartridge's image each datum lives; while the data comes from the cartridge, that is the one thing that must know

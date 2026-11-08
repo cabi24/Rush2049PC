@@ -7,3 +7,7 @@ draft_old	thing_draft	func	code	sure	a draft CMakeLists.txt lists by its stem
 OldThing	Thing	type	code	sure	a typedef and its tag
 OldThing.0x0	total	field	code	sure	a field row: left for a hand edit
 include/game/old_header.h	include/game/thing.h	file	code	sure	a header: the #include lines follow
+targetInfo	gTargetInfo	data	mat3	sure	the game datum; port/gfx's struct member of that spelling is another thing
+D_80F00600	game_state	data	code	sure	one symbol with its alias state_word_a (one address in the tables)
+state_word_a	game_state	data	code	sure	the alias of D_80F00600
+src/blob/groups/old_group	src/blob/groups/new_group	file	code	sure	a folder: its files and the references to it follow

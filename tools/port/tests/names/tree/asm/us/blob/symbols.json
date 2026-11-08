@@ -2,8 +2,12 @@
   "generated_by": "rename.py's fixture",
   "symbols": {
     "D_80F00100": "0x80F00100",
+    "D_80F00600": "0x80F00600",
     "func_80F00010": "0x80F00010",
     "helper_old_name": "0x80F00200",
-    "zeta_keep": "0x80F00300"
+    "state_word_a": "0x80F00600",
+    "targetInfo": "0x80F00800",
+    "zeta_keep": "0x80F00300",
+    "zeta_unused": "0x80F00700"
   }
 }

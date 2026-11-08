@@ -4,9 +4,10 @@
 #
 #   include(cmake/pconly_tests.cmake)
 #
-# names_check: every map in tools/port/names (none yet passes) against the tree: format, duplicates, collisions,
-# addresses left, old names missing, kinds; a map the tree has had applied passes too (its rows are "applied
-# already"). Seconds: it reads the C of src/, include/, port/ and nonmatching/ once, in worker processes.
+# names_check: every map in tools/port/names and its drop.tsv (none yet passes) against the tree: format,
+# duplicates, collisions (where and how), addresses left, old names missing, kinds, labels to drop still used; a map
+# the tree has had applied passes too (its rows are "applied already"). Seconds: it reads the C of src/, include/,
+# port/ and nonmatching/ once, in worker processes.
 add_test(NAME names_check COMMAND ${PC_PYTHON} ${PORT_TOOLS}/names_check.py --root ${CMAKE_SOURCE_DIR} --quiet)
 set_tests_properties(names_check PROPERTIES TIMEOUT 300)
 # rename.py on its fixture: every place a name lives, what is left, --check, idempotence, git mv, and 5,000 rows
