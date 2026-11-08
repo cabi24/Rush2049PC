@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "pc_n64_map.h"   /* PC_RDRAM_BASE: the window's N64 address */
+
 void n64_bzero(void *p, uint32_t n) { memset(p, 0, n); }
 void n64_bcopy(const void *src, void *dst, uint32_t n) { memmove(dst, src, n); }
 int n64_bcmp(const void *a, const void *b, uint32_t n) { return memcmp(a, b, n) != 0; }
@@ -12,9 +14,9 @@ int n64_bcmp(const void *a, const void *b, uint32_t n) { return memcmp(a, b, n) 
 #ifdef RUSH_NOFIXED
 /* The RDRAM window's host address, which the game C's translations between 32-bit N64 addresses and host pointers
  * read (port/include/pc_prelude.h, docs/port/NOFIXED.md 2.3): port/ultra's pc_mem_init sets it to the window, data.c's
- * section pc_window. Until then, and in a test program that maps a window of its own at host 0x80000000 and links
+ * section pc_window. Until then, and in a test program that maps a window of its own at host PC_RDRAM_BASE and links
  * game C, it is that address. Here for the reason the functions above are. */
-uint8_t *pc_window_base = (uint8_t *)(uintptr_t)0x80000000u;
+uint8_t *pc_window_base = (uint8_t *)(uintptr_t)PC_RDRAM_BASE;
 #endif
 
 /* pc_prelude.h's pc_n64_identity. port/ultra/statehash.c, where it is linked, sets the hook from a constructor (the
@@ -28,7 +30,7 @@ unsigned int pc_n64_identity(const void *p)
     if (pc_n64_identity_hook)
         return pc_n64_identity_hook(p);
 #ifdef RUSH_NOFIXED
-    return p ? 0x80000000u + (unsigned int)((uintptr_t)p - (uintptr_t)pc_window_base) : 0u;
+    return p ? PC_RDRAM_BASE + (unsigned int)((uintptr_t)p - (uintptr_t)pc_window_base) : 0u;
 #else
     return (unsigned int)(uintptr_t)p;
 #endif

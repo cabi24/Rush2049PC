@@ -36,7 +36,7 @@ static inline int test_rand(unsigned *seed)
 
 /* ---------------------------------------------------------------- stubs.c: port/ultra stand-ins */
 
-/* A fake RDRAM at N64 address 0x80000000, for N64-form records. */
+/* A fake RDRAM at N64 address PC_RDRAM_BASE (the window's KSEG0 address), for N64-form records. */
 #define TEST_RDRAM_SIZE 0x400000u
 extern uint8_t test_rdram[TEST_RDRAM_SIZE];
 void *rdram_alloc(size_t size);   /* zeroed, 16-byte aligned */

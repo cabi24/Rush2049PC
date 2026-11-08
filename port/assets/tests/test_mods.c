@@ -399,12 +399,25 @@ static int verdicts(int argc, char **argv)
 
 /* ---------------------------------------------------------------- a cartridge and a mods folder */
 
-#define BOOT_BASE 0x8002E000u
-#define GAME_BASE 0x8011B000u
+/* A synthetic cartridge: a boot and a game image at KSEG0 addresses of the test's own, the file table's four symbols at
+ * places of its own in them (handed to pc_mods_cart_read as main.c hands it the game's, found by name), the files
+ * after. SAMPLE_BASE is the ROM offset the sample directory's offsets count from (the game's D_00039B40), and
+ * SAMPLE_BASE_K1 the cartridge address the game adds them to. */
+#define BOOT_BASE (N64_KSEG0 + 0x2E000u)
+#define GAME_BASE (N64_KSEG0 + 0x11B000u)
 #define IMG_SIZE 0x9000u
 #define ROM_BOOT 0x1000u
 #define ROM_GAME 0x10000u
 #define ROM_FILES 0x20000u
+#define AT_SIZES 0x580u          /* gWaveSizes, in the boot image */
+#define AT_TEXT_INITIAL 0x860u   /* gLargestTextWave, in the boot image */
+#define AT_OFFSETS 0x5BCu        /* wave_rom_offsets, in the game image */
+#define AT_KINDS 0x8564u         /* wave_storage_kinds, in the game image */
+#define SAMPLE_BASE 0x39B40u
+#define SAMPLE_BASE_K1 (N64_CART_KSEG1 | SAMPLE_BASE)
+
+static const PcModsTableAt k_table_at = {BOOT_BASE + AT_SIZES, BOOT_BASE + AT_TEXT_INITIAL, GAME_BASE + AT_OFFSETS,
+                                         GAME_BASE + AT_KINDS};
 
 typedef struct {
     uint8_t *rom;
@@ -429,9 +442,9 @@ static void cart_file(TestCart *t, int wave, const uint8_t *b, size_t n, int kin
         b = enc;
     }
     memcpy(t->rom + t->at, b, stored);
-    test_put32(boot + 0x580 + 4 * wave, (uint32_t)n);              /* gWaveSizes */
-    test_put32(game + 0x5BC + 4 * wave, (uint32_t)t->at);          /* the ROM offset */
-    test_put32(game + (0x80123564u - GAME_BASE) + 4 * wave, (uint32_t)kind);
+    test_put32(boot + AT_SIZES + 4 * wave, (uint32_t)n);           /* gWaveSizes */
+    test_put32(game + AT_OFFSETS + 4 * wave, (uint32_t)t->at);     /* the ROM offset */
+    test_put32(game + AT_KINDS + 4 * wave, (uint32_t)kind);
     t->at = (t->at + stored + 15) & ~(size_t)15;
 }
 
@@ -442,7 +455,7 @@ static void cart_make(TestCart *t)
     t->at = ROM_FILES;
     t->img[0] = (PcModsImage){"boot", 0, ROM_BOOT, IMG_SIZE, IMG_SIZE, BOOT_BASE};
     t->img[1] = (PcModsImage){"game", 0, ROM_GAME, IMG_SIZE, IMG_SIZE, GAME_BASE};
-    t->rom[ROM_BOOT + 0x860] = 0;   /* the first text bank: English */
+    t->rom[ROM_BOOT + AT_TEXT_INITIAL] = 0;   /* the first text bank: English */
     for (int w = 0; w < PC_MODS_WAVES; w++) {   /* every wave a small file of zeros by default */
         static uint8_t z[64];
         cart_file(t, w, z, sizeof z, 0);
@@ -688,7 +701,7 @@ static void test_folder(void)
     cart_file(&t, 90, wad.b, wad.n, 0);
     cart_file(&t, 91, wad.b, wad.n, 0);
     cart_file(&t, 139, road.b, road.n, 0);
-    CHECK(pc_mods_cart_read(&cart, t.rom, t.size, t.img, 2) == 0);
+    CHECK(pc_mods_cart_read(&cart, t.rom, t.size, t.img, 2, &k_table_at) == 0);
     CHECK(cart.size[0] == bank.n && cart.kind[0] == 1 && cart.size[90] == wad.n);
     size_t n = 0;
     uint8_t *got = pc_mods_cart_file(&cart, 0, &n);
@@ -773,7 +786,7 @@ static void test_folder(void)
     CHECK(find_mod(&m, "zipped") && find_mod(&m, "zipped")->zip && find_mod(&m, "zipped")->nfiles == 1);
     CHECK(m.order[0] == (int)(find_mod(&m, "off") - m.mod) && m.order[1] == (int)(r - m.mod));   /* by priority */
     CHECK(b && g && b->place < g->place);
-    CHECK(pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.wave_mod[90] == (int)(r - m.mod));   /* red's car03 (wave 90) over blue's */
     CHECK(m.wave_mod[91] == (int)(r - m.mod) && m.wave_size[91] == red.n && !memcmp(m.wave_data[91], red.b, red.n));
     CHECK(m.wave_mod[139] == (int)(g - m.mod));  /* blue's road refused: green's is next */
@@ -807,12 +820,12 @@ static void test_folder(void)
 
     /* game.mods_order puts blue first: its car and its (refused) road; green's road still fills in */
     cfg.order = "blue, red";
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.wave_mod[90] == (int)(find_mod(&m, "blue") - m.mod) && m.wave_mod[139] == (int)(find_mod(&m, "green") - m.mod));
     pc_mods_free(&m);
     /* game.mods = off: listed, nothing used */
     cfg.enabled = 0;
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.n == 7 && m.wave_mod[90] == -1 && find_mod(&m, "red")->nfiles == 2 && !find_mod(&m, "red")->files[0].data);
     pc_mods_install(&m, off, size, kind);
     CHECK(g_region == NULL);
@@ -826,18 +839,18 @@ static void test_folder(void)
     memcpy(big.b, red.b, red.n);
     snprintf(p, sizeof p, "%s/red/cars/car03.bin", dir);
     put_file(p, big.b, big.n);
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.wave_mod[90] == (int)(find_mod(&m, "red") - m.mod));
     CHECK(m.growth >= 6ull * (3u << 20) && m.memory == 32);   /* 8 MiB + 6 cars x 3 MB: 26 MiB, so 32 */
     pc_mods_free(&m);
     cfg.cars = 12;   /* 12 cars: 8 + 36 MiB */
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0 && m.memory == 64);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0 && m.memory == 64);
     pc_mods_free(&m);
     cfg.cars = 0, cfg.memory = 64;   /* room already */
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0 && m.memory == 64);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0 && m.memory == 64);
     pc_mods_free(&m);
     cfg.memory = 0, cfg.expansion_pak = 0;   /* no Expansion Pak: the larger car refused, the cartridge's used */
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0 && m.memory == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0 && m.memory == 0);
     CHECK(m.wave_mod[90] == -1 && find_mod(&m, "red")->refused >= 1);
     pc_mods_free(&m);
     cfg.expansion_pak = 1;
@@ -845,7 +858,7 @@ static void test_folder(void)
     big = (File){calloc(1, wad.n + (60u << 20)), wad.n + (60u << 20)};   /* 6 x 60 MB: past 256 MiB */
     memcpy(big.b, red.b, red.n);
     put_file(p, big.b, big.n);
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.wave_mod[90] == -1 && m.memory == 16 && m.growth < 4096);   /* the text bank's growth is left */
     pc_mods_free(&m);
     free(big.b);
@@ -857,7 +870,7 @@ static void test_folder(void)
         test_put16(sdir + 0x1C, 2), test_put32(sdir + 0x1C + 4, 0x40);
         test_put16(sdir + 0x38, 0xFFFF);
         cart_file(&t, 8, sdir, sizeof sdir, 0);
-        CHECK(pc_mods_cart_read(&cart, t.rom, t.size, t.img, 2) == 0);
+        CHECK(pc_mods_cart_read(&cart, t.rom, t.size, t.img, 2, &k_table_at) == 0);
         memset(samples, 0x5A, sizeof samples);
         snprintf(p, sizeof p, "%s/snd/mod.ini", dir);
         put_text(p, "[mod]\nname = Sounds\ngame = us\n");
@@ -865,7 +878,7 @@ static void test_folder(void)
         put_file(p, samples, sizeof samples);
         Flags snd = {{"red", "blue", "green", "zipped", "off"}};
         cfg.user = &snd;
-        CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+        CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
         CHECK(m.wave_data[9] && m.made[8] && m.growth == 0 && m.memory == 0);   /* samples aren't heap */
         memcpy(off, cart.off, sizeof off), memcpy(size, cart.size, sizeof size), memcpy(kind, cart.kind, sizeof kind);
         CHECK(pc_mods_install(&m, off, size, kind) == 2 && off[9] == cart.off[9] && off[8] >= PC_ROM_MODS_BASE);
@@ -878,9 +891,9 @@ static void test_folder(void)
                     break;
                 }
             CHECK(at != 0xFFFFFFFF);
-            /* the game's sum: the base's cartridge address 0xB0039B40 + offset = the samples' new cartridge address */
-            CHECK(0xB0039B40u + pc_be32(d + 4) == (0xB0000000u | (PC_ROM_MODS_BASE + at)) + 0x10);
-            CHECK(0xB0039B40u + pc_be32(d + 0x1C + 4) == (0xB0000000u | (PC_ROM_MODS_BASE + at)) + 0x40);
+            /* the game's sum: the base's cartridge address + offset = the samples' new cartridge address */
+            CHECK(SAMPLE_BASE_K1 + pc_be32(d + 4) == (N64_CART_KSEG1 | (PC_ROM_MODS_BASE + at)) + 0x10);
+            CHECK(SAMPLE_BASE_K1 + pc_be32(d + 0x1C + 4) == (N64_CART_KSEG1 | (PC_ROM_MODS_BASE + at)) + 0x40);
             CHECK(pc_be16(d + 0x38) == 0xFFFF);
         }
         pc_mods_free(&m);
@@ -890,7 +903,7 @@ static void test_folder(void)
     /* only green, whose road is the cartridge's size: no growth, original stays */
     Flags only = {{"red", "blue", "off", "zipped"}};
     cfg.user = &only;
-    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, 0x39B40) == 0);
+    CHECK(pc_mods_scan(&m, &cfg) == 0 && pc_mods_prepare(&m, &cfg, &cart, SAMPLE_BASE) == 0);
     CHECK(m.wave_mod[139] == (int)(find_mod(&m, "green") - m.mod) && m.growth == 0 && m.memory == 0);
     pc_mods_free(&m);
 

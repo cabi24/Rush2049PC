@@ -12,6 +12,7 @@
  * The game writes them; a load of the other image leaves them alone; a load of their image puts them back, as the
  * N64's load does. The program stands in for everything else weapons.c references. */
 #include "pc_data.h"
+#include "pc_n64_map.h"   /* N64_OVERLAY_BASE: where the runtime images load */
 #include "../include/pc_game_types.h"
 
 #include <stdio.h>
@@ -31,9 +32,10 @@ struct pc_car pc_cars[PC_CAR_SLOTS];                           /* the car record
 uint16_t gRipTextures[5];
 int32_t gWfxObjList[7];
 
-/* Image B's BSS arena for the weapons' state, 0x80399118-0x80399A70: here in host memory. */
-#define ARENA_B_LO 0x80399118u
-#define ARENA_B_HI 0x80399A70u
+/* Image B's BSS arena for the weapons' state, from gCurWeaponType (0xED18 bytes into the image) to DamagePolys
+ * (0x958 bytes on), the game's layout: here in host memory. */
+#define ARENA_B_LO (N64_OVERLAY_BASE + 0xED18u)
+#define ARENA_B_HI (ARENA_B_LO + 0x958u)
 __attribute__((aligned(16))) uint8_t pc_test_arena_b[ARENA_B_HI - ARENA_B_LO];
 #define ALIAS(name, off) __asm__(".globl " #name "\n.set " #name ", pc_test_arena_b + " #off)
 ALIAS(gCurWeaponType, 0);
@@ -65,16 +67,19 @@ float ovl_test_speeds(void);
 /* ---------------------------------------------------------------- tables: the two runtime images, raw */
 
 extern uint8_t pc_ovl_a_start[], pc_ovl_a_end[], pc_ovl_b_start[], pc_ovl_b_end[];
-#define IMAGE_SIZE (ARENA_B_LO - 0x8038A400u)   /* image B's data ends where its BSS arena starts */
+#define IMAGE_SIZE (ARENA_B_LO - N64_OVERLAY_BASE)   /* image B's data ends where its BSS arena starts */
 static uint8_t rom[2 * IMAGE_SIZE];
 static const PcDataImage images[2] = {
-    {"ovl_a", PC_IMG_RAW, 0, IMAGE_SIZE, IMAGE_SIZE, 0x8038A400},
-    {"ovl_b", PC_IMG_RAW, IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE, 0x8038A400},
+    {"ovl_a", PC_IMG_RAW, 0, IMAGE_SIZE, IMAGE_SIZE, N64_OVERLAY_BASE},
+    {"ovl_b", PC_IMG_RAW, IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE, N64_OVERLAY_BASE},
 };
+/* The game heap's start in these tables: below the runtime images, which the game loads into its heap (the game's is
+ * the end of its BSS, game_bss_end). */
+#define TEST_HEAP (N64_KSEG0 + 0x17A640u)
 static PcDataArena arenas[1] = {{1, ARENA_B_LO, ARENA_B_LO, ARENA_B_HI, pc_test_arena_b, 0, 0}};
 static const PcDataCRange cranges[2] = {{0, pc_ovl_a_start, pc_ovl_a_end}, {1, pc_ovl_b_start, pc_ovl_b_end}};
 static PcDataState state;
-static const PcDataTables tables = {images, 2, arenas, 1, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0x8017A640, &state,
+static const PcDataTables tables = {images, 2, arenas, 1, NULL, 0, NULL, 0, NULL, 0, NULL, 0, TEST_HEAP, &state,
                                     cranges, 2};
 
 static int in(const void *p, const uint8_t *lo, const uint8_t *hi)

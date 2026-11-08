@@ -249,7 +249,7 @@ add_custom_command(
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
             ${PC_DATA_PE_ARGS} ${PC_DATA_NOFIXED_ARGS}
     DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> ${PORT_TOOLS}/gen_data.py
-            ${PORT_TOOLS}/n64syms.py ${PORT_TOOLS}/gen_stubs.py
+            ${PORT_TOOLS}/n64syms.py ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h ${PORT_TOOLS}/gen_stubs.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/port/data/asm_functions.txt
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
@@ -274,7 +274,7 @@ if(PC_HAVE_NO_TOPLEVEL_REORDER)
 endif()
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
-target_include_directories(pcdata_rt PUBLIC port/data)
+target_include_directories(pcdata_rt PUBLIC port/data port/include)   # port/include: pc_n64_map.h, the N64 memory map
 # The loader's report on the first load (docs/port/DATA.md), for bring-up: in the build directory by default; empty
 # for none (the release builds, docs/port/RELEASE.md). PC_DATA_REPORT overrides it at run time.
 set(RUSH_DATA_REPORT "${CMAKE_BINARY_DIR}/data_report.txt" CACHE STRING "Where the data loader writes its report; empty for none")
@@ -384,6 +384,7 @@ add_custom_command(
             --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
             --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld ${PC_NOFIXED_ARGS}
     DEPENDS ${PC_GAME_OBJECTS} ${PC_PORT_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
+            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
     COMMENT "Stubs for what is still missing (tools/port/gen_stubs.py)"
@@ -788,6 +789,7 @@ target_compile_options(test_romcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unuse
 add_test(NAME ultra_romcheck COMMAND test_romcheck)
 if(NOT WIN32)
     add_executable(test_absfix port/ultra/tests/test_absfix.c port/ultra/absfix.c)
+    target_include_directories(test_absfix PRIVATE port/include)   # pc_n64_map.h
     target_compile_options(test_absfix PRIVATE -std=gnu11 -Wall -Wextra)
     set_target_properties(test_absfix PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
     add_test(NAME ultra_absfix COMMAND test_absfix)
@@ -1125,7 +1127,7 @@ target_link_libraries(test_gsm_game PRIVATE game_flags)
 target_compile_options(test_gsm_game PRIVATE -w)
 add_executable(test_gsm port/ultra/tests/test_gsm.c port/ultra/gsm.c port/ultra/n64mem.c
     $<TARGET_OBJECTS:test_gsm_game>)
-target_include_directories(test_gsm PRIVATE port/ultra)
+target_include_directories(test_gsm PRIVATE port/ultra port/include)
 target_compile_options(test_gsm PRIVATE -std=gnu11 -O2 -Wall -Wextra -Wno-unused-parameter)   # -O2: 2 s, not 7
 target_compile_definitions(test_gsm PRIVATE GSM_KERNELS_S="${CMAKE_SOURCE_DIR}/asm/us/boot_data/kernels.s")
 add_test(NAME ultra_gsm COMMAND test_gsm)
@@ -1240,7 +1242,8 @@ add_executable(rush2049pc_assetcheck port/assets/tests/assetcheck.c port/assets/
     port/ultra/absfix.c $<TARGET_OBJECTS:pcassets>)
 target_include_directories(rush2049pc_assetcheck PRIVATE port/include port/assets port/assets/tests)
 target_compile_options(rush2049pc_assetcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
-target_compile_definitions(rush2049pc_assetcheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
+target_compile_definitions(rush2049pc_assetcheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64"
+    PC_SYMBOL_FILE="${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt")   # the images' and the file table's addresses
 target_link_libraries(rush2049pc_assetcheck PRIVATE ZLIB::ZLIB m)
 set_target_properties(rush2049pc_assetcheck PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 add_test(NAME assets_rom COMMAND rush2049pc_assetcheck)
@@ -1257,6 +1260,7 @@ add_custom_command(
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/stubs_standalone.c --standalone
     DEPENDS ${PC_GAME_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
+            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
     COMMENT "Standalone stubs (tools/port/gen_stubs.py)"
     VERBATIM)
 set_source_files_properties(${PC_DATA_DIR}/stubs_standalone.c PROPERTIES COMPILE_OPTIONS "-fno-builtin")
@@ -1275,6 +1279,7 @@ add_custom_command(
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --test-tables $<TARGET_OBJECTS:pc_data_test_decls>
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --out ${PC_DATA_DIR}/test_pc_data_gen.h
     DEPENDS $<TARGET_OBJECTS:pc_data_test_decls> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
+            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
     COMMENT "pc_data_test's tables from test_pc_data_decls.c (tools/port/gen_data.py --test-tables)"
     VERBATIM)
 add_executable(pc_data_test port/data/test_pc_data.c ${PC_DATA_DIR}/test_pc_data_gen.h)
@@ -1287,7 +1292,8 @@ add_test(NAME pc_reach_test COMMAND pc_reach_test)
 add_executable(rush2049pc_datacheck port/data/datacheck.c ${PC_DATA_DIR}/stubs_standalone.c
     $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 target_link_libraries(rush2049pc_datacheck PRIVATE pcdata_rt m)
-target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64")
+target_compile_definitions(rush2049pc_datacheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64"
+    PC_SYMBOL_FILE="${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt")   # the inflate tables' addresses, by name
 set(PC_DATA_CHECK_PE "")
 if(WIN32)
     set(PC_DATA_CHECK_PE --pe)   # COFF symbols have no sizes; the image links high and moves

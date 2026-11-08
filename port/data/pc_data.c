@@ -8,8 +8,8 @@
  *      byte-swap the elements the runs describe in place (pointers stay N64 addresses there);
  *   3. each symbol with its own storage: convert from the image through its runs, turning N64 pointers into host
  *      pointers (functions, own storage, game-C data, arenas). Addresses in the game heap (at or above the tables'
- *      heap_lo, outside the runtime images) stay as they are: the heap is the RDRAM window at host 0x80000000
- *      (pc_port.h), so they are valid host addresses, and the renderer reads values below 4 GB as N64 addresses;
+ *      heap_lo, outside the runtime images) stay as they are: the heap is the RDRAM window at host PC_RDRAM_BASE
+ *      (pc_n64_map.h), so they are valid host addresses, and the renderer reads values below 4 GB as N64 addresses;
  *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it), the symbols the tables name and
  *      the image's C ranges, which hold the statics no table can name.
  *
@@ -18,12 +18,13 @@
  * test tables may keep their arenas in host memory instead. With the window elsewhere (pc_data_set_window: the guard
  * mode, docs/port/NOFIXED.md 5) the arenas the tables put at their N64 addresses are filled through the translation
  * instead, and so are the RDRAM addresses a pointer keeps (the heap's). Tables that name their window (t->window: the
- * RUSH_NOFIXED build's, docs/port/NOFIXED.md 2) give the arenas in it at window + (N64 address - 0x80000000), and a
- * kept RDRAM address becomes its place in that window.
+ * RUSH_NOFIXED build's, docs/port/NOFIXED.md 2) give the arenas in it at window + (N64 address - PC_RDRAM_BASE), and
+ * a kept RDRAM address becomes its place in that window.
  *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
  * addresses (likely mistyped declarations, unless they point at window data). */
 #include "pc_data.h"
+#include "pc_n64_map.h"   /* the N64's address space: KSEG0 and KSEG1, its 8 MiB of RDRAM, low memory */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@
 static PcDataStats g_stats;
 static FILE *g_report;
 static int g_scan;              /* first load: count and report */
-static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at 0x80000000, or NULL */
+static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at PC_RDRAM_BASE, or NULL */
 static const PcDataTables *g_loaded;      /* the tables the last pc_data_load_all filled */
 
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64))
@@ -140,9 +141,25 @@ static const PcDataName *find_name(const PcDataTables *t, uint32_t a)
     return lo ? &t->names[lo - 1] : NULL;
 }
 
+/* A runtime image (an overlay): the game's loader puts one in a block of its heap (N64_OVERLAY_BASE in the game), so
+ * its base is at or above the heap's start; the boot and game images are below it. */
 static int is_overlay(const PcDataTables *t, int image)
 {
-    return image >= 0 && (uint32_t)image < t->n_images && t->images[image].n64_base >= 0x80300000u;
+    return image >= 0 && (uint32_t)image < t->n_images && t->images[image].n64_base >= t->heap_lo;
+}
+
+uint32_t pc_data_addr_of(const PcDataTables *t, const char *name)
+{
+    for (uint32_t i = 0; i < t->n_syms; i++)
+        if (strcmp(t->syms[i].name, name) == 0)
+            return t->syms[i].n64_addr;
+    for (uint32_t i = 0; i < t->n_names; i++)
+        if (strcmp(t->names[i].name, name) == 0)
+            return t->names[i].n64_addr;
+    for (uint32_t i = 0; i < t->n_funcs; i++)
+        if (t->funcs[i].name && strcmp(t->funcs[i].name, name) == 0)
+            return t->funcs[i].n64_addr;
+    return 0;
 }
 
 /* Host offset of N64 offset off inside symbol s, through its runs. *exact is 0 for padding. */
@@ -214,7 +231,7 @@ void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n)
 static int at_n64_address(const PcDataTables *t, const PcDataArena *ar)
 {
     if (t->window)
-        return ar->host == t->window + (ar->n64_lo - 0x80000000u);
+        return ar->host == t->window + (ar->n64_lo - PC_RDRAM_BASE);
     return (uintptr_t)ar->host == ar->n64_lo;
 }
 
@@ -229,9 +246,9 @@ static uint8_t *arena_host(const PcDataTables *t, const PcDataArena *ar)
  * place for it when the window is elsewhere (the tables' window, or pc_data_set_window's). */
 static void *kept(const PcDataTables *t, uint32_t v)
 {
-    int rdram = v >= 0x80000000u && v < 0xC0000000u;
+    int rdram = N64_IS_KSEG0_OR_1(v);
     if (t->window && rdram)
-        return t->window + (v & 0x1FFFFFFFu);
+        return t->window + N64_TO_PHYS(v);
     void *p = g_window && rdram ? g_window(v) : NULL;
     return p ? p : (void *)(uintptr_t)v;
 }
@@ -255,7 +272,7 @@ static const char *addr_class(const PcDataTables *t, uint32_t v, int *host)
     for (uint32_t i = 0; i < t->n_images; i++)
         if (v >= t->images[i].n64_base && v - t->images[i].n64_base < t->images[i].size)
             return "code";   /* an image's bytes outside its arena */
-    if (v >= t->heap_lo || v < 0x80000400u) {
+    if (v >= t->heap_lo || v < N64_LOW_MEMORY_END) {
         *host = 0;
         return v >= t->heap_lo ? "heap" : "low memory";
     }
@@ -334,9 +351,9 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
         if (!quiet) g_stats.null++;
         return NULL;
     }
-    if (a >= 0xA0000000u && a < 0xC0000000u)
-        a -= 0x20000000u;   /* KSEG1 -> KSEG0 */
-    if (a < 0x80000000u || a >= 0x80800000u) {
+    if (N64_IS_KSEG1(a))
+        a = N64_KSEG1_TO_KSEG0(a);
+    if (a < N64_KSEG0 || a >= N64_RDRAM_END) {   /* the images never point past the N64's 8 MiB */
         if (!quiet) g_stats.raw++;   /* not an RDRAM address: a ROM offset or segment address, kept as is */
         if (v >= 0xFFFFF000u)        /* a small negative sentinel such as (char *)-1: sign-extended, so the */
             return (void *)(intptr_t)(int32_t)v;   /* game's comparisons with (T *)-1 still match */
@@ -532,7 +549,7 @@ static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
                 } else if (en == 4) {
                     uint32_t v = rd32(p);
                     memcpy(p, &v, 4);
-                    if (g_scan && r->kind == PC_K_U32 && v >= 0x80000000u && v < 0x80800000u) {
+                    if (g_scan && r->kind == PC_K_U32 && v >= N64_KSEG0 && v < N64_RDRAM_END) {
                         char what[96];
                         describe(t, ar->n64_lo + (uint32_t)(p - host), what, sizeof what);
                         report_addr_word(t, what, v);
@@ -692,7 +709,7 @@ static void *reach_target(const PcDataTables *t, int32_t ri, uint32_t v, const u
 {
     const PcDataReach *r = &t->reach[ri];
     PcDataState *st = t->state;
-    uint32_t a = v >= 0xA0000000u && v < 0xC0000000u ? v - 0x20000000u : v, avail = 0;
+    uint32_t a = N64_IS_KSEG1(v) ? N64_KSEG1_TO_KSEG0(v) : v, avail = 0;
     if (v == 0)
         return NULL;
     for (uint32_t i = 0; i < r->n_compatible; i++) {
@@ -711,7 +728,7 @@ static void *reach_target(const PcDataTables *t, int32_t ri, uint32_t v, const u
         blk = NULL;
     }
     if (!blk) {
-        if (g_report && g_scan && v >= 0x80000000u)
+        if (g_report && g_scan && v >= N64_KSEG0)
             fprintf(g_report, "reached %s 0x%08X: no table there\n", r->what, v);
         return resolve(t, v, image, r->what, 0, 1);
     }
@@ -866,7 +883,7 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
         if (at_n64_address(t, ar) && (!arena_host(t, ar) || !mapped(arena_host(t, ar), ar->n64_hi - ar->n64_lo))) {
             fprintf(stderr, "pc_data: the game's data belongs at 0x%08X-0x%08X, in the RDRAM window at host %p, "
                     "which is not mapped (docs/port/ULTRA.md)\n", ar->n64_lo, ar->n64_hi,
-                    t->window ? (void *)t->window : (void *)(uintptr_t)0x80000000u);
+                    t->window ? (void *)t->window : (void *)(uintptr_t)PC_RDRAM_BASE);
             return -1;
         }
     }

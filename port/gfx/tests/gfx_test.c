@@ -58,7 +58,7 @@ int pc_fix_absolute_got(void) { return 0; }
 uint32_t pc_rdram_size(void) { return PC_RDRAM_SIZE; }
 
 void *pc_n64_ptr(uint32_t a) {
-    uint32_t p = a & 0x1FFFFFFFu;
+    uint32_t p = N64_TO_PHYS(a);
     return p < PC_RDRAM_SIZE ? s_rdram + p : NULL;
 }
 
@@ -1121,11 +1121,12 @@ static void case_dualtile(void) {
 
 /* N64-form (big-endian) lists and every address kind (GFX.md "Addresses"):
  *   native list --G_DL 0x06000000 (segment 6 = a host pointer)--> BE list in a host buffer
- *     BE list: matrix, texture image and vertices through segment 6; then G_DL to K0 0x80100000
+ *     BE list: matrix, texture image and vertices through segment 6; then G_DL to K0 RAM_SCENE (1 MiB in)
  *   BE list in RDRAM: matrix at K0, vertices at a physical address, a segment base set from this list (physical),
  *     vertices through that segment
  *   native list again: a texture at a K0 address (a game-built list pointing at a heap texture) */
 static uint8_t s_asset[8192];
+#define RAM_SCENE (PC_RDRAM_BASE + 0x100000u)   /* the RDRAM list's place: its KSEG0 address, 1 MiB into the window */
 
 static void be16(uint8_t *p, uint16_t v) {
     p[0] = v >> 8;
@@ -1158,7 +1159,7 @@ static void be_mtx(uint8_t *p, float x, float y) {
 }
 
 static void case_belist(void) {
-    uint8_t *ram = (uint8_t *)pc_n64_ptr(0x80100000u);   /* RDRAM 0x100000.. */
+    uint8_t *ram = (uint8_t *)pc_n64_ptr(RAM_SCENE);
     int i;
     enum { DL = 0, MTX = 2048, VTX = 2304, TEX = 2560 };                     /* in s_asset */
     enum { R_DL = 0, R_MTX = 0x800, R_VTX = 0xC00, R_TEX = 0x1000, R_SEG7 = 0x2000 };   /* in RDRAM */
@@ -1183,10 +1184,10 @@ static void case_belist(void) {
     pc_mem_register_be(s_asset, sizeof(s_asset));
     pc_mem_register_be(ram, 0x4000);
 
-    /* BE list in RDRAM, reached at K0 0x80100000 */
+    /* BE list in RDRAM, reached at its K0 address */
     g_be_mode = 1;
     bp = ram + R_DL;
-    gsSPMatrix(0x80100000u + R_MTX, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);   /* K0 */
+    gsSPMatrix(RAM_SCENE + R_MTX, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);   /* K0 */
     gsDPSetPrimColor(0, 0, 0, 255, 0, 255);
     cc_prim();
     gsSPVertex(0x00100000u + R_VTX, 3, 0);                                         /* physical */
@@ -1212,14 +1213,14 @@ static void case_belist(void) {
     gsSPVertex(0x06000000u + VTX, 4, 0);
     gsSPQuadrangle(0, 1, 3, 2);
     gsSPPopMatrixN(1);
-    gsSPDisplayList(0x80100000u + R_DL);
+    gsSPDisplayList(RAM_SCENE + R_DL);
     gsSPEndDisplayList();
     g_be_mode = 0;
 
     frame_begin(0, 0, 0);
     gsSPSegment(6, (uintptr_t)s_asset);   /* a host pointer */
     gsSPDisplayList(0x06000000u + DL);
-    load_texture_block(0x80100000u + R_TEX, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
+    load_texture_block(RAM_SCENE + R_TEX, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
     cc_decalrgba();
     gsSPTextureRectangle(200 << 2, 50 << 2, 208 << 2, 58 << 2, 0, 0, 0, 1 << 10, 1 << 10);
     gsDPSetPrimColor(0, 0, 0, 0, 255, 255);
@@ -1248,7 +1249,7 @@ enum { HM_DL = 0, HM_MTX = 0x800, HM_VTX = 0xC00, HM_TVTX = 0xD00, HM_TEX = 0x10
        HM_SIZE = 0x4000 + FB_W * FB_H * 2 };
 
 static uint32_t hm_addr(uint32_t base, uint32_t off, int physical) {
-    return physical ? (base & 0x1FFFFFFFu) + off : base + off;
+    return physical ? N64_TO_PHYS(base) + off : base + off;
 }
 
 /* The scene at K0 address base, its addresses physical or K0: its picture (malloc'd RGBA, w x h internal pixels, of
@@ -1339,18 +1340,19 @@ static uint8_t *highmem_draw(uint32_t base, int physical, int *w, int *h, int *n
 }
 
 static void case_highmem(void) {
-    static const uint32_t bases[3] = {0x80100000u, 0x81200000u, 0x83F00000u};
+    /* 1 MiB in, 18 MiB in and in the 64 MiB window's last MiB: K0 addresses */
+    static const uint32_t bases[3] = {PC_RDRAM_BASE + (1u << 20), PC_RDRAM_BASE + (18u << 20),
+                                      PC_RDRAM_BASE + (63u << 20)};
+    const uint32_t low = bases[0], high = bases[1];
     uint8_t *first = NULL, *pic;
     char what[96];
     int b, phys, w0 = 0, h0 = 0;
     /* the RCP's addresses: physical below 16 MiB, K0 past it (port/ultra/memory.c) */
-    if (pc_rdram_size() < (64u << 20) || !pc_n64_ptr(0x81200000u) ||
-        osVirtualToPhysical(pc_n64_ptr(0x81200000u)) != 0x81200000u ||
-        osVirtualToPhysical(pc_n64_ptr(0x80100000u)) != 0x00100000u) {
-        printf("  FAIL %s: the window is %u MiB, 0x81200000 is at %p; osVirtualToPhysical 0x%08X, 0x%08X\n", s_case,
-               pc_rdram_size() >> 20, pc_n64_ptr(0x81200000u),
-               pc_n64_ptr(0x81200000u) ? osVirtualToPhysical(pc_n64_ptr(0x81200000u)) : 0u,
-               osVirtualToPhysical(pc_n64_ptr(0x80100000u)));
+    if (pc_rdram_size() < (64u << 20) || !pc_n64_ptr(high) || osVirtualToPhysical(pc_n64_ptr(high)) != high ||
+        osVirtualToPhysical(pc_n64_ptr(low)) != N64_TO_PHYS(low)) {
+        printf("  FAIL %s: the window is %u MiB, 0x%08X is at %p; osVirtualToPhysical 0x%08X, 0x%08X\n", s_case,
+               pc_rdram_size() >> 20, high, pc_n64_ptr(high),
+               pc_n64_ptr(high) ? osVirtualToPhysical(pc_n64_ptr(high)) : 0u, osVirtualToPhysical(pc_n64_ptr(low)));
         s_fail++;
     }
     for (b = 0; b < 3; b++)

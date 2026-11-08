@@ -17,6 +17,7 @@
 
 #include "pakfs.h"
 #include "pc_compat.h"
+#include "pc_data.h"      /* the data loader's tables: game symbols' N64 addresses by name */
 #include "pc_lockstep.h"
 #include "ultra.h"
 
@@ -65,15 +66,16 @@ int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 uint32_t osVirtualToPhysical(void *vaddr);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
- * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). */
+ * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data loader's
+ * tables by name, and for the first three the N64's memory map (pc_n64_map.h) and the tables' heap start. */
 extern uint8_t game_bss_end[], overlay_base[];
 extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
 #ifdef RUSH_NOFIXED
 /* RUSH_NOFIXED (docs/port/NOFIXED.md 2): those names are relative to the window, data.c's section pc_window: N64
- * address a at pc_window + (a - 0x80000000). The game C translates with pc_window_base (port/ultra/n64mem.c). */
+ * address a at pc_window + (a - PC_RDRAM_BASE). The game C translates with pc_window_base (port/ultra/n64mem.c). */
 extern uint8_t pc_window[], *pc_window_base;
-#define AT_N64(p, a) ((const uint8_t *)(p) == pc_rdram() + ((a) - 0x80000000u))
+#define AT_N64(p, a) ((const uint8_t *)(p) == pc_rdram() + ((a) - PC_RDRAM_BASE))
 #define AT_N64_WHAT "N64 symbols at pc_window + their offsets"
 #else
 #define AT_N64(p, a) ((uintptr_t)(p) == (a))
@@ -390,48 +392,59 @@ static uint32_t abs_word(const uint32_t *name)
     return v;
 }
 
+/* Window addresses for the checks: PROBE 4 KiB into RDRAM, through KSEG0 and KSEG1 and as a physical address; a
+ * block's base below 16 MiB (RELOC_LOW), whose relocations keep its physical address, and one at 16 MiB (RELOC_HIGH),
+ * whose relocations keep its KSEG0 address (docs/port/MEMORY.md 3). */
+#define PROBE_PHYS 0x1000u
+#define PROBE_K0 (N64_KSEG0 + PROBE_PHYS)
+#define PROBE_K1 (N64_KSEG1 + PROBE_PHYS)
+#define RELOC_LOW (N64_KSEG0 + 0x300000u)
+#define RELOC_HIGH (N64_KSEG0 + PC_RCP_SEGMENT_SPAN)
+
 static void t_memory(void)
 {
     char d[96];
     int fixed = pc_mem_fixed();
-    uint8_t *k0 = pc_n64_ptr(0x80001000), *k1 = pc_n64_ptr(0xA0001000), *ph = pc_n64_ptr(0x00001000);
+    uint8_t *k0 = pc_n64_ptr(PROBE_K0), *k1 = pc_n64_ptr(PROBE_K1), *ph = pc_n64_ptr(PROBE_PHYS);
     k0[0] = 0x5A;
     snprintf(d, sizeof d, "fixed %d, K0 %p, KSEG1 %p, physical %p", fixed, (void *)k0, (void *)k1, (void *)ph);
-    check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == 0x80001000 && pc_n64_ptr(pc_rdram_size()) == NULL &&
-                              (!fixed || (k0 == (uint8_t *)0x80001000 && *(volatile uint8_t *)0xA0001000 == 0x5A)),
+    check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == PROBE_K0 && pc_n64_ptr(pc_rdram_size()) == NULL &&
+                              (!fixed || (k0 == (uint8_t *)(uintptr_t)PROBE_K0 &&
+                                          *(volatile uint8_t *)(uintptr_t)PROBE_K1 == 0x5A)),
           d);
     /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none;
      * past 16 MiB the RCP and the display lists get K0 addresses, below it physical ones, as on the N64. */
-    uint32_t size = pc_rdram_size(), top = 0x80000000u + size - 1;
+    uint32_t size = pc_rdram_size(), top = PC_RDRAM_BASE + size - 1;
     uint8_t *last = pc_n64_ptr(top);
     if (last)
         *last = 0xA5;
     uint32_t mem_size = abs_word(&osMemSize), tv_type = abs_word(&osTvType);
     snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, mem_size);
-    check("RDRAM window's size", last && pc_n64_ptr(top | 0x20000000u) == last && pc_n64_ptr(size - 1) == last &&
+    check("RDRAM window's size", last && pc_n64_ptr(N64_KSEG1 | N64_TO_PHYS(top)) == last &&
+                                     pc_n64_ptr(size - 1) == last &&
                                      *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
                                      pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
                                      (size == PC_RDRAM_SIZE || mem_size == size), d);
-    uint32_t hi = 0x81000000u + 0x40, lo = 0x80300040u;
+    uint32_t hi = RELOC_HIGH + 0x40, lo = RELOC_LOW + 0x40, lo_phys = N64_TO_PHYS(lo);
     int big = size > PC_RCP_SEGMENT_SPAN;
     snprintf(d, sizeof d, "osVirtualToPhysical 0x%X, 0x%X; relocation 0x%X, 0x%X", osVirtualToPhysical(k0),
-             big ? osVirtualToPhysical(pc_n64_ptr(hi)) : 0u, pc_rcp_reloc(0x40, 0x80300000u, -1),
-             pc_rcp_reloc(0x40, 0x81000000u, -1));
-    check("RCP addresses", osVirtualToPhysical(k0) == 0x1000 && osVirtualToPhysical(pc_n64_ptr(lo)) == 0x300040 &&
-                               pc_rcp_reloc(0x40, 0x80300000u, -1) == 0x300040 &&
-                               pc_rcp_reloc(0x06000040, 0x80300000u, -1) == 0x06300040 &&
-                               pc_rcp_reloc(0x40, 0x80300000u, 6) == 0x06300040 &&
+             big ? osVirtualToPhysical(pc_n64_ptr(hi)) : 0u, pc_rcp_reloc(0x40, RELOC_LOW, -1),
+             pc_rcp_reloc(0x40, RELOC_HIGH, -1));
+    check("RCP addresses", osVirtualToPhysical(k0) == PROBE_PHYS && osVirtualToPhysical(pc_n64_ptr(lo)) == lo_phys &&
+                               pc_rcp_reloc(0x40, RELOC_LOW, -1) == lo_phys &&
+                               pc_rcp_reloc(0x06000040, RELOC_LOW, -1) == (0x06000000u | lo_phys) &&
+                               pc_rcp_reloc(0x40, RELOC_LOW, 6) == (0x06000000u | lo_phys) &&
                                (big ? osVirtualToPhysical(pc_n64_ptr(hi)) == hi &&
-                                          pc_rcp_reloc(0x40, 0x81000000u, -1) == hi &&
-                                          pc_rcp_reloc(hi - 0x01000000u, 0x01000000u, -1) == hi &&
-                                          pc_rcp_reloc(0x40, 0x81000000u, 6) == 0x06000040 &&
+                                          pc_rcp_reloc(0x40, RELOC_HIGH, -1) == hi &&
+                                          pc_rcp_reloc(hi - PC_RCP_SEGMENT_SPAN, PC_RCP_SEGMENT_SPAN, -1) == hi &&
+                                          pc_rcp_reloc(0x40, RELOC_HIGH, 6) == 0x06000040 &&
                                           pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)
-                                    : pc_rcp_reloc(0x40, 0x81000000u, -1) == 0x40 && !pc_rdram_k0_high(hi)),
+                                    : pc_rcp_reloc(0x40, RELOC_HIGH, -1) == 0x40 && !pc_rdram_k0_high(hi)),
           d);
     snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)game_bss_end,
              (void *)overlay_base, (void *)&osTvType, tv_type, mem_size);
-    check(AT_N64_WHAT, AT_N64(game_bss_end, 0x8017A640u) && AT_N64(overlay_base, 0x8038A400u) &&
-                           AT_N64(&osTvType, 0x80000300u) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
+    check(AT_N64_WHAT, AT_N64(game_bss_end, pc_data_tables.heap_lo) && AT_N64(overlay_base, N64_OVERLAY_BASE) &&
+                           AT_N64(&osTvType, N64_BOOT_PARAMS) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
 #ifdef RUSH_NOFIXED
     snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,
              (void *)pc_window_base);
@@ -441,15 +454,19 @@ static void t_memory(void)
     if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
         char note[320] = "";
         uintptr_t w = (uintptr_t)pc_rdram();
-        int n = pc_mem_fault_note(0x80001000u, note, sizeof note), cut = pc_mem_fault_note(w & 0xFFFFFFFFu, d, sizeof d);
-        snprintf(d, sizeof d, "window %p, K0 0x80001000 at %p, note %d, cut %d", (void *)w, (void *)k0, n, cut);
-        check("guard: window elsewhere", (w >> 32) && k0 == (uint8_t *)w + 0x1000 && !pc_mem_fixed() &&
-                                             n > 0 && strstr(note, "0x80001000") && pc_n64_addr((void *)w) == 0x80000000u,
+        char probe[16];
+        snprintf(probe, sizeof probe, "0x%08X", PROBE_K0);
+        int n = pc_mem_fault_note(PROBE_K0, note, sizeof note), cut = pc_mem_fault_note(w & 0xFFFFFFFFu, d, sizeof d);
+        snprintf(d, sizeof d, "window %p, K0 %s at %p, note %d, cut %d", (void *)w, probe, (void *)k0, n, cut);
+        check("guard: window elsewhere", (w >> 32) && k0 == (uint8_t *)w + PROBE_PHYS && !pc_mem_fixed() &&
+                                             n > 0 && strstr(note, probe) && pc_n64_addr((void *)w) == PC_RDRAM_BASE,
               d);
     }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)gWaveSizes, (void *)wave_rom_offsets, (void *)gTrophyMat);
-    check("game data at its N64 addresses", AT_N64(gWaveSizes, 0x8002E580u) && AT_N64(wave_rom_offsets, 0x8011B5BCu) &&
-                                                AT_N64(gTrophyMat, 0x803B9A50u), d);
+    const PcDataTables *tables = &pc_data_tables;
+    check("game data at its N64 addresses", AT_N64(gWaveSizes, pc_data_addr_of(tables, "gWaveSizes")) &&
+                                                AT_N64(wave_rom_offsets, pc_data_addr_of(tables, "wave_rom_offsets")) &&
+                                                AT_N64(gTrophyMat, pc_data_addr_of(tables, "gTrophyMat")), d);
     int local;
     snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
     check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,

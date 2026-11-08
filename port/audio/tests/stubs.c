@@ -17,7 +17,7 @@ static size_t rdram_used;
 void rdram_reset(void)
 {
     memset(test_rdram, 0, rdram_used);
-    rdram_used = 0x1000;   /* address 0x80000000 itself stays unused */
+    rdram_used = 0x1000;   /* the window's first address (PC_RDRAM_BASE) itself stays unused */
 }
 
 void *rdram_alloc(size_t size)
@@ -40,7 +40,7 @@ uint32_t rdram_addr(const void *p)
 
 void *pc_n64_ptr(uint32_t addr)
 {
-    uint32_t off = addr & 0x1FFFFFFFu;
+    uint32_t off = N64_TO_PHYS(addr);
     return off < TEST_RDRAM_SIZE ? test_rdram + off : NULL;
 }
 
@@ -49,7 +49,7 @@ uint32_t pc_n64_addr(const void *host)
     const uint8_t *p = host;
     if (p < test_rdram || p >= test_rdram + TEST_RDRAM_SIZE)
         return 0;
-    return 0x80000000u + (uint32_t)(p - test_rdram);
+    return PC_RDRAM_BASE + (uint32_t)(p - test_rdram);
 }
 
 static struct {

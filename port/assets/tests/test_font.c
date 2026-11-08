@@ -98,7 +98,7 @@ int main(void)
 
     /* A handle wave: the instance holds the handle, a u32 heap slot; the next slot is another handle's. */
     handles[0] = (uint32_t)(uintptr_t)font;
-    handles[1] = 0x80123450u;
+    handles[1] = PC_RDRAM_BASE + 0x123450u;   /* a window address */
     gWaveInstance[2].data = handles;
     gFontDatWaveInst = 2;
     SetupFontData(1);

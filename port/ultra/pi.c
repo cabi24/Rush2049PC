@@ -5,7 +5,7 @@
  * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). PI DMA has no manager thread: osPiStartDma copies at once, marks the destination as
  * big-endian ROM bytes (pc_mem_register_be) and sends the completion message, so the caller's osRecvMesg
  * returns as soon as it runs. The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
- * addresses (0x10000000 and up) are accepted too.
+ * addresses (N64_CART_PHYS and up, or through KSEG1) are accepted too.
  *
  * unzipdata_from_rom, unzipdata and lzss_decode were hand-written assembly over the PI. Natively: the game
  * image's inflate (main_thread_entry, ROM 0xB0CB10) does nothing, since that code and data are linked in; the two
@@ -129,8 +129,8 @@ int pc_rom_blank(void)
 
 static uint32_t rom_offset(uint32_t dev)
 {
-    uint32_t phys = dev & 0x1FFFFFFFu;
-    return phys >= 0x10000000u && phys < 0x1FC00000u ? phys - 0x10000000u : dev;
+    uint32_t phys = N64_TO_PHYS(dev);
+    return phys >= N64_CART_PHYS && phys < N64_PIF_ROM_PHYS ? phys - N64_CART_PHYS : dev;
 }
 
 /* ---------------------------------------------------------------- the mods' region (docs/port/MODS.md) */
@@ -276,7 +276,7 @@ static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const
 
 int32_t unzipdata_from_rom(uintptr_t src, void *dst, int32_t heap_window)
 {
-    (void)heap_window;   /* the N64 code took its 12 KB window from the game heap or 0x803FD120 */
+    (void)heap_window;   /* the N64 code took its 12 KB window from the game heap or a fixed place in RDRAM */
     if (src == (uintptr_t)gRomCompressedData || src == GAME_IMAGE_ROM)
         return GAME_IMAGE_SIZE;   /* the game image is linked in; port/data filled its data */
     if (src == OVERLAY_A_ROM || src == OVERLAY_B_ROM) {

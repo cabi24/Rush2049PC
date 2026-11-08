@@ -41,6 +41,8 @@ static void put_f(uint8_t *p, float f)
     test_put32(p, v);
 }
 
+#define NODE_FLAGS (1u << 31 | 1u << 29)   /* a world node's flag bits 31 and 29, with its index below */
+
 static void put_node(uint8_t *f, int n, int16_t next, int16_t child)
 {
     uint8_t *p = f + WOBJ + 0x68 * n;
@@ -49,7 +51,7 @@ static void put_node(uint8_t *f, int n, int16_t next, int16_t child)
     sprintf((char *)p, "node%d", n);
     for (i = 0; i < 12; i++)
         put_f(p + 0x10 + 4 * i, (float)(n * 100 + i));
-    test_put32(p + 0x40, 0xA0000000u | (uint32_t)n);
+    test_put32(p + 0x40, NODE_FLAGS | (uint32_t)n);
     test_put16(p + 0x44, (uint16_t)next);
     test_put16(p + 0x46, (uint16_t)child);
     test_put16(p + 0x48, 7);
@@ -90,7 +92,7 @@ static void make_world_counts(uint8_t *f, int with_wobj, int native_toc, uint32_
     }
     test_put32(f + GTLD, 5);
     test_put32(f + GTLD + 4, 0xFFFFFFFFu);
-    test_put32(f + GTLD + 8, 0x80001234u);
+    test_put32(f + GTLD + 8, PC_RDRAM_BASE + 0x1234u);   /* a key that is a window address */
     for (i = 0; i < 4; i++) {
         uint8_t *e = f + TOC + 12 * n;
         if (i == 1 && !with_wobj)
@@ -119,7 +121,7 @@ static void check_node(const uint8_t *f, int n, int16_t next, int16_t child)
     memcpy(&node, f + WOBJ + 0x68 * n, sizeof node);
     CHECK(sizeof node == 0x68);
     CHECK(node.transform[0] == (float)(n * 100) && node.transform[11] == (float)(n * 100 + 11));
-    CHECK(node.flags == (0xA0000000u | (uint32_t)n));
+    CHECK(node.flags == (NODE_FLAGS | (uint32_t)n));
     CHECK(node.sibling == next && node.child == child && node.sfx1 == 7 && node.sfx2 == -2);
     CHECK(node.tidx == n - 1);
     CHECK(node.minimum[1] == (float)(-n - 1) && node.maximum[2] == (float)(n + 5));
@@ -144,7 +146,7 @@ static void check_world(uint8_t *f, int node4_converted)
     if (node4_converted)
         check_node(f, 4, -1, -1);
     else
-        CHECK(pc_be32(f + WOBJ + 0x68 * 4 + 0x40) == 0xA0000004u);
+        CHECK(pc_be32(f + WOBJ + 0x68 * 4 + 0x40) == (NODE_FLAGS | 4u));
     memcpy(&h, f + GDAT, 2);
     memcpy(&x, f + GDAT + 4, 4);
     CHECK(h == -1 && f[GDAT + 3] == 1 && x == 0.0f);
@@ -156,7 +158,7 @@ static void check_world(uint8_t *f, int node4_converted)
     memcpy(&h, f + GDAT + 0x1C + 0x1A, 2);
     CHECK(h == 13);
     memcpy(&v, f + GTLD + 8, 4);
-    CHECK(v == 0x80001234u);
+    CHECK(v == PC_RDRAM_BASE + 0x1234u);
 }
 
 int main(void)
@@ -223,7 +225,7 @@ int main(void)
         void **keys = (void **)pc_world_chunk(addr, 0x47544C44, &count);
         CHECK((uint8_t *)keys != f + GTLD);
         CHECK(keys[0] == (void *)(intptr_t)5 && keys[1] == (void *)(intptr_t)-1);
-        CHECK(keys[2] == (void *)(intptr_t)(int32_t)0x80001234u);
+        CHECK(keys[2] == (void *)(intptr_t)(int32_t)(PC_RDRAM_BASE + 0x1234u));
         CHECK(pc_world_chunk(addr, 0x47444154, &count) == addr);
         CHECK(pc_world_chunk(addr, 0x57484452, NULL) == addr);
         count = 0;

@@ -1,10 +1,11 @@
 /* port/ultra/memory.c: the RDRAM window, N64 address translation and big-endian ranges (docs/port/ULTRA.md).
  *
  * The game addresses RDRAM outside its own symbols, with 32-bit arithmetic: the heap from the end of the game
- * BSS (0x8017A640) to osMemSize | K0BASE, where every loaded file lands and is relocated in place with
- * `+= (u32)base` and `| 0x80000000` (docs/port/ASSETS.md); the low-memory globals at 0x80000300; the overlay
- * region at 0x8038A400. So an 8 MiB window is mapped at host 0x80000000 (KSEG0) and, from the same memory, at
- * 0xA0000000 (KSEG1): those N64 addresses are host addresses. The game's pointer-free data and BSS live there too,
+ * BSS (game_bss_end) to osMemSize | KSEG0, where every loaded file lands and is relocated in place with
+ * `+= (u32)base` and `| KSEG0` (docs/port/ASSETS.md); libultra's boot parameters in low memory (N64_BOOT_PARAMS); the
+ * runtime images' block (N64_OVERLAY_BASE). So an 8 MiB window is mapped at host PC_RDRAM_BASE (the N64's KSEG0) and,
+ * from the same memory, at N64_KSEG1: those N64 addresses are host addresses (the numbers: pc_n64_map.h, the N64's
+ * memory map). The game's pointer-free data and BSS live there too,
  * at their N64 addresses (port/data's arenas, docs/port/DATA.md). The window is load-bearing, so on Linux the
  * fixed mapping is required; elsewhere pc_n64_ptr translates, and the game's literal addresses and its data
  * fault (port/data refuses to fill an unmapped arena).
@@ -16,7 +17,7 @@
  * rather than moving when the range is taken), and required as on Linux.
  *
  * RUSH2049_NOFIXED=guard (docs/port/NOFIXED.md 5, off by default; not on Windows): the window anywhere above 4 GiB,
- * 0x80000000-0xBFFFFFFF reserved with no access, pc_n64_ptr translating, so that every use of an N64 address as a
+ * KSEG0 and KSEG1 reserved with no access, pc_n64_ptr translating, so that every use of an N64 address as a
  * host pointer faults at once; the fault handler then says which N64 address it was (pc_mem_fault_note).
  *
  * A RUSH_NOFIXED build (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md 2): the window is data.c's section pc_window,
@@ -51,8 +52,6 @@
 #ifndef MAP_FIXED_NOREPLACE
 #define MAP_FIXED_NOREPLACE 0x100000
 #endif
-
-#define K1_BASE 0xA0000000u
 
 static uint8_t *g_rdram, *g_rdram_k1;
 static int g_fixed;
@@ -103,7 +102,7 @@ int pc_mem_init(void)
     if (section) {
         g_rdram = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, g_size, (void *)(uintptr_t)PC_RDRAM_BASE);
         if (g_rdram)
-            g_rdram_k1 = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, g_size, (void *)(uintptr_t)K1_BASE);
+            g_rdram_k1 = MapViewOfFileEx(section, FILE_MAP_ALL_ACCESS, 0, 0, g_size, (void *)(uintptr_t)N64_KSEG1);
         CloseHandle(section);   /* the views keep it */
     }
     if (!g_rdram) {
@@ -122,9 +121,10 @@ int pc_mem_init(void)
         fprintf(stderr, "rush2049pc: warning: host memory below 4 GiB (heap %p, stack %p); the renderer and the "
                 "audio take addresses there for N64 ones\n", heap, (void *)&local);
     free(heap);
-    if (pc_verbose)
-        pc_log("RDRAM window of %u MiB at %p%s", g_size >> 20, (void *)g_rdram,
-               g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
+    if (pc_verbose && g_rdram_k1)
+        pc_log("RDRAM window of %u MiB at %p, KSEG1 alias at 0x%08X", g_size >> 20, (void *)g_rdram, N64_KSEG1);
+    else if (pc_verbose)
+        pc_log("RDRAM window of %u MiB at %p", g_size >> 20, (void *)g_rdram);
     return 0;
 }
 
@@ -156,12 +156,12 @@ static void *map_at(uintptr_t addr, size_t size, int fd)
 
 /* ---------------------------------------------------------------- the guard mode (docs/port/NOFIXED.md 5) */
 
-/* RUSH2049_NOFIXED=guard. The old window's range, KSEG0 and KSEG1 (0x80000000-0xBFFFFFFF), is reserved with no
- * access, so a 32-bit N64 address the program still takes as a host pointer faults there. The window is an
+/* RUSH2049_NOFIXED=guard. The old window's range, KSEG0 and KSEG1 (PC_RDRAM_BASE up to N64_KSEG2), is reserved with
+ * no access, so a 32-bit N64 address the program still takes as a host pointer faults there. The window is an
  * anonymous mapping above 4 GiB, preferably at a host address whose low 32 bits are 0x40000000; that range below
  * 4 GiB is reserved too (the truncation trap), so a window address cut to 32 bits faults there as well. Nothing
  * is mapped at the KSEG1 view: K1 addresses are translated like K0 ones. */
-#define GUARD_SPAN 0x40000000u
+#define GUARD_SPAN (N64_KSEG2 - N64_KSEG0)   /* KSEG0 and KSEG1: 1 GiB */
 static uintptr_t g_trap;   /* the truncation trap's start, or 0 */
 
 static void *map_none(uintptr_t addr, size_t size)
@@ -252,9 +252,13 @@ static int moved_init(void)
                "there", PC_RDRAM_BASE, PC_RDRAM_BASE + GUARD_SPAN - 1, strerror(errno));
     guard_trap();
     g_guard = reserved;
-    if (pc_verbose)
-        pc_log("RDRAM window of %u MiB at %p (RUSH_NOFIXED: pc_window)%s%s", g_size >> 20, (void *)g_rdram,
-               reserved ? ", 0x80000000-0xBFFFFFFF reserved" : "", g_trap ? ", the truncation trap" : "");
+    if (pc_verbose) {
+        char span[48] = "";
+        if (reserved)
+            snprintf(span, sizeof span, ", 0x%08X-0x%08X reserved", PC_RDRAM_BASE, PC_RDRAM_BASE + GUARD_SPAN - 1);
+        pc_log("RDRAM window of %u MiB at %p (RUSH_NOFIXED: pc_window)%s%s", g_size >> 20, (void *)g_rdram, span,
+               g_trap ? ", the truncation trap" : "");
+    }
     return 0;
 }
 #endif
@@ -274,8 +278,8 @@ int pc_mem_fault_note(uintptr_t a, char *buf, size_t n)
     const char *what = NULL;
     if (a >= PC_RDRAM_BASE && a < (uintptr_t)PC_RDRAM_BASE + GUARD_SPAN) {
         n64 = (uint32_t)a;
-        what = n64 >= 0xB0000000u ? "a cartridge address (KSEG1 of the PI's range)"
-             : n64 >= K1_BASE ? "an N64 KSEG1 address" : "an N64 KSEG0 address";
+        what = n64 >= N64_CART_KSEG1 ? "a cartridge address (KSEG1 of the PI's range)"
+             : n64 >= N64_KSEG1 ? "an N64 KSEG1 address" : "an N64 KSEG0 address";
     } else if (!(a >> 32) && a - g_cut < g_cut_size) {   /* in the trap, or where it would be */
         n64 = PC_RDRAM_BASE + (uint32_t)(a - g_cut);
         what = "a window address cut to 32 bits";
@@ -285,8 +289,8 @@ int pc_mem_fault_note(uintptr_t a, char *buf, size_t n)
     } else {
         return 0;
     }
-    uint32_t phys = n64 & 0x1FFFFFFFu;
-    if (pc_data_describe_loaded && n64 < 0xB0000000u) {
+    uint32_t phys = N64_TO_PHYS(n64);
+    if (pc_data_describe_loaded && n64 < N64_CART_KSEG1) {
         pc_data_describe_loaded(PC_RDRAM_BASE | phys, name, sizeof name);
         if (!strcmp(name, "?"))
             name[0] = 0;
@@ -318,7 +322,7 @@ int pc_mem_init(void)
     }
     g_rdram = map_at(PC_RDRAM_BASE, g_size, fd);
     if (g_rdram && fd >= 0)
-        g_rdram_k1 = map_at(K1_BASE, g_size, fd);
+        g_rdram_k1 = map_at(N64_KSEG1, g_size, fd);
     if (g_rdram) {
         g_fixed = 1;
     } else {
@@ -339,9 +343,10 @@ int pc_mem_init(void)
     if (fd >= 0)
         close(fd);
     lsan_root();
-    if (pc_verbose)
-        pc_log("RDRAM window of %u MiB at %p%s", g_size >> 20, (void *)g_rdram,
-               g_rdram_k1 ? ", KSEG1 alias at 0xA0000000" : "");
+    if (pc_verbose && g_rdram_k1)
+        pc_log("RDRAM window of %u MiB at %p, KSEG1 alias at 0x%08X", g_size >> 20, (void *)g_rdram, N64_KSEG1);
+    else if (pc_verbose)
+        pc_log("RDRAM window of %u MiB at %p", g_size >> 20, (void *)g_rdram);
     return 0;
 }
 #endif
@@ -382,8 +387,8 @@ void *pc_n64_ptr(uint32_t addr)
     uint32_t phys;
     if (addr - g_cut < g_cut_size)
         guard_cut(addr);
-    if (addr >= 0x80000000u && addr < 0xC0000000u)
-        phys = addr & 0x1FFFFFFFu;
+    if (N64_IS_KSEG0_OR_1(addr))
+        phys = N64_TO_PHYS(addr);
     else if (addr < g_size)
         phys = addr;
     else
@@ -395,9 +400,9 @@ uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;
     if (g_rdram && p >= g_rdram && p < g_rdram + g_size)
-        return 0x80000000u + (uint32_t)(p - g_rdram);
+        return N64_KSEG0 + (uint32_t)(p - g_rdram);
     if (g_rdram_k1 && p >= g_rdram_k1 && p < g_rdram_k1 + g_size)
-        return 0x80000000u + (uint32_t)(p - g_rdram_k1);
+        return N64_KSEG0 + (uint32_t)(p - g_rdram_k1);
     return 0;
 }
 
@@ -412,7 +417,7 @@ uint32_t osVirtualToPhysical(void *vaddr)
 {
     uint32_t n64 = pc_n64_addr(vaddr);
     if (n64)
-        return (n64 & 0x1FFFFFFFu) < PC_RCP_SEGMENT_SPAN ? n64 & 0x1FFFFFFFu : n64;
+        return N64_TO_PHYS(n64) < PC_RCP_SEGMENT_SPAN ? N64_TO_PHYS(n64) : n64;
     uintptr_t a = (uintptr_t)vaddr;
     if (a >> 32) {
         static int warned;

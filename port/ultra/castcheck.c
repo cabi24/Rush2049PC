@@ -1,6 +1,6 @@
 /* port/ultra/castcheck.c: a RUSH_CHECK_CASTS build (cmake -DRUSH_CHECK_CASTS=ON) stops here when game C stores a
  * host address that doesn't fit in 32 bits as an N64 address (PC_N64W, port/include/pc_prelude.h). Only the
- * RDRAM window, at host 0x80000000, fits; own-storage data, the stack, host functions and malloc are above 4 GB.
+ * RDRAM window, at host PC_RDRAM_BASE, fits; own-storage data, the stack, host functions and malloc are above 4 GB.
  * docs/port/CASTS.md. */
 #include <stdint.h>
 #include <stdio.h>

@@ -50,7 +50,7 @@ typedef struct {
 
 /* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
  * n64_hi) is zeroed. The runs byte-swap the known elements in place. The game's arenas are at their N64
- * addresses (host == n64_lo, in the RDRAM window; with the tables' window, host == window + n64_lo - 0x80000000); a
+ * addresses (host == n64_lo, in the RDRAM window; with the tables' window, host == window + n64_lo - PC_RDRAM_BASE); a
  * runtime image's arena there is cleared again after the first load, since it is game-heap memory until the game
  * loads the image. */
 typedef struct {
@@ -171,8 +171,9 @@ typedef struct {
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
     uint32_t n_inits;
-    /* The RDRAM window the arenas are in, at window + (N64 address - 0x80000000): data.c's section in a RUSH_NOFIXED
-     * build (docs/port/NOFIXED.md 2). NULL: the window at host 0x80000000, arenas at their N64 addresses. */
+    /* The RDRAM window the arenas are in, at window + (N64 address - PC_RDRAM_BASE): data.c's section in a
+     * RUSH_NOFIXED build (docs/port/NOFIXED.md 2). NULL: the window at host PC_RDRAM_BASE (port/include/pc_n64_map.h),
+     * arenas at their N64 addresses. */
     uint8_t *window;
 } PcDataTables;
 
@@ -204,9 +205,14 @@ const PcDataStats *pc_data_stats(void);
 int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
-/* The RDRAM window when it isn't at host 0x80000000 (the guard mode, docs/port/NOFIXED.md 5): an arena the tables put
- * at its N64 address is filled at n64_to_host(its address), and an RDRAM address a pointer keeps becomes
- * n64_to_host(it). NULL (the default) for the window at 0x80000000. Before pc_data_load_all. */
+/* The N64 address of the symbol called `name` (own storage, game-C data the tables list, an arena's symbol or a
+ * function), or 0 when the tables have none of that name. The PC layer's way to a game symbol's N64 address: by its
+ * name, from the tables, rather than a copy of the number (the symbol tables, asm/us/<image>/symbols.json, are the one
+ * source). Before or after the data is loaded; a linear search, for startup and checks, not for every frame. */
+uint32_t pc_data_addr_of(const PcDataTables *t, const char *name);
+/* The RDRAM window when it isn't at host PC_RDRAM_BASE (the guard mode, docs/port/NOFIXED.md 5): an arena the tables
+ * put at its N64 address is filled at n64_to_host(its address), and an RDRAM address a pointer keeps becomes
+ * n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before pc_data_load_all. */
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
 /* An N64 address by name (a function, own storage, an arena symbol + offset), from the tables the last
  * pc_data_load_all filled; "?" if none. */

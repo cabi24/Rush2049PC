@@ -43,12 +43,12 @@ int pcgfx_is_be(const void *p) {
 }
 
 static const uint8_t *rdram(uint32_t phys) {
-    return (const uint8_t *)pc_n64_ptr(PC_RDRAM_BASE | (phys & 0x1FFFFFFFu));
+    return (const uint8_t *)pc_n64_ptr(PC_RDRAM_BASE | N64_TO_PHYS(phys));
 }
 
 /* Addresses (docs/port/GFX.md "Addresses"). Host pointers are at or above 4 GB (the build is PIE and RDRAM is the
- * window at 0x80000000); anything below is an N64 address, in a native list or an N64-form one alike:
- * K0/K1 (0x80000000-0xBFFFFFFF), segmented (0x0S000000 + offset, S = 1..15 with a base set) or physical
+ * window at PC_RDRAM_BASE); anything below is an N64 address, in a native list or an N64-form one alike:
+ * K0/K1 (N64_KSEG0 up to N64_KSEG2), segmented (0x0S000000 + offset, S = 1..15 with a base set) or physical
  * (segment 0, or a segment with no base: RDRAM offset). */
 static int is_host(uintptr_t a) {
 #if UINTPTR_MAX > 0xFFFFFFFFu
@@ -64,7 +64,7 @@ uintptr_t pcgfx_segment_value(uintptr_t v) {
     if (v == 0 || is_host(v))
         return v;
     a = (uint32_t)v;
-    return (uintptr_t)(a >= 0x80000000u ? pc_n64_ptr(a) : rdram(a));
+    return (uintptr_t)(a >= N64_KSEG0 ? pc_n64_ptr(a) : rdram(a));
 }
 
 const uint8_t *pcgfx_resolve(uintptr_t a) {
@@ -75,19 +75,19 @@ const uint8_t *pcgfx_resolve(uintptr_t a) {
     if (is_host(a))
         return (const uint8_t *)a;
     a32 = (uint32_t)a;
-    if (a32 >= 0x80000000u)
+    if (a32 >= N64_KSEG0)
         return (const uint8_t *)pc_n64_ptr(a32);
-    seg = (a32 >> 24) & 0x0F;
+    seg = (a32 & N64_SEGMENT_ID_MASK) >> 24;
     /* A physical address past 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3) whose segment has no
      * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The PC gives the RCP the K0 address
      * there (osVirtualToPhysical, the game's relocations), so this is for code that strips it itself. Outside the
      * window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never applies. */
-    if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= 0x10000000u) &&
+    if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= PC_RDRAM_MAX) &&
         (p = (const uint8_t *)pc_n64_ptr(a32)) != NULL)
         return p;
     if (pcgfx.seg[seg] != 0)
-        return (const uint8_t *)(pcgfx.seg[seg] + (a32 & 0x00FFFFFF));
-    return rdram(a32 & 0x00FFFFFF);
+        return (const uint8_t *)(pcgfx.seg[seg] + (a32 & N64_SEGMENT_OFFSET_MASK));
+    return rdram(a32 & N64_SEGMENT_OFFSET_MASK);
 }
 
 /* ---------------------------------------------------------------- matrices */

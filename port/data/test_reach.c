@@ -1,7 +1,7 @@
 /* port/data/test_reach.c: the loader's rules for tables only pointers reach (pc_data.h's PcDataReach,
  * port/data/reached.txt, docs/port/DATA.md 7) on a synthetic image, with hand-written tables.
  *
- * One raw image at 0x80001000 whose arena (0x80001000-0x80001200) holds, in N64 form, records no symbol describes:
+ * One raw image at TEST_GAME whose arena (its first 0x200 bytes) holds, in N64 form, records no symbol describes:
  * sequences {u16 count; u16 id; f32 time; Frame *frames} (12 bytes, 16 on the host) ended by a count of 0, each
  * with `count` frames {char *name; u32 value} (8 bytes, 16 on the host), and arrays of s16 whose lengths are a
  * table of u16. Own storage: the table of sequence pointers `seqs` (3: two sequence tables, the second one twice, and
@@ -12,10 +12,17 @@
  * arrays are swapped in place in the arena, by their lengths; the report lists the tables; a reload makes them
  * again. */
 #include "pc_data.h"
+#include "pc_n64_map.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* The synthetic layout's N64 addresses, KSEG0 addresses of the test's own: the image (GAME(o): o bytes into it) and
+ * the heap's start. */
+#define TEST_GAME (N64_KSEG0 + 0x1000u)
+#define TEST_HEAP (N64_KSEG0 + 0x20000u)
+#define GAME(o) (TEST_GAME + (o))
 
 static int failures;
 #define CHECK(c) do { if (!(c)) { fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); failures++; } } while (0)
@@ -33,8 +40,8 @@ static void put32(uint8_t *p, uint32_t v) { p[0] = v >> 24; p[1] = v >> 16; p[2]
 static void put16(uint8_t *p, uint16_t v) { p[0] = v >> 8; p[1] = (uint8_t)v; }
 static uint32_t fbits(float f) { uint32_t u; memcpy(&u, &f, 4); return u; }
 
-static PcDataImage images[1] = {{"game", PC_IMG_RAW, 0x0, 0x400, 0x400, 0x80001000}};
-static PcDataArena arenas[1] = {{0, 0x80001000, 0x80001200, 0x80001200, arena, 0, 0}};
+static PcDataImage images[1] = {{"game", PC_IMG_RAW, 0x0, 0x400, 0x400, TEST_GAME}};
+static PcDataArena arenas[1] = {{0, TEST_GAME, GAME(0x200), GAME(0x200), arena, 0, 0}};
 
 static const PcDataRun runs[] = {
     /* 0 seqs, 1 pts: pointers */
@@ -50,49 +57,49 @@ static const PcDataRun runs[] = {
 };
 
 static const PcDataSym syms[] = {
-    {"seqs", 0x80001200, 12, sizeof seqs, seqs, 0, 1, 0, PC_SYM_OWN},
-    {"pts", 0x80001210, 8, sizeof pts, pts, 1, 1, 0, PC_SYM_OWN},
-    {"shared", 0x80001220, 16, sizeof shared, shared, 2, 2, 0, PC_SYM_OWN},
+    {"seqs", GAME(0x200), 12, sizeof seqs, seqs, 0, 1, 0, PC_SYM_OWN},
+    {"pts", GAME(0x210), 8, sizeof pts, pts, 1, 1, 0, PC_SYM_OWN},
+    {"shared", GAME(0x220), 16, sizeof shared, shared, 2, 2, 0, PC_SYM_OWN},
 };
 static const uint32_t compat_frames[] = {2};
 static const PcDataReach reach[] = {
     {"seqs -> Seq", 0, -1, 0, 0, 3, 12, sizeof(Seq), 4, 3, PC_REACH_UNTIL, 1, 0, 2, 0, 1, NULL, 0},
     {"Seq.frames -> Frame", -1, 0, 8, offsetof(Seq, frames), 0, 8, sizeof(Frame), 7, 2, PC_REACH_PARENT, 1, 0, 2, 0,
      1, compat_frames, 1},
-    {"pts -> s16", 1, -1, 0, 0, 2, 2, 2, 9, 1, PC_REACH_TABLE, 1, 0, 2, 0x80001230, 0, NULL, 0},
+    {"pts -> s16", 1, -1, 0, 0, 2, 2, 2, 9, 1, PC_REACH_TABLE, 1, 0, 2, GAME(0x230), 0, NULL, 0},
 };
 
 static PcDataState state;
 static const PcDataTables tables = {images, 1, arenas, 1, syms, 3, runs, sizeof runs / sizeof runs[0], NULL, 0,
-                                    NULL, 0, 0x80020000, &state, NULL, 0, reach, 3};
+                                    NULL, 0, TEST_HEAP, &state, NULL, 0, reach, 3};
 
-static uint8_t *at(uint32_t a) { return rom + (a - 0x80001000u); }
+static uint8_t *at(uint32_t a) { return rom + (a - TEST_GAME); }
 
 static void build_rom(void)
 {
-    /* Sequence table A at 0x80001000: two sequences and the terminator. */
-    put16(at(0x80001000), 2), put16(at(0x80001002), 7), put32(at(0x80001004), fbits(0.5f));
-    put32(at(0x80001008), 0x80001100);                   /* frames of its own */
-    put16(at(0x8000100C), 1), put16(at(0x8000100E), 8), put32(at(0x80001010), fbits(1.5f));
-    put32(at(0x80001014), 0x80001228);                   /* shared[1] */
-    put16(at(0x80001018), 0), put16(at(0x8000101A), 9);   /* the end: count 0, the rest kept */
-    /* Sequence table B at 0x80001040: one sequence, the terminator. */
-    put16(at(0x80001040), 1), put16(at(0x80001042), 3), put32(at(0x80001044), fbits(2.0f));
-    put32(at(0x80001048), 0x80001100);                   /* the same frames as A's first: converted once */
-    /* Frames at 0x80001100: two, named by strings at 0x80001180. */
-    put32(at(0x80001100), 0x80001180), put32(at(0x80001104), 0x11);
-    put32(at(0x80001108), 0x80001188), put32(at(0x8000110C), 0x22);
-    memcpy(at(0x80001180), "ONE", 4), memcpy(at(0x80001188), "TWO", 4);
-    /* s16 arrays at 0x80001140 (3) and 0x80001150 (2), and their lengths at 0x80001230 (u16[2]). */
-    put16(at(0x80001140), 0x0102), put16(at(0x80001142), 0x0304), put16(at(0x80001144), 0x0506);
-    put16(at(0x80001148), 0x7777);                       /* after the first array: not swapped */
-    put16(at(0x80001150), 0xFFFE), put16(at(0x80001152), 0x0010);
+    /* Sequence table A at TEST_GAME: two sequences and the terminator. */
+    put16(at(TEST_GAME), 2), put16(at(GAME(0x2)), 7), put32(at(GAME(0x4)), fbits(0.5f));
+    put32(at(GAME(0x8)), GAME(0x100));                   /* frames of its own */
+    put16(at(GAME(0xC)), 1), put16(at(GAME(0xE)), 8), put32(at(GAME(0x10)), fbits(1.5f));
+    put32(at(GAME(0x14)), GAME(0x228));                   /* shared[1] */
+    put16(at(GAME(0x18)), 0), put16(at(GAME(0x1A)), 9);   /* the end: count 0, the rest kept */
+    /* Sequence table B at GAME(0x40): one sequence, the terminator. */
+    put16(at(GAME(0x40)), 1), put16(at(GAME(0x42)), 3), put32(at(GAME(0x44)), fbits(2.0f));
+    put32(at(GAME(0x48)), GAME(0x100));                   /* the same frames as A's first: converted once */
+    /* Frames at GAME(0x100): two, named by strings at GAME(0x180). */
+    put32(at(GAME(0x100)), GAME(0x180)), put32(at(GAME(0x104)), 0x11);
+    put32(at(GAME(0x108)), GAME(0x188)), put32(at(GAME(0x10C)), 0x22);
+    memcpy(at(GAME(0x180)), "ONE", 4), memcpy(at(GAME(0x188)), "TWO", 4);
+    /* s16 arrays at GAME(0x140) (3) and GAME(0x150) (2), and their lengths at GAME(0x230) (u16[2]). */
+    put16(at(GAME(0x140)), 0x0102), put16(at(GAME(0x142)), 0x0304), put16(at(GAME(0x144)), 0x0506);
+    put16(at(GAME(0x148)), 0x7777);                       /* after the first array: not swapped */
+    put16(at(GAME(0x150)), 0xFFFE), put16(at(GAME(0x152)), 0x0010);
     /* Own storage: seqs, pts, shared; the lengths. */
-    put32(at(0x80001200), 0x80001000), put32(at(0x80001204), 0x80001040), put32(at(0x80001208), 0);
-    put32(at(0x80001210), 0x80001140), put32(at(0x80001214), 0x80001150);
-    put32(at(0x80001220), 0x80001180), put32(at(0x80001224), 0x33);
-    put32(at(0x80001228), 0x80001188), put32(at(0x8000122C), 0x44);
-    put16(at(0x80001230), 3), put16(at(0x80001232), 2);
+    put32(at(GAME(0x200)), TEST_GAME), put32(at(GAME(0x204)), GAME(0x40)), put32(at(GAME(0x208)), 0);
+    put32(at(GAME(0x210)), GAME(0x140)), put32(at(GAME(0x214)), GAME(0x150));
+    put32(at(GAME(0x220)), GAME(0x180)), put32(at(GAME(0x224)), 0x33);
+    put32(at(GAME(0x228)), GAME(0x188)), put32(at(GAME(0x22C)), 0x44);
+    put16(at(GAME(0x230)), 3), put16(at(GAME(0x232)), 2);
 }
 
 static void check_load(int pass)
@@ -126,6 +133,14 @@ static void check_load(int pass)
         CHECK(st->reached == 5 && st->reached_elems == 3 + 2 + 2 + 3 + 2);   /* A, B, the frames, two arrays */
 }
 
+/* Whether the report holds the line `fmt` gives with the N64 address a. */
+static int report_has(const char *report, const char *fmt, uint32_t a)
+{
+    char want[128];
+    snprintf(want, sizeof want, fmt, a);
+    return strstr(report, want) != NULL;
+}
+
 int main(void)
 {
     build_rom();
@@ -137,9 +152,9 @@ int main(void)
         fread(buf, 1, sizeof buf - 1, fp);
         fclose(fp);
     }
-    CHECK(strstr(buf, "reached seqs -> Seq 0x80001000: 3 elements, converted to storage of its own") != NULL);
-    CHECK(strstr(buf, "reached Seq.frames -> Frame 0x80001100: 2 elements, converted") != NULL);
-    CHECK(strstr(buf, "reached pts -> s16 0x80001150: 2 elements, swapped in place") != NULL);
+    CHECK(report_has(buf, "reached seqs -> Seq 0x%08X: 3 elements, converted to storage of its own", TEST_GAME));
+    CHECK(report_has(buf, "reached Seq.frames -> Frame 0x%08X: 2 elements, converted", GAME(0x100)));
+    CHECK(report_has(buf, "reached pts -> s16 0x%08X: 2 elements, swapped in place", GAME(0x150)));
     /* A reload (as an overlay's) makes them again from the image: what the game wrote into the copies goes. */
     seqs[0][0].count = 99;
     CHECK(pc_data_load_image(&tables, 0) == 0);

@@ -3,7 +3,7 @@
  * place of the tests' fake RDRAM), built at 1 MiB, at 18 MiB and in the window's last MiB, with the records holding K0
  * addresses or physical ones. Past 16 MiB a physical address no longer fits the N64's 24 bits; the interpreter must
  * take every one as the RAM it is, so each place renders what the first does, sample for sample, and the state and
- * the delay line come out the same. Skipped (77) where the window can't be mapped at 0x80000000. */
+ * the delay line come out the same. Skipped (77) where the window can't be mapped at PC_RDRAM_BASE. */
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,7 +56,7 @@ static void *alloc(size_t size)
 static uint32_t addr(const void *p)
 {
     uint32_t k0 = p ? pc_n64_addr(p) : 0;
-    return k0 && g_physical ? k0 & 0x1FFFFFFFu : k0;
+    return k0 && g_physical ? N64_TO_PHYS(k0) : k0;
 }
 
 static void put16(uint8_t *p, uint32_t v)
@@ -199,7 +199,9 @@ static int scene(uint32_t base, int physical, Result *r)
 
 int main(void)
 {
-    static const uint32_t bases[3] = {0x80100000u, 0x81200000u, 0x83F00000u};
+    /* 1 MiB in, 18 MiB in and in the 64 MiB window's last MiB: K0 addresses */
+    static const uint32_t bases[3] = {PC_RDRAM_BASE + (1u << 20), PC_RDRAM_BASE + (18u << 20),
+                                      PC_RDRAM_BASE + (63u << 20)};
     static Result first, r;
     if (pc_mem_set_size(64u << 20) != 0 || pc_mem_init() != 0) {
         printf("window: skipped: port/ultra's RDRAM window can't be mapped here\n");

@@ -158,7 +158,7 @@ uint8_t *test_rdram(void)
 uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
 void *pc_n64_ptr(uint32_t addr)
 {
-    uint32_t phys = addr >= 0x80000000u && addr < 0xC0000000u ? addr & 0x1FFFFFFFu : addr;
+    uint32_t phys = N64_IS_KSEG0_OR_1(addr) ? N64_TO_PHYS(addr) : addr;
     return g_window && phys < test_rdram_bytes ? g_window + phys : NULL;
 }
 uint32_t pc_n64_addr(const void *host)

@@ -20,7 +20,6 @@
 #include "pc_prelude.h"
 #include "support.h"
 
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 #define HIGH(p) ((uintptr_t)(p) >> 32 != 0)   /* a host address a u32 can't hold */
 
@@ -93,7 +92,7 @@ static void test_visuals(void)
     for (i = 0; i < 4; i++) {
         visuals[i].next = i < 3 ? &visuals[i + 1] : NULL;
         visuals[i].timeStamp = 0.0333333f;   /* N64 +0x14, where the 32-bit walk took the func from */
-        visuals[i].data = 0x80300000u + i;
+        visuals[i].data = TEST_SCRATCH + i;   /* a u32 window address */
     }
     visuals[0].func = end_self;
     visuals[1].func = record;
@@ -114,9 +113,9 @@ static void test_visuals(void)
 
 void SkyUpdate(int32_t arg0);
 
-ABS(skyMatrices, 0x80124FD0);               /* each window's matrix, a u32 window address (game arena) */
-ABS(gCamera, 0x80150B70);                  /* Camera[], 0x98 bytes each (game arena) */
-#define MTX_AT 0x80300000u                 /* a matrix of ZOID_NewMatrix's pool, in the window */
+TEST_ABS(skyMatrices);                     /* each window's matrix, a u32 window address (game arena) */
+TEST_ABS(gCamera);                         /* Camera[], 0x98 bytes each (game arena) */
+#define MTX_AT TEST_SCRATCH                /* a matrix of ZOID_NewMatrix's pool, in the window */
 
 static void test_camera_matrix(void)
 {
@@ -128,15 +127,15 @@ static void test_camera_matrix(void)
         return;
     }
     mtx = (float *)(uintptr_t)MTX_AT;
-    cam = (float *)(uintptr_t)(0x80150B70u + 2 * 0x98);
+    cam = (float *)(TEST_AT(gCamera) + 2 * 0x98);
     memset(mtx, 0, 0x40);
-    ((uint32_t *)(uintptr_t)0x80124FD0u)[2] = MTX_AT;
+    ((uint32_t *)TEST_AT(skyMatrices))[2] = MTX_AT;
     cam[0x24 / 4] = 3.5f;
     cam[0x2C / 4] = -2.0f;
     SkyUpdate(2);
     CHECK(mtx[0x24 / 4] == 3.5f);
     CHECK(mtx[0x2C / 4] == -2.0f);
-    ((uint32_t *)(uintptr_t)0x80124FD0u)[3] = 0;   /* no matrix: nothing happens */
+    ((uint32_t *)TEST_AT(skyMatrices))[3] = 0;   /* no matrix: nothing happens */
     SkyUpdate(3);
 }
 
@@ -321,8 +320,8 @@ void *n64_memcpy(void *d, const void *s, unsigned int n) { return memcpy(d, s, n
 int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
 void *AllocateMemoryHeapHigh(void *heap, uint32_t size) { return NULL; }
-ABS(ghost_file_handles, 0x8013F1F8);               /* the N64's handle slots and records, in the game arena: */
-ABS(ghost_file_records, 0x8013F390);               /* not used on the PC */
+TEST_ABS(ghost_file_handles);                      /* the N64's handle slots and records, in the game arena: */
+TEST_ABS(ghost_file_records);                      /* not used on the PC */
 
 static void test_ghosts(void)
 {
@@ -394,7 +393,7 @@ static void *list_last;   /* the list the last link or unlink was on */
 static int list_links, list_unlinks;
 void InsertLLE(void *list) { list_last = list, list_links++, sfx_calls++; }
 void RemoveLLE(void *list) { list_last = list, list_unlinks++, sfx_calls++; }
-#define SFX_AT 0x80310000u
+#define SFX_AT (TEST_SCRATCH + 0x10000u)
 
 static void test_sound_requests(void)
 {
@@ -497,11 +496,11 @@ static void test_ido_f2u(void)
     CHECK(pc_mips_f2u(127.9f) == 127 && pc_mips_f2u(65536.5f) == 65536);
     CHECK(pc_mips_f2u(-1.0f) == 0xFFFFFFFFu && pc_mips_f2u(-31.75f) == 0xFFFFFFFFu);
     CHECK((uint8_t)pc_mips_f2u(-200.0f) == 0xFF && pc_mips_f2u(-3e9f) == 0xFFFFFFFFu);
-    CHECK(pc_mips_f2u(2147483648.0f) == 0x80000000u && pc_mips_f2u(3000000000.0f) == 3000000000u);
+    CHECK(pc_mips_f2u(2147483648.0f) == 2147483648u && pc_mips_f2u(3000000000.0f) == 3000000000u);
     CHECK(pc_mips_f2u(4294967296.0f) == 0xFFFFFFFFu && pc_mips_f2u(1e20f) == 0xFFFFFFFFu);
     CHECK(pc_mips_f2u(nan / nan) == 0xFFFFFFFFu);
     CHECK(pc_mips_d2u(-0.5) == 0 && pc_mips_d2u(-2.5) == 0xFFFFFFFFu && pc_mips_d2u(4294967295.75) == 0xFFFFFFFFu);
-    CHECK(pc_mips_d2u(2147483649.5) == 0x80000001u && pc_mips_d2u(1234.99) == 1234);
+    CHECK(pc_mips_d2u(2147483649.5) == 2147483649u && pc_mips_d2u(1234.99) == 1234);
 }
 
 /* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
@@ -517,8 +516,9 @@ static void test_check_casts(void)
 {
     int line;
 
-    CHECK(PC_N64W((void *)(uintptr_t)0x80123456u) == 0x80123456u);   /* a window address */
-    CHECK(PC_N64W(NULL) == 0 && PC_N64W(0xB0039B40u) == 0xB0039B40u);
+    const uint32_t window_addr = PC_RDRAM_BASE + 0x123456u, cart_addr = N64_CART_KSEG1 | 0x39B40u;
+    CHECK(PC_N64W((void *)(uintptr_t)window_addr) == window_addr);   /* a window address */
+    CHECK(PC_N64W(NULL) == 0 && PC_N64W(cart_addr) == cart_addr);   /* a cartridge address (MusyX's sample base) */
     CHECK(cast_fail.n == 0);
     line = __LINE__ + 1;
     CHECK(PC_N64W(&profiles[0]) == (uint32_t)(uintptr_t)&profiles[0]);   /* host storage */

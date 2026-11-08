@@ -7,7 +7,7 @@
  * (port/data/decoupled.txt) are hashed too.
  *
  * Host pointers. Game data holds host pointers where the N64 held 32-bit addresses (the window's N64 addresses are the
- * same in every process: it is mapped at 0x80000000). A host pointer's value differs from one process to the next
+ * same in every process: it is mapped at PC_RDRAM_BASE). A host pointer's value differs from one process to the next
  * (ASLR) and between Windows and Linux (other image layouts), though both point at the same thing. So it is hashed as
  * what port/data's tables say it points to: an own-storage symbol's N64 address and N64 offset (the same on every
  * OS), a game function's N64 address, a decoupled item and offset, a runtime image's C data; a pointer elsewhere in
@@ -227,6 +227,7 @@ static void add_target(uintptr_t lo, size_t size, uint32_t id, int kind, int ima
 }
 
 static void pointers_build(void);
+static void hash_exclusions_resolve(void);
 static pthread_once_t g_pointers_once = PTHREAD_ONCE_INIT;
 
 static void pointers_init(void)   /* any thread: pc_n64_identity is the game's */
@@ -249,6 +250,7 @@ static void pointers_build(void)
     P.img_lo = (uintptr_t)__executable_start;
     P.img_hi = (uintptr_t)_end;
 #endif
+    hash_exclusions_resolve();
     for (uint32_t i = 0; i < t->n_syms; i++)
         if (t->syms[i].host && (t->syms[i].flags & (PC_SYM_OWN | PC_SYM_CDEF)))
             add_target((uintptr_t)t->syms[i].host, t->syms[i].host_size, t->syms[i].n64_addr, K_OWN, t->syms[i].image,
@@ -404,24 +406,46 @@ __attribute__((constructor)) static void n64_identity_hook(void)   /* before mai
 }
 
 /* The game C's sites that keep a host pointer's low half in 32 bits (window addresses), found by comparing two
- * processes' windows (docs/port/LOCKSTEP.md 5). Such a word holds an N64 address at times (last_frame_text_dl_end at the boot) and a
- * host pointer's low half at others, and a low half completed with the image's high half can't be told from an N64
- * address the image's low range happens to cover in one process: the hash leaves these words out, as zeros. */
-static const uint32_t TRUNCATED[] = {
-    0x80156BCCu,   /* last_frame_text_dl_end = blit_dl, the display list's position (EndGraphics.c:143) */
+ * processes' windows (docs/port/LOCKSTEP.md 5). Such a word holds an N64 address at times (last_frame_text_dl_end at
+ * the boot) and a host pointer's low half at others, and a low half completed with the image's high half can't be told
+ * from an N64 address the image's low range happens to cover in one process: the hash leaves these words out, as
+ * zeros. By name; pointers_build looks up their N64 addresses in port/data's tables (TRUNCATED, in address order). */
+static const char *const TRUNCATED_NAMES[] = {
+    "last_frame_text_dl_end",   /* = blit_dl, the display list's position (EndGraphics.c:143) */
 };
+#define N_TRUNCATED (sizeof TRUNCATED_NAMES / sizeof *TRUNCATED_NAMES)
+static uint32_t TRUNCATED[N_TRUNCATED];
 
 /* libultra's SI scratch buffers, which its C fills from structs on the stack whose other bytes it never sets
  * (__osMakeMotorData's __OSContRamReadFormat: the 32 data bytes; the Pfs code's likewise), so they hold whatever the
  * host's stack held, and differ between processes until the next command overwrites them: device scratch, not the
  * game's state, hashed as zeros. Found by comparing two processes' windows (rumble2p, pak4p, ghost); a build with
- * RUSH_ZERO_LOCALS has zeros there anyway (docs/port/LOCKSTEP.md 5). */
+ * RUSH_ZERO_LOCALS has zeros there anyway (docs/port/LOCKSTEP.md 5). By name and size; pointers_build looks up their
+ * N64 addresses (SCRATCH). */
 static const struct {
-    uint32_t n64, size;
-} SCRATCH[] = {
-    {0x80037B30u, 256},   /* __osMotorPifBuf */
-    {0x80037F60u, 64},    /* __osPfsPifRam */
+    const char *name;
+    uint32_t size;
+} SCRATCH_NAMES[] = {
+    {"__osMotorPifBuf", 256},   /* OSPifRam[4]: a rumble command per controller */
+    {"__osPfsPifRam", 64},      /* OSPifRam: the controller pak commands */
 };
+#define N_SCRATCH (sizeof SCRATCH_NAMES / sizeof *SCRATCH_NAMES)
+static struct {
+    uint32_t n64, size;
+} SCRATCH[N_SCRATCH];
+
+/* TRUNCATED's and SCRATCH's N64 addresses, by their names (once, from pointers_build). A name the tables lack (0) is
+ * no address in the window, so it never matches. */
+static void hash_exclusions_resolve(void)
+{
+    for (size_t i = 0; i < N_TRUNCATED; i++)
+        TRUNCATED[i] = pc_data_addr_of(&pc_data_tables, TRUNCATED_NAMES[i]);
+    qsort(TRUNCATED, N_TRUNCATED, sizeof *TRUNCATED, by_u32);
+    for (size_t i = 0; i < N_SCRATCH; i++) {
+        SCRATCH[i].n64 = pc_data_addr_of(&pc_data_tables, SCRATCH_NAMES[i].name);
+        SCRATCH[i].size = SCRATCH[i].n64 ? SCRATCH_NAMES[i].size : 0;
+    }
+}
 
 /* ---------------------------------------------------------------- normalised regions */
 
@@ -483,16 +507,16 @@ static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
     for (size_t o = 0; o + 8 <= n; o += 4) {
         uint64_t v;
         int scratch = 0;
-        for (size_t k = 0; n64 && k < sizeof SCRATCH / sizeof *SCRATCH; k++)
+        for (size_t k = 0; n64 && k < N_SCRATCH; k++)
             scratch |= n64 + o - SCRATCH[k].n64 < SCRATCH[k].size;
         if (scratch) {
             patch_add((uint32_t)o, 4, 0, 2);
             continue;
         }
         if (n64)   /* a cut pointer at a listed site first: its bytes aren't a u64's */
-            while (t < sizeof TRUNCATED / sizeof *TRUNCATED && TRUNCATED[t] < n64 + o)
+            while (t < N_TRUNCATED && TRUNCATED[t] < n64 + o)
                 t++;
-        if (n64 && t < sizeof TRUNCATED / sizeof *TRUNCATED && TRUNCATED[t] == n64 + o) {
+        if (n64 && t < N_TRUNCATED && TRUNCATED[t] == n64 + o) {
             patch_add((uint32_t)o, 4, 0, 2);   /* left out: see TRUNCATED */
             continue;
         }
@@ -607,7 +631,7 @@ static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *poi
 /* ---------------------------------------------------------------- the regions */
 
 extern int32_t rand_seed;      /* the random seed: libc's LCG (NETPLAY.md 1.1) */
-extern uint32_t gGameState;   /* gGameState at 0x801174B4, gNewGameState after it */
+extern uint32_t gGameState;   /* the state word, gNewGameState after it */
 extern int32_t gModelIteration;      /* the model thread's tick */
 extern float gModelTime;        /* the race time */
 extern uint8_t gControllerData[];   /* 4 x 16 bytes: the controllers as ControllerUpdate read them */
@@ -640,7 +664,7 @@ static const Curated *curated(int *n)
 static uint32_t window_n64(const void *p)
 {
     uintptr_t a = (uintptr_t)p, w = (uintptr_t)pc_rdram();
-    return w && a - w < pc_rdram_size() ? 0x80000000u + (uint32_t)(a - w) : 0;
+    return w && a - w < pc_rdram_size() ? PC_RDRAM_BASE + (uint32_t)(a - w) : 0;
 }
 
 /* ---------------------------------------------------------------- the per-retrace work */
@@ -768,7 +792,7 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         g_scan_what = g_unnamed_log > 0 ? "window" : NULL;
         w->name = "window";
         w->bytes = pc_rdram_size();
-        w->hash = hash_region_typed(pc_rdram(), pc_rdram_size(), -2, 0x80000000u, &ptrs, &img, NULL);
+        w->hash = hash_region_typed(pc_rdram(), pc_rdram_size(), -2, PC_RDRAM_BASE, &ptrs, &img, NULL);
         w->pointers = ptrs;
         w->unnamed = img;
         ptrs = img = 0;
@@ -926,7 +950,7 @@ int pc_hash_report(const char *path, uint32_t n)
         uint32_t ptrs = 0, img = 0, total = 0;
         uint8_t *w = malloc(pc_rdram_size());
         if (w) {
-            hash_region_typed(pc_rdram(), pc_rdram_size(), -2, 0x80000000u, &ptrs, &img, w);
+            hash_region_typed(pc_rdram(), pc_rdram_size(), -2, PC_RDRAM_BASE, &ptrs, &img, w);
             write_file(path, ".window", w, pc_rdram_size());
             free(w);
         }

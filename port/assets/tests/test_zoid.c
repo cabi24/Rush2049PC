@@ -89,7 +89,7 @@ int main(void)
 {
     static View views[4];
     uint8_t *w = test_rdram();
-    void *wad_tex = w ? (void *)(w + 0x123450) : (void *)&views[3];   /* a WAD texture: 0x80123450 */
+    void *wad_tex = w ? (void *)(w + 0x123450) : (void *)&views[3];   /* a WAD texture, in the window */
     uint32_t color = 0x11223344, env = 0xAABBCCDD;
     uint8_t light[40], rect[8];
     int16_t root, a, b, c;
