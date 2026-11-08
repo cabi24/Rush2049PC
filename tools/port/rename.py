@@ -61,7 +61,8 @@ that don't move (the N64 assembly, folders named after a function), derived iden
 name (func_800D6E00_1, __standin_X, include guards) and names built by token pasting (a ## b) that make an old name.
 
 Never touched: the maps themselves, these tools' sources and their tests' fixtures, docs/port/PCONLY.md (its
-examples) and the N64 assembly (asm/**/*.s: checksummed, the matching build's), plus --exclude globs.
+examples), plus --exclude globs. The assembly left after the flatten (asm/us/boot_data/kernels.s, which test_gsm
+interprets by address) has its labels renamed like any text.
 
 --dry-run and --apply run names_check.py's checks on the maps and the drop list first and stop on an error
 (--no-names-check skips the maps' checks, not the drop list's; --force applies in spite of them, for the collisions
@@ -93,7 +94,6 @@ DEFAULT_EXCLUDES = (
     "tools/port/rename.py", "tools/port/names_check.py", "tools/port/pconly_gate.sh",
     "tools/port/tests/test_rename.py", "tools/port/tests/test_names_check.py",
     "docs/port/PCONLY.md",            # the map format's examples
-    "asm/*.s",                        # the N64 build's assembly (fnmatch's * crosses folders)
     "*SHA256SUMS",                    # updated by checksum, below
 )
 SYMBOL_FILE = "symbol_addrs.us.txt"

@@ -105,7 +105,7 @@ class DryRun(Fixture):
 class Apply(Fixture):
     def test_every_place(self):
         out = self.apply()
-        self.assertIn("18 files changed, 5 moved, 2 names added to symbol_addrs.us.txt, 1 labels dropped", out)
+        self.assertIn("19 files changed, 5 moved, 2 names added to symbol_addrs.us.txt, 1 labels dropped", out)
         # the function's file follows its name; the header moves; the draft CMake lists by stem follows its name
         self.assertFalse((self.root / "src/blob/func_80F00010.c").exists())
         self.assertFalse((self.root / "include/game/old_header.h").exists())
@@ -148,7 +148,7 @@ class Apply(Fixture):
         self.assertEqual([e["target_id"] for e in json.loads(self.text("layout/game.json"))["regions"][0]["entries"]],
                          ["thing_count_read", "thing_draft"])
         # the symbol table: keys renamed, the aliases one key, the dropped label gone, in its own style; its
-        # checksum line follows; the assembly is left
+        # checksum line follows, and the assembly's
         table = self.text("asm/us/blob/symbols.json")
         d = json.loads(table)
         self.assertEqual(d["symbols"], {"gTargetInfo": "0x80F00800", "game_state": "0x80F00600",
@@ -157,7 +157,9 @@ class Apply(Fixture):
         self.assertEqual(table, json.dumps(d, indent=2, sort_keys=True) + "\n")
         sums = dict(reversed(line.split("  ")) for line in self.text("asm/us/blob/SHA256SUMS").splitlines())
         self.assertEqual(sums["symbols.json"], hashlib.sha256(table.encode()).hexdigest())
-        self.assertEqual(self.text("asm/us/blob/region.s"), (FIXTURE / "asm/us/blob/region.s").read_text())
+        region = self.text("asm/us/blob/region.s")   # assembly labels are names too; its checksum follows
+        self.assertIn(".globl thing_count_read", region)
+        self.assertEqual(sums["region.s"], hashlib.sha256(region.encode()).hexdigest())
         # symbol_addrs.us.txt: named entries renamed in place; the address names gain their address and kind
         syms = self.text("symbol_addrs.us.txt")
         self.assertIn("thing_assist = 0x80F00200; // type:func a named function", syms)

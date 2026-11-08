@@ -1129,6 +1129,13 @@ def check_drops(drops, rows, tree):
     renames_to = {norm(r.old): r.new for r in rows if r.kind in IDENT_KINDS}
     used_by_tools = tool_names(tree.root, tree.files, {d.name for d in drops})
     declared_only = []
+    present = {p.parent.name for p in (tree.root / "asm" / "us").glob("*/symbols.json")}
+    gone = [d for d in drops if d.table not in ("*", SYMBOL_FILE_TABLE) and d.table not in present]
+    if gone:   # a table the tree no longer has (boot_tail's went with the N64 build): nothing to drop there
+        warnings.append((gone[0].where(), f"{len(gone)} rows drop labels from tables the tree no longer has "
+                                          f"({', '.join(sorted({d.table for d in gone}))}): nothing to do"))
+        dropped += gone
+        drops = [d for d in drops if d not in gone]
     for d in drops:
         w = d.where()
         tables = {t for t, _ in tree.table_addr.get(d.name, ()) if t in DROP_TABLES}

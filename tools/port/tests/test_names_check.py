@@ -47,6 +47,8 @@ class Base(unittest.TestCase):
         for rel, text in EXTRA.items():
             (cls.root / rel).parent.mkdir(parents=True, exist_ok=True)
             (cls.root / rel).write_text(text)
+        (cls.root / "asm/us/ovl_a").mkdir(parents=True)
+        (cls.root / "asm/us/ovl_a/symbols.json").write_text('{\n  "symbols": {\n    "ovl_label": "0x8038A400"\n  }\n}\n')
         table = cls.root / "asm/us/blob/symbols.json"
         table.write_text(table.read_text().replace('"zeta_keep"', '"zeta_listed": "0x80F00900",\n    "zeta_used": "0x80F00A00",\n    "zeta_keep"'))
         cls.tree = nc.Tree(cls.root)
@@ -264,6 +266,7 @@ class Kinds(Base):
 class Drops(Base):
     def test_drop_list(self):
         errors, warnings = self.check(drops=[("zeta_unused", "blob", "nothing uses it"),
+                                      ("zeta_keep", "ovl_b", "a table the tree no longer has"),
                                       ("zeta_keep", "blob", "a header declares it"),
                                       ("zeta_used", "blob", "a function reads it"),
                                       ("zeta_listed", "*", "a tool looks it up"),
@@ -274,6 +277,7 @@ class Drops(Base):
                                text=MAP.read_text())
         self.assertOne(errors, "zeta_used is still used in the C: src/blob/uses_label.c")
         self.assertOne(warnings, "1 labels to drop are still declared (not used) in the C, e.g. zeta_keep")
+        self.assertOne(warnings, "1 rows drop labels from tables the tree no longer has (ovl_b): nothing to do")
         self.assertOne(errors, "zeta_listed is still used by tools/port/uses.py")
         self.assertOne(errors, "D_80F00100 is also renamed by a map")
         self.assertOne(errors, "zeta_unused is not in ovl_a's table (it is in blob)")
