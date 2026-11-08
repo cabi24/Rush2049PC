@@ -38,6 +38,9 @@ void RemoveBlit(Voice *voice) {
         if (i) {}
         s = voice->slot;
         gBlitInstanceList[s].state = 2;
+        /* Original game: nothing checks that the blit was found. Removing one that is not in BlitPtrs (a double
+         * remove) leaves i == NumBlits and still takes one off NumBlits and swaps BlitPtrs[NumBlits] with the
+         * entry past the end, which drops a live blit from the table (MAT3 blit.c alike). Kept as retail. */
         NumBlits--;
         BlitPtrs[i] = BlitPtrs[NumBlits];
         BlitPtrs[NumBlits] = voice;

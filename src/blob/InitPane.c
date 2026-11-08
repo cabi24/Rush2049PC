@@ -23,6 +23,9 @@ FiveParts *InitPane(s32 x1,s32 y1,s32 x2,s32 y2,s32 style,intptr_t word40,s32 wo
     for(i=0;i<16;i++,group++) {
         if(!group->active) break;
     }
+    /* Original game: with all 16 panes in use this returns &gPaneBlits[16], one past the array (the loop has
+     * stepped past the last one), not NULL; the callers then write through it (MAT3 pane.c does the same).
+     * Kept: it is the retail behaviour. */
     if(i>=16) return group;
     if(x2<x1) { x1^=x2; x2^=x1; x1^=x2; }
     if(y2<y1) { y1^=y2; y2^=y1; y1^=y2; }

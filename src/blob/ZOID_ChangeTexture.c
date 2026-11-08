@@ -37,6 +37,9 @@ s32 ZOID_ChangeTexture(u16 id, s16 part, u16 value)
     } else {
         for (i = 0; i < m->count; i++) {
             m->part[i].value = value;
+            /* Original game: part, not i: with part < 0 this marks m->part[-1] (the bytes before the part table,
+             * the model's header) on every pass and leaves the parts unmarked. MAT3 zoid has the same slip; the
+             * callers seen pass part 0, so it may never run. Kept as retail. */
             m->part[part].flags |= 0x8000;
         }
     }

@@ -102,6 +102,9 @@ void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
             break;
         }
     }
+    /* Original game: when both of the pak's records are in use the loop ends with j == 2 and the error is written
+     * into the record past the row: the next pak's first one, or past gPakError for pak 3. MAT3 pakerr.c has the
+     * same loop over three records. Kept as retail. */
     gPakError[player][j].busy = 0;
     gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.unk27C;
     gPakError[player][j].enabled = 1;

@@ -39,6 +39,9 @@ void FindWinner(void)
   s32 j;
   s8 a;
   s8 b;
+  /* Original game: ties and tied[] are never cleared here (MAT3 gamerecords.c starts with `ties = 0;` and clears
+   * tied[]; the N64 has no such prologue) and nothing else writes them, so the ties counted by an earlier race of
+   * the session add to this one's and can reach the results text and RecordBattle's wins. Kept as retail. */
   for (i = 0; i < gNumWindows; i++) {
     gRankedPlayer[i] = i;
   }

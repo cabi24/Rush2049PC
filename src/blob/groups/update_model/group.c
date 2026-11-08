@@ -3983,6 +3983,9 @@ block_40:
         } else {
             var_f0 = M2C_FIELD(temp_s0_2, f32 *, 0x714) - M2C_FIELD(temp_s2, f32 *, CAR_OFS(0x30C));
         }
+        /* Original game: `(gRace != 6) || (gRace != 5)` (not battle or not obstacle) is always true, so every mode
+         * takes the 5-second solid delay as well, and battle and obstacle become solid at whichever of the two
+         * delays comes first; `&&` was meant. MAT3 marks the same line as a bug. Kept as retail. */
         if ((((s8) gCoastFlag != 0) || (((gRace != 6) || (gRace != 5)) && (var_f0 >= 5.0f)) || (((gRace == 6) || (gRace == 5)) && (solid_delay_arena < var_f0))) && ((temp_v0_3 = PC_LINK_OWNER(M2C_FIELD(temp_s0_2, s16 *, 0x7C6)), (temp_v0_3 == 0)) || (temp_v0_3 == 6))) {
             M2C_FIELD(temp_s0_2, s8 *, 0x7EA) = 1;
             M2C_FIELD(temp_s0_2, s8 *, 0x7EB) = 1;

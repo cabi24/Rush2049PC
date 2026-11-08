@@ -292,6 +292,9 @@ void CalcUnlockedStuff(void) {
                 gUnlockedCircuits[i][j] = 1;
             }
         }
+        /* Original game: i is gNumPlayers here, after the loop, so this clears circuit 2 one row past the last
+         * player (with four players, past the end of gUnlockedCircuits[4][4]) and leaves the players' rows unlocked
+         * without the Expansion Pak. The N64 code does so (MAT3 has no such line). Kept as retail. */
         if (expansion_pak_present == 0) {
             gUnlockedCircuits[i][2] = 0;
         }

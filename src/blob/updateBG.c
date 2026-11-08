@@ -87,6 +87,9 @@ void updateBG(void) {
                 if (list->pts[i].y >= bg_texture->height << 5) {
                     shift[1] -= 1.0f;
                 }
+                /* Original game: x is tested against -(width << 5) above, but y against +(height << 5) here
+                 * (MAT3 front.c tests tc[1] <= -1.0f): nearly every vertex votes +1, so the y votes rarely add up
+                 * to the -4 or +4 that wraps the background vertically. Kept as retail. */
                 if (list->pts[i].y <= bg_texture->height << 5) {
                     shift[1] += 1.0f;
                 }
