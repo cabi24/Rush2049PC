@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The four images whose data the PC build fills from the ROM (tools/extract_rom.py, docs/memory_map.md):
+# The four images whose data the PC build fills from the ROM (docs/memory_map.md):
 # name, how it is stored, ROM offset, stored length, image size, N64 base. "raw" is a plain copy (the boot
 # segment tail); "deflate" a raw DEFLATE stream.
 IMAGES = [

@@ -1,5 +1,4 @@
-# PC build of San Francisco Rush 2049 from the decompilation's C (docs/PORT_PLAN.md).
-# The N64 matching build is the Makefile; nothing here is used by it.
+# San Francisco Rush 2049 for the PC, built from the game's C (docs/PORT_PLAN.md, docs/port/PCONLY.md).
 #
 #   cmake -S . -B build/pc -G Ninja
 #   cmake --build build/pc
@@ -72,13 +71,11 @@ else()
 endif()
 
 # ---------------------------------------------------------------- game code
-# Every C file of the decompilation, compiled for the host with TARGET_PC.
+# Every C file of the game, compiled for the host with TARGET_PC.
 file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
-# Functions at the matching ceiling: the ROM takes them from their retail assembly, but their C drafts
-# (nonmatching/README.md) differ only in register allocation and scheduling. The PC build compiles the
-# standalone drafts of those no other file defines; the rest already come in as group context copies. Drafts that
-# need the PC layouts of shared records have them under TARGET_PC. The runtime images' 8-byte stubs (deleted bodies
-# of inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c, PC only.
+# The functions the N64 decompilation never byte-matched (the "matching ceiling") have their C in nonmatching/
+# (nonmatching/README.md) where no file under src/ defines them. The runtime images' 8-byte stubs (deleted bodies of
+# inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c.
 foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
           ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
@@ -88,26 +85,10 @@ endforeach()
 list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_8038A400.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
-# libultra and libc units the PC layer replaces (port/ultra, docs/port/ULTRA.md): thread dispatch, message
-# queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB, and the
-# inflate/LZSS readers (zlib and C in port/ultra/pi.c). lib_34a0 is the IDO libc (sprintf, fcvt, modff): the
-# host's is used. Everything else under src/rom (gu*, libm, the scheduler, Pfs and controller packing, the
-# audio library, the boot logic) compiles natively.
-set(GAME_REPLACED
-    src/rom/lib_10760.c src/rom/lib_107a0.c src/rom/lib_10970.c src/rom/lib_109a0.c src/rom/lib_10a00.c
-    src/rom/lib_10b60.c src/rom/lib_10cc0.c src/rom/lib_10d10.c src/rom/lib_34a0.c src/rom/lib_5610.c
-    src/rom/lib_7600.c src/rom/lib_7630.c src/rom/lib_7940.c src/rom/lib_79a0.c src/rom/lib_7a10.c
-    src/rom/lib_7ad0.c src/rom/lib_7b30.c src/rom/lib_7c80.c src/rom/lib_7fb0.c src/rom/lib_8040.c
-    src/rom/lib_8040_msg.c src/rom/lib_81e0.c src/rom/lib_8330.c src/rom/lib_83d0.c src/rom/lib_8440.c
-    src/rom/lib_8700.c src/rom/lib_8920.c src/rom/lib_8a80.c src/rom/lib_8dd0.c src/rom/lib_8e10.c
-    src/rom/lib_8e10_pi.c src/rom/lib_9230.c src/rom/lib_a5b0.c src/rom/lib_a800.c src/rom/lib_c990.c
-    src/rom/lib_ca70.c src/rom/lib_cc50.c src/rom/lib_d140.c src/rom/lib_d260.c src/rom/lib_d270.c
-    src/rom/lib_d580.c src/rom/lib_e1c0.c src/rom/lib_e240.c src/rom/lib_e250.c src/rom/lib_e280.c
-    src/rom/lib_e310.c src/rom/lib_e340.c src/rom/lib_e390.c src/rom/lib_e3f0.c src/rom/lib_e7c0.c
-    src/rom/lib_e8d0.c src/rom/lib_e9a0.c src/rom/lib_efd0.c src/rom/lib_f0b0.c)
-foreach(f ${GAME_REPLACED})
-    list(REMOVE_ITEM GAME_SOURCES ${CMAKE_SOURCE_DIR}/${f})
-endforeach()
+# src/rom is the boot code's libultra, libc and audio library less what the PC layer does itself (port/ultra,
+# docs/port/ULTRA.md): thread dispatch, message queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and
+# raw device access, cache and TLB, the inflate/LZSS readers (zlib and C in port/ultra/pi.c) and IDO's libc (the
+# host's is used) have no C here.
 
 # Compile settings shared by the probe and the real build.
 add_library(game_flags INTERFACE)

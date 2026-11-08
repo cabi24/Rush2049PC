@@ -33,39 +33,12 @@ asset world), [DATA.md](DATA.md) (where data symbols live on PC), [GFX.md](GFX.m
     (the car record, [CARS.md](CARS.md)).
   - The rest (ROM-list walkers, buffers, prototypes, `long`) are small hand edits, one commit each.
 
-### The neutrality check
+### The neutrality check (gone)
 
-The definitive check is IDO itself: `tools/port/ido_check.sh [base]` (with `IDO53_DIR`, `IDO71_DIR` and
-`MIPS_BIN` set) builds every N64 object at the base and at HEAD and compares what a linked ROM would contain;
-it needs IDO but not the ROM. The script below is the fast proxy that runs anywhere, and in CI.
-
-
-`tools/port/n64_neutral.py [--base REV] [FILE...]` (default: every changed `src/`/`include/` file vs `HEAD`)
-preprocesses each file as the N64 build does (no `TARGET_PC`; `-Iinclude -Iinclude/PR -D_LANGUAGE_C` for `src/rom`,
-nothing for game files, which IDO compiles with no `-I`/`-D`; IDO-like predefines) with `gcc -E -undef -nostdinc`,
-at the base revision and in the working tree, then:
-
-1. compares token streams after spelling-normalizing basic types (`unsigned int` == `unsigned`) and resolving
-   simple file-scope typedefs from their declaration on (`uintptr_t` == `u32` where the file says so; `long` !=
-   `s32`); a typedef name may not be redeclared or change type;
-2. compares lines: **exact**, **code-exact** (only declarations outside functions moved), or **shifted** (each
-   function body moved by one constant; same-line and order relations kept). Anything else fails. `as1` breaks
-   scheduling ties by source line (COMPILER_SETTINGS.md), which depends on the order and sameness of lines, never
-   on their absolute values; header comments of matched files change length all the time;
-3. text rules: an added `#if`/`#ifdef`/`#ifndef`/`#elif` must test `TARGET_PC`; no added `//` comments in game files
-   (IDO compiles them without `-Xcpluscomm`).
-
-A changed header is checked through every `src/rom` file. Results:
-- this work, against main with the other parts merged (`--base main`): 663 files, 107 code-exact, 556 shifted,
-  0 failures. The only typedef names introduced are `uintptr_t`/`intptr_t`;
-- the whole branch against `d28fbb3`: 670 files, 18 fail, all from other parts' edits. Thirteen are `TARGET_PC`
-  blocks added inside functions (the busy-wait yields, the overlay loaders, `src/rom`): tokens equal, lines
-  inside one function moved, which this check refuses by policy. Five yields (`InitWaves.c:95`,
-  `replacewave.c:46`, `wheel_params_set.c:56`, `runtime_a_c93c_closure/group.c:884`, `lib_2cf0.c:37`) split a
-  one-line `while (c) {}` across lines, which changes which tokens share a line. A same-line form,
-  `while (c) { PC_YIELD(); }` with `PC_YIELD()` empty on the N64, would keep both tokens and lines.
-  `lib_1050_sdk.c` adds `#if defined(__APPLE__)`, presumably nested inside a `TARGET_PC` block.
-Still to do on the x86 host: `make` and the SHA-1 check, which nothing here can replace.
+Until 2026-11-08 every change to the game C also had to leave the N64 build byte-identical: `tools/port/ido_check.sh`
+built every N64 object with IDO at a base and at HEAD, and `tools/port/n64_neutral.py` (in CI) compared the
+preprocessed tokens and lines IDO would see. Both went with the N64 build ([PCONLY.md](PCONLY.md)); a change to the
+game C is now proven by running the game (PCONLY.md 2).
 
 ## 2. Gfx
 

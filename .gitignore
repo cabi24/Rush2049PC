@@ -6,8 +6,6 @@ assets/
 # ...except the PC converters (code, no ROM data)
 !/port/assets/
 build/
-# toolchain installed by the user
-tools/ido/
 __pycache__/
 *.pyc
 # PC build run files: controller pak images, agent worktrees
