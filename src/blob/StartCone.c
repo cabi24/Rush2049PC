@@ -1,15 +1,15 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_8010DCFC (0x8010DCFC, 660 B) = GC _StartCone@targets.c (rush_d.elf 0x8004E6BC; static void
- * _StartCone(struct tTarget *t)). Starts a hit traffic cone flying: with gCarMines (D_8013FECD) and target id
- * 236 (GC 0x226) the car's f863 flag is set and the model hidden (MBOX_HideObject = model_data_load(model, 0,
- * 15)); with gMineCones (D_8013FECC) the cone explodes instead (StartBlast = save_write_data(pos, 0, 0.4f, 1))
+ * _StartCone(struct tTarget *t)). Starts a hit traffic cone flying: with gCarMines (gCarMines) and target id
+ * 236 (GC 0x226) the car's f863 flag is set and the model hidden (MBOX_HideObject = MBOX_HideObject(model, 0,
+ * 15)); with gMineCones (gMineCones) the cone explodes instead (StartBlast = StartBlast(pos, 0, 0.4f, 1))
  * and the car's lap-record byte +1600 is set once (GC: model[car] stride 0x808, byte 0x640); otherwise a tVisual
- * entry is grabbed (GrabEnvEntry = func_80090284), filled (index 0, func = targetInfo[type].func, data = target,
- * timeStamp 5.0), the target's velocity set to the car's velocity * 0.125, LookInDir = vector_normalize_length,
+ * entry is grabbed (GrabEnvEntry = GrabEnvEntry), filled (index 0, func = targetInfo[type].func, data = target,
+ * timeStamp 5.0), the target's velocity set to the car's velocity * 0.125, LookInDir = LookInDir,
  * vel[1] += 1.0 for kinds 339/237 (GC 0x28D/0x227) else 2.0, angular velocity (0, 12, 15), CopyUV =
- * math_utility(tmat, pos), the entry linked into the environment list (AddToEnvList inlined: head D_801391F0)
- * and PlayTargetSound = stat_lap_split(targetInfo[type].sound, car, pos2, 2).
+ * CopyUV(tmat, pos), the entry linked into the environment list (AddToEnvList inlined: head gEnvList)
+ * and PlayTargetSound = PlayTargetSound(targetInfo[type].sound, car, pos2, 2).
  * GC locals v (here `vis`, a tVisual), tmat, vel, angV, car, tInfo; N64 names follow them.
  *
  * draft 145/165 -> 147/165 -> MATCH. Levers:
@@ -62,7 +62,7 @@ typedef struct Obj {
     enum n64p_Motion motion;
 } Obj;
 
-/* PC: a target info record (D_80117530) is 0x40 bytes: its name, file, start function and visual function are
+/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
  * (docs/port/POINTERS.md 10). */
 typedef struct ObjType {
@@ -105,19 +105,19 @@ typedef struct Node {
 
 #define N64P(x) _Generic((x), enum n64p_Motion: (Motion *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-extern s8 D_8013FECD;
-extern s8 D_8013FECC;
-extern ObjType D_80117530[];
+extern s8 gCarMines;
+extern s8 gMineCones;
+extern ObjType targetInfo[];
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Node *D_801391F0;
+extern Node *gEnvList;
 
-void model_data_load(s32, s32, s32);
-void save_write_data(void *, s32, f32, s32);
-Node *func_80090284(void);
-void vector_normalize_length(void *, void *);
-void math_utility(void *, void *);
-s32 stat_lap_split(s32, s32, void *, u8);
+void MBOX_HideObject(s32, s32, s32);
+void StartBlast(void *, s32, f32, s32);
+Node *GrabEnvEntry(void);
+void LookInDir(void *, void *);
+void CopyUV(void *, void *);
+s32 PlayTargetSound(s32, s32, void *, u8);
 
 static void Flag1600(Lap *lap)
 {
@@ -140,22 +140,22 @@ void StartCone(Obj *obj)
     s32 u5;
     ObjType *tInfo;
 
-    tInfo = &D_80117530[obj->type];
+    tInfo = &targetInfo[obj->type];
     car = PC_CAR(obj->car);
-    if (D_8013FECD && tInfo->id == 236) {
+    if (gCarMines && tInfo->id == 236) {
         car->f863 = 1;
-        model_data_load(obj->model, 0, 15);
+        MBOX_HideObject(obj->model, 0, 15);
         obj->flags &= ~6;
         return;
     }
-    if (D_8013FECC && tInfo->id == 236) {
-        model_data_load(obj->model, 0, 15);
-        save_write_data(obj->f68, 0, 0.4f, 1);
+    if (gMineCones && tInfo->id == 236) {
+        MBOX_HideObject(obj->model, 0, 15);
+        StartBlast(obj->f68, 0, 0.4f, 1);
         Flag1600(PC_MODEL(obj->car));
         obj->flags &= ~6;
         return;
     }
-    vis = func_80090284();
+    vis = GrabEnvEntry();
     if (vis == 0) {
         return;
     }
@@ -169,7 +169,7 @@ void StartCone(Obj *obj)
     vel[0] = car->vel[0] * 0.125f;
     vel[1] = car->vel[1] * 0.125f;
     vel[2] = car->vel[2] * 0.125f;
-    vector_normalize_length(vel, tmat);
+    LookInDir(vel, tmat);
     if (obj->kind == 339 || obj->kind == 237) {
         vel[1] += 1.0f;
         angV->f0 = 0.0f;
@@ -181,8 +181,8 @@ void StartCone(Obj *obj)
         angV->f4 = 12.0f;
         angV->f8 = 15.0f;
     }
-    math_utility(tmat, obj->pos);
-    vis->next = D_801391F0;
-    D_801391F0 = vis;
-    stat_lap_split(D_80117530[obj->type].f28, obj->car, obj->f56, 2);
+    CopyUV(tmat, obj->pos);
+    vis->next = gEnvList;
+    gEnvList = vis;
+    PlayTargetSound(targetInfo[obj->type].f28, obj->car, obj->f56, 2);
 }

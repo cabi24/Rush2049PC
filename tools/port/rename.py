@@ -37,8 +37,9 @@ the same file, so it is reported and left (gen_stubs.py still links it to the re
   JSON, the docs' Markdown): whole identifier tokens (not after . or ->: reached.txt's Tag.field is a member).
 - An address name's address: the tools take the address of a D_/func_XXXXXXXX name from its spelling when no
   table has it (n64syms.address_of, kind_of). For each renamed address name that symbol_addrs.us.txt doesn't define,
-  rename.py adds `new = 0xADDRESS; // type:func|data` there, the kind its old spelling implied, so gen_data.py,
-  gen_stubs.py and synth_rom.py resolve the new name exactly as the old one.
+  rename.py adds `new = 0xADDRESS; // type:func|data renamed` there, the kind its old spelling implied, so
+  gen_data.py, gen_stubs.py and synth_rom.py resolve the new name exactly as the old one (`renamed`: gen_data.py
+  ends no extent by gap at it, as no address name ended one).
 - Aliases: rows that give two names of one address (D_801174B4 and state_word_a in the tables) one new name make one
   symbol: one key in each table, one line in symbol_addrs.us.txt, and in a C file one declaration where the rename
   made two of the same text (the second is dropped); two that differ (s32 against u32) are reported, not picked, and
@@ -1075,8 +1076,10 @@ def apply(plan, texts):
         lines = [] if text.endswith("\n") else [""]
         header = "// Names from the name maps (docs/port/PCONLY.md 3, tools/port/rename.py):"
         if header not in text:
-            lines += ["", header, "// the N64 address and the kind their old name spelled, which the tools read from it."]
-        lines += [f"{row.new} = 0x{addr:08X}; // type:{kind}" for row, addr, kind in plan.symfile_add]
+            lines += ["", header, "// the N64 address and the kind their old name spelled, which the tools read from it. "
+                      "`renamed`: gen_data.py", "// places the datum as it placed the address name (no extent by gap "
+                      "ends at it)."]
+        lines += [f"{row.new} = 0x{addr:08X}; // type:{kind} renamed" for row, addr, kind in plan.symfile_add]
         write_text(p, text + "\n".join(lines) + "\n")
         changed.add(SYMBOL_FILE)
     moved = move_all(plan.root, {o: n for o, (n, row, how) in plan.moves.items() if (plan.root / o).exists()})

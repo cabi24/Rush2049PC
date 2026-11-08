@@ -27,7 +27,7 @@ This page covers the tool that finds them, what was fixed and how, and what is l
   prototype converted it ("callers pass s32"), whether the result is used, and which calls are implicit.
 - **What runs.** From each object's relocations: weak copies never run (every reference binds to the owner), so a
   view only they use is `dead` and their calls don't count. The same graph gives each function's distance from the
-  boot roots (the game's `main`, `game_init`, `game_late_init`, `AudioInitSys`, `LoadWave`, `InitWaves`,
+  boot roots (the game's `main`, `main_thread_entry`, `InitSystem`, `AudioInitSys`, `LoadWave`, `InitWaves`,
   `LoadFrontEndOverlay`), which orders the report.
 
 Classes, worst first. A view takes the worst of its arguments and return:
@@ -108,14 +108,14 @@ N64 typedefs are gone since, and the PC side of each is the code.
 
 | Technique | When | Example |
 |---|---|---|
-| `s32` → `intptr_t`, `u32` → `uintptr_t` | an integer that carries a pointer: parameter, declaration, local, struct field or data symbol. The files' guarded typedefs make it the same type for IDO, so no `#ifdef` | `func_800B4DA4(intptr_t arg0)` |
-| `#ifdef TARGET_PC` declaration, `#else` the original line | the PC type is a real pointer, a float, or another argument list | `arb_rate_set(..., f32 c, ...)` in `ZOID_ResetWindows.c` |
-| a type macro in a definition's header | a definition's parameter needs another class on the PC | `CTT_A1` (`void *` / `f32`) in `camera_target_track` |
-| a function-like call macro after the declarations | the matched call passes registers IDO's IPA chose, not the C argument list | `#define track_render_process() track_render_process(forceUpdate, rumbleOnly)` |
+| `s32` → `intptr_t`, `u32` → `uintptr_t` | an integer that carries a pointer: parameter, declaration, local, struct field or data symbol. The files' guarded typedefs make it the same type for IDO, so no `#ifdef` | `SaveSelectPlayer(intptr_t arg0)` |
+| `#ifdef TARGET_PC` declaration, `#else` the original line | the PC type is a real pointer, a float, or another argument list | `ZOID_InitializeWindow(..., f32 c, ...)` in `ZOID_ResetWindows.c` |
+| a type macro in a definition's header | a definition's parameter needs another class on the PC | `CTT_A1` (`void *` / `f32`) in `AudEmitEffect` |
+| a function-like call macro after the declarations | the matched call passes registers IDO's IPA chose, not the C argument list | `#define PS_PakServer() PS_PakServer(forceUpdate, rumbleOnly)` |
 | `#define name pc_name` before a group's inlined helper | its manifest owner is an empty stub | `pc_func_800E6AE8` |
-| `PC_V0_S32` / `PC_V0_RETURN` | a `void` wrapper whose callers read the `v0` its last call leaves | `save_slot_valid` |
-| a whole PC version of the function | hand-rolled MIPS varargs | `music_tempo_adjust` (as `fcvt_wrapper`) |
-| `ptr64_decls.py SYMBOL` | a data symbol that holds a pointer but is declared `s32` in every user | `D_80110648`, `D_801148CC` |
+| `PC_V0_S32` / `PC_V0_RETURN` | a `void` wrapper whose callers read the `v0` its last call leaves | `InitCarObj` |
+| a whole PC version of the function | hand-rolled MIPS varargs | `TB_Printf` (as `TB_Sprintf`) |
+| `ptr64_decls.py SYMBOL` | a data symbol that holds a pointer but is declared `s32` in every user | `audio_gTitlePane`, `highscore_blit` |
 
 ### 3.2 Empty stubs that took over their group's calls (`stub`)
 
@@ -123,63 +123,63 @@ When umerge inlined a helper into its group, retail keeps a `jr ra` stub at the 
 standalone file for it is `void f(void) {}`. That file is the manifest owner, so on the PC every call from the
 group binds to the empty stub and the work is lost. The bodies the groups write get their own names:
 
-- `func_800E681C`: manual gear selection `func_800E6AE8`.
-- `skid_marks`: `GetSkid`/`ContinueSkid` (`func_800AFB30`, `func_800AFD54`).
-- `camera_scene_manager`: three stunt trackers `func_800C2418/2420/2428`.
-- `entity_helpers`: `func_800BF01C`.
-- `func_800C8918`: the locked heap free `func_800960CC` maps to `audio_effect_process`, the same body under a strong
-  name. `carcolor` and `carcolor/ctx_initsystem`: the heap semaphore helpers `func_80095CF4/CFC` are written in place
-  (`osRecvMesg`/`osSendMesg` on `D_80152770`).
+- `UpdateModelControls`: manual gear selection `ReadShifter`.
+- `skid_marks`: `GetSkid`/`ContinueSkid` (`GetSkid`, `ContinueSkid`).
+- `CheckForStunt`: three stunt trackers `Check2WheelSide/2420/2428`.
+- `entity_helpers`: `ValidateEmitter`.
+- `AudioShutdown`: the locked heap free `DeallocateMemory_stub` maps to `DeallocateMemory`, the same body under a strong
+  name. `carcolor` and `SetupCarColor/ctx_initsystem`: the heap semaphore helpers `heap_lock/CFC` are written in place
+  (`osRecvMesg`/`osSendMesg` on `heap_lock_queue`).
 
 ### 3.3 Float arguments (`class`)
 
-- `camera_target_track`'s second parameter is never read, and every caller passes a pointer there. Under o32 that
+- `AudEmitEffect`'s second parameter is never read, and every caller passes a pointer there. Under o32 that
   sits in a GPR whatever the type, but on the PC an `f32` takes `s0` and moves `volume`, `x` and `y` along by one
-  register. Its PC view is `void *`, and the callers' views and `camera_collision_check`'s pass-through take
+  register. Its PC view is `void *`, and the callers' views and `EmitGameSound`'s pass-through take
   `intptr_t` (this is Agent D's finding).
-- `ZOID_ResetWindows` passed the field of view `D_80154188` (90.0f, declared `s32` in 412 files) as `arb_rate_set`'s
-  first `f32`: front-end window setup. Its PC declarations are the `f32` prototype and an `f32` `D_80154188`.
+- `ZOID_ResetWindows` passed the field of view `HFOV` (90.0f, declared `s32` in 412 files) as `ZOID_InitializeWindow`'s
+  first `f32`: front-end window setup. Its PC declarations are the `f32` prototype and an `f32` `HFOV`.
 
 ### 3.4 Argument lists shaped by IDO's IPA
 
 IDO's interprocedural pass moves the arguments of functions it sees whole. The matched callers then pass dummies,
 or nothing, so that values land in the registers the callee reads; natively every call uses the standard ABI.
 
-- `zlib_deflate`: `audio_reverb_update(address, tag)` reads `a1`/`a2`, so the decomp calls it `(heap, ptr, 0)`.
-- `runtime_a_profile_menu`, `runtime_a_availability_refresh`: `func_80396EE8/F44` take `skip` in `a1` after a dummy
+- `zlib_deflate`: `DeallocateMemoryInternal(address, tag)` reads `a1`/`a2`, so the decomp calls it `(heap, ptr, 0)`.
+- `runtime_a_profile_menu`, `runtime_a_availability_refresh`: `playerBeingDeleted/F44` take `skip` in `a1` after a dummy
   (`move a1,s2` at the call); the group calls pass `skip` alone.
-- `menu_save_options`: `SaveServer` calls `track_render_process` before it touches `a0`/`a1`, so it forwards its
+- `SaveInit`: `SaveServer` calls `PS_PakServer` before it touches `a0`/`a1`, so it forwards its
   own `forceUpdate`, `rumbleOnly`; the decomp's call passes nothing.
 
 The `extra` class was read for the same pattern (a dummy first argument of the same type). All 12 views there pass
-the real value first or an ignored extra (`func_80018E2C(id, id)`, `osGetThreadId(0, pages)`).
+the real value first or an ignored extra (`sound_seq_stop(id, id)`, `osGetThreadId(0, pages)`).
 
 ### 3.5 Pointers through 32-bit parameters, results and storage (`width`, `return`)
 
-- Definitions typed `s32` where every caller passes a pointer, now `intptr_t`: `func_800B4DA4` (forwarding to
-  `reverb_setup`, `SavePlayerOption`), `func_800B27E4`, `task_complete_signal`, `engine_rpm_calc`,
-  `camera_update_a`, `save_settings` (two strings to `control_settings`), `func_800E95DC`, `func_800E9C70`,
-  `func_800EA2DC` and the `func_800E8D50` views they call, `func_800F42C8` → `tournament_trophy_award`.
-- `func_800B7438` stores function pointers in its callback table `D_801551E8`, which `input_init_flag_get` walks up
-  to `&D_80155210`, the next N64 variable. The table is `intptr_t[10]`, and in those two files its end is
-  `&D_801551E8[10]` on the PC. `D_80155210` itself stays a variable for its other users.
-- InitPane (`ambient_sound_set`) stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
+- Definitions typed `s32` where every caller passes a pointer, now `intptr_t`: `SaveSelectPlayer` (forwarding to
+  `GetPlayerOption`, `SavePlayerOption`), `InitCarVisuals`, `sample_dma_thread_entry`, `MBOX_NewObjectCam`,
+  `WalkBSTInternal`, `PS_ErrorFunc` (two strings to `ShowPakError`), `steady_move_cam`, `fix_camera_in_space`,
+  `UpdateCarObj` and the `point_at_car` views they call, `GetCircuitCode` → `GetPasswordString`.
+- `HAL_InstallOncePerFrameFunc` stores function pointers in its callback table `gOPPFuncs`, which `HAL_CallOncePerFrameFuncs` walks up
+  to `&yf`, the next N64 variable. The table is `intptr_t[10]`, and in those two files its end is
+  `&gOPPFuncs[10]` on the PC. `yf` itself stays a variable for its other users.
+- InitPane (`InitPane`) stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
   (`PadConfig`) gets the blit's two pointer-sized fields (`Info`, `AnimFunc`), so position, size and the animation
-  function land where `Blit` has them. The title panes it returns (`D_80110648`, `D_80116DA4`) are `intptr_t` in
-  all their users, and so are `crowd_cheer_play`'s and its own views in `gr3_c.c`.
-- Blits from `sound_control` (NewMultiBlit) kept in `s32`: `D_801148CC`, `D_80114624`, `save_settings`' `snd`,
-  `player_state_clear`'s `handle`; `sound_stop`'s parameter is `intptr_t` in the views that pass them.
-- MBOX wrappers: `save_slot_valid`, `engine_rpm_calc` and `sign_extend_call` end in a call to `func_8008E26C`
+  function land where `Blit` has them. The title panes it returns (`audio_gTitlePane`, `options_gTitlePane`) are `intptr_t` in
+  all their users, and so are `ChangePaneSize`'s and its own views in `gr3_c.c`.
+- Blits from `NewMultiBlit` (NewMultiBlit) kept in `s32`: `highscore_blit`, `backBlit`, `PS_ErrorFunc`' `snd`,
+  `RemoveMultiplayerHUD`'s `handle`; `RemoveBlit`'s parameter is `intptr_t` in the views that pass them.
+- MBOX wrappers: `InitCarObj`, `MBOX_NewObjectCam` and `MBOX_NewObject` end in a call to `ZOID_AddObject`
   (MBOX_NewObject), whose result stays in `v0` through their `void` return, and every caller reads it. On the PC
   they return it.
 - Results read as `s32` and then used as pointers: `AllocateHandleHeap` in `DecodeGhost` (sign-extended before
-  `(void **)`), `func_800A7D6C` in `camera_reset` (a game BSS address), `func_80090284`, `input_deadzone_apply`.
+  `(void **)`), `ZOID_NewMatrix` in `SkyInit` (a game BSS address), `GrabEnvEntry`, `ShotToWorldCollision`.
   `MBGetFromWad` in `LoadTrack` returns a WAD entry's 32-bit window address, read as `u32`.
-- Arguments narrowed by a view: `memcpy` in `listener_position_set`, `func_8001536C` in LoadWave's
-  `car_shadow_render`, `func_800F0674`, `CompressGhost`, the voice `handle` in `audio_voice_set`, `blast`'s view of
-  `camera_collision_check`. `memset` in `AllocateHandleHeap` was unprototyped; its address is an
+- Arguments narrowed by a view: `memcpy` in `ResetCollisionObject`, `sound_push_group` in LoadWave's
+  `AudioInitSys`, `fixword`, `CompressGhost`, the voice `handle` in `AnimateSkids`, `blast`'s view of
+  `EmitGameSound`. `memset` in `AllocateHandleHeap` was unprototyped; its address is an
   `enum n64p_u32` window address, so the PC parameter is `uintptr_t`.
-- `music_tempo_adjust` (printf at x, y) gets the host `vsprintf`, as `fcvt_wrapper` did: the N64 version walks its
+- `TB_Printf` (printf at x, y) gets the host `vsprintf`, as `TB_Sprintf` did: the N64 version walks its
   stack arguments, and its format is a pointer.
 
 ### 3.6 Stack slots on Windows x64 (`stack`)
@@ -196,11 +196,11 @@ The first run found 20 views of three functions, all passing a constant 0:
 
 | Function | Argument | Views | Fix |
 |---|---|---|---|
-| `audio_frame_sync` (LoadWave) | 5: the heap, `void *` | `car_shadow_render.c`, `loadtrack.c`, `slots.c` (`resource_slot_clear`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
-| `ambient_sound_set` (InitPane) | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `func_800B3B4C` | `intptr_t` on the PC |
-| `input_process_controller` | 6: `f32 *` | the weak copy in `entity_update/group.c` | reviewed: its only calls are the matching stand-ins `__standin_input_process_controller_a/b`, which nothing calls |
+| `LoadWave` (LoadWave) | 5: the heap, `void *` | `AudioInitSys.c`, `loadtrack.c`, `slots.c` (`LockAndLoad`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
+| `InitPane` (InitPane) | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `InitPane` | `intptr_t` on the PC |
+| `CylinderInSurf` | 6: `f32 *` | the weak copy in `stree_tiresurf/group.c` | reviewed: its only calls are the matching stand-ins `__standin_input_process_controller_a/b`, which nothing calls |
 
-`resource_slot_clear`'s `audio_frame_sync(id, 0, 0, 0, 0)` is what every synthetic boot reached first on Windows: LoadWave
+`LockAndLoad`'s `LoadWave(id, 0, 0, 0, 0)` is what every synthetic boot reached first on Windows: LoadWave
 got the heap 0x00007FF6_00000000 and faulted reading its first block ([WINDOWS.md](WINDOWS.md) 4). The views use
 `intptr_t` where the file has its N64 typedef and an `#ifdef TARGET_PC` declaration elsewhere; `n64_neutral.py`
 passes them. Now `--abi win64` finds no harmful view either. Calls through function pointers are not checked
@@ -213,31 +213,31 @@ table and reported as `reviewed`:
 
 | Functions | Why |
 |---|---|
-| `PurgeableMemory`, `func_80095EF4`, `func_80095F8C`, `audio_reverb_update`, `audio_effect_process`, `menu_item_select`, `audio_buffer_sync`; `AllocateMemoryHeap`, `sound_play_menu` in `initgfx.c`; `format_string_parse`, `inflate_entry_alt` in `DecodeGhost` | heap block addresses are RDRAM-window addresses below 4 GB (POINTERS.md 4.1) |
+| `PurgeableMemory`, `FindChunk`, `FindHeap`, `DeallocateMemoryInternal`, `DeallocateMemory`, `ReallocateMemory`, `GetPtrSize`; `AllocateMemoryHeap`, `AllocateMemoryHeapHigh` in `initgfx.c`; `CalcChecksumInternal`, `unzipdata` in `DecodeGhost` | heap block addresses are RDRAM-window addresses below 4 GB (POINTERS.md 4.1) |
 | `inflate_decompress`, `lzss_decompress` | the source is a ROM offset from the file table |
-| `entity_cull_check` in `waves.c`; `state_utility` in `func_803AE51C.c` | WAD and text-bank records hold 32-bit window addresses (4.2) |
-| `func_800BD080`, `func_800BDA24` | a word of a display list in N64 form (texture animation, POINTERS.md 2) |
-| `audio_channel_priority`, `func_800956BC` | the pointer is compared with 32-bit slots that hold the same truncation (4.4) |
-| `string_copy_format`, `sign_extend_call` in `runtime_a_availability_refresh` | a model index kept in a `void *` variable |
-| `func_80014D08` | empty in retail: the arguments are never read |
-| `func_800C1B60` | old-style definition with a third parameter no caller passes, written before it is read |
+| `relocate_texture_loads` in `waves.c`; `TB_DrawText` in `titlescr_animText.c` | WAD and text-bank records hold 32-bit window addresses (4.2) |
+| `displaylist_set_texture_image`, `displaylist_get_texture_image` | a word of a display list in N64 form (texture animation, POINTERS.md 2) |
+| `RemovePlayerScores`, `FindChangeCmd` | the pointer is compared with 32-bit slots that hold the same truncation (4.4) |
+| `MBOX_FindObject_WORK`, `MBOX_NewObject` in `runtime_a_availability_refresh` | a model index kept in a `void *` variable |
+| `sound_hw_remove_sample` | empty in retail: the arguments are never read |
+| `AddStunt` | old-style definition with a third parameter no caller passes, written before it is read |
 
 ## 5. Data declarations (DATA.md's conflict list)
 
 `build/pc/pc-data/data_layout.txt` lists 107 symbols whose files disagree on where pointers are (397 pairs) and 85 on
 element widths (190 pairs). Only two were still an integer table or scalar against a pointer:
 
-- `D_8013C300` (`Camera *[30]`): `func_800BB7F4.c`'s tentative definition `s32[30]` cleared 120 of its 240 bytes on
+- `CollisionTargetPtrs` (`Camera *[30]`): `InitCollisionTargetPtrs.c`'s tentative definition `s32[30]` cleared 120 of its 240 bytes on
   the PC (the link's "size changed" warning). Now `intptr_t[30]`.
-- `D_801406B8` (`Lights2 *` vs `s32`): `nonmatching/game/display_list_flush.c`, not mine. That file should declare it
+- `gLights` (`Lights2 *` vs `s32`): `nonmatching/game/PrePlay.c`, not mine. That file should declare it
   `intptr_t`, or the pointer type.
 
 Symbols that hold pointers but were `s32` in every user never appear in that list, because the views agree. gen_data
 then gives them 4 bytes in an arena. The ones these fixes reach are now pointer-sized, checked in
-`data_symbols.txt`: `D_80110648`, `D_80116DA4`, `D_801148CC` (own, 8 B), `D_801551E8` (own, 80 B), and
-`D_80117480`, the six model names, which was `int[6]` and is now `char *[6]`, so the loader turns its N64 string
-pointers into host pointers. `D_80154188` is `f32` in the one file that passes it as a float. `D_80114624` and
-`D_80140800` were already pointer storage; their `s32` users are `intptr_t` now.
+`data_symbols.txt`: `audio_gTitlePane`, `options_gTitlePane`, `highscore_blit` (own, 8 B), `gOPPFuncs` (own, 80 B), and
+`FireTexNames`, the six model names, which was `int[6]` and is now `char *[6]`, so the loader turns its N64 string
+pointers into host pointers. `HFOV` is `f32` in the one file that passes it as a float. `backBlit` and
+`gGhostToSave` were already pointer storage; their `s32` users are `intptr_t` now.
 
 The other pointer conflicts are struct views that disagree: `tCarData` against `Car`/`Player`/`GameCar`
 and others (92 pairs), `tModelData` against `Model`/`Car` (62; both now one layout, [CARS.md](CARS.md)), `ObjInstance`
@@ -252,18 +252,18 @@ Harmful views in files I may not edit:
 
 | File | Function | What to do |
 |---|---|---|
-| `groups/heap_release/func_80096130.c`, `wheel_params_set.c` | `func_800960CC` (stub) | `#define func_800960CC audio_effect_process` under `TARGET_PC`, as `func_800C8918.c` does |
-| `src/rom/lib_11640.c` | `bzero(void *, int)` | sizes in variables reach the host's `size_t`: declare it with `__SIZE_TYPE__` on the PC |
-| `src/rom/lib_11640.c`, `lib_11050.c` | `func_8002C5E0` | **`port/ultra/misc.c` defines it `void`**, but it returns `start` advanced in 16-byte cache lines to at least `end` (`asm/us/boot_data/func_8002C5E0.s`), and `func_80010450` keeps that as its audio DMA cursor: `uint32_t func_8002C5E0(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }` |
-| `src/ovl_a/groups/runtime_a_c93c_closure/group.c` | `audio_frame_sync`, `audio_dma_sync`, `func_800960D4`, `sign_extend_call` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
-| `nonmatching/game/display_list_flush.c` | `D_801406B8` | section 5 |
+| `groups/heap_release/UnloadWaveInstance.c`, `audio_sfx_shutdown.c` | `DeallocateMemory_stub` (stub) | `#define DeallocateMemory_stub DeallocateMemory` under `TARGET_PC`, as `AudioShutdown.c` does |
+| `src/rom/sound/hardware.c` | `bzero(void *, int)` | sizes in variables reach the host's `size_t`: declare it with `__SIZE_TYPE__` on the PC |
+| `src/rom/sound/hardware.c`, `dma_queue.c` | `dcache_create_dirty_lines` | **`port/ultra/misc.c` defines it `void`**, but it returns `start` advanced in 16-byte cache lines to at least `end` (`asm/us/boot_data/func_8002C5E0.s`), and `sound_dma_flush_requests` keeps that as its audio DMA cursor: `uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }` |
+| `src/ovl_a/groups/trackscr/trackscr.c` | `LoadWave`, `audio_dma_sync`, `DeallocateMemory`, `MBOX_NewObject` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
+| `nonmatching/game/PrePlay.c` | `gLights` | section 5 |
 
 Harmful views that needed a typed PC version or struct unification, not a prototype change, are done
-(POINTERS.md 9): `func_8008D870`, `func_800A79B8`, `MBOX_FindPalette_WORK` and `func_800B24EC` (the scene nodes
-`D_8012E700`), `sound_stop` in `RemovePane`, `sound_handles_clear` and `UpdateActiveObjects` (panes and blits),
-`struct_fields_init` (the StatLL lists) and `PS_WriteFile` in `menu_confirm_dialog`. The two that were left in race
-code are done too: `func_800E2D18` in `func_800E2F00` (the torque curve, [CARS.md](CARS.md) 4) and
-`sound_position_set` in `func_8010E828` (a target's state, a window address, passed zero-extended: POINTERS.md 10.2).
+(POINTERS.md 9): `ZOID_SetTexture`, `ZOID_SetObjLights`, `MBOX_FindPalette_WORK` and `MBOX_FindTexture_WORK` (the scene nodes
+`ObjInstanceList`), `RemoveBlit` in `RemovePane`, `RemovePanes` and `DrawBlits` (panes and blits),
+`InitStatLL` (the StatLL lists) and `PS_WriteFile` in `ClearPlayerRecords`. The two that were left in race
+code are done too: `enginetorque` in `engine` (the torque curve, [CARS.md](CARS.md) 4) and
+`RotateUV` in `AnimateKnockdown` (a target's state, a window address, passed zero-extended: POINTERS.md 10.2).
 No harmful view is left.
 
 Limits of the check: calls through function pointers aren't seen. `narrow` is benign for the ABI, but AAPCS64

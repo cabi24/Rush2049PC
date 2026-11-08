@@ -1,0 +1,86 @@
+/*
+ * heap_total_free (0x800BAF98; the name is a historical label): total free
+ * bytes in a game heap, taken under the heap lock (message queue heap_lock_queue).
+ * A null heap means the default heap gMainHeap.
+ *
+ * heap_total_free_unlocked (the caller-less `jr ra; nop` stub at 0x800BAF90) is the
+ * deleted worker: one call site, so umerge inlines it and leaves the stub.
+ * heap_or_default is the same two-return deleted static as in
+ * src/blob/groups/memsys (its v0 result temp is the retail `move v0,v1`).
+ *
+ * Shaping facts, each checked by removing it:
+ *  - the worker must be DEFINED AFTER its caller in the file. as1 pulls the
+ *    osJamMesg argument set-up (la a0; move a1; move a2) up over the inlined
+ *    loop, and places `move a2,zero` before the inlined `sum = 0` only when
+ *    the call's source line is lower than the worker's lines. With the worker
+ *    defined first the two moves swap (2 words).
+ *  - heap_or_default as a function (ternary / if-assignment: 18-29 words).
+ *  - `block = ...; sum = 0;` in that order.
+ */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef signed short s16;
+typedef unsigned short u16;
+typedef signed int s32;
+typedef unsigned int u32;
+
+enum n64p_Block { n64p_Block_ };
+enum n64p_Heap { n64p_Heap_ };
+enum n64p_void { n64p_void_ };
+typedef struct Block {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Block next;
+    /* 0x08 */ enum n64p_Block prev;
+    /* 0x0C */ u32 size;
+    /* 0x10 */ enum n64p_void owner;
+    /* 0x14 */ s8 used;
+    /* 0x15 */ u8 tag;
+    /* 0x16 */ u8 pad16[10];
+} Block; /* 0x20 */
+
+typedef struct Heap {
+    /* 0x00 */ u32 magic;
+    /* 0x04 */ enum n64p_Heap next;
+    /* 0x08 */ enum n64p_Block first;
+} Heap;
+/* N64-address fields (tools/port/ptr64_u32fields.py) */
+#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
+#define N64W(x) PC_N64W(x)
+
+typedef struct OSMesgQueue OSMesgQueue;
+
+extern Heap *gMainHeap;
+extern OSMesgQueue heap_lock_queue;
+
+s32 osRecvMesg(OSMesgQueue *, void **, s32);
+s32 osSendMesg(OSMesgQueue *, void *, s32);
+
+u32 heap_total_free_unlocked(Heap *heap);
+
+Heap *ConvertHeap(Heap *heap);
+
+u32 heap_total_free(Heap *heap)
+{
+    u32 sum;
+
+    osRecvMesg(&heap_lock_queue, 0, 1);
+    sum = heap_total_free_unlocked(heap);
+    osSendMesg(&heap_lock_queue, 0, 0);
+    return sum;
+}
+
+u32 heap_total_free_unlocked(Heap *heap)
+{
+    u32 sum;
+    Block *block;
+
+    block = N64P(ConvertHeap(heap)->first);
+    sum = 0;
+    while (block != 0) {
+        if (block->used == 0) {
+            sum += block->size;
+        }
+        block = N64P(block->next);
+    }
+    return sum;
+}

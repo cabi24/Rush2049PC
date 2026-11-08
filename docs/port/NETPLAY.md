@@ -160,16 +160,16 @@ uses, paced to real time.**
 
 **The random numbers.**
 
-- The game uses libc's LCG on one seed, `D_8011735C` (`x = x * 1103515245 + 12345`). It is inlined in many places:
-  `src/blob/world_object_destroy.c:48`, `src/blob/hud_render.c:168`, `src/blob/func_800EB90C.c:156`,
-  `src/blob/entity_update_callback.c:104`, `src/blob/groups/blast/blast.c:135`,
-  `src/blob/groups/audio_options_menu/func_800D6160.c:33-34`.
+- The game uses libc's LCG on one seed, `rand_seed` (`x = x * 1103515245 + 12345`). It is inlined in many places:
+  `src/blob/init_camera_on_track.c:48`, `src/blob/UpdateSmoke.c:168`, `src/blob/CheckCameraView.c:156`,
+  `src/blob/AnimateNewBlast.c:104`, `src/blob/groups/blast/blast.c:135`,
+  `src/blob/groups/audioscr_update/func_800D6160.c:33-34`.
 - Nothing seeds it from time: there is no assignment other than the LCG step, and no `srand`. Its start value is ROM
   data.
 - Both threads draw from it. The game thread draws for its effects (24.5 million draws in the 106 coverage runs). The
   model thread draws 5,059 times: a battle resurrection's offset (`resurrect.c:505`) and sounds (FRAMERATE.md 7.4).
-- Other draws decide game state: the circuit's first grid is random (`update_game/init_state_continue.c:105-116`,
-  MORECARS.md 1.2), and so is a race's song when the music option is random (`func_800D6160.c:26-43`, the table entry -1).
+- Other draws decide game state: the circuit's first grid is random (`update_game/CalcPolePositions.c:105-116`,
+  MORECARS.md 1.2), and so is a race's song when the music option is random (`StartGameMusicInternal.c:26-43`, the table entry -1).
 - The order of draws is fixed by the baton on the virtual clock, so the stream is the same on both PCs only if both
   run exactly the same game code with the same inputs. One extra draw on one PC (another window, another setting)
   shifts every later number. This is the constraint behind section 1.4.
@@ -177,9 +177,9 @@ uses, paced to real time.**
 **Other sources of time.**
 
 - In the game C, `osGetTime` and `osGetCount` appear only in libultra:
-  - the scheduler's profiling (`src/rom/lib_1050_sdk.c:189, 197, 421`);
-  - `osContInit`'s wait until 0.5 s after boot (`src/rom/lib_a050.c:26`);
-  - a repaired pak's ID (`src/rom/lib_f700.c:54`).
+  - the scheduler's profiling (`src/rom/scheduler.c:189, 197, 421`);
+  - `osContInit`'s wait until 0.5 s after boot (`src/rom/libultra/controller.c:26`);
+  - a repaired pak's ID (`src/rom/libultra/contpfs.c:54`).
 - On the virtual clock these read virtual time, so they are deterministic. A new pak's ID is a constant
   (`port/ultra/pakfile.c:69, 94-105`).
 
@@ -189,7 +189,7 @@ no game state, except for one thing: with a real device, the AI's queue level is
 **Frame rates.**
 
 - `game.frame_rate` is part of the simulation:
-  - `PC_SWAP_RETRACES` (`src/rom/lib_1050_sdk.c:93, 263, 340, 362`);
+  - `PC_SWAP_RETRACES` (`src/rom/scheduler.c:93, 263, 340, 362`);
   - 98 per-frame sites (FRAMERATE.md 7.3);
   - with drones, the physics differ between 30 and 60 (FRAMERATE.md 7.4-7.5).
 - It must match on both PCs, and it does so through its latch (`pc_fps60`, FRAMERATE.md 7.1).
@@ -199,7 +199,7 @@ no game state, except for one thing: with a real device, the AI's queue level is
 - **A risk at 60:** `pc_fps_filter` uses the host's `powf` (`port/config/game_fps.c:134-139`). glibc's, msvcrt's and
   the UCRT's `powf` are not guaranteed to round alike. At 60 on the virtual clock every frame is one retrace, so the
   scale is always 0.5, and `sqrtf(e)` would give the same value on every host. The follow camera already does this
-  (`PC_CAM_ELASTIC`, `src/blob/func_800E8D50.c:43`, `__builtin_sqrtf`). `windows-same` runs the paths at original, so
+  (`PC_CAM_ELASTIC`, `src/blob/point_at_car.c:43`, `__builtin_sqrtf`). `windows-same` runs the paths at original, so
   the 60 case has no cross-OS proof yet. (Done: LOCKSTEP.md 9 replaced it; section 17.1 proves 60 in sessions, and
   CI's `windows-replay` replays Linux's recordings at 60 on Windows.)
 
@@ -208,8 +208,8 @@ no game state, except for one thing: with a real device, the AI's queue level is
 - It writes no RDRAM. "Offscreen color images get their own target. Nothing reads one back as a texture yet" (GFX.md
   "Backend, frame and settings").
 - Culling with G_CULLDL is the renderer's own decision about what to draw. It doesn't change the game.
-- **One exception goes the other way.** One render value flows into the game C. `car_lights_render` places the coin
-  icons, and the battle and stunt HUD's models, at `HUD_X(x) = x + pc_gfx_hud_dx(x)` (`src/blob/car_lights_render.c:47-62`).
+- **One exception goes the other way.** One render value flows into the game C. `ZOID_WindowTo3D` places the coin
+  icons, and the battle and stunt HUD's models, at `HUD_X(x) = x + pc_gfx_hud_dx(x)` (`src/blob/ZOID_WindowTo3D.c:47-62`).
   That value comes from `video.widescreen`, `video.hud` and the frame width that the renderer publishes at each
   color image (GFX.md "The HUD at the screen's edges"). Those models are only drawn. But their places are in game
   memory, they differ between PCs whose screens differ, and they change when a window is resized. A session must
@@ -234,12 +234,12 @@ no game state, except for one thing: with a real device, the AI's queue level is
   3. sends the VI event;
   4. presents a swapped frame.
 - The scheduler swaps a frame only two retraces after the last swap. `__scHandleRetrace`, `__scTaskReady` and
-  `__scExecTask` test `retraceCount - __osScSwapCount >= PC_SWAP_RETRACES` (`lib_1050_sdk.c:263, 340, 362`).
+  `__scExecTask` test `retraceCount - __osScSwapCount >= PC_SWAP_RETRACES` (`scheduler.c:263, 340, 362`).
   FRAMERATE.md 1 says how the main thread starts a frame only at a retrace message.
 - The model thread runs once per retrace. ControllerUpdate, then model_iteration
   (`src/blob/groups/modelthread/modelthread.c:63`) steps the cars by ticks × 1/60.
-- Everything else is per frame and scaled by whole retraces. `viUpdateTime` sets `gViFrameDelta` to the retraces since
-  the last frame (`src/rom/lib_1050.c:74`).
+- Everything else is per frame and scaled by whole retraces. `UpdateFrameTimer` sets `gLastFrameCount` to the retraces since
+  the last frame (`src/rom/timer.c:74`).
 - In real time, a late retrace is caught up and a stall drops retraces (`loop.c:688-716`). With vsync the retrace grid
   can be moved once (FRAMERATE.md 2). With `--fast` none of this happens: the clock jumps to the next deadline when
   the system is idle.
@@ -248,7 +248,7 @@ no game state, except for one thing: with a real device, the AI's queue level is
 
 - The per-frame logic steps by the frame's retraces, and some of it with constants tuned to a frame of two. The
   follow camera's elasticity is multiplied by 0.75, 0.6 or 0.5 for frames of 3, 4 or 5 retraces
-  (`src/blob/func_800E8D50.c:56`, FRAMERATE.md 1).
+  (`src/blob/point_at_car.c:56`, FRAMERATE.md 1).
 - These decisions are made once a frame, so a longer frame makes them at other retraces (FRAMERATE.md 7.4):
   - DoDrones (the drones' boost and brake, each human's catch-up);
   - the checkpoints, and where a car is resurrected;
@@ -301,10 +301,10 @@ no game state, except for one thing: with a real device, the AI's queue level is
 - The game reads all four controllers in the model thread, once a retrace. ControllerUpdate
   (`src/blob/ControllerUpdate.c:73-127`, called from `modelthread.c:63`):
   - runs `osContStartReadData`, then `osContGetReadData`, which runs the PIF commands in `si.c`;
-  - maps the buttons through `D_8011FAD4` into `gControllerData[i]`;
+  - maps the buttons through `n64_button_map` into `gControllerData[i]`;
   - every 30th call queries status and accessories (`osContStartQuery`, lines 75-83), which is how the game sees a
     controller or pak come and go.
-- The menus, the cars' controls (`D_8013FED0`, FRAMERATE.md 7.4) and the ghosts all take their input from that read.
+- The menus, the cars' controls (`gRealLevels`, FRAMERATE.md 7.4) and the ghosts all take their input from that read.
 
 **Where to inject remote input.** Replace `pads[]` between `pc_input_poll` and `pc_si_set_pads`
 (`loop.c:640-641`), at the moment every N64 thread waits. The pads then hold the confirmed input of both players for
@@ -338,10 +338,10 @@ earlier: nothing reads the SI between retraces except through the same latched p
 
 **How the game sets them up.**
 
-- PrePlay sets `gNumWindows = gameplay_mode == 2 ? 1 : active_player_count`
-  (`nonmatching/game/display_list_flush.c:373`) and calls `wheel_render_full(gNumWindows)`.
-- `wheel_render_full` (`src/blob/wheel_render_full.c:50-90`) gives two players two panes, each 3/4 of the width and
-  half the height (240 × 110), at x = 2, top and bottom, with the unscaled field of view (`D_80154188`, 90). A 78-pixel
+- PrePlay sets `gNumWindows = gRace == 2 ? 1 : gNumPlayers`
+  (`nonmatching/game/PrePlay.c:373`) and calls `ZOID_SplitMenuScreen(gNumWindows)`.
+- `ZOID_SplitMenuScreen` (`src/blob/ZOID_SplitMenuScreen.c:50-90`) gives two players two panes, each 3/4 of the width and
+  half the height (240 × 110), at x = 2, top and bottom, with the unscaled field of view (`HFOV`, 90). A 78-pixel
   panel is left at the right (GFX.md "Widescreen", the table of views).
 - The synthetic paths' expect lines record this: `players 1, windows 1, cars 1` for `solo`, and
   `players 2, windows 2, cars 6` for `race2p` (`tools/port/synth/race2p.press:4`).
@@ -350,17 +350,17 @@ earlier: nothing reads the SI between retraces except through the same latched p
 **The game's logic is per window, not only its drawing.**
 
 - Per window (MORECARS.md 2.4):
-  - cameras (`gCamera`, `D_801526A8`, `D_801526E0` ... with the follow camera's per-frame filter);
-  - the HUD (`D_80142740` ..., `gRankedPlayer`);
-  - the effects' emitters (`src/blob/Effects_UpdateEmitters.c:3819`, a loop over `gNumWindows`), and another such
-    loop at `src/blob/func_800B90F8.c:3806`.
+  - cameras (`gCamera`, `cur_acc`, `rear_y` ... with the follow camera's per-frame filter);
+  - the HUD (`gCheckPtTimeout` ..., `gRankedPlayer`);
+  - the effects' emitters (`src/blob/UpdateCameras.c:3819`, a loop over `gNumWindows`), and another such
+    loop at `src/blob/SkyClear.c:3806`.
 - Per view:
-  - the scene walk (`func_8009F058(i, &gCamera[i])` for each window, `src/blob/groups/particle_knot/group.c:1613-1614`);
+  - the scene walk (`zoid_draw_window(i, &gCamera[i])` for each window, `src/blob/groups/zoid_draw/group.c:1613-1614`);
   - the per-view hide mask and the split-screen LOD cuts (DETAIL.md 1.2, 2: level objects with metadata 0x100 get no
     scene node with 2-4 players);
-  - the radar and the battle arrows per viewer (`src/blob/func_80108F40.c:125, 160`;
+  - the radar and the battle arrows per viewer (`src/blob/animRadarBlip.c:125, 160`;
     `animate_arrow/group.c:156,174`);
-  - the sound listeners (`listener_position_set`).
+  - the sound listeners (`ResetCollisionObject`).
 - The effects draw from the shared RNG every frame (1.1). So a PC that runs one window where the other runs two
   draws a different number of random numbers, and its stream diverges. That changes:
   - battle resurrections (the model thread's draw);
@@ -393,7 +393,7 @@ earlier: nothing reads the SI between retraces except through the same latched p
   would change the audio manager, which is game state.
 
 **Rejected: one window per PC, with the other car remote-controlled.** The game binds human players to windows
-(`gNumWindows = active_player_count`, and per-window arrays indexed by the player's slot). There are two ways to do
+(`gNumWindows = gNumPlayers`, and per-window arrays indexed by the player's slot). There are two ways to do
 it, and both fail:
 
 - A remote human without a window is a game change across the HUD, cameras and sound. The two PCs would run
@@ -433,11 +433,11 @@ ini):
 | The build's commit | game code. Different compilers are fine on synthetic paths (WINDOWS.md 12); require the same commit |
 | `game.frame_rate` | the scheduler and 98 per-frame sites (1.1) |
 | `game.cars` | the roster and the drones (MORECARS.md 7.1, latched at a race's start) |
-| `game.memory`, `game.expansion_pak` | the heap's size and the Expansion Pak flag the game reads (`audio_heap/group.c:308-316`, MEMORY.md 1), and so the sixth track and extra waves |
+| `game.memory`, `game.expansion_pak` | the heap's size and the Expansion Pak flag the game reads (`memsys/group.c:308-316`, MEMORY.md 1), and so the sixth track and extra waves |
 | `game.mods`, `mods_dir` contents, `mods_order` | the files the game loads. Mods become a region of the cartridge at `PC_ROM_MODS_BASE` plus a changed file table (MODS.md 6, `pc_mods_install`), so hash the cartridge as the game reads it (the ROM, the patched table and the mods region) rather than the folder. Never send the files |
 | `game.pc_setup`, `game.ghost_prompt` | game-side menu changes (FRONTEND.md "PC SETUP", SAVES.md 7.1) |
 | `audio.voices`, `audio.engines` | the game's sound manager pools (AUDIO.md 10) |
-| `video.draw_distance`, `video.detail`, `video.fog` | the game C reads them: `detail = high` makes scene nodes for level objects with 2-4 players (DETAIL.md 2, `level_objects/group.c:490`), and the draw distance changes the scene walk. They could be freed later if hashes show no effect |
+| `video.draw_distance`, `video.detail`, `video.fog` | the game C reads them: `detail = high` makes scene nodes for level objects with 2-4 players (DETAIL.md 2, `targets/group.c:490`), and the draw distance changes the scene walk. They could be freed later if hashes show no effect |
 | The accessory on each port, and each pak image | read by the game at boot and at hot swaps (ULTRA.md 3) |
 | The connected ports | the main menu's player count, ControllerUpdate's status (1.3) |
 | The input delay D, and the start time | the lockstep itself |
@@ -545,14 +545,14 @@ How it feels, as rules of thumb to measure in phase 3:
   (`snapshot()`, `loop.c:612`).
 - Every retrace, a curated set (a few KiB):
   - the model records `pc_models`, the car records `pc_cars`, the roster `pc_links`;
-  - the seed `D_8011735C`;
-  - `state_word_a` and `state_word_b`;
-  - the model tick `D_80143FF4` and the race time `D_801543CC`;
+  - the seed `rand_seed`;
+  - `gGameState` and `gNewGameState`;
+  - the model tick `gModelIteration` and the race time `gModelTime`;
   - `gControllerData`, `gCamera`, the places.
 - Once a second, the whole window, without the words that hold host pointers. Experiment E6 found them: with ASLR
   on, two processes' 8 MiB windows differ only in 81 words. 80 are the audio manager's effect tags' `list` pointer
-  to `D_80143FF8` (`audio_effect_setup_b132.c:170`). One is `D_80156BCC`, the low half of a display-list pointer
-  (`world_collision_response.c:143`). These also differ between Windows and Linux, whose image layouts differ.
+  to `gFreeFxTags` (`audio_effect_setup_b132.c:170`). One is `last_frame_text_dl_end`, the low half of a display-list pointer
+  (`EndGraphics.c:143`). These also differ between Windows and Linux, whose image layouts differ.
   Either leave out a list of such words, or replace each value that points into the executable by its offset there.
 - Each PC sends its hashes. The first mismatch ends the session (or warns, in a debug mode). Each PC writes a desync
   report: the retrace, the hash of each region, a dump of the curated regions, and the input log so far. The session
@@ -672,7 +672,7 @@ floats, with its lap and place. The experiments' scripts and logs aren't in the 
 | E1 | Do two runs with the same scripted inputs give identical state? | `--fast`, twice | **Identical.** 2,763 physics lines (every retrace, 46.0 s of game time), not one differs; every state change at the same retrace (the race at vi 1563). Each run took 1.7 s of wall time: about 27 times real time on the Pi on this light cartridge |
 | E4 | Does a slow host change the game's course? | `--fast` with `RUSH_SIM_GFX_MS=40` (each graphics task holds the RDP 40 ms of N64 time, so every frame takes 3 retraces or more) | **Yes.** The states come later (PrePlay at vi 1414 against 1403, the race at 1579 against 1563). Aligned by model tick, the cars first differ at tick -57, in the countdown: car 0's position in the last bits, then 486 of 1,353 ticks differ. The synthetic cars are put back on the same course every few seconds, so they meet again. This is FRAMERATE.md 7.4's per-frame decisions (DoDrones) taken at other retraces |
 | E5 | What changes with `game.frame_rate = 60`? | `--fast --set game.frame_rate=60` | The front end runs a retrace or two sooner (the race at vi 1561). By model tick the cars first differ at tick -58 and 599 of 752 ticks differ, as FRAMERATE.md 7.4-7.5 found. So the frame rate is part of the simulation and must match |
-| E6 | Can the whole RDRAM window be hashed across processes? | gdb stops each run at `pc_si_finish` after `--frames 1000` (vi 2027, in the race), dumps 0x80000000-0x80800000. Two pairs with ASLR off, one pair with ASLR on | ASLR off: **the two 8 MiB windows are identical, byte for byte** (both pairs). ASLR on: 243 bytes in 82 words differ. 80 are the same host pointer in heap records 0x58 apart from 0x801CBD10: the audio manager's effect tags, whose `list` points at `D_80143FF8` in host storage (`audio_effect_setup_b132.c:170`; the address resolved to `D_80143FF8` in the executable). One is `D_80156BCC`, the low half of a display-list pointer (`world_collision_response.c:143`). One, `D_80151AE0` (retraces since the frame began), 1 against 2, is the experiment's own race: the loop's last retrace event had already woken the game threads when gdb stopped the main thread. A session hashes before the retrace's event, as `snapshot()` reads. So **the window is deterministic but for host pointers**, which a window hash must leave out or normalise |
+| E6 | Can the whole RDRAM window be hashed across processes? | gdb stops each run at `pc_si_finish` after `--frames 1000` (vi 2027, in the race), dumps 0x80000000-0x80800000. Two pairs with ASLR off, one pair with ASLR on | ASLR off: **the two 8 MiB windows are identical, byte for byte** (both pairs). ASLR on: 243 bytes in 82 words differ. 80 are the same host pointer in heap records 0x58 apart from 0x801CBD10: the audio manager's effect tags, whose `list` points at `gFreeFxTags` in host storage (`audio_effect_setup_b132.c:170`; the address resolved to `gFreeFxTags` in the executable). One is `last_frame_text_dl_end`, the low half of a display-list pointer (`EndGraphics.c:143`). One, `retraces_since_frame` (retraces since the frame began), 1 against 2, is the experiment's own race: the loop's last retrace event had already woken the game threads when gdb stopped the main thread. A session hashes before the retrace's event, as `snapshot()` reads. So **the window is deterministic but for host pointers**, which a window hash must leave out or normalise |
 | E7 | Is real time deterministic, on a host that keeps up? | the same script without `--fast`, twice, 35 s each | **No.** Both runs kept 60.00 retraces a second (none late, none dropped), and every state change came at the same retrace. But the physics differ: by model tick, 161 of 689 differ, from tick 56 in the race (car 0's y position `0x1.86a1p+0` against `0x1.86a0fep+0`). The audio tasks were 2,094 against 2,096. The likely cause (not bisected): in real time the host's timing decides where the model thread's steps, the audio tasks and the AI events fall against the game thread's per-frame decisions (1.1) |
 
 What these don't show:
@@ -881,7 +881,7 @@ without Tailscale.
 | 10 | Edge cases: an F1 setting changed mid-session, a saves hot swap, a pad unplugged (it must not change the connected port), Alt+Tab with `pause_on_focus_loss` | medium, desync or stall | Phase 1 tests for each |
 | 11 | **Different builds**: the friend on an older zip | certain to happen once | The commit check at HELLO, with a clear message |
 | 12 | **The release archives themselves are never compared.** `windows-same` compares the Windows cross build (debian:12 mingw-w64 GCC 12.2) with pc.yml's Linux jobs (ubuntu-24.04 runners). The Linux release tarball is built in `ubuntu:22.04` (RELEASE.md "Release archives"): another GCC | low (three compilers agree today) | Add a release job that runs `synth_compare.py --from-logs` on the archives' own programs |
-| 13 | **Render values that reach the game C**: `pc_gfx_hud_dx` in `car_lights_render.c` (widescreen, HUD, window size); `pc_detail()` and the draw-distance macros in `particle_knot/group.c:850-867` | certain: they exist; the first is drawn only | Session rule (1.1); a grep for `pc_gfx_`, `pc_detail` and `pc_cfg` in `src/` and `nonmatching/` (today: those two files) as a CI check |
+| 13 | **Render values that reach the game C**: `pc_gfx_hud_dx` in `ZOID_WindowTo3D.c` (widescreen, HUD, window size); `pc_detail()` and the draw-distance macros in `zoid_draw/group.c:850-867` | certain: they exist; the first is drawn only | Session rule (1.1); a grep for `pc_gfx_`, `pc_detail` and `pc_cfg` in `src/` and `nonmatching/` (today: those two files) as a CI check |
 | 14 | **Game code that orders or hashes by host address** would differ between PCs (the window holds host pointers, E6) | low: traces agree across ASLR runs and OSes on every synthetic path | The phase 1 fuzzer with ASLR on; phase 0.5 across OSes |
 
 ## 7. Decisions for the user
@@ -944,14 +944,14 @@ Code: `port/ultra/loop.c` 528-540, 543-, 579-586, 612, 633-647, 688-716; `port/u
 406-414; `port/ultra/pakfile.c` 69-105; `port/input/input.c` 327-359; `port/include/pc_port.h` 250-256;
 `port/main.c` 434-449, 460-464, 1203-1206; `port/config/game_fps.c` 128-139; `port/audio/audio_out.c` 406-425,
 702-; `CMakeLists.txt` 161, 165; `tools/port/pe_check.py` 23-24; `src/blob/ControllerUpdate.c` 73-127;
-`src/blob/groups/modelthread/modelthread.c` 63; `src/rom/lib_1050_sdk.c` 93, 189-197, 263, 340, 362, 421;
-`src/rom/lib_1050.c` 74; `src/rom/lib_a050.c` 26; `src/rom/lib_f700.c` 54; `src/blob/func_800E8D50.c` 43-56;
-`nonmatching/game/display_list_flush.c` 373; `src/blob/wheel_render_full.c` 50-90;
-`src/blob/groups/particle_knot/group.c` 1613-1650; `src/blob/Effects_UpdateEmitters.c` 3819;
-`src/blob/func_800B90F8.c` 3806; `src/blob/func_80108F40.c` 125, 160; the LCG at `src/blob/world_object_destroy.c:48`,
-`hud_render.c:168`, `func_800EB90C.c:156`, `entity_update_callback.c:104`, `groups/blast/blast.c:135`,
-`groups/audio_options_menu/func_800D6160.c:33-34`; `src/blob/car_lights_render.c` 47-62;
-`src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c` 170; `src/blob/world_collision_response.c` 143;
+`src/blob/groups/modelthread/modelthread.c` 63; `src/rom/scheduler.c` 93, 189-197, 263, 340, 362, 421;
+`src/rom/timer.c` 74; `src/rom/libultra/controller.c` 26; `src/rom/libultra/contpfs.c` 54; `src/blob/point_at_car.c` 43-56;
+`nonmatching/game/PrePlay.c` 373; `src/blob/ZOID_SplitMenuScreen.c` 50-90;
+`src/blob/groups/zoid_draw/group.c` 1613-1650; `src/blob/UpdateCameras.c` 3819;
+`src/blob/SkyClear.c` 3806; `src/blob/animRadarBlip.c` 125, 160; the LCG at `src/blob/init_camera_on_track.c:48`,
+`UpdateSmoke.c:168`, `CheckCameraView.c:156`, `AnimateNewBlast.c:104`, `groups/blast/blast.c:135`,
+`groups/audioscr_update/func_800D6160.c:33-34`; `src/blob/ZOID_WindowTo3D.c` 47-62;
+`src/blob/groups/audiomgr/audio_effect_setup_b132.c` 170; `src/blob/EndGraphics.c` 143;
 `tools/port/synth/race2p.press`. MODS.md 6 (how mods reach the game); RELEASE.md "Release archives".
 
 ## 11. Robustness: any latency, and no desyncs
@@ -1186,10 +1186,10 @@ then has (a `--fast` replay with the default takes the same course).
   screen (pause state 4 or 3); on rocky, seed 3 of the ctest's at retrace 4038. The session's input log replayed in
   one process hangs at the same retrace, with 543e5b0's program too (no session code): it is the game's, or the
   port's, on the synthetic cartridge at least. Where (gdb, seed 11's replay): the controls screen's step through a
-  control's values, `do { controls[slot]--; } while (!func_800D8078(p))` (`src/blob/groups/controlscr/caller.c`
+  control's values, `do { controls[slot]--; } while (!controls_validControl(p))` (`src/blob/groups/controlscr/caller.c`
   251-268, the same for ++), which never ends when no value passes the predicate; the predicate reads row
-  `D_8013C068[D_8014A118[car].row]` while the loop changes `D_8013C068[input_rec0[p].controller]`, and its table
-  `D_80114060` (`gControlValid`) is cartridge data. Not looked into further here (game C). The fuzzer says such a
+  `gNewControls[gPlayers[car].row]` while the loop changes `gNewControls[gPlayers[p].controller]`, and its table
+  `gControlValid` (`gControlValid`) is cartridge data. Not looked into further here (game C). The fuzzer says such a
   hang (the same on both) and goes on; `net_session_check.py fuzz --first 3 --seeds 1` reaches it on rocky's
   cartridge.
 
@@ -1537,12 +1537,12 @@ tests and tools (the `race2pown` path uses it).
 
 **Vertical culling: none.** The game's CPU code leaves nothing out by the vertical field of view, the window's height or
 its rectangle, so a taller view gets no holes and no pop-in from the game's side. Fifteen functions address the window
-records (`D_8017A510`), found in the compiled code as well as by name: the setup (`exhaust_smoke_effect`, which derives
-fovy from fovx and the window's shape, `arb_rate_set`, `ZOID_ResetWindows`, `wheel_render_full`, `car_render_full`,
-`viewport_scale`), the fog (`func_800AB18C`, `func_800A7428`, `func_800A7480`), a setter and a getter of the records'
-pointers (`func_800A5518`, `func_800A6078`, the getter inlined in `ZOID_ProjectWindow`), the view's own display list (`func_8009F058`: the viewport, the scissor and the projection from the record), and three
-that use it to place things: the battle off-screen arrow (`entity_render_setup`, by fovx and fovy), `ZOID_WindowTo3D`
-(`car_lights_render`, the models at HUD points) and `ZOID_ProjectWindow` (`brake_light_update`, called only by menus).
+records (`ZoidWinInfo`), found in the compiled code as well as by name: the setup (`ZOID_SetWindow`, which derives
+fovy from fovx and the window's shape, `ZOID_InitializeWindow`, `ZOID_ResetWindows`, `ZOID_SplitMenuScreen`, `ZOID_SplitScreen`,
+`zoid_scale_windows`), the fog (`WorldFogDensity`, `ZOID_GetFog`, `ZOID_SetFog`), a setter and a getter of the records'
+pointers (`ZOID_SetViewport`, `ZOID_GetWindow`, the getter inlined in `ZOID_ProjectWindow`), the view's own display list (`zoid_draw_window`: the viewport, the scissor and the projection from the record), and three
+that use it to place things: the battle off-screen arrow (`AnimateArrow`, by fovx and fovy), `ZOID_WindowTo3D`
+(`ZOID_WindowTo3D`, the models at HUD points) and `ZOID_ProjectWindow` (`ZOID_ProjectWindow`, called only by menus).
 tan(fovx/2) and tan(fovy/2) are never read. The scene walk's tests are the hidden flag, the per-view mask, the
 matrices' range, the fog's radius in x and z, the levels of detail and the nodes' boxes, which go to G_CULLDL and so
 to the renderer (DETAIL.md 1.2); the poly list's, the hidden flag, the view bit and the range; shadows, skids and the
@@ -1551,7 +1551,7 @@ could show are the renderer's and the frame's (14.4). (The horizontal survey, GF
 battle arrow reads fovx: it places the arrow by fovy too.)
 
 **Where the two-player HUD draws.** All 2D goes into one display list of its own (`pc_text_dl`), called after every
-view's 3D (`ctx_game_loop.c:112-117`, `particle_knot/group.c:1590-1773`), under a full-frame scissor: no 2D is
+view's 3D (`ctx_game_loop.c:112-117`, `zoid_draw/group.c:1590-1773`), under a full-frame scissor: no 2D is
 scissored to a view, the game clips sprites in software. Each piece's place comes from a table of the cartridge's,
 indexed by the number of windows and the window, so which view a piece belongs to can only be told by its box:
 
@@ -1565,14 +1565,14 @@ indexed by the number of windows and the window, so which view a piece belongs t
   panel holds the shared ones, over its background of nine texture rectangles across its whole width.
 
 **Which 2D tracks 3D: none.** The markers over the other player's car are quads in the view's own 3D (the poly list,
-`music_control.c:106-142`, rebuilt as billboards by AnimateArrow), the countdown's digits camera-space quads in the
+`StartEnvironment.c:106-142`, rebuilt as billboards by AnimateArrow), the countdown's digits camera-space quads in the
 view's 3D, and nothing in a race projects a 3D point to place 2D (`ZOID_ProjectWindow` is the menus'). The other way
 round, 3D tracks 2D: the coin icons beside their counts (and battle's and stunt's status models) are models placed at a
 HUD point, unprojected 2 ft in front of the camera through the view's record (`ZOID_WindowTo3D`, `coins.c:141`).
 
 ### 14.3 The renderer
 
-In the race's views (main.c's hook reads them from the game's window records, `D_80149B00` and `D_80149B20`: x 2-242,
+In the race's views (main.c's hook reads them from the game's window records, `scissor1` and `scissor2`: x 2-242,
 rows 0-109 and 111-220), with own view on, per graphics task:
 
 - **3D:** a perspective draw is the view whose rectangle holds its viewport's centre. Another view's isn't drawn. The
@@ -2293,7 +2293,7 @@ same cartridge has the game's names already, so most imports were never affected
 
 **The fix.** `pc_data_peek` (port/data/pc_data.c) gives bytes of the game's data as the cartridge holds them, inflating
 the image for the call, before anything is loaded; `saves_game_names_early` (main.c) reads the two strings and the
-pak's character table so, converts them as `func_800A150C` does, and sets the names before the session's pak is
+pak's character table so, converts them as `pak_encode_name` does, and sets the names before the session's pak is
 built. When the data is loaded `saves_game_names` sets them again from it, and says so in the log if the two
 differ (they never have).
 

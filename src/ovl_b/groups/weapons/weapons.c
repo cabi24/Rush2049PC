@@ -1,11 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* Runtime image B only: the weapons.c cluster, 0x8038A95C..0x8038C910.
- * func_8038A95C = _RemoveCannMFlash, func_8038AA14 = _RemoveGattMFlash, func_8038AA8C = AnimateWeapon
+ * RemoveCannMFlash = _RemoveCannMFlash, RemoveGattMFlash = _RemoveGattMFlash, AnimateWeapon = AnimateWeapon
  * (MAT3 GameCube weapons.c, GameSource tree; 2.2).
  * Direct typed port of the MAT3 bodies with N64 offsets. AnimateWeapon's position accumulations are
  * written `pos = pos + uvs * off`: that gives retail's commutative operand order for the add.s/mul.s
  * pairs (the old "FP temp rotation" residual). Disclosed: pad1/pad2 are two unused locals that make
- * the frame 136 bytes like retail. AnimateWeapon is address-taken by StartWeapon (func_8038C910),
+ * the frame 136 bytes like retail. AnimateWeapon is address-taken by StartWeapon (StartWeapon),
  * hence kept; the two muzzle-flash removers are private to this unit. */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -91,30 +91,30 @@ typedef struct CMuzzleObj {
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
-extern volatile f32 D_8002EB94;          /* gFrameSeconds */
+extern volatile f32 gFrameSeconds;          /* gFrameSeconds */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern CarParts D_80139320[];            /* gCarParts */
-extern u16 D_8014254C[];                 /* gObjList */
-extern s32 D_80399B40[7];                /* gWfxObjList */
-extern u16 D_80399B08[5];                /* gRipTextures */
-extern TexDefSet D_80151AE8[];           /* gTexDefPtrs */
+extern CarParts gCarParts[];            /* gCarParts */
+extern u16 gObjList_biased[];                 /* gObjList */
+extern s32 gWfxObjList[7];                /* gWfxObjList */
+extern u16 gRipTextures[5];                /* gRipTextures */
+extern TexDefSet gTexDefPtrs[];           /* gTexDefPtrs */
 
-extern void sound_call_minimal(s16 obj);          /* ZOID_RemoveObject */
-extern void func_8008E06C(s16 obj, RGBA *clr);    /* ZOID_SetColor */
-extern void model_data_load(s32 obj, s32 a, s32 mask);       /* MBOX_HideObject */
-extern void model_transform_setup(s32 obj, s32 a, s32 mask); /* MBOX_ShowObject */
-extern UVMat *func_8008B3A0(s16 idx);             /* ZOID_FindMatrix */
-extern void func_80090770(s16 obj, s32 def);      /* ZOID_SetObjectDef */
-extern void func_8008D6FC(s16 obj, f32 *pos, s32 a);       /* ZOID_UpdateObject */
-extern s32 sign_extend_call(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
-extern void math_utility(f32 *src, f32 *dst);     /* CopyUV */
+extern void ZOID_RemoveObject(s16 obj);          /* ZOID_RemoveObject */
+extern void ZOID_SetColor(s16 obj, RGBA *clr);    /* ZOID_SetColor */
+extern void MBOX_HideObject(s32 obj, s32 a, s32 mask);       /* MBOX_HideObject */
+extern void MBOX_ShowObject(s32 obj, s32 a, s32 mask); /* MBOX_ShowObject */
+extern UVMat *ZOID_FindMatrix(s16 idx);             /* ZOID_FindMatrix */
+extern void ZOID_SetObjectDef(s16 obj, s32 def);      /* ZOID_SetObjectDef */
+extern void ZOID_UpdateObject(s16 obj, f32 *pos, s32 a);       /* ZOID_UpdateObject */
+extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
+extern void CopyUV(f32 *src, f32 *dst);     /* CopyUV */
 extern void func_8009EA68(f32 a, f32 *uvs);       /* RollUV */
-extern void func_8008B32C(f32 *src, f32 *dst, f32 s);      /* ScaleUV */
-extern f32 func_8008B2E4(f32 scale);              /* Random */
-extern void func_8008D870(s16 obj, void *tex, s32 a);      /* ZOID_SetTexture */
+extern void ScaleUV(f32 *src, f32 *dst, f32 s);      /* ScaleUV */
+extern f32 Random(f32 scale);              /* Random */
+extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);      /* ZOID_SetTexture */
 
-f32 D_803943A4[8][13][3] = {
+f32 weaponOffsets[8][13][3] = {
     0.0f, 2.5f, 0.3f, 0.0f, 3.0f, 0.3f, 0.0f, 2.8f, 0.3f, 0.0f, 3.0f, 0.1f, 0.0f, 3.0f, 0.1f, 0.0f,
     3.4f, -0.4f, 0.0f, 3.1f, 0.3f, 0.0f, 3.3f, 1.0f, 0.0f, 3.39f, -1.82f, 0.0f, 3.05f, 0.65f, 0.0f,
     5.04f, 1.33f, 0.0f, 2.95f, -0.9f, 0.0f, 2.79f, 0.52f, 0.0f, 2.7f, 2.1f, 0.0f, 3.1f, 1.1f, 0.0f,
@@ -138,51 +138,51 @@ f32 D_803943A4[8][13][3] = {
     -0.9f, 0.0f, 3.1f, -0.9f, 0.0f, 3.52f, -2.0f, 0.0f, 3.4f, -0.33f, 0.0f, 4.38f, -4.39f, 0.0f,
     3.25f, -2.05f, 0.0f, 3.12f, -1.11f
 };
-/* PC: func_8038CA24 (the weapon reset on a resurrect) writes these by their addresses, which on the N64 are this
+/* PC: InitBattlePlayer (the weapon reset on a resurrect) writes these by their addresses, which on the N64 are this
  * file's statics. Declared here, they are one storage on the PC too: image B's BSS arena (port/data), zeroed on
  * every load of the image. */
 #define WEAPON_STATE extern
-/* PC: battle.type 8 is no weapon. The update reads its row of D_803943A4 when a car loses its weapon, and doesn't
+/* PC: battle.type 8 is no weapon. The update reads its row of weaponOffsets when a car loses its weapon, and doesn't
  * use it: past the table's 8 rows, on the N64 into the data after it, on the PC into whatever the linker put there
  * (UBSan, docs/port/SANITIZE.md 3). It reads zeros instead. The table keeps its N64 size: port/data maps the N64
  * addresses a C-defined symbol covers to it, and a ninth row took the next data's. */
 static const f32 pc_no_weapon[13][3];
-#define WEAPON_OFF(type) ((type) < 8 ? D_803943A4[type] : pc_no_weapon)
-WEAPON_STATE s8 D_80399118[4];            /* gCurWeaponType */
-WEAPON_STATE MuzzleObj D_80399120[4];     /* gGattMuzzleObjs */
-WEAPON_STATE CMuzzleObj D_80399550[4];    /* gCannMuzzleObjs */
+#define WEAPON_OFF(type) ((type) < 8 ? weaponOffsets[type] : pc_no_weapon)
+WEAPON_STATE s8 gCurWeaponType[4];            /* gCurWeaponType */
+WEAPON_STATE MuzzleObj gGattMuzzleObjs[4];     /* gGattMuzzleObjs */
+WEAPON_STATE CMuzzleObj gCannMuzzleObjs[4];    /* gCannMuzzleObjs */
 
 /* 0x8038AA14 _RemoveGattMFlash */
-void func_8038AA14(s16 slot)
+void RemoveGattMFlash(s16 slot)
 {
     s32 i;
     for (i = 0; i < 5; i++) {
-        if (D_80399120[slot].mdls[i] != -1) {
-            sound_call_minimal(D_80399120[slot].mdls[i]);
-            D_80399120[slot].mdls[i] = -1;
+        if (gGattMuzzleObjs[slot].mdls[i] != -1) {
+            ZOID_RemoveObject(gGattMuzzleObjs[slot].mdls[i]);
+            gGattMuzzleObjs[slot].mdls[i] = -1;
         }
     }
 }
 
 /* 0x8038A95C _RemoveCannMFlash */
-void func_8038A95C(s16 slot)
+void RemoveCannMFlash(s16 slot)
 {
     s32 i;
     for (i = 0; i < 5; i++) {
-        if (D_80399550[slot].mdls[i] != -1) {
-            sound_call_minimal(D_80399550[slot].mdls[i]);
-            D_80399550[slot].mdls[i] = -1;
+        if (gCannMuzzleObjs[slot].mdls[i] != -1) {
+            ZOID_RemoveObject(gCannMuzzleObjs[slot].mdls[i]);
+            gCannMuzzleObjs[slot].mdls[i] = -1;
         }
     }
-    if (D_80399550[slot].ripdl != -1) {
-        sound_call_minimal(D_80399550[slot].ripdl);
-        D_80399550[slot].ripdl = -1;
-        D_80399550[slot].ripTIdx = -1;
+    if (gCannMuzzleObjs[slot].ripdl != -1) {
+        ZOID_RemoveObject(gCannMuzzleObjs[slot].ripdl);
+        gCannMuzzleObjs[slot].ripdl = -1;
+        gCannMuzzleObjs[slot].ripTIdx = -1;
     }
 }
 
 /* 0x8038AA8C AnimateWeapon */
-void func_8038AA8C(Visual *v, s16 op)
+void AnimateWeapon(Visual *v, s16 op)
 {
     Car *car = PC_CAR(v->slot);
     s32 def;
@@ -197,13 +197,13 @@ void func_8038AA8C(Visual *v, s16 op)
     s32 pad2;   /* unused: retail frame */
 
     if (!op || PC_MODEL_CRASHFLAG(v->slot)) {
-        if (D_80399118[v->slot] == 1)
-            func_8038AA14(v->slot);
-        else if (D_80399118[v->slot] == 0)
-            func_8038A95C(v->slot);
+        if (gCurWeaponType[v->slot] == 1)
+            RemoveGattMFlash(v->slot);
+        else if (gCurWeaponType[v->slot] == 0)
+            RemoveCannMFlash(v->slot);
         car->battle.type = 8;
         car->battle.ammoCnt = -1;
-        model_data_load(v->objnum, 0, 15);
+        MBOX_HideObject(v->objnum, 0, 15);
         return;
     }
     clr.rgba = car->IRclr.rgba;
@@ -212,25 +212,25 @@ void func_8038AA8C(Visual *v, s16 op)
         if (clr.c[3] < 48)
             clr.c[3] = 48;
     }
-    func_8008E06C(D_80139320[v->slot].weap, &clr);
-    mat = func_8008B3A0(D_80139320[v->slot].frame);
+    ZOID_SetColor(gCarParts[v->slot].weap, &clr);
+    mat = ZOID_FindMatrix(gCarParts[v->slot].frame);
     if (car->battle.type == 8) {
-        model_data_load(v->objnum, 1, 15);
+        MBOX_HideObject(v->objnum, 1, 15);
     } else if (car->camera >= 0 && car->view <= 1) {
-        model_transform_setup(v->objnum, 0, 15);
-        model_data_load(v->objnum, 1, 1 << car->camera);
+        MBOX_ShowObject(v->objnum, 0, 15);
+        MBOX_HideObject(v->objnum, 1, 1 << car->camera);
     } else {
-        model_transform_setup(v->objnum, 0, 15);
+        MBOX_ShowObject(v->objnum, 0, 15);
     }
-    if (D_80399118[v->slot] != car->battle.type) {
+    if (gCurWeaponType[v->slot] != car->battle.type) {
         off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
         off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
         off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
-        if (D_80399118[v->slot] == 1)
-            func_8038AA14(v->slot);
-        else if (D_80399118[v->slot] == 0)
-            func_8038A95C(v->slot);
-        D_80399118[v->slot] = car->battle.type;
+        if (gCurWeaponType[v->slot] == 1)
+            RemoveGattMFlash(v->slot);
+        else if (gCurWeaponType[v->slot] == 0)
+            RemoveCannMFlash(v->slot);
+        gCurWeaponType[v->slot] = car->battle.type;
         switch (car->battle.type) {
         case 8:
             return;
@@ -240,36 +240,36 @@ void func_8038AA8C(Visual *v, s16 op)
             off[1] += 0.48f;
             off[2] += 2.57f;
             for (i = 0; i < 5; i++) {
-                math_utility(&mat->uvs[0][0], &D_80399550[v->slot].mats[i].mat.uvs[0][0]);
-                D_80399550[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[0] = D_80399550[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[1] = D_80399550[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[2] = D_80399550[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[0] = D_80399550[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
-                D_80399550[v->slot].mats[i].mat.pos[1] = D_80399550[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
-                D_80399550[v->slot].mats[i].mat.pos[2] = D_80399550[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
-                D_80399550[v->slot].mdls[i] = sign_extend_call(D_80399B40[i], &D_80399550[v->slot].mats[i].mat, -1, 0x42000);
-                func_8008E06C(D_80399550[v->slot].mdls[i], &clr2);
-                model_data_load(D_80399550[v->slot].mdls[i], 1, 15);
+                CopyUV(&mat->uvs[0][0], &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
+                gCannMuzzleObjs[v->slot].mdls[i] = MBOX_NewObject(gWfxObjList[i], &gCannMuzzleObjs[v->slot].mats[i].mat, -1, 0x42000);
+                ZOID_SetColor(gCannMuzzleObjs[v->slot].mdls[i], &clr2);
+                MBOX_HideObject(gCannMuzzleObjs[v->slot].mdls[i], 1, 15);
             }
-            math_utility(&mat->uvs[0][0], &D_80399550[v->slot].mat.uvs[0][0]);
-            D_80399550[v->slot].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-            D_80399550[v->slot].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-            D_80399550[v->slot].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-            D_80399550[v->slot].mat.pos[0] = D_80399550[v->slot].mat.pos[0] + mat->uvs[1][0] * off[1];
-            D_80399550[v->slot].mat.pos[1] = D_80399550[v->slot].mat.pos[1] + mat->uvs[1][1] * off[1];
-            D_80399550[v->slot].mat.pos[2] = D_80399550[v->slot].mat.pos[2] + mat->uvs[1][2] * off[1];
-            D_80399550[v->slot].mat.pos[0] = D_80399550[v->slot].mat.pos[0] + mat->uvs[2][0] * off[2];
-            D_80399550[v->slot].mat.pos[1] = D_80399550[v->slot].mat.pos[1] + mat->uvs[2][1] * off[2];
-            D_80399550[v->slot].mat.pos[2] = D_80399550[v->slot].mat.pos[2] + mat->uvs[2][2] * off[2];
-            D_80399550[v->slot].ripdl = sign_extend_call(D_80399B40[6], &D_80399550[v->slot].mat, -1, 0x42000);
-            func_8008E06C(D_80399550[v->slot].ripdl, &clr2);
-            model_data_load(D_80399550[v->slot].ripdl, 1, 15);
-            D_80399550[v->slot].ripCnt = -1;
-            D_80399550[v->slot].ripTime = 0.0f;
-            D_80399550[v->slot].ripScale = 1.5f + func_8008B2E4(1.5f);
+            CopyUV(&mat->uvs[0][0], &gCannMuzzleObjs[v->slot].mat.uvs[0][0]);
+            gCannMuzzleObjs[v->slot].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[0] = gCannMuzzleObjs[v->slot].mat.pos[0] + mat->uvs[1][0] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = gCannMuzzleObjs[v->slot].mat.pos[1] + mat->uvs[1][1] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = gCannMuzzleObjs[v->slot].mat.pos[2] + mat->uvs[1][2] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[0] = gCannMuzzleObjs[v->slot].mat.pos[0] + mat->uvs[2][0] * off[2];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = gCannMuzzleObjs[v->slot].mat.pos[1] + mat->uvs[2][1] * off[2];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = gCannMuzzleObjs[v->slot].mat.pos[2] + mat->uvs[2][2] * off[2];
+            gCannMuzzleObjs[v->slot].ripdl = MBOX_NewObject(gWfxObjList[6], &gCannMuzzleObjs[v->slot].mat, -1, 0x42000);
+            ZOID_SetColor(gCannMuzzleObjs[v->slot].ripdl, &clr2);
+            MBOX_HideObject(gCannMuzzleObjs[v->slot].ripdl, 1, 15);
+            gCannMuzzleObjs[v->slot].ripCnt = -1;
+            gCannMuzzleObjs[v->slot].ripTime = 0.0f;
+            gCannMuzzleObjs[v->slot].ripScale = 1.5f + Random(1.5f);
             break;
         case 1:
             def = 217;
@@ -277,22 +277,22 @@ void func_8038AA8C(Visual *v, s16 op)
             off[1] += 0.65f;
             off[2] += 3.59f;
             for (i = 0; i < 5; i++) {
-                math_utility(&mat->uvs[0][0], &D_80399120[v->slot].mats[i].mat.uvs[0][0]);
-                D_80399120[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[0] = D_80399120[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[1] = D_80399120[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[2] = D_80399120[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[0] = D_80399120[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
-                D_80399120[v->slot].mats[i].mat.pos[1] = D_80399120[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
-                D_80399120[v->slot].mats[i].mat.pos[2] = D_80399120[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
+                CopyUV(&mat->uvs[0][0], &gGattMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
                 clr2.c[0] = 255;
                 clr2.c[1] = 255;
                 clr2.c[2] = 43;
-                D_80399120[v->slot].mdls[i] = sign_extend_call(D_80399B40[i], &D_80399120[v->slot].mats[i].mat, -1, 0x42000);
-                func_8008E06C(D_80399120[v->slot].mdls[i], &clr2);
-                model_data_load(D_80399120[v->slot].mdls[i], 1, 15);
+                gGattMuzzleObjs[v->slot].mdls[i] = MBOX_NewObject(gWfxObjList[i], &gGattMuzzleObjs[v->slot].mats[i].mat, -1, 0x42000);
+                ZOID_SetColor(gGattMuzzleObjs[v->slot].mdls[i], &clr2);
+                MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[i], 1, 15);
             }
             break;
         case 2: def = 218; break;
@@ -302,133 +302,133 @@ void func_8038AA8C(Visual *v, s16 op)
         case 6: def = 222; break;
         case 7: def = 223; break;
         }
-        func_80090770(D_80139320[v->slot].weap, D_8014254C[def + 314]);
-        func_8008D6FC(D_80139320[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
+        ZOID_SetObjectDef(gCarParts[v->slot].weap, gObjList_biased[def + 314]);
+        ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
     }
     {
         off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
         off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
         off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
-        if (D_80399118[v->slot] == 1) {
+        if (gCurWeaponType[v->slot] == 1) {
             off[0] += 0.01f;
             off[1] += 0.65f;
             off[2] += 3.59f;
             for (i = 0; i < 5; i++) {
-                math_utility(&mat->uvs[0][0], &D_80399120[v->slot].mats[i].mat.uvs[0][0]);
-                D_80399120[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-                D_80399120[v->slot].mats[i].mat.pos[0] = D_80399120[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[1] = D_80399120[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[2] = D_80399120[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
-                D_80399120[v->slot].mats[i].mat.pos[0] = D_80399120[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
-                D_80399120[v->slot].mats[i].mat.pos[1] = D_80399120[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
-                D_80399120[v->slot].mats[i].mat.pos[2] = D_80399120[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
+                CopyUV(&mat->uvs[0][0], &gGattMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
+                gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] = gGattMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
             }
-            if (D_80399120[v->slot].on) {
-                D_80399120[v->slot].onTime += D_8002EB94;
-                if (D_80399120[v->slot].onTime >= 0.0333333f) {
-                    D_80399120[v->slot].on = 0;
+            if (gGattMuzzleObjs[v->slot].on) {
+                gGattMuzzleObjs[v->slot].onTime += gFrameSeconds;
+                if (gGattMuzzleObjs[v->slot].onTime >= 0.0333333f) {
+                    gGattMuzzleObjs[v->slot].on = 0;
                     for (i = 0; i < 5; i++)
-                        model_data_load(D_80399120[v->slot].mdls[i], 1, 15);
+                        MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[i], 1, 15);
                 }
             }
             if (car->battle.shoot >= 5) {
-                D_80399120[v->slot].on = 1;
-                D_80399120[v->slot].onTime = 0.0f;
-                model_transform_setup(D_80399120[v->slot].mdls[0], 0, 15);
+                gGattMuzzleObjs[v->slot].on = 1;
+                gGattMuzzleObjs[v->slot].onTime = 0.0f;
+                MBOX_ShowObject(gGattMuzzleObjs[v->slot].mdls[0], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
-                    model_data_load(D_80399120[v->slot].mdls[0], 1, 1 << car->camera);
-                r1 = (s32)func_8008B2E4(4.0f) + 1;
-                r2 = func_8008B2E4(0.5f);
-                func_8009EA68(r2, &D_80399120[v->slot].mats[r1].mat.uvs[0][0]);
-                func_8008B32C(&D_80399120[v->slot].mats[r1].mat.uvs[0][0], &D_80399120[v->slot].mats[r1].mat.uvs[0][0], 0.85f + func_8008B2E4(0.75f));
-                model_transform_setup(D_80399120[v->slot].mdls[r1], 0, 15);
+                    MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[0], 1, 1 << car->camera);
+                r1 = (s32)Random(4.0f) + 1;
+                r2 = Random(0.5f);
+                func_8009EA68(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
+                ScaleUV(&gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], 0.85f + Random(0.75f));
+                MBOX_ShowObject(gGattMuzzleObjs[v->slot].mdls[r1], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
-                    model_data_load(D_80399120[v->slot].mdls[r1], 1, 1 << car->camera);
+                    MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[r1], 1, 1 << car->camera);
                 r1++;
                 if (r1 >= 5)
                     r1 = 1;
-                func_8009EA68(r2, &D_80399120[v->slot].mats[r1].mat.uvs[0][0]);
-                func_8008B32C(&D_80399120[v->slot].mats[r1].mat.uvs[0][0], &D_80399120[v->slot].mats[r1].mat.uvs[0][0], 0.85f + func_8008B2E4(0.75f));
-                model_transform_setup(D_80399120[v->slot].mdls[r1], 0, 15);
+                func_8009EA68(r2, &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0]);
+                ScaleUV(&gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], &gGattMuzzleObjs[v->slot].mats[r1].mat.uvs[0][0], 0.85f + Random(0.75f));
+                MBOX_ShowObject(gGattMuzzleObjs[v->slot].mdls[r1], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
-                    model_data_load(D_80399120[v->slot].mdls[r1], 1, 1 << car->camera);
+                    MBOX_HideObject(gGattMuzzleObjs[v->slot].mdls[r1], 1, 1 << car->camera);
             }
         }
-        if (D_80399118[v->slot] == 0) {
+        if (gCurWeaponType[v->slot] == 0) {
             off[0] += 0.16f;
             off[1] += 0.48f;
             off[2] += 2.57f;
             for (i = 0; i < 5; i++) {
-                math_utility(&mat->uvs[0][0], &D_80399550[v->slot].mats[i].mat.uvs[0][0]);
-                D_80399550[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-                D_80399550[v->slot].mats[i].mat.pos[0] = D_80399550[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[1] = D_80399550[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[2] = D_80399550[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
-                D_80399550[v->slot].mats[i].mat.pos[0] = D_80399550[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
-                D_80399550[v->slot].mats[i].mat.pos[1] = D_80399550[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
-                D_80399550[v->slot].mats[i].mat.pos[2] = D_80399550[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
+                CopyUV(&mat->uvs[0][0], &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[1][0] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[1][1] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[1][2] * off[1];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[0] + mat->uvs[2][0] * off[2];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[1] + mat->uvs[2][1] * off[2];
+                gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] = gCannMuzzleObjs[v->slot].mats[i].mat.pos[2] + mat->uvs[2][2] * off[2];
             }
-            math_utility(&mat->uvs[0][0], &D_80399550[v->slot].mat.uvs[0][0]);
-            D_80399550[v->slot].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
-            D_80399550[v->slot].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
-            D_80399550[v->slot].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
-            D_80399550[v->slot].mat.pos[0] = D_80399550[v->slot].mat.pos[0] + mat->uvs[1][0] * off[1];
-            D_80399550[v->slot].mat.pos[1] = D_80399550[v->slot].mat.pos[1] + mat->uvs[1][1] * off[1];
-            D_80399550[v->slot].mat.pos[2] = D_80399550[v->slot].mat.pos[2] + mat->uvs[1][2] * off[1];
-            D_80399550[v->slot].mat.pos[0] = D_80399550[v->slot].mat.pos[0] + mat->uvs[2][0] * off[2];
-            D_80399550[v->slot].mat.pos[1] = D_80399550[v->slot].mat.pos[1] + mat->uvs[2][1] * off[2];
-            D_80399550[v->slot].mat.pos[2] = D_80399550[v->slot].mat.pos[2] + mat->uvs[2][2] * off[2];
-            if (D_80399550[v->slot].ripCnt != -1) {
-                D_80399550[v->slot].ripTime -= D_8002EB94;
-                if (D_80399550[v->slot].ripTime <= 0.0f) {
-                    D_80399550[v->slot].ripTime = 0.0333333f;
-                    D_80399550[v->slot].ripCnt++;
-                    if (D_80399550[v->slot].ripCnt >= 5) {
-                        model_data_load(D_80399550[v->slot].ripdl, 1, 15);
-                        D_80399550[v->slot].ripCnt = -1;
+            CopyUV(&mat->uvs[0][0], &gCannMuzzleObjs[v->slot].mat.uvs[0][0]);
+            gCannMuzzleObjs[v->slot].mat.pos[0] = mat->pos[0] + mat->uvs[0][0] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = mat->pos[1] + mat->uvs[0][1] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = mat->pos[2] + mat->uvs[0][2] * off[0];
+            gCannMuzzleObjs[v->slot].mat.pos[0] = gCannMuzzleObjs[v->slot].mat.pos[0] + mat->uvs[1][0] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = gCannMuzzleObjs[v->slot].mat.pos[1] + mat->uvs[1][1] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = gCannMuzzleObjs[v->slot].mat.pos[2] + mat->uvs[1][2] * off[1];
+            gCannMuzzleObjs[v->slot].mat.pos[0] = gCannMuzzleObjs[v->slot].mat.pos[0] + mat->uvs[2][0] * off[2];
+            gCannMuzzleObjs[v->slot].mat.pos[1] = gCannMuzzleObjs[v->slot].mat.pos[1] + mat->uvs[2][1] * off[2];
+            gCannMuzzleObjs[v->slot].mat.pos[2] = gCannMuzzleObjs[v->slot].mat.pos[2] + mat->uvs[2][2] * off[2];
+            if (gCannMuzzleObjs[v->slot].ripCnt != -1) {
+                gCannMuzzleObjs[v->slot].ripTime -= gFrameSeconds;
+                if (gCannMuzzleObjs[v->slot].ripTime <= 0.0f) {
+                    gCannMuzzleObjs[v->slot].ripTime = 0.0333333f;
+                    gCannMuzzleObjs[v->slot].ripCnt++;
+                    if (gCannMuzzleObjs[v->slot].ripCnt >= 5) {
+                        MBOX_HideObject(gCannMuzzleObjs[v->slot].ripdl, 1, 15);
+                        gCannMuzzleObjs[v->slot].ripCnt = -1;
                     } else {
-                        D_80399550[v->slot].ripTIdx++;
-                        if (D_80399550[v->slot].ripTIdx >= 5)
-                            D_80399550[v->slot].ripTIdx = 0;
-                        func_8008D870(D_80399550[v->slot].ripdl, &D_80151AE8[D_80399B08[D_80399550[v->slot].ripTIdx] >> 10].texDefs[D_80399B08[D_80399550[v->slot].ripTIdx] & 1023], -1);
+                        gCannMuzzleObjs[v->slot].ripTIdx++;
+                        if (gCannMuzzleObjs[v->slot].ripTIdx >= 5)
+                            gCannMuzzleObjs[v->slot].ripTIdx = 0;
+                        ZOID_SetTexture(gCannMuzzleObjs[v->slot].ripdl, &gTexDefPtrs[gRipTextures[gCannMuzzleObjs[v->slot].ripTIdx] >> 10].texDefs[gRipTextures[gCannMuzzleObjs[v->slot].ripTIdx] & 1023], -1);
                     }
                 }
             }
-            if (D_80399550[v->slot].on) {
-                D_80399550[v->slot].onTime += D_8002EB94;
-                if (D_80399550[v->slot].onTime >= 0.0666667f) {
-                    D_80399550[v->slot].on = 0;
+            if (gCannMuzzleObjs[v->slot].on) {
+                gCannMuzzleObjs[v->slot].onTime += gFrameSeconds;
+                if (gCannMuzzleObjs[v->slot].onTime >= 0.0666667f) {
+                    gCannMuzzleObjs[v->slot].on = 0;
                     for (i = 0; i < 5; i++)
-                        model_data_load(D_80399550[v->slot].mdls[i], 1, 15);
+                        MBOX_HideObject(gCannMuzzleObjs[v->slot].mdls[i], 1, 15);
                 }
             }
             if (car->battle.shoot >= 5) {
-                D_80399550[v->slot].ripScale = 1.5f + func_8008B2E4(1.5f);
-                D_80399550[v->slot].ripTime = 0.0333333f;
-                D_80399550[v->slot].ripCnt = 0;
-                D_80399550[v->slot].ripTIdx = (s32)func_8008B2E4(5.0f);
-                func_8008D870(D_80399550[v->slot].ripdl, &D_80151AE8[D_80399B08[0] >> 10].texDefs[D_80399B08[0] & 1023], -1);
-                model_transform_setup(D_80399550[v->slot].ripdl, 0, 15);
+                gCannMuzzleObjs[v->slot].ripScale = 1.5f + Random(1.5f);
+                gCannMuzzleObjs[v->slot].ripTime = 0.0333333f;
+                gCannMuzzleObjs[v->slot].ripCnt = 0;
+                gCannMuzzleObjs[v->slot].ripTIdx = (s32)Random(5.0f);
+                ZOID_SetTexture(gCannMuzzleObjs[v->slot].ripdl, &gTexDefPtrs[gRipTextures[0] >> 10].texDefs[gRipTextures[0] & 1023], -1);
+                MBOX_ShowObject(gCannMuzzleObjs[v->slot].ripdl, 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
-                    model_data_load(D_80399550[v->slot].ripdl, 1, 1 << car->camera);
-                D_80399550[v->slot].on = 1;
-                D_80399550[v->slot].onTime = 0.0f;
-                model_transform_setup(D_80399550[v->slot].mdls[0], 0, 15);
+                    MBOX_HideObject(gCannMuzzleObjs[v->slot].ripdl, 1, 1 << car->camera);
+                gCannMuzzleObjs[v->slot].on = 1;
+                gCannMuzzleObjs[v->slot].onTime = 0.0f;
+                MBOX_ShowObject(gCannMuzzleObjs[v->slot].mdls[0], 0, 15);
                 if (car->camera >= 0 && car->view <= 1)
-                    model_data_load(D_80399550[v->slot].mdls[0], 1, 1 << car->camera);
+                    MBOX_HideObject(gCannMuzzleObjs[v->slot].mdls[0], 1, 1 << car->camera);
                 for (i = 1; i < 5; i++) {
-                    func_8009EA68(func_8008B2E4(1.25f) - 0.5f, &D_80399550[v->slot].mats[i].mat.uvs[0][0]);
-                    func_8008B32C(&D_80399550[v->slot].mats[i].mat.uvs[0][0], &D_80399550[v->slot].mats[i].mat.uvs[0][0], 0.4f + func_8008B2E4(0.25f));
-                    model_transform_setup(D_80399550[v->slot].mdls[i], 0, 15);
+                    func_8009EA68(Random(1.25f) - 0.5f, &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0]);
+                    ScaleUV(&gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0], &gCannMuzzleObjs[v->slot].mats[i].mat.uvs[0][0], 0.4f + Random(0.25f));
+                    MBOX_ShowObject(gCannMuzzleObjs[v->slot].mdls[i], 0, 15);
                     if (car->camera >= 0 && car->view <= 1)
-                        model_data_load(D_80399550[v->slot].mdls[i], 1, 1 << car->camera);
+                        MBOX_HideObject(gCannMuzzleObjs[v->slot].mdls[i], 1, 1 << car->camera);
                 }
             }
-            func_8008B32C(&D_80399550[v->slot].mat.uvs[0][0], &D_80399550[v->slot].mat.uvs[0][0], D_80399550[v->slot].ripScale);
+            ScaleUV(&gCannMuzzleObjs[v->slot].mat.uvs[0][0], &gCannMuzzleObjs[v->slot].mat.uvs[0][0], gCannMuzzleObjs[v->slot].ripScale);
         }
     }
 }

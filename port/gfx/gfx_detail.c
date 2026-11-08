@@ -1,6 +1,6 @@
 /* port/gfx/gfx_detail.c: the depth range and the fog for video.draw_distance and video.fog (docs/port/DETAIL.md 3).
  *
- * The game's projection (func_8009F058: guPerspective with its near and far planes, the lookat multiplied in) makes
+ * The game's projection (zoid_draw_window: guPerspective with its near and far planes, the lookat multiplied in) makes
  * z/w a function of the eye's depth w alone: z/w = a + b / w, -1 at the near plane and 1 at the far one. The renderer
  * keeps that z/w for everything the game sees of it (the fog, G_BRANCH_Z, G_CULLDL) and changes only:
  *

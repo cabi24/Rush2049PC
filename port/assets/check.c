@@ -36,8 +36,8 @@
 
 #define MAX_TOC 4096          /* a TOC of more entries is no WAD */
 #define MAX_DL_DEPTH 16       /* calls nested in a display list, for the mirror pass's recursion */
-#define ROAD_LIST_MAX 35      /* a road leaf's surfaces: list[36] in entity_update and camera_trigger_check, and
-                               * camera_victory's polys[142] takes four leaves' */
+#define ROAD_LIST_MAX 35      /* a road leaf's surfaces: list[36] in TireSurf and RoadPosition, and
+                               * CollideCarBody's polys[142] takes four leaves' */
 #define WAVE_SAMPLES 9
 #define DL_STEPS ((uint64_t)1 << 26)   /* commands the display-list passes visit in one file, all its lists' together:
                                         * a list that calls another many times, nested, would take years */
@@ -160,7 +160,7 @@ static int records_fit(const Wad *w, uint32_t tag, uint32_t rec)
     return 0;
 }
 
-/* The game bsearches OBHD, TXHD and PLHD by name (entity_name_copy with func_8008AD04, strcmp), and NewWorld WHDR:
+/* The game bsearches OBHD, TXHD and PLHD by name (game_bsearch with game_strcmp, strcmp), and NewWorld WHDR:
  * names end within their 16 bytes and don't go down. */
 static int names_sorted(const Wad *w, const char *what, uint32_t first, uint32_t count, uint32_t stride)
 {
@@ -187,8 +187,8 @@ static int dl_begin(Ck *c, uint32_t *gen)
     return 0;
 }
 
-/* entity_lod_select (SetupWaveModel's relocation, src/blob/entity_lod_select.c): one pass from the list's start,
- * which doesn't enter G_DL, follows E1 + 04 and ends at the first 0xDF; and func_800966D8, the vertex pass, from its
+/* relocate_model_dl (SetupWaveModel's relocation, src/blob/relocate_model_dl.c): one pass from the list's start,
+ * which doesn't enter G_DL, follows E1 + 04 and ends at the first 0xDF; and mirror_vertex_texcoords, the vertex pass, from its
  * first G_VTX: 16-byte vertices while bit 15 of the halfword at +6 says another follows. */
 static int dl_relocation(Ck *c, uint32_t start, const char *what)
 {
@@ -340,7 +340,7 @@ static int wad_textures(Wad *w)
     const Chunk *tx = chunk(w, TAG_TXHD), *pl = chunk(w, TAG_PLHD), *im = chunk(w, TAG_IMAG);
     const Chunk *tl = chunk(w, TAG_TXLD);
     uint32_t imag = im ? im->off : 0;
-    if (tl && tl->count) {   /* entity_cull_check walks it from start to start + count, 8 bytes a command */
+    if (tl && tl->count) {   /* relocate_texture_loads walks it from start to start + count, 8 bytes a command */
         if ((tl->off & 7) || !in(c, tl->off, tl->count))
             return bad(c, "the texture-load lists (TXLD, 0x%X bytes at 0x%X) are not inside the file, 8-aligned",
                        tl->count, tl->off);
@@ -499,7 +499,7 @@ static int check_world(Ck *c, Ck *cart)
     free(stack);
     if (r)
         return -1;
-    for (uint32_t i = 0; gd && i < gd->count; i++) {   /* the quadtree race_setup_2 walks from node 0 */
+    for (uint32_t i = 0; gd && i < gd->count; i++) {   /* the quadtree CheckTargetCollision walks from node 0 */
         size_t g = gd->off + (size_t)i * 0x1C;
         if (c->b[g + 3] & 1) {
             for (int k = 0; k < 4; k++)
@@ -633,7 +633,7 @@ static int check_road(Ck *c)
         return bad(c, "the road's vertex and surface lists (0x%X and 0x%X bytes) run past the file's end", vlnum, slnum);
     if (!tnum)
         return bad(c, "the road has no quadtree");
-    for (uint32_t i = 0; i < tnum; i++) {   /* func_800AC9BC, and the readers of a leaf's list */
+    for (uint32_t i = 0; i < tnum; i++) {   /* downleaf, and the readers of a leaf's list */
         size_t t = at[1] + 0x14 * (size_t)i;
         int16_t parent = (int16_t)be16(c, t);
         uint8_t mask = c->b[t + 3];
@@ -652,7 +652,7 @@ static int check_road(Ck *c)
                 continue;
             if (child >= slnum)
                 return bad(c, "road node %u's quarter %d lists its surfaces at 0x%X, past the surface list", i, q, child);
-            uint32_t left = c->b[slist + child], p = child + 1;   /* func_800ADCE0's runs: exactly the count */
+            uint32_t left = c->b[slist + child], p = child + 1;   /* DecodeSlist's runs: exactly the count */
             if (left > ROAD_LIST_MAX)
                 return bad(c, "road node %u's quarter %d lists %u surfaces; the game's readers take %d", i, q, left,
                            ROAD_LIST_MAX);

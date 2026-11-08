@@ -6,12 +6,12 @@
  * Declarations and genuine IEEE carrier only; no owned storage or ROM claims.
  * Existing SDK/m2c declarations remain unchanged. Final formatter bodies are
  * separately sourced BSD C81; complete notices travel with their sources. */
-extern s8 gDmaInitialized;
-extern OSMesg gDmaMessageBuffer;
-extern OSMesgQueue gDmaMessageQueue;
-extern void dma_queue_init(void);
+extern s8 decompress_lock_ready;
+extern OSMesg decompress_lock_message;
+extern OSMesgQueue decompress_lock_queue;
+extern void init_decompress_lock(void);
 extern s32 lzss_decode(void *, void *);
-extern s32 inflate_entry(void *, void *, s32);
+extern s32 unzipdata_from_rom(void *, void *, s32);
 
 typedef struct {
     unsigned sign:1;
@@ -24,28 +24,28 @@ typedef union {
     DoubleBits bits;
 } DoubleUnion;
 
-extern float gScaleTicksPerSecond, gScaleSecondsPerTick;
-extern float gViewportFloatA, gViewportFloatB, gViewportFloatC, gViewportFloatD;
-extern s16 gViewportX, gViewportY;
-extern s16 gViewportLeftEdge, gViewportRightEdge;
-extern s16 gViewportTopEdge, gViewportBottomEdge;
-extern s16 gViewportXOverflow, gViewportYOverflow;
-extern s16 gViewportScaleX, gViewportScaleY, gViewportScale, gViewportScaleYAlt;
-extern s16 gViewportPendingFrames;
-extern s16 gViewportOffsetXExtra[], gViewportOffsetYExtra[];
-/* gViewportOffsetX/Y retain their accepted existing m2c declarations. */
-extern s16 gViewportBoundsTable[][8];
-extern OSViMode *gViewportStruct, *gViewportDataPtr;
-extern OSViMode gViModeTableBase[], gViewportBuffer[];
-extern void viewport_scale(float, float), display_update(void);
+extern float gRetraceRate, gRetraceTime;
+extern float video_x_scale_factor, video_y_scale_factor, retrace_time_pal, retrace_time_ntsc;
+extern s16 video_tv_type, video_mode_index;
+extern s16 video_h_start, video_h_end;
+extern s16 video_v_start, video_v_end;
+extern s16 video_extra_width, video_extra_height;
+extern s16 video_offset_x, video_offset_y, video_width, video_height;
+extern s16 video_pending_frames;
+extern s16 video_default_extra_width[], video_default_extra_height[];
+/* video_default_x/Y retain their accepted existing m2c declarations. */
+extern s16 video_offset_bounds[][8];
+extern OSViMode *video_base_mode, *video_adjusted_mode;
+extern OSViMode osViModeTable[], video_adjusted_modes[];
+extern void zoid_scale_windows(float, float), video_build_adjusted_mode(void);
 extern u32 osSetIntMask(u32);
 
-extern OSThread gIdleThread, gGameThread;
+extern OSThread gIdleThread, main_thread;
 extern u8 gStackIdle[];
-extern void __osInitialize_common(void), idle_thread_entry(void *), game_init(void *);
+extern void __osInitialize_common(void), idle_thread_entry(void *), main_thread_entry(void *);
 extern OSMesgQueue gViModeTable;
 extern OSMesg gViModeLan1[];
-/* gStackGame retains its accepted existing m2c declaration. */
+/* main_thread_stack retains its accepted existing m2c declaration. */
 
 extern double modf(double, double *);
 extern double gPerspFov, gPerspAspect;

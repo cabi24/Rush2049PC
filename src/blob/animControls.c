@@ -24,7 +24,7 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef float f32;
 
-/* PC: the Blit's host layout (sound_control.c), as every view has it (docs/port/POINTERS.md 9). */
+/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     uintptr_t word0, word4, word8;
     u16 half12;
@@ -57,25 +57,25 @@ typedef struct TextPos {
     s32 pad0, y, pad8, padC, x, pad14;
 } TextPos;
 
-extern s16 D_8014A100[];          /* gControlFirst */
-extern s16 D_8014A10A;            /* gControlMenuSize */
+extern s16 gControlFirst[];          /* gControlFirst */
+extern s16 gControlMenuSize;            /* gControlMenuSize */
 extern s16 gNumWindows;            /* gNumWindows */
-extern s8 D_80149DA8[][10];       /* gConflict */
-extern s8 D_8015418C[];           /* controlScrActive */
-extern Player D_8014A118[];       /* gPlayers */
-extern s32 D_80154618[];          /* buttonsInited */
-extern ButtonName D_80111998[][17]; /* buttonNames */
+extern s8 gConflict[][10];       /* gConflict */
+extern s8 controlScrActive[];           /* controlScrActive */
+extern Player gPlayers[];       /* gPlayers */
+extern s32 controls_buttonsInited[];          /* buttonsInited */
+extern ButtonName controls_buttonInfo[][17]; /* buttonNames */
 extern u8 gCamera[][152];      /* gCamera */
-extern f32 D_80112A9C;            /* gButtonScale */
-extern f32 D_80112AB0;            /* buttonZ */
-extern TextPos D_80113EE0[][4];
-extern s32 D_801140E8;
-extern s32 D_8011407C[];          /* button textures */
-extern s8 D_8013C068[][10];       /* gNewControls */
-extern void Input_ApplyPadConfig(Blit *);
-extern void func_800EF5B0(Blit *, char *, s32);
-extern void brake_light_update(s32, f32 *, void *, f32 *, s16 *);
-extern void stat_race_update(Blit *, s32, s32, s32);
+extern f32 controls_gButtonScale;            /* gButtonScale */
+extern f32 controls_buttonZ;            /* buttonZ */
+extern TextPos controls_gPlayerRects[][4];
+extern s32 controls_idMap_conflict;
+extern s32 controls_idMap[];          /* button textures */
+extern s8 gNewControls[][10];       /* gNewControls */
+extern void UpdateBlit(Blit *);
+extern void RenameBlit(Blit *, char *, s32);
+extern void ZOID_ProjectWindow(s32, f32 *, void *, f32 *, s16 *);
+extern void SelectBlit(Blit *, s32, s32, s32);
 
 static s32 validOption(u8 player, s32 item)
 {
@@ -89,7 +89,6 @@ static s32 validOption(u8 player, s32 item)
     return valid;
 }
 
-#define Hidden input_new_data_wrapper   /* state_update_global.c's, under its address name */
 s32 Hidden(Blit *blt, s32 hide);
 
 s32 animControls(Blit *blt)
@@ -110,78 +109,78 @@ s32 animControls(Blit *blt)
     p = (blt->data >> 12) & 15;
     id = blt->data & 15;
     val = ((blt->data >> 16) & 255) - 1;
-    action = D_8014A100[p] + id - 1;
+    action = gControlFirst[p] + id - 1;
     if ((u8)p) {}
-    gTextPosScale = D_80112A9C;
+    gTextPosScale = controls_gButtonScale;
     if (gNumWindows > 1) {
         gTextPosScale *= 0.5f;
     }
     for (i = 0, j = 0; i < id; j++) {
-        if (!validOption(p, D_8014A100[p] + j)) {
+        if (!validOption(p, gControlFirst[p] + j)) {
             action++;
         } else {
             i++;
         }
     }
     if ((u8)p) {}
-    if (Hidden(blt, D_8014A118[p].control == 5 || (conflict && !D_80149DA8[p][action]) || action >= 10 ||
-                        !D_8015418C[p] || D_8014A10A < id)) {
+    if (Hidden(blt, gPlayers[p].control == 5 || (conflict && !gConflict[p][action]) || action >= 10 ||
+                        !controlScrActive[p] || gControlMenuSize < id)) {
         return 1;
     }
     if (uninited) {
         if (gNumWindows > 1) {
-            func_800EF5B0(blt, "CONTROLS_SM", 0);
+            RenameBlit(blt, "CONTROLS_SM", 0);
         }
-        if (D_80154618[p]) {
-            brake_light_update(p, D_80111998[p][action].pos, gCamera[p], 0, screenPos);
-            blt->x = screenPos[0] + 55.0f * gTextPosScale * 300.0f / D_80112AB0;
+        if (controls_buttonsInited[p]) {
+            ZOID_ProjectWindow(p, controls_buttonInfo[p][action].pos, gCamera[p], 0, screenPos);
+            blt->x = screenPos[0] + 55.0f * gTextPosScale * 300.0f / controls_buttonZ;
             blt->y = screenPos[1] - blt->h / 2;
-            blt->alpha = D_80111998[p][action].alpha;
+            blt->alpha = controls_buttonInfo[p][action].alpha;
         } else {
-            blt->x = D_80113EE0[gNumWindows - 1][p].x + 20;
-            blt->y = D_80113EE0[gNumWindows - 1][p].y + id * 16 + 8;
+            blt->x = controls_gPlayerRects[gNumWindows - 1][p].x + 20;
+            blt->y = controls_gPlayerRects[gNumWindows - 1][p].y + id * 16 + 8;
         }
         if (conflict) {
             blt->x += (gNumWindows == 1) ? 20 : 10;
         }
-        Input_ApplyPadConfig(blt);
+        UpdateBlit(blt);
         blt->data &= 0x00FFF0FF;
         if (conflict) {
             blt->data = (blt->data & 0xFFFF) | 0x1C0000;
-            stat_race_update(blt, D_801140E8, blt->h, blt->h);
+            SelectBlit(blt, controls_idMap_conflict, blt->h, blt->h);
         }
     }
-    if (D_80154618[p]) {
-        brake_light_update(p, D_80111998[p][action].pos, gCamera[p], 0, screenPos);
-        blt->x = screenPos[0] + 75.0f * gTextPosScale * 300.0f / D_80112AB0;
+    if (controls_buttonsInited[p]) {
+        ZOID_ProjectWindow(p, controls_buttonInfo[p][action].pos, gCamera[p], 0, screenPos);
+        blt->x = screenPos[0] + 75.0f * gTextPosScale * 300.0f / controls_buttonZ;
         blt->y = screenPos[1] - blt->h / 2;
         blt->half18 = 0x7F00;
         if (conflict) {
             blt->x += (gNumWindows == 1) ? 20 : 10;
         }
-        if (D_80111998[p][action].alpha >= 255) {
+        if (controls_buttonInfo[p][action].alpha >= 255) {
             blt->alpha = 254;
         } else {
-            blt->alpha = D_80111998[p][action].alpha;
+            blt->alpha = controls_buttonInfo[p][action].alpha;
         }
         if (Hidden(blt, blt->alpha == 0)) {
             return 1;
         }
-        Input_ApplyPadConfig(blt);
+        UpdateBlit(blt);
     } else {
         blt->alpha = 254;
-        Input_ApplyPadConfig(blt);
+        UpdateBlit(blt);
     }
     if (conflict) {
         return 1;
     }
-    if (val != D_8013C068[D_8014A118[p].control][action]) {
-        val = D_8013C068[D_8014A118[p].control][action];
+    if (val != gNewControls[gPlayers[p].control][action]) {
+        val = gNewControls[gPlayers[p].control][action];
         blt->data = (blt->data & 0xFFFF) | (((val + 1) << 16) & 0xFF0000);
         if (val == 25 && (action == 0 || action == 1)) {
             val++;
         }
-        stat_race_update(blt, D_8011407C[val], blt->h, blt->h);
+        SelectBlit(blt, controls_idMap[val], blt->h, blt->h);
     }
     return 1;
 }

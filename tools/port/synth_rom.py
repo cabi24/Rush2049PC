@@ -267,10 +267,10 @@ class Cart:
         if pos > self.image("game").rom_off:
             raise SystemExit("synth_rom: the files run into the game image's slot")
         for wave, (off, size, what) in place.items():
-            self._put(game, self.syms.addr("D_8011B5BC") + 4 * wave, be32(off), "u32", "file table offset")
-            self._put("boot", self.syms.addr("D_8002E580") + 4 * wave, be32(size), "u32", "file table size")
-            self._put(game, self.syms.addr("D_80123564") + 4 * wave, be32(0), "u32", "file table kind")
-            self._put(game, self.syms.addr("D_801234AC") + wave, bytes([1 if wave in self.model_waves else 0]),
+            self._put(game, self.syms.addr("wave_rom_offsets") + 4 * wave, be32(off), "u32", "file table offset")
+            self._put("boot", self.syms.addr("gWaveSizes") + 4 * wave, be32(size), "u32", "file table size")
+            self._put(game, self.syms.addr("wave_storage_kinds") + 4 * wave, be32(0), "u32", "file table kind")
+            self._put(game, self.syms.addr("wave_is_model") + wave, bytes([1 if wave in self.model_waves else 0]),
                       "u8", "file table model flag")
         self.place = place
 
@@ -437,12 +437,12 @@ def musyx_song():
 #
 # For tests of the sound's voices (docs/port/AUDIO.md 10): the default cartridge's project is empty, so every sound the
 # game starts is refused (MusyX knows no such sfx) and no voice ever plays. With --sounds, sfx group 12 has an sfx for
-# each of the game's sound indices (0-227: D_8011F5CC's extent; the sound manager starts sfx `index`), each a macro on
-# one of two ADPCM samples: a loop for the sounds the game loops (D_8011F5CC, set here: the engines' two layers and the
+# each of the game's sound indices (0-227: gEffectLoop's extent; the sound manager starts sfx `index`), each a macro on
+# one of two ADPCM samples: a loop for the sounds the game loops (gEffectLoop, set here: the engines' two layers and the
 # screech) and a short one-shot for the rest; and the engine table gives every car its two layers, with levels.
 SOUND_IDS = 228
-SOUND_LOOPS = (1, 2, 36)        # the engines' layers (the engine table below) and the screech (func_800E05F0)
-SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: car_shadow_render's D_00039B40
+SOUND_LOOPS = (1, 2, 36)        # the engines' layers (the engine table below) and the screech (UpdateCarSounds)
+SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: AudioInitSys's D_00039B40
 LOOP_SAMPLE, SHOT_SAMPLE = 5, 6
 LOOP_MACRO, SHOT_MACRO = 1, 2
 
@@ -509,7 +509,7 @@ def musyx_sound_project(sfx_groups):
 
 
 def musyx_sound_pool():
-    """The pool with the two macros (8-byte steps, two u32 words; MUSYX_DATA.md 3.2, lib_22300.c): the loop starts
+    """The pool with the two macros (8-byte steps, two u32 words; MUSYX_DATA.md 3.2, macros.c): the loop starts
     its sample, waits until it is keyed off (WAITMS 0xFFFF, the key-off bit) and stops its sample (STOPSAMPLE: the
     driver's voice fades out; END alone would leave a looping sample playing on a voice the library has freed); the
     one-shot starts its sample and waits until the sample has played (the sample-end bit); each then ends, which
@@ -557,20 +557,20 @@ def sound_bank(c):
     c.file(7, musyx_sound_pool(), "MusyX pool: a looping and a one-shot macro (--sounds)")
     c.file(8, musyx_sound_sdir(loop_pcm, shot_pcm, shot_off), "MusyX sample directory: two samples (--sounds)")
     for i in SOUND_LOOPS:
-        c.set("game", "D_8011F5CC", "u8", 1, "a sound the sound manager loops (--sounds)", index=i)
-    # The engine table (D_8010FD80, Definitions64[9]: a car category's two layers, each {s32 sound; u16 rev points
-    # r0, r1, b0, b1, b2; 2 bytes; f32 levels p0, p1, p2; 4 bytes}; func_800E0050 reads it): layers 1 and 2, the
+        c.set("game", "gEffectLoop", "u8", 1, "a sound the sound manager loops (--sounds)", index=i)
+    # The engine table (gEngineSpecs, Definitions64[9]: a car category's two layers, each {s32 sound; u16 rev points
+    # r0, r1, b0, b1, b2; 2 bytes; f32 levels p0, p1, p2; 4 bytes}; UpdateEngineSound reads it): layers 1 and 2, the
     # level rising with the revs.
     for cat in range(9):
         for layer in range(2):
             base = 64 * cat + 32 * layer
-            c.set("game", "D_8010FD80", "u32", 1 + layer, "a car's engine layer: its sound (--sounds)" if base == 0
+            c.set("game", "gEngineSpecs", "u32", 1 + layer, "a car's engine layer: its sound (--sounds)" if base == 0
                   else "(same)", offset=base)
             for k, v in enumerate((1000, 4000, 1000, 3000, 6000)):
-                c.set("game", "D_8010FD80", "u16", v, "its rev points" if base == 0 and k == 0 else "(same)",
+                c.set("game", "gEngineSpecs", "u16", v, "its rev points" if base == 0 and k == 0 else "(same)",
                       offset=base + 4 + 2 * k)
             for k, v in enumerate((0.6, 0.8, 1.0)):
-                c.set("game", "D_8010FD80", "f32", v, "its levels" if base == 0 and k == 0 else "(same)",
+                c.set("game", "gEngineSpecs", "f32", v, "its levels" if base == 0 and k == 0 else "(same)",
                       offset=base + 16 + 4 * k)
 
 
@@ -644,22 +644,22 @@ def font_data():
     return b.b
 
 
-# Texture names the game's C looks up with MBOX_FindTexture (func_800B24EC): string literals in the code, so each
+# Texture names the game's C looks up with MBOX_FindTexture (MBOX_FindTexture_WORK): string literals in the code, so each
 # must be in some loaded WAD or the caller gets NULL. "" stands for every name that comes from initialized data
 # (MultiBlit tables, rodata strings), which is zero here.
 CODE_TEXTURES = ["", "A1", "B1", "BACKGROUND_SFX", "BUTTON", "BUTTON_SELECT", "BUTTON_TITLE", "CNTDWN3",
                  "CURSOR", "CURSOR_B", "HIT_WALL"]
 TEX_W, TEX_H = 16, 16          # every such texture: RGBA16, one solid colour
 # Texture names of the cartridge's own, for data it writes on both sides (a name in data and its texture), with their
-# (size, format) where it isn't RGBA16: the track select's fog blit (its name is image A's D_803B9260, char[4]) and
+# (size, format) where it isn't RGBA16: the track select's fog blit (its name is image A's track_fog_texture_name, char[4]) and
 # battle mode's health bar (BRINGUP.md 7, 10). Each is an 8-bit IA or I texture, the two formats the 2D draw colours
-# with the 8-byte colour pair its blit's palette table points to (func_8008A148).
+# with the 8-byte colour pair its blit's palette table points to (BlitColors).
 SYN_FOG, SYN_BAR = "SYF", "SYN_BAR"
 OWN_TEXTURES = [SYN_FOG, SYN_BAR]
 TEX_FORMATS = {SYN_FOG: (1, 3), SYN_BAR: (1, 4)}
 
 
-# Model names the C looks up with MBOX_FindModel (string_copy_format): "AAANULLOBJ" is what it looks up for a NULL
+# Model names the C looks up with MBOX_FindModel (MBOX_FindObject_WORK): "AAANULLOBJ" is what it looks up for a NULL
 # or empty name, which every name from initialized data is here; the rest are string literals in the code.
 CODE_MODELS = ["AAANULLOBJ", "MINEG1"]
 WAD_OBJS = 8                   # the OBJS chunk comes first in these WADs, right after the header
@@ -668,7 +668,7 @@ WAD_OBJS = 8                   # the OBJS chunk comes first in these WADs, right
 def obhd(name, dl, vtx, radius=100.0, lods=None):
     """An OBHD model record, 0x58 bytes: one LOD whose display list and vertices are file-relative (SetupWaveModel
     adds the file's address); the other three LODs zero. lods: [(display list, vertices, lodRad)] instead, up to four
-    (particle_system: level k is drawn out to its lodRad, the last one's is the model's distance limit, 0 none)."""
+    (zoid_draw_object: level k is drawn out to its lodRad, the last one's is the model's distance limit, 0 none)."""
     lods = lods or [(dl, vtx, 1e6)]
     b = Buf()
     b.raw(name16(name))
@@ -695,8 +695,8 @@ def gfx(w0, w1=0):
 # Each model's list sets the state it draws with, so it doesn't depend on what the game set before it: one-cycle
 # mode, the shade colour (G_CC_SHADE in both cycles), an opaque z-buffered surface without blending, no texture, and
 # smooth shading with back faces culled, without fog, lighting or texture generation. Then its vertices (G_VTX, w1
-# file-relative: the WAD relocator, entity_lod_select, adds the file's address), its triangles (G_TRI2), G_ENDDL. The
-# faces wind clockwise seen from outside in the world's axes: the scene's modelview negates x (func_8009F058's
+# file-relative: the WAD relocator, relocate_model_dl, adds the file's address), its triangles (G_TRI2), G_ENDDL. The
+# faces wind clockwise seen from outside in the world's axes: the scene's modelview negates x (zoid_draw_window's
 # identity has m[0][0] = -1), which makes them counter-clockwise, front faces, on the screen. So the ground is seen
 # from above only, and a box not from inside (the in-car camera's own car).
 RM_ZB_OPA = 0x10 | 0x20 | 0x4000 | (3 << 26) | (2 << 18) | (3 << 24) | (2 << 16)   # Z_CMP Z_UPD FORCE_BL, CLR_IN x 1
@@ -711,7 +711,7 @@ DL_STATE = (gfx(0xE7000000) +                                   # G_RDPPIPESYNC
 
 
 def vtx(x, y, z, rgba, last):
-    """A Vtx (16 bytes): s16 position, the u16 flags at +6 (bit 15: another vertex follows, which func_800966D8's walk
+    """A Vtx (16 bytes): s16 position, the u16 flags at +6 (bit 15: another vertex follows, which mirror_vertex_texcoords's walk
     of the vertex chain reads), s16 texture coordinates, the colour."""
     b = Buf()
     for v in (x, y, z):
@@ -790,7 +790,7 @@ BOX = (4.5 * UNITS, 3.0 * UNITS, 2.5 * UNITS)
 def model_objs(models):
     """OBJS for the models (names): each model's vertices and display list, in the chunk that starts at file offset
     WAD_OBJS. Returns (the chunk, {name: (list offset, vertex offset, radius)}), offsets file-relative. Each model has
-    lists of its own: SetupWaveModel relocates every model's lists in place (entity_lod_select adds the file's
+    lists of its own: SetupWaveModel relocates every model's lists in place (relocate_model_dl adds the file's
     address to each address), so a list two models shared would be relocated twice."""
     out, where = b"", {}
     for m in models:
@@ -928,9 +928,9 @@ WORLD_NODE = "TRACK"
 
 def world_node(name, pos=(0.0, 0.0, 0.0), next_index=0xFFFF, flags=0, box=(0, 0, 0, 0, 0, 0)):
     """A WOBJ node, 0x68 bytes: its name (a model name, or a target's), an identity rotation and a position, its
-    flags (the scene node's, differential_output), its next sibling (0xFFFF none), no child, no sounds or texture
+    flags (the scene node's, NewWorldObject), its next sibling (0xFFFF none), no child, no sounds or texture
     index, its bound (min[3], max[3] from its place: zero for none; a top-level node's is the world's visibility
-    cell, WorldCullObjects, and its scene node's culling box, func_800A7E10)."""
+    cell, WorldCullObjects, and its scene node's culling box, ZOID_BuildCullingList)."""
     node = Buf()
     node.raw(name16(name))
     for v in (1, 0, 0, 0, 1, 0, 0, 0, 1) + tuple(pos):   # mat[12]: rotation, then translation
@@ -958,9 +958,9 @@ def world_node(name, pos=(0.0, 0.0, 0.0), next_index=0xFFFF, flags=0, box=(0, 0,
 #                2,048 ft and far's 4,096 ft: max alone draws it
 #   SYN_LOD      two levels, red out to 200 ft and blue out to 1,200 ft, about 2,000 ft from the start: past its last
 #                level (the N64 leaves it out), blue at far, red with detail high
-#   SYN_SCENERY  far scenery (flag 0x400000) 21,000 ft out: pulled in to 1,600 ft (func_8009D708), max at its place
+#   SYN_SCENERY  far scenery (flag 0x400000) 21,000 ft out: pulled in to 1,600 ft (build_far_node_matrix), max at its place
 # The paths that read it (tools/port/synth/detail*.press) race two seconds from the start, the eye within 100 ft of it.
-# The rows (D_8011B898, track 0's table): the ground's lets through the ground, NEAR, LOD and SCENERY; each part's
+# The rows (track1Parts, track 0's table): the ground's lets through the ground, NEAR, LOD and SCENERY; each part's
 # lets through the ground and itself (HIDDEN's NEAR too).
 DETAIL_TRACK = 0   # the track select of this cartridge offers no other (its option 0, the track, isn't valid)
 DETAIL_MODELS = {   # name: [(box half-sizes in sixteenths of a foot, colour, lodRad)] a level each
@@ -985,7 +985,7 @@ DETAIL_GROUND_BOUND = (-1100, -50, -1100, 1100, 500, 1100)   # round the loop, f
 def world_wad(targets=(), nodes=None):
     """A world WAD (ASSETS.md 3.4, port/assets/world.c): WHDR names one world, whose root is the WOBJ node TRACK
     (its model is in the track WAD) and its siblings, one per target (name, position): the world walk
-    (differential_output) offers each node to the target table (transmission_ratio_get), which makes a level object
+    (NewWorldObject) offers each node to the target table (SetupTarget), which makes a level object
     of a node whose name starts with a target's. GDAT one quadtree node, a leaf with nothing in it; GTLD no target
     keys."""
     nodes = nodes or [(WORLD_NODE, GROUND_CENTRE)] + list(targets)
@@ -1016,19 +1016,19 @@ def road_file():
 
     - header: no path or save records, one tree node, one surface, four vertices, a 5-byte vertex list and a 4-byte
       surface list (slnum, which the N64 doesn't read);
-    - the tree node (handbrake_apply, func_800AC9BC): the root (parent -1), bounds in whole feet (h is x, v is z,
+    - the tree node (updownleaf, downleaf): the root (parent -1), bounds in whole feet (h is x, v is z,
       half-open), flags 0 so each quarter's child is a byte offset into the surface lists (0 would be "none"), all
       four the same list;
     - the surface (0x18 bytes): type 0 (roadcode 0, pavement; a wall, trigger or disabled code would be skipped or
       act), its vertex count 4 in the low bits of the second word, an identity 3 x 3 matrix in 2^-14 units (row 1 is
-      the up normal: entity_update's height above the road is that row's dot product with the point less the first
+      the up normal: TireSurf's height above the road is that row's dot product with the point less the first
       vertex), and its vertex list at offset 0;
     - the vertices (s16 feet and a word of 1/32 fractions): the first is the corner (-1000, 0, -1000) in the world,
       the others are in the surface's frame from it, (4000, 0, 0), (4000, 0, 4000), (0, 0, 4000), in the order
-      func_800C3AD0's edge tests take as inside;
-    - the vertex list (func_800AD5D0): the first index as a big-endian u16, then a run byte 0xE0 | 3 for the next
+      PointInSurf's edge tests take as inside;
+    - the vertex list (DecodeVlist): the first index as a big-endian u16, then a run byte 0xE0 | 3 for the next
       three, then the u16 path record index the edge handlers read (0);
-    - the surface list (func_800ADCE0): offset 0 is a pad byte (0 means none), then the count 1 and one word, a run
+    - the surface list (DecodeSlist): offset 0 is a pad byte (0 means none), then the count 1 and one word, a run
       of 0 more from surface 0."""
     lo, hi = -1000, 3000
     b = Buf()
@@ -1060,20 +1060,20 @@ def road_file():
 
 def boot_and_sound(c):
     """What the boot needs (docs/port/SYNTH.md 2): MusyX's tables, the static display lists, the first game state."""
-    # MusyX (docs/port/MUSYX_DATA.md 8.6). func_800114C0 sizes the sample cache as D_8002C5D0[mode] x voices;
+    # MusyX (docs/port/MUSYX_DATA.md 8.6). sound_hw_alloc_dma sizes the sample cache as sound_sample_blocks_per_voice[mode] x voices;
     # zero gives zero-entry caches whose first node's links land in the next heap block's header.
-    c.set_all("boot", "D_8002C5D0", "u16", [2] * 6, "sample cache entries per voice, per mode (non-zero)")
+    c.set_all("boot", "sound_sample_blocks_per_voice", "u16", [2] * 6, "sample cache entries per voice, per mode (non-zero)")
     # Its tuning factors scale the voice and DMA buffer counts from the output rate; 1.0 keeps the rate's own.
-    for s in ("D_8002D8B8", "D_8002D8BC", "D_8002D8C0", "D_8002D8C4", "D_8002D8C8"):
+    for s in ("sound_sfd_margin", "sound_sfd_margin_half_rate", "sound_dma_margin", "sound_dma_margin_half_rate", "sound_sample_cache_factor"):
         c.set("boot", s, "f32", 1.0, "MusyX buffer scale (neutral)")
     # The service table AudioInitSys hands to the library: the eight functions at the end of the game's code,
     # in the order the library calls them (MUSYX_DATA.md 8.1; port/main.c's musyx_services is the same list).
-    for i, f in enumerate(("func_8010FBE0", "sync_acquire_menu", "func_8010FC60", "func_8010FC70",
-                           "struct_init_and_call", "func_8010FD60", "resource_alloc_init", "synced_model_render")):
-        c.func_ptr("game", "D_8011EAAC", i, f, "MusyX service slot")
+    for i, f in enumerate(("musyx_submit_audio_task", "musyx_wait_audio_task", "musyx_set_retrace_callback", "musyx_clear_retrace_callback",
+                           "musyx_start_dma_list", "musyx_cart_address", "musyx_alloc", "musyx_free")):
+        c.func_ptr("game", "audio_driver_services", i, f, "MusyX service slot")
     # The sfx groups AudioInitSys pushes (Instrument4 {u16 other, id}); the project has a group for each.
     for j, g in enumerate(SFX_GROUPS):
-        c.set("game", "D_8011F0A0", "u16", g, "sfx group id pushed at boot", offset=4 * j + 2)
+        c.set("game", "boot_sfx_groups", "u16", g, "sfx group id pushed at boot", offset=4 * j + 2)
 
     # zlib 1.0.4's extra bits of the bit-length codes (extra_blbits, D_8011E974, int[19]: zlib's own constants), which
     # only static_bl_desc points to: declared in zlib_deflate for the PC, so the loader converts them (BRINGUP.md 13).
@@ -1081,23 +1081,23 @@ def boot_and_sound(c):
 
     # The boot data's two static display lists (Gfx[], called from every frame's list): a list of zeros is a run of
     # no-ops that walks off its end on the N64 as on the PC, so each is just its end command.
-    for s in ("D_8002E4A0", "D_8002E528"):
+    for s in ("rdp_init_dl", "rsp_init_dl"):
         c.set("boot", s, "u32", 0xDF000000, "G_ENDDL: the static display list ends at once")
 
     # The game's state machine (groups/state/state.c): gGameState 0 and gNewGameState 1, so the first frame's
     # updateGameState runs initGameState's state 1 (InitWaves, overlay "Start", SetOptions, InitRecords), which
     # moves on to state 2 (the front end's waves). Zero for both is a game with no state, where nothing happens.
-    c.set("game", "state_word_b", "u32", 0x1, "gNewGameState: start in state 1 (initGameState)")
-    # gGameState before that: -1, the game's own "no state" (func_800B7FF8 tests state_word_a != -1), which has every
+    c.set("game", "gNewGameState", "u32", 0x1, "gNewGameState: start in state 1 (initGameState)")
+    # gGameState before that: -1, the game's own "no state" (UpdateHUDPostCamera tests gGameState != -1), which has every
     # state's bit, and which the host's --until-state must not take for the one it waits for (BRINGUP.md 6).
-    c.set("game", "state_word_a", "u32", 0xFFFFFFFF, "gGameState: -1, no state yet (func_800B7FF8)")
-    # gSkipToGameState (D_801174BC): a screen whose state isn't this one passes straight on to its next screen,
+    c.set("game", "gGameState", "u32", 0xFFFFFFFF, "gGameState: -1, no state yet (UpdateHUDPostCamera)")
+    # gSkipToGameState (gSkipToGameState): a screen whose state isn't this one passes straight on to its next screen,
     # unless it is 1, which every screen writes back once it is reached (and the race start, gameover's
     # "Quit"...). 0 skips the start prompt and the main menu; 1 is "no skip".
     c.set("game", "gSkipToGameState", "u32", 0x1, "gSkipToGameState: 1, no screen skipped")
-    # The pak server's port in a prompt (paksys' D_8011EAE8): it scans only that port while one is set, and puts
+    # The pak server's port in a prompt (paksys' gErrPak): it scans only that port while one is set, and puts
     # -1 back after each prompt. -1 at start, so the paks on controllers 2-4 are scanned too (0 scans port 1 only).
-    c.set("game", "D_8011EAE8", "u8", 0xFF, "the pak server's prompt port: -1, none (every port is scanned)")
+    c.set("game", "gErrPak", "u8", 0xFF, "the pak server's prompt port: -1, none (every port is scanned)")
 
     for lang, wave in zip(("EN", "ES", "IT", "DE", "NL", "FR"), range(6)):
         c.file(wave, text_bank(lang=lang), f"text bank {lang}")
@@ -1140,7 +1140,7 @@ def tan_pade():
 
 def atan_pade():
     """atan t / t = N(g) / D(g), g = t^2, N of degree 4 and D of degree 5: the [4/5] Pade approximant of the series
-    sum (-g)^k / (2k + 1), scaled so that D is monic; then N and D share their constant term, as func_8008C5E0's one
+    sum (-g)^k / (2k + 1), scaled so that D is monic; then N and D share their constant term, as fxatan's one
     constant for both says. Returns (c0, [n1..n4], [d1..d4])."""
     L, M = 4, 5
     c = [Fraction((-1) ** k, 2 * k + 1) for k in range(L + M + 1)]
@@ -1205,56 +1205,56 @@ def math_constants(c):
     c.set("boot", "gNaNf", "u32", 0x7FC00000, "sinf's result for a NaN: a quiet NaN", elem="f32")
     c.set("boot", "gOrthoScale", "f64", math.pi / 180, "guPerspectiveF's fovy factor: degrees to radians")
 
-    # tanf (func_800A557C): xn = round(x 2/pi); f = (x - xn C1) - xn C2 with C1 + C2 = pi/2 (C1 = 201/128, 8 bits,
+    # tanf (tan_cody_waite): xn = round(x 2/pi); f = (x - xn C1) - xn C2 with C1 + C2 = pi/2 (C1 = 201/128, 8 bits,
     # so xn C1 is exact); f itself below eps, else f (1 + P(g)) / (1 + Q(g)), and -1 over that for odd xn; 0 past ymax.
     p, q = tan_pade()
-    c.set("game", "D_80123B98", "f32", math.pi / 2 * 2 ** 12, "tanf: the largest argument it reduces")
-    c.set("game", "D_80123B9C", "f32", 2 / math.pi, "tanf: x 2/pi counts the quarter turns")
-    c.set("game", "D_80123BA0", "f32", 201 / 128, "tanf: pi/2, its first 8 bits (C1)")
-    c.set("game", "D_80123BA4", "f32", math.pi / 2 - 201 / 128, "tanf: the rest of pi/2 (C2)")
-    c.set("game", "D_80123BA8", "f32", 2 ** -12, "tanf: below this, tan f = f")
-    for sym, v, what in (("D_80123BB4", p[0], "P1"), ("D_80123BB0", p[1], "P2"), ("D_80123BAC", p[2], "P3"),
-                         ("D_80123BC4", q[0], "Q1"), ("D_80123BC0", q[1], "Q2"), ("D_80123BBC", q[2], "Q3"),
-                         ("D_80123BB8", q[3], "Q4")):
+    c.set("game", "tan_max_arg", "f32", math.pi / 2 * 2 ** 12, "tanf: the largest argument it reduces")
+    c.set("game", "tan_two_over_pi", "f32", 2 / math.pi, "tanf: x 2/pi counts the quarter turns")
+    c.set("game", "tan_half_pi_hi", "f32", 201 / 128, "tanf: pi/2, its first 8 bits (C1)")
+    c.set("game", "tan_half_pi_lo", "f32", math.pi / 2 - 201 / 128, "tanf: the rest of pi/2 (C2)")
+    c.set("game", "tan_epsilon", "f32", 2 ** -12, "tanf: below this, tan f = f")
+    for sym, v, what in (("tan_p1", p[0], "P1"), ("tan_p2", p[1], "P2"), ("tan_p3", p[2], "P3"),
+                         ("tan_q1", q[0], "Q1"), ("tan_q2", q[1], "Q2"), ("tan_q3", q[2], "Q3"),
+                         ("tan_q4", q[3], "Q4")):
         c.set("game", sym, "f32", v, f"tanf: {what} of f (1 + P(g)) / (1 + Q(g)), Lambert's continued fraction")
 
-    # atan: the kernel func_8008C5E0 is t N(g) / D(g) on |t| <= tan(pi/8); func_8008C680 maps x > tan(3pi/8) to
-    # pi/2 - K(1/x) and the middle to pi/4 + K((x - 1) / (x + 1)); atan2 (func_8008C768) adds +-pi/2 and +-pi.
+    # atan: the kernel fxatan is t N(g) / D(g) on |t| <= tan(pi/8); fsatan maps x > tan(3pi/8) to
+    # pi/2 - K(1/x) and the middle to pi/4 + K((x - 1) / (x + 1)); atan2 (fatan2) adds +-pi/2 and +-pi.
     c0, n, d = atan_pade()
-    c.set("game", "D_801238C0", "f32", c0, "atan kernel: N's and D's constant term ([4/5] Pade, D monic)")
-    for sym, v, what in (("D_801238D0", n[0], "n1"), ("D_801238CC", n[1], "n2"), ("D_801238C8", n[2], "n3"),
-                         ("D_801238C4", n[3], "n4"), ("D_801238E0", d[0], "d1"), ("D_801238DC", d[1], "d2"),
-                         ("D_801238D8", d[2], "d3"), ("D_801238D4", d[3], "d4")):
+    c.set("game", "atan_p0", "f32", c0, "atan kernel: N's and D's constant term ([4/5] Pade, D monic)")
+    for sym, v, what in (("atan_p1", n[0], "n1"), ("atan_p2", n[1], "n2"), ("atan_p3", n[2], "n3"),
+                         ("atan_p4", n[3], "n4"), ("atan_q1", d[0], "d1"), ("atan_q2", d[1], "d2"),
+                         ("atan_q3", d[2], "d3"), ("atan_q4", d[3], "d4")):
         c.set("game", sym, "f32", v, f"atan kernel: {what} of atan t = t N(g) / D(g)")
-    for sym, v, what in (("D_801238E4", math.tan(math.pi / 8), "the kernel's own range, tan(pi/8)"),
-                         ("D_801238E8", math.tan(3 * math.pi / 8), "past this, pi/2 - K(1/x): tan(3pi/8)"),
-                         ("D_801238EC", math.pi / 2, "pi/2"), ("D_801238F0", math.pi / 4, "pi/4"),
-                         ("D_801238F4", math.pi / 2, "atan2: +pi/2"), ("D_801238F8", -math.pi / 2, "atan2: -pi/2"),
-                         ("D_801238FC", math.pi, "atan2: +pi"), ("D_80123900", -math.pi, "atan2: -pi")):
+    for sym, v, what in (("atan_sq2m1", math.tan(math.pi / 8), "the kernel's own range, tan(pi/8)"),
+                         ("atan_sq2p1", math.tan(3 * math.pi / 8), "past this, pi/2 - K(1/x): tan(3pi/8)"),
+                         ("atan_pio2", math.pi / 2, "pi/2"), ("atan_pio4", math.pi / 4, "pi/4"),
+                         ("atan2_pio2", math.pi / 2, "atan2: +pi/2"), ("atan2_neg_pio2", -math.pi / 2, "atan2: -pi/2"),
+                         ("atan2_pi", math.pi, "atan2: +pi"), ("atan2_neg_pi", -math.pi, "atan2: -pi")):
         c.set("game", sym, "f32", v, f"atan: {what}")
-    # asin and acos (func_8009C3F8): a literal rational for |x| <= 1/2 and asin x = pi/2 - 2 asin sqrt((1 - x) / 2)
+    # asin and acos (farcsine): a literal rational for |x| <= 1/2 and asin x = pi/2 - 2 asin sqrt((1 - x) / 2)
     # above, joined by {a0, a1, b0, b1}: asin = (a[i] + r) + a[i], acos = (a[i] - r) + a[i] or (b[i] + r) + b[i].
-    c.set_all("game", "D_8011F010", "f32", [0.0, math.pi / 4, math.pi / 2, math.pi / 4],
+    c.set_all("game", "asin_offsets", "f32", [0.0, math.pi / 4, math.pi / 2, math.pi / 4],
               "asin/acos: the offsets {0, pi/4, pi/2, pi/4}")
     # The vector helpers' floors, and the tire slip ratio's slope past |z| 400 (continuous with x / z there).
-    c.set("game", "D_80123888", "f32", 1e-10, "func_8008B424: the least squared length it takes 1/sqrt of")
-    c.set("game", "D_8012394C", "f32", 1e-6, "func_8008E0B8: a length it doesn't normalise")
-    c.set("game", "D_80123F80", "f32", 1e-5, "func_800C4180: matrix entries it takes for zero (gimbal lock)")
-    c.set("game", "D_80123E04", "f32", 1 / 400, "func_800BC21C: x / z for z >= 400 (continuous)")
-    c.set("game", "D_80123E08", "f32", 1 / 400, "func_800BC21C: -x / z for z <= -400 (continuous)")
+    c.set("game", "invmagnitude_floor", "f32", 1e-10, "invmagnitude: the least squared length it takes 1/sqrt of")
+    c.set("game", "normalvector_floor", "f32", 1e-6, "NormalVector: a length it doesn't normalise")
+    c.set("game", "extract_yaw_epsilon", "f32", 1e-5, "ExtractYaw: matrix entries it takes for zero (gimbal lock)")
+    c.set("game", "calcalpha_far_scale_positive", "f32", 1 / 400, "calcalpha: x / z for z >= 400 (continuous)")
+    c.set("game", "calcalpha_far_scale_negative", "f32", 1 / 400, "calcalpha: -x / z for z <= -400 (continuous)")
 
 
 SCREEN_W, SCREEN_H = 320, 220   # the game's framebuffer (display())
-VI_X_PER_PIXEL = 1024 / 640     # gViewportFloatA: 2.10 xScale per pixel of a 640-pixel line
-VI_Y_PER_LINE = 1024 / 240      # gViewportFloatB: 2.10 yScale per line of a 240-line field
+VI_X_PER_PIXEL = 1024 / 640     # video_x_scale_factor: 2.10 xScale per pixel of a 640-pixel line
+VI_Y_PER_LINE = 1024 / 240      # video_y_scale_factor: 2.10 yScale per line of a 240-line field
 
 
 def vi_mode_ntsc_lpn1():
     """An NTSC, low-resolution, point-sampled, non-interlaced, 16-bit VI mode as 20 big-endian words (libultra's
     OSViMode: the type byte and 3 pad bytes; comRegs ctrl, width, burst, vSync, hSync, leap, hStart, xScale, vCurrent;
     fldRegs[2] origin, yScale, vStart, vBurst, vIntr), computed from what the VI registers mean, for the game's
-    320 x 220 framebuffer on NTSC's 240 lines. Its scales are what display_update makes of the screen size
-    (`width x FloatA`, `(height x FloatB + 16.5) & ~15`): display_mode_tick shows the picture (osViBlack(0)) only
+    320 x 220 framebuffer on NTSC's 240 lines. Its scales are what video_build_adjusted_mode makes of the screen size
+    (`width x FloatA`, `(height x FloatB + 16.5) & ~15`): video_apply_pending_mode shows the picture (osViBlack(0)) only
     once the mode it made has the table's yScale."""
     ctrl = 0x2 | 0x4 | 0x8 | 0x10 | 0x300 | 0x3000  # 16-bit, gamma dither, gamma, divot, resample only, advance 3
     burst = (62 << 20) | (5 << 16) | (34 << 8) | 57  # burst start, vsync width, burst width, hsync width
@@ -1270,33 +1270,33 @@ def vi_mode_ntsc_lpn1():
 
 
 def display(c):
-    """The screen and the video mode (lib_21f0.c's viewport_setup and display_update, gfx_frame_begin)."""
+    """The screen and the video mode (video_mode.c's video_set_mode and video_build_adjusted_mode, StartGraphics)."""
     # The game's framebuffers are heap blocks of 0x22620 bytes, 32 more than a 320 x 220 16-bit image (aligned up to
-    # 64 in _InitGfx); gfx_frame_begin sets the colour image and clears it at the screen size D_8002AFC0 x D_8002AFC4,
+    # 64 in _InitGfx); StartGraphics sets the colour image and clears it at the screen size screen_width x screen_height,
     # and ZOID_ResetWindows makes the windows from it. Zero is a colour image 4096 pixels wide (its width field is
     # width - 1) and windows of no size.
-    c.set("boot", "D_8002AFC0", "u32", SCREEN_W, "the screen's width (a framebuffer is 320 x 220 x 2 bytes)")
-    c.set("boot", "D_8002AFC4", "u32", SCREEN_H, "the screen's height")
-    # The VI modes (gViModeTableBase, OSViMode[5]): viewport_setup takes mode get_tv_offset(), 0 for NTSC (osTvType
-    # 1), and display_update divides by its active line's and field's lengths (0 / 0 with a zero mode).
-    c.set("boot", "gViModeTableBase", "u8", 0, "VI mode 0: NTSC LPN1, type 0 (vi_mode_ntsc_lpn1)")
+    c.set("boot", "screen_width", "u32", SCREEN_W, "the screen's width (a framebuffer is 320 x 220 x 2 bytes)")
+    c.set("boot", "screen_height", "u32", SCREEN_H, "the screen's height")
+    # The VI modes (osViModeTable, OSViMode[5]): video_set_mode takes mode video_mode_base_index(), 0 for NTSC (osTvType
+    # 1), and video_build_adjusted_mode divides by its active line's and field's lengths (0 / 0 with a zero mode).
+    c.set("boot", "osViModeTable", "u8", 0, "VI mode 0: NTSC LPN1, type 0 (vi_mode_ntsc_lpn1)")
     for k, v in enumerate(vi_mode_ntsc_lpn1()[1:], 1):
-        c.set("boot", "gViModeTableBase", "u32", v, "VI mode 0: its registers" if k == 1 else "(same)", offset=4 * k)
-    # display_update scales the mode by the screen size: xScale = width x FloatA, yScale = (height x FloatB + 16.5) &
+        c.set("boot", "osViModeTable", "u32", v, "VI mode 0: its registers" if k == 1 else "(same)", offset=4 * k)
+    # video_build_adjusted_mode scales the mode by the screen size: xScale = width x FloatA, yScale = (height x FloatB + 16.5) &
     # ~15. FloatA = 1024 / 640 and FloatB = 1024 / 240 are the 2.10 scales of a pixel of the 640-pixel line and of a
     # line of the 240-line field (vi_mode_ntsc_lpn1 uses the same). FloatC and FloatD are the seconds a retrace takes,
-    # PAL and NTSC (gScaleSecondsPerTick; the ticks a second are 50 and 60).
-    c.set("boot", "gViewportFloatA", "f32", VI_X_PER_PIXEL, "xScale per pixel of the line (2.10)")
-    c.set("boot", "gViewportFloatB", "f32", VI_Y_PER_LINE, "yScale per line of the field (2.10)")
-    c.set("boot", "gViewportFloatC", "f32", 1 / 50, "a PAL retrace, in seconds")
-    c.set("boot", "gViewportFloatD", "f32", 1 / 60, "an NTSC retrace, in seconds")
+    # PAL and NTSC (gRetraceTime; the ticks a second are 50 and 60).
+    c.set("boot", "video_x_scale_factor", "f32", VI_X_PER_PIXEL, "xScale per pixel of the line (2.10)")
+    c.set("boot", "video_y_scale_factor", "f32", VI_Y_PER_LINE, "yScale per line of the field (2.10)")
+    c.set("boot", "retrace_time_pal", "f32", 1 / 50, "a PAL retrace, in seconds")
+    c.set("boot", "retrace_time_ntsc", "f32", 1 / 60, "an NTSC retrace, in seconds")
 
 
 def front_end(c):
     """The front end's screens, from the start prompt to the car select (SYNTH.md 2)."""
     # The 19-entry button map ControllerUpdate turns the pads' buttons into the game's with (game bit j = any N64
-    # button in D_8011FAD4[j]). A zero map gives no buttons at all, so no screen that waits for one ever ends. This
-    # one is made up from how the code uses the bits: 0x400/0x800/0x1000/0x2000 are what func_800E7134 makes of the
+    # button in n64_button_map[j]). A zero map gives no buttons at all, so no screen that waits for one ever ends. This
+    # one is made up from how the code uses the bits: 0x400/0x800/0x1000/0x2000 are what ControlIRQ makes of the
     # stick (up, down, left, right), so those are the d-pad; bits 0-2 are what the start prompt and the pak
     # warning take to go on (Start, A, B here); the rest are spread over the other buttons.
     n64_buttons = {"A": 0x8000, "B": 0x4000, "Z": 0x2000, "START": 0x1000, "DU": 0x0800, "DD": 0x0400,
@@ -1304,100 +1304,100 @@ def front_end(c):
                    "CL": 0x0002, "CR": 0x0001}
     button_map = ["START", "A", "B", "Z", "L", "R", "CU", "CD", "CL", "CR", "DU", "DD", "DL", "DR"]
     for j, b in enumerate(button_map):
-        c.set("game", "D_8011FAD4", "u32", n64_buttons[b], f"game button bit {j}: the pad's {b}", index=j)
+        c.set("game", "n64_button_map", "u32", n64_buttons[b], f"game button bit {j}: the pad's {b}", index=j)
 
-    # The control table (gControlTable, D_801118E4, u32[26]): a player's ten controls are option bytes, and SetControls
-    # (drone_target_update) makes each the mask D_801118E4[option] that the car's readers test against the game
-    # buttons (func_800E681C's group). Zero gives no gas, brake, shift or fire. The readers take a value of 0x13 to
-    # 0x19 as an analog source (0x13 and 0x19 the stick, func_800E627C, func_800E6460) and anything else as game
-    # button bits; the default controls (SetDefaultControls, func_800C77C4: gas 1, brake 2, steering 0x13, ...) are
+    # The control table (gControlTable, gControlTable, u32[26]): a player's ten controls are option bytes, and SetControls
+    # (SetControls) makes each the mask gControlTable[option] that the car's readers test against the game
+    # buttons (UpdateModelControls's group). Zero gives no gas, brake, shift or fire. The readers take a value of 0x13 to
+    # 0x19 as an analog source (0x13 and 0x19 the stick, ReadSteeringWheel, ReadGasAndBrake) and anything else as game
+    # button bits; the default controls (SetDefaultControls, SetDefaultControls: gas 1, brake 2, steering 0x13, ...) are
     # set by code. So option k < 19 is game button k (the 19 bits of the button map), and 19-25 are those analog
     # codes themselves. With the button map above, gas is A (bit 1), brake B (bit 2), steering the stick.
     for k in range(26):
         v = 1 << k if k < 19 else k
-        c.set("game", "D_801118E4", "u32", v, "the control table: option k < 19 is game button k, 19-25 the analog "
+        c.set("game", "gControlTable", "u32", v, "the control table: option k < 19 is game button k, 19-25 the analog "
               "codes" if k == 0 else "(same)", index=k)
 
-    # The main menu's options (validOption, D_803B65E4[10], image A, s8; optionValid@startscr.c): updateStartScreen
+    # The main menu's options (validOption, startscr_validOption[10], image A, s8; optionValid@startscr.c): updateStartScreen
     # skips to a valid one with `while (!optionValid(i)) i++`, which never ends when none is. Five, each a screen:
     # 0 the race (the player screen), 1 0x2000, 2 0x200, 3 0x800, 4 0x1000; 5 and 8 do nothing, 6 and 7 are the
     # cheats' and the unlocked levels' (the code decides those), 9 quits.
-    c.set_all("ovl_a", "D_803B65E4", "u8", [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+    c.set_all("ovl_a", "startscr_validOption", "u8", [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
               "the main menu's valid options: the five screens 0-4")
 
     # Cheat codes (eggs.c's Egg: a step count, then u32 held[20] and pressed[20] game-button masks; CheckForEgg).
-    # Made up here, with the button map above: the main menu's code (D_803B41D4, the start screen's own InitEgg),
-    # hold L and press Z, makes option 6 valid (D_801164A1), the cheat screen (0x8000000); cheat 0's
-    # (D_803B3460[0]), hold R and press Z, then hold C-up and press Z, lets RIGHT switch it. The masks are u32
-    # elements: a byte view of D_803B3460 (an opaque Rec164 that once won gen_data's ranking) stops this generator.
+    # Made up here, with the button map above: the main menu's code (start_screen_egg, the start screen's own InitEgg),
+    # hold L and press Z, makes option 6 valid (cheat_menu_unlocked), the cheat screen (0x8000000); cheat 0's
+    # (gEggs[0]), hold R and press Z, then hold C-up and press Z, lets RIGHT switch it. The masks are u32
+    # elements: a byte view of gEggs (an opaque Rec164 that once won gen_data's ranking) stops this generator.
     # The cheats path (synth/cheats.press) opens the screen: the start screen once called eggs.c's InitEgg, whose
     # InitEgg(23) pointed past the table, and the screen never opened (docs/port/QA.md).
-    c.set("ovl_a", "D_803B41D4", "u8", 1, "the main menu's cheat code: one step")
-    c.set("ovl_a", "D_803B41D4", "u32", 1 << 4, "its held mask: L", offset=4)
-    c.set("ovl_a", "D_803B41D4", "u32", 1 << 3, "its pressed mask: Z", offset=84)
-    c.set("ovl_a", "D_803B3460", "u8", 2, "cheat 0's code: two steps")
+    c.set("ovl_a", "start_screen_egg", "u8", 1, "the main menu's cheat code: one step")
+    c.set("ovl_a", "start_screen_egg", "u32", 1 << 4, "its held mask: L", offset=4)
+    c.set("ovl_a", "start_screen_egg", "u32", 1 << 3, "its pressed mask: Z", offset=84)
+    c.set("ovl_a", "gEggs", "u8", 2, "cheat 0's code: two steps")
     for i, held in enumerate((1 << 5, 1 << 6)):
-        c.set("ovl_a", "D_803B3460", "u32", held, "its held masks: R, then C-up", offset=4 + 4 * i)
-        c.set("ovl_a", "D_803B3460", "u32", 1 << 3, "its pressed masks: Z", offset=84 + 4 * i)
+        c.set("ovl_a", "gEggs", "u32", held, "its held masks: R, then C-up", offset=4 + 4 * i)
+        c.set("ovl_a", "gEggs", "u32", 1 << 3, "its pressed masks: Z", offset=84 + 4 * i)
 
-    # The options screen's valid items (validOption, D_80116D14, s32[14]; optionscr_buttons): options_initScreen
+    # The options screen's valid items (validOption, options_validOption, s32[14]; optionscr_buttons): options_initScreen
     # starts at the first valid one with `while (!valid[i]) i++`, which never ends when none is. All fourteen.
-    c.set_all("game", "D_80116D14", "u32", [1] * 14, "the options screen's valid items: all fourteen")
+    c.set_all("game", "options_validOption", "u32", [1] * 14, "the options screen's valid items: all fourteen")
 
-    # The songs' names (gSongNames, D_80110030, char *[12]): the audio screen copies each (func_800BE6A4), so NULL
+    # The songs' names (gSongNames, gSongNames, char *[12]): the audio screen copies each (TB_Strcpy), so NULL
     # faults.
-    # They follow the four sfx groups' table (D_8011F0A0, Instrument4[4]), as the game image has its strings after
+    # They follow the four sfx groups' table (boot_sfx_groups, Instrument4[4]), as the game image has its strings after
     # some tables.
-    songs = c.strings_after("D_8011F0A0", 4 * 4, [f"SONG {i + 1}" for i in range(12)], "a song's name")
+    songs = c.strings_after("boot_sfx_groups", 4 * 4, [f"SONG {i + 1}" for i in range(12)], "a song's name")
     for i in range(12):
-        c.set("game", "D_80110030", "ptr", songs[i], "a song's name" if i == 0 else "(same)", index=i)
+        c.set("game", "gSongNames", "ptr", songs[i], "a song's name" if i == 0 else "(same)", index=i)
 
-    # The mode screen's table of which of its 7 modes each player count may pick (D_803B4679[players][mode], image
+    # The mode screen's table of which of its 7 modes each player count may pick (modescr_validOption_biased[players][mode], image
     # A, s8; optionValid@modescr.c). updateModeScreen skips to a valid mode with `while (!optionValid(i)) i++`, which
     # never ends when none is. Rows 1-4 (0x803B4680-0x803B469B) are bytes no declaration covers; row 0 is never read.
     for players in range(1, 5):
-        c.set_bytes("ovl_a", c.syms.addr("D_803B4679") + 7 * players, bytes([1] * 7),
+        c.set_bytes("ovl_a", c.syms.addr("modescr_validOption_biased") + 7 * players, bytes([1] * 7),
                     f"modes valid for {players} player(s): all seven")
 
-    # The track select's map objects (image A, trackMapObjNames D_803B7738[20], char *): it saves each map object's
+    # The track select's map objects (image A, trackMapObjNames trackMapObjNames[20], char *): it saves each map object's
     # first LOD, puts its own map display list there, and puts the saved one back on the way out, so they must be
     # different models (one model for all of them gets back a freed list). Each has a name of its own, which the
     # front-end WAD has a model for.
     for i, name in enumerate(MAP_MODELS):
-        c.set("ovl_a", "D_803B7738", "ptr", c.string(name), f"track map object {i}", index=i)
+        c.set("ovl_a", "trackMapObjNames", "ptr", c.string(name), f"track map object {i}", index=i)
 
-    # The car select's name tables (game data, char *): textures for the car features (D_8011B3A0[24], D_8011B404[10]),
-    # the cars' sheens (D_8011B438[11], sfx_stop: once the car's parts are loaded and its model is made, with the
-    # retrace clock running) and a model (D_8011B400[1]). MBOX_FindTexture copies its name before the lookup, so a NULL
+    # The car select's name tables (game data, char *): textures for the car features (RimNames[24], TexNames[10]),
+    # the cars' sheens (sheenName[11], SetSheen: once the car's parts are loaded and its model is made, with the
+    # retrace clock running) and a model (tire_object_names[1]). MBOX_FindTexture copies its name before the lookup, so a NULL
     # there faults (on the N64 too: address 0 is unmapped). Each is the empty name, which every texture WAD here has
     # a texture for; MBOX_FindModel takes "" as AAANULLOBJ.
     empty = c.string("")
-    # The car select's first blit (D_803B2AB8, image A, NewMultiBlit's 38): the empty texture name, kept after the
-    # warning screen's blit (D_803B83A4, image A: one MultiBlit) as image A keeps its strings after some tables.
-    c.set("ovl_a", "D_803B2AB8", "ptr", c.strings_after("D_803B83A4", 36, [""], "a car select blit's name", "ovl_a")[0],
+    # The car select's first blit (carscr_mb, image A, NewMultiBlit's 38): the empty texture name, kept after the
+    # warning screen's blit (warningscr_blits, image A: one MultiBlit) as image A keeps its strings after some tables.
+    c.set("ovl_a", "carscr_mb", "ptr", c.strings_after("warningscr_blits", 36, [""], "a car select blit's name", "ovl_a")[0],
           "the car select's first blit: the empty texture name")
-    for sym, n in (("D_8011B3A0", 24), ("D_8011B400", 1), ("D_8011B404", 10), ("D_8011B438", 11)):
+    for sym, n in (("RimNames", 24), ("tire_object_names", 1), ("TexNames", 10), ("sheenName", 11)):
         for i in range(n):
             c.set("game", sym, "ptr", empty, "a car select name: the empty one" if i == 0 else "(same)", index=i)
 
-    # The player screens' model slots (D_803B470C, image A, Slot64[4][22]: unknown0 picks the model name from
-    # D_803B46DC, id -1 makes it): every player's, the fourth's too, with name 1 (NULL there: AAANULLOBJ). The value
+    # The player screens' model slots (playerscr_buttonInfo, image A, Slot64[4][22]: unknown0 picks the model name from
+    # playerscr_buttonNames, id -1 makes it): every player's, the fourth's too, with name 1 (NULL there: AAANULLOBJ). The value
     # reads 0x01000000 in the ROM's byte order, past the names (BRINGUP.md 12).
     for p in range(4):
         for j in range(22):
             first = p == 0 and j == 0
-            c.set("ovl_a", "D_803B470C", "u32", 1, "a player screen model slot: name 1" if first else "(same)",
+            c.set("ovl_a", "playerscr_buttonInfo", "u32", 1, "a player screen model slot: name 1" if first else "(same)",
                   offset=0x40 * (22 * p + j))
-            c.set("ovl_a", "D_803B470C", "u32", 0xFFFFFFFF, "(same): id -1, to be made", offset=0x40 * (22 * p + j) + 4)
+            c.set("ovl_a", "playerscr_buttonInfo", "u32", 0xFFFFFFFF, "(same): id -1, to be made", offset=0x40 * (22 * p + j) + 4)
 
-    # The track select's fog (BlowFog, func_8038A634): with option 14 valid for a single race (validOption,
-    # D_803B77D4[gRace][21], image A, s32), the screen makes a blit of the texture named D_803B9260 (image A, char[])
-    # whose palette is D_803BA1E8, a Palette whose colour table is the word at +0x14 (D_803BA1FC): the cartridge's
+    # The track select's fog (BlowFog, SetFogIntensity): with option 14 valid for a single race (validOption,
+    # trackscr_validOption[gRace][21], image A, s32), the screen makes a blit of the texture named track_fog_texture_name (image A, char[])
+    # whose palette is n64FogPal, a Palette whose colour table is the word at +0x14 (n64FogPal_palBase): the cartridge's
     # SYN_FOG, an IA texture, so the draw reads its prim and env colours from that table. The word must be the arena's
     # (BRINGUP.md 7).
-    c.set("ovl_a", "D_803B77D4", "u32", 1, "the track select's option 14 (the fog) valid in a single race", index=14)
+    c.set("ovl_a", "trackscr_validOption", "u32", 1, "the track select's option 14 (the fog) valid in a single race", index=14)
     for i, ch in enumerate(SYN_FOG.encode() + b"\0"):
-        c.set("ovl_a", "D_803B9260", "u8", ch, f"the fog's texture name: {SYN_FOG}" if i == 0 else "(same)", index=i)
+        c.set("ovl_a", "track_fog_texture_name", "u8", ch, f"the fog's texture name: {SYN_FOG}" if i == 0 else "(same)", index=i)
 
     # The front end's WADs (ASSETS.md 2.3): the locked one (54, "attract") has every texture and model the code
     # names; the others (58, 59 locked; the screens 55, 56, 57, 60) are empty but valid.
@@ -1433,7 +1433,7 @@ GHOST_FORMAT = "%s%X%s"    # a ghost's note name: the owner's note name, track +
 GHOST_BACKWARD, GHOST_FORWARD = "R", "N"   # the direction letters: reversed, normal
 DIGITS_FORMAT = "%0*u"     # CreatePlayer's collision digits: width 5, the attempt
 DEV_NAME = "SYN"           # the profile name that unlocks the cheat screen and the ghost save prompt
-# The name entry's 54 characters, six rows of nine (D_80117420): letters, digits, then the punctuation
+# The name entry's 54 characters, six rows of nine (gPlayerNameChars): letters, digits, then the punctuation
 # CreatePlayer keeps in a note name (. : ! @ * - = '), then more the pak font has, then four it hasn't.
 NAME_GRID = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.:!@*-='\"#+,/?()&%"
 # The N64 controller pak's character set (libultra's note names, osPfsFindFile and the pak manager): code 0 the
@@ -1454,46 +1454,46 @@ def saves(c):
         for i, ch in enumerate(text.encode() + b"\0"):
             c.set(image, sym, "u8", ch, f"{why}: {text!r}" if i == 0 else "(same)", index=i)
 
-    # The pak font (D_8011EAEC, u16[256]: code -> character): func_800A150C makes a note's name and extension from
-    # ASCII by looking each character up here (the first code whose entry is that character), func_800A1644 makes
+    # The pak font (pak_charset, u16[256]: code -> character): pak_encode_name makes a note's name and extension from
+    # ASCII by looking each character up here (the first code whose entry is that character), pak_decode_name makes
     # the ASCII back when the pak server reads the notes (PS_PakServer). Zero has no character at all, so every name
     # became empty and every profile and ghost note would have had the same name.
     for code, ch in sorted(PAK_FONT.items()):
         if ch:
-            c.set("game", "D_8011EAEC", "u16", ch, "the pak font: the N64 controller pak's character set" if code == 15
+            c.set("game", "pak_charset", "u16", ch, "the pak font: the N64 controller pak's character set" if code == 15
                   else "(same)", index=code)
-    # The note names (menu_save_options): CreatePlayer names a profile's note D_801211F8 (9 bytes copied: 8
-    # characters and the end) and up to six characters of the player's name, with D_801211E0 its extension, and
-    # looks for a note of that name and extension D_801211DC before it (D_80121204 then makes digits for an
-    # attempt's number). SaveServer reads the notes whose name starts with D_801211BC's 8 characters, profiles those
-    # whose extension's first character is D_801211C8's, ghosts the others. SaveGhost names a ghost's note
-    # D_801211E4 (the owner's note name, track + 1, D_801211EC backward or D_801211F0 forward), extension
-    # D_801211F4. Zero (empty names) gave every note the same name.
-    chars("D_801211F8", SAVE_PREFIX, "a profile note's name prefix (CreatePlayer)")
-    chars("D_801211BC", SAVE_PREFIX, "the notes SaveServer reads: the same prefix")
-    chars("D_801211E0", PROFILE_EXT, "a profile note's extension (CreatePlayer)")
-    chars("D_801211DC", PROFILE_EXT, "the extension CreatePlayer's name check compares")
-    chars("D_801211C8", PROFILE_EXT, "the extension SaveServer takes for a profile")
-    chars("D_801211F4", GHOST_EXT, "a ghost note's extension (SaveGhost)")
-    chars("D_801211E4", GHOST_FORMAT, "a ghost note's name (SaveGhost's sprintf: char *, int, char *)")
+    # The note names (SaveInit): CreatePlayer names a profile's note player_file_prefix (9 bytes copied: 8
+    # characters and the end) and up to six characters of the player's name, with player_file_ext its extension, and
+    # looks for a note of that name and extension player_file_ext_match before it (player_file_digits_format then makes digits for an
+    # attempt's number). SaveServer reads the notes whose name starts with save_file_name_prefix's 8 characters, profiles those
+    # whose extension's first character is player_file_ext_prefix's, ghosts the others. SaveGhost names a ghost's note
+    # ghost_file_name_format (the owner's note name, track + 1, D_801211EC backward or D_801211F0 forward), extension
+    # ghost_file_ext. Zero (empty names) gave every note the same name.
+    chars("player_file_prefix", SAVE_PREFIX, "a profile note's name prefix (CreatePlayer)")
+    chars("save_file_name_prefix", SAVE_PREFIX, "the notes SaveServer reads: the same prefix")
+    chars("player_file_ext", PROFILE_EXT, "a profile note's extension (CreatePlayer)")
+    chars("player_file_ext_match", PROFILE_EXT, "the extension CreatePlayer's name check compares")
+    chars("player_file_ext_prefix", PROFILE_EXT, "the extension SaveServer takes for a profile")
+    chars("ghost_file_ext", GHOST_EXT, "a ghost note's extension (SaveGhost)")
+    chars("ghost_file_name_format", GHOST_FORMAT, "a ghost note's name (SaveGhost's sprintf: char *, int, char *)")
     chars("D_801211EC", GHOST_BACKWARD, "a backward ghost's direction letter")
     chars("D_801211F0", GHOST_FORWARD, "a forward ghost's direction letter")
-    chars("D_80121204", DIGITS_FORMAT, "CreatePlayer's attempt digits (sprintf: width, number)")
-    # The developer's profile name (D_801211CC): func_800CCEFC, loading a profile of this name, makes the main
-    # menu's cheat screen valid, sets cheat states 14-16, and sets D_801148E4, without which billboard_render keeps
+    chars("player_file_digits_format", DIGITS_FORMAT, "CreatePlayer's attempt digits (sprintf: width, number)")
+    # The developer's profile name (cheat_profile_name): ReadPlayerData, loading a profile of this name, makes the main
+    # menu's cheat screen valid, sets cheat states 14-16, and sets gSaveGhostFiles, without which updateHighScoreScreen keeps
     # a finished ghost race's ghost in memory only (SaveGhost's limbo) and never offers the save prompt that writes
     # it to a pak. Zero is the empty name, which no profile can have.
-    chars("D_801211CC", DEV_NAME, "the profile name of the cheat screen and the ghost save prompt")
+    chars("cheat_profile_name", DEV_NAME, "the profile name of the cheat screen and the ghost save prompt")
 
-    # The player screen's name entry (controlCreatePlayer, func_803968C0; drawn by func_803A8B74): its 54 cells,
-    # nine to a row, are the characters D_80117420 points to (u8 *: NULL faults). Made up, the characters a note
+    # The player screen's name entry (controlCreatePlayer, controlCreatePlayer; drawn by drawCreatePlayer): its 54 cells,
+    # nine to a row, are the characters gPlayerNameChars points to (u8 *: NULL faults). Made up, the characters a note
     # name keeps first.
     if len(NAME_GRID) != 54 or len(set(NAME_GRID)) != 54:
         raise SystemExit("synth_rom: the name entry has 54 different characters")
-    c.set("game", "D_80117420", "ptr", c.string(NAME_GRID), "the name entry's 54 characters")
-    # The name censor's words (D_801149B4, u8 *[22]; func_800F084C, called on an entered name): the walk ends at
+    c.set("game", "gPlayerNameChars", "ptr", c.string(NAME_GRID), "the name entry's 54 characters")
+    # The name censor's words (obscenities, u8 *[22]; censor, called on an entered name): the walk ends at
     # the first empty word, so a NULL first entry faults. None: the first entry is the empty word.
-    c.set("game", "D_801149B4", "ptr", c.string(""), "the name censor's words: none (the empty word ends them)")
+    c.set("game", "obscenities", "ptr", c.string(""), "the name censor's words: none (the empty word ends them)")
 
     # A ghost is deflated when it is kept (CompressGhost: deflate_mem, zlib 1.0.4 in zlib_deflate, level 9). zlib's
     # static tables are initialized data, zero here: tr_static_init's loops shift by extra_dbits[code] - 7 and ran
@@ -1520,10 +1520,10 @@ def saves(c):
               "max chain): the level CompressGhost asks for" if k == 0 else "(same)", offset=8 * 9 + 2 * k)
 
     # The lap path: a ghost race (gRace 2) is three laps, and its ghost is kept only if the car finishes (GhostEnd,
-    # ghost_race_setup). The cartridge's car never crosses a checkpoint: its physics crash it at once (the model's
-    # crash flag; the checkpoint test skips a crashed car), and it is respawned every 3.55 s (car_select_handler:
+    # GhostEnd). The cartridge's car never crosses a checkpoint: its physics crash it at once (the model's
+    # crash flag; the checkpoint test skips a crashed car), and it is respawned every 3.55 s (CheckCrash:
     # 3.5 s after a crash). A respawn moves the car 12 points on along the resurrection path and passes the
-    # checkpoint it jumps over (stunt_combo_display, MAT3's Resurrect), but on the last lap it never reaches the
+    # checkpoint it jumps over (Resurrect, MAT3's Resurrect), but on the last lap it never reaches the
     # finish: the jump is cut to half the points left to the finish's point, from the nearest point inside the
     # window between the last and the next checkpoints' points. On track 0's backward path (a race goes backward with
     # the track select's option 12, which no other path sets) the respawns go round by themselves: each checkpoint's
@@ -1531,7 +1531,7 @@ def saves(c):
     # point 1, the window before the finish is empty, its respawn starts from the car's nearest point, at or past
     # point 1, and the finish is passed with nothing to cut. The start passes the finish, and then nearly every
     # respawn a checkpoint (at the path's end, where it wraps to point 1, every other one): the third lap ends 35.6 s
-    # after the start (car_setup_confirm), with the respawns' jump of 12 points (3.55 s at 58 ft/s). The
+    # after the start (CarReportsGameOver), with the respawns' jump of 12 points (3.55 s at 58 ft/s). The
     # race then waits for the car to stop, which it never does: the ghost path's script pauses and quits, and GhostEnd
     # keeps the finished ghost. A race on track 0 forward (every other path) reads its own path file, 158.
     c.file(LAP_PATH_WAVE, path_file(lap=True), "path 19, track 0 backward: the lap path, three checkpoints that "
@@ -1542,9 +1542,9 @@ def race(c):
     """A race on an empty track (SYNTH.md 2): LoadTrack's files, the cars' physics, and the tables race setup reads."""
     # Each track's WAD (101-119) has the world node's model; its world (120-138) is one node, its road (139-157)
     # one empty collision node. The race, HUD and car WADs (61-68, 76-100) have the textures and models the code
-    # names. gWorldNames (D_8011A924, char *[19]) names every track's world.
+    # names. gWorldNames (gWorldNames, char *[19]) names every track's world.
     for t in range(19):
-        c.set("game", "D_8011A924", "ptr", c.string(WORLD_NAME), f"gWorldNames: track {t}'s world", index=t)
+        c.set("game", "gWorldNames", "ptr", c.string(WORLD_NAME), f"gWorldNames: track {t}'s world", index=t)
         if t == DETAIL_TRACK:
             detail_world(c, t)
             continue
@@ -1557,45 +1557,45 @@ def race(c):
     for w in list(range(61, 69)) + list(range(76, 101)):
         c.file(w, texture_wad(CODE_TEXTURES + OWN_TEXTURES, CODE_MODELS), "race, HUD or car WAD", model=True)
 
-    # The target info table (D_80117530, 122 records of 0x30, docs/port/POINTERS.md 10): a world node whose name
+    # The target info table (targetInfo, 122 records of 0x30, docs/port/POINTERS.md 10): a world node whose name
     # starts with a target's name becomes that target. The names are read with strlen, so NULL faults, and an empty
     # name is a prefix of every node: each target has a name of its own that no node has.
     for i in range(1, 122):
-        c.set("game", "D_80117530", "ptr", c.string(f"TARGET{i:03}"), "a target's name" if i == 1 else "(same)",
+        c.set("game", "targetInfo", "ptr", c.string(f"TARGET{i:03}"), "a target's name" if i == 1 else "(same)",
               offset=0x30 * i)
     # Target 0 is the battle arenas' weapon icon (MAT3's _StartWeaponIcon, nonmatching/game/StartWeaponIcon.c): a
-    # world node named WEAPONnn becomes one (transmission_ratio_get). Its flags: 0x20 (made without the Expansion
+    # world node named WEAPONnn becomes one (SetupTarget). Its flags: 0x20 (made without the Expansion
     # Pak), 8 (a record of its category), 0x4000 (its start function runs when it is made: StartWeaponIcon's set-up
-    # hides it, marks it 0x20 and counts one more power-up, which battle mode's power-up slots, func_8039133C, are
+    # hides it, marks it 0x20 and counts one more power-up, which battle mode's power-up slots, InitBattlePowerUps, are
     # made from; UpdateBattleHealth picks one of them, and with none it spins for ever). Category 5, the battle
-    # slots; shape 350, the first weapon (StartWeaponIcon's switch, and the object definition D_801427C0[350]); no
+    # slots; shape 350, the first weapon (StartWeaponIcon's switch, and the object definition gObjList[350]); no
     # model file (AAANULLOBJ).
-    c.set("game", "D_80117530", "ptr", c.string("WEAPON"), "target 0: the weapon icon's name")
-    c.func_ptr("game", "D_80117530", 2, "StartWeaponIcon", "target 0's start function")
-    c.set("game", "D_80117530", "u16", 0x4028, "target 0's flags: start function, category record, no Expansion Pak "
+    c.set("game", "targetInfo", "ptr", c.string("WEAPON"), "target 0: the weapon icon's name")
+    c.func_ptr("game", "targetInfo", 2, "StartWeaponIcon", "target 0's start function")
+    c.set("game", "targetInfo", "u16", 0x4028, "target 0's flags: start function, category record, no Expansion Pak "
           "needed", offset=0x12)
-    c.set("game", "D_80117530", "u16", 350, "target 0's shape: the first weapon", offset=0x14)
-    c.set("game", "D_80117530", "u8", 5, "target 0's category: battle's power-up slots", offset=0x16)
-    # The weapons' ammunition (ammoCnts, D_80121D60, s32[8]): what a pickup gives. Five shots each.
-    c.set_all("game", "D_80121D60", "u32", [5] * 8, "a weapon's ammunition: five")
-    # The collision sizes per body type (collsize, D_8011F844: front, rear, side, height, f32), which the car-car
+    c.set("game", "targetInfo", "u16", 350, "target 0's shape: the first weapon", offset=0x14)
+    c.set("game", "targetInfo", "u8", 5, "target 0's category: battle's power-up slots", offset=0x16)
+    # The weapons' ammunition (ammoCnts, ammoCnts, s32[8]): what a pickup gives. Five shots each.
+    c.set_all("game", "ammoCnts", "u32", [5] * 8, "a weapon's ammunition: five")
+    # The collision sizes per body type (collsize, collsize: front, rear, side, height, f32), which the car-car
     # collision and the shield weapon read: the tires sit 4 ahead and behind and 2.5 aside, so a 9 x 5 x 3 box.
     for body in range(13):
         for k, v in enumerate((4.5, 4.5, 2.5, 3.0)):
-            c.set("game", "D_8011F844", "f32", v, "a body's collision box: front, rear, side, height" if body == k == 0
+            c.set("game", "collsize", "f32", v, "a body's collision box: front, rear, side, height" if body == k == 0
                   else "(same)", offset=16 * body + 4 * k)
 
-    # The arenas' six puff textures (D_80117480, char *[6]): physics_collision_test looks each up by name on the
+    # The arenas' six puff textures (FireTexNames, char *[6]): InitSmoke looks each up by name on the
     # tracks from 6 on (the stunt and battle arenas), and MBOX_FindTexture copies the name first. The empty name.
     for i in range(6):
-        c.set("game", "D_80117480", "ptr", c.string(""), "an arena's puff texture: the empty name" if i == 0
+        c.set("game", "FireTexNames", "ptr", c.string(""), "an arena's puff texture: the empty name" if i == 0
               else "(same)", index=i)
 
-    # The level objects' record size per category (D_80117510, u8[8]): engine_sound_update allocates a heap block of
-    # size x count for each category with objects. Battle mode always has 16 of category 5 (camera_lerp_position),
+    # The level objects' record size per category (gTargetStructSizes, u8[8]): SetTargetDefs allocates a heap block of
+    # size x count for each category with objects. Battle mode always has 16 of category 5 (initTargetStructs),
     # its power-up slots, and writes all 16 136-byte records (Slot136): a size of 0 is a zero-size block, and the
     # writes go over the next blocks' headers.
-    c.set("game", "D_80117510", "u8", 136, "category 5's record size (battle's power-up slots, Slot136)", index=5)
+    c.set("game", "gTargetStructSizes", "u8", 136, "category 5's record size (battle's power-up slots, Slot136)", index=5)
     # The level objects' bodies (D_80118C10, f32[115]): 32 bytes a body (x min, x max, z max, z min, three more, the
     # mass at +0x1C), which CollisionReckon reads as f32 for a kind-4 object, then the static states of categories
     # 0-2. Declared u8[], they kept the ROM's byte order (docs/port/DATA.md 8): the generator refuses an f32 there,
@@ -1603,8 +1603,8 @@ def race(c):
     c.set_all("game", "D_80118C10", "f32", [-3.0, 3.0, 3.0, -3.0, 0.0, 0.0, 0.0, 50.0],
               "body 0: a 6 ft box of 50 slugs")
     c.set("game", "D_80118C10", "f32", 0.0, "the bodies' and states' last element", index=114)
-    # The respawn records after FSCLS (D_801106C4: f32[3], then {s8 flag; f32 pos[3]} up to D_801108B0, which
-    # world_object_destroy reads by D_801108B0's pointers, NULL here). As f32[] the flag was swapped with its pad
+    # The respawn records after FSCLS (D_801106C4: f32[3], then {s8 flag; f32 pos[3]} up to trackSpots, which
+    # init_camera_on_track reads by trackSpots's pointers, NULL here). As f32[] the flag was swapped with its pad
     # (docs/port/DATA.md 8): the generator refuses a byte there.
     c.set("game", "D_801106C4", "u8", 1, "the first respawn record's flag", offset=0xC)
 
@@ -1612,7 +1612,7 @@ def race(c):
 
     # The drones' update schedule (drone_sched, D_80120E74, Row3[12] of s16; update_drone_models): row r gives how
     # many drones to update each model tick, ended by -1, where the walk goes back to the row's start. The race uses
-    # row n for n drones, n + 7 with two humans or more (world_physics_tick). With zeros it never meets -1 and walks
+    # row n for n drones, n + 7 with two humans or more (init_cars). With zeros it never meets -1 and walks
     # on through the tables after it, updating whatever cars their values say (gRace 2's car with no time step:
     # NaN); a row asking for more drones than there are updates the players' cars, whose time step is then 0 (NaN in
     # the 3- and 4-player races). Every row: all its drones every tick.
@@ -1621,78 +1621,78 @@ def race(c):
             c.set("game", "D_80120E74", "u16", v, "the drone schedule: row n and n + 7 are {n, -1}" if r == k == 0
                   else "(same)", offset=6 * r + 2 * k)
 
-    # The time limit of a gRace 2 race on tracks 0-5 (D_80111754, f32[6]; func_800FBED8, 600 s for the others): the
-    # race ends when it runs out (countdown's last branch), then the results (0x2000000, 4 s) and the game over
+    # The time limit of a gRace 2 race on tracks 0-5 (ghostRaceTimes, f32[6]; CalcRaceTime, 600 s for the others): the
+    # race ends when it runs out (UpdateGame's last branch), then the results (0x2000000, 4 s) and the game over
     # screen (0x800000). Zero ended the race in its first frame. 15 s on tracks 1-5; on track 0, 90 s: its lap path's
     # respawns pass checkpoints only before the time runs out, and the third lap ends 35.6 s in (saves()).
-    c.set_all("game", "D_80111754", "f32", [90.0] + [15.0] * 5, "a gRace 2 race's time limit, s")
+    c.set_all("game", "ghostRaceTimes", "f32", [90.0] + [15.0] * 5, "a gRace 2 race's time limit, s")
 
-    # The demo path start points per track (D_801173D8, s16 *[12], with their counts D_80117408[12]): one start
+    # The demo path start points per track (demo_path_points, s16 *[12], with their counts num_demo_ppoints[12]): one start
     # point, the path's first (0, so its byte order doesn't matter).
     first_point = c.blob(be16(0) + be16(0), "a demo path start list: point 0")
     for t in range(12):
-        c.set("game", "D_801173D8", "ptr", first_point, "a track's demo path start points" if t == 0 else "(same)",
+        c.set("game", "demo_path_points", "ptr", first_point, "a track's demo path start points" if t == 0 else "(same)",
               index=t)
-        c.set("game", "D_80117408", "u16", 1, "one start point" if t == 0 else "(same)", index=t)
+        c.set("game", "num_demo_ppoints", "u16", 1, "one start point" if t == 0 else "(same)", index=t)
 
-    # The cars' physics descriptors (D_80110D08, Car *[13], docs/port/CARS.md): 0xB4-byte records of words, which
-    # the research puts at 0x801108D0.. inside D_801108C8 (f32[], so the loader swaps them as words). One descriptor
+    # The cars' physics descriptors (gCarModels, Car *[13], docs/port/CARS.md): 0xB4-byte records of words, which
+    # the research puts at 0x801108D0.. inside steady_leg_duration (f32[], so the loader swaps them as words). One descriptor
     # for every car type: zero but for a mass, an engine inertia, four tire curves and the four tires' positions (x
     # forward: the wheelbase is front x - rear x). The tire curves are the two six-float records after the torque
-    # curve, D_8011F814[2][6] (front, rear: func_800D09E8 copies six), which only these u32 fields reach: declared in
+    # curve, D_8011F814[2][6] (front, rear: copy_tire_info copies six), which only these u32 fields reach: declared in
     # car_resistance for the PC, so the loader swaps them as floats (BRINGUP.md 3). Every value 1.
-    base = c.syms.addr("D_801108C8")
+    base = c.syms.addr("steady_leg_duration")
     desc, susp = 0x801108D0, 0x80110A00
     curves = c.syms.addr("D_8011F814")
     for i in range(12):
         c.set("game", "D_8011F814", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",
               index=i)
-    c.set("game", "D_801108C8", "f32", 3000.0, "car descriptor: mass", offset=desc + 80 - base)
-    c.set("game", "D_801108C8", "f32", 1.0, "car descriptor: engine inertia", offset=desc + 84 - base)
+    c.set("game", "steady_leg_duration", "f32", 3000.0, "car descriptor: mass", offset=desc + 80 - base)
+    c.set("game", "steady_leg_duration", "f32", 1.0, "car descriptor: engine inertia", offset=desc + 84 - base)
     for i in range(4):
-        c.set("game", "D_801108C8", "u32", curves + 24 * (i // 2),
+        c.set("game", "steady_leg_duration", "u32", curves + 24 * (i // 2),
               f"car descriptor: tire {i}'s curve (a u32 window address)", offset=desc + 96 + 4 * i - base, elem="f32")
     for i, pos in enumerate(((4.0, 0.0, 2.5), (4.0, 0.0, -2.5), (-4.0, 0.0, 2.5), (-4.0, 0.0, -2.5))):
         for k, v in enumerate(pos):
-            c.set("game", "D_801108C8", "f32", v, f"car descriptor: tire {i}'s position",
+            c.set("game", "steady_leg_duration", "f32", v, f"car descriptor: tire {i}'s position",
                   offset=desc + 120 + 12 * i + 4 * k - base)
     for t in range(13):
-        c.set("game", "D_80110D08", "ptr", desc, "a car type's physics descriptor" if t == 0 else "(same)", index=t)
-    # The suspensions (carSuspensions, D_80111560, const _tSusp *[3]): nine f32 each (forward, back, side: force
+        c.set("game", "gCarModels", "ptr", desc, "a car type's physics descriptor" if t == 0 else "(same)", index=t)
+    # The suspensions (carSuspensions, carSuspensions, const _tSusp *[3]): nine f32 each (forward, back, side: force
     # minimum, force range, angle), in the same f32 table past the descriptor. One suspension, all three entries:
     # no tilt until 1000 units of force, then up to 0.1 rad over another 1000.
     for k, v in enumerate((1000.0, 1000.0, 0.1, -1000.0, 1000.0, -0.1, 1000.0, 1000.0, 0.1)):
-        c.set("game", "D_801108C8", "f32", v, "a suspension" if k == 0 else "(same)", offset=susp + 4 * k - base)
+        c.set("game", "steady_leg_duration", "f32", v, "a suspension" if k == 0 else "(same)", offset=susp + 4 * k - base)
     for i in range(3):
-        c.set("game", "D_80111560", "ptr", susp, "carSuspensions: the one suspension" if i == 0 else "(same)",
+        c.set("game", "carSuspensions", "ptr", susp, "carSuspensions: the one suspension" if i == 0 else "(same)",
               index=i)
 
-    # The car types' names (D_80110D3C, char *[13]), which sfx_volume_set puts in front of each car part's name:
-    # after the shadow scales (D_8011F914, f32[14][4]: AnimateShadow's per body type, 13 with the appearance bit).
-    names = c.strings_after("D_8011F914", 14 * 16, [f"SYNC{t:02}" for t in range(13)], "a car type's name")
+    # The car types' names (CarNames, char *[13]), which InitCarDynamicObjs puts in front of each car part's name:
+    # after the shadow scales (shadow_scales, f32[14][4]: AnimateShadow's per body type, 13 with the appearance bit).
+    names = c.strings_after("shadow_scales", 14 * 16, [f"SYNC{t:02}" for t in range(13)], "a car type's name")
     for t in range(13):
-        c.set("game", "D_80110D3C", "ptr", names[t], "a car type's name" if t == 0 else "(same)", index=t)
+        c.set("game", "CarNames", "ptr", names[t], "a car type's name" if t == 0 else "(same)", index=t)
 
     car_tables(c)
     hud(c)
     blits(c)
     track_animations(c)
 
-    # The tracks' car colours (gTrackColors, D_8011AF90, tRGBA *[19]): each points at RGBA byte quadruples, which
+    # The tracks' car colours (gTrackColors, gTrackColors, tRGBA *[19]): each points at RGBA byte quadruples, which
     # the cars' IR colour comes from. Sixteen mid greys per track (bytes, so copied as they are).
     colours = c.blob(bytes([0x80, 0x80, 0x80, 0xFF]) * 16, "a track's car colours: sixteen greys")
     for t in range(19):
-        c.set("game", "D_8011AF90", "ptr", colours, "gTrackColors: a track's colours" if t == 0 else "(same)",
+        c.set("game", "gTrackColors", "ptr", colours, "gTrackColors: a track's colours" if t == 0 else "(same)",
               index=t)
 
 
 def detail_world(c, t):
     """Track t's files and tables for the detail world (DETAIL_PARTS above; docs/port/DETAIL.md 6): its WAD with the
-    parts' models, its world, its road; the parts the world's visibility (WorldCullObjects) walks, D_8011E748[t], and
-    its table's rows, D_8011B898 (track 0's). And the fog the track select's fog option gives one player
-    (func_800AB18C, [players][option]): for options 1-3 the fog's start (gSPFogPosition's min, of 1,000), the far
-    plane (ft) and the radius past which a part with a bound is left out (ft, D_80151AA0). No fog regions
-    (D_8011E76C stays NULL)."""
+    parts' models, its world, its road; the parts the world's visibility (WorldCullObjects) walks, trackParts[t], and
+    its table's rows, track1Parts (track 0's). And the fog the track select's fog option gives one player
+    (WorldFogDensity, [players][option]): for options 1-3 the fog's start (gSPFogPosition's min, of 1,000), the far
+    plane (ft) and the radius past which a part with a bound is left out (ft, gViewableDistance). No fog regions
+    (trackFog stays NULL)."""
     models = CODE_MODELS + [WORLD_NODE] + list(DETAIL_MODELS)
     c.file(101 + t, texture_wad(CODE_TEXTURES + OWN_TEXTURES, models), f"track {t} WAD: the detail world's models",
            model=True)
@@ -1700,62 +1700,62 @@ def detail_world(c, t):
     c.file(120 + t, world_wad(nodes=nodes), f"track {t} world: the detail world, the ground and {len(DETAIL_PARTS)} "
            "parts")
     c.file(139 + t, road_file(), f"track {t} road: flat pavement, one surface")
-    assert t == 0   # D_8011B898 is track 0's table
-    c.set("game", "D_8011E748", "u8", len(nodes), "the detail world's parts (WorldCullObjects)", index=t)
+    assert t == 0   # track1Parts is track 0's table
+    c.set("game", "trackParts", "u8", len(nodes), "the detail world's parts (WorldCullObjects)", index=t)
     for r, bits in enumerate(DETAIL_ROWS):
-        c.set("game", "D_8011B898", "u32", bits, "the detail world's visibility: a cell's row, the parts it lets "
+        c.set("game", "track1Parts", "u32", bits, "the detail world's visibility: a cell's row, the parts it lets "
               "through" if r == 0 else "(same)", offset=16 * r)
     for opt, (fogmin, far, radius) in enumerate(((990, 1500, 1200.0), (985, 1000, 800.0), (980, 600, 500.0)), 1):
-        c.set("game", "D_8011E810", "u16", fogmin, "one player's fog, option 1-3: its start (of 1,000)" if opt == 1
+        c.set("game", "fogMin", "u16", fogmin, "one player's fog, option 1-3: its start (of 1,000)" if opt == 1
               else "(same)", offset=8 * 1 + 2 * opt)
-        c.set("game", "D_8011E7F0", "u16", far, "one player's fog: the far plane, ft" if opt == 1 else "(same)",
+        c.set("game", "fogDistance", "u16", far, "one player's fog: the far plane, ft" if opt == 1 else "(same)",
               offset=8 * 1 + 2 * opt)
-        c.set("game", "D_8011E7A8", "f32", radius, "one player's fog: the radius a part is drawn to, ft" if opt == 1
+        c.set("game", "fog_viewable_distance", "f32", radius, "one player's fog: the radius a part is drawn to, ft" if opt == 1
               else "(same)", offset=16 * 1 + 4 * opt)
 
 
 def car_tables(c):
-    """The car physics' tables, which the race start (track_info_display, display_list_flush) turns into each car's
+    """The car physics' tables, which the race start (carsetup, PrePlay) turns into each car's
     model record. With zeros the gravity is 0, so a car's mass is 0 and the model thread's first step divides 0 by
-    0 (func_800E1540): every car's position is NaN from the first frame. Units are the model's: feet, seconds,
+    0 (accelerations): every car's position is NaN from the first frame. Units are the model's: feet, seconds,
     pounds (its gravity is 32.2)."""
-    # PrePlay sets gravity to 32.2 x D_801202F8[the gravity option]: the option's factor, 1 for each of the four
+    # PrePlay sets gravity to 32.2 x gravityArray[the gravity option]: the option's factor, 1 for each of the four
     # (f32[4], extents.txt: strings follow it, docs/port/DATA.md 8).
-    c.set_all("game", "D_801202F8", "f32", [1.0] * 4, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
-    # The wings' place per car type (D_8011B4B4, f32[13][3], extents.txt): buffer_swap puts a car's two wings at
-    # (-x, y, 0) and (x, y, 0), func_800B0A88 their sound at height y. Its gap was one row, so the other twelve kept
+    c.set_all("game", "gravityArray", "f32", [1.0] * 4, "the gravity option's factor (32.2 ft/s^2 x): 1 for each")
+    # The wings' place per car type (wingOffsets, f32[13][3], extents.txt): AnimateWing puts a car's two wings at
+    # (-x, y, 0) and (x, y, 0), StartWing their sound at height y. Its gap was one row, so the other twelve kept
     # the ROM's byte order (docs/port/DATA.md 8); the generator refuses a value outside the table.
-    c.set_all("game", "D_8011B4B4", "f32", [3.0, 0.5, 0.0] * 13, "a car type's wings: half their span, their height")
-    # The rumble request's 36 rising thresholds (D_801163F8, s32[36]): func_800E56F8 counts how many the car's speed
+    c.set_all("game", "wingOffsets", "f32", [3.0, 0.5, 0.0] * 13, "a car type's wings: half their span, their height")
+    # The rumble request's 36 rising thresholds (D_801163F8, s32[36]): UpdateModel counts how many the car's speed
     # passes, less 4, for the player's rumble. As one s32 the other 35 kept the ROM's byte order (DATA.md 8), which
     # the generator refuses. Small, so a moving car rumbles as with zeros (the rumble2p path's motors).
     c.set_all("game", "D_801163F8", "u32", [2 * (i + 1) for i in range(36)], "a rumble threshold (speed, ft/s)")
-    # func_800D0B14, a car's mass in slugs (its weight is that x gravity): (D_80110DD8[type] + (D_80111274[mass
-    # option] - D_80124154 + the pak's mass bonus) x D_80124150) x the tune's factor. 3000 lb is 93 slugs; the mass
+    # CalcMass, a car's mass in slugs (its weight is that x gravity): (gCarMass[type] + (carDurability[mass
+    # option] - mass_durability_base + the pak's mass bonus) x mass_unit) x the tune's factor. 3000 lb is 93 slugs; the mass
     # options add nothing; one slug a unit.
-    c.set_all("game", "D_80110DD8", "f32", [93.0] * 13, "a car type's mass, in slugs (3000 lb)")
-    c.set_all("game", "D_80111274", "f32", [0.0] * 6, "a mass option's difference: none")
-    c.set("game", "D_80124150", "f32", 1.0, "slugs per unit of mass difference")
-    # A car type's weight in pounds (D_80110E0C, f32[14]; + 1000 lb per unit of mass difference), the model's +0x5C4,
-    # which the car-car collision (menu_options_screen) shares the push out by: 0 for both is 0 / 0.
-    c.set_all("game", "D_80110E0C", "f32", [3000.0] * 14, "a car type's weight, in pounds")
-    # Two cars that overlap are pushed apart along the line between them with force D_80124104 (menu_load_options),
-    # or along x with D_80124100 when they are closer than sqrt(D_801240FC): 0 / 0 when they coincide, as the six
-    # cars do at the start here. The push is the size of the collision response's own (menu_options_screen: 2000).
-    c.set("game", "D_801240FC", "f32", 1e-4, "car push: a squared distance it takes for none")
-    c.set("game", "D_80124100", "f32", 2000.0, "car push: the force when the cars coincide")
-    c.set("game", "D_80124104", "f32", 2000.0, "car push: the force along the line between them")
-    # A car type's brake factor (D_80110DA4, f32[13]): track_info_display's brake gains are mass x the tire's
+    c.set_all("game", "gCarMass", "f32", [93.0] * 13, "a car type's mass, in slugs (3000 lb)")
+    c.set_all("game", "carDurability", "f32", [0.0] * 6, "a mass option's difference: none")
+    c.set("game", "mass_unit", "f32", 1.0, "slugs per unit of mass difference")
+    # A car type's weight in pounds (gCollisionMass, f32[14]; + 1000 lb per unit of mass difference), the model's +0x5C4,
+    # which the car-car collision (setFBCollisionForce) shares the push out by: 0 for both is 0 / 0.
+    c.set_all("game", "gCollisionMass", "f32", [3000.0] * 14, "a car type's weight, in pounds")
+    # Two cars that overlap are pushed apart along the line between them with force force_apart_force_over_dist (ForceApart),
+    # or along x with force_apart_force when they are closer than sqrt(force_apart_min_dist_sq): 0 / 0 when they coincide, as the six
+    # cars do at the start here. The push is the size of the collision response's own (setFBCollisionForce: 2000).
+    c.set("game", "force_apart_min_dist_sq", "f32", 1e-4, "car push: a squared distance it takes for none")
+    c.set("game", "force_apart_force", "f32", 2000.0, "car push: the force when the cars coincide")
+    c.set("game", "force_apart_force_over_dist", "f32", 2000.0, "car push: the force along the line between them")
+    # A car type's brake factor (gCarBraking, f32[13]): carsetup's brake gains are mass x the tire's
     # brake value x this, so zero is a car without brakes. 1.
-    c.set_all("game", "D_80110DA4", "f32", [1.0] * 13, "a car type's brake factor: 1")
-    # The gear ratios (D_80110EBC, f32[8][6], port/data/extents.txt): a row per car class, which is the model's
-    # byte 9, gear g's ratio at [g + 1] (func_800E2C70, func_800E313C). 1 everywhere: with zeros a car's drive torque
+    c.set_all("game", "gCarBraking", "f32", [1.0] * 13, "a car type's brake factor: 1")
+    # The gear ratios (carTransGearRatio, f32[8][6], port/data/extents.txt): a row per car class, which is the model's
+    # byte 9, gear g's ratio at [g + 1] (transmission, find_best_gear). 1 everywhere: with zeros a car's drive torque
     # is 0. The rows past the first are outside a one-row extent, which the generator refuses (BRINGUP.md 11).
-    c.set_all("game", "D_80110EBC", "f32", [1.0] * 48, "the gear ratios: 1 in every row and gear")
-    # The car tunes (D_801116D0, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
+    c.set_all("game", "carTransGearRatio", "f32", [1.0] * 48, "the gear ratios: 1 in every row and gear")
+    # The car tunes (gTune, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
     for t in range(3):
         for k in range(11):
-            c.set("game", "D_801116D0", "f32", 1.0, "a tune's eleven factors: 1 (+4: the mass factor)" if t == k == 0
+            c.set("game", "gTune", "f32", 1.0, "a tune's eleven factors: 1 (+4: the mass factor)" if t == k == 0
                   else "(same)", offset=44 * t + 4 * k)
 
 
@@ -1778,22 +1778,22 @@ def multiblit(c, sym, index, texname, x, y, w, h, func=None, image="game", animi
 
 
 def hud(c):
-    """The race HUD (ShowHUD, skid_mark_render: NewMultiBlit of the HUD set D_801158DC[8] and the race set
+    """The race HUD (ShowHUD, ShowHUD: NewMultiBlit of the HUD set HudMultiBlit[8] and the race set
     D_80114C58[89]). With zeros every blit has no texture and no size. Six of the HUD set's eight: a 48 x 12 panel
     of the BUTTON texture top left, the digital speedometer (animSpeedText, which the 2D sprite pass calls every
-    frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (D_80115A68, s32 [windows][slot][2]),
-    and the four players' crossbones (animBones, func_80105DA8, animid the player), which only deaths mode shows
+    frame: gShowSpeed is option 5, 1 by default), whose digits go at speedPos (speedPos, s32 [windows][slot][2]),
+    and the four players' crossbones (animBones, animBones, animid the player), which only deaths mode shows
     (option 31, 0 by default): an N64-offset body left them drawn top left in every race (BRINGUP.md 15). Their
-    places in deaths mode, bonesPos (D_801160C8, s32 [windows][player][2]), fill the table: a declaration that
+    places in deaths mode, bonesPos (bonesPos, s32 [windows][player][2]), fill the table: a declaration that
     describes its first word only leaves the rest outside, which the generator refuses."""
-    multiblit(c, "D_801158DC", 0, "BUTTON", 8, 8, 48, 12)
-    multiblit(c, "D_801158DC", 1, None, 0, 0, 0, 0, func="animSpeedText")
+    multiblit(c, "HudMultiBlit", 0, "BUTTON", 8, 8, 48, 12)
+    multiblit(c, "HudMultiBlit", 1, None, 0, 0, 0, 0, func="animSpeedText")
     for player in range(4):
-        multiblit(c, "D_801158DC", 4 + player, "BUTTON", 120, 60, 24, 12, func="func_80105DA8", animid=player)
+        multiblit(c, "HudMultiBlit", 4 + player, "BUTTON", 120, 60, 24, 12, func="animBones", animid=player)
     for windows in range(1, 5):
         for player in range(4):
             for k, v in enumerate((90 + 70 * (player % 2), 10 + 105 * (player // 2))):
-                c.set("game", "D_801160C8", "u32", v, "bonesPos: the crossbones' place per view, in deaths mode"
+                c.set("game", "bonesPos", "u32", v, "bonesPos: the crossbones' place per view, in deaths mode"
                       if windows == 1 and player == k == 0 else "(same)",
                       offset=32 * (windows - 1) + 8 * player + 4 * k)
     corners = {1: [(300, 200)], 2: [(300, 95), (300, 205)], 3: [(140, 95), (300, 95), (140, 205)],
@@ -1801,7 +1801,7 @@ def hud(c):
     for windows, slots in corners.items():
         for slot, (x, y) in enumerate(slots):
             for k, v in enumerate((x, y)):
-                c.set("game", "D_80115A68", "u32", v, "speedPos: the speedometer's place per view" if windows == 1
+                c.set("game", "speedPos", "u32", v, "speedPos: the speedometer's place per view" if windows == 1
                       and slot == k == 0 else "(same)", offset=32 * (windows - 1) + 8 * slot + 4 * k)
 
 
@@ -1813,61 +1813,61 @@ def blits(c):
     pointer that isn't). The game over title, the controls screens' first buttons (front end, paused alone, paused
     with others) and the menu backgrounds (createBG's two blits, front end and track select): BUTTON blits (a texture
     name the game C looks up itself)."""
-    multiblit(c, "D_80114128", 0, "", 8, 8, 48, 12, null_name=True)
-    multiblit(c, "D_80114700", 0, "BUTTON", 136, 20, 48, 12)
-    for sym in ("D_80112AB8", "D_8011361C", "D_80113910"):
+    multiblit(c, "demo_multiblit", 0, "", 8, 8, 48, 12, null_name=True)
+    multiblit(c, "gameover_multiblit", 0, "BUTTON", 136, 20, 48, 12)
+    for sym in ("buttonsFrontEnd", "buttonsPauseSingle", "buttonsPauseMulti"):
         multiblit(c, sym, 0, "BUTTON", 16, 16, 48, 12)
-    for sym in ("D_801141D4", "D_8011421C"):
+    for sym in ("frontBack", "trackBack"):
         for i in range(2):
             multiblit(c, sym, i, "BUTTON", 8 + 160 * i, 200, 48, 12)
     # The video screen's two sets (front end, paused) and the audio screen's second set have two blits each, as
     # NewMultiBlit gets them: one-blit declarations left the second outside its table (BRINGUP.md 9).
-    for sym in ("D_8011ACA0", "D_8011ACE8", "D_801105E4"):
+    for sym in ("video_frontEndBlit", "video_pauseBlit", "audio_pauseBlit"):
         multiblit(c, sym, 1, "BUTTON", 16, 200, 48, 12)
-    # The idle overlay (game_loop: NewMultiBlit of D_801146C4 once no button was held for 300 s, outside the title
-    # and the attract demo): an untextured blit over the screen whose animation function, callback_init, makes its
-    # colour D_801146FC its Image, R, G, B, A bytes the 2D draw fills it with (func_8008A46C). An N64-offset body
+    # The idle overlay (GameLoop: NewMultiBlit of idle_warning_multiblit once no button was held for 300 s, outside the title
+    # and the attract demo): an untextured blit over the screen whose animation function, animControllerDim, makes its
+    # colour controller_dim_color its Image, R, G, B, A bytes the 2D draw fills it with (BlitRect). An N64-offset body
     # put NULL there and the draw faulted; a word declaration of the colour reversed its bytes (BRINGUP.md 15). The
     # idle path waits for it.
-    multiblit(c, "D_801146C4", 0, "", 0, 0, 320, 220, func="callback_init", null_name=True)
+    multiblit(c, "idle_warning_multiblit", 0, "", 0, 0, 320, 220, func="animControllerDim", null_name=True)
     for i, v in enumerate((0, 0, 0, 96)):
-        c.set("game", "D_801146FC", "u8", v, "the idle overlay's colour: black, a third opaque" if i == 0
+        c.set("game", "controller_dim_color", "u8", v, "the idle overlay's colour: black, a third opaque" if i == 0
               else "(same)", index=i)
 
 
 def track_animations(c):
-    """Track 0's animations (camera_shake_start sets them up, race_setup_1 runs them every frame): tables only
+    """Track 0's animations (InitTextureAnimation sets them up, TextureAnimation runs them every frame): tables only
     pointers reach, which port/data/reached.txt has the loader convert (BRINGUP.md 8). In N64 form, in bytes no
     symbol covers. A palette animation (PaletteAnimation20, 20 bytes: owner, first, last, step, action, ticks, delay,
     data) that rotates entries 0-3 of the palette named "" every tick, and an object animation (ObjectAnimation20, 20
     bytes: count, object_index, direction, index, delay, interval, frames) of two frames (AnimationFrame12, 12 bytes:
     name, object, commands) of the texture "", each ended by an empty record. Track 0 is not one with the shared
-    frames, so camera_shake_start looks its frames up."""
+    frames, so InitTextureAnimation looks its frames up."""
     empty = c.string("")
     frames = c.blob(be32(empty) + be32(0) + be32(0) + be32(empty) + be32(0) + be32(0), "track 0's animation frames")
     seq = c.blob(be16(2) + be16(0) + be16(1) + be16(0) + bef32(0.0) + bef32(0.1) + be32(frames) + bytes(20),
                  "track 0's object animation and its end")
     pal = c.blob(be32(empty) + be16(0) + be16(3) + bytes([0, 0]) + be16(1) + bef32(0.0) + be32(0) + bytes(20),
                  "track 0's palette animation and its end")
-    c.set("game", "D_8011A31C", "ptr", seq, "track 0's object animations")
-    c.set("game", "D_8011A840", "ptr", pal, "track 0's palette animations")
+    c.set("game", "TextureSwapLists", "ptr", seq, "track 0's object animations")
+    c.set("game", "PaletteLists", "ptr", pal, "track 0's palette animations")
 
 
 def battle(c):
     """What battle mode (gRace 6, image B, "Extra") reads at its race start (SYNTH.md 2)."""
-    # The weapons' texture names (image B: D_80394330[5], D_80394344[5], char *): func_803908D0 looks each up with
-    # MBOX_FindTexture, which copies the name first (NULL faults). The empty name. Its model names (D_803942EC[10],
-    # D_80394314[7]) stay NULL: MBOX_FindModel takes those as AAANULLOBJ.
+    # The weapons' texture names (image B: MineTexNames[5], RipTexNames[5], char *): ShotInit looks each up with
+    # MBOX_FindTexture, which copies the name first (NULL faults). The empty name. Its model names (WprObjNames[10],
+    # WfxObjNames[7]) stay NULL: MBOX_FindModel takes those as AAANULLOBJ.
     empty = c.string("")
-    for sym in ("D_80394330", "D_80394344"):
+    for sym in ("MineTexNames", "RipTexNames"):
         for i in range(5):
             c.set("ovl_b", sym, "ptr", empty, "a weapon texture: the empty name" if i == 0 else "(same)", index=i)
-    # The battle HUD (BattleMultiBlit D_80393DE8, image B, NewMultiBlit's 10): player 1's health bar, the cartridge's
-    # SYN_BAR texture (I8) with animHealth (func_80392FE4) for part 1 (animid: slot << 4 | part), which colours it
+    # The battle HUD (BattleMultiBlit BattleMultiBlit, image B, NewMultiBlit's 10): player 1's health bar, the cartridge's
+    # SYN_BAR texture (I8) with animHealth (animHealth) for part 1 (animid: slot << 4 | part), which colours it
     # through a palette of its own, healthPal (BRINGUP.md 10). An IA blit (SYN_FOG) first, so the draw's last palette
     # isn't NULL when it gets to the bar, as in a game, where a NULL colour table would not pass for the one loaded.
-    multiblit(c, "D_80393DE8", 0, SYN_FOG, 8, 20, 16, 16, image="ovl_b")
-    multiblit(c, "D_80393DE8", 1, SYN_BAR, 8, 8, 40, 6, func="func_80392FE4", image="ovl_b", animid=0x01)
+    multiblit(c, "BattleMultiBlit", 0, SYN_FOG, 8, 20, 16, 16, image="ovl_b")
+    multiblit(c, "BattleMultiBlit", 1, SYN_BAR, 8, 8, 40, 6, func="animHealth", image="ovl_b", animid=0x01)
 
 
 SFX_GROUPS = [12, 13, 14, 15]

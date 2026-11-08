@@ -2,25 +2,25 @@
  * Resource-slot views and the sound-bank refresh. Real bodies only, no stand-ins.
  *
  * D_80156D38[]: 0x14-byte resource slots { u8 ?, s8 state, u8 active, ..., void *data @0xC, ... }.
- * func_80096288(index, 0, 0): empty debug/validation hook (retail: `beqz a2,+8; nop; jr ra; nop`), called
+ * ValidateWaveInstance(index, 0, 0): empty debug/validation hook (retail: `beqz a2,+8; nop; jr ra; nop`), called
  *   by jal from 11 functions. Body = the locked src/blob/func_80096288.c text plus a dead `if (0) switch`
  *   so that umerge does not inline it (plan M4 "inline blocker"); it must be INTERNAL (not in keep): its
  *   callers then keep the index in a3 across the call. Both additions are compile-affecting quirks.
- * slot_value_get(index): returns slot->data. Two statements, so umerge inlines it into
- *   sound_update_channel (which is why that function has its own jal to func_80096288 and copies the
+ * GetWaveInstanceAddr(index): returns slot->data. Two statements, so umerge inlines it into
+ *   SetupFontData (which is why that function has its own jal to ValidateWaveInstance and copies the
  *   index to a3).
  * display_list_alloc(index) / slot_deactivate(index): audio_loop_control(slot->data, 0 / 1) (lock-count
  *   down / up on the heap block), then slot->active = 1 / 0. The store is written `do { } while (0)`
  *   (macro-shaped): that keeps it out of the `jr ra` delay slot. Quirk, may not be the original spelling.
- * player_state_get(index): returns slot->state.
- * sound_update_channel(force): internal, `force` arrives in t0. Refreshes the cached bank
- *   D_801497F0 = *(Bank **)slot_value_get(D_80149780) when forced or changed: entry table D_80149800 =
- *   bank + 16, per-entry data pointers after the table, id -> entry index map D_80149878[256]; when forced
- *   also D_80149820[i] = D_80151AE8[D_801497A4].first + i * 36 and the two mode bytes. One `u8 *p` carries
+ * WaveInstanceReady(index): returns slot->state.
+ * SetupFontData(force): internal, `force` arrives in t0. Refreshes the cached bank
+ *   gFontHeader = *(Bank **)GetWaveInstanceAddr(gFontDatWaveInst) when forced or changed: entry table gFontLetters =
+ *   bank + 16, per-entry data pointers after the table, id -> entry index map gCharMap[256]; when forced
+ *   also gFontTextures[i] = gTexDefPtrs[gFontTexWaveInst].first + i * 36 and the two mode bytes. One `u8 *p` carries
  *   the bank pointer, the table and the running data pointer (retail reuses a1 the same way); the arrays
- *   are indexed, not walked by pointer (pointer walks force reloads of D_801497F0).
- * mode_byte2_set / object_type_byte2_get / object_type_byte3_get / mode_byte_set: already locked
- * (src/blob/groups/sound_channel), unchanged, real callers of sound_update_channel.
+ *   are indexed, not walked by pointer (pointer walks force reloads of gFontHeader).
+ * HAL_SetFontLeading / HAL_GetFontAscent / HAL_GetFontDescent / HAL_SetFontSpacing: already locked
+ * (src/blob/groups/sound_channel), unchanged, real callers of SetupFontData.
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -44,8 +44,8 @@ extern ResSlot gWaveInstance[];
 void PurgeableMemory(u32 ptr, s32 dec);
 #define N64A(x) PC_N64A(x)
 
-extern s32 D_80149B08;
-void func_80096288(s32 arg0, s32 arg1, s32 arg2)
+extern s32 font_image_format;
+void ValidateWaveInstance(s32 arg0, s32 arg1, s32 arg2)
 {
   s32 t;
   if (arg0) {}
@@ -57,12 +57,12 @@ void func_80096288(s32 arg0, s32 arg1, s32 arg2)
     if (t) {}
   }
   if (t) {}
-  if (0) { switch (arg0 + arg1) { case 1: D_80149B08 = 1; break; case 2: D_80149B08 = 2; break; case 3: D_80149B08 = 3; break; } }
+  if (0) { switch (arg0 + arg1) { case 1: font_image_format = 1; break; case 2: font_image_format = 2; break; case 3: font_image_format = 3; break; } }
 }
 
-void *slot_value_get(s32 index)
+void *GetWaveInstanceAddr(s32 index)
 {
-    func_80096288(index, 0, 0);
+    ValidateWaveInstance(index, 0, 0);
     return gWaveInstance[index].data;
 }
 
@@ -70,15 +70,15 @@ void LockWaveInstance(s32 index)
 {
     ResSlot *slot;
 
-    func_80096288(index, 0, 0);
+    ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
     PurgeableMemory(N64A(slot->data), 0);
     do { slot->active = 1; } while (0);
 }
 
-s8 player_state_get(s32 index)
+s8 WaveInstanceReady(s32 index)
 {
-    func_80096288(index, 0, 0);
+    ValidateWaveInstance(index, 0, 0);
     return gWaveInstance[index].state;
 }
 
@@ -86,7 +86,7 @@ void UnlockWaveInstance(s32 index)
 {
     ResSlot *slot;
 
-    func_80096288(index, 0, 0);
+    ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
     PurgeableMemory(N64A(slot->data), 1);
     do { slot->active = 0; } while (0);
@@ -116,61 +116,61 @@ typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
 #define WAVE_HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
 typedef struct { s32 first; s32 second; } Pair;
 
-extern Bank *D_801497F0;
-extern s32 D_80149780;
-extern s32 D_801497A4;
-extern Entry *D_80149800;
-extern s16 D_80149878[256];
-extern intptr_t D_80149820[];
+extern Bank *gFontHeader;
+extern s32 gFontDatWaveInst;
+extern s32 gFontTexWaveInst;
+extern Entry *gFontLetters;
+extern s16 gCharMap[256];
+extern intptr_t gFontTextures[];
 /* PC: the gTexDefPtrs pairs are {tTexture *, s32}, 16 bytes, as SetupWaveModel declares them. first is the window
  * address of the slot's TXHD records, widened without sign extension. */
 typedef struct { uintptr_t first; s32 second; } TexDefPair;
 #define TEXDEF_PAIR TexDefPair
 extern TEXDEF_PAIR gTexDefPtrs[];
-extern u8 D_80149B60;
-extern u8 D_80149B70;
-extern s32 D_80149B28;
+extern u8 gLeading;
+extern u8 gSpacing;
+extern s32 font_texel_size;
 
-void sound_update_channel(s32 force)
+void SetupFontData(s32 force)
 {
     u8 *p;
     s32 i;
 
-    p = WAVE_HANDLE_BLOCK(slot_value_get(D_80149780));
-    if (force || p != (u8 *)D_801497F0) {
-        D_801497F0 = (Bank *)p;
+    p = WAVE_HANDLE_BLOCK(GetWaveInstanceAddr(gFontDatWaveInst));
+    if (force || p != (u8 *)gFontHeader) {
+        gFontHeader = (Bank *)p;
         p += 16;
-        D_80149800 = (Entry *)p;
-        p += D_801497F0->f12 * 12;
-        if (D_801497F0->f10 != 0) {
-            for (i = 0; i < D_801497F0->f12; i++) {
-                D_80149800[i].ptr = FONT_SLOT(p);
-                p += D_801497F0->f12;
+        gFontLetters = (Entry *)p;
+        p += gFontHeader->f12 * 12;
+        if (gFontHeader->f10 != 0) {
+            for (i = 0; i < gFontHeader->f12; i++) {
+                gFontLetters[i].ptr = FONT_SLOT(p);
+                p += gFontHeader->f12;
             }
         }
         for (i = 0; i < 256; i++) {
-            D_80149878[i] = -1;
+            gCharMap[i] = -1;
         }
-        for (i = 0; i < D_801497F0->f12; i++) {
-            D_80149878[D_80149800[i].id] = i;
+        for (i = 0; i < gFontHeader->f12; i++) {
+            gCharMap[gFontLetters[i].id] = i;
         }
     }
     if (force) {
-        for (i = 0; i < D_801497F0->f11; i++) {
-            D_80149820[i] = gTexDefPtrs[D_801497A4].first + i * 36;
+        for (i = 0; i < gFontHeader->f11; i++) {
+            gFontTextures[i] = gTexDefPtrs[gFontTexWaveInst].first + i * 36;
         }
-        D_80149B60 = D_801497F0->f4;
-        D_80149B70 = D_801497F0->f8;
+        gLeading = gFontHeader->f4;
+        gSpacing = gFontHeader->f8;
     }
-    D_80149B08 = (D_801497F0->mode == 1) ? 4 : 3;
-    D_80149B28 = (D_801497F0->mode == 1) ? 0 : 1;
+    font_image_format = (gFontHeader->mode == 1) ? 4 : 3;
+    font_texel_size = (gFontHeader->mode == 1) ? 0 : 1;
 }
 
-void mode_byte2_set(s16 a) {
- if (a < 0) { sound_update_channel(0); D_80149B60 = D_801497F0->f4; }
- else D_80149B60 = a;
+void HAL_SetFontLeading(s16 a) {
+ if (a < 0) { SetupFontData(0); gLeading = gFontHeader->f4; }
+ else gLeading = a;
 }
-u8 object_type_byte2_get(void) { sound_update_channel(0); return *((u8 *)D_801497F0 + 2); }
-u8 object_type_byte3_get(void) { sound_update_channel(0); return *((u8 *)D_801497F0 + 3); }
+u8 HAL_GetFontAscent(void) { SetupFontData(0); return *((u8 *)gFontHeader + 2); }
+u8 HAL_GetFontDescent(void) { SetupFontData(0); return *((u8 *)gFontHeader + 3); }
 
-void mode_byte_set(s16 a) { if (a < 0) { sound_update_channel(0); D_80149B70=D_801497F0->f8; } else D_80149B70=a; }
+void HAL_SetFontSpacing(s16 a) { if (a < 0) { SetupFontData(0); gSpacing=gFontHeader->f8; } else gSpacing=a; }

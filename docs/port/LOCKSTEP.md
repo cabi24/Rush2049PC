@@ -153,8 +153,8 @@ Recorded, the pads are the delayed ones, so a recording made with a delay replay
 ### 5.1 What is hashed
 
 **Every retrace, the curated regions** (a few KiB, NETPLAY.md 1.6): `models` (`pc_models`), `cars` (`pc_cars`, the
-places among them), `links` (`pc_links`), `rng` (the seed `D_8011735C`), `words` (`state_word_a`, `state_word_b`),
-`tick` (`D_80143FF4`), `time` (`D_801543CC`), `pads` (`gControllerData`), `camera` (`gCamera`, four windows). `state`
+places among them), `links` (`pc_links`), `rng` (the seed `rand_seed`), `words` (`gGameState`, `gNewGameState`),
+`tick` (`gModelIteration`), `time` (`gModelTime`), `pads` (`gControllerData`), `camera` (`gCamera`, four windows). `state`
 is the hash of their hashes: what a session sends every retrace.
 
 **Every W retraces, the full hash:** `window` (the RDRAM window, 8-256 MiB), `own` (each own-storage symbol of
@@ -179,7 +179,7 @@ race2p run, the full hash 1.8 ms each (an 8 MiB window).
 The window is mapped at 0x80000000 in every process, so the window's N64 addresses are the same everywhere. A host
 pointer isn't: ASLR moves the executable, its heap and stacks in each process, and Windows lays the image out
 otherwise. Experiment E6 found the window's host pointers: the audio manager's effect tags' `list` (a pointer to the
-own-storage list head `D_80143FF8`) and `D_80156BCC`, a display-list pointer's low half. A host pointer is hashed as
+own-storage list head `gFreeFxTags`) and `last_frame_text_dl_end`, a display-list pointer's low half. A host pointer is hashed as
 what it points to, from what port/data's tables know: an own-storage symbol's N64 address and the N64 offset in it
 (through the loader's runs, so a layout with 8-byte pointers or longs gives the same id on every OS); a game function's
 N64 address; a decoupled item's index and offset; a runtime image's C data. Which values are host pointers depends on
@@ -188,9 +188,9 @@ what the bytes are:
 | Bytes | A host pointer is | Taken as |
 |---|---|---|
 | N64-layout data: the window, the curated regions in it, own storage's bytes not typed as pointers | a u64 at a 4-byte offset equal to a named target's first byte or a function's address | the target's id |
-| own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `D_801148CC`, a blit) | any value but a 32-bit one (0, a window address, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a heap pointer" (a table the loader copied, a converted file: `D_8011A31C`, `D_801497C0`, `D_8017A4E0`) |
+| own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `highscore_blit`, a blit) | any value but a 32-bit one (0, a window address, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a heap pointer" (a table the loader copied, a converted file: `TextureSwapLists`, `gTargetGroupList`, `gText`) |
 | the PC's own C structs: `pc_models`, `pc_cars`, `pc_links` and the decoupled items | a u64 at an 8-byte offset pointing into a named target | the target's id |
-| the game C's sites that keep a pointer's low half (`TRUNCATED`: `D_80156BCC`) | the word | left out (zero): it holds an N64 address at the boot and a low half later, and a low half completed with the image's high half can't be told from an N64 address the image's low range covers in one process (seen: two runs of race2p hashed it otherwise at retrace 0) |
+| the game C's sites that keep a pointer's low half (`TRUNCATED`: `last_frame_text_dl_end`) | the word | left out (zero): it holds an N64 address at the boot and a low half later, and a low half completed with the image's high half can't be told from an N64 address the image's low range covers in one process (seen: two runs of race2p hashed it otherwise at retrace 0) |
 
 N64-layout data holds numbers and texels, and two words of them can make a value in the image's range in one process
 and not in another (where the image's high half is a small number, 16-bit texel data can be it), so a looser rule
@@ -206,8 +206,8 @@ C: the frame's command lists, the blits) keeps no offset, which no two OSes shar
 reports (`--hash-report`, compared by `hash_compare.py --reports`, which names each differing window word by
 `data_symbols.txt`) found three more things, none a host pointer of the kind above:
 
-1. **The profile's id was its handle's host address.** `CreatePlayer` (`menu_save_options/group.c`) keeps
-   `(N64A(player) << 3) | pak` in the profile's record and its save file. The handles (`D_8013C128`) are own storage,
+1. **The profile's id was its handle's host address.** `CreatePlayer` (`save/group.c`) keeps
+   `(N64A(player) << 3) | pak` in the profile's record and its save file. The handles (`player_profile_handles`) are own storage,
    so on the PC `N64A` cut a host address to 32 bits: the id, the save data's checksum and the bytes written to the pak
    differed in every process (and would between two PCs). Fixed: in that file `N64A(p)` is `pc_n64_identity(p)`
    (pc_prelude.h), the handle's N64 address as on the N64, from the tables. The one change to game C here: a
@@ -215,7 +215,7 @@ reports (`--hash-report`, compared by `hash_compare.py --reports`, which names e
    only stores and copies it.
 2. **libultra's SI scratch buffers hold the host's stack.** `__osMakeMotorData` builds the rumble pak's command in a
    `__OSContRamReadFormat` on the stack, sets its header and copies all of it, 32 unset data bytes included, into
-   `__osMotorPifBuf`; the Pfs code does the same into `__osPfsBuffer`. Those bytes are the host stack's leftovers
+   `__osMotorPifBuf`; the Pfs code does the same into `__osPfsPifRam`. Those bytes are the host stack's leftovers
    until the next command overwrites them (rumble2p, pak4p, ghost). They are device scratch, not the game's state: the
    hash takes them as zeros (`SCRATCH`).
 3. **Locals the C never sets** are the same thing at large: the game reads a few, and on the PC their bytes differ by
@@ -257,7 +257,7 @@ at every retrace from 1000 on (rng, the state, the window at 1000). A window wor
 
 ## 6. Render values in the game C
 
-NETPLAY.md 1.1 and risk 13: `car_lights_render` places the coin icons and the battle and stunt HUD models at
+NETPLAY.md 1.1 and risk 13: `ZOID_WindowTo3D` places the coin icons and the battle and stunt HUD models at
 `x + pc_gfx_hud_dx(x)`, a value of the renderer's (widescreen, the HUD setting, the window's width). Their places are
 game state. `pc_gfx_hud_dx_off(1)` (`--session-rules`) makes it give the game 0: the models keep their N64 places (the
 2D HUD still moves; moving the models in the renderer can come later). The matrix (section 7) shows

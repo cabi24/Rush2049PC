@@ -1,5 +1,5 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* N64 Init_MDrive, func_800E543C (0x800E543C, 700 bytes).
+/* N64 Init_MDrive, Init_MDrive (0x800E543C, 700 bytes).
  * Stock IDO 5.3 strict group MATCH: 175/175 words, native 72-byte frame.
  * Base 58425072b49e95f0fbe5c4c239988fb4885f7c5c; no image/ROM claim.
  *
@@ -13,8 +13,8 @@
  * not a donor-DWARF local; it supplies the final 8-byte frame difference.
  * Statement-line boundaries at the active/state stores and final gear arms
  * resolve two as1 scheduling ties. Keep their line separation when editing.
- * D_801525F0 retains the accepted volatile-s16 store-side contract from
- * src/blob/func_800D60AC.c and players_frame_update.c.
+ * modelrun retains the accepted volatile-s16 store-side contract from
+ * src/blob/modelgo.c and modelstop.c.
  * All gaps describe real structure offsets. No unused local, padding buffer,
  * false prototype, synthetic caller, new volatile access or assembly.
  */
@@ -42,27 +42,27 @@ typedef struct Vehicle2056 {
 } Vehicle2056;
 typedef struct Model952 {u8 prefix[4];float setup;u8 gap8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 gap8_308[0x358 - 0x308];s8 clear,active;u8 gap858[10];float drift;u8 tail[0x380 - 0x368]; void *input; u8 tail_384[0x3B8 - 0x384];} Model952;
 typedef struct Config8 {u8 prefix[5],camera,unknown,mode;} Config8;
-extern s8 D_80142760;
+extern s8 gDeathMode;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern int gameplay_mode;
-extern volatile s16 D_801525F0;
-extern void car_setup_confirm(int,float);
-extern void func_800C4F68(int,Vehicle2056 *,int);
-extern void stunt_combo_display(Vehicle2056 *);
-extern void func_800D5E64(Vehicle2056 *);
+extern int gRace;
+extern volatile s16 modelrun;
+extern void CarReportsGameOver(int,float);
+extern void SetResurrectionData(int,Vehicle2056 *,int);
+extern void Resurrect(Vehicle2056 *);
+extern void StartCarSounds(Vehicle2056 *);
 static void multiinit_n64(s16,s16);
 
-void func_800E543C(s16 action,s16 index)
+void Init_MDrive(s16 action,s16 index)
 {
  Model952 *model=PC_CAR(index);
  Vehicle2056 *vehicle=PC_MODEL(index);
  PC_LINK *config;
- if(D_80142760 && !model->active && action==2) {
+ if(gDeathMode && !model->active && action==2) {
   model->active=1;
   vehicle->state=0;
-  car_setup_confirm(index,model->setup);vehicle->selected=1;
+  CarReportsGameOver(index,model->setup);vehicle->selected=1;
  } else {
   if(model->active<0)model->active=0;
   vehicle->selected=0;
@@ -75,7 +75,7 @@ void func_800E543C(s16 action,s16 index)
     vehicle->mode=1;}
    model->drift=0.0f;
   }
-  D_801525F0=1;
+  modelrun=1;
  }
 }
 
@@ -84,19 +84,19 @@ static void multiinit_n64(s16 action,s16 index)
  Vehicle2056 *vehicle=PC_MODEL(index);
  int i;
  if(action==0) {
-  if(gameplay_mode==2) vehicle->camera=0;
+  if(gRace==2) vehicle->camera=0;
   else vehicle->camera=PC_LINK_PLACE(index);
-  func_800C4F68(0,vehicle,0);
+  SetResurrectionData(0,vehicle,0);
  } else {
-  if(gameplay_mode==2) vehicle->camera=PC_RESPAWN_BASE;
+  if(gRace==2) vehicle->camera=PC_RESPAWN_BASE;
   else vehicle->camera=index+PC_RESPAWN_BASE;
  }
- stunt_combo_display(vehicle);
+ Resurrect(vehicle);
  PC_CAR_B358(index)=0;
  for(i=0;i<4;i++) {
   vehicle->wheels[i]=0.0f;
   vehicle->tires[i].a=0.0f;
   vehicle->tires[i].b=0.0f;
  }
- if(gameplay_mode!=2 || vehicle->index==0)func_800D5E64(vehicle);
+ if(gRace!=2 || vehicle->index==0)StartCarSounds(vehicle);
 }

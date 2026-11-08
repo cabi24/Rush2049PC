@@ -411,7 +411,7 @@ SaveStats* save_get_stats(void);
 
 /* Utility */
 u16 save_calc_checksum(void *data, s32 size);
-s32 save_validate(void);
+s32 StartSkid(void);
 void save_set_defaults(void);
 void save_mark_modified(void);
 s32 save_is_modified(void);

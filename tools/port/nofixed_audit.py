@@ -115,7 +115,7 @@ LIT80 = re.compile(r"0x80[0-9A-Fa-f]{6}")   # the census pattern (docs/port/NOFI
 DECL = re.compile(r"\b(extern|static|typedef|struct|union|enum)\b|^\s*#\s*define\b|^\s*[A-Za-z_][\w\s\*]*\b[A-Za-z_]\w*"
                   r"\s*(\[[^\]]*\]\s*)*(=[^;]*)?[;,]\s*$|^\s*[A-Za-z_][\w\s\*]*\b[A-Za-z_]\w*\s*\([^;{]*\)\s*;\s*$")
 BIT_CONTEXT = re.compile(r"flags|AnimID|identifier|index|state|status|2\.1474836e9f|\bmask\b|sign|entries", re.I)
-ADDR_CONTEXT = re.compile(r"pc_n64_ptr|addr|D_80000318|->end\b|\*\s*\)\s*\(?\s*0[xX]8|N64_HI_|\+\s*0[xX]8|"
+ADDR_CONTEXT = re.compile(r"pc_n64_ptr|addr|osMemSize|->end\b|\*\s*\)\s*\(?\s*0[xX]8|N64_HI_|\+\s*0[xX]8|"
                           r"0[xX]8\w+\s*\+|\(\s*void\s*\*\s*\)|K0BASE", re.I)
 REGION_CONTEXT = re.compile(r"0[xX][fF]0000000|0[xX][fF][fF]000000|\bregion\b")
 COND = re.compile(r"^\s*#\s*(if|ifdef|ifndef|elif|else|endif)\b(.*)$")

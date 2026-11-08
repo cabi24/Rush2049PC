@@ -1,8 +1,8 @@
 #ifndef CAMPAIGN_SCHEDULER_DECLARATIONS_H
 #define CAMPAIGN_SCHEDULER_DECLARATIONS_H
 /* Include after unchanged current rom_tu.h; declarations only. */
-extern s16 __osScTaskCount;
-extern OSViMode gViModeTableBase[];
+extern s16 gRenderInProgress;
+extern OSViMode osViModeTable[];
 extern void osCreateViManager(OSPri);
 extern void osViSetEvent(OSMesgQueue *,OSMesg,s32);
 extern u32 osSetIntMask(u32);

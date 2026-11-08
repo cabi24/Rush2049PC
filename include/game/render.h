@@ -8,7 +8,7 @@
  * - render_object @ 0x80099BFC - 10KB, main 3D model render
  * - render_large @ 0x80087A08 - 10KB, large render function
  * - render_scene @ 0x800A04C4 - 2.7KB, viewport/camera setup
- * - render_helper @ 0x800B65B4 - rendering utility
+ * - HAL_SetTextDepth @ 0x800B65B4 - rendering utility
  *
  * Uses F3DEX2 microcode:
  * - gSPMatrix, gSPVertex, gSP2Triangles for geometry
@@ -131,9 +131,9 @@ typedef struct TextureInfo {
 extern RenderState gRenderState;
 
 /* Display list pointers (from gfx.c) */
-extern Gfx *gDisplayListHead;
-extern Gfx *gDisplayListEnd;
-extern u32 gDisplayListSize;
+extern Gfx *zmregion;
+extern Gfx *zmmax;
+extern u32 zmused;
 
 /* Camera position (for culling, sorting) */
 extern f32 gCamPos[3];

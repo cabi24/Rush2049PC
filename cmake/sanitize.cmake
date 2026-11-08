@@ -22,7 +22,7 @@ set(RUSH_SANITIZE_GAME_UB
     "bounds,shift,integer-divide-by-zero,float-cast-overflow,pointer-overflow,null,vla-bound,unreachable"
     CACHE STRING "The UBSan checks for the game C in a build with undefined (docs/port/SANITIZE.md)")
 # The game C under ThreadSanitizer faults at the synthetic cartridge's first screen (a texture lookup comes back empty
-# in collision_sound_play), which no other build does; not understood yet (docs/port/SANITIZE.md 6). The game's
+# in InitBlit), which no other build does; not understood yet (docs/port/SANITIZE.md 6). The game's
 # threads run one at a time, so the races TSan finds are the port's, whose code it instruments either way.
 option(RUSH_SANITIZE_GAME_THREAD "With thread: instrument the game C too (docs/port/SANITIZE.md)" OFF)
 string(REPLACE "," ";" PC_SANITIZE "${RUSH_SANITIZE}")

@@ -1,4 +1,4 @@
-/* port/assets/tests/test_mgrstart.c: the audio manager's thread (MAT3 audiomgr.c's _AudioThread, entity_ai_pathfind)
+/* port/assets/tests/test_mgrstart.c: the audio manager's thread (MAT3 audiomgr.c's _AudioThread, audio_manager_thread_entry)
  * on the starts its priority pass sends (docs/port/AUDIO.md 10.6). The pass runs on the thread at a retrace's message
  * and queues its starts behind it; when the host holds the thread back by a retrace, two retrace messages are queued
  * and the second pass sends a waiting tag's start again. The thread must start the tag once: the second start, for a
@@ -6,8 +6,8 @@
  * playing on. A start for a waiting tag starts it, a start for a freed one frees it, and a stop and a start again
  * start it twice. The thread loops for ever: the test's osRecvMesg feeds it a script and leaves at its end. Made-up
  * values only.
- * game: src/blob/groups/engine_sound_sync/audiomgr_thread.c
- * game: src/blob/groups/heap_release/func_80091AF8.c src/blob/pointer_offset8_call.c
+ * game: src/blob/groups/audiomgr/audiomgr_thread.c
+ * game: src/blob/groups/heap_release/audio_unlock.c src/blob/InsertBSTE.c
  */
 #include <setjmp.h>
 #include <stddef.h>
@@ -49,45 +49,45 @@ _Static_assert(sizeof(union audiomsg) == 0x20 && offsetof(union audiomsg, tag.ta
 
 /* ---------------------------------------------------------------- the game's data the thread names */
 
-uint8_t D_8002E8E8[64];                               /* the scheduler */
-int8_t D_8011023C;                                    /* gInited */
+uint8_t gScheduler[64];                               /* the scheduler */
+int8_t gInited_AudioMgr;                                    /* gInited */
 int32_t D_80110240 = -1;                              /* gSong */
-void *D_80110248;                                     /* gSortedFxTags */
-int32_t D_8011024C, D_80110250, D_80110278, D_8011027C, D_80110280;
-uint8_t D_80142728[64], D_801427A8[64];               /* the lock and the manager's queue */
-void *D_80142B70[PC_SND_MSG_SLOTS];                   /* the queue's messages */
-uint8_t D_80143F58[32];                               /* gSortedFxTagTree */
-struct dllist D_80144020, D_80144C50, D_80149860;     /* gPlayingFxTags, gInterruptedFxTags, gActiveSequences */
-float D_80152748 = 7.0f;                              /* the audio clock */
+void *gSortedFxTags;                                     /* gSortedFxTags */
+int32_t gNumStartCmds, gNumStopCmds, D_80110278, D_8011027C, D_80110280;
+uint8_t audio_lock_queue[64], audio_command_queue[64];               /* the lock and the manager's queue */
+void *audio_cmd_queue_msgs[PC_SND_MSG_SLOTS];                   /* the queue's messages */
+uint8_t gSortedFxTagTree[32];                               /* gSortedFxTagTree */
+struct dllist gPlayingFxTags, gInterruptedFxTags, gActiveSequences;     /* gPlayingFxTags, gInterruptedFxTags, gActiveSequences */
+float gAudioSeconds = 7.0f;                              /* the audio clock */
 void *pc_snd_start_cmds[PC_SND_MSG_SLOTS], *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];
 
 /* ---------------------------------------------------------------- what the thread calls */
 
 static int g_starts, g_stops, g_freed;
 static uint32_t g_next_id = 0x100;
-int audio_state_save(int fxid, float vol, float lrpan) { (void)fxid, (void)vol, (void)lrpan; g_starts++; return (int)g_next_id++; }
-void audio_timing_sync(unsigned int sysId) { (void)sysId; g_stops++; }
-void audio_effect_setup(struct fxtag *tag) { g_freed++; tag->state = 0; }
-void audio_pitch_adjust(struct fxtag *tag) { tag->state = 3; }
-void audio_buffer_manage(unsigned int sysId, float vol) { (void)sysId, (void)vol; }
-void audio_stream_control(unsigned int sysId, float lrpan) { (void)sysId, (void)lrpan; }
-void sound_priority_set(unsigned int sysId, float fbpan) { (void)sysId, (void)fbpan; }
-void audio_bus_route(unsigned int sysId, float pitch) { (void)sysId, (void)pitch; }
-void func_800958B8(void) {}
-void func_80096238(int song) { (void)song; }
-void func_800979A0(int song, int loop) { (void)song, (void)loop; }
-void music_track_control(float vol, unsigned int time, int music, int sfx) { (void)vol, (void)time, (void)music, (void)sfx; }
-void gfx_setup_e700(int mono) { (void)mono; }
-void func_8009211C(struct dllist *list, void *el) { (void)list, (void)el; }
-void func_80091FBC(struct dllist *list, void *el, void *before) { (void)list, (void)el, (void)before; }
-int func_80098710(struct fxtag *tag) { (void)tag; return 0; }
-void camera_update_b(void *tree, void *root, void *element) { (void)tree, (void)root, (void)element; }
-void camera_update_a(void *tree, void *root, int *num, void (*walk)(void *, int)) { (void)tree, (void)root, (void)num, (void)walk; }
-void engine_sound_sync(void) {}
-void func_800988D8(void) {}
-void camera_transform(void) {}
-void sound_position_update(void *element, int elNum) { (void)element, (void)elNum; }
-int entity_state_check(unsigned int sysId) { (void)sysId; return 1; }
+int AudioPlayEffect(int fxid, float vol, float lrpan) { (void)fxid, (void)vol, (void)lrpan; g_starts++; return (int)g_next_id++; }
+void AudioStopEffect(unsigned int sysId) { (void)sysId; g_stops++; }
+void FreeFxTag(struct fxtag *tag) { g_freed++; tag->state = 0; }
+void InterruptFxTag(struct fxtag *tag) { tag->state = 3; }
+void AudioSetEffectVolume(unsigned int sysId, float vol) { (void)sysId, (void)vol; }
+void AudioSetEffectLRPan(unsigned int sysId, float lrpan) { (void)sysId, (void)lrpan; }
+void AudioSetEffectFBPan(unsigned int sysId, float fbpan) { (void)sysId, (void)fbpan; }
+void AudioSetEffectPitch(unsigned int sysId, float pitch) { (void)sysId, (void)pitch; }
+void AudioStopAllEffects(void) {}
+void AudioSongStop(int song) { (void)song; }
+void AudioSongPlay(int song, int loop) { (void)song, (void)loop; }
+void AudioSetMasterVolume(float vol, unsigned int time, int music, int sfx) { (void)vol, (void)time, (void)music, (void)sfx; }
+void AudioSetMono(int mono) { (void)mono; }
+void RemoveLLE(struct dllist *list, void *el) { (void)list, (void)el; }
+void InsertLLE(struct dllist *list, void *el, void *before) { (void)list, (void)el, (void)before; }
+int WeightedPriority(struct fxtag *tag) { (void)tag; return 0; }
+void InsertBSTEInternal(void *tree, void *root, void *element) { (void)tree, (void)root, (void)element; }
+void WalkBSTInternal(void *tree, void *root, int *num, void (*walk)(void *, int)) { (void)tree, (void)root, (void)num, (void)walk; }
+void ProcessEmitters(void) {}
+void ProcessSequences(void) {}
+void AudioSfxServer(void) {}
+void UpdateFx(void *element, int elNum) { (void)element, (void)elNum; }
+int AudioEffectPlaying(unsigned int sysId) { (void)sysId; return 1; }
 void osCreateMesgQueue(void *q, void **msgs, int32_t count) { (void)q, (void)msgs, (void)count; }
 void osScAddClient(void *sc, void *client, void *q) { (void)sc, (void)client, (void)q; }
 int32_t osSendMesg(void *q, void *msg, int32_t flags) { (void)q, (void)msg, (void)flags; return 0; }
@@ -99,14 +99,14 @@ static jmp_buf g_out;
 int32_t osRecvMesg(void *q, void **msg, int32_t flags)
 {
     (void)flags;
-    if (q != D_801427A8)
+    if (q != audio_command_queue)
         return 0;   /* the lock */
     if (g_at == g_len)
         longjmp(g_out, 1);
     *msg = g_script[g_at++];
     return 0;
 }
-void entity_ai_pathfind(void *arg);
+void audio_manager_thread_entry(void *arg);
 
 static union audiomsg g_msgs[8];
 static struct fxtag g_tag;
@@ -126,7 +126,7 @@ static void run(const int *cmds, int n)
     g_starts = g_stops = g_freed = 0;
     memset(test_snd_count, 0, sizeof(unsigned long long) * PC_SND_COUNTERS);
     if (!setjmp(g_out))
-        entity_ai_pathfind(NULL);
+        audio_manager_thread_entry(NULL);
 }
 
 static void waiting(void)

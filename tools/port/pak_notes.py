@@ -12,7 +12,7 @@ order, little-endian), each used note's name in ASCII through the N64 pak font (
 space, 52-65 punctuation), its pages (the inode table's chain at 0x100) and a CRC-32 of its data. A profile
 (2064 bytes) shows its checksum, id and name (+13); a ghost (an 88-byte header, then its zipped samples) its
 header: checksum over +4..+0x44, revision, track, backward, car, name (+0x16), finish (+0x38), zipped and unzipped
-sizes, the zipped data's checksum, each checked against the game's checksum (format_string_parse).
+sizes, the zipped data's checksum, each checked against the game's checksum (CalcChecksumInternal).
 The header and the profile are the game's file data: big-endian on the N64, host order (little-endian) here.
 
 Checks, each a failure counted in the exit status: --note, a note of that name and extension must be there;
@@ -44,7 +44,7 @@ def text(codes):
 
 
 def game_sum(data):
-    """format_string_parse (the save code's _CalcChecksum, hash.c): each byte, by its low three bits, subtracted,
+    """CalcChecksumInternal (the save code's _CalcChecksum, hash.c): each byte, by its low three bits, subtracted,
     or'ed, and'ed, xor'ed, multiplied, divided into or added to a 32-bit result."""
     r = 0
     for v in data:

@@ -21,19 +21,19 @@ Most pointer warnings:
 
 | File | Warnings |
 |---|---:|
-| `src/rom/lib_11640.c` | 16 |
-| `src/rom/lib_17dc0.c` | 16 |
-| `src/blob/groups/carcolor/ctx_initsystem.c` | 4 |
-| `src/blob/groups/mode_select/mode.c` | 2 |
+| `src/rom/sound/hardware.c` | 16 |
+| `src/rom/sound/sequencer.c` | 16 |
+| `src/blob/groups/SetupCarColor/ctx_initsystem.c` | 4 |
+| `src/blob/groups/car_sounds/mode.c` | 2 |
 | `src/blob/MBSetupWad.c` | 1 |
 | `src/blob/groups/blast/blast.c` | 1 |
-| `src/blob/groups/camera_aspect_ratio/group.c` | 1 |
-| `src/blob/groups/menu_save_options/ctx_newghost.c` | 1 |
-| `src/blob/groups/menu_save_options/ctx_slot.c` | 1 |
-| `src/blob/groups/mode_select/d5e64.c` | 1 |
-| `src/rom/lib_1050_sdk.c` | 1 |
-| `src/rom/lib_25bb0.c` | 1 |
-| `src/rom/lib_3390.c` | 1 |
+| `src/blob/groups/targetpaths/group.c` | 1 |
+| `src/blob/groups/save/ctx_newghost.c` | 1 |
+| `src/blob/groups/save/ctx_slot.c` | 1 |
+| `src/blob/groups/car_sounds/d5e64.c` | 1 |
+| `src/rom/scheduler.c` | 1 |
+| `src/rom/speech/streams.c` | 1 |
+| `src/rom/libc/memset.c` | 1 |
 
 ## Link
 

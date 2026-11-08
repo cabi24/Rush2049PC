@@ -100,6 +100,18 @@ def load_symbols(path=ROOT / "symbol_addrs.us.txt"):
     return syms
 
 
+def renamed_names(path=ROOT / "symbol_addrs.us.txt"):
+    """The names tools/port/rename.py added to the symbol file for a renamed address name (`// type:data renamed`):
+    their address is what the old name spelled, and a tool that told an address name from a named symbol treats
+    them as it treated the address name."""
+    out = set()
+    for line in Path(path).read_text(errors="replace").splitlines():
+        m = _SYM_LINE.match(line)
+        if m and re.search(r"\brenamed\b", m.group(3) or ""):
+            out.add(m.group(1))
+    return out
+
+
 def address_of(name, syms):
     """The N64 address of a symbol: from the symbol file, else from a D_XXXXXXXX / func_XXXXXXXX name."""
     if name in syms:

@@ -6,55 +6,55 @@
 # name size. Better still: give the C declarations their size, then drop the line.
 
 # The file table (docs/port/ASSETS.md 2.2): 183 entries each; the next table starts after.
-D_8011B5BC 0x2DC    # ROM offset, u32[183]; track 1's PVS starts at 0x8011B898
-D_8002E580 0x2DC    # size in RAM, u32[183]; D_8002E860 follows
-D_80123564 0x2DC    # storage kind, s32[183]
-D_801234AC 0xB7     # model flag, s8[183]
+wave_rom_offsets 0x2DC    # ROM offset, u32[183]; track 1's PVS starts at 0x8011B898
+gWaveSizes 0x2DC    # size in RAM, u32[183]; gLargestTextWave follows
+wave_storage_kinds 0x2DC    # storage kind, s32[183]
+wave_is_model 0xB7     # model flag, s8[183]
 
 # Declarations that run over the next object. Each swallowed globals into its own storage, where the ones with
 # pointers overlapped their neighbours (data_layout.txt lists any left under "Inside own storage, but ...").
-D_801407F0 0x10     # gResPath {numPts, pts, numAlt, alt}: D_80140800 (GhostHeader *) is at +0x10. The 28-byte
+gResPath 0x10     # gResPath {numPts, pts, numAlt, alt}: gGhostToSave (GhostHeader *) is at +0x10. The 28-byte
                     # Header/PGraph views were written to the PC layout (ReadPathData's 32 bytes)
-D_80142530 0x160    # the ghost headers, 4 of 0x58 (GhostStart: D_80142500[i] = &D_80142530[i], i < 4), not 1
-D_80144C50 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node runs into D_80144C60 (PakHandle[])
+gRealNewGhostHeaders 0x160    # the ghost headers, 4 of 0x58 (GhostStart: gNewGhostHeaders[i] = &gRealNewGhostHeaders[i], i < 4), not 1
+gInterruptedFxTags 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node runs into pak_file_handles (PakHandle[])
 
 # The level-object node pool's elements (docs/port/POINTERS.md 10): 130 nodes of 0x70 bytes, which keep their N64
-# layout in the arena (camera_lerp_position's pool_init). menu_audio_settings' Vehicle2056 view only takes the address
+# layout in the arena (initTargetStructs's pool_init). collision' Vehicle2056 view only takes the address
 # (the end of the model array), and its 0x808-byte elements left the extent at 7 of them.
-D_8014D280 0x38E0
+gTargetArray 0x38E0
 # Sizes the game C's tentative definitions gave, which are declarations on the PC (PC_ONLY(extern): Windows' code
 # can't reach a symbol in the RDRAM window PC-relatively, docs/port/WINDOWS.md).
-D_80118E20 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, gr3_d.c, videoscr.c
-D_8012E688 8        # s64, object_render.c (both copies)
-D_80146180 4        # s8[4], func_800DE45C.c
-D_80149AF8 8        # s8[4][2] (gStickCal), func_800E7038.c
-D_8014A250 0x3030   # Car[6] of 0x808, world_physics_tick.c
+gJust 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, audio_animPanes_demo_animText.c, videoscr.c
+blit_cache_tile 8        # s64, blit_load_texture.c (both copies)
+gDriveHulk 4        # s8[4], InitOptions.c
+gContStickRange 8        # s8[4][2] (gStickCal), InitControlSys.c
+D_8014A250 0x3030   # Car[6] of 0x808, init_cars.c
 # Tables the code indexes past their declaration (tools/port/index_check.py, docs/port/SYNTH.md 3): the car tunes,
-# three 44-byte Tune44 records (func_800D0B14 reads ((F2C *)&D_801116D4)[tune], D_801116D4 being record 0's +4; the
+# three 44-byte Tune44 records (CalcMass reads ((F2C *)&gTune_weight_scale)[tune], gTune_weight_scale being record 0's +4; the
 # declarations leave one record, and the other two kept the ROM's byte order).
-D_801116D0 0x84
-# The cars' drag, f32[5][3] by traction type and tune (func_800D0A34 reads ((f32 (*)[3]) &D_801111E0)[i][j]; its
-# TARGET_PC declaration gives the table; the gap to D_8011121C is its size).
-D_801111E0 0x3C
-# gSongNames: the twelve songs' names (audio_calcMenuRect reads [0..11], the audio screen [D_80110640]). By the gap
+gTune 0x84
+# The cars' drag, f32[5][3] by traction type and tune (CalcDrift reads ((f32 (*)[3]) &gTireDrift)[i][j]; its
+# TARGET_PC declaration gives the table; the gap to gTireSideForce is its size).
+gTireDrift 0x3C
+# gSongNames: the twelve songs' names (audio_calcMenuRect reads [0..11], the audio screen [audio_gSong]). By the gap
 # the declaration ran 131 pointers to the next known address, so the loader turned 119 words of whatever follows into
 # pointer slots of its own storage.
-D_80110030 0x30
-# The track animations' pointer tables (race_setup_1, camera_shake_start): one per track, 19 (D_8014978C 0-18). By
+gSongNames 0x30
+# The track animations' pointer tables (TextureAnimation, InitTextureAnimation): one per track, 19 (gTrackNum 0-18). By
 # the gap they ran over the palette animations after them, which port/data/reached.txt now converts.
-D_8011A31C 0x4C
-D_8011A840 0x4C
+TextureSwapLists 0x4C
+PaletteLists 0x4C
 # The gear ratios, f32[8][6]: a row per car class (the model's byte 9), the ratio of gear g at [g + 1]
-# (func_800E2C70 reads them from D_80110EC0, its +4, by byte offsets; tools/port/index_check.py). By the gap the
+# (transmission reads them from carTransGearRatio_biased, its +4, by byte offsets; tools/port/index_check.py). By the gap the
 # table was one row, and the rows after it kept the ROM's byte order: a battle car's drive torque came out absurd and
 # its wheels never turned.
-D_80110EBC 0xC0
+carTransGearRatio 0xC0
 # The player screens' model slots (image A, Slot64[players][22]: unknown0 picks the model name): four players. A
 # known address 0x1080 in left the extent at three, and the fourth player's slots kept the ROM's byte order (a
-# four-player game faulted on its model names). The table ends at D_803B5D0C; D_803B5CFC's row 0, which is never
+# four-player game faulted on its model names). The table ends at playerscr_gButtonZoom; gPlayerRects_biased's row 0, which is never
 # read, lies in its last 16 bytes.
-D_803B470C 0x1600
+playerscr_buttonInfo 0x1600
 
 # Tables declared as their first element or row, which the game reads whole (docs/port/DATA.md 8).
-D_8011B4B4 0x9C     # f32[13][3], per car type (buffer_swap, the wings; D_8011B4B8 is its [0][1]); D_8011B550 follows
-D_801202F8 0x10     # gravityArray f32[4] (display_list_flush: by the gravity option); by the gap it ran over strings
+wingOffsets 0x9C     # f32[13][3], per car type (AnimateWing, the wings; wingOffsets_y is its [0][1]); D_8011B550 follows
+gravityArray 0x10     # gravityArray f32[4] (PrePlay: by the gravity option); by the gap it ran over strings

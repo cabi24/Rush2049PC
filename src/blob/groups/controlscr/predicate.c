@@ -8,18 +8,18 @@ typedef int s32;
 typedef unsigned int u32;
 
 typedef struct { u8 pad0; u8 row; u8 pad2[0x48 - 0x2]; void *ref; } Rec76;
-extern Rec76 D_8014A118[];
-extern s16 D_8014A0F8[];
-extern s8 D_8013C068[][10];
-extern s8 D_80114060[];
+extern Rec76 gPlayers[];
+extern s16 gControlSelect[];
+extern s8 gNewControls[][10];
+extern s8 gControlValid[];
 
-s32 func_800D8078(s8 car)
+s32 controls_validControl(s8 car)
 {
-    s8 *row = D_8013C068[D_8014A118[car].row];
-    s16 idx = D_8014A0F8[car];
+    s8 *row = gNewControls[gPlayers[car].row];
+    s16 idx = gControlSelect[car];
 
-    return row[idx] != 23 && D_80114060[row[idx]] == 1 && (idx != 2 || row[2] == 25 || row[2] == 19) &&
+    return row[idx] != 23 && gControlValid[row[idx]] == 1 && (idx != 2 || row[2] == 25 || row[2] == 19) &&
            (idx < 3 || (row[idx] != 19 && row[idx] != 25));
 }
-/* note: func_800D8078 = validControl@controlscr.c (GC 0x8006CDBC): gControlValid[control], the
+/* note: controls_validControl = validControl@controlscr.c (GC 0x8006CDBC): gControlValid[control], the
  * steering slot (2) needs 19/20, other slots refuse them. body via, unchanged. */

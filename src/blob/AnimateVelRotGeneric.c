@@ -1,0 +1,112 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/*
+ * AnimateVelRotGeneric (historical label): falling-debris object callback (Obj *, s16 mode), sibling of the
+ * matched AnimateFlag (same Obj/Model records, same `mode == 0` -> ReleaseEnviron(obj, 1)
+ * unlink and gPauseState pause test). Each frame the model's physics record (m->phys, +0x6C) gets
+ * velocity V += gravity * 0.15 (gravity = velrot_gravity = {0, -0.25, 0}) and position RWR (+0x38) moves by
+ * V + gravity * 0.15; the orientation UV (+0x14) is rotated by W * frame time through
+ * RotateUV (= arcade rotateuv, see game_reckon_all.c); frame time gFrameSeconds is volatile
+ * (re-read for every use). obj->timer (+0x10) counts down by the frame time; at <= 0 the debris is
+ * removed: if its kind record targetInfo[m->type] (0x30 bytes) has flag 0x2000, RemoveObjectTree
+ * (m->id, 0, 0); unlink the model from the list gTargetList (FreeStatLLE) and free the object.
+ * No arcade ancestor (N64 object system). Own literal 0.15f (0x3E19999A at 0x801249CC), verified.
+ * Shaping quirks: the removal block is an inlined static helper taking the kind-record pointer (retail
+ * forms &targetInfo[type] in a register and loads +0x12 from it; it also supplies 8 bytes of the frame);
+ * the unused `f32 a[6]` gives the 104-byte frame with temp at sp+60 and m's spill home at sp+96
+ * (INFERRED filler, like AnimateFlag's unused buf[16]); `v = p->V` (retail hoists p+12).
+ * -O3 only (-O2 is 103/108 off).
+ */
+typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
+typedef int s32; typedef float f32;
+typedef struct Phys {
+    f32 W[3];
+    f32 V[3];
+} Phys;
+/* PC: a target (a level-object node) keeps its N64 layout; its state, the debris' physics, is a heap record of its
+ * category, held as a 32-bit window address (docs/port/POINTERS.md 10). */
+enum n64p_Phys { n64p_Phys_ };
+enum n64p_Model { n64p_Model_ };
+typedef struct Model {
+    u8 pad0[0xC];
+    s32 id;                 /* the target's handle, whose low half is the model id (N64 +0xE): +0xC here */
+    s16 type;
+    u8 pad12[2];
+    f32 UV[3][3];
+    f32 RWR[3];
+    u8 pad44[0x6C - 0x44];
+    enum n64p_Phys phys;
+} Model;
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Obj {
+    void *next;
+    u8 pad4[0xC - 4];
+    enum n64p_Model model;
+    f32 timer;
+    void (*fn)();
+} Obj;
+#define N64P(x) _Generic((x), enum n64p_Phys: (Phys *)PC_N64P(x), enum n64p_Model: (Model *)PC_N64P(x), \
+    default: (x))
+#define N64W(x) PC_N64W(x)
+/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
+ * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
+ * (docs/port/POINTERS.md 10). */
+typedef struct Kind {
+    char *name, *file;
+    void *start, *visual;
+    s16 kind;
+    u16 flags;              /* 0x12 */
+    s16 shape;
+    s8 category, element;
+    f32 value;
+    s32 sound, w20, w24, w28;
+    f32 f2C;
+} Kind;
+extern s32 gPauseState;
+extern f32 velrot_gravity[3];
+extern volatile f32 gFrameSeconds;
+extern Kind targetInfo[];
+extern u8 gTargetList[];
+void ReleaseEnviron(void *node, s32 unlink);
+void RotateUV(f32 *rv, void *uvs);
+void RemoveObjectTree(s16 arg0, s32 arg1, s32 arg2);
+void FreeStatLLE(void *list, void *node);
+
+static void debris_remove(Obj *obj, Model *m, Kind *k) {
+    if (k->flags & 0x2000) {
+        RemoveObjectTree(m->id, 0, 0);
+    }
+    FreeStatLLE(gTargetList, m);
+    ReleaseEnviron(obj, 1);
+}
+
+void AnimateVelRotGeneric(Obj *obj, s16 mode) {
+    Phys *p;
+    Model *m;
+    f32 a[6];
+    f32 temp[3];
+    f32 *v;
+    s16 i;
+
+    if (mode == 0) {
+        ReleaseEnviron(obj, 1);
+        return;
+    }
+    if (gPauseState != 0) {
+        return;
+    }
+    m = N64P(obj->model);
+    p = N64P(m->phys);
+    v = p->V;
+    for (i = 0; i < 3; i++) {
+        v[i] += velrot_gravity[i] * 0.15f;
+        m->RWR[i] += v[i] + velrot_gravity[i] * 0.15f;
+    }
+    temp[0] = p->W[0] * gFrameSeconds;
+    temp[1] = p->W[1] * gFrameSeconds;
+    temp[2] = p->W[2] * gFrameSeconds;
+    RotateUV(temp, m->UV);
+    obj->timer -= gFrameSeconds;
+    if (obj->timer <= 0.0f) {
+        debris_remove(obj, m, &targetInfo[m->type]);
+    }
+}

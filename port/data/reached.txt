@@ -12,15 +12,15 @@
 # part of it); `parent FIELD` (that field of the element holding the pointer); TABLE[i] (element i of a table of
 # integers, for the root's pointer i).
 
-# The track animations (camera_shake_start sets them up, race_setup_1 runs them), per track: object-animation
-# sequences, ended by a count of 0, each with `count` frames (the shared D_8011905C on tracks 0-5, which resolves to
+# The track animations (InitTextureAnimation sets them up, TextureAnimation runs them), per track: object-animation
+# sequences, ended by a count of 0, each with `count` frames (the shared texture_swap_shared_frames on tracks 0-5, which resolves to
 # its storage, else frames of its own); and palette animations, ended by one without an owner.
-D_8011A31C                  ObjectAnimation20    until count
+TextureSwapLists                  ObjectAnimation20    until count
 ObjectAnimation20.frames    AnimationFrame12     parent count
-D_8011A840                  PaletteAnimation20   until owner
+PaletteLists                  PaletteAnimation20   until owner
 
-# carSuspensions (D_80111560, _tSusp *[3]): nine floats each (forward, back, side: force minimum, range, angle).
-D_80111560                  f32[9]               1
+# carSuspensions (carSuspensions, _tSusp *[3]): nine floats each (forward, back, side: force minimum, range, angle).
+carSuspensions                  f32[9]               1
 
-# The demo paths' start points (func_800B9284): D_80117408[i] point indices for path i.
-D_801173D8                  s16                  D_80117408[i]
+# The demo paths' start points (InitDemoPathPoint): num_demo_ppoints[i] point indices for path i.
+demo_path_points                  s16                  num_demo_ppoints[i]

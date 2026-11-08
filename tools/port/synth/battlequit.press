@@ -1,6 +1,6 @@
 # A two-player battle quit from the pause screen (docs/port/QA.md 5): the race end gives each player's pending
-# packet back (object_activate), then the game over screen. The packet's flag bytes follow its Link, and each
-# frame's listener copy (main_menu_input) writes its vectors after them: at the N64's offsets the two wrote the
+# packet back (AudRemoveListener), then the game over screen. The packet's flag bytes follow its Link, and each
+# frame's listener copy (AudUpdateListener) writes its vectors after them: at the N64's offsets the two wrote the
 # link's prev pointer, and the unlink faulted.
 # until: 0x800000:200
 # seconds: 120

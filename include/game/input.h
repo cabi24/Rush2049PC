@@ -51,10 +51,10 @@ typedef struct {
 extern PadEntry pad_array[4];  /* 0x80140BF0 */
 
 /* Function prototypes */
-void Input_SetPadEnabledFlag(s32 pad_index, s32 enable);
-void Input_SetPadSecondaryFlag(s32 pad_index, s32 enable);
+void ZOID_TextBlit(s32 pad_index, s32 enable);
+void ZOID_FlipBlit(s32 pad_index, s32 enable);
 void Input_ConfigRepeatTimers(s32 pad_index, s32 has_repeat, s32 repeat_delay, u32 repeat_timer);
-void Input_SetAnalogBounds(s32 pad_index, s16 analog_min, s16 analog_max,
+void ZOID_CropBlit(s32 pad_index, s16 analog_min, s16 analog_max,
                            s16 deadzone_min, s16 deadzone_max);
 
 /*

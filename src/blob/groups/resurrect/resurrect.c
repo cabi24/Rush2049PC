@@ -4,9 +4,9 @@
  * (reference/repos/mat3/decomp/src/GameSource/src/resurrect.c; GC Resurrect 0x80033FD4,
  * FindHumanResPt 0x80034EC0, FindDroneResPt 0x80035550, FindSurfaceUvsInPlace 0x80035D9C,
  * FindBestQuat 0x80036160), cross-checked with the arcade game/resurrect.c resurrect_car.
- *   func_800D348C       = FindHumanResPt (static; private IPA in the unit: m/outPath/outIdx in s0/s2/s3)
- *   stunt_combo_display = Resurrect (old label is wrong)
- *   func_800D3B20       = FindBestQuat (static, inlined into Resurrect; the deleted-procedure stub)
+ *   FindHumanResPt       = FindHumanResPt (static; private IPA in the unit: m/outPath/outIdx in s0/s2/s3)
+ *   Resurrect = Resurrect (old label is wrong)
+ *   FindBestQuat       = FindBestQuat (static, inlined into Resurrect; the deleted-procedure stub)
  * FindDroneResPt and FindSurfaceUvsInPlace are written inline in the N64 Resurrect (only one deleted-static
  * stub precedes Resurrect, and the umerge/cfe frame layout puts their locals in Resurrect's own area).
  * Field names follow MAT3 rush_types.h; every offset is the N64 displacement (tModelData is 0x808 on both;
@@ -227,34 +227,22 @@ typedef struct surftyp {
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern float D_8011418C[3][3];      /* unitmatrix */
-extern s8 D_80142760;               /* gDeathMode */
-extern int D_8014A110;              /* gRace */
-extern tDronePath D_8012E5E8[];     /* gDronePaths */
-extern tCheckpoints D_80151CE8;     /* gCheckpoints */
-extern tResPath D_801407F0;         /* gResPath */
+extern float unitmatrix[3][3];      /* unitmatrix */
+extern s8 gDeathMode;               /* gDeathMode */
+extern int gRace;              /* gRace */
+extern tDronePath gDronePaths[];     /* gDronePaths */
+extern tCheckpoints gCheckpoints;     /* gCheckpoints */
+extern tResPath gResPath;         /* gResPath */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u32 D_801174B4;              /* gGameState */
-extern s8 D_801407B0;               /* gResurrectInPlace */
-extern s16 D_8014A108;              /* gNumPlayers */
-extern s16 D_80152734;              /* gNumLaps */
-extern float D_80154390;            /* resurrectTime */
+extern u32 gGameState;              /* gGameState */
+extern s8 gResurrectInPlace;               /* gResurrectInPlace */
+extern s16 gNumPlayers;              /* gNumPlayers */
+extern s16 gNumLaps;              /* gNumLaps */
+extern float resurrectTime;            /* resurrectTime */
 extern float D_80117360[4];         /* res_last_time */
 extern float D_801210E8[12][3];     /* pole_pos_offset */
 
-#define gGameCar D_80152818
 #define model D_8014A250
-#define unitmatrix D_8011418C
-#define gDeathMode D_80142760
-#define gRace D_8014A110
-#define gDronePaths D_8012E5E8
-#define gCheckpoints D_80151CE8
-#define gResPath D_801407F0
-#define gGameState D_801174B4
-#define gResurrectInPlace D_801407B0
-#define gNumPlayers D_8014A108
-#define gNumLaps D_80152734
-#define resurrectTime D_80154390
 #define res_last_time D_80117360
 #define pole_pos_offset D_801210E8
 
@@ -263,26 +251,26 @@ extern float cosf(float);
 extern float fabsf(float);
 #pragma intrinsic(fabsf)
 
-void math_utility(float (*src)[3], float (*dst)[3]);                          /* CopyUV */
-void func_800D11BC(tModelData *m);                                            /* syminit */
-void func_800C4180(float (*mat)[3], float *yaw);                              /* ExtractYaw */
-surftyp *camera_trigger_check(float *ipos, float *opos, float (*uvs)[3]);     /* RoadPosition */
+void CopyUV(float (*src)[3], float (*dst)[3]);                          /* CopyUV */
+void syminit(tModelData *m);                                            /* syminit */
+void ExtractYaw(float (*mat)[3], float *yaw);                              /* ExtractYaw */
+surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);     /* RoadPosition */
 void fyaw(float sint, float cost, float (*uv)[3]);                   /* fyaw */
-void func_800D14F4(float (*uvs)[3], float *q);                                /* MakeQuatFromUvs */
-void func_8009E820(float *src, float *dst, float (*uvs)[3]);                  /* WorldVector */
-void func_800C4C9C(tModelData *m, s16 idx);                                   /* SetNewPathIndex */
-s16 func_800D2C10(s16 *pos, s16 path);                                        /* FindClosestPathPt */
-int difficulty_select(int res, int inPath, int inIdx, int cp);                /* NumPtsToCheckpoint */
-void lap_count_select(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx); /* TracePathPtForward */
-int viDeadlinePassed(void);                                                   /* CountdownTimeOut */
-void race_countdown_display(tModelData *m, float time);                       /* PassedCP */
-void camera_follow_path(int res, int path, int idx, float (*uvs)[3]);         /* FindSurfaceUvsFromResPoint */
-int func_800D3430(int inPath, int inIdx, int *outPath, int *outIdx, int honorAltRes); /* FindResPt */
-void func_8038CA24(int slot);
-f32 func_8008B2E4(f32 max);                                                   /* Random */
+void MakeQuatFromUvs(float (*uvs)[3], float *q);                                /* MakeQuatFromUvs */
+void WorldVector(float *src, float *dst, float (*uvs)[3]);                  /* WorldVector */
+void SetNewPathIndex(tModelData *m, s16 idx);                                   /* SetNewPathIndex */
+s16 FindClosestPathPt(s16 *pos, s16 path);                                        /* FindClosestPathPt */
+int NumPtsToCheckpoint(int res, int inPath, int inIdx, int cp);                /* NumPtsToCheckpoint */
+void TracePathPtForward(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx); /* TracePathPtForward */
+int CountdownTimeOut(void);                                                   /* CountdownTimeOut */
+void PassedCP(tModelData *m, float time);                       /* PassedCP */
+void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3]);         /* FindSurfaceUvsFromResPoint */
+int FindResPt(int inPath, int inIdx, int *outPath, int *outIdx, int honorAltRes); /* FindResPt */
+void InitBattlePlayer(int slot);
+f32 Random(f32 max);                                                   /* Random */
 
-void func_800D348C(tModelData *m, int *outPath, int *outIdx);
-void func_800D3B20(float *q1, float *q2);
+void FindHumanResPt(tModelData *m, int *outPath, int *outIdx);
+void FindBestQuat(float *q1, float *q2);
 
 /* PC: a start-grid row for each of PC_MAX_LINKS places (pc_game_types.h, docs/port/MORECARS.md 4). Places 0-5 are
  * pole_pos_offset's rows, read from the loaded table when a car is placed, so the build holds none of its values.
@@ -313,9 +301,9 @@ float *pc_pole_row(int place)
  * back (places 6 to PC_MAX_LINKS - 1 of pc_pole_row), each from the point of the resurrection path its row's distance
  * behind the start point (walked back from the start checkpoint's point, the one SetResurrectionData put every car on,
  * and across the loop point; where the path has no point behind, the rest straight back), facing along the path
- * there (camera_follow_path, as SetResurrectionData faces the start point), with its row's sideways offset; then a
+ * there (FindSurfaceUvsFromResPoint, as SetResurrectionData faces the start point), with its row's sideways offset; then a
  * column outside the table's grid on each side, beside each of its three rows, at the row's own sideways spacing,
- * from the start point. A candidate counts if the road is under it (RoadPosition, camera_trigger_check), and place
+ * from the start point. A candidate counts if the road is under it (RoadPosition, RoadPosition), and place
  * 6 + n takes the nth that counts (its own row if too few do). So where the road behind the start bends or dips the
  * rows follow it, and where it ends (the retail track 5 starts at the beginning of its path, with about 75 ft of
  * road behind the pole) the cars that don't fit stand beside the grid. Places 0-5, respawns, the attract demo (each
@@ -378,7 +366,7 @@ static void pc_grid_candidate(tModelData *m, int c)
         for (k = 0; k < 3; k++)
             pc_grid_point[k] = gResPath.pts[j][k];
     }
-    camera_follow_path(1, -1, q, pc_grid_uvs);   /* the path's segment from q on, the one the point is on */
+    FindSurfaceUvsFromResPoint(1, -1, q, pc_grid_uvs);   /* the path's segment from q on, the one the point is on */
     pc_grid_offset[0] = row[0];
     pc_grid_offset[1] = row[1];
     pc_grid_offset[2] = done - need;   /* 0 unless the path ran out: the rest straight back */
@@ -389,10 +377,10 @@ static int pc_grid_on_road(void)
 {
     float v[3], at[3], snap[3], uvs[3][3];
     int k;
-    func_8009E820(pc_grid_offset, v, pc_grid_uvs);
+    WorldVector(pc_grid_offset, v, pc_grid_uvs);
     for (k = 0; k < 3; k++)
         at[k] = pc_grid_point[k] + v[k];
-    return camera_trigger_check(at, snap, uvs) != 0;
+    return RoadPosition(at, snap, uvs) != 0;
 }
 
 static int pc_grid_pose(tModelData *m)
@@ -445,7 +433,7 @@ float *pc_grid_start(tModelData *m, int what)
 #define PC_POLE_ROW(p) pc_grid_start(m, 2)
 
 /* Respawn point for a human car (MAT3 FindHumanResPt). */
-void func_800D348C(tModelData *m, int *outPath, int *outIdx)
+void FindHumanResPt(tModelData *m, int *outPath, int *outIdx)
 {
     int a;
     int p;
@@ -463,10 +451,10 @@ void func_800D348C(tModelData *m, int *outPath, int *outIdx)
         int bestfit;
         int pOffset;
         int pReal;
-        func_8038CA24(m->slot);
+        InitBattlePlayer(m->slot);
         min2 = 0.0f;
         bestfit = 0;
-        pOffset = func_8008B2E4(gResPath.numPts);
+        pOffset = Random(gResPath.numPts);
         for (p = 0; p < gResPath.numPts; p++) {
             min = 1.0e20f;
             pReal = pOffset + p;
@@ -521,7 +509,7 @@ void func_800D348C(tModelData *m, int *outPath, int *outIdx)
                 }
             }
             if (path >= 0 && gResPath.alt[path].resurrect == 0)
-                func_800D3430(path, idx, &path, &idx, 1);
+                FindResPt(path, idx, &path, &idx, 1);
             if (!(path >= 0 && gResPath.alt[path].resurrect == 2)) {
                 if (path >= 0) {
                     k = path + 5;
@@ -572,7 +560,7 @@ void func_800D348C(tModelData *m, int *outPath, int *outIdx)
 /* Respawn point for an AI car: nearest point of its own racing line between its checkpoints
  * (MAT3 FindDroneResPt, static: inlined into Resurrect, deleted stub at 0x800D3B20). */
 /* Start a car's respawn (or, at race start, place it on the grid) (MAT3 Resurrect). */
-void stunt_combo_display(tModelData *m)
+void Resurrect(tModelData *m)
 {
     int inPlace;
     float *dp;
@@ -602,7 +590,7 @@ void stunt_combo_display(tModelData *m)
         m->initin.pos[0] = PC_START_POS(m)[0];
         m->initin.pos[1] = PC_START_POS(m)[1];
         m->initin.pos[2] = PC_START_POS(m)[2];
-        math_utility(PC_START_UVS(m), m->initin.uvs);
+        CopyUV(PC_START_UVS(m), m->initin.uvs);
         if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || (!human && m->initin.polepos >= PC_RESPAWN_BASE)) {
             m->initin.offset[0] = 0.0f;
             m->initin.offset[1] = 0.0f;
@@ -613,7 +601,7 @@ void stunt_combo_display(tModelData *m)
             m->initin.offset[2] = PC_POLE_ROW(m->initin.polepos)[2];
         }
         m->resurrect.moving_state = RES_IDLE;
-        func_800D11BC(m);
+        syminit(m);
         if (gGameState & GS_DEMO) {
             m->resurrect.velocity = (MPH_TO_FTPS * gDronePaths[gc->mpctl.path].pts[gCheckpoints.points[m->last_cp_index].pathPts[gc->mpctl.path + 1]].mph) / 2;
             m->v[2] = m->resurrect.velocity;
@@ -637,21 +625,21 @@ void stunt_combo_display(tModelData *m)
             surftyp *surf;
             int res;
             int ipos, temp;
-            func_800C4180(m->reckon.uvs, &inYaw);
+            ExtractYaw(m->reckon.uvs, &inYaw);
             inYaw = -inYaw;
-            surf = camera_trigger_check(m->resurrect.pos, snapPos, m->resurrect.uvs);
+            surf = RoadPosition(m->resurrect.pos, snapPos, m->resurrect.uvs);
             if (surf) {
                 if (surf->flags & 0x2000) {
                     res = 1;
                     goto done;
                 }
-                func_800C4180(m->resurrect.uvs, &outYaw);
+                ExtractYaw(m->resurrect.uvs, &outYaw);
                 sine = sinf(inYaw + outYaw);
                 cosine = cosf(inYaw + outYaw);
             } else {
                 sine = sinf(inYaw);
                 cosine = cosf(inYaw);
-                math_utility(unitmatrix, m->resurrect.uvs);
+                CopyUV(unitmatrix, m->resurrect.uvs);
             }
             fyaw(-sine, cosine, m->resurrect.uvs);
             res = 0;
@@ -672,13 +660,13 @@ done:
     gc->collide_count = -1;
     m->hide_car = 1;
     if (human) {
-        func_800D348C(m, &startPath, &startIdx);
+        FindHumanResPt(m, &startPath, &startIdx);
         if (startPath >= 0 && gResPath.alt[startPath].resurrect == 2) {
             m->resurrect.pos[0] = gResPath.alt[startPath].pts[startIdx][0];
             m->resurrect.pos[1] = 3.0f + gResPath.alt[startPath].pts[startIdx][1];
             m->resurrect.pos[2] = gResPath.alt[startPath].pts[startIdx][2];
             m->resurrect.velocity = 0;
-            camera_follow_path(1, startPath, startIdx, m->resurrect.uvs);
+            FindSurfaceUvsFromResPoint(1, startPath, startIdx, m->resurrect.uvs);
             m->appearance &= ~APPEAR_HULK;
             m->crashflag = 0;
             goto finish;
@@ -705,7 +693,7 @@ done:
         }
         startPath = car->mpctl.path;
         startIdx = idx;
-        func_800C4C9C(m, idx);
+        SetNewPathIndex(m, idx);
         dp = 0;
     }
     m->resurrect.resurrect_time = m->fastin.modelTime;
@@ -718,7 +706,7 @@ done:
     } else if (m->resurrect.velocity < 0) {
         m->resurrect.velocity = 1;
     } else if (human) {
-        i = func_800D2C10(startPath >= 0 ? gResPath.alt[startPath].pts[startIdx] : gResPath.pts[startIdx], 0);
+        i = FindClosestPathPt(startPath >= 0 ? gResPath.alt[startPath].pts[startIdx] : gResPath.pts[startIdx], 0);
         m->resurrect.velocity = MPH_TO_FTPS * gDronePaths[0].pts[i].mph;
     } else {
         m->resurrect.velocity = MPH_TO_FTPS * gDronePaths[startPath].pts[startIdx].mph;
@@ -727,10 +715,10 @@ done:
     jumpPts = crash_time * (m->resurrect.velocity * time_scale) / 20.0f;
     if (m->next_cp_index == gCheckpoints.finishPt && m->laps == gNumLaps - 1 &&
         gRace != kPractice && gRace != kStunt && gRace != kBattle && gRace != kObstacle) {
-        numPts = difficulty_select(human, startPath, startIdx, m->next_cp_index) / 2;
+        numPts = NumPtsToCheckpoint(human, startPath, startIdx, m->next_cp_index) / 2;
         if (jumpPts > numPts) jumpPts = numPts;
     }
-    lap_count_select(human, startPath, startIdx, jumpPts, &endPath, &endIdx);
+    TracePathPtForward(human, startPath, startIdx, jumpPts, &endPath, &endIdx);
     if (endPath >= 0) {
         if (human) {
             m->resurrect.pos[0] = gResPath.alt[endPath].pts[endIdx][0];
@@ -738,15 +726,15 @@ done:
             m->resurrect.pos[2] = gResPath.alt[endPath].pts[endIdx][2];
             if (gRace != kPractice && gRace != kBattle && gRace != kStunt &&
                 gCheckpoints.points[m->next_cp_index].pathPts[endPath + 5] >= 0 &&
-                gCheckpoints.points[m->next_cp_index].pathPts[endPath + 5] <= endIdx && !viDeadlinePassed())
-                race_countdown_display(m, m->fastin.modelTime);
+                gCheckpoints.points[m->next_cp_index].pathPts[endPath + 5] <= endIdx && !CountdownTimeOut())
+                PassedCP(m, m->fastin.modelTime);
         } else {
             m->resurrect.pos[0] = gDronePaths[endPath].pts[endIdx].pos[0];
             m->resurrect.pos[1] = 3.0f + gDronePaths[endPath].pts[endIdx].pos[1];
             m->resurrect.pos[2] = gDronePaths[endPath].pts[endIdx].pos[2];
             if (((m->next_cp_index < m->last_cp_index && gCheckpoints.points[m->last_cp_index].pathPts[endPath + 1] > endIdx) ||
                  (m->next_cp_index > m->last_cp_index && gCheckpoints.points[m->next_cp_index].pathPts[endPath + 1] <= endIdx)) &&
-                !viDeadlinePassed()) race_countdown_display(m, m->fastin.modelTime);
+                !CountdownTimeOut()) PassedCP(m, m->fastin.modelTime);
         }
     } else {
         m->resurrect.pos[0] = gResPath.pts[endIdx][0];
@@ -755,11 +743,11 @@ done:
         if (gRace != kPractice && gRace != kBattle && gRace != kStunt &&
             ((m->next_cp_index < m->last_cp_index && gCheckpoints.points[m->last_cp_index].pathPts[0] > endIdx) ||
              (m->next_cp_index > m->last_cp_index && gCheckpoints.points[m->next_cp_index].pathPts[0] <= endIdx)) &&
-            !viDeadlinePassed()) race_countdown_display(m, m->fastin.modelTime);
+            !CountdownTimeOut()) PassedCP(m, m->fastin.modelTime);
     }
     if (gRace != kPractice && gRace != kBattle && gRace != kStunt && gRace != kObstacle)
         m->resurrect.velocity = 58;
-    camera_follow_path(human, endPath, endIdx, m->resurrect.uvs);
+    FindSurfaceUvsFromResPoint(human, endPath, endIdx, m->resurrect.uvs);
     if (human) {
         /* N64: humans respawn at the multiplayer grid offsets (pole_pos_offset rows 6-11) */
         if (gRace == kGhost) {
@@ -772,7 +760,7 @@ done:
             m->initin.offset[2] = pole_pos_offset[m->slot + 6][2];
         }
         if (gRace != kBattle && gRace != kStunt && gRace != kObstacle && !gResurrectInPlace) {
-            func_8009E820(m->initin.offset, vel, m->resurrect.uvs);
+            WorldVector(m->initin.offset, vel, m->resurrect.uvs);
             m->resurrect.pos[0] = m->resurrect.pos[0] + vel[0];
             m->resurrect.pos[1] = m->resurrect.pos[1] + vel[1];
             m->resurrect.pos[2] = m->resurrect.pos[2] + vel[2];
@@ -786,18 +774,18 @@ finish:
     m->initin.offset[0] = 0.0f;
     m->initin.offset[1] = 0.0f;
     m->initin.offset[2] = 0.0f;
-    func_800D14F4(m->uvs, m->resurrect.quat_start);
-    func_800D14F4(m->resurrect.uvs, m->resurrect.quat_end);
-    func_800D3B20(m->resurrect.quat_start, m->resurrect.quat_end);
+    MakeQuatFromUvs(m->uvs, m->resurrect.quat_start);
+    MakeQuatFromUvs(m->resurrect.uvs, m->resurrect.quat_end);
+    FindBestQuat(m->resurrect.quat_start, m->resurrect.quat_end);
     m->resurrect.moving_state = RES_START;
-    math_utility(m->reckon.uvs, m->initin.uvs);
+    CopyUV(m->reckon.uvs, m->initin.uvs);
     m->initin.pos[0] = m->reckon.rwr[0];
     m->initin.pos[1] = m->reckon.rwr[1];
     m->initin.pos[2] = m->reckon.rwr[2];
     vel[0] = m->rwv[0];
     vel[1] = m->rwv[1];
     vel[2] = m->rwv[2];
-    func_800D11BC(m);
+    syminit(m);
     for (i = 0; i < 4; i++) {
         m->suscomp[i] = 0.0f;
         m->bodyForce[i][0] = 0.0f;
@@ -812,7 +800,7 @@ finish:
 }
 
 /* FindBestQuat (static; inlined into Resurrect, deleted stub at 0x800D3B20) */
-void func_800D3B20(float *q1, float *q2)
+void FindBestQuat(float *q1, float *q2)
 {
     s16 i;
     float dq1;

@@ -109,7 +109,7 @@ static const char *s_text;
 static int s_text_x, s_text_y, s_text_k, s_text_drawn;
 static uint32_t s_text_rgba;
 
-static void draw_text(int w, int h) {
+static void AddPlayerScores(int w, int h) {
     pc_gfx_ui_rect(0, 0, w, h, 0x000000FFu);
     s_text_drawn = pc_gfx_ui_text(s_text_x, s_text_y, s_text_k, s_text_rgba, s_text);
 }
@@ -123,7 +123,7 @@ static void check_text(const char *text, int x0, int y0, int k, uint32_t rgba) {
     s_text_y = y0;
     s_text_k = k;
     s_text_rgba = rgba;
-    pc_gfx_set_ui_hook(draw_text);
+    pc_gfx_set_ui_hook(AddPlayerScores);
     pc_gfx_redraw();
     pc_gfx_set_ui_hook(NULL);
     px = read_window(&w, &h);

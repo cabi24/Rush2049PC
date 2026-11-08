@@ -4,12 +4,12 @@
  * ABI, not Nintendo's Acmd command lists. OSTask.t.data_ptr points to an array of subframe descriptors (SFDs)
  * and OSTask.t.data_size is how many there are. Each SFD renders one subframe, 192 interleaved stereo frames,
  * into the output buffer named by its last voice. The game's builder is the MusyX driver in
- * src/rom/lib_11640.c:
- *   func_80012D18  one voice record (Command_80012D18; the game's 0x50-byte struct)
- *   func_800139D4  one SFD (Block_80012D18): release mask, state, delay effect, output pointer
- *   func_80013DEC  one task: an SFD per free AI buffer, then func_80011910 builds the OSTask
- *   func_80010E80  the delay effect's parameter block (AudioDelayState_80010E80)
- *   func_80011104  allocations: SFDs at 2576 (0xA10) bytes each, the 664-byte (0x298) state block (both larger on
+ * src/rom/sound/hardware.c:
+ *   sound_hw_build_voice_command  one voice record (SfdVoice; the game's 0x50-byte struct)
+ *   sound_hw_build_subframe  one SFD (SfdBlock): release mask, state, delay effect, output pointer
+ *   sound_hw_service_frame  one task: an SFD per free AI buffer, then sound_hw_submit_task builds the OSTask
+ *   sound_hw_set_delay  the delay effect's parameter block (SoundDelayState)
+ *   sound_hw_alloc_voices  allocations: SFDs at 2576 (0xA10) bytes each, the 664-byte (0x298) state block (both larger on
  *                  the PC with more than 32 voices: MX_VOICES_MAX below)
  *
  * Two forms of the same records:
@@ -35,7 +35,7 @@
  * voice slot, n of them (pc_audio_set_sfd_voices; 32 unless the setting is above original), and after the n records
  * the release mask's words for slots 32 and up: u32 word k, bit b is slot 32 + 32k + b. The state block holds the
  * last output of slots 32 and up after its 0x298 bytes, 8 bytes a slot. With n = 32 every record is the N64's.
- * A voice's slot is a byte in the game's builder (func_80012D18), and 255 is its "none". */
+ * A voice's slot is a byte in the game's builder (sound_hw_build_voice_command), and 255 is its "none". */
 #define MX_VOICES_MAX 255
 #define MX_MASK_WORDS(n) ((n) > MX_VOICES ? ((n) - MX_VOICES + 31) / 32 : 0)
 #define MX_STATE_SIZE_N(n) (MX_STATE_SIZE + ((n) > MX_VOICES ? ((n) - MX_VOICES) * 8 : 0))
@@ -95,7 +95,7 @@ enum {
 
 /* ---------------------------------------------------------------- native form */
 
-/* Fetch_80012730 */
+/* SfdSampleRange */
 typedef struct PcMusyxCat {
     const void *ptr1;
     const void *ptr2;
@@ -103,7 +103,7 @@ typedef struct PcMusyxCat {
     int16_t size2;
 } PcMusyxCat;
 
-/* Command_80012D18, with its 0x44 word as a pointer */
+/* SfdVoice, with its 0x44 word as a pointer */
 typedef struct PcMusyxVoice {
     int32_t env[4];
     int32_t env_step[4];
@@ -125,7 +125,7 @@ typedef struct PcMusyxVoice {
     uint16_t start;
 } PcMusyxVoice;
 
-/* AudioDelayState_80010E80 */
+/* SoundDelayState */
 typedef struct PcMusyxDelay {
     int16_t *buffer;
     uint32_t length;
@@ -137,7 +137,7 @@ typedef struct PcMusyxDelay {
     int16_t filter[4];
 } PcMusyxDelay;
 
-/* Block_80012D18 (with n voice records, MX_NATIVE_SFD_SIZE(n) bytes: MX_VOICES of them is this struct) */
+/* SfdBlock (with n voice records, MX_NATIVE_SFD_SIZE(n) bytes: MX_VOICES of them is this struct) */
 typedef struct PcMusyxSfd {
     uint16_t count;
     uint16_t delay_index;

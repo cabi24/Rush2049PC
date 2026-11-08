@@ -7,36 +7,36 @@ Phase 5 of [PORT_PLAN.md](../PORT_PLAN.md). Written 2026-10-26 from the decompil
 **The audio task is not an Acmd command list.** The task's microcode (0x8002A050, which
 [memory_map.md](../memory_map.md) calls aspMain) runs Factor 5's **MusyX v1** ABI. Its data is an array of
 *subframe descriptors* (SFDs), and `OSTask.t.data_size` is how many there are, not a byte count. The evidence is
-all in `src/rom/lib_11640.c`, the MusyX synth driver in the boot segment:
+all in `src/rom/sound/hardware.c`, the MusyX synth driver in the boot segment:
 
 | Fact | Where |
 |---|---|
-| `t.data_size = count`, and the writeback covers `count * 2576` bytes; 2576 = 0xA10 = a 0x10 header + 32 voices × 0x50 | `func_80011910` |
-| two SFD arrays of `D_800382CE * 2576` bytes, a 664-byte (0x298) work block, a 72-byte (0x48) delay block | `func_80011104`, `func_80010E80` |
-| a 0x50-byte voice record (`Command_80012D18`) and a 16-byte SFD header (`Block_80012D18`) | `func_80012D18`, `func_800139D4` |
-| every SFD renders 192 stereo frames into a 768-byte AI buffer (192 × 4 bytes); `osAiSetNextBuffer(buf, 768)` | `func_80010A40`, `func_80013D70` |
-| sample formats 0 (PCM16) and 3 (ADPCM: 40 bytes per 64 samples, a 0x100-byte codebook before the frames) | `func_80012D18` |
+| `t.data_size = count`, and the writeback covers `count * 2576` bytes; 2576 = 0xA10 = a 0x10 header + 32 voices × 0x50 | `sound_hw_submit_task` |
+| two SFD arrays of `sound_sfds_per_task * 2576` bytes, a 664-byte (0x298) work block, a 72-byte (0x48) delay block | `sound_hw_alloc_voices`, `sound_hw_set_delay` |
+| a 0x50-byte voice record (`SfdVoice`) and a 16-byte SFD header (`SfdBlock`) | `sound_hw_build_voice_command`, `sound_hw_build_subframe` |
+| every SFD renders 192 stereo frames into a 768-byte AI buffer (192 × 4 bytes); `osAiSetNextBuffer(buf, 768)` | `sound_hw_run_output_thread`, `sound_hw_render_subframe` |
+| sample formats 0 (PCM16) and 3 (ADPCM: 40 bytes per 64 samples, a 0x100-byte codebook before the frames) | `sound_hw_build_voice_command` |
 
 So there are no opcodes to implement. The interpreter implements the fixed MusyX v1 pipeline over these records.
-Nothing else in `src/` builds an audio task: `func_80011910` is the only writer of `t.type = 2`. The second microcode
+Nothing else in `src/` builds an audio task: `sound_hw_submit_task` is the only writer of `t.type = 2`. The second microcode
 in the boot tail (0x80027EA0, 3,616 B) is referenced by no task, and is left alone.
 
-The game asks for 22050 Hz (`func_80010840(22050, ...)` in `audio_init_sys/car_shadow_render.c`). It caps pitch
-at 2.0 (`func_80014A0C`), so a voice's source always fits the microcode's 0x200-sample buffer. Rush 2049 never uses
-the delay effect: nothing calls its setter (`func_80020528` → `func_80010E80`), and init passes a delay size of 0.
+The game asks for 22050 Hz (`sound_lib_init(22050, ...)` in `AudioInitSys/AudioInitSys.c`). It caps pitch
+at 2.0 (`sound_hw_set_pitch`), so a voice's source always fits the microcode's 0x200-sample buffer. Rush 2049 never uses
+the delay effect: nothing calls its setter (`sound_set_delay_effect` → `sound_hw_set_delay`), and init passes a delay size of 0.
 The stage is implemented anyway.
 
 The data flow, from the asset survey ([ASSETS.md](ASSETS.md) §3.8) and the driver (the files themselves, and how
 port/assets converts them: [MUSYX_DATA.md](MUSYX_DATA.md)):
-- Bank sounds start in `func_80022874`, then `func_80016CF0`. The format is the top byte of the sample descriptor's
+- Bank sounds start in `sound_macro_start_sample`, then `sound_find_sample`. The format is the top byte of the sample descriptor's
   length word. `data` is a cart address, `0xB0000000 | (0x39B40 + offset)`.
 - Not being a RAM address, a cart address sets voice flag 1. The builder then fetches through two caches it fills
-  by DMA from the ROM: the codebooks go to `D_8003833C` (`count × 256` bytes, `func_80012234`) and the 1,536-byte
-  sample blocks to `D_8003834C` (`func_80012730`). The SFD's pointers point into those caches.
-- RAM-resident sources are the CPU-filled stream buffers (`func_8001C580`: GSM speech and streams). They are native
+  by DMA from the ROM: the codebooks go to `sound_codebook_cache` (`count × 256` bytes, `sound_hw_fetch_codebook`) and the 1,536-byte
+  sample blocks to `sound_sample_cache` (`sound_hw_fetch_sample_range`). The SFD's pointers point into those caches.
+- RAM-resident sources are the CPU-filled stream buffers (`sound_stream_start`: GSM speech and streams). They are native
   PCM16.
-- The tasks are double-buffered. `func_80013DEC` builds this frame's SFDs and issues their DMA list
-  (`func_80011D24`), then submits *last* frame's SFDs, whose DMA has already completed (`func_80011CD8`).
+- The tasks are double-buffered. `sound_hw_service_frame` builds this frame's SFDs and issues their DMA list
+  (`sound_hw_start_dma`), then submits *last* frame's SFDs, whose DMA has already completed (`sound_hw_wait_dma`).
 
 ## 2. The ABI as the game uses it
 
@@ -47,16 +47,16 @@ interpreter does with it.
 
 | Off | Field | Game writer | Meaning |
 |---|---|---|---|
-| 0x00 | u16 count | `func_80012D18` (count++) | voices written; not read (the output pointer ends the list) |
-| 0x02 | u16 delay index | `func_800139D4`: `D_800382EC / 192` | delay-line position, index × 192 |
-| 0x04 | u32 release mask | `func_800139D4`: `1 << slot` per voice with `release_pending` | fold slot n's last output into the base volumes |
-| 0x08 | u32 state | `D_800382E4` (664 bytes, zeroed once) | carried between tasks |
-| 0x0C | u32 delay | `D_800382E8`, or 0 | delay-effect parameters |
+| 0x00 | u16 count | `sound_hw_build_voice_command` (count++) | voices written; not read (the output pointer ends the list) |
+| 0x02 | u16 delay index | `sound_hw_build_subframe`: `sound_delay_position / 192` | delay-line position, index × 192 |
+| 0x04 | u32 release mask | `sound_hw_build_subframe`: `1 << slot` per voice with `release_pending` | fold slot n's last output into the base volumes |
+| 0x08 | u32 state | `sound_mix_state` (664 bytes, zeroed once) | carried between tasks |
+| 0x0C | u32 delay | `sound_delay`, or 0 | delay-effect parameters |
 | 0x10 | voices[32] × 0x50 | | |
 
 **Voice (0x50 bytes)**
 
-| Off | Field | Game writer (`func_80012D18`) | Meaning |
+| Off | Field | Game writer (`sound_hw_build_voice_command`) | Meaning |
 |---|---|---|---|
 | 0x00 | s32 env[4] | `level << 16` | volume per channel (left, right, surround, aux); Q15 in the high half |
 | 0x10 | s32 step[4] | `(target - level) << 16 / 192`, or 0 | added after each output frame (a linear ramp over the subframe) |
@@ -67,13 +67,13 @@ interpreter does with it.
 | 0x3C | u8 frames[2] | ADPCM `(padded + rem + 31) >> 5`; PCM 0 | ADPCM frames to decode; main = 0 selects PCM16 |
 | 0x3E | u8 skip[2] | `address & 0x3F` (ADPCM), `& 3` (PCM) | first sample; ADPCM bit 5 starts at the block's second frame |
 | 0x40 | u32 book / u16 count[2] | ADPCM `data` (or its cache node); PCM `padded` | codebook (8 × 16 s16), or PCM16 samples per segment |
-| 0x44 | u32 output | 0, except `func_800139D4` on the last voice | 192 interleaved stereo s16 frames; ends the voice list |
+| 0x44 | u32 output | 0, except `sound_hw_build_subframe` on the last voice | 192 interleaved stereo s16 frames; ends the voice list |
 | 0x48 | u16 end | 0x4000 (no end in the window), or `length + rem` | end point, from the main segment's base |
 | 0x4A | u16 restart | `(loopRem + mode) \| 0x8000`, `rem + mode`, or `end - 0x20` | bit 15: in the loop segment; else from the main base |
 | 0x4C | u16 | `padded * rate * 16 + frac` | not read |
 | 0x4E | u16 start | `position - loop_start` (whole-loop window) | added to the first sample's offset |
 
-**Delay effect (0x48, `AudioDelayState_80010E80`)**: line pointer, length (a multiple of 192), tap count ≤ 8,
+**Delay effect (0x48, `SoundDelayState`)**: line pointer, length (a multiple of 192), tap count ≤ 8,
 feedback `feedback << 8`, tap delays (samples, `& ~3`), tap gains `gain << 8`, a u32 v1 doesn't read, and a 4-tap
 feedback filter ({0, 0, 0, 32767} when mode ≠ 1).
 
@@ -193,7 +193,7 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 0x80000000 for N64-form records.
 - The references in `tests/ref.c` are written from the format, separately from the interpreter: a per-frame ADPCM
   decoder over a flat frame view, a block packer, and a closed-loop ADPCM encoder.
-- `tb_voice` copies the game's voice builder (`func_80012D18`) and its position update (`func_80011D74`), so the
+- `tb_voice` copies the game's voice builder (`sound_hw_build_voice_command`) and its position update (`sound_hw_advance_voice_position`), so the
   tests drive the interpreter with records built the way the game builds them.
 
 | Test | Checks | What it verifies |
@@ -207,7 +207,7 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | `audio_forms` | 32 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered as native structs, native structs with K0 addresses, N64 form native order, and N64 form big-endian: identical outputs, states and lines; LP64 layout; host data above 4 GB |
 | `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; a push before its render waits (counted with the queue); 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
 | `audio_hold` | 151 | pushes held for their render, against a model of the game's ring (8 buffers, renders in order at most 5 past the pushes): renders ahead play each push's own; renders late but before the device needs them play as on time; a render too late is silence, never the ring's last turn, and never plays a turn later out of place; a renderer three behind plays a turn late, in order, and on time again once caught up; the same buffer rendered twice; the renderer's skips counted (a jump right after a render, not one after a pause); 60 runs of random timings with stalls and the game's stop and restart: what plays is in order, never early, never twice, and exact once the renderer is ahead; pushes before any render and long pushes play as pushed |
-| `audio_renderer` | 484 | `func_80013DEC`'s scheduling loops, copied, in the PC and the N64 form: the wrapping range cut by the cap, by hand; rings of 8, 12, 16 and 24 buffers, caps of 1 to 6, 20 runs each of random AI steps (some past the cap, never a turn ahead): the PC loops render every buffer the AI passes once, in the ring's order, and catch up; the N64 loops pass buffers over in the same runs |
+| `audio_renderer` | 484 | `sound_hw_service_frame`'s scheduling loops, copied, in the PC and the N64 form: the wrapping range cut by the cap, by hand; rings of 8, 12, 16 and 24 buffers, caps of 1 to 6, 20 runs each of random AI steps (some past the cap, never a turn ahead): the PC loops render every buffer the AI passes once, in the ring's order, and catch up; the N64 loops pass buffers over in the same runs |
 | `audio_convert` | 14 | 22047 Hz to 48000 and 44100: flat to 8 kHz within 0.05 dB, images at least 60 dB down, DC exact, left and right apart; 10 s without drift; the game's 192-frame buffers the same stream as one piece; a clipped full-scale tone: the float pull keeps the overshoot (peak 1.0-1.25), the 16-bit pull clamps and counts it, at a volume below 1 nothing clamps; in range, float = 16-bit / 32768 |
 | `audio_e2e` | 14 | four SFDs per task from the game's builder, `pc_audio_run_task`, `pc_audio_push`, the WAV read back. ADPCM 1 kHz at 32 kHz, played at 22050: 999.9480 Hz (expected 999.9481), left 9964.8 (expected about 9960), right/left 0.5, residual 0.19 % rms, worst 0.6 %. PCM16 big-endian 750 Hz at 24 kHz: 749.9611 Hz (expected 749.9611), right inverted at half volume |
 | `audio_backends` | 9 | only when SDL2 or ALSA is built: SDL2's `disk` driver (float, at its own rate) gives a 440.000 Hz tone of the right length; ALSA opens alsa-lib's `null` device and drains |
@@ -248,25 +248,25 @@ of its 10 checks.
 ## 6. What the game and port/ultra must do on PC
 
 **Game C (agent D):**
-1. **Compile `src/rom/lib_11640.c`.** The top-level CMake lists it in `GAME_REPLACED` as libultra, but it is the
-   MusyX synth driver and task builder. It needs only `__unaligned` removed under `TARGET_PC` (`func_800148F8`);
+1. **Compile `src/rom/sound/hardware.c`.** The top-level CMake lists it in `GAME_REPLACED` as libultra, but it is the
+   MusyX synth driver and task builder. It needs only `__unaligned` removed under `TARGET_PC` (`sound_hw_set_envelope`);
    with that, it compiles.
 2. **Native form (the default):**
-   - Make `Command_80012D18.unknown44` a pointer (`void *output`).
-   - Replace the byte-array views in `func_800139D4` with the real types. `AudioBlock`/`AudioCommand` become
-     `Block_80012D18`/`Command_80012D18`: `status` is `main.first_length`, `output` is the 0x44 pointer.
-     `AudioLoop` becomes `AudioDelayState_80010E80`, since `length` moves to +8 on LP64.
-   - Use `sizeof(Block_80012D18)` for 2576 (`func_80011104` ×2, `func_80011910`) and
-     `sizeof(AudioDelayState_80010E80)` for 72. The 664-byte state block stays 664.
+   - Make `SfdVoice.unknown44` a pointer (`void *output`).
+   - Replace the byte-array views in `sound_hw_build_subframe` with the real types. `AudioBlock`/`AudioCommand` become
+     `SfdBlock`/`SfdVoice`: `status` is `main.first_length`, `output` is the 0x44 pointer.
+     `AudioLoop` becomes `SoundDelayState`, since `length` moves to +8 on LP64.
+   - Use `sizeof(SfdBlock)` for 2576 (`sound_hw_alloc_voices` ×2, `sound_hw_submit_task`) and
+     `sizeof(SoundDelayState)` for 72. The 664-byte state block stays 664.
    - Alternatively, keep the N64 records with `u32` pointer fields holding window addresses and build with
      `-DPC_AUDIO_TASK_FORM=N64`.
-3. **The RAM test in `func_800146B4`**, `(data & 0xF0000000) == 0x80000000`, must also count host pointers
-   (≥ 4 GB) as RAM, or a host buffer is fetched as a cart address. `func_80014CAC` has the same top-byte test.
+3. **The RAM test in `sound_hw_set_voice_sample`**, `(data & 0xF0000000) == 0x80000000`, must also count host pointers
+   (≥ 4 GB) as RAM, or a host buffer is fetched as a cart address. `sound_hw_translate_address` has the same top-byte test.
 4. The other 64-bit casts in the file can stay as they are or become `uintptr_t`:
-   - the D-cache cursors `D_80038030`/`D_80038034` with `func_8002C5E0` (the writebacks are no-ops)
+   - the D-cache cursors `sound_sfd_write_end`/`sound_sfd_cache_cursor` with `dcache_create_dirty_lines` (the writebacks are no-ops)
    - `(unsigned int)V->data` on the streamed path, which is a cart address and fine as `u32`
-   - the ucode sizes in `func_80011910`
-5. The two views of the 0x68 voice record (`AudioState`, `Voice_80012D18`) still agree on LP64: both shift by 4
+   - the ucode sizes in `sound_hw_submit_task`
+5. The two views of the 0x68 voice record (`SoundHwVoice`, `SoundHwVoiceView`) still agree on LP64: both shift by 4
    at `data`.
 
 **port/ultra (agent A):**
@@ -276,18 +276,18 @@ of its 10 checks.
 3. `osAiSetNextBuffer(buf, len)` calls `pc_audio_push(buf, len / 4)`.
 4. `osAiGetLength` returns `pc_audio_queued_frames() * 4`.
 5. Post `OS_EVENT_AI` whenever the queue falls below about two buffers (384 frames). The audio thread
-   (`func_80010A40`) answers each event with one 192-frame buffer.
-6. The MusyX DMA callback (`D_80038010` → `func_8008ABE4`) copies from the ROM. Register its destinations as
-   big-endian: the codebook cache `D_8003833C` (`count × 256`) and the sample cache `D_8003834C` (`count × 1536`).
-   Do **not** register the CPU-filled stream buffers (`func_8001C580`); they are native PCM16.
+   (`sound_hw_run_output_thread`) answers each event with one 192-frame buffer.
+6. The MusyX DMA callback (`sound_service_start_dma` → `sample_dma_next`) copies from the ROM. Register its destinations as
+   big-endian: the codebook cache `sound_codebook_cache` (`count × 256`) and the sample cache `sound_sample_cache` (`count × 1536`).
+   Do **not** register the CPU-filled stream buffers (`sound_stream_start`); they are native PCM16.
 7. main calls `pc_audio_init(backend, dump_path)` (`--dump-audio`) before the game threads start and
    `pc_audio_shutdown()` at exit. Link the `pcaudio` target. Weak no-op defaults are needed for the two new
    functions.
 
 **Status (2026-10-27).** The game's side reaches the interpreter: the MusyX service table and the DMA request
 list ([MUSYX_DATA.md](MUSYX_DATA.md) §8.1), the voices and sequencer (§8.2, §8.3), and the scheduler's task view
-(§8.4). The DMA callback is `D_80038010` = `struct_init_and_call`, which starts `func_8008ABE4`'s PI requests. On a
-blank cartridge with the MusyX tuning table planted in a debugger (§8.6), the retrace callback `func_80013DEC`
+(§8.4). The DMA callback is `sound_service_start_dma` = `musyx_start_dma_list`, which starts `sample_dma_next`'s PI requests. On a
+blank cartridge with the MusyX tuning table planted in a debugger (§8.6), the retrace callback `sound_hw_service_frame`
 submits an audio task every retrace (470 in 8 s) through the scheduler to `pc_audio_run_task`.
 
 **pc_port.h changes:**
@@ -306,8 +306,8 @@ crackle, stutter or a buzz, worse with a vsync swap:
    pulls in steps (SDL: 512 frames, 10.7 ms at 48 kHz) from its own thread, and the main loop waits in the swap
    (vsync, up to a refresh) and in graphics tasks, so the queue emptied between its checks: silence in steps of a
    pull, played as clicks.
-2. **The AI played buffers twice.** The game keeps 8 AI buffers in a ring (`func_80010A40`); its retrace callback
-   (`func_80013DEC`, run by `dma_wait_complete`) renders the ones the AI has passed, up to `D_800382CE` SFDs per
+2. **The AI played buffers twice.** The game keeps 8 AI buffers in a ring (`sound_hw_run_output_thread`); its retrace callback
+   (`sound_hw_service_frame`, run by `audio_retrace_thread_entry`) renders the ones the AI has passed, up to `sound_sfds_per_task` SFDs per
    task, with the task one retrace after the SFDs were built. When a buffer's task hadn't run by the time the AI
    pushed it, its sound from the ring's last turn (8 buffers, 70 ms back) played again. Three things made it late:
    - the audio task ran on the main thread, behind graphics tasks and swaps;
@@ -347,7 +347,7 @@ crackle, stutter or a buzz, worse with a vsync swap:
 in order and renders it in order, so a render is for the push after the previous render's (`pc_audio_note_rendered`
 gets each one from the interpreter). A render after the order jumps, or after a whole ring turn of pushes without
 one, is taken as a restart of the renderer: it is for the buffer's next push, as at the ring's front (the game's stop,
-`func_80014140`, lets it render 8 more first, and its start, `func_800140F8`, begins at the new front). A push whose
+`sound_hw_remove_callback`, lets it render 8 more first, and its start, `sound_hw_install_callback`, begins at the new front). A push whose
 render hasn't come waits in the queue, the pushes after it behind it; its render, when it comes, plays it. When the
 device needs it first, it plays the buffer's previous render if that never played and comes after what last did
 (a renderer a turn behind plays in order, late), else silence, faded as an underrun is. So nothing plays twice, out
@@ -396,10 +396,10 @@ buffers 21 pushed before their render, 17 of them rendered in time and 4 played 
 played twice (0835358's count for 40 s of the same path, without the model: 6 buffers played again). The same
 checks on the retail cartridge, with and without the model and with slow presents, stay out of the repository.
 
-**The renderer skipped buffers when it was behind** (fixed for the PC, 2026-10-28). `func_80013DEC` renders the
-buffers the AI has passed, from `D_80038360` up to the one before the AI's, in two loops when that range wraps past
-the ring's end, each capped by the task's `D_800382CE` SFDs. When the cap stopped the first loop before the ring's
-end, the second loop's `index = 0` still became `D_80038360`: the buffers between were never rendered. That happens
+**The renderer skipped buffers when it was behind** (fixed for the PC, 2026-10-28). `sound_hw_service_frame` renders the
+buffers the AI has passed, from `sound_render_index` up to the one before the AI's, in two loops when that range wraps past
+the ring's end, each capped by the task's `sound_sfds_per_task` SFDs. When the cap stopped the first loop before the ring's
+end, the second loop's `index = 0` still became `sound_render_index`: the buffers between were never rendered. That happens
 when more buffers than the cap were passed since the renderer's last callback: rare on the N64's even retraces, and on
 the PC whenever retraces come in bunches (a swap that blocks for vsync, a slow graphics task, the catch-up after
 them). On the N64 such a buffer plays its sound from the ring's last turn again; here it played as silence, a dip of
@@ -413,15 +413,15 @@ The output counts the buffers it still skips (`buffers the renderer skipped`: a 
 **A task's SFDs were built over** (fixed for the PC, 2026-10-28). With the loops fixed, `audio_realtime` still
 counted skips now and then: 3 or 4 on shared Linux runners, 3 to 27 on Windows, and on the Pi with slow presents
 (`RUSH_SIM_PRESENT_MS=20`) 61 jumps in 30 s. They were real. Each callback builds its SFDs into one of two buffers
-(`func_80013964`) and submits the task for the other, built by the callback before; it waits for the last task
-(`func_800118C0`) only after building, before the submit. On the N64 the RSP has run that task long before the next
+(`sound_hw_begin_sfd_set`) and submits the task for the other, built by the callback before; it waits for the last task
+(`sound_hw_wait_task`) only after building, before the submit. On the N64 the RSP has run that task long before the next
 retrace. On the PC an audio task goes through the game's scheduler, which asks the graphics task on the RSP to
 yield to it. The PC's RSP didn't yield then, so the audio task waited until the main loop had run the graphics task,
 and a swap that waits for vsync, a slow present or a loaded host could hold that past the next retrace. The next callback then built
 into the buffer the task hadn't read: the task rendered the new SFDs in place of its own, which were lost, and the
 next two tasks rendered the sets out of order, one twice (seen with a count of tasks submitted against tasks run:
 49 callbacks in that run built over a pending task). Under `TARGET_PC` the callback waits for the last task before
-it builds (`PC_SFD_WAIT`, on the line of `func_80013964`'s call); the wait before the submit then returns at once.
+it builds (`PC_SFD_WAIT`, on the line of `sound_hw_begin_sfd_set`'s call); the wait before the submit then returns at once.
 Under the same slow presents: no callback builds over a pending task, and 0 buffers skipped.
 
 **Audio tasks waited behind graphics tasks** (fixed, 2026-10-28). The same wait made renders late: buffers were
@@ -451,8 +451,8 @@ running), the silences are the host's: 30 and 49 with yields.
 
 ## 8. Checking against the microcode
 
-Written 2026-10-27. The reference is the game's own audio microcode (`D_8002A050`, 0xF40 bytes of text at IMEM
-0x1080; its data, `ucode_data_size` 0x800 bytes at `D_8002E210`) translated to C++ by RSPRecomp, as Rush2049Recompiled
+Written 2026-10-27. The reference is the game's own audio microcode (`audio_ucode_text`, 0xF40 bytes of text at IMEM
+0x1080; its data, `ucode_data_size` 0x800 bytes at `audio_ucode_data`) translated to C++ by RSPRecomp, as Rush2049Recompiled
 builds it (N64Recomp and N64ModernRuntime's RSP headers, MIT, from their own checkouts). The translation comes from
 the ROM, so it, the harness built on it, and everything they produce stay on the machine that has the ROM, outside
 the repository.
@@ -506,9 +506,9 @@ filter. `audio_rsp` pins each (section 4).
 ## 9. The game's side: where the PC asked for other sounds than the N64
 
 Written 2026-10-27. Section 8 makes the interpreter match the microcode on the tasks it gets; this section checks
-the tasks themselves: the MusyX driver, sequencer and voices (`src/rom/lib_113e0.c` … `lib_26f60.c`, compiled from
-the decomp's C) and the game's sound calls (the audio manager in `engine_sound_sync/` and `MP_TargetSteerPos/`, the
-request queue in `audio_fade_control/`, `music_track_control.c`), for places where the PC computes other voice
+the tasks themselves: the MusyX driver, sequencer and voices (`src/rom/sound/init.c` … `gsm.c`, compiled from
+the decomp's C) and the game's sound calls (the audio manager in `ProcessEmitters/` and `AudioPlayEffectInternal/`, the
+request queue in `SendCmd/`, `AudioSetMasterVolume.c`), for places where the PC computes other voice
 parameters than the N64 from the same state.
 
 **What was checked, and how**
@@ -516,36 +516,36 @@ parameters than the N64 from the same state.
 | Class | Method | Result |
 |---|---|---|
 | float to integer | every conversion GCC sees (`fix_trunc_expr` in the raw SSA dump, `-fdump-tree-ssa-raw-lineno`) in the 17 MusyX units and the 125 game files with sound in their path, with source and target types | 24 in the library: all `(s16)`, `(int)` or of values that can't be negative (sizes at init, the position and its fraction, rates), except the emitters' `(u32)`; 19 in the game's sound files, 4 of them `(u32)` of a volume or pan; fixed below |
-| bytes or halves of words | the data symbols placed inside another (`nm -S` of the window), `endian_check.py` (0 open conflicts, none in the library), and every sub-word `M2C_FIELD` read in the audio manager | one: the effect id (fixed below). `D_8004F314` is the `type` byte of `D_8004F300`'s 40-byte faders, as it should be |
+| bytes or halves of words | the data symbols placed inside another (`nm -S` of the window), `endian_check.py` (0 open conflicts, none in the library), and every sub-word `M2C_FIELD` read in the audio manager | one: the effect id (fixed below). `sound_volume_fader_types` is the `type` byte of `sound_volume_faders`'s 40-byte faders, as it should be |
 | calls with other arguments | each m2c call into the library compared with the definition's parameters | 5 calls with more arguments than the function takes; 4 have the right ones first, one doesn't (fixed below) |
 | `char` | `-funsigned-char` for all game C, as IDO | nothing to do |
 | shifts, overflow | `-fwrapv`; GCC defines `<<` of negative values; the library shifts only by constants and by slot numbers below 32 | nothing to do |
 | LP64 records | the 0x68 voice record's two views, the SFD (section 8's captures are bit-exact), the audio manager's messages and fx tags (`tAudioMsg`, `Msg`, `tFxSequence` and their PC views agree), the request nodes | nothing new |
-| timing | the envelope clock (`func_80011A64`, 32 kHz units from the output rate), the frame count (`frequency / 60`), the sequencer's tick (per buffer) | as on the N64 |
-| the retail game | races captured with `RUSH2049_AUDIO_CAPTURE` and summarized per subframe: voices, samples (by codebook), pitch, volumes, steps; `gdb` `dprintf` on the effect starts (`func_8001B1D0`), pitch changes (`func_8001B4A4`) and macro starts | led to the first two fixes; numbers stay out of the repository |
+| timing | the envelope clock (`sound_hw_advance_envelope`, 32 kHz units from the output rate), the frame count (`frequency / 60`), the sequencer's tick (per buffer) | as on the N64 |
+| the retail game | races captured with `RUSH2049_AUDIO_CAPTURE` and summarized per subframe: voices, samples (by codebook), pitch, volumes, steps; `gdb` `dprintf` on the effect starts (`sound_start_sfx_unlocked`), pitch changes (`sound_set_sfx_doppler_unlocked`) and macro starts | led to the first two fixes; numbers stay out of the repository |
 
 **Found and fixed**
 
-1. **Every effect was sfx 0** (`MP_TargetSteerPos`, which starts an effect for the audio manager). It read the effect
+1. **Every effect was sfx 0** (`AudioPlayEffectInternal`, which starts an effect for the audio manager). It read the effect
    to start as the u16 at +0xE of the request entry, which is the low half of the entry's s32 resource at +0xC on the
    N64 and its high half, 0, on the PC. So the countdown, the crashes, the tires and the menu sounds all played the
    same sample, and since that one loops, every effect left a voice running at a fixed pitch: the countdown's four
    alone kept four going for the whole race (the "engines" that never followed the speed), and the mix clipped. The PC
    reads the low half at +0xC (`SFX_ENTRY_ITEM`).
-2. **No effect's pitch ever changed** (`camera_transform`, the audio manager's periodic maintenance, m2c). m2c wrote
+2. **No effect's pitch ever changed** (`AudioSfxServer`, the audio manager's periodic maintenance, m2c). m2c wrote
    the pitch call as `func_8001ffa0(0, voice, pitch)`; in the ROM a0 is the voice and a1 the pitch, the two
-   parameters `func_8001FFA0(identifier, value)` takes. The PC passed 0 as the voice and the voice id as the pitch,
+   parameters `sound_set_doppler(identifier, value)` takes. The PC passed 0 as the voice and the voice id as the pitch,
    so the pitch changes were lost and voice id 0 took pitch bends made of voice ids. A file-scope macro drops the 0.
 3. **IDO's float to unsigned int.** IDO converts with `cvt.w.s` rounding toward zero, retries at 2^31 or more on
    f − 2^31 with the top bit set, and gives 0xFFFFFFFF when the result is negative (its `bltz`), for NaN and from
    2^32. So `(u8)(u32)(-0.25f * 127)` is 0xFF on the N64, 0xE1 on x86-64 (which wraps) and 0 on AArch64 (which
    saturates). `pc_prelude.h` has `pc_mips_f2u`, `pc_mips_d2u` and `N64_F2U(x)` (each game file defines the N64
-   side, `(u32)(x)`), used by the effect start's volume and pan, the master volume (`music_track_control`) and the
-   emitters' update (`func_8001CCDC`: volume, pans, and the doppler factor, which turns negative when a source
+   side, `(u32)(x)`), used by the effect start's volume and pan, the master volume (`AudioSetMasterVolume`) and the
+   emitters' update (`sound_emitter_apply`: volume, pans, and the doppler factor, which turns negative when a source
    closes in faster than sound: the top pitch on the N64 and x86-64, none on AArch64). The audio manager's own
    change requests already had IDO's sequence spelled out by m2c (`M2C_ERROR(/* cfc1 */)` is 0: the in-range path).
 
-`assets_casts` (`port/assets/tests/test_casts.c`) pins them: a start and a change request through `camera_transform`
+`assets_casts` (`port/assets/tests/test_casts.c`) pins them: a start and a change request through `AudioSfxServer`
 (the effect started is the resource 0x123, not 0; a negative volume is 0xFF; the start's pan and the change's
 front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the conversions on made-up values
 (negative, (−1, 0), 2^31 and up, 2^32, NaN, doubles). Reverting the first two fixes fails 3 checks.
@@ -556,43 +556,43 @@ front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the c
 - IDO converts to `u8` and `u16` through the same unsigned sequence; the library's direct `(unsigned short)` and
   `(unsigned char)` conversions only see values that can't be negative, so they are left as they are.
 - `(float)` of an unsigned int at 2^31 or more rounds twice on the N64 (`cvt.s.w`, then + 2^32) and once on the PC:
-  the envelope ratio in `func_80011A64` can differ in its last bit on envelopes longer than about a second. Not
+  the envelope ratio in `sound_hw_advance_envelope` can differ in its last bit on envelopes longer than about a second. Not
   reproduced.
 - Signed conversions out of the int range trap on the N64 (the VR4300's unimplemented operation), so the game never
   does them; the PC gives 0x80000000 (x86-64) or saturates (AArch64).
-- Conversions outside the sound code (`GetCarsIRColor`'s `(u8)` colours, `audio_voice_set`'s fade) weren't changed.
+- Conversions outside the sound code (`GetCarsIRColor`'s `(u8)` colours, `AnimateSkids`'s fade) weren't changed.
 
 **The engines** (found after the first pass, 2026-10-28). Traced in a retail race with `gdb` `dprintf` on
-`camera_target_track`, `audio_state_save` and `entity_transform_calc`, and breakpoints printing the records: the
+`AudEmitEffect`, `AudioPlayEffect` and `AudChangeEffect`, and breakpoints printing the records: the
 engine loops are created as positioned effects while the race loads and stay pending until `_UpdateFx`
-(`updatefx/updatefx.c`) sees a level over 0.1. Two faults kept every one of them there:
+(`update_fx/updatefx.c`) sees a level over 0.1. Two faults kept every one of them there:
 
-4. **The engine table was loaded big-endian.** `func_800E0050` (`mode_select/mode.c`, the per-car engine update;
-   its `vol` is the pitch ratio from the revs and its `pitch` the level, which `client_sync` sets as the volume) reads
-   the car category's two 32-byte entries of `D_8010FD80` as rev points (u16) and levels (f32). The only typed
+4. **The engine table was loaded big-endian.** `UpdateEngineSound` (`car_sounds/mode.c`, the per-car engine update;
+   its `vol` is the pitch ratio from the revs and its `pitch` the level, which `AudChangeEffectVol` sets as the volume) reads
+   the car category's two 32-byte entries of `gEngineSpecs` as rev points (u16) and levels (f32). The only typed
    declaration, `d5e64.c`'s, was `{s32 object; u8 rest[28];}`, so the loader swapped the word and left the rest in
    the ROM's byte order: the levels came out as denormals and every engine's volume as 0. Its PC `Definition32` has
    the fields; `endian_check --check-loader` pins their widths.
-5. **The listener was out of range.** The game's listener is a packet (`func_800D63EC`) that `main_menu_render` fills
-   every frame through `main_menu_input` with the car's position and the camera's vectors, and `engine_sound_sync`
-   reads to give each positioned source its gain and pans. `main_menu_input` wrote the vectors at the N64's +0xC,
+5. **The listener was out of range.** The game's listener is a packet (`AudAddListener`) that `UpdateListeners` fills
+   every frame through `AudUpdateListener` with the car's position and the camera's vectors, and `ProcessEmitters`
+   reads to give each positioned source its gain and pans. `AudUpdateListener` wrote the vectors at the N64's +0xC,
    while the packet's two host-sized links put them at +0x14: the listener's position was the car's z and two zeros,
    400 units and more from every car, so all positioned sounds (the other cars' engines among them) had a gain of 0,
-   and the write went over the packet's back link. `object_activate` read and wrote the packet's bytes at +8/+9,
+   and the write went over the packet's back link. `AudRemoveListener` read and wrote the packet's bytes at +8/+9,
    inside that link. (Fixed the same way in 7eed16b on main, from the battle-quit fault.)
 
-`test_casts` runs a packet through `main_menu_input` and `object_activate` (the vectors at the PC offsets, the links
+`test_casts` runs a packet through `AudUpdateListener` and `AudRemoveListener` (the vectors at the PC offsets, the links
 intact, the free list). With 4 and 5, the race has the player's engine layers following the revs and every other
 car's engine with its distance, pans and doppler pitch.
 
-Also: `func_8001D5C0`'s and `func_8001D660`'s views of the MusyX library's own listener (`Listener_8001C860`, linked
-by `func_8001D764`) had the N64's +0xC for its vectors, before two host-sized links (`offset_check --strict` on
+Also: `sound_listener_build_matrix`'s and `sound_listener_update`'s views of the MusyX library's own listener (`SoundListener`, linked
+by `sound_listener_add`) had the N64's +0xC for its vectors, before two host-sized links (`offset_check --strict` on
 arm64). The game never calls that 3D API, so it changed nothing audible.
 
-The other race sounds that start or update effects (the tires in `func_800E05F0`, the bumps and crashes in
-`mode_select_handler`, the tire visuals' `buffer_swap`) read the model record, which keeps its N64 layout
-([CARS.md](CARS.md) 4), and tables the loader swaps at the widths they are read (`D_8011F060` f32, `D_8011F020` and
-`D_8011F040` s16); `offset_check --strict` reports no open view on either host.
+The other race sounds that start or update effects (the tires in `UpdateCarSounds`, the bumps and crashes in
+`UpdateBumps`, the tire visuals' `AnimateWing`) read the model record, which keeps its N64 layout
+([CARS.md](CARS.md) 4), and tables the loader swaps at the widths they are read (`sPitchRange` f32, `gBumpLRTab` and
+`gBumpFBTab` s16); `offset_check --strict` reports no open view on either host.
 
 ## 10. More voices, and which engines play: `[audio] voices`, `[audio] engines`
 
@@ -604,30 +604,30 @@ the sounds a race plays, what the two settings change, how they are built, and w
 |---|---|
 | The settings at run time, the engines' choice, the counters | `port/config/voices.c` |
 | The settings, the overlay | `port/config/config.c` (`audio.voices`, `audio.engines`), `port/input/menu.c` (F1 > Audio) |
-| MusyX past 32 voices | `src/rom/lib_113e0.c`, `lib_11640.c`, `lib_1a660.c`, `lib_1f5b0.c`, `lib_22300.c`; the per-voice storage: [DECOUPLE.md](DECOUPLE.md) 9 |
-| The sound manager | `menu_save_options/hud_setup.c` (its set-up), `engine_sound_sync/engine_sound_sync.c` (the emitter pass), `updatefx/updatefx.c` (the budget) |
+| MusyX past 32 voices | `src/rom/sound/init.c`, `hardware.c`, `synth.c`, `voices.c`, `macros.c`; the per-voice storage: [DECOUPLE.md](DECOUPLE.md) 9 |
+| The sound manager | `save/AudioInit.c` (its set-up), `audiomgr/ProcessEmitters.c` (the emitter pass), `update_fx/updatefx.c` (the budget) |
 | The interpreter | `port/audio/musyx.c`, `musyx_abi.h` (`MX_*_N`) |
 | The log | `--log-voices N` (`port/main.c`), the `audio: mixer:` line (`audio_out.c`), `tools/port/capture_summary.py` |
 | The tests | `audio_voices`, `assets_mxvoices`, `frontend.voices`, `frontend.engines`, `synth_voices_*`, `synth_engines_*` (`tools/port/voices_check.py` on `synth_rom.py --sounds`) |
 
 ### 10.1 What limits the sounds a race plays
 
-A race's sounds go through these layers, each with its own count, all but the last set by one call: `hud_setup(32, 16, 16, 5, 64,
+A race's sounds go through these layers, each with its own count, all but the last set by one call: `AudioInit(32, 16, 16, 5, 64,
 ...)` with the Expansion Pak (`heap_release/initsystem.c:191`; `state/state.c:149` and its two neighbours run it again
-only without the pak), `hud_setup(8, 8, 0, 0, 0, ...)` without it for a race (`state/state.c:210, 273`).
+only without the pak), `AudioInit(8, 8, 0, 0, 0, ...)` without it for a race (`state/state.c:210, 273`).
 
 | Layer | What it holds | Set from | N64, with the pak | Without the pak |
 |---|---|---|---|---|
-| the sound manager's emitters (`camera_target_track`) | a positional sound's place: a drone's two engine layers, the screeches, the bumps, the track's sounds | `numB` | 64 | 0: no positional sound at all |
-| its fx tags (`D_80110244`) | every sound the game asked for, playing or waiting | `max(min(2 arg1, 64), arg1 + numB)` | 80 | 16 |
-| its priority pass (`_ProcessPriorities`, `_UpdateFx`) | each retrace the tags sorted by weighted priority (`func_80098710`: the sound's priority, plus 80 times its silence, 1 - volume, plus 8 for a loop); only the first `gMaxSfx * 0.75` play, the others wait or are stopped | `arg1` (`gMaxSfx`, `D_80146200`) | 12 | 6 |
-| its entries (AudioSfxInit, `func_800A4CB8`) | a sound the library plays (`audio_state_save`); a start that finds none is not played | `arg1` | 16 | 8 |
-| MusyX's voices (`func_8001F13C`) | the voices; the effects (`key & 128`) may hold at most their quota (`D_8004FA1A`), the songs theirs (`D_8004FA19`), then a new one takes one of its own kind (by age) | `arg0`; `arg1`, `arg2` | 32; 16 effects, 16 songs | 8; 8 effects, 0 songs |
-| the manager's messages (`D_80142DD8`) | a command from the game to the manager's thread (a start, a change of volume, pan or pitch, a stop) and from its priority pass; the emitter pass sends one for each emitter whose sound changed | fixed storage | 128 | 128 |
+| the sound manager's emitters (`AudEmitEffect`) | a positional sound's place: a drone's two engine layers, the screeches, the bumps, the track's sounds | `numB` | 64 | 0: no positional sound at all |
+| its fx tags (`gFxTags`) | every sound the game asked for, playing or waiting | `max(min(2 arg1, 64), arg1 + numB)` | 80 | 16 |
+| its priority pass (`_ProcessPriorities`, `_UpdateFx`) | each retrace the tags sorted by weighted priority (`WeightedPriority`: the sound's priority, plus 80 times its silence, 1 - volume, plus 8 for a loop); only the first `gMaxSfx * 0.75` play, the others wait or are stopped | `arg1` (`gMaxSfx`, `gMaxSfx`) | 12 | 6 |
+| its entries (AudioSfxInit, `AudioSfxInit`) | a sound the library plays (`AudioPlayEffect`); a start that finds none is not played | `arg1` | 16 | 8 |
+| MusyX's voices (`sound_alloc_voice`) | the voices; the effects (`key & 128`) may hold at most their quota (`sound_sfx_voice_limit`), the songs theirs (`sound_music_voice_limit`), then a new one takes one of its own kind (by age) | `arg0`; `arg1`, `arg2` | 32; 16 effects, 16 songs | 8; 8 effects, 0 songs |
+| the manager's messages (`audiomgr_gCmds`) | a command from the game to the manager's thread (a start, a change of volume, pan or pitch, a stop) and from its priority pass; the emitter pass sends one for each emitter whose sound changed | fixed storage | 128 | 128 |
 
 A drone's engine is two looping layers on two emitters, at 400 ft gone (its gain falls linearly to 0 there:
-`engine_sound_sync.c`), priority 128 (`d5e64.c`), so a weighted priority of 136 to 216; a human's two layers are not
-positional (`high_scores_display`, priority 0). With 6 cars the 12 of the budget hold the player's engines and those of
+`ProcessEmitters.c`), priority 128 (`d5e64.c`), so a weighted priority of 136 to 216; a human's two layers are not
+positional (`AudPlayEffectVP`, priority 0). With 6 cars the 12 of the budget hold the player's engines and those of
 the four or five drones in earshot; with 12 cars they hold the player's and the nearest four or five, and the effects
 compete with them for the same 12, and the 16 entries and the 16 effect voices.
 
@@ -636,7 +636,7 @@ compete with them for the same 12, and the 16 entries and the 16 effect voices.
 **`[audio] voices`** = `original` (the default) | `48` | `64` | `96`: MusyX's voices. Read once, at start
 (`pc_voices_set`, `port/main.c`): the library is set up once a run (AudioInitSys) and sizes its SFDs, voice pool and
 caches then, so a change applies at the next start (the overlay marks it `*`). Above `original`, `pc_snd_setup`
-(`hud_setup.c`) gives the Expansion Pak's set-up, and the manager's messages grow (`pc_snd_messages`, 10.4):
+(`AudioInit.c`) gives the Expansion Pak's set-up, and the manager's messages grow (`pc_snd_messages`, 10.4):
 
 | `voices` | MusyX's voices | effects (`arg1`: their quota, `gMaxSfx`, entries) | the budget (tags at once) | songs | emitters | fx tags | messages |
 |---|---|---|---|---|---|---|---|
@@ -654,7 +654,7 @@ library's "none", section 10.3).
 `all`: which drones' engines play. It applies at once (from the sound manager's next retrace; the overlay sets it
 when it changes, `pc_engines_set`).
 - `original`: the game's own choice, the priority pass above: the loudest within the budget. Nothing is changed.
-- `nearestN`: for each listener (each player's view, split screen included: `D_80146188`), the N nearest drones'
+- `nearestN`: for each listener (each player's view, split screen included: `gActiveListeners`), the N nearest drones'
   engines play, and the others' are silent. A drone that has its place keeps it until another is nearer by a fifth
   (the hysteresis: its distance counts at 0.8 of itself), so a car level with the N-th nearest doesn't flicker; one
   that gains or loses its place fades in or out over 15 retraces (0.25 s). A silenced engine's tag then has a volume
@@ -671,7 +671,7 @@ when it changes, `pc_engines_set`).
   or more; at `original` the entries and the effect voices refuse what doesn't fit (10.6).
 
 **Why the sound manager, and not MusyX's priorities.** MusyX gives a voice by the priority and the per-sound limit a
-sound had when it started (`func_8001F13C`), and when it has none it takes the oldest of the lowest priority, cut at
+sound had when it started (`sound_alloc_voice`), and when it has none it takes the oldest of the lowest priority, cut at
 once; it knows nothing of distances, and its priorities aren't changed after a start. The sound manager weighs every
 sound again each retrace by its volume, so distance already decides there, starts and stops sounds by its own rules
 (a stopped loop goes to its waiting list and comes back when it ranks again), and a silent tag frees its voice. So
@@ -682,23 +682,23 @@ them each frame), and a gain of 0 does the same with none of that.
 
 ### 10.3 MusyX past 32 voices
 
-What the library sizes or caps by 32 (found by reading every unit of the library for the voice count `D_8004FA18`,
+What the library sizes or caps by 32 (found by reading every unit of the library for the voice count `sound_voice_count`,
 literal 32s and `[32]`s, `& 31`, `0x1F`, `1 <<` and the voice ids' low byte, `& 255`), and what the PC does:
 
 | Place | N64 | PC |
 |---|---|---|
-| AudioInitSys' caps, `func_80010840`, `func_800108E0` (`lib_113e0.c:56-59, 83-86`); `func_80014198` (`lib_11640.c:1546`) | `voices > 32` becomes 32 | `PC_MX_CAP(32)`: the storage's 96 |
-| the voices' set-up (`func_8001C1D8`, `lib_1a660.c:1076`), the sequence nodes' (`func_8001E9B0`, `lib_1f5b0.c:43`), the legato owners' (`func_800218CC`, `lib_22300.c:128`) | 32 | `PC_MX_LOOP(32)`: the run's voices, 32 at original |
-| the per-voice storage: the voices (`D_8004BEB8`, 0x1A0 bytes each), the sequence nodes, the priority and free lists' links, an effect voice's 134 controllers and two channel bytes (it is its own channel in set 255), its legato owner, a stream's record | 32 each, boot segment BSS | PC data of 96, [DECOUPLE.md](DECOUPLE.md) 9 |
-| the driver's voices (`D_80038294`), the codebook cache (`func_800114C0`: voices times the subframes a task holds), the sample cache (`D_8002C5D0[mode]` times the voices), the DMA list | from the voices (heap) | the same: they grow with the voices |
-| an SFD's voice records (`Block_80012D18.commands[32]`) and the release mask (`1U << slot`, a u32) | 32, 2576 bytes | `pc_sfd_slots` records (the voices, at least 32), the mask's words for slots 32 and up after them (`PC_RELEASE`, `pc_sfd_mask_out`), the array stepped by `pc_sfd_size()` (`PC_SFD`, `lib_11640.c:1043, 1303-1330`) |
-| the state block (`func_80011104`) | 664 bytes | 664 + 8 a slot past 32 (`PC_MX_STATE`, `lib_11640.c:293-295`) |
+| AudioInitSys' caps, `sound_lib_init`, `sound_lib_init_shared_output` (`init.c:56-59, 83-86`); `sound_hw_init_synth` (`hardware.c:1546`) | `voices > 32` becomes 32 | `PC_MX_CAP(32)`: the storage's 96 |
+| the voices' set-up (`sound_synth_init`, `synth.c:1076`), the sequence nodes' (`sound_init_handles`, `voices.c:43`), the legato owners' (`sound_synth_init_channel_owners`, `macros.c:128`) | 32 | `PC_MX_LOOP(32)`: the run's voices, 32 at original |
+| the per-voice storage: the voices (`sound_synth_voices`, 0x1A0 bytes each), the sequence nodes, the priority and free lists' links, an effect voice's 134 controllers and two channel bytes (it is its own channel in set 255), its legato owner, a stream's record | 32 each, boot segment BSS | PC data of 96, [DECOUPLE.md](DECOUPLE.md) 9 |
+| the driver's voices (`sound_hw_voices`), the codebook cache (`sound_hw_alloc_dma`: voices times the subframes a task holds), the sample cache (`sound_sample_blocks_per_voice[mode]` times the voices), the DMA list | from the voices (heap) | the same: they grow with the voices |
+| an SFD's voice records (`SfdBlock.commands[32]`) and the release mask (`1U << slot`, a u32) | 32, 2576 bytes | `pc_sfd_slots` records (the voices, at least 32), the mask's words for slots 32 and up after them (`PC_RELEASE`, `pc_sfd_mask_out`), the array stepped by `pc_sfd_size()` (`PC_SFD`, `hardware.c:1043, 1303-1330`) |
+| the state block (`sound_hw_alloc_voices`) | 664 bytes | 664 + 8 a slot past 32 (`PC_MX_STATE`, `hardware.c:293-295`) |
 | a voice's id | the voice's number in its low byte; 255 "none" in the lists' links | the same: 96 fits |
 
-Not per voice: the 32 faders (`D_8004F300`, by volume group), the MIDI channels (16 a set, 8 sets), and MusyX's own 3D
-emitters (`lib_1cf90.c`'s 32 groups), which the game never uses.
+Not per voice: the 32 faders (`sound_volume_faders`, by volume group), the MIDI channels (16 a set, 8 sets), and MusyX's own 3D
+emitters (`streams_3d.c`'s 32 groups), which the game never uses.
 
-A voice that never had a slot has 255 there (`func_80011104`), and the N64's shift takes the slot's low five bits:
+A voice that never had a slot has 255 there (`sound_hw_alloc_voices`), and the N64's shift takes the slot's low five bits:
 its release sets bit 31 of the header's word. The PC does the same for 255 at any size (`pc_release`), and puts a
 slot past 31 in its word. The shift was `1U << 255` on the PC before: undefined in C, bit 31 on x86-64 and AArch64.
 
@@ -712,12 +712,12 @@ which the microcode can't replay; `capture_summary.py` reads them.
 ### 10.4 The sound manager's pools
 
 - **Emitters: 128** above original (`PC_SND_EMITTERS`). A race of 12 needs, for each drone, its two engine layers,
-  its screech while it skids and its random sound (`func_800E0050`'s `rec[3]`), 44 for 11 drones, and the bumps and
+  its screech while it skids and its random sound (`UpdateEngineSound`'s `rec[3]`), 44 for 11 drones, and the bumps and
   crashes and the track's own sounds on top: more than the N64's 64 at the worst moment. They are heap records of 56
-  bytes on the PC (44 on the N64: `hud_speed_display`'s `RecB`, `camera_target_track`'s `Cam`), so 128 cost 7 KB; the fx tags (`max(min(2 arg1, 64), arg1 + emitters)`) follow,
+  bytes on the PC (44 on the N64: `AudInit3D`'s `RecB`, `AudEmitEffect`'s `Cam`), so 128 cost 7 KB; the fx tags (`max(min(2 arg1, 64), arg1 + emitters)`) follow,
   160 to 208. The most a retail race of 12 held at once: section 10.6.
 - **Messages: 256** above original (`PC_SND_MSG_SLOTS`; 128 at original, as on the N64). The manager's commands
-  (`D_80142DD8`), the priority pass's two lists of the commands it sends (`gStartCmds`, `gStopCmds`) and the manager's
+  (`audiomgr_gCmds`), the priority pass's two lists of the commands it sends (`gStartCmds`, `gStopCmds`) and the manager's
   queue grow together: a pass sends at most one message a command, so each list must hold the pool. A retrace's emitter
   pass sends a change for each emitter whose sound changed and the priority pass a start or stop for each tag that
   moves across the budget; the manager's thread takes them before its next retrace, unless the host holds it back,
@@ -730,7 +730,7 @@ which the microcode can't replay; `capture_summary.py` reads them.
 - **Second starts.** The priority pass runs on the manager's thread, at a retrace's message, and queues its starts
   behind whatever is in the queue already. When the host holds the thread back a retrace or more, two retrace
   messages wait there, and the second pass, finding a tag it started still waiting, sends its start again; the
-  thread then gave the tag a second voice (`audio_state_save`) and lost the first, a loop playing on with nothing to
+  thread then gave the tag a second voice (`AudioPlayEffect`) and lost the first, a loop playing on with nothing to
   stop it. At 32 voices MusyX takes such a voice back once the effects' 16 are full; with more voices nothing does
   (10.6 has the race where it happened). On the PC the thread now starts nothing for a tag already playing
   (`PC_START_PLAYING`, audiomgr_thread.c), at any size: the N64's thread never sees such a start, so this changes
@@ -743,14 +743,14 @@ which the microcode can't replay; `capture_summary.py` reads them.
 - **`--log-voices N`** (`port/main.c`; off by default, so the traces are as before): every N retraces, read as the
   state log is (every N64 thread waits), a line `rush2049pc: voices vi=V: ...` of what happened since the line
   before: the voices the mixer mixed a subframe (an SFD, 192 frames, 8.7 ms) and the SFD's voice records; the starts
-  MusyX refused (`func_8001F13C` found no voice) and the voices it stole (took from a sound still playing); the
-  effects the manager started that MusyX didn't (`MP_TargetSteerPos`); the tags the priority pass held back or
+  MusyX refused (`sound_alloc_voice` found no voice) and the voices it stole (took from a sound still playing); the
+  effects the manager started that MusyX didn't (`AudioPlayEffectInternal`); the tags the priority pass held back or
   stopped for its budget, a pass; the positional starts that found no emitter, the commands that found no message,
   the effect starts that found no entry; the voice-ticks of a looping voice whose macro has ended (`loops without a
   macro`: a few hundred a race at every size, the N64's too: a voice's last ticks before it stops); the starts the
   manager's thread dropped for a tag already playing (`second starts dropped`, 10.4); the emitters and fx tags in use
   now; the message pool's high-water mark
-  (`func_80091B00` takes the first free one, so its index is a lower bound of those in use); the drones' engine
+  (`GetCmd` takes the first free one, so its index is a lower bound of those in use); the drones' engine
   layers that have an emitter and those whose tags play, and the drones of those; and the drones whose engines
   `audio.engines` keeps on. The game's sound code fills the counters (`pc_snd_count`, `PC_SND_*`, `pc_game_types.h`)
   on its own threads. At the run's end, `rush2049pc: voices at the end: ...` has the same over the whole run, the
@@ -921,7 +921,7 @@ default stays `original` (the N64's sound).
 | `audio_voices` (port/audio) | SFDs of 48, 64 and 96 voices, native and N64 form (native order and big-endian): the sizes (32's the N64's 0xA10 and 3864 bytes; the mask's words; 8-byte rounding; capped at 255); a full SFD, every voice mixed up to the one at the last slot, which names the output; the list's end at slot 40 with louder voices after it unmixed; stopped voices at slots 31, 32 and n - 1 folded into the base by their own bits (bit 31 of the header's word, bit 0 of the first word after the records, bit 31 of the last), decaying; the slots' last outputs where they belong; at 32 the N64's SFD. A mutation that ignores the words after the records fails 6 checks, one that keeps every slot's last output at the N64's place 6 |
 | `assets_mxvoices` | the per-voice storage through the library's own allocator, nodes and controllers at 96 ([DECOUPLE.md](DECOUPLE.md) 9); with the node loop at 32, 2 checks fail |
 | `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr` | as before, on the PC arrays (32 voices, 128 messages walked) |
-| `assets_mgrstart` | the manager's thread (`entity_ai_pathfind`) on scripted queues: two or three starts for one waiting tag give one voice, the first kept, the others counted; a start, the pass's interrupt and a start give two; a start for a freed tag frees it; a start and a stop. Without the guard (10.4), 3 checks fail |
+| `assets_mgrstart` | the manager's thread (`audio_manager_thread_entry`) on scripted queues: two or three starts for one waiting tag give one voice, the first kept, the others counted; a start, the pass's interrupt and a start give two; a start for a freed tag frees it; a start and a stop. Without the guard (10.4), 3 checks fail |
 | `views_sound_commands` | the live readers' views of the messages (`ShutdownMsg`, `Slot24`, `Slot18`) agree on the host layout; the PC declaration is 32 bytes (asserted in `voices.c`) |
 | `frontend.voices`, `frontend.engines` | the settings, `pc_snd_setup`, the engines' choice and its hysteresis, fades and listeners, the budget ([FRONTEND.md](FRONTEND.md)) |
 | `frontend.menu.live` | F1 > Audio: Voices after a restart, Drones' engines at once |
@@ -936,7 +936,7 @@ Where they ran, on cc3a517:
 | ctest, build host, Debug | 311 tests; all pass but `hfr_paced_game60` (video pacing at the defaults: 190 of 1,798 vblanks lost to skipped ticks, the limit 10%), which ran while the build host's other jobs did and passed alone |
 | ctest, build host, RelWithDebInfo | 311 tests, all pass |
 | ASan + UBSan, Pi (GCC 12), the sound's 21 tests (the tests above, `audio_mix`, `audio_forms`, `synth_boot_race12`, the four `views_sound_*`) | all pass (before cc3a517 the game C's float-cast-overflow stopped `synth_voices_race12` and the two engines tests: SANITIZE.md 3, 21) |
-| ASan + UBSan, Pi, retail races of 12: track 0 at `96`, `all`, and in split screen at `64`, `nearest4` (`--fast`) | no ASan report; UBSan's one report each, `route_cross/group.c:164`'s `s16 [17]` at 17, which 6 cars give too ([MORECARS.md](MORECARS.md) 9) |
+| ASan + UBSan, Pi, retail races of 12: track 0 at `96`, `all`, and in split screen at `64`, `nearest4` (`--fast`) | no ASan report; UBSan's one report each, `pathcommon_sync/group.c:164`'s `s16 [17]` at 17, which 6 cars give too ([MORECARS.md](MORECARS.md) 9) |
 | mingw-w64 cross build, Pi | builds; gen_data's check of the PE OK |
 | the IDO check, build host | 0 differ, 0 missing ([DECOUPLE.md](DECOUPLE.md) 9) |
 | `n64_neutral.py --base 09da2f0` | passes |

@@ -1,0 +1,75 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/* Image B: turn toward the nearest eligible player in the forward cone.
+ * Complete native body and four owned literals, IDO 5.3 whole-program O3.
+ * Existing player declaration precedes the unchanged three float[3] vectors:
+ * this recovers native best/delta/local homes at sp+96/+108/+120 in a 136-byte
+ * frame. Original declaration names/order are unknown; this is a safe layout
+ * reconstruction. No added locals, padding, capacity changes or fake helpers.
+ * Valid input domain: nonnegative live player count within the real array;
+ * valid player/owner indices for the team and vehicle arrays; initialized
+ * object transform and ordinary finite coordinates. External transform and
+ * rotation helper implementations are not re-executed by proof.
+ * Original names and a whole-function arcade ancestor are not established.
+ */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef signed short s16;
+typedef float f32;
+typedef struct Player {
+    u8 unknown000[8]; f32 position[3];
+    u8 unknown014[0x110 - 0x14]; struct pc_visual visuals[21]; s8 active;
+    u8 unknown309[80]; s8 blocked;
+    u8 unknown35A; s8 index;
+    u8 unknown35C[0x380 - 0x35C]; void *input; u8 unknown35C_384[0x3B8 - 0x384];
+} Player;
+typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;
+typedef struct Object {
+    struct Object *next;
+    s8 owner, unknown05, kind, flags;
+    f32 lifetime, timer, elapsed, velocity[3], position[3], previous[3], uv[3][3];
+} Object;
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+extern s16 gNumCars;
+extern s8 gCarTeam[];
+extern void BodyVector(f32 *,f32 *,f32 *);
+extern void YawUV(f32,f32[3][3]);
+extern void func_80090F44(f32,f32[3][3]);
+extern f32 sqrtf(f32);
+#pragma intrinsic(sqrtf)
+
+void MissileLock(Object *object)
+{
+    Player *player;
+    f32 local[3];
+    f32 delta[3];
+    f32 best[3];
+    f32 nearest, distance;
+    nearest = 2000.0f;
+    for (player = PC_CARS; player < PC_CARS_END(gNumCars); player++) {
+        if (object->owner != player->index &&
+            gCarTeam[object->owner] != gCarTeam[player->index] &&
+            !PC_MODEL_CRASHFLAG(player->index) && player->active && !player->blocked) {
+            delta[0] = player->position[0] - object->position[0];
+            delta[1] = player->position[1] - object->position[1];
+            delta[2] = player->position[2] - object->position[2];
+            BodyVector(delta, local, &object->uv[0][0]);
+            if (!(local[2] < 0.0f || local[0] < -local[2] || local[0] > local[2] ||
+                local[1] < -local[2] || local[1] > local[2])) {
+                distance = sqrtf(local[0]*local[0] + local[1]*local[1] + local[2]*local[2]);
+                if (!(distance >= nearest)) {
+                    nearest = distance;
+                    best[0] = local[0];
+                    best[1] = local[1];
+                    best[2] = local[2];
+                }
+            }
+        }
+    }
+    if (nearest < 2000.0f) {
+        if (best[0] > 0.0f) YawUV(PC_FSCALE(-0.04f), object->uv);
+        else YawUV(PC_FSCALE(0.04f), object->uv);
+        if (best[1] > 0.0f) func_80090F44(PC_FSCALE(0.03f), object->uv);
+        else func_80090F44(PC_FSCALE(-0.03f), object->uv);
+    }
+}

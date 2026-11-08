@@ -1,11 +1,11 @@
 # A ghost race's ghost saved to player 1's controller pak (a fresh one), in one run (docs/port/SYNTH.md 2). The
 # profile SYN is created (as profile.press), then left for the default player, so the player screen's ready step
 # purges its data (PurgePlayerData); back on the player screen SYN is picked, and LoadPlayerData reads it from the
-# pak: its name is the cartridge's developer name (D_801211CC), which enables the ghost save prompt (D_801148E4).
+# pak: its name is the cartridge's developer name (cheat_profile_name), which enables the ghost save prompt (gSaveGhostFiles).
 # A ghost race (gRace 2) on track 0 backward, the cartridge's lap path: the car (which the cartridge's physics
 # crash at once) is respawned every 3.55 s, and each respawn passes a checkpoint, so the three laps end 35.6 s in
-# (car_setup_confirm). Paused and quit there (the race would wait for the car to stop), the results: GhostEnd keeps
-# the finished ghost, billboard_render compresses it (CompressGhost) and opens the save prompt, whose save item
+# (CarReportsGameOver). Paused and quit there (the race would wait for the car to stop), the results: GhostEnd keeps
+# the finished ghost, updateHighScoreScreen compresses it (CompressGhost) and opens the save prompt, whose save item
 # writes it (SaveGhost: the note SYNTH049SYN1R.T); then the game over screen. The checks: the pak's two notes and
 # the ghost's header, then the next run on the pak, again/ghost2, which races against the ghost.
 # until: 0x800000:60

@@ -79,14 +79,14 @@ extern u8 sfx_volume;
 extern u8 sound_enabled;
 
 /* Initialization */
-void sound_init(void);
+void BlitInit(void);
 void sound_reset(void);
 
 /* Sound effect playback */
 void sound_play(u16 sound_id);
 void sound_play_vol(u16 sound_id, u8 volume);
 void sound_play_3d(u16 sound_id, f32 pos[3]);
-void sound_stop(u16 sound_id);
+void RemoveBlit(u16 sound_id);
 void sound_stop_all(void);
 
 /* Music control */

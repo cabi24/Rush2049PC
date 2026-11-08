@@ -30,11 +30,11 @@ Measured on the build host (x86-64, GCC 14.3, binutils 2.41, Debug), 25cfd39 wit
 
 | What | How much | Where it comes from |
 |---|---|---|
-| Names at their N64 addresses | 1,748 arena names (boot 195, game 1,071, runtime image A 432, B 50; with the 2 end markers), 1 reserved (`pc_matrix_spill`), 5 RDRAM aliases (`osTvType`/`D_80000300`, `D_80000318`, `D_8017A640`, `D_8038A400`) | `data.c`'s absolute `.set`s (gen_data), `aliases.ld`'s `ABSOLUTE()` (gen_stubs) |
+| Names at their N64 addresses | 1,748 arena names (boot 195, game 1,071, runtime image A 432, B 50; with the 2 end markers), 1 reserved (`pc_matrix_spill`), 5 RDRAM aliases (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`, `overlay_base`) | `data.c`'s absolute `.set`s (gen_data), `aliases.ld`'s `ABSOLUTE()` (gen_stubs) |
 | Who reaches them by name | 780 of the 1,308 game objects (1,755 names); 3 PC-layer objects: `port/main.c` (18 names), `port/ultra/pools.c` (5), `port/ultra/selftest.c` (7) | nm -u |
 | The GOT fix-up | aarch64, binutils 2.40: 1,802 GOT slots with RELATIVE relocations put back (ULTRA.md 2); x86-64, binutils 2.41: 6, the `aliases.ld` names' (measured: `--selftest -v -v`, `readelf -r`); there data.c's `.set` names get GOT slots that hold the bare value with no relocation | `port/ultra/absfix.c` |
 | The fixed mappings | `map_at(0x80000000)`, `map_at(0xA0000000)` (memfd), `MapViewOfFileEx` twice; Linux and Windows stop without them | `port/ultra/memory.c` |
-| "Below 4 GiB is an N64 address" | the renderer (`gfx_rsp.c` `is_host`), the audio interpreter (`musyx.c:112-117`), the loader's check that own storage is high, `lib_11640.c`'s `PC_ONLY` tests, the self-test | section 2.4 |
+| "Below 4 GiB is an N64 address" | the renderer (`gfx_rsp.c` `is_host`), the audio interpreter (`musyx.c:112-117`), the loader's check that own storage is high, `hardware.c`'s `PC_ONLY` tests, the self-test | section 2.4 |
 | Game C that converts between a pointer and a 32-bit integer | section 4 | the compiler, the sources |
 
 The x86-64 count matters for the design: whether an assembler-absolute symbol's GOT slot in a PIE gets a relocation
@@ -126,15 +126,15 @@ before and after) before the moved one runs. For speed, the prelude gets inline 
 
 | Boundary | Today | Phase B |
 |---|---|---|
-| `N64P(x)`: a 4-byte N64 address field (`enum n64p_X`, 130 declarations in 43 files) read as a pointer: 229 uses in 42 files | 48 PC definitions: 42 `_Generic` casts and 5 plain casts, all zero-extending `(T *)(uintptr_t)(x)`, and 1 translator (`pc_voice_node`, lib_1f5b0.c); 48 N64 sides `x` | the 47 casts take the inline N64-to-host translation (`(T *)pc_n64p(x)`); `pc_voice_node` already translates; the uses don't change |
+| `N64P(x)`: a 4-byte N64 address field (`enum n64p_X`, 130 declarations in 43 files) read as a pointer: 229 uses in 42 files | 48 PC definitions: 42 `_Generic` casts and 5 plain casts, all zero-extending `(T *)(uintptr_t)(x)`, and 1 translator (`pc_voice_node`, voices.c); 48 N64 sides `x` | the 47 casts take the inline N64-to-host translation (`(T *)pc_n64p(x)`); `pc_voice_node` already translates; the uses don't change |
 | `N64W(x)`, `PC_N64W(x)`: a pointer stored in such a field: 92 + 3 uses | 41 PC definitions are `PC_N64W(x)`, the prelude's `(unsigned int)(uintptr_t)(x)`; 1 translator (`pc_voice_node_address`) | `PC_N64W` becomes host to N64, and a non-NULL pointer outside the window aborts with its line (`RUSH_CHECK_CASTS`'s check, on in every moved build) |
 | Explicit casts of another size (`(u32)p`, `(T *)u32`) | 111 int-to-pointer (23 live, 88 in weak copies), 206 pointer-to-int (103 live, 103 weak) | each live one read: an N64-world address (the heap's arithmetic, a converted file's relocation, a song's offsets) takes the translation through a file macro whose N64 side is the original tokens (`#define N64A(x) (u32)x`); a small integer, an id, an ignored argument (CASTS.md 5.1) stays. Weak copies are never linked: left |
 | Implicit conversions (`-Wint-conversion`) | 60 (49 live, 11 weak) in 29 files | the same, live ones |
-| Silent: through `uintptr_t` to a narrower type | 5 (`FONT_SLOT`, `PACKET`, zlib's `audio_reverb_update`, `DMA_SOURCE`, lib_11640.c's `PC_ONLY`) | read each |
-| Silent: a pointer from an integer through `uintptr_t` | 72 in 33 files (not counting the N64P definitions; `func_800E313C.c`'s `M2C_N64P` among them) | read each: most hold a pointer already |
-| Literal addresses in live code (section 4.2) | 14 | 2 to change: `PrevMaxPath((u8 *)0x8038A400, ..., (u8 *)0x803BB380, ...)` in `heap_release/overlay_loader.c:78, 82` (and its 3 weak copies); the rest are N64 values (`h->end = D_80000318 \| 0x80000000`, `display_list_traverse`'s K0 that `DL_AT` translates) |
+| Silent: through `uintptr_t` to a narrower type | 5 (`FONT_SLOT`, `PACKET`, zlib's `DeallocateMemoryInternal`, `DMA_SOURCE`, hardware.c's `PC_ONLY`) | read each |
+| Silent: a pointer from an integer through `uintptr_t` | 72 in 33 files (not counting the N64P definitions; `find_best_gear.c`'s `M2C_N64P` among them) | read each: most hold a pointer already |
+| Literal addresses in live code (section 4.2) | 14 | 2 to change: `load_overlay((u8 *)0x8038A400, ..., (u8 *)0x803BB380, ...)` in `heap_release/overlay_loader.c:78, 82` (and its 3 weak copies); the rest are N64 values (`h->end = osMemSize \| 0x80000000`, `display_list_traverse`'s K0 that `DL_AT` translates) |
 | `osVirtualToPhysical`, `rcpaddr.c` | `pc_n64_addr` of the pointer, then the N64's rule; pure N64-address arithmetic | nothing |
-| The heap (blocks, handles) | the allocator works in 32-bit N64 addresses: its headers keep them (`enum n64p_Block`...), its start is `(Heap *)(((u32)D_8017A640 + 31) & ~31)` (`audio_heap/group.c:310`), its API passes `(u32)p` (POINTERS.md 4.1); handle slots are 8 bytes and hold host pointers (9.10) | the start and the `(u32)p`s translate (the explicit-cast rows); headers stay N64 addresses through N64P/N64W; handle slots stay host pointers |
+| The heap (blocks, handles) | the allocator works in 32-bit N64 addresses: its headers keep them (`enum n64p_Block`...), its start is `(Heap *)(((u32)game_bss_end + 31) & ~31)` (`memsys/group.c:310`), its API passes `(u32)p` (POINTERS.md 4.1); handle slots are 8 bytes and hold host pointers (9.10) | the start and the `(u32)p`s translate (the explicit-cast rows); headers stay N64 addresses through N64P/N64W; handle slots stay host pointers |
 | The loader (`pc_data.c`) | arenas at their N64 addresses (`host == n64_lo`), heap values kept as they are | done in phase A behind `pc_data_set_window`: an arena is filled at the window's place for it and a kept RDRAM value is translated; phase B gives the tables `pc_window + off` and drops the hook |
 | port/assets' converted files (u32 fields holding addresses) | the game relocates in place with `+= (u32)base` (SetupWaveModel, MBSetupWad, LoadTrack); readers zero-extend (`WADP`, N64P) | `(u32)base` is the block's N64 address (explicit-cast rows: `MBSetupWad.c:33, 36`, `waves.c`); readers translate (N64P rows); `port/assets/world.c:223` and `:239` read the GTLD keys through an N64 address taken as a pointer: `pc_n64_ptr` |
 | The renderer, the audio interpreter | below 4 GiB: `pc_n64_ptr`; above: a host pointer (`gfx_rsp.c:45-90`, `musyx.c:105-117`) | nothing: W is above 4 GiB (2.1) |
@@ -226,12 +226,12 @@ classifies each:
 | `src.lit.comment` | 775 | in a comment: function headers' addresses, notes |
 | `src.lit.annotation` | 34 | a comment beside a declaration: `static s8 lastSpacing; /* 0x8015419C */`, `extern ... gWaveInstance[]; /* 0x80156D38 */`, a deleted stub's prototype |
 | `src.lit.metadata` | 9 | `group.json` notes |
-| `src.lit.code.bit` | 30 (+3 `.n64only`, 1 `.unbuilt`) | 0x80000000 as a bit: scene-node and blit flags (`D_8012E700[...].flags ^= 0x80000000`), the MusyX ids and states, IDO's float-to-unsigned (`(s32)(f - 2.1474836e9f) \| 0x80000000`), MBSetupWad's "relocated already" test |
-| `src.lit.code.region` | 2 | a test of an N64 address's top bits: `lib_11640.c:2030`, `lib_25bb0.c:486` (MEMORY.md 2) |
-| `src.lit.code.address` | 14 (+7 `.n64only`, 7 `.unbuilt`) | the overlay loaders' `(u8 *)0x8038A400` and `0x803BB380` (8 lines in 4 files, 2 of them live), `display_list_traverse.c:36, 55` (a K0 address `DL_AT` translates), `func_800966D8.c:3808` (`pc_n64_ptr` already), `audio_heap/group.c:312-313` (the heap's end as an N64 value), `rom_tu.h:319` (`K0BASE`). The `.n64only` ones are m2c's lui halves whose PC versions are symbol-relative (POINTERS.md 7); the `.unbuilt` ones libultra's exception vectors and `osPhysicalToVirtual` |
+| `src.lit.code.bit` | 30 (+3 `.n64only`, 1 `.unbuilt`) | 0x80000000 as a bit: scene-node and blit flags (`ObjInstanceList[...].flags ^= 0x80000000`), the MusyX ids and states, IDO's float-to-unsigned (`(s32)(f - 2.1474836e9f) \| 0x80000000`), MBSetupWad's "relocated already" test |
+| `src.lit.code.region` | 2 | a test of an N64 address's top bits: `hardware.c:2030`, `streams.c:486` (MEMORY.md 2) |
+| `src.lit.code.address` | 14 (+7 `.n64only`, 7 `.unbuilt`) | the overlay loaders' `(u8 *)0x8038A400` and `0x803BB380` (8 lines in 4 files, 2 of them live), `display_list_traverse.c:36, 55` (a K0 address `DL_AT` translates), `mirror_vertex_texcoords.c:3808` (`pc_n64_ptr` already), `memsys/group.c:312-313` (the heap's end as an N64 value), `rom_tu.h:319` (`K0BASE`). The `.n64only` ones are m2c's lui halves whose PC versions are symbol-relative (POINTERS.md 7); the `.unbuilt` ones libultra's exception vectors and `osPhysicalToVirtual` |
 
 The literal K1 and cartridge values in code are counted apart: 70 hardware registers (`0xA4xxxxxx`, 62 of them in
-units the PC doesn't compile), 6 K1/cartridge (`func_8010FD60.c:11`'s `| 0xB0000000`, the cartridge address, stays).
+units the PC doesn't compile), 6 K1/cartridge (`musyx_cart_address.c:11`'s `| 0xB0000000`, the cartridge address, stays).
 
 ### 4.3 The 512 N64P/N64W lines
 
@@ -239,8 +239,8 @@ units the PC doesn't compile), 6 K1/cartridge (`func_8010FD60.c:11`'s `| 0xB0000
 
 | | Uses | PC definitions | N64 definitions | Other |
 |---|---:|---:|---:|---|
-| `N64P(`, 330 lines | 229 | 48 (42 `_Generic`, 5 casts, 1 translator) | 48 | 3 are `func_800E313C.c`'s `M2C_N64P` (a zero-extending read of a u32 field), 2 in comments |
-| `N64W(`, 182 lines | 92 | 42 (41 `PC_N64W(x)`, 1 translator) | 42 | 3 `PC_N64W` uses outside them (`func_8010DAF8.c:816`, `FOG_TABLE`, `PAL_BASE`), 1 on an N64-only line (`level_objects/group.c:200`), 2 in comments |
+| `N64P(`, 330 lines | 229 | 48 (42 `_Generic`, 5 casts, 1 translator) | 48 | 3 are `find_best_gear.c`'s `M2C_N64P` (a zero-extending read of a u32 field), 2 in comments |
+| `N64W(`, 182 lines | 92 | 42 (41 `PC_N64W(x)`, 1 translator) | 42 | 3 `PC_N64W` uses outside them (`StartFence.c:816`, `FOG_TABLE`, `PAL_BASE`), 1 on an N64-only line (`targets/group.c:200`), 2 in comments |
 
 Every one is a place that translates already, by name, with a zero-extension or a truncation as its PC definition.
 Phase B changes the 48 and 42 PC definitions and the prelude's `PC_N64W`, not the 321 uses (and `M2C_N64P` with the
@@ -264,7 +264,7 @@ Off by default; Linux (any POSIX that has `MAP_FIXED_NOREPLACE`); on Windows the
 The fault handler adds one line when the faulting address is one of those, with the data name it was:
 
     rush2049pc: Segmentation fault at address 0x8002e580 in N64 thread main
-    rush2049pc: guard: an N64 KSEG0 address, 0x8002E580: D_8002E580+0x0, used as a host pointer; the window has 0x8002E580 at 0x554002e580 (docs/port/NOFIXED.md 5)
+    rush2049pc: guard: an N64 KSEG0 address, 0x8002E580: gWaveSizes+0x0, used as a host pointer; the window has 0x8002E580 at 0x554002e580 (docs/port/NOFIXED.md 5)
 
 ### 5.1 What it reaches, and where it stops
 
@@ -274,8 +274,8 @@ Build host, the branch's Debug build, the synthetic cartridge (`--no-rom-check -
 | Run | Reaches | Stops at, and why |
 |---|---|---|
 | the program's start | the options and settings, the ROM and its check, the mods' preparation, the window, the fault handler | |
-| `--selftest` | all 28 checks it runs pass: the threads, queues, events, timers, busy-waits, the window (K0, K1, physical through the translation, `osVirtualToPhysical`, `pc_rcp_reloc`), the absolute names' addresses and the low-memory words through the window, the RCP and AI checks, and `guard: window elsewhere` | the controller and pak checks are skipped in this mode (a line says so): without the skip `osContInit` (game C, `src/rom/lib_a050.c:20`) faults at 0x8002C3B0, boot data it reaches by name |
-| the synthetic cartridge | `pc_os_initialize` (the low-memory globals through `pc_n64_ptr`), the loader: all four images, every arena filled in the moved window, its summary line the same as the fixed run's | `mods_install` (`port/mods/mods.c:1173`, from `port/main.c:571`) reads `gWaveSizes` (`D_8002E580`, boot data) by name. The arena names are absolute: everything after this that touches game data by name faults the same way, which is what phase B's relative names remove |
+| `--selftest` | all 28 checks it runs pass: the threads, queues, events, timers, busy-waits, the window (K0, K1, physical through the translation, `osVirtualToPhysical`, `pc_rcp_reloc`), the absolute names' addresses and the low-memory words through the window, the RCP and AI checks, and `guard: window elsewhere` | the controller and pak checks are skipped in this mode (a line says so): without the skip `osContInit` (game C, `src/rom/libultra/controller.c:20`) faults at 0x8002C3B0, boot data it reaches by name |
+| the synthetic cartridge | `pc_os_initialize` (the low-memory globals through `pc_n64_ptr`), the loader: all four images, every arena filled in the moved window, its summary line the same as the fixed run's | `mods_install` (`port/mods/mods.c:1173`, from `port/main.c:571`) reads `gWaveSizes` (`gWaveSizes`, boot data) by name. The arena names are absolute: everything after this that touches game data by name faults the same way, which is what phase B's relative names remove |
 
 ### 5.2 The unit tests under the guard
 
@@ -290,11 +290,11 @@ gen_stubs emit the names relative to a `pc_window` section and the guard take th
 
 | Step | Reaches | Stops at |
 |---|---|---|
-| names relative | the loader (the same summary line), the renderer's start, the boot thread, `game_init`, `game_late_init` | `func_800E7D04` (`audio_heap/group.c:310-312`): the heap's start `(Heap *)(((u32)D_8017A640 + 31) & ~31)` cuts the window pointer to 32 bits; the fault is in what would be the trap's range (the section's low 32 bits were 0xFAE4A640: no trap there, the note names it "a window address cut to 32 bits") |
-| and N64P/N64W translating, that line through `pc_n64_addr` | the heap's start | `func_800E7B44` (`audio_heap/group.c:215`): `heap->first = N64W((Block *)(((u32)heap + 67) & ~31))`, the next `cc.ptr_to_int` of section 4 |
+| names relative | the loader (the same summary line), the renderer's start, the boot thread, `main_thread_entry`, `InitSystem` | `locate_main_heap` (`memsys/group.c:310-312`): the heap's start `(Heap *)(((u32)game_bss_end + 31) & ~31)` cuts the window pointer to 32 bits; the fault is in what would be the trap's range (the section's low 32 bits were 0xFAE4A640: no trap there, the note names it "a window address cut to 32 bits") |
+| and N64P/N64W translating, that line through `pc_n64_addr` | the heap's start | `InitHeap` (`memsys/group.c:215`): `heap->first = N64W((Block *)(((u32)heap + 67) & ~31))`, the next `cc.ptr_to_int` of section 4 |
 
 So the inventory's live casts are the work order, and the heap's (`audio_heap`, `heap_release`, `alloc_at`,
-`func_80095EF4`, the frees in the save code) come first.
+`FindChunk`, the frees in the save code) come first.
 
 ## 6. The phases after this one
 
@@ -336,9 +336,9 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
 
 - **The window**: `data.c` defines `pc_window`, a `.n64window` section (`%nobits`, 64 KiB aligned, 0x10000000 bytes,
   `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names,
-  `pc_matrix_spill`, and the six names gen_stubs made absolute (`D_80000300`/`osTvType`, `D_80000318`, `D_8017A640`,
-  `D_8038A400`, and the cartridge address `D_00039B40` at `pc_window + 0x30039B40`, past the section's end: the game
-  only takes its 32-bit value, through the translation, `car_shadow_render.c:110`). Those six are `data.c`'s because a
+  `pc_matrix_spill`, and the six names gen_stubs made absolute (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`,
+  `overlay_base`, and the cartridge address `D_00039B40` at `pc_window + 0x30039B40`, past the section's end: the game
+  only takes its 32-bit value, through the translation, `AudioInitSys.c:110`). Those six are `data.c`'s because a
   linker script can't make them relative: `PROVIDE(x = pc_window + off)` linked as an absolute symbol (nm `A`, the
   window's link-time address plus the offset), right at run time only through the RELATIVE relocation binutils gives
   a script's absolute symbol in a PIE, the behaviour the fix-up undid (section 1). gen_stubs' `window_names` is the
@@ -372,7 +372,7 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
 | `PC_SLOT_N64(s)`, `PC_SLOT_SET(s, a)`: a heap handle's 8-byte slot as the N64 address it holds | the 4-byte read and write of the slot's first half, as the N64 does | the whole pointer, translated |
 
 `pc_window_base` is 0x80000000 until `pc_mem_init` sets it, so a test program that maps its own window there and links
-game C translates into it. The 47 casting `N64P` definitions (42 `_Generic`, 5 plain) and `func_800E313C.c`'s
+game C translates into it. The 47 casting `N64P` definitions (42 `_Generic`, 5 plain) and `find_best_gear.c`'s
 `M2C_N64P` are `(T *)PC_N64P(x)`; the 41 `N64W` definitions were `PC_N64W(x)` already; `pc_statll_link` and
 `pc_statll_set_link` translate. A site in game C uses a macro of its own file whose N64 side is the original tokens
 (`#define N64A(x) (u32)x`, `#define N64PTR(T, a) (T)a`, and `N64A0`/`N64PTR0` where the N64 has no cast), so
@@ -386,16 +386,16 @@ Debug):
 
 | Class | Before | After | What changed |
 |---|---:|---:|---|
-| `cc.ptr_to_int` (live) | 103 | 39 | the heap API's callers (`PurgeableMemory`, the frees, `audio_buffer_sync`, `NextMaxPath`, `DeallocateMemory`, `release_handle`), the heap's own arithmetic (its start, first block and end, the free's links, NextMaxPath, the compaction), the WAD relocation (MBSetupWad, SetupWaveModel), LoadTrack's world offsets, the MusyX registries' payloads (`lib_16320.c`), the frame heaps and colour buffers, the pending swap, a profile's handle (`CreatePlayer`) |
-| `cc.int_to_ptr` (live) | 23 | 8 | the heap's (`audio_heap/group.c:215`, the free's back link, `NextMaxPath`), MBSetupWad, the palette reads, the camera matrix slots |
-| `cc.implicit.int_to_ptr` / `.ptr_to_int` (live) | 32 / 17 | 23 / 12 | the paint descriptor, the texture animation records, the world's node, the MusyX registries, the display-list record of `race_setup_1` |
+| `cc.ptr_to_int` (live) | 103 | 39 | the heap API's callers (`PurgeableMemory`, the frees, `GetPtrSize`, `allocate_memory_at`, `DeallocateMemory`, `release_handle`), the heap's own arithmetic (its start, first block and end, the free's links, allocate_memory_at, the compaction), the WAD relocation (MBSetupWad, SetupWaveModel), LoadTrack's world offsets, the MusyX registries' payloads (`registry.c`), the frame heaps and colour buffers, the pending swap, a profile's handle (`CreatePlayer`) |
+| `cc.int_to_ptr` (live) | 23 | 8 | the heap's (`memsys/group.c:215`, the free's back link, `allocate_memory_at`), MBSetupWad, the palette reads, the camera matrix slots |
+| `cc.implicit.int_to_ptr` / `.ptr_to_int` (live) | 32 / 17 | 23 / 12 | the paint descriptor, the texture animation records, the world's node, the MusyX registries, the display-list record of `TextureAnimation` |
 | `src.zext` | 72 | 42 | 17 macros reading an N64 field as a pointer (model, node, target, visual and WAD record links), the handle readers, the world chunk |
-| `src.trunc` | 5 | 3 | `FONT_SLOT`, `PACKET`, zlib's `audio_reverb_update` macro (and one new identity: `wheel_find_node`'s node) |
+| `src.trunc` | 5 | 3 | `FONT_SLOT`, `PACKET`, zlib's `DeallocateMemoryInternal` macro (and one new identity: `wheel_find_node`'s node) |
 | literal pointers in live code | 2 | 0 | `heap_release/overlay_loader.c`'s 0x8038A400 and 0x803BB380 |
 | N64P / N64W definitions | 48 / 42 | translate | section 9.2 |
-| not in the audit: a pointer through a `u32` parameter of another file's definition (proto_check's `width` views, and its `REVIEWED` `_HEAP` ones) | | 14 views | `PurgeableMemory` in three files, `audio_buffer_sync` in both LoadWaves, DeallocateMemory in image A, `menu_item_select`, the heap's three in `func_800CB9D0`, `inflate_entry_alt` and `format_string_parse` in DecodeGhost, the torque curve |
-| not in the audit: an `intptr_t`/`uintptr_t` stored in 32 bits with no cast | | 5 | the quad nodes' seed (`func_800D0810.c`), the camera matrix (`camera_reset.c`), the wave slot free, the heap chain (`func_80095F8C.c`), a frame heap |
-| not in the audit: a handle's 8-byte slot read or written as a u32 | | 6 | the free's clear, the compaction's update, the lookup (`func_80095EF4`), `HANDLE_BLOCK`, `WAVE_HANDLE_BLOCK`, DecodeGhost |
+| not in the audit: a pointer through a `u32` parameter of another file's definition (proto_check's `width` views, and its `REVIEWED` `_HEAP` ones) | | 14 views | `PurgeableMemory` in three files, `GetPtrSize` in both LoadWaves, DeallocateMemory in image A, `ReallocateMemory`, the heap's three in `heap_move_block_low`, `unzipdata` and `CalcChecksumInternal` in DecodeGhost, the torque curve |
+| not in the audit: an `intptr_t`/`uintptr_t` stored in 32 bits with no cast | | 5 | the quad nodes' seed (`init_collision.c`), the camera matrix (`SkyInit.c`), the wave slot free, the heap chain (`FindHeap.c`), a frame heap |
+| not in the audit: a handle's 8-byte slot read or written as a u32 | | 6 | the free's clear, the compaction's update, the lookup (`FindChunk`), `HANDLE_BLOCK`, `WAVE_HANDLE_BLOCK`, DecodeGhost |
 | the PC layer | | 2 | `port/assets/world.c:223`, `:226` (the chunk through `pc_n64_ptr`, 0 kept 0) |
 
 About 210 game C lines changed in 70 files (`git diff --stat 5b057b5 -- src nonmatching`: 105 files with the
@@ -419,8 +419,8 @@ None of the synthetic paths stops. Where the guard would stop next is phase C's 
 
 | Check | Result |
 |---|---|
-| `synth_compare.py --same --runs 2`, a build of 5b057b5 against the branch, Debug, build host, every synthetic path | 56 of 56 the same, both runs of each (on e6ec1a6; the later game C changes, `car_shadow_render.c` and `zlib_deflate/group.c`, compile to the same objects in the fixed build) |
-| the game objects' code and data (`objdump -d -r` and `-s` of every non-debug section, 1,308 objects, against 5b057b5's) | the same but for 11, each a view that now passes the same low 32 bits it passed (a `u32` where it passed the pointer, a zero-extended pointer where it passed an `s32`), `wheel_find_node`'s identity, and `func_80095EF4` (the bug of 9.7); `data.c`, `data_symbols.txt` and `aliases.ld` byte-identical |
+| `synth_compare.py --same --runs 2`, a build of 5b057b5 against the branch, Debug, build host, every synthetic path | 56 of 56 the same, both runs of each (on e6ec1a6; the later game C changes, `AudioInitSys.c` and `zlib_deflate/group.c`, compile to the same objects in the fixed build) |
+| the game objects' code and data (`objdump -d -r` and `-s` of every non-debug section, 1,308 objects, against 5b057b5's) | the same but for 11, each a view that now passes the same low 32 bits it passed (a `u32` where it passed the pointer, a zero-extended pointer where it passed an `s32`), `wheel_find_node`'s identity, and `FindChunk` (the bug of 9.7); `data.c`, `data_symbols.txt` and `aliases.ld` byte-identical |
 | ctest, build host: Debug and RelWithDebInfo | Debug: 342 of 342 (`assets_rom` skipped: no ROM there), then the 12 real-time tests alone, 12 of 12; RelWithDebInfo: the same, 342 and 12 |
 | `n64_neutral.py --base 09da2f0` | passes: 1,031 files, 90 code-exact, 941 shifted |
 | the IDO check (build host, `tools/port/ido_check.sh`) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
@@ -441,13 +441,13 @@ None of the synthetic paths stops. Where the guard would stop next is phase C's 
 
 ### 9.7 What B found that is a bug today, or that the inventory misses
 
-- **The heap's handle lookup covered half a handle table** (`func_80095EF4.c`, a bug of the fixed build): the slots are
+- **The heap's handle lookup covered half a handle table** (`FindChunk.c`, a bug of the fixed build): the slots are
   8 bytes on the PC, the range test stepped 4: a handle at slot `count/2` or past (25 of the main table's 50, 5 of an
   extension's 10) was taken for a block address, no block held it, and the free or `PurgeableMemory` read through NULL.
   Fixed in becae12. No synthetic path holds that many handles (all 56 the same before and after).
 - **Weak copies that run** (an inventory miss): an `__inline` function in a file that also has a strong caller of it
   runs there through the compiler's local alias, though `#pragma weak` makes the symbol weak:
-  `heap_release/deflate_mem.c`'s `zcfree` is weak, and `car_angular_velocity_clamp` in the same file calls its own
+  `heap_release/zip.c`'s `zcfree` is weak, and `zip` in the same file calls its own
   copy (`zcfree.localalias`). The audit's `.weak` classes count such sites as never linked.
 - **Three classes the audit doesn't see** (section 9.3's last rows): a pointer passed through a view whose parameter
   is a `u32` in the definition (`tools/port/proto_check.py` lists them as `width`; its `REVIEWED` list called the
@@ -459,24 +459,24 @@ None of the synthetic paths stops. Where the guard would stop next is phase C's 
 
 Every synthetic path runs moved; these are the sites they don't reach, by class (the fixed build's audit, 9.3):
 
-- **The audio and the songs** (the retail cartridge's sounds): `lib_11640.c`'s 16 casts (the sample addresses the audio
-  list builder hands the RSP, `(unsigned int)V->data + 0x100`, `func_80012730`, `func_80012234`: values the audio
-  interpreter takes below 4 GiB as N64 addresses, which a moved build's host pointer is not), `lib_17dc0.c`'s 8 (the
-  song data's relocation, `func_800178B0`, `func_80018634`), `lib_25bb0.c:486`'s region test, `lib_16320.c:675` (a
+- **The audio and the songs** (the retail cartridge's sounds): `hardware.c`'s 16 casts (the sample addresses the audio
+  list builder hands the RSP, `(unsigned int)V->data + 0x100`, `sound_hw_fetch_sample_range`, `sound_hw_fetch_codebook`: values the audio
+  interpreter takes below 4 GiB as N64 addresses, which a moved build's host pointer is not), `sequencer.c`'s 8 (the
+  song data's relocation, `sound_seq_start`, `sound_seq_play_tracks`), `streams.c:486`'s region test, `registry.c:675` (a
   sample's address). The synthetic cartridge has a sound bank but no songs.
 - **The rest of the live compiler sites**: 39 `cc.ptr_to_int`, 8 `cc.int_to_ptr`, 23 and 12 implicit; most of what
-  is left is an N64 value that stays one (a display-list word, `func_800BD080`'s value, the texture lists of
-  `particle_knot`, an id or index: `blast.c:340`, `mode.c:290`, `d5e64.c:101`, `camera_aspect_ratio/group.c:3895`,
-  `__scMain`'s message), each to read and mark; `carcolor/ctx_initsystem.c`'s 4 are a context copy's statics that
-  only a weak `game_late_init` calls.
+  is left is an N64 value that stays one (a display-list word, `displaylist_set_texture_image`'s value, the texture lists of
+  `particle_knot`, an id or index: `blast.c:340`, `mode.c:290`, `d5e64.c:101`, `targetpaths/group.c:3895`,
+  `__scMain`'s message), each to read and mark; `SetupCarColor/ctx_initsystem.c`'s 4 are a context copy's statics that
+  only a weak `InitSystem` calls.
 - **`src.zext` (42) and `src.trunc` (3)**: 30 of the zext are `(T *)(uintptr_t)&D_x` or `PC_CAR`/`PC_MODEL` (host
-  pointers through `uintptr_t`, no truncation) and `level_objects/group.c:188`'s GTLD keys (comparison values,
-  sign-extended on purpose); of the trunc, `DMA_SOURCE` (`lib_11050.c:20`) is a cartridge address and stays,
-  `lib_11640.c:2029` tests for a host pointer first, and `wheel_find_node`'s is an identity (zlib's
-  `audio_reverb_update` macro, `zlib_deflate/group.c:1587`, the deflate's own frees, translates now; no synthetic
+  pointers through `uintptr_t`, no truncation) and `targets/group.c:188`'s GTLD keys (comparison values,
+  sign-extended on purpose); of the trunc, `DMA_SOURCE` (`dma_queue.c:20`) is a cartridge address and stays,
+  `hardware.c:2029` tests for a host pointer first, and `wheel_find_node`'s is an identity (zlib's
+  `DeallocateMemoryInternal` macro, `zlib_deflate/group.c:1587`, the deflate's own frees, translates now; no synthetic
   path reached it).
-- **The classes of 9.7**: the narrowings, the views (`initgfx.c`'s `AllocateMemoryHeap` and `sound_play_menu` read as
-  u32, `func_800EE8AC`), the `__inline` weak copies with a strong caller in their file.
+- **The classes of 9.7**: the narrowings, the views (`initgfx.c`'s `AllocateMemoryHeap` and `AllocateMemoryHeapHigh` read as
+  u32, `InitGfx`), the `__inline` weak copies with a strong caller in their file.
 - **The test programs' own windows** (section 2.4's last row): `assets_casts` fails in the moved build; the others pass
   with `pc_window_base` at their window.
 - **The retail scripts moved** and the moved build optimized (RelWithDebInfo: not run yet).

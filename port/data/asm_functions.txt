@@ -23,18 +23,18 @@ bcmp                          0x8000F8D0  ultralib:src/libc/bcmp.s
 bcopy                         0x8000D2B0  ultralib:src/libc/bcopy.s
 bzero                         0x80008590  ultralib:src/libc/bzero.s
 entrypoint                    0x80000400  handwritten:boot stub: clears BSS from 0x8002E8E0, sets sp, jumps to main
-func_800277D0                 0x800277D0  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
-func_800278C4                 0x800278C4  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
+gsm_rpe_decode                 0x800277D0  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
+gsm_long_term_synthesis                 0x800278C4  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
 func_80027980                 0x80027980  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
-func_80027B44                 0x80027B44  handwritten:frameless bal calls into 0x80027980/0x80027C98 and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)
+gsm_short_term_filter                 0x80027B44  handwritten:frameless bal calls into 0x80027980/0x80027C98 and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)
 func_80027C98                 0x80027C98  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
 func_80027D3C                 0x80027D3C  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
 func_80027D54                 0x80027D54  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
 func_80027D64                 0x80027D64  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
 func_80027D7C                 0x80027D7C  handwritten:shared tail of the PC-relative coefficient callbacks (libgsm LARp_to_rp)
-func_8002C5E0                 0x8002C5E0  handwritten:cache 0xd (create dirty exclusive) loop; C cannot emit cache
-inflate_entry                 0x80006814  handwritten:hand-edited compiler output: li a1,12000 + addiu a0,zero,0 after a one-argument call; no C order reaches it
-inflate_entry_alt             0x8000697C  handwritten:same hand edit as inflate_entry
+dcache_create_dirty_lines                 0x8002C5E0  handwritten:cache 0xd (create dirty exclusive) loop; C cannot emit cache
+unzipdata_from_rom                 0x80006814  handwritten:hand-edited compiler output: li a1,12000 + addiu a0,zero,0 after a one-argument call; no C order reaches it
+unzipdata             0x8000697C  handwritten:same hand edit as unzipdata_from_rom
 inflate_io_wait               0x80004A10  handwritten:non-ABI: returns in t1 and clobbers s0-s4 unsaved
 lzss_decode                   0x80004AFC  handwritten:non-ABI register contract: reads t1 after each call and spills s0 itself
 osGetCount                    0x8000C970  ultralib:src/os/getcount.s

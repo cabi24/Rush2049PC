@@ -31,7 +31,7 @@ documentation and n64brew.
 | `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
 
 Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
-(`gfx_frame_begin`, `gfx_lock`), and the renderer links into the same executable.
+(`StartGraphics`, `gfx_lock`), and the renderer links into the same executable.
 
 ## Command formats and addresses
 
@@ -433,17 +433,17 @@ the next frame. A new value applies from the next SETCIMG.
   with the game's own 10-row bands above and below, as on a TV.
 - **3D or 2D: the projection's w column.** A perspective projection makes w depend on the position. With row
   vectors, its w column (`proj[0..2][3]`) is not zero: guPerspective's is (0, 0, −1), and the lookat rotation the
-  game multiplies into the projection (`func_8009F058`) keeps it nonzero. guOrtho's, and the identity's
+  game multiplies into the projection (`zoid_draw_window`) keeps it nonzero. guOrtho's, and the identity's
   that a task starts with, is zero. So triangles drawn under a perspective projection are 3D, and everything else
   is 2D. After a G_MV_MATRIX (forced MP) the MP's own w column decides.
   - Limits: a 2D overlay drawn with a perspective projection loaded (none in the game's code: its only projection
-    loads are in `func_8009F058`) would widen like 3D; at a full-width view that only shows more at the sides,
+    loads are in `zoid_draw_window`) would widen like 3D; at a full-width view that only shows more at the sides,
     since the frame's middle stays the target's middle. An orthographic 3D view (`cam->ortho`, guOrtho) is
     treated as 2D: it stays 4:3, in the middle.
 - **Where a side of the frame goes** (`pcgfx_wide_x`): an x at the frame's left side (within 4 pixels, or past
   it) stays; one at the right side (within 4 pixels, or past it) moves 2·ox, to the target's right side; any
   other x moves ox, with the frame. The 4-pixel margin is for the game's split-screen views, which keep a 1-2
-  pixel border (`wheel_render_full`, 0x800A6BE4):
+  pixel border (`ZOID_SplitMenuScreen`, 0x800A6BE4):
 
   | Players | Views (x, from the code; 320 × 220 frame) | At 16:9 (ox 53) |
   |---|---|---|
@@ -451,7 +451,7 @@ the next frame. A new value applies from the next SETCIMG.
   | 2 | 2-242 each (top and bottom); a 78-pixel panel to the right | 2-295: the views widen to the left, the panel stays with the frame (295-373), and 373-426 has only what full-width draws put there |
   | 3, 4 | 1-161 and 158-318; scissors 0-159 and 161-320 | 1-214 and 211-424; scissors 0-212 and 214-426 |
 
-  The car-select screen's 2-player views (`car_render_full`) are 0-320 halves, so they widen like 1 player.
+  The car-select screen's 2-player views (`ZOID_SplitScreen`) are 0-320 halves, so they widen like 1 player.
 - **3D.** A perspective view's sides go through `pcgfx_wide_x`, so a view across the frame spans the target and
   split-screen views widen in proportion. The output position keeps the N64 viewport's scale and moves its
   centre to the widened view's centre: the picture is not stretched, it shows more at the sides (the projection's
@@ -476,14 +476,14 @@ the next frame. A new value applies from the next SETCIMG.
   frames byte for byte.
 - **The game's own culling** (a survey of the game code, 2026-10-27). The game never tests objects, track or
   particles against the horizontal field of view, so nothing pops in at the widened sides from the game's side:
-  - Frustum culling is G_CULLDL in the lists (the scene walk `track_collision_wall` puts one after each node's
+  - Frustum culling is G_CULLDL in the lists (the scene walk `Traverse` puts one after each node's
     bounding box), and the renderer runs it against the widened frustum.
-  - The world's visibility (`physics_float_calc`, MAT3's WorldCullObjects) picks a ROM bitmask table by the cell
+  - The world's visibility (`WorldCullObjects`, MAT3's WorldCullObjects) picks a ROM bitmask table by the cell
     the eye is in: position only, not direction or field of view. Whether those tables were baked for a 90° view
     can only be seen with the ROM.
   - The rest is distance (LOD, the fog radius), the per-view hide mask (own car, cockpit) and range guards.
   - One function reads the horizontal field of view to decide what is on screen: the battle-mode off-screen arrow
-    (`entity_render_setup`, AnimateArrow, `src/blob/groups/animate_arrow/group.c:156,174`). It draws an arrow at
+    (`AnimateArrow`, AnimateArrow, `src/blob/groups/animate_arrow/group.c:156,174`). It draws an arrow at
     the side when an opponent's angle is past `0.48 × fovx` (`view->radius`, the view record's 0x0C), and places it
     by fovy (0x10) too (the vertical survey, NETPLAY.md 14.2). In
     widescreen an opponent between the 4:3 edge and the wide edge is on screen and still gets an arrow, drawn at
@@ -491,7 +491,7 @@ the next frame. A new value applies from the next SETCIMG.
     widening of that view (which `pcgfx_wide_x` decides at draw time). It is left: it is an indicator in one mode,
     not a cull, and it can only be checked with the ROM. The record's other horizontal fields (invx at 0x1C, the
     width at 0x24) are read by menu and HUD code that places 2D by 3D points (ZOID_ProjectWindow,
-    `car_lights_render` for the coin icons), which stays 4:3, so they must not be widened.
+    `ZOID_WindowTo3D` for the coin icons), which stays 4:3, so they must not be widened.
 - **What can only be judged with the ROM.**
   - Menus with full-screen art drawn as one rectangle per row band: stretched by 4/3. Art drawn as tiles: 4:3 in
     the middle, with the clear color or the stretched background beside it.
@@ -573,10 +573,10 @@ screen's edge that it has on a 4:3 screen. Everything else stays as the section 
     frame's side, which "Widescreen" stretches to the target's side, is moved at its 4:3 size instead.
   - Fill-mode rectangles (clears) are not queued and stay as above; the game's race HUD has none.
 - **3D models at HUD points.** The coin icons beside their counts are coin models the game places in 3D at a 2D
-  point (ZOID_WindowTo3D, `car_lights_render`), so the rule above can't see them. On the PC that function moves its
+  point (ZOID_WindowTo3D, `ZOID_WindowTo3D`), so the rule above can't see them. On the PC that function moves its
   point's x by `pc_gfx_hud_dx` (the same rule for a point: -ox, 0 or ox), so they stay beside their counts; the
   battle and stunt HUD's models go through it too (ovl_b's status scene). It is the one game C change
-  (`src/blob/car_lights_render.c`, N64-neutral: one macro). `pc_gfx_hud_dx` runs on the game's thread while the
+  (`src/blob/ZOID_WindowTo3D.c`, N64-neutral: one macro). `pc_gfx_hud_dx` runs on the game's thread while the
   renderer runs in real time on the main thread, so it reads only atomics: the setting, and the frame width and
   widening the renderer publishes at each color image (`pcgfx_hud_publish`). After a resize or a widescreen change
   the models follow one frame later than the 2D.
@@ -598,8 +598,8 @@ its own player's view alone, across the frame, with that player's HUD at the fra
 
 - **When.** In a race (the countdown, the race and its pause screen) with several views, and a player to show: main.c's
   hook (`pc_gfx_set_race_views`) gives the views' rectangles from the game's own window records (the two-player
-  layout's `D_80149B00`, `D_80149B20`: x 2-242, rows 0-109 and 111-220, the scissors the views' 3D is drawn under,
-  `wheel_render_full`), taken at each graphics task; the player is the session's (the host 1, the guest 2).
+  layout's `scissor1`, `scissor2`: x 2-242, rows 0-109 and 111-220, the scissors the views' 3D is drawn under,
+  `ZOID_SplitMenuScreen`), taken at each graphics task; the player is the session's (the host 1, the guest 2).
   `RUSH_GFX_VIEW=1-4` shows that view in any game with several views, local too, for tests and tools. Anything else
   (menus, the car select's halves, the results, split, no session) runs none of it: the drawing is byte for byte the
   same (`gfx.view`).
@@ -637,7 +637,7 @@ its own player's view alone, across the frame, with that player's HUD at the fra
     rule).
 - **Models at HUD points.** The coin icons beside their counts (and the battle and stunt status models) are 3D models
   the game places at a 2D point, unprojected 2 ft (5.75 ft for one battle kind) in front of the eye through the view's
-  record (`ZOID_WindowTo3D`, `car_lights_render`), drawn in the view's 3D. Zoomed with the picture, a coin icon would
+  record (`ZOID_WindowTo3D`, `ZOID_WindowTo3D`), drawn in the view's 3D. Zoomed with the picture, a coin icon would
   land 4/3 as far from the view's centre, away from its count, which moves to the frame's edge. So a transform in the
   view shown whose origin is at that depth (w 32 or 92, the game's sixteenths of a foot, within one) and on screen is
   drawn at the view's own scale, its viewport's centre moved as its point's 2D moves (`pcgfx_view_hud_point`). The
@@ -693,12 +693,12 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
     size, or when every view is a cut.
 - **Pairing** (`match_pair`, once per pair and direction). Transforms with the same signature, one in each frame,
   pair. The game's per-frame buffers alternate between two frame records, so its matrix and list addresses pair
-  nothing; its models' vertex data stays put, and each scene node loads its own culling box (`D_80157248[k]`), so
+  nothing; its models' vertex data stays put, and each scene node loads its own culling box (`cull_vertices[k]`), so
   most transforms are unique. Several with one signature (a car's wheels, smoke puffs): those under a paired parent
   pair in their order under it; the rest as mutual nearest neighbours by where they are against the camera, the
   other frame's moved by the camera's move.
 - **The camera's move** per view is the median change of the paired modelviews' translations among those that didn't
-  turn: the game puts the camera's turn in the projection (`func_8009F058` multiplies its lookat into it) and its
+  turn: the game puts the camera's turn in the projection (`zoid_draw_window` multiplies its lookat into it) and its
   place in every node's modelview, so the world's pieces all change by the camera's move.
 - **Cuts and jumps.** A view is cut (drawn as the frame has it; with every view cut, B is held) when its projection
   turned more than 45 degrees or zoomed 1.5x, its camera moved more than 150 units a retrace or 0.35 of the median
@@ -887,8 +887,8 @@ by w in double for every triangle that uses it; computing that once a vertex at 
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.
   - Lights written as raw words need the byte layout `col[3], pad, colc[3], pad, dir[3], pad`.
 - **ROM lists.** ROM display lists, vertices, matrices, texels and TLUTs stay big-endian in registered BE ranges
-  (ASSETS.md). The game's walkers over them need big-endian accessors: `entity_lod_select` (relocation, LOD markers),
-  `display_list_traverse`, the mirror winding flip (`func_8008AD6C`) and the vertex flag pass (`func_800966D8`).
+  (ASSETS.md). The game's walkers over them need big-endian accessors: `relocate_model_dl` (relocation, LOD markers),
+  `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`) and the vertex flag pass (`mirror_vertex_texcoords`).
 
 ## The game's commands and modes, and their status
 

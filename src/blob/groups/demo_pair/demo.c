@@ -1,5 +1,5 @@
-/* Native demo/attract research (refs/pr/413; lever). debug_collision = updateDemoGame,
- * debug_stats = playDemoGame (MAT3 demo.c).
+/* Native demo/attract research (refs/pr/413; lever). updateDemoGame = updateDemoGame,
+ * playDemoGame = playDemoGame (MAT3 demo.c).
  * Shaping (disclosed, compile-affecting): playDemoGame has a SECOND formal `x` (the GC source calls it with
  * two actual arguments, DWARF lists one formal; every caller passes 0) and a compiled-out holder `if (x) {}`
  * before the PrePlay test. x is then a code-free coloured web live across calls, which IPA places in s0, giving
@@ -25,75 +25,73 @@ typedef struct {
     u8 pad1[0x48 - 0x1]; void *ref;
 } Player;
 
-static s8 D_80114154 = 0;
-extern s16 D_80151AD0;
-extern u32 D_801174B4;
-extern u32 D_801174B8;
+static s8 demo_preplayDone = 0;
+extern s16 gNumWindows;
+extern u32 gGameState;
+extern u32 gNewGameState;
 extern s32 gSkipToGameState;
-extern s32 D_8014A110;
-static s16 D_80114158 = -1;
-extern s8 D_80152744;
+extern s32 gRace;
+static s16 gCurrentDemoTrack = -1;
+extern s8 gNumActiveCars;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 typedef struct DemoVisual DemoVisual;
-extern DemoVisual *D_801391F0;
-extern Player D_8014A118[4];
-extern s8 D_8014978C;
-static s8 D_8011414C = 0;
+extern DemoVisual *gEnvList;
+extern Player gPlayers[4];
+extern s8 gTrackNum;
+static s8 demo_inited = 0;
 typedef struct DemoBlit DemoBlit;
-static DemoBlit *D_80114150 = 0;
-extern struct pc_multiblit D_80114128[1];   /* the demo's blit, NewMultiBlit's descriptor (pc_prelude.h) */
-extern s32 D_80138660;
-extern s8 D_80156994;
-extern s8 D_80157244;
-extern s32 D_8015694C;
+static DemoBlit *demo_blit = 0;
+extern struct pc_multiblit demo_multiblit[1];   /* the demo's blit, NewMultiBlit's descriptor (pc_prelude.h) */
+extern s32 gShowCredits;
+extern s8 expansion_pak_present;
+extern s8 gSoftReset;
+extern s32 gActiveEdges;
 
-void func_800EC190(s16 arg0);
-s32 display_list_flush(s32 arg0, s32 arg1);
+void fake_init(s16 arg0);
+s32 PrePlay(s32 arg0, s32 arg1);
 void CarSetup(void);
-void race_init_helper(void);
-void func_800FBE60(void);
-void render_viewport_init(void);
-void func_800D5828(s16 index);
-void players_frame_update(void);
-void func_800D5374(void);
-void records_screen(void);
-void entity_transform_apply(DemoVisual *node, s32 arg1);
-void func_800B0580(void);
-void func_800B1F30(s16 arg0);
-void func_800B912C(s32 arg0);
-DemoBlit *sound_control(s16 arg0, s16 arg1, void *arg2, s16 arg3);
-void sound_stop(DemoBlit *sound);
-void viScheduleTick(f32 arg0);
-s32 viDeadlinePassed(void);
-void entity_audio_update(void);
+void Update_MDrive(void);
+void InitCPTime(void);
+void PlayGame(void);
+void End_MDrive(s16 index);
+void modelstop(void);
+void StopListeners(void);
+void RemoveHUD(void);
+void ReleaseEnviron(DemoVisual *node, s32 arg1);
+void InitSkids(void);
+void RemoveCar(s16 arg0);
+void UnloadTrack(s32 arg0);
+DemoBlit *NewMultiBlit(s16 arg0, s16 arg1, void *arg2, s16 arg3);
+void RemoveBlit(DemoBlit *sound);
+void SetCountdownTimer(f32 arg0);
+s32 CountdownTimeOut(void);
+void ClearRushControls(void);
 
 /* The game's own setGameState and RemoveEnvirons (this file had static copies: the same code). */
-void func_800B5570(u32 state);
-#define setGameState func_800B5570
-void debug_stats(s32 on, s32 x);
-void func_800FD01C(void);
-void func_800FD00C(void);
-void func_800FD014(void);
-void func_800FCDF0(void);
-void func_800B0618(void);
-#define RemoveEnvirons func_800B0618
+void setGameState(u32 state);
+void playDemoGame(s32 on, s32 x);
+void initDemoGame(void);
+void uninitDemoGame(void);
+void nextAvailDemoTrack(void);
+void endDemoGame(void);
+void RemoveEnvirons(void);
 
-void debug_collision(void) {
+void updateDemoGame(void) {
     s32 x;
 
-    if (!D_8011414C) {
-        func_800FD01C();
+    if (!demo_inited) {
+        initDemoGame();
     }
-    debug_stats(1, 0);
-    if (D_80157244 && D_80114154) {
-        func_800FD00C();
+    playDemoGame(1, 0);
+    if (gSoftReset && demo_preplayDone) {
+        uninitDemoGame();
         setGameState(4);
         return;
     }
-    if ((D_8015694C & 7) && D_80114154 || viDeadlinePassed()) {
-        x = (D_8015694C & 1) != 0;
-        func_800FD00C();
-        if (D_80114158 == 5 && viDeadlinePassed()) {
+    if ((gActiveEdges & 7) && demo_preplayDone || CountdownTimeOut()) {
+        x = (gActiveEdges & 1) != 0;
+        uninitDemoGame();
+        if (gCurrentDemoTrack == 5 && CountdownTimeOut()) {
             setGameState(2);
             return;
         }
@@ -104,81 +102,81 @@ void debug_collision(void) {
     }
 }
 
-void func_800FD01C(void) {
+void initDemoGame(void) {
 
-        D_80114150 = sound_control(0, 0, &D_80114128, 1);
-        viScheduleTick(30.0f);
-        func_800FD014();
-        D_8011414C = 1;
-        entity_audio_update();
+        demo_blit = NewMultiBlit(0, 0, &demo_multiblit, 1);
+        SetCountdownTimer(30.0f);
+        nextAvailDemoTrack();
+        demo_inited = 1;
+        ClearRushControls();
     }
 
-void func_800FD00C(void) {
-        if (D_80114150) {
-            sound_stop(D_80114150);
-            D_80114150 = 0;
+void uninitDemoGame(void) {
+        if (demo_blit) {
+            RemoveBlit(demo_blit);
+            demo_blit = 0;
         }
-        debug_stats(0, 0);
-        D_8011414C = 0;
+        playDemoGame(0, 0);
+        demo_inited = 0;
 }
 
-void debug_stats(s32 on, s32 x) {
+void playDemoGame(s32 on, s32 x) {
     static s8 D_8011415C = 0;
 
     if (on) {
         if (!D_8011415C) {
             D_8011415C = 1;
-            D_80151AD0 = 1;
-            if (!(D_801174B4 & 0x02000000)) {
-                D_8014A110 = 0;
-                func_800EC190(D_80114158);
+            gNumWindows = 1;
+            if (!(gGameState & 0x02000000)) {
+                gRace = 0;
+                fake_init(gCurrentDemoTrack);
             }
         }
         if (x) {}
-        if (!D_80114154 && display_list_flush(D_801174B4 & 8, 0)) {
+        if (!demo_preplayDone && PrePlay(gGameState & 8, 0)) {
             CarSetup();
-            race_init_helper();
-            func_800FBE60();
-            D_80114154 = 1;
-        } else if (D_80114154) {
-            render_viewport_init();
+            Update_MDrive();
+            InitCPTime();
+            demo_preplayDone = 1;
+        } else if (demo_preplayDone) {
+            PlayGame();
         }
     } else {
         D_8011415C = 0;
-        D_80114154 = 0;
-        func_800FCDF0();
-        if (!(D_801174B4 & 0x02000000)) {
-            func_800B912C(D_8014978C);
+        demo_preplayDone = 0;
+        endDemoGame();
+        if (!(gGameState & 0x02000000)) {
+            UnloadTrack(gTrackNum);
         }
     }
 }
 
-void func_800FCDF0(void) {
+void endDemoGame(void) {
     s16 i;
-        for (i = 0; i < D_80152744; i++) {
-            func_800D5828(PC_MODEL_SLOT(i));
+        for (i = 0; i < gNumActiveCars; i++) {
+            End_MDrive(PC_MODEL_SLOT(i));
         }
-        players_frame_update();
-        func_800D5374();
-        records_screen();
+        modelstop();
+        StopListeners();
+        RemoveHUD();
         RemoveEnvirons();
-        for (i = 0; i < D_80152744; i++) {
-            func_800B1F30(i);
+        for (i = 0; i < gNumActiveCars; i++) {
+            RemoveCar(i);
         }
         for (i = 0; i < 4; i++) {
-            D_8014A118[i].node = i;
+            gPlayers[i].node = i;
         }
 }
 
-void func_800FD014(void) {
-        D_80114158++;
-        D_80138660 = 0;
-        if (D_80114158 >= 6) {
-            D_80138660 = 1;
-            D_80114158 = 0;
+void nextAvailDemoTrack(void) {
+        gCurrentDemoTrack++;
+        gShowCredits = 0;
+        if (gCurrentDemoTrack >= 6) {
+            gShowCredits = 1;
+            gCurrentDemoTrack = 0;
         }
-        if (!D_80156994 && D_80114158 >= 5) {
-            D_80138660 = 1;
-            D_80114158 = 0;
+        if (!expansion_pak_present && gCurrentDemoTrack >= 5) {
+            gShowCredits = 1;
+            gCurrentDemoTrack = 0;
         }
 }

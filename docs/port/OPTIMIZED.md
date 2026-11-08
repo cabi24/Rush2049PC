@@ -15,8 +15,8 @@ python3 tools/port/synth_compare.py --exe build/pc/rush2049pc --exe build/rel/ru
 ```
 
 Debug is unchanged. Its game objects are the same code but for three files, where one name now spells the address
-another did (sections 2.2, 2.5); its data tables are the same but for those three second names (`D_8004BE7B`,
-`D_80146125`, `D_803BAB50`), which no game file uses now: BSS bytes inside the symbols that name them, so the loader's
+another did (sections 2.2, 2.5); its data tables are the same but for those three second names (`sound_seq_current_index_byte`,
+`gOptions_fog_intensity`, `mapObj_selDisplayList`), which no game file uses now: BSS bytes inside the symbols that name them, so the loader's
 runs and symbols are the same. Along every synthetic path it agrees with the Debug build before this work.
 
 ## 1. What failed
@@ -24,8 +24,8 @@ runs and symbols are the same. Along every synthetic path it agrees with the Deb
 On the x86-64 build host (Rocky Linux 10, GCC 14), RelWithDebInfo passed 107 of 121 tests:
 
 - 13 of the 14 synthetic paths (all but `demo`, which never reaches the main menu) segfaulted at address 0 as the main
-  menu came up, in `func_8008D0C0` from `ambient_sounds_clear` (section 2.2);
-- `endian_check`: the loader's element widths at 4 of 78 places were missing (`D_803B8328+0x0: loader element None`):
+  menu came up, in `ZOID_RemovePoly` from `removeBG` (section 2.2);
+- `endian_check`: the loader's element widths at 4 of 78 places were missing (`loadTrackScreen_backColor+0x0: loader element None`):
   those symbols weren't in the tables (section 2.1).
 
 Two more showed in CI: Ubuntu's runners aborted every frontend test (section 2.6), and the Windows cross build didn't
@@ -43,9 +43,9 @@ and they are the same in both builds too (the comparison's traces include the li
 gen_data.py takes the game's types from the DWARF of the game objects ([DATA.md](DATA.md) 1), and the optimizer
 changes what that DWARF holds. GCC describes an external variable in an object only if the object still uses it:
 where the optimizer removed the uses (dead code, constant folding, inlining), the declaration is gone, and so are the
-types nothing left uses. The RelWithDebInfo tables lacked `D_80117498` (a word the loader then left in the ROM's
-byte order), `D_80394270` and `D_803B8328` (colour unions: `endian_check`'s missing places), and some names inside
-image A's tables (`D_803B8B34`, `D_803B8B70`..`D_803B8B78`, `D_803B8B98`), so their neighbours' extents ran by the
+types nothing left uses. The RelWithDebInfo tables lacked `start_water_sentinel` (a word the loader then left in the ROM's
+byte order), `hudextra_playerColor` and `loadTrackScreen_backColor` (colour unions: `endian_check`'s missing places), and some names inside
+image A's tables (`recordscr_battle_deaths_format`, `recordscr_obstacle_crashes_format`..`recordscr_obstacle_death_completed_format`, `recordscr_circuit_total_points_format`), so their neighbours' extents ran by the
 gap over them. Struct completion (the most common complete definition of a tag) depends on which types survive too.
 
 **Fix.** gen_data reads unoptimized objects whatever the build type. A Debug build's game objects are `-O0` already;
@@ -65,21 +65,21 @@ the Windows cross build, and Debug's are the files it made before. CI compares t
 
 ### 2.2 Own storage out of order, and a walk to the next symbol
 
-`ambient_sounds_clear` clears the four ambient sound handles `D_80114628` by walking to the address after them, where
-the N64 has `D_80114638`. Both have storage of their own on the PC (they hold pointers), and the walk ended only
+`removeBG` clears the four ambient sound handles `backPolys` by walking to the address after them, where
+the N64 has `bg_texture`. Both have storage of their own on the PC (they hold pointers), and the walk ended only
 because data.c defines own storage in N64 address order and `-O0` emits it in that order. From `-O1` on, GCC reorders
-top-level definitions (`-ftoplevel-reorder`); at `-O2` it put them in reverse, `D_80114638` before `D_80114628`, so the
-walk never met its end and called `func_8008D0C0` on whatever followed.
+top-level definitions (`-ftoplevel-reorder`); at `-O2` it put them in reverse, `bg_texture` before `backPolys`, so the
+walk never met its end and called `ZOID_RemovePoly` on whatever followed.
 
 **Fixes.**
-- The walk ends at the handles' end under `TARGET_PC` (`#define D_80114638 ((&D_80114628)[4])`, the N64 tokens
+- The walk ends at the handles' end under `TARGET_PC` (`#define bg_texture ((&backPolys)[4])`, the N64 tokens
   unchanged). The Debug object differs only in that bound, which Debug's layout gave the same address.
 - data.c is compiled with `-fno-toplevel-reorder`, so own storage keeps data.c's order, N64 address order, in every
   build type, and any other walk from one symbol to the next behaves as in Debug.
 - `gen_data.py --check` verifies that order in the linked executable (`398 own in N64 order`).
 
 A scan of the game C for comparisons against the address of an own-storage symbol finds this walk and
-`sound_handles_clear`'s, which has had a PC version since the synthetic cartridge (SYNTH.md 3).
+`RemovePanes`'s, which has had a PC version since the synthetic cartridge (SYNTH.md 3).
 
 ### 2.3 Fused multiply-adds
 
@@ -89,7 +89,7 @@ GCC's default for GNU C, `-ffp-contract=fast`, fuses `a * b + c` into one fused 
 one, once it optimizes: on aarch64, whose base instruction set has it, and on x86-64-v3, which is the default target of
 RHEL 10's GCC, the build host's (Ubuntu's targets plain x86-64, without FMA). The RelWithDebInfo game objects had
 1,429 `vfmadd`s on that host. Bisecting the objects (Debug's for some, RelWithDebInfo's for the others, relinked)
-named `func_800D0424`, the car's integration step (`RWR += RWV * dt`): alone at `-O2` it moved the car.
+named `positions`, the car's integration step (`RWR += RWV * dt`): alone at `-O2` it moved the car.
 
 **Fix.** `-ffp-contract=off` for the game C. The N64's VR4300 has no fused multiply-add, so each operation rounded on
 its own is the game's arithmetic, and `-O0` never contracts (0 fused operations in Debug before and after).
@@ -121,12 +121,12 @@ functions of one file that the file's calls may inline into one function. Over 2
 
 | Where | Names | Fix (`TARGET_PC`, same addresses) |
 |---|---|---|
-| image A, `updateTrackScreen` | `D_80146108[29] += add`, then the wrap to 3 through `D_80146125` (= `&gOptions[29]`) | `D_80146125` is `D_80146108[29]` |
-| image A, the track map | `mapObj[6].displayList` written through `D_803BAAE8`, read as `D_803BAB50`, by functions `updateTrackScreen` may inline | `D_803BAB50` is `D_803BAAE8[6].displayList` |
-| MusyX sequencer (`lib_17dc0.c`) | `func_800198C8` stores the current sequence `D_8004BE78`, the helpers it calls read its byte `D_8004BE7B` | `D_8004BE7B` is the low byte of `D_8004BE78` (section 8) |
+| image A, `updateTrackScreen` | `gOptions[29] += add`, then the wrap to 3 through `gOptions_fog_intensity` (= `&gOptions[29]`) | `gOptions_fog_intensity` is `gOptions[29]` |
+| image A, the track map | `mapObj[6].displayList` written through `mapObj`, read as `mapObj_selDisplayList`, by functions `updateTrackScreen` may inline | `mapObj_selDisplayList` is `mapObj[6].displayList` |
+| MusyX sequencer (`sequencer.c`) | `sound_seq_tick` stores the current sequence `sound_seq_current_index`, the helpers it calls read its byte `sound_seq_current_index_byte` | `sound_seq_current_index_byte` is the low byte of `sound_seq_current_index` (section 8) |
 
 The current `-O2` objects happened to keep the order in all three; the fixes make that a guarantee. The other pairs
-it lists are read and judged in its `REVIEWED` table (the player rows `D_803B5CFC[n][0]`, which land in a table no
+it lists are read and judged in its `REVIEWED` table (the player rows `gPlayerRects_biased[n][0]`, which land in a table no
 code writes; the MusyX context table, whose one store depends on the reads before it), and three more are never in
 one function with a write. CI runs it (section 4).
 
@@ -140,28 +140,28 @@ one function with a write. CI runs it (section 4).
 - **Windows: the weak definitions' anchor.** GNU as on PE names a weak definition's body
   `.weak.<name>.<the first global the file defines>`, and `gen_weak.py --pe` gives each file with weak copies a global
   of its own for that ([WINDOWS.md](WINDOWS.md)). With `-ftoplevel-reorder` the anchor was no longer first: the two
-  copies of `path_D169C_path.c` both named their bodies after the common `D_80152818`, and the link failed. The anchor
+  copies of `path_D169C_path.c` both named their bodies after the common `gGameCar`, and the link failed. The anchor
   is `__attribute__((no_reorder))` now.
 
 ### 2.7 Two stores taken for one: a view over a one-element declaration
 
 Found 2026-10-28 by `input_live_drive` ([FRONTEND.md](FRONTEND.md) "Testing live input"): in the RelWithDebInfo build
 from mingw-w64's GCC 12.2 (the release's) and from Ubuntu 24.04's GCC 13 on x86-64, the car didn't steer. The
-controller code's `func_800E7134` writes each pad's scaled stick through `#define gStickF ((f32 (*)[2])
-&D_80140620)`, and its file declared `extern f32 D_80140620;`. A 4-byte store at a variable offset into a 4-byte
+controller code's `ControlIRQ` writes each pad's scaled stick through `#define gStickF ((f32 (*)[2])
+&gRealStick)`, and its file declared `extern f32 gRealStick;`. A 4-byte store at a variable offset into a 4-byte
 object can only be at offset 0, so GCC's dead-store elimination took `gStickF[i][0] = x` and `gStickF[i][1] = y` for
 two stores to the whole object and dropped the first, the x the car steers by (the raw x and its calibration were
 still loaded: they are volatile). GCC 14 (the build host's) and GCC 13 on aarch64 kept it; Debug doesn't eliminate
-stores. No warning. **Fix**: under `TARGET_PC` the file declares `extern f32 D_80140620[][2]`, as the steering's
+stores. No warning. **Fix**: under `TARGET_PC` the file declares `extern f32 gRealStick[][2]`, as the steering's
 reader does; an incomplete array has no size to reason from. Other views in the game C over one-element
 declarations can meet the same rule where one function stores two elements without `volatile`.
 
 **The mechanism**, read in mingw-w64 12's dumps of the file before the fix: the loop optimizer (`ivopts`) made both
-stores indexed references on the symbol's address, `MEM[(float *)&D_80140620 + ivtmp * 8]` and `MEM[(float
-*)&D_80140620 + 4B + ivtmp * 8]` (TARGET_MEM_REFs). GCC's `get_ref_base_and_extent` hands such a reference back as
+stores indexed references on the symbol's address, `MEM[(float *)&gRealStick + ivtmp * 8]` and `MEM[(float
+*)&gRealStick + 4B + ivtmp * 8]` (TARGET_MEM_REFs). GCC's `get_ref_base_and_extent` hands such a reference back as
 offset 0 of the declared object, with an unknown extent cut to the declaration's size: 4 bytes. Both stores are then
-"the whole of `D_80140620`", and the late dead-store pass (`dse5`) deleted the first ("Deleted dead store: MEM[(float
-*)&D_80140620 + ivtmp.108_155 * 8] = v_108"). The same view of two references as one place can forward a stored value
+"the whole of `gRealStick`", and the late dead-store pass (`dse5`) deleted the first ("Deleted dead store: MEM[(float
+*)&gRealStick + ivtmp.108_155 * 8] = v_108"). The same view of two references as one place can forward a stored value
 to a load of the other place (the value numbering and dominator passes after the loop optimizer), and a reference cut
 to [0, size) is taken not to touch an access past the declaration. A related rule: an access through a pointer that
 is wider than a variable's declaration is taken not to alias that variable. `-fno-strict-aliasing` covers none of
@@ -185,7 +185,7 @@ The class's shape is a function that reaches **two or more places** of such a sy
 variable (*view*, `two offsets`), or two indexed references at the declared size, or one beside another access, with
 a write (*tmr*, `clamped`: this compiler made the references that are taken for one place). Constant offsets alone
 are exact to GCC, and a function with one place, or only reads, has nothing to confuse. On the stick file before its
-fix, GCC 13 finds both: `D_80140620 view [two offsets] +0:4[_57], +4:4[_57]` and `tmr [clamped]`.
+fix, GCC 13 finds both: `gRealStick view [two offsets] +0:4[_57], +4:4[_57]` and `tmr [clamped]`.
 
 | Compiler (x86-64), with the fixes | Files | *view* | *const* | *tmr* | *warn* | `two offsets` | `clamped` |
 |---|---|---|---|---|---|---|---|
@@ -207,21 +207,21 @@ the same `T *`, `x` the same lvalue), as 2.2's second names do.
 
 | File | Symbol | Declared | Was | What the function reaches |
 |---|---|---|---|---|
-| `src/blob/Input_SetAnalogBounds.c`, `Input_SetPadEnabledFlag.c`, `Input_SetPadSecondaryFlag.c` | `pad_config` | `PadConfig [4]` + macro | `PadConfig` | `(&pad_config)[pad].unk18`... per pad |
-| `src/blob/camera_smooth_lerp.c` | `D_80154660` | `s32 []` | `s32` | five words of a record, by a byte pointer |
-| `src/blob/car_mass_set.c`, `groups/camera_aspect_ratio/group.c` | `D_8012E700` | `s32 []` | `s32` | the 0x44-byte nodes' fields |
-| `src/blob/func_80092484.c` | `D_801392D8` | `s32 []` + macro | `s32` | `&(&D_801392D8)[i]`, twice |
-| `src/blob/func_800D4D84.c`, `func_800D5828.c` | `D_8014A250` | `D_8014A250_Record []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
-| `src/blob/func_800E9234.c` | `D_801526E0`, `D_801526F8` | `f32 []` + macro | `f32` | `(&x)[car] = 5.0f`, `= 3.0f` |
-| `src/blob/func_800F8E90.c` | `D_801526A8` | `s32 []` | `s32` | +0, +4, +8 of 12-byte records |
-| `src/blob/func_800FBE60.c` | `D_80152218` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
-| `src/blob/groups/controller_poll/group.c` | `D_80149AF8` (`gStickCal`), `D_80149B10` (`gPrevPressed`), `D_80149B50` (`gStickRaw`), `D_80149B90` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
-| `src/blob/groups/func_800E56F8/group.c` | `D_801440AD` | `s8 []` + macro | `s8` | the rumble byte of each pak record, three stores |
-| `src/blob/groups/read_path_data/physics_response.c` | `D_80151CE8` | `Route []` + macro | `Route` (80 B) | the header and `(&D_80151CE8)[i]`'s records |
-| `src/blob/save_load_data.c` | `D_80139320` | `s32 []` | `s32` | four words of 64-byte records |
+| `src/blob/ZOID_CropBlit.c`, `ZOID_TextBlit.c`, `ZOID_FlipBlit.c` | `gBlitInstanceList` | `PadConfig [4]` + macro | `PadConfig` | `(&gBlitInstanceList)[pad].unk18`... per pad |
+| `src/blob/InitBlast.c` | `gBlastObjs` | `s32 []` | `s32` | five words of a record, by a byte pointer |
+| `src/blob/ZOID_SetObjectParent.c`, `groups/targetpaths/group.c` | `ObjInstanceList` | `s32 []` | `s32` | the 0x44-byte nodes' fields |
+| `src/blob/InitWingSmoke.c` | `gCarSmokeDir` | `s32 []` + macro | `s32` | `&(&gCarSmokeDir)[i]`, twice |
+| `src/blob/update_reckon_base.c`, `End_MDrive.c` | `D_8014A250` | `ModelRecord []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
+| `src/blob/init_view3.c` | `rear_y`, `rear_z` | `f32 []` + macro | `f32` | `(&x)[car] = 5.0f`, `= 3.0f` |
+| `src/blob/SetCameraView.c` | `cur_acc` | `s32 []` | `s32` | +0, +4, +8 of 12-byte records |
+| `src/blob/InitCPTime.c` | `D_80152218` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
+| `src/blob/groups/controlsys/group.c` | `gContStickRange` (`gStickCal`), `gNewEdges` (`gPrevPressed`), `D_80149B50` (`gStickRaw`), `D_80149B90` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
+| `src/blob/groups/update_model/group.c` | `gPaks_rumble_request` | `s8 []` + macro | `s8` | the rumble byte of each pak record, three stores |
+| `src/blob/groups/pathcommon_read/CalcCheckpointTimes.c` | `gCheckpoints` | `Route []` + macro | `Route` (80 B) | the header and `(&gCheckpoints)[i]`'s records |
+| `src/blob/StartFrame.c` | `gCarParts` | `s32 []` | `s32` | four words of 64-byte records |
 
 The data tables: gen_data ranks every file's declaration of a symbol (DATA.md 1), so a new one can change the
-winner. The first try (`[]` for all) changed `pad_config`'s and `D_80149AF8`'s winning types (no layout); with
+winner. The first try (`[]` for all) changed `gBlitInstanceList`'s and `gContStickRange`'s winning types (no layout); with
 their true sizes the winners are the old ones. `data.c` and `data_symbols.txt` are the files before but for two
 arena BSS symbols the tables had as one word and that are now as long as the code reaches: `D_80149B50` 4 -> 8 bytes
 and `D_80149B90` 4 -> 512 (the next known address bounds both; they sit in the RDRAM window at their N64 addresses, so
@@ -240,7 +240,7 @@ RelWithDebInfo program: all passed (the stick steers right and left). The Window
 (`windows-run`: the paths and the steering check, on the cross-built RelWithDebInfo program); on the Pi the cross
 build compiles with the fixes, and mingw-w64 12 finds no `two offsets` or `clamped` place with them (without the
 stick's fix its `dse5` drops the x, as above). The full ctest passes on the build host in Debug and RelWithDebInfo
-(190 of 190 each). Without the fixes the gate fails on the stick's file: `NEW ... D_80140620 view [two offsets]`.
+(190 of 190 each). Without the fixes the gate fails on the stick's file: `NEW ... gRealStick view [two offsets]`.
 
 **Flags considered** (the stick file before its fix, mingw-w64 12 at `-O2`, stores of the stick left):
 `-fno-tree-dse` 2 and `-fno-ivopts` 2 (each stops this instance: no dead-store pass, or no indexed references to
@@ -264,10 +264,10 @@ one *warn*:
 
 | Found by | Entries |
 |---|---|
-| GCC 13 and mingw-w64 12, not GCC 14 | `func_800A150C.c` D_8011EAEC, `ctx_newghost.c` pc_ghost_slot, `lib_1f5b0.c` D_80050440 (*tmr*) |
-| GCC 14 only | `controller_poll/group.c` D_80149B64 and D_80156958 (*tmr*) |
-| GCC 13 and 14, not mingw-w64 12 | `func_800F0914.c` D_80143FE0, `controlscr/caller.c` D_8015418C, `controlscr/rows.c` D_8014A10C, D_8015418C and D_80154618, `runtime_b_status_scene` D_803950C0 (*tmr*) |
-| mingw-w64 12 only | `func_800B4DA4.c` D_80146108, `sfx_position_3d.c` D_8011B3A0 and D_80143F68 (*tmr*); `runtime_b_nearest_steering` `?` (*warn*: a note that names no symbol) |
+| GCC 13 and mingw-w64 12, not GCC 14 | `pak_encode_name.c` pak_charset, `ctx_newghost.c` pc_ghost_slot, `voices.c` sound_voice_free_links (*tmr*) |
+| GCC 14 only | `controlsys/group.c` gActiveControllers and gContStick (*tmr*) |
+| GCC 13 and 14, not mingw-w64 12 | `PrintScores.c` gScoreNames, `controlscr/caller.c` controlScrActive, `controlscr/rows.c` prevControlScrActive, controlScrActive and controls_buttonsInited, `runtime_b_status_scene` stuntCoin (*tmr*) |
+| mingw-w64 12 only | `SaveSelectPlayer.c` gOptions, `InitVisuals.c` RimNames and gWheelTextures (*tmr*); `runtime_b_nearest_steering` `?` (*warn*: a note that names no symbol) |
 
 So a GCC 13 run reports 6 reviewed keys it doesn't find, GCC 14 7 and mingw-w64 8 ("kept: other GCC versions");
 none has a key the list lacks. A GCC update on the runner can add or drop *tmr* entries of this kind: a new one fails
@@ -283,20 +283,20 @@ functions have the class's shape, and are declared open-ended under `TARGET_PC` 
 
 | File | Symbol | Was | What the function reaches |
 |---|---|---|---|
-| `src/blob/func_800CFCA8.c` | `D_8014A250` | a 2,026-byte record | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
-| `src/blob/Effects_UpdateEmitters.c` | `gCamera` | `s32` | each window's camera in a loop: three stores and four read-modify-writes, 4 bytes each |
-| `src/blob/func_800A7D6C.c` | `D_8015F740` | `s32` | x, y and z of one record |
-| `src/blob/func_8008D870.c` | `D_8012E700` | `s32` | a scene node's four texture slots |
-| `src/blob/func_800A5518.c` | `D_8017A510` | `s32` | a window's first and bounds |
-| `src/blob/input_status_update.c` | `pad_config` | `PadConfig` | three fields of one record (with the Input_ files' macro) |
+| `src/blob/BlinkResurrectingCars.c` | `D_8014A250` | a 2,026-byte record | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| `src/blob/UpdateCameras.c` | `gCamera` | `s32` | each window's camera in a loop: three stores and four read-modify-writes, 4 bytes each |
+| `src/blob/ZOID_NewMatrix.c` | `D_8015F740` | `s32` | x, y and z of one record |
+| `src/blob/ZOID_SetTexture.c` | `ObjInstanceList` | `s32` | a scene node's four texture slots |
+| `src/blob/ZOID_SetViewport.c` | `ZoidWinInfo` | `s32` | a window's first and bounds |
+| `src/blob/ZOID_SetBlitData.c` | `gBlitInstanceList` | `PadConfig` | three fields of one record (with the Input_ files' macro) |
 
-None had *tmr* references on the three compilers, so this build compiled them as written; Effects_UpdateEmitters is
+None had *tmr* references on the three compilers, so this build compiled them as written; UpdateCameras is
 the stick's shape exactly (4-byte stores into a 4-byte symbol, in a loop). The tables are the files before but for
 `D_8015F740`, arena BSS the tables had as one word, now 2,240 bytes to the next known address (as `D_80149B50`
-above); Debug and RelWithDebInfo agree. The Input_ files' `pad_config[4]` isn't its extent: the storage is the 200
+above); Debug and RelWithDebInfo agree. The Input_ files' `gBlitInstanceList[4]` isn't its extent: the storage is the 200
 records at 0x80140BF0 and the paths reach records 4 to 91. Each of those functions reaches one field of the record
 a variable picks, 1 or 2 bytes, so the cut to 160 bytes gives no reference as wide as the declaration and nothing at
-a constant offset past it: no store or load to confuse. `[200]` would change the tables' type label of `D_80140BF0`
+a constant offset past it: no store or load to confuse. `[200]` would change the tables' type label of `gBlitInstanceList`
 (`PadConfig[200]` for `Sprite[200]`, the layout the same), and waits for after the beta.
 
 ## 3. The flags
@@ -399,12 +399,12 @@ CI's `windows-same` checks every path's to the bit against the Linux builds' of 
 
 ## 8. Found on the way: the sequencer's byte
 
-`func_800198C8` stores the current sequence slot as a word, `D_8004BE78 = i` (0 to 7), before it runs that slot's
-sequence. `func_80020610(controller, channel, slot, value)` takes the slot third: `func_80017D38` passes it as
-`(unsigned char)D_8004BE78` for some controllers, but `func_800177EC` (controller 130), `func_80017824` (controller 7)
-and `func_80017D38`'s other controller events pass the byte `D_8004BE7B`. On the N64 that byte is the word's low
+`sound_seq_tick` stores the current sequence slot as a word, `sound_seq_current_index = i` (0 to 7), before it runs that slot's
+sequence. `sound_midi_set_controller(controller, channel, slot, value)` takes the slot third: `sound_seq_play_note_events` passes it as
+`(unsigned char)sound_seq_current_index` for some controllers, but `sound_seq_set_channel_pressure` (controller 130), `sound_seq_set_channel_volume` (controller 7)
+and `sound_seq_play_note_events`'s other controller events pass the byte `sound_seq_current_index_byte`. On the N64 that byte is the word's low
 byte, the slot; the PC holds the word little-endian, so byte 3 is its high byte, 0, and those messages of every
 sequence went to slot 0's channels, in Debug too; `endian_check.py` doesn't see it (the word is BSS, stored as a
 word and read through another symbol). The optimized build kept that byte 3, so that it would do what Debug did; the
-fix came after, in both: `src/rom/lib_17dc0.c` reads the low byte, `#define D_8004BE7B ((u8)D_8004BE78)`, as the
+fix came after, in both: `src/rom/sound/sequencer.c` reads the low byte, `#define sound_seq_current_index_byte ((u8)sound_seq_current_index)`, as the
 N64 does.

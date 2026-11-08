@@ -3,7 +3,7 @@
  * A 16-byte header of bytes (version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth,
  * spacing, nonProp, kern, numTextures, numChars @12), numChars 12-byte letters, and with kern set a
  * numChars x numChars byte table. Every field is a byte, so nothing is swapped. The letter's first 4 bytes are a
- * slot the game fills with a pointer to that letter's row of the kern table (_SetupFontData, sound_update_channel
+ * slot the game fills with a pointer to that letter's row of the kern table (_SetupFontData, SetupFontData
  * in groups/slot_sound); on PC the letter views keep the slot 4 bytes as a window address (ASSETS.md §4 #16), and
  * the game rewrites it whenever the font block moves (font data is a handle wave, which heap compaction moves).
  *

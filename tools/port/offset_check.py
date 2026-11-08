@@ -3,7 +3,7 @@
 `M2C_FIELD(p, T *, 0x1A)` or `*(T *)((u8 *)p + 0x1A)` through a pointer the code types as `void *` or `s32`.
 
     python3 tools/port/offset_check.py [--build build/pc] [-j 2] [--reuse] [--out build/pc/endian/offset.txt]
-    python3 tools/port/offset_check.py --reuse --func func_80105DA8     # every raw access of the matching functions
+    python3 tools/port/offset_check.py --reuse --func animBones     # every raw access of the matching functions
     python3 tools/port/offset_check.py --selftest                       # ctest offset_check
 
 docs/port/LAYOUT.md 9. layout_check.py checks a raw offset only against a storage's reference layout, and only where
@@ -53,30 +53,30 @@ ROOT = ec.ROOT
 # A function's parameter that only the ROM's tables (or an indirect call the flow does not follow) give a record:
 # (function regex, parameter (-1: what it returns), (unit regex, view name) of the record's PC layout, why).
 ROLES = [
-    # The players' pending packets (func_800D63EC's Packet, the pool hud_speed_display builds): each player record
-    # keeps its packet as a 32-bit window address (D_8014A118[i] +0x44, the OBJECT and NODE macros), so nothing
+    # The players' pending packets (AudAddListener's Packet, the pool AudInit3D builds): each player record
+    # keeps its packet as a 32-bit window address (gPlayers[i] +0x44, the OBJECT and NODE macros), so nothing
     # typed reaches the two functions that take it back (docs/port/QA.md 5).
-    (r"^object_activate$", 0, (r"src/blob/func_800D63EC\.c$", "Packet"),
-     "func_800D5374's pending packet: OBJECT(D_8014A118[i].object), a window address made a pointer"),
-    # what func_800D63EC returns (k = -1): the flow follows it through the player record's slot to main_menu_input
-    # (main_menu_render's NODE), whose only view of it (`Node`, no pointers) would otherwise make it an N64 record
-    (r"^func_800D63EC$", -1, (r"src/blob/func_800D63EC\.c$", "Packet"),
-     "the packet func_800D63EC allocates and posts (its Packet)"),
+    (r"^AudRemoveListener$", 0, (r"src/blob/AudAddListener\.c$", "Packet"),
+     "StopListeners's pending packet: OBJECT(gPlayers[i].object), a window address made a pointer"),
+    # what AudAddListener returns (k = -1): the flow follows it through the player record's slot to AudUpdateListener
+    # (UpdateListeners's NODE), whose only view of it (`Node`, no pointers) would otherwise make it an N64 record
+    (r"^AudAddListener$", -1, (r"src/blob/AudAddListener\.c$", "Packet"),
+     "the packet AudAddListener allocates and posts (its Packet)"),
 ]
 # Findings read and judged: (unit regex, regex on the function or the storage, why).
 REVIEWED = [
-    (r"src/blob/func_800AED20\.c$", r"^func_800AED20$",
+    (r"src/blob/NewEmitter\.c$", r"^NewEmitter$",
      "by design: _GetSource clears the 3D-sound source's active byte at EMITTER_ACTIVE (PC +0x10), which "
-     "engine_sound_sync.c's Source names as the first byte of a u32 flags word no code reads whole (LAYOUT.md 7)"),
-    (r"src/blob/object_action_clear\.c$", r"^object_action_clear$",
-     "unreachable: no C calls object_action_clear, no asm references it, no C takes its address, and no table of "
+     "ProcessEmitters.c's Source names as the first byte of a u32 flags word no code reads whole (LAYOUT.md 7)"),
+    (r"src/blob/NewListener\.c$", r"^NewListener$",
+     "unreachable: no C calls NewListener, no asm references it, no C takes its address, and no table of "
      "the ROM's data holds it (the loader's conversions, LAYOUT.md 9.3)"),
     (r".", r"^\*pc_text_strings\(\)",
      "by design: the text bank's string table holds host pointers (port/assets/text.c), read by index (strs[22]) "
      "8 bytes wide: PC code"),
-    (r"src/blob/groups/results_table/results_table\.c$", r"^(drawBattleScore|func_80102448|func_80102F30)$",
+    (r"src/blob/groups/gameoverscr_draw/results_table\.c$", r"^(drawBattleScore|drawStuntScore|gameover_animText)$",
      "by design: the name pointer is made with PROFILE_OFS(20) a few lines before the call (POINTERS.md 9.10)"),
-    (r"src/ovl_b/func_803936A8\.c$", r"^func_803936A8$",
+    (r"src/ovl_b/animBattlePoints\.c$", r"^animBattlePoints$",
      "by design: NameData is a PC-only view padded to the profile's name at +0x20 (PROFILE_OFS, POINTERS.md 9.10)"),
 ]
 
@@ -659,7 +659,7 @@ s32 cb_item(Item *item) {
     return item->dirty;
 }
 /* 7. a helper with an N64-shaped view that only its two callers in this file type (the MusyX listener's
- * func_8001D5C0, LAYOUT.md 9.6): with -fPIC -fno-semantic-interposition both calls are to hide_helper.localalias */
+ * sound_listener_build_matrix, LAYOUT.md 9.6): with -fPIC -fno-semantic-interposition both calls are to hide_helper.localalias */
 typedef struct { u8 pad0[0xC]; s8 hide; } HideView;
 void hide_helper(HideView *v) { v->hide = 0; }
 void hide_rec(Rec *r) { r->x = 0; hide_helper((HideView *) r); }

@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_80090F44 — arcade PitchUV(angle, uv): columns uv[1][i]/uv[2][i], epsilon 0.0001f (N64 change); arcade signs.
- * Same family as func_800B5898 (arcade LIB/fmath.c *UV rotations): rotate a 3x3 unit-vector
+ * Same family as WPitchUV (arcade LIB/fmath.c *UV rotations): rotate a 3x3 unit-vector
  * matrix by angle when |angle| > epsilon. Quirks: epsilon literal is a float (c.lt.s);
  * operand order of each sum/difference follows the arcade spelling and fixes the mul.s order.
  */

@@ -15,13 +15,13 @@
  * addresses, valid host pointers once widened (the game's views declare them u32).
  *
  * Everything else stays big-endian: the TXLD texture-load lists, the model display lists and their Vtx, IMAG
- * texels and TLUTs. port/gfx reads them in N64 form, and the game's own walkers (entity_lod_select,
- * entity_cull_check, display_list_traverse, func_8008AD6C, func_800966D8, the texture animation) use big-endian
+ * texels and TLUTs. port/gfx reads them in N64 form, and the game's own walkers (relocate_model_dl,
+ * relocate_texture_loads, display_list_traverse, flip_triangle_winding, mirror_vertex_texcoords, the texture animation) use big-endian
  * accessors. The whole block is one pc_mem_register_be range; port/ultra's PI DMA and decompressors registered
  * the file already, so this only makes the range cover the block. Nothing in the converted records is read
  * through port/gfx.
  *
- * Release: the game's heap reports every block it frees (pc_heap_block_freed, from audio_reverb_update), and
+ * Release: the game's heap reports every block it frees (pc_heap_block_freed, from DeallocateMemoryInternal), and
  * pc_wave_released drops a wave's block on request. WAD blocks never move: heap compaction moves only handle
  * blocks, and the only waves loaded as handles are the font data (38..53). Only one N64 thread runs at a time
  * (docs/port/ULTRA.md), so the block list needs no lock. */

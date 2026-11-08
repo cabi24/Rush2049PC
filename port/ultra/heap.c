@@ -1,15 +1,15 @@
 /* port/ultra/heap.c: the game heap as the PC sees it (docs/port/MEMORY.md 4).
  *
- * The game's heap (src/blob/groups/audio_heap) runs from align32(0x8017A640) to osMemSize | K0BASE: game.memory sets
- * how far. Its allocator tells the PC when the heap is made (pc_heap_created, func_800E7D0C) and after each block it
- * takes (pc_heap_allocated: audio_helper, NextMaxPath, menu_item_select's growth), under the heap's lock, and the heap
+ * The game's heap (src/blob/groups/memsys) runs from align32(0x8017A640) to osMemSize | K0BASE: game.memory sets
+ * how far. Its allocator tells the PC when the heap is made (pc_heap_created, InitMemory) and after each block it
+ * takes (pc_heap_allocated: AllocateMemory, allocate_memory_at, ReallocateMemory's growth), under the heap's lock, and the heap
  * is walked then: the least it has had free and the largest free block at that moment are the high-water marks the
  * exit line gives (pc_heap_report). The game's own fallbacks when it finds the heap short (LoadCars sharing a car type,
  * a car's paint) and an allocation no block can hold (which the N64 game takes as a null block) are logged the first
  * time each happens, and counted.
  *
  * RUSH2049_TEST_HEAP_FLOOR=MiB (tests): the heap's room below that address is taken at its creation, by the game's own
- * allocate-at-address (NextMaxPath), in three blocks around the runtime images' block at 0x8038A400 (taken too, as
+ * allocate-at-address (allocate_memory_at), in three blocks around the runtime images' block at 0x8038A400 (taken too, as
  * the image loads take it), each with a lock count of 1 as PurgeableMemory gives the images' block, so ClearMemory
  * keeps them; everything the game allocates afterwards lands above them: data past 16 MiB, through every path, at
  * game.memory 32 or more. */
@@ -23,7 +23,7 @@
 #define IMAGES_LO 0x8038A400u   /* the runtime images' block (heap_release/overlay_loader.c) */
 #define IMAGES_HI 0x803BB380u
 
-/* The game's heap and block headers keep their N64 layout in the window (audio_heap/group.c): 32-bit links. */
+/* The game's heap and block headers keep their N64 layout in the window (memsys/group.c): 32-bit links. */
 typedef struct {
     uint32_t magic, next, first, last, end;
 } HeapHeader;
@@ -34,12 +34,12 @@ typedef struct {
 } BlockHeader;
 
 /* the game's allocate-at-address (heap_release/alloc_at.c) */
-void *NextMaxPath(uint32_t addr, uint32_t size);
+void *allocate_memory_at(uint32_t addr, uint32_t size);
 
 static struct {
-    uint32_t heap;                /* the default heap's header (D_801527C8), 0 before it is made */
+    uint32_t heap;                /* the default heap's header (gMainHeap), 0 before it is made */
     uint32_t end;                 /* its end: osMemSize | K0BASE */
-    uint32_t free_low;            /* the least free (the game's sum of free blocks, audio_output_setup) */
+    uint32_t free_low;            /* the least free (the game's sum of free blocks, heap_total_free) */
     uint32_t largest_low;         /* the largest free block then */
     uint32_t allocations;
     uint32_t shorts, nones;       /* the game's fallbacks; allocations nothing could hold */
@@ -49,7 +49,7 @@ static struct {
 
 static const void *at(uint32_t addr) { return pc_n64_ptr(addr); }
 
-/* Free bytes (as audio_output_setup sums them) and the largest free block; -1 when the list isn't a heap's. */
+/* Free bytes (as heap_total_free sums them) and the largest free block; -1 when the list isn't a heap's. */
 static int walk(uint32_t heap, uint32_t *free_bytes, uint32_t *largest, uint32_t *blocks)
 {
     const HeapHeader *h = at(heap);
@@ -83,11 +83,11 @@ static void sample(void)
 }
 
 /* One block of [addr, addr + size), taken as the game takes the images' block, its lock count 1 (what
- * object_counter_increment and PurgeableMemory(p, 0) do to a block with no owner). */
+ * lock_memory and PurgeableMemory(p, 0) do to a block with no owner). */
 static void take(uint32_t addr, uint32_t size)
 {
     BlockHeader *b;
-    NextMaxPath(addr, size);
+    allocate_memory_at(addr, size);
     b = pc_n64_ptr(addr - 32);
     if (b && b->magic == HEAP_MAGIC && b->lock < 255)
         b->lock++;

@@ -4,28 +4,28 @@
 
 # video.draw_distance, video.detail, video.fog: settings a session must match (NETPLAY.md 1.5); the matrix
 # (hash_settings.py, LOCKSTEP.md 7) shows draw_distance changing own storage (the scene walk) on the synthetic races
-nonmatching/game/physics_float_calc.c pc_draw_distance   # video.draw_distance: must match
-src/blob/camera_reset.c pc_fog   # video.fog (the sky dome kept with fog off): must match
-src/blob/func_8009D45C.c pc_draw_range_scale   # video.draw_distance (a node's matrix range): must match
-src/blob/func_8009D708.c PC_DRAW_REACH   # video.draw_distance: must match
-src/blob/func_8009D708.c pc_draw_range_scale   # video.draw_distance: must match
-src/blob/func_8009D99C.c pc_draw_range_scale   # video.draw_distance: must match
-src/blob/groups/audio_frame_sync/waves.c PC_DETAIL_PLAYERS   # video.detail (a model's LOD sections): must match
-src/blob/groups/level_objects/group.c PC_DETAIL_PLAYERS   # video.detail (scene nodes for level objects): must match
-src/blob/groups/particle_knot/group.c PC_DRAW_REACH   # video.draw_distance: must match
-src/blob/groups/particle_knot/group.c PC_LOD_DIST   # video.detail: must match
-src/blob/groups/particle_knot/group.c pc_detail   # video.detail (CreateCar's tires' level): must match
+nonmatching/game/WorldCullObjects.c pc_draw_distance   # video.draw_distance: must match
+src/blob/SkyInit.c pc_fog   # video.fog (the sky dome kept with fog off): must match
+src/blob/build_node_matrix.c pc_draw_range_scale   # video.draw_distance (a node's matrix range): must match
+src/blob/build_far_node_matrix.c PC_DRAW_REACH   # video.draw_distance: must match
+src/blob/build_far_node_matrix.c pc_draw_range_scale   # video.draw_distance: must match
+src/blob/build_node_matrix_rows4.c pc_draw_range_scale   # video.draw_distance: must match
+src/blob/groups/waves/waves.c PC_DETAIL_PLAYERS   # video.detail (a model's LOD sections): must match
+src/blob/groups/targets/group.c PC_DETAIL_PLAYERS   # video.detail (scene nodes for level objects): must match
+src/blob/groups/zoid_draw/group.c PC_DRAW_REACH   # video.draw_distance: must match
+src/blob/groups/zoid_draw/group.c PC_LOD_DIST   # video.detail: must match
+src/blob/groups/zoid_draw/group.c pc_detail   # video.detail (CreateCar's tires' level): must match
 
 # video.widescreen, video.hud and the window's size, through the renderer: the HUD models' places (NETPLAY.md 1.1).
 # A session gives the game 0 (--session-rules, pc_gfx_hud_dx_off); the matrix shows widescreen changing the window on
 # the one-player race paths without it, and nothing with it
-src/blob/car_lights_render.c pc_gfx_hud_dx   # widescreen: 0 to the game in a session (--session-rules)
+src/blob/ZOID_WindowTo3D.c pc_gfx_hud_dx   # widescreen: 0 to the game in a session (--session-rules)
 
 # audio.voices: the MusyX SFD's size the interpreter and the game agree on, a setting a session must match
-src/rom/lib_11640.c pc_audio_set_sfd_voices   # audio.voices: must match
-src/rom/lib_11640.c pc_audio_sfd_size   # audio.voices: must match
-src/rom/lib_11640.c pc_audio_block_check   # a size check at compile time (a typedef), no value
+src/rom/sound/hardware.c pc_audio_set_sfd_voices   # audio.voices: must match
+src/rom/sound/hardware.c pc_audio_sfd_size   # audio.voices: must match
+src/rom/sound/hardware.c pc_audio_block_check   # a size check at compile time (a typedef), no value
 
 # A test hook: RUSH2049_TEST_AUDIO_POOL_FAIL (QA.md), off unless set, and in a replay's must-match header when set
-src/blob/groups/slot18_alloc/func_80091B00.c pc_audio_pool_calls   # test hook, off by default
-src/blob/groups/slot18_alloc/func_80091B00.c pc_audio_pool_fail_every   # test hook, off by default
+src/blob/groups/abort_game/GetCmd.c pc_audio_pool_calls   # test hook, off by default
+src/blob/groups/abort_game/GetCmd.c pc_audio_pool_fail_every   # test hook, off by default

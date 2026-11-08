@@ -1,7 +1,7 @@
 /* port/assets/musyx.c: the MusyX sound data in the host's byte order (docs/port/MUSYX_DATA.md).
  *
- * The sound library in the boot segment (src/rom/lib_15a10.c, lib_16320.c, lib_17dc0.c, lib_1a660.c,
- * lib_22300.c) reads these files in place with native loads and keeps pointers into them. So each field is
+ * The sound library in the boot segment (src/rom/sound/groups.c, registry.c, sequencer.c, synth.c,
+ * macros.c) reads these files in place with native loads and keeps pointers into them. So each field is
  * swapped in place at the width the library reads it, and the files keep their N64 size and layout:
  *
  *   wave 6        project: groups, their id lists, sfx tables, song pages and MIDI setups
@@ -105,11 +105,11 @@ static int mx8(Mx *m, size_t off, uint32_t *value, const char *what)
 
 /* ---------------------------------------------------------------- project (wave 6)
  *
- * Groups follow each other until a size of 0xFFFFFFFF (sndPushGroup, func_8001536C in lib_15a10.c):
+ * Groups follow each other until a size of 0xFFFFFFFF (sndPushGroup, sound_push_group in groups.c):
  *   +0 u32 size; +4 u16 id; +6 u16 type; +8 u32 offsets[], relative to the group + 8:
  *   [0] macro ids, [1] sample ids, [2] table ids, [3] keymap ids, [4] layer ids (u16 lists ended by 0xFFFF);
  *   type 1 (sfx): [5] the sfx table; type 0 (songs): [5] normal page, [6] drum page, [7] MIDI setups
- *   (func_8001558C). */
+ *   (sound_start_song_in_group). */
 
 static void mx_ids(Mx *m, size_t off)
 {
@@ -121,8 +121,8 @@ static void mx_ids(Mx *m, size_t off)
     }
 }
 
-/* u16 count, u16, then count 12-byte entries: u16 id, u16 macro/keymap/layer id, 8 bytes (func_800164D0,
- * func_80017040, func_8001B1D0). */
+/* u16 count, u16, then count 12-byte entries: u16 id, u16 macro/keymap/layer id, 8 bytes (sound_add_sfx_table,
+ * sound_find_sfx, sound_start_sfx_unlocked). */
 static void mx_sfx(Mx *m, size_t off)
 {
     uint32_t count, v;
@@ -136,8 +136,8 @@ static void mx_sfx(Mx *m, size_t off)
     }
 }
 
-/* 8-byte entries until one whose byte 5 (the program) is 0xFF: u16 macro, then bytes (func_8001785C,
- * func_800178B0, func_80017720). */
+/* 8-byte entries until one whose byte 5 (the program) is 0xFF: u16 macro, then bytes (sound_seq_build_program_map,
+ * sound_seq_start, sound_seq_set_program). */
 static void mx_page(Mx *m, size_t off)
 {
     uint32_t program, v;
@@ -152,7 +152,7 @@ static void mx_page(Mx *m, size_t off)
     }
 }
 
-/* 132-byte MIDI setups until id 0xFFFF: u16 song id, u16, 16 channels of 8 bytes (func_8001558C). */
+/* 132-byte MIDI setups until id 0xFFFF: u16 song id, u16, 16 channels of 8 bytes (sound_start_song_in_group). */
 static void mx_setups(Mx *m, size_t off)
 {
     uint32_t id, v;
@@ -201,13 +201,13 @@ static void mx_project(Mx *m)
 /* ---------------------------------------------------------------- pool (wave 7)
  *
  * +0 u32 offsets[4] from the pool start, to four lists of entries {u32 size; u16 id; u16; payload at +8}
- * that end with a size of 0xFFFFFFFF (func_80014E1C):
- *   macros: 8-byte steps, two u32 words each (func_80023E9C copies them word by word);
- *   tables: bytes (volume curves, func_8002321C), except the ones a macro step 0x0C reads as an envelope of
- *           four u16 (func_80022F24);
- *   keymaps: 8-byte entries {u16 id; s8; u8; s16 priority; u8[2]} (func_8001A270);
+ * that end with a size of 0xFFFFFFFF (sound_find_pool_entry):
+ *   macros: 8-byte steps, two u32 words each (sound_macro_run copies them word by word);
+ *   tables: bytes (volume curves, sound_macro_apply_curve), except the ones a macro step 0x0C reads as an envelope of
+ *           four u16 (sound_macro_set_adsr);
+ *   keymaps: 8-byte entries {u16 id; s8; u8; s16 priority; u8[2]} (sound_synth_start_note);
  *   layers: the entry header has a u16 count at +0xA and the payload at +12, 12-byte entries
- *           {u16 id; u8; u8; s8; u8; s16 priority; u8; u8[3]} (func_80015058, func_80019F48). */
+ *           {u16 id; u8; u8; s8; u8; s16 priority; u8; u8[3]} (sound_register_layers, sound_synth_start_layer). */
 
 enum { LIST_MACRO, LIST_TABLE, LIST_KEYMAP, LIST_LAYER };
 
@@ -286,7 +286,7 @@ static void mx_pool(Mx *m)
 
 /* ---------------------------------------------------------------- sample directory (wave 8)
  *
- * 0x1C-byte records until id 0xFFFF (func_8001605C, func_800162AC, func_80016CF0): u16 id; u16 reference count
+ * 0x1C-byte records until id 0xFFFF (sound_add_sample_directory, sound_add_sample, sound_find_sample): u16 id; u16 reference count
  * and u32 address, both written at run time; u32 offset of the sample from the sample base (ROM 0x39B40);
  * u32 info (key << 24 | rate); u32 length (format << 24 | samples); u32 loop start; u32 loop length. */
 
@@ -309,16 +309,16 @@ static void mx_sdir(Mx *m)
 
 /* ---------------------------------------------------------------- songs (waves 10..21)
  *
- * Header (func_800178B0, func_80018634), offsets from the song start: +0 u32 track table; +4 u32 pattern table;
+ * Header (sound_seq_start, sound_seq_play_tracks), offsets from the song start: +0 u32 track table; +4 u32 pattern table;
  * +8 u32 channel map (64 bytes); +0xC u32 tempo track (0 = none); +0x10 u32 tempo; +0x14 u32 loop time.
  * Track table: 64 u32 offsets (0 = no track) to 12-byte events {u32 time; u8 program; u8 controller; u16;
  * u16 code; u16 loop index or two bytes}, code 0xFFFF ending the track, 0xFFFE looping it, anything else a
  * pattern index. Pattern table: u32 offsets to patterns {u32; u32 pitch-bend stream; u32 modulation stream;
- * note events}, the streams being bytes (func_8001824C, func_80018448). Note events (func_80017D38):
+ * note events}, the streams being bytes (sound_seq_play_pitch_bend_streams, sound_seq_play_modulation_streams). Note events (sound_seq_play_note_events):
  * u16 delta time, key and velocity bytes, and for a note a u16 duration; key = velocity = 0xFF ends the
- * pattern. Tempo track (func_80018A30): {u32 time; u32 tempo} until a time of 0xFFFFFFFF. */
+ * pattern. Tempo track (sound_seq_play_tempo_track): {u32 time; u32 tempo} until a time of 0xFFFFFFFF. */
 
-/* func_80017D38: which events carry a duration. */
+/* sound_seq_play_note_events: which events carry a duration. */
 static size_t note_size(uint32_t key, uint32_t velocity)
 {
     if ((key & 0x80) && (velocity == 0 || velocity == 1 || (velocity & 0x80)))

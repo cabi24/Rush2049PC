@@ -1,11 +1,11 @@
 /* port/assets/tests/test_fps.c: game.frame_rate 60's follow camera (docs/port/FRAMERATE.md 7), through the game's own
- * func_800E8D50 (UpdateCarObj). It moves the camera pos = pos * e + target * (1 - e) once a frame, e being 0.6 x the
+ * point_at_car (UpdateCarObj). It moves the camera pos = pos * e + target * (1 - e) once a frame, e being 0.6 x the
  * slot's elasticity for a frame of two retraces, scaled by the N64 for frames of 3, 4 and 5. At original every frame
  * must be the N64's expression to the bit, whatever the setting is (the game's copy latches it). At 60 two frames of
  * one retrace must follow a car as one frame of two does: to a target that stands still, exactly e of the way left
  * (sqrt(e) twice), and to a moving car within what the finer steps change; frames of 2-5 retraces at 60 are the N64's.
  * The frame's steps come from port/config/game_fps.c, as in the game (pc_game_frame_note, pc_fps_filter).
- * game: src/blob/func_800E8D50.c
+ * game: src/blob/point_at_car.c
  */
 #include <math.h>
 #include <string.h>
@@ -16,28 +16,28 @@
 
 void pc_game_fps_set(int fps);
 
-/* What func_800E8D50 reads and writes. A camera slot is 152 bytes: the basis at +96, the position at +132. */
+/* What point_at_car reads and writes. A camera slot is 152 bytes: the basis at +96, the position at +132. */
 typedef struct { unsigned char other[96]; float matrix[3][3]; float position[3]; unsigned char tail[8]; } Slot152;
 Slot152 gCamera[4];
-float D_80152708[4], D_80152720[4];
-volatile int32_t D_8002EB98;
+float elasticity[4], elastic_factor[4];
+volatile int32_t gLastFrameCount;
 struct pc_model pc_models[PC_MODEL_SLOTS];
 typedef struct { unsigned char other[0x110]; struct pc_visual visuals[21]; unsigned char other_308[0x35B - 0x308];
                  signed char car, slot; } Object;
 
-void func_800E8CB8(void *object, void *pos, void *matrix) { (void)object, (void)pos, (void)matrix; }
-void vector_normalize_length(float *v, float m[3][3]) { (void)v, (void)m; }
-void func_800E8D50(Object *object, float *carpos, float (*matrix)[3][3], float *res);
+void update_car_object(void *object, void *pos, void *matrix) { (void)object, (void)pos, (void)matrix; }
+void LookInDir(float *v, float m[3][3]) { (void)v, (void)m; }
+void point_at_car(Object *object, float *carpos, float (*matrix)[3][3], float *res);
 
 static Object car;
 
-/* One frame of `retraces` retraces at the setting in effect: the game's viUpdateTime notes it, then the camera runs. */
+/* One frame of `retraces` retraces at the setting in effect: the game's UpdateFrameTimer notes it, then the camera runs. */
 static void frame(int retraces, const float *carpos)
 {
     float res[3] = {0.0f, 4.0f, -20.0f};
-    D_8002EB98 = retraces;
+    gLastFrameCount = retraces;
     pc_game_frame_note(retraces);
-    func_800E8D50(&car, (float *)carpos, NULL, res);
+    point_at_car(&car, (float *)carpos, NULL, res);
 }
 
 /* The N64's frame, written out: what the game computes at original. */
@@ -58,7 +58,7 @@ int main(void)
     pc_models[0].moving_state = -1;   /* not resurrecting: the camera follows */
 
     for (size_t k = 0; k < sizeof elastic / sizeof *elastic; k++) {
-        D_80152720[1] = elastic[k];
+        elastic_factor[1] = elastic[k];
         /* original, the setting at 60 but not latched: the N64's frames to the bit, for 1-5 retraces */
         pc_game_fps_set(60);
         for (int r = 1; r <= 5; r++) {
@@ -125,7 +125,7 @@ int main(void)
         float carpos[3] = {500.0f, 0.0f, 0.0f};
         gCamera[1].position[0] = 10.0f;
         frame(1, carpos);
-        CHECK(D_80152708[1] == 0.0f && gCamera[1].position[0] == 500.0f);
+        CHECK(elasticity[1] == 0.0f && gCamera[1].position[0] == 500.0f);
     }
     return TEST_DONE();
 }

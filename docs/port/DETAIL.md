@@ -12,71 +12,71 @@ tested (sections 6, 7). Written 2026-11-03 on main 0d7d016.
 | The settings the game reads, the scene's counts | `port/config/detail.c`; accessors in `port/include/pc_game_types.h` ("Draw distance and detail"); the levels in `port/include/pc_detail.h` |
 | The renderer's depth range and fog | `port/gfx/gfx_detail.c` |
 | The settings | `port/config/config.c` (`[video]`), `port/input/menu.c` (F1's Video page), `port/main.c` |
-| The game C | `nonmatching/game/physics_float_calc.c`, `src/blob/groups/particle_knot/group.c`, `src/blob/func_8009D45C.c`, `func_8009D99C.c`, `func_8009D708.c`, `src/blob/groups/audio_frame_sync/waves.c`, `src/blob/groups/level_objects/group.c` |
+| The game C | `nonmatching/game/WorldCullObjects.c`, `src/blob/groups/zoid_draw/group.c`, `src/blob/build_node_matrix.c`, `build_node_matrix_rows4.c`, `build_far_node_matrix.c`, `src/blob/groups/waves/waves.c`, `src/blob/groups/targets/group.c` |
 | Tests | `gfx.detail`, `gfx.all.draw-max`, `gfx.interp.all.draw-max`, `frontend.detail`, the synthetic paths `detail*` (`tools/port/detail_check.py`) |
 | Retail runs, logs, frames | `build/scratch/retail/` (local only, never committed) |
 
-Names: a node is a scene node (`D_8012E700[]`, MAT3's ObjInstanceList), a part is one of the world's top-level nodes
+Names: a node is a scene node (`ObjInstanceList[]`, MAT3's ObjInstanceList), a part is one of the world's top-level nodes
 (the track's pieces), a cell is a part's box as the visibility tables see it, a view is one window's scene walk
-(`func_8009F058`, once a frame per player). Distances are in feet; the scene's matrices and vertices are in
-sixteenths of a foot. `D_8014A108` is the number of human players (`active_player_count`), not the track:
-`func_800AB18C.c`'s header calls it the track.
+(`zoid_draw_window`, once a frame per player). Distances are in feet; the scene's matrices and vertices are in
+sixteenths of a foot. `gNumPlayers` is the number of human players (`gNumPlayers`), not the track:
+`WorldFogDensity.c`'s header calls it the track.
 
 ## 1. What limits what is drawn
 
 ### 1.1 The world's visibility tables
 
-`physics_float_calc` (MAT3's WorldCullObjects, `nonmatching/game/physics_float_calc.c:223-293`), called at the start
-of each view (`particle_knot/group.c:1271`):
+`WorldCullObjects` (MAT3's WorldCullObjects, `nonmatching/game/WorldCullObjects.c:223-293`), called at the start
+of each view (`zoid_draw/group.c:1271`):
 
-- WorldDistance (`:61-90`) walks the world's top-level list (`D_80149B80`, the world WAD's nodes, from
-  `src/blob/wheel_torque_apply.c:60-64`) and finds the part whose box holds the eye, the nearest by its place if
+- WorldDistance (`:61-90`) walks the world's top-level list (`WorldBase`, the world WAD's nodes, from
+  `src/blob/NewWorld.c:60-64`) and finds the part whose box holds the eye, the nearest by its place if
   several do (the box has no top: an eye above it is still in it).
-- That part's row of the track's table (`D_8011B898` for track 0 ... `D_8011E5B8` for track 18, `u32[4]` a row: one
-  bit a part, up to 128) says which parts are drawn; `D_8011E748[track]` is the track's parts, `D_8011E75C` the row
+- That part's row of the track's table (`track1Parts` for track 0 ... `track19Parts` for track 18, `u32[4]` a row: one
+  bit a part, up to 128) says which parts are drawn; `trackParts[track]` is the track's parts, `showAllParts` the row
   for an eye in no box. Each part's node gets the hidden flag (0x80000000) or loses it (`:283-287`), so its whole
-  subtree is left out (`track_collision_wall`, `particle_knot/group.c:1036-1039`). Level objects parented to a cell
-  (`func_800AB53C.c`) go with it.
-- `D_8014061A` (the invisible track cheat, `cheatscr.c:126`) hides every part; the call's `show` argument and the
+  subtree is left out (`Traverse`, `zoid_draw/group.c:1036-1039`). Level objects parented to a cell
+  (`FindWorldGroup.c`) go with it.
+- `gInvisibleTrack` (the invisible track cheat, `cheatscr.c:126`) hides every part; the call's `show` argument and the
   `ptr_no_clip` path are dead (always 0).
 - The tables are ROM data. On the retail cartridge a row lets through about a fifth of a race track's parts on
   average, at most about two fifths (the eye's place only: they don't depend on where it looks).
 
 ### 1.2 The scene walk
 
-`track_collision_wall` (`particle_knot/group.c:1022-1192`) walks the node tree for each view, and `particle_system`
+`Traverse` (`zoid_draw/group.c:1022-1192`) walks the node tree for each view, and `zoid_draw_object`
 (`:871-1020`) draws a node:
 
 | Test | Where | What it leaves out |
 |---|---|---|
-| the hidden flag 0x80000000 | `:1036` | the node and its subtree (the visibility tables, the cars' AnimateFrame, `model_data_load`) |
+| the hidden flag 0x80000000 | `:1036` | the node and its subtree (the visibility tables, the cars' AnimateFrame, `MBOX_HideObject`) |
 | the deferred passes 0x40000, 0x800000 | `:1044-1055` | nothing: such nodes are drawn after the poly list (`:1515-1532`) |
-| the per-view mask `0x100 << view` (`track_collision_edge.c`) | `:1056` | a node hidden in this view (the own car in the cockpit, the hood outside the hood view, the sky dome of another window), unless a child is shown |
+| the per-view mask `0x100 << view` (`zoid_node_visible.c`) | `:1056` | a node hidden in this view (the own car in the cockpit, the hood outside the hood view, the sky dome of another window), unless a child is shown |
 | the matrices' range | `:1080-1094` | a node 2,048 ft or more from the eye on any axis (1.5) |
-| the culling box, G_CULLDL | `:1111-1146` | a node whose box (8 vertices, `D_80157248`; or the two unit boxes for flags 0x10, 0x20) is wholly off one side of the screen; done by the renderer against the widened frustum |
-| the fog's radius | `:1127-1136` | a part with a box, unless flag 0x400000, further than `D_80151AA0` plus its box's reach in x and z; only when `D_80151AA0 < 2000` (a fog option). The node's own geometry only: its children are still walked |
+| the culling box, G_CULLDL | `:1111-1146` | a node whose box (8 vertices, `cull_vertices`; or the two unit boxes for flags 0x10, 0x20) is wholly off one side of the screen; done by the renderer against the widened frustum |
+| the fog's radius | `:1127-1136` | a part with a box, unless flag 0x400000, further than `gViewableDistance` plus its box's reach in x and z; only when `gViewableDistance < 2000` (a fog option). The node's own geometry only: its children are still walked |
 | a model's last level of detail | `:919` | a node further than its last level's distance (1.3) |
 
 ### 1.3 Levels of detail
 
 A model (OBHD, `tLod`: docs/port/ASSETS.md) has up to four levels, each with a display list and a distance, `lodRad`.
-`particle_system` (`:887-928`):
+`zoid_draw_object` (`:887-928`):
 
-- The node's distance `D_80124EE8` is measured from the eye when its last level has a distance (or flag 8: the car's
+- The node's distance `node_eye_distance` is measured from the eye when its last level has a distance (or flag 8: the car's
   frame); children of a flag-8 node reuse their parent's (the tires, hood and sheen take the frame's).
 - Past the last level's distance times the node's scale it isn't drawn (`:919`); a last level of 0 has no limit.
   Otherwise the nearest level whose distance it is within (`:925-928`).
-- Flag 4 forces level `flags & 3` (`:889-895`, `:920-924`): CreateCar (`music_seq_load.c:124-139`) forces the tires
+- Flag 4 forces level `flags & 3` (`:889-895`, `:920-924`): CreateCar (`CreateCar.c:124-139`) forces the tires
   to level 1 with two to four players, and the menus' cars to level 0. Nothing else in the code forces a level; the
   world's and the level objects' flags come from the ROM.
-- Flag 0x200000 fades the node out from 24 to 80 ft (`:980-986`): only the car's sheen (`music_seq_load.c:130`).
+- Flag 0x200000 fades the node out from 24 to 80 ft (`:980-986`): only the car's sheen (`CreateCar.c:130`).
 - On the retail cartridge (the levels are ROM data; seen on track 0): nearly every part of the world has one level
   with no limit; a car's body has two levels and a car is left out a few hundred feet away, its wheels and sheen
   within a hundred feet, so a car further out is drawn without its wheels; a few trackside objects have limits of
   their own.
-- **The display lists' own markers** (load time). SetupWaveModel (`waves.c:178-187`) gives entity_lod_select
-  (`entity_lod_select.c:107-129`) a mask: 2 with one player, 4 with two, none with three or four; 0x10 on a reversed
-  track (`D_80152570`), else 8. A G_SPNOOP marker of type 1 whose bit isn't in the mask becomes a branch past its
+- **The display lists' own markers** (load time). SetupWaveModel (`waves.c:178-187`) gives relocate_model_dl
+  (`relocate_model_dl.c:107-129`) a mask: 2 with one player, 4 with two, none with three or four; 0x10 on a reversed
+  track (`gBackwards`), else 8. A G_SPNOOP marker of type 1 whose bit isn't in the mask becomes a branch past its
   section, so sections tagged one-player-only or two-player-only are cut out of every model at load. Which sections
   carry which tag is ROM data.
 - G_BRANCH_Z (the microcode's own level of detail) is not in the race lists seen (a traced race frame of track 0 has
@@ -84,40 +84,40 @@ A model (OBHD, `tLod`: docs/port/ASSETS.md) has up to four levels, each with a d
 
 ### 1.4 The fog's radius and the far plane per fog option
 
-`func_800AB18C` (`src/blob/func_800AB18C.c:78-127`), at PrePlay (`display_list_flush.c:380`) and every frame of the
-countdown and the race (`update_game/countdown.c:331-333`), when the fog option `D_8013F1D8` is 1-3:
+`WorldFogDensity` (`src/blob/WorldFogDensity.c:78-127`), at PrePlay (`PrePlay.c:380`) and every frame of the
+countdown and the race (`update_game/UpdateGame.c:331-333`), when the fog option `gFogIntensity` is 1-3:
 
-- the fog's start (`:90`, gSPFogPosition's min, of 1,000: depth, not feet) from `D_8011E810[players][option]`, its
-  end 1,000 (the far plane); the far plane (`:92`) from `D_8011E7F0[players][option]` (feet); the radius `D_80151AA0`
-  (`:93`) from `D_8011E7A8[players][option]`. The three are ROM tables indexed by the number of human players, so
+- the fog's start (`:90`, gSPFogPosition's min, of 1,000: depth, not feet) from `fogMin[players][option]`, its
+  end 1,000 (the far plane); the far plane (`:92`) from `fogDistance[players][option]` (feet); the radius `gViewableDistance`
+  (`:93`) from `fog_viewable_distance[players][option]`. The three are ROM tables indexed by the number of human players, so
   split screen fogs nearer; the reads with four players run into the next symbol, so the real tables probably start
   a row after each symbol;
-- a fog region of the track (`D_8011E76C[track]`, ROM, `{x, z, radius, start, far, radius}`) that holds the eye blends
+- a fog region of the track (`trackFog[track]`, ROM, `{x, z, radius, start, far, radius}`) that holds the eye blends
   the three toward its own values by the distance to its centre (`:94-125`).
-- The option comes from the track select's option 14 (`D_80146108[29]`, 0-3; `runtime_a_c93c_closure/group.c`
-  case 14), the circuit's per-race byte (`large_init_state/group.c:168`, rolled by `net_session_update.c:139`); it
-  is 0 in the attract demo and in stunt, obstacle and battle modes (`large_init_state/group.c:104, 185, 207, 224`).
+- The option comes from the track select's option 14 (`gOptions[29]`, 0-3; `trackscr/trackscr.c`
+  case 14), the circuit's per-race byte (`options_set/group.c:168`, rolled by `ContinueCircuit.c:139`); it
+  is 0 in the attract demo and in stunt, obstacle and battle modes (`options_set/group.c:104, 185, 207, 224`).
 
 ### 1.5 The matrices' range and the far scenery
 
-- A node's matrix (`func_8009D45C`, `func_8009D99C`: `src/blob/func_8009D45C.c:89-143`, `func_8009D99C.c:99-153`)
+- A node's matrix (`build_node_matrix`, `build_node_matrix_rows4`: `src/blob/build_node_matrix.c:89-143`, `build_node_matrix_rows4.c:99-153`)
   holds its place against the eye in its s15.16 translation, in sixteenths of a foot: a node 2,048 ft or more away on
   any axis is left out (`return 0`). A child placed against its parent (the walk's `count`) has its own small offset.
-- Far scenery, flag 0x400000 (`func_8009D708.c:105-158`): a node further than 1,600 ft is pulled in to 1,600 ft and
+- Far scenery, flag 0x400000 (`build_far_node_matrix.c:105-158`): a node further than 1,600 ft is pulled in to 1,600 ft and
   shrunk by as much, the same picture inside the 2,000-ft far plane; it is never left out and never has the fog's
   radius. On the retail tracks about a tenth of the parts are far scenery.
-- The poly list (`D_8015B268`, at most 200: `func_800A78BC.c:17`) holds the cars' shadows (`music_control.c:103`),
-  the multiplayer markers, the skids, the countdown, scorch decals and weapon trails; func_8009F058 skips a poly with
-  a vertex 2,048 ft or more from the eye on any axis (`particle_knot/group.c:1411`): its vertices are s16 in
+- The poly list (`PolyInstanceList`, at most 200: `ZOID_NewPoly.c:17`) holds the cars' shadows (`StartEnvironment.c:103`),
+  the multiplayer markers, the skids, the countdown, scorch decals and weapon trails; zoid_draw_window skips a poly with
+  a vertex 2,048 ft or more from the eye on any axis (`zoid_draw/group.c:1411`): its vertices are s16 in
   sixteenths of a foot.
 
 ### 1.6 The projection
 
-func_8009F058 (`particle_knot/group.c:1260-1533`) loads, for each view, `guPerspective(fov, aspect, near x 16, far x
-16)` from the window record `D_8017A510[view]` (or guOrtho for an orthographic window) and multiplies the camera's
-lookat into the projection. ZOID_InitializeWindow (`arb_rate_set`, `window_init/candidate.c:24-44`) sets the near
+zoid_draw_window (`zoid_draw/group.c:1260-1533`) loads, for each view, `guPerspective(fov, aspect, near x 16, far x
+16)` from the window record `ZoidWinInfo[view]` (or guOrtho for an orthographic window) and multiplies the camera's
+lookat into the projection. ZOID_InitializeWindow (`ZOID_InitializeWindow`, `ZOID_InitializeWindow/candidate.c:24-44`) sets the near
 plane to 2.5 ft and the far plane to 2,000 ft (the record's fields at +0x38 and +0x3C, which that file calls `zoom`
-and `fog`), the fog to 1000/999 and black, and `D_80151AA0` to 2,000; func_800AB18C changes the far plane with a fog
+and `fog`), the fog to 1000/999 and black, and `gViewableDistance` to 2,000; WorldFogDensity changes the far plane with a fog
 option (1.4). Nothing else writes them.
 
 The NoN microcode clips no near or far plane: geometry past the far plane is drawn at the far plane's depth, in the
@@ -126,17 +126,17 @@ gSPFogPosition's past the far plane.
 
 ### 1.7 The fog and its colour
 
-- ZOID_SetFog (`func_800A7480`, `set_fog/candidate.c:27-38`) writes the fog's start and end and colour into the window
-  record and the frame's clear colour (`func_800A5560`, used at `gfx_frame_begin.c:184`). PrePlay
-  (`display_list_flush.c:379`) gives each window `ZOID_SetFog(1000, 999, gFogColors[D_801427A0], 255)`: start past
+- ZOID_SetFog (`ZOID_SetFog`, `ZOID_SetFog/candidate.c:27-38`) writes the fog's start and end and colour into the window
+  record and the frame's clear colour (`ZOID_SetBGColor`, used at `StartGraphics.c:184`). PrePlay
+  (`PrePlay.c:379`) gives each window `ZOID_SetFog(1000, 999, gFogColors[gFogColor], 255)`: start past
   end, no fog (gSPFogPosition's s16 words wrap to fm 3072, fo -3072, 0 inside the far plane), in the track's colour,
-  `gFogColors` (`D_80114658`, ROM). `D_801427A0` is the track (`display_list_flush.c:362`) unless the cheat screen
-  set another colour (19-26, `cheatscr.c:185-199`). func_8009F058 emits the colour and gSPFogPosition at each view
-  (`particle_knot/group.c:1284-1285`).
-- With a fog option the fog runs from `D_8011E810`'s start to the far plane (1.4), in the same colour; the screen is
+  `gFogColors` (`gFogColors`, ROM). `gFogColor` is the track (`PrePlay.c:362`) unless the cheat screen
+  set another colour (19-26, `cheatscr.c:185-199`). zoid_draw_window emits the colour and gSPFogPosition at each view
+  (`zoid_draw/group.c:1284-1285`).
+- With a fog option the fog runs from `fogMin`'s start to the far plane (1.4), in the same colour; the screen is
   cleared to it.
-- The sky: SkyInit (`camera_reset.c:3806-3827`) makes a sky dome a window (model `D_8012120C`, ROM), shown in its
-  view only and kept at the camera's x and z (`particles_spawn_emitter.c:3812-3822`), except with a fog option or on
+- The sky: SkyInit (`SkyInit.c:3806-3827`) makes a sky dome a window (model `sky_object_name`, ROM), shown in its
+  view only and kept at the camera's x and z (`SkyUpdate.c:3812-3822`), except with a fog option or on
   tracks 7-13, 17 and 18.
 
 ### 1.8 Split screen, the Expansion Pak, and what isn't distance
@@ -146,18 +146,18 @@ Load-time and spawn cuts, not changed by the settings unless the table says so:
 | What | Where | Limit | Here |
 |---|---|---|---|
 | the models' LOD markers | `waves.c:178-187` | one- and two-player sections cut with 3-4 players, one-player ones with 2 | detail high: the one-player mask (2.5) |
-| the tires | `music_seq_load.c:124, 135` | forced to level 1 with 2-4 players | detail high: level 0 |
-| level objects with metadata 0x100 | `level_objects/group.c:490` | no scene node with 2-4 players | detail high: made, as with one |
-| the fog tables | `func_800AB18C.c:90-93` | nearer fog with more players | as the N64 |
-| tire smoke, wing trails | `entity_spawn_init.c:205-232` | none below 10 mph, more puffs at speed, none with 3-4 players; a frame-time gate (`cpak_read.c:63-70`) | as the N64 |
+| the tires | `CreateCar.c:124, 135` | forced to level 1 with 2-4 players | detail high: level 0 |
+| level objects with metadata 0x100 | `targets/group.c:490` | no scene node with 2-4 players | detail high: made, as with one |
+| the fog tables | `WorldFogDensity.c:90-93` | nearer fog with more players | as the N64 |
+| tire smoke, wing trails | `StartSmoke.c:205-232` | none below 10 mph, more puffs at speed, none with 3-4 players; a frame-time gate (`UpdateVisuals.c:63-70`) | as the N64 |
 | skids | `skid_marks/group.c:310`, `:185-221` | none with 3-4 players; with all 100 in use the one farthest from camera 0 is taken | as the N64 |
-| explosions' glow, smoke, ring; scorch decals | `blast.c:215, 236, 290, 306`; `entity_update_callback.c:180` | fewer than 4 players | as the N64 |
+| explosions' glow, smoke, ring; scorch decals | `blast.c:215, 236, 290, 306`; `AnimateNewBlast.c:180` | fewer than 4 players | as the N64 |
 | the sheen, the hood | `rocket.c:400, 402, 419` | the sheen hidden in battle and stunt with 3-4 windows and with a fog option; the hood only in the hood view with one window | as the N64 (hide masks) |
-| the Expansion Pak (`D_80156994`, `audio_heap/group.c:308`) | `level_objects/group.c:394`; `loadtrack.c:176-200`; `blast.c` | objects without metadata 0x20, extra waves, explosions' glow and smoke | `game.expansion_pak` (on by default) |
+| the Expansion Pak (`expansion_pak_present`, `memsys/group.c:308`) | `targets/group.c:394`; `loadtrack.c:176-200`; `blast.c` | objects without metadata 0x20, extra waves, explosions' glow and smoke | `game.expansion_pak` (on by default) |
 
 Not distance at all, and kept: the per-view mask (the own car in the cockpit, the hood), the hidden flag the cars'
 animation sets (the ghost and invisible car cheats, battle's dead cars), coins hidden once collected, weapon icons
-while a player holds the weapon, scenes and `_FW`/`_BW` nodes by the track's direction (`level_objects/group.c:401-407,
+while a player holds the weapon, scenes and `_FW`/`_BW` nodes by the track's direction (`targets/group.c:401-407,
 551`), the battle arrow by the horizontal field of view (GFX.md "Widescreen"). No show or hide by checkpoint or lap
 was found.
 
@@ -178,7 +178,7 @@ renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are
 
 ### 2.1 The visibility tables
 
-`nonmatching/game/physics_float_calc.c:92-221`, the PC's WorldCullObjects: original the N64's (the row of the eye's
+`nonmatching/game/WorldCullObjects.c:92-221`, the PC's WorldCullObjects: original the N64's (the row of the eye's
 cell). Far ORs into it the rows of every cell within `PC_VIS_FAR` = 2,000 ft of the eye (the distance to the cell's
 box, without its top, as WorldDistance tests it; `VisReach`), for cells with a box and a row of their own table (each
 table runs to the next one's address: the battle arenas' have one row, `VisRows`): what the cells the eye reaches in
@@ -187,12 +187,12 @@ table runs to the next one's address: the battle arenas' have one row, `VisRows`
 
 ### 2.2 Levels of detail and the fog's radius
 
-`particle_knot/group.c`, through macros that give the N64's tokens on the N64 (`:849-870`):
+`zoid_draw/group.c`, through macros that give the N64's tokens on the N64 (`:849-870`):
 
 - a model's last level's distance, `PC_LOD_REACH` (`:919`): x 2 at far, none at max (`pc_draw_reach`,
   `port/config/detail.c:38-42`); not for a node that fades out by then (flag 0x200000, the sheen), which would spend a
   frame lookat and its list on an invisible node;
-- the fog's radius `D_80151AA0` (`:1134`): x 2, none; whether a fog option is on (`D_80151AA0 < 2000`, `:1127`) is
+- the fog's radius `gViewableDistance` (`:1134`): x 2, none; whether a fog option is on (`gViewableDistance < 2000`, `:1127`) is
   still read from the N64's value;
 - detail high: the level chosen as for distance -1 (`PC_LOD_DIST`, `:926`), the first; and a level forced by the
   node's flags, the second time the walk reads it (`PC_LOD_FORCED`, `:921`), the first: the tires in split screen. The
@@ -201,13 +201,13 @@ table runs to the next one's address: the battle arenas' have one row, `VisRows`
 
 ### 2.3 The matrices' range and the far scenery
 
-`func_8009D45C.c:24-87`, `func_8009D99C.c:34-97`, `func_8009D708.c:34-103`: PC versions. A node 2,048 ft or more from
+`build_node_matrix.c:24-87`, `build_node_matrix_rows4.c:34-97`, `build_far_node_matrix.c:34-103`: PC versions. A node 2,048 ft or more from
 the eye is left out at original, kept to 4,096 ft at far, kept at any distance at max: its whole matrix (the rotation,
 the place and the w the node gives the vertex) is divided by a power of two h (`pc_draw_range_scale`,
 `port/config/detail.c:60-79`), so each vertex comes out h times smaller in x, y, z and w, the same point on the screen
 with the same z/w, so the same depth and fog in the renderer, and children multiplied onto it the same. Inside the
 N64's range h is 1 and every word is the N64's. A NaN place is never left out, as on the N64. Far scenery
-(func_8009D708) is pulled in to 3,200 ft at far and not at all at max (its true place, divided by h past 2,048 ft).
+(build_far_node_matrix) is pulled in to 3,200 ft at far and not at all at max (its true place, divided by h past 2,048 ft).
 
 The renderer is unaffected by h: lights and texture generation normalize the modelview's directions, the clipping and
 the culling boxes are homogeneous, and the fog and depth read z/w. The high frame rate's pairing blends modelviews
@@ -221,7 +221,7 @@ and such polys are smaller than a pixel there.
 
 The renderer's part (section 3): the depth's far plane x 2 at far, x 32 at max; the game's projection, and with it
 the fog and everything the game sees of z/w, unchanged. And fog off keeps the sky dome with a fog option: SkyInit
-(`camera_reset.c:3809`, `PC_SKY_FOG`) makes none in a fog, whose colour is then the sky; with the fog off that is
+(`SkyInit.c:3809`, `PC_SKY_FOG`) makes none in a fog, whose colour is then the sky; with the fog off that is
 a flat colour behind the world (5.3). The game reads `video.fog` for that alone (`pc_fog`), from the next track.
 
 ### 2.5 Detail high's load-time parts
@@ -229,7 +229,7 @@ a flat colour behind the world (5.3). The game reads `video.fog` for that alone 
 - `waves.c:178` (SetupWaveModel): the LOD markers' mask as one player's (`PC_DETAIL_PLAYERS`, detail.c:49-52): the
   one-player sections of every model in split screen, without the two-player ones (one player's mask has no
   two-player bit). From the next track load, as the models are relocated once.
-- `level_objects/group.c:490`: a level object with metadata 0x100 gets its scene node with two to four players.
+- `targets/group.c:490`: a level object with metadata 0x100 gets its scene node with two to four players.
 - Not changed: the smoke, skid, explosion and trail cuts of 1.8 (spawn decisions on shared pools: the poly list's
   200, the effect pools); the fog tables by player count (fog far moves those).
 
@@ -427,7 +427,7 @@ The heaviest fog option, one player, frames every 2 s: original; far with fog fa
   end, so nothing pops in front of the fog.
 - **Max with fog off**: no fog; the whole track is drawn to its end, trees and buildings sharp at any distance. The
   background was the fog's flat colour (no sky dome), which looked wrong behind a world without fog: fog off now makes
-  the sky dome as without a fog option (`camera_reset.c`, `PC_SKY_FOG`, from the next track). Rerun with it: the
+  the sky dome as without a fog option (`SkyInit.c`, `PC_SKY_FOG`, from the next track). Rerun with it: the
   track's blue sky and clouds behind the whole track, as without a fog option, every frame otherwise the same.
 
 ### 5.4 Split screen
@@ -469,7 +469,7 @@ code, 1.8, and none was seen).
 The synthetic track had one world part and models of one level with no limit, so no setting changed anything on it.
 `tools/port/synth_rom.py` (`DETAIL_PARTS`, `detail_world`) now gives track 0 what the limits read, from synthetic
 values only (no ROM): the ground with a box round the loop (the cell the eye is in), and five parts with models of
-their own, boxes and the visibility rows (`D_8011B898` rows 0-5, `D_8011E748[0]` 6):
+their own, boxes and the visibility rows (`track1Parts` rows 0-5, `trackParts[0]` 6):
 
 | Part | Where | Made for |
 |---|---|---|

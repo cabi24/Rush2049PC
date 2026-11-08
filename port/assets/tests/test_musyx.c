@@ -4,7 +4,7 @@
  *    logged with its width and value. After the conversion every logged field must read natively as its value,
  *    and every other byte must be unchanged. Shared lists and patterns are swapped once.
  * 2. Damaged files: truncated, garbage, self-overlapping, empty. Nothing is written past the block.
- * 3. The game's own readers (src/rom/lib_15a10.c, lib_16320.c, lib_17dc0.c, lib_1f340.c, lib_1f5b0.c, lib_22300.c,
+ * 3. The game's own readers (src/rom/sound/groups.c, registry.c, sequencer.c, util.c, voices.c, macros.c,
  *    built with the game's flags) run on the converted files, placed below 4 GiB as the heap is in the RDRAM
  *    window: sndPushGroup and its registries, the resource lookups, the sample lookup with the sample base, the
  *    song start, and the macro steps that read envelopes, start samples and wait in milliseconds.
@@ -12,7 +12,7 @@
  *    sequencer's per-frame units, each with its own view of the slot (notes, programs, controllers, pitch bend,
  *    modulation, tempo, loop, note-offs); voices start macros, step them through the interpreter (envelope,
  *    sample, end, a subroutine, a wait, a trap on key-off) and free their sequence nodes; the DMA service
- *    (struct_init_and_call, func_8008ABE4) walks a request list as the driver builds it. */
+ *    (musyx_start_dma_list, sample_dma_next) walks a request list as the driver builds it. */
 #define _GNU_SOURCE
 #include <string.h>
 #include <sys/mman.h>
@@ -437,118 +437,118 @@ static void test_damaged(void)
 /* ---------------------------------------------------------------- part 3: the game's readers */
 
 /* The game's functions (PC prototypes). */
-int func_8001536C(uint8_t *groups, uint16_t id, void *address, void *records, void *resources);
-int func_800154A4(void);
-int func_8001558C(uint16_t id, uint16_t program, uintptr_t stream, uintptr_t options, uint8_t unlocked);
-void func_80017108(void);
-void *func_80016C20(uint16_t id);
-void *func_80016E68(uint16_t id);
-void *func_80016EE0(uint16_t id);
-void *func_80016F80(uint16_t id, uint16_t *count);
-void *func_80017040(uint16_t id);
-int func_80016CF0(uint16_t id, void *sample);
-void func_800199F4(void);
-uint8_t func_80022F24(void *state, void *step);
-uint8_t func_80022874(void *state, void *step);
-uint8_t func_80021B9C(void *state, void *step);
-uint8_t func_8002193C(void *state, void *step);
-void func_800198C8(void);
-unsigned short func_80018B8C(unsigned int identifier);
-unsigned char func_800193C8(unsigned int identifier);
-uint32_t func_80024988(uint32_t packed, uint16_t allocation, uint8_t key, uint8_t volume, uint8_t panning,
+int sound_push_group(uint8_t *groups, uint16_t id, void *address, void *records, void *resources);
+int sound_pop_group(void);
+int sound_start_song_in_group(uint16_t id, uint16_t program, uintptr_t stream, uintptr_t options, uint8_t unlocked);
+void sound_reset_registries(void);
+void *sound_find_macro(uint16_t id);
+void *sound_find_table(uint16_t id);
+void *sound_find_keymap(uint16_t id);
+void *sound_find_layer(uint16_t id, uint16_t *count);
+void *sound_find_sfx(uint16_t id);
+int sound_find_sample(uint16_t id, void *sample);
+void sound_seq_init(void);
+uint8_t sound_macro_set_adsr(void *state, void *step);
+uint8_t sound_macro_start_sample(void *state, void *step);
+uint8_t sound_macro_wait_ms(void *state, void *step);
+uint8_t sound_macro_wait(void *state, void *step);
+void sound_seq_tick(void);
+unsigned short sound_seq_get_loop_count(unsigned int identifier);
+unsigned char sound_seq_get_volume_group(unsigned int identifier);
+uint32_t sound_macro_start(uint32_t packed, uint16_t allocation, uint8_t key, uint8_t volume, uint8_t panning,
                        uint8_t channel, uint8_t set, uint16_t offset, uint16_t section, uint8_t start, uint8_t group);
-void func_80023E9C(void *voice);
-int func_80021700(uint32_t identifier);
-void func_8001F864(void);
-void func_8001E9B0(void);
-void func_800218CC(void);
-int func_8001EDF4(uint32_t key);
-int func_8001FA18(uint32_t key);
-void func_80019490(void *request, unsigned int *result, unsigned char unlocked);
-/* func_80019490's request (lib_17dc0.c's SequenceRequest). */
+void sound_macro_run(void *voice);
+int sound_synth_key_off_voice(uint32_t identifier);
+void sound_init_voice_allocation(void);
+void sound_init_handles(void);
+void sound_synth_init_channel_owners(void);
+int sound_resolve_handle(uint32_t key);
+int sound_stop_unlocked(uint32_t key);
+void sound_seq_crossfade_unlocked(void *request, unsigned int *result, unsigned char unlocked);
+/* sound_seq_crossfade_unlocked's request (sequencer.c's SequenceRequest). */
 typedef struct { uint32_t identifier; uint16_t duration; uint8_t unknown006[2]; uint32_t nextIdentifier;
     uint16_t nextDuration; uint8_t unknown00E[2]; void *stream; uint16_t group, program; uint8_t channel;
     uint8_t unknown019[3]; uint32_t first, second; uint16_t value; uint8_t flags; uint8_t unknown027; } Request;
-int32_t struct_init_and_call(intptr_t list, int32_t count, intptr_t done);
-int32_t func_8008ABE4(void);
-/* The request list's header, in its own storage on the PC (func_8008ABE4.c's DmaList). */
+int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);
+int32_t sample_dma_next(void);
+/* The request list's header, in its own storage on the PC (sample_dma_next.c's DmaList). */
 extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_D_80153F10;
 
-/* func_800146B4's view (lib_11640.c, lib_1cf90.c): the PC layout every sample-info writer must match. */
+/* sound_hw_set_voice_sample's view (hardware.c, streams_3d.c): the PC layout every sample-info writer must match. */
 #pragma pack(1)
 typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopStart, loopLength; uint8_t format; }
     SampleInfo;
 #pragma pack()
 
 /* A sequence slot as the game lays it out on the PC (include/sequence_context.h, which every view of a slot in
- * lib_17dc0.c follows), with the header's storage names moved out of the way of this test's own. */
-#define D_80043EB0 header_D_80043EB0
-#define D_80043EB8 header_D_80043EB8
-#define D_8004BE80 header_D_8004BE80
-#define D_8004BE78 header_D_8004BE78
-#define D_8004BE7C header_D_8004BE7C
-#define D_8004F808 header_D_8004F808
+ * sequencer.c follows), with the header's storage names moved out of the way of this test's own. */
+#define sound_seq_free_notes header_D_80043EB0
+#define sound_seq_players header_D_80043EB8
+#define sound_seq_current header_D_8004BE80
+#define sound_seq_current_index header_D_8004BE78
+#define sound_seq_fading_out header_D_8004BE7C
+#define sound_samples_per_tick header_D_8004F808
 #include "../../../include/sequence_context.h"
-#undef D_80043EB0
-#undef D_80043EB8
-#undef D_8004BE80
-#undef D_8004BE78
-#undef D_8004BE7C
-#undef D_8004F808
+#undef sound_seq_free_notes
+#undef sound_seq_players
+#undef sound_seq_current
+#undef sound_seq_current_index
+#undef sound_seq_fading_out
+#undef sound_samples_per_tick
 
 /* The boot library's storage these units use (gen_bss defines it in the game). */
 #define STORAGE(name, bytes) unsigned char name[bytes] __attribute__((aligned(16)))
-uint8_t D_8002C630;
-STORAGE(D_80038390, 16);
-STORAGE(D_80038398, 128 * 8);
-int D_800385A0, D_80038608, D_8003C610, D_8003CE18, D_8003DA20, D_80042228;
-STORAGE(D_800385A8, 8 * 32);
-STORAGE(D_80038610, 2048 * 8);
-STORAGE(D_8003C618, 2048 * 8);
-STORAGE(D_8003CE20, 256 * 12);
-STORAGE(D_8003DA28, 512 * 4);
-STORAGE(D_8003E228, 2048 * 8);
-STORAGE(D_80042230, 128 * 16);
-STORAGE(D_80043EB0, 8);
-STORAGE(D_80043EB8, 0x10000);
-STORAGE(D_800426B0, 256 * 64);
-STORAGE(D_800443E0, 16);
-STORAGE(D_8004BE78, 64);
-STORAGE(D_8004BE7B, 1);
-STORAGE(D_8004BE7C, 4);
-STORAGE(D_8004BE80, 8);
-STORAGE(D_8004BE84, 4);
-STORAGE(D_8004BE90, 4);
-STORAGE(D_8004BE98, 512);
+uint8_t sound_initialized;
+STORAGE(sound_group_count, 16);
+STORAGE(sound_groups, 128 * 8);
+int sound_sample_directory_count, sound_table_count, sound_keymap_count, sound_layer_count, sound_macro_count, sound_sfx_table_count;
+STORAGE(sound_sample_directories, 8 * 32);
+STORAGE(sound_tables, 2048 * 8);
+STORAGE(sound_keymaps, 2048 * 8);
+STORAGE(sound_layers, 256 * 12);
+STORAGE(sound_macro_buckets, 512 * 4);
+STORAGE(sound_macros, 2048 * 8);
+STORAGE(sound_sfx_tables, 128 * 16);
+STORAGE(sound_seq_free_notes, 8);
+STORAGE(sound_seq_players, 0x10000);
+STORAGE(sound_seq_note_pool, 256 * 64);
+STORAGE(sound_seq_studio_groups, 16);
+STORAGE(sound_seq_current_index, 64);
+STORAGE(sound_seq_current_index_byte, 1);
+STORAGE(sound_seq_fading_out, 4);
+STORAGE(sound_seq_current, 8);
+STORAGE(sound_seq_next_id, 4);
+STORAGE(sound_tick_step, 4);
+STORAGE(sound_global_variables, 512);
 /* The library's per-voice storage is the PC's (pc_game_types.h, docs/port/DECOUPLE.md 9), PC_MX_VOICE_SLOTS each. */
 unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0] __attribute__((aligned(16)));
 struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];
 struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS], pc_mx_free_links[PC_MX_VOICE_SLOTS];
 unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];
-#define D_8004BEB8 ((uint8_t *)pc_mx_voice)
-#define D_80050A50 ((uint8_t *)pc_mx_nodes)
-STORAGE(D_8004F2B8, 64);
-STORAGE(D_8004F800, 4);
-STORAGE(D_8004F808, 4);
-STORAGE(D_8004FA18, 4);
-STORAGE(D_80056160, 128);
-STORAGE(D_8002CC50, 4);
-STORAGE(D_8002CC54, 2048);
-STORAGE(D_8002D452, 2048);
-void *D_80038018, *D_8003801C;
-/* lib_1f5b0.c's: the voice lists, the channel and priority links, the sequence nodes. */
-STORAGE(D_8004BE94, 1);
-STORAGE(D_8004FA19, 1);
-STORAGE(D_8004FA1A, 1);
-STORAGE(D_800504C0, 1);
-STORAGE(D_800504C1, 1);
-STORAGE(D_800504C2, 1);
-STORAGE(D_800504C3, 1);
-STORAGE(D_80050548, 256);
-STORAGE(D_80050648, 256 * 4);
-STORAGE(D_80050A48, 2);
-STORAGE(D_80050A4C, 4);
-void *D_80050C50, *D_80050C54;
+#define sound_synth_voices ((uint8_t *)pc_mx_voice)
+#define sound_handle_nodes ((uint8_t *)pc_mx_nodes)
+STORAGE(sound_track_volumes, 64);
+STORAGE(sound_synth_frequency, 4);
+STORAGE(sound_samples_per_tick, 4);
+STORAGE(sound_voice_count, 4);
+STORAGE(sound_midi_channel_owners, 128);
+STORAGE(sound_random_seed, 4);
+STORAGE(sound_sine_table, 2048);
+STORAGE(sound_sine_table_end, 2048);
+void *sound_service_alloc, *sound_service_free;
+/* voices.c's: the voice lists, the channel and priority links, the sequence nodes. */
+STORAGE(sound_voices_locked, 1);
+STORAGE(sound_music_voice_limit, 1);
+STORAGE(sound_sfx_voice_limit, 1);
+STORAGE(sound_voice_free_head, 1);
+STORAGE(sound_voice_free_tail, 1);
+STORAGE(sound_sfx_voices_used, 1);
+STORAGE(sound_music_voices_used, 1);
+STORAGE(sound_priority_first_voice, 256);
+STORAGE(sound_priority_levels, 256 * 4);
+STORAGE(sound_lowest_priority, 2);
+STORAGE(sound_handle_counter, 4);
+void *sound_handles_used, *sound_handles_free;
 
 /* What the units call outside themselves: recorded, or nothing. */
 static uint32_t seen_bpm, seen_controls[16][4], seen_bend[16][2], seen_mod[16][2];
@@ -563,19 +563,19 @@ static uint16_t seen_envelope[4];
 static SampleInfo seen_sample;
 static unsigned seen_samples;
 
-void func_80014594(void) {}
-void func_800145DC(void) {}
-void *func_80014CAC(void *address) { return address; }   /* the sample base is a cartridge address */
-void func_80014CF4(void) {}
-void func_80014CFC(void **descriptor, void **data) {}
-void func_80014D08(void *descriptor, unsigned int data) {}
-void func_80019A60(unsigned int value, unsigned char index)
+void sound_hw_lock(void) {}
+void sound_hw_unlock(void) {}
+void *sound_hw_translate_address(void *address) { return address; }   /* the sample base is a cartridge address */
+void sound_hw_init_sample_memory(void) {}
+void sound_hw_save_sample(void **descriptor, void **data) {}
+void sound_hw_remove_sample(void *descriptor, unsigned int data) {}
+void sound_synth_set_tempo(unsigned int value, unsigned char index)
 {
     seen_bpm = value;
     if (seen_ntempi < 16)
         seen_tempi[seen_ntempi++] = value;
 }
-void func_80020610(uint8_t controller, uint8_t channel, uint8_t set, uint8_t value)
+void sound_midi_set_controller(uint8_t controller, uint8_t channel, uint8_t set, uint8_t value)
 {
     int k = controller == 7 ? 0 : controller == 10 ? 1 : controller == 91 ? 2 : controller == 93 ? 3 : -1;
     if (k >= 0 && channel < 16)
@@ -585,21 +585,21 @@ void func_80020610(uint8_t controller, uint8_t channel, uint8_t set, uint8_t val
     if (channel < 16 && (controller == 1 || controller == 33))
         seen_mod[channel][controller == 33] = value;
 }
-void func_800148F8(uint32_t index, const uint16_t *envelope) { memcpy(seen_envelope, envelope, 8); }
-void func_800146B4(uint32_t index, const SampleInfo *info, uint8_t reset) { seen_sample = *info, seen_samples++; }
-uint32_t func_80019AA8(unsigned char *state) { return 0x10000; }   /* ticks: (t << 16) / rate * 1000 >> 5 */
-void func_80020820(uint8_t channel, uint8_t set) {}
-void func_8001C19C(uint8_t a, uint8_t b) {}
-void func_8001B9F8(uint8_t a, uint16_t b, uint8_t c, uint8_t d, uint32_t e) {}
-uint32_t func_800201D0(uint32_t v) { return v; }
-int func_8001B8C4(uint32_t key)   /* note off */
+void sound_hw_set_envelope(uint32_t index, const uint16_t *envelope) { memcpy(seen_envelope, envelope, 8); }
+void sound_hw_set_voice_sample(uint32_t index, const SampleInfo *info, uint8_t reset) { seen_sample = *info, seen_samples++; }
+uint32_t sound_synth_get_tick_rate(unsigned char *state) { return 0x10000; }   /* ticks: (t << 16) / rate * 1000 >> 5 */
+void sound_midi_reset_channel(uint8_t channel, uint8_t set) {}
+void sound_set_group_type(uint8_t a, uint8_t b) {}
+void sound_fade_volume_group_unlocked(uint8_t a, uint16_t b, uint8_t c, uint8_t d, uint32_t e) {}
+uint32_t sound_check(uint32_t v) { return v; }
+int sound_key_off_unlocked(uint32_t key)   /* note off */
 {
     if (seen_noffs < 32)
         seen_offs[seen_noffs].frame = frame, seen_offs[seen_noffs++].id = key;
     return 0;
 }
 /* Note on (program, key, velocity, pan, channel, slot, ?, track, volume group, ?): a voice identifier. */
-uint32_t func_8001A270(uint32_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint16_t g, uint16_t h,
+uint32_t sound_synth_start_note(uint32_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint16_t g, uint16_t h,
                        uint8_t i, int16_t j)
 {
     if (seen_nnotes >= 32)
@@ -609,16 +609,16 @@ uint32_t func_8001A270(uint32_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, u
     seen_notes[seen_nnotes].track = (uint8_t)h, seen_notes[seen_nnotes].id = 0x1000 + seen_nnotes;
     return seen_notes[seen_nnotes++].id;
 }
-int func_8001BDB8(uint8_t channel) { return 0; }
-uint8_t func_8001467C(int index) { return 0; }
-void func_80014AF0(int index) {}
-void func_8002106C(void *voice) {}
-uint8_t func_80020F98(uint8_t channel, uint8_t set) { return 0xFF; }
-void func_80020F4C(uint8_t a, uint8_t b, uint8_t c) {}
-void func_80014B3C(int index) {}
-/* The PI: the requests func_8008ABE4 starts. */
-STORAGE(D_80153E68, 24);
-STORAGE(D_80161438, 24);
+int sound_is_group_fading_out(uint8_t channel) { return 0; }
+uint8_t sound_hw_is_voice_active(int index) { return 0; }
+void sound_hw_break_voice(int index) {}
+void sound_synth_init_controller_inputs(void *voice) {}
+uint8_t sound_midi_get_last_key(uint8_t channel, uint8_t set) { return 0xFF; }
+void sound_midi_set_last_key(uint8_t a, uint8_t b, uint8_t c) {}
+void sound_hw_key_off(int index) {}
+/* The PI: the requests sample_dma_next starts. */
+STORAGE(sample_dma_pi_queue, 24);
+STORAGE(sample_dma_io, 24);
 static struct { uint32_t dev, size; void *vaddr, *queue; } seen_dma[8];
 static unsigned seen_ndma;
 int32_t osPiStartDma(void *mb, int32_t priority, int32_t direction, uint32_t devAddr, void *vAddr, uint32_t nbytes,
@@ -629,15 +629,15 @@ int32_t osPiStartDma(void *mb, int32_t priority, int32_t direction, uint32_t dev
         seen_dma[seen_ndma++].queue = mq;
     return 0;
 }
-void func_8001489C(int index, uint8_t release) {}
-uint32_t func_80014D30(uint32_t rate) { return rate; }
-uint16_t func_800214C8(void *voice) { return 0; }
-uint8_t func_80021548(uint8_t controller) { return controller; }
-uint16_t func_800215A8(void *voice, uint8_t controller) { return 0; }
-void func_8002165C(void *voice, uint8_t controller, int16_t value) {}
-void func_80020FDC(uint8_t a, uint8_t b, uint8_t c) {}
-void func_80019BE4(void *state) {}
-void func_8001B744(void *a, void *b) {}
+void sound_hw_stop_sample(int index, uint8_t release) {}
+uint32_t sound_rate_to_pitch(uint32_t rate) { return rate; }
+uint16_t sound_synth_get_modulation_input(void *voice) { return 0; }
+uint8_t sound_macro_map_controller(uint8_t controller) { return controller; }
+uint16_t sound_macro_get_controller(void *voice, uint8_t controller) { return 0; }
+void sound_macro_set_controller(void *voice, uint8_t controller, int16_t value) {}
+void sound_midi_set_portamento_state(uint8_t a, uint8_t b, uint8_t c) {}
+void sound_synth_start_portamento(void *state) {}
+void sound_synth_copy_controllers(void *a, void *b) {}
 
 /* The heap is in the RDRAM window at 0x80000000; the registries keep 32-bit addresses into the files there. */
 static uint8_t *low_window(size_t size)
@@ -653,7 +653,7 @@ static uint8_t *low_window(size_t size)
     return p;
 }
 
-/* The song plays: func_800198C8 runs the sequencer's units, each reading the slot through its own view. 60 frames
+/* The song plays: sound_seq_tick runs the sequencer's units, each reading the slot through its own view. 60 frames
  * of 384 samples at 22050 Hz: 13.4 ticks a frame at 120 bpm, 15.6 at 140 (from tick 0x100), one loop at 0x300.
  * Track 0 (channel 0, transposed +5, velocity -2) plays pattern 0 at 0, then pattern 1 at 0x180, and loops to that
  * event; track 5 shares its events on channel 5, which has a program only after pattern 0's program change;
@@ -673,8 +673,8 @@ static void test_play(const SequenceContext *seq)
     Request request;
     static unsigned int result;
 
-    memcpy(D_8004F808, &rate, 4);
-    memcpy(D_8004F800, &frequency, 4);
+    memcpy(sound_samples_per_tick, &rate, 4);
+    memcpy(sound_synth_frequency, &frequency, 4);
     seen_nnotes = seen_noffs = seen_ntempi = 0;
     memset(seen_controls, 0, sizeof seen_controls);
     /* A request deferred to the song's controller 104 (flags 4): the slot keeps a copy and the result word's
@@ -682,12 +682,12 @@ static void test_play(const SequenceContext *seq)
     memset(&request, 0, sizeof request);
     request.identifier = 0, request.flags = 4 | 2, request.nextIdentifier = 0x1234, request.channel = 7;
     request.first = 11, request.value = 0x2222, request.stream = &request;
-    func_80019490(&request, &result, 1);
+    sound_seq_crossfade_unlocked(&request, &result, 1);
     CHECK(result == 0x80000000u && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
     CHECK(seq->valueFE0 == 7 && seq->firstFE4 == 11 && seq->valueFEC == 0x2222 && seq->flagsFEE == 2 &&
           seq->streamFD8 == &request);
     for (frame = 0; frame < 60; frame++)
-        func_800198C8();
+        sound_seq_tick();
     CHECK(result == 0xFFFFFFFFu && seq->unknownFF4[0] == 0);       /* carried out at tick 0x190 */
     CHECK(seen_nnotes == sizeof want / sizeof want[0]);
     for (i = 0; i < seen_nnotes && i < sizeof want / sizeof want[0]; i++)
@@ -718,7 +718,7 @@ static void test_play(const SequenceContext *seq)
      * restarts the track at its time (0x180). */
     CHECK(seen_ntempi == 4 && seen_tempi[0] == 120 && seen_tempi[1] == 140 && seen_tempi[2] == 120 &&
           seen_tempi[3] == 140 && seq->rate124 == 140);
-    CHECK(func_80018B8C(0) == 1);                                 /* one loop */
+    CHECK(sound_seq_get_loop_count(0) == 1);                                 /* one loop */
     /* Controllers: pattern 0's volume 10 on channels 0 and 5, then the 0x180 event's 0x60. */
     CHECK(seen_controls[0][0] == 0x60 && seen_controls[5][0] == 0x60);
     /* Pitch bend: 0x2000 + 16; modulation: 0 + 127 (pattern 1, channels 0, 1 and 5). */
@@ -730,67 +730,67 @@ static void test_play(const SequenceContext *seq)
     CHECK(seq->activeFC0 == 1);
 }
 
-/* Voices: func_80024988 starts a macro on a voice of D_8004BEB8 and func_80023E9C steps it. The voice keeps its
+/* Voices: sound_macro_start starts a macro on a voice of sound_synth_voices and sound_macro_run steps it. The voice keeps its
  * N64 layout on the PC: the macro pointers at +0, +4, +8, +0xC, +0x1C and +0x20 as 32-bit window addresses, the
  * sequence node at +0x18 as its N64 address (docs/port/MUSYX_DATA.md 8.3). */
 static void test_voices(uint8_t *pl)
 {
-    uint8_t *v0 = D_8004BEB8, *v1 = D_8004BEB8 + 0x1A0;
+    uint8_t *v0 = sound_synth_voices, *v1 = sound_synth_voices + 0x1A0;
     uint32_t m1 = (uint32_t)(uintptr_t)(pl + pool.macro[0] + 8), m2 = (uint32_t)(uintptr_t)(pl + pool.macro[1] + 8);
     uint32_t m6 = (uint32_t)(uintptr_t)(pl + pool.macro[2] + 8), key, id;
     int i;
 
     /* As the synth's init leaves them: 32 voices, all free, their identifiers clear. */
-    D_8004FA18[0] = 32, D_8004FA19[0] = 32, D_8004FA1A[0] = 32;
-    memset(D_8004BEB8, 0, 32 * 0x1A0);
+    sound_voice_count[0] = 32, sound_music_voice_limit[0] = 32, sound_sfx_voice_limit[0] = 32;
+    memset(sound_synth_voices, 0, 32 * 0x1A0);
     for (i = 0; i < 32; i++)
-        memset(D_8004BEB8 + i * 0x1A0 + 0x10, 0xFF, 8), memset(D_8004BEB8 + i * 0x1A0 + 0x60, 0xFF, 4);
-    func_8001F864();
-    func_8001E9B0();
-    func_800218CC();
+        memset(sound_synth_voices + i * 0x1A0 + 0x10, 0xFF, 8), memset(sound_synth_voices + i * 0x1A0 + 0x60, 0xFF, 4);
+    sound_init_voice_allocation();
+    sound_init_handles();
+    sound_synth_init_channel_owners();
 
     /* Macro 1 (envelope, sample, end) on voice 0, key 60. */
     seen_samples = 0;
     memset(seen_envelope, 0, sizeof seen_envelope);
-    key = func_80024988(1u << 16 | 0x40 << 8 | 4, 0x100, 60, 100, 64, 0, 0, 0, 0, 1, 23);
+    key = sound_macro_start(1u << 16 | 0x40 << 8 | 4, 0x100, 60, 100, 64, 0, 0, 0, 0, 1, 23);
     id = 1u << 16 | 60 << 8 | 0;
-    CHECK(key == 0 && func_8001EDF4(key) == (int)id);
+    CHECK(key == 0 && sound_resolve_handle(key) == (int)id);
     CHECK(rd32(v0 + 0) == m1 && rd32(v0 + 4) == m1 && rd32(v0 + 8) == 0 && rd32(v0 + 0x60) == id);
     CHECK(rd32(v0 + 0x18) == 0x80050A50u && rd32(v0 + 0x10) == 0xFFFFFFFFu && rd32(v0 + 0x14) == 0xFFFFFFFFu);
-    CHECK(D_80050C50 == (void *)D_80050A50);
-    func_80023E9C(v0);
+    CHECK(sound_handles_used == (void *)sound_handle_nodes);
+    sound_macro_run(v0);
     CHECK(seen_envelope[0] == 0x1234 && seen_envelope[3] == 0x0ABC);
     CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100);
     /* The end freed the voice and its node, after three steps. */
     CHECK(rd32(v0 + 4) == m1 + 24 && rd32(v0 + 0x60) == 0xFFFFFFFFu && rd32(v0 + 0) == 0);
-    CHECK(D_80050C50 == NULL && D_80050C54 == (void *)D_80050A50 && func_8001EDF4(key) == -1);
+    CHECK(sound_handles_used == NULL && sound_handles_free == (void *)sound_handle_nodes && sound_resolve_handle(key) == -1);
 
     /* Macro 6 on voice 1: a trap for key-off, then a subroutine (macro 2) that waits 250 ms. */
-    key = func_80024988(6u << 16 | 0x40 << 8 | 4, 0x100, 62, 100, 64, 0, 0, 0, 0, 1, 23);
+    key = sound_macro_start(6u << 16 | 0x40 << 8 | 4, 0x100, 62, 100, 64, 0, 0, 0, 0, 1, 23);
     id = 6u << 16 | 62 << 8 | 1;
-    CHECK(key == 1 && func_8001EDF4(key) == (int)id && rd32(v1 + 0x60) == id && rd32(v1 + 0x18) == 0x80050A50u);
-    func_80023E9C(v1);
+    CHECK(key == 1 && sound_resolve_handle(key) == (int)id && rd32(v1 + 0x60) == id && rd32(v1 + 0x18) == 0x80050A50u);
+    sound_macro_run(v1);
     CHECK(rd32(v1 + 0) == m2 && rd32(v1 + 4) == m2 + 8);            /* in the subroutine, after its wait */
     CHECK(rd32(v1 + 8) == m6 && rd32(v1 + 0xC) == m6 + 16);         /* where it returns */
     CHECK(rd32(v1 + 0x1C) == m1 && rd32(v1 + 0x20) == m1);          /* the trap */
     CHECK(rd32(v1 + 0x9C) == 250 * 256);
-    func_80023E9C(v1);                                              /* still waiting */
+    sound_macro_run(v1);                                              /* still waiting */
     CHECK(rd32(v1 + 4) == m2 + 8 && seen_samples == 1);
     /* Key-off: the trap runs macro 1, which starts its sample and ends the voice. */
-    CHECK(func_80021700(id) == 0);
-    func_80023E9C(v1);
+    CHECK(sound_synth_key_off_voice(id) == 0);
+    sound_macro_run(v1);
     CHECK(seen_samples == 2 && rd32(v1 + 0x1C) == 0 && rd32(v1 + 0x20) == 0 && rd32(v1 + 4) == m1 + 24);
-    CHECK(rd32(v1 + 0x60) == 0xFFFFFFFFu && D_80050C50 == NULL && func_8001EDF4(key) == -1);
+    CHECK(rd32(v1 + 0x60) == 0xFFFFFFFFu && sound_handles_used == NULL && sound_resolve_handle(key) == -1);
 
-    /* A voice stopped by its key (func_8001FA18) while it waits. */
-    key = func_80024988(2u << 16 | 0x40 << 8 | 4, 0x100, 64, 100, 64, 0, 0, 0, 0, 1, 23);
-    CHECK(key == 2 && D_80050C50 != NULL);
-    func_80023E9C(D_8004BEB8 + 2 * 0x1A0);
-    CHECK(func_8001FA18(key) == 0 && D_80050C50 == NULL && func_8001EDF4(key) == -1);
+    /* A voice stopped by its key (sound_stop_unlocked) while it waits. */
+    key = sound_macro_start(2u << 16 | 0x40 << 8 | 4, 0x100, 64, 100, 64, 0, 0, 0, 0, 1, 23);
+    CHECK(key == 2 && sound_handles_used != NULL);
+    sound_macro_run(sound_synth_voices + 2 * 0x1A0);
+    CHECK(sound_stop_unlocked(key) == 0 && sound_handles_used == NULL && sound_resolve_handle(key) == -1);
 }
 
-/* The DMA service (slot 4 of the service table) on a request list as func_80012234 and func_80012730 build it:
- * {length, source, destination}, 16 bytes on the PC. struct_init_and_call starts the first, func_8008ABE4 each
+/* The DMA service (slot 4 of the service table) on a request list as sound_hw_fetch_codebook and sound_hw_fetch_sample_range build it:
+ * {length, source, destination}, 16 bytes on the PC. musyx_start_dma_list starts the first, sample_dma_next each
  * next one as the PI finishes, and the header keeps the queue to tell when all are done (docs/port/MUSYX_DATA.md
  * 8.1). */
 static void test_dma(void)
@@ -803,15 +803,15 @@ static void test_dma(void)
     for (int i = 0; i < 3; i++)
         list[i].length = 0x100 << i, list[i].source = SAMPLE_BASE + 0x1000 * (uint32_t)i, list[i].destination = buf[i];
     seen_ndma = 0;
-    CHECK(struct_init_and_call((intptr_t)list, 3, (intptr_t)&done) == 1);
+    CHECK(musyx_start_dma_list((intptr_t)list, 3, (intptr_t)&done) == 1);
     CHECK(seen_ndma == 1 && seen_dma[0].dev == SAMPLE_BASE && seen_dma[0].size == 0x100 && seen_dma[0].vaddr == buf[0] &&
-          seen_dma[0].queue == (void *)D_80153E68);
-    CHECK(func_8008ABE4() == 1 && func_8008ABE4() == 1 && func_8008ABE4() == 0);
+          seen_dma[0].queue == (void *)sample_dma_pi_queue);
+    CHECK(sample_dma_next() == 1 && sample_dma_next() == 1 && sample_dma_next() == 0);
     CHECK(seen_ndma == 3 && seen_dma[2].dev == SAMPLE_BASE + 0x2000 && seen_dma[2].size == 0x400 &&
           seen_dma[2].vaddr == buf[2]);
     CHECK(pc_D_80153F10.reqs == (void *)list && pc_D_80153F10.done == &done && pc_D_80153F10.count == 3 &&
           pc_D_80153F10.next == 3 && (pc_D_80153F10.pad0 & 0xFF) == 1);
-    CHECK(struct_init_and_call((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
+    CHECK(musyx_start_dma_list((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
 }
 
 static void test_game(void)
@@ -834,77 +834,77 @@ static void test_game(void)
     convert(10, sg, &song.B, song.B.n);
 
     /* sndPushGroup with the sample base as AudioInitSys passes it: (s32) of the cartridge address. */
-    func_80017108();
-    D_8002C630 = 1;
+    sound_reset_registries();
+    sound_initialized = 1;
     base_ptr = (uint8_t *)(intptr_t)(int32_t)SAMPLE_BASE;
     {
         /* A blank cartridge's project: sndPushGroup finds nothing, and stops. */
         uint8_t *blank = w + 0x10000;
         memset(blank, 0, 0x200);
         pc_wave_loaded(6, blank, 0x200);
-        CHECK(func_8001536C(blank, 12, base_ptr, sd, pl) == 0);
+        CHECK(sound_push_group(blank, 12, base_ptr, sd, pl) == 0);
     }
-    CHECK(func_8001536C(prj, 12, base_ptr, sd, pl) == 1);
-    CHECK(func_8001536C(prj, 99, base_ptr, sd, pl) == 0);
+    CHECK(sound_push_group(prj, 12, base_ptr, sd, pl) == 1);
+    CHECK(sound_push_group(prj, 99, base_ptr, sd, pl) == 0);
 
     /* The registries hold window addresses into the pool, found by id. */
-    CHECK(func_80016C20(1) == pl + pool.macro[0] + 8);
-    CHECK(func_80016C20(2) == pl + pool.macro[1] + 8);
-    CHECK(func_80016C20(3) == NULL);
-    CHECK(func_80016E68(3) == pl + pool.table[0] + 8);
-    CHECK(func_80016E68(4) == pl + pool.table[1] + 8);
-    CHECK(func_80016EE0(0x4001) == pl + pool.keymap[0] + 8);
-    CHECK(func_80016EE0(0x4002) == pl + pool.keymap[1] + 8);
-    CHECK(func_80016EE0(0x4003) == NULL);
+    CHECK(sound_find_macro(1) == pl + pool.macro[0] + 8);
+    CHECK(sound_find_macro(2) == pl + pool.macro[1] + 8);
+    CHECK(sound_find_macro(3) == NULL);
+    CHECK(sound_find_table(3) == pl + pool.table[0] + 8);
+    CHECK(sound_find_table(4) == pl + pool.table[1] + 8);
+    CHECK(sound_find_keymap(0x4001) == pl + pool.keymap[0] + 8);
+    CHECK(sound_find_keymap(0x4002) == pl + pool.keymap[1] + 8);
+    CHECK(sound_find_keymap(0x4003) == NULL);
     count = 0;
-    CHECK(func_80016F80(0x8001, &count) == pl + pool.layer + 12 && count == 2);
+    CHECK(sound_find_layer(0x8001, &count) == pl + pool.layer + 12 && count == 2);
     /* The sfx entries, in the project, with the state byte set. */
-    CHECK(func_80017040(0x100) == prj + project.sfx_entry[0]);
-    CHECK(func_80017040(0x101) == prj + project.sfx_entry[1]);
-    CHECK(func_80017040(0x102) == NULL);
+    CHECK(sound_find_sfx(0x100) == prj + project.sfx_entry[0]);
+    CHECK(sound_find_sfx(0x101) == prj + project.sfx_entry[1]);
+    CHECK(sound_find_sfx(0x102) == NULL);
     CHECK(rd16(prj + project.sfx_entry[1] + 2) == 0x4001 && prj[project.sfx_entry[1] + 9] == 31);
     /* Samples: the directory's records hold base + offset, 32 bits; the lookup hands them on. */
     CHECK(rd16(sd + 2) == 1 && rd32(sd + 8) == SAMPLE_BASE);
     CHECK(rd16(sd + 0x1C + 2) == 1 && rd32(sd + 0x1C + 8) == SAMPLE_BASE + 0x2B40);
     memset(&si, 0xAB, sizeof si);
-    CHECK(func_80016CF0(7, &si) == 0);
+    CHECK(sound_find_sample(7, &si) == 0);
     CHECK(si.data == (void *)(uintptr_t)(SAMPLE_BASE + 0x2B40) && si.offset == 0 && si.length == 0x800 &&
           si.format == 0 && si.frequency == (64u << 24 | 16000) && si.loopStart == 0 && si.loopLength == 0);
-    CHECK(func_80016CF0(5, &si) == 0 && si.length == 0x1000 && si.format == 3 && si.loopStart == 0x200 &&
+    CHECK(sound_find_sample(5, &si) == 0 && si.length == 0x1000 && si.format == 3 && si.loopStart == 0x200 &&
           si.loopLength == 0xE00);
-    CHECK(func_80016CF0(6, &si) == -1);
+    CHECK(sound_find_sample(6, &si) == -1);
 
-    /* Macro steps, copied word by word as the interpreter does (func_80023E9C). */
+    /* Macro steps, copied word by word as the interpreter does (sound_macro_run). */
     memset(state, 0, sizeof state);
     state[0x60] = 3;   /* the voice index */
     memcpy(step, pl + pool.macro[0] + 8, 8);
     CHECK((rd32(step) & 0x7F) == 0x0C);
-    func_80022F24(state, step);
+    sound_macro_set_adsr(state, step);
     CHECK(seen_envelope[0] == 0x1234 && seen_envelope[1] == 0x0456 && seen_envelope[2] == 0x0789 &&
           seen_envelope[3] == 0x0ABC);
     memcpy(step, pl + pool.macro[0] + 16, 8);
     seen_samples = 0;
-    func_80022874(state, step);
+    sound_macro_start_sample(state, step);
     CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100 &&
           seen_sample.length == 0x1000 && seen_sample.format == 3 && seen_sample.loopStart == 0x200 &&
           seen_sample.loopLength == 0xE00 && seen_sample.frequency == (60u << 24 | 22050));
     CHECK(rd32(state + 0x58) == SAMPLE_BASE && rd32(state + 0x5C) == (60u << 24 | 22050));
-    /* WAITMS: 250 ms is 250 * 256 in the voice's clock (func_8001E930); as ticks it would be 7812. */
+    /* WAITMS: 250 ms is 250 * 256 in the voice's clock (sound_ms_to_time); as ticks it would be 7812. */
     memcpy(step, pl + pool.macro[1] + 8, 8);
-    CHECK(func_80021B9C(state, step) == 1 && rd32(state + 0x9C) == 250 * 256);
+    CHECK(sound_macro_wait_ms(state, step) == 1 && rd32(state + 0x9C) == 250 * 256);
     memcpy(step, pl + pool.macro[1] + 8, 8);
     memset(state + 0x9C, 0, 12);
-    CHECK(func_8002193C(state, step) == 1 && rd32(state + 0x9C) == (((250u << 16) / 0x10000) * 1000) >> 5);
+    CHECK(sound_macro_wait(state, step) == 1 && rd32(state + 0x9C) == (((250u << 16) / 0x10000) * 1000) >> 5);
     test_voices(pl);
 
-    /* The song group: its pages and MIDI setup start the song through func_800178B0. */
-    CHECK(func_8001536C(prj, 20, base_ptr, sd, pl) == 1);
-    func_800199F4();
+    /* The song group: its pages and MIDI setup start the song through sound_seq_start. */
+    CHECK(sound_push_group(prj, 20, base_ptr, sd, pl) == 1);
+    sound_seq_init();
     memset(seen_controls, 0, sizeof seen_controls);
     /* Started, as the first song (identifier 0) in slot 0, and active. */
-    CHECK(func_8001558C(20, 0, (uintptr_t)sg, 0, 1) == 0);
-    CHECK(func_8001558C(20, 1, (uintptr_t)sg, 0, 1) == -1);
-    seq = (const SequenceContext *)D_80043EB8;
+    CHECK(sound_start_song_in_group(20, 0, (uintptr_t)sg, 0, 1) == 0);
+    CHECK(sound_start_song_in_group(20, 1, (uintptr_t)sg, 0, 1) == -1);
+    seq = (const SequenceContext *)sound_seq_players;
     prg = (const uint32_t *)seq->unknownF80;
     CHECK(seq->identifier == 0 && seq->activeFC0 == 1 && seq->inactiveFC1 == 0 && seq->channelFC4 == 23);
     CHECK((uint8_t *)seq->normtab004 == prj + project.norm_page && (uint8_t *)seq->drumtab088 == prj + project.drum_page);
@@ -918,11 +918,11 @@ static void test_game(void)
     CHECK(prg[3] == (1u << 16 | 0x40 << 8 | 4));                  /* page 0, slot 3 */
     CHECK(prg[9] == (2u << 16 | 0x50 << 8 | 1));                  /* drum page, slot 9; and drum 36 */
     CHECK(prg[1] == 0xFFFFFFFFu);
-    CHECK(prg[0] == (2u << 16 | 0x30 << 8 | 2));                  /* the setup's program 5 (func_80017720) */
-    CHECK(func_800193C8(0) == 23);                                /* through an integer slot address */
+    CHECK(prg[0] == (2u << 16 | 0x30 << 8 | 2));                  /* the setup's program 5 (sound_seq_set_program) */
+    CHECK(sound_seq_get_volume_group(0) == 23);                                /* through an integer slot address */
     CHECK(seen_controls[0][0] == 100 && seen_controls[0][1] == 64 && seen_controls[15][0] == 115 &&
           seen_controls[15][1] == 49 && seen_controls[7][2] == 10 && seen_controls[7][3] == 20);
-    /* What the sequencer reads from the song, natively (func_80018634, func_80017D38, func_80018A30). */
+    /* What the sequencer reads from the song, natively (sound_seq_play_tracks, sound_seq_play_note_events, sound_seq_play_tempo_track). */
     CHECK(rd32(sg + song.track[0] + 12) == 0x180 && rd16(sg + song.track[0] + 20) == 1 &&
           rd16(sg + song.track[0] + 34) == 1 && sg[song.track[0] + 10] == 5 && sg[song.track[0] + 11] == 0xFE);
     CHECK(rd32(sg + rd32(sg + 4) + 4) == song.pattern[1] && rd16(sg + song.pattern[0] + 12 + 4) == 0x60);
@@ -930,13 +930,13 @@ static void test_game(void)
     test_play(seq);
 
     /* sndPopGroup, twice: the shared macro goes with the second, the samples with their last reference. */
-    CHECK(func_800154A4() == 1);
-    CHECK(func_80016C20(1) == pl + pool.macro[0] + 8 && func_80016C20(2) == pl + pool.macro[1] + 8 &&
-          func_80016C20(6) == pl + pool.macro[2] + 8);
-    CHECK(func_800154A4() == 1);
-    CHECK(func_800154A4() == 0);
-    CHECK(func_80016C20(1) == NULL && func_80016EE0(0x4001) == NULL && func_80016F80(0x8001, &count) == NULL);
-    CHECK(func_80017040(0x100) == NULL && func_80016CF0(5, &si) == -1);
+    CHECK(sound_pop_group() == 1);
+    CHECK(sound_find_macro(1) == pl + pool.macro[0] + 8 && sound_find_macro(2) == pl + pool.macro[1] + 8 &&
+          sound_find_macro(6) == pl + pool.macro[2] + 8);
+    CHECK(sound_pop_group() == 1);
+    CHECK(sound_pop_group() == 0);
+    CHECK(sound_find_macro(1) == NULL && sound_find_keymap(0x4001) == NULL && sound_find_layer(0x8001, &count) == NULL);
+    CHECK(sound_find_sfx(0x100) == NULL && sound_find_sample(5, &si) == -1);
     munmap(w, 0x20000);
 }
 

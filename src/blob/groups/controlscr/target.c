@@ -1,5 +1,5 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* func_800D816C = updateButtons@controlscr.c (proven), not name entry; source not
+/* controls_updateButtons = updateButtons@controlscr.c (proven), not name entry; source not
  * original-source recovery. Genuine D91A0 caller and D8154 predicate retained.
  * Stock IDO 5.3: strict MATCH, 699 words; frame232 and owned literals agree.
  * Group/private ABI only: caller D91A0 remains nonmatching; no install claim.
@@ -22,28 +22,28 @@ typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8
 typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
-extern Item D_80111998[4][17];
-extern Node D_8012E700[];
-extern f32 D_8011418C[3][3];
-extern volatile f32 D_8002EB94;
-extern f32 D_80112A9C,D_80112AA0,D_80112AA4,D_80112AA8,D_80112AAC,D_80112AB0,D_80112AB4;
-extern s32 D_80154618[],D_80154630[],D_801140F0;
-/* PC: the button colour D_801140F0 is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared;
+extern Item controls_buttonInfo[4][17];
+extern Node ObjInstanceList[];
+extern f32 unitmatrix[3][3];
+extern volatile f32 gFrameSeconds;
+extern f32 controls_gButtonScale,controls_gButtonSpace,controls_buttonX,controls_maxY,controls_minY,controls_buttonZ,controls_cursorZ;
+extern s32 controls_buttonsInited[],controls_buttonsJustInited[],controls_updateButtonColor;
+/* PC: the button colour controls_updateButtonColor is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared;
  * PC_RGBA gives back the word whose bytes the alpha store and the scene node's colour expect (docs/port/ENDIAN.md). */
-extern f32 D_80154648[],D_80154FC0[];
-extern s16 D_8014A0F8[];
-extern volatile u8 D_80140BDC;
-extern char D_80120270[],D_80120280[];
-void func_8008B32C(f32[3][3],f32[3][3],f32);
-s32 func_800D8154(s8,s32);
-void func_8008D870(s16,intptr_t,s32);
+extern f32 controls_cursorSpeed[],controls_scrollSpeed[];
+extern s16 gControlSelect[];
+extern volatile u8 gNumModels;
+extern char controls_selected_texture_name[],controls_unselected_texture_name[];
+void ScaleUV(f32[3][3],f32[3][3],f32);
+s32 controls_validOption(s8,s32);
+void ZOID_SetTexture(s16,intptr_t,s32);
 typedef struct NameEntry NameEntry;
-NameEntry *func_800B24EC(char *,s16 *,s8,s8,s32);
-void func_800B5898(f32,f32[3][3]);
-void func_800B5940(f32,f32[3][3]);
+NameEntry *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
+void WPitchUV(f32,f32[3][3]);
+void WRollUV(f32,f32[3][3]);
 void *memcpy(void *,const void *,u32);
-void model_data_load(s32,s32,u32);
-void model_transform_setup(s32,s32,u32);
+void MBOX_HideObject(s32,s32,u32);
+void MBOX_ShowObject(s32,s32,u32);
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 #define PI 3.1415927f
@@ -51,7 +51,7 @@ f32 fabsf(f32);
 #define TWO_PI 6.2831855f
 #define FOUR_PI 12.566371f
 
-void func_800D816C(s8 player) {
+void controls_updateButtons(s8 player) {
     s8 settled;
     s32 count;
     s32 before;
@@ -75,126 +75,126 @@ void func_800D816C(s8 player) {
     s32 frame_residual3;
 
     settled = 1;
-    color.word = PC_RGBA(D_801140F0);
-    if (D_80154618[player] != 0) {
+    color.word = PC_RGBA(controls_updateButtonColor);
+    if (controls_buttonsInited[player] != 0) {
         count = 0;
         before = 0;
         for (j = 0; j != 12; j++) {
             if (j == 10) {}
-            if (func_800D8154(player,j)) {
-                if (j < D_8014A0F8[player]) before++;
+            if (controls_validOption(player,j)) {
+                if (j < gControlSelect[player]) before++;
                 count++;
                 if (count) {}
             }
         }
-        if ((D_80112AA8 - D_80112AAC) < (count-1) * D_80112AA0 * D_80112A9C) {
-            selected_y = D_80112AA8 - (before * (D_80112AA8 - D_80112AAC))/(count-1);
+        if ((controls_maxY - controls_minY) < (count-1) * controls_gButtonSpace * controls_gButtonScale) {
+            selected_y = controls_maxY - (before * (controls_maxY - controls_minY))/(count-1);
         } else {
-            selected_y = D_80112AA8 - before * D_80112AA0 * D_80112A9C;
+            selected_y = controls_maxY - before * controls_gButtonSpace * controls_gButtonScale;
         }
-        memcpy(previous, D_80111998[player][14].position, 12);
-        D_80111998[player][14].angle += TWO_PI * D_8002EB94;
-        if (D_80111998[player][14].angle > TWO_PI) D_80111998[player][14].angle -= TWO_PI;
-        D_80111998[player][14].position[0] = D_80112AA4 * D_80112AB4 / D_80112AB0 + -110.0f * D_80112A9C;
-        D_80111998[player][14].position[1] = selected_y * D_80112AB4 / D_80112AB0;
-        D_80111998[player][14].position[2] = D_80112AB4;
-        if (!D_80154630[player]) {
-            if (D_80154648[player] < fabsf(D_80111998[player][14].position[1] - previous[1]) * 60 * D_80112A9C / 10) {
-                D_80154648[player] = fabsf(D_80111998[player][14].position[1] - previous[1]) * 60.0f * D_80112A9C / 10.0f;
-                D_80154648[player] = D_80154648[player] < 540.0f * D_80112A9C ? D_80154648[player] : 540.0f * D_80112A9C;
-                D_80154648[player] = D_80154648[player] > 180.0f * D_80112A9C ? D_80154648[player] : 180.0f * D_80112A9C;
+        memcpy(previous, controls_buttonInfo[player][14].position, 12);
+        controls_buttonInfo[player][14].angle += TWO_PI * gFrameSeconds;
+        if (controls_buttonInfo[player][14].angle > TWO_PI) controls_buttonInfo[player][14].angle -= TWO_PI;
+        controls_buttonInfo[player][14].position[0] = controls_buttonX * controls_cursorZ / controls_buttonZ + -110.0f * controls_gButtonScale;
+        controls_buttonInfo[player][14].position[1] = selected_y * controls_cursorZ / controls_buttonZ;
+        controls_buttonInfo[player][14].position[2] = controls_cursorZ;
+        if (!controls_buttonsJustInited[player]) {
+            if (controls_cursorSpeed[player] < fabsf(controls_buttonInfo[player][14].position[1] - previous[1]) * 60 * controls_gButtonScale / 10) {
+                controls_cursorSpeed[player] = fabsf(controls_buttonInfo[player][14].position[1] - previous[1]) * 60.0f * controls_gButtonScale / 10.0f;
+                controls_cursorSpeed[player] = controls_cursorSpeed[player] < 540.0f * controls_gButtonScale ? controls_cursorSpeed[player] : 540.0f * controls_gButtonScale;
+                controls_cursorSpeed[player] = controls_cursorSpeed[player] > 180.0f * controls_gButtonScale ? controls_cursorSpeed[player] : 180.0f * controls_gButtonScale;
             }
-            if (D_80154648[player] * D_8002EB94 + previous[1] < D_80111998[player][14].position[1]) {
-                D_80111998[player][14].position[1] = previous[1] + D_80154648[player] * D_8002EB94;
-            } else if (previous[1] - D_80154648[player] * D_8002EB94 > D_80111998[player][14].position[1]) {
-                D_80111998[player][14].position[1] = previous[1] - D_80154648[player] * D_8002EB94;
+            if (controls_cursorSpeed[player] * gFrameSeconds + previous[1] < controls_buttonInfo[player][14].position[1]) {
+                controls_buttonInfo[player][14].position[1] = previous[1] + controls_cursorSpeed[player] * gFrameSeconds;
+            } else if (previous[1] - controls_cursorSpeed[player] * gFrameSeconds > controls_buttonInfo[player][14].position[1]) {
+                controls_buttonInfo[player][14].position[1] = previous[1] - controls_cursorSpeed[player] * gFrameSeconds;
             } else {
-                D_80154648[player] = 180.0f * D_80112A9C;
+                controls_cursorSpeed[player] = 180.0f * controls_gButtonScale;
             }
         }
-        func_8008B32C(D_8011418C,D_80111998[player][14].matrix,D_80112A9C * 0.4f);
-        func_800B5940(D_80111998[player][14].angle,D_80111998[player][14].matrix);
-        func_800B5898(HALF_PI,D_80111998[player][14].matrix);
-        y = before * D_80112AA0 * D_80112A9C + selected_y;
+        ScaleUV(unitmatrix,controls_buttonInfo[player][14].matrix,controls_gButtonScale * 0.4f);
+        WRollUV(controls_buttonInfo[player][14].angle,controls_buttonInfo[player][14].matrix);
+        WPitchUV(HALF_PI,controls_buttonInfo[player][14].matrix);
+        y = before * controls_gButtonSpace * controls_gButtonScale + selected_y;
         for (i = 0; i != 12; i++) {
             if (i == 10) {}
-            if (i == D_8014A0F8[player]) {
-                if (D_80111998[player][i].angle < PI) D_80111998[player][i].angle += FOUR_PI * D_8002EB94;
-                if (D_80111998[player][i].angle > PI) D_80111998[player][i].angle = PI;
-                if (D_80154630[player]) D_80111998[player][i].angle = PI;
+            if (i == gControlSelect[player]) {
+                if (controls_buttonInfo[player][i].angle < PI) controls_buttonInfo[player][i].angle += FOUR_PI * gFrameSeconds;
+                if (controls_buttonInfo[player][i].angle > PI) controls_buttonInfo[player][i].angle = PI;
+                if (controls_buttonsJustInited[player]) controls_buttonInfo[player][i].angle = PI;
             } else {
-                if (D_80111998[player][i].angle > 0.0f) D_80111998[player][i].angle -= FOUR_PI * D_8002EB94;
-                if (D_80111998[player][i].angle < 0.0f) D_80111998[player][i].angle = 0.0f;
-                if (D_80154630[player]) D_80111998[player][i].angle = 0.0f;
+                if (controls_buttonInfo[player][i].angle > 0.0f) controls_buttonInfo[player][i].angle -= FOUR_PI * gFrameSeconds;
+                if (controls_buttonInfo[player][i].angle < 0.0f) controls_buttonInfo[player][i].angle = 0.0f;
+                if (controls_buttonsJustInited[player]) controls_buttonInfo[player][i].angle = 0.0f;
             }
-            memcpy(previous, D_80111998[player][i].position, 12);
-            D_80111998[player][i].position[0] = -40.0f * D_80112A9C + D_80112AA4;
-            D_80111998[player][i].position[1] = y;
-            D_80111998[player][i].position[2] = D_80112AB0;
-            if (i == 10) D_80111998[player][i].position[0] -= 20 * D_80112A9C;
-            else if (i == 11) D_80111998[player][i].position[0] += 20.0f * D_80112A9C;
-            if (!D_80154630[player]) {
-                if (D_80154FC0[player] < fabsf(D_80111998[player][i].position[1] - previous[1]) * 60 / 10) {
-                    D_80154FC0[player] = fabsf(D_80111998[player][i].position[1] - previous[1]) * 60.0f / 10.0f;
-                    D_80154FC0[player] = D_80154FC0[player] < 540.0f * D_80112A9C ? D_80154FC0[player] : 540.0f * D_80112A9C;
-                    D_80154FC0[player] = D_80154FC0[player] > 180.0f * D_80112A9C ? D_80154FC0[player] : 180.0f * D_80112A9C;
+            memcpy(previous, controls_buttonInfo[player][i].position, 12);
+            controls_buttonInfo[player][i].position[0] = -40.0f * controls_gButtonScale + controls_buttonX;
+            controls_buttonInfo[player][i].position[1] = y;
+            controls_buttonInfo[player][i].position[2] = controls_buttonZ;
+            if (i == 10) controls_buttonInfo[player][i].position[0] -= 20 * controls_gButtonScale;
+            else if (i == 11) controls_buttonInfo[player][i].position[0] += 20.0f * controls_gButtonScale;
+            if (!controls_buttonsJustInited[player]) {
+                if (controls_scrollSpeed[player] < fabsf(controls_buttonInfo[player][i].position[1] - previous[1]) * 60 / 10) {
+                    controls_scrollSpeed[player] = fabsf(controls_buttonInfo[player][i].position[1] - previous[1]) * 60.0f / 10.0f;
+                    controls_scrollSpeed[player] = controls_scrollSpeed[player] < 540.0f * controls_gButtonScale ? controls_scrollSpeed[player] : 540.0f * controls_gButtonScale;
+                    controls_scrollSpeed[player] = controls_scrollSpeed[player] > 180.0f * controls_gButtonScale ? controls_scrollSpeed[player] : 180.0f * controls_gButtonScale;
                 }
-                if (D_80154FC0[player] * D_8002EB94 + previous[1] < D_80111998[player][i].position[1]) {
-                    D_80111998[player][i].position[1] = previous[1] + D_80154FC0[player] * D_8002EB94;
+                if (controls_scrollSpeed[player] * gFrameSeconds + previous[1] < controls_buttonInfo[player][i].position[1]) {
+                    controls_buttonInfo[player][i].position[1] = previous[1] + controls_scrollSpeed[player] * gFrameSeconds;
                     settled = 0;
-                } else if (previous[1] - D_80154FC0[player] * D_8002EB94 > D_80111998[player][i].position[1]) {
-                    D_80111998[player][i].position[1] = previous[1] - D_80154FC0[player] * D_8002EB94;
+                } else if (previous[1] - controls_scrollSpeed[player] * gFrameSeconds > controls_buttonInfo[player][i].position[1]) {
+                    controls_buttonInfo[player][i].position[1] = previous[1] - controls_scrollSpeed[player] * gFrameSeconds;
                     settled = 0;
                 }
             }
-            func_8008B32C(D_8011418C,D_80111998[player][i].matrix,D_80112A9C);
-            func_800B5898(D_80111998[player][i].angle-HALF_PI,D_80111998[player][i].matrix);
-            if (D_80111998[player][i].angle > HALF_PI) tex=(intptr_t)func_800B24EC(D_80120270,&texture,0,(s8)(D_80140BDC-1),1);
-            else tex=(intptr_t)func_800B24EC(D_80120280,&texture,0,(s8)(D_80140BDC-1),1);
-            func_8008D870((s16)D_80111998[player][i].handle,(intptr_t)tex,-1);
+            ScaleUV(unitmatrix,controls_buttonInfo[player][i].matrix,controls_gButtonScale);
+            WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][i].matrix);
+            if (controls_buttonInfo[player][i].angle > HALF_PI) tex=(intptr_t)MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels-1),1);
+            else tex=(intptr_t)MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels-1),1);
+            ZOID_SetTexture((s16)controls_buttonInfo[player][i].handle,(intptr_t)tex,-1);
             if (i == 10) {}
-            top = D_80112AA8;
-            spacing = D_80112AA0*D_80112A9C;
+            top = controls_maxY;
+            spacing = controls_gButtonSpace*controls_gButtonScale;
             if (spacing) {}
-            if (D_80111998[player][i].position[1] > top + spacing || D_80111998[player][i].position[1] < D_80112AAC-spacing) D_80111998[player][i].alpha=0;
-            else if (D_80111998[player][i].position[1] > D_80112AA8) D_80111998[player][i].alpha=255-(D_80111998[player][i].position[1]-D_80112AA8)*255.0f/(spacing);
-            else if (D_80111998[player][i].position[1] < D_80112AAC) D_80111998[player][i].alpha=255-(D_80112AAC-D_80111998[player][i].position[1])*255.0f/(spacing);
-            else D_80111998[player][i].alpha=255;
-            valid=func_800D8154(player,i);
-            if(!valid)D_80111998[player][i].alpha=0;
-            color.channel[3]=D_80111998[player][i].alpha;
-            handle = D_80111998[player][i].handle;
-            D_8012E700[handle].color=color.word;
+            if (controls_buttonInfo[player][i].position[1] > top + spacing || controls_buttonInfo[player][i].position[1] < controls_minY-spacing) controls_buttonInfo[player][i].alpha=0;
+            else if (controls_buttonInfo[player][i].position[1] > controls_maxY) controls_buttonInfo[player][i].alpha=255-(controls_buttonInfo[player][i].position[1]-controls_maxY)*255.0f/(spacing);
+            else if (controls_buttonInfo[player][i].position[1] < controls_minY) controls_buttonInfo[player][i].alpha=255-(controls_minY-controls_buttonInfo[player][i].position[1])*255.0f/(spacing);
+            else controls_buttonInfo[player][i].alpha=255;
+            valid=controls_validOption(player,i);
+            if(!valid)controls_buttonInfo[player][i].alpha=0;
+            color.channel[3]=controls_buttonInfo[player][i].alpha;
+            handle = controls_buttonInfo[player][i].handle;
+            ObjInstanceList[handle].color=color.word;
             if (i==10) {
-                D_80111998[player][12].position[0]=D_80111998[player][i].position[0];
-                D_80111998[player][12].position[1]=D_80111998[player][i].position[1];
-                D_80111998[player][12].position[2]=D_80111998[player][i].position[2];
-                D_80111998[player][12].position[0]+=180.0f*D_80112A9C;
-                func_8008B32C(D_8011418C,D_80111998[player][12].matrix,D_80112A9C);
-                func_800B5898(D_80111998[player][i].angle-HALF_PI,D_80111998[player][12].matrix);
-                func_8008D870((s16)D_80111998[player][12].handle,(intptr_t)tex,-1);
-                handle = D_80111998[player][12].handle;
-                D_8012E700[handle].color=color.word;
+                controls_buttonInfo[player][12].position[0]=controls_buttonInfo[player][i].position[0];
+                controls_buttonInfo[player][12].position[1]=controls_buttonInfo[player][i].position[1];
+                controls_buttonInfo[player][12].position[2]=controls_buttonInfo[player][i].position[2];
+                controls_buttonInfo[player][12].position[0]+=180.0f*controls_gButtonScale;
+                ScaleUV(unitmatrix,controls_buttonInfo[player][12].matrix,controls_gButtonScale);
+                WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][12].matrix);
+                ZOID_SetTexture((s16)controls_buttonInfo[player][12].handle,(intptr_t)tex,-1);
+                handle = controls_buttonInfo[player][12].handle;
+                ObjInstanceList[handle].color=color.word;
             }
-            shown=func_800D8154(player,i);
+            shown=controls_validOption(player,i);
             if(!shown) {
-                model_data_load(D_80111998[player][i].handle,1,15);
-                if(i==10)model_data_load(D_80111998[player][12].handle,1,15);
-            } else if(!D_80111998[player][i].alpha) {
-                model_data_load(D_80111998[player][i].handle,1,15);
-                if(i==10)model_data_load(D_80111998[player][12].handle,1,15);
-                y-=D_80112AA0*D_80112A9C;
+                MBOX_HideObject(controls_buttonInfo[player][i].handle,1,15);
+                if(i==10)MBOX_HideObject(controls_buttonInfo[player][12].handle,1,15);
+            } else if(!controls_buttonInfo[player][i].alpha) {
+                MBOX_HideObject(controls_buttonInfo[player][i].handle,1,15);
+                if(i==10)MBOX_HideObject(controls_buttonInfo[player][12].handle,1,15);
+                y-=controls_gButtonSpace*controls_gButtonScale;
             } else {
                 mask=1<<player;
-                model_transform_setup(D_80111998[player][i].handle,0,mask);
-                if(i==10)model_transform_setup(D_80111998[player][12].handle,0,mask);
-                y-=D_80112AA0*D_80112A9C;
+                MBOX_ShowObject(controls_buttonInfo[player][i].handle,0,mask);
+                if(i==10)MBOX_ShowObject(controls_buttonInfo[player][12].handle,0,mask);
+                y-=controls_gButtonSpace*controls_gButtonScale;
             }
         }
-        if(settled==1)D_80154FC0[player]=0.0f;
-        D_80154630[player]=0;
+        if(settled==1)controls_scrollSpeed[player]=0.0f;
+        controls_buttonsJustInited[player]=0;
     }
 }
 /* note: identity updateButtons@controlscr.c (MAT3 controlscr.c updateButtons, GC 0x8006D26C). Body is
- * packet unchanged; it now matches inside the group whose caller func_800D91A0 also matches.
+ * packet unchanged; it now matches inside the group whose caller updateControlScreen also matches.
  * The 'nonmatching caller / no install claim' lines above are historical. */

@@ -76,7 +76,7 @@ low-memory globals and cartridge offsets ([DATA.md](DATA.md) §3). On Linux, cod
 - the renderer's address rule ([GFX.md](GFX.md), "Addresses");
 - the audio interpreter's native-form pointers (`port/audio/musyx.c`);
 - port/data's check that own storage is high (`pc_data.c`);
-- the PC-only tests in `lib_11640.c` that tell a host pointer by `>> 32`;
+- the PC-only tests in `hardware.c` that tell a host pointer by `>> 32`;
 - the self-test's "host addresses above 4 GiB".
 
 So the executable keeps mingw-w64's default image base, 0x140000000, and high-entropy ASLR (`--dynamicbase`,
@@ -108,14 +108,14 @@ with an `ADDR64` relocation.
 **What a slot doesn't cover: a file's own definitions.** GCC reaches a variable its file defines, even a
 tentative definition (a common), PC-relatively (`REL32`), which can't reach 0x80xxxxxx from above 4 GiB. Six
 window symbols were tentatively defined in eleven game files. They are declarations on the PC now
-(`PC_ONLY(extern)`, as `audio_occlusion.c` already did for alignment), and their sizes are in
+(`PC_ONLY(extern)`, as `ClearControls.c` already did for alignment), and their sizes are in
 `port/data/extents.txt`:
 
 - D_80110680
-- D_80118E20 (gJust)
-- D_8012E688
-- D_80146180
-- D_80149AF8
+- gJust (gJust)
+- blit_cache_tile
+- gDriveHulk
+- gContStickRange
 - D_8014A250
 
 A new one shows up as a link error, `relocation truncated to fit: IMAGE_REL_AMD64_REL32 against symbol 'D_...'
@@ -143,7 +143,7 @@ details differ:
   definitions. `gen_weak.py --pe` adds `__attribute__((no_reorder)) char pc_weak_anchor_<file> = 0;` to each header
   that has pragmas. `no_reorder` keeps it first in an optimized build too, where GCC reorders top-level definitions:
   without it, the RelWithDebInfo build's two copies of `path_D169C_path.c` both named their bodies after the
-  common `D_80152818` ([OPTIMIZED.md](OPTIMIZED.md)).
+  common `gGameCar` ([OPTIMIZED.md](OPTIMIZED.md)).
 - nm shows a PE weak definition as `w`, as it shows an undefined weak reference. `n64syms.py` counts it as `W`
   when its `.weak.` body is in a section.
 - gen_weak skips the compiler's `.refptr.*` names.
@@ -171,12 +171,12 @@ details differ:
 - *Data layouts.* These come from DWARF, so `long` fields simply stay 4 bytes.
 - *Pointer-sized `unsigned long`.* PC-only game code that held a pointer in an `unsigned long` truncated it. Four
   places now use `uintptr_t`, with the N64's tokens unchanged:
-  - `lib_15a10.c`'s `func_8001558C`/`func_800156E8`;
-  - `lib_11640.c`'s two `>> 32` tests;
+  - `groups.c`'s `sound_start_song_in_group`/`sound_start_song`;
+  - `hardware.c`'s two `>> 32` tests;
   - `rom_tu.h`'s `pc_mem_register_be` declaration;
-  - overlay B's `(unsigned long)&D_8002EB94`, through `N64_ULONG`.
+  - overlay B's `(unsigned long)&gFrameSeconds`, through `N64_ULONG`.
 - *How they were found.* Diffing the `-Wpointer-to-int-cast`, `-Wint-to-pointer-cast` and `-Wshift-count-overflow`
-  warnings of a full Windows game build against Linux's found these four, and one more: `lib_11640.c:1719`
+  warnings of a full Windows game build against Linux's found these four, and one more: `hardware.c:1719`
   masks a pointer's low word, which the PC-only test before it bounds.
 - *Implicit conversions.* Pointer-to-`long` conversions without a cast (`-Wno-int-conversion`) aren't in that
   diff. A grep of the PC-only code for `long` found no others.
@@ -192,15 +192,15 @@ on aarch64).
   definition that reads a pointer there gets the upper half of whatever the slot held. In a register a 32-bit move
   zero-extends, so on Linux a constant 0 for a pointer arrives as NULL, and [PROTOTYPES.md](PROTOTYPES.md) counted
   such views harmless. `char` and `short` arguments are extended and stored as 4 bytes, so they are fine.
-- *What it broke.* Every synthetic boot faulted 0.4 s in, when `playgame_state_change` entered state 0x2:
-  `resource_slot_clear` calls `audio_frame_sync(id, 0, 0, 0, 0)` (LoadWave) through an all-`s32` prototype, and
+- *What it broke.* Every synthetic boot faulted 0.4 s in, when `updateGameState` entered state 0x2:
+  `LockAndLoad` calls `LoadWave(id, 0, 0, 0, 0)` (LoadWave) through an all-`s32` prototype, and
   the definition's fifth parameter is the heap. It read 0x00007FF6_00000000, the upper half of a host address left
-  in the slot, and `audio_helper` faulted reading the heap's first block at +8. The boot without a ROM stops before
+  in the slot, and `AllocateMemory` faulted reading the heap's first block at +8. The boot without a ROM stops before
   that.
 - *The check.* `tools/port/proto_check.py --abi win64` applies the convention to a Linux build's DWARF and reports
   such views as `stack` ([PROTOTYPES.md](PROTOTYPES.md) 3.6). It found 20 views of three functions, all passing a
-  constant 0: LoadWave's heap (5 views), InitPane's (`ambient_sound_set`) sixth argument, the pane's animation (14),
-  and one weak copy of `input_process_controller` whose only callers are matching stand-ins nothing calls. The first
+  constant 0: LoadWave's heap (5 views), InitPane's (`InitPane`) sixth argument, the pane's animation (14),
+  and one weak copy of `CylinderInSurf` whose only callers are matching stand-ins nothing calls. The first
   two pass a pointer-sized argument on the PC now. Nothing harmful is left.
 - *Not checked.* Calls through function pointers, which proto_check doesn't see. The 14 synthetic paths (the front
   end, races for 1-4 players, circuit, stunt, battle, the demo, the pause screens, the end of a race, a pak) run
@@ -344,8 +344,8 @@ Before the synthetic paths (run 40503877913, 2026-10-27):
 - The self-test passes 26 of 26 in both Windows jobs.
 - **The boot without a ROM** goes as on Linux, on both executables (MSYS2's GCC 16.2 and Debian's GCC 12.2):
   - waves 0, 6, 7 and 8 load;
-  - then an access violation at address 0xC in `audio_helper`, from `AllocateMemoryHeap` ← `func_800A4CB8` ←
-    `car_shadow_render` ← … ← `game_init`, symbolized. That is the blank cartridge's zero data in AudioSfxInit,
+  - then an access violation at address 0xC in `AllocateMemory`, from `AllocateMemoryHeap` ← `AudioSfxInit` ←
+    `AudioInitSys` ← … ← `main_thread_entry`, symbolized. That is the blank cartridge's zero data in AudioSfxInit,
     the same fault Linux stops at.
 
 ## 10. A Windows program: the console, the icon, the version
@@ -528,11 +528,11 @@ the live-input runs compare to the bit; CI now does the rest (below).
   it with `sqrtss` and calls the library only for a negative argument, to set errno (6 objects call it at all);
   at -O0 it calls the library each time, whose square root is correctly rounded on both (glibc's `sqrtss`;
   mingw-w64's x87 `fsqrt` stored to a float, a square root rounded to 53 or 64 bits first and then to 24 being
-  still the correctly rounded one). `modff`, in the game's own tangent (`func_800A557C`,
-  src/blob/func_800A557C.c), since the IDO libc it was linked with (src/rom/lib_34a0.c) is the host's on the PC
+  still the correctly rounded one). `modff`, in the game's own tangent (`tan_cody_waite`,
+  src/blob/tan_cody_waite.c), since the IDO libc it was linked with (src/rom/lib_34a0.c) is the host's on the PC
   (CMakeLists.txt:93): mingw-w64's (x87 `frndint`) gives the same whole and fractional parts as glibc's, but for a
   negative whole number's fraction, +0 where glibc gives -0; and the tangent's only callers are the window's field
-  of view (`set_window`, and its copy in `exhaust_smoke_effect.c`), half an angle in radians, never a whole number.
+  of view (`set_window`, and its copy in `ZOID_SetWindow.c`), half an angle in radians, never a whole number.
   The game's `sinf` and `cosf` are its own (renamed `n64_sinf`, `n64_cosf`: CMakeLists.txt:117). The imports from
   msvcrt.dll (`acos`, `asin`, `atan`, `tan`, `log10`, `_hypot`) are the PC layer's, SDL's and mingw-w64's own.
 - *The PC layer's input.* `pc_stick_shape` (port/input/stick.c:32) takes the stick's length with `hypot`

@@ -206,7 +206,7 @@ fail:
     return NULL;
 }
 
-/* Raw DEFLATE (no zlib header), as inflate_entry reads the cartridge's. */
+/* Raw DEFLATE (no zlib header), as unzipdata_from_rom reads the cartridge's. */
 uint8_t *pc_mods_inflate(const uint8_t *in, size_t n, size_t cap, size_t *out_size)
 {
     z_stream z;
@@ -1227,7 +1227,7 @@ int pc_mods_install(PcMods *m, uint32_t *off, uint32_t *size, int32_t *kind)
         at += (m->wave_size[WAVE_SDIR] + 15) & ~(size_t)15;
         if (m->wave_data[WAVE_SAMPLES]) {
             uint32_t delta = PC_ROM_MODS_BASE + (uint32_t)place[WAVE_SAMPLES] - m->sample_base;
-            /* SampleRecord (include/boot_tail_sample_contract.h): u16 id, u16 references, u32 offset at +4 */
+            /* SampleRecord (include/sound_sample_record.h): u16 id, u16 references, u32 offset at +4 */
             for (size_t r = 0; r + 0x1C <= m->wave_size[WAVE_SDIR] && pc_be16(d + r) != 0xFFFF; r += 0x1C) {
                 uint32_t o = pc_be32(d + r + 4) + delta;
                 d[r + 4] = (uint8_t)(o >> 24), d[r + 5] = (uint8_t)(o >> 16);

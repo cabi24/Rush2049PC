@@ -9,24 +9,10 @@
  */
 
 /* zlib name -> game label */
-#define flush_pending       car_cg_height_set
-#define bi_windup           func_800A8174
-#define init_block          func_800A81FC
-#define compress_block      func_800A8284
-#define send_tree           func_800A8778
-#define _tr_stored_block    car_collision_init
-#define bi_reverse          func_800A8F38
-#define gen_codes           car_collision_update
-#define gen_bitlen          func_800A9054
-#define pqdownheap          func_800A928C
-#define build_tree          car_crash_detect
-#define scan_tree           func_800A9710
-#define _tr_flush_block     car_crash_response
-#define _tr_tally           func_800AA028
-#define longest_match       func_800AA224
-#define fill_window         car_reset_position
-#define deflate_slow        car_spawn_at_checkpoint
-#define _tr_init            func_800AAB3C
+#define _tr_stored_block    tr_stored_block
+#define _tr_flush_block     tr_flush_block
+#define _tr_tally           tr_tally
+#define _tr_init            tr_init
 
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
@@ -1560,14 +1546,14 @@ local block_state deflate_slow(s)
  * Hand-written from the assembly; NOT MATCHING yet (context), see STATUS.md.
  */
 extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
-/* audio_reverb_update(address, tag) takes its arguments in a1/a2 under IDO's IPA, so the N64 call passes a
+/* DeallocateMemoryInternal(address, tag) takes its arguments in a1/a2 under IDO's IPA, so the N64 call passes a
  * dummy first; on the PC the address goes first. Heap blocks are RDRAM-window addresses
  * (docs/port/PROTOTYPES.md). */
-extern void audio_reverb_update(unsigned int address, int tag);
-#define audio_reverb_update(opaque, ptr, flag) audio_reverb_update(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
+extern void DeallocateMemoryInternal(unsigned int address, int tag);
+#define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
-extern char D_80152770[];
+extern char heap_lock_queue[];
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 
@@ -1576,9 +1562,9 @@ __inline void zfree_locked(voidpf ptr)
 {
     voidpf heap; /* never set: the game passes whatever is in $a0 */
 
-    osRecvMesg(D_80152770, Z_NULL, 1);
-    audio_reverb_update(heap, ptr, 0);
-    osSendMesg(D_80152770, Z_NULL, 0);
+    osRecvMesg(heap_lock_queue, Z_NULL, 1);
+    DeallocateMemoryInternal(heap, ptr, 0);
+    osSendMesg(heap_lock_queue, Z_NULL, 0);
 }
 #define TRY_FREE(ptr) { if (ptr) zfree_locked(ptr); }
 

@@ -5,10 +5,10 @@
 
 GCC's alias analysis holds that two different external variables never overlap (for a memory access, the symbol
 table's equal_address_to answers "different"). The game C often names one place twice: a symbol and a second,
-address-named symbol inside it (gOptions D_80146108 and D_80146125 = &gOptions[29]), two names at one address, or
+address-named symbol inside it (gOptions gOptions and gOptions_fog_intensity = &gOptions[29]), two names at one address, or
 a view that indexes from one symbol into the next. port/data puts them where the N64 has them, so at -O0 every access
 goes to memory in program order and the names agree. Optimized, a store through one name may be taken not to change
-what the other reads: after `D_80146108[29] += add; if (D_80146108[29] < 0) D_80146125 = 3;` GCC may go on with the
+what the other reads: after `gOptions[29] += add; if (gOptions[29] < 0) gOptions_fog_intensity = 3;` GCC may go on with the
 sum it holds in a register (docs/port/OPTIMIZED.md). The fix is one name on the PC (a TARGET_PC macro).
 
 Method: tools/port/endian_check.py's accesses (GCC's GIMPLE of every live function: base symbol, position, width,
@@ -39,15 +39,15 @@ import endian_check as ec  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 
 # (source, name, name): pairs between functions of one file, read and judged.
-_PLAYER_ROWS = ("func_80397FF4 reads only D_803B5CFC[n][0] with n = gNumPlayers, 1 to 4: 0x803B5D5C + 96 (n - 1), in "
-                "the layout table D_803B5D50, which no code writes. Row 0, over this name, is never read "
+_PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: 0x803B5D5C + 96 (n - 1), in "
+                "the layout table playerscr_gPlayerRects, which no code writes. Row 0, over this name, is never read "
                 "(docs/port/DATA.md 3)")
 REVIEWED = {
-    ("src/ovl_a/groups/runtime_a_availability_refresh/group.c", "D_803B470C", "D_803B5CFC"): _PLAYER_ROWS,
-    **{("src/ovl_a/groups/runtime_a_availability_refresh/group.c", "D_803B5CFC", f"D_803B5D{x}"): _PLAYER_ROWS
+    ("src/ovl_a/groups/playerscr/playerscr.c", "playerscr_buttonInfo", "gPlayerRects_biased"): _PLAYER_ROWS,
+    **{("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", f"D_803B5D{x}"): _PLAYER_ROWS
        for x in ("0C", "10", "14", "18", "1C", "20", "24", "28")},
-    ("src/rom/lib_17dc0.c", "D_80043EB8", "D_800443E0"):
-        "func_80019420 stores D_800443E0[index][selector] once, with the index func_80017644 finds by reading the "
+    ("src/rom/sound/sequencer.c", "sound_seq_players", "sound_seq_studio_groups"):
+        "sound_seq_set_studio_group stores sound_seq_studio_groups[index][selector] once, with the index sound_seq_find_slot finds by reading the "
         "contexts' identifier and inactiveFC1: the store depends on those reads, and nothing reads after it",
 }
 

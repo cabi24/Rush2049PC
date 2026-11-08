@@ -3,7 +3,7 @@
  * Byte-matched against the retail ROM, 2026-10.
  * sequence_context.h (identical declarations; adopted).
  * names 0xFC5 (byte) and 0xFC6 (halfword) from the unknown range,
- * per func_80018EB4/func_80018B8C; the layout is unchanged. */
+ * per sound_seq_set_looping/sound_seq_get_loop_count; the layout is unchanged. */
 #ifndef BOOT_TAIL_SEQUENCE_CONTEXT_H
 #define BOOT_TAIL_SEQUENCE_CONTEXT_H
 
@@ -24,9 +24,9 @@ typedef struct SequenceTimedValue {
 /* PC: a slot holds host pointers (into the song and the project, to sequence nodes, to a caller's result
  * word), so it is laid out natively: 0x1628 bytes on LP64 for the N64's 0xFF8. This header has the slot's
  * whole field sequence with every pointer as a pointer, also where the N64 header has a byte range, and on the
- * PC every other view of a slot in lib_17dc0.c is this sequence under its own names (SEQ_PC_OFF, SEQ_PC_SAME).
+ * PC every other view of a slot in sequencer.c is this sequence under its own names (SEQ_PC_OFF, SEQ_PC_SAME).
  * gen_data counts the pointers as 4 bytes, which gives the N64 layout back (docs/port/MUSYX_DATA.md 8.2). */
-typedef struct SequenceSlotTrack {            /* 0x10: an event track (func_800178B0, func_80018634) */
+typedef struct SequenceSlotTrack {            /* 0x10: an event track (sound_seq_start, sound_seq_play_tracks) */
     void *start;
     void *cursor;
     unsigned int fraction;
@@ -37,9 +37,9 @@ typedef struct SequenceTrack {                /* 0x28; per-track 16.16 clock */
     unsigned int fraction;
     int whole;
     unsigned int unknown08;
-    unsigned char *active0C;                  /* note events (func_80017D38) */
-    unsigned char *active10;                  /* pitch-bend stream (func_8001824C) */
-    unsigned char *active14;                  /* modulation stream (func_80018448) */
+    unsigned char *active0C;                  /* note events (sound_seq_play_note_events) */
+    unsigned char *active10;                  /* pitch-bend stream (sound_seq_play_pitch_bend_streams) */
+    unsigned char *active14;                  /* modulation stream (sound_seq_play_modulation_streams) */
     unsigned char unknown18[16];
 } SequenceTrack;
 
@@ -72,7 +72,7 @@ typedef struct SequenceContext {
     unsigned char channelFC4;
     unsigned char disabledFC5;
     unsigned short valueFC6;
-    unsigned char unknownFC8[0x10];           /* FC8: a SequenceRequest (func_80019490) to FF0 */
+    unsigned char unknownFC8[0x10];           /* FC8: a SequenceRequest (sound_seq_crossfade_unlocked) to FF0 */
     void *streamFD8;
     unsigned char unknownFDC[4];
     unsigned char valueFE0;
@@ -92,33 +92,33 @@ typedef struct SequenceContext {
 #define SEQ_PC_SAME(view, vfield, field) \
     typedef char pc_seq_##view##_##vfield[__builtin_offsetof(view, vfield) == SEQ_PC_OFF(field) ? 1 : -1]
 
-extern SequenceNode *D_80043EB0;
-extern SequenceContext D_80043EB8[8];
-extern SequenceContext *D_8004BE80;
-extern unsigned int D_8004BE78;
-extern unsigned char D_8004BE7C;
-extern unsigned int D_8004F808;
+extern SequenceNode *sound_seq_free_notes;
+extern SequenceContext sound_seq_players[8];
+extern SequenceContext *sound_seq_current;
+extern unsigned int sound_seq_current_index;
+extern unsigned char sound_seq_fading_out;
+extern unsigned int sound_samples_per_tick;
 
-void func_8001729C(SequenceContext *);
-void func_8001734C(SequenceContext *);
-void func_80017470(SequenceNode *);
-void func_80017540(void);
-unsigned int func_80017644(unsigned int);
-unsigned char func_80017D38(void);
-void func_800180A0(void);
-int func_80018184(void);
-void func_8001824C(void);
-void func_80018448(void);
-unsigned char func_80018634(void);
-void func_8001897C(void);
-void func_80018A30(void);
-void func_80018AEC(void);
-void func_80018C2C(unsigned int);
-void func_80018D40(unsigned int);
-void func_80019194(unsigned char, unsigned short, unsigned int, unsigned char);
-void func_80019A60(unsigned int, unsigned char);
-void func_8001B9F8(unsigned char, unsigned short, unsigned char,
+void sound_seq_free_player_notes(SequenceContext *);
+void sound_seq_stop_player_notes(SequenceContext *);
+void sound_seq_free_released_note(SequenceNode *);
+void sound_seq_reap_released_notes(void);
+unsigned int sound_seq_find_slot(unsigned int);
+unsigned char sound_seq_play_note_events(void);
+void sound_seq_advance_pattern_clocks(void);
+int sound_seq_end_due_notes(void);
+void sound_seq_play_pitch_bend_streams(void);
+void sound_seq_play_modulation_streams(void);
+unsigned char sound_seq_play_tracks(void);
+void sound_seq_update_tick_step(void);
+void sound_seq_play_tempo_track(void);
+void sound_seq_advance_tempo_clock(void);
+void sound_seq_pause_unlocked(unsigned int);
+void sound_seq_stop_unlocked(unsigned int);
+void sound_seq_fade_unlocked(unsigned char, unsigned short, unsigned int, unsigned char);
+void sound_synth_set_tempo(unsigned int, unsigned char);
+void sound_fade_volume_group_unlocked(unsigned char, unsigned short, unsigned char,
                    unsigned char, unsigned int);
-int func_8001BDB8(unsigned char);
-unsigned int func_800201D0(unsigned int);
+int sound_is_group_fading_out(unsigned char);
+unsigned int sound_check(unsigned int);
 #endif

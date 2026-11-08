@@ -18,10 +18,10 @@ spellings and the evidence. Every file there is listed with its new path at the 
 2. **`main_thread_entry`** (the main thread's body; its old name called it an init) creates the message queues
    (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`), the scheduler (`gScheduler`, priority 12),
    inflates the game image from the cartridge into RAM with `unzipdata_from_rom`, registers with the scheduler for
-   retraces, starts the other threads (thread 8 `gAudioThread`, thread 5 `model_thread`, thread 7 `game_thread`),
+   retraces, starts the other threads (thread 8 `bg_load_thread`, thread 5 `model_thread`, thread 7 `game_thread`),
    runs the game's late init and sound init, waits for the scheduler's first message, and then runs the game's main
    loop forever.
-3. **`game_thread_entry`** (its old name said audio, but it has nothing to do with audio) calls the game's `game_loop`
+3. **`game_thread_entry`** (its old name said audio, but it has nothing to do with audio) calls the game's `GameLoop`
    forever.
 
 Further threads (2, 3, 9, 10) are created by the game image; their objects and stacks live here too:

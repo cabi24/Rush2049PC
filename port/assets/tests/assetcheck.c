@@ -3,8 +3,8 @@
  *
  *     rush2049pc_assetcheck [baserom.us.z64] [-v]
  *
- * Each of the 183 waves is taken from the file table as _ReadWave takes it (ROM offset D_8011B5BC, size
- * gWaveSizes, storage D_80123564: raw, LZSS or DEFLATE), put in a 32-byte-rounded block in the RDRAM window and
+ * Each of the 183 waves is taken from the file table as _ReadWave takes it (ROM offset wave_rom_offsets, size
+ * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block in the RDRAM window and
  * passed to pc_wave_loaded. Then:
  *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...);
  *   - WADs: each record chunk's count fits before the next chunk; OBHD radii and LOD radii are finite, display

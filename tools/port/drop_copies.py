@@ -18,7 +18,7 @@ C, so each function has its one definition, the one the program linked:
   them.
 
 --statics does the same for file-static copies of a global function (`static void ZOID_Reset(void)` in InitWaves.c,
-whose -O0 code is func_800A5B3C's): the definition becomes a declaration of the global, and the file's uses of the
+whose -O0 code is ZOID_Reset's): the definition becomes a declaration of the global, and the file's uses of the
 name call the global. Which statics are copies was decided from the compiled code (the same instructions, relocations
 and constants as the global's), not from this tool (docs/port/PCONLY.md 4).
 

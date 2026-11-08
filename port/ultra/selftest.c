@@ -66,9 +66,9 @@ uint32_t osVirtualToPhysical(void *vaddr);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
  * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). */
-extern uint8_t D_8017A640[], D_8038A400[];
-extern uint32_t osTvType, D_80000318;
-extern uint8_t D_8002E580[], D_8011B5BC[], D_803B9A50[];
+extern uint8_t game_bss_end[], overlay_base[];
+extern uint32_t osTvType, osMemSize;
+extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
 #ifdef RUSH_NOFIXED
 /* RUSH_NOFIXED (docs/port/NOFIXED.md 2): those names are relative to the window, data.c's section pc_window: N64
  * address a at pc_window + (a - 0x80000000). The game C translates with pc_window_base (port/ultra/n64mem.c). */
@@ -406,7 +406,7 @@ static void t_memory(void)
     uint8_t *last = pc_n64_ptr(top);
     if (last)
         *last = 0xA5;
-    uint32_t mem_size = abs_word(&D_80000318), tv_type = abs_word(&osTvType);
+    uint32_t mem_size = abs_word(&osMemSize), tv_type = abs_word(&osTvType);
     snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, mem_size);
     check("RDRAM window's size", last && pc_n64_ptr(top | 0x20000000u) == last && pc_n64_ptr(size - 1) == last &&
                                      *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
@@ -428,9 +428,9 @@ static void t_memory(void)
                                           pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)
                                     : pc_rcp_reloc(0x40, 0x81000000u, -1) == 0x40 && !pc_rdram_k0_high(hi)),
           d);
-    snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)D_8017A640,
-             (void *)D_8038A400, (void *)&osTvType, tv_type, mem_size);
-    check(AT_N64_WHAT, AT_N64(D_8017A640, 0x8017A640u) && AT_N64(D_8038A400, 0x8038A400u) &&
+    snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)game_bss_end,
+             (void *)overlay_base, (void *)&osTvType, tv_type, mem_size);
+    check(AT_N64_WHAT, AT_N64(game_bss_end, 0x8017A640u) && AT_N64(overlay_base, 0x8038A400u) &&
                            AT_N64(&osTvType, 0x80000300u) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
 #ifdef RUSH_NOFIXED
     snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,
@@ -447,9 +447,9 @@ static void t_memory(void)
                                              n > 0 && strstr(note, "0x80001000") && pc_n64_addr((void *)w) == 0x80000000u,
               d);
     }
-    snprintf(d, sizeof d, "%p, %p, %p", (void *)D_8002E580, (void *)D_8011B5BC, (void *)D_803B9A50);
-    check("game data at its N64 addresses", AT_N64(D_8002E580, 0x8002E580u) && AT_N64(D_8011B5BC, 0x8011B5BCu) &&
-                                                AT_N64(D_803B9A50, 0x803B9A50u), d);
+    snprintf(d, sizeof d, "%p, %p, %p", (void *)gWaveSizes, (void *)wave_rom_offsets, (void *)gTrophyMat);
+    check("game data at its N64 addresses", AT_N64(gWaveSizes, 0x8002E580u) && AT_N64(wave_rom_offsets, 0x8011B5BCu) &&
+                                                AT_N64(gTrophyMat, 0x803B9A50u), d);
     int local;
     snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
     check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,

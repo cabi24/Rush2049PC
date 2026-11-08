@@ -19,25 +19,25 @@ typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool p
 #define N64PTR(T, a) ((T)PC_N64P(a))
 #define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
 typedef struct OSMesgQueue OSMesgQueue;
-extern intptr_t D_801527C8;
-extern s32 D_80152770;
-extern s8 D_8011ED04,D_8011ED00;
-extern u8 D_8038A400[];
+extern intptr_t gMainHeap;
+extern s32 heap_lock_queue;
+extern s8 extra_overlay_loaded,start_overlay_loaded;
+extern u8 overlay_base[];
 typedef struct RaceEntry {u32 allocation;u8 pad4[20];} RaceEntry;
-extern RaceEntry D_8013FEF4[];
+extern RaceEntry car_palettes_palBase[];
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
-void func_80095EC0(void *,u32);
-void *func_80095F8C(u32 arg0);
-Block *func_80095EF4(Heap *heap, u32 addr, s32 tag);
+void FillFreeMem(void *,u32);
+void *FindHeap(u32 arg0);
+Block *FindChunk(Heap *heap, u32 addr, s32 tag);
 /* PC: the free's first step poisons the freed block (block + 32, size). Whatever was registered big-endian in
  * it (a wave's file) goes with it (port/assets). The other two calls clear merged headers. */
 void pc_heap_block_freed(void *p, __SIZE_TYPE__ size);
-#define func_80095EC0(p, n) (pc_heap_block_freed(p, n), func_80095EC0(p, n))
-void audio_reverb_update(u32 address,s32 tag) {
+#define FillFreeMem(p, n) (pc_heap_block_freed(p, n), FillFreeMem(p, n))
+void DeallocateMemoryInternal(u32 address,s32 tag) {
  Heap *heap; Block *block,*next,*prev;
- heap=func_80095F8C(address);
- block=func_80095EF4(heap,address,tag);
- func_80095EC0((u8 *)block+32,block->pad8[1]);
+ heap=FindHeap(address);
+ block=FindChunk(heap,address,tag);
+ FillFreeMem((u8 *)block+32,block->pad8[1]);
  if(block->pad8[2]) SLOT_CLEAR(block->pad8[2]);
  next=N64P(block->next);
  if(next && next->pad14==0) {
@@ -45,7 +45,7 @@ void audio_reverb_update(u32 address,s32 tag) {
   if(block->next) N64P(block->next)->pad8[0]=N64A(block);
   else heap->padc[0]=N64A(block);
   block->pad8[1]+=next->pad8[1]+32;
-  func_80095EC0(next,32);
+  FillFreeMem(next,32);
  }
  prev=N64PTR(Block *, block->pad8[0]);
  block->pad8[2]=0;block->pad14=0;block->tag=0;block->counter=0;
@@ -54,52 +54,52 @@ void audio_reverb_update(u32 address,s32 tag) {
   if(prev->next) N64P(prev->next)->pad8[0]=N64A(prev);
   else heap->padc[0]=N64A(prev);
   prev->pad8[1]+=block->pad8[1]+32;
-  func_80095EC0(block,32);
+  FillFreeMem(block,32);
  }
 }
-#undef func_80095EC0
-/* : __inline + four unused locals: umerge inlines it into func_800C885C below, and each inlined
+#undef FillFreeMem
+/* : __inline + four unused locals: umerge inlines it into AudFree3D below, and each inlined
  * instance reserves its callee's locals in the caller's frame (retail spill homes 56 / 32, frame 64). */
-__inline void audio_effect_process(u32 address) {
+__inline void DeallocateMemory(u32 address) {
  s32 u0, u1, u2, u3;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update(address,0);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
+ osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
+ DeallocateMemoryInternal(address,0);
+ osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
 }
-void synced_model_render(u32 address) {
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update(address,0);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
+void musyx_free(u32 address) {
+ osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
+ DeallocateMemoryInternal(address,0);
+ osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
 }
-void MP_TargetSpeed(void) {
- if(D_8011ED04) {
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update(N64A(D_8038A400),0);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
- D_8011ED04=0;
+void unload_extra_overlay(void) {
+ if(extra_overlay_loaded) {
+ osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
+ DeallocateMemoryInternal(N64A(overlay_base),0);
+ osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
+ extra_overlay_loaded=0;
  }
 }
-void assign_default_paths(void) {
- if(D_8011ED00) {
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update(N64A(D_8038A400),0);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
- D_8011ED00=0;
+void unload_start_overlay(void) {
+ if(start_overlay_loaded) {
+ osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
+ DeallocateMemoryInternal(N64A(overlay_base),0);
+ osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
+ start_overlay_loaded=0;
  }
 }
-void stat_race_end(s32 index) {
- RaceEntry *entry=&D_8013FEF4[index];
+void free_car_palette(s32 index) {
+ RaceEntry *entry=&car_palettes_palBase[index];
  u32 address=entry->allocation;
- osRecvMesg((OSMesgQueue *)&D_80152770,NULL,1);
- audio_reverb_update(address,0);
- osSendMesg((OSMesgQueue *)&D_80152770,NULL,0);
+ osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
+ DeallocateMemoryInternal(address,0);
+ osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
 }
 
 /*
- * menu_item_select (historical label, misleading): heap block resize in place.
- * (address, desired) -> takes the heap message-queue lock (D_80152770), rounds
- * desired up to 32, finds the owning heap (func_80095F8C) and block header
- * (func_80095EF4, tag 0), then
+ * ReallocateMemory (historical label, misleading): heap block resize in place.
+ * (address, desired) -> takes the heap message-queue lock (heap_lock_queue), rounds
+ * desired up to 32, finds the owning heap (FindHeap) and block header
+ * (FindChunk, tag 0), then
  *   shrink, successor absent or in use: split off a free block when at least
  *     64 bytes remain (new size = old - desired - 32);
  *   shrink, successor free: when at least 32 bytes remain, move the
@@ -110,7 +110,7 @@ void stat_race_end(s32 index) {
  * Block header: magic 0xFEDCBA98, next, prev, size, owner, used, tag, count.
  * Heap +0xC is the tail block. No arcade ancestor identified (N64 allocator).
  *
- * Whole-program member: func_80095F8C preserves a1/a3 and func_80095EF4
+ * Whole-program member: FindHeap preserves a1/a3 and FindChunk
  * preserves a3/t0 for this caller, so it only reproduces with both real
  * lookups (internal) in the unit. Everything above this comment is the locked
  * heap_release group source, unchanged.
@@ -138,7 +138,7 @@ typedef struct MHeap {
 
 /* PC: a block that grows takes from the heap: reported as an allocation (port/ultra/heap.c). */
 
-void menu_item_select(u32 address, u32 desired) {
+void ReallocateMemory(u32 address, u32 desired) {
     MHeap *heap;
     MBlock *block;
     MBlock *next;
@@ -146,10 +146,10 @@ void menu_item_select(u32 address, u32 desired) {
     u32 size;
     u32 nsize;
 
-    osRecvMesg((OSMesgQueue *)&D_80152770, NULL, 1);
+    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
     desired = (desired + 31) & ~31U;
-    heap = (MHeap *)func_80095F8C(address);
-    block = (MBlock *)func_80095EF4((Heap *)heap, address, 0);
+    heap = (MHeap *)FindHeap(address);
+    block = (MBlock *)FindChunk((Heap *)heap, address, 0);
     size = block->size;
     if (size >= desired) {
         next = N64P(block->next);
@@ -222,22 +222,22 @@ void menu_item_select(u32 address, u32 desired) {
         }
         block->size = desired;
     }
-    pc_heap_allocated(heap); osSendMesg((OSMesgQueue *)&D_80152770, NULL, 0);
+    pc_heap_allocated(heap); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
 }
 
-/* : func_800C885C -- frees the two cached audio heap handles D_8011025C / D_80110260 (the first half
- * func_800C8918's shutdown): for each non-zero handle, audio_effect_process(handle) (inlined), then zero it.
- * audio_reverb_update is internal and clobbers s0/s1, which is why this caller saves them unused. */
-extern uintptr_t D_8011025C;
-extern uintptr_t D_80110260;
+/* : AudFree3D -- frees the two cached audio heap handles gListeners / gEmitters (the first half
+ * AudioShutdown's shutdown): for each non-zero handle, DeallocateMemory(handle) (inlined), then zero it.
+ * DeallocateMemoryInternal is internal and clobbers s0/s1, which is why this caller saves them unused. */
+extern uintptr_t gListeners;
+extern uintptr_t gEmitters;
 
-void func_800C885C(void) {
-    if (D_8011025C) {
-        audio_effect_process(D_8011025C);
-        D_8011025C = 0;
+void AudFree3D(void) {
+    if (gListeners) {
+        DeallocateMemory(gListeners);
+        gListeners = 0;
     }
-    if (D_80110260) {
-        audio_effect_process(D_80110260);
-        D_80110260 = 0;
+    if (gEmitters) {
+        DeallocateMemory(gEmitters);
+        gEmitters = 0;
     }
 }

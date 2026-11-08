@@ -39,9 +39,9 @@ Not tried yet: a race to its finish line, saving a ghost, sound through a device
 
 ### 1. The attract demo's blit: NewMultiBlit's tables without their layout
 
-The demo faulted in its first frame, in `strcpy` from InitBlit (`collision_sound_play`). NewMultiBlit
-(`sound_control`) reads its descriptor table as `MultiBlit`, whose texture name and animation function are pointers;
-the demo's table `D_80114128` was declared `s32` in every file, so the loader kept it as words in the N64 layout, and
+The demo faulted in its first frame, in `strcpy` from InitBlit (`InitBlit`). NewMultiBlit
+(`NewMultiBlit`) reads its descriptor table as `MultiBlit`, whose texture name and animation function are pointers;
+the demo's table `demo_multiblit` was declared `s32` in every file, so the loader kept it as words in the N64 layout, and
 the name, read as 8 bytes, took in the field after it.
 
 Ten tables passed to NewMultiBlit had declarations without the layout (`s32`, `u8[]`, `char[]`, createBG's view
@@ -60,9 +60,9 @@ those are fine as bytes, the others are tables (section 8).
 
 | Table | Ran over | Symptom | Fix |
 |---|---|---|---|
-| `D_8011F914`, AnimateShadow's `f32[][4]` shadow scales | the car types' names | every car part lookup failed; a part object with no model id reused its parent's scene node, which became its own child, and the show/hide walk recursed until the stack ran out | `f32[14][4]` (body types 0-13) |
-| `D_8011F0A0`, the sfx groups pushed at boot | the songs' names | the audio screen's names scrambled | `Instrument4[4]` |
-| `D_803B83A4`, image A's warning screen blit (`MultiBlit[]`) | the car select blits' names | the car select faulted on a texture lookup that failed | one `MultiBlit` |
+| `shadow_scales`, AnimateShadow's `f32[][4]` shadow scales | the car types' names | every car part lookup failed; a part object with no model id reused its parent's scene node, which became its own child, and the show/hide walk recursed until the stack ran out | `f32[14][4]` (body types 0-13) |
+| `boot_sfx_groups`, the sfx groups pushed at boot | the songs' names | the audio screen's names scrambled | `Instrument4[4]` |
+| `warningscr_blits`, image A's warning screen blit (`MultiBlit[]`) | the car select blits' names | the car select faulted on a texture lookup that failed | one `MultiBlit` |
 
 Test: the synthetic cartridge keeps strings right after these tables (`strings_after`), and refuses bytes a
 declaration covers there, so a table sized by the gap again stops its generator. (155c3f2, c4db0a2.)
@@ -71,9 +71,9 @@ declaration covers there, so a table sized by the gap again stops its generator.
 
 In the demo every car's position became NaN. Watching car 0's record with a gdb Python breakpoint at each physics
 step found the first NaN in a tire's traction: the tire records' floats had their halves exchanged. The torque curve
-`D_8011F724` (`u16[]`) ran by the gap over the two tire records after it, which only the physics descriptors' u32
-`tire_info` fields reach, so they were swapped as u16s. The curve is `u16[10 * 12]` (func_800E2D18's
-`short[10][12]`), and the tire records are declared in `car_resistance` as `float[2][6]` (func_800D09E8 copies six)
+`stdtorquecurve` (`u16[]`) ran by the gap over the two tire records after it, which only the physics descriptors' u32
+`tire_info` fields reach, so they were swapped as u16s. The curve is `u16[10 * 12]` (enginetorque's
+`short[10][12]`), and the tire records are declared in `car_resistance` as `float[2][6]` (copy_tire_info copies six)
 and referenced there, so the loader knows them. Test: the synthetic cartridge's tire curves are those records, so its
 kind check needs them to be floats. (155c3f2.)
 
@@ -86,14 +86,14 @@ colours, the checkered start, the sky.
 ### 5. Skid marks
 
 At the end of the demo, and later in races, the skid code freed a display handle that was a float. StopSkid
-(`func_800AF844`) writes a finished skid's midpoint and done flag through its own view of the effect record, which had
+(`StopSkid`) writes a finished skid's midpoint and done flag through its own view of the effect record, which had
 the N64 offsets; on the PC the effect's links and display handle are pointers, so the midpoint landed on the time and
-the handle. Its view has the PC layout now. The reset (`func_800B0580`) also cleared the skid table's N64 size, 96
+the handle. Its view has the PC layout now. The reset (`InitSkids`) also cleared the skid table's N64 size, 96
 bytes short of the PC's. Test: `assets_pool` runs StopSkid and the reset. (786daab.)
 
 ### 6. `--until-state` and the retail state word
 
-The retail cartridge's gGameState starts as the game's own "no state", -1 (func_800B7FF8 tests for it), whose bits
+The retail cartridge's gGameState starts as the game's own "no state", -1 (UpdateHUDPostCamera tests for it), whose bits
 match every `--until-state` mask, so each was met on the first retrace. The host loop takes no state from the value
 the state word starts with, until the game first changes it; the synthetic cartridge starts it at -1 too. (3253de2,
 and the commit that made the rule general.)
@@ -101,17 +101,17 @@ and the commit that made the rule general.)
 ### 7. The track select's fog
 
 The track select faulted in its first frame, in the 2D draw's palette load, with a NULL colour table. The fog blit's
-palette is `D_803BA1E8`, a WAD-style Palette whose colour table the draw reads at +0x14 as a u32 window address: the
-word `D_803BA1FC`, which the C declared `u8 *` and so gave storage of its own outside the window. It is a u32 in the
+palette is `n64FogPal`, a WAD-style Palette whose colour table the draw reads at +0x14 as a u32 window address: the
+word `n64FogPal_palBase`, which the C declared `u8 *` and so gave storage of its own outside the window. It is a u32 in the
 arena now (`FOG_TABLE`, `PC_N64W`). Test: the synthetic cartridge makes the fog (an IA texture, its option valid);
 without the fix its paths fault at the track select. (8d469cf.)
 
 ### 8. Tables only pointers reach
 
-The stunt arena faulted in `camera_shake_start` at its race start. The track animations are per-track tables behind
-the pointer tables `D_8011A31C` (object-animation sequences, each with frames) and `D_8011A840` (palette
+The stunt arena faulted in `InitTextureAnimation` at its race start. The track animations are per-track tables behind
+the pointer tables `TextureSwapLists` (object-animation sequences, each with frames) and `PaletteLists` (palette
 animations), read with their host layout, but no symbol describes them: by the gap, the first sequence tables lay in
-the shared frames table's storage and the palette animations in `D_8011A31C`'s, converted as the wrong types. The
+the shared frames table's storage and the palette animations in `TextureSwapLists`'s, converted as the wrong types. The
 same report showed the suspensions (`carSuspensions`) and the demo paths' start points in big-endian order.
 
 `port/data/reached.txt` now names such tables by rule (DATA.md 7): the root table of pointers, the type, and how
@@ -123,8 +123,8 @@ faults without the rules. (22e79a7.)
 
 ### 9. The video and audio screens' second blit
 
-The video screen called an animation function at -1. It makes two blits from `D_8011ACA0` (or `D_8011ACE8` when
-paused), the audio screen two from `D_801105E4`, but each was declared one MultiBlit, so the second was read past
+The video screen called an animation function at -1. It makes two blits from `video_frontEndBlit` (or `video_pauseBlit` when
+paused), the audio screen two from `audio_pauseBlit`, but each was declared one MultiBlit, so the second was read past
 its storage. Each is declared with its two. Every other table passed to NewMultiBlit holds the count it is passed.
 Test: the synthetic cartridge sets the second blits, which its generator refuses outside a symbol. (ac8fa7f.)
 
@@ -138,15 +138,15 @@ battle HUD has an IA blit and player 1's health bar; without the fix the battle2
 ### 11. Battle: the gear ratios
 
 Battle cars didn't move: full throttle, an absurd drive torque, wheels that never turned. The gear ratios are a
-row of six per car class (the model's byte 9; battle's cars use a later row), read from `D_80110EC0` by byte
-offsets; by the gap the table was one row, and the others kept the ROM's byte order. `extents.txt` gives `D_80110EBC` its eight
+row of six per car class (the model's byte 9; battle's cars use a later row), read from `carTransGearRatio_biased` by byte
+offsets; by the gap the table was one row, and the others kept the ROM's byte order. `extents.txt` gives `carTransGearRatio` its eight
 rows. `tools/port/index_check.py` now knows m2c's byte-offset indexing and finds this table, and only it; its ctest
 fails without the extent. The synthetic cartridge sets every row. (db843ba.)
 
 ### 12. Four players: the model slots
 
 A four-player game faulted on the player screen, on a model name index in the millions: the player screens' model
-slots (`D_803B470C`, 22 per player) had an extent of three players (a known address inside the table), so the fourth
+slots (`playerscr_buttonInfo`, 22 per player) had an extent of three players (a known address inside the table), so the fourth
 player's kept the ROM's byte order. `extents.txt` gives it four. Test: the synthetic cartridge sets all four
 players' slots, which its generator refuses outside a three-player table. (4ad9b79.)
 
@@ -187,34 +187,34 @@ offset hardly matters), the cut-out trees (their holes show what is behind), the
 
 A player's single race with the default options (2026-10-27) showed a skull and crossbones at the top left, by the
 speedometer, which the N64 shows only in deaths mode; a headless race on the Pi showed it too. A temporary print in
-NewMultiBlit (`sound_control`) listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
-`D_801158DC` (8), whose crossbones blits, one per player as in the GC's HudMultiBlit, run animBones
-(`func_80105DA8`, the GC's hud.c). It hides them unless gDeathMode (`D_80142760`, option 31, 0 by default) is on, and
+NewMultiBlit (`NewMultiBlit`) listed the race's tables: the race set `D_80114C58` (89 blits) and the HUD set
+`HudMultiBlit` (8), whose crossbones blits, one per player as in the GC's HudMultiBlit, run animBones
+(`animBones`, the GC's hud.c). It hides them unless gDeathMode (`gDeathMode`, option 31, 0 by default) is on, and
 for a player past the windows or whose car is locked in place. The function was still m2c code at the blit's N64 offsets: on the PC's Blit
 (POINTERS.md 9.3) +0x1A is the low byte of X, not Hide, and +0x2C is Left and Right, not the AnimID. So it set X's
-low byte to 1, left Hide 0, and every race drew the skull at the left edge. Its place table, bonesPos (`D_801160C8`,
+low byte to 1, left Hide 0, and every race drew the skull at the left edge. Its place table, bonesPos (`bonesPos`,
 s32 [windows][player][2]), was an `M2C_UNK`: the loader described its first word and left the rest in the ROM's byte
 order, which deaths mode reads. It has a PC version over the host layout, and the table is declared whole.
 
 Three more blit animation functions were m2c code at N64 offsets (the functions that call UpdateBlit and use raw
-offsets: there are no others). callback_init gives the idle overlay its colour: game_loop makes that blit
-(`D_801146C4`) once no button has been held for 300 s outside the title and the attract demo, and the 8-byte store
+offsets: there are no others). animControllerDim gives the idle overlay its colour: GameLoop makes that blit
+(`idle_warning_multiblit`) once no button has been held for 300 s outside the title and the attract demo, and the 8-byte store
 at the N64's +4 split the colour's address over the Name and the Image, which came out NULL. The retail game faulted
-in the 2D fill (`func_8008A46C`) after five idle minutes on a menu; with the fix the overlay draws. struct_callback_init
-does the same for the settings dialog's blit (`save_settings`, which nothing calls that was found) and clears its
-AnimFunc, and sound_volume_helper shows its blit on the results screen. Each has a PC version, and their two colours
-(`D_801146FC`, `D_80116DE0`), which the fill reads as R, G, B, A bytes, are declared as bytes: as `s32` the loader
+in the 2D fill (`BlitRect`) after five idle minutes on a menu; with the fix the overlay draws. animate_pause_dim
+does the same for the settings dialog's blit (`PS_ErrorFunc`, which nothing calls that was found) and clears its
+AnimFunc, and anim_show_on_high_score shows its blit on the results screen. Each has a PC version, and their two colours
+(`controller_dim_color`, `pause_dim_color`), which the fill reads as R, G, B, A bytes, are declared as bytes: as `s32` the loader
 reversed them.
 
-Checked on the way, and right: the "000" under MPH is the odometer (animOdometer, `func_80106D94`: gShowOdometer,
+Checked on the way, and right: the "000" under MPH is the odometer (animOdometer, `animOdometer`: gShowOdometer,
 option 6), whose tenths digit rolls (from the right half of its digit strip), and the tall translucent panel down the
-left side, with its V and the blue marker, is the radar (animRadar, `func_80108DA8`, and its blips, `func_80108F40`:
-gShowRadar, option 1). GetDefaultOption (`func_800CCB40`, byte-matched) turns both options on, and
+left side, with its V and the blue marker, is the radar (animRadar, `animRadar`, and its blips, `animRadarBlip`:
+gShowRadar, option 1). GetDefaultOption (`GetDefaultOption`, byte-matched) turns both options on, and
 both functions read the blit with its PC layout, as do the race and HUD sets' other animation functions.
 
 Tests: `assets_hudblit` runs the four functions on a host blit (each old body fails it). The synthetic cartridge's HUD
 set has the four crossbones blits, and bonesPos a place for every view, which its generator refuses past a one-word
-declaration; its idle overlay table has callback_init and a colour of bytes, which the generator refuses in a word;
+declaration; its idle overlay table has animControllerDim and a colour of bytes, which the generator refuses in a word;
 and its `idle` path waits 320 s on the mode screen, where it faulted without the fix.
 
 ## How the stops were found
@@ -236,7 +236,7 @@ and its `idle` path waits 320 s on the mode screen, where it faulted without the
 
 - The paths not tried yet (the table above), and races to their end on the retail cartridge.
 - The report's remaining `undescribed` targets that aren't text are colours (`gTrackColors`), short labels (the pak
-  numbers, a few names), the per-kind byte tables `D_80118DDC`, and the tail of the shared animation frames'
+  numbers, a few names), the per-kind byte tables `gTargetStructInfoPtrs`, and the tail of the shared animation frames'
   extent: right as bytes, or unused. Ghost saving and loading (zlib) haven't run on the retail cartridge.
 - More tables sized by the gap may run over data no pointer reaches; `index_check.py` and the `text-in-words` lines
   find two kinds of them.

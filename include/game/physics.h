@@ -310,7 +310,7 @@ void physics_init(CarPhysics *m);
 void physics_init_all(void);
 
 /* Main simulation step */
-void physics_sym(CarPhysics *m);
+void updateVideoScreen(CarPhysics *m);
 void physics_syminit(CarPhysics *m);
 void physics_regular(CarPhysics *m);
 

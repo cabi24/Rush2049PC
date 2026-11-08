@@ -11,7 +11,7 @@ there are compared. 2026-10-27. Related: [ENDIAN.md](ENDIAN.md) 2 (endian_check,
 
 ```
 python3 tools/port/layout_check.py [--build build/pc] [-j 2] [--reuse]    # build/pc/endian/layout.txt
-python3 tools/port/layout_check.py --reuse --storage D_8014D280           # every access placed on a storage
+python3 tools/port/layout_check.py --reuse --storage gTargetArray           # every access placed on a storage
 python3 tools/port/layout_check.py --selftest                             # ctest layout_check
 ```
 
@@ -45,13 +45,13 @@ host, and the analysis alone about 10 s on the Pi 5.
    - what a slot points to is what was stored there, when that is up to four storages; stores made through a
      pointer that reaches several storages (a list or pool function's own stores) are not followed, and neither are
      values that are any of several. `LINKS` names the functions whose calls say it instead: `InsertLLE`
-     (`func_80091FBC`: the list's head points to the object's storage) and the StatLL set-up (`pool_init`,
-     `struct_fields_init`: the pool's element, active and free slots point to its memory);
+     (`InsertLLE`: the list's head points to the object's storage) and the StatLL set-up (`pool_init`,
+     `InitStatLL`: the pool's element, active and free slots point to its memory);
    - a list's link is the list's own storage (taken before any store is followed, which would give a list
      function's own list every list), and so are a tree node's links (with the stores: the insert takes the node
      as a parameter);
    - a function whose address is stored into a slot is called by every call through a pointer loaded from that
-     slot: its parameters take those calls' arguments (the sorted-tag tree's order `draw_sprites`, through
+     slot: its parameters take those calls' arguments (the sorted-tag tree's order `OrderFx`, through
      `AudioInit`'s tree; the linker's `aliases.ld` names one function by its two names).
    A function name defined in several units (static helpers) is qualified by its unit.
 4. **References.** A symbol's reference layout is the declaration gen_data chooses (`data_symbols.txt`'s type; else
@@ -67,7 +67,7 @@ host, and the analysis alone about 10 s on the Pi 5.
       class, the view is either a PC view padded in host bytes, declared for the PC build only (`#ifdef
       TARGET_PC` around its declaration line in its unit, by DWARF), which scores 2, or the N64 build's view too,
       which scores 4: its N64 positions are the N64's fields, and on the PC it reaches another field of the same
-      width (func_8008BEA4's `In`, section 4.4). Without a reference: a view that puts an N64 position at another
+      width (AnimateBrakeLights's `In`, section 4.4). Without a reference: a view that puts an N64 position at another
       host offset than most views do, or a host offset at another N64 position (4, both sides when tied).
    2. *Raw offsets* (1b): an access with no view opinion, or a pointer passed to a function, at a host offset inside a
       reference scalar wider than a byte (5 in a pointer, 4 otherwise); an access with no view opinion that reads the
@@ -89,14 +89,14 @@ over the whole game. The run on the fixed tree has none of these.
 
 | Fix reverted | Found (score 5) |
 |---|---|
-| `5d6334d` `PauseTargets` (RaceStateMachine_Update) | `D_8014D280`: `Target` off the reference `Node` at 2 N64 positions; an 8-byte pointer where `Node` has the u32 `next` |
-| `383402f` `random_float`'s `Reckon` | the dead-reckoning records' heap block: `Reckon` off the reference `Matrix64` at 6 positions; an 8-byte pointer where it has the u32 `record` |
-| `99f3646` overlay B's `Object` (runtime_b_resource_callbacks) | `D_8014D280`: `Object` off `Node` at 3 positions |
-| `99f3646` the walks of `func_8039133C` and `func_800BEA6C` | `D_8014D280`: two 8-byte pointers over `next`; `func_8039133C`'s `Object` off `Node` |
-| `1dfe3f6` `func_800FBE60`'s `* 952` | `D_80152818`: an index `* 952`, the N64 size of its element (PC 0x468) |
+| `5d6334d` `PauseTargets` (updatePauseScreen) | `gTargetArray`: `Target` off the reference `Node` at 2 N64 positions; an 8-byte pointer where `Node` has the u32 `next` |
+| `383402f` `setMiniFBCollisionForce`'s `Reckon` | the dead-reckoning records' heap block: `Reckon` off the reference `Matrix64` at 6 positions; an 8-byte pointer where it has the u32 `record` |
+| `99f3646` overlay B's `Object` (runtime_b_resource_callbacks) | `gTargetArray`: `Object` off `Node` at 3 positions |
+| `99f3646` the walks of `InitBattlePowerUps` and `PauseTargets` | `gTargetArray`: two 8-byte pointers over `next`; `InitBattlePowerUps`'s `Object` off `Node` |
+| `1dfe3f6` `InitCPTime`'s `* 952` | `gGameCar`: an index `* 952`, the N64 size of its element (PC 0x468) |
 
-The nodes are reached through the pool's set-up (`pool_init(&D_80143FC8, &D_8014D280, ...)`, `LINKS`), the active
-list `D_80143FD8` (inside `D_80143FC8` at +0x18), the walks, func_8039133C's slots (a pointer store) and race_setup_2's
+The nodes are reached through the pool's set-up (`pool_init(&gTargetList, &gTargetArray, ...)`, `LINKS`), the active
+list `gTargetList_head` (inside `gTargetList` at +0x18), the walks, InitBattlePowerUps's slots (a pointer store) and CheckTargetCollision's
 side array; level_objects' `Node` is their reference.
 
 The synthetic cartridge's boot ([SYNTH.md](SYNTH.md) 3) fixed bugs of the same kind on main at the same time. After
@@ -105,12 +105,12 @@ the merge, each of those fixes, and section 4.4's, was reverted the same way:
 | Fix reverted | Found |
 |---|---|
 | the audio manager's records (SYNTH.md 3, item 2: the fx tag and sorted-tag allocations, the command table's step, the views) | 40 open findings, 27 of them 4 or 5: e.g. `Record` (record_score), `Entity` (entity_lookup, entity_helpers, transform) and `ResEntry` off `tFxSequence`; `Event` and `Node16` off the sequence tag, and an index `* 60` over its pool; `Msg` off `tAudioMsg`; `Slot18[]`, `Slot24[]` and `ShutdownMsg[]` indexes of the command's N64 size; `CamSlot` off `Source` |
-| camera_victory's `VCar` | `D_8014A250`: host +0x3A0 read as 8 bytes and as 4 (score 4: the reference has bytes there; `VCar` against the model's other views) |
-| `func_800E2D18`, `func_800E2C70`, `func_800E1500` | `D_8014A250`: three 8-byte pointers where the reference has the u32 `car` and `parameters` (5); `EngineState` off the reference at 3 positions (5) |
-| `draw_sprites`, the sorted-tag order | the sorted-tag pool: a 4-byte read inside a node's link (5). The order is only called through the tree's function pointer; it read the tag at the node's +8, which is its right link on the PC, so the tag's priority was read from another node |
-| func_8008BEA4's `In` (section 4.4) | `D_80152818`: `In` gives other N64 positions than the car (4) |
+| CollideCarBody's `VCar` | `D_8014A250`: host +0x3A0 read as 8 bytes and as 4 (score 4: the reference has bytes there; `VCar` against the model's other views) |
+| `enginetorque`, `transmission`, `calcaa` | `D_8014A250`: three 8-byte pointers where the reference has the u32 `car` and `parameters` (5); `EngineState` off the reference at 3 positions (5) |
+| `OrderFx`, the sorted-tag order | the sorted-tag pool: a 4-byte read inside a node's link (5). The order is only called through the tree's function pointer; it read the tag at the node's +8, which is its right link on the PC, so the tag's priority was read from another node |
+| AnimateBrakeLights's `In` (section 4.4) | `gGameCar`: `In` gives other N64 positions than the car (4) |
 
-camera_victory's and draw_sprites' needed the function-pointer and tree flow and the width check where the
+CollideCarBody's and OrderFx' needed the function-pointer and tree flow and the width check where the
 reference has bytes; the first version of this check (section 3) found neither.
 
 ## 3. Over the game
@@ -129,72 +129,72 @@ before.
 All edits are N64-neutral (`n64_neutral.py --base 09da2f0`: 0 FAIL): PC views under `#ifdef TARGET_PC` at file scope,
 and macros on existing lines whose N64 expansion is the original tokens. The synthetic cartridge fixed the audio
 manager's records and the model record's readers on main at the same time (SYNTH.md 3); where both changed a file
-(18 files: the audio views, the three physics readers, hud_setup's pools), the merge keeps main's version. The
+(18 files: the audio views, the three physics readers, AudioInit's pools), the merge keeps main's version. The
 tests of section 5 and this check pass on them.
 
 ### 4.1 The audio manager's records
 
 MAT3 audiomgr.c's records are linked by `InsertLLE` through two pointer-sized links, and the MAT3-typed audio
-manager (`engine_sound_sync/audiomgr_thread.c`) has their PC layouts; the other views kept the N64 offsets. On the PC:
+manager (`audiomgr/audiomgr_thread.c`) has their PC layouts; the other views kept the N64 offsets. On the PC:
 
 | Record | N64 | PC | Fields after the links |
 |---|---:|---:|---|
-| FX tag (`tFxSequence`), the pool `D_80110244` | 0x44 | **0x58** | list 0x10, id 0x18, state 0x1C, paused/loop/numCmds/priority 0x24–0x27, startTime 0x2C, vol..pitch 0x30–0x3C, sysId 0x48, data 0x50 |
-| sequence tag (`anon_ll_id_3c`), the pool `D_80110270` | 0x3C | **0x48** | id 0x10, free/active/stop 0x14–0x16, startTime 0x18, timeout 0x1C, next 0x20, ids 0x24, subId 0x34, replace 0x38, priority 0x3C, sndTag 0x40 |
-| message (`tAudioMsg`), the pool `D_80142DD8[128]` | 0x18 | **0x20** | changeEffect's vol..pitch at 0x04–0x10, its tag 0x18; a stop's or an interrupt's tag at 0x08 |
+| FX tag (`tFxSequence`), the pool `gFxTags` | 0x44 | **0x58** | list 0x10, id 0x18, state 0x1C, paused/loop/numCmds/priority 0x24–0x27, startTime 0x2C, vol..pitch 0x30–0x3C, sysId 0x48, data 0x50 |
+| sequence tag (`anon_ll_id_3c`), the pool `gSequences` | 0x3C | **0x48** | id 0x10, free/active/stop 0x14–0x16, startTime 0x18, timeout 0x1C, next 0x20, ids 0x24, subId 0x34, replace 0x38, priority 0x3C, sndTag 0x40 |
+| message (`tAudioMsg`), the pool `audiomgr_gCmds[128]` | 0x18 | **0x20** | changeEffect's vol..pitch at 0x04–0x10, its tag 0x18; a stop's or an interrupt's tag at 0x08 |
 | 3D-sound source (`Source`; `Owner`), a tag's data | 0x2C | **0x38** | active/queued 0x10, position 0x14, radius 0x20, nearVolume 0x24, parameter 0x2C |
 
-- FX tags: `_InterruptFxTag` (`audio_pitch_adjust`, ap.c: it read the tag's list from its `prev` link and wrote
-  `&gInterruptedFxTags` over it; its list header `D_80144C50` gets a view of its own), `_CalcPriority`
-  (`func_80098710`, record_score), the 3D update's `Effect` (engine_sound_sync.c), `_GetFxTag` (`func_80091BA8`,
-  entity_lookup: the id at +0xC and a 0x48-byte stride) and `scheduler_recv`, the tag views of entity_helpers
-  (`cam`, the data) and transform (`entity_transform_calc`'s command count and values), `results_time_display`, and
-  the pool's size (hud_setup's `Voice` ended 8 bytes short: its padding covered the data pointer).
+- FX tags: `_InterruptFxTag` (`InterruptFxTag`, ap.c: it read the tag's list from its `prev` link and wrote
+  `&gInterruptedFxTags` over it; its list header `gInterruptedFxTags` gets a view of its own), `_CalcPriority`
+  (`WeightedPriority`, record_score), the 3D update's `Effect` (ProcessEmitters.c), `_GetFxTag` (`ConvertTag`,
+  entity_lookup: the id at +0xC and a 0x48-byte stride) and `AudStopEffect`, the tag views of entity_helpers
+  (`cam`, the data) and transform (`AudChangeEffect`'s command count and values), `AudEffectPlaying`, and
+  the pool's size (AudioInit's `Voice` ended 8 bytes short: its padding covered the data pointer).
 - Messages: transform's `Msg` kept its payload in a union with a pointer, so on the PC its four words were 4 bytes
-  late and the manager read vol from lrpan's place (`MSG_TARGET` for its weak `scheduler_recv`); the pool's
-  allocator `func_80091B00`, hud_setup's clear and `func_800C8918` stepped 24 bytes.
-- Sequence tags: a sequence's start `car_stats_display` (also: it built `va_list` as a pointer past the last named
+  late and the manager read vol from lrpan's place (`MSG_TARGET` for its weak `AudStopEffect`); the pool's
+  allocator `GetCmd`, AudioInit's clear and `AudioShutdown` stepped 24 bytes.
+- Sequence tags: a sequence's start `AudPlaySequence` (also: it built `va_list` as a pointer past the last named
   parameter, which is not where the host ABI passes the variadic arguments: the compiler's on the PC),
-  `game_timer_pause` (the lookup, a 0x3C stride), `func_800D18D8` (the free list), `entity_flag_check` (the free, at
+  `stop_sequence` (the lookup, a 0x3C stride), `NewSequence` (the free list), `FreeSequence` (the free, at
   raw offsets: `SEQ_ID`, `SEQ_FREE`, `SEQ_ACTIVE`).
-- Sources: `func_800AED20` (`_GetSource`) cleared the active byte at +8 (`SOURCE_ACTIVE`); entity_helpers' `CamSlot`
+- Sources: `NewEmitter` (`_GetSource`) cleared the active byte at +8 (`SOURCE_ACTIVE`); entity_helpers' `CamSlot`
   (the position) had the N64 layout.
-- The fades' lookup `func_800956BC` had `s32 word0` over the node's link and read the key at +0x14, where
-  audio_fade_control keeps the entry pointer at +0x18: it never matched. The key is `intptr_t` now.
-- `pointer_offset8_call` inserted into an ordered list's `count` (+8); the root is at +0x10 (`OL_ROOT`).
+- The fades' lookup `FindChangeCmd` had `s32 word0` over the node's link and read the key at +0x14, where
+  SendCmd keeps the entry pointer at +0x18: it never matched. The key is `intptr_t` now.
+- `InsertBSTE` inserted into an ordered list's `count` (+8); the root is at +0x10 (`OL_ROOT`).
 
 None of this ran on the PC yet: the ROM-less boot stops in AudioSfxInit, before the first sound.
 
 ### 4.2 The model record, the cars and their visuals
 
 - The model record keeps its N64 layout ([CARS.md](CARS.md) 4), and three readers took its u32 window addresses as
-  host pointers: the torque `func_800E2D18` (`EngineState`: the tune at +4 read 8 bytes wide from +8, and the indices
-  after it 8 bytes late; `TUNE`), `func_800E1500` (the descriptor through `void **`; `MODEL_CAR`) and
-  `func_800E2C70` (`*(s8 **)(arg0 + 0)` and `+ 4`; `MODEL_P`).
-- The car's scene-node handle (+0xF4, an s32): `race_init_helper` and `func_800E92C8`'s `Cr` read its low half as the
+  host pointers: the torque `enginetorque` (`EngineState`: the tune at +4 read 8 bytes wide from +8, and the indices
+  after it 8 bytes late; `TUNE`), `calcaa` (the descriptor through `void **`; `MODEL_CAR`) and
+  `transmission` (`*(s8 **)(arg0 + 0)` and `+ 4`; `MODEL_P`).
+- The car's scene-node handle (+0xF4, an s32): `Update_MDrive` and `UpdateRearCamera`'s `Cr` read its low half as the
   s16 at +0xF6, the high half on a little-endian host (ENDIAN.md 3.1; endian_check missed them, as one reaches the car
-  through the name `D_80152BD0` inside player_array).
-- `func_800EA3F4` read +0x35C/+0x35D raw, past the visuals: `CAR_OFS`.
-- `model_bounds_calc` and the five visual animators of `func_800AC8D4`'s table (func_8008B640's group: `ModelObj`)
+  through the name `car1_objnum` inside gGameCar).
+- `View3Cam` read +0x35C/+0x35D raw, past the visuals: `CAR_OFS`.
+- `CheckVisibleAll` and the five visual animators of `StartSparks`'s table (PositionObject's group: `ModelObj`)
   saw a visual on the N64 layout, so they took its index as the model and its objnum as the player.
 
 ### 4.3 Other records
 
-- The heap's resize in place `menu_item_select` (the save code shrinks a ghost's header block with it) viewed the
+- The heap's resize in place `ReallocateMemory` (the save code shrinks a ghost's header block with it) viewed the
   block headers with host pointers; they keep their N64 layout (alloc_at.c's `Block`): `enum n64p_MBlock`.
-- The controller/pak records: `func_8008A6A4` strided by 0x304 (`PAK_RECORD`, 0x310 on the PC; POINTERS.md 9.6).
-- The result panes `D_80154350` are `intptr_t`, and `records_screen` cleared them through an `s32 *`.
-- The profile's name: 17 sites in eight files add the N64 offset 20 to the profile record (`*input_rec0[p].name + 20`,
+- The controller/pak records: `pak_removed` strided by 0x304 (`PAK_RECORD`, 0x310 on the PC; POINTERS.md 9.6).
+- The result panes `resultPane` are `intptr_t`, and `RemoveHUD` cleared them through an `s32 *`.
+- The profile's name: 17 sites in eight files add the N64 offset 20 to the profile record (`*gPlayers[p].name + 20`,
   `owner->body + 20`, `NameData`'s 20 bytes), and controls.c reads the rumble byte at 43; the PC profile has them at
-  `PROFILE_OFS(20)` = 0x20 and 0x37 (POINTERS.md 9.10). `func_8010B5D0` also read the profile handle as an `s32`.
-- Blits ([POINTERS.md](POINTERS.md) 9.3): `func_80108DA8`'s `MenuNode` is the 0x40-byte N64 blit (the PC's is 0x68),
-  and the hide setter `input_new_data_wrapper` used `arg0[0x1A]` (`BLIT_HIDE`, 0x26).
-- The audio DMA list: lib_11050.c's `func_80010450` wrote its entries through a 24-byte view with a pointer-sized
-  source; the entries are lib_11640.c's 16 bytes (`DMA_ENTRY_SIZE`), a u32 cartridge source (`DMA_SOURCE`).
+  `PROFILE_OFS(20)` = 0x20 and 0x37 (POINTERS.md 9.10). `animTitleText` also read the profile handle as an `s32`.
+- Blits ([POINTERS.md](POINTERS.md) 9.3): `animRadar`'s `MenuNode` is the 0x40-byte N64 blit (the PC's is 0x68),
+  and the hide setter `Hidden` used `arg0[0x1A]` (`BLIT_HIDE`, 0x26).
+- The audio DMA list: dma_queue.c's `sound_dma_flush_requests` wrote its entries through a 24-byte view with a pointer-sized
+  source; the entries are hardware.c's 16 bytes (`DMA_ENTRY_SIZE`), a u32 cartridge source (`DMA_SOURCE`).
 
 ### 4.4 Found after the merge: the brake lights
 
-`func_8008BEA4` (AnimateBrakeLights, a car visual's animator: StartCar stores it in the visual, and the visuals'
+`AnimateBrakeLights` (AnimateBrakeLights, a car visual's animator: StartCar stores it in the visual, and the visuals'
 update calls it through that pointer) read its car slot through `In { u8 pad0[8]; s16 idx; }`, the N64 visual's +8.
 On the PC the visual (`struct pc_visual`) has its slot at +0xC, and +8 is its index: the brake lights took the
 visual's index as the car, read that car's flags and wrote the colours through that car's palette pointer (outside
@@ -205,14 +205,14 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 - `assets_audiomgr` (`test_audiomgr.c`, new): the FX tag lookup, the interrupt, the priority, the status query, the 3D
   position through the tag's data, the parameter change and the stop messages from the pool, the sequence tags'
   free list, start, pause and free, `_GetSource`, the fades' lookup and the ordered-list insertion, on records with the
-  PC layouts of section 4.1. Reverting section 4.1's views makes it fail (and fault); reverting car_stats_display
+  PC layouts of section 4.1. Reverting section 4.1's views makes it fail (and fault); reverting AudPlaySequence
   fails 6 checks.
-- `assets_heap` (`test_heap.c`, new): the game's heap and `menu_item_select` shrinking a block before a used block
+- `assets_heap` (`test_heap.c`, new): the game's heap and `ReallocateMemory` shrinking a block before a used block
   (a split), shrinking and growing one before the free rest. The old view faults.
-- `assets_cars`: the torque through the tune pointer, `func_800E1500` and `func_800E2C70`, `race_init_helper`
+- `assets_cars`: the torque through the tune pointer, `calcaa` and `transmission`, `Update_MDrive`
   moving two cars' nodes by their handles' low halves, and the brake lights of car 1 from a visual whose index is
   3. The old readers fault; the old `In` fails 17 checks.
-- `assets_input`: the pause screen's title (`func_8010B5D0`) names the player from the profile's name at +0x20. The
+- `assets_input`: the pause screen's title (`animTitleText`) names the player from the profile's name at +0x20. The
   old view fails.
 - `layout_check` (ctest, not on Windows): `--selftest` builds nine synthetic cases (a walk through an 8-byte link of
   32-bit-link nodes, a record seen through a parameter with another struct, nodes read back from slots through a
@@ -224,16 +224,16 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 
 ## 6. The two review items
 
-- **AddToEnvList** (`func_8008FFB8.c`) stores the environment visuals' list head, a host pointer, through an `s32 *`.
+- **AddToEnvList** (`AddToEnvList.c`) stores the environment visuals' list head, a host pointer, through an `s32 *`.
   No C calls it, and the N64 code doesn't reference its address (only its definition in
-  `asm/us/blob/blob_8008d0c0.s`); gen_data's function table has it (`{0x8008FFB8, 1, pc_f_755, "func_8008FFB8"}`), so
+  `asm/us/blob/blob_8008d0c0.s`); gen_data's function table has it (`{0x8008FFB8, 1, pc_f_755, "AddToEnvList"}`), so
   the loader would turn a pointer-typed field of initialized data holding 0x8008FFB8 into it. Whether the ROM has such
   a word can't be told without the ROM (the loader's report, with one, lists every function pointer it converts). It
   takes `intptr_t *` now, so the link is pointer-sized like the visual's `next` either way.
-- **`transmission_ratio_get`'s place record.** With an info record's flag 0x400 it keeps `rec` as the node's 32-bit
+- **`SetupTarget`'s place record.** With an info record's flag 0x400 it keeps `rec` as the node's 32-bit
   state (`N64W`), and `shots.c:788` passes the literal `"WPR_MINE"` as `rec`, a host string. That stores a host
   pointer if `WPR_MINE`'s info record (ROM data) has flag 0x400. The code says it can't on the N64 either: a mine
-  writes its state record (`m->base`, `m->timer`, `m->phase` in `func_8010C974`), which would then be the string; the
+  writes its state record (`m->base`, `m->timer`, `m->phase` in `AnimateMine`), which would then be the string; the
   record is the category's. On the PC a place record that isn't a window address is not kept: the state stays 0
   (`PLACE_STATE`), so a wrong flag faults on a NULL rather than on half a pointer.
 
@@ -242,25 +242,25 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 | Rule | Why |
 |---|---|
 | `pc_statll_link`, `pc_statll_set_link` | the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other width never runs on that list |
-| dma_wait_complete's `Sched`, lib_1050_sdk's `PcSched` | a PC view of the native scheduler padded in host bytes to curRSPTask (ULTRA.md); both reach +0x2B0 |
-| engine_sound_sync's `Effect` | a PC view of the FX tag padded in host bytes; each access is the tag's field |
-| lib_17dc0.c's `Seq_*`, `SequenceContext*` views | PC views of a sequence slot padded in host bytes (`SEQ_PC_OFF`, include/sequence_context.h) |
+| audio_retrace_thread_entry's `Sched`, lib_1050_sdk's `PcSched` | a PC view of the native scheduler padded in host bytes to curRSPTask (ULTRA.md); both reach +0x2B0 |
+| ProcessEmitters's `Effect` | a PC view of the FX tag padded in host bytes; each access is the tag's field |
+| sequencer.c's `Seq_*`, `SequenceContext*` views | PC views of a sequence slot padded in host bytes (`SEQ_PC_OFF`, include/sequence_context.h) |
 | updatefx's `AudioMsg`, entity_lookup's `Msg` | a stop's or an interrupt's tag after the header (tAudioMsg's startEffect, +8); the union's N64 positions are its largest member's (updatefx's is shared with the N64 build, so it scores 4) |
 | ctx_slot.c's `DecodeGhost` | a heap handle slot is 8 bytes holding a zero-extended window address; a u32 reader takes its low half (POINTERS.md 9.10) |
-| camera_lerp_position's `Rec20` | it clears the mine slots' count and its padding with an `intptr_t` 0 |
-| race_init_helper | the s16 at +0xF4 is the node handle's low half |
-| blast.c's `save_write_data` | StartBlast's data is an s16 slot or an f32 position (endian_check's NOT_FOLLOWED) |
+| initTargetStructs's `Rec20` | it clears the mine slots' count and its padding with an `intptr_t` 0 |
+| Update_MDrive | the s16 at +0xF4 is the node handle's low half |
+| blast.c's `StartBlast` | StartBlast's data is an s16 slot or an f32 position (endian_check's NOT_FOLLOWED) |
 | src/rom's `__osSiDmaBuffer` | libultra builds the PIF commands byte by byte in its word buffer |
-| `func_800AED20` | the source's active byte; engine_sound_sync's `Source` names it and `queued` as a u32 word nothing reads whole |
-| `func_800A1910` | a byte compare (memcmp) |
+| `NewEmitter` | the source's active byte; ProcessEmitters's `Source` names it and `queued` as a u32 word nothing reads whole |
+| `game_memcmp` | a byte compare (memcmp) |
 | ap.c's `caller_a`, `caller_b` | dead stand-in callers kept for matching; their walk through the tag's list field is not the tags' link |
 
 `REFERENCE`: level_objects' `Node` (the level-object nodes) and `Matrix64` (the dead-reckoning records),
-audiomgr_thread's `tFxSequence`, `anon_ll_id_3c` and the sorted-tag node `anon_te_tag_c` (also for hud_setup's
+audiomgr_thread's `tFxSequence`, `anon_ll_id_3c` and the sorted-tag node `anon_te_tag_c` (also for AudioInit's
 pools, through its `Voice` and `Chan`),
-engine_sound_sync's `Source` (also for entity_helpers' `CamSlot`), sound_control's `Blit` (for any view named
-`Blit`). `SYMBOL_REFERENCE`: `D_80142DD8` takes audiomgr_thread's `tAudioMsg`, since gen_data chose transform's
-`Msg`. `LINKS`: `func_80091FBC`, `pool_init`, `struct_fields_init`.
+ProcessEmitters's `Source` (also for entity_helpers' `CamSlot`), NewMultiBlit's `Blit` (for any view named
+`Blit`). `SYMBOL_REFERENCE`: `audiomgr_gCmds` takes audiomgr_thread's `tAudioMsg`, since gen_data chose transform's
+`Msg`. `LINKS`: `InsertLLE`, `pool_init`, `InitStatLL`.
 
 ## 8. Limits
 
@@ -287,8 +287,8 @@ engine_sound_sync's `Source` (also for entity_helpers' `CamSlot`), sound_control
 
 ## 9. Raw offsets through untyped pointers: offset_check
 
-The four blit callbacks of [BRINGUP.md](BRINGUP.md) 15 (animBones, callback_init, struct_callback_init,
-sound_volume_helper) were m2c code at the N64 blit's offsets, and none of the checks saw them: each takes its blit as
+The four blit callbacks of [BRINGUP.md](BRINGUP.md) 15 (animBones, animControllerDim, animate_pause_dim,
+anim_show_on_high_score) were m2c code at the N64 blit's offsets, and none of the checks saw them: each takes its blit as
 `void *` from NewMultiBlit's call through the AnimFunc it copied from a MultiBlit in the ROM, so its parameter is a
 storage of its own (section 8), and UpdateBlit, to which each passes it, has more callers than `Flow.CAP` and keeps
 its parameter apart too. `tools/port/offset_check.py` types such storages and checks each raw offset as what it is in
@@ -296,7 +296,7 @@ code both builds compile: an N64 offset. 2026-10-27.
 
 ```
 python3 tools/port/offset_check.py [--build build/pc] [-j 2] [--reuse] [--strict]   # build/pc/endian/offset.txt
-python3 tools/port/offset_check.py --cached --func func_80105DA8   # a function's accesses and its storages' types
+python3 tools/port/offset_check.py --cached --func animBones   # a function's accesses and its storages' types
 python3 tools/port/offset_check.py --selftest                        # ctest offset_check
 ```
 
@@ -308,7 +308,7 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
 1. **The records that moved.** Every struct view whose PC layout puts a field at another offset than the N64's (a
    pointer before it) is recorded per unit (`layout_check.moved`). The views of one record are one family: the same
    sizes and the same host offset for every N64 word. Fields are named from the family's most informative view
-   (UpdateBlit's calls Hide `unk1A`; func_80109A60's names it).
+   (UpdateBlit's calls Hide `unk1A`; animDot's names it).
 2. **The record a storage holds** (each access placed on its storages as in section 1):
    - its reference (section 1.4), when that is a moved record; else
    - the moved record the typed views of most accesses on it give (another function's view of the same slot, a
@@ -349,12 +349,12 @@ that is open.
 
 | Function | Found |
 |---|---|
-| animBones `func_80105DA8` | 1-byte read and write at N64 +0x1A (Hide; PC +0x1A is X), 4-byte read at +0x2C (AnimID; PC Left), 2-byte writes at +0xE and +0x10 (X, Y; PC Image and Info), read at +0x14 (Width) |
-| `callback_init` | 8-byte write at N64 +0x4 (Image; PC +0x4 is inside Name) |
-| `struct_callback_init` | the same, and a 4-byte write at N64 +0x28 (AnimFunc; PC Top) |
-| `sound_volume_helper` | 1-byte read and write at N64 +0x1A (Hide; PC X) |
+| animBones `animBones` | 1-byte read and write at N64 +0x1A (Hide; PC +0x1A is X), 4-byte read at +0x2C (AnimID; PC Left), 2-byte writes at +0xE and +0x10 (X, Y; PC Image and Info), read at +0x14 (Width) |
+| `animControllerDim` | 8-byte write at N64 +0x4 (Image; PC +0x4 is inside Name) |
+| `animate_pause_dim` | the same, and a 4-byte write at N64 +0x28 (AnimFunc; PC Top) |
+| `anim_show_on_high_score` | 1-byte read and write at N64 +0x1A (Hide; PC X) |
 
-Each is typed through UpdateBlit (`Input_ApplyPadConfig`), its argument at +0. The selftest has the same kinds of
+Each is typed through UpdateBlit (`UpdateBlit`), its argument at +0. The selftest has the same kinds of
 case on an invented record (a hide flag, a pointer store over the first pointer's high half, a pointer argument, a
 symbol declared as the record, a role, an N64-shaped view) and the ones that must give nothing (PC code, a PC macro, a typed pointer into
 the record passed to a helper, an N64-layout record, an offset before the first pointer).
@@ -369,20 +369,20 @@ typed, the same 20 reviewed and none open, and 323 untyped raw accesses in 46 fu
 
 Reachability was checked on the retail ROM once (2026-10-28, on the Pi): `rush2049pc_datacheck` with a temporary print
 of every function pointer the loader converts from the ROM's data (neither the print nor its output is
-committed). The pause pages are each in a table; `object_action_clear` and the five setters of 9.4 are in none, and
+committed). The pause pages are each in a table; `NewListener` and the five setters of 9.4 are in none, and
 no word of a non-pointer field points at code.
 
 | Finding | Verdict | Why |
 |---|---|---|
 | the four of section 9.2 | fixed (`8285bd3`) | BRINGUP.md 15 |
-| the pause screen's pages: the title `func_8010B5D0`, the language list `func_8010B7FC`, the two-choice page `func_8010B9C8` (`item_refresh_*`, `item_disable_B9C8`: a byte at N64 +0x1A through `MenuItem { u8 pad0[0x1A]; s8 dirty; }`) | **fixed** | each is its blit's AnimFunc (pausescr_state's NewMultiBlit sets; in the ROM's tables). `dirty` is the N64's Hide; on the PC +0x1A is X's low byte, so each page cleared or set X's low byte, called UpdateBlit, and never showed or hid its blit. `MenuItem` has the Blit's host layout on the PC. Test: `assets_input` (the three pages on a host blit; the old views fail 6 checks) |
-| the players' packets: `object_activate` (bytes at N64 +8/+9) and `main_menu_input` (its `Node` view: the vectors from N64 +0xC) | **fixed** (QA.md 5) | the packet is kept as a window address in the player record, so nothing typed reached either; ROLES types object_activate's parameter and what `func_800D63EC` returns (`-1`: a return, followed through the record's slot). Quitting a two-player battle faulted. Test: the synthetic `battlequit` path |
-| `object_action_clear` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address, and no table in the ROM's data holds it (above). `func_800D63EC` (packet_alloc), which takes from the same list, has the PC layout |
-| `func_800AED20` (`_GetSource`, a byte at `EMITTER_ACTIVE`) | false positive (reviewed) | by design, as in section 7: the source's active byte, which `Source` names as the first byte of a u32 flags word |
+| the pause screen's pages: the title `animTitleText`, the language list `animPauseText`, the two-choice page `animSureText` (`item_refresh_*`, `item_disable_B9C8`: a byte at N64 +0x1A through `MenuItem { u8 pad0[0x1A]; s8 dirty; }`) | **fixed** | each is its blit's AnimFunc (pausescr_state's NewMultiBlit sets; in the ROM's tables). `dirty` is the N64's Hide; on the PC +0x1A is X's low byte, so each page cleared or set X's low byte, called UpdateBlit, and never showed or hid its blit. `MenuItem` has the Blit's host layout on the PC. Test: `assets_input` (the three pages on a host blit; the old views fail 6 checks) |
+| the players' packets: `AudRemoveListener` (bytes at N64 +8/+9) and `AudUpdateListener` (its `Node` view: the vectors from N64 +0xC) | **fixed** (QA.md 5) | the packet is kept as a window address in the player record, so nothing typed reached either; ROLES types AudRemoveListener's parameter and what `AudAddListener` returns (`-1`: a return, followed through the record's slot). Quitting a two-player battle faulted. Test: the synthetic `battlequit` path |
+| `NewListener` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address, and no table in the ROM's data holds it (above). `AudAddListener` (packet_alloc), which takes from the same list, has the PC layout |
+| `NewEmitter` (`_GetSource`, a byte at `EMITTER_ACTIVE`) | false positive (reviewed) | by design, as in section 7: the source's active byte, which `Source` names as the first byte of a u32 flags word |
 | the text bank's string table (`pc_text_strings()`, 10 functions in the front end and the results) | false positive (reviewed) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
-| the profile's name passed to the text functions (`drawBattleScore`, `func_80102448`, `func_80102F30`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10) |
-| `func_803936A8` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20 |
-| MBSetupWad and `func_80096B00` (the WAD table), the packets (`func_800D63EC`, `engine_sound_sync`), the 3D-sound sources (`camera_target_track`, `audio_effect_setup`), the skid marks (`func_800AF844`), `FindGhosts`, `entity_spawn_init`, `camera_lerp_position` | false positive | typed accesses through views with the PC layout that fit their own fields (the first run counted them through another view of the same record family); layout_check compares those views |
+| the profile's name passed to the text functions (`drawBattleScore`, `drawStuntScore`, `gameover_animText`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10) |
+| `animBattlePoints` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20 |
+| MBSetupWad and `MBFindInWad` (the WAD table), the packets (`AudAddListener`, `ProcessEmitters`), the 3D-sound sources (`AudEmitEffect`, `FreeFxTag`), the skid marks (`StopSkid`), `FindGhosts`, `StartSmoke`, `initTargetStructs` | false positive | typed accesses through views with the PC layout that fit their own fields (the first run counted them through another view of the same record family); layout_check compares those views |
 
 ### 9.4 The untyped storages
 
@@ -390,15 +390,15 @@ The functions of `offset_untyped.txt` (59 before 9.6's fix, 46 after), by kind:
 
 | Kind | Functions | Verdict |
 |---|---|---|
-| vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `math_utility`, `vector_diff_process`, `lsq` (two), `PitchUV`, `WorldDistance`, `steering_apply`, `func_800A61B0`, `func_800FD724`, `func_8010C448`, `func_8010C588`, `func_800BFD8C`, `camera_clip_planes`, `func_800E397C`, `brake_light_update`, `func_800D09E8`, `func_8009D99C`, `func_80090E9C` (a yaw rotation's `F32 uv[][3]`), guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
+| vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `CopyUV`, `surfpos`, `lsq` (two), `PitchUV`, `WorldDistance`, `TargetCollRadius`, `BodyVector`, `dot_uv_y_axis`, `TargetCollCylinder`, `TargetCollMineCylinder`, `InterpQuats`, `AudUpdateEmitter`, `AdjustSteer`, `ZOID_ProjectWindow`, `copy_tire_info`, `build_node_matrix_rows4`, `YawUV` (a yaw rotation's `F32 uv[][3]`), guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
 | libultra and the audio library | the other `src/rom` functions | not game records (ENDIAN.md, ULTRA.md) |
-| the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `func_8010DF90`, `func_8010C7F4`, `func_8010E694`, `sound_position_set`, `func_8010D680`, `func_8008B3C8` (through `func_8010D9CC`), `stat_lap_split` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
-| byte strings and pak file data | `func_8008AD04` (strcmp), `func_800950AC`, `func_800A473C`, `menu_option_toggle` (a pak file's bytes) | false positive |
-| small m2c setters with no caller | `func_8008D0B0` (u16 at +2), `func_80098860` and `func_800C8774` (words at +0..+8), `func_800A78B0` (s16 at +6), `func_800BEA58` (+0x60, +0x64) | unreachable: no C or asm calls them, no C takes their address, and no table in the ROM's data holds them (9.3) |
-| the SFX server's voices (`tSfxVoice`: bytes, a bank, an id and a u32 handle; no pointer) | `MP_TargetSteerPos`, `camera_transform` (the voice behind a command's `sound`) | false positive: the same layout on both |
-| more floats, shorts and display lists | `func_800AD650` (a matrix from angles), `func_8038DA78` (a shot's `f32 old[3]`), `func_800A553C` (four u16), `func_800B0F60` (MakeRamps: u16 colours), `func_8009F058` (a viewport's s16), `track_collision_wall` (a Gfx word by index), `particles_spawn_emitter` (a matrix's floats from gCamera, which has no pointer: 152 bytes on both) | false positive |
-| `param_reshuffle_wrapper` | the list head at +8 (8 bytes: a host pointer, where a List has its head on both) | false positive |
-| `func_803ABEC8` (the stats screen) | a profile's save data read through `U32_AT`/`U16_AT` (bytes) | false positive |
+| the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `StartCoin`, `StartMine`, `AnimateRotGeneric`, `RotateUV`, `AnimateWeaponIcon`, `vector_magnitude` (through `StartCactus`), `PlayTargetSound` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
+| byte strings and pak file data | `game_strcmp` (strcmp), `game_strncmp`, `game_strcpy`, `SavePlayerCarTrans` (a pak file's bytes) | false positive |
+| small m2c setters with no caller | `ZOID_ShowPoly` (u16 at +2), `ClearBST` and `InitBST` (words at +0..+8), `ZOID_SetPolyZ` (s16 at +6), `PauseTargetPaths` (+0x60, +0x64) | unreachable: no C or asm calls them, no C takes their address, and no table in the ROM's data holds them (9.3) |
+| the SFX server's voices (`tSfxVoice`: bytes, a bank, an id and a u32 handle; no pointer) | `AudioPlayEffectInternal`, `AudioSfxServer` (the voice behind a command's `sound`) | false positive: the same layout on both |
+| more floats, shorts and display lists | `mats2fcopy` (a matrix from angles), `ShotToCarCollision` (a shot's `f32 old[3]`), `ZOID_SetScissor` (four u16), `MakeRamps` (MakeRamps: u16 colours), `zoid_draw_window` (a viewport's s16), `Traverse` (a Gfx word by index), `SkyUpdate` (a matrix's floats from gCamera, which has no pointer: 152 bytes on both) | false positive |
+| `WalkBST` | the list head at +8 (8 bytes: a host pointer, where a List has its head on both) | false positive |
+| `drawTotalStats` (the stats screen) | a profile's save data read through `U32_AT`/`U16_AT` (bytes) | false positive |
 
 ### 9.5 Limits
 
@@ -415,13 +415,13 @@ The functions of `offset_untyped.txt` (59 before 9.6's fix, 46 after), by kind:
 
 ### 9.6 The same verdict on every host
 
-Found 2026-10-28: CI's aarch64 job reported the MusyX listener's `func_8001D5C0` (its `SpatialState` view at the N64
+Found 2026-10-28: CI's aarch64 job reported the MusyX listener's `sound_listener_build_matrix` (its `SpatialState` view at the N64
 offsets, fixed since: AUDIO.md 9) and the x86-64 jobs, on the same source, did not. The cause was the compile flags,
 not the architecture's types: x86-64 compiles the game with `-fPIC -fno-semantic-interposition` (CMakeLists.txt, for
 the absolute N64 symbols), and under those GCC calls a global function of the same file through a local alias,
-`func_8001D5C0.localalias (state_15(D));`, where aarch64's PIE code calls `func_8001D5C0`. The GIMPLE reader took
-`func_8001D5C0.localalias` for another, unknown function, so on x86-64 every such call (1,834 in 224 files) linked no
-argument to its callee's parameter: func_8001D5C0's parameter had no callers, stayed a storage of its own with only
+`sound_listener_build_matrix.localalias (state_15(D));`, where aarch64's PIE code calls `sound_listener_build_matrix`. The GIMPLE reader took
+`sound_listener_build_matrix.localalias` for another, unknown function, so on x86-64 every such call (1,834 in 224 files) linked no
+argument to its callee's parameter: sound_listener_build_matrix's parameter had no callers, stayed a storage of its own with only
 its N64-shaped view, and nothing typed it. The same calls were lost to layout_check and endian_check. On aarch64,
 47 calls in 12 files had the alias too.
 
@@ -435,6 +435,6 @@ other temporaries and folds, with no effect on a storage).
 
 **Test**: the selftest compiles its cases twice, as PIE code and with `-fPIC -fno-semantic-interposition`, on every
 host, and fails unless both give the same findings; a new case is a helper with an N64-shaped view that only its two
-callers in the file type (func_8001D5C0's shape). Without the fix the `-fPIC` variant misses six of the eight on
+callers in the file type (sound_listener_build_matrix's shape). Without the fix the `-fPIC` variant misses six of the eight on
 aarch64 as on x86-64. A run over a build without `pc-data/data_symbols.txt` (an unbuilt tree, whose storages are other
 ones) stops with an error instead of reporting.

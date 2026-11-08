@@ -1,8 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* StartWeaponIcon = _StartWeaponIcon (MAT3 targets.c, GC 0x8004DC94, size 0x428). */
 /* PC (compiled into the PC build, CMakeLists.txt): the weapon icons' start function in the target info table
- * D_80117530 (its +0x08 slot, PC +0x10; docs/port/POINTERS.md 10). engine_torque_calc calls it with the node when
- * the record's flag 4 or 0x4000 is set (the second without a NULL check), and race_setup_2 calls it when a car hits
+ * targetInfo (its +0x08 slot, PC +0x10; docs/port/POINTERS.md 10). SetTargetDef calls it with the node when
+ * the record's flag 4 or 0x4000 is set (the second without a NULL check), and CheckTargetCollision calls it when a car hits
  * the icon, with flag 4 set and the car in t->slot. No direct callers. The node keeps its N64 layout (arena); the
  * car and the info record have their PC layouts below, the model (arena) its N64 one. */
 typedef signed char s8;
@@ -77,15 +77,15 @@ typedef struct Target {
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern TargetInfo D_80117530[]; /* targetInfo */
+extern TargetInfo targetInfo[]; /* targetInfo */
 /* PC: the eight weapons' counts. Without a size the loader would take its extent from the gap to the next known
  * address and swap the 48 bytes after it as words too. */
-extern s32 D_80121D60[8];       /* ammoCnts */
-extern CollSize D_8011F844[];   /* collsize */
+extern s32 ammoCnts[8];       /* ammoCnts */
+extern CollSize collsize[];   /* collsize */
 /* PC: the definitions' prototypes. */
-s32 stat_lap_split(s32 sound, s32 slot, f32 *position, u8 mode);
-void model_data_load(s32 a, s32 mode, u32 v);
-void func_80391490(void);                                  /* IncBattlePowerUps */
+s32 PlayTargetSound(s32 sound, s32 slot, f32 *position, u8 mode);
+void MBOX_HideObject(s32 a, s32 mode, u32 v);
+void IncBattlePowerUps(void);                                  /* IncBattlePowerUps */
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 
@@ -105,21 +105,21 @@ void StartWeaponIcon(Target *t)
             t->Flags |= 2;
             return;
         }
-        stat_lap_split(D_80117530[t->infoIdx].startSnd, t->slot, t->pos, 2);
+        PlayTargetSound(targetInfo[t->infoIdx].startSnd, t->slot, t->pos, 2);
         switch (t->type) {
         case 350:
             type = 0;
-            ammo = D_80121D60[0];
+            ammo = ammoCnts[0];
             wep = 1;
             break;
         case 351:
             type = 1;
-            ammo = D_80121D60[1];
+            ammo = ammoCnts[1];
             wep = 1;
             break;
         case 352:
             type = 2;
-            ammo = D_80121D60[2];
+            ammo = ammoCnts[2];
             wep = 1;
             break;
         case 353:
@@ -134,22 +134,22 @@ void StartWeaponIcon(Target *t)
             return;
         case 355:
             type = 3;
-            ammo = D_80121D60[3];
+            ammo = ammoCnts[3];
             wep = 1;
             break;
         case 356:
             type = 4;
-            ammo = D_80121D60[4];
+            ammo = ammoCnts[4];
             wep = 1;
             break;
         case 357:
             type = 5;
-            ammo = D_80121D60[5];
+            ammo = ammoCnts[5];
             wep = 1;
             break;
         case 358:
             type = 6;
-            ammo = D_80121D60[6];
+            ammo = ammoCnts[6];
             wep = 1;
             break;
         case 359:
@@ -160,12 +160,12 @@ void StartWeaponIcon(Target *t)
             return;
         case 360:
             type = 7;
-            ammo = D_80121D60[7];
+            ammo = ammoCnts[7];
             wep = 1;
             break;
         default:
             type = 1;
-            ammo = D_80121D60[1];
+            ammo = ammoCnts[1];
             wep = 1;
             break;
         }
@@ -178,16 +178,16 @@ void StartWeaponIcon(Target *t)
         }
         if (type == 5) {
             f32 z;
-            sizep = &D_8011F844[m->body_type];
+            sizep = &collsize[m->body_type];
             m->bodyR[0][2] = m->bodyR[1][2] = sizep->colfront + 3.0f;
             z = m->bodyR[0][2] > sizep->colrear ? m->bodyR[0][2] : sizep->colrear;
             m->colrad = sqrtf(z * z + sizep->colside * sizep->colside + sizep->colheight * sizep->colheight);
         }
         }
     } else {
-        func_80391490();
+        IncBattlePowerUps();
         t->Flags &= ~2;
         t->Flags |= 0x20;
-        model_data_load(t->dlIdx, 0, 15);
+        MBOX_HideObject(t->dlIdx, 0, 15);
     }
 }

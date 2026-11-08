@@ -3,22 +3,22 @@
  * This test and its game objects are built with PC_MAX_LINKS 16 (CMakeLists.txt), so the storage has 16 slots
  * where the game build has 13. Every slot starts as a sentinel: the code must write and read the fields at their
  * N64 offsets in slots it walks and leave the others alone, whatever the storage's size.
- * func_8039156C names the 13 slots' cars; func_800EC190 resets the attract demo's cars; CalcPolePositions
- * (init_state_continue) fills them for a race; func_800EC914 (munge_gLink_data) counts the active ones into the
- * race's car count D_80152744 and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long,
- * docs/port/DECOUPLE.md 8); stat_lap_split reads a slot's owner through what was the alias D_80153E8F, +7 with a
+ * InitSelectCarLoad names the 13 slots' cars; fake_init resets the attract demo's cars; CalcPolePositions
+ * (init_state_continue) fills them for a race; munge_gLink_data (munge_gLink_data) counts the active ones into the
+ * race's car count gNumActiveCars and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long,
+ * docs/port/DECOUPLE.md 8); PlayTargetSound reads a slot's owner through what was the alias D_80153E8F, +7 with a
  * stride of 8.
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c): the
  * demo's 12 drones and its camera's car going round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones,
  * the Drones option capped at the race's cars, and the circuit kept at the N64's 6; slots an earlier race of more
- * cars filled, emptied; init_cars (world_physics_tick) with the humans' first distance behind every drone and the
+ * cars filled, emptied; init_cars (init_cars) with the humans' first distance behind every drone and the
  * records after the race's reset; LoadCars giving every drone of 12 a car of its own. And munge alone for 12 slots
  * (one human and 11 drones, one of them another node's, then the demo's 12): the lists in order, nothing after them
  * written, the model records after the race's cleared to the storage's end.
- * game: src/ovl_a/func_8039156C.c src/blob/func_800EC190.c src/blob/groups/update_game/init_state_continue.c
- * game: src/blob/func_800EC914.c src/blob/stat_lap_split.c src/blob/world_physics_tick.c
+ * game: src/ovl_a/InitSelectCarLoad.c src/blob/fake_init.c src/blob/groups/update_game/CalcPolePositions.c
+ * game: src/blob/munge_gLink_data.c src/blob/PlayTargetSound.c src/blob/init_cars.c
  * game: src/blob/groups/loadcars/root.c
- * game: src/blob/func_800B930C.c
+ * game: src/blob/GetNextCheckpoint.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -34,21 +34,21 @@ struct pc_link pc_links[PC_LINK_SLOTS];      /* data.c defines it in the game */
 #define RAW(i, off) (((const unsigned char *)pc_links)[(i) * 8 + (off)])
 #define SENTINEL 0xEE                        /* flags 0xEE has LINK_ACTIVE (0x80) set */
 
-int8_t D_8014978C, D_80154628, D_80152744, D_80150C04, D_80150F14, D_8010FFC0;
-volatile int16_t D_801543CA, D_80152768, D_80153FD2, D_80153E84;
-int16_t D_8014A108, D_80142724, D_8015274C, D_80143A40[16];
+int8_t gTrackNum, gCircuitTrack, gNumActiveCars, first_camera_slot, gUseCatchup, gGameSoundsEnabled;
+volatile int16_t gNumCars, num_drones, num_humans, sched_to_use;
+int16_t gNumPlayers, gNumDrones, num_our_drones, humans[16];
 short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];   /* the drone lists (pc_game_types.h) */
 #define LIST_SENTINEL ((short)0x5A5A)
-int16_t D_8011F020[16], D_8011F040[16], D_80153F08, D_80153F24, D_80153F40, D_80142B08[13];
-int32_t D_8014A110, D_80143FF4;
-uint32_t state_word_a, D_801174B4, D_8002E580[183];
-uint8_t D_801543D4, D_80154450[6 * 0x4C], D_803BA230[16 * 12] __attribute__((aligned(4)));
-uint8_t D_8014A118[6 * 80] __attribute__((aligned(16)));   /* the input records, 80 bytes each on the PC */
-int8_t D_80152015, D_80146180[16], D_80111604[13], D_80111648[13], D_8011168C[13];
-int8_t D_8011103C[17][13], D_80111080[17][13], D_8011119C[17][13], D_80111230[17][13], D_8011157C[17][13];
-float D_8011F844[13][4];
-struct { int16_t f0, first, f4, f6, count; } D_80151CE8;
-void *D_80110D08;
+int16_t gBumpLRTab[16], gBumpFBTab[16], new_sched_to_use, sched_index, cur_drone, gCarModelNums[13];
+int32_t gRace, gModelIteration;
+uint32_t gGameState, gGameState, gWaveSizes[183];
+uint8_t gCircuitPlayer, gCircuitCars[6 * 0x4C], gSelectCarWavePtrs[16 * 12] __attribute__((aligned(4)));
+uint8_t gPlayers[6 * 80] __attribute__((aligned(16)));   /* the input records, 80 bytes each on the PC */
+int8_t gOneMoreCP, gDriveHulk[16], car_color_choice_a[13], car_color_choice_b[13], car_color_choice_c[13];
+int8_t gCarHandling[17][13], gCarEngines[17][13], gCarTires[17][13], gCarFrame[17][13], gTireRims[17][13];
+float collsize[13][4];
+struct { int16_t f0, first, f4, f6, count; } gCheckpoints;
+void *gCarModels;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h), N64 layout */
 struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
@@ -60,34 +60,34 @@ struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC 
 /* The random number CalcPolePositions draws for a circuit's first race and LoadCars for a drone's car: a counter, so
  * the draws differ and the code's retries end. */
 static unsigned g_rand;
-float func_8008B2E4(float max) { int m = (int)max; return m > 0 ? (float)(g_rand++ % (unsigned)m) : 0.0f; }
-void func_800A61B0(void *delta, void *out, void *matrix) { (void)delta; (void)matrix; memset(out, 0, 12); }
+float Random(float max) { int m = (int)max; return m > 0 ? (float)(g_rand++ % (unsigned)m) : 0.0f; }
+void BodyVector(void *delta, void *out, void *matrix) { (void)delta; (void)matrix; memset(out, 0, 12); }
 static int g_hs_slot = -1;
-uint32_t high_scores_display(uint32_t sound, uint32_t slot, uint32_t one, uint8_t mode, float a, float b, float c)
+uint32_t AudPlayEffectVP(uint32_t sound, uint32_t slot, uint32_t one, uint8_t mode, float a, float b, float c)
 {
     (void)sound; (void)one; (void)mode; (void)a; (void)b; (void)c;
     g_hs_slot = (int)slot;
     return 77;
 }
 /* What init_cars and LoadCars call. */
-void func_800B27E4(void *car) { (void)car; }
-void func_800EC270(void *m, void *car) { (void)m; (void)car; }
-uint32_t audio_output_setup(void *heap) { (void)heap; return 0x7FFFFFFF; }   /* the heap's free bytes */
-int32_t func_80097694(int32_t wave, int8_t x) { (void)wave; (void)x; return -1; }
-int32_t audio_frame_sync(int32_t wave, int32_t a, int32_t b, int32_t c, void *d)
+void InitCarVisuals(void *car) { (void)car; }
+void InitCarPath(void *m, void *car) { (void)m; (void)car; }
+uint32_t heap_total_free(void *heap) { (void)heap; return 0x7FFFFFFF; }   /* the heap's free bytes */
+int32_t FindWaveInstanceInternal(int32_t wave, int8_t x) { (void)wave; (void)x; return -1; }
+int32_t LoadWave(int32_t wave, int32_t a, int32_t b, int32_t c, void *d)
 {
     (void)a; (void)b; (void)c; (void)d;
     return 1000 + wave;                                   /* LoadWave: the wave's handle */
 }
 static int g_colored[16];
-void func_800BB02C(int32_t slot, int32_t car, void *x) { (void)x; if (slot >= 0 && slot < 16) g_colored[slot] = car + 1; }
+void car_palette_init(int32_t slot, int32_t car, void *x) { (void)x; if (slot >= 0 && slot < 16) g_colored[slot] = car + 1; }
 
-void func_8039156C(void);
-void func_800EC190(int8_t track);
+void InitSelectCarLoad(void);
+void fake_init(int8_t track);
 void CalcPolePositions(void);
-void func_800EC914(void);
-int32_t stat_lap_split(int32_t sound, int32_t slot, float *position, uint8_t mode);
-void world_physics_tick(void);
+void munge_gLink_data(void);
+int32_t PlayTargetSound(int32_t sound, int32_t slot, float *position, uint8_t mode);
+void init_cars(void);
 void LoadCars(int32_t select);
 
 /* Slots from `from` on hold the sentinel in every byte. */
@@ -123,31 +123,31 @@ static void test_layout(void)
     CHECK(offsetof(struct pc_link, flags) == 6 && offsetof(struct pc_link, owner) == 7);
 }
 
-/* func_8039156C: each of the 13 slots' car is its index; nothing else changes. */
+/* InitSelectCarLoad: each of the 13 slots' car is its index; nothing else changes. */
 static void test_ids(void)
 {
     memset(pc_links, SENTINEL, sizeof pc_links);
-    func_8039156C();
+    InitSelectCarLoad();
     for (int i = 0; i < PC_N64_LINK_SLOTS; i++) {
         CHECK(RAW(i, 1) == i && PC_LINK_CAR(i) == i);
         CHECK(RAW(i, 0) == SENTINEL && RAW(i, 2) == SENTINEL && RAW(i, 7) == SENTINEL);
     }
     CHECK(untouched_from(PC_N64_LINK_SLOTS));
-    CHECK(*(int32_t *)D_803BA230 == -1 && (int8_t)D_803BA230[5] == -1 && D_803BA230[4] == 0);
+    CHECK(*(int32_t *)gSelectCarWavePtrs == -1 && (int8_t)gSelectCarWavePtrs[5] == -1 && gSelectCarWavePtrs[4] == 0);
 }
 
-/* func_800EC190, the attract demo, for n cars: its n slots get the track, their place, flags 0xB0 and owner 0; the
+/* fake_init, the attract demo, for n cars: its n slots get the track, their place, flags 0xB0 and owner 0; the
  * car and colours stay. Every slot after them up to PC_MAX_LINKS takes the loop's arm for slots past the count:
- * flags 0, owner the slot + 6, the rest as it was. The camera's car (input record 0's node and D_80150C04) is the
+ * flags 0, owner the slot + 6, the rest as it was. The camera's car (input record 0's node and first_camera_slot) is the
  * next one, round the n. */
 static void demo(int n)
 {
-    int before = D_80150C04;
+    int before = first_camera_slot;
 
     memset(pc_links, SENTINEL, sizeof pc_links);
     test_race_cars = n;
-    func_800EC190(5);
-    CHECK(D_801543CA == n && D_8014978C == 5);
+    fake_init(5);
+    CHECK(gNumCars == n && gTrackNum == 5);
     for (int i = 0; i < n; i++) {
         CHECK(RAW(i, 0) == 5 && RAW(i, 5) == i && RAW(i, 6) == 0xB0 && RAW(i, 7) == 0);
         CHECK(RAW(i, 1) == SENTINEL && RAW(i, 2) == SENTINEL && RAW(i, 3) == SENTINEL && RAW(i, 4) == SENTINEL);
@@ -156,7 +156,7 @@ static void demo(int n)
         CHECK(RAW(i, 6) == 0 && RAW(i, 7) == i + 6);
         CHECK(RAW(i, 0) == SENTINEL && RAW(i, 1) == SENTINEL && RAW(i, 5) == SENTINEL);
     }
-    CHECK(D_80150C04 == (before + 1) % n && (int8_t)D_8014A118[0] == D_80150C04);
+    CHECK(first_camera_slot == (before + 1) % n && (int8_t)gPlayers[0] == first_camera_slot);
 }
 
 static void test_reset(void)
@@ -175,9 +175,9 @@ static void test_reset(void)
 static void poles(int humans, int option, int mode, int cars)
 {
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = humans, D_80142724 = option, D_8014A110 = mode, D_8014978C = 3, D_80154628 = 0;
+    gNumPlayers = humans, gNumDrones = option, gRace = mode, gTrackNum = 3, gCircuitTrack = 0;
     CalcPolePositions();
-    CHECK(D_801543CA == cars);
+    CHECK(gNumCars == cars);
     for (int i = 0; i < cars; i++) {
         CHECK(PC_LINK_TRACK(i) == 3 && PC_LINK_FLAGS(i) == 0xB0 && PC_LINK_CAR(i) == SENTINEL);
         CHECK(PC_LINK_OWNER(i) == (i < humans ? 6 : 0));
@@ -193,9 +193,9 @@ static void test_poles(void)
 
     /* a race of 2 players and 2 drones, as the N64 lays it out */
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 2, D_80142724 = 2, D_8014A110 = 0, D_8014978C = 3;
+    gNumPlayers = 2, gNumDrones = 2, gRace = 0, gTrackNum = 3;
     CalcPolePositions();
-    CHECK(D_801543CA == 4);
+    CHECK(gNumCars == 4);
     for (int i = 0; i < 6; i++) {
         CHECK(PC_LINK_TRACK(i) == 3 && PC_LINK_OWNER(i) == owner[i] && PC_LINK_FLAGS(i) == (i < 4 ? 0xB0 : 0));
         CHECK(PC_LINK_PLACE(i) == (i < 4 ? place[i] : SENTINEL) && PC_LINK_CAR(i) == SENTINEL);
@@ -229,43 +229,43 @@ static void test_poles12(void)
 
     /* a later circuit race: the places are the standings', slots 0 and 1 swapped by the circuit's player */
     for (int k = 0; k < 6; k++)
-        D_80154450[k * 0x4C + 1] = (uint8_t)(20 + k);
+        gCircuitCars[k * 0x4C + 1] = (uint8_t)(20 + k);
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 2, D_80142724 = 11, D_8014A110 = 3, D_80154628 = 1, D_801543D4 = 1;
+    gNumPlayers = 2, gNumDrones = 11, gRace = 3, gCircuitTrack = 1, gCircuitPlayer = 1;
     CalcPolePositions();
-    CHECK(D_801543CA == 6);
+    CHECK(gNumCars == 6);
     for (int i = 0; i < 6; i++)
         CHECK(PC_LINK_PLACE(i) == 20 + (i == 0 ? 1 : i == 1 ? 0 : i) && PC_LINK_FLAGS(i) == 0xB0
               && PC_LINK_OWNER(i) == (i < 2 ? 6 : 0));
     CHECK(empty_from(6, 3));
-    D_80154628 = 0, D_801543D4 = 0;
+    gCircuitTrack = 0, gCircuitPlayer = 0;
 
     /* 12 cars, then 6: slots 6 to 11 of the 12 are empty again */
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 1, D_80142724 = 11, D_8014A110 = 0;
+    gNumPlayers = 1, gNumDrones = 11, gRace = 0;
     CalcPolePositions();
-    CHECK(D_801543CA == 12 && PC_LINK_FLAGS(11) == 0xB0);
-    D_80142724 = 5;
+    CHECK(gNumCars == 12 && PC_LINK_FLAGS(11) == 0xB0);
+    gNumDrones = 5;
     CalcPolePositions();
-    CHECK(D_801543CA == 6 && PC_LINK_FLAGS(5) == 0xB0);
+    CHECK(gNumCars == 6 && PC_LINK_FLAGS(5) == 0xB0);
     for (int i = 6; i < PC_MAX_LINKS; i++)
         CHECK(PC_LINK_FLAGS(i) == 0 && PC_LINK_OWNER(i) == 7);
     test_race_cars = 6;
 }
 
-/* func_800EC914 on test_poles' roster: 4 active cars of 6 slots; the sentinel slots after them, whose flags have
+/* munge_gLink_data on test_poles' roster: 4 active cars of 6 slots; the sentinel slots after them, whose flags have
  * LINK_ACTIVE, are not counted. */
 static void test_count(void)
 {
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 2, D_80142724 = 2, D_8014A110 = 0, D_8014978C = 3;
+    gNumPlayers = 2, gNumDrones = 2, gRace = 0, gTrackNum = 3;
     CalcPolePositions();
     for (int i = 6; i < PC_LINK_SLOTS; i++)
         pc_links[i].flags = SENTINEL;
     memset(pc_models, 0x55, sizeof pc_models);
     memset(pc_cars, 0x55, sizeof pc_cars);
-    func_800EC914();
-    CHECK(D_80152744 == 4);
+    munge_gLink_data();
+    CHECK(gNumActiveCars == 4);
     for (int i = 0; i < 4; i++) {
         CHECK(MODEL16(i, 0x7C6) == i && MODEL16(i, 0x7C8) == 1);                 /* slot, in_game */
         CHECK(MODEL16(i, 0x7CA) == (i >= 2) && MODEL8(i, 0x7CC) == (i < 2 ? 2 : 1));   /* we_control, HUMAN/DRONE */
@@ -273,23 +273,23 @@ static void test_count(void)
     }
     for (int i = 4; i < 6; i++)
         CHECK(MODEL16(i, 0x7C8) == 0 && MODEL16(i, 0x7CA) == 0 && MODEL8(i, 0x7CC) == 0);
-    CHECK(D_80153FD2 == 2 && D_80143A40[0] == 0 && D_80143A40[1] == 1);              /* the humans */
-    CHECK(D_80152768 == 2 && pc_drones[0] == 2 && pc_drones[1] == 3);                /* the drones */
-    CHECK(D_8015274C == 2 && pc_our_drones[0] == 2 && pc_our_drones[1] == 3);        /* ours */
+    CHECK(num_humans == 2 && humans[0] == 0 && humans[1] == 1);              /* the humans */
+    CHECK(num_drones == 2 && pc_drones[0] == 2 && pc_drones[1] == 3);                /* the drones */
+    CHECK(num_our_drones == 2 && pc_our_drones[0] == 2 && pc_our_drones[1] == 3);        /* ours */
 }
 
-/* func_800EC914 on a roster of 12: one human and 11 drones counted and listed. */
+/* munge_gLink_data on a roster of 12: one human and 11 drones counted and listed. */
 static void test_count12(void)
 {
     test_race_cars = 12;
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 1, D_80142724 = 11, D_8014A110 = 0, D_8014978C = 3;
+    gNumPlayers = 1, gNumDrones = 11, gRace = 0, gTrackNum = 3;
     CalcPolePositions();
     memset(pc_models, 0x55, sizeof pc_models);
     memset(pc_cars, 0x55, sizeof pc_cars);
-    func_800EC914();
-    CHECK(D_80152744 == 12 && D_80153FD2 == 1 && D_80143A40[0] == 0);
-    CHECK(D_80152768 == 11 && D_8015274C == 11);
+    munge_gLink_data();
+    CHECK(gNumActiveCars == 12 && num_humans == 1 && humans[0] == 0);
+    CHECK(num_drones == 11 && num_our_drones == 11);
     for (int i = 0; i < 12; i++) {
         CHECK(MODEL16(i, 0x7C6) == i && MODEL16(i, 0x7C8) == 1 && MODEL8(i, 0x7CC) == (i < 1 ? 2 : 1));
         CHECK(CAR8(i, 0xEE) == (i == 0 ? 11 : i - 1));
@@ -299,14 +299,14 @@ static void test_count12(void)
     test_race_cars = 6;
 }
 
-/* func_800EC914 alone for 12 cars, more than the N64's 6: slot 0 a human and slots 1-11 drones (slot 7 driven by another
+/* munge_gLink_data alone for 12 cars, more than the N64's 6: slot 0 a human and slots 1-11 drones (slot 7 driven by another
  * node, owner 3: a drone, not ours), then the attract demo's 12 drones. Every active slot is counted and listed in
  * order; the lists' entries after the last stay as they were, and the model records after the race's 12 (to the
  * storage's 16) are cleared. */
 static void test_munge12(void)
 {
     for (int demo = 0; demo < 2; demo++) {
-        int humans = demo ? 0 : 1, n = 0, ours = 0;
+        int n_humans = demo ? 0 : 1, n = 0, ours = 0;
 
         memset(pc_links, SENTINEL, sizeof pc_links);
         memset(pc_models, 0x55, sizeof pc_models);
@@ -316,24 +316,24 @@ static void test_munge12(void)
         for (int i = 0; i < 12; i++) {
             pc_links[i].flags = 0xB0;
             pc_links[i].place = (unsigned char)(11 - i);
-            pc_links[i].owner = (unsigned char)(i < humans ? 6 : !demo && i == 7 ? 3 : 0);
+            pc_links[i].owner = (unsigned char)(i < n_humans ? 6 : !demo && i == 7 ? 3 : 0);
         }
-        D_801543CA = 12;
-        func_800EC914();
-        CHECK(D_80152744 == 12);
+        gNumCars = 12;
+        munge_gLink_data();
+        CHECK(gNumActiveCars == 12);
         for (int i = 0; i < 12; i++) {
             CHECK(MODEL16(i, 0x7C6) == i && MODEL16(i, 0x7C8) == 1);
-            CHECK(MODEL8(i, 0x7CC) == (i < humans ? 2 : 1) && CAR8(i, 0xEE) == 11 - i);
+            CHECK(MODEL8(i, 0x7CC) == (i < n_humans ? 2 : 1) && CAR8(i, 0xEE) == 11 - i);
         }
         for (int i = 12; i < PC_MODEL_SLOTS; i++)
             CHECK(MODEL16(i, 0x7C8) == 0 && MODEL8(i, 0x7CC) == 0 && MODEL16(i, 0x7CA) == 0);   /* owner 0xEE */
-        CHECK(D_80153FD2 == humans && (demo || D_80143A40[0] == 0));
-        for (int i = humans; i < 12; i++) {
+        CHECK(num_humans == n_humans && (demo || humans[0] == 0));
+        for (int i = n_humans; i < 12; i++) {
             CHECK(pc_drones[n++] == i);
             if (demo || i != 7)
                 CHECK(pc_our_drones[ours++] == i);
         }
-        CHECK(D_80152768 == n && n == 12 - humans && D_8015274C == ours && ours == (demo ? 12 : 10));
+        CHECK(num_drones == n && n == 12 - n_humans && num_our_drones == ours && ours == (demo ? 12 : 10));
         for (int i = n; i < PC_MAX_LINKS; i++)
             CHECK(pc_drones[i] == LIST_SENTINEL);
         for (int i = ours; i < PC_MAX_LINKS; i++)
@@ -341,21 +341,21 @@ static void test_munge12(void)
     }
 }
 
-/* stat_lap_split goes on only for a human's slot (owner 6), read where the alias D_80153E8F reached it. */
+/* PlayTargetSound goes on only for a human's slot (owner 6), read where the alias D_80153E8F reached it. */
 static void test_alias(void)
 {
     float pos[3] = {0, 0, 0};
 
     pc_links[1].owner = 6, pc_links[2].owner = 0;
-    D_8010FFC0 = 1;
+    gGameSoundsEnabled = 1;
     g_hs_slot = -1;
-    CHECK(stat_lap_split(1, 2, pos, 0) == -1 && g_hs_slot == -1);   /* a drone */
-    CHECK(stat_lap_split(1, 1, pos, 0) == 77 && g_hs_slot == 1);    /* a human */
+    CHECK(PlayTargetSound(1, 2, pos, 0) == -1 && g_hs_slot == -1);   /* a drone */
+    CHECK(PlayTargetSound(1, 1, pos, 0) == 77 && g_hs_slot == 1);    /* a human */
     pc_links[1].owner = 0;
-    CHECK(stat_lap_split(1, 1, pos, 0) == -1);
+    CHECK(PlayTargetSound(1, 1, pos, 0) == -1);
 }
 
-/* init_cars (world_physics_tick) on CalcPolePositions' roster for `humans` and `option`: every car's first distance
+/* init_cars (init_cars) on CalcPolePositions' roster for `humans` and `option`: every car's first distance
  * (+0x100), a human's behind every drone, -(the larger of 6 and the cars, less its slot), a drone's -1, -2... in its
  * order; the cars active; the records after them up to the storage's end reset (in_game, drone type 0; ours only
  * where the slot's owner is 0), whatever an earlier race left in them. */
@@ -364,17 +364,17 @@ static void check_init_cars(int humans, int option, int cars)
     int grid = cars > 6 ? cars : 6;
 
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = humans, D_80142724 = option, D_8014A110 = 0, D_8014978C = 3;
+    gNumPlayers = humans, gNumDrones = option, gRace = 0, gTrackNum = 3;
     CalcPolePositions();
-    CHECK(D_801543CA == cars);
+    CHECK(gNumCars == cars);
     for (int i = 0; i < PC_LINK_SLOTS; i++)      /* a car type each (the tables' rows are 13 wide) */
         pc_links[i].car = (unsigned char)(i % 13);
     for (int i = 0; i < PC_MODEL_SLOTS; i++)     /* what an earlier race left: every record a drone in the race */
         MODEL16(i, 0x7C8) = 1, MODEL16(i, 0x7CA) = 1, MODEL8(i, 0x7CC) = 1;
     memset(pc_cars, 0x55, sizeof pc_cars);
-    state_word_a = 0;
-    world_physics_tick();
-    CHECK(D_80152744 == cars);
+    gGameState = 0;
+    init_cars();
+    CHECK(gNumActiveCars == cars);
     for (int i = 0; i < cars; i++) {
         CHECK(CARF(i, 0x100) == (i < humans ? -(float)(grid - i) : -(float)(i - humans + 1)));
         CHECK(MODEL16(i, 0x7C8) == 1 && MODEL16(i, 0x7C6) == i && MODEL8(i, 0x7CC) == (i < humans ? 2 : 1));
@@ -402,19 +402,19 @@ static void test_init_cars(void)
 static void load_cars(int cars)
 {
     memset(pc_links, SENTINEL, sizeof pc_links);
-    D_8014A108 = 1, D_80142724 = 11, D_8014A110 = 0, D_8014978C = 3;
+    gNumPlayers = 1, gNumDrones = 11, gRace = 0, gTrackNum = 3;
     CalcPolePositions();
-    CHECK(D_801543CA == cars);
-    func_800EC914();
+    CHECK(gNumCars == cars);
+    munge_gLink_data();
     pc_links[0].car = 4;
     for (int i = 0; i < 13; i++)
-        D_80111604[i] = (int8_t)(40 + i), D_80111648[i] = (int8_t)(60 + i), D_8011168C[i] = (int8_t)(80 + i);
-    memset(D_80142B08, 0, sizeof D_80142B08);
+        car_color_choice_a[i] = (int8_t)(40 + i), car_color_choice_b[i] = (int8_t)(60 + i), car_color_choice_c[i] = (int8_t)(80 + i);
+    memset(gCarModelNums, 0, sizeof gCarModelNums);
     memset(g_colored, 0, sizeof g_colored);
-    D_801174B4 = 0;
+    gGameState = 0;
     LoadCars(0);
     for (int i = 0; i < cars; i++) {
-        CHECK(PC_LINK_CAR(i) < 13 && D_80142B08[i] == 1000 + 88 + PC_LINK_CAR(i) && g_colored[i] == PC_LINK_CAR(i) + 1);
+        CHECK(PC_LINK_CAR(i) < 13 && gCarModelNums[i] == 1000 + 88 + PC_LINK_CAR(i) && g_colored[i] == PC_LINK_CAR(i) + 1);
         for (int j = 0; j < i; j++)
             CHECK(PC_LINK_CAR(i) != PC_LINK_CAR(j));
         if (i > 0)
@@ -422,7 +422,7 @@ static void load_cars(int cars)
     }
     CHECK(PC_LINK_CAR(0) == 4);
     for (int i = cars; i < 13; i++)
-        CHECK(PC_LINK_CAR(i) == 4 && D_80142B08[i] == 1000 + 88 + 4 && g_colored[i] == 0);
+        CHECK(PC_LINK_CAR(i) == 4 && gCarModelNums[i] == 1000 + 88 + 4 && g_colored[i] == 0);
 }
 
 static void test_load_cars(void)

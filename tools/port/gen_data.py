@@ -72,8 +72,10 @@ IMAGE_INDEX = {img[0]: i for i, img in enumerate(n64syms.IMAGES)}
 # The game's libc names compile as n64_<name> (CMakeLists.txt).
 RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen", "strchr", "sinf", "cosf")}
 # A runtime image's function whose name the other image's function at the same address has (both are linked in):
-# its PC name (nonmatching/ovl_a/func_8038A400.c).
-IMAGE_RENAMED = {("ovl_a", "func_8038A400"): "updateWarningScreen"}
+# its PC name (nonmatching/ovl_a/updateWarningScreen.c).
+IMAGE_RENAMED = {("ovl_a", "findDamageSlot"): "updateWarningScreen"}
+# The name maps' type rows that merged a view into a type the C had already (docs/code/NAMING.md 4).
+TYPES_MERGED = {"SelectCarWave", "ButtonInfo"}
 # N64 (IDO, o32) sizes of the C base types, by DWARF name.
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,
             "int": 4, "unsigned int": 4, "long int": 4, "long unsigned int": 4, "long long int": 8,
@@ -814,7 +816,7 @@ def score(t, runs):
     """Most informative declaration first: struct over pointer over words over bytes; between two structs, an
     opaque one (no union, bytes only: `struct { u8 pad[164]; }`, an m2c record) after one with wider elements. A
     tie with the real record must not leave its words in the ROM's byte order: the cheat codes' button masks
-    (`D_803B3460`: `Egg` in cheatscr.c, `Rec164` in func_8038FF90.c) were swapped by nobody (docs/port/QA.md).
+    (`gEggs`: `Egg` in cheatscr.c, `Rec164` in func_8038FF90.c) were swapped by nobody (docs/port/QA.md).
     A union whose bytes cover it (the colours) is not opaque: its bytes are the layout (DATA.md 2)."""
     has_struct = contains(t, ("struct", "union"))
     has_ptr = any(r[0] == K_PTR for r in runs)
@@ -880,6 +882,23 @@ def generate(a):
     commons = {n for n, d in defs.items() if all(l == "C" for _, l, _ in d)
                and any(obj_image.get(o) in ("game", "ovl_a", "ovl_b") for o, _, _ in d)}
     symfile = n64syms.load_symbols(root / "symbol_addrs.us.txt")
+    renamed = n64syms.renamed_names(root / "symbol_addrs.us.txt")   # the maps' names of address names
+    # The type names the name maps gave (tools/port/names/applied.tsv's type rows), new -> old: a choice between
+    # declarations that are equally good falls to their names, and was made with the old ones. Not the rows that
+    # merged a view into a type the C had already (docs/code/NAMING.md 4: Rec12 to SelectCarWave, Slot60 to
+    # ButtonInfo): that name was the type's own before.
+    type_old = {}
+    ledger = root / "tools" / "port" / "names" / "applied.tsv"
+    if ledger.exists():
+        for line in ledger.read_text().splitlines():
+            f = line.split("\t")
+            if len(f) == 3 and f[0] == "type" and f[2] not in TYPES_MERGED:
+                type_old[f[2]] = f[1]
+    type_re = re.compile(r"\b(" + "|".join(map(re.escape, sorted(type_old, key=len, reverse=True))) + r")\b") \
+        if type_old else None
+
+    def type_names_before(text):
+        return type_re.sub(lambda m: type_old[m.group(1)], text) if type_re else text
     extents = {}
     for line in (root / "port" / "data" / "extents.txt").read_text().splitlines():
         f = line.split("#", 1)[0].split()
@@ -956,13 +975,14 @@ def generate(a):
                     s.defsize = max(s.defsize or 0, n64_layout(t)[0])
 
     # Extents: symbol-file (or extents.txt) size, else the game C's definition, else the largest complete
-    # declaration or the gap to the next address.
+    # declaration or the gap to the next address. The symbol file's names end a gap, but not the ones the name maps
+    # gave address names (`renamed`): an address name not placed ended none.
     known = collections.defaultdict(set)
     for addr, s in syms.items():
         known[s.arena].add(addr)
     for name, (addr, kind, _) in symfile.items():
         w = arena_of(addr, {"game"})
-        if w and kind == "data":
+        if w and kind == "data" and name not in renamed:
             known[w[0]].add(addr)
     for i, (_, lo, init, hi) in enumerate(n64syms.ARENAS):
         known[i] |= {init, hi}
@@ -1022,8 +1042,10 @@ def generate(a):
         def fit(t):
             n = n64_layout(t)[0] or 0
             return 2 if not bound or n == bound else 1 if n > bound else 0
-        ranked = sorted(cands.items(), key=lambda kv: (fit(kv[0]), score(kv[0], program(kv[0])), kv[1][0], kv[1][1],
-                                                       repr(kv[0])), reverse=True)
+        # The last keys are names: the type names before the name maps renamed them, so the maps change no choice.
+        ranked = sorted(cands.items(), key=lambda kv: (fit(kv[0]), score(kv[0], program(kv[0])), kv[1][0],
+                                                       type_names_before(kv[1][1]), type_names_before(repr(kv[0]))),
+                        reverse=True)
         s.t, (cnt, s.disp, _) = ranked[0]
         s.extent_by_gap = not bound and s.t not in [t for _, _, t, _ in s.decls]
         s.runs = program(s.t)
@@ -1071,7 +1093,7 @@ def generate(a):
 
     # Own storage swallows the symbols inside its N64 extent. One whose own declaration needs host storage (a
     # pointer or a long) where the parent's layout has none gets a host slot the parent sized for something
-    # else, so it overlaps its neighbours there: usually a sign that the parent's extent is too long (player_array
+    # else, so it overlaps its neighbours there: usually a sign that the parent's extent is too long (gGameCar
     # ran over the globals after it). Listed.
     ordered = sorted((s for s in syms.values() if not s.end_marker), key=lambda x: x.addr)
     overlaps, inside_conflicts = [], []
@@ -1317,12 +1339,12 @@ def arena_elements(members, lo, init):
 # Element conflicts in initialized data that were read and judged (docs/port/DATA.md 1): (symbol, the symbol whose
 # elements keep the bytes) -> why those are the right ones.
 OVERLAPS_REVIEWED = {
-    ("D_801146C0", "D_801146BC"): "D_801146BC[1], a colour read as bytes; D_801146C0's word only copies it",
-    ("D_801105A4", "D_801102B4"): "&buttonInfo[11].pos, the audio screen's title position (f32)",
-    ("D_8011AC84", "D_8011A994"): "&buttonInfo[11].pos, the video screen's title position (f32)",
-    ("D_803B5CFC", "D_803B5D2C"): "read as [n][0] for n = 1..4 players, in D_803B5D50; row 0 never",
-    ("D_803B4679", "D_803B467C"): "read as [n][i] for n = 1..4 players, after D_803B467C; row 0 never",
-    ("D_803B5CFC", "D_803B470C"): "read as [n][0] for n = 1..4 players; row 0's first 16 bytes are the model slots' "
+    ("flashColors_at_1", "flashColors"): "flashColors[1], a colour read as bytes; flashColors_at_1's word only copies it",
+    ("audio_title_button_pos", "audio_buttonInfo"): "&buttonInfo[11].pos, the audio screen's title position (f32)",
+    ("video_title_button_pos", "video_buttonInfo"): "&buttonInfo[11].pos, the video screen's title position (f32)",
+    ("gPlayerRects_biased", "multiBlit"): "read as [n][0] for n = 1..4 players, in playerscr_gPlayerRects; row 0 never",
+    ("modescr_validOption_biased", "modescr_blit"): "read as [n][i] for n = 1..4 players, after modescr_blit; row 0 never",
+    ("gPlayerRects_biased", "playerscr_buttonInfo"): "read as [n][0] for n = 1..4 players; row 0's first 16 bytes are the model slots' "
                                   "last (extents.txt), which keep theirs",
 }
 
@@ -1802,7 +1824,7 @@ def check(exe, layout_path, nm, pe=False):
         name, kind = p[-1], p[-2]
         every[name].append(int(p[0], 16))
         if name in letter and kind.islower() and letter[name].isupper():
-            continue   # a file-local static of the same name (overlay statics such as D_80399120): the global wins
+            continue   # a file-local static of the same name (overlay statics such as gGattMuzzleObjs): the global wins
         addr[name], letter[name] = int(p[0], 16), kind
         size.pop(name, None)
         if len(p) == 4:
@@ -1816,7 +1838,7 @@ def check(exe, layout_path, nm, pe=False):
         if size.get(name) != n and not pe:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
         # In N64 address order (layout["own"]'s), as data.c defines them: game C that walks from one symbol to the
-        # next relies on it (ambient_sounds_clear did), and GCC reorders definitions unless -fno-toplevel-reorder.
+        # next relies on it (removeBG did), and GCC reorders definitions unless -fno-toplevel-reorder.
         if prev is not None and addr[name] <= addr[prev]:
             bad.append(f"own {name}: at 0x{addr[name]:X}, not after {prev} (0x{addr[prev]:X}): "
                        f"compile data.c with -fno-toplevel-reorder")

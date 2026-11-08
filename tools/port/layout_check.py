@@ -2,7 +2,7 @@
 """Find views that disagree on a record's PC layout, following each access through the code to the storage it reaches.
 
     python3 tools/port/layout_check.py [--build build/pc] [-j 2] [--reuse] [--out build/pc/endian/layout.txt]
-    python3 tools/port/layout_check.py --reuse --storage D_80143FC8      # every access that reaches a storage
+    python3 tools/port/layout_check.py --reuse --storage gTargetList      # every access that reaches a storage
     python3 tools/port/layout_check.py --selftest                         # ctest layout_check
 
 Every shared record has one PC layout (docs/port/POINTERS.md 9.1). view_check.py and view_audit.py compare the views
@@ -596,7 +596,7 @@ class Symbols:
 
     def __init__(self, build):
         self.alias, self.inner, self.chosen, self.addr, self.falias = {}, {}, {}, {}, {}
-        ld = build / "pc-data" / "aliases.ld"   # PROVIDE(func_8009539C = draw_sprites): names of one function
+        ld = build / "pc-data" / "aliases.ld"   # PROVIDE(OrderFx = OrderFx): names of one function
         if ld.exists():
             for m in re.finditer(r"PROVIDE\((\w+) = (\w+)\);", ld.read_text()):
                 self.falias[m.group(1)] = m.group(2)
@@ -1321,42 +1321,42 @@ def findings(flow):
 # offsets, argument the slots point into). Their parameters take every caller's lists, so the stores inside them are
 # not followed; each call says which list and which records.
 LINKS = {
-    "func_80091FBC": (0, (8,), 1),                     # InsertLLE(list, object, before): the list's head
+    "InsertLLE": (0, (8,), 1),                     # InsertLLE(list, object, before): the list's head
     "pool_init": (0, (0x10, 0x18, 0x20), 1),           # InitStatLL's set-up(pool, mem, n, size): mem, active, free
-    "struct_fields_init": (0, (0x10, 0x18, 0x20), 1),  # overlay B's InitStatLL(pool, mem, size, n, flags)
+    "InitStatLL": (0, (0x10, 0x18, 0x20), 1),  # overlay B's InitStatLL(pool, mem, size, n, flags)
 }
 # Views that give a storage reached only through pointers its reference layout: (unit regex, view name, why), and
 # optionally (unit regex, view name) of the layout when it is another view's (records that reach the two views
 # through paths the flow does not follow, such as message queues).
 REFERENCE = [
-    (r"src/blob/groups/level_objects/group\.c$", "Node",
+    (r"src/blob/groups/targets/group\.c$", "Node",
      "the level-object nodes (the targets): N64 layout in the arena, 32-bit links and state (POINTERS.md 10.2)"),
-    (r"src/blob/groups/level_objects/group\.c$", "Matrix64",
-     "the dead-reckoning records D_80150F38: N64 layout, body a u32 window address (POINTERS.md 10.2)"),
-    (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "tFxSequence",
+    (r"src/blob/groups/targets/group\.c$", "Matrix64",
+     "the dead-reckoning records gBBoxModelStructs: N64 layout, body a u32 window address (POINTERS.md 10.2)"),
+    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tFxSequence",
      "the audio manager's FX tags, MAT3 audiomgr.c's tFxSequence: InsertLLE's two links are pointers"),
-    (r"src/blob/groups/menu_save_options/hud_setup\.c$", "Voice",
-     "the FX tag pool D_80110244 that hud_setup allocates: the tags", r"engine_sound_sync/audiomgr_thread\.c$",
+    (r"src/blob/groups/save/hud_setup\.c$", "Voice",
+     "the FX tag pool gFxTags that AudioInit allocates: the tags", r"audiomgr/audiomgr_thread\.c$",
      "tFxSequence"),
-    (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "anon_ll_id_3c",
+    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_ll_id_3c",
      "the audio manager's sequence tags, MAT3 audiomgr.c's: InsertLLE's two links are pointers"),
-    (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "anon_te_tag_c",
+    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_te_tag_c",
      "the sorted-tag tree's nodes, MAT3 audiomgr.c's: left, right and the tag, pointers"),
-    (r"src/blob/groups/menu_save_options/hud_setup\.c$", "Chan",
-     "the sequence tag pool D_80110270 that hud_setup allocates", r"engine_sound_sync/audiomgr_thread\.c$",
+    (r"src/blob/groups/save/hud_setup\.c$", "Chan",
+     "the sequence tag pool gSequences that AudioInit allocates", r"audiomgr/audiomgr_thread\.c$",
      "anon_ll_id_3c"),
-    (r"src/blob/groups/engine_sound_sync/engine_sound_sync\.c$", "Source",
+    (r"src/blob/groups/audiomgr/engine_sound_sync\.c$", "Source",
      "the 3D-sound sources (an FX tag's data): InsertLLE's two links are pointers"),
-    (r"src/blob/groups/entity_helpers/group\.c$", "CamSlot", "an FX tag's data, a 3D-sound source",
-     r"src/blob/groups/engine_sound_sync/engine_sound_sync\.c$", "Source"),
-    (r"src/blob/sound_control\.c$", "Blit", "a blit, sound_control.c's (POINTERS.md 9.3)"),
-    (r".", "Blit", "a blit: sound_control.c's layout (POINTERS.md 9.3)", r"src/blob/sound_control\.c$", "Blit"),
+    (r"src/blob/groups/audiomgr_emitters/group\.c$", "CamSlot", "an FX tag's data, a 3D-sound source",
+     r"src/blob/groups/audiomgr/engine_sound_sync\.c$", "Source"),
+    (r"src/blob/NewMultiBlit\.c$", "Blit", "a blit, NewMultiBlit.c's (POINTERS.md 9.3)"),
+    (r".", "Blit", "a blit: NewMultiBlit.c's layout (POINTERS.md 9.3)", r"src/blob/NewMultiBlit\.c$", "Blit"),
 ]
 # Symbols whose reference is not gen_data's choice, because the chosen declaration is one of the views in question:
 # symbol -> (unit regex, view name, why).
 SYMBOL_REFERENCE = {
-    "pc_snd_msgs": (r"src/blob/groups/engine_sound_sync/audiomgr_thread\.c$", "tAudioMsg",
-                    "the audio manager's messages (N64 D_80142DD8), MAT3 audiomgr.c's tAudioMsg (the PC declaration's "
+    "pc_snd_msgs": (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tAudioMsg",
+                    "the audio manager's messages (N64 audiomgr_gCmds), MAT3 audiomgr.c's tAudioMsg (the PC declaration's "
                     "pc_snd_msg is no view the game writes through)"),
 }
 # Findings read and judged: (unit regex, regex on the function, view, field, access text or storage, why). A finding
@@ -1365,36 +1365,36 @@ REVIEWED = [
     (r".", r"^pc_statll_(set_)?link$",
      "by design: the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other "
      "width never runs on that list"),
-    (r"src/blob/dma_wait_complete\.c$|src/rom/lib_1050_sdk\.c$", r"^(Sched|PcSched)$",
-     "by design: dma_wait_complete's Sched is a PC view of the native scheduler (lib_1050_sdk.c's PcSched), padded "
+    (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/lib_1050_sdk\.c$", r"^(Sched|PcSched)$",
+     "by design: audio_retrace_thread_entry's Sched is a PC view of the native scheduler (scheduler.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),
-    (r"src/blob/groups/engine_sound_sync/engine_sound_sync\.c$", r"^Effect$",
-     "by design: engine_sound_sync's Effect is a PC view of the FX tag padded in host bytes; each access is the "
+    (r"src/blob/groups/audiomgr/engine_sound_sync\.c$", r"^Effect$",
+     "by design: ProcessEmitters's Effect is a PC view of the FX tag padded in host bytes; each access is the "
      "tag's field"),
     (r"src/rom/lib_17dc0\.c$", r"^(Seq_|SequenceContext)",
-     "by design: lib_17dc0.c's PC views of a sequence slot are padded in host bytes (SEQ_PC_OFF, "
+     "by design: sequencer.c's PC views of a sequence slot are padded in host bytes (SEQ_PC_OFF, "
      "include/sequence_context.h), so each access is the slot's field whatever N64 position the padding gives"),
-    (r"src/blob/groups/(updatefx/updatefx|entity_lookup/group)\.c$", r"^(AudioMsg|Msg)$",
+    (r"src/blob/groups/(update_fx/updatefx|aud_stop_effect/group)\.c$", r"^(AudioMsg|Msg)$",
      "by design: a stop or interrupt message's tag follows the header (tAudioMsg's startEffect, host +8); the "
      "union's N64 positions are its largest member's"),
-    (r"src/blob/groups/menu_save_options/ctx_slot\.c$", r"^DecodeGhost$",
+    (r"src/blob/groups/save/ctx_slot\.c$", r"^DecodeGhost$",
      "by design: a heap handle slot is 8 bytes holding a zero-extended window address, and a u32 reader takes its "
      "low half (POINTERS.md 9.10)"),
-    (r"src/blob/camera_lerp_position\.c$", r"Rec20",
-     "harmless: camera_lerp_position clears the mine slots' count and its padding with an intptr_t 0"),
-    (r"src/blob/race_init_helper\.c$", r"^race_init_helper$",
+    (r"src/blob/initTargetStructs\.c$", r"Rec20",
+     "harmless: initTargetStructs clears the mine slots' count and its padding with an intptr_t 0"),
+    (r"src/blob/Update_MDrive\.c$", r"^Update_MDrive$",
      "by design: the s16 read at +0xF4 is the car's s32 node handle's low half, the PC's first s16 (ENDIAN.md 3.1)"),
-    (r"src/blob/groups/blast/blast\.c$", r"^save_write_data$",
+    (r"src/blob/groups/blast/blast\.c$", r"^StartBlast$",
      "by design: StartBlast's data is an s16 car slot with linkToCar, an f32 position without (endian_check's "
      "NOT_FOLLOWED)"),
     (r"src/rom/", r"__osSiDmaBuffer|OSPifRam",
      "by design: libultra builds the PIF commands byte by byte in its word buffer, as the SI emulation reads it"),
-    (r"src/blob/func_800AED20\.c$", r"^func_800AED20$",
-     "by design: the 3D-sound source's active byte; engine_sound_sync.c's Source names it and the queued byte as a "
+    (r"src/blob/NewEmitter\.c$", r"^NewEmitter$",
+     "by design: the 3D-sound source's active byte; ProcessEmitters.c's Source names it and the queued byte as a "
      "u32 flags word that no code reads whole"),
-    (r"src/blob/func_800A1910\.c$", r"^func_800A1910$",
-     "by design: func_800A1910 compares bytes (memcmp); its callers pass typed pointers"),
-    (r"src/blob/groups/audio_pitch_adjust/ap\.c$|audio_effect_setup_b132\.c$|src/blob/func_8009211C\.c$",
+    (r"src/blob/game_memcmp\.c$", r"^game_memcmp$",
+     "by design: game_memcmp compares bytes (memcmp); its callers pass typed pointers"),
+    (r"src/blob/groups/interrupt_fx_tag/ap\.c$|audio_effect_setup_b132\.c$|src/blob/RemoveLLE\.c$",
      r"^\*caller_[ab]\.arg0$",
      "dead: ap.c's caller_a and caller_b are stand-in callers kept for matching (never called); their walk through "
      "the tag's list field is not the tags' link"),
@@ -1517,7 +1517,7 @@ void ref_walk(void) { Node *n; for (n = gPool.head; n; n = (Node *)(uintptr_t)n-
 typedef struct Target { struct Target *next; u8 pad4[92]; s32 sound; s8 state; } Target;
 void bad_walk(void) { Target *t; for (t = (Target *)gPool.head; t; t = t->next) { t->state = 2; t->sound = -1; } }
 /* 2. A record reached through a parameter whose struct has another name: the caller's view has the u32 body, the
- * callee's an 8-byte pointer, so its position is 4 bytes late (random_float's Reckon). */
+ * callee's an 8-byte pointer, so its position is 4 bytes late (setMiniFBCollisionForce's Reckon). */
 typedef struct Body { f32 r[4]; f32 mass; } Body;
 typedef struct RecA { u32 body; f32 uv[9]; f32 pos[3]; } RecA;
 typedef struct RecB { Body *body; f32 uv[9]; f32 pos[3]; } RecB;
@@ -1530,7 +1530,7 @@ Slot *gSlots;
 void fill_slots(void) { Node *n; int k = 0; for (n = gPool.head; n; n = (Node *)(uintptr_t)n->next) gSlots[k++].object = n; }
 typedef struct Obj { struct Obj *next; u8 flags; } Obj;
 int use_slots(int i) { return ((Obj *)gSlots[i].object)->flags; }
-/* 4. m2c byte arithmetic at the N64 stride of a record that is longer on the PC (func_800FBE60's * 952), and the same
+/* 4. m2c byte arithmetic at the N64 stride of a record that is longer on the PC (InitCPTime's * 952), and the same
  * at the PC stride. */
 typedef struct Car { u8 a[0x10]; void *vis[2]; u8 b[0x10]; f32 speed; } Car;
 Car gCars[4];
@@ -1539,8 +1539,8 @@ void good_stride(int i) { *(f32 *)((u8 *)gCars + i * sizeof(Car) + 0x30) = 0.0f;
 /* 5. A typed index through a view of the N64 element size. */
 typedef struct Rec16 { void *p; u32 a, b; } Rec16;
 Rec16 gRec16[8];
-typedef struct Rec12 { u32 p, a, b; } Rec12;
-u32 typed_bad(int i) { return ((Rec12 *)gRec16)[i].a; }
+typedef struct SelectCarWave { u32 p, a, b; } SelectCarWave;
+u32 typed_bad(int i) { return ((SelectCarWave *)gRec16)[i].a; }
 u32 typed_good(int i) { return gRec16[i].a; }
 /* 6. A raw N64 offset into a record whose PC layout moved the field: a pointer into the middle of another field (the
  * profile's name at +20). */
@@ -1553,7 +1553,7 @@ typedef struct Holder { void *ptr; u32 count; } Holder;
 Holder gHolder;
 u32 low_half(void) { return *(u32 *)&gHolder.ptr + 1; }
 /* 8. A sorted tree: the insert walks down it (pp = &(*pp)->right) and calls its order through the tree's function
- * pointer; the order (draw_sprites) read the node's tag and the tag's priority at the N64 offsets: the node's +8 is
+ * pointer; the order (OrderFx) read the node's tag and the tag's priority at the N64 offsets: the node's +8 is
  * its right link on the PC, so the priority read lands inside another node's link. */
 typedef struct Tag { void *link[2]; s32 id; s32 prio; } Tag;
 typedef struct TNode { struct TNode *left, *right; Tag *tag; } TNode;
@@ -1576,7 +1576,7 @@ void tree_add(int i) {
     tree_insert(&gTree2, &gTree2.root, &gTNodes2[i]);
 }
 /* 9. Views padded in bytes up to a field. One the PC build alone has reaches the PC's field (a PC view, 2); one the
- * N64 build has too gives the N64's field (+8, b) where the PC has another (a), as func_8008BEA4's In (4). */
+ * N64 build has too gives the N64's field (+8, b) where the PC has another (a), as AnimateBrakeLights's In (4). */
 #ifdef TARGET_PC
 typedef struct PadPC { u8 pad[8]; u32 a; } PadPC;
 #endif
@@ -1594,7 +1594,7 @@ SELFTEST_EXPECT = [
     ("layout", r"^\*\(gPool\+0x8\)$", r"Obj in .* off the reference"),
     ("stride", r"^gCars$", r"`\* 44`.*N64 size.*bad_stride"),
     ("stride", r"^gRec16$", r"`\* 12`.*N64 size.*typed_bad"),
-    ("layout", r"^gRec16$", r"Rec12 in .* off the reference .*Rec16.*typed_bad"),
+    ("layout", r"^gRec16$", r"SelectCarWave in .* off the reference .*Rec16.*typed_bad"),
     ("inside", r"^gProf$", r"host \+0x14 passed to show.*inside the reference's file.*bad_name"),
     ("width", r"^gHolder$", r"4 bytes of the reference's pointer ptr.*low_half"),
     ("inside", r"^gTNodes$", r"4-byte read at host \+0xC, inside the reference's right.*order_bad"),

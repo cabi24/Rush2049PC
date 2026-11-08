@@ -38,7 +38,7 @@ uint32_t pc_rcp_gfx_tasks, pc_rcp_audio_tasks, pc_rcp_gfx_yields;
 int pc_rcp_stop_at_gfx;
 
 #define AI_BUFFER_FRAMES 192
-#define AI_MAX_OUTSTANDING 3     /* the game's AI queue has 4 slots (func_80010C68) */
+#define AI_MAX_OUTSTANDING 3     /* the game's AI queue has 4 slots (sound_hw_start_output_thread) */
 #define AI_TIMEOUT_NS 50000000u  /* an event not answered in 50 ms may have been dropped */
 
 static struct {

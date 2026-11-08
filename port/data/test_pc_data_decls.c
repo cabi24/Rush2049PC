@@ -17,15 +17,15 @@ typedef union { uint32_t bits; float value; } TestWord;
 typedef union { struct { int16_t x, y; uint8_t flags[4]; } v; uint8_t kind[4]; } TestPart;
 
 extern TestColor D_80010020[2];
-extern uint32_t D_80010024;          /* a word view of element 1 (D_801146C0 in D_801146BC): its bytes stay */
+extern uint32_t D_80010024;          /* a word view of element 1 (flashColors_at_1 in flashColors): its bytes stay */
 extern TestColor2 D_80010028;
 extern TestWord D_8001002C;
 extern TestPart D_80010030;
-/* Two interleaved columns of an s16[3][4] declared to the last element read (gViewportOffsetX/Y): they agree
+/* Two interleaved columns of an s16[3][4] declared to the last element read (video_default_x/Y): they agree
  * where they overlap. Then a flag. */
 extern int16_t D_80010040[9], D_80010042[9];
 extern int8_t D_80010054;
-/* A table declared too long (gViewportOffsetX as s16[32]): it runs over the flag after it, which is listed. */
+/* A table declared too long (video_default_x as s16[32]): it runs over the flag after it, which is listed. */
 extern int16_t D_80010060[32];
 extern int8_t D_80010070;
 

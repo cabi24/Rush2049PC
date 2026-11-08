@@ -22,7 +22,7 @@ static uint32_t window_offset(uint32_t addr)
     return phys < pc_rdram_size() ? phys : ~0u;
 }
 
-/* entity_lod_select's and entity_cull_check's relocation of a display-list word, w1 + base: the N64 keeps the
+/* relocate_model_dl's and relocate_texture_loads's relocation of a display-list word, w1 + base: the N64 keeps the
  * offset's 24 bits and puts a segment in bits 24-27 (seg 0-15, or for seg < 0 the one w1 has). Where the result is
  * segment 0 and lies in the window past 16 MiB, its K0 address. A w1 that is such a K0 address already (an earlier
  * relocation, moved by a delta) has no segment of its own. */

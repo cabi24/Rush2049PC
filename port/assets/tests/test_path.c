@@ -1,9 +1,9 @@
 /* port/assets/tests/test_path.c: the path converter (port/assets/path.c) on a synthetic big-endian path file, then
- * the game's own ReadCheckpointData (audio_dsp_process) and PC ReadPathData (audio_effect_apply: native headers and
- * alternative paths), and three readers that index the results by hand-written strides (func_800B9F60,
- * func_800B9338, func_800DC080).
- * game: src/blob/audio_dsp_process.c src/blob/groups/read_path_data/audio_effect_apply.c
- * game: src/blob/func_800B9F60.c src/blob/func_800B9338.c src/blob/func_800DC080.c
+ * the game's own ReadCheckpointData (ReadCheckpointData) and PC ReadPathData (ReadPathData: native headers and
+ * alternative paths), and three readers that index the results by hand-written strides (NextResPathPt,
+ * NextPathPt, PrevPathPt).
+ * game: src/blob/ReadCheckpointData.c src/blob/groups/pathcommon_read/ReadPathData.c
+ * game: src/blob/NextResPathPt.c src/blob/NextPathPt.c src/blob/PrevPathPt.c
  */
 #include <string.h>
 
@@ -27,26 +27,26 @@ struct DronePath {
     void *pts;
 };
 
-int8_t D_80114650;
-char *D_80153F20;
-struct ResPath D_801407F0;
-struct AltPath *D_80153E80;
-uint16_t D_801527A4;
-void *D_801409E8;
-struct DronePath D_8012E5E8[4];
-int16_t D_801527D0[4];
-void *D_80153EF8[4];
-uint8_t D_80151CE8[812] __attribute__((aligned(8)));
+int8_t gRestartGame;
+char *gPathWave;
+struct ResPath gResPath;
+struct AltPath *gAltPaths;
+uint16_t gNumResPathPts;
+void *gResPathPtList;
+struct DronePath gDronePaths[4];
+int16_t gNumPathPts[4];
+void *gPathPtList[4];
+uint8_t gCheckpoints[812] __attribute__((aligned(8)));
 void *n64_memcpy(void *d, const void *s, unsigned n) { return memcpy(d, s, n); }
-void physics_response(void) {}
-void audio_mixer_main(int16_t mode) {}
-void physics_friction_apply(void) {}
-void func_800B9740(void) {}
-void audio_dsp_process(void);
-void audio_effect_apply(void);
-void func_800B9F60(int32_t arg0, int32_t arg1, int32_t *arg2, int32_t *arg3);
-int16_t func_800B9338(int16_t arg0, int16_t arg1);
-int16_t func_800DC080(int16_t arg0, int16_t arg1);
+void CalcCheckpointTimes(void) {}
+void SyncCheckpointsToPaths(int16_t mode) {}
+void SyncAltPaths(void) {}
+void CalcResPathBounds(void) {}
+void ReadCheckpointData(void);
+void ReadPathData(void);
+void NextResPathPt(int32_t arg0, int32_t arg1, int32_t *arg2, int32_t *arg3);
+int16_t NextPathPt(int16_t arg0, int16_t arg1);
+int16_t PrevPathPt(int16_t arg0, int16_t arg1);
 
 enum { PRIMARY = 3, ALTS = 2 };
 static const uint16_t k_alt_pts[ALTS] = {1, 4}, k_drone_pts[4] = {2, 5, 3, 0};
@@ -132,31 +132,31 @@ int main(void)
     pc_assets_path(158, f, size);
 
     /* ReadCheckpointData copies the block into gCheckpoints. */
-    D_80153F20 = (char *)f;
-    audio_dsp_process();
+    gPathWave = (char *)f;
+    ReadCheckpointData();
     {
         int16_t h;
         int32_t r;
-        memcpy(&h, D_80151CE8 + 8, 2);
+        memcpy(&h, gCheckpoints + 8, 2);
         CHECK(h == 2);
-        memcpy(&h, D_80151CE8 + 2, 2);
+        memcpy(&h, gCheckpoints + 2, 2);
         CHECK(h == 0);   /* loopPt: the first checkpoint with flag 4 */
-        memcpy(&x, D_80151CE8 + 12 + 0x50 + 4 * 4, 4);
+        memcpy(&x, gCheckpoints + 12 + 0x50 + 4 * 4, 4);
         CHECK(x == 14.0f);
-        memcpy(&r, D_80151CE8 + 12 + 0x50 * 3 + 0x18, 4);
+        memcpy(&r, gCheckpoints + 12 + 0x50 * 3 + 0x18, 4);
         CHECK(r == 503);
-        memcpy(&x, D_80151CE8 + 12 + 0x50 * 4 + 0x4C, 4);
+        memcpy(&x, gCheckpoints + 12 + 0x50 * 4 + 0x4C, 4);
         CHECK(x == 50.0f);
     }
 
     /* ReadPathData. */
-    audio_effect_apply();
-    CHECK(D_801407F0.numPrimary == PRIMARY && D_801407F0.numAlt == ALTS && D_801527A4 == PRIMARY);
-    CHECK((uint8_t *)D_801407F0.pts == f + res_at && D_801409E8 == D_801407F0.pts);
-    CHECK(D_801407F0.pts[2][1] == -1000 - 7);
-    CHECK(D_801407F0.alt == D_80153E80 && D_80153E80 != NULL);
+    ReadPathData();
+    CHECK(gResPath.numPrimary == PRIMARY && gResPath.numAlt == ALTS && gNumResPathPts == PRIMARY);
+    CHECK((uint8_t *)gResPath.pts == f + res_at && gResPathPtList == gResPath.pts);
+    CHECK(gResPath.pts[2][1] == -1000 - 7);
+    CHECK(gResPath.alt == gAltPaths && gAltPaths != NULL);
     for (i = 0, pos = alt_at; i < ALTS; i++) {
-        struct AltPath *a = &D_801407F0.alt[i];
+        struct AltPath *a = &gResPath.alt[i];
         CHECK(a->type == i + 1 && (int8_t)a->unk01[0] == -1 && a->numPts == k_alt_pts[i]);
         CHECK(a->unk01[3] == 2 + i && a->unk01[7] == 9);
         CHECK((uint8_t *)a->pts == f + pos && a->pts[0][2] == 2000 + 100 * i + 2);
@@ -164,9 +164,9 @@ int main(void)
     }
     for (p = 0, pos = drone_at; p < 4; p++) {
         uint8_t *pt;
-        CHECK(D_8012E5E8[p].num == k_drone_pts[p] && D_801527D0[p] == k_drone_pts[p]);
-        CHECK((uint8_t *)D_8012E5E8[p].pts == f + pos + 8 && D_80153EF8[p] == D_8012E5E8[p].pts);
-        pt = (uint8_t *)D_8012E5E8[p].pts;
+        CHECK(gDronePaths[p].num == k_drone_pts[p] && gNumPathPts[p] == k_drone_pts[p]);
+        CHECK((uint8_t *)gDronePaths[p].pts == f + pos + 8 && gPathPtList[p] == gDronePaths[p].pts);
+        pt = (uint8_t *)gDronePaths[p].pts;
         for (i = 0; i < k_drone_pts[p]; i++)
             for (k = 0; k < 3; k++) {
                 int16_t h;
@@ -178,13 +178,13 @@ int main(void)
     }
 
     /* Readers with their own strides over the native structs. */
-    func_800B9F60(1, k_alt_pts[1] - 1, &a2, &a3);   /* the last point of alternative path 1 */
+    NextResPathPt(1, k_alt_pts[1] - 1, &a2, &a3);   /* the last point of alternative path 1 */
     CHECK(a2 == 3 && a3 == 78);
-    func_800B9F60(1, 0, &a2, &a3);
+    NextResPathPt(1, 0, &a2, &a3);
     CHECK(a2 == 1 && a3 == 1);
-    CHECK(func_800DC080(0, 2) == k_drone_pts[2] - 1);
-    CHECK(func_800DC080(0, 1) == k_drone_pts[1] - 1);
-    CHECK(func_800B9338(k_drone_pts[1] - 1, 1) == 0);   /* end of drone path 1: the loop checkpoint's entry */
-    CHECK(func_800B9338(1, 1) == 2);
+    CHECK(PrevPathPt(0, 2) == k_drone_pts[2] - 1);
+    CHECK(PrevPathPt(0, 1) == k_drone_pts[1] - 1);
+    CHECK(NextPathPt(k_drone_pts[1] - 1, 1) == 0);   /* end of drone path 1: the loop checkpoint's entry */
+    CHECK(NextPathPt(1, 1) == 2);
     return TEST_DONE();
 }

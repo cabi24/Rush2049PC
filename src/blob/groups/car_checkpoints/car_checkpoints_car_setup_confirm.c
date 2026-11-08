@@ -1,11 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * NOT STRICT: 2 words reference `D_8014A250_alias` (unresolved), .
- * Arcade CarReportsGameOver (game/checkpoint.c), N64 form: car_setup_confirm(slot, score).
+ * Arcade CarReportsGameOver (game/checkpoint.c), N64 form: CarReportsGameOver(slot, score).
  * Locks the car's place, re-sorts the locked cars by score (bubble sort over parallel place[] /
- * scores[] arrays), gives finished-but-lapped cars (unk359 > 0 and model.unk7E8 < D_80152734) a
- * score of 5999.999f + (s32)(9.0f * D_801543AC) - distance and a place counted from the back, ends
- * the race clock when all humans are locked, then calls func_800D1AB0 (places of the unlocked cars).
+ * scores[] arrays), gives finished-but-lapped cars (unk359 > 0 and model.unk7E8 < gNumLaps) a
+ * score of 5999.999f + (s32)(9.0f * gLapDistance) - distance and a place counted from the back, ends
+ * the race clock when all humans are locked, then calls PlaceUnlockedCars (places of the unlocked cars).
  * The human count test compares &model[index] with the address 0x8014A250 through a web that is NOT
  * the model array base used for indexing (retail materialises lui/addiu in the loop instead of using
  * s0): every spelling on `D_8014A250` itself is commoned with the base. A second symbol for the same
@@ -42,25 +42,25 @@ typedef struct {
     /* 0x35A */ char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
 } GameCar; /* 0x3B8 */
 
-extern s8 D_80152744;
-extern s16 D_80152734;
+extern s8 gNumActiveCars;
+extern s16 gNumLaps;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 D_8014A110;
-extern s16 D_8014A108;
-extern s8 D_80152718;
-extern f32 D_801543AC;
-extern s16 D_801543CA;
+extern s32 gRace;
+extern s16 gNumPlayers;
+extern s8 gEndGame;
+extern f32 gLapDistance;
+extern s16 gNumCars;
 
-f32 viGetTimeToDeadline(void);
-void viAddTicks(f32);
-void func_800D1AB0(void);
+f32 GetCountdownTimeRemaining(void);
+void AddCountdownTime(f32);
+void PlaceUnlockedCars(void);
 
 /* PC: the locked cars in score order, by slot, and their scores, as many as the race's cars (up to PC_MAX_LINKS,
  * pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's are 7 and 6, the 7 for its frame. */
 #define PLACE_N (PC_MAX_LINKS + 1)
 #define SCORES_N PC_MAX_LINKS
-void car_setup_confirm(s32 slot, f32 score) {
+void CarReportsGameOver(s32 slot, f32 score) {
     s16 i, j, index, temp, num_locked, place[PLACE_N], num_humans_locked;
     f32 scores[SCORES_N];
     f32 ftemp;
@@ -68,25 +68,25 @@ void car_setup_confirm(s32 slot, f32 score) {
     PC_CAR_FINISHED(slot) = 1;
     PC_CAR_TIME(slot) = score;
     num_humans_locked = 0;
-    for (i = 0, num_locked = -1; i < D_80152744; i++) {
+    for (i = 0, num_locked = -1; i < gNumActiveCars; i++) {
         index = PC_MODEL_SLOT(i);
         if (PC_CAR_FINISHED(index) == 1) {
             place[++num_locked] = index;
             scores[num_locked] = PC_CAR_TIME(index);
             if (PC_MODEL_DRONE_TYPE(index) == 2) {
-                if (D_8014A110 != 2 || PC_MODELS == PC_MODEL(index)) {
+                if (gRace != 2 || PC_MODELS == PC_MODEL(index)) {
                     num_humans_locked++;
                 }
             }
-            if (PC_CAR_STATE(index) > 0 && PC_MODEL_LAP(index) < D_80152734) {
-                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * D_801543AC) - PC_CAR_DISTANCE(index);
+            if (PC_CAR_STATE(index) > 0 && PC_MODEL_LAP(index) < gNumLaps) {
+                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * gLapDistance) - PC_CAR_DISTANCE(index);
             }
         }
     }
     if (PC_MODEL_DRONE_TYPE(slot) == 2) {
-        if ((num_humans_locked == D_8014A108 || (D_8014A110 == 2 && num_humans_locked == 1)) && D_80152718 == 0) {
-            D_80152718 = 1;
-            viAddTicks(1.0f - viGetTimeToDeadline());
+        if ((num_humans_locked == gNumPlayers || (gRace == 2 && num_humans_locked == 1)) && gEndGame == 0) {
+            gEndGame = 1;
+            AddCountdownTime(1.0f - GetCountdownTimeRemaining());
         }
     }
     for (i = 0; i < num_locked; i++) {
@@ -102,11 +102,11 @@ void car_setup_confirm(s32 slot, f32 score) {
         }
     }
     for (i = 0; i < num_locked + 1; i++) {
-        if (PC_CAR_STATE(place[i]) > 0 && PC_MODEL_LAP(place[i]) < D_80152734) {
-            PC_CAR_PLACE(place[i]) = D_801543CA - num_locked + i - 1;
+        if (PC_CAR_STATE(place[i]) > 0 && PC_MODEL_LAP(place[i]) < gNumLaps) {
+            PC_CAR_PLACE(place[i]) = gNumCars - num_locked + i - 1;
         } else {
             PC_CAR_PLACE(place[i]) = i;
         }
     }
-    func_800D1AB0();
+    PlaceUnlockedCars();
 }

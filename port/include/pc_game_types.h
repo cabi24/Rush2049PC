@@ -8,7 +8,7 @@
 
 /* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes at 0x80153E88-0x80153EF0, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
- * per-car arrays are 6 long), but LoadCars, sfx_position_3d and func_8039156C walk all 13, so the storage is never
+ * per-car arrays are 6 long), but LoadCars, InitVisuals and InitSelectCarLoad walk all 13, so the storage is never
  * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC (12, twice the N64's 6); nothing
  * activates more than 6 yet. */
 #ifndef PC_MAX_LINKS
@@ -29,13 +29,13 @@ int pc_cars_setting(void);
 
 /* [game] cars (port/config/race_cars.c, docs/port/FRONTEND.md). pc_race_cars() is the count latched by the last
  * pc_race_cars_begin(), which the game calls where a race's roster is filled (CalcPolePositions, the attract demo's
- * func_800EC190: MORECARS.md 10.2 item 3), so it never changes during a race, whatever the settings overlay does; it
+ * fake_init: MORECARS.md 10.2 item 3), so it never changes during a race, whatever the settings overlay does; it
  * is PC_N64_CARS until the first call. pc_cars_setting() is the setting itself, unlatched: PC_N64_CARS for original,
  * else 6 to PC_MAX_LINKS; the front end reads it (the track select's Drones option goes up to it less one). */
 
 /* ---- Draw distance and detail (video.draw_distance, video.detail; docs/port/DETAIL.md; port/config/detail.c).
  * The game's scene walk reads the settings through these, every view of every frame.
- *   PC_DRAW_REACH(d)     a distance limit d (a model's last level of detail, the fog's radius D_80151AA0, the far
+ *   PC_DRAW_REACH(d)     a distance limit d (a model's last level of detail, the fog's radius gViewableDistance, the far
  *                        scenery's 1,600 ft): d at original, PC_DRAW_FAR_FACTOR times it at far, none (1e30) at max
  *   PC_LOD_DIST(d)       the distance the level of detail is chosen by: -1 (the nearest level) with detail high
  *   PC_DETAIL_PLAYERS(n) the player count a model's display lists keep their level-of-detail sections for (its LOD
@@ -45,14 +45,14 @@ int pc_cars_setting(void);
 #include "pc_detail.h"
 int pc_draw_distance(void);   /* PC_DRAW_* (pc_detail.h) */
 int pc_detail(void);          /* PC_DETAIL_* */
-int pc_fog(void);             /* PC_FOG_*: off keeps the sky dome in a fog option (SkyInit, camera_reset.c) */
+int pc_fog(void);             /* PC_FOG_*: off keeps the sky dome in a fog option (SkyInit, SkyInit.c) */
 float pc_draw_reach(float d);
 float pc_lod_distance(float d);
 int pc_detail_players(int players);
 int pc_draw_range_scale(float x, float y, float z);
 enum { PC_SCENE_DRAWN, PC_SCENE_COARSE, PC_SCENE_PARTS, PC_SCENE_WORLD, PC_SCENE_HIDDEN, PC_SCENE_VIEW_HIDDEN,
        PC_SCENE_RANGE, PC_SCENE_RADIUS, PC_SCENE_LOD, PC_SCENE_COUNTS };
-void pc_scene_view(void);                 /* a view's scene walk begins (func_8009F058) */
+void pc_scene_view(void);                 /* a view's scene walk begins (zoid_draw_window) */
 void pc_scene_count(int what, int n);
 #define PC_DRAW_REACH(d) pc_draw_reach(d)
 #define PC_LOD_DIST(d) pc_lod_distance(d)
@@ -61,10 +61,10 @@ void pc_scene_count(int what, int n);
 #define PC_SCENE_LEVEL(lod) pc_scene_count(PC_SCENE_COARSE, (lod) != 0);   /* drawn at a level past its first */
 
 /* ---- The pools a race fills, and the start grid (docs/port/MORECARS.md 8 and 4).
- * GetMatrix (func_800A7D6C) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
+ * GetMatrix (ZOID_NewMatrix) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
  * PC_N64_MATRICES at D_8015F740 (0x8015F740-0x80161360, index 0 unused), then PC_MATRIX_SPILL more in
  * pc_matrix_spill, a range of the RDRAM window the PC reserves (port/data/reserved.txt: bytes the decoupled model
- * records freed). They stay in the window: a window's camera matrix is kept as a u32 (D_80124FD0, MORECARS.md 2.7).
+ * records freed). They stay in the window: a window's camera matrix is kept as a u32 (skyMatrices, MORECARS.md 2.7).
  * About 12 a car: a 6-car race on track 0 takes indexes 1-130, a 12-car one 1-202. */
 #define PC_N64_MATRICES 150
 #ifndef PC_MATRIX_SPILL
@@ -72,13 +72,13 @@ void pc_scene_count(int what, int n);
 #endif
 #define PC_MATRICES (PC_N64_MATRICES + PC_MATRIX_SPILL)
 extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
-/* The scene nodes (func_8008E26C: D_8012E700, own storage), the N64's 600 and checked: 12-13 a car on the retail
+/* The scene nodes (ZOID_AddObject: ObjInstanceList, own storage), the N64's 600 and checked: 12-13 a car on the retail
  * tracks, where a 12-car race takes up to 526 (two views; a 6-car one 454). */
 #define PC_SCENE_NODES 600
-/* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; gfx_frame_begin.c): 1,728
+/* The frame's command buffers, two that alternate (pc_frame_dl, initgraphics/initgfx.c; StartGraphics.c): 1,728
  * bytes of viewports, vertices, projections, lookats and the identity (particle_knot's GfxBuf), PC_FRAME_MATRICES
- * matrices of 64 bytes (D_8015B260, from +1,728), then the display list (D_801497C8 from PC_GLIST_OFFSET),
- * PC_GLIST_LEN commands of 16 bytes. The N64's (D_800586D0, D_8006A090) hold 600 and 4,000: the list at +0x9CC0.
+ * matrices of 64 bytes (frame_matrix_cursor, from +1,728), then the display list (frame_dl from PC_GLIST_OFFSET),
+ * PC_GLIST_LEN commands of 16 bytes. The N64's (frame_command_buffer_a, frame_command_buffer_b) hold 600 and 4,000: the list at +0x9CC0.
  * video.draw_distance max with two views and 12 cars takes up to 870 matrices and 6,347 commands on the retail tracks
  * (docs/port/DETAIL.md 4), so 1,600 and 12,000 (1,200 and 8,000 were MORECARS.md 8.1's, for 546 and 4,131). */
 #ifndef PC_FRAME_MATRICES
@@ -92,7 +92,7 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
 #define PC_GLIST_OFFSET (PC_FRAME_MATRIX_OFFSET + PC_FRAME_MATRICES * 64)
 #define PC_FRAME_BYTES (PC_GLIST_OFFSET + PC_GLIST_LEN * 16)
 /* A pool run past its end (port/ultra/pools.c): it says so, once a pool, and a Debug build stops there.
- * pc_frame_pools checks the frame's two at the end of its list (world_collision_response: the frame, the list's end
+ * pc_frame_pools checks the frame's two at the end of its list (EndGraphics: the frame, the list's end
  * and the matrices' end) and keeps their high-water marks; it returns 1 if either ran past its end. */
 void pc_pool_overflow(const char *pool, int used, int capacity);
 int pc_frame_pools(const void *frame, const void *glist_end, const void *matrices_end);
@@ -107,7 +107,7 @@ int pc_frame_pools(const void *frame, const void *glist_end, const void *matrice
 float *pc_pole_row(int place);
 
 struct pc_link {
-    unsigned char track;     /* +0 the track (CalcPolePositions, func_800EC190: D_8014978C) */
+    unsigned char track;     /* +0 the track (CalcPolePositions, fake_init: gTrackNum) */
     unsigned char car;       /* +1 the car model, 0-12 (LoadCars, the car select) */
     unsigned char color[3];  /* +2 the car's three colours (the car select, LoadCars; the model record's +0x7CD) */
     unsigned char place;     /* +5 the start place (CalcPolePositions; the car record's place) */
@@ -136,7 +136,7 @@ extern struct pc_link pc_links[PC_LINK_SLOTS];
  * 0x8014D280, BSS). One record per car slot: its physics state, controls and race state. The record keeps its N64
  * layout on the PC (its pointer fields are u32 window addresses, docs/port/CARS.md 4), so its size is 0x808 here
  * too and code that steps through it by 0x808 still lands on the fields. Every walk of it stops at 6 (the cars in
- * the race, D_801543CA, D_80152744, MAX_LINKS), so the storage is PC_MODEL_SLOTS = the larger of 6 and
+ * the race, gNumCars, gNumActiveCars, MAX_LINKS), so the storage is PC_MODEL_SLOTS = the larger of 6 and
  * PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game reaches by index (and the names inside
  * the array: D_8014AA16 is [0].slot) are named here; code that takes a record's address (PC_MODEL) reads it
  * through its own view, which view_audit.py checks against the same layout. */
@@ -150,7 +150,7 @@ struct pc_model {
     signed char input_flags;            /* +0x009 the human's input flags (its input record's) */
     signed char autotrans;              /* +0x00A automatic transmission */
     unsigned char pad00B[0x00F - 0x00B];
-    signed char b00F;                   /* +0x00F a per-car table value (world_physics_tick: D_8011157C) */
+    signed char b00F;                   /* +0x00F a per-car table value (init_cars: gTireRims) */
     unsigned char pad010[0x220 - 0x010];
     float rwv[3];                       /* +0x220 the velocity, feet a second (MAT3 RWV) */
     float rwr[3];                       /* +0x22C the position, feet (MAT3 RWR) */
@@ -215,8 +215,8 @@ struct pc_model {
 extern struct pc_model pc_models[PC_MODEL_SLOTS];
 
 /* The accessors: the array (PC_MODELS), record i's address (PC_MODEL) and the end of the race's cars (PC_MODELS_END,
- * the first PC_RACE_CARS records: menu_audio_settings walks the cars up to it, which on the N64 is the next symbol,
- * D_8014D280, the end of its 6), all void * so each file's own view pointer takes them, and record i's fields. */
+ * the first PC_RACE_CARS records: collision walks the cars up to it, which on the N64 is the next symbol,
+ * gTargetArray, the end of its 6), all void * so each file's own view pointer takes them, and record i's fields. */
 #define PC_MODELS ((void *)pc_models)
 #define PC_MODEL(i) ((void *)&pc_models[i])
 #define PC_MODELS_END ((void *)&pc_models[PC_RACE_CARS])
@@ -267,13 +267,13 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_DRONE_SCALE(i) (pc_models[i].drone_scale)
 #define PC_MODEL_TIME_BOOST(i) (pc_models[i].time_boost)
 
-/* ---- The car records: MAT3 gGameCar, tCarData, N64 player_array = D_80152818 (6 records of 0x3B8 bytes at
- * 0x80152818-0x80153E68, BSS; D_80153E68, a message queue, follows). One record per car slot: its position and
+/* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar = gGameCar (6 records of 0x3B8 bytes at
+ * 0x80152818-0x80153E68, BSS; sample_dma_pi_queue, a message queue, follows). One record per car slot: its position and
  * orientation for the cameras and effects, its visuals, its place and finish, and its battle state. On the PC a
  * record is 0x468 bytes (docs/port/CARS.md 2): its 21 visuals hold host pointers (0x20 bytes each, not 0x18) and
  * its input record pointer at N64 +0x380 is 8 bytes, so a field's PC offset is CAR_OFS of its N64 one
  * (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized members, as in every view. Every walk
- * of it stops at 6 (the cars in the race, D_801543CA, D_80152744), so the storage is PC_CAR_SLOTS = the larger of
+ * of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars), so the storage is PC_CAR_SLOTS = the larger of
  * 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game reaches by index (and the names
  * inside the array: D_80152907 is [0].finished) are named here; code that takes a record's address (PC_CAR) reads
  * it through its own view, which view_audit.py checks against the same layout. */
@@ -281,7 +281,7 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
 
 /* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for the car record and the views that pad over its
- * 21 visuals at +0x110 (and the environment visual pool D_80138880): next and func are host pointers there, data
+ * 21 visuals at +0x110 (and the environment visual pool gEnvirons): next and func are host pointers there, data
  * a u32 (docs/port/CARS.md 3). */
 struct pc_visual {
     void *next;
@@ -291,7 +291,7 @@ struct pc_visual {
     void (*func)(void *, short);
 };
 
-/* The drone's path state inside the car record (maxpath's Nav, func_800C4CF8's Region): no pointers, the same layout
+/* The drone's path state inside the car record (maxpath's Nav, SetDroneResPathIndex's Region): no pointers, the same layout
  * on both. Code takes its address (&PC_CAR_NAV(i)) and reads it in its own view. */
 struct pc_car_nav {
     float a, b, c, d;                   /* +0x00 */
@@ -308,21 +308,21 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     unsigned char pad000[0x008];
     float pos[3];                       /* +0x008 the position (MAT3 dr_pos), what the cameras and effects follow */
     unsigned char pad014[0x02C - 0x014];
-    float uvs[3][3];                    /* +0x02C an orientation (menu_control_settings: the model's initial one) */
-    float uvs50[3][3];                  /* +0x050 the orientation the cameras take (func_800EB90C) */
+    float uvs[3][3];                    /* +0x02C an orientation (init_road: the model's initial one) */
+    float uvs50[3][3];                  /* +0x050 the orientation the cameras take (CheckCameraView) */
     float wheel_pos[4][3];              /* +0x074 each wheel's position (the skid marks) */
     unsigned char pad0A4[0x0E8 - 0x0A4];
     unsigned int flags;                 /* +0x0E8 appearance flags (0x8, 0x10, 0x1000, 0x100000) */
     unsigned char pad0EC[0x0EE - 0x0EC];
     signed char place;                  /* +0x0EE the race place, 0 the first */
     signed char finished;               /* +0x0EF 1 once it has finished: its place is locked */
-    float time;                         /* +0x0F0 the finish time (car_setup_confirm: a score) */
+    float time;                         /* +0x0F0 the finish time (CarReportsGameOver: a score) */
     int node;                           /* +0x0F4 the scene node handle, -1 none (its low half: ENDIAN.md 3.1) */
     short mph;                          /* +0x0F8 the speed shown, mph x 4 */
     unsigned char pad0FA[0x100 - 0x0FA];
     float distance;                     /* +0x100 the distance along the track */
     unsigned char pad104[0x108 - 0x104];
-    float f108;                         /* +0x108 zeroed at the race start (func_800FBE60) */
+    float f108;                         /* +0x108 zeroed at the race start (InitCPTime) */
     unsigned char pad10C[0x110 - 0x10C];
     struct pc_visual visuals[21];       /* +0x110 the car's visuals (tVisual; the weapon's is [20]) */
     unsigned char pad308[0x314 - 0x308];
@@ -335,15 +335,15 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     short weight_index;                 /* +0x356 a drone's weight row (maxpath) */
     signed char b358;                   /* +0x358 cleared with the state (init_mdrive, the battle reset) */
     signed char state;                  /* +0x359 0 racing; below 2 still in the race; 1 out of a deaths race */
-    signed char disabled;               /* +0x35A no speed from the wheels (func_800E23A4) */
+    signed char disabled;               /* +0x35A no speed from the wheels (forces1) */
     signed char slot;                   /* +0x35B its own slot, the index (the roster's, the model's) */
     signed char view;                   /* +0x35C the window showing it, -1 none (a bit of the windows' mask) */
     unsigned char pad35D[0x360 - 0x35D];
     int sheen_alpha;                    /* +0x360 */
     float heading;                      /* +0x364 */
     unsigned char pad368[0x380 - 0x368];
-    void *input;                        /* +0x380 the input record &D_8014A118[i] (a host pointer), NULL for drones */
-    signed char kind;                   /* +0x384 battle: the record's type (func_80393518 tests it for 8) */
+    void *input;                        /* +0x380 the input record &gPlayers[i] (a host pointer), NULL for drones */
+    signed char kind;                   /* +0x384 battle: the record's type (animAmmoCounts tests it for 8) */
     signed char lives;                  /* +0x385 battle: lives left, shown when not negative */
     short health;                       /* +0x386 battle: 800 full */
     unsigned char pad388[0x38C - 0x388];
@@ -359,12 +359,12 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     float f3B4;                         /* +0x3B4 battle */
     unsigned int scenes;                /* PC +0x464, in the record's alignment padding, no N64 field: car 8 and up,
                                          * bit n set while it is in a scene trigger of collision index n (0-31),
-                                         * which the trigger's flags have no bit for (func_8010C2E4) */
+                                         * which the trigger's flags have no bit for (TargetCollTrigger) */
 };
 extern struct pc_car pc_cars[PC_CAR_SLOTS];
 
 /* The accessors: the array (PC_CARS), record i's address (PC_CAR) and the end of the first n records
- * (PC_CARS_END: the walks over the cars in the race, D_80152818 + D_801543CA on the N64), all void * so each
+ * (PC_CARS_END: the walks over the cars in the race, gGameCar + gNumCars on the N64), all void * so each
  * file's own view pointer takes them, and record i's fields. PC_CAR_INPUT_AS(T, i) is the input pointer as a T *,
  * for code that reads through it in its own view. */
 #define PC_CARS ((void *)pc_cars)
@@ -414,21 +414,21 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
- * clear every slot (physics_collision_test, InitBlasts, func_800B0580: PC_MAX_LINKS on the PC), and the rest reaches
+ * clear every slot (InitSmoke, InitBlasts, InitSkids: PC_MAX_LINKS on the PC), and the rest reaches
  * one car's entry by its slot. No pointer to them is kept as a 32-bit N64 address (the scene nodes that point at the
  * blasts' matrices hold host pointers), so they need no window address. On the PC a reader's N64 name is the PC
  * array where its view has the PC declaration's field names, and otherwise the array seen as PC_MAX_LINKS of its own
- * element type (#define D_80154FD8 (*(Effect (*)[PC_MAX_LINKS]) PC_BLAST_RINGS)), so the uses keep their N64 tokens
+ * element type (#define gBlastRingObjs (*(Effect (*)[PC_MAX_LINKS]) PC_BLAST_RINGS)), so the uses keep their N64 tokens
  * and -fsanitize=bounds checks each index against PC_MAX_LINKS. */
-/* N64 D_801392D8 (u32[6]): each car's tire-effect latches, a bit per tire and effect (entity_spawn_init,
- * func_8008E408, hud_render, func_80092484, func_800CB718). */
+/* N64 gCarSmokeDir (u32[6]): each car's tire-effect latches, a bit per tire and effect (StartSmoke,
+ * StartWater, UpdateSmoke, InitWingSmoke, InitSmokeBlast). */
 extern unsigned int pc_tire_fx[PC_MAX_LINKS];
-extern unsigned char pc_smoke_shade[PC_MAX_LINKS];  /* N64 D_8013A020 (u8[6], 8 by the gap): the grey of its smoke */
-extern float pc_trail_pts[PC_MAX_LINKS][6];         /* N64 D_8013C098: its two trails' last points */
-extern float pc_resurrect_mid[PC_MAX_LINKS][3];     /* N64 D_80161450: the resurrect's midpoint */
+extern unsigned char pc_smoke_shade[PC_MAX_LINKS];  /* N64 gCarBlastSmokeClr (u8[6], 8 by the gap): the grey of its smoke */
+extern float pc_trail_pts[PC_MAX_LINKS][6];         /* N64 gCarWingSmokePos: its two trails' last points */
+extern float pc_resurrect_mid[PC_MAX_LINKS][3];     /* N64 resurrect_save_pos: the resurrect's midpoint */
 
 /* MAT3 tUVMatrix, tBlastObj, tBlastStruct and tBlastRingStruct (GameSource visuals.c), with MAT3's field names, which
- * blast.c's and entity_update_callback's views have too: no pointers, the same layout on both. */
+ * blast.c's and AnimateNewBlast's views have too: no pointers, the same layout on both. */
 struct pc_uv_matrix { float uvs[3][3]; float pos[3]; };
 struct pc_blast_obj {                   /* 0x54 */
     int mbIdx;                          /* +0x00 its scene object, -1 none */
@@ -438,15 +438,15 @@ struct pc_blast_obj {                   /* 0x54 */
     short unused;
     float ht;                           /* +0x50 */
 };
-struct pc_blast {                       /* 0x190: N64 D_80154660 (gBlastObjs), 6 of them */
+struct pc_blast {                       /* 0x190: N64 gBlastObjs (gBlastObjs), 6 of them */
     struct pc_blast_obj blastObjs[4];   /* +0x000 */
     int glowIdx;                        /* +0x150 the glow's scene object, -1 none */
     struct pc_uv_matrix mat;            /* +0x154 the glow's matrix: its scene node points here */
     unsigned char alpha, alphaCnt, ralpha, ralphaCnt;
     float lifeTime, incTime;            /* +0x188 */
 };
-struct pc_blast_ring {                  /* 0x3C: N64 D_80154FD8 (gBlastRingObjs), 6 of them to D_80155140 */
-    int ringIdx;                        /* +0x00 its scene object, -1 none (entity_collision_detect: its low half) */
+struct pc_blast_ring {                  /* 0x3C: N64 gBlastRingObjs (gBlastRingObjs), 6 of them to gTempCircuitFirstTrack */
+    int ringIdx;                        /* +0x00 its scene object, -1 none (AnimateNewBlastRing: its low half) */
     struct pc_uv_matrix mat;            /* +0x04 its scene node points here */
     unsigned char ralpha, ralphaCnt;    /* +0x34 */
     short unused;
@@ -460,7 +460,7 @@ struct pc_skid {
 };
 extern struct pc_blast pc_blasts[PC_MAX_LINKS];
 extern struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];
-extern struct pc_skid pc_skids[PC_MAX_LINKS][4];    /* N64 D_80155290: each car's four tires */
+extern struct pc_skid pc_skids[PC_MAX_LINKS][4];    /* N64 gNewSkid: each car's four tires */
 
 /* The record arrays as void *, for the readers' own views. */
 #define PC_BLASTS ((void *)pc_blasts)
@@ -469,31 +469,31 @@ extern struct pc_skid pc_skids[PC_MAX_LINKS][4];    /* N64 D_80155290: each car'
 
 /* ---- The cars' sounds, checkpoints and finish cameras (docs/port/MORECARS.md 2.3, docs/port/DECOUPLE.md 7). Per car
  * slot, 6 on the N64, PC_MAX_LINKS here; the N64 symbols are retired. A sound record is a sound manager handle and the
- * values last sent to it (player_conditional_call sets -1 and -2.0f: none); each file reads it through its own view
+ * values last sent to it (InitSoundState sets -1 and -2.0f: none); each file reads it through its own view
  * (State20, SndRec, LayerState: 20 bytes on both), so the record accessors are void *.
  *   pc_engine_sounds (D_80140420, 6 x 84 B, BSS; own storage before, the table pointer making it 88 B here):
  *     StartCarSounds (d5e64.c) sets the car type's engine table and starts layers 0 and 1, the engine update
- *     (func_800E0050, mode.c) sets their pitch and volume and keeps a random sound in record 3, StopCarSounds
- *     (func_800D5524) releases 0, 1 and 3. Record 2 is never used.
+ *     (UpdateEngineSound, mode.c) sets their pitch and volume and keeps a random sound in record 3, StopCarSounds
+ *     (StopCarSounds) releases 0, 1 and 3. Record 2 is never used.
  *   pc_screech_sounds (D_80140640, 6 x 20 B, BSS): the tire screech, reset per car, played for humans (mode.c).
  *   pc_car_sounds_on (D_8010FFC4, 6 B, data, zero in the image): StartCarSounds sets it, StopCarSounds clears it.
  *   pc_engine_phase (D_8010FFCC, 6 B, data): each car's engine is updated every other frame, the cars alternating
- *     (func_800E05F0 skips the frames it is 1, toggling it; StopCarSounds sets it to (slot & 1) == 0). The image's
+ *     (UpdateCarSounds skips the frames it is 1, toggling it; StopCarSounds sets it to (slot & 1) == 0). The image's
  *     alternation is filled in at startup, and slots 6 on continue it with a period of 2 (decoupled.txt).
  *   pc_cp_last_pos (D_80152218, 6 x 12 B, BSS): each car's position at the last CheckCPs, for the distance it
- *     drove (car_checkpoints_func_800F8EC8.c), set at the race's start by func_800FBE60.
+ *     drove (car_checkpoints_CheckCPs.c), set at the race's start by InitCPTime.
  *   pc_cp_plane (D_801527E8, 6 x 4 B, BSS): each car's distance to its next checkpoint's plane at the last CheckCPs.
  *   pc_finish_cam, pc_finish_cam_time (D_80110680, 6 B, and D_80110668, 6 x 4 B, data, zero in the image): a human's
- *     circling camera after the finish (race_countdown_display sets 1 and the time, func_800E9E2C freezes it at 2
- *     after 10 s, func_800EB90C turns the view to it, render_post_process and mode_flags_clear clear it). */
+ *     circling camera after the finish (PassedCP sets 1 and the time, circle_camera_around_car freezes it at 2
+ *     after 10 s, CheckCameraView turns the view to it, init_views and InitCheckpointData clear it). */
 struct pc_sound_rec {
     int handle;                 /* +0x0 the sound manager's handle, -1 none */
-    float level;                /* +0x4 the last level sent (client_sync: the engine's pitch) */
-    float style;                /* +0x8 the last style sent (entity_hierarchy_update: the volume) */
+    float level;                /* +0x4 the last level sent (AudChangeEffectVol: the engine's pitch) */
+    float style;                /* +0x8 the last style sent (AudChangeEffectPitch: the volume) */
     float f0C, f10;             /* +0xC, +0x10 */
 };
 struct pc_engine_sound {
-    void *table;                /* +0x0 the car type's engine table, &D_8010FD80[type] (two 32-byte layers) */
+    void *table;                /* +0x0 the car type's engine table, &gEngineSpecs[type] (two 32-byte layers) */
     struct pc_sound_rec rec[4]; /* +0x4 (PC +0x8) layers 0 and 1, an unused one, the random sound */
 };
 extern struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];
@@ -523,13 +523,13 @@ extern float pc_finish_cam_time[PC_MAX_LINKS];
 #define PC_FINISH_CAM_TIME(i) (pc_finish_cam_time[i])
 
 /* ---- The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[], N64 D_801527D8 and D_80152808 (s16 lists
- * of car slots, 6 long, BSS): the drones in the race (D_80152768 of them) and those this node drives (D_8015274C),
- * built by munge (func_800EC914) and display_list_flush's restart, read by maxpath's camera pick (func_800E451C) and
+ * of car slots, 6 long, BSS): the drones in the race (num_drones of them) and those this node drives (num_our_drones),
+ * built by munge (munge_gLink_data) and PrePlay's restart, read by maxpath's camera pick (IntervalPosChange) and
  * update_drone_models. And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake
- * and gas AdjustSteer and AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last
+ * and gas PS_PurgeFile and AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last
  * direction and last direction to the target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones
  * (the attract demo), so each is PC_MAX_LINKS long. The N64's extents end at the next symbol, or at a static of
- * HAL_DrawText (menu_input_process: lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0,
+ * HAL_DrawText (HAL_DrawText: lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0,
  * lastFontYpos 0x80154180), which is a host static on the PC. */
 extern short pc_drones[PC_MAX_LINKS];
 extern short pc_our_drones[PC_MAX_LINKS];
@@ -546,26 +546,26 @@ extern float pc_mp_save_dir[PC_MAX_LINKS][3];
 #define PC_MP_DIR(slot) (pc_mp_dir[slot])
 #define PC_MP_SAVE_DIR(slot) (pc_mp_save_dir[slot])
 
-/* CarSetup's flag per car slot (carsetup_flag, N64 D_801439F8: s8, 6 cleared by display_list_flush, BSS; the
- * controllers' D_80143A00 follows at +8): set once the car's visuals were started at the race start. */
+/* CarSetup's flag per car slot (carsetup_flag, N64 carsetup_flag: s8, 6 cleared by PrePlay, BSS; the
+ * controllers' gAutoEdges follows at +8): set once the car's visuals were started at the race start. */
 extern signed char pc_carsetup_flags[PC_MAX_LINKS];
 #define PC_CARSETUP_FLAG(slot) (pc_carsetup_flags[slot])
 
 /* The drone schedule's rows (MAT3 drone_sched, N64 D_80120E74, ROM data, Row3[12]: rows 0-6 for 0-6 drones with one
- * human or none, rows 7-11 for 0-4 with two or more). world_physics_tick picks row D_8015274C, plus 7 with two
+ * human or none, rows 7-11 for 0-4 with two or more). init_cars picks row num_our_drones, plus 7 with two
  * humans; a human's retirement takes 7 off, a drone's 1. On the PC the second kind starts at PC_DRONE_SCHED_TWO,
  * past the most drones a race may hold, and update_drone_models reads the N64's rows where it has them and a PC
- * rule past them (func_800E56F8/group.c). */
+ * rule past them (update_model/group.c). */
 #define PC_DRONE_SCHED_TWO (PC_MAX_LINKS + 1)
 
 
 /* ---- MusyX's voices and the sound manager's pools: [audio] voices and [audio] engines (docs/port/AUDIO.md 10;
  * port/config/voices.c; the asset tests' in port/assets/tests/support.c). The N64 game gives MusyX 32 voices
- * (hud_setup's first argument, AudioInitSys' func_80010840 caps it at 32): 16 for effects, 16 for the songs. On the
+ * (AudioInit's first argument, AudioInitSys' sound_lib_init caps it at 32): 16 for effects, 16 for the songs. On the
  * PC the run's voices are pc_mx_voices(), 32 at original, else 48, 64 or 96, latched at start, since the library
  * is set up once a run; the effects get all but the songs' 16. PC_MX_SLOTS is where the N64 has a literal 32 for the
  * voices (its fixed loops and caps): the run's count, never below 32, so at original every loop is the N64's.
- * pc_snd_setup gives hud_setup its arguments for the Expansion Pak's set-up (32 voices): the voices, the effects'
+ * pc_snd_setup gives AudioInit its arguments for the Expansion Pak's set-up (32 voices): the voices, the effects'
  * share, which is also the sound manager's budget base (gMaxSfx: it plays 3/4 of it at once) and AudioSfxInit's
  * entries, and the positional emitters; at original it changes nothing, and the set-up without the pak (8 voices)
  * is never changed. */
@@ -577,57 +577,57 @@ int pc_mx_voices(void);
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters);
 
 /* The library's per-voice storage, 32 entries in the boot segment's BSS on the N64 (docs/port/DECOUPLE.md 9), each
- * indexed by a voice's number (the low byte of its id): its state (0x1A0 bytes, the N64 layout: lib_22300.c's and
- * the other units' views, MUSYX_DATA.md 8.3), its sequence node (lib_1f5b0.c's SequenceNode: two host pointers, the
+ * indexed by a voice's number (the low byte of its id): its state (0x1A0 bytes, the N64 layout: macros.c's and
+ * the other units' views, MUSYX_DATA.md 8.3), its sequence node (voices.c's SequenceNode: two host pointers, the
  * key and the voice id, packed), its links in the priority lists and in the free list ({u8 previous, next; u16},
  * 255 for none), an effect voice's 134 MIDI controllers (an effect voice is its own channel in set 255,
- * lib_21210.c), its two per-channel bytes there (func_80020F4C, func_80020FDC) and its legato owner (lib_22300.c's
- * func_800217E4), and a stream's buffer record (lib_1cf90.c's SampleBuffer). Each reader's N64 name is the PC array
+ * controllers.c), its two per-channel bytes there (sound_midi_set_last_key, sound_midi_set_portamento_state) and its legato owner (macros.c's
+ * sound_synth_claim_channel), and a stream's buffer record (streams_3d.c's SampleBuffer). Each reader's N64 name is the PC array
  * seen in its own view, PC_MX_VOICE_SLOTS long, so the uses keep their N64 tokens. */
-extern unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0];   /* N64 D_8004BEB8 */
+extern unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0];   /* N64 sound_synth_voices */
 #pragma pack(1)
 struct pc_mx_node { struct pc_mx_node *next, *previous; unsigned int key; int value; };
 #pragma pack()
-extern struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];      /* N64 D_80050A50 */
+extern struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];      /* N64 sound_handle_nodes */
 struct pc_mx_link { unsigned char previous, next; unsigned short flags; };
-extern struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS]; /* N64 D_800504C8 */
-extern struct pc_mx_link pc_mx_free_links[PC_MX_VOICE_SLOTS]; /* N64 D_80050440 */
-extern unsigned char pc_mx_fx_ctrl[PC_MX_VOICE_SLOTS][134];   /* N64 D_80055000 */
-extern unsigned char pc_mx_fx_chan_a[PC_MX_VOICE_SLOTS];      /* N64 D_80050CE0 */
-extern unsigned char pc_mx_fx_chan_b[PC_MX_VOICE_SLOTS];      /* N64 D_80056140 */
-extern unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];      /* N64 D_800561E0 */
-struct pc_mx_stream {   /* boot_tail_sample_contract.h's SampleBuffer */
+extern struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS]; /* N64 sound_voice_priority_links */
+extern struct pc_mx_link pc_mx_free_links[PC_MX_VOICE_SLOTS]; /* N64 sound_voice_free_links */
+extern unsigned char pc_mx_fx_ctrl[PC_MX_VOICE_SLOTS][134];   /* N64 sound_voice_controllers */
+extern unsigned char pc_mx_fx_chan_a[PC_MX_VOICE_SLOTS];      /* N64 sound_voice_last_keys */
+extern unsigned char pc_mx_fx_chan_b[PC_MX_VOICE_SLOTS];      /* N64 sound_voice_portamento */
+extern unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];      /* N64 sound_voice_channel_owners */
+struct pc_mx_stream {   /* sound_sample_record.h's SampleBuffer */
     unsigned char mode, unknown01[3];
     int (*callback)(short *, unsigned int, short *, unsigned int, unsigned int);
     short *buffer;
     unsigned int samples, position, context;
 };
-extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 D_8004FA50 */
+extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 sound_streams */
 
-/* The sound manager's messages (N64 D_80142DD8: 128 commands, 32 bytes each on the PC, own storage) and the two lists
- * of the commands a priority pass sends (gStartCmds D_80143AE8, gStopCmds D_80143CF0: 128 pointers each, own
+/* The sound manager's messages (N64 audiomgr_gCmds: 128 commands, 32 bytes each on the PC, own storage) and the two lists
+ * of the commands a priority pass sends (gStartCmds gStartCmds, gStopCmds gStopCmds: 128 pointers each, own
  * storage), PC data of PC_SND_MSG_SLOTS; the game walks pc_snd_messages() of them, the N64's 128 at original and 256
- * with more voices, and the manager's queue (D_801427A8) holds as many (docs/port/AUDIO.md 10.4). Each reader sees
+ * with more voices, and the manager's queue (audio_command_queue) holds as many (docs/port/AUDIO.md 10.4). Each reader sees
  * the messages in its own view (Msg, Slot18, Slot24, ShutdownMsg, tAudioMsg), the layout below. */
 #define PC_SND_N64_MSGS 128
 #define PC_SND_MSG_SLOTS 256
 int pc_snd_messages(void);
 struct pc_snd_msg { short id; signed char type, used; unsigned char payload[16]; void *ent; };
-extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 D_80142DD8 */
-extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 D_80143AE8 */
-extern void *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];         /* N64 D_80143CF0 */
+extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 audiomgr_gCmds */
+extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 gStartCmds */
+extern void *pc_snd_stop_cmds[PC_SND_MSG_SLOTS];         /* N64 gStopCmds */
 
 /* Counters the game's sound code fills (--log-voices, port/main.c): starts refused or cut and the pools' use. */
 enum {
-    PC_SND_MX_REFUSED,      /* MusyX found no voice for a sound (func_8001F13C: -1) */
+    PC_SND_MX_REFUSED,      /* MusyX found no voice for a sound (sound_alloc_voice: -1) */
     PC_SND_MX_STOLEN,       /* MusyX took a voice from an effect still playing */
     PC_SND_MX_STOLEN_SONG,  /* ... from a song's note still playing (the songs keep 16 voices at any size) */
-    PC_SND_FX_REFUSED,      /* an effect the sound manager started that MusyX didn't (MP_TargetSteerPos) */
+    PC_SND_FX_REFUSED,      /* an effect the sound manager started that MusyX didn't (AudioPlayEffectInternal) */
     PC_SND_OVER_BUDGET,     /* a tag the priority pass held back or stopped for its budget that would play: playing,
                              * or loud enough to start (_UpdateFx) */
-    PC_SND_NO_EMITTER,      /* a positional start that found no emitter (camera_target_track) */
-    PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (func_80091B00) */
-    PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, audio_state_save) */
+    PC_SND_NO_EMITTER,      /* a positional start that found no emitter (AudEmitEffect) */
+    PC_SND_NO_MESSAGE,      /* a start or change that found the message pool empty (GetCmd) */
+    PC_SND_NO_ENTRY,        /* an effect start that found no free entry (AudioSfxInit's, AudioPlayEffect) */
     PC_SND_PASSES,          /* the priority passes (_ProcessPriorities): OVER_BUDGET counts tags a pass */
     PC_SND_MX_LOOP_ORPHAN,  /* a synth tick's voice whose macro has ended while its looping sample plays on */
     PC_SND_START_PLAYING,   /* a start the manager's thread dropped: its tag was playing already (audiomgr_thread.c) */
@@ -639,7 +639,7 @@ enum { PC_SND_MOST_TAGS, PC_SND_MOST_EMITTERS, PC_SND_MOSTS };
 void pc_snd_most(int what, int value);   /* a pool's use now: its high-water mark */
 
 /* [audio] engines: which drones' engines play, per listener (PC_ENGINES_*, port/config/voices.c). The emitter pass
- * (_ProcessEmitters, engine_sound_sync.c) notes each drone engine layer's distance to each listener and asks for its
+ * (_ProcessEmitters, ProcessEmitters.c) notes each drone engine layer's distance to each listener and asks for its
  * gain; the priority pass (_UpdateFx) asks whether a tag is over its budget. */
 enum { PC_ENGINES_ORIGINAL = 0, PC_ENGINES_ALL = -1 };   /* else N: the N nearest drones per listener */
 int pc_engines(void);

@@ -1,9 +1,9 @@
 /* port/assets/tests/test_world.c: the world WAD converter (port/assets/world.c) on a synthetic world WAD whose
  * table of contents is big-endian (before pc_assets_wad) or already native (after it), with and without a WOBJ
- * entry, and with WOBJ and GDAT count words that don't fit; then the game's own NewWorld (wheel_torque_apply and its bsearch over the WHDR names) on the converted
+ * entry, and with WOBJ and GDAT count words that don't fit; then the game's own NewWorld (NewWorld and its bsearch over the WHDR names) on the converted
  * file, and LoadTrack's native GTLD array (pc_world_chunk).
- * game: src/blob/wheel_torque_apply.c src/blob/entity_name_copy.c src/blob/pointer_offset_wrapper.c
- * game: src/blob/func_800A473C.c src/blob/func_8008AD04.c
+ * game: src/blob/NewWorld.c src/blob/game_bsearch.c src/blob/world_name_compare.c
+ * game: src/blob/game_strcpy.c src/blob/game_strcmp.c
  */
 #include <string.h>
 
@@ -13,18 +13,18 @@
 uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count);
 
 /* NewWorld's globals and callees. */
-int16_t D_80149D90;
-void *D_80149B80, *D_80149818;
-uint32_t *D_801497FC;
+int16_t Worlddlidx;
+void *WorldBase, *WorldTable;
+uint32_t *gWorldData;
 static void *g_placed;
 static int g_placed_parent;
-void differential_output(void *node, int16_t parent) { g_placed = node, g_placed_parent = parent; }
-void func_800AB638(void) {}
-int16_t wheel_torque_apply(uint8_t *name, int16_t parent);
+void NewWorldObject(void *node, int16_t parent) { g_placed = node, g_placed_parent = parent; }
+void InitSTree(void) {}
+int16_t NewWorld(uint8_t *name, int16_t parent);
 
 enum { WHDR = 0x08, WOBJ = 0x40, NODES = 5, GDAT = WOBJ + 0x68 * NODES, GTLD = GDAT + 2 * 0x1C, TOC = GTLD + 12 };
 
-/* The node layout as differential_output reads it. */
+/* The node layout as NewWorldObject reads it. */
 struct Node104 {
     char name[16];
     float transform[12];
@@ -175,7 +175,7 @@ int main(void)
 
     /* The WOBJ and GDAT count words are record counts, which the game itself never reads: one that doesn't fit
      * the file (0, or a byte length) is not reread as bytes; the nodes NewWorld reaches and the quadtree
-     * race_setup_2 walks are converted instead, and GTLD, after them, is converted once. */
+     * CheckTargetCollision walks are converted instead, and GTLD, after them, is converted once. */
     {
         static const uint32_t bad[3][2] = {{0, 0}, {NODES * 0x68, 2 * 0x1C}, {0x10000, 0xFFFFFFFFu}};
         int b;
@@ -200,8 +200,8 @@ int main(void)
     /* LoadTrack: the WHDR offsets become window addresses, then NewWorld looks a world up by name. */
     make_world(f, 1, 0);
     pc_assets_world(120, f, 0x400);
-    D_801497FC = (uint32_t *)(f + WHDR);
-    D_80149818 = D_801497FC + 1;
+    gWorldData = (uint32_t *)(f + WHDR);
+    WorldTable = gWorldData + 1;
     {
         uint32_t woff;
         int i;
@@ -211,9 +211,9 @@ int main(void)
             memcpy(f + WHDR + 4 + 0x14 * i, &woff, 4);
         }
     }
-    CHECK(wheel_torque_apply((uint8_t *)"BRAVO", -1) == -1);
-    CHECK(g_placed == f + WOBJ + 2 * 0x68 && D_80149B80 == g_placed && g_placed_parent == -1);
-    wheel_torque_apply((uint8_t *)"ALPHA", 3);
+    CHECK(NewWorld((uint8_t *)"BRAVO", -1) == -1);
+    CHECK(g_placed == f + WOBJ + 2 * 0x68 && WorldBase == g_placed && g_placed_parent == -1);
+    NewWorld((uint8_t *)"ALPHA", 3);
     CHECK(g_placed == f + WOBJ && g_placed_parent == 3);
 
     /* GTLD as LoadTrack's PC view gets it: a native array of the keys, sign-extended. */

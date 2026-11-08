@@ -4,24 +4,24 @@
  * cars, more than the N64's 6, and more slots declared than the race walks. This test and its game objects are built
  * with PC_MAX_LINKS 16 (CMakeLists.txt). Every slot starts as a sentinel: the code must reach car k's record or
  * element, for k up to 11, and leave the slots after the race's cars alone.
- * StartCarSounds (func_800D5E64) sets 12 cars' engine tables and starts their two layers, a human's through
- * high_scores_display and a drone's through camera_target_track, and resets record 3 and the screech; the engine
- * update (func_800E05F0, func_800E0050) runs each car every other frame, alternating by pc_engine_phase, and sets
- * the layers' pitch and volume and a random sound in record 3; StopCarSounds (func_800D5524) releases records 0, 1
- * and 3 and the screech and sets the phase to (slot & 1) == 0. func_800FBE60 copies 12 cars' positions at the race's
- * start (m2c's 12-byte stride on the N64); CheckCPs (func_800F8EC8) takes each car's driven distance and checkpoint
- * plane and reports 12 crossings to race_countdown_display, which ends the race for the humans (owner 6) and turns
- * on their finish cameras, and calls CalcPlaces (func_800D1AB0), which ranks the 12 cars by distance with its slot
- * arrays; func_800E9E2C circles and then freezes a finish camera; func_800EB90C turns a window to it and places the
- * drone cameras of PC_RACE_CARS cars; render_post_process clears every finish camera, mode_flags_clear the first
+ * StartCarSounds (StartCarSounds) sets 12 cars' engine tables and starts their two layers, a human's through
+ * AudPlayEffectVP and a drone's through AudEmitEffect, and resets record 3 and the screech; the engine
+ * update (UpdateCarSounds, UpdateEngineSound) runs each car every other frame, alternating by pc_engine_phase, and sets
+ * the layers' pitch and volume and a random sound in record 3; StopCarSounds (StopCarSounds) releases records 0, 1
+ * and 3 and the screech and sets the phase to (slot & 1) == 0. InitCPTime copies 12 cars' positions at the race's
+ * start (m2c's 12-byte stride on the N64); CheckCPs (CheckCPs) takes each car's driven distance and checkpoint
+ * plane and reports 12 crossings to PassedCP, which ends the race for the humans (owner 6) and turns
+ * on their finish cameras, and calls CalcPlaces (PlaceUnlockedCars), which ranks the 12 cars by distance with its slot
+ * arrays; circle_camera_around_car circles and then freezes a finish camera; CheckCameraView turns a window to it and places the
+ * drone cameras of PC_RACE_CARS cars; init_views clears every finish camera, InitCheckpointData the first
  * two.
- * game: src/blob/groups/mode_select/d5e64.c src/blob/groups/mode_select/mode.c src/blob/func_800D5524.c
- * game: src/blob/player_conditional_call.c src/blob/player_conditional_check.c src/blob/func_800FBE60.c
- * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800F8EC8.c
+ * game: src/blob/groups/car_sounds/d5e64.c src/blob/groups/car_sounds/mode.c src/blob/StopCarSounds.c
+ * game: src/blob/InitSoundState.c src/blob/StopSound.c src/blob/InitCPTime.c
+ * game: src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c
  * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c
- * game: src/blob/groups/race_countdown_display/race_countdown_display.c src/blob/func_800E9E2C.c
- * game: src/blob/func_800EB90C.c src/blob/render_post_process.c src/blob/mode_flags_clear.c
- * game: src/blob/func_8008B3A0.c
+ * game: src/blob/groups/passed_cp/PassedCP.c src/blob/circle_camera_around_car.c
+ * game: src/blob/CheckCameraView.c src/blob/init_views.c src/blob/InitCheckpointData.c
+ * game: src/blob/ZOID_FindMatrix.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -47,36 +47,35 @@ float pc_cp_last_pos[PC_MAX_LINKS][3], pc_cp_plane[PC_MAX_LINKS];
 unsigned char pc_finish_cam[PC_MAX_LINKS];
 float pc_finish_cam_time[PC_MAX_LINKS];
 
-/* The engine table D_8010FD80: per car type two 32-byte layers (d5e64.c's Definition32, mode.c's EngTbl). */
+/* The engine table gEngineSpecs: per car type two 32-byte layers (d5e64.c's Definition32, mode.c's EngTbl). */
 struct eng_layer { int32_t object; uint16_t r0, r1, b0, b1, b2; uint8_t padE[2]; float p0, p1, p2; uint8_t pad1C[4]; };
-struct eng_layer D_8010FD80[13][2];
-int8_t D_8010FFC0 = 1;
-float D_801141B0[3];
-struct { int32_t handle; float v[4]; } D_801406C0[4][3];   /* the humans' sounds (4 players) */
-int32_t D_801407C0[4], D_801407E0[4], D_80140AE0[4];
-uint8_t D_80140808[4][120];
-int16_t D_80140A08[4];
-float D_80140B10[4], D_80140BE0[4], D_80142518[4], D_80110020[4], D_8011F060[4] = {1, 1, 1, 1};
-int8_t D_801115CD[4][13];
-int16_t active_player_count = 1, gCountDown = 1;
-int32_t gameplay_mode, D_80142728, D_8014A110, D_8011735C, D_8015697C, D_8015699C;
-uint32_t state_word_a, D_801174B4;
-uint8_t input_rec0[4 * 80] __attribute__((aligned(16)));   /* Player76: index +0, mask +4, edges +52 */
-uint8_t D_8014A118;
-volatile float D_8002EB90 = 50.0f, D_8002EB94 = 1.0f / 60.0f;
-struct { float pos[3], normal[3]; int32_t radius; uint8_t pad[0x50 - 0x1C]; } D_80151CF4[4];   /* checkpoints */
-int16_t D_80151CE8[6];   /* the checkpoint header: [2] the finish line, [3] the one before */
-volatile int16_t D_801543CA, D_80153FD2 = 2;
-uint8_t D_80152744;
-int16_t D_80152734 = 3;   /* the race's laps */
-int8_t D_80152014 = 3, D_80152015, D_80152031;
-float D_80152018, D_801543CC, D_80152720[4], D_801106A4[4], D_801106B4[4], D_80152680[4], D_801526A8[4][3];
-int8_t D_801525F8[4];
+struct eng_layer gEngineSpecs[13][2];
+int8_t gGameSoundsEnabled = 1;
+float unitmatrix_origin[3];
+struct { int32_t handle; float v[4]; } gRoadNoises[4][3];   /* the humans' sounds (4 players) */
+int32_t gBogSounds[4], gHornSounds[4], gScrapes[4];
+uint8_t gBump[4][120];
+int16_t gScrapeState[4];
+float gScrapeTime[4], gBumpTime[4], gThumpTime[4], sLastHornTime[4], sPitchRange[4] = {1, 1, 1, 1};
+int8_t gCarHorn_players[4][13];
+int16_t gNumPlayers = 1, gCountDown = 1;
+int32_t gRace, audio_lock_queue, gRace, rand_seed, gContLevels_pad2, gContEdges_pad2;
+uint32_t gGameState, gGameState;
+uint8_t gPlayers[4 * 80] __attribute__((aligned(16)));   /* Player76: index +0, mask +4, edges +52 */
+volatile float gSeconds = 50.0f, gFrameSeconds = 1.0f / 60.0f;
+struct { float pos[3], normal[3]; int32_t radius; uint8_t pad[0x50 - 0x1C]; } gCheckpoints_points[4];   /* checkpoints */
+int16_t gCheckpoints[6];   /* the checkpoint header: [2] the finish line, [3] the one before */
+volatile int16_t gNumCars, num_humans = 2;
+uint8_t gNumActiveCars;
+int16_t gNumLaps = 3;   /* the race's laps */
+int8_t gNumLapsLeft = 3, gOneMoreCP, gInFirstPlace;
+float gFirstPlaceTime, gModelTime, elastic_factor[4], lastSwitch[4], camera_nextSwitch[4], gSusAvg[4], cur_acc[4][3];
+int8_t gTireCnt[4];
 int16_t gNumWindows = 1;
 struct camera { float uvs[3][3], pos[3]; uint8_t other48[48]; float out_uvs[3][3], out_pos[3], spring; uint8_t target,
-                pad[3]; } gCamera[4], g_cams[PC_MAX_LINKS];   /* func_800EB90C's Camera, 152 bytes */
+                pad[3]; } gCamera[4], g_cams[PC_MAX_LINKS];   /* CheckCameraView's Camera, 152 bytes */
 struct { uint32_t flags, w4; struct camera *cam; float scale, w; unsigned short model; int16_t child, next, mode;
-         void *light, *tex[4], *rect, *clip, *pal; uint32_t prim, env; } D_8012E700[PC_MAX_LINKS];   /* Node68 */
+         void *light, *tex[4], *rect, *clip, *pal; uint32_t prim, env; } ObjInstanceList[PC_MAX_LINKS];   /* Node68 */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
@@ -85,76 +84,75 @@ static struct { int32_t handle; void *pos; float pitch, vol; } g_clip[64];
 static int32_t g_released[64];
 static struct { int32_t slot; float time; } g_cross[PC_MAX_LINKS];
 static float g_res[3];
-uint32_t high_scores_display(uint32_t object, uint32_t player, uint32_t a, uint8_t b, float c, float d, float e)
+uint32_t AudPlayEffectVP(uint32_t object, uint32_t player, uint32_t a, uint8_t b, float c, float d, float e)
 {
     g_nstart++;
     return object * 100 + player;
 }
-int32_t camera_target_track(void *pos, intptr_t ref, float a, float b, float c, float d, int32_t object,
+int32_t AudEmitEffect(void *pos, intptr_t ref, float a, float b, float c, float d, int32_t object,
                             int32_t player, int32_t e, uint32_t f)
 {
     g_nstart++;
     return object * 100 + player;
 }
-void camera_clip_planes(int32_t handle, float *pos, float *ref, float pitch, float vol)
+void AudUpdateEmitter(int32_t handle, float *pos, float *ref, float pitch, float vol)
 {
     if (g_nclip < 64)
         g_clip[g_nclip].handle = handle, g_clip[g_nclip].pos = pos, g_clip[g_nclip].pitch = pitch,
         g_clip[g_nclip].vol = vol;
     g_nclip++;
 }
-void results_screen_update(int32_t handle) { if (g_nrelease < 64) g_released[g_nrelease] = handle; g_nrelease++; }
-void scheduler_recv(int32_t handle) { if (g_nrelease < 64) g_released[g_nrelease] = handle; g_nrelease++; }
+void AudStopEmitter(int32_t handle) { if (g_nrelease < 64) g_released[g_nrelease] = handle; g_nrelease++; }
+void AudStopEffect(int32_t handle) { if (g_nrelease < 64) g_released[g_nrelease] = handle; g_nrelease++; }
 static int g_nsync;
 static int32_t g_sync;
-void client_sync(int32_t h, float v) { if (h == 7036) g_sync = h, g_nsync++; }   /* the screech's level */
-void entity_transform_calc(int32_t h, float x, float y, float z, float w) {}
-void entity_hierarchy_update(int32_t h, float v) {}   /* an inline in mode.c, its owner elsewhere in the game */
+void AudChangeEffectVol(int32_t h, float v) { if (h == 7036) g_sync = h, g_nsync++; }   /* the screech's level */
+void AudChangeEffect(int32_t h, float x, float y, float z, float w) {}
+void AudChangeEffectPitch(int32_t h, float v) {}   /* an inline in mode.c, its owner elsewhere in the game */
 int32_t osRecvMesg(void *q, void *m, int32_t f) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t f) { return 0; }
-int32_t frame_sync(int32_t a, int32_t b, int32_t c, int32_t d) { return 7000 + a; }
-float func_8008B2E4(float max) { return 0.0f; }   /* Random: 0, so a drone's random sound starts */
-int32_t leaderboard_update(int32_t handle) { return 1; }   /* still playing */
-void mode_select_handler(void *m) {}
-float func_8008B3C8(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
-int32_t func_800B61A8(int32_t a, int32_t b, int32_t c, uint8_t d) { return -1; }
-void world_gravity_apply(void) {}
-int32_t func_800B930C(int32_t cp) { return cp + 1; }
-void func_800D2054(int32_t slot, float time)
+int32_t AudPlayEffect(int32_t a, int32_t b, int32_t c, int32_t d) { return 7000 + a; }
+float Random(float max) { return 0.0f; }   /* Random: 0, so a drone's random sound starts */
+int32_t AudEmitterPlaying(int32_t handle) { return 1; }   /* still playing */
+void UpdateBumps(void *m) {}
+float vector_magnitude(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+int32_t PlayGameSound(int32_t a, int32_t b, int32_t c, uint8_t d) { return -1; }
+void FindMaxpathIntervals(void) {}
+int32_t GetNextCheckpoint(int32_t cp) { return cp + 1; }
+void RecordLap(int32_t slot, float time)
 {
     if (g_ncross < PC_MAX_LINKS)
         g_cross[g_ncross].slot = slot, g_cross[g_ncross].time = time;
     g_ncross++;
 }
-void func_800D2458(int32_t player, float time) {}
-void car_setup_confirm(int32_t player, float time) {}
-uint32_t car_stats_display(int32_t type, float delay, int32_t cb, int32_t data, int32_t nargs, ...) { return 0; }
-int32_t entity_flags_apply(int32_t a, int32_t b, int32_t c, uint8_t d) { return 0; }
+void ShowCheckpointTime(int32_t player, float time) {}
+void CarReportsGameOver(int32_t player, float time) {}
+uint32_t AudPlaySequence(int32_t type, float delay, int32_t cb, int32_t data, int32_t nargs, ...) { return 0; }
 float n64_sinf(float x) { return sinf(x); }
 float n64_cosf(float x) { return cosf(x); }
-void func_800E8D50(void *object, float *carpos, void *matrix, float *res)
+void point_at_car(void *object, float *carpos, void *matrix, float *res)
 {
     g_res[0] = res[0], g_res[1] = res[1], g_res[2] = res[2];
 }
-void func_800E9234(void *b) {}
-void func_800FAD50(void *b) {}
-void audio_dsp_process(void) {}
-void func_800CC8C8(void *handle, uint8_t view) {}
-void func_800CFCA8(void) {}
-void func_800EB028(void *object) {}
-void world_object_destroy(void *object) {}
-float viGetTimeToDeadline(void) { return 10.0f; }
-void math_utility(void *src, void *dst) { memcpy(dst, src, 36); }
+void init_view3(void *b) {}
+void init_steady_move_cam(void *b) {}
+void ReadCheckpointData(void) {}
+void SavePlayerCarView(void *handle, uint8_t view) {}
+void BlinkResurrectingCars(void) {}
+void update_camera(void *object) {}
+void init_camera_on_track(void *object) {}
+float GetCountdownTimeRemaining(void) { return 10.0f; }
+void CopyUV(void *src, void *dst) { memcpy(dst, src, 36); }
 
-void func_800D5E64(void *vehicle);
-void func_800E05F0(void *model);
-void func_800D5524(void *model);
-void func_800FBE60(void);
-void func_800F8EC8(void);
-void func_800E9E2C(void *object, float *carpos, void *matrix);
-void func_800EB90C(void);
-void render_post_process(void);
-void mode_flags_clear(void);
+void StartCarSounds(void *vehicle);
+void UpdateCarSounds(void *model);
+void StopCarSounds(void *model);
+void InitCPTime(void);
+void CheckCPs(void);
+void circle_camera_around_car(void *object, float *carpos, void *matrix);
+void CheckCameraView(void);
+void init_views(void);
+void InitCheckpointData(void);
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -166,7 +164,7 @@ static int all_bytes(const void *p, size_t n, int v)
     return 1;
 }
 
-static int reset_rec(const struct pc_sound_rec *r)   /* player_conditional_call's -1 and four -2.0f */
+static int reset_rec(const struct pc_sound_rec *r)   /* InitSoundState's -1 and four -2.0f */
 {
     return r->handle == -1 && r->level == -2.0f && r->style == -2.0f && r->f0C == -2.0f && r->f10 == -2.0f;
 }
@@ -197,7 +195,7 @@ static void test_sounds(void)
     sentinels();
     for (int t = 0; t < 13; t++)
         for (int l = 0; l < 2; l++) {
-            struct eng_layer *e = &D_8010FD80[t][l];
+            struct eng_layer *e = &gEngineSpecs[t][l];
             e->object = 10 * t + l + 1;
             e->r0 = e->r1 = 1000, e->b0 = 2000, e->b1 = 3000, e->b2 = 4000;
             e->p0 = 1.0f, e->p1 = 2.0f, e->p2 = 3.0f;
@@ -216,14 +214,14 @@ static void test_sounds(void)
         MF(k, 0x75A, int16_t) = 0;                    /* the steering */
     }
     PC_MODEL_VISCODE(0)[0] = 0, MF(0, 0x7F8, float) = 1.0f;   /* the human's tire 0 on the road, sliding: a screech */
-    memset(input_rec0, 0, sizeof input_rec0);
+    memset(gPlayers, 0, sizeof gPlayers);
     g_nstart = 0;
     for (int k = 0; k < CARS; k++)
-        func_800D5E64(PC_MODEL(k));
+        StartCarSounds(PC_MODEL(k));
     CHECK(g_nstart == 2 * CARS);
     for (int k = 0; k < CARS; k++) {
         struct pc_engine_sound *s = &pc_engine_sounds[k];
-        CHECK(s->table == (void *)D_8010FD80[type_of(k)]);
+        CHECK(s->table == (void *)gEngineSpecs[type_of(k)]);
         for (int l = 0; l < 2; l++)
             CHECK(s->rec[l].handle == (10 * type_of(k) + l + 1) * 100 + k && s->rec[l].level == -2.0f);
         CHECK(all_bytes(&s->rec[2], sizeof s->rec[2], SENTINEL));   /* record 2: never used */
@@ -236,13 +234,13 @@ static void test_sounds(void)
     }
 
     /* The engine update, two frames: the phase the image gives (odd slots 1) skips each car one frame of two. A
-     * drone's run starts its random sound in record 3 (camera_target_track's object 98) and sets the two layers. */
+     * drone's run starts its random sound in record 3 (AudEmitEffect's object 98) and sets the two layers. */
     for (int k = 0; k < PC_MAX_LINKS; k++)
         pc_engine_phase[k] = k < CARS ? (signed char)(k & 1) : (signed char)SENTINEL;
     for (int frame = 0; frame < 2; frame++) {
         g_nclip = 0;
         for (int k = 0; k < CARS; k++)
-            func_800E05F0(PC_MODEL(k));
+            UpdateCarSounds(PC_MODEL(k));
         int n = 0;
         for (int k = 1; k < CARS; k++) {
             int runs = (k & 1) == frame;
@@ -262,7 +260,7 @@ static void test_sounds(void)
         }
         CHECK(n == g_nclip);
         CHECK(pc_engine_phase[0] == (frame == 0 ? 1 : 0));   /* the human alternates too */
-        /* the human's screech started (frame_sync 36) and its level and style sent: 1 x 0.6, 1 - 1 / 2 + 1 */
+        /* the human's screech started (AudPlayEffect 36) and its level and style sent: 1 x 0.6, 1 - 1 / 2 + 1 */
         CHECK(pc_screech_sounds[0].handle == 7036 && near(pc_screech_sounds[0].level, 0.6f));
         CHECK(near(pc_screech_sounds[0].style, 1.5f) && g_nsync == 1 && g_sync == 7036);
         for (int k = CARS; k < PC_MAX_LINKS; k++)
@@ -270,14 +268,14 @@ static void test_sounds(void)
                   all_bytes(&pc_engine_sounds[k], sizeof pc_engine_sounds[k], SENTINEL));
     }
 
-    /* StopCarSounds: records 0, 1 and 3 and the screech released (a drone's through results_screen_update, the
-     * human's through scheduler_recv: both recorded) and reset; the flag cleared; the phase (slot & 1) == 0. */
+    /* StopCarSounds: records 0, 1 and 3 and the screech released (a drone's through AudStopEmitter, the
+     * human's through AudStopEffect: both recorded) and reset; the flag cleared; the phase (slot & 1) == 0. */
     g_nrelease = 0;
     for (int k = 0; k < CARS; k++) {
         int32_t h0 = pc_engine_sounds[k].rec[0].handle, h1 = pc_engine_sounds[k].rec[1].handle;
         int32_t h3 = pc_engine_sounds[k].rec[3].handle;
         int at = g_nrelease;
-        func_800D5524(PC_MODEL(k));
+        StopCarSounds(PC_MODEL(k));
         CHECK(g_released[at] == h0 && g_released[at + 1] == h1);
         if (k == 0)   /* the human's record 3 never started: the screech next */
             CHECK(h3 == -1 && g_released[at + 2] == 7036);
@@ -301,11 +299,11 @@ static int rank_of(int k) { return 11 - (5 * k) % 12; }   /* the distances below
 static void test_checkpoints(void)
 {
     sentinels();
-    /* The race's start: func_800FBE60 copies each of D_80152744 cars' position and clears its +0x108. */
+    /* The race's start: InitCPTime copies each of gNumActiveCars cars' position and clears its +0x108. */
     for (int k = 0; k < PC_CAR_SLOTS; k++)
         PC_CAR_POS(k)[0] = (float)k, PC_CAR_POS(k)[1] = 0.0f, PC_CAR_POS(k)[2] = 5.0f;
-    D_80152744 = CARS;
-    func_800FBE60();
+    gNumActiveCars = CARS;
+    InitCPTime();
     for (int k = 0; k < CARS; k++)
         CHECK(pc_cp_last_pos[k][0] == (float)k && pc_cp_last_pos[k][1] == 0.0f && pc_cp_last_pos[k][2] == 5.0f &&
               PC_CAR_F108(k) == 0.0f);
@@ -314,7 +312,7 @@ static void test_checkpoints(void)
 
     /* A frame later each car is 10 feet on, across checkpoint 0's plane (x = 0, facing +x), which ends the last lap.
      * CheckCPs: the distance driven, the position kept, the plane's side and distance, and the crossing reported at
-     * the interpolated time; race_countdown_display finishes the race for the humans, who get the finish camera;
+     * the interpolated time; PassedCP finishes the race for the humans, who get the finish camera;
      * CalcPlaces ranks the 12 by their distance along the track. */
     for (int k = 0; k < CARS; k++) {
         PC_CAR_POS(k)[0] = (float)k + 10.0f;
@@ -330,13 +328,13 @@ static void test_checkpoints(void)
         PC_MODEL_LAP(k) = 2;
         pc_cp_plane[k] = -(float)(k + 1);
     }
-    D_80151CF4[0].pos[0] = 0.0f, D_80151CF4[0].pos[1] = 0.0f, D_80151CF4[0].pos[2] = 5.0f;
-    D_80151CF4[0].normal[0] = 1.0f, D_80151CF4[0].normal[1] = 0.0f, D_80151CF4[0].normal[2] = 0.0f;
-    D_80151CF4[0].radius = 10000;
-    D_80151CE8[2] = 0, D_80151CE8[3] = 5;           /* the finish line is checkpoint 0 */
-    D_801543CA = CARS, D_80152744 = CARS, D_8014A110 = 0, D_80152014 = 3;
+    gCheckpoints_points[0].pos[0] = 0.0f, gCheckpoints_points[0].pos[1] = 0.0f, gCheckpoints_points[0].pos[2] = 5.0f;
+    gCheckpoints_points[0].normal[0] = 1.0f, gCheckpoints_points[0].normal[1] = 0.0f, gCheckpoints_points[0].normal[2] = 0.0f;
+    gCheckpoints_points[0].radius = 10000;
+    gCheckpoints[2] = 0, gCheckpoints[3] = 5;           /* the finish line is checkpoint 0 */
+    gNumCars = CARS, gNumActiveCars = CARS, gRace = 0, gNumLapsLeft = 3;
     g_ncross = 0;
-    func_800F8EC8();
+    CheckCPs();
     CHECK(g_ncross == CARS);
     for (int k = 0; k < CARS; k++) {
         float plane = (float)k + 10.0f, cent = plane / (plane - -(float)(k + 1)) * (1.0f / 60.0f);
@@ -361,23 +359,23 @@ static void test_checkpoints(void)
 
 static void test_cameras(void)
 {
-    /* func_800E9E2C circles car 9's camera with the clock, then 10 s after the finish freezes it there. */
+    /* circle_camera_around_car circles car 9's camera with the clock, then 10 s after the finish freezes it there. */
     PC_CAR_SLOT(9) = 9, PC_CAR_VIEW(9) = 0;
     PC_CAR_SLOT(0) = 0, PC_CAR_VIEW(0) = 0;
-    D_801543CC = 61.0f;
-    func_800E9E2C(PC_CAR(9), PC_CAR_POS(9), NULL);
+    gModelTime = 61.0f;
+    circle_camera_around_car(PC_CAR(9), PC_CAR_POS(9), NULL);
     float ang = (float)(61000u % 6000) * (1.0f / 6000) * 6.2831855f;
     CHECK(pc_finish_cam[9] == 2 && pc_finish_cam_time[9] == 61.0f);
     CHECK(g_res[1] == 10.0f && near(g_res[0], cosf(ang) * 15.0f) && near(g_res[2], sinf(ang) * 15.0f));
     float res0 = g_res[0], res2 = g_res[2];
-    D_801543CC = 75.0f;
-    func_800E9E2C(PC_CAR(9), PC_CAR_POS(9), NULL);
+    gModelTime = 75.0f;
+    circle_camera_around_car(PC_CAR(9), PC_CAR_POS(9), NULL);
     CHECK(g_res[0] == res0 && g_res[2] == res2 && pc_finish_cam_time[9] == 61.0f);   /* frozen */
     CHECK(pc_finish_cam[0] == 1 && pc_finish_cam_time[0] == 50.0f);                     /* car 0's untouched */
 
-    /* func_800EB90C: the window following car 9, whose player has the finish camera, turns to view 5; then every
+    /* CheckCameraView: the window following car 9, whose player has the finish camera, turns to view 5; then every
      * car the race holds but the humans and the hidden gets its drone camera on it. */
-    gNumWindows = 1, gCamera[0].target = 9, input_rec0[0] = 9;
+    gNumWindows = 1, gCamera[0].target = 9, gPlayers[0] = 9;
     CF(9, 0x35D, int8_t) = 0;                        /* its view */
     for (int k = 0; k < 4; k++)
         MF(9, 0x5EC + 4 * k, float) = 10.0f;         /* no tire compressed: no suspension average */
@@ -387,12 +385,12 @@ static void test_cameras(void)
         PC_CAR_POS(j)[0] = 10.0f + (float)j, PC_CAR_POS(j)[1] = 0.0f, PC_CAR_POS(j)[2] = 5.0f;
         for (int e = 0; e < 9; e++)
             PC_CAR_UVS50(j)[e / 3][e % 3] = (float)(j * 10 + e);
-        D_8012E700[j].cam = &g_cams[j];
+        ObjInstanceList[j].cam = &g_cams[j];
     }
     for (int pass = 0; pass < 2; pass++) {
         test_race_cars = pass == 0 ? CARS : 6;
         memset(g_cams, SENTINEL, sizeof g_cams);
-        func_800EB90C();
+        CheckCameraView();
         CHECK(CF(9, 0x35D, int8_t) == 5 && CF(9, 0x35E, int8_t) == 5);
         for (int j = 0; j < PC_MAX_LINKS; j++) {
             if (j < test_race_cars && !is_human(j))
@@ -404,12 +402,12 @@ static void test_cameras(void)
     }
     test_race_cars = 6;
 
-    /* render_post_process clears every slot's finish camera; mode_flags_clear the first two. */
+    /* init_views clears every slot's finish camera; InitCheckpointData the first two. */
     gCamera[0].target = 9;
-    render_post_process();
+    init_views();
     CHECK(all_bytes(pc_finish_cam, sizeof pc_finish_cam, 0));
     memset(pc_finish_cam, 1, sizeof pc_finish_cam);
-    mode_flags_clear();
+    InitCheckpointData();
     CHECK(pc_finish_cam[0] == 0 && pc_finish_cam[1] == 0);
     for (int k = 2; k < PC_MAX_LINKS; k++)
         CHECK(pc_finish_cam[k] == 1);

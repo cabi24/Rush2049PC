@@ -14,7 +14,7 @@ exit:
     retraces    at least 59 a second, at most 12 dropped (late ones are caught up; a stall of 6 drops them)
     audio       with a device: no underrun after the first second; under 2% of the buffers played as silence or
                 late, where their render came after the device needed them; none skipped by the game's renderer
-                (func_80013DEC, which the PC build fixes: docs/port/AUDIO.md 7)
+                (sound_hw_service_frame, which the PC build fixes: docs/port/AUDIO.md 7)
 
 With --frame-rate R [--present-ms MS] it checks the high frame rate's window instead (docs/port/QA.md "Integration
 soak"): the run at R frames a second, each swap held MS longer (a slow GPU) and then until the vsync, must still

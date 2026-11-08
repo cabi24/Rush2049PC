@@ -50,7 +50,7 @@ typedef struct {
     uint32_t id[2];             /* the player's id words (the profile's +4, the ghost's playerId) */
 } PcNoteInfo;
 
-/* The save code's checksum (format_string_parse, src/blob/groups/hash/group.c): the same bytes give the
+/* The save code's checksum (CalcChecksumInternal, src/blob/groups/CalcChecksum/group.c): the same bytes give the
  * same word as the game's. */
 uint32_t pc_save_hash(const uint8_t *data, uint32_t size);
 void pc_note_info(const PcNote *note, PcNoteInfo *info);
@@ -76,7 +76,7 @@ int pc_pak_build(uint8_t *image, const uint8_t *page0, const PcNote *const *note
 
 /* A ghost's bytes (a note's pages, or a file's) as the game will take them: the header's revision and checksum, its
  * track (0-5), direction (0-1) and car (0-12), the zipped data inside the note and its checksum, and, when inflate is
- * set, the data inflated (raw deflate, as the game's inflate_entry_alt) to exactly the unzipped size, a whole number
+ * set, the data inflated (raw deflate, as the game's unzipdata) to exactly the unzipped size, a whole number
  * of 3-byte frames up to PC_GHOST_MAX_FRAMES, with its checksum: what DecodeGhost and the replay read (an inflate past
  * the buffer would run on through the game's heap). 0, or -1 with why. */
 int pc_ghost_check(const uint8_t *data, size_t size, int inflate, char *why, size_t why_size);

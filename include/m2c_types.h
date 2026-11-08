@@ -63,14 +63,14 @@ extern s32 __osSiRawStartDma(s32 direction, void *dramAddr);
 /* --- SI/PFS staging buffers: raw PIF-RAM-sized scratch buffers that
  * controller code builds request/read blocks into before/after DMA.
  * Real libultra OSPifRam is a 64-byte, 0x10-aligned block (15 words +
- * pifstatus); __osPfsBuffer is used the same way by the PFS read path. */
+ * pifstatus); __osPfsPifRam is used the same way by the PFS read path. */
 typedef struct {
     u32 ramarray[15];
     u32 pifstatus;
 } OSPifRam;
 
 extern OSPifRam __osSiDmaBuffer;
-extern u8 __osPfsBuffer[64];
+extern u8 __osPfsPifRam[64];
 
 /* __osContRamWrite: standard libultra Controller Pak raw write
  * (PRinternal/controller.h: s32 __osContRamWrite(OSMesgQueue*, int,
@@ -79,21 +79,21 @@ extern s32 __osContRamWrite(OSMesgQueue *mq, s32 channel, u16 address,
                              u8 *buffer, s32 force);
 
 /* --- Viewport offset tables (src/game/display.c territory, but this
- * dynamic-code copy indexes them directly): gViewportOffsetX/Y are read
+ * dynamic-code copy indexes them directly): video_default_x/Y are read
  * with the viewport index scaled by 8 bytes (4 s16s) per symbol_addrs.us.txt,
- * which also documents adjacent gViewportOffsetXExtra/YExtra 4 bytes
+ * which also documents adjacent video_default_extra_width/YExtra 4 bytes
  * earlier in the same table. */
-/* PC: the table at gViewportOffsetXExtra is s16[3][4], a row per TV type (gViewportX = osTvType, 0-2), up to
- * gViewportPendingFrames at 0x8002B010. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
- * last one read. Declared s16[32], they ran over gViewportPendingFrames, gViewportDataPtr, gInitFlag and
- * gDmaInitialized, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
-extern s16 gViewportOffsetX[9];
-extern s16 gViewportOffsetY[9];
+/* PC: the table at video_default_extra_width is s16[3][4], a row per TV type (video_tv_type = osTvType, 0-2), up to
+ * video_pending_frames at 0x8002B010. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
+ * last one read. Declared s16[32], they ran over video_pending_frames, video_adjusted_mode, gInitFlag and
+ * decompress_lock_ready, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
+extern s16 video_default_x[9];
+extern s16 video_default_y[9];
 
 /* --- Decompression DMA sync helpers (src/util/dma.c, not visible to m2c's
  * type context since that's a .c file, not a header). */
-extern s32 dma_wait(s32 blocking);
-extern void dma_signal(void);
+extern s32 acquire_decompress_lock(s32 blocking);
+extern void release_decompress_lock(void);
 
 /* --- SI DMA retry counter: the last word of the __osSiDmaBuffer/OSPifRam
  * block (0x80037ADC = __osSiDmaBuffer + 0x3C, i.e. its pifstatus field),
@@ -111,7 +111,7 @@ extern s32 __osContRamRead(OSMesgQueue *mq, s32 channel, u16 address,
  * void pointers; m2c needs real field types since it decompiles
  * __scAppendList/__scExec's own bodies directly from ROM asm, not through
  * those macros). */
-/* PC: the task as the game builds it (world_collision_response.c's Frame, func_8010FBE0's static task): its
+/* PC: the task as the game builds it (EndGraphics.c's Frame, musyx_submit_audio_task's static task): its
  * OSTask is in place from type on, and the OSTask's pointers are host-sized, which moves output_buff (unk38),
  * output_buff_size (unk3C) and msgQueue (docs/port/MUSYX_DATA.md 8.4). */
 typedef struct OSScTask_s {
@@ -162,15 +162,15 @@ typedef struct {
 extern void __scAppendList(OSSched *sc, OSScTask *task);
 extern void __scExec(OSSched *sc, OSScTask *rspTask, OSScTask *rdpTask);
 
-/* osViSwapBuffer/display_mode_tick (symbol_addrs.us.txt names for these two
+/* osViSwapBuffer/video_apply_pending_mode (symbol_addrs.us.txt names for these two
  * addresses); osViSwapBuffer takes the next framebuffer pointer. */
 extern void osViSwapBuffer(void *mode);
-extern void display_mode_tick(void);
+extern void video_apply_pending_mode(void);
 
 /* --- Inflate double-buffers + full PI DMA request (libultra osPiStartDma:
  * mb, priority, direction, devAddr, dramAddr, size, mq). */
-extern u8 gInflateBufferA[0x1000];
-extern u8 gInflateBufferB[0x1000];
+extern u8 unzip_input_a[0x1000];
+extern u8 unzip_input_b[0x1000];
 extern s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction,
                               u32 devAddr, void *dramAddr, u32 size,
                               OSMesgQueue *mq);
@@ -196,11 +196,11 @@ extern void __osSetCompare(u32 compare);
 extern void __osSpSetStatus(u32 status);
 extern void osSpTaskYield(void);
 
-/* --- __setfpcsr/game_loop: audio_thread_entry sets the FPU control/status
+/* --- __setfpcsr/GameLoop: game_thread_entry sets the FPU control/status
  * register once then loops calling the dynamic per-frame game state
- * machine at 0x800FD464 (symbol_addrs.us.txt: game_loop, 704 bytes). */
+ * machine at 0x800FD464 (symbol_addrs.us.txt: GameLoop, 704 bytes). */
 extern void __setfpcsr(u32 value);
-extern void game_loop(void);
+extern void GameLoop(void);
 
 /* --- SI mutex + PIF pack-read (symbol_addrs.us.txt: __osSiGetAccess/
  * __osSiRelAccess/__osPackReadData are all standard libultra no-arg SI
@@ -234,13 +234,13 @@ extern void osSetThreadPri(OSThread *thread, OSPri priority);
 /* --- Already-implemented functions (src/util/dma.c, src/libultra/
  * os_thread.c, src/libultra/os_vi.c) not visible to m2c's header-only
  * type context; declare their real signatures so callers type-check. */
-extern void dma_queue_init(void);
+extern void init_decompress_lock(void);
 extern void osViBlack(s32 mask);
 extern void osViSetSpecialFeatures(u32 features);
 
 /* --- Game thread stack (symbol_addrs.us.txt: "game thread stack base"),
  * used only for address arithmetic (base + offset) when setting up the
  * thread's stack pointer. */
-extern u8 gStackGame[0x2000];
+extern u8 main_thread_stack[0x2000];
 
 #endif

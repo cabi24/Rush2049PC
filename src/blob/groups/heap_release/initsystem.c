@@ -1,25 +1,25 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
- * game_late_init (0x800EEA7C, 820 B; historical label) = MAT3 InitSystem@Init.c (GC 0x80024948, 172 B), the N64
- * version: InitMemory?(50, 10) (func_800E7D0C), SaveInit (menu_save_options), InitGraphics (N64 _InitGfx: options
- * D_8015F738/D_80161380/D_80161398/D_801613A4 = 0, FOV D_80154188 = 90, wait for osTvType (0x80000300),
- * viewport_setup, three 0x22620-byte frame heaps (audio_dma_sync / sound_play_menu, cleared by audio_loop_control,
- * aligned (+32) & ~63), the two 128-byte frame records D_80156BE0[0..1] (display-list buffers D_800586D0 /
- * D_8006A090, count 2, heap), the display-list pointers D_8015B250 / D_8015B260 = +1728 / D_801497C8 = D_801497F4
- * = +0x9CC0; then ZOID_Init (func_800A5B3C), InitBlits (func_800A5488), InitCameras (particle_velocity_set)),
- * AudioInit(32, 16, 16, 5, 64, 1.0f, 200.0f, 0) (hud_setup), the two D_8011025C / D_80110260 buffers freed with
- * DeallocateMemory when D_80156994 is clear, InitRushControls (effect_spawn), SetControllerActive(-1, 0)
- * (player_state_set), func_800DE45C, InitializeTimer (viTickStart) and HAL_InitText (_InitSemaphore: font queue
- * D_801461D0 created once, function-local static sInited at 0x801147C0; gFontIndex D_80149DA0 = -1).
+ * InitSystem (0x800EEA7C, 820 B; historical label) = MAT3 InitSystem@Init.c (GC 0x80024948, 172 B), the N64
+ * version: InitMemory?(50, 10) (InitMemory), SaveInit (SaveInit), InitGraphics (N64 _InitGfx: options
+ * video_texture_filter/video_color_dither/video_dither_filter/video_divot = 0, FOV HFOV = 90, wait for osTvType (0x80000300),
+ * video_set_mode, three 0x22620-byte frame heaps (audio_dma_sync / AllocateMemoryHeapHigh, cleared by audio_loop_control,
+ * aligned (+32) & ~63), the two 128-byte frame records frame_records[0..1] (display-list buffers frame_command_buffer_a /
+ * frame_command_buffer_b, count 2, heap), the display-list pointers frame_dynamic / frame_matrix_cursor = +1728 / frame_dl = frame_dl_start
+ * = +0x9CC0; then ZOID_Init (ZOID_Reset), InitBlits (func_800A5488), InitCameras (ZeroCameras)),
+ * AudioInit(32, 16, 16, 5, 64, 1.0f, 200.0f, 0) (AudioInit), the two gListeners / gEmitters buffers freed with
+ * DeallocateMemory when expansion_pak_present is clear, InitRushControls (InitRushControls), SetControllerActive(-1, 0)
+ * (SetControllerActive), InitOptions, InitializeTimer (InitializeTimer) and HAL_InitText (_InitSemaphore: font queue
+ * text_lock_queue created once, function-local static sInited at 0x801147C0; gFontIndex gFontIndex = -1).
  * MAT3 names in the helper names; the N64 body differs from GC (GC has no display setup or frees).
  * Base: draft (structure, buffers). levers:
  *  - DeallocateMemory (MAT3 memsys.c: _GetSemaphore; _DeallocateMemory(ptr, 0); _ReleaseSemaphore) inlined from a
- *    non-static copy calling the group's func_80095CF4 / audio_reverb_update / func_80095CFC (retail: pointer
- *    homes 72/48, audio_reverb_update's IPA a1/a2 convention). Calling the group's own func_800960CC moves an
- *    unnamed deleted-procedure stub directly after game_late_init in the group object (1 extra word).
+ *    non-static copy calling the group's heap_lock / DeallocateMemoryInternal / heap_unlock (retail: pointer
+ *    homes 72/48, DeallocateMemoryInternal's IPA a1/a2 convention). Calling the group's own DeallocateMemory_stub moves an
+ *    unnamed deleted-procedure stub directly after InitSystem in the group object (1 extra word).
  *  - Wrapper inlines InitGraphics/_InitGfx/ZOID_Init/InitCameras, the free block and AudioInit size the 128-byte
  *    frame (each inlined call level reserves 8 bytes; without the AudioInit and free wrappers the frame is 112).
- *  - The second display buffer is D_8006A090 (the draft had 0x80069090); D_8015B250/D_8015B260/D_801497C8 read the
+ *  - The second display buffer is frame_command_buffer_b (the draft had 0x80069090); frame_dynamic/frame_matrix_cursor/frame_dl read the
  *    record's buffer back (retail adds +1728 / +0x9CC0 to the kept 0x800586D0, no folded constants).
  *  - sInited is MAT3's function-local static (folded lui/lb and lui/sb as retail; extern keeps the address).
  * Shaping (disclosed): the bodies of _InitGfx and _InitSemaphore are each written on ONE source line. as1 breaks
@@ -59,108 +59,108 @@ typedef struct {
 #define N64A(x) PC_N64A(x)
 #define N64A0(x) PC_N64A(x)
 #define N64AS(x) (s32)PC_N64A(x)
-extern OSMesgQueue D_801461D0;
-extern OSMesg D_801461FC[];
-extern OSMesgQueue D_80152770;
-extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
-extern f32 D_80154188;
-extern s32 D_80000300;
-extern s32 D_8002AFC0, D_8002AFC4;
-extern intptr_t D_8002EBB0;
-extern s32 D_80156CEC, D_80157240;
-extern Segs D_80156BE0;
-extern u8 D_800586D0[], D_8006A090[];
-/* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's D_800586D0 /
- * D_8006A090 (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
+extern OSMesgQueue text_lock_queue;
+extern OSMesg text_lock_msg[];
+extern OSMesgQueue heap_lock_queue;
+extern s32 video_texture_filter, video_color_dither, video_dither_filter, video_divot;
+extern f32 HFOV;
+extern s32 osTvType;
+extern s32 screen_width, screen_height;
+extern intptr_t zbuffer;
+extern s32 framebuffer_a, framebuffer_b;
+extern Segs frame_records;
+extern u8 frame_command_buffer_a[], frame_command_buffer_b[];
+/* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's frame_command_buffer_a /
+ * frame_command_buffer_b (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
  * and the display list's PC_GLIST_LEN commands from PC_GLIST_OFFSET, where the N64 has 600 and 4000 from +0x9CC0
  * (pc_game_types.h, docs/port/MORECARS.md 8). */
 u8 pc_frame_dl[2][PC_FRAME_BYTES] __attribute__((aligned(16)));
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]
-extern u8 *D_8015B250, *D_8015B260;
-extern u8 *D_801497C8, *D_801497F4;
-extern s8 D_80156994;
-extern void *D_8011025C, *D_80110260;
-extern s8 D_801147C0;
-extern s8 D_80149DA0;
+extern u8 *frame_dynamic, *frame_matrix_cursor;
+extern u8 *frame_dl, *frame_dl_start;
+extern s8 expansion_pak_present;
+extern void *gListeners, *gEmitters;
+extern s8 text_lock_inited;
+extern s8 gFontIndex;
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-extern void func_800E7D0C(u16 arg0, u16 arg1);
-extern void menu_save_options(void);
-extern s32 get_tv_offset(void);
-extern void viewport_setup(s32, s32, s32, s32);
+extern void InitMemory(u16 arg0, u16 arg1);
+extern void SaveInit(void);
+extern s32 video_mode_base_index(void);
+extern void video_set_mode(s32, s32, s32, s32);
 extern void *AllocateMemoryHeap(s32 arg0, s32 arg1);
 extern void PurgeableMemory(u32 arg0, s32 arg1);
-extern void *sound_play_menu(s32 arg0, s32 arg1);
-extern void func_800A5B3C(void);
+extern void *AllocateMemoryHeapHigh(s32 arg0, s32 arg1);
+extern void ZOID_Reset(void);
 extern void InitBlits(void);
-extern void particle_velocity_set(void);
-extern void hud_setup(s32, s32, s32, s32, s32, f32, f32, s32);
-extern void audio_reverb_update(u32 arg0, s32 arg1);
-extern void effect_spawn(void);
+extern void ZeroCameras(void);
+extern void AudioInit(s32, s32, s32, s32, s32, f32, f32, s32);
+extern void DeallocateMemoryInternal(u32 arg0, s32 arg1);
+extern void InitRushControls(void);
 extern void SetControllerActive(s32, s32);
-extern void func_800DE45C();
-extern void viTickStart(void);
-void func_80095CF4(void);   /* _GetSemaphore@memsys.c (wheel_params_set.c) */
-void func_80095CFC(void);   /* _ReleaseSemaphore@memsys.c (wheel_params_set.c) */
+extern void InitOptions();
+extern void InitializeTimer(void);
+void heap_lock(void);   /* _GetSemaphore@memsys.c (audio_sfx_shutdown.c) */
+void heap_unlock(void);   /* _ReleaseSemaphore@memsys.c (audio_sfx_shutdown.c) */
 void DeallocateMemory_Init(u32 address);
 
 
 static void _InitSemaphore_Init(void)     /* MAT3 _InitSemaphore@HAL_text.c, N64 form */
 {
-    static s8 sInited = 0; if (!sInited) { sInited = 1; osCreateMesgQueue(&D_801461D0, D_801461FC, 1); osSendMesg(&D_801461D0, (OSMesg)0, 0); }
+    static s8 sInited = 0; if (!sInited) { sInited = 1; osCreateMesgQueue(&text_lock_queue, text_lock_msg, 1); osSendMesg(&text_lock_queue, (OSMesg)0, 0); }
 }
 
 void HAL_InitText_Init(void)     /* MAT3 HAL_InitText@HAL_text.c */;
 
 static void _InitGfx_Init(void)     /* N64 _InitGfx (GC ngcGraph.c has its own) */
 {
-    D_8015F738 = 0; D_80161380 = 0; D_80161398 = 0; D_801613A4 = 0; D_80154188 = 90.0f; while (D_80000300 == 0) {} viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4); D_8002EBB0 = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(N64A0(D_8002EBB0), 0); D_80156CEC = N64AS(sound_play_menu(0, 0x22620)); PurgeableMemory(D_80156CEC, 0); D_80157240 = N64AS(sound_play_menu(0, 0x22620)); PurgeableMemory(D_80157240, 0); D_8002EBB0 = (D_8002EBB0 + 32) & ~63; D_80156CEC = (D_80156CEC + 32) & ~63; D_80157240 = (D_80157240 + 32) & ~63; D_80156BE0.f124 = PC_ZEXT(D_80156CEC); D_80156BE0.f252 = PC_ZEXT(D_80157240); D_80156BE0.buf88 = DL_BUFFER_0; D_80156BE0.buf216 = DL_BUFFER_1; D_80156BE0.n92 = 2; D_80156BE0.n220 = 2; D_8015B250 = D_80156BE0.buf88; D_8015B260 = (u8 *)D_80156BE0.buf88 + 1728; D_801497F4 = D_801497C8 = (u8 *)D_80156BE0.buf88 + PC_GLIST_OFFSET;
+    video_texture_filter = 0; video_color_dither = 0; video_dither_filter = 0; video_divot = 0; HFOV = 90.0f; while (osTvType == 0) {} video_set_mode(osTvType, video_mode_base_index(), screen_width, screen_height); zbuffer = (intptr_t)AllocateMemoryHeap(0, 0x22620); PurgeableMemory(N64A0(zbuffer), 0); framebuffer_a = N64AS(AllocateMemoryHeapHigh(0, 0x22620)); PurgeableMemory(framebuffer_a, 0); framebuffer_b = N64AS(AllocateMemoryHeapHigh(0, 0x22620)); PurgeableMemory(framebuffer_b, 0); zbuffer = (zbuffer + 32) & ~63; framebuffer_a = (framebuffer_a + 32) & ~63; framebuffer_b = (framebuffer_b + 32) & ~63; frame_records.f124 = PC_ZEXT(framebuffer_a); frame_records.f252 = PC_ZEXT(framebuffer_b); frame_records.buf88 = DL_BUFFER_0; frame_records.buf216 = DL_BUFFER_1; frame_records.n92 = 2; frame_records.n220 = 2; frame_dynamic = frame_records.buf88; frame_matrix_cursor = (u8 *)frame_records.buf88 + 1728; frame_dl_start = frame_dl = (u8 *)frame_records.buf88 + PC_GLIST_OFFSET;
 }
 
-void object_process_thunk(void);
+void ZOID_Init(void);
 
-void collision_check_thunk(void);
+void InitCameras(void);
 
 static void InitGraphics_Init(void)
 {
     _InitGfx_Init();
-    object_process_thunk();
+    ZOID_Init();
     InitBlits();
-    collision_check_thunk();
+    InitCameras();
 }
 
 static void FreeBuffers_Init(void)
 {
-    if (!D_80156994) {
-        if (D_8011025C) {
-            DeallocateMemory_Init(N64A(D_8011025C));
-            D_8011025C = 0;
+    if (!expansion_pak_present) {
+        if (gListeners) {
+            DeallocateMemory_Init(N64A(gListeners));
+            gListeners = 0;
         }
-        if (D_80110260) {
-            DeallocateMemory_Init(N64A(D_80110260));
-            D_80110260 = 0;
+        if (gEmitters) {
+            DeallocateMemory_Init(N64A(gEmitters));
+            gEmitters = 0;
         }
     }
 }
 
 static void AudioInit_Init(void)
 {
-    hud_setup(32, 16, 16, 5, 64, 1.0f, 200.0f, 0);
+    AudioInit(32, 16, 16, 5, 64, 1.0f, 200.0f, 0);
 }
 
-void game_late_init(void)
+void InitSystem(void)
 {
-    func_800E7D0C(50, 10);
-    menu_save_options();
+    InitMemory(50, 10);
+    SaveInit();
     InitGraphics_Init();
     AudioInit_Init();
     FreeBuffers_Init();
-    effect_spawn();
+    InitRushControls();
     SetControllerActive(-1, 0);
-    func_800DE45C();
-    viTickStart();
+    InitOptions();
+    InitializeTimer();
     HAL_InitText_Init();
 }
 

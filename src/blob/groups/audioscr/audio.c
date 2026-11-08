@@ -2,7 +2,7 @@
 /*
  * Audio-options screen text (GC audioscr.c). draft, levers, closing lever.
  * game_results_render (0x800FF298, kept) = GC animText@audioscr.c; game_results_update (0x800FEE04, internal,
- * only caller game_results_render) = GC animButtonText@audioscr.c; func_800BEA3C = GC TB_FlashTextColors with
+ * only caller game_results_render) = GC animButtonText@audioscr.c; TB_FlashTextColors = GC TB_FlashTextColors with
  * GC's parameter type union __anon_21da {u8 c[4]; u32 rgba;} (same 7 words as the locked Color4 single).
  * Labels are wrong (not results screens): proposed audio_animText / audio_animButtonText.
  * Shaping devices (all GC-attested shapes, disclosed):
@@ -29,64 +29,64 @@ typedef struct TextState { void *word0; char **fixed; void *word8; AuIdx *indice
 typedef struct Options { u8 pad[12]; s8 sfxVolume; s8 musicVolume; s8 pad14; s8 musicType; } Options;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
 
-extern OSMesgQueue D_801461D0;
-extern TextState countdown_state;                /* gText */
-extern s32 D_801105B4;                           /* buttonsInited */
-extern s32 state_word_a;                         /* gGameState */
-extern s8 D_8011064C;                            /* gControllerRemoved */
-extern s32 D_8015698C;                           /* playerInPause */
-extern s32 D_8011065C;                           /* menuRect.x (right edge of the option column) */
-extern s32 D_80110638;                           /* gAudioMenuSelect */
-extern s32 D_80110640;                           /* gSong */
-extern char *D_80110030[];                       /* gSongNames */
-extern Options D_80146108;                       /* gOptions */
+extern OSMesgQueue text_lock_queue;
+extern TextState gText;                /* gText */
+extern s32 audio_buttonsInited;                           /* buttonsInited */
+extern s32 gGameState;                         /* gGameState */
+extern s8 audio_gControllerRemoved;                            /* gControllerRemoved */
+extern s32 playerInPause;                           /* playerInPause */
+extern s32 audio_menuRect_cx;                           /* menuRect.x (right edge of the option column) */
+extern s32 gAudioMenuSelect;                           /* gAudioMenuSelect */
+extern s32 audio_gSong;                           /* gSong */
+extern char *gSongNames[];                       /* gSongNames */
+extern Options gOptions;                       /* gOptions */
 typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
-extern TextColor D_801146BC[2];                  /* flashColors */
-extern ButtonInfo D_801102B4[];                  /* buttonInfo (N64 copy starts at the first button) */
-extern u8 D_801105A4[];                          /* buttonInfo + 0x2f0 (title position) */
+extern TextColor flashColors[2];                  /* flashColors */
+extern ButtonInfo audio_buttonInfo[];                  /* buttonInfo (N64 copy starts at the first button) */
+extern u8 audio_title_button_pos[];                          /* buttonInfo + 0x2f0 (title position) */
 extern u8 gCamera[];                          /* gCamera */
-extern s32 D_80118E20[2];                        /* TB_SetJust pair */
+extern s32 gJust[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 slot_state_setup(s32);
-extern u32 object_manager_update(char *, s32);   /* HAL_GetTextWidth */
-extern s16 object_bytes_sum_global(void);        /* TB_GetFontLineHeight */
-extern void dispatch_handler(s32);               /* TB_SetTextColor */
-extern void state_utility(s16, s16, char *);     /* TB_DrawText */
-extern s32 fcvt_wrapper(char *, char *, ...);    /* TB_Sprintf */
-extern void render_helper(f32);                  /* HAL_SetTextDepth */
-extern void func_800ED66C(f32);                  /* HAL_SetTextTranslucency */
-extern u8 *func_800BE6A4(u8 *, void *);          /* TB_Strcpy */
-extern void brake_light_update(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
-extern TextColor D_80118E28, D_80118E2C;
-void func_800BEA3C(TextColor first, TextColor second)   /* TB_FlashTextColors (GC: two union __anon_21da) */
+extern s32 HAL_SetFontInternal(s32);
+extern u32 HAL_GetTextWidth(char *, s32);   /* HAL_GetTextWidth */
+extern s16 TB_GetFontLineHeight(void);        /* TB_GetFontLineHeight */
+extern void TB_SetTextColor(s32);               /* TB_SetTextColor */
+extern void TB_DrawText(s16, s16, char *);     /* TB_DrawText */
+extern s32 TB_Sprintf(char *, char *, ...);    /* TB_Sprintf */
+extern void HAL_SetTextDepth(f32);                  /* HAL_SetTextDepth */
+extern void HAL_SetTextTranslucency(f32);                  /* HAL_SetTextTranslucency */
+extern u8 *TB_Strcpy(u8 *, void *);          /* TB_Strcpy */
+extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
+extern TextColor gFlashColor1, gFlashColor2;
+void TB_FlashTextColors(TextColor first, TextColor second)   /* TB_FlashTextColors (GC: two union __anon_21da) */
 {
-    D_80118E28.rgba = first.rgba;
-    D_80118E2C.rgba = second.rgba;
+    gFlashColor1.rgba = first.rgba;
+    gFlashColor2.rgba = second.rgba;
 }
 
-void au_gfx_lock(void) { osRecvMesg(&D_801461D0, 0, 1); }
-void au_gfx_unlock(void) { osSendMesg(&D_801461D0, 0, 0); }
+void au_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
+void au_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
 s32 au_font_set(s32 font)
 {
     s32 old;
     au_gfx_lock();
-    old = slot_state_setup(font);
+    old = HAL_SetFontInternal(font);
     au_gfx_unlock();
     return old;
 }
 s16 au_CenterText(char *text, s16 centerX)
 {
-    return centerX - (object_manager_update(text, -1) >> 1);
+    return centerX - (HAL_GetTextWidth(text, -1) >> 1);
 }
 s16 au_RightText(char *text, s16 rightX)
 {
-    return rightX - object_manager_update(text, -1);
+    return rightX - HAL_GetTextWidth(text, -1);
 }
 
 void au_SetJust(s32 h, s32 v)
 {
-    D_80118E20[1] = v;
-    D_80118E20[0] = h;
+    gJust[1] = v;
+    gJust[0] = h;
 }
 
 void au_SetFont(s32 font)
@@ -108,62 +108,62 @@ void audio_animButtonText(void)
     s16 screenPos[2];
     char *charPtr;
 
-    render_helper(0.0f);
+    HAL_SetTextDepth(0.0f);
     au_SetJust(0, 1);
     au_SetFont(13);
-    dispatch_handler(1);
-    brake_light_update(0, D_801105A4, gCamera, 0, screenPos);
+    TB_SetTextColor(1);
+    ZOID_ProjectWindow(0, audio_title_button_pos, gCamera, 0, screenPos);
     x = screenPos[0];
     y = screenPos[1];
-    state_utility(au_CenterText(countdown_state.fixed[52], x), y, countdown_state.fixed[52]);
+    TB_DrawText(au_CenterText(gText.fixed[52], x), y, gText.fixed[52]);
     au_font_set(11);
     for (i = 0; i < 4; i++) {
-        if (D_801102B4[i].angle > 0.69813168f && D_801102B4[i].angle < 2.443461f) continue;
+        if (audio_buttonInfo[i].angle > 0.69813168f && audio_buttonInfo[i].angle < 2.443461f) continue;
         if (!au_validOption(i)) continue;
-        if (D_801102B4[i].angle > 0.34906584f && D_801102B4[i].angle < 2.7925267f) func_800ED66C(128.0f);
-        else func_800ED66C(-1.0f);
-        if (D_801102B4[i].angle < 1.5707964f) {
-            func_800BEA3C(D_801146BC[0], D_801146BC[1]);
-            dispatch_handler(1);
+        if (audio_buttonInfo[i].angle > 0.34906584f && audio_buttonInfo[i].angle < 2.7925267f) HAL_SetTextTranslucency(128.0f);
+        else HAL_SetTextTranslucency(-1.0f);
+        if (audio_buttonInfo[i].angle < 1.5707964f) {
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
+            TB_SetTextColor(1);
         } else {
-            func_800BEA3C(D_801146BC[0], D_801146BC[1]);
-            dispatch_handler(22);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
+            TB_SetTextColor(22);
         }
-        brake_light_update(0, D_801102B4[i].pos, gCamera, 0, screenPos);
+        ZOID_ProjectWindow(0, audio_buttonInfo[i].pos, gCamera, 0, screenPos);
         x = screenPos[0];
         y = screenPos[1];
         x -= 55;
-        state_utility(x, y,
-                      countdown_state.strings[countdown_state.indices->optionNames + i]);
+        TB_DrawText(x, y,
+                      gText.strings[gText.indices->optionNames + i]);
         switch (i) {
         case 0:
-            fcvt_wrapper(str, "%d", D_80146108.musicVolume);
+            TB_Sprintf(str, "%d", gOptions.musicVolume);
             break;
         case 1:
-            fcvt_wrapper(str, "%d", D_80146108.sfxVolume);
+            TB_Sprintf(str, "%d", gOptions.sfxVolume);
             break;
         case 2:
-            if (D_80110640 == 12) func_800BE6A4((u8 *)str, countdown_state.fixed[34]);
-            else if (D_80110640 == 13) func_800BE6A4((u8 *)str, countdown_state.strings[countdown_state.indices->songStrings]);
-            else func_800BE6A4((u8 *)str, D_80110030[D_80110640]);
+            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
+            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.strings[gText.indices->songStrings]);
+            else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            func_800BE6A4((u8 *)str, countdown_state.strings[D_80146108.musicType + countdown_state.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.strings[gOptions.musicType + gText.indices->musicTypes]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {
             *charPtr = (*charPtr >= 'a' && *charPtr <= 'z') ? *charPtr ^ 0x20 : *charPtr;
         }
-        brake_light_update(0, D_801102B4[i + 4].pos, gCamera, 0, screenPos);
+        ZOID_ProjectWindow(0, audio_buttonInfo[i + 4].pos, gCamera, 0, screenPos);
         x = screenPos[0];
         y = screenPos[1];
         x -= 35;
-        state_utility(x, y, str);
+        TB_DrawText(x, y, str);
     }
     au_SetJust(0, 3);
-    func_800ED66C(-1.0f);
-    func_800BEA3C(D_801146BC[0], D_801146BC[1]);
-    render_helper(-1.0f);
+    HAL_SetTextTranslucency(-1.0f);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
+    HAL_SetTextDepth(-1.0f);
 }
 
 
@@ -175,51 +175,51 @@ s32 audio_animText(s32 arg0)
     char str[40];
     char *charPtr;
 
-    if (D_801105B4 == 1) {
+    if (audio_buttonsInited == 1) {
         audio_animButtonText();
         return 1;
     }
-    render_helper(0.0f);
+    HAL_SetTextDepth(0.0f);
     au_SetFont(13);
-    dispatch_handler(1);
-    if ((state_word_a & 0x7C0000) && D_8011064C) {
-        fcvt_wrapper(str, "CONTROLLER %d %s", D_8015698C + 1, countdown_state.fixed[233]);
-        state_utility(au_CenterText(str, 160), 10, str);
+    TB_SetTextColor(1);
+    if ((gGameState & 0x7C0000) && audio_gControllerRemoved) {
+        TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
+        TB_DrawText(au_CenterText(str, 160), 10, str);
     } else {
-        state_utility(au_CenterText(countdown_state.fixed[52], 160), 10, countdown_state.fixed[52]);
+        TB_DrawText(au_CenterText(gText.fixed[52], 160), 10, gText.fixed[52]);
     }
-    y = object_bytes_sum_global() * 2 + 10;
+    y = TB_GetFontLineHeight() * 2 + 10;
     au_font_set(10);
-    x = D_8011065C;
+    x = audio_menuRect_cx;
     for (i = 0; i < 4; i++) {
         if (!au_validOption(i)) continue;
-        dispatch_handler(i == D_80110638 ? 22 : 1);
-        state_utility(au_RightText(countdown_state.strings[countdown_state.indices->optionNames + i], x - 5), y,
-                      countdown_state.strings[countdown_state.indices->optionNames + i]);
+        TB_SetTextColor(i == gAudioMenuSelect ? 22 : 1);
+        TB_DrawText(au_RightText(gText.strings[gText.indices->optionNames + i], x - 5), y,
+                      gText.strings[gText.indices->optionNames + i]);
         switch (i) {
         case 0:
-            fcvt_wrapper(str, "%d", D_80146108.musicVolume);
+            TB_Sprintf(str, "%d", gOptions.musicVolume);
             break;
         case 1:
-            fcvt_wrapper(str, "%d", D_80146108.sfxVolume);
+            TB_Sprintf(str, "%d", gOptions.sfxVolume);
             break;
         case 2:
-            if (D_80110640 == 12) func_800BE6A4((u8 *)str, countdown_state.fixed[34]);
-            else if (D_80110640 == 13) func_800BE6A4((u8 *)str, countdown_state.strings[countdown_state.indices->songStrings]);
-            else func_800BE6A4((u8 *)str, D_80110030[D_80110640]);
+            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
+            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.strings[gText.indices->songStrings]);
+            else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            func_800BE6A4((u8 *)str, countdown_state.strings[D_80146108.musicType + countdown_state.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.strings[gOptions.musicType + gText.indices->musicTypes]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {
             *charPtr = (*charPtr >= 'a' && *charPtr <= 'z') ? *charPtr ^ 0x20 : *charPtr;
         }
-        state_utility(x + 5, y, str);
-        y += object_bytes_sum_global();
+        TB_DrawText(x + 5, y, str);
+        y += TB_GetFontLineHeight();
     }
-    func_800ED66C(-1.0f);
-    func_800BEA3C(D_801146BC[0], D_801146BC[1]);
-    render_helper(-1.0f);
+    HAL_SetTextTranslucency(-1.0f);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
+    HAL_SetTextDepth(-1.0f);
     return 1;
 }

@@ -115,7 +115,9 @@ The N64 address stays in the data loader's symbol tables (`asm/us/*/symbols.json
 cartridge's image each datum lives; while the data comes from the cartridge, that is the one thing that must know
 it. Until the tools stop reading it from a name's spelling (n64syms.address_of and kind_of: gen_data.py,
 gen_stubs.py, synth_rom.py take a D_/func_ name's address and kind from its digits), rename.py also writes each
-renamed address name's address and kind into `symbol_addrs.us.txt` (`car_resistance = 0x800D0A34; // type:func`).
+renamed address name's address and kind into `symbol_addrs.us.txt` (`car_resistance = 0x800D0A34; // type:func
+renamed`); `renamed` tells gen_data.py to treat the name as it treated the address name (no extent by gap ends at it),
+and gen_data.py ranks declarations that tie by the type names the maps replaced, so the maps change no layout.
 
 ## 4. The waves
 

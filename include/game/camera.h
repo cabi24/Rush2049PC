@@ -99,7 +99,7 @@ extern f32 gCamUvs[3][3];   /* Global camera orientation matrix */
  *   camera_init         -> init_view() + init_view3()
  *   camera_init_view    -> init_view() partial
  *   camera_init_view3   -> init_view3()
- *   camera_update       -> setcamview()
+ *   AnimatePathTarget       -> setcamview()
  *   camera_check_view_change -> CheckCameraView()
  *   camera_set_view     -> setcamview()
  *   camera_update_chase -> View3Cam() / update_rear_camera()
@@ -117,7 +117,7 @@ void camera_init_view3(void);
 void camera_set_mode(s32 mode);
 
 /* Per-frame update */
-void camera_update(void);
+void AnimatePathTarget(void);
 void camera_check_view_change(void);
 void camera_set_view(void);
 

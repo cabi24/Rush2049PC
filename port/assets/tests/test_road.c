@@ -1,7 +1,7 @@
 /* port/assets/tests/test_road.c: the road / collision converter (port/assets/road.c) on a synthetic big-endian
- * file, then the game's own InitSTree (func_800AB638: the section pointers) and listener_position_set (copies save
+ * file, then the game's own InitSTree (InitSTree: the section pointers) and ResetCollisionObject (copies save
  * records into the surface and vertex sections, through a pointer-sized cursor on PC).
- * game: src/blob/func_800AB638.c src/blob/listener_position_set.c
+ * game: src/blob/InitSTree.c src/blob/ResetCollisionObject.c
  */
 #include <string.h>
 
@@ -9,12 +9,12 @@
 #include "support.h"
 
 /* InitSTree's section pointers and counts. */
-void *D_801526DC, *D_801526F0;
-uint8_t *D_80152034, *D_80124EEC, *D_801497F8, *D_8015201C, *D_801525EC, *D_80152568, *D_80152460;
-uint16_t D_8015267C;
+void *gRoadDat, *gRoadHead;
+uint8_t *gRoadPath, *stree_nodes, *stree_surf, *stree_svert, *stree_save, *stree_vlist, *stree_slist;
+uint16_t stree_savenum;
 void *n64_memcpy(void *d, const void *s, unsigned n) { return memcpy(d, s, n); }
-void func_800AB638(void);
-void listener_position_set(int32_t arg0);
+void InitSTree(void);
+void ResetCollisionObject(int32_t arg0);
 
 enum { P = 2, T = 3, S = 2, V = 3, SV = 2, VL = 5 };
 enum { PATH = 0x10, TREE = PATH + P * 0x84, SURF = TREE + T * 0x14, SVERT = SURF + S * 0x18, SAVE = SVERT + V * 8,
@@ -91,14 +91,14 @@ int main(void)
     CHECK(f[VLIST + 4] == 0xA4 && f[SLIST] == 0x55);
 
     /* InitSTree points the sections at the converted file. */
-    D_801526DC = f;
-    func_800AB638();
-    CHECK(D_801526F0 == f && D_80152034 == f + PATH && D_80124EEC == f + TREE && D_801497F8 == f + SURF);
-    CHECK(D_8015201C == f + SVERT && D_801525EC == f + SAVE && D_80152568 == f + VLIST && D_80152460 == f + SLIST);
-    CHECK(D_8015267C == SV);
+    gRoadDat = f;
+    InitSTree();
+    CHECK(gRoadHead == f && gRoadPath == f + PATH && stree_nodes == f + TREE && stree_surf == f + SURF);
+    CHECK(stree_svert == f + SVERT && stree_save == f + SAVE && stree_vlist == f + VLIST && stree_slist == f + SLIST);
+    CHECK(stree_savenum == SV);
 
     /* Restoring object 41's saved geometry: save 1 goes to surface 0 and vertex 1. */
-    listener_position_set(41);
+    ResetCollisionObject(41);
     for (k = 0; k < 9; k++)
         CHECK(s16_at(f + SURF + 4 + 2 * k) == -(10 + k));
     CHECK(u16_at(f + SURF) == 0x1000 && u16_at(f + SURF + 0x18 + 4) == 0x1000 + 14);   /* others untouched */

@@ -1,9 +1,9 @@
 /* port/include/pc_game_fps.h: game.frame_rate, the game's own frame rate (docs/port/FRAMERATE.md 7).
  *
  * At `original` the game draws a frame every two retraces at most, as on the N64; at 60 every retrace. The setting is
- * latched where the game changes its state (game_loop, pc_game_fps_begin): from the next screen, never in the middle
+ * latched where the game changes its state (GameLoop, pc_game_fps_begin): from the next screen, never in the middle
  * of one. The game's per-frame logic then steps by the frame's length: what already steps by the frame time
- * (D_8002EB94) or the retraces (D_8002EB98) does so by itself; what steps by a constant tuned to a frame of two
+ * (gFrameSeconds) or the retraces (gLastFrameCount) does so by itself; what steps by a constant tuned to a frame of two
  * retraces goes through the macros below. Included by pc_prelude.h, so they are in every game file. At `original`
  * each macro gives exactly the N64's value (no float operation is added), so the game is the N64's. */
 #ifndef PC_GAME_FPS_H
@@ -14,10 +14,10 @@ extern int pc_frame_steps;          /* whole 30 Hz frames (two retraces) this fr
 extern float pc_frame_scale;        /* this frame's length in 30 Hz frames: retraces / 2 (0.5 at 60) */
 
 void pc_game_fps_begin(void);       /* latch the setting (the game's state changes) */
-/* The state the game changes to there (state_word_b, the next gGameState): at 60 a race is watched for frames lost to a
+/* The state the game changes to there (gNewGameState, the next gGameState): at 60 a race is watched for frames lost to a
  * host that can't keep 60 (FRAMERATE.md 7.7) */
 void pc_game_fps_state(unsigned int state);
-void pc_game_frame_note(int retraces);   /* viUpdateTime: this frame's retraces, at most 5 */
+void pc_game_frame_note(int retraces);   /* UpdateFrameTimer: this frame's retraces, at most 5 */
 extern void (*pc_game_frame_hook)(int retraces);   /* --log-frames (main.c): called at each frame's note; NULL none */
 float pc_fps_filter(float e);       /* e to the power of the frame's length in 30 Hz frames */
 /* For x = x * e + noise once a 30 Hz frame, taken every frame (x * pc_fps_filter(e) + noise * this): the noise's scale
@@ -33,7 +33,7 @@ float pc_fps_noise(float e);
 #define PC_EACH30(stmt) if (!pc_fps60 || pc_frame_steps) { stmt }
 /* A filter or decay applied once a frame, x = x * e + y * (1 - e), tuned to a frame of two retraces: e^(frames). */
 #define PC_FILTER(e) (pc_fps60 ? pc_fps_filter(e) : (e))
-/* The scheduler's retraces between two swaps (src/rom/lib_1050_sdk.c). */
+/* The scheduler's retraces between two swaps (src/rom/scheduler.c). */
 #define PC_SWAP_RETRACES ((unsigned int)(pc_fps60 ? 1 : 2))
 
 #endif

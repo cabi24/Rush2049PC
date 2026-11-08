@@ -44,7 +44,7 @@ const char *pc_audio_backend_name(void);
 void pc_audio_note_rendered(const int16_t *buf);
 
 /* More voices (docs/port/AUDIO.md 10): the voice records each SFD holds, 32 (the N64's) to MX_VOICES_MAX, which the
- * game sets as it allocates its SFDs (lib_11640.c, func_80011104). pc_audio_sfd_size: an SFD of n records in a form,
+ * game sets as it allocates its SFDs (hardware.c, sound_hw_alloc_voices). pc_audio_sfd_size: an SFD of n records in a form,
  * with its release mask's words for slots 32 and up. */
 void pc_audio_set_sfd_voices(unsigned n);
 unsigned pc_audio_sfd_voices(void);

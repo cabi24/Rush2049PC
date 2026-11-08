@@ -1,18 +1,18 @@
 /* port/assets/tests/test_sound.c: the audio manager's records on 64-bit (docs/port/SYNTH.md). The game's own code
- * sets up the pools (AudioInit = hud_setup, hud_speed_display), allocates commands (func_80091B00), plays effects
- * with and without an emitter (entity_flags_apply, camera_target_track: a command, an fx tag and an emitter) and
- * schedules a sequence with variable arguments (car_stats_display), then pauses it (game_timer_pause). Every record
+ * sets up the pools (AudioInit = AudioInit, AudInit3D), allocates commands (GetCmd), plays effects
+ * with and without an emitter (AudPlayEffect, AudEmitEffect: a command, an fx tag and an emitter) and
+ * schedules a sequence with variable arguments (AudPlaySequence), then pauses it (stop_sequence). Every record
  * is checked at its PC offsets, which are the host layouts of audiomgr_thread.c's views (tFxSequence, tAudioMsg,
  * anon_ll_id_3c, anon_te_tag_c): an fx tag is 88 bytes, a command 32, a sequence 72, a sorted-tag node 24 and an
  * emitter 56. Before, AudioInit gave the fx tags 80 bytes (the last one's data pointer ran into the next heap
  * block's header), the sorted tags and commands their N64 sizes, the emitter pop cleared a byte of a link, and the
  * sequence's variable arguments were read from the stack as IDO's va_list does; the sorted-tag tree's comparator
- * (draw_sprites, _ProcessPriorities' order) read the tag and its priority at their N64 offsets.
- * game: src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c
- * game: src/blob/groups/camera_target_track/group.c src/blob/groups/slot18_alloc/func_80091B00.c
- * game: src/blob/func_800AED20.c src/blob/car_stats_display.c src/blob/func_800D18D8.c src/blob/game_timer_pause.c
- * game: src/blob/draw_sprites.c src/blob/func_80091FBC.c src/blob/func_8009211C.c
- * game: src/blob/func_80095CE8.c
+ * (OrderFx, _ProcessPriorities' order) read the tag and its priority at their N64 offsets.
+ * game: src/blob/groups/save/AudioInit.c src/blob/AudInit3D.c
+ * game: src/blob/groups/audio_emitters/group.c src/blob/groups/abort_game/GetCmd.c
+ * game: src/blob/NewEmitter.c src/blob/AudPlaySequence.c src/blob/NewSequence.c src/blob/stop_sequence.c
+ * game: src/blob/OrderFx.c src/blob/InsertLLE.c src/blob/RemoveLLE.c
+ * game: src/blob/GetAudioTime.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -75,23 +75,23 @@ _Static_assert(sizeof(Emitter) == 56, "emitter");
 
 /* ---------------------------------------------------------------- the game's data */
 
-List D_80143FF8, D_80144020, D_80144C50, D_801461B0, D_801461E8, D_80146170, D_80146188, D_80149808, D_80149860;
-FxTag *D_80110244;
-void *D_80110248, *D_8011025C;
-intptr_t D_80110260;
-Seq *D_80110270;
-int32_t D_80110264, D_8011024C, D_80110250, D_801460F8, D_80146104, D_80146200, D_80149410, D_80110268, D_8011026C;
-uint32_t D_80110254 = 1, D_80110258 = 1;
-int8_t D_8011023C;
-struct { void (*func)(void); int32_t unk4; intptr_t unk8; } D_80143F58;
+List gFreeFxTags, gPlayingFxTags, gInterruptedFxTags, gFreeEmitters, gActiveEmitters, gFreeListeners, gActiveListeners, gFreeSequences, gActiveSequences;
+FxTag *gFxTags;
+void *gSortedFxTags, *gListeners;
+intptr_t gEmitters;
+Seq *gSequences;
+int32_t gNumFxTags, gNumStartCmds, gNumStopCmds, gTagShift, gTagMask, gMaxSfx, gMaxMusic, gNumListeners, gNumEmitters;
+uint32_t gNextFxId = 1, gNextSeqId = 1;
+int8_t gInited_AudioMgr;
+struct { void (*func)(void); int32_t unk4; intptr_t unk8; } gSortedFxTagTree;
 /* The commands, 32 bytes each on the PC: the PC's pool (pc_game_types.h, docs/port/DECOUPLE.md 9), 128 walked here. */
 struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];
-#define D_80142DD8 ((uint8_t *)pc_snd_msgs)
-uint8_t D_80142728[24], D_801427A8[24], D_80034F00[0x1B0], D_800339F0[16];
-void *D_80142768[1];
-uint8_t D_8011F5CC[64];
-float D_80152748 = 12.5f, D_80139318, D_8013C090;
-uint8_t D_801497E8;
+#define audiomgr_gCmds ((uint8_t *)pc_snd_msgs)
+uint8_t audio_lock_queue[24], audio_command_queue[24], audio_manager_thread[0x1B0], audio_manager_thread_stack_top[16];
+void *audio_lock_msg[1];
+uint8_t gEffectLoop[64];
+float gAudioSeconds = 12.5f, gSoundSpeed, gFrontDistance;
+uint8_t gCalcDoppler;
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
@@ -110,8 +110,8 @@ void *AllocateMemoryHeap(void *heap, uint32_t size)
     g_alloc[g_nalloc].p = p, g_alloc[g_nalloc++].size = size;
     return p;
 }
-/* The list clear (save.c's, which needs much else); hud_speed_display.c's copy is weak. */
-void func_800A370C(List *list)
+/* The list clear (save.c's, which needs much else); AudInit3D.c's copy is weak. */
+void ClearLL(List *list)
 {
     list->head = list->tail = NULL;
     list->count = 0;
@@ -122,7 +122,7 @@ static int g_nsent;
 int32_t osSendMesg(void *mq, void *msg, int32_t flags)
 {
     (void)flags;
-    if (mq == D_801427A8 && g_nsent < 8)
+    if (mq == audio_command_queue && g_nsent < 8)
         g_sent[g_nsent++] = msg;
     return 0;
 }
@@ -133,11 +133,10 @@ void osCreateThread(void *t, int32_t id, void (*entry)(void *), void *arg, void 
     (void)t, (void)id, (void)entry, (void)arg, (void)sp, (void)pri;
 }
 void osStartThread(void *t) { (void)t; }
-void func_800C8918(void) {}
-void car_shadow_render(int32_t a, int32_t b, int32_t c) { (void)a, (void)b, (void)c; }
-void func_800992AC(void *arg) { (void)arg; }
-void func_8009539C(void) {}
-int32_t func_800C8738(int32_t n)   /* the highest set bit */
+void AudioShutdown(void) {}
+void AudioInitSys(int32_t a, int32_t b, int32_t c) { (void)a, (void)b, (void)c; }
+void audio_manager_thread_entry(void *arg) { (void)arg; }
+int32_t HAL_IntLog2(int32_t n)   /* the highest set bit */
 {
     int32_t b = 0;
     while (n >> (b + 1))
@@ -145,14 +144,14 @@ int32_t func_800C8738(int32_t n)   /* the highest set bit */
     return b;
 }
 
-void hud_setup(uint8_t a0, uint8_t a1, uint8_t a2, int32_t numA, int32_t numB, float a5, float a6, int32_t a7);
-uint32_t entity_flags_apply(uint32_t index, uint32_t other, uint32_t value, uint8_t mode);
-int32_t camera_target_track(float *pos, void *a1, float volume, float a3, float x, float y, uint32_t index,
+void AudioInit(uint8_t a0, uint8_t a1, uint8_t a2, int32_t numA, int32_t numB, float a5, float a6, int32_t a7);
+uint32_t AudPlayEffect(uint32_t index, uint32_t other, uint32_t value, uint8_t mode);
+int32_t AudEmitEffect(float *pos, void *a1, float volume, float a3, float x, float y, uint32_t index,
                             uint32_t other, uint32_t value, uint8_t mode);
-void *func_80091B00(void);
-uint32_t car_stats_display(int type, float delay, int func, int data, int nargs, ...);
-void game_timer_pause(int32_t h);
-int32_t draw_sprites(void *a, void *b);   /* the sorted-tag tree's order: by weighted priority */
+void *GetCmd(void);
+uint32_t AudPlaySequence(int type, float delay, int func, int data, int nargs, ...);
+void stop_sequence(int32_t h);
+int32_t OrderFx(void *a, void *b);   /* the sorted-tag tree's order: by weighted priority */
 
 static int in_pool(const void *p, const void *pool, size_t stride, int n)
 {
@@ -163,76 +162,76 @@ static int in_pool(const void *p, const void *pool, size_t stride, int n)
 int main(void)
 {
     /* AudioInit: voices = max(min(2 x 16, 64), 16 + 64) = 80 fx tags, as many sorted-tag nodes, 6 sequences; then
-     * hud_speed_display's 5 records of 0x3C and 64 emitters. */
-    hud_setup(32, 16, 16, 5, 64, 1.0f, 200.0f, 0);
-    CHECK(D_80110264 == 80);
+     * AudInit3D's 5 records of 0x3C and 64 emitters. */
+    AudioInit(32, 16, 16, 5, 64, 1.0f, 200.0f, 0);
+    CHECK(gNumFxTags == 80);
     CHECK(g_nalloc == 5);
-    CHECK(g_alloc[0].p == D_80110244 && g_alloc[0].size == 80 * sizeof(FxTag));
-    CHECK(g_alloc[1].p == D_80110248 && g_alloc[1].size == 80 * 24);
-    CHECK(g_alloc[2].p == D_80110270 && g_alloc[2].size == 6 * sizeof(Seq));
-    CHECK(g_alloc[3].p == D_8011025C && g_alloc[3].size == 5 * 72);
-    CHECK(g_alloc[4].p == (void *)D_80110260 && g_alloc[4].size == 64 * sizeof(Emitter));
-    CHECK(D_80143FF8.count == 80 && D_80149808.count == 6 && D_801461B0.count == 64);
+    CHECK(g_alloc[0].p == gFxTags && g_alloc[0].size == 80 * sizeof(FxTag));
+    CHECK(g_alloc[1].p == gSortedFxTags && g_alloc[1].size == 80 * 24);
+    CHECK(g_alloc[2].p == gSequences && g_alloc[2].size == 6 * sizeof(Seq));
+    CHECK(g_alloc[3].p == gListeners && g_alloc[3].size == 5 * 72);
+    CHECK(g_alloc[4].p == (void *)gEmitters && g_alloc[4].size == 64 * sizeof(Emitter));
+    CHECK(gFreeFxTags.count == 80 && gFreeSequences.count == 6 && gFreeEmitters.count == 64);
     for (int i = 0; i < 80; i++)
-        CHECK(D_80110244[i].list == &D_80143FF8 && (D_80110244[i].id & D_80146104) == (uint32_t)i);
+        CHECK(gFxTags[i].list == &gFreeFxTags && (gFxTags[i].id & gTagMask) == (uint32_t)i);
 
     /* An effect: a command (playEffect, cmd 2) with its fx tag at +24, the tag moved to the active list. */
-    uint32_t tag = entity_flags_apply(3, 7, 1, 0);
+    uint32_t tag = AudPlayEffect(3, 7, 1, 0);
     CHECK(g_nsent == 1);
     Cmd *cmd = g_sent[0];
-    CHECK(in_pool(cmd, D_80142DD8, 32, 128) && cmd->used == 1 && cmd->cmd == 2 && cmd->replace == 1);
+    CHECK(in_pool(cmd, audiomgr_gCmds, 32, 128) && cmd->used == 1 && cmd->cmd == 2 && cmd->replace == 1);
     FxTag *t = cmd->tag;
-    CHECK(in_pool(t, D_80110244, sizeof(FxTag), 80));
-    CHECK(t && t->id == tag && t->list == &D_80144C50 && D_80144C50.head == &t->ll);
+    CHECK(in_pool(t, gFxTags, sizeof(FxTag), 80));
+    CHECK(t && t->id == tag && t->list == &gInterruptedFxTags && gInterruptedFxTags.head == &t->ll);
     CHECK(t && t->state == 1 && t->fxid == 3 && t->subId == 7 && t->numCmds == 1 && t->data == NULL);
     CHECK(cmd->vol == 1.0f && cmd->lrpan == 0.0f && cmd->fbpan == -2.0f);
 
     /* An effect at a position: an emitter taken from the free list (its active flag cleared), queued, and the fx
      * tag's data pointing at it. */
     float pos[3] = {1.0f, 2.0f, 3.0f};
-    uint32_t tag2 = (uint32_t)camera_target_track(pos, NULL, 0.75f, 0.0f, 0.25f, 2.0f, 4, 8, 0, 1);
+    uint32_t tag2 = (uint32_t)AudEmitEffect(pos, NULL, 0.75f, 0.0f, 0.25f, 2.0f, 4, 8, 0, 1);
     CHECK(g_nsent == 2);
     cmd = g_sent[1];
     t = cmd->tag;
     Emitter *e = t ? t->data : NULL;
-    CHECK(in_pool(e, (void *)D_80110260, sizeof(Emitter), 64));
+    CHECK(in_pool(e, (void *)gEmitters, sizeof(Emitter), 64));
     CHECK(e && e->active == 0 && e->queued == 1 && e->tag == tag2 && t->id == tag2);
     CHECK(e && e->pos[0] == 1.0f && e->pos[2] == 3.0f && e->volume == 0.75f && e->x == 0.25f && e->y == 1.0f);
-    CHECK(e && D_801461E8.head == &e->link && D_801461B0.count == 63);
+    CHECK(e && gActiveEmitters.head == &e->link && gFreeEmitters.count == 63);
 
     /* No fx tag left, as more engines than tags can leave it in a race of 12 cars (docs/port/MORECARS.md 6): each
-     * start gives its command back and is not started (-1, no handle), camera_target_track its emitter too. */
-    List tags = D_80143FF8;
-    D_80143FF8.head = NULL, D_80143FF8.tail = NULL, D_80143FF8.count = 0;
-    CHECK(entity_flags_apply(3, 7, 1, 0) == (uint32_t)-1 && g_nsent == 2);
-    CHECK(camera_target_track(pos, NULL, 0.75f, 0.0f, 0.25f, 2.0f, 4, 8, 0, 1) == -1 && g_nsent == 2);
-    CHECK(D_801461B0.count == 63 && D_801461E8.head == &e->link);
-    D_80143FF8 = tags;
+     * start gives its command back and is not started (-1, no handle), AudEmitEffect its emitter too. */
+    List tags = gFreeFxTags;
+    gFreeFxTags.head = NULL, gFreeFxTags.tail = NULL, gFreeFxTags.count = 0;
+    CHECK(AudPlayEffect(3, 7, 1, 0) == (uint32_t)-1 && g_nsent == 2);
+    CHECK(AudEmitEffect(pos, NULL, 0.75f, 0.0f, 0.25f, 2.0f, 4, 8, 0, 1) == -1 && g_nsent == 2);
+    CHECK(gFreeEmitters.count == 63 && gActiveEmitters.head == &e->link);
+    gFreeFxTags = tags;
 
     /* The command table: 2 taken (the two not started gave theirs back), the other 126 handed out 32 bytes apart,
      * then none. */
     uint8_t *prev = NULL;
     int n = 0;
-    for (void *c; (c = func_80091B00()) != NULL; n++) {
-        CHECK(in_pool(c, D_80142DD8, 32, 128) && (uint8_t *)c > prev);
+    for (void *c; (c = GetCmd()) != NULL; n++) {
+        CHECK(in_pool(c, audiomgr_gCmds, 32, 128) && (uint8_t *)c > prev);
         prev = c;
     }
     CHECK(n == 126);
 
     /* A sequence with three ids: the variable arguments as passed, the rest -1, on the active list; paused by its
      * handle. */
-    uint32_t h = car_stats_display(2, 0.5f, 0x1234, 0x5678, 3, 11, 22, 33);
-    Seq *s = &D_80110270[h & D_80146104];
-    CHECK(in_pool(s, D_80110270, sizeof(Seq), 6) && s->id == h);
+    uint32_t h = AudPlaySequence(2, 0.5f, 0x1234, 0x5678, 3, 11, 22, 33);
+    Seq *s = &gSequences[h & gTagMask];
+    CHECK(in_pool(s, gSequences, sizeof(Seq), 6) && s->id == h);
     CHECK(s->ids[0] == 11 && s->ids[1] == 22 && s->ids[2] == 33 && s->ids[3] == -1);
     CHECK(s->priority == 2 && s->timeout == 0.5f && s->replace == 0x1234 && s->subId == 0x5678 && s->sndTag == -1);
-    CHECK(s->startTime == 12.5f && s->active == 1 && s->stop == 0 && D_80149860.head == &s->ll);
-    game_timer_pause((int32_t)h);
+    CHECK(s->startTime == 12.5f && s->active == 1 && s->stop == 0 && gActiveSequences.head == &s->ll);
+    stop_sequence((int32_t)h);
     CHECK(s->stop == 1);
 
     /* The sorted-tag tree orders its nodes {left, right, tag} by the tags' weighted priority. */
-    struct { void *left, *right; FxTag *tag; } na = {0, 0, &D_80110244[5]}, nb = {0, 0, &D_80110244[9]};
-    D_80110244[5].wpriority = 70, D_80110244[9].wpriority = 30;
-    CHECK(draw_sprites(&na, &nb) == 40 && draw_sprites(&nb, &na) == -40);
+    struct { void *left, *right; FxTag *tag; } na = {0, 0, &gFxTags[5]}, nb = {0, 0, &gFxTags[9]};
+    gFxTags[5].wpriority = 70, gFxTags[9].wpriority = 30;
+    CHECK(OrderFx(&na, &nb) == 40 && OrderFx(&nb, &na) == -40);
     return TEST_DONE();
 }

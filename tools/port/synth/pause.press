@@ -1,4 +1,4 @@
-# The pause screen (RaceStateMachine_Update) in a one-player race, and the screens it opens, then a retirement from
+# The pause screen (updatePauseScreen) in a one-player race, and the screens it opens, then a retirement from
 # it, which ends the race (docs/port/SYNTH.md 2). Its menu: 0 resume, 1-4 the options, controls, video and audio
 # screens (pause states 5, 4, 2, 3), 5, 6 restart, 7 quit (pause state 8, confirmed with LEFT/RIGHT and A).
 # until: 0x800000:60

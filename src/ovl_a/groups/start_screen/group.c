@@ -1,6 +1,6 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A start screen (title "press start" menu): updateStartScreen (func_80390418, kept root) and its
- * IPA-internal updateButtons (func_8038F79C). Donor: MAT3 GameSource startscr.c, updateStartScreen (GC 0x8008624c)
+/* Image A start screen (title "press start" menu): updateStartScreen (updateStartScreen, kept root) and its
+ * IPA-internal updateButtons (startscr_updateButtons). Donor: MAT3 GameSource startscr.c, updateStartScreen (GC 0x8008624c)
  * and static updateButtons (GC 0x800871e4); direct typed port, N64 offsets/addresses from the retail words.
  *
  * N64 differences from MAT3 (all read from the retail code): gOptions[14] <= 12 (GC 18); AudPlaySong(6,1) (GC 19);
@@ -8,12 +8,12 @@
  * lower angle limit in updateButtons is 0.0f (GC 0.08726646f); the gNumPlayers clamp is
  * `if (n > max) { if (max < 1) n = 1; else n = max; }`; the 17th button x is `gNumPlayers * 22.5f` (ugen operand order).
  * gFrameSeconds is volatile (MAT3 declares it volatile) and gNumModels is volatile u8 (every use is lui/addiu/lbu 0(reg)).
- * uninitScreen and uninitButtons are inlined statics (inlined twice into the root). func_8038F744 (optionValid) is the
+ * uninitScreen and uninitButtons are inlined statics (inlined twice into the root). startscr_optionValid (optionValid) is the
  * installed body of group runtime_a_option_eligibility, present only as IPA context (without it the
  * root keeps &gStartMenuSelect in s0 instead of a2).
  *
- * supersession: adds initScreen (func_8038FFD8, MAT3 startscr.c initScreen GC 0x800865f8) with
- * initButtons (GC 0x80086da4) inlined as non-kept func_8038FFD0 (retail deleted stub 0x8038FFD0) and eggs.c
+ * supersession: adds initScreen (startscr_initScreen, MAT3 startscr.c initScreen GC 0x800865f8) with
+ * initButtons (GC 0x80086da4) inlined as non-kept startscr_initButtons (retail deleted stub 0x8038FFD0) and eggs.c
  * InitEgg(23) inlined (non-kept `InitEgg`; store order gEgg, gNextTimeOut, gEggIdx; its `= 0` spelling keeps it off
  * initButtons' 0.0f web). N64 differences from MAT3: gOptions[14] <= 12, AudPlaySong(6, 1), texture "BUTTON_TITLE"
  * for button 11, the two 55.2f spellings (55.2f / 55.20f: retail has two rodata words), no MBOX_HideObject of
@@ -22,7 +22,7 @@
  * The bodies of updateStartScreen, updateButtons, optionValid, uninitScreen and uninitButtons are unchanged.
  *
  * : uninitButtons and uninitScreen are non-static functions named after their retail deleted stubs
- * func_8038F734 / func_8038F73C (post-order of updateStartScreen: CheckForEgg F648, then uninitScreen's subtree
+ * startscr_uninitButtons / startscr_uninitScreen (post-order of updateStartScreen: CheckForEgg F648, then uninitScreen's subtree
  * uninitButtons F734, uninitScreen F73C, then optionValid F744, updateButtons F79C, InitEgg = locked single FF90,
  * initButtons FFD0, initScreen FFD8). Off keep, so umerge still inlines them; as statics they had no symbol.
  *
@@ -38,98 +38,98 @@ typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]
 typedef union tRGBA { u8 c[4]; u32 w; } tRGBA;
 typedef struct MultiBlit MultiBlit;
 typedef struct Egg Egg;
-/* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/sound_control.c (MultiBlit)
+/* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/NewMultiBlit.c (MultiBlit)
    and src/ovl_a/groups/cheat_screen/eggs.c (Egg). */
 struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                    s32 (*animfunc)(Blit *); u32 animid; };
 struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; };
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
-extern volatile f32 D_8002EB94;            /* gFrameSeconds */
-extern f32 D_8011418C[3][3];      /* unitmatrix */
-extern volatile u8 D_80140BDC;    /* gNumModels */
-extern s8 D_80146108[];           /* gOptions */
-extern s8 D_801461F8;             /* gGameStarted */
-extern s8 D_80157244;             /* gSoftReset */
-extern u32 D_801174B4, D_801174BC;/* gGameState, gSkipToGameState */
-extern u32 D_8015694C;            /* gActiveEdges */
-extern s16 D_8014A108;            /* gNumPlayers */
-extern Controller D_80156CF0[4];  /* gControllerData */
-extern s8 D_801164A1;             /* gCheatActive[23] */
-extern s8 D_803B65E4[];           /* validOption */
-extern u32 D_80156944;            /* gActiveLevels */
-extern ButtonInfo D_803B6610[18]; /* buttonInfo */
-extern s8 D_803B65DC;             /* inited */
-extern Blit *D_803B65E0;          /* blit */
-extern s32 D_803B6A48;            /* buttonsInited */
-extern s32 D_803B6A4C;            /* buttonsJustInited */
-extern f32 D_803B6A50;            /* gButtonScale */
-extern f32 D_803B6A54;            /* gButtonSpace */
-extern f32 D_803B6A58;            /* buttonX */
-extern f32 D_803B6A5C;            /* maxY */
-extern f32 D_803B6A60;            /* buttonZ */
-extern f32 D_803B6A64;            /* cursorZ */
-extern s32 D_803B6A68;            /* gStartMenuSelect */
-extern s32 D_803B6A6C;            /* gMaxPlayers */
-extern s32 D_803B6A70;            /* exitStartScreen */
-extern f32 D_803BAC1C;            /* cursorSpeed */
-extern f32 D_803BAC60;            /* playerCursorSpeed */
-extern char *D_803B65F0[];        /* buttonNames */
-extern MultiBlit D_803B65B8[];    /* mblit */
-extern Egg D_803B41D4[];          /* gEggs + 23 entries is the start-screen egg */
-extern Egg *D_803B4278;           /* gEgg */
-extern f32 D_803B427C;            /* gNextTimeOut */
-extern s32 D_803B4280;            /* gEggIdx */
+extern volatile f32 gFrameSeconds;            /* gFrameSeconds */
+extern f32 unitmatrix[3][3];      /* unitmatrix */
+extern volatile u8 gNumModels;    /* gNumModels */
+extern s8 gOptions[];           /* gOptions */
+extern s8 gGameStarted;             /* gGameStarted */
+extern s8 gSoftReset;             /* gSoftReset */
+extern u32 gGameState, gSkipToGameState;/* gGameState, gSkipToGameState */
+extern u32 gActiveEdges;            /* gActiveEdges */
+extern s16 gNumPlayers;            /* gNumPlayers */
+extern Controller gControllerData[4];  /* gControllerData */
+extern s8 cheat_menu_unlocked;             /* gCheatActive[23] */
+extern s8 startscr_validOption[];           /* validOption */
+extern u32 gActiveLevels;            /* gActiveLevels */
+extern ButtonInfo startscr_buttonInfo[18]; /* buttonInfo */
+extern s8 startscr_inited;             /* inited */
+extern Blit *startscr_blit;          /* blit */
+extern s32 startscr_buttonsInited;            /* buttonsInited */
+extern s32 startscr_buttonsJustInited;            /* buttonsJustInited */
+extern f32 startscr_gButtonScale;            /* gButtonScale */
+extern f32 startscr_gButtonSpace;            /* gButtonSpace */
+extern f32 startscr_buttonX;            /* buttonX */
+extern f32 startscr_maxY;            /* maxY */
+extern f32 startscr_buttonZ;            /* buttonZ */
+extern f32 startscr_cursorZ;            /* cursorZ */
+extern s32 gStartMenuSelect;            /* gStartMenuSelect */
+extern s32 gMaxPlayers;            /* gMaxPlayers */
+extern s32 exitStartScreen;            /* exitStartScreen */
+extern f32 startscr_cursorSpeed;            /* cursorSpeed */
+extern f32 playerCursorSpeed;            /* playerCursorSpeed */
+extern char *startscr_buttonNames[];        /* buttonNames */
+extern MultiBlit startscr_mblit[];    /* mblit */
+extern Egg start_screen_egg[];          /* gEggs + 23 entries is the start-screen egg */
+extern Egg *gEgg;           /* gEgg */
+extern f32 gNextTimeOut;            /* gNextTimeOut */
+extern s32 gEggIdx;            /* gEggIdx */
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 extern void *memcpy(void *, const void *, u32);
 extern void particle_lifetime_set(void);      /* createBG */
-extern s32 string_copy_format(char *, s8, s8, s8);  /* MBOX_FindObject_WORK */
-extern s32 sign_extend_call(s32, f32 (*)[3], s32, s32); /* MBOX_NewObject */
-extern void func_8008E06C(s16, tRGBA *);      /* ZOID_SetColor */
-extern void particle_velocity_set(void);      /* ZeroCameras */
-extern Blit *sound_control(s16, s16, MultiBlit *, s16); /* NewMultiBlit */
-extern void entity_audio_update(void);        /* ClearRushControls */
-extern s8 func_8038F648(void);                /* CheckForEgg */
-extern void func_800B5570(s32);               /* setGameState */
-extern void speed_mode0_wrapper(f32, f32);    /* AudSetMusicVol */
-extern void sync_entry_register(s32, s32);    /* AudPlaySong */
-extern void resource_type_select(u32);        /* PlayStartABSound */
-extern void audio_doppler(u32);               /* PlayLRSound */
-extern void audio_distance_atten(u32);        /* PlayUDSound */
-extern void sound_stop(Blit *);               /* RemoveBlit */
-extern void ambient_sounds_clear(void);       /* removeBG */
-extern void sound_call_minimal(s16);          /* ZOID_RemoveObject */
-extern void object_type1_create(void);        /* AudKillSong */
-extern void object_type7_create(void);        /* AudStopAllEffects */
-extern void func_800EE7AC(void);              /* ExitSystem */
-extern void model_data_load(s32, s32, s32);   /* MBOX_HideObject */
-extern void model_transform_setup(s32, s32, s32); /* MBOX_ShowObject */
-extern void *func_800B24EC(char *, u16 *, s8, s8, s32); /* MBOX_FindTexture_WORK */
-extern void func_8008D870(s16, void *, s32);  /* ZOID_SetTexture */
-extern void func_8008B32C(f32 *, f32 *, f32); /* ScaleUV */
-extern void func_800B5898(f32, f32 *);        /* WPitchUV */
-extern void func_800B5940(f32, f32 *);        /* WRollUV */
-extern void func_800FD754(f32 *, f32 *, f32, f32, f32); /* ScaleUVXYZ */
+extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);  /* MBOX_FindObject_WORK */
+extern s32 MBOX_NewObject(s32, f32 (*)[3], s32, s32); /* MBOX_NewObject */
+extern void ZOID_SetColor(s16, tRGBA *);      /* ZOID_SetColor */
+extern void ZeroCameras(void);      /* ZeroCameras */
+extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16); /* NewMultiBlit */
+extern void ClearRushControls(void);        /* ClearRushControls */
+extern s8 CheckForEgg(void);                /* CheckForEgg */
+extern void setGameState(s32);               /* setGameState */
+extern void AudSetMusicVol(f32, f32);    /* AudSetMusicVol */
+extern void AudPlaySong(s32, s32);    /* AudPlaySong */
+extern void PlayStartABSound(u32);        /* PlayStartABSound */
+extern void PlayLRSound(u32);               /* PlayLRSound */
+extern void PlayUDSound(u32);        /* PlayUDSound */
+extern void RemoveBlit(Blit *);               /* RemoveBlit */
+extern void removeBG(void);       /* removeBG */
+extern void ZOID_RemoveObject(s16);          /* ZOID_RemoveObject */
+extern void AudKillSong(void);        /* AudKillSong */
+extern void AudStopAllEffects(void);        /* AudStopAllEffects */
+extern void ExitSystem(void);              /* ExitSystem */
+extern void MBOX_HideObject(s32, s32, s32);   /* MBOX_HideObject */
+extern void MBOX_ShowObject(s32, s32, s32); /* MBOX_ShowObject */
+extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32); /* MBOX_FindTexture_WORK */
+extern void ZOID_SetTexture(s16, void *, s32);  /* ZOID_SetTexture */
+extern void ScaleUV(f32 *, f32 *, f32); /* ScaleUV */
+extern void WPitchUV(f32, f32 *);        /* WPitchUV */
+extern void WRollUV(f32, f32 *);        /* WRollUV */
+extern void ScaleUVXYZ(f32 *, f32 *, f32, f32, f32); /* ScaleUVXYZ */
 
-void func_8038FFD8(void);
-s8 func_8038F744(s32);
-void func_8038FFD0(void);
-void func_8038F734(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
-void func_8038F73C(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
-void func_8038F79C(void);
-/* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, D_803B41D4;
-   eggs.c's InitEgg at cheat `egg` of D_803B3460. Under one name the PC linked eggs.c's for both, so InitEgg(23)
+void startscr_initScreen(void);
+s8 startscr_optionValid(s32);
+void startscr_initButtons(void);
+void startscr_uninitButtons(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
+void startscr_uninitScreen(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
+void startscr_updateButtons(void);
+/* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, start_screen_egg;
+   eggs.c's InitEgg at cheat `egg` of gEggs. Under one name the PC linked eggs.c's for both, so InitEgg(23)
    pointed past the table and the cheat screen could never be opened (docs/port/QA.md). */
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8, never valid on the
    N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
-#define PC_START_EXIT(e) ((e) = pc_start_exit((e), D_803B6A68))
+#define PC_START_EXIT(e) ((e) = pc_start_exit((e), gStartMenuSelect))
 void startscr_InitEgg(s32);
-void func_80390418(void);
+void updateStartScreen(void);
 
 
 
@@ -140,211 +140,211 @@ void func_80390418(void);
 
 void startscr_InitEgg(s32 egg)
 {
-    D_803B4278 = &D_803B41D4[egg - 23];
-    D_803B427C = 0;
-    D_803B4280 = 0;
+    gEgg = &start_screen_egg[egg - 23];
+    gNextTimeOut = 0;
+    gEggIdx = 0;
 }
 
-void func_80390418(void)
+void updateStartScreen(void)
 {
     s32 ctrlIdx;
-    if (!D_80157244)
-        D_801461F8 = 1;
-    if (D_801174BC != 1) {
-        if (D_801174BC != D_801174B4) {
-            if (!(D_801174BC & 0x7c0000) && D_80146108[14] <= 12) {
-                speed_mode0_wrapper(D_80146108[12] / 10.0f, 0.05f);
-                sync_entry_register(6, 1);
+    if (!gSoftReset)
+        gGameStarted = 1;
+    if (gSkipToGameState != 1) {
+        if (gSkipToGameState != gGameState) {
+            if (!(gSkipToGameState & 0x7c0000) && gOptions[14] <= 12) {
+                AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
+                AudPlaySong(6, 1);
             }
-            func_800B5570(32);
+            setGameState(32);
             return;
         }
-        D_801174BC = 1;
+        gSkipToGameState = 1;
     }
-    if (!D_803B65DC)
-        func_8038FFD8();
-    while (!func_8038F744(D_803B6A68)) {
-        if (++D_803B6A68 >= 10)
-            D_803B6A68 = 0;
+    if (!startscr_inited)
+        startscr_initScreen();
+    while (!startscr_optionValid(gStartMenuSelect)) {
+        if (++gStartMenuSelect >= 10)
+            gStartMenuSelect = 0;
     }
-    D_803B6A6C = 0;
+    gMaxPlayers = 0;
     for (ctrlIdx = 0; ctrlIdx < 4; ctrlIdx++) {
-        if (D_80156CF0[ctrlIdx].attached != 1)
+        if (gControllerData[ctrlIdx].attached != 1)
             break;
-        D_803B6A6C++;
+        gMaxPlayers++;
     }
-    if (D_8014A108 > D_803B6A6C) {
-        if (D_803B6A6C < 1)
-            D_8014A108 = 1;
+    if (gNumPlayers > gMaxPlayers) {
+        if (gMaxPlayers < 1)
+            gNumPlayers = 1;
         else
-            D_8014A108 = D_803B6A6C;
+            gNumPlayers = gMaxPlayers;
     }
-    if (D_8015694C & 1) {
-        resource_type_select(D_8015694C);
-        D_803B6A68 = 0;
-        D_803B6A70 = 1;
-    } else if (D_8015694C & 2) {
-        resource_type_select(D_8015694C);
-        D_803B6A70 = 1;
-    } else if (D_8015694C & 4) {
-        resource_type_select(D_8015694C);
-        D_803B6A70 = 2;
-    } else if (D_8015694C & 0x1000) {
-        audio_doppler(D_8015694C);
-        if (D_803B6A68 == 0) {
-            if (--D_8014A108 < 1)
-                D_8014A108 = D_803B6A6C;
+    if (gActiveEdges & 1) {
+        PlayStartABSound(gActiveEdges);
+        gStartMenuSelect = 0;
+        exitStartScreen = 1;
+    } else if (gActiveEdges & 2) {
+        PlayStartABSound(gActiveEdges);
+        exitStartScreen = 1;
+    } else if (gActiveEdges & 4) {
+        PlayStartABSound(gActiveEdges);
+        exitStartScreen = 2;
+    } else if (gActiveEdges & 0x1000) {
+        PlayLRSound(gActiveEdges);
+        if (gStartMenuSelect == 0) {
+            if (--gNumPlayers < 1)
+                gNumPlayers = gMaxPlayers;
         }
-    } else if (D_8015694C & 0x2000) {
-        audio_doppler(D_8015694C);
-        if (D_803B6A68 == 0) {
-            if (++D_8014A108 > D_803B6A6C)
-                D_8014A108 = 1;
+    } else if (gActiveEdges & 0x2000) {
+        PlayLRSound(gActiveEdges);
+        if (gStartMenuSelect == 0) {
+            if (++gNumPlayers > gMaxPlayers)
+                gNumPlayers = 1;
         }
-    } else if (D_8015694C & 0x400) {
-        audio_distance_atten(D_8015694C);
+    } else if (gActiveEdges & 0x400) {
+        PlayUDSound(gActiveEdges);
         do {
-            if (--D_803B6A68 < 0)
-                D_803B6A68 = 9;
-        } while (!func_8038F744(D_803B6A68));
-    } else if (D_8015694C & 0x800) {
-        audio_distance_atten(D_8015694C);
+            if (--gStartMenuSelect < 0)
+                gStartMenuSelect = 9;
+        } while (!startscr_optionValid(gStartMenuSelect));
+    } else if (gActiveEdges & 0x800) {
+        PlayUDSound(gActiveEdges);
         do {
-            if (++D_803B6A68 >= 10)
-                D_803B6A68 = 0;
-        } while (!func_8038F744(D_803B6A68));
+            if (++gStartMenuSelect >= 10)
+                gStartMenuSelect = 0;
+        } while (!startscr_optionValid(gStartMenuSelect));
     }
-    func_8038F79C();
-    if (D_80157244) {
-        func_8038F73C();
-        func_800B5570(4);
-    } else if (PC_START_EXIT(D_803B6A70)) {
-        func_8038F73C();
-        switch (D_803B6A70) {
+    startscr_updateButtons();
+    if (gSoftReset) {
+        startscr_uninitScreen();
+        setGameState(4);
+    } else if (PC_START_EXIT(exitStartScreen)) {
+        startscr_uninitScreen();
+        switch (exitStartScreen) {
             case 1:
-                switch (D_803B6A68) {
-                    case 0: func_800B5570(32); break;
-                    case 1: func_800B5570(0x2000); break;
-                    case 2: func_800B5570(0x200); break;
-                    case 3: func_800B5570(0x800); break;
-                    case 4: func_800B5570(0x1000); break;
-                    case 6: func_800B5570(0x8000000); break;
-                    case 7: func_800B5570(0x10000000); break;
+                switch (gStartMenuSelect) {
+                    case 0: setGameState(32); break;
+                    case 1: setGameState(0x2000); break;
+                    case 2: setGameState(0x200); break;
+                    case 3: setGameState(0x800); break;
+                    case 4: setGameState(0x1000); break;
+                    case 6: setGameState(0x8000000); break;
+                    case 7: setGameState(0x10000000); break;
                     case 9:
-                        object_type1_create();
-                        object_type7_create();
-                        func_800EE7AC();
+                        AudKillSong();
+                        AudStopAllEffects();
+                        ExitSystem();
                         break;
                 }
                 break;
             case 2:
-                func_800B5570(4);
+                setGameState(4);
                 break;
         }
-        D_803B6A70 = 0;
+        exitStartScreen = 0;
     }
-    if (!D_801164A1)
-        D_801164A1 = func_8038F648();
+    if (!cheat_menu_unlocked)
+        cheat_menu_unlocked = CheckForEgg();
 }
 
-void func_8038FFD8(void)
+void startscr_initScreen(void)
 {
-    if (D_80146108[14] <= 12) {
-        speed_mode0_wrapper(D_80146108[12] / 10.0f, 0.05f);
-        sync_entry_register(6, 1);
+    if (gOptions[14] <= 12) {
+        AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
+        AudPlaySong(6, 1);
     }
     particle_lifetime_set();
-    func_8038FFD0();
-    D_803B65E0 = sound_control(0, 0, D_803B65B8, 1);
-    D_803B6A70 = 0;
-    entity_audio_update();
-    if (!D_801164A1)
+    startscr_initButtons();
+    startscr_blit = NewMultiBlit(0, 0, startscr_mblit, 1);
+    exitStartScreen = 0;
+    ClearRushControls();
+    if (!cheat_menu_unlocked)
         startscr_InitEgg(23);
-    D_803B65DC = 1;
+    startscr_inited = 1;
 }
 
-void func_8038F73C(void) /* uninitScreen (non-static, named after its retail stub) */
+void startscr_uninitScreen(void) /* uninitScreen (non-static, named after its retail stub) */
 {
-    if (D_803B65E0) {
-        sound_stop(D_803B65E0);
-        D_803B65E0 = 0;
+    if (startscr_blit) {
+        RemoveBlit(startscr_blit);
+        startscr_blit = 0;
     }
-    ambient_sounds_clear();
-    func_8038F734();
-    D_803B65DC = 0;
+    removeBG();
+    startscr_uninitButtons();
+    startscr_inited = 0;
 }
 
 /* optionValid: installed body (group runtime_a_option_eligibility), IPA context only */
-s8 func_8038F744(s32 index);
+s8 startscr_optionValid(s32 index);
 
-void func_8038FFD0(void) /* initButtons */
+void startscr_initButtons(void) /* initButtons */
 {
     tRGBA buttonColor = {255, 255, 255, 255};
     void *tex;
     u16 texIdx;
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < 18; buttonIdx++)
-        if (D_803B6610[buttonIdx].objIdx == -1) {
-            memcpy(D_803B6610[buttonIdx].uvs, D_8011418C, 48);
-            D_803B6610[buttonIdx].objIdx = sign_extend_call(
-                string_copy_format(D_803B65F0[D_803B6610[buttonIdx].buttonType], 0, D_80140BDC - 1, 1),
-                D_803B6610[buttonIdx].uvs, -1,
-                (D_803B6610[buttonIdx].buttonType == 0 || D_803B6610[buttonIdx].buttonType == 1) ? 0x42000 : 0);
-            func_8008E06C(D_803B6610[buttonIdx].objIdx, &buttonColor);
+        if (startscr_buttonInfo[buttonIdx].objIdx == -1) {
+            memcpy(startscr_buttonInfo[buttonIdx].uvs, unitmatrix, 48);
+            startscr_buttonInfo[buttonIdx].objIdx = MBOX_NewObject(
+                MBOX_FindObject_WORK(startscr_buttonNames[startscr_buttonInfo[buttonIdx].buttonType], 0, gNumModels - 1, 1),
+                startscr_buttonInfo[buttonIdx].uvs, -1,
+                (startscr_buttonInfo[buttonIdx].buttonType == 0 || startscr_buttonInfo[buttonIdx].buttonType == 1) ? 0x42000 : 0);
+            ZOID_SetColor(startscr_buttonInfo[buttonIdx].objIdx, &buttonColor);
         }
-    tex = func_800B24EC("BUTTON_TITLE", &texIdx, 0, D_80140BDC - 1, 1);
-    func_8008D870(D_803B6610[11].objIdx, tex, -1);
-    memcpy(D_803B6610[11].uvs, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_803B6610[11].uvs);
-    D_803B6610[11].uvs[3][0] = 0.0f;
-    D_803B6610[11].uvs[3][1] = 115.0f;
-    D_803B6610[11].uvs[3][2] = 200.0f;
-    tex = func_800B24EC("A1", &texIdx, 0, D_80140BDC - 1, 1);
-    func_8008D870(D_803B6610[12].objIdx, tex, -1);
-    memcpy(D_803B6610[12].uvs, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_803B6610[12].uvs);
-    D_803B6610[12].uvs[3][0] = 75.1f;
-    D_803B6610[12].uvs[3][1] = 55.2f;
-    D_803B6610[12].uvs[3][2] = 100.0f;
-    func_8008B32C(D_803B6610[12].uvs[0], D_803B6610[12].uvs[0], 0.5f);
-    memcpy(D_803B6610[13].uvs, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_803B6610[13].uvs);
-    func_800B5940(3.1415927f, D_803B6610[13].uvs);
-    D_803B6610[13].uvs[3][0] = 87.1f;
-    D_803B6610[13].uvs[3][1] = 55.2f;
-    D_803B6610[13].uvs[3][2] = 100.0f;
-    tex = func_800B24EC("B1", &texIdx, 0, D_80140BDC - 1, 1);
-    func_8008D870(D_803B6610[14].objIdx, tex, -1);
-    memcpy(D_803B6610[14].uvs, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_803B6610[14].uvs);
-    D_803B6610[14].uvs[3][0] = -75.1f;
-    D_803B6610[14].uvs[3][1] = 55.20f;
-    D_803B6610[14].uvs[3][2] = 100.0f;
-    func_8008B32C(D_803B6610[14].uvs[0], D_803B6610[14].uvs[0], 0.5f);
-    memcpy(D_803B6610[15].uvs, D_8011418C, 36);
-    func_800B5898(-1.5707964f, D_803B6610[15].uvs);
-    D_803B6610[15].uvs[3][0] = -87.1f;
-    D_803B6610[15].uvs[3][1] = 55.20f;
-    D_803B6610[15].uvs[3][2] = 100.0f;
-    tex = func_800B24EC("CURSOR", &texIdx, 0, D_80140BDC - 1, 1);
-    func_8008D870(D_803B6610[16].objIdx, tex, -1);
-    D_803B6A48 = 1;
-    D_803B6A4C = 1;
-    particle_velocity_set();
+    tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels - 1, 1);
+    ZOID_SetTexture(startscr_buttonInfo[11].objIdx, tex, -1);
+    memcpy(startscr_buttonInfo[11].uvs, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[11].uvs);
+    startscr_buttonInfo[11].uvs[3][0] = 0.0f;
+    startscr_buttonInfo[11].uvs[3][1] = 115.0f;
+    startscr_buttonInfo[11].uvs[3][2] = 200.0f;
+    tex = MBOX_FindTexture_WORK("A1", &texIdx, 0, gNumModels - 1, 1);
+    ZOID_SetTexture(startscr_buttonInfo[12].objIdx, tex, -1);
+    memcpy(startscr_buttonInfo[12].uvs, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[12].uvs);
+    startscr_buttonInfo[12].uvs[3][0] = 75.1f;
+    startscr_buttonInfo[12].uvs[3][1] = 55.2f;
+    startscr_buttonInfo[12].uvs[3][2] = 100.0f;
+    ScaleUV(startscr_buttonInfo[12].uvs[0], startscr_buttonInfo[12].uvs[0], 0.5f);
+    memcpy(startscr_buttonInfo[13].uvs, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[13].uvs);
+    WRollUV(3.1415927f, startscr_buttonInfo[13].uvs);
+    startscr_buttonInfo[13].uvs[3][0] = 87.1f;
+    startscr_buttonInfo[13].uvs[3][1] = 55.2f;
+    startscr_buttonInfo[13].uvs[3][2] = 100.0f;
+    tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels - 1, 1);
+    ZOID_SetTexture(startscr_buttonInfo[14].objIdx, tex, -1);
+    memcpy(startscr_buttonInfo[14].uvs, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[14].uvs);
+    startscr_buttonInfo[14].uvs[3][0] = -75.1f;
+    startscr_buttonInfo[14].uvs[3][1] = 55.20f;
+    startscr_buttonInfo[14].uvs[3][2] = 100.0f;
+    ScaleUV(startscr_buttonInfo[14].uvs[0], startscr_buttonInfo[14].uvs[0], 0.5f);
+    memcpy(startscr_buttonInfo[15].uvs, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[15].uvs);
+    startscr_buttonInfo[15].uvs[3][0] = -87.1f;
+    startscr_buttonInfo[15].uvs[3][1] = 55.20f;
+    startscr_buttonInfo[15].uvs[3][2] = 100.0f;
+    tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);
+    ZOID_SetTexture(startscr_buttonInfo[16].objIdx, tex, -1);
+    startscr_buttonsInited = 1;
+    startscr_buttonsJustInited = 1;
+    ZeroCameras();
 }
 
-void func_8038F734(void) /* uninitButtons (non-static, named after its retail stub) */
+void startscr_uninitButtons(void) /* uninitButtons (non-static, named after its retail stub) */
 {
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < 18; buttonIdx++)
-        if (D_803B6610[buttonIdx].objIdx != -1) {
-            sound_call_minimal(D_803B6610[buttonIdx].objIdx);
-            D_803B6610[buttonIdx].objIdx = -1;
+        if (startscr_buttonInfo[buttonIdx].objIdx != -1) {
+            ZOID_RemoveObject(startscr_buttonInfo[buttonIdx].objIdx);
+            startscr_buttonInfo[buttonIdx].objIdx = -1;
         }
-    D_803B6A48 = 0;
+    startscr_buttonsInited = 0;
 }
 
-void func_8038F79C(void)
+void startscr_updateButtons(void)
 {
     f32 unused0, unused1, unused2;
     s32 buttonIdx;
@@ -352,103 +352,103 @@ void func_8038F79C(void)
     void *tex;
     u16 texIdx;
     f32 buttonY, selectedY;
-    if (!D_803B6A48)
+    if (!startscr_buttonsInited)
         return;
-    buttonY = D_803B6A5C;
-    selectedY = D_803B6A5C;
+    buttonY = startscr_maxY;
+    selectedY = startscr_maxY;
     for (buttonIdx = 0; buttonIdx < 10; buttonIdx++) {
-        if (!func_8038F744(buttonIdx)) {
-            model_data_load(D_803B6610[buttonIdx].objIdx, 0, 15);
+        if (!startscr_optionValid(buttonIdx)) {
+            MBOX_HideObject(startscr_buttonInfo[buttonIdx].objIdx, 0, 15);
             continue;
         }
-        model_transform_setup(D_803B6610[buttonIdx].objIdx, 0, 15);
-        if (buttonIdx == D_803B6A68) {
-            if (D_803B6610[buttonIdx].angle < 3.1415927f)
-                D_803B6610[buttonIdx].angle += 12.566371f * D_8002EB94;
-            if (D_803B6610[buttonIdx].angle > 3.1415927f || D_803B6A4C == 1)
-                D_803B6610[buttonIdx].angle = 3.1415927f;
+        MBOX_ShowObject(startscr_buttonInfo[buttonIdx].objIdx, 0, 15);
+        if (buttonIdx == gStartMenuSelect) {
+            if (startscr_buttonInfo[buttonIdx].angle < 3.1415927f)
+                startscr_buttonInfo[buttonIdx].angle += 12.566371f * gFrameSeconds;
+            if (startscr_buttonInfo[buttonIdx].angle > 3.1415927f || startscr_buttonsJustInited == 1)
+                startscr_buttonInfo[buttonIdx].angle = 3.1415927f;
             selectedY = buttonY;
         } else {
-            if (D_803B6610[buttonIdx].angle > 0.0f)
-                D_803B6610[buttonIdx].angle -= 12.566371f * D_8002EB94;
-            if (D_803B6610[buttonIdx].angle < 0.0f || D_803B6A4C == 1)
-                D_803B6610[buttonIdx].angle = 0.0f;
+            if (startscr_buttonInfo[buttonIdx].angle > 0.0f)
+                startscr_buttonInfo[buttonIdx].angle -= 12.566371f * gFrameSeconds;
+            if (startscr_buttonInfo[buttonIdx].angle < 0.0f || startscr_buttonsJustInited == 1)
+                startscr_buttonInfo[buttonIdx].angle = 0.0f;
         }
-        D_803B6610[buttonIdx].uvs[3][0] = D_803B6A58;
-        D_803B6610[buttonIdx].uvs[3][1] = buttonY;
-        D_803B6610[buttonIdx].uvs[3][2] = D_803B6A60;
-        func_8008B32C(D_8011418C[0], D_803B6610[buttonIdx].uvs[0], D_803B6A50);
-        func_800B5898(D_803B6610[buttonIdx].angle - 1.5707964f, D_803B6610[buttonIdx].uvs[0]);
-        if (D_803B6610[buttonIdx].angle > 1.5707964f)
-            tex = func_800B24EC("BUTTON_SELECT", &texIdx, 0, D_80140BDC - 1, 1);
+        startscr_buttonInfo[buttonIdx].uvs[3][0] = startscr_buttonX;
+        startscr_buttonInfo[buttonIdx].uvs[3][1] = buttonY;
+        startscr_buttonInfo[buttonIdx].uvs[3][2] = startscr_buttonZ;
+        ScaleUV(unitmatrix[0], startscr_buttonInfo[buttonIdx].uvs[0], startscr_gButtonScale);
+        WPitchUV(startscr_buttonInfo[buttonIdx].angle - 1.5707964f, startscr_buttonInfo[buttonIdx].uvs[0]);
+        if (startscr_buttonInfo[buttonIdx].angle > 1.5707964f)
+            tex = MBOX_FindTexture_WORK("BUTTON_SELECT", &texIdx, 0, gNumModels - 1, 1);
         else
-            tex = func_800B24EC("BUTTON", &texIdx, 0, D_80140BDC - 1, 1);
-        func_8008D870(D_803B6610[buttonIdx].objIdx, tex, -1);
+            tex = MBOX_FindTexture_WORK("BUTTON", &texIdx, 0, gNumModels - 1, 1);
+        ZOID_SetTexture(startscr_buttonInfo[buttonIdx].objIdx, tex, -1);
         if (buttonIdx == 0) {
-            D_803B6610[10].angle = D_803B6610[buttonIdx].angle;
-            D_803B6610[10].uvs[3][0] = D_803B6610[0].uvs[3][0] + 160.0f * D_803B6A50;
-            D_803B6610[10].uvs[3][1] = D_803B6610[0].uvs[3][1];
-            D_803B6610[10].uvs[3][2] = D_803B6610[0].uvs[3][2];
-            D_803B6610[10].uvs[3][0] = 1.02f * D_803B6610[10].uvs[3][0];
-            D_803B6610[10].uvs[3][1] = 1.02f * D_803B6610[10].uvs[3][1];
-            D_803B6610[10].uvs[3][2] = 1.02f * D_803B6610[10].uvs[3][2];
-            func_8008B32C(D_8011418C[0], D_803B6610[10].uvs[0], D_803B6A50);
-            func_800B5898(D_803B6610[10].angle - 1.5707964f, D_803B6610[10].uvs[0]);
-            if (D_803B6610[10].angle > 1.5707964f)
-                tex = func_800B24EC("BUTTON_SELECT", &texIdx, 0, D_80140BDC - 1, 1);
+            startscr_buttonInfo[10].angle = startscr_buttonInfo[buttonIdx].angle;
+            startscr_buttonInfo[10].uvs[3][0] = startscr_buttonInfo[0].uvs[3][0] + 160.0f * startscr_gButtonScale;
+            startscr_buttonInfo[10].uvs[3][1] = startscr_buttonInfo[0].uvs[3][1];
+            startscr_buttonInfo[10].uvs[3][2] = startscr_buttonInfo[0].uvs[3][2];
+            startscr_buttonInfo[10].uvs[3][0] = 1.02f * startscr_buttonInfo[10].uvs[3][0];
+            startscr_buttonInfo[10].uvs[3][1] = 1.02f * startscr_buttonInfo[10].uvs[3][1];
+            startscr_buttonInfo[10].uvs[3][2] = 1.02f * startscr_buttonInfo[10].uvs[3][2];
+            ScaleUV(unitmatrix[0], startscr_buttonInfo[10].uvs[0], startscr_gButtonScale);
+            WPitchUV(startscr_buttonInfo[10].angle - 1.5707964f, startscr_buttonInfo[10].uvs[0]);
+            if (startscr_buttonInfo[10].angle > 1.5707964f)
+                tex = MBOX_FindTexture_WORK("BUTTON_SELECT", &texIdx, 0, gNumModels - 1, 1);
             else
-                tex = func_800B24EC("BUTTON", &texIdx, 0, D_80140BDC - 1, 1);
-            func_8008D870(D_803B6610[10].objIdx, tex, -1);
+                tex = MBOX_FindTexture_WORK("BUTTON", &texIdx, 0, gNumModels - 1, 1);
+            ZOID_SetTexture(startscr_buttonInfo[10].objIdx, tex, -1);
         }
-        buttonY -= D_803B6A54 * D_803B6A50;
+        buttonY -= startscr_gButtonSpace * startscr_gButtonScale;
     }
-    memcpy(prevPos, D_803B6610[16].uvs[3], 12);
-    D_803B6610[16].angle += 6.2831855f * D_8002EB94;
-    if (D_803B6610[16].angle > 6.2831855f)
-        D_803B6610[16].angle -= 6.2831855f;
-    D_803B6610[16].uvs[3][0] = D_803B6A58 * D_803B6A64 / D_803B6A60 + (-60.0f) * D_803B6A50;
-    D_803B6610[16].uvs[3][1] = selectedY * D_803B6A64 / D_803B6A60;
-    D_803B6610[16].uvs[3][2] = D_803B6A64;
-    if (!D_803B6A4C) {
-        if (60.0f * fabsf(D_803B6610[16].uvs[3][1] - prevPos[1]) / 10.0f > D_803BAC1C) {
-            D_803BAC1C = 60.0f * fabsf(D_803B6610[16].uvs[3][1] - prevPos[1]) / 10.0f;
-            D_803BAC1C = D_803BAC1C < 540.0f * D_803B6A50 ? D_803BAC1C : 540.0f * D_803B6A50;
-            D_803BAC1C = D_803BAC1C > 180.0f * D_803B6A50 ? D_803BAC1C : 180.0f * D_803B6A50;
+    memcpy(prevPos, startscr_buttonInfo[16].uvs[3], 12);
+    startscr_buttonInfo[16].angle += 6.2831855f * gFrameSeconds;
+    if (startscr_buttonInfo[16].angle > 6.2831855f)
+        startscr_buttonInfo[16].angle -= 6.2831855f;
+    startscr_buttonInfo[16].uvs[3][0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (-60.0f) * startscr_gButtonScale;
+    startscr_buttonInfo[16].uvs[3][1] = selectedY * startscr_cursorZ / startscr_buttonZ;
+    startscr_buttonInfo[16].uvs[3][2] = startscr_cursorZ;
+    if (!startscr_buttonsJustInited) {
+        if (60.0f * fabsf(startscr_buttonInfo[16].uvs[3][1] - prevPos[1]) / 10.0f > startscr_cursorSpeed) {
+            startscr_cursorSpeed = 60.0f * fabsf(startscr_buttonInfo[16].uvs[3][1] - prevPos[1]) / 10.0f;
+            startscr_cursorSpeed = startscr_cursorSpeed < 540.0f * startscr_gButtonScale ? startscr_cursorSpeed : 540.0f * startscr_gButtonScale;
+            startscr_cursorSpeed = startscr_cursorSpeed > 180.0f * startscr_gButtonScale ? startscr_cursorSpeed : 180.0f * startscr_gButtonScale;
         }
-        if (D_803B6610[16].uvs[3][1] > prevPos[1] + D_803BAC1C * D_8002EB94)
-            D_803B6610[16].uvs[3][1] = prevPos[1] + D_803BAC1C * D_8002EB94;
-        else if (D_803B6610[16].uvs[3][1] < prevPos[1] - D_803BAC1C * D_8002EB94)
-            D_803B6610[16].uvs[3][1] = prevPos[1] - D_803BAC1C * D_8002EB94;
+        if (startscr_buttonInfo[16].uvs[3][1] > prevPos[1] + startscr_cursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[16].uvs[3][1] = prevPos[1] + startscr_cursorSpeed * gFrameSeconds;
+        else if (startscr_buttonInfo[16].uvs[3][1] < prevPos[1] - startscr_cursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[16].uvs[3][1] = prevPos[1] - startscr_cursorSpeed * gFrameSeconds;
         else
-            D_803BAC1C = 180.0f * D_803B6A50;
+            startscr_cursorSpeed = 180.0f * startscr_gButtonScale;
     }
-    func_8008B32C(D_8011418C[0], D_803B6610[16].uvs[0], 0.4f * D_803B6A50);
-    func_800B5940(D_803B6610[16].angle, D_803B6610[16].uvs[0]);
-    func_800B5898(1.5707964f, D_803B6610[16].uvs[0]);
-    memcpy(prevPos, D_803B6610[17].uvs[3], 12);
-    D_803B6610[17].uvs[3][0] = D_803B6A58 * D_803B6A64 / D_803B6A60 + (72.0f + D_8014A108 * 22.5f) * D_803B6A50;
-    D_803B6610[17].uvs[3][1] = D_803B6A5C * D_803B6A64 / D_803B6A60;
-    D_803B6610[17].uvs[3][2] = D_803B6A64;
-    if (!D_803B6A4C) {
-        if (60.0f * fabsf(D_803B6610[17].uvs[3][0] - prevPos[0]) / 10.0f > D_803BAC60) {
-            D_803BAC60 = 60.0f * fabsf(D_803B6610[17].uvs[3][0] - prevPos[0]) / 10.0f;
-            D_803BAC60 = D_803BAC60 < 540.0f * D_803B6A50 ? D_803BAC60 : 540.0f * D_803B6A50;
-            D_803BAC60 = D_803BAC60 > 180.0f * D_803B6A50 ? D_803BAC60 : 180.0f * D_803B6A50;
+    ScaleUV(unitmatrix[0], startscr_buttonInfo[16].uvs[0], 0.4f * startscr_gButtonScale);
+    WRollUV(startscr_buttonInfo[16].angle, startscr_buttonInfo[16].uvs[0]);
+    WPitchUV(1.5707964f, startscr_buttonInfo[16].uvs[0]);
+    memcpy(prevPos, startscr_buttonInfo[17].uvs[3], 12);
+    startscr_buttonInfo[17].uvs[3][0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (72.0f + gNumPlayers * 22.5f) * startscr_gButtonScale;
+    startscr_buttonInfo[17].uvs[3][1] = startscr_maxY * startscr_cursorZ / startscr_buttonZ;
+    startscr_buttonInfo[17].uvs[3][2] = startscr_cursorZ;
+    if (!startscr_buttonsJustInited) {
+        if (60.0f * fabsf(startscr_buttonInfo[17].uvs[3][0] - prevPos[0]) / 10.0f > playerCursorSpeed) {
+            playerCursorSpeed = 60.0f * fabsf(startscr_buttonInfo[17].uvs[3][0] - prevPos[0]) / 10.0f;
+            playerCursorSpeed = playerCursorSpeed < 540.0f * startscr_gButtonScale ? playerCursorSpeed : 540.0f * startscr_gButtonScale;
+            playerCursorSpeed = playerCursorSpeed > 180.0f * startscr_gButtonScale ? playerCursorSpeed : 180.0f * startscr_gButtonScale;
         }
-        if (D_803B6610[17].uvs[3][0] > prevPos[0] + D_803BAC60 * D_8002EB94)
-            D_803B6610[17].uvs[3][0] = prevPos[0] + D_803BAC60 * D_8002EB94;
-        else if (D_803B6610[17].uvs[3][0] < prevPos[0] - D_803BAC60 * D_8002EB94)
-            D_803B6610[17].uvs[3][0] = prevPos[0] - D_803BAC60 * D_8002EB94;
+        if (startscr_buttonInfo[17].uvs[3][0] > prevPos[0] + playerCursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[17].uvs[3][0] = prevPos[0] + playerCursorSpeed * gFrameSeconds;
+        else if (startscr_buttonInfo[17].uvs[3][0] < prevPos[0] - playerCursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[17].uvs[3][0] = prevPos[0] - playerCursorSpeed * gFrameSeconds;
         else
-            D_803BAC60 = 180.0f * D_803B6A50;
+            playerCursorSpeed = 180.0f * startscr_gButtonScale;
     }
-    if (D_803B6610[0].angle > 1.5707964f)
-        tex = func_800B24EC("CURSOR", &texIdx, 0, D_80140BDC - 1, 1);
+    if (startscr_buttonInfo[0].angle > 1.5707964f)
+        tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);
     else
-        tex = func_800B24EC("CURSOR_B", &texIdx, 0, D_80140BDC - 1, 1);
-    func_8008D870(D_803B6610[17].objIdx, tex, -1);
-    func_800FD754(D_8011418C[0], D_803B6610[17].uvs[0], 0.6f, 0.4f, 0.4f);
-    func_8008B32C(D_803B6610[17].uvs[0], D_803B6610[17].uvs[0], D_803B6A50);
-    func_800B5898(1.5707964f + D_803B6610[0].angle, D_803B6610[17].uvs[0]);
-    D_803B6A4C = 0;
+        tex = MBOX_FindTexture_WORK("CURSOR_B", &texIdx, 0, gNumModels - 1, 1);
+    ZOID_SetTexture(startscr_buttonInfo[17].objIdx, tex, -1);
+    ScaleUVXYZ(unitmatrix[0], startscr_buttonInfo[17].uvs[0], 0.6f, 0.4f, 0.4f);
+    ScaleUV(startscr_buttonInfo[17].uvs[0], startscr_buttonInfo[17].uvs[0], startscr_gButtonScale);
+    WPitchUV(1.5707964f + startscr_buttonInfo[0].angle, startscr_buttonInfo[17].uvs[0]);
+    startscr_buttonsJustInited = 0;
 }

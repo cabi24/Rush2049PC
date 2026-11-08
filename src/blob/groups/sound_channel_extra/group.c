@@ -28,48 +28,48 @@ typedef struct { Bank *bank; } Hdr;
 typedef struct { Hdr *hdr; s32 pad[4]; } Tbl;
 typedef struct { s32 first; s32 second; } Pair;
 
-extern Bank *D_801497F0;
-extern s32 D_80149780;
-extern s32 D_801497A4;
-extern Tbl D_80156D44[];
-extern Entry *D_80149800;
-extern s16 D_80149878[256];
-extern intptr_t D_80149820[];
+extern Bank *gFontHeader;
+extern s32 gFontDatWaveInst;
+extern s32 gFontTexWaveInst;
+extern Tbl gWaveInstance_ptr[];
+extern Entry *gFontLetters;
+extern s16 gCharMap[256];
+extern intptr_t gFontTextures[];
 extern Pair gTexDefPtrs[];
-extern s8 D_80149B60;
-extern u8 D_80149B70;
-extern s32 D_80149B08;
-extern s32 D_80149B28;
+extern s8 gLeading;
+extern u8 gSpacing;
+extern s32 font_image_format;
+extern s32 font_texel_size;
 
-extern s32 func_80097694(s32, s32);
+extern s32 FindWaveInstanceInternal(s32, s32);
 
-void sound_update_channel(s32 force);
+void SetupFontData(s32 force);
 
 
 
 s8 HAL_SetFontFixedWidth(s8 value) {
  s8 old;
- sound_update_channel(0);
- old = D_801497F0->f9;
- D_801497F0->f9 = value;
+ SetupFontData(0);
+ old = gFontHeader->f9;
+ gFontHeader->f9 = value;
  return old;
 }
-void func_800F68A4(u8 *out) {
+void font_get_char_list(u8 *out) {
  s32 offset;
  s32 i;
- sound_update_channel(0);
- for (i = 0, offset = 0; i < D_801497F0->f12; offset += 12, i++) {
-  out[i] = *((u8 *)D_80149800 + offset + 4);
+ SetupFontData(0);
+ for (i = 0, offset = 0; i < gFontHeader->f12; offset += 12, i++) {
+  out[i] = *((u8 *)gFontLetters + offset + 4);
  }
  out[i] = 0;
 }
 s32 HAL_GetCharWidth(u16 id) {
  s16 index;
- sound_update_channel(0);
- if ((u8)D_801497F0->f9 != 0) return D_801497F0->f6;
- if (id == 32 || id >= 256) return D_801497F0->f7;
+ SetupFontData(0);
+ if ((u8)gFontHeader->f9 != 0) return gFontHeader->f6;
+ if (id == 32 || id >= 256) return gFontHeader->f7;
  if (id == 10) return 0;
- index = D_80149878[id];
- if (index < 0) return D_801497F0->f7;
- return D_80149800[index].pad[3] - D_80149800[index].pad[1] + 1;
+ index = gCharMap[id];
+ if (index < 0) return gFontHeader->f7;
+ return gFontLetters[index].pad[3] - gFontLetters[index].pad[1] + 1;
 }

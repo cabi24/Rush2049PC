@@ -1,6 +1,6 @@
 # game.saves = files: a ghost made by tools/port/ghost.py (synthetic, never the ROM's), imported from the folder's
 # import/, raced in the ghost race on track 0 backward with the default player: the track select's ghost choice
-# (func_803A0498) takes it and GhostStart makes it a ghost player (docs/port/SAVES.md 5). Run by
+# (setGhosts) takes it and GhostStart makes it a ghost player (docs/port/SAVES.md 5). Run by
 # tools/port/saves_check.py's race scenario, which makes the ghost first.
 # until: 0x400000:300
 # seconds: 90

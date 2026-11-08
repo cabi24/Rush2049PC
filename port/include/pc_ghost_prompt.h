@@ -5,6 +5,6 @@
 
 void pc_ghost_prompt_set(int on);       /* main at start, the overlay when the setting changes */
 int pc_ghost_prompt_setting(void);
-int pc_ghost_prompt(int developer);     /* the game's: the race end's test of D_801148E4 */
+int pc_ghost_prompt(int developer);     /* the game's: the race end's test of gSaveGhostFiles */
 
 #endif

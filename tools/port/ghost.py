@@ -123,7 +123,7 @@ def ascii_lower(s):
 
 
 def save_hash(data):
-    """pc_save_hash: the save code's checksum (format_string_parse), a 32-bit word."""
+    """pc_save_hash: the save code's checksum (CalcChecksumInternal), a 32-bit word."""
     r = 0
     for v in data:
         k = v & 7

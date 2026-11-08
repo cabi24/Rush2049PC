@@ -1,7 +1,7 @@
 # The ghost save prompt for every profile (game.ghost_prompt on, docs/port/SAVES.md "The ghost save prompt"): as
 # ghost.press, but the profile's third letter is one to the right of N (one LEFT, not two), so its name is not the
-# cartridge's developer name (D_801211CC) and LoadPlayerData leaves the prompt's flag (D_801148E4) clear, as for any
-# player. The ghost race (gRace 2, track 0 backward) ends 35.6 s in; paused and quit, the results: billboard_render
+# cartridge's developer name (cheat_profile_name) and LoadPlayerData leaves the prompt's flag (gSaveGhostFiles) clear, as for any
+# player. The ghost race (gRace 2, track 0 backward) ends 35.6 s in; paused and quit, the results: updateHighScoreScreen
 # opens the save prompt because of the setting, whose save item writes the ghost (SaveGhost) to the pak; then the
 # game over screen. The checks: the pak's two notes, the profile and its ghost (ghost_off.press: none without it).
 # until: 0x800000:60

@@ -1,20 +1,20 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * LoadTrack (0x800BB9B0, 2,104 B) = MAT3/GC/DC tracks.c LoadTrack(track, background, reloading), N64 version:
- *   load + wait on the track / world / collision / path waves (audio_frame_sync = LoadWave, player_state_get =
- *   WaveInstanceReady, slot_value_get = GetWaveInstanceAddr; N64 wave numbers track+101/+120/+139, path 158/177),
+ *   load + wait on the track / world / collision / path waves (LoadWave = LoadWave, WaveInstanceReady =
+ *   WaveInstanceReady, GetWaveInstanceAddr = GetWaveInstanceAddr; N64 wave numbers track+101/+120/+139, path 158/177),
  *   world wad setup (func_80096C28 = MBSetupWad, lookup_with_output = MBGetFromWad: WDHR / GDAT / GTLD), the
- * "other" .81 by race/track/window count, then once: initTargetStructs (camera_lerp_position), SkyInit
- *   (camera_reset), NewWorld (wheel_torque_apply, locked, inlined), InitEnvs, InitTrackDynamicObjs, LoadCars,
- *   InitVisuals, mode_flags_clear (locked: clears D_80110680[0..1] and calls InitCheckpointData; inlined),
- *   InitPathData, InitDemoPathPoint, InitSkids, InitSmoke, InitBlast and the image-B call func_8038A8CC (GC
- *   initWorldDamage) when D_80156994 or track >= 6.
+ * "other" .81 by race/track/window count, then once: initTargetStructs (initTargetStructs), SkyInit
+ *   (SkyInit), NewWorld (NewWorld, locked, inlined), InitEnvs, InitTrackDynamicObjs, LoadCars,
+ *   InitVisuals, InitCheckpointData (locked: clears D_80110680[0..1] and calls InitCheckpointData; inlined),
+ *   InitPathData, InitDemoPathPoint, InitSkids, InitSmoke, InitBlast and the image-B call initWorldDamage (GC
+ *   initWorldDamage) when expansion_pak_present or track >= 6.
  * Base: draft (39/526 words). levers (39 -> 0):
  *   - the Dreamcast tracks.c keeps three empty gGameState & 8 checks after the gRace tests (`if (x & 8) {} else
  *     if (x & 8) {}` + `if (x & 8) {}`); they compile to nothing but supply the missing t6-t9 ring pop
  *     (workbench L65 class) -> 12 words;
- *   - NewWorld is the locked wheel_torque_apply (its out-parameter store gives retail's separate lui at / lui a0
- *     WorldBase store and reload) and the D_80110680 clear is the locked mode_flags_clear, both called and
+ *   - NewWorld is the locked NewWorld (its out-parameter store gives retail's separate lui at / lui a0
+ *     WorldBase store and reload) and the D_80110680 clear is the locked InitCheckpointData, both called and
  *     umerge-inlined, instead of the draft's private NewWorld/FindWorld/clear copies -> 0;
  *   - `track >= 6` for the final condition (uopt turns it into retail's &gWorldNames[track] compare).
  * No shaping devices: the empty checks are the Dreamcast decomp's source, every helper is a real locked function.
@@ -48,46 +48,46 @@ typedef struct Wad {           /* GC mb_wad.c __anon_87656 */
     void *TOC;
 } Wad;
 
-extern TrackLoadInfo D_80143A10;   /* gTrackLoadInfo */
-extern s32 *D_801497FC;            /* gWorldData */
-extern WorldHdr *D_80149818;       /* WorldTable */
-extern void *D_80149770;           /* gTargetGroups */
-extern s32 D_80149790;             /* numgTargetGroups */
-extern void *D_801497C0;           /* gTargetGroupList */
-extern s32 D_801497EC;             /* numgTargetGroupList */
-extern void *D_801526DC;           /* gRoadDat */
-extern void *D_80153F20;           /* gPathWave */
-extern s8 D_80152570;              /* gBackwards */
-extern u32 D_801174B4;             /* gGameState */
-extern s32 D_8014A110;             /* gRace */
-extern s8 D_80156994;
-extern s8 D_8014978C;              /* gTrackNum */
+extern TrackLoadInfo gTrackLoadInfo;   /* gTrackLoadInfo */
+extern s32 *gWorldData;            /* gWorldData */
+extern WorldHdr *WorldTable;       /* WorldTable */
+extern void *gTargetGroups;           /* gTargetGroups */
+extern s32 numgTargetGroups;             /* numgTargetGroups */
+extern void *gTargetGroupList;           /* gTargetGroupList */
+extern s32 numgTargetGroupList;             /* numgTargetGroupList */
+extern void *gRoadDat;           /* gRoadDat */
+extern void *gPathWave;           /* gPathWave */
+extern s8 gBackwards;              /* gBackwards */
+extern u32 gGameState;             /* gGameState */
+extern s32 gRace;             /* gRace */
+extern s8 expansion_pak_present;
+extern s8 gTrackNum;              /* gTrackNum */
 extern s16 gNumWindows;             /* gNumWindows */
-extern char *D_8011A924[];         /* gWorldNames (N64: indexed by track) */
+extern char *gWorldNames[];         /* gWorldNames (N64: indexed by track) */
 
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-s32 audio_frame_sync(s32 wave, s32 a1, s32 background, s32 a3, void *heap);
-s8 player_state_get(s32 idx);                                            /* GC WaveInstanceReady */
-void *slot_value_get(s32 idx);                                           /* GC GetWaveInstanceAddr */
+s32 LoadWave(s32 wave, s32 a1, s32 background, s32 a3, void *heap);
+s8 WaveInstanceReady(s32 idx);                                            /* GC WaveInstanceReady */
+void *GetWaveInstanceAddr(s32 idx);                                           /* GC GetWaveInstanceAddr */
 void MBSetupWad(Wad *wad, void *ptr);                                 /* GC MBSetupWad */
 u32 MBGetFromWad(Wad *wad, s32 tag, s32 *count);       /* a WAD entry: a 32-bit window address */
-void camera_lerp_position(s16 track);                                    /* GC initTargetStructs */
-void camera_reset(void);                                                 /* GC SkyInit */
-void func_800B2BDC(void);                                                /* GC InitEnvs */
-void tire_sound_update(void);                                            /* GC InitTrackDynamicObjs */
+void initTargetStructs(s16 track);                                    /* GC initTargetStructs */
+void SkyInit(void);                                                 /* GC SkyInit */
+void InitEnvs(void);                                                /* GC InitEnvs */
+void InitTrackDynamicObjs(void);                                            /* GC InitTrackDynamicObjs */
 void LoadCars(s32 x);                                     /* GC LoadCars */
-void sfx_position_3d(s32 x);                                             /* GC InitVisuals */
-void audio_effect_remove(void);                                          /* GC InitPathData */
-void func_800B9284(void);                                                /* GC InitDemoPathPoint */
-void func_800B0580(void);                                                /* GC InitSkids */
-void physics_collision_test(void);                                       /* GC InitSmoke */
-void camera_smooth_lerp(void);                                           /* GC InitBlast */
-void func_8038A8CC(void);                                                /* overlay call (GC initWorldDamage?) */
+void InitVisuals(s32 x);                                             /* GC InitVisuals */
+void InitPathData(void);                                          /* GC InitPathData */
+void InitDemoPathPoint(void);                                                /* GC InitDemoPathPoint */
+void InitSkids(void);                                                /* GC InitSkids */
+void InitSmoke(void);                                       /* GC InitSmoke */
+void InitBlast(void);                                           /* GC InitBlast */
+void initWorldDamage(void);                                                /* overlay call (GC initWorldDamage?) */
 
-s16 wheel_torque_apply(u8 *World, s16 Parent);                        /* GC NewWorld (world.c, locked) */
-void mode_flags_clear(void);                                            /* N64 InitCheckpointData wrapper (locked) */
+s16 NewWorld(u8 *World, s16 Parent);                        /* GC NewWorld (world.c, locked) */
+void InitCheckpointData(void);                                            /* N64 InitCheckpointData wrapper (locked) */
 
-/* PC: the GTLD keys become object pointers at race setup (engine_sound_update), which don't fit the file's 4-byte
+/* PC: the GTLD keys become object pointers at race setup (SetTargetDefs), which don't fit the file's 4-byte
  * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned
  * as they are. */
 uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
@@ -102,137 +102,137 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     u8 *worldptr;
     s32 i;
 
-    if (!D_80143A10.track.loading) {
-        D_80143A10.track.idx = audio_frame_sync(track + 101, 0, background, 0, 0);
-        D_80143A10.track.loading = 1;
+    if (!gTrackLoadInfo.track.loading) {
+        gTrackLoadInfo.track.idx = LoadWave(track + 101, 0, background, 0, 0);
+        gTrackLoadInfo.track.loading = 1;
     }
-    if (!player_state_get(D_80143A10.track.idx)) {
+    if (!WaveInstanceReady(gTrackLoadInfo.track.idx)) {
         return 0;
     }
-    D_80143A10.track.loaded = 1;
-    D_80143A10.track.inited = 1;
-    D_80143A10.track.ready = 1;
-    if (!D_80143A10.world.loading) {
-        D_80143A10.world.idx = audio_frame_sync(track + 120, 0, background, 0, 0);
-        D_80143A10.world.loading = 1;
+    gTrackLoadInfo.track.loaded = 1;
+    gTrackLoadInfo.track.inited = 1;
+    gTrackLoadInfo.track.ready = 1;
+    if (!gTrackLoadInfo.world.loading) {
+        gTrackLoadInfo.world.idx = LoadWave(track + 120, 0, background, 0, 0);
+        gTrackLoadInfo.world.loading = 1;
     }
-    if (!player_state_get(D_80143A10.world.idx)) {
+    if (!WaveInstanceReady(gTrackLoadInfo.world.idx)) {
         return 0;
     }
-    D_80143A10.world.loaded = 1;
-    if (!D_80143A10.world.ready) {
-        worldptr = slot_value_get(D_80143A10.world.idx);
+    gTrackLoadInfo.world.loaded = 1;
+    if (!gTrackLoadInfo.world.ready) {
+        worldptr = GetWaveInstanceAddr(gTrackLoadInfo.world.idx);
         MBSetupWad(&wad, worldptr);
-        D_801497FC = MBGetFromWad(&wad, 0x57484452, NULL);
-        D_80149818 = (WorldHdr *)(D_801497FC + 1);
-        if (!D_80143A10.world.inited) {
-            for (i = 0, whdr = D_80149818; i < *D_801497FC; i++, whdr++) {
+        gWorldData = MBGetFromWad(&wad, 0x57484452, NULL);
+        WorldTable = (WorldHdr *)(gWorldData + 1);
+        if (!gTrackLoadInfo.world.inited) {
+            for (i = 0, whdr = WorldTable; i < *gWorldData; i++, whdr++) {
                 whdr->woff += N64A(worldptr);
             }
-            D_80143A10.world.inited = 1;
+            gTrackLoadInfo.world.inited = 1;
         }
-        D_80149770 = MBGetFromWad(&wad, 0x47444154, &D_80149790);
-        D_801497C0 = MBGetFromWad(&wad, 0x47544C44, &D_801497EC);
-        D_80143A10.world.ready = 1;
+        gTargetGroups = MBGetFromWad(&wad, 0x47444154, &numgTargetGroups);
+        gTargetGroupList = MBGetFromWad(&wad, 0x47544C44, &numgTargetGroupList);
+        gTrackLoadInfo.world.ready = 1;
     }
-    if (!D_80143A10.collision.loading) {
-        D_80143A10.collision.idx = audio_frame_sync(track + 139, 0, background, 0, 0);
-        D_80143A10.collision.loading = 1;
+    if (!gTrackLoadInfo.collision.loading) {
+        gTrackLoadInfo.collision.idx = LoadWave(track + 139, 0, background, 0, 0);
+        gTrackLoadInfo.collision.loading = 1;
     }
-    if (!player_state_get(D_80143A10.collision.idx)) {
+    if (!WaveInstanceReady(gTrackLoadInfo.collision.idx)) {
         return 0;
     }
-    D_80143A10.collision.loaded = 1;
-    D_80143A10.collision.inited = 1;
-    if (!D_80143A10.collision.ready) {
-        D_801526DC = slot_value_get(D_80143A10.collision.idx);
-        D_80143A10.collision.ready = 1;
+    gTrackLoadInfo.collision.loaded = 1;
+    gTrackLoadInfo.collision.inited = 1;
+    if (!gTrackLoadInfo.collision.ready) {
+        gRoadDat = GetWaveInstanceAddr(gTrackLoadInfo.collision.idx);
+        gTrackLoadInfo.collision.ready = 1;
     }
-    if (!D_80143A10.path.loading) {
-        D_80143A10.path.idx = audio_frame_sync((D_80152570 ? 177 : 158) + track, 0, background, 0, 0);
-        D_80143A10.path.loading = 1;
+    if (!gTrackLoadInfo.path.loading) {
+        gTrackLoadInfo.path.idx = LoadWave((gBackwards ? 177 : 158) + track, 0, background, 0, 0);
+        gTrackLoadInfo.path.loading = 1;
     }
-    if (!player_state_get(D_80143A10.path.idx)) {
+    if (!WaveInstanceReady(gTrackLoadInfo.path.idx)) {
         return 0;
     }
-    D_80143A10.path.loaded = 1;
-    D_80143A10.path.inited = 1;
-    if (!D_80143A10.path.ready) {
-        D_80153F20 = slot_value_get(D_80143A10.path.idx);
-        D_80143A10.path.ready = 1;
+    gTrackLoadInfo.path.loaded = 1;
+    gTrackLoadInfo.path.inited = 1;
+    if (!gTrackLoadInfo.path.ready) {
+        gPathWave = GetWaveInstanceAddr(gTrackLoadInfo.path.idx);
+        gTrackLoadInfo.path.ready = 1;
     }
-    if (!D_80143A10.other.loading) {
-        D_80143A10.other.loading = 1;
-        if (!(D_801174B4 & 0x100)) {
-            if (D_8014A110 == 6 || (track >= 6 && track < 14)) {
-                audio_frame_sync(76, 0, 0, 0, 0);
+    if (!gTrackLoadInfo.other.loading) {
+        gTrackLoadInfo.other.loading = 1;
+        if (!(gGameState & 0x100)) {
+            if (gRace == 6 || (track >= 6 && track < 14)) {
+                LoadWave(76, 0, 0, 0, 0);
             }
-            if (!(D_801174B4 & 8) || ((D_801174B4 & 8) && D_80156994)) {
-                audio_frame_sync(68, 0, 0, 0, 0);
+            if (!(gGameState & 8) || ((gGameState & 8) && expansion_pak_present)) {
+                LoadWave(68, 0, 0, 0, 0);
                 if (track == 18) {
-                    audio_frame_sync(78, 0, 0, 0, 0);
+                    LoadWave(78, 0, 0, 0, 0);
                 } else if (track >= 0 && track < 6) {
-                    if (D_80156994) {
-                        audio_frame_sync(78, 0, 0, 0, 0);
-                        audio_frame_sync(D_8014978C + 82, 0, 0, 0, 0);
+                    if (expansion_pak_present) {
+                        LoadWave(78, 0, 0, 0, 0);
+                        LoadWave(gTrackNum + 82, 0, 0, 0, 0);
                     } else {
-                        audio_frame_sync(79, 0, 0, 0, 0);
+                        LoadWave(79, 0, 0, 0, 0);
                     }
                 }
-                audio_frame_sync(77, 0, 0, 0, 0);
+                LoadWave(77, 0, 0, 0, 0);
             }
-            audio_frame_sync(62, 0, 0, 0, 0);
-            if (D_80156994 || D_8014978C >= 6) {
-                audio_frame_sync(80, 0, 0, 0, 0);
-                audio_frame_sync(61, 0, 0, 0, 0);
+            LoadWave(62, 0, 0, 0, 0);
+            if (expansion_pak_present || gTrackNum >= 6) {
+                LoadWave(80, 0, 0, 0, 0);
+                LoadWave(61, 0, 0, 0, 0);
             } else {
-                audio_frame_sync(81, 0, 0, 0, 0);
+                LoadWave(81, 0, 0, 0, 0);
             }
-            audio_frame_sync(64, 0, 0, 0, 0);
+            LoadWave(64, 0, 0, 0, 0);
             if (gNumWindows >= 2) {
-                audio_frame_sync(66, 0, 0, 0, 0);
-                if (D_80156994 || D_8014978C >= 6) {
-                    audio_frame_sync(65, 0, 0, 0, 0);
+                LoadWave(66, 0, 0, 0, 0);
+                if (expansion_pak_present || gTrackNum >= 6) {
+                    LoadWave(65, 0, 0, 0, 0);
                 }
             }
-            if (D_8014A110 == 6) {
-                audio_frame_sync(63, 0, 0, 0, 0);
-            } else if (D_8014A110 == 4) {
-                audio_frame_sync(67, 0, 0, 0, 0);
+            if (gRace == 6) {
+                LoadWave(63, 0, 0, 0, 0);
+            } else if (gRace == 4) {
+                LoadWave(67, 0, 0, 0, 0);
             }
-            if (D_801174B4 & 8) {
-            } else if (D_801174B4 & 8) {
+            if (gGameState & 8) {
+            } else if (gGameState & 8) {
             }
-            if (D_801174B4 & 8) {
+            if (gGameState & 8) {
             }
         }
-        D_80143A10.other.loaded = 1;
-        D_80143A10.other.ready = 1;
-        D_80143A10.other.inited = 1;
+        gTrackLoadInfo.other.loaded = 1;
+        gTrackLoadInfo.other.ready = 1;
+        gTrackLoadInfo.other.inited = 1;
     }
-    if (D_80143A10.trackInited) {
+    if (gTrackLoadInfo.trackInited) {
         return 1;
     }
-    D_80143A10.trackInited = 1;
-    camera_lerp_position(track);
-    camera_reset();
-    wheel_torque_apply((u8 *)D_8011A924[track], -1);
-    func_800B2BDC();
-    tire_sound_update();
-    if (!(D_801174B4 & 0x100) && !reloading) {
+    gTrackLoadInfo.trackInited = 1;
+    initTargetStructs(track);
+    SkyInit();
+    NewWorld((u8 *)gWorldNames[track], -1);
+    InitEnvs();
+    InitTrackDynamicObjs();
+    if (!(gGameState & 0x100) && !reloading) {
         LoadCars(0);
     }
-    sfx_position_3d(!(D_801174B4 & 0x100));
-    mode_flags_clear();
-    audio_effect_remove();
-    if (D_8014978C >= 0 && D_8014978C < 6) {
-        func_800B9284();
+    InitVisuals(!(gGameState & 0x100));
+    InitCheckpointData();
+    InitPathData();
+    if (gTrackNum >= 0 && gTrackNum < 6) {
+        InitDemoPathPoint();
     }
-    func_800B0580();
-    physics_collision_test();
-    camera_smooth_lerp();
-    if (D_80156994 || track >= 6) {
-        func_8038A8CC();
+    InitSkids();
+    InitSmoke();
+    InitBlast();
+    if (expansion_pak_present || track >= 6) {
+        initWorldDamage();
     }
     return 1;
 }

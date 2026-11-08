@@ -4,8 +4,8 @@
     python3 tools/port/bounds_check.py [--build build/pc] [-j 2] [--reuse] [--list]
     python3 tools/port/bounds_check.py --reuse --only src/blob/foo.c --dump     # one file's accesses
 
-The game C often declares a data symbol smaller than its code uses it: `extern f32 D_80140620;` written through
-`((f32 (*)[2]) &D_80140620)[i][1]`, `(&D_x)[n]`, `*(T *)((u8 *)&D_x + off)`. IDO doesn't mind. GCC, optimizing, takes
+The game C often declares a data symbol smaller than its code uses it: `extern f32 gRealStick;` written through
+`((f32 (*)[2]) &gRealStick)[i][1]`, `(&D_x)[n]`, `*(T *)((u8 *)&D_x + off)`. IDO doesn't mind. GCC, optimizing, takes
 the declaration's size for the object's. Once the loop optimizer has made an indexed reference of such an access
 (`MEM[(float *)&D_x + 4B + ivtmp_5 * 8]`, a TARGET_MEM_REF), get_ref_base_and_extent gives it offset 0 and the
 declared size as its extent: two stores at different places of a 4-byte object are two stores to the same 4 bytes,

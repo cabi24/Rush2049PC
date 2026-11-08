@@ -3,36 +3,36 @@ typedef signed char s8;
 typedef signed short s16;
 typedef unsigned char u8;
 typedef struct Item { int type, handle; float angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-extern Item D_80111998[4][17];
-extern int D_80154618[4];
-extern void *D_80113ED8;
-extern s8 D_8015418C[4],D_8014A10C[4],D_80113ED4;
-void entity_spawn_callback(s16,int,int);
-void sound_stop(intptr_t);
-void render_replay_ui(s8 row) {
+extern Item controls_buttonInfo[4][17];
+extern int controls_buttonsInited[4];
+extern void *controls_blit;
+extern s8 controlScrActive[4],prevControlScrActive[4],controls_inited;
+void RemoveObjectTree(s16,int,int);
+void RemoveBlit(intptr_t);
+void controls_uninitButtons(s8 row) {
     int i;
-    Item *record=D_80111998[row];
+    Item *record=controls_buttonInfo[row];
     /* Native loop counter measures the actual row span in bytes. */
-    for(i=0;i<sizeof(D_80111998[0]);i+=sizeof(Item),record++){
+    for(i=0;i<sizeof(controls_buttonInfo[0]);i+=sizeof(Item),record++){
         if(record->handle!=-1){
-            entity_spawn_callback((s16)record->handle,0,0);
+            RemoveObjectTree((s16)record->handle,0,0);
             record->handle=-1;
         }
     }
-    D_80154618[row]=0;
+    controls_buttonsInited[row]=0;
 }
-void render_results_screen(void) {
+void cleanupControlScreen(void) {
     int i;
     for(i=0;i<4;i++){
-        D_8015418C[i]=0;
-        D_8014A10C[i]=0;
-        render_replay_ui((s8)i);
+        controlScrActive[i]=0;
+        prevControlScrActive[i]=0;
+        controls_uninitButtons((s8)i);
     }
-    if(D_80113ED8!=0){
-        sound_stop(D_80113ED8);
-        D_80113ED8=0;
+    if(controls_blit!=0){
+        RemoveBlit(controls_blit);
+        controls_blit=0;
     }
-    D_80113ED4=0;
+    controls_inited=0;
 }
-/* note: render_replay_ui = uninitButtons@controlscr.c (GC 0x8006D1D8; p in s4, private ABI),
- * render_results_screen = cleanupControlScreen (GC 0x8006BB9C). Bodies, unchanged. */
+/* note: controls_uninitButtons = uninitButtons@controlscr.c (GC 0x8006D1D8; p in s4, private ABI),
+ * cleanupControlScreen = cleanupControlScreen (GC 0x8006BB9C). Bodies, unchanged. */

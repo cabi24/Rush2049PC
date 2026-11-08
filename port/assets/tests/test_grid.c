@@ -1,6 +1,6 @@
 /* port/assets/tests/test_grid.c: the start grid for 12 places (docs/port/MORECARS.md 4), through the game's own code:
- * Init_MDrive (func_800E543C, groups/init_mdrive/group.c) places each car (multiinit: its place, or a respawn's
- * index + PC_RESPAWN_BASE) and Resurrect (stunt_combo_display, groups/resurrect/resurrect.c) offsets it from its start
+ * Init_MDrive (Init_MDrive, groups/init_mdrive/group.c) places each car (multiinit: its place, or a respawn's
+ * index + PC_RESPAWN_BASE) and Resurrect (Resurrect, groups/resurrect/resurrect.c) offsets it from its start
  * point: places 0-5 from the start point by the table's rows, places 6-11 from the point of the resurrection path
  * their row's distance behind it (pc_grid_start). The table and the paths here are the test's own (pole_pos_offset is
  * D_801210E8 in the game, data the ROM fills; nothing of the ROM's is used): the table in two shapes, columns
@@ -30,31 +30,30 @@ struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 float D_801210E8[12][3];   /* pole_pos_offset: this test's own rows */
-float D_8011418C[3][3], D_80117360[4], D_80154390;
-uint32_t D_801174B4;       /* gGameState: 8 the attract demo */
-int8_t D_801407B0, D_80142760;
-int16_t D_8014A108, D_80152734;
-volatile int16_t D_801525F0;
-int32_t D_8014A110;
-ALIAS(gameplay_mode, D_8014A110, 0);
-uint8_t D_8012E5E8[1024] __attribute__((aligned(16)));
+float unitmatrix[3][3], D_80117360[4], resurrectTime;
+uint32_t gGameState;       /* gGameState: 8 the attract demo */
+int8_t gResurrectInPlace, gDeathMode;
+int16_t gNumPlayers, gNumLaps;
+volatile int16_t modelrun;
+int32_t gRace;
+uint8_t gDronePaths[1024] __attribute__((aligned(16)));
 /* gResPath (resurrect.c's tResPath, host layout) and gCheckpoints (tCheckpoints: loopPt at +2, the points from +0xC,
  * 0x50 bytes each, a point's pathPts[0] at +0x22) */
-struct { uint16_t numPts; int16_t (*pts)[3]; uint8_t numAlt; void *alt; } D_801407F0;
-uint8_t D_80151CE8[0xC + 10 * 0x50] __attribute__((aligned(16)));
+struct { uint16_t numPts; int16_t (*pts)[3]; uint8_t numAlt; void *alt; } gResPath;
+uint8_t gCheckpoints[0xC + 10 * 0x50] __attribute__((aligned(16)));
 
-/* What it calls: Resurrect's start branch calls func_800D11BC (syminit) with the record it placed; camera_follow_path
+/* What it calls: Resurrect's start branch calls syminit (syminit) with the record it placed; FindSurfaceUvsFromResPoint
  * (FindSurfaceUvsFromResPoint) faces the path's segment from a point on: here it records the point and gives the
  * identity. */
 static int g_placed[PC_MODEL_SLOTS];
-void func_800D11BC(void *m)
+void syminit(void *m)
 {
     ptrdiff_t d = (uint8_t *)m - (uint8_t *)pc_models;
     if (d >= 0 && d % 0x808 == 0 && d / 0x808 < PC_MODEL_SLOTS)
         g_placed[d / 0x808]++;
 }
 static int g_faced = -1;
-void camera_follow_path(int res, int path, int idx, float (*uvs)[3])
+void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3])
 {
     g_faced = res == 1 && path == -1 ? idx : -2;
     for (int i = 0; i < 3; i++)
@@ -64,33 +63,33 @@ void camera_follow_path(int res, int path, int idx, float (*uvs)[3])
 /* RoadPosition: the test's road is z >= g_road_end and within g_road_half of x = 100 (everywhere at first). */
 static uint8_t g_surface[16];
 static float g_road_end = -1e9f, g_road_half = 1e9f;
-void *camera_trigger_check(float *at, float *snap, void *uvs)
+void *RoadPosition(float *at, float *snap, void *uvs)
 {
     (void)uvs;
     snap[0] = at[0], snap[1] = at[1], snap[2] = at[2];
     return at[2] >= g_road_end && fabsf(at[0] - 100.0f) <= g_road_half ? g_surface : NULL;
 }
-int difficulty_select(int a, int b, int c, int d) { (void)a; (void)b; (void)c; (void)d; return 0; }
-float func_8008B2E4(float max) { (void)max; return 0.0f; }
-void func_8009E820(float *s, float *d, void *u) { (void)u; d[0] = s[0], d[1] = s[1], d[2] = s[2]; }
-void func_800C4180(void *a, float *b) { (void)a; (void)b; }
-void func_800C4C9C(void *m, int16_t i) { (void)m; (void)i; }
-void func_800D14F4(void *a, float *b) { (void)a; (void)b; }
-int16_t func_800D2C10(int16_t *p, int16_t q) { (void)p; (void)q; return 0; }
-int func_800D3430(int a, int b, int *c, int *d, int e) { (void)a; (void)b; (void)c; (void)d; (void)e; return 0; }
-void func_8038CA24(int s) { (void)s; }
+int NumPtsToCheckpoint(int a, int b, int c, int d) { (void)a; (void)b; (void)c; (void)d; return 0; }
+float Random(float max) { (void)max; return 0.0f; }
+void WorldVector(float *s, float *d, void *u) { (void)u; d[0] = s[0], d[1] = s[1], d[2] = s[2]; }
+void ExtractYaw(void *a, float *b) { (void)a; (void)b; }
+void SetNewPathIndex(void *m, int16_t i) { (void)m; (void)i; }
+void MakeQuatFromUvs(void *a, float *b) { (void)a; (void)b; }
+int16_t FindClosestPathPt(int16_t *p, int16_t q) { (void)p; (void)q; return 0; }
+int FindResPt(int a, int b, int *c, int *d, int e) { (void)a; (void)b; (void)c; (void)d; (void)e; return 0; }
+void InitBattlePlayer(int s) { (void)s; }
 void fyaw(float s, float c, void *u) { (void)s; (void)c; (void)u; }
-void lap_count_select(int a, int b, int c, int d, int *e, int *f) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
-void math_utility(void *s, void *d) { memcpy(d, s, 36); }
+void TracePathPtForward(int a, int b, int c, int d, int *e, int *f) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
+void CopyUV(void *s, void *d) { memcpy(d, s, 36); }
 float n64_sinf(float x) { return sinf(x); }
 float n64_cosf(float x) { return cosf(x); }
-void race_countdown_display(void *m, float t) { (void)m; (void)t; }
-int viDeadlinePassed(void) { return 0; }
-void car_setup_confirm(int i, float f) { (void)i; (void)f; }
-void func_800C4F68(int16_t mode, void *m, uint32_t f) { (void)mode; (void)m; (void)f; }
-void func_800D5E64(void *m) { (void)m; }
+void PassedCP(void *m, float t) { (void)m; (void)t; }
+int CountdownTimeOut(void) { return 0; }
+void CarReportsGameOver(int i, float f) { (void)i; (void)f; }
+void SetResurrectionData(int16_t mode, void *m, uint32_t f) { (void)mode; (void)m; (void)f; }
+void StartCarSounds(void *m) { (void)m; }
 
-void func_800E543C(int16_t action, int16_t index);
+void Init_MDrive(int16_t action, int16_t index);
 
 /* The model record's fields Resurrect and multiinit reach (tModelData, N64 offsets = PC offsets). */
 #define MF(i, off) ((float *)((uint8_t *)&pc_models[i] + (off)))
@@ -128,13 +127,13 @@ static void path(int n, int start, int loop_point, int bend_at)
         if (k < bend_at)   /* before the bend the path comes along +x, at the bend's z */
             g_pts[k][0] = (int16_t)(100 - (bend_at - k) * 10), g_pts[k][2] = (int16_t)(-300 + (bend_at - start) * 10);
     }
-    D_801407F0.numPts = (uint16_t)n;
-    D_801407F0.pts = g_pts;
-    memset(D_80151CE8, 0, sizeof D_80151CE8);
+    gResPath.numPts = (uint16_t)n;
+    gResPath.pts = g_pts;
+    memset(gCheckpoints, 0, sizeof gCheckpoints);
     int16_t one = 1, sp = (int16_t)start, lp = (int16_t)loop_point;
-    memcpy(D_80151CE8 + 2, &one, 2);                         /* loopPt: checkpoint 1 */
-    memcpy(D_80151CE8 + 0xC + 0 * 0x50 + 0x22, &sp, 2);       /* checkpoint 0 (the start's): its path point */
-    memcpy(D_80151CE8 + 0xC + 1 * 0x50 + 0x22, &lp, 2);       /* checkpoint 1: the loop's first path point */
+    memcpy(gCheckpoints + 2, &one, 2);                         /* loopPt: checkpoint 1 */
+    memcpy(gCheckpoints + 0xC + 0 * 0x50 + 0x22, &sp, 2);       /* checkpoint 0 (the start's): its path point */
+    memcpy(gCheckpoints + 0xC + 1 * 0x50 + 0x22, &lp, 2);       /* checkpoint 1: the loop's first path point */
 }
 
 static float dist(const float *a, const float *b)
@@ -190,7 +189,7 @@ static void place(int n, int action, float pos[][3])
             MF(i, SAVE_UVS)[k] = k % 4 == 0;
     }
     for (int i = 0; i < n; i++) {
-        func_800E543C(action, i);
+        Init_MDrive(action, i);
         for (int k = 0; k < 3; k++)
             pos[i][k] = MF(i, POS)[k] + MF(i, OFFSET)[k];
     }
@@ -201,8 +200,8 @@ static int place_of(int i, int n) { return i == 0 ? n - 1 : i - 1; }
 static void test_straight(void)
 {
     float pos[12][3];
-    D_8014A110 = 0;   /* a single race */
-    D_801174B4 = 0;
+    gRace = 0;   /* a single race */
+    gGameState = 0;
     path(40, START, 0, 0);
     for (int t = 0; t < 2; t++) {
         const float (*table)[3] = t ? TABLE_B : TABLE_A, (*want)[3] = t ? WANT_B : WANT_A;
@@ -233,15 +232,15 @@ static void test_bent(void)
 {
     float pos[12][3];
     memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
-    D_8014A110 = 0;
-    D_801174B4 = 0;
+    gRace = 0;
+    gGameState = 0;
     /* The path turns 90 degrees 30 ft behind the start: before point 17 it comes along +x. Place 6 is 75 ft back:
      * 30 ft to the bend, 45 along x, halfway between points 13 and 12, facing the segment from 12. */
     path(40, START, 0, START - 3);
     place(12, 0, pos);
     CHECK(near(MF(7, POS), 55.0f, 5.0f, -330.0f) && MF(7, OFFSET)[0] == -7.0f && MF(7, OFFSET)[2] == 0.0f);
     path(40, START, 0, START - 3);
-    func_800E543C(0, 7);
+    Init_MDrive(0, 7);
     CHECK(g_faced == 12);
     /* Place 11 is 135 ft back: 30 to the bend, 105 along x. */
     CHECK(near(MF(0, POS), -5.0f, 5.0f, -330.0f) && MF(0, OFFSET)[0] == 7.0f);
@@ -260,7 +259,7 @@ static void test_bent(void)
     path(30, 0, 0, 0);
     for (int k = 0; k < 30; k++)
         g_pts[k][2] = (int16_t)(k == 0 ? -300 : -300 - (30 - k) * 10);
-    func_800E543C(0, 7);
+    Init_MDrive(0, 7);
     CHECK(g_faced == 22);   /* 75 ft back from point 0: between 22 and 23 (the loop's last, 29, is 10 ft back) */
 }
 
@@ -272,8 +271,8 @@ static void test_road_ends(void)
     float pos[12][3];
     static const float side[5][3] = {{-21, 0, 0}, {21, 0, -10}, {-21, 0, -25}, {21, 0, -35}, {-21, 0, -50}};
     memcpy(D_801210E8, TABLE_A, sizeof D_801210E8);
-    D_8014A110 = 0;
-    D_801174B4 = 0;
+    gRace = 0;
+    gGameState = 0;
     path(40, START, 0, 0);
     /* The road ends 50 ft behind the start and is 40 ft either side: no continued row fits, five side places do
      * (the sixth, beside row 2 on the right, is 60 ft back), and place 11 keeps its own row. */
@@ -311,34 +310,34 @@ static void test_demo_and_respawns(void)
      * drone path's speed at the start checkpoint: gDronePaths[0], tDronePath {u16 numPts; tDronePt *pts;}.) */
     static uint8_t demo_pts[8 * 8];
     void *pp = demo_pts;
-    memcpy(D_8012E5E8 + 8, &pp, sizeof pp);
-    D_8014A110 = 0;
-    D_801174B4 = 8;
+    memcpy(gDronePaths + 8, &pp, sizeof pp);
+    gRace = 0;
+    gGameState = 8;
     place(12, 0, pos);
     CHECK(memcmp(MF(7, POS), g_start, 12) == 0 && memcmp(MF(7, OFFSET), WANT_A[0], 12) == 0);
-    D_801174B4 = 0;
+    gGameState = 0;
     /* A respawn (Init_MDrive's action 1): index + PC_RESPAWN_BASE from the start point; a human's offset is the
      * table's row index + 6, a drone's none. Slots 0 and 2 human. */
     place(12, 0, pos);
     PC_LINK_OWNER(2) = 6;
     for (int i = 0; i < 4; i++) {
-        func_800E543C(1, i);
+        Init_MDrive(1, i);
         CHECK(M16(i, POLEPOS) == PC_RESPAWN_BASE + i && memcmp(MF(i, POS), g_start, 12) == 0);
     }
     CHECK(memcmp(MF(0, OFFSET), TABLE_A[6], 12) == 0 && memcmp(MF(2, OFFSET), TABLE_A[8], 12) == 0);
     CHECK(MF(1, OFFSET)[0] == 0.0f && MF(1, OFFSET)[2] == 0.0f && MF(3, OFFSET)[0] == 0.0f);
     /* A ghost race: every start at place 0, a respawn at PC_RESPAWN_BASE, which is the table's row 6. */
-    D_8014A110 = 2;
-    func_800E543C(0, 0);
+    gRace = 2;
+    Init_MDrive(0, 0);
     CHECK(M16(0, POLEPOS) == 0 && memcmp(MF(0, OFFSET), TABLE_A[0], 12) == 0);
-    func_800E543C(1, 0);
+    Init_MDrive(1, 0);
     CHECK(M16(0, POLEPOS) == PC_RESPAWN_BASE && memcmp(MF(0, OFFSET), TABLE_A[6], 12) == 0);
     /* Battle: no offsets, the start point. */
-    D_8014A110 = 6;
+    gRace = 6;
     PC_LINK_PLACE(5) = 8;
-    func_800E543C(0, 5);
+    Init_MDrive(0, 5);
     CHECK(MF(5, OFFSET)[0] == 0.0f && MF(5, OFFSET)[2] == 0.0f && memcmp(MF(5, POS), g_start, 12) == 0);
-    D_8014A110 = 0;
+    gRace = 0;
 }
 
 int main(void)

@@ -1,5 +1,5 @@
-/* The game's renderer scheduling: which of the AI's ring buffers its retrace callback renders (func_80013DEC in
- * src/rom/lib_11640.c, docs/port/AUDIO.md 7). Each retrace it renders the buffers the AI has passed since the last,
+/* The game's renderer scheduling: which of the AI's ring buffers its retrace callback renders (sound_hw_service_frame in
+ * src/rom/sound/hardware.c, docs/port/AUDIO.md 7). Each retrace it renders the buffers the AI has passed since the last,
  * at most a cap of them. Where that range wraps past the ring's end and the cap cuts its first part short, the N64
  * code starts the next retrace at the ring's start, and the buffers left at the end go unrendered: they play their
  * last turn's sound. The PC build (PC_RING_START) starts there only once the first part got to the end.
@@ -9,55 +9,55 @@
  * the PC loops render every buffer the AI passes once, in the ring's order, and catch up; the N64 loops don't. */
 #include "test.h"
 
-static unsigned short D_80038292;           /* the ring's length */
-static volatile unsigned char D_80038288;   /* the AI's buffer */
-static unsigned short D_80038360;           /* where the next render starts */
-static unsigned short D_800382CE;           /* the cap: buffers rendered per retrace */
+static unsigned short sound_output_buffer_count;           /* the ring's length */
+static volatile unsigned char sound_output_index;   /* the AI's buffer */
+static unsigned short sound_render_index;           /* where the next render starts */
+static unsigned short sound_sfds_per_task;           /* the cap: buffers rendered per retrace */
 static int pc;                              /* the PC build's loops, else the N64's */
 
 static long next_render;   /* the renders so far: the next is for the AI's buffer number next_render */
 static long out_of_order;  /* renders not of that buffer */
 
-#define PC_RING_START(index) (pc ? ((index) >= D_80038292 ? 0 : (index)) : 0)
+#define PC_RING_START(index) (pc ? ((index) >= sound_output_buffer_count ? 0 : (index)) : 0)
 
-static void func_80013D70(unsigned short index, unsigned short offset)
+static void sound_hw_render_subframe(unsigned short index, unsigned short offset)
 {
     (void)offset;
-    if (index != next_render % D_80038292) {
+    if (index != next_render % sound_output_buffer_count) {
         out_of_order++;
-        next_render += (index + D_80038292 - next_render % D_80038292) % D_80038292;   /* goes on from there */
+        next_render += (index + sound_output_buffer_count - next_render % sound_output_buffer_count) % sound_output_buffer_count;   /* goes on from there */
     }
     next_render++;
 }
 
-/* func_80013DEC's scheduling, with the renderer running (D_80038360 != 0xFFFF). */
+/* sound_hw_service_frame's scheduling, with the renderer running (sound_render_index != 0xFFFF). */
 static void retrace(void)
 {
     unsigned short index;
     unsigned short offset;
     unsigned short count;
     unsigned short target;
-    if (D_80038288 == 0) {
-        target = D_80038292 - 1;
+    if (sound_output_index == 0) {
+        target = sound_output_buffer_count - 1;
     } else {
-        target = D_80038288 - 1;
+        target = sound_output_index - 1;
     }
-    if (D_80038360 != target) {
+    if (sound_render_index != target) {
         offset = 0;
         count = 0;
-        if (D_80038360 < target) {
-            for (index = D_80038360; index < target && count < D_800382CE; offset += 192, count++) {
-                func_80013D70(index++, offset);
+        if (sound_render_index < target) {
+            for (index = sound_render_index; index < target && count < sound_sfds_per_task; offset += 192, count++) {
+                sound_hw_render_subframe(index++, offset);
             }
         } else {
-            for (index = D_80038360; index < D_80038292 && count < D_800382CE; offset += 192, count++) {
-                func_80013D70(index++, offset);
+            for (index = sound_render_index; index < sound_output_buffer_count && count < sound_sfds_per_task; offset += 192, count++) {
+                sound_hw_render_subframe(index++, offset);
             }
-            for (index = PC_RING_START(index); index < target && count < D_800382CE; offset += 192, count++) {
-                func_80013D70(index++, offset);
+            for (index = PC_RING_START(index); index < target && count < sound_sfds_per_task; offset += 192, count++) {
+                sound_hw_render_subframe(index++, offset);
             }
         }
-        D_80038360 = index;
+        sound_render_index = index;
     }
 }
 
@@ -65,11 +65,11 @@ static void retrace(void)
  * turn behind (where its position can't tell) and caught up at the end. */
 static long run(unsigned short len, unsigned short cap, unsigned seed, int retraces, int *lag_ok)
 {
-    long ai = len;   /* the AI's buffer number, from a turn on: D_80038288 is it in the ring */
-    D_80038292 = len;
-    D_800382CE = cap;
-    D_80038288 = 0;
-    D_80038360 = len - 1;   /* the resync: the next render is the AI's last buffer's next */
+    long ai = len;   /* the AI's buffer number, from a turn on: sound_output_index is it in the ring */
+    sound_output_buffer_count = len;
+    sound_sfds_per_task = cap;
+    sound_output_index = 0;
+    sound_render_index = len - 1;   /* the resync: the next render is the AI's last buffer's next */
     next_render = len - 1;
     out_of_order = 0;
     *lag_ok = 1;
@@ -79,7 +79,7 @@ static long run(unsigned short len, unsigned short cap, unsigned seed, int retra
         if (step > len - 2 - lag)
             step = len - 2 - lag > 0 ? len - 2 - lag : 0;
         ai += step;
-        D_80038288 = (unsigned char)(ai % len);
+        sound_output_index = (unsigned char)(ai % len);
         retrace();
         *lag_ok &= ai - 1 - next_render < len;
     }
@@ -91,28 +91,28 @@ static long run(unsigned short len, unsigned short cap, unsigned seed, int retra
 
 int main(void)
 {
-    static const unsigned short lens[] = {8, 12, 16, 24};   /* the ring's lengths (func_80010A40) */
+    static const unsigned short lens[] = {8, 12, 16, 24};   /* the ring's lengths (sound_hw_run_output_thread) */
     long n64_wrong = 0;
 
     /* The wrapping range cut short: from 5 of 8 to 1 with a cap of 2 renders 5 and 6, then 7, 0, ... */
     int ok;
     pc = 1;
-    D_80038292 = 8;
-    D_800382CE = 2;
-    D_80038360 = 5;
-    D_80038288 = 2;
+    sound_output_buffer_count = 8;
+    sound_sfds_per_task = 2;
+    sound_render_index = 5;
+    sound_output_index = 2;
     next_render = 5;
     out_of_order = 0;
     retrace();
-    CHECK(D_80038360 == 7, "PC: a cut wrapping range goes on at 7, not %u", D_80038360);
+    CHECK(sound_render_index == 7, "PC: a cut wrapping range goes on at 7, not %u", sound_render_index);
     retrace();
-    CHECK(D_80038360 == 1 && out_of_order == 0, "PC: then 7 and 0: at %u, %ld out of order", D_80038360,
+    CHECK(sound_render_index == 1 && out_of_order == 0, "PC: then 7 and 0: at %u, %ld out of order", sound_render_index,
           out_of_order);
     pc = 0;
-    D_80038360 = 5;
+    sound_render_index = 5;
     next_render = 5;
     retrace();
-    CHECK(D_80038360 == 0, "N64: a cut wrapping range starts over at 0, not %u", D_80038360);
+    CHECK(sound_render_index == 0, "N64: a cut wrapping range starts over at 0, not %u", sound_render_index);
 
     for (unsigned li = 0; li < sizeof lens / sizeof lens[0]; li++)
         for (unsigned short cap = 1; cap <= 6; cap++)

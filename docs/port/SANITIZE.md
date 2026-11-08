@@ -32,7 +32,7 @@ read now:
   under all of `undefined` (`-DRUSH_SANITIZE_GAME_UB=undefined`) over the whole ctest reaches 152 such sites; each
   was read against `tools/port/bounds_check.py`'s inventory (section 3.1), which took six declarations open-ended
   and closed two holes in the tool. The rest are views by design, judged there one by one, so the check stays out;
-- `alignment`: the same run found one site, `func_8008E06C` reading a `Color` from a caller's `u8 [4]` 2 bytes off
+- `alignment`: the same run found one site, `ZOID_SetColor` reading a `Color` from a caller's `u8 [4]` 2 bytes off
   a word (section 3.2, fixed), and the retail paths one more, harmless (3.3). The port's own code keeps the check;
   the game C leaves it out because the m2c code reads N64 records through PC types whose alignment can be larger;
 - `signed-integer-overflow`: the game C is compiled `-fwrapv`, so overflow is defined (GCC doesn't check it under
@@ -81,7 +81,7 @@ usual first line (the address and the N64 thread) and tells the app (`pc_on_faul
 then puts the runtime's handler back and returns. The instruction faults again and the runtime reports it, with
 its own stack, symbolized, and thread history. A signal that was sent rather than raised by an instruction is sent
 again. `pc_fault_thread_init` keeps the alternate signal stack the runtime gave each thread. CTest
-`sanitize_fault_chain` (ASan builds) boots the blank cartridge, which faults in `audio_helper`, and checks for both
+`sanitize_fault_chain` (ASan builds) boots the blank cartridge, which faults in `AllocateMemory`, and checks for both
 reports.
 
 Tests that check a fault's own report and exit status (`app_firstrun`'s "log: a fault", -11) need the port's
@@ -170,28 +170,28 @@ after the fixes: clean. Each ran the game time its script needs (40-130 s); 70 s
 | 2 | port/ultra/rcp.c, loop.c | TSan | the real-time audio task count, written by the game's scheduler thread, read by the main thread's status lines | relaxed atomics | (TSan) |
 | 3 | port/app/log.c | TSan | `L.done`, a volatile int the log's copying thread sets and `pc_app_log_close` polls | `__atomic_store_n`/`__atomic_load_n` (async-signal-safe) | (TSan) |
 | 4 | port/main.c | LSan | `--set` strings strdup'd into a local array, lost when `rush_main` returned | the array is static | (LSan, every `--set` run) |
-| 5 | src/ovl_b/groups/weapons/weapons.c | UBSan bounds, ASan | a car that loses its weapon (battle.type 8, none) has its row of `D_803943A4[8][13][3]` read, past the table, and not used: on the N64 the data after it, on the PC whatever the linker put there | `WEAPON_OFF` gives type 8 a row of zeros (below) | the synthetic battle paths under UBSan |
-| 6 | src/blob/groups/car_resistance/group.c | UBSan bounds | `D_8011128C[mode * 13 + type]` through `extern s8 D_8011128C[13]`: a table of rows declared as its first, which an optimizer may take for every index's bound (OPTIMIZED.md 2.7) | incomplete under `TARGET_PC`, as the other files declare it `[][13]` | (UBSan) |
-| 7 | src/ovl_b/groups/runtime_b_status_scene/group.c | UBSan float-cast-overflow | a score fade's alpha, 346.6 while the score's start is ahead of the clock, converted to u8: undefined in C | through s32 to its low byte, as the N64's trunc.w.s and sb (`ALPHA_U8`) | (UBSan) |
+| 5 | src/ovl_b/groups/weapons/weapons.c | UBSan bounds, ASan | a car that loses its weapon (battle.type 8, none) has its row of `weaponOffsets[8][13][3]` read, past the table, and not used: on the N64 the data after it, on the PC whatever the linker put there | `WEAPON_OFF` gives type 8 a row of zeros (below) | the synthetic battle paths under UBSan |
+| 6 | src/blob/groups/carsetup/group.c | UBSan bounds | `gCarWings[mode * 13 + type]` through `extern s8 gCarWings[13]`: a table of rows declared as its first, which an optimizer may take for every index's bound (OPTIMIZED.md 2.7) | incomplete under `TARGET_PC`, as the other files declare it `[][13]` | (UBSan) |
+| 7 | src/ovl_b/groups/hud_icons/hudextra_icons.c | UBSan float-cast-overflow | a score fade's alpha, 346.6 while the score's start is ahead of the clock, converted to u8: undefined in C | through s32 to its low byte, as the N64's trunc.w.s and sb (`ALPHA_U8`) | (UBSan) |
 | 8 | tools/port/n64syms.py (gen_stubs) | reading the sanitizer build's stubs.c | `pc_ovl_a_start`/`end`, `pc_ovl_b_start`/`end` (overlays.ld's) were stubbed as 4 KiB arrays that the script's symbols overrode | linker-defined | the link |
 | 9 | port/ultra/tests/test_romcheck.c | ASan | `image()` copied 4 bytes of the game code from `""` | copies the code's length, zeroes the rest | `ultra_romcheck` |
 | 10 | port/assets/tests/test_targets.c | UBSan alignment | a node's control field (an N64 address, 4-aligned) read as a host pointer | read as u32 | `assets_targets` |
 | 11 | port/gfx/tests/test_gbi.h, gfx_test.c | UBSan shift | `GBL_c1` shifts 3 by 30 places into an int's sign bit; a texture rectangle's `-4 << 10` | unsigned; the negation after the shift | the gfx tests |
-| 12 | src/blob/audio_voice_set.c | UBSan float-cast-overflow (retail: quit) | `(u32)(rate * 255 + 63)` is -125.9 while a voice's start is ahead of the clock. IDO's code and x86-64 go through a signed conversion and keep the bits (0xFFFFFF83: no fade); aarch64's `fcvtzu` gives 0, so **the arm64 builds set the voice's alpha to 192 where the N64 leaves it** | a negative value through s32 (`F2U`) | (UBSan, retail) |
-| 13 | src/blob/func_8010E0FC.c | UBSan shift (retail: attract demo, screens) | a coin's view mask `1 << player->slot` with slot -1 | the count's low 5 bits, as sllv, shl and lsl take (`SLOT_BIT`) | (UBSan, retail) |
-| 14 | src/blob/groups/particle_knot/group.c | UBSan float-cast-overflow (retail: battle) | `func_8009F058` stores a far vertex's coordinate, 32800, into an s16 | through s32, whose low half the store keeps, as trunc.w.s and sh (`V16`) | (UBSan, retail) |
-| 15 | port/gfx/gfx_hud.c, gfx_rdp.c, gfx_api.c | TSan | the widescreen HUD's offset (`pc_gfx_hud_dx`, new on main), which the game's threads ask for while they draw (`car_lights_render`), reads the frame's width (`pcgfx`) and the resolved widescreen setting (`pcgfx_cfg`), which the main thread writes while it runs the previous frame's display list and presents it. In real time only; a resize or a scale change can give one frame's HUD the other frame's offset | fixed on main by port/gfx's owners (cd8336d: the HUD reads atomics published at SETCIMG); the suppression is gone | the TSan run |
-| 16 | port/assets/tests/test_targets.c | ASan | the camera record names texture 361, and the test's stand-in `D_801427C0` had 64 entries: the game read past it | 1,024 entries | `assets_targets` |
-| 17 | port/assets/tests/test_text.c | ASan stack-use-after-scope | `D_8014A160` held a pointer to a block's local name, which `voice_stop` read after the block | static | `assets_text` |
+| 12 | src/blob/AnimateSkids.c | UBSan float-cast-overflow (retail: quit) | `(u32)(rate * 255 + 63)` is -125.9 while a voice's start is ahead of the clock. IDO's code and x86-64 go through a signed conversion and keep the bits (0xFFFFFF83: no fade); aarch64's `fcvtzu` gives 0, so **the arm64 builds set the voice's alpha to 192 where the N64 leaves it** | a negative value through s32 (`F2U`) | (UBSan, retail) |
+| 13 | src/blob/AnimateCoin.c | UBSan shift (retail: attract demo, screens) | a coin's view mask `1 << player->slot` with slot -1 | the count's low 5 bits, as sllv, shl and lsl take (`SLOT_BIT`) | (UBSan, retail) |
+| 14 | src/blob/groups/zoid_draw/group.c | UBSan float-cast-overflow (retail: battle) | `zoid_draw_window` stores a far vertex's coordinate, 32800, into an s16 | through s32, whose low half the store keeps, as trunc.w.s and sh (`V16`) | (UBSan, retail) |
+| 15 | port/gfx/gfx_hud.c, gfx_rdp.c, gfx_api.c | TSan | the widescreen HUD's offset (`pc_gfx_hud_dx`, new on main), which the game's threads ask for while they draw (`ZOID_WindowTo3D`), reads the frame's width (`pcgfx`) and the resolved widescreen setting (`pcgfx_cfg`), which the main thread writes while it runs the previous frame's display list and presents it. In real time only; a resize or a scale change can give one frame's HUD the other frame's offset | fixed on main by port/gfx's owners (cd8336d: the HUD reads atomics published at SETCIMG); the suppression is gone | the TSan run |
+| 16 | port/assets/tests/test_targets.c | ASan | the camera record names texture 361, and the test's stand-in `gObjList` had 64 entries: the game read past it | 1,024 entries | `assets_targets` |
+| 17 | port/assets/tests/test_text.c | ASan stack-use-after-scope | `gPlayers_save` held a pointer to a block's local name, which `pause_TitlePane` read after the block | static | `assets_text` |
 | 18 | port/audio/tests/test_forms.c | LSan | the scenes' buffers were held by main's locals only | static | `audio_forms` |
 | 19 | port/ultra/loop.c, rcp.c (new on main: the RSP yield) | TSan | the exit line read the audio task and graphics yield counts while the game's scheduler could still count | relaxed atomics on both sides | `synth_boot_race` under TSan |
-| 20 | port/assets/tests/test_targets.c | ASan stack-use-after-return (CI's arm runner) | the stand-in `sound_position_set` kept the pointer `func_8010E694` passes, its own frame's `xyz`, and the test read the floats after the function returned | the stand-in copies them | `assets_targets` |
-| 21 | src/blob/groups/MP_TargetSteerPos/group.c | UBSan float-cast-overflow (the synthetic cartridge with sounds, `synth_rom.py --sounds`) | `camera_transform`'s four conversions of an effect's volume, pan, front/back pan and pitch to a byte are IDO's inlined `(u32)f`, whose FCSR test the PC's m2c reads as 0, leaving `(s32)f`; a NaN front/back pan at a race's set-up on the synthetic track (the retail runs have none) gave 0 on AArch64 where IDO's code gives -1 (the byte 0xFF), as x86-64 did | NaN and out of range give -1 (`PC_CVT_S32`) | `synth_voices_race12`, `synth_engines_*` under ASan + UBSan (AUDIO.md 10.9) |
+| 20 | port/assets/tests/test_targets.c | ASan stack-use-after-return (CI's arm runner) | the stand-in `RotateUV` kept the pointer `AnimateRotGeneric` passes, its own frame's `xyz`, and the test read the floats after the function returned | the stand-in copies them | `assets_targets` |
+| 21 | src/blob/groups/audiosfx_play/group.c | UBSan float-cast-overflow (the synthetic cartridge with sounds, `synth_rom.py --sounds`) | `AudioSfxServer`'s four conversions of an effect's volume, pan, front/back pan and pitch to a byte are IDO's inlined `(u32)f`, whose FCSR test the PC's m2c reads as 0, leaving `(s32)f`; a NaN front/back pan at a race's set-up on the synthetic track (the retail runs have none) gave 0 on AArch64 where IDO's code gives -1 (the byte 0xFF), as x86-64 did | NaN and out of range give -1 (`PC_CVT_S32`) | `synth_voices_race12`, `synth_engines_*` under ASan + UBSan (AUDIO.md 10.9) |
 
 **The first fix for 5 was wrong, and a retail run caught it.** It gave the table a ninth row under `TARGET_PC`. But
 gen_data takes a C-defined symbol's size from its DWARF and maps the N64 addresses it covers to the C object
 (data.c's `PC_SYM_CDEF` entry went from 1,248 to 1,404 bytes): the 156 bytes of N64 data after the table became part of
-it for the loader. The 4-player retail run (`race4p`) then faulted in `particle_system` 30 s in, on a node with no
+it for the loader. The 4-player retail run (`race4p`) then faulted in `zoid_draw_object` 30 s in, on a node with no
 model (0xFFFF). The normal build ran it through. So the table keeps its N64 size, and the read is guarded; the
 ASan+UBSan build then runs `race4p` to the same states, to the same car positions, as Debug. **The rule: never change
 the size of C data that has an N64 address.**
@@ -247,15 +247,15 @@ With both, every site is in a finding, 11 new (file, symbol) pairs (reads only, 
 
 | Sites | File | Symbol (declared) | What the function reaches |
 |---|---|---|---|
-| 8 | `src/blob/func_800CFCA8.c` | `D_8014A250` (a 2,026-byte record) | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
-| 14 | `src/blob/Effects_UpdateEmitters.c` | `gCamera` (`s32`) | each window's 0x98-byte camera in a loop: three stores, four read-modify-writes, 4 bytes each: the stick's shape |
-| 3 | `src/blob/func_800A7D6C.c` | `D_8015F740` (`s32`) | x, y and z of one record, set to 0 |
-| 5 | `src/blob/func_8008D870.c` | `D_8012E700` (`s32`) | a scene node's four 8-byte texture slots |
-| 2 | `src/blob/func_800A5518.c` | `D_8017A510` (`s32`) | a ZOID window's first and bounds pointers |
-| 4 | `src/blob/input_status_update.c` | `pad_config` (one record) | three fields of one of the 200 records |
+| 8 | `src/blob/BlinkResurrectingCars.c` | `D_8014A250` (a 2,026-byte record) | the six cars in a loop: reads +0x7C8 and +0x714, read-modify-writes +0x7D4 |
+| 14 | `src/blob/UpdateCameras.c` | `gCamera` (`s32`) | each window's 0x98-byte camera in a loop: three stores, four read-modify-writes, 4 bytes each: the stick's shape |
+| 3 | `src/blob/ZOID_NewMatrix.c` | `D_8015F740` (`s32`) | x, y and z of one record, set to 0 |
+| 5 | `src/blob/ZOID_SetTexture.c` | `ObjInstanceList` (`s32`) | a scene node's four 8-byte texture slots |
+| 2 | `src/blob/ZOID_SetViewport.c` | `ZoidWinInfo` (`s32`) | a ZOID window's first and bounds pointers |
+| 4 | `src/blob/ZOID_SetBlitData.c` | `gBlitInstanceList` (one record) | three fields of one of the 200 records |
 
 None had indexed references on any of the three compilers (no *tmr* finding), so none was miscompiled in these
-builds; Effects_UpdateEmitters is where a compiler that indexes its loop on the symbol would drop two of every three
+builds; UpdateCameras is where a compiler that indexes its loop on the symbol would drop two of every three
 stores, as with the stick. The data tables are the files before but for `D_8015F740` (arena BSS, one word in them),
 now as long as the next known address allows, 2,240 bytes, as 2.7's `D_80149B50`; Debug and RelWithDebInfo agree.
 
@@ -263,23 +263,23 @@ now as long as the next known address allows, 2,240 bytes, as 2.7's `D_80149B50`
 
 | Sites | What | Where (symbol) | Verdict |
 |---|---|---|---|
-| 16 | one field of one record, picked by a variable, 1 or 2 bytes, read or written | `Input_SetAnalogBounds.c`, `Input_SetPadEnabledFlag.c`, `Input_SetPadSecondaryFlag.c` (`pad_config`) | safe. 2.7 declared it `[4]` as "its extent", but its storage is the 200 records at 0x80140BF0 (`Sprite[200]`) and the paths reach records 4 to 91. A cut to 160 bytes makes no reference as wide as the declaration, and no access there is at a constant offset past it. `[200]` would make the declaration true; it changes the tables' type label of `D_80140BF0` (`PadConfig[200]` for `Sprite[200]`, the layout the same), so it waits for after the beta |
-| 15 | one place written (a store or a read-modify-write of that place), nothing else of the symbol in the function | `InitBlits.c` (`D_80149450`, a loop's one store), `CarSetup.c` (`D_801439F8`), `func_800CB718.c` (`D_801392D8`), `audio_effect_remove.c` (`D_80153F28`, `D_80153F48`, `D_80153F68`), `func_800A79DC.c` (`pad_config`), `func_800D1248.c` (`D_8014A96C`), `func_800E9234.c` (`D_80152574`), controller_poll's `func_800E7134` (`D_8013FED0`, `D_801403C0`: a loop's one store each, indexed on the symbol by GCC; `D_80149B30`, volatile) | safe: nothing to drop it for or forward it to; a loop's stores don't cover each other while the loop can exit |
-| 77 | reads only, one place or several | the cars' records (`D_8014A250` in `CarSetup.c`, `car_select_handler.c`, `func_800CF604.c`, audio_frame's and audio_frame_update's groups, func_8008B640's group; `D_8014A258`, `D_8014AA32`, `D_8014A964`), the scene nodes (`D_8012E700` in six files), the route (`D_80151CE8`, `D_80151D18`, `D_8012E5E8`), the cameras (`gCamera`, `D_80124FD0` in `particles_spawn_emitter.c`), the controllers (`gControllerData`, `D_80149B50`), the windows (`D_8017A510` in `func_800A7428.c`), and the rest `bounds_reviewed.txt` lists | safe: nothing written |
-| 8 | constant offsets past the declaration | `func_800AED20.c` (`D_801461B0`), camera_transform (`D_80146138`, `D_80146160`), `entity_flag_check` (`D_80149808`) | safe: GCC keeps them exact |
+| 16 | one field of one record, picked by a variable, 1 or 2 bytes, read or written | `ZOID_CropBlit.c`, `ZOID_TextBlit.c`, `ZOID_FlipBlit.c` (`gBlitInstanceList`) | safe. 2.7 declared it `[4]` as "its extent", but its storage is the 200 records at 0x80140BF0 (`Sprite[200]`) and the paths reach records 4 to 91. A cut to 160 bytes makes no reference as wide as the declaration, and no access there is at a constant offset past it. `[200]` would make the declaration true; it changes the tables' type label of `gBlitInstanceList` (`PadConfig[200]` for `Sprite[200]`, the layout the same), so it waits for after the beta |
+| 15 | one place written (a store or a read-modify-write of that place), nothing else of the symbol in the function | `InitBlits.c` (`BlitPtrs`, a loop's one store), `CarSetup.c` (`carsetup_flag`), `InitSmokeBlast.c` (`gCarSmokeDir`), `InitPathData.c` (`D_80153F28`, `D_80153F48`, `D_80153F68`), `ZOID_RemoveBlit.c` (`gBlitInstanceList`), `FinishResurrecting.c` (`model_modelrun`), `init_view3.c` (`view3_switch`), UpdateControls's `ControlIRQ` (`gRealLevels`, `gRealEdges`: a loop's one store each, indexed on the symbol by GCC; `D_80149B30`, volatile) | safe: nothing to drop it for or forward it to; a loop's stores don't cover each other while the loop can exit |
+| 77 | reads only, one place or several | the cars' records (`D_8014A250` in `CarSetup.c`, `CheckCrash.c`, `AreWeSolid.c`, audio_frame's and StartCar's groups, PositionObject's group; `D_8014A258`, `D_8014AA32`, `D_8014A964`), the scene nodes (`ObjInstanceList` in six files), the route (`gCheckpoints`, `gCheckpoints_pathPts`, `gDronePaths`), the cameras (`gCamera`, `skyMatrices` in `SkyUpdate.c`), the controllers (`gControllerData`, `D_80149B50`), the windows (`ZoidWinInfo` in `ZOID_GetFog.c`), and the rest `bounds_reviewed.txt` lists | safe: nothing written |
+| 8 | constant offsets past the declaration | `NewEmitter.c` (`gFreeEmitters`), AudioSfxServer (`gFreeQ`, `gCmdQ`), `FreeSequence` (`gFreeSequences`) | safe: GCC keeps them exact |
 
 A view that runs from its name into another name's storage is 2.5's class (`alias_check.py`), which takes a variable
 access to cover its name's own extent: for every site in the window, the names holding the address UBSan reports
 were checked against the names its file accesses. One pair is both, `D_8014A964` and `D_8014A250` in
-`car_select_handler.c` (reads only), and alias_check pairs them already (`D_8014A964` is inside `D_8014A250`'s
+`CheckCrash.c` (reads only), and alias_check pairs them already (`D_8014A964` is inside `D_8014A250`'s
 storage). These are the synthetic paths' sites; another path can reach others, and the same reading applies.
 
 ### 3.2 The misaligned colour
 
-`func_8008E06C` (ZOID_SetColor) reads the colour it is given as one word, `col->w`. Image A's `func_80394DD8` passes
+`ZOID_SetColor` (ZOID_SetColor) reads the colour it is given as one word, `col->w`. Image A's `playerscr_updateButtons` passes
 its `u8 buttonColor[4]`, which GCC put at 2 mod 4 (UBSan's alignment check, in 32 of the runs, from image A's front
 end). An N64 `lw` there would have taken an address error, so IDO's frame had it on a word. The same in five more
-locals: `func_80397AD8`'s `u8 color[4]`, `func_803998B8`'s `Color4` (a struct of four bytes only on the PC: its
+locals: `playerscr_initButtons`'s `u8 color[4]`, `modescr_initButtons`'s `Color4` (a struct of four bytes only on the PC: its
 `TARGET_PC` typedef reads the ROM's bytes as bytes, [ENDIAN.md](ENDIAN.md)) and three functions of
 `runtime_a_callers_deep` (`Color4`, four `u8`, in both builds). The other callers' colours are unions with a word.
 
@@ -296,40 +296,40 @@ The same game-C checks, on the Pi (GCC 12, Debug, UBSan only), with the fixes of
 sweep's press scripts: the front end's screens, its options rows, a 4-player race, battle, stunt and its end, the
 pause screen's items, the attract demo. Each reached its time and exited 0. Besides the object-size sites the
 synthetic paths reach, they reach 35 more in 11 files: all loads, each in a function bounds_check lists as reading
-that symbol only, or at a constant offset (23 of them are `camera_scene_manager`'s reads of the other cars' HUD
+that symbol only, or at a constant offset (23 of them are `CheckForStunt`'s reads of the other cars' HUD
 records through `D_8014A250`, in the 4-player race). Nothing written, so nothing new to judge.
 
-One more alignment site, `menu_control_settings`: `N64P(m->car)->TIRER[i]` takes the address of a car's tyre
+One more alignment site, `init_road`: `N64P(m->car)->TIRER[i]` takes the address of a car's tyre
 positions in a `CarRec` the game keeps in the RDRAM window at a word-aligned N64 address, and the PC's `CarRec`,
 whose host pointers (`input`, the visuals) make it 8-aligned, says that address can't hold one. Nothing is loaded
-through the `CarRec` type there: the address goes to `func_8009E820`, which reads three floats through an `f32 *`.
+through the `CarRec` type there: the address goes to `WorldVector`, which reads three floats through an `f32 *`.
 Harmless on every host. Lowering the type's alignment (`packed, aligned(4)`, as transform's `MsgTarget`) would
-change a type the data tables read (`D_80152818` is declared with it), so it isn't done the morning of the beta.
+change a type the data tables read (`gGameCar` is declared with it), so it isn't done the morning of the beta.
 
 
 In `tools/port/sanitize/`, each with its reason; patterns are anchored to one function.
 
 **ubsan.supp**
-- `bounds:^audio_mixer_main$`: route_cross's `Tracker.idx` is declared with 17 slots and the records carry 20,
+- `bounds:^SyncCheckpointsToPaths$`: route_cross's `Tracker.idx` is declared with 17 slots and the records carry 20,
   which the N64 code fills (the file's own comment). A member array used past its end, as `-Warray-bounds` sees 260
-  times in the game C; the writes stay inside `D_80151CE8` at its N64 layout, and GCC can't use the member's size
+  times in the game C; the writes stay inside `gCheckpoints` at its N64 layout, and GCC can't use the member's size
   to drop or move them here (the overrun reaches the next record, a different array index). Retyping it is decomp
   work.
 - `bounds:^animControls$`: the pause menu's rows test `(conflict && !gConflict[p][action]) || action >= 10`, so
   with action 10 they read the next row's first flag, in the window at the N64's layout as the N64 reads it, and the
   `||` decides the result whatever was read.
-- `bounds:^func_800F207C$` (since 2026-11-04, [QA.md](QA.md) "Integration QA"): the high scores' name entry, on
+- `bounds:^ControlName$` (since 2026-11-04, [QA.md](QA.md) "Integration QA"): the high scores' name entry, on
   the retail cartridge after a race to its finish. A name finished with nothing typed (END pressed first, or the
   entry's time running out) has its trailing spaces trimmed with `name[len - 1]` at `len` 0
-  (`billboard_render/func_800F207C.c:98`), the byte before the name: for the first player the last of `humans`
-  (`D_80143A40`, `s16 [8]` at its N64 layout, which nothing writes past the fourth human), for the others the last
+  (`highscorescr/ControlName.c:98`), the byte before the name: for the first player the last of `humans`
+  (`humans`, `s16 [8]` at its N64 layout, which nothing writes past the fourth human), for the others the last
   name's terminator. It is 0 on the N64 and on the PC, not a space, so the loop ends before its first write. The
   retail function's own read; seen under ASan + UBSan on the retail cartridge, which the synthetic paths (no race of
   theirs finishes) don't reach.
-- `null:^audio_helper$`: the blank cartridge only (`--no-rom`, `app_firstrun`): with every file empty no heap block
+- `null:^AllocateMemory$`: the blank cartridge only (`--no-rom`, `app_firstrun`): with every file empty no heap block
   fits, and the N64 code reads the null block's size, then faults, as on the N64. The tests expect that fault.
-- `float-cast-overflow` in `func_8009F058`, `func_8009E8B4`, `func_8009D45C`, `func_8009D99C`, `func_800A557C`,
-  `particle_system`, `input_deadzone_apply`, `display_update`: the synthetic cartridge's NaN positions (section 3).
+- `float-cast-overflow` in `zoid_draw_window`, `mtx_rotation_to_fixed`, `build_node_matrix`, `build_node_matrix_rows4`, `tan_cody_waite`,
+  `zoid_draw_object`, `ShotToWorldCollision`, `video_build_adjusted_mode`: the synthetic cartridge's NaN positions (section 3).
 
 **tsan.supp**: Mesa's (`libgallium`, `libLLVM`, `libEGL_mesa`), SDL's and PulseAudio's threads aren't instrumented,
 so their own locking is invisible and every buffer they hand over looks like a race (hundreds of reports in the gfx
@@ -368,7 +368,7 @@ thread at a time) leaves it little to find. Run it after changing the threads, t
 ## 6. What it doesn't check
 
 - **TSan on the game C** (`RUSH_SANITIZE_GAME_THREAD`) is off by default: with the game's objects instrumented, the
-  synthetic cartridge's boot faults at its first screen (`collision_sound_play`: `func_800B24EC`'s texture lookup
+  synthetic cartridge's boot faults at its first screen (`InitBlit`: `MBOX_FindTexture_WORK`'s texture lookup
   comes back empty), which no other build does. Not understood yet; an instrumented game may run something in a
   different order. Until 2026-10-28 the option was silently off anyway: CMake drops a compile option that repeats an
   earlier one, so `-fsanitize=thread` for the game, after the port's identical flag and `-fno-sanitize=all`, never

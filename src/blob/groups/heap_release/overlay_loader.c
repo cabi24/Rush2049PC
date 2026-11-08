@@ -1,20 +1,20 @@
 /*
- * Overlay loader (N64-only; no arcade ancestor).  Historical labels: PrevMaxPath (0x800A11E4),
- * InitMaxPath (0x800A1244), sync_maxpath_to_checkpoint (0x800A133C).  NextMaxPath is the game
+ * Overlay loader (N64-only; no arcade ancestor).  Historical labels: load_overlay (0x800A11E4),
+ * load_extra_overlay (0x800A1244), load_start_overlay (0x800A133C).  allocate_memory_at is the game
  * heap's allocate-at-address (alloc_at.c in this group).
  *
- * PrevMaxPath = load_overlay(vram, name, vramEnd, bssEnd, romStart, bssStart, &loaded, romData):
+ * load_overlay = load_overlay(vram, name, vramEnd, bssEnd, romStart, bssStart, &loaded, romData):
  * if the overlay is not loaded, reserve [vram, vramEnd) in the game heap, mark the block
  * (0x800962D4), inflate the compressed image to vram, clear its bss and set the flag.
- * InitMaxPath loads overlay "Extra" (flag D_8011ED04), sync_maxpath_to_checkpoint loads "Start"
- * (flag D_8011ED00).  display_enable (0x800C8FA4, unmatched, internal; real caller
- * playgame_state_change unmatched) unloads "Extra", inlines the "Start" load and unloads "Start".
+ * load_extra_overlay loads overlay "Extra" (flag extra_overlay_loaded), load_start_overlay loads "Start"
+ * (flag start_overlay_loaded).  LoadFrontEndOverlay (0x800C8FA4, unmatched, internal; real caller
+ * updateGameState unmatched) unloads "Extra", inlines the "Start" load and unloads "Start".
  *
- * PrevMaxPath is internal (IPA register parameters: s0 vram, a2 vramEnd, s1 bssEnd, s2 bssStart,
+ * load_overlay is internal (IPA register parameters: s0 vram, a2 vramEnd, s1 bssEnd, s2 bssStart,
  * s3 &loaded, s4 romData; name and romStart are stack-passed and unused).
  * Shaping quirks (compile-affecting, may not be original source):
  *  - `if (&name == 0) return;` is code-free; it homes `name` in memory (callers store it at
- *    4(sp)) and keeps umerge from inlining PrevMaxPath into its three callers.
+ *    4(sp)) and keeps umerge from inlining load_overlay into its three callers.
  *  - the four code-free `if (x) {}` reads set the callee-saved colouring order of the register
  *    parameters (uopt orders webs by accumulated read count; workbench lever 9).  Without them the
  *    order is s0 vram, s1 loaded, s2 bssStart, s3 romData, s4 bssEnd.
@@ -24,18 +24,18 @@ typedef unsigned char u8;
 typedef signed int s32;
 typedef unsigned int u32;
 
-extern s8 D_8011ED00;
-extern s8 D_8011ED04;
-extern u8 *D_8002B020;
-extern u8 *D_8002B024;
-extern u8 D_80394F70[];
-extern u8 D_8039B440[];
-extern u8 D_803B9A50[];
-extern u8 D_803BAE20[];
+extern s8 start_overlay_loaded;
+extern s8 extra_overlay_loaded;
+extern u8 *start_overlay_rom;
+extern u8 *extra_overlay_rom;
+extern u8 gShotObjList[];
+extern u8 extra_overlay_bss_end[];
+extern u8 gTrophyMat[];
+extern u8 start_overlay_bss_end[];
 extern u8 D_00BE4C70[];
 extern u8 D_00BDA100[];
 
-void *NextMaxPath(u32 addr, u32 size);
+void *allocate_memory_at(u32 addr, u32 size);
 /* The heap's API takes 32-bit N64 addresses (PurgeableMemory's definition a u32): N64A(p) is a window pointer's,
  * N64A0(p) the same where the N64 passes the pointer itself, and N64PTR(T, a) the pointer at N64 address a, the
  * images' place in the heap (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -46,16 +46,16 @@ void PurgeableMemory(u32 ptr, s32 flag);
 void inflate_decompress(u8 *src, u8 *dst, s32 flag);
 void bzero(void *p, u32 n);
 /* PC (docs/port/DATA.md): both runtime images are linked in, and a load resets the image's data to its ROM
- * values and zeroes its BSS: 0 = image A ("Start", flag D_8011ED00), 1 = image B ("Extra", flag
- * D_8011ED04). The game-heap reservation at the image address stays. */
+ * values and zeroes its BSS: 0 = image A ("Start", flag start_overlay_loaded), 1 = image B ("Extra", flag
+ * extra_overlay_loaded). The game-heap reservation at the image address stays. */
 void pc_data_overlay_load(int overlay);
 /* No ROM addresses on the PC: the images come from port/data. */
 #define D_00BE4C70 0
 #define D_00BDA100 0
-#define D_8002B020 0
-#define D_8002B024 0
+#define start_overlay_rom 0
+#define extra_overlay_rom 0
 
-void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom) {
+void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom) {
     void *p;
 
     if (*loaded != 0) {
@@ -68,16 +68,16 @@ void PrevMaxPath(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bss
     if (bssEnd) {}
     if (bssEnd) {}
     if (bssStart) {}
-    p = NextMaxPath(N64A(dst), end - dst);
+    p = allocate_memory_at(N64A(dst), end - dst);
     PurgeableMemory(N64A0(p), 0);
-    pc_data_overlay_load(loaded == &D_8011ED04);
+    pc_data_overlay_load(loaded == &extra_overlay_loaded);
     *loaded = 1;
 }
 
-void InitMaxPath(void) {
-    PrevMaxPath(N64PTR(u8 *, 0x8038A400), "Extra", N64PTR(u8 *, 0x803BB380), D_8039B440, D_00BE4C70, D_80394F70, &D_8011ED04, D_8002B024);
+void load_extra_overlay(void) {
+    load_overlay(N64PTR(u8 *, 0x8038A400), "Extra", N64PTR(u8 *, 0x803BB380), extra_overlay_bss_end, D_00BE4C70, gShotObjList, &extra_overlay_loaded, extra_overlay_rom);
 }
 
-void sync_maxpath_to_checkpoint(void) {
-    PrevMaxPath(N64PTR(u8 *, 0x8038A400), "Start", N64PTR(u8 *, 0x803BB380), D_803BAE20, D_00BDA100, D_803B9A50, &D_8011ED00, D_8002B020);
+void load_start_overlay(void) {
+    load_overlay(N64PTR(u8 *, 0x8038A400), "Start", N64PTR(u8 *, 0x803BB380), start_overlay_bss_end, D_00BDA100, gTrophyMat, &start_overlay_loaded, start_overlay_rom);
 }

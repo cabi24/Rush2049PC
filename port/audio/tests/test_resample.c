@@ -1,6 +1,6 @@
 /* The voice resampler: the 4-tap table (computed, or found in the ROM's microcode data), unity DC gain,
  * pitch ratios, and continuity across subframes and tasks with voices built the way the game builds them
- * (func_80012D18 / func_80011D74), looping PCM16 and ADPCM, against a closed-form reference stream. */
+ * (sound_hw_build_voice_command / sound_hw_advance_voice_position), looping PCM16 and ADPCM, against a closed-form reference stream. */
 #include <stdlib.h>
 #include <string.h>
 

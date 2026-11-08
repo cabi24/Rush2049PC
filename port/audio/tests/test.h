@@ -55,7 +55,7 @@ void ref_make_book(int16_t entry[16], double a1, double a2);
 /* Encode frames (an even count) of pcm with book entry idx; out gets frames / 2 * 40 bytes. */
 void ref_adpcm_encode(const int16_t *pcm, unsigned frames, const int16_t book[128], int idx, uint8_t *out);
 
-/* The game's voice builder (func_80012D18, RAM-resident sample path) and position update (func_80011D74). */
+/* The game's voice builder (sound_hw_build_voice_command, RAM-resident sample path) and position update (sound_hw_advance_voice_position). */
 typedef struct {
     const uint8_t *data;   /* PCM16: the samples; ADPCM: a 256-byte codebook, then blocks */
     int format;            /* 0 PCM16, 3 ADPCM */

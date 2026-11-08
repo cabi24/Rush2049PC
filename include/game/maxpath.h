@@ -173,12 +173,12 @@ f32 maxpath_interpolate_speed(s32 p1, s32 p2, f32 t);
  * ======================================================================== */
 
 /**
- * InitMaxPath - Initialize maxpath system for race
- * Based on arcade: maxpath.c:InitMaxPath()
+ * load_extra_overlay - Initialize maxpath system for race
+ * Based on arcade: maxpath.c:load_extra_overlay()
  *
  * @param record Recording mode (-1 = playback, >=0 = record to that slot)
  */
-void InitMaxPath(s32 record);
+void load_extra_overlay(s32 record);
 
 /**
  * MaxPathControls - Generate AI inputs from path following
@@ -199,20 +199,20 @@ void MaxPathControls(s32 car_index);
 void MP_FindInterval(s32 car_index);
 
 /**
- * MP_TargetSpeed - Calculate target speed from path data
- * Based on arcade: maxpath.c:MP_TargetSpeed()
+ * unload_extra_overlay - Calculate target speed from path data
+ * Based on arcade: maxpath.c:unload_extra_overlay()
  *
  * @param car_index Car to update
  */
-void MP_TargetSpeed(s32 car_index);
+void unload_extra_overlay(s32 car_index);
 
 /**
- * MP_TargetSteerPos - Calculate target steering position
- * Based on arcade: maxpath.c:MP_TargetSteerPos()
+ * AudioPlayEffectInternal - Calculate target steering position
+ * Based on arcade: maxpath.c:AudioPlayEffectInternal()
  *
  * @param car_index Car to update
  */
-void MP_TargetSteerPos(s32 car_index);
+void AudioPlayEffectInternal(s32 car_index);
 
 /**
  * AdjustSpeed - Convert target speed to throttle/brake inputs
@@ -224,33 +224,33 @@ void MP_TargetSteerPos(s32 car_index);
 void AdjustSpeed(s32 car_index, f32 tspd);
 
 /**
- * AdjustSteer - Convert target position to steering wheel input
- * Based on arcade: maxpath.c:AdjustSteer()
+ * PS_PurgeFile - Convert target position to steering wheel input
+ * Based on arcade: maxpath.c:PS_PurgeFile()
  *
  * @param car_index Car index
  * @param pos Target position (relative to car) [3]
  */
-void AdjustSteer(s32 car_index, f32 *pos);
+void PS_PurgeFile(s32 car_index, f32 *pos);
 
 /**
- * PrevMaxPath - Get previous maxpath index with lap wrap
- * Based on arcade: maxpath.c:PrevMaxPath()
+ * load_overlay - Get previous maxpath index with lap wrap
+ * Based on arcade: maxpath.c:load_overlay()
  *
  * @param mpi Current index
  * @param path_index Path to use
  * @return Previous index
  */
-s32 PrevMaxPath(s32 mpi, s16 path_index);
+s32 load_overlay(s32 mpi, s16 path_index);
 
 /**
- * NextMaxPath - Get next maxpath index with lap wrap
- * Based on arcade: maxpath.c:NextMaxPath()
+ * allocate_memory_at - Get next maxpath index with lap wrap
+ * Based on arcade: maxpath.c:allocate_memory_at()
  *
  * @param mpi Current index
  * @param path_index Path to use
  * @return Next index
  */
-s32 NextMaxPath(s32 mpi, s16 path_index);
+s32 allocate_memory_at(s32 mpi, s16 path_index);
 
 /**
  * CalcTargetPoint - Calculate world position for steering target

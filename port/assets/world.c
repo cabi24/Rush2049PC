@@ -2,11 +2,11 @@
  *
  * A world WAD is a WAD (pc_assets_wad runs first and handles the container) with four chunks of its own:
  *   WHDR  u32 count; count x {u32 woff; char name[16]} (0x14), sorted by name. LoadTrack adds the file's address
- *         to woff; NewWorld (wheel_torque_apply) bsearches the names.
+ *         to woff; NewWorld (NewWorld) bsearches the names.
  *   WOBJ  0x68-byte world nodes: char name[16]; f32 mat[12] @0x10; u32 dlflags @0x40; s16 next, child, sfx1,
  *         sfx2 @0x44; s32 tidx @0x4C; f32 min[3], max[3] @0x50. next and child index from the world's first node.
  *   GDAT  0x1C-byte quadtree nodes: s16 parent; u8, u8 flags; f32 minh, maxh, minv, maxv; u16 child[4].
- *   GTLD  u32 target keys, which race setup (engine_sound_update, groups/level_objects) replaces in place by
+ *   GTLD  u32 target keys, which race setup (SetTargetDefs, groups/targets) replaces in place by
  *         object pointers.
  * pc_assets_world swaps all four in place. A host object pointer doesn't fit a GTLD slot, so LoadTrack's PC view
  * (groups/loadtrack/loadtrack.c) gets GTLD as a native array of the keys from pc_world_chunk instead (§4 #14).
@@ -15,7 +15,7 @@
  * {u32 tag, u32 offset, u32 count}). pc_assets_wad may already have swapped it to host order, or not: each word
  * is read in whichever order makes it valid (a tag matches in exactly one order). The TOC's third word is a
  * byte length for WHDR (unused: the chunk has its own count) and a record count for the others: LoadTrack hands
- * GTLD's to race setup as the number of keys (D_801497EC), and the retail worlds' WOBJ and GDAT counts are
+ * GTLD's to race setup as the number of keys (numgTargetGroupList), and the retail worlds' WOBJ and GDAT counts are
  * record counts too (ASSETS.md §8). Neither of those two is read by the game, which reaches the nodes from WHDR
  * and the quadtree from its node 0; so when their count doesn't fit the file, both are converted by walking them
  * as the game does instead. */
@@ -92,7 +92,7 @@ static void swap_node(uint8_t *n)
 }
 
 /* Without a WOBJ entry that fits: swap the nodes each world reaches from its first node through next and child,
- * as NewWorld and differential_output do, once each. */
+ * as NewWorld and NewWorldObject do, once each. */
 static void swap_reached_nodes(uint8_t *buf, size_t size, const uint8_t *whdr, uint32_t worlds)
 {
     size_t cap = size / WOBJ_SIZE + 1;
@@ -143,7 +143,7 @@ static void swap_gdat(uint8_t *g)
     pc_swap16_n(g + 0x14, 4);    /* child[4] (leaves: count, first, 0) */
 }
 
-/* Without a GDAT count that fits: the quadtree race_setup_2 walks, from node 0; a node with flags bit 0 has four
+/* Without a GDAT count that fits: the quadtree CheckTargetCollision walks, from node 0; a node with flags bit 0 has four
  * children (GDAT indices), the others are leaves. */
 static void swap_gdat_tree(uint8_t *buf, size_t size, size_t off)
 {
@@ -214,7 +214,7 @@ void pc_assets_world(int wave, uint8_t *buf, size_t size)
 }
 
 /* LoadTrack's MBGetFromWad on PC: the chunk's host address, from its 32-bit window address, for every tag but GTLD,
- * for which it is a native array of the keys, each sign-extended as engine_sound_update compares it
+ * for which it is a native array of the keys, each sign-extended as SetTargetDefs compares it
  * ((void *)node->key with an s32 key). One array, reused by the next track. */
 uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
 {

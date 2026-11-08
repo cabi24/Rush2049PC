@@ -1106,8 +1106,8 @@ size_t pc_audio_queued_frames(void)
 /* The interpreter wrote one of the game's AI buffers (musyx.c). It is for the push after the last render's: the game
  * renders its ring in order. Unless the renderer may have started over: the order jumps, or a ring turn of pushes
  * went by without a render. Then it is for the buffer's next push, as at the ring's front. The game stops its
- * renderer after it has rendered 8 more buffers (func_80014140), at the front unless it was behind, and starts it
- * again at the new front (func_800140F8): from the front, a jump as long as the pushes made meanwhile, which only a
+ * renderer after it has rendered 8 more buffers (sound_hw_remove_callback), at the front unless it was behind, and starts it
+ * again at the new front (sound_hw_install_callback): from the front, a jump as long as the pushes made meanwhile, which only a
  * whole turn of them hides. Matched as ahead, a renderer that had only stalled plays a turn late, in order, never
  * early; when it catches up, the match would pass the ring's front and comes back. A match that moves drops the
  * renders kept for pushes from there on: under the old one they would play out of order. The same buffer rendered

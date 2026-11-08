@@ -32,7 +32,7 @@
 #include "netplay.h"
 #include "ultra.h"
 
-extern void n64_main(void *argument);   /* src/rom/lib_2cf0.c */
+extern void n64_main(void *argument);   /* src/rom/boot.c */
 static PcMods g_mods;                   /* the mods folder (docs/port/MODS.md) */
 int pc_selftest(void);                  /* port/ultra/selftest.c */
 
@@ -141,14 +141,14 @@ static void usage(FILE *f)
 #define BLANK_WAVES 183
 #define BLANK_FILE_SIZE 0x200u
 #define BLANK_FILE_ROM 0x1000u
-extern uint32_t D_8002E580[BLANK_WAVES];   /* gWaveSizes */
-extern uint32_t D_8011B5BC[BLANK_WAVES];   /* ROM offsets */
-extern int32_t D_80123564[BLANK_WAVES];    /* storage kind: 0 raw */
+extern uint32_t gWaveSizes[BLANK_WAVES];   /* gWaveSizes */
+extern uint32_t wave_rom_offsets[BLANK_WAVES];   /* ROM offsets */
+extern int32_t wave_storage_kinds[BLANK_WAVES];    /* storage kind: 0 raw */
 
 static void blank_files(void)
 {
     for (int i = 0; i < BLANK_WAVES; i++)
-        D_8002E580[i] = BLANK_FILE_SIZE, D_8011B5BC[i] = BLANK_FILE_ROM, D_80123564[i] = 0;
+        gWaveSizes[i] = BLANK_FILE_SIZE, wave_rom_offsets[i] = BLANK_FILE_ROM, wave_storage_kinds[i] = 0;
 }
 
 /* RUSH2049_TEST_WAVE_GROW=FIRST[-LAST]:BYTES (tests, docs/port/MEMORY.md 5): those waves' files are BYTES larger than
@@ -171,7 +171,7 @@ static void test_grow_waves(void)
     if (last >= BLANK_WAVES)
         last = BLANK_WAVES - 1;
     for (unsigned w = first; w <= last; w++)
-        D_8002E580[w] += bytes;
+        gWaveSizes[w] += bytes;
     fprintf(stderr, "rush2049pc: test: waves %u-%u are %u bytes larger (RUSH2049_TEST_WAVE_GROW)\n", first, last,
             bytes);
 }
@@ -180,29 +180,29 @@ static void test_grow_waves(void)
  * sndInit's first allocation calls 0. Its eight slots are the eight functions at the end of the game's code
  * (0x8010FBB4-0x8010FD7C), which nothing calls directly; their order here follows how the library calls each
  * slot. With a ROM the data loader fills the table, and a difference from this list is logged. */
-extern void (*D_8011EAAC[8])(void);
-extern void func_8010FBE0(void *task);                              /* 0: submit the audio task */
-extern void sync_acquire_menu(void);                                /* 1: wait for it */
-extern int32_t func_8010FC60(intptr_t callback);                    /* 2: set the retrace callback */
-extern void func_8010FC70(int32_t unused);                          /* 3: clear it */
-extern int32_t struct_init_and_call(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
-extern intptr_t func_8010FD60(intptr_t address);                    /* 5: cartridge address */
-extern void *resource_alloc_init(int32_t size, int32_t mode);       /* 6: allocate */
-extern void synced_model_render(uint32_t address);                  /* 7: free */
+extern void (*audio_driver_services[8])(void);
+extern void musyx_submit_audio_task(void *task);                              /* 0: submit the audio task */
+extern void musyx_wait_audio_task(void);                                /* 1: wait for it */
+extern int32_t musyx_set_retrace_callback(intptr_t callback);                    /* 2: set the retrace callback */
+extern void musyx_clear_retrace_callback(int32_t unused);                          /* 3: clear it */
+extern int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
+extern intptr_t musyx_cart_address(intptr_t address);                    /* 5: cartridge address */
+extern void *musyx_alloc(int32_t size, int32_t mode);       /* 6: allocate */
+extern void musyx_free(uint32_t address);                  /* 7: free */
 
 static void musyx_services(int no_rom)
 {
     void (*const known[8])(void) = {
-        (void (*)(void))func_8010FBE0,  (void (*)(void))sync_acquire_menu,    (void (*)(void))func_8010FC60,
-        (void (*)(void))func_8010FC70,  (void (*)(void))struct_init_and_call, (void (*)(void))func_8010FD60,
-        (void (*)(void))resource_alloc_init, (void (*)(void))synced_model_render,
+        (void (*)(void))musyx_submit_audio_task,  (void (*)(void))musyx_wait_audio_task,    (void (*)(void))musyx_set_retrace_callback,
+        (void (*)(void))musyx_clear_retrace_callback,  (void (*)(void))musyx_start_dma_list, (void (*)(void))musyx_cart_address,
+        (void (*)(void))musyx_alloc, (void (*)(void))musyx_free,
     };
     for (int i = 0; i < 8; i++) {
         if (no_rom)
-            D_8011EAAC[i] = known[i];
-        else if (D_8011EAAC[i] != known[i])
+            audio_driver_services[i] = known[i];
+        else if (audio_driver_services[i] != known[i])
             fprintf(stderr, "rush2049pc: MusyX service %d is %p in the ROM's table, not %p as the port expects\n", i,
-                    (void *)D_8011EAAC[i], (void *)known[i]);
+                    (void *)audio_driver_services[i], (void *)known[i]);
     }
 }
 
@@ -245,11 +245,11 @@ static void remember_window(const PcSettings *cfg, int headless)
 
 /* The game's state word (gGameState, groups/state/state.c), which the host loop logs and --until-state waits
  * for: 1 initGameState, 2 the start prompt, 0x40000000 the pak warning, 4 the front end's menus, ... */
-extern uint32_t state_word_a;
+extern uint32_t gGameState;
 
 static uint32_t game_state(void)
 {
-    return *(volatile uint32_t *)&state_word_a;
+    return *(volatile uint32_t *)&gGameState;
 }
 
 /* game.frame_rate as the game has it latched (pc_game_fps.h): 60, or 0 for original */
@@ -262,10 +262,10 @@ static int game_rate(void)
  * gTrackNum, the pause screen's state) and where the first car is (its model record's RWR and the length of RWV, in feet and feet a second;
  * and its steering input, -1..1),
  * so a scripted run shows which path it took and whether the car moved. */
-extern int16_t active_player_count, gNumWindows;
-extern int32_t gameplay_mode;
-extern int8_t D_80152744, D_8014978C;
-extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
+extern int16_t gNumPlayers, gNumWindows;
+extern int32_t gRace;
+extern int8_t gNumActiveCars, gTrackNum;
+extern int32_t gPauseState;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 its screens */
 
 /* --log-cars (docs/port/MORECARS.md 10.3): each car of the race at the run's end, its slot, whether its model is in
  * the race (active), its place (0 the first), lap and distance along the track and its position (its car record's),
@@ -274,7 +274,7 @@ extern int32_t D_801170FC;     /* gPauseState: 0 racing, 1 the pause menu, 2-8 i
  * or in the attract demo, 8, with its cars in the race), so a test can tell that a race of N cars held N, each at a
  * place of its own and each moving (tools/port/cars_check.py). Off by default, and only this line: the traces are the
  * same with it. */
-extern int16_t D_801543CA;      /* the race's car slots (gNumCars) */
+extern int16_t gNumCars;      /* the race's car slots (gNumCars) */
 static int g_log_cars;
 static float g_cars_start[PC_MODEL_SLOTS][3];
 static int g_cars_started;
@@ -282,7 +282,7 @@ static int g_cars_started;
 static void cars_note_start(void)
 {
     uint32_t s = game_state();
-    int demo = (s & 8u) && *(volatile int8_t *)&D_80152744 > 0 && *(volatile int16_t *)&pc_models[0].active;
+    int demo = (s & 8u) && *(volatile int8_t *)&gNumActiveCars > 0 && *(volatile int16_t *)&pc_models[0].active;
     if (!g_log_cars || g_cars_started || s == 0xFFFFFFFFu || !((s & 0x400000u) || demo))
         return;
     for (int i = 0; i < PC_MODEL_SLOTS; i++)
@@ -293,7 +293,7 @@ static void cars_note_start(void)
 
 static void cars_info(char *out, size_t size)
 {
-    int n = *(volatile int16_t *)&D_801543CA, len;
+    int n = *(volatile int16_t *)&gNumCars, len;
     if (n < 0 || n > PC_MODEL_SLOTS)
         n = PC_MODEL_SLOTS;
     len = snprintf(out, size, "cars at the end: %d in the race, count %d%s", n, pc_race_cars(),
@@ -314,22 +314,22 @@ static void cars_info(char *out, size_t size)
     }
 }
 
-/* --log-physics N (docs/port/FRAMERATE.md 7): every N retraces, the model thread's tick (D_80143FF4) and time
- * (D_801543CC) and each car of the race (gNumCars, D_801543CA): its model record's position (RWR) and velocity (RWV),
+/* --log-physics N (docs/port/FRAMERATE.md 7): every N retraces, the model thread's tick (gModelIteration) and time
+ * (gModelTime) and each car of the race (gNumCars, gNumCars): its model record's position (RWR) and velocity (RWV),
  * its lap and its place. Read as the state log is, while every N64 thread waits, so a run at game.frame_rate 60 and
  * one at original compare retrace by retrace (tools/port/fps_compare.py). RUSH_STATE_EXACT gives exact hex floats. */
-extern int32_t D_80143FF4;
-extern float D_801543CC;
+extern int32_t gModelIteration;
+extern float gModelTime;
 static void physics_info(char *out, size_t size)
 {
     static int exact = -1;
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
-    int n = *(volatile int16_t *)&D_801543CA, len;
+    int n = *(volatile int16_t *)&gNumCars, len;
     if (n < 0 || n > PC_MODEL_SLOTS)
         n = 0;
     len = snprintf(out, size, exact ? "tick %d time %a cars %d" : "tick %d time %.3f cars %d",
-                   (int)*(volatile int32_t *)&D_80143FF4, (double)*(volatile float *)&D_801543CC, n);
+                   (int)*(volatile int32_t *)&gModelIteration, (double)*(volatile float *)&gModelTime, n);
     for (int i = 0; i < n && len > 0 && (size_t)len < size; i++) {
         const volatile float *r = pc_models[i].rwr, *v = pc_models[i].rwv;
         len += snprintf(out + len, size - (size_t)len, exact ? "; %d %a %a %a v %a %a %a lap %d place %d"
@@ -347,8 +347,8 @@ static void physics_info(char *out, size_t size)
  * high-water mark, and which drones' engines played (audio.engines). At the end, the same over the whole run, with the
  * mixer's spread. Off by default, and only these lines: the traces are the same with it. */
 typedef struct { unsigned char f[4]; uint32_t count; void *head, *tail; } SndList;
-extern SndList D_801461E8, D_80143FF8;   /* the active emitters; the free fx tags */
-extern int32_t D_80110264, D_8011026C;   /* the fx tags made, the emitters made (hud_setup) */
+extern SndList gActiveEmitters, gFreeFxTags;   /* the active emitters; the free fx tags */
+extern int32_t gNumFxTags, gNumEmitters;   /* the fx tags made, the emitters made (AudioInit) */
 static uint32_t g_voices_every;
 static PcMixerStats g_voices_mix;
 static unsigned long long g_voices_count[PC_SND_COUNTERS];
@@ -370,9 +370,9 @@ static int voices_line(char *out, size_t size, const PcMixerStats *m, const PcMi
                     d[PC_SND_PASSES] ? (double)d[PC_SND_OVER_BUDGET] / (double)d[PC_SND_PASSES] : 0.0,
                     d[PC_SND_PASSES], d[PC_SND_NO_EMITTER], d[PC_SND_NO_MESSAGE], d[PC_SND_NO_ENTRY],
                     d[PC_SND_MX_LOOP_ORPHAN], d[PC_SND_START_PLAYING],
-                    (unsigned)*(volatile uint32_t *)&D_801461E8.count, (int)*(volatile int32_t *)&D_8011026C,
-                    (int)*(volatile int32_t *)&D_80110264 - (int)*(volatile uint32_t *)&D_80143FF8.count,
-                    (int)*(volatile int32_t *)&D_80110264);
+                    (unsigned)*(volatile uint32_t *)&gActiveEmitters.count, (int)*(volatile int32_t *)&gNumEmitters,
+                    (int)*(volatile int32_t *)&gNumFxTags - (int)*(volatile uint32_t *)&gFreeFxTags.count,
+                    (int)*(volatile int32_t *)&gNumFxTags);
 }
 
 static void voices_info(char *out, size_t size)
@@ -440,7 +440,7 @@ static void ends_info(char *out, size_t size)   /* --log-cars and --log-voices t
         voices_end(out + len, size - (size_t)len);
 }
 
-/* --log-frames (docs/port/FRAMERATE.md 7.6): each of the game's frames, at its start (viUpdateTime, on the game
+/* --log-frames (docs/port/FRAMERATE.md 7.6): each of the game's frames, at its start (UpdateFrameTimer, on the game
  * thread): the retrace, the frame's retraces, the model tick, and what the last frame drew from: the camera's eye
  * (gCamera[0].pos, +36), car 0's drawn position (its car record, which the game makes from the model record once a
  * frame) and the camera's view direction (the third row of its matrix, +24). tools/port/fps_even.py checks one model tick a frame at 60 and two at original, and the eye's steps even.
@@ -455,7 +455,7 @@ static void frame_log(int retraces)
                          *c = pc_cars[0].pos;
     fprintf(stderr, exact ? "rush2049pc: frame vi=%u: retraces %d tick %d eye %a %a %a car %a %a %a view %a %a %a\n"
             : "rush2049pc: frame vi=%u: retraces %d tick %d eye %.3f %.3f %.3f car %.3f %.3f %.3f view %.4f %.4f %.4f\n",
-            __atomic_load_n(&pc_frame, __ATOMIC_RELAXED), retraces, (int)*(volatile int32_t *)&D_80143FF4,
+            __atomic_load_n(&pc_frame, __ATOMIC_RELAXED), retraces, (int)*(volatile int32_t *)&gModelIteration,
             (double)e[0], (double)e[1], (double)e[2], (double)c[0], (double)c[1], (double)c[2], (double)f[0],
             (double)f[1], (double)f[2]);
 }
@@ -473,9 +473,9 @@ static void game_info(char *out, size_t size)
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
     snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
              "speed %a, steer %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f "
-             "%.0f, speed %.0f, steer %.2f", *(volatile int16_t *)&active_player_count, *(volatile int16_t *)&gNumWindows,
-             *(volatile int8_t *)&D_80152744, (int)*(volatile int32_t *)&gameplay_mode, *(volatile int8_t *)&D_8014978C,
-             (int)*(volatile int32_t *)&D_801170FC, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
+             "%.0f, speed %.0f, steer %.2f", *(volatile int16_t *)&gNumPlayers, *(volatile int16_t *)&gNumWindows,
+             *(volatile int8_t *)&gNumActiveCars, (int)*(volatile int32_t *)&gRace, *(volatile int8_t *)&gTrackNum,
+             (int)*(volatile int32_t *)&gPauseState, (double)r[0], (double)r[1], (double)r[2], speed, (double)*steer);
 }
 
 /* video.hud = edges moves the HUD to the screen's edges only in a race with one view (port/gfx/gfx_hud.c): the
@@ -488,17 +488,17 @@ static int hud_race(void)
 
 /* net.view = own (port/gfx/gfx_view.c, docs/port/NETPLAY.md 14): the race's views, from the game's own window records:
  * in the countdown and the race (its pause screen too) with two views, the two-player layout's rectangles
- * (wheel_render_full's D_80149B00 and D_80149B20: x0, y0, x1, y1, the scissor each view's 3D is drawn under). Read
+ * (ZOID_SplitMenuScreen's scissor1 and scissor2: x0, y0, x1, y1, the scissor each view's 3D is drawn under). Read
  * only, on the main thread, as hud_race reads the state. */
-extern int16_t D_80149B00[4], D_80149B20[4];
+extern int16_t scissor1[4], scissor2[4];
 static int race_views(int rect[][4], int max)
 {
     uint32_t s = game_state();
     if (max < 2 || s == 0xFFFFFFFFu || (s & 0x00600000u) == 0 || *(volatile int16_t *)&gNumWindows != 2)
         return 0;
     for (int k = 0; k < 4; k++) {
-        rect[0][k] = *(volatile int16_t *)&D_80149B00[k];
-        rect[1][k] = *(volatile int16_t *)&D_80149B20[k];
+        rect[0][k] = *(volatile int16_t *)&scissor1[k];
+        rect[1][k] = *(volatile int16_t *)&scissor2[k];
     }
     return 2;
 }
@@ -590,7 +590,7 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
 /* ---------------------------------------------------------------- the mods folder (docs/port/MODS.md) */
 
 /* The ROM offset the sample directory's offsets count from: the sample base AudioInitSys hands sndPushGroup,
- * (s32)D_00039B40 (groups/audio_init_sys/car_shadow_render.c, docs/port/MUSYX_DATA.md). */
+ * (s32)D_00039B40 (groups/AudioInitSys/AudioInitSys.c, docs/port/MUSYX_DATA.md). */
 #define MODS_SAMPLE_BASE 0x39B40u
 
 static PcMenuMod g_menu_mods[PC_MENU_MODS];
@@ -649,7 +649,7 @@ static int mods_prepare(const PcSettings *cfg, const PcAppDirs *dirs, int dir_fr
 static void mods_install(void)
 {
     char dirs[4 * PC_APP_PATH];
-    int n = pc_mods_install(&g_mods, D_8011B5BC, D_8002E580, D_80123564);
+    int n = pc_mods_install(&g_mods, wave_rom_offsets, gWaveSizes, wave_storage_kinds);
     if (n)
         fprintf(stderr, "rush2049pc: mods: %d of the cartridge's files replaced (%zu KiB)\n", n,
                 g_mods.region_size >> 10);
@@ -662,11 +662,11 @@ static void mods_install(void)
 
 /* Whether the game can take a controller pak taken out and put back now, for another choice of saves on it (si.c's
  * swap): at the start prompt, "press start" or the main menu (gGameState 2, 4, 0x10), with no player on a saved
- * profile (each input record's profile handle a default one, &D_80146150[k], or none) and no ghost chosen for a
+ * profile (each input record's profile handle a default one, &gJustPlayers[k], or none) and no ghost chosen for a
  * race (gGhosts). Elsewhere the change waits, at most until the next start. */
-extern void *D_80146150[4];                                 /* the default profiles' handles */
-extern struct { void **handle; uint8_t rest[72]; } D_8014A160[4];   /* gPlayers, seen from their profile handle */
-extern void **D_80152698[4];                                /* gGhosts: the ghosts of the next race */
+extern void *gJustPlayers[4];                                 /* the default profiles' handles */
+extern struct { void **handle; uint8_t rest[72]; } gPlayers_save[4];   /* gPlayers, seen from their profile handle */
+extern void **gGhosts[4];                                /* gGhosts: the ghosts of the next race */
 
 static int swap_safe(int ch)
 {
@@ -675,10 +675,10 @@ static int swap_safe(int ch)
     if (s != 0x2 && s != 0x4 && s != 0x10)
         return 0;
     for (int i = 0; i < 4; i++) {
-        void **h = *(void **volatile *)&D_8014A160[i].handle;
-        if (h && (h < &D_80146150[0] || h >= &D_80146150[4]))
+        void **h = *(void **volatile *)&gPlayers_save[i].handle;
+        if (h && (h < &gJustPlayers[0] || h >= &gJustPlayers[4]))
             return 0;
-        if (*(void **volatile *)&D_80152698[i])
+        if (*(void **volatile *)&gGhosts[i])
             return 0;
     }
     return 1;
@@ -686,8 +686,8 @@ static int swap_safe(int ch)
 
 /* The game's own note name prefix and ghost extension in the pak's character set (the game's data, read at run
  * time: never kept), for the ghosts imported into a folder (pakstore.c places them on the pak with them). */
-extern char D_801211BC[], D_801211F4[], D_801211C8[];   /* the prefix SaveServer reads, the ghost's and profile's ext */
-void func_800A150C(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII to the pak's characters (the game's) */
+extern char save_file_name_prefix[], ghost_file_ext[], player_file_ext_prefix[];   /* the prefix SaveServer reads, the ghost's and profile's ext */
+void pak_encode_name(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII to the pak's characters (the game's) */
 
 static uint8_t g_early_names[12];   /* saves_game_names_early's prefix and extension */
 static int g_early_names_set;
@@ -696,14 +696,14 @@ static void saves_game_names(void)
 {
     uint8_t prefix[8], ext[4], in[16];
     memset(in, 0, sizeof in);
-    memcpy(in, D_801211BC, 8);
-    func_800A150C(prefix, in, 8);
+    memcpy(in, save_file_name_prefix, 8);
+    pak_encode_name(prefix, in, 8);
     memset(in, 0, sizeof in);
-    memcpy(in, D_801211F4, 4);
-    func_800A150C(ext, in, 4);
+    memcpy(in, ghost_file_ext, 4);
+    pak_encode_name(ext, in, 4);
     /* SaveServer tells a ghost from a profile by the extension's first character: with no prefix, or a ghost
      * extension that starts as the profile's (a cartridge without the strings), an import keeps its own names */
-    if (!prefix[0] || !ext[0] || !D_801211F4[0] || D_801211F4[0] == D_801211C8[0]) {
+    if (!prefix[0] || !ext[0] || !ghost_file_ext[0] || ghost_file_ext[0] == player_file_ext_prefix[0]) {
         pc_store_set_game_names(NULL, NULL);
         return;
     }
@@ -713,7 +713,7 @@ static void saves_game_names(void)
     pc_store_set_game_names(prefix, ext);
 }
 
-/* func_800A150C's conversion (src/blob/func_800A150C.c), on a table given: each character the index of the first
+/* pak_encode_name's conversion (src/blob/pak_encode_name.c), on a table given: each character the index of the first
  * entry of the pak's character table that is its code (two-byte codes after a first byte of 255), up to limit, zeros
  * after. */
 static void pak_chars(const uint16_t font[256], const uint8_t *in, uint8_t *out, int limit)
@@ -734,7 +734,7 @@ static void pak_chars(const uint16_t font[256], const uint8_t *in, uint8_t *out,
 /* The same names before the game's data is loaded: an online session's handshake builds this player's pak from its
  * saves folder then, before the guest's memory can be mapped (docs/port/NETPLAY.md 17), and an import on it gets them
  * as on the pak of a game on its own. The strings and the pak's character table are read from the cartridge's data
- * image as it holds them (pc_data_peek: the N64's byte order), and converted here as func_800A150C does; once the data
+ * image as it holds them (pc_data_peek: the N64's byte order), and converted here as pak_encode_name does; once the data
  * is loaded saves_game_names sets them again from it, and says so if they differ. */
 static void saves_game_names_early(void)
 {
@@ -742,10 +742,10 @@ static void saves_game_names_early(void)
     uint16_t font[256];
     const uint8_t *rom = pc_rom_bytes();
     size_t size = pc_rom_size();
-    if (pc_data_peek(&pc_data_tables, rom, size, 0x8011EAECu, font_raw, sizeof font_raw) != 0 ||   /* D_8011EAEC */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211BCu, prefix_in, 8) != 0 ||               /* D_801211BC */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211F4u, ext_in, 4) != 0 ||                  /* D_801211F4 */
-        pc_data_peek(&pc_data_tables, rom, size, 0x801211C8u, &profile0, 1) != 0) {               /* D_801211C8 */
+    if (pc_data_peek(&pc_data_tables, rom, size, 0x8011EAECu, font_raw, sizeof font_raw) != 0 ||   /* pak_charset */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211BCu, prefix_in, 8) != 0 ||               /* save_file_name_prefix */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211F4u, ext_in, 4) != 0 ||                  /* ghost_file_ext */
+        pc_data_peek(&pc_data_tables, rom, size, 0x801211C8u, &profile0, 1) != 0) {               /* player_file_ext_prefix */
         fprintf(stderr, "rush2049pc: online: the game's names for imported ghosts can't be read before its data is "
                 "loaded: this player's imports keep their own on the session's pak\n");
         return;
@@ -859,8 +859,8 @@ static char *must_match_text(const PcSettings *cfg)
         ADD("%02x", sha[i]);
     ADD("\n");
     if (g_mods.enabled && g_mods.region_size) {   /* the mods' region and the file table that points there */
-        uint64_t h[4] = {pc_xxh64(g_mods.region, g_mods.region_size, 0), pc_xxh64(D_8011B5BC, sizeof D_8011B5BC, 0),
-                         pc_xxh64(D_8002E580, sizeof D_8002E580, 0), pc_xxh64(D_80123564, sizeof D_80123564, 0)};
+        uint64_t h[4] = {pc_xxh64(g_mods.region, g_mods.region_size, 0), pc_xxh64(wave_rom_offsets, sizeof wave_rom_offsets, 0),
+                         pc_xxh64(gWaveSizes, sizeof gWaveSizes, 0), pc_xxh64(wave_storage_kinds, sizeof wave_storage_kinds, 0)};
         ADD("mods=%016llx\n", (unsigned long long)pc_xxh64(h, sizeof h, 0));
     } else {
         ADD("mods=none\n");
@@ -1569,7 +1569,7 @@ static int rush_main(int argc, char **argv)
      * (docs/port/QA.md "Integration soak", fix 6). N >= 2: the audio shutdown waits for a message, and with 1
      * none would ever come. */
     {
-        extern int pc_audio_pool_fail_every;   /* src/blob/groups/slot18_alloc/func_80091B00.c */
+        extern int pc_audio_pool_fail_every;   /* src/blob/groups/abort_game/GetCmd.c */
         const char *e = getenv("RUSH2049_TEST_AUDIO_POOL_FAIL");
         if (e && *e) {
             int n = atoi(e);

@@ -1,5 +1,5 @@
 # Two players, battle mode (gRace 6) in its arena (track 6), split screen: image B's weapons, power-ups and mines
-# (docs/port/SYNTH.md 2). Mode 5 is locked (func_800F7644(18)), so battle is five modes down.
+# (docs/port/SYNTH.md 2). Mode 5 is locked (IsTrackUnlocked(18)), so battle is five modes down.
 # until: 0x400000:600
 # seconds: 90
 # expect: state=0x00400000: players 2, windows 2, cars 2, mode 6, track 6

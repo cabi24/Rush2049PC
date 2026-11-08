@@ -3,20 +3,20 @@
  * (pc_mp_steer, pc_mp_brake, pc_mp_gas, pc_mp_dir, pc_mp_save_dir) and the drone schedule update_drone_models
  * walks. This test and its game objects are built with PC_MAX_LINKS 16 (CMakeLists.txt), so the storages have 16
  * entries where the game build has 12 and the N64 6, and the schedule's second kind of row starts at 17.
- * - maxpath (MaxPathControls, func_800E4B58) for 12 cars on a straight path: each car's steer, brake and gas land in
+ * - maxpath (MaxPathControls, MaxPathControls) for 12 cars on a straight path: each car's steer, brake and gas land in
  *   its own slot and in its model record, its last directions are read and written in its own slot, and the other
- *   slots stay as they were; the camera's drone pick (func_800E451C) walks 11 drones, skipping the one this node
- *   doesn't drive; audio_effect_remove clears every slot's controls.
+ *   slots stay as they were; the camera's drone pick (IntervalPosChange) walks 11 drones, skipping the one this node
+ *   doesn't drive; InitPathData clears every slot's controls.
  * - update_drone_models: for the rows the N64 has (0-6 drones with one human, 0-4 with two) the order of the drones it
  *   updates is the N64's for the same table; for 7-12 drones (5-10 with two humans) each round updates every drone
  *   once, in as many model iterations as the table's last row of that kind, as evenly as it can, the larger first.
  *   The table here is the test's own (neither the retail cartridge's nor the synthetic one's), then the synthetic
- *   cartridge's kind ({n, -1}: every drone each iteration). A drone's and a human's retirement (func_800E56F8) move
+ *   cartridge's kind ({n, -1}: every drone each iteration). A drone's and a human's retirement (UpdateModel) move
  *   the next round to the row with a drone fewer and to the one-human rows.
  * - model_iteration's speed of every car, for the race's cars (PC_RACE_CARS: 6, then 12).
- * - DoDrones (render_large_objects) for 12 cars: the drones' weights by place and the human's neighbour drones.
- * game: src/blob/groups/func_800E56F8/group.c src/blob/groups/maxpath_controls/group.c src/blob/audio_effect_remove.c
- * game: src/blob/groups/render_large_objects/group.c
+ * - DoDrones (DoDrones) for 12 cars: the drones' weights by place and the human's neighbour drones.
+ * game: src/blob/groups/update_model/group.c src/blob/groups/maxpath/group.c src/blob/InitPathData.c
+ * game: src/blob/groups/drones/group.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -35,67 +35,67 @@ float pc_mp_steer[PC_MAX_LINKS], pc_mp_brake[PC_MAX_LINKS], pc_mp_gas[PC_MAX_LIN
 float pc_mp_dir[PC_MAX_LINKS][3], pc_mp_save_dir[PC_MAX_LINKS][3];
 
 int16_t D_80120E74[64];                 /* the schedule: Row3[12], and room for a walk past it */
-int16_t D_8015274C, D_80153E84, D_80153F08, D_80153F24, D_80153F40, D_80154182;
-volatile int16_t D_80152768, D_80153FD2;
-volatile uint16_t D_801525F0;
-int8_t D_80152744, D_801543C8, D_8014978C, D_80152015, D_80152030, D_80152570, D_80152718;
-uint8_t D_8013FECB, D_80142760;
-int32_t D_80143FF4, gameplay_mode, state_word_a, D_801174B4, D_8014A110, D_801163F8[36];
-float D_801543CC, D_80154190, D_8002AFB8 = 1.0f / 60, D_8012447C, D_80124480, D_801161D4[8], D_801161E4[8];
-int8_t D_801440AD[4 * 0x310];
-intptr_t D_80152698[16];
-int16_t D_80154484[16][38];
-uint8_t input_rec0[4 * 80];
-struct { char c[4]; } D_80120E50;
+int16_t num_our_drones, sched_to_use, new_sched_to_use, sched_index, cur_drone, current_drone;
+volatile int16_t num_drones, num_humans;
+volatile uint16_t modelrun;
+int8_t gNumActiveCars, gGravityScale, gTrackNum, gOneMoreCP, gDifficulty, gBackwards, gEndGame;
+uint8_t gCoastFlag, gDeathMode;
+int32_t gModelIteration, gRace, gGameState, gGameState, gRace, D_801163F8[36];
+float gModelTime, gLastPathSwitchTime, gRetraceTime = 1.0f / 60, roadboost_time_scale, solid_delay_arena, gravitySpeedIncrease[8], gravitySpeedMin[8];
+int8_t gPaks_rumble_request[4 * 0x310];
+intptr_t gGhosts[16];
+int16_t gCircuitCars_skill[16][38];
+uint8_t gPlayers[4 * 80];
+struct { char c[4]; } target_steer_zero_dist_message;
 
 typedef struct { int16_t x, y, z; uint8_t flag, hint; } TrackPt;
 typedef struct { uint16_t numPoints, pad; TrackPt *points; } Track;
 typedef struct { uint8_t pad0[2]; int16_t last; uint8_t pad4[4]; int16_t count; uint8_t padA[0x26]; int16_t start[16]; } Section;
 #define NPTS 256
 static TrackPt g_pts[NPTS];
-Track D_8012E5E8[4];
-Section D_80151CE8[2];
+Track gDronePaths[4];
+Section gCheckpoints[2];
 
 /* What the code calls: the path's helpers, and the model update's callees, which record the slots they were given. */
 static int g_updated[4096], g_nupdated;
 static float g_angle;
-void car_select_handler(int16_t slot) { if (g_nupdated < 4096) g_updated[g_nupdated++] = slot; }
-int16_t func_800B9338(int16_t pt, int16_t sel) { (void)sel; return (int16_t)((pt + 1) % NPTS); }
-int16_t func_800DC080(int16_t pt, int16_t sel) { (void)sel; return (int16_t)((pt + NPTS - 1) % NPTS); }
-float func_800BDD90(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1]); }
-float func_8008B3C8(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
-float func_8008C768(float y, float x) { (void)y; (void)x; return g_angle; }
-void func_800A61B0(float *d, float *out, float *m) { (void)m; out[0] = d[0], out[1] = d[1], out[2] = d[2]; }
-void camera_blend_between(void *m, float *s) { (void)m; (void)s; }
+void CheckCrash(int16_t slot) { if (g_nupdated < 4096) g_updated[g_nupdated++] = slot; }
+int16_t NextPathPt(int16_t pt, int16_t sel) { (void)sel; return (int16_t)((pt + 1) % NPTS); }
+int16_t PrevPathPt(int16_t pt, int16_t sel) { (void)sel; return (int16_t)((pt + NPTS - 1) % NPTS); }
+float TB_Vector2Normalize(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1]); }
+float vector_magnitude(float *v) { return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
+float fatan2(float y, float x) { (void)y; (void)x; return g_angle; }
+void BodyVector(float *d, float *out, float *m) { (void)m; out[0] = d[0], out[1] = d[1], out[2] = d[2]; }
+void TargetPathAvoid(void *m, float *s) { (void)m; (void)s; }
 static int g_errors;
-void dispatch_handler(int32_t a) { (void)a; g_errors++; }
-void state_utility(int16_t x, int32_t y, void *t) { (void)x; (void)y; (void)t; }
-void audio_effect_apply(void) {}
-void func_800DE860(void) {}
-void func_800C3578(int32_t a) { (void)a; }
-void func_800C54F0(int16_t a, int32_t b) { (void)a; (void)b; }
-void func_800D1248(void *a) { (void)a; }
-void func_800D4D84(int32_t a, int32_t b) { (void)a; (void)b; }
-void func_800D5828(int16_t a) { (void)a; }
-void func_800E05F0(void *a) { (void)a; }
-void func_800E3724(void *a) { (void)a; }
-void func_800E543C(int16_t a, int16_t b) { (void)a; (void)b; }
-void func_800E5C9C(void *a) { (void)a; }
-int32_t func_800E5D64(int32_t a, float *t) { (void)a; *t = 0; return -1; }
-void func_800E681C(void) {}
-void main_menu_render(void) {}
-void menu_audio_settings(void *a) { (void)a; }
+void TB_SetTextColor(int32_t a) { (void)a; g_errors++; }
+void TB_DrawText(int16_t x, int32_t y, void *t) { (void)x; (void)y; (void)t; }
+void ReadPathData(void) {}
+void SetCatchup(void) {}
+void CrashedStunt(int32_t a) { (void)a; }
+void AbortCar(int16_t a, int32_t b) { (void)a; (void)b; }
+void FinishResurrecting(void *a) { (void)a; }
+void update_reckon_base(int32_t a, int32_t b) { (void)a; (void)b; }
+void End_MDrive(int16_t a) { (void)a; }
+void UpdateCarSounds(void *a) { (void)a; }
+void sym(void *a) { (void)a; }
+void Init_MDrive(int16_t a, int16_t b) { (void)a; (void)b; }
+void SetClutch(void *a) { (void)a; }
+int32_t GhostUpdate(int32_t a, float *t) { (void)a; *t = 0; return -1; }
+void UpdateModelControls(void) {}
+void UpdateListeners(void) {}
+void collision(void *a) { (void)a; }
 static int g_round_ends;
-void players_race_update(void) { g_round_ends++; }
-void track_select_handler(void *a) { (void)a; }
+void dead_reckon_all(void) { g_round_ends++; }
+void UpdateResurrectingCar(void *a) { (void)a; }
 
-void func_800E4B58(void *m);
-void func_800E451C(void *m, void *cp, int32_t change_flag);
-void audio_effect_remove(void);
+void MaxPathControls(void *m);
+void IntervalPosChange(void *m, void *cp, int32_t change_flag);
+void InitPathData(void);
 void update_drone_models(void);
 void model_iteration(void);
-void func_800E56F8(int32_t slot);
-void render_large_objects(void);
+void UpdateModel(int32_t slot);
+void DoDrones(void);
 
 #define MF(i, off) (*(float *)((uint8_t *)&pc_models[i] + (off)))
 #define MS16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
@@ -117,16 +117,16 @@ static void setup_path(void)
     for (int k = 0; k < NPTS; k++)
         g_pts[k] = (TrackPt){0, 0, (int16_t)(20 * k), 0, 0};
     for (int t = 0; t < 4; t++)
-        D_8012E5E8[t] = (Track){NPTS, 0, g_pts};
-    memset(D_80151CE8, 0, sizeof D_80151CE8);
-    D_80151CE8[0].count = 1;
+        gDronePaths[t] = (Track){NPTS, 0, g_pts};
+    memset(gCheckpoints, 0, sizeof gCheckpoints);
+    gCheckpoints[0].count = 1;
 }
 
 static void setup_cars(int n)
 {
     memset(pc_models, 0, sizeof pc_models);
     memset(pc_cars, 0, sizeof pc_cars);
-    D_80152744 = (int8_t)n;
+    gNumActiveCars = (int8_t)n;
     for (int s = 0; s < n; s++) {
         float z = 400.0f * s + 5;
         MS16(s, 0x7C6) = (int16_t)s;            /* slot */
@@ -157,8 +157,8 @@ static void test_maxpath12(void)
         pc_mp_dir[s][0] = 1.0f + s, pc_mp_dir[s][1] = 0, pc_mp_dir[s][2] = 2.0f + s;
         pc_mp_save_dir[s][0] = pc_mp_save_dir[s][1] = pc_mp_save_dir[s][2] = 3.0f + s;
     }
-    D_801543CC = 100, D_80154190 = 100;         /* no camera pick now */
-    D_80154182 = -1;
+    gModelTime = 100, gLastPathSwitchTime = 100;         /* no camera pick now */
+    current_drone = -1;
     for (int s = 0; s < 12; s++) {
         float dir0 = pc_mp_dir[s][0], gas, brake0 = pc_mp_brake[s];
 
@@ -168,8 +168,8 @@ static void test_maxpath12(void)
             memcpy(&before[o][6], pc_mp_save_dir[o], 12);
         }
         g_angle = 0.1f * s;
-        func_800E4B58(&pc_models[s]);
-        /* AdjustSteer: 1 - angle * 2/pi, kept and given to the car. */
+        MaxPathControls(&pc_models[s]);
+        /* PS_PurgeFile: 1 - angle * 2/pi, kept and given to the car. */
         CHECK(MF(s, 0x720) == pc_mp_steer[s] && NEAR(pc_mp_steer[s], 1.0f - 0.1f * s * 0.63661975f));
         /* AdjustSpeed with no target speed: the gas falls by half the speed * 0.183 from 0, and below -0.75 the
          * brake takes the rest; both kept in [0, 1] and given to the car. */
@@ -198,17 +198,17 @@ static void test_maxpath12(void)
     CHECK(pc_mp_brake[11] > 0 && pc_mp_brake[11] != pc_mp_brake[10]);   /* slots past the N64's 6 have their own */
     CHECK(g_errors == 0);
 
-    /* audio_effect_remove (maxpath's reset) clears every slot's steer, brake and gas. */
+    /* InitPathData (maxpath's reset) clears every slot's steer, brake and gas. */
     for (int s = 0; s < PC_MAX_LINKS; s++)
         pc_mp_steer[s] = pc_mp_brake[s] = pc_mp_gas[s] = 7;
-    D_801543CC = 3;
-    audio_effect_remove();
+    gModelTime = 3;
+    InitPathData();
     for (int s = 0; s < PC_MAX_LINKS; s++)
         CHECK(pc_mp_steer[s] == 0 && pc_mp_brake[s] == 0 && pc_mp_gas[s] == 0);
-    CHECK(D_80154182 == -1 && D_80154190 == 3);
+    CHECK(current_drone == -1 && gLastPathSwitchTime == 3);
 }
 
-/* The camera's pick among the drones (MP_IntervalPos, func_800E451C): with 11 drones, slots 1-11, of which this node
+/* The camera's pick among the drones (MP_IntervalPos, IntervalPosChange): with 11 drones, slots 1-11, of which this node
  * drives all but slot 7, the pick goes to the next drone it drives each time the picked drone is updated half a
  * second after the last pick: indices 0-5, 7-10 of the list, and round again. */
 static void test_pick(void)
@@ -218,19 +218,19 @@ static void test_pick(void)
     setup_path();
     setup_cars(12);
     MS8(0, 0x7CC) = 2;
-    D_80152768 = 0;
+    num_drones = 0;
     for (int s = 1; s < 12; s++) {
-        pc_drones[D_80152768++] = (short)s;
+        pc_drones[num_drones++] = (short)s;
         PC_MODEL_WE_CONTROL(s) = s != 7;
     }
-    D_80154182 = -1, D_80154190 = 0;
+    current_drone = -1, gLastPathSwitchTime = 0;
     for (unsigned k = 0; k < sizeof want / sizeof want[0]; k++) {
-        int node = D_80154182 < 0 ? 1 : pc_drones[D_80154182];
-        D_801543CC = 1.0f + k;
-        func_800E451C(&pc_models[node], &PC_CAR_NAV(node), 1);
-        CHECK(D_80154182 == want[k]);
-        func_800E451C(&pc_models[pc_drones[D_80154182]], &PC_CAR_NAV(pc_drones[D_80154182]), 1);
-        CHECK(D_80154182 == want[k]);           /* not again within half a second */
+        int node = current_drone < 0 ? 1 : pc_drones[current_drone];
+        gModelTime = 1.0f + k;
+        IntervalPosChange(&pc_models[node], &PC_CAR_NAV(node), 1);
+        CHECK(current_drone == want[k]);
+        IntervalPosChange(&pc_models[pc_drones[current_drone]], &PC_CAR_NAV(pc_drones[current_drone]), 1);
+        CHECK(current_drone == want[k]);           /* not again within half a second */
     }
 }
 
@@ -273,11 +273,11 @@ static void start_race(int n, int two)
 {
     for (int i = 0; i < PC_MAX_LINKS; i++)
         pc_our_drones[i] = (short)(i < n ? 15 - i : -1);   /* the drones' slots, from the storage's last */
-    D_8015274C = (int16_t)n;
-    D_80153E84 = (int16_t)(n + (two ? PC_DRONE_SCHED_TWO : 0));   /* world_physics_tick's choice */
-    D_80153F08 = D_80153E84;
-    D_80153F24 = -1;
-    D_80153F40 = 0;
+    num_our_drones = (int16_t)n;
+    sched_to_use = (int16_t)(n + (two ? PC_DRONE_SCHED_TWO : 0));   /* init_cars's choice */
+    new_sched_to_use = sched_to_use;
+    sched_index = -1;
+    cur_drone = 0;
     ref_sched = ref_next = (int16_t)(n + (two ? 7 : 0));
     ref_index = -1;
     ref_cur = 0;
@@ -327,11 +327,11 @@ static void test_sched_pc(int all)
                     ok &= got == n / groups + (g < n % groups);
                     for (int i = 0; i < got; i++)
                         seen[15 - g_updated[i]]++;
-                    ok &= D_80153F24 == g;      /* the round's g-th iteration */
+                    ok &= sched_index == g;      /* the round's g-th iteration */
                 }
                 for (int i = 0; i < n; i++)
                     ok &= seen[i] == 1;
-                ok &= D_80153F40 == 0;          /* the cursor is back at the first drone: players_race_update */
+                ok &= cur_drone == 0;          /* the cursor is back at the first drone: dead_reckon_all */
             }
             CHECK(ok);
             if (!ok)
@@ -340,7 +340,7 @@ static void test_sched_pc(int all)
     }
 }
 
-/* Retirements (func_800E56F8 when a car is done): a drone is done as it is updated, at the cursor; it leaves
+/* Retirements (UpdateModel when a car is done): a drone is done as it is updated, at the cursor; it leaves
  * our_drones and the next round has a drone fewer. A human's retirement, of two, moves the next round to the
  * one-human rows. Each round still updates every drone once. */
 static int round_once(int n, int first, int second, int *seen)
@@ -351,7 +351,7 @@ static int round_once(int n, int first, int second, int *seen)
     ok &= step() == second;
     for (int i = 0; i < g_nupdated; i++)
         seen[g_updated[i]]++;
-    return ok && D_80153F40 == 0 && D_8015274C == n;
+    return ok && cur_drone == 0 && num_our_drones == n;
 }
 
 static void test_sched_retire(void)
@@ -367,17 +367,17 @@ static void test_sched_retire(void)
     pc_cars[15].state = 1;
     memset(seen, 0, sizeof seen);
     CHECK(round_once(10, 5, 5, seen));
-    CHECK(D_80153F08 == PC_DRONE_SCHED_TWO + 10 && D_80153E84 == PC_DRONE_SCHED_TWO + 11);
+    CHECK(new_sched_to_use == PC_DRONE_SCHED_TWO + 10 && sched_to_use == PC_DRONE_SCHED_TWO + 11);
     CHECK(pc_our_drones[0] == 14 && pc_our_drones[9] == 5);
     for (int i = 0; i < 16; i++)
         CHECK(seen[i] == (i >= 5 && i < 15));
     /* A human (slot 0, with an input record) is done: the next round uses the one-human row of 10 drones. */
     pc_cars[0].input = input;
     pc_cars[0].state = 1;
-    func_800E56F8(0);
-    CHECK(D_80153F08 == 10 && D_8015274C == 10);
+    UpdateModel(0);
+    CHECK(new_sched_to_use == 10 && num_our_drones == 10);
     memset(seen, 0, sizeof seen);
-    CHECK(round_once(10, 5, 5, seen) && D_80153E84 == 10);
+    CHECK(round_once(10, 5, 5, seen) && sched_to_use == 10);
     for (int i = 0; i < 16; i++)
         CHECK(seen[i] == (i >= 5 && i < 15));
 }
@@ -396,7 +396,7 @@ static void test_speeds(void)
         set_table(0);
         start_race(0, 0);
         test_race_cars = cars;
-        state_word_a = 0x400000, D_801525F0 = 1, D_80153FD2 = 0;
+        gGameState = 0x400000, modelrun = 1, num_humans = 0;
         model_iteration();
         for (int s = 0; s < 16; s++)
             CHECK(MF(s, 0x3F0) == (s < cars ? 5.0f : -1.0f));
@@ -427,8 +427,8 @@ static void test_dodrones(void)
     }
     PC_CAR_POS(order[5])[2] = PC_CAR_POS(4)[2] + 50;
     PC_CAR_POS(order[7])[2] = PC_CAR_POS(4)[2] - 30;
-    D_801543CC = 10, D_801174B4 = 0, D_8014A110 = 0, D_80152030 = 2, D_8013FECB = 0, D_80152015 = 0;
-    render_large_objects();
+    gModelTime = 10, gGameState = 0, gRace = 0, gDifficulty = 2, gCoastFlag = 0, gOneMoreCP = 0;
+    DoDrones();
     for (int p = 0; p < 12; p++) {
         int s = order[p];
         if (s == 4)

@@ -104,7 +104,7 @@ game file natively (about 40 s on the Pi 5) and links a test executable. Live nu
 What was learned, and how the build handles it:
 
 - **gnu89 is required.** With C99 rules, an `__inline` function without `extern` gets no out-of-line copy; IDO
-  (and gnu89) emit one, and the ROM uses it (`audio_effect_process` in `heap_release`). CMake adds no `-std` flag
+  (and gnu89) emit one, and the ROM uses it (`DeallocateMemory` in `heap_release`). CMake adds no `-std` flag
   when the compiler's default is newer, so the build passes `-std=gnu89` itself.
 - **Non-owned copies are made weak.** Group files compile copies of other functions as context for IDO's
   interprocedural optimizer, and some files carry stand-ins; natively, 317 names were defined two to nine times.
@@ -163,8 +163,8 @@ Key design decisions that came out of it:
 Numbers ([port/STATUS.md](port/STATUS.md)): 1,329 of 1,329 files compile, 392 pointer warnings in 93 files, **0**
 function stubs, 1 undefined name (`ShowCull`, a debug flag in a draft), 34 tests passing.
 
-How far it runs: `rush2049pc --no-rom` (a blank cartridge) runs the game's own `main`, the idle thread, `game_init`,
-the scheduler, audio and render threads, heap setup in the window and `game_late_init` into AudioInitSys. It stops
+How far it runs: `rush2049pc --no-rom` (a blank cartridge) runs the game's own `main`, the idle thread, `main_thread_entry`,
+the scheduler, audio and render threads, heap setup in the window and `InitSystem` into AudioInitSys. It stops
 in `LoadWave(6)`, where every file size read from the blank cartridge is zero. Going further needs the ROM.
 
 ## Third session results (2026-10-27)
@@ -175,7 +175,7 @@ The second wave of parallel work, all merged into `main` and checked by CI:
 |---|---|---|---|
 | Asset converters | `port/assets/` | [port/LOADERS.md](port/LOADERS.md) | `_ReadWave` calls `pc_wave_loaded` once per file, which converts it by format: WAD containers (TOC, OBHD, TXHD, PLHD, PTHD/PATH swapped, display lists, vertices and texels left big-endian), text bank (native side tables), fonts, world (WHDR, WOBJ, GDAT, GTLD), road, paths. Each converter checks the file fits before it swaps anything |
 | MusyX | `port/assets/musyx.c`, `src/rom/lib_1*.c` | [port/MUSYX_DATA.md](port/MUSYX_DATA.md) | The project, pool, sample directory and songs swapped at the width the library reads each field. The library's service callbacks, sequencer slots, voice state, DMA request list and stream state now have one layout each on 64-bit |
-| Data in the window | `tools/port/gen_data.py`, `port/data/` | [port/DATA.md](port/DATA.md) | The game's pointer-free data and BSS sit at their N64 addresses inside the RDRAM window, so an N64 address of game data is its host address, and 32-bit fields can hold it. Pointer-holding symbols keep their own storage above 4 GB. Arrays that overlapped their neighbours are bounded (`player_array` is 6 cars) |
+| Data in the window | `tools/port/gen_data.py`, `port/data/` | [port/DATA.md](port/DATA.md) | The game's pointer-free data and BSS sit at their N64 addresses inside the RDRAM window, so an N64 address of game data is its host address, and 32-bit fields can hold it. Pointer-holding symbols keep their own storage above 4 GB. Arrays that overlapped their neighbours are bounded (`gGameCar` is 6 cars) |
 | Front-end records | about 120 game files | [port/POINTERS.md](port/POINTERS.md) §9 | One PC layout for the scene-node table, sprite list, blits and panes, the StatLL pools and the controller pak records; `tools/port/view_check.py` compares every view of a record from DWARF |
 | Prototypes | `tools/port/proto_check.py` | [port/PROTOTYPES.md](port/PROTOTYPES.md) | Cross-file prototype disagreements ranked by what they cost on a 64-bit ABI: 62 harmful at the start, 2 now |
 | N64 neutrality | `include/types.h`, `port/include/pc_prelude.h` | [port/POINTERS.md](port/POINTERS.md) | Every shared file passes `n64_neutral.py`: PC-only statements sit on lines the function already has, through `PC_SPIN`, `PC_ONLY` and `N64_ONLY`, which are empty or the original tokens on the N64 |
@@ -188,7 +188,7 @@ Bugs found on the way that would have broken the game on a 64-bit or little-endi
 - **The scheduler read each task's done queue at the wrong field**, so it would have blocked after the first
   graphics task.
 - **x86-64**: game code compiled as PIE reached the absolute N64-address symbols PC-relatively; everything is PIC on
-  x86-64 now, without GOT relaxation. `listener_position_set` read a variable in one call argument that another
+  x86-64 now, without GOT relaxation. `ResetCollisionObject` read a variable in one call argument that another
   argument assigns, which only IDO's left-to-right evaluation defines; `-Wsequence-point` is on for game C and finds
   no other case.
 - **`(char *)-1` sentinels** in ROM tables came out as 0x00000000FFFFFFFF; the loader now sign-extends small
@@ -241,8 +241,8 @@ The synthetic cartridge widened ([port/SYNTH.md](port/SYNTH.md)):
 | Tools | the state log names the players, windows, cars, mode, track, pause state and the first car's position; `RUSH_TRAP_FP` traps the first invalid floating-point operation; `RUSH_GFX_TRACE=N` prints a graphics task's commands; `index_check.py` finds initialized tables indexed past a scalar declaration |
 | Windows | the synthetic paths in the native job's ctest and, with the cross-built program, in `windows-run`: all 14 pass ([port/WINDOWS.md](port/WINDOWS.md) 4) |
 
-Port bugs found and fixed, each with a test: `effect_system_init` walked the player records up to the address of the
-next symbol, which has its own storage on the PC (`assets_effects`); the car masses, the car tunes and `D_801117B4`
+Port bugs found and fixed, each with a test: `InitStunt` walked the player records up to the address of the
+next symbol, which has its own storage on the PC (`assets_effects`); the car masses, the car tunes and `gCircuitDiff`
 were indexed past their one-element declarations, so the loader would have left all but the first element in the
 ROM's byte order (`index_check`). Also: gSongNames' extent (131 pointers by the gap, 12 by the code). The rest of the
 40-odd stops were data the cartridge lacked, now synthesized and documented (SYNTH.md 3).
@@ -263,7 +263,7 @@ RelWithDebInfo (`-O2 -g`) passes every test on x86-64 and aarch64 Linux and in t
 same as Debug to the bit along 14 synthetic and 14 retail paths, twice as fast on the retail cartridge (a race frame
 6.7 ms of the Pi 5's time, not 15.3; [port/OPTIMIZED.md](port/OPTIMIZED.md)). What it took: gen_data reads the types
 of `-O0` objects in every build type (optimized DWARF had dropped declarations); own storage keeps N64 address order
-(`-fno-toplevel-reorder` on data.c) and `ambient_sounds_clear`'s walk ends at its own end; no fused multiply-adds and
+(`-fno-toplevel-reorder` on data.c) and `removeBG`'s walk ends at its own end; no fused multiply-adds and
 no loop bounds from declared array sizes in the game C; `tools/port/alias_check.py` for one storage under two names
 (three places given one name). `tools/port/synth_compare.py` compares two builds along the paths, to the bit
 (`RUSH_STATE_EXACT`). CI builds and compares both build types. The release archives are RelWithDebInfo; a local

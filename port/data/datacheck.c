@@ -118,9 +118,9 @@ static int contains(const uint8_t *p, size_t n, const char *s)
 /* Element widths the game's reads need (docs/port/ENDIAN.md 4, DATA.md 1-2), written down here apart from the
  * generated tables so that a regression in gen_data's layout rules shows: each element of `width` bytes in
  * [n64, n64 + len) must hold the image's bytes reversed (a byte as it is). The colour unions are bytes (a byte
- * member covers them; their words only copy them), D_801146BC's second colour too under D_801146C0's word view;
+ * member covers them; their words only copy them), flashColors's second colour too under flashColors_at_1's word view;
  * unions without such a member keep their widest member's layout (Vtx, MenuSlot); the boot's viewport offset
- * table is s16 up to gViewportPendingFrames, and the flags after it, which its s16[32] declarations ran over, are
+ * table is s16 up to video_pending_frames, and the flags after it, which its s16[32] declarations ran over, are
  * bytes. */
 static const struct {
     const char *what;
@@ -139,16 +139,16 @@ static const struct {
     {"D_8011EF10, its cn (bytes)", 0x8011EF1C, 4, 1, 1},
     {"D_803B3054/58, image A's colours", 0x803B3054, 8, 2, 1},
     {"D_803B3458/5C", 0x803B3458, 8, 2, 1},
-    {"D_803B8328", 0x803B8328, 4, 2, 1},
-    {"D_803B8354", 0x803B8354, 4, 2, 1},
+    {"loadTrackScreen_backColor", 0x803B8328, 4, 2, 1},
+    {"race_map_vertex_color", 0x803B8354, 4, 2, 1},
     {"D_803B8394/98", 0x803B8394, 8, 2, 1},
     {"D_803AF9A8, a MenuSlot's first float", 0x803AF9A8, 4, 2, 4},
     {"D_803AF9A8, its alpha byte", 0x803AF9E4, 1, 2, 1},
     {"D_80394270, image B's player colours", 0x80394270, 16, 3, 1},
     {"D_803942A0/A4", 0x803942A0, 8, 3, 1},
-    {"D_803942E8", 0x803942E8, 4, 3, 1},
+    {"hitColor", 0x803942E8, 4, 3, 1},
     {"gViewportOffsetXExtra..gViewportOffsetY, s16[3][4]", 0x8002AFF8, 24, 0, 2},
-    {"gViewportPendingFrames", 0x8002B010, 2, 0, 2},
+    {"video_pending_frames", 0x8002B010, 2, 0, 2},
     {"gInitFlag and the byte after it", 0x8002B028, 2, 0, 1},
     {"gDmaInitialized and the byte after it", 0x8002B030, 2, 0, 1},
     /* The cheat codes (Egg: a step count, then u32 held and pressed button masks, 20 each; CheckForEgg reads
@@ -157,9 +157,9 @@ static const struct {
     {"D_803B3460, the first cheat code's button masks", 0x803B3464, 160, 2, 4},
     {"D_803B3460, the last cheat code's button masks", 0x803B4134, 160, 2, 4},
     {"D_803B41D4, the main menu's code for the cheat screen", 0x803B41D8, 160, 2, 4},
-    /* The six car physics descriptors D_80110D08 points at (0xB4 bytes each: floats and the u32 tire_info words),
+    /* The six car physics descriptors gCarModels points at (0xB4 bytes each: floats and the u32 tire_info words),
      * and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a
-     * narrower declaration over either (the engine table D_8010FD80's kind of bug) shows here (QA.md round 3). */
+     * narrower declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md round 3). */
     {"D_801108C8, the car physics descriptors", 0x801108D0, 6 * 0xB4, 1, 4},
     {"D_803B28C8..D_803B2A58, the car select's stat factors", 0x803B28C8, 0x1F0, 2, 4},
     /* Tables declared as one element, one row or bytes, which the game reads whole at wider widths (DATA.md 8):

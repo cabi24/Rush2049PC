@@ -9,14 +9,14 @@ here. --defined-list names the PC layer's objects (port/ultra and the other part
 weak ones included, but their own references (the C library, zlib, pthreads) are left to the linker.
 
 - A name that differs from a definition only by the case of its address digits (func_8001fe58 for
-  func_8001FE58), or an address name (D_/func_XXXXXXXX) whose N64 address belongs to one defined symbol (a
-  function's, for a D_ name the game takes the address of: D_8008BEA4 for func_8008BEA4), becomes a PROVIDE
+  sound_key_off), or an address name (D_/func_XXXXXXXX) whose N64 address belongs to one defined symbol (a
+  function's, for a D_ name the game takes the address of: AnimateBrakeLights for AnimateBrakeLights), becomes a PROVIDE
   alias in aliases.ld, an implicit linker script. So does a historical label from the symbol file
-  (pause_resume) whose address is one defined function's. Function addresses come from layout/<image>.json
+  (SetControls) whose address is one defined function's. Function addresses come from layout/<image>.json
   first: it is what the matching build links.
 - Data the game uses by its N64 address, which nothing else defines, becomes an absolute symbol there: RDRAM
-  addresses (the low-memory globals at 0x80000300, the heap start D_8017A640, the runtime images' base
-  D_8038A400) point into port/ultra's RDRAM window, and ROM offsets (D_00039B40) become cartridge addresses
+  addresses (the low-memory globals at 0x80000300, the heap start game_bss_end, the runtime images' base
+  overlay_base) point into port/ultra's RDRAM window, and ROM offsets (D_00039B40) become cartridge addresses
   (0xB0000000 | offset), which the game's PI and MusyX address callbacks accept. port/ultra fixes their GOT
   slots at startup (memory.c: binutils 2.40 on aarch64 relocates them in a PIE).
 - Functions become stubs that call pc_stub_hit (port/ultra/misc.c): it prints the name, the N64 thread and a

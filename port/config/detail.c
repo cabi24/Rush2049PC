@@ -7,8 +7,8 @@
  * pc_gfx_set_fog). At original every accessor gives the N64's value back unchanged: x * 1.0f is x, and the game
  * takes the original branch everywhere else.
  *
- * The scene's counts: the game's scene walk (particle_knot's func_8009F058, track_collision_wall, particle_system)
- * and the world's visibility (physics_float_calc) count what they draw and what each limit leaves out, per view;
+ * The scene's counts: the game's scene walk (particle_knot's zoid_draw_window, Traverse, zoid_draw_object)
+ * and the world's visibility (WorldCullObjects) count what they draw and what each limit leaves out, per view;
  * pc_scene_report gives their means and most a view at the run's end. They only count, at every setting. */
 #include <stdio.h>
 
@@ -18,7 +18,7 @@
 
 static volatile int s_draw = PC_DRAW_ORIGINAL;   /* PC_DRAW_* */
 static volatile int s_detail = PC_DETAIL_ORIGINAL;
-static volatile int s_fog = PC_FOG_ORIGINAL;      /* PC_FOG_*: the renderer's, and SkyInit's sky dome (camera_reset) */
+static volatile int s_fog = PC_FOG_ORIGINAL;      /* PC_FOG_*: the renderer's, and SkyInit's sky dome (SkyInit) */
 
 void pc_detail_set(int draw_distance, int detail, int fog)
 {
@@ -58,7 +58,7 @@ int pc_detail_players(int players)
     return s_detail == PC_DETAIL_HIGH ? 1 : players;
 }
 
-/* The matrices' range (func_8009D45C, func_8009D99C, func_8009D708): a node's place against the eye, x y z in feet,
+/* The matrices' range (build_node_matrix, build_node_matrix_rows4, build_far_node_matrix): a node's place against the eye, x y z in feet,
  * goes into its matrix's s15.16 translation in sixteenths of a foot, which holds |x| < 2048 ft. The power of two to
  * divide the whole matrix by (the rotation, the place and the w the node gives the vertex): 1 inside the N64's range,
  * more past it while draw_distance reaches (far: PC_DRAW_FAR_FACTOR times the range; max: any); 0 for a node the
@@ -95,7 +95,7 @@ static unsigned long s_views, s_walks;   /* the views of a world (a track loaded
 static double s_sum[PC_SCENE_COUNTS];
 static unsigned s_most[PC_SCENE_COUNTS];
 static unsigned s_now[PC_SCENE_COUNTS];
-static int s_open, s_world;   /* a view is open; it has a world (physics_float_calc counted its parts, 0 or more) */
+static int s_open, s_world;   /* a view is open; it has a world (WorldCullObjects counted its parts, 0 or more) */
 
 static void close_view(void)
 {

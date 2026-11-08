@@ -817,7 +817,7 @@ static void test_detail(void)
 /* ---------------------------------------------------------------- fps */
 
 /* game.frame_rate (docs/port/FRAMERATE.md 7): original or 60 in the file, the copy the game latches at a change of its
- * state (port/config/game_fps.c), and the frame's steps viUpdateTime notes: 1 a frame at original, and at 60 the
+ * state (port/config/game_fps.c), and the frame's steps UpdateFrameTimer notes: 1 a frame at original, and at 60 the
  * frame's length in 30 Hz frames, whole ones counted as they complete. */
 static void test_fps(void)
 {
@@ -1049,7 +1049,7 @@ struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];
 signed char pc_car_sounds_on[PC_MAX_LINKS];
 
 /* audio.voices (docs/port/AUDIO.md 10): original (32), 48, 64 or 96 in the file and on the command line, and what
- * the game is given: pc_mx_voices, and hud_setup's arguments for the Expansion Pak's set-up only (pc_snd_setup). */
+ * the game is given: pc_mx_voices, and AudioInit's arguments for the Expansion Pak's set-up only (pc_snd_setup). */
 static void test_voices(void)
 {
     PcSettings s, t;

@@ -1,6 +1,6 @@
 # A two-player battle quit from the pause screen, on the retail cartridge: tools/port/synth/battlequit.press with
 # battle2p.press's mode screen of this cartridge (three down once the list is in: see battle2p.press here). The race
-# end gives each player's pending packet back (object_activate), then the game over screen (docs/port/QA.md 5).
+# end gives each player's pending packet back (AudRemoveListener), then the game over screen (docs/port/QA.md 5).
 # until: 0x800000:200
 # seconds: 120
 # expect: state=0x00800000: players 2, windows 2, cars 2, mode 6, track 6

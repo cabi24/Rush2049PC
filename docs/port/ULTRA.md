@@ -48,7 +48,7 @@ but its busy-waits must yield (section 6).
 N64's VI interrupt would drop it. Others are held and go in as the receiver empties the queue. The scheduler's queue
 (8 messages) fills when a thread computes long enough without a libultra call; an audio task it starts then posts its
 SP event from the scheduler's own thread (section 3), and until 2026-10-27 that event could be lost. The scheduler
-then kept the ended task as its current RSP task, and `dma_wait_complete`, which runs the audio callback after each
+then kept the ended task as its current RSP task, and `audio_retrace_thread_entry`, which runs the audio callback after each
 retrace once that task is done, waited for ever: the game hung at the start prompt or the main menu, now and then in
 real-time runs on the Pi 5, more often when the main loop sends late retraces in a burst. The log names the first
 event of each kind held (`event N held`).
@@ -59,7 +59,7 @@ are kept in tables keyed by the game's object address. Message buffers are host-
 arrays have 4-byte slots. A queue used before `osCreateMesgQueue` acts as a zero-capacity queue, as a zeroed one
 does, and is logged.
 
-**Idle and busy-waits.** `pc_os_idle` (the game's idle loop, `lib_2cf0.c`) waits until any thread can run.
+**Idle and busy-waits.** `pc_os_idle` (the game's idle loop, `boot.c`) waits until any thread can run.
 `pc_os_spin_yield(site)` hands the baton to a runnable thread of equal or higher priority. Otherwise it waits up to
 1 ms for an event. After 200 ms with nothing to run at its priority or above, it lets a lower-priority thread run
 once and logs the site. That escape exists for writers the N64 would have run from an interrupt; the self-test
@@ -111,8 +111,8 @@ more than 16 MiB it gives the K0 address past 16 MiB instead, where a physical o
 segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
-(`osTvType`, `D_80000300`, `D_80000318` for osMemSize), the heap start `D_8017A640`, the images' base
-`D_8038A400`, `gDecompressedDataStart`, and the ROM offset `D_00039B40`. gen_stubs makes them absolute symbols
+(`osTvType`, `osTvType`, `osMemSize` for osMemSize), the heap start `game_bss_end`, the images' base
+`overlay_base`, `gDecompressedDataStart`, and the ROM offset `D_00039B40`. gen_stubs makes them absolute symbols
 (`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI
 and MusyX address callbacks accept). port/data's arena names are absolute symbols too (`data.c`, about 1,800). The
 game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a
@@ -125,7 +125,7 @@ that hold the bare value with no relocation, which needs nothing. The plan for a
 mode that moves it now (`RUSH2049_NOFIXED=guard`), are in [NOFIXED.md](NOFIXED.md).
 
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
-Expansion Pak flag (`D_80156994`) and loads overlay B and the extra waves in races, which give it its sixth race
+Expansion Pak flag (`expansion_pak_present`) and loads overlay B and the extra waves in races, which give it its sixth race
 track, the tracks' animated objects and the front end's song (docs/port/QA.md). `game.expansion_pak = off` reports
 4 MiB, a console without one, where the game skips them; the window is 8 MiB either way. `game.memory` (16-256 MiB)
 sizes the window and osMemSize together, and so the game's heap ([MEMORY.md](MEMORY.md)); the heap's peak and least
@@ -187,12 +187,12 @@ first graphics task and stops: the Phase 2 goal.
 - `osPiReadIo` reads big-endian words: the game's main reads 16 at 0xFFB000, past the ROM, so they are 0.
 
 **Decompressors** (hand-written assembly on the N64):
-- `inflate_entry(src, dst, n)`:
+- `unzipdata_from_rom(src, dst, n)`:
   - the game image (ROM 0xB0CB10, `gRomCompressedData`) does nothing: it is linked in and port/data filled its data;
   - the runtime images (0xB5C534, 0xB6FEC4) become `pc_data_overlay_load` (port/data's overlay loaders call that
     themselves under `TARGET_PC`);
   - any other stream is inflated with zlib from the ROM.
-- `inflate_entry_alt(src, size, dst)` inflates from memory (ghosts).
+- `unzipdata(src, size, dst)` inflates from memory (ghosts).
 - `lzss_decode(src, dst)` is the boot LZSS: flag bytes LSB first; a copy is two bytes, length `(b0 & 15) + 2`,
   distance `(b0 & 0xF0) << 4 | b1`; distance and length nibble 0 end the stream.
 
@@ -217,7 +217,7 @@ the game saves only to the controller pak.
 - **Auto** is a rumble pak while the port's controller can rumble (`PcPad.rumble`, from SDL), else nothing: a pad
   that leaves or comes takes its rumble pak with it. It is the default for players 2-4.
 - **Hot swaps.** The game polls every port for accessories every 30 frames (ControllerUpdate's
-  `osContStartQuery`, then `func_800A43FC` marks each pak record inserted or changed), and its pak server
+  `osContStartQuery`, then `pak_poll_inserted` marks each pak record inserted or changed), and its pak server
   (PS_PakServer, from SaveServer) handles a pak that left (its files dropped, rumble stopped) or came (osPfsInitPak,
   or osMotorInit when that fails). So a change while the game runs (the overlay, a pad on auto plugged or
   unplugged) is made as a player makes one: the old accessory comes out at once, and the new one goes in only after
@@ -231,16 +231,16 @@ the game saves only to the controller pak.
 - **On the retail cartridge** (the Pi, 2026-10-28, scripted, `--fast`): a two-player race with controller paks on
   controllers 1 and 2 reads both (each a new file, its own ID); with rumble paks on both, the game finds both
   (osMotorInit on each port). In a minute of a gas-held race with crashes neither motor went on, for player 1 as
-  for player 2: func_800E56F8 sets each player's rumble request (`D_801440AD`, at the PC stride) from the impact,
+  for player 2: UpdateModel sets each player's rumble request (`gPaks_rumble_request`, at the PC stride) from the impact,
   scaled by the player's own rumble setting (its profile's byte 0x2B: 0 none, 1 weaker, 2 full), and the default
-  player has 1 (the profile check, `draw_speedometer`, gives a profile without valid controls the default
+  player has 1 (the profile check, `CheckAndRepairPlayer`, gives a profile without valid controls the default
   controls and 1): four steps off the impact's level. While the impact's thresholds (`D_801163F8`) loaded in the
   ROM's byte order the scripted crashes stayed under that; with them loaded whole (ab7f592) a retail race's crashes
   turn the motor on at the default as at full (the player screen's controls, the rumble row), at strengths that
   follow the impact, and it reaches the controller (QA.md, rounds 4 and 5). The synthetic race's data turns both
   motors on, and they reach both players' controllers (`rumble2p`, `input_live_drive`). The pak server's prompt
-  port (`D_8011EAE8`) is -1 at start there, so it scans every port.
-- `func_800A13C4(index, value)`, a setter of the same request, still strides by the N64's 772 bytes; nothing calls
+  port (`gErrPak`) is -1 at start there, so it scans every port.
+- `PS_SetRumblePercent(index, value)`, a setter of the same request, still strides by the N64's 772 bytes; nothing calls
   it, so it is left as it is (on the PC it would reach players 2-4's requests 12, 24, 36 bytes early).
 
 **Controller pak.**
@@ -386,44 +386,44 @@ frame in and it has been shown.
 | lib_8e10_pi, lib_9230, lib_8dd0, lib_e7c0, lib_e8d0, lib_e9a0, lib_10a00, lib_10b60 | the PI manager, `osPiStartDma`, raw PI | pi.c |
 | lib_f0b0, lib_e390, lib_e3f0, lib_10970 | raw SI | si.c |
 | lib_8a80, lib_109a0, lib_10cc0, lib_a800, lib_e1c0, lib_d260 | `osInitialize`, interrupt masks, address conversion, `osGetActiveQueue` | misc.c |
-| lib_5610 | inflate (with the hand-written `inflate_entry`, `lzss_decode`) | pi.c |
+| lib_5610 | inflate (with the hand-written `unzipdata_from_rom`, `lzss_decode`) | pi.c |
 | lib_34a0 | the IDO libc (`sprintf`, `modff`, the formatter core `fcvt`) | the host's; libc.c |
 
 All of their data (`__osTimerList`, `osViClock`, the VI manager's state...) had users only inside this set.
 
 **Compiled natively:** everything else. That covers `gu*`, libm, `memset`/`strlen`/`memcpy` (as `n64_*`),
 `osContInit` and the controller packing, the whole `osPfs*` file system, `osMotorInit`, `__osSiGetAccess`, the
-SDK scheduler (`lib_1050_sdk.c`), the VI timing helpers, the boot logic (`main`, `idle_thread_entry`, `game_init`),
-the MusyX v1 driver (`lib_11640.c`), the sequencer and libgsm C.
+SDK scheduler (`scheduler.c`), the VI timing helpers, the boot logic (`main`, `idle_thread_entry`, `main_thread_entry`),
+the MusyX v1 driver (`hardware.c`), the sequencer and libgsm C.
 
 **`TARGET_PC` edits in `src/`**, each preprocessing to the same tokens as before without `TARGET_PC` (checked with
 gcc's preprocessor against main; the IDO build itself was not run):
 
 | File | Edit |
 |---|---|
-| `lib_2cf0.c` | the idle loop calls `pc_os_idle`; `game_init`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
-| `lib_1050_sdk.c` | the scheduler's layout and its N64 names (below); the retraces between two swaps, `PC_SWAP_RETRACES`: 2, or 1 with `game.frame_rate` 60 ([FRAMERATE.md](FRAMERATE.md) 7) |
-| `lib_1050.c` | viUpdateTime gives each frame's retraces to `pc_game_frame_note` (`game.frame_rate`'s steps) |
-| `lib_11640.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `func_800139D4`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`func_800146B4`, `func_80014CAC`); two busy-waits; the renderer's wrapping range goes on where the cap stopped it (`func_80013DEC`, [AUDIO.md](AUDIO.md) §7) |
-| `lib_15a10.c`, `lib_17dc0.c` | `func_8001558C`/`func_800156E8` take pointer-sized integers (a stack address passed through a u32) |
-| `lib_f700.c` | `__osIdCheckSum` adds to a pointer, not a truncated one |
-| `lib_b300.c` | `__osPfsReleasePages` builds its first link through the byte fields, like every other link |
+| `boot.c` | the idle loop calls `pc_os_idle`; `main_thread_entry`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
+| `scheduler.c` | the scheduler's layout and its N64 names (below); the retraces between two swaps, `PC_SWAP_RETRACES`: 2, or 1 with `game.frame_rate` 60 ([FRAMERATE.md](FRAMERATE.md) 7) |
+| `timer.c` | UpdateFrameTimer gives each frame's retraces to `pc_game_frame_note` (`game.frame_rate`'s steps) |
+| `hardware.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `sound_hw_build_subframe`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`sound_hw_set_voice_sample`, `sound_hw_translate_address`); two busy-waits; the renderer's wrapping range goes on where the cap stopped it (`sound_hw_service_frame`, [AUDIO.md](AUDIO.md) §7) |
+| `groups.c`, `sequencer.c` | `sound_start_song_in_group`/`sound_start_song` take pointer-sized integers (a stack address passed through a u32) |
+| `contpfs.c` | `__osIdCheckSum` adds to a pointer, not a truncated one |
+| `pfsdeletefile.c` | `__osPfsReleasePages` builds its first link through the byte fields, like every other link |
 | `rom_tu.h` | declarations of `pc_mem_register_be`/`unregister_be` |
 
 **The scheduler at the game's offsets.** port/data gave the game's N64 names for the scheduler's storage their own
-storage, apart from `gScheduler`. The game sent its graphics tasks to `D_8002E960`, stopped `D_8002E998`, and
-polled `D_8002EB70`; all three missed the scheduler. Under `TARGET_PC`, `lib_1050_sdk.c` lays `gScheduler` out with
+storage, apart from `gScheduler`. The game sent its graphics tasks to `scheduler_task_queue`, stopped `scheduler_thread`, and
+polled `gRenderInProgress`; all three missed the scheduler. Under `TARGET_PC`, `scheduler.c` lays `gScheduler` out with
 the offsets the game reads it at:
-- `retraceCount` at 0x27C: the game's frame clock, read as `frameCount`, `tick`, `[159]`, `gViTickCounter`;
+- `retraceCount` at 0x27C: the game's frame clock, read as `frameCount`, `tick`, `[159]`, `scheduler_retrace_count`;
 - storage-only queues and thread at 0x40, 0x78 and 0xB0;
 - host-sized pointers after them.
 
-It defines those names as aliases into its own storage: `D_8002E8E8`, `D_8002E928`, `D_8002E960`, `D_8002E998`,
-`gViTickCounter`, `D_8002EB64`, `D_8002EB5C` (`curRSPTask`), `D_8002EB70` (`__osScTaskCount`), and
-`D_8002EB90`/`94`/`98`.
+It defines those names as aliases into its own storage: `gScheduler`, `scheduler_interrupt_queue`, `scheduler_task_queue`, `scheduler_thread`,
+`scheduler_retrace_count`, `scheduler_retrace_count`, `scheduler_current_rsp_task` (`curRSPTask`), `gRenderInProgress` (`gRenderInProgress`), and
+`gSeconds`/`94`/`98`.
 
 The scheduler reads tasks through `include/m2c_types.h`'s `OSScTask`. Its PC version has the OSTask in place with
-host-sized pointers, as the game builds its tasks (`world_collision_response.c`'s `Frame`, `func_8010FBE0`'s
+host-sized pointers, as the game builds its tasks (`EndGraphics.c`'s `Frame`, `musyx_submit_audio_task`'s
 audio task). Before that, the scheduler read a task's done queue at its `output_buff` and blocked after the first
 graphics task ([MUSYX_DATA.md](MUSYX_DATA.md) §8.4).
 
@@ -436,22 +436,22 @@ calls.
 ## 6. Busy-waits
 
 The game polls memory that another thread or an interrupt changes. v5 found 14 such loops in the N64 code; in the
-C they are 12 loops, since overlay A inlined `func_8038B388` into two callers. Each calls `pc_os_spin_yield`
+C they are 12 loops, since overlay A inlined `clearTrackMap` into two callers. Each calls `pc_os_spin_yield`
 under `TARGET_PC`:
 
 | Function | File | Waits for |
 |---|---|---|
-| `game_loop` | `src/blob/groups/input_aux/game_loop.c` | `D_8002EB70` (pending graphics tasks) = 0 |
-| `func_80096130` (`dma_wait`) | `src/blob/groups/heap_release/func_80096130.c` | the same |
-| `ReplaceWave` (v5: `suspension_setup`) | `src/blob/groups/audio_frame_sync/replacewave.c` | the same |
+| `GameLoop` | `src/blob/groups/front_end/GameLoop.c` | `gRenderInProgress` (pending graphics tasks) = 0 |
+| `UnloadWaveInstance` (`acquire_decompress_lock`) | `src/blob/groups/heap_release/UnloadWaveInstance.c` | the same |
+| `ReplaceWave` (v5: `ReplaceWave`) | `src/blob/groups/waves/replacewave.c` | the same |
 | `InitWaves` (v5: `tire_compound_set`) | `src/blob/InitWaves.c` | the same |
-| `func_8038B388` (v5: also in `func_8038B3EC`, `func_8038B940`) | `src/ovl_a/groups/runtime_a_c93c_closure/group.c` | the same |
-| `func_8038B930` | the same file | the same |
-| `dma_wait_complete` | `src/blob/dma_wait_complete.c` | the audio task stops being the scheduler's current RSP task |
-| `wheel_params_set` (two) | `src/blob/groups/heap_release/wheel_params_set.c` | `D_8011028C` = 0, then `D_80146160.head` = 0 |
-| `func_800E7038` | `src/blob/func_800E7038.c` | `D_80111950` (controller bit pattern) ≠ 0x80 |
-| `func_80011848` | `src/rom/lib_11640.c` | `D_800382CC` = 0 (MusyX) |
-| `func_80014140` | `src/rom/lib_11640.c` | `D_80038362` ≤ 0 (MusyX) |
+| `clearTrackMap` (v5: also in `trackscr_animTrackMap`, `trackscr_UninitScreen`) | `src/ovl_a/groups/trackscr/trackscr.c` | the same |
+| `clearTrackMaps` | the same file | the same |
+| `audio_retrace_thread_entry` | `src/blob/audio_retrace_thread_entry.c` | the audio task stops being the scheduler's current RSP task |
+| `audio_sfx_shutdown` (two) | `src/blob/groups/heap_release/audio_sfx_shutdown.c` | `gStopAllEffects` = 0, then `gCmdQ.head` = 0 |
+| `InitControlSys` | `src/blob/InitControlSys.c` | `cont_bit_pattern` (controller bit pattern) ≠ 0x80 |
+| `sound_hw_free_dma` | `src/rom/sound/hardware.c` | `sound_dma_busy` = 0 (MusyX) |
+| `sound_hw_remove_callback` | `src/rom/sound/hardware.c` | `sound_drain_count` ≤ 0 (MusyX) |
 
 Weak copies of these functions in other group files are never linked in, so they are left alone.
 
@@ -464,8 +464,8 @@ references (libc, zlib, pthreads) are left to the linker. It also writes:
 
 - `aliases.ld`, an implicit linker script:
   - `PROVIDE` aliases for names differing only in the case of their address digits (`func_8001fe58`);
-  - aliases for address names of a defined symbol (`func_8008B964` = `physics_velocity_integrate_b`;
-    `D_8008BEA4` = `func_8008BEA4`, a callback's address);
+  - aliases for address names of a defined symbol (`AnimateBSpark` = `AnimateBSpark`;
+    `AnimateBrakeLights` = `AnimateBrakeLights`, a callback's address);
   - the absolute symbols of section 2.
 - `stubs.c`: whatever is still missing calls `pc_stub_hit`. It prints the name, the N64 thread and a backtrace
   symbolized with addr2line (PIE offsets), then aborts. Faults print the same report.
@@ -501,7 +501,7 @@ the libgsm kernels, now `gsm.c` (§8).
 - CTest `ultra_gsm` (`port/ultra/tests/test_gsm.c`, 2 s) checks `gsm.c`'s three GSM kernels against their own MIPS
   code, interpreted from the words in `asm/us/boot_data/kernels.s`, and against a GSM 06.10 reference decoder
   written from the spec. Kernel by kernel on random and edge inputs, and over 6,160 frames through the game's own
-  frame decoder (`func_80026640`). The kernels keep the assembly's arithmetic: 32-bit products, and sums that wrap
+  frame decoder (`gsm_decode_frame`). The kernels keep the assembly's arithmetic: 32-bit products, and sums that wrap
   where the spec saturates (the filter state and `msr` stay 32-bit, `drp` wraps to 16 bits). So they match the
   MIPS code always, and the spec until the spec saturates something.
 - All 32 CTests of the other parts still pass with the PC layer linked in.
@@ -519,23 +519,23 @@ the libgsm kernels, now `gsm.c` (§8).
   the file is written. The control, the same writes on the main loop (`RUSH_SIM_PAK_WRITE_SYNC=1`), dropped 561
   and 573 retraces in two runs.
 - **Boot on a blank cartridge** (`rush2049pc --no-rom --no-pak --audio null`). The game's own boot runs on the PC
-  layer: `main` starts the idle thread, the idle thread starts `game_init`, and `game_init` creates the queues and
+  layer: `main` starts the idle thread, the idle thread starts `main_thread_entry`, and `main_thread_entry` creates the queues and
   starts the scheduler (thread 4, priority 12), the audio thread (8) and the render thread (5). It goes into
-  `game_late_init`, and the heap initializes in the window (`D_8017A640`). The first fault is in game code:
-  `func_800CCCCC` (`src/blob/groups/menu_save_options/group.c:108`, from `menu_save_options`, from
-  `game_late_init`) dereferences a handle, and handle tables are `u32` slots. That is agent D's pointer work. It
+  `InitSystem`, and the heap initializes in the window (`game_bss_end`). The first fault is in game code:
+  `InitPlayer` (`src/blob/groups/save/group.c:108`, from `SaveInit`, from
+  `InitSystem`) dereferences a handle, and handle tables are `u32` slots. That is agent D's pointer work. It
   happens before the first graphics task, so the Phase 2 goal (`--stop-at-gfx`) is not reached yet.
 - With the ROM: not run (no ROM here).
 
 ## 9. What's left
 
 - **Game code (agent D)** on the boot path:
-  - `func_800CCCCC`'s handles (above), then whatever follows.
-  - `dma_wait_complete`'s scheduler view reads `cur` at 0x274 as a native pointer. The scheduler's `curRSPTask` is
-    at native offset 0x2B0 (`D_8002EB5C`); the view needs `TARGET_PC`.
-  - The scheduler's `OSScTask`/`Frame` records in the arenas (`D_80156BE0`) are larger natively than their N64
+  - `InitPlayer`'s handles (above), then whatever follows.
+  - `audio_retrace_thread_entry`'s scheduler view reads `cur` at 0x274 as a native pointer. The scheduler's `curRSPTask` is
+    at native offset 0x2B0 (`scheduler_current_rsp_task`); the view needs `TARGET_PC`.
+  - The scheduler's `OSScTask`/`Frame` records in the arenas (`frame_records`) are larger natively than their N64
     slots.
-  - `fcvt_wrapper` passes a pointer into its own frame as an IDO va_list. Natively it needs a real `va_list`;
+  - `TB_Sprintf` passes a pointer into its own frame as an IDO va_list. Natively it needs a real `va_list`;
     until then `fcvt` copies the format unformatted and logs once.
 - **Preemption.** Events never take the baton from a computing thread. A busy-wait not in the list above would hang.
   `--trace-os` and Ctrl-\ show it, and the fix is one more `pc_os_spin_yield`.

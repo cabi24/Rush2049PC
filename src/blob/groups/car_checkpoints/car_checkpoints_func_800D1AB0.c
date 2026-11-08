@@ -23,15 +23,15 @@ typedef struct {
     char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
 } GameCar; /* 0x3B8 */
 
-extern s8 D_80152744;
-extern s16 D_80152734;
+extern s8 gNumActiveCars;
+extern s16 gNumLaps;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 /* PC: the cars still racing, by slot, and their distances by slot, as many as the race's cars (up to
  * PC_MAX_LINKS, pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's 6. */
 #define CARS_N PC_MAX_LINKS
-void func_800D1AB0(void) {
+void PlaceUnlockedCars(void) {
     s16 i;
     s16 j;
     s16 num_left;
@@ -43,8 +43,8 @@ void func_800D1AB0(void) {
 
     num_done = 0;
     num_left = 0;
-    for (i = 0; i < D_80152744; i++) {
-        if (PC_CAR_STATE(PC_MODEL_SLOT(i)) > 0 && PC_MODEL_LAP(i) < D_80152734) {
+    for (i = 0; i < gNumActiveCars; i++) {
+        if (PC_CAR_STATE(PC_MODEL_SLOT(i)) > 0 && PC_MODEL_LAP(i) < gNumLaps) {
             num_done++;
         } else if (PC_CAR_FINISHED(PC_MODEL_SLOT(i)) != 1) {
             place[num_left++] = PC_MODEL_SLOT(i);
@@ -62,7 +62,7 @@ void func_800D1AB0(void) {
                     high_index = j;
                 }
             }
-            PC_CAR_PLACE(place[high_index]) = i + D_80152744 - num_left - num_done;
+            PC_CAR_PLACE(place[high_index]) = i + gNumActiveCars - num_left - num_done;
             place[high_index] ^= place[i];
             place[i] ^= place[high_index];
             place[high_index] ^= place[i];

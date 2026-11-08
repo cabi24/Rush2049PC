@@ -1,19 +1,19 @@
 /*
- * ---- unit: cpak_init + func_800AF8C0 + save_validate (agent) ----
+ * ---- unit: UpdateSkids + UpdateSkid + StartSkid (agent) ----
  * Skid marks, N64 port of the arcade code in reference/repos/rushtherock/game/visuals.c (labels are
  * historical; nothing here is Controller Pak or save code):
- *   cpak_init      = the per-car skid driver: arcade DoSkid() for each of the four tires, written as one loop
- *   func_800AF8C0  = UpdateSkid(ns, slot, tire, color)
- *   save_validate  = StartSkid(ns, slot, tire, color), with GetSkid() inlined
- *   func_800AFD54  = ContinueSkid() -- inlined into cpak_init; retail keeps its `jr ra` stub at 0x800AFD54
- *   func_800AFB30  = GetSkid()      -- inlined into save_validate; stub at 0x800AFB30 (0x800AFB28 is a
+ *   UpdateSkids      = the per-car skid driver: arcade DoSkid() for each of the four tires, written as one loop
+ *   UpdateSkid  = UpdateSkid(ns, slot, tire, color)
+ *   StartSkid  = StartSkid(ns, slot, tire, color), with GetSkid() inlined
+ *   ContinueSkid  = ContinueSkid() -- inlined into UpdateSkids; retail keeps its `jr ra` stub at 0x800AFD54
+ *   GetSkid  = GetSkid()      -- inlined into StartSkid; stub at 0x800AFB30 (0x800AFB28 is a
  *                                      second deleted static next to it, not identified)
- *   func_800AF844  = StopSkid(ns), func_800AFA84 = ReleaseSkid-style list unlink (context)
+ *   StopSkid  = StopSkid(ns), FreeStatLLE = ReleaseSkid-style list unlink (context)
  * WheelSlot is the arcade NewSkid (obj=skid, start, pos=end, lenSq, dir, quad/left/right = vert[4][3]);
  * EffectObj is the arcade Skid (pool link, f8=lastTime as f32, dl=objnum, pos, colour instead of xlu).
  * This is a CLOSED unit: every callee is present as context (unchanged copies of the locked sources), and
- * there are no stand-in callers.  func_800AF844 must NOT be in `keep`: only then does IPA know it leaves
- * $t0-$t4 alone, which is what puts cpak_init's loop state in $t0/$t2/$t3/$t4 instead of $s1/$s4/$s5.
+ * there are no stand-in callers.  StopSkid must NOT be in `keep`: only then does IPA know it leaves
+ * $t0-$t4 alone, which is what puts UpdateSkids's loop state in $t0/$t2/$t3/$t4 instead of $s1/$s4/$s5.
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -28,7 +28,7 @@ float sqrtf(float);
 
 typedef struct EffectObj {
     /* 0x00 */ struct EffectObj *next;   /* pool list link */
-    void *prev;                         /* the list's back link (func_8008E3C0), pointer-sized here */
+    void *prev;                         /* the list's back link (GetStatLLE), pointer-sized here */
     /* 0x08 */ f32 f8;
     /* 0x0C */ void *dl;                 /* display handle */
     /* 0x10 */ f32 pos[3];
@@ -77,46 +77,46 @@ typedef struct {
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
-#define D_80155290 pc_skids
-extern s16 active_player_count;
-extern s32 state_word_a;
-extern u32 D_8011743C[4];               /* per-wheel flag masks */
-extern u8 D_80117438[];                 /* default mark colour */
-extern u8 D_8011AD8C[];                 /* colour on terrain 0 */
-extern f32 D_8011AD90[];
-extern Surface *D_801497F8;
-extern f32 D_80123C08;
+#define gNewSkid pc_skids
+extern s16 gNumPlayers;
+extern s32 gGameState;
+extern u32 skid_tire_flags[4];               /* per-wheel flag masks */
+extern u8 gDirtColor[];                 /* default mark colour */
+extern u8 gShadowColor[];                 /* colour on terrain 0 */
+extern f32 gDummyVtx[];
+extern Surface *stree_surf;
+extern f32 skid_lift;
 extern f32 D_80123C0C;                  /* minimum travel before a mark starts */
-extern f32 D_8002EB90[];
-extern char D_80155220[];               /* EffectObj pool */
+extern f32 gSeconds[];
+extern char gSkidList[];               /* EffectObj pool */
 #define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */
 typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
 } CamXform;
 extern CamXform gCamera;             /* camera matrix + position (pos = old D_80150B94) */
-extern u16 D_80161378;
+extern u16 gTexList_skid;
 
-extern EffectObj *func_8008E3C0(void *pool);
-extern void func_800AFA84(void *pool, EffectObj *obj);
-extern void func_8008D0C0(void *dl);
-extern void *func_800A78BC(s32, f32 *, u16, u8 *, s32, s32);
-extern void func_8008C074(void *dl, s32 n, f32 *quad, s32, u8 *color, s32, s32);
-extern void vector_copy_scale(f32 *in, f32 *out);
-extern void func_800AF844(WheelSlot *slot);
+extern EffectObj *GetStatLLE(void *pool);
+extern void FreeStatLLE(void *pool, EffectObj *obj);
+extern void ZOID_RemovePoly(void *dl);
+extern void *ZOID_NewPoly(s32, f32 *, u16, u8 *, s32, s32);
+extern void ZOID_UpdatePoly(void *dl, s32 n, f32 *quad, s32, u8 *color, s32, s32);
+extern void vector_direction(f32 *in, f32 *out);
+extern void StopSkid(WheelSlot *slot);
 
-void cpak_init(s32 slot);
-void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
-void save_validate(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
+void UpdateSkids(s32 slot);
+void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
+void StartSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
 
-/* func_800AF8C0 (0x800AF8C0, 113 words) = arcade UpdateSkid: place the skid's leading edge across the
+/* UpdateSkid (0x800AF8C0, 113 words) = arcade UpdateSkid: place the skid's leading edge across the
  * axle (tires tire|1 and tire&2), 0.75 either side of the tire, lifted 0.8; stamp time and colour; update
  * the polygon.  IPA parameters: ns $s0, slot $t1, tire $s4, color $s5.
  * Quirk for strictness: the 0.8f lift is this function's own .rodata (0x80123C08).  It is read through the
  * extern into a local `up` declared above the vectors (same code as the natural `+= 0.8f`, which scores
  * "2 relocations unverified"); `car` must stay unnamed and `m` named for the frame and registers.
  */
-void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
+void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 {
     CarState *m = PC_MODEL(player);
     EffectObj *obj = slot->obj;
@@ -130,32 +130,32 @@ void func_800AF8C0(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     orth[1] = PC_CAR_WHEEL_POS(player)[wheel | 1][1] - PC_CAR_WHEEL_POS(player)[wheel & 2][1];
     orth[2] = PC_CAR_WHEEL_POS(player)[wheel | 1][2] - PC_CAR_WHEEL_POS(player)[wheel & 2][2];
     orth[1] += m->wheelHeight[wheel | 1] - m->wheelHeight[wheel & 2];
-    vector_copy_scale(orth, dir);
+    vector_direction(orth, dir);
     for (i = 0; i < 3; i++) {
         wid = dir[i] * 0.75f;
         slot->pos[i] = PC_CAR_WHEEL_POS(player)[wheel][i];
         slot->left[i] = slot->pos[i] - wid;
         slot->right[i] = slot->pos[i] + wid;
     }
-    up = D_80123C08;
+    up = skid_lift;
     slot->left[1] += up;
     slot->right[1] += up;
-    obj->f8 = *(f32 *) ((uintptr_t) &D_8002EB90[0]);
+    obj->f8 = *(f32 *) ((uintptr_t) &gSeconds[0]);
     obj->color[0] = color[0];
     obj->color[1] = color[1];
     obj->color[2] = color[2];
     obj->color[3] = 0xC0;
-    func_8008C074(obj->dl, 4, slot->quad, 0, obj->color, 0, 0);
+    ZOID_UpdatePoly(obj->dl, 4, slot->quad, 0, obj->color, 0, 0);
 }
 
-/* The manifest owners of func_800AFB30 and func_800AFD54 are empty deleted-procedure stubs
- * (src/blob/func_800AFB30.c, func_800AFD54.c), which this group's calls bind to on PC. The bodies
+/* The manifest owners of GetSkid and ContinueSkid are empty deleted-procedure stubs
+ * (src/blob/GetSkid.c, ContinueSkid.c), which this group's calls bind to on PC. The bodies
  * written here get their own names (docs/port/PROTOTYPES.md). */
-#define func_800AFB30 pc_func_800AFB30
-#define func_800AFD54 pc_func_800AFD54
-/* func_800AFB30 = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
+#define GetSkid pc_func_800AFB30
+#define ContinueSkid pc_func_800AFD54
+/* GetSkid = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
  * Not `static`, not in `keep`: umerge inlines it into its only caller and leaves the retail `jr ra` stub. */
-EffectObj *func_800AFB30(u8 *color)
+EffectObj *GetSkid(u8 *color)
 {
     s32 i;
     EffectObj *s;
@@ -164,11 +164,11 @@ EffectObj *func_800AFB30(u8 *color)
     f32 dsq;
     f32 fardsq;
 
-    s = func_8008E3C0(D_80155220);
+    s = GetStatLLE(gSkidList);
     if (s == 0) {
         fardsq = -1.0f;
-        fars = ((EffectObj **) D_80155220)[POOL_HEAD];
-        for (s = ((EffectObj **) D_80155220)[POOL_HEAD]; s->next; s = s->next) {
+        fars = ((EffectObj **) gSkidList)[POOL_HEAD];
+        for (s = ((EffectObj **) gSkidList)[POOL_HEAD]; s->next; s = s->next) {
             for (dsq = 0.0f, i = 0; i < 3; i++) {
                 d = s->pos[i] - gCamera.pos[i];
                 dsq += d * d;
@@ -179,51 +179,51 @@ EffectObj *func_800AFB30(u8 *color)
             }
         }
         s = fars;
-        func_8008D0C0(s->dl);
-        func_800AFA84(D_80155220, s);
-        s = func_8008E3C0(D_80155220);
+        ZOID_RemovePoly(s->dl);
+        FreeStatLLE(gSkidList, s);
+        s = GetStatLLE(gSkidList);
     }
     s->f20 = 0;
     s->color[0] = color[0];
     s->color[1] = color[1];
     s->color[2] = color[2];
     s->color[3] = 0xC0;
-    s->dl = func_800A78BC(4, D_8011AD90, D_80161378, color,
-                          ((state_word_a & 0x100) ? 1 : 15) | 0x1200, 1);
+    s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList_skid, color,
+                          ((gGameState & 0x100) ? 1 : 15) | 0x1200, 1);
     if (s->dl == 0) {
-        func_800AFA84(D_80155220, s);
+        FreeStatLLE(gSkidList, s);
         return 0;
     }
     return s;
 }
 
-/* save_validate (0x800AFB38, 135 words) = arcade StartSkid.  IPA parameters: ns $s6, slot $s3, tire $s4,
+/* StartSkid (0x800AFB38, 135 words) = arcade StartSkid.  IPA parameters: ns $s6, slot $s3, tire $s4,
  * color $s5.  The three veccopy() macros are written out element by element as in vecmath.h. */
-void save_validate(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
+void StartSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 {
     EffectObj *s;
 
-    s = func_800AFB30(color);
+    s = GetSkid(color);
     if (s == 0) {
         return;
     }
     ns->obj = s;
     ns->lenSq = 0.0f;
-    func_800AF8C0(ns, slot, tire, color);
+    UpdateSkid(ns, slot, tire, color);
     ns->start[0] = ns->pos[0]; ns->start[1] = ns->pos[1]; ns->start[2] = ns->pos[2];
     ns->quad[0] = ns->right[0]; ns->quad[1] = ns->right[1]; ns->quad[2] = ns->right[2];
     ns->quad[3] = ns->left[0]; ns->quad[4] = ns->left[1]; ns->quad[5] = ns->left[2];
-    func_8008C074(s->dl, 4, ns->quad, 0, 0, 0, 0);
+    ZOID_UpdatePoly(s->dl, 4, ns->quad, 0, 0, 0, 0);
 }
 
 #define magsq(v) (((v)[0] * (v)[0]) + ((v)[1] * (v)[1]) + ((v)[2] * (v)[2]))
 
-/* func_800AFD54 = arcade ContinueSkid: extend the current skid, or end it and start a new one when the
- * tire has left the skid's line by more than 1.0 (squared) or the skid got shorter.  Inlined into cpak_init.
+/* ContinueSkid = arcade ContinueSkid: extend the current skid, or end it and start a new one when the
+ * tire has left the skid's line by more than 1.0 (squared) or the skid got shorter.  Inlined into UpdateSkids.
  * No named `car` here and magsq as a macro: with either as a named local / inline function the frame is one
- * word too big.  0.1f is cpak_init's own .rodata (0x80123C0C, hoisted into $f26): natural literal,
+ * word too big.  0.1f is UpdateSkids's own .rodata (0x80123C0C, hoisted into $f26): natural literal,
  * reported unverified by the scorer (an extern is not hoisted out of the loop). */
-void func_800AFD54(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
+void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 {
     f32 vec[3];
     f32 dirpos[3];
@@ -232,7 +232,7 @@ void func_800AFD54(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
     f32 ds;
     f32 invlen;
 
-    func_800AF8C0(ns, slot, tire, color);
+    UpdateSkid(ns, slot, tire, color);
 
     vec[0] = PC_CAR_WHEEL_POS(slot)[tire][0] - ns->start[0];
     vec[1] = PC_CAR_WHEEL_POS(slot)[tire][1] - ns->start[1];
@@ -249,8 +249,8 @@ void func_800AFD54(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
         vec[2] = ns->pos[2] - dirpos[2];
         ds = (vec[0] * vec[0]) + (vec[1] * vec[1]) + (vec[2] * vec[2]);
         if ((ds > 1.0f) || (lensq < ns->lenSq)) {
-            func_800AF844(ns);
-            save_validate(ns, slot, tire, color);
+            StopSkid(ns);
+            StartSkid(ns, slot, tire, color);
         }
     } else if (lensq > 0.1f) {
         invlen = 1.0f / sqrtf(lensq);
@@ -261,11 +261,11 @@ void func_800AFD54(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
     }
 }
 
-/* cpak_init (0x800AFD5C, 265 words): for each tire, start / continue / stop its skid (arcade DoSkid).
+/* UpdateSkids (0x800AFD5C, 265 words): for each tire, start / continue / stop its skid (arcade DoSkid).
  * `slot` is int here (no entry sll/sra; the s16 callee parameters are read back with `lh` from its home).
  * Quirks: colour chosen with ?: (the if-form drops the `b` and swaps $t0/$t2); `flags & mask[i]` operand
  * order; `ns` walks with the loop. */
-void cpak_init(s32 slot)
+void UpdateSkids(s32 slot)
 {
     s32 i;
     CarState *m;
@@ -274,23 +274,23 @@ void cpak_init(s32 slot)
     s32 laston;
     u8 *color;
 
-    if (active_player_count >= 3) {
+    if (gNumPlayers >= 3) {
         return;
     }
     m = PC_MODEL(slot);
-    ns = D_80155290[slot];
+    ns = gNewSkid[slot];
     for (i = 0; i < 4; i++, ns++) {
-        on = ((PC_CAR_FLAGS(slot) & D_8011743C[i]) != 0) && (m->airborne[0] == -1) &&
-             (m->terrain[i] != 8) && ((D_801497F8[m->surface[i]].flags & 0x30) == 0);
+        on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
+             (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].flags & 0x30) == 0);
         laston = (ns->obj != 0);
-        color = (m->terrain[i] == 0) ? D_8011AD8C : D_80117438;
+        color = (m->terrain[i] == 0) ? gShadowColor : gDirtColor;
 
         if (!laston && on) {
-            save_validate(ns, slot, i, color);
+            StartSkid(ns, slot, i, color);
         } else if (laston && on) {
-            func_800AFD54(ns, slot, i, color);
+            ContinueSkid(ns, slot, i, color);
         } else if (laston && !on) {
-            func_800AF844(ns);
+            StopSkid(ns);
         }
     }
 }

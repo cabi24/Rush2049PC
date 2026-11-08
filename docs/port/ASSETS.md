@@ -9,15 +9,15 @@ Tags:
   `stree.c`, `pathcommon.c` and `targets.c` come from the same game source, and the N64 functions follow them
   statement for statement. MAT3's data is little-endian, so its `_swap_x16`/`_swap_x32` calls give the width of
   every field the PC must swap. The N64 build kept many of those loops with empty bodies
-  (`read_path_data/audio_effect_apply.c:13`).
+  (`pathcommon_read/ReadPathData.c:13`).
 - **[R]** from `rush2recompiled/docs/rush2049_research/*.md` and `docs/rush2049_port_plan.md`, not re-checked here.
 
 Function names are the repository's (often historical labels); the real role is given beside them.
 
 ## 1. Summary
 
-- **There is one asset loader: MAT3's "waves".** `LoadWave` (`audio_frame_sync`, 0x80097798) loads file *n* of a
-  183-entry file table into a game-heap block. `_ReadWave` (`func_80097164`) reads it raw (PI DMA), LZSS or raw
+- **There is one asset loader: MAT3's "waves".** `LoadWave` (`LoadWave`, 0x80097798) loads file *n* of a
+  183-entry file table into a game-heap block. `_ReadWave` (`ReadWave`) reads it raw (PI DMA), LZSS or raw
   DEFLATE. For model files, `_SetupWaveModel` (`SetupWaveModel`, 0x80096CA8) then relocates the file in place.
   Otherwise the game image only DMAs from the ROM in one other place: sound samples (MusyX). Boot inflates the
   game image and the two runtime images, which the PC links natively anyway.
@@ -41,22 +41,22 @@ Function names are the repository's (often historical labels); the real role is 
 
 | Loader | Address | Loads | Source | Compression | Destination | Tag |
 |---|---|---|---|---|---|---|
-| `inflate_entry(rom, dst, 0)` from `game_init` | 0x80006814, call 0x80002334 (`src/rom/lib_2cf0.c:91`) | game image | ROM 0xB0CB10 (`gRomCompressedData`) | raw DEFLATE | 0x80086A50 fixed; Huffman tables at fixed 0x803FD120 (0x2EE0 B) | C |
-| `PrevMaxPath` (overlay load); callers `sync_maxpath_to_checkpoint` 0x800A133C ("Start" = image A), `InitMaxPath` 0x800A1244 ("Extra" = image B), `display_enable` 0x800C8FA4 | 0x800A11E4 (`src/blob/groups/heap_release/overlay_loader.c:43-69`) | runtime image A or B | ROM pointers `D_8002B020` (A, 0xB5C534) / `D_8002B024` (B, 0xB6FEC4) | raw DEFLATE via `inflate_decompress` 0x800026C0 | 0x8038A400, reserved in the heap by `NextMaxPath` (allocate at address, 0x8038A400–0x803BB380); BSS zeroed | C |
-| `LoadWave` (`audio_frame_sync`) | 0x80097798 (`src/blob/groups/audio_frame_sync/loadwave.c:72`) | wave *n* | file table §2.2 | per wave | heap block of `(gWaveSizes[n] + 31) & ~31` from `AllocateMemoryHeap` 0x80097470 or `AllocateHandleHeap` 0x800974EC | C |
-| `_NewWaveInstance` (`func_800972BC`, inlined) | 0x800972BC (`loadwave.c:43`) | allocates the slot in `gWaveInstance[64]` 0x80156D38 | | | | C |
-| `_ReadWave` (`func_80097164`) | 0x80097164 (`src/blob/groups/audio_frame_sync/waves.c:220-255`) | the wave's bytes | `D_8011B5BC[n]` | `D_80123564[n]`: 0 raw PI DMA (inlined `func_8009715C`, queue `D_80035410`), 1 `lzss_decompress` 0x80002660, 2 `inflate_decompress` 0x800026C0 | wave buffer; then `SetupWaveModel(slot, 1)` | C |
-| `BGLoadWaveMain` (`brake_force_apply`) | 0x800AC75C, thread 8 (`audio_frame_sync/group.c:3764`) | background loads (`LoadTrack(.., background=1)`) | request queue `D_80156BB0`, done queue `D_80035440` | as `_ReadWave` | wave buffer | C |
-| `ReplaceWave` (`suspension_setup`) | 0x800A501C (`replacewave.c:40`) | swaps the text bank in its slot | | | reuses the buffer, sized by the first (largest) text wave | C, M (`gLargestTextWave`) |
+| `unzipdata_from_rom(rom, dst, 0)` from `main_thread_entry` | 0x80006814, call 0x80002334 (`src/rom/boot.c:91`) | game image | ROM 0xB0CB10 (`gRomCompressedData`) | raw DEFLATE | 0x80086A50 fixed; Huffman tables at fixed 0x803FD120 (0x2EE0 B) | C |
+| `load_overlay` (overlay load); callers `load_start_overlay` 0x800A133C ("Start" = image A), `load_extra_overlay` 0x800A1244 ("Extra" = image B), `LoadFrontEndOverlay` 0x800C8FA4 | 0x800A11E4 (`src/blob/groups/heap_release/overlay_loader.c:43-69`) | runtime image A or B | ROM pointers `start_overlay_rom` (A, 0xB5C534) / `extra_overlay_rom` (B, 0xB6FEC4) | raw DEFLATE via `inflate_decompress` 0x800026C0 | 0x8038A400, reserved in the heap by `allocate_memory_at` (allocate at address, 0x8038A400–0x803BB380); BSS zeroed | C |
+| `LoadWave` (`LoadWave`) | 0x80097798 (`src/blob/groups/waves/loadwave.c:72`) | wave *n* | file table §2.2 | per wave | heap block of `(gWaveSizes[n] + 31) & ~31` from `AllocateMemoryHeap` 0x80097470 or `AllocateHandleHeap` 0x800974EC | C |
+| `_NewWaveInstance` (`NewWaveInstance`, inlined) | 0x800972BC (`loadwave.c:43`) | allocates the slot in `gWaveInstance[64]` 0x80156D38 | | | | C |
+| `_ReadWave` (`ReadWave`) | 0x80097164 (`src/blob/groups/waves/waves.c:220-255`) | the wave's bytes | `wave_rom_offsets[n]` | `wave_storage_kinds[n]`: 0 raw PI DMA (inlined `wave_rom_read`, queue `rom_dma_queue`), 1 `lzss_decompress` 0x80002660, 2 `inflate_decompress` 0x800026C0 | wave buffer; then `SetupWaveModel(slot, 1)` | C |
+| `BGLoadWaveMain` (`BGLoadWaveMain`) | 0x800AC75C, thread 8 (`waves/group.c:3764`) | background loads (`LoadTrack(.., background=1)`) | request queue `bg_load_request_queue`, done queue `bg_load_idle_queue` | as `_ReadWave` | wave buffer | C |
+| `ReplaceWave` (`ReplaceWave`) | 0x800A501C (`replacewave.c:40`) | swaps the text bank in its slot | | | reuses the buffer, sized by the first (largest) text wave | C, M (`gLargestTextWave`) |
 | `SetupWaveModel` / `MBSetupWad` / `MBOffsetWad` / `MBGetFromWad` | 0x80096CA8 / 0x80096C28 / 0x80096BBC / 0x80096B5C | WAD relocation (§3.1) | | | in place | C |
-| MusyX sample DMA: `struct_init_and_call` (no direct caller; reached through the MusyX callback table `D_80038000`) → `func_8008ABE4` → `osPiStartDma`; thread `task_complete_signal` | 0x8010FD1C, 0x8008ABE4 (`groups/dma_queue_next/func_8008ABE4.c:40-50`), 0x8008AC74 | sample data | cart address of ROM 0x39B40 + sample offset, from the address callback `D_80038014` (by signature `func_8010FD60`: `(a & 0x0FFFFFFF) \| 0xB0000000`) | none (ADPCM) | MusyX RAM buffers from the alloc callback `D_80038018` (by signature `resource_alloc_init` 0x8010FC80, heap) | C |
-| `main` | 0x800020F0 (`lib_2cf0.c:16-20`) | 16 words at cart 0xFFB000 via `osPiReadIo`, then discarded | | | stack | C |
-| `DecodeGhost` → `inflate_entry_alt` | 0x800CBE08 → 0x8000697C (`groups/menu_save_options/ctx_slot.c:209`) | ghost data from the Controller Pak, not the ROM | RAM | DEFLATE | buffer | C |
-| Stream bank `func_80025AB4` / `func_800252AC` (boot library) | | 8 or 16 kHz streams, index table `u32 = rate << 24 \| offset` | | | | C: no caller in the game, image A or image B (unused) |
+| MusyX sample DMA: `musyx_start_dma_list` (no direct caller; reached through the MusyX callback table `sound_services`) → `sample_dma_next` → `osPiStartDma`; thread `sample_dma_thread_entry` | 0x8010FD1C, 0x8008ABE4 (`groups/sample_dma_next/sample_dma_next.c:40-50`), 0x8008AC74 | sample data | cart address of ROM 0x39B40 + sample offset, from the address callback `sound_service_translate_address` (by signature `musyx_cart_address`: `(a & 0x0FFFFFFF) \| 0xB0000000`) | none (ADPCM) | MusyX RAM buffers from the alloc callback `sound_service_alloc` (by signature `musyx_alloc` 0x8010FC80, heap) | C |
+| `main` | 0x800020F0 (`boot.c:16-20`) | 16 words at cart 0xFFB000 via `osPiReadIo`, then discarded | | | stack | C |
+| `DecodeGhost` → `unzipdata` | 0x800CBE08 → 0x8000697C (`groups/save/ctx_slot.c:209`) | ghost data from the Controller Pak, not the ROM | RAM | DEFLATE | buffer | C |
+| Stream bank `speech_set_bank` / `speech_play` (boot library) | | 8 or 16 kHz streams, index table `u32 = rate << 24 \| offset` | | | | C: no caller in the game, image A or image B (unused) |
 
 Decompressors [C, from `asm/us/nonmatchings/rom/lib_5610/*.s`]:
-- **DEFLATE**: raw (no zlib header). The input is streamed in 4 KB PI DMA chunks through `gInflateBufferA/B`
-  (0x80084A50/0x80085A50) and the output written straight to `dst`. `inflate_entry` returns the output length.
+- **DEFLATE**: raw (no zlib header). The input is streamed in 4 KB PI DMA chunks through `unzip_input_a/B`
+  (0x80084A50/0x80085A50) and the output written straight to `dst`. `unzipdata_from_rom` returns the output length.
   With flag 1 its 0x2EE0-byte table scratch comes from the heap. PC: zlib `inflateInit2(-15)` from `pc_rom_bytes()`.
 - **LZSS** (`lzss_decode` 0x80004AFC): a flag byte, read LSB first, where 1 marks a literal and 0 a pair `b0 b1`.
   The distance is `((b0 & 0xF0) << 4) | b1`, a back distance from the output pointer (no ring buffer). The length
@@ -68,14 +68,14 @@ Decompressors [C, from `asm/us/nonmatchings/rom/lib_5610/*.s`]:
 
 | Table | Address | Element | Region | Tag |
 |---|---|---|---|---|
-| ROM offset | `D_8011B5BC` | u32 | game .data | C (`waves.c:235`) |
-| size in RAM (after decompression) | `D_8002E580` (`gWaveSizes`) | u32 | boot .data | C (`loadwave.c:56`) |
-| storage kind (0 raw, 1 LZSS, 2 DEFLATE) | `D_80123564` | s32 | game .data | C (`waves.c:229-251`) |
-| model flag (1 = WAD, relocate) | `D_801234AC` | s8 | game .data | C (`audio_frame_sync/group.c:3812`) |
-| initial text wave | `D_8002E860` | u8 | boot .data | C (`src/blob/func_800A5158.c:19`) |
+| ROM offset | `wave_rom_offsets` | u32 | game .data | C (`waves.c:235`) |
+| size in RAM (after decompression) | `gWaveSizes` (`gWaveSizes`) | u32 | boot .data | C (`loadwave.c:56`) |
+| storage kind (0 raw, 1 LZSS, 2 DEFLATE) | `wave_storage_kinds` | s32 | game .data | C (`waves.c:229-251`) |
+| model flag (1 = WAD, relocate) | `wave_is_model` | s8 | game .data | C (`waves/group.c:3812`) |
+| initial text wave | `gLargestTextWave` | u8 | boot .data | C (`src/blob/InitTextWave.c:19`) |
 
 The 183-entry count is checked by address arithmetic. `0x8011B5BC + 183*4 = 0x8011B898` is where the next table,
-track 1's PVS [R], starts. `0x8002E580 + 183*4 = 0x8002E85C` and `D_8002E860` follows. `0x801234AC + 184 = 0x80123564`.
+track 1's PVS [R], starts. `0x8002E580 + 183*4 = 0x8002E85C` and `gLargestTextWave` follows. `0x801234AC + 184 = 0x80123564`.
 All four tables are plain integers, so `port/data` can generate them by type.
 
 `gWaveInstance` (0x80156D38, 64 × 0x14) [C `waves.c:44-55`]: `s8 loaded, ready, locked, model; u8 mirrored;
@@ -89,17 +89,17 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 
 | Waves | Contents | Format (§) | Loaded by | MAT3 file |
 |---|---|---|---|---|
-| 0–5 | text bank per language: EN, ES, IT, DE, NL, FR | Text 3.3 | `InitTextWave` (`func_800A5158` 0x800A5158) loads `D_8002E860`; `func_800A510C` calls `ReplaceWave` for the current language | `texte`..`textf.lzs` (0–5) |
-| 6 | MusyX project | 3.8 | `AudioInitSys` (`car_shadow_render` 0x800A5D34, `groups/audio_init_sys/car_shadow_render.c:80`), locked | — |
+| 0–5 | text bank per language: EN, ES, IT, DE, NL, FR | Text 3.3 | `InitTextWave` (`InitTextWave` 0x800A5158) loads `gLargestTextWave`; `LoadTextWave` calls `ReplaceWave` for the current language | `texte`..`textf.lzs` (0–5) |
+| 6 | MusyX project | 3.8 | `AudioInitSys` (`AudioInitSys` 0x800A5D34, `groups/AudioInitSys/AudioInitSys.c:80`), locked | — |
 | 7 | MusyX pool | 3.8 | same, `:83` | — |
 | 8 | MusyX sample directory | 3.8 | same, `:86` | — |
 | 9 | sample data, raw ADPCM, 0x2D2A30 B [R] | 3.8 | not loaded as a wave. The code passes ROM 0x39B40 (`D_00039B40`, `:89`) to `sndPushGroup` and DMAs on demand | — |
-| 10–21 | songs 0–11 | 3.8 | `func_800979A0` (song start, `groups/slot_sound/func_800979A0.c:38`): wave `song + 10`, locked | — |
-| 22–37 | 16 font texture WADs | WAD 3.1 | `_HAL_SetFont` (`slot_state_setup` 0x800B4200): wave `font + 22`, heap `D_80114740` | `*fonttex.lzs` (8–23) |
+| 10–21 | songs 0–11 | 3.8 | `AudioSongPlay` (song start, `groups/slot_sound/AudioSongPlay.c:38`): wave `song + 10`, locked | — |
+| 22–37 | 16 font texture WADs | WAD 3.1 | `_HAL_SetFont` (`HAL_SetFontInternal` 0x800B4200): wave `font + 22`, heap `gFontHeap` | `*fonttex.lzs` (8–23) |
 | 38–53 | 16 font metric files, loaded as handles | Font 3.7 | same: wave `font + 38`, `handle = 1` | `*fontdat.lzs` (24–39) |
-| 54, 58, 59 | front-end WADs, locked | WAD | `resource_slots_clear_multiple` 0x800C937C (MAT3 `_LoadFrontEndWaves`) | `attract` (40), `selcom` (44), `selopt` (45) |
-| 55 / 56 / 57 / 60 | front-end screen WADs | WAD | `playgame_state_change` 0x800CA3B4 (`groups/state/state.c:303/244/239/256`), states 0x20000000 / 0x100 / 0x4000 / 0x80 | `interface` (41) / `selcar` (42) / `selcirc` (43) / `seltrk` (46) |
-| 61 | extra race WAD, with 80, when `D_80156994` (Expansion Pak) or `gTrackNum >= 6` | WAD | `LoadTrack`; image A `func_803A0FD8` | N64 only [R: effects] |
+| 54, 58, 59 | front-end WADs, locked | WAD | `LoadFrontEndWaves` 0x800C937C (MAT3 `_LoadFrontEndWaves`) | `attract` (40), `selcom` (44), `selopt` (45) |
+| 55 / 56 / 57 / 60 | front-end screen WADs | WAD | `updateGameState` 0x800CA3B4 (`groups/state/state.c:303/244/239/256`), states 0x20000000 / 0x100 / 0x4000 / 0x80 | `interface` (41) / `selcar` (42) / `selcirc` (43) / `seltrk` (46) |
+| 61 | extra race WAD, with 80, when `expansion_pak_present` (Expansion Pak) or `gTrackNum >= 6` | WAD | `LoadTrack`; image A `carscr_InitScreen` | N64 only [R: effects] |
 | 62 | HUD | WAD | `LoadTrack` (`groups/loadtrack/loadtrack.c:174`) | `hud` (47) |
 | 63 / 67 | battle HUD (`gRace == 6`) / stunt HUD (`gRace == 4`) | WAD | `LoadTrack :189/:191` | `hudbattle` (48) / `hudstunt` (52) |
 | 64 | common HUD | WAD | `:181` | `hudcom` (49) |
@@ -111,12 +111,12 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 | 78 / 79 | vehicles (track 18, or race tracks with Expansion Pak) / the variant used without it | WAD | `:163-169` | `vehicles` (57) / N64 only |
 | 80 / 81 | wheels [R]: 80 with Expansion Pak or track ≥ 6, else 81 | WAD | `:176-179` | N64 only |
 | 82–87 | per-track animated objects, race tracks 0–5 (Expansion Pak) | WAD | `:167`, wave `gTrackNum + 82` | `targetst1..6` (58–63) |
-| 88–100 | 13 cars | WAD | `LoadCars` 0x800BB140 (`groups/loadcars/root.c:61,75`, `loadAgain = 1`); image A `func_80390BC0` (car select) | `car1..13` (64–76) |
+| 88–100 | 13 cars | WAD | `LoadCars` 0x800BB140 (`groups/loadcars/root.c:61,75`, `loadAgain = 1`); image A `LoadSelectCar` (car select) | `car1..13` (64–76) |
 | 101–119 | 19 track geometries: 0–5 race, 6–13 DM1–8, 14–17 stunt, 18 obstacle; with PTHD/PATH | WAD | `LoadTrack` 0x800BB9B0 (`loadtrack.c:96`), wave `track + 101` | `track1`..`obstacle1` (233–251) |
 | 120–138 | worlds: placement trees | World WAD 3.4 | `loadtrack.c:106` | `*worlds` (252–270) |
 | 139–157 | road: collision | Road 3.5 | `loadtrack.c:129` | `*road` (271–289) |
-| 158–176 | forward AI and checkpoint paths | Path 3.6 | `loadtrack.c:142`; image A track select `loadPathData` (`func_8038CCEC`, `src/ovl_a/groups/runtime_a_c93c_closure/group.c:1276`, tracks 0–5) | `*path` (290–308) |
-| 177–182 | backward paths, race tracks 0–5 (`gBackwards` `D_80152570`) | Path 3.6 | `loadtrack.c:142` | `*pathback` (309–314) |
+| 158–176 | forward AI and checkpoint paths | Path 3.6 | `loadtrack.c:142`; image A track select `loadPathData` (`loadPathData`, `src/ovl_a/groups/trackscr/trackscr.c:1276`, tracks 0–5) | `*path` (290–308) |
+| 177–182 | backward paths, race tracks 0–5 (`gBackwards` `gBackwards`) | Path 3.6 | `loadtrack.c:142` | `*pathback` (309–314) |
 
 `LoadWave` also re-runs the mirror pass on an already loaded model wave (`loadwave.c:79-81`).
 
@@ -124,19 +124,19 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 
 | Data | Where | Tag |
 |---|---|---|
-| Heap | `func_800E7D04` (`groups/audio_heap/group.c:236-245`): base `((u32)D_8017A640 + 31) & ~31` (end of game BSS), end `osMemSize \| 0x80000000`; `D_80156994 = 1` (Expansion Pak features) when the end is above 0x80400000. First-fit allocator with 0x20-byte block headers, magic 0xFEDCBA98, handle tables of `u32` slots (`:159`, `count * 4`). Handle blocks can move (compaction, `groups/func_800E7A98/heap_release_context.c:151-257`). | C |
+| Heap | `locate_main_heap` (`groups/memsys/group.c:236-245`): base `((u32)game_bss_end + 31) & ~31` (end of game BSS), end `osMemSize \| 0x80000000`; `expansion_pak_present = 1` (Expansion Pak features) when the end is above 0x80400000. First-fit allocator with 0x20-byte block headers, magic 0xFEDCBA98, handle tables of `u32` slots (`:159`, `count * 4`). Handle blocks can move (compaction, `groups/destroy_heap/heap_release_context.c:151-257`). | C |
 | Every wave | a heap block (`AllocateMemoryHeap` / `AllocateHandleHeap`) | C |
 | Game image | 0x80086A50 fixed (PC: linked natively, skip the inflate) | C |
 | Runtime images | 0x8038A400 fixed, reserved inside the heap (PC: `pc_data_overlay_load`, no inflate) | C |
 | Text bank pointers, font letter pointers, GTLD pointers | written into the loaded file itself | C |
-| Checkpoints, resurrection and drone path headers | copied into game BSS (`D_80151CE8`, `D_801407F0`, `D_8012E5E8`) | C |
+| Checkpoints, resurrection and drone path headers | copied into game BSS (`gCheckpoints`, `gResPath`, `gDronePaths`) | C |
 
 ### 2.5 What the PC `_ReadWave` does
 
-1. Kind 0: `memcpy` from `pc_rom_bytes() + D_8011B5BC[n]`, `gWaveSizes[n]` bytes. Kind 1: C LZSS. Kind 2: zlib raw
+1. Kind 0: `memcpy` from `pc_rom_bytes() + wave_rom_offsets[n]`, `gWaveSizes[n]` bytes. Kind 1: C LZSS. Kind 2: zlib raw
    inflate.
 2. Call the converting loader (§5) by wave range, before `SetupWaveModel`.
-3. For WADs, `pc_mem_register_be(buffer, size)`. `UnloadWaveInstance` (`func_80096130`, 0x80096130) and heap
+3. For WADs, `pc_mem_register_be(buffer, size)`. `UnloadWaveInstance` (`UnloadWaveInstance`, 0x80096130) and heap
    compaction must unregister or move the registration. Only handle waves move, and those are font data, which has
    no big-endian payload.
 
@@ -144,7 +144,7 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 
 ### 3.1 WAD container (model waves 22–37, 54–119; worlds 120–138)
 
-Table of contents [C `src/blob/MBSetupWad.c:10-44`, `MBGetFromWad.c`, `func_80096B00.c` (`MBFindInWad`); M `mb_wad.c`]:
+Table of contents [C `src/blob/MBSetupWad.c:10-44`, `MBGetFromWad.c`, `MBFindInWad.c` (`MBFindInWad`); M `mb_wad.c`]:
 
 | Off | Field | Size | Load fixup |
 |---|---|---|---|
@@ -157,7 +157,7 @@ Table of contents [C `src/blob/MBSetupWad.c:10-44`, `MBGetFromWad.c`, `func_8009
 Tags fetched by name: `OBHD` 0x4F424844, `TXHD` 0x54584844, `PLHD` 0x504C4844, `PTHD` 0x50544844 (waves 101–119
 only), `TXLD` 0x54584C44, `IMAG` 0x494D4147 (`waves.c:175-182`); `WHDR` 0x57484452, `GDAT` 0x47444154, `GTLD`
 0x47544C44 (`loadtrack.c:116-125`). `OBJS`, `PATH` and `WOBJ` are reached only through pointers [R for their names].
-The handle `{base, count, TOC}` is a 12-byte stack struct. `MBOffsetWad` (`func_80096BBC`) addresses it by raw
+The handle `{base, count, TOC}` is a 12-byte stack struct. `MBOffsetWad` (`MBOffsetWad`) addresses it by raw
 offsets +0/+4/+8.
 
 Chunks:
@@ -169,36 +169,36 @@ Chunks:
 | PLHD | count × 0x18 | `char name[16]`; `u8 start` +0x10, `end` +0x11; `u16 format` +0x12; `char *palBase` +0x14 (`waves.c:84-90`) | `palBase += IMAG` (`waves.c:190`) | 16 at 0x12, 32 at 0x14 [M `:377`] | C |
 | PTHD | count × 0x24, waves 101–119 | `tBasicTargetPath` (`waves.c:91-99`): `char name[16]`; `u32 flags` +0x10; `s16 numPts` +0x14; `s16 collIdx` +0x16; `trigPtr` +0x18; `pts` +0x1C; `parent` +0x20 (set at run time) | `pts` and `trigPtr` are file-relative, `+= file` (`waves.c:203-204`). The camera reads `trigPtr` as the linked scene, another PTHD record (§8.2). `parent` is a file key that level objects read and the camera then overwrites | 32 at 0x10, 0x18, 0x1C, 0x20; 16 at 0x14, 0x16 [M `:384`] | C |
 | PATH | bytes | path points, numPts × 0x44: `f32 pos[3], norm[3], scale[3], quat[4], distToNext, timeToNext, speed; u32 flags` [M `rush_types.h:2435`] | none | 17 × u32 per point [M `waves.c:418`] | M |
-| TXLD | bytes | texture-load display lists, 8-byte F3DEX2 commands | `G_SETTIMG` (0xFD) w1, and w1 of `G_RDPHALF_1` (0xE1) followed by 0x04, are IMAG-relative. `entity_cull_check` (0x80096A00, `src/blob/entity_cull_check.c:19-37`) rebases them to `(w1 & 0x0F000000) \| ((w1 + IMAG) & 0xFFFFFF)` | stays N64 form | C |
+| TXLD | bytes | texture-load display lists, 8-byte F3DEX2 commands | `G_SETTIMG` (0xFD) w1, and w1 of `G_RDPHALF_1` (0xE1) followed by 0x04, are IMAG-relative. `relocate_texture_loads` (0x80096A00, `src/blob/relocate_texture_loads.c:19-37`) rebases them to `(w1 & 0x0F000000) \| ((w1 + IMAG) & 0xFFFFFF)` | stays N64 form | C |
 | OBJS | bytes | object display lists and `Vtx` (16 B: `s16 ob[3]`, `u16 flag` +6, `s16 tc[2]` +8, `u8 cn[4]` +0xC) | VTX/DL/MTX/MOVEMEM/SETxIMG w1 are file-relative with segment nibble 0. The relocator rewrites them (§3.2) | stays N64 form | C |
 | IMAG | bytes | texels (N64 formats per TXHD `size`/`format`) and TLUTs (RGBA16) | none | stays N64 form (renderer) | C (use), R (contents) |
 
-Model handle = `(waveSlot << 10) | index` (`particle_system` 0x8009C8F0, really the model draw,
-`groups/particle_knot/group.c:838`). The per-slot `{pointer, count}` tables are `gRomObjDefPtrs` 0x801161F4,
+Model handle = `(waveSlot << 10) | index` (`zoid_draw_object` 0x8009C8F0, really the model draw,
+`groups/zoid_draw/group.c:838`). The per-slot `{pointer, count}` tables are `gRomObjDefPtrs` 0x801161F4,
 `gTexDefPtrs` 0x80151AE8, `gPalDefPtrs` 0x80138670 and `gTargetPaths` 0x801392D0 (one pair).
 
 ### 3.2 Display-list relocation and the post-load passes
 
 | Function | Address | What it does to the loaded file | Tag |
 |---|---|---|---|
-| `entity_lod_select` | 0x80096734 (`src/blob/entity_lod_select.c`; copy `audio_frame_sync/group.c:3818-3900`) | Walks one LOD list with a 10-deep stack. For ops 0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 (before 0x04 or 0xDD) and ≥ 0xFD it sets `w1 = (w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)`. It rewrites the conditional `E0 01 cccc` into `DE010000` / target when load-flag bit `cccc` is clear. The flags are 2 = 1 player, 4 = 2 players, 8 = forward, 0x10 = backward (`waves.c:144-160`). It calls `func_800966D8` on the first VTX, does not enter `G_DL`, follows 0xE1+0x04, and stops at 0xDF | C |
-| `func_800966D8` | 0x800966D8 | Vertex chain from that VTX: `p = addr \| 0x80000000`, stride 0x10. It reads the u16 at +6 (bit 15 = next vertex follows, bit 14 = done, bits 0–8 = texture width), sets bit 14, and when mirrored sets `s(+8) = width*32 - s` | C |
-| `entity_cull_check` | 0x80096A00 | TXLD rebase (§3.1) | C |
-| `entity_render_mode` (`MirrorWaveInstance`) | 0x800965BC (`groups/slot_sound/entity_render_mode.c:44`) | When the mirror state `D_80140A04` changes, walks every LOD list with `display_list_traverse(dl, 0, 0, 2, func_8008AD6C)` | C |
+| `relocate_model_dl` | 0x80096734 (`src/blob/relocate_model_dl.c`; copy `waves/group.c:3818-3900`) | Walks one LOD list with a 10-deep stack. For ops 0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 (before 0x04 or 0xDD) and ≥ 0xFD it sets `w1 = (w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)`. It rewrites the conditional `E0 01 cccc` into `DE010000` / target when load-flag bit `cccc` is clear. The flags are 2 = 1 player, 4 = 2 players, 8 = forward, 0x10 = backward (`waves.c:144-160`). It calls `mirror_vertex_texcoords` on the first VTX, does not enter `G_DL`, follows 0xE1+0x04, and stops at 0xDF | C |
+| `mirror_vertex_texcoords` | 0x800966D8 | Vertex chain from that VTX: `p = addr \| 0x80000000`, stride 0x10. It reads the u16 at +6 (bit 15 = next vertex follows, bit 14 = done, bits 0–8 = texture width), sets bit 14, and when mirrored sets `s(+8) = width*32 - s` | C |
+| `relocate_texture_loads` | 0x80096A00 | TXLD rebase (§3.1) | C |
+| `MirrorWaveInstance` (`MirrorWaveInstance`) | 0x800965BC (`groups/slot_sound/MirrorWaveInstance.c:44`) | When the mirror state `gMirrorWaves` changes, walks every LOD list with `display_list_traverse(dl, 0, 0, 2, flip_triangle_winding)` | C |
 | `display_list_traverse` | 0x800963E8 (`src/blob/display_list_traverse.c:10-57`) | Generic walker: 0xDF ends, 0xDE calls or branches, 0xE1+0x04 branches. Its address rule: `addr &= 0xF0FFFFFF` when a segment nibble is set, else `addr += 0x80000000`, then a `u32 *` cast. With flags & 8 it replaces matching w1 | C |
-| `func_8008AD6C` | 0x8008AD6C | TRI1 (0x05): swaps the 2nd and 3rd vertex-index bytes of w0. TRI2/QUAD (0x06/0x07): does the same in w0 and w1 (winding flip) | C |
-| Texture animation | setup `camera_shake_start` 0x800BDAA8, update `race_setup_1` 0x800BD2C8, helpers `func_800BDA24` 0x800BDA24 (read the first SETTIMG w1), `func_800BD080` 0x800BD080 (write it), `camera_smooth_follow` 0x800BD104 (rewrite G_SETTILESIZE uls/ult) | Patches TXLD lists, TXHD `texBase`, and TLUT entries (palette kinds 0–8 store RGBA16 constants, `race_setup_1.c`) once per frame. Tables `0x8011A31C` / `0x8011A840` [R] | C, R |
-| Model draw `particle_system` / texture-load builder `render_display_list` / TLUT load `func_80099B30` | 0x8009C8F0 / 0x80099BFC / 0x80099B30 (`groups/particle_knot/group.c:822/655/640`) | Read OBHD/TXHD/PLHD fields and emit native commands: `gSPDisplayList(lod.dl)` with the relocated 24-bit address, and `gSPDisplayList(tex->image)` (`:665`) for a TXLD list. Texture and TLUT loads point at IMAG (K0 addresses). `G_SETOTHERMODE_H(TEXTLUT)` once per frame | C |
+| `flip_triangle_winding` | 0x8008AD6C | TRI1 (0x05): swaps the 2nd and 3rd vertex-index bytes of w0. TRI2/QUAD (0x06/0x07): does the same in w0 and w1 (winding flip) | C |
+| Texture animation | setup `InitTextureAnimation` 0x800BDAA8, update `TextureAnimation` 0x800BD2C8, helpers `displaylist_get_texture_image` 0x800BDA24 (read the first SETTIMG w1), `displaylist_set_texture_image` 0x800BD080 (write it), `displaylist_set_tile_size` 0x800BD104 (rewrite G_SETTILESIZE uls/ult) | Patches TXLD lists, TXHD `texBase`, and TLUT entries (palette kinds 0–8 store RGBA16 constants, `TextureAnimation.c`) once per frame. Tables `0x8011A31C` / `0x8011A840` [R] | C, R |
+| Model draw `zoid_draw_object` / texture-load builder `zoid_load_texture` / TLUT load `zoid_load_palette` | 0x8009C8F0 / 0x80099BFC / 0x80099B30 (`groups/zoid_draw/group.c:822/655/640`) | Read OBHD/TXHD/PLHD fields and emit native commands: `gSPDisplayList(lod.dl)` with the relocated 24-bit address, and `gSPDisplayList(tex->image)` (`:665`) for a TXLD list. Texture and TLUT loads point at IMAG (K0 addresses). `G_SETOTHERMODE_H(TEXTLUT)` once per frame | C |
 
 Consequence for the renderer: native lists built by the game carry three kinds of address to big-endian payload.
 These are physical 24-bit (`0x00xxxxxx`, from the relocator), K0 (`0x80xxxxxx`, TXHD/PLHD/IMAG) and, rarely,
 segmented. All three resolve to `PC_RDRAM_BASE + (a & 0x00FFFFFF)` for segment 0. Optionally, under `TARGET_PC` the
-two relocators can emit `| 0x80000000` (K0) instead. That is idempotent for `func_800966D8`, `display_list_traverse`
+two relocators can emit `| 0x80000000` (K0) instead. That is idempotent for `mirror_vertex_texcoords`, `display_list_traverse`
 and the bit-31 test, and makes every relocated w1 a literal host address.
 
 ### 3.3 Text bank (waves 0–5)
 
-[C `groups/slot_sound/func_800A4E58.c:39-71` (`_AdjustTextWavePointers`, labeled "model-table loader"); M `text.c`]
+[C `groups/slot_sound/AdjustTextWavePointers.c:39-71` (`_AdjustTextWavePointers`, labeled "model-table loader"); M `text.c`]
 
 | Section | Layout | Fixup |
 |---|---|---|
@@ -211,28 +211,28 @@ and the bit-31 test, and makes every relocated w1 a literal host address.
 | strings | bytes | |
 
 Header `gText` is at 0x8017A4E0 (0x28 on N64). 17 files read it as `char **` through at least four different struct
-views (`control_settings/group.c:50-56`, `runtime_a_text_helpers/group.c:720-726`,
-`runtime_a_menu_renderers/group.c:49`, `func_8010AEAC/faeac.c`). The language switch re-runs the parse after
-`ReplaceWave` (`func_800A510C`).
+views (`pakerr/group.c:50-56`, `circuitscr/circuitscr.c:720-726`,
+`pakscr_draw/pakscr_draw.c:49`, `options_anim/options_anim.c`). The language switch re-runs the parse after
+`ReplaceWave` (`LoadTextWave`).
 
 ### 3.4 World WAD (waves 120–138)
 
-[C `loadtrack.c:104-126`, `src/blob/wheel_torque_apply.c`, `src/blob/race_setup_2.c:74-85`,
-`groups/level_objects/group.c:464-475`; M `world.c:273-360`, `tracks.c:49-74`, `targets.c:694-703`]
+[C `loadtrack.c:104-126`, `src/blob/NewWorld.c`, `src/blob/CheckTargetCollision.c:74-85`,
+`groups/targets/group.c:464-475`; M `world.c:273-360`, `tracks.c:49-74`, `targets.c:694-703`]
 
 | Chunk | Layout | Pointers / fixup |
 |---|---|---|
-| WHDR | u32 count; count × `{u32 woff; char wname[16]}` (0x14), sorted by name | `woff += (u32)worldptr` once (`loadtrack.c:120`). `NewWorld` (`wheel_torque_apply` 0x800AC668) bsearches it with `NameEntry {Node104 *node; char name[16]}` |
-| WOBJ (world nodes) | `tModelPart` 0x68 [M `rush_types.h:2831`]: `char name[16]`; `f32 mat[12]` +0x10; `u32 dlflags` +0x40; `s16 next` +0x44, `child` +0x46, `sfx1` +0x48, `sfx2` +0x4A; `s32 tidx` +0x4C; `f32 min[3]` +0x50, `max[3]` +0x5C | none: next and child are indices. Placement: `differential_output` 0x800AC3D8 |
-| GDAT | count × 0x1C `tTargetGroup`: `s16 parent; u8 unused; u8 flags; f32 minh, maxh, minv, maxv; u16 child[4]` [M]. N64 view `Tree` (`race_setup_2.c:74`) | none |
-| GTLD | count × u32 target keys | **overwritten in place with `Object *`** at race setup (`level_objects/group.c:464-474`); read as `Object **` (`race_setup_2.c:155`) |
+| WHDR | u32 count; count × `{u32 woff; char wname[16]}` (0x14), sorted by name | `woff += (u32)worldptr` once (`loadtrack.c:120`). `NewWorld` (`NewWorld` 0x800AC668) bsearches it with `NameEntry {Node104 *node; char name[16]}` |
+| WOBJ (world nodes) | `tModelPart` 0x68 [M `rush_types.h:2831`]: `char name[16]`; `f32 mat[12]` +0x10; `u32 dlflags` +0x40; `s16 next` +0x44, `child` +0x46, `sfx1` +0x48, `sfx2` +0x4A; `s32 tidx` +0x4C; `f32 min[3]` +0x50, `max[3]` +0x5C | none: next and child are indices. Placement: `NewWorldObject` 0x800AC3D8 |
+| GDAT | count × 0x1C `tTargetGroup`: `s16 parent; u8 unused; u8 flags; f32 minh, maxh, minv, maxv; u16 child[4]` [M]. N64 view `Tree` (`CheckTargetCollision.c:74`) | none |
+| GTLD | count × u32 target keys | **overwritten in place with `Object *`** at race setup (`targets/group.c:464-474`); read as `Object **` (`CheckTargetCollision.c:155`) |
 
 MAT3 swaps the world nodes while it walks them, with a reload flag, so a converting loader should swap the WOBJ
 chunk once as an array of 0x68 records, after checking that its length is a multiple of 0x68.
 
 ### 3.5 Road: collision (waves 139–157)
 
-[C `src/blob/func_800AB638.c:15-26` (`InitSTree`); M `stree.c:26-99`, `rush_types.h:1032, 1518, 2363-2408`]
+[C `src/blob/InitSTree.c:15-26` (`InitSTree`); M `stree.c:26-99`, `rush_types.h:1032, 1518, 2363-2408`]
 
 | Section | Count | Record | Fields |
 |---|---|---|---|
@@ -244,35 +244,35 @@ chunk once as an array of 0x68 records, after checking that its length is a mult
 | save | savenum | 0x20 `savetyp` | `u16 object, snum; s16 uvs[9]; u16 vnum; s16 pos[3]; u16 overflow` |
 | vlist, slist | vlnum, slnum | bytes | |
 
-No pointers. Section pointers live in game BSS (`D_80152034` … `D_80152460`). This is a pure in-place swap. 24
+No pointers. Section pointers live in game BSS (`gRoadPath` … `stree_slist`). This is a pure in-place swap. 24
 files read these sections.
 
 ### 3.6 Path (waves 158–182)
 
-[C `src/blob/audio_dsp_process.c:27`, `groups/read_path_data/audio_effect_apply.c:25-110` (`ReadPathData`);
+[C `src/blob/ReadCheckpointData.c:27`, `groups/pathcommon_read/ReadPathData.c:25-110` (`ReadPathData`);
 M `pathcommon.c:25-80`, `rush_types.h:1329`]
 
 | Offset | Content | Fixup |
 |---|---|---|
-| 0 | checkpoint block 0x32C: `s16 startTime, loopPt, finishPt, startPt, numPoints`, pad, then 10 × 0x50 `{f32 pos[3], normal[3]; s32 radius (squared, read as an integer); s16 flags; s16 time[2]; s16 pathPts[20]; f32 distToNext}` | `memcpy` of 812 B to `gCheckpoints` `D_80151CE8` |
-| 0x32C | `ResPath` 0x10: `u16 numPrimary, u16; pts (u32 slot); u8 numAlt, pad[3]; alt (u32 slot)` | `memcpy` of 16 B into `D_801407F0`, whose pointer fields are filled afterwards |
+| 0 | checkpoint block 0x32C: `s16 startTime, loopPt, finishPt, startPt, numPoints`, pad, then 10 × 0x50 `{f32 pos[3], normal[3]; s32 radius (squared, read as an integer); s16 flags; s16 time[2]; s16 pathPts[20]; f32 distToNext}` | `memcpy` of 812 B to `gCheckpoints` `gCheckpoints` |
+| 0x32C | `ResPath` 0x10: `u16 numPrimary, u16; pts (u32 slot); u8 numAlt, pad[3]; alt (u32 slot)` | `memcpy` of 16 B into `gResPath`, whose pointer fields are filled afterwards |
 | +0x10 | numAlt × `AltPath` 0x10: `u8 type; …; u16 numPts +0xA; pts +0xC` | **`pts` written in place** (`:96`) |
-| | u16 resurrection point count `D_801527A4`; numPrimary × `s16[3]` | |
+| | u16 resurrection point count `gNumResPathPts`; numPrimary × `s16[3]` | |
 | | alternative-path points, s16[3] each | |
-| | 4 × { `DronePath` 8 B: `u16 num, u16, pts (u32 slot)`; num × 8-byte points } | `memcpy` of 8 B into `D_8012E5E8[p]` |
+| | 4 × { `DronePath` 8 B: `u16 num, u16, pts (u32 slot)`; num × 8-byte points } | `memcpy` of 8 B into `gDronePaths[p]` |
 
 Byte order: s16, u16 and f32 throughout. MAT3 lists each field (`pathcommon.c:35-53`). The overlay A track-select
 map reads the same waves (§2.3).
 
 ### 3.7 Font data (waves 38–53)
 
-[C `groups/slot_sound/group.c:92-150` (`sound_update_channel` = `_SetupFontData`, 0x800B3D18); M `HAL_text.c:152-183`,
+[C `groups/slot_sound/group.c:92-150` (`SetupFontData` = `_SetupFontData`, 0x800B3D18); M `HAL_text.c:152-183`,
 `rush_types.h:1678-1701`]
 
 - Header 0x10, all bytes: `version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth, spacing,
   nonProp, kern, numTextures, numChars`.
 - numChars × 0xC letters: a 4-byte `kerns` slot **written in place** with a pointer
-  (`D_80149800[i].ptr = p`, `:135`), then bytes `value, texIdx, uls, ult, …`.
+  (`gFontLetters[i].ptr = p`, `:135`), then bytes `value, texIdx, uls, ult, …`.
 - When `kern` is set, a numChars × numChars byte table follows.
 - No byte swapping is needed. The 12-byte letter is declared `{u8 *ptr; u8 id; u8 pad[7]}` (`:108`), so the slot
   must stay 4 bytes.
@@ -280,17 +280,17 @@ map reads the same waves (§2.3).
 
 ### 3.8 MusyX sound data (waves 6–8, 10–21; samples in ROM)
 
-The MusyX runtime is boot-segment C (`src/rom/lib_15a10.c`, `lib_16320.c`, `lib_17dc0.c`, `lib_1a660.c`,
-`lib_22300.c`). It reads these files in place with native loads. Field by field, with every reader:
+The MusyX runtime is boot-segment C (`src/rom/sound/groups.c`, `registry.c`, `sequencer.c`, `synth.c`,
+`macros.c`). It reads these files in place with native loads. Field by field, with every reader:
 [MUSYX_DATA.md](MUSYX_DATA.md) §3.
 
 | File | Layout | Writes into the file | Tag |
 |---|---|---|---|
-| project (6) | groups until u32 0xFFFFFFFF: `{s32 size; u16 id; u16 type; u32 offsets[]}` (`func_8001536C`), offsets relative to group + 8: u16 id lists ended by 0xFFFF (macros, samples, tables, keymaps, layers); type 1 adds an sfx table (12-byte entries), type 0 a normal page, a drum page and MIDI setups (`func_8001558C`) | byte 9 of sfx entries (`func_800164D0`, `func_80020370`) | C |
-| pool (7) | 4 lists (`ResourceOffsets {u32 offsets[4]}`) of `{u32 size; u16 id; u16; payload at +8}` entries ended by size 0xFFFFFFFF (`func_80014E1C`): macros (8-byte steps of two u32, copied word by word by `func_80023E9C`), tables (byte curves; envelopes of four little-endian u16), keymaps (128 × 8 B), layers (count u16 at +0xA, payload at +12, 12 B each) | none | C |
-| sample directory (8) | `SampleRecord` 0x1C until id 0xFFFF: `u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]` (`include/boot_tail_sample_contract.h`) | **`references` counter and `data = base + offset`** (`func_800162AC`), where base is the cart address of ROM 0x39B40 (`D_801525FC`, through `func_80014CAC`) | C |
-| songs (10–21) | `{u32 tracks, patterns, channel map, tempo track, tempo, loop time}`; `u32 trackTab[64]` (offsets from the song start) to 12-byte track events; a pattern table to patterns `{u32; u32 bend; u32 modulation}` + note events (u16 delta, key, velocity, u16 duration for notes) | none; resolved into sequencer state as `offset + (u32)song` (`func_800178B0`, `func_80018634`) | C |
-| samples | ROM 0x39B40, raw ADPCM (format 3) or PCM16 (format 0), a 0x100-byte codebook first; `{length, source, destination}` DMA requests (`func_80012234`, `func_80012730`, `func_8008ABE4.c:21-25`) | none | C |
+| project (6) | groups until u32 0xFFFFFFFF: `{s32 size; u16 id; u16 type; u32 offsets[]}` (`sound_push_group`), offsets relative to group + 8: u16 id lists ended by 0xFFFF (macros, samples, tables, keymaps, layers); type 1 adds an sfx table (12-byte entries), type 0 a normal page, a drum page and MIDI setups (`sound_start_song_in_group`) | byte 9 of sfx entries (`sound_add_sfx_table`, `sound_set_sfx_volume_group`) | C |
+| pool (7) | 4 lists (`ResourceOffsets {u32 offsets[4]}`) of `{u32 size; u16 id; u16; payload at +8}` entries ended by size 0xFFFFFFFF (`sound_find_pool_entry`): macros (8-byte steps of two u32, copied word by word by `sound_macro_run`), tables (byte curves; envelopes of four little-endian u16), keymaps (128 × 8 B), layers (count u16 at +0xA, payload at +12, 12 B each) | none | C |
+| sample directory (8) | `SampleRecord` 0x1C until id 0xFFFF: `u16 identifier; u16 references; u32 offset; void *data; u8 descriptor[16]` (`include/sound_sample_record.h`) | **`references` counter and `data = base + offset`** (`sound_add_sample`), where base is the cart address of ROM 0x39B40 (`musyx_samples`, through `sound_hw_translate_address`) | C |
+| songs (10–21) | `{u32 tracks, patterns, channel map, tempo track, tempo, loop time}`; `u32 trackTab[64]` (offsets from the song start) to 12-byte track events; a pattern table to patterns `{u32; u32 bend; u32 modulation}` + note events (u16 delta, key, velocity, u16 duration for notes) | none; resolved into sequencer state as `offset + (u32)song` (`sound_seq_start`, `sound_seq_play_tracks`) | C |
+| samples | ROM 0x39B40, raw ADPCM (format 3) or PCM16 (format 0), a 0x100-byte codebook first; `{length, source, destination}` DMA requests (`sound_hw_fetch_codebook`, `sound_hw_fetch_sample_range`, `sample_dma_next.c:21-25`) | none | C |
 
 ### 3.9 Not loaded at run time
 
@@ -300,8 +300,8 @@ references:
 - PVS tables 0x8011B898… with count table 0x8011E748 [R; the start address checked in §2.2];
 - texture-animation tables 0x8011A31C / 0x8011A840 [R];
 - `gWorldNames` 0x8011A924 [C `loadtrack.c:66`];
-- song/group pairs `D_8011F070` and sfx groups `D_8011F0A0` [C];
-- the MusyX callback table `D_8011EAAC`, 8 words copied as `u32[8]` by `func_80020598` (`lib_207b0.c:471-476`) [C].
+- song/group pairs `song_groups` and sfx groups `boot_sfx_groups` [C];
+- the MusyX callback table `audio_driver_services`, 8 words copied as `u32[8]` by `sound_set_services` (`api.c:471-476`) [C].
 
 ## 4. Pointer and byte-order assumptions on loaded data
 
@@ -310,32 +310,32 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | # | Site | Assumption | PC fix |
 |---|---|---|---|
 | 1 | `MBSetupWad.c:35-41` | TOC word replaced by the absolute address; "relocated" means bit 31 set; `offset += (u32)header` | heap in the window; swap the TOC first |
-| 2 | `func_80096BBC.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | keep the handle three 32-bit words, or rewrite with fields |
+| 2 | `MBOffsetWad.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | keep the handle three 32-bit words, or rewrite with fields |
 | 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | window |
 | 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | window; u32 fields |
-| 5 | `waves.c:163`, `slot_sound/group.c:127` vs `audio_heap/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
-| 6 | `entity_lod_select` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | window (RDRAM ≤ 16 MB); BE32 accessors |
-| 7 | `entity_cull_check.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | BE32; keep its local `Gfx` 8 bytes even after the `TARGET_PC` widening of `Gfx` |
-| 8 | `func_800966D8` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | window; BE16 |
+| 5 | `waves.c:163`, `slot_sound/group.c:127` vs `memsys/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
+| 6 | `relocate_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | window (RDRAM ≤ 16 MB); BE32 accessors |
+| 7 | `relocate_texture_loads.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | BE32; keep its local `Gfx` 8 bytes even after the `TARGET_PC` widening of `Gfx` |
+| 8 | `mirror_vertex_texcoords` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | window; BE16 |
 | 9 | `display_list_traverse.c:19-21, 38-40` | `addr += 0x80000000` / `&= 0xF0FFFFFF`, then a `u32 *` cast | window; BE32 |
-| 10 | `func_8008AD6C` | swaps index bytes at fixed bit positions of w0/w1 | BE32 load and store |
-| 11 | `func_800BD080`, `func_800BDA24`, `camera_smooth_follow`, `race_setup_1` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | BE accessors |
+| 10 | `flip_triangle_winding` | swaps index bytes at fixed bit positions of w0/w1 | BE32 load and store |
+| 11 | `displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | BE accessors |
 | 12 | `loadtrack.c:120` | `woff += (u32)worldptr` into a u32 field | window |
-| 13 | `wheel_torque_apply.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | `node` as u32 (else the stride becomes 24) |
-| 14 | `level_objects/group.c:464-474`, `race_setup_2.c:155` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | native side array |
-| 15 | `func_800A4E58.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | native `char *` side arrays; one shared `gText` definition |
+| 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | `node` as u32 (else the stride becomes 24) |
+| 14 | `targets/group.c:464-474`, `CheckTargetCollision.c:155` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | native side array |
+| 15 | `AdjustTextWavePointers.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | native `char *` side arrays; one shared `gText` definition |
 | 16 | `slot_sound/group.c:108, 135` | 12-byte font letter with a pointer written in place | u32 slot |
-| 17 | `slot_sound/group.c:148` (and its 3 copies), `entity_spawn_init.c:300` | TXHD stride `+ i * 36`; `D_80149820[]` holds pointers as s32 | TXHD stays 0x24, pointer fields u32 |
-| 18 | `car_gear_shift.c:14` | OBHD stride `* 88` | OBHD stays 0x58 |
-| 19 | `func_800ABB58.c:3704` | `(u8 *)&gRomObjDefPtrs + idx * 8` (the pair is 8 B); `slot_sound/group.c:109` declares the pairs `{s32 first; s32 second}` | pair tables keep a u32 pointer |
-| 20 | `particle_knot/group.c:544-556` | OBHD overlaid as `LodSet`/`LodLevel`: levels start at +0x14 with stride 0x10, `Gfx *dl` | u32 `dl` |
-| 21 | `runtime_a_c93c_closure/group.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`D_803BAB58`) | u32 fields |
-| 22 | `audio_effect_apply.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | field-by-field copy; u32 `pts` |
-| 23 | `level_objects/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)D_801392D0 + offset` | u32 fields |
-| 24 | `func_800162AC`, `boot_tail_sample_contract.h` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | done: u32 under `TARGET_PC` (MUSYX_DATA.md §4) |
-| 25 | `func_80014CAC`, `func_800146B4` (`lib_11640.c`) | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit; host pointers (≥ 4 GiB) count as RAM |
-| 26 | `func_800178B0`, `func_80018634` (`lib_17dc0.c`) | song offsets `+ (u32)arr` | window |
-| 27 | `audio_heap/group.c:36-63, 236-245` | heap base `(u32)&D_8017A640`; `end = osMemSize \| 0x80000000`; 0x20-byte block header holding 3 pointers | `TARGET_PC`: base and end inside the window |
+| 17 | `slot_sound/group.c:148` (and its 3 copies), `StartSmoke.c:300` | TXHD stride `+ i * 36`; `gFontTextures[]` holds pointers as s32 | TXHD stays 0x24, pointer fields u32 |
+| 18 | `ZOID_FindObjInstance.c:14` | OBHD stride `* 88` | OBHD stays 0x58 |
+| 19 | `MBOX_GetObjectRadius.c:3704` | `(u8 *)&gRomObjDefPtrs + idx * 8` (the pair is 8 B); `slot_sound/group.c:109` declares the pairs `{s32 first; s32 second}` | pair tables keep a u32 pointer |
+| 20 | `zoid_draw/group.c:544-556` | OBHD overlaid as `LodSet`/`LodLevel`: levels start at +0x14 with stride 0x10, `Gfx *dl` | u32 `dl` |
+| 21 | `trackscr/trackscr.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`saved_map_lods`) | u32 fields |
+| 22 | `ReadPathData.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | field-by-field copy; u32 `pts` |
+| 23 | `targets/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)gTargetPaths + offset` | u32 fields |
+| 24 | `sound_add_sample`, `sound_sample_record.h` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | done: u32 under `TARGET_PC` (MUSYX_DATA.md §4) |
+| 25 | `sound_hw_translate_address`, `sound_hw_set_voice_sample` (`hardware.c`) | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit; host pointers (≥ 4 GiB) count as RAM |
+| 26 | `sound_seq_start`, `sound_seq_play_tracks` (`sequencer.c`) | song offsets `+ (u32)arr` | window |
+| 27 | `memsys/group.c:36-63, 236-245` | heap base `(u32)&game_bss_end`; `end = osMemSize \| 0x80000000`; 0x20-byte block header holding 3 pointers | `TARGET_PC`: base and end inside the window |
 | 28 | `gWaveInstance` 0x80156D38 and the `{ptr,count}` tables (§3.1) | BSS/data structs with pointers, declared differently per file (`ResSlot`, `Voice`, `anon_loaded_ready_14`, `Pair`) | `gen_bss` doesn't detect pointer structs yet (PORT_PLAN Phase 0). Give them own storage and one declaration, or u32 pointers |
 
 ## 5. Work list: converting loaders
@@ -348,7 +348,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Format | Waves | Strategy | Fields | Game edits under `TARGET_PC` |
 |---|---|---|---|---|
 | WAD TOC | 22–37, 54–138 | swap | header 2 × u32, entries 3 × u32 | §4 #1–3 |
-| OBHD | WADs | swap | 0x10 (32), 0x14/0x16 (16), LODs 16/16/32/32/32 | u32 `displayList`/`vtxList` in `waves.c:59-72`, `particle_knot/group.c:544`, `runtime_a_c93c_closure/group.c:264` and the other OBHD readers (13 files) |
+| OBHD | WADs | swap | 0x10 (32), 0x14/0x16 (16), LODs 16/16/32/32/32 | u32 `displayList`/`vtxList` in `waves.c:59-72`, `zoid_draw/group.c:544`, `trackscr/trackscr.c:264` and the other OBHD readers (13 files) |
 | TXHD | WADs | swap | 16 at 0x10, 0x12, 0x16; 32 at 0x18, 0x1C, 0x20 | u32 `texBase`/`image` (25 files) |
 | PLHD | WADs | swap | 16 at 0x12; 32 at 0x14 | u32 `palBase`/`table` (4 files) |
 | PTHD + PATH points | 101–119 | swap | §3.1 | u32 `pts`/`trigPtr`/`parent`/`resources` (2 files) |
@@ -363,7 +363,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Font data | 38–53 | none: done, `port/assets/font.c` (needs `waves.c` to read handle slots as u32) | only the 4-byte slot | §4 #16 |
 | MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap: done, `port/assets/musyx.c` ([MUSYX_DATA.md](MUSYX_DATA.md)). The readers use whole-field loads except a few, handled by how the fields are swapped | MUSYX_DATA.md §3 | §4 #24; registries, sample-info views, WAITMS (MUSYX_DATA.md §4) |
 | Samples | ROM 0x39B40 | BE: PC DMA is a `memcpy` from the ROM | none | audio interpreter reads ADPCM bytes |
-| Game image, runtime images | — | skip | — | `game_init` inflate and `PrevMaxPath` under `TARGET_PC` |
+| Game image, runtime images | — | skip | — | `main_thread_entry` inflate and `load_overlay` under `TARGET_PC` |
 | File table (4 tables), car tables, PVS, texture-animation tables | — | `port/data` | by declared type | — |
 
 Status, 2026-10-27: the WAD rows are done in `port/assets/wad.c`. That covers the TOC, OBHD, TXHD, PLHD, PTHD with
@@ -374,15 +374,15 @@ and what is left is in [LOADERS.md](LOADERS.md).
 
 | Stage | Formats needed, in load order | Evidence |
 |---|---|---|
-| Boot (`InitSystem`, `game_late_init` 0x800EEA7C) | heap (§2.4) → `AudioInit` (`hud_setup` 0x800C8B8C) → `AudioInitSys`: `InitWaves` → **text bank** (`D_8002E860`, then `ReplaceWave` to the language) → **MusyX project, pool, sample directory** (6, 7, 8; converted) → MusyX init through its service callbacks (`D_8011EAAC`, not yet LP64-ready: MUSYX_DATA.md §8.1) → `sndPushGroup` of sfx groups 12–15 with samples at ROM 0x39B40 → `HAL_InitText` | `groups/heap_release/initsystem.c:144-156`, `car_shadow_render.c:65-110`, `InitWaves.c` |
-| First text on screen | **font data + font texture WAD** (38 + f, 22 + f) on the first `HAL_SetFont`; **WAD** loader, TXHD, IMAG | `slot_state_setup` |
+| Boot (`InitSystem`, `InitSystem` 0x800EEA7C) | heap (§2.4) → `AudioInit` (`AudioInit` 0x800C8B8C) → `AudioInitSys`: `InitWaves` → **text bank** (`gLargestTextWave`, then `ReplaceWave` to the language) → **MusyX project, pool, sample directory** (6, 7, 8; converted) → MusyX init through its service callbacks (`audio_driver_services`, not yet LP64-ready: MUSYX_DATA.md §8.1) → `sndPushGroup` of sfx groups 12–15 with samples at ROM 0x39B40 → `HAL_InitText` | `groups/heap_release/initsystem.c:144-156`, `AudioInitSys.c:65-110`, `InitWaves.c` |
+| First text on screen | **font data + font texture WAD** (38 + f, 22 + f) on the first `HAL_SetFont`; **WAD** loader, TXHD, IMAG | `HAL_SetFontInternal` |
 | Front end (states 0x2 / 0x4) | `InitWaves`, overlay A ("Start"), **front-end WADs** 54, 58, 59 (locked), song 6 (wave 16) when the Expansion Pak flag is set; screens 55/56/57/60 (all WAD; DL relocation, mirror pass, conditionals) | `state.c:158-196` |
-| Car select / track select (image A) | **car WADs** 88–100 (`func_80390BC0`); **path** waves 158–163 for the track maps (`loadPathData`), which needs the path format before any race | `runtime_a_c93c_closure/group.c:1272-1281` |
-| Race start (state 0x40000, then `LoadTrack`) | 13 fonts preloaded (`object_create` × 13, `state.c:280-292`); **track WAD** 101 + t (with PTHD/PATH) → **world WAD** 120 + t (WHDR/GDAT/GTLD, `NewWorld`) → **road** 139 + t → **path** 158 + t (or 177 + t) → race WADs (68, 78/79, 82 + t, 77, 62, 80+61 or 81, 64, 66/65, 63/67, 76) → **cars** 88 + m → **song** 10 + n; texture animation; image B only for battle, stunt or Expansion Pak | `loadtrack.c:89-228`, `state.c:260-293` |
+| Car select / track select (image A) | **car WADs** 88–100 (`LoadSelectCar`); **path** waves 158–163 for the track maps (`loadPathData`), which needs the path format before any race | `trackscr/trackscr.c:1272-1281` |
+| Race start (state 0x40000, then `LoadTrack`) | 13 fonts preloaded (`HAL_SetFont` × 13, `state.c:280-292`); **track WAD** 101 + t (with PTHD/PATH) → **world WAD** 120 + t (WHDR/GDAT/GTLD, `NewWorld`) → **road** 139 + t → **path** 158 + t (or 177 + t) → race WADs (68, 78/79, 82 + t, 77, 62, 80+61 or 81, 64, 66/65, 63/67, 76) → **cars** 88 + m → **song** 10 + n; texture animation; image B only for battle, stunt or Expansion Pak | `loadtrack.c:89-228`, `state.c:260-293` |
 
 Suggested order of work: decompressors and the file table, then the WAD (TOC, OBHD, TXHD, PLHD, the BE walkers),
 text and fonts, MusyX (only to reach the menus with sound; it can be stubbed at first), path, then world, road and
-GTLD for the first race. With `osMemSize` reported as 4 MB, `D_80156994` stays 0. Races then skip image B and the
+GTLD for the first race. With `osMemSize` reported as 4 MB, `expansion_pak_present` stays 0. Races then skip image B and the
 Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Switch to 8 MB once that works.
 
 ## 7. Risks and open questions
@@ -398,7 +398,7 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
 3. **Multiple struct views of the same records** (OBHD three views, `gText` four, `gWaveInstance` four, the
    `{ptr,count}` pairs two). Every view must change together, or the PC layout silently diverges. `gen_bss` doesn't
    yet give pointer-bearing structs their own storage.
-4. **The `Gfx` widening must not reach code that walks ROM lists** (`entity_cull_check`'s local `Gfx`, `u32 *`
+4. **The `Gfx` widening must not reach code that walks ROM lists** (`relocate_texture_loads`'s local `Gfx`, `u32 *`
    walkers): those lists stay 8-byte commands.
 5. **MusyX** parses its files throughout the boot library with native loads. Audited (MUSYX_DATA.md §4): every
    reader uses whole-field loads except WAITMS's byte store (given a PC version), the little-endian envelopes,
@@ -419,15 +419,15 @@ converters are hand-written from the formats as the decomp's readers read them. 
 1. **The readers.** For each converted buffer, and each copy the game makes of it (`gCheckpoints`, `gResPath`, the
    alternative and drone paths, gText's tables, the GTLD keys), every live game C reader was found and compared
    field by field with the converter. Readers are found through struct views, `M2C_FIELD` offsets, casts and raw
-   strides, starting from the section and table pointers (`D_80152034`…, `D_801161F4`, `D_80151AE8`,
-   `D_80138670`, `D_801392D0`, `D_80149770`, `D_801497C0`, `D_8017A4E0`, the font letters). Live means a strong
+   strides, starting from the section and table pointers (`gRoadPath`…, `gRomObjDefPtrs`, `gTexDefPtrs`,
+   `D_80138670`, `gTargetPaths`, `gTargetGroups`, `gTargetGroupList`, `gText`, the font letters). Live means a strong
    definition in the PC link: weak context copies never run. The checks were: the width and signedness of each
    read; fields left unconverted but read wider than a byte; counts read as something else (records or bytes, a
    different stride); and views whose layout changes on a 64-bit host. `endian_check.py`'s loader section was not
    extended. Its storages are data symbols and what their pointers reach, while these files live in heap blocks
    that only `LoadWave`'s slots reach.
 2. **The retail cartridge, on the Pi.** A harness runs every one of the 183 waves the way `_ReadWave` does. It
-   takes the wave's entries in the file table (`D_8011B5BC`, `gWaveSizes`, `D_80123564`), decompresses it (raw,
+   takes the wave's entries in the file table (`wave_rom_offsets`, `gWaveSizes`, `wave_storage_kinds`), decompresses it (raw,
    LZSS or DEFLATE) into a 32-byte-rounded block in the RDRAM window, and calls `pc_wave_loaded`. It then checks
    the converted buffer as the readers read it. This covers every track, car, world, road, path, text bank, font
    and MusyX file, not only those a press script reaches. A hash of every converted block also showed that the
@@ -450,7 +450,7 @@ fits" or "doesn't parse". Per format:
 | PTHD links | `trigPtr` targets; the key after a path's last one (`keys[count]`, which the camera reads, below) | Every `trigPtr` is 0 or a record of the same, converted PTHD chunk. Every path the camera could read past ends where another path's points begin, so `keys[count]` is converted too (it is that path's first key) |
 | World (120–138) | TOC counts; WHDR names and offsets; the nodes WHDR reaches; node floats, bounds, links; GDAT bounds and children; GTLD against GDAT's leaves | WHDR's count word is a byte length, WOBJ's, GDAT's and GTLD's are record counts, each filling its chunk exactly. Every world has a WOBJ entry, and the nodes WHDR reaches are exactly the WOBJ records. Interior quadtree nodes (flags bit 0) have children inside GDAT; leaves' key ranges fit GTLD |
 | Road (139–157) | Section sizes; the five record sections; the surfaces' 3 × 3 basis | Every file ends exactly at the last slist byte (header counts × record sizes + vlnum + slnum). The path floats are plausible. Tree parents fall within the tree and bounds are ordered. Every surface basis row has the same length, the format's fixed-point unit (unit normals). Several slists start at odd offsets: those sections can only be read byte by byte, as their readers do |
-| Path (158–182) | The walk the converter makes; checkpoint floats; resurrection, alternative and drone points | Every walk ends at the file's last byte. Checkpoint normals have unit length. `radius` is not a float: it is an integer (a squared radius, compared with `dx² + dz²` in `route_cross`), and 32-bit either way. Point steps are short (connected paths). Alternative-path indices are within the resurrection path. The u16 after the alternative headers (`D_801527A4`) is not numPrimary; it is read only by `func_800B9740` |
+| Path (158–182) | The walk the converter makes; checkpoint floats; resurrection, alternative and drone points | Every walk ends at the file's last byte. Checkpoint normals have unit length. `radius` is not a float: it is an integer (a squared radius, compared with `dx² + dz²` in `route_cross`), and 32-bit either way. Point steps are short (connected paths). Alternative-path indices are within the resurrection path. The u16 after the alternative headers (`gNumResPathPts`) is not numPrimary; it is read only by `CalcResPathBounds` |
 | Text (0–5) | Section counts; offsets; strings; the u16 tables | All offsets fall inside the file and each starts right after a NUL. `tab` and `tab2a` hold indices below their offset tables' counts |
 | Font data (38–53) | Letters and kern table against the block | All fit. The kern slots are empty in the file |
 | MusyX (6–8, 10–21) | The converter's own walk (MUSYX_DATA.md §7.1–3) | Every file parses to its end. The tables swapped as envelopes (named by steps 0x0C) and the curve ids of steps 0x0D, 0x0F and 0x14 are disjoint |
@@ -459,24 +459,24 @@ fits" or "doesn't parse". Per format:
 
 | Record: field | Converted | Readers | Verdict |
 |---|---|---|---|
-| OBHD radius +0x10 | 32 | `func_800ABB58` f32 | OK |
-| OBHD +0x14 / lodCount +0x16 | 16 / 16 | +0x14 has no reader; lodCount s16 (`waves.c`, model draw `particle_knot`, `func_8008B000`) | OK |
-| LOD texidx, flags +0, +2 | 16 each | u16 (model draw; `func_8008B000` sets flag 0x8000; the track map writes both) | OK |
-| LOD lodRad, dl, vtx +4, +8, +0xC | 32 | f32; u32 window addresses in every view (`waves.c`, model draw, `entity_render_mode`, `MapLod` copies in overlay A) | OK |
+| OBHD radius +0x10 | 32 | `MBOX_GetObjectRadius` f32 | OK |
+| OBHD +0x14 / lodCount +0x16 | 16 / 16 | +0x14 has no reader; lodCount s16 (`waves.c`, model draw `particle_knot`, `ZOID_ChangeTexture`) | OK |
+| LOD texidx, flags +0, +2 | 16 each | u16 (model draw; `ZOID_ChangeTexture` sets flag 0x8000; the track map writes both) | OK |
+| LOD lodRad, dl, vtx +4, +8, +0xC | 32 | f32; u32 window addresses in every view (`waves.c`, model draw, `MirrorWaveInstance`, `MapLod` copies in overlay A) | OK |
 | TXHD width, height +0x10, +0x12 | 16 | u16 in every view (`Texture`, `Texture36`, the font draw, the minimap, overlay A) | OK |
 | TXHD size, format +0x14, +0x15 | bytes | u8 only | OK |
 | TXHD palIndex +0x16 | 16 | s16 | OK |
-| TXHD texBase, flags, xflags +0x18… | 32 | u32 (`render_display_list`, texture animation); xflags unread | OK |
-| PLHD start, end +0x10, +0x11 | bytes | u8 (`func_80099B30`) | OK |
+| TXHD texBase, flags, xflags +0x18… | 32 | u32 (`zoid_load_texture`, texture animation); xflags unread | OK |
+| PLHD start, end +0x10, +0x11 | bytes | u8 (`zoid_load_palette`) | OK |
 | PLHD format +0x12 | 16 | no reader | OK |
 | PLHD palBase +0x14 | 32 | u32 (TLUT load, texture animation, car paint) | OK |
-| PTHD flags +0x10 | 32 | s32/u32 (level objects, the camera's `CamScene`, `func_8010C2E4`'s `>> 24`) | OK |
+| PTHD flags +0x10 | 32 | s32/u32 (level objects, the camera's `CamScene`, `TargetCollTrigger`'s `>> 24`) | OK |
 | PTHD numPts, id +0x14, +0x16 | 16 | s16 | OK |
-| PTHD trigPtr +0x18 | 32 | **read**: the camera's `CamScene.link`, another scene whose flags it tests and clears (`camera_aspect_ratio`). On the cartridge it is always 0 or a converted PTHD record (§8.1) | OK |
+| PTHD trigPtr +0x18 | 32 | **read**: the camera's `CamScene.link`, another scene whose flags it tests and clears (`PlayStartSound`). On the cartridge it is always 0 or a converted PTHD record (§8.1) | OK |
 | PTHD pts, key +0x1C, +0x20 | 32 | u32 window address (`PTHD_PTS`, `CamScene.keys`); key read as s32 by level objects, then the camera's `cur` | OK |
 | PATH point +0x00…+0x3C | 15 × 32 | f32 (`CamKey`); `Resource68`'s prefix unread | OK |
 | PATH point flags +0x40 | 32 | u32 / s32 | OK |
-| TOC count word | 32 | Record count for OBHD, TXHD, PLHD, PTHD (`waves.c` loops, the bsearches, level objects); byte length for TXLD (`entity_cull_check`); unused for IMAG. No other tag is fetched by name | OK |
+| TOC count word | 32 | Record count for OBHD, TXHD, PLHD, PTHD (`waves.c` loops, the bsearches, level objects); byte length for TXLD (`relocate_texture_loads`); unused for IMAG. No other tag is fetched by name | OK |
 
 Every view of these records keeps the N64 size on the host (pointer fields u32 or `enum n64p_*` under TARGET_PC).
 Strides are literal 88/36/24, or `sizeof` of such a view. The `{pointer, count}` slot tables are 16 bytes in
@@ -487,26 +487,26 @@ every live view.
 | Chunk: field | Converted | Readers | Verdict |
 |---|---|---|---|
 | WHDR count, woff | 32 | `LoadTrack` s32/u32, `NewWorld`'s 20-byte `NameEntry` (u32 node) | OK |
-| WOBJ mat, min, max | 32 | f32 (`differential_output`, `level_objects`' `Place`, `func_800AB53C`, `physics_float_calc`) | OK |
+| WOBJ mat, min, max | 32 | f32 (`NewWorldObject`, `level_objects`' `Place`, `FindWorldGroup`, `WorldCullObjects`) | OK |
 | WOBJ dlflags +0x40 | 32 | u32 | OK |
 | WOBJ next, child +0x44 | 16 | s16 | OK |
 | WOBJ sfx1, sfx2 +0x48 | 16 | no reader (`Place.w72` unread) | OK |
 | WOBJ tidx +0x4C | 32 | s32 key, sign-extended where compared, as `pc_world_chunk` does | OK |
 | GDAT parent +0, byte +2 | 16 / byte | unread | OK |
-| GDAT flags +3 | byte | u8 `& 1` (`race_setup_2`) | OK |
-| GDAT bounds, children | 32 / 16 | f32, u16 (`race_setup_2`'s `Tree`, 0x1C) | OK |
-| GTLD keys | 32 | the native key array (`pc_world_chunk`); its count is `D_801497EC`, the loop bound in `engine_sound_update` | OK |
-| TOC count words | — | WHDR: none (fetched with NULL). GTLD: a record count, as the game uses it. GDAT: stored in `D_80149790`, never read. WOBJ: never fetched. The game reaches the nodes from WHDR only | see the fix below |
+| GDAT flags +3 | byte | u8 `& 1` (`CheckTargetCollision`) | OK |
+| GDAT bounds, children | 32 / 16 | f32, u16 (`CheckTargetCollision`'s `Tree`, 0x1C) | OK |
+| GTLD keys | 32 | the native key array (`pc_world_chunk`); its count is `numgTargetGroupList`, the loop bound in `SetTargetDefs` | OK |
+| TOC count words | — | WHDR: none (fetched with NULL). GTLD: a record count, as the game uses it. GDAT: stored in `numgTargetGroups`, never read. WOBJ: never fetched. The game reaches the nodes from WHDR only | see the fix below |
 
 ### 8.4 Road (`road.c`)
 
 The 23 reader functions use exactly the converted widths, record strides and section order.
 - The header is six u16, then `slnum`, which nothing reads.
 - The tree's byte at +3 is read as a u8 mask; the byte at +2 is unread.
-- Surface `type` and `cnt` are u16 everywhere, with no byte-wise reads (`camera_victory` does a read-modify-write at
+- Surface `type` and `cnt` are u16 everywhere, with no byte-wise reads (`CollideCarBody` does a read-modify-write at
   u16).
 - `vlist` and `slist` are read only as bytes. Their two-byte values are assembled as `(b[0] << 8) + b[1]`
-  (`func_800AD5D0`, `run_decode`).
+  (`DecodeVlist`, `run_decode`).
 - No view holds a pointer. The section pointers kept in cars are u32 window addresses.
 
 ### 8.5 Paths (`path.c`)
@@ -519,7 +519,7 @@ Every live view of the checkpoint block and of the point arrays reads the conver
   reads it.
 
 The native `gResPath` (32 bytes), alternative paths (24) and drone paths (16) agree with every PC view, including
-the two that line up only by alignment (`menu_controller_remap`, `camera_pair`).
+the two that line up only by alignment (`DetectDroneAbort`, `camera_pair`).
 
 ### 8.6 Text and fonts (`text.c`, `font.c`)
 
@@ -541,31 +541,31 @@ readers expect. The fixes are to the converter's handling of counts and to two g
 
 | Commit | What | Pinned by |
 |---|---|---|
-| c0e0c50 | `world.c`: `chunk_records()` took a TOC count as records or bytes, whichever fit. The game reads GTLD's as a record count, and the retail WOBJ and GDAT counts are record counts too, so a count is now records only. A WOBJ or GDAT count that doesn't fit the file (0, garbage, a byte length) used to leave the chunk big-endian, or convert a guessed part of it, and a bad WOBJ count also skipped the WHDR walk. The converter now walks the nodes NewWorld reaches and the quadtree `race_setup_2` walks instead. The walk's stack is sized from the file; it used to drop pushes past 4096 without a word. The retail files convert byte for byte as before | `assets_world`: counts of 0, byte lengths and garbage. The old converter fails 43 checks |
-| c42b614 | `func_803AE51C` (overlay A): text entry 235 was read as an s32 (the low word of the host pointer) and passed to `state_utility(s16, s16, void *)` through an `(s32, s32, s32)` prototype. It worked only while the load happened to zero-extend; a window address is negative as an s32. Now read as `char *`, with the callee's prototype | `assets_text` compares the pointer whole |
-| c879bd7 | `pointer_compare_thunk`, the bsearch comparator of the TXHD and PLHD name lookups (`MBOX_FindTexture_Sub`, `MBOX_FindPalette_WORK`), was `void`. The result got through only because `func_8008AD04` left it in the return register. It now returns s32 under TARGET_PC | `assets_wad_game` now links the game's comparator instead of its own `strcmp`. No test can fail the old version: gcc keeps the register at every level we build |
+| c0e0c50 | `world.c`: `chunk_records()` took a TOC count as records or bytes, whichever fit. The game reads GTLD's as a record count, and the retail WOBJ and GDAT counts are record counts too, so a count is now records only. A WOBJ or GDAT count that doesn't fit the file (0, garbage, a byte length) used to leave the chunk big-endian, or convert a guessed part of it, and a bad WOBJ count also skipped the WHDR walk. The converter now walks the nodes NewWorld reaches and the quadtree `CheckTargetCollision` walks instead. The walk's stack is sized from the file; it used to drop pushes past 4096 without a word. The retail files convert byte for byte as before | `assets_world`: counts of 0, byte lengths and garbage. The old converter fails 43 checks |
+| c42b614 | `titlescr_animText` (overlay A): text entry 235 was read as an s32 (the low word of the host pointer) and passed to `TB_DrawText(s16, s16, void *)` through an `(s32, s32, s32)` prototype. It worked only while the load happened to zero-extend; a window address is negative as an s32. Now read as `char *`, with the callee's prototype | `assets_text` compares the pointer whole |
+| c879bd7 | `texcmp`, the bsearch comparator of the TXHD and PLHD name lookups (`MBOX_FindTexture_Sub`, `MBOX_FindPalette_WORK`), was `void`. The result got through only because `game_strcmp` left it in the return register. It now returns s32 under TARGET_PC | `assets_wad_game` now links the game's comparator instead of its own `strcmp`. No test can fail the old version: gcc keeps the register at every level we build |
 
-Game C files changed: `src/ovl_a/func_803AE51C.c`, `src/blob/pointer_compare_thunk.c` (both "shifted" for
+Game C files changed: `src/ovl_a/titlescr_animText.c`, `src/blob/texcmp.c` (both "shifted" for
 `n64_neutral.py`).
 
 ### 8.9 Judged and left
 
-- **The camera reads one key past a path** (`camera_aspect_ratio`, `keys[next]` with `next == count` when the
+- **The camera reads one key past a path** (`PlayStartSound`, `keys[next]` with `next == count` when the
   scene doesn't wrap). The converter swaps only `numPts` points. On the cartridge, the rotation read needs the last
   key's duration to be nonzero, and it never is. The `f3C` read happens on paths that are each followed by another
   path's converted points, so the PC reads the N64's values. A path at the end of its chunk would read
   whatever follows.
 - **Place records as state.** A level object whose kind has info flag 0x400 keeps its WOBJ or PTHD record as its
   state. On the cartridge only a flag object's kind has it, with no callback, and that state's reader
-  (`func_8010D85C`) takes only the record's name, which is bytes.
+  (`AnimateFlag`) takes only the record's name, which is bytes.
 - **The track map's lists in a WAD.** Overlay A's track select puts native display lists into the OBHD `lod[0]` of
-  the map objects, in the track-select screen's WAD, until `func_8038B930` restores them. A mirror pass
-  (`entity_render_mode`) over that wave in that window would walk them with big-endian accessors. Mirror passes come from `LoadWave` of a loaded
+  the map objects, in the track-select screen's WAD, until `clearTrackMaps` restores them. A mirror pass
+  (`MirrorWaveInstance`) over that wave in that window would walk them with big-endian accessors. Mirror passes come from `LoadWave` of a loaded
   wave whose mirror state changed and from `input_aux` (wave 54), and the mirror state is set at race set-up. No path
   to one during track select was found, so this is left open, not guarded.
 - **Converted blocks stay in the big-endian registry** (wad.c registers the block; the PI DMA and decompressors
   register every file). Only port/gfx and port/audio ask, and only about display lists, vertices, texels, TLUTs and
   samples, never about the records.
 - **Latent declarations:** `game_types.h`'s `CountdownState` and `game_globals.h`'s `D_8017A4EC`/`D_8017A4F0` read
-  gText at N64 offsets but have no live user. `faeac.c`'s `TextHdr` indexes past its declared 64 entries. The weak
+  gText at N64 offsets but have no live user. `options_anim.c`'s `TextHdr` indexes past its declared 64 entries. The weak
   `Pair {s32, s32}` views of `gTexDefPtrs` would be wrong if one became strong.

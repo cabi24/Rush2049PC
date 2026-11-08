@@ -272,7 +272,7 @@ int pcgfx_view_move(int v, float x0, float y0, float x1, float y1, int ox, int e
     }
 }
 
-/* A model the game places in 3D at a HUD point (ZOID_WindowTo3D, car_lights_render.c: the coin icons beside their
+/* A model the game places in 3D at a HUD point (ZOID_WindowTo3D, ZOID_WindowTo3D.c: the coin icons beside their
  * counts, the battle and stunt status models): its place is the HUD point unprojected 2 ft (5.75 for one battle kind)
  * in front of the eye, so its transform's origin is at that depth, w 32 or 92 in the game's sixteenths of a foot, and
  * on screen in its view. It goes where its point's 2D goes (pcgfx_view_move), at the view's own scale, instead of

@@ -1,11 +1,11 @@
-/* port/assets/tests/test_weapons.c: the weapon icons, the targets that the target info table (D_80117530, 0x40 bytes
- * a record on the PC) names the start and visual functions of: StartWeaponIcon (_StartWeaponIcon) and func_8010D680
+/* port/assets/tests/test_weapons.c: the weapon icons, the targets that the target info table (targetInfo, 0x40 bytes
+ * a record on the PC) names the start and visual functions of: StartWeaponIcon (_StartWeaponIcon) and AnimateWeaponIcon
  * (_AnimateWeaponIcon), from their drafts in nonmatching/game (docs/port/POINTERS.md 10). The icon is a level-object
  * node (0x70 bytes, its N64 layout) in the RDRAM window, the cars have their PC layout (0x468 bytes, docs/port/CARS.md)
  * and the model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field
  * at its N64 offset lands somewhere else. The window is mapped by the test (exit 77, skipped, if it can't).
- * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/func_8010D680.c
- * game: src/blob/func_8008AE64.c
+ * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/AnimateWeaponIcon.c
+ * game: src/blob/ZOID_ObjectFlags.c
  */
 #include <math.h>
 #include <stddef.h>
@@ -38,44 +38,44 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODE(i) ((uint8_t *)WP(0x8014D280u + 0x70u * (i)))   /* the node block D_8014D280 (game arena) */
+#define NODE(i) ((uint8_t *)WP(0x8014D280u + 0x70u * (i)))   /* the node block gTargetArray (game arena) */
 #define HEAP 0x80300000u
-TInfo D_80117530[122];
+TInfo targetInfo[122];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-int32_t D_80121D60[8] = {10, 11, 12, 13, 14, 15, 16, 17};
-float D_8011F844[4][4] = {{0}, {2.0f, 4.0f, 3.0f, 0.0f}, {0}, {0}};   /* colfront, colrear, colside, colheight */
-uint8_t D_8012E700[600 * 0x68];      /* the scene nodes, host layout: the flags first */
-int32_t D_801170FC;
-volatile float D_8002EB94 = 0.5f;
-int16_t D_8014A108;
+int32_t ammoCnts[8] = {10, 11, 12, 13, 14, 15, 16, 17};
+float collsize[4][4] = {{0}, {2.0f, 4.0f, 3.0f, 0.0f}, {0}, {0}};   /* colfront, colrear, colside, colheight */
+uint8_t ObjInstanceList[600 * 0x68];      /* the scene nodes, host layout: the flags first */
+int32_t gPauseState;
+volatile float gFrameSeconds = 0.5f;
+int16_t gNumPlayers;
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
 static int32_t g_sound, g_sound_slot;
 static void *g_sound_pos;
 static uint8_t g_sound_mode;
-int32_t stat_lap_split(int32_t sound, int32_t slot, float *pos, uint8_t mode)
+int32_t PlayTargetSound(int32_t sound, int32_t slot, float *pos, uint8_t mode)
 {
     g_sound = sound, g_sound_slot = slot, g_sound_pos = pos, g_sound_mode = mode;
     return 0;
 }
 static int32_t g_hidden, g_shown;
-void model_data_load(int32_t obj, int32_t mode, uint32_t v) { g_hidden = obj; }
-void model_transform_setup(int32_t obj, int32_t mode, uint32_t v) { g_shown = obj; }
+void MBOX_HideObject(int32_t obj, int32_t mode, uint32_t v) { g_hidden = obj; }
+void MBOX_ShowObject(int32_t obj, int32_t mode, uint32_t v) { g_shown = obj; }
 static int g_powerups;
-void func_80391490(void) { g_powerups++; }
+void IncBattlePowerUps(void) { g_powerups++; }
 static void *g_released;
 static int32_t g_unlink;
-void entity_transform_apply(void *v, int32_t unlink) { g_released = v, g_unlink = unlink; }
+void ReleaseEnviron(void *v, int32_t unlink) { g_released = v, g_unlink = unlink; }
 static float g_rate[3];
 static void *g_uvs;
-void sound_position_set(float *rate, float (*uvs)[3]) { memcpy(g_rate, rate, sizeof g_rate), g_uvs = uvs; }
+void RotateUV(float *rate, float (*uvs)[3]) { memcpy(g_rate, rate, sizeof g_rate), g_uvs = uvs; }
 
 void StartWeaponIcon(void *t);
-void func_8010D680(struct pc_visual *v, int16_t op);
+void AnimateWeaponIcon(struct pc_visual *v, int16_t op);
 
 /* ---------------------------------------------------------------- tests */
 
@@ -137,7 +137,7 @@ static void test_pickup(void)
     CHECK(CF(car, 0x38C, uint32_t) == (1 | 0xA) && CF(car, 0x394, float) == 0.0333333f);
     CHECK(CF(car, 0x398, float) == 0.05f && CF(car, 0x39C, float) == 0.0f);
 
-    /* weapon 5 grows the car's collision body from its kind's size (D_8011F844[body type]) */
+    /* weapon 5 grows the car's collision body from its kind's size (collsize[body type]) */
     memset(MODEL(3), 0, 0x808);
     NF(MODEL(3), 8, uint8_t) = 1;
     t = icon(357, 0x04, 3);
@@ -163,34 +163,34 @@ static void test_visual(void)
     memset(&v, 0, sizeof v);
     t = icon(352, 0x02, 0);
     v.data = W32(t);
-    func_8010D680(&v, 0);                                      /* released */
+    AnimateWeaponIcon(&v, 0);                                      /* released */
     CHECK(g_released == &v && g_unlink == 1);
 
     NF(rate, 0, float) = 2.0f, NF(rate, 4, float) = 4.0f, NF(rate, 8, float) = 6.0f;
     NF(t, 0x6C, uint32_t) = W32(rate);                         /* its state: the spin rates, a heap record */
-    D_801170FC = 1, g_uvs = NULL;
-    func_8010D680(&v, 1);                                      /* paused */
+    gPauseState = 1, g_uvs = NULL;
+    AnimateWeaponIcon(&v, 1);                                      /* paused */
     CHECK(g_uvs == NULL);
-    D_801170FC = 0;
-    func_8010D680(&v, 1);                                      /* shown (flag 2): it spins */
+    gPauseState = 0;
+    AnimateWeaponIcon(&v, 1);                                      /* shown (flag 2): it spins */
     CHECK(g_uvs == t + 0x14 && g_rate[0] == 1.0f && g_rate[1] == 2.0f && g_rate[2] == 3.0f);
 
     /* hidden: shown again once no car has its weapon (the scene node's flag 31 says it is ready) */
     NF(t, 4, uint8_t) = 0, g_hidden = 0;
-    func_8010D680(&v, 1);
+    AnimateWeaponIcon(&v, 1);
     CHECK(g_hidden == 0x10021 && g_shown == 0);
-    NF(D_8012E700 + 33 * 0x68, 0, uint32_t) = 0x80000000u;
-    D_8014A108 = 3;
+    NF(ObjInstanceList + 33 * 0x68, 0, uint32_t) = 0x80000000u;
+    gNumPlayers = 3;
     memset(CAR(2), 0, PC_CAR_SIZE);
     CF(CAR(2), 0x384, int8_t) = 2;                             /* car 2 has weapon 2 */
     g_hidden = 0;
-    func_8010D680(&v, 1);
+    AnimateWeaponIcon(&v, 1);
     CHECK(g_shown == 0 && g_hidden == 0 && NF(t, 4, uint8_t) == 0);
     CF(CAR(2), 0x384, int8_t) = 0;
-    func_8010D680(&v, 1);
+    AnimateWeaponIcon(&v, 1);
     CHECK(g_shown == 0x10021 && NF(t, 4, uint8_t) == 0x02);
     NF(t, 4, uint8_t) = 0, NF(t, 0x50, int16_t) = 353, g_shown = 0;   /* not a weapon: stays */
-    func_8010D680(&v, 1);
+    AnimateWeaponIcon(&v, 1);
     CHECK(g_shown == 0 && g_hidden == 0 && NF(t, 4, uint8_t) == 0);
 }
 
@@ -201,8 +201,8 @@ int main(void)
         return 77;
     }
     for (int i = 0; i < 122; i++)
-        D_80117530[i].sound = -1;
-    D_80117530[INFO].sound = 0x5151;
+        targetInfo[i].sound = -1;
+    targetInfo[INFO].sound = 0x5151;
     test_setup();
     test_pickup();
     test_visual();

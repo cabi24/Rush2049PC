@@ -22,7 +22,7 @@ result is used.
 
 Which code runs comes from each object's relocations: weak context copies never run (every reference binds to
 the owner), so a declaration only they use is `dead`, and their calls are left out. The same graph orders the
-report: functions nearest the boot roots (the game's main, game_init, game_late_init, AudioInitSys, LoadWave...)
+report: functions nearest the boot roots (the game's main, main_thread_entry, InitSystem, AudioInitSys, LoadWave...)
 first.
 
 Each disagreement is classified by what it does under AAPCS64 and x86-64 SysV (worst first):
@@ -80,7 +80,7 @@ EMPTY_FN = 8   # bytes of code an empty `void f(void) {}` compiles to (aarch64 `
 BENIGN = ("narrow", "extra", "unused", "reviewed", "dead", "harmless")
 CLASSES = HARMFUL + BENIGN
 RANK = {c: i for i, c in enumerate(CLASSES)}
-DEFAULT_ROOTS = "n64_main,game_init,game_late_init,AudioInitSys,LoadWave,InitWaves,LoadFrontEndOverlay"
+DEFAULT_ROOTS = "n64_main,main_thread_entry,InitSystem,AudioInitSys,LoadWave,InitWaves,LoadFrontEndOverlay"
 ABI = "sysv"   # --abi: "sysv" (x86-64 SysV and AAPCS64, both Linux hosts) or "win64" (Microsoft x64)
 # Disagreements that are read and known not to matter on the PC (docs/port/PROTOTYPES.md): function, or
 # function@view file, -> why.
@@ -90,28 +90,28 @@ _ROMDL = ("a word of a display list loaded from the ROM (N64 form): a 32-bit win
 _SAME32 = "compared with 32-bit slots that hold the same truncation of the pointer (POINTERS.md 4.4)"
 _INDEX = "a model index carried in a void * variable"
 REVIEWED = {
-    "func_800C1B60": "old-style definition; `hits` is a third parameter no caller passes, written before it is read",
-    "PurgeableMemory": _HEAP, "func_80095EF4": _HEAP, "func_80095F8C": _HEAP, "audio_reverb_update": _HEAP,
-    "audio_effect_process": _HEAP, "menu_item_select": _HEAP, "audio_buffer_sync": _HEAP,
+    "AddStunt": "old-style definition; `hits` is a third parameter no caller passes, written before it is read",
+    "PurgeableMemory": _HEAP, "FindChunk": _HEAP, "FindHeap": _HEAP, "DeallocateMemoryInternal": _HEAP,
+    "DeallocateMemory": _HEAP, "ReallocateMemory": _HEAP, "GetPtrSize": _HEAP,
     "AllocateMemoryHeap@src/blob/groups/initgraphics/initgfx.c": _HEAP,
-    "sound_play_menu@src/blob/groups/initgraphics/initgfx.c": _HEAP,
-    "format_string_parse@src/blob/groups/menu_save_options/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
-    "inflate_entry_alt@src/blob/groups/menu_save_options/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
-    "inflate_decompress": "the source is a ROM offset from the file table D_8011B5BC, not a host pointer",
-    "lzss_decompress": "the source is a ROM offset from the file table D_8011B5BC, not a host pointer",
-    "entity_cull_check@src/blob/groups/audio_frame_sync/waves.c":
+    "AllocateMemoryHeapHigh@src/blob/groups/initgraphics/initgfx.c": _HEAP,
+    "CalcChecksumInternal@src/blob/groups/save/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
+    "unzipdata@src/blob/groups/save/ctx_slot.c": "the buffer is a heap block: " + _HEAP,
+    "inflate_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
+    "lzss_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
+    "relocate_texture_loads@src/blob/groups/waves/waves.c":
         "the WAD loader (an N64_WORLD file) passes its loaded block's window addresses as 32-bit integers",
-    "func_800BD080": _ROMDL, "func_800BDA24": _ROMDL,
-    "state_utility@src/ovl_a/func_803AE51C.c":
+    "displaylist_set_texture_image": _ROMDL, "displaylist_get_texture_image": _ROMDL,
+    "TB_DrawText@src/ovl_a/titlescr_animText.c":
         "the text comes from the loaded text bank, whose fields are 32-bit window addresses (POINTERS.md 4.2)",
-    "audio_channel_priority": _SAME32, "func_800956BC": _SAME32,
-    "string_copy_format@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
-    "sign_extend_call@src/ovl_a/groups/runtime_a_availability_refresh/group.c": _INDEX,
-    "func_80014D08": "the definition is empty, as in retail: its arguments are never read",
+    "RemovePlayerScores": _SAME32, "FindChangeCmd": _SAME32,
+    "MBOX_FindObject_WORK@src/ovl_a/groups/playerscr/playerscr.c": _INDEX,
+    "MBOX_NewObject@src/ovl_a/groups/playerscr/playerscr.c": _INDEX,
+    "sound_hw_remove_sample": "the definition is empty, as in retail: its arguments are never read",
 }
 # The same for the `stack` class (--abi win64), which REVIEWED's reasons (32 bits hold the value) don't cover.
 REVIEWED_STACK = {
-    "input_process_controller@src/blob/groups/entity_update/group.c":
+    "CylinderInSurf@src/blob/groups/stree_tiresurf/group.c":
         "its only calls are the matching build's stand-ins __standin_input_process_controller_a/b, which nothing "
         "calls",
 }

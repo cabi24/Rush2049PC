@@ -16,11 +16,11 @@ block of its heap when it needs them, one at a time:
 | Original modules (MAT3) | warningscr, trackscr, titlescr, licensescr, eggs, startscr, selectcarload, recordscr, playerscr, pakscr, modescr, circuitscr, cheatscr, carscr |
  worlddam, weapons, streaks, shots, powerups, hudextra |
 
-Both images start at `overlay_base` (0x8038A400): the game's overlay loader (`load_overlay`, `PrevMaxPath` in the C) reserves the heap block
+Both images start at `overlay_base` (0x8038A400): the game's overlay loader (`load_overlay`, `load_overlay` in the C) reserves the heap block
 from there to 0x803BB380 (`PurgeableMemory`), inflates the image into it, clears its BSS and sets the flag;
 unloading frees the block (`DeallocateMemoryInternal(overlay_base)`) and clears the flag. `LoadFrontEndOverlay(1)`
-(`display_enable` in the C) unloads image B if it is there and loads image A; `LoadFrontEndOverlay(0)` unloads
-image A when the race state starts, and `load_extra_overlay` (`InitMaxPath` in the C) loads image B there for the battle, stunt and obstacle modes, or for any race with an
+(`LoadFrontEndOverlay` in the C) unloads image B if it is there and loads image A; `LoadFrontEndOverlay(0)` unloads
+image A when the race state starts, and `load_extra_overlay` (`load_extra_overlay` in the C) loads image B there for the battle, stunt and obstacle modes, or for any race with an
 Expansion Pak.
 The game image calls into whichever image is loaded by plain function calls and reads some of its data by name;
 nothing checks that the right image is loaded, the state machine just never calls the other one's code.

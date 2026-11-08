@@ -1,21 +1,21 @@
 /* port/assets/tests/test_hudblit.c: blit animation functions that m2c wrote at the Blit's N64 offsets, on its host
- * layout (docs/port/POINTERS.md 9.3, docs/port/BRINGUP.md 15). animBones (func_80105DA8), the crossbones by the
+ * layout (docs/port/POINTERS.md 9.3, docs/port/BRINGUP.md 15). animBones (animBones), the crossbones by the
  * speedometer, which only deaths mode shows: outside it, the N64 offsets set the low byte of X (host +0x1A) to 1
  * instead of Hide (host +0x26), so every race drew the skull at the top left; deaths mode places it at
  * bonesPos[windows - 1][player] less half its width, and hides it for a player past the windows or whose car is
- * locked in place. callback_init (the idle overlay) and struct_callback_init (the settings dialog) make a colour
+ * locked in place. animControllerDim (the idle overlay) and animate_pause_dim (the settings dialog) make a colour
  * their Image (host +8; the N64's +4 split the pointer over the Name and the Image), and the second clears its
- * AnimFunc (host +0x38); sound_volume_helper shows its blit on the results screen. The test stands in for
+ * AnimFunc (host +0x38); anim_show_on_high_score shows its blit on the results screen. The test stands in for
  * UpdateBlit and records the blit it is given. The values are made up.
- * game: src/blob/func_80105DA8.c src/blob/callback_init.c src/blob/struct_callback_init.c
- * game: src/blob/sound_volume_helper.c
+ * game: src/blob/animBones.c src/blob/animControllerDim.c src/blob/animate_pause_dim.c
+ * game: src/blob/anim_show_on_high_score.c
  */
 #include <string.h>
 
 #include "pc_prelude.h"
 #include "support.h"
 
-/* sound_control.c's Blit: the layout every PC view has. */
+/* NewMultiBlit.c's Blit: the layout every PC view has. */
 typedef struct Blit {
     const char *Name;
     void *Image, *Info;
@@ -39,13 +39,13 @@ _Static_assert(offsetof(Blit, Hide) == 0x26 && offsetof(Blit, AnimID) == 0x40, "
 
 /* ---------------------------------------------------------------- the game's data */
 
-int8_t D_80142760;                                     /* gDeathMode */
+int8_t gDeathMode;                                     /* gDeathMode */
 int16_t gNumWindows;
 struct pc_model pc_models[PC_MODEL_SLOTS];             /* the model records (pc_game_types.h): model[i].slot */
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h): car[slot].finished, locked in place */
-struct { int32_t x, y; } D_801160C8[4][4];             /* bonesPos [windows - 1][player] */
-uint8_t D_801146FC[4], D_80116DE0[4];                  /* the idle overlay's and the dialog's colours */
-int32_t state_word_a;                                  /* gGameState */
+struct { int32_t x, y; } bonesPos[4][4];             /* bonesPos [windows - 1][player] */
+uint8_t controller_dim_color[4], pause_dim_color[4];                  /* the idle overlay's and the dialog's colours */
+int32_t gGameState;                                  /* gGameState */
 #define MODEL_SLOT(i) (pc_models[i].slot)
 #define CAR_LOCKED(s) (pc_cars[s].finished)
 
@@ -53,12 +53,12 @@ int32_t state_word_a;                                  /* gGameState */
 
 static int g_updates;
 static Blit g_seen;
-void Input_ApplyPadConfig(Blit *b) { g_updates++, g_seen = *b; }   /* UpdateBlit */
+void UpdateBlit(Blit *b) { g_updates++, g_seen = *b; }   /* UpdateBlit */
 
-int32_t func_80105DA8(Blit *b);   /* animBones */
-int32_t callback_init(Blit *b);
-int32_t struct_callback_init(Blit *b);
-int32_t sound_volume_helper(Blit *b);
+int32_t animBones(Blit *b);   /* animBones */
+int32_t animControllerDim(Blit *b);
+int32_t animate_pause_dim(Blit *b);
+int32_t anim_show_on_high_score(Blit *b);
 
 /* ---------------------------------------------------------------- tests */
 
@@ -69,7 +69,7 @@ static void blit(Blit *b, uint32_t player)
     memset(b, 0, sizeof *b);
     b->Name = g_name;
     b->X = 100, b->Y = 50, b->Width = 26, b->Height = 13, b->Alpha = 254, b->Init = 1;
-    b->AnimFunc = func_80105DA8, b->AnimID = player;
+    b->AnimFunc = animBones, b->AnimID = player;
     g_updates = 0;
 }
 
@@ -78,13 +78,13 @@ static void test_off(void)
 {
     Blit b;
 
-    D_80142760 = 0, gNumWindows = 1;
+    gDeathMode = 0, gNumWindows = 1;
     blit(&b, 0);
-    CHECK(func_80105DA8(&b) == 1);
+    CHECK(animBones(&b) == 1);
     CHECK(b.Hide == 1 && g_updates == 1 && g_seen.Hide == 1);
     CHECK(b.X == 100 && b.Y == 50 && b.Width == 26 && b.Left == 0 && b.Right == 0 && b.AnimID == 0);
-    CHECK(b.AnimFunc == func_80105DA8 && b.Name == g_name);
-    CHECK(func_80105DA8(&b) == 1 && g_updates == 1);   /* already hidden: no update */
+    CHECK(b.AnimFunc == animBones && b.Name == g_name);
+    CHECK(animBones(&b) == 1 && g_updates == 1);   /* already hidden: no update */
 }
 
 /* Deaths mode: each window's player at its place, less half the skull's width. */
@@ -92,22 +92,22 @@ static void test_on(void)
 {
     Blit b;
 
-    D_80142760 = 1;
-    D_801160C8[0][0].x = 210, D_801160C8[0][0].y = 6;
-    D_801160C8[1][0].x = 140, D_801160C8[1][0].y = 7;
-    D_801160C8[1][1].x = 160, D_801160C8[1][1].y = 118;
+    gDeathMode = 1;
+    bonesPos[0][0].x = 210, bonesPos[0][0].y = 6;
+    bonesPos[1][0].x = 140, bonesPos[1][0].y = 7;
+    bonesPos[1][1].x = 160, bonesPos[1][1].y = 118;
     MODEL_SLOT(0) = 4, MODEL_SLOT(1) = 2;
     CAR_LOCKED(4) = 0, CAR_LOCKED(2) = 0;
 
     gNumWindows = 1;
     blit(&b, 0);
-    CHECK(func_80105DA8(&b) == 1);
+    CHECK(animBones(&b) == 1);
     CHECK(b.Hide == 0 && b.X == 197 && b.Y == 6 && g_updates == 1 && g_seen.X == 197 && g_seen.Y == 6);
 
     gNumWindows = 2;
     blit(&b, 1);
     b.Width = 27;   /* 27 / 2 = 13 */
-    CHECK(func_80105DA8(&b) == 1);
+    CHECK(animBones(&b) == 1);
     CHECK(b.Hide == 0 && b.X == 147 && b.Y == 118 && g_updates == 1);
     CHECK(b.Image == NULL && b.Info == NULL && b.AnimID == 1);   /* the pointers before X stay as they were */
 }
@@ -117,19 +117,19 @@ static void test_hidden(void)
 {
     Blit b;
 
-    D_80142760 = 1, gNumWindows = 2;
+    gDeathMode = 1, gNumWindows = 2;
     blit(&b, 2);
-    CHECK(func_80105DA8(&b) == 1 && b.Hide == 1 && b.X == 100 && g_updates == 1);
+    CHECK(animBones(&b) == 1 && b.Hide == 1 && b.X == 100 && g_updates == 1);
     blit(&b, 3);
-    CHECK(func_80105DA8(&b) == 1 && b.Hide == 1);
+    CHECK(animBones(&b) == 1 && b.Hide == 1);
 
     MODEL_SLOT(0) = 5, CAR_LOCKED(5) = 1;
     blit(&b, 0);
-    CHECK(func_80105DA8(&b) == 1 && b.Hide == 1 && b.X == 100 && b.Y == 50 && g_updates == 1);
+    CHECK(animBones(&b) == 1 && b.Hide == 1 && b.X == 100 && b.Y == 50 && g_updates == 1);
     CAR_LOCKED(5) = 0;
     blit(&b, 0);
-    D_801160C8[1][0].x = 40;
-    CHECK(func_80105DA8(&b) == 1 && b.Hide == 0 && b.X == 27 && b.Y == 7);
+    bonesPos[1][0].x = 40;
+    CHECK(animBones(&b) == 1 && b.Hide == 0 && b.X == 27 && b.Y == 7);
 }
 
 static int32_t keep(Blit *b) { return 1; }
@@ -142,14 +142,14 @@ static void test_colours(void)
 
     blit(&b, 0);
     b.Image = g_white, b.Info = (void *)keep, b.Top = 3, b.Bot = 9;
-    CHECK(callback_init(&b) == 1);
-    CHECK(b.Image == D_801146FC && g_updates == 1 && g_seen.Image == D_801146FC);
-    CHECK(b.Name == g_name && b.Info == (void *)keep && b.AnimFunc == func_80105DA8);
+    CHECK(animControllerDim(&b) == 1);
+    CHECK(b.Image == controller_dim_color && g_updates == 1 && g_seen.Image == controller_dim_color);
+    CHECK(b.Name == g_name && b.Info == (void *)keep && b.AnimFunc == animBones);
 
     blit(&b, 0);
     b.Image = g_white, b.AnimFunc = keep, b.Top = 3, b.Bot = 9;
-    CHECK(struct_callback_init(&b) == 1);
-    CHECK(b.Image == D_80116DE0 && g_updates == 1 && g_seen.Image == D_80116DE0 && g_seen.AnimFunc == keep);
+    CHECK(animate_pause_dim(&b) == 1);
+    CHECK(b.Image == pause_dim_color && g_updates == 1 && g_seen.Image == pause_dim_color && g_seen.AnimFunc == keep);
     CHECK(b.AnimFunc == NULL && b.Top == 3 && b.Bot == 9 && b.Name == g_name);
 }
 
@@ -159,11 +159,11 @@ static void test_results(void)
     Blit b;
 
     blit(&b, 0);
-    b.Hide = 1, state_word_a = 0x400000;
-    CHECK(sound_volume_helper(&b) == 1 && b.Hide == 1 && g_updates == 0);
-    state_word_a = 0x2000000;
-    CHECK(sound_volume_helper(&b) == 1 && b.Hide == 0 && b.X == 100 && g_updates == 1 && g_seen.Hide == 0);
-    CHECK(sound_volume_helper(&b) == 1 && g_updates == 1);
+    b.Hide = 1, gGameState = 0x400000;
+    CHECK(anim_show_on_high_score(&b) == 1 && b.Hide == 1 && g_updates == 0);
+    gGameState = 0x2000000;
+    CHECK(anim_show_on_high_score(&b) == 1 && b.Hide == 0 && b.X == 100 && g_updates == 1 && g_seen.Hide == 0);
+    CHECK(anim_show_on_high_score(&b) == 1 && g_updates == 1);
 }
 
 int main(void)

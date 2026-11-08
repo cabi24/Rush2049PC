@@ -1,19 +1,19 @@
 /*
- * NextMaxPath (0x800A0FDC) is a historical label: this is the game heap's
+ * allocate_memory_at (0x800A0FDC) is a historical label: this is the game heap's
  * "allocate at a fixed address" (N64-only; same block allocator as
- * src/blob/groups/audio_heap).  NextMaxPath(addr, size): under the heap lock
- * (queue D_80152770) find the heap that owns addr (func_80095F8C), round size
+ * src/blob/groups/memsys).  allocate_memory_at(addr, size): under the heap lock
+ * (queue heap_lock_queue) find the heap that owns addr (FindHeap), round size
  * up to 32, find the block that contains addr, split off the part in front of
  * addr (or give it to the previous block when it is under 64 bytes), split
  * off the tail when 64 or more bytes remain, mark the block used and return
- * addr.  Its only caller is the overlay loader PrevMaxPath (0x800A11E4).
+ * addr.  Its only caller is the overlay loader load_overlay (0x800A11E4).
  *
- * Whole-program context: func_80095F8C must be an internal procedure of the
+ * Whole-program context: FindHeap must be an internal procedure of the
  * same -O3 unit (not in `keep`, with its real callers).  Its register summary
  * is what lets retail keep addr/size in t0/t2 across that call and what
- * narrows the temp ring to t6-t9; with func_80095F8C kept, uopt spreads the
+ * narrows the temp ring to t6-t9; with FindHeap kept, uopt spreads the
  * short webs over t3-t5 and reloads t0/t2 after the call instead. The group is src/blob/groups/heap_release (group.c
- * unchanged, all members still MATCH) plus this file.  NextMaxPath itself is
+ * unchanged, all members still MATCH) plus this file.  allocate_memory_at itself is
  * kept: retail passes its arguments in a0/a1 and did not inline it into its
  * single caller.
  *
@@ -60,17 +60,17 @@ typedef struct Heap {
 
 /* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
 
-extern s32 D_80152770;
+extern s32 heap_lock_queue;
 
 s32 osRecvMesg(void *mq, void **msg, s32 flags);
 s32 osSendMesg(void *mq, void *msg, s32 flags);
-Heap *func_80095F8C(u32 addr);
+Heap *FindHeap(u32 addr);
 
 /* The block's place is a 32-bit N64 address: N64A(p) is a window pointer's, N64PTR(T, a) the pointer at one
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
-void *NextMaxPath(u32 addr, u32 size) {
+void *allocate_memory_at(u32 addr, u32 size) {
     Heap *heap;
     Block *b;
     Block *n;
@@ -83,8 +83,8 @@ void *NextMaxPath(u32 addr, u32 size) {
     s32 unused5;
     void *result;
 
-    osRecvMesg(&D_80152770, 0, 1);
-    heap = func_80095F8C(addr);
+    osRecvMesg(&heap_lock_queue, 0, 1);
+    heap = FindHeap(addr);
     size = (size + 31) & ~31;
     for (b = N64P(heap->first); b != 0; b = N64P(b->next)) {
         if (addr >= N64A(b) && (addr < (u32) b->next || b->next == 0)) {
@@ -144,6 +144,6 @@ void *NextMaxPath(u32 addr, u32 size) {
     b->owner = 0;
     b->used = 1;
     b->tag = 0; pc_heap_allocated(heap);
-    osSendMesg(&D_80152770, 0, 0);
+    osSendMesg(&heap_lock_queue, 0, 0);
     return result;
 }

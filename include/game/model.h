@@ -35,10 +35,10 @@ extern const f32 cusolo;
 void set_catchup(void);
 
 /**
- * no_catchup - Disable catch-up for tournament mode
- * Based on arcade: model.c:no_catchup()
+ * pak_insert_file - Disable catch-up for tournament mode
+ * Based on arcade: model.c:pak_insert_file()
  */
-void no_catchup(void);
+void pak_insert_file(void);
 
 /**
  * avg_catchup - Apply average catch-up for solo player

@@ -2,9 +2,9 @@
  * cheat on it available (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu").
  *
  * The main menu's option slot 6 is the cheat screen (state 0x8000000), valid on the N64 only once gCheatActive[21]
- * (D_801164A1) is set: by the main menu's own button code (CheckForEgg, func_8038F648) or by LoadPlayerData for a
- * profile named as the cartridge's developer code (D_801211CC). On the cheat screen each of the 21 cheats is
- * available (switched by LEFT and RIGHT, drawn bright) only once gCheatActive[cheat] (D_8011648C[cheat]) is set, which
+ * (cheat_menu_unlocked) is set: by the main menu's own button code (CheckForEgg, CheckForEgg) or by LoadPlayerData for a
+ * profile named as the cartridge's developer code (cheat_profile_name). On the cheat screen each of the 21 cheats is
+ * available (switched by LEFT and RIGHT, drawn bright) only once gCheatActive[cheat] (gCheatActive[cheat]) is set, which
  * only its own button code does there, for the session: nothing saves it, and nothing else sets it. Off (the default)
  * each call gives the N64's value. */
 #ifndef PC_CHEATS_H

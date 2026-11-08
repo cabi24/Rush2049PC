@@ -1,16 +1,16 @@
-/* port/assets/tests/test_heap.c: the game heap's resize in place (menu_item_select, heap_release; the save code
+/* port/assets/tests/test_heap.c: the game heap's resize in place (ReallocateMemory, heap_release; the save code
  * resizes a ghost's header block with it) through the game's own heap code, whose block and heap headers keep their
  * N64 layout in the RDRAM window (magic, next, prev, size, owner, used, tag: 32-bit links; docs/port/LAYOUT.md 5).
  * A block shrunk with its successor in use gets a free block split off after it; one shrunk next to a free block
  * moves that block's header down; one grown into a free successor takes part of it, or all of it with what is left
- * under a header's size. The heap is the game's (func_800E7D0C, AllocateMemoryHeap) in a window the test maps
+ * under a header's size. The heap is the game's (InitMemory, AllocateMemoryHeap) in a window the test maps
  * (exit 77, skipped, if it can't).
  * Then port/ultra/heap.c on it (docs/port/MEMORY.md 4): the heap's size and its high-water marks as the game takes
  * blocks, a fallback's count, and at game.memory 32 RUSH2049_TEST_HEAP_FLOOR, whose blocks the game's own
  * allocate-at-address takes, so that the game's next blocks start at the floor and the runtime images' block is
  * where the image loads find it.
- * game: src/blob/groups/audio_heap/group.c src/blob/groups/heap_release/group.c src/blob/func_80095EF4.c
- * game: src/blob/func_80095F8C.c src/blob/groups/heap_release/alloc_at.c
+ * game: src/blob/groups/memsys/group.c src/blob/groups/heap_release/group.c src/blob/FindChunk.c
+ * game: src/blob/FindHeap.c src/blob/groups/heap_release/alloc_at.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -34,36 +34,36 @@
 
 /* ---------------------------------------------------------------- the game's data */
 
-void *D_801527C8;                               /* the heap */
-int32_t D_801527A0;
-uint8_t D_80152770[32];
-int8_t D_80156994;
-ABS(D_8017A640, 0x8017A640);                    /* the end of the game's BSS: the heap starts there */
-ABS(D_80000318, 0x80000318);                    /* osMemSize */
+void *gMainHeap;                               /* the heap */
+int32_t heap_lock_msg;
+uint8_t heap_lock_queue[32];
+int8_t expansion_pak_present;
+ABS(game_bss_end, 0x8017A640);                    /* the end of the game's BSS: the heap starts there */
+ABS(osMemSize, 0x80000318);                    /* osMemSize */
 /* what heap_release's other functions reach */
-int8_t D_8011ED04, D_8011ED00;
-uint8_t D_8038A400[16];
-uint32_t D_8013FEF4[16 * 6];
-uintptr_t D_8011025C, D_80110260;
+int8_t extra_overlay_loaded, start_overlay_loaded;
+uint8_t overlay_base[16];
+uint32_t car_palettes_palBase[16 * 6];
+uintptr_t gListeners, gEmitters;
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
 void osCreateMesgQueue(void *q, void *m, int32_t n) {}
 int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
 int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
-void func_80095EC0(void *p, uint32_t n) {}
+void FillFreeMem(void *p, uint32_t n) {}
 void *n64_memset(void *p, int c, size_t n) { return memset(p, c, n); }
 
-void func_800E7D0C(uint16_t count, uint16_t a);
+void InitMemory(uint16_t count, uint16_t a);
 void *AllocateMemoryHeap(void *heap, uint32_t size);
-void menu_item_select(uint32_t address, uint32_t desired);
-void *NextMaxPath(uint32_t addr, uint32_t size);
+void ReallocateMemory(uint32_t address, uint32_t desired);
+void *allocate_memory_at(uint32_t addr, uint32_t size);
 
-/* the free total, as the game sums it (audio_output_setup), here from the heap's blocks */
+/* the free total, as the game sums it (heap_total_free), here from the heap's blocks */
 static uint32_t free_total(void)
 {
     uint32_t sum = 0;
-    for (uint8_t *b = WP(U32(D_801527C8, 8)); b; b = NEXT(b))
+    for (uint8_t *b = WP(U32(gMainHeap, 8)); b; b = NEXT(b))
         if (!USED(b))
             sum += SIZE(b);
     return sum;
@@ -83,7 +83,7 @@ int main(void)
     }
     pc_fix_absolute_got();
     U32(w, 0x318) = 0x400000;                   /* osMemSize: 4 MB */
-    func_800E7D0C(16, 16);
+    InitMemory(16, 16);
     a = AllocateMemoryHeap(NULL, 256);
     b = AllocateMemoryHeap(NULL, 128);
     c = AllocateMemoryHeap(NULL, 512);
@@ -91,7 +91,7 @@ int main(void)
     CHECK(IN_WINDOW(a) && IN_WINDOW(c) && U32(ha, 0) == MAGIC && NEXT(ha) == hb && PREV(hb) == ha && SIZE(ha) == 256);
 
     /* shrink a: b is in use, so a free block is split off after a */
-    menu_item_select(W32(a), 64);
+    ReallocateMemory(W32(a), 64);
     hm = ha + 32 + 64;
     CHECK(SIZE(ha) == 64 && NEXT(ha) == hm && U32(hm, 0) == MAGIC && PREV(hm) == ha && NEXT(hm) == hb);
     CHECK(PREV(hb) == hm && SIZE(hm) == 256 - 64 - 32 && USED(hm) == 0 && U32(hm, 0x10) == 0 && USED(ha) == 1);
@@ -100,19 +100,19 @@ int main(void)
     after = NEXT(hc);
     CHECK(IN_WINDOW(after) && USED(after) == 0 && PREV(after) == hc);
     rest = SIZE(after);
-    menu_item_select(W32(c), 256);
+    ReallocateMemory(W32(c), 256);
     hm = hc + 32 + 256;
     CHECK(SIZE(hc) == 256 && NEXT(hc) == hm && PREV(hm) == hc && SIZE(hm) == 512 - 256 + rest && USED(hm) == 0);
 
     /* grow c by 128: the free successor gives that much */
-    menu_item_select(W32(c), 384);
+    ReallocateMemory(W32(c), 384);
     hm = hc + 32 + 384;
     CHECK(SIZE(hc) == 384 && NEXT(hc) == hm && PREV(hm) == hc && SIZE(hm) == 512 - 384 + rest);
     CHECK(U32(hm, 0) == MAGIC && USED(hm) == 0 && USED(hc) == 1);
 
     /* port/ultra/heap.c's numbers: the heap from its header to osMemSize | K0, the least free as the game sums it */
     PcHeapStats st;
-    CHECK(pc_heap_stats(&st) == 0 && st.base == W32(D_801527C8) && st.end == 0x80400000u);
+    CHECK(pc_heap_stats(&st) == 0 && st.base == W32(gMainHeap) && st.end == 0x80400000u);
     CHECK(st.size == st.end - st.base && st.peak + st.free_low == st.size && st.allocations == 6);
     CHECK(st.free_low < free_total() && st.shorts == 0 && st.nones == 0 && st.floor == 0);   /* before the shrinks */
     AllocateMemoryHeap(NULL, 1000);
@@ -126,17 +126,17 @@ int main(void)
     /* game.memory 32 with the floor at 17 MiB: the heap made again (the game makes it once, at boot) */
     U32(w, 0x318) = 32u << 20;
     setenv("RUSH2049_TEST_HEAP_FLOOR", "17", 1);
-    func_800E7D0C(16, 16);
+    InitMemory(16, 16);
     unsetenv("RUSH2049_TEST_HEAP_FLOOR");
     pc_heap_stats(&st);
     CHECK(st.end == 0x82000000u && st.floor == 0x81100000u && st.allocations == 0);
     a = AllocateMemoryHeap(NULL, 256);
     b = AllocateMemoryHeap(NULL, 0x200000);
     CHECK(W32(a) == 0x81100000u && W32(b) == 0x81100000u + 256 + 32);   /* the game's blocks from the floor */
-    /* the runtime images' block: taken and locked, where the image loads find it (PrevMaxPath's NextMaxPath) */
+    /* the runtime images' block: taken and locked, where the image loads find it (load_overlay's allocate_memory_at) */
     uint8_t *img = WP(0x8038A400u - 32);
     CHECK(U32(img, 0) == MAGIC && USED(img) == 1 && img[0x16] == 1 && SIZE(img) == 0x803BB380u - 0x8038A400u);
-    CHECK(NextMaxPath(0x8038A400u, 0x803BB380u - 0x8038A400u) == WP(0x8038A400u) && SIZE(img) == 0x30F80u);
+    CHECK(allocate_memory_at(0x8038A400u, 0x803BB380u - 0x8038A400u) == WP(0x8038A400u) && SIZE(img) == 0x30F80u);
     /* below the images' block and above it, to the floor: two more locked blocks, nothing free */
     CHECK(USED(PREV(img)) == 1 && PREV(img)[0x16] == 1 && USED(NEXT(img)) == 1 && NEXT(img)[0x16] == 1);
     CHECK(NEXT(NEXT(img)) == WP(0x81100000u - 32));

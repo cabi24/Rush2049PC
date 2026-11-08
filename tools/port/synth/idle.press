@@ -1,5 +1,5 @@
-# The idle overlay: the mode screen with no button held for over 300 s, on the virtual clock. game_loop makes the
-# blit D_801146C4 then, and its animation function (callback_init) gives it its colour (docs/port/SYNTH.md 2,
+# The idle overlay: the mode screen with no button held for over 300 s, on the virtual clock. GameLoop makes the
+# blit idle_warning_multiblit then, and its animation function (animControllerDim) gives it its colour (docs/port/SYNTH.md 2,
 # BRINGUP.md 15); the run must go on drawing with it.
 # until: 0x40:9600
 # seconds: 400

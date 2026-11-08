@@ -14,12 +14,12 @@
  * order: the inlined statements keep its (later) source lines, and as1 breaks
  * scheduling ties by line (defined first, two stores schedule early).
  * The object starts with ClearBattlePoints' 8-byte deleted-procedure stub
- * (`jr ra; nop`, no symbol), which is retail's func_803925C8.
+ * (`jr ra; nop`, no symbol), which is retail's ClearBattlePoints.
  * Earlier research: (CLAIMS 2026-10-12, 13/177; lean
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Historical callee names: sound_control = NewMultiBlit, object_create =
- * HAL_SetFont, object_manager_update = HAL_GetTextWidth, object_bytes_sum_global
- * = TB_GetFontLineHeight, ambient_sound_set = InitPane, unlock_notification =
+ * Historical callee names: NewMultiBlit = NewMultiBlit, HAL_SetFont =
+ * HAL_SetFont, HAL_GetTextWidth = HAL_GetTextWidth, TB_GetFontLineHeight
+ * = TB_GetFontLineHeight, InitPane = InitPane, ChangePaneColor =
  * ChangePaneColor. No unused locals.
  */
 typedef signed char s8;
@@ -49,55 +49,37 @@ typedef struct tBattlePoint {      /* anon_active_cnt_18 */
 typedef struct tBlitSet tBlitSet;
 typedef struct tBlitDef tBlitDef;
 /* gcc rejects arrays of an incomplete type, which IDO accepts. MAT3 tBlitDef (size 0x24), the same layout as
-   MultiBlit in src/blob/sound_control.c. */
+   MultiBlit in src/blob/NewMultiBlit.c. */
 struct tBlitDef { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                   s32 (*animfunc)(void *); u32 animid; };
 
-extern void *D_80395ED4;
-extern s16 D_80151AD0, active_player_count;
-extern s32 gameplay_mode;
-extern tHudIcon D_80395C00[4], D_80395CD0[4];
-extern tBattleCoin D_80395DA0[4];
-extern tStuntCoin D_803950C0[4][10];
-extern s8 D_80395ED0;
-extern tBattlePoint D_80395E70[4];
-extern s32 D_80393F50[4][4][2];
-extern u8 D_80394250[4][2][4];
-extern tBlitDef D_80393DE8[], D_80393B84[];
-extern char D_80394A80[];
-#define blit D_80395ED4
-#define gNumWindows D_80151AD0
-#define gNumPlayers active_player_count
-#define gRace gameplay_mode
-#define weaponIcon D_80395C00
-#define powerupIcon D_80395CD0
-#define battleCoin D_80395DA0
-#define stuntCoin D_803950C0
-#define battlePointCnt D_80395ED0
-#define battlePoint D_80395E70
-#define stuntPos D_80393F50
-#define playerPaneColors D_80394250
-#define BattleMultiBlit D_80393DE8
-#define StuntMultiBlit D_80393B84
+extern void *hudextra_blit;
+extern s16 gNumWindows, gNumPlayers;
+extern s32 gRace;
+extern tHudIcon weaponIcon[4], powerupIcon[4];
+extern tBattleCoin battleCoin[4];
+extern tStuntCoin stuntCoin[4][10];
+extern s8 battlePointCnt;
+extern tBattlePoint battlePoint[4];
+extern s32 stuntPos[4][4][2];
+extern u8 hudextra_playerPaneColors[4][2][4];
+extern tBlitDef BattleMultiBlit[], StuntMultiBlit[];
+extern char stunt_pane_width_sample[];
+#define blit hudextra_blit
+#define playerPaneColors hudextra_playerPaneColors
 #define kBattle 6
 #define kStunt 4
 
-extern void *sound_control(s16, s16, tBlitDef *, s16);                 /* NewMultiBlit */
-extern s32 object_create(s32);                                          /* HAL_SetFont */
-extern u32 object_manager_update(void *, s16);                          /* HAL_GetTextWidth */
-extern s16 object_bytes_sum_global(void);                               /* TB_GetFontLineHeight */
-extern tBlitSet *ambient_sound_set(s32, s32, s32, s32, s32, void *, u32, s32); /* InitPane */
-extern void unlock_notification(tBlitSet *, u8 *, u8 *);               /* ChangePaneColor */
-#define NewMultiBlit sound_control
-#define HAL_SetFont object_create
-#define HAL_GetTextWidth object_manager_update
-#define TB_GetFontLineHeight object_bytes_sum_global
-#define InitPane ambient_sound_set
-#define ChangePaneColor unlock_notification
+extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);                 /* NewMultiBlit */
+extern s32 HAL_SetFont(s32);                                          /* HAL_SetFont */
+extern u32 HAL_GetTextWidth(void *, s16);                          /* HAL_GetTextWidth */
+extern s16 TB_GetFontLineHeight(void);                               /* TB_GetFontLineHeight */
+extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32); /* InitPane */
+extern void ChangePaneColor(tBlitSet *, u8 *, u8 *);               /* ChangePaneColor */
 
-void func_803925C8(void);
+void ClearBattlePoints(void);
 
-void func_803925D0(void) /* ShowHUDExtra */
+void ShowHUDExtra(void) /* ShowHUDExtra */
 {
     int i;
     tBlitSet *pane;
@@ -111,7 +93,7 @@ void func_803925D0(void) /* ShowHUDExtra */
             if (gNumWindows == 1) HAL_SetFont(10);
             else if (gNumWindows == 2) HAL_SetFont(11);
             else HAL_SetFont(12);
-            w = HAL_GetTextWidth(D_80394A80, -1) + 8;
+            w = HAL_GetTextWidth(stunt_pane_width_sample, -1) + 8;
             h = TB_GetFontLineHeight() + 4;
             for (playerIdx = 0; playerIdx < gNumPlayers; playerIdx++) {
                 pane = InitPane(stuntPos[gNumWindows-1][playerIdx][0]-w/2,
@@ -123,7 +105,7 @@ void func_803925D0(void) /* ShowHUDExtra */
             }
             blit = NewMultiBlit(0, 0, StuntMultiBlit, 17);
         }
-        func_803925C8();
+        ClearBattlePoints();
         for (i = 0; i < 4; i++) {
             weaponIcon[i].type = 8;
             weaponIcon[i].idx = -1;
@@ -138,7 +120,7 @@ void func_803925D0(void) /* ShowHUDExtra */
     }
 }
 
-void func_803925C8(void)
+void ClearBattlePoints(void)
 {
     int i;
     battlePointCnt = 0;

@@ -13,7 +13,7 @@ RUSH_GFX_DUMP=DIR:FIRST:COUNT ...      then tools/port/frame_spikes.py DIR, and 
 
 Where a script can't finish a race (a ghost race's three laps within its time limit, the circuit's tracks with the
 gas alone), the run marks car 0 finished from outside: gdb attaches some seconds into the race and sets the car's
-place-locked byte (`player_array` +0xEF), and the game's own race end, results, saves and next race follow. The
+place-locked byte (`gGameCar` +0xEF), and the game's own race end, results, saves and next race follow. The
 cheat codes the scripts enter are read from the cartridge and stay in `build/scratch` too.
 
 A note on the default pak: without `--pak` or `--no-pak`, a run uses (and creates) the user's own
@@ -51,7 +51,7 @@ A note on the default pak: without `--pak` or `--no-pak`, a run uses (and create
 | audio, video, controls screens | every row of the main menu's audio and video screens, each value changed both ways, the reset row; the player screen's controls screen, every row | as the code says |
 | two players with a pak | controller 1's pak with a player on it; player 1 picks it, player 2 walks its pak row | works for player 1; at the sweep player 2's row offered no pak, as the port gave only controller 1 an accessory (since added: `game.pak2`-`pak4`) |
 | a two-player battle quit from the pause screen | battle, 15 s, pause, quit | faulted (fix 5); now the game over screen |
-| a ghost kept and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then race again | the ghost is compressed at the race's end and kept in memory ("limbo": `SaveGhost(..., 1)`; the game writes a ghost file only after its save prompt, which only a special profile name enables, `D_801148E4`), and race again loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
+| a ghost kept and raced | the ghost race of one lap set first (ghost mode keeps three), car 0 marked finished with gdb mid-race (no script finishes three laps in the time limit, even with super speed), then race again | the ghost is compressed at the race's end and kept in memory ("limbo": `SaveGhost(..., 1)`; the game writes a ghost file only after its save prompt, which only a special profile name enables, `gSaveGhostFiles`), and race again loads it: that second race's start faulted (fix 5); with the fix the race against the ghost runs (two cars, the place out of two, the ghost on the map) |
 | circuit, race to race | the first circuit, car 0 marked finished by gdb 12 s into each race (laps can't be set for a circuit, and a gas-only car doesn't finish track 1) | after each race the circuit code (no pak), the game over screen's next race, the circuit screen with the standings and races to go, the next track; the whole first circuit (tracks 0-3 twice) to its end, then a new circuit's first two races; no fault |
 | a four-player battle quit from the pause screen | four players, battle, pause, quit | the game over screen; no fault (fix 5) |
 | back to back | cycles of a race in a mode (single, practice, stunt), quit from the pause screen, the game over screen's Quit | the second race faulted (fix 5); with the fix seven races in a row, no fault |
@@ -87,8 +87,8 @@ line of a fault, warning or error. A first pass at 6e98d65 gave the same.
 **Rumble.** The player screen's controls screen has a rumble row: with a rumble pak in, LEFT and RIGHT cycle its
 three settings, off, weaker and full (else it says there is no rumble pak). The label is the text bank's entry
 `rumbleNames` + the setting, read live: the three names in that order, so label and setting agree. The setting
-is the profile's byte 0x2B, which func_800E56F8 reads: 0 no rumble, 1 the impact's level less four, 2 the level as
-it is. The default is 1, not 0: the profile check (`draw_speedometer`, a misnamed save.c function) gives a profile
+is the profile's byte 0x2B, which UpdateModel reads: 0 no rumble, 1 the impact's level less four, 2 the level as
+it is. The default is 1, not 0: the profile check (`CheckAndRepairPlayer`, a misnamed save.c function) gives a profile
 without valid controls the default controls and 1, and the default player (no pak) has 1 too. With the setting
 at full, a race with crashes turns the motor on, and through `--press-via controller` (input_check's virtual SDL
 controller) the motor reaches the controller: the log has it rumbling at full and at a pulsed, weaker strength,
@@ -135,14 +135,14 @@ on, through `soak.py` (SDL's disk audio; the Windows model: `RUSH_SIM_VSYNC_HZ=6
 ### 1. No cheat could be entered (the cheat codes' table in the ROM's byte order)
 
 The cheat screen (main menu, after its code) takes each cheat's button sequence (an "egg") before the cheat can be
-switched. The eggs are `D_803B3460`, 21 records of a step count and two `u32[20]` button masks (CheckForEgg reads
+switched. The eggs are `gEggs`, 21 records of a step count and two `u32[20]` button masks (CheckForEgg reads
 them as words). Two struct declarations tie in gen_data's ranking: `Egg` (cheatscr.c, eggs.c) and an opaque
 `Rec164` (`struct { u8 pad[164]; }`, func_8038FF90.c). The tie broke by the type's name, the bytes won, and the
-masks stayed big-endian: no sequence could ever match. The main menu's own code (`D_803B41D4`, declared `Egg`
+masks stayed big-endian: no sequence could ever match. The main menu's own code (`start_screen_egg`, declared `Egg`
 alone) was right, so the cheat screen opened, but every cheat stayed locked.
 
 Fix: gen_data ranks a struct with no union and only bytes after a struct with wider elements of the same rank
-(`score`, 7cfec9c). Among initialized data only `D_803B3460` changes; three BSS tables change kind, which the loader
+(`score`, 7cfec9c). Among initialized data only `gEggs` changes; three BSS tables change kind, which the loader
 zeroes anyway. Test: `datacheck`'s `known_widths` has the first and last cheat code's masks and the main menu's
 code; with the old rule `rush2049pc_datacheck --synthetic` (ctest `pc_data_synthetic`) fails two of them.
 Checked whether the same mistake hides elsewhere: ranking every opaque struct as plain bytes changes no initialized
@@ -151,8 +151,8 @@ symbol.
 ### 2. The cheat screen could not be opened (two InitEggs under one name)
 
 The main menu opens the cheat screen (its option 6, state 0x8000000) once its own code is entered: it calls
-InitEgg(23), its inlined copy of eggs.c's InitEgg, which on the N64 points at `D_803B41D4` (`&D_803B41D4[egg - 23]`).
-eggs.c's InitEgg points at cheat `egg` of `D_803B3460`. Both are global functions named `InitEgg`, and gen_weak kept
+InitEgg(23), its inlined copy of eggs.c's InitEgg, which on the N64 points at `start_screen_egg` (`&start_screen_egg[egg - 23]`).
+eggs.c's InitEgg points at cheat `egg` of `gEggs`. Both are global functions named `InitEgg`, and gen_weak kept
 eggs.c's ("defined in several files, no manifest owner, first kept"): the main menu compared the pads with bytes past
 the table, a code of no steps, and never matched. With the fix, on the retail cartridge, the cheat screen opens, a
 cheat's code is taken and the cheat switched, and a track the unlock cheat opens can be raced.
@@ -176,51 +176,51 @@ a link error. gen_weak and the check went with them.
 
 ### 4. A stunt round never ended (gStuntsDone's low half)
 
-When a stunt round's time is up and the cars have settled, camera_scene_manager sets gStuntsDone, the s32
-`D_80152738`, to 1. The race end asks func_800E7DD0 whether it may end, and in stunt mode it answers with
-`D_8015273A`, the halfword at +2: on the N64, big-endian, the word's low half. On a little-endian host the halfword
+When a stunt round's time is up and the cars have settled, CheckForStunt sets gStuntsDone, the s32
+`gStuntsDone`, to 1. The race end asks are_all_cars_stopped whether it may end, and in stunt mode it answers with
+`gStuntsDone_lo`, the halfword at +2: on the N64, big-endian, the word's low half. On a little-endian host the halfword
 at +2 is the high one, always 0: on the retail cartridge the stunt timer ran down to 0:00, the car stopped and the
 race went on for ever (only the pause menu's Quit got out).
 
-Fix: under `TARGET_PC` func_800E7DD0 reads the word's low half (`(s16)D_80152738`; 4129379). It is the only arena
+Fix: under `TARGET_PC` are_all_cars_stopped reads the word's low half (`(s16)gStuntsDone`; 4129379). It is the only arena
 symbol nested inside a wider one that code uses by both names (a scan of the data report and the C), so the class
 has no other case of this form; values read back in parts through views are ENDIAN.md's. Test: `assets_stuntend`
-runs func_800E7DD0 with the two names overlapping as in the arena; without the fix it says the round may not end.
+runs are_all_cars_stopped with the two names overlapping as in the arena; without the fix it says the round may not end.
 
 ### 5. Quitting a two-player battle faulted (the players' packets at N64 offsets)
 
-Each player gets a packet at the race start (func_800D63EC: a Link, a type and a ready byte, four vectors), kept in
+Each player gets a packet at the race start (AudAddListener: a Link, a type and a ready byte, four vectors), kept in
 the player record as a window address. Two functions reached it at the N64's offsets, where on the PC the Link's
-two host pointers make it 8 bytes longer: main_menu_input, which copies the listener's vectors into it every frame,
-wrote them from +0x0C (over the link's prev pointer and the two bytes), and object_activate, which gives it back at
+two host pointers make it 8 bytes longer: AudUpdateListener, which copies the listener's vectors into it every frame,
+wrote them from +0x0C (over the link's prev pointer and the two bytes), and AudRemoveListener, which gives it back at
 the race's end, read and wrote the type and ready bytes at +8 and +9 (the prev pointer again). A single race
 corrupted the lists (the read found the head's NULL prev, so the packet stayed in both, and the write made its prev
 1), and the next race's allocation unlinked through it: on the retail cartridge, a second race after a race quit from
 the pause screen, and a ghost race's race again, faulted at address 0x1. Quitting a two-player battle from the pause
 screen faulted at once (retail and synthetic cartridges alike).
 
-Fix: object_activate's offsets go through `PKT(n)` (host `2 * sizeof(void *) + n - 8`) and main_menu_input's `Node`
+Fix: AudRemoveListener's offsets go through `PKT(n)` (host `2 * sizeof(void *) + n - 8`) and AudUpdateListener's `Node`
 has the packet's host layout, both under `TARGET_PC`. Either alone is not enough: with only the first, the packet's
 bytes read correctly and the unlink follows the prev pointer the vectors overwrote, and single-race quits fault.
 Tests: the synthetic `battlequit` path (a two-player battle quit from the pause screen) faults without the fixes;
-`offset_check --strict` now finds both (score 5): its ROLES types object_activate's parameter and, a new form, what
-func_800D63EC returns (LAYOUT.md 9).
+`offset_check --strict` now finds both (score 5): its ROLES types AudRemoveListener's parameter and, a new form, what
+AudAddListener returns (LAYOUT.md 9).
 
 ## Not bugs (checked)
 
 - **The car select's stat bars (round 3).** Top speed and acceleration differ little between cars, which a
-  scaled-down screenshot hides. The bars are func_8039D300's product of factor tables
-  (`D_803B28C8`..`D_803B2A58`, f32[][4]) indexed by each car's chosen parts (`D_80110E78`, `D_8011103C`,
-  `D_80111080`, `D_8011119C`, `D_80111230`: s8 rows, the player's from the profile's car settings at +1860).
-  func_8039D300 is byte-matched C and runs every update; the cartridge's defaults choose part 0 of every kind for
+  scaled-down screenshot hides. The bars are calcStats's product of factor tables
+  (`gTransStats`..`gFrameStats`, f32[][4]) indexed by each car's chosen parts (`gCarTrans`, `gCarHandling`,
+  `gCarEngines`, `gCarTires`, `gCarFrame`: s8 rows, the player's from the profile's car settings at +1860).
+  calcStats is byte-matched C and runs every update; the cartridge's defaults choose part 0 of every kind for
   every car but the frame, so with default parts the frame alone moves top speed and acceleration (a few percent)
   and control and strength more. On the screen the bars' widths change with the frames. The tables load as the game reads them: the factors are sane floats, the part
   tables bytes. Guard: datacheck's `known_widths` covers the factor tables and the six car physics descriptors.
 - **The cars' physics differs by car (round 3).** Two car types with the same input on track 0
-  accelerate differently. The six physics descriptors `D_80110D08` points at load as floats and window addresses
+  accelerate differently. The six physics descriptors `gCarModels` points at load as floats and window addresses
   (every word checked after the loader); mass, spring, damping and brake factors are one value for every car on the
   cartridge, so the differences come from the descriptors, the gear and torque classes and the engine table
-  (`D_8010FD80`, fixed in main this night).
+  (`gEngineSpecs`, fixed in main this night).
 
 - Every weak copy of an owned function (gen_weak's headers) against its owner: none carries a `TARGET_PC` fix,
   `PC_N64W`, `CAR_OFS`, `INPUT_SIZE` or `PROFILE_OFS` its owner lacks (a PC fix in a copy would be dropped by the link).
@@ -289,8 +289,8 @@ and frames stay in `build/scratch`.
 #### 6. A race faulted in the audio manager (its message pool ran out)
 
 On the retail cartridge, in real time on a loaded host, a race faulted at address 0x2 in the audio manager's
-thread: `entity_transform_calc` (transform/group.c) wrote through the NULL that `func_80091B00` returns when all 128
-messages in its pool `D_80142DD8` are in use. The manager posts its commands to its own queue `D_801427A8` (128
+thread: `AudChangeEffect` (transform/group.c) wrote through the NULL that `GetCmd` returns when all 128
+messages in its pool `audiomgr_gCmds` are in use. The manager posts its commands to its own queue `audio_command_queue` (128
 slots), the same queue the scheduler's retrace messages come in on. Each retrace message it takes queues one change
 per sound source. When the manager falls behind (a burst of caught-up retraces, a host that doesn't give it the
 CPU), the changes add up past 128. A command sent to a full queue (no block) also kept its message for good. The
@@ -298,10 +298,10 @@ N64's evenly spaced retraces never get there. It hit a plain race as well as one
 
 Fix (1a39ed2, under `TARGET_PC`, as macros above each function, so the N64 build's lines don't move):
 - The per-retrace senders drop a command that finds no message, and give back the message of one the queue
-  refuses: `entity_transform_calc`, the priority pass's starts and stops (`sound_position_update` in updatefx.c,
-  `send_fx_command`), and the stop `scheduler_recv` (entity_lookup/group.c, the copy the game links). The next pass sends
+  refuses: `AudChangeEffect`, the priority pass's starts and stops (`UpdateFx` in updatefx.c,
+  `send_fx_command`), and the stop `AudStopEffect` (aud_stop_effect/group.c, the copy the game links). The next pass sends
   the sound's values again.
-- The three sound starts (`entity_flags_apply`, `high_scores_display`, `camera_target_track`) return handle -1
+- The three sound starts (`AudPlayEffect`, `AudPlayEffectVP`, `AudEmitEffect`) return handle -1
   ("none" to every lookup) and give back the emitter.
 
 Test: `assets_audiomgr` drains the pool and fills the queue. It faults without the fix.
@@ -311,35 +311,35 @@ that made it likely.
 **The other callers.** The rest of the pool's callers post on a screen's or an object's event, not per retrace,
 but a starved host (a laptop on battery, background load) can still find the pool empty at a screen change, and
 each of them wrote through the NULL too. The list is the linked program's, not the sources': every call to
-`func_80091B00` in `objdump -d rush2049pc`, mapped to the strong definition it sits in. That is 32 calls in 29
+`GetCmd` in `objdump -d rush2049pc`, mapped to the strong definition it sits in. That is 32 calls in 29
 functions. The 33 calls in the group copies' bodies are dead: `gen_weak.py` makes those copies weak, and nothing
 reaches their code. That covers the copies in credits_scroll_grp, mode_init and input_aux, the transform_b109.c
 files and the camera_target_track_group.c files. Fix 6 had 7 of the 29. Nothing else takes a message from the pool.
-Only `func_80091B00` sets the in-use bytes. The manager clears them, `hud_setup` (AudioInit) clears the pool, and
+Only `GetCmd` sets the in-use bytes. The manager clears them, `AudioInit` (AudioInit) clears the pool, and
 the shutdown reads it. The other 22 are guarded the same way, under `TARGET_PC` with file-scope macros
 (n64_neutral: shifted):
 
 - **Sixteen posters** take the lock, fill one command and send it, and do nothing else:
-  - `sync_entry_register` (play a song) and `speed_set` (the volumes);
-  - `object_type1_create`, `us_AudKillSong`, `di_post_type1`, `post_msg_a`/`_b`, `AudKillSong_TTL` and
+  - `AudPlaySong` (play a song) and `AudSetMasterVol` (the volumes);
+  - `AudKillSong`, `us_AudKillSong`, `di_post_type1`, `post_msg_a`/`_b`, `AudKillSong_TTL` and
     `AudKillSong`, which all stop the song;
-  - `object_type7_create` and `_alt` and `AudStopAllEffects` (stop every effect), and `AudPauseAllEffects`, which
+  - `AudStopAllEffects` and `_alt` and `AudStopAllEffects` (stop every effect), and `AudPauseAllEffects`, which
     posts the same 7, as retail does;
-  - `func_800D6348` and `AudResumeAllEffects` (resume), and `func_800D6E00` (mono).
+  - `AudResumeAllEffects` and `AudResumeAllEffects` (resume), and `AudMono` (mono).
 
   Despite their names, the `object_type*_create` functions create nothing. With the pool empty, each gives the
   lock back and returns. With the queue full, it gives its message back (in-use byte +3). `AudSend`, the send in
   the nonmatching drafts, gives it back the same way.
-- **The audio shutdown's two posts wait.** `func_800C8918` posts a stop of the song and of every effect, busy-waits
+- **The audio shutdown's two posts wait.** `AudioShutdown` posts a stop of the song and of every effect, busy-waits
   until the manager has freed every message, then frees the effects' blocks. Its `post_type1`/`post_type7` don't drop
   their stops ahead of those frees. With the pool empty, they give the lock back and yield (`PC_SPIN`) until the
   manager frees a message; with the queue full, they send with `OS_MESG_BLOCK` (the lock is free by then). This
   waits on nothing new: the shutdown waits on the same manager right after.
-- **The way out of a race goes on after its stop.** The game over screen's choice (`func_800F87A0`, three posts),
-  `finish_state_alt` and AbortGame (`func_800D5A04`) stop the cars, release the environs and set the next state
+- **The way out of a race goes on after its stop.** The game over screen's choice (`controlMain`, three posts),
+  `updateGameOverScreen` and AbortGame (`AbortGame`) stop the cars, release the environs and set the next state
   after posting. An early return would leave the exit half done. With no message, they write the command into a
   file-static scratch message, which is never sent; with the queue full, they give the message back.
-- `__standin_a` (entity_lookup/group.c) takes two messages and keeps them, but nothing calls it
+- `__standin_a` (aud_stop_effect/group.c) takes two messages and keeps them, but nothing calls it
   (`weak_copies_check.py`).
 
 None of the callers returns a result, so their own callers see nothing. The handle-returning starts are fix 6's.
@@ -353,25 +353,25 @@ Test: `assets_audiocmds` runs all 22 through the game's code with the pool empty
 With the pool empty, the lock must be balanced, nothing sent and no message taken. With the queue full, the
 message must be given back; with room, the command must be sent. The shutdown must end, and the exits must still
 set their next state. It faults without the guards. Retail: `RUSH2049_TEST_AUDIO_POOL_FAIL=N`, a PC-only test
-hook in `func_80091B00` that port/main.c reads, makes every Nth call find the pool empty. N must be 2 or more:
+hook in `GetCmd` that port/main.c reads, makes every Nth call find the pool empty. N must be 2 or more:
 the shutdown waits for a message, and with 1 none would ever come.
 
 On the Pi, the retail cartridge ran `--fast` under gdb with the hook at 1 in 2 and 1 in 3, through the synthetic
 paths' scripts. A Python breakpoint on the hook counted each caller's calls and the ones that failed. 17 runs
 covered the screens, single, 2- and 4-player races, circuit, stunt, a 2-player battle, battle quit, pause, race end,
 the attract demo, cheats and idle (13 at 1 in 2; race, race end, pause and battle quit at 1 in 3). Each ran to its
-state with no fault, and 6,097 of 15,013 `entity_transform_calc` changes were dropped. Of the event posters, these
-found the pool empty and went on: `sync_entry_register` (45 times), `speed_set` (79), `AudKillSong` (12),
-`AudKillSong_TTL` (3), `AudPauseAllEffects` (6), `AudStopAllEffects` (4), `us_AudKillSong` (2), `func_800D6E00` (4)
-and the game over screen's `func_800F87A0` (1). Fix 6's starts did too: `entity_flags_apply` (140),
-`high_scores_display` (22) and `camera_target_track` (90). Seven more runs had gdb set the hook's phase on entry to
+state with no fault, and 6,097 of 15,013 `AudChangeEffect` changes were dropped. Of the event posters, these
+found the pool empty and went on: `AudPlaySong` (45 times), `AudSetMasterVol` (79), `AudKillSong` (12),
+`AudKillSong_TTL` (3), `AudPauseAllEffects` (6), `AudStopAllEffects` (4), `us_AudKillSong` (2), `AudMono` (4)
+and the game over screen's `controlMain` (1). Fix 6's starts did too: `AudPlayEffect` (140),
+`AudPlayEffectVP` (22) and `AudEmitEffect` (90). Seven more runs had gdb set the hook's phase on entry to
 each poster, so that the poster's own message was the one refused: race end, battle quit, the screens, pause, the
-menus, a race and the demo. Every call of the posters those paths make failed: `speed_set` 74 of 74,
-`sync_entry_register` 28, `func_800D6E00` 7, `AudStopAllEffects` 7, `AudKillSong` 4, `AudKillSong_TTL` 3,
+menus, a race and the demo. Every call of the posters those paths make failed: `AudSetMasterVol` 74 of 74,
+`AudPlaySong` 28, `AudMono` 7, `AudStopAllEffects` 7, `AudKillSong` 4, `AudKillSong_TTL` 3,
 `AudPauseAllEffects` 3 and `us_AudKillSong` 2. Each run still reached its state. The scripted paths never reach the
-rest: the shutdown (`hud_setup` on an inited audio system), AbortGame, the soft reset, unpausing, the audio screen's
-init and update, `object_type1_create`/`object_type7_create` (image A's `func_80390418`), and
-`object_type7_create_alt` and `func_800D6348`, which nothing calls directly (the data's function table names them).
+rest: the shutdown (`AudioInit` on an inited audio system), AbortGame, the soft reset, unpausing, the audio screen's
+init and update, `AudKillSong`/`AudStopAllEffects` (image A's `updateStartScreen`), and
+`AudPauseAllEffects` and `AudResumeAllEffects`, which nothing calls directly (the data's function table names them).
 `assets_audiocmds` covers those. Two last runs had gdb refuse the game over screen's own post at its line
 (gameover.c's scratch message): battle quit and race end still went on to their next states, 0x80 and the main menu.
 
@@ -528,7 +528,7 @@ prints, ctest's suppressions):
 | ctest, the new features' 64 tests (`detail`, `mem`, `mods`, `profile`, `ghost`, `saves`, `fps`, `pak`, `game60` in their names, but the real-time ones) | 64 of 64; no report |
 | ctest, the other 237 (but the real-time ones) | 237 of 237; reports only in `sanitize_fault_chain`, the blank cartridge's expected fault and its NaN casts |
 | every synthetic path (56, the mods made first) at the heaviest settings | each to its state (the same checks as the Debug run fail, for the same reasons); no ASan, UBSan or LSan report |
-| retail: a single race of 12 cars on track 0 to its finish at the heaviest settings with a mod and files; track 3 with two players, 30 s of racing; a two-player battle, 30 s; the attract demo, 70 s | each to its state, no ASan or LSan report; one UBSan report, `func_800F207C.c:98` at the results' name entry (12, suppressed with its reason) |
+| retail: a single race of 12 cars on track 0 to its finish at the heaviest settings with a mod and files; track 3 with two players, 30 s of racing; a two-player battle, 30 s; the attract demo, 70 s | each to its state, no ASan or LSan report; one UBSan report, `ControlName.c:98` at the results' name entry (12, suppressed with its reason) |
 
 ### Found and fixed
 
@@ -562,10 +562,10 @@ stunt arena on the retail cartridge as it is (one player's list has stunt four d
 
 #### 12. UBSan: the name entry's read before an empty name (suppressed)
 
-At the results of a race run to its finish (retail, ASan + UBSan): `billboard_render/func_800F207C.c:98: index -1 out
+At the results of a race run to its finish (retail, ASan + UBSan): `highscorescr/ControlName.c:98: index -1 out
 of bounds for type 'u8 [13]'`. A high score's name finished with nothing typed has its trailing spaces trimmed with
 `name[len - 1]` at `len` 0, the byte before the name, which is 0 on the N64 and on the PC (the last of `humans`,
-`D_80143A40`, for the first player; the previous name's terminator for the others), so the loop ends before it
+`humans`, for the first player; the previous name's terminator for the others), so the loop ends before it
 writes. The retail function's own read: suppressed with its reason (`ubsan.supp`, SANITIZE.md 4). No synthetic path
 finishes a race, so CI's sanitizer jobs never reach it.
 
@@ -582,31 +582,31 @@ finishes a race, so CI's sanitizer jobs never reach it.
 - **"Past their last level of detail" at max** (the scene line, about one a car a view): the cars' sheens, which
   `PC_LOD_REACH` keeps at their reach by design (DETAIL.md 2.2).
 - **A view without its place** in a split-screen screenshot: the place is drawn only while the car is solid
-  (`func_800CF604`: on its wheels, not being put back), as the N64 draws it.
+  (`AreWeSolid`: on its wheels, not being put back), as the N64 draws it.
 - **The battle doesn't end** with the gas held: its rules end it on points by default or at a time limit (`countdown.c:276-297`), and nobody shot.
 - **The Pi 5 doesn't run the heaviest settings in real time** (the long run, below): a graphics task takes the
   Debug build about 35 ms of CPU there; FRAMERATE.md 7.7 and DETAIL.md 4.1 measured the parts. That the program
   doesn't say so is FRAMERATE.md 7.8's (another agent's).
 - **The retail game saves a ghost to the pak only for one name.** SAVES.md 11's open question: after a ghost race
-  `billboard_render` (`billboard_render.c:117-128`) opens the save prompt only when `D_801148E4` is set, which only
-  LoadPlayerData sets, for a profile named as the cartridge's developer name (`menu_save_options/group.c:335-342`);
-  for any other profile it calls `SaveGhost(..., 1)`, whose limbo is `func_800CB748`: the ghost is copied into the
-  in-memory records table `D_8012E6F8` (three a track and way, `score_insert/func_800CB748.c`), which the track
-  select's ghost choice reads (`cleanup_colortrace/group.c:614-615`) and nothing writes to a pak. So with `game.saves
+  `updateHighScoreScreen` (`updateHighScoreScreen.c:117-128`) opens the save prompt only when `gSaveGhostFiles` is set, which only
+  LoadPlayerData sets, for a profile named as the cartridge's developer name (`save/group.c:335-342`);
+  for any other profile it calls `SaveGhost(..., 1)`, whose limbo is `SaveGhostInLimbo`: the ghost is copied into the
+  in-memory records table `gLimboGhosts` (three a track and way, `save_limbo/SaveGhostInLimbo.c`), which the track
+  select's ghost choice reads (`carscr/carscr.c:614-615`) and nothing writes to a pak. So with `game.saves
   = files` a player's own ghost races are kept for the session only, as on the N64, and the folder's ghosts are the
-  imported ones. A ghost race also has three laps always (`SetOptions`, `large_init_state/group.c:146`) and ends only
+  imported ones. A ghost race also has three laps always (`SetOptions`, `options_set/group.c:146`) and ends only
   at its time limit (`countdown.c:309-316`); its track select has no Laps option, and GhostEnd
-  (`nonmatching/game/ghost_race_setup.c:117`) keeps the ghost only of a car that finished its laps.
+  (`nonmatching/game/GhostEnd.c:117`) keeps the ghost only of a car that finished its laps.
   Checked again 2026-11-05, as a possible porting bug: it is the cartridge's own behaviour. The compare is
-  `strcmp` (`func_8008AD04`) of the profile's name with `D_801211CC`, a 12-character code of digits, letters and a
+  `strcmp` (`game_strcmp`) of the profile's name with `cheat_profile_name`, a 12-character code of digits, letters and a
   symbol (read in the running game on the Pi, not recorded), not a default name; the same branch unlocks the cheat
-  screen (`D_801164A1`) and three more flags (`D_801164A4[14-16]`). The flag has no other writer: in the game's C
-  only that write and billboard_render's read use it (the other files declare it only); the retail ROM has two
+  screen (`cheat_menu_unlocked`) and three more flags (`gCheatState[14-16]`). The flag has no other writer: in the game's C
+  only that write and updateHighScoreScreen's read use it (the other files declare it only); the retail ROM has two
   instructions with its address's low half (0x48E4) as an offset, the two of the C, and no data word holding it
   (no table of flags points at it). The pak write, `SaveGhost(..., 0)`, is only in the prompt's handler
-  (`func_800F1930`, high score state 4), reached only from that test (`__standin_d`, which also sets state 4, is a
-  matching stand-in nothing calls); the session's ghosts (`func_800CB748`) are heap copies in the records table
-  `D_8013FEC4`, which no code writes to a pak.
+  (`ControlGhost`, high score state 4), reached only from that test (`__standin_d`, which also sets state 4, is a
+  matching stand-in nothing calls); the session's ghosts (`SaveGhostInLimbo`) are heap copies in the records table
+  `gRealLimboGhosts`, which no code writes to a pak.
 
 ### Left
 
@@ -614,11 +614,11 @@ finishes a race, so CI's sanitizer jobs never reach it.
   profile of another name never gets ("Not bugs"), and only of a car that finished its laps, which a ghost race's
   three laps and its time limit rule out for a car driven by the gas alone. A gdb poke of the prompt's flag and of
   gNumLaps at the race start (`CalcPolePositions`) didn't hold: GhostEnd saw 3 laps again (SetOptions runs after it);
-  the next try, gNumLaps set at every checkpoint (`race_countdown_display`), was not run. The synthetic cartridge's
+  the next try, gNumLaps set at every checkpoint (`PassedCP`), was not run. The synthetic cartridge's
   `saves_files` (the developer's name there) covers SaveGhost's write into a folder.
 - **Making the game's own ghosts files** for every profile: `game.ghost_prompt` (SAVES.md 7.1, 2026-11-05) opens the
   cartridge's save prompt for every profile, whose save is then a file with `game.saves = files`. Writing the
-  session's ghosts (`D_8012E6F8`) without a prompt is not done.
+  session's ghosts (`gLimboGhosts`) without a prompt is not done.
 - **The long run's battle.** A long run's press script works on the host's clock, so every step after a race must
   wait at a screen that waits for a press; on this cartridge the pause screen's quit asks to confirm (START, UP, A,
   RIGHT, A), and the results need an A before the game over screen's UP and A. Both found with `--fast` after the

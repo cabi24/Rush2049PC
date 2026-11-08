@@ -1,0 +1,86 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/* maxpath_cam: path-following camera target for one car slot.
+ * update == 0 initialises the slot: current/previous path point index from
+ * (s32)position[0], the path (track) number from object half 828, start time
+ * from the race clock gModelTime, distance travelled 0.
+ * Otherwise: wraps the start time if the clock went backwards, computes the
+ * distance to cover as elapsed * (100 + (speed >> 2) * 1.4666667 [mph->ft/s])
+ * minus the distance already travelled, then walks the path's s16 XYZ points
+ * (gDronePaths[track].points, next index from NextPathPt) consuming whole
+ * segments, interpolates inside the current segment, lifts the point by 10,
+ * makes it relative to position, zeroes the slot's elastic factor and hands
+ * it to the follow-camera update point_at_car (arcade UpdateCarObj family).
+ * No arcade ancestor found (N64-only attract/replay path camera).
+ * Shaping (all natural forms, found by trace/search):
+ *  - chained maxpath_cam_start_point[slot] = maxpath_cam_last_point[slot] = (s32)position[0];
+ *  - the segment points are written as array expressions (no start/end
+ *    pointer locals) so the start-point address is an expression web (a1);
+ *  - the interpolation lives in the loop's else-arm before `break`, which
+ *    ends a uopt block (result[0]/[2] are reloaded after +10);
+ *  - `ratio*delta + start` operand order, left-assoc x*x+y*y+z*z;
+ *  - `previous` is loaded in the for-initialiser (as1 line tie-break);
+ *  - track is read before the amount statement;
+ *  - result declared before delta (frame offsets 124 / 112).
+ * Own .rodata: 1.4666667f (0x3FBBBBBC at 0x801244C4).
+ */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef signed short s16;
+typedef signed int s32;
+typedef float f32;
+typedef f32 Vec3[3];
+typedef f32 Mat3[3][3];
+typedef struct { u8 other0[248]; s16 speed; u8 other250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 other250_308[0x33C - 0x308]; s16 track; u8 other830[30]; s8 slot; } Object;
+typedef struct { s16 x,y,z,pad; } PathPoint;
+typedef struct { u16 count,other2; PathPoint *points; } Path;
+extern s16 maxpath_cam_last_point[], maxpath_cam_start_point[], maxpath_cam_start_path[];
+extern f32 maxpath_cam_start_time[], maxpath_cam_last_dist[], elastic_factor[];
+extern f32 gModelTime;
+extern Path gDronePaths[];
+extern f32 sqrtf(f32);
+#pragma intrinsic(sqrtf)
+extern s16 NextPathPt(s16,s16);
+extern void point_at_car(Object *,f32 *,Mat3 *,f32 *);
+void maxpath_cam(s16 update,Object *object,f32 *position,Mat3 *matrix)
+{
+    s8 slot=object->slot;
+    s32 next;
+    Vec3 result,delta;
+    s16 previous,track;
+    f32 amount,length;
+    if(!update) {
+        maxpath_cam_start_point[slot]=maxpath_cam_last_point[slot]=(s32)position[0];
+        maxpath_cam_start_path[slot]=object->track;
+        maxpath_cam_start_time[slot]=gModelTime;
+        maxpath_cam_last_dist[slot]=0.0f;
+    } else {
+        if(maxpath_cam_start_time[slot]>gModelTime) maxpath_cam_start_time[slot]=0.0f;
+        track=maxpath_cam_start_path[slot];
+        amount=(gModelTime-maxpath_cam_start_time[slot])*(100.0f+(object->speed>>2)*1.4666667f)-maxpath_cam_last_dist[slot];
+        for(previous=maxpath_cam_last_point[slot];;) {
+            next=NextPathPt(previous,track);
+            delta[0]=gDronePaths[track].points[next].x-gDronePaths[track].points[previous].x;
+            delta[1]=gDronePaths[track].points[next].y-gDronePaths[track].points[previous].y;
+            delta[2]=gDronePaths[track].points[next].z-gDronePaths[track].points[previous].z;
+            length=sqrtf(delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
+            if(length<=amount) {
+                maxpath_cam_last_dist[slot]+=length;
+                previous=next;
+                maxpath_cam_last_point[slot]=next;
+                amount-=length;
+            } else {
+                result[0]=(amount/length)*delta[0]+gDronePaths[track].points[previous].x;
+                result[1]=(amount/length)*delta[1]+gDronePaths[track].points[previous].y;
+                result[2]=(amount/length)*delta[2]+gDronePaths[track].points[previous].z;
+                break;
+            }
+        }
+        result[1]+=10.0f;
+        result[0]-=position[0];
+        result[1]-=position[1];
+        result[2]-=position[2];
+        elastic_factor[slot]=0.0f;
+        point_at_car(object,position,matrix,result);
+    }
+}

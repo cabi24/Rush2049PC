@@ -31,13 +31,13 @@ This code is loaded directly from ROM at boot and remains resident. It contains 
 |------------|--------------|------|-------------|
 | 0x1000 | 0x80000400 | 0x50 | Entry point (clears BSS, sets stack, jumps to main) |
 | 0x1050 | 0x80000450 | 0x11A0 | Scheduler (osCreateScheduler, scMain, scHandleRetrace, etc.) |
-| 0x21F0 | 0x800015F0 | 0xB00 | Display/rendering (display_update, viewport_setup) |
-| 0x2CF0 | 0x80002238 | 0x450 | Game init (main, game_init, thread entries) |
-| 0x3140 | 0x80002540 | 0x1F0 | DMA utilities (dma_queue_init, lzss_decompress, inflate_decompress) |
+| 0x21F0 | 0x800015F0 | 0xB00 | Display/rendering (video_build_adjusted_mode, video_set_mode) |
+| 0x2CF0 | 0x80002238 | 0x450 | Game init (main, main_thread_entry, thread entries) |
+| 0x3140 | 0x80002540 | 0x1F0 | DMA utilities (init_decompress_lock, lzss_decompress, inflate_decompress) |
 | 0x34A0 | 0x800028A0 | 0x2150 | libm (modf, modff, sinf, cosf, fcvt, __ecvt_internal) |
 | 0x5610 | 0x80004A14 | 0x1FEC | Inflate/DEFLATE decompression |
 | 0x7600 | 0x80006A00 | 0x630 | OS message queue (osCreateMesgQueue, osRecvMesg, osSendMesg) |
-| 0x7630 | 0x80006BB0 | 0x310 | VI manager (vi_manager_main) |
+| 0x7630 | 0x80006BB0 | 0x310 | VI manager (viMgrMain) |
 | 0x8E10 | 0x80008210 | 0x270 | PI/VI managers (osCreatePiManager, osCreateViManager) |
 | 0x9660 | 0x80008A60 | 0x780 | Graphics utilities (guOrtho, guPerspective, guLookAt) |
 | 0x9DE0 | 0x800091E0 | 0x270 | Matrix functions (guMtxF2L, guMtxL2F, guMtxIdent) |
@@ -51,12 +51,12 @@ This code is loaded directly from ROM at boot and remains resident. It contains 
 ```
 entrypoint        = 0x80000400  // ROM bootstrap
 main              = 0x800020F0  // Real main function
-game_init         = 0x80002238  // OS-level initialization
+main_thread_entry         = 0x80002238  // OS-level initialization
 idle_thread_entry = 0x800021A4  // Idle thread
-audio_thread_entry= 0x800024FC  // Audio thread
+game_thread_entry= 0x800024FC  // Audio thread
 osCreateScheduler = 0x80000450  // Scheduler creation
 __osException     = 0x8000C980  // CPU exception handler
-inflate_entry     = 0x80006814  // DEFLATE decompression entry
+unzipdata_from_rom     = 0x80006814  // DEFLATE decompression entry
 ```
 
 ### 1.1a Boot Segment Tail (0x800277D0 - 0x8002E8E0, ROM 0x283D0 - 0x2F4E0)
@@ -72,15 +72,15 @@ BSS clear starts. It holds:
 | 0x80027EA0 - 0x80028CC0 | 3,616 B | RSP text | microcode no task references (probably a second audio microcode) |
 | 0x80028CC0 - 0x8002A050 | 5,008 B | RSP text | F3DEX NoN fifo 2.08 (graphics task `ucode`) |
 | 0x8002A050 - 0x8002AFA0 | 3,920 B | RSP text | aspMain (audio task `ucode`) |
-| 0x8002AFA0 - 0x8002C5E0 | 5,696 B | data | static .data/.rodata, from `__osScCurAudioTask` |
-| 0x8002C5E0 - 0x8002C5FC | 28 B | CPU | `func_8002C5E0`, a hand-written D-cache loop placed among the data |
+| 0x8002AFA0 - 0x8002C5E0 | 5,696 B | data | static .data/.rodata, from `scheduler_audio_task` |
+| 0x8002C5E0 - 0x8002C5FC | 28 B | CPU | `dcache_create_dirty_lines`, a hand-written D-cache loop placed among the data |
 | 0x8002C5FC - 0x8002DDF0 | 6,132 B | data | static .data/.rodata |
 | 0x8002DDF0 - 0x8002E210 | 1,056 B | RSP data | F3DEX data (graphics task `ucode_data`) |
 | 0x8002E210 - 0x8002E440 | 560 B | RSP data | aspMain data (audio task `ucode_data`) |
 | 0x8002E440 - 0x8002E8E0 | 1,184 B | data | static .data/.rodata: build-info record ("07-17-00", "02:26:18", "MERRILL", "BLACKOUT") |
 
 The 10 CPU routines (1,564 B) are static functions built from assembly:
-`asm/us/boot_data/{kernels,func_8002C5E0}.s` (the two inline tables as `.word` data). The Makefile assembles
+`asm/us/boot_data/{kernels,dcache_create_dirty_lines}.s` (the two inline tables as `.word` data). The Makefile assembles
 each and composes it into its `data.bin` slot (`tools/compose_data.py --extra`, offsets 0x0 and 0x4E10), so the
 extracted bytes there are never read. The static population counts 677 functions and 162,284 bytes with them.
 The microcode is Nintendo SDK binary and is not a decompilation target.
@@ -91,9 +91,9 @@ Game logic is stored compressed in ROM at offset 0xB0CB10 using DEFLATE compress
 
 | Section | Range | Size | Contents |
 |---|---|---:|---|
-| .text | 0x80086A50 - 0x8010FD7C | 561,964 B | 1,216 functions (561,860 B) and 104 B of gaps; the last function is func_8010FD60 |
+| .text | 0x80086A50 - 0x8010FD7C | 561,964 B | 1,216 functions (561,860 B) and 104 B of gaps; the last function is musyx_cart_address |
 | .data | 0x8010FD7C - 0x80123870 | 80,628 B | initialised globals and every string literal, grouped per translation unit (not in .text order) |
-| .rodata | 0x80123870 - 0x801249F0 | 4,480 B | float literals and switch jump tables only, in .text order; starts with func_80086A50's jump table |
+| .rodata | 0x80123870 - 0x801249F0 | 4,480 B | float literals and switch jump tables only, in .text order; starts with blit_set_mode's jump table |
 
 The .data/.rodata tail is verified data, not unregistered code (2026-10-21): no j/jal in the game, static or
 runtime-image code targets it, and it holds no `jr ra`, stack-frame setup or `ra` save/restore.
@@ -118,19 +118,19 @@ Approximate subsystem ranges in .text:
 **Key Game Functions:**
 
 ```
-game_loop              = 0x800FD464  // Main per-frame state machine (704 bytes)
+GameLoop              = 0x800FD464  // Main per-frame state machine (704 bytes)
 PlayGame_HandleStateChange = 0x800CA3B4  // State change handler (2544 bytes)
 render_object          = 0x80099BFC  // 3D model rendering (10KB)
 render_large           = 0x80087A08  // Large rendering function (10KB)
 render_scene           = 0x800A04C4  // Scene/viewport setup (2720 bytes)
-PhysicsObjectList_Update = 0x800B0868  // Physics update
-effects_update_emitters = 0x800B811C  // Particle/FX system
+UpdateEnvirons = 0x800B0868  // Physics update
+UpdateCameras = 0x800B811C  // Particle/FX system
 race_state_update      = 0x800DB81C  // Race progression (2148 bytes)
 attract_state_machine  = 0x800D349C  // Attract mode (1676 bytes)
-controller_poll        = 0x800C95DC  // Controller input (928 bytes)
+UpdateControls        = 0x800C95DC  // Controller input (928 bytes)
 ```
 
-**Game State Machine (at game_loop 0x800FD464):**
+**Game State Machine (at GameLoop 0x800FD464):**
 
 The game uses a bitmask ladder for state dispatch:
 
@@ -180,8 +180,8 @@ osAppNMIBuffer = 0x8000031C  // NMI buffer
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 0x800344E0 | gGameThread | OSThread for main game (thread 7) |
-| 0x80034690 | gAudioThread | OSThread for audio (thread 8) |
+| 0x800344E0 | main_thread | OSThread for main game (thread 7) |
+| 0x80034690 | bg_load_thread | OSThread for audio (thread 8) |
 | 0x80034840 | gRenderThread | OSThread for render (thread 5) |
 | 0x80034BA0 | gIdleThread | OSThread for idle (thread 1) |
 | 0x80034D50 | gInitThread | OSThread for init (thread 6) |
@@ -193,18 +193,18 @@ osAppNMIBuffer = 0x8000031C  // NMI buffer
 | 0x8002F660 | gIdleThreadStack | ~400 bytes |
 | 0x8002F7F0 | gAudioThreadStack | ~2KB |
 | 0x80030150 | gInitThreadStack | ~2KB |
-| 0x80030AB0 | gGameThreadStack | ~5KB |
-| 0x80031D70 | gRenderThreadStack | ~6KB |
+| 0x80030AB0 | game_thread_stack | ~5KB |
+| 0x80031D70 | model_thread_stack | ~6KB |
 
 ### 2.4 Message Queues (0x8002ECC0 - 0x80035460)
 
 | Address | Name | Description |
 |---------|------|-------------|
-| 0x8002ECC0 | gEventMesgQueue | Event message queue |
-| 0x8002ECF8 | gRetraceMesgQueue | VBlank/retrace messages |
-| 0x80035410 | gDmaMesgQueue | DMA completion messages |
+| 0x8002ECC0 | game_thread_queue | Event message queue |
+| 0x8002ECF8 | main_thread_queue | VBlank/retrace messages |
+| 0x80035410 | rom_dma_queue | DMA completion messages |
 | 0x80035428 | gInflateMesgQueue | Decompression I/O queue |
-| 0x80035440 | gSyncMesgQueue | Sync signal queue |
+| 0x80035440 | bg_load_idle_queue | Sync signal queue |
 
 ### 2.5 OS Timer State (0x80037C50 - 0x80037C64)
 
@@ -217,9 +217,9 @@ __osRunningThread = 0x8002C3E0  // Current running thread (OSThread*)
 ### 2.6 Display List Pointers (0x800354C4 - 0x800354D0)
 
 ```
-gDisplayListHead = 0x800354C4  // Display list buffer start
-gDisplayListSize = 0x800354C8  // Current offset in display list
-gDisplayListEnd  = 0x800354CC  // Display list buffer end
+zmregion = 0x800354C4  // Display list buffer start
+zmused = 0x800354C8  // Current offset in display list
+zmmax  = 0x800354CC  // Display list buffer end
 ```
 
 ---
@@ -230,7 +230,7 @@ gDisplayListEnd  = 0x800354CC  // Display list buffer end
 
 | Address | Name | Type | Description |
 |---------|------|------|-------------|
-| 0x801146EC | gstate_init_flag | u8 | Set once on first game_loop call |
+| 0x801146EC | gstate_init_flag | u8 | Set once on first GameLoop call |
 | 0x801170FC | race_active | u32 | Non-zero enables race loop |
 | 0x801174B4 | gstate | u32 | Current game state bitmask (110 refs) |
 | 0x801174B8 | gstate_prev | u32 | Previous game state (transition detection) |
@@ -333,8 +333,8 @@ Per-player input state, 4 players x 32 bytes (0x20 stride).
 | Address | Name | Description |
 |---------|------|-------------|
 | 0x80142AFC | frame_counter | Incremented each frame |
-| 0x80142728 | D_80142728 | Unknown (77 refs) |
-| 0x8014A110 | D_8014A110 | Paired with A250 (74 refs) |
+| 0x80142728 | audio_lock_queue | Unknown (77 refs) |
+| 0x8014A110 | gRace | Paired with A250 (74 refs) |
 | 0x80150B70 | effect_emitters_array | Particle effects (152-byte stride) |
 | 0x80159450 | active_sound_list | Active objects/sounds array |
 | 0x80159788 | active_sound_count | Active object/sound count |
@@ -521,7 +521,7 @@ DPC_TMEM_REG      = 0xA410001C  // TMEM counter
 | 5 | 5 | (render) | 0x80031D70 | Render thread |
 | 6 | 6 | (init) | 0x80030150 | Init thread |
 | 7 | 7 | (game) | 0x80030AB0 | Main game thread |
-| 8 | 5 | audio_thread_entry (0x800024FC) | 0x8002F7F0 | Audio thread |
+| 8 | 5 | game_thread_entry (0x800024FC) | 0x8002F7F0 | Audio thread |
 
 ---
 

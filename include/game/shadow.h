@@ -172,13 +172,13 @@ void shadow_show(s16 slot);
 void shadow_render_blob(void *object);
 
 /**
- * car_shadow_render - Render car-specific blob shadow
+ * AudioInitSys - Render car-specific blob shadow
  * @param car Pointer to car data
  * @param ground Pointer to ground surface data (may be NULL)
  * Renders a car-shaped shadow that accounts for terrain
  * Address: 0x800A5D34
  */
-void car_shadow_render(void *car, void *ground);
+void AudioInitSys(void *car, void *ground);
 
 /**
  * Shadow Projection Functions

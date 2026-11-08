@@ -202,7 +202,7 @@ int main(void)
     check_heard(R, "a renderer behind");
 
     /* 4. Random timings within the game's rules. Renders in order, at most R - 3 past the pushes; stalls (no renders
-     * for a while, then on in order); restarts as the game's (func_80014140, func_800140F8): the renderer goes on to
+     * for a while, then on in order); restarts as the game's (sound_hw_remove_callback, sound_hw_install_callback): the renderer goes on to
      * the ring's front, stops, and some pushes later starts at the new front. A renderer slower than the AI at times.
      * What is heard is in order, never early, never twice; once the renderer is ahead again everything plays. */
     unsigned seed = 2049;
@@ -285,7 +285,7 @@ int main(void)
           "a render again: %ld %ld, rematched %llu, skipped %llu", first, second, (unsigned long long)st.rematched,
           (unsigned long long)st.skipped);
 
-    /* 4c. The renderer passing buffers over (func_80013DEC on the N64, docs/port/AUDIO.md 7): a render two buffers on
+    /* 4c. The renderer passing buffers over (sound_hw_service_frame on the N64, docs/port/AUDIO.md 7): a render two buffers on
      * right after the one before is counted as one skipped; the same jump after 20 ms without a render is a restart. */
     reset();
     pc_audio_set_clock(fake_clock);

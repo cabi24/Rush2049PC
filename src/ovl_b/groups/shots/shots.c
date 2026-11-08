@@ -10,7 +10,7 @@
  *  - PlayGameSound returns int (as MAT3 declares it);
  *  - gShieldSizes is a plain (non-const) static as in MAT3: retail keeps it in .data (0x80394358);
  *  - ShotUpdate: AnimateCase is written inline; _InitNewShot is a real function inlined by umerge (its deleted
- *    stub is func_8038F560); `incTime = 0` (int spelling) and vel[] zeroed 2,1,0; UpdateShots: one pointer variable
+ *    stub is InitNewShot); `incTime = 0` (int spelling) and vel[] zeroed 2,1,0; UpdateShots: one pointer variable
  *    `o = shot->obj` / `o = shot->obj2` re-read before every ZOID_SetColor in the loaded==2 block, an explicit
  *    `default: break;` in the final switch, case 3 of the motion switch assigns the (dead) `vel = shot->vel[2]
  *    * gFrameSeconds` (case 4's line), an explicit `break;` after SetupTarget in the collision switch's case 3,
@@ -21,10 +21,10 @@
  *  - ElevateGun: the first (5-way) skip test is `goto next;` with `next:;` closing the loop body (the second
  *    test keeps `continue`; the label's extra block sets retail's register priorities), yaw declared before
  *    pitch (`yaw = 0`, `pitch = 0.0f`), `pos[i] = pos[i] + uvs[1][i] * h`.
- *  - DISCLOSED LEVER: `if (D_8039A520.head) {}` before the _InitNewShot call in ShotUpdate is a compiled-out read
+ *  - DISCLOSED LEVER: `if (gShotList.head) {}` before the _InitNewShot call in ShotUpdate is a compiled-out read
  *    (no code): it adds the block that keeps ShotUpdate's callee-saved cost at retail's value and the gShotList
  *    address reference that orders the case-1 colouring. No natural source form for it has been found.
- * superseding revision: claims the deleted-inline stub func_8038FCD8 = AnimateCase (MAT3 shots.c
+ * superseding revision: claims the deleted-inline stub AnimateCase = AnimateCase (MAT3 shots.c
  * static, called first by ShotUpdate; post-order places its 8-byte stub immediately before ShotUpdate).
  * The casing loop moves verbatim out of ShotUpdate into the helper (non-static, not on keep, named after the stub;
  * locals casing, next and the s32 `idx` carrier that keeps retail's `lw; sll; sra; move` argument path).
@@ -174,68 +174,68 @@ typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
 
-extern volatile f32 D_8002EB94;          /* gFrameSeconds */
-extern f32 D_80142764;          /* gGravity */
-extern volatile s16 D_801543CA;          /* gNumCars */
+extern volatile f32 gFrameSeconds;          /* gFrameSeconds */
+extern f32 gGravity;          /* gGravity */
+extern volatile s16 gNumCars;          /* gNumCars */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 D_8012E67C[];         /* gCarTeam */
-extern ColSize D_8011F844[];    /* collsize */
-extern f32 D_8011418C[];        /* unitmatrix */
-extern f32 D_803943A4[8][13][3];/* weaponOffsets */
-extern StatLL D_80394F70;       /* gShotObjList */
-extern Shield D_80394F90[4];    /* gCarShield */
-extern StatLL D_8039A520;       /* gShotList */
-extern StatLL D_8039A5F8;       /* gHitPolyList */
-extern StatLL D_8039AE80;       /* gShotCaseList */
-extern s32 D_80399B18[10];      /* gWprObjList */
-extern s32 D_80399B40[7];       /* gWfxObjList */
-extern u16 D_80399AF8[5];       /* gMineTextures */
-extern TexDefSet D_80151AE8[];  /* gTexDefPtrs */
-extern ObjInst D_8012E700[];    /* ObjInstanceList */
-extern u16 D_80394F88;          /* wallTidx */
-extern volatile u8 D_80140BDC;  /* gNumModels */
-extern RGBA D_803942E8;         /* hitColor */
+extern s8 gCarTeam[];         /* gCarTeam */
+extern ColSize collsize[];    /* collsize */
+extern f32 unitmatrix[];        /* unitmatrix */
+extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
+extern StatLL gShotObjList;       /* gShotObjList */
+extern Shield gCarShield[4];    /* gCarShield */
+extern StatLL gShotList;       /* gShotList */
+extern StatLL gHitPolyList;       /* gHitPolyList */
+extern StatLL gShotCaseList;       /* gShotCaseList */
+extern s32 gWprObjList[10];      /* gWprObjList */
+extern s32 gWfxObjList[7];       /* gWfxObjList */
+extern u16 gMineTextures[5];       /* gMineTextures */
+extern TexDefSet gTexDefPtrs[];  /* gTexDefPtrs */
+extern ObjInst ObjInstanceList[];    /* ObjInstanceList */
+extern u16 wallTidx;          /* wallTidx */
+extern volatile u8 gNumModels;  /* gNumModels */
+extern RGBA hitColor;         /* hitColor */
 
-extern void *func_8008E3C0(void *list);         /* GetStatLLE */
-extern void func_800AFA84(void *list, void *e); /* FreeStatLLE */
-extern void sound_call_minimal(s16 obj);        /* ZOID_RemoveObject */
-extern void func_8008E06C(s16 obj, RGBA *clr);  /* ZOID_SetColor */
-extern void func_8008D0C0(void *poly);          /* ZOID_RemovePoly */
-extern s32 sign_extend_call(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
-extern void math_utility(f32 *src, f32 *dst);   /* CopyUV */
+extern void *GetStatLLE(void *list);         /* GetStatLLE */
+extern void FreeStatLLE(void *list, void *e); /* FreeStatLLE */
+extern void ZOID_RemoveObject(s16 obj);        /* ZOID_RemoveObject */
+extern void ZOID_SetColor(s16 obj, RGBA *clr);  /* ZOID_SetColor */
+extern void ZOID_RemovePoly(void *poly);          /* ZOID_RemovePoly */
+extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
+extern void CopyUV(f32 *src, f32 *dst);   /* CopyUV */
 extern void func_80090F44(f32 a, f32 *uvs);     /* PitchUV */
-extern void func_80090E9C(f32 a, f32 *uvs);     /* YawUV */
+extern void YawUV(f32 a, f32 *uvs);     /* YawUV */
 extern void func_8009EA68(f32 a, f32 *uvs);     /* RollUV */
-extern f32 func_8008B2E4(f32 scale);            /* Random */
-extern f32 func_8008C768(f32 y, f32 x);         /* fatan2 */
-extern void func_800A61B0(f32 *v, f32 *out, f32 *uvs); /* BodyVector */
-extern s32 func_800B61A8(s32 fx, s32 slot, s32 a, s32 b); /* PlayGameSound */
-extern Streak *func_8038D054(s32 type, f32 *pos, f32 *pos2); /* NewStreak */
-extern void func_8038CB20(void);                /* UpdateStreaks */
+extern f32 Random(f32 scale);            /* Random */
+extern f32 fatan2(f32 y, f32 x);         /* fatan2 */
+extern void BodyVector(f32 *v, f32 *out, f32 *uvs); /* BodyVector */
+extern s32 PlayGameSound(s32 fx, s32 slot, s32 a, s32 b); /* PlayGameSound */
+extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2); /* NewStreak */
+extern void UpdateStreaks(void);                /* UpdateStreaks */
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
 #pragma intrinsic(sqrtf)
 #pragma intrinsic(fabsf)
-extern void func_8038D200(Shot *shot, s32 unt);
-extern ShotObj *func_8038D328(s32 idx, s32 parent, u32 flags, s32 o2);
-extern void func_8038E088(Shot *shot);
-extern Car *func_8038DA78(Shot *shot, f32 *old);
-extern void func_8038D498(Shot *shot);
-extern void func_8038E114(void);                /* UpdateShots */
-void func_8038F560(Shot *shot, Car *car);       /* _InitNewShot */
-extern void func_8038D3A4(Car *car, Car *hit, s32 damage); /* BattleDamage */
-extern void func_8038D798(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage); /* ProximityDamage */
-extern void func_8038DDDC(Shot *shot);          /* MissileLock */
-extern intptr_t input_deadzone_apply(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b); /* ShotToWorldCollision */
-extern void func_8009E820(f32 *v, f32 *out, f32 *uvs);   /* WorldVector */
-extern void func_8008D870(s16 obj, void *tex, s32 a);    /* ZOID_SetTexture */
-extern void func_8008B32C(f32 *src, f32 *dst, f32 s);    /* ScaleUV */
-extern void *func_800A78BC(s32 n, f32 *verts, u16 tidx, RGBA *color, s32 flags, s32 a); /* ZOID_NewPoly */
-extern void func_800B24EC(char *name, u16 *out, s8 a, s8 b, s32 c); /* MBOX_FindTexture_WORK */
-extern void transmission_ratio_get(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d); /* SetupTarget */
-extern s32 camera_collision_check(f32 *pos, f32 *pos2, f32 a, f32 b, f32 c, f32 d, s32 e, s32 slot, s32 f, s32 g); /* EmitGameSound */
-extern void save_write_data(f32 *pos, s32 a, f32 b, s32 c); /* StartBlast */
+extern void UpdateShotObject(Shot *shot, s32 unt);
+extern ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);
+extern void ShotDone(Shot *shot);
+extern Car *ShotToCarCollision(Shot *shot, f32 *old);
+extern void SonicCarCollision(Shot *shot);
+extern void UpdateShots(void);                /* UpdateShots */
+void InitNewShot(Shot *shot, Car *car);       /* _InitNewShot */
+extern void BattleDamage(Car *car, Car *hit, s32 damage); /* BattleDamage */
+extern void ProximityDamage(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage); /* ProximityDamage */
+extern void MissileLock(Shot *shot);          /* MissileLock */
+extern intptr_t ShotToWorldCollision(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b); /* ShotToWorldCollision */
+extern void WorldVector(f32 *v, f32 *out, f32 *uvs);   /* WorldVector */
+extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);    /* ZOID_SetTexture */
+extern void ScaleUV(f32 *src, f32 *dst, f32 s);    /* ScaleUV */
+extern void *ZOID_NewPoly(s32 n, f32 *verts, u16 tidx, RGBA *color, s32 flags, s32 a); /* ZOID_NewPoly */
+extern void MBOX_FindTexture_WORK(char *name, u16 *out, s8 a, s8 b, s32 c); /* MBOX_FindTexture_WORK */
+extern void SetupTarget(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d); /* SetupTarget */
+extern s32 EmitGameSound(f32 *pos, f32 *pos2, f32 a, f32 b, f32 c, f32 d, s32 e, s32 slot, s32 f, s32 g); /* EmitGameSound */
+extern void StartBlast(f32 *pos, s32 a, f32 b, s32 c); /* StartBlast */
 
 static const f32 CaseOffsets[1][3] = { 0.6f, 0.65f, -0.69f };
 static const f32 ShotOffsets[10][3] = {
@@ -254,7 +254,7 @@ static s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };
 #define PC_DT30(dt) (pc_fps60 ? (pc_frame_steps ? (f32)pc_frame_steps * ((dt) / pc_frame_scale) : 0.0f) : (dt))
 
 /* 0x8038F568 ElevateGun */
-void func_8038F568(Car *car)
+void ElevateGun(Car *car)
 {
     Car *hit;
     f32 vec[3];
@@ -264,8 +264,8 @@ void func_8038F568(Car *car)
     f32 pitch = 0.0f;
     f32 h;
 
-    for (hit = PC_CARS; hit < PC_CAR(D_801543CA); hit++) {
-        if (car->slot == hit->slot || D_8012E67C[car->slot] == D_8012E67C[hit->slot] ||
+    for (hit = PC_CARS; hit < PC_CAR(gNumCars); hit++) {
+        if (car->slot == hit->slot || gCarTeam[car->slot] == gCarTeam[hit->slot] ||
             PC_MODEL_CRASHFLAG(hit->slot) || !hit->collidable || hit->dead)
             goto next;
         pos[0] = hit->pos[0] - car->pos[0];
@@ -275,17 +275,17 @@ void func_8038F568(Car *car)
             h = -1.0f * ShotOffsets[car->battle.type][1];
         else
             h = -1.0f * (ShotOffsets[car->battle.type][1] +
-                  D_803943A4[car->battle.type][PC_MODEL_BODY(car->slot)][1]);
+                  weaponOffsets[car->battle.type][PC_MODEL_BODY(car->slot)][1]);
         pos[0] = pos[0] + car->uvs[1][0] * h;
         pos[1] = pos[1] + car->uvs[1][1] * h;
         pos[2] = pos[2] + car->uvs[1][2] * h;
-        func_800A61B0(pos, vec, &car->uvs[0][0]);
+        BodyVector(pos, vec, &car->uvs[0][0]);
         if (vec[2] < 0.0f || vec[0] < -0.5f * vec[2] || vec[0] > 0.5f * vec[2] ||
             vec[1] < -vec[2] || vec[1] > vec[2] || vec[2] > best)
             continue;
         best = vec[2];
-        yaw = func_8008C768(vec[0], vec[2]);
-        pitch = func_8008C768(vec[1], vec[2]);
+        yaw = fatan2(vec[0], vec[2]);
+        pitch = fatan2(vec[1], vec[2]);
 next:;
     }
     if (yaw < car->battle.yaw)
@@ -299,7 +299,7 @@ next:;
 }
 
 /* 0x8038DA78 ShotToCarCollision */
-Car *func_8038DA78(Shot *shot, f32 *old)
+Car *ShotToCarCollision(Shot *shot, f32 *old)
 {
     Car *car;
     Car *hit;
@@ -328,7 +328,7 @@ Car *func_8038DA78(Shot *shot, f32 *old)
         return 0;
     t0 = 1.0f;
     hit = 0;
-    for (i = 0, car = PC_CARS; i < D_801543CA; i++, car++) {
+    for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || PC_MODEL_CRASHFLAG(i))
             continue;
@@ -353,8 +353,8 @@ Car *func_8038DA78(Shot *shot, f32 *old)
             pos2[0] = old[0] - shot->pos[0];
             pos2[1] = old[1] - shot->pos[1];
             pos2[2] = old[2] - shot->pos[2];
-            func_800A61B0(pos2, pos, &car->uvs[0][0]);
-            if (fabsf(func_8008C768(pos[0], pos[2])) < 1.35f)
+            BodyVector(pos2, pos, &car->uvs[0][0]);
+            if (fabsf(fatan2(pos[0], pos[2])) < 1.35f)
                 shot->flags |= 1;
         }
         shot->pos[0] = projected[0];
@@ -367,7 +367,7 @@ Car *func_8038DA78(Shot *shot, f32 *old)
 }
 
 /* 0x8038D498 SonicCarCollision */
-void func_8038D498(Shot *shot)
+void SonicCarCollision(Shot *shot)
 {
     Car *car;
     Car *our;
@@ -384,7 +384,7 @@ void func_8038D498(Shot *shot)
     f32 scale;
 
     our = PC_CAR(shot->slot);
-    scale = D_8012E700[shot->obj->mbIdx].scale;
+    scale = ObjInstanceList[shot->obj->mbIdx].scale;
     if (scale <= 8.0f) {
         mul = 1.0f;
         dam = 800;
@@ -398,7 +398,7 @@ void func_8038D498(Shot *shot)
     pos[0] = shot->obj->mat.pos[0];
     pos[1] = shot->obj->mat.pos[1];
     pos[2] = shot->obj->mat.pos[2];
-    for (car = PC_CARS, i = 0; i < D_801543CA; i++, car++) {
+    for (car = PC_CARS, i = 0; i < gNumCars; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || (shot->slotDamaged & (1 << car->slot)))
             continue;
@@ -408,12 +408,12 @@ void func_8038D498(Shot *shot)
         dist = vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2];
         if (dist <= (scale * 4.0f) * (scale * 4.0f)) {
             shot->slotDamaged |= 1 << car->slot;
-            func_8038D3A4(our, car, dam);
+            BattleDamage(our, car, dam);
             rad = sqrtf(dist);
             vec2[2] = mul * (330000.0f * (vec[2] / rad));
             vec2[1] = mul * (330000.0f * (vec[1] / rad) + 66000.0f);
             vec2[0] = mul * (330000.0f * (vec[0] / rad));
-            func_800A61B0(vec2, vec, &car->uvs[0][0]);
+            BodyVector(vec2, vec, &car->uvs[0][0]);
             m = PC_MODEL(car->slot);
             m->centerForce[0] = m->centerForce[0] + vec[0];
             m->centerForce[1] = m->centerForce[1] + vec[1];
@@ -427,7 +427,7 @@ void func_8038D498(Shot *shot)
 }
 
 /* 0x8038E088 ShotDone */
-void func_8038E088(Shot *shot)
+void ShotDone(Shot *shot)
 {
     ShotObj *o;
     s32 idx;
@@ -435,8 +435,8 @@ void func_8038E088(Shot *shot)
     case 3:
         o = shot->obj2;
         idx = o->mbIdx;
-        sound_call_minimal(idx);
-        func_800AFA84(&D_80394F70, o);
+        ZOID_RemoveObject(idx);
+        FreeStatLLE(&gShotObjList, o);
     case 0:
     case 1:
     case 2:
@@ -446,35 +446,35 @@ void func_8038E088(Shot *shot)
     case 8:
         o = shot->obj;
         idx = o->mbIdx;
-        sound_call_minimal(idx);
-        func_800AFA84(&D_80394F70, o);
+        ZOID_RemoveObject(idx);
+        FreeStatLLE(&gShotObjList, o);
         break;
     }
 }
 
 /* 0x8038D328 _CreateShotObject */
-ShotObj *func_8038D328(s32 idx, s32 parent, u32 flags, s32 o2)
+ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2)
 {
     ShotObj *o;
-    o = func_8008E3C0(&D_80394F70);
+    o = GetStatLLE(&gShotObjList);
     if (o2)
-        o->mbIdx = sign_extend_call(D_80399B18[idx], 0, parent, flags);
+        o->mbIdx = MBOX_NewObject(gWprObjList[idx], 0, parent, flags);
     else
-        o->mbIdx = sign_extend_call(D_80399B18[idx], &o->mat, parent, flags);
+        o->mbIdx = MBOX_NewObject(gWprObjList[idx], &o->mat, parent, flags);
     return o;
 }
 
 /* 0x8038D200 _UpdateShotObject */
-void func_8038D200(Shot *shot, s32 unt)
+void UpdateShotObject(Shot *shot, s32 unt)
 {
     ShotObj *o = shot->obj;
     o->mat.pos[0] = shot->pos[0];
     o->mat.pos[1] = shot->pos[1];
     o->mat.pos[2] = shot->pos[2];
     if (unt == 1)
-        math_utility(D_8011418C, &o->mat.uvs[0][0]);
+        CopyUV(unitmatrix, &o->mat.uvs[0][0]);
     else if (unt != 2)
-        math_utility(&shot->uvs[0][0], &o->mat.uvs[0][0]);
+        CopyUV(&shot->uvs[0][0], &o->mat.uvs[0][0]);
 
     if (shot->flags & 0x70) {
         if ((shot->flags & 0x80) && (shot->flags & 0x10) &&
@@ -498,13 +498,13 @@ reduceScale:
 }
 
 /* 0x8038F938 UpdateDefense */
-void func_8038F938(Car *car, Model *m, Defense *defense, s32 i)
+void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
 {
     RGBA clr = { { 255, 255, 255, 255 } };
     s32 j, k;
 
     if ((defense->active & 1) && car->battle.fadeState != 2) {
-        defense->invsTime -= D_8002EB94;
+        defense->invsTime -= gFrameSeconds;
         if (defense->invsTime <= 0.0f || m->crashflag) {
             defense->invsTime = 0.0f;
             car->battle.fadeState = 2;
@@ -515,13 +515,13 @@ void func_8038F938(Car *car, Model *m, Defense *defense, s32 i)
     if (defense->active & 2) {
         if (m->crashflag)
             goto removeShield;
-        D_80394F90[i].mat.pos[0] = car->pos[0];
-        D_80394F90[i].mat.pos[1] = car->pos[1];
-        D_80394F90[i].mat.pos[2] = car->pos[2];
-        math_utility(&car->uvs[0][0], &D_80394F90[i].mat.uvs[0][0]);
-        func_80090F44(defense->unknown10, &D_80394F90[i].mat.uvs[0][0]);
+        gCarShield[i].mat.pos[0] = car->pos[0];
+        gCarShield[i].mat.pos[1] = car->pos[1];
+        gCarShield[i].mat.pos[2] = car->pos[2];
+        CopyUV(&car->uvs[0][0], &gCarShield[i].mat.uvs[0][0]);
+        func_80090F44(defense->unknown10, &gCarShield[i].mat.uvs[0][0]);
         defense->unknown10 -= PC_FSCALE(0.005f);
-        defense->shldTime -= D_8002EB94;
+        defense->shldTime -= gFrameSeconds;
         if (defense->shldTime <= 0.0f) {
             if (defense->active & 8) {
                 if (defense->shldScale >= gShieldSizes[m->body_type]) {
@@ -540,9 +540,9 @@ void func_8038F938(Car *car, Model *m, Defense *defense, s32 i)
 removeShield:
                     defense->shldTime = 0.0f;
                     defense->active &= ~0x1e;
-                    if (D_80394F90[i].dlIdx != -1) {
-                        sound_call_minimal(D_80394F90[i].dlIdx);
-                        D_80394F90[i].dlIdx = -1;
+                    if (gCarShield[i].dlIdx != -1) {
+                        ZOID_RemoveObject(gCarShield[i].dlIdx);
+                        gCarShield[i].dlIdx = -1;
                     }
                     return;
                 } else {
@@ -557,20 +557,20 @@ removeShield:
         }
         for (j = 0; j < 3; j++)
             for (k = 0; k < 3; k++)
-                D_80394F90[i].mat.uvs[j][k] *= defense->shldScale;
-        if (D_80394F90[i].dlIdx == -1)
-            D_80394F90[i].dlIdx = sign_extend_call(D_80399B40[5], &D_80394F90[i].mat, -1, 0x802000);
+                gCarShield[i].mat.uvs[j][k] *= defense->shldScale;
+        if (gCarShield[i].dlIdx == -1)
+            gCarShield[i].dlIdx = MBOX_NewObject(gWfxObjList[5], &gCarShield[i].mat, -1, 0x802000);
         if (car->battle.defense.active & 1) {
             clr.c[3] = car->battle.fadeAlpha;
             if (clr.c[3] < 48)
                 clr.c[3] = 48;
         }
-        func_8008E06C(D_80394F90[i].dlIdx, &clr);
+        ZOID_SetColor(gCarShield[i].dlIdx, &clr);
     }
 }
 
 /* 0x8038E114 UpdateShots */
-void func_8038E114(void)
+void UpdateShots(void)
 {
     s32 padx;
     Shot *shot, *nexts;
@@ -591,7 +591,7 @@ void func_8038E114(void)
     f32 side[3];
     f32 v1[3];
 
-    for (shot = D_8039A520.head; shot; shot = nexts) {
+    for (shot = gShotList.head; shot; shot = nexts) {
         nexts = shot->next;
         if (shot->type == 3) {
             car = PC_CAR(shot->slot);
@@ -600,9 +600,9 @@ void func_8038E114(void)
                 shot->pos[0] = car->pos[0];
                 shot->pos[1] = car->pos[1];
                 shot->pos[2] = car->pos[2];
-                off[0] = ShotOffsets[3][0] + D_803943A4[3][m->body_type][0];
-                off[1] = ShotOffsets[3][1] + D_803943A4[3][m->body_type][1];
-                off[2] = ShotOffsets[3][2] + D_803943A4[3][m->body_type][2];
+                off[0] = ShotOffsets[3][0] + weaponOffsets[3][m->body_type][0];
+                off[1] = ShotOffsets[3][1] + weaponOffsets[3][m->body_type][1];
+                off[2] = ShotOffsets[3][2] + weaponOffsets[3][m->body_type][2];
                 shot->pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
                 shot->pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
                 shot->pos[2] = shot->pos[2] + car->uvs[2][2]*off[2];
@@ -612,12 +612,12 @@ void func_8038E114(void)
                 shot->pos[0] = shot->pos[0] + car->uvs[0][0]*off[0];
                 shot->pos[1] = shot->pos[1] + car->uvs[0][1]*off[0];
                 shot->pos[2] = shot->pos[2] + car->uvs[0][2]*off[0];
-                math_utility(&car->uvs[0][0], &shot->uvs[0][0]);
+                CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
                 func_80090F44(2.0734513f, &shot->uvs[0][0]);
                 if (car->battle.loaded == 1) {
                     if (car->battle.type != 3 || m->crashflag || !car->collidable || car->dead) {
                         car->battle.loaded = 0;
-                        func_800AFA84(&D_8039A520, shot);
+                        FreeStatLLE(&gShotList, shot);
                         continue;
                     }
                     car->battle.loaded = 2;
@@ -628,28 +628,28 @@ void func_8038E114(void)
                             if (clr.c[3] < 48)
                                 clr.c[3] = 48;
                         }
-                        shot->obj = func_8038D328(4, -1, 0x2000, 0);
-                        func_8008E06C(shot->obj->mbIdx, &clr);
-                        shot->obj2 = func_8038D328(5, shot->obj->mbIdx, 0x2080, 1);
+                        shot->obj = CreateShotObject(4, -1, 0x2000, 0);
+                        ZOID_SetColor(shot->obj->mbIdx, &clr);
+                        shot->obj2 = CreateShotObject(5, shot->obj->mbIdx, 0x2080, 1);
                         h = (HitPoly *)shot->obj2;
-                        func_8008E06C(((ShotObj *)h)->mbIdx, &clr);
-                        func_8008D870(((ShotObj *)h)->mbIdx,
-                            &D_80151AE8[D_80399AF8[D_8012E67C[shot->slot]] >> 10].texDefs[D_80399AF8[D_8012E67C[shot->slot]] & 1023], -1);
+                        ZOID_SetColor(((ShotObj *)h)->mbIdx, &clr);
+                        ZOID_SetTexture(((ShotObj *)h)->mbIdx,
+                            &gTexDefPtrs[gMineTextures[gCarTeam[shot->slot]] >> 10].texDefs[gMineTextures[gCarTeam[shot->slot]] & 1023], -1);
                     }
                     shot->radius = 0.0f;
                 }
                 if (car->battle.loaded == 2) {
                     if (car->battle.type != 3 || m->crashflag || !car->collidable || car->dead) {
                         car->battle.loaded = 0;
-                        func_8038E088(shot);
-                        func_800AFA84(&D_8039A520, shot);
+                        ShotDone(shot);
+                        FreeStatLLE(&gShotList, shot);
                         continue;
                     }
                     o = shot->obj;
                     o->mat.pos[0] = shot->pos[0];
                     o->mat.pos[1] = shot->pos[1];
                     o->mat.pos[2] = shot->pos[2];
-                    math_utility(&shot->uvs[0][0], &o->mat.uvs[0][0]);
+                    CopyUV(&shot->uvs[0][0], &o->mat.uvs[0][0]);
                     clr.rgba = car->IRclr.rgba;
                     if (car->battle.defense.active & 1) {
                         clr.c[3] = car->battle.fadeAlpha;
@@ -657,19 +657,19 @@ void func_8038E114(void)
                             clr.c[3] = 48;
                     }
                     o = shot->obj;
-                    func_8008E06C(o->mbIdx, &clr);
+                    ZOID_SetColor(o->mbIdx, &clr);
                     o = shot->obj2;
-                    func_8008E06C(o->mbIdx, &clr);
+                    ZOID_SetColor(o->mbIdx, &clr);
                     if (car->player && (car->player->edges & car->player->controls[9])) {
                         clr.c[3] = 255;
                         o = shot->obj;
-                        func_8008E06C(o->mbIdx, &clr);
+                        ZOID_SetColor(o->mbIdx, &clr);
                         o = shot->obj2;
-                        func_8008E06C(o->mbIdx, &clr);
+                        ZOID_SetColor(o->mbIdx, &clr);
                         if (car->battle.ammoCnt > 0)
                             car->battle.ammoCnt--;
                         car->battle.shoot = 6;
-                        func_800B61A8(sWeaponFx[3], shot->slot, 1, 1);
+                        PlayGameSound(sWeaponFx[3], shot->slot, 1, 1);
                         car->battle.reloadingTime = 1.0f;
                         shot->vel[0] = car->vel[0] + 15.0f*shot->uvs[1][0];
                         shot->vel[1] = car->vel[1] + 15.0f*shot->uvs[1][1];
@@ -678,17 +678,17 @@ void func_8038E114(void)
                         shot->lifeTime = 5.0f;
                     } else {
                         o = shot->obj;
-                        func_8008B32C(&o->mat.uvs[0][0], &o->mat.uvs[0][0], .5f);
+                        ScaleUV(&o->mat.uvs[0][0], &o->mat.uvs[0][0], .5f);
                         continue;
                     }
                 }
             }
         }
-        shot->lifeTime -= D_8002EB94;
-        shot->incTime += D_8002EB94;
+        shot->lifeTime -= gFrameSeconds;
+        shot->incTime += gFrameSeconds;
         if (shot->lifeTime <= 0) {
-            func_8038E088(shot);
-            func_800AFA84(&D_8039A520, shot);
+            ShotDone(shot);
+            FreeStatLLE(&gShotList, shot);
             continue;
         }
         car = PC_CAR(shot->slot);
@@ -699,50 +699,50 @@ void func_8038E114(void)
         switch (shot->type) {
         case 3:
             damage = 960;
-            vel = shot->vel[2]*D_8002EB94;
+            vel = shot->vel[2]*gFrameSeconds;
             scale = 10.0f;
-            shot->vel[1] -= D_80142764*D_8002EB94;
+            shot->vel[1] -= gGravity*gFrameSeconds;
             shot->vel[0] *= PC_FILTER(0.9f);
             shot->vel[2] *= PC_FILTER(0.9f);
-            shot->pos[0] = old[0] + shot->vel[0]*D_8002EB94;
-            shot->pos[1] = old[1] + shot->vel[1]*D_8002EB94;
-            shot->pos[2] = old[2] + shot->vel[2]*D_8002EB94;
+            shot->pos[0] = old[0] + shot->vel[0]*gFrameSeconds;
+            shot->pos[1] = old[1] + shot->vel[1]*gFrameSeconds;
+            shot->pos[2] = old[2] + shot->vel[2]*gFrameSeconds;
             break;
         case 2:
             scale = 10.0f;
-            shot->vel[1] -= (D_80142764*D_8002EB94)*2.5f;
+            shot->vel[1] -= (gGravity*gFrameSeconds)*2.5f;
             radius = 0.5f;
             damage = 800;
-            shot->pos[0] = old[0] + shot->vel[0]*D_8002EB94;
-            shot->pos[1] = old[1] + shot->vel[1]*D_8002EB94;
-            shot->pos[2] = old[2] + shot->vel[2]*D_8002EB94;
+            shot->pos[0] = old[0] + shot->vel[0]*gFrameSeconds;
+            shot->pos[1] = old[1] + shot->vel[1]*gFrameSeconds;
+            shot->pos[2] = old[2] + shot->vel[2]*gFrameSeconds;
             break;
         case 4:
             scale = 12.0f;
             damage = 960;
-            func_8038DDDC(shot);
-            shot->vel[2] += (100.0f - shot->vel[2])*D_8002EB94;
-            vel = shot->vel[2]*D_8002EB94;
+            MissileLock(shot);
+            shot->vel[2] += (100.0f - shot->vel[2])*gFrameSeconds;
+            vel = shot->vel[2]*gFrameSeconds;
             goto straightShot;
         case 6:
             damage = 520;
-            shot->vel[0] = shot->vel[0] + shot->uvs[2][0]*(800.0f*D_8002EB94);
-            shot->vel[1] = shot->vel[1] + shot->uvs[2][1]*(800.0f*D_8002EB94);
-            shot->vel[2] = shot->vel[2] + shot->uvs[2][2]*(800.0f*D_8002EB94);
+            shot->vel[0] = shot->vel[0] + shot->uvs[2][0]*(800.0f*gFrameSeconds);
+            shot->vel[1] = shot->vel[1] + shot->uvs[2][1]*(800.0f*gFrameSeconds);
+            shot->vel[2] = shot->vel[2] + shot->uvs[2][2]*(800.0f*gFrameSeconds);
             scale = 8.0f;
-            shot->pos[0] = old[0] + shot->vel[0]*D_8002EB94;
-            shot->pos[1] = old[1] + shot->vel[1]*D_8002EB94;
-            shot->pos[2] = old[2] + shot->vel[2]*D_8002EB94;
+            shot->pos[0] = old[0] + shot->vel[0]*gFrameSeconds;
+            shot->pos[1] = old[1] + shot->vel[1]*gFrameSeconds;
+            shot->pos[2] = old[2] + shot->vel[2]*gFrameSeconds;
             break;
         case 0:
             damage = 400;
             scale = 10.0f;
-            vel = 1000.0f*D_8002EB94;
+            vel = 1000.0f*gFrameSeconds;
             goto straightShot;
         case 1:
             damage = 114;
             scale = 3.0f;
-            vel = 2000.0f*D_8002EB94;
+            vel = 2000.0f*gFrameSeconds;
             goto straightShot;
         case 7:
             damage = 66;
@@ -751,7 +751,7 @@ void func_8038E114(void)
         default:
             damage = 80;
             scale = 3.0f;
-            vel = 2000.0f*D_8002EB94;
+            vel = 2000.0f*gFrameSeconds;
 straightShot:
             shot->pos[0] = old[0] + shot->uvs[2][0]*vel;
             shot->pos[1] = old[1] + shot->uvs[2][1]*vel;
@@ -766,46 +766,46 @@ straightShot:
         }
         if (shot->type != 7) {
             if (shot->type == 4 || shot->type == 6)
-                hit = func_8038DA78(shot, shot->old);
+                hit = ShotToCarCollision(shot, shot->old);
             else
-                hit = func_8038DA78(shot, old);
+                hit = ShotToCarCollision(shot, old);
             if (hit)
                 shot->flags |= 0x80;
-            if (input_deadzone_apply(old, shot->pos, &uvs[0][0], radius, 0, 65535)) {
+            if (ShotToWorldCollision(old, shot->pos, &uvs[0][0], radius, 0, 65535)) {
                 shot->flags |= 0x80;
                 switch (shot->type) {
                 case 3:
                     if (shot->flags & 2) {
                         if (fabsf(shot->vel[0]) < 10.f && fabsf(shot->vel[2]) < 10.f) {
                             shot->lifeTime = 0.0000001f;
-                            transmission_ratio_get("WPR_MINE", -2, shot->pos, 0, shot->slot, 1, 0);
+                            SetupTarget("WPR_MINE", -2, shot->pos, 0, shot->slot, 1, 0);
                             break;
                         } else {
-                            func_800A61B0(shot->vel, v1, &uvs[0][0]);
+                            BodyVector(shot->vel, v1, &uvs[0][0]);
                             v1[1] = 0.4f*-v1[1];
-                            func_8009E820(v1, shot->vel, &uvs[0][0]);
+                            WorldVector(v1, shot->vel, &uvs[0][0]);
                         }
                     } else {
                         shot->flags |= 2;
-                        func_800A61B0(shot->vel, v1, &uvs[0][0]);
+                        BodyVector(shot->vel, v1, &uvs[0][0]);
                         v1[1] = 15.0f;
-                        func_8009E820(v1, shot->vel, &uvs[0][0]);
+                        WorldVector(v1, shot->vel, &uvs[0][0]);
                     }
                     break;
                 case 4: case 6:
-                    func_8038D798(shot->pos, shot->old, shot->slot, 900.0f, damage);
-                    save_write_data(shot->pos, 0, 0.5f, 1);
+                    ProximityDamage(shot->pos, shot->old, shot->slot, 900.0f, damage);
+                    StartBlast(shot->pos, 0, 0.5f, 1);
                     shot->lifeTime = 0.0000001f;
                     if (shot->streak)
                         shot->streak->flags |= 0x1000;
                     break;
                 case 2:
-                    if (hit || shot->lifeTime <= D_8002EB94)
+                    if (hit || shot->lifeTime <= gFrameSeconds)
                         goto carHit;
-                    func_800A61B0(shot->vel, v1, &uvs[0][0]);
+                    BodyVector(shot->vel, v1, &uvs[0][0]);
                     v1[1] = 0.9f*-v1[1];
-                    func_8009E820(v1, shot->vel, &uvs[0][0]);
-                    camera_collision_check(shot->pos, &D_8011418C[9], 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + func_8008B2E4(3.0f)), shot->slot, 0, 0x80);
+                    WorldVector(v1, shot->vel, &uvs[0][0]);
+                    EmitGameSound(shot->pos, &unitmatrix[9], 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + Random(3.0f)), shot->slot, 0, 0x80);
                     break;
                 default:
 wallHit:
@@ -842,12 +842,12 @@ wallHit:
                         verts[3][1] = verts[3][1] + v1[1];
                         verts[3][2] = verts[3][2] + v1[2];
                     }
-                    if (!D_80394F88)
-                        func_800B24EC("HIT_WALL", &D_80394F88, 0, D_80140BDC - 1, 1);
-                    h = func_8008E3C0(&D_8039A5F8);
-                    h->poly = func_800A78BC(4, &verts[0][0], D_80394F88, &D_803942E8, 0x20f, 1);
+                    if (!wallTidx)
+                        MBOX_FindTexture_WORK("HIT_WALL", &wallTidx, 0, gNumModels - 1, 1);
+                    h = GetStatLLE(&gHitPolyList);
+                    h->poly = ZOID_NewPoly(4, &verts[0][0], wallTidx, &hitColor, 0x20f, 1);
                     if (!h->poly)
-                        func_800AFA84(&D_8039A5F8, h);
+                        FreeStatLLE(&gHitPolyList, h);
                     break;
                 }
             } else if (hit) {
@@ -857,39 +857,39 @@ carHit:
                     if (shot->streak)
                         shot->streak->flags |= 0x1000;
                     if (shot->type == 4 || shot->type == 6)
-                        func_8038D798(shot->pos, shot->old, shot->slot, 900.0f, damage);
+                        ProximityDamage(shot->pos, shot->old, shot->slot, 900.0f, damage);
                     else
-                        func_8038D798(shot->pos, old, shot->slot, 900.0f, damage);
-                    save_write_data(shot->pos, 0, 0.5f, 1);
+                        ProximityDamage(shot->pos, old, shot->slot, 900.0f, damage);
+                    StartBlast(shot->pos, 0, 0.5f, 1);
                 } else {
                     if (shot->flags & 1)
                         damage *= 0.35f;
-                    func_8038D3A4(car, hit, damage);
+                    BattleDamage(car, hit, damage);
                     goto wallHit;
                 }
-            } else if (shot->lifeTime <= D_8002EB94) {
+            } else if (shot->lifeTime <= gFrameSeconds) {
                 if (shot->type == 2 || shot->type == 4 || shot->type == 6) {
                     if (shot->type == 4 || shot->type == 6)
-                        func_8038D798(shot->pos, shot->old, shot->slot, 900.0f, damage);
+                        ProximityDamage(shot->pos, shot->old, shot->slot, 900.0f, damage);
                     else
-                        func_8038D798(shot->pos, old, shot->slot, 900.0f, damage);
-                    save_write_data(shot->pos, 0, 0.5f, 1);
+                        ProximityDamage(shot->pos, old, shot->slot, 900.0f, damage);
+                    StartBlast(shot->pos, 0, 0.5f, 1);
                     if (shot->streak)
                         shot->streak->flags |= 0x1000;
                     shot->lifeTime = 0.0000001f;
                 }
             }
         } else if (shot->obj) {
-            func_8038D498(shot);
+            SonicCarCollision(shot);
             shot->obj->mat.pos[0] = car->pos[0];
             shot->obj->mat.pos[1] = car->pos[1];
             shot->obj->mat.pos[2] = car->pos[2];
             if (shot->incTime >= 0.0333333f) {
                 shot->incTime -= 0.0333333f;
-                D_8012E700[shot->obj->mbIdx].scale += 1.0f;
-                shot->obj->mat.uvs[0][0] = D_8012E700[shot->obj->mbIdx].scale;
-                shot->obj->mat.uvs[1][1] = D_8012E700[shot->obj->mbIdx].scale;
-                shot->obj->mat.uvs[2][2] = D_8012E700[shot->obj->mbIdx].scale;
+                ObjInstanceList[shot->obj->mbIdx].scale += 1.0f;
+                shot->obj->mat.uvs[0][0] = ObjInstanceList[shot->obj->mbIdx].scale;
+                shot->obj->mat.uvs[1][1] = ObjInstanceList[shot->obj->mbIdx].scale;
+                shot->obj->mat.uvs[2][2] = ObjInstanceList[shot->obj->mbIdx].scale;
             }
         }
         if (!(shot->flags & 0x70)) {
@@ -900,37 +900,37 @@ carHit:
         switch (shot->type) {
         case 0:
             if (!shot->obj)
-                shot->obj = func_8038D328(2, -1, 0, 0);
-            func_8038D200(shot, 0);
+                shot->obj = CreateShotObject(2, -1, 0, 0);
+            UpdateShotObject(shot, 0);
             break;
         case 2:
             if (!shot->obj)
-                shot->obj = func_8038D328(3, -1, 0, 0);
-            func_8038D200(shot, 0);
+                shot->obj = CreateShotObject(3, -1, 0, 0);
+            UpdateShotObject(shot, 0);
             break;
         case 3:
-            func_8038D200(shot, 2);
+            UpdateShotObject(shot, 2);
             break;
         case 4:
             if (!shot->obj)
-                shot->obj = func_8038D328(7, -1, 0, 0);
-            func_8038D200(shot, 0);
+                shot->obj = CreateShotObject(7, -1, 0, 0);
+            UpdateShotObject(shot, 0);
             break;
         case 6:
             if (!shot->obj)
-                shot->obj = func_8038D328(8, -1, 0, 0);
-            func_8038D200(shot, 0);
+                shot->obj = CreateShotObject(8, -1, 0, 0);
+            UpdateShotObject(shot, 0);
             break;
         case 7:
             if (!shot->obj) {
-                shot->obj = func_8038D328(9, -1, 0x800000, 0);
-                func_8038D200(shot, 1);
+                shot->obj = CreateShotObject(9, -1, 0x800000, 0);
+                UpdateShotObject(shot, 1);
             }
             break;
         case 1: case 8:
             if (!shot->obj)
-                shot->obj = func_8038D328(1, -1, 0, 0);
-            func_8038D200(shot, 0);
+                shot->obj = CreateShotObject(1, -1, 0, 0);
+            UpdateShotObject(shot, 0);
             break;
         default:
             break;
@@ -948,7 +948,7 @@ carHit:
 }
 
 /* _InitNewShot (MAT3 static, inlined into ShotUpdate; retail keeps the deleted-procedure stub) */
-void func_8038F560(Shot *shot, Car *car)
+void InitNewShot(Shot *shot, Car *car)
 {
     shot->slotDamaged = 0;
     shot->obj = 0;
@@ -966,34 +966,34 @@ void func_8038F560(Shot *shot, Car *car)
     shot->old[0] = car->pos[0];
     shot->old[1] = car->pos[1];
     shot->old[2] = car->pos[2];
-    math_utility(&car->uvs[0][0], &shot->uvs[0][0]);
+    CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
 }
 
-void func_8038FCD8(void);
-/* AnimateCase (MAT3 shots.c): inlined into ShotUpdate func_8038FCE0; deleted stub 0x8038FCD8. Loop moved verbatim. */
-void func_8038FCD8(void)
+void AnimateCase(void);
+/* AnimateCase (MAT3 shots.c): inlined into ShotUpdate ShotUpdate; deleted stub 0x8038FCD8. Loop moved verbatim. */
+void AnimateCase(void)
 {
     ShotCase *casing, *next;
     s32 idx;
 
-    for (casing = D_8039AE80.head; casing; casing = next) {
+    for (casing = gShotCaseList.head; casing; casing = next) {
         next = casing->next;
-        casing->time -= D_8002EB94;
+        casing->time -= gFrameSeconds;
         if (casing->time <= 0) {
             idx = casing->mbIdx;
-            sound_call_minimal(idx);
-            func_800AFA84(&D_8039AE80, casing);
+            ZOID_RemoveObject(idx);
+            FreeStatLLE(&gShotCaseList, casing);
         } else {
-            casing->vel[1] -= (D_80142764 * D_8002EB94) * 2.5f;
-            casing->mat.pos[0] = casing->mat.pos[0] + casing->vel[0] * D_8002EB94;
-            casing->mat.pos[1] = casing->mat.pos[1] + casing->vel[1] * D_8002EB94;
-            casing->mat.pos[2] = casing->mat.pos[2] + casing->vel[2] * D_8002EB94;
+            casing->vel[1] -= (gGravity * gFrameSeconds) * 2.5f;
+            casing->mat.pos[0] = casing->mat.pos[0] + casing->vel[0] * gFrameSeconds;
+            casing->mat.pos[1] = casing->mat.pos[1] + casing->vel[1] * gFrameSeconds;
+            casing->mat.pos[2] = casing->mat.pos[2] + casing->vel[2] * gFrameSeconds;
         }
     }
 }
 
 /* 0x8038FCE0 ShotUpdate */
-void func_8038FCE0(void)
+void ShotUpdate(void)
 {
     s32 i;
     s32 StartStreak;
@@ -1007,21 +1007,21 @@ void func_8038FCE0(void)
     f32 z;
     f32 off[3];
 
-    func_8038FCD8();
-    for (i = 0, car = PC_CARS; i < D_801543CA; i++, car++) {
+    AnimateCase();
+    for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
         m = PC_MODEL(car->slot);
         if (car->battle.defense.active)
-            func_8038F938(car, m, &car->battle.defense, car->slot);
+            UpdateDefense(car, m, &car->battle.defense, car->slot);
         switch (car->battle.type) {
         case 0: case 1: case 6: case 8:
-            func_8038F568(car);
+            ElevateGun(car);
             break;
         }
         if (car->player->edges & car->player->controls[6])
             goto resetWeapon;
         if (!car->battle.ammoCnt) {
             if (car->battle.type == 5) {
-                sizep = &D_8011F844[m->body_type];
+                sizep = &collsize[m->body_type];
                 m->bodyR[0][2] = m->bodyR[1][2] = sizep->colfront;
                 z = m->bodyR[0][2] > sizep->colrear ? m->bodyR[0][2] : sizep->colrear;
                 m->colrad = sqrtf(z*z + sizep->colside*sizep->colside + sizep->colheight*sizep->colheight);
@@ -1033,7 +1033,7 @@ resetWeapon:
             car->battle.yaw = 0.0f;
         }
         if (car->battle.reloadingTime > 0.0f)
-            car->battle.reloadingTime -= PC_DT30(D_8002EB94);
+            car->battle.reloadingTime -= PC_DT30(gFrameSeconds);
         if (car->battle.reloadingTime <= 0.0f && car->battle.ammoCnt) {
             if (car->battle.type == 3) {
                 if (car->battle.loaded)
@@ -1047,13 +1047,13 @@ resetWeapon:
                     continue;
                 car->battle.shoot = 6;
             }
-            shot = func_8008E3C0(&D_8039A520);
+            shot = GetStatLLE(&gShotList);
             if (!shot)
                 continue;
-            if (D_8039A520.head) {}
-            func_8038F560(shot, car);
+            if (gShotList.head) {}
+            InitNewShot(shot, car);
             if (shot->type != 3)
-                func_800B61A8(sWeaponFx[car->battle.type], car->slot, 1, 1);
+                PlayGameSound(sWeaponFx[car->battle.type], car->slot, 1, 1);
             StartStreak = 0;
             switch (shot->type) {
             case 2:
@@ -1090,7 +1090,7 @@ resetWeapon:
                 car->battle.reloadingTime = 0.1666667f;
                 shot->lifeTime = 4.0f;
                 shot->radius = 0.5f;
-                func_80090E9C(-car->battle.yaw, &shot->uvs[0][0]);
+                YawUV(-car->battle.yaw, &shot->uvs[0][0]);
                 func_80090F44(car->battle.pitch, &shot->uvs[0][0]);
                 break;
             case 0:
@@ -1103,13 +1103,13 @@ resetWeapon:
                 car->battle.reloadingTime = 0.0666667f;
                 shot->lifeTime = 4.0f;
                 shot->radius = 0.25f;
-                func_80090E9C(func_8008B2E4(0.025f) - 0.0125f - car->battle.yaw, &shot->uvs[0][0]);
-                func_80090F44(car->battle.pitch + (func_8008B2E4(0.025f) - 0.0125f), &shot->uvs[0][0]);
-                h = func_8008E3C0(&D_8039AE80);
+                YawUV(Random(0.025f) - 0.0125f - car->battle.yaw, &shot->uvs[0][0]);
+                func_80090F44(car->battle.pitch + (Random(0.025f) - 0.0125f), &shot->uvs[0][0]);
+                h = GetStatLLE(&gShotCaseList);
                 if (h) {
-                    off[0] = D_803943A4[1][m->body_type][0] + CaseOffsets[0][0];
-                    off[1] = D_803943A4[1][m->body_type][1] + CaseOffsets[0][1];
-                    off[2] = D_803943A4[1][m->body_type][2] + CaseOffsets[0][2];
+                    off[0] = weaponOffsets[1][m->body_type][0] + CaseOffsets[0][0];
+                    off[1] = weaponOffsets[1][m->body_type][1] + CaseOffsets[0][1];
+                    off[2] = weaponOffsets[1][m->body_type][2] + CaseOffsets[0][2];
                     h->mat.pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
                     h->mat.pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
                     h->mat.pos[2] = shot->pos[2] + car->uvs[2][2]*off[2];
@@ -1119,10 +1119,10 @@ resetWeapon:
                     h->mat.pos[0] = h->mat.pos[0] + car->uvs[0][0]*off[0];
                     h->mat.pos[1] = h->mat.pos[1] + car->uvs[0][1]*off[0];
                     h->mat.pos[2] = h->mat.pos[2] + car->uvs[0][2]*off[0];
-                    math_utility(&car->uvs[0][0], &h->mat.uvs[0][0]);
-                    func_8009EA68(0.3f + func_8008B2E4(0.23f), &h->mat.uvs[0][0]);
-                    h->mbIdx = sign_extend_call(D_80399B18[0], &h->mat, -1, 0);
-                    h->time = .5f + func_8008B2E4(0.3f);
+                    CopyUV(&car->uvs[0][0], &h->mat.uvs[0][0]);
+                    func_8009EA68(0.3f + Random(0.23f), &h->mat.uvs[0][0]);
+                    h->mbIdx = MBOX_NewObject(gWprObjList[0], &h->mat, -1, 0);
+                    h->time = .5f + Random(0.3f);
                     h->vel[0] = car->vel[0] + 28.0f*h->mat.uvs[1][0];
                     h->vel[1] = car->vel[1] + 28.0f*h->mat.uvs[1][1];
                     h->vel[2] = car->vel[2] + 28.0f*h->mat.uvs[1][2];
@@ -1143,9 +1143,9 @@ resetWeapon:
                     off[1] = ShotOffsets[car->battle.type][1];
                     off[2] = ShotOffsets[car->battle.type][2];
                 } else {
-                    off[0] = ShotOffsets[car->battle.type][0] + D_803943A4[car->battle.type][m->body_type][0];
-                    off[1] = ShotOffsets[car->battle.type][1] + D_803943A4[car->battle.type][m->body_type][1];
-                    off[2] = ShotOffsets[car->battle.type][2] + D_803943A4[car->battle.type][m->body_type][2];
+                    off[0] = ShotOffsets[car->battle.type][0] + weaponOffsets[car->battle.type][m->body_type][0];
+                    off[1] = ShotOffsets[car->battle.type][1] + weaponOffsets[car->battle.type][m->body_type][1];
+                    off[2] = ShotOffsets[car->battle.type][2] + weaponOffsets[car->battle.type][m->body_type][2];
                 }
                 shot->pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
                 shot->pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
@@ -1158,19 +1158,19 @@ resetWeapon:
                 shot->pos[2] = shot->pos[2] + car->uvs[0][2]*off[0];
             }
             if (StartStreak)
-                shot->streak = func_8038D054(streaktype, shot->pos, shot->pos);
+                shot->streak = NewStreak(streaktype, shot->pos, shot->pos);
             else
                 shot->streak = 0;
             if (car->battle.ammoCnt > 0 && car->battle.type != 5 && car->battle.type != 3)
                 car->battle.ammoCnt--;
         }
     }
-    for (hp = D_8039A5F8.head; hp; hp = (HitPoly *)shot) {
+    for (hp = gHitPolyList.head; hp; hp = (HitPoly *)shot) {
         shot = (Shot *)hp->next;
-        func_8008D0C0(hp->poly);
-        func_800AFA84(&D_8039A5F8, hp);
+        ZOID_RemovePoly(hp->poly);
+        FreeStatLLE(&gHitPolyList, hp);
     }
-    func_8038E114();
-    func_8038CB20();
+    UpdateShots();
+    UpdateStreaks();
 }
 

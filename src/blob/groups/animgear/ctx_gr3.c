@@ -27,33 +27,33 @@ typedef struct { Bank *bank; } Hdr;
 typedef struct { Hdr *hdr; s32 pad[4]; } Tbl;
 typedef struct { s32 first; s32 second; } Pair;
 
-extern Bank *D_801497F0;
-extern s32 D_80149780;
-extern s32 D_801497A4;
-extern Tbl D_80156D44[];
-extern Entry *D_80149800;
-extern s16 D_80149878[256];
-extern intptr_t D_80149820[];
+extern Bank *gFontHeader;
+extern s32 gFontDatWaveInst;
+extern s32 gFontTexWaveInst;
+extern Tbl gWaveInstance_ptr[];
+extern Entry *gFontLetters;
+extern s16 gCharMap[256];
+extern intptr_t gFontTextures[];
 extern Pair gTexDefPtrs[];
-extern s8 D_80149B60;
-extern u8 D_80149B70;
-extern s32 D_80149B08;
-extern s32 D_80149B28;
+extern s8 gLeading;
+extern u8 gSpacing;
+extern s32 font_image_format;
+extern s32 font_texel_size;
 
-extern s32 func_80097694(s32, s32);
+extern s32 FindWaveInstanceInternal(s32, s32);
 
 extern int __unit_dead[];
-void sound_update_channel(s32 force);
+void SetupFontData(s32 force);
 
 
-u8 object_type_byte2_get(void);
-u8 object_type_byte3_get(void);
+u8 HAL_GetFontAscent(void);
+u8 HAL_GetFontDescent(void);
 
-s16 object_bytes23_sum(void) { u8 first; first=object_type_byte2_get(); return (s16)(first + object_type_byte3_get()); }
-s16 object_bytes_sum_global(void) {
+s16 TB_GetFontHeight(void) { u8 first; first=HAL_GetFontAscent(); return (s16)(first + HAL_GetFontDescent()); }
+s16 TB_GetFontLineHeight(void) {
  u8 first;
- sound_update_channel(0);
- first = *((u8 *)D_801497F0 + 3);
- sound_update_channel(0);
- return (s16)(D_80149B60 + *((u8 *)D_801497F0 + 2) + first);
+ SetupFontData(0);
+ first = *((u8 *)gFontHeader + 3);
+ SetupFontData(0);
+ return (s16)(gLeading + *((u8 *)gFontHeader + 2) + first);
 }

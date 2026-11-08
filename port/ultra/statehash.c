@@ -289,7 +289,7 @@ static void pointers_build(void)
         for (uint32_t q = 0; q < y->run_count; q++) {
             const PcDataRun *r = &t->runs[y->run_first + q];
             /* pointers, and the N64's longs, which are 8 bytes on the PC because they may hold one (intptr_t: a
-             * blit's handle, D_801148CC) */
+             * blit's handle, highscore_blit) */
             if (r->kind != PC_K_PTR && r->kind != PC_K_S32_64 && r->kind != PC_K_U32_64)
                 continue;
             for (uint32_t i = 0; i < r->rep; i++)
@@ -404,11 +404,11 @@ __attribute__((constructor)) static void n64_identity_hook(void)   /* before mai
 }
 
 /* The game C's sites that keep a host pointer's low half in 32 bits (window addresses), found by comparing two
- * processes' windows (docs/port/LOCKSTEP.md 5). Such a word holds an N64 address at times (D_80156BCC at the boot) and a
+ * processes' windows (docs/port/LOCKSTEP.md 5). Such a word holds an N64 address at times (last_frame_text_dl_end at the boot) and a
  * host pointer's low half at others, and a low half completed with the image's high half can't be told from an N64
  * address the image's low range happens to cover in one process: the hash leaves these words out, as zeros. */
 static const uint32_t TRUNCATED[] = {
-    0x80156BCCu,   /* D_80156BCC = D_80149438, the display list's position (world_collision_response.c:143) */
+    0x80156BCCu,   /* last_frame_text_dl_end = blit_dl, the display list's position (EndGraphics.c:143) */
 };
 
 /* libultra's SI scratch buffers, which its C fills from structs on the stack whose other bytes it never sets
@@ -420,7 +420,7 @@ static const struct {
     uint32_t n64, size;
 } SCRATCH[] = {
     {0x80037B30u, 256},   /* __osMotorPifBuf */
-    {0x80037F60u, 64},    /* __osPfsBuffer */
+    {0x80037F60u, 64},    /* __osPfsPifRam */
 };
 
 /* ---------------------------------------------------------------- normalised regions */
@@ -606,10 +606,10 @@ static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *poi
 
 /* ---------------------------------------------------------------- the regions */
 
-extern int32_t D_8011735C;      /* the random seed: libc's LCG (NETPLAY.md 1.1) */
-extern uint32_t state_word_a;   /* gGameState at 0x801174B4, state_word_b after it */
-extern int32_t D_80143FF4;      /* the model thread's tick */
-extern float D_801543CC;        /* the race time */
+extern int32_t rand_seed;      /* the random seed: libc's LCG (NETPLAY.md 1.1) */
+extern uint32_t gGameState;   /* gGameState at 0x801174B4, gNewGameState after it */
+extern int32_t gModelIteration;      /* the model thread's tick */
+extern float gModelTime;        /* the race time */
 extern uint8_t gControllerData[];   /* 4 x 16 bytes: the controllers as ControllerUpdate read them */
 extern uint8_t gCamera[];       /* 4 x 0x98: each window's camera */
 
@@ -626,10 +626,10 @@ static const Curated *curated(int *n)
         c[0] = (Curated){"models", pc_models, (uint32_t)sizeof pc_models};
         c[1] = (Curated){"cars", pc_cars, (uint32_t)sizeof pc_cars};
         c[2] = (Curated){"links", pc_links, (uint32_t)sizeof pc_links};
-        c[3] = (Curated){"rng", &D_8011735C, 4};
-        c[4] = (Curated){"words", &state_word_a, 8};   /* the state words: state_word_a and state_word_b */
-        c[5] = (Curated){"tick", &D_80143FF4, 4};
-        c[6] = (Curated){"time", &D_801543CC, 4};
+        c[3] = (Curated){"rng", &rand_seed, 4};
+        c[4] = (Curated){"words", &gGameState, 8};   /* the state words: gGameState and gNewGameState */
+        c[5] = (Curated){"tick", &gModelIteration, 4};
+        c[6] = (Curated){"time", &gModelTime, 4};
         c[7] = (Curated){"pads", gControllerData, 64};
         c[8] = (Curated){"camera", gCamera, 4 * 0x98};
     }

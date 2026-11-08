@@ -1,6 +1,6 @@
 # The detail path with the track select's fog option at 1, the settings at original (docs/port/DETAIL.md 6): the
 # fog's tables for one player give a far plane of 1,500 ft and a radius of 1,200 ft, past which SYN_NEAR and SYN_LOD,
-# parts with a bound, are left out (func_800AB18C, track_collision_wall).
+# parts with a bound, are left out (WorldFogDensity, Traverse).
 # until: 0x400000:60
 # seconds: 90
 # expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0

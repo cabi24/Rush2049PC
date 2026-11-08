@@ -3,11 +3,11 @@
  * The setting comes from main at start (rush2049pc.ini, --set game.frame_rate) and from the settings overlay when it
  * changes (pc_game_fps_set): 0 for original (a frame every two retraces at most, the N64's), 60 for a frame every
  * retrace. The game and its scheduler read the latched copy, pc_fps60, which the game thread takes where the game's
- * state changes (game_loop's state change, pc_game_fps_begin): a change applies from the next screen (the next menu,
+ * state changes (GameLoop's state change, pc_game_fps_begin): a change applies from the next screen (the next menu,
  * the race's start, the results), never in the middle of one, so a screen's per-frame steps and the scheduler's swaps
  * agree for all of it. Until the first state change it is original.
  *
- * Each frame viUpdateTime gives the frame's retraces (pc_game_frame_note, on the game thread): pc_frame_scale is the
+ * Each frame UpdateFrameTimer gives the frame's retraces (pc_game_frame_note, on the game thread): pc_frame_scale is the
  * frame's length in frames of two retraces and pc_frame_steps the whole ones completed in it, so a step tuned to the
  * N64's 30 Hz frame keeps its speed in real time (pc_game_fps.h). At original both are 1 every frame.
  *

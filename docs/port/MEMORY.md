@@ -16,14 +16,14 @@ shown, what the game does with the room, what a later "mods" feature can rely on
 | The setting, its warning | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/main.c` |
 | The overlay | `port/input/menu.c`: Game > Memory, About > Memory |
 | The renderer's physical rule | `port/gfx/gfx_rsp.c:79-90` (`pcgfx_resolve`) |
-| The game C | `entity_lod_select.c`, `entity_cull_check.c`, `display_list_traverse.c`, `src/rom/lib_11640.c`; the heap's reports in `audio_heap/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/root.c`, `func_800BB02C.c` |
+| The game C | `relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/root.c`, `car_palette_init.c` |
 
 ## 1. The setting
 
 `[game] memory` in rush2049pc.ini, `--set game.memory=N`, or F1 > Game > Memory. Like the other `[game]` keys it has
 no environment variable.
 
-| Value | The window | osMemSize | The heap | The Expansion Pak flag (`D_80156994`) |
+| Value | The window | osMemSize | The heap | The Expansion Pak flag (`expansion_pak_present`) |
 |---|---|---|---|---|
 | `original` (the default) | 8 MiB, as before | 8 MiB; with `expansion_pak = off` 4 MiB | 0x8017A640-0x80800000 (6.5 MiB), or to 0x80400000 | set; clear with `expansion_pak = off` |
 | 16-256 (whole MiB) | N MiB at 0x80000000 and 0xA0000000 | N MiB | 0x8017A640 to 0x80000000 + N MiB | set |
@@ -31,9 +31,9 @@ no environment variable.
 - **It applies at the next start.** The window is mapped before the ROM is read (main: `pc_mem_set_size`, then
   `pc_mem_init`) and can't grow while the game holds addresses in it. The overlay's item is marked `*` ("applies
   after a restart") and its change is saved like the others.
-- **What the game sees.** It reads its memory from osMemSize (`D_80000318`) in one place, the heap's set-up
-  (`func_800E7D04`, `audio_heap/group.c:308-316`): the heap's end is `osMemSize | 0x80000000`, and the Expansion Pak
-  flag is set when that end is past 0x80400000. Nothing else in the game reads the size (every `D_80000318` in the
+- **What the game sees.** It reads its memory from osMemSize (`osMemSize`) in one place, the heap's set-up
+  (`locate_main_heap`, `memsys/group.c:308-316`): the heap's end is `osMemSize | 0x80000000`, and the Expansion Pak
+  flag is set when that end is past 0x80400000. Nothing else in the game reads the size (every `osMemSize` in the
   game C is an `extern` but that one).
 - **`expansion_pak = off` with a size.** The game decides the Expansion Pak flag from its memory, as a console with
   that much memory would, so with `memory = 64` it uses its Expansion Pak features (the sixth race track, the tracks'
@@ -61,11 +61,11 @@ The hard ceiling is 512 MiB: the KSEG0 view at 0x80000000 must end before the KS
 make 256 MiB the limit below it:
 
 - **K0 addresses from 0x90000000.** The MusyX library tests RAM by the address's top nibble: its voice set-up
-  (`func_800146B4`, `lib_11640.c:1735`: `(data & 0xF0000000) != 0x80000000` marks a sample as in the cartridge) and
-  the stream table (`func_80025AB4`, `lib_25bb0.c:486`). A K0 address past 256 MiB is 0x9xxxxxxx and would be taken
+  (`sound_hw_set_voice_sample`, `hardware.c:1735`: `(data & 0xF0000000) != 0x80000000` marks a sample as in the cartridge) and
+  the stream table (`speech_set_bank`, `streams.c:486`). A K0 address past 256 MiB is 0x9xxxxxxx and would be taken
   for a cartridge one. Up to 256 MiB every K0 address in the window is 0x8xxxxxxx, so both are right as they are.
 - **KSEG1 from 0xB0000000.** The game names the cartridge by its KSEG1 address, `0xB0000000 | offset` (osRomBase,
-  `func_8010FD60.c:11`, the MusyX DMA's sources), which is the KSEG1 view of physical 0x10000000. Past 256 MiB the
+  `musyx_cart_address.c:11`, the MusyX DMA's sources), which is the KSEG1 view of physical 0x10000000. Past 256 MiB the
   window's KSEG1 view would reach those values, and a cartridge address and a RAM one would be the same number.
 
 Both could be changed (the two tests, and nothing in the PC hands a cartridge address to `pc_n64_ptr`), but nothing
@@ -84,17 +84,17 @@ can be met when the window is 8 MiB):
 
 | Site | The N64's rule | Past 16 MiB on the PC |
 |---|---|---|
-| `osVirtualToPhysical` (`memory.c:216-228`): the colour and depth images (`gfx_frame_begin.c:177-186`, `func_800F7448.c:92`) | `addr & 0x1FFFFFFF` | the K0 address |
-| `entity_lod_select.c:107, 111, 129, 134` (SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches) | `((w1 + base) & 0xFFFFFF) \| segment` | `pc_rcp_reloc` (`rcpaddr.c:29-39`): the K0 address of `w1 + base` when the segment is 0 |
-| `entity_cull_check.c:42, 47` (the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | the same, `pc_rcp_reloc` |
+| `osVirtualToPhysical` (`memory.c:216-228`): the colour and depth images (`StartGraphics.c:177-186`, `ClearScreen.c:92`) | `addr & 0x1FFFFFFF` | the K0 address |
+| `relocate_model_dl.c:107, 111, 129, 134` (SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches) | `((w1 + base) & 0xFFFFFF) \| segment` | `pc_rcp_reloc` (`rcpaddr.c:29-39`): the K0 address of `w1 + base` when the segment is 0 |
+| `relocate_texture_loads.c:42, 47` (the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | the same, `pc_rcp_reloc` |
 | `display_list_traverse.c:33, 52` (the mirror pass and the game's other walks of ROM lists: a G_DL or BRANCH_Z target) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | a K0 address past 16 MiB is not segmented (`SEGMENTED`, `pc_rdram_k0_high`) |
-| `func_80014CAC` (`lib_11640.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too (a guard: this game's banks are cartridge addresses, section 6) |
+| `sound_hw_translate_address` (`hardware.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too (a guard: this game's banks are cartridge addresses, section 6) |
 | `pcgfx_resolve` (`gfx_rsp.c:79-90`) | physical with no segment base: `rdram(a & 0xFFFFFF)` | a physical address past 16 MiB whose segment has no base, or past 256 MiB, in the window: that RAM (outside the window `pc_n64_ptr` is NULL and the old rule stands) |
 
 A `w1` that is already such a K0 address (relocated once and moved by a delta, as SetupWaveModel's handle-wave path
 does) has no segment of its own in `pc_rcp_reloc`. The renderer's rule is for code that strips K0 itself: none was
 found (section 7), so it is there in case. The one physical address past 16 MiB that would still be ambiguous is
-one whose bits 24-27 name a segment with a base: the game sets only segment 0 (to 0, `gfx_frame_begin.c:174`).
+one whose bits 24-27 name a segment with a base: the game sets only segment 0 (to 0, `StartGraphics.c:174`).
 
 ## 4. Seeing the heap
 
@@ -105,15 +105,15 @@ one whose bits 24-27 name a segment with a base: the game sets only segment 0 (t
 
 (the synthetic race, `original`). `peak` is the most the heap held, `size - free-low`: everything not in a free
 block, so the heap's own header, the handle tables and the blocks' 32-byte headers count. `free-low` is the least the
-heap had free, as the game sums it (`audio_output_setup`), and `largest block` the largest free block at that
+heap had free, as the game sums it (`heap_total_free`), and `largest block` the largest free block at that
 moment: the allocator is first-fit, and a block is what one load needs. `allocations` counts the blocks taken,
 `short` the game's fallbacks below, `none` the allocations no free block could hold. With RUSH2049_TEST_HEAP_FLOOR
 the line ends `(test floor at 0x81100000)`.
 
 **How.** `port/ultra/heap.c`. The game's allocator calls it under the heap's lock: when the heap is made
-(`pc_heap_created`, `func_800E7D0C`, `audio_heap/group.c:328`) and after each block it takes (`pc_heap_allocated`:
-`audio_helper` `:204`, `NextMaxPath` `alloc_at.c:179`, a growing `menu_item_select` `heap_release/group.c:331`).
-Each call walks the default heap's blocks (`D_801527C8`; a sub-heap's own blocks are inside one of its blocks) and
+(`pc_heap_created`, `InitMemory`, `memsys/group.c:328`) and after each block it takes (`pc_heap_allocated`:
+`AllocateMemory` `:204`, `allocate_memory_at` `alloc_at.c:179`, a growing `ReallocateMemory` `heap_release/group.c:331`).
+Each call walks the default heap's blocks (`gMainHeap`; a sub-heap's own blocks are inside one of its blocks) and
 keeps the least free. The walk is bounded and checks each header's magic and order. Frees aren't followed: they
 can't lower the least free. The cost: a race takes a few hundred blocks from the start (the synthetic one 416, the
 retail one fewer), and the runs of section 6 took as long with the walks as without.
@@ -122,10 +122,10 @@ retail one fewer), and the runs of section 6 took as long with the walks as with
 
 | Where | The check | The fallback | The log line, once |
 |---|---|---|---|
-| LoadCars, a drone's car (`loadcars/root.c:87`) | `audio_output_setup(0) < gWaveSizes[88 + type] + 512` | another type not loaded that fits, then any type that fits, then a loaded car of an earlier slot ([MORECARS.md](MORECARS.md) 5) | `heap: LoadCars, a drone's car: N bytes wanted, F free: the game falls back ...` |
+| LoadCars, a drone's car (`loadcars/root.c:87`) | `heap_total_free(0) < gWaveSizes[88 + type] + 512` | another type not loaded that fits, then any type that fits, then a loaded car of an earlier slot ([MORECARS.md](MORECARS.md) 5) | `heap: LoadCars, a drone's car: N bytes wanted, F free: the game falls back ...` |
 | LoadCars, a player's car (`:108`) | the same | any type that fits, then slot 0's | `heap: LoadCars, a player's car: ...` |
-| a car's paint (`func_800BB02C.c:62`) | fewer than 512 bytes free | another car's paint of the same type | `heap: a car's paint: ...` |
-| `audio_helper` (`audio_heap/group.c:183`) | none: the game takes the first free block that fits, and none fitting leaves it a null block, which the N64 game dereferences | (the game faults, as on the N64) | `heap: no free block of N bytes (F free, the largest L): the game takes a null block, as on the N64; game.memory gives it more` |
+| a car's paint (`car_palette_init.c:62`) | fewer than 512 bytes free | another car's paint of the same type | `heap: a car's paint: ...` |
+| `AllocateMemory` (`memsys/group.c:183`) | none: the game takes the first free block that fits, and none fitting leaves it a null block, which the N64 game dereferences | (the game faults, as on the N64) | `heap: no free block of N bytes (F free, the largest L): the game takes a null block, as on the N64; game.memory gives it more` |
 
 Each logs the first time and counts in the exit line's `short` and `none`. The choice is the game's: nothing it does
 changes (the hooks are `PC_ONLY` statements on lines the functions already have; `n64_neutral` passes).
@@ -137,10 +137,10 @@ use").
 
 **What the game does with spare heap.** Only what section 4's table says. The game sizes nothing from its memory:
 the heap's end is the one place osMemSize is read, and the free total is asked for in the two places above (every
-call of `audio_output_setup` in the game C). The sound banks, the MusyX DMA caches and voices, the frame buffers,
+call of `heap_total_free` in the game C). The sound banks, the MusyX DMA caches and voices, the frame buffers,
 the per-frame lists and the matrix pools have fixed sizes, or sizes the Expansion Pak flag picks (the sound
 manager's fx tags: 80 with it, 16 without, [MORECARS.md](MORECARS.md) 10.4), and the flag is set at every size;
-nothing caches files by the room left; heap compaction (`car_damage_visual` = ClearMemory) runs where InitWaves calls
+nothing caches files by the room left; heap compaction (`ClearMemoryHeap` = ClearMemory) runs where InitWaves calls
 it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 
 - **Races** fit with room to spare. On the retail cartridge at `original` (the heap's 6.5 MiB), a one- or two-player
@@ -160,9 +160,9 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 **What a "mods" feature (files from a mods folder in place of the cartridge's, possibly larger) can rely on:**
 
 - **The path.** A wave's file is loaded by LoadWave (`loadcars/loadwave.c`): `AllocateMemoryHeap` or
-  `AllocateHandleHeap` of `(gWaveSizes[wave] + 31) & ~31` bytes (`D_8002E580`, boot data filled from the ROM's file
-  table), then `_ReadWave` (`audio_frame_sync/waves.c`) reads `gWaveSizes[wave]` bytes from the ROM offset
-  `D_8011B5BC[wave]` by the wave's kind (`D_80123564`: 0 raw PI DMA, 1 LZSS, 2 inflate), the converters take the
+  `AllocateHandleHeap` of `(gWaveSizes[wave] + 31) & ~31` bytes (`gWaveSizes`, boot data filled from the ROM's file
+  table), then `_ReadWave` (`waves/waves.c`) reads `gWaveSizes[wave]` bytes from the ROM offset
+  `wave_rom_offsets[wave]` by the wave's kind (`wave_storage_kinds`: 0 raw PI DMA, 1 LZSS, 2 inflate), the converters take the
   block (`pc_wave_loaded`, [ASSETS.md](ASSETS.md) 5), and SetupWaveModel relocates it. A larger file needs its size in
   `gWaveSizes[wave]` before the load; the block, the read and the conversion follow it. RUSH2049_TEST_WAVE_GROW
   (port/main.c) does exactly that for tests: `membig` loads six car files 3 MB larger than the cartridge's through
@@ -191,8 +191,8 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 | `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize, `osVirtualToPhysical` and `pc_rcp_reloc` below and past 16 MiB (and at 8 MiB, `ultra_selftest`: the N64's rules) |
 | `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (an N64-form list, its matrix, vertices, a segment's base and a 32 x 32 texture) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set through `osVirtualToPhysical`; each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.belist` and `.textures` check the harness on the window |
 | `audio_window` | test_forms' scene (PCM16 big-endian, ADPCM with a big-endian book, native PCM16, the delay effect) as N64-form records and samples in that window, at the same three places and both kinds of address: every render, the state and the delay line the first's; the scene is loud enough to prove it |
-| `assets_wad_game` | the game's own WAD loader with the WAD at 0x81200000 too: `_ReadWave`, SetupWaveModel, `entity_lod_select`, `entity_cull_check`, the vertex pass (`func_800966D8`) and `display_list_traverse`, which follows the K0 addresses to the called list and the branch and flips their windings |
-| `assets_heap` | `port/ultra/heap.c` on the game's own heap: its size, the least free as the game sums it, the allocations counted, a fallback counted; at 32 MiB with the floor at 17 MiB, the game's next blocks at 0x81100000, the runtime images' block taken and locked where `NextMaxPath` finds it |
+| `assets_wad_game` | the game's own WAD loader with the WAD at 0x81200000 too: `_ReadWave`, SetupWaveModel, `relocate_model_dl`, `relocate_texture_loads`, the vertex pass (`mirror_vertex_texcoords`) and `display_list_traverse`, which follows the K0 addresses to the called list and the branch and flips their windings |
+| `assets_heap` | `port/ultra/heap.c` on the game's own heap: its size, the least free as the game sums it, the allocations counted, a fallback counted; at 32 MiB with the floor at 17 MiB, the game's next blocks at 0x81100000, the runtime images' block taken and locked where `allocate_memory_at` finds it |
 | `synth_boot_mem64` | drive.press at `memory = 64`: the heap to 0x84000000 (`tools/port/heap_check.py --memory 64`) |
 | `synth_boot_memhigh`, `memhigh2p` | drive and race2p at 64 with everything the game allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR=17): its files, their lists, textures and vertices, the frame and depth buffers, the sound's buffers |
 | `synth_boot_membig`, `membig8` | the car files 3 MB larger at 64 (no car refused; the peak 18.9 MiB, files past 16 MiB), 1 MB larger at `original` (LoadCars falls back once, logged; the race runs) |
@@ -208,7 +208,7 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 | the renderer's physical rule | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
 | `pc_rcp_reloc` with the N64's 24 bits | `assets_wad_game`: the relocated VTX, G_DL and SETTIMG words 16 MiB low |
 | `display_list_traverse`'s N64 segment test | `assets_wad_game`: the called list's and the branch's windings not flipped |
-| `func_80014CAC`'s test of a K0 address past 16 MiB | nothing: on the retail cartridge, `drive` at 64 MiB with the floor gives the original's sound byte for byte without it too. The game hands that function its sample banks' cartridge addresses (the samples stay in the cartridge and stream through the MusyX DMA caches, which are in the heap and reached through the interpreter), so the test is a guard for a bank loaded into RAM, which this game doesn't do |
+| `sound_hw_translate_address`'s test of a K0 address past 16 MiB | nothing: on the retail cartridge, `drive` at 64 MiB with the floor gives the original's sound byte for byte without it too. The game hands that function its sample banks' cartridge addresses (the samples stay in the cartridge and stream through the MusyX DMA caches, which are in the heap and reached through the interpreter), so the test is a guard for a bank loaded into RAM, which this game doesn't do |
 
 **The proof.** "Base" is a build of 0d7d016 (main before this work).
 
@@ -229,7 +229,7 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 
 **On the retail cartridge** (Pi 5, `--fast`, one game at a time, the branch's Debug build; the press scripts, logs,
 screenshots and sound in the ignored `build/scratch/`; tracks 4 and 5 are locked on a fresh profile, so for them gdb
-set the two players' unlock bytes (`D_80150DD8`) as the track select first asked, as MORECARS.md 10.4 did):
+set the two players' unlock bytes (`gUnlockedTracks`) as the track select first asked, as MORECARS.md 10.4 did):
 
 | Run | Result |
 |---|---|
@@ -248,7 +248,7 @@ Every place that holds, masks or compares an address or a size against the N64's
 found by searching port/ and the game C (every file the PC compiles: src/blob, src/ovl_a, src/ovl_b and the src/rom
 units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1FFFFFFF, 0x0FFFFFFF, 0x0F000000,
 0xF0000000, 0xFF000000, 0x80400000, 0x80800000, 0x00800000, 0x00400000, `PC_RDRAM_SIZE`, `osVirtualToPhysical`,
-`D_80000318` and fixed addresses 0x804xxxxx-0x807xxxxx, and reading each:
+`osMemSize` and fixed addresses 0x804xxxxx-0x807xxxxx, and reading each:
 
 | Site | What | Verdict |
 |---|---|---|
@@ -274,19 +274,19 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 | `datacheck.c:643` | the file table's sizes under 8 MiB | a check of the ROM's own table |
 | `gen_data.py:83`, `gen_stubs.py:101`, `n64syms.py:73` | the arenas' and absolute symbols' range, the overlay region | the N64 images' layout, inside the first 8 MiB at any size |
 | `absfix.c` | GOT slots of absolute symbols: addends at 0x80000000 or more | the symbols are the N64's: right |
-| `audio_heap/group.c:308-316` (`func_800E7D04`) | the heap's end `osMemSize \| 0x80000000`; the Expansion Pak flag past 0x80400000 | follows osMemSize (section 1) |
-| `entity_lod_select.c:107, 111, 129, 134`; `entity_cull_check.c:42, 47` | 24-bit relocations | `pc_rcp_reloc` (section 3) |
-| `audio_frame_sync/group.c:3854-3887` | a second `entity_lod_select`, 24-bit | a context copy for IDO's optimizer, weak on the PC: the linked one is `src/blob/entity_lod_select.c` |
+| `memsys/group.c:308-316` (`locate_main_heap`) | the heap's end `osMemSize \| 0x80000000`; the Expansion Pak flag past 0x80400000 | follows osMemSize (section 1) |
+| `relocate_model_dl.c:107, 111, 129, 134`; `relocate_texture_loads.c:42, 47` | 24-bit relocations | `pc_rcp_reloc` (section 3) |
+| `waves/group.c:3854-3887` | a second `relocate_model_dl`, 24-bit | a context copy for IDO's optimizer, weak on the PC: the linked one is `src/blob/relocate_model_dl.c` |
 | `display_list_traverse.c:33, 52` | segmented or physical | section 3 |
-| `func_800966D8.c:3808` | the vertex pass, `pc_n64_ptr(arg0 \| 0x80000000)` | K0 or physical: right |
-| `lib_11640.c:1956` (`func_80014CAC`) | RAM if the top byte is 0x80 | section 3 |
-| `lib_11640.c:1735`, `lib_25bb0.c:486` | RAM if the top nibble is 8 | right up to 256 MiB (section 2) |
-| `func_8010FD60.c:11` | `(a & 0x0FFFFFFF) \| 0xB0000000`: the cartridge address | cartridge, not RAM |
-| `lib_16320.c:664`, `lib_22300.c:968`, `lib_25bb0.c:249`, `lib_26ab0.c:74` | `& 0xFFFFFF` | a sample's length, a frequency, offsets in a stream table: not addresses |
-| `func_8008AD6C.c`, `func_800BD080.c`, `func_800BDA24.c`, `camera_shake_start.c`, `race_setup_1.c` | the other walkers of ROM lists and TXLD | opcodes only; the addresses they copy are the relocated words |
+| `mirror_vertex_texcoords.c:3808` | the vertex pass, `pc_n64_ptr(arg0 \| 0x80000000)` | K0 or physical: right |
+| `hardware.c:1956` (`sound_hw_translate_address`) | RAM if the top byte is 0x80 | section 3 |
+| `hardware.c:1735`, `streams.c:486` | RAM if the top nibble is 8 | right up to 256 MiB (section 2) |
+| `musyx_cart_address.c:11` | `(a & 0x0FFFFFFF) \| 0xB0000000`: the cartridge address | cartridge, not RAM |
+| `registry.c:664`, `macros.c:968`, `streams.c:249`, `decode.c:74` | `& 0xFFFFFF` | a sample's length, a frequency, offsets in a stream table: not addresses |
+| `flip_triangle_winding.c`, `displaylist_set_texture_image.c`, `displaylist_get_texture_image.c`, `InitTextureAnimation.c`, `TextureAnimation.c` | the other walkers of ROM lists and TXLD | opcodes only; the addresses they copy are the relocated words |
 | `waves.c` (SetupWaveModel), the loaders' `+= base` | 32-bit sums of K0 addresses | right at any address |
-| `loadcars/root.c:87, 108`, `func_800BB02C.c:62` | the heap's free total | real sizes: right (section 5's finding stands as on the N64) |
-| state, flags and colours: `0x400000`, `0x800000`, `0x7FFFFFFF` in `state_word_a`, node flags, `AnimID`, `gDPSetCombine`'s words | not addresses | |
+| `loadcars/root.c:87, 108`, `car_palette_init.c:62` | the heap's free total | real sizes: right (section 5's finding stands as on the N64) |
+| state, flags and colours: `0x400000`, `0x800000`, `0x7FFFFFFF` in `gGameState`, node flags, `AnimID`, `gDPSetCombine`'s words | not addresses | |
 
 ## 8. Not done, or not tested
 

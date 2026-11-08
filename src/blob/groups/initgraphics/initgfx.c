@@ -1,11 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
- * func_800EE8AC (0x800EE8AC, 8 B deleted-procedure stub) = N64 _InitGfx (GC ngcGraph.c has its own; DC gfx.c
- * func_8C02E18C): counters D_8015F738/D_80161380/D_80161398/D_801613A4 = 0, FOV D_80154188 = 90, wait for osTvType
- * (0x80000300), viewport_setup, three 0x22620-byte frame heaps (audio_dma_sync / sound_play_menu, cleared by
- * audio_loop_control, aligned (+32) & ~63), the two 128-byte frame records D_80156BE0[0..1] (display-list
- * buffers D_800586D0 / D_8006A090, count 2, heap), display-list pointers D_8015B250 / D_8015B260 (+1728) and the
- * cursor D_801497C8 (+0x9CC0). Its only caller world_effect_update (= InitGraphics, gfx.c) inlines it across
+ * InitGfx (0x800EE8AC, 8 B deleted-procedure stub) = N64 _InitGfx (GC ngcGraph.c has its own; DC gfx.c
+ * func_8C02E18C): counters video_texture_filter/video_color_dither/video_dither_filter/video_divot = 0, FOV HFOV = 90, wait for osTvType
+ * (0x80000300), video_set_mode, three 0x22620-byte frame heaps (audio_dma_sync / AllocateMemoryHeapHigh, cleared by
+ * audio_loop_control, aligned (+32) & ~63), the two 128-byte frame records frame_records[0..1] (display-list
+ * buffers frame_command_buffer_a / frame_command_buffer_b, count 2, heap), display-list pointers frame_dynamic / frame_matrix_cursor (+1728) and the
+ * cursor frame_dl (+0x9CC0). Its only caller InitGraphics (= InitGraphics, gfx.c) inlines it across
  * files, so only the stub is emitted. Statement shape from the draft (record stores in field-pair order).
  */
 typedef unsigned char u8;
@@ -25,59 +25,59 @@ typedef struct {
     u8 pad5E[0x7C - 0x5E];
     uintptr_t buffer;      /* 0x7C */
 } SegmentTableEntry;
-extern s32 D_8015F738, D_80161380, D_80161398, D_801613A4;
-extern f32 D_80154188;
-extern u32 D_80000300;     /* osTvType */
-extern s32 D_8002AFC0, D_8002AFC4;
-extern uintptr_t D_8002EBB0;
-extern u32 D_80156CEC, D_80157240;
-extern SegmentTableEntry D_80156BE0[];
-extern u8 D_800586D0[], D_8006A090[];
-/* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's D_800586D0 /
- * D_8006A090 (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
+extern s32 video_texture_filter, video_color_dither, video_dither_filter, video_divot;
+extern f32 HFOV;
+extern u32 osTvType;     /* osTvType */
+extern s32 screen_width, screen_height;
+extern uintptr_t zbuffer;
+extern u32 framebuffer_a, framebuffer_b;
+extern SegmentTableEntry frame_records[];
+extern u8 frame_command_buffer_a[], frame_command_buffer_b[];
+/* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's frame_command_buffer_a /
+ * frame_command_buffer_b (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728
  * and the display list's PC_GLIST_LEN commands from PC_GLIST_OFFSET, where the N64 has 600 and 4000 from +0x9CC0
  * (pc_game_types.h, docs/port/MORECARS.md 8). */
 u8 pc_frame_dl[2][PC_FRAME_BYTES] __attribute__((aligned(16)));
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]
-extern u8 *D_8015B250, *D_8015B260;
-extern u8 *D_801497C8;           /* 0x801497C8, display-list cursor */
-extern u8 *D_801497F4;
-s32 get_tv_offset(void);
-void viewport_setup(s32 tv, s32 mode, s32 width, s32 height);
+extern u8 *frame_dynamic, *frame_matrix_cursor;
+extern u8 *frame_dl;           /* 0x801497C8, display-list cursor */
+extern u8 *frame_dl_start;
+s32 video_mode_base_index(void);
+void video_set_mode(s32 tv, s32 mode, s32 width, s32 height);
 u32 AllocateMemoryHeap(s32 arg0, s32 size);
-u32 sound_play_menu(s32 arg0, s32 size);
+u32 AllocateMemoryHeapHigh(s32 arg0, s32 size);
 void PurgeableMemory(u32 buf, s32 arg1);
-void func_800A5B3C(void);
+void ZOID_Reset(void);
 void InitBlits(void);
-void particle_velocity_set(void);
+void ZeroCameras(void);
 
-void func_800EE8AC(void)
+void InitGfx(void)
 {
-    D_8015F738 = 0;
-    D_80161380 = 0;
-    D_80161398 = 0;
-    D_801613A4 = 0;
-    D_80154188 = 90.0f;
-    while (D_80000300 == 0) {
+    video_texture_filter = 0;
+    video_color_dither = 0;
+    video_dither_filter = 0;
+    video_divot = 0;
+    HFOV = 90.0f;
+    while (osTvType == 0) {
     }
-    viewport_setup(D_80000300, get_tv_offset(), D_8002AFC0, D_8002AFC4);
-    D_8002EBB0 = AllocateMemoryHeap(0, 0x22620);
-    PurgeableMemory(D_8002EBB0, 0);
-    D_80156CEC = sound_play_menu(0, 0x22620);
-    PurgeableMemory(D_80156CEC, 0);
-    D_80157240 = sound_play_menu(0, 0x22620);
-    PurgeableMemory(D_80157240, 0);
-    D_8002EBB0 = (D_8002EBB0 + 32) & ~63;
-    D_80156CEC = (D_80156CEC + 32) & ~63;
-    D_80157240 = (D_80157240 + 32) & ~63;
-    D_80156BE0[0].buffer = D_80156CEC;
-    D_80156BE0[1].buffer = D_80157240;
-    D_80156BE0[0].unk5C = 2;
-    D_80156BE0[1].unk5C = 2;
-    D_80156BE0[0].dl_base = DL_BUFFER_0;
-    D_80156BE0[1].dl_base = DL_BUFFER_1;
-    D_8015B250 = D_80156BE0[0].dl_base;
-    D_8015B260 = D_80156BE0[0].dl_base + 1728;
-    D_801497C8 = D_80156BE0[0].dl_base + PC_GLIST_OFFSET;
+    video_set_mode(osTvType, video_mode_base_index(), screen_width, screen_height);
+    zbuffer = AllocateMemoryHeap(0, 0x22620);
+    PurgeableMemory(zbuffer, 0);
+    framebuffer_a = AllocateMemoryHeapHigh(0, 0x22620);
+    PurgeableMemory(framebuffer_a, 0);
+    framebuffer_b = AllocateMemoryHeapHigh(0, 0x22620);
+    PurgeableMemory(framebuffer_b, 0);
+    zbuffer = (zbuffer + 32) & ~63;
+    framebuffer_a = (framebuffer_a + 32) & ~63;
+    framebuffer_b = (framebuffer_b + 32) & ~63;
+    frame_records[0].buffer = framebuffer_a;
+    frame_records[1].buffer = framebuffer_b;
+    frame_records[0].unk5C = 2;
+    frame_records[1].unk5C = 2;
+    frame_records[0].dl_base = DL_BUFFER_0;
+    frame_records[1].dl_base = DL_BUFFER_1;
+    frame_dynamic = frame_records[0].dl_base;
+    frame_matrix_cursor = frame_records[0].dl_base + 1728;
+    frame_dl = frame_records[0].dl_base + PC_GLIST_OFFSET;
 }

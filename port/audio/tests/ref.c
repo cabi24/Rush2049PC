@@ -214,7 +214,7 @@ void tb_voice(TbVoice *tv, PcMusyxVoice *cmd, const int16_t target[4])
     cmd->unused4c = (uint16_t)(padded[0] * (tv->rate * 16u) + cmd->pitch_frac);
     cmd->output = NULL;
 
-    /* func_80011D74 */
+    /* sound_hw_advance_voice_position */
     double inc = (tv->rate * 192) * 0.000244140625;
     if (tv->loop_length != 0 && floor(tv->position) <= tv->loop_start + tv->loop_length) {
         double loop_end = tv->loop_start + tv->loop_length;

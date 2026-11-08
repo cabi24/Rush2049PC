@@ -14,7 +14,7 @@ How it works:
 1. Every live game file (game.dir in compile_commands.json) is compiled again with its own flags plus
    -O1 -fno-inline -fdump-tree-forwprop1-lineno, into build/pc/endian/. GCC's GIMPLE at that point has every
    memory access as one expression with its access type and its base: `MEM[(u8 *)p_3 + 61B]`,
-   `D_80140BF0[_5].prim[1]`, `MEM <unsigned int> [(char * {ref-all})&c]`. The object's DWARF gives the
+   `gBlitInstanceList[_5].prim[1]`, `MEM <unsigned int> [(char * {ref-all})&c]`. The object's DWARF gives the
    declared types (gen_data.py's parser), so each access has a host offset, an N64 position and a width.
 2. Each access is put in a storage: a data symbol, what a function's parameter points to, what a pointer loaded
    from a storage position points to, what one call returned, a local. A pointer argument connects the caller's
@@ -307,7 +307,7 @@ def host_to_n64(c, h):
 
 _LOC = re.compile(r"\[[^\[\]\s]+:(\d+):\d+(?: discrim \d+)?\] ")   # gcc 14 adds discriminators
 _FUNC = re.compile(r"^;; Function (\S+) \(")
-# A call to a global function of the same file, made through GCC's local alias of it: `func_8001D5C0.localalias
+# A call to a global function of the same file, made through GCC's local alias of it: `sound_listener_build_matrix.localalias
 # (state_15(D));`. With -fPIC -fno-semantic-interposition (the x86-64 build's flags, CMakeLists.txt) GCC calls the
 # file's own definition through `<name>.localalias`, which binds locally; PIE code (aarch64's) calls `<name>` for most
 # of them. The call is to <name>: read as such, the analysis is the same on both (docs/port/LAYOUT.md 9.6).
@@ -328,7 +328,7 @@ def balanced(s, i, op, cl):
     raise ValueError("unbalanced")
 
 
-# a name, or a GIMPLE temporary named after one (`D_80153F08.0_12`, `iftmp.6_167`); `x.f` is a member access
+# a name, or a GIMPLE temporary named after one (`new_sched_to_use.0_12`, `iftmp.6_167`); `x.f` is a member access
 _IDENT = re.compile(r"[A-Za-z_$][\w$]*(?:\.\d+_\d+)?(?:\((?:D|ab)\))?")
 
 
@@ -1515,17 +1515,17 @@ class UF:
 # A conflict whose wide writes, or whose narrow reads, or whose interpreting functions all match one rule is listed
 # under "Reviewed" with the reason instead of being counted.
 REVIEWED = [
-    (r"src/blob/hud_render\.c|src/blob/func_8010E0FC\.c|src/blob/entity_collision_detect\.c",
+    (r"src/blob/UpdateSmoke\.c|src/blob/AnimateCoin\.c|src/blob/AnimateNewBlastRing\.c",
      r"id\.part\.index|EntityHdr", "fixed: the PC view's index is the s32 handle's low half"),
-    (r"src/blob/groups/entity_spawn_init/entity_spawn_init\.c", r"handle\.part\.id",
+    (r"src/blob/groups/start_smoke/entity_spawn_init\.c", r"handle\.part\.id",
      "fixed: the PC view's id is the s32 handle's low half"),
-    (r"src/blob/func_80092FE0\.c|src/blob/groups/carcolor/carcolor\.c", r"PlayerRec|halves\.id",
+    (r"src/blob/SetFrameColor\.c|src/blob/groups/SetupCarColor/carcolor\.c", r"PlayerRec|halves\.id",
      "fixed: the PC views' a..f and id are the s32 handles' low halves"),
     (r"src/ovl_b/groups/runtime_b_resource_callbacks/group\.c", r"handle\.parts\.index",
      "fixed: the PC view's index is the s32 handle's low half"),
-    (r"src/blob/groups/route_cross/group\.c", r"TrackerLen",
+    (r"src/blob/groups/pathcommon_sync/group\.c", r"TrackerLen",
      "not a conflict: LEN(k) is element k+1's word at +8, the counts read are element 0's"),
-    (r"src/blob/entity_lod_select\.c", r"^entity_lod_select$",
+    (r"src/blob/relocate_model_dl\.c", r"^relocate_model_dl$",
      "not a conflict: `if (cmd[0] & 0x00FF0000) {}` reads a big-endian command word natively and discards it "
      "(kept for matching); every other read goes through pc_be32_get"),
     (r"src/rom/lib_(b120|b300|b570|b9f0|be40|bfe0|f700)\.c", r".",
@@ -1534,14 +1534,14 @@ REVIEWED = [
 # Initialized data whose conflicts are left to other parts (docs/port/ENDIAN.md 4): a conflict whose values all come
 # from the loader's elements of these symbols is listed as reviewed with the reason.
 LEFT = {
-    "gTargInfo's PC layout (POINTERS.md 9.9)": {"D_80117530"},
+    "gTargInfo's PC layout (POINTERS.md 9.9)": {"targetInfo"},
 }
 # Initialized data passed by address to a `void *` parameter that was read and judged (report section 4b,
 # docs/port/ENDIAN.md 3.4): (function, argument) -> why.
 BYTES_REVIEWED = {
-    ("arb_rate_set", 1): "a Vp (s16) for gSPViewport, which the renderer reads as s16",
-    ("func_8008E26C", 1): "MBOX_NewObject's matrix, f32 read as words",
-    ("camera_target_track", 1): "a Vec3, f32 read as words",
+    ("ZOID_InitializeWindow", 1): "a Vp (s16) for gSPViewport, which the renderer reads as s16",
+    ("ZOID_AddObject", 1): "MBOX_NewObject's matrix, f32 read as words",
+    ("AudEmitEffect", 1): "a Vec3, f32 read as words",
 }
 
 
@@ -1564,7 +1564,7 @@ GENERIC = 12   # an untyped pointer parameter given more storages than this belo
 # Parameters whose callers' storages are not joined, because the record they point to depends on another argument
 # (the tool has no call contexts): (function, parameter index) -> why
 NOT_FOLLOWED = {
-    ("save_write_data", 0): "StartBlast's data is an s16 car slot with linkToCar, an f32 position without; the "
+    ("StartBlast", 0): "StartBlast's data is an s16 car slot with linkToCar, an f32 position without; the "
                             "callers that pass positions do not link",
 }
 
@@ -2006,7 +2006,7 @@ def report(results, build, out, loader):
         unit = Access(*r["accesses"][0]).unit
         for fn, idents in r["calls"]:
             keys = typed.get(fn, ())
-            if fn in COPY_FUNCS or fn in ("math_utility", "n64_bzero", "bzero", "n64_memset"):
+            if fn in COPY_FUNCS or fn in ("CopyUV", "n64_bzero", "bzero", "n64_memset"):
                 continue   # copies keep what they copy; the destination's readers are checked where they read
             for k, ident in enumerate(idents):
                 if not ident or ident[0][0] != "sym" or k >= len(keys) or not keys[k] or keys[k][0] != "scalar" \
@@ -2136,33 +2136,33 @@ SELFTEST_HALVES = [(("sym", "gHandles"), 0x2, "handle_index"), (("sym", "gHandle
 
 # Initialized data whose declarations were made to agree with how the game reads it (docs/port/ENDIAN.md): the
 # element width the PC loader must swap at (symbol, N64 offset), from build/pc/pc-data/data.c.
-LOADER_EXPECT = [("D_80114264", 0x0, 4), ("D_80114264", 0xC, 4), ("D_801164A4", 0x0, 2), ("D_801164A4", 0x28, 2),
-                 ("D_80117100", 0x0, 4), ("D_80117100", 0x10, 4), ("D_80116148", 0x0, 1), ("D_80116148", 0x5, 1),
-                 ("D_803AF9A8", 0x0, 4), ("D_803AF9A8", 0x3C, 1), ("D_80111950", 0x0, 1), ("D_8011195C", 0x0, 1),
-                 ("D_80111960", 0x0, 1), ("D_8011028C", 0x0, 1), ("D_8011EA40", 0x0, 2), ("D_8011EA40", 0xC, 2),
-                 ("D_8011EA90", 0x6, 2), ("D_803B46A4", 0x0, 1), ("D_803B46A4", 0x3, 1),
-                 ("D_80120E50", 0x0, 1), ("D_80120E50", 0x3, 1),
-                 # the engine sound table (mode_select/d5e64.c): rev points u16, levels f32, in both 32-byte entries
-                 ("D_8010FD80", 0x0, 4), ("D_8010FD80", 0x4, 2), ("D_8010FD80", 0xC, 2), ("D_8010FD80", 0x10, 4),
-                 ("D_8010FD80", 0x18, 4), ("D_8010FD80", 0x24, 2), ("D_8010FD80", 0x30, 4),
+LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState", 0x0, 2), ("gCheatState", 0x28, 2),
+                 ("pause_gPlayerRects", 0x0, 4), ("pause_gPlayerRects", 0x10, 4), ("hud_playerPaneColors", 0x0, 1), ("hud_playerPaneColors", 0x5, 1),
+                 ("carscr_buttonInfo", 0x0, 4), ("carscr_buttonInfo", 0x3C, 1), ("cont_bit_pattern", 0x0, 1), ("D_8011195C", 0x0, 1),
+                 ("D_80111960", 0x0, 1), ("gStopAllEffects", 0x0, 1), ("vp1", 0x0, 2), ("vp1", 0xC, 2),
+                 ("vplr", 0x6, 2), ("modescr_button_color", 0x0, 1), ("modescr_button_color", 0x3, 1),
+                 ("target_steer_zero_dist_message", 0x0, 1), ("target_steer_zero_dist_message", 0x3, 1),
+                 # the engine sound table (car_sounds/d5e64.c): rev points u16, levels f32, in both 32-byte entries
+                 ("gEngineSpecs", 0x0, 4), ("gEngineSpecs", 0x4, 2), ("gEngineSpecs", 0xC, 2), ("gEngineSpecs", 0x10, 4),
+                 ("gEngineSpecs", 0x18, 4), ("gEngineSpecs", 0x24, 2), ("gEngineSpecs", 0x30, 4),
                  # tables declared as one element, one row or bytes (docs/port/DATA.md 8): the level objects' bodies
-                 # and static states (level_objects), the rumble thresholds (func_800E56F8), the wings' place per
+                 # and static states (level_objects), the rumble thresholds (UpdateModel), the wings' place per
                  # car type (extents.txt)
                  ("D_80118C10", 0x0, 4), ("D_80118C10", 0x1C, 4), ("D_80118C10", 0x1C8, 4), ("D_801163F8", 0x4, 4),
-                 ("D_801163F8", 0x8C, 4), ("D_8011B4B4", 0xC, 4), ("D_8011B4B4", 0x98, 4),
+                 ("D_801163F8", 0x8C, 4), ("wingOffsets", 0xC, 4), ("wingOffsets", 0x98, 4),
                  # FSCLS and the respawn records after it (runtime_a_joint_transforms): flag bytes, f32 places
                  ("D_801106C4", 0x8, 4), ("D_801106C4", 0xC, 1), ("D_801106C4", 0x10, 4), ("D_801106C4", 0x1DC, 1)]
-# The colour unions gen_data copies as bytes (a byte member covers them), D_801146BC's element 1 under
-# D_801146C0's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
+# The colour unions gen_data copies as bytes (a byte member covers them), flashColors's element 1 under
+# flashColors_at_1's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
 # table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).
 LOADER_EXPECT += [(sym, off, 1) for sym in (
-    "D_801146BC", "D_801146C0", "D_80116DB0", "D_80118E28", "D_80118E2C", "D_8011AD8C", "D_8011ADC0", "D_8011AE58",
-    "D_8011B558", "D_8011B578", "D_80394270", "D_803942A0", "D_803942A4", "D_803942E8", "D_803B3054", "D_803B3058",
-    "D_803B3458", "D_803B345C", "D_803B8328", "D_803B8354", "D_803B8394", "D_803B8398") for off in (0x0, 0x3)]
-LOADER_EXPECT += [("D_801146BC", 0x4, 1), ("D_801146BC", 0x7, 1), ("D_8011B558", 0x10, 1), ("D_8011EF10", 0x0, 2),
-                  ("D_8011EF10", 0xC, 1), ("D_8002E4A0", 0x0, 4), ("gViewportOffsetX", 0x0, 2),
-                  ("gViewportOffsetX", 0x10, 2), ("gViewportOffsetY", 0x10, 2), ("gViewportPendingFrames", 0x0, 2),
-                  ("gInitFlag", 0x0, 1), ("gInitFlag", 0x1, 1), ("gDmaInitialized", 0x0, 1)]
+    "flashColors", "flashColors_at_1", "options_buttonColor", "gFlashColor1", "gFlashColor2", "gShadowColor", "SheenColors", "Track1Colors",
+    "arrowColors", "arrow_base_color", "hudextra_playerColor", "stunt_coin_color", "weapon_icon_color", "hitColor", "carscr_solidColor", "carscr_normalColor",
+    "circuitscr_init_button_color", "circuitscr_button_color", "loadTrackScreen_backColor", "race_map_vertex_color", "trackscr_init_button_color", "trackscr_update_button_color") for off in (0x0, 0x3)]
+LOADER_EXPECT += [("flashColors", 0x4, 1), ("flashColors", 0x7, 1), ("arrowColors", 0x10, 1), ("cull_box_vertices_a", 0x0, 2),
+                  ("cull_box_vertices_a", 0xC, 1), ("rdp_init_dl", 0x0, 4), ("video_default_x", 0x0, 2),
+                  ("video_default_x", 0x10, 2), ("video_default_y", 0x10, 2), ("video_pending_frames", 0x0, 2),
+                  ("gInitFlag", 0x0, 1), ("gInitFlag", 0x1, 1), ("decompress_lock_ready", 0x0, 1)]
 
 
 def check_loader(build):

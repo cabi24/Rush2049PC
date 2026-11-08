@@ -1,0 +1,154 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/* Per-frame race update, related to MAT3 game.c PlayGame.
+ * N64 ID/offsets are retained; this historical function name is misleading.
+ * Matching choices: used car pointer born before model.slot, two explicit
+ * volatile restart-byte reads (no named restart local), actual kept sound and
+ * smoke-reset helpers, and distinct 1.f / 1.0f spellings. Native sound ID is 45.
+ * Camera stride is 152, saved position at 132; UpdateVisuals takes signed short.
+ * The byte arrays describe observed structure offsets, not stack frame filler.
+ * All source helpers and locked contexts are scored; no stand-in or padding.
+ */
+typedef unsigned char u8;
+typedef signed char s8;
+typedef short s16;
+typedef unsigned short u16;
+typedef signed int s32;
+typedef unsigned int u32;
+typedef float f32;
+
+typedef struct Car952 {
+    u8 pad000[237];
+    s8 restart;            /* 0x0ED */
+    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21]; u8 pad0EE_308[0x35C - 0x308];
+    s8 cam;                 /* 0x35C */
+    s8 camMode;             /* 0x35D */
+    s8 camModeSave;         /* 0x35E */
+    u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
+} Car952;
+typedef struct Game2056 {
+    u8 pad000[556];
+    f32 snd[3];
+    u8 pad238[1990 - 568];     /* 0x22C */
+    s16 slot;               /* 0x7C6 */
+    u8 pad7C8[4];
+    s8 type;                /* 0x7CC */
+    u8 pad7CD[2056 - 1997];
+} Game2056;
+typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
+typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[84]; f32 savepos[3]; u8 pad90[8]; } Cam152;
+typedef struct Info8 { u8 pad0[7]; u8 state; } Info8;
+typedef struct Inner5 { u8 pad0[5]; s8 f5; } Inner5;
+/* A ghost (SaveInit' Ghost): link, file and data handles before its header, pointer-sized on the PC
+ * (docs/port/CASTS.md). */
+typedef struct Obj40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **inner; } Obj40;
+
+extern s32 gRace;
+extern s16 gNumPlayers;
+extern Player76 gPlayers[];
+extern s8 gNumActiveCars;
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+extern u32 gGameState;
+extern Cam152 gCamera[];
+extern s8 gGameSoundsEnabled;
+extern Obj40 **gGhosts[];
+extern u8 unitmatrix_origin[];
+extern u32 gCarSmokeDir[];
+/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+extern s8 gRestartGame;
+
+void Update_MDrive(void);
+void CheckForStunt(void);
+void ShotUpdate(void);
+void UpdateBattlePowerUps(void);
+void GetResPt(void);
+void DoDrones(void);
+void CheckCPs(void);
+void UpdateSmoke(void);
+void update_player_visibility(void);
+void StartBlast(void *arg0, s32 arg1, f32 arg2, s32 arg3);
+void StopCarSounds(void *arg0);
+s32 AudPlayEffect(s32 arg0, s32 arg1, s32 arg2, u8 arg3);
+s32 AudEmitEffect(void *arg0, void *arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7, s32 arg8, u8 arg9);
+void CrashedStunt(s32 arg0);
+void SetCameraView(s16 arg0);
+void UpdateVisuals(s16);
+void CheckTargetCollision(s16);
+void TextureAnimation(void);
+void DetectDroneAbort(void);
+void ShowHUD(void);
+
+s32 PlayGameSound(s32,s32,s32,u8);
+s32 EmitGameSound(const f32 *,const f32 *,f32,f32,f32,f32,s32,s32,s32,u8);
+
+void InitSmokeBlast(s16);
+
+void PlayGame(void) {
+    s32 i;
+    s16 slot;
+    s32 cam;
+    Car952 *car;
+
+    Update_MDrive();
+    if (gRace == 4) {
+        CheckForStunt();
+    } else if (gRace == 6) {
+        ShotUpdate();
+        UpdateBattlePowerUps();
+    } else {
+        if (gRace == 5) {
+            GetResPt();
+        } else {
+            DoDrones();
+        }
+        CheckCPs();
+    }
+    UpdateSmoke();
+    update_player_visibility();
+    for (i = 0; i < gNumActiveCars; i++) {
+        car = PC_CAR(i);
+        slot = PC_MODEL_SLOT(i);
+        if (*(volatile s8 *)&car->restart < 0) {
+            cam = car->cam;
+            if (!(gGameState & 8) && slot < gNumPlayers) {
+                gPlayers[slot].numCrashes++;
+            }
+            if (cam >= 0) {
+                car->camModeSave = car->camMode;
+                car->camMode = 4;
+                gCamera[cam].savepos[0] = gCamera[cam].pos[0];
+                gCamera[cam].savepos[1] = gCamera[cam].pos[1];
+                gCamera[cam].savepos[2] = gCamera[cam].pos[2];
+            }
+            StartBlast(&slot, 1, 1.f, 0);
+            StopCarSounds(PC_MODEL(i));
+            if (PC_MODEL_DRONE_TYPE(i) == 2) {
+                if (gRace != 2 || gGhosts[PC_MODEL_SLOT(i)] == 0 || (*gGhosts[PC_MODEL_SLOT(i)])->inner[0]->f5 < 0) {
+                    PlayGameSound(45, PC_MODEL_SLOT(i), 1, 1);
+                }
+            } else {
+                EmitGameSound(PC_MODEL_RWR(i), (const f32 *)unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, 45, PC_MODEL_SLOT(i), 0, 128);
+            }
+            if (gRace == 4) {
+                CrashedStunt(slot);
+            }
+            car->restart = 0;
+        } else if (*(volatile s8 *)&car->restart > 0) {
+            InitSmokeBlast(slot);
+            if (car->cam >= 0) {
+                car->camMode = car->camModeSave;
+                SetCameraView(car->cam);
+            }
+            car->restart = 0;
+        }
+        UpdateVisuals(slot);
+        if ((PC_LINK_OWNER(slot) == 0 || PC_LINK_OWNER(slot) == 6) && (gRace != 2 || (gRace == 2 && slot == 0))) {
+            CheckTargetCollision(slot);
+        }
+    }
+    TextureAnimation();
+    DetectDroneAbort();
+    if (!gRestartGame) {
+        ShowHUD();
+    }
+}

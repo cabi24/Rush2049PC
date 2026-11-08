@@ -54,90 +54,90 @@ copies those as they are, so they are bytes, or zero.
 
 | Part | Symbols | Why |
 |---|---|---|
-| boot | `D_8002C5D0` (sample cache entries per voice: 2), `D_8002D8B8`..`D_8002D8C8` (MusyX buffer scales: 1.0) | zero caches corrupt the heap in AudioSfxInit (MUSYX_DATA.md 8.6) |
-| | `D_8011EAAC` | the MusyX service table: the eight functions (MUSYX_DATA.md 8.1) |
-| | `D_8011F0A0` | the sfx groups pushed at boot (12-15), which the project has |
-| | `D_8002E4A0`, `D_8002E528` | the two static display lists: G_ENDDL (a list of zeros runs off its end) |
-| | `state_word_b` (gNewGameState) | 1: the first frame runs initGameState; 0 is a game with no state |
+| boot | `sound_sample_blocks_per_voice` (sample cache entries per voice: 2), `sound_sfd_margin`..`sound_sample_cache_factor` (MusyX buffer scales: 1.0) | zero caches corrupt the heap in AudioSfxInit (MUSYX_DATA.md 8.6) |
+| | `audio_driver_services` | the MusyX service table: the eight functions (MUSYX_DATA.md 8.1) |
+| | `boot_sfx_groups` | the sfx groups pushed at boot (12-15), which the project has |
+| | `rdp_init_dl`, `rsp_init_dl` | the two static display lists: G_ENDDL (a list of zeros runs off its end) |
+| | `gNewGameState` (gNewGameState) | 1: the first frame runs initGameState; 0 is a game with no state |
 | | `gSkipToGameState` | 1, no screen skipped: a screen whose state isn't this one passes straight on (0 skipped the start prompt and the main menu) |
 | math | `gSinCoeffs`, `gCosCoeffs` and their reductions (boot, f64) | libultra's sinf and cosf: reduction by pi (1/pi, pi in a 21-bit and a rest part), a sine polynomial P1-P4 fitted by least squares here (2e-8), 0 past 2^28. Zero gave sin x = x, cos x = -abs(x) |
 | | `gOrthoScale` | guPerspectiveF's degrees to radians, pi/180 |
-| | `D_80123B98`..`D_80123BC4` | tanf (func_800A557C, Cody and Waite's structure): ymax, 2/pi, pi/2 as 201/128 and the rest, 2^-12, and the [7/8] Pade approximant from Lambert's continued fraction (5e-16). Zero gave tan x = 0: the projection's 0.5 / tan divided by 0 |
-| | `D_801238C0`..`D_80123900` | atan (func_8008C5E0, C680, C720) and atan2 (C768): the [4/5] Pade approximant of atan t / t in t^2 with a monic denominator (one constant term for both, as the code has it; 1e-14), tan(pi/8), tan(3pi/8), pi/4, +-pi/2, +-pi |
-| | `D_8011F010[4]` | asin and acos (func_8009C3F8): {0, pi/4, pi/2, pi/4}, the offsets its two ranges need |
-| | `D_80123888`, `D_8012394C`, `D_80123F80`, `D_80123E04/08` | vector helpers' floors (1e-10, 1e-6), a gimbal epsilon (1e-5), the tire slip ratio's slope past 400 (1/400, continuous) |
-| display | `D_8002AFC0`, `D_8002AFC4` | the screen, 320 x 220: a framebuffer block is 0x22620 bytes, 32 more than that at 16 bits. Zero was a colour image 4096 wide (its width field is width - 1) |
-| | `gViModeTableBase[0]` | VI mode 0 (NTSC, get_tv_offset), an LPN1 mode computed from what the VI registers mean (`vi_mode_ntsc_lpn1`): display_update divided 0 by 0. Its yScale is what display_update makes of 220 lines (`(220 x 1024/240 + 16.5) & ~15`): display_mode_tick shows the picture (osViBlack(0)) only when they agree |
-| | `gViewportFloatA`..`D` | xScale per pixel (1024/640), yScale per line (1024/240), a PAL and an NTSC retrace in seconds (1/50, 1/60: gScaleSecondsPerTick, the game's clock) |
-| front end | `D_8011FAD4` | the button map (game bit j = N64 buttons): none means no button ever works. Made up from the code: bits 0-2 Start, A, B (what the prompts take), 10-13 the d-pad (what the stick makes) |
-| | `D_801118E4[26]` | gControlTable: SetControls makes each control option byte k the mask table[k], which the car's readers test against the game buttons; 0x13-0x19 they take as analog sources. So k < 19 is game button k and 19-25 are those codes (gas A, brake B, steering the stick with the code-set default controls) |
-| | `D_803B65E4[10]` | the main menu's valid options: 0-4 (race, then four screens); none loops forever in updateStartScreen |
-| | `D_803B4679` rows 1-4 | the modes valid per player count: all; none loops forever in updateModeScreen |
-| | `D_80116D14[14]` | the options screen's valid items: all; none loops forever in options_initScreen (from the main menu or the pause screen) |
-| | `D_80110030[12]` | gSongNames: "SONG 1".. (the audio screen copies each) |
-| | `D_803B7738[20]` | the track select's map objects: a name each (it swaps their LODs and puts them back) |
-| | `D_8011B3A0`, `D_8011B400`, `D_8011B404`, `D_8011B438` | the car select's texture, model and sheen names: "" (a NULL name faults) |
-| race | `D_8011A924[19]` | gWorldNames: "WORLD" |
-| | `D_801202F8[9]` | the gravity options' factors (gravity = 32.2 x): 1 each. Zero is a weightless car whose mass is 0, and the first physics step divides 0 by 0 (func_800E1540) |
-| | `D_80110DD8[13]`, `D_80111274`, `D_80124150`, `D_801116D0[3]` | a car's mass (func_800D0B14): 93 slugs per type (3000 lb), no mass-option difference, the three tunes' factors 1 |
-| | `D_80110E0C[14]` | a car type's weight in pounds, the model's +0x5C4, which the car-car collision shares its push by: 3000 |
-| | `D_801240FC`, `D_80124100`, `D_80124104` | the push apart of two overlapping cars (menu_load_options): 1e-4, 2000, 2000; the six cars start on one spot here |
-| | `D_80117530[122]` (+0) | the targets' names: TARGET001.. (NULL faults; "" would match every world node) |
-| | `D_80117530[0]` | the weapon icon, WEAPON: StartWeaponIcon, flags 0x4028 (made without the Expansion Pak, a category record, the start function when made), shape 350, category 5. The battle arenas have four |
-| | `D_80117510[5]` | category 5's record size, 136 (Slot136): battle mode writes 16 of them; 0 is a zero-size heap block and the writes go over the next blocks' headers |
-| | `D_80121D60[8]`, `D_8011F844[13]` | the weapons' ammunition (5) and the bodies' collision boxes (4.5, 4.5, 2.5, 3: the tires are 4 ahead and behind, 2.5 aside) |
-| | `D_80117480[6]` | the arenas' puff textures: "" (physics_collision_test looks them up from track 6 on) |
-| | `D_80111754[6]` | a gRace 2 race's time limit on tracks 0-5 (func_800FBED8): 15 s. Zero ended the race in its first frame |
+| | `tan_max_arg`..`tan_q1` | tanf (tan_cody_waite, Cody and Waite's structure): ymax, 2/pi, pi/2 as 201/128 and the rest, 2^-12, and the [7/8] Pade approximant from Lambert's continued fraction (5e-16). Zero gave tan x = 0: the projection's 0.5 / tan divided by 0 |
+| | `atan_p0`..`atan2_neg_pi` | atan (fxatan, C680, C720) and atan2 (C768): the [4/5] Pade approximant of atan t / t in t^2 with a monic denominator (one constant term for both, as the code has it; 1e-14), tan(pi/8), tan(3pi/8), pi/4, +-pi/2, +-pi |
+| | `asin_offsets[4]` | asin and acos (farcsine): {0, pi/4, pi/2, pi/4}, the offsets its two ranges need |
+| | `invmagnitude_floor`, `normalvector_floor`, `extract_yaw_epsilon`, `calcalpha_far_scale_positive/08` | vector helpers' floors (1e-10, 1e-6), a gimbal epsilon (1e-5), the tire slip ratio's slope past 400 (1/400, continuous) |
+| display | `screen_width`, `screen_height` | the screen, 320 x 220: a framebuffer block is 0x22620 bytes, 32 more than that at 16 bits. Zero was a colour image 4096 wide (its width field is width - 1) |
+| | `osViModeTable[0]` | VI mode 0 (NTSC, video_mode_base_index), an LPN1 mode computed from what the VI registers mean (`vi_mode_ntsc_lpn1`): video_build_adjusted_mode divided 0 by 0. Its yScale is what video_build_adjusted_mode makes of 220 lines (`(220 x 1024/240 + 16.5) & ~15`): video_apply_pending_mode shows the picture (osViBlack(0)) only when they agree |
+| | `video_x_scale_factor`..`D` | xScale per pixel (1024/640), yScale per line (1024/240), a PAL and an NTSC retrace in seconds (1/50, 1/60: gRetraceTime, the game's clock) |
+| front end | `n64_button_map` | the button map (game bit j = N64 buttons): none means no button ever works. Made up from the code: bits 0-2 Start, A, B (what the prompts take), 10-13 the d-pad (what the stick makes) |
+| | `gControlTable[26]` | gControlTable: SetControls makes each control option byte k the mask table[k], which the car's readers test against the game buttons; 0x13-0x19 they take as analog sources. So k < 19 is game button k and 19-25 are those codes (gas A, brake B, steering the stick with the code-set default controls) |
+| | `startscr_validOption[10]` | the main menu's valid options: 0-4 (race, then four screens); none loops forever in updateStartScreen |
+| | `modescr_validOption_biased` rows 1-4 | the modes valid per player count: all; none loops forever in updateModeScreen |
+| | `options_validOption[14]` | the options screen's valid items: all; none loops forever in options_initScreen (from the main menu or the pause screen) |
+| | `gSongNames[12]` | gSongNames: "SONG 1".. (the audio screen copies each) |
+| | `trackMapObjNames[20]` | the track select's map objects: a name each (it swaps their LODs and puts them back) |
+| | `RimNames`, `tire_object_names`, `TexNames`, `sheenName` | the car select's texture, model and sheen names: "" (a NULL name faults) |
+| race | `gWorldNames[19]` | gWorldNames: "WORLD" |
+| | `gravityArray[9]` | the gravity options' factors (gravity = 32.2 x): 1 each. Zero is a weightless car whose mass is 0, and the first physics step divides 0 by 0 (accelerations) |
+| | `gCarMass[13]`, `carDurability`, `mass_unit`, `gTune[3]` | a car's mass (CalcMass): 93 slugs per type (3000 lb), no mass-option difference, the three tunes' factors 1 |
+| | `gCollisionMass[14]` | a car type's weight in pounds, the model's +0x5C4, which the car-car collision shares its push by: 3000 |
+| | `force_apart_min_dist_sq`, `force_apart_force`, `force_apart_force_over_dist` | the push apart of two overlapping cars (ForceApart): 1e-4, 2000, 2000; the six cars start on one spot here |
+| | `targetInfo[122]` (+0) | the targets' names: TARGET001.. (NULL faults; "" would match every world node) |
+| | `targetInfo[0]` | the weapon icon, WEAPON: StartWeaponIcon, flags 0x4028 (made without the Expansion Pak, a category record, the start function when made), shape 350, category 5. The battle arenas have four |
+| | `gTargetStructSizes[5]` | category 5's record size, 136 (Slot136): battle mode writes 16 of them; 0 is a zero-size heap block and the writes go over the next blocks' headers |
+| | `ammoCnts[8]`, `collsize[13]` | the weapons' ammunition (5) and the bodies' collision boxes (4.5, 4.5, 2.5, 3: the tires are 4 ahead and behind, 2.5 aside) |
+| | `FireTexNames[6]` | the arenas' puff textures: "" (InitSmoke looks them up from track 6 on) |
+| | `ghostRaceTimes[6]` | a gRace 2 race's time limit on tracks 0-5 (CalcRaceTime): 15 s. Zero ended the race in its first frame |
 | | `D_80120E74[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
-| | `D_80110DA4[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
-| | `D_801173D8[12]`, `D_80117408[12]` | the demo paths' start points: one, point 0 |
-| | `D_80110D08[13]`, `D_801108C8` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `D_8011F814`, below) |
-| | `D_80111560[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
-| | `D_8011AF90[19]` | gTrackColors: sixteen greys |
-| | `D_801158DC[0, 1, 4..7]`, `D_80115A68` | the HUD set (ShowHUD): a BUTTON panel, a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos), and the four players' crossbones (animBones, which only deaths mode shows). With zeros every HUD blit had no texture or size |
-| battle | `D_80394330[5]`, `D_80394344[5]` (image B) | the weapons' texture names: "" (func_803908D0 looks each up); their model names stay NULL (AAANULLOBJ) |
+| | `gCarBraking[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
+| | `demo_path_points[12]`, `num_demo_ppoints[12]` | the demo paths' start points: one, point 0 |
+| | `gCarModels[13]`, `steady_leg_duration` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `D_8011F814`, below) |
+| | `carSuspensions[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
+| | `gTrackColors[19]` | gTrackColors: sixteen greys |
+| | `HudMultiBlit[0, 1, 4..7]`, `speedPos` | the HUD set (ShowHUD): a BUTTON panel, a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos), and the four players' crossbones (animBones, which only deaths mode shows). With zeros every HUD blit had no texture or size |
+| battle | `MineTexNames[5]`, `RipTexNames[5]` (image B) | the weapons' texture names: "" (ShotInit looks each up); their model names stay NULL (AAANULLOBJ) |
 
 **From the retail cartridge's bring-up** ([BRINGUP.md](BRINGUP.md)): data at the places the retail cartridge showed
 to matter, each the regression test of a fix there, synthetic as the rest. The places (addresses, sizes, which tables
 strings follow) came from looking at the retail layout; the values, names and strings are the cartridge's own, or
 the game C's (BUTTON) and zlib's (extra_blbits) constants. The cartridge's own texture names are `SYN_FOG` ("SYF",
-which fits `D_803B9260`'s 4 bytes) and `SYN_BAR`.
+which fits `track_fog_texture_name`'s 4 bytes) and `SYN_BAR`.
 
 | Values | Why (BRINGUP.md section) |
 |---|---|
 | NewMultiBlit tables declared without their layout: the demo's blit (a NULL name), the game over title, the controls screens' first buttons, the menu backgrounds (createBG), the video and audio screens' second blits (BUTTON blits) | the generator's kind check needs the PC layout, and a second blit inside its table (1, 9) |
-| the car types' names (`SYNC00`..) after `D_8011F914`, the songs' after `D_8011F0A0`, a car select blit's name ("") after `D_803B83A4` (`strings_after`) | strings where the images keep them, which a table sized by the gap would cover: the generator refuses (2) |
+| the car types' names (`SYNC00`..) after `shadow_scales`, the songs' after `boot_sfx_groups`, a car select blit's name ("") after `warningscr_blits` (`strings_after`) | strings where the images keep them, which a table sized by the gap would cover: the generator refuses (2) |
 | the tire curves in `D_8011F814[2][6]` (the descriptors' four `tire_info` words point there) | the records only those u32 fields reach, declared in car_resistance (3) |
-| `state_word_a` (gGameState) -1, the game's own "no state" (func_800B7FF8 tests for it) | a start value `--until-state` must not take for a state (6) |
-| option 14 valid in a single race, `D_803B9260` the name of `SYN_FOG`, an IA8 texture | the track select's fog blit and its palette word (7) |
+| `gGameState` (gGameState) -1, the game's own "no state" (UpdateHUDPostCamera tests for it) | a start value `--until-state` must not take for a state (6) |
+| option 14 valid in a single race, `track_fog_texture_name` the name of `SYN_FOG`, an IA8 texture | the track select's fog blit and its palette word (7) |
 | track 0's palette animation and object animation (two frames), in bytes no symbol covers | tables only pointers reach, converted by `port/data/reached.txt` (8) |
 | battle HUD: an IA blit (`SYN_FOG`) and player 1's health bar (`SYN_BAR`, I8, animHealth) | the health bar's palette (10) |
-| `D_80110EBC`, every gear ratio row: 1 | the eight-row gear table (11) |
-| `D_803B470C`, every player's model slots: name 1, id -1 | the four-player slot table (12) |
-| the HUD set's four crossbones blits (animBones, BUTTON) and `D_801160C8`, their places in deaths mode for every view | the crossbones' place table, declared whole (15) |
-| the idle overlay's blit `D_801146C4` (no name, callback_init) and its colour `D_801146FC` as bytes; the `idle` path | the colour callback at the Blit's host offsets, and the colour declared as bytes (15) |
+| `carTransGearRatio`, every gear ratio row: 1 | the eight-row gear table (11) |
+| `playerscr_buttonInfo`, every player's model slots: name 1, id -1 | the four-player slot table (12) |
+| the HUD set's four crossbones blits (animBones, BUTTON) and `bonesPos`, their places in deaths mode for every view | the crossbones' place table, declared whole (15) |
+| the idle overlay's blit `idle_warning_multiblit` (no name, animControllerDim) and its colour `controller_dim_color` as bytes; the `idle` path | the colour callback at the Blit's host offsets, and the colour declared as bytes (15) |
 
 **For the save code** ([SAVES.md](SAVES.md) 10, 2026-11-04), made up the same way: what the game's save screens
 need to make, read, change and delete a profile and to save and race a ghost.
 
 | Values | Why |
 |---|---|
-| `D_8011EAEC[256]` | the pak's character set, the N64's public one (15 space, 16-25 digits, 26-51 A-Z, 52-65 punctuation): with zeros every note name was empty, and every note collided |
-| `D_801211F8`, `D_801211BC` | the notes' name prefix, `SYNTH049` (CreatePlayer's, SaveServer's) |
-| `D_801211E0`, `D_801211DC`, `D_801211C8`; `D_801211F4` | the profile extension `D`; the ghost extension `T` (SaveServer tells them apart by the first character) |
-| `D_801211E4`, `D_801211EC`, `D_801211F0`, `D_80121204` | a ghost note's name format (`%s%X%s`: the profile's note name, the track, the way), the ways' letters `R` and `N`, CreatePlayer's digits (`%0*u`) |
-| `D_801211CC` | a developer name, `SYN`: a profile of that name opens the ghost save prompt (`D_801148E4`); it also makes the cheat screen's states 14-16 valid |
-| `D_80117420` | the name entry's grid of 54 characters, a table of the cartridge's own (NULL faulted) |
-| `D_801149B4[0]` | the censor list: "" (none; NULL faulted) |
+| `pak_charset[256]` | the pak's character set, the N64's public one (15 space, 16-25 digits, 26-51 A-Z, 52-65 punctuation): with zeros every note name was empty, and every note collided |
+| `player_file_prefix`, `save_file_name_prefix` | the notes' name prefix, `SYNTH049` (CreatePlayer's, SaveServer's) |
+| `player_file_ext`, `player_file_ext_match`, `player_file_ext_prefix`; `ghost_file_ext` | the profile extension `D`; the ghost extension `T` (SaveServer tells them apart by the first character) |
+| `ghost_file_name_format`, `D_801211EC`, `D_801211F0`, `player_file_digits_format` | a ghost note's name format (`%s%X%s`: the profile's note name, the track, the way), the ways' letters `R` and `N`, CreatePlayer's digits (`%0*u`) |
+| `cheat_profile_name` | a developer name, `SYN`: a profile of that name opens the ghost save prompt (`gSaveGhostFiles`); it also makes the cheat screen's states 14-16 valid |
+| `gPlayerNameChars` | the name entry's grid of 54 characters, a table of the cartridge's own (NULL faulted) |
+| `obscenities[0]` | the censor list: "" (none; NULL faulted) |
 | zlib 1.0.4's `extra_lbits`, `extra_dbits`, `bl_order`, the three static tree descriptors, the level-9 row of `configuration_table` | CompressGhost's deflate: `tr_static_init` ran off its tables with zeros (as `extra_blbits` before) |
-| `D_80111754[0]` | track 0's ghost-race time limit, 90 s (was 15 s): the respawns credit checkpoints only before it runs out |
+| `ghostRaceTimes[0]` | track 0's ghost-race time limit, 90 s (was 15 s): the respawns credit checkpoints only before it runs out |
 | wave 177 | track 0's backward path, a lap of 3 checkpoints and a 40-point resurrection line: the cartridge's car is crashed from its first frame and respawned every 3.55 s, and on this path its respawns get round three laps and finish 35.6 s in |
 
 **From the QA sweep** ([QA.md](QA.md)), made up the same way:
 
 | Values | Why (QA.md section) |
 |---|---|
-| `D_803B41D4`, the main menu's cheat code (hold L, press Z); `D_803B3460[0]`, cheat 0's (hold R and press Z, hold C-up and press Z): a step count and u32 button masks | the start screen's own InitEgg (2), and the cheat codes' word layout (1): a byte view stops the generator |
+| `start_screen_egg`, the main menu's cheat code (hold L, press Z); `gEggs[0]`, cheat 0's (hold R and press Z, hold C-up and press Z): a step count and u32 button masks | the start screen's own InitEgg (2), and the cheat codes' word layout (1): a byte view stops the generator |
 
 **The files:**
 
@@ -176,7 +176,7 @@ build/pc/rush2049pc --rom build/synth/rush2049_synth.z64 --no-rom-check --headle
     --no-pak --fast --press-file tools/port/synth/race.press --until-state 0x400000:300 --seconds 75
 ```
 
-The host loop logs each change of the game's state word (`state_word_a`, gGameState), with the players, windows,
+The host loop logs each change of the game's state word (`gGameState`, gGameState), with the players, windows,
 cars, mode (gRace) and track, and the first car's position, speed and steering input. The front end, on x86-64 (Rocky) and aarch64
 (the Pi 5) alike:
 
@@ -221,7 +221,7 @@ line each second), and `windows-same` compares the two programs' logs to the bit
 | `pause` | the race paused (START), the four screens the pause menu opens (options, controls, audio, video), then quit, confirmed: the race is retired, its results and the game over screen | 0x800000 | 0.5 s |
 | `screens` | the main menu's other four options, each screen entered with A and left with B (`# visits:` checks the states 0x2000, 0x200, 0x800, 0x1000) | back on the main menu | 0.3 s |
 | `pak` | the one-player race with a fresh controller pak (`--pak`): the warning finds it, and the save code runs on it at the race's start | 0x400000, 300 frames | 0.4 s |
-| `pak4p` | four players, each with an accessory (ULTRA.md "Accessories"): fresh controller paks on 1, 2 and 4 (`--set game.pak2_file=...`), a rumble pak on 3. `# check:` runs `tools/port/pak_check.py`: the game read each port's accessory (si.c's log line), and each file is a pak with an ID of its own. The cartridge sets the pak server's prompt port (`D_8011EAE8`) to -1, as the game expects; at 0 it scanned port 1 alone | 0x400000, 300 frames: 4 players | 1.2 s |
+| `pak4p` | four players, each with an accessory (ULTRA.md "Accessories"): fresh controller paks on 1, 2 and 4 (`--set game.pak2_file=...`), a rumble pak on 3. `# check:` runs `tools/port/pak_check.py`: the game read each port's accessory (si.c's log line), and each file is a pak with an ID of its own. The cartridge sets the pak server's prompt port (`gErrPak`) to -1, as the game expects; at 0 it scanned port 1 alone | 0x400000, 300 frames: 4 players | 1.2 s |
 | `rumble2p` | two players, each with a rumble pak: the game finds both, and its rumble thread turns each player's motor on in the race (`pak_check.py --motor`, the log at `-v -v`) | 0x400000, 600 frames | 1.6 s |
 | `raceend` | the race retired from the pause screen, then _EndGame, the results, the game over screen, its Quit and back to the main menu (`# visits:` the results, the game over screen and state 4). gRace 2's time limit would end a race by itself once the car has stopped, which the cartridge's car physics doesn't do | 0x10 after the race | 0.6 s |
 | `battlequit` | two players in battle, quit from the pause screen: the race end gives each player's packet back (QA.md 5), the game over screen | 0x800000 | 7.5 s (Pi) |
@@ -232,7 +232,7 @@ line each second), and `windows-same` compares the two programs' logs to the bit
 | `demo` | no START at the prompt: the attract demo (0x8), a 30 s race of the drones, then the prompt again | 0x8, 900 frames: 6 cars | 0.3 s |
 | `solo` | one player alone on track 0 (the track select's Drones option down to 0), the gas and full right steering held from before the race begins: a race nothing on the game thread steers, for `game.frame_rate`'s physics comparison ([FRAMERATE.md](FRAMERATE.md) 7, `fps_physics`) | 0x400000, 900 frames: 1 car | 1.6 s |
 | `steer` | the one-player race on track 0 with the gas held for 45 s and full lock left and right, from 0.2 s taps to 6 s locks, as a key steers: the player report of [QA.md](QA.md) "Player reports" 1 on this cartridge, for `windows-same`'s comparison ([WINDOWS.md](WINDOWS.md) 12). The car's course here is `drive`'s: the synthetic car doesn't follow the controls, but its steering input is in the trace | 0x400000, 1350 frames: 1 player, 6 cars | 2.4 s |
-| `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: game_loop's idle overlay over the screen, which callback_init gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
+| `idle` | the front end to the mode screen, then no button for 320 s of the virtual clock: GameLoop's idle overlay over the screen, which animControllerDim gives its colour ([BRINGUP.md](BRINGUP.md) 15) | 0x40, 9600 frames | 1.9 s |
 | `mem64`, `memhigh`, `memhigh2p`, `membig`, `membig8` | `game.memory` ([MEMORY.md](MEMORY.md) 6): drive at 64 MiB; drive and race2p at 64 with everything the game allocates above 17 MiB (`# env: RUSH2049_TEST_HEAP_FLOOR=17`); drive with the car files 3 MB larger at 64, and 1 MB larger at `original`, where LoadCars falls back. `# check:` runs `tools/port/heap_check.py` on the exit line's `heap:`, and ctest compares their screenshots with drive's and race2p's byte for byte | as drive, race2p | 0.5 s |
 | `profile` | the player screen's create item and name entry (S, Y, N, END): CreatePlayer writes the profile note `SYNTH049SYN.D` on a fresh pak; `# check:` runs `tools/port/pak_notes.py` (one note, that one), then `tools/port/synth_again.py` with `again/profile2` (the next start: SaveServer lists SYN, the player picks it, LoadPlayerData reads it, a race with the fog option changed: the note changed in place) and `again/delete2` (the player screen's delete: the pak empty) | 0x40, 60 frames | 0.5 s |
 | `ghost` | a profile made as above, picked again, the ghost race (gRace 2) on track 0 backward to its finish (35.6 s), quit from the pause screen to the results and the save prompt: SaveGhost writes `SYNTH049SYN1R.T`; then `again/ghost2` (the next start reads the ghost, the race has it as a second player, players 2, and SaveGhost replaces it with the new one) | 0x800000, 60 frames | 2.5 s |
@@ -256,12 +256,12 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 
 | # | Where it stopped | Why | Kind | What was done |
 |---|---|---|---|---|
-| 1 | AudioSfxInit: `audio_helper` faults at 0xC | zero sample-cache counts: zero-entry caches overwrite the next heap block's header | data | `D_8002C5D0`, MusyX scales |
-| 2 | `_DrawText` (countdown_handler's "controller removed") faults at 0x12 | a font with no texture pages | data | font WADs and metrics |
+| 1 | AudioSfxInit: `AllocateMemory` faults at 0xC | zero sample-cache counts: zero-entry caches overwrite the next heap block's header | data | `sound_sample_blocks_per_voice`, MusyX scales |
+| 2 | `_DrawText` (DrawNoControllers's "controller removed") faults at 0x12 | a font with no texture pages | data | font WADs and metrics |
 | 3 | the renderer reads a non-canonical matrix pointer | the static display lists are zeros: the walk runs past them into other data | data | G_ENDDL in both |
 | 4 | nothing happens for ever | gGameState and gNewGameState both 0 | data | gNewGameState 1 |
-| 5 | the pak warning never ends | **image A's func_8038A400 (updateWarningScreen) had no C on the PC; the name was image B's worlddam entry, which updateFrontEnd called in state 0x40000000, and port/data had no function for image A's address** | **port bug** | compiled as updateWarningScreen (nonmatching draft); gen_data maps it and fails on such a clash; datacheck checks it. Plus the button map (data) |
-| 6 | AllocateHandleHeap: `audio_helper` faults at 0xC | **the audio manager's fx tags were allocated 80 bytes where they are 88: every effect start wrote the last tag's data pointer over the next heap block's header** | **port bug** | the audio manager's records (below) |
+| 5 | the pak warning never ends | **image A's findDamageSlot (updateWarningScreen) had no C on the PC; the name was image B's worlddam entry, which updateFrontEnd called in state 0x40000000, and port/data had no function for image A's address** | **port bug** | compiled as updateWarningScreen (nonmatching draft); gen_data maps it and fails on such a clash; datacheck checks it. Plus the button map (data) |
+| 6 | AllocateHandleHeap: `AllocateMemory` faults at 0xC | **the audio manager's fx tags were allocated 80 bytes where they are 88: every effect start wrote the last tag's data pointer over the next heap block's header** | **port bug** | the audio manager's records (below) |
 | 7 | the front end's background scroller faults at 0x10 | no texture BACKGROUND_SFX | data | the textures the C names |
 | 8 | the mode screen spins for ever | no mode valid for one player | data | the mode table |
 | 9 | ReadPathData reads past the window | 32-byte path files | data | path files |
@@ -271,37 +271,37 @@ test). Data stops are what an empty cartridge lacks; the N64 would stop at the s
 | 13 | LoadTrack faults | no WHDR in the world file | data | world, road, track WADs; gWorldNames |
 | 14 | `strlen(NULL)` matching world nodes to targets | the targets' names are zero | data | target names |
 | 15 | InitDemoPathPoint faults | no demo start points | data | the start list |
-| 16 | a smashed stack in `camera_trigger_check` | the generator's road leaf had children 0xFFFF, read as an offset into the surface lists: 255 surfaces into a 36-entry stack array (the N64 does the same) | data (the generator's) | children 0 |
-| 17 | `track_info_display` faults at 0x78 | no car physics descriptor | data | descriptor, tire curves |
-| 18 | `handbrake_apply` on a garbage node | **camera_victory read the tires' road nodes in the model record as 8-byte pointers; they are u32 window addresses** | **port bug** | VCar's u32 fields |
-| 19 | `music_seq_load` faults | gTrackColors is zero | data | colours |
-| 20 | SetupCarColor (`sound_bank_unload`) faults at 0x14 | no palette by its name | data | palettes |
+| 16 | a smashed stack in `RoadPosition` | the generator's road leaf had children 0xFFFF, read as an offset into the surface lists: 255 surfaces into a 36-entry stack array (the N64 does the same) | data (the generator's) | children 0 |
+| 17 | `carsetup` faults at 0x78 | no car physics descriptor | data | descriptor, tire curves |
+| 18 | `updownleaf` on a garbage node | **CollideCarBody read the tires' road nodes in the model record as 8-byte pointers; they are u32 window addresses** | **port bug** | VCar's u32 fields |
+| 19 | `CreateCar` faults | gTrackColors is zero | data | colours |
+| 20 | SetupCarColor (`SetupCarColor`) faults at 0x14 | no palette by its name | data | palettes |
 | 21 | `update_game_data` faults | no suspension records | data | `_tSusp` |
-| 22 | the audio manager faults in its tree insert | **the sorted-tag order (draw_sprites) read the tag and its priority at N64 offsets** | **port bug** | PC offsets |
-| 23 | the model thread faults at 0x10008 | **func_800E2D18 read the model's tune pointer as a host pointer** | **port bug** | u32 field |
-| 24 | the model thread faults | **func_800E2C70 (m2c) loaded the car and tune pointers with `*(s8 **)`** | **port bug** | PC version |
-| 25 | the model thread faults | **func_800E1500 (m2c) loaded the car pointer with `*arg0`** | **port bug** | PC version |
+| 22 | the audio manager faults in its tree insert | **the sorted-tag order (OrderFx) read the tag and its priority at N64 offsets** | **port bug** | PC offsets |
+| 23 | the model thread faults at 0x10008 | **enginetorque read the model's tune pointer as a host pointer** | **port bug** | u32 field |
+| 24 | the model thread faults | **transmission (m2c) loaded the car and tune pointers with `*(s8 **)`** | **port bug** | PC version |
+| 25 | the model thread faults | **calcaa (m2c) loaded the car pointer with `*arg0`** | **port bug** | PC version |
 | | the race runs | | | |
 | 26 | the main menu never shows | gSkipToGameState 0: every screen whose state isn't it passes on, so the start prompt and the main menu went straight to the player screen | data | 1 |
-| 27 | the main menu spins | no valid option (`while (!optionValid(i)) i++`) | data | `D_803B65E4` |
-| 28 | stunt and battle: LoadTrack (physics_collision_test) copies a NULL name | the arenas' puff textures | data | `D_80117480` |
-| 29 | stunt and battle: `effect_system_init` faults at 0x80800000 | **the walk over the player records stopped at the address of D_80156BA8, which has storage of its own on the PC: it cleared the arena to the window's end** | **port bug** | the records' end under TARGET_PC |
-| 30 | battle: `audio_helper` faults at 0x100000007 in LoadTrack | engine_sound_update writes battle's 16 power-up slots (136 bytes each) into a block of D_80117510[5] x 16 bytes, 0: over the next heap blocks' headers | data | `D_80117510[5]` |
-| 31 | battle: func_803908D0 copies a NULL name | the weapons' texture names (image B) | data | `D_80394330`, `D_80394344` |
-| 32 | the car select: sfx_stop copies a NULL name | the cars' sheens; reached once the retrace clock ran (the VI floats) | data | `D_8011B438` |
+| 27 | the main menu spins | no valid option (`while (!optionValid(i)) i++`) | data | `startscr_validOption` |
+| 28 | stunt and battle: LoadTrack (InitSmoke) copies a NULL name | the arenas' puff textures | data | `FireTexNames` |
+| 29 | stunt and battle: `InitStunt` faults at 0x80800000 | **the walk over the player records stopped at the address of last_frame_dl_end, which has storage of its own on the PC: it cleared the arena to the window's end** | **port bug** | the records' end under TARGET_PC |
+| 30 | battle: `AllocateMemory` faults at 0x100000007 in LoadTrack | SetTargetDefs writes battle's 16 power-up slots (136 bytes each) into a block of gTargetStructSizes[5] x 16 bytes, 0: over the next heap blocks' headers | data | `gTargetStructSizes[5]` |
+| 31 | battle: ShotInit copies a NULL name | the weapons' texture names (image B) | data | `MineTexNames`, `RipTexNames` |
+| 32 | the car select: SetSheen copies a NULL name | the cars' sheens; reached once the retrace clock ran (the VI floats) | data | `sheenName` |
 | 33 | battle: the race hangs (the game thread computes for ever) | UpdateBattleHealth picks a power-up with `while (slot not free) i++`: the arena had none | data | the weapon icon target and four icons per arena |
-| 34 | (with `RUSH_TRAP_FP`) display_update divides 0 by 0 | the VI mode table is zero | data | an NTSC mode, the screen size, the VI floats |
+| 34 | (with `RUSH_TRAP_FP`) video_build_adjusted_mode divides 0 by 0 | the VI mode table is zero | data | an NTSC mode, the screen size, the VI floats |
 
-| 35 | screenshots black, 320 x 220 | the picture is never shown: display_mode_tick unblacks the VI only when its computed yScale matches the mode's | data | the mode's yScale from the game's formula |
+| 35 | screenshots black, 320 x 220 | the picture is never shown: video_apply_pending_mode unblacks the VI only when its computed yScale matches the mode's | data | the mode's yScale from the game's formula |
 | 36 | (with `RUSH_TRAP_FP`, the projection) 0.5 / tan(fov / 2) divides by 0 | tanf's constants; then sinf and cosf (guPerspective), atan | data | the math constants, computed |
-| 37 | every car's position is NaN from the first physics step | gravity 0: mass 0, and func_800E1540 divides 0 by 0 | data | the gravity factors, the cars' masses and tunes |
-| 38 | the car-car collision (menu_options_screen) and the push (menu_load_options) divide 0 by 0 | no weights; the push's constants | data | weights, push constants |
-| 39 | (looking for 37) | **the cars' masses D_80110DD8, the tunes D_801116D0 and D_801117B4 are indexed past their one-element declarations, so the loader converted only the first element and left the others in the ROM's byte order** | **port bug** | declarations of their size, an extent; `index_check` |
+| 37 | every car's position is NaN from the first physics step | gravity 0: mass 0, and accelerations divides 0 by 0 | data | the gravity factors, the cars' masses and tunes |
+| 38 | the car-car collision (setFBCollisionForce) and the push (ForceApart) divide 0 by 0 | no weights; the push's constants | data | weights, push constants |
+| 39 | (looking for 37) | **the cars' masses gCarMass, the tunes gTune and gCircuitDiff are indexed past their one-element declarations, so the loader converted only the first element and left the others in the ROM's byte order** | **port bug** | declarations of their size, an extent; `index_check` |
 | | the cars drive without NaN (they fall: the road has no surfaces) | | | |
 | | the cars fall for ever | no road surface under the tires: every lookup misses | data | the flat pavement |
 | 40 | (with models) SetupWaveModel faults in the vertex chain walk at 0x6 | **the generator's**: the models shared one display list, which each model's relocation moved again | data (the generator's) | lists of their own |
-| 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `D_80116D14` |
-| 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `D_80110030` |
+| 41 | the pause screen's options screen spins | no valid option (`while (!valid[i]) i++`) | data | `options_validOption` |
+| 42 | the pause screen's audio screen copies a NULL name | gSongNames; and its declaration ran by the gap to 131 pointers (the loader would have made the 119 words after the 12 names pointer slots), so `extents.txt` gives it 12 | data; extent | `gSongNames` |
 | 43 | gRace 2's car, then the 3- and 4-player races' and battle's first car, go NaN | update_drone_models walked off its zero schedule, then (with a schedule) row n + 7 for two humans or more asked for drones that weren't there and updated the players' cars with a time step of 0 | data | `D_80120E74` |
 
 Stops 26-34 came with the paths of section 2 (`--fast`, the virtual clock, makes each a second's run), 35-39 with
@@ -317,41 +317,41 @@ All game-C changes are `TARGET_PC` types, macros or function versions at file sc
 1. **Two functions at 0x8038A400** (stop 5). Both runtime images have one. Image A's (updateWarningScreen@warningscr.c)
    had only a draft in `nonmatching/ovl_a`, so on the PC the shared name was image B's, and the front end's warning
    state called image B's code. The draft is compiled as `updateWarningScreen` (its statics are the arena's
-   `D_803B839C`/`D_803B83A0`, which drawWarningScreen reads); input_aux_handler calls it; gen_data maps image A's
+   `gPakScr`/`num_paks_found`, which drawWarningScreen reads); updateFrontEnd calls it; gen_data maps image A's
    address to it (`IMAGE_RENAMED`) and now fails the build on such a clash instead of listing it. Test:
    `pc_data_synthetic` (datacheck) checks each image has a function of its own at 0x8038A400.
 2. **The audio manager's records** (stop 6; layout agent's area, fixed here because it blocked the boot). On the PC
    an fx tag (`tFxSequence`) is 88 bytes, a command (`tAudioMsg`) 32, a sequence 72, an emitter 56, a sorted-tag node
    24. AudioInit allocated the fx tags at 80 and the tag nodes at 12; the command allocator and AudioShutdown stepped
    the command table at 24; nine views read the records at N64 offsets (`entity_lookup`, `entity_helpers`,
-   `transform` (whose change command put its floats at +8), `engine_sound_sync`, `ap.c`, `record_score`,
-   `results_time_display`, the sequences in `car_stats_display`, `game_timer_pause`, `func_800D18D8`,
-   `entity_flag_check`, the emitter pop in `func_800AED20`). Tests: `assets_sound` runs AudioInit, two effect
+   `transform` (whose change command put its floats at +8), `ProcessEmitters`, `ap.c`, `record_score`,
+   `AudEffectPlaying`, the sequences in `AudPlaySequence`, `stop_sequence`, `NewSequence`,
+   `FreeSequence`, the emitter pop in `NewEmitter`). Tests: `assets_sound` runs AudioInit, two effect
    starts, the command table and a sequence on the game's code; `views_sound_{fxtag,sequence,emitter,commands}`
    compare every live view by DWARF (`view_check.py`).
-3. **IDO varargs** (found with 2). `car_stats_display` (AudioPlaySequence) defined IDO's `va_list` (a walk over the o32
+3. **IDO varargs** (found with 2). `AudPlaySequence` (AudioPlaySequence) defined IDO's `va_list` (a walk over the o32
    stack after the last named argument); on a host ABI the arguments are in registers, so a sequence's ids were
    garbage. It uses the compiler's on the PC. Test: `assets_sound`.
 4. **A busy-wait** (found with 2). AudioShutdown waits for the audio manager to take every command without yielding:
    on the PC's one-thread-at-a-time scheduler that would hang. `PC_SPIN`.
-5. **The sorted-tag order** (stop 22): `draw_sprites`, m2c, at N64 offsets. Test: `assets_sound`.
-6. **The model record's pointer fields** (stops 18, 23-25): `camera_victory`, `func_800E2D18`, `func_800E2C70`,
-   `func_800E1500`. The record keeps its N64 layout (CARS.md 2.2). Tests: `assets_model` (the three physics functions
-   on a record in the window), `views_model_road` (camera_victory and entity_update against tModelData).
-7. **A walk bounded by the next symbol** (stop 29). `effect_system_init` clears the player records D_801569B8 four
-   0x7C-byte records at a time `while (p != &D_80156BA8)`, the symbol after them on the N64. With pointers in it,
-   D_80156BA8 has storage of its own on the PC, so the walk never met it. Under TARGET_PC its name means the records'
+5. **The sorted-tag order** (stop 22): `OrderFx`, m2c, at N64 offsets. Test: `assets_sound`.
+6. **The model record's pointer fields** (stops 18, 23-25): `CollideCarBody`, `enginetorque`, `transmission`,
+   `calcaa`. The record keeps its N64 layout (CARS.md 2.2). Tests: `assets_model` (the three physics functions
+   on a record in the window), `views_model_road` (CollideCarBody and TireSurf against tModelData).
+7. **A walk bounded by the next symbol** (stop 29). `InitStunt` clears the player records gStuntInfo four
+   0x7C-byte records at a time `while (p != &last_frame_dl_end)`, the symbol after them on the N64. With pointers in it,
+   last_frame_dl_end has storage of its own on the PC, so the walk never met it. Under TARGET_PC its name means the records'
    end. Test: `assets_effects` runs the function on records with a guard after them. The same kind of walk in
-   `ambient_sounds_clear` (D_80114628 to D_80114638) ended only because both have own storage, in address order and
+   `removeBG` (backPolys to bg_texture) ended only because both have own storage, in address order and
    adjacent (gen_data's order), which an optimized build's compiler didn't keep: it now ends at the handles' end
-   under TARGET_PC too ([OPTIMIZED.md](OPTIMIZED.md) 2.2); `sound_handles_clear` has a PC version.
+   under TARGET_PC too ([OPTIMIZED.md](OPTIMIZED.md) 2.2); `RemovePanes` has a PC version.
 8. **Tables indexed past their declaration** (stop 39). m2c declared the car type's mass as one `f32` and indexes it,
-   `(&D_80110DD8)[type]`, and the same for the three car tunes (`((F2C *)&D_801116D4)[tune]`, D_801116D0 declared as
-   one Tune44) and D_801117B4 (`(&D_801117B4)[arg0]`, s32). The loader converts each symbol by its declaration over
+   `(&gCarMass)[type]`, and the same for the three car tunes (`((F2C *)&gTune_weight_scale)[tune]`, gTune declared as
+   one Tune44) and gCircuitDiff (`(&gCircuitDiff)[arg0]`, s32). The loader converts each symbol by its declaration over
    its extent and copies the bytes no symbol covers as they are, so on the ROM 12 of the 13 masses, two of the three
    tunes and three of the four words would have read back byte-swapped. Under TARGET_PC the two scalars are declared
-   as the tables they are (`extern f32 D_80110DD8[13]; #define D_80110DD8 D_80110DD8[0]`, so the code reads as
-   before), and `extents.txt` gives D_801116D0 its three records. Test: ctest `index_check`
+   as the tables they are (`extern f32 gCarMass[13]; #define gCarMass gCarMass[0]`, so the code reads as
+   before), and `extents.txt` gives gTune its three records. Test: ctest `index_check`
    (`tools/port/index_check.py`) lists every initialized symbol the C indexes past a scalar whose extent in the data
    report is one element with bytes no symbol covers after it: there were these three, and it fails on a new one.
 
@@ -363,7 +363,7 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - **Data reached only through pointers.** The loader swaps what declarations describe. A table that initialized data
   points at, but no C declares, keeps the ROM's byte order: right for strings and byte tables, wrong for anything
   wider. The cartridge has some (the demo start points, s16, kept 0; the colours, bytes; the strings), and the race
-  needed more that real data has: the car descriptors (CARS.md puts them inside `D_801108C8`, an f32 array, which
+  needed more that real data has: the car descriptors (CARS.md puts them inside `steady_leg_duration`, an f32 array, which
   would make them right), their tire curves and the suspension records (where in the ROM is unknown). The loader's
   report lists every such pointer as `undescribed` (`PC_DATA_REPORT`, default `build/pc/data_report.txt`): with the
   ROM, read that list for tables of 16- or 32-bit values and give each a declaration or an `extents.txt` size.
@@ -381,7 +381,7 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
   log's car position for NaN first (`synth_paths.py` fails on it).
 - **The views of the model and car records.** The races here ran with one flat surface and a few targets, so the
   collision with walls, most targets, the cameras' special cases and the HUD's lookups ran little. CARS.md's audits
-  missed two views found here (`camera_victory`, `func_800E2D18`) and two m2c readers; the flow-based layout check
+  missed two views found here (`CollideCarBody`, `enginetorque`) and two m2c readers; the flow-based layout check
   ([LAYOUT.md](LAYOUT.md)) finds each of them when its fix is reverted, and found one more (the brake lights'
   car slot, LAYOUT.md 4.4); what it can't follow is in its section 8.
 - **Sound.** The cartridge has no sounds and no songs: the sequencer, the voices and sample DMA did not run (MUSYX_DATA.md

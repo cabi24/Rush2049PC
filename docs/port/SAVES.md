@@ -124,7 +124,7 @@ natively compiled libultra writes them.
   PFS_EOF in the inode table, its checksum, the backup copy. More than 16 notes or 123 pages is refused.
 - **The status byte is kept.** `osPfsAllocateFile` doesn't set it (it is whatever its stack held), and
   `osPfsReadWriteFile` sets bit 1 (DIR_STATUS_OCCUPIED) at a note's first write and reads only a note that has it
-  (`src/rom/lib_b9f0.c`). An imported ghost gets the bit on the pak.
+  (`src/rom/libultra/pfsreadwritefile.c`). An imported ghost gets the bit on the pak.
 
 ### 4.2 The save file: `.r49save`, `.r49ghost`, `.r49note`
 
@@ -160,7 +160,7 @@ the note's own (`pc_note_info`), and a header whose kind disagrees with its note
 version is the note's game and company codes in the directory entry (`NRUE`, `5D`) and its ghost revision (17).
 
 **What the note's bytes say.** The game's notes have game code 0x4E525545 and company 0x3544 (`group.c`'s
-`PS_CreateFile`). A ghost is one whose byte 4 is 17 and whose header checksum (the save code's `format_string_parse`,
+`PS_CreateFile`). A ghost is one whose byte 4 is 17 and whose header checksum (the save code's `CalcChecksumInternal`,
 `pc_save_hash`, over +4..+0x44) is right; a profile one of at least 2,064 bytes whose byte 12 is 16 and whose first
 block's checksum (over +4..+28) is right ([POINTERS.md](POINTERS.md) 9.10). No ROM string is needed: the extensions
 and names the game gives its notes are the cartridge's and are never written in the port's code.
@@ -173,12 +173,12 @@ A ghost file is someone else's: before it goes on a pak, everything the game wil
 |---|---|
 | the PC header: magic, version, header size, the pages' size and the file's agree, CRC-32, byte order, kind, slot | a damaged or foreign file |
 | the game's codes, kind ghost | only ghosts are imported (a "ghost" with a profile's extension would be read as a profile) |
-| revision 17, the header's checksum | the game's own check (`draw_ui_element`) |
+| revision 17, the header's checksum | the game's own check (`CheckAndRepairGhost`) |
 | track 0-5, way 0-1, car 0-12 | GhostStart indexes the car tables (`[5][13]`) and the profile's track records by them |
 | frame time in (0, 0.1] s, race time finite in [0, 36000) | the replay's step and the ghost list's order |
 | zipped size 1 to the note's room, its checksum | the game's own check over the data |
 | unzipped size a whole number of 3-byte frames, 1 to 72,000 frames (20 minutes) | the decode buffer is allocated from it |
-| the samples inflated (raw deflate, as `inflate_entry_alt`) to exactly the unzipped size, and that checksum | `inflate_entry_alt` has no output bound on the PC but the RDRAM window's end: a stream longer than the header says would run on through the game's heap |
+| the samples inflated (raw deflate, as `unzipdata`) to exactly the unzipped size, and that checksum | `unzipdata` has no output bound on the PC but the RDRAM window's end: a stream longer than the header says would run on through the game's heap |
 
 The same check runs on every ghost file in the folder itself and on the backup put back for one (`pakstore.c`'s
 `read_note`; `ghost.py` the same): a ghost dropped beside the others, not into `import/`, is someone else's too. One
@@ -191,7 +191,7 @@ car setup screen's tables, which are the cartridge's.
 
 ## 5. What is on the pak the game sees
 
-The game's own structures hold 16 notes and 123 pages a pak, 64 file records (`D_80144DC0`) and 64 ghost records
+The game's own structures hold 16 notes and 123 pages a pak, 64 file records (`pak_file_records`) and 64 ghost records
 (`_NewGhost`) over the four paks (POINTERS.md 9.10, CASTS.md); a folder holds any number. `choose` in `pakstore.c`
 fills the pak, in this order, each note only while it fits and only one of each note name (two of one name can't be
 on one pak):
@@ -215,7 +215,7 @@ and time from its header, not its name. An online session builds the player's pa
 the names are read from the cartridge's data image then (`saves_game_names_early`, `pc_data_peek`), so an import has
 them on the session's pak too ([NETPLAY.md](NETPLAY.md) 17.6).
 
-**A foreign ghost races as the player's own.** The track select's ghost choice (`func_803A0498`, overlay A) takes
+**A foreign ghost races as the player's own.** The track select's ghost choice (`setGhosts`, overlay A) takes
 the ghosts of the track and way from every pak, the player's own best first and then the nearest times around it, or
 the fastest when the player has none; the player cycles them with the options. Nothing about a ghost's owner is
 checked there.
@@ -228,11 +228,11 @@ is never changed under the game: the pak is taken out and put back, as a player 
 handed to the writer and written, the pak out at once, built again, in after the game's next poll of every port
 found it empty; ULTRA.md 3 "Hot swaps").
 
-**When.** Taking a pak out frees its records (`audio_volume_pan`, the files' RemoveFile): a profile a player is on is
-taken off the player (`input_rec0[i].handle = 0`), and a ghost chosen for the next race leaves a stale handle in
+**When.** Taking a pak out frees its records (`RemovePlayerFile`, the files' RemoveFile): a profile a player is on is
+taken off the player (`gPlayers[i].handle = 0`), and a ghost chosen for the next race leaves a stale handle in
 `gGhosts`. So si.c swaps only when main's `swap_safe` says so, at a flush (once a second): the game at its start
 prompt, "press start" or main menu (gGameState 2, 4, 0x10), no player on a saved profile (each input record's profile
-handle one of the default profiles, `&D_80146150[k]`) and no ghost chosen (`D_80152698` empty). Until then the change
+handle one of the default profiles, `&gJustPlayers[k]`) and no ghost chosen (`gGhosts` empty). Until then the change
 waits, at most until the next start, where the pak is built with it. The Saves page says so ("the pak changes at the
 title or next start"). A note deleted from the page while it is on the pak stays on until then (the game still has
 it), and goes to `trash/` at the swap.
@@ -268,16 +268,16 @@ back byte for byte (`ultra_pakstore` checks one).
 ### 7.1 The ghost save prompt (`game.ghost_prompt`)
 
 2026-11-05 (`port/config/ghost_prompt.c`, `pc_ghost_prompt.h`). The cartridge writes a ghost to a controller pak only
-through its save prompt after a ghost race (high score state 4, `func_800F1930`: pick a pak, save or not), and opens
-the prompt only when `D_801148E4` is set, which LoadPlayerData (`func_800CCEFC`) does only for a profile named as the
-cartridge's developer code (`D_801211CC`, `menu_save_options/group.c:335-342`, with the cheat screen). Any other
+through its save prompt after a ghost race (high score state 4, `ControlGhost`: pick a pak, save or not), and opens
+the prompt only when `gSaveGhostFiles` is set, which LoadPlayerData (`ReadPlayerData`) does only for a profile named as the
+cartridge's developer code (`cheat_profile_name`, `save/group.c:335-342`, with the cheat screen). Any other
 profile's ghost stays in memory for the session (SaveGhost's limbo), so with `game.saves = files` a player's own
 ghost races made no files ([QA.md](QA.md) "Not bugs": the cartridge's behaviour, checked in its code and ROM).
 
-- **With it on**, `billboard_render`'s test of the flag (`billboard_render.c:121`, `PC_GHOST_PROMPT`: the original
+- **With it on**, `updateHighScoreScreen`'s test of the flag (`updateHighScoreScreen.c:121`, `PC_GHOST_PROMPT`: the original
   tokens on the N64) takes it as set, so every profile gets the prompt; the name's other unlocks (the cheat screen,
   which `game.cheats_menu` gives on its own, [FRONTEND.md](FRONTEND.md) "The cheat screen in the main menu";
-  `D_801164A4[14-16]`) don't change. The prompt is the cartridge's own: its pak choice, save, overwrite and don't
+  `gCheatState[14-16]`) don't change. The prompt is the cartridge's own: its pak choice, save, overwrite and don't
   save. With `saves = files` the ghost it saves is a `.r49ghost` in the player's folder (2); with `pak`, a note on the
   `.mpk`. F1 > Game > Ghost save prompt sets it from the next race's end.
 - **Only a finished race**: the prompt comes when GhostEnd kept the ghost, which it does only for a car that finished
@@ -375,9 +375,9 @@ A ghost made by the retail game itself and a race of the retail game's own ghost
 
 - **A ghost the retail game saves.** On the retail cartridge no scripted ghost race was run to its finish (the
   scripted car doesn't drive three laps there), so SaveGhost's write into a folder ran on the synthetic cartridge only
-  (`saves_files`' game scenario). There the game's save prompt after a ghost race (`func_800F1930`) opens only for a
-  profile whose name is the game's `D_801211CC` (LoadPlayerData sets `D_801148E4`); for any other profile
-  `billboard_render` keeps the new ghost in memory (SaveGhost's "limbo", `func_800CB748`), which no code writes to a
+  (`saves_files`' game scenario). There the game's save prompt after a ghost race (`ControlGhost`) opens only for a
+  profile whose name is the game's `cheat_profile_name` (LoadPlayerData sets `gSaveGhostFiles`); for any other profile
+  `updateHighScoreScreen` keeps the new ghost in memory (SaveGhost's "limbo", `SaveGhostInLimbo`), which no code writes to a
   pak (QA.md "Not bugs"); `game.ghost_prompt` (7.1) gives every profile the prompt.
 - **The car settings** of an imported ghost (handling, engine, colours, tire scales) are checked by its header's
   checksum only; their ranges are the car setup screen's tables, which are the cartridge's (4.3).

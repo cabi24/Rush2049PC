@@ -41,7 +41,7 @@ void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
 
 /* game.memory's window past 16 MiB (docs/port/MEMORY.md 3), where a physical address would read as a segmented one:
- * the display-list relocations (entity_lod_select, entity_cull_check) give the K0 address there (pc_rcp_reloc: the
+ * the display-list relocations (relocate_model_dl, relocate_texture_loads) give the K0 address there (pc_rcp_reloc: the
  * N64's `((w1 + base) & 0xFFFFFF) | segment` below), and display_list_traverse and the MusyX library's RAM test take
  * such a K0 address as the RAM address it is (pc_rdram_k0_high). At game.memory = original each is the N64's rule. */
 unsigned int pc_rcp_reloc(unsigned int w1, unsigned int base, int seg);
@@ -82,11 +82,11 @@ static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
 
 /* The 32-bit N64 address a pointer stands for where the game keeps one as a number, an id (port/ultra/statehash.c):
  * a window pointer's own, own storage's its symbol's N64 address and offset as on the N64, else the low half (as
- * PC_N64A). A profile's id is its handle's (menu_save_options/group.c), and the handles are own storage: cut to 32
+ * PC_N64A). A profile's id is its handle's (save/group.c), and the handles are own storage: cut to 32
  * bits it was the process's own (ASLR), in the pak's saves and the game's memory (docs/port/LOCKSTEP.md 5). */
 unsigned int pc_n64_identity(const void *p);
 
-/* A heap handle's slot (AllocateHandleHeap, audio_heap/group.c) is 8 bytes on the PC and holds its block's host
+/* A heap handle's slot (AllocateHandleHeap, memsys/group.c) is 8 bytes on the PC and holds its block's host
  * pointer, which the game reads through the handle (`*(u8 **)h`, docs/port/POINTERS.md 9.10); the heap and a few
  * readers take the slot as the N64's u32 instead. PC_SLOT_N64(s) is the N64 address the slot at host address s holds,
  * PC_SLOT_SET(s, a) stores N64 address a's pointer in it. With the window at 0x80000000 the pointer is that address
@@ -136,7 +136,7 @@ void pc_os_idle(void);
 /* A car visual (tVisual: N64 0x18 bytes, PC 0x20), struct pc_visual, is declared with the car record in
  * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 
-/* NewMultiBlit's descriptor (sound_control; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
+/* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
  * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it
  * with this one on the PC, so the data loader gives the table its PC layout (docs/port/BRINGUP.md 1). */
 struct pc_multiblit {
@@ -147,7 +147,7 @@ struct pc_multiblit {
     unsigned int animid;
 };
 
-/* The car record (player_array, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
+/* The car record (gGameCar, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
  * from +0x110 to N64 +0x308, and its input record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of
  * N64 offset n, which may run into the next cars (CAR_OFS(0x3B8) is the PC stride). Code that reaches cars by raw
  * offsets goes through it. */
@@ -162,7 +162,7 @@ struct pc_multiblit {
 /* The save records (docs/port/POINTERS.md 9.10). Each is RAM-only and starts with pointers, so on the PC the rest
  * of it is later; X_OFS(n) is the PC offset of N64 offset n, for code that reaches the record by raw offsets (the
  * N64 size gives the PC size, as CAR_OFS does).
- * - The pak file record (paksys' tPS_File, D_80144DC0[64]; N64 76 bytes, PC 96): next, prev, RemoveFile and
+ * - The pak file record (paksys' tPS_File, pak_file_records[64]; N64 76 bytes, PC 96): next, prev, RemoveFile and
  *   MoveFile at +0/4/8/12 are pointers, then pak, fileNo, name[35], ext[11], size, blocks and the data handle. */
 #define PC_PSFILE_SIZE 96
 #define PC_PSFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) < 16 ? (r) + 12 : (r) + 16)
@@ -172,13 +172,13 @@ struct pc_multiblit {
 #define PC_PROFILE_SIZE 64
 #define PC_PROFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) + 12)
 #define PROFILE_OFS(n) ((n) / 48 * PC_PROFILE_SIZE + PC_PROFILE_REL((n) % 48))
-/* - A ghost (menu_save_options' Ghost; N64 0x2C bytes, PC 64): the link and the file handle at +0/4, the data and
+/* - A ghost (SaveInit' Ghost; N64 0x2C bytes, PC 64): the link and the file handle at +0/4, the data and
  *   header handles at +0x24/0x28. */
 #define PC_GHOST_SIZE 64
 #define PC_GHOST_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 0x24 ? (r) + 8 : (r) < 0x28 ? (r) + 12 : (r) + 16)
 #define GHOST_OFS(n) ((n) / 0x2C * PC_GHOST_SIZE + PC_GHOST_REL((n) % 0x2C))
 
-/* The target info table (D_80117530, MAT3 targetInfo, 122 entries) is 0x40 bytes an entry on the PC, 0x30 on the
+/* The target info table (targetInfo, MAT3 targetInfo, 122 entries) is 0x40 bytes an entry on the PC, 0x30 on the
  * N64: its first four words are pointers (the name, the model file, the start function and the visual's function),
  * so everything after them is 0x10 further on. TINFO_OFS(n) is the PC offset of N64 offset n (TINFO_OFS(0x30) is
  * the stride; docs/port/POINTERS.md 10). */

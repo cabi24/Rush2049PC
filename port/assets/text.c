@@ -6,14 +6,14 @@
  *   2 taba    u32[n] string offsets        5 tab2b  u32[n] string offsets
  * pc_assets_text swaps the counts and tables in place; the strings are bytes.
  *
- * The game's _AdjustTextWavePointers (func_800A4E58, groups/slot_sound) then fills the text header gText
- * (D_8017A4E0). On the N64 it writes base + offset into each 4-byte offset slot and points the header at the
+ * The game's _AdjustTextWavePointers (AdjustTextWavePointers, groups/slot_sound) then fills the text header gText
+ * (gText). On the N64 it writes base + offset into each 4-byte offset slot and points the header at the
  * slots, which a host pointer doesn't fit. Its PC version asks pc_text_strings for a native char * table per
  * offset section instead, and the file keeps its offsets. The game's readers index the header's tables as
  * char ** (their PC views use host strides, ASSETS.md §4 #15).
  *
- * The language switch (func_800A510C) reads the new bank with ReplaceWave, through _ReadWave into the same
- * block, so it is converted here again; then it runs func_800A4E58 again, which rebuilds the tables. */
+ * The language switch (LoadTextWave) reads the new bank with ReplaceWave, through _ReadWave into the same
+ * block, so it is converted here again; then it runs AdjustTextWavePointers again, which rebuilds the tables. */
 #include <stdio.h>
 #include <stdlib.h>
 

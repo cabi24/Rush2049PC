@@ -1,11 +1,11 @@
-/* port/assets/tests/test_carscr.c: runtime image A's func_803A44FC (animText@carscr.c, with animButtonText inlined),
+/* port/assets/tests/test_carscr.c: runtime image A's carscr_animText (animText@carscr.c, with animButtonText inlined),
  * the car-select screen's per-player text, from its draft in nonmatching/ovl_a. It reaches the records the front end
  * builds in their PC layouts: the input records (80 bytes, the profile handle at +0x48), the profiles and the ghost
  * records through their handles (pointer fields host-sized), the text bank's three string tables (ModelTables: +8,
  * +0x18, +0x20) and the car-select slots (64 bytes, N64 layout). Player 1 and records past the first are used, so an
  * N64 stride or offset lands somewhere else. The test stands in for the text and projection functions and records
  * what is drawn where.
- * game: nonmatching/ovl_a/func_803A44FC.c
+ * game: nonmatching/ovl_a/carscr_animText.c
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -35,19 +35,19 @@ static uint16_t g_indices[16];
 struct {
     uint16_t count0; char **ptrs0; uint16_t count1, count2; uint16_t *data1; char **ptrs2;
     uint16_t count3, count4, count5; uint16_t *data3, *data4; char **ptrs5;
-} countdown_state = {.count0 = 300, .ptrs0 = g_single, .count1 = 16, .data1 = g_indices, .ptrs2 = g_indexed};
-int16_t D_8014A108, D_80151AD0, D_803B28B0[4];
-int32_t D_8014A110, D_803B9B90[4], D_803BA050[4], D_803BA060[4][19], D_803AF980, D_801146AC[4];
-Player D_8014A118[4];
-uint8_t D_80150B70[4 * 152];                   /* Camera[]: 152 bytes */
-Slot D_803AF9A8[4][44];
-float D_803B25AC = 2.0f, D_803B25C0 = 300.0f;
-int8_t D_803BA028[4], D_803BA00C, D_803B9FD0[4], gCarTeam[4];
-Record **D_80152698[4];
-uint32_t D_801146BC, D_801146C0;
-char *D_80110D70[8];
-int8_t D_80110E78[5][13], D_8011103C[5][13], D_80111080[5][13], D_8011119C[5][13], D_80111230[5][13];
-int8_t D_8011128C[5][13], D_8011157C[5][13], D_801115C0[5][13];
+} gText = {.count0 = 300, .ptrs0 = g_single, .count1 = 16, .data1 = g_indices, .ptrs2 = g_indexed};
+int16_t gNumPlayers, gNumWindows, gCarSheen[4];
+int32_t gRace, carscr_buttonsInited[4], carscr_gNumOptions[4], carscr_gOpts[4][19], ghosts_enabled, playerTextColor[4];
+Player gPlayers[4];
+uint8_t gCamera[4 * 152];                   /* Camera[]: 152 bytes */
+Slot carscr_buttonInfo[4][44];
+float carscr_gButtonScale = 2.0f, carscr_buttonZ = 300.0f;
+int8_t gCarLocked[4], gNumGhosts, gThisCar[4], gCarTeam[4];
+Record **gGhosts[4];
+uint32_t flashColors, flashColors_at_1;
+char *CarTitles[8];
+int8_t gCarTrans[5][13], gCarHandling[5][13], gCarEngines[5][13], gCarTires[5][13], gCarFrame[5][13];
+int8_t gCarWings[5][13], gTireRims[5][13], gCarHorn[5][13];
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
@@ -61,46 +61,46 @@ static Call *record(char what)
     c->what = what, c->color = g_color;
     return c;
 }
-void render_helper(float depth) { record('R')->a = (int32_t)depth; }
-int32_t object_create(int32_t font) { record('F')->a = font; return 0; }
-void dispatch_handler(int32_t color) { g_color = color; }
-void func_800B669C(int32_t h, int32_t v) { record('J')->a = h * 10 + v; }
+void HAL_SetTextDepth(float depth) { record('R')->a = (int32_t)depth; }
+int32_t HAL_SetFont(int32_t font) { record('F')->a = font; return 0; }
+void TB_SetTextColor(int32_t color) { g_color = color; }
+void TB_SetJust(int32_t h, int32_t v) { record('J')->a = h * 10 + v; }
 static void *g_views[16];
 static int g_nviews;
 /* The projection: screen x, y from the position's x, y, plus the player's index x 1000 on x. */
-void brake_light_update(int32_t idx, float *pos, void *view, float *vout, int16_t *sout)
+void ZOID_ProjectWindow(int32_t idx, float *pos, void *view, float *vout, int16_t *sout)
 {
     g_views[g_nviews++ & 15] = view;
     sout[0] = (int16_t)(pos[0] + 1000 * idx), sout[1] = (int16_t)pos[1];
 }
-int16_t sound_pitch_diff_halved(void *s, int16_t x) { return (int16_t)(x - (int16_t)strlen(s)); }   /* centred */
-int16_t object_bytes_sum_global(void) { return 9; }
-void state_utility(int16_t x, int16_t y, void *text)
+int16_t TB_CenterText(void *s, int16_t x) { return (int16_t)(x - (int16_t)strlen(s)); }   /* centred */
+int16_t TB_GetFontLineHeight(void) { return 9; }
+void TB_DrawText(int16_t x, int16_t y, void *text)
 {
     Call *c = record('T');
     c->a = x, c->b = y;
     strncpy(c->text, text, sizeof c->text - 1);
 }
-void fcvt_wrapper(char *out, const char *fmt, ...)
+void TB_Sprintf(char *out, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
     vsprintf(out, fmt, ap);
     va_end(ap);
 }
-void music_fade(int16_t x, int16_t y, int16_t w, void *text)
+void TB_DrawEllipseText(int16_t x, int16_t y, int16_t w, void *text)
 {
     Call *c = record('E');
     c->a = x, c->b = y, c->c = w;
     strncpy(c->text, text, sizeof c->text - 1);
 }
-void func_800ED66C(float alpha) { record('A')->a = (int32_t)alpha; }
-void func_800F6928(float depth) { record('Z')->a = (int32_t)depth; }
+void HAL_SetTextTranslucency(float alpha) { record('A')->a = (int32_t)alpha; }
+void HAL_SetMenuTextDepth(float depth) { record('Z')->a = (int32_t)depth; }
 static uint32_t g_flash[2];
-void func_800BEA3C(uint32_t first, uint32_t second) { g_flash[0] = first, g_flash[1] = second; }
-uint8_t *func_800BE6A4(uint8_t *dst, uint8_t *src) { return (uint8_t *)strcpy((char *)dst, (char *)src); }
+void TB_FlashTextColors(uint32_t first, uint32_t second) { g_flash[0] = first, g_flash[1] = second; }
+uint8_t *TB_Strcpy(uint8_t *dst, uint8_t *src) { return (uint8_t *)strcpy((char *)dst, (char *)src); }
 
-int32_t func_803A44FC(void *blt);
+int32_t carscr_animText(void *blt);
 
 /* ---------------------------------------------------------------- tests */
 
@@ -122,8 +122,8 @@ static void setup(void)
     for (int i = 0; i < 4; i++) {
         strcpy(g_profiles[i].name, names[i]);
         g_profile_ptrs[i] = &g_profiles[i];
-        D_8014A118[i].owner = &g_profile_ptrs[i];
-        D_801146AC[i] = 30 + i;
+        gPlayers[i].owner = &g_profile_ptrs[i];
+        playerTextColor[i] = 30 + i;
     }
     g_single[31] = "PLAYERS", g_single[151] = "WAITING FOR", g_single[224] = "NO GHOST", g_single[225] = "NO TIMES";
     for (int i = 0; i < 100; i++) {
@@ -132,24 +132,24 @@ static void setup(void)
         g_indexed[i] = buf[i];
     }
     g_indices[2] = 0, g_indices[3] = 40, g_indices[15] = 90;
-    D_80110D70[3] = "RUSHER";
-    D_803B9FD0[1] = 3;
-    D_803B28B0[1] = 4;
+    CarTitles[3] = "RUSHER";
+    gThisCar[1] = 3;
+    gCarSheen[1] = 4;
     strcpy(g_ghost.name, "GHOSTY");
     g_ghost.time = 83.25f;                       /* 1:23.250 */
-    D_801146BC = 0x11223344, D_801146C0 = 0x55667788;
+    flashColors = 0x11223344, flashColors_at_1 = 0x55667788;
     /* player 1's slots: the button at 38, options 0, 15 and 16 with their values at +19 */
-    D_803AF9A8[1][38].position[0] = 10, D_803AF9A8[1][38].position[1] = 20;
-    D_803AF9A8[0][38].position[0] = 5, D_803AF9A8[0][38].position[1] = 60;
-    D_803AF9A8[1][0].angle = 0.1f, D_803AF9A8[1][0].alpha = 200, D_803AF9A8[1][0].position[2] = 50.0f;
-    D_803AF9A8[1][0].position[0] = 100, D_803AF9A8[1][0].position[1] = 70;
-    D_803AF9A8[1][19].position[0] = 200, D_803AF9A8[1][19].position[1] = 70;
-    D_803AF9A8[1][15].angle = 2.0f, D_803AF9A8[1][15].alpha = 200;      /* turned away: skipped */
-    D_803AF9A8[1][16].angle = 3.0f, D_803AF9A8[1][16].alpha = 100, D_803AF9A8[1][16].position[2] = 40.0f;
-    D_803AF9A8[1][16].position[0] = 120, D_803AF9A8[1][16].position[1] = 90;
-    D_803AF9A8[1][35].position[0] = 220, D_803AF9A8[1][35].position[1] = 90;
-    D_803BA050[1] = 3;
-    D_803BA060[1][0] = 0, D_803BA060[1][1] = 15, D_803BA060[1][2] = 16;
+    carscr_buttonInfo[1][38].position[0] = 10, carscr_buttonInfo[1][38].position[1] = 20;
+    carscr_buttonInfo[0][38].position[0] = 5, carscr_buttonInfo[0][38].position[1] = 60;
+    carscr_buttonInfo[1][0].angle = 0.1f, carscr_buttonInfo[1][0].alpha = 200, carscr_buttonInfo[1][0].position[2] = 50.0f;
+    carscr_buttonInfo[1][0].position[0] = 100, carscr_buttonInfo[1][0].position[1] = 70;
+    carscr_buttonInfo[1][19].position[0] = 200, carscr_buttonInfo[1][19].position[1] = 70;
+    carscr_buttonInfo[1][15].angle = 2.0f, carscr_buttonInfo[1][15].alpha = 200;      /* turned away: skipped */
+    carscr_buttonInfo[1][16].angle = 3.0f, carscr_buttonInfo[1][16].alpha = 100, carscr_buttonInfo[1][16].position[2] = 40.0f;
+    carscr_buttonInfo[1][16].position[0] = 120, carscr_buttonInfo[1][16].position[1] = 90;
+    carscr_buttonInfo[1][35].position[0] = 220, carscr_buttonInfo[1][35].position[1] = 90;
+    carscr_gNumOptions[1] = 3;
+    carscr_gOpts[1][0] = 0, carscr_gOpts[1][1] = 15, carscr_gOpts[1][2] = 16;
 }
 
 /* Player 1 choosing, in a ghost race with one ghost: its name, the ghost's name and time, and its options. */
@@ -157,13 +157,13 @@ static void test_choosing(void)
 {
     int i;
 
-    D_8014A108 = 2, D_80151AD0 = 2, D_8014A110 = 2, D_803BA00C = 1;
-    D_803B9B90[0] = 0, D_803B9B90[1] = 1;        /* player 0's buttons aren't up: nothing */
-    D_803BA028[0] = D_803BA028[1] = 0;
-    D_80152698[1] = &g_ghost_ptr;
+    gNumPlayers = 2, gNumWindows = 2, gRace = 2, gNumGhosts = 1;
+    carscr_buttonsInited[0] = 0, carscr_buttonsInited[1] = 1;        /* player 0's buttons aren't up: nothing */
+    gCarLocked[0] = gCarLocked[1] = 0;
+    gGhosts[1] = &g_ghost_ptr;
     g_ncalls = 0, g_nviews = 0;
-    CHECK(func_803A44FC(NULL) == 1);
-    CHECK(g_views[0] == D_80150B70 + 152 * 1);   /* player 1's camera */
+    CHECK(carscr_animText(NULL) == 1);
+    CHECK(g_views[0] == gCamera + 152 * 1);   /* player 1's camera */
     CHECK(g_calls[0].what == 'R' && g_calls[1].what == 'J' && g_calls[1].a == 11);
     CHECK(g_calls[2].what == 'F' && g_calls[2].a == 12);                    /* two windows */
     i = 3;
@@ -191,8 +191,8 @@ static void test_choosing(void)
     CHECK(g_calls[g_ncalls - 1].what == 'R' && g_calls[g_ncalls - 2].what == 'A' && g_calls[g_ncalls - 2].a == -1);
 
     /* no ghost record: text 224 or 225; option 16 without ghost 1: text table 15 */
-    D_80152698[1] = NULL, D_803AF980 = 0, g_ncalls = 0;
-    CHECK(func_803A44FC(NULL) == 1);
+    gGhosts[1] = NULL, ghosts_enabled = 0, g_ncalls = 0;
+    CHECK(carscr_animText(NULL) == 1);
     CHECK(find_text("NO TIMES") >= 0 && find_text("GHOSTY") < 0 && find_text("S90") >= 0);
 }
 
@@ -201,18 +201,18 @@ static void test_ready(void)
 {
     int i;
 
-    D_8014A110 = 0, D_803BA028[1] = 1, D_803BA028[0] = 0, g_ncalls = 0;
-    CHECK(func_803A44FC(NULL) == 1);
+    gRace = 0, gCarLocked[1] = 1, gCarLocked[0] = 0, g_ncalls = 0;
+    CHECK(carscr_animText(NULL) == 1);
     i = find_text("WAITING FOR");
     CHECK(i >= 0 && g_calls[i].a == 1000 - 11 && g_calls[i].b == -120 - 9 && g_calls[i].color == 1);
     CHECK(g_calls[i + 1].what == 'T' && !strcmp(g_calls[i + 1].text, "ANNA") && g_calls[i + 1].b == -120);
     CHECK(g_calls[i + 1].color == 30 && find_text("S40") < 0 && g_calls[g_ncalls - 1].what == 'A');
 
-    D_8014A108 = 3, D_803BA028[2] = 0, g_ncalls = 0;   /* two waited for */
-    CHECK(func_803A44FC(NULL) == 1);
+    gNumPlayers = 3, gCarLocked[2] = 0, g_ncalls = 0;   /* two waited for */
+    CHECK(carscr_animText(NULL) == 1);
     CHECK(find_text("PLAYERS") >= 0 && find_text("ANNA") < 0);
-    D_803BA028[0] = D_803BA028[2] = 1, g_ncalls = 0;   /* nobody */
-    CHECK(func_803A44FC(NULL) == 1);
+    gCarLocked[0] = gCarLocked[2] = 1, g_ncalls = 0;   /* nobody */
+    CHECK(carscr_animText(NULL) == 1);
     i = find_text("GET READY TO RACE");
     CHECK(i >= 0 && g_calls[i].b == -120 && find_text("WAITING FOR") < 0);
 }

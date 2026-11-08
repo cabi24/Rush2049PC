@@ -4,17 +4,17 @@
  * (CMakeLists.txt), so the storage has 16 records where the game build has 12 and the N64 6. Every record starts as
  * a sentinel: the code must write and read the fields at their N64 offsets, step 0x808 between records, and stop at
  * the 6 it walks on the N64, whatever the storage's size.
- * func_800E762C sets the 6 records' model clock (an index walk); func_800D1248 ends a resurrect through a record
- * pointer and sets another record's modelrun through what was the alias D_8014A96C (+0x71C, a stride of 0x808),
- * whose record 0 it also reads as a scalar; func_800D0380 sets it through the same alias in m2c's spelling;
- * func_800D18C8 raises record 0's obResPt through what was D_8014AA14 (+0x7C4); func_800D60AC hands each car's
- * record to func_800D5E64 by a pointer walk of 0x808 from the array's start; steering_apply reads collidable through
- * what was D_8014AA3A (+0x7EA); menu_audio_settings, the car-to-car collision, walks the cars after one up to the
- * array's end, the next symbol (D_8014D280) on the N64. A race of more cars (docs/port/MORECARS.md 3.1),
+ * init_model_task sets the 6 records' model clock (an index walk); FinishResurrecting ends a resurrect through a record
+ * pointer and sets another record's modelrun through what was the alias model_modelrun (+0x71C, a stride of 0x808),
+ * whose record 0 it also reads as a scalar; multigo sets it through the same alias in m2c's spelling;
+ * raise_ob_res_pt raises record 0's obResPt through what was D_8014AA14 (+0x7C4); modelgo hands each car's
+ * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable through
+ * what was D_8014AA3A (+0x7EA); collision, the car-to-car collision, walks the cars after one up to the
+ * array's end, the next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1),
  * test_race_cars 12 (what pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to
  * the 12th, PC_MODELS_END being the end of the race's cars.
- * game: src/blob/func_800E762C.c src/blob/func_800D1248.c src/blob/func_800D0380.c src/blob/groups/path_D169C/path.c
- * game: src/blob/func_800D60AC.c src/blob/steering_apply.c src/blob/menu_audio_settings.c
+ * game: src/blob/init_model_task.c src/blob/FinishResurrecting.c src/blob/multigo.c src/blob/groups/get_res_pt/path.c
+ * game: src/blob/modelgo.c src/blob/TargetCollRadius.c src/blob/collision.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -34,31 +34,31 @@ struct pc_model pc_models[PC_MODEL_SLOTS];  /* data.c defines it in the game */
 #define M16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
 #define M8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + (off)))
 
-int32_t gameplay_mode, D_80143FF4, state_word_a;
-float D_8002AFB8 = 1.0f / 60, D_801543CC;
-int8_t D_80152744, D_8017A4D8, D_8011EAE4, D_801525F0;
-struct { uint16_t count; void *points; } D_801407F0;          /* the track's path graph (path.c's Route) */
+int32_t gRace, gModelIteration, gGameState;
+float gRetraceTime = 1.0f / 60, gModelTime;
+int8_t gNumActiveCars, gNoCarCollisions, gRumble, modelrun;
+struct { uint16_t count; void *points; } gResPath;          /* the track's path graph (path.c's Route) */
 struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 /* What the code under test calls: each records what it was given. */
 static const void *g_seen[64];
 static int g_nseen;
 static void seen(const void *p) { if (g_nseen < 64) g_seen[g_nseen] = p; g_nseen++; }
-void math_utility(void *src, void *dst) { (void)src; (void)dst; }
-void func_800D11BC(void *m) { seen(m); }
-void func_800D5E64(void *m) { seen(m); }
-void func_8009E820(void *in, float *out, void *basis) { (void)in; (void)basis; out[0] = out[1] = out[2] = 0.0f; }
-void func_800A61B0(void *in, float *out, void *basis) { (void)in; (void)basis; out[0] = out[1] = out[2] = 0.0f; }
-int func_800CEC8C(void *m, void *local, float f) { (void)local; (void)f; seen(m); return 0; }
-void menu_options_screen(void *m, void *a, void *b, void *d, void *l, float f) { (void)m; (void)a; (void)b; (void)d; (void)l; (void)f; }
+void CopyUV(void *src, void *dst) { (void)src; (void)dst; }
+void syminit(void *m) { seen(m); }
+void StartCarSounds(void *m) { seen(m); }
+void WorldVector(void *in, float *out, void *basis) { (void)in; (void)basis; out[0] = out[1] = out[2] = 0.0f; }
+void BodyVector(void *in, float *out, void *basis) { (void)in; (void)basis; out[0] = out[1] = out[2] = 0.0f; }
+int PointInBody(void *m, void *local, float f) { (void)local; (void)f; seen(m); return 0; }
+void setFBCollisionForce(void *m, void *a, void *b, void *d, void *l, float f) { (void)m; (void)a; (void)b; (void)d; (void)l; (void)f; }
 
-void func_800E762C(int32_t arg0);
-void func_800D1248(void *m);
-void func_800D0380(int16_t i);
-void func_800D18C8(int32_t index);
-void func_800D60AC(void);
-int steering_apply(short *player_index, float *point, float *radius_in, float *radial_error);
-void menu_audio_settings(void *vehicle);
+void init_model_task(int32_t arg0);
+void FinishResurrecting(void *m);
+void multigo(int16_t i);
+void raise_ob_res_pt(int32_t index);
+void modelgo(void);
+int TargetCollRadius(short *player_index, float *point, float *radius_in, float *radial_error);
+void collision(void *vehicle);
 
 static void sentinels(void)
 {
@@ -125,18 +125,18 @@ static void test_layout(void)
     test_race_cars = 6;
 }
 
-/* func_800E762C: the race's records' model clock (iteration, modelTime, dt at +0x710..+0x71B), the N64's 6 or 12;
+/* init_model_task: the race's records' model clock (iteration, modelTime, dt at +0x710..+0x71B), the N64's 6 or 12;
  * nothing else. */
 static void model_clock(int cars)
 {
     sentinels();
     test_race_cars = cars;
-    gameplay_mode = 0;
-    func_800E762C(3);
-    CHECK(D_80143FF4 == -3 && D_801543CC == -3 * D_8002AFB8);
+    gRace = 0;
+    init_model_task(3);
+    CHECK(gModelIteration == -3 && gModelTime == -3 * gRetraceTime);
     for (int i = 0; i < cars; i++) {
-        CHECK(M32(i, 0x710) == -3 && MF(i, 0x714) == D_801543CC && MF(i, 0x718) == D_8002AFB8);
-        CHECK(PC_MODEL_ITERATION(i) == -3 && PC_MODEL_DT(i) == D_8002AFB8);
+        CHECK(M32(i, 0x710) == -3 && MF(i, 0x714) == gModelTime && MF(i, 0x718) == gRetraceTime);
+        CHECK(PC_MODEL_ITERATION(i) == -3 && PC_MODEL_DT(i) == gRetraceTime);
         CHECK(only(i, 0x710, 0x71C, 0, 0));
     }
     CHECK(untouched_from(cars));
@@ -149,49 +149,49 @@ static void test_clock(void)
     model_clock(12);
 }
 
-/* func_800D1248 on record 2, a resurrect that ends (+0x6C4 == -2) with slot (+0x7C6) 4: record 2's own fields
+/* FinishResurrecting on record 2, a resurrect that ends (+0x6C4 == -2) with slot (+0x7C6) 4: record 2's own fields
  * through the pointer, then record 4's modelrun (+0x71C) through the alias's stride; record 0's is read only. */
 static void test_resurrect(void)
 {
     sentinels();
     M16(2, 0x6C4) = -2, M16(2, 0x7C6) = 4, M32(2, 0x6BC) = 50, MF(2, 0x660) = 1.5f, MF(2, 0x430) = 2.0f;
-    func_800D1248(PC_MODEL(2));
-    CHECK(g_nseen == 1 && index_of(g_seen[0]) == 2);   /* func_800D11BC(arg0) */
+    FinishResurrecting(PC_MODEL(2));
+    CHECK(g_nseen == 1 && index_of(g_seen[0]) == 2);   /* syminit(arg0) */
     CHECK(M16(2, 0x6C4) == -1 && M16(2, 0x71C) == 0 && MF(2, 0x6D4) == 1.5f && M8(2, 0x730) == 2);
     CHECK(M16(4, 0x71C) == 1 && PC_MODEL_MODELRUN(4) == 1 && only(4, 0x71C, 0x71E, 0, 0));
     CHECK(only(0, 0, 0, 0, 0) && only(1, 0, 0, 0, 0) && only(3, 0, 0, 0, 0) && only(5, 0, 0, 0, 0));
     CHECK(untouched_from(6));
-    /* func_800D0380: the same field in m2c's spelling, *((s16 *) ((u8 *) &D_8014A96C + (arg0 * 0x808))) */
+    /* multigo: the same field in m2c's spelling, *((s16 *) ((u8 *) &model_modelrun + (arg0 * 0x808))) */
     sentinels();
-    func_800D0380(5);
+    multigo(5);
     CHECK(M16(5, 0x71C) == 1 && only(5, 0x71C, 0x71E, 0, 0) && only(4, 0, 0, 0, 0) && untouched_from(6));
 }
 
-/* func_800D18C8: record 0's obResPt (+0x7C4) only goes up. */
+/* raise_ob_res_pt: record 0's obResPt (+0x7C4) only goes up. */
 static void test_ob_res_pt(void)
 {
     sentinels();
     M16(0, 0x7C4) = 2;
-    func_800D18C8(1);
+    raise_ob_res_pt(1);
     CHECK(M16(0, 0x7C4) == 2);
-    func_800D18C8(8);
+    raise_ob_res_pt(8);
     CHECK(M16(0, 0x7C4) == 8 && PC_MODEL_OB_RES_PT(0) == 8 && only(0, 0x7C4, 0x7C6, 0, 0));
     CHECK(only(1, 0, 0, 0, 0) && untouched_from(6));
 }
 
-/* func_800D60AC: each car's record by a pointer walk of 0x808 from the array's start, D_80152744 of them. */
+/* modelgo: each car's record by a pointer walk of 0x808 from the array's start, gNumActiveCars of them. */
 static void test_walk(void)
 {
     sentinels();
-    state_word_a = 8, D_80152744 = 5;
-    func_800D60AC();
+    gGameState = 8, gNumActiveCars = 5;
+    modelgo();
     CHECK(g_nseen == 5);
     for (int i = 0; i < 5; i++)
         CHECK(index_of(g_seen[i]) == i);
-    CHECK(D_801525F0 == 1 && untouched_from(0));
+    CHECK(modelrun == 1 && untouched_from(0));
 }
 
-/* steering_apply: a car near the point counts only if collidable (+0x7EA, what was D_8014AA3A[i]). */
+/* TargetCollRadius: a car near the point counts only if collidable (+0x7EA, what was D_8014AA3A[i]). */
 static void test_collidable(void)
 {
     float point[3] = {0, 0, 0}, radius = 0.0f, err = 0.0f;
@@ -200,15 +200,15 @@ static void test_collidable(void)
     sentinels();
     memset(pc_cars, 0, sizeof pc_cars);
     M8(3, 0x7EA) = 0;
-    CHECK(steering_apply(&index, point, &radius, &err) == 0);
+    CHECK(TargetCollRadius(&index, point, &radius, &err) == 0);
     M8(3, 0x7EA) = 1;
-    CHECK(steering_apply(&index, point, &radius, &err) == 1 && err == -3.5f * 3.5f);
+    CHECK(TargetCollRadius(&index, point, &radius, &err) == 1 && err == -3.5f * 3.5f);
     M8(3, 0x7EA) = 0, M8(4, 0x7EA) = 1;
-    CHECK(steering_apply(&index, point, &radius, &err) == 0);
+    CHECK(TargetCollRadius(&index, point, &radius, &err) == 0);
 }
 
-/* menu_audio_settings for record 3: every record is active (+0x7C8) and enabled (+0x7EA) at the same place, so
- * each one after it up to the array's end is tested against it, corner by corner (func_800CEC8C, 4 corners each
+/* collision for record 3: every record is active (+0x7C8) and enabled (+0x7EA) at the same place, so
+ * each one after it up to the array's end is tested against it, corner by corner (PointInBody, 4 corners each
  * way): records 4 and 5, not 6 to 15 that the storage has after them. */
 static void test_collisions(void)
 {
@@ -218,27 +218,27 @@ static void test_collisions(void)
         for (int k = 0; k < 3; k++)
             MF(i, 0x794 + 4 * k) = 0.0f;
     }
-    D_8017A4D8 = 0, gameplay_mode = 0;
-    menu_audio_settings(PC_MODEL(3));
+    gNoCarCollisions = 0, gRace = 0;
+    collision(PC_MODEL(3));
     CHECK(g_nseen == 16);
     for (int n = 0; n < 16 && n < g_nseen; n++)
         CHECK(index_of(g_seen[n]) == (n < 4 ? 4 : n < 8 ? 3 : n < 12 ? 5 : 3));
     g_nseen = 0;
-    menu_audio_settings(PC_MODEL(5));   /* the last of the 6: nothing after it */
+    collision(PC_MODEL(5));   /* the last of the 6: nothing after it */
     CHECK(g_nseen == 0);
 
     /* 12 cars: from record 7, records 8 to 11, not 12 to 15 */
     test_race_cars = 12;
     g_nseen = 0;
-    menu_audio_settings(PC_MODEL(7));
+    collision(PC_MODEL(7));
     CHECK(g_nseen == 32);
     for (int n = 0; n < 32 && n < g_nseen; n++)
         CHECK(index_of(g_seen[n]) == (n % 8 < 4 ? 8 + n / 8 : 7));
     g_nseen = 0;
-    menu_audio_settings(PC_MODEL(3));   /* from record 3: the 8 after it */
+    collision(PC_MODEL(3));   /* from record 3: the 8 after it */
     CHECK(g_nseen == 64 && index_of(g_seen[56]) == 11 && index_of(g_seen[63]) == 3);
     g_nseen = 0;
-    menu_audio_settings(PC_MODEL(11));  /* the last of the 12 */
+    collision(PC_MODEL(11));  /* the last of the 12 */
     CHECK(g_nseen == 0);
     test_race_cars = 6;
 }

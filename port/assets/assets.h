@@ -1,7 +1,7 @@
 /* port/assets/assets.h: converting the game's files to the host's byte order after they are read from the ROM
  * (docs/port/ASSETS.md §5). PC-layer code only.
  *
- * _ReadWave (src/blob/groups/audio_frame_sync/waves.c) calls pc_wave_loaded once per wave, after the file is in
+ * _ReadWave (src/blob/groups/waves/waves.c) calls pc_wave_loaded once per wave, after the file is in
  * its heap block and before SetupWaveModel relocates it. pc_wave_loaded picks the converter by wave number.
  * Each converter is a strong definition in its own file of this directory. assets.c has a weak no-op for each,
  * so a format that isn't converted yet stays big-endian:
@@ -68,7 +68,7 @@ int pc_assets_musyx_check(int wave, const uint8_t *file, size_t size);
  * registered for it. The default unregisters the big-endian range that contains buf. */
 void pc_assets_wave_released(int wave, uint8_t *buf);
 
-/* The game's heap frees a block (audio_reverb_update, src/blob/groups/heap_release/group.c): what was registered
+/* The game's heap frees a block (DeallocateMemoryInternal, src/blob/groups/heap_release/group.c): what was registered
  * big-endian inside it goes, whichever path freed it (UnloadWaveInstance, heap compaction, a whole sub-heap).
  * pc_assets_wad_block_freed is wad.c's part. */
 void pc_heap_block_freed(void *p, size_t size);

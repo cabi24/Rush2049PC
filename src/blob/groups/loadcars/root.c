@@ -13,19 +13,19 @@ typedef struct Vehicle2056 {enum n64p_void car;enum n64p_void parameters;u8 opaq
 #define N64W(x) PC_N64W(x)
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u32 D_8002E580[];
-extern u32 D_801174B4;
-extern s16 D_8014A108;
-extern s16 D_80142B08[13];
-extern s8 D_80111604[],D_80111648[],D_8011168C[];
+extern u32 gWaveSizes[];
+extern u32 gGameState;
+extern s16 gNumPlayers;
+extern s16 gCarModelNums[13];
+extern s8 car_color_choice_a[],car_color_choice_b[],car_color_choice_c[];
 typedef struct Heap Heap;
-extern u32 audio_output_setup(Heap *);
-extern s32 func_80097694(s32,s8);
-extern s32 audio_frame_sync(s32,s32,s32,s32,void *);
-extern void func_800BB02C(s32,s32,void *);
-extern void func_8039156C(void);
-extern f32 func_8008B2E4(f32 max);
-s32 func_8009768C(s32);
+extern u32 heap_total_free(Heap *);
+extern s32 FindWaveInstanceInternal(s32,s8);
+extern s32 LoadWave(s32,s32,s32,s32,void *);
+extern void car_palette_init(s32,s32,void *);
+extern void InitSelectCarLoad(void);
+extern f32 Random(f32 max);
+s32 FindWaveInstance_stub(s32);
 /* PC: the heap too short for a car type's file, where LoadCars picks another type or shares one, is logged the first
  * time and counted (port/ultra/heap.c, docs/port/MEMORY.md 5); the choice is the N64's. */
 
@@ -35,58 +35,58 @@ void LoadCars(s32 select)
  s32 j;
  s32 numLoadedCars;
  if (select) {
-  func_8039156C();
+  InitSelectCarLoad();
   return;
  }
  numLoadedCars=0;
  for(i=0;i<13;i++) {
-  if(i<PC_RACE_CARS && ((D_801174B4&8)||PC_MODEL_DRONE_TYPE(i)==1)) {
+  if(i<PC_RACE_CARS && ((gGameState&8)||PC_MODEL_DRONE_TYPE(i)==1)) {
 again:
-   PC_LINK_CAR(i)=func_8008B2E4(13.0f);
+   PC_LINK_CAR(i)=Random(13.0f);
    for(j=0;j<i;j++) {
     if(PC_LINK_CAR(i)==PC_LINK_CAR(j))goto again;
    }
-   PC_LINK_COLOR0(i)=D_80111604[PC_LINK_CAR(i)];
-   PC_LINK_COLOR1(i)=D_80111648[PC_LINK_CAR(i)];
-   PC_LINK_COLOR2(i)=D_8011168C[PC_LINK_CAR(i)];
-   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) { pc_heap_short("LoadCars, a drone's car", D_8002E580[PC_LINK_CAR(i)+88]+512);
+   PC_LINK_COLOR0(i)=car_color_choice_a[PC_LINK_CAR(i)];
+   PC_LINK_COLOR1(i)=car_color_choice_b[PC_LINK_CAR(i)];
+   PC_LINK_COLOR2(i)=car_color_choice_c[PC_LINK_CAR(i)];
+   if(heap_total_free(0)<gWaveSizes[PC_LINK_CAR(i)+88]+512) { pc_heap_short("LoadCars, a drone's car", gWaveSizes[PC_LINK_CAR(i)+88]+512);
     for(j=0;j<13;j++) {
-     if(func_8009768C(PC_LINK_CAR(i)+88)<0 &&
-        audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load;
+     if(FindWaveInstance_stub(PC_LINK_CAR(i)+88)<0 &&
+        heap_total_free(0)>=gWaveSizes[PC_LINK_CAR(i)+88]+512)goto load;
      PC_LINK_CAR(i)=(PC_LINK_CAR(i)+1)%13;
     }
     for(j=0;j<13;j++) {
-     if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load;
+     if(heap_total_free(0)>=gWaveSizes[PC_LINK_CAR(i)+88]+512)goto load;
      PC_LINK_CAR(i)=(PC_LINK_CAR(i)+1)%13;
     }
-    do { j=func_8008B2E4(numLoadedCars); }
-    while(numLoadedCars>D_8014A108 && PC_LINK_CAR(j)>=13);
+    do { j=Random(numLoadedCars); }
+    while(numLoadedCars>gNumPlayers && PC_LINK_CAR(j)>=13);
     PC_LINK_CAR(i)=PC_LINK_CAR(j);
-    D_80142B08[i]=D_80142B08[j];
+    gCarModelNums[i]=gCarModelNums[j];
    } else {
 load:
-    D_80142B08[i]=audio_frame_sync(PC_LINK_CAR(i)+88,1,0,0,0);
+    gCarModelNums[i]=LoadWave(PC_LINK_CAR(i)+88,1,0,0,0);
     numLoadedCars++;
    }
-   func_800BB02C(i,PC_LINK_CAR(i),0);
+   car_palette_init(i,PC_LINK_CAR(i),0);
   } else if(i<PC_RACE_CARS && PC_MODEL_DRONE_TYPE(i)==2) {
-   if(audio_output_setup(0)<D_8002E580[PC_LINK_CAR(i)+88]+512) { pc_heap_short("LoadCars, a player's car", D_8002E580[PC_LINK_CAR(i)+88]+512);
+   if(heap_total_free(0)<gWaveSizes[PC_LINK_CAR(i)+88]+512) { pc_heap_short("LoadCars, a player's car", gWaveSizes[PC_LINK_CAR(i)+88]+512);
     for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
-     if(audio_output_setup(0)>=D_8002E580[PC_LINK_CAR(i)+88]+512)goto load2;
+     if(heap_total_free(0)>=gWaveSizes[PC_LINK_CAR(i)+88]+512)goto load2;
     }
     PC_LINK_CAR(i)=PC_LINK_CAR(0);
-    D_80142B08[i]=D_80142B08[0];
-    func_800BB02C(i,PC_LINK_CAR(i),0);
+    gCarModelNums[i]=gCarModelNums[0];
+    car_palette_init(i,PC_LINK_CAR(i),0);
    } else {
 load2:
-    D_80142B08[i]=audio_frame_sync(PC_LINK_CAR(i)+88,1,0,0,0);
-    func_800BB02C(i,PC_LINK_CAR(i),0);
+    gCarModelNums[i]=LoadWave(PC_LINK_CAR(i)+88,1,0,0,0);
+    car_palette_init(i,PC_LINK_CAR(i),0);
     numLoadedCars++;
    }
   } else {
    PC_LINK_CAR(i)=PC_LINK_CAR(0);
-   D_80142B08[i]=D_80142B08[0];
+   gCarModelNums[i]=gCarModelNums[0];
   }
  }
 }
-s32 func_8009768C(s32 waveNum) { return func_80097694(waveNum,-1); }
+s32 FindWaveInstance_stub(s32 waveNum) { return FindWaveInstanceInternal(waveNum,-1); }

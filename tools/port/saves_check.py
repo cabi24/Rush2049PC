@@ -45,7 +45,7 @@ def check(ok, what):
 
 
 def save_hash(data):
-    """The save code's checksum (format_string_parse), as port/ultra/pakfs.c's pc_save_hash."""
+    """The save code's checksum (CalcChecksumInternal), as port/ultra/pakfs.c's pc_save_hash."""
     r = 0
     for v in data:
         k = v & 7

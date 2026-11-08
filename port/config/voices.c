@@ -23,7 +23,7 @@
 
 #define FADE_STEPS 15        /* retraces a fade takes: 0.25 s */
 #define HYSTERESIS 0.8f      /* a drone with its place keeps it until another's distance is below this times its own */
-#define LISTENERS 5          /* the sound manager's listeners (D_80146188: at most 5) */
+#define LISTENERS 5          /* the sound manager's listeners (gActiveListeners: at most 5) */
 
 static volatile int s_voices = PC_MX_N64_VOICES;
 static volatile int s_engines = PC_ENGINES_ORIGINAL;
@@ -121,7 +121,7 @@ static unsigned s_playing_cars, s_playing_cars_last;
 static unsigned s_layer_cars;   /* this pass: the cars with an engine layer's emitter */
 
 /* The car whose engine layer (0 or 1) this emitter's handle is: a positional engine is a drone's (a human's two are
- * not emitters, high_scores_display). -1 if none. */
+ * not emitters, AudPlayEffectVP). -1 if none. */
 static int engine_slot(int handle)
 {
     if (handle == -1)

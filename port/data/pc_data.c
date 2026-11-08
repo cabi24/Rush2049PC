@@ -939,7 +939,7 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
         }
     }
     /* A runtime image's arena in the window lies in the game heap, which holds the image only once the game has
-     * loaded it (PrevMaxPath reserves the block, then the load fills it again): until then it is heap memory, and
+     * loaded it (load_overlay reserves the block, then the load fills it again): until then it is heap memory, and
      * starts out zero like the rest of the heap. */
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];

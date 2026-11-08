@@ -84,7 +84,7 @@ void start(void);
  * Infinite loop that calls game() each frame.
  * Handles timing and VBlank synchronization.
  */
-void game_loop(void);
+void GameLoop(void);
 
 /**
  * Powerup initialization
@@ -98,14 +98,14 @@ void init(void);
  * Initializes game options, high scores, and state machine.
  * Called each time a new game session starts.
  */
-void game_init(void);
+void main_thread_entry(void);
 
 /**
  * Late game initialization
  * Called after threads are started but before main loop.
  * Sets up remaining subsystems.
  */
-void game_late_init(void);
+void InitSystem(void);
 
 /**
  * Re-initialize graphics/rendering parameters
@@ -265,19 +265,19 @@ void audio_thread_proc(void *arg);
  * Render thread entry point
  * Handles graphics rendering in separate thread.
  */
-void render_thread_entry(void *arg);
+void ModelThread(void *arg);
 
 /**
  * Sound initialization
  * Initializes audio subsystem.
  */
-void sound_init(void);
+void BlitInit(void);
 
 /**
  * Start audio playback
  * Begins audio processing after initialization.
  */
-void audio_start(void);
+void BlitFinish(void);
 
 /**
  * Per-frame game update

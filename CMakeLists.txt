@@ -76,14 +76,14 @@ file(GLOB_RECURSE GAME_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.c)
 # The functions the N64 decompilation never byte-matched (the "matching ceiling") have their C in nonmatching/
 # (nonmatching/README.md) where no file under src/ defines them. The runtime images' 8-byte stubs (deleted bodies of
 # inlined helpers) are empty functions in nonmatching/ovl_<x>/stubs.c.
-foreach(f RaceStateMachine_Update TB_EllipseText createBG display_list_flush drone_set_catchup
-          ghost_race_setup physics_float_calc state_utility animSpeedText StartWeaponIcon func_8010D680 func_8010E8B4)
+foreach(f updatePauseScreen TB_EllipseText createBG PrePlay PS_ReadPartialFile
+          GhostEnd WorldCullObjects TB_DrawText animSpeedText StartWeaponIcon AnimateWeaponIcon video_animPanes)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
-# Image A's func_8038A400 (updateWarningScreen) shares its address, and so its name, with image B's: it is
+# Image A's findDamageSlot (updateWarningScreen) shares its address, and so its name, with image B's: it is
 # compiled as updateWarningScreen (docs/port/SYNTH.md).
-list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_803A44FC.c
-     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/func_8038A400.c
+list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/carscr_animText.c
+     ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/updateWarningScreen.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)
 # src/rom is the boot code's libultra, libc and audio library less what the PC layer does itself (port/ultra,
 # docs/port/ULTRA.md): thread dispatch, message queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and
@@ -187,7 +187,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     target_compile_options(game_flags INTERFACE -Wno-builtin-declaration-mismatch
         -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types
         -Wno-discarded-qualifiers -Wno-overflow
-        -Wsequence-point)   # unsequenced reads that only IDO's evaluation order defines (listener_position_set)
+        -Wsequence-point)   # unsequenced reads that only IDO's evaluation order defines (ResetCollisionObject)
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     target_compile_options(game_flags INTERFACE -Wno-incompatible-library-redeclaration
         -Wno-implicit-function-declaration -Wno-int-conversion -Wno-incompatible-pointer-types
@@ -200,7 +200,7 @@ target_link_libraries(game PRIVATE game_flags)
 # The game's types for the generators and the DWARF checks (gen_data.py, view_check.py...): objects compiled at -O0
 # with -g, so the generated tables don't depend on the build type (docs/port/OPTIMIZED.md). An optimized object's
 # DWARF leaves out the declarations of variables whose uses the optimizer removed, and of types nothing left uses,
-# so the data tables lost symbols at -O2 (D_80117498, a word the loader then left in the ROM's byte order).
+# so the data tables lost symbols at -O2 (start_water_sentinel, a word the loader then left in the ROM's byte order).
 # A Debug build's game objects are -O0 already; any other build type compiles a second copy for its types, with the
 # game's own flags. gen_data.py refuses optimized DWARF.
 # A sanitizer build's game objects are instrumented, so it compiles the copy too, without (docs/port/SANITIZE.md).
@@ -454,7 +454,7 @@ set_tests_properties(ultra_selftest_paced PROPERTIES RUN_SERIAL TRUE LABELS real
 add_test(NAME ultra_selftest_memory64 COMMAND rush2049pc --selftest --fast --set game.memory=64)
 add_test(NAME ultra_selftest_memory256 COMMAND rush2049pc --selftest --fast --set game.memory=256)
 # A sanitizer build's fault handler names the N64 thread, then hands the fault to AddressSanitizer's, which reports
-# it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in audio_helper. (CMake's "."
+# it with its own stack (docs/port/SANITIZE.md 1): the blank cartridge's boot faults in AllocateMemory. (CMake's "."
 # takes a newline; an alternation such as (.|\n)* backtracks for minutes over the report.)
 if(PC_SANITIZE_ADDRESS)
     add_test(NAME sanitize_fault_chain COMMAND rush2049pc --no-rom --headless --fast --seconds 10 --no-config
@@ -1119,7 +1119,7 @@ add_test(NAME saves_files_swap COMMAND ${PC_PYTHON} ${PORT_TOOLS}/saves_check.py
 set_tests_properties(saves_files_swap PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 RUN_SERIAL TRUE
     LABELS realtime)
 # The GSM kernels (port/ultra/gsm.c) against their own MIPS code (interpreted from kernels.s) and a GSM 06.10
-# reference, alone and under the game's frame decoder (lib_26f60.c, built with the game's flags).
+# reference, alone and under the game's frame decoder (gsm.c, built with the game's flags).
 add_library(test_gsm_game OBJECT port/ultra/tests/gsm_game.c)
 target_link_libraries(test_gsm_game PRIVATE game_flags)
 target_compile_options(test_gsm_game PRIVATE -w)
@@ -1220,12 +1220,12 @@ set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # The game's own WAD loader reading a converted synthetic WAD (port/assets/tests/wad_game.c): _ReadWave,
 # SetupWaveModel, the TOC functions, the display-list walkers, the texture lookups and the texture animation,
 # built with the game's flags, in an RDRAM window the test maps itself (exit 77, skipped, if it can't).
-add_library(test_wad_game OBJECT src/blob/groups/audio_frame_sync/waves.c src/blob/MBSetupWad.c
-    src/blob/MBGetFromWad.c src/blob/func_80096B00.c src/blob/func_80096BBC.c src/blob/entity_cull_check.c
-    src/blob/entity_lod_select.c src/blob/func_800966D8.c src/blob/groups/slot_sound/entity_render_mode.c
-    src/blob/display_list_traverse.c src/blob/func_8008AD6C.c src/blob/func_80092D80.c src/blob/func_800B24EC.c
-    src/blob/MBOX_FindPalette_WORK.c src/blob/camera_shake_start.c src/blob/race_setup_1.c src/blob/func_800BDA24.c
-    src/blob/func_800BD080.c src/blob/camera_smooth_follow.c src/blob/pointer_compare_thunk.c src/blob/func_8008AD04.c)
+add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c src/blob/MBSetupWad.c
+    src/blob/MBGetFromWad.c src/blob/MBFindInWad.c src/blob/MBOffsetWad.c src/blob/relocate_texture_loads.c
+    src/blob/relocate_model_dl.c src/blob/mirror_vertex_texcoords.c src/blob/groups/slot_sound/MirrorWaveInstance.c
+    src/blob/display_list_traverse.c src/blob/flip_triangle_winding.c src/blob/ModelActive.c src/blob/MBOX_FindTexture_WORK.c
+    src/blob/MBOX_FindPalette_WORK.c src/blob/InitTextureAnimation.c src/blob/TextureAnimation.c src/blob/displaylist_get_texture_image.c
+    src/blob/displaylist_set_texture_image.c src/blob/displaylist_set_tile_size.c src/blob/texcmp.c src/blob/game_strcmp.c)
 target_link_libraries(test_wad_game PRIVATE game_flags)
 target_compile_options(test_wad_game PRIVATE -w)
 add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c port/ultra/n64mem.c
@@ -1247,7 +1247,7 @@ add_test(NAME assets_rom COMMAND rush2049pc_assetcheck)
 set_tests_properties(assets_rom PROPERTIES SKIP_RETURN_CODE 77)
 add_test(NAME assets_wad_game COMMAND test_assets_wad_game)
 set_tests_properties(assets_wad_game PROPERTIES SKIP_RETURN_CODE 77)
-# A test program (main) and a second copy of lib_26f60.c: kept out of compile_commands.json (census.py).
+# A test program (main) and a second copy of gsm.c: kept out of compile_commands.json (census.py).
 set_target_properties(test_gsm test_gsm_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 
 # The same stubs without the PC layer, for test programs that link the game alone (rush2049pc_datacheck): every
@@ -1326,19 +1326,19 @@ add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_ch
 # DWARF of the game's objects (tools/port/view_check.py; ELF objects only).
 if(NOT WIN32)
     set(SOUND_FX_VIEWS
-        src/blob/groups/menu_save_options/hud_setup.c src/blob/groups/camera_target_track/group.c
-        src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c src/blob/groups/engine_sound_sync/audiomgr_thread.c
-        src/blob/groups/entity_lookup/group.c src/blob/groups/entity_helpers/group.c src/blob/groups/transform/group.c
-        src/blob/groups/engine_sound_sync/engine_sound_sync.c src/blob/groups/updatefx/updatefx.c
-        src/blob/groups/audio_pitch_adjust/ap.c src/blob/groups/record_score/group.c src/blob/results_time_display.c)
+        src/blob/groups/save/AudioInit.c src/blob/groups/audio_emitters/group.c
+        src/blob/groups/audiomgr/audio_effect_setup_b132.c src/blob/groups/audiomgr/audiomgr_thread.c
+        src/blob/groups/aud_stop_effect/group.c src/blob/groups/audiomgr_emitters/group.c src/blob/groups/transform/group.c
+        src/blob/groups/audiomgr/ProcessEmitters.c src/blob/groups/update_fx/updatefx.c
+        src/blob/groups/interrupt_fx_tag/ap.c src/blob/groups/weighted_priority/group.c src/blob/AudEffectPlaying.c)
     set(SOUND_SEQ_VIEWS
-        src/blob/groups/engine_sound_sync/audiomgr_thread.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
-        src/blob/groups/menu_save_options/hud_setup.c src/blob/hud_speed_display.c src/blob/car_stats_display.c
-        src/blob/func_800D18D8.c src/blob/game_timer_pause.c)
+        src/blob/groups/audiomgr/audiomgr_thread.c src/blob/groups/audiomgr/audio_effect_setup_b132.c
+        src/blob/groups/save/AudioInit.c src/blob/AudInit3D.c src/blob/AudPlaySequence.c
+        src/blob/NewSequence.c src/blob/stop_sequence.c)
     set(SOUND_EMITTER_VIEWS
-        src/blob/groups/camera_target_track/group.c src/blob/groups/engine_sound_sync/audio_effect_setup_b132.c
-        src/blob/hud_speed_display.c src/blob/groups/entity_helpers/group.c src/blob/groups/entity_lookup/group.c
-        src/blob/groups/engine_sound_sync/engine_sound_sync.c)
+        src/blob/groups/audio_emitters/group.c src/blob/groups/audiomgr/audio_effect_setup_b132.c
+        src/blob/AudInit3D.c src/blob/groups/audiomgr_emitters/group.c src/blob/groups/aud_stop_effect/group.c
+        src/blob/groups/audiomgr/ProcessEmitters.c)
     string(REPLACE ";" "," SOUND_FX_VIEWS "${SOUND_FX_VIEWS}")
     string(REPLACE ";" "," SOUND_SEQ_VIEWS "${SOUND_SEQ_VIEWS}")
     string(REPLACE ";" "," SOUND_EMITTER_VIEWS "${SOUND_EMITTER_VIEWS}")
@@ -1349,14 +1349,14 @@ if(NOT WIN32)
         --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
     add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
         --tag Cam,CamSlot,Owner,RecB,Source)
-    # The commands (N64 D_80142DD8) are PC data now (pc_snd_msgs, docs/port/DECOUPLE.md 9), which each reader casts
+    # The commands (N64 audiomgr_gCmds) are PC data now (pc_snd_msgs, docs/port/DECOUPLE.md 9), which each reader casts
     # to its own view, so the views are the live readers' record types (the three the symbol's declarations were).
     add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --n64-size 0x20 --tag ShutdownMsg,Slot24,Slot18
-        --in src/blob/groups/heap_release/func_800C8918.c,src/blob/groups/menu_save_options/hud_setup.c,src/blob/groups/slot18_alloc/func_80091B00.c)
+        --in src/blob/groups/heap_release/AudioShutdown.c,src/blob/groups/save/AudioInit.c,src/blob/groups/abort_game/GetCmd.c)
     # The road collision's views of the car's model record (D_8014A250, N64 layout): the tires' road nodes at
     # +0x3A0 are u32 window addresses (docs/port/CARS.md 2.2).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
-        --in src/blob/groups/func_800AD4C8/camera_victory.c,src/blob/groups/entity_update/entity_update.c,src/blob/groups/update_game_data/update_game_data.c)
+        --in src/blob/groups/stree_collide/CollideCarBody.c,src/blob/groups/stree_tiresurf/TireSurf.c,src/blob/groups/update_game_data/update_game_data.c)
 endif()
 # tools/port/layout_check.py (docs/port/LAYOUT.md): the layout check on its synthetic cases (it reads the same GIMPLE,
 # so not on Windows either).

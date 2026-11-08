@@ -111,7 +111,7 @@ f32 drone_get_avoid_strength(HintType hint);
 void drone_avoid_walls(s32 car_index);
 
 /* Catch-up system */
-void drone_set_catchup(void);
+void PS_ReadPartialFile(void);
 void drone_no_catchup(void);
 void drone_calc_catchup(s32 car_index);
 f32 drone_scale_catchup_by_difficulty(s32 car_index, f32 base_catchup);
@@ -140,7 +140,7 @@ void drone_end(void);
 
 /**
  * Linear interpolation utility
- * Based on arcade: drones.c:linear_interp()
+ * Based on arcade: drones.c:FoundCoin()
  *
  * Maps input from range [in_bound1, in_bound2] to [out_bound1, out_bound2]
  * Clamps output to bounds if input is outside range.
@@ -152,7 +152,7 @@ void drone_end(void);
  * @param input      Value to interpolate
  * @return Interpolated output value
  */
-f32 linear_interp(f32 in_bound1, f32 in_bound2, f32 out_bound1, f32 out_bound2, f32 input);
+f32 FoundCoin(f32 in_bound1, f32 in_bound2, f32 out_bound1, f32 out_bound2, f32 input);
 
 /* ========================================================================
  * Arcade-compatible function declarations (drones.c)
@@ -197,9 +197,9 @@ extern s32 levels;
 extern s32 gUseCatchup;
 
 /* External arcade functions */
-extern void InitMaxPath(s32 record);
+extern void load_extra_overlay(s32 record);
 extern void MaxPath(MODELDAT *m);
-extern void no_catchup(void);
+extern void pak_insert_file(void);
 extern void set_catchup(void);
 extern void txt_str(s32 x, s32 y, const char *str, s32 palette);
 extern const char* get_cur_hint(s32 index);
@@ -227,23 +227,23 @@ void DoDrones(void);
 void EndDrones(void);
 
 /**
- * assign_drones - Assign drone behaviors and speed scaling
- * Based on arcade: drones.c:assign_drones()
+ * RecordGhost - Assign drone behaviors and speed scaling
+ * Based on arcade: drones.c:RecordGhost()
  * Complex function that assigns drone targets, difficulty, and speed scaling.
  */
-void assign_drones(void);
+void RecordGhost(void);
 
 /**
- * assign_default_paths - Assign default maxpath to drones
- * Based on arcade: drones.c logic in assign_drones()
+ * unload_start_overlay - Assign default maxpath to drones
+ * Based on arcade: drones.c logic in RecordGhost()
  */
-void assign_default_paths(s32 num_drones, s32 drones[]);
+void unload_start_overlay(s32 num_drones, s32 drones[]);
 
 /**
- * place_cars_in_order - Sort cars by race position
- * Based on arcade: drones.c:place_cars_in_order() logic
+ * RecordPractice - Sort cars by race position
+ * Based on arcade: drones.c:RecordPractice() logic
  */
-void place_cars_in_order(s32 cars_in_order[], s32 humans[], s32 drones[],
+void RecordPractice(s32 cars_in_order[], s32 humans[], s32 drones[],
                          s32 *num_humans, s32 *num_drones);
 
 #endif /* DRONE_H */

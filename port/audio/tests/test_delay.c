@@ -1,4 +1,4 @@
-/* The delay effect (func_80010E80's block): aux into the circular line, taps back into left and right,
+/* The delay effect (sound_hw_set_delay's block): aux into the circular line, taps back into left and right,
  * feedback through the 4-tap filter with its history, and reads that wrap around the line. */
 #include <stdlib.h>
 #include <string.h>

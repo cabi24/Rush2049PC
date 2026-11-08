@@ -1,9 +1,9 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_800E847C = update_game_data (MAT3 GameSource/src/mdrive.c, GC 0x8002B064) and its static callee
- * func_800E7FA0 = _UpdateTireAppearance (MAT3 mdrive.c, GC 0x8002B6CC). The callee is called only from
+ * UpdateTireAppearance = _UpdateTireAppearance (MAT3 mdrive.c, GC 0x8002B6CC). The callee is called only from
  * update_game_data and is a private IPA procedure (clobbers s0-s5 without saving them), so the pair is one
- * -O3 group: func_800E847C kept, func_800E7FA0 internal.
+ * -O3 group: func_800E847C kept, UpdateTireAppearance internal.
  *
  * Base: (update_game_data/best.c = v/u16.c: MAT3 typed port, N64 tCarData/tModelData offsets,
  * force[3] stack array, if-body loop form, zero spellings). changes, all in the callee:
@@ -136,19 +136,19 @@ typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 D_801543CC;            /* gModelTime */
-extern const _tSusp *D_80111560[]; /* carSuspensions */
-extern s8 D_8011156C[];           /* gCarSuspensions */
-extern u8 D_80034840[];           /* model thread */
+extern f32 gModelTime;            /* gModelTime */
+extern const _tSusp *carSuspensions[]; /* carSuspensions */
+extern s8 gCarSuspensions[];           /* gCarSuspensions */
+extern u8 model_thread[];           /* model thread */
 
 void osStopThread(void *t);
 void osStartThread(void *t);
-void battle_mode_setup(f32 time);                    /* game_reckon_all */
-void math_utility(void *src, void *dst);             /* CopyUV */
+void game_reckon_all(f32 time);                    /* game_reckon_all */
+void CopyUV(void *src, void *dst);             /* CopyUV */
 void PitchUV(f32 angle, f32 uv[][3]);          /* PitchUV */
 void RollUV(f32 angle, f32 uv[][3]);          /* RollUV */
-void func_8009E820(f32 *v, f32 *out, f32 uv[][3]);   /* WorldVector */
-void func_800E7FA0(s16 droneIndex);
+void WorldVector(f32 *v, f32 *out, f32 uv[][3]);   /* WorldVector */
+void UpdateTireAppearance(s16 droneIndex);
 
 typedef struct tSkidData {
     s32 forceTable[5];
@@ -159,12 +159,12 @@ typedef struct tSkidData {
 typedef struct tTireState { u8 pad0[0x50]; f32 sideforce; f32 traction; u8 pad58[4]; } tTireState; /* 0x5C */
 #define TIRES(m) ((tTireState *)((u8 *)(m) + 0x430))
 
-extern u32 D_80120EBC[4];          /* sSmoke */
-extern u32 D_80120ECC[4];          /* sSmoke2 */
-extern u32 D_80120EDC[4];          /* sSkid */
-extern tSkidData D_80120EEC[4];    /* sSkidData */
-extern s8 D_8013FECB;              /* gCoastFlag */
-extern s32 D_8014A110;             /* gRace */
+extern u32 sSmoke[4];          /* sSmoke */
+extern u32 sSmoke2[4];          /* sSmoke2 */
+extern u32 sSkid[4];          /* sSkid */
+extern tSkidData sSkidData[4];    /* sSkidData */
+extern s8 gCoastFlag;              /* gCoastFlag */
+extern s32 gRace;             /* gRace */
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -173,7 +173,7 @@ f32 fabsf(f32);
  * (rest, 1 - e, at original). */
 #define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
 
-void func_800E7FA0(s16 droneIndex)
+void UpdateTireAppearance(s16 droneIndex)
 {
     s32 index;
     s32 side;
@@ -186,19 +186,19 @@ void func_800E7FA0(s16 droneIndex)
 
     for (side = 0; side < 4; side++) {
         if (m->sviscode[side] == 1) {
-            m->appearance |= D_80120ECC[side];
+            m->appearance |= sSmoke2[side];
         } else {
-            m->appearance &= ~(D_80120EDC[side] | D_80120ECC[side]);
+            m->appearance &= ~(sSkid[side] | sSmoke2[side]);
         }
     }
-    if (airborne || wet || D_8013FECB) {
+    if (airborne || wet || gCoastFlag) {
         for (side = 0; side < 4; side++) {
             m->skidIntensity[side] = 0;
-            m->appearance &= ~(D_80120EDC[side] | D_80120EBC[side]);
+            m->appearance &= ~(sSkid[side] | sSmoke[side]);
         }
     } else {
         for (side = 0; side < 4; side++) {
-            skidData = &D_80120EEC[side];
+            skidData = &sSkidData[side];
             switch (side) {
             case 0:
                 force = fabsf(TIRES(m)[1].sideforce) > fabsf(TIRES(m)[3].sideforce) ?
@@ -217,7 +217,7 @@ void func_800E7FA0(s16 droneIndex)
                 break;
             }
             {
-                f32 scale = D_8014A110 == 6 ? 3.0f : N64P(m->tune)->skidk;
+                f32 scale = gRace == 6 ? 3.0f : N64P(m->tune)->skidk;
                 f32 intensity;
                 s32 maxForce;
 
@@ -238,22 +238,22 @@ void func_800E7FA0(s16 droneIndex)
                         (f32)(force - forceLow) / (skidData->forceTable[index + 1] - forceLow));
                     m->skidIntensity[side] = intensity;
                     if (intensity > skidData->skidThreshold) {
-                        m->appearance |= D_80120EDC[side];
+                        m->appearance |= sSkid[side];
                     }
                     if (m->skidIntensity[side] > skidData->smokeThreshold) {
-                        m->appearance |= D_80120EBC[side];
+                        m->appearance |= sSmoke[side];
                     }
                 } else if (m->skidIntensity[side]) {
                     if (m->skidIntensity[side] > skidData->skidThreshold) {
-                        m->appearance |= D_80120EDC[side];
+                        m->appearance |= sSkid[side];
                     }
                     if (m->skidIntensity[side] > skidData->smokeThreshold) {
-                        m->appearance |= D_80120EBC[side];
+                        m->appearance |= sSmoke[side];
                     }
                     m->skidIntensity[side] -= PC_FSCALE(0.125f);
                     if (m->skidIntensity[side] <= 0) {
                         m->skidIntensity[side] = 0;
-                        m->appearance &= ~(D_80120EDC[side] | D_80120EBC[side]);
+                        m->appearance &= ~(sSkid[side] | sSmoke[side]);
                     }
                 }
             }
@@ -276,8 +276,8 @@ void update_game_data(void)
     const _tSusp *susp;
     u16 tsf;
 
-    osStopThread(D_80034840);
-    battle_mode_setup(D_801543CC);
+    osStopThread(model_thread);
+    game_reckon_all(gModelTime);
     for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
         gc = PC_CAR(i);
@@ -293,9 +293,9 @@ void update_game_data(void)
             m->stuntW[0] = 0.0f;
             m->stuntW[1] = 0.0f;
             m->stuntW[2] = 0.0f;
-            math_utility(m->uvs, gc->dr_uvs);
-            math_utility(m->uvs, gc->dr_car_uvs);
-            susp = D_80111560[D_8011156C[m->body_type]];
+            CopyUV(m->uvs, gc->dr_uvs);
+            CopyUV(m->uvs, gc->dr_car_uvs);
+            susp = carSuspensions[gCarSuspensions[m->body_type]];
             force[0] = m->tireForce[0][0] + m->tireForce[1][0];
             force[1] = m->tireForce[0][1] + m->tireForce[1][1];
             force[2] = m->tireForce[0][2] + m->tireForce[1][2];
@@ -331,7 +331,7 @@ void update_game_data(void)
                 gc->tireR[j][0] = N64P(m->car)->tireR[j][0];
                 gc->tireR[j][1] = N64P(m->car)->tireR[j][1];
                 gc->tireR[j][2] = N64P(m->car)->tireR[j][2];
-                func_8009E820(N64P(m->car)->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
+                WorldVector(N64P(m->car)->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
                 gc->dr_tirepos[j][0] = gc->dr_tirepos[j][0] + gc->dr_pos[0];
                 gc->dr_tirepos[j][1] = gc->dr_tirepos[j][1] + gc->dr_pos[1];
                 gc->dr_tirepos[j][2] = gc->dr_tirepos[j][2] + gc->dr_pos[2];
@@ -372,7 +372,7 @@ void update_game_data(void)
                 else if (!m->thumpflag) m->appearance &= ~0x800;
                 if (gc->solid && !m->solid) m->appearance &= ~8;
                 else if (!gc->solid && m->solid) m->appearance |= 8;
-                func_800E7FA0(i);
+                UpdateTireAppearance(i);
                 gc->v[0] = m->v[0];
                 gc->v[1] = m->v[1];
                 gc->v[2] = m->v[2];
@@ -391,5 +391,5 @@ void update_game_data(void)
             gc->data_valid = m->data_valid;
         }
     }
-    osStartThread(D_80034840);
+    osStartThread(model_thread);
 }

@@ -5,8 +5,8 @@
  * Handles sound effects, music, engine sounds
  *
  * Key functions:
- * - sound_control (0x800B37E8) - main audio dispatcher
- * - sound_stop (0x800B358C) - stop sounds
+ * - NewMultiBlit (0x800B37E8) - main audio dispatcher
+ * - RemoveBlit (0x800B358C) - stop sounds
  * - audio_msg_send - send audio messages via OS
  * - audio_task_sync (0x8008A710) - audio task sync
  */
@@ -32,7 +32,7 @@ extern void *audio_msg_queue;
  * Called every frame to process audio state.
  * -1 parameter stops all sounds.
  */
-void sound_control(void);  /* 0x800B37E8 - TODO: Decompile */
+void NewMultiBlit(void);  /* 0x800B37E8 - TODO: Decompile */
 
 /**
  * Stop sound
@@ -40,7 +40,7 @@ void sound_control(void);  /* 0x800B37E8 - TODO: Decompile */
  *
  * Called when stopping a specific sound channel.
  */
-void sound_stop(void);  /* 0x800B358C - TODO: Decompile */
+void RemoveBlit(void);  /* 0x800B358C - TODO: Decompile */
 
 /**
  * Send audio message via OS message queue

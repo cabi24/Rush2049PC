@@ -658,7 +658,7 @@ void osSetEventMesg(uint32_t event, void *mq, OSMesg msg)
 
 /* An event that finds its queue full is held, not lost, and delivered as the queue empties (osRecvMesg), except a
  * retrace, which is dropped as the N64's would be. A lost SP or DP event leaves the game's scheduler waiting for a
- * task that has ended: its current RSP task stays set, and dma_wait_complete, which runs the audio callback, waits
+ * task that has ended: its current RSP task stays set, and audio_retrace_thread_entry, which runs the audio callback, waits
  * for it to clear for ever. The queue fills when the scheduler can't run for a while (a thread computing without a
  * libultra call), and an audio task started then posts its SP event from the scheduler's own thread. */
 void pc_os_event(int event)

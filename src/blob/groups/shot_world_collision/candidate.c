@@ -19,7 +19,7 @@ typedef struct QNode {
     s16 y1;
     u16 child[4];
 } QNode;
-extern QNode *D_80124EEC;
+extern QNode *stree_nodes;
 
 typedef struct Poly {
     u16 type;
@@ -27,16 +27,16 @@ typedef struct Poly {
     u8 body[0x12];
     u16 off;
 } Poly;
-extern Poly *D_801497F8;
-extern u8 *D_80152460;
+extern Poly *stree_surf;
+extern u8 *stree_slist;
 
-void *handbrake_apply(QNode *n, s16 x, s16 y, s16 *out);
-void func_800ADCE0(u8 *input, s32 count, u16 *front, u32 marker);
-s16 func_800C3AD0(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin);
-void math_utility(void *, void *);
-void steering_sensitivity(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold);
-void traction_control(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
-f32 func_8008E0B8(f32 *v);
+void *updownleaf(QNode *n, s16 x, s16 y, s16 *out);
+void DecodeSlist(u8 *input, s32 count, u16 *front, u32 marker);
+s16 PointInSurf(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin);
+void CopyUV(void *, void *);
+void fHalfPipeInterp(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold);
+void fPathInterp(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
+f32 NormalVector(f32 *v);
 
 typedef struct EUCar {
     u8 pad0[928];
@@ -64,13 +64,13 @@ typedef struct EUSlot {
     s8 b857;
     u8 pad858[952 - 858];
 } EUSlot;
-extern EUSlot D_80152818[];
-extern s8 D_8010FFC0;
-extern f32 D_8011418C[];
-void effect_cleanup(s8 a, s8 b, s8 c);
-void func_800C54F0(s16 arg0, s32 arg1);
-u32 entity_flags_apply(u32 index, u32 other, u32 value, u8 mode);
-s16 input_process_controller(Poly *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *mat, s32 flag, s16 *outIdx, f32 rad2);
+extern EUSlot gGameCar[];
+extern s8 gGameSoundsEnabled;
+extern f32 unitmatrix[];
+void AddBattlePoint(s8 a, s8 b, s8 c);
+void AbortCar(s16 arg0, s32 arg1);
+u32 AudPlayEffect(u32 index, u32 other, u32 value, u8 mode);
+s16 CylinderInSurf(Poly *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *mat, s32 flag, s16 *outIdx, f32 rad2);
 #define FLOORF(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 
 /* ShotToWorldCollision, 0x800ADD58, 3580 bytes.
@@ -79,7 +79,7 @@ s16 input_process_controller(Poly *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut,
  * are evaluated in their call arguments. Traversal interpolation is written
  * as current position plus scaled displacement. No forced compiler events.
  */
-Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 snap, s32 skipType) {
+Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 snap, s32 skipType) {
     f32 m[3][3];
     u32 i;
     s16 quad;
@@ -114,7 +114,7 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
     cur[1] = start[1];
     cur[2] = start[2];
     x = FLOORF(cur[0]);
-    node = handbrake_apply(D_80124EEC, (s32)x, (s32)(z = FLOORF(cur[2])), &quad);
+    node = updownleaf(stree_nodes, (s32)x, (s32)(z = FLOORF(cur[2])), &quad);
     if (node == NULL) {
         return NULL;
     }
@@ -123,7 +123,7 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
     } else {
         x = end[0];
     }
-    endNode = handbrake_apply(D_80124EEC, (s32)x, (s32)(z = FLOORF(end[2])), &endQuad);
+    endNode = updownleaf(stree_nodes, (s32)x, (s32)(z = FLOORF(end[2])), &endQuad);
     for (;;) {
         mx = node->x0 + node->x1;
         if (mx < 0) {
@@ -144,15 +144,15 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             off |= 0x10000;
         }
         if (off != 0) {
-            p = D_80152460 + off;
+            p = stree_slist + off;
             n = *p++;
-            func_800ADCE0(p, n, list, -1);
+            DecodeSlist(p, n, list, -1);
             for (i = 0; i < n; i++) {
-                poly = &D_801497F8[list[i]];
+                poly = &stree_surf[list[i]];
                 if ((poly->type & 0xF) == 15 || (poly->type & 0xF) == skipType) {
                     continue;
                 }
-                state = input_process_controller(poly, cur, end, np, vc, (f32 *)m, 0, (s16 *)&idx, radius * radius);
+                state = CylinderInSurf(poly, cur, end, np, vc, (f32 *)m, 0, (s16 *)&idx, radius * radius);
                 if (state != 0) {
                     if (np[0] < minx || maxx <= np[0] || np[2] < minz || maxz <= np[2]) {
                         continue;
@@ -160,7 +160,7 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
                     end[0] = np[0];
                     end[1] = np[1];
                     end[2] = np[2];
-                    math_utility(m, mat);
+                    CopyUV(m, mat);
                     best = poly;
                     bestIdx = idx;
                 }
@@ -169,12 +169,12 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
         if (best != NULL) {
             if (snap != 0) {
                 if (best->type & 0x2000) {
-                    steering_sensitivity((intptr_t)best, bestIdx, end, vc, mat, 250.0f);
+                    fHalfPipeInterp((intptr_t)best, bestIdx, end, vc, mat, 250.0f);
                 } else if (best->type & 0x1000) {
-                    traction_control((intptr_t)best, bestIdx, end, vc, mat);
-                    func_8008E0B8(mat[0]);
-                    func_8008E0B8(mat[1]);
-                    func_8008E0B8(mat[2]);
+                    fPathInterp((intptr_t)best, bestIdx, end, vc, mat);
+                    NormalVector(mat[0]);
+                    NormalVector(mat[1]);
+                    NormalVector(mat[2]);
                 }
             }
             return best;
@@ -191,15 +191,15 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             np[1] = cur[1] + d[1] * t;
             np[2] = cur[2] + d[2] * t;
             if (np[2] == minz && d[2] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, minx - 1, minz - 1, &quad);
+                node = updownleaf(stree_nodes, minx - 1, minz - 1, &quad);
                 goto moved;
             }
             if (np[2] == maxz && d[2] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, minx - 1, maxz - 1, &quad);
+                node = updownleaf(stree_nodes, minx - 1, maxz - 1, &quad);
                 goto moved;
             }
             if (minz <= np[2] && np[2] <= maxz) {
-                node = handbrake_apply(D_80124EEC, minx - 1, (s32)FLOORF(np[2]), &quad);
+                node = updownleaf(stree_nodes, minx - 1, (s32)FLOORF(np[2]), &quad);
                 goto moved;
             }
         } else if (d[0] > 0.0f) {
@@ -208,15 +208,15 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             np[1] = cur[1] + d[1] * t;
             np[2] = cur[2] + d[2] * t;
             if (np[2] == minz && d[2] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, maxx, minz - 1, &quad);
+                node = updownleaf(stree_nodes, maxx, minz - 1, &quad);
                 goto moved;
             }
             if (np[2] == maxz && d[2] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, maxx, maxz - 1, &quad);
+                node = updownleaf(stree_nodes, maxx, maxz - 1, &quad);
                 goto moved;
             }
             if (minz <= np[2] && np[2] <= maxz) {
-                node = handbrake_apply(D_80124EEC, maxx, (s32)FLOORF(np[2]), &quad);
+                node = updownleaf(stree_nodes, maxx, (s32)FLOORF(np[2]), &quad);
                 goto moved;
             }
         }
@@ -226,15 +226,15 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             np[1] = cur[1] + d[1] * t;
             np[0] = cur[0] + d[0] * t;
             if (np[0] == minx && d[0] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, minx - 1, minz - 1, &quad);
+                node = updownleaf(stree_nodes, minx - 1, minz - 1, &quad);
                 goto moved;
             }
             if (np[0] == maxx && d[0] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, maxx - 1, minz - 1, &quad);
+                node = updownleaf(stree_nodes, maxx - 1, minz - 1, &quad);
                 goto moved;
             }
             if (minx <= np[0] && np[0] <= maxx) {
-                node = handbrake_apply(D_80124EEC, (s32)FLOORF(np[0]), minz - 1, &quad);
+                node = updownleaf(stree_nodes, (s32)FLOORF(np[0]), minz - 1, &quad);
                 goto moved;
             }
         } else if (d[2] > 0.0f) {
@@ -243,15 +243,15 @@ Poly *input_deadzone_apply(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             np[1] = cur[1] + d[1] * t;
             np[0] = cur[0] + d[0] * t;
             if (np[0] == minx && d[0] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, minx - 1, maxz, &quad);
+                node = updownleaf(stree_nodes, minx - 1, maxz, &quad);
                 goto moved;
             }
             if (np[0] == maxx && d[0] < 0.0f) {
-                node = handbrake_apply(D_80124EEC, maxx - 1, maxz, &quad);
+                node = updownleaf(stree_nodes, maxx - 1, maxz, &quad);
                 goto moved;
             }
             if (minx <= np[0] && np[0] <= maxx) {
-                node = handbrake_apply(D_80124EEC, (s32)FLOORF(np[0]), maxz, &quad);
+                node = updownleaf(stree_nodes, (s32)FLOORF(np[0]), maxz, &quad);
                 goto moved;
             }
         }

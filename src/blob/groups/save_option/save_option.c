@@ -1,5 +1,5 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* audio_bus_mix = SavePlayerOption and voice_stop_2 = _SaveRaceSetting (MAT3 GameSource/src/save.c,
+/* audio_bus_mix = SavePlayerOption and SaveRaceSetting = _SaveRaceSetting (MAT3 GameSource/src/save.c,
  * GC 0x800389xx SavePlayerOption, 0x80038BB0 _SaveRaceSetting; _SaveBattleSetting 0x80038CA4,
  * _SaveStuntSetting, _SaveObstacleSetting 0x80038E74 inlined into SavePlayerOption).
  * N64 save layout: no raceType byte (settings blocks 4 bytes earlier than GC), datah at profile+0x2C. */
@@ -41,13 +41,12 @@ typedef struct tPlayerProfile {
     tSaveData **datah;              /* 0x2C */
 } tPlayerProfile;
 
-extern signed char D_8014978C;      /* gTrackNum */
-#define gTrackNum D_8014978C
+extern signed char gTrackNum;      /* gTrackNum */
 
-unsigned int format_string_parse(void *data, int size);          /* _CalcChecksum */
+unsigned int CalcChecksumInternal(void *data, int size);          /* _CalcChecksum */
 void PS_WriteFile(tPS_File **fileh, void *data, int size);
 
-void voice_stop_2(tPlayerProfile **player, unsigned char option, signed char value, unsigned char track)
+void SaveRaceSetting(tPlayerProfile **player, unsigned char option, signed char value, unsigned char track)
 {
     tSaveData *data = *(*player)->datah;
     signed char *setting;
@@ -66,7 +65,7 @@ void voice_stop_2(tPlayerProfile **player, unsigned char option, signed char val
     }
     if (*setting != value) {
         *setting = value;
-        data->raceSettings.checksum = format_string_parse(&data->raceSettings.track, sizeof(data->raceSettings) - 4);
+        data->raceSettings.checksum = CalcChecksumInternal(&data->raceSettings.track, sizeof(data->raceSettings) - 4);
         PS_WriteFile((*player)->fileh, &data->raceSettings, sizeof(data->raceSettings));
     }
 }
@@ -88,7 +87,7 @@ static void _SaveBattleSetting(tPlayerProfile **player, unsigned char option, si
     }
     if (*setting != value) {
         *setting = value;
-        data->battleSettings.checksum = format_string_parse(&data->battleSettings.track, sizeof(data->battleSettings) - 4);
+        data->battleSettings.checksum = CalcChecksumInternal(&data->battleSettings.track, sizeof(data->battleSettings) - 4);
         PS_WriteFile((*player)->fileh, &data->battleSettings, sizeof(data->battleSettings));
     }
 }
@@ -111,7 +110,7 @@ static void _SaveStuntSetting(tPlayerProfile **player, unsigned char option, sig
     }
     if (*setting != value) {
         *setting = value;
-        data->stuntSettings.checksum = format_string_parse(&data->stuntSettings.track, sizeof(data->stuntSettings) - 4);
+        data->stuntSettings.checksum = CalcChecksumInternal(&data->stuntSettings.track, sizeof(data->stuntSettings) - 4);
         PS_WriteFile((*player)->fileh, &data->stuntSettings, sizeof(data->stuntSettings));
     }
 }
@@ -129,7 +128,7 @@ static void _SaveObstacleSetting(tPlayerProfile **player, unsigned char option, 
     }
     if (*setting != value) {
         *setting = value;
-        data->obstacleSettings.checksum = format_string_parse(&data->obstacleSettings.track, sizeof(data->obstacleSettings) - 4);
+        data->obstacleSettings.checksum = CalcChecksumInternal(&data->obstacleSettings.track, sizeof(data->obstacleSettings) - 4);
         PS_WriteFile((*player)->fileh, &data->obstacleSettings, sizeof(data->obstacleSettings));
     }
 }
@@ -142,11 +141,11 @@ void SavePlayerOption(tPlayerProfile **player, unsigned char option, signed char
     if (option < 21) {
         if (data->options[option] != value) {
             data->options[option] = value;
-            data->optChecksum = format_string_parse(data->options, 21);
+            data->optChecksum = CalcChecksumInternal(data->options, 21);
             PS_WriteFile((*player)->fileh, &data->optChecksum, 25);
         }
-    } else if (gTrackNum >= 0 && gTrackNum < 6) voice_stop_2(player, option, value, gTrackNum);
-    else if (gTrackNum >= 19 && gTrackNum < 25) voice_stop_2(player, option, value, gTrackNum);
+    } else if (gTrackNum >= 0 && gTrackNum < 6) SaveRaceSetting(player, option, value, gTrackNum);
+    else if (gTrackNum >= 19 && gTrackNum < 25) SaveRaceSetting(player, option, value, gTrackNum);
     else if (gTrackNum >= 6 && gTrackNum < 14) _SaveBattleSetting(player, option, value, (unsigned char)(gTrackNum - 6));
     else if (gTrackNum >= 14 && gTrackNum < 18) _SaveStuntSetting(player, option, value, (unsigned char)(gTrackNum - 14));
     else _SaveObstacleSetting(player, option, value, (unsigned char)(gTrackNum - 18));

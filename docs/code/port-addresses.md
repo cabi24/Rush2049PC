@@ -52,7 +52,7 @@ next to a KSEG0 one.
 - **The window's own constants stay**: `PC_RDRAM_BASE`, `PC_RDRAM_SIZE`, `PC_RDRAM_MAX`, `PC_RCP_SEGMENT_SPAN`
   (port/include/pc_port.h). Use them where a literal means the window rather than KSEG0.
 - **One definition of the overlay block**: the game's overlay loader passes the load address and the block's end
-  to PrevMaxPath as literals, and port/ultra/heap.c, test_heap.c and docs/port/DATA.md copy them. Proposed:
+  to load_overlay as literals, and port/ultra/heap.c, test_heap.c and docs/port/DATA.md copy them. Proposed:
   `OVERLAY_LOAD_ADDR`, `OVERLAY_BLOCK_END` (no collision in the tree), in a header both include.
 - **Symbols by name**: the loader's tables hold every symbol's name and N64 address, so port code that needs one
   asks by name (a `pc_data_addr_of(tables, name)` lookup, or `pc_data_peek` taking a name) instead of carrying a
@@ -143,7 +143,7 @@ The loader treats a word in [0x80000000, 0x80800000) as an address because the c
 ## Image, arena and heap bounds
 
 Where the images sit. `IMAGES_LO`/`IMAGES_HI` copy the two literals the game's own overlay loader passes to
-PrevMaxPath (src/blob/groups/*/overlay_loader.c: the runtime images' load address and the end of the heap block it
+load_overlay (src/blob/groups/*/overlay_loader.c: the runtime images' load address and the end of the heap block it
 reserves for them, past image A's BSS); pc_data.c tells an overlay image by a base at or above 0x80300000, and low
 memory by an address below the boot code's first word.
 
@@ -156,8 +156,8 @@ low memory. **Wave 3:** the overlays become PC memory and the heap's reservation
 |---|---|---|---|
 | `port/data/pc_data.c:145` | `0x80300000u` | a threshold telling an overlay image by its base (anything at or above 0x80300000) | a flag in the image table (PC_IMG_OVERLAY) or a compare with the overlay base symbol |
 | `port/data/pc_data.c:258` | `0x80000400u` | the end of low memory (`entrypoint`, the first boot code address) | a named bound (N64_LOW_MEMORY_END) or the loader table's boot image base |
-| `port/ultra/heap.c:23` | `0x8038A400u` | IMAGES_LO: the runtime images' load address (`D_8038A400`, the base of both overlays) | the overlay base symbol's name (from the overlay loader), not a copy; wave 3: overlays as PC memory, the reservation goes |
-| `port/ultra/heap.c:24` | `0x803BB380u` | IMAGES_HI: the end of the heap block the overlay loader reserves for the images (past image A's BSS end `D_803BAE20`) | a constant shared with the loader (the reservation's size is game-defined in overlay_loader.c); wave 3: goes |
+| `port/ultra/heap.c:23` | `0x8038A400u` | IMAGES_LO: the runtime images' load address (`overlay_base`, the base of both overlays) | the overlay base symbol's name (from the overlay loader), not a copy; wave 3: overlays as PC memory, the reservation goes |
+| `port/ultra/heap.c:24` | `0x803BB380u` | IMAGES_HI: the end of the heap block the overlay loader reserves for the images (past image A's BSS end `start_overlay_bss_end`) | a constant shared with the loader (the reservation's size is game-defined in overlay_loader.c); wave 3: goes |
 
 ## libultra's boot parameters in low memory
 
@@ -187,17 +187,17 @@ entry goes once that word holds a host pointer.
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
-| `port/main.c:745` | `0x8011EAECu` | `D_8011EAEC` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `D_8011EAEC` |
-| `port/main.c:746` | `0x801211BCu` | `D_801211BC` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `D_801211BC` |
-| `port/main.c:747` | `0x801211F4u` | `D_801211F4` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `D_801211F4` |
-| `port/main.c:748` | `0x801211C8u` | `D_801211C8` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `D_801211C8` |
-| `port/mods/mods.c:27` | `0x8002E580u` | `D_8002E580` (the file table: gWaveSizes, the files' sizes) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
-| `port/mods/mods.c:28` | `0x8002E860u` | `D_8002E860` (the file table: the first text bank) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
-| `port/mods/mods.c:29` | `0x8011B5BCu` | `D_8011B5BC` (the file table: the files' ROM offsets) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
-| `port/mods/mods.c:30` | `0x80123564u` | `D_80123564` (the file table: the files' storage kinds) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
-| `port/ultra/statehash.c:411` | `0x80156BCCu` | `D_80156BCC` (a word holding a window pointer's low half: left out of the hash) | the symbol by name (`&D_80156BCC`); wave 3: goes when the word holds a host pointer |
+| `port/main.c:745` | `0x8011EAECu` | `pak_charset` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `pak_charset` |
+| `port/main.c:746` | `0x801211BCu` | `save_file_name_prefix` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `save_file_name_prefix` |
+| `port/main.c:747` | `0x801211F4u` | `ghost_file_ext` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `ghost_file_ext` |
+| `port/main.c:748` | `0x801211C8u` | `player_file_ext_prefix` (pc_data_peek reads it from the cartridge image before the data loads) | pc_data_peek by the symbol's name (the loader's table has it): `player_file_ext_prefix` |
+| `port/mods/mods.c:27` | `0x8002E580u` | `gWaveSizes` (the file table: gWaveSizes, the files' sizes) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
+| `port/mods/mods.c:28` | `0x8002E860u` | `gLargestTextWave` (the file table: the first text bank) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
+| `port/mods/mods.c:29` | `0x8011B5BCu` | `wave_rom_offsets` (the file table: the files' ROM offsets) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
+| `port/mods/mods.c:30` | `0x80123564u` | `wave_storage_kinds` (the file table: the files' storage kinds) | the symbol by name through the loader (pc_data_peek by name), or `&name` once wave 3 owns the data |
+| `port/ultra/statehash.c:411` | `0x80156BCCu` | `last_frame_text_dl_end` (a word holding a window pointer's low half: left out of the hash) | the symbol by name (`&last_frame_text_dl_end`); wave 3: goes when the word holds a host pointer |
 | `port/ultra/statehash.c:422` | `0x80037B30u` | `__osMotorPifBuf` (libultra SI scratch: hashed as zeros) | the symbol by name (`&__osMotorPifBuf`, with sizeof) |
-| `port/ultra/statehash.c:423` | `0x80037F60u` | `__osPfsBuffer` (libultra SI scratch: hashed as zeros) | the symbol by name (`&__osPfsBuffer`, with sizeof) |
+| `port/ultra/statehash.c:423` | `0x80037F60u` | `__osPfsPifRam` (libultra SI scratch: hashed as zeros) | the symbol by name (`&__osPfsPifRam`, with sizeof) |
 
 ## Cartridge and PI addresses
 
@@ -258,12 +258,12 @@ keep them while the data comes from the cartridge); the window-mapping part goes
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
-| `port/data/test_overlay_data.c:35` | `0x80399118u` | `D_80399118`: a stand-in arena for the weapons' state, a slice of image B's BSS (its real arena is 0x80394F70-0x8039B440) | the two symbols by name (first, and last + its size); goes with overlays as PC memory (wave 3) |
-| `port/data/test_overlay_data.c:36` | `0x80399A70u` | `D_80399A70`: a stand-in arena for the weapons' state, a slice of image B's BSS (its real arena is 0x80394F70-0x8039B440) | the two symbols by name (first, and last + its size); goes with overlays as PC memory (wave 3) |
-| `port/data/test_overlay_data.c:68` | `0x8038A400u` | the runtime images' base `D_8038A400` (both images in the test tables) | the overlay base symbol by name |
-| `port/data/test_overlay_data.c:71` | `0x8038A400` | the runtime images' base `D_8038A400` (both images in the test tables) | the overlay base symbol by name |
-| `port/data/test_overlay_data.c:72` | `0x8038A400` | the runtime images' base `D_8038A400` (both images in the test tables) | the overlay base symbol by name |
-| `port/data/test_overlay_data.c:77` | `0x8017A640` | `gBssEnd` / `D_8017A640`: the heap's start in the test tables | gBssEnd by name, or a test constant |
+| `port/data/test_overlay_data.c:35` | `0x80399118u` | `gCurWeaponType`: a stand-in arena for the weapons' state, a slice of image B's BSS (its real arena is 0x80394F70-0x8039B440) | the two symbols by name (first, and last + its size); goes with overlays as PC memory (wave 3) |
+| `port/data/test_overlay_data.c:36` | `0x80399A70u` | `DamagePolys`: a stand-in arena for the weapons' state, a slice of image B's BSS (its real arena is 0x80394F70-0x8039B440) | the two symbols by name (first, and last + its size); goes with overlays as PC memory (wave 3) |
+| `port/data/test_overlay_data.c:68` | `0x8038A400u` | the runtime images' base `overlay_base` (both images in the test tables) | the overlay base symbol by name |
+| `port/data/test_overlay_data.c:71` | `0x8038A400` | the runtime images' base `overlay_base` (both images in the test tables) | the overlay base symbol by name |
+| `port/data/test_overlay_data.c:72` | `0x8038A400` | the runtime images' base `overlay_base` (both images in the test tables) | the overlay base symbol by name |
+| `port/data/test_overlay_data.c:77` | `0x8017A640` | `game_bss_end` / `game_bss_end`: the heap's start in the test tables | game_bss_end by name, or a test constant |
 | `port/data/test_pc_data.c:64` | `0x80001000` | an address in the synthetic layout (fake images at 0x80001000, 0x80010000, 0x80300000, heap 0x80020000) | named test bases (TEST_BOOT, TEST_GAME, TEST_OVL, TEST_HEAP) + offsets; survives while the loader resolves N64 addresses |
 | `port/data/test_pc_data.c:65` | `0x80010000` | an address in the synthetic layout (fake images at 0x80001000, 0x80010000, 0x80300000, heap 0x80020000) | named test bases (TEST_BOOT, TEST_GAME, TEST_OVL, TEST_HEAP) + offsets; survives while the loader resolves N64 addresses |
 | `port/data/test_pc_data.c:66` | `0x80300000` | an address in the synthetic layout (fake images at 0x80001000, 0x80010000, 0x80300000, heap 0x80020000) | named test bases (TEST_BOOT, TEST_GAME, TEST_OVL, TEST_HEAP) + offsets; survives while the loader resolves N64 addresses |
@@ -377,40 +377,40 @@ become `name + offset`. **Wave 3:** the symbol checks survive with the loader; t
 |---|---|---|---|
 | `port/data/datacheck.c:97` | `0x80000000u` | the window's host address | PC_RDRAM_BASE |
 | `port/data/datacheck.c:102` | `0x80000000` | the window's host address | PC_RDRAM_BASE |
-| `port/data/datacheck.c:130` | `0x80118E28` | `D_80118E28` | the symbol's name, looked up in the loader's table (`D_80118E28`) |
-| `port/data/datacheck.c:131` | `0x801146BC` | `D_801146BC` | the symbol's name, looked up in the loader's table (`D_801146BC`) |
-| `port/data/datacheck.c:132` | `0x80116DB0` | `D_80116DB0` | the symbol's name, looked up in the loader's table (`D_80116DB0`) |
-| `port/data/datacheck.c:133` | `0x8011AD8C` | `D_8011AD8C` | the symbol's name, looked up in the loader's table (`D_8011AD8C`) |
-| `port/data/datacheck.c:134` | `0x8011ADC0` | `D_8011ADC0` | the symbol's name, looked up in the loader's table (`D_8011ADC0`) |
-| `port/data/datacheck.c:135` | `0x8011AE58` | `D_8011AE58` | the symbol's name, looked up in the loader's table (`D_8011AE58`) |
-| `port/data/datacheck.c:136` | `0x8011B558` | `D_8011B558` | the symbol's name, looked up in the loader's table (`D_8011B558`) |
-| `port/data/datacheck.c:137` | `0x8011B578` | `D_8011B578` | the symbol's name, looked up in the loader's table (`D_8011B578`) |
-| `port/data/datacheck.c:138` | `0x8011EF10` | `D_8011EF10` | the symbol's name, looked up in the loader's table (`D_8011EF10`) |
-| `port/data/datacheck.c:139` | `0x8011EF1C` | `D_8011EF10` + 0xC | the symbol's name, looked up in the loader's table (`D_8011EF10`) |
-| `port/data/datacheck.c:140` | `0x803B3054` | `D_803B3054` | the symbol's name, looked up in the loader's table (`D_803B3054`) |
-| `port/data/datacheck.c:141` | `0x803B3458` | `D_803B3458` | the symbol's name, looked up in the loader's table (`D_803B3458`) |
-| `port/data/datacheck.c:142` | `0x803B8328` | `D_803B8328` | the symbol's name, looked up in the loader's table (`D_803B8328`) |
-| `port/data/datacheck.c:143` | `0x803B8354` | `D_803B8354` | the symbol's name, looked up in the loader's table (`D_803B8354`) |
-| `port/data/datacheck.c:144` | `0x803B8394` | `D_803B8394` | the symbol's name, looked up in the loader's table (`D_803B8394`) |
-| `port/data/datacheck.c:145` | `0x803AF9A8` | `D_803AF9A8` | the symbol's name, looked up in the loader's table (`D_803AF9A8`) |
-| `port/data/datacheck.c:146` | `0x803AF9E4` | `D_803AF9A8` + 0x3C | the symbol's name, looked up in the loader's table (`D_803AF9A8`) |
-| `port/data/datacheck.c:147` | `0x80394270` | `D_80394270` | the symbol's name, looked up in the loader's table (`D_80394270`) |
-| `port/data/datacheck.c:148` | `0x803942A0` | `D_803942A0` | the symbol's name, looked up in the loader's table (`D_803942A0`) |
-| `port/data/datacheck.c:149` | `0x803942E8` | `D_803942E8` | the symbol's name, looked up in the loader's table (`D_803942E8`) |
-| `port/data/datacheck.c:150` | `0x8002AFF8` | `gViewportOffsetXExtra` | the symbol's name, looked up in the loader's table (`gViewportOffsetXExtra`) |
-| `port/data/datacheck.c:151` | `0x8002B010` | `gViewportPendingFrames` | the symbol's name, looked up in the loader's table (`gViewportPendingFrames`) |
+| `port/data/datacheck.c:130` | `0x80118E28` | `gFlashColor1` | the symbol's name, looked up in the loader's table (`gFlashColor1`) |
+| `port/data/datacheck.c:131` | `0x801146BC` | `flashColors` | the symbol's name, looked up in the loader's table (`flashColors`) |
+| `port/data/datacheck.c:132` | `0x80116DB0` | `options_buttonColor` | the symbol's name, looked up in the loader's table (`options_buttonColor`) |
+| `port/data/datacheck.c:133` | `0x8011AD8C` | `gShadowColor` | the symbol's name, looked up in the loader's table (`gShadowColor`) |
+| `port/data/datacheck.c:134` | `0x8011ADC0` | `SheenColors` | the symbol's name, looked up in the loader's table (`SheenColors`) |
+| `port/data/datacheck.c:135` | `0x8011AE58` | `Track1Colors` | the symbol's name, looked up in the loader's table (`Track1Colors`) |
+| `port/data/datacheck.c:136` | `0x8011B558` | `arrowColors` | the symbol's name, looked up in the loader's table (`arrowColors`) |
+| `port/data/datacheck.c:137` | `0x8011B578` | `arrow_base_color` | the symbol's name, looked up in the loader's table (`arrow_base_color`) |
+| `port/data/datacheck.c:138` | `0x8011EF10` | `cull_box_vertices_a` | the symbol's name, looked up in the loader's table (`cull_box_vertices_a`) |
+| `port/data/datacheck.c:139` | `0x8011EF1C` | `cull_box_vertices_a` + 0xC | the symbol's name, looked up in the loader's table (`cull_box_vertices_a`) |
+| `port/data/datacheck.c:140` | `0x803B3054` | `carscr_solidColor` | the symbol's name, looked up in the loader's table (`carscr_solidColor`) |
+| `port/data/datacheck.c:141` | `0x803B3458` | `circuitscr_init_button_color` | the symbol's name, looked up in the loader's table (`circuitscr_init_button_color`) |
+| `port/data/datacheck.c:142` | `0x803B8328` | `loadTrackScreen_backColor` | the symbol's name, looked up in the loader's table (`loadTrackScreen_backColor`) |
+| `port/data/datacheck.c:143` | `0x803B8354` | `race_map_vertex_color` | the symbol's name, looked up in the loader's table (`race_map_vertex_color`) |
+| `port/data/datacheck.c:144` | `0x803B8394` | `trackscr_init_button_color` | the symbol's name, looked up in the loader's table (`trackscr_init_button_color`) |
+| `port/data/datacheck.c:145` | `0x803AF9A8` | `carscr_buttonInfo` | the symbol's name, looked up in the loader's table (`carscr_buttonInfo`) |
+| `port/data/datacheck.c:146` | `0x803AF9E4` | `carscr_buttonInfo` + 0x3C | the symbol's name, looked up in the loader's table (`carscr_buttonInfo`) |
+| `port/data/datacheck.c:147` | `0x80394270` | `hudextra_playerColor` | the symbol's name, looked up in the loader's table (`hudextra_playerColor`) |
+| `port/data/datacheck.c:148` | `0x803942A0` | `stunt_coin_color` | the symbol's name, looked up in the loader's table (`stunt_coin_color`) |
+| `port/data/datacheck.c:149` | `0x803942E8` | `hitColor` | the symbol's name, looked up in the loader's table (`hitColor`) |
+| `port/data/datacheck.c:150` | `0x8002AFF8` | `video_default_extra_width` | the symbol's name, looked up in the loader's table (`video_default_extra_width`) |
+| `port/data/datacheck.c:151` | `0x8002B010` | `video_pending_frames` | the symbol's name, looked up in the loader's table (`video_pending_frames`) |
 | `port/data/datacheck.c:152` | `0x8002B028` | `gInitFlag` | the symbol's name, looked up in the loader's table (`gInitFlag`) |
-| `port/data/datacheck.c:153` | `0x8002B030` | `gDmaInitialized` | the symbol's name, looked up in the loader's table (`gDmaInitialized`) |
-| `port/data/datacheck.c:156` | `0x803B3460` | `D_803B3460` | the symbol's name, looked up in the loader's table (`D_803B3460`) |
-| `port/data/datacheck.c:157` | `0x803B3464` | `D_803B3460` + 0x4 | the symbol's name, looked up in the loader's table (`D_803B3460`) |
-| `port/data/datacheck.c:158` | `0x803B4134` | `D_803B3460` + 0xCD4 | the symbol's name, looked up in the loader's table (`D_803B3460`) |
-| `port/data/datacheck.c:159` | `0x803B41D8` | `D_803B41D4` + 0x4 | the symbol's name, looked up in the loader's table (`D_803B41D4`) |
-| `port/data/datacheck.c:163` | `0x801108D0` | `D_801108C8` + 0x8 | the symbol's name, looked up in the loader's table (`D_801108C8`) |
-| `port/data/datacheck.c:164` | `0x803B28C8` | `D_803B28C8` | the symbol's name, looked up in the loader's table (`D_803B28C8`) |
+| `port/data/datacheck.c:153` | `0x8002B030` | `decompress_lock_ready` | the symbol's name, looked up in the loader's table (`decompress_lock_ready`) |
+| `port/data/datacheck.c:156` | `0x803B3460` | `gEggs` | the symbol's name, looked up in the loader's table (`gEggs`) |
+| `port/data/datacheck.c:157` | `0x803B3464` | `gEggs` + 0x4 | the symbol's name, looked up in the loader's table (`gEggs`) |
+| `port/data/datacheck.c:158` | `0x803B4134` | `gEggs` + 0xCD4 | the symbol's name, looked up in the loader's table (`gEggs`) |
+| `port/data/datacheck.c:159` | `0x803B41D8` | `start_screen_egg` + 0x4 | the symbol's name, looked up in the loader's table (`start_screen_egg`) |
+| `port/data/datacheck.c:163` | `0x801108D0` | `steady_leg_duration` + 0x8 | the symbol's name, looked up in the loader's table (`steady_leg_duration`) |
+| `port/data/datacheck.c:164` | `0x803B28C8` | `gTransStats` | the symbol's name, looked up in the loader's table (`gTransStats`) |
 | `port/data/datacheck.c:169` | `0x80118C10` | `D_80118C10` | the symbol's name, looked up in the loader's table (`D_80118C10`) |
 | `port/data/datacheck.c:170` | `0x801163F8` | `D_801163F8` | the symbol's name, looked up in the loader's table (`D_801163F8`) |
-| `port/data/datacheck.c:171` | `0x8011B4B4` | `D_8011B4B4` | the symbol's name, looked up in the loader's table (`D_8011B4B4`) |
-| `port/data/datacheck.c:172` | `0x801202F8` | `D_801202F8` | the symbol's name, looked up in the loader's table (`D_801202F8`) |
+| `port/data/datacheck.c:171` | `0x8011B4B4` | `wingOffsets` | the symbol's name, looked up in the loader's table (`wingOffsets`) |
+| `port/data/datacheck.c:172` | `0x801202F8` | `gravityArray` | the symbol's name, looked up in the loader's table (`gravityArray`) |
 | `port/data/datacheck.c:173` | `0x80120308` | `D_80120308` | the symbol's name, looked up in the loader's table (`D_80120308`) |
 | `port/data/datacheck.c:175` | `0x801106D0` | `D_801106C4` + 0xC | the symbol's name, looked up in the loader's table (`D_801106C4`) |
 | `port/data/datacheck.c:176` | `0x801106D4` | `D_801106C4` + 0x10 | the symbol's name, looked up in the loader's table (`D_801106C4`) |
@@ -420,11 +420,11 @@ become `name + offset`. **Wave 3:** the symbol checks survive with the loader; t
 | `port/data/datacheck.c:537` | `0x80000000u` | the window's host address | PC_RDRAM_BASE |
 | `port/data/datacheck.c:547` | `0x8038A400u` | the runtime images' base: random heap addresses below it; the function both images have there | the overlay base by name |
 | `port/data/datacheck.c:550` | `0x8038A400` | the runtime images' base: random heap addresses below it; the function both images have there | the overlay base by name |
-| `port/data/datacheck.c:587` | `0x8002E440` | `D_8002E440` | the symbol's name, looked up in the loader's table (`D_8002E440`) |
-| `port/data/datacheck.c:597` | `0x8002B040`, `0x8002B08C`, `0x8002B184` | `gInflateBorder`; `0x8002B08C`: `gInflateCplens`; `0x8002B184`: `gInflateMaskBits` | the symbol's name, looked up in the loader's table (`gInflateBorder`); `0x8002B08C`: the symbol's name, looked up in the loader's table (`gInflateCplens`); `0x8002B184`: the symbol's name, looked up in the loader's table (`gInflateMaskBits`) |
-| `port/data/datacheck.c:638` | `0x8011B5BC`, `0x8002E580` | `D_8011B5BC`; `0x8002E580`: `D_8002E580` | the symbol's name, looked up in the loader's table (`D_8011B5BC`); `0x8002E580`: the symbol's name, looked up in the loader's table (`D_8002E580`) |
-| `port/data/datacheck.c:639` | `0x80123564` | `D_80123564` | the symbol's name, looked up in the loader's table (`D_80123564`) |
-| `port/data/datacheck.c:640` | `0x801234AC` | `D_801234AC` | the symbol's name, looked up in the loader's table (`D_801234AC`) |
+| `port/data/datacheck.c:587` | `0x8002E440` | `build_date_text` | the symbol's name, looked up in the loader's table (`build_date_text`) |
+| `port/data/datacheck.c:597` | `0x8002B040`, `0x8002B08C`, `0x8002B184` | `unzip_border`; `0x8002B08C`: `unzip_cplens`; `0x8002B184`: `unzip_mask_bits` | the symbol's name, looked up in the loader's table (`unzip_border`); `0x8002B08C`: the symbol's name, looked up in the loader's table (`unzip_cplens`); `0x8002B184`: the symbol's name, looked up in the loader's table (`unzip_mask_bits`) |
+| `port/data/datacheck.c:638` | `0x8011B5BC`, `0x8002E580` | `wave_rom_offsets`; `0x8002E580`: `gWaveSizes` | the symbol's name, looked up in the loader's table (`wave_rom_offsets`); `0x8002E580`: the symbol's name, looked up in the loader's table (`gWaveSizes`) |
+| `port/data/datacheck.c:639` | `0x80123564` | `wave_storage_kinds` | the symbol's name, looked up in the loader's table (`wave_storage_kinds`) |
+| `port/data/datacheck.c:640` | `0x801234AC` | `wave_is_model` | the symbol's name, looked up in the loader's table (`wave_is_model`) |
 
 ## Check: the startup self-test
 
@@ -451,13 +451,13 @@ exactly what wave 3 ends: those checks go; the window checks go with the window.
 | `port/ultra/selftest.c:425` | `0x81000000u` | a window address for the K0/K1/physical, 16 MiB and relocation checks | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
 | `port/ultra/selftest.c:427` | `0x81000000u` | a window address for the K0/K1/physical, 16 MiB and relocation checks | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
 | `port/ultra/selftest.c:429` | `0x81000000u` | a window address for the K0/K1/physical, 16 MiB and relocation checks | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
-| `port/ultra/selftest.c:433` | `0x8017A640u`, `0x8038A400u` | `gBssEnd / D_8017A640` at its N64 address in the window; `0x8038A400u`: `D_8038A400 / func_8038A400` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
-| `port/ultra/selftest.c:434` | `0x80000300u` | `osTvType / D_80000300` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
+| `port/ultra/selftest.c:433` | `0x8017A640u`, `0x8038A400u` | `game_bss_end / game_bss_end` at its N64 address in the window; `0x8038A400u`: `overlay_base / findDamageSlot` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
+| `port/ultra/selftest.c:434` | `0x80000300u` | `osTvType / osTvType` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
 | `port/ultra/selftest.c:444` | `0x80001000u` | a window address for the K0/K1/physical, 16 MiB and relocation checks | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
 | `port/ultra/selftest.c:445` | `0x80001000` | a window address for the K0/K1/physical, 16 MiB and relocation checks | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
 | `port/ultra/selftest.c:447` | `0x80001000`, `0x80000000u` | a window address for the K0/K1/physical, 16 MiB and relocation checks; `0x80000000u`: KSEG0 base | PC_RDRAM_BASE + offset (named), K1BASE; stays while the window exists |
-| `port/ultra/selftest.c:451` | `0x8002E580u`, `0x8011B5BCu` | `D_8002E580` at its N64 address in the window; `0x8011B5BCu`: `D_8011B5BC` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
-| `port/ultra/selftest.c:452` | `0x803B9A50u` | `D_803B9A50` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
+| `port/ultra/selftest.c:451` | `0x8002E580u`, `0x8011B5BCu` | `gWaveSizes` at its N64 address in the window; `0x8011B5BCu`: `wave_rom_offsets` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
+| `port/ultra/selftest.c:452` | `0x803B9A50u` | `gTrophyMat` at its N64 address in the window | the symbol by name; this check goes in wave 3 (data off its N64 address) |
 
 ## Tests: assets and game C
 
@@ -467,59 +467,59 @@ for test data (0x80300000 as the heap, 0x80321000 for input packets, 0x80200000/
 symbol of the N64 framebuffer at 0x80200000 is a coincidence); and the cartridge's sample base.
 test_heap.c copies the overlay loader's two literals.
 
-**Wave 2:** game symbols by name (`&D_8014D280` becomes its map name); scratch places as named test constants
+**Wave 2:** game symbols by name (`&gTargetArray` becomes its map name); scratch places as named test constants
 (`PC_RDRAM_BASE + offset`); the sample base by the game's symbol name. **Wave 3:** the ABS lines go (the symbols
 become ordinary definitions); scratch places become host buffers once the code under test takes host pointers.
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
 | `port/assets/tests/assetcheck.c:40` | `0x80086A50u` | the game image's base (`gDecompressedDataStart`) | the loader table's image bases (by image name) |
-| `port/assets/tests/assetcheck.c:43` | `0x800277D0u` | the boot data's base (`func_800277D0`, the start of the boot tail) | the loader table's image bases (by image name) |
-| `port/assets/tests/assetcheck.c:470` | `0x8011B5BC`, `0x8002E580` | `D_8011B5BC` (the file table) read by its N64 address; `0x8002E580`: `D_8002E580` (the file table) read by its N64 address | the symbol by name through the loader |
-| `port/assets/tests/assetcheck.c:471` | `0x80123564` | `D_80123564` (the file table) read by its N64 address | the symbol by name through the loader |
+| `port/assets/tests/assetcheck.c:43` | `0x800277D0u` | the boot data's base (`gsm_rpe_decode`, the start of the boot tail) | the loader table's image bases (by image name) |
+| `port/assets/tests/assetcheck.c:470` | `0x8011B5BC`, `0x8002E580` | `wave_rom_offsets` (the file table) read by its N64 address; `0x8002E580`: `gWaveSizes` (the file table) read by its N64 address | the symbol by name through the loader |
+| `port/assets/tests/assetcheck.c:471` | `0x80123564` | `wave_storage_kinds` (the file table) read by its N64 address | the symbol by name through the loader |
 | `port/assets/tests/support.c:161` | `0x80000000u`, `0x1FFFFFFFu` | KSEG0 base / mask in the test's own pc_n64_ptr | K0BASE, K0_TO_PHYS (libultra) |
-| `port/assets/tests/test_battle.c:33` | `0x8014D280u` | `D_8014D280` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_battle.c:35` | `0x8014D280` | `D_8014D280` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_battle.c:33` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_battle.c:35` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_battle.c:36` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_cars.c:58` | `0x80151CE8` | `D_80151CE8` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:59` | `0x80151CEE` | `D_80151CEE` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:60` | `0x80151D18` | `D_80151D18` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:61` | `0x80151CE8` | `D_80151CE8` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:62` | `0x80139320` | `D_80139320` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:63` | `0x80139320` | `D_80139320` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:64` | `0x801116D0` | `D_801116D0` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:65` | `0x8011F724` | `D_8011F724` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:58` | `0x80151CE8` | `gCheckpoints` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:59` | `0x80151CEE` | `checkpoints_start_pt` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:60` | `0x80151D18` | `gCheckpoints_pathPts` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:61` | `0x80151CE8` | `gCheckpoints` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:62` | `0x80139320` | `gCarParts` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:63` | `0x80139320` | `gCarParts` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:64` | `0x801116D0` | `gTune` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:65` | `0x8011F724` | `stdtorquecurve` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_cars.c:66` | `0x8011F814` | `D_8011F814` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:67` | `0x801116D0` | `D_801116D0` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:67` | `0x801116D0` | `gTune` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_cars.c:68` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_cars.c:69` | `0x80301000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_cars.c:91` | `0x8014254C` | `D_8014254C` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_cars.c:447` | `0x801116D0u`, `0x8011F724u` | `D_801116D0`: a model field holds its N64 address; `0x8011F724u`: `D_8011F724`: a model field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
+| `port/assets/tests/test_cars.c:91` | `0x8014254C` | `gObjList_biased` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_cars.c:447` | `0x801116D0u`, `0x8011F724u` | `gTune`: a model field holds its N64 address; `0x8011F724u`: `stdtorquecurve`: a model field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
 | `port/assets/tests/test_cars.c:502` | `0x80302000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_casts.c:96` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_casts.c:117` | `0x80124FD0` | `D_80124FD0` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_casts.c:118` | `0x80150B70` | `gCamera / gEffectEmittersArray / D_80150B70` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_casts.c:117` | `0x80124FD0` | `skyMatrices` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_casts.c:118` | `0x80150B70` | `gCamera / gEffectEmittersArray / gCamera` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_casts.c:119` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_casts.c:131` | `0x80150B70u` | `gCamera / gEffectEmittersArray / D_80150B70` read at its N64 address | the symbol by name; goes in wave 3 |
-| `port/assets/tests/test_casts.c:133` | `0x80124FD0u` | `D_80124FD0` read at its N64 address | the symbol by name; goes in wave 3 |
-| `port/assets/tests/test_casts.c:139` | `0x80124FD0u` | `D_80124FD0` read at its N64 address | the symbol by name; goes in wave 3 |
-| `port/assets/tests/test_casts.c:324` | `0x8013F1F8` | `D_8013F1F8` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_casts.c:325` | `0x8013F390` | `D_8013F390` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_casts.c:131` | `0x80150B70u` | `gCamera / gEffectEmittersArray / gCamera` read at its N64 address | the symbol by name; goes in wave 3 |
+| `port/assets/tests/test_casts.c:133` | `0x80124FD0u` | `skyMatrices` read at its N64 address | the symbol by name; goes in wave 3 |
+| `port/assets/tests/test_casts.c:139` | `0x80124FD0u` | `skyMatrices` read at its N64 address | the symbol by name; goes in wave 3 |
+| `port/assets/tests/test_casts.c:324` | `0x8013F1F8` | `ghost_file_handles` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_casts.c:325` | `0x8013F390` | `ghost_file_records` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_casts.c:397` | `0x80310000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_casts.c:522` | `0x80123456u` | an arbitrary window address (PC_N64W identity) | PC_RDRAM_BASE + offset (named) |
 | `port/assets/tests/test_casts.c:523` | `0xB0039B40u` | a cartridge address: MusyX's sample base (KSEG1 / the game's sample offset) | PHYS_TO_K1(PI_DOM1_ADDR2) + the sample base offset (named as the game names it) |
 | `port/assets/tests/test_endian.c:182` | `0x80200000u` | a scratch place in the window (the N64 framebuffer's address, unused by the test) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_endian.c:183` | `0x80201000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_font.c:101` | `0x80123450u` | an arbitrary window address (inside `D_80123418` + 0x38, unrelated) | a named test constant |
+| `port/assets/tests/test_font.c:101` | `0x80123450u` | an arbitrary window address (inside `random_bit_masks` + 0x38, unrelated) | a named test constant |
 | `port/assets/tests/test_heap.c:26` | `0x80000000u`, `0x80800000u` | IN_WINDOW: the 8 MiB window range | PC_RDRAM_BASE, PC_RDRAM_BASE + PC_RDRAM_SIZE |
-| `port/assets/tests/test_heap.c:41` | `0x8017A640` | `gBssEnd / D_8017A640` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_heap.c:42` | `0x80000318` | `osMemSize / D_80000318` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_heap.c:41` | `0x8017A640` | `game_bss_end / game_bss_end` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_heap.c:42` | `0x80000318` | `osMemSize / osMemSize` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_heap.c:115` | `0x80400000u` | the heap's end in a 4 MiB window | PC_RDRAM_BASE + 4 MiB (named) |
 | `port/assets/tests/test_heap.c:132` | `0x82000000u`, `0x81100000u` | the heap's end and floor with a 32 MiB window (game.memory) | PC_RDRAM_BASE + size (named) |
 | `port/assets/tests/test_heap.c:135` | `0x81100000u` | the heap's end and floor with a 32 MiB window (game.memory) | PC_RDRAM_BASE + size (named) |
-| `port/assets/tests/test_heap.c:137` | `0x8038A400u` | the runtime images' block (`D_8038A400` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
-| `port/assets/tests/test_heap.c:138` | `0x803BB380u`, `0x8038A400u` | the runtime images' block (`D_8038A400` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
-| `port/assets/tests/test_heap.c:139` | `0x8038A400u`, `0x803BB380u` | the runtime images' block (`D_8038A400` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
+| `port/assets/tests/test_heap.c:137` | `0x8038A400u` | the runtime images' block (`overlay_base` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
+| `port/assets/tests/test_heap.c:138` | `0x803BB380u`, `0x8038A400u` | the runtime images' block (`overlay_base` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
+| `port/assets/tests/test_heap.c:139` | `0x8038A400u`, `0x803BB380u` | the runtime images' block (`overlay_base` to the loader's reservation end) | the overlay base by name and the loader's constant; goes in wave 3 |
 | `port/assets/tests/test_heap.c:142` | `0x81100000u` | the heap's end and floor with a 32 MiB window (game.memory) | PC_RDRAM_BASE + size (named) |
 | `port/assets/tests/test_input.c:61` | `0x80321000u`, `0x80321040u`, `0x80321080u`, `0x803210C0u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_input.c:169` | `0x80321000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
@@ -529,7 +529,7 @@ become ordinary definitions); scratch places become host buffers once the code u
 | `port/assets/tests/test_input.c:177` | `0x80321000u`, `0x80321040u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_mods.c:402` | `0x8002E000u` | the base of a synthetic boot/game data slice around the file table | derive from the file table symbols' names |
 | `port/assets/tests/test_mods.c:403` | `0x8011B000u` | the base of a synthetic boot/game data slice around the file table | derive from the file table symbols' names |
-| `port/assets/tests/test_mods.c:434` | `0x80123564u` | `D_80123564` (the file table) read by its N64 address | the symbol by name through the loader |
+| `port/assets/tests/test_mods.c:434` | `0x80123564u` | `wave_storage_kinds` (the file table) read by its N64 address | the symbol by name through the loader |
 | `port/assets/tests/test_mods.c:776` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
 | `port/assets/tests/test_mods.c:810` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
 | `port/assets/tests/test_mods.c:815` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
@@ -544,20 +544,20 @@ become ordinary definitions); scratch places become host buffers once the code u
 | `port/assets/tests/test_mods.c:893` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
 | `port/assets/tests/test_musyx.c:242` | `0xB0039B40u` | a cartridge address: MusyX's sample base (KSEG1 / the game's sample offset) | PHYS_TO_K1(PI_DOM1_ADDR2) + the sample base offset (named as the game names it) |
 | `port/assets/tests/test_musyx.c:647` | `0x80000000UL` | KSEG0 base (a mapping of the window at its fixed address) | PC_RDRAM_BASE |
-| `port/assets/tests/test_musyx.c:761` | `0x80050A50u` | `D_80050A50` (now pc_mx_nodes): the voice's node link, a 32-bit token the game C keeps as the old N64 address (src/rom/lib_1f5b0.c) | a named token base from the game C (its PC_MX node encoding), not the literal |
-| `port/assets/tests/test_musyx.c:773` | `0x80050A50u` | `D_80050A50` (now pc_mx_nodes): the voice's node link, a 32-bit token the game C keeps as the old N64 address (src/rom/lib_1f5b0.c) | a named token base from the game C (its PC_MX node encoding), not the literal |
+| `port/assets/tests/test_musyx.c:761` | `0x80050A50u` | `sound_handle_nodes` (now pc_mx_nodes): the voice's node link, a 32-bit token the game C keeps as the old N64 address (src/rom/sound/voices.c) | a named token base from the game C (its PC_MX node encoding), not the literal |
+| `port/assets/tests/test_musyx.c:773` | `0x80050A50u` | `sound_handle_nodes` (now pc_mx_nodes): the voice's node link, a 32-bit token the game C keeps as the old N64 address (src/rom/sound/voices.c) | a named token base from the game C (its PC_MX node encoding), not the literal |
 | `port/assets/tests/test_save.c:36` | `0x80000000u`, `0x80800000u` | IN_WINDOW: the 8 MiB window range | PC_RDRAM_BASE, PC_RDRAM_BASE + PC_RDRAM_SIZE |
-| `port/assets/tests/test_save.c:191` | `0x8017A640` | `gBssEnd / D_8017A640` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_save.c:192` | `0x80000318` | `osMemSize / D_80000318` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_targets.c:59` | `0x8014D280u` | `D_8014D280` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_targets.c:61` | `0x8014D280` | `D_8014D280` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_save.c:191` | `0x8017A640` | `game_bss_end / game_bss_end` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_save.c:192` | `0x80000318` | `osMemSize / osMemSize` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_targets.c:59` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_targets.c:61` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_targets.c:62` | `0x80118C10` | `D_80118C10` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_targets.c:65` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_targets.c:321` | `0x80118C10u` | `D_80118C10`: a node field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
 | `port/assets/tests/test_targets.c:564` | `0x80118C10u` | `D_80118C10`: a node field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
 | `port/assets/tests/test_wad.c:129` | `0x80001000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_wad.c:132` | `0x80001000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_weapons.c:40` | `0x8014D280u` | `D_8014D280` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_weapons.c:40` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_weapons.c:41` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_windows.c:56` | `0x1FFFFFFF` | KSEG mask (a stub osVirtualToPhysical) | K0_TO_PHYS |
 | `port/assets/tests/test_windows.c:152` | `0x80300000u`, `0x80340000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
@@ -617,15 +617,15 @@ constants for the rest.
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
-| `port/ultra/tests/test_gsm.c:59` | `0x800277D0` | `func_800277D0`: a hand-written GSM kernel in the boot tail | the kernel's name from the boot data map (rom.tsv), its address from the loader's table |
-| `port/ultra/tests/test_gsm.c:60` | `0x800277D0`, `0x800278C4`, `0x80027B44`, `0x800278BC`, `0x80027978` | `func_800277D0`: a hand-written GSM kernel in the boot tail; `0x800278C4`: `func_800278C4`: a hand-written GSM kernel in the boot tail; `0x80027B44`: `func_80027B44`: a hand-written GSM kernel in the boot tail; `0x800278BC`: func_800277D0 + 0xEC: a table inside the kernels; `0x80027978`: func_800278C4 + 0xB4: a table inside the kernels | the kernel's name from the boot data map (rom.tsv), its address from the loader's table; `0x800278BC`: a named offset from the kernel's symbol |
+| `port/ultra/tests/test_gsm.c:59` | `0x800277D0` | `gsm_rpe_decode`: a hand-written GSM kernel in the boot tail | the kernel's name from the boot data map (rom.tsv), its address from the loader's table |
+| `port/ultra/tests/test_gsm.c:60` | `0x800277D0`, `0x800278C4`, `0x80027B44`, `0x800278BC`, `0x80027978` | `gsm_rpe_decode`: a hand-written GSM kernel in the boot tail; `0x800278C4`: `gsm_long_term_synthesis`: a hand-written GSM kernel in the boot tail; `0x80027B44`: `gsm_short_term_filter`: a hand-written GSM kernel in the boot tail; `0x800278BC`: gsm_rpe_decode + 0xEC: a table inside the kernels; `0x80027978`: gsm_long_term_synthesis + 0xB4: a table inside the kernels | the kernel's name from the boot data map (rom.tsv), its address from the loader's table; `0x800278BC`: a named offset from the kernel's symbol |
 | `port/ultra/tests/test_gsm.c:61` | `0x80100000`, `0x80000180` | the emulator's scratch RAM base; `0x80000180`: the general exception vector address, used as a return sentinel | a named test constant; `0x80000180`: a named sentinel (it only has to be no kernel address) |
 
 ## Tools: the image layout (n64syms.py)
 
 tools/port/n64syms.py is the tools' memory map: IMAGES (each image's ROM offset, sizes and load address),
 ARENAS (data start, BSS start, end), CODE ranges, REGIONS (names for every range) and BSS_REGIONS. The same
-numbers sit in the symbol tables (asm/us/*/symbols.json: `gBssStart`, `gBssEnd`, the overlay bounds), in the
+numbers sit in the symbol tables (asm/us/*/symbols.json: `gBssStart`, `game_bss_end`, the overlay bounds), in the
 loader's generated tables and in docs/port/DATA.md.
 
 **Wave 2:** read them from the symbol tables (one source) instead of copying; ARENAS, CODE, REGIONS and BSS_REGIONS
@@ -637,10 +637,10 @@ derived from one table. **Wave 3:** the overlay rows go with overlays as PC memo
 | `tools/port/n64syms.py:17` | `0x80086A50`, `0xB0CB10` | IMAGES: an image's ROM offset and load address (boot data, game image, runtime images A and B); `0xB0CB10`: the game image's ROM offset | one image table (the loader's), read by every tool; the A/B rows go with overlays as PC memory (wave 3); `0xB0CB10`: one image table shared by the tools |
 | `tools/port/n64syms.py:18` | `0x8038A400`, `0xB5C534` | IMAGES: an image's ROM offset and load address (boot data, game image, runtime images A and B); `0xB5C534`: runtime image A's ROM offset | one image table (the loader's), read by every tool; the A/B rows go with overlays as PC memory (wave 3); `0xB5C534`: one image table shared by the tools |
 | `tools/port/n64syms.py:19` | `0x8038A400`, `0xB6FEC4` | IMAGES: an image's ROM offset and load address (boot data, game image, runtime images A and B); `0xB6FEC4`: runtime image B's ROM offset | one image table (the loader's), read by every tool; the A/B rows go with overlays as PC memory (wave 3); `0xB6FEC4`: one image table shared by the tools |
-| `tools/port/n64syms.py:24` | `0x800277D0`, `0x8002E8E0`, `0x80086A50` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, gBssEnd, the overlay bounds) instead of copies |
-| `tools/port/n64syms.py:25` | `0x8010FD7C`, `0x801249F0`, `0x8017A640` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, gBssEnd, the overlay bounds) instead of copies |
-| `tools/port/n64syms.py:26` | `0x803AF978`, `0x803B9A50`, `0x803BAE20` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, gBssEnd, the overlay bounds) instead of copies |
-| `tools/port/n64syms.py:27` | `0x80393B34`, `0x80394F70`, `0x8039B440` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, gBssEnd, the overlay bounds) instead of copies |
+| `tools/port/n64syms.py:24` | `0x800277D0`, `0x8002E8E0`, `0x80086A50` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, game_bss_end, the overlay bounds) instead of copies |
+| `tools/port/n64syms.py:25` | `0x8010FD7C`, `0x801249F0`, `0x8017A640` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, game_bss_end, the overlay bounds) instead of copies |
+| `tools/port/n64syms.py:26` | `0x803AF978`, `0x803B9A50`, `0x803BAE20` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, game_bss_end, the overlay bounds) instead of copies |
+| `tools/port/n64syms.py:27` | `0x80393B34`, `0x80394F70`, `0x8039B440` | ARENAS: an arena's data start, BSS start and end (docs/port/DATA.md 3) | from the bound symbols in asm/us/*/symbols.json (gBssStart, game_bss_end, the overlay bounds) instead of copies |
 | `tools/port/n64syms.py:30` | `0x80000400`, `0x800277D0`, `0x80086A50`, `0x8010FD7C` | CODE: an image's code range | from the symbol tables |
 | `tools/port/n64syms.py:31` | `0x8038A400`, `0x803AF978`, `0x80393B34` | CODE: an image's code range | from the symbol tables |
 | `tools/port/n64syms.py:66` | `0x80000000`, `0x80000400` | REGIONS: the memory map's names (low memory, boot code/data/BSS, game code/data/BSS, overlay) | from IMAGES and ARENAS; the 0x80400000 overlay end is the 4 MiB mark, not a bound of the images |
@@ -661,7 +661,7 @@ gen_data.py (the loader's generator) and gen_stubs.py copy the window's range an
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
-| `tools/port/gen_data.py:86` | `0x8017A640` | HEAP_LO: the heap's start (`gBssEnd`) | from n64syms (ARENAS[game] end) |
+| `tools/port/gen_data.py:86` | `0x8017A640` | HEAP_LO: the heap's start (`game_bss_end`) | from n64syms (ARENAS[game] end) |
 | `tools/port/gen_data.py:89` | `0x80000000`, `0x80800000` | WINDOW_LO/HI: the 8 MiB window | from n64syms (one place), PC_RDRAM_BASE/SIZE |
 | `tools/port/gen_data.py:98` | `0x10000000` | WINDOW_SECTION: the window section's size (PC_RDRAM_MAX) | from one constant shared with pc_port.h |
 | `tools/port/gen_data.py:1539` | `0x80000000` | KSEG0 base in generated comments and a range test | K0BASE from n64syms |
@@ -681,7 +681,7 @@ window offset into an N64 address; alias_check.py's message about a row that run
 
 | Where | Literal | What | Replacement |
 |---|---|---|---|
-| `tools/port/alias_check.py:42` | `0x803B5D5C` | `D_803B5CFC` + 0x60 (its second row, which runs over `D_803B5D50`), in a message | the symbol by name with the offset (rename converts the name; the literal can be computed) |
+| `tools/port/alias_check.py:42` | `0x803B5D5C` | `gPlayerRects_biased` + 0x60 (its second row, which runs over `playerscr_gPlayerRects`), in a message | the symbol by name with the offset (rename converts the name; the literal can be computed) |
 | `tools/port/hash_compare.py:179` | `0x80000000` | KSEG0 base: a window offset printed as its N64 address | K0BASE from n64syms |
 | `tools/port/heap_check.py:57` | `0x80000000` | KSEG0 base: the heap's end as a window address | K0BASE from n64syms |
 | `tools/port/nofixed_audit.py:166` | `0xA4000000`, `0xA4900000`, `0xBFC00000` | the RCP registers' KSEG1 range; `0xBFC00000`: the PIF's KSEG1 range | named range constants in n64syms; `0xBFC00000`: named constant in n64syms |
@@ -691,7 +691,7 @@ window offset into an N64 address; alias_check.py's message about a row that run
 | `tools/port/nofixed_audit.py:443` | `0xA0000000` | KSEG1 base: RDRAM versus cartridge aliases | K1BASE from n64syms |
 | `tools/port/nofixed_audit.py:522` | `0x80000000` | KSEG0 base / range (the audit of window uses) | K0BASE from n64syms; the audit goes with the window |
 | `tools/port/synth_rom.py:445` | `0x39B40` | MusyX's sample base, as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name |
-| `tools/port/synth_rom.py:1645` | `0x801108D0`, `0x80110A00` | `D_801108C8` + 0x8: the car physics descriptors; `0x80110A00`: `D_801108C8` + 0x138: the descriptors' suspension part | base + offset (the base is already looked up by name two lines up) |
+| `tools/port/synth_rom.py:1645` | `0x801108D0`, `0x80110A00` | `steady_leg_duration` + 0x8: the car physics descriptors; `0x80110A00`: `steady_leg_duration` + 0x138: the descriptors' suspension part | base + offset (the base is already looked up by name two lines up) |
 
 ## Not addresses
 

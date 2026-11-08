@@ -5,7 +5,7 @@
 
 The data loader (port/data) converts each symbol's bytes by the element kinds of its declaration, over the extent
 the declarations and port/data/extents.txt give it, and copies the rest of the image as it is. m2c's code often
-declares a table as one scalar and indexes it, `(&D_80110DD8)[type]` or `((T *) &D_x)[i]`: on the PC the first
+declares a table as one scalar and indexes it, `(&gCarMass)[type]` or `((T *) &D_x)[i]`: on the PC the first
 element is converted and the others keep the ROM's byte order. This lists every symbol of an image's initialized
 data that the C indexes that way whose extent in the build's data report (pc-data/data_symbols.txt) is one element
 while bytes no symbol covers follow it: those are the elements that would read back byte-swapped. Exit status 1 if
@@ -29,8 +29,8 @@ INDEXED = re.compile(r"\(\(?[A-Za-z0-9_ ]*\*?\)? *&(D_[0-9A-F]{8})\)\s*\[|\(\s*&
 WIDTH = {"u8": 1, "u16": 2, "u32": 4, "f32": 4, "f64": 8, "u64": 8, "ptr": 4}
 # Symbols checked by hand that need nothing: name -> why.
 REVIEWED = {
-    "D_80110EC0": "+4 of the gear ratios D_80110EBC, f32[8][6] (port/data/extents.txt); the gear is at most 4 "
-                  "(func_800E313C), so the last element read is +184, and the 4 bytes after the table are not read "
+    "carTransGearRatio_biased": "+4 of the gear ratios carTransGearRatio, f32[8][6] (port/data/extents.txt); the gear is at most 4 "
+                  "(find_best_gear), so the last element read is +184, and the 4 bytes after the table are not read "
                   "through it",
 }
 

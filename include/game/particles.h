@@ -219,7 +219,7 @@ void particles_reset(void);
 void particles_clear(void);
 
 /* Update */
-void particles_update(void);
+void animCoins(void);
 void particles_update_particle(Particle *p, f32 dt);
 void particles_update_emitters(f32 dt);
 void particles_update_trails(f32 dt);

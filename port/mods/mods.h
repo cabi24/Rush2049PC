@@ -28,10 +28,10 @@ extern "C" {
 typedef struct {
     const uint8_t *rom;
     size_t rom_size;
-    uint32_t off[PC_MODS_WAVES];    /* D_8011B5BC: ROM offset */
-    uint32_t size[PC_MODS_WAVES];   /* D_8002E580, gWaveSizes: bytes once read */
-    int32_t kind[PC_MODS_WAVES];    /* D_80123564: 0 raw, 1 LZSS, 2 DEFLATE */
-    int text_initial;               /* D_8002E860: the text bank read first, whose block the others reuse */
+    uint32_t off[PC_MODS_WAVES];    /* wave_rom_offsets: ROM offset */
+    uint32_t size[PC_MODS_WAVES];   /* gWaveSizes, gWaveSizes: bytes once read */
+    int32_t kind[PC_MODS_WAVES];    /* wave_storage_kinds: 0 raw, 1 LZSS, 2 DEFLATE */
+    int text_initial;               /* gLargestTextWave: the text bank read first, whose block the others reuse */
 } PcModsCart;
 
 /* One image of port/data's table (PcDataImage's fields that matter here): where the file table's symbols are. */
@@ -104,7 +104,7 @@ typedef struct PcMods {
     int memory;             /* the game.memory pc_mods_prepare settled (0: original) */
     char memory_note[PC_MODS_WHY];
     uint32_t sample_base;   /* the ROM offset the sample directory counts from (pc_mods_prepare's) */
-    int text_initial;       /* the text bank the game reads first (the cartridge's D_8002E860) */
+    int text_initial;       /* the text bank the game reads first (the cartridge's gLargestTextWave) */
     uint8_t *region;        /* the mods' cartridge region (pi.c) */
     size_t region_size;
     int installed;          /* waves whose file table entry points into it */
@@ -132,7 +132,7 @@ int pc_mods_scan(PcMods *m, const PcModsConfig *cfg);
  * did. sample_base: the ROM offset the sample directory's offsets count from (the game's D_00039B40). */
 int pc_mods_prepare(PcMods *m, const PcModsConfig *cfg, const PcModsCart *cart, uint32_t sample_base);
 /* Puts the files in the cartridge's mods region (pc_rom_set_mods) and points the file table at them: the game's own
- * tables in the window (offsets D_8011B5BC, sizes gWaveSizes, kinds D_80123564). The waves it changed. */
+ * tables in the window (offsets wave_rom_offsets, sizes gWaveSizes, kinds wave_storage_kinds). The waves it changed. */
 int pc_mods_install(PcMods *m, uint32_t *off, uint32_t *size, int32_t *kind);
 /* The texture pack folders of the mods in use, first first, joined by sep: "" for none. */
 void pc_mods_texture_dirs(const PcMods *m, char sep, char *out, size_t out_size);

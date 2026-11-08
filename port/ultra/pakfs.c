@@ -79,13 +79,13 @@ static int rush_note(const PcNote *note)
     return pc_note_game_code(note) == PC_RUSH_GAME_CODE && pc_note_company(note) == PC_RUSH_COMPANY;
 }
 
-/* group.c's draw_speedometer: the revision byte, and the first block's checksum (the id words and the name) */
+/* group.c's CheckAndRepairPlayer: the revision byte, and the first block's checksum (the id words and the name) */
 static int is_profile(const uint8_t *d, size_t size)
 {
     return size >= PC_PROFILE_SIZE_N64 && d[12] == 16 && pc_save_hash(d + 4, 24) == host32(d);
 }
 
-/* group.c's draw_ui_element without the data: the revision and the header's checksum over +4..+0x44 */
+/* group.c's CheckAndRepairGhost without the data: the revision and the header's checksum over +4..+0x44 */
 static int is_ghost(const uint8_t *d, size_t size)
 {
     return size >= PC_GHOST_HEADER && d[4] == PC_GHOST_REVISION && pc_save_hash(d + 4, 0x40) == host32(d);

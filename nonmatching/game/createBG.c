@@ -49,21 +49,21 @@ typedef struct SoundState SoundState;
  * word is the texture name, a pointer, so the data loader gives the two tables the PC layout (pc_prelude.h). */
 struct SoundClearRecord { struct pc_multiblit m; };
 
-extern BackRect D_80114264[4][4];        /* gBackRects */
-extern s32 D_801145E4[4][4];             /* gBackCamera */
-extern Poly *D_80114628[4];              /* backPolys */
-extern void *D_80114638;                 /* background texture (N64) */
-extern s32 D_8011463C[4];                /* offsetsValid */
-extern SoundState *D_80114624;           /* backBlit */
-extern SoundClearRecord D_801141D4[];    /* frontBack */
-extern SoundClearRecord D_8011421C[];    /* trackBack */
+extern BackRect gBackRects[4][4];        /* gBackRects */
+extern s32 gBackCamera[4][4];             /* gBackCamera */
+extern Poly *backPolys[4];              /* backPolys */
+extern void *bg_texture;                 /* background texture (N64) */
+extern s32 offsetsValid[4];                /* offsetsValid */
+extern SoundState *backBlit;           /* backBlit */
+extern SoundClearRecord frontBack[];    /* frontBack */
+extern SoundClearRecord trackBack[];    /* trackBack */
 extern s16 gNumWindows;
 extern volatile u8 gNumModels;
-extern u32 state_word_a;                 /* gGameState */
+extern u32 gGameState;                 /* gGameState */
 
-void *func_800B24EC(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
-Poly *func_800A78BC(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);  /* ZOID_NewPoly */
-extern SoundState *sound_control(s16 ulx, s16 uly, SoundClearRecord *mblit, s16 nblits);           /* NewMultiBlit */
+void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
+Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);  /* ZOID_NewPoly */
+extern SoundState *NewMultiBlit(s16 ulx, s16 uly, SoundClearRecord *mblit, s16 nblits);           /* NewMultiBlit */
 
 void ZOID_ShowPoly_bg(Poly *poly)
 {
@@ -81,36 +81,36 @@ void createBG(void)
     for (polyIdx = 0; polyIdx < 4; polyIdx++) {
         Color backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
 
-        D_80114638 = func_800B24EC("BACKGROUND_SFX", &texIdx, 0, gNumModels - 1, 1);
-        polyVerts[0][0] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[0][1] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].maxY;
+        bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels - 1, 1);
+        polyVerts[0][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxX;
+        polyVerts[0][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxY;
         polyVerts[0][2] = (f32)D_801391E4;
-        polyVerts[1][0] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].minX;
-        polyVerts[1][1] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].maxY;
+        polyVerts[1][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minX;
+        polyVerts[1][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxY;
         polyVerts[1][2] = (f32)D_801391E4;
-        polyVerts[2][0] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].minX;
-        polyVerts[2][1] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].minY;
+        polyVerts[2][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minX;
+        polyVerts[2][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minY;
         polyVerts[2][2] = (f32)D_801391E4;
-        polyVerts[3][0] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[3][1] = (f32)D_801391E4 * D_80114264[gNumWindows - 1][polyIdx].minY;
+        polyVerts[3][0] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].maxX;
+        polyVerts[3][1] = (f32)D_801391E4 * gBackRects[gNumWindows - 1][polyIdx].minY;
         polyVerts[3][2] = (f32)D_801391E4;
-        D_80114628[polyIdx] = func_800A78BC(4, polyVerts, texIdx, &backColor,
-                                            D_801145E4[gNumWindows - 1][polyIdx] | 0x1210, 1);
-        ZOID_ShowPoly_bg(D_80114628[polyIdx]);
-        if (D_8011463C[gNumWindows - 1] == 1) {
+        backPolys[polyIdx] = ZOID_NewPoly(4, polyVerts, texIdx, &backColor,
+                                            gBackCamera[gNumWindows - 1][polyIdx] | 0x1210, 1);
+        ZOID_ShowPoly_bg(backPolys[polyIdx]);
+        if (offsetsValid[gNumWindows - 1] == 1) {
             Poly *backPoly;
             s32 vertIdx;
 
-            backPoly = D_80114628[polyIdx];
+            backPoly = backPolys[polyIdx];
             for (vertIdx = 0; vertIdx < backPoly->nverts; vertIdx++) {
-                backPoly->verts[vertIdx].tc[0] = D_80114264[gNumWindows - 1][polyIdx].offX[vertIdx];
-                backPoly->verts[vertIdx].tc[1] = D_80114264[gNumWindows - 1][polyIdx].offY[vertIdx];
+                backPoly->verts[vertIdx].tc[0] = gBackRects[gNumWindows - 1][polyIdx].offX[vertIdx];
+                backPoly->verts[vertIdx].tc[1] = gBackRects[gNumWindows - 1][polyIdx].offY[vertIdx];
             }
         }
     }
-    if (state_word_a & 0x80) {
-        D_80114624 = sound_control(0, 0, D_8011421C, 2);
+    if (gGameState & 0x80) {
+        backBlit = NewMultiBlit(0, 0, trackBack, 2);
     } else {
-        D_80114624 = sound_control(0, 0, D_801141D4, 2);
+        backBlit = NewMultiBlit(0, 0, frontBack, 2);
     }
 }

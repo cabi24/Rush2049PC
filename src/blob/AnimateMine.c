@@ -1,0 +1,258 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/*
+ * AnimateMine (0x8010C974, 2,636 B) = _AnimateMine@targets.c (MAT3 0x8004D428), the weapon-mine visual callback:
+ * op 0 releases the environ; otherwise (unpaused) the first frame retires the owner's oldest mine when it already
+ * has three (age 121), takes a free slot, aligns the mine to the road (RoadPosition = RoadPosition), builds
+ * the base object (white, N64 flag 0x2000 on the mine model), the team-coloured glow rings and their matrices;
+ * every frame it flashes the base texture (0.25 s), grows/fades the two glow rings (scale += 0.25 every 1/30 s,
+ * alpha -8 from step 20, the other ring restarts at step 25, reset at step 45), and after 120 s or when hit removes
+ * the always-collide links, the slot, the objects, damages (ProximityDamage) and blasts.
+ * , from mine/best.c (MAT3 port; 49 rows). MATCH: the scorer fn MATCH (own.rodata verified),
+ * whole-program unit EQUAL (kept).
+ * What closed it (all traced):
+ *  - Retail keeps the oldest-mine index, the uvs-copy inner index and the scale loop's OUTER index in one variable
+ *    j (a1 in all three loops) and the scale loop's inner index in k (v1): MAT3 port with j outer / k inner.
+ *  - DISCLOSED SHAPING: `j = -1;` after the uvs copy is a dead store (no code). Without it the unrolled search's
+ *    `j = 0` is partially available at the scale loop's `j = 0`, uopt's PRE moves that store into the CopyUV
+ *    call block (pretrace: str j,0 DELETE 58 INSERT 57) and j is spilled around the call (661 words). Any non-zero
+ *    store to j after the uvs copy and before the glow loop gives the same code.
+ * - DISCLOSED SHAPING: ZOID_ObjectFlags / ZOID_SetObjectFlags each reach the object through one more
+ *    inlined level (_ObjFlags / _SetObjFlags): two 8-byte umerge inline reserves = retail's 16-byte frame gap
+ *    (392). Which single-call helper chain carries the 16 bytes is not determined by the bytes.
+ *  - mat[1] position adds written `x = x + uv` (retail add.s operand order) with the [1] and [2] adds on one source
+ *    line (as1 line tie: retail loads mat[1][1][2] before the [1] reload); the scale loop's inner body in braces
+ *    (as1 delay-slot choice of the inner loop).
+ *  - Locals i, j, k, t, m are the five slots above clr; no unused locals.
+ */
+typedef signed char s8; typedef unsigned char u8;
+typedef signed short s16; typedef unsigned short u16;
+typedef int s32; typedef unsigned int u32; typedef float f32;
+typedef union Color {struct {u8 r,g,b,a;} c;u32 word;} Color;
+typedef struct MineData {
+ s32 base,ring[2]; f32 timer; f32 mat[2][4][3];
+ f32 elapsed[2]; s8 step[2]; u8 alpha[2]; f32 scale[2]; s16 phase,active;
+} MineData;
+/* PC: a target (a level-object node, 112 bytes) keeps its N64 layout: next and its state, the mine's data (a heap
+ * record of its category), are 32-bit window addresses (docs/port/POINTERS.md 10). */
+enum n64p_Target { n64p_Target_ };
+enum n64p_MineData { n64p_MineData_ };
+typedef struct Target {
+ enum n64p_Target next;u8 flags,pad5[7];s32 model;s16 info;u8 pad18[2];
+ f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
+ s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;enum n64p_MineData data;
+} Target;
+/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
+#define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
+    enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
+#define N64W(x) PC_N64W(x)
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). The colour is a member of its own:
+ * a union of the eight pointer slots and the colour would be padded to 72 bytes. */
+typedef struct Object68 {u32 flags;s32 w4;void *owner;f32 scaleA,scaleB;u16 id;s16 link[3];void *slots[8];Color color;s32 w64;} Object68;
+typedef struct Texture36 {u8 bytes[36];} Texture36;
+typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
+typedef struct MineSlots {Target *target[4];s32 count;} MineSlots;
+typedef struct Link {struct Link *next;Target *target;} Link;
+/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
+ * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
+typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
+extern s32 gPauseState,gWprObjList_mine,gWprObjList_mine_glow;
+extern volatile f32 gFrameSeconds;
+extern MineSlots gPlayerMines[];
+extern Object68 ObjInstanceList[];
+extern TextureBank gTexDefPtrs[];
+extern u16 gMineTextures[];
+extern s8 gCarTeam[];
+extern u8 gMineRingColors[][3];
+extern Pool gAlwaysColList,gTargetList;
+extern void ReleaseEnviron(Visual *,s32);
+extern void *RoadPosition(f32 *,f32 *,f32 (*)[3]);
+extern s16 ZOID_AddObject(s32,void *,s16,s32);
+extern void ZOID_SetTexture(s16,Texture36 *,s32);
+extern void CopyUV(void *,void *);
+extern void MBOX_HideObject(s32,s32,u32),MBOX_ShowObject(s32,s32,u32);
+extern void FreeStatLLE(Pool *,void *);
+extern void ProximityDamage(f32 *,f32 *,s32,f32,s32);
+extern void StartBlast(f32 *,s32,f32,s32);
+extern void RemoveObjectTree(s16,s32,s32);
+/* The game's own MBOX_NewObject, ZOID_GetColor, ZOID_ObjectFlags, ZOID_SetObjectFlags and ZOID_RemoveObject (this
+ * file had static copies of each: the same code). */
+s16 MBOX_NewObject(s32 obj,void *mat,s32 parent,u32 flags);
+void ZOID_SetColor(s16 objnum,Color *col);
+Color *ZOID_GetColor(s16 objnum);
+u32 ZOID_ObjectFlags(s16 objnum);
+void ZOID_SetObjectFlags(s32 objnum,u32 flags);
+void ZOID_RemoveObject(s16 objnum);
+void AnimateMine(Visual *v, s16 op)
+{
+    int i;
+    int j;
+    int k;
+    Target *t;
+    MineData *m;
+    Color clr;
+    Color *clrPtr;
+    f32 opos[3];
+    f32 uvs[3][3];
+    f32 oldT;
+    Link *acol;
+    Link *acolnext;
+    if (!op) {
+        ReleaseEnviron(v, 1);
+        return;
+    }
+    if (gPauseState != 0) return;
+    t = N64P(v->data);
+    m = N64P(t->data);
+    if (!(t->flags & 1)) {
+        if (gPlayerMines[t->owner].count == 3) {
+            oldT = 0.0f;
+            j = -1;
+            for (i = 0; i < 4; i++) {
+                if (gPlayerMines[t->owner].target[i] && gPlayerMines[t->owner].target[i]->age > oldT) {
+                    j = i;
+                    oldT = gPlayerMines[t->owner].target[i]->age;
+                }
+            }
+            if (j != -1) gPlayerMines[t->owner].target[j]->age = 121.0f;
+        }
+        for (i = 0; i < 4; i++) {
+            if (!gPlayerMines[t->owner].target[i]) {
+                gPlayerMines[t->owner].target[i] = t;
+                gPlayerMines[t->owner].count++;
+                break;
+            }
+        }
+        if (RoadPosition(t->position, opos, uvs)) {
+            for (i = 0; i < 3; i++) {
+                for (j = 0; j < 3; j++) t->mat[i][j] = uvs[i][j];
+            }
+        }
+        j = -1;
+        m->base = MBOX_NewObject(gWprObjList_mine, 0, t->model, 0x2080);
+        clr.c.r = 255;
+        clr.c.g = 255;
+        clr.c.b = 255;
+        clr.c.a = 255;
+        ZOID_SetColor(m->base, &clr);
+        ZOID_SetObjectFlags(t->model, ZOID_ObjectFlags(t->model) | 0x2000);
+        ZOID_SetColor(t->model, &clr);
+        ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+        m->timer = 0.0f;
+        m->phase = 0;
+        clrPtr = &clr;
+        clrPtr->c.r = gMineRingColors[gCarTeam[t->owner]][0];
+        clrPtr->c.g = gMineRingColors[gCarTeam[t->owner]][1];
+        clrPtr->c.b = gMineRingColors[gCarTeam[t->owner]][2];
+        CopyUV(t->mat, m->mat[0]);
+        CopyUV(t->mat, m->mat[1]);
+        m->mat[0][3][0] = t->position[0];
+        m->mat[0][3][1] = t->position[1];
+        m->mat[0][3][2] = t->position[2];
+        m->mat[0][3][0] = m->mat[0][3][0] + m->mat[0][1][0] * 0.75f;
+        m->mat[0][3][1] = m->mat[0][3][1] + m->mat[0][1][1] * 0.75f;
+        m->mat[0][3][2] = m->mat[0][3][2] + m->mat[0][1][2] * 0.75f;
+        m->mat[1][3][0] = t->position[0];
+        m->mat[1][3][1] = t->position[1];
+        m->mat[1][3][2] = t->position[2];
+        m->mat[1][3][0] = m->mat[1][3][0] + m->mat[1][1][0];
+        m->mat[1][3][1] = m->mat[1][3][1] + m->mat[1][1][1]; m->mat[1][3][2] = m->mat[1][3][2] + m->mat[1][1][2];
+        m->ring[0] = MBOX_NewObject(gWprObjList_mine_glow, m->mat[0], -1, 0x42000);
+        ZOID_SetColor(m->ring[0], &clr);
+        m->ring[1] = MBOX_NewObject(gWprObjList_mine_glow, m->mat[1], -1, 0x42000);
+        ZOID_SetColor(m->ring[1], &clr);
+        m->alpha[0] = 255;
+        m->alpha[1] = 255;
+        m->step[0] = 0;
+        m->step[1] = -1;
+        m->scale[0] = 1.0f;
+        m->scale[1] = 1.0f;
+        m->elapsed[0] = 0.0f;
+        m->elapsed[1] = 0.0f;
+        MBOX_HideObject(m->ring[1], 0, 15);
+        t->flags |= 3;
+    }
+    m->timer += gFrameSeconds;
+    if (m->timer >= 0.25f) {
+        if (m->phase) {
+            m->phase = 0;
+            ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+        } else {
+            m->phase = 1;
+            ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[gCarTeam[t->owner]] >> 10].base[gMineTextures[gCarTeam[t->owner]] & 1023], -1);
+        }
+        m->timer = 0.0f;
+    }
+    for (i = 0; i < 2; i++) {
+        if (m->step[i] < 0) continue;
+        if (m->step[i] >= 45) {
+            m->scale[i] = 1.0f;
+            m->alpha[i] = 255;
+            clrPtr = ZOID_GetColor(m->ring[i]);
+            clrPtr->c.a = 255;
+            CopyUV(t->mat, m->mat[i]);
+            m->step[i] = -1;
+            MBOX_HideObject(m->ring[i], 0, 15);
+            continue;
+        }
+        if (m->elapsed[i] >= 0.0333333f) {
+            CopyUV(t->mat, m->mat[i]);
+            for (j = 0; j < 3; j++) {
+                for (k = 0; k < 3; k++) {
+                    m->mat[i][j][k] *= m->scale[i];
+                }
+            }
+            m->scale[i] += 0.25f;
+            m->elapsed[i] = 0.0f;
+            m->step[i]++;
+        }
+        m->elapsed[i] += gFrameSeconds;
+        if (m->step[i] >= 20) {
+            if (m->alpha[i] > 8) m->alpha[i] -= 8;
+            clrPtr = ZOID_GetColor(m->ring[i]);
+            clrPtr->c.a = m->alpha[i];
+        }
+        if (m->step[i] >= 25) {
+            j = !i;
+            if (m->step[j] < 0) {
+                m->step[j] = 0;
+                MBOX_ShowObject(m->ring[j], 0, 15);
+            }
+        }
+    }
+    t->age += gFrameSeconds;
+    if (!(t->flags & 2) || (t->flags & 4) || t->age > 120.0f) {
+        acol = gAlwaysColList.active;
+        while (acol) {
+            acolnext = acol->next;
+            if (acol->target == t) FreeStatLLE(&gAlwaysColList, acol);
+            acol = acolnext;
+        }
+        for (i = 0; i < 4; i++) {
+            if (gPlayerMines[t->owner].target[i] == t) {
+                gPlayerMines[t->owner].target[i] = 0;
+                gPlayerMines[t->owner].count--;
+                break;
+            }
+        }
+        if (t->age > 120.0f) ProximityDamage(t->position, t->position, t->owner, 400.0f, 1600);
+        StartBlast(t->position, 0, 0.4f, 1);
+        if (m->ring[0] != -1) {
+            ZOID_RemoveObject(m->ring[0]);
+            m->ring[0] = -1;
+        }
+        if (m->ring[1] != -1) {
+            ZOID_RemoveObject(m->ring[1]);
+            m->ring[1] = -1;
+        }
+        if (m->base != -1) {
+            ZOID_RemoveObject(m->base);
+            m->base = -1;
+        }
+        m->active = 0;
+        ZOID_RemoveObject(t->model);
+        t->flags = 0;
+        FreeStatLLE(&gTargetList, t);
+        ReleaseEnviron(v, 1);
+    }
+}

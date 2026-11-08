@@ -1,0 +1,58 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
+typedef unsigned char u8;
+typedef signed char s8;
+typedef short s16;
+typedef struct Vec3 {float x,y,z;} Vec3;
+typedef struct Vehicle2056 {
+ u8 prefix[244];Vec3 corners[4];u8 gap292[1328];float radius;
+ u8 gap1624[316];Vec3 position;float basis[9];u8 gap1988[4];s16 active;
+ u8 gap1994[32];s8 enabled;u8 tail[29];
+} Vehicle2056;
+extern s8 gNoCarCollisions;
+extern int gRace;
+/* The loop's end is the model records' end, the next symbol on the N64 (gTargetArray, the level-object nodes): on
+ * the PC the records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md), and the end is
+ * that of the race's cars, PC_RACE_CARS records (docs/port/MORECARS.md 3.1). */
+extern void WorldVector(Vec3 *,Vec3 *,float *);
+extern void BodyVector(Vec3 *,Vec3 *,float *);
+extern int PointInBody(Vehicle2056 *,Vec3 *,float);
+extern void setFBCollisionForce(Vehicle2056 *,Vehicle2056 *,Vehicle2056 *,Vec3 *,Vec3 *,float);
+void collision(Vehicle2056 *vehicle)
+{
+ Vehicle2056 *other;
+ Vec3 delta,world,local;
+ Vec3 *point;
+ float *value;
+ float length;
+ int offset;
+ if(gNoCarCollisions && gRace!=1)return;
+ if(!vehicle->enabled)return;
+ if(gRace==2)return;
+ for(other=vehicle+1;other<PC_MODELS_END;other++) {
+  if(!other->active || !other->enabled)continue;
+  delta.x=vehicle->position.x-other->position.x;
+  delta.y=vehicle->position.y-other->position.y;
+  delta.z=vehicle->position.z-other->position.z;
+  length=0.0f;
+  for(value=(float *)&delta;value<(float *)(&delta+1);value++)length+=*value**value;
+  if(length>(vehicle->radius+other->radius)*(vehicle->radius+other->radius))continue;
+  for(offset=0,point=vehicle->corners;offset<(int)sizeof(vehicle->corners);offset+=(int)sizeof(Vec3),point++) {
+   WorldVector(point,&world,vehicle->basis);
+   world.x=vehicle->position.x+world.x;world.y=vehicle->position.y+world.y;world.z=vehicle->position.z+world.z;
+   world.x-=other->position.x;world.y-=other->position.y;world.z-=other->position.z;
+   BodyVector(&world,&local,other->basis);
+   if(PointInBody(other,&local,5.0f)) {
+    setFBCollisionForce(vehicle,vehicle,other,&delta,&local,5.0f);return;
+   }
+  }
+  for(offset=0,point=other->corners;offset!=(int)sizeof(other->corners);offset+=(int)sizeof(Vec3),point++) {
+   WorldVector(point,&world,other->basis);
+   world.x=other->position.x+world.x;world.y=other->position.y+world.y;world.z=other->position.z+world.z;
+   world.x-=vehicle->position.x;world.y-=vehicle->position.y;world.z-=vehicle->position.z;
+   BodyVector(&world,&local,vehicle->basis);
+   if(PointInBody(vehicle,&local,5.0f)) {
+    setFBCollisionForce(vehicle,other,vehicle,&delta,&local,5.0f);return;
+   }
+  }
+ }
+}

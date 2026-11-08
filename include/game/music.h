@@ -94,7 +94,7 @@ typedef enum {
 #define S_GARAGEAMB     0x8049  /* Garage ambience */
 #define S_KGARAGEAMB    0x804A  /* Kill garage ambience */
 
-/* Waiting/countdown music */
+/* Waiting/UpdateGame music */
 #define S_WAIT1         0x80DC  /* Waiting for drivers track 1 */
 #define S_WAIT2         0x80DD  /* Waiting for drivers track 2 */
 #define S_WAIT3         0x80DE  /* Waiting for drivers track 3 */
@@ -166,7 +166,7 @@ void music_init_system(void);
  * @param mode Action: Do_it (1) to start, Undo_it (0) to stop
  * @param station Radio station index (0-6) or attract mode (7+)
  */
-void music_control(s16 mode, u8 station);
+void StartEnvironment(s16 mode, u8 station);
 
 /**
  * StartRadio - Start playing a radio station

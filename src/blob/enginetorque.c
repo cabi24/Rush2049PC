@@ -1,0 +1,83 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
+/*
+ * enginetorque (0x800E2D18): tail of arcade enginetorque()
+ * (reference/repos/rushtherock/game/drivetra.c, from `rindex=rpm/(short)m->rpmperent`
+ * to the end): bilinear lookup in a short[10][12] torque curve by rpm
+ * (RPM_SCALE 1150 per column) and throttle (14 per row). The N64 version
+ * replaces m->rpmperent by the constant and scales the result by
+ * m->unk4->unk8 * carEngineTorque[m->unkC][m->unkB].
+ *
+ * What it depends on:
+ *  - interp() is the arcade FUNCTION `short interp(int a,int b,int rem,int total)`
+ *    (locked as interp), inlined three times by umerge at -O3. As a
+ *    macro the function gets a 32-40 byte frame and 104+ differing words.
+ *    The helper below is the arcade text; the locked body in
+ *    src/blob/interp.c gives the same words.
+ *  - `(short)` cast on the 1150 divisor (arcade text) keeps the divide
+ *    checks on the first division.
+ *  - `right *= ...` (compound assignment): `return right * (...)` or
+ *    `right = right * (...)` evaluates the scale after the int->float
+ *    conversion and costs 22 words.
+ */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef short s16;
+typedef unsigned short u16;
+typedef int s32;
+typedef unsigned int u32;
+typedef float f32;
+
+typedef struct {
+    u8 pad0[8];
+    f32 unk8;
+} TorqueSrc;
+
+/* PC: the record is the car's model (D_8014A250), which keeps its N64 layout: its tune pointer at +4 is a u32 window
+ * address (docs/port/CARS.md 2.2). */
+enum n64p_TorqueSrc { n64p_TorqueSrc_ };
+typedef struct {
+    u8 pad0[4];
+    enum n64p_TorqueSrc unk4;
+    u8 pad8[3];
+    s8 unkB;
+    s8 unkC;
+} EngineState;
+#define N64P(x) _Generic((x), enum n64p_TorqueSrc: (TorqueSrc *)PC_N64P(x), default: (x))
+
+extern f32 carEngineTorque[][3];
+
+#define RPM_SCALE 1150
+
+s16 interp(s32 a, s32 b, s32 rem, s32 total);
+
+s16 enginetorque(EngineState *m, s16 rpm, s16 throttle, s16 *torquecurve)
+{
+    s16 rindex, tindex, rrem, trem, left, right;
+    s16 *low_ptr, *hi_ptr;
+
+    rindex = rpm / (s16)RPM_SCALE;
+    rrem = rpm % (s16)RPM_SCALE;
+    if (rindex < 0) {
+        rindex = 0;
+        rrem = 0;
+    }
+    if (rindex >= 11) {
+        rindex = 10;
+        rrem = RPM_SCALE - 1;
+    }
+    tindex = throttle / (s16)14;
+    trem = throttle % (s16)14;
+    if (tindex >= 9) {
+        tindex = 8;
+        trem = 13;
+    }
+    low_ptr = (s16 *)torquecurve + (tindex * 12) + rindex;
+    hi_ptr = (s16 *)torquecurve + (tindex * 12) + rindex + 1;
+    left = interp((*low_ptr), (*hi_ptr), rrem, RPM_SCALE - 1);
+    low_ptr = (s16 *)torquecurve + ((tindex + 1) * 12) + rindex;
+    hi_ptr = (s16 *)torquecurve + ((tindex + 1) * 12) + rindex + 1;
+    right = interp((*low_ptr), (*hi_ptr), rrem, RPM_SCALE - 1);
+    right = interp(left, right, trem, 14);
+    right *= N64P(m->unk4)->unk8 * carEngineTorque[m->unkC][m->unkB];
+    return right;
+}

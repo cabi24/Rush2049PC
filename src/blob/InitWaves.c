@@ -3,16 +3,16 @@
  * MAT3 GameSource/src/waves.c InitWaves (GC 0x8005B4B4): wait for the background loader, wait for the
  * renderer, ZOID_Reset + InitBlits, unload every unlocked wave instance, recount gNumModels, then
  * InitTextWave. N64 differences: _BGLoadWaveCheck(1) is real (take/return the loader-idle token on
- * D_80035440; its deleted inlined stub is func_800A5BB0), UnloadWaveInstance takes one argument (no
- * texture/model wave-range test), and the N64 clears the memory heap (car_damage_visual = memsys.c
+ * bg_load_idle_queue; its deleted inlined stub is bg_load_wave_check_stub), UnloadWaveInstance takes one argument (no
+ * texture/model wave-range test), and the N64 clears the memory heap (ClearMemoryHeap = memsys.c
  * ClearMemoryHeap, erased on GC) before InitTextWave.
  * Inlined helpers (each inline call reserves 8 frame bytes, retail frame 64): _BGLoadWaveCheck (msg at
- * 52(sp) as retail), ZOID_Reset (zoid.c; byte-equivalent copy of the locked out-of-line func_800A5B3C,
+ * 52(sp) as retail), ZOID_Reset (zoid.c; byte-equivalent copy of the locked out-of-line ZOID_Reset,
  * inlined cross-file in the whole-program build) and ClearMemory() = ClearMemoryHeap(0): a public memsys
  * wrapper around the static ClearMemoryHeap is a HYPOTHESIS (identity unconfirmed); it supplies the third
  * 8-byte inline area after _BGLoadWaveCheck that puts msg at 52 (a plain extra local does not).
- * Callees: func_800A5A40 = ZOID_ResetWindows, func_800A5488 = InitBlits, func_80096130 =
- * UnloadWaveInstance, func_800A5158 = InitTextWave (map).
+ * Callees: func_800A5A40 = ZOID_ResetWindows, func_800A5488 = InitBlits, UnloadWaveInstance =
+ * UnloadWaveInstance, InitTextWave = InitTextWave (map).
  */
 typedef signed char s8;
 typedef signed short s16;
@@ -37,43 +37,41 @@ typedef struct anon_loaded_ready_14 {
 } anon_loaded_ready_14;
 
 extern anon_loaded_ready_14 D_80156D38[64];  /* gWaveInstance */
-extern unsigned char D_80140BDC;            /* gNumModels */
-extern s16 D_8002EB70;                      /* gRenderInProgress */
-extern OSMesgQueue D_80035440;              /* background loader idle token */
-extern s32 D_80156990, D_80156CE0, D_801613AC, D_80156BAC, D_801613B4;
-extern s16 D_8015B254;                      /* ObjHead */
-extern f32 D_801613B8;                      /* gGlobalCameraFacingScale */
-extern u16 D_80140618;
-extern intptr_t D_801406B8;
-extern s32 D_8011EA18;
+extern unsigned char gNumModels;            /* gNumModels */
+extern s16 gRenderInProgress;                      /* gRenderInProgress */
+extern OSMesgQueue bg_load_idle_queue;              /* background loader idle token */
+extern s32 gNumObjects, cull_vertex_count, gNumBlitInsts, gNumMatrices, gNumPolyInsts;
+extern s16 ObjHead;                      /* ObjHead */
+extern f32 gGlobalCameraFacingScale;                      /* gGlobalCameraFacingScale */
+extern u16 gNumLights;
+extern intptr_t gLights;
+extern s32 default_lights;
 #define gWaveInstance D_80156D38
-#define gNumModels D_80140BDC
-#define gRenderInProgress D_8002EB70
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 void ZOID_ResetWindows(void);                   /* ZOID_ResetWindows */
 void InitBlits(void);                   /* InitBlits */
-void func_80096130(s32 idx);                /* UnloadWaveInstance */
-void car_damage_visual(Heap *heap);
-void func_800A5158(void);                   /* InitTextWave */
+void UnloadWaveInstance(s32 idx);                /* UnloadWaveInstance */
+void ClearMemoryHeap(Heap *heap);
+void InitTextWave(void);                   /* InitTextWave */
 
 static int _BGLoadWaveCheck(int wait)
 {
     OSMesg msg;
-    if (osRecvMesg(&D_80035440, &msg, 0) == -1) {
+    if (osRecvMesg(&bg_load_idle_queue, &msg, 0) == -1) {
         if (!wait) return 0;
-        osRecvMesg(&D_80035440, &msg, 1);
+        osRecvMesg(&bg_load_idle_queue, &msg, 1);
     }
-    osSendMesg(&D_80035440, 0, 1);
+    osSendMesg(&bg_load_idle_queue, 0, 1);
     return 1;
 }
 
-void func_800A5B3C(void);
+void ZOID_Reset(void);
 
 static void ClearMemory(void)
 {
-    car_damage_visual(0);
+    ClearMemoryHeap(0);
 }
 
 void InitWaves(void)
@@ -81,12 +79,12 @@ void InitWaves(void)
     int i;
     _BGLoadWaveCheck(1);
     while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
-    func_800A5B3C(); InitBlits();
+    ZOID_Reset(); InitBlits();
     for (i = 0; i < 64; i++) {
-        if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) func_80096130(i);
+        if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) UnloadWaveInstance(i);
     }
     gNumModels = 0;
     for (i = 0; i < 64; i++) if (gWaveInstance[i].ptr) gNumModels = i + 1;
     ClearMemory();
-    func_800A5158();
+    InitTextWave();
 }

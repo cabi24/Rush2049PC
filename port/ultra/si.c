@@ -41,7 +41,7 @@
 #define PAK_SIZE PC_PAK_SIZE
 #define CONT_TYPE_NORMAL 0x0005
 
-extern uint8_t __osContDataCrc(uint8_t *data);   /* src/rom/lib_105f0.c */
+extern uint8_t __osContDataCrc(uint8_t *data);   /* src/rom/libultra/crc.c */
 
 static pthread_mutex_t g_slock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t g_pif[64];

@@ -1,6 +1,6 @@
 # A third run on profile.press's pak (tools/port/synth_again.py, docs/port/SYNTH.md 2): the player screen's delete
-# item (the profile is there to delete), SYN chosen, its confirmation answered yes: func_800CD058 deletes the note
-# (pak_delete_file_retry, PS_DeleteFile). With no profile left on the pak the delete list closes at once, its
+# item (the profile is there to delete), SYN chosen, its confirmation answered yes: DeletePlayer deletes the note
+# (PS_DeleteFile, PS_DeleteFile). With no profile left on the pak the delete list closes at once, its
 # cursor back on "create a player"; up to the default player, who goes on to the mode screen.
 # until: 0x40:60
 # seconds: 40

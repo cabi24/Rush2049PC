@@ -7,8 +7,8 @@
  * returns as soon as it runs. The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
  * addresses (0x10000000 and up) are accepted too.
  *
- * inflate_entry, inflate_entry_alt and lzss_decode were hand-written assembly over the PI. Natively: the game
- * image's inflate (game_init, ROM 0xB0CB10) does nothing, since that code and data are linked in; the two
+ * unzipdata_from_rom, unzipdata and lzss_decode were hand-written assembly over the PI. Natively: the game
+ * image's inflate (main_thread_entry, ROM 0xB0CB10) does nothing, since that code and data are linked in; the two
  * runtime images' streams (ROM 0xB5C534, 0xB6FEC4) become pc_data_overlay_load; any other stream (sound
  * banks, ghosts) is inflated with zlib from the ROM image or from memory.
  *
@@ -252,7 +252,7 @@ int32_t osEPiRawStartDma(void *handle, int32_t direction, uint32_t dev, void *dr
 
 /* ---------------------------------------------------------------- decompressors */
 
-/* game_init passes this symbol's address as the game image's ROM offset (0xB0CB10 on the N64). */
+/* main_thread_entry passes this symbol's address as the game image's ROM offset (0xB0CB10 on the N64). */
 uint8_t gRomCompressedData[16];
 
 static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const char *what)
@@ -274,7 +274,7 @@ static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const
     return n;
 }
 
-int32_t inflate_entry(uintptr_t src, void *dst, int32_t heap_window)
+int32_t unzipdata_from_rom(uintptr_t src, void *dst, int32_t heap_window)
 {
     (void)heap_window;   /* the N64 code took its 12 KB window from the game heap or 0x803FD120 */
     if (src == (uintptr_t)gRomCompressedData || src == GAME_IMAGE_ROM)
@@ -300,7 +300,7 @@ int32_t inflate_entry(uintptr_t src, void *dst, int32_t heap_window)
     return n;
 }
 
-int32_t inflate_entry_alt(const void *src, int32_t size, void *dst)
+int32_t unzipdata(const void *src, int32_t size, void *dst)
 {
     return inflate_buffer(src, (size_t)size, dst, "from memory");
 }

@@ -1,0 +1,130 @@
+/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
+typedef signed char s8;
+typedef unsigned char u8;
+typedef signed short s16;
+typedef signed int s32;
+typedef float f32;
+
+typedef struct CarView {
+    u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x359 - 0x308];
+    s8 state;
+    u8 remaining[0x380 - 0x35A]; void *input; u8 remaining_384[0x3B8 - 0x384];
+} CarView;
+
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+extern s32 gRace;
+extern s8 gInvincible;
+extern f32 D_80124394, D_80124398, D_8012439C, D_801243A0;
+extern f32 D_801243A4, D_801243A8, D_801243AC, D_801243B0;
+extern f32 vector_magnitude(f32 *);
+extern void AddBattlePointInternal(s8, s8, s8);
+void AddBattlePoint(s8 a,s8 b,s8 c);
+
+#define MF(offset) (*(f32 *)(model + (offset)))
+#define MB(offset) (*(s8 *)(model + (offset)))
+#define MS(offset) (*(s16 *)(model + (offset)))
+#define MV(offset) ((f32 *)(model + (offset)))
+
+void checkok(void *arg0)
+{
+    u8 *model;
+    f32 magnitude;
+    s32 level;
+    s16 mask;
+    s16 i;
+    f32 threshold;
+    f32 sample;
+    f32 sum;
+    s32 count;
+    f32 pairs;
+
+    model = arg0;
+    level = 0;
+    mask = 0;
+    if (PC_CAR_STATE(MS(1990)) != 0) {
+        return;
+    }
+    for (i = 0; i < 4; i++) {
+        if (((f32 *)(model + 1500))[i] > 1.2f && level < 3) {
+            level = 3;
+            mask |= 1 << i;
+        } else if (((f32 *)(model + 1500))[i] > 0.9f && level < 2) {
+            level = 2;
+            mask |= 1 << i;
+        } else if (((f32 *)(model + 1500))[i] > 0.6f && level < 1) {
+            level = 1;
+            mask |= 1 << i;
+        }
+    }
+    MS(1604) = mask;
+    MB(1602) = level;
+    magnitude = vector_magnitude(MV(16));
+    if (magnitude > MF(1596)) {
+        threshold = MF(1596) * 0.15f;
+        count = 0;
+        sum = 0.0f;
+        sample = vector_magnitude(MV(100));
+        if (sample > threshold) {
+            sum += sample;
+            count++;
+        }
+        sample = vector_magnitude(MV(112));
+        if (sample > threshold) {
+            sum += sample;
+            count++;
+        }
+        sample = vector_magnitude(MV(124));
+        if (sample > threshold) {
+            sum += sample;
+            count++;
+        }
+        sample = vector_magnitude(MV(136));
+        if (sample > threshold) {
+            sum += sample;
+            count++;
+        }
+        if (count >= 4) {
+            magnitude -= sum * 0.4f;
+        } else if (count >= 3) {
+            magnitude -= sum * 0.2f;
+        }
+    }
+    if ((gRace != 6 && magnitude > MF(1596)) ||
+        (gRace != 6 && (MF(1008) > 400.0f || MF(80) > 10.0f || MF(80) < -10.0f))) {
+        if (!MB(1600) && (MB(1996) != 2 || !gInvincible)) {
+            MB(1600) = 1;
+        }
+    }
+    MB(1601) = 0;
+    pairs = 0.0f;
+    if (MF(224) < -700.0f || MF(236) < -700.0f || MF(200) < -700.0f || MF(212) < -700.0f) {
+        pairs = 1.0f;
+        if (MF(1520) > 3.0f && MF(1520) < 5.0f && MF(1524) > 3.0f && MF(1524) < 5.0f) {
+            pairs += 1.0f;
+        }
+        if (MF(1516) > 3.0f && MF(1516) < 5.0f && MF(1528) > 3.0f && MF(1528) < 5.0f) {
+            pairs += 1.0f;
+        }
+    }
+    if (pairs > 0.0f && MF(764) < -0.1f && MF(1008) < 5.0f) {
+        if (!MB(1600)) {
+            AddBattlePoint(MS(1990), MS(1990), -1);
+            MB(1600) = 1;
+        }
+        return;
+    }
+    if (pairs >= 2.0f && MF(1008) < 40.0f) {
+        if (!MB(1600)) {
+            AddBattlePoint(MS(1990), MS(1990), -1);
+            MB(1600) = 1;
+        }
+        return;
+    }
+    if (pairs >= 2.0f && MF(764) < 0.707f) {
+        if (MF(1008) < 100.0f && !MB(1600)) {
+            AddBattlePoint(MS(1990), MS(1990), -1);
+            MB(1600) = 1;
+        }
+        MB(1601) = 1;
+    }
+}

@@ -1,9 +1,9 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Traverse the four N64 indirect lists at D_80144D60. For every node whose
+/* Traverse the four N64 indirect lists at gPS_Files. For every node whose
  * body word at +72 is nonzero, call the existing operation with action, then
  * reload the body/next link so operation-driven list changes are observed.
  * No direct Rush The Rock ancestor was found. The indirect List layout is
- * corroborated by accepted func_80091FBC and func_8009211C; historical function
+ * corroborated by accepted InsertLLE and RemoveLLE; historical function
  * names do not establish renderer or physics semantics. Ordinary O2/O3.
  */
 typedef signed int s32;
@@ -24,7 +24,7 @@ typedef struct VisualList {
     VisualNode *head;
     VisualNode *tail;
 } VisualList;
-extern VisualList D_80144D60[4];
+extern VisualList gPS_Files[4];
 s32 PS_FlushFile(VisualNode *, s32);
 
 void SaveFlush(s32 action)
@@ -33,7 +33,7 @@ void SaveFlush(s32 action)
     VisualNode *node;
 
     for (i = 0; i < 4; i++) {
-        for (node = D_80144D60[i].head; node; node = node->body->next) {
+        for (node = gPS_Files[i].head; node; node = node->body->next) {
             if (node->body->enabled) {
                 PS_FlushFile(node, action);
             }

@@ -51,7 +51,7 @@ The triggers are buttons here: past `input.axis_threshold` they press A and B.
   second accelerate and brake, Z moves to LB, and L moves to Back. v5's exact layout is one edit away (the
   file's `[controller]` comment gives it).
 - **Not checked against the ROM.** That A accelerates and B brakes is the game's usual layout, but it was not
-  checked here. The game maps N64 buttons to its own through a ROM table (`D_8011FAD4`, read by
+  checked here. The game maps N64 buttons to its own through a ROM table (`n64_button_map`, read by
   `ControllerUpdate`), and the game has its own control setup screen.
 - **Players.** The keyboard is player 1 (`input.keyboard_player`).
   - Controllers take players from `input.first_controller_player` up, in the order they are plugged in. They
@@ -328,17 +328,17 @@ let a single race hold that many: the players and the drones the track select's 
 - **Latched.** The game reads the count through `pc_race_cars()` (`PC_RACE_CARS`, `port/include/pc_game_types.h`)
   in loops all over a race, on its game and model threads, so that is a copy: `pc_race_cars_begin()` latches the
   setting into it where a race's roster is filled (CalcPolePositions, except on the results screen, where
-  display_list_flush calls it for the cars that race on, and the attract demo's `func_800EC190`:
+  PrePlay calls it for the cars that race on, and the attract demo's `fake_init`:
   [MORECARS.md](MORECARS.md) 3.1, item 3). A change in the overlay applies from the next race and never during one.
   Until the first `pc_race_cars_begin()` the count is 6. `pc_cars_setting()` is the setting itself, unlatched (6
   for `original`), for the front end. All three are in `port/config/race_cars.c`; `pc_race_cars_set` (main, the
   overlay) takes the setting there, `original` as 0, anything outside 6-12 to the nearest end.
-- **The Drones option** (the track select's options list, item 17: `runtime_a_c93c_closure/group.c`) goes from 0 to
+- **The Drones option** (the track select's options list, item 17: `trackscr/trackscr.c`) goes from 0 to
   `pc_cars_setting() - 1` and wraps there: 5, as on the N64, with `original`. Its reset value (the reset button)
-  and its default (`func_800CCB40`) stay 5, so a player who never touches it races 6 cars at any setting. It shows
+  and its default (`GetDefaultOption`) stay 5, so a player who never touches it races 6 cars at any setting. It shows
   the value as the other options do, a plain decimal number, so 10 and 11 are two digits in its box (seen on the
   retail cartridge).
-- **Saves.** The option is a signed byte of the player's profile (`reverb_setup`'s `modeA`, the race tracks'), so
+- **Saves.** The option is a signed byte of the player's profile (`GetPlayerOption`'s `modeA`, the race tracks'), so
   0-11 fit. A profile saved with more than 5 drones keeps its value when the setting goes back to `original`: the
   option shows it, the race holds 6 cars (the roster's cap is the latched count, item 3), and LEFT or RIGHT wraps
   it to 0, as the N64's rule does for a value past its 5 (seen on the retail cartridge: 11 with `game.cars=12`, the
@@ -378,7 +378,7 @@ retraces (a menu's slide, a blink, a fade, a camera's filter, a frame count) tak
 keeps its speed in real time. The car physics runs every retrace either way.
 
 - **Latched.** The game reads a copy, `pc_fps60` (`port/config/game_fps.c`, `port/include/pc_game_fps.h`), which
-  `pc_game_fps_begin()` takes where the game's state changes (game_loop): a change in the overlay applies from the
+  `pc_game_fps_begin()` takes where the game's state changes (GameLoop): a change in the overlay applies from the
   next screen (the next menu, the race's start, the results, the attract demo), never in the middle of one. Until the
   first state change it is original. `pc_game_fps_setting()` is the setting itself; `pc_game_fps_set` (main, the
   overlay) takes 60 for 60 and anything else for original.
@@ -394,7 +394,7 @@ keeps its speed in real time. The car physics runs every retrace either way.
 - **Run limits.** `--frames`, `--screenshot-at` and `--until-state`'s count are in graphics tasks, which come twice as
   often at 60; `--seconds` is the same.
 - **A host that can't keep 60** ([FRAMERATE.md](FRAMERATE.md) 7.7). In a race at 60 the game counts its frames
-  and the retraces they take (`pc_game_frame_note`; the race from game_loop's state change, `pc_game_fps_state`).
+  and the retraces they take (`pc_game_frame_note`; the race from GameLoop's state change, `pc_game_fps_state`).
   When over 4 s it keeps fewer than 0.9 frames a retrace, one line in the log says so, once a race: `game.frame_rate
   = 60: the game drew 0.79 of its frames in 4 s of the race (47 a second): this host can't keep 60 here. The game
   keeps its speed: ...`. About's Game frame rate row shows the last race's share (`pc_game_fps_describe`). There is
@@ -425,8 +425,8 @@ menu, as F1 does; closing it leaves the menu as it was, PC SETUP still selected.
 it on and off at once.
 
 - **Where it comes from.** The main menu (`updateStartScreen`, `src/ovl_a/groups/start_screen/group.c`) has ten
-  option slots, each valid or not (`optionValid`, `func_8038F744`, in that file and in
-  `src/ovl_a/groups/runtime_a_option_eligibility/group.c`): 0 the race, 1-4 its four screens, 6 the cheat screen
+  option slots, each valid or not (`optionValid`, `startscr_optionValid`, in that file and in
+  `src/ovl_a/groups/startscr_text/startscr_text.c`): 0 the race, 1-4 its four screens, 6 the cheat screen
   once its code is entered, 7 and 9 a debug build's, 5 and 8 never. Each slot has its own button (the same pill
   model, made for all ten by `initButtons`), and the valid ones are stacked one gap apart, so a sixth valid slot gets
   a button, a place and the turn to its selected side as the cheat screen's does. PC SETUP is slot 8: with the cheat
@@ -434,7 +434,7 @@ it on and off at once.
   it comes after it.
 - **The game's code**, three PC macros on existing lines, each giving the original tokens on the N64:
   `PC_START_VALID` on optionValid's return (both copies: slot 8 valid while the setting is on), `PC_START_LABEL` on
-  the label's draw (`state_utility(..., countdown_state.indexed[indices[20] + i])`, both of the function's layouts:
+  the label's draw (`TB_DrawText(..., gText.indexed[indices[20] + i])`, both of the function's layouts:
   the port's "PC SETUP" for slot 8 instead of the text bank's string; the label starts 35 pixels left of the button's
   middle, so it is short: "PC SETTINGS" would run past the button), and `PC_START_EXIT` on the menu's exit test
   (`else if (exitStartScreen)`): A on slot 8 sets a request and gives 0, so the menu isn't torn down and stays in its
@@ -471,33 +471,33 @@ How the cartridge decides:
 
 - **The CHEATS option.** The main menu's option slot 6 (the slots: "PC SETUP" above) is the cheat screen (state
   0x8000000, `updateStartScreen`'s `case 6`, `src/ovl_a/groups/start_screen/group.c:241`). optionValid
-  (`func_8038F744`, both copies) makes it valid only while `D_801164A1` is set (`start_screen/group.c:296-297`,
-  `runtime_a_option_eligibility/group.c:176-177`): the byte after the 21 cheats' flags (MAT3's `gCheatActive[23]`).
+  (`startscr_optionValid`, both copies) makes it valid only while `cheat_menu_unlocked` is set (`start_screen/group.c:296-297`,
+  `startscr_text/startscr_text.c:176-177`): the byte after the 21 cheats' flags (MAT3's `gCheatActive[23]`).
   Two things set it. The main menu checks its own button code each frame while it is clear (`CheckForEgg`,
-  `func_8038F648`, against the code `InitEgg(23)` points at, `D_803B41D4`; `start_screen/group.c:256-257`, 271-272).
-  And LoadPlayerData (`func_800CCEFC`, `src/blob/groups/menu_save_options/group.c:335-342`) sets it when the
-  profile's name matches the cartridge's developer code (`D_801211CC`), with cheat states 14-16 and the ghost save
-  prompt's flag (`D_801148E4`, [SAVES.md](SAVES.md) 7.1). Nothing saves it: it lasts the session.
-- **A cheat's availability.** The cheat screen (`updateCheatScreen`, `func_8039C910`,
-  `src/ovl_a/groups/cheat_screen/cheatscr.c`) has 21 cheats, each with a flag in `gCheatActive` (`D_8011648C`, s8).
+  `CheckForEgg`, against the code `InitEgg(23)` points at, `start_screen_egg`; `start_screen/group.c:256-257`, 271-272).
+  And LoadPlayerData (`ReadPlayerData`, `src/blob/groups/save/group.c:335-342`) sets it when the
+  profile's name matches the cartridge's developer code (`cheat_profile_name`), with cheat states 14-16 and the ghost save
+  prompt's flag (`gSaveGhostFiles`, [SAVES.md](SAVES.md) 7.1). Nothing saves it: it lasts the session.
+- **A cheat's availability.** The cheat screen (`updateCheatScreen`, `updateCheatScreen`,
+  `src/ovl_a/groups/cheat_screen/cheatscr.c`) has 21 cheats, each with a flag in `gCheatActive` (`gCheatActive`, s8).
   A cheat's flag is set only by its own button code, entered while it is selected: `if (!gCheatActive[sel])
-  gCheatActive[sel] = CheckForEgg()` (`cheatscr.c:212-213`), against `gEggs[sel]` (`D_803B3460`, which InitEgg
+  gCheatActive[sel] = CheckForEgg()` (`cheatscr.c:212-213`), against `gEggs[sel]` (`gEggs`, which InitEgg
   points at on each move). The flag is read in two places: LEFT and RIGHT switch the selected cheat only when it is
-  set (`cheatscr.c:98`), and printOption (`func_803A5350`, `cheatscr.c:339-341`) draws the cheat's value bright when
+  set (`cheatscr.c:98`), and printOption (`cheatscr_printOption`, `cheatscr.c:339-341`) draws the cheat's value bright when
   it is set, dim (colour 4) when not. No other code reads or writes these flags; LoadPlayerData writes only the
   CHEATS option's byte after them (its loop over cheats 1-20 has no body, in the retail code as here). So a cheat's
   availability is neither the profile's progress nor anything saved: it is the codes entered in this session.
-- **What a switched cheat does.** Each case of the switch writes the game's flag (`D_801427A1` super speed,
-  `D_8014061A` the invisible track, ...) and the state the screen shows (`gCheatState`, `D_801164A4`); cheats 3 and
-  13-16 are states that other code reads (14-16 in `net_state_validate`'s unlock tables: every car, every track and
+- **What a switched cheat does.** Each case of the switch writes the game's flag (`gSuperSpeed` super speed,
+  `gInvisibleTrack` the invisible track, ...) and the state the screen shows (`gCheatState`, `gCheatState`); cheats 3 and
+  13-16 are states that other code reads (14-16 in `CalcUnlockedStuff`'s unlock tables: every car, every track and
   circuit, the other unlockables the profile's records otherwise open). They stay as set across races, until switched
-  again or the game restarts (InitSystem clears them, `func_800DE45C`).
+  again or the game restarts (InitSystem clears them, `InitOptions`).
 
 The PC's:
 
 - **`game.cheats_menu`** adds no line to the game's code: optionValid's PC hook (`PC_START_VALID`, PC SETUP's, on
   both copies' return) gives slot 6 valid while the setting is on (`pc_start_valid`, `port/config/start_menu.c`),
-  whatever `D_801164A1` says. The flag isn't written: the main menu still checks its code, and with the setting off
+  whatever `cheat_menu_unlocked` says. The flag isn't written: the main menu still checks its code, and with the setting off
   again the menu is the N64's at its next frame (the cursor moves off the option, as for PC SETUP). The developer
   name's other unlocks don't come with it.
 - **`game.cheats_unlock`**: `PC_CHEAT_ACTIVE` (`cheatscr.c`, a macro at file scope) on the four reads of a cheat's
@@ -910,8 +910,8 @@ scripted presses steered, so each link between a real device and the pad the gam
   controller pak written by the first steers too.
 - **The cause** (2026-10-28, when CI's x86-64 RelWithDebInfo job failed `input_live_drive`): the release build
   didn't steer at all, from a controller or the keys. Optimized by mingw-w64's GCC 12 (the release's toolchain) or by
-  GCC 13 on x86-64, `func_800E7134` (controller_poll) stored each pad's scaled stick y and dropped its x, which is
-  what the car steers by: the scaled sticks `D_80140620` were declared there as one `f32` and written through a
+  GCC 13 on x86-64, `ControlIRQ` (UpdateControls) stored each pad's scaled stick y and dropped its x, which is
+  what the car steers by: the scaled sticks `gRealStick` were declared there as one `f32` and written through a
   `[pad][2]` view ([OPTIMIZED.md](OPTIMIZED.md) 2.7). Debug builds, rocky's GCC 14 and the arm64 builds kept the
   store, and every scripted steering check had run one of those. The declaration has its shape on the PC now; the
   scripted and the live runs steer in both build types. The release zip the user played was RelWithDebInfo.

@@ -126,7 +126,7 @@ static uint32_t watch_state(const PcRunOptions *opt, uint32_t until_gfx)
         last = s, seen = 1;
     }
     /* The value the state word starts with, before initGameState changes it, is no state the game has entered: the
-     * game's own "no state" is -1 (func_800B7FF8), whose bits match every mask. */
+     * game's own "no state" is -1 (UpdateHUDPostCamera), whose bits match every mask. */
     if (opt->until_state && !until_gfx && entered && (s & opt->until_state))
         until_gfx = pc_rcp_gfx_tasks + opt->until_state_frames + (opt->until_state_frames == 0);
     return until_gfx;

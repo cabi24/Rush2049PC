@@ -6,21 +6,21 @@
 #include "PR/os_message.h"
 #include "PR/os_thread.h"
 
-/* PC layer (port/include/pc_port.h): big-endian ranges, for the MusyX DMA caches (lib_11640.c). */
+/* PC layer (port/include/pc_port.h): big-endian ranges, for the MusyX DMA caches (hardware.c). */
 extern void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 extern void pc_mem_unregister_be(const void *start);
 
 /* Data symbols referenced by promoted libultra bodies. */
 extern OSThread *__osEmptyMesgQueue;   /* 0x8002C3D0 — empty mesg queue sentinel */
 
-/* Referenced by huft_alloc (inflate's window allocator). C89 makes an
+/* Referenced by alloc_zip_mem (inflate's window allocator). C89 makes an
  * undeclared VARIABLE an error, so a promoted body that touches a global
  * needs it here even though the body compiles standalone with its own m2c
  * prelude. Types follow the body's use: a byte offset accumulated into a
  * base. The names come from symbol_addrs and read as display-list symbols in
  * inflate code, which is suspect — see docs/SYMBOL_MISATTRIBUTION.md. */
-extern s32 gDisplayListHead;            /* 0x800354C4 */
-extern unsigned int gDisplayListSize;  /* 0x800354C8 (no volatile; the inflate TU's
+extern s32 zmregion;            /* 0x800354C4 */
+extern unsigned int zmused;  /* 0x800354C8 (no volatile; the inflate TU's
                                         * as1 -O1 recipe keeps its reloads) */
 
 /* N64 MMIO registers referenced by promoted libultra bodies. IDO compiles
@@ -41,10 +41,10 @@ extern unsigned int gDisplayListSize;  /* 0x800354C8 (no volatile; the inflate T
 
 /* Additive declarations for shared src/rom/rom_tu.h; existing types suffice. */
 extern s32 __osViModeInfo;
-extern s32 gDisplayListEnd;
-/* : gViAccumTime and gViLastTick are lib_1050_sdk.c.bss definitions (lib_1050.c declares them itself):
+extern s32 zmmax;
+/* : gCountdownEnd and gLastFrameCounter are lib_1050_sdk.c.bss definitions (timer.c declares them itself):
  * an extern here gives them early cfe block numbers, and IDO 5.3 sorts .bss by block number mod 256. */
-extern volatile s32 gViTickCounter; /* : interrupt-updated; viUpdateTime's load order needs volatile */
+extern volatile s32 scheduler_retrace_count; /* : interrupt-updated; UpdateFrameTimer's load order needs volatile */
 extern s32 __osPiInitialized;
 extern OSMesgQueue __osPiMesgQueue;
 extern void *__osPiMesg;
@@ -52,9 +52,9 @@ extern s32 __osSiInitialized;
 /* The SI names have historical swapped attribution; these match current source. */
 extern OSMesgQueue __osSiMesg;
 extern void *__osSiMesgQueue;
-extern u8 __osPfsRequestType;
+extern u8 __osContLastCmd;
 /* __osViContext and OSPifRam __osSiDmaBuffer already exist in m2c_types.h.
- * gDisplayListHead and gDisplayListSize already exist in rom_tu.h.
+ * zmregion and zmused already exist in rom_tu.h.
  * No new struct/type definitions are needed. */
 
 /* PI read wrapper uses the currently identified target signature. */
@@ -65,10 +65,10 @@ extern s32 __osPiRawReadIo(u32, u32 *);
  * __osViModeInfo remains s32, as in C1; C2 explicitly casts its loaded value.
  * No change to accepted C1 declarations is needed. */
 extern void __osContGetInitData(u8 *, OSContStatus *);
-extern s32 bzero_alt(void);  /* historical target name for SDK __osSpGetStatus */
+extern s32 __osSpGetStatus(void);  /* historical target name for SDK __osSpGetStatus */
 extern u32 __osTLBLookup(void *);
 extern s32 __osSpDeviceBusy(void);
-extern u8 __osPfsRequestType2;
+extern u8 __osMaxControllers;
 typedef u32 OSYieldResult;
 typedef struct {
     u8 dummy, txsize, rxsize, cmd;
@@ -120,7 +120,7 @@ typedef u32 OSIntMask;
 #define OS_WRITE 1
 #define OS_READ 0
 /* OS_MESG_BLOCK already exists from PR/os_message.h.
- * __osPfsRequestType was supplied by C1; __osSiDmaBuffer exists in m2c_types.h.
+ * __osContLastCmd was supplied by C1; __osSiDmaBuffer exists in m2c_types.h.
  * Existing __osTimerList declaration is __OSTimerNode*. The delivered timer
  * body explicitly casts to OSTimer* before reading ->next, so that shared
  * declaration does not need to change. Both structs have next at offset0.
@@ -151,7 +151,7 @@ extern OSThread *__osPopThread(OSThread **);
  * __osCleanupThread(OSThread**) already declared in m2c_types.h and is current
  * target name for SDK __osEnqueueAndYield.
  * __osRunningThread and __osEnqueueThread already declared.
- * Blocked O0 boot leads need extern s32 gScTimeEnabled, but don't promote them
+ * Blocked O0 boot leads need extern s32 gTimerPaused, but don't promote them
  * into the locked O2 0x1050 TU until a supported flags/isolation route exists. */
 
 /* SI raw I/O helpers retain the historical PI device-busy symbol. */
@@ -206,7 +206,7 @@ extern const f64 gOrthoScale;
 /* Verified canonical controller/message context, . */
 /* Minimal additions for seven eligible C7 bodies. Existing OSPifRam,
  * __OSContReadFormat, CHNL_ERR, ARRLEN, OS_STATE_WAITING, message constants,
- * __osPfsRequestType/2, __osCleanupThread and guMtxIdentF are sufficient. */
+ * __osContLastCmd/2, __osCleanupThread and guMtxIdentF are sufficient. */
 typedef struct {
     u8 dummy, txsize, rxsize, cmd, typeh, typel, status, dummy1;
 } __OSContRequesFormat;

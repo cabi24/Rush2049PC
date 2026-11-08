@@ -18,31 +18,31 @@ pc_links   D_80153E88   0x68   D_80153E8F
 # The model records (MAT3 model[], tModelData): struct pc_model[PC_MODEL_SLOTS], 6 records of 0x808 bytes on the N64
 # (0x8014A250-0x8014D280), the same layout on the PC. The aliases are the names inside it the game C reached: the
 # second symbol D_8014A250_alias, and [0]'s fields D_8014A258 (+0x8), D_8014A640 (+0x3F0), D_8014A890 (+0x640),
-# D_8014A914 (+0x6C4), D_8014A964 (+0x714), D_8014A96C (+0x71C), D_8014AA14 (+0x7C4), D_8014AA16 (+0x7C6),
+# D_8014A914 (+0x6C4), D_8014A964 (+0x714), model_modelrun (+0x71C), D_8014AA14 (+0x7C4), D_8014AA16 (+0x7C6),
 # D_8014AA32 (+0x7E2) and D_8014AA3A (+0x7EA), read with a stride of 0x808; the image symbol tables name 12 more.
-pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890 D_8014A914 D_8014A964 D_8014A96C D_8014AA14 D_8014AA16 D_8014AA32 D_8014AA3A
+pc_models  D_8014A250  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890 D_8014A914 D_8014A964 model_modelrun D_8014AA14 D_8014AA16 D_8014AA32 D_8014AA3A
 
-# The car records (MAT3 gGameCar, tCarData, player_array): struct pc_car[PC_CAR_SLOTS], 6 records of 0x3B8 bytes on
-# the N64 (0x80152818-0x80153E68; D_80153E68, a message queue, follows), 0x468 on the PC (docs/port/CARS.md 2). They
-# were own storage already (host layout). The aliases are player_array and the names inside it the game C reached:
+# The car records (MAT3 gGameCar, tCarData, gGameCar): struct pc_car[PC_CAR_SLOTS], 6 records of 0x3B8 bytes on
+# the N64 (0x80152818-0x80153E68; sample_dma_pi_queue, a message queue, follows), 0x468 on the PC (docs/port/CARS.md 2). They
+# were own storage already (host layout). The aliases are gGameCar and the names inside it the game C reached:
 # [0]'s fields D_801528F0 (seen from +0xD8), D_80152900 (+0xE8), D_80152906 (+0xEE), D_80152907 (+0xEF), D_80152908
-# (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s D_80152BD0 (+0), D_80152BD8
-# (+0x8) and D_80152C20 (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
-pc_cars    D_80152818  0x1650  player_array D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB D_80152BD0 D_80152BD8 D_80152C20
+# (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s car1_objnum (+0), car1_dr_pos
+# (+0x8) and car1_dr_car_uvs (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
+pc_cars    gGameCar  0x1650  gGameCar D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB car1_objnum car1_dr_pos car1_dr_car_uvs
 
 # The effects' per-car arrays (docs/port/DECOUPLE.md 6), 6 cars each on the N64, PC_MAX_LINKS on the PC: the tire-effect
-# latches (u32), the smoke's grey (u8; 8 bytes by the gap to D_8013A028), the trails' last points (f32[6]), the blasts
-# (struct pc_blast, 0x190), the blast rings (struct pc_blast_ring, 0x3C; 6 of them to D_80155140: the symbol file's
+# latches (u32), the smoke's grey (u8; 8 bytes by the gap to gRealJustPlayerData), the trails' last points (f32[6]), the blasts
+# (struct pc_blast, 0x190), the blast rings (struct pc_blast_ring, 0x3C; 6 of them to gTempCircuitFirstTrack: the symbol file's
 # gCheckpointTimes, gLapCounts, gBestLapTimes and gCurrentLapTimes, inside them, are names nothing uses), the skid
 # state of each car's four tires (struct pc_skid: 0x5C on the N64, 0x60 on the PC, its effect pointer a host pointer;
 # own storage before) and the resurrect's midpoint (f32[3]).
-pc_tire_fx        D_801392D8  0x18
-pc_smoke_shade    D_8013A020  0x8
-pc_trail_pts      D_8013C098  0x90
-pc_blasts         D_80154660  0x960
-pc_blast_rings    D_80154FD8  0x168
-pc_skids          D_80155290  0x8A0
-pc_resurrect_mid  D_80161450  0x48
+pc_tire_fx        gCarSmokeDir  0x18
+pc_smoke_shade    gCarBlastSmokeClr  0x8
+pc_trail_pts      gCarWingSmokePos  0x90
+pc_blasts         gBlastObjs  0x960
+pc_blast_rings    gBlastRingObjs  0x168
+pc_skids          gNewSkid  0x8A0
+pc_resurrect_mid  resurrect_save_pos  0x48
 
 # The cars' sounds, checkpoints and finish cameras (docs/port/DECOUPLE.md 7), PC_MAX_LINKS each on the PC, 6 on the
 # N64: the engine sound sets (struct pc_engine_sound, 84 B on the N64, own storage before: 88 B here), the screech
@@ -59,9 +59,9 @@ pc_finish_cam_time  D_80110668  0x18  init=image
 pc_finish_cam       D_80110680  6     init=image
 
 # The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[] (short[PC_MAX_LINKS]; 6 s16 on the N64,
-# 0x801527D8-0x801527E4, the own D_801527E4 after it, and 0x80152808-0x80152814, the car records after the gap), and
+# 0x801527D8-0x801527E4, the own si_lock_msg after it, and 0x80152808-0x80152814, the car records after the gap), and
 # maxpath's controls per car slot (float[PC_MAX_LINKS], float[PC_MAX_LINKS][3]; 6 on the N64): steer, brake, gas
-# (0x80153F28, 0x80153F48, 0x80153F68: 24 B each, D_80153F40 and HAL_DrawText's statics at 0x80153F60 and 0x80153F80
+# (0x80153F28, 0x80153F48, 0x80153F68: 24 B each, cur_drone and HAL_DrawText's statics at 0x80153F60 and 0x80153F80
 # after them) and avoid_areas' two directions (0x80153F88, 0x80154138: 72 B each, statics at 0x80153FD0, 0x80154180).
 pc_drones       D_801527D8  0xC
 pc_our_drones   D_80152808  0xC
@@ -72,29 +72,29 @@ pc_mp_dir       D_80153F88  0x48
 pc_mp_save_dir  D_80154138  0x48
 
 # CarSetup's flag per car slot (carsetup_flag): signed char[PC_MAX_LINKS], 6 bytes on the N64 (0x801439F8; the gap is
-# 8, the controllers' D_80143A00 after it). The image symbol tables name D_801439FE inside it, +6: the end of
-# display_list_flush's clear of 6, which no C names.
-pc_carsetup_flags  D_801439F8  0x8
+# 8, the controllers' gAutoEdges after it). The image symbol tables name D_801439FE inside it, +6: the end of
+# PrePlay's clear of 6, which no C names.
+pc_carsetup_flags  carsetup_flag  0x8
 
 # MusyX's per-voice storage (docs/port/DECOUPLE.md 9, AUDIO.md 10): 32 entries on the N64, in the boot segment's BSS,
 # PC_MX_VOICE_SLOTS (96) on the PC for [audio] voices, each indexed by a voice's number. The voices (0x1A0 bytes, the
 # N64 layout), the sequence nodes (24 B here, 16 there; own storage before), the priority and free lists' links, an
 # effect voice's controllers and its two per-channel bytes (set 255: a voice is its own channel), its legato owner
-# (the gap is 80 bytes, the C clears 32: lib_22300.c's statics follow) and a stream's buffer record (40 B here, 24
+# (the gap is 80 bytes, the C clears 32: macros.c's statics follow) and a stream's buffer record (40 B here, 24
 # there; own storage before).
-pc_mx_voice        D_8004BEB8  0x3400
-pc_mx_nodes        D_80050A50  0x200
-pc_mx_prio_links   D_800504C8  0x80
-pc_mx_free_links   D_80050440  0x80
-pc_mx_fx_ctrl      D_80055000  0x10C0
-pc_mx_fx_chan_a    D_80050CE0  0x20
-pc_mx_fx_chan_b    D_80056140  0x20
-pc_mx_fx_legato    D_800561E0  0x20
-pc_mx_streams      D_8004FA50  0x300
+pc_mx_voice        sound_synth_voices  0x3400
+pc_mx_nodes        sound_handle_nodes  0x200
+pc_mx_prio_links   sound_voice_priority_links  0x80
+pc_mx_free_links   sound_voice_free_links  0x80
+pc_mx_fx_ctrl      sound_voice_controllers  0x10C0
+pc_mx_fx_chan_a    sound_voice_last_keys  0x20
+pc_mx_fx_chan_b    sound_voice_portamento  0x20
+pc_mx_fx_legato    sound_voice_channel_owners  0x20
+pc_mx_streams      sound_streams  0x300
 
 # The sound manager's messages and the priority pass's two command lists (docs/port/DECOUPLE.md 9, AUDIO.md 10.4): 128
 # each on the N64, own storage before (32 B a message, 8 B a pointer here), PC_SND_MSG_SLOTS (256) on the PC, of which
 # the game walks 128 at original.
-pc_snd_msgs        D_80142DD8  0xC00
-pc_snd_start_cmds  D_80143AE8  0x200
-pc_snd_stop_cmds   D_80143CF0  0x200
+pc_snd_msgs        audiomgr_gCmds  0xC00
+pc_snd_start_cmds  gStartCmds  0x200
+pc_snd_stop_cmds   gStopCmds  0x200

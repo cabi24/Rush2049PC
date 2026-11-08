@@ -4,8 +4,8 @@
  *   - a GSM 06.10 reference decoder written here from the spec's equations (ref_*). With the kernels' arithmetic
  *     (32-bit, wrapping) it must match always; with the spec's (16-bit, saturating) it must match until the spec
  *     saturates something;
- * kernel by kernel on random and edge inputs, and frame by frame under the game's own decoder (func_80026640 of
- * src/rom/lib_26f60.c, through gsm_game.c). */
+ * kernel by kernel on random and edge inputs, and frame by frame under the game's own decoder (gsm_decode_frame of
+ * src/rom/speech/gsm.c, through gsm_game.c). */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +13,7 @@
 
 #include "gsm.h"
 
-int func_80026640(GsmState_26F60 *s, unsigned char *c, short *target);   /* the game's frame decoder */
+int gsm_decode_frame(GsmState *s, unsigned char *c, short *target);   /* the game's frame decoder */
 
 static int g_fail;
 #define CHECK(cond, ...)                                                 \
@@ -215,7 +215,7 @@ static int emu_call(uint32_t entry, int32_t a0, int32_t a1, int32_t a2, int32_t 
 }
 
 /* The native state in the N64's memory: big-endian halfwords, v[] as words. */
-static void state_to_emu(const GsmState_26F60 *S, uint32_t a)
+static void state_to_emu(const GsmState *S, uint32_t a)
 {
     const unsigned char *b = (const unsigned char *)S;
     for (unsigned off = 0; off < sizeof *S;) {
@@ -235,7 +235,7 @@ static void state_to_emu(const GsmState_26F60 *S, uint32_t a)
         }
     }
 }
-static void state_from_emu(GsmState_26F60 *S, uint32_t a)
+static void state_from_emu(GsmState *S, uint32_t a)
 {
     unsigned char *b = (unsigned char *)S;
     for (unsigned off = 0; off < sizeof *S;) {
@@ -267,7 +267,7 @@ static int emu_rpe(short xmaxcr, short Mcr, short xMcr[13], short erp[40])
         erp[k] = r16(E_ERP + 2 * k);
     return ok;
 }
-static int emu_ltp(GsmState_26F60 *S, short Ncr, short bcr, const short erp[40])
+static int emu_ltp(GsmState *S, short Ncr, short bcr, const short erp[40])
 {
     state_to_emu(S, E_S);
     for (int k = 0; k < 40; k++)
@@ -277,7 +277,7 @@ static int emu_ltp(GsmState_26F60 *S, short Ncr, short bcr, const short erp[40])
     return ok;
 }
 /* wt NULL: the state's dp0, as the game passes it. */
-static int emu_stp(GsmState_26F60 *S, const short *wt, short s[160])
+static int emu_stp(GsmState *S, const short *wt, short s[160])
 {
     state_to_emu(S, E_S);
     if (wt)
@@ -473,19 +473,19 @@ static void ref_frame(Ref *R, const Frame *f, short out[160])
 
 /* ---------------------------------------------------------------- kernel tests */
 
-static int32_t state_v(const GsmState_26F60 *S, int i)
+static int32_t state_v(const GsmState *S, int i)
 {
     int32_t x;
     memcpy(&x, (const unsigned char *)S + GSM_V_OFFSET + 4 * i, 4);
     return x;
 }
-static void set_state_v(GsmState_26F60 *S, int i, int32_t x)
+static void set_state_v(GsmState *S, int i, int32_t x)
 {
     memcpy((unsigned char *)S + GSM_V_OFFSET + 4 * i, &x, 4);
 }
 
 /* The kernels' history against the spec's drp[-120..39] (hist[0..159]). */
-static int same_hist(const GsmState_26F60 *S, const short hist[160])
+static int same_hist(const GsmState *S, const short hist[160])
 {
     return !memcmp(S->dp0 + 40, hist, 120 * sizeof *hist) && !memcmp(S->dp0 + 120, hist + 120, 40 * sizeof *hist);
 }
@@ -510,7 +510,7 @@ static void check_rpe(short xmaxcr, short Mcr, const short xMc[13], int valid)
     memcpy(xc, xMc, sizeof xc);
     memcpy(xe, xMc, sizeof xe);
     memset(ec, 0x5A, sizeof ec);
-    func_800277D0(xmaxcr, Mcr, xc, ec);
+    gsm_rpe_decode(xmaxcr, Mcr, xc, ec);
     CHECK(emu_rpe(xmaxcr, Mcr, xe, ee), "RPE MIPS call");
     CHECK(!memcmp(xc, xe, sizeof xc) && !memcmp(ec, ee, sizeof ec), "RPE xmaxc %d Mc %d: C and MIPS differ",
           xmaxcr, Mcr);
@@ -548,7 +548,7 @@ static void test_ltp(void)
 {
     static const short lags[] = {-32768, -1, 0, 39, 40, 41, 80, 119, 120, 121, 127, 32767};
     for (int n = 0; n < 6000; n++) {
-        GsmState_26F60 S, E;
+        GsmState S, E;
         short erp[40], hist[160], nrp;
         int narrow = n % 2;   /* inputs the spec's 16-bit decoder can take without saturating at once */
         for (int i = 0; i < 180; i++)
@@ -568,8 +568,8 @@ static void test_ltp(void)
         memcpy(hist + 120, S.dp0 + 120, 40 * sizeof *hist);
         nrp = S.dp0[GSM_NRP];
         E = S;
-        GsmState_26F60 before = S;
-        func_800278C4(&S, Ncr, bcr, erp);
+        GsmState before = S;
+        gsm_long_term_synthesis(&S, Ncr, bcr, erp);
         CHECK(emu_ltp(&E, Ncr, bcr, erp), "LTP MIPS call");
         CHECK(!memcmp(&S, &E, sizeof S), "LTP Ncr %d bcr %d: C and MIPS differ", Ncr, bcr);
         CHECK(!memcmp(S.dp0, before.dp0 + 40, 80 * sizeof *S.dp0) && !memcmp(S.dp0 + 160, before.dp0 + 160, 38) &&
@@ -589,12 +589,12 @@ static void test_ltp(void)
 }
 
 /* One short-term synthesis call: C, MIPS, and the references (the spec's when the state is 16-bit). */
-static void check_stp(GsmState_26F60 *S, const short *wt_in)
+static void check_stp(GsmState *S, const short *wt_in)
 {
-    GsmState_26F60 E = *S, in = *S;
+    GsmState E = *S, in = *S;
     short sc[160], se[160], sr[160], wt[160];
     memcpy(wt, wt_in ? wt_in : S->dp0, sizeof wt);
-    func_80027B44(S, wt_in ? wt : S->dp0, sc);
+    gsm_short_term_filter(S, wt_in ? wt : S->dp0, sc);
     CHECK(emu_stp(&E, wt_in, se), "STP MIPS call");
     CHECK(!memcmp(S, &E, sizeof E) && !memcmp(sc, se, sizeof sc), "STP j %d: C and MIPS differ", in.j);
     int narrow = 1;
@@ -619,11 +619,11 @@ static void check_stp(GsmState_26F60 *S, const short *wt_in)
 static void test_stp(void)
 {
     static const short js[] = {0, 1, 1, 0, 2, -1};
-    GsmState_26F60 S;
+    GsmState S;
     short wt[160];
     /* zero in, zero out */
     memset(&S, 0, sizeof S);
-    func_80027B44(&S, S.dp0, wt);
+    gsm_short_term_filter(&S, S.dp0, wt);
     int zero = 1;
     for (int k = 0; k < 160; k++)
         zero &= wt[k] == 0;
@@ -702,7 +702,7 @@ static void make_frame(Frame *f, int kind)
     }
 }
 
-/* The 33-byte frame lib_26f60.c's func_80026640 reads: a 0xD nibble, then the fields MSB first. */
+/* The 33-byte frame gsm.c's gsm_decode_frame reads: a 0xD nibble, then the fields MSB first. */
 static void pack_frame(const Frame *f, unsigned char c[33])
 {
     int pos = 0;
@@ -725,7 +725,7 @@ static void pack_frame(const Frame *f, unsigned char c[33])
 #undef PUT
 }
 
-/* func_80026558 and func_80026360 over the MIPS kernels, the state at E_FS in the N64's memory. */
+/* gsm_decode_parameters and gsm_short_term_synthesis over the MIPS kernels, the state at E_FS in the N64's memory. */
 static int emu_frame(const Frame *f, short out[160])
 {
     int ok = 1;
@@ -758,10 +758,10 @@ static void test_frames(void)
         long frames = 0, spec_frames = 0, spec_diverged = 0;
         const char *name = names[plan[p].kind];
         for (int st = 0; st < plan[p].streams; st++) {
-            GsmState_26F60 A, E;
+            GsmState A, E;
             Ref W, D;
             memset(&A, 0, sizeof A);
-            A.dp0[GSM_NRP] = 40;   /* func_80025EB0: bzero, then block_count (nrp) = 40 */
+            A.dp0[GSM_NRP] = 40;   /* speech_reset_decoder: bzero, then block_count (nrp) = 40 */
             state_to_emu(&A, E_FS);
             ref_init(&W, 0);
             ref_init(&D, 1);
@@ -771,7 +771,7 @@ static void test_frames(void)
                 short oa[160], oe[160], ow[160], od[160];
                 make_frame(&f, plan[p].kind);
                 pack_frame(&f, c);
-                func_80026640(&A, c, oa);
+                gsm_decode_frame(&A, c, oa);
                 CHECK(emu_frame(&f, oe), "frame MIPS calls");
                 state_from_emu(&E, E_FS);
                 ref_frame(&W, &f, ow);

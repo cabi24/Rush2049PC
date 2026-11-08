@@ -45,16 +45,16 @@ void pc_fatal(const char *fmt, ...)
 /* ---------------------------------------------------------------- osInitialize and the boot globals */
 
 /* The low-memory globals (N64 0x80000300-0x8000035C), set by the IPL and osInitialize. The game's names for
- * them (osTvType, D_80000318 for osMemSize...) are absolute symbols in the RDRAM window (gen_stubs), so the
+ * them (osTvType, osMemSize for osMemSize...) are absolute symbols in the RDRAM window (gen_stubs), so the
  * values are written there, as native words. */
 enum {
     LOW_TV_TYPE = 0x80000300, LOW_ROM_TYPE = 0x80000304, LOW_ROM_BASE = 0x80000308, LOW_RESET_TYPE = 0x8000030C,
     LOW_CIC_ID = 0x80000310, LOW_VERSION = 0x80000314, LOW_MEM_SIZE = 0x80000318, LOW_NMI_BUFFER = 0x8000031C,
 };
-/* osMemSize. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag (D_80156994)
+/* osMemSize. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag (expansion_pak_present)
  * clear and skips overlay B and the extra waves in races. game.expansion_pak (on by default) reports 8 MiB, as
  * N64ModernRuntime and v5 do, in the 8 MiB window. game.memory reports the window's size, whatever the pak setting:
- * the game's heap runs to osMemSize (func_800E7D04), and sets the Expansion Pak flag past 4 MiB, as a console with
+ * the game's heap runs to osMemSize (locate_main_heap), and sets the Expansion Pak flag past 4 MiB, as a console with
  * that much memory would (docs/port/MEMORY.md 1). */
 static uint32_t g_mem_size = 0x00400000;
 
@@ -94,8 +94,8 @@ void osInvalICache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCacheAll(void) {}
 /* boot-data D-cache loop (cache 0xD): returns start advanced in 16-byte lines to at least end, which
- * func_80010450 keeps as its audio DMA cursor (a hand-written routine of the boot segment's tail) */
-uint32_t func_8002C5E0(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }
+ * sound_dma_flush_requests keeps as its audio DMA cursor (a hand-written routine of the boot segment's tail) */
+uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }
 void osUnmapTLBAll(void) {}
 void osMapTLBRdb(void) {}
 uint32_t __osTLBLookup(void *vaddr) { return (uint32_t)(uintptr_t)vaddr & 0x1FFFFFFFu; }

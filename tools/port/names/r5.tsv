@@ -895,3 +895,6 @@ msgq_ptr	frame_dl	data	code	sure	alias: the loader's wrong name for D_801497C8 (
 D_8002E870	gDefStartTimes	data	mat3	likely	f32[25] (0x64 bytes): MAT3 gDefStartTimes, the default start times by track (+19 in one mode); func_800F0914 reads it by this name and the blob loader table names this address so
 gSyncMagic	frame_start_msg	data	code	likely	alias: main_thread_entry's name for D_80142D90 (it stores 0xABF there); both map to frame_start_msg
 func_800FE4AC	free_car_palette	func	code	likely	alias: the address spelling of stat_race_end (same function); both rows map to free_car_palette
+# apply (wave 2): groups/countdown/countdown.c holds animCountdownTimer, not countdown (UpdateGame, in groups/update_game):
+# without its own row its stem would move it to UpdateGame.c
+src/blob/groups/countdown/countdown.c	src/blob/groups/countdown/animCountdownTimer.c	file	mat3	sure	holds MAT3 hud.c animCountdownTimer only (0x800EEDB0)

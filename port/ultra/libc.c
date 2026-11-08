@@ -7,7 +7,7 @@
 #include "ultra.h"
 
 /* The boot segment's sprintf under its address name (overlay A's menus call it so). */
-int func_80004990(char *out, const char *fmt, ...)
+int game_sprintf(char *out, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -16,9 +16,9 @@ int func_80004990(char *out, const char *fmt, ...)
     return n;
 }
 
-/* lib_34a0's formatter core (historical label fcvt): (out, format, IDO va_list). fcvt_wrapper passes a
+/* lib_34a0's formatter core (historical label fcvt): (out, format, IDO va_list). TB_Sprintf passes a
  * pointer into its own stack frame for the arguments, which a native caller doesn't have; until that caller
- * uses a va_list (src/blob/fcvt_wrapper.c), the format is copied unformatted. */
+ * uses a va_list (src/blob/TB_Sprintf.c), the format is copied unformatted. */
 int fcvt(char *out, const char *fmt, char *args)
 {
     static int warned;

@@ -47,7 +47,7 @@ struct huft {
  * @param use_heap If non-zero, allocate Huffman tables from heap
  * @return Number of bytes written to dst
  */
-s32 inflate_entry(void *src, void *dst, s32 use_heap);
+s32 unzipdata_from_rom(void *src, void *dst, s32 use_heap);
 
 /**
  * Alternative entry point (always uses heap allocation)
@@ -55,7 +55,7 @@ s32 inflate_entry(void *src, void *dst, s32 use_heap);
  * @param dst Destination buffer pointer
  * @return Number of bytes written to dst
  */
-s32 inflate_entry_alt(void *src, void *dst);
+s32 unzipdata(void *src, void *dst);
 
 /**
  * Build Huffman decoding tables

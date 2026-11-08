@@ -8,49 +8,49 @@
  * through gen_data's function table (docs/port/DATA.md) to a function instead of NULL. */
 
 /* Callers not attributed. */
-void func_8039A440(void)
+void circuitscr_first_deleted_stub(void)
 {
 }
-void func_803A3D9C(void)
+void carscr_slider_inline_stub(void)
 {
 }
-/* animButtonText@carscr.c and drawOptions@carscr.c, inlined into func_803A44FC (animText@carscr.c). */
-void func_803A44EC(void)
+/* animButtonText@carscr.c and drawOptions@carscr.c, inlined into carscr_animText (animText@carscr.c). */
+void carscr_drawOptions_stub(void)
 {
 }
-void func_803A44F4(void)
+void carscr_animButtonText_stub(void)
 {
 }
-/* drawControls@playerscr.c and two more helpers, inlined into func_803A9EEC (animText@playerscr.c). */
-void func_803A8B6C(void)
+/* drawControls@playerscr.c and two more helpers, inlined into playerscr_animText (animText@playerscr.c). */
+void drawControls(void)
 {
 }
-void func_803A9EDC(void)
+void drawPakFull(void)
 {
 }
-void func_803A9EE4(void)
+void drawPakDamaged(void)
 {
 }
-/* Inlined into func_803AD57C. */
-void func_803AD574(void)
+/* Inlined into recordscr_animText. */
+void recordscr_drawView_stub(void)
 {
 }
 /* Callers not attributed. */
-void func_803ACA8C(void)
+void recordscr_drawStuntTotals_stub(void)
 {
 }
-void func_803AE62C(void)
+void trackscr_slider_stub_first(void)
 {
 }
-void func_803AE634(void)
+void trackscr_slider_stub_second(void)
 {
 }
-void func_803AECC4(void)
+void trackscr_button_text_stub_first(void)
 {
 }
-void func_803AECCC(void)
+void trackscr_button_text_stub_second(void)
 {
 }
-void func_803AECD4(void)
+void trackscr_button_text_stub_third(void)
 {
 }

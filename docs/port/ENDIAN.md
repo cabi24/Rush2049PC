@@ -9,7 +9,7 @@ filled), [LOADERS.md](LOADERS.md) (ROM files), [GFX.md](GFX.md) (what the render
 ## 1. The rule
 
 - **Memory keeps the N64's byte order wherever the game reads bytes.** A colour is R, G, B, A in memory, as the
-  model draw (`prim[4]`, `env[4]`), the fill and font colours (`func_8008A46C`, `func_8008A148`) and the renderer
+  model draw (`prim[4]`, `env[4]`), the fill and font colours (`BlitRect`, `BlitColors`) and the renderer
   take it. A word that only moves a colour around (a copy, an equality test) is then right as it is; a word that is
   built or interpreted as a number must be converted.
 - **A value held as a word and read back in parts must take its parts from where the PC keeps them.** The low half
@@ -37,7 +37,7 @@ A full run, which compiles the 1,300 game units again, takes about a minute with
 
 1. **Accesses.** Every live game file (the `game.dir` entries of `compile_commands.json`) is compiled again with
    its own flags plus `-O1 -fno-inline -fdump-tree-forwprop1-lineno`. GCC's GIMPLE at that pass has each memory
-   access as one expression with its access type and base: `MEM[(u8 *)p_3 + 61B]`, `D_80140BF0[_5].prim[1]`,
+   access as one expression with its access type and base: `MEM[(u8 *)p_3 + 61B]`, `gBlitInstanceList[_5].prim[1]`,
    `MEM <unsigned int> [(char * {ref-all})&c]`. This sees through M2C_FIELD, casts and unions alike. Functions
    that gen_weak makes weak (context copies) are skipped.
 2. **Types.** The object's DWARF (gen_data.py's parser) gives each base's declared type, so each access gets a host
@@ -79,7 +79,7 @@ A full run, which compiles the 1,300 game units again, takes about a minute with
   it was before the fixes (the branch's base), section 1 had 72 conflicts: **24 real ones in 11 storages, all fixed
   here** (section 3); 20 real ones in the initialized data left to other parts (section 4: the loader's union rule,
   gTargInfo); 23 by design (the controller pak's page links, ULTRA.md); and **5 false positives**, a discarded
-  native read in `entity_lod_select` (4 byte positions) and route_cross's `LEN(k)`, element k+1's word at +8,
+  native read in `relocate_model_dl` (4 byte positions) and route_cross's `LEN(k)`, element k+1's word at +8,
   against element 0's `count`. StartBlast's two kinds of `data`, merged in its parameter, gave 2 more before it went
   into `NOT_FOLLOWED`. Section 2b listed 25 low-half reads in 9 views, all real and all fixed (the handle views of
   3.1 and `TPos`). Sections 3 and 4b (initialized data read at another width, or passed as bytes) led to the
@@ -105,16 +105,16 @@ set frames, colours, textures and palettes on node 0, and removed node 0:
 
 | View | File | Records |
 |---|---|---|
-| `Id` | `hud_render.c` | exhaust and smoke puffs |
-| `Id`, `EntityHdr` | `func_8010E0FC.c` | coins (the entity's id, the coin's model) |
-| `Id` | `entity_collision_detect.c` | blast rings `D_80154FD8` |
-| `Effect.handle` | `entity_spawn_init/entity_spawn_init.c` | track effects (ZOID_SetTexture) |
+| `Id` | `UpdateSmoke.c` | exhaust and smoke puffs |
+| `Id`, `EntityHdr` | `AnimateCoin.c` | coins (the entity's id, the coin's model) |
+| `Id` | `AnimateNewBlastRing.c` | blast rings `gBlastRingObjs` |
+| `Effect.handle` | `start_smoke/StartSmoke.c` | track effects (ZOID_SetTexture) |
 | `Object.handle` (`OBJECT_HANDLE`) | `ovl_b/runtime_b_resource_callbacks/group.c` | battle power-ups |
-| `Handle` | `carcolor/carcolor.c` | the car's paint job (SetModelPalette on `D_80139320[i].root`, `.secondary`) |
-| `PlayerRec` | `func_80092FE0.c` | the car's colour on its six part nodes (`D_80139320[i]` +0x0, +0x10, +0x1C..+0x28) |
+| `Handle` | `SetupCarColor/SetupCarColor.c` | the car's paint job (SetModelPalette on `gCarParts[i].root`, `.secondary`) |
+| `PlayerRec` | `SetFrameColor.c` | the car's colour on its six part nodes (`gCarParts[i]` +0x0, +0x10, +0x1C..+0x28) |
 
 Under `TARGET_PC` each view puts the low half first; the s32 and the halves keep their meaning. `Handle` and
-`PlayerRec` are views of the car parts table `D_80139320`; its size and offsets are unchanged.
+`PlayerRec` are views of the car parts table `gCarParts`; its size and offsets are unchanged.
 
 ### 3.2 Colour words from the ROM (`7aa03ff`)
 
@@ -123,10 +123,10 @@ R, G, B, A, the loader swaps the word, and the node got A, B, G, R.
 
 | Data | Reader | What |
 |---|---|---|
-| `D_8011749C`..`D_801174B0` | `entity_spawn_init` | track effects' surface colours |
-| `D_801140EC` | `controlscr/dtc.c` | controls screen buttons |
-| `D_801140F0` | `controlscr/target.c` | controls screen buttons (then the alpha byte is stored over byte 3) |
-| `D_80118E14`, `D_80118E18` | `func_8010E0FC.c` | gold and silver coins (0xFFC800FF, 0xC8E6FFFF) |
+| `smoke_white`..`smoke_dirt_color` | `StartSmoke` | track effects' surface colours |
+| `controls_initButtonColor` | `controlscr/dtc.c` | controls screen buttons |
+| `controls_updateButtonColor` | `controlscr/target.c` | controls screen buttons (then the alpha byte is stored over byte 3) |
+| `coin_gold_glow_color`, `coin_silver_glow_color` | `AnimateCoin.c` | gold and silver coins (0xFFC800FF, 0xC8E6FFFF) |
 
 Each read is `PC_RGBA(...)`. No game code stores a colour constant as a word into byte-read storage (the detector
 found none; the only constant is 0xFFFFFFFF, which is the same in any order).
@@ -135,34 +135,34 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 
 | Symbol | View changed | Was | Now |
 |---|---|---|---|
-| `D_80114264` background rectangles | `func_800FC9F8.c` `Motion` | 16 pad bytes where createBG reads min/max x, y as f32 | `f32 bounds[4]` |
-| `D_801164A4` gCheatState | `vsync/func_800DE45C.c` `Rec164A4` | byte pads, 34 bytes, where cheatscr.c reads s16[21] | s16 throughout, 42 bytes |
-| `D_80117100` gPlayerRects | `func_8010BC84/fbc84.c` `TPos` | 18 pad bytes and an s16 `x` at +18 (the s32 centre's low half) | pause.c's s32 layout; `x` is the whole centre, which the s16 local takes the same |
-| `D_80116148` playerPaneColors | `credits_scroll_grp/gr3_5ea8.c` | `Pos {s32 x, y}` | R,G,B,A bytes (ChangePaneColor reads bytes) |
-| `D_803AF9A8` front-end button slots | `ovl_a/func_803A3A6C.c`, `func_803A3DA4.c` `MenuSlot` | `float matrix[16]` chosen: the alpha byte at +0x3C swapped as part of an f32 | the record's fields (as cleanup_colortrace's `Slot`) |
-| `D_80111950`, `D_8011195C`, `D_80111960` | `controller_poll/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
-| `D_8011028C` | `MP_TargetSteerPos/group.c` | s32 | s8, as every other file |
-| `D_8011EA40`..`D_8011EA90` split-screen viewports | `car_render_full.c`, `wheel_render_full.c` | s32: the first two halves swapped together, the other 12 bytes left big-endian | `Vp` (s16 scale[4], translate[4]) |
-| `D_803B46A4` the seven-option menu's button colour | `ovl_a/runtime_a_seven_option_init/group.c` `Color4` | `{ u32 word; }`: R,G,B,A swapped as a word, then copied whole into the nodes | `u8 c[4]` |
-| `D_80120E50` MaxPath's message (TB_DrawText at 80, 160) | `maxpath_controls/group.c` | s32: the first four characters reversed | `PcText4 { char c[4]; }` (the rest, up to the next symbol, is copied as it is) |
+| `gBackRects` background rectangles | `updateBG.c` `Motion` | 16 pad bytes where createBG reads min/max x, y as f32 | `f32 bounds[4]` |
+| `gCheatState` gCheatState | `game_sounds/InitOptions.c` `Rec164A4` | byte pads, 34 bytes, where cheatscr.c reads s16[21] | s16 throughout, 42 bytes |
+| `pause_gPlayerRects` gPlayerRects | `animRumbleText/animRumbleText.c` `TPos` | 18 pad bytes and an s16 `x` at +18 (the s32 centre's low half) | pause.c's s32 layout; `x` is the whole centre, which the s16 local takes the same |
+| `hud_playerPaneColors` playerPaneColors | `hud_text_anims/animResults.c` | `Pos {s32 x, y}` | R,G,B,A bytes (ChangePaneColor reads bytes) |
+| `carscr_buttonInfo` front-end button slots | `ovl_a/anim_car_color_marker.c`, `carscr_animNewSlider.c` `MenuSlot` | `float matrix[16]` chosen: the alpha byte at +0x3C swapped as part of an f32 | the record's fields (as cleanup_colortrace's `Slot`) |
+| `cont_bit_pattern`, `D_8011195C`, `D_80111960` | `controlsys/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
+| `gStopAllEffects` | `audiosfx_play/group.c` | s32 | s8, as every other file |
+| `vp1`..`vplr` split-screen viewports | `ZOID_SplitScreen.c`, `ZOID_SplitMenuScreen.c` | s32: the first two halves swapped together, the other 12 bytes left big-endian | `Vp` (s16 scale[4], translate[4]) |
+| `modescr_button_color` the seven-option menu's button colour | `ovl_a/runtime_a_seven_option_init/group.c` `Color4` | `{ u32 word; }`: R,G,B,A swapped as a word, then copied whole into the nodes | `u8 c[4]` |
+| `target_steer_zero_dist_message` MaxPath's message (TB_DrawText at 80, 160) | `maxpath/group.c` | s32: the first four characters reversed | `PcText4 { char c[4]; }` (the rest, up to the next symbol, is copied as it is) |
 
 `endian_check --check-loader` checks the loader's element widths at these places in `data.c`.
 
 ### 3.4 Checked and right
 
-- The text pipeline: the font colour is built and copied as bytes (`func_800B7360`, `_SetDefaults`), and the text
+- The text pipeline: the font colour is built and copied as bytes (`HAL_SetTextColor`, `_SetDefaults`), and the text
   command buffer stores the colour as bytes and the alpha as an explicit big-endian float.
-- ChangePaneColor, InitPane, the pane and fill colours, the sprite fills (`func_8008A46C`), BlitColors: bytes.
+- ChangePaneColor, InitPane, the pane and fill colours, the sprite fills (`BlitRect`), BlitColors: bytes.
 - ZOID_SetColor and its copies: a word copy of a colour built as bytes (`clr.c.r = 255` ...), right as it is.
-- Light and lookat records (`camera_update_d`): bytes. Display-list words the game builds: by the GBI macros'
-  shifts. The checkpoint block's `s16` reads of an `s32`-declared `D_80151CE8`: the path converter swaps the block
+- Light and lookat records (`lookat_reflect_fill`): bytes. Display-list words the game builds: by the GBI macros'
+  shifts. The checkpoint block's `s16` reads of an `s32`-declared `gCheckpoints`: the path converter swaps the block
   by its fields, so the s16 reads are right.
 - What the report's sections 3, 4 and 4b still list: in 3, only gTargInfo (`LEFT`, section 4 here); section 3
   leaves out accesses that only move narrower elements as a wider value (a word copying a colour's bytes keeps
   their order, and section 1 follows where it goes) and counts them. In 4b, all marked reviewed
   (`BYTES_REVIEWED`): the viewports handed to gSPViewport (s16 elements, which the renderer reads natively) and
   float matrices and vectors passed as `void *` (read as words). In 4, copies that move a record whole
-  (effect_spawn's, the path blob's, the pak's inodes). Initialized data passed by address to a parameter with no
+  (InitRushControls's, the path blob's, the pak's inodes). Initialized data passed by address to a parameter with no
   pointee type (a K&R prototype) is only matrices and vectors as well (checked once, not a report section).
 
 ## 4. Left, and for other parts
@@ -175,30 +175,30 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
   colour symbols of initialized data with such a union are read as bytes, directly or after word copies, and their
   words are only copied or tested for equality (no shift, no comparison with a constant, no word constant stored),
   so none is read both ways; the other unions of initialized data (`Vtx`, `Gfx`, `MenuSlot`) have no such member
-  and keep their layout, and BSS is zeroed. The 22nd, `D_801146C0`, is `D_801146BC[1]` under image A's `struct Color4 { u32 word; }`: bytes now
+  and keep their layout, and BSS is zeroed. The 22nd, `flashColors_at_1`, is `flashColors[1]` under image A's `struct Color4 { u32 word; }`: bytes now
   take part in the arena's overlap resolution, and the union's bytes rank first (DATA.md 3). Loaded as bytes now:
-  `D_80118E28`/`D_80118E2C` (the menus' flashing text colours), `D_801146BC`/`D_801146C0` (their source pairs,
-  TB_FlashTextColors), `D_8011B558` and `D_8011B578` (arrows), `D_8011AD8C`, `D_8011ADC0` and `D_8011AE58` (the
-  cars' shadow, sheen and IR colours, GetCarsIRColor), `D_80116DB0`, overlay B's `D_80394270`, `D_803942A0`/`A4`,
-  `D_803942E8`, overlay A's `D_803B3054`/`58`, `D_803B3458`/`5C`, `D_803B8328`, `D_803B8354`, `D_803B8394`/`98`.
+  `gFlashColor1`/`gFlashColor2` (the menus' flashing text colours), `flashColors`/`flashColors_at_1` (their source pairs,
+  TB_FlashTextColors), `arrowColors` and `arrow_base_color` (arrows), `gShadowColor`, `SheenColors` and `Track1Colors` (the
+  cars' shadow, sheen and IR colours, GetCarsIRColor), `options_buttonColor`, overlay B's `hudextra_playerColor`, `stunt_coin_color`/`A4`,
+  `hitColor`, overlay A's `carscr_solidColor`/`58`, `circuitscr_init_button_color`/`5C`, `loadTrackScreen_backColor`, `race_map_vertex_color`, `trackscr_init_button_color`/`98`.
   The 11 conflicts `LEFT` held for them are gone (none new), the game C needed nothing more, and none of them takes
   `PC_RGBA`. `--check-loader` checks their widths, and `rush2049pc_datacheck` checks them against the images.
-- **gTargInfo `D_80117530`** (race logic: the level-object kinds). gen_data chooses `TargInfo`, which has byte pads
-  at +0x10..0x1B and +0x20..0x2F where other views read s32 and f32 (StartCone, camera_aspect_ratio, level_objects),
+- **gTargInfo `targetInfo`** (race logic: the level-object kinds). gen_data chooses `TargInfo`, which has byte pads
+  at +0x10..0x1B and +0x20..0x2F where other views read s32 and f32 (StartCone, PlayStartSound, level_objects),
   so those stay big-endian. Its seven views also disagree on pointers (POINTERS.md 9.9); the fix belongs with that
   record's PC layout. Done: every PC view now spells out each field at its width, and endian_check no longer reports
   the table (POINTERS.md 10.1).
-- **The boot's `gViewportOffsetX`: done ([DATA.md](DATA.md) 1).** Declared `s16[32]` at 0x8002AFFC (and
-  `gViewportOffsetY` at 0x8002AFFE), it ran over `gInitFlag` (0x8002B028) and `gDmaInitialized` (0x8002B030), so
-  the loader swapped those flags with their neighbour bytes; `game_init` reads `gInitFlag` as loaded. The two are
-  columns 2 and 3 of one `s16[3][4]` table from `gViewportOffsetXExtra` to `gViewportPendingFrames`, read as
+- **The boot's `video_default_x`: done ([DATA.md](DATA.md) 1).** Declared `s16[32]` at 0x8002AFFC (and
+  `video_default_y` at 0x8002AFFE), it ran over `gInitFlag` (0x8002B028) and `decompress_lock_ready` (0x8002B030), so
+  the loader swapped those flags with their neighbour bytes; `main_thread_entry` reads `gInitFlag` as loaded. The two are
+  columns 2 and 3 of one `s16[3][4]` table from `video_default_extra_width` to `video_pending_frames`, read as
   `[osTvType][0]`, so under `TARGET_PC` `include/m2c_types.h` declares them `s16[9]`, which reaches the last
   element read (the N64 line is under `#else`). Overlaps of this kind are now reported, bytes included
   (DATA.md 3): none open.
 - **The controller pak** (`src/rom` Pfs): page links are `{bank, page}` bytes next to native u16 `ipage` tests,
   by design (ULTRA.md, controller pak); the detector's conflicts there are marked reviewed.
-- `func_800148F8` (`src/rom/lib_11640.c`, MusyX) reads `__unaligned` u16s natively; MUSYX_DATA.md's.
-- Car and model records (another part): `mode.c` (`func_800E05F0`) and `func_800BEA6C` read and write car and
+- `sound_hw_set_envelope` (`src/rom/sound/hardware.c`, MusyX) reads `__unaligned` u16s natively; MUSYX_DATA.md's.
+- Car and model records (another part): `mode.c` (`UpdateCarSounds`) and `PauseTargets` read and write car and
   level-object fields at N64 offsets inside pads; the widths agree, but the offsets are the layout work's.
 - Weak context copies keep their N64 views; they never run.
 
@@ -211,19 +211,19 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 
 ## 5. Verification
 
-- `ctest`: `assets_endian` runs the coin updater, the car colour (`func_80092FE0`) and the car paint job on
+- `ctest`: `assets_endian` runs the coin updater, the car colour (`SetFrameColor`) and the car paint job on
   synthetic records (the handles' low halves reach the right nodes; the gold and silver colours as the loader
   leaves them come out R, G, B, A in the node). With the N64 views the checks fail: node 0 gets the coin's object,
   its colour, the car's colour and its palettes. `endian_check` runs the detector's synthetic cases and the
   loader-width checks (21 places; 78 with the union rule and the viewport table's flags). 55 tests pass.
 - `n64_neutral.py --base 09da2f0` over every changed game file: 0 FAIL.
 - `rush2049pc --selftest`: 26 of 26. `rush2049pc --no-rom --headless --no-config --audio null --seconds 10` stops
-  where it did (AudioSfxInit, `func_800A4CB8` → AllocateMemoryHeap, on blank data).
+  where it did (AudioSfxInit, `AudioSfxInit` → AllocateMemoryHeap, on blank data).
 - Census: the same two pointer-warning classes, no new ones.
 - On x86-64 (Rocky Linux 10, gcc 14, `tools/port/remote.sh`): the build, its 64 tests, the self-test and the boot
   as above. The detector runs there too (gcc 14's dumps add discriminators to locations): 0 open conflicts, 51
   reviewed, the same kinds as on the Pi. With the union rule: 40 reviewed; the 2 open ones, in the car records
-  `D_80152818` (BSS: bytes +0x4D and +0x4E set by `func_800E9234`, the word at +0x4C read), were there before it
+  `gGameCar` (BSS: bytes +0x4D and +0x4E set by `init_view3`, the word at +0x4C read), were there before it
   and are not the loader's.
 - On Windows (MSYS2, gcc 16) the detector finds none of its synthetic cases, so its GIMPLE-dump reading doesn't
   fit that compiler yet; the `endian_check` test runs only `--check-loader` there. Run the detector on Linux.

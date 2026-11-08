@@ -7,16 +7,16 @@
  * table (docs/port/DATA.md) resolves a pointer to one to a function instead of NULL. */
 
 /* Callers not attributed. */
-void func_8038CB10(void)
+void NewStreakPoly(void)
 {
 }
-void func_8038CB18(void)
+void AnimateStreakPolys(void)
 {
 }
-/* Inlined into func_80391B00. */
-void func_80391640(void)
+/* Inlined into UpdateHUDExtraPostCamera. */
+void animStuntCoins_stub(void)
 {
 }
-void func_80391648(void)
+void animBattleCoins_stub(void)
 {
 }

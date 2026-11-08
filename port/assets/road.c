@@ -7,7 +7,7 @@
  *   svert  vnum x 8        s16 pos[3]; u16 overflow
  *   save   savenum x 0x20  16 x 16-bit (u16 object, snum; s16 uvs[9]; u16 vnum; s16 pos[3]; u16 overflow)
  *   vlist  vlnum bytes, then slist: bytes, read byte by byte (two-byte values are assembled big-endian)
- * No pointers: InitSTree (func_800AB638) keeps the section addresses in game BSS. Every reader uses these widths
+ * No pointers: InitSTree (InitSTree) keeps the section addresses in game BSS. Every reader uses these widths
  * (checked for the 20 functions that read them), so this is a pure in-place swap. */
 #include <stdio.h>
 

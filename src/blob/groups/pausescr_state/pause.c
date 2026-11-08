@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_800B4FB0 (0x800B4FB0, 1472 B) = GC setPauseState@pausescr.c (MAT3 pausescr.c, GC 0x80078F08) with GC
- * updatePauseStateCreate (GC 0x800788A4) inlined; updatePauseStateCleanup = func_800B4E68 (jal), _TitlePane = voice_stop.
+ * updatePauseStateCreate (GC 0x800788A4) inlined; updatePauseStateCleanup = updatePauseStateCleanup (jal), _TitlePane = pause_TitlePane.
  * : first typed port; levers: GC `width /= 2` / `max /= 2` are halvings inside the InitPane arguments
  * on the N64 (retail divides after the TB_GetFontLineHeight() argument call, and the rumble-pane loop's half width is
  * hoisted into the loop preheader), and the rumble-pane loop counter is `i` (GC reuses `max`: one variable = one web
@@ -26,39 +26,39 @@ typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; ch
 typedef struct { s16 x, y; } Pos;
 typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
 
-extern OSMesgQueue D_801461D0;
-extern TextState countdown_state;          /* gText */
-extern s32 D_801170FC;                     /* gPauseState */
-extern Blit *D_80117338;                   /* DimBlit */
-extern Blit *D_8011733C;                   /* TitleBlit */
-extern Blit *D_80117340;                   /* PauseBlit */
-extern Blit *D_80117344;                   /* SureBlit */
-extern Blit *D_80117348;                   /* RumbleBlit */
+extern OSMesgQueue text_lock_queue;
+extern TextState gText;          /* gText */
+extern s32 gPauseState;                     /* gPauseState */
+extern Blit *pause_DimBlit;                   /* DimBlit */
+extern Blit *pause_TitleBlit;                   /* TitleBlit */
+extern Blit *pause_PauseBlit;                   /* PauseBlit */
+extern Blit *pause_SureBlit;                   /* SureBlit */
+extern Blit *pause_RumbleBlit;                   /* RumbleBlit */
 extern const MultiBlit D_80117284, D_801172A8, D_801172CC, D_801172F0, D_80117314;
             /* DimMultiBlit, TitleMultiBlit, PauseMultiBlit, SureMultiBlit, RumbleMultiBlit */
-extern Pos D_80117280;                     /* titlePos */
-extern s8 D_80117354;                      /* gYes */
-extern Rect D_80117100[][4];               /* gPlayerRects */
-extern s16 D_8014A108;                     /* gNumPlayers */
+extern Pos pause_titlePos;                     /* titlePos */
+extern s8 pause_gYes;                      /* gYes */
+extern Rect pause_gPlayerRects[][4];               /* gPlayerRects */
+extern s16 gNumPlayers;                     /* gNumPlayers */
 
 s32 osRecvMesg(OSMesgQueue *, void *, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 slot_state_setup(s32);
-u32 object_manager_update(void *, s16);    /* HAL_GetTextWidth */
-s16 object_bytes_sum_global(void);         /* TB_GetFontLineHeight */
-void *ambient_sound_set(s32, s32, s32, s32, s32, void *, s32, s32);   /* InitPane */
-Blit *sound_control(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
-void func_800B4E68(void);                  /* updatePauseStateCleanup */
-void voice_stop(void);                     /* _TitlePane@pausescr.c */
-s32 func_80094FE8();                       /* animRumblePane */
+s32 HAL_SetFontInternal(s32);
+u32 HAL_GetTextWidth(void *, s16);    /* HAL_GetTextWidth */
+s16 TB_GetFontLineHeight(void);         /* TB_GetFontLineHeight */
+void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);   /* InitPane */
+Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
+void updatePauseStateCleanup(void);                  /* updatePauseStateCleanup */
+void pause_TitlePane(void);                     /* _TitlePane@pausescr.c */
+s32 animControllerDimInternal();                       /* animRumblePane */
 
-void ps_gfx_lock(void) { osRecvMesg(&D_801461D0, 0, 1); }
-void ps_gfx_unlock(void) { osSendMesg(&D_801461D0, 0, 0); }
+void ps_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
+void ps_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }
 s32 ps_font_set(s32 font)
 {
     s32 old;
     ps_gfx_lock();
-    old = slot_state_setup(font);
+    old = HAL_SetFontInternal(font);
     ps_gfx_unlock();
     return old;
 }
@@ -75,61 +75,61 @@ void ps_updatePauseStateCreate(void)
     s32 x;
     s32 y;
 
-    switch (D_801170FC) {
+    switch (gPauseState) {
     case 1:
-        if (!D_80117338) D_80117338 = sound_control(0, 0, &D_80117284, 1);
-        voice_stop();
+        if (!pause_DimBlit) pause_DimBlit = NewMultiBlit(0, 0, &D_80117284, 1);
+        pause_TitlePane();
         ps_SetFont(13);
-        x = D_80117280.x;
-        y = D_80117280.y + 2 * object_bytes_sum_global();
+        x = pause_titlePos.x;
+        y = pause_titlePos.y + 2 * TB_GetFontLineHeight();
         ps_SetFont(10);
         max = 0;
         for (i = 0; i < 8; i++) {
-            width = object_manager_update(countdown_state.taba[i + 1 + countdown_state.tab[56]], -1);
+            width = HAL_GetTextWidth(gText.taba[i + 1 + gText.tab[56]], -1);
             if (max < width) max = width;
         }
-        ambient_sound_set(x - max / 2 - 8, y - 4, x + max / 2 + 8, y + 8 * object_bytes_sum_global() + 4, 176, 0, 0, 0);
-        D_8011733C = sound_control(0, 0, &D_801172A8, 1);
-        D_80117340 = sound_control(0, 0, &D_801172CC, 1);
+        InitPane(x - max / 2 - 8, y - 4, x + max / 2 + 8, y + 8 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
+        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
+        pause_PauseBlit = NewMultiBlit(0, 0, &D_801172CC, 1);
         break;
     case 6:
-        D_80117354 = 0;
-        voice_stop();
+        pause_gYes = 0;
+        pause_TitlePane();
         ps_SetFont(10);
-        x = D_80117100[0][1].cx;
-        y = D_80117100[0][1].cy - object_bytes_sum_global() / 2;
-        width = object_manager_update(countdown_state.single[226], -1);
-        ambient_sound_set(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + object_bytes_sum_global() + 4, 176, func_80094FE8, 0, 0);
+        x = pause_gPlayerRects[0][1].cx;
+        y = pause_gPlayerRects[0][1].cy - TB_GetFontLineHeight() / 2;
+        width = HAL_GetTextWidth(gText.single[226], -1);
+        InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + TB_GetFontLineHeight() + 4, 176, animControllerDimInternal, 0, 0);
         ps_SetFont(11);
-        width = object_manager_update(countdown_state.single[171], -1);
-        width = (u32)width > object_manager_update(countdown_state.single[170], -1) ? width : object_manager_update(countdown_state.single[170], -1);
-        for (i = 0; i < D_8014A108; i++) {
-            x = D_80117100[D_8014A108 - 1][i].cx;
-            y = D_80117100[D_8014A108 - 1][i].cy - object_bytes_sum_global();
-            ambient_sound_set(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * object_bytes_sum_global() + 4, 176, 0, 0, 0);
+        width = HAL_GetTextWidth(gText.single[171], -1);
+        width = (u32)width > HAL_GetTextWidth(gText.single[170], -1) ? width : HAL_GetTextWidth(gText.single[170], -1);
+        for (i = 0; i < gNumPlayers; i++) {
+            x = pause_gPlayerRects[gNumPlayers - 1][i].cx;
+            y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
+            InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
         }
-        D_8011733C = sound_control(0, 0, &D_801172A8, 1);
-        D_80117348 = sound_control(0, 0, &D_80117314, 1);
+        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
+        pause_RumbleBlit = NewMultiBlit(0, 0, &D_80117314, 1);
         break;
     case 7:
     case 8:
-        D_80117354 = 0;
-        voice_stop();
+        pause_gYes = 0;
+        pause_TitlePane();
         ps_SetFont(13);
-        x = D_80117280.x;
-        y = D_80117280.y + 2 * object_bytes_sum_global();
+        x = pause_titlePos.x;
+        y = pause_titlePos.y + 2 * TB_GetFontLineHeight();
         ps_SetFont(10);
-        width = object_manager_update(countdown_state.single[216], -1);
-        ambient_sound_set(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * object_bytes_sum_global() + 4, 176, 0, 0, 0);
-        D_8011733C = sound_control(0, 0, &D_801172A8, 1);
-        D_80117344 = sound_control(0, 0, &D_801172F0, 1);
+        width = HAL_GetTextWidth(gText.single[216], -1);
+        InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);
+        pause_TitleBlit = NewMultiBlit(0, 0, &D_801172A8, 1);
+        pause_SureBlit = NewMultiBlit(0, 0, &D_801172F0, 1);
         break;
     }
 }
 
 void setPauseState(s32 state)
 {
-    D_801170FC = state;
-    func_800B4E68();
+    gPauseState = state;
+    updatePauseStateCleanup();
     ps_updatePauseStateCreate();
 }

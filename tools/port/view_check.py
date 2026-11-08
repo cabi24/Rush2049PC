@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check that every file's view of one storage agrees with the others on the PC layout.
 
-    python3 tools/port/view_check.py --sym D_8012E700 [--also D_8012E708,...]   # a data symbol's views
+    python3 tools/port/view_check.py --sym ObjInstanceList [--also ObjInstanceList_mat,...]   # a data symbol's views
     python3 tools/port/view_check.py --tag Blit,Voice --n64-size 0x40           # a record passed by pointer
 
 Each game file declares its own struct for shared records, and the N64 build forgives views that disagree on

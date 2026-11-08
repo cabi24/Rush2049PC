@@ -5,7 +5,7 @@ typedef struct {s32 active; OSThread *thread; OSMesgQueue *cmdQueue, *evtQueue, 
 extern OSMesgQueue __osPiDmaQueue;
 extern OSMesg __osPiDmaMesg[1];
 extern u8 gViModeMessage[];
-extern void osSpTaskLoad_full(void *);
+extern void __osDevMgrMain(void *);
 extern OSPri osGetThreadPri(OSThread *);
 #define OS_EVENT_PI 8
 #endif
