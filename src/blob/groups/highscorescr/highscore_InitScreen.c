@@ -23,15 +23,15 @@
  *   s32 1 arguments, while retail reads circuitCode with lb.
  * Other levers: memcmp (game_memcmp) size parameter u32 (separates the size constants 13/9/5/6 from the s32
  * multipliers kept in s5-s8); a separate counter `i` for the 6-entry ranks loop (IDO unrolls it 2 + 4).
- * GC-derived names: AudKillSong = AudKillSong, AudPlaySong = AudPlaySong, AudSetMusicVol =
+ * GC-derived names: AudKillSong, AudPlaySong, AudSetMusicVol =
  * AudSetMusicVol, gPrevUnlockedTracks.. = namePanes+0x90.. copies of gUnlockedTracks/Cars/Circuits/Trans/Engines/Tires/
- * Frames (gUnlockedTracks/E30/E88/EB8/ED8/F00/F40), RecordGameOver = RecordGameOver, highscore_inited = inited,
- * circuitCode = circuitCode, gCircuitPlayer = gCircuitPlayer, gCircuitTrack = gCircuitTrack, gCircuitSize = gCircuitSize,
+ * Frames (gUnlockedTracks/E30/E88/EB8/ED8/F00/F40), RecordGameOver, highscore_inited = inited,
+ * circuitCode, gCircuitPlayer, gCircuitTrack, gCircuitSize,
  * gGameCar = gGameCar (+0xEE place, +0xEF finished, +0xF0 time), gPlayers_save = gPlayers[].+0x4C (76-B stride),
  * UpdateCircuit = UpdateCircuit(ranks, time), GetCircuitCode = GetCircuitCode(namePanes+0x190 = highscore_gCircuitCode),
- * CalcUnlockedStuff = CalcUnlockedStuff, game_memcmp = memcmp, gStuffUnlocked = gStuffUnlocked, gDrawName =
- * gDrawName, gThisTrack = gThisTrack, RankScores = _RankScores, ClearRushControls = ClearRushControls,
- * highscore_UninitScreen = _UninitScreen, gSavedGhost = gSavedGhost, gOptions = gOptions (+0xC musicVol, +0xE song).
+ * CalcUnlockedStuff, game_memcmp = memcmp, gStuffUnlocked, gDrawName =
+ * gDrawName, gThisTrack, RankScores = _RankScores, ClearRushControls,
+ * highscore_UninitScreen = _UninitScreen, gSavedGhost, gOptions = gOptions (+0xC musicVol, +0xE song).
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -66,8 +66,8 @@ typedef struct {
     u8 pad[72];
 } PlayerTail;           /* 76 bytes */
 
-extern void *gSavedGhost;            /* gSavedGhost */
-extern Options gOptions;          /* gOptions */
+extern void *gSavedGhost;
+extern Options gOptions;
 extern u8 gPrevUnlockedTracks[];
 extern u8 gUnlockedTracks[];
 extern u8 gPrevUnlockedCars[];
@@ -84,20 +84,20 @@ extern u8 gPrevUnlockedFrames[];
 extern u8 gUnlockedFrames[];
 extern s32 gHighScoreState;
 extern u8 highscore_inited;               /* inited */
-extern u8 circuitCode;               /* circuitCode */
-extern s32 gRace;           /* gRace */
-extern u8 gCircuitPlayer;               /* gCircuitPlayer */
+extern u8 circuitCode;
+extern s32 gRace;
+extern u8 gCircuitPlayer;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gCircuitTrack;               /* gCircuitTrack */
+extern s8 gCircuitTrack;
 extern PlayerTail gPlayers_save[];
-extern s8 gCircuitSize;               /* gCircuitSize */
+extern s8 gCircuitSize;
 extern u8 highscore_gCircuitCode[];
-extern s16 gNumPlayers;     /* gNumPlayers */
+extern s16 gNumPlayers;
 extern s8 gStuffUnlocked[];             /* gStuffUnlocked */
 extern s8 gDrawName[];             /* gDrawName */
-extern s8 gBackwards;               /* gBackwards */
-extern s8 gTrackNum;               /* gTrackNum */
-extern s16 gThisTrack;              /* gThisTrack */
+extern s8 gBackwards;
+extern s8 gTrackNum;
+extern s16 gThisTrack;
 
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef struct { u8 pad0[2]; s8 cmd; } AudMsg;

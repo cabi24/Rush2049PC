@@ -37,12 +37,12 @@ typedef struct anon_loaded_ready_14 {
 } anon_loaded_ready_14;
 
 extern anon_loaded_ready_14 D_80156D38[64];  /* gWaveInstance */
-extern unsigned char gNumModels;            /* gNumModels */
-extern s16 gRenderInProgress;                      /* gRenderInProgress */
+extern unsigned char gNumModels;
+extern s16 gRenderInProgress;
 extern OSMesgQueue bg_load_idle_queue;              /* background loader idle token */
 extern s32 gNumObjects, cull_vertex_count, gNumBlitInsts, gNumMatrices, gNumPolyInsts;
-extern s16 ObjHead;                      /* ObjHead */
-extern f32 gGlobalCameraFacingScale;                      /* gGlobalCameraFacingScale */
+extern s16 ObjHead;
+extern f32 gGlobalCameraFacingScale;
 extern u16 gNumLights;
 extern intptr_t gLights;
 extern s32 default_lights;
@@ -50,11 +50,11 @@ extern s32 default_lights;
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-void ZOID_ResetWindows(void);                   /* ZOID_ResetWindows */
-void InitBlits(void);                   /* InitBlits */
-void UnloadWaveInstance(s32 idx);                /* UnloadWaveInstance */
+void ZOID_ResetWindows(void);
+void InitBlits(void);
+void UnloadWaveInstance(s32 idx);
 void ClearMemoryHeap(Heap *heap);
-void InitTextWave(void);                   /* InitTextWave */
+void InitTextWave(void);
 
 static int _BGLoadWaveCheck(int wait)
 {

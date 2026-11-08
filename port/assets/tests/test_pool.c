@@ -1,10 +1,10 @@
 /* port/assets/tests/test_pool.c: the game's own StatLL list code on the PC layouts (docs/port/POINTERS.md 9): the
- * header (40 bytes: doubly flag, count, size, element array, active list, free list), InitStatLL (InitStatLL)
+ * header (40 bytes: doubly flag, count, size, element array, active list, free list), InitStatLL
  * and its free list (ClearStatLL), GetStatLLE and FreeStatLLE on a singly and a doubly linked list, and
  * the initializers that give overlay B's trail and fade lists (InitStreaks) and the skid-mark effects
  * (InitSkids) their arrays and host element sizes. Elements are linked through their first pointer, and the
  * doubly linked ones back through their second. The skid-mark reset clears the whole skid table at its PC size, and
- * StopSkid (StopSkid) writes a skid's midpoint and its done flag at the effect's PC offsets, past its links and
+ * StopSkid writes a skid's midpoint and its done flag at the effect's PC offsets, past its links and
  * its display handle (docs/port/BRINGUP.md 5).
  * game: src/blob/InitStatLL.c src/blob/ClearStatLL.c src/blob/GetStatLLE.c
  * game: src/blob/FreeStatLLE.c src/ovl_b/InitStreaks.c src/blob/InitSkids.c src/blob/StopSkid.c
@@ -57,11 +57,11 @@ struct pc_skid pc_skids[PC_MAX_LINKS][4];   /* the skid table (data.c's in the g
 uint8_t after_skids[16];   /* what follows the skid table: the reset must not reach it */
 
 void InitStatLL(void *head, void *array, int32_t size, int32_t count, uint8_t dbl);
-void *GetStatLLE(void *list);             /* GetStatLLE */
-void FreeStatLLE(void *list, void *e);     /* FreeStatLLE */
+void *GetStatLLE(void *list);
+void FreeStatLLE(void *list, void *e);
 void InitStreaks(void);
 void InitSkids(void);
-void StopSkid(WheelSlot *slot);         /* StopSkid */
+void StopSkid(WheelSlot *slot);
 static int g_freed_dl;
 void ZOID_RemovePoly(void *dl) { g_freed_dl++; }
 void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }

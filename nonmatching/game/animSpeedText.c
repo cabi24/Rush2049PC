@@ -35,25 +35,25 @@ typedef struct tJust { s32 h, v; } tJust;
 typedef struct tText { u16 numSingle; u8 **single; } tText;
 typedef struct tFontHeader { u8 pad0[2]; u8 ascent; u8 descent; } tFontHeader;
 
-extern s8 gShowSpeed;                /* gShowSpeed */
+extern s8 gShowSpeed;
 extern tJust gJust;
-extern s16 gNumWindows;              /* gNumWindows */
+extern s16 gNumWindows;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gShowMetric;               /* gShowMetric */
+extern s8 gShowMetric;
 extern s32 speedPos[4][4][2];        /* speedPos */
-extern tText gText;                  /* gText */
-extern tFontHeader *gFontHeader;     /* gFontHeader */
+extern tText gText;
+extern tFontHeader *gFontHeader;
 extern OSMesgQueue gFontSem;         /* text_lock_queue */
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-void HAL_SetTextDepth(f32 depth);                 /* HAL_SetTextDepth */
+void HAL_SetTextDepth(f32 depth);
 s32 HAL_SetFontInternal(s32 fontID);              /* _HAL_SetFont */
 void SetupFontData(s32 force);          /* _SetupFontData */
-u32 HAL_GetCharWidth(u16 ch);               /* HAL_GetCharWidth */
-void TB_SetTextColor(s32 color);              /* TB_SetTextColor */
-void TB_DrawText(s16 x, s16 y, void *text);  /* TB_DrawText */
+u32 HAL_GetCharWidth(u16 ch);
+void TB_SetTextColor(s32 color);
+void TB_DrawText(s16 x, s16 y, void *text);
 
 void _GetSemaphore_Speed(void);
 void _ReleaseSemaphore_Speed(void);
@@ -62,7 +62,7 @@ void TB_SetJust_Speed(s32 hJust, s32 vJust);
 u8 HAL_GetFontAscent_Speed(void);
 u8 HAL_GetFontDescent_Speed(void);
 s16 TB_GetFontHeight_Speed(void);
-s16 TB_GetFontHeight(void);   /* TB_GetFontHeight */
+s16 TB_GetFontHeight(void);
 
 s32 animSpeedText(void *blt)
 {

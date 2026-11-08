@@ -3,7 +3,7 @@
  * gameoverscr.c (post-race menu), N64 game code 0x800F857C-0x800F8D9C.  MAT3 provenance:
  * reference GameSource/src/gameoverscr.c (GC 0x8006DB80 uninitScreen, 0x8006DBCC setGameOverState,
  * controlMain, updateGameOverScreen).  N64 names: setGameOverState = setGameOverState(newState)
- * (newState in s0 by private IPA), gameover_uninitScreen = uninitScreen, controlMain = controlMain
+ * (newState in s0 by private IPA), gameover_uninitScreen = uninitScreen, controlMain
  * (private IPA, s0-s2 unsaved), updateGameOverScreen = updateGameOverScreen (initScreen and controlScore
  * inlined; their deleted-procedure stubs are the locked gameover_initScreen_stub / gameover_controlScore_stub).
  * func_800F84B0 = validOption (locked; must be INTERNAL in the unit so its a3-preserving register
@@ -61,26 +61,26 @@ typedef struct {
 } TextTable;
 
 extern TextTable gText;
-extern s32 gGameOverState;          /* gGameOverState */
-extern s32 gMainSelect;          /* gMainSelect */
+extern s32 gGameOverState;
+extern s32 gMainSelect;
 extern OSMesgQueue text_lock_queue;  /* font semaphore */
 extern u8 gameover_titlePos[2];        /* titlePos */
 extern s8 gameover_inited;           /* inited */
 extern Voice *gameover_blit;       /* blit */
 extern struct pc_multiblit gameover_multiblit[1];   /* multiblit (pc_prelude.h) */
-extern s32 gActiveEdges;          /* gActiveEdges */
-extern s32 gActiveAutoEdges;          /* gActiveAutoEdges */
-extern s8 gSoftReset;           /* gSoftReset */
-extern s32 gRace;       /* gRace */
+extern s32 gActiveEdges;
+extern s32 gActiveAutoEdges;
+extern s8 gSoftReset;
+extern s32 gRace;
 extern OSMesgQueue audio_lock_queue;
 extern OSMesgQueue audio_command_queue;
-extern s8 gTrackNum;           /* gTrackNum */
+extern s8 gTrackNum;
 extern void *gEnvList;        /* environs list */
-extern s16 gNumWindows;          /* gNumWindows */
+extern s16 gNumWindows;
 extern Voice *multiPlayerBlit;       /* multiplayer HUD blit */
-extern s32 gSkipToGameState;          /* gSkipToGameState */
+extern s32 gSkipToGameState;
 extern s32 gNewGameState;        /* gGameState */
-extern u8 gRestartGame;           /* gRestartGame */
+extern u8 gRestartGame;
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);

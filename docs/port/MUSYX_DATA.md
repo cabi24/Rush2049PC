@@ -246,7 +246,7 @@ The order comes from the call signatures, not from the ROM's table.
   `musyx_free` deal in heap blocks, which are window addresses, so their `s32`/`u32` sizes are exact.
 - The DMA request list: `musyx_start_dma_list`'s `CallSlot` and `sample_dma_next`'s `DmaList` now have one layout
   {u16 × 4; requests; done queue} (24 bytes; `sample_dma_thread_entry` reads the done queue at `DMA_DONE_OFF`). It has
-  PC storage of its own, `pc_D_80153F10` (defined in `sample_dma_next.c`): at 0x80153F10 there are 16 bytes before
+  PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`): at 0x80153F10 there are 16 bytes before
   `gPathWave` (the path data pointer), and gen_data places both inside `gGameCar`'s storage. The entries
   (`SoundDmaEntryCodebook`, `SoundDmaEntrySamples`, `DmaReq`) are 16 bytes on LP64, and `sound_hw_alloc_dma` allocates the
   list with `DMA_ENTRY_SIZE` = 16.

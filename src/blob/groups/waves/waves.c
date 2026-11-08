@@ -15,7 +15,7 @@
  * tables as {ptr,count} pairs, gTargetPaths as one struct, `x = x + (first ? WADptr : offset)` fixups).
  * N64 differences: no byte swapping (big-endian), no AddTexture/RegisterObjName/strstr arms; the model display lists
  * are walked by relocate_model_dl (N64 DL relocation) with render flags computed up front (player count, gBackwards)
- * and gMirrorWaves (gMirrorWaves); texture and palette data pointers are relocated by IMAGptr; target-path waves are
+ * and gMirrorWaves; texture and palette data pointers are relocated by IMAGptr; target-path waves are
  * 101..119; _ReadWave loads raw ROM (DMA), lzss or inflate data per wave.
  * DISCLOSED SHAPING DEVICE: the empty `do {} while (0);` between the texture and palette loops (an empty debug-macro
  * expansion, as in the locked ZOID_AddBlit) ends a uopt basic block: it lengthens IMAGptr's and offset's live ranges
@@ -119,8 +119,8 @@ extern anon_loaded_ready_14 gWaveInstance[];        /* 0x80156D38 */
 extern anon_romObjDefs_count_8 gRomObjDefPtrs[];    /* 0x801161F4 */
 extern anon_texDefs_count_8 gTexDefPtrs[];          /* 0x80151AE8 */
 extern anon_palDefs_count_8 gPalDefPtrs[];          /* 0x80138670 */
-extern anon_paths_count_8 gTargetPaths;               /* gTargetPaths */
-extern s16 gNumPlayers;                     /* gNumPlayers */
+extern anon_paths_count_8 gTargetPaths;
+extern s16 gNumPlayers;
 extern s8 gBackwards;                               /* render mode flag: DL flags 0x10 / 0x08 */
 extern s8 gMirrorWaves;                               /* relocate_model_dl flag */
 extern s32 wave_storage_kinds[];                            /* per-wave storage kind: 0 raw ROM, 1 lzss, 2 inflate */
@@ -128,8 +128,8 @@ extern s32 wave_rom_offsets[];                            /* per-wave ROM addres
 extern s32 gWaveSizes[];                            /* gWaveSizes */
 extern OSMesgQueue rom_dma_queue;                      /* PI DMA completion queue */
 
-void MBSetupWad(anon_base_TOCentries_c *wad, u8 *WADptr);              /* MBSetupWad */
-void MBOffsetWad(anon_base_TOCentries_c *wad, s32 WADptr, s32 offset);  /* MBOffsetWad */
+void MBSetupWad(anon_base_TOCentries_c *wad, u8 *WADptr);
+void MBOffsetWad(anon_base_TOCentries_c *wad, s32 WADptr, s32 offset);
 /* A TOC entry's address is a u32 window address: zero-extended, not sign-extended, into a pointer. */
 u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
@@ -138,7 +138,7 @@ void relocate_texture_loads(void *start, void *end, s32 IMAGptr);
 #define relocate_texture_loads(start, end, IMAGptr) \
     relocate_texture_loads((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
 void relocate_model_dl(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask);
-void MirrorWaveInstance(s32 idx);                                         /* MirrorWaveInstance */
+void MirrorWaveInstance(s32 idx);
 void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);

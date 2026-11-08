@@ -2,7 +2,7 @@
  * code, with the pools shrunk (CMakeLists.txt: PC_MATRIX_SPILL 4, PC_FRAME_MATRICES 8, PC_GLIST_LEN 32) so that the
  * checks themselves are what is tested. GetMatrix (ZOID_NewMatrix) hands out the N64's 150 persistent matrices at
  * D_8015F740 (index 0 unused), then pc_matrix_spill's, then says it ran out (pc_pool_overflow) and hands out its last
- * one again; EndGraphics (EndGraphics) closes the frame's list in the frame's buffer as pc_game_types.h
+ * one again; EndGraphics closes the frame's list in the frame's buffer as pc_game_types.h
  * lays it out and hands the list's and the matrices' ends to pc_frame_pools (port/ultra/pools.c), which says when
  * either ran past its end, or the frame's lookats did, and not when one is exactly full. The scene nodes' allocator
  * (ZOID_AddObject) hands out free nodes, then grows the table to its 600, then says it ran out and hands out the last

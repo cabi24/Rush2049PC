@@ -2,7 +2,7 @@
 /*
  * animCoins (0x800B7A40, 1,464 B; historical label) = MAT3 animCoins@hud.c (GC 0x8001FC2C) with the
  * per-coin "%d/8" text of animCoinsText@hud.c (GC 0x800204C8) folded into the coin loop, as on the N64 (the
- * N64 function sits in the NumCoinsFound/CountBits translation unit, after NumCoinsFound = NumCoinsFound).
+ * N64 function sits in the NumCoinsFound/CountBits translation unit, after NumCoinsFound).
  * Base: particles_update/lead_area128.c (body). changes:
  * - `extern volatile u8 gNumModels` (gNumModels, volatile): retail builds its address
  *    (lui/addiu, lbu 0(reg)) -- 262 -> 10 words;
@@ -18,14 +18,14 @@
  * here as HAL_SetTextDepth_Coins around HAL_SetTextDepth (= HAL_SetTextDepth). Which two-site helper carries
  * that level is not determinable from the bytes: an extra level on HAL_SetFont or TB_SetJust gives the same
  * 128 and the same code.
- * Callee identities: HAL_SetTextDepth = HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2
- * parameter), MBOX_FindObject_WORK = MBOX_FindObject_WORK, ZOID_AddObject = MBOX_NewObject, MBOX_HideObject =
- * MBOX_HideObject, MBOX_ShowObject = MBOX_ShowObject, ScaleUV = ScaleUV, YawUV = YawUV,
- * ZOID_WindowTo3D = ZOID_WindowTo3D, NumCoinsFound = NumCoinsFound, TB_Sprintf = TB_Sprintf,
- * TB_SetTextColor = TB_SetTextColor, TB_DrawText = TB_DrawText; gPlayerCoin = gPlayerCoin,
- * gCamera = gCamera, ObjInstanceListAlias = ObjInstanceList, hudObjAngle = hudObjAngle, coinStuntPos = coinStuntPos
- * (image A), coinPos = coinPos, gOptions_show_coins = gOptions[11], gGameCar[].mode = place_locked,
- * hud_whichCam = whichCam, gJust = gJust, text_lock_queue = font semaphore queue.
+ * Callee identities: HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2
+ * parameter), MBOX_FindObject_WORK, ZOID_AddObject = MBOX_NewObject, MBOX_HideObject =
+ * MBOX_HideObject, MBOX_ShowObject, ScaleUV, YawUV,
+ * ZOID_WindowTo3D, NumCoinsFound, TB_Sprintf,
+ * TB_SetTextColor, TB_DrawText; gPlayerCoin,
+ * gCamera, ObjInstanceListAlias = ObjInstanceList, hudObjAngle, coinStuntPos
+ * (image A), coinPos, gOptions_show_coins = gOptions[11], gGameCar[].mode = place_locked,
+ * hud_whichCam = whichCam, gJust, text_lock_queue = font semaphore queue.
  * gJust is a tentative definition here (as hud_text_anims/audio_animPanes_demo_animText.c and countdown): with an extern the
  * group compile gives the TB_SetJust(0, 1) stores two `lui at`; the unit needs an extern_data override.
  */

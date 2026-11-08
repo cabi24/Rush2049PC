@@ -2602,7 +2602,7 @@ extern s16 new_sched_to_use;
 /* PC: arg (the request list) and aux (its done queue) are pointers: sample_dma_next.c's DmaList, in its
  * own storage (docs/port/MUSYX_DATA.md 8.1) */
 typedef struct { s8 active; s8 pad1; s16 id; s16 count; s16 pad6; intptr_t arg; intptr_t aux; } CallSlot;
-#define sample_dma_list pc_D_80153F10
+#define sample_dma_list pc_sample_dma_list
 extern CallSlot sample_dma_list;
 extern s32 gPathWave;
 extern s16 sched_index;

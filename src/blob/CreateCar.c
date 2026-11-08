@@ -5,7 +5,7 @@
  * N64 form: no extra-part, brakes/trim or per-tyre rim code; the sheen texture is gTexList[9] (N64 gTexList =
  * gTexList, 10 entries); SetSheenColor gets SheenColors[gTrackNum] in game, Track1Colors[0] otherwise; one rim
  * texture on tires[0] when expansion_pak_present || gTrackNum >= 6 (else gWheelTextures[13]); IRclr/prevIRclr from
- * gTrackColors[gTrackNum][0]; SetupCarColor (SetupCarColor) takes five arguments. InitCarObj = InitCarObj.
+ * gTrackColors[gTrackNum][0]; SetupCarColor takes five arguments. InitCarObj = InitCarObj.
  * The lever that closed it: the texture index is the ARRAY element gTexList[9] (gTexList[9]), not the scalar
  * stand-in D_8016137A the drafts used. ugen evaluates `&gTexDefPtrs[t >> 10].texDefs[t & 1023]` index-side first
  * when t is an array element (base side first for a scalar), which is retail's temp order (t8/t9 for the index,
@@ -46,7 +46,7 @@ typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
 typedef struct tCarData { u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x34C - 0x308]; tRGBA IRclr; tRGBA prevIRclr; u8 pad354[0x360 - 0x354]; int sheenAlpha; u8 pad364[0x380 - 0x364]; void *input; u8 pad364_384[0x3B8 - 0x384]; } tCarData;
 typedef struct tModelData { u8 pad0[0x7CD]; u8 a; u8 b; u8 c; u8 pad7D0[0x808 - 0x7D0]; } tModelData;
 
-extern s16 gNumPlayers;         /* gNumPlayers */
+extern s16 gNumPlayers;
 extern u16 gObjList[];                /* gObjList */
 extern CarParts gCarParts[];           /* gCarParts */
 extern u16 gTexList[];                 /* gTexList (N64: 10 entries) */
@@ -55,7 +55,7 @@ extern ObjInstance ObjInstanceList[];        /* ObjInstanceList */
 extern tRGBA SheenColors[][2];           /* SheenColors */
 extern tRGBA Track1Colors[];              /* Track1Colors */
 extern tRGBA *gTrackColors[];             /* gTrackColors */
-extern s8 gTrackNum;                   /* gTrackNum */
+extern s8 gTrackNum;
 extern s8 expansion_pak_present;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 gTireRims[][13];             /* gTireRims */
@@ -63,10 +63,10 @@ extern void *gWheelTextures_rims[];              /* gWheelTextures */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
-int InitCarObj(int objnum, s16 camlink, int parent, u32 flags, s16 slot, s16 carObjNum, int forGame); /* InitCarObj */
-void ZOID_SetTexture(s16 objnum, void *texdef, int bank);                 /* ZOID_SetTexture */
-void SetupCarColor(s16 slot, u8 car, u8 a, u8 b, u8 c);             /* SetupCarColor */
-void SetFrameColor(s16 slot, tRGBA *col);                               /* SetFrameColor */
+int InitCarObj(int objnum, s16 camlink, int parent, u32 flags, s16 slot, s16 carObjNum, int forGame);
+void ZOID_SetTexture(s16 objnum, void *texdef, int bank);
+void SetupCarColor(s16 slot, u8 car, u8 a, u8 b, u8 c);
+void SetFrameColor(s16 slot, tRGBA *col);
 
 void SetSheenColor(s16 slot, tRGBA *col, tRGBA *env);
 

@@ -1,11 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* Runtime image B only: the weapons.c cluster, 0x8038A95C..0x8038C910.
- * RemoveCannMFlash = _RemoveCannMFlash, RemoveGattMFlash = _RemoveGattMFlash, AnimateWeapon = AnimateWeapon
+ * RemoveCannMFlash = _RemoveCannMFlash, RemoveGattMFlash = _RemoveGattMFlash, AnimateWeapon
  * (MAT3 GameCube weapons.c, GameSource tree; 2.2).
  * Direct typed port of the MAT3 bodies with N64 offsets. AnimateWeapon's position accumulations are
  * written `pos = pos + uvs * off`: that gives retail's commutative operand order for the add.s/mul.s
  * pairs (the old "FP temp rotation" residual). Disclosed: pad1/pad2 are two unused locals that make
- * the frame 136 bytes like retail. AnimateWeapon is address-taken by StartWeapon (StartWeapon),
+ * the frame 136 bytes like retail. AnimateWeapon is address-taken by StartWeapon,
  * hence kept; the two muzzle-flash removers are private to this unit. */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -91,7 +91,7 @@ typedef struct CMuzzleObj {
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
-extern volatile f32 gFrameSeconds;          /* gFrameSeconds */
+extern volatile f32 gFrameSeconds;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern CarParts gCarParts[];            /* gCarParts */
@@ -100,19 +100,19 @@ extern s32 gWfxObjList[7];                /* gWfxObjList */
 extern u16 gRipTextures[5];                /* gRipTextures */
 extern TexDefSet gTexDefPtrs[];           /* gTexDefPtrs */
 
-extern void ZOID_RemoveObject(s16 obj);          /* ZOID_RemoveObject */
-extern void ZOID_SetColor(s16 obj, RGBA *clr);    /* ZOID_SetColor */
-extern void MBOX_HideObject(s32 obj, s32 a, s32 mask);       /* MBOX_HideObject */
-extern void MBOX_ShowObject(s32 obj, s32 a, s32 mask); /* MBOX_ShowObject */
-extern UVMat *ZOID_FindMatrix(s16 idx);             /* ZOID_FindMatrix */
-extern void ZOID_SetObjectDef(s16 obj, s32 def);      /* ZOID_SetObjectDef */
-extern void ZOID_UpdateObject(s16 obj, f32 *pos, s32 a);       /* ZOID_UpdateObject */
-extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
-extern void CopyUV(f32 *src, f32 *dst);     /* CopyUV */
+extern void ZOID_RemoveObject(s16 obj);
+extern void ZOID_SetColor(s16 obj, RGBA *clr);
+extern void MBOX_HideObject(s32 obj, s32 a, s32 mask);
+extern void MBOX_ShowObject(s32 obj, s32 a, s32 mask);
+extern UVMat *ZOID_FindMatrix(s16 idx);
+extern void ZOID_SetObjectDef(s16 obj, s32 def);
+extern void ZOID_UpdateObject(s16 obj, f32 *pos, s32 a);
+extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
+extern void CopyUV(f32 *src, f32 *dst);
 extern void func_8009EA68(f32 a, f32 *uvs);       /* RollUV */
-extern void ScaleUV(f32 *src, f32 *dst, f32 s);      /* ScaleUV */
-extern f32 Random(f32 scale);              /* Random */
-extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);      /* ZOID_SetTexture */
+extern void ScaleUV(f32 *src, f32 *dst, f32 s);
+extern f32 Random(f32 scale);
+extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
 
 f32 weaponOffsets[8][13][3] = {
     0.0f, 2.5f, 0.3f, 0.0f, 3.0f, 0.3f, 0.0f, 2.8f, 0.3f, 0.0f, 3.0f, 0.1f, 0.0f, 3.0f, 0.1f, 0.0f,

@@ -3014,7 +3014,7 @@ void StartNewBlast(s16 arg0);
 void YawUV(f32 arg0, void *arg1);
 void func_80090F44(f32 arg0, void *arg1);
 s32 *GetCmd(void);
-s32 func_80091BA8_unused(s32 arg0);
+s32 ConvertTag_unused(s32 arg0);
 void InsertLLE(void *arg0, s32 *arg1, s32 *arg2);
 void RemoveLLE(void *arg0, s32 *arg1);
 s32 *GetFxTag(void);

@@ -34,9 +34,9 @@
  *     (= 3), 0x80117430 (= -1), 0x80117434 ({0,0,0,0}); only SaveServer references them in the image.
  *   - _ReadGhostHeader declares GC's `pak` local nowhere; no unused locals in any member.
  * GC-derived names: _CalcChecksum = CalcChecksumInternal, PS_ReadFile = PS_ReadPartialFile, PS_WriteFile, PS_FlushFile,
- *   PS_FlushPak, PS_CreateFile, PS_PakServer = PS_PakServer, InsertLLE = InsertLLE, strncmp = game_strncmp,
- *   strcmp = game_strcmp, _NewGhost = NewGhost, SavePlayerOption = audio_bus_mix, gOptions = gOptions,
- *   gTrackNum = gTrackNum, _DecodeGhost = menu_back, gGhostFiles = gGhostFiles, gPlayerFiles = gPlayerFiles,
+ *   PS_FlushPak, PS_CreateFile, PS_PakServer, InsertLLE, strncmp = game_strncmp,
+ *   strcmp = game_strcmp, _NewGhost = NewGhost, SavePlayerOption = audio_bus_mix, gOptions,
+ *   gTrackNum, _DecodeGhost = menu_back, gGhostFiles, gPlayerFiles,
  *   gPS_Files = gPS_Files (+8 = head).
  */
 typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;

@@ -7,7 +7,7 @@
  * order, N64 offsets (icon records 0x34 bytes, stunt coin 0x48 bytes).
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
  * credited for the record layouts and callee identities). Callee names in the
- * repo are historical: RemoveBlit = RemoveBlit, ZOID_RemoveObject =
+ * repo are historical: RemoveBlit, ZOID_RemoveObject =
  * ZOID_RemoveObject (s16 object index). No shaping, no unused locals.
  */
 typedef signed char s8;

@@ -3,9 +3,9 @@
  * HAL_FinishText (0x800ED804, 712 B) = MAT3 HAL_text.c HAL_FinishText(signed char end): replay the
  * buffered text commands (gBuffer gBuffer, gBufLen gBufLen) under the font semaphore text_lock_queue: reset the
  * defaults (_SetDefaults = SetDefaults with the seven globals), _HAL_SetFont(gFontIndex) = HAL_SetFontInternal,
- * gFontAttribute &= 0x8000, then per opcode 0..6: font, HAL_SetFontLeading (HAL_SetFontLeading), HAL_SetFontSpacing
- * (HAL_SetFontSpacing), HAL_SetTextPos (HAL_SetTextPos, umerge-inlined), HAL_SetTextTranslucency (HAL_SetTextTranslucency) from a
- * big-endian float, HAL_SetTextColor (HAL_SetTextColor), _DrawText (DrawText, private IPA: text in s2,
+ * gFontAttribute &= 0x8000, then per opcode 0..6: font, HAL_SetFontLeading, HAL_SetFontSpacing
+ * (HAL_SetFontSpacing), HAL_SetTextPos (HAL_SetTextPos, umerge-inlined), HAL_SetTextTranslucency from a
+ * big-endian float, HAL_SetTextColor, _DrawText (DrawText, private IPA: text in s2,
  * length in s0).
  * : a direct typed port of the MAT3 text with the real callees; the earlier drafts (defaults
  * context) predate _DrawText's match and hand-inlined HAL_SetTextPos. No shaping.
@@ -23,19 +23,19 @@ extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32 selection);                 /* _HAL_SetFont */
 extern void SetDefaults(u8 *rgba, f32 *amount, s16 *x, s16 *y, s8 *bank, s8 *mode, s8 *variant); /* _SetDefaults */
-extern void HAL_SetFontLeading(s16 leading);                    /* HAL_SetFontLeading */
-extern void HAL_SetFontSpacing(s16 spacing);                     /* HAL_SetFontSpacing */
-extern void HAL_SetTextPos(s16 x, s16 y);                    /* HAL_SetTextPos */
-extern void HAL_SetTextTranslucency(f32 xlu);                         /* HAL_SetTextTranslucency */
-extern void HAL_SetTextColor(u8 r, u8 g, u8 b, u8 a);          /* HAL_SetTextColor */
+extern void HAL_SetFontLeading(s16 leading);
+extern void HAL_SetFontSpacing(s16 spacing);
+extern void HAL_SetTextPos(s16 x, s16 y);
+extern void HAL_SetTextTranslucency(f32 xlu);
+extern void HAL_SetTextColor(u8 r, u8 g, u8 b, u8 a);
 extern void DrawText(const u8 *text, u16 length); /* _DrawText */
-extern s32 gFontColor;          /* gFontColor */
-extern f32 gTrans;          /* gTrans */
+extern s32 gFontColor;
+extern f32 gTrans;
 extern s16 gFontXpos, gFontYpos;   /* gFontXpos, gFontYpos */
 extern s8 gFontIndex, gLeading, gSpacing;   /* gFontIndex, gLeading, gSpacing */
-extern s32 gFontAttribute;          /* gFontAttribute */
+extern s32 gFontAttribute;
 extern s8 gBufferInited, gFinished;   /* gBufferInited, gFinished */
-extern s32 gBufLen;          /* gBufLen */
+extern s32 gBufLen;
 extern u8 gBuffer[800];      /* gBuffer */
 
 void HAL_FinishText(s8 end)

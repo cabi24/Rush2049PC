@@ -2,7 +2,7 @@
 /*
  * checkpoint_hit (0x801073D8, 580 B) = animElapsedTimer(struct _tBlit *blt) of hud.c (MAT3 GameCube hud.c
  * animElapsedTimer). Elapsed-time box for window `win` (blit data word): removed (state = 0) when the
- * window does not exist, hidden in attract/when not racing/!gShowElapsed (gShowElapsed); font 1 or 2; width =
+ * window does not exist, hidden in attract/when not racing/!gShowElapsed; font 1 or 2; width =
  * 7 digit widths ('8'+1) + 2 colon widths (':'+1, digits fixed-width via HAL_SetFontFixedWidth =
  * HAL_SetFontFixedWidth); position elapsedTimerPos[gNumWindows-1] (elapsedTimerPos); N64: alpha from the colour byte
  * hud_box_color[3] and half18 = 100 (GC: alpha = 128); UpdateBlit = UpdateBlit.

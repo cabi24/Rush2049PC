@@ -44,42 +44,42 @@ typedef struct {
 } PadState;              /* tPadState, 0x4C */
 typedef struct { s32 x, y, w, h, cx, cy; } PlayerRect;        /* 0x18 */
 
-s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);   /* InitPane */
-void SetControls(s32);                                  /* SetControls */
-s32 AudPlayEffect(s32, s32, s32, u8);                       /* AudPlayEffect */
+s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+void SetControls(s32);
+s32 AudPlayEffect(s32, s32, s32, u8);
 s32 game_memcmp(u8 *, u8 *, u32);                              /* memcmp (size_t count) */
-void setPauseState(s32);                                         /* setPauseState */
-void SetDefaultControls(void *);                                      /* SetDefaultControls */
+void setPauseState(s32);
+void SetDefaultControls(void *);
 s32 controls_validControl(s8);                                           /* validControl */
 s32 controls_validOption(s8, s32);                                      /* validOption */
-void calcControlMenuMaxSize(void);                                        /* calcControlMenuMaxSize */
+void calcControlMenuMaxSize(void);
 void *memcpy(void *, const void *, u32);
-void cleanupControlScreen(void);                                /* cleanupControlScreen */
-void PlayStartABSound(s32);                                  /* PlayStartABSound */
-void *NewMultiBlit(s16, s16, void *, s16);                      /* NewMultiBlit */
-void RemovePanes(s32);                                   /* RemovePanes */
+void cleanupControlScreen(void);
+void PlayStartABSound(s32);
+void *NewMultiBlit(s16, s16, void *, s16);
+void RemovePanes(s32);
 void controls_initButtons(s8);                                    /* initButtons */
 void controls_updateButtons(s8);                                          /* updateButtons */
 void controls_uninitButtons(s8);                                       /* uninitButtons */
 
-extern u32 gGameState;                 /* gGameState */
+extern u32 gGameState;
 extern PadState gPlayers[4];           /* gPlayers */
-extern s16 gNumWindows;                   /* gNumWindows */
+extern s16 gNumWindows;
 extern s8 controlScrActive[4];                 /* controlScrActive */
 extern PlayerRect controls_gPlayerRects[4][4];      /* gPlayerRects */
 extern s8 prevControlScrActive[4];                 /* prevControlScrActive */
 extern s16 gControlSelect[4];                /* gControlSelect */
 extern s16 gControlFirst[4];                /* gControlFirst */
-extern s16 gControlMenuSize;                   /* gControlMenuSize */
+extern s16 gControlMenuSize;
 extern s8 gConflict[4][10];             /* gConflict */
 extern s8 gConflictExists[4];                 /* gConflictExists */
 extern s8 gNewControls[4][10];             /* gNewControls */
 extern Profile *gJustPlayers[4];           /* gJustPlayers */
 extern s8 gControlsSet[4];                 /* gControlsSet */
-extern s8 gSoftReset;                    /* gSoftReset */
+extern s8 gSoftReset;
 extern s8 controls_inited;                    /* inited */
 extern void *controls_blit;                 /* blit: pointer-sized storage */
-extern s32 exitControlScreen;                   /* exitControlScreen */
+extern s32 exitControlScreen;
 extern f32 controls_gButtonZoom, controls_gButtonScale, controls_gButtonSpace, controls_buttonX, controls_maxY, controls_minY, controls_buttonZ, controls_cursorZ;
 extern struct pc_multiblit buttonsFrontEnd[81], buttonsPauseSingle[21], buttonsPauseMulti[41];   /* NewMultiBlit's (pc_prelude.h) */
 

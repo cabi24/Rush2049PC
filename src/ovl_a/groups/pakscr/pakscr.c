@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* Runtime image A: menu-state update and its three genuine IPA helpers.
  * New root updatePakScreen keeps the existing executable statements and ABI.
- * superseding revision: this is MAT3 pakscr.c. updatePakScreen (updatePakScreen) calls
+ * superseding revision: this is MAT3 pakscr.c. updatePakScreen calls
  * _ControlFileDelVerify / _ControlRumblePak / _ControlDamaged for states 2/3/4; they are now the non-kept helpers
  * ControlFileDelVerify / ControlRumblePak / ControlDamaged named after their retail deleted stubs, and _SetState
  * (SetState) calls _BuildFileDelList = BuildFileDelList. Post-order of updatePakScreen (last call first):

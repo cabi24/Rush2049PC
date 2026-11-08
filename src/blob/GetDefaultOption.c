@@ -12,7 +12,7 @@
 typedef signed char s8;
 #define OS_TV_PAL 0
 #define DEBUG_FORCE_PAL 0 /* compiled-out development switch */
-extern unsigned int osTvType; /* osTvType */
+extern unsigned int osTvType;
 s8 GetDefaultOption(int selector)
 {
     switch(selector) {

@@ -64,7 +64,7 @@ typedef struct {
 Sprite gBlitInstanceList[200];
 int32_t gNumBlitInsts, gMaxBlitInsts;   /* sprites in use, high-water mark */
 Blit *BlitPtrs[200];            /* BlitPtrs */
-int32_t NumBlits;               /* NumBlits */
+int32_t NumBlits;
 intptr_t inactiveBlit;
 FiveParts gPaneBlits[16];
 uint8_t default_blit_image[32];           /* InitBlit's built-in image */
@@ -83,9 +83,9 @@ void *MBOX_FindTexture_WORK(char *name, int16_t *out, int8_t lo, int8_t hi, int3
 }
 
 void InitBlits(void);
-Blit *NewBlit(const char *name, int32_t x, int32_t y, int32_t flags);   /* NewBlit */
-Blit *NewMultiBlit(int16_t ulx, int16_t uly, const MultiBlit *mblit, int16_t nblits);   /* NewMultiBlit */
-void UpdateBlit(Blit *blit);                                         /* UpdateBlit */
+Blit *NewBlit(const char *name, int32_t x, int32_t y, int32_t flags);
+Blit *NewMultiBlit(int16_t ulx, int16_t uly, const MultiBlit *mblit, int16_t nblits);
+void UpdateBlit(Blit *blit);
 void RemoveBlit(Blit *blit);                                                   /* DelBlit */
 FiveParts *InitPane(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t style, intptr_t animfunc,
                              int32_t animid, int32_t own);                     /* InitPane */

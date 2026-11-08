@@ -122,9 +122,9 @@ void pause_TitlePane(void) {}
 void initTargetStructs(int32_t arg0);
 void *GetStatLLE(void *pool);
 void InitBattlePowerUps(int32_t reuse);
-void UpdateBattleHealth(void);            /* UpdateBattleHealth */
-void UpdateBattleShield(void);            /* UpdateBattleShield */
-void UpdateBattleInvs(void);            /* UpdateBattleInvs */
+void UpdateBattleHealth(void);
+void UpdateBattleShield(void);
+void UpdateBattleInvs(void);
 void UpdateInvs(void);            /* UpdateInvs: the invisible cars' fade */
 void PauseTargets(void);
 void updatePauseScreen(void);

@@ -37,17 +37,17 @@ typedef struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; } Egg;
 extern s8 cheatscr_inited;           /* inited */
 extern Blit *cheatscr_blit;        /* blit */
 extern s32 cheatscr_gSelectedOption;          /* gSelectedOption */
-extern s32 gCheatMenuExit;          /* gCheatMenuExit */
+extern s32 gCheatMenuExit;
 extern const MultiBlit cheatscr_multiblit[];
 extern s16 gCheatState[];        /* gCheatState */
 extern s8 gCheatActive[];         /* gCheatActive */
 extern Egg gEggs[];        /* gEggs */
-extern Egg *gEgg;         /* gEgg */
-extern f32 gNextTimeOut;          /* gNextTimeOut */
-extern s32 gEggIdx;          /* gEggIdx */
-extern s32 gActiveEdges;          /* gActiveEdges */
-extern u32 gActiveAutoEdges;          /* gActiveAutoEdges */
-extern s8 gSoftReset;           /* gSoftReset */
+extern Egg *gEgg;
+extern f32 gNextTimeOut;
+extern s32 gEggIdx;
+extern s32 gActiveEdges;
+extern u32 gActiveAutoEdges;
+extern s8 gSoftReset;
 extern s8 gNoCarCollisions, gMineCones, gCarMines, gNoAutoAbort, gSuperSpeed, gInvincible, gInvisibleCar, gInvisibleTrack;
 extern s8 gNoBrakes, gSpecialTires, gMassiveMass, gSuicideMode, gResurrectInPlace, gFrameScale, gEnableTireScaling, gFogColor;
 extern u32 AudPlayEffect(u32, u32, u32, u8);
@@ -276,7 +276,7 @@ typedef struct TextTables {
     u16 numTab, numTabA; u16 *tab; u8 **taba;
     u16 numTab2, numTab2a, numTab2b; u16 *tab2; u16 *tab2a; u8 **tab2b;
 } TextTables;
-extern TextTables gText;   /* gText */
+extern TextTables gText;
 extern char cheatscr_number_format[];       /* "%d" */
 extern void HAL_SetTextDepth(f32);
 extern void *HAL_SetFont(s32);

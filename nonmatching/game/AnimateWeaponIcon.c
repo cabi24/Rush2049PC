@@ -53,13 +53,13 @@ typedef struct ObjInstance {
 } ObjInstance;
 #define N64P(x) ((void *)PC_N64P(x))
 
-extern s32 gPauseState;               /* gPauseState */
-extern volatile f32 gFrameSeconds;      /* gFrameSeconds */
-extern s16 gNumPlayers;               /* gNumPlayers */
+extern s32 gPauseState;
+extern volatile f32 gFrameSeconds;
+extern s16 gNumPlayers;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern ObjInstance ObjInstanceList[];     /* ObjInstanceList */
-void ReleaseEnviron(Visual *v, s32 flag);           /* ReleaseEnviron */
-void RotateUV(f32 *angV, f32 (*uvs)[3]);          /* RotateUV */
+void ReleaseEnviron(Visual *v, s32 flag);
+void RotateUV(f32 *angV, f32 (*uvs)[3]);
 void MBOX_ShowObject(s32 a, s32 mode, u32 v);
 void MBOX_HideObject(s32 a, s32 mode, u32 v);
 

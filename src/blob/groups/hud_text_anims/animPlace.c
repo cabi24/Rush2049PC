@@ -3,9 +3,9 @@
  * animPlace (0x80107AF4, 1,000 B; historical label race_finish) = GC hud.c `static int animPlace(void)` (GC locals
  * digits[3], str[2], digitW, x, y, digitIdx, slot). Per-player race position "P/N" HUD (place + 1, '/', car count),
  * drawn glyph by glyph with a shadow pass at (x+1, y+1); the place digit in the player colour hud_playerColor[i].
- * GC-derived names: AreWeSolid = AreWeSolid, placePos = placePos, hud_playerColor = playerColor, gShowPlace =
- * gShowPlace, camera_shake_update = HAL_GetCharWidth, HAL_SetTextDepth = HAL_SetTextDepth, gJust = TB_SetJust's
- * pair, TB_SetTextColor = TB_SetTextColor, TB_DrawText = TB_DrawText (s16, s16, char *).
+ * GC-derived names: AreWeSolid, placePos, hud_playerColor = playerColor, gShowPlace =
+ * gShowPlace, camera_shake_update = HAL_GetCharWidth, HAL_SetTextDepth, gJust = TB_SetJust's
+ * pair, TB_SetTextColor, TB_DrawText = TB_DrawText (s16, s16, char *).
  * EQUAL in the whole-program unit. Same TU as animElapsedTimerText/animLapCount
  * (credits_scroll_grp, hud.c): helpers *_7AF4 are non-static and not kept (no deleted-procedure stubs; the
  * locked stub hud_inlined_stub before animPlace stays untouched).

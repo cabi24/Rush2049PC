@@ -5,8 +5,8 @@
  * per-player checkpoint/lap/elapsed timers and coin records, then NewMultiBlit = NewMultiBlit: overlay set for
  * attract/credits, 2/3-player divider sets, ShowHUDExtra (image B 0x803925D0) for battle/stunt or the race set,
  * then the HUD set), and in attract mode with credits on cycles the credit panes (SetCountdownTimer =
- * SetCountdownTimer, GetCountdownTimeRemaining = GetCountdownTimeRemaining, Random = Random inlined, HAL_SetFont,
- * HAL_GetTextWidth = HAL_GetTextWidth, RemovePanes = RemovePanes, InitPane = InitPane).
+ * SetCountdownTimer, GetCountdownTimeRemaining, Random = Random inlined, HAL_SetFont,
+ * HAL_GetTextWidth, RemovePanes, InitPane).
  * N64 constants differ from the GC (race/HUD blit counts 89/8, credit delay /13, bottom row 145; the 2/3-player
  * sets only when expansion_pak_present || gTrackNum >= 6).
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.

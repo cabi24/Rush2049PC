@@ -5,7 +5,7 @@
  * random source is the arcade LIB/fmath.c Random(F32 max):
  *     rannum = ((F32)(rand() & 0x07FFF) * max) / 32767.0;   (N64: 32768.0f)
  * over libc rand() (seed rand_seed, kept game_rand), i.e. the kept
- * Random = Random, both inlined here by umerge in the unit.
+ * Random, both inlined here by umerge in the unit.
  * the whole-program unit score is EQUAL with the plain call `bit = Random(32.0f);`
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
  * Standalone, static copies of rand/Random reproduce it.

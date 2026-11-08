@@ -124,13 +124,13 @@ void getScoreStr(u8 *destination,f32 time,s32 unused_format)
  * loop tests only `player` (no `*player`), with `player = gStatPlayer` assigned before the `if (!player)` test.
  * Shapes taken from retail: `str = taba[tab[50] + 1]; TB_DrawText(x, y, str)` (evaluation before the narrowing),
  * the list step written after the loop body (as1 line tie-break puts `i - sel` before `i < sel`).
- * Names: ZOID_ProjectWindow = ZOID_ProjectWindow, TB_SetJust = TB_SetJust, TB_SetTextColor = TB_SetTextColor,
- * HAL_SetFont = HAL_SetFont, TB_CenterText = TB_CenterText, TB_RightText = TB_RightText,
- * TB_DrawText = TB_DrawText, TB_GetFontLineHeight = TB_GetFontLineHeight, TB_GetTextNumLines = TB_GetTextNumLines,
- * ChangePaneSize = ChangePaneSize, TB_DrawTextScrollBox = TB_DrawTextScrollBox, HAL_SetTextTranslucency = HAL_SetTextTranslucency,
- * TB_FlashTextColors = TB_FlashTextColors, HAL_GetTextWidth = HAL_GetTextWidth, HAL_SetFontSpacing = HAL_SetFontSpacing,
- * TB_DrawEllipseText = TB_DrawEllipseText, TB_Sprintf = TB_Sprintf; gScreenRect = gScreenRect, gDeleteConfirm/854/850 =
- * gDeleteConfirm/gDeleteNotify/gYes, gStatPlayer = gStatPlayer, gDeleteName = gDeleteName, recordscr_gSelectMenuSelect = gSelectMenuSelect,
+ * Names: ZOID_ProjectWindow, TB_SetJust, TB_SetTextColor,
+ * HAL_SetFont, TB_CenterText, TB_RightText,
+ * TB_DrawText, TB_GetFontLineHeight, TB_GetTextNumLines,
+ * ChangePaneSize, TB_DrawTextScrollBox, HAL_SetTextTranslucency,
+ * TB_FlashTextColors, HAL_GetTextWidth, HAL_SetFontSpacing,
+ * TB_DrawEllipseText, TB_Sprintf; gScreenRect, gDeleteConfirm/854/850 =
+ * gDeleteConfirm/gDeleteNotify/gYes, gStatPlayer, gDeleteName, recordscr_gSelectMenuSelect = gSelectMenuSelect,
  * recordscr_gSelectPakIdx = gSelectPakIdx, recordscr_gNumPakPlayers = gNumPakPlayers, gPlayerFiles_head = gPlayerFiles.head.
  * SHAPING (disclosed residual): `pad` is an unused s32 declared before i.  Frame 176 with or without it (8-byte
  * rounding), every local home is already retail's; it makes the cfe local area 108 instead of 104, which moves uopt's

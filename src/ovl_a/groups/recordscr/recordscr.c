@@ -647,9 +647,9 @@ void recordscr_initButtons(void)
  * recordscr_scrollSpeed scrollSpeed, recordscr_buttonsJustInited buttonsJustInited, recordscr_gSelectMenuVisible gSelectMenuVisible[11], recordscr_gSelectMenuSelect
  * gSelectMenuSelect, gSelectMenuClear gSelectMenuClear, gDeleteConfirm gDeleteConfirm, gDeleteNotify gDeleteNotify,
  * gFrameSeconds gFrameSeconds (volatile), gNumModels gNumModels (volatile), unitmatrix unitmatrix.
- * Calls: MBOX_ShowObject = MBOX_ShowObject, MBOX_HideObject = MBOX_HideObject, MBOX_FindTexture_WORK =
- * MBOX_FindTexture_WORK, ZOID_SetTexture = ZOID_SetTexture, ZOID_SetColor = ZOID_SetColor, WRollUV = WRollUV,
- * WPitchUV = WPitchUV, ScaleUV = ScaleUV. */
+ * Calls: MBOX_ShowObject, MBOX_HideObject, MBOX_FindTexture_WORK =
+ * MBOX_FindTexture_WORK, ZOID_SetTexture, ZOID_SetColor, WRollUV,
+ * WPitchUV, ScaleUV = ScaleUV. */
 extern f32 recordscr_gButtonScale, recordscr_gButtonSpace, recordscr_buttonX, recordscr_maxY, recordscr_minY, recordscr_buttonZ, recordscr_cursorZ;
 extern f32 recordscr_cursorSpeed, recordscr_scrollSpeed;
 extern volatile f32 gFrameSeconds;
@@ -833,13 +833,13 @@ void updateSelectButtons(void)
  * groups) is a NON-static function off `keep` (umerge inlines it; its deleted stub is retail's caller-less 0x803915E0).
  * N64 differences (from the retail displacements/constants): 23 buttons at recordscr_buttonInfo (0x40 stride), statics
  * gButtonScale, gButtonSpace, buttonX, maxY, minY, buttonZ, cursorZ = recordscr_gButtonScale..recordscr_cursorZ, cursorSpeed/scrollSpeed
- * = recordscr_cursorSpeed/DC, buttonsInited/JustInited = recordscr_buttonsInited/D4, gRecordState = gRecordState, gViewMenuVisible =
- * gViewMenuVisible, gViewMenuSelect = gViewMenuSelect; the alpha fades linearly over one pitch
+ * = recordscr_cursorSpeed/DC, buttonsInited/JustInited = recordscr_buttonsInited/D4, gRecordState, gViewMenuVisible =
+ * gViewMenuVisible, gViewMenuSelect; the alpha fades linearly over one pitch
  * (255 - d * 255 / (space * scale)) instead of GC's flat 80; the two trailing MBOX_HideObject(buttonInfo[19/20])
  * calls are absent; associations follow the matched carscr updateButtons (`-140.0f * scale + buttonX`,
- * `scale * 0.4f`, fabsf on the right of the speed comparisons).  Callees: MBOX_HideObject = MBOX_HideObject,
- * MBOX_ShowObject = MBOX_ShowObject, ZOID_SetTexture = ZOID_SetTexture, ZOID_SetColor = ZOID_SetColor,
- * MBOX_FindTexture_WORK = MBOX_FindTexture_WORK, WPitchUV = WPitchUV, WRollUV = WRollUV, ScaleUV = ScaleUV.
+ * `scale * 0.4f`, fabsf on the right of the speed comparisons).  Callees: MBOX_HideObject,
+ * MBOX_ShowObject, ZOID_SetTexture, ZOID_SetColor,
+ * MBOX_FindTexture_WORK, WPitchUV, WRollUV, ScaleUV = ScaleUV.
  * SHAPING (disclosed frame residual): pad0 and pad1 are unused s32 locals of updateButtons.  Retail frame 144; the
  * same source without them 136 (every other offset already retail: prevPos 108, clearScrollSpeed 91, texIdx 82,
  * buttonColor 76, temp 52); 2 slots x 4 B = 8 B above the inlined callee's locals.  Two unused int parameters of

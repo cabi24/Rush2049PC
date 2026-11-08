@@ -1,6 +1,6 @@
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices; value940 is entry 235, a string, which TB_DrawText (TB_DrawText) takes as a pointer */
+/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices; value940 is entry 235, a string, which TB_DrawText takes as a pointer */
 typedef struct { char *pad0[128 / 4]; void *text128; char *pad132[808 / 4]; char *value940; } Countdown;
 void HAL_SetTextDepth(f32 value);
 void TB_SetJust(s32 a, s32 b);

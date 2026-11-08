@@ -36,8 +36,8 @@ typedef struct {
     DmaReq *reqs;
     OSMesgQueue *done;
 } DmaList;
-#define sample_dma_list pc_D_80153F10
-DmaList pc_D_80153F10;
+#define sample_dma_list pc_sample_dma_list
+DmaList pc_sample_dma_list;
 
 extern DmaList sample_dma_list;
 extern OSIoMesg sample_dma_io;

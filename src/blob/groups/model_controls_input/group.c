@@ -196,7 +196,7 @@ void ReadGasAndBrake(CarState *st, InputRecord *in)
 
 /* The manifest owner of ReadShifter is the empty deleted-procedure stub (src/blob/ReadShifter.c), which
  * the call below binds to on PC. The gear code written here gets its own name (docs/port/PROTOTYPES.md). */
-#define ReadShifter pc_func_800E6AE8
+#define ReadShifter pc_ReadShifter
 void ReadShifter(CarState *st, InputRecord *in);
 void UpdateModelControls(void)
 {

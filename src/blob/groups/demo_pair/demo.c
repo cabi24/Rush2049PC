@@ -1,4 +1,4 @@
-/* Native demo/attract research (refs/pr/413; lever). updateDemoGame = updateDemoGame,
+/* Native demo/attract research (refs/pr/413; lever). updateDemoGame,
  * playDemoGame = playDemoGame (MAT3 demo.c).
  * Shaping (disclosed, compile-affecting): playDemoGame has a SECOND formal `x` (the GC source calls it with
  * two actual arguments, DWARF lists one formal; every caller passes 0) and a compiled-out holder `if (x) {}`

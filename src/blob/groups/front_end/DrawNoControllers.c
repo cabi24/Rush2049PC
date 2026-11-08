@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * DrawNoControllers = _animScrollText@game.c (MAT3 GameSource/src/game.c _animScrollText, GC 0x80015A24, 364 B),
- * N64 form (0x800FBC30, 496 B), called once per frame by GameLoop (GameLoop) as _DrawNoControllers' text: the
+ * N64 form (0x800FBC30, 496 B), called once per frame by GameLoop as _DrawNoControllers' text: the
  * "controller N removed" scroller drawn in immediate mode.  Internal (private IPA: s0/s1/s2/s4/s5 unsaved); its only
  * caller is GameLoop.
  * numPlayers = gRace == kGhost ? 1 : gNumPlayers; first player whose gControllerData[i].attached is clear; none ->

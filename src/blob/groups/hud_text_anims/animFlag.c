@@ -3,11 +3,11 @@
  * func_80109F54 (0x80109F54, 1504 B) = GC hud.c animFlag (MAT3 decomp/src/GameSource/src/hud.c animFlag,
  * GC 0x80021DE4; GC locals x, y, width, height, w, h). Checkered-flag blit drawn on the track map at the
  * finish checkpoint (gCheckpoints.points[finishPt]), with the laps-left digit printed over it on the last lap.
- * Globals: gNumWindows, gNumLapsLeft = gNumLapsLeft, gRace = gRace, gShowTrackMap = gShowTrackMap, gPathMax/Min =
- * gPathMax/gPathMin, kMapSize = kMapSize, mapPos = hud_mapPos, gMirrorWaves = gMirrorWaves, gCheckpoints =
- * gCheckpoints, gGameState = gGameState, gPauseState = gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
- * TB_SetJust pair = gJust; UpdateBlit = UpdateBlit, HAL_SetFont = HAL_SetFontInternal (s2 IPA
- * parameter), HAL_SetTextDepth = HAL_SetTextDepth, TB_SetTextColor = TB_SetTextColor, TB_Printf =
+ * Globals: gNumWindows, gNumLapsLeft, gRace, gShowTrackMap, gPathMax/Min =
+ * gPathMax/gPathMin, kMapSize, mapPos = hud_mapPos, gMirrorWaves, gCheckpoints =
+ * gCheckpoints, gGameState, gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
+ * TB_SetJust pair = gJust; UpdateBlit, HAL_SetFont = HAL_SetFontInternal (s2 IPA
+ * parameter), HAL_SetTextDepth, TB_SetTextColor, TB_Printf =
  * TB_Printf, SelectBlit = SelectBlit.
  * N64 differences from GC: no gGameState 0x400000 term in the first Hidden; the map-centre offsets are two more
  * named locals (xoff, yoff: frame 136 = two slots more than GC's six; computed before mapPos) without GC's outer
@@ -71,19 +71,19 @@ typedef struct Pair {
 } Pair;
 
 extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;          /* gGameState */
-extern s32 gRace;          /* gRace */
+extern u32 gGameState;
+extern s32 gRace;
 extern s16 gNumWindows;
-extern s8 gNumLapsLeft;           /* gNumLapsLeft */
-extern s8 gShowTrackMap;           /* gShowTrackMap */
+extern s8 gNumLapsLeft;
+extern s8 gShowTrackMap;
 extern s16 gPathMax[3];       /* gPathMax */
 extern s16 gPathMin[3];       /* gPathMin */
-extern s32 kMapSize;          /* kMapSize */
+extern s32 kMapSize;
 extern s32 hud_mapPos[4][2];    /* mapPos */
-extern s8 gMirrorWaves;           /* gMirrorWaves */
-extern Checkpoints gCheckpoints;  /* gCheckpoints */
-extern s32 gPauseState;          /* gPauseState */
-extern volatile f32 gFrameSeconds; /* gFrameSeconds */
+extern s8 gMirrorWaves;
+extern Checkpoints gCheckpoints;
+extern s32 gPauseState;
+extern volatile f32 gFrameSeconds;
 extern Pair gJust;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);

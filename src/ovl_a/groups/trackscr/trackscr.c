@@ -42,12 +42,12 @@ typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack
 typedef struct TrackSlot {s8 gTrackNum;f32 pos[3];f32 targetPos;s8 slot;} TrackSlot;   /* anon_gTrackNum_pos_18 */
 
 /* game globals */
-extern u32 gGameState;             /* gGameState */
-extern u32 gSkipToGameState;             /* gSkipToGameState */
-extern s16 gNumPlayers;             /* gNumPlayers */
+extern u32 gGameState;
+extern u32 gSkipToGameState;
+extern s16 gNumPlayers;
 extern s32 gRace;             /* gRace (0 OneRace 1 Practice 2 Ghost 3 Circuit 4 Stunt 5 Obstacle 6 Battle) */
 extern Player gPlayers[];        /* gPlayers */
-extern s8 gTrackNum;              /* gTrackNum */
+extern s8 gTrackNum;
 extern s8 gOptions[];            /* gOptions */
 extern s8 gOptions_fog_intensity;             /* gOptions[29] under its own name (retail case-14 store) */
 /* PC: one name for one place. An optimizing GCC takes two external variables for two objects, so after the store
@@ -58,19 +58,19 @@ extern s8 gOptions_fog_intensity;             /* gOptions[29] under its own name
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */
 #define PC_DRONES_MAX (pc_cars_setting() - 1)
-extern s8 gSoftReset;              /* gSoftReset */
-extern u32 gActiveEdges;             /* gActiveEdges */
-extern u32 gActiveLevels;             /* gActiveLevels */
-extern u32 gActiveAutoEdges;             /* gActiveAutoEdges */
-extern s8 gMirrorControls;              /* gMirrorControls */
-extern s8 gCircuitTrack;              /* gCircuitTrack */
-extern u8 gCircuitPlayer;              /* gCircuitPlayer */
+extern s8 gSoftReset;
+extern u32 gActiveEdges;
+extern u32 gActiveLevels;
+extern u32 gActiveAutoEdges;
+extern s8 gMirrorControls;
+extern s8 gCircuitTrack;
+extern u8 gCircuitPlayer;
 extern CircuitTrack gCircuitTracks[];  /* gCircuitTracks */
 extern s8 expansion_pak_present;              /* (N64) all-tracks flag: track 5 may be started */
-extern s8 gWind;              /* gWind */
-extern volatile f32 gFrameSeconds;    /* gFrameSeconds */
+extern s8 gWind;
+extern volatile f32 gFrameSeconds;
 extern f32 unitmatrix[12];         /* unitmatrix */
-extern volatile u8 gNumModels;     /* gNumModels */
+extern volatile u8 gNumModels;
 
 /* trackscr data */
 extern tMenuButton trackscr_buttonInfo[48];  /* buttonInfo */
@@ -91,10 +91,10 @@ extern f32 yFog[];               /* yFog */
 extern MultiBlit trackscr_mblit[];         /* mblit (17 entries on N64) */
 extern Blit *trackscr_blit;               /* blit */
 extern s8 trackscr_inited;                  /* inited */
-extern f32 pathPos;                 /* pathPos */
-extern s16 oldTrack;                 /* oldTrack */
-extern s16 gNumTracks;                 /* gNumTracks */
-extern s16 gTrack;                 /* gTrack */
+extern f32 pathPos;
+extern s16 oldTrack;
+extern s16 gNumTracks;
+extern s16 gTrack;
 extern s16 trackscr_gActiveOption;                 /* gActiveOption */
 extern s16 trackscr_gFirstOption;                 /* gFirstOption */
 extern s16 trackscr_gNumOptions;                 /* gNumOptions */
@@ -104,9 +104,9 @@ extern s16 trackscr_gOpts[21];             /* gOpts */
 extern TrackSlot gTracks[19];       /* gTracks */
 extern f32 trackscr_cursorSpeed;                 /* updateButtons static cursorSpeed */
 extern f32 trackscr_scrollSpeed;                 /* updateButtons static scrollSpeed */
-extern s32 currentTrackMap;                 /* currentTrackMap */
-extern s32 desiredTrackMap;                 /* desiredTrackMap */
-extern f32 mapTransition;                 /* mapTransition */
+extern s32 currentTrackMap;
+extern s32 desiredTrackMap;
+extern f32 mapTransition;
 extern f32 trackscr_InitScreen_fogPos[3];              /* _InitScreen static fogPos */
 extern u16 trackscr_fogTileSize,trackscr_fogTileSize_ult;      /* BlowFog static fogTileSize.uls/.ult */
 
@@ -114,33 +114,33 @@ extern u16 trackscr_fogTileSize,trackscr_fogTileSize_ult;      /* BlowFog static
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
-extern void setGameState(s32);                   /* setGameState */
+extern void setGameState(s32);
 extern s8 PS_PakChanged(s32);                     /* (N64) controller-pak removed test */
-extern void PlayStartABSound(u32);            /* PlayStartABSound */
-extern void PlayLRSound(u32);                   /* PlayLRSound */
-extern s32 AudPlayEffect(u32,u32,u32,u8);    /* AudPlayEffect */
+extern void PlayStartABSound(u32);
+extern void PlayLRSound(u32);
+extern s32 AudPlayEffect(u32,u32,u32,u8);
 extern void audio_bus_mix(Profile **,u8,s8);      /* SavePlayerOption */
-extern s8 GetPlayerOption(Profile **,u8);            /* GetPlayerOption */
-extern void SavePlayerTrack(Profile **,s32,u8);   /* SavePlayerTrack */
-extern u8 GetPlayerTrack(Profile **,s32);          /* GetPlayerTrack */
-extern void SetOptions(void);               /* SetOptions */
+extern s8 GetPlayerOption(Profile **,u8);
+extern void SavePlayerTrack(Profile **,s32,u8);
+extern u8 GetPlayerTrack(Profile **,s32);
+extern void SetOptions(void);
 extern void particle_lifetime_set(void);          /* createBG */
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);  /* NewMultiBlit */
-extern void ZeroCamera(s16);           /* ZeroCamera */
-extern void UpdateCameras(void);         /* UpdateCameras */
-extern void ClearRushControls(void);            /* ClearRushControls */
-extern s32 IsTrackUnlocked(s32);                    /* IsTrackUnlocked */
-extern s32 MBOX_NewObject(u32,uintptr_t,s32,u32);     /* MBOX_NewObject */
-extern s32 MBOX_FindObject_WORK(char *,s8,s8,s8);   /* MBOX_FindObject_WORK */
-extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);  /* MBOX_FindTexture_WORK */
-extern void ZOID_SetTexture(s16,intptr_t,s32);      /* ZOID_SetTexture */
-extern void ZOID_SetColor(s16,s32 *);             /* ZOID_SetColor */
-extern void ScaleUV(f32 [3][3],f32 [3][3],f32);  /* ScaleUV */
-extern void WPitchUV(f32,f32 [][3]);         /* WPitchUV */
-extern void WRollUV(f32,f32 [][3]);         /* WRollUV */
-extern void ZeroCameras(void);          /* ZeroCameras */
-extern void MBOX_HideObject(s32,s32,s32);         /* MBOX_HideObject */
-extern void MBOX_ShowObject(s32,s32,s32);   /* MBOX_ShowObject */
+extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
+extern void ZeroCamera(s16);
+extern void UpdateCameras(void);
+extern void ClearRushControls(void);
+extern s32 IsTrackUnlocked(s32);
+extern s32 MBOX_NewObject(u32,uintptr_t,s32,u32);
+extern s32 MBOX_FindObject_WORK(char *,s8,s8,s8);
+extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
+extern void ZOID_SetTexture(s16,intptr_t,s32);
+extern void ZOID_SetColor(s16,s32 *);
+extern void ScaleUV(f32 [3][3],f32 [3][3],f32);
+extern void WPitchUV(f32,f32 [][3]);
+extern void WRollUV(f32,f32 [][3]);
+extern void ZeroCameras(void);
+extern void MBOX_HideObject(s32,s32,s32);
+extern void MBOX_ShowObject(s32,s32,s32);
 
 /* unit functions */
 void trackscr_InitScreen(void);
@@ -268,12 +268,12 @@ extern Blit *trackScreenPoly,*trackFogPoly;
 extern void UpdateBlit(Blit *);
 /* BlowFog (inlined into _InitScreen); MAT3 static fogTileSize (anon_uls_ult_8) */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
-extern volatile s16 gRenderInProgress;   /* gRenderInProgress */
-extern s32 trackMapObj;            /* trackMapObj */
+extern volatile s16 gRenderInProgress;
+extern s32 trackMapObj;
 extern void RemoveBlit(Blit *);   /* RemoveBlit (ZOID_RemovePoly on N64: blits) */
-extern void ZOID_RemoveObject(s16);  /* ZOID_RemoveObject */
-extern void removeBG(void);  /* removeBG */
-extern void ZOID_Reset(void);  /* ZOID_Reset */
+extern void ZOID_RemoveObject(s16);
+extern void removeBG(void);
+extern void ZOID_Reset(void);
 /* ---- context (region): _UninitScreen, buildTrackMap, animTrackMap: option_parent research bodies ---- */
 /* PC: the loaded WAD's OBHD records keep their N64 layout (port/assets/wad.c), so a LOD's display list and
  * vertices are u32 RDRAM-window addresses here too (docs/port/LOADERS.md). */
@@ -283,7 +283,7 @@ typedef struct RomObjDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lo
 typedef struct ModelBank {RomObjDef *romObjDefs;s32 count;} ModelBank;
 typedef struct TrackMapEntry {s32 handle;f32 offset_x,offset_y,angle,scale_from,scale_to;f32 matrix[3][3],position[3];} TrackMapEntry;   /* trackMap: anon_objIdx_cityX_48 */
 extern TrackMapEntry trackMap[20];
-extern s8 trackMapsBuilt;            /* trackMapsBuilt */
+extern s8 trackMapsBuilt;
 extern MapLod saved_map_lods[7];   /* original lod[0] of the seven map objects */
 extern MapLod mapObj[7];   /* mapObj */
 extern void *map_display_list_blocks[7],*map_vertex_blocks[7];
@@ -300,7 +300,7 @@ extern ImageMeta gBlitInstanceList[];
 extern char *trackScreenNames[];
 extern char track_fog_texture_name[];
 extern Color loadTrackScreen_backColor;
-extern s32 kNumMapSects;          /* kNumMapSects */
+extern s32 kNumMapSects;
 extern u32 mapObj_selDisplayList;             /* mapObj[6].displayList (MapLod) */
 /* PC: mapObj[6].displayList under one name, as for gOptions_fog_intensity: clearTrackMaps and buildRaceTrackMaps write it
  * through mapObj and buildTrackMap reads it, and the three may be inlined into updateTrackScreen. */
@@ -315,15 +315,15 @@ extern Blit *NewBlit(char *,s16,s16,s16);
 #define DISPLAY_VERTEX(p,v,n,first) DISPLAY_WORDS(p,0x01000000u|((n)<<12)|(((first)+(n))<<1),(u32)(v))
 #define DISPLAY_TRIANGLES(p,a,b,c,d,e,f) DISPLAY_WORDS(p,0x06000000u|((a)*2<<16)|((b)*2<<8)|((c)*2),((d)*2<<16)|((e)*2<<8)|((f)*2))
 extern f32 trackscr_animTrackMap_rotAngle,trackscr_animTrackMap_cityPos[3],trackscr_animTrackMap_mapPos[3];
-extern void ScaleUVXYZ(f32 (*)[3],f32 (*)[3],f32,f32,f32);   /* ScaleUVXYZ */
-extern void WYawUV(f32,f32 (*)[3]);   /* WYawUV */
+extern void ScaleUVXYZ(f32 (*)[3],f32 (*)[3],f32,f32,f32);
+extern void WYawUV(f32,f32 (*)[3]);
 /* ---- context (region): showTrackSelect stand-in (MAT3 port), animTrackMaps stand-in ---- */
-extern s8 gBackwards;      /* gBackwards */
-extern s8 gMirrorWaves;      /* gMirrorWaves */
+extern s8 gBackwards;
+extern s8 gMirrorWaves;
 extern f32 trackscr_showTrackSelect_angle;     /* showTrackSelect static angle */
 extern f32 trackscr_showTrackSelect_fogPos[3];  /* showTrackSelect static fogPos */
-extern void CopyUV(f32 *,f32 (*)[3]);          /* CopyUV */
-extern void YawUV(f32,f32 (*)[3]);           /* YawUV */
+extern void CopyUV(f32 *,f32 (*)[3]);
+extern void YawUV(f32,f32 (*)[3]);
 extern f32 trackscr_animTrackMaps_mapPos[3];   /* animTrackMaps static mapPos */
 /* ---- buildTrackMaps (MAT3 trackscr.c, GC 0x8008ad10) and its inlined statics ---- */
 typedef struct Vtx_t {s16 ob[3];u16 flag;s16 tc[2];u8 cn[4];} Vtx_t;
@@ -331,21 +331,21 @@ typedef struct ResPath {u16 numPts;s16 (*pts)[3];} ResPath;
 typedef struct Checkpoints {s16 startTime,loopPt,finishPt,startPt,numPoints;} Checkpoints;
 extern s16 gPathMax[3];          /* gPathMax */
 extern s16 gPathMin[3];          /* gPathMin */
-extern ResPath gResPath;         /* gResPath */
-extern Checkpoints gCheckpoints;     /* gCheckpoints */
-extern void *gPathWave;           /* gPathWave */
-extern s32 pathWaveIdx;             /* pathWaveIdx */
+extern ResPath gResPath;
+extern Checkpoints gCheckpoints;
+extern void *gPathWave;
+extern s32 pathWaveIdx;
 extern Color race_map_vertex_color;           /* buildRaceTrackMaps static map vertex colour {63,63,63,255} */
 extern f32 buildRaceTrackMaps_mapPos[3],buildRaceTrackMaps_selMapPos[3];  /* buildRaceTrackMaps static mapPos (x2) */
 extern f32 buildStuntTrackMaps_mapPos[3];          /* buildStuntTrackMaps static mapPos */
 extern f32 buildBattleTrackMaps_mapPos[3];          /* buildBattleTrackMaps static mapPos */
-extern s32 LoadWave(s32,s32,s32,s32,intptr_t);  /* LoadWave */
-extern void *GetWaveInstanceAddr(s32);  /* GetWaveInstanceAddr */
-extern void ReadCheckpointData(void);   /* ReadCheckpointData */
-extern void ReadPathData(void);  /* ReadPathData */
-extern void UnloadWaveInstance(s32);    /* UnloadWaveInstance */
+extern s32 LoadWave(s32,s32,s32,s32,intptr_t);
+extern void *GetWaveInstanceAddr(s32);
+extern void ReadCheckpointData(void);
+extern void ReadPathData(void);
+extern void UnloadWaveInstance(s32);
 extern void *audio_dma_sync(s32,s32);  /* AllocateMemoryHeap */
-extern s32 FindResPathIntersect(s16);     /* FindResPathIntersect */
+extern s32 FindResPathIntersect(s16);
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 #define GFX(p,a,b) do { Gfx *_g = (p)++; _g->words.w0 = (a); _g->words.w1 = (b); } while (0)
@@ -662,7 +662,7 @@ void trackscr_InitScreen(void)
 
 /* body, merged 2026-10-21.
  * : MAT3 _UninitScreen calls uninitButtons and clearTrackMaps; both are inlined statics whose deleted
- * procedures are the retail stubs trackscr_uninitButtons (uninitButtons) and clearTrackMaps (clearTrackMaps), emitted in the
+ * procedures are the retail stubs trackscr_uninitButtons (uninitButtons) and clearTrackMaps, emitted in the
  * post-order of the call graph (clearTrackMaps is visited first: last call first). Bodies moved verbatim from here. */
 void trackscr_UninitScreen(void)
 {

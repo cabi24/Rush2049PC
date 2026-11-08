@@ -75,14 +75,14 @@ void pc_os_spin_yield(const char *site)
 /* ---------------------------------------------------------------- what the paths read and set */
 
 int8_t gInited_AudioMgr;              /* gInited (the shutdown) */
-int32_t gActiveEdges;             /* gActiveEdges */
-int32_t gMainSelect;             /* gMainSelect */
-int32_t gRace;          /* gRace */
-int8_t gSoftReset;              /* gSoftReset */
+int32_t gActiveEdges;
+int32_t gMainSelect;
+int32_t gRace;
+int8_t gSoftReset;
 int8_t gameover_inited;              /* the game over screen inited */
-int32_t gGameOverState;             /* gGameOverState */
+int32_t gGameOverState;
 int32_t gSkipToGameState, gNewGameState;
-uint8_t gRestartGame;             /* gRestartGame */
+uint8_t gRestartGame;
 void *n64_memcpy(void *d, const void *s, size_t n) { return memcpy(d, s, n); }
 void *n64_memset(void *d, int c, size_t n) { return memset(d, c, n); }
 
@@ -165,10 +165,10 @@ void post_type7(void);
 void AudioShutdown(void);                                 /* the audio shutdown */
 void controlMain(void);                                 /* the game over screen's choice */
 void updateGameOverScreen(void);                              /* the game over screen */
-void AbortGame(void);                                 /* AbortGame */
+void AbortGame(void);
 
 static void sync_entry_register_3(void) { AudPlaySong(3, 1); }
-static void func_800D6E00_1(void) { AudMono(1); }
+static void AudMono_1(void) { AudMono(1); }
 static void speed_set_half(void) { AudSetMasterVol(0.5f, 0.25f, 1, 0); }
 
 static void drain(void)
@@ -192,7 +192,7 @@ static void reset(void)
 /* ---------------------------------------------------------------- the posters: lock, take, fill, unlock, send */
 
 static const struct { const char *name; void (*post)(void); int cmd; } POSTERS[] = {
-    {"AudResumeAllEffects", AudResumeAllEffects, 9},          {"AudMono", func_800D6E00_1, 11},
+    {"AudResumeAllEffects", AudResumeAllEffects, 9},          {"AudMono", AudMono_1, 11},
     {"AudPlaySong", sync_entry_register_3, 0}, {"AudKillSong", AudKillSong, 1},
     {"AudStopAllEffects", AudStopAllEffects, 7}, {"AudPauseAllEffects", AudPauseAllEffects, 7},
     {"AudSetMasterVol", speed_set_half, 10},            {"us_AudKillSong", us_AudKillSong, 1},

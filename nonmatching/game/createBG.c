@@ -54,16 +54,16 @@ extern s32 gBackCamera[4][4];             /* gBackCamera */
 extern Poly *backPolys[4];              /* backPolys */
 extern void *bg_texture;                 /* background texture (N64) */
 extern s32 offsetsValid[4];                /* offsetsValid */
-extern SoundState *backBlit;           /* backBlit */
+extern SoundState *backBlit;
 extern SoundClearRecord frontBack[];    /* frontBack */
 extern SoundClearRecord trackBack[];    /* trackBack */
 extern s16 gNumWindows;
 extern volatile u8 gNumModels;
-extern u32 gGameState;                 /* gGameState */
+extern u32 gGameState;
 
 void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
-Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);  /* ZOID_NewPoly */
-extern SoundState *NewMultiBlit(s16 ulx, s16 uly, SoundClearRecord *mblit, s16 nblits);           /* NewMultiBlit */
+Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);
+extern SoundState *NewMultiBlit(s16 ulx, s16 uly, SoundClearRecord *mblit, s16 nblits);
 
 void ZOID_ShowPoly_bg(Poly *poly)
 {

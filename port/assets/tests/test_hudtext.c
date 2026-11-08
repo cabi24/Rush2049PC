@@ -2,7 +2,7 @@
  * animSpeedText, the HUD's digital speedometer, and video_animPanes (animPanes@videoscr.c), the video screen's panes.
  * The speedometer reads the car records in their PC layout (0x468 bytes, docs/port/CARS.md) by the model records'
  * slots (N64 layout), and its units from the text bank's string table (a host pointer at +8, ModelTables); the
- * panes' InitPane (InitPane) takes a pointer-sized sixth argument. The test stands in for the font and
+ * panes' InitPane takes a pointer-sized sixth argument. The test stands in for the font and
  * text functions and records what they draw.
  * game: nonmatching/game/animSpeedText.c nonmatching/game/video_animPanes.c
  */
@@ -18,7 +18,7 @@
 /* ---------------------------------------------------------------- the game's data */
 
 int8_t gShowSpeed, gShowMetric;                 /* gShowSpeed, gShowMetric */
-struct { int32_t h, v; } gJust;           /* gJust */
+struct { int32_t h, v; } gJust;
 int16_t gNumWindows;
 struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */

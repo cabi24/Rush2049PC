@@ -4105,7 +4105,7 @@ void SetDefaults(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *varian
  *variant=-1;
 }
 
-/* HAL_DrawText (HAL_DrawText) and TextLen (_TextLen) are defined in hal_drawtext.c */
+/* HAL_DrawText and TextLen (_TextLen) are defined in hal_drawtext.c */
 void HAL_StartText(void);
 
-/* HAL_FinishText (HAL_FinishText) is defined in finishtext.c */
+/* HAL_FinishText is defined in finishtext.c */

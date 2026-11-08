@@ -156,7 +156,7 @@ void MBOX_HideObject(int32_t obj, int32_t a, int32_t b) {}
 int32_t IsCoinFound(int32_t car, int32_t n) { return 0; }
 static int g_interp;
 void FoundCoin(int32_t car, int32_t n) { g_interp = n; }
-void func_8038d3a4(void *a, void *b, int32_t c) {}
+void BattleDamage(void *a, void *b, int32_t c) {}
 void BodyVector(float *v, float *out, float *m)
 {
     for (int i = 0; i < 3; i++)

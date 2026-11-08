@@ -59,7 +59,7 @@ Entity *ConvertTag(s32 h);
 /* The manifest owner of ValidateEmitter is an empty deleted-procedure stub (src/blob/ValidateEmitter.c),
  * which this group's calls bind to on PC. The body written here gets its own name
  * (docs/port/PROTOTYPES.md). */
-#define ValidateEmitter pc_func_800BF01C
+#define ValidateEmitter pc_ValidateEmitter
 void ValidateEmitter(CamSlot *c);
 Msg *GetCmd(void);
 

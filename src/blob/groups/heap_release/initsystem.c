@@ -1,15 +1,15 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * InitSystem (0x800EEA7C, 820 B; historical label) = MAT3 InitSystem@Init.c (GC 0x80024948, 172 B), the N64
- * version: InitMemory?(50, 10) (InitMemory), SaveInit (SaveInit), InitGraphics (N64 _InitGfx: options
+ * version: InitMemory?(50, 10) (InitMemory), SaveInit, InitGraphics (N64 _InitGfx: options
  * video_texture_filter/video_color_dither/video_dither_filter/video_divot = 0, FOV HFOV = 90, wait for osTvType (0x80000300),
  * video_set_mode, three 0x22620-byte frame heaps (audio_dma_sync / AllocateMemoryHeapHigh, cleared by audio_loop_control,
  * aligned (+32) & ~63), the two 128-byte frame records frame_records[0..1] (display-list buffers frame_command_buffer_a /
  * frame_command_buffer_b, count 2, heap), the display-list pointers frame_dynamic / frame_matrix_cursor = +1728 / frame_dl = frame_dl_start
  * = +0x9CC0; then ZOID_Init (ZOID_Reset), InitBlits (func_800A5488), InitCameras (ZeroCameras)),
  * AudioInit(32, 16, 16, 5, 64, 1.0f, 200.0f, 0) (AudioInit), the two gListeners / gEmitters buffers freed with
- * DeallocateMemory when expansion_pak_present is clear, InitRushControls (InitRushControls), SetControllerActive(-1, 0)
- * (SetControllerActive), InitOptions, InitializeTimer (InitializeTimer) and HAL_InitText (_InitSemaphore: font queue
+ * DeallocateMemory when expansion_pak_present is clear, InitRushControls, SetControllerActive(-1, 0)
+ * (SetControllerActive), InitOptions, InitializeTimer and HAL_InitText (_InitSemaphore: font queue
  * text_lock_queue created once, function-local static sInited at 0x801147C0; gFontIndex gFontIndex = -1).
  * MAT3 names in the helper names; the N64 body differs from GC (GC has no display setup or frees).
  * Base: draft (structure, buffers). levers:

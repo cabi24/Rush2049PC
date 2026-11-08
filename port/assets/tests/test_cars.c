@@ -147,7 +147,6 @@ VFN(AnimateTire) VFN(AnimateWing) VFN(AnimateWingFlame) VFN(AnimateWeapon) VFN(A
 VFN(AnimateArrow) VFN(recorder)
 int32_t AnimateFrame(void) { return 0; }
 void StartWeapon(int16_t slot);
-void func_8038c910(int16_t slot) { StartWeapon(slot); }   /* StartCar's spelling of StartWeapon */
 /* The physics descriptor's tire set-up: what car_resistance passes. */
 static uint32_t g_tire_info[4];
 static float g_tire_x[4];

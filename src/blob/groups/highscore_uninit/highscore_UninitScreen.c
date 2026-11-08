@@ -43,7 +43,7 @@ void highscore_UninitScreen(void)
     gNewGameState = 0x800000;
 }
 
-void __standin2_func_800F1114(void)
+void __standin2_highscore_UninitScreen(void)
 {
     highscore_UninitScreen();
 }

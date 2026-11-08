@@ -45,19 +45,19 @@ struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot,
 struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; };
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
-extern volatile f32 gFrameSeconds;            /* gFrameSeconds */
+extern volatile f32 gFrameSeconds;
 extern f32 unitmatrix[3][3];      /* unitmatrix */
-extern volatile u8 gNumModels;    /* gNumModels */
+extern volatile u8 gNumModels;
 extern s8 gOptions[];           /* gOptions */
-extern s8 gGameStarted;             /* gGameStarted */
-extern s8 gSoftReset;             /* gSoftReset */
+extern s8 gGameStarted;
+extern s8 gSoftReset;
 extern u32 gGameState, gSkipToGameState;/* gGameState, gSkipToGameState */
-extern u32 gActiveEdges;            /* gActiveEdges */
-extern s16 gNumPlayers;            /* gNumPlayers */
+extern u32 gActiveEdges;
+extern s16 gNumPlayers;
 extern Controller gControllerData[4];  /* gControllerData */
 extern s8 cheat_menu_unlocked;             /* gCheatActive[23] */
 extern s8 startscr_validOption[];           /* validOption */
-extern u32 gActiveLevels;            /* gActiveLevels */
+extern u32 gActiveLevels;
 extern ButtonInfo startscr_buttonInfo[18]; /* buttonInfo */
 extern s8 startscr_inited;             /* inited */
 extern Blit *startscr_blit;          /* blit */
@@ -69,49 +69,49 @@ extern f32 startscr_buttonX;            /* buttonX */
 extern f32 startscr_maxY;            /* maxY */
 extern f32 startscr_buttonZ;            /* buttonZ */
 extern f32 startscr_cursorZ;            /* cursorZ */
-extern s32 gStartMenuSelect;            /* gStartMenuSelect */
-extern s32 gMaxPlayers;            /* gMaxPlayers */
-extern s32 exitStartScreen;            /* exitStartScreen */
+extern s32 gStartMenuSelect;
+extern s32 gMaxPlayers;
+extern s32 exitStartScreen;
 extern f32 startscr_cursorSpeed;            /* cursorSpeed */
-extern f32 playerCursorSpeed;            /* playerCursorSpeed */
+extern f32 playerCursorSpeed;
 extern char *startscr_buttonNames[];        /* buttonNames */
 extern MultiBlit startscr_mblit[];    /* mblit */
 extern Egg start_screen_egg[];          /* gEggs + 23 entries is the start-screen egg */
-extern Egg *gEgg;           /* gEgg */
-extern f32 gNextTimeOut;            /* gNextTimeOut */
-extern s32 gEggIdx;            /* gEggIdx */
+extern Egg *gEgg;
+extern f32 gNextTimeOut;
+extern s32 gEggIdx;
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 extern void *memcpy(void *, const void *, u32);
 extern void particle_lifetime_set(void);      /* createBG */
-extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);  /* MBOX_FindObject_WORK */
-extern s32 MBOX_NewObject(s32, f32 (*)[3], s32, s32); /* MBOX_NewObject */
-extern void ZOID_SetColor(s16, tRGBA *);      /* ZOID_SetColor */
-extern void ZeroCameras(void);      /* ZeroCameras */
-extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16); /* NewMultiBlit */
-extern void ClearRushControls(void);        /* ClearRushControls */
-extern s8 CheckForEgg(void);                /* CheckForEgg */
-extern void setGameState(s32);               /* setGameState */
-extern void AudSetMusicVol(f32, f32);    /* AudSetMusicVol */
-extern void AudPlaySong(s32, s32);    /* AudPlaySong */
-extern void PlayStartABSound(u32);        /* PlayStartABSound */
-extern void PlayLRSound(u32);               /* PlayLRSound */
-extern void PlayUDSound(u32);        /* PlayUDSound */
-extern void RemoveBlit(Blit *);               /* RemoveBlit */
-extern void removeBG(void);       /* removeBG */
-extern void ZOID_RemoveObject(s16);          /* ZOID_RemoveObject */
-extern void AudKillSong(void);        /* AudKillSong */
-extern void AudStopAllEffects(void);        /* AudStopAllEffects */
-extern void ExitSystem(void);              /* ExitSystem */
-extern void MBOX_HideObject(s32, s32, s32);   /* MBOX_HideObject */
-extern void MBOX_ShowObject(s32, s32, s32); /* MBOX_ShowObject */
-extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32); /* MBOX_FindTexture_WORK */
-extern void ZOID_SetTexture(s16, void *, s32);  /* ZOID_SetTexture */
-extern void ScaleUV(f32 *, f32 *, f32); /* ScaleUV */
-extern void WPitchUV(f32, f32 *);        /* WPitchUV */
-extern void WRollUV(f32, f32 *);        /* WRollUV */
-extern void ScaleUVXYZ(f32 *, f32 *, f32, f32, f32); /* ScaleUVXYZ */
+extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
+extern s32 MBOX_NewObject(s32, f32 (*)[3], s32, s32);
+extern void ZOID_SetColor(s16, tRGBA *);
+extern void ZeroCameras(void);
+extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
+extern void ClearRushControls(void);
+extern s8 CheckForEgg(void);
+extern void setGameState(s32);
+extern void AudSetMusicVol(f32, f32);
+extern void AudPlaySong(s32, s32);
+extern void PlayStartABSound(u32);
+extern void PlayLRSound(u32);
+extern void PlayUDSound(u32);
+extern void RemoveBlit(Blit *);
+extern void removeBG(void);
+extern void ZOID_RemoveObject(s16);
+extern void AudKillSong(void);
+extern void AudStopAllEffects(void);
+extern void ExitSystem(void);
+extern void MBOX_HideObject(s32, s32, s32);
+extern void MBOX_ShowObject(s32, s32, s32);
+extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
+extern void ZOID_SetTexture(s16, void *, s32);
+extern void ScaleUV(f32 *, f32 *, f32);
+extern void WPitchUV(f32, f32 *);
+extern void WRollUV(f32, f32 *);
+extern void ScaleUVXYZ(f32 *, f32 *, f32, f32, f32);
 
 void startscr_initScreen(void);
 s8 startscr_optionValid(s32);

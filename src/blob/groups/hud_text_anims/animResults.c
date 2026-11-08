@@ -4,8 +4,8 @@
  * GC locals playerIdx, x, y, str[128], gNumPlayersFinished, gAPlayerFinished; block locals min/sec/thou and
  * str1[32]/str2[32]/place as in GC). End-of-race result panes and texts. The N64 build creates the panes here
  * (GC moved them to CheckResults): header pane resultPane[4] (resultPane[4]) and one pane per finished player
- * (InitPane = InitPane, ChangePaneColor = tournament_unlock_check with playerPaneColors hud_playerPaneColors),
- * each sized from TB_GetFontLineHeight (TB_GetFontLineHeight) in a block-scoped `h` (GC CheckResults style).
+ * (InitPane, ChangePaneColor = tournament_unlock_check with playerPaneColors hud_playerPaneColors),
+ * each sized from TB_GetFontLineHeight in a block-scoped `h` (GC CheckResults style).
  * GC-derived names: model D_8014A250 (2056 B), gGameCar gGameCar (952 B), gNumLaps
  * gNumLaps, gDeathMode gDeathMode, gRankedPlayer gRankedPlayer, ties ties, gLap gLap, gStuntPlayer
  * stunt_player_total_points, wrongWayPos wrongWayPos, gPlayers gPlayers, gText gText, TB_Sprintf TB_Sprintf,
@@ -44,17 +44,17 @@ typedef struct Pos { s32 x, y; } Pos;
 typedef struct StuntPlayer { s32 score; u8 pad[116]; } StuntPlayer;                      /* 120 B */
 
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;                /* gText */
+extern TextState gText;
 extern s16 gNumWindows;
-extern s16 gNumLaps;                           /* gNumLaps */
+extern s16 gNumLaps;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern PlayerRow gPlayers[];                   /* gPlayers */
 extern Pos wrongWayPos[][4];                      /* wrongWayPos */
-extern s32 gRace;                        /* gRace */
-extern s8 gDeathMode;                            /* gDeathMode */
-extern s8 gRankedPlayer;                            /* gRankedPlayer */
-extern s32 ties;                           /* ties */
+extern s32 gRace;
+extern s8 gDeathMode;
+extern s8 gRankedPlayer;
+extern s32 ties;
 extern u8 gLap[];                          /* gLap[p] */
 extern StuntPlayer stunt_player_total_points[];                 /* gStuntPlayer[p] (+0x14 in GC) */
 extern s32 *resultPane[];                        /* result panes [p], [4] = the header pane */
@@ -65,13 +65,13 @@ extern PaneColors hud_playerPaneColors[];
 extern s32 gJust[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32);
-extern s16 TB_GetFontLineHeight(void);        /* TB_GetFontLineHeight */
-extern void TB_SetTextColor(s32);               /* TB_SetTextColor */
-extern s32 TB_Sprintf(char *, char *, ...);    /* TB_Sprintf */
-extern void HAL_SetTextDepth(f32);                  /* HAL_SetTextDepth */
+extern s16 TB_GetFontLineHeight(void);
+extern void TB_SetTextColor(s32);
+extern s32 TB_Sprintf(char *, char *, ...);
+extern void HAL_SetTextDepth(f32);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s16, s16, char *);   /* TB_DrawTextScrollBox */
+extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s16, s16, char *);
 extern void ChangePaneColor(void *, void *, void *);
 
 s32 ar_font_set(s32 font);

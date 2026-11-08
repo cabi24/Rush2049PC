@@ -3,7 +3,7 @@
  * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
  * passthrough lines. */
 #include "../rom_tu.h"
-/* owned .bss of sound_hw_submit_task (sound_hw_submit_task): C definitions in place of the companion */
+/* owned .bss of sound_hw_submit_task: C definitions in place of the companion */
 void *sound_delay_line;
 unsigned int sound_delay_length;
 OSTask sound_task;

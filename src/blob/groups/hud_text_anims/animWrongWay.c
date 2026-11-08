@@ -1,11 +1,11 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
- * func_80108AB0 (0x80108AB0, 760 B) = GC animWrongWay@hud.c ("WRONG WAY" text per window): gRace = gRace,
- * gNumWindows = gNumWindows, gGameCar = gGameCar (heading +868, f239 = GC +0xEF), gGameState bit 0x400000,
- * gShowWrongWay = gShowWrongWay, wrongWayTime = wrongWayTime, gSeconds = gSeconds, wrongWayPos = wrongWayPos,
+ * func_80108AB0 (0x80108AB0, 760 B) = GC animWrongWay@hud.c ("WRONG WAY" text per window): gRace,
+ * gNumWindows, gGameCar = gGameCar (heading +868, f239 = GC +0xEF), gGameState bit 0x400000,
+ * gShowWrongWay, wrongWayTime, gSeconds, wrongWayPos,
  * wasStrayed = function-local static (0x8013F2F8, GC wasStrayed$1766), TB_SetJust_8AB0 pair gJust,
- * HAL_SetTextDepth = HAL_SetTextDepth, HAL_SetTextTranslucency = HAL_SetTextTranslucency, TB_GetFlashTextCycle_8AB0 = gColorCycle,
- * TB_SetTextColor = TB_SetTextColor, TB_DrawText = TB_DrawText. GC locals x, y, slot (same here).
+ * HAL_SetTextDepth, HAL_SetTextTranslucency, TB_GetFlashTextCycle_8AB0 = gColorCycle,
+ * TB_SetTextColor, TB_DrawText = TB_DrawText. GC locals x, y, slot (same here).
  * draft 184/190 -> unit EQUAL. Levers:
  *  - HAL_SetFont_8AB0 nests one level deeper than the lock/font helper (HAL_SetFont_8AB0 -> font_set_8AB0 -> gfx_lock_8AB0 /
  *    font_select_8AB0 / gfx_unlock_8AB0): with font_select_8AB0 nested the callee-saved cost rises and the FP constants

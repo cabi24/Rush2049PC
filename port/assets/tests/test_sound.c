@@ -1,5 +1,5 @@
 /* port/assets/tests/test_sound.c: the audio manager's records on 64-bit (docs/port/SYNTH.md). The game's own code
- * sets up the pools (AudioInit = AudioInit, AudInit3D), allocates commands (GetCmd), plays effects
+ * sets up the pools (AudioInit, AudInit3D), allocates commands (GetCmd), plays effects
  * with and without an emitter (AudPlayEffect, AudEmitEffect: a command, an fx tag and an emitter) and
  * schedules a sequence with variable arguments (AudPlaySequence), then pauses it (stop_sequence). Every record
  * is checked at its PC offsets, which are the host layouts of audiomgr_thread.c's views (tFxSequence, tAudioMsg,

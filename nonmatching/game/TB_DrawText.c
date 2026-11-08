@@ -7,12 +7,12 @@ typedef signed int s32;
 typedef unsigned int u32;
 
 typedef struct { s32 h, v; } TBJust;
-extern TBJust gJust;                          /* gJust */
-s16 TB_CenterText(void *text, s16 centerX);   /* TB_CenterText */
-s16 TB_RightText(void *text, s16 rightX);      /* TB_RightText */
-s16 TB_GetFontHeight(void);                       /* TB_GetFontHeight */
-void HAL_SetTextPos(s16 x, s16 y);                   /* HAL_SetTextPos */
-void HAL_DrawText(void *text, s16 numChars);  /* HAL_DrawText */
+extern TBJust gJust;
+s16 TB_CenterText(void *text, s16 centerX);
+s16 TB_RightText(void *text, s16 rightX);
+s16 TB_GetFontHeight(void);
+void HAL_SetTextPos(s16 x, s16 y);
+void HAL_DrawText(void *text, s16 numChars);
 
 void TB_DrawText(s16 x, s16 y, void *text)
 {

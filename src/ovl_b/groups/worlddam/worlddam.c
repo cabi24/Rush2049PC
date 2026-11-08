@@ -3,8 +3,8 @@
  * by umerge (its deleted-procedure stub is B:8038A400).  Places a 25-slot ring of 4-vertex scorch decals under the
  * car: bail if any wheel's airdist (model[slot] +0x5EC) > 8, drop four corners 3 units above pos +-6 in x/z, snap
  * each onto the road with RoadPosition (= RoadPosition, 0.25 above the hit), reject the decal when any edge
- * is steeper than 3 or longer than sqrt(200), then recycle/create the ring poly (ZOID_HidePoly = ZOID_HidePoly,
- * ZOID_NewPoly = ZOID_NewPoly, ZOID_UpdatePoly = ZOID_UpdatePoly) and fade the four older decals.
+ * is steeper than 3 or longer than sqrt(200), then recycle/create the ring poly (ZOID_HidePoly,
+ * ZOID_NewPoly, ZOID_UpdatePoly) and fade the four older decals.
  * Donor: MAT3 GameCube decomp, GameSource/src/worlddam.c newWorldDamage (GC 0x8005E9DC) + findDamageSlot
  * (GC 0x8005E880); MAT3's trailing ZOID_SetPolyFlags is absent in the N64 body.
  * Builds on (4/305): types, offsets, the single
@@ -14,7 +14,7 @@
  * `if (...) {\n return;\n }`.  as1's cross-block hoist pulls the ring address (`la DamagePolys`, emitted with the
  * line of the last if's fall-through) into the block of the delta stores; as1 breaks equal-priority ties by
  * source line, so the address must carry a later line than the stores (a one-line macro gives them all one line).
- * Types/offsets: ring DamagePolys {s8 full; u16 oldest; poly *polys[25]} (0x68), damTexture = damTexture,
+ * Types/offsets: ring DamagePolys {s8 full; u16 oldest; poly *polys[25]} (0x68), damTexture,
  * dummyVtx = dummyVtx[4][3], damColor = damColor[5], model[] stride 0x808.
  * Disclosed frame residual (rule): retail frame 248 bytes; without the ten unused s32 below the same
  * source compiles to 208 (Udef 148 B + 3 spill temps); nine give 240, ten give 248.  They sit after `m` (between

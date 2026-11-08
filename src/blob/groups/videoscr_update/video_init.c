@@ -1,6 +1,6 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
- * Video-options screen setup (GC videoscr.c), for the updateVideoScreen group (updateVideoScreen = updateVideoScreen):
+ * Video-options screen setup (GC videoscr.c), for the updateVideoScreen group (updateVideoScreen):
  *  particle_render    (0x800B8650, 448 B) = GC calcMenuRect@videoscr.c (MAT3 0x8006519C)
  *  particle_collision (0x800B8820, 1012 B) = GC initScreen@videoscr.c (MAT3 0x8006425C) with GC initButtons@videoscr.c
  *                       (MAT3 0x80065338) written in place.
@@ -34,7 +34,7 @@ typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; ch
 typedef struct { s32 x, w, h, cx; } MenuRect;
 
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;          /* gText */
+extern TextState gText;
 extern MenuRect video_menuRect;                /* menuRect */
 extern Button video_buttonInfo[12];              /* buttonInfo */
 extern char *video_buttonNames[];                 /* buttonNames */
@@ -47,31 +47,31 @@ extern Blit *video_blit;                   /* blit */
 extern s32 video_buttonsInited, video_buttonsJustInited;         /* buttonsInited, buttonsJustInited */
 extern s8 gOptions[];                    /* gOptions */
 extern s32 gVertCenter, gHorzCenter;         /* gVertCenter, gHorzCenter */
-extern s32 gVideoMenuSelect;                     /* gVideoMenuSelect */
+extern s32 gVideoMenuSelect;
 extern s8 gTestFrequency, gConfirmFrequency, gYesFrequency;   /* gTestFrequency, gConfirmFrequency, gYesFrequency */
-extern s32 exitVideoScreen;                     /* exitVideoScreen */
+extern s32 exitVideoScreen;
 extern s8 video_inited;                      /* inited */
-extern u32 gGameState;                   /* gGameState */
+extern u32 gGameState;
 
 s32 osRecvMesg(OSMesgQueue *, void *, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32);
-u32 HAL_GetTextWidth(void *, s16);    /* HAL_GetTextWidth */
-s16 TB_GetFontLineHeight(void);         /* TB_GetFontLineHeight */
-s32 TB_Sprintf(char *, char *, ...);     /* TB_Sprintf */
+u32 HAL_GetTextWidth(void *, s16);
+s16 TB_GetFontLineHeight(void);
+s32 TB_Sprintf(char *, char *, ...);
 s32 video_validOption(s32 i);                  /* validOption (updateVideoScreen getter) */
 void *memcpy(void *, const void *, u32);
-s32 MBOX_FindObject_WORK(char *, s8, s8, s32);       /* MBOX_FindObject_WORK */
+s32 MBOX_FindObject_WORK(char *, s8, s8, s32);
 s16 MBOX_NewObject(s32, void *, s32, u32);       /* MBOX_NewObject wrapper */
-TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32); /* MBOX_FindTexture_WORK */
-void ZOID_SetTexture(s16, TexDef *, s32);            /* ZOID_SetTexture */
-void WPitchUV(f32, f32 [3][3]);               /* WPitchUV */
-void ScaleUV(f32 [3][3], f32 [3][3], f32);   /* ScaleUV */
-void SaveGlobals(void);                          /* SaveGlobals */
-void createBG(void);                  /* createBG */
-void ZeroCameras(void);                  /* ZeroCameras */
-void ClearRushControls(void);                    /* ClearRushControls */
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
+TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
+void ZOID_SetTexture(s16, TexDef *, s32);
+void WPitchUV(f32, f32 [3][3]);
+void ScaleUV(f32 [3][3], f32 [3][3], f32);
+void SaveGlobals(void);
+void createBG(void);
+void ZeroCameras(void);
+void ClearRushControls(void);
+Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
 void vi_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
 void vi_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }

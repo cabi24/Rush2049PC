@@ -10,7 +10,7 @@
  * gone, gModelIteration is cleared at the end.
  *
  * Shaping:
- *   - gNumCars (number of cars), num_drones (num_drones) and num_humans
+ *   - gNumCars (number of cars), num_drones and num_humans
  *     (num_humans) are volatile.  num_humans is volatile in two other matched
  *     functions (hud_updateFrame, CheckCPs).  The two volatile stores keep
  *     their order in as1 (`.set volatile`), which is the last 3-word residual
@@ -62,9 +62,9 @@ extern s8 gNumActiveCars;         /* num_active_cars */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s16 num_our_drones;        /* num_our_drones */
-extern volatile s16 num_drones; /* num_drones */
-extern volatile s16 num_humans; /* num_humans */
+extern s16 num_our_drones;
+extern volatile s16 num_drones;
+extern volatile s16 num_humans;
 extern s16 humans[];      /* humans */
 /* On the PC the drone lists are pc_drones and pc_our_drones, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 8), and the slots after the race's are cleared up to the model records' PC_MODEL_SLOTS. The

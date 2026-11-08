@@ -30,16 +30,16 @@ typedef struct Options { u8 pad[12]; s8 sfxVolume; s8 musicVolume; s8 pad14; s8 
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
 
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;                /* gText */
+extern TextState gText;
 extern s32 audio_buttonsInited;                           /* buttonsInited */
-extern s32 gGameState;                         /* gGameState */
+extern s32 gGameState;
 extern s8 audio_gControllerRemoved;                            /* gControllerRemoved */
-extern s32 playerInPause;                           /* playerInPause */
+extern s32 playerInPause;
 extern s32 audio_menuRect_cx;                           /* menuRect.x (right edge of the option column) */
-extern s32 gAudioMenuSelect;                           /* gAudioMenuSelect */
+extern s32 gAudioMenuSelect;
 extern s32 audio_gSong;                           /* gSong */
 extern char *gSongNames[];                       /* gSongNames */
-extern Options gOptions;                       /* gOptions */
+extern Options gOptions;
 typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
 extern TextColor flashColors[2];                  /* flashColors */
 extern ButtonInfo audio_buttonInfo[];                  /* buttonInfo (N64 copy starts at the first button) */
@@ -48,15 +48,15 @@ extern u8 gCamera[];                          /* gCamera */
 extern s32 gJust[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);   /* HAL_GetTextWidth */
-extern s16 TB_GetFontLineHeight(void);        /* TB_GetFontLineHeight */
-extern void TB_SetTextColor(s32);               /* TB_SetTextColor */
-extern void TB_DrawText(s16, s16, char *);     /* TB_DrawText */
-extern s32 TB_Sprintf(char *, char *, ...);    /* TB_Sprintf */
-extern void HAL_SetTextDepth(f32);                  /* HAL_SetTextDepth */
-extern void HAL_SetTextTranslucency(f32);                  /* HAL_SetTextTranslucency */
-extern u8 *TB_Strcpy(u8 *, void *);          /* TB_Strcpy */
-extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
+extern u32 HAL_GetTextWidth(char *, s32);
+extern s16 TB_GetFontLineHeight(void);
+extern void TB_SetTextColor(s32);
+extern void TB_DrawText(s16, s16, char *);
+extern s32 TB_Sprintf(char *, char *, ...);
+extern void HAL_SetTextDepth(f32);
+extern void HAL_SetTextTranslucency(f32);
+extern u8 *TB_Strcpy(u8 *, void *);
+extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);
 extern TextColor gFlashColor1, gFlashColor2;
 void TB_FlashTextColors(TextColor first, TextColor second)   /* TB_FlashTextColors (GC: two union __anon_21da) */
 {

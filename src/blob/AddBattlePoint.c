@@ -3682,10 +3682,10 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-M2C_UNK func_803914b4(s8, s8, s8);                  /* extern */
+M2C_UNK AddBattlePointInternal(s8, s8, s8);                  /* extern */
 
 void AddBattlePoint(s8 arg0, s8 arg1, s8 arg2) {
     if ((gRace == 6) || (gRace == 4)) {
-        func_803914b4(arg0, arg1, arg2);
+        AddBattlePointInternal(arg0, arg1, arg2);
     }
 }

@@ -14,7 +14,7 @@
  *   cartridge's kind ({n, -1}: every drone each iteration). A drone's and a human's retirement (UpdateModel) move
  *   the next round to the row with a drone fewer and to the one-human rows.
  * - model_iteration's speed of every car, for the race's cars (PC_RACE_CARS: 6, then 12).
- * - DoDrones (DoDrones) for 12 cars: the drones' weights by place and the human's neighbour drones.
+ * - DoDrones for 12 cars: the drones' weights by place and the human's neighbour drones.
  * game: src/blob/groups/update_model/group.c src/blob/groups/maxpath/group.c src/blob/InitPathData.c
  * game: src/blob/groups/drones/group.c
  */

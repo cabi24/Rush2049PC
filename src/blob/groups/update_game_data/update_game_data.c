@@ -136,18 +136,18 @@ typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 gModelTime;            /* gModelTime */
+extern f32 gModelTime;
 extern const _tSusp *carSuspensions[]; /* carSuspensions */
 extern s8 gCarSuspensions[];           /* gCarSuspensions */
 extern u8 model_thread[];           /* model thread */
 
 void osStopThread(void *t);
 void osStartThread(void *t);
-void game_reckon_all(f32 time);                    /* game_reckon_all */
-void CopyUV(void *src, void *dst);             /* CopyUV */
-void PitchUV(f32 angle, f32 uv[][3]);          /* PitchUV */
-void RollUV(f32 angle, f32 uv[][3]);          /* RollUV */
-void WorldVector(f32 *v, f32 *out, f32 uv[][3]);   /* WorldVector */
+void game_reckon_all(f32 time);
+void CopyUV(void *src, void *dst);
+void PitchUV(f32 angle, f32 uv[][3]);
+void RollUV(f32 angle, f32 uv[][3]);
+void WorldVector(f32 *v, f32 *out, f32 uv[][3]);
 void UpdateTireAppearance(s16 droneIndex);
 
 typedef struct tSkidData {
@@ -163,8 +163,8 @@ extern u32 sSmoke[4];          /* sSmoke */
 extern u32 sSmoke2[4];          /* sSmoke2 */
 extern u32 sSkid[4];          /* sSkid */
 extern tSkidData sSkidData[4];    /* sSkidData */
-extern s8 gCoastFlag;              /* gCoastFlag */
-extern s32 gRace;             /* gRace */
+extern s8 gCoastFlag;
+extern s32 gRace;
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)

@@ -42,7 +42,7 @@ uint8_t gDronePaths[1024] __attribute__((aligned(16)));
 struct { uint16_t numPts; int16_t (*pts)[3]; uint8_t numAlt; void *alt; } gResPath;
 uint8_t gCheckpoints[0xC + 10 * 0x50] __attribute__((aligned(16)));
 
-/* What it calls: Resurrect's start branch calls syminit (syminit) with the record it placed; FindSurfaceUvsFromResPoint
+/* What it calls: Resurrect's start branch calls syminit with the record it placed; FindSurfaceUvsFromResPoint
  * (FindSurfaceUvsFromResPoint) faces the path's segment from a point on: here it records the point and gives the
  * identity. */
 static int g_placed[PC_MODEL_SLOTS];

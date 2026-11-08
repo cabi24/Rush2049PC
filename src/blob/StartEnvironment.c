@@ -2,7 +2,7 @@
 /*
  * StartEnvironment (0x800B1B48, 248 words) = StartEnvironment, MAT3 visuals.c (GC 0x80055404). (The
  * correlation row's StartArrow is right only for the inlined second half.) Two passes over the six cars:
- * CreateCar (CreateCar) + StartCar (StartCar) for every car in the game, then StartShadow and,
+ * CreateCar + StartCar for every car in the game, then StartShadow and,
  * with more than one player and a human-owned car, StartArrow. Both static starters are inlined, as is
  * ZOID_SetPolyZ (N64 sets z = 1; GC 10000). N64 StartShadow is the poly part only (visuals[11], AnimateShadow =
  * AnimateShadow, gShadowColor alpha 192, gTexList[6]); the GC packed-shadow strips do not exist on N64.
@@ -38,24 +38,24 @@ typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 gModelTime;                  /* gModelTime */
-extern tRGBA gShadowColor;                /* gShadowColor */
+extern f32 gModelTime;
+extern tRGBA gShadowColor;
 extern f32 gDummyVtx[4][3];            /* gDummyVtx */
 extern u16 gTexList[];                /* gTexList */
 extern tPoly PolyInstanceList[];              /* PolyInstanceList */
-extern u32 gGameState;                  /* gGameState */
+extern u32 gGameState;
 extern tRGBA arrowColors[5];             /* arrowColors */
 extern s8 gCarTeam[];                 /* gCarTeam */
-extern s32 gRace;                  /* gRace */
-extern s16 gNumWindows;                  /* gNumWindows */
-extern s16 gNumPlayers;         /* gNumPlayers */
+extern s32 gRace;
+extern s16 gNumWindows;
+extern s16 gNumPlayers;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
-void CreateCar(s16 slot, s16 camlink, int for_game);          /* CreateCar */
-void StartCar(s16 slot);                                  /* StartCar */
-tPoly *ZOID_NewPoly(int nverts, f32 (*xyz)[3], u16 texidx, tRGBA *color, u16 flags, int useTidx); /* ZOID_NewPoly */
-void AnimateShadow(tVisual *v, s16 op);                       /* AnimateShadow */
-void AnimateArrow(tVisual *v, s16 op);                       /* AnimateArrow */
+void CreateCar(s16 slot, s16 camlink, int for_game);
+void StartCar(s16 slot);
+tPoly *ZOID_NewPoly(int nverts, f32 (*xyz)[3], u16 texidx, tRGBA *color, u16 flags, int useTidx);
+void AnimateShadow(tVisual *v, s16 op);
+void AnimateArrow(tVisual *v, s16 op);
 
 void ZOID_SetPolyZ(tPoly *poly, s16 z);   /* the game's own ZOID_SetPolyZ (this file had a static copy: the same code) */
 

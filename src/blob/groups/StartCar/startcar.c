@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * StartCar (0x800B0C48, 600 B) = MAT3 StartCar@visuals.c (GC/DC names; map row), N64 version:
- *   StartFrame (StartFrame), StartSparks (StartSparks), StartWing x2 (StartWing, IPA s1/s2) and
+ *   StartFrame, StartSparks, StartWing x2 (StartWing, IPA s1/s2) and
  *   StartWingFlame x2 (StartWingFlame, IPA t0/t3) unless demo flag 8 is set without expansion_pak_present, StartWeapon
  *   (image B 0x8038C910) when gRace == 6, then the inlined statics StartHeadLights (N64: copy the two 8 x u16
  *   head-light UV blocks taillight_colors_dim / headlight_colors_night into the car model data at +0x140 / +0x150 on tracks 3 and 5),
@@ -53,22 +53,22 @@ typedef struct { u16 uv[8]; } tUVPair;
 typedef struct { u32 data; u8 pad[0x14]; } tCarModel;
 
 extern s32 gGameState;
-extern s32 gRace;            /* gRace */
+extern s32 gRace;
 extern s8 expansion_pak_present;
-extern s8 gTrackNum;            /* gTrackNum */
-extern f32 gModelTime;           /* gModelTime */
+extern s8 gTrackNum;
+extern f32 gModelTime;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern tCarParts gCarParts[];   /* gCarParts */
 extern tCarModel car_palettes_palBase[];
 extern tUVPair taillight_colors_dim, headlight_colors_night;
 
-void StartFrame(s16 slot);   /* StartFrame */
-void StartSparks(s16 slot);    /* StartSparks */
-void StartWingFlame(s16 slot, s16 side);   /* StartWingFlame */
-void StartWing(s16 slot, s16 side);   /* StartWing */
-void func_8038c910(s16 slot);    /* StartWeapon (image B) */
-void AnimateBrakeLights(tVisual *v, s16 op);   /* AnimateBrakeLights */
-void AnimateTire(tVisual *v, s16 op);   /* AnimateTire */
+void StartFrame(s16 slot);
+void StartSparks(s16 slot);
+void StartWingFlame(s16 slot, s16 side);
+void StartWing(s16 slot, s16 side);
+void StartWeapon(s16 slot);    /* image B */
+void AnimateBrakeLights(tVisual *v, s16 op);
+void AnimateTire(tVisual *v, s16 op);
 
 static void StartHeadLights(s16 slot);
 static void StartTire(s16 slot, u32 tire);
@@ -88,7 +88,7 @@ void StartCar(s16 slot)
         StartWingFlame(slot, 0);
         StartWingFlame(slot, 1);
     }
-    if (gRace == 6) func_8038c910(slot);
+    if (gRace == 6) StartWeapon(slot);
     StartHeadLights(slot);
     StartBrakeLights(slot);
     for (j = 0; j < 4; j++) StartTire(slot, j);

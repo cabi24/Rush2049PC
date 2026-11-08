@@ -3,7 +3,7 @@
  * state.c (N64): MAT3 state.c / Dreamcast state.c with the N64 additions read from retail.
  *
  * updateGameState (0x800CA3B4, 2,544 B) = updateGameState@state.c with initGameState (initGameState, umerge-
- *   inlined) and setGameState (setGameState) inlined. Base text: the Dreamcast initGameState (it keeps the N64 13-font
+ *   inlined) and setGameState inlined. Base text: the Dreamcast initGameState (it keeps the N64 13-font
  *   preload in state 0x40000 and SaveFlush(1)); N64 additions: the AudioInit block (AudioInit + AudFree3D) after
  *   InitWaves, AudSetFxVol(gOptions[13] / 10, 0.1) before LoadFrontEndOverlay(1) (AudSetFxVol, inlined),
  * N64 /60/55, the gPlayers PurgePlayerData loop (PurgePlayerData) in state 0x8, the front-end music
@@ -36,7 +36,7 @@
  *    block give the same code and frame.
  *  - initGameState is initGameState: written non-static (not kept) so umerge's deleted-procedure stub keeps the symbol;
  *    its retail stub lies where the post-order layout puts initGameState itself (after its last new callee
- *    SetOptions, before uninitGameState = uninitGameState).
+ *    SetOptions, before uninitGameState).
  *  - the two compiled-out `if (p > 1) {}` are the Dreamcast text's ("target retains empty per-controller check").
  */
 typedef unsigned char u8;
@@ -54,18 +54,18 @@ typedef struct { u32 opaque[6]; } OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
 
-extern u32 gGameState;                /* gGameState */
-extern u32 gNewGameState;                /* gNewGameState */
-extern u32 gSkipToGameState;                  /* gSkipToGameState */
+extern u32 gGameState;
+extern u32 gNewGameState;
+extern u32 gSkipToGameState;
 extern s8 gGameStarted, gSofdecShown, gLicenseShown, gIntroMovieShown, pfsInited, lcdInited; /* state-1 flags */
 extern s8 expansion_pak_present;
 extern s8 gOptions[];                 /* gOptions: [12] music volume, [13] sfx volume, [14] music track */
-extern s16 gNumPlayers;         /* gNumPlayers */
+extern s16 gNumPlayers;
 extern s16 gNumWindows;
 extern PadState gPlayers[];           /* gPlayers */
-extern s8 gUpsideDownTrack;                   /* gUpsideDownTrack */
-extern s8 gRestartGame;                   /* gRestartGame */
-extern s32 gRace;               /* gRace */
+extern s8 gUpsideDownTrack;
+extern s8 gRestartGame;
+extern s32 gRace;
 extern PlayerData **gPlayerFiles_head;
 extern u8 gFogColors[][3];       /* gFogColors */
 extern s8 start_overlay_loaded;                   /* overlay "Start" (image A) loaded */
@@ -73,36 +73,36 @@ extern s8 extra_overlay_loaded;                   /* overlay "Extra" (image B) l
 extern u8 overlay_base[];                 /* runtime image base (A and B) */
 extern OSMesgQueue heap_lock_queue;          /* heap semaphore */
 
-void uninitGameState(void);     /* uninitGameState */
-void InitWaves(void);           /* InitWaves */
-void AudioInit(u8 a0, u8 a1, u8 a2, s32 numA, s32 numB, f32 a5, f32 a6, s32 a7); /* AudioInit */
+void uninitGameState(void);
+void InitWaves(void);
+void AudioInit(u8 a0, u8 a1, u8 a2, s32 numA, s32 numB, f32 a5, f32 a6, s32 a7);
 void AudFree3D(void);
-void SetOptions(void);            /* SetOptions */
-void SetCountdownTimer(f32 t);             /* SetCountdownTimer */
+void SetOptions(void);
+void SetCountdownTimer(f32 t);
 void UpdateFrame(void);
-void InitRecords(void);               /* InitRecords */
-void setGameState(s32 state);          /* setGameState */
+void InitRecords(void);
+void setGameState(s32 state);
 void HAL_PurgeFonts(void);        /* _UnloadFontWaves */
 void UnloadFrontEndWaves(void);         /* _UnloadFrontEndWaves */
 void LoadFrontEndWaves(void); /* _LoadFrontEndWaves */
-void AudSetMusicVol(f32 vol, f32 time); /* AudSetMusicVol */
-void AudSetFxVol(f32 vol, f32 time); /* AudSetFxVol */
-void SetControllerActive(s32 p, s32 on);   /* SetControllerActive */
-void SetControllerStickEdges(s32 p, s32 on);    /* SetControllerStickEdges */
-void PS_LockFile(void *fileh, s32 lock); /* PS_LockFile */
-void AudPlaySong(s32 song, s32 a1); /* AudPlaySong */
-void PurgePlayerData(PlayerData **h); /* PurgePlayerData */
+void AudSetMusicVol(f32 vol, f32 time);
+void AudSetFxVol(f32 vol, f32 time);
+void SetControllerActive(s32 p, s32 on);
+void SetControllerStickEdges(s32 p, s32 on);
+void PS_LockFile(void *fileh, s32 lock);
+void AudPlaySong(s32 song, s32 a1);
+void PurgePlayerData(PlayerData **h);
 void load_extra_overlay(void);                 /* load overlay "Extra" */
 void load_start_overlay(void);  /* load overlay "Start" */
-s32 LoadWave(s32 wave, s32 a1, s32 a2, s32 a3, void *a4); /* LoadWave */
-void SaveFlush(s32 a);      /* SaveFlush */
+s32 LoadWave(s32 wave, s32 a1, s32 a2, s32 a3, void *a4);
+void SaveFlush(s32 a);
 void AudInit3D(s32 numA, s32 numB, f32 a2, f32 a3, s32 a4);
 s32 HAL_SetFont(s32 fontID);          /* HAL_SetFont (halfont.c) */
 void SaveServer(s32 forceUpdate, s32 rumbleOnly);
-void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win); /* ZOID_SetFog */
+void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win);
 void DeallocateMemoryInternal(u32 address, s32 tag); /* _DeallocateMemory (internal, IPA a1/a2) */
 void loading_effect_none(void);               /* empty N64 helper, deleted after inlining (stub 0x800C9150) */
-void initGameState(void);               /* initGameState */
+void initGameState(void);
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)

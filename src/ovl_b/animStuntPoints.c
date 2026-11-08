@@ -64,15 +64,15 @@ extern s32 bonuscnt[4];
 extern tStuntCoin stuntCoin[4][10];
 extern char stunt_coin_count_format[], stunt_points_format[], stunt_bonus_format[], stunt_landed_bonus_format[], stunt_total_points_format[];
 
-extern void HAL_SetTextDepth(f32);                       /* HAL_SetTextDepth */
-extern s32 HAL_SetFont(s32);                        /* HAL_SetFont */
-extern void TB_SetJust(u32, u32);                  /* TB_SetJust */
-extern void HAL_SetTextTranslucency(f32);                       /* HAL_SetTextTranslucency */
-extern void TB_Sprintf(void *, void *, ...);        /* TB_Sprintf */
-extern void TB_SetTextColor(s32);                    /* TB_SetTextColor */
-extern s16 TB_CenterText(void *, s16);      /* TB_CenterText */
-extern void TB_DrawText(s16, s16, void *);          /* TB_DrawText */
-extern s16 TB_GetFontLineHeight(void);             /* TB_GetFontLineHeight */
+extern void HAL_SetTextDepth(f32);
+extern s32 HAL_SetFont(s32);
+extern void TB_SetJust(u32, u32);
+extern void HAL_SetTextTranslucency(f32);
+extern void TB_Sprintf(void *, void *, ...);
+extern void TB_SetTextColor(s32);
+extern s16 TB_CenterText(void *, s16);
+extern void TB_DrawText(s16, s16, void *);
+extern s16 TB_GetFontLineHeight(void);
 
 int animStuntPoints(void *blt) /* animStuntPoints */
 {

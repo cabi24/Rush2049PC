@@ -4,7 +4,7 @@
  * modescr_uninitScreen (uninitScreen@modescr.c), and claimed. Post-order of updateModeScreen (its last calls are the three
  * uninitScreen calls): uninitButtons 99384, uninitScreen 9938C, optionValid 99394, updateButtons 993EC, initButtons
  * stub 998B8, initScreen 998C0, updateModeScreen 99D10 = the retail layout. No code changed. */
-/* superseding revision: modescr_updateButtons (modescr updateButtons) and updateModeScreen (updateModeScreen) are
+/* superseding revision: modescr_updateButtons (modescr updateButtons) and updateModeScreen are
  * now claimed members; modescr_optionValid and modescr_animText.c's modescr_animText are unchanged.  Shared-declaration change:
  * gNumModels and gFrameSeconds are volatile (only the new bodies use them). */
 typedef signed char s8;
@@ -63,12 +63,12 @@ s32 modescr_optionValid(s32 index)
  * and order from the GC DWARF (buttonIdx, prevPos[3], buttonY, selectY, tex, texIdx).  N64 differences (retail
  * displacements/constants): unselected buttons settle to 0.0f (GC 0.17453292f); the cursor block stores
  * position[0], position[1], position[2] in that order (GC: [2], [0], [1]); fabsf on the right of the speed compare
- * (`cursorSpeed < fabsf(d) * 60.0f / 10.0f`, single precision); gFrameSeconds (gFrameSeconds) and gNumModels
+ * (`cursorSpeed < fabsf(d) * 60.0f / 10.0f`, single precision); gFrameSeconds and gNumModels
  * (gNumModels) are volatile (lui/addiu/l* 0(reg) at every use).  Names: buttonInfo = modescr_buttonInfo[13] (0x40),
  * gButtonScale/gButtonSpace/buttonX/maxY/buttonZ/cursorZ = modescr_gButtonScale..modescr_cursorZ, cursorSpeed = modescr_cursorSpeed,
- * buttonsInited/buttonsJustInited = modescr_buttonsInited/modescr_buttonsJustInited, gModeMenuSelect = gModeMenuSelect, optionValid = modescr_optionValid,
- * CopyUV = CopyUV, MBOX_HideObject/ShowObject = MBOX_HideObject/MBOX_ShowObject, ZOID_SetTexture =
- * ZOID_SetTexture, MBOX_FindTexture_WORK = MBOX_FindTexture_WORK, WPitchUV/WRollUV/ScaleUV = WPitchUV/WRollUV/ScaleUV.
+ * buttonsInited/buttonsJustInited = modescr_buttonsInited/modescr_buttonsJustInited, gModeMenuSelect, optionValid = modescr_optionValid,
+ * CopyUV, MBOX_HideObject/ShowObject = MBOX_HideObject/MBOX_ShowObject, ZOID_SetTexture =
+ * ZOID_SetTexture, MBOX_FindTexture_WORK, WPitchUV/WRollUV/ScaleUV = WPitchUV/WRollUV/ScaleUV.
  * SHAPING (disclosed frame residual): unused0..unused2 are unused f32 locals declared first.  Retail frame 96; without
  * them 88 with every home 4 bytes high (prevPos 72, selectY 64, texIdx 58); one gives the right homes but frame 88;
  * three give retail exactly (prevPos 68, selectY 60, texIdx 54, frame 96) -- the same three-slot residual found
@@ -141,10 +141,10 @@ void modescr_updateButtons(void)
  * `keep` (unique symbols modescr_uninitScreen / modescr_uninitButtons), defined after the root, inlined three times by
  * umerge (retail's caller-less stubs 0x80399384/0x8039938C).
  * N64 differences: none in structure; gPlayers[i].save->fileh/pak = gPlayers[i].owner->resource->player, PS_PakChanged =
- * PS_PakChanged, ZOID_RemoveObject = ZOID_RemoveObject, RemoveBlit = RemoveBlit, removeBG = removeBG,
- * setGameState = setGameState, PlayStartABSound = PlayStartABSound, PlayUDSound = PlayUDSound,
+ * PS_PakChanged, ZOID_RemoveObject, RemoveBlit, removeBG,
+ * setGameState, PlayStartABSound, PlayUDSound,
  * gSkipToGameState/gGameState = gSkipToGameState/gGameState, inited = modescr_inited, blit = modescr_blit, exitModeScreen =
- * exitModeScreen, gRace = gRace, gSoftReset = gSoftReset, gActiveEdges = gActiveEdges, initScreen = modescr_initScreen.
+ * exitModeScreen, gRace, gSoftReset, gActiveEdges, initScreen = modescr_initScreen.
  * MATCH on the first typed port.
  */
 void modescr_uninitScreen(void);

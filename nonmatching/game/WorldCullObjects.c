@@ -35,10 +35,10 @@ typedef struct {
     u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
 } ObjInstance;
 
-extern tModelPart *WorldBase;      /* WorldBase */
-extern s8 gTrackNum;               /* gTrackNum */
-extern s16 Worlddlidx;              /* Worlddlidx */
-extern s8 gInvisibleTrack;               /* gInvisibleTrack */
+extern tModelPart *WorldBase;
+extern s8 gTrackNum;
+extern s16 Worlddlidx;
+extern s8 gInvisibleTrack;
 extern ObjInstance ObjInstanceList[];    /* ObjInstanceList */
 extern u8 trackParts[];             /* trackParts */
 extern u32 showAllParts[];            /* showAllParts */

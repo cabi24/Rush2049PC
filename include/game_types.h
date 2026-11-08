@@ -158,15 +158,15 @@ extern SegmentTableEntry frame_records[];  /* 0x80156BE0, element stride 0x80,
  * chain" failure classes).
  *
  * gPlayers_save (0x8014A160): the seed's call site is
- * `func_800a3424((*gPlayers_save)->unk8, 0, var_a2)` -- a double-pointer
+ * `PS_LockFile((*gPlayers_save)->unk8, 0, var_a2)` -- a double-pointer
  * pointee (contract's authorized class): gPlayers_save must be T** so
- * *gPlayers_save is T* and ->unk8 accesses T. func_800a3424's first parameter
+ * *gPlayers_save is T* and ->unk8 accesses T. PS_LockFile's first parameter
  * is declared s32 below, so unk8 is typed s32 to match; nothing else about
  * T is evidenced.
  */
 typedef struct {
     u8 pad0[8];
-    s32 unk8;   /* 0x8 - updateGameState: passed as func_800a3424's
+    s32 unk8;   /* 0x8 - updateGameState: passed as PS_LockFile's
                  * first (s32) argument */
 } D_8014A160_Target;
 extern D_8014A160_Target **gPlayers_save;  /* 0x8014A160 */
@@ -263,7 +263,7 @@ extern CountdownObject *gText_single; /* 0x8017A4E4 - DrawNoControllers:
 typedef struct PadConfig_s {
     struct PadConfig_s *unk0;  /* 0x0 - pointer R; dereferenced at ->unk14
                                 * elsewhere in ZOID_EndFrame
-                                * (func_8008a148's first arg), matching this
+                                * (BlitColors's first arg), matching this
                                 * struct's own unk14 -- self-referential
                                 * (research/cluster-data-refs.md already
                                 * records 0x80140BF0/+0x0 as a pointer with
@@ -301,9 +301,9 @@ extern PadConfig gBlitInstanceList;      /* 0x80140BF0 - ZOID_EndFrame:
  * (lui $t9,0x8014 / addiu $t9,$t9,-31120 forms 0x80138670), indexed by
  * sra $t7,$t6,0xa / sll $t8,$t7,3 (stride 8) then addu $v1,$t8,$t9.
  * +0x0 (.L800A0CD0, lw $v0,0($v1)) is read and immediately dereferenced at
- * +0x14 (.L800A0CDC, lw $a0,20($v0)) and passed to func_8008a148's first
+ * +0x14 (.L800A0CDC, lw $a0,20($v0)) and passed to BlitColors's first
  * (s32) argument -- the same role PadConfig's own unk14 plays at every
- * other func_8008a148 call site in this function, so the pointee is typed
+ * other BlitColors call site in this function, so the pointee is typed
  * PadConfig* here too (no wider claim). +0x4 (.L800A0CC0, lw $t6,4($v1))
  * is only ever compared against zero.
  */
@@ -438,7 +438,7 @@ typedef struct SoundClearRecord {
     s32 unk20;                    /* 0x20 */
 } SoundClearRecord;
 
-/* Partial record returned by func_800b3704. Field widths and offsets are
+/* Partial record returned by NewBlit. Field widths and offsets are
  * observed via m2c offsets in the NewMultiBlit seed. */
 typedef struct SoundState {
     u8 _pad0[0x4];
@@ -461,7 +461,7 @@ typedef struct SoundState {
     struct SoundState *unk3C;     /* 0x3C - pointer W */
 } SoundState;
 
-extern SoundState *func_800b3704(s32, s32, s32, s32); /* observed via m2c
+extern SoundState *NewBlit(s32, s32, s32, s32); /* observed via m2c
                                                         * offset in NewMultiBlit seed */
 extern SoundState *NewMultiBlit(s16 arg0, s16 arg1, SoundClearRecord *arg2, s16 arg3);
 
@@ -534,11 +534,11 @@ extern void load_extra_overlay(void);           /* real signature takes s32 reco
 extern s32 LoadWave(s32, s32, s32, s32, s32);  /* returns: m2c's own evidence -
  * audio_interrupt_handler stores its $v0 (`*sp5C = ...`) at two call sites */
 extern void LoadFrontEndOverlay(s32);
-extern void func_800a3424(s32, s32, s32);
-extern void func_800a7480(s32, s32, u8, u8, s32, s32, s32);
+extern void PS_LockFile(s32, s32, s32);
+extern void ZOID_SetFog(s32, s32, u8, u8, s32, s32, s32);
 extern void func_800c813c(s32, s32);      /* also called from UpdateGame */
-extern void func_800c885c(void);
-extern void func_800c9480(void);
+extern void AudFree3D(void);
+extern void InitRecords(void);
 extern void AudioInit(s32, s32, s32, s32, s32, f32, f32, s32);
 extern void AudInit3D(s32, s32, s32, s32, s32);
 extern void SetOptions(void);       /* also called from UpdateGame */
@@ -565,16 +565,16 @@ extern void UpdateVisuals(s8);
 extern s32 PrePlay(s32, s32);
 extern s32 ClearRushControls(s32);  /* returns: addiu $v0,$v0,76 */
 extern void updateGameOverScreen(void);
-extern void func_800ab18c(s32, s32);
-extern void func_800b61a8(s32, s32, s32, s32);
-extern void func_800d5374(void);
-extern void func_800d5828(s16);
-extern void func_800d6160(void);
-extern void func_800e762c(s32);
+extern void WorldFogDensity(s32, s32);
+extern void PlayGameSound(s32, s32, s32, s32);
+extern void StopListeners(void);
+extern void End_MDrive(s16);
+extern void StartGameMusicInternal(void);
+extern void init_model_task(s32);
 extern void func_800f7f3c(void);
-extern void func_800fbe30(void);
-extern void func_800fbe60(void);
-extern void func_800fbf2c(void);
+extern void CheckButtons(void);
+extern void InitCPTime(void);
+extern void CountDown(void);
 extern void GhostEnd(void);
 extern void init_state_continue(void);
 extern void modelstop(void);
@@ -601,7 +601,7 @@ extern void SetCountdownTimer(f32);          /* two call sites in UpdateGame and
 
 /* --- DrawNoControllers's callees --- */
 extern void TB_SetTextColor(s32);
-extern void func_800a4770(void *, s32);
+extern void game_strcat(void *, s32);
 extern s32 HAL_GetTextWidth(void *, s32);
 extern s32 HAL_SetFontInternal(void);  /* returns: move $v0,$s3 */
 extern void TB_DrawText(s16, s32, void *);
@@ -611,15 +611,15 @@ extern void sprintf(s8 *buf, s8 *fmt, ...);  /* matches src/game/game.c's
                                                * 0x80004990 */
 
 /* --- ZOID_EndFrame's callees --- */
-extern void func_8008705c(s32, u8, s32);
+extern void BlitClearAttribute(s32, u8, s32);
 extern void BlitDraw(s32, s16, s32, s32, s32, s32);
-extern void func_800878e0(s32, u8, s32);
-extern void func_8008a148(s32, u8, u8, s32);
-extern void func_8008a38c(u8);
-extern void func_8008a3e4(s16, s16, s32, s32);
-extern void func_8008a46c(s16, s16, s32, s32, void *);
-extern void func_8008a644(u16);
-extern void func_8009f058(s32);
+extern void BlitSetAttribute(s32, u8, s32);
+extern void BlitColors(s32, u8, u8, s32);
+extern void BlitXLU(u8);
+extern void BlitScissor(s16, s16, s32, s32);
+extern void BlitRect(s16, s16, s32, s32, void *);
+extern void BlitZDist(u16);
+extern void zoid_draw_window(s32);
 extern void blit_load_texture(s32, u8, u8, u16, s32, s32, s32, s32, s32, s32, s32);
 
 #endif

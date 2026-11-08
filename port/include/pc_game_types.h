@@ -438,14 +438,14 @@ struct pc_blast_obj {                   /* 0x54 */
     short unused;
     float ht;                           /* +0x50 */
 };
-struct pc_blast {                       /* 0x190: N64 gBlastObjs (gBlastObjs), 6 of them */
+struct pc_blast {                       /* 0x190: N64 gBlastObjs, 6 of them */
     struct pc_blast_obj blastObjs[4];   /* +0x000 */
     int glowIdx;                        /* +0x150 the glow's scene object, -1 none */
     struct pc_uv_matrix mat;            /* +0x154 the glow's matrix: its scene node points here */
     unsigned char alpha, alphaCnt, ralpha, ralphaCnt;
     float lifeTime, incTime;            /* +0x188 */
 };
-struct pc_blast_ring {                  /* 0x3C: N64 gBlastRingObjs (gBlastRingObjs), 6 of them to gTempCircuitFirstTrack */
+struct pc_blast_ring {                  /* 0x3C: N64 gBlastRingObjs, 6 of them to gTempCircuitFirstTrack */
     int ringIdx;                        /* +0x00 its scene object, -1 none (AnimateNewBlastRing: its low half) */
     struct pc_uv_matrix mat;            /* +0x04 its scene node points here */
     unsigned char ralpha, ralphaCnt;    /* +0x34 */

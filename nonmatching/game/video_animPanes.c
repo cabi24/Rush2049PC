@@ -15,7 +15,7 @@
  * PC (compiled into the PC build, CMakeLists.txt): animPanes@videoscr.c, the AnimFunc of the video-options screen's
  * MultiBlit tables video_frontEndBlit (front end) and video_pauseBlit (in game), which video_initScreen hands to NewMultiBlit
  * (ROM data). NewMultiBlit calls it once with the new blit, DrawBlits every frame after. No direct callers.
- * InitPane (InitPane) takes its sixth argument pointer-sized on the PC.
+ * InitPane takes its sixth argument pointer-sized on the PC.
  */
 typedef signed char s8;
 typedef unsigned char u8;
@@ -46,7 +46,7 @@ extern TblHdr *gText_single;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFont(s32 fontID);          /* HAL_SetFont */
+s32 HAL_SetFont(s32 fontID);
 void video_TitlePane(void);
 void TB_Sprintf(char *, char *, ...);
 u32 HAL_GetTextWidth(void *, s32);

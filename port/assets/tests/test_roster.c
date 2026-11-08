@@ -4,14 +4,14 @@
  * where the game build has 13. Every slot starts as a sentinel: the code must write and read the fields at their
  * N64 offsets in slots it walks and leave the others alone, whatever the storage's size.
  * InitSelectCarLoad names the 13 slots' cars; fake_init resets the attract demo's cars; CalcPolePositions
- * (init_state_continue) fills them for a race; munge_gLink_data (munge_gLink_data) counts the active ones into the
+ * (init_state_continue) fills them for a race; munge_gLink_data counts the active ones into the
  * race's car count gNumActiveCars and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long,
  * docs/port/DECOUPLE.md 8); PlayTargetSound reads a slot's owner through what was the alias D_80153E8F, +7 with a
  * stride of 8.
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c): the
  * demo's 12 drones and its camera's car going round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones,
  * the Drones option capped at the race's cars, and the circuit kept at the N64's 6; slots an earlier race of more
- * cars filled, emptied; init_cars (init_cars) with the humans' first distance behind every drone and the
+ * cars filled, emptied; init_cars with the humans' first distance behind every drone and the
  * records after the race's reset; LoadCars giving every drone of 12 a car of its own. And munge alone for 12 slots
  * (one human and 11 drones, one of them another node's, then the demo's 12): the lists in order, nothing after them
  * written, the model records after the race's cleared to the storage's end.
@@ -355,7 +355,7 @@ static void test_alias(void)
     CHECK(PlayTargetSound(1, 1, pos, 0) == -1);
 }
 
-/* init_cars (init_cars) on CalcPolePositions' roster for `humans` and `option`: every car's first distance
+/* init_cars on CalcPolePositions' roster for `humans` and `option`: every car's first distance
  * (+0x100), a human's behind every drone, -(the larger of 6 and the cars, less its slot), a drone's -1, -2... in its
  * order; the cars active; the records after them up to the storage's end reset (in_game, drone type 0; ours only
  * where the slot's owner is 0), whatever an earlier race left in them. */

@@ -126,13 +126,13 @@ _Static_assert(sizeof(PakRecord) == 0x310, "the controller/pak record");
 
 /* ---------------------------------------------------------------- the game's code under test */
 
-void PS_InitPakSys(void (*error)(int32_t, int32_t, uint32_t, int32_t, int8_t *, int8_t *, void *));   /* PS_InitPakSys */
+void PS_InitPakSys(void (*error)(int32_t, int32_t, uint32_t, int32_t, int8_t *, int8_t *, void *));
 void SaveServer(int32_t forceUpdate, int32_t rumbleOnly);
 void SaveInit(void);
 void **CreatePlayer(int32_t pak, uint8_t *name);
 int32_t ReadPlayerData(void **player);                           /* LoadPlayerData */
 void SavePlayerCarSetting(void **player, uint8_t car, uint8_t field, int8_t value);   /* a car setting */
-void PS_DeleteFile(void **fileh);                       /* PS_DeleteFile */
+void PS_DeleteFile(void **fileh);
 void PS_ReadFile(void **fileh);
 void PS_WriteFile(void **fileh, void *data, uint32_t size);
 void SaveFlush(int32_t mode);

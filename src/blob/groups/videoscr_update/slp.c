@@ -3,7 +3,7 @@
  * sound_loop_set (0x800B574C, 332 B) = GC _TitlePane@optionscr.c (GC locals width, str1[64]; N64 adds height and
  * x = width/2, all used). Option/pause screen title pane: font 13; "CONTROLLER %d %s" (playerInPause + 1, StrTable
  * +0x3A4) when gControllerRemoved (video_gControllerRemoved), else the screen title (StrTable +0xD4); the pane gTitlePane
- * (video_gTitlePane) is resized (ChangePaneSize = ChangePaneSize) or created (InitPane = InitPane).
+ * (video_gTitlePane) is resized (ChangePaneSize) or created (InitPane).
  * Body: . Internal function (unsaved s0,s1,s2,s4: its callers updateVideoScreen and video_animPanes save them).
  * Shaping (disclosed):
  *  - the HUD family's inlined lock/font helpers (gfx_lock/gfx_unlock/font_select/font_set) as non-static,

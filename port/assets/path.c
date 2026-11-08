@@ -1,6 +1,6 @@
 /* port/assets/path.c: paths, waves 158..182 (158..176 forward, 177..182 backward; docs/port/ASSETS.md §3.6).
  *
- * Layout, as ReadCheckpointData (ReadCheckpointData) and ReadPathData (ReadPathData, groups/pathcommon_read)
+ * Layout, as ReadCheckpointData and ReadPathData (ReadPathData, groups/pathcommon_read)
  * walk it:
  *   0x000  checkpoints: s16 startTime, loopPt, finishPt, startPt, numPoints; 2 pad; 10 x 0x50
  *          {f32 pos[3], normal[3]; 32-bit radius; s16 flags; s16 time[2]; s16 pathPts[20]; 2 pad; f32 distToNext}

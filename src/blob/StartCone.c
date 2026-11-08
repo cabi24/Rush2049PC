@@ -1,12 +1,12 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_8010DCFC (0x8010DCFC, 660 B) = GC _StartCone@targets.c (rush_d.elf 0x8004E6BC; static void
- * _StartCone(struct tTarget *t)). Starts a hit traffic cone flying: with gCarMines (gCarMines) and target id
+ * _StartCone(struct tTarget *t)). Starts a hit traffic cone flying: with gCarMines and target id
  * 236 (GC 0x226) the car's f863 flag is set and the model hidden (MBOX_HideObject = MBOX_HideObject(model, 0,
- * 15)); with gMineCones (gMineCones) the cone explodes instead (StartBlast = StartBlast(pos, 0, 0.4f, 1))
+ * 15)); with gMineCones the cone explodes instead (StartBlast = StartBlast(pos, 0, 0.4f, 1))
  * and the car's lap-record byte +1600 is set once (GC: model[car] stride 0x808, byte 0x640); otherwise a tVisual
- * entry is grabbed (GrabEnvEntry = GrabEnvEntry), filled (index 0, func = targetInfo[type].func, data = target,
- * timeStamp 5.0), the target's velocity set to the car's velocity * 0.125, LookInDir = LookInDir,
+ * entry is grabbed (GrabEnvEntry), filled (index 0, func = targetInfo[type].func, data = target,
+ * timeStamp 5.0), the target's velocity set to the car's velocity * 0.125, LookInDir,
  * vel[1] += 1.0 for kinds 339/237 (GC 0x28D/0x227) else 2.0, angular velocity (0, 12, 15), CopyUV =
  * CopyUV(tmat, pos), the entry linked into the environment list (AddToEnvList inlined: head gEnvList)
  * and PlayTargetSound = PlayTargetSound(targetInfo[type].sound, car, pos2, 2).

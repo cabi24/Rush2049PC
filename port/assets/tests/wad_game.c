@@ -105,7 +105,7 @@ uint32_t pc_rdram_size(void) { return WINDOW; }
 void ReadWave(int32_t slot);   /* _ReadWave */
 void MBSetupWad(void *wad, void *file);
 uint32_t MBGetFromWad(void *wad, int32_t tag, int32_t *count);
-void MBOffsetWad(void *wad, int32_t file, int32_t offset);   /* MBOffsetWad */
+void MBOffsetWad(void *wad, int32_t file, int32_t offset);
 void *MBOX_FindTexture_WORK(char *name, int16_t *out, int8_t lo, int8_t hi, int32_t err);   /* MBOX_FindTexture_Sub */
 void InitTextureAnimation(void);   /* the texture animation's set-up */
 void TextureAnimation(void);         /* its per-frame update */

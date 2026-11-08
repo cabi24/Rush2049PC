@@ -13,7 +13,7 @@
  * cars 1 to 3 to the cameras through what were car1_objnum, car1_dr_pos and car1_dr_car_uvs, car 1's +0, +8 and +0x50;
  * gameover_validOption reads a car's finish through what was D_80152907, +0xEF with a stride of 0x3B8.
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c):
- * DetectDroneAbort clears 12 cars' progress; CarReportsGameOver (CarReportsGameOver) locks 12 cars' places in
+ * DetectDroneAbort clears 12 cars' progress; CarReportsGameOver locks 12 cars' places in
  * the order they finish, and PlaceUnlockedCars (CalcPlaces) orders the rest by distance, with locals for 12;
  * SetCatchup (set_catchup) scales the 12 cars' catch-up from the one ahead.
  * game: src/blob/InitCPTime.c src/blob/DetectDroneAbort.c src/blob/AreWeSolid.c

@@ -1,5 +1,5 @@
 /* port/assets/tests/test_hudblit.c: blit animation functions that m2c wrote at the Blit's N64 offsets, on its host
- * layout (docs/port/POINTERS.md 9.3, docs/port/BRINGUP.md 15). animBones (animBones), the crossbones by the
+ * layout (docs/port/POINTERS.md 9.3, docs/port/BRINGUP.md 15). animBones, the crossbones by the
  * speedometer, which only deaths mode shows: outside it, the N64 offsets set the low byte of X (host +0x1A) to 1
  * instead of Hide (host +0x26), so every race drew the skull at the top left; deaths mode places it at
  * bonesPos[windows - 1][player] less half its width, and hides it for a player past the windows or whose car is
@@ -39,13 +39,13 @@ _Static_assert(offsetof(Blit, Hide) == 0x26 && offsetof(Blit, AnimID) == 0x40, "
 
 /* ---------------------------------------------------------------- the game's data */
 
-int8_t gDeathMode;                                     /* gDeathMode */
+int8_t gDeathMode;
 int16_t gNumWindows;
 struct pc_model pc_models[PC_MODEL_SLOTS];             /* the model records (pc_game_types.h): model[i].slot */
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h): car[slot].finished, locked in place */
 struct { int32_t x, y; } bonesPos[4][4];             /* bonesPos [windows - 1][player] */
 uint8_t controller_dim_color[4], pause_dim_color[4];                  /* the idle overlay's and the dialog's colours */
-int32_t gGameState;                                  /* gGameState */
+int32_t gGameState;
 #define MODEL_SLOT(i) (pc_models[i].slot)
 #define CAR_LOCKED(s) (pc_cars[s].finished)
 
@@ -55,7 +55,7 @@ static int g_updates;
 static Blit g_seen;
 void UpdateBlit(Blit *b) { g_updates++, g_seen = *b; }   /* UpdateBlit */
 
-int32_t animBones(Blit *b);   /* animBones */
+int32_t animBones(Blit *b);
 int32_t animControllerDim(Blit *b);
 int32_t animate_pause_dim(Blit *b);
 int32_t anim_show_on_high_score(Blit *b);

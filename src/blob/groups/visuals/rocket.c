@@ -14,7 +14,7 @@
  * Shaping levers (each measured):
  *  - GetCarsIRColor: the palette table expression gTrackColors[gTrackNum] is used directly (one CSE web, a3),
  *    four index variables declared after a per-channel sum variable (v0), blend through unsigned a/b.
- *  - PickCar (PickCar) is declared int as in MAT3 (`int PickCar`): gives retail's beq operand order.
+ *  - PickCar is declared int as in MAT3 (`int PickCar`): gives retail's beq operand order.
  *  - `tex` names ObjInstanceList[hobj].index (retail keeps it in v1 ahead of the branch).
  * - `if (car->lightIdx) {}` (compiled out, no code) before ZOID_ObjectFlags(hobj): a read holder
  *    that lets uopt PRE load the camera ahead of the index test and reload it after ZOID_SetObjectDef's
@@ -139,7 +139,7 @@ extern ModelSlot ObjInstanceList[];
 extern CarModels gCarParts[];
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;          /* gRace */
+extern s32 gRace;
 extern s32 rand_seed;          /* rng state */
 extern Color D_8011B464;
 extern s32 gGameState;

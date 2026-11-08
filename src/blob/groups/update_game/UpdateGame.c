@@ -12,7 +12,7 @@
  *
  * Matching levers (all natural; no unused locals, no compiled-out code):
  *  - setGameState is the kept 1-statement setGameState (as in GC). umerge inlines its 7 calls; they use up
- *    UpdateGame's inline budget, so PlayGameSound (PlayGameSound) and _CheckButtons (CheckButtons) stay
+ *    UpdateGame's inline budget, so PlayGameSound and _CheckButtons (CheckButtons) stay
  *    `jal` calls as in retail with no inline blockers (writing `gNewGameState = X` inlines one
  *    PlayGameSound and _CheckButtons).
  *  - startCountdown is a function-local `static s8 = 0` (.data 0x801146F0); as an extern its address web is
@@ -65,78 +65,78 @@ typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
  * (docs/port/CASTS.md). */
 typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **header; } Ghost40;
 
-extern u32 gGameState;        /* gGameState */
-extern u32 gNewGameState;        /* gNewGameState */
-extern u32 gSkipToGameState;          /* gSkipToGameState */
+extern u32 gGameState;
+extern u32 gNewGameState;
+extern u32 gSkipToGameState;
 
-extern s8 gRestartGame;           /* gRestartGame */
-extern s8 gGamePointPlayed;           /* gGamePointPlayed */
-extern s32 gRace;       /* gRace */
-extern s16 gNumPlayers; /* gNumPlayers */
+extern s8 gRestartGame;
+extern s8 gGamePointPlayed;
+extern s32 gRace;
+extern s16 gNumPlayers;
 extern Player76 gPlayers[];   /* gPlayers */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gUseCatchup;           /* gUseCatchup */
-extern s8 gCatchup;           /* gCatchup */
-extern s32 gStuntMode;          /* gStuntMode */
-extern s32 gStuntModeMins;          /* gStuntModeMins */
-extern s32 gBattleMode;          /* gBattleMode */
-extern s32 gBattleModeMins;          /* gBattleModeMins */
-extern s32 gStuntModePoints;          /* gStuntModePoints */
-extern s32 gStuntModeDeaths;          /* gStuntModeDeaths */
-extern s32 gBattleModePoints;          /* gBattleModePoints */
+extern s8 gUseCatchup;
+extern s8 gCatchup;
+extern s32 gStuntMode;
+extern s32 gStuntModeMins;
+extern s32 gBattleMode;
+extern s32 gBattleModeMins;
+extern s32 gStuntModePoints;
+extern s32 gStuntModeDeaths;
+extern s32 gBattleModePoints;
 extern f32 save_server_tick_time;          /* last SaveServer tick time */
 extern f32 gModelTime;          /* game time */
-extern s8 gCoastFlag;           /* gCoastFlag */
-extern s8 gRetireGame;           /* gRetireGame */
-extern s8 gOutOfTime;           /* gOutOfTime */
-extern s8 gDeathMode;           /* gDeathMode */
+extern s8 gCoastFlag;
+extern s8 gRetireGame;
+extern s8 gOutOfTime;
+extern s8 gDeathMode;
 extern Stunt120 gStuntPlayer[];   /* gStuntPlayer */
 extern s8 gTeamPoints[4];        /* gTeamPoints */
 extern s8 gCarTeam[];         /* gCarTeam */
-extern s32 gAPlayerReallyFinished;          /* gAPlayerReallyFinished */
-extern f32 gDeathWaitEnd;          /* gDeathWaitEnd */
-extern s16 gNumLaps;          /* gNumLaps */
+extern s32 gAPlayerReallyFinished;
+extern f32 gDeathWaitEnd;
+extern s16 gNumLaps;
 extern Ghost40 **gGhosts[];  /* gGhosts */
-extern s8 gNumActiveCars;           /* gNumActiveCars */
+extern s8 gNumActiveCars;
 extern s16 gNumWindows;
 extern Cam152 gCamera[];
-extern f32 gRetraceRate;          /* gRetraceRate */
+extern f32 gRetraceRate;
 
-void SetOptions(void);            /* SetOptions */
+void SetOptions(void);
 void CalcPolePositions(void);         /* _CalcPolePositions */
-s32 PrePlay(s32 useHud, s32 cancel); /* PrePlay */
-void ClearRushControls(void);         /* ClearRushControls */
+s32 PrePlay(s32 useHud, s32 cancel);
+void ClearRushControls(void);
 void SaveServer(s32 forceUpdate, s32 rumbleOnly);
-void CarSetup(void);           /* CarSetup */
-void Update_MDrive(void);            /* Update_MDrive */
-void TextureAnimation(void);                /* TextureAnimation */
-void CheckTargetCollision(s16 slot);            /* CheckTargetCollision */
-void SetCountdownTimer(f32 time);          /* SetCountdownTimer */
-s32 CountdownTimeOut(void);             /* CountdownTimeOut */
-void init_model_task(s32 ticks);          /* init_model_task */
-void CountDown(void);               /* CountDown */
+void CarSetup(void);
+void Update_MDrive(void);
+void TextureAnimation(void);
+void CheckTargetCollision(s16 slot);
+void SetCountdownTimer(f32 time);
+s32 CountdownTimeOut(void);
+void init_model_task(s32 ticks);
+void CountDown(void);
 void CheckButtons(void);               /* _CheckButtons */
-f32 CalcRaceTime(void);                /* CalcRaceTime */
-s32 PlayGameSound(s32 sound, s32 slot, s32 a2, u8 a3); /* PlayGameSound */
-void StartGameMusic(void);          /* StartGameMusic */
-void InitCPTime(void);               /* InitCPTime */
-void PlayGame(void);        /* PlayGame */
-void FindWinner(void);               /* FindWinner */
-void GhostEnd(void);            /* GhostEnd */
-void RemoveHUD(void);              /* RemoveHUD */
-s32 AreWeSolid(s16 p);               /* AreWeSolid */
-s32 are_all_cars_stopped(void);                /* are_all_cars_stopped */
-void AudSetMusicVol(f32 vol, f32 time); /* AudSetMusicVol */
+f32 CalcRaceTime(void);
+s32 PlayGameSound(s32 sound, s32 slot, s32 a2, u8 a3);
+void StartGameMusic(void);
+void InitCPTime(void);
+void PlayGame(void);
+void FindWinner(void);
+void GhostEnd(void);
+void RemoveHUD(void);
+s32 AreWeSolid(s16 p);
+s32 are_all_cars_stopped(void);
+void AudSetMusicVol(f32 vol, f32 time);
 void *memset(void *, s32, u32);
-void End_MDrive(s16 slot);           /* End_MDrive */
-void UpdateVisuals(s16 slot);               /* UpdateVisuals */
-void modelstop(void);        /* modelstop */
-void StopListeners(void);               /* StopListeners */
-void updateHighScoreScreen(void);            /* updateHighScoreScreen */
-void updateGameOverScreen(void);            /* updateGameOverScreen */
-void WorldFogDensity(s32 i, f32 *pos);    /* WorldFogDensity */
-void setGameState(u32 state);          /* setGameState */
+void End_MDrive(s16 slot);
+void UpdateVisuals(s16 slot);
+void modelstop(void);
+void StopListeners(void);
+void updateHighScoreScreen(void);
+void updateGameOverScreen(void);
+void WorldFogDensity(s32 i, f32 *pos);
+void setGameState(u32 state);
 
 void EndGame(void);  /* GC _EndGame: names the static after its retail deleted-procedure stub */
 

@@ -5,8 +5,8 @@
  * func_800E6AF8 = the N64 descendant of arcade mdrive.c model_iteration(): per-car speed = |vel|, then the
  * per-player model update (update_player_model / update_model), then arcade update_drone_models() with its
  * update_model() call, both inlined helpers:
- *   update_drone_models (D_80120E74 = drone_sched, sched_to_use = sched_to_use, sched_index = sched_index,
- *   D_80152808 = our_drones, cur_drone = cur_drone, num_our_drones = drone count) is defined BEFORE
+ *   update_drone_models (D_80120E74 = drone_sched, sched_to_use, sched_index,
+ *   D_80152808 = our_drones, cur_drone, num_our_drones = drone count) is defined BEFORE
  *   func_800E6AF8 and update_model AFTER it (arcade order differs; the definition order sets the .loc
  *   lines that as1 uses as scheduling tie-breaks: the reload of num_drones_to_do must carry a later line
  *   than the loop increment so it lands in the bnez delay slot). Both are non-static and not kept:

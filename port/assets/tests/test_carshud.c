@@ -44,8 +44,8 @@ struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 struct { uint32_t opaque[6]; } text_lock_queue;     /* the font lock */
 int32_t gGameState, gRace;
-volatile int16_t gNumCars;                   /* gNumCars */
-int8_t gShowPlace;                             /* gShowPlace */
+volatile int16_t gNumCars;
+int8_t gShowPlace;
 int16_t gNumWindows, gNumPlayers;
 int32_t gJust[2];                         /* gJust */
 struct { int32_t x, y; } placePos[4][4];     /* placePos [windows - 1][player] */
@@ -55,8 +55,8 @@ uint8_t hud_playerColor[4][4];                      /* playerColor */
 uint8_t TrackTimeStr[6][8];
 float gModelTime;
 int8_t dot_order_list[16];                         /* the HUD order: 12 in the arena, 4 more here to see past them */
-int8_t gNumActiveCars;                             /* gNumActiveCars */
-volatile int16_t num_humans;                   /* num_humans */
+int8_t gNumActiveCars;
+volatile int16_t num_humans;
 int16_t markers_valid;
 /* ShowHUD */
 void *HudBlit1, *HudBlit2, *multiPlayerBlit;

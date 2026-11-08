@@ -39,12 +39,12 @@ int16_t ZOID_ObjPrevObj(int16_t node);
 int16_t ZOID_ObjParent(int16_t node);
 int16_t MBOX_GetNext(int32_t node);
 int16_t MBOX_GetChild(int32_t node);
-void ZOID_SetTexture(int16_t node, void *tex, int32_t lod);                           /* ZOID_SetTexture */
-void ZOID_SetObjLights(int32_t node, int32_t mode, uintptr_t light);                    /* ZOID_SetObjLights */
+void ZOID_SetTexture(int16_t node, void *tex, int32_t lod);
+void ZOID_SetObjLights(int32_t node, int32_t mode, uintptr_t light);
 void zoid_set_obj_tile_size(int16_t node, uintptr_t clip, uint32_t unused);
 void zoid_set_obj_palette(int16_t node, uintptr_t pal);
 void *ZOID_GetColor(int16_t node);
-void ZOID_SetColor(int16_t node, uint32_t *color);                                 /* ZOID_SetColor */
+void ZOID_SetColor(int16_t node, uint32_t *color);
 void ZOID_SetEnvColor(int16_t node, uint32_t *color);
 void *ZOID_FindMatrix(int16_t node);
 void ZOID_SetObjectFlags(int32_t node, uint32_t flags);

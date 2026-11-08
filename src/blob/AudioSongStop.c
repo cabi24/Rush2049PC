@@ -3781,16 +3781,16 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-M2C_UNK func_800154a4();
-M2C_UNK func_80018e2c(s32, s32);
+M2C_UNK sound_pop_group();
+M2C_UNK sound_seq_stop(s32, s32);
 void AudioSongStop(void)
 {
   s32 new_var;
   if (song_handle != (-1))
   {
     new_var = song_handle;
-    func_80018e2c(new_var, song_handle);
-    func_800154a4();
+    sound_seq_stop(new_var, song_handle);
+    sound_pop_group();
     UnloadWaveInstance(song_wave);
     song_handle = -1;
   }

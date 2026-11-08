@@ -10,15 +10,15 @@
  * (MAT3 audio.c, with its `fxid == -1` test: frame 216 needs it) inlined as in retail.
  * N64 differences: `gRace == 0 || gRace == 1` (GC `(unsigned)gRace <= 1`), sound id 2 (GC 54), the "digit" test
  * reads str[0] back (retail re-masks the stored byte: `andi t6,t8,0xff`).
- * Callee identities: GetCountdownTimeRemaining = GetCountdownTimeRemaining, AudPlayEffect = AudPlayEffect,
- * HAL_SetTextDepth = HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2 parameter), camera_shake_update =
- * HAL_GetCharWidth, TB_SetTextColor = TB_SetTextColor, TB_DrawText = TB_DrawText; gScheduler = sc (volatile).
+ * Callee identities: GetCountdownTimeRemaining, AudPlayEffect,
+ * HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2 parameter), camera_shake_update =
+ * HAL_GetCharWidth, TB_SetTextColor, TB_DrawText; gScheduler = sc (volatile).
  * Shaping (disclosed):
  *  - the early-exit tests are four `if (...) goto skip;` statements sharing one `return 1` (MAT3: one || chain).
  *    With the single || chain the code is identical but uopt hoists &gRace into s3 (save 0.125, nocs 8) over the
  *    constant 4 (save 0.125, nocs 8; the tie goes to the lower web): 33 rows. As separate statements the constant's
  *    live range is one block shorter (nocs 7) and it takes s3 as in retail; separate `return 1`s cost 24 rows.
- * - gJust (gJust) is a tentative definition here, as in hud_text_anims/audio_animPanes_demo_animText.c: with an extern
+ * - gJust is a tentative definition here, as in hud_text_anims/audio_animPanes_demo_animText.c: with an extern
  *    the group compile gives the two TB_SetJust(0, 3) tail stores two `lui at` (the unit, where it is defined,
  *    gives one, as retail);
  * - helpers are non-static, not on keep, defined after the caller; _ReleaseSemaphore_Countdown and
@@ -55,13 +55,13 @@ extern OSMesgQueue gFontSem;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-f32 GetCountdownTimeRemaining(void);                 /* GetCountdownTimeRemaining */
-s32 AudPlayEffect(s32 fxid, s32 subId, s32 replace, u8 priority); /* AudPlayEffect */
-void HAL_SetTextDepth(f32 depth);                 /* HAL_SetTextDepth */
+f32 GetCountdownTimeRemaining(void);
+s32 AudPlayEffect(s32 fxid, s32 subId, s32 replace, u8 priority);
+void HAL_SetTextDepth(f32 depth);
 s32 HAL_SetFontInternal(s32 fontID);              /* _HAL_SetFont */
-u32 HAL_GetCharWidth(u16 ch);               /* HAL_GetCharWidth */
-void TB_SetTextColor(s32 color);              /* TB_SetTextColor */
-void TB_DrawText(s16 x, s16 y, void *text);  /* TB_DrawText */
+u32 HAL_GetCharWidth(u16 ch);
+void TB_SetTextColor(s32 color);
+void TB_DrawText(s16 x, s16 y, void *text);
 
 void _GetSemaphore_Countdown(void);
 void _ReleaseSemaphore_Countdown(void);

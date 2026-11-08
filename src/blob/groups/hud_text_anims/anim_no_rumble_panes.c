@@ -2,13 +2,13 @@
 /*
  * anim_no_rumble_panes (0x80106874, 712 B): per-window background pane behind the HUD title text that the neighbour
  * anim_no_rumble_text draws (StrTable +0x388, font 11, or font 12 when wider than the window limit + 8). N64-only
- * hud.c Blit AnimFunc (GC hud.c has nothing between animResults and animOdometer = animOdometer); written in the
+ * hud.c Blit AnimFunc (GC hud.c has nothing between animResults and animOdometer); written in the
  * GC CheckResults pane idiom (MAT3 hud.c CheckResults: InitPane(..., 192, 0, 0, 1) + ChangePaneColor(pane,
- * playerPaneColors[p][0], playerPaneColors[p][1]) + RemovePane). InitPane = InitPane, ChangePaneColor =
+ * playerPaneColors[p][0], playerPaneColors[p][1]) + RemovePane). InitPane, ChangePaneColor =
  * tournament_unlock_check, RemovePane = sound_handles_array_clear, HAL_GetStringWidth = HAL_GetTextWidth,
  * HAL_GetFontHeight = TB_GetFontLineHeight, playerPaneColors = no_rumble_pane_colors (u8 [4][2][4]), the pane handles =
  * resultPane[4], the window positions = no_rumble_text_pos (shared with anim_no_rumble_text), gGameState = gGameState (bit 21
- * shows the panes, bit 22 retires the blit), gPauseState = gPauseState, gPlayers[i].control /
+ * shows the panes, bit 22 retires the blit), gPauseState, gPlayers[i].control /
  * gPaks[ctl].b6 as in anim_no_rumble_text. HAL_SetFont = HAL_SetFontInternal (s2 IPA parameter).
  * Lever (from the anim_no_rumble_text match): the b6 test through an inlined getter (its value return takes v0).
  * Helpers gfx_lock/gfx_unlock/font_set/getB6/Hidden_6874 are inlined, non-static, not on keep (stub rule).

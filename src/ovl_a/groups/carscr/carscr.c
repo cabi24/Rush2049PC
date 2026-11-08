@@ -28,7 +28,7 @@
  * clobbers s0-s8; its real caller updateCarScreen saves/restores that set.
  * This is MAT3 carscr.c _UninitScreen. Its three inlined statics are now the non-kept helpers
  * clearCarComponents clearCarComponents(int p), carscr_uninitButtons uninitButtons(signed char p) and releaseGridMap
- * releaseGridMap (empty in the N64 build, like createGridMap = createGridMap), called where MAT3 calls them
+ * releaseGridMap (empty in the N64 build, like createGridMap), called where MAT3 calls them
  * (releaseGridMap under `gNumPlayers == 1 && gRace != 2` right after the first wave unload). Their deleted
  * procedures are the retail stubs 0x8039D044/4C/54 in that order (post-order, last call first). The former
  * shaping device (a code-free `if (player) {}` read in the panel loop) is no longer needed and is removed.
@@ -185,9 +185,9 @@ void calcStats(s32 player)
 }
 /* setGhosts = setGhosts@carscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/carscr.c, GC 0x80090638,
  * size 0xac0), : direct typed port of the MAT3 body (tGhostFile = Record, gPlayers[0].save = gPlayers[0].owner,
- * gGhostFiles.head = gGhostFiles.first, limboGhosts = limboGhosts, gGhosts = gGhosts, gLastCar = gLastCar,
- * gGhostSelect = gGhostSelect, gTrackNum = gTrackNum, gBackwards = gBackwards, strcmp = game_strcmp,
- * ReadGhostData = ReadGhostData). Private-ABI member of this IPA group (clobbers s0-s8; callers
+ * gGhostFiles.head = gGhostFiles.first, limboGhosts, gGhosts, gLastCar,
+ * gGhostSelect, gTrackNum, gBackwards, strcmp = game_strcmp,
+ * ReadGhostData). Private-ABI member of this IPA group (clobbers s0-s8; callers
  * carscr_InitScreen _InitScreen and updateCarScreen updateCarScreen).
  * N64 differences from the GC body (from the retail words): the three clearing loops run gGhosts, nearGhosts,
  * gLastCar (GC: nearGhosts first); the player-id compares are written player-first (operand order of the two
@@ -365,7 +365,7 @@ void calcStats(s32);
  * no cars[].alpha init, no SavePlayerCarTrans, 38 blits.  Private-ABI function of the IPA group (unsaved s0-s8/f20-f24).
  * Shaping (all verified on the builder, group cleanup_colortrace):
  *  - the pane loop and the matrix loop use `p`/`i` as written (p out-ranks i for s4/s5);
- *  - gNumModels (gNumModels) is volatile u8 in the head;
+ *  - gNumModels is volatile u8 in the head;
  *  - `0.0` spelling for the pos[0] stores (zero constant gets $f0, 2.0 gets $f2);
  *  - `for (gNumCarsActive[p] = 0, i = 0; ...)` orders the store after the row-offset arithmetic;
  *  - `Player *pl` (assigned &gPlayers[p], used for ->owner) is the third 4-byte local: it gives the retail 208-byte frame and puts
@@ -1021,7 +1021,7 @@ void clearCarComponents(s32 p)
     if(gCarPartFrame!=-1) {ZOID_RemoveObject(gCarPartFrame);gCarPartFrame=-1;}
 }
 
-/* releaseGridMap (MAT3 carscr.c): empty in the N64 build like createGridMap (createGridMap); deleted stub 0x8039D054 */
+/* releaseGridMap (MAT3 carscr.c): empty in the N64 build like createGridMap; deleted stub 0x8039D054 */
 void releaseGridMap(void)
 {
 }
@@ -1059,7 +1059,7 @@ extern void ScaleUV(void *,void *,f32);
  * Private-ABI member of the group: the s8 parameter arrives in the caller's stack home
  * (carscr_InitScreen stores it), the body clobbers s0-s8/f20-f30 without saving, so it only matches inside the group.
  * Levers (both are real source facts; no compiled-out device, no unused local):
- *   - gNumModels (gNumModels) is `volatile u8` in the head: every retail use is `lui; addiu; lbu 0(reg)`.
+ *   - gNumModels is `volatile u8` in the head: every retail use is `lui; addiu; lbu 0(reg)`.
  *   - the early `zoom = 1.0` store is a double literal while `1.0f / zoom` stays float: the two spellings are
  *     different uopt constants, so the store keeps its own $f4 and the divide's 1.0f is not hoisted to $f30.
  * Own data (zoom, the colour initialiser, the float literals) is not verifiable for image A by the scorer (no retail
@@ -1316,9 +1316,9 @@ void showGridMap(s32 enabled)
 
 /* updateCarComponents = updateCarComponents@carscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/carscr.c, GC 0x800910F8,
  * size 0x830), : direct typed port of the MAT3 body, replacing context stand-. Private-ABI member: p arrives in s6
- * from its caller showCarSelect (showCarSelect); every callee-saved register is clobbered.
+ * from its caller showCarSelect; every callee-saved register is clobbered.
  * Names: gCarComponents = gCarComponents ([4][11] x 52 B: idx, level, mat), compLight = compLight (2 x 40 B, Lights2 layout),
- * componentToName = componentToName (s16[11]), carComponentNames = carComponentNames, gCarPartFrame = gCarPartFrame, gCarParts = gCarParts
+ * componentToName = componentToName (s16[11]), carComponentNames, gCarPartFrame, gCarParts
  * (CarHandles; frame = main, tires[k] = parts[3+k]), ObjInstanceList = ObjInstanceList_mat (68 B), MBOX_HideObject MBOX_HideObject,
  * ZOID_SetObjectParent ZOID_SetObjectParent, MBOX_NewObjectCam MBOX_NewObjectCam, MBOX_NewObject MBOX_NewObject, MBOX_FindObject_WORK
  * MBOX_FindObject_WORK, ZOID_FindMatrix ZOID_FindMatrix, TB_GetFlashTextCycle TB_GetFlashTextCycle, BodyVector BodyVector,

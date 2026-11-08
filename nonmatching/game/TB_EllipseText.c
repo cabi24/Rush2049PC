@@ -6,10 +6,10 @@ typedef signed short s16;
 typedef signed int s32;
 typedef unsigned int u32;
 extern s8 gSpacing; /* gSpacing (HAL_text.c static) */
-u32 HAL_GetTextWidth(u8 *text, s16 numChars); /* HAL_GetTextWidth */
-u8 *TB_Strcat(u8 *str1, u8 *str2);             /* TB_Strcat */
-u8 *TB_Strcpy(u8 *str1, u8 *str2);             /* TB_Strcpy */
-u32 TB_Strlen(u8 *s);                          /* TB_Strlen */
+u32 HAL_GetTextWidth(u8 *text, s16 numChars);
+u8 *TB_Strcat(u8 *str1, u8 *str2);
+u8 *TB_Strcpy(u8 *str1, u8 *str2);
+u32 TB_Strlen(u8 *s);
 s8 HAL_GetFontSpacing(void);
 void TB_EllipseText(void *dst, void *src, s16 width)
 {

@@ -3714,7 +3714,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-M2C_UNK func_8038c910(s16);                         /* extern */
+M2C_UNK StartWeapon(s16);                         /* extern */
 
 
 /* group members */

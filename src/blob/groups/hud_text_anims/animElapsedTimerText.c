@@ -1,8 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * lap_complete (0x8010761C, 1,232 B) -- historical label; = GC hud.c animElapsedTimerText (static int (void);
- * GC locals t, digits[9], str[2], digitW, colonW, fixedWidth, x, y, digitIdx; gModelTime = gModelTime,
- * gShowElapsed = gShowElapsed, elapsedTimerPos = elapsedTimerPos, HAL_SetFontFixedWidth = HAL_SetFontFixedWidth,
+ * GC locals t, digits[9], str[2], digitW, colonW, fixedWidth, x, y, digitIdx; gModelTime,
+ * gShowElapsed, elapsedTimerPos, HAL_SetFontFixedWidth,
  * camera_shake_update = HAL_GetCharWidth, gJust = TB_SetJust's pair). Draws the race clock as "mm:ss.hh"
  * with a shadow pass. drafts, match (unit EQUAL, 0 locked bodies differ). No devices.
  * Levers: GC local list/order and statement forms (digitIdx index loop, `str[0] = digits[digitIdx]` then the

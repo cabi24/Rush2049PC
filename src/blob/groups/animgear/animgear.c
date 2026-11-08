@@ -8,8 +8,8 @@
  * TB_RightText and HAL_SetFont (with _GetSemaphore/_ReleaseSemaphore) inlined as in retail.
  * N64 differences: no early `!gShowShifter || !(gGameState & 0x400000)` return; gShowShifter is tested in
  * the per-slot skip condition after `slot >= gNumWindows`; text index 204 (GC 215).
- * Callee identities: HAL_SetTextDepth = HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2 parameter),
- * HAL_GetTextWidth = HAL_GetTextWidth, TB_SetTextColor = TB_SetTextColor, TB_DrawText = TB_DrawText.
+ * Callee identities: HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2 parameter),
+ * HAL_GetTextWidth, TB_SetTextColor, TB_DrawText = TB_DrawText.
  * Shaping (disclosed): helpers are non-static and not on keep, defined after the caller;
  * _ReleaseSemaphore_Gear and HAL_SetFont_Gear share one source line (as1 line tie in the group compile, see
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
@@ -44,11 +44,11 @@ extern OSMesgQueue gFontSem;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-void HAL_SetTextDepth(f32 depth);                 /* HAL_SetTextDepth */
+void HAL_SetTextDepth(f32 depth);
 s32 HAL_SetFontInternal(s32 fontID);              /* _HAL_SetFont */
-u32 HAL_GetTextWidth(void *text, s16 numChars); /* HAL_GetTextWidth */
-void TB_SetTextColor(s32 color);              /* TB_SetTextColor */
-void TB_DrawText(s16 x, s16 y, void *text);  /* TB_DrawText */
+u32 HAL_GetTextWidth(void *text, s16 numChars);
+void TB_SetTextColor(s32 color);
+void TB_DrawText(s16 x, s16 y, void *text);
 
 void _GetSemaphore_Gear(void);
 void _ReleaseSemaphore_Gear(void);

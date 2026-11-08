@@ -1,5 +1,5 @@
 /* port/assets/tests/test_path.c: the path converter (port/assets/path.c) on a synthetic big-endian path file, then
- * the game's own ReadCheckpointData (ReadCheckpointData) and PC ReadPathData (ReadPathData: native headers and
+ * the game's own ReadCheckpointData and PC ReadPathData (ReadPathData: native headers and
  * alternative paths), and three readers that index the results by hand-written strides (NextResPathPt,
  * NextPathPt, PrevPathPt).
  * game: src/blob/ReadCheckpointData.c src/blob/groups/pathcommon_read/ReadPathData.c

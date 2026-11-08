@@ -7,7 +7,7 @@
  *   arcade "stuck" timer (stuck_time vs model time, wait 6 s x wait_time) triggers the resurrection
  *   (SetResurrectionData(2, m, 1) = set_resurrection_data, we_died = 2);
  * - per player viewport (the arcade's single this_node): wrong-way / help-arrow angle, walking the
- *   max path 5 points ahead (NextResPathPt) and fatan2 (fatan2) of the body-frame offset.
+ *   max path 5 points ahead (NextResPathPt) and fatan2 of the body-frame offset.
  * MODELDAT = D_8014A250 (stride 0x808), CAR_DATA = game_car gGameCar (stride 0x3B8).
  *
  * Disclosed: index1, index2, dist1, dist2, pos[3] and angle are the arcade function's declaration

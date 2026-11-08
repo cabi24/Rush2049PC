@@ -151,8 +151,8 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 /* The manifest owners of GetSkid and ContinueSkid are empty deleted-procedure stubs
  * (src/blob/GetSkid.c, ContinueSkid.c), which this group's calls bind to on PC. The bodies
  * written here get their own names (docs/port/PROTOTYPES.md). */
-#define GetSkid pc_func_800AFB30
-#define ContinueSkid pc_func_800AFD54
+#define GetSkid pc_GetSkid
+#define ContinueSkid pc_ContinueSkid
 /* GetSkid = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
  * Not `static`, not in `keep`: umerge inlines it into its only caller and leaves the retail `jr ra` stub. */
 EffectObj *GetSkid(u8 *color)

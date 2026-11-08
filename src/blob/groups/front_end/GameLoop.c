@@ -5,10 +5,10 @@
  * the retrace flag, blit_dl = 0, StartGraphics, frame_dl_start = frame_dl, UpdateRushControls)`; the controller-warning
  * blit (_PAD_ScrollBlit-like, inactiveBlit with multiblit idle_warning_multiblit) is created when more than 300 (scaled
  * retrace ticks) passed since gLastKeyTime and gGameState has none of 0x4000000F, else removed; updateGameState =
- * updateGameState, updateFrontEnd = updateFrontEnd, updatePauseScreen = updatePauseScreen (pause:
+ * updateGameState, updateFrontEnd, updatePauseScreen = updatePauseScreen (pause:
  * gPauseState gPauseState -> DrawBlits/UpdateEnvirons/UpdateCameras/
  * ZOID_EndFrame(0) and return 1), _UpdateGame = UpdateGame, _DrawNoControllers = DrawNoControllers.
- * gGameState = gGameState, gNewGameState = gNewGameState, gFrames = frame_counter (volatile: retail lui/addiu +
+ * gGameState, gNewGameState, gFrames = frame_counter (volatile: retail lui/addiu +
  * 0(reg) at both accesses), sInited = function-local static (0x801146EC, own .data, game.c's TU), GVSyncCount =
  * the volatile scheduler clock gScheduler.tick (house type from animDot.c).
  * Saves s0-s8/f20/f22 and keeps renderFlag at 84(sp) only with UpdateGame + init_state_continue internal in the
@@ -29,8 +29,8 @@ extern volatile s32 frame_counter;      /* gFrames */
 extern void *inactiveBlit;          /* _PAD controller-warning blit */
 extern struct pc_multiblit idle_warning_multiblit[1];   /* its multiblit (pc_prelude.h) */
 extern OSMesgQueue *frame_dl;
-extern s32 gGameState;                /* gGameState */
-extern s32 gNewGameState;                /* gNewGameState */
+extern s32 gGameState;
+extern s32 gNewGameState;
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 extern volatile Clock gScheduler;      /* scheduler clock; .tick = GVSyncCount */
 extern s32 gLastKeyTime;
@@ -38,7 +38,7 @@ extern f32 gRetraceTime;
 extern volatile s16 gRenderInProgress;
 extern intptr_t blit_dl;
 extern OSMesgQueue *frame_dl_start;
-extern s32 gPauseState;                  /* gPauseState */
+extern s32 gPauseState;
 
 void *NewMultiBlit(s16, s16, void *, s32);
 void RemoveBlit(void *);

@@ -61,7 +61,7 @@ s32 font_set_g3d(s32 font)
 }
 /* audio_animPanes = animPanes@audioscr.c (MAT3 GameCube audioscr.c animPanes, GC 0x800662D0):
  * font_set_g3d = HAL_SetFont (inlined), audio_TitlePane = _TitlePane@audioscr.c, TB_GetFontLineHeight =
- * TB_GetFontLineHeight, InitPane = InitPane, audio_menuRect = menuRect {x, w, h}.
+ * TB_GetFontLineHeight, InitPane, audio_menuRect = menuRect {x, w, h}.
  * Disclosed: x, u1 and u2 are UNUSED locals = exact frame residual. Retail frame 120 with y at sp+116; with y
  * alone the frame is 112 (y at sp+110, 5 words differ); x (declared before y) puts y in retail's slot (sp+116)
  * and u1/u2 supply the remaining local area (with 8 bytes of locals or less the frame stays 112). */

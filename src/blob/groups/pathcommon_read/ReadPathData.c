@@ -5,11 +5,11 @@
  * Identity: GameCube ReadPathData (pathcommon.c, 0x8003220C; void ReadPathData(void); locals s16 i, p, j,
  * char *ptr), proposed rename (not applied). Not audio: it parses the track's path block at gPathWave+0x32C
  * (gPathWave): the resurrection-path header gResPath (gResPath, 16 B), its alternate ranges gAltPaths
- * (gAltPaths, 16-B records), the point count gNumResPathPts (gNumResPathPts) and points gResPathPtList
+ * (gAltPaths, 16-B records), the point count gNumResPathPts and points gResPathPtList
  * (gResPathPtList, s16[3]), then four drone paths gDronePaths (gDronePaths, 8-B {u16 num; pts}) with
- * gNumPathPts (gNumPathPts) and gPathPtList (gPathPtList); then SyncCheckpointsToPaths(-1) (SyncCheckpointsToPaths),
- * SyncAltPaths (SyncAltPaths), CalcResPathBounds (CalcResPathBounds), CalcCheckpointTimes
- * (CalcCheckpointTimes). On gRestartGame (gRestartGame) only the five calls run.
+ * gNumPathPts and gPathPtList; then SyncCheckpointsToPaths(-1) (SyncCheckpointsToPaths),
+ * SyncAltPaths, CalcResPathBounds, CalcCheckpointTimes
+ * (CalcCheckpointTimes). On gRestartGame only the five calls run.
  * The GC build byte-swaps every field in its loops; N64 keeps the loops with empty bodies (big-endian data),
  * which is what retail compiles (the s16 counters still run). Ported from the GC body: GC statement
  * order, and the else arm as GC's chain `gResPath.alt = gAltPaths = 0;` -- with two separate stores the

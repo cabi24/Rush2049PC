@@ -525,7 +525,7 @@ extern void ZOID_SetColor(s16,s32 *);
 /* : circuitscr_updateButtons = updateButtons@circuitscr.c (MAT3 GC 0x8006A730, 0x89C B): per-frame scroll, fade and
  * texture of the four circuit-menu buttons, their right-hand value buttons (4, 5) and the cursor (7, 9). Direct
  * typed port of reference/repos/mat3 decomp/src/GameSource/src/circuitscr.c updateButtons; called only by
- * updateCircuitScreen (updateCircuitScreen) as its last statement, so it keeps the group's private ABI (saves only ra).
+ * updateCircuitScreen as its last statement, so it keeps the group's private ABI (saves only ra).
  * N64 names: buttonInfo circuitscr_buttonInfo, buttonsInited circuitscr_buttonsInited, buttonsJustInited circuitscr_buttonsJustInited, gShowTrophy
  * gShowTrophy, gEnterCircuitCode gEnterCircuitCode, gConfirmNewCircuit gConfirmNewCircuit, gCircuitMenuSelect gCircuitMenuSelect,
  * gButtonScale circuitscr_gButtonScale, gButtonSpace circuitscr_gButtonSpace, buttonX circuitscr_buttonX, maxY circuitscr_maxY, minY circuitscr_minY,

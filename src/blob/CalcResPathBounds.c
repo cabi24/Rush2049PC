@@ -3,7 +3,7 @@
  * CalcResPathBounds @ 0x800B9740, 408 bytes (102 words) -- MATCH (the scorer fn standalone; unit EQUAL).
  * Identity: GameCube CalcResPathBounds (pathcommon.c, 0x800331B4; void CalcResPathBounds(void), locals
  * int i, j, validPt), proposed rename (not applied). Computes the bounding box of the resurrection path
- * points: gPathMin = gPathMin, gPathMax = gPathMax (s16[3]), gResPath = gResPath, gResPathPtList =
+ * points: gPathMin, gPathMax = gPathMax (s16[3]), gResPath, gResPathPtList =
  * gResPathPtList (s16[3] points), gNumResPathPts = gNumResPathPts. A point counts when it is one of the first
  * numPrimary points, or lies inside an alternate range of type 1 (pointer range test, no early break).
  * Port of the GC body: s16 extrema, `validPt`, indexed alternate ranges `alt[j]`, no break, and a

@@ -8,8 +8,8 @@
  * ZOID_SetPolyFlags(poly, 15), and ZOID_UpdatePoly. The N64 has none of the GC dr_uvs swap/lean code, the
  * BodyVector hide test or the packed-shadow copy.
  * lever (from MAT3): the four poly-flag helpers are zoidpoly.c functions that the whole-program build
- * inlines (N64 out-of-line copies: ZOID_ClearPolyFlags = ZOID_ClearPolyFlags, ZOID_SetPolyFlags = ZOID_SetPolyFlags,
- * ZOID_ShowPoly = ZOID_ShowPoly); here they are byte-equivalent static copies. Passing `1 << car->camera` as
+ * inlines (N64 out-of-line copies: ZOID_ClearPolyFlags, ZOID_SetPolyFlags,
+ * ZOID_ShowPoly); here they are byte-equivalent static copies. Passing `1 << car->camera` as
  * the u16 argument (camera read twice, as GC does) gives retail's evaluation order shift, load, NOT, which no
  * single-expression form gave (2 words). Each inlined call reserves 8 frame bytes, which replaces
  * most of the earlier filler locals; the `scale` row pointer and its DEBUG_PRINT holder are gone (GC indexing).

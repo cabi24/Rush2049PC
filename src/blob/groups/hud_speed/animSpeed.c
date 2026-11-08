@@ -1,14 +1,14 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * animSpeed (0x800EFEA8, 600 B; historical label), : an N64 hud.c blit animation callback
- * (the function right before ShowHUD = ShowHUD), same family as the matched animLapTime (animLapTime.c) and
+ * (the function right before ShowHUD), same family as the matched animLapTime (animLapTime.c) and
  * animPlace: the blit's data word packs the window (low nibble) and a display mode (bits 4..7: 1 = single-window
- * only, 2 = split-screen only). Hidden when the mode does not fit gNumWindows (gNumWindows) or the window does not
- * exist (then state = 0), or when gShowSpeed is clear or the window's car (gGameCar = gGameCar, 952 B, indexed
+ * only, 2 = split-screen only). Hidden when the mode does not fit gNumWindows or the window does not
+ * exist (then state = 0), or when gShowSpeed is clear or the window's car (gGameCar, 952 B, indexed
  * by model[win].slot: D_8014A250, 0x808 B, s16 at +1990) has place_locked (+239) == 1. Otherwise font 4 (one
  * window) or 1 under the font lock, digit width = camera_shake_update('8') (HAL_GetCharWidth), position from the
  * per-window-count table speedPos[4][4] {x, y}: x = pos.x - 2 * digitW - 2, y = pos.y + 1 in single-window,
- * alpha = hud_box_alpha, half18 = 100, UpdateBlit (UpdateBlit). MAT3 identity open (the GC hud.c has no
+ * alpha = hud_box_alpha, half18 = 100, UpdateBlit. MAT3 identity open (the GC hud.c has no
  * blit per window for this element); structure from the matched N64 siblings.
  * Needs HAL_SetFontInternal's IPA convention (parameter in s2, s0/s1/s3 unsaved): group context ctx_gr3_b.c.
  * Shaping (each verified necessary): Hidden / gfx_lock / gfx_unlock / font_set are non-static inlined helpers as

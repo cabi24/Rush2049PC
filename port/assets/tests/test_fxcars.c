@@ -7,8 +7,8 @@
  * takes its 50 blast matrices and marks every blast and ring empty; StartSmoke and StartWater start each
  * car's tire puffs (a latch bit, two puffs from the pool) and UpdateSmoke ends them (the latch cleared);
  * StartSmoke's smoke sets and fades a car's grey, its trails keep their last points; InitWingSmoke and
- * InitSmokeBlast clear a car's trail and smoke latches; StartNewBlast (StartNewBlast), StartBlast (StartBlast,
- * with StartNewBlastRing), AnimateNewBlast (AnimateNewBlast) and AnimateNewBlastRing (the ring) run car
+ * InitSmokeBlast clear a car's trail and smoke latches; StartNewBlast, StartBlast (StartBlast,
+ * with StartNewBlastRing), AnimateNewBlast and AnimateNewBlastRing (the ring) run car
  * 11's blast and ring, whose matrices the scene nodes point at; InitSkids clears the skid table and UpdateSkids
  * starts, continues and stops the skids of 12 cars x 4 tires; UpdateResurrectingCar sets car 11's resurrect midpoint.
  * game: src/blob/InitSmoke.c src/blob/InitBlast.c

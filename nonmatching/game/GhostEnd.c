@@ -5,7 +5,7 @@
  * (historical_typed.c 16/110, layouts Ghost44/Header88 from GhostStart).
  * N64: gGhostToSave gGhostToSave, gRace gRace (kGhost 2), gEndingGhosts gEndingGhosts (volatile, inherited
  *), gNumPlayers gNumPlayers, gGhosts gGhosts, model[i].fastin.modelrun D_8014A250[i] +1820 (stride
- * 2056), gGameCar gGameCar (stride 952; place_locked +239, score +240), PurgeGhostData = PurgeGhostData,
+ * 2056), gGameCar gGameCar (stride 952; place_locked +239, score +240), PurgeGhostData,
  * DeallocateMemory = DeallocateMemory_stub (the unit's real definition: heap lock, DeallocateMemoryInternal(p, 0), unlock;
  * calling it inlines with its parameter copy `lw s0,76(s2)` ahead of the lock, as retail).
  * Levers: gGameCar[i] indexed directly (a pointer local loses ugen's.noalias region whose `.alias`

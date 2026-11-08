@@ -23,7 +23,7 @@ typedef struct SelectCarWave {   /* anon_wave_loading_c */
 
 extern SelectCarWave gSelectCarWavePtrs[];   /* gSelectCarWavePtrs[16] */
 extern s16 gCarModelNums[];             /* gCarModelNums */
-extern s32 LoadWave(s32 index, s32 a, s32 b, s32 c, void *d);   /* LoadWave */
+extern s32 LoadWave(s32 index, s32 a, s32 b, s32 c, void *d);
 extern void car_palette_init(s32 slot, s32 index, void *data);
 
 s32 LoadSelectCar(s16 slot, s16 index, s32 *waveInst)

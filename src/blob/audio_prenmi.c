@@ -3682,8 +3682,8 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-M2C_UNK func_800205e4();                            /* extern */
+M2C_UNK sound_freeze_output();                            /* extern */
 
 void audio_prenmi(void) {
-    func_800205e4();
+    sound_freeze_output();
 }

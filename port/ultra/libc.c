@@ -6,7 +6,7 @@
 
 #include "ultra.h"
 
-/* The boot segment's sprintf under its address name (overlay A's menus call it so). */
+/* The boot segment's sprintf under the game's name for it (overlay A's menus call it so). */
 int game_sprintf(char *out, const char *fmt, ...)
 {
     va_list ap;

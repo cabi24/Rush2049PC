@@ -127,7 +127,7 @@ extern tDLList pak_free_handles;                 /* free tPS_File handles */
 extern s8 si_lock_inited, gErrPak;           /* lock queue initialised; gErrPak */
 extern OSMesgQueue si_lock_queue;
 extern OSMesg si_lock_msg;
-extern PakErrorFunc gErrorFunc;            /* gErrorFunc */
+extern PakErrorFunc gErrorFunc;
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
@@ -138,10 +138,10 @@ extern void pak_encode_name(u8 *, u8 *, u8);          /* ASCII -> pak font */
 extern void pak_decode_name(u8 *, u8 *, u8);          /* pak font -> ASCII */
 extern s32 game_strcmp(u8 *, u8 *);               /* strcmp */
 extern s32 pak_removed(s32);                      /* !gPaks[pak].inserted */
-extern void PS_DeleteFile(PakHandle *);     /* PS_DeleteFile */
-extern void RemoveLLE(tDLList *, PakHandle *);  /* RemoveLLE */
-extern void InsertLLE(tDLList *, PakHandle *, PakHandle *);  /* InsertLLE */
-extern void *AllocateHandleHeap(void *, u32);      /* AllocateHandleHeap */
+extern void PS_DeleteFile(PakHandle *);
+extern void RemoveLLE(tDLList *, PakHandle *);
+extern void InsertLLE(tDLList *, PakHandle *, PakHandle *);
+extern void *AllocateHandleHeap(void *, u32);
 extern void *memset(void *, s32, u32);
 void pak_insert_file(PakHandle *fileh);
 /* context: byte-identical copy of the locked pfs_status body (internal here: IPA register facts) */
@@ -329,7 +329,7 @@ extern s32 game_memcmp(u8 *, u8 *, s32);   /* memcmp */
 extern s32 PS_FlushPak(s32, s32);
 extern void *memcpy(void *, const void *, u32);
 extern void DeallocateMemoryInternal(u32, s32);  /* DeallocateMemory */
-extern void ClearLL(tDLList *);       /* ClearLL */
+extern void ClearLL(tDLList *);
 
 /* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
 void RemovePak(s32 pak)

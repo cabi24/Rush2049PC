@@ -30,7 +30,7 @@ typedef struct Blit {
 extern s32 pauseMenuSelect;
 extern u32 animPause_color;
 extern void UpdateBlit(Blit *);
-/* Hidden, under its address name in the loader's tables (src/blob/input_new_data_wrapper.c was a second copy of it). */
+/* MAT3 hud.c Hidden: the blit hidden or shown, updated when that changes. */
 s32 Hidden(Blit *blt, s32 hide)
 {
     if (hide != blt->Hide) {

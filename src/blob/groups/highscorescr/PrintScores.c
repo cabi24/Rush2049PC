@@ -30,10 +30,10 @@ typedef struct TextIndices { u8 other[54]; u16 tableNames; } TextIndices;
 typedef struct TextState { void *word0; char **fixed; void *word8; TextIndices *indices; char **strings; } TextState;
 typedef struct ScoreScreen { u8 other[0x228]; void *titlePane; } ScoreScreen;
 
-extern s8 gBackwards;                   /* gBackwards */
-extern s8 gTrackNum;                   /* gTrackNum */
-extern s8 gTable;                   /* gTable */
-extern s16 gThisTrack;                  /* gThisTrack */
+extern s8 gBackwards;
+extern s8 gTrackNum;
+extern s8 gTable;
+extern s16 gThisTrack;
 extern Player **gTotalNames[][3][5];     /* gTotalNames */
 extern RaceStats gTotalRaceStats[];          /* gTotalRaceStats */
 extern f32 gDefStartTimes[];                /* gDefStartTimes */
@@ -42,7 +42,7 @@ extern char gTempNames[][13];           /* gTempNames */
 extern char gScoreTimes[5][10];          /* score strings */
 extern char *gScoreNames[5];             /* name pointers */
 extern void *scorePanes;              /* GC namePanes title pane */
-extern TextState gText;       /* gText */
+extern TextState gText;
 extern OSMesgQueue text_lock_queue;
 extern char default_score_time_format[], score_time_format[];
 

@@ -26,7 +26,7 @@ typedef struct {
 } SegmentTableEntry;
 extern s32 video_texture_filter, video_color_dither, video_dither_filter, video_divot;
 extern f32 HFOV;
-extern u32 osTvType;     /* osTvType */
+extern u32 osTvType;
 extern s32 screen_width, screen_height;
 extern u32 zbuffer, framebuffer_a, framebuffer_b;
 extern SegmentTableEntry frame_records[];
@@ -50,6 +50,6 @@ void InitGraphics(void)
     InitGfx();
     frame_dl_start = frame_dl;
     ZOID_Reset();            /* ZOID_Init */
-    InitBlits();            /* InitBlits */
+    InitBlits();
     ZeroCameras();    /* InitCameras */
 }

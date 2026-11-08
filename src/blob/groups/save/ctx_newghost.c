@@ -1,4 +1,4 @@
-/* Context copy of src/blob/groups/func_800C7200_2/group.c with its SaveServer context draft removed (the real
+/* Context copy of src/blob/groups/NewGhost_2/group.c with its SaveServer context draft removed (the real
  * body is in group.c): NewGhost (GC _NewGhost) is internal in the unit, SaveServer calls it.
  * : func_800CC50C (GC CompressGhost) is a MEMBER now; its body and the helpers ghost_blocks_from_size
  * ghost_free_start are at the end of this file (see the comments there). */
@@ -621,7 +621,7 @@ typedef struct SoundState {
     u8 _pad30[0x3C - 0x30];
     struct SoundState *unk3C;
 } SoundState;
-extern SoundState *func_800b3704(s32, s32, s32, s32);
+extern SoundState *NewBlit(s32, s32, s32, s32);
 extern SoundState *NewMultiBlit(s16 arg0, s16 arg1, SoundClearRecord *arg2, s16 arg3);
 extern void GameLoop(void);
 extern void game_mode_handler(void);
@@ -647,11 +647,11 @@ extern void UpdateBlit(void *);
 extern void load_extra_overlay(void);
 extern s32 LoadWave(s32, s32, s32, s32, s32);
 extern void LoadFrontEndOverlay(s32);
-extern void func_800a3424(s32, s32, s32);
-extern void func_800a7480(s32, s32, u8, u8, s32, s32, s32);
+extern void PS_LockFile(s32, s32, s32);
+extern void ZOID_SetFog(s32, s32, u8, u8, s32, s32, s32);
 extern void func_800c813c(s32, s32);
-extern void func_800c885c(void);
-extern void func_800c9480(void);
+extern void AudFree3D(void);
+extern void InitRecords(void);
 extern void AudioInit(s32, s32, s32, s32, s32, f32, f32, s32);
 extern void AudInit3D(s32, s32, s32, s32, s32);
 extern void SetOptions(void);
@@ -673,16 +673,16 @@ extern void UpdateVisuals(s8);
 extern s32 PrePlay(s32, s32);
 extern s32 ClearRushControls(s32);
 extern void updateGameOverScreen(void);
-extern void func_800ab18c(s32, s32);
-extern void func_800b61a8(s32, s32, s32, s32);
-extern void func_800d5374(void);
-extern void func_800d5828(s16);
-extern void func_800d6160(void);
-extern void func_800e762c(s32);
+extern void WorldFogDensity(s32, s32);
+extern void PlayGameSound(s32, s32, s32, s32);
+extern void StopListeners(void);
+extern void End_MDrive(s16);
+extern void StartGameMusicInternal(void);
+extern void init_model_task(s32);
 extern void func_800f7f3c(void);
-extern void func_800fbe30(void);
-extern void func_800fbe60(void);
-extern void func_800fbf2c(void);
+extern void CheckButtons(void);
+extern void InitCPTime(void);
+extern void CountDown(void);
 extern void GhostEnd(void);
 extern void CalcPolePositions(void);
 extern void modelstop(void);
@@ -694,20 +694,20 @@ extern void PlayGame(void);
 extern void *memset(void *s, s32 c, u32 n);
 extern void SetCountdownTimer(f32);
 extern void TB_SetTextColor(s32);
-extern void func_800a4770(void *, s32);
+extern void game_strcat(void *, s32);
 extern s32 HAL_GetTextWidth(void *, s32);
 extern s32 HAL_SetFontInternal(void);
 extern void TB_DrawText(s16, s32, void *);
 extern void sprintf(s8 *buf, s8 *fmt, ...);
-extern void func_8008705c(s32, u8, s32);
+extern void BlitClearAttribute(s32, u8, s32);
 extern void BlitDraw(s32, s16, s32, s32, s32, s32);
-extern void func_800878e0(s32, u8, s32);
-extern void func_8008a148(s32, u8, u8, s32);
-extern void func_8008a38c(u8);
-extern void func_8008a3e4(s16, s16, s32, s32);
-extern void func_8008a46c(s16, s16, s32, s32, void *);
-extern void func_8008a644(u16);
-extern void func_8009f058(s32);
+extern void BlitSetAttribute(s32, u8, s32);
+extern void BlitColors(s32, u8, u8, s32);
+extern void BlitXLU(u8);
+extern void BlitScissor(s16, s16, s32, s32);
+extern void BlitRect(s16, s16, s32, s32, void *);
+extern void BlitZDist(u16);
+extern void zoid_draw_window(s32);
 extern void blit_load_texture(s32, u8, u8, u16, s32, s32, s32, s32, s32, s32, s32);
 
 /*
@@ -849,9 +849,9 @@ void **NewGhost(void) {
 
 /* ===== func_800CC50C = GC save.c CompressGhost(header, blocks), N64 form (draft, closed) =====
  * GC transcription: memmove = game_memmove, _CalcChecksum = CalcChecksumInternal, AllocateMemoryHeapHigh =
- * AllocateMemoryHeapHigh, zip = zip, _NewGhost = NewGhost, AllocateHandleHeap =
- * audio_task_complete, GetPtrSize = GetPtrSize, ghostRaceTimes = ghostRaceTimes, gRetraceRate = gRetraceRate,
- * gTrackNum = gTrackNum; PS_GetBlocks inlined as ghost_blocks_from_size; GC `DeallocateMemory(header->start)` as
+ * AllocateMemoryHeapHigh, zip, _NewGhost = NewGhost, AllocateHandleHeap =
+ * audio_task_complete, GetPtrSize, ghostRaceTimes, gRetraceRate,
+ * gTrackNum; PS_GetBlocks inlined as ghost_blocks_from_size; GC `DeallocateMemory(header->start)` as
  * the inlined helper ghost_free_start (defined AFTER this function, see there).
  * Shaping: `gh` (= ghost->header) is a named local assigned twice -- once for track/backward/name, again
  * the data memcpy for playerId/finish/GetPtrSize (retail: first web in a3, second in a0; a single assignment gives

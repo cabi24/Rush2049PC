@@ -49,36 +49,36 @@ extern const MultiBlit options_frontEndBlit, options_pauseBlit;   /* frontEndBli
 extern Blit *options_blit;                   /* blit */
 extern s32 options_buttonsInited, options_buttonsJustInited;         /* buttonsInited, buttonsJustInited */
 extern s32 options_validOption[14];                 /* validOption */
-extern s16 gMenuCount;                     /* gMenuCount */
-extern s16 gOptionMenuSize;                     /* gOptionMenuSize */
+extern s16 gMenuCount;
+extern s16 gOptionMenuSize;
 extern s16 options_gSelectedOption;                     /* gSelectedOption */
 extern s16 options_gFirstOption;                     /* gFirstOption */
-extern s32 exitOptionScreen;                     /* exitOptionScreen */
+extern s32 exitOptionScreen;
 extern s8 options_gControllerRemoved;                      /* gControllerRemoved */
-extern s32 playerInPause;                     /* playerInPause */
+extern s32 playerInPause;
 extern ContData gControllerData[];              /* gControllerData */
 extern s8 options_inited;                      /* inited */
 extern s8 gGlobalsSet;
-extern u32 gGameState;                   /* gGameState */
+extern u32 gGameState;
 
 s32 osRecvMesg(OSMesgQueue *, void *, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32);
-s16 TB_GetFontLineHeight(void);         /* TB_GetFontLineHeight */
+s16 TB_GetFontLineHeight(void);
 void *memcpy(void *, const void *, u32);
-s32 MBOX_FindObject_WORK(char *, s8, s8, s32);       /* MBOX_FindObject_WORK */
+s32 MBOX_FindObject_WORK(char *, s8, s8, s32);
 s16 MBOX_NewObject(s32, void *, s32, u32);       /* MBOX_NewObject wrapper */
-TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32); /* MBOX_FindTexture_WORK */
-void ZOID_SetTexture(s16, TexDef *, s32);            /* ZOID_SetTexture */
-void WPitchUV(f32, f32 [3][3]);               /* WPitchUV */
-void ScaleUV(f32 [3][3], f32 [3][3], f32);   /* ScaleUV */
-void SaveGlobals(void);                          /* SaveGlobals */
-void createBG(void);                  /* createBG */
-void ZeroCameras(void);                  /* ZeroCameras */
-void ClearRushControls(void);                    /* ClearRushControls */
+TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
+void ZOID_SetTexture(s16, TexDef *, s32);
+void WPitchUV(f32, f32 [3][3]);
+void ScaleUV(f32 [3][3], f32 [3][3], f32);
+void SaveGlobals(void);
+void createBG(void);
+void ZeroCameras(void);
+void ClearRushControls(void);
 void options_TitlePane(void);                    /* _TitlePane@optionscr.c */
-void *InitPane(s32, s32, s32, s32, s32, s32, s32, s32);   /* InitPane */
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
+void *InitPane(s32, s32, s32, s32, s32, s32, s32, s32);
+Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
 void op_gfx_lock(void) { osRecvMesg(&text_lock_queue, 0, 1); }
 void op_gfx_unlock(void) { osSendMesg(&text_lock_queue, 0, 0); }

@@ -4101,9 +4101,9 @@ void CrashedStunt(s32 idx) {
 /* The manifest owners of Check2WheelSide, CheckAirTime and CheckMulti are empty deleted-procedure
  * stubs (src/blob/Check2WheelSide.c, CheckAirTime.c, CheckMulti.c), which this group's calls bind
  * to on PC. The bodies written here get their own names (docs/port/PROTOTYPES.md). */
-#define Check2WheelSide pc_func_800C2418
-#define CheckAirTime pc_func_800C2420
-#define CheckMulti pc_func_800C2428
+#define Check2WheelSide pc_Check2WheelSide
+#define CheckAirTime pc_CheckAirTime
+#define CheckMulti pc_CheckMulti
 /* CheckForStunt (0x800C2BE0, 614 words) -- strict MATCH in this real -O3 unit.
  * Per-frame stunt/trick driver over all players (nothing here is a camera; the label is historical):
  * idle-timer bookkeeping (stunt_eTime, 2.69 s), wheel-contact counters from the HUD record, axis-flip

@@ -2,9 +2,9 @@
 /*
  * TB_DrawTextScrollBox (0x800BE078, 1084 B) = MAT3 TB_text.c TB_DrawTextScrollBox (GC 0x8004fd1c): draws `text`
  * word-wrapped into a box, starting at `page`/`line` (the historical label is wrong). , .
- * Direct typed port of the MAT3 body; callees (N64 names): TB_GetFontLineHeight = TB_GetFontLineHeight,
+ * Direct typed port of the MAT3 body; callees (N64 names): TB_GetFontLineHeight,
  * TB_GetTextNumLines = TB_GetTextNumLines (locked), camera_shake_update = HAL_GetCharWidth, HAL_GetTextWidth =
- * HAL_GetTextWidth, HAL_DrawText = HAL_DrawText; HAL_GetFontSpacing = HAL_GetFontSpacing and HAL_SetTextPos =
+ * HAL_GetTextWidth, HAL_DrawText; HAL_GetFontSpacing = HAL_GetFontSpacing and HAL_SetTextPos =
  * HAL_SetTextPos (N64 version keeps the -32768 "unchanged" sentinel) are the locked kept getters, inlined by -O3
  * and therefore defined here verbatim (same precedent as TB_GetTextNumLines.c's HAL_GetFontSpacing).
  * Data: gJust = gJust {h, v}; gSpacing gSpacing; gFontXpos/gFontYpos gFontXpos/gFontYpos.
@@ -22,15 +22,15 @@ typedef signed int s32;
 typedef unsigned int u32;
 
 typedef struct { s32 h, v; } Just;
-extern Just gJust;  /* gJust */
-extern s8 gSpacing;    /* gSpacing */
-extern s16 gFontXpos;   /* gFontXpos */
-extern s16 gFontYpos;   /* gFontYpos */
-extern s16 TB_GetFontLineHeight(void);          /* TB_GetFontLineHeight */
-extern s16 TB_GetTextNumLines(s16 width, void *text);  /* TB_GetTextNumLines */
-extern u32 HAL_GetCharWidth(u16 ch);             /* HAL_GetCharWidth */
-extern u32 HAL_GetTextWidth(void *text, s16 numChars);  /* HAL_GetTextWidth */
-extern void HAL_DrawText(void *text, s16 numChars);    /* HAL_DrawText */
+extern Just gJust;
+extern s8 gSpacing;
+extern s16 gFontXpos;
+extern s16 gFontYpos;
+extern s16 TB_GetFontLineHeight(void);
+extern s16 TB_GetTextNumLines(s16 width, void *text);
+extern u32 HAL_GetCharWidth(u16 ch);
+extern u32 HAL_GetTextWidth(void *text, s16 numChars);
+extern void HAL_DrawText(void *text, s16 numChars);
 
 s8 HAL_GetFontSpacing(void);
 

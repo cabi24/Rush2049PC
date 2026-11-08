@@ -3781,34 +3781,33 @@ typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 /* PC: the front end's 0x8038A400 is image A's updateWarningScreen; findDamageSlot is image B's function at
  * that address, since both images are linked in (docs/port/SYNTH.md). */
-#define func_8038a400 updateWarningScreen
-M2C_UNK func_8038a400();
-M2C_UNK func_8038e5dc();
-M2C_UNK func_8038f454();
+M2C_UNK updateWarningScreen();
+M2C_UNK updateTrackScreen();
+M2C_UNK updateTitleScreen();
 M2C_UNK updateStartScreen();
 M2C_UNK updateRecordScreen();
-M2C_UNK func_8039842c();
-M2C_UNK func_803990d0();
-M2C_UNK func_80399d10();
-M2C_UNK func_8039a2a0();
-M2C_UNK func_8039c140();
-M2C_UNK func_8039c910();
-M2C_UNK func_803a1eac();
+M2C_UNK updatePlayerScreen();
+M2C_UNK updatePakScreen();
+M2C_UNK updateModeScreen();
+M2C_UNK updateLicenseScreen();
+M2C_UNK updateCircuitScreen();
+M2C_UNK updateCheatScreen();
+M2C_UNK updateCarScreen();
 void updateFrontEnd(void)
 {
   if (gGameState & 2)
   {
-    func_8039a2a0();
+    updateLicenseScreen();
   }
   else
     if (gGameState & 0x40000000)
   {
-    func_8038a400();
+    updateWarningScreen();
   }
   else
     if (gGameState & 4)
   {
-    func_8038f454();
+    updateTitleScreen();
   }
   else
     if (gGameState & 8)
@@ -3831,27 +3830,27 @@ void updateFrontEnd(void)
   {
     if (gGameState & 0x20)
     {
-      func_8039842c();
+      updatePlayerScreen();
     }
     else
       if (gGameState & 0x40)
     {
-      func_80399d10();
+      updateModeScreen();
     }
     else
       if (gGameState & 0x4000)
     {
-      func_8039c140();
+      updateCircuitScreen();
     }
     else
       if (gGameState & 0x80)
     {
-      func_8038e5dc();
+      updateTrackScreen();
     }
     else
       if (gGameState & 0x100)
     {
-      func_803a1eac();
+      updateCarScreen();
     }
     else
       if (gGameState & 0x200)
@@ -3876,12 +3875,12 @@ void updateFrontEnd(void)
     else
       if (gGameState & 0x04000000)
     {
-      func_803990d0();
+      updatePakScreen();
     }
     else
       if (gGameState & 0x08000000)
     {
-      func_8039c910();
+      updateCheatScreen();
     }
   }
   updateBG();

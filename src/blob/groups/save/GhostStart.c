@@ -3,16 +3,16 @@
  * the function sets up the ghost players at race start). Fresh draft from the GC disassembly
  * (reference/gc/disasm/ghost.c/GhostStart.s) + the N64 words. EQUAL in the whole-program unit
  * (the whole-program unit --tag score props_render --with THIS --internal ReadGhostData --neighbours: 0 locked differ).
- * GC-derived names (source GhostStart unless noted): gRace = gRace, gInited = ghost_gInited,
- *   gRestartGame = gRestartGame, gNumCars = gNumCars (volatile, as in animRadar/fake_init),
- *   gNumPlayers = gNumPlayers, num_humans = num_humans (volatile), gGhostPlayers = gGhostPlayers
+ * GC-derived names (source GhostStart unless noted): gRace, gInited = ghost_gInited,
+ *   gRestartGame, gNumCars = gNumCars (volatile, as in animRadar/fake_init),
+ *   gNumPlayers, num_humans = num_humans (volatile), gGhostPlayers
  *   (player records gRealGhostPlayers, 0x30 each) / gNewGhostHeaders (header pointers to gRealNewGhostHeaders, 0x58 each) /
- *   gNewGhosts (ghost slots to gRealNewGhosts ghosts, 0x2C each), gGhosts = gGhosts, gPlayers = gPlayers
+ *   gNewGhosts (ghost slots to gRealNewGhosts ghosts, 0x2C each), gGhosts, gPlayers
  *   (0x4C each: node 0, slot 1, carTrans 0x42, handle 0x48), gLink = D_80153E88 (8 B each), model = D_8014A250
- *   (0x808 each: frameTime 0x718, state 0x7CC), gTrackNum = gTrackNum, gBackwards = gBackwards, gRetraceTime =
- *   gRetraceTime, gRetraceRate = gRetraceRate, ghostRaceTimes = ghostRaceTimes, gCarHandling/Engines/Tires/Frame/Wings/
+ *   (0x808 each: frameTime 0x718, state 0x7CC), gTrackNum, gBackwards, gRetraceTime =
+ *   gRetraceTime, gRetraceRate, ghostRaceTimes, gCarHandling/Engines/Tires/Frame/Wings/
  *   TireRims/Horn = gCarHandling/gCarEngines/gCarTires/gCarFrame/gCarWings/gTireRims/gCarHorn ([5][13] s8),
- *   gFrontTireScale/gRearTireScale = gFrontTireScale/gRearTireScale ([5][13] f32), GetPlayerCarTrans = GetPlayerCarTrans,
+ *   gFrontTireScale/gRearTireScale = gFrontTireScale/gRearTireScale ([5][13] f32), GetPlayerCarTrans,
  *   AllocateMemoryHeap = audio_dma_sync, _ReadGhostData = ReadGhostDataInternal (IPA ghosth s1, decode s0, select s3).
  * N64 differences from GC: the slot count n = expansion_pak_present ? 4 : 2 (GC 4); the ghost header's best time comes
  *   from the player data's TrackRec table at +0xE0 (96 B per entry, +6 entries when backwards); gLink has three

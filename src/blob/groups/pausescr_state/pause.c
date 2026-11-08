@@ -27,8 +27,8 @@ typedef struct { s16 x, y; } Pos;
 typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
 
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;          /* gText */
-extern s32 gPauseState;                     /* gPauseState */
+extern TextState gText;
+extern s32 gPauseState;
 extern Blit *pause_DimBlit;                   /* DimBlit */
 extern Blit *pause_TitleBlit;                   /* TitleBlit */
 extern Blit *pause_PauseBlit;                   /* PauseBlit */
@@ -39,16 +39,16 @@ extern const MultiBlit D_80117284, D_801172A8, D_801172CC, D_801172F0, D_8011731
 extern Pos pause_titlePos;                     /* titlePos */
 extern s8 pause_gYes;                      /* gYes */
 extern Rect pause_gPlayerRects[][4];               /* gPlayerRects */
-extern s16 gNumPlayers;                     /* gNumPlayers */
+extern s16 gNumPlayers;
 
 s32 osRecvMesg(OSMesgQueue *, void *, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32);
-u32 HAL_GetTextWidth(void *, s16);    /* HAL_GetTextWidth */
-s16 TB_GetFontLineHeight(void);         /* TB_GetFontLineHeight */
-void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);   /* InitPane */
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);   /* NewMultiBlit */
-void updatePauseStateCleanup(void);                  /* updatePauseStateCleanup */
+u32 HAL_GetTextWidth(void *, s16);
+s16 TB_GetFontLineHeight(void);
+void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);
+Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
+void updatePauseStateCleanup(void);
 void pause_TitlePane(void);                     /* _TitlePane@pausescr.c */
 s32 animControllerDimInternal();                       /* animRumblePane */
 

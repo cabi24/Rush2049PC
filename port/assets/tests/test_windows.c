@@ -1,5 +1,5 @@
 /* port/assets/tests/test_windows.c: the ZOID windows (ZoidWinInfo, 80 bytes a window on the PC) and the frame records
- * seen from frame_color_buffers through the game's own code (docs/port/POINTERS.md 10): ZOID_InitializeWindow (ZOID_InitializeWindow)
+ * seen from frame_color_buffers through the game's own code (docs/port/POINTERS.md 10): ZOID_InitializeWindow
  * with the projection set-up (ZOID_SetWindow), the fog set-up and read-back (ZOID_SetFog, ZOID_GetFog), the
  * m2c accessors (ZOID_SetViewport, ZOID_GetWindow), the fog regions (WorldFogDensity, which strides by hand), and a
  * world-to-screen projection (ZOID_ProjectWindow, through ZOID_GetWindow) undone by the unprojection

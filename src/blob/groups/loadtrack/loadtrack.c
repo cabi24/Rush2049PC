@@ -1,10 +1,10 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * LoadTrack (0x800BB9B0, 2,104 B) = MAT3/GC/DC tracks.c LoadTrack(track, background, reloading), N64 version:
- *   load + wait on the track / world / collision / path waves (LoadWave = LoadWave, WaveInstanceReady =
- *   WaveInstanceReady, GetWaveInstanceAddr = GetWaveInstanceAddr; N64 wave numbers track+101/+120/+139, path 158/177),
+ *   load + wait on the track / world / collision / path waves (LoadWave, WaveInstanceReady =
+ *   WaveInstanceReady, GetWaveInstanceAddr; N64 wave numbers track+101/+120/+139, path 158/177),
  *   world wad setup (func_80096C28 = MBSetupWad, lookup_with_output = MBGetFromWad: WDHR / GDAT / GTLD), the
- * "other" .81 by race/track/window count, then once: initTargetStructs (initTargetStructs), SkyInit
+ * "other" .81 by race/track/window count, then once: initTargetStructs, SkyInit
  *   (SkyInit), NewWorld (NewWorld, locked, inlined), InitEnvs, InitTrackDynamicObjs, LoadCars,
  *   InitVisuals, InitCheckpointData (locked: clears D_80110680[0..1] and calls InitCheckpointData; inlined),
  *   InitPathData, InitDemoPathPoint, InitSkids, InitSmoke, InitBlast and the image-B call initWorldDamage (GC
@@ -48,21 +48,21 @@ typedef struct Wad {           /* GC mb_wad.c __anon_87656 */
     void *TOC;
 } Wad;
 
-extern TrackLoadInfo gTrackLoadInfo;   /* gTrackLoadInfo */
-extern s32 *gWorldData;            /* gWorldData */
-extern WorldHdr *WorldTable;       /* WorldTable */
-extern void *gTargetGroups;           /* gTargetGroups */
-extern s32 numgTargetGroups;             /* numgTargetGroups */
-extern void *gTargetGroupList;           /* gTargetGroupList */
-extern s32 numgTargetGroupList;             /* numgTargetGroupList */
-extern void *gRoadDat;           /* gRoadDat */
-extern void *gPathWave;           /* gPathWave */
-extern s8 gBackwards;              /* gBackwards */
-extern u32 gGameState;             /* gGameState */
-extern s32 gRace;             /* gRace */
+extern TrackLoadInfo gTrackLoadInfo;
+extern s32 *gWorldData;
+extern WorldHdr *WorldTable;
+extern void *gTargetGroups;
+extern s32 numgTargetGroups;
+extern void *gTargetGroupList;
+extern s32 numgTargetGroupList;
+extern void *gRoadDat;
+extern void *gPathWave;
+extern s8 gBackwards;
+extern u32 gGameState;
+extern s32 gRace;
 extern s8 expansion_pak_present;
-extern s8 gTrackNum;              /* gTrackNum */
-extern s16 gNumWindows;             /* gNumWindows */
+extern s8 gTrackNum;
+extern s16 gNumWindows;
 extern char *gWorldNames[];         /* gWorldNames (N64: indexed by track) */
 
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */

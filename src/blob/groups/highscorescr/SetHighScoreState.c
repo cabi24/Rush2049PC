@@ -2,13 +2,13 @@
 /*
  * func_800F1210 = GC `_SetHighScoreState(newState)` (highscorescr.c, confident pair). newState in $s2
  * (IPA register parameter). Old state's panes are removed (RemovePane = sound_handles_array_clear), the new
- * state's panes are built (InitPane = InitPane) and the countdown timer set (SetCountdownTimer =
- * SetCountdownTimer). GC names: gHighScoreState D_80140B20, blit highscore_blit (RemoveBlit = RemoveBlit,
- * NewMultiBlit = NewMultiBlit, mblit highscore_mblit), namePanes D_80149418[], codePane D_80146208, ghost panes
+ * state's panes are built (InitPane) and the countdown timer set (SetCountdownTimer =
+ * SetCountdownTimer). GC names: gHighScoreState D_80140B20, blit highscore_blit (RemoveBlit,
+ * NewMultiBlit, mblit highscore_mblit), namePanes D_80149418[], codePane D_80146208, ghost panes
  * ghostPanes[3], score panes scorePanes[2], gNumPlayers gNumPlayers, gNumWindows gNumWindows,
  * gPlayerRects highscore_gPlayerRects, gRace gRace, gTable gTable, gGhostMenuSelect gGhostMenuSelect,
  * gGhostPak gGhostPak, _UninitScreen highscore_UninitScreen, _FindGhosts func_800F0F44, _PrintScores func_800F0914,
- * HAL_SetFont = HAL_SetFont (inlined font_set), HAL_GetTextWidth = HAL_GetTextWidth,
+ * HAL_SetFont = HAL_SetFont (inlined font_set), HAL_GetTextWidth,
  * TB_GetFontLineHeight = TB_GetFontLineHeight.
  * Shaping notes: the second switch reads the global back (`switch (D_80140B20)` after the store),
  * which is what makes uopt reload it per case for the final test; the font switches go through the

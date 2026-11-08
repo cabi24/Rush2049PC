@@ -3,10 +3,10 @@
  * func_801084D4 (0x801084D4, 1500 B) = GC hud.c animLapTimeText (MAT3 decomp/src/GameSource/src/hud.c
  * animLapTimeText; GC locals t, remaining, digits[9], str[2], digitW, colonW, x, y, digitIdx, slot,
  * fixedWidth). Per-window lap split "m:ss.hhh" with a shadow pass, fading out over the last 3 s of
- * gCheckPtTimeout. gCheckPtTimeout = gCheckPtTimeout, gLapTime = gLapTime, gShowElapsed = gShowElapsed,
- * lapTimePos = lapTimePos, gPauseState = gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
- * HAL_SetTextTranslucency = HAL_SetTextTranslucency, TB_DrawText = TB_DrawText, TB_SetTextColor = TB_SetTextColor,
- * HAL_GetCharWidth = camera_shake_update, HAL_SetFontFixedWidth = HAL_SetFontFixedWidth, HAL_SetFont =
+ * gCheckPtTimeout. gCheckPtTimeout, gLapTime, gShowElapsed,
+ * lapTimePos, gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
+ * HAL_SetTextTranslucency, TB_DrawText, TB_SetTextColor,
+ * HAL_GetCharWidth = camera_shake_update, HAL_SetFontFixedWidth, HAL_SetFont =
  * HAL_SetFontInternal (s2 IPA parameter), TB_SetJust pair = gJust.
  * N64 differences from GC: an unused s32 parameter (stored to its home, as the sibling animElapsedTimerText);
  * `remaining` declared last and assigned after the continue test; the loop's zero is spelled `0.f` (a different

@@ -66,23 +66,23 @@ typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_2
 
 extern Gfx *blit_dl;                          /* display-list cursor */
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;                /* gText */
+extern TextState gText;
 extern s32 video_buttonsInited;                           /* buttonsInited */
 extern s8 video_optionValid[];                          /* validOption[4] */
-extern s32 gVideoMenuSelect;                           /* gVideoMenuSelect */
-extern s32 gVertCenter;                           /* gVertCenter */
-extern s32 gHorzCenter;                           /* gHorzCenter */
-extern s8 gTestFrequency;                            /* gTestFrequency */
-extern s8 gConfirmFrequency;                            /* gConfirmFrequency */
-extern s8 gYesFrequency;                            /* gYesFrequency */
-extern void *gTestPane;                         /* gTestPane */
-extern void *gConfirmPane;                         /* gConfirmPane */
+extern s32 gVideoMenuSelect;
+extern s32 gVertCenter;
+extern s32 gHorzCenter;
+extern s8 gTestFrequency;
+extern s8 gConfirmFrequency;
+extern s8 gYesFrequency;
+extern void *gTestPane;
+extern void *gConfirmPane;
 extern s8 video_gControllerRemoved;                            /* gControllerRemoved */
 extern s32 video_menu_center_x;                           /* menuRect.x */
                            /* width$636 */
                            /* width$645 */
-extern s32 playerInPause;                           /* playerInPause */
-extern s32 gGameState;                         /* gGameState */
+extern s32 playerInPause;
+extern s32 gGameState;
 extern ButtonInfo video_buttonInfo[];                  /* buttonInfo */
 extern u8 video_title_button_pos[];                          /* buttonInfo + 0x2f0 (title position) */
 extern u8 gCamera[];
@@ -91,18 +91,18 @@ extern TextColor gFlashColor1, gFlashColor2;
 extern s32 gJust[2];   /* gJust: tentative definition (as controls.c / credits_scroll_grp audio_animPanes_demo_animText.c); unit: extern_data */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);   /* HAL_GetTextWidth */
-extern s16 TB_GetFontLineHeight(void);        /* TB_GetFontLineHeight */
-extern void TB_SetTextColor(s32);               /* TB_SetTextColor */
-extern void TB_DrawText(s16, s16, char *);     /* TB_DrawText */
-extern s32 TB_Sprintf(char *, char *, ...);    /* TB_Sprintf */
-extern void HAL_SetTextDepth(f32);                  /* HAL_SetTextDepth */
-extern void HAL_SetTextTranslucency(f32);                  /* HAL_SetTextTranslucency */
-extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
-extern s16 TB_GetTextNumLines(s16, char *);         /* TB_GetTextNumLines */
-extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);   /* InitPane */
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);    /* TB_DrawTextScrollBox */
-extern void RemovePane(void *);   /* RemovePane */
+extern u32 HAL_GetTextWidth(char *, s32);
+extern s16 TB_GetFontLineHeight(void);
+extern void TB_SetTextColor(s32);
+extern void TB_DrawText(s16, s16, char *);
+extern s32 TB_Sprintf(char *, char *, ...);
+extern void HAL_SetTextDepth(f32);
+extern void HAL_SetTextTranslucency(f32);
+extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);
+extern s16 TB_GetTextNumLines(s16, char *);
+extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
+extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
+extern void RemovePane(void *);
 
 void TB_FlashTextColors(TextColor first, TextColor second);   /* TB_FlashTextColors (ctx_flash.c) */
 void vs_setWidth(s16 *width)

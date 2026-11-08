@@ -80,8 +80,8 @@ foreach(f updatePauseScreen TB_EllipseText createBG PrePlay PS_ReadPartialFile
           GhostEnd WorldCullObjects TB_DrawText animSpeedText StartWeaponIcon AnimateWeaponIcon video_animPanes)
     list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/game/${f}.c)
 endforeach()
-# Image A's findDamageSlot (updateWarningScreen) shares its address, and so its name, with image B's: it is
-# compiled as updateWarningScreen (docs/port/SYNTH.md).
+# Image A's updateWarningScreen shares its address, 0x8038A400, and so its name in the loader's tables, with image
+# B's findDamageSlot (docs/port/SYNTH.md).
 list(APPEND GAME_SOURCES ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/carscr_animText.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/updateWarningScreen.c
      ${CMAKE_SOURCE_DIR}/nonmatching/ovl_a/stubs.c ${CMAKE_SOURCE_DIR}/nonmatching/ovl_b/stubs.c)

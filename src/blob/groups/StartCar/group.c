@@ -3713,7 +3713,7 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-M2C_UNK func_8038c910(s16);                         /* extern */
+M2C_UNK StartWeapon(s16);                         /* extern */
 
 
 /* group members */
@@ -3748,7 +3748,7 @@ void StartWing(s16 slot, s16 idx) {
     InitWingSmoke(slot, idx);
 }
 
-/* StartCar (StartCar) is defined in startcar.c */
+/* StartCar is defined in startcar.c */
 
 /* stand-in caller: keeps StartWingFlame out of line under -O3 */
 

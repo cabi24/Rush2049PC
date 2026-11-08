@@ -6,7 +6,7 @@
  *     outgoing slot 0 by the private IPA convention) = animButtonText@controlscr.c(signed char p)
  * N64 differences from MAT3/DC: 12 controls (MAT3 13), rumble row i == 10 (MAT3 11), centred row i == 11,
  * no /2 on projected coordinates, `x - 35/55/45/25 * scale * 300 / buttonZ` operand order, the N64 validOption
- * (controls_validOption, rejects option 8) and PS_PakRumble (PS_PakRumble) inlined.
+ * (controls_validOption, rejects option 8) and PS_PakRumble inlined.
  * Inlined helpers, non-static and not on keep (stub rule), disclosed:
  *   ct_gfx_lock / ct_gfx_unlock / ct_font_set = the two-level HAL_SetFont (_GetSemaphore; old = _HAL_SetFont;
  *   _ReleaseSemaphore), ct_SetJust = TB_SetJust, ct_CenterText / ct_RightText = TB_CenterText / TB_RightText,
@@ -47,18 +47,18 @@ typedef struct PakSlot { s8 b0, b1, b2, b3, b4, b5, b6; u8 rest[765]; } PakSlot;
 typedef struct ContData { s8 b0; u8 rest[15]; } ContData;                                   /* 16 B */
 
 extern OSMesgQueue text_lock_queue;
-extern TextState gText;                /* gText */
-extern s16 gNumWindows;                           /* gNumWindows */
+extern TextState gText;
+extern s16 gNumWindows;
 extern s32 controls_buttonsInited[];                         /* buttonsInited[p] */
 extern PlayerRow gPlayers[];                   /* gPlayers */
 extern s8 controlScrActive[];                          /* controlScrActive[p] */
 extern CtRect controls_gPlayerRects[][4];                   /* gPlayerRects (24-byte form) */
 extern ContData gControllerData[];                    /* gControllerData */
 extern s32 playerTextColor[];                         /* playerTextColor */
-extern s32 gGameState;                         /* gGameState */
+extern s32 gGameState;
 extern s16 gControlFirst[];                         /* gControlFirst[p] */
 extern s16 gControlSelect[];                         /* gControlSelect[p] */
-extern s16 gControlMenuSize;                           /* gControlMenuSize */
+extern s16 gControlMenuSize;
 extern PakSlot gPaks[];
 extern s32 gJust[2];   /* gJust (TB_SetJust pair): tentative definition, as hud_text_anims/audio_animPanes_demo_animText.c, countdown,
                         coins: the two TB_SetJust stores share one `lui at` only with gJust defined in the group's
@@ -66,23 +66,23 @@ extern s32 gJust[2];   /* gJust (TB_SetJust pair): tentative definition, as hud_
 extern char controller_removed_format[];                        /* "CONTROLLER %d %s" */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);   /* HAL_GetTextWidth */
-extern s16 TB_GetFontLineHeight(void);        /* TB_GetFontLineHeight */
-extern void TB_SetTextColor(s32);               /* TB_SetTextColor */
-extern void TB_DrawText(s16, s16, char *);     /* TB_DrawText */
-extern s32 TB_Sprintf(char *, char *, ...);    /* TB_Sprintf */
-extern void HAL_SetTextDepth(f32);                  /* HAL_SetTextDepth */
+extern u32 HAL_GetTextWidth(char *, s32);
+extern s16 TB_GetFontLineHeight(void);
+extern void TB_SetTextColor(s32);
+extern void TB_DrawText(s16, s16, char *);
+extern s32 TB_Sprintf(char *, char *, ...);
+extern void HAL_SetTextDepth(f32);
 extern void TB_EllipseText(char *, char *, s16);   /* TB_EllipseText (retail narrows the width: s16) */
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);  /* TB_DrawTextScrollBox */
+extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
 typedef struct CtButton { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[8]; f32 depth; u8 alpha; u8 pad61[3]; } CtButton; /* 64 B */
 typedef struct CtCamera { u8 data[152]; } CtCamera;
 extern CtButton controls_buttonInfo[][17];                /* buttonInfo[p][17] */
 extern CtCamera gCamera[];                    /* gCamera[p] */
 extern f32 controls_gButtonScale;                           /* gButtonScale */
 extern f32 controls_buttonZ;                           /* buttonZ */
-extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);  /* ZOID_ProjectWindow */
-extern void HAL_SetTextTranslucency(f32);                  /* HAL_SetTextTranslucency */
-extern void HAL_SetMenuTextDepth(f32);                  /* HAL_SetMenuTextDepth */
+extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);
+extern void HAL_SetTextTranslucency(f32);
+extern void HAL_SetMenuTextDepth(f32);
 typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
 extern TextColor flashColors[2];                  /* flashColors */
 extern TextColor gFlashColor1, gFlashColor2;

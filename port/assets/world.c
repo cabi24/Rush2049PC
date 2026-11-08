@@ -2,7 +2,7 @@
  *
  * A world WAD is a WAD (pc_assets_wad runs first and handles the container) with four chunks of its own:
  *   WHDR  u32 count; count x {u32 woff; char name[16]} (0x14), sorted by name. LoadTrack adds the file's address
- *         to woff; NewWorld (NewWorld) bsearches the names.
+ *         to woff; NewWorld bsearches the names.
  *   WOBJ  0x68-byte world nodes: char name[16]; f32 mat[12] @0x10; u32 dlflags @0x40; s16 next, child, sfx1,
  *         sfx2 @0x44; s32 tidx @0x4C; f32 min[3], max[3] @0x50. next and child index from the world's first node.
  *   GDAT  0x1C-byte quadtree nodes: s16 parent; u8, u8 flags; f32 minh, maxh, minv, maxv; u16 child[4].

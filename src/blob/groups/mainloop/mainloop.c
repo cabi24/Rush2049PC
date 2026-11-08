@@ -6,7 +6,7 @@
  *    (gPakSysInited) = 0, hang;
  *  - 1 (retrace): when the next framebuffer is the current one, no frame is in flight (game_frame_building/70/72), the
  *    scheduler's frame count moved on (+636 != gLastFrameCount) and fewer than two tasks are pending (gfx_tasks_pending):
- *    retrace count retraces_since_frame = 0, StartGraphics (StartGraphics), frame_start_pending = 1, wake the game thread
+ *    retrace count retraces_since_frame = 0, StartGraphics, frame_start_pending = 1, wake the game thread
  *    (osSendMesg game_thread_queue); then count++;
  *  - 2750 (frame-end request from the game thread's UpdateFrame): frame_end_requested = 0, EndGraphics
  *    (EndGraphics), toggle the frame record frame_record_index, pending++;

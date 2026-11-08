@@ -14,8 +14,8 @@
  * > 0.8 arm (listing oracle: deleting that one directive closed the last 14
  * words). Earlier research: lean
  * (14/333), credited for the
- * record layouts. Historical callee names: Hidden = Hidden,
- * UpdateBlit = UpdateBlit; gBlitInstanceList = gBlitInstanceList,
+ * record layouts. Historical callee names: Hidden,
+ * UpdateBlit; gBlitInstanceList,
  * gGameCar = gGameCar (health = battle.health at +0x386).
  * Own .rodata: 0.8f, 0.6f, 0.4f, 0.2f (retail 0x80394F54..0x80394F64, checked).
  */
@@ -78,8 +78,8 @@ extern s32 healthPos[4][4][2];
 extern u8 healthColor[4][2][4];
 extern tPalette healthPal[4];
 
-extern int Hidden(_tBlit_2 *, int);   /* Hidden */
-extern void UpdateBlit(_tBlit_2 *);          /* UpdateBlit */
+extern int Hidden(_tBlit_2 *, int);
+extern void UpdateBlit(_tBlit_2 *);
 
 int animHealth(_tBlit_2 *blt) /* animHealth */
 {

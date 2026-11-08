@@ -6,8 +6,8 @@
  * offset view1_suscomp_offset + 1.2, 4.0 forward, ftransvec = WorldVector), 1 driver's eye (collision-force clamp
  * and smoothing between osStopThread/osStartThread on model_thread, x/z only: `j != 4; j += 2`; cur_acc =
  * cur_acc[slot]; driver offset view1_eye_x..98; acc elasticity view1_accel_filter / view1_spring_filter), 2/3 View3Cam
- * (View3Cam), 8/10 UpdateCarObj (UpdateCarObj), 4 DeathCam (DeathCam), 5 circle (circle_camera_around_car),
- * 6 fixed (fix_camera_in_space), 7 steady_move_cam (steady_move_cam), 9 maxpath_cam (maxpath_cam); each copies the
+ * (View3Cam), 8/10 UpdateCarObj, 4 DeathCam, 5 circle (circle_camera_around_car),
+ * 6 fixed (fix_camera_in_space), 7 steady_move_cam, 9 maxpath_cam; each copies the
  * camera's out matrix/pos back (CopyUV = fmatcopy) and some re-ground the camera (CameraCollision).
  * STATE: MATCH (from the draft; GC camera.c update_camera locals i, j, pos_in, pos_out, m, camera).
  * Levers: no Camera pointer local -- the slot camera is the expression gCamera[slot] (macro CAM; GC keeps

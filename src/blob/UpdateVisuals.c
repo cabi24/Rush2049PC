@@ -2,7 +2,7 @@
 /*
  * UpdateVisuals (0x800B0180, 212 words): per-car visual-effects update. N64 descendant of arcade
  * game/visuals.c UpdateVisuals(slot) (the name is a historical label):
- *   - gGoodFrameRate (gGoodFrameRate) = frame time in microseconds below a budget: 36000 us when the video
+ *   - gGoodFrameRate = frame time in microseconds below a budget: 36000 us when the video
  *     rate gRetraceRate is 50 Hz, else 45000 us with 2+ players (gNumPlayers), else 30000 us.
  *     The time is OS_CYCLES_TO_USEC of the CPU-count delta frame_cycle_count (count * 64 / 3000, u64).
  *   - car->appearance & 0x60 (smoke) -> StartSmoke(slot, 4, 0, 0) (= StartSmoke).

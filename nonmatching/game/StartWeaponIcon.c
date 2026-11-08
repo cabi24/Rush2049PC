@@ -85,7 +85,7 @@ extern CollSize collsize[];   /* collsize */
 /* PC: the definitions' prototypes. */
 s32 PlayTargetSound(s32 sound, s32 slot, f32 *position, u8 mode);
 void MBOX_HideObject(s32 a, s32 mode, u32 v);
-void IncBattlePowerUps(void);                                  /* IncBattlePowerUps */
+void IncBattlePowerUps(void);
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 

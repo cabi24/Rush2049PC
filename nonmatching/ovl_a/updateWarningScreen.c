@@ -1,5 +1,5 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* : findDamageSlot = updateWarningScreen@warningscr.c, straight port of the Dreamcast warningscr.c text (closest
+/* updateWarningScreen@warningscr.c (image A), straight port of the Dreamcast warningscr.c text (closest
  * to the N64 body: MAT3 keeps only the tail) with the N64 additions read from the retail words: 4 paks,
  * PS_GetBlocks(0x810), the gActiveEdges 0xC00 gPakScr toggle and the `& 3` start test. Statics as in DC. */
 typedef signed char s8; typedef unsigned char u8;
@@ -18,35 +18,34 @@ typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 extern s8 pak_recognize_error_seen;
 extern void *gPlayerFiles_head;
 extern Controller gControllerData[4];  /* gControllerData */
-extern u32 gActiveEdges;            /* gActiveEdges */
-extern u8 gBlocksNeeded;             /* gBlocksNeeded */
+extern u32 gActiveEdges;
+extern u8 gBlocksNeeded;
 extern MultiBlit warningscr_blits[1];   /* WarningBlit: one, as NewMultiBlit gets it. By the gap it ran over the strings after
                                    * it, which other screens' blits name, and turned them into words */
 
-extern s8 PS_PakInserted(s32);     /* PS_PakInserted */
-extern s8 PS_PakDamaged(s32);     /* PS_PakDamaged */
-extern s8 PS_PakRumble(s32);     /* PS_PakRumble */
-extern u32 PS_GetFreeBlocks(s32);    /* PS_GetFreeBlocks */
-extern u32 PS_GetBlocks(s32);    /* PS_GetBlocks */
-extern u32 PS_GetFreeFiles(s32);    /* PS_GetFreeFiles */
-extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16); /* NewMultiBlit */
-extern void RemoveBlit(Blit *);   /* RemoveBlit */
-extern void SetControllerActive(s32, s32); /* SetControllerActive */
-extern void SetControllerStickEdges(s32, s32);  /* SetControllerStickEdges */
-extern void PlayUDSound(u32);  /* PlayUDSound */
-extern void PlayStartABSound(u32);  /* PlayStartABSound */
-extern void setGameState(s32);   /* setGameState */
+extern s8 PS_PakInserted(s32);
+extern s8 PS_PakDamaged(s32);
+extern s8 PS_PakRumble(s32);
+extern u32 PS_GetFreeBlocks(s32);
+extern u32 PS_GetBlocks(s32);
+extern u32 PS_GetFreeFiles(s32);
+extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
+extern void RemoveBlit(Blit *);
+extern void SetControllerActive(s32, s32);
+extern void SetControllerStickEdges(s32, s32);
+extern void PlayUDSound(u32);
+extern void PlayStartABSound(u32);
+extern void setGameState(s32);
 
-/* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (worlddam.c), which the name
- * findDamageSlot is there. Image A's is updateWarningScreen, which updateFrontEnd (updateFrontEnd) calls in
+/* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (findDamageSlot, worlddam.c),
+ * which the loader's tables name for both. Image A's is updateWarningScreen, which updateFrontEnd calls in
  * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics
  * are read by drawWarningScreen (warningscr_animText) by their addresses, so they are the image A arena's bytes. */
-#define findDamageSlot updateWarningScreen
 #define numPaksFound num_paks_found
 extern s8 gPakScr;
 extern u8 numPaksFound;
 
-void findDamageSlot(void)
+void updateWarningScreen(void)
 {
     static Blit *sBlit = 0;       /* D_803B83C8 */
     s32 numPaks;

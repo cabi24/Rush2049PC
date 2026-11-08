@@ -2,7 +2,7 @@
 /*
  * AnimateMine (0x8010C974, 2,636 B) = _AnimateMine@targets.c (MAT3 0x8004D428), the weapon-mine visual callback:
  * op 0 releases the environ; otherwise (unpaused) the first frame retires the owner's oldest mine when it already
- * has three (age 121), takes a free slot, aligns the mine to the road (RoadPosition = RoadPosition), builds
+ * has three (age 121), takes a free slot, aligns the mine to the road (RoadPosition), builds
  * the base object (white, N64 flag 0x2000 on the mine model), the team-coloured glow rings and their matrices;
  * every frame it flashes the base texture (0.25 s), grows/fades the two glow rings (scale += 0.25 every 1/30 s,
  * alpha -8 from step 20, the other ring restarts at step 25, reset at step 45), and after 120 s or when hit removes

@@ -12,7 +12,7 @@
  *    inlined parameter homes, the values stay in ring temps. A7A4 16 -> 0 words; A8D0 frame 160 -> 152.
  *    (Union-to-union assignment instead compiles to an `at` block copy.)
  *  - `case 0:` written LAST in both switches (retail places its code after case 13): A8D0 -> EQUAL, AEAC ops 0.
- *  - AEAC: gGameState (gGameState) read into a named local `gs` (retail keeps it in v0).
+ *  - AEAC: gGameState read into a named local `gs` (retail keeps it in v0).
  * Shaping devices (disclosed): helpers non-static and uniquely named (*_AEAC, not on keep: stub rule);
  *  - inlined helpers gfx_lock_AEAC/gfx_unlock_AEAC/font_set_AEAC (family lock/font helpers), TB_SetJust_AEAC (= locked
  *    TB_SetJust's body), TB_CenterText_AEAC (GC TB_text.c), TB_FlashTextColors_AEAC (GC TB_text.c).

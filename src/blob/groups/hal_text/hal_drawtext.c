@@ -24,18 +24,18 @@ extern void game_strncpy(void *, void *, s32);     /* strncpy */
 extern void DrawText(void *text, u16 length);  /* _DrawText */
 extern void SetDefaults(u32 *, f32 *, s16 *, s16 *, s8 *, s8 *, s8 *);  /* _SetDefaults */
 
-extern f32 gDepth;      /* gDepth */
-extern s8 gFinished;       /* gFinished */
-extern f32 gTrans;      /* gTrans */
-extern s8 gBufferInited;       /* gBufferInited */
+extern f32 gDepth;
+extern s8 gFinished;
+extern f32 gTrans;
+extern s8 gBufferInited;
 extern OSMesgQueue text_lock_queue;
-extern u32 gFontColor;      /* gFontColor */
-extern s8 gLeading;       /* gLeading */
-extern s8 gSpacing;       /* gSpacing */
-extern s16 gFontXpos;      /* gFontXpos */
-extern s16 gFontYpos;      /* gFontYpos */
-extern s8 gFontIndex;       /* gFontIndex */
-extern s32 gBufLen;      /* gBufLen */
+extern u32 gFontColor;
+extern s8 gLeading;
+extern s8 gSpacing;
+extern s16 gFontXpos;
+extern s16 gFontYpos;
+extern s8 gFontIndex;
+extern s32 gBufLen;
 extern u8 gBuffer[800];  /* gBuffer */
 
 void _GetSemaphore_DrawText(void) { osRecvMesg(&text_lock_queue, 0, 1); }

@@ -206,8 +206,6 @@ void cart_free_direct(void **address) {
     DeallocateMemoryInternal(N64A(address), 0);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
-/* DeleteGhost, under its address name in the loader's tables (src/blob/menu_render_list.c was a second copy of
- * it). */
 void DeleteGhost(Handle ghosth) {   /* GC save.c DeleteGhost */
     if ((*ghosth)->slot != NULL) {
         PS_DeleteFile((*ghosth)->slot);
@@ -226,9 +224,9 @@ char *GhostDirName(MenuData *header) {
 /* func_800CC040 = GC save.c SaveGhost(pak, saveGhosth, limbo), N64 form (pak, player, saveGhosth, limbo); member
  * since (EQUAL in the whole-program unit, MATCH in the group compile). Parameter names kept from the draft:
  * id = pak, owner = player handle, self = saveGhosth, release = limbo; m = header, node = before, buf = str,
- * obj = ghost, created = fileh. GC calls: SaveGhostInLimbo = SaveGhostInLimbo, DeallocateMemory = cart_free /
+ * obj = ghost, created = fileh. GC calls: SaveGhostInLimbo, DeallocateMemory = cart_free /
  * cart_free_direct, _FreeGhost = FreeGhost, _ReadGhostData = ReadGhostDataInternal, DeleteGhost, GetPtrSize =
- * GetPtrSize, InsertLLE = InsertLLE, gGhostFiles = gGhostFiles. */
+ * GetPtrSize, InsertLLE, gGhostFiles = gGhostFiles. */
 s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
     MenuData *m;
     Handle node;

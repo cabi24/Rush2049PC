@@ -112,7 +112,7 @@ N64 typedefs are gone since, and the PC side of each is the code.
 | `#ifdef TARGET_PC` declaration, `#else` the original line | the PC type is a real pointer, a float, or another argument list | `ZOID_InitializeWindow(..., f32 c, ...)` in `ZOID_ResetWindows.c` |
 | a type macro in a definition's header | a definition's parameter needs another class on the PC | `CTT_A1` (`void *` / `f32`) in `AudEmitEffect` |
 | a function-like call macro after the declarations | the matched call passes registers IDO's IPA chose, not the C argument list | `#define PS_PakServer() PS_PakServer(forceUpdate, rumbleOnly)` |
-| `#define name pc_name` before a group's inlined helper | its manifest owner is an empty stub | `pc_func_800E6AE8` |
+| `#define name pc_name` before a group's inlined helper | its manifest owner is an empty stub | `pc_ReadShifter` |
 | `PC_V0_S32` / `PC_V0_RETURN` | a `void` wrapper whose callers read the `v0` its last call leaves | `InitCarObj` |
 | a whole PC version of the function | hand-rolled MIPS varargs | `TB_Printf` (as `TB_Sprintf`) |
 | `ptr64_decls.py SYMBOL` | a data symbol that holds a pointer but is declared `s32` in every user | `audio_gTitlePane`, `highscore_blit` |

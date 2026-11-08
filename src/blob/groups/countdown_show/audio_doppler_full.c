@@ -36,10 +36,10 @@ typedef struct Camera {
     u8 mat[0x98 - 0x30];
 } Camera;
 
-extern s16 gNumWindows;          /* gNumWindows */
-extern s16 gCountDown;          /* gCountDown */
+extern s16 gNumWindows;
+extern s16 gCountDown;
 extern Camera gCamera[];     /* gCamera */
-extern volatile u8 gNumModels;           /* gNumModels */
+extern volatile u8 gNumModels;
 extern s8 gGameSoundsEnabled;
 
 f32 GetCountdownTimeRemaining(void);

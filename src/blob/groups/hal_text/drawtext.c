@@ -1,6 +1,6 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* DrawText = _DrawText (MAT3 GameSource/src/HAL_text.c static _DrawText, GC 0x8001B410).
- * Private IPA callee of HAL_FinishText (HAL_FinishText): text in s2, length in s0.
+ * Private IPA callee of HAL_FinishText: text in s2, length in s0.
  * N64: screen-size scissor, BlitColors(color, format, size, 0), the font texture page is loaded
  * (blit_load_texture) for page 0 and on every page change, BlitDraw has no texture argument and no +1s. */
 typedef signed char s8;
@@ -35,30 +35,30 @@ typedef struct tTexture {
     TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
 
-extern anon_version_type_10 *gFontHeader;    /* gFontHeader */
-extern anon_kerns_value_c *gFontLetters;      /* gFontLetters */
+extern anon_version_type_10 *gFontHeader;
+extern anon_kerns_value_c *gFontLetters;
 extern tTexture *gFontTextures[16];            /* gFontTextures */
 extern s16 gCharMap[256];                 /* gCharMap */
-extern anon_fore_4 gFontColor;              /* gFontColor */
-extern s8 gLeading;                       /* gLeading */
-extern s8 gSpacing;                       /* gSpacing */
-extern s32 gFontAttribute;                      /* gFontAttribute */
+extern anon_fore_4 gFontColor;
+extern s8 gLeading;
+extern s8 gSpacing;
+extern s32 gFontAttribute;
 extern s32 font_image_format;                      /* font texture format */
 extern s32 font_texel_size;                      /* font texture size */
-extern s16 gFontXpos;                      /* gFontXpos */
-extern s16 gFontYpos;                      /* gFontYpos */
-extern f32 gTrans;                      /* gTrans */
+extern s16 gFontXpos;
+extern s16 gFontYpos;
+extern f32 gTrans;
 extern s32 screen_width, screen_height;          /* screen width, height */
 extern void *blitColors;                    /* current blit palette */
 
 void SetupFontData(s32 force);        /* _SetupFontData */
-void BlitScissor(s32 ulx, s32 uly, s32 lrx, s32 lry);     /* BlitScissor */
-void BlitSetAttribute(u32 attribute);           /* BlitSetAttribute */
-void BlitClearAttribute(u32 attribute);           /* BlitClearAttribute */
-void BlitColors(void *colors, s32 fmt, s32 siz, s32 bank); /* BlitColors */
+void BlitScissor(s32 ulx, s32 uly, s32 lrx, s32 lry);
+void BlitSetAttribute(u32 attribute);
+void BlitClearAttribute(u32 attribute);
+void BlitColors(void *colors, s32 fmt, s32 siz, s32 bank);
 void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls, u16 ult, u16 lrs, u16 lrt,
                    u16 pal, s32 tile);       /* load a texture block */
-void BlitDraw(s32 x0, s32 y0, s32 x1, s32 y1, s32 s, s32 t); /* BlitDraw */
+void BlitDraw(s32 x0, s32 y0, s32 x1, s32 y1, s32 s, s32 t);
 
 
 void DrawText(const unsigned char *text, unsigned short length)

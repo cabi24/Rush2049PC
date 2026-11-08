@@ -47,14 +47,14 @@ typedef struct AudioMsg {
     s8 used;                /* 0x03 */
     FxTag *tag;             /* 0x04 */
 } AudioMsg;
-extern s32 gMaxSfx;              /* gMaxSfx */
-extern s32 gNumStopCmds;              /* gNumStopCmds */
-extern s32 gNumStartCmds;              /* gNumStartCmds */
+extern s32 gMaxSfx;
+extern s32 gNumStopCmds;
+extern s32 gNumStartCmds;
 /* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
 #define gStopCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define gStartCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 AudioMsg *GetCmd(void);      /* _GetCmd */
-s32 AudioTimeout(f32 startTime, f32 interval);   /* AudioTimeout */
+s32 AudioTimeout(f32 startTime, f32 interval);
 
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */

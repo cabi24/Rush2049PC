@@ -19,9 +19,9 @@ typedef signed int s32;
 typedef unsigned int u32;
 typedef struct { s32 x, y, w, h, cx, cy; } PlayerRect;        /* 0x18 */
 extern PlayerRect controls_gPlayerRects[4][4];      /* gPlayerRects */
-extern s16 gNumWindows;                   /* gNumWindows */
-extern s16 gControlMenuSize;                   /* gControlMenuSize */
-extern u32 gGameState;                 /* gGameState */
+extern s16 gNumWindows;
+extern s16 gControlMenuSize;
+extern u32 gGameState;
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 extern OSMesgQueue text_lock_queue;           /* text/gfx mutex */
 s32 osRecvMesg(OSMesgQueue *, void **, s32);

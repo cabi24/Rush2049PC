@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * N64 audio manager thread pair (audiomgr.c), :
- *   audio_manager_thread_entry (0x800992AC, 2180 B) = the audio-manager thread created by AudioInit (AudioInit): it receives
+ *   audio_manager_thread_entry (0x800992AC, 2180 B) = the audio-manager thread created by AudioInit: it receives
  *     scheduler retrace messages (type 1) and audio commands on the queue audio_command_queue, runs _PeriodicMaintenance for a
  *     retrace and MAT3 _ProcessCommand's twelve cases (written in place, under the audio_lock_queue mutex) for a command.
  *   PeriodicMaintenance (0x80098FB8, 756 B) = _PeriodicMaintenance with _ProcessPriorities inlined.
@@ -103,9 +103,9 @@ extern OSMesgQueue audio_command_queue;             /* audio command queue */
 extern OSMesg audio_cmd_queue_msgs[];                /* its 128 messages */
 extern signed char gInited_AudioMgr;             /* gInited */
 extern int D_80110240;                     /* gSong */
-extern anon_te_tag_c *gSortedFxTags;          /* gSortedFxTags */
-extern int gNumStartCmds;                     /* gNumStartCmds */
-extern int gNumStopCmds;                     /* gNumStopCmds */
+extern anon_te_tag_c *gSortedFxTags;
+extern int gNumStartCmds;
+extern int gNumStopCmds;
 extern int D_80110278;                     /* gNumFxPlaying */
 extern int D_8011027C;                     /* gNumFxPending */
 extern int D_80110280;                     /* gNumFxInterrupted */
@@ -115,10 +115,10 @@ extern int D_80110280;                     /* gNumFxInterrupted */
 #define gStartCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 #define gStopCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-extern tOrderedList gSortedFxTagTree;            /* gSortedFxTagTree */
-extern tDLList gPlayingFxTags;                 /* gPlayingFxTags */
-extern tDLList gInterruptedFxTags;                 /* gInterruptedFxTags */
-extern tDLList gActiveSequences;                 /* gActiveSequences */
+extern tOrderedList gSortedFxTagTree;
+extern tDLList gPlayingFxTags;
+extern tDLList gInterruptedFxTags;
+extern tDLList gActiveSequences;
 extern float gAudioSeconds;                   /* audio clock */
 
 #define gInited gInited_AudioMgr
@@ -132,22 +132,22 @@ void osScAddClient(OSSched *, OSScClient *, OSMesgQueue *);
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
-void AudioSongPlay(int song, int loop);                      /* AudioSongPlay */
-void AudioSongStop(int song);                                /* AudioSongStop */
+void AudioSongPlay(int song, int loop);
+void AudioSongStop(int song);
 void FreeFxTag(tFxSequence *tag);                   /* _FreeFxTag (IPA s0) */
 void InterruptFxTag(tFxSequence *tag);                   /* _InterruptFxTag (IPA s0) */
-unsigned int AudioPlayEffect(int fxid, float vol, float lrpan); /* AudioPlayEffect */
-void AudioStopEffect(unsigned int sysId);                  /* AudioStopEffect */
-void AudioSetEffectVolume(unsigned int sysId, float vol);     /* AudioSetEffectVolume */
-void AudioSetEffectLRPan(unsigned int sysId, float lrpan);  /* AudioSetEffectLRPan */
-void AudioSetEffectFBPan(unsigned int sysId, float fbpan);    /* AudioSetEffectFBPan */
-void AudioSetEffectPitch(unsigned int sysId, float pitch);       /* AudioSetEffectPitch */
-void AudioStopAllEffects(void);                                    /* AudioStopAllEffects */
-void AudioSetMasterVolume(float vol, unsigned int time, int music, int sfx); /* AudioSetMasterVolume */
-void AudioSetMono(int mono);                               /* AudioSetMono */
-void RemoveLLE(tDLList *list, void *el);                 /* RemoveLLE */
-void InsertLLE(tDLList *list, void *el, void *before);   /* InsertLLE */
-s32 AudioEffectPlaying(unsigned int sysId);                  /* AudioEffectPlaying */
+unsigned int AudioPlayEffect(int fxid, float vol, float lrpan);
+void AudioStopEffect(unsigned int sysId);
+void AudioSetEffectVolume(unsigned int sysId, float vol);
+void AudioSetEffectLRPan(unsigned int sysId, float lrpan);
+void AudioSetEffectFBPan(unsigned int sysId, float fbpan);
+void AudioSetEffectPitch(unsigned int sysId, float pitch);
+void AudioStopAllEffects(void);
+void AudioSetMasterVolume(float vol, unsigned int time, int music, int sfx);
+void AudioSetMono(int mono);
+void RemoveLLE(tDLList *list, void *el);
+void InsertLLE(tDLList *list, void *el, void *before);
+s32 AudioEffectPlaying(unsigned int sysId);
 int WeightedPriority(tFxSequence *tag);                         /* _WeightedPriority */
 void InsertBSTEInternal(tOrderedList *tree, void *root, void *element);  /* _InsertBSTE */
 void WalkBSTInternal(tOrderedList *tree, void *root, int *num, void (*WalkFunc)(void *, int)); /* _WalkBST */

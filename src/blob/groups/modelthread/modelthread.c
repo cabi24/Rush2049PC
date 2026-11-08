@@ -3,7 +3,7 @@
  * ModelThread (0x800E7808, 268 B; historical label) = ModelThread@model.c, N64 thread form (Dreamcast
  * model.c ModelThread is exact for the per-tick body; MAT3 GC model.c 0x8002CA78). Created by the static main_thread_entry
  * as the scheduler-client thread (id 5, pri 7). The GC per-call sInited block runs once before the loop:
- * modelrun (modelrun) = 0; init_model_task(0) (init_model_task). Each tick: block on the client queue, drain the
+ * modelrun = 0; init_model_task(0) (init_model_task). Each tick: block on the client queue, drain the
  * queued messages, then `if (ControllerUpdate() && modelrun) model_iteration();` (func_800E73D8 / model_iteration).
  * SHAPING (disclosed, compiles to no code): the drain loop tests each message's scheduler type in a compiled-out
  * `if` (OS_SC_RETRACE_MSG 1 / OS_SC_PRE_NMI_MSG 4 of the SDK sched.h; any second value gives the same code). uopt
@@ -31,7 +31,7 @@ typedef struct OSScMsg { s16 type; s8 misc[30]; } OSScMsg;
 
 extern OSMesgQueue model_thread_queue;      /* model thread client queue */
 extern OSMesg model_thread_msgs[8];        /* its messages */
-extern u16 modelrun;              /* modelrun */
+extern u16 modelrun;
 extern u8 gScheduler[];             /* scheduler */
 
 extern void __setfpcsr(u32 value);
@@ -39,8 +39,8 @@ void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 void osScAddClient(void *sc, OSScClient *c, OSMesgQueue *msgQ);
 void init_controllers(void);           /* controller init (osSetEventMesg SI) */
-void init_model_task(s32 arg0);       /* init_model_task */
-s32 ControllerUpdate(void);            /* ControllerUpdate */
+void init_model_task(s32 arg0);
+s32 ControllerUpdate(void);
 void model_iteration(void);
 
 void ModelThread(void *arg)

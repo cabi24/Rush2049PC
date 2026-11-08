@@ -41,7 +41,7 @@ typedef struct tPlayerProfile {
     tSaveData **datah;              /* 0x2C */
 } tPlayerProfile;
 
-extern signed char gTrackNum;      /* gTrackNum */
+extern signed char gTrackNum;
 
 unsigned int CalcChecksumInternal(void *data, int size);          /* _CalcChecksum */
 void PS_WriteFile(tPS_File **fileh, void *data, int size);

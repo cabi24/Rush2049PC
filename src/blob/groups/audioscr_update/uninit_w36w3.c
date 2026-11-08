@@ -7,7 +7,7 @@
  * inited (audio_inited): uninitButtons() (12 buttons audio_buttonInfo, 64 B each: ZOID_RemoveObject = RemoveObjectTree
  * (objIdx, 0, 0) for live objects, objIdx = -1; buttonsInited audio_buttonsInited = 0), outside the game state
  * (gGameState & 0x7C03FFFE == 0) RemovePanes(0) = RemovePanes(0) and gTitlePane audio_gTitlePane = 0, the blit
- * audio_blit removed (RemoveBlit = RemoveBlit), removeBG = removeBG(), panesCreated audio_panesCreated = 0,
+ * audio_blit removed (RemoveBlit), removeBG = removeBG(), panesCreated audio_panesCreated = 0,
  * inited = 0.
  * Helpers are non-static and not on keep (umerge inlines them; stub rule), named per file like
  * di_post_type1 / di_ProcessCommand in init_w36q.c. uninitButtons is defined AFTER the caller, as in the GC file
@@ -30,7 +30,7 @@ extern intptr_t audio_blit;          /* blit */
 extern intptr_t audio_gTitlePane;          /* gTitlePane */
 extern s32 audio_buttonsInited;          /* buttonsInited */
 extern UButton audio_buttonInfo[12];  /* buttonInfo */
-extern u32 gGameState;        /* gGameState */
+extern u32 gGameState;
 Msg *GetCmd(void);
 void audio_lock(void);
 void audio_unlock(void);

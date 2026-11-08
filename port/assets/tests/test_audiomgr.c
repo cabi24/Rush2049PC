@@ -132,7 +132,7 @@ void FreeSequence(struct seqtag *seq);
 struct source *NewEmitter(void);
 struct fadenode *FindChangeCmd(intptr_t key);
 void InsertBSTE(void *tree, void *element);
-void InsertLLE(struct dllist *list, void *object, void *before);   /* InsertLLE */
+void InsertLLE(struct dllist *list, void *object, void *before);
 
 static void list_init(struct dllist *l) { memset(l, 0, sizeof *l); l->dbl = 1; }
 

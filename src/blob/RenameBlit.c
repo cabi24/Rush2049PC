@@ -2,8 +2,8 @@
 /*
  * RenameBlit: N64 RenameBlit (arcade LIB/blit.c, pasted). Stores the new name; with
  * `preserve` it looks the texture up again and keeps the blit's other state, otherwise it
- * re-initialises the blit with InitBlit (InitBlit). Either way the blit is then
- * pushed to the display with UpdateBlit (UpdateBlit).
+ * re-initialises the blit with InitBlit. Either way the blit is then
+ * pushed to the display with UpdateBlit.
  * The arcade MBOX_FindTexture(name, &idx) is inlined here as MBOX_FindTexture_Sub
  * (MBOX_FindTexture_WORK) with lo 0, hi = table count - 1 and err MBOX_WARN (retail stores 1 in the
  * fifth outgoing slot, as in InitBlit). The arcade `if (!ti) FatalMsg(...)` is compiled out;

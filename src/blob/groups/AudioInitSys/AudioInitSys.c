@@ -2,11 +2,11 @@
 /*
  * AudioInitSys (0x800A5D34, 836 B) -- historical label; really the N64 AudioInitSys
  * (MAT3 audiosysps2.c AudioInitSys(maxVoices, maxSfx), GC 0x8009ED90: the GC body is the PS2 layer,
- * only the final AudioSfxInit(maxSfx) call is shared -- AudioSfxInit = AudioSfxInit, here
+ * only the final AudioSfxInit(maxSfx) call is shared -- AudioSfxInit, here
  * AudioSfxInit(control)). N64 platform part reconstructed from the disassembly, building on the
  * frozen A142 reconstruction (72/209) -- credit A142.
  *
- * Calls: LoadWave = LoadWave, LockWaveInstance = display_list_alloc,
+ * Calls: LoadWave, LockWaveInstance = display_list_alloc,
  * _ValidateWaveInstance = ValidateWaveInstance; GetWaveInstanceAddr (MAT3 waves.c, GC 0x8005B7B4:
  * `_ValidateWaveInstance(idx,0,0); return gWaveInstance[idx].ptr;`) is umerge-inlined three times, which
  * is what leaves the header pointer in v0 before each LoadWave call. gWaveInstance = D_80156D38
@@ -55,9 +55,9 @@ extern void LockWaveInstance(s32);
 extern void ValidateWaveInstance(s32,s32,s32);
 extern void sound_set_services(void *);
 extern void sound_stop_everything(void);
-extern u8 func_800202c4(void);
-extern s32 func_800154a4(void);
-extern void func_800109c0(void);
+extern u8 sound_is_idle(void);
+extern s32 sound_pop_group(void);
+extern void sound_lib_exit_shared_output(void);
 extern s32 func_800108e0(u32,u8,u8,u8,u16,u32);
 extern s32 sound_lib_init(u32,u8,u8,u8,u16,u32);
 extern void func_8001536c(void *,u16,intptr_t,void *,void *);
@@ -97,9 +97,9 @@ void AudioInitSys(s32 channels,s32 control,s32 enabled)
     }
     if(audio_driver_started) {
         sound_stop_everything();
-        while(!func_800202c4()) {}
-        for(i=0;i<4;i++) func_800154a4();
-        func_800109c0();
+        while(!sound_is_idle()) {}
+        for(i=0;i<4;i++) sound_pop_group();
+        sound_lib_exit_shared_output();
         if(func_800108e0(22050,(u8)channels,(u8)enabled,(u8)control,0,memory)) {
         }
     } else {

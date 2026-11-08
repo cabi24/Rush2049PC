@@ -34,10 +34,10 @@ extern Ghost **gPakGhosts[];    /* gPakGhosts */
 extern s32 gGhostStatus[];        /* gGhostStatus */
 extern PakState gControllerData[];
 extern Slot gPaks[];
-extern s32 gRace;          /* gRace */
+extern s32 gRace;
 extern Ghost **gGhostFiles_head;      /* gGhostFiles list head */
-extern s8 gTrackNum;           /* gTrackNum */
-extern s8 gBackwards;           /* gBackwards */
+extern s8 gTrackNum;
+extern s8 gBackwards;
 extern s32 game_strncmp(void *, void *, s32);
 extern s32 game_strcmp(void *, void *);
 

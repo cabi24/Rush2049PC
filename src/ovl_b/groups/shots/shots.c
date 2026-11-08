@@ -174,45 +174,45 @@ typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
 
-extern volatile f32 gFrameSeconds;          /* gFrameSeconds */
-extern f32 gGravity;          /* gGravity */
-extern volatile s16 gNumCars;          /* gNumCars */
+extern volatile f32 gFrameSeconds;
+extern f32 gGravity;
+extern volatile s16 gNumCars;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 gCarTeam[];         /* gCarTeam */
 extern ColSize collsize[];    /* collsize */
 extern f32 unitmatrix[];        /* unitmatrix */
 extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
-extern StatLL gShotObjList;       /* gShotObjList */
+extern StatLL gShotObjList;
 extern Shield gCarShield[4];    /* gCarShield */
-extern StatLL gShotList;       /* gShotList */
-extern StatLL gHitPolyList;       /* gHitPolyList */
-extern StatLL gShotCaseList;       /* gShotCaseList */
+extern StatLL gShotList;
+extern StatLL gHitPolyList;
+extern StatLL gShotCaseList;
 extern s32 gWprObjList[10];      /* gWprObjList */
 extern s32 gWfxObjList[7];       /* gWfxObjList */
 extern u16 gMineTextures[5];       /* gMineTextures */
 extern TexDefSet gTexDefPtrs[];  /* gTexDefPtrs */
 extern ObjInst ObjInstanceList[];    /* ObjInstanceList */
-extern u16 wallTidx;          /* wallTidx */
-extern volatile u8 gNumModels;  /* gNumModels */
-extern RGBA hitColor;         /* hitColor */
+extern u16 wallTidx;
+extern volatile u8 gNumModels;
+extern RGBA hitColor;
 
-extern void *GetStatLLE(void *list);         /* GetStatLLE */
-extern void FreeStatLLE(void *list, void *e); /* FreeStatLLE */
-extern void ZOID_RemoveObject(s16 obj);        /* ZOID_RemoveObject */
-extern void ZOID_SetColor(s16 obj, RGBA *clr);  /* ZOID_SetColor */
-extern void ZOID_RemovePoly(void *poly);          /* ZOID_RemovePoly */
-extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags); /* MBOX_NewObject */
-extern void CopyUV(f32 *src, f32 *dst);   /* CopyUV */
+extern void *GetStatLLE(void *list);
+extern void FreeStatLLE(void *list, void *e);
+extern void ZOID_RemoveObject(s16 obj);
+extern void ZOID_SetColor(s16 obj, RGBA *clr);
+extern void ZOID_RemovePoly(void *poly);
+extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
+extern void CopyUV(f32 *src, f32 *dst);
 extern void func_80090F44(f32 a, f32 *uvs);     /* PitchUV */
-extern void YawUV(f32 a, f32 *uvs);     /* YawUV */
+extern void YawUV(f32 a, f32 *uvs);
 extern void func_8009EA68(f32 a, f32 *uvs);     /* RollUV */
-extern f32 Random(f32 scale);            /* Random */
-extern f32 fatan2(f32 y, f32 x);         /* fatan2 */
-extern void BodyVector(f32 *v, f32 *out, f32 *uvs); /* BodyVector */
-extern s32 PlayGameSound(s32 fx, s32 slot, s32 a, s32 b); /* PlayGameSound */
-extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2); /* NewStreak */
-extern void UpdateStreaks(void);                /* UpdateStreaks */
+extern f32 Random(f32 scale);
+extern f32 fatan2(f32 y, f32 x);
+extern void BodyVector(f32 *v, f32 *out, f32 *uvs);
+extern s32 PlayGameSound(s32 fx, s32 slot, s32 a, s32 b);
+extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2);
+extern void UpdateStreaks(void);
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
 #pragma intrinsic(sqrtf)
@@ -222,20 +222,20 @@ extern ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);
 extern void ShotDone(Shot *shot);
 extern Car *ShotToCarCollision(Shot *shot, f32 *old);
 extern void SonicCarCollision(Shot *shot);
-extern void UpdateShots(void);                /* UpdateShots */
+extern void UpdateShots(void);
 void InitNewShot(Shot *shot, Car *car);       /* _InitNewShot */
-extern void BattleDamage(Car *car, Car *hit, s32 damage); /* BattleDamage */
-extern void ProximityDamage(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage); /* ProximityDamage */
-extern void MissileLock(Shot *shot);          /* MissileLock */
-extern intptr_t ShotToWorldCollision(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b); /* ShotToWorldCollision */
-extern void WorldVector(f32 *v, f32 *out, f32 *uvs);   /* WorldVector */
-extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);    /* ZOID_SetTexture */
-extern void ScaleUV(f32 *src, f32 *dst, f32 s);    /* ScaleUV */
-extern void *ZOID_NewPoly(s32 n, f32 *verts, u16 tidx, RGBA *color, s32 flags, s32 a); /* ZOID_NewPoly */
-extern void MBOX_FindTexture_WORK(char *name, u16 *out, s8 a, s8 b, s32 c); /* MBOX_FindTexture_WORK */
-extern void SetupTarget(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d); /* SetupTarget */
-extern s32 EmitGameSound(f32 *pos, f32 *pos2, f32 a, f32 b, f32 c, f32 d, s32 e, s32 slot, s32 f, s32 g); /* EmitGameSound */
-extern void StartBlast(f32 *pos, s32 a, f32 b, s32 c); /* StartBlast */
+extern void BattleDamage(Car *car, Car *hit, s32 damage);
+extern void ProximityDamage(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage);
+extern void MissileLock(Shot *shot);
+extern intptr_t ShotToWorldCollision(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b);
+extern void WorldVector(f32 *v, f32 *out, f32 *uvs);
+extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
+extern void ScaleUV(f32 *src, f32 *dst, f32 s);
+extern void *ZOID_NewPoly(s32 n, f32 *verts, u16 tidx, RGBA *color, s32 flags, s32 a);
+extern void MBOX_FindTexture_WORK(char *name, u16 *out, s8 a, s8 b, s32 c);
+extern void SetupTarget(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d);
+extern s32 EmitGameSound(f32 *pos, f32 *pos2, f32 a, f32 b, f32 c, f32 d, s32 e, s32 slot, s32 f, s32 g);
+extern void StartBlast(f32 *pos, s32 a, f32 b, s32 c);
 
 static const f32 CaseOffsets[1][3] = { 0.6f, 0.65f, -0.69f };
 static const f32 ShotOffsets[10][3] = {

@@ -228,17 +228,17 @@ typedef struct surftyp {
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern float unitmatrix[3][3];      /* unitmatrix */
-extern s8 gDeathMode;               /* gDeathMode */
-extern int gRace;              /* gRace */
+extern s8 gDeathMode;
+extern int gRace;
 extern tDronePath gDronePaths[];     /* gDronePaths */
-extern tCheckpoints gCheckpoints;     /* gCheckpoints */
-extern tResPath gResPath;         /* gResPath */
+extern tCheckpoints gCheckpoints;
+extern tResPath gResPath;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u32 gGameState;              /* gGameState */
-extern s8 gResurrectInPlace;               /* gResurrectInPlace */
-extern s16 gNumPlayers;              /* gNumPlayers */
-extern s16 gNumLaps;              /* gNumLaps */
-extern float resurrectTime;            /* resurrectTime */
+extern u32 gGameState;
+extern s8 gResurrectInPlace;
+extern s16 gNumPlayers;
+extern s16 gNumLaps;
+extern float resurrectTime;
 extern float D_80117360[4];         /* res_last_time */
 extern float D_801210E8[12][3];     /* pole_pos_offset */
 
@@ -251,23 +251,23 @@ extern float cosf(float);
 extern float fabsf(float);
 #pragma intrinsic(fabsf)
 
-void CopyUV(float (*src)[3], float (*dst)[3]);                          /* CopyUV */
-void syminit(tModelData *m);                                            /* syminit */
-void ExtractYaw(float (*mat)[3], float *yaw);                              /* ExtractYaw */
-surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);     /* RoadPosition */
-void fyaw(float sint, float cost, float (*uv)[3]);                   /* fyaw */
-void MakeQuatFromUvs(float (*uvs)[3], float *q);                                /* MakeQuatFromUvs */
-void WorldVector(float *src, float *dst, float (*uvs)[3]);                  /* WorldVector */
-void SetNewPathIndex(tModelData *m, s16 idx);                                   /* SetNewPathIndex */
-s16 FindClosestPathPt(s16 *pos, s16 path);                                        /* FindClosestPathPt */
-int NumPtsToCheckpoint(int res, int inPath, int inIdx, int cp);                /* NumPtsToCheckpoint */
-void TracePathPtForward(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx); /* TracePathPtForward */
-int CountdownTimeOut(void);                                                   /* CountdownTimeOut */
-void PassedCP(tModelData *m, float time);                       /* PassedCP */
-void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3]);         /* FindSurfaceUvsFromResPoint */
-int FindResPt(int inPath, int inIdx, int *outPath, int *outIdx, int honorAltRes); /* FindResPt */
+void CopyUV(float (*src)[3], float (*dst)[3]);
+void syminit(tModelData *m);
+void ExtractYaw(float (*mat)[3], float *yaw);
+surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);
+void fyaw(float sint, float cost, float (*uv)[3]);
+void MakeQuatFromUvs(float (*uvs)[3], float *q);
+void WorldVector(float *src, float *dst, float (*uvs)[3]);
+void SetNewPathIndex(tModelData *m, s16 idx);
+s16 FindClosestPathPt(s16 *pos, s16 path);
+int NumPtsToCheckpoint(int res, int inPath, int inIdx, int cp);
+void TracePathPtForward(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx);
+int CountdownTimeOut(void);
+void PassedCP(tModelData *m, float time);
+void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3]);
+int FindResPt(int inPath, int inIdx, int *outPath, int *outIdx, int honorAltRes);
 void InitBattlePlayer(int slot);
-f32 Random(f32 max);                                                   /* Random */
+f32 Random(f32 max);
 
 void FindHumanResPt(tModelData *m, int *outPath, int *outIdx);
 void FindBestQuat(float *q1, float *q2);

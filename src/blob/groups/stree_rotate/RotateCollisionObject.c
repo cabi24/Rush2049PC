@@ -13,7 +13,7 @@
  * void *in); it must become (in, out) first -- corrected copy, still MATCH for all three members, in
  * With that file, `the whole-program unit score
  * RotateCollisionObject mats2fcopy CarApplyCollision updownleaf DecodeVlist` is 5/5 EQUAL.
- * The kept __standin_func_800AD650_a only keeps the callee out of line in this standalone group (retail's
+ * The kept __standin_mats2fcopy_a only keeps the callee out of line in this standalone group (retail's
  * other callers live in the VectorToSurfEdge group); it is not a claimed member and is not retail code.
  *
  * Quirks the match depends on:

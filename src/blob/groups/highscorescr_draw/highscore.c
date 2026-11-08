@@ -18,7 +18,7 @@
  *       gets `move a2,zero` (retail) (4 -> 0).
  */
 /*
- * : DrawGhost (DrawGhost) now EQUAL in the unit: a compiled-out `do {} while (0);` after the status-1/2 time
+ * : DrawGhost now EQUAL in the unit: a compiled-out `do {} while (0);` after the status-1/2 time
  *   sprintf (DISCLOSED SHAPING DEVICE) ends the block holding the TB_Sprintf call, so the PRE reload of
  *   gGhostStatus[pak] after it no longer shares that block and uopt lets the status web take v0 (retail).
  * high-score unit (GC highscorescr.c), complete drafts of all four N64 functions:
@@ -39,7 +39,7 @@
 /*
  * DrawUnlocked = GC DrawUnlocked (highscorescr.c): per player with new unlocks (gStuffUnlocked[p] =
  * gStuffUnlocked), count the items unlocked this race (new flag set, old flag clear) over seven categories,
- * resize the player's name pane (D_80149418[p], ChangePaneSize = ChangePaneSize) around the list and draw
+ * resize the player's name pane (D_80149418[p], ChangePaneSize) around the list and draw
  * the header lines (fixed[55], fixed[56]) and one line per new item, centred on the player rect.
  * Internal (no callee saves); only caller highscore_animText (unmatched) -> provisional at best.
  * draft, complete. Measured KEPT (the whole-program unit without --internal, so +9 callee saves):
@@ -193,7 +193,7 @@ void DrawUnlocked(void)
 typedef struct HsIdx { u8 pad54[54]; u16 tableNames; u8 pad56[54]; u16 scoreNames; } HsIdx;
 extern s32 gHighScoreState;
 extern char highscore_gCircuitCode[];                        /* gCircuitCode */
-extern s8 gTable;                            /* gTable */
+extern s8 gTable;
 extern s8 gNewTotalScore[][5];                       /* gNewTotalScore[table][5] */
 extern s32 playerTextColor[];                         /* playerTextColor */
 extern char *gScoreNames[];                       /* gScoreNames */
@@ -203,24 +203,24 @@ extern void HAL_SetTextDepth(f32);
 extern u32 TB_Strlen(char *);                /* strlen */
 extern s32 sprintf(char *, const char *, ...);
 extern void TB_EllipseText(char *, char *, s32);
-extern char *gPlayerNameChars;                         /* gPlayerNameChars */
+extern char *gPlayerNameChars;
 extern s16 highscore_gNameSelect[];                         /* gNameSelect[p] */
 extern char gScoreName[][13];                    /* gScoreName[p] */
 extern char name_entry_del_label[], name_entry_end_label[], name_entry_space_label[];   /* DrawName statics del$1225 "DEL", end$1226 "END", spc$1227 "SPC" */
 /* SaveInit' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
-extern Ghost **gSavedGhost;                       /* gSavedGhost */
+extern Ghost **gSavedGhost;
 extern Ghost **gPakGhosts[];                     /* gPakGhosts[pak] */
-extern s8 gGhostPak;                            /* gGhostPak */
-extern s8 gGhostMenuConflict;                            /* gGhostMenuConflict */
-extern s8 gGhostMenuConfirm;                            /* gGhostMenuConfirm */
-extern s8 gGhostMenuNotify;                            /* gGhostMenuNotify */
+extern s8 gGhostPak;
+extern s8 gGhostMenuConflict;
+extern s8 gGhostMenuConfirm;
+extern s8 gGhostMenuNotify;
 extern s8 highscore_gYes;                            /* confirm menu selection (two options) */
-extern s32 gGhostMenuSelect;                           /* gGhostMenuSelect */
+extern s32 gGhostMenuSelect;
 extern s32 gGhostStatus[];                         /* gGhostStatus[pak] */
 extern char *gPS_PakName[];                       /* gPS_PakName[pak] ("1".."4") */
 extern s32 gJust[2];                        /* TB_SetJust pair */
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);  /* TB_DrawTextScrollBox */
+extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
 
 s16 hs_CenterText(char *text, s16 centerX)
 {

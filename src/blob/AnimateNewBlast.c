@@ -6,11 +6,11 @@
  * gTrackNum >= 6, the glow alpha steps by 31 and restarts at 95 (no `< 56` clamp), and the glow colour/scale
  * update also requires gNumPlayers < 4.
  * Helpers (all inlined, as in retail): Random = Random with the libc rand (game_rand);
- * ZOID_SetColor = ZOID_SetColor; ZOID_RemoveObject -> ZOID_RemoveObjectTree -> _RemoveObjectTree
+ * ZOID_SetColor; ZOID_RemoveObject -> ZOID_RemoveObjectTree -> _RemoveObjectTree
  * (RemoveObjectTree, called with (objnum, 0, 0)): the GC zoid.c two-level wrapper chain, which also
- * supplies 12 of the frame's inline slots. ReleaseEnviron = ReleaseEnviron, PitchUV = func_80090F44,
+ * supplies 12 of the frame's inline slots. ReleaseEnviron, PitchUV = func_80090F44,
  * YawUV = YawUV.
- * Levers: gFrameSeconds (gFrameSeconds) volatile, as in MAT3 (per-use lui/addiu + lwc1 0(reg));
+ * Levers: gFrameSeconds volatile, as in MAT3 (per-use lui/addiu + lwc1 0(reg));
  * `if (b->mbIdx == -1) continue;` in the update loop (the GC `if (b->mbIdx != -1) {...}` form gives the same
  * code with s7/s8 given to gGameCar and the 952 stride instead of the gBlastObjs base: 473 words).
  * Unused locals u0..u3 are the exact frame residual: retail frame 256 with clr at 236, x 232, y 228; without
@@ -54,8 +54,8 @@ typedef struct tModelData { u8 pad0[0x640]; s8 crashflag; u8 pad641[0x6C4 - 0x64
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInstance { unsigned int flags, w4; void *mat; float scale; float w; unsigned short index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
 
-extern s32 gPauseState;                  /* gPauseState */
-extern volatile f32 gFrameSeconds;                  /* gFrameSeconds */
+extern s32 gPauseState;
+extern volatile f32 gFrameSeconds;
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
 #define gBlastObjs pc_blasts
@@ -63,14 +63,14 @@ extern volatile f32 gFrameSeconds;                  /* gFrameSeconds */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern ObjInstance ObjInstanceList[];        /* ObjInstanceList */
 extern s8 expansion_pak_present;
-extern s8 gTrackNum;                   /* gTrackNum */
+extern s8 gTrackNum;
 extern s16 gNumPlayers;
 extern int rand_seed;
 
 void RemoveObjectTree(s16 objnum, s32 a, s32 b);     /* ZOID_RemoveObject */
-void ReleaseEnviron(tVisual *v, s32 unlink);       /* ReleaseEnviron */
-void PitchUV(float angle, float uvs[3][3]);          /* PitchUV */
-void YawUV(float angle, float uvs[3][3]);          /* YawUV */
+void ReleaseEnviron(tVisual *v, s32 unlink);
+void PitchUV(float angle, float uvs[3][3]);
+void YawUV(float angle, float uvs[3][3]);
 
 int game_rand(void);
 

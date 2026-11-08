@@ -3781,7 +3781,7 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-M2C_UNK func_8038ca24(s16);
+M2C_UNK InitBattlePlayer(s16);
 /* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
 #define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
 void AbortCar(s16 arg0, s32 arg1)
@@ -3801,7 +3801,7 @@ void AbortCar(s16 arg0, s32 arg1)
     }
     if (gRace == 6)
     {
-      func_8038ca24(arg0);
+      InitBattlePlayer(arg0);
     }
     SetResurrectionData(2, (ModelRecord *) ((arg0 * 0x808) + ((u8 *) new_var)), temp_v0 = 1);
     temp_v0_2 = PC_CAR(arg0);

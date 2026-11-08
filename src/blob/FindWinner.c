@@ -3,7 +3,7 @@
  * func_800F7F3C = FindWinner (MAT3 GameSource/src/gamerecords.c, GC 0x80015E30): fills gRankedPlayer
  * (gRankedPlayer) with 0..gNumWindows-1, bubble-sorts it by gRace (4 = kStunt: gStuntPlayer[].totalPoints,
  * gStuntPlayer stride 0x78 +0x14; 6 = kBattle: gGameCar[].battle.Points (+0x3A3), then gTeamPoints gTeamPoints
- * [gCarTeam gCarTeam[]]; else gGameCar[].place (+0xEE), higher first) and counts ties (ties) /
+ * [gCarTeam gCarTeam[]]; else gGameCar[].place (+0xEE), higher first) and counts ties /
  * marks tied[] (tied) against the leader. N64 differences from GC: no `ties = 0; tied[] = 0` prologue,
  * the last arm is a plain else (GC `gRace != kPractice`). Slots are loaded before keys (a/b/ia/ib locals:
  * the MAT3 inline compare is structurally wrong in IDO).

@@ -35,9 +35,9 @@ extern int bg_load_request;                      /* loader: wave instance to rea
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 int FindWaveInstanceInternal(int waveNum, signed char handle);          /* _FindWaveInstance */
-void MirrorWaveInstance(int idx);                            /* MirrorWaveInstance */
-unsigned char *AllocateHandleHeap(void *heap, unsigned int size); /* AllocateHandleHeap */
-unsigned char *AllocateMemoryHeap(void *heap, unsigned int size);      /* AllocateMemoryHeap */
+void MirrorWaveInstance(int idx);
+unsigned char *AllocateHandleHeap(void *heap, unsigned int size);
+unsigned char *AllocateMemoryHeap(void *heap, unsigned int size);
 /* GetPtrSize's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 unsigned int GetPtrSize(unsigned int ptr);

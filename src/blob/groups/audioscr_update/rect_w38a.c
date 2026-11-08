@@ -1,8 +1,8 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * drone_collision_avoid (0x800D6E7C, 852 B) = MAT3/DC calcMenuRect@audioscr.c: widest option / value text of the
- * audio menu (HAL_GetTextWidth = HAL_GetTextWidth, TB_Strcpy = TB_Strcpy, song names gSongNames, the
- * upper-cased song strings), then menuRect (audio_menuRect) w/h/x/cx with TB_GetFontLineHeight (TB_GetFontLineHeight).
+ * audio menu (HAL_GetTextWidth, TB_Strcpy, song names gSongNames, the
+ * upper-cased song strings), then menuRect (audio_menuRect) w/h/x/cx with TB_GetFontLineHeight.
  * Internal (sole caller drone_pathfind_main = initScreen@audioscr.c, audio_options_menu group).
  * Base: rect_best / rect/v/a0.c (5 words: the menuIdx IV home at sp+28, retail sp+32).
  * levers: (1) validOption is the group's own audio_validOption (`v = 1; return v;`, the Dreamcast decomp's

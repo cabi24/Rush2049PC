@@ -2,7 +2,7 @@
 /* Runtime image B only: 0x8038C910..0x8038CA24, 276 bytes.
  * StartWeapon(slot) -- MAT3 (GameCube) weapons.c StartWeapon, GC 0x8005C7C0, 0xF4 bytes.
  * Direct typed port: v = &car[slot].visuals[<weapon>]; when the visual has no scene
- * object yet, fill the visual (index 0, callback AnimateWeapon = AnimateWeapon, timeStamp =
+ * object yet, fill the visual (index 0, callback AnimateWeapon, timeStamp =
  * gSeconds, slot), create the car object with InitCarObj (locked label InitCarObj,
  * InitCarObj), keep it in both gCarParts[slot].weap and v->objnum, and place it at
  * weaponOffsets[1][model[slot].body_type].
@@ -15,9 +15,9 @@
  * +0x18, model[] stride 0x808 with body_type at +8.
  * Field names from MAT3 tVisual; offsets from the N64 displacements.
  * Callees and data referenced by address (func_/D_ labels resolve by address):
- *   InitCarObj = InitCarObj, ZOID_UpdateObject = ZOID_UpdateObject,
- *   AnimateWeapon = AnimateWeapon, gGameCar = gGameCar, gCarParts = gCarParts,
- *   D_8014A250 = model, weaponOffsets = weaponOffsets, gSeconds = gSeconds.
+ *   InitCarObj, ZOID_UpdateObject,
+ *   AnimateWeapon, gGameCar, gCarParts,
+ *   D_8014A250 = model, weaponOffsets, gSeconds = gSeconds.
  */
 typedef signed char s8;
 typedef unsigned char u8;

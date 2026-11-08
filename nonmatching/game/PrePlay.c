@@ -60,78 +60,78 @@ typedef struct Link8 { u8 track; u8 pad1[4]; u8 polepos; u8 flags; u8 owner; } L
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
 typedef struct AudMsg { u8 pad0[2]; s8 type; } AudMsg;
 
-extern u32 gGameState;        /* gGameState */
-extern s8 gRestartGame;           /* gRestartGame */
-extern s8 gGamePointPlayed;           /* gGamePointPlayed */
-extern s32 gRace;       /* gRace */
-extern s16 gNumPlayers; /* gNumPlayers */
+extern u32 gGameState;
+extern s8 gRestartGame;
+extern s8 gGamePointPlayed;
+extern s32 gRace;
+extern s16 gNumPlayers;
 extern Player76 gPlayers[];   /* gPlayers */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gNumActiveCars;           /* gNumActiveCars */
-extern s16 num_our_drones;          /* num_our_drones */
-extern s16 num_drones;          /* num_drones */
-extern s16 num_humans;          /* num_humans */
+extern s8 gNumActiveCars;
+extern s16 num_our_drones;
+extern s16 num_drones;
+extern s16 num_humans;
 /* On the PC the drone lists and CarSetup's flags are pc_drones, pc_our_drones and pc_carsetup_flags, PC_MAX_LINKS
  * long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
-extern s16 sched_to_use;          /* sched_to_use */
-extern s16 new_sched_to_use;          /* new_sched_to_use */
-extern s16 sched_index;          /* sched_index */
-extern s16 cur_drone;          /* cur_drone */
-extern s8 gCoastFlag;           /* gCoastFlag */
-extern s8 gRetireGame;           /* gRetireGame */
-extern s8 gOutOfTime;           /* gOutOfTime */
-extern f32 gGravity;          /* gGravity */
-extern s8 gFogColor;           /* gFogColor */
-extern s8 gTrackNum;           /* gTrackNum */
-extern f32 HFOV;          /* HFOV */
+extern s16 sched_to_use;
+extern s16 new_sched_to_use;
+extern s16 sched_index;
+extern s16 cur_drone;
+extern s8 gCoastFlag;
+extern s8 gRetireGame;
+extern s8 gOutOfTime;
+extern f32 gGravity;
+extern s8 gFogColor;
+extern s8 gTrackNum;
+extern f32 HFOV;
 extern s16 gNumWindows;
 extern Cam152 gCamera[];
 extern u8 gFogColors[][3]; /* gFogColors */
 /* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
  * is called on the frames that complete a 30 Hz frame: the countdown begins within a retrace of original's. */
 #define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)
-extern s8 gGravityScale;           /* gGravityScale */
+extern s8 gGravityScale;
 extern f32 gravityArray[];        /* gravityArray */
 extern u8 audio_lock_queue[];         /* audio lock queue */
 extern u8 audio_command_queue[];         /* audio command queue */
 extern s16 gCheatState[];        /* gCheatState */
-extern s8 gUpsideDownTrack;           /* gUpsideDownTrack */
+extern s8 gUpsideDownTrack;
 
-void SetOptions(void);            /* SetOptions */
-void EnableGameSounds(s32 on);                /* EnableGameSounds */
-void SetupCar(s16 slot, u8 body, s32 apply); /* SetupCar */
+void SetOptions(void);
+void EnableGameSounds(s32 on);
+void SetupCar(s16 slot, u8 body, s32 apply);
 void CalcPolePositions(void);         /* _CalcPolePositions */
-void InitCPS(void);               /* InitCPS */
-void InitDrones(void);               /* InitDrones */
-void Init_MDrive(s32 a, s16 slot);    /* Init_MDrive */
-void ShowHUD(void);            /* ShowHUD */
-void AudKillSong(void);         /* AudKillSong */
-void AudStopAllEffects(void);         /* AudStopAllEffects */
-void ZOID_Reset(void);               /* ZOID_Reset */
-void InitBlits(void);               /* InitBlits */
-void InitWaves(void);           /* InitWaves */
-void munge_gLink_data(void);               /* munge_gLink_data */
+void InitCPS(void);
+void InitDrones(void);
+void Init_MDrive(s32 a, s16 slot);
+void ShowHUD(void);
+void AudKillSong(void);
+void AudStopAllEffects(void);
+void ZOID_Reset(void);
+void InitBlits(void);
+void InitWaves(void);
+void munge_gLink_data(void);
 void GhostStart(void);
-void ResetHighScores(void);               /* ResetHighScores */
-void ZOID_ResetWindows(void);               /* ZOID_ResetWindows */
+void ResetHighScores(void);
+void ZOID_ResetWindows(void);
 s32 ZOID_SplitMenuScreen(s32 n);           /* ZOID_SplitScreen */
-void ReloadTrack(void);   /* ReloadTrack */
+void ReloadTrack(void);
 s32 LoadTrack(s32 track, s32 a1, s32 a2);
-void InitTextureAnimation(void);          /* InitTextureAnimation */
-void ZOID_SetFog(s32 a0, s32 a1, s32 r, s32 g, s32 b, s32 a, s32 win); /* ZOID_SetFog */
-void WorldFogDensity(s32 i, f32 *pos);    /* WorldFogDensity */
-void init_cars(void);          /* init_cars */
-void StartEnvironment(void);               /* StartEnvironment */
-void init_views(void);         /* init_views */
+void InitTextureAnimation(void);
+void ZOID_SetFog(s32 a0, s32 a1, s32 r, s32 g, s32 b, s32 a, s32 win);
+void WorldFogDensity(s32 i, f32 *pos);
+void init_cars(void);
+void StartEnvironment(void);
+void init_views(void);
 void InitBattlePlayer(s16 slot);           /* InitBattlePlayer (image B) */
-void ClearRushControls(void);         /* ClearRushControls */
-void StartListeners(void);               /* StartListeners */
+void ClearRushControls(void);
+void StartListeners(void);
 void InitBattlePoints(void);
 void ShotInit(void);               /* ShotInit (image B) */
-void InitStunt(void);          /* InitStunt */
-void PS_RumbleGo(void);               /* PS_RumbleGo */
+void InitStunt(void);
+void PS_RumbleGo(void);
 void *memset(void *, s32, u32);
 
 extern s8 gBattlePoints[16];       /* gBattlePoints */
@@ -166,7 +166,7 @@ typedef struct StuntInfo { s32 active; u8 pad[120]; } StuntInfo;
 extern u8 gStuntPlayer[480];      /* gStuntPlayer */
 extern StuntInfo gStuntInfo[4]; /* gStuntInfo */
 extern f32 stunt_eTime;          /* eTime */
-extern s32 gStuntsDone;          /* gStuntsDone */
+extern s32 gStuntsDone;
 
 static void ResetStunts(void)
 {

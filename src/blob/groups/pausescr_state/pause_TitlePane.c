@@ -3,7 +3,7 @@
  * body unchanged; its static header_lock/header_unlock/header_font helpers renamed vs_* and made non-static
  * (not on keep, internal) so their deleted-procedure stubs carry symbols (rule). pause_TitlePane is internal
  * (private IPA: s0-s4 unsaved); real callers func_800B4FB0 = setPauseState (this group) and the unmatched
- * updatePauseScreen = updatePauseScreen, which calls the byte-identical body by jal.
+ * updatePauseScreen, which calls the byte-identical body by jal.
  * B438C pausescr title pane. Donor local types and 64-byte buffer from
  * GC DWARF 0x1689C2; MAT3 pausescr::_TitlePane.
  * N64 lacks the GC null-save fallback and uses single[233], tab[56].
@@ -14,7 +14,7 @@
  */
 typedef signed char s8;typedef unsigned char u8;typedef signed short s16;typedef unsigned short u16;typedef signed int s32;
 #define F(p,t,o) (*(t *)((u8 *)(p)+(o)))
-/* PC: gText (gText) has host pointers (port/assets/text.c), so its header fields and string-table
+/* PC: gText has host pointers (port/assets/text.c), so its header fields and string-table
  * entries sit at host offsets: TXH maps an N64 header offset, TXS an N64 string-table byte offset. */
 #define TXH(o) ((o) == 4 ? 8 : (o) == 12 ? 24 : (o) == 16 ? 32 : (o))
 #define TXS(o) ((o) / 4 * (int)sizeof(char *))

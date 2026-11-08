@@ -58,8 +58,8 @@ typedef struct TextPos {
 } TextPos;
 
 extern s16 gControlFirst[];          /* gControlFirst */
-extern s16 gControlMenuSize;            /* gControlMenuSize */
-extern s16 gNumWindows;            /* gNumWindows */
+extern s16 gControlMenuSize;
+extern s16 gNumWindows;
 extern s8 gConflict[][10];       /* gConflict */
 extern s8 controlScrActive[];           /* controlScrActive */
 extern Player gPlayers[];       /* gPlayers */

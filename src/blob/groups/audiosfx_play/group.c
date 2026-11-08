@@ -3684,8 +3684,8 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-M2C_UNK func_8001fea4();                    /* extern */
-M2C_UNK func_8001fff4(s32, s32);                    /* extern */
+M2C_UNK sound_set_volume();                    /* extern */
+M2C_UNK sound_set_pan(s32, s32);                    /* extern */
 s32 sound_start_sfx(u16, M2C_UNK, M2C_UNK);           /* extern */
 /* PC: the sound entry's resource (audiosfx/group.c's Entry, s32 at +0xC) is the effect to start, read
  * as its low half, the u16 at +0xE on the N64 and at +0xC here; +0xE is its high half, 0, so every effect started
@@ -3706,8 +3706,8 @@ s32 AudioPlayEffectInternal(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
     if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = sound_start_sfx(M2C_FIELD(ipa_s0, u16 *, SFX_ENTRY_ITEM), 0xFF, 0xFF)) == -1) {
         pc_snd_count(PC_SND_FX_REFUSED); return 0;
     }
-    func_8001fea4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
-    func_8001fff4(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));
+    sound_set_volume(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
+    sound_set_pan(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));
     M2C_FIELD(ipa_s0, s8 *, 1) = 1;
     return 1;
 }
@@ -3730,8 +3730,8 @@ typedef struct { u32 pad[2]; void *tail, *head; } PcSfxList;
  * voice id (entry +0x10) and a1 the pitch, but m2c spelled the call with a 0 in front. The PC passed that 0 as the
  * identifier and the id as the pitch, so no effect's pitch ever changed (the engines kept their start pitch) and
  * voice id 0 got pitch bends from the ids (docs/port/AUDIO.md 9). */
-s32 func_8001ffa0(u32 identifier, u16 value);
-#define func_8001ffa0(m2c_zero, identifier, value) func_8001ffa0(identifier, value)
+s32 sound_set_doppler(u32 identifier, u16 value);
+#define sound_set_doppler(m2c_zero, identifier, value) sound_set_doppler(identifier, value)
 
 void AudioSfxServer(void) {
     f32 temp_f0;
@@ -3819,7 +3819,7 @@ block_10:
         if (gNumInstances > 0) {
             do {
                 temp_v1_2 = gSfxInstances + var_s0_2;
-                if ((M2C_FIELD(temp_v1_2, s8 *, 0) != 0) && (M2C_FIELD(temp_v1_2, s8 *, 1) != 0) && (func_800201d0(M2C_FIELD((var_s0_2 + gSfxInstances), s32 *, 0x10)) == -1)) {
+                if ((M2C_FIELD(temp_v1_2, s8 *, 0) != 0) && (M2C_FIELD(temp_v1_2, s8 *, 1) != 0) && (sound_check(M2C_FIELD((var_s0_2 + gSfxInstances), s32 *, 0x10)) == -1)) {
                     var_s1_2 = M2C_FIELD(&gCmdQ, s32 **, SFX_LIST_HEAD);
                     temp_v0_2 = gSfxInstances;
                     if (var_s1_2 != NULL) {
@@ -3880,11 +3880,11 @@ block_109:
                         if (temp_a1 == -1) {
                             M2C_FIELD(temp_a0, s8 *, 0) = 0;
                             M2C_FIELD(temp_a0, s32 *, 8) = 0;
-                        } else if ((M2C_FIELD(temp_a0, s8 *, 3) == 0) && (func_8001fe58(temp_a1, temp_a1) != 0)) {
+                        } else if ((M2C_FIELD(temp_a0, s8 *, 3) == 0) && (sound_key_off(temp_a1, temp_a1) != 0)) {
                             var_v0_2 = 0;
                         } else {
                             M2C_FIELD(temp_a0, s8 *, 3) = 1;
-                            if (func_800201d0(M2C_FIELD(temp_a0, s32 *, 0x10)) != -1) {
+                            if (sound_check(M2C_FIELD(temp_a0, s32 *, 0x10)) != -1) {
                                 var_v0_2 = 0;
                             } else {
                                 M2C_FIELD(temp_a0, s8 *, 0) = 0;
@@ -3918,7 +3918,7 @@ block_58:
                                     var_a1 = -1;
                                 }
                             }
-                            if (func_8001fea4(temp_a2, var_a1 & 0xFF, temp_a2) != 0) {
+                            if (sound_set_volume(temp_a2, var_a1 & 0xFF, temp_a2) != 0) {
                                 var_v0_3 = 0;
                             } else {
 block_62:
@@ -3950,7 +3950,7 @@ block_71:
                                     var_a1_2 = -1;
                                 }
                             }
-                            if (func_8001fff4(temp_a0_2, var_a1_2 & 0xFF) != 0) {
+                            if (sound_set_pan(temp_a0_2, var_a1_2 & 0xFF) != 0) {
                                 var_v0_4 = 0;
                             } else {
 block_75:
@@ -3982,7 +3982,7 @@ block_84:
                                     var_a1_3 = -1;
                                 }
                             }
-                            if (func_8001ff4c(temp_a0_3, var_a1_3 & 0xFF) != 0) {
+                            if (sound_set_span(temp_a0_3, var_a1_3 & 0xFF) != 0) {
                                 var_v0_5 = 0;
                             } else {
 block_88:
@@ -4019,7 +4019,7 @@ block_100:
                                     var_a1_4 = -1;
                                 }
                             }
-                            if (func_8001ffa0(0, temp_a0_4, var_a1_4 & 0xFFFF) != 0) {
+                            if (sound_set_doppler(0, temp_a0_4, var_a1_4 & 0xFFFF) != 0) {
                                 var_v0_6 = 0;
                             } else {
 block_104:

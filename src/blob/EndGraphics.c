@@ -5,7 +5,7 @@
  * (process_scheduler_message) on message 2750: HAL_FinishText(1) (HAL_FinishText); closes the frame's display
  * list (text DL from BlitFinish, full sync, end); fills the scheduler task of frame record frame_records[frame_record_index]
  * (data_ptr/data_size = the Dynamic buffer's glist and its used size, rspboot, gfx ucode, dram stack, output buffer,
- * yield buffer, flags = pending (gfx_tasks_pending) ? 2 : 0, done-message queue); bumps gRenderInProgress (gRenderInProgress) around
+ * yield buffer, flags = pending (gfx_tasks_pending) ? 2 : 0, done-message queue); bumps gRenderInProgress around
  * osStopThread/osStartThread of the scheduler thread, posts the task (osSendMesg) and copies the scheduler's frame count
  * (gScheduler+636) to gLastFrameCount.
  * frame_dynamic is the frame's command buffer (SDK "Dynamic"): glist[4000] at +0x9CC0 (the two display buffers

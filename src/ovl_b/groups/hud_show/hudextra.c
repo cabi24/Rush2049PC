@@ -17,9 +17,9 @@
  * (`jr ra; nop`, no symbol), which is retail's ClearBattlePoints.
  * Earlier research: (CLAIMS 2026-10-12, 13/177; lean
  * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Historical callee names: NewMultiBlit = NewMultiBlit, HAL_SetFont =
- * HAL_SetFont, HAL_GetTextWidth = HAL_GetTextWidth, TB_GetFontLineHeight
- * = TB_GetFontLineHeight, InitPane = InitPane, ChangePaneColor =
+ * Historical callee names: NewMultiBlit, HAL_SetFont =
+ * HAL_SetFont, HAL_GetTextWidth, TB_GetFontLineHeight
+ * = TB_GetFontLineHeight, InitPane, ChangePaneColor =
  * ChangePaneColor. No unused locals.
  */
 typedef signed char s8;
@@ -70,12 +70,12 @@ extern char stunt_pane_width_sample[];
 #define kBattle 6
 #define kStunt 4
 
-extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);                 /* NewMultiBlit */
-extern s32 HAL_SetFont(s32);                                          /* HAL_SetFont */
-extern u32 HAL_GetTextWidth(void *, s16);                          /* HAL_GetTextWidth */
-extern s16 TB_GetFontLineHeight(void);                               /* TB_GetFontLineHeight */
-extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32); /* InitPane */
-extern void ChangePaneColor(tBlitSet *, u8 *, u8 *);               /* ChangePaneColor */
+extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);
+extern s32 HAL_SetFont(s32);
+extern u32 HAL_GetTextWidth(void *, s16);
+extern s16 TB_GetFontLineHeight(void);
+extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32);
+extern void ChangePaneColor(tBlitSet *, u8 *, u8 *);
 
 void ClearBattlePoints(void);
 

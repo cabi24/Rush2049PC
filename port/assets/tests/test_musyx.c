@@ -472,7 +472,7 @@ typedef struct { uint32_t identifier; uint16_t duration; uint8_t unknown006[2]; 
 int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);
 int32_t sample_dma_next(void);
 /* The request list's header, in its own storage on the PC (sample_dma_next.c's DmaList). */
-extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_D_80153F10;
+extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_sample_dma_list;
 
 /* sound_hw_set_voice_sample's view (hardware.c, streams_3d.c): the PC layout every sample-info writer must match. */
 #pragma pack(1)
@@ -482,12 +482,12 @@ typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopSt
 
 /* A sequence slot as the game lays it out on the PC (include/sequence_context.h, which every view of a slot in
  * sequencer.c follows), with the header's storage names moved out of the way of this test's own. */
-#define sound_seq_free_notes header_D_80043EB0
-#define sound_seq_players header_D_80043EB8
-#define sound_seq_current header_D_8004BE80
-#define sound_seq_current_index header_D_8004BE78
-#define sound_seq_fading_out header_D_8004BE7C
-#define sound_samples_per_tick header_D_8004F808
+#define sound_seq_free_notes header_sound_seq_free_notes
+#define sound_seq_players header_sound_seq_players
+#define sound_seq_current header_sound_seq_current
+#define sound_seq_current_index header_sound_seq_current_index
+#define sound_seq_fading_out header_sound_seq_fading_out
+#define sound_samples_per_tick header_sound_samples_per_tick
 #include "../../../include/sequence_context.h"
 #undef sound_seq_free_notes
 #undef sound_seq_players
@@ -809,8 +809,8 @@ static void test_dma(void)
     CHECK(sample_dma_next() == 1 && sample_dma_next() == 1 && sample_dma_next() == 0);
     CHECK(seen_ndma == 3 && seen_dma[2].dev == SAMPLE_BASE + 0x2000 && seen_dma[2].size == 0x400 &&
           seen_dma[2].vaddr == buf[2]);
-    CHECK(pc_D_80153F10.reqs == (void *)list && pc_D_80153F10.done == &done && pc_D_80153F10.count == 3 &&
-          pc_D_80153F10.next == 3 && (pc_D_80153F10.pad0 & 0xFF) == 1);
+    CHECK(pc_sample_dma_list.reqs == (void *)list && pc_sample_dma_list.done == &done && pc_sample_dma_list.count == 3 &&
+          pc_sample_dma_list.next == 3 && (pc_sample_dma_list.pad0 & 0xFF) == 1);
     CHECK(musyx_start_dma_list((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
 }
 

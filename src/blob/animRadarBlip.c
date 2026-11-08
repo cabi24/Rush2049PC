@@ -10,8 +10,8 @@
  * frwtobod (BodyVector) into the viewer's frame, then X = radar width/2 +- rpos[0]/480 * width
  * (mirrored when gMirrorWaves), Y = 16 - rpos[2]/480 * height; clipped to the radar frame (size
  * radarWidth x radarHeight, published by animRadar) less the car icon size (Width/8, Height); offset by
- * the split-screen row radarPos[count-1][me]; SelectBlit (SelectBlit) picks the human/drone icon;
- * centred and re-applied with UpdateBlit (UpdateBlit).
+ * the split-screen row radarPos[count-1][me]; SelectBlit picks the human/drone icon;
+ * centred and re-applied with UpdateBlit.
  * the scorer fn: MATCH; whole-program unit: EQUAL, 0 locked bodies differ.
  *
  * Shaping / disclosures:

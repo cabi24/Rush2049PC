@@ -2600,7 +2600,7 @@ extern s32 gPathPtList;
 extern s16 new_sched_to_use;
 /* PC: the DMA request list has its own storage, and its done queue follows the 8-byte request pointer
  * (sample_dma_next.c, docs/port/MUSYX_DATA.md 8.1) */
-#define sample_dma_list pc_D_80153F10
+#define sample_dma_list pc_sample_dma_list
 #define DMA_DONE_OFF 0x10
 extern s32 sample_dma_list;
 extern s32 gPathWave;

@@ -370,7 +370,7 @@ ALIAS(gStoppedChannels_newest, sfx_history, 16);
 #define gStoppedChannels_newest sfx_history[4]
 struct { uint32_t pad[2]; void *tail, *head; } gFreeQ, gCmdQ;   /* the request lists (PcSfxList) */
 static int sfx_calls;
-int32_t func_800201d0(int32_t voice) { return voice == 100 ? -1 : 0; }   /* 100 has finished */
+int32_t sound_check(int32_t voice) { return voice == 100 ? -1 : 0; }   /* 100 has finished */
 void AudioStopEffect(int32_t voice) { sfx_calls++; }
 /* What the MusyX calls got: the sfx item started, and each volume, pan, front-back pan and pitch as (voice, value). */
 static struct { int32_t item, voice[4], value[4], n[4]; } sfx_got;
@@ -378,11 +378,11 @@ static void sfx_set(int k, uint32_t voice, uint32_t value)
 {
     sfx_got.voice[k] = (int32_t)voice, sfx_got.value[k] = (int32_t)value, sfx_got.n[k]++;
 }
-int32_t func_8001fe58() { return sfx_calls++, 0; }
-int32_t func_8001fea4(uint32_t voice, uint8_t value) { sfx_set(0, voice, value); return sfx_calls++, 0; }
-int32_t func_8001fff4(uint32_t voice, uint8_t value) { sfx_set(1, voice, value); return sfx_calls++, 0; }
-int32_t func_8001ff4c(uint32_t voice, uint8_t value) { sfx_set(2, voice, value); return sfx_calls++, 0; }
-int32_t func_8001ffa0(uint32_t voice, uint16_t value) { sfx_set(3, voice, value); return sfx_calls++, 0; }
+int32_t sound_key_off() { return sfx_calls++, 0; }
+int32_t sound_set_volume(uint32_t voice, uint8_t value) { sfx_set(0, voice, value); return sfx_calls++, 0; }
+int32_t sound_set_pan(uint32_t voice, uint8_t value) { sfx_set(1, voice, value); return sfx_calls++, 0; }
+int32_t sound_set_span(uint32_t voice, uint8_t value) { sfx_set(2, voice, value); return sfx_calls++, 0; }
+int32_t sound_set_doppler(uint32_t voice, uint16_t value) { sfx_set(3, voice, value); return sfx_calls++, 0; }
 #define SFX_VOICE 0x4401   /* a made-up MusyX voice id */
 int32_t sound_start_sfx(uint16_t item, uint8_t channel, uint8_t value)
 {

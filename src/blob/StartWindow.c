@@ -8,7 +8,7 @@
  *   v->data = t; v->timeStamp = 0.0333333f;
  *   if the hitting car's velocity (gGameCar[t->slot].RWV) points along t->dir
  *   (dot > 0) call YawUV(3.1415927f, t->pos);
- *   t->flags &= ~6 (arcade t->active = false); AddToEnvList(v) inlined (gEnvList = gEnvList);
+ *   t->flags &= ~6 (arcade t->active = false); AddToEnvList(v) inlined (gEnvList);
  *   target_sound inlined as PlayTargetSound(info[t->type].sound, t->slot, t->soundPos, 2).
  * Shaping quirks: the dot product is one named f32 written in natural x+y+z order; the
  *   declaration order v, car, info, dot gives the 40-byte frame (info home sp+28, v spill sp+36:

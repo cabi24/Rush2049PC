@@ -108,7 +108,7 @@ void CreateSelectCar(s16 slot, s16 player, s32 cam)
 }
 
 /* UpdateSelectCar: direct typed port of MAT3 selectcarload.c UpdateSelectCar (GC 0x8003bf00), N64 9-argument
- * variant (r, g, b colour instead of PaintJob; SetupCarColor = SetupCarColor). */
+ * variant (r, g, b colour instead of PaintJob; SetupCarColor). */
 void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *pos, f32 (*uvs)[3], u8 alpha)
 {
     f32 newuvs[3][3];

@@ -3684,17 +3684,17 @@ typedef s64 M2C_UNK64;
 #endif
 
 M2C_UNK sound_stop_everything();                            /* extern */
-s32 func_800202c4();                                /* extern */
+s32 sound_is_idle();                                /* extern */
 
 void AudioShutdownSys(void)
 {
   audio_sfx_shutdown();
   AudioSongStop(song_number);
   sound_stop_everything();
-  if (func_800202c4() == 0)
+  if (sound_is_idle() == 0)
   {
     do
     { pc_os_spin_yield("AudioShutdownSys");
-    } while (func_800202c4() == 0);
+    } while (sound_is_idle() == 0);
   }
 }

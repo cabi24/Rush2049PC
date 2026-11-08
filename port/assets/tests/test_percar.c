@@ -4,12 +4,12 @@
  * cars, more than the N64's 6, and more slots declared than the race walks. This test and its game objects are built
  * with PC_MAX_LINKS 16 (CMakeLists.txt). Every slot starts as a sentinel: the code must reach car k's record or
  * element, for k up to 11, and leave the slots after the race's cars alone.
- * StartCarSounds (StartCarSounds) sets 12 cars' engine tables and starts their two layers, a human's through
+ * StartCarSounds sets 12 cars' engine tables and starts their two layers, a human's through
  * AudPlayEffectVP and a drone's through AudEmitEffect, and resets record 3 and the screech; the engine
  * update (UpdateCarSounds, UpdateEngineSound) runs each car every other frame, alternating by pc_engine_phase, and sets
- * the layers' pitch and volume and a random sound in record 3; StopCarSounds (StopCarSounds) releases records 0, 1
+ * the layers' pitch and volume and a random sound in record 3; StopCarSounds releases records 0, 1
  * and 3 and the screech and sets the phase to (slot & 1) == 0. InitCPTime copies 12 cars' positions at the race's
- * start (m2c's 12-byte stride on the N64); CheckCPs (CheckCPs) takes each car's driven distance and checkpoint
+ * start (m2c's 12-byte stride on the N64); CheckCPs takes each car's driven distance and checkpoint
  * plane and reports 12 crossings to PassedCP, which ends the race for the humans (owner 6) and turns
  * on their finish cameras, and calls CalcPlaces (PlaceUnlockedCars), which ranks the 12 cars by distance with its slot
  * arrays; circle_camera_around_car circles and then freezes a finish camera; CheckCameraView turns a window to it and places the

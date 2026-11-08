@@ -3871,7 +3871,7 @@ done:
 
 
 /* stand-in caller: keeps VectorToSurfEdge out of line under -O3 */
-void __standin_func_800AD4C8(void);
+void __standin_VectorToSurfEdge(void);
 
 /* stand-in callers for CylinderInSurf, whose real caller (ShotToWorldCollision) is outside
  * the unit: two call sites keep it out of line without `keep`, so it gets IPA registers like the ROM's.

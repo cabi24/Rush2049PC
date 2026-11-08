@@ -6,7 +6,7 @@
  *   1. mark the slot's paint job inited, allocate 512 bytes, load the palette texture named by `palette` and copy it;
  *   2. first == 0: brighten entries 1..31 (red channel x8 x1.25, clamp 255, repack grey); else second == 0: 33..63;
  *   3. three colour-table entries -> endpoints 32/64/96 and ramps 33..63, 65..95, 97..126 toward black (alpha set),
- *      through the internal interpolator blend_rgb5551 (MakeRamps = MakeRamps, deleted after inlining);
+ *      through the internal interpolator blend_rgb5551 (MakeRamps, deleted after inlining);
  *   4. copy into the slot's palette descriptor, free the buffer (heap lock / internal DeallocateMemoryInternal(a1, a2) /
  *      unlock), point the two models' palette at the descriptor.
  * Structure facts (each one measured):
@@ -61,7 +61,7 @@ extern u32 paint_colors[];         /* paint colour table */
 extern Resource24 car_palettes[];  /* per-slot palette descriptors */
 extern Handles64 gCarParts[];   /* per-slot model handles */
 extern Model68 ObjInstanceList[];     /* models */
-extern volatile u8 gNumModels;   /* gNumModels */
+extern volatile u8 gNumModels;
 extern char car_palette_name_format[];        /* palette texture name format */
 extern void *AllocateMemoryHeap(void *, u32);                          /* AllocateMemory */
 extern Resource24 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, s32);    /* texture lookup */
