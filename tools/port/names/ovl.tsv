@@ -1,0 +1,1166 @@
+old	new	kind	source	confidence	note
+# names-ovl: the two runtime images (src/ovl_a = image A, the front end; src/ovl_b = image B, the HUD extras of battle, stunt and obstacle races), their data, and the game data only they use. docs/code/overlays.md maps them.
+# Image B: the HUD-extras overlay (battle, stunt and obstacle races). MAT3 files worlddam.c, weapons.c, streaks.c, shots.c, powerups.c, hudextra.c.
+# worlddam.c: scorch-mark decals on the road, a ring of 25 polygons
+func_8038A400	findDamageSlot	func	mat3	sure	MAT3 findDamageSlot@worlddam.c (static, inlined into newWorldDamage on the N64; the PC keeps the body): same ring recycle, ZOID_HidePoly/ZOID_NewPoly/ZOID_UpdatePoly calls, 25 slots, fades the next four
+func_8038A408	newWorldDamage	func	mat3	sure	MAT3 newWorldDamage@worlddam.c: same airdist > 8 bail, four corners +-6 snapped by RoadPosition +0.25, four edge checks (dy > 3, length^2 > 200); MAT3's trailing ZOID_SetPolyFlags is absent on the N64
+func_8038A8CC	initWorldDamage	func	mat3	sure	MAT3 initWorldDamage@worlddam.c: clears full/oldest, MBOX_FindTexture_WORK(scorch texture, &damTexture, 0, gNumModels-1, 1), zeroes the 25 polys; called by LoadTrack (the file header's "no arcade donor" is wrong)
+D_80394888	dummyVtx	data	mat3	sure	f32[4][3]: MAT3 worlddam.c static dummyVtx, the unit quad ZOID_NewPoly gets in findDamageSlot
+D_803948B8	damColor	data	mat3	sure	tRGBA[5]: MAT3 worlddam.c static damColor, the decal colour and the four fading alphas (findDamageSlot, newWorldDamage)
+D_80394D14	scorch_texture_name	data	code	sure	char[]: the texture name initWorldDamage looks up (MAT3 passes the scorch-mark literal there)
+D_80399A70	DamagePolys	data	mat3	sure	struct {s8 full; u16 oldest; tPoly *polys[25];} (0x68 on the N64; MAT3 anon_full_oldest_68): MAT3 worlddam.c static DamagePolys, the decal ring
+D_80399AD8	damTexture	data	mat3	sure	u16: MAT3 worlddam.c static damTexture, the scorch texture index initWorldDamage stores and findDamageSlot uses
+# weapons.c: the battle weapon model on each car and its muzzle flashes
+func_8038A95C	_RemoveCannMFlash	func	mat3	sure	MAT3 _RemoveCannMFlash@weapons.c: removes gCannMuzzleObjs[slot].mdls[5] and ripdl, ripTIdx = -1
+func_8038AA14	_RemoveGattMFlash	func	mat3	sure	MAT3 _RemoveGattMFlash@weapons.c: removes gGattMuzzleObjs[slot].mdls[5]
+func_8038AA8C	AnimateWeapon	func	mat3	sure	MAT3 AnimateWeapon@weapons.c: the weapon visual's callback (StartWeapon stores it), weapon types 0-7 and 8 none, defs 530-537 of gObjList, muzzle-flash and rip smoke placement
+func_8038C910	StartWeapon	func	mat3	sure	MAT3 StartWeapon@weapons.c: fills the weapon visual (AnimateWeapon, gSeconds, slot), InitCarObj(gObjList[531]...), weaponOffsets[1][body_type]
+func_8038CA24	InitBattlePlayer	func	mat3	sure	MAT3 InitBattlePlayer@weapons.c: same stores (defense.active, fadeState, shoot, loaded = 0; weapon type 8, ammo -1; gCurWeaponType = 9; ripdl/ripCnt -1; both onTime 0; Gatt mdls -1); the file header's "no known arcade analogue" is wrong
+D_803943A4	weaponOffsets	data	mat3	sure	f32[8][13][3] (weapon type x body type x xyz), defined in weapons.c: MAT3 weapons.c weaponOffsets, read by StartWeapon and AnimateWeapon
+D_80399118	gCurWeaponType	data	mat3	sure	s8[4]: MAT3 weapons.c static gCurWeaponType; InitBattlePlayer sets 9, AnimateWeapon compares it with battle.type
+D_80399120	gGattMuzzleObjs	data	mat3	sure	tMuzzleObj[4] (0x10C each on the N64): MAT3 weapons.c static gGattMuzzleObjs
+D_80399550	gCannMuzzleObjs	data	mat3	sure	tCMuzzleObj[4] (0x148 each on the N64): MAT3 weapons.c static gCannMuzzleObjs
+# streaks.c: light streaks behind shots (fading polygon ribbons)
+func_8038CB10	_NewStreakPoly	func	mat3	likely	empty 8-byte deleted stub of MAT3 _NewStreakPoly@streaks.c, inlined into UpdateStreaks; which of the two stubs is which: IDO emits inlined callees in reverse call order before the caller (as cheatscr's and hudextra's matched stubs)
+func_8038CB18	_AnimateStreakPolys	func	mat3	likely	empty 8-byte deleted stub of MAT3 _AnimateStreakPolys@streaks.c, inlined into UpdateStreaks (called first, so emitted last before it)
+func_8038CB20	UpdateStreaks	func	mat3	sure	MAT3 UpdateStreaks@streaks.c with _AnimateStreakPolys and _NewStreakPoly inlined: ages the poly list, frees expired ones, emits a quad per streak, gStreakColors; the file header's "no arcade ancestor" is wrong
+func_8038D054	NewStreak	func	mat3	sure	MAT3 NewStreak@streaks.c: GetStatLLE from gStreakList, type 0-3 sets flags 1/2/4/8 and half-width, copies the start position into newpos/lastpos/backVerts
+func_8038D1A8	InitStreaks	func	mat3	sure	MAT3 InitStreaks@streaks.c: InitStatLL(gStreakList, gStreakArray, 50) and InitStatLL(gStreakPolyList, gStreakPolyArray, 150)
+D_80394394	gStreakColors	data	mat3	sure	u8[4][4]: MAT3 streaks.c gStreakColors, the colour of a new streak poly by streak type (UpdateStreaks)
+D_80395EE8	gStreakList	data	mat3	sure	tStatList (StatLL): MAT3 streaks.c static gStreakList, InitStreaks' first list (50 streaks)
+D_80395F00	gStreakArray	data	mat3	sure	tStreak[50] (0x40 each on the N64): MAT3 streaks.c static gStreakArray
+D_80396B80	gStreakPolyList	data	mat3	sure	tStatList: MAT3 streaks.c static gStreakPolyList (150 polys)
+D_80396B98	gStreakPolyArray	data	mat3	sure	tStreakPoly[150] (0x1C each on the N64): MAT3 streaks.c static gStreakPolyArray
+# shots.c: battle shots, mines, shields, damage
+func_8038D200	_UpdateShotObject	func	mat3	sure	MAT3 _UpdateShotObject@shots.c (shots.c's own comment and body)
+func_8038D328	_CreateShotObject	func	mat3	sure	MAT3 _CreateShotObject@shots.c: GetStatLLE(gShotObjList) + MBOX_NewObject
+func_8038D3A4	BattleDamage	func	mat3	sure	MAT3 BattleDamage@shots.c: crashflag/self/team tests, defense flag 4 scales by 0.2, damageThisFrame, health clamp, AddBattlePoint(car, hit, 1), crashflag = 1 (runtime_b_damage's "names unknown" is wrong)
+func_8038D498	SonicCarCollision	func	mat3	sure	MAT3 SonicCarCollision@shots.c (shots.c's own comment and body)
+func_8038D798	ProximityDamage	func	mat3	sure	MAT3 ProximityDamage@shots.c: ((r^2-d^2)/r^2)^2 * damage to every car in range; weapon type 5 transformed, fatan2 < 1.35, x0.35 (runtime_b_radius_effect's "ancestry unknown" is wrong)
+func_8038DA78	ShotToCarCollision	func	mat3	sure	MAT3 ShotToCarCollision@shots.c (shots.c's own comment and body; collsize)
+func_8038DDDC	MissileLock	func	mat3	sure	MAT3 MissileLock@shots.c: nearest car in the forward cone by fatan2 yaw/pitch, YawUV +-0.04 (runtime_b_nearest_steering's "names not established" is wrong)
+func_8038E088	ShotDone	func	mat3	sure	MAT3 ShotDone@shots.c (shots.c's own comment and body)
+func_8038E114	UpdateShots	func	mat3	sure	MAT3 UpdateShots@shots.c: the per-shot motion and collision switch (shots.c)
+func_8038F560	_InitNewShot	func	mat3	sure	MAT3 _InitNewShot@shots.c (static, inlined into ShotUpdate on the N64, whose 8-byte stub sits here; the PC keeps the body)
+func_8038F568	ElevateGun	func	mat3	sure	MAT3 ElevateGun@shots.c (shots.c's own comment and body)
+func_8038F938	UpdateDefense	func	mat3	sure	MAT3 UpdateDefense@shots.c (shots.c's own comment and body; gCarShield, gShieldSizes)
+func_8038FCD8	AnimateCase	func	mat3	sure	MAT3 AnimateCase@shots.c (static, inlined into ShotUpdate; the casing loop moved out of ShotUpdate into this stub's function on the PC)
+func_8038FCE0	ShotUpdate	func	mat3	sure	MAT3 ShotUpdate@shots.c: the battle update the game calls each frame (shots.c)
+func_803908D0	ShotInit	func	mat3	sure	MAT3 ShotInit@shots.c: wallTidx = 0, four InitStatLL (24, 24, 24, 30), the Wpr/Wfx object and Mine/Rip texture lookups, gCarShield dlIdx -1, InitStreaks
+D_803942E8	hitColor	data	mat3	sure	tRGBA: MAT3 shots.c static hitColor, the hit flash colour UpdateShots sets
+D_803942EC	WprObjNames	data	mat3	sure	char *[10]: ShotInit's static table of weapon-projectile object names (MAT3 WprObjNames, function-local static there)
+D_80394314	WfxObjNames	data	mat3	sure	char *[7]: ShotInit's muzzle-flash/shield/rip-smoke object names (MAT3 WfxObjNames)
+D_80394330	MineTexNames	data	mat3	sure	char *[5]: ShotInit's mine-cap texture names, one per team and a neutral one (MAT3 MineTexNames)
+D_80394344	RipTexNames	data	mat3	sure	char *[5]: ShotInit's shield-rip texture names (MAT3 RipTexNames)
+D_80394F88	wallTidx	data	mat3	sure	u16: MAT3 shots.c static wallTidx, zeroed by ShotInit
+D_80394F90	gCarShield	data	mat3	sure	tShieldStruct[4] {s32 dlIdx; UVMat mat;} (0x34 each): MAT3 shots.c static gCarShield; ShotInit sets dlIdx -1
+D_80395060	healthPal	data	mat3	sure	MAT3 hudextra.c static healthPal[4] (0x18 each): animHealth's palettes (hudextra.c's #define healthPal)
+D_80399B60	gShots	data	mat3	sure	tShotInfo[24] (0x68 each on the N64): MAT3 shots.c static gShots, gShotList's elements (ShotInit)
+D_8039A520	gShotList	data	mat3	sure	tStatList: MAT3 shots.c gShotList, the live shots
+D_8039A538	gHitPolys	data	mat3	sure	anon {ll; poly}[24] (8 each): MAT3 shots.c static gHitPolys, gHitPolyList's elements
+D_8039A5F8	gHitPolyList	data	mat3	sure	tStatList: MAT3 shots.c gHitPolyList
+D_8039A610	gShotCase	data	mat3	sure	anon_ll_mbIdx[30] (0x48 each on the N64): MAT3 shots.c static gShotCase, the ejected shell casings
+D_8039AE80	gShotCaseList	data	mat3	sure	tStatList: MAT3 shots.c gShotCaseList
+D_8039AE98	gShotObjs	data	mat3	sure	tShot[24] (0x3C each on the N64): MAT3 shots.c static gShotObjs, gShotObjList's elements
+D_80399B18	gWprObjList	data	mat3	sure	s32[10]: MAT3 shots.c gWprObjList, the weapon-projectile object indices ShotInit looks up
+D_80399B40	gWfxObjList	data	mat3	sure	s32[7]: MAT3 shots.c gWfxObjList, the effect object indices (muzzle flashes, shield, rip smoke)
+D_80399B08	gRipTextures	data	mat3	sure	u16[5]: MAT3 shots.c gRipTextures, the shield-rip texture indices
+# powerups.c: health, shield and invisibility power-ups on targets
+func_80390B00	UpdateInvs	func	mat3	sure	MAT3 UpdateInvs@powerups.c (static; inlined into UpdateBattleInvs, the PC keeps the body): invisibility fade by fadeState, invsColor table
+func_80390B08	UpdateBattleInvs	func	mat3	sure	MAT3 UpdateBattleInvs@powerups.c (static; inlined into UpdateBattlePowerUps, the PC keeps the body)
+func_80390B10	UpdateBattleShield	func	mat3	sure	MAT3 UpdateBattleShield@powerups.c: respawns the shield power-up (invsTLeft/shieldTLeft timers, ZOID_SetObjectDef)
+func_80390D38	UpdateBattleHealth	func	mat3	sure	MAT3 UpdateBattleHealth@powerups.c: respawns the health power-up
+func_80390F60	UpdateBattlePowerUps	func	mat3	sure	MAT3 UpdateBattlePowerUps@powerups.c (the group header's claim, body checked)
+func_8039133C	InitBattlePowerUps	func	mat3	sure	MAT3 InitBattlePowerUps@powerups.c: allocates num slots unless restart, takes every target with flag 0x20, timers 5+Random(10) and 15+Random(45) twice, +45 to one by Random(1) > 0.5 (the header's "no arcade donor" is wrong)
+func_80391490	IncBattlePowerUps	func	mat3	sure	MAT3 IncBattlePowerUps@powerups.c: gBattlePowerUps.num++
+func_803914A8	PreInitBattlePowerUps	func	mat3	sure	MAT3 PreInitBattlePowerUps@powerups.c: gBattlePowerUps.num = 0
+D_80399AE0	gBattlePowerUps	data	mat3	sure	tBattlePowerUps {s8 num, hIdx, sIdx, iIdx; f32 healthTLeft, invsTLeft, shieldTLeft; tBattlePowerUpT *tS;} (0x18): MAT3 powerups.c static gBattlePowerUps
+# hudextra.c: the battle and stunt HUD (icons, coins, points, health bars)
+func_803914B4	_AddBattlePoint	func	mat3	sure	MAT3 _AddBattlePoint@hudextra.c (to, from, p): negative p calls RecordBattlePoints and tests gOptions[40], a 4-entry battlePoint ring from wrongWayPos to fragPos (the header's "no identified arcade equivalent" is wrong)
+func_80391640	animStuntCoins_stub	func	code	likely	empty 8-byte deleted stub of MAT3 animStuntCoins@hudextra.c (inlined into UpdateHUDExtraPostCamera, called last so emitted first); its body is the static animStuntCoins
+func_80391648	animBattleCoins_stub	func	code	likely	empty 8-byte deleted stub of MAT3 animBattleCoins@hudextra.c (inlined into UpdateHUDExtraPostCamera); its body is the static animBattleCoins
+func_80391650	animPowerupIcons	func	mat3	sure	MAT3 animPowerupIcons@hudextra.c: defense.active & 1 / & 2 picks the icon, powerupIconNames, whichCam, ScaleUV 0.025, YawUV(hudObjAngle), powerupPos
+func_80391864	animWeaponIcons	func	mat3	sure	MAT3 animWeaponIcons@hudextra.c: battle.type vs weaponIcon type, gObjList[530 + type], ScaleUV, YawUV(hudObjAngle), ammoPos
+func_80391B00	UpdateHUDExtraPostCamera	func	mat3	sure	MAT3 UpdateHUDExtraPostCamera@hudextra.c: gRace 6 runs animWeaponIcons, animPowerupIcons, animBattleCoins; gRace 4 animStuntCoins (both coin functions inlined)
+func_8039244C	RemoveHUDExtra	func	mat3	sure	MAT3 RemoveHUDExtra@hudextra.c (its header and body)
+func_803925C8	ClearBattlePoints	func	mat3	sure	empty 8-byte deleted stub of MAT3 ClearBattlePoints@hudextra.c, inlined into ShowHUDExtra (its only caller, so no ambiguity)
+func_803925D0	ShowHUDExtra	func	mat3	sure	MAT3 ShowHUDExtra@hudextra.c: battle or stunt multi-blit, stunt panes per player, ClearBattlePoints, icon resets
+func_80392894	animStuntPoints	func	mat3	sure	MAT3 animStuntPoints@hudextra.c: the stunt HUD text blit callback
+func_80392FE4	animHealth	func	mat3	sure	MAT3 animHealth@hudextra.c: the battle health-bar blit callback (health / 800, green-yellow-red palette)
+func_80393518	animAmmoCounts	func	mat3	sure	MAT3 animAmmoCounts@hudextra.c: for each window with a weapon (type != 8) and ammo >= 0, prints the ammo count at ammoPos, shadow then text
+func_803936A8	animBattlePoints	func	mat3	sure	MAT3 animBattlePoints@hudextra.c: each player's points at fragPos, then the battlePoint ring: after 40 frames the points are applied, else +1/-1 text moving between the two positions (the header's "names unknown" is wrong)
+D_80393B40	stuntCoinTexNames	data	mat3	sure	char *[10]: MAT3 hudextra.c static stuntCoinTexNames (one per stunt kind), the stunt coins' names
+D_80393B68	powerupIconNames	data	mat3	sure	char *[3]: MAT3 hudextra.c static powerupIconNames {none, invisibility, shield}; animPowerupIcons indexes it by icon type
+D_80393B74	hudextra_whichCam	data	mat3	sure	(file prefix: hud.c has a static of the same name) s32[4]: MAT3 hudextra.c static whichCam, the camera mask per player for MBOX_ShowObject
+D_80393B84	StuntMultiBlit	data	mat3	sure	tBlitDef[17] (0x24 each): MAT3 hudextra.c StuntMultiBlit, the stunt HUD ShowHUDExtra builds
+D_80393DE8	BattleMultiBlit	data	mat3	sure	tBlitDef[10]: MAT3 hudextra.c BattleMultiBlit, the battle HUD
+D_80393F50	stuntPos	data	mat3	sure	s32[4][4][2] (windows x player x xy): MAT3 hudextra.c static stuntPos, the stunt points panes
+D_80393FD0	stuntCoinPos	data	mat3	sure	s32[4][4][2]: MAT3 hudextra.c static stuntCoinPos, where the stunt coins fly to
+D_803940D0	fragPos	data	mat3	sure	s32[4][4][2]: MAT3 hudextra.c static fragPos, the battle points and coin positions
+D_80394150	healthPos	data	mat3	sure	s32[4][4][2]: MAT3 hudextra.c static healthPos, the health bars
+D_803941D0	ammoPos	data	mat3	sure	s16[4][4][2]: MAT3 hudextra.c static ammoPos (weapon icons and ammo counts)
+D_80394210	powerupPos	data	mat3	sure	s16[4][4][2]: MAT3 hudextra.c static powerupPos
+D_80394250	hudextra_playerPaneColors	data	mat3	sure	(file prefix: hud.c has a static of the same name) u8[4][2][4]: MAT3 hudextra.c static playerPaneColors, the stunt panes' two colours per player
+D_80394270	hudextra_playerColor	data	mat3	sure	(file prefix: hud.c has a static of the same name) u8[4][4] (read as Color[4]): MAT3 hudextra.c static playerColor, the battle coin colour per team
+D_80394280	healthColor	data	mat3	sure	u8[4][2][4]: MAT3 hudextra.c static healthColor, animHealth's two-row bar colours
+D_803942A0	stunt_coin_color	data	code	sure	Color (RGBA): the initial value of animStuntCoins' local coinColor (a MAT3 local initializer, which IDO keeps in .data); UpdateHUDExtraPostCamera's stunt part copies it
+D_803942A4	weapon_icon_color	data	code	likely	Color (RGBA): the colour animWeaponIcons sets on a new weapon icon (an N64 addition: MAT3's animWeaponIcons sets none)
+D_803942A8	battle_coin_object_names	data	code	sure	char *[4]: the battle coin object name per team, which animBattleCoins (inlined in UpdateHUDExtraPostCamera) looks up; MAT3 uses one name for every team
+D_80394A80	stunt_pane_width_sample	data	code	sure	char[]: the sample string ShowHUDExtra measures (HAL_GetTextWidth) to size each stunt pane; MAT3 passes a literal there
+D_80394A88	stunt_coin_count_format	data	code	sure	char[]: animStuntPoints' format for a stunt kind's count beside its coin (MAT3 literal of the same role)
+D_80394A90	stunt_points_format	data	code	sure	char[]: animStuntPoints' format for the running points (pointsHud)
+D_80394A94	stunt_bonus_format	data	code	sure	char[]: animStuntPoints' format for the bonus multiplier while it flashes (bonuscnt)
+D_80394A9C	stunt_landed_bonus_format	data	code	sure	char[]: animStuntPoints' format for the bonus multiplier after the stunt is done (bonusHud > 1)
+D_80394AA4	stunt_total_points_format	data	code	sure	char[]: animStuntPoints' format for the total points (totalPoints at stuntPos)
+D_80394AA8	stunt_coin_object_format	data	code	sure	char[]: the format animStuntCoins builds a coin's object name with from stuntCoinTexNames (N64 only: MAT3 uses the names as they are)
+D_80394AB0	ammo_count_format	data	code	sure	char[]: animAmmoCounts' format for the ammo count (MAT3 literal of the same role)
+D_80394AF0	battle_points_format	data	code	sure	char[]: animBattlePoints' format for a player's points
+D_80394AF4	battle_point_lost_text	data	code	sure	char[]: the text animBattlePoints moves when a player hit himself (plto == plfrom: a point lost)
+D_80394AF8	battle_point_won_text	data	code	sure	char[]: the text animBattlePoints moves for a point won
+D_803950C0	stuntCoin	data	mat3	sure	tStuntCoin[4][10] (0x48 each on the N64, the older form without the *_Coin fields): MAT3 hudextra.c static stuntCoin
+D_80395C00	weaponIcon	data	mat3	sure	tHudIcon[4] {s16 type, idx; tUVMatrix mat;} (0x34): MAT3 hudextra.c static weaponIcon
+D_80395CD0	powerupIcon	data	mat3	sure	tHudIcon[4]: MAT3 hudextra.c static powerupIcon
+D_80395DA0	battleCoin	data	mat3	sure	tBattleCoin[4] (0x34): MAT3 hudextra.c static battleCoin
+D_80395E70	battlePoint	data	mat3	sure	tBattlePoint[4] {s8 active, cnt, plfrom, plto; f32 startx, starty, endx, endy; s8 p;} (0x18): MAT3 hudextra.c static battlePoint, the moving +1/-1 ring
+D_80395ED0	battlePointCnt	data	mat3	sure	s8: MAT3 hudextra.c static battlePointCnt, the ring's next index
+D_80395ED4	hudextra_blit	data	mat3	sure	Blit *: MAT3 hudextra.c static blit (file prefix: blit is a static in several MAT3 files), the multi-blit ShowHUDExtra creates and RemoveHUDExtra removes
+D_80395ED8	bonuscnt	data	mat3	sure	s32[4]: MAT3 hudextra.c static bonuscnt, animStuntPoints' bonus flash counter
+# the game image's data only this image uses
+D_8014254C	gObjList	data	mat3	sure	u16[] (MAT3 visuals.c u16[701]): the object definitions by number; AnimateWeapon reads [530 + weapon type] as MAT3's gObjList[def]. include/game/targets.h and render.h declare a gObjList as s32[] (wrong element type)
+D_80142A82	health_powerup_def	data	code	likely	u16, gObjList[667]: the object definition UpdateBattleHealth sets on a health power-up target (MAT3 gObjList[0x2A1]; the N64's list is 6 shorter there); wave 2: write gObjList[667]
+D_80142A84	invisibility_powerup_def	data	code	likely	u16, gObjList[668]: UpdateBattleInvs' power-up definition (MAT3 gObjList[0x2A2]); wave 2: gObjList[668]
+D_80142A8E	shield_powerup_def	data	code	likely	u16, gObjList[673]: UpdateBattleShield's power-up definition (MAT3 gObjList[0x2A3]); wave 2: gObjList[673]
+D_80146130	battle_self_hit_penalty_option	data	code	likely	s8, gOptions[40] (gOptions at D_80146108): the battle setup's on/off option (MAT3 trackscr row 11) under which _AddBattlePoint takes a point off for a self-hit; wave 2: gOptions[40]
+D_80399B00	neutral_mine_texture	data	code	likely	u16, gMineTextures[4]: the neutral mine-cap texture; declared by the game, no code reads it by this name; wave 2: gMineTextures[4]
+# Image A: the front end (title, start, mode, track, car, player, records, circuit, cheat, pak and licence screens). MAT3 front-end files; functions below 0x8039B000 first, then the rest of circuitscr.c, cheatscr.c, carscr.c and the blit-callback region.
+# trackscr.c: the track-select screen (one IPA unit in image A; MAT3 GameSource trackscr.c, GC 0x80087ABC-0x8008D30C)
+func_8038E5DC	updateTrackScreen	func	mat3	sure	MAT3 updateTrackScreen@trackscr.c: same state checks (gSkipToGameState), _InitScreen/showTrackSelect calls, option switch on gOpts[gActiveOption]; the screen's root, called from the front-end state dispatch
+func_8038DFEC	trackscr_InitScreen	func	mat3	sure	MAT3 _InitScreen@trackscr.c (static, in 3 files): same oldTrack/gTrackNum per gRace setup, buildTrackMaps, NewMultiBlit(mblit), gTracks carousel fill, SetFogIntensity(1)
+func_8038B940	trackscr_UninitScreen	func	mat3	sure	MAT3 _UninitScreen@trackscr.c (static, in 3 files): uninitButtons, RemoveBlit(blit), removeBG, clearTrackMap, clearTrackMaps, ZOID_Reset, inited = 0
+func_8038C5EC	showTrackSelect	func	mat3	sure	MAT3 showTrackSelect@trackscr.c: updateButtons, gOpts rebuild by OptionValid, the carousel angle/slot/pos loop and fogPos easing, statement for statement
+func_8038B834	TrackValid	func	mat3	sure	MAT3 TrackValid@trackscr.c: trackReady[track], IsTrackUnlocked, the per-gRace track ranges
+func_8038ACB0	OptionValid	func	mat3	sure	MAT3 OptionValid@trackscr.c: validOption[gRace][opt] and the same gOptions[32]/[37] tests (N64 adds two)
+func_8038A634	SetFogIntensity	func	mat3	sure	MAT3 SetFogIntensity@trackscr.c: gFogColor/gTrackNum, gFogColors easing by /10, alpha gFogIntensity*192/3, fog poly update (a blit on N64)
+func_8038AE50	unloadTrackScreen	func	mat3	sure	MAT3 unloadTrackScreen@trackscr.c: removes trackScreenPoly and trackFogPoly (blits on N64)
+func_8038AEA8	loadTrackScreen	func	mat3	likely	empty deleted stub of loadTrackScreen (inlined into buildTrackMap on the N64; the tree keeps its body here); MAT3 loadTrackScreen@trackscr.c: unloadTrackScreen, the 4 track-range test, the track picture and, when OptionValid(14), the fog picture
+func_8038AEB0	buildTrackMap	func	mat3	sure	MAT3 buildTrackMap@trackscr.c: loadTrackScreen, desiredTrackMap ranges, trackMapObj = MBOX_NewObject(trackMapObjNames[...]), ScaleUV/WPitchUV(-pi/4), currentTrackMap = desiredTrackMap
+func_8038B388	clearTrackMap	func	mat3	sure	MAT3 clearTrackMap@trackscr.c: unloadTrackScreen, ZOID_RemoveObject(trackMapObj), trackMapObj = -1
+func_8038B3EC	trackscr_animTrackMap	func	mat3	sure	MAT3 animTrackMap@trackscr.c (name also in another MAT3 file): rotAngle, mapTransition +-4*gFrameSeconds, cityPos/mapPos blend, the mirror ScaleUVXYZ and WYawUV/WPitchUV pairs
+func_8038CD14	buildTrackMaps	func	mat3	sure	MAT3 buildTrackMaps@trackscr.c: dispatch by gRace to the stunt/battle/obstacle/race builders, trackMapsBuilt = 1, pathPos = 0
+func_8038A820	animTrackMaps	func	mat3	sure	MAT3 animTrackMaps@trackscr.c: per trackMap entry ScaleUV(scale)/WPitchUV/WRollUV(-cityRot) and mapPos, the strip colour fade, pathPos += gFrameSeconds/5
+func_8038C93C	trackscr_initButtons	func	mat3	sure	MAT3 initButtons@trackscr.c (static, in 11 files): MBOX_NewObject per buttonInfo entry from buttonNames, the cursor/A/B textures, buttonsInited = buttonsJustInited = 1
+func_8038BBB4	trackscr_updateButtons	func	mat3	sure	MAT3 updateButtons@trackscr.c (static, in 11 files): gButtonScale/gButtonSpace/maxY/minY scroll, cursor spin by 2pi*gFrameSeconds, the select/plain button textures
+func_8038B938	trackscr_uninitButtons	func	mat3	likely	empty deleted stub of uninitButtons (inlined into _UninitScreen on the N64; the tree keeps its body here); MAT3 uninitButtons@trackscr.c: ZOID_RemoveObject per buttonInfo, buttonsInited = 0
+func_8038A62C	setCamera	func	mat3	likely	empty deleted stub of setCamera (inlined into _InitScreen and updateTrackScreen on the N64; the tree keeps its body here); MAT3 setCamera@trackscr.c: ZeroCamera(1), UpdateCameras
+func_8038C934	BlowFog	func	mat3	likely	empty deleted stub of BlowFog (inlined into _InitScreen on the N64; the tree keeps its body here); MAT3 BlowFog@trackscr.c: fogTileSize.uls += gWind*5 (or 1) mod 2048, ult = 0
+func_8038CCE4	unloadPathData	func	mat3	likely	empty deleted stub of unloadPathData (inlined into buildRaceTrackMaps on the N64; the tree keeps its body here); MAT3 unloadPathData@trackscr.c: UnloadWaveInstance(pathWaveIdx), pathWaveIdx = -1
+func_8038CCEC	loadPathData	func	mat3	likely	empty deleted stub of loadPathData (inlined into buildRaceTrackMaps on the N64; the tree keeps its body here); MAT3 loadPathData@trackscr.c: LoadWave(gTrackNum + base), gPathWave, ReadCheckpointData, ReadPathData
+func_8038CCF4	buildRaceTrackMaps	func	mat3	likely	empty deleted stub of buildRaceTrackMaps (inlined into buildTrackMaps on the N64; the tree keeps its body here); MAT3 buildRaceTrackMaps@trackscr.c: per race track 0-5 loadPathData, the path-strip map (an N64 display list here), trackMap[track] object
+func_8038CCFC	buildObstacleTrackMaps	func	mat3	likely	empty deleted stub of buildObstacleTrackMaps (inlined into buildTrackMaps on the N64; the tree keeps its body here); MAT3 buildObstacleTrackMaps@trackscr.c: empty, as in MAT3
+func_8038CD04	buildBattleTrackMaps	func	mat3	likely	empty deleted stub of buildBattleTrackMaps (inlined into buildTrackMaps on the N64; the tree keeps its body here); MAT3 buildBattleTrackMaps@trackscr.c: tracks 6-13, MBOX_NewObject(trackMapObjNames[...]) at its mapPos
+func_8038CD0C	buildStuntTrackMaps	func	mat3	likely	empty deleted stub of buildStuntTrackMaps (inlined into buildTrackMaps on the N64; the tree keeps its body here); MAT3 buildStuntTrackMaps@trackscr.c: tracks 14-17, MBOX_NewObject(trackMapObjNames[...]) at its mapPos
+func_8038B930	clearTrackMaps	func	mat3	likely	empty deleted stub of clearTrackMaps (inlined into _UninitScreen on the N64; the tree keeps its body here); MAT3 clearTrackMaps@trackscr.c: removes the 20 trackMap objects, restores the 7 map LODs, frees their blocks, trackMapsBuilt = 0
+D_803B6AF0	trackscr_buttonNames	data	mat3	sure	char *[9]: MAT3 buttonNames@trackscr.c (static, in 11 files), indexed by buttonInfo[i].buttonType in initButtons
+D_803B6B14	trackscr_buttonInfo	data	mat3	sure	MenuObjectSlot[48] (MAT3 tMenuButton[48]): MAT3 buttonInfo@trackscr.c (static, in 11 files); entries 42-47 are the title, cursor, A and B buttons as in MAT3 initButtons
+D_803B7714	trackscr_buttonsInited	data	mat3	sure	s32: MAT3 buttonsInited@trackscr.c (static); set by initButtons, cleared by uninitButtons
+D_803B7718	trackscr_buttonsJustInited	data	mat3	sure	s32: MAT3 buttonsJustInited@trackscr.c (static); set by initButtons and by a track change
+D_803B771C	trackscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@trackscr.c (static), MAT3 data order gButtonScale..cursorZ kept
+D_803B7720	trackscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@trackscr.c (static)
+D_803B7724	trackscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@trackscr.c (static)
+D_803B7728	trackscr_maxY	data	mat3	sure	f32: MAT3 maxY@trackscr.c (static)
+D_803B772C	trackscr_minY	data	mat3	sure	f32: MAT3 minY@trackscr.c (static)
+D_803B7730	trackscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@trackscr.c (static)
+D_803B7734	trackscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@trackscr.c (static)
+D_803B7738	trackMapObjNames	data	mat3	sure	char *[20]: MAT3 trackMapObjNames@trackscr.c, the map model per track (19 = the selected-track frame), as MBOX_FindObject_WORK's argument
+D_803B7788	trackScreenNames	data	mat3	sure	char *[19]: MAT3 trackScreenNames@trackscr.c, the track picture per gTrackNum in loadTrackScreen
+D_803B77D4	trackscr_validOption	data	mat3	sure	s32[7][21]: MAT3 validOption@trackscr.c (static, name in 9 files), read as validOption[gRace][opt] in OptionValid
+D_803B7A20	yFog	data	mat3	sure	f32[19]: MAT3 yFog@trackscr.c (global), fog height per track in _InitScreen/showTrackSelect
+D_803B7A6C	trackscr_mblit	data	mat3	sure	MultiBlit[17]: MAT3 mblit@trackscr.c (18 entries there; the N64 has 17), NewMultiBlit's argument in _InitScreen
+D_803B7CD0	trackscr_blit	data	mat3	sure	Blit *: MAT3 blit@trackscr.c (static), NewMultiBlit's result, removed in _UninitScreen
+D_803B7CD4	trackscr_inited	data	mat3	sure	s8: MAT3 inited@trackscr.c (static); updateTrackScreen calls _InitScreen while it is 0
+D_803B7CD8	kNumMapSects	data	mat3	sure	s32: MAT3 kNumMapSects@trackscr.c (global), sections per path-strip map
+D_803B7CDC	pathWaveIdx	data	mat3	sure	s32: MAT3 pathWaveIdx@trackscr.c, the LoadWave instance of loadPathData
+D_803B7CE0	pathPos	data	mat3	sure	f32: MAT3 pathPos@trackscr.c, the strip fade phase advanced in animTrackMaps
+D_803B7CE4	trackMap	data	mat3	sure	struct[20] of 0x48 (MAT3 anon_objIdx_cityX_48, same 0x5A0 total): MAT3 trackMap@trackscr.c (global); objIdx, city offsets, scales, matrix
+D_803B8254	trackMap_selMat	data	mat3	likely	f32[12] interior label: trackMap[19].mat (+0x558+0x18 into trackMap), the selected-map frame's matrix that buildTrackMap and animTrackMap address directly
+D_803B8284	trackMapObj	data	mat3	sure	s32: MAT3 trackMapObj@trackscr.c (global), the map object of buildTrackMap/clearTrackMap, -1 when none
+D_803B8288	trackScreenPoly	data	mat3	sure	Blit *: MAT3 trackScreenPoly@trackscr.c (a ZOID poly there, a blit on the N64): the track picture of loadTrackScreen
+D_803B828C	trackFogPoly	data	mat3	sure	Blit *: MAT3 trackFogPoly@trackscr.c (a blit on the N64): the fog picture, updated by SetFogIntensity
+D_803B8314	trackReady	data	mat3	sure	s8[19]: MAT3 TrackValid's static trackReady
+D_803B8328	loadTrackScreen_backColor	data	mat3	sure	Color (4 bytes): initializer of loadTrackScreen's local backColor
+D_803B832C	buildTrackMap_mapPos	data	mat3	sure	f32[3]: MAT3 buildTrackMap's static mapPos
+D_803B8354	race_map_vertex_color	data	code	sure	Color (4 bytes): the vertex colour buildRaceTrackMaps gives every path-strip vertex (N64 only: MAT3 builds PS2 packets)
+D_803B8358	buildRaceTrackMaps_mapPos	data	mat3	sure	f32[3]: MAT3 buildRaceTrackMaps' first static mapPos (trackMap[track] position)
+D_803B8364	buildRaceTrackMaps_selMapPos	data	mat3	sure	f32[3]: MAT3 buildRaceTrackMaps' second static mapPos, in its inner block (trackMap[19] position)
+D_803B8370	buildStuntTrackMaps_mapPos	data	mat3	sure	f32[3]: MAT3 buildStuntTrackMaps' static mapPos
+D_803B837C	buildBattleTrackMaps_mapPos	data	mat3	sure	f32[3]: MAT3 buildBattleTrackMaps' static mapPos
+D_803B8394	trackscr_init_button_color	data	code	sure	Color (4 bytes): initializer of initButtons' local buttonColor
+D_803B8398	trackscr_update_button_color	data	code	sure	Color (4 bytes): initializer of updateButtons' local buttonColor
+D_803B9260	track_fog_texture_name	data	code	sure	char[]: string literal, the fog picture's texture name in loadTrackScreen (MAT3 passes the same name to MBOX_FindTexture_WORK)
+D_803B9264	trackscr_title_texture_name	data	code	sure	char[]: string literal, buttonInfo[42]'s texture name in initButtons (the title button)
+D_803B9274	trackscr_cursor_texture_name	data	code	sure	char[]: string literal, buttonInfo[43]'s texture name in initButtons (the cursor)
+D_803B927C	trackscr_a_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[44]'s texture name in initButtons (the A button)
+D_803B9280	trackscr_b_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[46]'s texture name in initButtons (the B button)
+D_803B9284	trackscr_left_select_texture_name	data	code	sure	char[]: string literal, the left-column button texture when its button faces away (angle > pi/2) in updateButtons
+D_803B9294	trackscr_left_button_texture_name	data	code	sure	char[]: string literal, the left-column button texture otherwise, in updateButtons
+D_803B929C	trackscr_right_select_texture_name	data	code	sure	char[]: string literal, the right-column (buttonIdx+21) counterpart of the left select texture
+D_803B92AC	trackscr_right_button_texture_name	data	code	sure	char[]: string literal, the right-column counterpart of the left button texture
+D_803BA1E0	trackscr_fogColor	data	mat3	sure	u8[8] (tRGBA[2]): MAT3 SetFogIntensity's static fogColor (name taken in the tree)
+D_803BA1E8	n64FogPal	data	mat3	sure	24-byte palette record (MAT3 anon_name_start_18): MAT3 SetFogIntensity's static n64FogPal, the fog blit's palette
+D_803BA1FC	n64FogPal_palBase	data	mat3	sure	u32 interior label: n64FogPal.palBase (+0x14), the colour-table pointer SetFogIntensity points at fogColor
+D_803BA84E	oldTrack	data	mat3	sure	s16: MAT3 oldTrack@trackscr.c (static), set with gTrackNum in _InitScreen
+D_803BA852	gNumTracks	data	mat3	sure	s16: MAT3 gNumTracks@trackscr.c (static; include/game/carsel.h declares another gNumTracks, see conflicts)
+D_803BA856	gTrack	data	mat3	sure	s16: MAT3 gTrack@trackscr.c (static), the carousel's selected slot
+D_803BA85A	trackscr_gActiveOption	data	mat3	sure	s16: MAT3 gActiveOption@trackscr.c (static, name in 2 files)
+D_803BA878	trackscr_gFirstOption	data	mat3	sure	s16: MAT3 gFirstOption@trackscr.c (static, name in 3 files)
+D_803BA898	trackscr_gNumOptions	data	mat3	sure	s16: MAT3 gNumOptions@trackscr.c (static, name in 2 files), the count of gOpts
+D_803BA8B0	trackscr_gOpts	data	mat3	sure	s16[21]: MAT3 gOpts@trackscr.c (static, name in 2 files), the valid option ids
+D_803BA908	trackscr_gActiveOptionEnabled	data	mat3	sure	s8: MAT3 gActiveOptionEnabled@trackscr.c (static, name in 2 files)
+D_803BA910	trackscr_gActiveZ	data	mat3	sure	s8: MAT3 gActiveZ@trackscr.c (static, name in 2 files)
+D_803BA918	gTracks	data	mat3	sure	struct[19] of 0x18 (MAT3 anon_gTrackNum_pos_18: gTrackNum, pos[3], targetPos, slot): MAT3 gTracks@trackscr.c (static; include/game/track.h declares an unrelated gTracks, see conflicts)
+D_803BAAE0	trackMapsBuilt	data	mat3	sure	s8: MAT3 trackMapsBuilt@trackscr.c, set by buildTrackMaps, cleared by clearTrackMaps
+D_803BAAE8	mapObj	data	mat3	sure	MapLod[7] (16-byte N64 model LODs; MAT3 tPackedObject[7]): MAT3 mapObj@trackscr.c, the race maps' and the selected map's built geometry
+D_803BAB50	mapObj_selDisplayList	data	mat3	sure	u32 interior label: mapObj[6].displayList (+0x68), the selected map's display list buildTrackMap rewrites
+D_803BAB58	saved_map_lods	data	code	sure	MapLod[7]: each map model's original lod[0], saved by buildRaceTrackMaps and put back by clearTrackMaps (N64 only)
+D_803BABC8	map_display_list_blocks	data	code	sure	void *[7]: the heap blocks of the 7 maps' display lists (AllocateMemoryHeap in buildRaceTrackMaps, freed in clearTrackMaps)
+D_803BABE8	map_vertex_blocks	data	code	sure	void *[7]: the heap blocks of the 7 maps' vertices (allocated and freed with the display lists)
+D_803BAC30	trackMapMat	data	mat3	sure	f32[12] (tUVMatrix): MAT3 trackMapMat@trackscr.c (global), the matrix of trackMapObj
+D_803BAC78	currentTrackMap	data	mat3	sure	s32: MAT3 currentTrackMap@trackscr.c (global)
+D_803BAC90	desiredTrackMap	data	mat3	sure	s32: MAT3 desiredTrackMap@trackscr.c (global)
+D_803BACCC	mapTransition	data	mat3	sure	f32: MAT3 mapTransition@trackscr.c (global), 0..1 blend of animTrackMap
+D_803BAE10	trackscr_InitScreen_fogPos	data	mat3	sure	f32[3]: MAT3 _InitScreen's static fogPos (showTrackSelect has another)
+D_80114658	gFogColors	data	mat3	sure	u8[][3] (RGB): MAT3 gFogColors, read by SetFogIntensity as gFogColors[gFogColor]; the tree already names 0x80114658 gFogColors
+D_801161F4	gRomObjDefPtrs	data	mat3	sure	ModelBank[] {defs, count}: MAT3 gRomObjDefPtrs, indexed by model index >> 10 in buildRaceTrackMaps/clearTrackMaps; the tree already names 0x801161F4 gRomObjDefPtrs
+D_80146125	gOptions_fogIntensity	data	code	sure	s8 interior label: gOptions[29], the fog-intensity option (MAT3 options.c sets gFogIntensity = gOptions[29]), which updateTrackScreen case 14 writes under its own address
+# titlescr.c: the title screen ("press start"; MAT3 GameSource titlescr.c)
+func_8038F454	updateTitleScreen	func	mat3	sure	MAT3 updateTitleScreen@titlescr.c: gSkipToGameState check -> setGameState(0x10), NewMultiBlit(blits) + SetCountdownTimer + gGameStarted/gSoftReset + ClearRushControls once, start -> AudPlayEffect, gPlayers[0] controller 0 and [1..3] 5, setGameState(0x10); timeout -> setGameState(8)
+D_803B6A78	titlescr_blits	data	mat3	sure	MultiBlit[3] (MAT3 blits[4]): MAT3 blits@titlescr.c (static, name in 2 files), NewMultiBlit's argument in updateTitleScreen
+D_803B6AE4	titlescr_inited	data	mat3	sure	s32: MAT3 inited@titlescr.c (static int there too)
+D_803B6AE8	titlescr_blit	data	mat3	sure	Blit *: MAT3 blit@titlescr.c (static)
+D_803B6AEC	movieIdx	data	mat3	sure	s32: MAT3 movieIdx@titlescr.c (static, -1 when no attract movie plays)
+# licensescr.c: the licence screen, and on the N64 the controller-pak manager gate (MAT3 GameSource licensescr.c)
+func_8039A2A0	updateLicenseScreen	func	mat3	sure	MAT3 updateLicenseScreen@licensescr.c: pfsInited/lcdInited once, NewMultiBlit(blits, 2), SetCountdownTimer(3), CountdownTimeOut or (gLicenseShown and gActiveEdges & 7) -> setGameState(gLicenseShown ? 4 : 0x40000000), gLicenseShown = 1; the N64 adds the held-button test that opens the pak manager
+D_803B4284	licensescr_blits	data	mat3	sure	MultiBlit[2]: MAT3 blits@licensescr.c (static, name in 2 files)
+D_803B42CC	licensescr_blit	data	mat3	sure	Blit *: MAT3 blit@licensescr.c (static)
+D_803B42D0	licensescr_inited	data	mat3	sure	s8: MAT3 inited@licensescr.c (static signed char)
+# eggs.c: secret controller codes (MAT3 GameSource eggs.c)
+func_8038F648	CheckForEgg	func	mat3	sure	MAT3 CheckForEgg@eggs.c: null gEgg -> 0, gEggIdx reset on gSeconds >= gNextTimeOut, levels/edges match against gActiveLevels/gActiveEdges, gNextTimeOut = gSeconds + const, returns 1 when gEggIdx reaches size
+func_8038FF90	InitEgg	func	mat3	sure	MAT3 InitEgg@eggs.c: gEgg = &gEggs[egg], gNextTimeOut = 0, gEggIdx = 0; the tree has the same body twice more under the name InitEgg (eggs.c, and start_screen's inlined copy, renamed startscr_InitEgg on the PC): see conflicts
+D_803B3460	gEggs	data	mat3	sure	Egg[22] (164-byte records: size, levels[20], edges[20]; MAT3 anon_size_levels_a4 gEggs[24], 2 cheats fewer on the N64): MAT3 gEggs@eggs.c; gEgg, gNextTimeOut, gEggIdx follow it as in MAT3
+D_803B41D4	start_screen_egg	data	code	sure	Egg interior label: gEggs[21], the last record, the start screen's code (the start screen's InitEgg points gEgg here)
+D_803B4278	gEgg	data	mat3	sure	Egg *: MAT3 gEgg@eggs.c (static), the code being entered
+D_803B427C	gNextTimeOut	data	mat3	sure	f32: MAT3 gNextTimeOut@eggs.c (static), the time the next step must come by
+D_803B4280	gEggIdx	data	mat3	sure	s32: MAT3 gEggIdx@eggs.c (static), steps matched so far
+# startscr.c: the start (main) menu (MAT3 GameSource startscr.c)
+func_80390418	updateStartScreen	func	mat3	sure	MAT3 updateStartScreen@startscr.c: gGameStarted, the gSkipToGameState/AudPlaySong block, initScreen, optionValid(gStartMenuSelect) loop, gMaxPlayers from attached controllers, gNumPlayers clamp, exitStartScreen, CheckForEgg into gCheatActive
+func_8038FFD8	startscr_initScreen	func	mat3	sure	MAT3 initScreen@startscr.c (static, name in several files): AudSetMusicVol/AudPlaySong, createBG, initButtons, NewMultiBlit(mblit, 1), exitStartScreen = 0, ClearRushControls, InitEgg, inited = 1
+func_8038FFD0	startscr_initButtons	func	mat3	likely	empty deleted stub of initButtons (inlined into initScreen on the N64; the tree keeps its body here); MAT3 initButtons@startscr.c: MBOX_NewObject per buttonInfo[18] from buttonNames, the title/A/B button textures
+func_8038F734	startscr_uninitButtons	func	mat3	likely	empty deleted stub of uninitButtons (inlined into uninitScreen on the N64; the tree keeps its body here); MAT3 uninitButtons@startscr.c
+func_8038F73C	startscr_uninitScreen	func	mat3	likely	empty deleted stub of uninitScreen (inlined into updateStartScreen on the N64; the tree keeps its body here); MAT3 uninitScreen@startscr.c: RemoveBlit(blit), removeBG, uninitButtons, inited = 0
+func_8038F744	startscr_optionValid	func	mat3	sure	MAT3 optionValid@startscr.c (static, name in 3 files): validOption[opt], option 7 needs a held button, option 6 = gCheatActive of the start-screen code
+func_8038F79C	startscr_updateButtons	func	mat3	sure	MAT3 updateButtons@startscr.c (static, name in 11 files): gButtonScale/gButtonSpace/maxY scroll, cursorSpeed/playerCursorSpeed easing, the player-count buttons
+D_803B65B8	startscr_mblit	data	mat3	sure	MultiBlit[1]: MAT3 mblit@startscr.c (static, name in 6 files)
+D_803B65DC	startscr_inited	data	mat3	sure	s8: MAT3 inited@startscr.c (static)
+D_803B65E0	startscr_blit	data	mat3	sure	Blit *: MAT3 blit@startscr.c (static)
+D_803B65E4	startscr_validOption	data	mat3	sure	s8[10]: MAT3 validOption@startscr.c (static, name in 9 files), read by optionValid
+D_803B65F0	startscr_buttonNames	data	mat3	sure	char *[8]: MAT3 buttonNames@startscr.c (static, name in 11 files)
+D_803B6610	startscr_buttonInfo	data	mat3	sure	ButtonInfo[18] (0x3C-byte MAT3 anon_buttonType_objIdx_3c): MAT3 buttonInfo@startscr.c (static, name in 11 files)
+D_803B6A48	startscr_buttonsInited	data	mat3	sure	s32: MAT3 buttonsInited@startscr.c (static)
+D_803B6A4C	startscr_buttonsJustInited	data	mat3	sure	s32: MAT3 buttonsJustInited@startscr.c (static)
+D_803B6A50	startscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@startscr.c (static)
+D_803B6A54	startscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@startscr.c (static)
+D_803B6A58	startscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@startscr.c (static)
+D_803B6A5C	startscr_maxY	data	mat3	sure	f32: MAT3 maxY@startscr.c (static)
+D_803B6A60	startscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@startscr.c (static)
+D_803B6A64	startscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@startscr.c (static)
+D_803B6A68	gStartMenuSelect	data	mat3	sure	s32 (MAT3 enum_kStartMenuCount): MAT3 gStartMenuSelect@startscr.c, the highlighted menu item, advanced until optionValid
+D_803B6A6C	gMaxPlayers	data	mat3	sure	s32: MAT3 gMaxPlayers@startscr.c, the attached-controller count updateStartScreen recounts each frame
+D_803B6A70	exitStartScreen	data	mat3	sure	s32 (MAT3 enum_kNumMenuDir_9): MAT3 exitStartScreen@startscr.c, set by A/B in updateStartScreen, cleared by initScreen
+D_803BAC1C	startscr_cursorSpeed	data	mat3	sure	f32: MAT3 cursorSpeed@startscr.c (static, name in 11 files), updateButtons' cursor easing
+D_803BAC60	playerCursorSpeed	data	mat3	sure	f32: MAT3 playerCursorSpeed@startscr.c (static), updateButtons' player-count cursor easing
+# selectcarload.c: car models of the car-select screens (MAT3 GameSource selectcarload.c)
+func_80390A28	SetSelectTireSizes	func	mat3	sure	MAT3 SetSelectTireSizes@selectcarload.c: per tire the model's tire position (+1.25 in y) and ScaleUV by gRearTireScale/gFrontTireScale[player+1][slot%13] or CopyUV
+func_80390BB8	CreateSelectCar	func	mat3	likely	empty deleted stub of CreateSelectCar (inlined into UpdateSelectCar on the N64; the tree keeps its body here); MAT3 CreateSelectCar@selectcarload.c: CreateCar, show frame, hide hood and brakes, SetSelectTireSizes
+func_80390BC0	LoadSelectCar	func	mat3	sure	MAT3 LoadSelectCar@selectcarload.c: the gSelectCarWavePtrs[16] slot search, LoadWave(index + base, 1, 1), loading = 1, gCarModelNums[slot] = wave
+func_80390D2C	UnloadSelectCar	func	mat3	sure	MAT3 UnloadSelectCar@selectcarload.c: wait WaveInstanceReady, UnloadWaveInstance, reset wave/slot/loading (the N64 adds one call)
+func_80390DCC	UpdateSelectCar	func	mat3	sure	MAT3 UpdateSelectCar@selectcarload.c (N64 nine-argument form with r, g, b): gNumWindows player fold, CreateSelectCar, FSCLS[gFrameScale-1], gTireRims/gWheelTextures
+func_80391470	InitVisualsCarScr	func	mat3	sure	MAT3 InitVisualsCarScr@selectcarload.c: 52 gSelectCar records reset field for field and gCarPaintJobInited[i] = 0
+func_8039156C	InitSelectCarLoad	func	mat3	sure	MAT3 InitSelectCarLoad@selectcarload.c: gLink[i].car = i for 13 cars, the 16 gSelectCarWavePtrs reset to -1/-1/0
+D_803BA230	gSelectCarWavePtrs	data	mat3	sure	struct[16] of 12 bytes (MAT3 anon_wave_loading_c: wave, loading, slot): MAT3 gSelectCarWavePtrs@selectcarload.c (global)
+D_803BA2F0	gSelectCar	data	mat3	sure	struct[52] of 0x18 (MAT3 anon_created_hidden_18: created, hidden, ready, loading, waveInst, ..., rims, front/rear tire scale): MAT3 gSelectCar@selectcarload.c (global)
+# recordscr.c: the records screen (MAT3 GameSource recordscr.c)
+func_80394058	updateRecordScreen	func	mat3	sure	MAT3 updateRecordScreen@recordscr.c: initRecordScreen while !inited, gSoftReset -> uninitRecordScreen + setGameState(16), dispatch on gRecordState to controlSelect/controlView, updateButtons; the N64 refreshes the pak info every frame
+func_80393B3C	initRecordScreen	func	mat3	sure	MAT3 initRecordScreen@recordscr.c: gSelectMenuSelect = 0, gStatPlayer = 0, setRecordState(0), createBG, initButtons, viewPane = InitPane(-20, 0, -10, 10, 192, ...), NewMultiBlit(mblit, 1), the delete flags cleared, inited = 1
+func_80393B34	recordscr_initButtons	func	mat3	likely	empty deleted stub of initButtons (inlined into initRecordScreen on the N64; the tree keeps its body here); MAT3 initButtons@recordscr.c: 23 buttonInfo objects, title/cursor/A/B textures
+func_803932E4	uninitRecordScreen	func	mat3	sure	MAT3 uninitRecordScreen@recordscr.c: uninitButtons, RemovePane(viewPane), RemoveBlit(blit), removeBG, inited = 0
+func_803932DC	recordscr_uninitButtons	func	mat3	likely	empty deleted stub of uninitButtons (inlined into uninitRecordScreen on the N64; the tree keeps its body here); MAT3 uninitButtons@recordscr.c: 23 objects removed, buttonsInited = 0
+func_8039338C	recordscr_controlSelect	func	mat3	sure	MAT3 controlSelect@recordscr.c (static, name in 2 files): gSelectMenuSelect/gSelectMenuValid walk, gStatPlayer list walk, delete confirm, ReadPlayerData/PS_LockFile/setRecordState
+func_803932D4	controlView	func	mat3	likely	empty deleted stub of controlView (inlined into updateRecordScreen on the N64; the tree keeps its body here); MAT3 controlView@recordscr.c: gViewMenuSelect over gViewMenuValid, gRecordTrack over gViewTrackValid
+func_803931C0	setRecordState	func	mat3	sure	MAT3 setRecordState@recordscr.c: gRecordState = state; select: updatePakInfo, updateSelectInfo, delete flags cleared; view: gViewStatValid/gViewStatType walk, updateViewInfo; buttonsJustInited = 1
+func_80393004	recordscr_updateSelectInfo	func	mat3	sure	MAT3 updateSelectInfo@recordscr.c (static, name in 2 files): gSelectMenuValid/gSelectMenuVisible[0..10] from gNumPakPlayers[gSelectPakIdx]
+func_80392F28	updateViewInfo	func	mat3	sure	MAT3 updateViewInfo@recordscr.c: gTrackType from gRecordTrack thresholds, gRecordCircuit, gViewMenuValid/gViewMenuVisible[2] = 1
+func_803930B8	recordscr_updatePakInfo	func	mat3	sure	MAT3 updatePakInfo@recordscr.c (static, name in 2 files): gNumPakPlayers[pak] = profiles in gPlayerFiles on that pak; the N64 stores negative codes for a missing, unreadable or damaged pak
+func_803923B0	recordscr_updateButtons	func	mat3	sure	MAT3 updateButtons@recordscr.c (static, name in 11 files): when buttonsInited, updateSelectButtons or updateViewButtons by gRecordState
+func_803915E8	updateSelectButtons	func	mat3	sure	MAT3 updateSelectButtons@recordscr.c: gButtonScale/gButtonSpace/maxY/minY scroll of the select menu, cursorSpeed and scrollSpeed easing, gSelectMenuVisible alphas
+func_803915E0	updateViewButtons	func	mat3	likely	empty deleted stub of updateViewButtons (inlined into updateButtons on the N64; the tree keeps its body here); MAT3 updateViewButtons@recordscr.c
+D_803B5EF0	recordscr_buttonNames	data	mat3	sure	char *[14]: MAT3 buttonNames@recordscr.c (static, name in 11 files), indexed by buttonInfo[i].buttonType in initButtons
+D_803B64EC	recordscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@recordscr.c (static); the tree's own note at updateSelectButtons lists D_803B64E8..D_803B6500 in MAT3 order
+D_803B64F0	recordscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@recordscr.c (static), the button column's x
+D_803B64F4	recordscr_maxY	data	mat3	sure	f32: MAT3 maxY@recordscr.c (static)
+D_803B64F8	recordscr_minY	data	mat3	sure	f32: MAT3 minY@recordscr.c (static)
+D_803B6500	recordscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@recordscr.c (static)
+D_803B6504	recordscr_mblit	data	mat3	sure	MultiBlit[1]: MAT3 mblit@recordscr.c (static, name in 6 files), NewMultiBlit's argument in initRecordScreen
+D_803B6528	recordscr_inited	data	mat3	sure	s8: MAT3 inited@recordscr.c (static)
+D_803B652C	recordscr_blit	data	mat3	sure	Blit *: MAT3 blit@recordscr.c (static)
+D_803B6534	gViewTrackValid	data	mat3	sure	s8[30]: MAT3 gViewTrackValid@recordscr.c, the record-track walk of controlView
+D_803B6554	gViewStatValid	data	mat3	sure	s8[6][13]: MAT3 gViewStatValid@recordscr.c, read as [gTrackType][gViewStatType[...]] in setRecordState
+D_803B65A4	recordscr_gSelectPakIdx	data	mat3	sure	s8: MAT3 gSelectPakIdx@recordscr.c (static, name in 2 files), indexes gNumPakPlayers
+D_803B8C10	recordscr_title_texture_name	data	code	sure	char[]: string literal, buttonInfo[17]'s texture name in initButtons (the title button)
+D_803B8C20	recordscr_cursor_texture_name	data	code	sure	char[]: string literal, buttonInfo[18]'s texture name in initButtons (the cursor)
+D_803B8C28	recordscr_a_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[19]'s texture name in initButtons (the A button)
+D_803B8C2C	recordscr_b_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[21]'s texture name in initButtons (the B button)
+D_803B8C60	recordscr_select_texture_name	data	code	sure	char[]: string literal, a view button's texture when it faces away (angle > pi/2) in updateViewButtons
+D_803B8C70	recordscr_button_texture_name	data	code	sure	char[]: string literal, a view button's texture otherwise, in updateViewButtons
+D_803BA7D0	recordscr_buttonsInited	data	mat3	sure	s32: MAT3 buttonsInited@recordscr.c (static); set by initButtons, cleared by uninitButtons, tested by updateButtons
+D_803BA7D4	recordscr_buttonsJustInited	data	mat3	sure	s32: MAT3 buttonsJustInited@recordscr.c (static), set by setRecordState
+D_803BA7D8	recordscr_cursorSpeed	data	mat3	sure	f32: MAT3 cursorSpeed@recordscr.c (static, name in 11 files)
+D_803BA7DC	recordscr_scrollSpeed	data	mat3	sure	f32: MAT3 scrollSpeed@recordscr.c (static, name in 7 files)
+D_803BA7E0	recordscr_gSelectMenuValid	data	mat3	sure	s8[11]: MAT3 gSelectMenuValid@recordscr.c (static, name in 2 files), set by updateSelectInfo
+D_803BA7F0	recordscr_gSelectMenuVisible	data	mat3	sure	s8[11]: MAT3 gSelectMenuVisible@recordscr.c (static, name in 2 files)
+D_803BA7FC	gViewMenuValid	data	mat3	sure	s8[2]: MAT3 gViewMenuValid@recordscr.c, set by updateViewInfo
+D_803BA7FE	gViewMenuVisible	data	mat3	sure	s8[2]: MAT3 gViewMenuVisible@recordscr.c, set by updateViewInfo
+D_803BA804	gRecordState	data	mat3	sure	s32 (MAT3 enum_kRecordStateCount): MAT3 gRecordState@recordscr.c, set by setRecordState; include/game/record.h declares a gRecordState with no definition, see conflicts
+D_803BA808	recordscr_gSelectMenuSelect	data	mat3	sure	s32: MAT3 gSelectMenuSelect@recordscr.c (static, name in 2 files)
+D_803BA80C	gSelectMenuClear	data	mat3	sure	s8: MAT3 gSelectMenuClear@recordscr.c, cleared with the delete flags
+D_803BA810	gViewMenuSelect	data	mat3	sure	s32: MAT3 gViewMenuSelect@recordscr.c, the view menu item controlView moves over gViewMenuValid
+D_803BA830	recordscr_gNumPakPlayers	data	mat3	sure	s32[4]: MAT3 gNumPakPlayers@recordscr.c (static, name in 2 files): profiles per pak, or the N64's negative pak-state codes
+D_803BA840	gDeleteName	data	mat3	sure	u8[13]: MAT3 gDeleteName@recordscr.c, the name TB_Strcpy fills for the delete prompt
+D_803BA84D	gDeleteConfirm	data	mat3	sure	s8: MAT3 gDeleteConfirm@recordscr.c
+D_803BA850	recordscr_gYes	data	mat3	sure	s8: MAT3 gYes@recordscr.c (static, name in 5 files)
+D_803BA854	gDeleteNotify	data	mat3	sure	s8: MAT3 gDeleteNotify@recordscr.c
+# warningscr.c: the controller-pak warning screen (its function, updateWarningScreen at 0x8038A400, is named elsewhere)
+D_803B83A4	warningscr_blits	data	code	sure	MultiBlit[1]: NewMultiBlit's argument in updateWarningScreen (MAT3 warningscr.c has no blit table: its N64 body is longer)
+# pakscr.c: the controller-pak manager screen (MAT3 GameSource pakscr.c)
+func_803990D0	updatePakScreen	func	mat3	sure	MAT3 updatePakScreen@pakscr.c: gInited block (_SetState(0), createBG, NewMultiBlit, SetControllerActive), gPakErr -> ShowPakError(..., _CancelFunc), else PS_PakChanged loop and the 5-way gState switch
+func_80398B40	_SetState	func	mat3	sure	MAT3 _SetState@pakscr.c: state 1 builds the file list, state 2 clears gYes, gState = state
+func_80398B38	_BuildFileDelList	func	mat3	likely	empty deleted stub of _BuildFileDelList (inlined into _SetState on the N64; the tree keeps its body here); MAT3 _BuildFileDelList@pakscr.c: gMaxMenuHeight = 8, gFreePages, gDeleteSize, gDeleteHeight = min
+func_80398BE0	_ControlDamaged	func	mat3	likely	empty deleted stub of _ControlDamaged (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlDamaged@pakscr.c: any of A/B/Start returns to state 0
+func_80398BE8	_ControlRumblePak	func	mat3	likely	empty deleted stub of _ControlRumblePak (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlRumblePak@pakscr.c, same body as _ControlDamaged
+func_80398BF0	pakscr_FindFile	func	mat3	sure	MAT3 _FindFile@pakscr.c (static, name in 2 files): walks gPS_Files[gPickedPak] to the file whose index matches (the N64 compares the file record's own index byte)
+func_80398C34	_ControlFileDelVerify	func	mat3	likely	empty deleted stub of _ControlFileDelVerify (inlined into updatePakScreen on the N64; the tree keeps its body here); MAT3 _ControlFileDelVerify@pakscr.c: left/right toggles gYes, A deletes gDeleteFile and refreshes gFreePages
+func_80398C3C	_ControlFileDel	func	mat3	sure	MAT3 _ControlFileDel@pakscr.c: gDeleteSelect/gDeleteSelTop/gDeleteSelPos scrolling with gDeleteHeight/gDeleteSize, gDeleteFile = _FindFile, the delete combo -> _SetState(2), B -> _SetState(0)
+func_80398E70	_ControlPickPak	func	mat3	sure	MAT3 _ControlPickPak@pakscr.c: gPickedPak 0..3 by left/right, A: SetPakError for no controller (gPakErr 1) or no pak (2), damaged -> state 4, rumble -> 3, else file list; B/Start leaves (setGameState)
+func_8039A24C	_CancelFunc	func	mat3	sure	MAT3 _CancelFunc@pakscr.c: PS_PakChanged(pak) or (gPakErr == 2 and PS_PakDamaged(pak)); passed to ShowPakError by updatePakScreen
+D_803B46A8	pakscr_gInited	data	mat3	sure	s8: MAT3 gInited@pakscr.c (static, name in 8 files)
+D_803B46AC	gBlit	data	mat3	sure	Blit *: MAT3 gBlit@pakscr.c, NewMultiBlit's result in updatePakScreen
+D_803B46B0	gDrawText	data	mat3	sure	s8: MAT3 gDrawText@pakscr.c, 0 while a pak error is shown
+D_803B46B4	gPakErr	data	mat3	sure	s32: MAT3 gPakErr@pakscr.c, the pending pak error (1 no controller, 2 no pak), read by _CancelFunc
+D_803B46B8	pakscr_mblit	data	mat3	sure	MultiBlit (one): initializer of updatePakScreen's local mblit, copied into a local before NewMultiBlit
+D_803B9BB0	gState	data	mat3	sure	s32: MAT3 gState@pakscr.c, the screen state (0 pick pak, 1 file list, 2 delete verify, 3 rumble pak, 4 damaged)
+D_803B9BB4	gMaxMenuHeight	data	mat3	sure	s32: MAT3 gMaxMenuHeight@pakscr.c, set to 8 by _BuildFileDelList
+D_803B9BB8	pakscr_gYes	data	mat3	sure	s8: MAT3 gYes@pakscr.c (static, name in 5 files), the delete-verify answer
+D_803B9BBA	gPickedPak	data	mat3	sure	s16: MAT3 gPickedPak@pakscr.c, the selected pak 0..3
+D_803B9BBC	pakscr_gFreePages	data	mat3	sure	s16: MAT3 gFreePages@pakscr.c (a local of the same name exists in the tree), PS_GetFreeBlocks(gPickedPak)
+D_803B9BC0	gDeleteFile	data	mat3	sure	file-record pointer (MAT3 tPS_File **): MAT3 gDeleteFile@pakscr.c, the highlighted file
+D_803B9BC4	gDeleteSize	data	mat3	sure	s16: MAT3 gDeleteSize@pakscr.c, files on the pak (the N64 uses a fixed 16)
+D_803B9BC6	gDeleteSelect	data	mat3	sure	s16: MAT3 gDeleteSelect@pakscr.c, the highlighted file's index
+D_803B9E38	gDeleteSelTop	data	mat3	sure	s16: MAT3 gDeleteSelTop@pakscr.c, first visible row of the file list
+D_803B9E3A	gDeleteHeight	data	mat3	sure	s16: MAT3 gDeleteHeight@pakscr.c, visible rows (min of gMaxMenuHeight and gDeleteSize)
+D_803B9E3C	gDeleteSelPos	data	mat3	sure	s16: MAT3 gDeleteSelPos@pakscr.c, the cursor row within the visible rows
+# modescr.c: the game-mode menu (MAT3 GameSource modescr.c)
+func_80399D10	updateModeScreen	func	mat3	sure	MAT3 updateModeScreen@modescr.c: gSkipToGameState block, initScreen, optionValid(gModeMenuSelect) walk over 7 modes, updateButtons, exitModeScreen by A/B, up/down with PlayUDSound
+func_803998C0	modescr_initScreen	func	mat3	sure	MAT3 initScreen@modescr.c (static, name in many files): createBG, initButtons, NewMultiBlit(mblit, 1), exitModeScreen = 0, gModeMenuSelect from the player's saved mode, inited = 1
+func_803998B8	modescr_initButtons	func	mat3	likely	empty deleted stub of initButtons (inlined into initScreen on the N64; the tree keeps its body here); MAT3 initButtons@modescr.c: 13 buttonInfo objects, cursor/A/B/title textures
+func_8039938C	modescr_uninitScreen	func	mat3	likely	empty deleted stub of uninitScreen (inlined into updateModeScreen on the N64; the tree keeps its body here); MAT3 uninitScreen@modescr.c
+func_80399384	modescr_uninitButtons	func	mat3	likely	empty deleted stub of uninitButtons (inlined into uninitScreen on the N64; the tree keeps its body here); MAT3 uninitButtons@modescr.c
+func_80399394	modescr_optionValid	func	mat3	sure	MAT3 optionValid@modescr.c (static, name in 3 files): validOption[gNumPlayers-1][opt], option 5 needs track 18 unlocked
+func_803993EC	modescr_updateButtons	func	mat3	sure	MAT3 updateButtons@modescr.c (static, name in 11 files): buttonsInited, maxY/gButtonSpace/gButtonScale layout, cursor easing by cursorSpeed, the select/plain textures
+D_803B42D4	modescr_buttonNames	data	mat3	sure	char *[8]: MAT3 buttonNames@modescr.c (static, name in 11 files)
+D_803B42F4	modescr_buttonInfo	data	mat3	sure	MenuButton[13] (0x40 each, MAT3 tMenuButton): MAT3 buttonInfo@modescr.c (13 entries there too)
+D_803B4634	modescr_buttonsInited	data	mat3	sure	s32: MAT3 buttonsInited@modescr.c (static)
+D_803B4638	modescr_buttonsJustInited	data	mat3	sure	s32: MAT3 buttonsJustInited@modescr.c (static)
+D_803B463C	modescr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@modescr.c (static)
+D_803B4640	modescr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@modescr.c (static)
+D_803B4644	modescr_buttonX	data	mat3	sure	f32: MAT3 buttonX@modescr.c (static)
+D_803B4648	modescr_maxY	data	mat3	sure	f32: MAT3 maxY@modescr.c (static)
+D_803B464C	modescr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@modescr.c (static)
+D_803B4650	modescr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@modescr.c (static)
+D_803B4654	modescr_mblit	data	mat3	sure	MultiBlit[1]: MAT3 mblit@modescr.c (static, name in 6 files)
+D_803B4678	modescr_inited	data	mat3	sure	s8: MAT3 inited@modescr.c (static)
+D_803B4679	modescr_validOption_biased	data	mat3	sure	s8 biased label: modescr validOption (s8[4][7], at +7) minus one row; optionValid writes validOption[gNumPlayers-1][opt] as this[gNumPlayers][opt]
+D_803B467C	modescr_blit	data	mat3	sure	Blit *: MAT3 blit@modescr.c (static)
+D_803B469C	gModeMenuSelect	data	mat3	sure	s32 (MAT3 enum_kModeMenuCount): MAT3 gModeMenuSelect@modescr.c, the highlighted mode 0..6
+D_803B46A0	exitModeScreen	data	mat3	sure	s32: MAT3 exitModeScreen@modescr.c, 1 on A, 2 on B
+D_803B46A4	modescr_button_color	data	code	sure	Color (4 bytes): initializer of initButtons' local button colour
+D_803B8864	modescr_cursor_texture_name	data	code	sure	char[]: string literal, buttonInfo[7]'s texture in initButtons (the cursor)
+D_803B886C	modescr_a_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[8]'s texture in initButtons (the A button)
+D_803B8870	modescr_b_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[10]'s texture in initButtons (the B button)
+D_803B8874	modescr_title_texture_name	data	code	sure	char[]: string literal, buttonInfo[12]'s texture in initButtons (the title button)
+D_803B8884	modescr_select_texture_name	data	code	sure	char[]: string literal, a mode button's texture when it faces away (angle > pi/2) in updateButtons
+D_803B8894	modescr_button_texture_name	data	code	sure	char[]: string literal, a mode button's texture otherwise, in updateButtons
+D_803BAC18	modescr_cursorSpeed	data	mat3	sure	f32: MAT3 cursorSpeed@modescr.c (static, name in 11 files)
+# circuitscr.c, its start (the rest is in the A2 half; MAT3 GameSource circuitscr.c)
+func_8039A440	circuitscr_first_deleted_stub	func	code	likely	empty 8-byte deleted procedure of an inlined static, the first word pair of the circuitscr.c unit (before menuItemValid); which static it stood for is not established and nothing calls it
+func_8039A448	menuItemValid	func	mat3	sure	MAT3 menuItemValid@circuitscr.c: item 3 needs no save file for gPlayers[gCircuitPlayer], item 0 needs gContinueEnabled, item 1 gStatsEnabled
+func_8039A4D4	circuitscr_updateButtons	func	mat3	sure	MAT3 updateButtons@circuitscr.c (static, name in 11 files): buttonsInited, gShowTrophy layout, gEnterCircuitCode/gConfirmNewCircuit hiding, gCircuitMenuSelect cursor, menuItemValid alphas
+D_803B30C0	circuitscr_buttonInfo	data	mat3	sure	MenuObjectSlot[12] (MAT3 tMenuButton[12]): MAT3 buttonInfo@circuitscr.c (static, name in 11 files)
+D_803B33C0	circuitscr_buttonsInited	data	mat3	sure	s32: MAT3 buttonsInited@circuitscr.c (static)
+D_803B33C4	circuitscr_buttonsJustInited	data	mat3	sure	s32: MAT3 buttonsJustInited@circuitscr.c (static)
+D_803B33C8	circuitscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@circuitscr.c (static)
+D_803B33CC	circuitscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@circuitscr.c (static)
+D_803B33D0	circuitscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@circuitscr.c (static)
+D_803B33D4	circuitscr_maxY	data	mat3	sure	f32: MAT3 maxY@circuitscr.c (static)
+D_803B33D8	circuitscr_minY	data	mat3	sure	f32: MAT3 minY@circuitscr.c (static)
+D_803B33DC	circuitscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@circuitscr.c (static)
+D_803B33E0	circuitscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@circuitscr.c (static)
+D_803B3414	gEnterCircuitCode	data	mat3	sure	s8: MAT3 gEnterCircuitCode@circuitscr.c, hides the menu buttons while the code is entered
+D_803B3418	gConfirmNewCircuit	data	mat3	sure	s8: MAT3 gConfirmNewCircuit@circuitscr.c
+D_803B3424	gContinueEnabled	data	mat3	sure	s8: MAT3 gContinueEnabled@circuitscr.c, set by resetEnabled, read by menuItemValid(0)
+D_803B3428	gStatsEnabled	data	mat3	sure	s8: MAT3 gStatsEnabled@circuitscr.c, set by resetEnabled, read by menuItemValid(1)
+D_803B342C	gShowTrophy	data	mat3	sure	s8: MAT3 gShowTrophy@circuitscr.c, 1 shows only the trophy buttons in updateButtons
+D_803B345C	circuitscr_button_color	data	code	sure	Color (4 bytes): initializer of updateButtons' local buttonColor
+D_803B87C8	circuitscr_select_texture_name	data	code	sure	char[]: string literal, a menu button's texture when it faces away in updateButtons
+D_803B87D8	circuitscr_button_texture_name	data	code	sure	char[]: string literal, a menu button's texture otherwise, in updateButtons
+D_803BACF8	gCircuitMenuSelect	data	mat3	sure	s32 (MAT3 enum_kCircuitMenuCount): MAT3 gCircuitMenuSelect@circuitscr.c, the highlighted circuit-menu item
+D_803AF980	ghosts_enabled	data	code	likely	s32 in image A's initialized data, never written by code: when 0 the track screen's ghost option (OptionValid 1) and car-screen items 16-18 are unavailable and the ghost rows print another text (N64 only)
+# playerscr.c: the player (profile) select screen (MAT3 GameSource playerscr.c)
+func_8039842C	updatePlayerScreen	func	mat3	sure	MAT3 updatePlayerScreen@playerscr.c: screenInited -> initScreen, per player the gPlayerState switch (select/wait/controls/create/delete/pak full/damaged), all-ready check, exitPlayerScreen handling
+func_80397FFC	playerscr_initScreen	func	mat3	sure	MAT3 initScreen@playerscr.c: PS_LockFile per player, updatePakInfo, gCarTeam[p] = p, setPlayerState(p, 0), calcSelectMenuMaxSize, initButtons(p), gNumWindows and the three button layouts, InitPane per player, NewMultiBlit, screenInited = 1
+func_80397FF4	calcSelectMenuMaxSize	func	mat3	likely	empty deleted stub of calcSelectMenuMaxSize (inlined into initScreen on the N64; the tree keeps its body here); MAT3 calcSelectMenuMaxSize@playerscr.c: rect height less a line, divided by the line height
+func_803949CC	playerscr_uninitScreen	func	mat3	sure	MAT3 uninitScreen@playerscr.c: uninitButtons and RemovePane per player, RemoveBlit, removeBG, gNumWindows = 1, HFOV = 90, ZOID_ResetWindows, ZOID_Reset, screenInited = 0
+func_803949C4	playerscr_uninitButtons	func	mat3	likely	empty deleted stub of uninitButtons (inlined into uninitScreen on the N64; the tree keeps its body here); MAT3 uninitButtons(signed char p)@playerscr.c: 22 objects of player p removed, buttonsInited[p] = 0
+func_80394564	playerscr_updateSelectInfo	func	mat3	sure	MAT3 updateSelectInfo@playerscr.c (static, name in 2 files): p or all players (-1), gSelectPlayerNum, gSelectMenuValid/Visible rows, gSelectMenuCount (14 items on the N64)
+func_80394834	playerscr_updatePakInfo	func	mat3	sure	MAT3 updatePakInfo@playerscr.c (static, name in 2 files): gPakFull, buttonsJustInited for players on a pak that came back, gNumPakPlayers count per pak (N64 negative codes for pak states)
+func_80394B00	setPlayerState	func	mat3	sure	MAT3 setPlayerState@playerscr.c: select resets gSelectedPlayer/gSelectPakIdx/gSelectMenuSelect, create clears the name, delete resets the delete menu; gPlayerState[p] = state, buttonsJustInited[p] = 1, updateSelectInfo(p)
+func_80394DD8	playerscr_updateButtons	func	mat3	sure	MAT3 updateButtons(signed char p)@playerscr.c (static, name in 11 files): per-player button scroll and cursor easing with cursorSpeed[p]/scrollSpeed[p], gSelectMenuVisible alphas
+func_80395E14	controlPakDamaged	func	mat3	likely	empty deleted stub of controlPakDamaged (inlined into updatePlayerScreen on the N64; the tree keeps its body here); MAT3 controlPakDamaged@playerscr.c (state 6)
+func_80395E1C	controlPakFull	func	mat3	likely	empty deleted stub of controlPakFull (inlined into updatePlayerScreen on the N64; the tree keeps its body here); MAT3 controlPakFull@playerscr.c (state 5)
+func_80395E24	playerClaimed	func	mat3	sure	MAT3 playerClaimed@playerscr.c: 1 when another player p != playerIdx holds the same save profile
+func_80395E8C	controlDeletePlayer	func	mat3	sure	MAT3 controlDeletePlayer@playerscr.c: the delete menu (gDeleteMenuSelect/Confirm/Yes/Notify) over the pak's profiles
+func_803968B8	claimPlayer	func	mat3	likely	empty deleted stub of claimPlayer (inlined into controlSelect and controlCreatePlayer on the N64; the tree keeps its body here); MAT3 claimPlayer@playerscr.c: gPlayers[p].save = player
+func_803968C0	controlCreatePlayer	func	mat3	sure	MAT3 controlCreatePlayer@playerscr.c: name entry over gPlayerNameChars (gNameSelect/gNameLen, gCreatePlayerNames), CreatePlayer on accept (the N64's B deletes a character)
+func_80396ED8	controlControls	func	mat3	likely	empty deleted stub of controlControls (inlined into updatePlayerScreen on the N64; the tree keeps its body here); MAT3 controlControls@playerscr.c: the control screen while controlScrActive[p]
+func_80396EE0	controlWait	func	mat3	likely	empty deleted stub of controlWait (inlined into updatePlayerScreen on the N64; the tree keeps its body here); MAT3 controlWait@playerscr.c (state 1; the N64 adds a pak-changed test)
+func_80396EE8	playerBeingDeleted	func	mat3	sure	MAT3 playerBeingDeleted@playerscr.c: 1 when another player's gPlayerState is 4 (kPlayerStateDeletePlayer)
+func_80396F44	playerBeingCreated	func	mat3	sure	MAT3 playerBeingCreated@playerscr.c: 1 when another player's gPlayerState is 3 (kPlayerStateCreatePlayer)
+func_80396FA0	playerscr_controlSelect	func	mat3	sure	MAT3 controlSelect(int p)@playerscr.c (static, name in 2 files): the select menu (just play, pak, profiles, create, delete) with claimPlayer/playerClaimed/playerBeing* tests
+func_80397AD8	playerscr_initButtons	func	mat3	sure	MAT3 initButtons(signed char p)@playerscr.c (static, name in 11 files): 22 buttonInfo[p] objects from buttonNames, the title/cursor/A/B textures, buttonsInited[p]
+D_803B46DC	playerscr_buttonNames	data	mat3	sure	char *[12]: MAT3 buttonNames@playerscr.c (static, name in 11 files), indexed by buttonInfo[p][i].buttonType
+D_803B470C	playerscr_buttonInfo	data	mat3	sure	MenuButton[4][22] (0x40 each; MAT3 tMenuButton[4][23], one fewer per player on the N64): MAT3 buttonInfo@playerscr.c
+D_803B5CFC	gPlayerRects_biased	data	mat3	sure	s32 biased label (inside the end of buttonInfo): gPlayerRects (at 0x54 past it) minus one row plus the h field; calcSelectMenuMaxSize reads gPlayerRects[gNumPlayers-1][0].h as this[gNumPlayers][0]
+D_803B5D0C	playerscr_gButtonZoom	data	mat3	sure	f32: MAT3 gButtonZoom@playerscr.c (static, name in 3 files), set per window count by initScreen
+D_803B5D10	playerscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@playerscr.c (static), 1.0/1.43/1.1 by window count
+D_803B5D14	playerscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@playerscr.c (static)
+D_803B5D18	playerscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@playerscr.c (static)
+D_803B5D1C	playerscr_maxY	data	mat3	sure	f32: MAT3 maxY@playerscr.c (static)
+D_803B5D20	playerscr_minY	data	mat3	sure	f32: MAT3 minY@playerscr.c (static)
+D_803B5D24	playerscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@playerscr.c (static)
+D_803B5D28	playerscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@playerscr.c (static)
+D_803B5D2C	multiBlit	data	mat3	sure	MultiBlit[1]: MAT3 multiBlit@playerscr.c, NewMultiBlit's argument in initScreen; gPlayerRects (4x4 rects of 0x18) follows it
+D_803B5ED0	screenInited	data	mat3	sure	s8: MAT3 screenInited@playerscr.c
+D_803B5ED4	exitPlayerScreen	data	mat3	sure	s32 (MAT3 enum_kNumMenuDir_8): MAT3 exitPlayerScreen@playerscr.c, 0 (kMenuStay) after initScreen
+D_803B5ED8	playerscr_blit	data	mat3	sure	Blit *: MAT3 blit@playerscr.c (static)
+D_803B89D4	playerscr_title_texture_name	data	code	sure	char[]: string literal, buttonInfo[p][16]'s texture in initButtons (the title button)
+D_803B89E4	playerscr_cursor_texture_name	data	code	sure	char[]: string literal, buttonInfo[p][17]'s texture in initButtons (the cursor)
+D_803B89EC	playerscr_a_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[p][18]'s texture in initButtons (the A button)
+D_803B89F0	playerscr_b_button_texture_name	data	code	sure	char[]: string literal, buttonInfo[p][20]'s texture in initButtons (the B button)
+D_803BA868	playerscr_buttonsInited	data	mat3	sure	s32[4]: MAT3 buttonsInited[4]@playerscr.c, cleared per player by uninitButtons
+D_803BA888	playerscr_buttonsJustInited	data	mat3	sure	s32[4]: MAT3 buttonsJustInited[4]@playerscr.c, set by setPlayerState and updatePakInfo
+D_803BA8A0	playerscr_cursorSpeed	data	mat3	sure	f32[4]: MAT3 cursorSpeed[4]@playerscr.c, the cursor button's easing (bounded by 180..540 x gButtonScale)
+D_803BA8F8	playerscr_scrollSpeed	data	mat3	likely	f32[4]: MAT3 scrollSpeed[4]@playerscr.c, the menu buttons' easing in updateButtons
+D_803BAC08	playerscr_pane	data	mat3	sure	pane pointer[4] (MAT3 tBlitSet *pane[4], name in 3 files): InitPane result per player in initScreen, RemovePane in uninitScreen
+D_803BAC20	playerscr_gNumPakPlayers	data	mat3	sure	s32[4]: MAT3 gNumPakPlayers@playerscr.c (static, name in 2 files): profiles per pak, or the N64's negative pak-state codes
+D_803BAC68	gPakFull	data	mat3	sure	s32[4]: MAT3 gPakFull@playerscr.c; the N64 sets it when the pak's free blocks are below what a profile needs
+D_803BAC80	gSelectedPlayer	data	mat3	sure	profile pointer[4] (MAT3 tPlayerProfile **[4]): MAT3 gSelectedPlayer@playerscr.c, set to &gJustPlayers[p] or a profile by setPlayerState
+D_803BAC98	gCreatePlayerNames	data	mat3	sure	u8[4][13]: MAT3 gCreatePlayerNames@playerscr.c, cleared by setPlayerState(create)
+D_803BACD0	playerscr_gNameSelect	data	mat3	sure	s16[4]: MAT3 gNameSelect@playerscr.c (static, name in 2 files), the name-entry character cursor
+D_803BACD8	playerscr_gNameLen	data	mat3	sure	s16[4]: MAT3 gNameLen@playerscr.c (static, name in 2 files)
+D_803BACE0	gPlayerState	data	mat3	sure	s32[4] (MAT3 enum_kPlayerStateCount): MAT3 gPlayerState@playerscr.c, tested == 3/4 by playerBeingCreated/Deleted
+D_803BACF4	gSelectMenuMaxSize	data	mat3	sure	s8: MAT3 gSelectMenuMaxSize@playerscr.c, computed by calcSelectMenuMaxSize
+D_803BAD00	playerscr_gSelectMenuValid	data	mat3	sure	s8[4][14] (MAT3 [4][15]): MAT3 gSelectMenuValid@playerscr.c (static, name in 2 files)
+D_803BAD40	playerscr_gSelectMenuVisible	data	mat3	sure	s8[4][14] (MAT3 [4][15]): MAT3 gSelectMenuVisible@playerscr.c (static, name in 2 files)
+D_803BAD78	playerscr_gSelectMenuCount	data	mat3	sure	s8[4]: MAT3 gSelectMenuCount@playerscr.c (a local of that name exists in the tree)
+D_803BAD80	playerscr_gSelectMenuSelect	data	mat3	sure	s32[4] (MAT3 enum_kSelectMenuCount): MAT3 gSelectMenuSelect@playerscr.c (static, name in 2 files), set to 3 per player by initScreen
+D_803BADB8	gSelectMenuControls	data	mat3	sure	s8[4]: MAT3 gSelectMenuControls@playerscr.c, cleared by setPlayerState(select)
+D_803BADBC	playerscr_gSelectPakIdx	data	mat3	sure	s8[4]: MAT3 gSelectPakIdx@playerscr.c (static, name in 2 files)
+D_803BADC0	gSelectPlayerNum	data	mat3	sure	s8[4]: MAT3 gSelectPlayerNum@playerscr.c = gNumPakPlayers[gSelectPakIdx[p]]
+D_803BADC8	gDeleteMenuSelect	data	mat3	sure	s8[4]: MAT3 gDeleteMenuSelect@playerscr.c, 1 after setPlayerState(delete)
+D_803BADCC	gDeleteMenuConfirm	data	mat3	sure	s8[4]: MAT3 gDeleteMenuConfirm@playerscr.c
+D_803BADD0	gDeleteMenuYes	data	mat3	sure	s8[4]: MAT3 gDeleteMenuYes@playerscr.c
+D_803BADD4	gDeleteMenuNotify	data	mat3	sure	s8[4]: MAT3 gDeleteMenuNotify@playerscr.c
+D_803BADD8	gDeleteMenuName	data	mat3	likely	u8[4][13]: MAT3 gDeleteMenuName@playerscr.c, the profile name shown by the delete prompt (the other [4][13] name table, gCreatePlayerNames, is the one setPlayerState clears)
+# game-image data only image A and B code uses (named here; not shared with the range agents' functions)
+D_801174BC	gSkipToGameState	data	mat3	sure	u32: MAT3 gSkipToGameState (the tree already names 0x801174BC so); the screens' first test
+D_8012E67C	gCarTeam	data	mat3	sure	s8[4]: MAT3 gCarTeam, gCarTeam[p] = p in playerscr initScreen (the tree already names 0x8012E67C so); used only by image A and B code
+D_8012E6E4	gPlayerFiles_tail	data	mat3	sure	pointer interior label: gPlayerFiles.tail (+0xC), where controlSelect wraps to the last profile
+D_80156CF0	gControllerData	data	mat3	sure	pad record[4] of 16 bytes (MAT3 tPadInfo gControllerData[4]): .attached counted by updateStartScreen (the tree already names 0x80156CF0 so)
+# types and fields of the A1 files (file-local typedefs; each old name below is used only in image-A files that view the same object)
+Rec164	Egg	type	mat3	sure	func_8038FF90.c's opaque 164-byte view of gEggs' records: the same record as eggs.c's Egg (MAT3 anon_size_levels_a4: size, levels[20], edges[20])
+Rec12	SelectCarWave	type	mat3	sure	func_80390D2C.c/func_8039156C.c's view of gSelectCarWavePtrs' 12-byte record, which func_80390BC0.c already calls SelectCarWave (MAT3 anon_wave_loading_c)
+Slot60	ButtonInfo	type	mat3	sure	runtime_a_option_eligibility's view of startscr buttonInfo (0x3C bytes), which start_screen already calls ButtonInfo (MAT3 anon_buttonType_objIdx_3c)
+Slot72	TrackMapEntry	type	code	sure	trackscr's 0x48-byte trackMap record (MAT3's anonymous anon_objIdx_cityX_48: objIdx, city offsets, rotation, scales, matrix)
+Rec12.0x0	wave	field	mat3	sure	Rec12.a: MAT3 anon_wave_loading_c.wave, the LoadWave instance
+Rec12.0x4	loading	field	mat3	sure	Rec12.b: MAT3 anon_wave_loading_c.loading
+Rec12.0x5	slot	field	mat3	sure	Rec12.c: MAT3 anon_wave_loading_c.slot, the select-car slot (-1 free)
+Slot60.0x0	buttonType	field	mat3	sure	Slot60.x (declared f32, never read): MAT3 buttonType, an int index into buttonNames
+Slot60.0x4	objIdx	field	mat3	sure	Slot60.y (declared f32, never read): MAT3 objIdx, the MBOX object handle
+Slot60.0xC	mat	field	mat3	sure	Slot60.unknown0C[36] + position[3]: MAT3 mat (tUVMatrix: uvs[3][3], then pos at +0x30)
+Slot72.0x0	objIdx	field	mat3	sure	Slot72.handle: MAT3 anon_objIdx_cityX_48.objIdx
+Slot72.0x4	cityX	field	mat3	sure	Slot72.offset_x: MAT3 cityX (animTrackMap adds it to the city position)
+Slot72.0x8	cityY	field	mat3	sure	Slot72.offset_y: MAT3 cityY
+Slot72.0xC	cityRot	field	mat3	sure	Slot72.angle: MAT3 cityRot (WRollUV(-cityRot) in animTrackMaps, WYawUV blend in animTrackMap)
+Slot72.0x10	cityScale	field	mat3	sure	Slot72.scale_from: MAT3 cityScale (the blend's 1-mapTransition side)
+Slot72.0x14	scale	field	mat3	sure	Slot72.scale_to: MAT3 scale (5000 / path extent in buildRaceTrackMaps)
+Slot72.0x18	mat	field	mat3	sure	Slot72.matrix[3][3] + position[3]: MAT3 mat (tUVMatrix)
+MenuObjectSlot.0x0	buttonType	field	mat3	sure	MenuObjectSlot.other: MAT3 tMenuButton.buttonType, the buttonNames index initButtons reads
+MenuObjectSlot.0x4	objIdx	field	mat3	sure	MenuObjectSlot.handle: MAT3 tMenuButton.objIdx
+PlayerStatus.0x1	controller	field	mat3	sure	PlayerStatus.state (func_8038F454.c): MAT3 tPadState.controller, which updateTitleScreen sets to 0 for player 0 and 5 for the others
+InputSequence.0x0	size	field	mat3	sure	InputSequence.fields.count: MAT3 anon_size_levels_a4.size (steps in the code)
+InputSequence.0x4	levels	field	mat3	sure	InputSequence.fields.held[20]: MAT3 levels, the buttons to hold per step
+InputSequence.0x54	edges	field	mat3	sure	InputSequence.fields.pressed[20]: MAT3 edges, the buttons to press per step
+# circuitscr.c: the circuit menu (continue, review, new circuit, enter a circuit code, the trophy)
+func_8039C140	updateCircuitScreen	func	mat3	sure	MAT3 updateCircuitScreen@circuitscr.c: same inited/menuItemValid loop, controlShowTrophy/controlCircuitCode dispatch, edge handling and setGameState(0x80/0x40/4) exits; N64 adds a pak-pulled test per player
+func_8039BE48	circuitscr_initScreen	func	mat3	sure	MAT3 initScreen@circuitscr.c (static; file prefix): trophy and sheen objects for gCircuitCars[0].totalPlace, resetEnabled, calcProgressSize, createBG, initButtons, InitPane, NewMultiBlit(mblit)
+func_8039B00C	circuitscr_uninitScreen	func	mat3	sure	MAT3 uninitScreen@circuitscr.c: uninitButtons, RemoveBlit(blit), RemovePane(pane), removes trophyObjIdx/trophySheenObjIdx, removeBG, inited = 0
+func_8039B004	circuitscr_uninitButtons	func	mat3	sure	MAT3 uninitButtons@circuitscr.c: the 12-button loop with the gGameState mask, buttonsInited = 0; inlined into uninitScreen (its retail 8-byte deleted stub is this address, the C keeps the body here)
+func_8039B120	resetEnabled	func	mat3	sure	MAT3 resetEnabled@circuitscr.c: gContinueEnabled/gStatsEnabled from gCircuit, unlocks gUnlockedCircuits/gUnlockedTracks/gForceUnlockedCircuits by circuit type
+func_8039B214	controlCircuitCode	func	mat3	sure	MAT3 controlCircuitCode@circuitscr.c: same 12-column cursor moves over the 32-letter alphabet, DEL at -2, SetCircuitCode after 20 letters (invalid / wrong-players / accepted)
+func_8039B558	controlShowTrophy	func	mat3	sure	MAT3 controlShowTrophy@circuitscr.c: YawUV of gTrophyMat by -90 deg/s, any of buttons 1|2|4 removes both trophy objects; inlined into updateCircuitScreen (deleted stub at this address)
+func_8039B560	circuitscr_initButtons	func	mat3	sure	MAT3 initButtons@circuitscr.c: 12 buttons from buttonNames, then the BUTTON/CURSOR/A1/B1 textures and placements of buttons 6, 8-11
+func_8039B908	getPointsStr	func	mat3	sure	MAT3 getPointsStr@circuitscr.c: label + "%d " totalPoints + points word
+func_8039B988	getPlaceStr	func	mat3	sure	MAT3 getPlaceStr@circuitscr.c: label + place word of gCircuitCars[p].totalPlace + " " + suffix
+func_8039BA20	getPlayerStr	func	mat3	sure	MAT3 getPlayerStr@circuitscr.c: TB_Strcpy of the player profile name; inlined into calcProgressSize (deleted stub at this address)
+func_8039BA28	getToGoStr	func	mat3	sure	MAT3 getToGoStr@circuitscr.c: gCircuitSize - gCircuit->track with the singular/plural word
+func_8039BAE0	getFinishedStr	func	mat3	sure	MAT3 getFinishedStr@circuitscr.c: gCircuit->track with the singular/plural word
+func_8039BB80	calcProgressSize	func	mat3	sure	MAT3 calcProgressSize@circuitscr.c: same width/height sums over finished/to-go and up to two players (getPlayerStr/getPlaceStr/getPointsStr), gProgressTop from gMenuBottom
+func_803A5658	drawReview	func	mat3	sure	MAT3 drawReview@circuitscr.c: six cars, place/name/points per gReviewTrack, two columns of three
+func_803A5948	circuitscr_animText	func	mat3	sure	MAT3 animText@circuitscr.c: the multiblit callback, calls animButtonText when buttonsInited == 1
+func_803A5940	circuitscr_animButtonText	func	mat3	sure	MAT3 animButtonText@circuitscr.c (inlined into animText on the N64; its deleted stub is this address, the C keeps the body here)
+func_803A5938	getFinishPlaceStr	func	mat3	sure	MAT3 getFinishPlaceStr@circuitscr.c: label + place word + " " + suffix; inlined into animButtonText (deleted stub at this address)
+D_803B309C	circuitscr_buttonNames	data	mat3	sure	char *[9]: MAT3 buttonNames@circuitscr.c, model name per button type (initButtons indexes it by buttonInfo[i].buttonType)
+D_803B33E4	circuitscr_mblit	data	mat3	sure	MultiBlit[1]: MAT3 mblit@circuitscr.c, the text blit whose callback is animText (NewMultiBlit in initScreen)
+D_803B3408	circuitscr_blit	data	mat3	sure	Blit *: MAT3 blit@circuitscr.c (NewMultiBlit result, RemoveBlit in uninitScreen)
+D_803B340C	circuitscr_inited	data	mat3	sure	s8: MAT3 inited@circuitscr.c (set by initScreen, cleared by uninitScreen)
+D_803B3410	gCircuitScreenExit	data	mat3	sure	s32: MAT3 gCircuitScreenExit@circuitscr.c, 1 = accept, 2 = back (updateCircuitScreen exits on it)
+D_803B341C	gInvalidCode	data	mat3	sure	s8: MAT3 gInvalidCode@circuitscr.c, set when SetCircuitCode returns 0
+D_803B3420	gWrongNumPlayers	data	mat3	sure	s8: MAT3 gWrongNumPlayers@circuitscr.c, set when SetCircuitCode returns -1
+D_803B3430	gTrophyNames	data	mat3	sure	char *[3]: MAT3 gTrophyNames@circuitscr.c, trophy model per place (initScreen)
+D_803B343C	gTrophySheenNames	data	mat3	sure	char *[3]: MAT3 gTrophySheenNames@circuitscr.c, sheen model per place
+D_803B3448	trophyObjIdx	data	mat3	sure	s32: MAT3 trophyObjIdx@circuitscr.c, -1 when none
+D_803B344C	trophySheenObjIdx	data	mat3	sure	s32: MAT3 trophySheenObjIdx@circuitscr.c, -1 when none
+D_803B3450	trophySheenColor	data	mat3	sure	tRGBA: MAT3 trophySheenColor@circuitscr.c, passed to ZOID_SetColor and ZOID_SetEnvColor in initScreen
+D_803B3454	circuitscr_del	data	mat3	sure	u8 *: MAT3 block static del in animButtonText@circuitscr.c, points at the DEL label (circuitscr_del_text)
+D_803B3458	circuitscr_init_button_color	data	mat3	sure	tRGBA: initialiser of initButtons' local buttonColor (IDO keeps a local aggregate's initialiser as data)
+D_803B8738	circuitscr_empty_code_text	data	mat3	sure	char[]: the blank circuit code copied into gCircuitCode when code entry starts (MAT3 writes it as a row of dots)
+D_803B8750	circuitscr_sheen_texture_name	data	mat3	sure	char[]: texture name of the trophy sheen (initScreen's MBOX_FindTexture_WORK, as MAT3)
+D_803B8758	circuitscr_del_text	data	mat3	sure	char[]: the DEL label of the code-entry grid, what circuitscr_del points at
+D_803B875C	circuitscr_review_track_format	data	mat3	sure	char[]: animButtonText format of the reviewed track label + gReviewTrack + 1 (MAT3 "%s%d")
+D_803B8764	circuitscr_trophy_title_format	data	mat3	sure	char[]: animButtonText format of the trophy title, circuit type name + word (MAT3 "%s %s", gShowTrophy branch)
+D_803B876C	circuitscr_new_circuit_title_format	data	mat3	sure	char[]: animButtonText format of the new-circuit title, type name + word (MAT3 "%s %s", menu item 2)
+D_803B8774	circuitscr_new_circuit_tracks_format	data	mat3	sure	char[]: animButtonText format of the new circuit's race count (MAT3 "%d %s")
+D_803B877C	circuitscr_progress_title_format	data	mat3	sure	char[]: animButtonText format of the running circuit's title (MAT3 "%s %s", gContinueEnabled branch)
+D_803B8784	circuitscr_finished_title_format	data	mat3	sure	char[]: animButtonText format of the finished circuit's title (MAT3 "%s %s", else branch)
+D_803B878C	circuitscr_review_place_format	data	mat3	sure	char[]: drawReview format of a place number (MAT3 "%d")
+D_803B8790	circuitscr_review_points_format	data	mat3	sure	char[]: drawReview format of a points count (MAT3 "%d ")
+D_803B8794	circuitscr_finished_count_format	data	mat3	sure	char[]: getFinishedStr number format (MAT3 "%d")
+D_803B8798	circuitscr_to_go_count_format	data	mat3	sure	char[]: getToGoStr number format (MAT3 "%d")
+D_803B879C	circuitscr_place_separator	data	mat3	sure	char[]: getPlaceStr separator between place word and suffix (MAT3 " ")
+D_803B87A0	circuitscr_points_format	data	mat3	sure	char[]: getPointsStr number format (MAT3 "%d ")
+D_803B87A4	circuitscr_finish_place_separator	data	mat3	sure	char[]: getFinishPlaceStr separator (MAT3 " ")
+D_803B87A8	circuitscr_title_texture_name	data	mat3	sure	char[]: initButtons texture of button 6, the title button (MAT3 BUTTON)
+D_803B87B8	circuitscr_cursor_texture_name	data	mat3	sure	char[]: initButtons texture of the cursor, button 7 (MAT3 CURSOR)
+D_803B87C0	circuitscr_a_button_texture_name	data	mat3	sure	char[]: initButtons texture of button 8 (MAT3 A1)
+D_803B87C4	circuitscr_b_button_texture_name	data	mat3	sure	char[]: initButtons texture of button 10 (MAT3 B1)
+D_803B957C	circuitscr_updatebuttons_constant_first	data	code	likely	f32: first of six literal-pool constants of circuitscr updateButtons (A1's func); the C writes the literal inline, so the declaration is unused
+D_803B9580	circuitscr_updatebuttons_constant_second	data	code	likely	f32: second literal-pool constant of circuitscr updateButtons; unused declaration
+D_803B9584	circuitscr_updatebuttons_constant_third	data	code	likely	f32: third literal-pool constant of circuitscr updateButtons; unused declaration
+D_803B9588	circuitscr_updatebuttons_constant_fourth	data	code	likely	f32: fourth literal-pool constant of circuitscr updateButtons; unused declaration
+D_803B958C	circuitscr_updatebuttons_constant_fifth	data	code	likely	f32: fifth literal-pool constant of circuitscr updateButtons; unused declaration
+D_803B9590	circuitscr_updatebuttons_constant_sixth	data	code	likely	f32: sixth literal-pool constant of circuitscr updateButtons; unused declaration
+D_803B9594	circuitscr_flat_pitch	data	code	likely	f32: initButtons literal, the -pi/2 pitch laying buttons 6 and 8-11 flat (first pool constant needing a word, in use order); unused declaration
+D_803B9598	circuitscr_a_button_x	data	code	likely	f32: initButtons literal, x of the A button (button 8); unused declaration
+D_803B959C	circuitscr_a_button_y	data	code	likely	f32: initButtons literal, y of the A button and arrow; unused declaration
+D_803B95A0	circuitscr_a_arrow_x	data	code	likely	f32: initButtons literal, x of the A arrow (button 9); unused declaration
+D_803B95A4	circuitscr_half_turn	data	code	likely	f32: initButtons literal, the pi roll of button 9; unused declaration
+D_803B95A8	circuitscr_b_button_x	data	code	likely	f32: initButtons literal, x of the B button (button 10); unused declaration
+D_803B95AC	circuitscr_b_button_y	data	code	likely	f32: initButtons literal, y of the B button and arrow (a second copy of the same value); unused declaration
+D_803B95B0	circuitscr_b_arrow_x	data	code	likely	f32: initButtons literal, x of the B arrow (button 11); unused declaration
+D_803B95B4	circuitscr_trophy_scale	data	code	sure	f32: scale initScreen gives the trophy object (stored into its object record)
+D_803B95B8	circuitscr_degrees_to_radians	data	mat3	sure	f32: controlShowTrophy's degrees-to-radians factor (MAT3 0.017453292f * -90 * gFrameSeconds)
+D_803B9A80	gCodeSelect	data	mat3	sure	s16: MAT3 gCodeSelect@circuitscr.c, cursor in the code alphabet, -2 = DEL
+D_803B9A82	gCodeLen	data	mat3	sure	s16: MAT3 gCodeLen@circuitscr.c, letters entered (0-20)
+D_803B9A84	gReviewTrack	data	mat3	sure	s16: MAT3 gReviewTrack@circuitscr.c, track shown by drawReview
+D_803B9A86	gProgressWidth	data	mat3	sure	s16: MAT3 gProgressWidth@circuitscr.c (calcProgressSize)
+D_803B9A88	gProgressHeight	data	mat3	sure	s16: MAT3 gProgressHeight@circuitscr.c (calcProgressSize)
+D_803B9A8A	gProgressTop	data	mat3	sure	s16: MAT3 gProgressTop@circuitscr.c (calcProgressSize)
+D_803B9A8C	gMenuBottom	data	mat3	sure	s16: MAT3 gMenuBottom@circuitscr.c (read by calcProgressSize)
+D_803BA228	circuitscr_cursorSpeed	data	mat3	sure	f32: MAT3 function-local static cursorSpeed of updateButtons@circuitscr.c (the group header places it here)
+D_803BA22C	circuitscr_scrollSpeed	data	mat3	sure	f32: MAT3 function-local static scrollSpeed of updateButtons@circuitscr.c
+D_803BACF0	circuitscr_pane	data	mat3	sure	tBlitSet *: MAT3 pane@circuitscr.c (InitPane in initScreen, ChangePaneSize in animButtonText)
+D_803BAD38	newCircuitType	data	mat3	sure	s32: MAT3 newCircuitType@circuitscr.c, 0-3, stepped while IsCircuitUnlocked fails
+D_803BAD90	gCircuit	data	mat3	sure	tCircuit *: MAT3 gCircuit@circuitscr.c, the circuit record inside the circuit player's save (set at the top of updateCircuitScreen)
+D_803BAD98	circuitscr_gCircuitCode	data	mat3	sure	u8[20+]: MAT3 gCircuitCode@circuitscr.c (two files have the name: prefixed)
+D_803BADC4	circuitscr_gYes	data	mat3	sure	s8: MAT3 gYes@circuitscr.c, the yes/no of the new-circuit confirmation (five files have gYes: prefixed)
+D_80150DDB	gUnlockedTracks_at_3	data	mat3	likely	u8[]: alias inside gUnlockedTracks (base + 3); resetEnabled writes [1] where MAT3 writes gUnlockedTracks[0][4]
+D_80154451	gCircuitCars_totalPlace	data	mat3	sure	u8: alias of gCircuitCars[0].totalPlace (+1); initScreen picks the trophy by it as MAT3 does
+D_8012E6F0	object_list_scale_view	data	code	likely	Object[] (68-byte stride, a float at +0x20): a view of the scene object instances 0x10 before ObjInstanceList; circuitscr initScreen sets the trophy object's scale through it
+# cheatscr.c: the cheat menu
+func_8039C910	updateCheatScreen	func	mat3	sure	MAT3 updateCheatScreen@cheatscr.c: same per-cheat switch writing gCheatState from each cheat flag, InitEgg on selection change, setGameState(16/4) exits; N64 has 21 cheats (GC 23)
+func_8039C908	cheatscr_initScreen	func	mat3	sure	MAT3 initScreen@cheatscr.c: gCheatState from the cheat flags, createBG, NewMultiBlit(multiblit), InitEgg(0), inited = 1; inlined into updateCheatScreen (deleted stub at this address)
+func_8039C900	cheatscr_uninitScreen	func	mat3	sure	MAT3 uninitScreen@cheatscr.c: RemoveBlit, removeBG, inited = 0; inlined into updateCheatScreen (deleted stub at this address)
+func_803A5358	cheatscr_animText	func	mat3	sure	MAT3 animText@cheatscr.c: the multiblit callback listing the cheats
+func_803A5350	cheatscr_printOption	func	mat3	sure	MAT3 printOption@cheatscr.c (x, y, item, name, value): inlined into animText (deleted stub at this address)
+D_803B3068	cheatscr_multiblit	data	mat3	sure	MultiBlit[1]: MAT3 multiblit@cheatscr.c, callback animText
+D_803B308C	cheatscr_inited	data	mat3	sure	s8: MAT3 inited@cheatscr.c
+D_803B3090	cheatscr_blit	data	mat3	sure	Blit *: MAT3 blit@cheatscr.c
+D_803B3094	cheatscr_gSelectedOption	data	mat3	sure	s32: MAT3 gSelectedOption@cheatscr.c, the highlighted cheat (0-20 on the N64); prefixed, two files have the name
+D_803B3098	gCheatMenuExit	data	mat3	sure	s32: MAT3 gCheatMenuExit@cheatscr.c, 2 = leave
+D_803B8668	cheatscr_number_format	data	mat3	sure	char[]: animText format of a numeric cheat value (MAT3 TB_Sprintf "%d")
+D_8011648C	gCheatActive	data	mat3	sure	s8[21]: MAT3 gCheatActive, a cheat is listed and switchable when set (CheckForEgg fills it)
+# carscr.c: the car select screen (cars, parts, colours, ghosts, stat bars)
+func_803A1EAC	updateCarScreen	func	mat3	sure	MAT3 updateCarScreen@carscr.c: limboGhosts from gLimboGhosts, setGhosts, _InitScreen, showCarSelect, per-player option handling; N64 has 19 options
+func_803A0FD8	carscr_InitScreen	func	mat3	sure	MAT3 _InitScreen@carscr.c (static, leading underscore kept, file prefix): setGhosts, LoadWave(47), button geometry, turntables, per-car settings, NewMultiBlit(mb)
+func_8039D05C	carscr_UninitScreen	func	mat3	sure	MAT3 _UninitScreen@carscr.c: UnloadWaveAll(47), panes, uninitButtons, turntables, clearCarComponents, blit, HFOV = 90, gNumWindows = 1, AudStopEffect(gHornSnd)
+func_8039D044	clearCarComponents	func	mat3	sure	MAT3 clearCarComponents@carscr.c: p > 0 returns, removes the 11 gCarComponents objects and gCarPartFrame; inlined into _UninitScreen (deleted stub at this address)
+func_8039D04C	carscr_uninitButtons	func	mat3	sure	MAT3 uninitButtons@carscr.c (signed char p); inlined into _UninitScreen (deleted stub at this address)
+func_8039D054	releaseGridMap	func	mat3	likely	MAT3 releaseGridMap@carscr.c: empty on the N64 (no grid map); deleted stub inlined into _UninitScreen, called where MAT3 calls it
+func_8039D300	calcStats	func	mat3	sure	MAT3 calcStats@carscr.c: gStats[p][i] = product of gTransStats, gHandlingStats, gEngineStats, gTireStats, gFrameStats rows of the player's car
+func_8039D494	carscr_validOption	func	mat3	sure	MAT3 validOption@carscr.c (p, opt); N64 adds the colour options 7-9 and the ghost options 16-18
+func_8039E3BC	calcValidOptions	func	mat3	sure	MAT3 calcValidOptions@carscr.c: gNumOptions/gOpts from validOption over the 19 N64 options
+func_8039E200	getNextGhost	func	mat3	sure	MAT3 getNextGhost@carscr.c (current, direction): walks gGhostFiles and the three limboGhosts
+func_8039E444	updateCarComponents	func	mat3	sure	MAT3 updateCarComponents@carscr.c (p): the part models of the selected option, compLight flash
+func_8039ED20	showGridMap	func	mat3	likely	MAT3 showGridMap@carscr.c (visible): recolours the selected car's frame (and on the N64 its parts) solid when 1, back when 0; N64 has no grid LOD
+func_8039EF00	createGridMap	func	mat3	likely	MAT3 createGridMap@carscr.c: empty on the N64
+func_8039EF08	showCarSelect	func	mat3	likely	MAT3 showCarSelect@carscr.c: per-player car carousel alpha/angle, calls updateCarComponents (its private-ABI callee)
+func_8039FF04	carscr_initButtons	func	mat3	sure	MAT3 initButtons@carscr.c (signed char p): buttonInfo[p] models and the BUTTON/CURSOR/A1/B1 textures
+func_8039D6A4	carscr_updateButtons	func	mat3	sure	MAT3 updateButtons@carscr.c (signed char p): scroll, fade and textures of player p's buttons
+func_803A0498	setGhosts	func	mat3	sure	MAT3 setGhosts@carscr.c: picks gGhosts from gGhostFiles and limboGhosts; N64 purges ghost slots 2 and 3 at the end
+func_803A3A6C	anim_car_color_marker	func	code	likely	N64-only blit callback: places the colour swatch of marker 7/8/9 at player p's button and tints it from car_color_palette by the car's colour choice
+func_803A3D9C	carscr_slider_inline_stub	func	code	likely	empty deleted stub (8 bytes) right before carscr_animNewSlider; the static it stood for has no MAT3 counterpart, nothing calls it
+func_803A3DA4	carscr_animNewSlider	func	mat3	sure	MAT3 animNewSlider@carscr.c (blt): type/p/opt from animID, Hidden by the button angle window, the tire-scale fill
+func_803A4134	animStatBars	func	mat3	likely	MAT3 animStatBars@carscr.c: the stat-bar blit callback (player, bar, segment from animID; gStats fill)
+func_803A4340	animStatText	func	mat3	likely	MAT3 animStatText@carscr.c: the stat labels for every player, the stat-bar texture looked up by name
+func_803A44EC	carscr_drawOptions_stub	func	mat3	likely	empty deleted stub of drawOptions@carscr.c (inlined into carscr_animText; its body is carscr_drawOptions); IDO emits stubs in reverse call order
+func_803A44F4	carscr_animButtonText_stub	func	mat3	likely	empty deleted stub of animButtonText@carscr.c (inlined into carscr_animText; its body is carscr_animButtonText)
+func_803A44FC	carscr_animText	func	mat3	sure	MAT3 animText@carscr.c: per player, animButtonText when buttonsInited else drawOptions
+D_803AF984	carscr_buttonNames	data	mat3	sure	char *[]: MAT3 buttonNames@carscr.c, model per button type (initButtons)
+D_803AF9A8	carscr_buttonInfo	data	mat3	sure	tMenuButton[4][44]: MAT3 buttonInfo@carscr.c (GC [4][40]); 64-byte buttons per player
+D_803B25A8	carscr_gButtonZoom	data	mat3	sure	f32: MAT3 gButtonZoom@carscr.c (set by _InitScreen by window count)
+D_803B25AC	carscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@carscr.c
+D_803B25B0	carscr_gButtonSpace	data	mat3	sure	f32: MAT3 gButtonSpace@carscr.c
+D_803B25B4	carscr_buttonX	data	mat3	sure	f32: MAT3 buttonX@carscr.c
+D_803B25B8	carscr_maxY	data	mat3	sure	f32: MAT3 maxY@carscr.c
+D_803B25BC	carscr_minY	data	mat3	sure	f32: MAT3 minY@carscr.c
+D_803B25C0	carscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@carscr.c
+D_803B25C4	carscr_cursorZ	data	mat3	sure	f32: MAT3 cursorZ@carscr.c
+D_803B25C8	gCarPartFrame	data	mat3	sure	s32: MAT3 gCarPartFrame (carscr.c global), the frame object updateCarComponents makes, -1 when none
+D_803B25CC	gTurntableIdx	data	mat3	sure	s32[4][2]: MAT3 gTurntableIdx (carscr.c global), turntable and base objects per player
+D_803B25EC	carComponentNames	data	mat3	sure	char *[5]: MAT3 carComponentNames@carscr.c, model-name formats of the five part kinds
+D_803B2600	componentToName	data	mat3	sure	s16[11]: MAT3 componentToName@carscr.c, part slot to name kind
+D_803B2618	gCarComponents	data	mat3	sure	anon_idx_level_34[4][11]: MAT3 gCarComponents (carscr.c global): idx, level, matrix per part slot; the tree already uses this name for this symbol (a #define alias)
+D_803B2858	compLight	data	mat3	sure	Lights2-shaped[2]: MAT3 compLight@carscr.c, the part lights (N64 GBI byte layout)
+D_803B28A8	carscr_inited	data	mat3	sure	s8: MAT3 inited@carscr.c
+D_803B28AC	carscr_blit	data	mat3	sure	Blit *: MAT3 blit@carscr.c (NewMultiBlit(mb, 38) in _InitScreen)
+D_803B28B0	gCarSheen	data	mat3	sure	s16[4]: MAT3 gCarSheen@carscr.c, sheen per player cycled 0-10, passed to SetSheen
+D_803B28B8	carscr_gActiveOption	data	mat3	sure	s32[4]: MAT3 gActiveOption@carscr.c, the option row each player is on
+D_803B28C8	gTransStats	data	mat3	sure	f32[8][4]: MAT3 gTransStats@carscr.c, stat factors per transmission (calcStats)
+D_803B2948	gHandlingStats	data	mat3	sure	f32[3][4]: MAT3 gHandlingStats@carscr.c
+D_803B2978	gEngineStats	data	mat3	sure	f32[9][4]: MAT3 gEngineStats@carscr.c
+D_803B2A08	gTireStats	data	mat3	sure	f32[5][4]: MAT3 gTireStats@carscr.c
+D_803B2A58	gFrameStats	data	mat3	sure	f32[6][4]: MAT3 gFrameStats@carscr.c
+D_803B2AB8	carscr_mb	data	mat3	sure	MultiBlit[38]: MAT3 mb@carscr.c (GC 26 entries): sliders, stat bars, colour markers, stat text, animText
+D_803B3010	gCarOrder	data	mat3	sure	s8[13]: MAT3 gCarOrder@carscr.c, carousel order of the cars
+D_803B3020	carscr_color_option_masks	data	code	likely	s8[] by car: bit 0/1/2 makes colour option 7/8/9 available (validOption); N64 only
+D_803B3030	carscr_msgPos	data	mat3	sure	f32[3]: initialiser of updateCarScreen's local msgPos (MAT3 float msgPos[3])
+D_803B3054	carscr_solidColor	data	mat3	likely	Color4: initialiser of showGridMap's local solidColor (MAT3 tRGBA solidColor), used when visible
+D_803B3058	carscr_normalColor	data	code	likely	Color4: the colour showGridMap(0) puts back on the car's parts (N64 only)
+D_803B857C	carscr_ready_text	data	code	likely	char[]: text measured for the pane when every other player is ready (updateCarScreen)
+D_803B8590	carscr_ghost_width_text_first	data	code	likely	char[]: first text whose width sizes a ghost's label pane (updateCarScreen)
+D_803B85A0	carscr_ghost_width_text_second	data	code	likely	char[]: second text whose width sizes a ghost's label pane
+D_803B85B0	carscr_turntable_model_name	data	mat3	sure	char[]: model of the turntable (_InitScreen; MAT3 TURNTABLEG1)
+D_803B85BC	carscr_turntable_base_model_name	data	mat3	sure	char[]: model of the turntable base (MAT3 TURNTABLEBASEG1)
+D_803B85CC	carscr_part_frame_model_name	data	code	likely	char[]: model updateCarComponents makes for gCarPartFrame
+D_803B85D8	carscr_stat_bars_texture_name	data	code	likely	char[]: texture animStatBars sets on its blit
+D_803B85E8	carscr_stat_text_texture_name	data	mat3	likely	char[]: texture animStatText looks up (MAT3 CARSTATBARS_LG)
+D_803B8630	carscr_title_texture_name	data	mat3	likely	char[]: initButtons texture of the title button (MAT3 BUTTON)
+D_803B8640	carscr_cursor_texture_name	data	mat3	likely	char[]: initButtons cursor texture (MAT3 CURSOR)
+D_803B8648	carscr_a_button_texture_name	data	mat3	likely	char[]: initButtons A texture (MAT3 A1)
+D_803B864C	carscr_b_button_texture_name	data	mat3	likely	char[]: initButtons B texture (MAT3 B1)
+D_803B8650	carscr_select_texture_name	data	mat3	likely	char[]: updateButtons texture of a button turned past 90 degrees (MAT3 BUTTON_SELECT)
+D_803B8660	carscr_button_texture_name	data	mat3	likely	char[]: updateButtons texture otherwise (MAT3 BUTTON)
+D_803B97A0	carscr_marker_hide_angle_min	data	code	likely	f32: lower end of the button angle window in which anim_car_color_marker hides its swatch
+D_803B97A4	carscr_marker_hide_angle_max	data	code	likely	f32: upper end of that window
+D_803B97A8	carscr_slider_hide_angle_min	data	mat3	likely	f32: lower end of animNewSlider's hide window (MAT3 0.698 rad)
+D_803B97AC	carscr_slider_hide_angle_max	data	mat3	likely	f32: upper end (MAT3 2.443 rad)
+D_803B97B0	carscr_slider_flip_angle	data	mat3	likely	f32: angle past which animNewSlider uses the back half of the texture (MAT3 pi/2)
+D_803B97B4	carscr_front_tire_scale_step	data	code	likely	f32: divisor turning the front tyre scale above 0.75 into slider steps
+D_803B97B8	carscr_rear_tire_scale_step	data	code	likely	f32: the same for the rear tyre scale
+D_803B9B60	carscr_marker_colors	data	code	likely	Color[4][3]: per player the three swatch colours anim_car_color_marker builds as blit images
+D_803B9B90	carscr_buttonsInited	data	mat3	sure	s32[4]: MAT3 buttonsInited@carscr.c (animText tests == 1)
+D_803B9BA0	carscr_buttonsJustInited	data	mat3	sure	s32[4]: MAT3 buttonsJustInited@carscr.c (cleared at the end of updateButtons)
+D_803B9BC8	carscr_cars	data	mat3	sure	anon_alpha_angle_c[4][13]: MAT3 cars@carscr.c, carousel entries (alpha, angle, index, slot)
+D_803B9E40	gTurntableMat	data	mat3	sure	tUVMatrix[4][2]: MAT3 gTurntableMat (carscr.c global)
+D_803B9FC0	carscr_pane	data	mat3	sure	tBlitSet *[4]: MAT3 pane@carscr.c
+D_803B9FD0	gThisCar	data	mat3	sure	s8[4]: MAT3 gThisCar@carscr.c, each player's car
+D_803B9FD4	gThisCarIndex	data	mat3	sure	s8[4]: MAT3 gThisCarIndex@carscr.c, its index in gCars
+D_803B9FD8	gCars	data	mat3	sure	s8[4][13]: MAT3 gCars@carscr.c, the cars on offer per player
+D_803BA00C	gNumGhosts	data	mat3	sure	s8: MAT3 gNumGhosts@carscr.c (3 in practice mode)
+D_803BA010	limboGhosts	data	mat3	sure	tGhostFile **: MAT3 limboGhosts@carscr.c = gLimboGhosts + (track + backwards * 6) * 3
+D_803BA018	gLastCar	data	mat3	sure	s16[4]: MAT3 gLastCar@carscr.c
+D_803BA01A	gLastCar_at_1	data	mat3	likely	s16[3]: alias of gLastCar[1] (declared, not used)
+D_803BA020	gNumCarsActive	data	mat3	sure	s16[4]: MAT3 gNumCarsActive@carscr.c
+D_803BA028	gCarLocked	data	mat3	sure	s8[4]: MAT3 gCarLocked@carscr.c, the player has chosen
+D_803BA02C	allLocked	data	mat3	sure	s8: MAT3 allLocked@carscr.c
+D_803BA030	carscr_wait	data	mat3	sure	s32: MAT3 wait@carscr.c, frames since every player locked (leave at 10)
+D_803BA038	carscr_gFirstOption	data	mat3	sure	s32[4]: MAT3 gFirstOption@carscr.c
+D_803BA048	carscr_gActiveOptionEnabled	data	mat3	sure	s8[4]: MAT3 gActiveOptionEnabled@carscr.c
+D_803BA04C	carscr_gActiveZ	data	mat3	sure	s8[4]: MAT3 gActiveZ@carscr.c
+D_803BA050	carscr_gNumOptions	data	mat3	sure	s32[4]: MAT3 gNumOptions@carscr.c
+D_803BA060	carscr_gOpts	data	mat3	sure	s32[4][19]: MAT3 gOpts@carscr.c (GC [4][17])
+D_803BA190	gStats	data	mat3	sure	f32[4][4]: MAT3 gStats@carscr.c (calcStats)
+D_803BA1D0	gHornSnd	data	mat3	sure	s32[4]: MAT3 gHornSnd@carscr.c, -1 when none
+D_80110E78	gCarTrans	data	mat3	sure	s8[5][13]: MAT3 gCarTrans, row 0 defaults, rows 1-4 per player (_InitScreen fills them from the player's transmission)
+D_80110E85	gCarTrans_players	data	mat3	sure	s8[4][13]: alias of gCarTrans rows 1-4 (MAT3 gCarTrans[p+1]), calcStats' first factor
+D_80111049	gCarHandling_players	data	mat3	sure	s8[4][13]: alias of gCarHandling rows 1-4 (calcStats)
+D_8011108D	gCarEngines_players	data	mat3	sure	s8[4][13]: alias of gCarEngines rows 1-4 (calcStats)
+D_801111A9	gCarTires_players	data	mat3	sure	s8[4][13]: alias of gCarTires rows 1-4 (calcStats)
+D_8011123D	gCarFrame_players	data	mat3	sure	s8[4][13]: alias of gCarFrame rows 1-4 (calcStats)
+D_80111310	gFrontTireScale_players	data	mat3	sure	f32[4][13]: alias of gFrontTireScale rows 1-4 (animNewSlider)
+D_80111414	gRearTireScale_players	data	mat3	sure	f32[4][13]: alias of gRearTireScale rows 1-4 (animNewSlider)
+D_80111611	car_color_choice_a_players	data	code	likely	s8[4][13]: alias of car_color_choice_a rows 1-4 (anim_car_color_marker, marker 7)
+D_80111655	car_color_choice_b_players	data	code	likely	s8[4][13]: alias of car_color_choice_b rows 1-4 (marker 8)
+D_801164BE	gCheatState_at_13	data	mat3	sure	s16: alias of gCheatState[13]; battle paints the cars in team colours while it is 0 (MAT3 gRace == 6 && gCheatState[13] == 0)
+D_801146C0	flashColors_at_1	data	mat3	sure	tRGBA: alias of flashColors[1]
+D_80111699	car_color_choice_c_players	data	code	likely	s8[4][13]: alias of car_color_choice_c rows 1-4 (marker 9)
+# licensescr.c, modescr.c, titlescr.c, startscr.c, warningscr.c: the blit callbacks
+func_803A6A28	licensescr_animText	func	mat3	sure	MAT3 animText@licensescr.c: font 0, fixed width off, spacing 2, just(1,1), colour 1, scroll box at 160 of the license text; N64 adds a build line in one state and a heading
+func_803A6B50	modescr_animText	func	mat3	sure	MAT3 animText@modescr.c: title at buttonInfo[12], player count line, seven optionValid modes with the angle fades
+func_803AE51C	titlescr_animText	func	mat3	sure	MAT3 animText@titlescr.c: scroll box of the prompt then the font-12 line; N64 has an alternate prompt branch
+func_803ADDA8	startscr_animButtonText	func	mat3	sure	MAT3 animButtonText@startscr.c: title at buttonInfo[11], the ten optionValid entries, player numbers at buttonInfo[10]
+func_803AE1C0	startscr_animText	func	mat3	sure	MAT3 animText@startscr.c: animButtonText when buttonsInited == 1, else the flat list and the 1-4 player numbers
+func_803AF744	warningscr_animText	func	code	likely	the pak warning screen's text callback: message box, then two choices highlighted by gPakScr (warningscr.c statics); MAT3 keeps only updateWarningScreen, every other screen calls its callback animText
+D_803B4624	modescr_title_button_position	data	mat3	likely	f32[3]: alias of modescr buttonInfo[12]'s position, where animText projects the title (MAT3 buttonInfo[12].mat.uvs[3])
+D_803B8854	modescr_one_player_format	data	mat3	sure	char[]: animText player-count format for one player (MAT3 "%d %s")
+D_803B885C	modescr_players_format	data	mat3	sure	char[]: the same for several players
+D_803B87E8	licensescr_build_info_format	data	code	likely	char[]: format of the build-information line licensescr_animText prints in one game state (date and time words of the boot data)
+D_803B8D64	titlescr_prompt_text	data	code	likely	char[]: the literal prompt titlescr_animText draws in its alternate branch
+D_803B6898	startscr_players_button_position	data	mat3	sure	f32[3]: alias of startscr buttonInfo[10]'s position, where the player numbers go (MAT3 buttonInfo[10])
+D_803B68D4	startscr_title_button_position	data	mat3	sure	f32[3]: alias of startscr buttonInfo[11]'s position, the title (MAT3 buttonInfo[11])
+D_803B8CD8	startscr_player_count_format	data	mat3	sure	char[]: animText player number format (MAT3 "%d")
+D_803B8CDC	startscr_button_player_count_format	data	mat3	sure	char[]: animButtonText player number format (MAT3 "%d")
+D_803B839C	gPakScr	data	mat3	sure	s8: MAT3 gPakScr@warningscr.c, which choice is highlighted / where the warning leads; the tree already uses this name for this symbol (a #define alias)
+D_803B83A0	numPaksFound	data	code	likely	u8: warningscr.c static, paks found (the warning offers the pak screen when > 0); name as the tree's warningscr draft has it; the tree already uses this name for this symbol (a #define alias)
+D_803B92B4	warningscr_message_format	data	code	likely	char[]: sprintf format of the warning box (texts and the blocks needed)
+# pakscr.c: the controller pak screen (draw side)
+func_803A7918	_AnimText	func	mat3	sure	MAT3 _AnimText@pakscr.c: the pak screen's blit callback dispatching on the pak state
+func_803A7620	_DrawPickPak	func	mat3	sure	MAT3 _DrawPickPak@pakscr.c
+func_803A7180	_DrawFileDel	func	mat3	sure	MAT3 _DrawFileDel@pakscr.c: file list with numbers, names, blocks and free pages
+func_803A6F2C	_DrawFileDelVerify	func	mat3	sure	MAT3 _DrawFileDelVerify@pakscr.c: the yes/no over the file name
+func_803A6F24	_DrawRumblePak	func	mat3	sure	MAT3 _DrawRumblePak@pakscr.c: inlined into _AnimText (deleted stub at this address)
+func_803A6F1C	_DrawDamaged	func	mat3	sure	MAT3 _DrawDamaged@pakscr.c: inlined into _AnimText (deleted stub at this address)
+func_803A6F14	_GetPakStatusStr	func	mat3	sure	MAT3 _GetPakStatusStr@pakscr.c (pak, str): the seven status texts; inlined into _DrawPickPak (deleted stub at this address)
+D_803B889C	pakscr_status_no_controller_format	data	mat3	sure	char[]: _GetPakStatusStr format, no controller (MAT3 "(%s)")
+D_803B88A4	pakscr_status_no_pak_format	data	mat3	sure	char[]: _GetPakStatusStr format, no pak inserted
+D_803B88AC	pakscr_status_damaged_format	data	mat3	sure	char[]: _GetPakStatusStr format, damaged pak
+D_803B88B4	pakscr_status_rumble_format	data	mat3	sure	char[]: _GetPakStatusStr format, rumble pak
+D_803B88BC	pakscr_status_in_use_format	data	mat3	sure	char[]: _GetPakStatusStr format, a player or ghost file is on it
+D_803B88C4	pakscr_status_free_format	data	mat3	sure	char[]: _GetPakStatusStr format, room for a file
+D_803B88CC	pakscr_status_full_format	data	mat3	sure	char[]: _GetPakStatusStr format, full
+D_803B88D4	pakscr_pak_title_format	data	code	likely	char[]: _DrawPickPak title format with the pak number
+D_803B88DC	pakscr_action_separator	data	mat3	likely	char[]: _DrawFileDel separator of the two action words (MAT3 " ")
+D_803B88E0	pakscr_file_number_format	data	mat3	sure	char[]: _DrawFileDel file number format (MAT3 "%d")
+D_803B88E4	pakscr_name_suffix_separator	data	code	likely	char[]: _DrawFileDel separator before a file name's suffix
+D_803B88E8	pakscr_file_blocks_format	data	mat3	sure	char[]: _DrawFileDel blocks format (MAT3 "%d")
+D_803B88EC	pakscr_free_pages_format	data	mat3	sure	char[]: _DrawFileDel free pages format (MAT3 "%d")
+D_803B88F0	pakscr_blocks_needed_format	data	mat3	likely	char[]: _DrawFileDel sprintf of the needed-blocks line (MAT3 builds the same line with sprintf)
+D_803B8900	pakscr_verify_name_separator	data	code	likely	char[]: _DrawFileDelVerify separator before the suffix
+D_803B8904	pakscr_rumble_text_separator	data	code	likely	char[]: _DrawRumblePak separator of its two texts
+D_803B8908	pakscr_damaged_text_separator	data	code	likely	char[]: _DrawDamaged separator of its two texts
+# playerscr.c: the player (profile) select screen, draw side
+func_803A9EEC	playerscr_animText	func	mat3	sure	MAT3 animText@playerscr.c: switch on gPlayerState per player; N64 has no updatePlayer call and no FormatMC case
+func_803A7B58	playerscr_drawSelect	func	mat3	sure	MAT3 drawSelect@playerscr.c (state 0); prefixed, recordscr has a drawSelect
+func_803A87D4	drawWait	func	mat3	sure	MAT3 drawWait@playerscr.c (state 1): pane around x +- width/2
+func_803A8B6C	drawControls	func	mat3	sure	MAT3 drawControls@playerscr.c (state 2): ChangePaneSize(pane[p], -20, 0, -10, 10); inlined (deleted stub at this address)
+func_803A8B74	drawCreatePlayer	func	mat3	sure	MAT3 drawCreatePlayer@playerscr.c (state 3): name entry grid with SPC/DEL/END at -3/-2/-1
+func_803A9088	drawDeletePlayer	func	mat3	likely	MAT3 drawDeletePlayer@playerscr.c (state 4 of the same enum): walks the profiles for the delete choice
+func_803A9EDC	drawPakFull	func	mat3	likely	MAT3 drawPakFull@playerscr.c (state 5); inlined into animText (deleted stub at this address)
+func_803A9EE4	drawPakDamaged	func	mat3	likely	MAT3 drawPakDamaged@playerscr.c (state 6); inlined into animText (deleted stub at this address)
+D_803B5D50	playerscr_gPlayerRects	data	mat3	sure	anon_x_y[4][4]: MAT3 gPlayerRects@playerscr.c, text rectangle per player count and player (x, y, width, height)
+D_803B5EDC	playerscr_del	data	mat3	sure	u8[4]: MAT3 static del of drawCreatePlayer, the DEL key (-2)
+D_803B5EE0	playerscr_end	data	mat3	sure	u8[4]: MAT3 static end of drawCreatePlayer, the END key (-1)
+D_803B5EE4	playerscr_spc	data	mat3	sure	u8[4]: MAT3 static spc of drawCreatePlayer, the SPC key (-3)
+D_803B899C	playerscr_player_title_format	data	code	likely	char[]: drawSelect format of the player heading (word + player number)
+D_803B89A4	playerscr_delete_message_format	data	code	likely	char[]: drawDeletePlayer format of the message around the profile name
+D_803B89AC	playerscr_pak_full_title_format	data	code	likely	char[]: drawPakFull heading format (word + player number)
+D_803B89B4	playerscr_pak_full_text	data	code	likely	char[]: drawPakFull message
+D_803B89C0	playerscr_pak_damaged_title_format	data	code	likely	char[]: drawPakDamaged heading format
+D_803B89C8	playerscr_pak_damaged_text	data	code	likely	char[]: drawPakDamaged message
+# recordscr.c: the records screen (draw side)
+func_803AD57C	recordscr_animText	func	mat3	sure	MAT3 animText@recordscr.c: drawSelect in state 0, drawView in state 1
+func_803AD574	recordscr_drawView_stub	func	mat3	likely	empty deleted stub of drawView@recordscr.c (inlined into recordscr_animText; its body is recordscr_drawView)
+func_803AA3D8	recordscr_drawSelect	func	mat3	sure	MAT3 drawSelect@recordscr.c (the group header's port)
+func_803AD0D4	drawRaceStats	func	mat3	sure	MAT3 drawRaceStats@recordscr.c: drawView case 0, the same nine counts then distance and coins
+func_803ACF5C	drawScores	func	mat3	sure	MAT3 drawScores@recordscr.c (category): drawView cases 1-3
+func_803ACD5C	drawBattleStats	func	mat3	sure	MAT3 drawBattleStats@recordscr.c: case 4, matches/wins/kills/deaths
+func_803ACA94	drawStuntStats	func	mat3	sure	MAT3 drawStuntStats@recordscr.c: case 5
+func_803ACA8C	recordscr_drawStuntTotals_stub	func	mat3	likely	empty deleted stub of drawStuntTotals@recordscr.c (case 6, inlined into drawView; its body is recordscr_drawStuntTotals); sits in case order between cases 7 and 5
+func_803AC7F4	drawObstacleStats	func	mat3	sure	MAT3 drawObstacleStats@recordscr.c: case 7
+func_803AC54C	drawCircuitStats	func	mat3	sure	MAT3 drawCircuitStats@recordscr.c: case 8
+func_803AC330	getScoreStr	func	mat3	sure	MAT3 getScoreStr@recordscr.c: dashes for 0, else minutes:seconds.thousandths, sets gDefTime; N64 argument order (str, score, unused)
+func_803ABEC8	drawTotalStats	func	mat3	sure	MAT3 drawTotalStats@recordscr.c: case 9, distance, points and coin totals
+func_803AB848	drawUnlockedTracks	func	mat3	sure	MAT3 drawUnlockedTracks@recordscr.c: case 10 (gUnlockedTracks, gUnlockedCircuits)
+func_803AB5FC	drawUnlockedCars	func	mat3	sure	MAT3 drawUnlockedCars@recordscr.c: case 11 (gUnlockedCars, CarTitles)
+func_803AAF0C	drawUnlockedParts	func	mat3	sure	MAT3 drawUnlockedParts@recordscr.c: case 12 (engines, trans, frames, tires)
+D_803B5F28	recordscr_buttonInfo	data	mat3	sure	tMenuButton[23]: MAT3 buttonInfo@recordscr.c (drawView projects [11], [12], [15], [17])
+D_803B64E8	recordscr_gButtonScale	data	mat3	sure	f32: MAT3 gButtonScale@recordscr.c
+D_803B64FC	recordscr_buttonZ	data	mat3	sure	f32: MAT3 buttonZ@recordscr.c
+D_803B6530	recordscr_viewPane	data	mat3	sure	tBlitSet *: MAT3 viewPane@recordscr.c (InitPane, ChangePaneSize, RemovePane)
+D_803B65A8	recordscr_init_button_color	data	mat3	likely	Color4: initialiser of recordscr initButtons' local buttonColor
+D_803B8ACC	gScreenRect	data	mat3	sure	anon_x_y_c: MAT3 gScreenRect@recordscr.c
+D_803B8AD8	recordscr_circuit_title_format	data	code	likely	char[]: drawView format of the circuit name + word (gTrackType 4)
+D_803B8AE0	recordscr_track_variant_title_format	data	code	likely	char[]: drawView format of a track title + word for the odd (variant) entries
+D_803B8AE8	recordscr_race_laps_format	data	mat3	sure	char[]: drawRaceStats totalLaps format (MAT3 "%d")
+D_803B8AEC	recordscr_race_count_format	data	mat3	sure	char[]: drawRaceStats totalRaces format
+D_803B8AF0	recordscr_race_first_format	data	mat3	sure	char[]: drawRaceStats total1st format
+D_803B8AF4	recordscr_race_second_format	data	mat3	sure	char[]: drawRaceStats total2nd format
+D_803B8AF8	recordscr_race_third_format	data	mat3	sure	char[]: drawRaceStats total3rd format
+D_803B8AFC	recordscr_race_crashes_format	data	mat3	sure	char[]: drawRaceStats totalCrashes format
+D_803B8B00	recordscr_race_death_attempted_format	data	mat3	sure	char[]: drawRaceStats totalDeathAttempted format
+D_803B8B04	recordscr_race_death_completed_format	data	mat3	sure	char[]: drawRaceStats totalDeathCompleted format
+D_803B8B08	recordscr_race_ghosts_format	data	mat3	sure	char[]: drawRaceStats totalGhosts format
+D_803B8B0C	recordscr_race_distance_format	data	mat3	sure	char[]: drawRaceStats distance format, whole.tenth (MAT3 "%01d.%01d")
+D_803B8B18	recordscr_race_coins_a_format	data	mat3	sure	char[]: drawRaceStats first coin count (low byte's bits; MAT3 "%d/8")
+D_803B8B20	recordscr_race_coins_b_format	data	mat3	sure	char[]: drawRaceStats second coin count (high byte's bits)
+D_803B8B28	recordscr_battle_matches_format	data	mat3	sure	char[]: drawBattleStats totalMatches format
+D_803B8B2C	recordscr_battle_wins_format	data	mat3	sure	char[]: drawBattleStats totalWins format
+D_803B8B30	recordscr_battle_kills_format	data	mat3	sure	char[]: drawBattleStats totalKills format
+D_803B8B34	recordscr_battle_deaths_format	data	mat3	sure	char[]: drawBattleStats totalDeaths format
+D_803B8B38	recordscr_stunt_best_format	data	mat3	sure	char[]: drawStuntStats bestStunt format
+D_803B8B3C	recordscr_stunt_best_average_format	data	mat3	sure	char[]: drawStuntStats bestAvg format
+D_803B8B40	recordscr_stunt_points_format	data	mat3	sure	char[]: drawStuntStats totalPoints format
+D_803B8B44	recordscr_stunt_time_format	data	mat3	sure	char[]: drawStuntStats totalTime format
+D_803B8B48	recordscr_stunt_crashes_format	data	mat3	sure	char[]: drawStuntStats totalCrashes format
+D_803B8B4C	recordscr_stunt_count_format	data	mat3	sure	char[]: drawStuntStats total stunts format
+D_803B8B50	recordscr_stunt_coins_a_format	data	mat3	sure	char[]: drawStuntStats first coin count (MAT3 "%d/8")
+D_803B8B58	recordscr_stunt_coins_b_format	data	mat3	sure	char[]: drawStuntStats second coin count
+D_803B8B60	recordscr_stunt_kind_label_format	data	mat3	sure	char[]: drawStuntTotals label format (MAT3 "%s:")
+D_803B8B64	recordscr_stunt_kind_count_format	data	mat3	sure	char[]: drawStuntTotals count format (MAT3 "%d")
+D_803B8B68	recordscr_obstacle_races_format	data	mat3	sure	char[]: drawObstacleStats totalRaces format
+D_803B8B6C	recordscr_obstacle_finished_format	data	mat3	sure	char[]: drawObstacleStats totalFinished format
+D_803B8B70	recordscr_obstacle_crashes_format	data	mat3	sure	char[]: drawObstacleStats totalCrashes format
+D_803B8B74	recordscr_obstacle_death_attempted_format	data	mat3	sure	char[]: drawObstacleStats numDeathAttempted format
+D_803B8B78	recordscr_obstacle_death_completed_format	data	mat3	sure	char[]: drawObstacleStats numDeathCompleted format
+D_803B8B7C	recordscr_circuit_count_format	data	mat3	sure	char[]: drawCircuitStats numCircuits format
+D_803B8B80	recordscr_circuit_first_format	data	mat3	sure	char[]: drawCircuitStats num1st format
+D_803B8B84	recordscr_circuit_second_format	data	mat3	sure	char[]: drawCircuitStats num2nd format
+D_803B8B88	recordscr_circuit_third_format	data	mat3	sure	char[]: drawCircuitStats num3rd format
+D_803B8B8C	recordscr_circuit_death_attempted_format	data	mat3	sure	char[]: drawCircuitStats numDeathAttempted format
+D_803B8B90	recordscr_circuit_death_completed_format	data	mat3	sure	char[]: drawCircuitStats numDeathCompleted format
+D_803B8B94	recordscr_circuit_best_points_format	data	mat3	sure	char[]: drawCircuitStats bestPts format
+D_803B8B98	recordscr_circuit_total_points_format	data	mat3	sure	char[]: drawCircuitStats totalPts format
+D_803B8B9C	recordscr_total_km_format	data	mat3	sure	char[]: drawTotalStats distance * 10 / 6 format (MAT3 "%01d.%01d")
+D_803B8BA8	recordscr_total_miles_format	data	mat3	sure	char[]: drawTotalStats distance format
+D_803B8BB4	recordscr_total_stunt_points_format	data	mat3	sure	char[]: drawTotalStats totalStuntPoints format
+D_803B8BB8	recordscr_total_battle_points_format	data	mat3	sure	char[]: drawTotalStats totalBattlePoints format
+D_803B8BBC	recordscr_silver_race_coins_format	data	mat3	sure	char[]: drawTotalStats silverRaceCoins format (MAT3 "%d/%d")
+D_803B8BC4	recordscr_gold_race_coins_format	data	mat3	sure	char[]: drawTotalStats goldRaceCoins format
+D_803B8BCC	recordscr_silver_stunt_coins_format	data	mat3	sure	char[]: drawTotalStats silverStuntCoins format
+D_803B8BD4	recordscr_gold_stunt_coins_format	data	mat3	sure	char[]: drawTotalStats goldStuntCoins format
+D_803B8BDC	recordscr_unlocked_circuit_format	data	code	likely	char[]: drawUnlockedTracks format of an unlocked circuit's name + word
+D_803B8BF4	recordscr_no_time_text	data	mat3	sure	char[]: getScoreStr text for a zero time (MAT3 dashes)
+D_803B8C00	recordscr_time_format	data	mat3	sure	char[]: getScoreStr minutes/seconds/thousandths format
+D_803BA800	gStatPlayer	data	mat3	sure	tPlayerProfile **: MAT3 gStatPlayer (recordscr.c global), the profile shown, 0 = totals
+D_803BA818	gViewStatType	data	mat3	sure	enum[6] (s32): MAT3 gViewStatType@recordscr.c, the view per track type (drawView switches on gViewStatType[gTrackType])
+D_803BA858	gRecordTrack	data	mat3	sure	s8: MAT3 gRecordTrack@recordscr.c
+D_803BA860	gRecordCircuit	data	mat3	sure	s8: MAT3 gRecordCircuit@recordscr.c
+D_803BA880	gTrackType	data	mat3	sure	s32: MAT3 gTrackType@recordscr.c (4 = circuit)
+D_803BA90C	gDefTime	data	mat3	sure	f32: MAT3 gDefTime@recordscr.c, the last time getScoreStr formatted
+D_803B65B4	selectcarload_alphaCol	data	mat3	sure	tRGBA: initialiser of UpdateSelectCar's local alphaCol (selectcarload.c, image A; the joint_transforms group header)
+# trackscr.c: the track select screen (callbacks and function-local statics)
+func_803AECE4	trackscr_animText	func	mat3	sure	MAT3 animText@trackscr.c: animButtonText when buttonsInited == 1 (N64 has no drawOptions arm)
+func_803AECDC	trackscr_animButtonText	func	mat3	sure	MAT3 animButtonText@trackscr.c: same 21-case value switch (gTrackTitles, gGhostSelect, gNumLaps, gOptions, gNumDrones, gDeathMode); inlined into animText (deleted stub at this address, the C keeps the body)
+func_803AECC4	trackscr_button_text_stub_first	func	code	likely	empty deleted stub, first of three right before trackscr_animButtonText; the inlined statics they stood for are not identified
+func_803AECCC	trackscr_button_text_stub_second	func	code	likely	empty deleted stub, second of the three
+func_803AECD4	trackscr_button_text_stub_third	func	code	likely	empty deleted stub, third of the three
+func_803AE62C	trackscr_slider_stub_first	func	code	likely	empty deleted stub, first of two right before trackscr_animNewSlider; not identified
+func_803AE634	trackscr_slider_stub_second	func	code	likely	empty deleted stub, second of the two
+func_803AE63C	trackscr_animNewSlider	func	mat3	sure	MAT3 animNewSlider@trackscr.c: buttonInfo[opt+21] window, fill by gFogIntensity/gWind/gDifficulty/gCatchup for options 14/15/18/19
+func_803AE940	animArrows	func	mat3	sure	MAT3 animArrows@trackscr.c: fg/dir/size/tex from animID, arrowNames/arrowPos tables
+D_803B75C4	trackscr_title_button_position	data	mat3	likely	f32[3]: alias of trackscr buttonInfo[42]'s position, where animButtonText projects the heading (MAT3 buttonInfo[42])
+D_803B8290	trackscr_showTrackSelect_angle	data	mat3	sure	f32: MAT3 function-local static angle of showTrackSelect@trackscr.c
+D_803B8294	trackscr_arrowNames	data	mat3	sure	char *[16][2]: MAT3 static arrowNames of animArrows@trackscr.c
+D_803B8338	trackscr_animTrackMap_cityPos	data	mat3	likely	f32[3]: MAT3 static cityPos of animTrackMap@trackscr.c (three statics in a row: cityPos, mapPos, rotAngle); declared, not used
+D_803B8344	trackscr_animTrackMap_mapPos	data	mat3	likely	f32[3]: MAT3 static mapPos of animTrackMap@trackscr.c
+D_803B8350	trackscr_animTrackMap_rotAngle	data	mat3	likely	f32: MAT3 static rotAngle of animTrackMap@trackscr.c
+D_803B8388	trackscr_animTrackMaps_mapPos	data	mat3	sure	f32[3]: MAT3 static mapPos of animTrackMaps@trackscr.c
+D_803B9224	trackscr_arrowPos	data	mat3	sure	s16[2][4][2] (const): MAT3 static arrowPos of animArrows@trackscr.c
+D_803B9244	trackscr_laps_format	data	mat3	sure	char[]: animButtonText gNumLaps format (case 2; MAT3 "%d")
+D_803B9248	trackscr_option5_format	data	mat3	sure	char[]: animButtonText format of option 5's value (gOptions[34])
+D_803B924C	trackscr_option6_format	data	mat3	sure	char[]: animButtonText format of option 6's value (gOptions[35])
+D_803B9250	trackscr_option7_format	data	mat3	sure	char[]: animButtonText format of option 7's value (gOptions[36])
+D_803B9254	trackscr_option9_format	data	mat3	sure	char[]: animButtonText format of option 9's value (gOptions[38])
+D_803B9258	trackscr_option10_format	data	mat3	sure	char[]: animButtonText format of option 10's value (gOptions[39])
+D_803B925C	trackscr_drones_format	data	mat3	sure	char[]: animButtonText gNumDrones format (case 17)
+D_803B9A90	trackscr_showTrackSelect_fogPos	data	mat3	sure	f32[3]: MAT3 function-local static fogPos of showTrackSelect@trackscr.c
+D_803BA220	trackscr_fogTileSize	data	mat3	sure	anon_uls_ult_8 (u16 uls, ult, ...): MAT3 static fogTileSize of BlowFog@trackscr.c
+D_803BA222	trackscr_fogTileSize_ult	data	mat3	sure	u16: alias of trackscr_fogTileSize.ult
+D_803BA85C	trackscr_cursorSpeed	data	mat3	sure	f32: MAT3 function-local static cursorSpeed of updateButtons@trackscr.c
+D_803BA87C	trackscr_scrollSpeed	data	mat3	sure	f32: MAT3 function-local static scrollSpeed of updateButtons@trackscr.c
+D_801543DA	gCircuitTracks_mirror	data	mat3	likely	u8 (5-byte stride): alias of gCircuitTracks[0].mirror; animButtonText case 13 reads gCircuitTracks[gCircuitTrack].mirror
+# types and fields read through meaningless names in these files
+Cfg	tCircuit	type	mat3	sure	runtime_a_text_helpers: the view of gCircuit; MAT3 tCircuit has active at 0x4, type at 0x8, track at 0x9
+Cfg.0x4	active	field	mat3	sure	tCircuit.active (the tree calls it u4)
+Cfg.0x8	type	field	mat3	sure	tCircuit.type (b8)
+Cfg.0x9	track	field	mat3	sure	tCircuit.track (b9)
+MenuObjectSlot	tMenuButton	type	mat3	sure	every definition is the 64-byte menu button (buttonType, objIdx, angle, matrix, position, alpha): MAT3 tMenuButton
+PanelPart	CarComponentSlot	type	code	likely	cleanup_colortrace: gCarComponents element (MAT3 anon_idx_level_34: idx, level, matrix)
+CompRec	CarComponent	type	code	likely	cleanup_colortrace: the second view of the same element (idx, level, uvs, pos); merge with CarComponentSlot in wave 2
+CompLight	ComponentLights	type	code	likely	cleanup_colortrace: compLight's N64 Lights2 byte layout
+CompLightDir	ComponentLight	type	code	likely	cleanup_colortrace: one light of ComponentLights
+PanelPart.0x0	idx	field	mat3	sure	anon_idx_level_34.idx (handle)
+PanelPart.0x2	level	field	mat3	sure	anon_idx_level_34.level (auxiliary)
+CarSlot.0x0	alpha	field	mat3	sure	cleanup_colortrace CarSlot = MAT3 anon_alpha_angle_c: alpha (the tree calls it selection)
+CarSlot.0x8	index	field	mat3	sure	anon_alpha_angle_c.index (position)
+CarSlot.0x9	slot	field	mat3	sure	anon_alpha_angle_c.slot (car)
+PlayerStats.0x0	name	field	mat3	sure	runtime_a_text_helpers PlayerStats = MAT3 tCircuitCar: name (other0)
+PlayerStats.0x1	totalPlace	field	mat3	sure	tCircuitCar.totalPlace (rank)
+PlayerStats.0x2	totalPoints	field	mat3	sure	tCircuitCar.totalPoints (count)
+PlayerStats.0x4	places	field	mat3	sure	tCircuitCar.places[24], followed by points[24] at 0x1C (other4)
+Player.0x42	trans	field	mat3	sure	cleanup_colortrace Player (gPlayers) byte the tree calls paint: the transmission (GetPlayerCarTrans/IsTransUnlocked, -2 steps, copied into gCarTrans[p+1]) = MAT3 tPadState.trans
+Player.0x48	save	field	mat3	sure	gPlayers' profile handle (the tree calls it owner) = MAT3 tPadState.save
+# image B: local view types whose names say the wrong thing (fields below are their MAT3 names)
+PlayerHudState	CarBattleView	type	code	sure	src/ovl_b/func_8038CA24.c: not HUD state but a view of the car record's battle fields (MAT3 tCarData.battle), which InitBattlePlayer resets
+HudGroup	tCMuzzleObj	type	mat3	sure	src/ovl_b/func_8038CA24.c: MAT3 tCMuzzleObj (gCannMuzzleObjs' element), the same record weapons.c declares as CMuzzleObj (wave 2: one declaration)
+HudSlots	tMuzzleObj	type	mat3	sure	src/ovl_b/func_8038CA24.c: MAT3 tMuzzleObj (gGattMuzzleObjs' element), weapons.c's MuzzleObj (wave 2: one declaration)
+PlayerHudState.0x384	battle.type	field	mat3	sure	was `mode`: InitBattlePlayer stores 8 (no weapon) as MAT3 battle.weapon.type
+PlayerHudState.0x385	battle.ammoCnt	field	mat3	sure	was `selection`: -1, MAT3 battle.weapon.ammoCnt
+PlayerHudState.0x38C	battle.defense.active	field	mat3	sure	was `counter`: MAT3 battle.defense.active (power-up flags: 1 invisible, 2 shield, 4 damage x0.2)
+PlayerHudState.0x3A0	battle.shoot	field	mat3	sure	was `state`: MAT3 battle.shoot
+PlayerHudState.0x3A2	battle.fadeState	field	mat3	sure	was `flags`: MAT3 battle.fadeState
+PlayerHudState.0x3A4	battle.loaded	field	mat3	sure	was `timer`: MAT3 battle.loaded (s32)
+HudGroup.0x104	ripdl	field	mat3	sure	was `handle`: MAT3 tCMuzzleObj.ripdl, the rip-smoke object
+HudGroup.0x138	ripCnt	field	mat3	sure	was `selection`: MAT3 tCMuzzleObj.ripCnt
+HudGroup.0x144	onTime	field	mat3	sure	was `timer`: MAT3 tCMuzzleObj.onTime
+HudSlots.0x0	mdls	field	mat3	sure	was `handle[5]`: MAT3 tMuzzleObj.mdls[5]
+HudSlots.0x108	onTime	field	mat3	sure	was `timer`: MAT3 tMuzzleObj.onTime
+RingState.0x0	full	field	mat3	sure	src/ovl_b/func_8038A8CC.c, was `wrapped`: MAT3 DamagePolys.full (worlddam.c's DamageRing)
+RingState.0x2	oldest	field	mat3	sure	was `next`: MAT3 DamagePolys.oldest
+RingState.0x4	polys	field	mat3	sure	was `objects[25]`: MAT3 DamagePolys.polys
+# image B: files named after an address, and group directories whose names misdescribe their function
+src/ovl_b/func_8038A8CC.c	src/ovl_b/initWorldDamage.c	file	mat3	sure	holds initWorldDamage
+src/ovl_b/func_8038C910.c	src/ovl_b/StartWeapon.c	file	mat3	sure	holds StartWeapon
+src/ovl_b/func_8038CA24.c	src/ovl_b/InitBattlePlayer.c	file	mat3	sure	holds InitBattlePlayer
+src/ovl_b/func_8038D1A8.c	src/ovl_b/InitStreaks.c	file	mat3	sure	holds InitStreaks
+src/ovl_b/func_803908D0.c	src/ovl_b/ShotInit.c	file	mat3	sure	holds ShotInit
+src/ovl_b/func_8039133C.c	src/ovl_b/InitBattlePowerUps.c	file	mat3	sure	holds InitBattlePowerUps
+src/ovl_b/func_80391490.c	src/ovl_b/IncBattlePowerUps.c	file	mat3	sure	holds IncBattlePowerUps
+src/ovl_b/func_803914A8.c	src/ovl_b/PreInitBattlePowerUps.c	file	mat3	sure	holds PreInitBattlePowerUps
+src/ovl_b/func_803914B4.c	src/ovl_b/AddBattlePoint.c	file	mat3	sure	holds _AddBattlePoint
+src/ovl_b/func_8039244C.c	src/ovl_b/RemoveHUDExtra.c	file	mat3	sure	holds RemoveHUDExtra
+src/ovl_b/func_80392894.c	src/ovl_b/animStuntPoints.c	file	mat3	sure	holds animStuntPoints
+src/ovl_b/func_80392FE4.c	src/ovl_b/animHealth.c	file	mat3	sure	holds animHealth
+src/ovl_b/func_80393518.c	src/ovl_b/animAmmoCounts.c	file	mat3	sure	holds animAmmoCounts
+src/ovl_b/func_803936A8.c	src/ovl_b/animBattlePoints.c	file	mat3	sure	holds animBattlePoints
+src/ovl_b/groups/shots/ctx_c910.c	src/ovl_b/groups/shots/ctx_StartWeapon.c	file	mat3	sure	holds a context copy of StartWeapon
+src/ovl_b/groups/shots/ctx_cb20.c	src/ovl_b/groups/shots/ctx_UpdateStreaks.c	file	mat3	sure	holds a context copy of UpdateStreaks
+src/ovl_b/groups/shots/ctx_d054.c	src/ovl_b/groups/shots/ctx_NewStreak.c	file	mat3	sure	holds a context copy of NewStreak
+src/ovl_b/groups/shots/ctx_d3a4.c	src/ovl_b/groups/shots/ctx_BattleDamage.c	file	mat3	sure	holds a context copy of BattleDamage
+src/ovl_b/groups/shots/ctx_d798.c	src/ovl_b/groups/shots/ctx_ProximityDamage.c	file	mat3	sure	holds a context copy of ProximityDamage
+src/ovl_b/groups/shots/ctx_dddc.c	src/ovl_b/groups/shots/ctx_MissileLock.c	file	mat3	sure	holds a context copy of MissileLock
+src/ovl_b/groups/runtime_b_damage/group.c	src/ovl_b/groups/battle_damage/group.c	file	mat3	sure	holds BattleDamage (the directory's name said nothing; its group.json moves with it)
+src/ovl_b/groups/runtime_b_nearest_steering/group.c	src/ovl_b/groups/missile_lock/group.c	file	mat3	sure	holds MissileLock (group.json moves with it)
+src/ovl_b/groups/runtime_b_position_initializer/group.c	src/ovl_b/groups/new_streak/group.c	file	mat3	sure	holds NewStreak (group.json moves with it)
+src/ovl_b/groups/runtime_b_radius_effect/group.c	src/ovl_b/groups/proximity_damage/group.c	file	mat3	sure	holds ProximityDamage (group.json moves with it)
+src/ovl_b/groups/runtime_b_resource_callbacks/group.c	src/ovl_b/groups/powerups/powerups.c	file	mat3	sure	holds MAT3 powerups.c's five update functions (group.json moves with it)
+src/ovl_b/groups/runtime_b_status_scene/group.c	src/ovl_b/groups/hud_icons/hudextra_icons.c	file	mat3	sure	holds hudextra.c's animPowerupIcons, animWeaponIcons, UpdateHUDExtraPostCamera (group.json moves with it)
+src/ovl_b/groups/runtime_b_trail/group.c	src/ovl_b/groups/streaks/streaks.c	file	mat3	sure	holds MAT3 streaks.c's UpdateStreaks (group.json moves with it)
+nonmatching/ovl_b/func_80391B00.c	nonmatching/ovl_b/UpdateHUDExtraPostCamera.c	file	mat3	sure	holds the draft of UpdateHUDExtraPostCamera with animStuntCoins and animBattleCoins
+# image A: files named after an address, and group directories whose names misdescribe their contents (each directory's group.json moves with it)
+src/ovl_a/func_8038F454.c	src/ovl_a/updateTitleScreen.c	file	mat3	sure	holds updateTitleScreen
+src/ovl_a/func_8038F648.c	src/ovl_a/CheckForEgg.c	file	mat3	sure	holds CheckForEgg
+src/ovl_a/func_8038FF90.c	src/ovl_a/InitEgg.c	file	mat3	sure	holds InitEgg
+src/ovl_a/func_80390BC0.c	src/ovl_a/LoadSelectCar.c	file	mat3	sure	holds LoadSelectCar
+src/ovl_a/func_80390D2C.c	src/ovl_a/UnloadSelectCar.c	file	mat3	sure	holds UnloadSelectCar
+src/ovl_a/func_80391470.c	src/ovl_a/InitVisualsCarScr.c	file	mat3	sure	holds InitVisualsCarScr
+src/ovl_a/func_8039156C.c	src/ovl_a/InitSelectCarLoad.c	file	mat3	sure	holds InitSelectCarLoad
+src/ovl_a/func_80396EE8.c	src/ovl_a/playerBeingDeleted.c	file	mat3	sure	holds playerBeingDeleted
+src/ovl_a/func_80396F44.c	src/ovl_a/playerBeingCreated.c	file	mat3	sure	holds playerBeingCreated
+src/ovl_a/func_80398BF0.c	src/ovl_a/pakscr_FindFile.c	file	mat3	sure	holds pakscr_FindFile
+src/ovl_a/func_8039A24C.c	src/ovl_a/_CancelFunc.c	file	mat3	sure	holds _CancelFunc
+src/ovl_a/func_8039A2A0.c	src/ovl_a/updateLicenseScreen.c	file	mat3	sure	holds updateLicenseScreen
+src/ovl_a/func_803A3A6C.c	src/ovl_a/anim_car_color_marker.c	file	mat3	sure	holds anim_car_color_marker
+src/ovl_a/func_803A3DA4.c	src/ovl_a/carscr_animNewSlider.c	file	mat3	sure	holds carscr_animNewSlider
+src/ovl_a/func_803A4134.c	src/ovl_a/animStatBars.c	file	mat3	sure	holds animStatBars
+src/ovl_a/func_803A4340.c	src/ovl_a/animStatText.c	file	mat3	sure	holds animStatText
+src/ovl_a/func_803A6A28.c	src/ovl_a/licensescr_animText.c	file	mat3	sure	holds licensescr_animText
+src/ovl_a/func_803AE51C.c	src/ovl_a/titlescr_animText.c	file	mat3	sure	holds titlescr_animText
+src/ovl_a/func_803AE940.c	src/ovl_a/animArrows.c	file	mat3	sure	holds animArrows
+src/ovl_a/func_803AF744.c	src/ovl_a/warningscr_animText.c	file	mat3	sure	holds warningscr_animText
+nonmatching/ovl_a/func_8038A400.c	nonmatching/ovl_a/updateWarningScreen.c	file	mat3	sure	the draft of updateWarningScreen
+nonmatching/ovl_a/func_8038A820.c	nonmatching/ovl_a/animTrackMaps.c	file	mat3	sure	the draft of animTrackMaps
+nonmatching/ovl_a/func_8038CD14.c	nonmatching/ovl_a/buildTrackMaps.c	file	mat3	sure	the draft of buildTrackMaps
+nonmatching/ovl_a/func_803A44FC.c	nonmatching/ovl_a/carscr_animText.c	file	mat3	sure	the draft of carscr_animText
+nonmatching/ovl_a/func_803A9088.c	nonmatching/ovl_a/drawDeletePlayer.c	file	mat3	sure	the draft of drawDeletePlayer
+nonmatching/ovl_a/func_803A9EEC.c	nonmatching/ovl_a/playerscr_animText.c	file	mat3	sure	the draft of playerscr_animText
+src/ovl_a/groups/cleanup_colortrace/group.c	src/ovl_a/groups/carscr/carscr.c	file	mat3	sure	holds MAT3 carscr.c: updateCarScreen and its statics
+src/ovl_a/groups/runtime_a_availability_refresh/group.c	src/ovl_a/groups/playerscr/playerscr.c	file	mat3	sure	holds MAT3 playerscr.c: updatePlayerScreen and its statics
+src/ovl_a/groups/runtime_a_c93c_closure/group.c	src/ovl_a/groups/trackscr/trackscr.c	file	mat3	sure	holds MAT3 trackscr.c: updateTrackScreen and its statics (the old name holds an address fragment)
+src/ovl_a/groups/runtime_a_callers_deep/group.c	src/ovl_a/groups/recordscr/recordscr.c	file	mat3	sure	holds MAT3 recordscr.c: updateRecordScreen and its statics
+src/ovl_a/groups/runtime_a_joint_transforms/group.c	src/ovl_a/groups/selectcarload/selectcarload.c	file	mat3	sure	holds MAT3 selectcarload.c: SetSelectTireSizes, CreateSelectCar, UpdateSelectCar
+src/ovl_a/groups/runtime_a_menu_cleanup/group.c	src/ovl_a/groups/playerscr_uninit/playerscr_uninit.c	file	mat3	sure	holds playerscr.c: playerscr_uninitScreen, playerscr_uninitButtons
+src/ovl_a/groups/runtime_a_menu_renderers/group.c	src/ovl_a/groups/pakscr_draw/pakscr_draw.c	file	mat3	sure	holds MAT3 pakscr.c: _AnimText and the _Draw* functions
+src/ovl_a/groups/runtime_a_menu_state/group.c	src/ovl_a/groups/pakscr/pakscr.c	file	mat3	sure	holds MAT3 pakscr.c: updatePakScreen and the _Control* functions
+src/ovl_a/groups/runtime_a_option_eligibility/group.c	src/ovl_a/groups/startscr_text/startscr_text.c	file	mat3	sure	holds startscr.c: startscr_animText, startscr_animButtonText, startscr_optionValid
+src/ovl_a/groups/runtime_a_profile_menu/group.c	src/ovl_a/groups/playerscr_draw/playerscr_draw.c	file	mat3	sure	holds playerscr.c: the draw functions (playerscr_drawSelect, drawWait, drawCreatePlayer)
+src/ovl_a/groups/runtime_a_settings_bar/settings_bar.c	src/ovl_a/groups/trackscr_slider/trackscr_animNewSlider.c	file	mat3	sure	holds trackscr.c: trackscr_animNewSlider
+src/ovl_a/groups/runtime_a_settings_values/settings_values.c	src/ovl_a/groups/trackscr_text/trackscr_animText.c	file	mat3	sure	holds trackscr.c: trackscr_animText, trackscr_animButtonText
+src/ovl_a/groups/runtime_a_seven_option_group/eligibility.c	src/ovl_a/groups/modescr/modescr.c	file	mat3	sure	holds MAT3 modescr.c: updateModeScreen and its statics
+src/ovl_a/groups/runtime_a_seven_option_group/renderer.c	src/ovl_a/groups/modescr/modescr_animText.c	file	mat3	sure	holds modescr.c: modescr_animText
+src/ovl_a/groups/runtime_a_seven_option_init/group.c	src/ovl_a/groups/modescr_init/modescr_init.c	file	mat3	sure	holds modescr.c: modescr_initScreen, modescr_initButtons
+src/ovl_a/groups/runtime_a_stats_menu/group.c	src/ovl_a/groups/recordscr_draw/recordscr_draw.c	file	mat3	sure	holds recordscr.c: the draw functions (recordscr_drawSelect, drawScores, the stats pages)
+src/ovl_a/groups/runtime_a_text_helpers/group.c	src/ovl_a/groups/circuitscr/circuitscr.c	file	mat3	sure	holds MAT3 circuitscr.c: updateCircuitScreen and its statics
+# shared
+D_80394050	coinStuntPos	data	mat3	sure	s32[4][4][2]: MAT3 hudextra.c coinStuntPos (global: hud.c's coin counter reads it, as the game's coins code does at the same offsets)
+D_80152818	gGameCar	data	mat3	sure	the car records (MAT3 tCarData gGameCar[]); on the PC decoupled as pc_cars (DECOUPLE.md), also spelled player_array; left only in N64 branches and drafts
+D_8038A400	overlay_area	data	code	sure	u8[]: where both runtime images load, the start of the heap block the overlay loader reserves for them (to 0x803BB380); unloading frees it with _DeallocateMemory(overlay_area)
+D_8039B440	extras_overlay_bss_end	data	code	sure	one past image B's BSS: the loader's bssEnd for the HUD-extras overlay (InitMaxPath)
+D_803BAE20	frontend_overlay_bss_end	data	code	sure	one past image A's BSS: the loader's bssEnd for the front-end overlay
+D_80399AF8	gMineTextures	data	mat3	sure	u16[5]: MAT3 shots.c gMineTextures, the mine-cap textures per team and a neutral one (ShotInit); the game's mine code reads [4] and [team]
+D_80399B2C	mine_cap_object	data	code	likely	s32, gWprObjList[5]: the mine cap object (MAT3 WprObjNames[5]), which the game's mine code creates by this name; wave 2: gWprObjList[5]
+D_80399B30	mine_glow_object	data	code	likely	s32, gWprObjList[6]: the mine glow object (MAT3 WprObjNames[6]), the game's mine rings; wave 2: gWprObjList[6]
+D_80394F70	gShotObjList	data	mat3	sure	tStatList: MAT3 shots.c gShotObjList (ShotInit, _CreateShotObject); also the first datum of image B's BSS, which InitMaxPath passes to the overlay loader as bssStart
+D_80115F28	wrongWayPos	data	mat3	sure	s32[4][4][2]: MAT3 hud.c wrongWayPos; _AddBattlePoint and animStuntCoins start their moves there as MAT3 does
+D_80116178	hudObjAngle	data	mat3	sure	f32: MAT3 hudObjAngle, the yaw animWeaponIcons and animPowerupIcons give the HUD objects (YawUV)
+D_801170FC	gPauseState	data	mat3	sure	s32 (MAT3 enum kNumPauseStates): animBattlePoints advances only while !gOutOfTime && !gPauseState, as MAT3
+D_8011F844	collsize	data	mat3	sure	ColSize[] {colfront, colrear, colside, colheight} (MAT3 collsize[13]): ShotToCarCollision's car boxes
+D_80142690	gOutOfTime	data	mat3	sure	s8: MAT3 gOutOfTime (animBattlePoints, as MAT3)
+D_80142764	gGravity	data	mat3	sure	f32: MAT3 gGravity (UpdateShots, AnimateCase: falling shots and casings)
+D_8014A160	gPlayers_save	data	mat3	sure	tPadState[4] (MAT3 gPlayers): animBattlePoints prints (*gPlayers[plto].save)->name as MAT3
+D_80151AE8	gTexDefPtrs	data	mat3	sure	MAT3 gTexDefPtrs[64] {texDefs, count}: already gTexDefPtrs in the game image's symbol table at this address (same symbol, two spellings)
+D_80152038	gStuntPlayer	data	mat3	sure	tStuntPlayer[4]: MAT3 gStuntPlayer (animStuntPoints, UpdateHUDExtraPostCamera's stunt part)
+D_801543CA	gNumCars	data	mat3	sure	s16, volatile: MAT3 gNumCars (ProximityDamage, MissileLock loop over the cars)
+D_801543CC	gModelTime	data	mat3	sure	f32: MAT3 gModelTime (the stunt coins' fade, hudextra's #define)
+D_80143FD8	gTargetList_head	data	mat3	sure	interior label, &gTargetList.head (MAT3 tStatList gTargetList at D_80143FC8, head at +0x10): InitBattlePowerUps walks it where MAT3 walks gTargetList.head; wave 2: gTargetList.head
+D_80110D08	gCarModels	data	mat3	sure	model record pointer[13] (MAT3 _tCar *gCarModels[13]): SetSelectTireSizes reads gCarModels[slot % 13]'s tire positions, as MAT3
+D_801112DC	gFrontTireScale	data	mat3	sure	f32[5][13]: MAT3 gFrontTireScale, read [player+1][slot%13] by SetSelectTireSizes for tires 0-1
+D_801113E0	gRearTireScale	data	mat3	sure	f32[5][13]: MAT3 gRearTireScale, read [player+1][slot%13] by SetSelectTireSizes for tires 2-3
+D_8011418C	unitmatrix	data	mat3	sure	f32[4][3]: MAT3 unitmatrix, the identity copied by CopyUV/ScaleUV in every menu's buttons and track maps
+D_801164A1	cheat_menu_unlocked	data	code	sure	s8 interior label: gCheatActive[21] (gCheatActive at 0x8011648C; MAT3 gCheatActive[23]), the start screen's code: set by CheckForEgg in updateStartScreen, makes start-menu option 6 (cheats) valid
+D_80116DB4	pak_recognize_error_seen	data	code	likely	s8: set by SetPakError (display_settings) for error 10 (MAT3 kPS_ErrRecognize), cleared and tested by the pak warning screen (updateWarningScreen) (N64 only)
+D_80117420	gPlayerNameChars	data	mat3	sure	const char *: MAT3 gPlayerNameChars, the name-entry alphabet of controlCreatePlayer
+D_801174B4	gGameState	data	mat3	sure	u32: MAT3 gGameState; every screen's gSkipToGameState test compares with it (the tree already #defines gGameState to it)
+D_8012E6D8	gPlayerFiles	data	mat3	sure	tDLList (16 bytes: handle, dbl, numElements, head, tail): MAT3 gPlayerFiles, the profile list recordscr's updatePakInfo walks from .head
+D_8012E6E0	gPlayerFiles_head	data	mat3	sure	pointer interior label: gPlayerFiles.head (+8), read directly by playerscr and the warning screen
+D_8012E700	ObjInstanceList	data	mat3	sure	scene-object record[600] (MAT3 anon_flags_culling_60 ObjInstanceList[600]): the tree's comments already call D_8012E700 ObjInstanceList
+D_80139320	gCarParts	data	mat3	sure	CarParts[52]: MAT3 gCarParts, the per-slot model handles (frame, hood, brakes, tires) of CreateSelectCar/SetSelectTireSizes
+D_8013F1D8	gFogIntensity	data	mat3	sure	s8: MAT3 gFogIntensity; SetFogIntensity's alpha = gFogIntensity * 192 / 3
+D_8013F1D9	gMirrorControls	data	mat3	sure	s8: MAT3 gMirrorControls; updateTrackScreen negates the step when it is > 1, as MAT3
+D_8013FE90	gCarPaintJobInited	data	mat3	sure	s8[52]: MAT3 gCarPaintJobInited, zeroed per slot by InitVisualsCarScr
+D_801407B4	gPathMax	data	mat3	sure	s16[3]: MAT3 gPathMax, the path's bounding box maximum used by buildRaceTrackMaps
+D_801407D4	gPathMin	data	mat3	sure	s16[3]: MAT3 gPathMin, the path's bounding box minimum used by buildRaceTrackMaps
+D_801407F0	gResPath	data	mat3	sure	ResPath {numPts, pts, ...}: MAT3 gResPath, the path points of buildRaceTrackMaps (the tree already #defines gResPath to it)
+D_80140A04	gMirrorWaves	data	mat3	sure	s8: MAT3 gMirrorWaves, with gBackwards sets the carousel direction in showTrackSelect
+D_80140BDC	gNumModels	data	mat3	sure	u8 (volatile): MAT3 gNumModels, MBOX_FindObject_WORK's upper bound gNumModels-1 (the tree already names 0x80140BDC so)
+D_80140BF0	blit_sprites	data	code	likely	sprite record[] indexed by a blit's resource (+0x15 flags): loadTrackScreen sets flag 1 on the track picture's record (N64 only); its other users are game-image code
+D_80142726	gWind	data	mat3	sure	s8: MAT3 gWind, BlowFog's speed (gWind * 5)
+D_801427A0	gFogColor	data	mat3	sure	s8: MAT3 gFogColor, the fog colour index of SetFogIntensity (< 19 means follow gTrackNum)
+D_80142B08	gCarModelNums	data	mat3	sure	s16[52]: MAT3 gCarModelNums, set to the wave instance by LoadSelectCar; include/game/visuals.h already declares this name
+D_80143F68	gWheelTextures	data	mat3	sure	texture pointer[] (MAT3 tTexture *gWheelTextures[48]): UpdateSelectCar's rim texture by gTireRims (the N64 indexes with +3, MAT3 +24)
+D_80144D68	gPS_Files	data	mat3	sure	tDLList[4] (16-byte stride): MAT3 gPS_Files, the files per pak that _FindFile walks from gPS_Files[gPickedPak].head
+D_80146108	gOptions	data	mat3	sure	s8[]: MAT3 gOptions, the race options the track screen edits by index (21..40 saved per player)
+D_80146150	gJustPlayers	data	mat3	sure	profile handle[4] (MAT3 tPlayerProfile *gJustPlayers[4]): setPlayerState's &gJustPlayers[p] for "just play"
+D_801461F8	gGameStarted	data	mat3	sure	s8: MAT3 gGameStarted, cleared by updateTitleScreen and initGameState, set by updateStartScreen
+D_80149414	gLicenseShown	data	mat3	sure	s8: MAT3 gLicenseShown; updateLicenseScreen picks the next state by it and sets it to 1
+D_80149774	gIntroMovieShown	data	mat3	likely	s8: MAT3 gIntroMovieShown, zeroed by initGameState in MAT3's order (gGameStarted, gSofdecShown, gLicenseShown, gIntroMovieShown, pfsInited, lcdInited); counted to 2 by updateTitleScreen
+D_80149784	gActiveAutoEdges	data	mat3	sure	u32: MAT3 gActiveAutoEdges, all pads' auto-repeat edges (the menus' left/right steps)
+D_80149794	pfsInited	data	mat3	sure	s8: MAT3 pfsInited; updateLicenseScreen's first block, zeroed by initGameState
+D_801497C4	lcdInited	data	mat3	sure	s8: MAT3 lcdInited; set inside updateLicenseScreen's first block, zeroed by initGameState
+D_8014978C	gTrackNum	data	mat3	sure	s8: MAT3 gTrackNum, the selected track 0..18 (the tree already #defines gTrackNum to it)
+D_8014A108	gNumPlayers	data	mat3	sure	s16: MAT3 gNumPlayers (the tree #defines gNumPlayers to it in resurrect.c, but asm/us/blob/symbols.json gives the name gNumPlayers to 0x80166004: see conflicts)
+D_8014A110	gRace	data	mat3	sure	s32: MAT3 gRace (0 one race .. 6 battle), validOption's row in OptionValid
+D_8014A118	gPlayers	data	mat3	sure	player record[4] of 0x4C (MAT3 tPadState gPlayers[4]): controller, edges/levels, save profile
+D_80151CE8	gCheckpoints	data	mat3	sure	checkpoint header (startTime, loopPt, finishPt, startPt, numPoints): MAT3 gCheckpoints, loopPt read by buildRaceTrackMaps
+D_80152570	gBackwards	data	mat3	sure	s8: MAT3 gBackwards, with gMirrorWaves sets the carousel direction in showTrackSelect
+D_80153F20	gPathWave	data	mat3	sure	pointer: MAT3 gPathWave, GetWaveInstanceAddr(pathWaveIdx) in loadPathData
+D_80154188	HFOV	data	mat3	sure	f32: MAT3 HFOV, reset to 90 by playerscr's uninitScreen
+D_8015418C	controlScrActive	data	mat3	sure	s8[4]: MAT3 controlScrActive, the control screen per player in playerscr's controlControls
+D_801543D4	gCircuitPlayer	data	mat3	sure	u8: MAT3 gCircuitPlayer, the player whose save menuItemValid checks
+D_801543D8	gCircuitTracks	data	mat3	sure	struct[] of 5 bytes (trackNum, ?, mirror, fog, wind): MAT3 gCircuitTracks, read [gCircuitTrack].trackNum/.mirror by the track screen
+D_80154628	gCircuitTrack	data	mat3	sure	s8: MAT3 gCircuitTrack, the circuit's current track index
+D_80156944	gActiveLevels	data	mat3	sure	u32: MAT3 gActiveLevels, all pads' held buttons
+D_8015694C	gActiveEdges	data	mat3	sure	u32: MAT3 gActiveEdges, all pads' newly pressed buttons
+D_80156978	gContLevels	data	mat3	likely	u32[4]: held buttons per controller (copied into gPlayers[p].levels by the input code); MAT3 has two such arrays, gContLevels and gRealLevels, and which one this is was not shown
+D_80156994	expansion_pak_present	data	code	sure	s8: set to 1 by the heap setup when the Expansion Pak is there (docs/port/MEMORY.md, ULTRA.md); gates track 5 in OptionValid/updateTrackScreen and the extra waves (N64 only)
+D_80157244	gSoftReset	data	mat3	sure	s8: MAT3 gSoftReset, every screen's reset exit
+D_801613AB	gFrameScale	data	mat3	sure	s8: MAT3 gFrameScale, UpdateSelectCar scales by FSCLS[gFrameScale-1]
+D_8017A4E4	gText_single	data	mat3	sure	pointer interior label: gText.single (+4 into gText at 0x8017A4E0, MAT3 anon_numSingle_single_28 gText), the single-string table controlSelect indexes
+D_803BA7EB	gBlocksNeeded	data	mat3	sure	s8 at an odd address in image A's BSS: MAT3 gBlocksNeeded@pakscr.c (an int there), which MAT3 updateWarningScreen sets to PS_GetBlocks(profile size); the N64 updateLicenseScreen and updateWarningScreen store PS_GetBlocks of the N64 size in it
+D_801613E8	attract_alt_text_flag	data	code	likely	s8: when 1 the title screen (titlescr_animText) and the credits draw their alternate text (name as the game range's map has it)
+D_803B9A50	gTrophyMat	data	mat3	sure	tUVMatrix (f32[12]): MAT3 gTrophyMat@circuitscr.c, the trophy's matrix; the first BSS object of image A, so the overlay loader also passes it as image A's BSS start
+D_803B9AA0	gCarMatrices	data	mat3	sure	void *[48]: MAT3 gCarMatrices (carscr.c global), ZOID_NewMatrix per car in _InitScreen
+D_801164A4	gCheatState	data	mat3	sure	s16[21]: MAT3 gCheatState, state shown per cheat
+D_8017A4D8	gNoCarCollisions	data	mat3	sure	s8: MAT3 gNoCarCollisions, cheat 0
+D_8013FECC	gMineCones	data	mat3	sure	s8: MAT3 gMineCones, cheat 1
+D_8013FECD	gCarMines	data	mat3	sure	s8: MAT3 gCarMines, cheat 2
+D_801403D0	gNoAutoAbort	data	mat3	sure	s8: MAT3 gNoAutoAbort, cheat 4
+D_801427A1	gSuperSpeed	data	mat3	sure	s8: MAT3 gSuperSpeed, cheat 5
+D_80142B00	gInvincible	data	mat3	sure	s8: MAT3 gInvincible, cheat 6
+D_80140418	gInvisibleCar	data	mat3	sure	s8: MAT3 gInvisibleCar, cheat 7
+D_8014061A	gInvisibleTrack	data	mat3	sure	s8: MAT3 gInvisibleTrack, cheat 8
+D_8013F2FC	gNoBrakes	data	mat3	sure	s8: MAT3 gNoBrakes, cheat 9
+D_80142DB0	gSpecialTires	data	mat3	sure	s8: MAT3 gSpecialTires, cheat 10 (0 or 2)
+D_80143F1C	gMassiveMass	data	mat3	sure	s8: MAT3 gMassiveMass, cheat 11 (0-2)
+D_8017A634	gSuicideMode	data	mat3	sure	s8: MAT3 gSuicideMode, cheat 12 (0-2)
+D_801407B0	gResurrectInPlace	data	mat3	sure	s8: MAT3 gResurrectInPlace, N64 cheat 17 (GC 19); the tree already uses this name for this symbol (a #define alias)
+D_801407D0	gEnableTireScaling	data	mat3	sure	s8: MAT3 gEnableTireScaling, N64 cheat 19 (GC 21); car options 13/14 need it
+D_80110D70	CarTitles	data	mat3	likely	char *[]: MAT3 CarTitles, car display names (drawUnlockedCars, carscr animButtonText)
+D_8011103C	gCarHandling	data	mat3	sure	s8[5][13]: MAT3 gCarHandling, car setting 0; row 0 defaults, rows 1-4 per player
+D_80111080	gCarEngines	data	mat3	sure	s8[5][13]: MAT3 gCarEngines, setting 1 (IsEngineUnlocked clamp)
+D_8011119C	gCarTires	data	mat3	sure	s8[5][13]: MAT3 gCarTires, setting 2
+D_80111230	gCarFrame	data	mat3	sure	s8[5][13]: MAT3 gCarFrame, setting 3
+D_8011128C	gCarWings	data	mat3	sure	s8[5][13]: MAT3 gCarWings, setting 4 (clamped to 1 outside gRace 4)
+D_80111604	car_color_choice_a	data	code	likely	s8[5][13]: car setting 5, a palette index (car_color_palette) for colour marker 7; N64 only (GC has gCarPaintJob there)
+D_80111648	car_color_choice_b	data	code	likely	s8[5][13]: car setting 6, palette index for marker 8; N64 only
+D_8011168C	car_color_choice_c	data	code	likely	s8[5][13]: car setting 7, palette index for marker 9; N64 only
+D_8011157C	gTireRims	data	mat3	likely	s8[5][13]: MAT3 gTireRims, N64 car setting 8 (GC 6)
+D_801115C0	gCarHorn	data	mat3	likely	s8[5][13]: MAT3 gCarHorn, N64 car setting 9 (GC 7)
+D_80111784	gNumCircuitTracks	data	mat3	sure	s32[4]: MAT3 gNumCircuitTracks, races per circuit type
+D_801146AC	playerTextColor	data	mat3	likely	s32[4]: MAT3 playerTextColor, text colour index per player
+D_801146BC	flashColors	data	mat3	sure	tRGBA[2]: MAT3 flashColors (TB_FlashTextColors pair)
+D_801147C8	gDefaultNames	data	mat3	sure	char *[]: MAT3 gDefaultNames, drone names (drawReview)
+D_80116FE4	gPasswordAlphabet	data	mat3	sure	u8 *: MAT3 gPasswordAlphabet, the 32 letters of codes
+D_8011A8D8	gTrackTitles	data	mat3	sure	char *[]: MAT3 gTrackTitles
+D_8011EAD0	gPS_PakName	data	mat3	sure	char *[4]: MAT3 gPS_PakName, pak names
+D_801226C0	car_color_palette	data	code	likely	Rgb[32]: the car colour palette anim_car_color_marker tints its swatches from
+D_8012E6F8	gLimboGhosts	data	mat3	sure	tGhostFile **[]: MAT3 gLimboGhosts, three per track and direction (limboGhosts = gLimboGhosts + (track + backwards*6)*3)
+D_8012E708	ObjInstanceList_mat	data	mat3	likely	void *: alias of ObjInstanceList[0].mat (+8; the tree names ObjInstanceList itself at the node base, 8 bytes lower); updateCarComponents indexes the instances through it
+D_80138664	gCarTeamColor	data	mat3	sure	s8[]: MAT3 gCarTeamColor, paint per team in battle
+D_801426EC	gGhostSelect	data	mat3	sure	s8: MAT3 gGhostSelect (setGhosts, trackscr case 1)
+D_80142724	gNumDrones	data	mat3	sure	s16: MAT3 gNumDrones (trackscr case 17)
+D_80142760	gDeathMode	data	mat3	sure	s8: MAT3 gDeathMode (trackscr case 20); the tree already uses this name for this symbol (a #define alias)
+D_80146111	gOptions_at_9	data	mat3	sure	s8: alias of gOptions[9], the metric switch (MAT3 recordscr: if (gOptions[9]) distance * 10 / 6)
+D_80146180	gDriveHulk	data	mat3	sure	s8[4]: MAT3 gDriveHulk, cleared per player by _InitScreen
+D_80150B70	gCamera	data	mat3	sure	anon_mat_n64_98[4]: MAT3 gCamera; already this address's name in the game image's symbol table
+D_80150DD8	gUnlockedTracks	data	mat3	sure	u8[]: MAT3 gUnlockedTracks (drawUnlockedTracks, resetEnabled)
+D_80150E30	gUnlockedCars	data	mat3	sure	u8[]: MAT3 gUnlockedCars (drawUnlockedCars, IsCarUnlocked)
+D_80150E88	gUnlockedCircuits	data	mat3	sure	u8[]: MAT3 gUnlockedCircuits (resetEnabled, IsCircuitUnlocked)
+D_80150EB8	gUnlockedTrans	data	mat3	sure	u8[]: MAT3 gUnlockedTrans (drawUnlockedParts, IsTransUnlocked)
+D_80150ED8	gUnlockedEngines	data	mat3	sure	u8[]: MAT3 gUnlockedEngines (drawUnlockedParts, IsEngineUnlocked)
+D_80150EFC	gCatchup	data	mat3	sure	s8: MAT3 gCatchup (trackscr animNewSlider option 19)
+D_80150F00	gUnlockedTires	data	mat3	sure	u8[]: MAT3 gUnlockedTires
+D_80150F40	gUnlockedFrames	data	mat3	sure	u8[]: MAT3 gUnlockedFrames
+D_80150F7C	gForceUnlockedCircuits	data	mat3	likely	u8[]: MAT3 gForceUnlockedCircuits (resetEnabled writes [1], [2], [3])
+D_80150F88	gTotalRaceStats	data	mat3	sure	tRaceStats[12] (96 B): MAT3 gTotalRaceStats, used when gStatPlayer is 0
+D_80151410	gTotalStuntStats	data	mat3	sure	tStuntStats[] (64 B): MAT3 gTotalStuntStats
+D_80151578	gTotalBattleStats	data	mat3	sure	tBattleStats[] (12 B): MAT3 gTotalBattleStats
+D_801515F8	gTotalObstacleStats	data	mat3	sure	tObstacleStats[] (24 B): MAT3 gTotalObstacleStats
+D_80151618	gTotalCircuitStats	data	mat3	sure	tCircuitStats[] (28 B): MAT3 gTotalCircuitStats
+D_80151AD0	gNumWindows	data	mat3	sure	s16: MAT3 gNumWindows; already this address's name in the game image's symbol table
+D_80152020	gGhostFiles	data	mat3	sure	list: MAT3 gGhostFiles (setGhosts, getNextGhost)
+D_80152028	gGhostFiles_head	data	mat3	likely	tGhostFile **: alias of gGhostFiles.head (_GetPakStatusStr walks it)
+D_80152030	gDifficulty	data	mat3	sure	s8: MAT3 gDifficulty (trackscr animNewSlider option 18)
+D_80152698	gGhosts	data	mat3	sure	tGhostFile **[4]: MAT3 gGhosts
+D_80152734	gNumLaps	data	mat3	sure	s16: MAT3 gNumLaps (trackscr case 2); the tree already uses this name for this symbol (a #define alias)
+D_80154450	gCircuitCars	data	mat3	sure	tCircuitCar[6]: MAT3 gCircuitCars (drawReview, getPlaceStr, getPointsStr)
+D_80154640	gCircuitSize	data	mat3	sure	s8: MAT3 gCircuitSize (resetEnabled, getToGoStr)
+D_8017A4E0	gText	data	mat3	sure	anon_numSingle_single_28: MAT3 gText, the language text tables; the tree already uses this name for this symbol (a #define alias)
