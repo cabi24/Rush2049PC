@@ -860,27 +860,42 @@ def collision(r, tree, renames_to):
     return "error", f"new {new} already exists: {'; '.join(where) or 'in the C'}"
 
 
+NAME_TOOLS = ("tools/port/rename.py", "tools/port/names_check.py", "tools/port/tests/test_rename.py",
+              "tools/port/tests/test_names_check.py")   # these tools' own examples are no uses
+
+
 def tool_names(root, files, names):
     """{name: first file} for the names the tools use: tools/**/*.py's identifiers and the identifiers inside their
-    string literals (lookups by name), not their comments."""
-    import tokenize
+    string literals (lookups by name), not their comments or docstrings (prose)."""
+    import ast
     out = {}
     for f in files:
-        if not (f.startswith("tools/") and f.endswith(".py")):
+        if not (f.startswith("tools/") and f.endswith(".py")) or f in NAME_TOOLS or f.startswith("tools/port/tests/names/"):
             continue
         try:
-            with open(Path(root) / f, "rb") as fh:
-                for t in tokenize.tokenize(fh.readline):
-                    if t.type == tokenize.NAME:
-                        found = {t.string} & names
-                    elif t.type == tokenize.STRING:
-                        found = set(IDENT.findall(t.string)) & names
-                    else:
-                        continue
-                    for x in found:
-                        out.setdefault(x, f)
-        except (OSError, SyntaxError, tokenize.TokenError, UnicodeDecodeError):
+            text = (Path(root) / f).read_text(encoding="utf-8")
+            if not any(n in text for n in names):
+                continue
+            tree = ast.parse(text)
+        except (OSError, SyntaxError, UnicodeDecodeError, ValueError):
             continue
+        docstrings = set()
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
+                first = node.body[0]
+                if isinstance(first, ast.Expr) and isinstance(getattr(first, "value", None), ast.Constant):
+                    docstrings.add(id(first.value))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                found = {node.id} & names
+            elif isinstance(node, ast.Attribute):
+                found = {node.attr} & names
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings:
+                found = set(IDENT.findall(node.value)) & names
+            else:
+                continue
+            for x in found:
+                out.setdefault(x, f)
     return out
 
 
