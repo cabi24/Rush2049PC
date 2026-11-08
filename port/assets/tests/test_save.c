@@ -31,10 +31,9 @@
 #include "pc_prelude.h"
 #include "support.h"
 
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 #define W32(p) ((uint32_t)(uintptr_t)(p))
-#define IN_WINDOW(p) ((uintptr_t)(p) >= 0x80000000u && (uintptr_t)(p) < 0x80800000u)
+#define IN_WINDOW(p) ((uintptr_t)(p) >= PC_RDRAM_BASE && (uintptr_t)(p) < PC_RDRAM_BASE + PC_RDRAM_SIZE)
 
 /* ---------------------------------------------------------------- the PC layouts */
 
@@ -186,8 +185,9 @@ char ghost_file_name_format[] = "%s%d%s", ghost_backward_suffix[] = "B", ghost_f
 void **gGhosts[4];                           /* gGhosts: the ghosts of a race */
 void *gMainHeap;                               /* the heap */
 int32_t heap_lock_msg;
-ABS(game_bss_end, 0x8017A640);                    /* the end of the game's BSS: the heap starts there */
-ABS(osMemSize, 0x80000318);                    /* osMemSize */
+TEST_ABS(game_bss_end);                        /* the end of the game's BSS: the heap starts there */
+TEST_ABS(osMemSize);                           /* osMemSize */
+#define OSMEMSIZE_OFF (TEST_N64(osMemSize) - PC_RDRAM_BASE)   /* osMemSize's offset in the window */
 struct { uint8_t pad[72]; void **handle; } gPlayers[4];   /* the input records' profile handles */
 int16_t gNumPlayers;
 float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
@@ -699,7 +699,7 @@ int main(void)
         return 77;
     }
     pc_fix_absolute_got();
-    U32(w, 0x318) = 0x400000;                          /* osMemSize: 4 MB */
+    U32(w, OSMEMSIZE_OFF) = 0x400000;                  /* osMemSize: 4 MB */
     gControllerData[PAK].present = 1;
     for (i = 0; i < 256; i++)                          /* the N64 pak font: 0, space, digits, letters */
         pak_charset[i] = 0xFFFF;

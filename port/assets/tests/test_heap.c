@@ -20,10 +20,9 @@
 #include "support.h"
 #include "ultra.h"   /* port/ultra/heap.c: pc_heap_stats */
 
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 #define WP(a) ((uint8_t *)(uintptr_t)(a))
-#define IN_WINDOW(p) ((uintptr_t)(p) >= 0x80000000u && (uintptr_t)(p) < 0x80800000u)
+#define IN_WINDOW(p) ((uintptr_t)(p) >= PC_RDRAM_BASE && (uintptr_t)(p) < PC_RDRAM_BASE + PC_RDRAM_SIZE)
 #define U32(p, o) (*(uint32_t *)((uint8_t *)(p) + (o)))
 #define MAGIC 0xFEDCBA98u
 /* a block header: magic +0, next +4, prev +8, size +0xC, owner +0x10, used +0x14, tag +0x15; the data at +0x20 */
@@ -38,8 +37,9 @@ void *gMainHeap;                               /* the heap */
 int32_t heap_lock_msg;
 uint8_t heap_lock_queue[32];
 int8_t expansion_pak_present;
-ABS(game_bss_end, 0x8017A640);                    /* the end of the game's BSS: the heap starts there */
-ABS(osMemSize, 0x80000318);                    /* osMemSize */
+TEST_ABS(game_bss_end);                        /* the end of the game's BSS: the heap starts there */
+TEST_ABS(osMemSize);                           /* osMemSize */
+#define OSMEMSIZE_OFF (TEST_N64(osMemSize) - PC_RDRAM_BASE)   /* osMemSize's offset in the window */
 /* what heap_release's other functions reach */
 int8_t extra_overlay_loaded, start_overlay_loaded;
 uint8_t overlay_base[16];
@@ -82,7 +82,7 @@ int main(void)
         return 77;
     }
     pc_fix_absolute_got();
-    U32(w, 0x318) = 0x400000;                   /* osMemSize: 4 MB */
+    U32(w, OSMEMSIZE_OFF) = 0x400000;           /* osMemSize: 4 MB */
     InitMemory(16, 16);
     a = AllocateMemoryHeap(NULL, 256);
     b = AllocateMemoryHeap(NULL, 128);
@@ -112,7 +112,7 @@ int main(void)
 
     /* port/ultra/heap.c's numbers: the heap from its header to osMemSize | K0, the least free as the game sums it */
     PcHeapStats st;
-    CHECK(pc_heap_stats(&st) == 0 && st.base == W32(gMainHeap) && st.end == 0x80400000u);
+    CHECK(pc_heap_stats(&st) == 0 && st.base == W32(gMainHeap) && st.end == PC_RDRAM_BASE + 0x400000u);
     CHECK(st.size == st.end - st.base && st.peak + st.free_low == st.size && st.allocations == 6);
     CHECK(st.free_low < free_total() && st.shorts == 0 && st.nones == 0 && st.floor == 0);   /* before the shrinks */
     AllocateMemoryHeap(NULL, 1000);
@@ -124,22 +124,24 @@ int main(void)
     CHECK(st.shorts == 2);
 
     /* game.memory 32 with the floor at 17 MiB: the heap made again (the game makes it once, at boot) */
-    U32(w, 0x318) = 32u << 20;
+    U32(w, OSMEMSIZE_OFF) = 32u << 20;
     setenv("RUSH2049_TEST_HEAP_FLOOR", "17", 1);
     InitMemory(16, 16);
     unsetenv("RUSH2049_TEST_HEAP_FLOOR");
     pc_heap_stats(&st);
-    CHECK(st.end == 0x82000000u && st.floor == 0x81100000u && st.allocations == 0);
+    const uint32_t heap_end = PC_RDRAM_BASE + (32u << 20), heap_floor = PC_RDRAM_BASE + (17u << 20);
+    const uint32_t images = N64_OVERLAY_BASE, images_size = N64_OVERLAY_BLOCK_END - N64_OVERLAY_BASE;
+    CHECK(st.end == heap_end && st.floor == heap_floor && st.allocations == 0);
     a = AllocateMemoryHeap(NULL, 256);
     b = AllocateMemoryHeap(NULL, 0x200000);
-    CHECK(W32(a) == 0x81100000u && W32(b) == 0x81100000u + 256 + 32);   /* the game's blocks from the floor */
+    CHECK(W32(a) == heap_floor && W32(b) == heap_floor + 256 + 32);   /* the game's blocks from the floor */
     /* the runtime images' block: taken and locked, where the image loads find it (load_overlay's allocate_memory_at) */
-    uint8_t *img = WP(0x8038A400u - 32);
-    CHECK(U32(img, 0) == MAGIC && USED(img) == 1 && img[0x16] == 1 && SIZE(img) == 0x803BB380u - 0x8038A400u);
-    CHECK(allocate_memory_at(0x8038A400u, 0x803BB380u - 0x8038A400u) == WP(0x8038A400u) && SIZE(img) == 0x30F80u);
+    uint8_t *img = WP(images - 32);
+    CHECK(U32(img, 0) == MAGIC && USED(img) == 1 && img[0x16] == 1 && SIZE(img) == images_size);
+    CHECK(allocate_memory_at(images, images_size) == WP(images) && SIZE(img) == 0x30F80u);
     /* below the images' block and above it, to the floor: two more locked blocks, nothing free */
     CHECK(USED(PREV(img)) == 1 && PREV(img)[0x16] == 1 && USED(NEXT(img)) == 1 && NEXT(img)[0x16] == 1);
-    CHECK(NEXT(NEXT(img)) == WP(0x81100000u - 32));
+    CHECK(NEXT(NEXT(img)) == WP(heap_floor - 32));
     pc_heap_stats(&st);
     CHECK(st.peak > 17u << 20 && st.free_low == free_total() && st.allocations == 3);
     return TEST_DONE();

@@ -41,8 +41,18 @@ typedef struct {
     uint32_t rom_off, rom_len, size, n64_base;
 } PcModsImage;
 
-/* The file table from the ROM's boot and game images; 0, or -1 when they don't hold it. */
-int pc_mods_cart_read(PcModsCart *c, const uint8_t *rom, size_t rom_size, const PcModsImage *images, int n_images);
+/* Where the file table's four symbols are: their N64 addresses, which the caller looks up by name in port/data's tables
+ * (pc_data_addr_of). gWaveSizes and gLargestTextWave are in the boot image, the other two in the game image. */
+typedef struct {
+    uint32_t sizes;           /* gWaveSizes: u32[PC_MODS_WAVES] */
+    uint32_t text_initial;    /* gLargestTextWave: u8 */
+    uint32_t rom_offsets;     /* wave_rom_offsets: u32[PC_MODS_WAVES] */
+    uint32_t storage_kinds;   /* wave_storage_kinds: s32[PC_MODS_WAVES] */
+} PcModsTableAt;
+
+/* The file table from the ROM's boot and game images, at the addresses `at` gives; 0, or -1 when they don't hold it. */
+int pc_mods_cart_read(PcModsCart *c, const uint8_t *rom, size_t rom_size, const PcModsImage *images, int n_images,
+                      const PcModsTableAt *at);
 /* The cartridge's file of a wave as the game reads it (decompressed): malloc'd, *size bytes; NULL if it can't be. */
 uint8_t *pc_mods_cart_file(const PcModsCart *c, int wave, size_t *size);
 

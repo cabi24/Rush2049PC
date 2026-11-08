@@ -90,7 +90,7 @@ int main(void)
     memset(sfds, 0, sizeof sfds);
     memset(state, 0, sizeof state);
     still_voice(&sfds[0].voices[0], dm1, 1, 0x7FFF << 16, 0);
-    still_voice(&sfds[0].voices[1], dmin, 0, (int32_t)0x80000000u, 0);
+    still_voice(&sfds[0].voices[1], dmin, 0, INT32_MIN, 0);
     run(1, (const int[]){2});
     {
         int16_t last[4];

@@ -57,7 +57,8 @@ void ClearControls(void) {}
 static int g_active[8];
 void SetControllerActive(int32_t player, int32_t value) { g_active[player & 7] = value; }
 void AudSetMasterVol(float blend, float amount, int32_t first, int32_t second) {}
-static uint32_t g_packets[4] = {0x80321000u, 0x80321040u, 0x80321080u, 0x803210C0u};
+#define PACKET(i) (TEST_SCRATCH + 0x21000u + 0x40u * (i))   /* the listeners' packets: window addresses */
+static uint32_t g_packets[4] = {PACKET(0), PACKET(1), PACKET(2), PACKET(3)};
 static int g_npacket;
 void *AudAddListener(void *a, void *b, void *c, void *d) { return (void *)(uintptr_t)g_packets[g_npacket++ & 3]; }
 int32_t osRecvMesg(void *q, void *m, int32_t f) { return 0; }
@@ -164,15 +165,15 @@ static void test_packets(void)
     gNumPlayers = 3, gRace = 2, gGameState = 0, g_npacket = 0;
     gPlayers[0].index = 0, gPlayers[1].index = 1, gPlayers[2].index = 0;
     StartListeners();
-    CHECK(gPlayers[0].packet == 0x80321000u && gPlayers[1].packet == 0xFFFFFFFFu);
-    CHECK(gPlayers[2].packet == 0x80321040u && gPlayers[2].profile == &gJustPlayers[2]);
+    CHECK(gPlayers[0].packet == PACKET(0) && gPlayers[1].packet == 0xFFFFFFFFu);
+    CHECK(gPlayers[2].packet == PACKET(1) && gPlayers[2].profile == &gJustPlayers[2]);
     g_nhanded = 0;
     UpdateListeners();
-    CHECK(g_nhanded == 2 && g_handed[0] == (void *)(uintptr_t)0x80321000u);
-    CHECK(g_handed[1] == (void *)(uintptr_t)0x80321040u);
+    CHECK(g_nhanded == 2 && g_handed[0] == (void *)(uintptr_t)PACKET(0));
+    CHECK(g_handed[1] == (void *)(uintptr_t)PACKET(1));
     g_nmoved = 0;
     StopListeners();
-    CHECK(g_nmoved == 2 && g_moved[0] == (void *)(uintptr_t)0x80321000u && g_moved[1] == (void *)(uintptr_t)0x80321040u);
+    CHECK(g_nmoved == 2 && g_moved[0] == (void *)(uintptr_t)PACKET(0) && g_moved[1] == (void *)(uintptr_t)PACKET(1));
     for (p = 0; p < 3; p++)
         CHECK(gPlayers[p].packet == 0xFFFFFFFFu && gPlayers[p].profile == &gJustPlayers[p]);
 }

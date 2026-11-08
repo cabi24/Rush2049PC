@@ -16,10 +16,13 @@
  * with an independent decoder, known_widths against the images, and an overlay reload is checked. It tests the
  * generated tables and the loader together.
  *
- * The game's arenas are at their N64 addresses, so both map the RDRAM window at host 0x80000000 first, as
- * port/ultra does for the game. */
+ * The game's arenas are at their N64 addresses, so both map the RDRAM window at host PC_RDRAM_BASE first, as
+ * port/ultra does for the game. Every place checked is a game symbol's, by its name (pc_data_addr_of), or one the
+ * symbol file names (symbol_file_addr). */
 #define _GNU_SOURCE
 #include "pc_data.h"
+#include "pc_n64_map.h"   /* the RDRAM window, the runtime images' load address */
+#include "pc_symbol_file.h"   /* the inflate tables' addresses, by name */
 
 #include <math.h>
 #include <stdio.h>
@@ -37,6 +40,9 @@ void pc_data_overlay_load(int overlay);
 
 #ifndef PC_DATA_ROM
 #define PC_DATA_ROM "baserom.us.z64"
+#endif
+#ifndef PC_SYMBOL_FILE
+#define PC_SYMBOL_FILE "symbol_addrs.us.txt"   /* the game's symbol file (CMakeLists.txt gives its path) */
 #endif
 #define ROM_SHA1 "3f99351d7bb61656614bdb2aa1a90cfe55d1922c"
 
@@ -87,19 +93,34 @@ static void *at(uint32_t n64, int image)
     return pc_data_host_of(&pc_data_tables, n64, image);
 }
 
-/* The RDRAM window (port/ultra/memory.c maps it for the game): 8 MiB at host 0x80000000. A RUSH_NOFIXED build's is
- * data.c's section, in the executable already (docs/port/NOFIXED.md 2.1). */
+/* The host address of the game's datum called `name` in `image` (NULL if the tables have no such name). */
+static void *at_name(const char *name, int image)
+{
+    uint32_t n64 = pc_data_addr_of(&pc_data_tables, name);
+    return n64 ? at(n64, image) : NULL;
+}
+
+/* The N64 address the game's symbol file gives `name` (0 if none): for the boot data the loader's tables don't name
+ * (the inflate tables, which no PC declaration describes). */
+static uint32_t symbol_file_addr(const char *name)
+{
+    return pc_symbol_file_addr(PC_SYMBOL_FILE, name);
+}
+
+/* The RDRAM window (port/ultra/memory.c maps it for the game): the N64's 8 MiB at host PC_RDRAM_BASE. A RUSH_NOFIXED
+ * build's is data.c's section, in the executable already (docs/port/NOFIXED.md 2.1). */
 static int map_window(void)
 {
 #ifdef RUSH_NOFIXED
     return 0;
 #endif
-    void *want = (void *)(uintptr_t)0x80000000u;
-    void *p = mmap(want, 0x800000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    void *want = (void *)(uintptr_t)PC_RDRAM_BASE;
+    void *p = mmap(want, PC_RDRAM_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1,
+                   0);
     if (p != want) {
         if (p != MAP_FAILED)
-            munmap(p, 0x800000);
-        printf("FAIL: cannot map the RDRAM window at host 0x80000000, where the game's data belongs\n");
+            munmap(p, PC_RDRAM_SIZE);
+        printf("FAIL: cannot map the RDRAM window at host 0x%08X, where the game's data belongs\n", PC_RDRAM_BASE);
         failures++;
         return -1;
     }
@@ -121,60 +142,60 @@ static int contains(const uint8_t *p, size_t n, const char *s)
  * member covers them; their words only copy them), flashColors's second colour too under flashColors_at_1's word view;
  * unions without such a member keep their widest member's layout (Vtx, MenuSlot); the boot's viewport offset
  * table is s16 up to video_pending_frames, and the flags after it, which its s16[32] declarations ran over, are
- * bytes. */
+ * bytes. Each place is a symbol, by its name, and an offset into it: [name + off, + len). */
 static const struct {
-    const char *what;
-    uint32_t n64, len;
+    const char *what, *name;
+    uint32_t off, len;
     uint8_t image, width;
 } known_widths[] = {
-    {"D_80118E28/2C, the menus' flashing text colours", 0x80118E28, 8, 1, 1},
-    {"D_801146BC, their source pair (D_801146C0 the second)", 0x801146BC, 8, 1, 1},
-    {"D_80116DB0, the options screen's button colour", 0x80116DB0, 4, 1, 1},
-    {"D_8011AD8C, the shadow colour", 0x8011AD8C, 4, 1, 1},
-    {"D_8011ADC0, the sheen colours", 0x8011ADC0, 16, 1, 1},
-    {"D_8011AE58, track 1's IR colours", 0x8011AE58, 16, 1, 1},
-    {"D_8011B558, the arrows' colours", 0x8011B558, 20, 1, 1},
-    {"D_8011B578, the arrow colour", 0x8011B578, 4, 1, 1},
-    {"D_8011EF10, a Vtx's ob, flag and tc (s16)", 0x8011EF10, 12, 1, 2},
-    {"D_8011EF10, its cn (bytes)", 0x8011EF1C, 4, 1, 1},
-    {"D_803B3054/58, image A's colours", 0x803B3054, 8, 2, 1},
-    {"D_803B3458/5C", 0x803B3458, 8, 2, 1},
-    {"loadTrackScreen_backColor", 0x803B8328, 4, 2, 1},
-    {"race_map_vertex_color", 0x803B8354, 4, 2, 1},
-    {"D_803B8394/98", 0x803B8394, 8, 2, 1},
-    {"D_803AF9A8, a MenuSlot's first float", 0x803AF9A8, 4, 2, 4},
-    {"D_803AF9A8, its alpha byte", 0x803AF9E4, 1, 2, 1},
-    {"D_80394270, image B's player colours", 0x80394270, 16, 3, 1},
-    {"D_803942A0/A4", 0x803942A0, 8, 3, 1},
-    {"hitColor", 0x803942E8, 4, 3, 1},
-    {"gViewportOffsetXExtra..gViewportOffsetY, s16[3][4]", 0x8002AFF8, 24, 0, 2},
-    {"video_pending_frames", 0x8002B010, 2, 0, 2},
-    {"gInitFlag and the byte after it", 0x8002B028, 2, 0, 1},
-    {"gDmaInitialized and the byte after it", 0x8002B030, 2, 0, 1},
+    {"gFlashColor1 and gFlashColor2, the menus' flashing text colours", "gFlashColor1", 0, 8, 1, 1},
+    {"flashColors, their source pair (flashColors_at_1 the second)", "flashColors", 0, 8, 1, 1},
+    {"options_buttonColor, the options screen's button colour", "options_buttonColor", 0, 4, 1, 1},
+    {"gShadowColor, the shadow colour", "gShadowColor", 0, 4, 1, 1},
+    {"SheenColors, the sheen colours", "SheenColors", 0, 16, 1, 1},
+    {"Track1Colors, track 1's IR colours", "Track1Colors", 0, 16, 1, 1},
+    {"arrowColors, the arrows' colours", "arrowColors", 0, 20, 1, 1},
+    {"arrow_base_color, the arrow colour", "arrow_base_color", 0, 4, 1, 1},
+    {"cull_box_vertices_a, a Vtx's ob, flag and tc (s16)", "cull_box_vertices_a", 0, 12, 1, 2},
+    {"cull_box_vertices_a, its cn (bytes)", "cull_box_vertices_a", 0xC, 4, 1, 1},
+    {"carscr_solidColor and carscr_normalColor, image A's colours", "carscr_solidColor", 0, 8, 2, 1},
+    {"circuitscr_init_button_color and circuitscr_button_color", "circuitscr_init_button_color", 0, 8, 2, 1},
+    {"loadTrackScreen_backColor", "loadTrackScreen_backColor", 0, 4, 2, 1},
+    {"race_map_vertex_color", "race_map_vertex_color", 0, 4, 2, 1},
+    {"trackscr_init_button_color and trackscr_update_button_color", "trackscr_init_button_color", 0, 8, 2, 1},
+    {"carscr_buttonInfo, a MenuSlot's first float", "carscr_buttonInfo", 0, 4, 2, 4},
+    {"carscr_buttonInfo, its alpha byte", "carscr_buttonInfo", 0x3C, 1, 2, 1},
+    {"hudextra_playerColor, image B's player colours", "hudextra_playerColor", 0, 16, 3, 1},
+    {"stunt_coin_color and weapon_icon_color", "stunt_coin_color", 0, 8, 3, 1},
+    {"hitColor", "hitColor", 0, 4, 3, 1},
+    {"video_default_extra_width.., the viewport offsets, s16[3][4]", "video_default_extra_width", 0, 24, 0, 2},
+    {"video_pending_frames", "video_pending_frames", 0, 2, 0, 2},
+    {"gInitFlag and the byte after it", "gInitFlag", 0, 2, 0, 1},
+    {"decompress_lock_ready and the byte after it", "decompress_lock_ready", 0, 2, 0, 1},
     /* The cheat codes (Egg: a step count, then u32 held and pressed button masks, 20 each; CheckForEgg reads
-     * the masks as words). An opaque Rec164 view (func_8038FF90.c) once left them in the ROM's order. */
-    {"D_803B3460, the first cheat code's step count", 0x803B3460, 4, 2, 1},
-    {"D_803B3460, the first cheat code's button masks", 0x803B3464, 160, 2, 4},
-    {"D_803B3460, the last cheat code's button masks", 0x803B4134, 160, 2, 4},
-    {"D_803B41D4, the main menu's code for the cheat screen", 0x803B41D8, 160, 2, 4},
+     * the masks as words). An opaque Rec164 view (InitEgg.c) once left them in the ROM's order. */
+    {"gEggs, the first cheat code's step count", "gEggs", 0, 4, 2, 1},
+    {"gEggs, the first cheat code's button masks", "gEggs", 4, 160, 2, 4},
+    {"gEggs, the last cheat code's button masks", "gEggs", 0xCD4, 160, 2, 4},
+    {"start_screen_egg, the main menu's code for the cheat screen", "start_screen_egg", 4, 160, 2, 4},
     /* The six car physics descriptors gCarModels points at (0xB4 bytes each: floats and the u32 tire_info words),
      * and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a
      * narrower declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md round 3). */
-    {"D_801108C8, the car physics descriptors", 0x801108D0, 6 * 0xB4, 1, 4},
-    {"D_803B28C8..D_803B2A58, the car select's stat factors", 0x803B28C8, 0x1F0, 2, 4},
+    {"the car physics descriptors, after steady_leg_duration", "steady_leg_duration", 8, 6 * 0xB4, 1, 4},
+    {"gTransStats..gFrameStats, the car select's stat factors", "gTransStats", 0, 0x1F0, 2, 4},
     /* Tables declared as one element, one row or bytes, which the game reads whole at wider widths (DATA.md 8):
      * the level objects' bodies and static states (all f32), the rumble thresholds (s32[36], walked by a
      * pointer), the wings' place per car type (f32[13][3]); and gravityArray's four floats, whose extent by the gap
      * once swapped the strings after it as floats. */
-    {"BBoxCollInfo, the level objects' bodies and static states", 0x80118C10, 460, 1, 4},
-    {"percentTable, the rumble thresholds", 0x801163F8, 144, 1, 4},
-    {"D_8011B4B4, the wings' place per car type", 0x8011B4B4, 156, 1, 4},
-    {"D_801202F8, gravityArray", 0x801202F8, 16, 1, 4},
-    {"the strings after gravityArray", 0x80120308, 20, 1, 1},
+    {"BBoxCollInfo, the level objects' bodies and static states", "BBoxCollInfo", 0, 460, 1, 4},
+    {"percentTable, the rumble thresholds", "percentTable", 0, 144, 1, 4},
+    {"wingOffsets, the wings' place per car type", "wingOffsets", 0, 156, 1, 4},
+    {"gravityArray", "gravityArray", 0, 16, 1, 4},
+    {"the strings after gravityArray", "gravityArray", 16, 20, 1, 1},
     /* The respawn records after FSCLS: an s8 flag and pad, then the place as f32. */
-    {"FSCLS, the first respawn record's flag", 0x801106D0, 4, 1, 1},
-    {"FSCLS, the first respawn record's place", 0x801106D4, 12, 1, 4},
-    {"FSCLS, the last respawn record's flag", 0x801108A0, 4, 1, 1},
+    {"FSCLS, the first respawn record's flag", "FSCLS", 0xC, 4, 1, 1},
+    {"FSCLS, the first respawn record's place", "FSCLS", 0x10, 12, 1, 4},
+    {"FSCLS, the last respawn record's flag", "FSCLS", 0x1DC, 4, 1, 1},
 };
 
 /* Checks known_widths against the images' bytes (after both runtime images are loaded); the number that differ. */
@@ -182,8 +203,14 @@ static uint32_t check_widths(const PcDataTables *t, uint8_t *const img[])
 {
     uint32_t bad = 0;
     for (size_t i = 0; i < sizeof known_widths / sizeof known_widths[0]; i++) {
-        uint32_t n = known_widths[i].len, w = known_widths[i].width, a = known_widths[i].n64;
+        uint32_t n = known_widths[i].len, w = known_widths[i].width, sym = pc_data_addr_of(t, known_widths[i].name);
+        uint32_t a = sym + known_widths[i].off;
         int im = known_widths[i].image;
+        if (!sym) {
+            if (bad++ < 8)
+                printf("  %s: the tables have no symbol %s\n", known_widths[i].what, known_widths[i].name);
+            continue;
+        }
         const uint8_t *host = at(a, im), *src = img[im] + (a - t->images[im].n64_base);
         int ok = host != NULL;
         for (uint32_t o = 0; ok && o < n; o++)
@@ -259,8 +286,8 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
             *want = NULL;
             return 0;
         case 5: {   /* the game heap (the RDRAM window): kept as the N64 address, or its place in the tables' window */
-            uint32_t a = t->heap_lo + rnd() % (0x8038A400u - t->heap_lo);
-            *want = t->window ? (void *)(t->window + (a & 0x1FFFFFFFu)) : (void *)(uintptr_t)a;
+            uint32_t a = t->heap_lo + rnd() % (N64_OVERLAY_BASE - t->heap_lo);
+            *want = t->window ? (void *)(t->window + N64_TO_PHYS(a)) : (void *)(uintptr_t)a;
             return a;
         }
         case 1:
@@ -534,21 +561,30 @@ int main(int argc, char **argv)
     const PcDataTables *tab = &pc_data_tables;
     int placed = 1, high = 1;
     for (uint32_t i = 0; i < tab->n_arenas; i++)   /* or at their place in the tables' window (RUSH_NOFIXED) */
-        placed &= tab->window ? tab->arenas[i].host == tab->window + (tab->arenas[i].n64_lo - 0x80000000u)
+        placed &= tab->window ? tab->arenas[i].host == tab->window + (tab->arenas[i].n64_lo - PC_RDRAM_BASE)
                               : (uintptr_t)tab->arenas[i].host == tab->arenas[i].n64_lo;
     for (uint32_t i = 0; i < tab->n_syms; i++)
         high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
     CHECK(placed, "%u arenas at their N64 addresses (game: %p)", tab->n_arenas, (void *)tab->arenas[1].host);
     CHECK(high, "own storage and game-C data above 4 GB (%s at %p)", tab->syms[0].name, tab->syms[0].host);
-    /* Both runtime images have a function at 0x8038A400 (image A's updateWarningScreen, image B's worlddam
-     * entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
+    /* Both runtime images have a function at their load address, N64_OVERLAY_BASE (image A's updateWarningScreen,
+     * image B's worlddam entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
     const PcDataFunc *f_a = NULL, *f_b = NULL;
     for (uint32_t i = 0; i < tab->n_funcs; i++)
-        if (tab->funcs[i].n64_addr == 0x8038A400u)
+        if (tab->funcs[i].n64_addr == N64_OVERLAY_BASE)
             *(tab->funcs[i].image == 2 ? &f_a : &f_b) = &tab->funcs[i];
     CHECK(f_a && f_b && f_a->host && f_b->host && f_a->host != f_b->host,
-          "0x8038A400 is a function of its own in image A (%s) and in image B (%s)", f_a ? f_a->name : "none",
-          f_b ? f_b->name : "none");
+          "0x%08X is a function of its own in image A (%s) and in image B (%s)", N64_OVERLAY_BASE,
+          f_a ? f_a->name : "none", f_b ? f_b->name : "none");
+    /* The places the ROM's checks below read, by name: in the loader's tables, or (the inflate tables) the symbol
+     * file. Checked here too, so that a run without the ROM finds a name gone. */
+    static const char *const checked[] = {"build_date_text", "wave_rom_offsets", "gWaveSizes", "wave_storage_kinds",
+                                           "wave_is_model"};
+    int named = symbol_file_addr("unzip_border") && symbol_file_addr("unzip_cplens") &&
+                symbol_file_addr("unzip_mask_bits");
+    for (size_t i = 0; i < sizeof checked / sizeof *checked; i++)
+        named &= pc_data_addr_of(tab, checked[i]) != 0;
+    CHECK(named, "the places checked have their names (the loader's tables, %s)", PC_SYMBOL_FILE);
     if (argc > 1 && strcmp(argv[1], "--synthetic") == 0)
         return map_window() != 0 ? 1 : synthetic();
     const char *path = argc > 1 ? argv[1] : PC_DATA_ROM;
@@ -583,8 +619,8 @@ int main(int argc, char **argv)
     pc_data_overlay_load(0);
     pc_data_overlay_load(1);
 
-    /* Boot tail build-info record, 0x8002E440..0x8002E8E0. */
-    const uint8_t *info = at(0x8002E440, 0);
+    /* Boot tail build-info record: build_date_text to the end of the boot data (0x4A0 bytes). */
+    const uint8_t *info = at_name("build_date_text", 0);
     CHECK(info && contains(info, 0x4A0, "07-17-00") && contains(info, 0x4A0, "MERRILL")
           && contains(info, 0x4A0, "BLACKOUT"), "build-info record (07-17-00, MERRILL, BLACKOUT)");
 
@@ -594,7 +630,10 @@ int main(int argc, char **argv)
     static const uint32_t border[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
     static const uint16_t cplens[29] = {3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59,
                                         67, 83, 99, 115, 131, 163, 195, 227, 258};
-    const uint8_t *b = at(0x8002B040, 0), *cl = at(0x8002B08C, 0), *mb = at(0x8002B184, 0);
+    uint32_t at_border = symbol_file_addr("unzip_border"), at_cplens = symbol_file_addr("unzip_cplens");
+    uint32_t at_masks = symbol_file_addr("unzip_mask_bits");
+    const uint8_t *b = at_border ? at(at_border, 0) : NULL, *cl = at_cplens ? at(at_cplens, 0) : NULL;
+    const uint8_t *mb = at_masks ? at(at_masks, 0) : NULL;
     int ok_border = b != NULL, ok_cplens = cl != NULL, masks = mb != NULL;
     for (int i = 0; ok_border && i < 19; i++)
         ok_border = ((uint32_t)b[4 * i] << 24 | (uint32_t)b[4 * i + 1] << 16 | b[4 * i + 2] << 8 | b[4 * i + 3]) == border[i];
@@ -635,9 +674,9 @@ int main(int argc, char **argv)
     CHECK(st->func > 0, "function pointers resolve to host functions");
 
     /* The file table (docs/port/ASSETS.md 2.2): 183 waves. Wrong byte order breaks every one of these. */
-    const uint32_t *wrom = at(0x8011B5BC, 1), *wsize = at(0x8002E580, 0);
-    const int32_t *wkind = at(0x80123564, 1);
-    const int8_t *wmodel = at(0x801234AC, 1);
+    const uint32_t *wrom = at_name("wave_rom_offsets", 1), *wsize = at_name("gWaveSizes", 0);
+    const int32_t *wkind = at_name("wave_storage_kinds", 1);
+    const int8_t *wmodel = at_name("wave_is_model", 1);
     int kinds = 1, models = 1, offsets = 1, sizes = 1, n_kind[3] = {0, 0, 0};
     for (int i = 0; i < 183; i++) {
         kinds &= wkind[i] >= 0 && wkind[i] <= 2;
@@ -649,10 +688,10 @@ int main(int argc, char **argv)
     }
     printf("file table: %d raw, %d LZSS, %d DEFLATE; wave 0 at ROM 0x%X, %u B\n", n_kind[0], n_kind[1], n_kind[2],
            wrom[0], wsize[0]);
-    CHECK(kinds, "file table: storage kinds are 0, 1 or 2 (D_80123564)");
-    CHECK(models, "file table: model flags are 0 or 1 (D_801234AC)");
-    CHECK(offsets, "file table: ROM offsets inside the ROM (D_8011B5BC)");
-    CHECK(sizes, "file table: sizes under 8 MB (D_8002E580)");
+    CHECK(kinds, "file table: storage kinds are 0, 1 or 2 (wave_storage_kinds)");
+    CHECK(models, "file table: model flags are 0 or 1 (wave_is_model)");
+    CHECK(offsets, "file table: ROM offsets inside the ROM (wave_rom_offsets)");
+    CHECK(sizes, "file table: sizes under 8 MB (gWaveSizes)");
 
     /* Element widths at the places listed in known_widths, against the images as the ROM holds them. */
     uint8_t *img[8] = {0};

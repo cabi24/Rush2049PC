@@ -53,7 +53,7 @@ void ZOID_SetBGColor(uint16_t color) { g_fill = color; }
 float tan_cody_waite(float x) { return tanf(x); }
 float fatan(float x) { return atanf(x); }
 static void *g_v2p;
-uint32_t osVirtualToPhysical(void *p) { g_v2p = p; return (uint32_t)(uintptr_t)p & 0x1FFFFFFF; }
+uint32_t osVirtualToPhysical(void *p) { g_v2p = p; return N64_TO_PHYS((uint32_t)(uintptr_t)p); }
 int pc_gfx_hud_dx(int x) { (void)x; return 0; }   /* port/gfx's race HUD at the screen's edges: no move here */
 /* View-space rotation (row vector times matrix) and its inverse; the camera matrices here are rotations. */
 void BodyVector(float *v, float *out, float *m)
@@ -149,7 +149,7 @@ static void test_round_trip(void)
 static void test_frame_clear(void)
 {
     static Gfx dl[8];
-    void *buf0 = (void *)(uintptr_t)0x80300000u, *buf1 = (void *)(uintptr_t)0x80340000u;
+    void *buf0 = (void *)(uintptr_t)TEST_SCRATCH, *buf1 = (void *)(uintptr_t)(TEST_SCRATCH + 0x40000u);
 
     memcpy(frame_records + 0xC8, &buf0, sizeof buf0);
     memcpy(frame_records + 208 + 0xC8, &buf1, sizeof buf1);

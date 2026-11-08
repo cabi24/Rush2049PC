@@ -179,8 +179,8 @@ int main(void)
     }
     for (i = 0; i < 256; i++)
         test_put16(w + 0x200000 + 2 * i, (uint16_t)(0x8000 | i));   /* the WAD's TLUT, big-endian */
-    g_wad_palette.data = 0x80200000u;
-    car_palettes[3].data = 0x80201000u;   /* the car's descriptor block */
+    g_wad_palette.data = PC_RDRAM_BASE + 0x200000u;     /* window addresses */
+    car_palettes[3].data = PC_RDRAM_BASE + 0x201000u;   /* the car's descriptor block */
     gCarParts[3].root = 42;
     gCarParts[3].secondary = 43;
     memset(ObjInstanceList, 0, sizeof(ObjInstanceList));

@@ -15,6 +15,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "pc_n64_map.h"   /* the N64's memory map: the RDRAM window's constants (PC_RDRAM_BASE ...) */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,18 +27,10 @@ extern "C" {
 const uint8_t *pc_rom_bytes(void);
 size_t pc_rom_size(void);
 
-/* The N64's RDRAM as the game addresses it outside its own symbols (the heap, frame buffers, the overlay
- * region at 0x8038A400). Mapped at host address 0x80000000 where the OS allows it, so N64 addresses in that
- * range are host addresses; elsewhere these translate. */
-#define PC_RDRAM_BASE 0x80000000u
-#define PC_RDRAM_SIZE 0x00800000u
+/* The N64's RDRAM as the game addresses it outside its own symbols: the RDRAM window, PC_RDRAM_BASE to
+ * PC_RDRAM_BASE + pc_rdram_size() in the N64's KSEG0 (its constants and why: pc_n64_map.h, the N64's memory map). */
 void *pc_n64_ptr(uint32_t n64_addr);      /* K0/K1/physical address -> host pointer (NULL if outside RDRAM) */
 uint32_t pc_n64_addr(const void *host);   /* host pointer into RDRAM -> K0 address (0 if outside) */
-/* game.memory (docs/port/MEMORY.md). PC_RDRAM_SIZE is the N64's 8 MiB, the window at `original`; a size gives the
- * game a window (and osMemSize) of up to PC_RDRAM_MAX. From PC_RCP_SEGMENT_SPAN on, a physical address would read
- * as a segmented one to the RSP (its segment id is bits 24-27), so the PC gives the RCP the K0 address there. */
-#define PC_RDRAM_MAX 0x10000000u
-#define PC_RCP_SEGMENT_SPAN 0x01000000u
 uint32_t pc_rdram_size(void);             /* the window's size: PC_RDRAM_SIZE until pc_mem_set_size */
 /* port/ultra/rcpaddr.c (game C reaches them through pc_prelude.h): a K0 address in the window past 16 MiB, and the
  * display-list relocation's rule, the N64's `((w1 + base) & 0xFFFFFF) | segment` but for the K0 address there. */
@@ -98,10 +92,10 @@ void pc_pace_info(PcPaceInfo *out);
 
 /* Fill the boot and game images' initialized data from the ROM. 0 on success. */
 int pc_data_init(const uint8_t *rom, size_t rom_size);
-/* The window when it isn't at host 0x80000000 (port/data/pc_data.h, docs/port/NOFIXED.md 5), before pc_data_init. */
+/* The window when it isn't at host PC_RDRAM_BASE (port/data/pc_data.h, docs/port/NOFIXED.md 5), before pc_data_init. */
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
 
-/* An overlay "load": both runtime images share 0x8038A400 on the N64; natively both are linked in, and a load
+/* An overlay "load": both runtime images share N64_OVERLAY_BASE on the N64; natively both are linked in, and a load
  * resets that image's data to its initial values and zeroes its BSS. */
 enum { PC_OVERLAY_A = 0, PC_OVERLAY_B = 1 };
 void pc_data_overlay_load(int overlay);

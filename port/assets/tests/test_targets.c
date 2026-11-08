@@ -51,18 +51,17 @@ typedef struct { uint8_t doubly, n64; int32_t count, size; void *mem, *active, *
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a node field at its N64 offset */
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 #define WP(a) ((void *)(uintptr_t)(a))
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODES 0x8014D280u            /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
+#define NODES TEST_N64(gTargetArray)  /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
 #define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
-ABS(gTargetArray, 0x8014D280);
-ABS(BBoxCollInfo, 0x80118C10);         /* the dead-reckoning bodies (arena data) */
+TEST_ABS(gTargetArray);
+TEST_ABS(BBoxCollInfo);              /* the dead-reckoning bodies (arena data) */
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-#define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap), the track's records */
+#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap), the track's records */
 
 TInfo targetInfo[122];
 StatLL gTargetList, gAlwaysColList;
@@ -316,7 +315,7 @@ static void test_instantiate(void)
     CHECK(gTargetOwnStructPtrs[2] == gTargetStructPtrs[2] + 24 && ctl == gTargetStructPtrs[4]);
     CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &gTargetPaths.paths[1] */
     CHECK(W32(gBBoxModelStructs) >= HEAP && NF(cam, 0x65, int8_t) == 0 && gBBoxModelUsed == 1);
-    CHECK(NF(gBBoxModelStructs, 0, uint32_t) == 0x80118C10u + 2 * 32);    /* its body record */
+    CHECK(NF(gBBoxModelStructs, 0, uint32_t) == TEST_N64(BBoxCollInfo) + 2 * 32);    /* its body record */
     CHECK(NF(gBBoxModelStructs, 4, float) == 1.0f && NF(gBBoxModelStructs, 0x14, float) == 1.0f);
     CHECK(NF(ObjInstanceList + 7 * 0x68, 0x18, uint16_t) == 0x1234);    /* the cone's texture (N64 +0x14) */
     v = (struct pc_visual *)gEnvList;                              /* the cone's animation */
@@ -559,7 +558,7 @@ static void scene_cars(uint8_t *cam, uint8_t *sc)
  * and by the response (setMiniFBCollisionForce), which reads the record's basis, position and velocity after it. */
 static void test_reckon(void)
 {
-    uint8_t *obj = NODE(1), *body = WP(0x80118C10u + 2 * 32), *rec = gBBoxModelStructs, *m = MODEL(0);
+    uint8_t *obj = NODE(1), *body = TEST_AT(BBoxCollInfo) + 2 * 32, *rec = gBBoxModelStructs, *m = MODEL(0);
     int16_t index = 0;
     float dir[3] = {0, 0, 0}, pos[3] = {0, 0, 0};
 

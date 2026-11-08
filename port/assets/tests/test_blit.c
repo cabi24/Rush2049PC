@@ -143,7 +143,7 @@ int main(void)
         mb[0].width = mb[0].height = -1;
         mb[0].alpha = 255;
         mb[0].animfunc = callback;
-        mb[0].animid = 0x80000003u;
+        mb[0].animid = 1u << 31 | 3u;   /* id 3, its top bit set */
         mb[1].texname = "TITLE";
         mb[1].dulx = 5;
         mb[1].width = mb[1].height = -1;

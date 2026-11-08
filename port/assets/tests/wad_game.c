@@ -7,7 +7,7 @@
  * MBOX_FindPalette_WORK and their slot test (ModelActive), and the texture animation: its set-up
  * (InitTextureAnimation) and per-frame update (TextureAnimation) with the TXLD helpers displaylist_get_texture_image, displaylist_set_texture_image and
  * displaylist_set_tile_size. This file stands in for the rest: the wave and animation tables, a PI DMA from a
- * synthetic cartridge, and the RDRAM window at host 0x80000000, which the game's 32-bit relocation needs. The window
+ * synthetic cartridge, and the RDRAM window at host PC_RDRAM_BASE, which the game's 32-bit relocation needs. The window
  * is 64 MiB, game.memory's (docs/port/MEMORY.md 3, 6), and the WAD is loaded past 16 MiB too: there the relocated
  * display-list words are K0 addresses (port/ultra/rcpaddr.c), which the walkers follow. */
 #define _GNU_SOURCE
@@ -96,10 +96,10 @@ char *game_strcpy(char *dst, const char *src) { return strcpy(dst, src); }
 static uint8_t *g_rdram;
 void *pc_n64_ptr(uint32_t a)
 {
-    uint32_t phys = a >= 0x80000000u && a < 0xC0000000u ? a & 0x1FFFFFFFu : a;
+    uint32_t phys = N64_IS_KSEG0_OR_1(a) ? N64_TO_PHYS(a) : a;
     return phys < WINDOW ? g_rdram + phys : NULL;
 }
-uint32_t pc_n64_addr(const void *p) { return 0x80000000u + (uint32_t)((const uint8_t *)p - g_rdram); }
+uint32_t pc_n64_addr(const void *p) { return PC_RDRAM_BASE + (uint32_t)((const uint8_t *)p - g_rdram); }
 uint32_t pc_rdram_size(void) { return WINDOW; }
 
 void ReadWave(int32_t slot);   /* _ReadWave */
@@ -117,7 +117,7 @@ static uint32_t b32(uint32_t a) { return pc_be32(pc_n64_ptr(a)); }
 static uint16_t b16(uint32_t a) { return pc_be16(pc_n64_ptr(a)); }
 #define PHYS(a) ((a) & 0xFFFFFFu)
 /* A relocated display-list address: physical (the N64's 24 bits) below 16 MiB, past it K0 (docs/port/MEMORY.md 3). */
-#define RCP(a) (((a) & 0x1FFFFFFFu) >= 0x01000000u ? (a) : PHYS(a))
+#define RCP(a) (N64_TO_PHYS(a) >= PC_RCP_SEGMENT_SPAN ? (a) : PHYS(a))
 
 /* Loads the synthetic WAD as wave 101 (a track: it has PTHD) into slot at base, as LoadWave would. */
 static void load(int slot, uint32_t base)
@@ -175,7 +175,7 @@ int main(void)
     gWaveSizes[101] = (int32_t)size;
 
     /* One player, forward, mirrored: LOD bit 1 kept, bit 2 becomes a branch; s and the windings flip. */
-    uint32_t base = 0x80200000u;
+    uint32_t base = PC_RDRAM_BASE + 0x200000u;   /* the slot's block: a window address at 2 MiB */
     gNumPlayers = 1, gBackwards = 0, gMirrorWaves = 1;
     load(3, base);
     check_tables(3, base);
@@ -237,7 +237,7 @@ int main(void)
     }
 
     /* Two players, no mirror: bit 1 becomes the branch, bit 2 stays; nothing flips. */
-    uint32_t base2 = 0x80300000u;
+    uint32_t base2 = PC_RDRAM_BASE + 0x300000u;
     gNumPlayers = 2, gMirrorWaves = 0;
     load(4, base2);
     check_tables(4, base2);
@@ -262,7 +262,7 @@ int main(void)
     /* game.memory: the same WAD past 16 MiB, one player, mirrored, as at base. Its relocated words are K0 addresses,
      * which the mirror pass (display_list_traverse) follows to the called list and the branch, and the vertex pass
      * (mirror_vertex_texcoords) to the vertices; with the N64's 24 bits they would be 16 MiB lower. */
-    uint32_t base3 = 0x81200000u;
+    uint32_t base3 = PC_RDRAM_BASE + 0x1200000u;   /* at 18 MiB */
     gNumPlayers = 1, gBackwards = 0, gMirrorWaves = 1;
     load(5, base3);
     check_tables(5, base3);

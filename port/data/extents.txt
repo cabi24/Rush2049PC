@@ -6,7 +6,7 @@
 # name size. Better still: give the C declarations their size, then drop the line.
 
 # The file table (docs/port/ASSETS.md 2.2): 183 entries each; the next table starts after.
-wave_rom_offsets 0x2DC    # ROM offset, u32[183]; track 1's PVS starts at 0x8011B898
+wave_rom_offsets 0x2DC    # ROM offset, u32[183]; track 1's PVS (track1Parts) starts after it
 gWaveSizes 0x2DC    # size in RAM, u32[183]; gLargestTextWave follows
 wave_storage_kinds 0x2DC    # storage kind, s32[183]
 wave_is_model 0xB7     # model flag, s8[183]

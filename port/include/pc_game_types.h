@@ -6,7 +6,7 @@
 #ifndef PC_GAME_TYPES_H
 #define PC_GAME_TYPES_H
 
-/* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes at 0x80153E88-0x80153EF0, BSS).
+/* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
  * per-car arrays are 6 long), but LoadCars, InitVisuals and InitSelectCarLoad walk all 13, so the storage is never
  * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC (12, twice the N64's 6); nothing
@@ -62,7 +62,7 @@ void pc_scene_count(int what, int n);
 
 /* ---- The pools a race fills, and the start grid (docs/port/MORECARS.md 8 and 4).
  * GetMatrix (ZOID_NewMatrix) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
- * PC_N64_MATRICES at gMatrices (0x8015F740-0x80161360, index 0 unused), then PC_MATRIX_SPILL more in
+ * PC_N64_MATRICES at gMatrices (index 0 unused), then PC_MATRIX_SPILL more in
  * pc_matrix_spill, a range of the RDRAM window the PC reserves (port/data/reserved.txt: bytes the decoupled model
  * records freed). They stay in the window: a window's camera matrix is kept as a u32 (skyMatrices, MORECARS.md 2.7).
  * About 12 a car: a 6-car race on track 0 takes indexes 1-130, a 12-car one 1-202. */
@@ -132,8 +132,8 @@ extern struct pc_link pc_links[PC_LINK_SLOTS];
 #define PC_LINKP_FLAGS(p) ((p)->flags)
 #define PC_LINKP_OWNER(p) ((p)->owner)
 
-/* ---- The model records: MAT3 model[], tModelData, N64 D_8014A250 (6 records of 0x808 bytes at 0x8014A250-
- * 0x8014D280, BSS). One record per car slot: its physics state, controls and race state. The record keeps its N64
+/* ---- The model records: MAT3 model[], tModelData, N64 D_8014A250 (6 records of 0x808 bytes, BSS). One record per
+ * car slot: its physics state, controls and race state. The record keeps its N64
  * layout on the PC (its pointer fields are u32 window addresses, docs/port/CARS.md 4), so its size is 0x808 here
  * too and code that steps through it by 0x808 still lands on the fields. Every walk of it stops at 6 (the cars in
  * the race, gNumCars, gNumActiveCars, MAX_LINKS), so the storage is PC_MODEL_SLOTS = the larger of 6 and
@@ -267,8 +267,8 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_DRONE_SCALE(i) (pc_models[i].drone_scale)
 #define PC_MODEL_TIME_BOOST(i) (pc_models[i].time_boost)
 
-/* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar = gGameCar (6 records of 0x3B8 bytes at
- * 0x80152818-0x80153E68, BSS; sample_dma_pi_queue, a message queue, follows). One record per car slot: its position and
+/* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar (6 records of 0x3B8 bytes, BSS; sample_dma_pi_queue,
+ * a message queue, follows). One record per car slot: its position and
  * orientation for the cameras and effects, its visuals, its place and finish, and its battle state. On the PC a
  * record is 0x468 bytes (docs/port/CARS.md 2): its 21 visuals hold host pointers (0x20 bytes each, not 0x18) and
  * its input record pointer at N64 +0x380 is 8 bytes, so a field's PC offset is CAR_OFS of its N64 one
@@ -528,9 +528,8 @@ extern float pc_finish_cam_time[PC_MAX_LINKS];
  * update_drone_models. And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake
  * and gas PS_PurgeFile and AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last
  * direction and last direction to the target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones
- * (the attract demo), so each is PC_MAX_LINKS long. The N64's extents end at the next symbol, or at a static of
- * HAL_DrawText (HAL_DrawText: lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0,
- * lastFontYpos 0x80154180), which is a host static on the PC. */
+ * (the attract demo), so each is PC_MAX_LINKS long. The N64's extents end at the next symbol, or at one of
+ * HAL_DrawText's statics (lastFontColor, lastTrans, lastFontXpos, lastFontYpos), which are host statics on the PC. */
 extern short pc_drones[PC_MAX_LINKS];
 extern short pc_our_drones[PC_MAX_LINKS];
 extern float pc_mp_steer[PC_MAX_LINKS];

@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "gsm.h"
+#include "pc_n64_map.h"   /* N64_KSEG0: the emulator's addresses are the N64's */
 
 int gsm_decode_frame(GsmState *s, unsigned char *c, short *target);   /* the game's frame decoder */
 
@@ -55,13 +56,33 @@ static int32_t rnd_word(void)
 
 /* ---------------------------------------------------------------- the MIPS code, interpreted */
 
-enum {
-    CODE_BASE = 0x800277D0, CODE_SIZE = 0x600, ROM_TO_VRAM = 0x7FFFF400,   /* kernels.s: ROM 0x283D0 */
-    RPE = 0x800277D0, LTP = 0x800278C4, STP = 0x80027B44, NORM_TABLE = 0x800278BC, QLB_TABLE = 0x80027978,
-    RAM_BASE = 0x80100000, RAM_SIZE = 0x4000, RET_MAGIC = 0x80000180,
-    E_S = RAM_BASE, E_XMC = RAM_BASE + 0x400, E_ERP = RAM_BASE + 0x500, E_WT = RAM_BASE + 0x600,
-    E_OUT = RAM_BASE + 0x800, E_FS = RAM_BASE + 0x1000,   /* E_FS: the frame test's decoder state */
+/* The kernels' code, CODE_SIZE bytes from the first kernel's N64 address (g_code_base), and the kernels and the two
+ * tables inside them that the test calls and reads, by their names in kernels.s: load_kernels takes each one's N64
+ * address from there. */
+#define CODE_SIZE 0x600u
+static uint32_t g_code_base, g_rpe, g_ltp, g_stp, g_norm_table, g_qlb_table;
+static const struct {
+    const char *name;
+    uint32_t *addr;
+} k_labels[] = {
+    {"gsm_rpe_decode", &g_rpe},                  /* RPE decoding (4.2.16, 4.2.17), the first kernel */
+    {"gsm_small_xmaxc_table", &g_norm_table},    /* xmaxc's exponent and mantissa below 16, inside it */
+    {"gsm_long_term_synthesis", &g_ltp},         /* long-term synthesis (4.3.2) */
+    {"gsm_ltp_gain_levels", &g_qlb_table},       /* QLB, the LTP gains, inside it */
+    {"gsm_short_term_filter", &g_stp},           /* short-term synthesis (4.2.8 - 4.2.10) */
 };
+/* The emulator's RAM, at a KSEG0 address of the test's own (the kernels address their buffers as on the N64), the
+ * buffers in it, and the return address emu_call gives a kernel: the general exception vector, which is no kernel's
+ * code. */
+#define RAM_BASE (N64_KSEG0 + 0x100000u)
+#define RAM_SIZE 0x4000u
+#define RET_MAGIC (N64_KSEG0 + 0x180u)
+#define E_S RAM_BASE
+#define E_XMC (RAM_BASE + 0x400u)
+#define E_ERP (RAM_BASE + 0x500u)
+#define E_WT (RAM_BASE + 0x600u)
+#define E_OUT (RAM_BASE + 0x800u)
+#define E_FS (RAM_BASE + 0x1000u)   /* the frame test's decoder state */
 static uint8_t g_code[CODE_SIZE], g_ram[RAM_SIZE];
 static uint32_t g_reg[32], g_lo, g_hi;
 static long g_emu_calls, g_emu_insns;
@@ -71,7 +92,9 @@ static uint32_t get32(const uint8_t *p) { return get16(p) << 16 | get16(p + 2); 
 static void put16(uint8_t *p, uint32_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
 static void put32(uint8_t *p, uint32_t v) { put16(p, v >> 16); put16(p + 2, v); }
 
-/* The kernels' 384 words, from the address comments spimdisasm wrote (the build assembles the same words). */
+/* The kernels' 384 words, from the address comments spimdisasm wrote (ROM offset, address, word; the build
+ * assembles the same words), and the N64 address of each label k_labels names: its first word's. The code starts at
+ * the first word's address; every word's ROM offset and address keep that word's distance. */
 static int load_kernels(const char *path)
 {
     static uint8_t seen[CODE_SIZE / 4];
@@ -80,21 +103,37 @@ static int load_kernels(const char *path)
         printf("FAIL cannot open %s\n", path);
         return 0;
     }
-    char line[512];
+    char line[512], label[128] = "";
+    uint32_t rom_to_vram = 0;
     while (fgets(line, sizeof line, f)) {
         unsigned rom, vram, word;
         const char *p = strstr(line, "/* ");
-        if (!p || sscanf(p, "/* %x %x %x */", &rom, &vram, &word) != 3 || rom + ROM_TO_VRAM != vram)
+        if (sscanf(line, " glabel %127s", label) == 1 || sscanf(line, " dlabel %127s", label) == 1)
+            continue;   /* the next word is the label's */
+        if (!p || sscanf(p, "/* %x %x %x */", &rom, &vram, &word) != 3)
             continue;
-        if (vram >= CODE_BASE && vram < CODE_BASE + CODE_SIZE && !(vram & 3)) {
-            put32(g_code + (vram - CODE_BASE), word);
-            seen[(vram - CODE_BASE) / 4] = 1;
+        if (!g_code_base)
+            g_code_base = vram, rom_to_vram = vram - rom;
+        if (rom + rom_to_vram != vram)
+            continue;
+        for (size_t i = 0; label[0] && i < sizeof k_labels / sizeof *k_labels; i++)
+            if (strcmp(label, k_labels[i].name) == 0)
+                *k_labels[i].addr = vram;
+        label[0] = 0;
+        if (vram >= g_code_base && vram < g_code_base + CODE_SIZE && !(vram & 3)) {
+            put32(g_code + (vram - g_code_base), word);
+            seen[(vram - g_code_base) / 4] = 1;
         }
     }
     fclose(f);
     for (unsigned i = 0; i < sizeof seen; i++)
         if (!seen[i]) {
-            printf("FAIL %s: no word for %08X\n", path, CODE_BASE + 4 * i);
+            printf("FAIL %s: no word for %08X\n", path, g_code_base + 4 * i);
+            return 0;
+        }
+    for (size_t i = 0; i < sizeof k_labels / sizeof *k_labels; i++)
+        if (*k_labels[i].addr - g_code_base >= CODE_SIZE) {
+            printf("FAIL %s: no %s in the kernels' code\n", path, k_labels[i].name);
             return 0;
         }
     return 1;
@@ -106,8 +145,8 @@ static uint8_t *emu_ptr(uint32_t a, unsigned size, int write)
         return NULL;
     if (a >= RAM_BASE && a - RAM_BASE <= RAM_SIZE - size)
         return g_ram + (a - RAM_BASE);
-    if (!write && a >= CODE_BASE && a - CODE_BASE <= CODE_SIZE - size)
-        return g_code + (a - CODE_BASE);   /* the inline tables */
+    if (!write && a >= g_code_base && a - g_code_base <= CODE_SIZE - size)
+        return g_code + (a - g_code_base);   /* the inline tables */
     return NULL;
 }
 static void w16(uint32_t a, int v) { put16(emu_ptr(a, 2, 1), (uint32_t)v); }
@@ -143,9 +182,9 @@ static int emu_call(uint32_t entry, int32_t a0, int32_t a1, int32_t a2, int32_t 
                 return emu_fail("s0-s7/sp not preserved", entry, 0);
             return 1;
         }
-        if (pc - CODE_BASE >= CODE_SIZE || (pc & 3))
+        if (pc - g_code_base >= CODE_SIZE || (pc & 3))
             return emu_fail("pc outside the kernels", pc, 0);
-        uint32_t in = get32(g_code + (pc - CODE_BASE)), at = pc;
+        uint32_t in = get32(g_code + (pc - g_code_base)), at = pc;
         pc = npc;   /* the delay slot */
         npc += 4;
         uint32_t op = in >> 26, rs = in >> 21 & 31, rt = in >> 16 & 31, rd = in >> 11 & 31, sa = in >> 6 & 31;
@@ -260,7 +299,7 @@ static int emu_rpe(short xmaxcr, short Mcr, short xMcr[13], short erp[40])
         w16(E_XMC + 2 * i, xMcr[i]);
     for (int k = 0; k < 40; k++)
         w16(E_ERP + 2 * k, 0x5A5A);
-    int ok = emu_call(RPE, xmaxcr, Mcr, E_XMC, E_ERP);
+    int ok = emu_call(g_rpe, xmaxcr, Mcr, E_XMC, E_ERP);
     for (int i = 0; i < 13; i++)
         xMcr[i] = r16(E_XMC + 2 * i);
     for (int k = 0; k < 40; k++)
@@ -272,7 +311,7 @@ static int emu_ltp(GsmState *S, short Ncr, short bcr, const short erp[40])
     state_to_emu(S, E_S);
     for (int k = 0; k < 40; k++)
         w16(E_ERP + 2 * k, erp[k]);
-    int ok = emu_call(LTP, (int32_t)E_S, Ncr, bcr, E_ERP);
+    int ok = emu_call(g_ltp, (int32_t)E_S, Ncr, bcr, E_ERP);
     state_from_emu(S, E_S);
     return ok;
 }
@@ -285,7 +324,7 @@ static int emu_stp(GsmState *S, const short *wt, short s[160])
             w16(E_WT + 2 * k, wt[k]);
     for (int k = 0; k < 160; k++)
         w16(E_OUT + 2 * k, 0x5A5A);
-    int ok = emu_call(STP, (int32_t)E_S, (int32_t)(wt ? E_WT : E_S), (int32_t)E_OUT, 0x5A5A);
+    int ok = emu_call(g_stp, (int32_t)E_S, (int32_t)(wt ? E_WT : E_S), (int32_t)E_OUT, 0x5A5A);
     state_from_emu(S, E_S);
     for (int k = 0; k < 160; k++)
         s[k] = r16(E_OUT + 2 * k);
@@ -497,11 +536,12 @@ static void test_tables(void)
     for (int x = 0; x < 8; x++) {
         int exp, mant;
         ref_xmaxc_norm(x, &exp, &mant);
-        CHECK((signed char)g_code[NORM_TABLE - CODE_BASE + x] == (signed char)(exp * 16 + mant),
-              "D_800278BC[%d] is not xmaxc %d's (exp %d, mant %d)", x, x, exp, mant);
+        CHECK((signed char)g_code[g_norm_table - g_code_base + x] == (signed char)(exp * 16 + mant),
+              "gsm_small_xmaxc_table[%d] is not xmaxc %d's (exp %d, mant %d)", x, x, exp, mant);
     }
     for (int b = 0; b < 4; b++)
-        CHECK((short)get16(g_code + QLB_TABLE - CODE_BASE + 2 * b) == QLB[b], "D_80027978[%d] is not QLB", b);
+        CHECK((short)get16(g_code + g_qlb_table - g_code_base + 2 * b) == QLB[b], "gsm_ltp_gain_levels[%d] is not QLB",
+              b);
 }
 
 static void check_rpe(short xmaxcr, short Mcr, const short xMc[13], int valid)
@@ -732,15 +772,15 @@ static int emu_frame(const Frame *f, short out[160])
     for (int j = 0; j < 4; j++) {
         for (int i = 0; i < 13; i++)
             w16(E_XMC + 2 * i, f->xMc[13 * j + i]);
-        ok &= emu_call(RPE, f->xmaxc[j], f->Mc[j], E_XMC, E_ERP);
-        ok &= emu_call(LTP, (int32_t)E_FS, f->Nc[j], f->bc[j], E_ERP);
+        ok &= emu_call(g_rpe, f->xmaxc[j], f->Mc[j], E_XMC, E_ERP);
+        ok &= emu_call(g_ltp, (int32_t)E_FS, f->Nc[j], f->bc[j], E_ERP);
     }
     short LARpp[8], j = r16(E_FS + 0x188);
     g_spec = 0;
     ref_lar_decode(f->LARc, LARpp);   /* the game's C formula, for every coded value */
     for (int i = 0; i < 8; i++)
         w16(E_FS + 0x168 + 16 * j + 2 * i, LARpp[i]);
-    ok &= emu_call(STP, (int32_t)E_FS, (int32_t)E_FS, (int32_t)E_OUT, 0);
+    ok &= emu_call(g_stp, (int32_t)E_FS, (int32_t)E_FS, (int32_t)E_OUT, 0);
     w16(E_FS + 0x188, j ^ 1);
     for (int k = 0; k < 160; k++)
         out[k] = r16(E_OUT + 2 * k);

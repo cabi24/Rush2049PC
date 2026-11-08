@@ -140,7 +140,7 @@ endforeach()
 # The harness on port/ultra's own RDRAM window (memory.c) at game.memory 64, in place of an 8 MiB buffer of its own:
 # highmem draws a scene from 1 MiB, 18 MiB and the window's last MiB at K0 and physical addresses, its colour image
 # there too, and every picture must be the first's (docs/port/MEMORY.md 6); belist and textures check the harness.
-# Skipped (77) where the window can't be mapped at 0x80000000.
+# Skipped (77) where the window can't be mapped at its fixed host address (PC_RDRAM_BASE).
 add_executable(gfx_window_test tests/gfx_test.c tests/clip_check.c ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/memory.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/rcpaddr.c)
 set_target_properties(gfx_window_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF

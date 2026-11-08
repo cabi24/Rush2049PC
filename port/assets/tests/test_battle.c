@@ -26,15 +26,14 @@ typedef struct { void *object; int16_t active, count; } Slot;
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a node field at its N64 offset */
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 #define WP(a) ((void *)(uintptr_t)(a))
-#define ABS(name, addr) __asm__(".globl " #name "\n.set " #name ", " #addr)
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODES 0x8014D280u            /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
+#define NODES TEST_N64(gTargetArray)  /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
 #define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
-ABS(gTargetArray, 0x8014D280);
-#define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap, audio_dma_sync) */
+TEST_ABS(gTargetArray);
+#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap, audio_dma_sync) */
 
 StatLL gTargetList, gAlwaysColList;
 

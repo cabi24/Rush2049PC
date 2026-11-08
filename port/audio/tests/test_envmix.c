@@ -116,7 +116,7 @@ int main(void)
     for (int s = 0; s < 3; s++) {
         dc_voice(&sfd.voices[s], dc30k);
         sfd.voices[s].env[0] = 0x7FFF << 16;
-        sfd.voices[s].env[1] = (int32_t)0x80000000u;
+        sfd.voices[s].env[1] = INT32_MIN;
         sfd.voices[s].env[2] = 0x1000 << 16;
         sfd.voices[s].env[3] = (0x2000 + s) << 16;
     }
