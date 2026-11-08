@@ -155,11 +155,6 @@ void AudKillSong(void);                           /* 1: stop the song */
 void AudStopAllEffects(void);                           /* 7: stop every effect */
 void AudPauseAllEffects(void);
 void AudSetMasterVol(float blend, float amount, int32_t first, int32_t second);   /* 10: the volumes */
-void us_AudKillSong(void);                                /* the audio screen's way out */
-void di_post_type1(void);                                 /* its way in */
-void post_msg_a(void);                                    /* updateAudioScreen's two */
-void post_msg_b(void);
-void AudKillSong_TTL(void);                               /* the high score screen's */
 void post_type1(void);                                    /* the audio shutdown's (carcolor's, their owner) */
 void post_type7(void);
 void AudioShutdown(void);                                 /* the audio shutdown */
@@ -195,9 +190,7 @@ static const struct { const char *name; void (*post)(void); int cmd; } POSTERS[]
     {"AudResumeAllEffects", AudResumeAllEffects, 9},          {"AudMono", AudMono_1, 11},
     {"AudPlaySong", sync_entry_register_3, 0}, {"AudKillSong", AudKillSong, 1},
     {"AudStopAllEffects", AudStopAllEffects, 7}, {"AudPauseAllEffects", AudPauseAllEffects, 7},
-    {"AudSetMasterVol", speed_set_half, 10},            {"us_AudKillSong", us_AudKillSong, 1},
-    {"di_post_type1", di_post_type1, 1},          {"post_msg_a", post_msg_a, 1},
-    {"post_msg_b", post_msg_b, 1},                {"AudKillSong_TTL", AudKillSong_TTL, 1},
+    {"AudSetMasterVol", speed_set_half, 10},
 };
 
 static void posters(void)

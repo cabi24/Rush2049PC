@@ -107,7 +107,6 @@ extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 extern AudMsg *GetCmd(void);
 
-void AudKillSong_TTL(void);
 extern void AudPlaySong(s32 song, s32 loop);
 extern void AudSetMasterVol(f32 blend, f32 amount, s32 first, s32 second);
 extern void *memcpy(void *dst, const void *src, s32 n);
@@ -135,6 +134,7 @@ void SaveFlush_TTL(s32 x)
 }
 
 void AudSetMusicVol(f32 blend, f32 amount);
+void AudKillSong(void);
 void highscore_InitScreen(void)
 {
     s32 p;
@@ -146,7 +146,7 @@ void highscore_InitScreen(void)
 
     stuffUnlocked = 0;
     gSavedGhost = 0;
-    AudKillSong_TTL();
+    AudKillSong();
     if (gOptions.song < 13) {
         AudPlaySong_TTL(5, 1);
         AudSetMusicVol(gOptions.musicVol / 10.0f, 0.05f);
@@ -212,12 +212,3 @@ void highscore_InitScreen(void)
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,(void *)0,0);return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)((s8 *)(m))[3]=0
-void AudKillSong_TTL(void)
-{
-    AudMsg *msg;
-
-    osRecvMesg(&audio_lock_queue, (void **)0, 1);
-    msg = GetCmd(); PC_CMD_OR_UNLOCK(msg) msg->cmd = 1;
-    osSendMesg(&audio_lock_queue, (void *)0, 0);
-    PC_CMD_SEND(&audio_command_queue, msg);
-}

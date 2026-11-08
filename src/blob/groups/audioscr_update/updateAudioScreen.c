@@ -11,15 +11,15 @@
  *                          (gOptions.sfx), 1 music volume (.music), 2 music track (audio_gSong 0..13, 12 = random via
  *                          StartGameMusicInternal(0), 13 = off), 3 stereo/mono (.mono, AudMono). A/B/Start leave
  *                          (PlayStartABSound, exitAudioScreen = 2); A on the track row restarts the track; left/right
- *                          move the row (gAudioMenuSelect, wrap 0..3); up/down change the value; post_msg_a/post_msg_b send a
- *                          type-1 message to the audio slot queue (AudioShutdown's post_type1 idiom).
+ *                          move the row (gAudioMenuSelect, wrap 0..3); up/down change the value; AudKillSong stops the song
+ *                          before a new track (MAT3 updateAudioScreen does so; the N64 inlined it twice).
  * Levers (each measured in the unit):
  *  - every AudSetMasterVol call is the locked kept wrapper AudSetMusicVol/AudSetFxVol and StartGameMusicInternal(0) is
  *    the locked StartGameMusic(), all umerge-inlined (8-byte inline areas = retail frame 256).
  *  - audio_updateButtons compares `i == gAudioMenuSelect` directly; s7 = &audio_buttonsJustInited and s8 = 1 come from the inlined
  * audio_validOption visibility test (the gAudioMenuSelect getter was a stand-).
  * Disclosed shaping:
- *  1. updateAudioScreen: one compiled-out block end `do {} while (0);` right after post_msg_b() on the track row. Traced:
+ *  1. updateAudioScreen: one compiled-out block end `do {} while (0);` right after the second AudKillSong() on the track row. Traced:
  *     without it the post block (GetCmd's precoloured v0 result) shares a uopt block with the audio_gSong
  *     address web, so v0 is forbidden to that web and it takes a1 at all four track sites (15 words).
  *  2. Unused locals that are the exact frame residual:
@@ -27,9 +27,7 @@
  *     audio_updateButtons `m[3][3]`, `k` (retail 144, without them 104; 10 slots), `cur` and `d` (1 slot each: removal
  *     moves old/sel_y/tex off retail's homes 76/68/62; the sibling video_updateButtons has the same `cur`/`d`).
  *  3. Helper identities: audio_validOption = constant-1 row predicate (hypothesis supported by the stub position, the
- *     unfolded `li v0,1` in updateAudioScreen and the s7/s8 webs in audio_updateButtons); post_msg_a/post_msg_b are two
- *     non-static copies of AudioShutdown's post_type1 (no retail stubs; one shared helper with two call sites is
- *     not inlined by umerge). Non-static and not on keep, so uld makes them internal and umerge inlines them.
+ *     unfolded `li v0,1` in updateAudioScreen and the s7/s8 webs in audio_updateButtons).
  *  4. Old-style declarations with the right return type: MBOX_FindTexture_WORK(), MBOX_HideObject(), MBOX_ShowObject().
  */
 typedef signed char s8;
@@ -215,29 +213,10 @@ void audio_updateButtons(void);
  * given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-void post_msg_a(void) {
-    Msg *sp1C;
-    Msg *temp_v0;
-
-    audio_lock();
-    temp_v0 = GetCmd(); PC_CMD_OR_UNLOCK(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 1; audio_unlock();
-    PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, sp1C);
-}
-
-void post_msg_b(void) {
-    Msg *sp1C;
-    Msg *temp_v0;
-
-    audio_lock();
-    temp_v0 = GetCmd(); PC_CMD_OR_UNLOCK(temp_v0)
-    sp1C = temp_v0;
-    temp_v0->type = 1; audio_unlock();
-    PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, sp1C);
-}
 
 
+
+void AudKillSong(void);
 void updateAudioScreen(void) {
     Pad16 *p;
     s32 padB;
@@ -267,7 +246,7 @@ void updateAudioScreen(void) {
         case 1:
             break;
         case 2:
-            post_msg_a();
+            AudKillSong();
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
             if (audio_gSong < 12)
                 AudPlaySong(audio_gSong, 1);
@@ -321,7 +300,7 @@ void updateAudioScreen(void) {
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
             break;
         case 2:
-            post_msg_b();
+            AudKillSong();
             do {} while (0);
             audio_gSong += dz;
             if (audio_gSong > 13)

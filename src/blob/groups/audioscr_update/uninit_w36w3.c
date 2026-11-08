@@ -9,8 +9,7 @@
  * (gGameState & 0x7C03FFFE == 0) RemovePanes(0) = RemovePanes(0) and gTitlePane audio_gTitlePane = 0, the blit
  * audio_blit removed (RemoveBlit), removeBG = removeBG(), panesCreated audio_panesCreated = 0,
  * inited = 0.
- * Helpers are non-static and not on keep (umerge inlines them; stub rule), named per file like
- * di_post_type1 / di_ProcessCommand in init_w36q.c. uninitButtons is defined AFTER the caller, as in the GC file
+ * uninitButtons is defined AFTER the caller, as in the GC file
  * (audioscr.c line order): as1 breaks ready-list ties by source line, and retail schedules the gGameState load
  * (caller line) before the inlined buttonsInited store (2 words otherwise).
  */
@@ -46,25 +45,14 @@ void removeBG(void);
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-void us_ProcessCommand(Msg *task)
-{
-    PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, task);
-}
 
-void us_AudKillSong(void)
-{
-    Msg *task;
-    audio_lock();
-    task = GetCmd(); PC_CMD_OR_UNLOCK(task) task->type = 1;
-    audio_unlock();
-    us_ProcessCommand(task);
-}
 
 void us_uninitButtons(void);
 
+void AudKillSong(void);
 void audio_uninitScreen(void)
 {
-    us_AudKillSong();
+    AudKillSong();
     if (audio_inited) {
         us_uninitButtons();
         if (!(gGameState & 0x7C03FFFE)) {

@@ -7,10 +7,7 @@
  * whole-program unit by:
  *  - initButtons is written in place: as a helper the unit's umerge knapsack (umerge f_pack_knapsack is global over the
  *    program) does not inline it once the other helpers here are inlined; retail inlined it.
- *  - AudKillSong (N64 AudKillSong, never called by jal in retail) is the local helper pair di_post_type1 /
- *    di_ProcessCommand (GC AudKillSong -> _ProcessCommand(cmd)); calling the shared kept AudKillSong is not
- *    inlined in the unit (same knapsack). `task = GetCmd(); task->type = 1;` on one line gives retail's
- *    `li t8,1; sb t8,2(v0); move s0,v0` order (as1 line tie).
+ *  - it calls AudKillSong, as MAT3 does (the N64 inlined it).
  * - the button colours go through ZOID_SetColor, as MAT3 initButtons does (the N64 inlined it).
  * N64 differences from GC kept as in: 12 named songs + random/off, table indices, random song 6, button y 55.2.
  * DISCLOSED DEVICES:
@@ -73,18 +70,6 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-void di_ProcessCommand(Msg *task)
-{
-    PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, task);
-}
-void di_post_type1(void)
-{
-    Msg *task;
-    audio_lock();
-    task = GetCmd(); PC_CMD_OR_UNLOCK(task) task->type = 1;
-    audio_unlock();
-    di_ProcessCommand(task);
-}
 extern void SaveGlobals(void);
 void ZOID_SetColor(s16 objnum, Color *col);
 void audio_initScreen(void)
@@ -146,7 +131,7 @@ void audio_initScreen(void)
     exitAudioScreen = 0;
     audio_gSong = gOptions.track;
     if (gAudioMenuSelect == 1 || gAudioMenuSelect == 2) {
-        di_post_type1();
+        AudKillSong();
         AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
         if (audio_gSong < 12) AudPlaySong(audio_gSong,1);
         else if (audio_gSong == 12) {
