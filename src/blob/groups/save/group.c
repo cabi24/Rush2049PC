@@ -127,7 +127,7 @@ extern s8 gOptions[];
 void PS_ReadPartialFile(Handle, s32, s32);
 void SavePlayerControls(Handle, void *);
 extern char cheat_profile_name[];
-extern s8 cheat_menu_unlocked;
+extern s8 gCheatActive[];   /* the cheats on; [21] the start screen's code (the cheats menu) */
 extern s16 gCheatState[];
 extern s8 gSaveGhostFiles;
 
@@ -310,7 +310,7 @@ s32 ReadPlayerData(Handle h) {
     }
     SavePlayerControls(h, obj + PROFILE_OFS(33));
     if (game_strcmp(obj + PROFILE_OFS(20), cheat_profile_name) == 0) {
-        cheat_menu_unlocked = 1;
+        gCheatActive[21] = 1;
         for (i = 1; i < 21; i++) {
         }
         gCheatState[14] = 1;

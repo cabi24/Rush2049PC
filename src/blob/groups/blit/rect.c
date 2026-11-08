@@ -3,7 +3,7 @@
  * helper, no arcade ancestor).  Clamp the rectangle to the scissor box
  * (blitXmin/blitYmin .. blitXmax/blitYmax), return if empty, then
  * gDPPipeSync, gDPSetPrimColor(color[0..3]), remember the alpha in
- * blitPrimColor_alpha, BlitColors(color, -1, -1, 0) (texture/colour cache),
+ * blitPrimColor[3], BlitColors(color, -1, -1, 0) (texture/colour cache),
  * blit_set_mode(1) (render mode), BlitSetAttribute(0x4000) (set state bit 14:
  * primitive-colour combine), gDPFillRectangle(x0, y0, x1 + 1, y1 + 1),
  * gDPPipeSync, BlitClearAttribute(0x4000).
@@ -62,7 +62,7 @@ extern s32 blitXmin;
 extern s32 blitYmin;
 extern s32 blitXmax;
 extern s32 blitYmax;
-extern u8 blitPrimColor_alpha;
+extern u8 blitPrimColor[4];   /* the primitive colour, R, G, B, A */
 
 void BlitColors(u8 *img, s32 mode, s32 pal, s32 bank);
 void blit_set_mode(s32 mode);
@@ -87,7 +87,7 @@ void BlitRect(s32 x0, s32 y0, s32 x1, s32 y1, u8 *color) {
     }
     gDPPipeSync(blit_dl++);
     gDPSetPrimColor(blit_dl++, 0, 0, color[0], color[1], color[2], color[3]);
-    blitPrimColor_alpha = color[3];
+    blitPrimColor[3] = color[3];
     BlitColors(color, -1, -1, 0);
     blit_set_mode(1);
     BlitSetAttribute(0x4000);

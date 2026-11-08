@@ -3685,17 +3685,18 @@ typedef s64 M2C_UNK64;
 #endif
 
 s8 GetControllerActive(s32 arg0) {
+    s8 *active = (s8 *) &gActiveControllers;   /* s8[4]: each controller's */
     if (arg0 == -1) {
-        if (gActiveControllers == 0) {
+        if (active[0] == 0) {
             return 0;
         }
-        if (gActiveControllers_p1 == 0) {
+        if (active[1] == 0) {
             return 0;
         }
-        if (gActiveControllers_p2 == 0) {
+        if (active[2] == 0) {
             return 0;
         }
-        if (gActiveControllers_p3 == 0) {
+        if (active[3] == 0) {
             return 0;
         }
         return 1;

@@ -9,7 +9,7 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
-/* PC: the objects are the level-object nodes of the pool gTargetList (gTargetList_head is its active list). They keep their
+/* PC: the objects are the level-object nodes of the pool gTargetList (its head is the active list). They keep their
  * N64 layout in the arena block gTargetArray: the link is a 32-bit window address and the flags byte is at +4
  * (docs/port/POINTERS.md 10). A slot holds a host pointer, so it is 16 bytes, and the heap block holds count of them. */
 typedef struct Object { u32 next; u8 flags; } Object;
@@ -26,7 +26,9 @@ typedef struct State {
 } State;
 typedef struct Heap Heap;
 extern State gBattlePowerUps;
-extern Object *gTargetList_head;
+/* The level-object node pool (initTargetStructs.c's Pool): head, its active list. */
+typedef struct TargetPool { u8 b0, n64, pad2[2]; s32 count, size; u8 *mem; Object *head; u8 *free; } TargetPool;
+extern s32 gTargetList;
 extern void *audio_dma_sync(Heap *, u32);
 extern f32 Random(f32);
 void InitBattlePowerUps(s32 reuse)
@@ -37,7 +39,7 @@ void InitBattlePowerUps(s32 reuse)
         gBattlePowerUps.slots = audio_dma_sync(0, gBattlePowerUps.count * SLOT_SIZE);
     }
     index = 0;
-    for (object = gTargetList_head; object != 0; object = NEXT(object)) {
+    for (object = ((TargetPool *) &gTargetList)->head; object != 0; object = NEXT(object)) {
         if (object->flags & 0x20) {
             gBattlePowerUps.slots[index].object = object;
             gBattlePowerUps.slots[index].active = 1;

@@ -3691,6 +3691,7 @@ typedef s64 M2C_UNK64;
 #endif
 
 void NewCircuit(s32 arg0) {
+    s8 *options = (s8 *) &gOptions;   /* the game options, a byte each: [31] the circuit's death option */
     void *temp_a0;
 
     temp_a0 = DATA_PTR(*M2C_FIELD(**((D_8014A160_Target ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
@@ -3700,7 +3701,7 @@ void NewCircuit(s32 arg0) {
     M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (gSeconds & 0xFFFFF);
     M2C_FIELD(temp_a0, s8 *, 4) = 1;
     M2C_FIELD(temp_a0, f32 *, 0x10) = 0.0f;
-    if (gOptions_circuit_death != 0) {
+    if (options[31] != 0) {
         M2C_FIELD(temp_a0, s8 *, 5) = 1;
     }
     M2C_FIELD(temp_a0, s8 *, 7) = (s8) (&gCircuitDiff)[arg0];

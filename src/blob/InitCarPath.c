@@ -43,7 +43,25 @@ typedef struct {
 } CarB;
 
 extern f32 gModelTime;
-extern s16 checkpoints_start_pt;
+/* The checkpoints (resurrect.c's tCheckpoints): startPt, the checkpoint the race starts at. */
+typedef struct tCheckpoint {
+    float pos[3];
+    float normal[3];
+    int radius;
+    s16 flags;
+    s16 time[2];
+    s16 pathPts[20];
+    float distToNext;
+} tCheckpoint;
+typedef struct tCheckpoints {
+    s16 startTime;
+    s16 loopPt;
+    s16 finishPt;
+    s16 startPt;
+    s16 numPoints;
+    tCheckpoint points[10];
+} tCheckpoints;
+extern tCheckpoints gCheckpoints;
 
 void InitCarPath(CarA *a, CarB *b) {
     static s32 next_path = 0;
@@ -63,7 +81,7 @@ void InitCarPath(CarA *a, CarB *b) {
     } else {
         b->unk33C = 0;
     }
-    if (checkpoints_start_pt == 0) {
+    if (gCheckpoints.startPt == 0) {
         a->unk7DC = 1;
     }
     b->unkFA = -1;

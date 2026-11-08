@@ -9,24 +9,13 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct MenuText {
-    char *pad0[344 / 4];
-    char *text344;
-    char *pad348[4 / 4];
-    char *text352;
-    char *pad356[4 / 4];
-    char *text360;
-    char *pad364[244 / 4];
-    char *text608;
-    char *text612;
-    char *text616;
-    char *pad620[4 / 4];
-    char *text624;
-    char *pad628[316 / 4];
-    char *text944;
-} MenuText;
-extern MenuText *gText_single;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
+extern TextTables gText;
 extern u8 num_paks_found;
 extern s8 gPakScr;
 extern char warningscr_message_format[];
@@ -50,19 +39,19 @@ s32 warningscr_animText(s32 arg0)
     HAL_SetFont(11);
     TB_SetTextColor(1);
     sprintf(buffer, warningscr_message_format,
-            num_paks_found > 0 ? gText_single->text612 : gText_single->text608, gText_single->text616,
-            gText_single->text352, gText_single->text360,
-            PS_GetBlocks(0x810), gText_single->text344);
+            num_paks_found > 0 ? gText.single[153] : gText.single[152], gText.single[154],
+            gText.single[88], gText.single[90],
+            PS_GetBlocks(0x810), gText.single[86]);
     TB_DrawTextScrollBox(160, 90, 300, 220, -1, 0, buffer);
     height = TB_GetFontLineHeight();
     y = 200 - height * 3;
     HAL_SetFont(gPakScr ? 11 : 10);
     TB_SetTextColor(gPakScr ? 1 : 22);
-    TB_DrawText(160, y - (gPakScr ? 0 : 1), gText_single->text944);
+    TB_DrawText(160, y - (gPakScr ? 0 : 1), gText.single[236]);
     if (num_paks_found > 0) {
         HAL_SetFont(gPakScr ? 10 : 11);
         TB_SetTextColor(gPakScr ? 22 : 1);
-        TB_DrawText(160, y - (gPakScr ? 1 : 0) + height, gText_single->text624);
+        TB_DrawText(160, y - (gPakScr ? 1 : 0) + height, gText.single[156]);
     }
     TB_SetJust(0, 3);
     HAL_SetTextDepth(-1.0f);

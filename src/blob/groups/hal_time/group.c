@@ -3,9 +3,8 @@ typedef unsigned char u8;
 typedef signed int s32;
 extern s8 gInited_HALTime;
 intptr_t gOPPFuncs[10];
-/* The table holds function pointers. On the N64 its end is the next variable, yf (+40); on the
- * PC the slots are 8 bytes and the table ends at its own last element (docs/port/PROTOTYPES.md). */
-#define yf gOPPFuncs[10]
+/* The table holds function pointers, 10 of them: the loops end at gOPPFuncs + 10 (on the N64 the address of the next
+ * variable, yf, which IDO took for it; docs/port/PROTOTYPES.md). */
 void HAL_InitTime(void)
 {
   s32 i;
@@ -24,6 +23,6 @@ void HAL_InstallOncePerFrameFunc(intptr_t arg0)
   for (p = gOPPFuncs; ; ) {
     if (*p == 0) { *p = arg0; break; }
     p++;
-    if (p == &yf) break;
+    if (p == gOPPFuncs + 10) break;
   }
 }

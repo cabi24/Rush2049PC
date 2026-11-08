@@ -11,7 +11,13 @@ extern OSMesgQueue text_lock_queue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32 selection);
-extern char **gText_single;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
+extern TextTables gText;
 extern s32 gGameState;
 extern s32 playerInPause;
 typedef struct { s8 flag; s8 pad[15]; } Slot16;
@@ -49,10 +55,10 @@ void audio_TitlePane(void)
 
     HAL_SetFont(13);
     if (audio_gControllerRemoved) {
-        TB_Sprintf(buf, audio_title_player_format, playerInPause + 1, gText_single[233]);
+        TB_Sprintf(buf, audio_title_player_format, playerInPause + 1, gText.single[233]);
         w = HAL_GetTextWidth(buf, -1);
     } else {
-        w = HAL_GetTextWidth(gText_single[52], -1);
+        w = HAL_GetTextWidth(gText.single[52], -1);
     }
     if (audio_gTitlePane) {
         ChangePaneSize(audio_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);
@@ -69,10 +75,10 @@ void options_TitlePane(void)
 
     HAL_SetFont(13);
     if (options_gControllerRemoved) {
-        TB_Sprintf(buf, options_title_format, playerInPause + 1, gText_single[233]);
+        TB_Sprintf(buf, options_title_format, playerInPause + 1, gText.single[233]);
         w = HAL_GetTextWidth(buf, -1);
     } else {
-        w = HAL_GetTextWidth(gText_single[50], -1);
+        w = HAL_GetTextWidth(gText.single[50], -1);
     }
     if (options_gTitlePane) {
         ChangePaneSize(options_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);

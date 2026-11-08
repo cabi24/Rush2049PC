@@ -1327,7 +1327,7 @@ def front_end(c):
 
     # Cheat codes (eggs.c's Egg: a step count, then u32 held[20] and pressed[20] game-button masks; CheckForEgg).
     # Made up here, with the button map above: the main menu's code (start_screen_egg, the start screen's own InitEgg),
-    # hold L and press Z, makes option 6 valid (cheat_menu_unlocked), the cheat screen (0x8000000); cheat 0's
+    # hold L and press Z, makes option 6 valid (gCheatActive[21]), the cheat screen (0x8000000); cheat 0's
     # (gEggs[0]), hold R and press Z, then hold C-up and press Z, lets RIGHT switch it. The masks are u32
     # elements: a byte view of gEggs (an opaque Rec164 that once won gen_data's ranking) stops this generator.
     # The cheats path (synth/cheats.press) opens the screen: the start screen once called eggs.c's InitEgg, whose
@@ -1352,11 +1352,11 @@ def front_end(c):
     for i in range(12):
         c.set("game", "gSongNames", "ptr", songs[i], "a song's name" if i == 0 else "(same)", index=i)
 
-    # The mode screen's table of which of its 7 modes each player count may pick (modescr_validOption_biased[players][mode], image
-    # A, s8; optionValid@modescr.c). updateModeScreen skips to a valid mode with `while (!optionValid(i)) i++`, which
-    # never ends when none is. Rows 1-4 (0x803B4680-0x803B469B) are bytes no declaration covers; row 0 is never read.
+    # The mode screen's table of which of its 7 modes each player count may pick (modescr_validOption[players - 1][mode],
+    # image A, s8[4][7]; optionValid@modescr.c). updateModeScreen skips to a valid mode with `while (!optionValid(i))
+    # i++`, which never ends when none is. Its rows are 0x803B4680-0x803B469B.
     for players in range(1, 5):
-        c.set_bytes("ovl_a", c.syms.addr("modescr_validOption_biased") + 7 * players, bytes([1] * 7),
+        c.set_bytes("ovl_a", c.syms.addr("modescr_validOption") + 7 * (players - 1), bytes([1] * 7),
                     f"modes valid for {players} player(s): all seven")
 
     # The track select's map objects (image A, trackMapObjNames trackMapObjNames[20], char *): it saves each map object's
@@ -1392,7 +1392,7 @@ def front_end(c):
 
     # The track select's fog (BlowFog, SetFogIntensity): with option 14 valid for a single race (validOption,
     # trackscr_validOption[gRace][21], image A, s32), the screen makes a blit of the texture named track_fog_texture_name (image A, char[])
-    # whose palette is n64FogPal, a Palette whose colour table is the word at +0x14 (n64FogPal_palBase): the cartridge's
+    # whose palette is n64FogPal, a Palette whose colour table is the word at +0x14 (its palBase): the cartridge's
     # SYN_FOG, an IA texture, so the draw reads its prim and env colours from that table. The word must be the arena's
     # (BRINGUP.md 7).
     c.set("ovl_a", "trackscr_validOption", "u32", 1, "the track select's option 14 (the fog) valid in a single race", index=14)

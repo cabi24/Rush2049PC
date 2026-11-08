@@ -95,7 +95,7 @@ typedef struct {
     /* 0x24 */ f32 pos[3];
 } CamXform;
 extern CamXform gCamera;             /* camera matrix + position (pos = old D_80150B94) */
-extern u16 gTexList_skid;
+extern u16 gTexList[];   /* the car textures by kind (InitVisuals): the skid mark's at 8 */
 
 extern EffectObj *GetStatLLE(void *pool);
 extern void FreeStatLLE(void *pool, EffectObj *obj);
@@ -188,7 +188,7 @@ EffectObj *GetSkid(u8 *color)
     s->color[1] = color[1];
     s->color[2] = color[2];
     s->color[3] = 0xC0;
-    s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList_skid, color,
+    s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
                           ((gGameState & 0x100) ? 1 : 15) | 0x1200, 1);
     if (s->dl == 0) {
         FreeStatLLE(gSkidList, s);

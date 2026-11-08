@@ -57,14 +57,17 @@ int32_t gBogSounds[4], gHornSounds[4], gScrapes[4];
 uint8_t gBump[4][120];
 int16_t gScrapeState[4];
 float gScrapeTime[4], gBumpTime[4], gThumpTime[4], sLastHornTime[4], sPitchRange[4] = {1, 1, 1, 1};
-int8_t gCarHorn_players[4][13];
+int8_t gCarHorn[5][13];   /* the horn by row (player + 1) and car type */
 int16_t gNumPlayers = 1, gCountDown = 1;
-int32_t gRace, audio_lock_queue, gRace, rand_seed, gContLevels_pad2, gContEdges_pad2;
+int32_t gRace, audio_lock_queue, gRace, rand_seed, gContLevels[4], gContEdges[4];
 uint32_t gGameState, gGameState;
 uint8_t gPlayers[4 * 80] __attribute__((aligned(16)));   /* Player76: index +0, mask +4, edges +52 */
 volatile float gSeconds = 50.0f, gFrameSeconds = 1.0f / 60.0f;
-struct { float pos[3], normal[3]; int32_t radius; uint8_t pad[0x50 - 0x1C]; } gCheckpoints_points[4];   /* checkpoints */
-int16_t gCheckpoints[6];   /* the checkpoint header: [2] the finish line, [3] the one before */
+/* The checkpoints: the header ([2] the finish line, [3] the one before), then the checkpoints' planes. */
+struct {
+    int16_t header[6];
+    struct { float pos[3], normal[3]; int32_t radius; uint8_t pad[0x50 - 0x1C]; } points[4];
+} gCheckpoints;
 volatile int16_t gNumCars, num_humans = 2;
 uint8_t gNumActiveCars;
 int16_t gNumLaps = 3;   /* the race's laps */
@@ -328,10 +331,10 @@ static void test_checkpoints(void)
         PC_MODEL_LAP(k) = 2;
         pc_cp_plane[k] = -(float)(k + 1);
     }
-    gCheckpoints_points[0].pos[0] = 0.0f, gCheckpoints_points[0].pos[1] = 0.0f, gCheckpoints_points[0].pos[2] = 5.0f;
-    gCheckpoints_points[0].normal[0] = 1.0f, gCheckpoints_points[0].normal[1] = 0.0f, gCheckpoints_points[0].normal[2] = 0.0f;
-    gCheckpoints_points[0].radius = 10000;
-    gCheckpoints[2] = 0, gCheckpoints[3] = 5;           /* the finish line is checkpoint 0 */
+    gCheckpoints.points[0].pos[0] = 0.0f, gCheckpoints.points[0].pos[1] = 0.0f, gCheckpoints.points[0].pos[2] = 5.0f;
+    gCheckpoints.points[0].normal[0] = 1.0f, gCheckpoints.points[0].normal[1] = 0.0f, gCheckpoints.points[0].normal[2] = 0.0f;
+    gCheckpoints.points[0].radius = 10000;
+    gCheckpoints.header[2] = 0, gCheckpoints.header[3] = 5;           /* the finish line is checkpoint 0 */
     gNumCars = CARS, gNumActiveCars = CARS, gRace = 0, gNumLapsLeft = 3;
     g_ncross = 0;
     CheckCPs();

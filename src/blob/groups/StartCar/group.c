@@ -3725,6 +3725,8 @@ void StartWingFlame(s16 slot, s16 idx);
 
 
 void StartWing(s16 slot, s16 idx) {
+    f32 (*wing_offsets)[3] = (f32 (*)[3]) &wingOffsets;   /* wingOffsets, f32[][3]: a row per body type */
+    s8 (*wings)[13] = (s8 (*)[13]) &gCarWings;   /* gCarWings, s8[][13]: the wing option by row (player + 1) and car type */
     HudRec *h;
     f32 vec[3];
     s32 k;
@@ -3740,8 +3742,8 @@ void StartWing(s16 slot, s16 idx) {
     b8 = h->b8;
     vec[0] = 0.0f;
     vec[2] = 0.0f;
-    vec[1] = *(f32 *) ((u8 *) &wingOffsets_y + b8 * 0xC);
-    k = gCarWings_players[slot * 13 + b8] * 4 + idx + 0xE0;
+    vec[1] = wing_offsets[b8][1];
+    k = wings[slot + 1][b8] * 4 + idx + 0xE0;
     (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle = InitCarObj(gObjList[k], 0xF, ((SndCtl *) &gCarParts)[slot].first, 0, slot, -1, 1);
     ZOID_UpdateObject((&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle, vec, NULL);
     MBOX_HideObject((&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290))))[idx])->handle, 1, 0xF);

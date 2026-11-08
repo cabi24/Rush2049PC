@@ -35,7 +35,8 @@ extern s32 audio_buttonsInited;                           /* buttonsInited */
 extern s32 gGameState;
 extern s8 audio_gControllerRemoved;                            /* gControllerRemoved */
 extern s32 playerInPause;
-extern s32 audio_menuRect_cx;                           /* menuRect.x (right edge of the option column) */
+typedef struct AudioMenuRect { s32 x,w,h,cx; } AudioMenuRect;   /* MAT3 audioscr.c menuRect */
+extern AudioMenuRect audio_menuRect;                     /* menuRect: cx, the right edge of the option column */
 extern s32 gAudioMenuSelect;
 extern s32 audio_gSong;                           /* gSong */
 extern char *gSongNames[];                       /* gSongNames */
@@ -43,7 +44,7 @@ extern Options gOptions;
 typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
 extern TextColor flashColors[2];                  /* flashColors */
 extern ButtonInfo audio_buttonInfo[];                  /* buttonInfo (N64 copy starts at the first button) */
-extern u8 audio_title_button_pos[];                          /* buttonInfo + 0x2f0 (title position) */
+
 extern u8 gCamera[];                          /* gCamera */
 extern s32 gJust[2];                        /* TB_SetJust pair */
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
@@ -96,7 +97,7 @@ void audio_animButtonText(void)
     au_SetJust(0, 1);
     au_SetFont(13);
     TB_SetTextColor(1);
-    ZOID_ProjectWindow(0, audio_title_button_pos, gCamera, 0, screenPos);
+    ZOID_ProjectWindow(0, audio_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     TB_DrawText(TB_CenterText(gText.fixed[52], x), y, gText.fixed[52]);
@@ -175,7 +176,7 @@ s32 audio_animText(s32 arg0)
     }
     y = TB_GetFontLineHeight() * 2 + 10;
     HAL_SetFont(10);
-    x = audio_menuRect_cx;
+    x = audio_menuRect.cx;
     for (i = 0; i < 4; i++) {
         if (!au_validOption(i)) continue;
         TB_SetTextColor(i == gAudioMenuSelect ? 22 : 1);

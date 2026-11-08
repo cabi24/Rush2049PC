@@ -37,11 +37,12 @@ typedef struct Blit {
     intptr_t state;     /* AnimFunc */
 } Blit;
 
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct TblHdr {
-    char *pad0[0x388 / 4];
-    char *text;
-} TblHdr;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
 
 typedef struct Player {
     u8 b0;
@@ -72,7 +73,7 @@ typedef struct Pair {
 extern OSMesgQueue text_lock_queue;
 extern u32 gGameState;
 extern Pair gJust;
-extern TblHdr *gText_single;
+extern TextTables gText;
 extern s16 gNumWindows;
 extern s32 gPauseState;
 extern Player gPlayers[];
@@ -121,7 +122,7 @@ s32 anim_no_rumble_text(Blit *blt)
     }
     TB_SetJust_6B3C(1, 1);
     HAL_SetFont(11);
-    width = HAL_GetTextWidth(gText_single->text, -1);
+    width = HAL_GetTextWidth(gText.single[226], -1);
     limit = (gNumWindows >= 3) ? 160 : ((gNumWindows >= 2) ? 240 : 320);
     if (limit + 8 < width) {
         text_lock();
@@ -135,7 +136,7 @@ s32 anim_no_rumble_text(Blit *blt)
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;
                 y = no_rumble_text_pos[gNumWindows - 1][i].y;
                 TB_SetTextColor(playerTextColor[i]);
-                TB_DrawText(x, y, gText_single->text);
+                TB_DrawText(x, y, gText.single[226]);
             }
         }
     }

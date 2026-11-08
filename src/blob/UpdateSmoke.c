@@ -2,7 +2,7 @@
 /*
  * UpdateSmoke @ 0x800CADA4, 2,420 bytes (from best.c, 377/605). Names are historical labels.
  *
- * Not a HUD: the per-frame update of the exhaust/smoke puff list gSmokeList_head (released into pool gSmokeList),
+ * Not a HUD: the per-frame update of the exhaust/smoke puff list gSmokeList.head (released into pool gSmokeList),
  * a relative of arcade game/visuals.c AnimateSmoke. Attached puffs (flags & 0x10) follow the car's
  * exhaust (orientation from the player direction, scale by speed, position = exhaust + velocity, +1.25 up,
  * frame timer); type 5 is the car glow (pulsing resource scale, position = player position + velocity.x * row0
@@ -87,8 +87,16 @@ typedef struct Resource {
     u8 alpha;           /* N64 63 */
     u8 pad64[4];
 } Resource;
-extern Puff *gSmokeList_head;
-extern s32 gSmokeList;
+/* PC: a StatLL list header's host layout, as every view has it (InitSmoke.c, docs/port/POINTERS.md 9): the active
+ * list is head. */
+typedef struct Pool {
+    u8 flag;
+    int count;
+    int size;
+    void *mem;
+    void *head, *store;
+} Pool;
+extern Pool gSmokeList;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
@@ -96,7 +104,9 @@ extern s32 gSmokeList;
 #define gCarSmokeDir pc_tire_fx
 extern s32 rand_seed;
 extern Resource ObjInstanceList[];
-extern u16 gObjList_smoke[2][9];
+/* The scene's object definitions by kind (InitTrackDynamicObjs): the smoke animations' frames, 196..203 and
+ * 205..212 (9 apart). */
+extern u16 gObjList[];
 extern f32 gCarMiddles[];
 extern s8 expansion_pak_present, gTrackNum;
 extern volatile f32 gFrameSeconds;
@@ -145,7 +155,7 @@ void UpdateSmoke(void)
     s32 pad2[5];
     Mat3 matrix;
 
-    for (puff = gSmokeList_head; puff != 0; puff = next) {
+    for (puff = gSmokeList.head; puff != 0; puff = next) {
         next = puff->next;
         car = puff->car;
         type = (puff->flags >> 17) & 0xF;
@@ -200,7 +210,7 @@ void UpdateSmoke(void)
             puff->position[1] += 1.25f;
             puff->timer -= gFrameSeconds;
             if (puff->timer <= 0.0f) {
-                resource_set_frame(puff->id.part.index, gObjList_smoke[1][puff->frame]);
+                resource_set_frame(puff->id.part.index, gObjList[196 + 9 + puff->frame]);
                 puff->frame++;
                 if (puff->frame >= 8) {
                     puff->frame = 0;
@@ -270,7 +280,7 @@ kill:
             puff->timer -= gFrameSeconds;
             if (puff->timer <= 0.0f) {
                 if (expansion_pak_present || gTrackNum >= 6) {
-                    resource_set_frame(puff->id.part.index, gObjList_smoke[0][puff->frame]);
+                    resource_set_frame(puff->id.part.index, gObjList[196 + puff->frame]);
                     if (puff->flags & 1) {
                         puff->frame++;
                         if (puff->frame >= 8) {

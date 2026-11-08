@@ -11,7 +11,13 @@ extern OSMesgQueue text_lock_queue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 s32 HAL_SetFontInternal(s32 selection);
-extern char **gText_single;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
+extern TextTables gText;
 extern s32 gGameState;
 extern s32 playerInPause;
 typedef struct { s8 flag; s8 pad[15]; } Slot16;
@@ -83,11 +89,11 @@ s32 demo_animText(s32 arg0)
         HAL_SetFont(13);
         TB_SetTextColor(22);
         TB_DrawTextScrollBox(160, 10, 320, 110, -1, 0, demo_alt_message);
-        TB_DrawTextScrollBox(160, 190, 320, 110, -1, 0, gText_single[33]);
+        TB_DrawTextScrollBox(160, 190, 320, 110, -1, 0, gText.single[33]);
     } else {
         HAL_SetFont(11);
         TB_SetTextColor(22);
-        TB_DrawTextScrollBox(160, 185, 320, 110, -1, 0, gText_single[32]);
+        TB_DrawTextScrollBox(160, 185, 320, 110, -1, 0, gText.single[32]);
         TB_SetTextColor(1);
     }
     gJust.second = 3;

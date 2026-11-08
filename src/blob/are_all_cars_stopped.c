@@ -25,12 +25,11 @@ extern f32 gDeathWaitEnd;
 extern f32 gFrameSeconds;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s16 gNumLaps;
-extern s16 gStuntsDone_lo;
-/* gStuntsDone_lo is the low half of gStuntsDone (gStuntsDone, s32), which CheckForStunt sets to 1 when the stunt
-   round's time is up and the cars have settled: on the N64, big-endian, its halfword at +2. On a little-endian host
-   that halfword is the high one, always 0, and a stunt round never ended (docs/port/QA.md 4). */
+/* The stunt answer is the low half of gStuntsDone (s32), which CheckForStunt sets to 1 when the stunt round's time is
+   up and the cars have settled: on the N64, big-endian, the code read its halfword at +2. On a little-endian host
+   that halfword is the high one, always 0, and a stunt round never ended (docs/port/QA.md 4): the PC reads the
+   word's value as an s16. */
 extern s32 gStuntsDone;
-#define gStuntsDone_lo ((s16)gStuntsDone)
 extern s32 gRace;
 extern s8 gNumActiveCars;
 
@@ -74,7 +73,7 @@ s32 are_all_cars_stopped(void)
         }
     }
     if (result != 0 && gRace == 4) {
-        return gStuntsDone_lo;
+        return (s16)gStuntsDone;
     }
     return result;
 }

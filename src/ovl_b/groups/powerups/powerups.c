@@ -57,7 +57,9 @@ typedef struct Player {
 } Player;
 extern State gBattlePowerUps;
 extern volatile f32 gFrameSeconds;   /* MAT3 declares it volatile */
-extern u16 health_powerup_def, invisibility_powerup_def, shield_powerup_def;
+/* The scene's object definitions by kind: the power-ups' (MAT3 gObjList[0x2A1..0x2A3]) are the N64's 353 (health), 354
+ * (invisibility) and 359 (shield). */
+extern u16 gObjList[];
 extern s16 gNumPlayers;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern f32 Random(f32);
@@ -136,7 +138,7 @@ void UpdateBattleInvs(void) /* UpdateBattleInvs */
         gBattlePowerUps.slots[i].count = 2;
         gBattlePowerUps.slots[i].object->flags |= 2;
         gBattlePowerUps.slots[i].object->resource = 354;
-        ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, invisibility_powerup_def);
+        ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, gObjList[354]);
         MBOX_ShowObject(gBattlePowerUps.slots[i].object->handle.scene, 0, 15);
         gBattlePowerUps.phase_a = -2.0f;
     }
@@ -167,7 +169,7 @@ void UpdateBattleShield(void)
             gBattlePowerUps.slots[i].count = 3;
             gBattlePowerUps.slots[i].object->flags |= 2;
             gBattlePowerUps.slots[i].object->resource = 359;
-            ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, shield_powerup_def);
+            ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, gObjList[359]);
             MBOX_ShowObject(gBattlePowerUps.slots[i].object->handle.scene, 0, 15);
             gBattlePowerUps.phase_b = -2.0f;
         }
@@ -199,7 +201,7 @@ void UpdateBattleHealth(void)
             gBattlePowerUps.slots[i].count = 4;
             gBattlePowerUps.slots[i].object->flags |= 2;
             gBattlePowerUps.slots[i].object->resource = 353;
-            ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, health_powerup_def);
+            ZOID_SetObjectDef(gBattlePowerUps.slots[i].object->handle.parts.index, gObjList[353]);
             MBOX_ShowObject(gBattlePowerUps.slots[i].object->handle.scene, 0, 15);
             gBattlePowerUps.delay = -2.0f;
         }

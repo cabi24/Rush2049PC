@@ -773,7 +773,7 @@ float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
 /* referenced data (types guessed from access width) */
-extern M2C_UNK target_info_start_sounds;
+extern M2C_UNK targetInfo;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 /* callees outside the group */
@@ -805,6 +805,7 @@ void StartMine(void *arg0) {
             BattleDamage(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x320);
         }
         M2C_FIELD(arg0, u8 *, 4) &= 0xFFFD;
-        PlayTargetSound(*(s32 *)((u8 *)&target_info_start_sounds + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);
+        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
+        PlayTargetSound(*(s32 *)((u8 *)&targetInfo + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);
     }
 }

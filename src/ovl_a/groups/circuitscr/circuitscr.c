@@ -41,7 +41,7 @@ extern s8 gCircuitSize;
 extern s8 gContinueEnabled;
 extern s8 gStatsEnabled;
 extern u8 gUnlockedCircuits[];
-extern u8 gUnlockedTracks_at_3[];
+extern s8 gUnlockedTracks[][19];   /* the tracks unlocked, by circuit */
 extern u8 gForceUnlockedCircuits[];
 extern s8 expansion_pak_present;
 
@@ -51,12 +51,12 @@ void resetEnabled(void)
     gStatsEnabled = gCircuit->u4;
     if (gCircuit->b8 > 0) {
         gUnlockedCircuits[1] = 1;
-        gUnlockedTracks_at_3[1] = 1;
+        gUnlockedTracks[0][4] = 1;
         gForceUnlockedCircuits[1] = 1;
     }
     if (gCircuit->b8 >= 2 && expansion_pak_present != 0) {
         gUnlockedCircuits[2] = 1;
-        gUnlockedTracks_at_3[2] = 1;
+        gUnlockedTracks[0][5] = 1;
         gForceUnlockedCircuits[2] = 1;
     }
     if (gCircuit->b8 == 3) {
@@ -174,7 +174,10 @@ extern s16 gNumPlayers;
 extern s32 gRace;
 extern Player gPlayers[];
 extern s32 newCircuitType;
-extern s8 gCircuitCars_totalPlace, gShowTrophy;
+extern s8 gShowTrophy;
+/* The circuit's cars (MAT3 tCircuitCar): rank, the car's place over the circuit (MAT3 totalPlace). */
+typedef struct PlayerStats {u8 other0,rank;unsigned short count;u8 other4[72];} PlayerStats;
+extern PlayerStats gCircuitCars[];
 extern u8 gNumModels;
 extern char *gTrophyNames[], *gTrophySheenNames[];
 extern f32 gTrophyMat[12], unitmatrix[12];
@@ -220,7 +223,7 @@ void circuitscr_initScreen(void)
     if (gCircuit->u4) {
         ContinueCircuit();
         if (gCircuit->b9 >= gCircuitSize) {
-            selected = gCircuitCars_totalPlace;
+            selected = (s8) gCircuitCars[0].rank;
             gShowTrophy = 1;
             if (selected < 3) {
                 model = MBOX_FindObject_WORK(gTrophyNames[selected], 0, gNumModels - 1, 1);
@@ -727,9 +730,7 @@ typedef struct Language {
     LanguageIndex *indices;
     u8 **names;
 } Language;
-typedef struct PlayerStats {u8 other0,rank;u16 count;u8 other4[72];} PlayerStats;
 extern Language gText;
-extern PlayerStats gCircuitCars[];
 extern u8 circuitscr_finished_count_format[],circuitscr_to_go_count_format[],circuitscr_place_separator[],circuitscr_points_format[];
 extern s16 gProgressWidth,gProgressHeight,gProgressTop,gMenuBottom;
 extern void TB_Sprintf(u8 *,const u8 *,...);

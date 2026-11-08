@@ -1,7 +1,7 @@
 /* port/assets/tests/test_battle.c: the code that walks the level-object nodes (the targets) outside level_objects,
  * through the game's own code (docs/port/POINTERS.md 10). The nodes keep their N64 layout in the arena block
  * gTargetArray and link each other by 32-bit window addresses (the node pool's n64 flag), so a walk of the active list
- * gTargetList_head and a view of a node must read them that way: battle mode's power-up selection InitBattlePowerUps, which
+ * (gTargetList's head) and a view of a node must read them that way: battle mode's power-up selection InitBattlePowerUps, which
  * keeps the flagged nodes in a heap block of slots, UpdateBattleHealth, UpdateBattleShield and UpdateBattleInvs
  * (runtime_b_resource_callbacks: a node's flags, handle and resource), PauseTargets, which gives every node on the
  * list state 2 and no sound, and the pause screen's PauseTargets, which does the same when a race is paused
@@ -37,7 +37,7 @@ ABS(gTargetArray, 0x8014D280);
 #define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap, audio_dma_sync) */
 
 StatLL gTargetList, gAlwaysColList;
-ALIAS(gTargetList_head, gTargetList, 0x18);  /* the pool's active list, N64 +0x10 */
+
 int8_t gRestartGame, Restarting;
 int32_t gPathCount, gBattleMineCnt, gRace, gBBoxModelCount, gSilverCoinCnt, gGoldCoinCnt, gWhichSilverCoin, gWhichGoldCoin;
 uint8_t gTargetStructCount[8];
@@ -50,7 +50,8 @@ struct {
     Slot *slots;
 } gBattlePowerUps;
 volatile float gFrameSeconds = 0.5f;    /* gFrameSeconds */
-uint16_t health_powerup_def = 0x82, invisibility_powerup_def = 0x84, shield_powerup_def = 0x8E;
+/* The object definitions by kind: the power-ups' health (353), invisibility (354) and shield (359). */
+uint16_t gObjList[360] = {[353] = 0x82, [354] = 0x84, [359] = 0x8E};
 int16_t gNumPlayers;                  /* gNumPlayers: 0, so UpdateInvs leaves the cars alone */
 struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
 

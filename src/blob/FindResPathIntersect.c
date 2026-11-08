@@ -1,7 +1,7 @@
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared  (same words at -O2) */
 /*
  * FindResPathIntersect @ 0x800BA61C, 424 bytes: path point for a checkpoint-like record.
- * Walks the track path points (PathPt gResPath_pts[], count u16 gResPath, wrapping) and returns
+ * Walks the track path points (gResPath.points[], gResPath.numPoints of them, wrapping) and returns
  * the first point where the record gCheckpoints[arg0] (0x50 bytes: position +0x0C/+0x14, heading
  * +0x18/+0x20, s32 radius +0x24) is passed: this and the previous point are both within `radius`
  * (squared distances are compared with the radius as written) and the heading side changes sign.
@@ -44,8 +44,9 @@ typedef struct Obj80 {
 } Obj80;
 
 extern Obj80 gCheckpoints[];
-extern u16 gResPath;
-extern PathPt *gResPath_pts;
+/* The track's path (FindResPtRecurse.c's PathGraph): its points, and its alternative paths (nodes). */
+typedef struct { u16 numPoints; PathPt *points; unsigned char numNodes; void *nodes; } PathGraph;
+extern PathGraph gResPath;
 
 s16 FindResPathIntersect(s16 arg0) {
     f32 unused0;
@@ -64,12 +65,12 @@ s16 FindResPathIntersect(s16 arg0) {
     dir[0] = gCheckpoints[arg0].dirx;
     dir[1] = gCheckpoints[arg0].dirz;
     minDist = 1e20f;
-    for (i = -1, j = 0; i < gResPath; j++, i++) {
-        if (j == gResPath) {
+    for (i = -1, j = 0; i < gResPath.numPoints; j++, i++) {
+        if (j == gResPath.numPoints) {
             j = 0;
         }
-        d[0] = gResPath_pts[j].x - gCheckpoints[arg0].x;
-        d[1] = gResPath_pts[j].z - gCheckpoints[arg0].z;
+        d[0] = gResPath.points[j].x - gCheckpoints[arg0].x;
+        d[1] = gResPath.points[j].z - gCheckpoints[arg0].z;
         dist = d[0] * d[0] + d[1] * d[1];
         if (d[0] * dir[0] + d[1] * dir[1] < 0.0f) {
             side = -1;
@@ -86,7 +87,7 @@ s16 FindResPathIntersect(s16 arg0) {
         prevDist = dist;
         prevSide = side;
     }
-    if (i == gResPath) {
+    if (i == gResPath.numPoints) {
         return best;
     }
     return j;

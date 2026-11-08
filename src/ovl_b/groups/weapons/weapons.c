@@ -95,7 +95,7 @@ extern volatile f32 gFrameSeconds;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern CarParts gCarParts[];            /* gCarParts */
-extern u16 gObjList_biased[];                 /* gObjList */
+extern u16 gObjList[];                        /* the object definitions by kind: the weapon models at 216..223 */
 extern s32 gWfxObjList[7];                /* gWfxObjList */
 extern u16 gRipTextures[5];                /* gRipTextures */
 extern TexDefSet gTexDefPtrs[];           /* gTexDefPtrs */
@@ -302,7 +302,7 @@ void AnimateWeapon(Visual *v, s16 op)
         case 6: def = 222; break;
         case 7: def = 223; break;
         }
-        ZOID_SetObjectDef(gCarParts[v->slot].weap, gObjList_biased[def + 314]);
+        ZOID_SetObjectDef(gCarParts[v->slot].weap, gObjList[def]);
         ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
     }
     {

@@ -78,13 +78,14 @@ extern s8 gYesFrequency;
 extern void *gTestPane;
 extern void *gConfirmPane;
 extern s8 video_gControllerRemoved;                            /* gControllerRemoved */
-extern s32 video_menu_center_x;                           /* menuRect.x */
+typedef struct { s32 x, w, h, cx; } MenuRect;          /* MAT3 videoscr.c menuRect */
+extern MenuRect video_menuRect;                         /* menuRect: cx, the options' right edge, the values' left */
                            /* width$636 */
                            /* width$645 */
 extern s32 playerInPause;
 extern s32 gGameState;
 extern ButtonInfo video_buttonInfo[];                  /* buttonInfo */
-extern u8 video_title_button_pos[];                          /* buttonInfo + 0x2f0 (title position) */
+
 extern u8 gCamera[];
 extern TextColor flashColors[2];                  /* flashColors */
 extern TextColor gFlashColor1, gFlashColor2;
@@ -186,12 +187,12 @@ s32 video_animText(s32 arg0)
     }
     y = TB_GetFontLineHeight() * 2 + 10;
     HAL_SetFont(11);
-    x = video_menu_center_x + 5;
+    x = video_menuRect.cx + 5;
     for (i = 0; i < 4; i++) {
         if (!video_optionValid[i]) continue;
         TB_SetTextColor(i == gVideoMenuSelect ? 22 : 1);
         str = gText.strings[gText.indices->optionNames + i];
-        TB_DrawText(TB_RightText(str, video_menu_center_x - 5), y, str);
+        TB_DrawText(TB_RightText(str, video_menuRect.cx - 5), y, str);
         switch (i) {
         case 0:
             TB_Sprintf(str1, "%s%d", gVertCenter > 0 ? "+" : "", gVertCenter);
@@ -230,7 +231,7 @@ void video_animButtonText(void)
     TB_SetJust(0, 1);
     HAL_SetFont(13);
     TB_SetTextColor(1);
-    ZOID_ProjectWindow(0, video_title_button_pos, gCamera, 0, screenPos);
+    ZOID_ProjectWindow(0, video_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     str = gText.fixed[53];

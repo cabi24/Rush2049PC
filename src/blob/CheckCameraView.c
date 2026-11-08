@@ -2,7 +2,8 @@
 /*
  * CheckCameraView (0x800EB90C, 2,000 B): per-frame camera view selection for every viewport = arcade
  * game/camera.c CheckCameraView() (+ the suspension average and the drone-camera placement of setcamview()).
- *  - In gameplay mode 2 with gContLevels_pad2 bit 1 and gContEdges_pad2 bit 2: bump viewport 0's target car to the next
+ *  - In gameplay mode 2 with the second controller's gContLevels[1] bit 1 and gContEdges[1] bit 2: bump viewport 0's
+ *    target car to the next
  *    active car (arcade "bump target drone"; car record gGameCar[] 952 B, model D_8014A250[] 0x808 B).
  *  - Per viewport i < gNumWindows (camera gCamera[i], its target car obj/model, player record pl):
  *    demo/attract (gGameState & 8): every camera_nextSwitch[slot] seconds (lastSwitch = last switch time,
@@ -86,7 +87,7 @@ typedef struct {
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; Camera *cam; f32 scale, w; unsigned short model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Node68;
 extern s32 gRace;
-extern s32 gContLevels_pad2, gContEdges_pad2;
+extern s32 gContLevels[4], gContEdges[4];   /* each controller's held buttons, new presses */
 extern s32 gGameState;
 extern volatile s16 gNumCars;
 extern s16 gNumWindows;
@@ -134,7 +135,7 @@ void CheckCameraView(void)
     u32 edge;                               /* unused */
     f32 view3_lim;                          /* unused */
 
-    if (gRace == 2 && (gContLevels_pad2 & 2) && (gContEdges_pad2 & 4)) {
+    if (gRace == 2 && (gContLevels[1] & 2) && (gContEdges[1] & 4)) {
         n = gCamera[0].target;
         PC_CAR_VIEW(n) = -1;
         do {

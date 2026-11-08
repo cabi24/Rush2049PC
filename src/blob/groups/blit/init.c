@@ -76,7 +76,7 @@ extern u32 blitAttribute;
 extern s32 blitXmin, blitYmin, blitXmax;
 extern s32 screen_width, screen_height, blitYmax;
 extern s16 blitZDist;
-extern u8 blitPrimColor_alpha;
+extern u8 blitPrimColor[4];   /* the primitive colour, R, G, B, A */
 extern void *blit_cache_image;
 extern intptr_t blitColors;
 extern s32 blitDLnum, blitMode, blitLUT;
@@ -93,7 +93,7 @@ void BlitInit(void)
         blitXmax = screen_width - 1;
         blitYmax = screen_height - 1;
         blitZDist = 0;
-        blitPrimColor_alpha = 255;
+        blitPrimColor[3] = 255;
         blit_cache_image = 0;
         blit_cache_tile = 0;
         if (++blitDLnum >= 2) blitDLnum = 0;

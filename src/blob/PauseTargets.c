@@ -3682,14 +3682,16 @@ typedef s64 M2C_UNK64;
 
 #endif
 
-/* PC: gTargetList_head is the active list of the level-object node pool gTargetList, whose nodes keep their N64 layout in the
- * arena block gTargetArray and link each other by 32-bit window addresses (the pool's n64 flag; docs/port/POINTERS.md
- * 10). Read as a pointer, the link would take the node's flags at +4 as its upper half. */
+/* PC: the head (initTargetStructs.c's Pool, host +0x18) is the active list of the level-object node pool gTargetList,
+ * whose nodes keep their N64 layout in the arena block gTargetArray and link each other by 32-bit window addresses
+ * (the pool's n64 flag; docs/port/POINTERS.md 10). Read as a pointer, the link would take the node's flags at +4 as
+ * its upper half. */
 #define NODE_NEXT(v) ((D_80143FD8_Record *) PC_N64P(M2C_FIELD(v, u32 *, 0)))
 void PauseTargets(void) {
+    struct { u8 b0, n64, pad2[2]; s32 count, size; u8 *mem; D_80143FD8_Record *head; u8 *free; } *pool = (void *) &gTargetList;
     D_80143FD8_Record *var_v0;
 
-    var_v0 = gTargetList_head;
+    var_v0 = pool->head;
     if (var_v0 != NULL) {
         do {
             M2C_FIELD(var_v0, s8 *, 0x64) = 2;

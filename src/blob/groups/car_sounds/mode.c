@@ -124,7 +124,7 @@ void UpdateRoadSounds(ModelView *model)
 #define INPUT_SIZE 80
 /* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
 extern s8 gGameSoundsEnabled;
-extern s8 gCarHorn_players[][13];
+extern s8 gCarHorn[][13];   /* the horn by row (player + 1; row 0 the default) and car type */
 extern volatile f32 gSeconds;
 extern f32 sPitchRange[],sLastHornTime[],D_8012438C,D_80124390;
 extern s32 gHornSounds[],gBogSounds[];
@@ -294,7 +294,7 @@ void UpdateEngineSound(MODELDAT *m) {
  * inlined (h home 168), then the 16-byte update_skid_emitter camera-wrapper area -> all homes equal retail
  * (140,144,148,168,180,220).  d1/d2/d3 are UNUSED locals that are exactly that frame residual (frame 216
  * without d1): disclosed.
- * Other shaping: AudUpdateEmitter' 3rd parameter is `f32 *`; gCarHorn_players is `s8 [13]`;
+ * Other shaping: AudUpdateEmitter' 3rd parameter is `f32 *`; gCarHorn is `s8 [][13]`;
  * volatile gSeconds; int `+1`; power*D operand order; direct entry->handle reads; `& 0x10` operand order.
  */
 #define MODE(m) FIELD(m,s8,1996)
@@ -364,7 +364,7 @@ void UpdateCarSounds(ModelView *model)
        (FIELD(gPlayers,s32,original_slot*INPUT_SIZE+4)&FIELD(gPlayers,s32,original_slot*INPUT_SIZE+56)) &&
        gSeconds-sLastHornTime[original_slot]>0.1f) {
         sLastHornTime[original_slot]=gSeconds;
-        gHornSounds[original_slot]=AudPlayEffect(gCarHorn_players[original_slot][FIELD(model,u8,8)]+26,original_slot,1,4);
+        gHornSounds[original_slot]=AudPlayEffect(gCarHorn[original_slot + 1][FIELD(model,u8,8)]+26,original_slot,1,4);
     }
     if(FIELD(model,s16,1628)==1) {
         gBogSounds[original_slot]=AudPlayEffect(25,original_slot,2,1);

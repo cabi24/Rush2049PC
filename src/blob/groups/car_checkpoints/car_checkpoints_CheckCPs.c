@@ -57,12 +57,24 @@ typedef struct {
     u8 pad7EA[0x808 - 0x7EA];
 } Model;                    /* 0x808 */
 
-typedef struct {
-    f32 pos[3];
-    f32 normal[3];
-    s32 radius;
-    u8 pad1C[0x50 - 0x1C];
-} CheckPoint;               /* 0x50 */
+/* The checkpoints (resurrect.c's tCheckpoints, MAT3 CheckCPs' planes): position, normal and radius each. */
+typedef struct tCheckpoint {
+    float pos[3];
+    float normal[3];
+    int radius;
+    s16 flags;
+    s16 time[2];
+    s16 pathPts[20];
+    float distToNext;
+} tCheckpoint;
+typedef struct tCheckpoints {
+    s16 startTime;
+    s16 loopPt;
+    s16 finishPt;
+    s16 startPt;
+    s16 numPoints;
+    tCheckpoint points[10];
+} tCheckpoints;
 
 typedef struct {
     u8 pad0[7];
@@ -72,7 +84,7 @@ typedef struct {
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the cars' checkpoint state is PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-extern CheckPoint gCheckpoints_points[];
+extern tCheckpoints gCheckpoints;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern volatile s16 gNumCars;
 extern s32 gRace;
@@ -117,10 +129,10 @@ void CheckCPs(void)
         if ((PC_LINK_OWNER(index) == 0 || PC_LINK_OWNER(index) == 6) && gc->crashed == 0) {
             m = PC_MODEL(index);
             if (m->moving == -1) {
-                diff[0] = gc->pos[0] - gCheckpoints_points[m->next_cp].pos[0];
-                diff[1] = gc->pos[1] - gCheckpoints_points[m->next_cp].pos[1];
-                diff[2] = gc->pos[2] - gCheckpoints_points[m->next_cp].pos[2];
-                plane = diff[0] * gCheckpoints_points[m->next_cp].normal[0] + diff[1] * gCheckpoints_points[m->next_cp].normal[1] + diff[2] * gCheckpoints_points[m->next_cp].normal[2];
+                diff[0] = gc->pos[0] - gCheckpoints.points[m->next_cp].pos[0];
+                diff[1] = gc->pos[1] - gCheckpoints.points[m->next_cp].pos[1];
+                diff[2] = gc->pos[2] - gCheckpoints.points[m->next_cp].pos[2];
+                plane = diff[0] * gCheckpoints.points[m->next_cp].normal[0] + diff[1] * gCheckpoints.points[m->next_cp].normal[1] + diff[2] * gCheckpoints.points[m->next_cp].normal[2];
                 if (plane < 0.0f) {
                     side = -1;
                 } else {
@@ -128,7 +140,7 @@ void CheckCPs(void)
                 }
                 if (side != m->side) {
                     m->side = side;
-                    if (diff[0] * diff[0] + diff[2] * diff[2] < gCheckpoints_points[m->next_cp].radius) {
+                    if (diff[0] * diff[0] + diff[2] * diff[2] < gCheckpoints.points[m->next_cp].radius) {
                         cent_dist = plane / (plane - PC_CP_PLANE(index));
                         cent_dist = gFrameSeconds * cent_dist;
                         PassedCP(m, gc->time - cent_dist);

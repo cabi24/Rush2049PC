@@ -1,6 +1,6 @@
 /* port/assets/tests/test_text.c: the text bank converter (port/assets/text.c) on synthetic big-endian banks, then
  * the game's own _AdjustTextWavePointers and three readers that view gText differently: by field
- * (titlescr_animText's table overlay through gText_single) and by raw N64 offsets (pause_TitlePane). A second bank in the same
+ * (titlescr_animText's strings by index, gText.single) and by raw N64 offsets (pause_TitlePane). A second bank in the same
  * block stands in for the language switch.
  * game: src/blob/groups/slot_sound/AdjustTextWavePointers.c src/ovl_a/titlescr_animText.c
  * game: src/blob/groups/pausescr_state/pause_TitlePane.c
@@ -13,8 +13,7 @@
 
 char **pc_text_strings(int section, const uint32_t *offsets, int count, void *base);
 
-/* gText as the game's PC views see it (host layout of ModelTables), with gText_single (the single table) at the
- * address port/data gives it. */
+/* gText as the game's PC views see it (host layout of ModelTables): single, the single table, at +8. */
 struct TextHeader {
     uint16_t count0;
     char **single;
@@ -25,7 +24,6 @@ struct TextHeader {
     uint16_t *tab2, *tab2a;
     char **tab2b;
 } gText;
-__asm__(".globl gText_single\n.set gText_single, gText + 8\n");
 
 /* Stand-ins for what the game files reference. */
 static uint8_t *g_bank;

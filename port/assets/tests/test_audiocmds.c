@@ -130,7 +130,7 @@ STUB_DATA(gEnvList) STUB_DATA(gCoastFlag) STUB_DATA(gNumLights) STUB_DATA(gLight
 STUB_DATA(gOutOfTime) STUB_DATA(gStuffUnlocked) STUB_DATA(gRetireGame) STUB_DATA(gPrevUnlockedTracks) STUB_DATA(gPrevUnlockedCars)
 STUB_DATA(gPrevUnlockedCircuits) STUB_DATA(gGravity) STUB_DATA(gPrevUnlockedTrans) STUB_DATA(gFogColor) STUB_DATA(gPrevUnlockedEngines)
 STUB_DATA(gPrevUnlockedTires) STUB_DATA(gPrevUnlockedFrames) STUB_DATA(circuitCode) STUB_DATA(highscore_gCircuitCode)
-STUB_DATA(gDrawName) STUB_DATA(gTargetList_head) STUB_DATA(gOptions) STUB_DATA(gOptions_fx_volume) STUB_DATA(gSavedGhost)
+STUB_DATA(gDrawName) STUB_DATA(gTargetList) STUB_DATA(gOptions) STUB_DATA(gSavedGhost)
 STUB_DATA(text_lock_queue) STUB_DATA(gBattlePoints) STUB_DATA(gActiveAutoEdges) STUB_DATA(gTrackNum) STUB_DATA(pauseMenuSelect)
 STUB_DATA(gPlayers_save) STUB_DATA(gUnlockedTracks) STUB_DATA(gUnlockedCars) STUB_DATA(gUnlockedCircuits)
 STUB_DATA(gUnlockedTrans) STUB_DATA(gUnlockedEngines) STUB_DATA(gUnlockedTires) STUB_DATA(gUnlockedFrames) STUB_DATA(gNumWindows)

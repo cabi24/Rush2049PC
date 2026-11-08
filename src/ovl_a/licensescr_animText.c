@@ -10,14 +10,13 @@ typedef short s16;
 typedef int s32;
 typedef unsigned int u32;
 typedef float f32;
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct MenuText {
-    char *pad0[920 / 4];
-    u8 *text920;
-    char *pad924[12 / 4];
-    u8 *text936;
-} MenuText;
-extern MenuText *gText_single;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
+extern TextTables gText;
 extern u32 gContLevels;
 extern s8 expansion_pak_present;
 extern u8 licensescr_build_info_format[];
@@ -40,14 +39,14 @@ s32 licensescr_animText(s32 arg0)
     HAL_SetFontSpacing(2);
     TB_SetJust(1, 1);
     TB_SetTextColor(1);
-    TB_DrawTextScrollBox(160, 165, 288, 110, -1, 0, gText_single->text936);
+    TB_DrawTextScrollBox(160, 165, 288, 110, -1, 0, gText.single[234]);
     if (gContLevels == 0x3C000) {
         TB_SetTextColor(14);
         TB_Printf(210, 30, licensescr_build_info_format, build_date_text, build_time_text);
     }
     if (expansion_pak_present != 0) {
         TB_SetTextColor(14);
-        TB_DrawText(160, 10, gText_single->text920);
+        TB_DrawText(160, 10, gText.single[230]);
     }
     TB_SetJust(0, 3);
     HAL_SetFontFixedWidth(1);

@@ -13,7 +13,7 @@
 
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 
-float carTransGearRatio_biased[6 * 13];        /* per-car inertia factors: [car][gear], 6 a row */
+float carTransGearRatio[6 * 13];        /* per-car inertia factors: [car][gear + 1], 6 a row */
 float carEngineTorque[13][3];         /* per-car torque scale: [car][mode] */
 
 void calcaa(void **model, float *in, float *out);
@@ -42,10 +42,10 @@ int main(void)
     calcaa((void **)model, in, out);
     CHECK(out[0] == 103.0f && out[1] == 2 * 104.0f && out[2] == 3 * 105.0f);
 
-    /* Inertia: +0x428 = tune word 3 x carTransGearRatio_biased[car 2][gear 1]; +0x42C = descriptor word 41 x that. */
+    /* Inertia: +0x428 = tune word 3 x carTransGearRatio[car 2][gear 1 + 1]; +0x42C = descriptor word 41 x that. */
     model[9] = 2;                               /* car type */
     *(int16_t *)(model + 0x3F4) = 1;            /* gear */
-    carTransGearRatio_biased[2 * 6 + 1] = 0.5f;
+    carTransGearRatio[2 * 6 + 1 + 1] = 0.5f;
     transmission((int8_t *)model);
     CHECK(F(model, 0x428) == 13.0f * 0.5f);
     CHECK(F(model, 0x42C) == 141.0f * 13.0f * 0.5f);

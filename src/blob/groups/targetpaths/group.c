@@ -4102,7 +4102,7 @@ void ZOID_SetObjectDef_TargetPaths(s32 slot, u16 v) {
  * camera (CollisionTargetPtrs[numCollisionTargetPtrs++]), store the largest key f3C in ctl->f14, build the view matrix of the
  * first key flagged 1 but not 0x1000 (and flag it 0x1000), set the s5A period from the table's s14
  * (361 -> 4, 365 -> 20), start the scene (flags 0x100000 -> 0x200400 and the entity slot value
- * gObjList_trigger_off unless 0x8000) and link a new update node from GrabEnvEntry (period 0.25 / 0.0425).  Then
+ * definition gObjList[349] unless 0x8000) and link a new update node from GrabEnvEntry (period 0.25 / 0.0425).  Then
  * cam->flags |= 1.  N64-only (scripted attract/replay cameras); no arcade ancestor.
  * Quirks, all needed for the 248-byte frame (every stack offset checked against retail):
  *  - `u8 col[4] = {255, 0, 0, 255}`: initialised local aggregate; IDO copies it from an anonymous .data
@@ -4115,6 +4115,7 @@ void ZOID_SetObjectDef_TargetPaths(s32 slot, u16 v) {
  *  - the mode-2 locals are block-scoped, `k` in its own loop-body block (allocated after `mat`).
  */
 void StartPathTarget(Camera *cam) {
+    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]): a path target's when stopped at 349 */
     s32 unused[11];
     u8 col[4] = { 255, 0, 0, 255 };
     CamTbl *tbl;
@@ -4190,7 +4191,7 @@ void StartPathTarget(Camera *cam) {
                 sc->flags &= ~0x100000;
                 sc->flags |= 0x200400;
                 if (!(sc->flags & 0x8000)) {
-                    ZOID_SetObjectDef_TargetPaths(cam->slot, gObjList_trigger_off);
+                    ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
                 }
             }
             node = GrabEnvEntry();
@@ -4236,6 +4237,7 @@ void StartPathTarget(Camera *cam) {
  * 0x80123E8C (retail bits 0x3D2E147B, checked against the image).
  */
 void AnimatePathTarget(CamNode *node, s16 flag) {
+    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]): a path target's when it starts (348), stops (349) */
     Camera *cam;
     CamCtl *ctl;
     CamScene *sc;
@@ -4289,7 +4291,7 @@ void AnimatePathTarget(CamNode *node, s16 flag) {
                         sc->flags &= ~0x100000;
                         sc->flags |= 0x200400;
                         if (!(sc->flags & 0x8000)) {
-                            ZOID_SetObjectDef_TargetPaths(cam->slot, gObjList_trigger_off);
+                            ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
                         }
                         PlayStopSound(cam);
                         return;
@@ -4317,14 +4319,14 @@ void AnimatePathTarget(CamNode *node, s16 flag) {
                             sc->flags &= ~0x200000;
                             sc->flags |= 0x100000;
                             if (!(sc->flags & 0x8000)) {
-                                ZOID_SetObjectDef_TargetPaths(cam->slot, gObjList_trigger_on);
+                                ZOID_SetObjectDef_TargetPaths(cam->slot, objects[348]);
                             }
                             PlayStartSound(cam);
                         } else {
                             sc->flags &= ~0x100000;
                             sc->flags |= 0x200000;
                             if (!(sc->flags & 0x8000)) {
-                                ZOID_SetObjectDef_TargetPaths(cam->slot, gObjList_trigger_off);
+                                ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
                             }
                             PlayStopSound(cam);
                         }
@@ -4332,7 +4334,7 @@ void AnimatePathTarget(CamNode *node, s16 flag) {
                         sc->flags &= ~0x200000;
                         sc->flags |= 0x100000;
                         if (!(sc->flags & 0x8000)) {
-                            ZOID_SetObjectDef_TargetPaths(cam->slot, gObjList_trigger_on);
+                            ZOID_SetObjectDef_TargetPaths(cam->slot, objects[348]);
                         }
                         PlayStartSound(cam);
                     }
@@ -4447,7 +4449,7 @@ void AnimatePathTarget(CamNode *node, s16 flag) {
                     }
                     flag = cam->s58 + idx;
                     if (flag != cam->s50) {
-                        m = (&gObjList)[flag];
+                        m = objects[flag];
                         lk = N64P(sc->link);
                         if (lk) {}
                         if (sc->flags & 0x8000) {

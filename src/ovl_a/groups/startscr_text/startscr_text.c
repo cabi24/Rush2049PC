@@ -158,7 +158,7 @@ s32 startscr_animText(void *callback_context)
 
 extern s8 startscr_validOption[];
 extern s32 gActiveLevels;
-extern s8 cheat_menu_unlocked;
+extern s8 gCheatActive[];   /* the cheats on; [21] the start screen's code (the cheats menu) */
 
 s8 startscr_optionValid(s32 index)
 {
@@ -169,7 +169,7 @@ s8 startscr_optionValid(s32 index)
         value = 0;
     }
     if (index == 6) {
-        value = cheat_menu_unlocked;
+        value = gCheatActive[21];
     }
     return PC_START_VALID(index, value);
 }

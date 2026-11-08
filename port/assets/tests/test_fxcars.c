@@ -68,23 +68,22 @@ typedef struct EffectObj {   /* skid_marks' skid segment */
     uint8_t color[4];
     int32_t f20;
 } EffectObj;
-StatLL gSmokeList __attribute__((aligned(16)));   /* the puff pool */
-ALIAS(gSmokeList_head, gSmokeList, 24);                /* its active list (N64 +0x10) */
+StatLL gSmokeList __attribute__((aligned(16)));   /* the puff pool, its active list head */
 Puff gSmokeObjs[100];
 StatLL gSkidList;                                /* the skid segment pool */
 EffectObj gSkidArray[100];
 uint8_t ObjInstanceList[64 * 104] __attribute__((aligned(16)));   /* the scene nodes, 104 bytes each on the PC */
 
 int8_t expansion_pak_present = 1, gTrackNum, gGoodFrameRate = 1, gSuperSpeed, gGameSoundsEnabled;
-int16_t gNumPlayers = 1, gBlastMatCnt, gObjList_smoke_lite, gObjList_fire;
+int16_t gNumPlayers = 1, gBlastMatCnt;
 int32_t gPauseState, rand_seed = 1, start_water_sentinel, gGameState;
 uint8_t gNumModels = 1;
 volatile float gFrameSeconds = 1.0f / 60;
 float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[4][3], skid_lift = 0.8f, skid_min_length_sq = 0.1f;
 float gSeconds[4], gDummyVtx[16];
-uint16_t gFireTexs[6], gObjList_smoke[2][9], gObjList_water[8], gObjList[200], gTexList_skid;
+uint16_t gFireTexs[6], gObjList[220], gTexList[10];   /* the smoke, fire and spray models from 195; the skid texture, 8 */
 char *FireTexNames[6];
-int8_t gCarWings_players[PC_MAX_LINKS * 13];   /* the four players' option per car type in the game: [4][13] */
+int8_t gCarWings[(PC_MAX_LINKS + 1) * 13];   /* row 0 the default, then each player's option per car type ([5][13] in the game) */
 int32_t smoke_white, smoke_wing_color1, smoke_wing_color2, smoke_wing_color3, smoke_road_color, smoke_dirt_color;
 struct { uint8_t *data; uint32_t other; } gTexDefPtrs[64];
 void *gBlastMats[50];

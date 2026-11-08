@@ -2284,7 +2284,9 @@ extern f32 gBestLapTime;
 extern s32 gNumChannels;
 extern s32 pak_file_records;
 extern s8 gGhostPak;
-extern s32 gStoppedChannels;
+/* s32[5], open-ended: AudioSfxServer writes past its first word, so an optimizing GCC must take no size from it
+ * (OPTIMIZED.md 2.7) */
+extern s32 gStoppedChannels[];
 extern s32 gStoppedChannels_tail;
 extern s32 gStoppedChannels_newest;
 extern s32 pak_free_handles;
@@ -3734,6 +3736,8 @@ s32 sound_set_doppler(u32 identifier, u16 value);
 #define sound_set_doppler(m2c_zero, identifier, value) sound_set_doppler(identifier, value)
 
 void AudioSfxServer(void) {
+    /* gStoppedChannels, s32[5]: the channels stopped in the last frames, [4] this frame's count */
+    s32 *stopped = (s32 *) &gStoppedChannels;
     f32 temp_f0;
     f32 temp_f0_2;
     f32 temp_f0_3;
@@ -3779,14 +3783,14 @@ void AudioSfxServer(void) {
     void *temp_v1_3;
 
     if (audiosfx_gInited != 0) {
-        gNumChannels += gStoppedChannels_newest;
-        var_v0 = &gStoppedChannels_newest;
+        gNumChannels += stopped[4];
+        var_v0 = &stopped[4];
         do {
             temp_t6 = M2C_FIELD(var_v0, s32 *, -4);
             var_v0 = var_v0 - 1;
             *var_v0 = temp_t6;
-        } while ((uintptr_t) var_v0 >= (uintptr_t) &gStoppedChannels_tail);
-        gStoppedChannels_newest = 0;
+        } while ((uintptr_t) var_v0 >= (uintptr_t) &stopped[1]);
+        stopped[4] = 0;
         if (gStopAllEffects != 0) {
             temp_v0 = gNumInstances;
             var_s4 = 0;
@@ -3833,7 +3837,7 @@ block_10:
                         } while (temp_s2 != NULL);
                     }
                     temp_v1_3 = var_s0_2 + temp_v0_2;
-                    gStoppedChannels_newest += 1;
+                    stopped[4] += 1;
                     M2C_FIELD(temp_v1_3, s32 *, 8) = 0;
                     M2C_FIELD(temp_v1_3, s8 *, 0) = 0;
                 }
@@ -3895,7 +3899,7 @@ block_109:
                         if (var_v0_2 == 0) {
                             goto block_109;
                         }
-                        gStoppedChannels_newest += 1;
+                        stopped[4] += 1;
                         goto block_108;
                     case 3:
                         temp_f0 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE);

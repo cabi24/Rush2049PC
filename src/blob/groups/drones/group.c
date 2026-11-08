@@ -96,7 +96,9 @@ extern F32 gModelTime;
 extern S32 gRace;
 extern S8 gTrackNum;
 extern S8 gBackwards;
-extern S16 gCircuitCars_skill[][38];
+/* The circuit's cars (MAT3 tCircuitCar, 76 bytes; ContinueCircuit.c): skill, by track (+6 run backwards). */
+typedef struct { U8 id; U8 b1; U16 h2; U8 b4[24]; U8 b28[24]; S16 skill[12]; } Rec;
+extern Rec gCircuitCars[];
 extern S8 gCoastFlag;
 extern S8 gEndGame;
 extern S8 gOneMoreCP;
@@ -286,7 +288,7 @@ void DoDrones(void)
                             high_index = 6;
                         else
                             high_index = 0;
-                        diff_scale *= (F32)gCircuitCars_skill[PC_MODEL_SLOT(index)][temp + high_index] * .125f + .75f;
+                        diff_scale *= (F32)gCircuitCars[PC_MODEL_SLOT(index)].skill[temp + high_index] * .125f + .75f;
                     }
 
                     max_boost = (1.0f - 1.1f) * diff_scale + 1.1f - place_scale * ((.15f - .05f) * diff_scale + .05f);

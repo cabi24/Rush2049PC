@@ -2,7 +2,7 @@
 /*
  * Level-object instantiation (the function names are historical labels).
  *
- *   SetTargetDefs()        walks the scene list gTargetPaths[gTargetPaths_count] (36-byte scenes, 68-byte
+ *   SetTargetDefs()        walks the scene list gTargetPaths.paths[gTargetPaths.count] (36-byte scenes, 68-byte
  *                                resources), instantiates every enabled resource through
  *                                SetupTarget, allocates the per-category arenas, resolves the
  *                                key references in gTargetGroupList, resets the 16 category-5 slots in mode 6,
@@ -19,7 +19,7 @@
  *                                inlines its node-flags getter get_world_part_flags, defined after it.
  *
  * Shaping quirks (they match the bytes; they may not be the original spelling):
- *   - `if (gTargetPaths) {}` in set_target_data is a code-free dead read (probably a compiled-out debug
+ *   - `if (gTargetPaths.paths) {}` in set_target_data is a code-free dead read (probably a compiled-out debug
  *     check). It gives retail's &gTargetPaths address live range in a0 and moves node to s1/matrix to s0.
  *   - set_target_data is defined after SetTargetDef (later source lines change as1's prologue order).
  *   - `(node->flags & 16) == 0` (not `!(...)`) is a ugen temp-ring pop: it gives the struct copy t8.
@@ -145,8 +145,9 @@ typedef struct Pool { u8 b0; s32 count; s32 size; u8 *mem; Node *head; u8 *free;
 
 extern u32 gGameState;
 extern s8 expansion_pak_present;
-extern Scene36 *gTargetPaths;
-extern s32 gTargetPaths_count;
+/* The level's path scenes (waves.c's anon_paths_count_8, MAT3 gTargetPaths): count of them at paths. */
+typedef struct anon_paths_count_8 { Scene36 *paths; s32 count; } anon_paths_count_8;
+extern anon_paths_count_8 gTargetPaths;
 extern s32 gRace;
 extern s16 gNumPlayers;
 extern s8 gBackwards;
@@ -244,8 +245,8 @@ void set_target_data(Node *node,Metadata48 *metadata,s32 category)
             node->state=N64W(gTargetOwnStructPtrs[category]);
             if(!(node->flags&16) && category==4) {
                 j=node->index;
-                STATE_SCENE(node->state)=N64W(&gTargetPaths[j]);
-                if(gTargetPaths) {}
+                STATE_SCENE(node->state)=N64W(&gTargetPaths.paths[j]);
+                if(gTargetPaths.paths) {}
                 if((SCENE_OF(node->state))->flags&16) node->flags&=~8;
             }
             gTargetOwnStructPtrs[category]=gTargetOwnStructPtrs[category]+gTargetStructSizes[category];
@@ -425,7 +426,7 @@ s32 SetupTarget(Place *rec, s16 parent, f32 *pos, void *src, s8 index, s32 place
         if (src != 0) {
             node->key = rec->key;
         } else if (md->category == 4) {
-            node->key = gTargetPaths[index].key;
+            node->key = gTargetPaths.paths[index].key;
         }
         if (gGameState & 0x400000) {
             if (gRace == 6) {
@@ -438,7 +439,7 @@ s32 SetupTarget(Place *rec, s16 parent, f32 *pos, void *src, s8 index, s32 place
     return 0;
 }
 
-#define SCENE ((Scene36 *)((u8 *)gTargetPaths + offset))
+#define SCENE ((Scene36 *)((u8 *)gTargetPaths.paths + offset))
 
 void SetTargetDefs(void)
 {
@@ -451,9 +452,9 @@ void SetTargetDefs(void)
     if ((gGameState & 8) && !expansion_pak_present) {
         return;
     }
-    if (gTargetPaths_count) {
+    if (gTargetPaths.count) {
         zero.z = zero.x = zero.y = 0.0f;
-        for (i = 0, offset = 0; i < gTargetPaths_count; i++, offset += 36) {
+        for (i = 0, offset = 0; i < gTargetPaths.count; i++, offset += 36) {
             if (gRace == 2 && SCENE->action > 0) {
                 for (j = 0; j < SCENE->count; j++) {
                     if (PTHD_PTS(SCENE)[j].flags & 0x01000000) {

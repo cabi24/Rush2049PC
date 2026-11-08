@@ -61,9 +61,12 @@ extern Camera gCamera[];
 extern Color4 flashColors,flashColors_at_1;
 extern Player gPlayers[];
 extern s16 gNumPlayers;
-extern Profile **gStatPlayer,**gPlayerFiles_head;
+extern Profile **gStatPlayer;
+extern struct PlayerFiles { u32 unknown0, unknown4; Profile **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
 extern s32 gRecordState,recordscr_gSelectMenuSelect,gViewStatType[],recordscr_gNumPakPlayers[],gTrackType;
-extern s8 gDeleteConfirm,recordscr_gYes,gDeleteNotify,gRecordTrack,gRecordCircuit,recordscr_gSelectPakIdx,gOptions_metric;
+extern s8 gDeleteConfirm,recordscr_gYes,gDeleteNotify,gRecordTrack,gRecordCircuit,recordscr_gSelectPakIdx;
+/* The game options, a byte each (Settings): [9] metric units (MAT3 recordscr tests gOptions[9]). */
+extern s8 gOptions[];
 extern u8 gDeleteName[];
 extern f32 recordscr_gButtonScale,recordscr_buttonZ,gDefTime;
 extern TextBox gScreenRect;
@@ -131,7 +134,7 @@ void getScoreStr(u8 *destination,f32 time,s32 unused_format)
  * TB_FlashTextColors, HAL_GetTextWidth, HAL_SetFontSpacing,
  * TB_DrawEllipseText, TB_Sprintf; gScreenRect, gDeleteConfirm/854/850 =
  * gDeleteConfirm/gDeleteNotify/gYes, gStatPlayer, gDeleteName, recordscr_gSelectMenuSelect = gSelectMenuSelect,
- * recordscr_gSelectPakIdx = gSelectPakIdx, recordscr_gNumPakPlayers = gNumPakPlayers, gPlayerFiles_head = gPlayerFiles.head.
+ * recordscr_gSelectPakIdx = gSelectPakIdx, recordscr_gNumPakPlayers = gNumPakPlayers, gPlayerFiles.
  * SHAPING (disclosed residual): `pad` is an unused s32 declared before i.  Frame 176 with or without it (8-byte
  * rounding), every local home is already retail's; it makes the cfe local area 108 instead of 104, which moves uopt's
  * spill homes down one slot so the loop's spilled &buttonInfo[i].uvs[3] lands at retail's sp+52 instead of sp+56
@@ -253,7 +256,7 @@ void recordscr_drawSelect(void)
                 s32 playerIdx;
                 player = gStatPlayer;
                 if (!player) {
-                    for (playerIdx = 0, player = gPlayerFiles_head; player; player = (*player)->next) {
+                    for (playerIdx = 0, player = gPlayerFiles.head; player; player = (*player)->next) {
                         if ((*(*player)->file)->controller == recordscr_gSelectPakIdx) {
                             if (playerIdx == i - 3) str = (*player)->name;
                             playerIdx++;
@@ -412,7 +415,7 @@ void drawRaceStats(void)
     if(gStatPlayer)data=PROFILE_DATA+140+track*96;
     else data=gTotalRaceStats+track*96;
     distance=U32_AT(data,88);
-    if(gOptions_metric)distance=distance*10/6;
+    if(gOptions[9])distance=distance*10/6;
     HAL_SetFont(11);
     ChangePaneSize(recordscr_viewPane,12,86,308,94+TB_GetFontLineHeight()*8);
     TB_SetTextColor(1);
@@ -423,7 +426,7 @@ void drawRaceStats(void)
         else if(i==10) {x=260;y=90;continue;}
         else if((i==12 || i==13) && !gStatPlayer)continue;
         label=NAME(28,i);
-        if(i==11 && gOptions_metric)label=NAME(28,14);
+        if(i==11 && gOptions[9])label=NAME(28,14);
         TB_DrawText(TB_RightText(label,x-4),y,label);
         switch(i) {
         case 0:getScoreStr(text,F32_AT(data,64),0);break;
@@ -486,11 +489,11 @@ void drawTotalStats(void)
     for(row=0;row<7;row++) {
         if(row==0) {x=180;y=90;}
         label=NAME(33,row);
-        if(row==0 && gOptions_metric)label=NAME(28,7);
+        if(row==0 && gOptions[9])label=NAME(28,7);
         TB_DrawText(TB_RightText(label,x-4),y,label);
         switch(row) {
         case 0:
-            if(gOptions_metric) {
+            if(gOptions[9]) {
                 TB_Sprintf(text,recordscr_total_km_format,(distance*divisor/6)/divisor,(distance*divisor/6)%divisor);
             } else TB_Sprintf(text,recordscr_total_miles_format,distance/divisor,distance%divisor);
             break;

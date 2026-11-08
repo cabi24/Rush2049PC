@@ -70,7 +70,7 @@ extern Text gText;
 extern s32 options_buttonsInited;
 extern s16 options_gSelectedOption;
 extern ButtonInfo options_buttonInfo[];
-extern f32 options_title_button_pos[3];
+
 extern u8 gCamera[];
 extern Color flashColors[2];
 extern Color gFlashColor1;
@@ -141,7 +141,7 @@ void options_animButtonText(void)
     HAL_SetTextDepth(0.0f);
     TB_SetJust(0, 1);
     HAL_SetTextDepth(32320.0f);
-    ZOID_ProjectWindow(0, options_title_button_pos, gCamera, 0, screenPos);
+    ZOID_ProjectWindow(0, options_buttonInfo[31].pos, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     HAL_SetFont(13);

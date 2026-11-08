@@ -2,16 +2,18 @@
 typedef int s32;
 typedef short s16;
 typedef unsigned char u8;
-typedef struct Slot {
-    void **head;
-    s32 pad[3];
-} Slot;
-extern Slot gPS_Files_head[];
+/* Each pak's open files (paksysdc's tDLList, MAT3 tDLList): head the first. */
+typedef struct tDLList {
+    u8 indirect, doubly, opaque2[2];
+    unsigned int count;
+    void **head, **tail;
+} tDLList;
+extern tDLList gPS_Files[];
 extern s16 gPickedPak;
 
 void **pakscr_FindFile(s32 id)
 {
-    void **node = gPS_Files_head[gPickedPak].head;
+    void **node = gPS_Files[gPickedPak].head;
 
     while (node != 0) {
         u8 *obj = *node;

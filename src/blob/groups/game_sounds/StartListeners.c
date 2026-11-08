@@ -2,9 +2,11 @@
 /*
  * StartListeners: post one four-vector packet per active player and set the vsync blend.
  * Unless gGameState bit 3 is set: for each player record gPlayers[0..gNumPlayers) (0x4C bytes)
- *   message (+0x44) = AudAddListener(&unitmatrix_origin, &unitmatrix_origin, &unitmatrix_zaxis, &unitmatrix_yaxis), except
+ *   message (+0x44) = AudAddListener(&unitmatrix_origin, &unitmatrix_origin, unitmatrix[2], unitmatrix[1]) (the
+ *   identity's z and y axes), except
  *   in mode gRace == 2 for records whose byte +0 is set, which get -1;
- * then AudSetMasterVol((f32)gOptions_fx_volume / 10.0f, 0.1f, 0, 1) (the same blend EnableGameSounds computes).
+ * then AudSetMasterVol((f32)gOptions[13] / 10.0f, 0.1f, 0, 1), the effects volume (the same blend EnableGameSounds
+ * computes).
  * AudSetMasterVol is internal (IPA: blend/amount in f20/f22, the flags in s1/s2), so this function only
  * installs in the vsync group. Retail's pointer loop with a recomputed end is IDO's
  * test replacement of the index loop below (as in animControllerDimInternal/RecordGhost).
@@ -32,8 +34,10 @@ extern PlayerRec gPlayers[];
 extern s32 gGameState;
 extern s32 gRace;
 extern s16 gNumPlayers;
-extern Vec3 unitmatrix_origin, unitmatrix_zaxis, unitmatrix_yaxis;
-extern s8 gOptions_fx_volume;
+extern Vec3 unitmatrix_origin;
+extern f32 unitmatrix[][3];   /* the identity matrix's rows: the x, y and z axes */
+/* The game options, a byte each (Settings): [13] the effects volume, 0..10. */
+extern s8 gOptions[];
 
 Packet *AudAddListener(Vec3 *a, Vec3 *b, Vec3 *c, Vec3 *d);
 void AudSetMasterVol(f32 blend, f32 amount, s32 first, s32 second);
@@ -45,9 +49,9 @@ void StartListeners(void)
     if (!(gGameState & 8)) {
         for (i = 0; i < gNumPlayers; i++) {
             if (gRace != 2 || gPlayers[i].unk0 == 0)
-                gPlayers[i].message = PACKET(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, &unitmatrix_zaxis, &unitmatrix_yaxis));
+                gPlayers[i].message = PACKET(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));
             else gPlayers[i].message = -1;
         }
-        AudSetMasterVol((f32)gOptions_fx_volume / 10.0f, 0.1f, 0, 1);
+        AudSetMasterVol((f32)gOptions[13] / 10.0f, 0.1f, 0, 1);
     }
 }

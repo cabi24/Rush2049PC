@@ -585,7 +585,6 @@ void drawMain(void)
 
 
 extern s32 gGameOverState;
-extern f32 best_lap_time_by_column[];
 extern f32 gLapTimes[][8];
 extern char race_score_time_format[],race_score_best_lap_format[],race_score_lap_time_format[];
 void text_lock(void);
@@ -800,7 +799,7 @@ s32 gameover_animText(s32 arg0)
                             }
                         } else if(row==2) {
                             if(gLap[gPlayers[column-1].vehicle]>0) {
-                                t=best_lap_time_by_column[column];
+                                t=gBestLapTime[column-1];   /* column 1 is player 0 */
                                 HAL_SetFont(3);
                                 TB_SetTextColor(1);
                                 TB_Sprintf(value,race_score_best_lap_format,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);
