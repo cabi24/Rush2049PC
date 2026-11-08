@@ -81,6 +81,7 @@ extern s32 func_800CF604(s16);
 extern void func_800A61B0(f32 *, f32 *, f32 *);
 extern void stat_race_update(Blit *, s32, s32, s32);
 
+#define Hidden input_new_data_wrapper   /* state_update_global.c's, under its address name */
 s32 Hidden(Blit *blt, s32 hide);
 
 s32 func_80108F40(Blit *blt) {

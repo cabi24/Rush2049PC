@@ -571,7 +571,6 @@ src/blob/input_init_flag_get.c	src/blob/HAL_CallOncePerFrameFuncs.c	file	mat3	su
 src/blob/process_inputs.c	src/blob/UpdateRushControls.c	file	mat3	sure	single file of UpdateRushControls (was process_inputs)
 src/blob/hud_render.c	src/blob/UpdateSmoke.c	file	mat3	sure	single file of UpdateSmoke (was hud_render)
 src/blob/func_800CB718.c	src/blob/InitSmokeBlast.c	file	mat3	sure	single file of InitSmokeBlast (was func_800CB718)
-src/blob/menu_render_list.c	src/blob/DeleteGhost.c	file	mat3	sure	single file of DeleteGhost (was menu_render_list)
 src/blob/sound_play_menu.c	src/blob/AllocateMemoryHeapHigh.c	file	mat3	sure	single file of AllocateMemoryHeapHigh (was sound_play_menu)
 src/blob/func_800CC848.c	src/blob/save_file_pak_ready.c	file	code	likely	single file of save_file_pak_ready (was func_800CC848)
 src/blob/func_800CCB40.c	src/blob/GetDefaultOption.c	file	mat3	sure	single file of GetDefaultOption (was func_800CCB40)

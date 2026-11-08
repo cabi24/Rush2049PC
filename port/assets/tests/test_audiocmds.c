@@ -13,6 +13,7 @@
  * game: src/blob/groups/audio_options_menu/func_800D7634.c src/blob/groups/billboard_render/track_texture_load.c
  * game: src/blob/groups/gameover/gameover.c src/blob/groups/slot18_alloc/group.c
  * game: nonmatching/game/RaceStateMachine_Update.c nonmatching/game/display_list_flush.c
+ * game: src/blob/func_800BEA6C.c src/blob/audio_update_c.c
  * game: src/blob/groups/carcolor/ctx_func_800C8918.c
  * game: src/blob/effect_system_init.c src/blob/func_800A5B3C.c
  */
@@ -159,10 +160,6 @@ void di_post_type1(void);                                 /* its way in */
 void post_msg_a(void);                                    /* updateAudioScreen's two */
 void post_msg_b(void);
 void AudKillSong_TTL(void);                               /* the high score screen's */
-void AudKillSong(void);                                   /* display_list_flush.c's */
-void AudPauseAllEffects(void);                            /* RaceStateMachine_Update.c's */
-void AudResumeAllEffects(void);
-void AudStopAllEffects(void);
 void post_type1(void);                                    /* the audio shutdown's (carcolor's, their owner) */
 void post_type7(void);
 void func_800C8918(void);                                 /* the audio shutdown */
@@ -201,8 +198,6 @@ static const struct { const char *name; void (*post)(void); int cmd; } POSTERS[]
     {"speed_set", speed_set_half, 10},            {"us_AudKillSong", us_AudKillSong, 1},
     {"di_post_type1", di_post_type1, 1},          {"post_msg_a", post_msg_a, 1},
     {"post_msg_b", post_msg_b, 1},                {"AudKillSong_TTL", AudKillSong_TTL, 1},
-    {"AudKillSong", AudKillSong, 1},              {"AudPauseAllEffects", AudPauseAllEffects, 7},
-    {"AudResumeAllEffects", AudResumeAllEffects, 9}, {"AudStopAllEffects", AudStopAllEffects, 7},
 };
 
 static void posters(void)

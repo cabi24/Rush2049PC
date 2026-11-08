@@ -48,21 +48,15 @@ void *func_800B24EC(char *name, u16 *out, s8 lo, s8 hi, s32 err);
 Poly *func_800A78BC(s32, f32 *, u16, u8 *, u16, s32);
 void func_8008C074(Poly *, s32, f32 *, u16, u8 *, u16, s32);
 void func_8008D0C0(Poly *);
-s32 entity_flags_apply(s32, s32, s32, u8);
 s32 sprintf(char *, const char *, ...);
 
-static s32 PlayGameSound(s32 fxid, s32 subId, s32 replace, u8 priority)
-{
-    if (!D_8010FFC0) {
-        return 0;
-    }
-    return entity_flags_apply(fxid, subId, replace, priority);
-}
-
-static void ZOID_ShowPoly(Poly *poly)
-{
-    poly->flags &= 0x7FFF;
-}
+/* The game's own PlayGameSound and ZOID_ShowPoly. This file had static copies: ZOID_ShowPoly the same code;
+ * PlayGameSound without the global's fxid == -1 test and returning 0, not -1, when game sounds are off, which
+ * changes nothing here (the sounds are 75 to 77 and the result is not read). */
+s32 func_800B61A8(s32 fxid, s32 subId, s32 replace, u8 priority);
+#define PlayGameSound func_800B61A8
+void func_8008D0B0(Poly *poly);
+#define ZOID_ShowPoly func_8008D0B0
 
 void ShowCountdown(s32 active)
 {

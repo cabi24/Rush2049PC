@@ -85,15 +85,11 @@ extern void func_8008C074(Poly *record, s32 count, f32 (*positions)[3], u16 para
 #define DEBUG_PRINT(x)
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 
-static void ZOID_HidePoly(Poly *poly)
-{
-    poly->flags |= 0x8000;
-}
-
-static void ZOID_ShowPoly(Poly *poly)
-{
-    poly->flags &= ~0x8000;
-}
+/* The game's own ZOID_HidePoly and ZOID_ShowPoly (this file had static copies: the same code). */
+void func_8008C874(Poly *poly);
+#define ZOID_HidePoly func_8008C874
+void func_8008D0B0(Poly *poly);
+#define ZOID_ShowPoly func_8008D0B0
 
 void func_8008D098(Poly *poly, unsigned short flags);
 

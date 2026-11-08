@@ -100,9 +100,9 @@ void *memcpy(void *, const void *, u32);
 u8 func_800CDDE8(PlayerRec **handle);                       /* GC GetPlayerCarTrans */
 void *AllocateMemoryHeap(void *heap, u32 size);                 /* GC AllocateMemoryHeap */
 s32 func_800CBF2C(Ghost **ghosth, s32 decode, s32 select);  /* GC _ReadGhostData (IPA s1, s0, s3) */
-s32 ReadGhostData(Ghost **ghosth) {                        /* GC save.c ReadGhostData */
-    return func_800CBF2C(ghosth, 1, 1);
-}
+/* The game's own ReadGhostData (this file had a second copy of it: the same code). */
+s32 menu_item_value_get(Ghost **ghosth);
+#define ReadGhostData menu_item_value_get
 
 extern s8 D_80156994;
 extern s32 gameplay_mode;                                   /* GC gRace */

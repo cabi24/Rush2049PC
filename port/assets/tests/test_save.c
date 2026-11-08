@@ -140,6 +140,7 @@ void func_800A43FC(void);                                       /* the pak inser
 void **func_800C7200(void);                                     /* _NewGhost */
 void **CompressGhost(void *header, int8_t *blocks);
 int32_t SaveGhost(int32_t pak, void **player, void **ghosth, int32_t limbo);
+#define DeleteGhost menu_render_list   /* ctx_slot.c's, under its address name */
 void DeleteGhost(void **ghosth);
 int32_t func_800CBF2C(void **ghosth, int32_t decode, int32_t select);   /* _ReadGhostData */
 int32_t func_800E5D64(int32_t player, float *frameTime);        /* the ghost replay */

@@ -119,17 +119,16 @@ void func_8038FFD0(void);
 void func_8038F734(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
 void func_8038F73C(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
 void func_8038F79C(void);
-/* This file's InitEgg (inlined on the N64) points at the main menu's code, D_803B41D4; eggs.c's InitEgg at cheat
-   `egg` of D_803B3460. Under one name the PC linked eggs.c's for both, so InitEgg(23) pointed past the table and
-   the cheat screen could never be opened (docs/port/QA.md). */
-#define InitEgg startscr_InitEgg
+/* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, D_803B41D4;
+   eggs.c's InitEgg at cheat `egg` of D_803B3460. Under one name the PC linked eggs.c's for both, so InitEgg(23)
+   pointed past the table and the cheat screen could never be opened (docs/port/QA.md). */
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8, never valid on the
    N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_EXIT(e) ((e) = pc_start_exit((e), D_803B6A68))
-void InitEgg(s32);
+void startscr_InitEgg(s32);
 void func_80390418(void);
 
 
@@ -139,7 +138,7 @@ void func_80390418(void);
 
 
 
-void InitEgg(s32 egg)
+void startscr_InitEgg(s32 egg)
 {
     D_803B4278 = &D_803B41D4[egg - 23];
     D_803B427C = 0;
@@ -260,7 +259,7 @@ void func_8038FFD8(void)
     D_803B6A70 = 0;
     entity_audio_update();
     if (!D_801164A1)
-        InitEgg(23);
+        startscr_InitEgg(23);
     D_803B65DC = 1;
 }
 

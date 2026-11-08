@@ -30,6 +30,8 @@ typedef struct Blit {
 extern s32 D_80149D98;
 extern u32 D_80117358;
 extern void Input_ApplyPadConfig(Blit *);
+/* Hidden, under its address name in the loader's tables (src/blob/input_new_data_wrapper.c was a second copy of it). */
+#define Hidden input_new_data_wrapper
 s32 Hidden(Blit *blt, s32 hide)
 {
     if (hide != blt->Hide) {

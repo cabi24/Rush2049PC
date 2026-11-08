@@ -68,7 +68,8 @@ extern void func_8008C544(f32 *, f32 *, f32 (*)[3]);
 extern f32 func_8008C768(f32, f32);
 extern f32 func_8008B3C8(f32 *);
 
-static void ZOID_HidePoly(Mesh *poly){poly->flags |= 0x8000;}
+void func_8008C874(Mesh *poly);   /* the game's own ZOID_HidePoly (this file had a static copy: the same code) */
+#define ZOID_HidePoly func_8008C874
 void entity_render_setup(Effect *effect, s16 op) {
     CAR_DATA *record;
     MODELDAT *vehicle;

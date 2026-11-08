@@ -9,7 +9,8 @@
  * test maps (exit 77, skipped, if it can't).
  * game: src/blob/camera_lerp_position.c src/blob/pool_linked_list_init.c src/blob/func_8008E3C0.c
  * game: src/blob/func_800BEA6C.c src/ovl_b/func_8039133C.c src/ovl_b/groups/runtime_b_resource_callbacks/group.c
- * game: nonmatching/game/RaceStateMachine_Update.c
+ * game: nonmatching/game/RaceStateMachine_Update.c src/blob/object_type7_create_alt.c src/blob/func_800D6348.c
+ * game: src/blob/object_type7_create.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -91,12 +92,12 @@ static uint8_t g_audmsg[16];
 void *func_80091B00(void) { return g_audmsg; }
 int32_t osRecvMesg(void *mq, void *msg, int32_t flag) { return 0; }
 int32_t osSendMesg(void *mq, void *msg, int32_t flag) { return 0; }
+void continue_prompt(void) {}           /* PauseGameMusic */
 static int32_t g_pause_state = -1;
 void setPauseState(int32_t state) { g_pause_state = state; }
 void SaveServer(int32_t a, int32_t b) {}
 void viEnableAccum(void) {}
 void viDisableAccum(void) {}
-void speed_mode0_wrapper(float vol, float time) {}
 void func_800D5374(void) {}
 void players_frame_update(void) {}
 void func_800D6530(void) {}

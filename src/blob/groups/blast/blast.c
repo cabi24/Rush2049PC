@@ -103,30 +103,23 @@ int func_8008B2B4(void);
 
 f32 func_8008B2E4(f32 max);
 
-void sound_call_simple(s16 objnum, int removeChildren);
-
-static void ZOID_RemoveObject(s16 objnum)
-{
-    sound_call_simple(objnum, 0);
-}
+/* The game's own ZOID_RemoveObject, MBOX_NewObject and AddToEnvList (this file had static copies of each: the same
+ * code). */
+void sound_call_minimal(s16 objnum);
+#define ZOID_RemoveObject sound_call_minimal
 
 void func_8008E06C(s16 objnum, tRGBA *col);
 
-static int MBOX_NewObject(int objnum, tUVMatrix *mat, int parent, unsigned int flags)
-{
-    return func_8008E26C(objnum, mat, parent, flags);
-}
+int sign_extend_call(int objnum, tUVMatrix *mat, int parent, unsigned int flags);
+#define MBOX_NewObject sign_extend_call
 
 static void SetObjColor(int objnum, tRGBA *col)
 {
     D_8012E700[objnum].color = col->rgba;
 }
 
-static void AddToEnvList(tVisual *v)
-{
-    v->next = D_801391F0;
-    D_801391F0 = v;
-}
+void func_8008FFB8(tVisual *v);
+#define AddToEnvList func_8008FFB8
 
 /* StartNewBlast */
 void func_80090308(s16 slot)

@@ -57,10 +57,8 @@ tPoly *func_800A78BC(int nverts, f32 (*xyz)[3], u16 texidx, tRGBA *color, u16 fl
 void entity_process_main(tVisual *v, s16 op);                       /* AnimateShadow */
 void entity_render_setup(tVisual *v, s16 op);                       /* AnimateArrow */
 
-static void ZOID_SetPolyZ(tPoly *poly, s16 z)
-{
-    poly->z = z;
-}
+void func_800A78B0(tPoly *poly, s16 z);   /* the game's own ZOID_SetPolyZ (this file had a static copy: the same code) */
+#define ZOID_SetPolyZ func_800A78B0
 
 static void StartShadow(s16 slot)
 {

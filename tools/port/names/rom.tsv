@@ -902,42 +902,10 @@ src/rom/lib_2cf0.c	src/rom/boot.c	file	code	likely	main, the idle, main and game
 src/rom/lib_3140.c	src/rom/decompress.c	file	code	likely	the decompression lock and the LZSS / inflate entries
 src/rom/lib_3330.c	src/rom/libc/memchr.c	file	code	likely	memchr
 src/rom/lib_3390.c	src/rom/libc/memset.c	file	code	likely	memset
-src/rom/lib_34a0.c	src/rom/libc/printf.c	file	code	likely	the IDO libc: modf, modff, fcvt, sprintf
-src/rom/lib_5610.c	src/rom/unzip.c	file	mat3	sure	MAT3 unzip.c (the inflater)
 src/rom/lib_10280.c	src/rom/libultra/contramwrite.c	file	code	sure	libultra __osContRamWrite
 src/rom/lib_105f0.c	src/rom/libultra/crc.c	file	code	sure	libultra __osContAddressCrc, __osContDataCrc
-src/rom/lib_10760.c	src/rom/libultra/ai.c	file	code	sure	libultra __osAiDeviceBusy
-src/rom/lib_107a0.c	src/rom/libultra/destroythread.c	file	code	sure	libultra osDestroyThread
-src/rom/lib_10970.c	src/rom/libultra/si.c	file	code	sure	libultra __osSiDeviceBusy
-src/rom/lib_109a0.c	src/rom/libultra/resetglobalintmask.c	file	code	sure	libultra __osResetGlobalIntMask
-src/rom/lib_10a00.c	src/rom/libultra/epiwrite.c	file	code	sure	libultra __osEPiRawWriteIo
-src/rom/lib_10b60.c	src/rom/libultra/epiread.c	file	code	sure	libultra __osEPiRawReadIo
-src/rom/lib_10cc0.c	src/rom/libultra/setglobalintmask.c	file	code	sure	libultra __osSetGlobalIntMask
-src/rom/lib_10d10.c	src/rom/libultra/yieldthread.c	file	code	sure	libultra osYieldThread
 src/rom/lib_10d60.c	src/rom/libultra/pfsisplug.c	file	code	sure	libultra osPfsIsPlug and its helpers
-src/rom/lib_7600.c	src/rom/libultra/createmesgqueue.c	file	code	sure	libultra osCreateMesgQueue
-src/rom/lib_7630.c	src/rom/libultra/vimgr.c	file	code	sure	libultra osCreateViManager, viMgrMain
-src/rom/lib_7940.c	src/rom/libultra/visetmode.c	file	code	sure	libultra osViSetMode
-src/rom/lib_79a0.c	src/rom/libultra/viblack.c	file	code	sure	libultra osViBlack
-src/rom/lib_7a10.c	src/rom/libultra/seteventmesg.c	file	code	sure	libultra osSetEventMesg
-src/rom/lib_7ad0.c	src/rom/libultra/visetevent.c	file	code	sure	libultra osViSetEvent
-src/rom/lib_7b30.c	src/rom/libultra/createthread.c	file	code	sure	libultra osCreateThread
-src/rom/lib_7c80.c	src/rom/libultra/startthread.c	file	code	sure	libultra osStartThread, osRecvMesg
-src/rom/lib_7fb0.c	src/rom/libultra/gettime.c	file	code	sure	libultra osGetTime
-src/rom/lib_8040.c	src/rom/libultra/viswapbuf.c	file	code	sure	libultra osViSwapBuffer
-src/rom/lib_8040_msg.c	src/rom/libultra/jammesg.c	file	code	sure	libultra osJamMesg
-src/rom/lib_81e0.c	src/rom/libultra/sendmesg.c	file	code	sure	libultra osSendMesg
-src/rom/lib_8330.c	src/rom/libultra/sptaskyielded.c	file	code	sure	libultra osSpTaskYielded, osViGetCurrentFramebuffer
-src/rom/lib_83d0.c	src/rom/libultra/vigetnextframebuf.c	file	code	sure	libultra osViGetNextFramebuffer
-src/rom/lib_8440.c	src/rom/libultra/sptask.c	file	code	sure	libultra osSpTaskLoad, osSpTaskStartGo
-src/rom/lib_8700.c	src/rom/libultra/sptaskyield.c	file	code	sure	libultra osDpSetNextBuffer, osSpTaskYield
 src/rom/lib_8800.c	src/rom/libc/string.c	file	code	likely	strchr, strlen, memcpy
-src/rom/lib_8920.c	src/rom/libultra/visetspecial.c	file	code	sure	libultra osViSetSpecialFeatures
-src/rom/lib_8a80.c	src/rom/libultra/initialize.c	file	code	sure	libultra __osInitialize_common
-src/rom/lib_8dd0.c	src/rom/libultra/piread.c	file	code	sure	libultra osPiReadIo
-src/rom/lib_8e10.c	src/rom/libultra/setthreadpri.c	file	code	sure	libultra osSetThreadPri
-src/rom/lib_8e10_pi.c	src/rom/libultra/pimgr.c	file	code	sure	libultra osCreatePiManager
-src/rom/lib_9230.c	src/rom/libultra/pidma.c	file	code	sure	libultra osPiStartDma
 src/rom/lib_92f0.c	src/rom/libultra/syncprintf.c	file	code	sure	libultra osSyncPrintf, rmonPrintf
 src/rom/lib_9330.c	src/rom/libultra/sinf_cosf.c	file	code	sure	libultra sinf, cosf
 src/rom/lib_9660.c	src/rom/libultra/ortho.c	file	code	sure	libultra guOrtho
@@ -946,9 +914,7 @@ src/rom/lib_9ab0.c	src/rom/libultra/lookat.c	file	code	sure	libultra guLookAt
 src/rom/lib_9de0.c	src/rom/libultra/mtxutil.c	file	code	sure	libultra guMtx*
 src/rom/lib_a050.c	src/rom/libultra/controller.c	file	code	sure	libultra osContInit
 src/rom/lib_a330.c	src/rom/libultra/contquery.c	file	code	sure	libultra osContStartQuery ... osContGetReadData
-src/rom/lib_a5b0.c	src/rom/libultra/dpgetcounters.c	file	code	sure	libultra osDpGetCounters
 src/rom/lib_a5f0.c	src/rom/libultra/llcvt.c	file	code	sure	libultra llcvt.c
-src/rom/lib_a800.c	src/rom/libultra/physicaltovirtual.c	file	code	sure	libultra osPhysicalToVirtual
 src/rom/lib_a810.c	src/rom/libultra/pfsinitpak.c	file	code	sure	libultra osPfsInitPak
 src/rom/lib_ab20.c	src/rom/libultra/motor.c	file	code	sure	libultra motor.c, osPfsRepairId
 src/rom/lib_af50.c	src/rom/libultra/pfssearchfile.c	file	code	sure	libultra osPfsFindFile
@@ -958,27 +924,7 @@ src/rom/lib_b570.c	src/rom/libultra/pfsallocatefile.c	file	code	sure	libultra os
 src/rom/lib_b9f0.c	src/rom/libultra/pfsreadwritefile.c	file	code	sure	libultra osPfsReadWriteFile
 src/rom/lib_be40.c	src/rom/libultra/pfsfreeblocks.c	file	code	sure	libultra osPfsFreeBlocks
 src/rom/lib_bfe0.c	src/rom/libultra/pfschecker.c	file	code	sure	libultra osPfsChecker
-src/rom/lib_c990.c	src/rom/libultra/stopthread.c	file	code	sure	libultra osStopThread, osGetThreadId
-src/rom/lib_ca70.c	src/rom/libultra/ai_buffer.c	file	code	sure	libultra osAiSetNextBuffer, osAiSetFrequency
-src/rom/lib_cc50.c	src/rom/libultra/timerintr.c	file	code	sure	libultra thread queue and timer services
-src/rom/lib_d140.c	src/rom/libultra/viinit.c	file	code	sure	libultra osViInit
-src/rom/lib_d260.c	src/rom/libultra/getactivequeue.c	file	code	sure	libultra osGetActiveQueue
-src/rom/lib_d270.c	src/rom/libultra/viswapcontext.c	file	code	sure	libultra __osViSwapContext
-src/rom/lib_d580.c	src/rom/libultra/thread_sp.c	file	code	sure	libultra __osPopThread, __osSpGetStatus
-src/rom/lib_e1c0.c	src/rom/libultra/virtualtophysical.c	file	code	sure	libultra osVirtualToPhysical
-src/rom/lib_e240.c	src/rom/libultra/spsetstat.c	file	code	sure	libultra __osSpSetStatus
-src/rom/lib_e250.c	src/rom/libultra/spsetpc.c	file	code	sure	libultra __osSpSetPc
-src/rom/lib_e280.c	src/rom/libultra/sprawdma.c	file	code	sure	libultra __osSpRawStartDma
-src/rom/lib_e310.c	src/rom/libultra/sp.c	file	code	sure	libultra __osSpDeviceBusy
-src/rom/lib_e340.c	src/rom/libultra/dp.c	file	code	sure	libultra osDpIsBusy
-src/rom/lib_e390.c	src/rom/libultra/sirawread.c	file	code	sure	libultra __osSiRawReadIo
-src/rom/lib_e3f0.c	src/rom/libultra/sirawwrite.c	file	code	sure	libultra __osSiRawWriteIo
 src/rom/lib_e4f0.c	src/rom/libultra/ll.c	file	code	sure	libultra ll.c
-src/rom/lib_e7c0.c	src/rom/libultra/piacs.c	file	code	sure	libultra piacs.c, __osPiRawReadIo
-src/rom/lib_e8d0.c	src/rom/libultra/pirawdma.c	file	code	sure	libultra __osPiRawStartDma
-src/rom/lib_e9a0.c	src/rom/libultra/devmgr.c	file	code	sure	libultra __osEPiRawStartDma, __osDevMgrMain, osPiGetCmdQueue
-src/rom/lib_efd0.c	src/rom/libultra/settimer.c	file	code	sure	libultra osSetTimer
-src/rom/lib_f0b0.c	src/rom/libultra/sirawdma.c	file	code	sure	libultra __osSiRawStartDma
 src/rom/lib_f160.c	src/rom/libultra/pfsgetstatus.c	file	code	sure	libultra siacs.c, pfsgetstatus.c
 src/rom/lib_f450.c	src/rom/libultra/pfsselectbank.c	file	code	sure	libultra __osPfsSelectBank
 src/rom/lib_f4d0.c	src/rom/libultra/contramread.c	file	code	sure	libultra __osContRamRead

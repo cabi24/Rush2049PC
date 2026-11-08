@@ -75,15 +75,19 @@ extern void func_800AFA84(Pool *,void *);
 extern void func_8038D798(f32 *,f32 *,s32,f32,s32);
 extern void save_write_data(f32 *,s32,f32,s32);
 extern void entity_spawn_callback(s16,s32,s32);
-static s16 MBOX_NewObject(s32 obj,void *mat,s32 parent,u32 flags){s16 dlidx;dlidx=func_8008E26C(obj,mat,parent,flags);return dlidx;}
+/* The game's own MBOX_NewObject, ZOID_GetColor, ZOID_ObjectFlags, ZOID_SetObjectFlags and ZOID_RemoveObject (this
+ * file had static copies of each: the same code). */
+s16 sign_extend_call(s32 obj,void *mat,s32 parent,u32 flags);
+#define MBOX_NewObject sign_extend_call
 void func_8008E06C(s16 objnum,Color *col);
-static Color *ZOID_GetColor(s16 objnum){return &D_8012E700[objnum].color;}
+Color *func_800A7884(s16 objnum);
+#define ZOID_GetColor func_800A7884
 u32 func_8008AE64(s16 objnum);
-static u32 ZOID_ObjectFlags(s16 objnum){return func_8008AE64(objnum);}
+#define ZOID_ObjectFlags func_8008AE64
 void func_8008AE48(s32 objnum,u32 flags);
-static void ZOID_SetObjectFlags(s32 objnum,u32 flags){func_8008AE48(objnum,flags);}
-void sound_call_simple(s16 objnum,s32 removeChildren);
-static void ZOID_RemoveObject(s16 objnum){sound_call_simple(objnum,0);}
+#define ZOID_SetObjectFlags func_8008AE48
+void sound_call_minimal(s16 objnum);
+#define ZOID_RemoveObject sound_call_minimal
 void func_8010C974(Visual *v, s16 op)
 {
     int i;

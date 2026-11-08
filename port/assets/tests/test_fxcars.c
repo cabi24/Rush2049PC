@@ -18,7 +18,8 @@
  * game: src/blob/groups/skid_marks/group.c src/blob/func_800AF844.c src/blob/track_select_handler.c
  * game: src/blob/pool_linked_list_init.c src/blob/func_8008E3C0.c src/blob/func_800AFA84.c
  * game: src/blob/func_8008B2E4.c src/blob/func_8008B2B4.c
- * game: src/blob/func_8008E06C.c src/blob/sound_call_simple.c
+ * game: src/blob/func_8008E06C.c src/blob/sound_call_simple.c src/blob/sound_call_minimal.c
+ * game: src/blob/groups/sign_extend/group.c src/blob/func_8008FFB8.c
  */
 #include <stddef.h>
 #include <string.h>

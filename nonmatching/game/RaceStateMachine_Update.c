@@ -69,63 +69,16 @@ void resource_type_select(s32 edges);   /* PlayStartABSound */
 void func_800D5A04(void);               /* AbortGame */
 void voice_stop(void);
 
-void AudLock(void)
-{
-    osRecvMesg(D_80142728, 0, 1);
-}
-
-void AudUnlock(void)
-{
-    osSendMesg(D_80142728, 0, 0);
-}
-
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * src/blob/groups/transform/group.c's entity_transform_calc says when). A stop, pause or resume posted here is
- * then dropped: with no message the lock is given back and nothing is sent, and a message the full queue refuses
- * is given back (its in-use byte, +3). Nothing else is made here. The other copy of AudSend and
- * AudStopAllEffects (display_list_flush.c, RaceStateMachine_Update.c) is the same. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){AudUnlock();return;}
-#define PC_GIVE_BACK(m) ((s8 *)(m))[3]=0;
-void AudSend(AudMsg *msg)
-{
-    if (osSendMesg(D_801427A8, msg, 0)) { PC_GIVE_BACK(msg)
-    }
-}
-
-void AudPauseAllEffects(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 7;
-    AudUnlock();
-    AudSend(msg);
-}
-
-void AudResumeAllEffects(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 9;
-    AudUnlock();
-    AudSend(msg);
-}
-
-void AudStopAllEffects(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 7;
-    AudUnlock();
-    AudSend(msg);
-}
-
-void PauseGameMusic(void)
-{
-    speed_mode0_wrapper(0.0f, 0.05f);
-}
+/* The game's own audio commands and PauseGameMusic (this file had copies of each, with their lock and send
+ * helpers: the same code). */
+void object_type7_create_alt(void);
+#define AudPauseAllEffects object_type7_create_alt
+void func_800D6348(void);
+#define AudResumeAllEffects func_800D6348
+void object_type7_create(void);
+#define AudStopAllEffects object_type7_create
+void continue_prompt(void);
+#define PauseGameMusic continue_prompt
 
 void PlaySelectSfx(void)
 {
@@ -143,14 +96,8 @@ void SetPausePlayer(s32 player)
     D_80117350 = !gControllerData[D_8015698C].attached;
 }
 
-static void PauseTargets(void)
-{
-    Target *t;
-    for (t = D_80143FD8; t; t = TARGET_NEXT(t)) {
-        t->f100 = 2;
-        t->f96 = -1;
-    }
-}
+void func_800BEA6C(void);   /* the game's own PauseTargets (this file had a static copy: the same code) */
+#define PauseTargets func_800BEA6C
 
 void RaceStateMachine_Update(void)
 {

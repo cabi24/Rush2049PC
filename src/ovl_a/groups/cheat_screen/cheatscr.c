@@ -64,6 +64,7 @@ extern s32 func_8038F648(void);
 int pc_cheat_active(int active);
 #define PC_CHEAT_ACTIVE(a) pc_cheat_active(a)
 
+#define InitEgg func_8038FF90   /* eggs.c's, under its address name */
 extern void InitEgg(s32 egg);
 void func_8039C908(void);
 void func_8039C900(void);

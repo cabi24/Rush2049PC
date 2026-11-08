@@ -709,11 +709,9 @@ src/blob/groups/billboard_render/func_800F0F44.c	src/blob/groups/highscorescr/Fi
 src/blob/groups/billboard_render/func_800F1210.c	src/blob/groups/highscorescr/SetHighScoreState.c	file	mat3	sure	holds SetHighScoreState
 src/blob/groups/billboard_render/func_800F1930.c	src/blob/groups/highscorescr/ControlGhost.c	file	mat3	sure	holds ControlGhost
 src/blob/groups/billboard_render/func_800F207C.c	src/blob/groups/highscorescr/ControlName.c	file	mat3	sure	holds ControlName
-src/blob/groups/billboard_render/func_800F2718.c	src/blob/groups/highscorescr/ControlUnlocked.c	file	mat3	sure	holds ControlUnlocked
 src/blob/groups/billboard_render/track_texture_load.c	src/blob/groups/highscorescr/highscore_InitScreen.c	file	mat3	sure	holds highscore_InitScreen (MAT3 _InitScreen)
 src/blob/groups/car_checkpoints/car_checkpoints_func_800F8EC8.c	src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c	file	code	sure	holds CheckCPs
 src/blob/groups/car_checkpoints/race_tail.c	src/blob/groups/car_checkpoints/PlayGame.c	file	code	sure	holds PlayGame (render_viewport_init) only
-src/blob/groups/car_checkpoints/render_large_objects_group.c	src/blob/groups/car_checkpoints/DoDrones.c	file	code	sure	context copy of DoDrones
 src/blob/groups/controls/	src/blob/groups/controlscr_text/	file	code	likely	the controls screen's text animators (MAT3 controlscr.c); MAT3 controls.c is the unrelated input-mapping module, and groups/controlscr already exists
 src/blob/groups/credits_scroll_grp/gr3_5ea8.c	src/blob/groups/credits_scroll_grp/animResults.c	file	mat3	sure	holds animResults
 src/blob/groups/credits_scroll_grp/gr3_6874.c	src/blob/groups/credits_scroll_grp/anim_no_rumble_panes.c	file	code	likely	holds anim_no_rumble_panes
@@ -727,12 +725,7 @@ src/blob/groups/credits_scroll_grp/gr3_9f54.c	src/blob/groups/credits_scroll_grp
 src/blob/groups/credits_scroll_grp/gr3_a53c.c	src/blob/groups/credits_scroll_grp/animCreditText.c	file	mat3	sure	holds animCreditText
 src/blob/groups/credits_scroll_grp/gr3_d.c	src/blob/groups/credits_scroll_grp/audio_animPanes_demo_animText.c	file	code	likely	holds audio_animPanes (game_timer_display) and demo_animText (func_80100B8C); the group dir is part D's
 src/blob/groups/credits_scroll_grp/gr3_edc.c	src/blob/groups/credits_scroll_grp/animLapCount.c	file	mat3	sure	holds animLapCount
-src/blob/groups/defaults/ctx_func_800ED66C.c	src/blob/groups/defaults/ctx_HAL_SetTextTranslucency.c	file	code	sure	the defaults group's context copy of HAL_SetTextTranslucency
-src/blob/groups/demo_pair/car_checkpoints_func_800F8EC8.c	src/blob/groups/demo_pair/car_checkpoints_CheckCPs.c	file	code	sure	holds CheckCPs
-src/blob/groups/demo_pair/race_tail.c	src/blob/groups/demo_pair/PlayGame.c	file	code	sure	holds PlayGame (render_viewport_init) only
-src/blob/groups/demo_pair/render_large_objects_group.c	src/blob/groups/demo_pair/DoDrones.c	file	code	sure	context copy of DoDrones
 src/blob/groups/dispatch/	src/blob/groups/record_game_over/	file	mat3	sure	holds RecordGameOver (track_lighting_setup), not a dispatcher of lights
-src/blob/groups/dma_queue_next/struct_init_and_call.c	src/blob/groups/dma_queue_next/musyx_start_dma_list.c	file	code	sure	a context copy of musyx_start_dma_list in dma_queue_next's group
 src/blob/groups/dust/	src/blob/groups/hud_speed/	file	code	sure	the group holds animSpeed (dust_cloud_effect), not a dust effect
 src/blob/groups/dust/dust.c	src/blob/groups/hud_speed/animSpeed.c	file	mat3	sure	holds animSpeed
 src/blob/groups/func_800E92C8/	src/blob/groups/rear_camera/	file	code	sure	the group of UpdateRearCamera, DeathCam and UpdateCarObj (steady_move_cam as context)
@@ -758,16 +751,12 @@ src/blob/groups/func_8010BC84/fbc84.c	src/blob/groups/animRumbleText/animRumbleT
 src/blob/groups/highscore_anim	src/blob/groups/highscorescr_draw	file	mat3	sure	highscorescr.c's drawing functions (DrawUnlocked, DrawName, DrawGhost, with highscore_animText as context)
 src/blob/groups/input_aux/	src/blob/groups/front_end/	file	code	sure	the group of updateFrontEnd (input_aux_handler); no auxiliary input
 src/blob/groups/input_aux/countdown_handler.c	src/blob/groups/input_aux/DrawNoControllers.c	file	code	sure	holds DrawNoControllers (countdown_handler); path before the dir rename above
-src/blob/groups/input_aux/ctx_countdown.c	src/blob/groups/input_aux/ctx_UpdateGame.c	file	code	sure	context copy of UpdateGame
-src/blob/groups/input_aux/ctx_init_state_continue.c	src/blob/groups/input_aux/ctx_CalcPolePositions.c	file	code	sure	context copy of CalcPolePositions
 src/blob/groups/input_aux/game_loop.c	src/blob/groups/input_aux/GameLoop.c	file	code	sure	holds GameLoop
 src/blob/groups/menu_save_options/props.c	src/blob/groups/menu_save_options/GhostStart.c	file	mat3	sure	holds GhostStart (props.c's header calls it props_render)
 src/blob/groups/motion_norm/	src/blob/groups/fix_camera_in_space/	file	code	sure	holds fix_camera_in_space only (wrong guess)
 src/blob/groups/render_large_objects/	src/blob/groups/drones/	file	code	sure	the group of DoDrones and LinearInterp (MAT3 drones.c); renders nothing
 src/blob/groups/results_table	src/blob/groups/gameoverscr_draw	file	mat3	sure	gameoverscr.c's drawing functions (drawRect, the standings and score tables, gameover_animText)
 src/blob/groups/update_game/countdown.c	src/blob/groups/update_game/UpdateGame.c	file	code	sure	holds UpdateGame (countdown) and EndGame
-src/blob/groups/update_game/ctx_game_loop.c	src/blob/groups/update_game/ctx_GameLoop.c	file	code	sure	context copy of GameLoop
-src/blob/groups/update_game/ctx_input_aux.c	src/blob/groups/update_game/ctx_updateFrontEnd.c	file	code	sure	context copy of updateFrontEnd
 src/blob/groups/update_game/init_state_continue.c	src/blob/groups/update_game/CalcPolePositions.c	file	code	sure	holds CalcPolePositions only
 src/blob/groups/vsync/	src/blob/groups/game_sounds/	file	code	likely	the group of EnableGameSounds (vsync_wait), AudSetMasterVol (speed_set) and its music/effects wrappers; no vsync
 src/blob/linear_interp.c	src/blob/FoundCoin.c	file	mat3	sure	holds FoundCoin

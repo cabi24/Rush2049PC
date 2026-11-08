@@ -497,7 +497,6 @@ D_8012E67C	gCarTeam	data	mat3	sure	s8[4]: MAT3 gCarTeam, gCarTeam[p] = p in play
 D_8012E6E4	gPlayerFiles_tail	data	mat3	sure	pointer interior label: gPlayerFiles.tail (+0xC), where controlSelect wraps to the last profile
 D_80156CF0	gControllerData	data	mat3	sure	pad record[4] of 16 bytes (MAT3 tPadInfo gControllerData[4]): .attached counted by updateStartScreen (the tree already names 0x80156CF0 so)
 # types and fields of the A1 files (file-local typedefs; each old name below is used only in image-A files that view the same object)
-Rec164	Egg	type	mat3	sure	func_8038FF90.c's opaque 164-byte view of gEggs' records: the same record as eggs.c's Egg (MAT3 anon_size_levels_a4: size, levels[20], edges[20])
 Rec12	SelectCarWave	type	mat3	sure	func_80390D2C.c/func_8039156C.c's view of gSelectCarWavePtrs' 12-byte record, which func_80390BC0.c already calls SelectCarWave (MAT3 anon_wave_loading_c)
 Slot60	ButtonInfo	type	mat3	sure	runtime_a_option_eligibility's view of startscr buttonInfo (0x3C bytes), which start_screen already calls ButtonInfo (MAT3 anon_buttonType_objIdx_3c)
 Slot72	TrackMapEntry	type	code	sure	trackscr's 0x48-byte trackMap record (MAT3's anonymous anon_objIdx_cityX_48: objIdx, city offsets, rotation, scales, matrix)
@@ -963,12 +962,6 @@ src/ovl_b/func_80392894.c	src/ovl_b/animStuntPoints.c	file	mat3	sure	holds animS
 src/ovl_b/func_80392FE4.c	src/ovl_b/animHealth.c	file	mat3	sure	holds animHealth
 src/ovl_b/func_80393518.c	src/ovl_b/animAmmoCounts.c	file	mat3	sure	holds animAmmoCounts
 src/ovl_b/func_803936A8.c	src/ovl_b/animBattlePoints.c	file	mat3	sure	holds animBattlePoints
-src/ovl_b/groups/shots/ctx_c910.c	src/ovl_b/groups/shots/ctx_StartWeapon.c	file	mat3	sure	holds a context copy of StartWeapon
-src/ovl_b/groups/shots/ctx_cb20.c	src/ovl_b/groups/shots/ctx_UpdateStreaks.c	file	mat3	sure	holds a context copy of UpdateStreaks
-src/ovl_b/groups/shots/ctx_d054.c	src/ovl_b/groups/shots/ctx_NewStreak.c	file	mat3	sure	holds a context copy of NewStreak
-src/ovl_b/groups/shots/ctx_d3a4.c	src/ovl_b/groups/shots/ctx_BattleDamage.c	file	mat3	sure	holds a context copy of BattleDamage
-src/ovl_b/groups/shots/ctx_d798.c	src/ovl_b/groups/shots/ctx_ProximityDamage.c	file	mat3	sure	holds a context copy of ProximityDamage
-src/ovl_b/groups/shots/ctx_dddc.c	src/ovl_b/groups/shots/ctx_MissileLock.c	file	mat3	sure	holds a context copy of MissileLock
 src/ovl_b/groups/runtime_b_damage/group.c	src/ovl_b/groups/battle_damage/group.c	file	mat3	sure	holds BattleDamage (the directory's name said nothing; its group.json moves with it)
 src/ovl_b/groups/runtime_b_nearest_steering/group.c	src/ovl_b/groups/missile_lock/group.c	file	mat3	sure	holds MissileLock (group.json moves with it)
 src/ovl_b/groups/runtime_b_position_initializer/group.c	src/ovl_b/groups/new_streak/group.c	file	mat3	sure	holds NewStreak (group.json moves with it)
@@ -976,11 +969,9 @@ src/ovl_b/groups/runtime_b_radius_effect/group.c	src/ovl_b/groups/proximity_dama
 src/ovl_b/groups/runtime_b_resource_callbacks/group.c	src/ovl_b/groups/powerups/powerups.c	file	mat3	sure	holds MAT3 powerups.c's five update functions (group.json moves with it)
 src/ovl_b/groups/runtime_b_status_scene/group.c	src/ovl_b/groups/hud_icons/hudextra_icons.c	file	mat3	sure	holds hudextra.c's animPowerupIcons, animWeaponIcons, UpdateHUDExtraPostCamera (group.json moves with it)
 src/ovl_b/groups/runtime_b_trail/group.c	src/ovl_b/groups/streaks/streaks.c	file	mat3	sure	holds MAT3 streaks.c's UpdateStreaks (group.json moves with it)
-nonmatching/ovl_b/func_80391B00.c	nonmatching/ovl_b/UpdateHUDExtraPostCamera.c	file	mat3	sure	holds the draft of UpdateHUDExtraPostCamera with animStuntCoins and animBattleCoins
 # image A: files named after an address, and group directories whose names misdescribe their contents (each directory's group.json moves with it)
 src/ovl_a/func_8038F454.c	src/ovl_a/updateTitleScreen.c	file	mat3	sure	holds updateTitleScreen
 src/ovl_a/func_8038F648.c	src/ovl_a/CheckForEgg.c	file	mat3	sure	holds CheckForEgg
-src/ovl_a/func_8038FF90.c	src/ovl_a/InitEgg.c	file	mat3	sure	holds InitEgg
 src/ovl_a/func_80390BC0.c	src/ovl_a/LoadSelectCar.c	file	mat3	sure	holds LoadSelectCar
 src/ovl_a/func_80390D2C.c	src/ovl_a/UnloadSelectCar.c	file	mat3	sure	holds UnloadSelectCar
 src/ovl_a/func_80391470.c	src/ovl_a/InitVisualsCarScr.c	file	mat3	sure	holds InitVisualsCarScr
@@ -999,11 +990,7 @@ src/ovl_a/func_803AE51C.c	src/ovl_a/titlescr_animText.c	file	mat3	sure	holds tit
 src/ovl_a/func_803AE940.c	src/ovl_a/animArrows.c	file	mat3	sure	holds animArrows
 src/ovl_a/func_803AF744.c	src/ovl_a/warningscr_animText.c	file	mat3	sure	holds warningscr_animText
 nonmatching/ovl_a/func_8038A400.c	nonmatching/ovl_a/updateWarningScreen.c	file	mat3	sure	the draft of updateWarningScreen
-nonmatching/ovl_a/func_8038A820.c	nonmatching/ovl_a/animTrackMaps.c	file	mat3	sure	the draft of animTrackMaps
-nonmatching/ovl_a/func_8038CD14.c	nonmatching/ovl_a/buildTrackMaps.c	file	mat3	sure	the draft of buildTrackMaps
 nonmatching/ovl_a/func_803A44FC.c	nonmatching/ovl_a/carscr_animText.c	file	mat3	sure	the draft of carscr_animText
-nonmatching/ovl_a/func_803A9088.c	nonmatching/ovl_a/drawDeletePlayer.c	file	mat3	sure	the draft of drawDeletePlayer
-nonmatching/ovl_a/func_803A9EEC.c	nonmatching/ovl_a/playerscr_animText.c	file	mat3	sure	the draft of playerscr_animText
 src/ovl_a/groups/cleanup_colortrace/group.c	src/ovl_a/groups/carscr/carscr.c	file	mat3	sure	holds MAT3 carscr.c: updateCarScreen and its statics
 src/ovl_a/groups/runtime_a_availability_refresh/group.c	src/ovl_a/groups/playerscr/playerscr.c	file	mat3	sure	holds MAT3 playerscr.c: updatePlayerScreen and its statics
 src/ovl_a/groups/runtime_a_c93c_closure/group.c	src/ovl_a/groups/trackscr/trackscr.c	file	mat3	sure	holds MAT3 trackscr.c: updateTrackScreen and its statics (the old name holds an address fragment)
@@ -1093,3 +1080,9 @@ input_rec0	gPlayers	data	mat3	sure	the loader's name of D_8014A118 (same datum):
 player_array	gGameCar	data	mat3	sure	alias: the loader's name of D_80152818 (MAT3 gGameCar); func_80392FE4 #defines gGameCar to it
 countdown_state	gText	data	mat3	sure	the loader table's name for 0x8017A4E0 (D_8017A4E0): MAT3 gText, the text bank, nothing to do with the countdown; both merge
 countdown_object	gText_single	data	mat3	sure	the loader table's name for 0x8017A4E4 (D_8017A4E4): gText.single, the single-string table (gText + 4); both merge
+# apply (wave 2): four labels drop.tsv had as "inside" the function before them are the next function's start, its
+# second name in the boot_tail and runtime tables, and image A's code calls them by it: aliases of the right name
+init_state_begin	SetOptions	func	mat3	sure	alias: second label of 0x800C9BE0, SetOptions (MAT3 options.c) in the game table; image A calls it by this one
+object_byte9_set	HAL_SetFontFixedWidth	func	mat3	sure	alias: second label of 0x800B41C0, HAL_SetFontFixedWidth (MAT3 HAL_text.c) in the game table; image A calls it by this one
+player_state_set	SetControllerActive	func	mat3	sure	alias: second label of 0x800C9158, SetControllerActive (MAT3 controlsys.c) in the game table; image A calls it by this one
+visual_objects_update	SaveFlush	func	mat3	sure	alias: second label of 0x800B55FC, SaveFlush (MAT3 save.c) in the game table; image A calls it by this one

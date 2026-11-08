@@ -607,21 +607,18 @@ src/blob/groups/pak_write_cluster	src/blob/groups/paksysdc_flush	file	mat3	sure	
 src/blob/groups/paksys	src/blob/groups/paksysdc	file	mat3	sure	PS_PakServer, PS_CreateFile, PS_DeleteFile, PS_InitPakSys, RemovePak, ClearPak
 src/blob/groups/pfs_status	src/blob/groups/pak_error_from_pfs	file	code	sure	holds pak_error_from_pfs
 src/blob/groups/project_window	src/blob/groups/ZOID_ProjectWindow	file	mat3	sure	holds ZOID_ProjectWindow (+ BodyVector, ZOID_GetWindow context)
-src/blob/groups/project_window/body_vector.c	src/blob/groups/ZOID_ProjectWindow/BodyVector.c	file	mat3	sure	BodyVector context copy
 src/blob/groups/run_decode	src/blob/groups/DecodeSlist	file	mat3	sure	holds DecodeSlist
 src/blob/groups/set_fog	src/blob/groups/ZOID_SetFog	file	mat3	sure	holds ZOID_SetFog
 src/blob/groups/steering_sensitivity	src/blob/groups/stree_path_interp	file	mat3	sure	fPathInterp, fHalfPipeInterp, surfpos (MAT3 stree.c)
-src/blob/groups/shot_world_collision/steering.c	src/blob/groups/shot_world_collision/path_interp.c	file	mat3	sure	context copies of fPathInterp, fHalfPipeInterp, surfpos
 src/blob/groups/wheel_setup_initial	src/blob/groups/UnloadWaveAll	file	mat3	sure	holds UnloadWaveAll and unload_wave_if_matching
 src/blob/groups/window_init	src/blob/groups/ZOID_InitializeWindow	file	mat3	sure	holds ZOID_InitializeWindow (+ ZOID_SetWindow, ZOID_SetBGColor context)
 src/blob/groups/camera_target_track	src/blob/groups/audio_emitters	file	code	likely	named after the old label of AudEmitEffect; its other members belong to other areas
 src/blob/groups/heap_release/car_damage_visual.c	src/blob/groups/heap_release/ClearMemoryHeap.c	file	mat3	likely	ClearMemoryHeap
 src/blob/groups/heap_release/wheel_params_set.c	src/blob/groups/heap_release/audio_sfx_shutdown.c	file	code	sure	audio_sfx_shutdown
 src/blob/groups/heap_release/deflate_mem.c	src/blob/groups/heap_release/zip.c	file	mat3	sure	zip (MAT3 zip.c)
-src/blob/groups/blast/camera_collision_check.c	src/blob/groups/blast/EmitGameSound.c	file	mat3	sure	EmitGameSound context copy
 src/blob/groups/audio_frame_sync/wheel_torque_apply.c	src/blob/groups/audio_frame_sync/NewWorld.c	file	mat3	sure	NewWorld context copy
 src/blob/groups/sound_channel_extra/object_manager_update.c	src/blob/groups/sound_channel_extra/HAL_GetTextWidth.c	file	mat3	sure	HAL_GetTextWidth
-src/blob/groups/pausescr_state/voice.c	src/blob/groups/pausescr_state/TitlePane.c	file	mat3	sure	pause_TitlePane
+src/blob/groups/pausescr_state/voice.c	src/blob/groups/pausescr_state/pause_TitlePane.c	file	mat3	sure	pause_TitlePane
 # shared
 # Data also used outside 0x8009DC50-0x800B4720 (the lead reconciles these names across the areas).
 D_8002AFC0	screen_width	data	code	sure	u16/s32 frame-buffer width in pixels; window layouts and the blitter scissor

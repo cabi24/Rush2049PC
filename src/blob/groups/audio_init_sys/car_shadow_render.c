@@ -65,7 +65,9 @@ extern void func_8002043c(u8,u16,u8);
 extern void func_80020494(u8,u16,u8,u8);
 extern void func_800A4CB8(s32);
 
-void *GetWaveInstanceAddr(s32 idx);
+/* The game's own GetWaveInstanceAddr (this file had a second copy of it: the same code). */
+void *slot_value_get(s32 idx);
+#define GetWaveInstanceAddr slot_value_get
 
 void car_shadow_render(s32 channels,s32 control,s32 enabled)
 {
@@ -112,10 +114,4 @@ void car_shadow_render(s32 channels,s32 control,s32 enabled)
     func_80020494(127,0,1,1);
     func_800A4CB8(control);
     D_8011EAA0=-1;
-}
-
-void *GetWaveInstanceAddr(s32 idx)
-{
-    func_80096288(idx, 0, 0);
-    return D_80156D38[idx].hdr;
 }

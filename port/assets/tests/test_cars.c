@@ -18,7 +18,7 @@
  * game: src/blob/car_select_handler.c src/blob/func_800CFCA8.c src/blob/func_800FBE60.c
  * game: src/blob/groups/car_resistance/group.c src/blob/func_800D0894.c src/blob/func_800E313C.c
  * game: src/blob/func_800E2D18.c src/blob/func_800E1500.c src/blob/func_800E2C70.c src/blob/race_init_helper.c
- * game: src/blob/func_8008BEA4.c
+ * game: src/blob/func_8008BEA4.c src/blob/func_800A78B0.c
  * game: src/blob/func_800B930C.c src/blob/func_800D0A1C.c src/blob/func_800E2CC0.c
  */
 #include <math.h>

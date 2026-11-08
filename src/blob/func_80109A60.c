@@ -92,6 +92,7 @@ extern volatile Clock D_8002E8E8;
 void Input_ApplyPadConfig(Blit *blt);
 void stat_race_update(Blit *blt, s32 index, s32 w, s32 h);
 
+#define Hidden input_new_data_wrapper   /* state_update_global.c's, under its address name */
 s32 Hidden(Blit *blt, s32 hide);
 
 s32 func_80109A60(Blit *blt)

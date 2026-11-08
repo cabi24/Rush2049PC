@@ -67,13 +67,16 @@ void viScheduleTick(f32 arg0);
 s32 viDeadlinePassed(void);
 void entity_audio_update(void);
 
-static void setGameState(u32 state);
+/* The game's own setGameState and RemoveEnvirons (this file had static copies: the same code). */
+void func_800B5570(u32 state);
+#define setGameState func_800B5570
 void debug_stats(s32 on, s32 x);
 void func_800FD01C(void);
 void func_800FD00C(void);
 void func_800FD014(void);
 void func_800FCDF0(void);
-static void RemoveEnvirons(void);
+void func_800B0618(void);
+#define RemoveEnvirons func_800B0618
 
 void debug_collision(void) {
     s32 x;
@@ -167,12 +170,6 @@ void func_800FCDF0(void) {
         }
 }
 
-static void RemoveEnvirons(void)
-{
-    while (D_801391F0) entity_transform_apply(D_801391F0, 1);
-    func_800B0580();
-}
-
 void func_800FD014(void) {
         D_80114158++;
         D_80138660 = 0;
@@ -185,5 +182,3 @@ void func_800FD014(void) {
             D_80114158 = 0;
         }
 }
-
-static void setGameState(u32 state) { D_801174B8 = state; }

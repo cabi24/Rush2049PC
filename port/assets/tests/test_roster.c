@@ -359,7 +359,7 @@ static void test_alias(void)
  * (+0x100), a human's behind every drone, -(the larger of 6 and the cars, less its slot), a drone's -1, -2... in its
  * order; the cars active; the records after them up to the storage's end reset (in_game, drone type 0; ours only
  * where the slot's owner is 0), whatever an earlier race left in them. */
-static void init_cars(int humans, int option, int cars)
+static void check_init_cars(int humans, int option, int cars)
 {
     int grid = cars > 6 ? cars : 6;
 
@@ -386,13 +386,13 @@ static void init_cars(int humans, int option, int cars)
 
 static void test_init_cars(void)
 {
-    init_cars(1, 5, 6);                /* the N64's: the human at -6, the drones -1 to -5 */
-    init_cars(2, 2, 4);                /* -6 and -5, -1 and -2 */
+    check_init_cars(1, 5, 6);                /* the N64's: the human at -6, the drones -1 to -5 */
+    check_init_cars(2, 2, 4);                /* -6 and -5, -1 and -2 */
     test_race_cars = 12;
-    init_cars(1, 5, 6);                /* 6 cars with the setting at 12: the N64's distances */
-    init_cars(1, 11, 12);              /* the human at -12, the drones -1 to -11 */
-    init_cars(2, 10, 12);              /* -12 and -11, the drones -1 to -10 */
-    init_cars(1, 7, 8);                /* -8, -1 to -7 */
+    check_init_cars(1, 5, 6);                /* 6 cars with the setting at 12: the N64's distances */
+    check_init_cars(1, 11, 12);              /* the human at -12, the drones -1 to -11 */
+    check_init_cars(2, 10, 12);              /* -12 and -11, the drones -1 to -10 */
+    check_init_cars(1, 7, 8);                /* -8, -1 to -7 */
     test_race_cars = 6;
 }
 

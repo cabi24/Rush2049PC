@@ -7,6 +7,9 @@ extern Egg *D_803B4278;         /* gEgg */
 extern f32 D_803B427C;          /* gNextTimeOut */
 extern s32 D_803B4280;          /* gEggIdx */
 
+/* InitEgg, at its address in the front end (the image A loader names it func_8038FF90): src/ovl_a/func_8038FF90.c
+ * was a second copy of it. */
+#define InitEgg func_8038FF90
 void InitEgg(s32 egg)
 {
     D_803B4278 = &D_803B3460[egg];

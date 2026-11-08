@@ -165,7 +165,9 @@ void func_800988D8(void);                                    /* _ProcessSequence
 void camera_transform(void);                                 /* AudioPeriodicMaintenance */
 void sound_position_update(void *element, int elNum);        /* _UpdateFx */
 
-static void ClearBST(tOrderedList *tree)
+/* ClearBST and WalkBST of the fx tag tree, whose tOrderedList has the PC's layout (the pointers are the host's, so
+ * the root is at +16): the game's own ClearBST and WalkBST read the N64's offsets (the root at +8). */
+static void clear_fx_tag_tree(tOrderedList *tree)
 {
     tree->root = 0;
     tree->numElements = 0;
@@ -173,7 +175,7 @@ static void ClearBST(tOrderedList *tree)
 
 void pointer_offset8_call(tOrderedList *tree, void *element);
 
-static void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, int))
+static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
 {
     int num = 0; camera_update_a(tree, tree->root, &num, WalkFunc);
 }
@@ -196,7 +198,7 @@ static void _InsertSorted(tFxSequence *tag)
 
 /* PC: a start or stop the full queue refuses gives its message back (transform/group.c's entity_transform_calc says
  * when the queue and the pool run out); the next priority pass sends it again. */
-static void _SendCmd(tAudioMsg *cmd)
+static void send_fx_command(tAudioMsg *cmd)
 {
     if (osSendMesg(&D_801427A8, cmd, 0) != 0) {
         cmd->startEffect.tag->numCmds--;
@@ -215,7 +217,7 @@ static void _ProcessPriorities(void)
     tFxSequence *tag, *next;
     int i;
     osRecvMesg(&D_80142728, 0, 1);
-    ClearBST(&gSortedFxTagTree); pc_snd_walk_begin();
+    clear_fx_tag_tree(&gSortedFxTagTree); pc_snd_walk_begin();
     gNumStopCmds = 0;
     gNumStartCmds = 0;
     for (tag = gPlayingFxTags.head; tag; tag = next) {
@@ -244,10 +246,10 @@ static void _ProcessPriorities(void)
         tag->wpriority = func_80098710(tag);
         _InsertSorted(tag);
     }
-    WalkBST(&gSortedFxTagTree, sound_position_update);
+    walk_fx_tag_tree(&gSortedFxTagTree, sound_position_update);
     osSendMesg(&D_80142728, 0, 0);
-    for (i = 0; i < gNumStopCmds; i++) _SendCmd(gStopCmds[i]);
-    for (i = 0; i < gNumStartCmds; i++) _SendCmd(gStartCmds[i]);
+    for (i = 0; i < gNumStopCmds; i++) send_fx_command(gStopCmds[i]);
+    for (i = 0; i < gNumStartCmds; i++) send_fx_command(gStartCmds[i]);
 }
 
 /* MAT3 fake.c MyGetTime(); on N64 the six calls of MAT3 _PeriodicMaintenance survive only as inline sites (their

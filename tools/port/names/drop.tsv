@@ -12,15 +12,18 @@ CheckCPs	blob	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this
 CheckCPs	boot_tail	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
 CheckCPs	ovl_a	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
 CheckCPs	ovl_b	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this entry before the rename)
+CheckCPs	symbol_addrs	0x800C0000: stale; the maps give CheckCPs to 0x800F8EC8 (drop this line of symbol_addrs.us.txt before the rename)
 DoDrones	blob	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
 DoDrones	boot_tail	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
 DoDrones	ovl_a	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
 DoDrones	ovl_b	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this entry before the rename)
+DoDrones	symbol_addrs	0x800A0000: stale; the maps give DoDrones to 0x800F93A0 (drop this line of symbol_addrs.us.txt before the rename)
 EndDrones	*	0x800A0100: inside zoid_draw_window (+0x10A8), not a function start; declared only (1 file): wave 2 deletes the declarations
 InitDrones	blob	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
 InitDrones	boot_tail	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
 InitDrones	ovl_a	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
 InitDrones	ovl_b	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this entry before the rename)
+InitDrones	symbol_addrs	0x8009FF00: stale; the maps give InitDrones to 0x800FAEE4 (drop this line of symbol_addrs.us.txt before the rename)
 Input_AllocPadSlot	*	0x800A7A10: inside ZOID_AddBlit (+0x1C), not a function start; declared only (7 files): wave 2 deletes the declarations
 Input_PollPads	*	0x800E73E4: inside func_800E73D8 (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
 Input_RegisterActivePad	*	0x800B3590: inside RemoveBlit (+0x4), not a function start
@@ -31,6 +34,7 @@ MaxPathControls	blob	0x800A1000: stale; the maps give MaxPathControls to 0x800E4
 MaxPathControls	boot_tail	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
 MaxPathControls	ovl_a	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
 MaxPathControls	ovl_b	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this entry before the rename)
+MaxPathControls	symbol_addrs	0x800A1000: stale; the maps give MaxPathControls to 0x800E4B58 (drop this line of symbol_addrs.us.txt before the rename)
 MaxPathZeroControls	boot_tail	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
 MaxPathZeroControls	ovl_a	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
 MaxPathZeroControls	ovl_b	0x800A2378: inside PS_FlushFileInternal (+0x460), not a function start; declared only (408 files): wave 2 deletes the declarations
@@ -150,7 +154,6 @@ active_sound_count	*	0x80159788: unused label
 active_sound_list	*	0x80159450: unused label
 adjust_maxpath_due_to_lap	*	0x800A14C0: inside PS_RumbleStop (+0xD8), not a function start
 ai_difficulty_adjust	*	0x80107600: inside animOdometer (+0x86C), not a function start
-animCountdownTimer	blob	0x800EEDB0: inside InitSystem (+0x334), not a function start; declared only (18 files): wave 2 deletes the declarations
 anim_blend	*	0x800EA400: inside View3Cam (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
 anim_event_check	*	0x800EA800: inside View3Cam (+0x40C), not a function start
 anim_frame_update	*	0x80095720: inside AudioSetEffectPitch (+0x14), not a function start
@@ -333,6 +336,7 @@ find_best_gear	blob	0x800ABD60: stale; the maps give find_best_gear to 0x800E313
 find_best_gear	boot_tail	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
 find_best_gear	ovl_a	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
 find_best_gear	ovl_b	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this entry before the rename)
+find_best_gear	symbol_addrs	0x800ABD60: stale; the maps give find_best_gear to 0x800E313C (drop this line of symbol_addrs.us.txt before the rename)
 find_maxpath_intervals	*	0x800F87AC: inside controlMain (+0xC), not a function start
 finish_state_normal	*	0x800F64D4: second name of updateHighScoreScreen
 fire_effect	*	0x800EF500: inside animGear (+0x278), not a function start
@@ -352,6 +356,7 @@ gBestLapTime	blob	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (d
 gBestLapTime	boot_tail	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
 gBestLapTime	ovl_a	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
 gBestLapTime	ovl_b	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this entry before the rename)
+gBestLapTime	symbol_addrs	0x80142B20: stale; the maps give gBestLapTime to 0x80144DA8 (drop this line of symbol_addrs.us.txt before the rename)
 gBestLapTimes	*	0x80155110: unused label
 gBestLoopTime	*	0x801530CC: unused label
 gBestTimes	*	0x80159100: unused label
@@ -365,6 +370,7 @@ gBumpTime	blob	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop th
 gBumpTime	boot_tail	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
 gBumpTime	ovl_a	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
 gBumpTime	ovl_b	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this entry before the rename)
+gBumpTime	symbol_addrs	0x80150DB0: stale; the maps give gBumpTime to 0x80140BE0 (drop this line of symbol_addrs.us.txt before the rename)
 gCameraAspect	*	0x8003668C: unused label
 gCameraFar	*	0x80036694: unused label
 gCameraForward	*	0x80036664: unused label
@@ -406,6 +412,7 @@ gCarMass	blob	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this
 gCarMass	boot_tail	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
 gCarMass	ovl_a	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
 gCarMass	ovl_b	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this entry before the rename)
+gCarMass	symbol_addrs	0x80152894: stale; the maps give gCarMass to 0x80110DD8 (drop this line of symbol_addrs.us.txt before the rename)
 gCarMassInverse	*	0x80152898: unused label
 gCarMomentOfInertia	*	0x8015289C: unused label
 gCarOrientation	*	0x80152858: unused label
@@ -472,6 +479,7 @@ gElapsedTime	blob	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (d
 gElapsedTime	boot_tail	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
 gElapsedTime	ovl_a	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
 gElapsedTime	ovl_b	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this entry before the rename)
+gElapsedTime	symbol_addrs	0x80142B14: stale; the maps give gElapsedTime to 0x80142AC8 (drop this line of symbol_addrs.us.txt before the rename)
 gEngineAngularVelocity	*	0x80152A94: unused label
 gEngineOn	*	0x80150BA8: unused label
 gEnginePitch	*	0x80150BA2: unused label
@@ -493,6 +501,7 @@ gFirstPlaceTime	blob	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152
 gFirstPlaceTime	boot_tail	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
 gFirstPlaceTime	ovl_a	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
 gFirstPlaceTime	ovl_b	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this entry before the rename)
+gFirstPlaceTime	symbol_addrs	0x80142B60: stale; the maps give gFirstPlaceTime to 0x80152018 (drop this line of symbol_addrs.us.txt before the rename)
 gForceOffset	*	0x80140DB2: unused label
 gForwardVector	*	0x8002F6BC: unused label
 gFrameBytesPerPixel	*	0x80035510: unused label
@@ -528,6 +537,7 @@ gInFirstPlace	blob	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 
 gInFirstPlace	boot_tail	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
 gInFirstPlace	ovl_a	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
 gInFirstPlace	ovl_b	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this entry before the rename)
+gInFirstPlace	symbol_addrs	0x80142B64: stale; the maps give gInFirstPlace to 0x80152031 (drop this line of symbol_addrs.us.txt before the rename)
 gInTunnelFlag	*	0x80154468: unused label
 gInTunnelState	*	0x800379DC: unused label
 gInfinity	*	0x8002D800: unused label
@@ -584,6 +594,7 @@ gNumPlayers	blob	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (dro
 gNumPlayers	boot_tail	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
 gNumPlayers	ovl_a	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
 gNumPlayers	ovl_b	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this entry before the rename)
+gNumPlayers	symbol_addrs	0x80166004: stale; the maps give gNumPlayers to 0x8014A108 (drop this line of symbol_addrs.us.txt before the rename)
 gNumberCheckpoints	*	0x80142B44: unused label
 gObjectArrayEnd	boot_tail	0x80144DA0: second name of gGhostMenuSelect
 gObjectArrayStart	boot_tail	0x80144D60: second name of gPS_Files
@@ -597,6 +608,7 @@ gParticleActiveCount	*	0x800379AC: unused label
 gParticlePool	*	0x80162000: unused label
 gParticlePoolIndex	*	0x80162100: unused label
 gPauseState	boot_tail	0x80114700: stale; the maps give gPauseState to 0x801170FC (drop this entry before the rename)
+gPauseState	symbol_addrs	0x80114700: stale; the maps give gPauseState to 0x801170FC (drop this line of symbol_addrs.us.txt before the rename)
 gPhysicsObjectListHead	*	0x801491F0: unused label
 gPlayTime	*	0x80142B04: unused label
 gPlayerCarState1	boot_tail	0x80152818: second name of gGameCar
@@ -657,10 +669,12 @@ gScrapeState	blob	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (d
 gScrapeState	boot_tail	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
 gScrapeState	ovl_a	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
 gScrapeState	ovl_b	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this entry before the rename)
+gScrapeState	symbol_addrs	0x80150DA8: stale; the maps give gScrapeState to 0x80140A08 (drop this line of symbol_addrs.us.txt before the rename)
 gScrapeTime	blob	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
 gScrapeTime	boot_tail	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
 gScrapeTime	ovl_a	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
 gScrapeTime	ovl_b	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this entry before the rename)
+gScrapeTime	symbol_addrs	0x80150DAC: stale; the maps give gScrapeTime to 0x80140B10 (drop this line of symbol_addrs.us.txt before the rename)
 gScreenCenterX	*	0x80037970: unused label
 gScreenCenterY	*	0x80037974: unused label
 gSettingsData	*	0x80159200: unused label
@@ -738,6 +752,7 @@ gTireSideForce	blob	0x801529BC: stale; the maps give gTireSideForce to 0x8011121
 gTireSideForce	boot_tail	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
 gTireSideForce	ovl_a	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
 gTireSideForce	ovl_b	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this entry before the rename)
+gTireSideForce	symbol_addrs	0x801529BC: stale; the maps give gTireSideForce to 0x8011121C (drop this line of symbol_addrs.us.txt before the rename)
 gTireSlipAngle	*	0x80152988: unused label
 gTireSlipFlag	*	0x80152998: unused label
 gTireSlipTorque	*	0x8015299C: unused label
@@ -888,9 +903,6 @@ hud_timer_display	*	0x800FB928: inside PrePlay (+0x660), not a function start
 hud_timer_render	*	0x800E2800: inside forces1 (+0x45C), not a function start
 hud_update	*	0x80095600: inside AudioSetMasterVolume (+0xD8), not a function start; declared only (1 file): wave 2 deletes the declarations
 inflate_io_wait	*	0x80004A10: unused label
-init_state_begin	boot_tail	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
-init_state_begin	ovl_a	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
-init_state_begin	ovl_b	0x800C9BE0: inside UpdateRushControls (+0x264), not a function start; declared only (409 files): wave 2 deletes the declarations
 input_analog_read	*	0x800E7690: inside init_model_task (+0x64), not a function start
 input_analog_write	*	0x80094E00: second name of ZOID_CropBlit
 input_buffer	boot_tail	0x80140BF0: second name of gBlitInstanceList
@@ -992,9 +1004,6 @@ network_sync_full	*	0x8010A83C: inside func_8010A7A4 (+0x98), not a function sta
 next_maxpath	*	0x800A1080: inside allocate_memory_at (+0xA4), not a function start
 npc_interaction	*	0x80095CC0: inside AudioSetEffectVolume (+0xC4), not a function start
 object_alloc_slot	*	0x800E7100: inside InitControlSys (+0xC8), not a function start; declared only (7 files): wave 2 deletes the declarations
-object_byte9_set	boot_tail	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
-object_byte9_set	ovl_a	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
-object_byte9_set	ovl_b	0x800B41C0: inside text_unlock (+0x8), not a function start; declared only (401 files): wave 2 deletes the declarations
 object_collision_all	*	0x800E7500: inside func_800E73D8 (+0x128), not a function start
 object_free_slot	*	0x800E7200: inside ControlIRQ (+0xCC), not a function start
 object_helper	*	0x800B3F50: second name of TB_GetFontLineHeight
@@ -1100,9 +1109,6 @@ physics_velocities_P	*	0x800A2680: second name of PS_DeleteFile
 ping_measurement	*	0x8010B284: inside func_8010AEAC (+0x3D8), not a function start
 player_join_screen	*	0x800D349C: inside FindHumanResPt (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
 player_slots	boot_tail	0x80144030: second name of gPaks
-player_state_set	boot_tail	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
-player_state_set	ovl_a	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
-player_state_set	ovl_b	0x800C9158: inside loading_effect_none (+0x8), not a function start; declared only (408 files): wave 2 deletes the declarations
 players_finish_check	*	0x800D60B4: inside modelgo (+0x8), not a function start; declared only (7 files): wave 2 deletes the declarations
 playpos	*	0x80140DCC: unused label
 points_award	*	0x800DA2D0: inside options_updateButtons (+0x10), not a function start; declared only (7 files): wave 2 deletes the declarations
@@ -1282,9 +1288,6 @@ viStub	ovl_a	0x800015DC: unused label
 viStub	ovl_b	0x800015DC: unused label
 vi_config_offset	*	0x80094C30: inside RemovePlayerFile (+0x8), not a function start
 viewport_perspective	*	0x8009F064: inside zoid_draw_window (+0xC), not a function start
-visual_objects_update	boot_tail	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
-visual_objects_update	ovl_a	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
-visual_objects_update	ovl_b	0x800B55FC: inside video_uninitButtons (+0x8), not a function start; declared only (423 files): wave 2 deletes the declarations
 voice_play	*	0x800B3D20: inside SetupFontData (+0x8), not a function start
 voice_playback	*	0x80095F00: inside FindChunk (+0xC), not a function start; declared only (7 files): wave 2 deletes the declarations
 wheel_rotation_update	*	0x800A4940: inside BlitInit (+0xC), not a function start

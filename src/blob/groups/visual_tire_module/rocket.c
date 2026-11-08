@@ -174,11 +174,9 @@ void func_8008E06C(s16 objnum, Color *color);
 
 void AnimateRocketFlame(s16 ipa_s5, s32 flag);
 
-/* ZOID_SetObjectDef (inlined), ZOID_ObjectFlags, ZOID_SetObjectFlags */
-void ZOID_SetObjectDef(s16 objnum, u16 def)
-{
-    D_8012E700[objnum].tex = def;
-}
+/* ZOID_SetObjectDef (inlined on the N64: this file had a second copy of it), ZOID_ObjectFlags, ZOID_SetObjectFlags */
+void func_80090770(s16 objnum, u16 def);
+#define ZOID_SetObjectDef func_80090770
 u32 func_8008AE64(s16 objnum);
 
 

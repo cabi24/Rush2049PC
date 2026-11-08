@@ -537,7 +537,6 @@ src/blob/groups/vector_length	src/blob/groups/distance	file	code	sure	MAT3 fmath
 src/blob/groups/vector_normalize	src/blob/groups/normal_vector	file	code	sure	MAT3 fmath.c NormalVector
 src/blob/groups/vertices	src/blob/groups/zoid_update_poly	file	code	sure	MAT3 zoidpoly.c ZOID_UpdatePoly
 src/blob/groups/visual_tire_module	src/blob/groups/visuals	file	code	sure	MAT3 visuals.c: AnimateTire, AnimateWing, AnimateWingFlame, AnimateRocketFlame, AnimateFrame, CheckVisible
-src/blob/input_new_data_wrapper.c	src/blob/Hidden.c	file	code	sure	the single file of Hidden (historical label)
 src/blob/input_status_update.c	src/blob/ZOID_SetBlitData.c	file	code	sure	the single file of ZOID_SetBlitData (historical label)
 src/blob/math_utility.c	src/blob/CopyUV.c	file	code	sure	the single file of CopyUV (historical label)
 src/blob/model_data_load.c	src/blob/MBOX_HideObject.c	file	code	sure	the single file of MBOX_HideObject (historical label)

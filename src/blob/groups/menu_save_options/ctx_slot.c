@@ -206,6 +206,9 @@ void cart_free_direct(void **address) {
     audio_reverb_update(N64A(address), 0);
     osSendMesg(&D_80152770, NULL, 0);
 }
+/* DeleteGhost, under its address name in the loader's tables (src/blob/menu_render_list.c was a second copy of
+ * it). */
+#define DeleteGhost menu_render_list
 void DeleteGhost(Handle ghosth) {   /* GC save.c DeleteGhost */
     if ((*ghosth)->slot != NULL) {
         pak_delete_file_retry((*ghosth)->slot);

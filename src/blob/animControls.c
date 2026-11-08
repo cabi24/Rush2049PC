@@ -89,6 +89,7 @@ static s32 validOption(u8 player, s32 item)
     return valid;
 }
 
+#define Hidden input_new_data_wrapper   /* state_update_global.c's, under its address name */
 s32 Hidden(Blit *blt, s32 hide);
 
 s32 animControls(Blit *blt)

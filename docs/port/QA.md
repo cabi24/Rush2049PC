@@ -299,7 +299,7 @@ N64's evenly spaced retraces never get there. It hit a plain race as well as one
 Fix (1a39ed2, under `TARGET_PC`, as macros above each function, so the N64 build's lines don't move):
 - The per-retrace senders drop a command that finds no message, and give back the message of one the queue
   refuses: `entity_transform_calc`, the priority pass's starts and stops (`sound_position_update` in updatefx.c,
-  `_SendCmd`), and the stop `scheduler_recv` (entity_lookup/group.c, the copy the game links). The next pass sends
+  `send_fx_command`), and the stop `scheduler_recv` (entity_lookup/group.c, the copy the game links). The next pass sends
   the sound's values again.
 - The three sound starts (`entity_flags_apply`, `high_scores_display`, `camera_target_track`) return handle -1
   ("none" to every lookup) and give back the emitter.

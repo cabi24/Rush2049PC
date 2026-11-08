@@ -76,12 +76,8 @@ int func_8008B2B4(void);
 
 f32 func_8008B2E4(f32 max);
 
-void sound_call_simple(s16 objnum, int removeChildren);
-
-static void ZOID_RemoveObject(s16 objnum)
-{
-    sound_call_simple(objnum, 0);
-}
+void sound_call_minimal(s16 objnum);   /* the game's own ZOID_RemoveObject (this file had a static copy: the same code) */
+#define ZOID_RemoveObject sound_call_minimal
 
 void func_8008E06C(s16 objnum, tRGBA *col);
 

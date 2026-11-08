@@ -158,30 +158,12 @@ void leEndLoadingEffect(void)
 
 void func_800A5B3C(void);
 
-void AudLock(void);
-
-void AudUnlock(void);
-
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * src/blob/groups/transform/group.c's entity_transform_calc says when). A stop, pause or resume posted here is
- * then dropped: with no message the lock is given back and nothing is sent, and a message the full queue refuses
- * is given back (its in-use byte, +3). Nothing else is made here. The other copy of AudSend and
- * AudStopAllEffects (display_list_flush.c, RaceStateMachine_Update.c) is the same. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){AudUnlock();return;}
-#define PC_GIVE_BACK(m) ((s8 *)(m))[3]=0;
-void AudSend(AudMsg *msg);
-
-void AudKillSong(void)
-{
-    AudMsg *msg;
-    AudLock();
-    msg = func_80091B00(); PC_CMD_OR_UNLOCK(msg)
-    msg->type = 1;
-    AudUnlock();
-    AudSend(msg);
-}
-
-void AudStopAllEffects(void);
+/* The game's own AudKillSong, AudStopAllEffects and InitBattlePoints (this file had copies of AudKillSong and
+ * InitBattlePoints: the same code). */
+#define AudKillSong object_type1_create
+#define AudStopAllEffects object_type7_create
+void audio_update_c(void);
+#define InitBattlePoints audio_update_c
 
 typedef struct StuntInfo { s32 active; u8 pad[120]; } StuntInfo;
 extern u8 D_80152038[480];      /* gStuntPlayer */
@@ -199,12 +181,6 @@ static void ResetStunts(void)
 }
 
 void effect_system_init(void);
-
-void InitBattlePoints(void)
-{
-    memset(D_80149428, 0, 16);
-    memset(D_8015256C, 0, 4);
-}
 
 s32 display_list_flush(s32 useHud, s32 cancel)
 {
