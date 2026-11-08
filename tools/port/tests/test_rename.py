@@ -197,6 +197,16 @@ class Apply(Fixture):
         self.assertTrue((self.root / "src/blob/groups/new_group/member.c").exists())
         self.assertIn('"dir": "src/blob/groups/new_group"', self.text("src/blob/groups/new_group/group.json"))
 
+    def test_file_row_in_a_moved_folder(self):
+        """A file row names the folders as they were: a folder row's move takes the file along."""
+        m = self.write_map([("src/blob/groups/old_group", "src/blob/groups/new_group", "file", "code", "sure", "x"),
+                            ("src/blob/groups/old_group/member.c", "src/blob/groups/old_group/renamed.c", "file",
+                             "code", "sure", "a file of the folder")])
+        self.apply(m)
+        self.assertTrue((self.root / "src/blob/groups/new_group/renamed.c").exists())
+        self.assertFalse((self.root / "src/blob/groups/old_group").exists())
+        self.assertIn("src/blob/groups/new_group/renamed.c", self.text("CMakeLists.txt"))
+
     def test_again_changes_nothing(self):
         self.apply()
         after = snapshot(self.root)

@@ -248,7 +248,12 @@ class Plan:
             # else moved already (names_check tells a missing one)
         for f in self.files:
             if f in explicit:
-                self.moves[f] = (explicit[f][0], explicit[f][1], "file")
+                # its new path names the folders as they were: one a folder row moves moves it along
+                new = explicit[f][0]
+                d = max((d for d in self.dir_moves if new.startswith(d + "/")), key=len, default=None)
+                if d:
+                    new = self.dir_moves[d][0] + new[len(d):]
+                self.moves[f] = (new, explicit[f][1], "file")
                 continue
             new, row, how = f, None, None
             d = max((d for d in self.dir_moves if f.startswith(d + "/")), key=len, default=None)
