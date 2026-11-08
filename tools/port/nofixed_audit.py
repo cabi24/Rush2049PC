@@ -42,6 +42,13 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import n64syms  # noqa: E402  the N64's segments (port/include/pc_n64_map.h)
+
+# KSEG1 addresses of devices, not memory: the RCP's registers and the PIF's ROM and RAM.
+RCP_REGS_K1 = (n64syms.KSEG1 | 0x04000000, n64syms.KSEG1 | 0x04900000)
+PIF_K1 = (n64syms.KSEG1 | 0x1FC00000, n64syms.KSEG2)
+
 ROOT = Path(__file__).resolve().parents[2]
 GAME_DIRS = ("src", "nonmatching")   # the game C (and the m2c contexts beside it)
 PC_DIRS = ("port",)
@@ -163,13 +170,13 @@ def lit_code_class(value, code_line):
     """An address (a pointer, a K0 base or end, a lui half), a region test on an N64 address's top bits, a bit (a
     flag or sign bit that happens to be 0x80000000), a K1 or cartridge address, or a hardware register."""
     v = int(value, 16)
-    if 0xA4000000 <= v < 0xA4900000 or 0xBFC00000 <= v < 0xC0000000:
+    if RCP_REGS_K1[0] <= v < RCP_REGS_K1[1] or PIF_K1[0] <= v < PIF_K1[1]:
         return "src.lit.code.hw_register"
-    if v >= 0xA0000000:
+    if v >= n64syms.KSEG1:
         return "src.lit.code.k1"
     if REGION_CONTEXT.search(code_line):
         return "src.lit.code.region"
-    if v != 0x80000000:
+    if v != n64syms.KSEG0:
         return "src.lit.code.address"
     if ADDR_CONTEXT.search(code_line) and not BIT_CONTEXT.search(code_line):
         return "src.lit.code.address"
@@ -274,7 +281,7 @@ def scan_port_file(inv, path, rel):
                 inv.add(cls + (".tests" if tests else ""), rel, k + 1, lines[k])
         for h in LIT.finditer(c):
             v = int(h.group(1), 16)
-            if 0x80000000 <= v < 0xC0000000:
+            if n64syms.KSEG0 <= v < n64syms.KSEG2:
                 inv.add("port.lit" + (".tests" if tests else ""), rel, k + 1, lines[k])
                 break
 
@@ -440,7 +447,7 @@ def tables_pass(inv, build, jobs):
             if m:
                 v = int(m.group(2), 16)
                 absolute[m.group(1)] = v
-                inv.add("symbols.aliases." + ("rdram" if v < 0xA0000000 else "cartridge"), "aliases.ld", k + 1, line)
+                inv.add("symbols.aliases." + ("rdram" if v < n64syms.KSEG1 else "cartridge"), "aliases.ld", k + 1, line)
     # who reaches them by name: nm -u over the game's and the PC layer's objects
     nm = os.environ.get("NM", "nm")
     def port_objects():

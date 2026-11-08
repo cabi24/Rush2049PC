@@ -1636,13 +1636,13 @@ def race(c):
         c.set("game", "num_demo_ppoints", "u16", 1, "one start point" if t == 0 else "(same)", index=t)
 
     # The cars' physics descriptors (gCarModels, Car *[13], docs/port/CARS.md): 0xB4-byte records of words, which
-    # the research puts at 0x801108D0.. inside steady_leg_duration (f32[], so the loader swaps them as words). One descriptor
+    # the research puts 8 bytes into steady_leg_duration (f32[], so the loader swaps them as words). One descriptor
     # for every car type: zero but for a mass, an engine inertia, four tire curves and the four tires' positions (x
     # forward: the wheelbase is front x - rear x). The tire curves are the two six-float records after the torque
     # curve, D_8011F814[2][6] (front, rear: copy_tire_info copies six), which only these u32 fields reach: declared in
     # car_resistance for the PC, so the loader swaps them as floats (BRINGUP.md 3). Every value 1.
     base = c.syms.addr("steady_leg_duration")
-    desc, susp = 0x801108D0, 0x80110A00
+    desc, susp = base + 0x8, base + 0x138   # the descriptors, and their suspension part
     curves = c.syms.addr("D_8011F814")
     for i in range(12):
         c.set("game", "D_8011F814", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",

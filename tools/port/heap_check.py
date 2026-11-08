@@ -9,7 +9,7 @@ rush2049pc ends a run with
     rush2049pc: heap: peak N of M bytes, free-low F (largest block L), at 0xBASE-0xEND, osMemSize S MiB,
                 window W MiB; A allocations, short K, none Z[ (test floor at 0xFLOOR)]
 
---memory: the window and osMemSize are MIB and the heap ends at 0x80000000 + MIB MiB (the heap really grew);
+--memory: the window and osMemSize are MIB and the heap ends at KSEG0 + MIB MiB (the heap really grew);
 --peak-above: the heap held more than BYTES at its peak (sizes take K and M); --floor: RUSH2049_TEST_HEAP_FLOOR was
 applied and the game's own blocks reached past the floor (the peak is more than the heap up to it);
 --short/--short-min: the game fell back for a short heap exactly N or at least N times; --none: allocations nothing
@@ -18,6 +18,8 @@ could hold (default 0). Exit status 1 on a failed check. Stdlib only, Python 3.9
 import argparse
 import re
 import sys
+
+import n64syms   # KSEG0: the window's N64 address (port/include/pc_n64_map.h)
 
 LINE = re.compile(r"rush2049pc: heap: peak (\d+) of (\d+) bytes, free-low (\d+) \(largest block (\d+)\), "
                   r"at 0x([0-9A-F]{8})-0x([0-9A-F]{8}), osMemSize (\d+) MiB, window (\d+) MiB; (\d+) allocations, "
@@ -54,7 +56,7 @@ def main():
           f"{largest}; osMemSize {mem} MiB, window {window} MiB; {allocs} allocations, short {short}, none {none}"
           f"{f', test floor at 0x{floor:08X}' if floor else ''}")
     bad = []
-    if a.memory is not None and (mem != a.memory or window != a.memory or end != 0x80000000 + (a.memory << 20)):
+    if a.memory is not None and (mem != a.memory or window != a.memory or end != n64syms.KSEG0 + (a.memory << 20)):
         bad.append(f"not {a.memory} MiB")
     if peak + free_low != total or end - base != total:
         bad.append("the numbers don't add up")

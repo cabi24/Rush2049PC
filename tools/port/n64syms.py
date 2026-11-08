@@ -9,26 +9,50 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+
+def _n64_map(path=ROOT / "port" / "include" / "pc_n64_map.h"):
+    """The N64's memory map as the PC layer writes it, once (port/include/pc_n64_map.h): {name: value} for each
+    `#define NAME 0x...u` there."""
+    return {m.group(1): int(m.group(2), 16)
+            for m in re.finditer(r"^#define (\w+) 0x([0-9A-Fa-f]+)u\b", Path(path).read_text(), re.M)}
+
+
+# The N64's address space (pc_n64_map.h has what each is): the MIPS segments, RDRAM, libultra's low memory, the
+# cartridge on the bus, where the game's loader puts its runtime images. Wave 3 of docs/port/PCONLY.md removes all but
+# the cartridge's with the RDRAM window.
+N64_MAP = _n64_map()
+KSEG0, KSEG1, KSEG2 = N64_MAP["N64_KSEG0"], N64_MAP["N64_KSEG1"], N64_MAP["N64_KSEG2"]
+PHYS_MASK = N64_MAP["N64_PHYS_MASK"]                    # a KSEG0 or KSEG1 address to its physical one
+RDRAM_SIZE = N64_MAP["N64_RDRAM_SIZE"]                  # 8 MiB, with the Expansion Pak
+RDRAM_END = KSEG0 + RDRAM_SIZE                          # KSEG0's first address past it
+LOW_MEMORY_END = N64_MAP["N64_LOW_MEMORY_END"]          # the boot code's first address
+CART_KSEG1 = KSEG1 | N64_MAP["N64_CART_PHYS"]           # the cartridge's first byte through KSEG1 (osRomBase)
+OVERLAY_BASE = N64_MAP["N64_OVERLAY_BASE"]              # both runtime images' load address
+
 # The four images whose data the PC build fills from the ROM (docs/memory_map.md):
 # name, how it is stored, ROM offset, stored length, image size, N64 base. "raw" is a plain copy (the boot
 # segment tail); "deflate" a raw DEFLATE stream.
 IMAGES = [
     ("boot", "raw", 0x283D0, 0x7110, 0x7110, 0x800277D0),
     ("game", "deflate", 0xB0CB10, 326180, 647072, 0x80086A50),
-    ("ovl_a", "deflate", 0xB5C534, 80272, 194128, 0x8038A400),
-    ("ovl_b", "deflate", 0xB6FEC4, 23639, 43888, 0x8038A400),
+    ("ovl_a", "deflate", 0xB5C534, 80272, 194128, OVERLAY_BASE),
+    ("ovl_b", "deflate", 0xB6FEC4, 23639, 43888, OVERLAY_BASE),
 ]
+_BASE = {img[0]: img[5] for img in IMAGES}
 # Each image's data and BSS: image, N64 start, end of initialized data (= image end), end of BSS. The two
-# runtime images' code overlaps at 0x8038A400, but their data and BSS ranges are disjoint.
+# runtime images' code overlaps at OVERLAY_BASE, but their data and BSS ranges are disjoint. The boot data's BSS
+# ends where the game image starts.
 ARENAS = [
-    ("boot", 0x800277D0, 0x8002E8E0, 0x80086A50),
+    ("boot", _BASE["boot"], 0x8002E8E0, _BASE["game"]),
     ("game", 0x8010FD7C, 0x801249F0, 0x8017A640),
     ("ovl_a", 0x803AF978, 0x803B9A50, 0x803BAE20),
     ("ovl_b", 0x80393B34, 0x80394F70, 0x8039B440),
 ]
-# Code ranges per image, for telling function addresses from data.
-CODE = {"boot": (0x80000400, 0x800277D0), "game": (0x80086A50, 0x8010FD7C),
-        "ovl_a": (0x8038A400, 0x803AF978), "ovl_b": (0x8038A400, 0x80393B34)}
+_ARENA = {a[0]: a[1:] for a in ARENAS}
+# Code ranges per image, for telling function addresses from data: from the image's base (the boot code from the
+# end of low memory) to its data.
+CODE = {"boot": (LOW_MEMORY_END, _BASE["boot"]), "game": (_BASE["game"], _ARENA["game"][0]),
+        "ovl_a": (OVERLAY_BASE, _ARENA["ovl_a"][0]), "ovl_b": (OVERLAY_BASE, _ARENA["ovl_b"][0])}
 # The symbol tables the matching build links each image's compiled C against.
 IMAGE_SYMBOLS = {"game": "asm/us/blob/symbols.json", "ovl_a": "asm/us/ovl_a/symbols.json",
                  "ovl_b": "asm/us/ovl_b/symbols.json"}
@@ -61,18 +85,19 @@ def types_objects(build):
 _IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
                ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
 
-# N64 virtual memory regions (docs/memory_map.md). Both runtime images load at 0x8038A400.
+# N64 virtual memory regions (docs/memory_map.md), from the tables above. Both runtime images load at OVERLAY_BASE;
+# their region runs to the 4 MiB mark.
 REGIONS = [
-    (0x80000000, 0x80000400, "low memory"),
-    (0x80000400, 0x800277D0, "boot code"),
-    (0x800277D0, 0x8002E8E0, "boot data"),
-    (0x8002E8E0, 0x80086A50, "boot bss"),
-    (0x80086A50, 0x8010FD7C, "game code"),
-    (0x8010FD7C, 0x801249F0, "game data"),
-    (0x801249F0, 0x8017A640, "game bss"),
-    (0x8038A400, 0x80400000, "overlay"),
+    (KSEG0, LOW_MEMORY_END, "low memory"),
+    (*CODE["boot"], "boot code"),
+    (_ARENA["boot"][0], _ARENA["boot"][1], "boot data"),
+    (_ARENA["boot"][1], _ARENA["boot"][2], "boot bss"),
+    (*CODE["game"], "game code"),
+    (_ARENA["game"][0], _ARENA["game"][1], "game data"),
+    (_ARENA["game"][1], _ARENA["game"][2], "game bss"),
+    (OVERLAY_BASE, KSEG0 + N64_MAP["N64_RDRAM_SIZE_NO_PAK"], "overlay"),
 ]
-BSS_REGIONS = {"boot bss": (0x8002E8E0, 0x80086A50), "game bss": (0x801249F0, 0x8017A640)}
+BSS_REGIONS = {"boot bss": _ARENA["boot"][1:], "game bss": _ARENA["game"][1:]}
 
 _ADDR_NAME = re.compile(r"^(?:D|func|sym|jtbl)_([0-9A-Fa-f]{8})$")
 _SYM_LINE = re.compile(r"^\s*([A-Za-z_]\w*)\s*=\s*0x([0-9A-Fa-f]+)\s*;\s*(?://(.*))?$")

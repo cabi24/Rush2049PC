@@ -70,6 +70,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import n64syms  # noqa: E402  OVERLAY_BASE (port/include/pc_n64_map.h)
+
 ROOT = Path(__file__).resolve().parents[2]
 MAPS_DIR = Path("tools/port/names")
 
@@ -640,7 +643,7 @@ def _classify_all(paths):
     return [_classify_path(p) for p in paths]
 
 
-OVERLAY_BASE = 0x8038A400   # both runtime images load here: an address above it is one image's (n64syms.CODE)
+OVERLAY_BASE = n64syms.OVERLAY_BASE   # both runtime images load here: an address above it is one image's
 
 
 class Tree:
