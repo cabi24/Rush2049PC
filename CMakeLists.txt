@@ -776,6 +776,9 @@ add_test(NAME render_values COMMAND ${PC_PYTHON} ${PORT_TOOLS}/render_values_che
 # synth_compare.py's verdicts on made-up runs: a run that doesn't end as its script's `# expect:` line says fails,
 # whatever the builds' agreement (docs/port/QA.md, "Integration QA"; the retail battle scripts in tools/port/retail).
 add_test(NAME synth_compare_expect COMMAND ${PC_PYTHON} ${PORT_TOOLS}/test_synth_compare.py)
+# The PC-only work's tools (docs/port/PCONLY.md 3): names_check over the name maps, rename.py and names_check on
+# fixtures, the gate script's syntax.
+include(cmake/pconly_tests.cmake)
 # The first run (docs/port/RELEASE.md): what romcheck.c says a file is, on images the test makes; the folders and the
 # ROM lookup order in temporary folders; and the program's own messages for each kind of missing or wrong ROM, and
 # the lookup order, through tools/port/firstrun_check.py with copies of the synthetic cartridge.
