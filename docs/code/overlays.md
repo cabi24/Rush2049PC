@@ -9,18 +9,18 @@ block of its heap when it needs them, one at a time:
 | Sources | `src/ovl_a/`, `nonmatching/ovl_a/` | `src/ovl_b/`, `nonmatching/ovl_b/` |
 | Loaded | when the game enters its menus (after boot, and after each race) | at the start of a battle, stunt or obstacle race, and of every race when the game found an Expansion Pak (`expansion_pak_present`) |
 | Unloaded | when a race starts | when the front end is loaded again |
-| Loaded flag | `D_8011ED00` | `D_8011ED04` |
+| Loaded flag | `start_overlay_loaded` | `extra_overlay_loaded` |
 | Code | 0x8038A400 to 0x803AF978 | 0x8038A400 to 0x80393B34 |
 | Data | 0x803AF978 to 0x803B9A50 | 0x80393B34 to 0x80394F70 |
-| BSS | 0x803B9A50 to `frontend_overlay_bss_end` (0x803BAE20) | `gShotObjList` (0x80394F70) to `extras_overlay_bss_end` (0x8039B440) |
+| BSS | 0x803B9A50 to `start_overlay_bss_end` (0x803BAE20) | `gShotObjList` (0x80394F70) to `extra_overlay_bss_end` (0x8039B440) |
 | Original modules (MAT3) | warningscr, trackscr, titlescr, licensescr, eggs, startscr, selectcarload, recordscr, playerscr, pakscr, modescr, circuitscr, cheatscr, carscr |
  worlddam, weapons, streaks, shots, powerups, hudextra |
 
-Both images start at `overlay_area` (0x8038A400): the game's overlay loader (`PrevMaxPath`) reserves the heap block
+Both images start at `overlay_base` (0x8038A400): the game's overlay loader (`load_overlay`, `PrevMaxPath` in the C) reserves the heap block
 from there to 0x803BB380 (`PurgeableMemory`), inflates the image into it, clears its BSS and sets the flag;
-unloading frees the block (`_DeallocateMemory(overlay_area)`) and clears the flag. `LoadFrontEndOverlay(1)`
+unloading frees the block (`DeallocateMemoryInternal(overlay_base)`) and clears the flag. `LoadFrontEndOverlay(1)`
 (`display_enable` in the C) unloads image B if it is there and loads image A; `LoadFrontEndOverlay(0)` unloads
-image A when the race state starts, and `InitMaxPath` loads image B there for the battle, stunt and obstacle modes, or for any race with an
+image A when the race state starts, and `load_extra_overlay` (`InitMaxPath` in the C) loads image B there for the battle, stunt and obstacle modes, or for any race with an
 Expansion Pak.
 The game image calls into whichever image is loaded by plain function calls and reads some of its data by name;
 nothing checks that the right image is loaded, the state machine just never calls the other one's code.
@@ -73,7 +73,7 @@ alphabetical order of the original file names (that order identified most of it)
 
 | MAT3 file | Screen | Entry | What else is there |
 |---|---|---|---|
-| warningscr.c | the controller-pak warning at boot | `updateWarningScreen` (image A's function at 0x8038A400), `warningscr_animText` | `warningscr_blits`, `gPakScr` (the highlighted choice), `numPaksFound`, `gBlocksNeeded` (free pages a profile needs) |
+| warningscr.c | the controller-pak warning at boot | `updateWarningScreen` (image A's function at 0x8038A400), `warningscr_animText` | `warningscr_blits`, `gPakScr` (the highlighted choice), `num_paks_found`, `gBlocksNeeded` (free pages a profile needs) |
 | trackscr.c | track select: a carousel of track pictures, the race options (laps, mirror, fog, wind, ghosts, drones, death mode, difficulty, catch-up), a rotating 3D map of the track | `updateTrackScreen`, `trackscr_animText`, `trackscr_animNewSlider`, `animArrows` | `gTracks` (the carousel), `trackMap` (one 0x48-byte entry per map object), `buildTrackMaps` builds a display list per track from the path data (`buildRaceTrackMaps` and the stunt, battle, obstacle variants), keeping each map model's first LOD in `saved_map_lods` so `clearTrackMaps` can restore it; `n64FogPal` is the fog picture's palette (N64 only); the function-local statics of `showTrackSelect`, `trackscr_animTrackMap`, `animTrackMaps` and `BlowFog` |
 | titlescr.c | the title | `updateTitleScreen`, `titlescr_animText` | a countdown to the attract mode; Start gives player 0 controller 0 |
 | licensescr.c | the licence screen | `updateLicenseScreen`, `licensescr_animText` | on the N64 also the gate that opens the pak manager when a button is held at boot |
@@ -82,11 +82,11 @@ alphabetical order of the original file names (that order identified most of it)
 | selectcarload.c | the car models of the car select screens | `InitSelectCarLoad`, `LoadSelectCar`, `UnloadSelectCar`, `UpdateSelectCar`, `InitVisualsCarScr` | `gSelectCarWavePtrs` (16 wave loads), `gSelectCar` (per car: created, hidden, ready, loading, colours, rims, tyre scales); `UpdateSelectCar` takes r, g, b on the N64 instead of a paint job |
 | recordscr.c | the records screen: per-profile statistics and unlocks | `updateRecordScreen`, `recordscr_animText` | `gRecordState` (select or view); `recordscr_drawSelect`, `recordscr_drawView` and one draw function per page (`drawRaceStats`, `drawScores`, `drawBattleStats`, `drawStuntStats`, `drawObstacleStats`, `drawCircuitStats`, `drawTotalStats`, `drawUnlockedTracks`, `drawUnlockedCars`, `drawUnlockedParts`); `gStatPlayer` 0 shows the machine's totals |
 | playerscr.c | profile select, one window per player | `updatePlayerScreen`, `playerscr_animText` | a state machine per player (`gPlayerState`: select, wait, controls, create, delete, pak full, pak damaged) with one control and one draw function per state; name entry over `gPlayerNameChars`; `playerscr_gPlayerRects` places each player's text |
-| pakscr.c | the controller-pak manager (delete files) | `updatePakScreen`, `_AnimText` | `gState` picks the `_Control*` and `_Draw*` pair (pick a pak, file list, confirm, rumble pak, damaged pak); `_CancelFunc` for the error box |
+| pakscr.c | the controller-pak manager (delete files) | `updatePakScreen`, `AnimText` | `gState` picks the `_Control*` and `_Draw*` pair (pick a pak, file list, confirm, rumble pak, damaged pak); `CancelFunc` for the error box |
 | modescr.c | the game-mode menu | `updateModeScreen`, `modescr_animText` | seven modes, valid by player count (a table it reads through `modescr_validOption_biased`) |
 | circuitscr.c | the circuit menu: continue, review, new circuit, enter a code, the trophy | `updateCircuitScreen`, `circuitscr_animText` | `gCircuit` (the circuit record in the profile), `resetEnabled`, `controlCircuitCode` (a 20-letter code), `controlShowTrophy` spins `gTrophyMat`, `drawReview` lists the reviewed track's six cars (`gCircuitCars`) |
 | cheatscr.c | the cheat menu | `updateCheatScreen`, `cheatscr_animText` | 21 cheats (MAT3 23): each row writes a game flag and mirrors it in `gCheatState`; `gCheatActive` says which ones the player has unlocked |
-| carscr.c | car select: cars, parts, colours, ghosts, stat bars | `updateCarScreen`, `carscr_animText`, `carscr_animNewSlider`, `animStatBars`, `animStatText`, `anim_car_color_marker` | `carscr_cars` (the carousel), `gCarComponents` (the part models of the highlighted option), `gStats` (from the transmission, handling, engine, tyre and frame tables of the car's settings), `gCarLocked`; the per-car settings are game-image tables of 5 rows (defaults, then one per player); three colour settings (`car_color_choice_a`/`_b`/`_c` into `car_color_palette`) are N64 only; `setGhosts`/`getNextGhost` choose ghosts from `gGhostFiles` |
+| carscr.c | car select: cars, parts, colours, ghosts, stat bars | `updateCarScreen`, `carscr_animText`, `carscr_animNewSlider`, `animStatBars`, `animStatText`, `anim_car_color_marker` | `carscr_cars` (the carousel), `gCarComponents` (the part models of the highlighted option), `gStats` (from the transmission, handling, engine, tyre and frame tables of the car's settings), `gCarLocked`; the per-car settings are game-image tables of 5 rows (defaults, then one per player); three colour settings (`car_color_choice_a`/`_b`/`_c` into `paint_colors_rgb`) are N64 only; `setGhosts`/`getNextGhost` choose ghosts from `gGhostFiles` |
 
 The other front-end screens (options, audio, video, controls, pause, high score, game over) are in the game image
 , which also keeps the state machine, `gText`, the profiles and the controller pak
@@ -130,16 +130,16 @@ It is six MAT3 files, in this order in the image. Every function has its MAT3 na
 | MAT3 file | What it does | Functions | Its data |
 |---|---|---|---|
 | worlddam.c | scorch marks: a ring of 25 four-vertex road decals; a new one snaps its corners onto the road and fades the four before it | `findDamageSlot`, `newWorldDamage`, `initWorldDamage` | `DamagePolys` (the ring: full flag, oldest index, 25 polygons), `damTexture`, `dummyVtx` (the quad), `damColor` (one colour, four fading alphas), `scorch_texture_name` |
-| weapons.c | the weapon model on each battle car, its muzzle flashes and the cannon's rip smoke | `_RemoveCannMFlash`, `_RemoveGattMFlash`, `AnimateWeapon` (the weapon visual's callback), `StartWeapon`, `InitBattlePlayer` (resets a car's battle state, also after a resurrect) | `weaponOffsets` (weapon type x body type x xyz), `gCurWeaponType`, `gGattMuzzleObjs`, `gCannMuzzleObjs` |
-| streaks.c | light streaks behind shots: fading polygon ribbons | `UpdateStreaks` (with `_AnimateStreakPolys` and `_NewStreakPoly` inlined), `NewStreak`, `InitStreaks` | `gStreakList`/`gStreakArray` (50 streaks), `gStreakPolyList`/`gStreakPolyArray` (150 polygons), `gStreakColors` |
-| shots.c | shots, shell casings, mines' hits, shields, damage | `ShotInit`, `ShotUpdate` (each frame), `UpdateShots`, `_InitNewShot`, `_CreateShotObject`, `_UpdateShotObject`, `ShotDone`, `ShotToCarCollision`, `SonicCarCollision`, `ProximityDamage`, `BattleDamage`, `MissileLock`, `ElevateGun`, `UpdateDefense`, `AnimateCase` | four pooled lists (`gShotList`/`gShots` 24, `gHitPolyList`/`gHitPolys` 24, `gShotObjList`/`gShotObjs` 24, `gShotCaseList`/`gShotCase` 30), the object and texture tables `ShotInit` looks up (`WprObjNames` into `gWprObjList`, `WfxObjNames` into `gWfxObjList`, `MineTexNames` into `gMineTextures`, `RipTexNames` into `gRipTextures`), `gCarShield`, `hitColor`, `wallTidx`; the C defines `gShieldSizes`, `sWeaponFx`, `CaseOffsets`, `ShotOffsets` |
+| weapons.c | the weapon model on each battle car, its muzzle flashes and the cannon's rip smoke | `RemoveCannMFlash`, `RemoveGattMFlash`, `AnimateWeapon` (the weapon visual's callback), `StartWeapon`, `InitBattlePlayer` (resets a car's battle state, also after a resurrect) | `weaponOffsets` (weapon type x body type x xyz), `gCurWeaponType`, `gGattMuzzleObjs`, `gCannMuzzleObjs` |
+| streaks.c | light streaks behind shots: fading polygon ribbons | `UpdateStreaks` (with `AnimateStreakPolys` and `NewStreakPoly` inlined), `NewStreak`, `InitStreaks` | `gStreakList`/`gStreakArray` (50 streaks), `gStreakPolyList`/`gStreakPolyArray` (150 polygons), `gStreakColors` |
+| shots.c | shots, shell casings, mines' hits, shields, damage | `ShotInit`, `ShotUpdate` (each frame), `UpdateShots`, `InitNewShot`, `CreateShotObject`, `UpdateShotObject`, `ShotDone`, `ShotToCarCollision`, `SonicCarCollision`, `ProximityDamage`, `BattleDamage`, `MissileLock`, `ElevateGun`, `UpdateDefense`, `AnimateCase` | four pooled lists (`gShotList`/`gShots` 24, `gHitPolyList`/`gHitPolys` 24, `gShotObjList`/`gShotObjs` 24, `gShotCaseList`/`gShotCase` 30), the object and texture tables `ShotInit` looks up (`WprObjNames` into `gWprObjList`, `WfxObjNames` into `gWfxObjList`, `MineTexNames` into `gMineTextures`, `RipTexNames` into `gRipTextures`), `gCarShield`, `hitColor`, `wallTidx`; the C defines `gShieldSizes`, `sWeaponFx`, `CaseOffsets`, `ShotOffsets` |
 | powerups.c | health, shield and invisibility power-ups that respawn on the level's targets | `PreInitBattlePowerUps`, `IncBattlePowerUps` (one per power-up target the level loads), `InitBattlePowerUps`, `UpdateBattlePowerUps` (each frame) with `UpdateBattleHealth`, `UpdateBattleShield`, `UpdateBattleInvs`, `UpdateInvs` | `gBattlePowerUps` (count, timers, the slot array it allocates) |
-| hudextra.c | the battle and stunt HUD | `ShowHUDExtra`, `RemoveHUDExtra`, `UpdateHUDExtraPostCamera` (with `animStuntCoins` and `animBattleCoins` inlined), `animWeaponIcons`, `animPowerupIcons`, `_AddBattlePoint`, and the blit callbacks `animStuntPoints`, `animHealth`, `animAmmoCounts`, `animBattlePoints` | the two HUD layouts (`StuntMultiBlit`, `BattleMultiBlit`), the screen positions by window count and player (`stuntPos`, `stuntCoinPos`, `coinStuntPos`, `fragPos`, `healthPos`, `ammoPos`, `powerupPos`), colours (`playerPaneColors`, `playerColor`, `healthColor`, `stunt_coin_color`, `weapon_icon_color`), names (`stuntCoinTexNames`, `powerupIconNames`, `battle_coin_object_names`), the printf formats, and the per-player records `weaponIcon`, `powerupIcon`, `battleCoin`, `stuntCoin`, `battlePoint`, `healthPal`, `bonuscnt`, `hudextra_blit` |
+| hudextra.c | the battle and stunt HUD | `ShowHUDExtra`, `RemoveHUDExtra`, `UpdateHUDExtraPostCamera` (with `animStuntCoins` and `animBattleCoins` inlined), `animWeaponIcons`, `animPowerupIcons`, `AddBattlePointInternal`, and the blit callbacks `animStuntPoints`, `animHealth`, `animAmmoCounts`, `animBattlePoints` | the two HUD layouts (`StuntMultiBlit`, `BattleMultiBlit`), the screen positions by window count and player (`stuntPos`, `stuntCoinPos`, `coinStuntPos`, `fragPos`, `healthPos`, `ammoPos`, `powerupPos`), colours (`playerPaneColors`, `playerColor`, `healthColor`, `stunt_coin_color`, `weapon_icon_color`), names (`stuntCoinTexNames`, `powerupIconNames`, `battle_coin_object_names`), the printf formats, and the per-player records `weaponIcon`, `powerupIcon`, `battleCoin`, `stuntCoin`, `battlePoint`, `healthPal`, `bonuscnt`, `hudextra_blit` |
 
 **Who calls in.** The game image calls image B by name: `ShotInit`, `InitBattlePlayer` and the power-up setup when a
 race is prepared, `initWorldDamage` when the track loads, `ShotUpdate` and `UpdateBattlePowerUps` every frame,
 `newWorldDamage` from the car code, `BattleDamage` and `ProximityDamage` from the collision and mine code,
-`_AddBattlePoint`, `ShowHUDExtra`, `RemoveHUDExtra` and `UpdateHUDExtraPostCamera` from the HUD. The four blit
+`AddBattlePointInternal`, `ShowHUDExtra`, `RemoveHUDExtra` and `UpdateHUDExtraPostCamera` from the HUD. The four blit
 callbacks are reached through the function pointers in `StuntMultiBlit` and `BattleMultiBlit`; `AnimateWeapon`
 through the weapon visual. Game code also reads some image-B data directly: `coinStuntPos` (the HUD's coin counter),
 `gMineTextures` and two entries of `gWprObjList` (the mines, which live in the game image).
@@ -160,7 +160,7 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
 
 **What is N64-only, and what the PC changed.**
 - The image itself: inflated from the cartridge into the shared heap block at 0x8038A400, its BSS cleared, and the
-  8-byte stubs IDO leaves where it inlined a static (`_NewStreakPoly`, `_AnimateStreakPolys`, `animStuntCoins_stub`,
+  8-byte stubs IDO leaves where it inlined a static (`NewStreakPoly`, `AnimateStreakPolys`, `animStuntCoins_stub`,
   `animBattleCoins_stub`, `ClearBattlePoints`; nothing calls them). On the PC the code is linked into the executable,
   the stubs are empty functions (nonmatching/ovl_b/stubs.c), and a load refills image B's data arena and C data
   (docs/port/DATA.md section 5).
@@ -184,7 +184,7 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
 - **`AnimateWeapon` reads one row past `weaponOffsets`** for a car without a weapon (type 8); the PC reads zeros
   there (`pc_no_weapon`).
 - **Labels into objects** (`gTargetList_head`, `gPlayers_save`, the `*_biased` tables, the image-B array entries
-  the game reads by their own names: `mine_cap_object`, `mine_glow_object`, `neutral_mine_texture`, the three
+  the game reads by their own names: `gWprObjList_mine`, `gWprObjList_mine_glow`, `neutral_mine_texture`, the three
   power-up definitions in `gObjList`) only work while the data sits at its N64 address in its N64 layout: wave 2
   should write the object's field or element instead, before wave 3 moves the data.
 - **`InitEgg` is defined twice** (its own file under src/ovl_a and src/ovl_a/groups/cheat_screen/eggs.c, the same

@@ -16,17 +16,17 @@ spellings and the evidence. Every file there is listed with its new path at the 
    cartridge header, and starts the **idle thread** (`idle_thread_entry`, priority 2), which creates the PI manager
    and starts **thread 6, `main_thread_entry`**.
 2. **`main_thread_entry`** (the main thread's body; its old name called it an init) creates the message queues
-   (`rom_dma_queue`, `unzip_dma_queue`, `retrace_queue`, `event_queue`), the scheduler (`gScheduler`, priority 12),
+   (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`), the scheduler (`gScheduler`, priority 12),
    inflates the game image from the cartridge into RAM with `unzipdata_from_rom`, registers with the scheduler for
-   retraces, starts the other threads (thread 8 `gAudioThread`, thread 5 `render_thread`, thread 7 `game_thread`),
+   retraces, starts the other threads (thread 8 `gAudioThread`, thread 5 `model_thread`, thread 7 `game_thread`),
    runs the game's late init and sound init, waits for the scheduler's first message, and then runs the game's main
    loop forever.
 3. **`game_thread_entry`** (its old name said audio, but it has nothing to do with audio) calls the game's `game_loop`
    forever.
 
-Further threads (2, 3, 9, 10) are created by the game image; their objects and stacks live here too
-(`thread2` ... `thread10`, `thread2_stack_top` ...). Their names are provisional until the range agents name the
-entry functions.
+Further threads (2, 3, 9, 10) are created by the game image; their objects and stacks live here too:
+`rumble_thread` (2), `sample_dma_thread` (3), `audio_retrace_thread` (9) and `audio_manager_thread` (10), each
+with a `<name>_stack_top`; their bodies are `<name>_entry` in the game image (r1).
 
 ## 2. The parts
 
@@ -101,9 +101,9 @@ codes in the bit stream); its three inner kernels (`gsm_rpe_decode`, `gsm_long_t
 |---|---|
 | 0x80000000-0x80000400 | exception vectors and libultra's boot globals (`osTvType`, `osMemSize`, ...) |
 | 0x80000400-0x800277D0 | the boot segment's code |
-| 0x800277D0-0x8002AFA0 | the GSM kernels and the RSP microcode: `rspbootTextStart`, `gspF3DEX_NoN_fifoTextStart`, `audio_ucode_text` (MusyX, not the SDK's aspMain) |
-| 0x8002AFA0-0x8002E8E0 | initialized data: the timer's `gRetraceRate`/`gRetraceTime`, `framebuffer_width`/`framebuffer_height`, the video tables, the unzip tables, libultra's tables, the sound library's curves and ratio tables, `gWaveSizes`, two static display lists, the microcode data segments, the build-info record |
-| 0x8002E8E0-0x80086A50 | BSS: the scheduler, the timer state, message queues, thread objects and stacks, the sound library's state (registries, voices, controllers, emitters, the speech streams), the graphics task's buffers (`gfx_dram_stack`, `gfx_yield_buffer`, `gfx_fifo_buffer`), the frame command buffers, the unzip input buffers |
+| 0x800277D0-0x8002AFA0 | the GSM kernels and the RSP microcode: `rspbootTextStart`, `gspF3DEX2_NoN_fifoTextStart`, `audio_ucode_text` (MusyX, not the SDK's aspMain) |
+| 0x8002AFA0-0x8002E8E0 | initialized data: the timer's `gRetraceRate`/`gRetraceTime`, `screen_width`/`screen_height`, the video tables, the unzip tables, libultra's tables, the sound library's curves and ratio tables, `gWaveSizes`, two static display lists, the microcode data segments, the build-info record |
+| 0x8002E8E0-0x80086A50 | BSS: the scheduler, the timer state, message queues, thread objects and stacks, the sound library's state (registries, voices, controllers, emitters, the speech streams), the graphics task's buffers (`rsp_dram_stack`, `rsp_yield_buffer`, `rdp_fifo_buffer`), the frame command buffers, the unzip input buffers |
 
 The game image reads several of these directly: the timer values, the framebuffer size, `gScheduler` and its
 queues, the threads it creates, the graphics task buffers, `gWaveSizes`. Those names are in the map's `# shared`
@@ -122,7 +122,7 @@ Things a reader may trip on:
 
 - Several globals have two names at one address, and the map merges them: `gSeconds` (its other name looked like a
   libultra scheduler variable), `gFrameSeconds`,
- `gLastFrameCount`, `gRetraceRate`, `gRetraceTime`, `scheduler_retrace_count`, `render_thread`,
+ `gLastFrameCount`, `gRetraceRate`, `gRetraceTime`, `scheduler_retrace_count`, `model_thread`,
   the queues. None of the `__osSc*` names is libultra's.
 - The boot segment's symbol tables (`asm/us/boot_tail/symbols.json`) still list about 140 invented names that no
   code uses (`gCameraMatrix`, `gHudEnabled`, `gTrackWeather`, `gSpeedometerValue`, ...). They describe nothing in
