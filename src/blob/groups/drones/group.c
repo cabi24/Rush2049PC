@@ -140,9 +140,9 @@ void DoDrones(void)
 {
     S16 i, j, k, indx, index, index2, index3, temp, high_index;
     S16 high_place;
-    S16 total_drones[MAX_LINKS], humans[MAX_LINKS], drones[MAX_LINKS];
+    S16 total_drones[MAX_LINKS], human_slots[MAX_LINKS], drones[MAX_LINKS];
     S16 car_in_conflict[MAX_LINKS], cars_in_order[MAX_LINKS], my_place;
-    S16 ttype, place[MAX_LINKS], num_humans, num_drones;
+    S16 ttype, place[MAX_LINKS], human_count, drone_count;
     F32 scale, delta_dist, delta_dist2, slope, offset, delta[3];
     F32 time_scale, target_dist, car_distance[MAX_LINKS][MAX_LINKS];
     F32 max_brake, min_brake, max_boost, min_boost, temp1;
@@ -157,7 +157,7 @@ void DoDrones(void)
         place[high_place] = PC_CAR_PLACE(high_place);
     }
 
-    num_humans = num_drones = 0;
+    human_count = drone_count = 0;
 
     for (i = 0; i < num_active_cars; i++) {
         index = 0;
@@ -171,12 +171,12 @@ void DoDrones(void)
         cars_in_order[i] = index;
 
         if (PC_MODEL_DRONE_TYPE(index) == HUMAN)
-            humans[num_humans++] = index;
+            human_slots[human_count++] = index;
         else
-            drones[num_drones++] = index;
+            drones[drone_count++] = index;
     }
 
-    for (i = 0, j = 0; i < num_drones; i++)
+    for (i = 0, j = 0; i < drone_count; i++)
         PC_CAR_WEIGHT_INDEX(drones[i]) = i;
 
     if (gGameState & 8) {
@@ -190,10 +190,10 @@ void DoDrones(void)
         return;
     }
 
-    if (num_drones) {
+    if (drone_count) {
         if (gModelTime < 5) {
-            for (i = 0; i < num_drones; i++) {
-                j = num_drones - i - 1;
+            for (i = 0; i < drone_count; i++) {
+                j = drone_count - i - 1;
                 PC_MODEL_TIME_BOOST(drones[i]) = ((F32)(j) * .02f) + .98f;
                 PC_MODEL_DRONE_SCALE(drones[i]) = 1;
             }
@@ -219,21 +219,21 @@ void DoDrones(void)
                 }
             }
 
-            for (i = 0; i < num_drones; i++)
+            for (i = 0; i < drone_count; i++)
                 PC_MODEL_DRONE_TARGET(drones[i]) = drones[i];
 
-            for (i = 0; i < num_humans; i++) {
-                for (j = i + 1; j < num_humans; j++) {
-                    if (car_distance[humans[i]][humans[j]] < 70 * 70) {
-                        car_in_conflict[humans[i]] += 10;
-                        car_in_conflict[humans[j]] += 10;
+            for (i = 0; i < human_count; i++) {
+                for (j = i + 1; j < human_count; j++) {
+                    if (car_distance[human_slots[i]][human_slots[j]] < 70 * 70) {
+                        car_in_conflict[human_slots[i]] += 10;
+                        car_in_conflict[human_slots[j]] += 10;
                     }
                 }
             }
 
-            for (i = 0; i < num_humans; i++) {
-                if (car_in_conflict[humans[i]] < 10) {
-                    index = humans[i];
+            for (i = 0; i < human_count; i++) {
+                if (car_in_conflict[human_slots[i]] < 10) {
+                    index = human_slots[i];
                     my_place = place[index];
 
                     index2 = index3 = -1;
@@ -385,7 +385,7 @@ void DoDrones(void)
                     if (coast_flag || end_game_flag)
                         time_scale = min_boost;
 
-                    if (lap_flag && PC_CAR_PLACE(humans[num_humans - 1]) > place[index]) {
+                    if (lap_flag && PC_CAR_PLACE(human_slots[human_count - 1]) > place[index]) {
                         scale = min_brake;
                         time_scale = min_boost;
                     }

@@ -600,13 +600,13 @@ void TargetSpeed(ModelRecord *m, Nav *cp)
 {
     TrackPt *mp, *nmp;
     s32 nmpi;
-    f32 interp, yrel, offsc;
+    f32 fraction, yrel, offsc;
 
     nmpi = NextPathPt(cp->pt, cp->sel);
 
-    interp = cp->a / cp->d;
-    interp = range_it(interp, 0.0f, 1.0f);
-    cp->spd = (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f + ((f32)(u32)gDronePaths[cp->sel].points[nmpi].flag * 1.4666667f - (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f) * interp;
+    fraction = cp->a / cp->d;
+    fraction = range_it(fraction, 0.0f, 1.0f);
+    cp->spd = (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f + ((f32)(u32)gDronePaths[cp->sel].points[nmpi].flag * 1.4666667f - (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f) * fraction;
 
     yrel = (cp->b > 0.0f) ? cp->b : -cp->b;
     if (yrel < 0.1f) {
@@ -627,7 +627,7 @@ void TargetSteerPos(ModelRecord *m, Nav *cp)
 {
     TrackPt *mp, *nmp;
     s16 nmpi;
-    f32 x, y, z, dist, tgtdist, interp;
+    f32 x, y, z, dist, tgtdist, fraction;
 
     mp = &gDronePaths[cp->sel].points[cp->pt];
     nmpi = NextPathPt(cp->pt, cp->sel);
@@ -651,15 +651,15 @@ void TargetSteerPos(ModelRecord *m, Nav *cp)
     if (dist < 1e-5f) {
         TB_SetTextColor(5);
         TB_DrawText(80, 160, (void *)&target_steer_zero_dist_message);
-        interp = 1;
+        fraction = 1;
     } else {
-        interp = (dist + tgtdist) / dist;
+        fraction = (dist + tgtdist) / dist;
     }
-    interp = range_it(interp, 0.0f, 1.0f);
+    fraction = range_it(fraction, 0.0f, 1.0f);
 
-    cp->tgt[0] = (nmp->x - mp->x) * interp + mp->x;
-    cp->tgt[1] = (nmp->y - mp->y) * interp + mp->y;
-    cp->tgt[2] = (nmp->z - mp->z) * interp + mp->z;
+    cp->tgt[0] = (nmp->x - mp->x) * fraction + mp->x;
+    cp->tgt[1] = (nmp->y - mp->y) * fraction + mp->y;
+    cp->tgt[2] = (nmp->z - mp->z) * fraction + mp->z;
 }
 
 /* arcade AdjustSpeed; inlined, the retail 2-word stub remains */
