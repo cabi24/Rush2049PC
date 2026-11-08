@@ -28,10 +28,10 @@ extern s8 start_overlay_loaded;
 extern s8 extra_overlay_loaded;
 extern u8 *start_overlay_rom;
 extern u8 *extra_overlay_rom;
-extern u8 gShotObjList[];
-extern u8 extra_overlay_bss_end[];
-extern u8 gTrophyMat[];
-extern u8 start_overlay_bss_end[];
+/* Each runtime image's BSS, [start, end): image B's ("Extra") and image A's ("Start"). The starts are the addresses of
+ * the images' first BSS objects (gShotObjList, gTrophyMat), the symbol tables' names for the bounds. */
+extern u8 extra_overlay_bss_start[], extra_overlay_bss_end[];
+extern u8 start_overlay_bss_start[], start_overlay_bss_end[];
 extern u8 D_00BE4C70[];
 extern u8 D_00BDA100[];
 
@@ -75,9 +75,9 @@ void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bs
 }
 
 void load_extra_overlay(void) {
-    load_overlay(N64PTR(u8 *, 0x8038A400), "Extra", N64PTR(u8 *, 0x803BB380), extra_overlay_bss_end, D_00BE4C70, gShotObjList, &extra_overlay_loaded, extra_overlay_rom);
+    load_overlay(N64PTR(u8 *, 0x8038A400), "Extra", N64PTR(u8 *, 0x803BB380), extra_overlay_bss_end, D_00BE4C70, extra_overlay_bss_start, &extra_overlay_loaded, extra_overlay_rom);
 }
 
 void load_start_overlay(void) {
-    load_overlay(N64PTR(u8 *, 0x8038A400), "Start", N64PTR(u8 *, 0x803BB380), start_overlay_bss_end, D_00BDA100, gTrophyMat, &start_overlay_loaded, start_overlay_rom);
+    load_overlay(N64PTR(u8 *, 0x8038A400), "Start", N64PTR(u8 *, 0x803BB380), start_overlay_bss_end, D_00BDA100, start_overlay_bss_start, &start_overlay_loaded, start_overlay_rom);
 }

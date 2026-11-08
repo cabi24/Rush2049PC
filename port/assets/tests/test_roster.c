@@ -34,7 +34,9 @@ struct pc_link pc_links[PC_LINK_SLOTS];      /* data.c defines it in the game */
 #define RAW(i, off) (((const unsigned char *)pc_links)[(i) * 8 + (off)])
 #define SENTINEL 0xEE                        /* flags 0xEE has LINK_ACTIVE (0x80) set */
 
-int8_t gTrackNum, gCircuitTrack, gNumActiveCars, first_camera_slot, gUseCatchup, gGameSoundsEnabled;
+int8_t gTrackNum, gCircuitTrack, gNumActiveCars, gUseCatchup, gGameSoundsEnabled;
+int8_t gCamera[152];   /* camera 0 (152 bytes): the car it follows is its byte at +0x94 */
+#define CAMERA0_SLOT (gCamera[0x94])
 volatile int16_t gNumCars, num_drones, num_humans, sched_to_use;
 int16_t gNumPlayers, gNumDrones, num_our_drones, humans[16];
 short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];   /* the drone lists (pc_game_types.h) */
@@ -138,11 +140,11 @@ static void test_ids(void)
 
 /* fake_init, the attract demo, for n cars: its n slots get the track, their place, flags 0xB0 and owner 0; the
  * car and colours stay. Every slot after them up to PC_MAX_LINKS takes the loop's arm for slots past the count:
- * flags 0, owner the slot + 6, the rest as it was. The camera's car (input record 0's node and first_camera_slot) is the
+ * flags 0, owner the slot + 6, the rest as it was. The camera's car (input record 0's node and camera 0's slot) is the
  * next one, round the n. */
 static void demo(int n)
 {
-    int before = first_camera_slot;
+    int before = CAMERA0_SLOT;
 
     memset(pc_links, SENTINEL, sizeof pc_links);
     test_race_cars = n;
@@ -156,7 +158,7 @@ static void demo(int n)
         CHECK(RAW(i, 6) == 0 && RAW(i, 7) == i + 6);
         CHECK(RAW(i, 0) == SENTINEL && RAW(i, 1) == SENTINEL && RAW(i, 5) == SENTINEL);
     }
-    CHECK(first_camera_slot == (before + 1) % n && (int8_t)gPlayers[0] == first_camera_slot);
+    CHECK(CAMERA0_SLOT == (before + 1) % n && (int8_t)gPlayers[0] == CAMERA0_SLOT);
 }
 
 static void test_reset(void)

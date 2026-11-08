@@ -23,7 +23,9 @@ extern void *GetCmd(void);
 extern s32 osRecvMesg(OSMesgQueue *,void *,s32);
 extern s32 osSendMesg(OSMesgQueue *,void *,s32);
 extern f32 fx_volume_fade_time;
-extern s8 gOptions_fx_volume,gGameSoundsEnabled;
+extern s8 gGameSoundsEnabled;
+/* The game options, a byte each (Settings): [13] the effects volume, 0..10 (MAT3 updateAudioScreen). */
+extern s8 gOptions[];
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). A volume change (command 10) is then dropped: with no
  * message the lock is given back and nothing is sent, and a message the full queue refuses is given back (its
@@ -77,6 +79,6 @@ void EnableGameSounds(s32 flag) {
     f32 blend;
     gGameSoundsEnabled=flag;
     if(flag) blend=0.0f;
-    else blend=(f32)gOptions_fx_volume/10.0f;
+    else blend=(f32)gOptions[13]/10.0f;
     AudSetMasterVol(blend,fx_volume_fade_time,0,1);
 }

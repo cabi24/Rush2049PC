@@ -35,13 +35,18 @@ extern s8 gCarLocked[], gThisCar[];
 extern MenuSlot carscr_buttonInfo[][44];
 extern float carscr_marker_hide_angle_min, carscr_marker_hide_angle_max;
 extern ProjectContext gCamera[];
-extern s8 car_color_choice_a_players[][13],car_color_choice_b_players[][13],car_color_choice_c_players[][13];
+/* The car colour settings, s8[5][13] by row (player + 1; row 0 the defaults) and car: palette indexes
+ * (paint_colors_rgb). */
+extern s8 car_color_choice_a[],car_color_choice_b[],car_color_choice_c[];
 extern Color carscr_marker_colors[][3],paint_colors_rgb[];
 extern s8 Hidden(Blit *,s32);
 extern void ZOID_ProjectWindow(s32,float *,ProjectContext *,void *,s16 *);
 extern void UpdateBlit(Blit *);
 s32 anim_car_color_marker(Blit *blt)
 {
+    s8 (*color_a)[13] = (s8 (*)[13]) car_color_choice_a;
+    s8 (*color_b)[13] = (s8 (*)[13]) car_color_choice_b;
+    s8 (*color_c)[13] = (s8 (*)[13]) car_color_choice_c;
     s32 player=blt->AnimID&15;
     s32 marker=(blt->AnimID>>16)&255;
     MenuSlot *slot;
@@ -67,13 +72,13 @@ s32 anim_car_color_marker(Blit *blt)
     blt->Y=position[1]-blt->Height/2;
     blt->Alpha=slot->state.alpha;
     if (marker==7) {
-        palette=car_color_choice_a_players[player][gThisCar[player]];
+        palette=color_a[player + 1][gThisCar[player]];
         channel=0;
     } else if (marker==8) {
-        palette=car_color_choice_b_players[player][gThisCar[player]];
+        palette=color_b[player + 1][gThisCar[player]];
         channel=1;
     } else if (marker==9) {
-        palette=car_color_choice_c_players[player][gThisCar[player]];
+        palette=color_c[player + 1][gThisCar[player]];
         channel=2;
     }
     carscr_marker_colors[player][channel].r=paint_colors_rgb[palette].r;

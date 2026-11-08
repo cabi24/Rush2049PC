@@ -55,7 +55,7 @@ extern u32 gGameState, gSkipToGameState;/* gGameState, gSkipToGameState */
 extern u32 gActiveEdges;
 extern s16 gNumPlayers;
 extern Controller gControllerData[4];  /* gControllerData */
-extern s8 cheat_menu_unlocked;             /* gCheatActive[23] */
+extern s8 gCheatActive[];             /* the cheats on; [21] the start screen's code (MAT3 gCheatActive[23]) */
 extern s8 startscr_validOption[];           /* validOption */
 extern u32 gActiveLevels;
 extern ButtonInfo startscr_buttonInfo[18]; /* buttonInfo */
@@ -243,8 +243,8 @@ void updateStartScreen(void)
         }
         exitStartScreen = 0;
     }
-    if (!cheat_menu_unlocked)
-        cheat_menu_unlocked = CheckForEgg();
+    if (!gCheatActive[21])
+        gCheatActive[21] = CheckForEgg();
 }
 
 void startscr_initScreen(void)
@@ -258,7 +258,7 @@ void startscr_initScreen(void)
     startscr_blit = NewMultiBlit(0, 0, startscr_mblit, 1);
     exitStartScreen = 0;
     ClearRushControls();
-    if (!cheat_menu_unlocked)
+    if (!gCheatActive[21])
         startscr_InitEgg(23);
     startscr_inited = 1;
 }

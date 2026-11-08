@@ -3725,6 +3725,7 @@ void StartWing(s16 ipa_s1, s16 ipa_s2);
 intptr_t ZOID_FindMatrix(s16);
 
 void StartWingFlame(s16 slot, s16 idx) {
+    s8 (*wings)[13] = (s8 (*)[13]) &gCarWings;   /* gCarWings, s8[][13]: the wing option by row (player + 1) and car type */
     HudRec *h;
     s32 k;
     s16 hd;
@@ -3735,7 +3736,7 @@ void StartWingFlame(s16 slot, s16 idx) {
     (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->cb = (void *) AnimateWingFlame;
     (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->slot = slot;
     (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->idx = idx;
-    k = gCarWings_players[slot * 13 + h->b8] * 4 + idx + 0xE2;
+    k = wings[slot + 1][h->b8] * 4 + idx + 0xE2;
     (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->handle = InitCarObj(gObjList[k], 0xF, ((SndSlot *) ((u8 *) PC_CAR(slot) + CAR_OFS(0x290)))[idx].handle, 0, slot, -1, 1);
     hd = (&((SndSlot *) ((uintptr_t) ((u8 *) PC_CAR(slot) + CAR_OFS(0x2C0))))[idx])->handle;
     *(f32 *) (ZOID_FindMatrix(hd) + 0x28) = wing_flame_height;

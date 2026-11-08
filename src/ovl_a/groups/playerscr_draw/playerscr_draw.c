@@ -44,7 +44,8 @@ extern Player gPlayers[];
 extern Profile *gJustPlayers[];
 extern s32 playerTextColor[];
 extern Color4 flashColors,flashColors_at_1;
-extern Profile **gPlayerFiles_head,**gPlayerFiles_tail,**gSelectedPlayer[];
+extern Profile **gSelectedPlayer[];
+extern struct PlayerFiles { u32 unknown0, unknown4; Profile **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
 extern void *gPakFull[];
 extern FiveParts *playerscr_pane[];
 extern s32 gPlayerState[],playerscr_gSelectMenuSelect[];
@@ -197,8 +198,8 @@ void playerscr_drawSelect(s32 player)
                 } while(node);
             }
             if(!node) {
-                if(playerscr_gSelectMenuSelect[player]<i || gSelectPlayerNum[player]<8)node=gPlayerFiles_head;
-                else node=gPlayerFiles_tail;
+                if(playerscr_gSelectMenuSelect[player]<i || gSelectPlayerNum[player]<8)node=gPlayerFiles.head;
+                else node=gPlayerFiles.tail;
                 while(node) {
                     profile=*node;
                     if(profile->file && (*profile->file)->controller==playerscr_gSelectPakIdx[player]) {
@@ -462,8 +463,8 @@ void drawDeletePlayer(s32 player)
                 }
                 if(!node) {
                     selected=gDeleteMenuSelect[player];
-                    if(selected<i || gSelectPlayerNum[player]<8)node=gPlayerFiles_head;
-                    else node=gPlayerFiles_tail;
+                    if(selected<i || gSelectPlayerNum[player]<8)node=gPlayerFiles.head;
+                    else node=gPlayerFiles.tail;
                     while(node) {
                         if((*node)->file && (*(*node)->file)->controller==playerscr_gSelectPakIdx[player]) {
                             if(PROFILE_DISTANCE(i-((selected<i || gSelectPlayerNum[player]<8) ? 3 : 10))==seen) {seen++;break;}

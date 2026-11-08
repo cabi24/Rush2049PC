@@ -147,9 +147,11 @@ extern s8 gInvisibleCar;
 extern s8 gCarMines;
 extern s8 gFogIntensity;
 extern volatile u8 gNumModels;
-extern u16 gObjList_car_mine;
+
 extern s8 gTrackNum;
 extern s16 gNumWindows;
+/* The scene's object definitions by kind: three a car slot from 1, the mine a car shows at 236 (MAT3
+ * gObjList[550]). */
 extern u16 gObjList[];
 extern u8 car_mine_model_name[];
 extern u8 *gTrackColors[];        /* palette base per track */
@@ -317,15 +319,15 @@ void AnimateFrame(Entity *ent, s16 alive)
         return;
     }
     if ((gGameState & 0x100) && gCarMines != 0 && car->nameSet == 0) {
-        gObjList_car_mine = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
+        gObjList[236] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
         car->nameSet = 1;
     }
     if ((gGameState & 0x100) && gCarMines == 0 && car->nameSet != 0) {
         car->nameSet = 0;
     }
     if (car->nameSet != 0) {
-        if (def != gObjList_car_mine) {
-            ZOID_SetObjectDef(ent->slot, gObjList_car_mine);
+        if (def != gObjList[236]) {
+            ZOID_SetObjectDef(ent->slot, gObjList[236]);
         }
         MBOX_HideObject(hobj, 1, 15);
         MBOX_HideObject(sobj, 1, 15);

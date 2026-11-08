@@ -4,7 +4,7 @@
  * , : closes 34-word draft (music_seq_load/best.c; earlier 323/357).
  * N64 form: no extra-part, brakes/trim or per-tyre rim code; the sheen texture is gTexList[9] (N64 gTexList =
  * gTexList, 10 entries); SetSheenColor gets SheenColors[gTrackNum] in game, Track1Colors[0] otherwise; one rim
- * texture on tires[0] when expansion_pak_present || gTrackNum >= 6 (else gWheelTextures[13]); IRclr/prevIRclr from
+ * texture on tires[0] when expansion_pak_present || gTrackNum >= 6 (else rim 13, gWheelTextures[16]); IRclr/prevIRclr from
  * gTrackColors[gTrackNum][0]; SetupCarColor takes five arguments. InitCarObj = InitCarObj.
  * The lever that closed it: the texture index is the ARRAY element gTexList[9] (gTexList[9]), not the scalar
  * stand-in D_8016137A the drafts used. ugen evaluates `&gTexDefPtrs[t >> 10].texDefs[t & 1023]` index-side first
@@ -59,7 +59,9 @@ extern s8 gTrackNum;
 extern s8 expansion_pak_present;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 gTireRims[][13];             /* gTireRims */
-extern void *gWheelTextures_rims[];              /* gWheelTextures */
+/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
+typedef struct TexDef TexDef;
+extern TexDef *gWheelTextures[24];
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
@@ -96,8 +98,8 @@ void CreateCar(s16 slot, s16 camlink, int for_game)
     car->tires[2] = InitCarObj(gObjList[156], camlink, car->frame, flags2 | 0x2000, slot, 5, for_game);
     car->tires[3] = InitCarObj(gObjList[156], camlink, car->frame, flags2 | 0x2000, slot, 6, for_game);
     if (expansion_pak_present || gTrackNum >= 6) {
-        ZOID_SetTexture(car->tires[0], gWheelTextures_rims[gTireRims[PC_LINK_OWNER(idx) == 6 ? idx + 1 : 0][idx]], -1);
-    } else ZOID_SetTexture(car->tires[0], gWheelTextures_rims[13], -1);
+        ZOID_SetTexture(car->tires[0], gWheelTextures[gTireRims[PC_LINK_OWNER(idx) == 6 ? idx + 1 : 0][idx] + 3], -1);
+    } else ZOID_SetTexture(car->tires[0], gWheelTextures[16], -1);
     if (for_game) {
         car->lfSpark = InitCarObj(gObjList[194], camlink, car->frame, 0xf00, slot, 7, for_game);
         car->lrSpark = InitCarObj(gObjList[194], camlink, car->frame, 0xf00, slot, 8, for_game);

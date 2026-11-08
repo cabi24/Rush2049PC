@@ -10,7 +10,7 @@
  * the scorer); defined before the function it is hoisted above `sw ra`; after the function it lands at +8
  *   as in retail (and as in the whole-program unit, where the inlined code carries the call-site line).
  * Semantics: per frame, under the slot-queue lock (inlined audio_lock/AF8), walk the active sound sources
- * (active_emitters_head); an effect of kind 2 that is not persistent, not delayed and whose voice has finished is released
+ * (gActiveEmitters.head); an effect of kind 2 that is not persistent, not delayed and whose voice has finished is released
  * (FreeFxTag); otherwise, for every listener (gActiveListeners list, at most 5), project source - listener onto
  * the listener's basis (forward, right and their arcade crossprod), compute a distance-attenuated gain
  * (near - (near - far) * d / radius, clamped at 0) and accumulate gain-weighted pan/depth; then send gain (clamped
@@ -40,7 +40,7 @@ typedef struct Source {struct Source *next,*prev;u32 flags;f32 position[3];f32 r
 typedef struct Listener {struct Listener *next,*prev;u32 flags;f32 position[3];u8 pad24[12];f32 right[3],forward[3];} Listener;
 typedef struct List {u8 flags[4];s32 count;Listener *head,*tail;} List;
 extern List gActiveListeners;
-extern Source *active_emitters_head;
+extern List gActiveEmitters;   /* the active sound sources: head is a Source */
 extern u8 audio_lock_queue[];
 void FreeFxTag(Effect *);
 Effect *ConvertTag(s32);
@@ -65,7 +65,7 @@ static void pc_engines_gather(void)
     s32 i;
     if (!pc_engines_choosing())
         return;
-    for (source = active_emitters_head; source; source = source->next) {
+    for (source = (Source *) gActiveEmitters.head; source; source = source->next) {
         for (i = 0, listener = gActiveListeners.head; listener; listener = listener->next, i++) {
             direction[0] = source->position[0] - listener->position[0];
             direction[1] = source->position[1] - listener->position[1];
@@ -94,7 +94,7 @@ void ProcessEmitters(void)
     f32 panValues[5], depthValues[5], gains[5];
 
     audio_lock(); pc_engines_gather();
-    source=active_emitters_head;
+    source=(Source *) gActiveEmitters.head;
     while (source) {
         next=source->next;
         effect=ConvertTag(source->handle);

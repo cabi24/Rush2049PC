@@ -31,15 +31,14 @@ extern s8 gControllerData[][16];
 extern s32 video_menuRect[3];
 extern void *video_gTitlePane;
 
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct TblHdr {
-    char *pad0[0xD4 / 4];
-    char *title;
-    char *padD8[(0x3A4 - 0xD8) / 4];
-    char *ctrl;
-} TblHdr;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
 
-extern TblHdr *gText_single;
+extern TextTables gText;
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
@@ -62,10 +61,10 @@ void video_TitlePane(void)
 
     font_set_slp(13);
     if (video_gControllerRemoved) {
-        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText_single->ctrl);
+        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.single[233]);
         width = HAL_GetTextWidth(str1, -1);
     } else {
-        width = HAL_GetTextWidth(gText_single->title, -1);
+        width = HAL_GetTextWidth(gText.single[53], -1);
     }
     if (video_gTitlePane) {
         height = TB_GetFontLineHeight();

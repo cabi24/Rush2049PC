@@ -4,7 +4,7 @@
  * ancestor found, the arcade Blit layout is shifted: X 0x0E, Y 0x10, Width
  * 0x14, Hide 0x1A, Top/Bot/Left/Right 0x1C..0x22, AnimDTA 0x28, AnimID 0x2C).
  * AnimID bits 4-7 = player slot, bits 0-3 = digit (0 hundreds .. 3 tenths).
- * The distance is car[slot]+0x108 in feet (divided by 0.6f when gOptions_metric is
+ * The distance is car[slot]+0x108 in feet (divided by 0.6f when gOptions[9], metric units, is
  * set), 528 ft = 0.1 mile.  The blit is hidden when the slot is not on screen
  * (slot >= gNumWindows, or gRace == 5), when gShowOdometer is 0, or when the
  * followed car's byte 0xEF is 1.  Each digit is a window of height Width/2
@@ -82,7 +82,8 @@ typedef struct {
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gOptions_metric;
+/* The game options, a byte each (Settings): [9] metric units (MAT3 animOdometer). */
+extern s8 gOptions[];
 extern s16 gNumWindows;
 extern s32 gRace;
 extern s8 gShowOdometer;
@@ -108,7 +109,7 @@ s32 animOdometer(Blit *blt) {
     digit = blt->AnimID & 0xF;
     frac = 0.0f;
     dist = PC_CAR_F108(slot);
-    if (gOptions_metric) {
+    if (gOptions[9]) {
         dist = dist / 0.6f;
     }
     if (!(slot < gNumWindows) || gRace == 5) {

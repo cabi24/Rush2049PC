@@ -61,9 +61,12 @@ extern Scene ObjInstanceList[];
 #define gCarWingSmokePos pc_trail_pts
 extern u8 gSmokeList[];
 extern u16 gFireTexs[];
-extern u16 gObjList_smoke[];
+/* The scene's object definitions by kind (InitTrackDynamicObjs): the one smoke model of a race track without the
+ * Expansion Pak (195), the smoke models (196..203) and the fire (204). */
+extern u16 gObjList[];
 extern Bank gTexDefPtrs[];
-extern s8 gCarWings_players[];
+/* The wing option by player row (1..4) and car type; row 0 the default (MAT3 gCarWings[slot + 1][type]). */
+extern s8 gCarWings[][13];
 extern f32 gCarMiddles[];
 extern s32 smoke_white,smoke_wing_color1,smoke_wing_color2,smoke_wing_color3,smoke_road_color,smoke_dirt_color;
 /* PC: the six surface colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
@@ -90,7 +93,6 @@ f32 fabsf(f32 x);
 #define C_8012399C 2.5999999f
 #define C_801239A0 0.100000001f
 #define C_801239A4 0.075000003f
-extern u16 gObjList_smoke_lite, gObjList_fire;
 extern s8 gGoodFrameRate, gTrackNum, expansion_pak_present;
 extern s16 gNumPlayers;
 
@@ -226,15 +228,15 @@ void StartSmoke(s16 slot, u32 type, s32 fast, f32 *offset)
         
         if (type == 5) {
             v->object = -1;
-            v->handle.word = ZOID_AddObject(gObjList_fire, v->basis, -1, 0x52000);
+            v->handle.word = ZOID_AddObject(gObjList[204], v->basis, -1, 0x52000);
             ObjInstanceList[v->handle.word].scaleB = C_80123964;
         } else {
             if (expansion_pak_present == 0 && gTrackNum >= 0 && gTrackNum < 6) {
                 v->object = 0;
-                v->handle.word = ZOID_AddObject(gObjList_smoke_lite, v->basis, -1, 0x52000);
+                v->handle.word = ZOID_AddObject(gObjList[195], v->basis, -1, 0x52000);
             } else {
                 v->object = (s32)Random(8.0f);
-                v->handle.word = ZOID_AddObject(gObjList_smoke[v->object], v->basis, -1, 0x52000);
+                v->handle.word = ZOID_AddObject(gObjList[196 + v->object], v->basis, -1, 0x52000);
             }
         }
         if (type >= 6) v->lifetime = Random(C_80123968) + C_8012396C;
@@ -404,7 +406,7 @@ void StartSmoke(s16 slot, u32 type, s32 fast, f32 *offset)
         if (car->viewport >= 0 && (car->visibility == 0 || car->visibility == 1))
             MBOX_HideObject(v->handle.word, 0, 1 << car->viewport);
         if (type >= 6) {
-            switch (gCarWings_players[slot * 13 + model->type]) {
+            switch (gCarWings[slot + 1][model->type]) {
             case 0: { s16 h = v->handle.word; ObjInstanceList[h].rgba.word = color1; } break;
             case 1: { s16 h = v->handle.word; ObjInstanceList[h].rgba.word = color2; } break;
             case 2: { s16 h = v->handle.word; ObjInstanceList[h].rgba.word = color3; } break;

@@ -3786,11 +3786,12 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-typedef struct { f32 f; u8 pad[0x28]; } F2C;
+/* The car tunes gTune (carsetup's Tune44): values[1] the weight scale. */
+typedef struct Tune44 { f32 values[11]; } Tune44;
 f32 CalcMass(void *arg0)
 {
   f32 d = 0.0f;
   if (mass_unit) {}
   d = (&carDurability)[((s8 *) arg0)[0xE]] - mass_durability_base;
-  return ((&gCarMass)[((u8 *) arg0)[8]] + d * mass_unit + ((f32) gMassiveMass) * mass_unit) * ((F2C *) &gTune_weight_scale)[((s8 *) arg0)[0xB]].f;
+  return ((&gCarMass)[((u8 *) arg0)[8]] + d * mass_unit + ((f32) gMassiveMass) * mass_unit) * ((Tune44 *) &gTune)[((s8 *) arg0)[0xB]].values[1];
 }

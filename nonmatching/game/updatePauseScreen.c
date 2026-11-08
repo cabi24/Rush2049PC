@@ -37,7 +37,6 @@ extern s8 gRetireGame;
 extern f32 gModelTime;
 extern s8 gSoftReset;
 extern u32 gGameState;
-extern Target *gTargetList_head;      /* target list */
 extern s8 controlScrActive[];         /* control screen entered from pause, per player */
 extern u8 audio_lock_queue[];         /* audio lock queue */
 extern u8 audio_command_queue[];         /* audio command queue */

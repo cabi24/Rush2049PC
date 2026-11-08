@@ -25,7 +25,8 @@ typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;  
 typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
 typedef struct Blit Blit;
 extern s16 gNumPlayers;
-extern s8 modescr_validOption_biased[][7],modescr_inited,gSoftReset;
+extern s8 modescr_inited,gSoftReset;
+extern s8 modescr_validOption[][7];   /* MAT3 validOption: the modes valid by number of players less one */
 extern s32 modescr_buttonsInited,modescr_buttonsJustInited,gModeMenuSelect,exitModeScreen,gRace;
 extern u32 gSkipToGameState,gGameState,gActiveEdges;
 extern f32 modescr_gButtonScale,modescr_gButtonSpace,modescr_buttonX,modescr_maxY,modescr_buttonZ,modescr_cursorZ;
@@ -54,7 +55,7 @@ extern f32 fabsf(f32);
 
 s32 modescr_optionValid(s32 index)
 {
-    s32 value=modescr_validOption_biased[gNumPlayers][index];
+    s32 value=modescr_validOption[gNumPlayers-1][index];
     if(index==5 && !IsTrackUnlocked(18))value=0;
     return value;
 }

@@ -80,8 +80,10 @@ struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
 typedef struct SavedRecord SavedRecord;
 struct SavedRecord { SavedRecord **next; Owner **owner; };
 extern Slot gControllerData[];
-extern OpenRecord **gPlayerFiles_head;
-extern SavedRecord **gGhostFiles_head;
+extern struct PlayerFiles { u32 unknown0, unknown4; OpenRecord **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
+/* The ghost files on the paks (carscr.c's RecordList): first the list head. */
+typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;SavedRecord **first, **last;} RecordList;
+extern RecordList gGhostFiles;
 extern s8 PS_PakInserted(s32),PS_PakDamaged(s32),PS_PakRumble(s32);
 extern s32 PS_GetFreeFiles(s32);
 extern u32 PS_GetFreeBlocks(s32);
@@ -169,10 +171,10 @@ void GetPakStatusStr(s32 player,char *str)
     else if (PS_PakDamaged(player)) TB_Sprintf(str,pakscr_status_damaged_format,gText.labels[166]);
     else if (PS_PakRumble(player)) TB_Sprintf(str,pakscr_status_rumble_format,gText.labels[169]);
     else {
-        for (open=gPlayerFiles_head;open;open=(*open)->next) {
+        for (open=gPlayerFiles.head;open;open=(*open)->next) {
             if ((*open)->owner && (*(*open)->owner)->slot==player) break;
         }
-        for (saved=gGhostFiles_head;saved;saved=(*saved)->next) {
+        for (saved=gGhostFiles.first;saved;saved=(*saved)->next) {
             if ((*saved)->owner && (*(*saved)->owner)->slot==player) break;
         }
         if (open || saved) TB_Sprintf(str,pakscr_status_in_use_format,gText.labels[159]);

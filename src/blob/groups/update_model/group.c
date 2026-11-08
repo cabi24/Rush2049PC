@@ -1090,8 +1090,8 @@ extern f32 gravitySpeedIncrease;
 extern f32 gravitySpeedMin;
 extern s32 gRomObjDefPtrs;
 extern s16 attractSlot;
-/* PC: the rumble's 36 rising thresholds (the race counts how many the car's speed passes for the rumble request
- * gPaks_rumble_request), ROM data the loader swaps by its declaration: as one s32 the other 35 stayed big-endian (DATA.md 8). */
+/* PC: the rumble's 36 rising thresholds (the race counts how many the car's speed passes for the controller's rumble
+ * request), ROM data the loader swaps by its declaration: as one s32 the other 35 stayed big-endian (DATA.md 8). */
 extern s32 percentTable[36];
 #define RUMBLE_STEPS percentTable
 extern s8 heap_lock_created;
@@ -2362,13 +2362,11 @@ extern s32 gErrorFunc;
 extern s16 highscore_gNameSelect;
 extern u8 gLap;
 extern s32 gPlayingFxTags;
-extern s8 gPaks;
+/* the controller/pak records, as bytes: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
+extern s8 gPaks[];
 extern s8 gPaks_inserted;
 extern s8 D_80144036;
 extern s8 D_80144038;
-/* a byte of each pak record: open-ended, so an optimizing GCC takes no size from it (OPTIMIZED.md 2.7) */
-extern s8 gPaks_rumble_request[];
-#define gPaks_rumble_request (gPaks_rumble_request[0])
 extern s8 D_801440B5;
 extern s8 D_801440B6;
 extern s8 D_80144334;
@@ -3820,9 +3818,10 @@ void model_iteration(void);
 #define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
 /* A ghost (SaveInit' Ghost, 64 bytes on the PC) has its header handle at +0x38 (docs/port/CASTS.md). */
 #define GHOST_HEADER 0x38
-/* The controller/pak records gPaks are 0x310 bytes on the PC (paksys' PakRecord, docs/port/POINTERS.md 9.6);
- * gPaks_rumble_request, the rumble request, is placed at its PC offset in record 0. */
+/* The controller/pak records gPaks are 0x310 bytes on the PC (paksys' PakRecord, docs/port/POINTERS.md 9.6); the
+ * rumble request (rumble/group.c's Controller.request) is a record's byte at host +0x89. */
 #define PAK_RECORD 0x310
+#define PAK_RUMBLE_REQUEST(i) (((s8 *) gPaks)[(i) * PAK_RECORD + 0x89])
 /* The drone schedule on the PC (docs/port/DECOUPLE.md 8). Row r is for n drones with one human or none (r = n) or
  * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
  * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
@@ -3883,7 +3882,7 @@ void UpdateModel(s32 ipa_s4) {
                 new_sched_to_use -= PC_DRONE_SCHED_TWO;
             }
             temp_v0_3 = M2C_FIELD(temp_s3, u8 *, 1);
-            *(&gPaks_rumble_request + (temp_v0_3 * PAK_RECORD)) = 0;
+            PAK_RUMBLE_REQUEST(temp_v0_3) = 0;
             return;
         }
         idx = cur_drone;
@@ -3914,7 +3913,7 @@ void UpdateModel(s32 ipa_s4) {
             UpdateResurrectingCar(temp_s0_2);
             if (gGameState & 0x400000) {
                 temp_v0_3 = M2C_FIELD(temp_s3, u8 *, 1);
-            *(&gPaks_rumble_request + (temp_v0_3 * PAK_RECORD)) = 0;
+            PAK_RUMBLE_REQUEST(temp_v0_3) = 0;
             }
         } else {
             UpdateResurrectingCar(temp_s0_2);
@@ -3957,7 +3956,7 @@ block_40:
                     }
                 }
                 temp_a0 = M2C_FIELD(temp_s3, u8 *, 1);
-                *(&gPaks_rumble_request + (temp_a0 * PAK_RECORD)) = var_v1;
+                PAK_RUMBLE_REQUEST(temp_a0) = var_v1;
             }
         } else {
             MaxPathControls(temp_s0_2);

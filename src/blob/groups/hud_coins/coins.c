@@ -23,8 +23,8 @@
  * MBOX_HideObject, MBOX_ShowObject, ScaleUV, YawUV,
  * ZOID_WindowTo3D, NumCoinsFound, TB_Sprintf,
  * TB_SetTextColor, TB_DrawText; gPlayerCoin,
- * gCamera, ObjInstanceListAlias = ObjInstanceList, hudObjAngle, coinStuntPos
- * (image A), coinPos, gOptions_show_coins = gOptions[11], gGameCar[].mode = place_locked,
+ * gCamera, ObjInstanceList, hudObjAngle, coinStuntPos
+ * (image A), coinPos, gOptions[11] (show coins), gGameCar[].mode = place_locked,
  * hud_whichCam = whichCam, gJust, text_lock_queue = font semaphore queue.
  * gJust is a tentative definition here (as hud_text_anims/audio_animPanes_demo_animText.c and countdown): with an extern the
  * group compile gives the TB_SetJust(0, 1) stores two `lui at`; the unit needs an extern_data override.
@@ -42,10 +42,8 @@ typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                     
 typedef struct Cam152 { u8 pad[152]; } Cam152;
 typedef struct Car952 { u8 pad000[239]; s8 mode; u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x380 - 0x308]; void *input; u8 pad0F0_384[0x3B8 - 0x384]; } Car952;
 typedef struct Pair { s32 first, second; } Pair;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
- * ObjInstanceListAlias is node 0 + 0x10: on the PC the field is the node's, at host +0x14. */
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): scale is N64 +0x10, host +0x14. */
 typedef struct Model68 { u32 flags, w4; void *obj; f32 w; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
-#define ObjInstanceListAlias ObjInstanceList
 typedef struct Pos { s16 x, y; } Pos;
 
 extern s16 gNumWindows;
@@ -55,11 +53,12 @@ extern Pair gJust;   /* tentative definition (as hud_text_anims/audio_animPanes_
 extern RecordRow gPlayerCoin[];
 extern Cam152 gCamera[];
 extern volatile u8 gNumModels;
-extern Model68 ObjInstanceListAlias[];
+extern Model68 ObjInstanceList[];
 extern f32 hudObjAngle;
 extern s32 coinStuntPos[][4][2];
 extern s32 coinPos[][4][2];
-extern s8 gOptions_show_coins;
+/* The game options, a byte each (Settings): [11] show coins. */
+extern s8 gOptions[];
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s32 hud_whichCam[];
 extern u8 text_lock_queue[];
@@ -108,7 +107,7 @@ s32 animCoins(void *arg0) {
                 char *names[2] = { coin_gold_name, coin_silver_name };
                 gPlayerCoin[i].slot[j].id = ZOID_AddObject(MBOX_FindObject_WORK(names[j], 0, gNumModels - 1, 1), gPlayerCoin[i].slot[j].pos, -1, 0);
                 MBOX_HideObject(gPlayerCoin[i].slot[j].id, 1, 15);
-                ObjInstanceListAlias[gPlayerCoin[i].slot[j].id].scale = 10.0f;
+                ObjInstanceList[gPlayerCoin[i].slot[j].id].scale = 10.0f;
             }
             ScaleUV(&gCamera[i], gPlayerCoin[i].slot[j].pos,
                           (gNumPlayers == 1) ? 0.03f : (gNumPlayers == 2) ? 0.03f : 0.04f);
@@ -121,7 +120,7 @@ s32 animCoins(void *arg0) {
                 pos.y = coinPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
             }
             ZOID_WindowTo3D(i, &pos, &gCamera[i], 2.0f, gPlayerCoin[i].slot[j].obj);
-            if (gOptions_show_coins && PC_CAR_FINISHED(i) != 1) {
+            if (gOptions[11] && PC_CAR_FINISHED(i) != 1) {
                 s16 x;
                 s16 y;
                 f32 xoffset, yoffset;

@@ -56,7 +56,8 @@ typedef struct Link {struct Link *next;Target *target;} Link;
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
-extern s32 gPauseState,gWprObjList_mine,gWprObjList_mine_glow;
+extern s32 gPauseState;
+extern s32 gWprObjList[10];   /* image B's weapon models: the mine at 5, its glow ring at 6 (MAT3 _AnimateMine) */
 extern volatile f32 gFrameSeconds;
 extern MineSlots gPlayerMines[];
 extern Object68 ObjInstanceList[];
@@ -129,7 +130,7 @@ void AnimateMine(Visual *v, s16 op)
             }
         }
         j = -1;
-        m->base = MBOX_NewObject(gWprObjList_mine, 0, t->model, 0x2080);
+        m->base = MBOX_NewObject(gWprObjList[5], 0, t->model, 0x2080);
         clr.c.r = 255;
         clr.c.g = 255;
         clr.c.b = 255;
@@ -157,9 +158,9 @@ void AnimateMine(Visual *v, s16 op)
         m->mat[1][3][2] = t->position[2];
         m->mat[1][3][0] = m->mat[1][3][0] + m->mat[1][1][0];
         m->mat[1][3][1] = m->mat[1][3][1] + m->mat[1][1][1]; m->mat[1][3][2] = m->mat[1][3][2] + m->mat[1][1][2];
-        m->ring[0] = MBOX_NewObject(gWprObjList_mine_glow, m->mat[0], -1, 0x42000);
+        m->ring[0] = MBOX_NewObject(gWprObjList[6], m->mat[0], -1, 0x42000);
         ZOID_SetColor(m->ring[0], &clr);
-        m->ring[1] = MBOX_NewObject(gWprObjList_mine_glow, m->mat[1], -1, 0x42000);
+        m->ring[1] = MBOX_NewObject(gWprObjList[6], m->mat[1], -1, 0x42000);
         ZOID_SetColor(m->ring[1], &clr);
         m->alpha[0] = 255;
         m->alpha[1] = 255;

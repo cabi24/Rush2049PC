@@ -16,7 +16,7 @@ typedef struct MultiBlit {
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 extern s8 pak_recognize_error_seen;
-extern void *gPlayerFiles_head;
+extern struct PlayerFiles { u32 unknown0, unknown4; void *head, *tail; } gPlayerFiles;   /* the profiles on the paks */
 extern Controller gControllerData[4];  /* gControllerData */
 extern u32 gActiveEdges;
 extern u8 gBlocksNeeded;
@@ -55,7 +55,7 @@ void updateWarningScreen(void)
         gPakScr = 0;
         pak_recognize_error_seen = 0;
     }
-    if (!gPlayerFiles_head) {
+    if (!gPlayerFiles.head) {
         for (i = 0; i < 4; i++) {
             if (gControllerData[i].attached) break;
         }

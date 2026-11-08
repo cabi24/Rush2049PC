@@ -42,8 +42,8 @@ int16_t gNumPlayers, gNumPlayers;
 uint32_t gContLevels[8], gContEdges[8], gAutoEdges[8];
 struct { float h, v; } gContStick[8];
 int32_t gGameState, gRace;
-int8_t gOptions_fx_volume = 10;
-float unitmatrix_origin[3], unitmatrix_zaxis[3], unitmatrix_yaxis[3];
+int8_t gOptions[41] = {[13] = 10};   /* the game options: [13] the effects volume, [31] the circuit's death option */
+float unitmatrix_origin[3], unitmatrix[3][3];
 int8_t gDefaultControls[10], gNewControls[8][10], gControlsSet[8];
 uint32_t gControlTable[32];
 void *gJustPlayers[8];
@@ -72,7 +72,6 @@ static int g_nhanded;
 void AudUpdateListener(void *node, float *a, float *b, float *c, float *d) { g_handed[g_nhanded++ & 7] = node; }
 uint8_t gCircuitPlayer;
 int32_t gSeconds = 0x123456, gCircuitDiff[4] = {11, 22, 33, 44};
-int8_t gOptions_circuit_death;
 void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }
 static void *g_written;
 void PS_WriteFile(void **file, uintptr_t data, int32_t size) { g_written = (void *)data; }
@@ -190,7 +189,7 @@ static void test_save_record(uint8_t *w)
     gJustPlayers[5] = &slot;
     gPlayers[2].profile = &gJustPlayers[5];
     gCircuitPlayer = 2;
-    gOptions_circuit_death = 1;
+    gOptions[31] = 1;
     g_written = NULL;
     NewCircuit(3);
     CHECK(g_written == (uint8_t *)block + 0x6F4);

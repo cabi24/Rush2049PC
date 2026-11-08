@@ -48,9 +48,9 @@ typedef struct tCarParts {       /* gCarParts[slot], 0x40 bytes */
     u8 pad2C[0x14];
 } tCarParts;
 typedef struct { u16 uv[8]; } tUVPair;
-/* PC: car_palettes_palBase is the data field of the car palette descriptors car_palettes, which keep a palette record's N64
- * layout (24 bytes, data a u32 window address). */
-typedef struct { u32 data; u8 pad[0x14]; } tCarModel;
+/* PC: the car palette descriptors car_palettes keep a palette record's N64 layout (24 bytes, data a u32 window
+ * address; car_palette_init.c). */
+typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; u32 data; } Slot24;
 
 extern s32 gGameState;
 extern s32 gRace;
@@ -59,7 +59,7 @@ extern s8 gTrackNum;
 extern f32 gModelTime;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern tCarParts gCarParts[];   /* gCarParts */
-extern tCarModel car_palettes_palBase[];
+extern Slot24 car_palettes[];
 extern tUVPair taillight_colors_dim, headlight_colors_night;
 
 void StartFrame(s16 slot);
@@ -96,7 +96,7 @@ void StartCar(s16 slot)
 
 static void StartHeadLights(s16 slot)
 {
-    u8 *p = car_palettes_palBase[slot].data;
+    u8 *p = car_palettes[slot].data;
 
     if (gTrackNum == 3 || gTrackNum == 5) {
         ((u16 *)(p + 0x140))[0] = taillight_colors_dim.uv[0];

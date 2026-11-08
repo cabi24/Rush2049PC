@@ -43,7 +43,7 @@ ABS(osMemSize, 0x80000318);                    /* osMemSize */
 /* what heap_release's other functions reach */
 int8_t extra_overlay_loaded, start_overlay_loaded;
 uint8_t overlay_base[16];
-uint32_t car_palettes_palBase[16 * 6];
+uint32_t car_palettes[16 * 6];   /* the car palette descriptors, 24 bytes each */
 uintptr_t gListeners, gEmitters;
 
 /* ---------------------------------------------------------------- what the code under test calls */

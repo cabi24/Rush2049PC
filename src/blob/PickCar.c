@@ -3783,10 +3783,11 @@ typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
 u16 PickCar(s16 arg0, u8 arg1)
 {
+  u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]) */
   if (arg1 == 0xD)
   {
-    return gObjList_hulk;
+    return objects[157];   /* the burnt-out car (hulk) */
   }
-  return ((u16 *) (&gObjList))[arg0 * 3];
+  return objects[arg0 * 3];
 }
 

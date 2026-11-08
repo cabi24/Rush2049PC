@@ -33,7 +33,8 @@ typedef struct Event {
 } Event;
 
 extern void RecordBattlePoints(s8 row, s8 column, s8 delta);
-extern s8 gOptions_battle_self_hit;
+/* The game options, a byte each (Settings): [40] the battle's self-hit option (MAT3 trackscr row 11). */
+extern s8 gOptions[];
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 battlePointCnt;
 extern Event battlePoint[];
@@ -46,7 +47,7 @@ void AddBattlePointInternal(s8 row, s8 column, s8 delta) {
     s32 index;
     if (delta < 0) {
         RecordBattlePoints(row, column, delta);
-        if (gOptions_battle_self_hit == 0) {
+        if (gOptions[40] == 0) {
             return;
         }
         if (PC_CAR_POINTS(row) <= 0) {

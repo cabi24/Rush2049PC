@@ -6,8 +6,8 @@
  * (osPfsChecker_full / osStartThread labels) clear the hulk/visibility bits of the vehicle record
  * (D_8014A250, 0x808 bytes) and the model (gGameCar, 952 bytes) with a mask picked from the slot mode
  * (D_80153E88[player].mode) and gDriveHulk[player]. Then set the object (+20, u16) of the car's root, body
- * and four wheel resources (ObjInstanceList, 68 bytes) from PickCar(player, mode), gObjList_hood[player*3]
- * and gObjList_tire; load the wheel model set (vehicle type, or 13 in attract/when gTrackNum >= 6); show the
+ * and four wheel resources (ObjInstanceList, 68 bytes) from PickCar(player, mode), gObjList[player*3 + 1]
+ * and gObjList[156]; load the wheel model set (vehicle type, or 13 in attract/when gTrackNum >= 6); show the
  * root, the body unless selection == 1, and (apply) the extras and wheels; mode 13 also restores the
  * visibility bits.
  * Shaping (measured in the whole-program unit with --block PickCar):
@@ -36,8 +36,12 @@ extern Resource68 ObjInstanceList[];
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern OSThread model_thread;
 extern s8 gDriveHulk[],expansion_pak_present,gTrackNum;
-extern u16 gObjList_hood[],gObjList_tire;
-extern void *gWheelTextures_rims[];
+/* The scene's object definitions by kind (InitCarDynamicObjs, InitVisuals): three a car slot from 1 (frame, hood,
+ * spare), the tire at 156. */
+extern u16 gObjList[];
+/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
+typedef struct TexDef TexDef;
+extern TexDef *gWheelTextures[24];
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
 extern u16 PickCar(s16,u8);
@@ -70,12 +74,12 @@ void SetupCar(s16 player,u8 mode,int apply)
  slot=&gCarParts[player];
  ZOID_SetObjectDef(slot->root,color);
  model->model=slot->root;
- ZOID_SetObjectDef(slot->body,gObjList_hood[(s16)(player*3)]);
- for(i=0;i<4;i++)ZOID_SetObjectDef(gCarParts[player].wheels[i],gObjList_tire);
+ ZOID_SetObjectDef(slot->body,gObjList[(s16)(player*3) + 1]);
+ for(i=0;i<4;i++)ZOID_SetObjectDef(gCarParts[player].wheels[i],gObjList[156]);
  if(expansion_pak_present || gTrackNum>=6) {
-  ZOID_SetTexture((s16)slot->wheels[0],gWheelTextures_rims[PC_MODEL_B00F(player)],-1);
+  ZOID_SetTexture((s16)slot->wheels[0],gWheelTextures[PC_MODEL_B00F(player) + 3],-1);
  } else {
-  ZOID_SetTexture((s16)slot->wheels[0],gWheelTextures_rims[13],-1);
+  ZOID_SetTexture((s16)slot->wheels[0],gWheelTextures[16],-1);
  }
  MBOX_ShowObject(slot->root,1,15);
  if(model->selection!=1)MBOX_HideObject(slot->body,1,15);

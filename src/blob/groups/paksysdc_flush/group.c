@@ -87,9 +87,14 @@ typedef struct C96Channel {
     u8 unknown120[12];
     C96Slot slots[16];
 } C96Channel;
-typedef struct C96List { C96Handle *head; u32 unknown[3]; } C96List;
+/* Each pak's open files (paksysdc's tDLList, MAT3 tDLList): head the first. */
+typedef struct tDLList {
+    u8 indirect, doubly, opaque2[2];
+    u32 count;
+    C96Handle *head, *tail;
+} tDLList;
 extern volatile C96Channel gPaks[];
-extern C96List gPS_Files_head[];
+extern tDLList gPS_Files[];
 extern OSMesgQueue si_lock_queue;
 extern OSMesg si_lock_msg;
 extern s8 si_lock_inited, gErrPak;
@@ -114,7 +119,7 @@ void ClearFlush(s32 index) {
     C96File *data;
 
     if (gPaks[index].modified == 0) { next = p = 0; goto out; }
-    next = p = gPS_Files_head[index].head;
+    next = p = gPS_Files[index].head;
     while (p != 0) {
         data = p->file;
         next = data->next;
@@ -225,7 +230,7 @@ s32 PS_FlushPak(s32 index, s32 mode) {
     if (!gPaks[index].modified) return 1;
     pfs_lock();
     gPaks[index].busy = 1;
-    node = gPS_Files_head[index].head;
+    node = gPS_Files[index].head;
     while (node) {
         next = node->file->next;
         if (node->file->data && gPaks[index].slots[node->file->slot].modified) {

@@ -24,7 +24,7 @@ static int failures;
 
 volatile float gFrameSeconds = 1.0f / 30;
 __attribute__((aligned(16))) uint8_t gCarParts[6 * 0x40];      /* CarParts[] */
-uint16_t gObjList_biased[64];
+uint16_t gObjList[224];                                         /* the object definitions: the weapons' at 216..223 */
 struct pc_model pc_models[PC_MODEL_SLOTS];     /* model[] (pc_game_types.h) */
 __attribute__((aligned(16))) uint8_t gTexDefPtrs[64 * 16];       /* TexDefSet[] */
 struct pc_car pc_cars[PC_CAR_SLOTS];                           /* the car records (pc_game_types.h) */

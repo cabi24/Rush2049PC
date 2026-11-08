@@ -18,9 +18,8 @@
  *); (A634); C93C = the installed member
  * runtime_a_c93c_closure, text unchanged. C5EC/B3EC/A820 are stand-ins (context only).
  * Strict in this unit: C93C, BBB4, DFEC, ACB0, B834, A634, AE50, B388, B940 (+ later AEB0, B3EC, C5EC, the stubs and,
- * , E5DC). E5DC case 14's `gOptions[29] = 3` store is absolute in retail (lui at,0x8014; sb 0x6125(at)): it is
- * written through the second, address-named symbol gOptions_fog_intensity (= &gOptions[29]; owner-approved alias 2026-10-25;
- * every spelling on gOptions folds into the case's v0 base). CD14/A820 are context.
+ * , E5DC). E5DC case 14's `gOptions[29] = 3` store is absolute in retail (lui at,0x8014; sb 0x6125(at)): IDO folded
+ * the address of gOptions[29], the fog intensity, into it. CD14/A820 are context.
  */
 typedef signed char s8; typedef unsigned char u8;
 typedef short s16; typedef unsigned short u16;
@@ -49,11 +48,6 @@ extern s32 gRace;             /* gRace (0 OneRace 1 Practice 2 Ghost 3 Circuit 4
 extern Player gPlayers[];        /* gPlayers */
 extern s8 gTrackNum;
 extern s8 gOptions[];            /* gOptions */
-extern s8 gOptions_fog_intensity;             /* gOptions[29] under its own name (retail case-14 store) */
-/* PC: one name for one place. An optimizing GCC takes two external variables for two objects, so after the store
- * through this name updateTrackScreen could go on with a value of gOptions[29] it had read before
- * (docs/port/OPTIMIZED.md, tools/port/alias_check.py). */
-#define gOptions_fog_intensity (gOptions[29])
 /* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */
@@ -258,11 +252,11 @@ extern s8 gFogIntensity;
 extern RGB gFogColors[];
 extern u8 trackscr_fogColor[8];
 extern u8 n64FogPal[];
-/* PC: the fog blit's palette n64FogPal is a Palette (gfx's draw reads its colour table at +0x14 as a u32 window
- * address): that word is this one, which must stay in the arena at its N64 address. It holds the colour pair
- * trackscr_fogColor's address, a window address (FOG_TABLE). As a host pointer it had storage of its own, and the draw read
- * a table of 0 (docs/port/BRINGUP.md 7). */
-extern u32 n64FogPal_palBase;
+/* PC: the fog blit's palette n64FogPal is a Palette (gfx's draw reads its colour table palBase, at +0x14, as a u32
+ * window address), which must stay in the arena at its N64 address. palBase holds the colour pair trackscr_fogColor's
+ * address, a window address (FOG_TABLE). As a host pointer it had storage of its own, and the draw read a table of 0
+ * (docs/port/BRINGUP.md 7). */
+typedef struct FogPalette { u8 head[0x14]; u32 palBase; } FogPalette;
 #define FOG_TABLE(p) PC_N64W(p)
 extern Blit *trackScreenPoly,*trackFogPoly;
 extern void UpdateBlit(Blit *);
@@ -301,14 +295,11 @@ extern char *trackScreenNames[];
 extern char track_fog_texture_name[];
 extern Color loadTrackScreen_backColor;
 extern s32 kNumMapSects;
-extern u32 mapObj_selDisplayList;             /* mapObj[6].displayList (MapLod) */
-/* PC: mapObj[6].displayList under one name, as for gOptions_fog_intensity: clearTrackMaps and buildRaceTrackMaps write it
- * through mapObj and buildTrackMap reads it, and the three may be inlined into updateTrackScreen. */
-#define mapObj_selDisplayList (mapObj[6].displayList)
+
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
 #define MAP_DL_SECTION_BYTES 80
 #define MAP_DL_FIXED_BYTES 112
-extern f32 trackMap_selMat[12],trackMapMat[12],buildTrackMap_mapPos[3];
+extern f32 trackMapMat[12],buildTrackMap_mapPos[3];
 extern Blit *NewBlit(char *,s16,s16,s16);
 #define DISPLAY_WORDS(p,a,b) do {DisplayCommand *command=(p)++; command->w0=(a);command->w1=(b);} while(0)
 #define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
@@ -495,7 +486,7 @@ void updateTrackScreen(void)
         case 14:
             if (add) {
                 gOptions[29] += add;
-                if (gOptions[29] < 0) gOptions_fog_intensity = 3;
+                if (gOptions[29] < 0) gOptions[29] = 3;
                 else if (gOptions[29] > 3) gOptions[29] = 0;
             } else gOptions[29] = 0;
             break;
@@ -777,7 +768,7 @@ void SetFogIntensity(s32 initialize)
     }
     trackscr_fogColor[3] = gFogIntensity * 192 / 3;
     if (trackFogPoly) {
-        n64FogPal_palBase = FOG_TABLE(trackscr_fogColor);
+        ((FogPalette *) n64FogPal)->palBase = FOG_TABLE(trackscr_fogColor);
         trackscr_fogColor[4] = 0;
         trackscr_fogColor[5] = 0;
         trackscr_fogColor[6] = 0;
@@ -860,7 +851,7 @@ void buildTrackMap(void)
             memcpy(map_vertex_blocks[6], map_vertex_blocks[desiredTrackMap], vtxSize);
             dlSize = (kNumMapSects * 5 + 7) * sizeof(Gfx);
             memcpy(map_display_list_blocks[6], map_display_list_blocks[desiredTrackMap], dlSize);
-            gfx = mapObj_selDisplayList;
+            gfx = mapObj[6].displayList;   /* the selected map's display list */
             if ((gRace == 3 && gCircuitTracks[gCircuitTrack].mirror == 1)
                 || (gRace != 3 && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
@@ -883,8 +874,8 @@ void buildTrackMap(void)
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 1);
                 gSPEndDisplayList(gfx++);
             }
-            ScaleUV((f32 (*)[3])unitmatrix, (f32 (*)[3])trackMap_selMat, 2.0f);
-            WPitchUV(-0.785398185f, (f32 (*)[3])trackMap_selMat);
+            ScaleUV((f32 (*)[3])unitmatrix, trackMap[19].matrix, 2.0f);
+            WPitchUV(-0.785398185f, trackMap[19].matrix);
             trackMap[19].position[0] = buildTrackMap_mapPos[0];
             trackMap[19].position[1] = buildTrackMap_mapPos[1];
             trackMap[19].position[2] = buildTrackMap_mapPos[2];
@@ -946,17 +937,17 @@ void trackscr_animTrackMap(void)
     trackMapMat[11] = trackMap[19].position[2];
     ScaleUV((f32 (*)[3])unitmatrix, (f32 (*)[3])trackMapMat,
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
-    ScaleUV((f32 (*)[3])unitmatrix, (f32 (*)[3])trackMap_selMat,
+    ScaleUV((f32 (*)[3])unitmatrix, trackMap[19].matrix,
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
     if ((gRace == 3 && gCircuitTracks[gCircuitTrack].mirror == 1)
         || (gRace != 3 && gRace != 4 && gRace != 6 && gRace != 5 && gOptions[28])) {
         ScaleUVXYZ((f32 (*)[3])trackMapMat, (f32 (*)[3])trackMapMat, -1.0f, 1.0f, 1.0f);
-        ScaleUVXYZ((f32 (*)[3])trackMap_selMat, (f32 (*)[3])trackMap_selMat, -1.0f, 1.0f, 1.0f);
+        ScaleUVXYZ(trackMap[19].matrix, trackMap[19].matrix, -1.0f, 1.0f, 1.0f);
     }
     WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), (f32 (*)[3])trackMapMat);
     WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, (f32 (*)[3])trackMapMat);
-    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), (f32 (*)[3])trackMap_selMat);
-    WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, (f32 (*)[3])trackMap_selMat);
+    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), trackMap[19].matrix);
+    WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, trackMap[19].matrix);
 }
 
 void buildTrackMaps(void)

@@ -3682,12 +3682,15 @@ typedef s64 M2C_UNK64;
 #endif
 
 void MovePlayerFile(intptr_t arg0, intptr_t arg1) {
+    /* the profile and ghost file lists (playerscr.c's struct PlayerFiles, carscr.c's RecordList): their heads */
+    struct { u32 unknown0, unknown4; void *head, *tail; } *player_files = (void *) &gPlayerFiles;
+    struct { u8 indirect, doubly, unknown02[2]; s32 count; void *first, *last; } *ghost_files = (void *) &gGhostFiles;
     D_8012E6E0_Node *temp_v1;
     D_8012E6E0_Node *var_v0;
     intptr_t var_v0_2;
     void *temp_v1_2;
 
-    var_v0 = gPlayerFiles_head;
+    var_v0 = player_files->head;
     if (var_v0 != NULL) {
 loop_1:
         temp_v1 = var_v0->next;
@@ -3702,7 +3705,7 @@ loop_1:
         goto loop_1;
     }
 block_4:
-    var_v0_2 = gGhostFiles_head;
+    var_v0_2 = (intptr_t) ghost_files->first;
     if (var_v0_2 != 0) {
 loop_5:
         temp_v1_2 = M2C_FIELD(var_v0_2, void **, 0);

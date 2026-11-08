@@ -66,7 +66,7 @@ extern PadState gPlayers[];           /* gPlayers */
 extern s8 gUpsideDownTrack;
 extern s8 gRestartGame;
 extern s32 gRace;
-extern PlayerData **gPlayerFiles_head;
+extern struct PlayerFiles { u32 unknown0, unknown4; PlayerData **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
 extern u8 gFogColors[][3];       /* gFogColors */
 extern s8 start_overlay_loaded;                   /* overlay "Start" (image A) loaded */
 extern s8 extra_overlay_loaded;                   /* overlay "Extra" (image B) loaded */
@@ -198,7 +198,7 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         gUpsideDownTrack = 0;
     } else if (gGameState & 0x8) {
         PlayerData **h;
-        for (h = gPlayerFiles_head; h; h = (*h)->next) {
+        for (h = gPlayerFiles.head; h; h = (*h)->next) {
             PurgePlayerData(h);
         }
         UnloadFrontEndWaves();

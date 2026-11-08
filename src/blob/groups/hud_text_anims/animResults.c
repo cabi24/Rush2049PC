@@ -8,7 +8,7 @@
  * each sized from TB_GetFontLineHeight in a block-scoped `h` (GC CheckResults style).
  * GC-derived names: model D_8014A250 (2056 B), gGameCar gGameCar (952 B), gNumLaps
  * gNumLaps, gDeathMode gDeathMode, gRankedPlayer gRankedPlayer, ties ties, gLap gLap, gStuntPlayer
- * stunt_player_total_points, wrongWayPos wrongWayPos, gPlayers gPlayers, gText gText, TB_Sprintf TB_Sprintf,
+ * (totalPoints), wrongWayPos wrongWayPos, gPlayers gPlayers, gText gText, TB_Sprintf TB_Sprintf,
  * TB_DrawTextScrollBox TB_DrawTextScrollBox, HAL_SetTextDepth HAL_SetTextDepth, TB_SetTextColor TB_SetTextColor,
  * HAL_SetFont = HAL_SetFontInternal (s2 IPA parameter).
  * History: draft 562/627 -> 150/627 (playerIdx << 4, h, time converted once) -> EQUAL.
@@ -41,7 +41,16 @@ typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } Play
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 typedef struct Pos { s32 x, y; } Pos;
-typedef struct StuntPlayer { s32 score; u8 pad[116]; } StuntPlayer;                      /* 120 B */
+/* A player's stunt scores (MAT3 tStuntPlayer, 120 bytes; animStuntPoints.c). */
+typedef struct tStuntPlayer {
+    s16 show, crash;
+    f32 time;
+    s32 maxStuntPoints, points, pointsHud, totalPoints, numstunts, lastStuntType;
+    s16 stunts[10], stuntsHud[10], totalStunts[10], unused;
+    f32 wingTime;
+    s8 wingBonus, wingBonusHud, doneBonus, doneBonusHud;
+    s32 bonus, bonusHud, showBonus, done;
+} tStuntPlayer;
 
 extern OSMesgQueue text_lock_queue;
 extern TextState gText;
@@ -56,7 +65,7 @@ extern s8 gDeathMode;
 extern s8 gRankedPlayer;
 extern s32 ties;
 extern u8 gLap[];                          /* gLap[p] */
-extern StuntPlayer stunt_player_total_points[];                 /* gStuntPlayer[p] (+0x14 in GC) */
+extern tStuntPlayer gStuntPlayer[4];
 extern s32 *resultPane[];                        /* result panes [p], [4] = the header pane */
 /* PC: playerPaneColors, the two R,G,B,A colours ChangePaneColor reads as bytes. The PC loader fills initialized data
  * by its declarations, and as words their bytes would come out reversed (docs/port/ENDIAN.md). */
@@ -133,7 +142,7 @@ s32 animResults(s32 arg0)
             ChangePaneColor(resultPane[playerIdx], &hud_playerPaneColors[playerIdx].x, &hud_playerPaneColors[playerIdx].y);
         }
         if (gRace == 4) {
-            TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), stunt_player_total_points[playerIdx].score,
+            TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gStuntPlayer[playerIdx].totalPoints,
                          gText.fixed[130]);
         } else if (gRace == 5) {
             if (gLap[playerIdx] != 1) {

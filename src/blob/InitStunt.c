@@ -3781,15 +3781,14 @@ typedef s8 M2C_UNK8;
 typedef s16 M2C_UNK16;
 typedef s32 M2C_UNK32;
 typedef s64 M2C_UNK64;
-/* PC: the walk over the four 0x7C-byte player records gStuntInfo stops at the address after them, where the N64 has
- * last_frame_dl_end; on the PC that Gfx * has storage of its own (port/data), so the loop never met it and cleared the arena
- * to the window's end. It stops at the records' end (docs/port/SYNTH.md 3). */
-#define last_frame_dl_end (((s8 *)&gStuntInfo)[4 * 0x7C])
+/* PC: the walk over the four 0x7C-byte player records gStuntInfo stops at their end, gStuntInfo + 4. IDO took the
+ * address of the next variable for it, last_frame_dl_end; on the PC that Gfx * has storage of its own (port/data), so a
+ * loop to it never met it and cleared the arena to the window's end (docs/port/SYNTH.md 3). */
 void InitStunt(void)
 {
   s8 *p;
   memset(&gStuntPlayer, 0, 0x1E0U);
- do { p = (s8 *) &gStuntInfo; do { memset(p, 0, 0x7CU); *((s32 *) p) |= 0x15000000; p += 0x7C; } while (p != ((s8 *) &last_frame_dl_end)); } while (0);
+ do { p = (s8 *) &gStuntInfo; do { memset(p, 0, 0x7CU); *((s32 *) p) |= 0x15000000; p += 0x7C; } while (p != (s8 *) &gStuntInfo + 4 * 0x7C); } while (0);
   stunt_eTime = 0.0f;
   gStuntsDone = 0;
 }

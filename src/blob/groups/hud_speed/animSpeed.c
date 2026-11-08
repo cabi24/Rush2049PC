@@ -8,7 +8,7 @@
  * by model[win].slot: D_8014A250, 0x808 B, s16 at +1990) has place_locked (+239) == 1. Otherwise font 4 (one
  * window) or 1 under the font lock, digit width = camera_shake_update('8') (HAL_GetCharWidth), position from the
  * per-window-count table speedPos[4][4] {x, y}: x = pos.x - 2 * digitW - 2, y = pos.y + 1 in single-window,
- * alpha = hud_box_alpha, half18 = 100, UpdateBlit. MAT3 identity open (the GC hud.c has no
+ * alpha = hud_box_color[3], half18 = 100, UpdateBlit. MAT3 identity open (the GC hud.c has no
  * blit per window for this element); structure from the matched N64 siblings.
  * Needs HAL_SetFontInternal's IPA convention (parameter in s2, s0/s1/s3 unsaved): group context ctx_gr3_b.c.
  * Shaping (each verified necessary): Hidden / gfx_lock / gfx_unlock / font_set are non-static inlined helpers as
@@ -54,7 +54,7 @@ extern s16 gNumWindows;
 extern s8 gShowSpeed;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u8 hud_box_alpha;
+extern u8 hud_box_color[4];     /* the HUD boxes' colour (alpha byte) */
 extern Pos speedPos[][4];
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
@@ -123,7 +123,7 @@ s32 animSpeed(Blit *blt)
     digitW = HAL_GetCharWidth(56);
     blt->x = speedPos[gNumWindows - 1][win].x - digitW * 2 - 2;
     blt->y = speedPos[gNumWindows - 1][win].y + ((gNumWindows == 1) ? 1 : 0);
-    blt->alpha = hud_box_alpha;
+    blt->alpha = hud_box_color[3];
     blt->half18 = 100;
     UpdateBlit(blt);
     return 1;

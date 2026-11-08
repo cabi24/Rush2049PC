@@ -10,7 +10,7 @@
  * materialise the address as lui/addiu + lwc1 0(reg), exactly as retail does; the earlier
  * pointer round-trip trick in is not needed), the chained result
  * assignment, the InitCarObj / ZOID_UpdateObject prototypes, weaponOffsets[8][13][3]
- * and gObjList[531] (weapon model). N64 differences: the weapon visual is visuals[20]
+ * and gObjList[531] (weapon model; the N64's gObjList[217]). N64 differences: the weapon visual is visuals[20]
  * at car+0x2F0 (21 visuals at +0x110, GC has 22), tCarParts is 0x40 bytes with weap at
  * +0x18, model[] stride 0x808 with body_type at +8.
  * Field names from MAT3 tVisual; offsets from the N64 displacements.
@@ -64,7 +64,8 @@ extern tCarParts gCarParts[];
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern f32 weaponOffsets[8][13][3];
 extern volatile f32 gSeconds;
-extern u16 gObjList_biased[];
+/* The scene's object definitions by kind (InitTrackDynamicObjs): the weapon models at 216..223. */
+extern u16 gObjList[];
 extern void AnimateWeapon(tVisual *, s16);
 extern s32 InitCarObj(s32, s16, s32, u32, s16, s16, s32);
 extern void ZOID_UpdateObject(s16, f32 *, f32 (*)[3]);
@@ -80,7 +81,7 @@ void StartWeapon(s16 slot)
         v->timeStamp = gSeconds;
         v->slot = slot;
         v->objnum = gCarParts[slot].weap =
-            InitCarObj(gObjList_biased[531], 15, gCarParts[slot].frame, 0x2000, slot, -1, 1);
+            InitCarObj(gObjList[217], 15, gCarParts[slot].frame, 0x2000, slot, -1, 1);
         ZOID_UpdateObject(v->objnum, weaponOffsets[1][PC_MODEL_BODY(slot)], 0);
     }
 }

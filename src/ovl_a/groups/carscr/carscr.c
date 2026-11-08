@@ -79,8 +79,7 @@ extern s8 gEnableTireScaling,carscr_inited;
 extern f32 HFOV,carscr_gButtonZoom,carscr_gButtonScale,carscr_gButtonSpace,carscr_buttonX,carscr_maxY,carscr_minY,carscr_buttonZ,carscr_cursorZ;
 extern f32 gTurntableMat[][2][12],unitmatrix[12];
 extern FiveParts *carscr_pane[];
-extern s8 gCarTrans_players[][13],gCarHandling_players[][13],gCarEngines_players[][13],gCarTires_players[][13],gCarFrame_players[][13],gCarWings_players[][13];
-extern s8 car_color_choice_a_players[][13],car_color_choice_b_players[][13],car_color_choice_c_players[][13],D_80111589[][13],gCarHorn_players[][13];
+extern s8 D_80111589[][13];
 extern f32 gFrontTireScale[][13],gRearTireScale[][13];
 extern CarSlot carscr_cars[][13];
 extern MultiBlit carscr_mb[];
@@ -125,7 +124,7 @@ extern Record **gLimboGhosts;
 extern u32 gSkipToGameState,gGameState;
 extern s32 carscr_wait,carscr_gNumOptions[],carscr_gOpts[][19],carscr_buttonsJustInited[],ghosts_enabled;
 extern s8 gSoftReset,carscr_gActiveZ[],gCarTeam[],gCarTeamColor[];
-extern s16 gCheatState_at_13,gCarSheen[];
+extern s16 gCheatState[],gCarSheen[];   /* gCheatState[13]: battle paints the cars in team colours while it is 0 */
 extern Slot carscr_buttonInfo[][44];
 extern Vec3 carscr_msgPos;
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -156,11 +155,6 @@ extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 extern s8 gNumGhosts;
 
 extern s8 gThisCar[];
-extern s8 gCarTrans_players[][13];
-extern s8 gCarHandling_players[][13];
-extern s8 gCarEngines_players[][13];
-extern s8 gCarTires_players[][13];
-extern s8 gCarFrame_players[][13];
 extern float gTransStats[][4];
 extern float gHandlingStats[][4];
 extern float gEngineStats[][4];
@@ -174,13 +168,14 @@ void calcStats(s32 player)
 
     for (component = 0; component < 4; component++) {
         do {
-            gStats[player][component] = gHandlingStats[gCarHandling_players[player][gThisCar[player]]][component] * gTransStats[gCarTrans_players[player][gThisCar[player]]][component];
-            gStats[player][component] *= gEngineStats[gCarEngines_players[player][gThisCar[player]]][component];
+            /* the car settings' rows: player + 1 (row 0 the defaults) */
+            gStats[player][component] = gHandlingStats[gCarHandling[player + 1][gThisCar[player]]][component] * gTransStats[gCarTrans[player + 1][gThisCar[player]]][component];
+            gStats[player][component] *= gEngineStats[gCarEngines[player + 1][gThisCar[player]]][component];
         } while (0);
         do {
-            gStats[player][component] *= gTireStats[gCarTires_players[player][gThisCar[player]]][component];
+            gStats[player][component] *= gTireStats[gCarTires[player + 1][gThisCar[player]]][component];
         } while (0);
-        gStats[player][component] *= gFrameStats[gCarFrame_players[player][gThisCar[player]]][component];
+        gStats[player][component] *= gFrameStats[gCarFrame[player + 1][gThisCar[player]]][component];
     }
 }
 /* setGhosts = setGhosts@carscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/carscr.c, GC 0x80090638,
@@ -660,7 +655,7 @@ void updateCarScreen(void)
             gCarLocked[p] = 1;
             PC_LINK_FLAGS(p) = 160;
             PC_LINK_CAR(p) = gThisCar[p];
-            if (gRace == 6 && gCheatState_at_13 == 0) {
+            if (gRace == 6 && gCheatState[13] == 0) {
                 PC_LINK_COLOR0(p) = gCarTeamColor[gCarTeam[p]];
                 PC_LINK_COLOR1(p) = gCarTeamColor[gCarTeam[p]];
                 PC_LINK_COLOR2(p) = gCarTeamColor[gCarTeam[p]];
@@ -918,7 +913,7 @@ s32 carscr_validOption(s32 player, s32 item)
     }
     if (!ghosts_enabled && (item == 16 || item == 17 || item == 18)) available = 0;
     if (item == 6 && (gRace == 2 || gRace == 6)) available = 0;
-    if ((item == 7 || item == 8 || item == 9) && gRace == 6 && !gCheatState_at_13) available = 0;
+    if ((item == 7 || item == 8 || item == 9) && gRace == 6 && !gCheatState[13]) available = 0;
     if (item == 7 && !(carscr_color_option_masks[gThisCar[player]] & 1)) available = 0;
     if (item == 8 && !(carscr_color_option_masks[gThisCar[player]] & 2)) available = 0;
     if (item == 9 && !(carscr_color_option_masks[gThisCar[player]] & 4)) available = 0;
@@ -1323,7 +1318,7 @@ void showGridMap(s32 enabled)
  * from its caller showCarSelect; every callee-saved register is clobbered.
  * Names: gCarComponents ([4][11] x 52 B: idx, level, mat), compLight (2 x 40 B, Lights2 layout),
  * componentToName = componentToName (s16[11]), carComponentNames, gCarPartFrame, gCarParts
- * (CarHandles; frame = main, tires[k] = parts[3+k]), ObjInstanceList = ObjInstanceList_mat (68 B), MBOX_HideObject MBOX_HideObject,
+ * (CarHandles; frame = main, tires[k] = parts[3+k]), ObjInstanceList (68 B), MBOX_HideObject MBOX_HideObject,
  * ZOID_SetObjectParent ZOID_SetObjectParent, MBOX_NewObjectCam MBOX_NewObjectCam, MBOX_NewObject MBOX_NewObject, MBOX_FindObject_WORK
  * MBOX_FindObject_WORK, ZOID_FindMatrix ZOID_FindMatrix, TB_GetFlashTextCycle TB_GetFlashTextCycle, BodyVector BodyVector,
  * ZOID_RemoveObject ZOID_RemoveObject, ScaleUV ScaleUV, YawUV YawUV, MBOX_ShowObject MBOX_ShowObject,
@@ -1346,10 +1341,8 @@ void showGridMap(s32 enabled)
  * 0.1f 0x803B9628, pi 0x803B966C/0x803B9670, jump tables 0x803B962C (5) and 0x803B9640 (11), all entries equal. */
 typedef struct ComponentLight { u8 col[3], pad0, colc[3], pad1; s8 dir[3], pad2; u8 pad3[4]; } ComponentLight;
 typedef struct ComponentLights { u8 col[3], pad0, colc[3], pad1; ComponentLight l[2]; } ComponentLights;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9).
- * ObjInstanceList_mat is node 0's object slot (N64 +0x08): on the PC, a field of the node. */
+/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): mat is N64 +0x08. */
 typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
-#define ObjInstanceList_mat ObjInstanceList
 typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
 ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
@@ -1358,7 +1351,7 @@ ComponentLights compLight[2] = {
 extern s16 componentToName[11];
 extern char *carComponentNames[5];
 extern char carscr_part_frame_model_name[];
-extern ObjInstance ObjInstanceList_mat[];
+extern ObjInstance ObjInstanceList[];
 extern void BodyVector(f32 *, f32 *, f32 *);
 extern f32 TB_GetFlashTextCycle(void);
 extern s32 MBOX_NewObjectCam(s32, void *, s32, s32, s32);
@@ -1394,7 +1387,7 @@ void updateCarComponents(s32 p)
         gCarPartFrame = MBOX_NewObjectCam(MBOX_FindObject_WORK(carscr_part_frame_model_name, 0, gNumModels - 1, 1), ZOID_FindMatrix((s16)car->main), 15, -1, 0);
         MBOX_HideObject(gCarPartFrame, 1, 15);
     } else {
-        ObjInstanceList_mat[gCarPartFrame].mat = ZOID_FindMatrix((s16)car->main);
+        ObjInstanceList[gCarPartFrame].mat = ZOID_FindMatrix((s16)car->main);
     }
     compLight[1].col[0] = 255.0f * TB_GetFlashTextCycle();
     BodyVector(lightVec, lightDir, ZOID_FindMatrix((s16)car->main)->uvs);
@@ -1604,7 +1597,7 @@ void showCarSelect(void)
                 else { carPos[0] = 0.0f; carPos[1] = 5.3f; carPos[2] = 40.5f; }
             }
             alpha = carscr_cars[p][i].selection * 255.0f;
-            if (gRace == 6 && gCheatState_at_13 == 0)
+            if (gRace == 6 && gCheatState[13] == 0)
                 UpdateSelectCar(carscr_cars[p][i].car, p, gCarTeamColor[gCarTeam[p]], gCarTeamColor[gCarTeam[p]], gCarTeamColor[gCarTeam[p]], gCarSheen[p], carPos, uv, alpha);
             else UpdateSelectCar(carscr_cars[p][i].car, p, car_color_choice_a[p + 1][carscr_cars[p][i].car % 13], car_color_choice_b[p + 1][carscr_cars[p][i].car % 13], car_color_choice_c[p + 1][carscr_cars[p][i].car % 13], gCarSheen[p], carPos, uv, alpha);
             if (gNumPlayers < 3 && gRace != 2) {
@@ -1617,7 +1610,7 @@ void showCarSelect(void)
                 if (carscr_cars[p][i].car % 13 == 10) reflectPos[1] -= 4.0f;
                 else reflectPos[1] -= 2.5f;
                 carscr_cars[reflectIdx][i].car = carscr_cars[p][i].car + 26;
-                if (gRace == 6 && gCheatState_at_13 == 0)
+                if (gRace == 6 && gCheatState[13] == 0)
                     UpdateSelectCar(carscr_cars[reflectIdx][i].car, reflectIdx, gCarTeamColor[gCarTeam[p]], gCarTeamColor[gCarTeam[p]], gCarTeamColor[gCarTeam[p]], gCarSheen[p], reflectPos, reflectUV, alpha / 1.5f);
                 else UpdateSelectCar(carscr_cars[reflectIdx][i].car, reflectIdx, car_color_choice_a[p + 1][carscr_cars[p][i].car % 13], car_color_choice_b[p + 1][carscr_cars[p][i].car % 13], car_color_choice_c[p + 1][carscr_cars[p][i].car % 13], gCarSheen[p], reflectPos, reflectUV, alpha / 1.5f);
             }

@@ -35,7 +35,9 @@ extern s32 gGhostStatus[];        /* gGhostStatus */
 extern PakState gControllerData[];
 extern Slot gPaks[];
 extern s32 gRace;
-extern Ghost **gGhostFiles_head;      /* gGhostFiles list head */
+/* The ghost files on the paks (carscr.c's RecordList): first the list head. */
+typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Ghost **first, **last;} RecordList;
+extern RecordList gGhostFiles;
 extern s8 gTrackNum;
 extern s8 gBackwards;
 extern s32 game_strncmp(void *, void *, s32);
@@ -67,7 +69,7 @@ void FindGhosts(s32 pak)
         gGhostStatus[pak] = 0;
         if (gRace == 2) {
             do {} while (0);
-            for (node = gGhostFiles_head; node != 0; node = ghost->next) {
+            for (node = gGhostFiles.first; node != 0; node = ghost->next) {
                 ghost = *node;
                 if (ghost->q != 0 && (*ghost->q)->id == pak && ghost->track == gTrackNum &&
                     ghost->backwards == gBackwards &&

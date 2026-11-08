@@ -88,7 +88,7 @@ struct { uint8_t slot; uint8_t other[71]; char **name; } gPlayers[4];
 struct { int32_t words[18]; int16_t laps[24]; } gStuntPlayer[4];
 uint8_t gameover_titlePos[16], gCircuitPlayer, gLap[8];
 int16_t gNumLaps;
-float gBestLapTime[8], best_lap_time_by_column[8], gLapTimes[4][8];
+float gBestLapTime[8], gLapTimes[4][8];
 char battle_score_total_format[8] = "%d", battle_score_cell_format[8] = "%d", stunt_score_total_format[8] = "%d", stunt_score_best_format[8] = "%d", stunt_score_count_format[8] = "%d",
      battle_standings_drone_name[8] = "%d", battle_standings_total_format[8] = "%d", stunt_standings_drone_name[8] = "%d", stunt_standings_points_format[8] = "%d", stunt_standings_best_format[8] = "%d",
      race_standings_drone_name[8] = "DRONE", race_standings_time_format[16] = "%d:%02d.%03d", race_standings_lap_format[16] = "%d:%02d.%03d",

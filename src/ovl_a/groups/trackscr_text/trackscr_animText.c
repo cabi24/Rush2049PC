@@ -26,7 +26,6 @@ typedef struct Language { s32 unknown0; char **text; s32 unknown8; u16 *indices;
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 alpha,unknown3D[3]; } Slot;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
 typedef struct Settings { u8 unknown00[28]; s8 mode; u8 unknown1D[3]; s8 a,b,c,d,e,f,g,h,i; } Settings;
-typedef struct CourseFlag { u8 flag,unknown01[4]; } CourseFlag;
 extern s32 trackscr_buttonsInited,gRace;
 extern f32 trackscr_title_button_position[3],trackscr_gButtonSpace,trackscr_gButtonScale;
 extern s8 expansion_pak_present,gTrackNum,gGhostSelect,gBackwards,gCircuitTrack,gDeathMode;
@@ -37,7 +36,7 @@ extern Language gText;
 extern Color4 flashColors,flashColors_at_1;
 extern char *gTrackTitles[];
 extern Settings gOptions;
-extern CourseFlag gCircuitTracks_mirror[];
+extern u8 gCircuitTracks[][5];   /* the circuit's tracks (trackscr.c's CircuitTrack): [2] the mirror flag */
 extern char trackscr_laps_format[],trackscr_option5_format[],trackscr_option6_format[],trackscr_option7_format[],trackscr_option9_format[],trackscr_option10_format[],trackscr_drones_format[];
 extern void HAL_SetTextDepth(f32);
 extern s32 HAL_SetFont(s32);
@@ -174,7 +173,7 @@ void trackscr_animButtonText(void)
                 break;
             case 13:
                 if (gRace == 3) {
-                    TB_DrawText(x, y, (gText.indexed + (gCircuitTracks_mirror[gCircuitTrack].flag == 0 ? 0 : 1))[gText.indices[16]]);
+                    TB_DrawText(x, y, (gText.indexed + (gCircuitTracks[gCircuitTrack][2] == 0 ? 0 : 1))[gText.indices[16]]);
                 } else if (gOptions.mode == 2) {
                     TB_DrawText(x, y, gText.indexed[gText.indices[18] + 2]);
                 } else {

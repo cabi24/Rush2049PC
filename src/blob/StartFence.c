@@ -774,7 +774,6 @@ float sqrtf(float);
 
 /* referenced data (types guessed from access width) */
 extern M2C_UNK targetInfo;
-extern M2C_UNK target_info_start_sounds;
 extern f32 fence_frame_time;
 extern void *gEnvList;
 
@@ -804,7 +803,8 @@ void StartFence(void *arg0) {
         M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
         v->next = gEnvList;
         gEnvList = v;
-        PlayTargetSound(*(s32 *)((u8 *) &target_info_start_sounds + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
+        PlayTargetSound(*(s32 *)((u8 *) &targetInfo + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
 

@@ -42,9 +42,9 @@ int8_t gNumActiveCars, gGravityScale, gTrackNum, gOneMoreCP, gDifficulty, gBackw
 uint8_t gCoastFlag, gDeathMode;
 int32_t gModelIteration, gRace, gGameState, gGameState, gRace, percentTable[36];
 float gModelTime, gLastPathSwitchTime, gRetraceTime = 1.0f / 60, roadboost_time_scale, solid_delay_arena, gravitySpeedIncrease[8], gravitySpeedMin[8];
-int8_t gPaks_rumble_request[4 * 0x310];
+int8_t gPaks[4 * 0x310];   /* the controller/pak records (0x310 bytes on the PC), the rumble request at +0x89 */
 intptr_t gGhosts[16];
-int16_t gCircuitCars_skill[16][38];
+int16_t gCircuitCars[16][38];   /* the circuit's cars (76 bytes each), their skill at +0x34 */
 uint8_t gPlayers[4 * 80];
 struct { char c[4]; } target_steer_zero_dist_message;
 

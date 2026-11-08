@@ -3685,17 +3685,18 @@ typedef s64 M2C_UNK64;
 #endif
 
 s8 GetControllerStickEdges(s32 arg0) {
+    s8 *edges = (s8 *) &gStickEdges;   /* s8[4]: each controller's */
     if (arg0 == -1) {
-        if (gStickEdges == 0) {
+        if (edges[0] == 0) {
             return 0;
         }
-        if (gStickEdges_p1 == 0) {
+        if (edges[1] == 0) {
             return 0;
         }
-        if (gStickEdges_p2 == 0) {
+        if (edges[2] == 0) {
             return 0;
         }
-        if (gStickEdges_p3 == 0) {
+        if (edges[3] == 0) {
             return 0;
         }
         return 1;

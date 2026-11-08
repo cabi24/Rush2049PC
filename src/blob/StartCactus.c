@@ -774,7 +774,6 @@ float sqrtf(float);
 
 /* referenced data (types guessed from access width) */
 extern M2C_UNK targetInfo;
-extern M2C_UNK target_info_start_sounds;
 extern f32 cactus_frame_time;
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; u32 owner; f32 timer; void *stat; } BNode;
@@ -817,7 +816,8 @@ void StartCactus(void *arg0) {
         head = &gEnvList;
         temp_v0->next = *head;
         *head = temp_v0;
-        PlayTargetSound(*(s32*)((u8 *) &target_info_start_sounds + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30))), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
+        PlayTargetSound(*(s32*)((u8 *) &targetInfo + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
     }
 }
 

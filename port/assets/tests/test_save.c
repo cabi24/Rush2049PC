@@ -155,8 +155,7 @@ void MovePlayerFile(intptr_t from, intptr_t to);                 /* the files' M
 /* ---------------------------------------------------------------- the game's data they use */
 
 PakRecord gPaks[4];
-struct dllist gPS_Files[4];                    /* gPS_Files */
-ALIAS(gPS_Files_head, gPS_Files, 8);               /* their heads */
+struct dllist gPS_Files[4];                    /* gPS_Files: each pak's open files, from their heads */
 struct dllist pak_free_handles;                       /* the free file handles */
 void *pak_file_handles[64];                           /* the handles */
 struct psfile pak_file_records[64];                   /* the file records */
@@ -168,8 +167,6 @@ struct { uint16_t type; uint8_t status, errno_; } cont_status[4];
 uint16_t pak_charset[256];                       /* the pak font, set up by main */
 
 struct dllist gPlayerFiles, gGhostFiles;           /* gPlayerFiles (doubly linked), gGhostFiles */
-ALIAS(gPlayerFiles_head, gPlayerFiles, 8);
-ALIAS(gGhostFiles_head, gGhostFiles, 8);
 struct profile player_profile_records[4][16];               /* the profile records */
 void *player_profile_handles[4][16];                        /* their handles */
 struct profile gRealJustPlayers[4], *gJustPlayers[4];   /* the four default profiles */
@@ -179,7 +176,7 @@ char player_name_format[] = "PLAYER %d";
 int8_t expansion_pak_present, gNumLimbo;
 void *gRealLimboGhosts, **gLimboGhosts;
 uint8_t gGlobalsSet, save_gInited;
-int8_t gTrackNum, gOptions[64], cheat_menu_unlocked, gSaveGhostFiles;
+int8_t gTrackNum, gOptions[64], gCheatActive[24], gSaveGhostFiles;   /* gCheatActive[21]: the cheats menu */
 int16_t gCheatState[32], gLang;
 int32_t gScheduler[160];
 /* the file names' parts and formats (the test's own) */

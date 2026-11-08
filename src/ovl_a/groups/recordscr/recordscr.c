@@ -255,9 +255,13 @@ void updateRecordScreen(void)
 extern s32 recordscr_gSelectMenuSelect;
 extern char gDeleteName[];
 extern ListNode gJustPlayers[4];
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct { char *prefix[0x2C4 / 4]; const char *label; } ResourceNames;
-extern ResourceNames *gText_single;
+/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
+typedef struct TextTables {
+    unsigned short numSingle; unsigned char **single;
+    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
+    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
+} TextTables;
+extern TextTables gText;
 extern s32 ClearPlayerRecords(ListNode *);
 extern s32 ReadPlayerData(ListNode *);
 extern void TB_Strcpy(char *, const char *);
@@ -379,7 +383,7 @@ void recordscr_controlSelect(void)
                 gDeleteConfirm = 0;
             } else {
                 if (gStatPlayer) TB_Strcpy(gDeleteName, gStatPlayer->payload->text);
-                else TB_Strcpy(gDeleteName, gText_single->label);
+                else TB_Strcpy(gDeleteName, gText.single[177]);
                 gDeleteConfirm = 1;
                 recordscr_gYes = 0;
             }

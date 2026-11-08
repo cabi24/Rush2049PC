@@ -56,9 +56,7 @@ struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_
 
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-ABS(gCheckpoints, 0x80151CE8);               /* the checkpoint block (Route at +0) and two names inside it */
-ABS(checkpoints_start_pt, 0x80151CEE);
-ABS(gCheckpoints_pathPts, 0x80151D18);
+ABS(gCheckpoints, 0x80151CE8);               /* the checkpoint block (Route at +0) */
 #define gCheckpoints ((uint8_t *)(uintptr_t)0x80151CE8)
 ABS(gCarParts, 0x80139320);               /* gCarParts, 0x40 bytes a car */
 #define PARTS(i) ((uint32_t *)(uintptr_t)0x80139320 + (i) * 16)
@@ -86,12 +84,9 @@ volatile float gSeconds = 3.25f;         /* gSeconds */
 int8_t gTrackNum, expansion_pak_present, gCarTeam[8];
 uint8_t taillight_colors_dark[16], taillight_colors_dim[16], taillight_colors_bright[16], headlight_colors_night[16], gShadowColor[4], arrowColors[5][4];
 float gDummyVtx[4][3];
-uint16_t gTexList[16], gObjList[600], gObjList_rocket_a, gObjList_rocket_b, gObjList_rocket_c;
-ABS(gObjList_biased, 0x8014254C);               /* gObjList + 0x... in the game; only an id is read */
-uint8_t car_palettes_palBase[6 * 24];                /* the car palette descriptors' data words (u32 window addresses) */
-int8_t gCarWings_players[6 * 13];
-float wingOffsets_y[8 * 3], wing_flame_height = 0.75f, weaponOffsets[8][13][3];
-uint8_t ObjInstanceList_mat[64];
+uint16_t gTexList[16], gObjList[600];
+uint8_t car_palettes[6 * 24];                /* the car palette descriptors (24 bytes; data, a u32 window address, at +0x14) */
+float wingOffsets[8 * 3], wing_flame_height = 0.75f, weaponOffsets[8][13][3];
 uint8_t PolyInstanceList[32 * 88];               /* tPoly instances */
 int16_t gEnvCount, gEnvCountMax;
 void *gEnvList, *gFreeVis;
@@ -105,7 +100,7 @@ float gCarBraking[13], gCollisionMass[13], gCrashThreshold[13], gTireSideForce[1
 int8_t gCarWings[13 * 7], gCarDifferential[13];
 float carsetup_durability_base = 1.0f, carsetup_crash_threshold_scale = 2.0f, gGravity = 3.0f, steer_deg_to_rad = 2.0f;
 float carTransGearRatio[16][6];
-float carTransGearRatio_biased[16][6], carEngineTorque[8][3];   /* the gear table (transmission), the torque scale */
+float carEngineTorque[8][3];   /* the torque scale */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
@@ -368,7 +363,8 @@ static void test_raw(void)
     struct car *c = &CARS[1];
     int16_t *table = (int16_t *)(gCheckpoints + 0x30);
 
-    /* SyncMaxpathToLastCheckpoint: car+0x33A = gCheckpoints_pathPts[car+0x33C + model+0x7E2 * 40] */
+    /* SyncMaxpathToLastCheckpoint: car+0x33A = gCheckpoints.points[model+0x7E2].pathPts[car+0x33C + 1] (+0x30, 40 a
+     * checkpoint) */
     CF(c, 0x33C, int16_t) = 3;
     MF(MODEL(1), 0x7E2, int16_t) = 2;
     table[3 + 2 * 40] = 1234;
@@ -480,7 +476,7 @@ static void test_model(void)
         calcaa(m, in, out);
         CHECK(out[0] == 2.0f && out[1] == 6.0f && out[2] == 12.0f);
         MF(m, 0x3F4, int16_t) = 2, MF(m, 9, int8_t) = 1;
-        carTransGearRatio_biased[1][2] = 4.0f;
+        carTransGearRatio[1][2 + 1] = 4.0f;   /* [transmission][gear + 1] */
         transmission(m);
         CHECK(MF(m, 0x428, float) == 0.5f * 4.0f && MF(m, 0x42C, float) == 3.0f * 2.0f);
     }
@@ -499,7 +495,7 @@ static void test_race_init(void)
 }
 
 /* The brake lights (AnimateBrakeLights, AnimateBrakeLights) of a braking car take the brake colours into its palette
- * record (a u32 window address in car_palettes_palBase): the car is the visual's slot (+0xC on the PC; +8 is its index). */
+ * record (a u32 window address, car_palettes[slot].data): the car is the visual's slot (+0xC on the PC; +8 is its index). */
 #define PALETTES_AT 0x80302000u
 static void test_brake_lights(void)
 {
@@ -509,7 +505,7 @@ static void test_brake_lights(void)
 
     for (i = 0; i < 6; i++) {
         CF(&CARS[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
-        MF(car_palettes_palBase, 24 * i, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
+        MF(car_palettes, 24 * i + 0x14, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
         memset((uint8_t *)pal + 0x200 * i, 0, 16);
     }
     for (k = 0; k < 8; k++)

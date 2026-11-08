@@ -364,10 +364,7 @@ void AudioSfxServer(void);
 void *gSfxInstances;
 int32_t gNumInstances, gNumChannels;
 int8_t audiosfx_gInited, gStopAllEffects;
-int32_t sfx_history[5];                    /* gStoppedChannels_tail..gStoppedChannels_newest, and the word before */
-ALIAS(gStoppedChannels_tail, sfx_history, 4);
-ALIAS(gStoppedChannels_newest, sfx_history, 16);
-#define gStoppedChannels_newest sfx_history[4]
+int32_t gStoppedChannels[5];                    /* the channels stopped in the last frames, [4] this frame's count */
 struct { uint32_t pad[2]; void *tail, *head; } gFreeQ, gCmdQ;   /* the request lists (PcSfxList) */
 static int sfx_calls;
 int32_t sound_check(int32_t voice) { return voice == 100 ? -1 : 0; }   /* 100 has finished */
@@ -411,12 +408,12 @@ static void test_sound_requests(void)
     gNumInstances = 3;
     audiosfx_gInited = 1;
     gStopAllEffects = 0;
-    gStoppedChannels_newest = 0;
+    gStoppedChannels[4] = 0;
     sfx_calls = 0;
     AudioSfxServer();
     CHECK(e[0] == 0 && *(int32_t *)(e + 8) == 0);   /* retired in place */
     CHECK(e[24] == 1 && *(int32_t *)(e + 32) == 8);
-    CHECK(gStoppedChannels_newest == 1 && sfx_calls == 0);
+    CHECK(gStoppedChannels[4] == 1 && sfx_calls == 0);
 }
 
 /* A request to start an effect, then one to change it (docs/port/AUDIO.md 9): the effect started is the entry's
@@ -444,7 +441,7 @@ static void test_sound_effect(void)
     gNumInstances = 1;
     audiosfx_gInited = 1;
     gStopAllEffects = 0;
-    gStoppedChannels_newest = 0;
+    gStoppedChannels[4] = 0;
     gNumChannels = 1;   /* one start allowed this retrace */
     memset(&sfx_got, 0, sizeof sfx_got);
     AudioSfxServer();

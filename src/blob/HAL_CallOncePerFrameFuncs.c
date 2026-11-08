@@ -2829,7 +2829,7 @@ extern s32 zf;
 extern intptr_t gOPPFuncs[10];   /* function pointers (groups/hal_time) */
 extern s32 D_801551EC;
 extern s32 D_801551F0;
-#define yf gOPPFuncs[10]   /* the table's end: 8-byte slots on the PC */
+
 extern s32 gSkidList;
 extern s32 D_80155238;
 extern s32 D_80155240;
@@ -3777,4 +3777,4 @@ void init_camera_on_track(void *arg0);
 void init_cars(void);
 void process_scheduler_message(void);
 s32 HAL_FinishText();
-void HAL_CallOncePerFrameFuncs(void) { void (**p)(void); if (gInited_HALTime == 0) { HAL_InitTime(); } p = (void (**)(void)) &gOPPFuncs; do { if (*p != 0) { (*p)(); } p++; } while (p != (void (**)(void)) &yf); }
+void HAL_CallOncePerFrameFuncs(void) { void (**p)(void); if (gInited_HALTime == 0) { HAL_InitTime(); } p = (void (**)(void)) &gOPPFuncs; do { if (*p != 0) { (*p)(); } p++; } while (p != (void (**)(void)) (gOPPFuncs + 10)); }

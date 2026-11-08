@@ -23,8 +23,9 @@ extern intptr_t gMainHeap;
 extern s32 heap_lock_queue;
 extern s8 extra_overlay_loaded,start_overlay_loaded;
 extern u8 overlay_base[];
-typedef struct RaceEntry {u32 allocation;u8 pad4[20];} RaceEntry;
-extern RaceEntry car_palettes_palBase[];
+/* The car palette descriptors (car_palette_init.c): data is the u32 window address of the palette's heap block. */
+typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; unsigned short value; u32 data; } Slot24;
+extern Slot24 car_palettes[];
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 void FillFreeMem(void *,u32);
 void *FindHeap(u32 arg0);
@@ -88,8 +89,7 @@ void unload_start_overlay(void) {
  }
 }
 void free_car_palette(s32 index) {
- RaceEntry *entry=&car_palettes_palBase[index];
- u32 address=entry->allocation;
+ u32 address=car_palettes[index].data;
  osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
  DeallocateMemoryInternal(address,0);
  osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);

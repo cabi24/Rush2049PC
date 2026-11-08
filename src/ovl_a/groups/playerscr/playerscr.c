@@ -105,7 +105,10 @@ typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
 extern Player gPlayers[];
 extern u8 gCarTeam[];
-extern s32 playerscr_gSelectMenuSelect[],gPlayerRects_biased[][24];
+extern s32 playerscr_gSelectMenuSelect[];
+/* Each player's menu rectangle (playerscr_draw.c's Layout), by number of players less one and player. */
+typedef struct Layout { s32 unknown0,y,width,height,x,unknown14; } Layout;
+extern Layout playerscr_gPlayerRects[][4];
 extern s8 gSelectMenuMaxSize,screenInited;
 extern s16 gNumWindows;
 extern f32 playerscr_gButtonZoom,playerscr_gButtonScale,playerscr_gButtonSpace,playerscr_buttonX,playerscr_maxY,playerscr_minY,playerscr_buttonZ,playerscr_cursorZ;
@@ -187,7 +190,7 @@ void playerscr_initScreen(void)
 
 void calcSelectMenuMaxSize(void)
 {
-    s32 rectHeight = gPlayerRects_biased[gNumPlayers][0];
+    s32 rectHeight = playerscr_gPlayerRects[gNumPlayers - 1][0].height;
     if (gNumPlayers >= 2) HAL_SetFont(11);
     else HAL_SetFont(13);
     rectHeight -= TB_GetFontLineHeight();
@@ -196,7 +199,8 @@ void calcSelectMenuMaxSize(void)
     gSelectMenuMaxSize = rectHeight / TB_GetFontLineHeight();
 }
 
-extern Owner *gPlayerFiles_head,*gSelectedPlayer[];
+extern Owner *gSelectedPlayer[];
+extern struct PlayerFiles { u32 unknown0,unknown4; Owner *head,*tail; } gPlayerFiles;   /* the profiles on the paks */
 extern Owner gJustPlayers[];
 extern s8 gSelectMenuControls[],gDeleteMenuSelect[],gDeleteMenuConfirm[],gDeleteMenuYes[],gDeleteMenuNotify[];
 extern u8 gCreatePlayerNames[][13];
@@ -209,7 +213,7 @@ void setPlayerState(s32 player,s32 mode)
     Owner *node,*other;
     if (mode == 0) {
         gSelectedPlayer[player] = 0;
-        node = gPlayerFiles_head;
+        node = gPlayerFiles.head;
         while (node) {
             if (node == gPlayers[player].owner) break;
             node = node->body->next;
@@ -226,7 +230,7 @@ void setPlayerState(s32 player,s32 mode)
             playerscr_gSelectPakIdx[player] = node->body->selection->item->player;
             if (playerscr_gSelectMenuSelect[player] >= 3 && playerscr_gSelectMenuSelect[player] < 11) {
                 playerscr_gSelectMenuSelect[player] = 3;
-                for (other = gPlayerFiles_head; other; other = other->body->next) {
+                for (other = gPlayerFiles.head; other; other = other->body->next) {
                     if (other == node) break;
                     if (node->body->selection->item->player == other->body->selection->item->player)
                         if (playerscr_gSelectMenuSelect[player] < 10) playerscr_gSelectMenuSelect[player]++;
@@ -253,7 +257,6 @@ void setPlayerState(s32 player,s32 mode)
 
 typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
 extern PlayerPresence gControllerData[];
-extern Owner *gPlayerFiles_head;
 extern s32 playerscr_buttonsJustInited[];
 extern s8 PS_PakInserted(s32),PS_PakDamaged(s32),PS_PakRumble(s32);
 extern u32 PS_GetFreeBlocks(s32);
@@ -277,7 +280,7 @@ void playerscr_updatePakInfo(void)
                 }
             }
             playerscr_gNumPakPlayers[i]=0;
-            for(node=gPlayerFiles_head;node;node=node->body->next) {
+            for(node=gPlayerFiles.head;node;node=node->body->next) {
                 if(node->body->selection->item->player==i)playerscr_gNumPakPlayers[i]++;
             }
             if(playerscr_gNumPakPlayers[i]==0)playerscr_gNumPakPlayers[i]=0;
@@ -586,7 +589,6 @@ extern s32 ReadPlayerData(Owner *);
 extern void SaveSelectPlayer(Owner *);
 extern void TB_Strcpy(u8 *,u8 *);
 extern void DeletePlayer(Owner *);
-extern struct PlayerFiles { u32 unknown0,unknown4; Owner *head,*tail; } gPlayerFiles;
 extern s8 gDeleteMenuSelect[],gDeleteMenuConfirm[],gDeleteMenuYes[],gDeleteMenuNotify[];
 extern u8 gDeleteMenuName[][13];
 extern s32 playerscr_buttonsJustInited[];
@@ -1023,7 +1025,7 @@ void updatePlayerScreen(void)
                 Owner *player;
                 for (i = 0; i < gNumPlayers; i++) {
                     if (gPlayers[i].owner != &gJustPlayers[i]) {
-                        for (player = gPlayerFiles_head; player; player = player->body->next)
+                        for (player = gPlayerFiles.head; player; player = player->body->next)
                             if (gPlayers[i].owner == player) break;
                         if (!player) {
                             gSkipToGameState = 1;
@@ -1090,7 +1092,7 @@ restart:;
         switch (exitPlayerScreen) {
         case 1: {
             Owner *player;
-            for (player = gPlayerFiles_head; player; player = player->body->next) {
+            for (player = gPlayerFiles.head; player; player = player->body->next) {
                 for (p = 0; p < gNumPlayers; p++)
                     if (player == gPlayers[p].owner) break;
                 if (p >= gNumPlayers) PurgePlayerData(player);

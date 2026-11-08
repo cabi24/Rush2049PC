@@ -30,7 +30,7 @@ gDriveHulk 4        # s8[4], InitOptions.c
 gContStickRange 8        # s8[4][2] (gStickCal), InitControlSys.c
 model 0x3030   # Car[6] of 0x808, init_cars.c
 # Tables the code indexes past their declaration (tools/port/index_check.py, docs/port/SYNTH.md 3): the car tunes,
-# three 44-byte Tune44 records (CalcMass reads ((F2C *)&gTune_weight_scale)[tune], gTune_weight_scale being record 0's +4; the
+# three 44-byte Tune44 records (CalcMass reads ((Tune44 *)&gTune)[tune].values[1], the weight scale; the
 # declarations leave one record, and the other two kept the ROM's byte order).
 gTune 0x84
 # The cars' drag, f32[5][3] by traction type and tune (CalcDrift reads ((f32 (*)[3]) &gTireDrift)[i][j]; its
@@ -45,16 +45,16 @@ gSongNames 0x30
 TextureSwapLists 0x4C
 PaletteLists 0x4C
 # The gear ratios, f32[8][6]: a row per car class (the model's byte 9), the ratio of gear g at [g + 1]
-# (transmission reads them from carTransGearRatio_biased, its +4, by byte offsets; tools/port/index_check.py). By the gap the
+# (transmission reads carTransGearRatio[class][gear + 1] through a row view; tools/port/index_check.py). By the gap the
 # table was one row, and the rows after it kept the ROM's byte order: a battle car's drive torque came out absurd and
 # its wheels never turned.
 carTransGearRatio 0xC0
 # The player screens' model slots (image A, Slot64[players][22]: unknown0 picks the model name): four players. A
 # known address 0x1080 in left the extent at three, and the fourth player's slots kept the ROM's byte order (a
-# four-player game faulted on its model names). The table ends at playerscr_gButtonZoom; gPlayerRects_biased's row 0, which is never
-# read, lies in its last 16 bytes.
+# four-player game faulted on its model names). The table ends at playerscr_gButtonZoom; its last 16 bytes are where
+# calcSelectMenuMaxSize's biased base for playerscr_gPlayerRects (one row low) put a row 0 it never read.
 playerscr_buttonInfo 0x1600
 
 # Tables declared as their first element or row, which the game reads whole (docs/port/DATA.md 8).
-wingOffsets 0x9C     # f32[13][3], per car type (AnimateWing, the wings; wingOffsets_y is its [0][1]); D_8011B550 follows
+wingOffsets 0x9C     # f32[13][3], per car type (AnimateWing, the wings; StartWing reads [type][1]); D_8011B550 follows
 gravityArray 0x10     # gravityArray f32[4] (PrePlay: by the gravity option); by the gap it ran over strings

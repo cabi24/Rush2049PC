@@ -7,7 +7,7 @@
  *     LookInDir, CopyUV copy), scaled when |speed| < 90
  *     (speed = car->h248 >> 2; reverse: |s|/70*0.75+0.25, forward: |s|/90*0.85+0.15);
  *     pos = car->wheel[type], vel = car->vel * (Random(1.0f) - 0.5f), pos += vel, pos.y += 1.25;
- *     w52 = ZOID_AddObject(gObjList_water[h86], &o->m, -1, 0x40000) with h86 = 0 / 4.
+ *     w52 = ZOID_AddObject(gObjList[205 + h86], &o->m, -1, 0x40000) with h86 = 0 / 4.
  * No arcade ancestor identified.
  * STATE: EQUAL in the whole-program unit (was 22/386).
  * Frame shaping (all disclosed):
@@ -25,7 +25,7 @@
  *   - `snap = start_water_sentinel` + compiled-out check before the second alloc = retail's dead sw 168(sp);
  *   - `if (type > 3) DEBUG_PRINT` before the switch fixes car t4 / seed t3 colouring;
  *   - u32 type stops the switch's `case 3` sharing the loop-bound register (li at,3);
- *   - pos = pos + vel in order 0,1,2; first lookup is gObjList_water[0], second gObjList_water[o->h86].
+ *   - pos = pos + vel in order 0,1,2; first lookup is gObjList[205], second gObjList[205 + o->h86].
  */
 typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
 typedef signed int s32; typedef unsigned int u32; typedef float f32;
@@ -63,7 +63,8 @@ extern s32 start_water_sentinel;
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
 extern u8 gSmokeList[];
-extern u16 gObjList_water[];
+/* The scene's object definitions by kind (InitTrackDynamicObjs): the spray's from 205 (MAT3 gObjList[516]). */
+extern u16 gObjList[];
 extern int rand_seed;
 #define DEBUG_PRINT(args)
 
@@ -77,7 +78,7 @@ f32 Random(f32 max);
 
 static void attach(Obj *o) {
     s32 h;
-    h = ZOID_AddObject(gObjList_water[o->h86], o->m, -1, 0x40000);
+    h = ZOID_AddObject(gObjList[205 + o->h86], o->m, -1, 0x40000);
     o->w52 = h;
 }
 void StartWater(s16 idx, u32 type) {
@@ -153,7 +154,7 @@ void StartWater(s16 idx, u32 type) {
     o->pos[1] = o->pos[1] + o->vel[1];
     o->pos[2] = o->pos[2] + o->vel[2];
     o->pos[1] += 1.25f;
-    o->w52 = ZOID_AddObject(gObjList_water[0], o->m, -1, 0x40000);
+    o->w52 = ZOID_AddObject(gObjList[205], o->m, -1, 0x40000);
 
     if (snap != start_water_sentinel) DEBUG_PRINT(("x"));
     o = GetStatLLE(gSmokeList);

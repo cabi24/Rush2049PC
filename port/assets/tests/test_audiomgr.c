@@ -95,8 +95,6 @@ struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];    /* the message pool (pc_game
 uint8_t audio_lock_queue[64], audio_command_queue[64];             /* the lock and the manager's queue */
 struct dllist gInterruptedFxTags, gFreeSequences, gActiveSequences, gFreeEmitters, gCmdQ;
 float gAudioSeconds = 100.0f;                          /* the audio clock */
-#define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
-ALIAS(active_sequences_head, gActiveSequences, 8);                   /* the active sequences' head */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 

@@ -2737,12 +2737,7 @@ extern s8 D_80152B70;
 extern s8 D_80152B71;
 extern s32 D_80152B98;
 extern s8 D_80152BBB;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md).
- * These names were inside them: car 1's +0, its position (+8) and +0x50, which the loop below steps from by
- * CAR_OFS(0x3B8) to car j + 1. */
-#define car1_objnum (*(s32 *) PC_CAR(1))
-#define car1_dr_pos (*(s32 *) PC_CAR_POS(1))
-#define car1_dr_car_uvs (*(s32 *) PC_CAR_UVS50(1))
+/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 D_80152CBE;
 extern s32 sample_dma_pi_queue;
 extern s32 gAltPaths;
@@ -3797,7 +3792,8 @@ void Update_MDrive(void)
   {
     for (i = 1, j = 0; i < gNumPlayers; i++, j++)
     {
-      ZOID_UpdateObject(*((s16 *) (((s8 *) &car1_objnum) + (j * CAR_OFS(0x3B8)) + NODE_LOW)), ((s8 *) &car1_dr_pos) + (j * CAR_OFS(0x3B8)), ((s8 *) &car1_dr_car_uvs) + (j * CAR_OFS(0x3B8)));
+      /* car i = j + 1: its scene node, position (MAT3 dr_pos) and orientation (dr_car_uvs) */
+      ZOID_UpdateObject(*((s16 *) ((s8 *) PC_CAR(i) + NODE_LOW)), (s8 *) PC_CAR_POS(i), (s8 *) PC_CAR_UVS50(i));
     }
   }
   CheckCameraView();

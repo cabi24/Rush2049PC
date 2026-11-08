@@ -1,9 +1,8 @@
 /* port/assets/tests/test_stuntend.c: the end of a stunt round (docs/port/QA.md 4), through the game's own
  * are_all_cars_stopped, which the race end asks whether the race may end now. When a stunt round's time is up and the cars
  * have settled, CheckForStunt sets gStuntsDone, the s32 gStuntsDone, to 1, and are_all_cars_stopped answers with
- * gStuntsDone_lo, the halfword at +2: the word's low half on the N64. Here the two names overlap as they do in the
- * game's arena. On a little-endian host the halfword at +2 is the high one, 0, so the answer was always 0 and a
- * stunt round never ended.
+ * the word's low half, which the N64 read as the halfword at +2. On a little-endian host the halfword at +2 is the
+ * high one, 0, so the answer was always 0 and a stunt round never ended: the PC reads the word as an s16.
  * game: src/blob/are_all_cars_stopped.c
  */
 #include <string.h>
@@ -12,7 +11,6 @@
 #include "support.h"
 
 int32_t gStuntsDone __attribute__((aligned(8)));   /* gStuntsDone */
-__asm__(".globl gStuntsDone_lo\n.set gStuntsDone_lo, gStuntsDone + 2");
 
 int8_t gDeathMode;              /* deaths mode */
 int16_t gNumPlayers = 1;

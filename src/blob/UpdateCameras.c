@@ -3795,7 +3795,7 @@ void UpdateCameras(void)
 
   for (i = 0; i < (s16) gNumWindows; i++) {
     e = (EmitA *) &gCamera + i;
-    b = (EmitB *) &gCamera_n64 + i;
+    b = (EmitB *) ((u8 *) e + 0x30);   /* the camera's handedness-flipped copy of its matrix (gCamera[i].n64, +0x30) */
     e->f54 = e->f24;
     e->f58 = e->f28;
     e->f5C = e->f2C;

@@ -3683,11 +3683,15 @@ typedef s64 M2C_UNK64;
 #endif
 
 void UnloadTrack(s32 arg0) {
+    /* gTrackLoadInfo, loadtrack.c's TrackLoadInfo: each part's load state, idx its wave instance. */
+    typedef struct { s8 loading, loaded, inited, ready; s32 idx; } LoadState;
+    struct { s8 trackInited; LoadState track, world, collision, path, other; } *info = (void *) &gTrackLoadInfo;
+
     WorldTable = 0;
     WorldBase = 0;
     SkyClear();
-    UnloadWaveInstance(gTrackLoadInfo_trackWave);
-    UnloadWaveInstance(gTrackLoadInfo_worldWave);
-    UnloadWaveInstance(gTrackLoadInfo_collisionWave);
+    UnloadWaveInstance(info->track.idx);
+    UnloadWaveInstance(info->world.idx);
+    UnloadWaveInstance(info->collision.idx);
     memset(&gTrackLoadInfo, 0, 0x2CU);
 }

@@ -65,7 +65,6 @@ struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), whic
 #define HEAP 0x80300000u             /* the game heap (AllocateMemoryHeap), the track's records */
 
 TInfo targetInfo[122];
-ALIAS(target_info_start_sounds, targetInfo, 0x2C);
 StatLL gTargetList, gAlwaysColList;
 typedef void (*HitFunc)(void *, void *, void *, int32_t);
 int32_t (*gTargetCollFuncPtrs[6])(void *, void *, void *, int32_t);
@@ -75,8 +74,7 @@ int32_t gBBoxModelCount, gBBoxModelUsed, gSilverCoinCnt, gGoldCoinCnt, gWhichSil
 void *gBBoxModelStructs;
 intptr_t gPlayerMines[4][5];
 void *gAlwaysCol;
-void *gTargetPaths;                    /* Scene36 *: the PTHD scenes, a track WAD record */
-int32_t gTargetPaths_count;
+struct { void *paths; int32_t count; } gTargetPaths;   /* paths, Scene36 *: the PTHD scenes, a track WAD record */
 void **gTargetGroupList;
 int32_t numgTargetGroupList;
 uint32_t gGameState, gGameState;
@@ -85,7 +83,7 @@ int32_t gRace, gRace, gPauseState, numCollisionTargetPtrs;
 int16_t gNumPlayers;
 volatile int16_t gNumCars;         /* the cars in the race (TargetCollTrigger's cars from 8 on) */
 volatile uint8_t gNumModels = 2;
-uint16_t gObjList[1024], gObjList_trigger_on, gObjList_trigger_off;   /* textures: the camera record names 361 */
+uint16_t gObjList[1024];   /* textures: the camera record names 361 */
 float unitmatrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
 float zero_velocity[3], velrot_gravity[3] = {0.0f, -0.25f, 0.0f}, unitmatrix_origin[3];
 float cactus_frame_time = 0.75f, fence_frame_time = 1.25f;
@@ -247,7 +245,7 @@ static void setup_track(void)
     uint8_t *sc = WP(SCENES), *k = WP(KEYS), *place = WP(PLACE);
 
     memset(sc, 0, 0x400);
-    gTargetPaths = WP(SCENES);
+    gTargetPaths.paths = WP(SCENES);
     NF(sc + 36, 0x10, uint32_t) = 0x20;       /* scene 1: the camera's; it has three keys */
     NF(sc + 36, 0x14, int16_t) = 3, NF(sc + 36, 0x16, int16_t) = 4;
     NF(sc + 36, 0x1C, uint32_t) = KEYS;
@@ -296,7 +294,7 @@ static void test_instantiate(void)
     float zero[3] = {0, 0, 0};
     StatLL *pool = &gTargetList;
 
-    expansion_pak_present = 1, gNumPlayers = 1, gGameState = 0, gTargetPaths_count = 0, numgTargetGroupList = 0, g_nvisual = 0, g_started = NULL;
+    expansion_pak_present = 1, gNumPlayers = 1, gGameState = 0, gTargetPaths.count = 0, numgTargetGroupList = 0, g_nvisual = 0, g_started = NULL;
     gObjList[3] = 0x1234;
     CHECK(SetupTarget(WP(PLACE), -1, zero, WP(PLACE), 0, 1, 1) == 1);
     strcpy((char *)WP(PLACE + 0x100), "NOTHING");
@@ -316,7 +314,7 @@ static void test_instantiate(void)
     ctl = NF(cam, 0x6C, uint32_t) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;   /* an N64 address, 4-aligned */
     CHECK(W32(gTargetStructPtrs[2]) >= HEAP && NF(cone, 0x6C, uint32_t) == W32(gTargetStructPtrs[2]));
     CHECK(gTargetOwnStructPtrs[2] == gTargetStructPtrs[2] + 24 && ctl == gTargetStructPtrs[4]);
-    CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &gTargetPaths[1] */
+    CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &gTargetPaths.paths[1] */
     CHECK(W32(gBBoxModelStructs) >= HEAP && NF(cam, 0x65, int8_t) == 0 && gBBoxModelUsed == 1);
     CHECK(NF(gBBoxModelStructs, 0, uint32_t) == 0x80118C10u + 2 * 32);    /* its body record */
     CHECK(NF(gBBoxModelStructs, 4, float) == 1.0f && NF(gBBoxModelStructs, 0x14, float) == 1.0f);
