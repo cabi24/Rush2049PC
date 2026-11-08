@@ -109,7 +109,8 @@ int pc_net_keep(const char *dir, const char *current, int keep, long long now, i
             s[k].newest = (long long)st.st_mtime;
     }
     closedir(d);
-    qsort(s, (size_t)n, sizeof *s, newest_first);
+    if (n > 1)   /* none found leaves s null, which qsort may not be given (C 7.22.5) */
+        qsort(s, (size_t)n, sizeof *s, newest_first);
     room = current && *current ? keep - 1 : keep;   /* the session starting is one of the newest */
     for (int i = 0; i < n; i++) {
         if (current && !strcmp(s[i].base, current))

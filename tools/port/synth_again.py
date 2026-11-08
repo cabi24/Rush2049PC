@@ -46,7 +46,10 @@ def main():
     cmd += spec["args"]
     env = dict(os.environ, RUSH_TRACE_WAVES="1", **spec["env"])
     t0 = time.time()
-    p = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300)
+    # as long as the first run might take (synth_paths.py --timeout: a sanitizer build's paths have 1500 s, and ghost2
+    # took over 300 under ASan on CI's arm runner)
+    limit = float(os.environ.get("SYNTH_PATH_TIMEOUT", "300"))
+    p = subprocess.run(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=limit)
     out = p.stdout.decode(errors="replace")
     Path(f"{stem}.log").write_text(out, encoding="utf-8")
     reached = [l for l in out.splitlines() if "state reached:" in l]

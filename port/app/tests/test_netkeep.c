@@ -106,6 +106,8 @@ int main(int argc, char **argv)
     }
     CHECK(pc_net_keep(dir, NULL, 20, now, &kept, say, sizeof say) == 0 && kept == 0, "no folder: nothing");
     CHECK(pc_app_mkdirs(dir) == 0, "the folder made");
+    /* no session in it (a first session's start): nothing to sort, and nothing given qsort (UBSan's nonnull, CI) */
+    CHECK(pc_net_keep(dir, NULL, 20, now, &kept, say, sizeof say) == 0 && kept == 0, "an empty folder: nothing");
 
     /* 25 old sessions (a day to 25 days old by their names, written as long ago), every second one a guest's with its
      * paks, a few with a desync report; one -2 of a second in the same second; the session starting (0) */

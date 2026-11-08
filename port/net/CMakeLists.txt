@@ -72,6 +72,9 @@ set_target_properties(pcnet_testlib net_test net_peer nat_test PROPERTIES EXPORT
 
 add_test(NAME net_unit COMMAND net_test unit)
 set_tests_properties(net_unit PROPERTIES TIMEOUT 120)
+if(PC_SANITIZE)   # under ASan on CI's 4 arm cores: 55 s at 41b4aee, over 120 at 7061bd8 (the rejoin and outage tests since)
+    set_tests_properties(net_unit PROPERTIES TIMEOUT 600)
+endif()
 add_test(NAME net_nat_unit COMMAND nat_test unit)
 add_test(NAME net_nat_fuzz COMMAND nat_test fuzz 200000)
 set_tests_properties(net_nat_unit net_nat_fuzz PROPERTIES TIMEOUT 300)

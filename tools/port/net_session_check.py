@@ -1553,7 +1553,7 @@ def mode_router(a):
             p = subprocess.run(base_cmd(a, hp, spec, ["--net-bind", "127.0.0.1", "--net-host", "0", "--set",
                                                       "net.upnp=on"]), env=e, cwd=run_dir, stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT, timeout=120)
-            out = p.stdout.decode(errors="replace")
+            out = p.stdout.decode(errors="replace").replace("\r\n", "\n")   # Windows' console ends lines CRLF
             (Path(a.logs) / f"router.{tag}.log").write_text(out)
             m = re.search(r"listening on port (\d+)", out)
             port = int(m.group(1)) if m else 0
