@@ -84,9 +84,13 @@ Each area's names are one file, `tools/port/names/<area>.tsv`, tab separated, `#
 
 A field row's new name may be a path into an array member (`tCarData.0x274` → `visuals[14].func`); a file row may
 name a folder. Two rows may give one new name to two names of one address (aliases in the symbol tables, such as
-`D_801174B4` and `state_word_a`): they become one symbol. `tools/port/names/drop.tsv` (`name  table  note`, table
-blob, boot_tail, ovl_a, ovl_b or `*`) lists the labels the loader's tables lose instead: stale guesses, labels inside
-other functions, second names nothing uses.
+`D_801174B4` and `state_word_a`): they become one symbol. A row's new name may be another row's old name (a chain:
+`func_800DE858` becomes `no_catchup` while `no_catchup` becomes `pak_insert_file`): all the rows are one
+simultaneous substitution. `tools/port/names/drop.tsv` (`name  table  note`, table blob, boot_tail, ovl_a, ovl_b or
+`*` for the loader's tables, `symbol_addrs` for a line of `symbol_addrs.us.txt`) lists the labels that go instead,
+before the maps apply: stale guesses, labels inside other functions, second names nothing uses, and the stale entries
+whose names the maps give to other addresses (`gNumPlayers`). `rename.py --apply` keeps the rows it applied in
+`tools/port/names/applied.tsv`, which names_check and a second `--apply` read.
 
 `tools/port/names_check.py` checks the maps and the drop list (format, duplicates and disagreements across maps,
 collisions with what the tree has, said with where and how: a static function in a file, a use, a table entry;
