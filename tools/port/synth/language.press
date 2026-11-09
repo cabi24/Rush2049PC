@@ -1,0 +1,31 @@
+# The language changed on the options screen, then a race in it (docs/port/NATIVE.md step 8, docs/code/ui.md 2): each
+# change reads the language's text bank over the last one in its block (LoadTextWave, ReplaceWave) and its converter
+# rebuilds the bank's tables (port/assets/text.c); the race's HUD draws its strings from Spanish's. On the synthetic
+# cartridge every language's strings are as long as English's and every letter the same box, so the picture is
+# drive's kind of race: the HUD text drawn in black.
+# until: 0x400000:600
+# visits: 0x200
+# seconds: 90
+# expect: state=0x00400000: players 1, windows 1, cars 6, mode 0, track 0
+# env: RUSH_TRACE_WAVES=1
+# args: --screenshot-at 1700 --screenshot language.png
+# check: tools/port/mods_check.py log language.game.log --count "wave 1 loaded=2" --count "wave 2 loaded=1" --lacks "no text bank was converted" --lacks "runs past"
+# check: tools/port/synth_shot.py language.png 1
+# check: tools/port/mods_check.py shot language.png --rgb 0,0,0 --min 400
+5 A            # the controller pak warning
+8 START        # the start prompt; the main menu from 8 s
+10 DOWN 0.1    # its second option
+11 DOWN 0.1    # its third: the options (0x200)
+12 A
+15 RIGHT 0.1   # the language: Spanish (bank 1)
+17 RIGHT 0.1   # Italian (bank 2)
+19 LEFT 0.1    # Spanish again
+22 B           # back to the main menu, on its third option
+24 UP 0.1
+25 UP 0.1      # its first: the race
+26 A
+29 A           # the player screen
+32 A           # the mode screen: a single race
+35 A           # the track select: track 0
+38 A           # the car select; the race starts at about 38.6 s and its countdown runs 3.5 s
+42 A 10        # gas for 10 s

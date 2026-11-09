@@ -45,7 +45,7 @@ After a change, in your tree on Rocky:
 2. `python3 tools/port/synth_compare.py --exe ~/rush2049pc/pconly-base/build/pc/rush2049pc --exe build/pc/rush2049pc
    --rom ~/rush2049pc/pconly-base/build/pc/synth/rush2049_synth.z64 --same --shots --audio -j 8 --logs
    build/pconly-compare` must say every path is `same`: the state changes, the first car's exact position and speed
-   every second, every screenshot byte for byte and every sound byte for byte, along all 63 synthetic paths.
+   every second, every screenshot byte for byte and every sound byte for byte, along all 64 synthetic paths.
    (`--audio` can report `varies` on a loaded machine for a path's last subframe; rerun that path alone before
    believing it.)
 3. The lead also runs the retail cartridge on the Pi for merged game-C changes (race, battle, stunt, the front end);
