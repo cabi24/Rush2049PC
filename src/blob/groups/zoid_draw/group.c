@@ -1437,8 +1437,9 @@ void ZOID_EndFrame(s32 skip_blits)
             BlitXLU(blit->alpha);
         }
         if (blit->palette != NULL) {
-            pal = blit->palette;
-            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
+            /* a palette the game filled in for this blit (healthPal, n64FogPal): its colours are a pointer, where
+             * the N64 kept their 32-bit address (as the WAD's palettes below still do) */
+            BlitColors(((tBlitPalette *)blit->palette)->palBase, tex->format, tex->size, 0);
         } else if (tex->palIndex >= 0) {
             pal = &gPalDefPtrs[blit->texIndex >> 10].palDefs[tex->palIndex];
             BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
