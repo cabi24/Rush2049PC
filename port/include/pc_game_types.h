@@ -467,8 +467,8 @@ extern struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* N64 gTargetArray */
 /* The world's target groups' list (MAT3 gTargetGroupList, the world WAD's GTLD chunk): one entry per key the
  * quadtree's leaves (gTargetGroups) index, which CheckTargetCollision tests a car against. On the N64 race set-up
  * replaced the file's 32-bit keys in place by the targets they name; on the PC the list is a native side table
- * that LoadTrack gets from the world's converter with the file's keys (pc_world_chunk, port/assets/world.c;
- * docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
+ * that the world's converter builds with the file's keys when it loads (struct pc_world_records below,
+ * port/assets/world.c; docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
 struct pc_target_group {
     int key;                            /* the file's key: a world object's tidx, a path's parent */
     struct tTarget *target;             /* the target whose mbIdx is the key (SetTargetDefs), NULL none */
@@ -501,6 +501,27 @@ struct TextTables {                     /* 0x48 */
 /* The tables of the text bank in the heap block `file`: port/assets/text.c builds them when the bank loads, and again
  * when ReplaceWave reads another language into the block, where they were. */
 const struct TextTables *pc_text_bank(const void *file);
+
+/* A world tree's name and root node (MAT3 anon_woff_wname_14, the world WAD's 0x14-byte WHDR entry {woff, wname}):
+ * the node a host pointer where the file has its offset (LoadTrack added the file's address to it on the N64). The
+ * table is sorted by name, as the file's is; NewWorld bsearches it (WorldTable). */
+struct NameEntry {
+    struct tModelPart *node;            /* the tree's root: a WOBJ node in the file */
+    char name[16];
+};
+/* A world WAD's records (port/assets/world.c builds them when the file loads), which LoadTrack points the world's
+ * globals at: the names of its trees, its targets' quadtree (GDAT, in the file: no pointers) and the target groups'
+ * list (GTLD's keys, each with room for the target SetTargetDefs finds for it; none found yet). A chunk the file
+ * doesn't have is NULL with a count of 0, as MBGetFromWad gave it. */
+struct pc_world_records {
+    int numWorlds;                      /* *gWorldData: WHDR's count */
+    struct NameEntry *worlds;           /* WorldTable */
+    struct tTargetGroup *targetGroups;  /* gTargetGroups: GDAT */
+    int numTargetGroups;                /* numgTargetGroups: GDAT's count word in the file's table of contents */
+    struct pc_target_group *targetGroupList;   /* gTargetGroupList: GTLD */
+    int numTargetGroupList;             /* numgTargetGroupList: its keys */
+};
+struct pc_world_records *pc_world_records(const void *file);   /* the world WAD in the heap block `file` */
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets

@@ -139,7 +139,6 @@ struct ModelRecord;
 struct ModelSnapshot;
 struct ModelView;
 struct MultiBlit;
-struct NameEntry;
 struct Nav;
 struct Node;
 struct Node104;
@@ -1181,6 +1180,11 @@ typedef struct PolyInstance { /* 0x58 bytes */
     s16 z;        /* 0x6 */
     u8 verts[80]; /* 0x8 */
 } PolyInstance;
+
+/* A world tree's name and root node (MAT3 anon_woff_wname_14, the world WAD's WHDR entry; WorldTable): declared in
+ * pc_game_types.h, where the world's converter builds the table beside the file, the root a host pointer
+ * (port/assets/world.c). */
+typedef struct NameEntry NameEntry;
 
 /* ---- blit: the 2D blitter and panes */
 

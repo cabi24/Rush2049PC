@@ -1,9 +1,11 @@
 /* port/assets/tests/test_world.c: the world WAD converter (port/assets/world.c) on a synthetic world WAD whose
  * table of contents is big-endian (before pc_assets_wad) or already native (after it), with and without a WOBJ
- * entry, and with WOBJ and GDAT count words that don't fit; then the game's own NewWorld (NewWorld and its bsearch over the WHDR names) on the converted
- * file, and LoadTrack's native GTLD side table (pc_world_chunk: struct pc_target_group).
+ * entry, and with WOBJ and GDAT count words that don't fit; then the world's records the converter builds beside
+ * the file (struct pc_world_records: the names with host pointers to their roots, GDAT, GTLD's side table of
+ * struct pc_target_group), the game's own NewWorld (its bsearch over the names) on them as LoadTrack sets them, and
+ * the records' going with the block.
  * game: src/blob/NewWorld.c src/blob/game_bsearch.c src/blob/world_name_compare.c
- * game: src/blob/game_strcpy.c src/blob/game_strcmp.c
+ * game: src/blob/game_strcmp.c
  */
 #include <string.h>
 
@@ -11,12 +13,11 @@
 #include "pc_game_types.h"
 #include "support.h"
 
-uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count);
-
 /* NewWorld's globals and callees. */
 int16_t Worlddlidx;
-void *WorldBase, *WorldTable;
-uint32_t *gWorldData;
+void *WorldBase;
+struct NameEntry *WorldTable;
+int32_t *gWorldData;
 static void *g_placed;
 static int g_placed_parent;
 void NewWorldObject(void *node, int16_t parent) { g_placed = node, g_placed_parent = parent; }
@@ -93,7 +94,7 @@ static void make_world_counts(uint8_t *f, int with_wobj, int native_toc, uint32_
     }
     test_put32(f + GTLD, 5);
     test_put32(f + GTLD + 4, 0xFFFFFFFFu);
-    test_put32(f + GTLD + 8, PC_RDRAM_BASE + 0x1234u);   /* a key that is a window address */
+    test_put32(f + GTLD + 8, 0xFEDC1234u);   /* a key with its top bit set */
     for (i = 0; i < 4; i++) {
         uint8_t *e = f + TOC + 12 * n;
         if (i == 1 && !with_wobj)
@@ -159,81 +160,94 @@ static void check_world(uint8_t *f, int node4_converted)
     memcpy(&h, f + GDAT + 0x1C + 0x1A, 2);
     CHECK(h == 13);
     memcpy(&v, f + GTLD + 8, 4);
-    CHECK(v == PC_RDRAM_BASE + 0x1234u);
+    CHECK(v == 0xFEDC1234u);
+}
+
+/* The records the converter built for the world WAD at f: the names with their roots in the file, GDAT where it is
+ * in the file with its count word, GTLD's keys (s32) with no targets yet. The file keeps its offsets. */
+static void check_records(uint8_t *f)
+{
+    struct pc_world_records *r = pc_world_records(f);
+    uint32_t woff;
+
+    CHECK(r->numWorlds == 2 && r->worlds);
+    CHECK(strcmp(r->worlds[0].name, "ALPHA") == 0 && (uint8_t *)r->worlds[0].node == f + WOBJ);
+    CHECK(strcmp(r->worlds[1].name, "BRAVO") == 0 && (uint8_t *)r->worlds[1].node == f + WOBJ + 2 * 0x68);
+    memcpy(&woff, f + WHDR + 0x18, 4);
+    CHECK(woff == WOBJ + 2 * 0x68);
+    CHECK((uint8_t *)r->targetGroups == f + GDAT);
+    CHECK(r->numTargetGroupList == 3 && (uint8_t *)r->targetGroupList != f + GTLD);
+    CHECK(r->targetGroupList[0].key == 5 && r->targetGroupList[1].key == -1);
+    CHECK(r->targetGroupList[2].key == (int32_t)0xFEDC1234u);
+    CHECK(!r->targetGroupList[0].target && !r->targetGroupList[1].target && !r->targetGroupList[2].target);
 }
 
 int main(void)
 {
-    uint8_t *w = test_rdram(), *f;
-    static uint8_t host[0x400];
+    static uint8_t f[0x400];   /* the world WAD's heap block */
+    struct pc_world_records *r;
     int native, wobj;
 
-    f = w ? w + 0x300000 : host;
     for (native = 0; native < 2; native++)
         for (wobj = 1; wobj >= 0; wobj--) {
             make_world(f, wobj, native);
-            pc_assets_world(120, f, 0x400);
+            pc_assets_world(120, f, sizeof f);
             check_world(f, wobj);
+            check_records(f);
+            CHECK(pc_world_records(f)->numTargetGroups == 2);
         }
 
     /* The WOBJ and GDAT count words are record counts, which the game itself never reads: one that doesn't fit
      * the file (0, or a byte length) is not reread as bytes; the nodes NewWorld reaches and the quadtree
-     * CheckTargetCollision walks are converted instead, and GTLD, after them, is converted once. */
+     * CheckTargetCollision walks are converted instead, and GTLD, after them, is converted once. GDAT's count word
+     * is what numgTargetGroups gets, as it is. */
     {
         static const uint32_t bad[3][2] = {{0, 0}, {NODES * 0x68, 2 * 0x1C}, {0x10000, 0xFFFFFFFFu}};
         int b;
         for (b = 0; b < 3; b++) {
             make_world_counts(f, 1, b & 1, bad[b][0], bad[b][1]);
-            pc_assets_world(120, f, 0x400);
+            pc_assets_world(120, f, sizeof f);
             check_world(f, 0);
+            check_records(f);
+            CHECK(pc_world_records(f)->numTargetGroups == (int32_t)bad[b][1]);
         }
     }
 
-    /* A WHDR that claims more worlds than fit is left as it is. */
+    /* A WHDR that claims more worlds than fit is left as it is: no names. */
     make_world(f, 1, 1);
     test_put32(f + WHDR, 1000);
-    pc_assets_world(120, f, 0x400);
+    pc_assets_world(120, f, sizeof f);
     CHECK(pc_be32(f + WHDR) == 1000 && pc_be32(f + WHDR + 4) == WOBJ);
+    CHECK(pc_world_records(f)->numWorlds == 0 && !pc_world_records(f)->worlds);
 
-    if (!w) {
-        fprintf(stderr, "test_world: no RDRAM window here, NewWorld and GTLD skipped\n");
-        return TEST_DONE();
-    }
-
-    /* LoadTrack: the WHDR offsets become window addresses, then NewWorld looks a world up by name. */
+    /* LoadTrack points the globals at the records, then NewWorld looks a world up by name. */
     make_world(f, 1, 0);
-    pc_assets_world(120, f, 0x400);
-    gWorldData = (uint32_t *)(f + WHDR);
-    WorldTable = gWorldData + 1;
-    {
-        uint32_t woff;
-        int i;
-        for (i = 0; i < 2; i++) {
-            memcpy(&woff, f + WHDR + 4 + 0x14 * i, 4);
-            woff += (uint32_t)(uintptr_t)f;
-            memcpy(f + WHDR + 4 + 0x14 * i, &woff, 4);
-        }
-    }
+    pc_assets_world(120, f, sizeof f);
+    r = pc_world_records(f);
+    gWorldData = &r->numWorlds;
+    WorldTable = r->worlds;
     CHECK(NewWorld((uint8_t *)"BRAVO", -1) == -1);
     CHECK(g_placed == f + WOBJ + 2 * 0x68 && WorldBase == g_placed && g_placed_parent == -1);
     NewWorld((uint8_t *)"ALPHA", 3);
     CHECK(g_placed == f + WOBJ && g_placed_parent == 3);
 
-    /* GTLD as LoadTrack gets it: a native side table, each of the file's keys (an s32) with no target yet. */
-    {
-        int32_t count = 3;
-        uint32_t addr = (uint32_t)(uintptr_t)(f + GTLD);
-        struct pc_target_group *groups = (struct pc_target_group *)pc_world_chunk(addr, 0x47544C44, &count);
-        CHECK((uint8_t *)groups != f + GTLD);
-        CHECK(groups[0].key == 5 && groups[1].key == -1 && groups[2].key == (int32_t)(PC_RDRAM_BASE + 0x1234u));
-        CHECK(!groups[0].target && !groups[1].target && !groups[2].target);
-        groups[1].target = (struct tTarget *)groups;                /* a target found; the next track's table has none */
-        count = 2;
-        CHECK((struct pc_target_group *)pc_world_chunk(addr, 0x47544C44, &count) == groups && !groups[1].target);
-        CHECK(pc_world_chunk(addr, 0x47444154, &count) == addr);
-        CHECK(pc_world_chunk(addr, 0x57484452, NULL) == addr);
-        count = 0;
-        CHECK(pc_world_chunk(0, 0x47544C44, &count) == 0);
-    }
+    /* A target SetTargetDefs finds stays in the list; the next load of the world (into the block) has none. */
+    r->targetGroupList[1].target = (struct tTarget *)r;
+    CHECK(pc_world_records(f)->targetGroupList[1].target == (struct tTarget *)r);
+    make_world(f, 1, 1);
+    pc_assets_world(121, f, sizeof f);
+    check_records(f);
+
+    /* A world without GTLD and GDAT: none, and counts of 0, as MBGetFromWad gave them. */
+    make_world(f, 1, 0);
+    test_put32(f + 4, 2);   /* the TOC's first two entries: WHDR and WOBJ */
+    pc_assets_world(120, f, sizeof f);
+    r = pc_world_records(f);
+    CHECK(r->numWorlds == 2 && !r->targetGroups && !r->numTargetGroups);
+    CHECK(!r->targetGroupList && !r->numTargetGroupList);
+
+    /* The records go with the block. */
+    pc_heap_block_freed(f, sizeof f);
+    CHECK(pc_world_records(f)->numWorlds == 0 && !pc_world_records(f)->worlds);
     return TEST_DONE();
 }

@@ -1,16 +1,20 @@
 /* port/assets/world.c: the world WADs, waves 120..138 (docs/port/ASSETS.md §3.4).
  *
  * A world WAD is a WAD (pc_assets_wad runs first and handles the container) with four chunks of its own:
- *   WHDR  u32 count; count x {u32 woff; char name[16]} (0x14), sorted by name. LoadTrack adds the file's address
- *         to woff; NewWorld bsearches the names.
+ *   WHDR  u32 count; count x {u32 woff; char name[16]} (0x14), sorted by name: each world tree's root node (its
+ *         offset in the file) and name. On the N64 LoadTrack added the file's address to woff; NewWorld bsearches
+ *         the names.
  *   WOBJ  0x68-byte world nodes: char name[16]; f32 mat[12] @0x10; u32 dlflags @0x40; s16 next, child, sfx1,
  *         sfx2 @0x44; s32 tidx @0x4C; f32 min[3], max[3] @0x50. next and child index from the world's first node.
  *   GDAT  0x1C-byte quadtree nodes: s16 parent; u8, u8 flags; f32 minh, maxh, minv, maxv; u16 child[4].
  *   GTLD  u32 target keys, which race setup (SetTargetDefs, groups/targets) replaced in place by the targets they
  *         name on the N64.
- * pc_assets_world swaps all four in place. A target is a host pointer, which doesn't fit a GTLD slot, so LoadTrack
- * (groups/loadtrack/loadtrack.c) gets GTLD from pc_world_chunk as a native side table instead (pc_game_types.h's
- * struct pc_target_group: each key, and the target SetTargetDefs finds for it; ASSETS.md §4 #14).
+ * pc_assets_world swaps all four in place, then builds the world's records beside the file (records.c,
+ * docs/port/NATIVE.md 4.4): struct pc_world_records (pc_game_types.h), which LoadTrack (groups/loadtrack) points the
+ * world's globals at. The names table is the WHDR entries with each root a host pointer into the file (struct
+ * NameEntry); GDAT is the file's own (no pointers); GTLD is a native side table, each key with room for the target
+ * SetTargetDefs finds for it, since a target's host pointer doesn't fit a 4-byte slot (struct pc_target_group;
+ * ASSETS.md §4 #14). So the file keeps its offsets and keys, and the game finds no chunk by an address.
  *
  * The chunks are found through the WAD's table of contents (file +0: TOC offset, +4: entry count; entries
  * {u32 tag, u32 offset, u32 count}). pc_assets_wad may already have swapped it to host order, or not: each word
@@ -179,12 +183,24 @@ static void swap_gdat_tree(uint8_t *buf, size_t size, size_t off)
     free(done);
 }
 
+static void release_world(void *records)
+{
+    struct pc_world_records *w = (struct pc_world_records *)records;
+
+    free(w->worlds);
+    free(w->targetGroupList);
+    free(w);
+}
+
 void pc_assets_world(int wave, uint8_t *buf, size_t size)
 {
+    struct pc_world_records *w = (struct pc_world_records *)calloc(1, sizeof *w);
     size_t off, i, n;
     uint32_t count, worlds = 0;
     const uint8_t *whdr = NULL;
 
+    if (!w)
+        abort();
     if (find_chunk(buf, size, TAG_WHDR, &off, &count) && size - off >= 4
         && pc_be32(buf + off) <= (size - off - 4) / 0x14) {
         worlds = pc_be32(buf + off);
@@ -209,38 +225,51 @@ void pc_assets_world(int wave, uint8_t *buf, size_t size)
             swap_gdat(buf + off + GDAT_SIZE * i);
         if (!n)
             swap_gdat_tree(buf, size, off);
+        w->targetGroups = (struct tTargetGroup *)(buf + off);
+        w->numTargetGroups = (int)count;   /* the count word, whatever it counts: the game never reads it */
     }
 
-    if (find_chunk(buf, size, TAG_GTLD, &off, &count))
-        pc_swap32_n(buf + off, chunk_records(wave, "GTLD", off, count, 4, size));
+    if (find_chunk(buf, size, TAG_GTLD, &off, &count)) {
+        n = chunk_records(wave, "GTLD", off, count, 4, size);
+        pc_swap32_n(buf + off, n);
+        /* The target groups' list: each key (an s32, as SetTargetDefs compares it with a target's mbIdx), no target
+         * yet. */
+        w->targetGroupList = (struct pc_target_group *)malloc((n ? n : 1) * sizeof *w->targetGroupList);
+        if (!w->targetGroupList)
+            abort();
+        for (i = 0; i < n; i++) {
+            memcpy(&w->targetGroupList[i].key, buf + off + 4 * i, 4);
+            w->targetGroupList[i].target = NULL;
+        }
+        w->numTargetGroupList = (int)n;
+    }
+
+    /* The world trees' names, each root a host pointer into the file (on the N64 LoadTrack added the file's address
+     * to its offset). */
+    if (whdr) {
+        w->worlds = (struct NameEntry *)malloc((worlds ? worlds : 1) * sizeof *w->worlds);
+        if (!w->worlds)
+            abort();
+        for (i = 0; i < worlds; i++) {
+            const uint8_t *e = whdr + 4 + 0x14 * i;
+            uint32_t woff;
+
+            memcpy(&woff, e, 4);
+            w->worlds[i].node = (struct tModelPart *)((uintptr_t)buf + woff);
+            memcpy(w->worlds[i].name, e + 4, sizeof w->worlds[i].name);
+        }
+        w->numWorlds = (int)worlds;
+    }
+    pc_records_keep(buf, size, PC_RECORDS_WORLD, w, release_world);
 }
 
-/* LoadTrack's MBGetFromWad on PC: the chunk's host address, from its 32-bit window address, for every tag but GTLD.
- * For GTLD, the target groups' list as a native side table (struct pc_target_group): each of the file's count keys
- * (an s32, as SetTargetDefs compares it with a target's mbIdx) with no target yet, which SetTargetDefs fills in. One
- * table, reused by the next track (a track loads its world once; a restart keeps the targets found). */
-uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
+struct pc_world_records *pc_world_records(const void *file)
 {
-    static struct pc_target_group *groups;
-    static size_t cap;
-    const uint32_t *src = addr ? (const uint32_t *)pc_n64_ptr(addr) : NULL;   /* 0: no such chunk */
-    int32_t n = count ? *count : 0, i;
+    static struct pc_world_records none;
+    struct pc_world_records *w = (struct pc_world_records *)pc_records_find(file, PC_RECORDS_WORLD);
 
-    if ((uint32_t)tag != TAG_GTLD || !addr)
-        return (uintptr_t)src;
-    if (n < 0)
-        n = 0;
-    if (cap < (size_t)n || !groups) {
-        size_t c = n ? (size_t)n : 1;
-        struct pc_target_group *g = (struct pc_target_group *)realloc(groups, c * sizeof *g);
-        if (!g)
-            abort();
-        groups = g;
-        cap = c;
-    }
-    for (i = 0; i < n; i++) {
-        groups[i].key = (int32_t)src[i];
-        groups[i].target = NULL;
-    }
-    return (uintptr_t)groups;
+    if (w)
+        return w;
+    fprintf(stderr, "rush2049pc: no world WAD was converted at %p: no world\n", file);
+    return &none;
 }

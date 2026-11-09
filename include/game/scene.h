@@ -149,8 +149,8 @@ extern struct Lights2 *gLights;
 extern volatile u8 gNumModels[EXTENT(4)];
 extern s32 gMaxPolyInsts;
 extern u8 gNumZoidWindows;
-extern s32 *gWorldData;
-extern struct NameEntry *WorldTable;
+extern s32 *gWorldData;                 /* *gWorldData: how many world trees WorldTable has (LoadTrack) */
+extern struct NameEntry *WorldTable;    /* the track's world trees by name (struct pc_world_records) */
 extern s16 scissor0[EXTENT(4)];
 extern s16 scissor1[EXTENT(4)];
 extern s16 scissor2[EXTENT(4)];
@@ -223,7 +223,7 @@ s32 texcmp(u8 *ta, u8 *tb);
 void TextureAnimation(void);
 s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth,
              s32 more_after, s32 use_parent_distance, struct tPaletteDef *palette);
-s32 world_name_compare(intptr_t key, intptr_t entry);
+s32 world_name_compare(void *name, void *entry);
 void WorldClear(void);
 void WorldCullObjects(s32 unused, f32 *pos, s32 show);
 void WorldFogDensity(s32 winidx, f32 *pos);
