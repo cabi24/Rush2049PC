@@ -821,6 +821,42 @@ static void test_dma(void)
     CHECK(musyx_start_dma_list((intptr_t)list, 0, (intptr_t)&done) == 1 && seen_ndma == 3);   /* nothing to do */
 }
 
+/* SET_PITCH (macros.c's sound_macro_set_pitch): the note and detune that play a sample of root key 60 at 16000 Hz at
+ * another rate. A rate an exact power-of-two multiple of the sample's leaves the semitone search with no entry of
+ * its table below the ratio: the N64 reads the halfword before the table and plays one note lower and 100 cents up
+ * (the exact pitch); the PC read 8 GiB past the table. The voice's fields: flags +0x24, note +0x50, the sample's
+ * root key and rate +0x5C, detune +0xC0. */
+uint8_t sound_macro_set_pitch(void *state, void *command);
+static void test_set_pitch(void)
+{
+    static const struct { uint32_t rate; uint16_t note; int8_t detune; } cases[] = {
+        { 16000, 60, 0 },     /* the sample's own rate */
+        { 24000, 67, 1 },     /* a fifth up: semitone 7 (6144 against 6137 and 6502 in 4096ths), 1 cent */
+        { 32000, 71, 100 },   /* an octave up: 72 as 71 and 100 cents (the search ran past the table) */
+        { 64000, 83, 100 },   /* two octaves up */
+        { 8000, 49, -100 },   /* an octave down: 48 as 49 and 100 cents down */
+        { 12000, 56, -98 },   /* a fourth down: 4 semitones and 98 cents (ratio 5461, between 5160 and 5467) */
+    };
+    static uint8_t voice[0x100];
+    uint32_t command[2];
+
+    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+        uint32_t flags, info = 60u << 24 | 16000;
+        uint16_t note;
+        memset(voice, 0, sizeof voice);
+        memcpy(voice + 0x5C, &info, 4);
+        command[0] = cases[i].rate << 8;
+        command[1] = 0;
+        CHECK(sound_macro_set_pitch(voice, command) == 0);
+        memcpy(&note, voice + 0x50, 2);
+        memcpy(&flags, voice + 0x24, 4);
+        if (note != cases[i].note || (int8_t)voice[0xC0] != cases[i].detune || !(flags & 0x100))
+            fprintf(stderr, "set pitch %u Hz: note %u detune %d flags %#x\n", (unsigned)cases[i].rate, note,
+                    (int8_t)voice[0xC0], (unsigned)flags);
+        CHECK(note == cases[i].note && (int8_t)voice[0xC0] == cases[i].detune && (flags & 0x100));
+    }
+}
+
 static void test_game(void)
 {
     uint8_t *w = low_window(0x20000), *prj, *pl, *sd, *sg, *base_ptr;
@@ -957,5 +993,6 @@ int main(void)
     test_damaged();
     test_game();
     test_dma();
+    test_set_pitch();
     return TEST_DONE();
 }
