@@ -10,7 +10,9 @@ VIEW(Instrument4[4], boot_sfx_groups);
 
 extern u8 sample_bank_rom[];
 /* sample_bank_rom is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
- * 32-bit value the translation gives back (PC_N64A; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
+ * 32-bit value the translation gives back (PC_N64A; pc_prelude.h, docs/port/NOFIXED.md 9.1). musyx_samples holds it
+ * zero-extended: as (s32) it was sign-extended to 0xFFFFFFFFB0039B40, which reached the same 32-bit sample addresses
+ * (registry.c's sound_add_sample keeps 32 bits) but read as a host pointer to the crossing counter (NATIVE.md 9). */
 
 extern void osCreateMesgQueue(void *,void *,s32);
 extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);
@@ -57,7 +59,7 @@ void AudioInitSys(s32 maxVoices,s32 maxSfx,s32 maxMusic)
         handle=LoadWave(WAVE_MUSYX_SDIR,0,0,0,0);
         LockWaveInstance(handle);
         musyx_sdir=GetWaveInstanceAddr(handle);
-        musyx_samples=(s32)PC_N64A(sample_bank_rom);
+        musyx_samples=(void *)(uintptr_t)PC_N64A(sample_bank_rom);   /* the cartridge address, zero-extended */
         sound_set_services(&audio_driver_services);
     }
     if(audio_driver_started) {

@@ -591,7 +591,7 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
 /* ---------------------------------------------------------------- the mods folder (docs/port/MODS.md) */
 
 /* The ROM offset the sample directory's offsets count from: the sample base AudioInitSys hands sndPushGroup,
- * (s32)sample_bank_rom (groups/AudioInitSys/AudioInitSys.c, docs/port/MUSYX_DATA.md). */
+ * sample_bank_rom's cartridge address (groups/AudioInitSys/AudioInitSys.c, docs/port/MUSYX_DATA.md). */
 #define MODS_SAMPLE_BASE 0x39B40u
 
 static PcMenuMod g_menu_mods[PC_MENU_MODS];
