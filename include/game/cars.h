@@ -4,6 +4,104 @@
 
 #include "game/types.h"
 
+/* Constants: the names of MAT3's rush_flags.h, the same values. */
+
+/* tModelData.appearance, copied each frame to tCarData.appearance: the effects the car shows. The physics side
+ * (the model step, respawning, the road collision) sets them, update_game_data copies them, the visuals, smoke and
+ * skids read them. Tires and corners: 0 and 1 the front pair, 2 and 3 the rear; 0 and 2 on the +x side. */
+#define APPEAR_SKID_T1       0x2        /* a skid mark under tire 1 */
+#define APPEAR_SKID_T0       0x4
+#define APPEAR_INVISIBLE     0x8        /* not drawn this frame: the blink while not solid after a respawn */
+#define APPEAR_HULK          0x10       /* draw the burnt-out wreck (body 13); also the "drive the hulk" cheat */
+#define APPEAR_WRECK_SMOKE   0x60       /* the wreck's smoke (StartSmoke type 4); 0x20 and 0x40 go together */
+#define APPEAR_SPARK_C0      0x80       /* the body scraping at corner 0: sparks (above 20 ft/s) */
+#define APPEAR_SPARK_C1      0x100
+#define APPEAR_SKID_T3       0x200
+#define APPEAR_SKID_T2       0x400
+#define APPEAR_THUMP         0x800      /* an underbody hit: sparks under the car */
+#define APPEAR_BRAKE         0x1000     /* the brake lights on */
+#define APPEAR_SPARK_C3      0x2000
+#define APPEAR_SPARK_C2      0x4000
+#define APPEAR_SMOKE_T2      0x10000    /* tire smoke (StartSmoke type: the tire's number) */
+#define APPEAR_SMOKE_T3      0x20000
+#define APPEAR_SMOKE_T0      0x40000
+#define APPEAR_SMOKE_T1      0x80000
+#define APPEAR_BODY_HIT      0x100000   /* one frame: the body hit the world (the stunt code counts it) */
+#define APPEAR_CRASHED       (APPEAR_HULK | APPEAR_WRECK_SMOKE)   /* a crash makes the car a smoking hulk */
+
+/* tCarData.visuals[21]: which visual animates what (StartCar, StartEnvironment). MAT3's car has a headlight visual
+ * at 1 and 22 visuals, so its indices from there on are one more. 15 is left unused. */
+#define VIS_BRAKE_LIGHTS     0          /* AnimateBrakeLights */
+#define VIS_SPARKS           1          /* 1-5: the sparks at the front left, rear left, front right, rear right
+                                         * corners and under the car (AnimateLFSpark ... AnimateBSpark) */
+#define VIS_TIRES            6          /* 6-9: the tires 0-3 (AnimateTire) */
+#define VIS_SHADOW           10         /* AnimateShadow */
+#define VIS_ARROWS           11         /* the arrows over a human's car in split screen, one for each other
+                                         * window: 11-12, and 13 with four windows */
+#define VIS_ARROWS_END       13         /* StartArrow clears the unused arrow visuals below it */
+#define VIS_FRAME            14         /* the body (AnimateFrame) */
+#define VIS_WINGS            16         /* 16-17: the left and right wings (AnimateWing) */
+#define VIS_WING_FLAMES      18         /* 18-19: their flames (AnimateWingFlame) */
+#define VIS_WEAPON           20         /* the battle weapon (AnimateWeapon) */
+#define CAR_VISUALS          21
+
+/* gObjList: the scene object definitions the cars and the track's objects are made from, by kind
+ * (InitVisuals, InitCarDynamicObjs, InitTrackDynamicObjs). */
+#define OBJLIST_CAR_PARTS    0          /* 3 a car slot: the frame, the hood, the sheen (carObjNames), for 52
+                                         * slots: 13 cars for each of the car screen's 4 players */
+#define OBJLIST_TIRE         156        /* the tire (tire_object_names) */
+#define OBJLIST_HULK         157        /* the burnt-out wreck; 157-215 the effects (InitTrackDynamicObjs_ObjNames) */
+#define OBJLIST_SPARK        194
+#define OBJLIST_ROCKET_FLAME 213        /* 213-215: the rocket car's three flames */
+#define OBJLIST_WEAPONS      216        /* 216-223 (WeaponNames) */
+#define OBJLIST_WINGS        224        /* 224-235: 4 per wing type: left, right, left flame, right flame (WingNames) */
+#define OBJLIST_TRACK        236        /* the track's objects (TrkNames) */
+#define OBJLIST_MINE         236        /* the mine instead of the first of them (the cone) when cones or cars
+                                         * carry mines (gMineCones, gCarMines) */
+
+/* StartSmoke's type: what the puffs come from (MAT3 smoke.c calls it `tire`). Types 0-3 are the tires (with
+ * StartSmoke's `water` set, a water spray instead: StartWater). */
+#define SMOKE_TIRE0          0          /* SMOKE_TIRE0 + n: tire n's smoke, n 0-3 */
+#define SMOKE_WRECK          4          /* the wreck's grey smoke (APPEAR_WRECK_SMOKE) */
+#define SMOKE_FIRE           5          /* a blast's flames (StartNewBlast) */
+#define SMOKE_WING0          6          /* the wing's vapour trail on side 0 (-x), and on side 1 (+x): */
+#define SMOKE_WING1          7
+
+/* pc_tire_fx[car] (N64 and MAT3 gCarSmokeDir): each car's smoke latches. Puffs flip their animation's direction
+ * one after the other, so neighbouring puffs turn opposite ways. */
+#define SMOKE_SPIN_T0        0x1        /* tire 0's next puff turns backwards */
+#define SMOKE_SPIN_T1        0x2
+#define SMOKE_SPIN_T2        0x4
+#define SMOKE_SPIN_T3        0x8
+#define SMOKE_SPIN_WRECK     0x10       /* the same for the wreck's smoke */
+#define SMOKE_WRECK_ON       0x20       /* the wreck's smoke has started (its grey, pc_smoke_shade, from 175) */
+#define SMOKE_WRECK_WAIT1    0x40       /* the wreck smokes every third call: two calls to skip (WAIT1, then */
+#define SMOKE_WRECK_WAIT2    0x80       /* WAIT2) after each puff, */
+#define SMOKE_WRECK_WAIT3    0x80000    /* and a third with three or four players (the N64's) */
+#define SMOKE_WATER_T0       0x100      /* tire 0 is throwing a water spray (its two puffs live) */
+#define SMOKE_WATER_T1       0x200
+#define SMOKE_WATER_T2       0x400
+#define SMOKE_WATER_T3       0x800
+#define SMOKE_SPIN_WING0     0x1000     /* SMOKE_SPIN_T0 for the wing trails */
+#define SMOKE_SPIN_WING1     0x2000
+#define SMOKE_TRAIL_WING0    0x4000     /* the wing trail has a last point (pc_trail_pts): the next puffs fill */
+#define SMOKE_TRAIL_WING1    0x8000     /* the gap to it */
+
+/* A smoke puff's data word (gSmokeObjs[].data) */
+#define PUFF_FORWARD         0x1        /* its animation runs forwards (else backwards) */
+#define PUFF_WATER           0x10       /* a water-spray puff: it follows its tire */
+#define PUFF_TYPE_SHIFT      17         /* bits 17-20: its StartSmoke type */
+
+/* A light streak's flags (gStreakArray[].flags: the trails behind battle shots, streaks.c and NewStreak). One of
+ * the four widths, which also sets the colour (gStreakColors) and how long its ribbon lasts: */
+#define STREAK_WIDE          0x1        /* 0.75 ft each side, 0.75 s (NewStreak type 0) */
+#define STREAK_MEDIUM        0x2        /* 0.5 ft, 0.5 s */
+#define STREAK_NARROW        0x4        /* 0.35 ft, 0.25 s */
+#define STREAK_THIN          0x8        /* 0.025 ft, 0.16 s; it fades every frame (the others every 1/30 s) */
+#define STREAK_NEWPOS        0x10       /* its shot moved: newpos is the ribbon's next point */
+#define STREAK_DONE          0x1000     /* its shot is gone: free it, its ribbon fades out over 0.2 s */
+#define STREAK_STARTED       0x2000     /* the ribbon has its first edge */
+
 /* Data */
 extern struct Car *gCarModels[EXTENT(13)];
 extern char *CarNames[EXTENT(13)];
@@ -115,20 +213,23 @@ extern PcTrail gStreakArray[EXTENT(50)];
 extern tStatList gStreakPolyList[EXTENT(1)];
 extern PcFade gStreakPolyArray[EXTENT(150)];
 
+/* Structures the prototypes below point to that types.h does not declare yet (each file defines its own view) */
+struct tNewSkid;   /* a tire's skid state (MAT3 tNewSkid; skid_marks' WheelSlot) */
+
 /* Functions */
 void AddToEnvList(intptr_t *arg0);
-void AnimateArrow(struct Effect *effect, s16 op);
+void AnimateArrow(struct tVisual *v, s16 op);
 void AnimateBlast(struct tVisual *v, s16 op);
 void AnimateBrakeLights(struct In *in, s16 flag);
-void AnimateBSpark(struct ModelObj *arg0, s16 arg1);
+void AnimateBSpark(struct tVisual *v, s16 op);
 void AnimateFrame(struct Entity *ent, s16 alive);
-void AnimateLFSpark(struct ModelObj *arg0, s16 arg1);
-void AnimateLRSpark(struct ModelObj *arg0, s16 arg1);
+void AnimateLFSpark(struct tVisual *v, s16 op);
+void AnimateLRSpark(struct tVisual *v, s16 op);
 void AnimateNewBlast(struct tVisual *v, s16 op);
-void AnimateNewBlastRing(struct Node *node, s16 update);
-void AnimateRFSpark(struct ModelObj *arg0, s16 arg1);
+void AnimateNewBlastRing(struct tVisual *v, s16 op);
+void AnimateRFSpark(struct tVisual *v, s16 op);
 void AnimateRocketFlame(s16 slot, s32 hulk);
-void AnimateRRSpark(struct ModelObj *arg0, s16 arg1);
+void AnimateRRSpark(struct tVisual *v, s16 op);
 void AnimateShadow(struct Visual *v, s16 op);
 void AnimateSkids(void);
 void AnimateTire(struct Visual *v, s16 op);
@@ -136,11 +237,11 @@ void AnimateWing(struct Visual *v, s16 op);
 void AnimateWingFlame(struct ModelObj *record, s16 mode);
 u32 blend_rgb5551(u32 left, u32 right, s32 ratio);
 s32 CheckVisible(struct Visual *v, s32 show, s32 part);
-s32 CheckVisibleAll(struct ModelObj *obj, s32 flag);
+s32 CheckVisibleAll(struct tVisual *v, s32 on);
 void ContinueSkid(void);
 void CreateCar(s16 slot, s16 camlink, s32 for_game);
 void *game_bsearch(void *key, void *base, u32 n, u32 size, s32 (*compar)(void *, void *));
-void HandleASpark(struct ModelObj *ipa_s1, s32 arg1, s32 ipa_s2, f32 ipa_f20, f32 ipa_f22, f32 ipa_f24, s16 arg0);
+void HandleASpark(struct tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op);
 void InitBlast(void);
 void InitCarDynamicObjs(s16 slot, s16 car, s8 model);
 s32 InitCarObj(s32 id, s16 layer, s16 parent, s32 flags, s16 row, s16 col, s32 dynamic);
@@ -148,16 +249,16 @@ void InitCarVisuals(intptr_t arg0);
 void InitEnvs(void);
 void InitSkids(void);
 void InitSmoke(void);
-void InitSmokeBlast(s16 arg0);
+void InitSmokeBlast(s16 slot);
 void InitStreaks(void);
 void InitTrackDynamicObjs(void);
 void InitVisuals(s32 for_game);
-void InitWingSmoke(s16 arg0, s16 arg1);
+void InitWingSmoke(s16 slot, s16 side);
 void LoadCars(s32 select);
 u16 *MakeRamps(u16 *colors, u32 first_color, u32 second_color, u32 third_color);
 u8 pick_random_masked_bit(u8 index);
 u16 PickCar(s16 arg0, u8 arg1);
-void PositionObject(s32 idx, f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz);
+void PositionObject(s32 objnum, f32 dx, f32 dy, f32 dz, f32 x, f32 y, f32 z);
 void ReleaseEnviron(struct Node *node, s32 unlink);
 void RemoveCar(s16 arg0);
 void RemoveEnvirons(void);
@@ -171,12 +272,12 @@ void StartCar(s16 slot);
 void StartEnvironment(void);
 void StartFrame(s16 arg0);
 void StartNewBlast(s16 slot);
-void StartSmoke(s16 slot, u32 type, s32 fast, f32 *offset);
-void StartSparks(s16 idx);
-void StartWater(s16 idx, u32 type);
+void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset);
+void StartSparks(s16 slot);
+void StartWater(s16 slot, u32 tire);
 void StartWing(s16 slot, s16 idx);
 void StartWingFlame(s16 slot, s16 idx);
-void StopSkid(struct Pending *p);
+void StopSkid(struct tNewSkid *ns);
 void UpdateEnvirons(void);
 void UpdateShotObject(struct Shot *shot, s32 unt);
 void UpdateSkids(s32 slot);

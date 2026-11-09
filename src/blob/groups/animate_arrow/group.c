@@ -1,188 +1,212 @@
+/* animate_arrow/group.c: the arrows over the human players' cars in a split-screen race (MAT3 visuals.c,
+ * AnimateArrow(); and gDummyVtx).
+ *
+ * StartArrow gives each human's car one arrow per view (a polygon, a car visual whose index is the view): the
+ * other players see where that car is. In a battle the arrow of a car off the edge of a view, or behind it, is
+ * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
-typedef union Color4 {struct {u8 r,g,b,a;} c;u32 rgba;} Color4;
-typedef struct Effect {
-    struct Effect *next;
-    s16 view;       /* 4 */
-    s16 mesh;       /* 6 */
-    s16 player;     /* 8 */
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef union tRGBA {struct {u8 r,g,b,a;} c;u32 rgba;} tRGBA;
+/* A car visual (MAT3 tVisual). PC: 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct tVisual {
+    struct tVisual *next;
+    s16 index;      /* 4: the view this arrow is drawn in */
+    s16 objnum;     /* 6: its polygon (PolyInstanceList) */
+    s16 slot;       /* 8: the car it marks */
     u8 pad10[2];
     u32 data;
-    f32 time;
-    void (*callback)(struct Effect *, s16);
-} Effect;
-typedef struct CAR_DATA {
+    f32 timeStamp;
+    void (*func)(struct tVisual *, s16);
+} tVisual;
+/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its place, its crash and its battle state. */
+typedef struct tCarData {
     u8 pad0[8];
-    f32 pos[3];             /* 8 */
-    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
-    s8 hidden;              /* 856 */
-    u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x38C - 0x384];
-    u32 flags;              /* 908 */
+    f32 dr_pos[3];          /* 8 */
+    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];
+    s8 crash_state;         /* 856 */
+    u8 pad359[0x380 - 0x359]; void *player; u8 pad384[0x38C - 0x384];
+    u32 defense_active;     /* 908: battle.defense.active (bit 0: invisible) */
     u8 pad390[928 - 912];
-    s8 color_index;         /* 928 */
-    u8 alpha;               /* 929 */
-    s8 alpha_mode;          /* 930 */
+    s8 shoot;               /* 928: battle.shoot */
+    u8 fadeAlpha;           /* 929: battle.fadeAlpha */
+    s8 fadeState;           /* 930: battle.fadeState */
     u8 pad3A3[952 - 931];
-} CAR_DATA;
-typedef struct MODELDAT {
+} tCarData;
+/* The model record (tModelData): the respawn's state, the slot, who drives. */
+typedef struct tModelData {
     u8 pad0[1732];
-    s16 state;              /* 1732 */
+    s16 resurrect_moving_state; /* 1732: RES_* */
     u8 pad6C6[1990 - 1734];
-    s16 player;             /* 1990 */
+    s16 slot;               /* 1990 */
     u8 pad7C8[1996 - 1992];
-    s8 mode;                /* 1996 */
+    s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
     u8 pad7CD[2056 - 1997];
-} MODELDAT;
+} tModelData;
+/* A view's camera (gCamera[view], MAT3 anon_mat_n64_98): its orientation and place, and the N64's own matrix. */
 typedef struct Camera {
-    f32 mat[3][3];             /* 0 */
+    f32 uvs[3][3];          /* 0 */
     Vec3 pos;               /* 36 */
-    f32 basis[3][3];           /* 48 */
+    f32 n64_uvs[3][3];      /* 48 */
     u8 pad54[152 - 84];
 } Camera;
-typedef struct View {
-    void *first; void *bounds; u8 pad0_8[0xC - 0x8];
-    f32 radius;             /* 12 */
-    f32 scale;              /* 16 */
+/* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
+typedef struct tWindowInfo {
+    void *vp; void *s; u8 pad8[0xC - 0x8];
+    f32 whviewang;          /* 12: the horizontal view angle, radians */
+    f32 wvviewang;          /* 16: the vertical one */
     u8 pad14[72 - 20];
-} View;
+} tWindowInfo;
+/* A scene polygon (PolyInstanceList, MAT3 tPoly): four vertices. */
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
-typedef struct Mesh {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Mesh;
+typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
 
 VIEW(Camera[], gCamera);
 #define gCamera gCamera_view
-VIEW(View[], ZoidWinInfo);
+VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
-VIEW(Mesh[], PolyInstanceList);
+VIEW(tPoly[], PolyInstanceList);
 #define PolyInstanceList PolyInstanceList_view
 VIEW(s8[4][4], gFadePlayerArrow);
 #define gFadePlayerArrow gFadePlayerArrow_view
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
-VIEW(Color4[5], arrowColors);
+VIEW(tRGBA[5], arrowColors);
 #define arrowColors arrowColors_view
-VIEW(Color4, arrow_base_color);
+VIEW(tRGBA, arrow_base_color);
 #define arrow_base_color arrow_base_color_view
 
+/* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };
-extern void ZOID_UpdatePoly(Mesh *, s32, f32 (*)[3], u16, Color4 *, u16, s32);
+extern void ZOID_UpdatePoly(tPoly *, s32, f32 (*)[3], u16, tRGBA *, u16, s32);
 
-void AnimateArrow(Effect *effect, s16 op) {
-    CAR_DATA *record;
-    MODELDAT *vehicle;
-    f32 quad[4][3];
-    f32 angle;
-    s32 type;
+/* The arrow v draws for car v->slot in view v->index, once a frame (`op` is not used). Hidden but while racing
+ * (gGameState 0x400000: GS_RACING) with player arrows on, and in a battle while the car is wrecked or respawning.
+ * Its colour: the player's (the team's in a battle), for drones the fifth; translucent while the car is invisible in
+ * a battle (its fade, at least 32), at most 112 alpha where gFadePlayerArrow asks, half in a ghost race but for the
+ * first car. In a battle, a car outside 0.48 of the view's horizontal angle to either side, or behind, gets a screen
+ * arrow on that edge, raised by how far round it is (the constants are 2/pi, pi/2 and pi; 31.415927 / whviewang is
+ * the depth that makes the square 19 units wide). Otherwise the arrow floats 5 ft (plus its size) over the car,
+ * facing the camera, its size a 25th of the distance so it looks the same at any range. */
+void AnimateArrow(tVisual *v, s16 op) {
+    tCarData *car;
+    tModelData *m;
+    f32 xyz[4][3];
+    f32 scale;
+    s32 oslot;
     s32 i;
-    Color4 color;
-    f32 delta[3];
-    View *view;
-    f32 x, y, depth, len, slope, threshold;
-    u32 side;
+    tRGBA clr;
+    f32 vec[3];
+    tWindowInfo *window;
+    f32 x, y, z, border, vscale, voffset;
+    u32 j;
 
-    record = PC_CAR(effect->player);
-    vehicle = PC_MODEL(effect->player);
-    type = effect->view;
-    color = arrow_base_color;
-    if (!gShowPlayerArrows || !(gGameState & 0x400000) || (!(!record->hidden && vehicle->state < 0) && gRace == 6)) {
-        ZOID_HidePoly(&PolyInstanceList[effect->mesh]);
+    car = PC_CAR(v->slot);
+    m = PC_MODEL(v->slot);
+    oslot = v->index;
+    clr = arrow_base_color;
+    if (!gShowPlayerArrows || !(gGameState & 0x400000) || (!(!car->crash_state && m->resurrect_moving_state < 0) && gRace == 6)) {
+        ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
-    if (gRace == 6 && (record->flags & 1)) {
-        if (record->alpha_mode == 1) {
-            color.c.a = record->alpha;
-        } else if (record->alpha_mode == 2) {
-            color.c.a = record->alpha;
+    if (gRace == 6 && (car->defense_active & 1)) {     /* kBattle */
+        if (car->fadeState == 1) {
+            clr.c.a = car->fadeAlpha;
+        } else if (car->fadeState == 2) {
+            clr.c.a = car->fadeAlpha;
         } else {
-            color.c.a = arrowinvsColor[record->color_index];
+            clr.c.a = arrowinvsColor[car->shoot];
         }
-        if (color.c.a < 32) {
-            color.c.a = 32;
+        if (clr.c.a < 32) {
+            clr.c.a = 32;
         }
     }
-    if (vehicle->mode == 2) {
+    if (m->drone_type == 2) {                         /* DRONE_TYPE_HUMAN */
         if (gRace == 6) {
-            color.c.r = arrowColors[gCarTeam[vehicle->player]].c.r;
-            color.c.g = arrowColors[gCarTeam[vehicle->player]].c.g;
-            color.c.b = arrowColors[gCarTeam[vehicle->player]].c.b;
+            clr.c.r = arrowColors[gCarTeam[m->slot]].c.r;
+            clr.c.g = arrowColors[gCarTeam[m->slot]].c.g;
+            clr.c.b = arrowColors[gCarTeam[m->slot]].c.b;
         } else {
-            color.c.r = arrowColors[vehicle->player].c.r;
-            color.c.g = arrowColors[vehicle->player].c.g;
-            color.c.b = arrowColors[vehicle->player].c.b;
+            clr.c.r = arrowColors[m->slot].c.r;
+            clr.c.g = arrowColors[m->slot].c.g;
+            clr.c.b = arrowColors[m->slot].c.b;
         }
-        if (gFadePlayerArrow[vehicle->player][type] && color.c.a > 112) {
-            color.c.a = 112;
+        if (gFadePlayerArrow[m->slot][oslot] && clr.c.a > 112) {
+            clr.c.a = 112;
         }
-        if (gRace == 2 && effect->player > 0) {
-            color.c.a = 128;
+        if (gRace == 2 && v->slot > 0) {                /* kGhost */
+            clr.c.a = 128;
         }
     } else {
-        color.c.r = arrowColors[4].c.r;
-        color.c.g = arrowColors[4].c.g;
-        color.c.b = arrowColors[4].c.b;
+        clr.c.r = arrowColors[4].c.r;
+        clr.c.g = arrowColors[4].c.g;
+        clr.c.b = arrowColors[4].c.b;
     }
-    delta[0] = record->pos[0] - gCamera[type].pos.x;
-    delta[1] = record->pos[1] - gCamera[type].pos.y;
-    delta[2] = record->pos[2] - gCamera[type].pos.z;
+    vec[0] = car->dr_pos[0] - gCamera[oslot].pos.x;
+    vec[1] = car->dr_pos[1] - gCamera[oslot].pos.y;
+    vec[2] = car->dr_pos[2] - gCamera[oslot].pos.z;
     if (gRace == 6) {
-        view = &ZoidWinInfo[type];
-        U64WorldVector(&delta[0], &quad[0][0], gCamera[type].mat);
-        angle = fatan2(-quad[0][0], quad[0][2]);
-        len = 19.0f;
-        depth = 31.415927f / view->radius;
+        /* the car's bearing from the camera: 0 straight ahead, negative to the -x side */
+        window = &ZoidWinInfo[oslot];
+        U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].uvs);
+        scale = fatan2(-xyz[0][0], xyz[0][2]);
+        border = 19.0f;
+        z = 31.415927f / window->whviewang;
         if (gSplitScreen >= 2) {
-            slope = 16.5f;
-            threshold = view->scale * 0.75f;
+            vscale = 16.5f;
+            voffset = window->wvviewang * 0.75f;
         } else {
-            slope = 14.5f;
-            threshold = view->scale * 1.1f;
+            vscale = 14.5f;
+            voffset = window->wvviewang * 1.1f;
         }
-        if (angle < -view->radius * 0.48f && angle > -1.5707964f) {
-            x = view->radius * 0.63661975f * len;
-            angle = -angle;
-            side = 3;
-            goto tail;
+        if (scale < -window->whviewang * 0.48f && scale > -1.5707964f) {
+            x = window->whviewang * 0.63661975f * border;
+            scale = -scale;
+            j = 3;
+            goto side_arrow;
         }
-        if (angle < -1.5707964f) {
-            angle = angle + 3.1415927f;
+        if (scale < -1.5707964f) {
+            scale = scale + 3.1415927f;
             goto behind;
         }
-        if (1.5707964f < angle) {
-            angle = angle - 3.1415927f;
+        if (1.5707964f < scale) {
+            scale = scale - 3.1415927f;
 behind:
-            x = view->radius * 0.63661975f * len * angle * 0.63661975f;
-            y = view->scale * 0.63661975f * slope;
-            side = 0;
+            /* behind the camera: on the bottom edge, as far along as the car is round */
+            x = window->whviewang * 0.63661975f * border * scale * 0.63661975f;
+            y = window->wvviewang * 0.63661975f * vscale;
+            j = 0;
             goto draw;
         }
-        if (view->radius * 0.48f < angle && angle < 1.5707964f) {
-            x = view->radius * 0.63661975f * -len;
-            side = 1;
-tail:
-            y = view->scale * 0.63661975f * slope * (angle - threshold) * (1.0f / (1.5707964f - threshold));
+        if (window->whviewang * 0.48f < scale && scale < 1.5707964f) {
+            x = window->whviewang * 0.63661975f * -border;
+            j = 1;
+side_arrow:
+            /* off a side: on that edge, the higher the further round */
+            y = window->wvviewang * 0.63661975f * vscale * (scale - voffset) * (1.0f / (1.5707964f - voffset));
 draw:
+            /* the square at (x, -y), its corners turned to point j's way */
             for (i = 0; i < 4; i++) {
-                quad[side][0] = gDummyVtx[i][0] + x;
-                quad[side][1] = gDummyVtx[i][1] - y;
-                quad[side][2] = depth;
-                side = (side + 1) & 3;
-        }
-            ZOID_UpdatePoly(&PolyInstanceList[effect->mesh], 4, quad, 0, &color, (1 << type) | 0x3610, 0);
+                xyz[j][0] = gDummyVtx[i][0] + x;
+                xyz[j][1] = gDummyVtx[i][1] - y;
+                xyz[j][2] = z;
+                j = (j + 1) & 3;
+            }
+            ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, &clr, (1 << oslot) | 0x3610, 0);
             return;
         }
     }
 
-    angle = vector_magnitude(&delta[0]) / 25.0f;
+    scale = vector_magnitude(&vec[0]) / 25.0f;
     for (i = 0; i < 4; i++) {
-        U64WorldVector(&gDummyVtx[i][0], &quad[i][0], gCamera[type].basis);
-        quad[i][0] = quad[i][0] * angle + record->pos[0];
-        quad[i][1] = quad[i][1] * angle + record->pos[1] + angle + 5.0f;
-        quad[i][2] = quad[i][2] * angle + record->pos[2];
+        U64WorldVector(&gDummyVtx[i][0], &xyz[i][0], gCamera[oslot].n64_uvs);
+        xyz[i][0] = xyz[i][0] * scale + car->dr_pos[0];
+        xyz[i][1] = xyz[i][1] * scale + car->dr_pos[1] + scale + 5.0f;
+        xyz[i][2] = xyz[i][2] * scale + car->dr_pos[2];
     }
     if (gRace == 6) {
-        ZOID_UpdatePoly(&PolyInstanceList[effect->mesh], 4, quad, 0, &color, (1 << type) | 0x3600, 0);
+        ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, &clr, (1 << oslot) | 0x3600, 0);
     } else {
-        ZOID_UpdatePoly(&PolyInstanceList[effect->mesh], 4, quad, 0, &color, (1 << type) | 0x1600, 0);
+        ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, &clr, (1 << oslot) | 0x1600, 0);
     }
 }

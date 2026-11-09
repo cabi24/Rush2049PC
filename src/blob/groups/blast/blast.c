@@ -1,26 +1,36 @@
+/* blast.c: explosions: the blast sprite, a car's fireball and its shock ring (MAT3 visuals.c, StartBlast(),
+ * AnimateBlast(), StartNewBlast(), StartNewBlastRing()).
+ *
+ * StartBlast is the entry point (a car blowing up, a mine, a shot hitting): an animated explosion sprite, which for
+ * a car sets the car's fireball off three frames in (StartNewBlast: four flame balls, a glow and the flames of
+ * StartSmoke) and spreads a shock ring (StartNewBlastRing). Each runs as an environment visual (GrabEnvEntry,
+ * AddToEnvList) whose animator (AnimateBlast here, AnimateNewBlast, AnimateNewBlastRing) runs once a frame until it
+ * ends. The fireball and the ring keep their state per car in pc_blasts and pc_blast_rings. */
 #include "game/game.h"
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
+/* One of a fireball's four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
 typedef struct tBlastObj {
     int mbIdx; tUVMatrix mat; float scale; float scaleInc; float yaw; float yawInc; float pitch; float pitchInc;
     unsigned char alpha; unsigned char alphaInc; signed short unused; float ht;
 } tBlastObj;
 
+/* A visual (MAT3 tVisual; the offsets are the N64's). PC: 0x20 bytes: next and func are host pointers, data a u32
+ * (docs/port/CARS.md). */
 typedef struct tVisual {
     struct tVisual *next;       /* 0x00 */
-    s16 index;                  /* 0x04 */
-    s16 objnum;                 /* 0x06 */
-    s16 slot;                   /* 0x08 */
+    s16 index;                  /* 0x04 the blast sprite's frame */
+    s16 objnum;                 /* 0x06 its scene object */
+    s16 slot;                   /* 0x08 the car, -1 none */
     u8 pad0A[2];
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
     u32 data;                   /* 0x0C */
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { unsigned int flags, w4; tUVMatrix *mat; float scale; float w; u16 index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
+typedef struct ObjInstance { unsigned int flags, culling; tUVMatrix *mat; float scale; float w; u16 index; short child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; unsigned int color; unsigned int envcolor; } ObjInstance;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
@@ -38,12 +48,15 @@ VIEW(float[4][3], unitmatrix);
 
 tVisual *GrabEnvEntry(void);
 
-/* StartNewBlast */
+/* Set car `slot`'s fireball off: four flame balls (gObjList[158..161]) 3 ft under the car, starting at 0.4 of
+ * their size and growing, turning at random and rising (AnimateNewBlast); with 8 MB or on the later tracks, and with
+ * fewer than four players, a glow (gObjList[162]) and five flames (StartSmoke SMOKE_FIRE) as well. The fireball
+ * lasts 0.7 s. */
 void StartNewBlast(s16 slot)
 {
     tVisual *v;
     int i;
-    tUVMatrix mat;
+    tUVMatrix mat;      /* unused: kept, as it shapes the function's stack frame */
     tRGBA clr = { { 255, 255, 255, 255 } };
     v = GrabEnvEntry();
     if (v) {
@@ -70,7 +83,7 @@ void StartNewBlast(s16 slot)
             b->ht = 0.0f;
             b->yaw = 0.0f;
             b->pitch = 0.0f;
-            b->alpha = 128;
+            b->alpha = 128;     /* translucent, yellow-orange */
             clr.c[3] = b->alpha;
             b->alphaInc = (int)Random(10.0f) + 25;
             ZOID_SetColor(b->mbIdx, &clr);
@@ -96,17 +109,17 @@ void StartNewBlast(s16 slot)
         gBlastObjs[slot].incTime = 0.0333333f;
         AddToEnvList(v);
     }
-    if (gNumPlayers < 4 && (expansion_pak_present || gTrackNum >= 6)) StartSmoke(slot, 5, 0, 0);
+    if (gNumPlayers < 4 && (expansion_pak_present || gTrackNum >= 6)) StartSmoke(slot, SMOKE_FIRE, 0, 0);
 }
 
-/* StartNewBlastRing (inlined into StartBlast) */
+/* Spread a shock ring (gObjList[163]) from car `slot`: white, opaque; AnimateNewBlastRing widens and fades it.
+ * (The N64 compiled it into StartBlast.) */
 static void StartNewBlastRing(s16 slot)
 {
     tVisual *v;
     int i;
-    tUVMatrix mat;
+    tUVMatrix mat;      /* unused: kept, as it shapes the function's stack frame */
     tRGBA clr = { { 255, 255, 255, 255 } };
-    int u0, u1;
     v = GrabEnvEntry();
     if (v) {
         v->func = AnimateNewBlastRing;
@@ -129,7 +142,10 @@ static void StartNewBlastRing(s16 slot)
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a blast on no car steps its animation once a frame, the N64's 30 a
  * second: at 60 it steps on the frames that complete a 30 Hz frame (pc_game_fps.h). */
 #define PC_EACH30_IF(c) ((c) && (!pc_fps60 || pc_frame_steps))
-/* AnimateBlast */
+/* The blast sprite's animator (a visual's func): `op` 0 removes it. Its 30 frames (gObjList[164..193]) step
+ * every 1/30 s; a blast on a car follows the car while it is crashed (and ends with the crash), sets the car's
+ * fireball off at frame 3 (StartNewBlast) and, with 8 MB or on the later tracks and fewer than four players, scorches
+ * the world under it at frame 4 (newWorldDamage). Nothing moves while the game is paused. */
 void AnimateBlast(tVisual *v, s16 op)
 {
     if (gPauseState) return;
@@ -159,7 +175,10 @@ release:
     }
 }
 
-/* StartBlast */
+/* Start an explosion: on car *(s16 *)data if linkToCar (with its shock ring, under four players), else at the
+ * position (float[3]) data points to. `scale` is the sprite's size (1 a car's, 0.5 a shot's, 0.4 a mine's) and picks
+ * the sound when playSound is set (big, medium or small). The sprite's matrix is the next of the 50 kept in
+ * gBlastMats, round robin. With 4 MB on the first six tracks there is no sprite: only the car's fireball. */
 void StartBlast(void *data, int linkToCar, float scale, int playSound)
 {
     tVisual *v;
@@ -195,7 +214,7 @@ void StartBlast(void *data, int linkToCar, float scale, int playSound)
     ObjInstanceList[v->objnum].scale = scale;
     if (++gBlastMatCnt >= 50) gBlastMatCnt = 0;
     if (playSound) {
-        snd = scale >= 1.0f ? 45 : scale >= 0.5f ? 69 : 47;
+        snd = scale >= 1.0f ? 45 : scale >= 0.5f ? 69 : 47;     /* the big, medium and small explosion sounds */
         EmitGameSound(mat->pos, (int)unitmatrix[3], 400.0f, 0.0f, 1.0f, 0.0f, snd, v->objnum, 0, 128);
     }
 }

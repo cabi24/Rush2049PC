@@ -4,6 +4,49 @@
 
 #include "game/types.h"
 
+/* Constants: the names of MAT3's rush_flags.h, the same values.
+ * World units are feet, speeds feet a second, Y is up. */
+
+#define MPH_TO_FTPS          1.4666667f /* miles an hour to feet a second: 88 ft/s = 60 mph */
+
+/* tCarData.crash_state (CheckCrash) */
+#define CRASH_NONE           0
+#define CRASH_WRECKED        1      /* the wreck on show; after 3.5 s (2.25 s in battle) the car respawns */
+#define CRASH_RESPAWN        2      /* UpdateModel starts the car again at its respawn point */
+
+/* tCarData.dead. Only death mode ("last car standing") uses CAR_DYING and CAR_DEAD. */
+#define CAR_ABORTED          (-1)   /* aborted, or respawned outside death mode; 0 again at the next start */
+#define CAR_ALIVE            0
+#define CAR_DYING            1      /* out of the race, coasting to a stop */
+#define CAR_DEAD             2      /* stopped: no physics, only the collisions */
+
+/* tModelData.resurrect.moving_state: the respawn's flight. Positive values count frames in flight. */
+#define RES_IDLE             (-1)   /* not respawning */
+#define RES_START            0      /* Resurrect set a flight up; its first frame */
+#define RES_DONE             (-2)   /* the flight is over: FinishResurrecting drops the car in */
+
+/* The mode of Init_MDrive, multiinit and SetResurrectionData */
+#define INIT_MODE_START      0      /* the race start: the grid place, the respawn point the last checkpoint */
+#define INIT_MODE_KEEP       1      /* SetResurrectionData leaves everything as it is */
+#define INIT_MODE_CRASH      2      /* Init_MDrive: respawn the car; SetResurrectionData: keep the crash point and
+                                     * time to respawn from */
+
+/* tModelData.sviscode[tire]: the surface under each tire, as the visuals, sounds and skids see it */
+#define SURF_VIS_PAVEMENT    0
+#define SURF_VIS_DIRT        1
+#define SURF_VIS_WATER       2      /* the sounds treat 3 as water too */
+#define SURF_VIS_AIRBORNE    8      /* the tire touches nothing (roadcode is 8 then too) */
+
+/* tModelData.roadcode[tire]: the road code under each tire (its road polygon's flags & 15, TireSurf) */
+#define ROADCODE_DIRT        1      /* dirt (rear_dirt_drag_factor; the engine gives more torque, poor traction) */
+#define ROADCODE_WATER       2      /* water (rear_water_drag_factor; likewise) */
+#define ROADCODE_AIRBORNE    8      /* the tire touches no road (road, init_road) */
+
+/* tModelData.drone_type (munge_gLink_data, init_cars) */
+#define DRONE_TYPE_NONE      0      /* the slot is not in the race */
+#define DRONE_TYPE_AI        1      /* a drone: its roster owner is below 6 */
+#define DRONE_TYPE_HUMAN     2      /* a human player's car (listed in humans[]) */
+
 /* Data */
 extern s32 sTrackSongs[EXTENT(19)];
 extern u8 cont_bit_pattern;
@@ -96,6 +139,8 @@ extern s8 gSuicideMode;
 /* pc_tire_records: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
 
 /* Functions */
+struct tMiniModelData;   /* a track object as a collision body (MAT3; setMiniFBCollisionForce.c) */
+struct TireDesc;   /* copy_tire_info: a tire's constants in the car's physics descriptor (MAT3 anon_tradius_springK_18) */
 void AbortCar(s16 arg0, s32 arg1);
 void accelerations(f32 *arg0);
 void antispin(struct Car *m);

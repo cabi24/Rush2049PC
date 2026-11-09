@@ -4,6 +4,68 @@
 
 #include "game/types.h"
 
+/* Constants */
+
+/* tPaletteAnim.state: what a track's palette animation does each period (TextureAnimation). The colours of 4-8 are
+ * RGBA5551. */
+#define PALANIM_ROTATE_UP     0     /* entries start..end move up one, end wraps to start */
+#define PALANIM_ROTATE_DOWN   1     /* entries start..end move down one, start wraps to end */
+#define PALANIM_SWAP2         2     /* the block start..end swaps with the block after it (offset entries apart) */
+#define PALANIM_CYCLE3        3     /* three such blocks rotate */
+#define PALANIM_LIGHT_RED     4     /* a traffic light (entries start, +1, +2: red, yellow, green): red, 10.5 s */
+#define PALANIM_LIGHT_YELLOW  5     /* yellow, 0.5 s */
+#define PALANIM_LIGHT_GREEN   6     /* green, 10 s */
+#define PALANIM_CHASE10       7     /* ten lamps light one a period, then all go dark */
+#define PALANIM_CHASE7        8     /* two rows of seven lamps, likewise */
+#define PALANIM_SCROLL_S      9     /* from here on ptr is a texture's load display list: scroll it in s */
+#define PALANIM_SCROLL_T      10    /* scroll it in t */
+
+/* ObjInstanceList[].flags: how a scene node is drawn (ZOID_AddObject's `flags`; the scene draw, Traverse). */
+#define OBJ_LOD_MASK          0x3         /* with OBJ_FORCE_LOD: the level of detail to draw */
+#define OBJ_FORCE_LOD         0x4         /* draw at level flags & 3, whatever the distance */
+#define OBJ_PARENT_DISTANCE   0x8         /* its children choose their levels by its distance, not their own */
+#define OBJ_CULL_BOX_A        0x10        /* culled by the box cull_box_vertices_a */
+#define OBJ_CULL_BOX_B        0x20        /* culled by the box cull_box_vertices_b */
+#define OBJ_NO_MATRIX         0x80        /* drawn with its parent's matrix: it has none of its own */
+#define OBJ_HIDDEN_VIEW0      0x100       /* bits 8-11: not drawn in views 0-3 (0x100 << view) */
+#define OBJ_VIEW_VERTEX       0x1000      /* loads the view's vertex (frame_dynamic->vtx[view]) as vertex 8 first */
+#define OBJ_PRIM_COLOR        0x2000      /* drawn with its colour as the primitive colour */
+#define OBJ_ENV_COLOR         0x4000      /* drawn with its environment colour */
+#define OBJ_UPRIGHT           0x8000      /* turned to face the camera about the vertical only (zoid_upright_matrix) */
+#define OBJ_FACE_CAMERA       0x10000     /* turned to face the camera (a billboard), scaled by its scale */
+#define OBJ_LATE_A            0x40000     /* drawn in the first pass after the flat polygons */
+#define OBJ_ENV_MAPPED        0x80000     /* drawn with a reflection: its texture is mapped by the view direction */
+#define OBJ_FADE              0x200000    /* fades out from 24 to 80 feet away (the cars' sheen) */
+#define OBJ_FAR               0x400000    /* far scenery: its matrix is built in the far range (build_far_node_matrix) */
+#define OBJ_LATE_B            0x800000    /* drawn in the second pass after the flat polygons */
+#define OBJ_HIDDEN            0x80000000  /* not drawn in any view */
+
+/* tModelDef.lod[].flags: what a level of detail of an object needs before its display list. */
+#define LOD_TEXTURED          0x1         /* load its texture (the node's, or the one ZOID_ChangeTexture set) */
+#define LOD_RESET_TLUT        0x2         /* its list changes the palette: load the node's again after it */
+#define LOD_PRIM_COLOR        0x4         /* set the node's colour as the primitive colour */
+#define LOD_LIGHTING          0x10        /* lit by the scene's lights */
+#define LOD_TEXTURE_SET       0x8000      /* ZOID_ChangeTexture gave it the texture texidx */
+
+/* tTexture.flags: how a texture is loaded and sampled. */
+#define TEX_CLAMP_S           0x00010000  /* clamped in s (else it wraps) */
+#define TEX_CLAMP_T           0x00020000  /* clamped in t */
+#define TEX_MIRROR_S          0x00040000  /* mirrored in s */
+#define TEX_MIRROR_T          0x00080000  /* mirrored in t */
+#define TEX_TEXTURE           0x08000000  /* texBase is the image (else a display list that loads it) */
+#define TEX_NOPALETTE         0x20000000  /* has no palette of its own */
+
+/* PolyInstanceList[].flags: a flat polygon's (ZOID_NewPoly, the scene draw). */
+#define POLY_VIEW0            0x1         /* bits 0-3: drawn in views 0-3 (1 << view) */
+#define POLY_CAMERA_FRAME     0x10        /* its vertices are in the camera's axes, relative to the camera */
+#define POLY_MIRRORED         0x80        /* its corners are taken mirrored on a mirrored track (ZOID_UpdatePoly) */
+#define POLY_NO_FOG           0x100       /* drawn without fog */
+#define POLY_TEXTURED         0x400       /* textured with texidx */
+#define POLY_TWO_SIDED        0x1000      /* both its faces are drawn */
+#define POLY_FIXED_DEPTH      0x2000      /* drawn at depth z (the primitive depth) */
+#define POLY_SCREEN           0x4000      /* a filled rectangle in screen coordinates */
+#define POLY_HIDDEN           0x8000      /* not drawn (ZOID_HidePoly) */
+
 /* Data */
 extern ModelList gRomObjDefPtrs[EXTENT(64)];
 extern Item12 texture_swap_shared_frames[EXTENT(400)];
@@ -102,6 +164,7 @@ extern s8 gSplitScreen;
 /* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */
 
 /* Functions */
+struct tModelPart;   /* a world part (MAT3 tModelPart): groups/targets/NewWorldObject.c defines it */
 s32 anim_show_on_high_score(void *arg0);
 void audio_retrace_thread_entry(void *arg);
 u32 displaylist_get_texture_image(u32 *dl);
