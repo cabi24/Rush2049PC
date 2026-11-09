@@ -42,8 +42,6 @@ struct CollisionReckon;
 struct Command;
 struct Config64;
 struct Cr;
-struct PlayerFileNode;
-struct TargetListNode;
 struct Defense;
 struct Descriptor;
 struct Descriptor72;
@@ -142,7 +140,6 @@ struct ModelObj;
 struct ModelRecord;
 struct ModelSnapshot;
 struct ModelView;
-struct Msg;
 struct MultiBlit;
 struct NameEntry;
 struct Nav;
@@ -167,19 +164,17 @@ struct Packet;
 struct PadConfig;
 struct PakHandle;
 struct Palette;
-struct PathNode;
 struct PathPoint;
 struct PathPt;
 struct Pending;
 struct Place;
 struct Player;
+struct PlayerData;
 struct PlayerRec;
 struct PointList;
 struct Poly;
 struct Pool;
-struct PositionEntry;
 struct Profile;
-struct Puff;
 struct QNode;
 struct RampState;
 struct Rec32;
@@ -202,7 +197,6 @@ struct SalVector;
 struct SampleLookup;
 struct SampleRecord;
 struct SaveData;
-struct SearchPoint;
 struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
@@ -219,7 +213,6 @@ struct SoundHwVoice;
 struct SoundListenerAddView;
 struct SoundListenerUpdateView;
 struct SoundState;
-struct Source;
 struct SpatialState;
 struct SpeechStreamDecodeView;
 struct Sprite;
@@ -233,7 +226,6 @@ struct SynthVoicePriorityView;
 struct SynthVoiceVariablesView;
 struct Table;
 struct Target;
-struct TblHdr;
 struct TexDef;
 struct TexRect;
 struct Texture;
@@ -495,13 +487,6 @@ typedef struct BackgroundMotion { /* 0x38 bytes */
     f32 ys[4];     /* 0x28 */
 } BackgroundMotion;
 
-typedef struct BlitColor { /* 0x4 bytes */
-    u8 r; /* 0x0 */
-    u8 g; /* 0x1 */
-    u8 b; /* 0x2 */
-    u8 a; /* 0x3 */
-} BlitColor;
-
 typedef struct CoinSlot { /* 0x34 bytes */
     s16 id;      /* 0x0 */
     u8 pad02[2]; /* 0x2 */
@@ -537,30 +522,6 @@ typedef struct Definitions64 { /* 0x40 bytes */
     Definition32 item[2]; /* 0x0 */
 } Definitions64;
 
-typedef struct HighScoreRect { /* 0xC bytes */
-    s16 x;          /* 0x0 */
-    s16 y;          /* 0x2 */
-    s16 w;          /* 0x4 */
-    s16 h;          /* 0x6 */
-    s16 unknown[2]; /* 0x8 */
-} HighScoreRect;
-
-typedef struct HudBlitDef { /* 0x30 bytes */
-    const char *texname;            /* 0x0 */
-    s16 dulx;                       /* 0x8 */
-    s16 duly;                       /* 0xA */
-    s16 width;                      /* 0xC */
-    s16 height;                     /* 0xE */
-    s16 top;                        /* 0x10 */
-    s16 bot;                        /* 0x12 */
-    s16 left;                       /* 0x14 */
-    s16 right;                      /* 0x16 */
-    u32 zdepth;                     /* 0x18 */
-    u32 alpha;                      /* 0x1C */
-    s32 (*animfunc)(struct Blit *); /* 0x20 */
-    u32 animid;                     /* 0x28 */
-} HudBlitDef;
-
 typedef struct Impact24 { /* 0x18 bytes */
     f32 force;     /* 0x0 */
     f32 vector[3]; /* 0x4 */
@@ -575,16 +536,6 @@ typedef struct LayerRecord { /* 0xC bytes */
     u16 references; /* 0x8 */
     u16 metadata;   /* 0xA */
 } LayerRecord;
-
-typedef struct MenuButton { /* 0x40 bytes */
-    s32 type;         /* 0x0 */
-    s32 handle;       /* 0x4 */
-    f32 angle;        /* 0x8 */
-    f32 matrix[3][3]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    u8 alpha;         /* 0x3C */
-    u8 pad[3];        /* 0x3D */
-} MenuButton;
 
 typedef struct PaneColors { /* 0x8 bytes */
     u8 x[4]; /* 0x0 */
@@ -668,15 +619,6 @@ typedef struct PcSched { /* 0x2C0 bytes */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;
 
-typedef struct PlayerRect { /* 0x18 bytes */
-    s32 x;  /* 0x0 */
-    s32 y;  /* 0x4 */
-    s32 w;  /* 0x8 */
-    s32 h;  /* 0xC */
-    s32 cx; /* 0x10 */
-    s32 cy; /* 0x14 */
-} PlayerRect;
-
 typedef struct PlayerTail { /* 0x50 bytes */
     struct PlayerRec **rec; /* 0x0 */
     u8 pad[72];             /* 0x8 */
@@ -745,11 +687,6 @@ typedef struct State20 { /* 0x14 bytes */
     f32 d;      /* 0x10 */
 } State20;
 
-typedef struct StuntPlayer { /* 0x78 bytes */
-    s32 score;   /* 0x0 */
-    u8 pad[116]; /* 0x4 */
-} StuntPlayer;
-
 typedef struct TPos { /* 0x18 bytes */
     s32 pad0[4]; /* 0x0 */
     s32 x;       /* 0x10 */
@@ -800,13 +737,6 @@ typedef struct tCheckpoint { /* 0x50 bytes */
 
 /* ---- memory: the heap, the asset wads and waves, lists and trees */
 
-typedef struct DeflateConfig { /* 0x8 bytes */
-    u16 good_length; /* 0x0 */
-    u16 max_lazy;    /* 0x2 */
-    u16 nice_length; /* 0x4 */
-    u16 max_chain;   /* 0x6 */
-} DeflateConfig;
-
 typedef struct anon_loaded_ready_14 { /* 0x20 bytes */
     s8 loaded;   /* 0x0 */
     s8 ready;    /* 0x1 */
@@ -820,6 +750,13 @@ typedef struct anon_loaded_ready_14 { /* 0x20 bytes */
     u8 *lastPtr; /* 0x18 */
 } anon_loaded_ready_14;
 
+typedef struct config_s { /* 0x8 bytes */
+    u16 good_length; /* 0x0 */
+    u16 max_lazy;    /* 0x2 */
+    u16 nice_length; /* 0x4 */
+    u16 max_chain;   /* 0x6 */
+} config;
+
 typedef struct static_tree_desc_s { /* 0x20 bytes */
     struct ct_data_s *static_tree; /* 0x0 */
     s32 *extra_bits;               /* 0x8 */
@@ -827,11 +764,6 @@ typedef struct static_tree_desc_s { /* 0x20 bytes */
     s32 elems;                     /* 0x14 */
     s32 max_length;                /* 0x18 */
 } static_tree_desc_s;
-
-typedef struct tCarModel { /* 0x18 bytes */
-    u32 data;   /* 0x0 */
-    u8 pad[20]; /* 0x4 */
-} tCarModel;
 
 /* ---- maths: vectors, matrices, angles, random numbers */
 
@@ -1131,6 +1063,13 @@ typedef struct PolyInstance { /* 0x58 bytes */
 
 /* ---- blit: the 2D blitter and panes */
 
+typedef struct BlitColor { /* 0x4 bytes */
+    u8 r; /* 0x0 */
+    u8 g; /* 0x1 */
+    u8 b; /* 0x2 */
+    u8 a; /* 0x3 */
+} BlitColor;
+
 typedef struct PaneBlits { /* 0x38 bytes */
     s8 active;                 /* 0x0 */
     u8 own;                    /* 0x1 */
@@ -1236,11 +1175,6 @@ typedef struct PakErrorState { /* 0x2C bytes */
     u32 deadline;    /* 0x28 */
 } PakErrorState;
 
-typedef struct PakFileListHead { /* 0x18 bytes */
-    void **head; /* 0x0 */
-    s32 pad[3];  /* 0x8 */
-} PakFileListHead;
-
 typedef struct PakFileRecord { /* 0x60 bytes */
     struct PakHandle *next;                                   /* 0x0 */
     struct PakHandle *prev;                                   /* 0x8 */
@@ -1255,12 +1189,12 @@ typedef struct PakFileRecord { /* 0x60 bytes */
     u8 **data;                                                /* 0x58 */
 } PakFileRecord;
 
-typedef struct PlayerFiles { /* 0x18 bytes */
-    u32 unknown0;       /* 0x0 */
-    u32 unknown4;       /* 0x4 */
-    struct Owner *head; /* 0x8 */
-    struct Owner *tail; /* 0x10 */
-} PlayerFiles;
+typedef struct PlayerFileList { /* 0x18 bytes */
+    u32 unknown0;             /* 0x0 */
+    u32 unknown4;             /* 0x4 */
+    struct PlayerData **head; /* 0x8 */
+    struct PlayerData **tail; /* 0x10 */
+} PlayerFileList;
 
 typedef struct PlayerSaveData { /* 0x810 bytes */
     char pad0[13];   /* 0x0 */
@@ -1358,14 +1292,16 @@ typedef struct tBlastMat { /* 0x8 bytes */
     struct tUVMatrix *mat; /* 0x0 */
 } tBlastMat;
 
-/* ---- track: tracks, the road tree, targets, paths and checkpoints */
+typedef struct tStatList { /* 0x28 bytes */
+    u8 flag;     /* 0x0 */
+    s32 count;   /* 0x4 */
+    s32 size;    /* 0x8 */
+    void *mem;   /* 0x10 */
+    void *head;  /* 0x18 */
+    void *store; /* 0x20 */
+} tStatList;
 
-typedef struct CheckpointPoint { /* 0x50 bytes */
-    f32 pos[3];    /* 0x0 */
-    f32 normal[3]; /* 0xC */
-    s32 radius;    /* 0x18 */
-    u8 pad1C[52];  /* 0x1C */
-} CheckpointPoint;
+/* ---- track: tracks, the road tree, targets, paths and checkpoints */
 
 typedef struct DronePathPoint { /* 0x10 bytes */
     u16 count;                /* 0x0 */
@@ -1378,16 +1314,11 @@ typedef struct MineSlots { /* 0x28 bytes */
     s32 count;                /* 0x20 */
 } MineSlots;
 
-typedef struct PointEntry { /* 0x10 bytes */
-    struct SearchPoint *points; /* 0x0 */
-    u8 pad[4];                  /* 0x8 */
-} PointEntry;
-
 typedef struct ResurrectPath { /* 0x20 bytes */
-    u16 numPoints;            /* 0x0 */
-    struct PathPoint *points; /* 0x8 */
-    u8 numNodes;              /* 0x10 */
-    struct PathNode *nodes;   /* 0x18 */
+    u16 numPoints;         /* 0x0 */
+    struct PathPt *points; /* 0x8 */
+    u8 numNodes;           /* 0x10 */
+    void *nodes;           /* 0x18 */
 } ResurrectPath;
 
 typedef struct TargInfo { /* 0x40 bytes */
@@ -1408,7 +1339,7 @@ typedef struct TargInfo { /* 0x40 bytes */
     f32 f2C;       /* 0x3C */
 } TargInfo;
 
-typedef struct TargetPool { /* 0x28 bytes */
+typedef struct TargetNodePool { /* 0x28 bytes */
     u8 b0;        /* 0x0 */
     u8 n64;       /* 0x1 */
     u8 pad2[2];   /* 0x2 */
@@ -1417,7 +1348,7 @@ typedef struct TargetPool { /* 0x28 bytes */
     u8 *mem;      /* 0x10 */
     intptr_t f16; /* 0x18 */
     u8 *free;     /* 0x20 */
-} TargetPool;
+} TargetNodePool;
 
 typedef struct TrackLoadInfo { /* 0x2C bytes */
     s8 trackInited;           /* 0x0 */
@@ -1427,10 +1358,6 @@ typedef struct TrackLoadInfo { /* 0x2C bytes */
     TrackLoadState path;      /* 0x1C */
     TrackLoadState other;     /* 0x24 */
 } TrackLoadInfo;
-
-typedef struct Waypoint { /* 0x50 bytes */
-    s16 index[40]; /* 0x0 */
-} Waypoint;
 
 typedef struct WorldPoint { /* 0x6 bytes */
     s16 x; /* 0x0 */
@@ -1446,15 +1373,6 @@ typedef struct tCheckpoints { /* 0x32C bytes */
     s16 numPoints;          /* 0x8 */
     tCheckpoint points[10]; /* 0xC */
 } tCheckpoints;
-
-typedef struct tStatList { /* 0x28 bytes */
-    u8 flag;     /* 0x0 */
-    s32 count;   /* 0x4 */
-    s32 size;    /* 0x8 */
-    void *mem;   /* 0x10 */
-    void *head;  /* 0x18 */
-    void *store; /* 0x20 */
-} tStatList;
 
 /* ---- cars: the cars, their visuals, skids and smoke */
 
@@ -1754,6 +1672,11 @@ typedef struct CameraView { /* 0x98 bytes */
     u8 unknown30[104]; /* 0x30 */
 } CameraView;
 
+typedef struct PcFscls { /* 0x1EC bytes */
+    f32 fscls[3];          /* 0x0 */
+    PcRespawn respawn[30]; /* 0xC */
+} PcFscls;
+
 /* ---- hud: the HUD */
 
 typedef struct BattlePointEvent { /* 0x18 bytes */
@@ -1776,6 +1699,22 @@ typedef struct CoinRow { /* 0x68 bytes */
 typedef struct CreditPage { /* 0x58 bytes */
     char *names[11]; /* 0x0 */
 } CreditPage;
+
+typedef struct HudBlitDef { /* 0x30 bytes */
+    const char *texname;            /* 0x0 */
+    s16 dulx;                       /* 0x8 */
+    s16 duly;                       /* 0xA */
+    s16 width;                      /* 0xC */
+    s16 height;                     /* 0xE */
+    s16 top;                        /* 0x10 */
+    s16 bot;                        /* 0x12 */
+    s16 left;                       /* 0x14 */
+    s16 right;                      /* 0x16 */
+    u32 zdepth;                     /* 0x18 */
+    u32 alpha;                      /* 0x1C */
+    s32 (*animfunc)(struct Blit *); /* 0x20 */
+    u32 animid;                     /* 0x28 */
+} HudBlitDef;
 
 typedef union HudColor { /* 0x4 bytes */
     u32 word;
@@ -1819,9 +1758,9 @@ typedef union ButtonColor { /* 0x4 bytes */
 } ButtonColor;
 
 typedef struct CarComponentSlot { /* 0x34 bytes */
-    s16 handle;       /* 0x0 */
-    s16 auxiliary;    /* 0x2 */
-    u8 unknown04[48]; /* 0x4 */
+    s16 idx;               /* 0x0 */
+    s16 level;             /* 0x2 */
+    u8 matrix_and_pos[48]; /* 0x4 */
 } CarComponentSlot;
 
 typedef struct CarScreenCar { /* 0xC bytes */
@@ -1854,17 +1793,20 @@ typedef struct ComponentLights { /* 0x28 bytes */
     ComponentLight l[2]; /* 0x8 */
 } ComponentLights;
 
-typedef struct CourseFlag { /* 0x5 bytes */
-    u8 flag;         /* 0x0 */
-    u8 unknown01[4]; /* 0x1 */
-} CourseFlag;
-
 typedef struct Egg { /* 0xA4 bytes */
     u8 size;        /* 0x0 */
     u8 pad[3];      /* 0x1 */
     u32 levels[20]; /* 0x4 */
     u32 edges[20];  /* 0x54 */
 } Egg;
+
+typedef struct HighScoreRect { /* 0xC bytes */
+    s16 x;          /* 0x0 */
+    s16 y;          /* 0x2 */
+    s16 w;          /* 0x4 */
+    s16 h;          /* 0x6 */
+    s16 unknown[2]; /* 0x8 */
+} HighScoreRect;
 
 typedef struct MapLod { /* 0x10 bytes */
     u16 texidx;      /* 0x0 */
@@ -1873,6 +1815,16 @@ typedef struct MapLod { /* 0x10 bytes */
     u32 displayList; /* 0x8 */
     u32 verts;       /* 0xC */
 } MapLod;
+
+typedef struct MenuButton { /* 0x40 bytes */
+    s32 type;         /* 0x0 */
+    s32 handle;       /* 0x4 */
+    f32 angle;        /* 0x8 */
+    f32 matrix[3][3]; /* 0xC */
+    f32 position[3];  /* 0x30 */
+    u8 alpha;         /* 0x3C */
+    u8 pad[3];        /* 0x3D */
+} MenuButton;
 
 typedef struct ModeScreenButton { /* 0x40 bytes */
     s32 unknown0;     /* 0x0 */
@@ -1891,10 +1843,14 @@ typedef struct ObscenityList { /* 0xB0 bytes */
     u8 *p[22]; /* 0x0 */
 } ObscenityList;
 
-typedef struct PcFscls { /* 0x1EC bytes */
-    f32 fscls[3];          /* 0x0 */
-    PcRespawn respawn[30]; /* 0xC */
-} PcFscls;
+typedef struct PlayerRect { /* 0x18 bytes */
+    s32 x;  /* 0x0 */
+    s32 y;  /* 0x4 */
+    s32 w;  /* 0x8 */
+    s32 h;  /* 0xC */
+    s32 cx; /* 0x10 */
+    s32 cy; /* 0x14 */
+} PlayerRect;
 
 typedef struct SelectCarState { /* 0x18 bytes */
     u8 b0;    /* 0x0 */
