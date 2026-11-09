@@ -10,7 +10,7 @@
  * game: src/blob/InitBlast.c src/blob/UpdateEnvirons.c src/blob/SkyUpdate.c
  * game: src/blob/InitRecords.c src/blob/FindTempNameIdx.c src/blob/RemovePlayerScores.c
  * game: src/blob/ClearPlayerRecords.c src/blob/groups/highscore_rank/RankScores.c
- * game: src/blob/groups/save/ctx_newghost.c src/blob/groups/audiosfx_play/group.c
+ * game: src/blob/groups/save/NewGhost.c src/blob/groups/audiosfx_play/group.c
  * game: src/blob/groups/listeners/AudUpdateListener.c src/blob/groups/listeners/AudRemoveListener.c
  */
 #include <stddef.h>
@@ -303,7 +303,7 @@ static void test_player_names(void)
 
 void **NewGhost(void);
 
-/* SaveInit' Ghost on the PC (64 bytes), and what the rest of ctx_newghost.c references. */
+/* SaveInit' Ghost on the PC (64 bytes), and what the rest of NewGhost.c references. */
 struct ghost { void *ll; void **fileh; int8_t track; uint8_t backward, name[13], pad17; uint32_t playerId[2];
                float finish; uint8_t **datah; void **header; };
 void *AllocateHandleHeap(void *heap, uint32_t size) { return NULL; }

@@ -19,7 +19,7 @@ void dead_reckon_all(void) {
     tModelData *m;
     s32 i;
     for (i = 0, m = PC_MODELS; i != PC_RACE_CARS; i++, m = (tModelData *) ((s8 *) m + 0x808)) {
-        if ((m->in_game != 0) && ((s8) PC_CAR_STATE(i) < CAR_DEAD)) {
+        if ((m->in_game != 0) && ((s8) PC_CAR_DEAD(i) < CAR_DEAD)) {
             dead_reckon_posuv(m);
         }
     }

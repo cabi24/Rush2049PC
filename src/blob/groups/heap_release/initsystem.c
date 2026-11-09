@@ -12,7 +12,7 @@ extern s32 osTvType;
 VIEW(intptr_t, zbuffer);
 #define zbuffer zbuffer_view
 
-/* The frame command buffers (ctx_initsystem.c has their storage and their sizes). */
+/* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
 
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);

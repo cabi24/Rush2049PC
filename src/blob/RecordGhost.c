@@ -56,7 +56,7 @@ void RecordGhost(void)
             else
                 r = &gTotalRaceStats[track];
             car = PC_CAR(gPlayers[i].car);
-            if (PC_CAR_FINISHED(gPlayers[i].car)) {
+            if (PC_CAR_PLACE_LOCKED(gPlayers[i].car)) {
                 time = car->time;
                 for (k = 0; k < 5; k++) {
                     if (r->scores[GHOST_SCORES][k] == 0.0f || time < r->scores[GHOST_SCORES][k]) {

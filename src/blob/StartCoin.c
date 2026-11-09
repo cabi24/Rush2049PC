@@ -37,11 +37,11 @@ void StartCoin(Target *t)
     slot = t->slot;
     t->flags = (u8) (t->flags & ~TARGET_HIT);
     coin = (void *) PC_N64P(t->data);
-    if ((PC_CAR_VIEW(slot) >= 0) && (IsCoinFound(slot, coin->whichcoin) == 0)) {
+    if ((PC_CAR_CAMERA(slot) >= 0) && (IsCoinFound(slot, coin->whichcoin) == 0)) {
         FoundCoin(t->slot, coin->whichcoin);
-        MBOX_HideObject(t->dlIdx, 1, 1 << PC_CAR_VIEW(t->slot));
-        MBOX_HideObject(coin->dlIdx, 1, 1 << PC_CAR_VIEW(t->slot));
-        if ((coin->cameras &= ~(1 << PC_CAR_VIEW(t->slot))) == 0) {
+        MBOX_HideObject(t->dlIdx, 1, 1 << PC_CAR_CAMERA(t->slot));
+        MBOX_HideObject(coin->dlIdx, 1, 1 << PC_CAR_CAMERA(t->slot));
+        if ((coin->cameras &= ~(1 << PC_CAR_CAMERA(t->slot))) == 0) {
             t->flags = (u8) (t->flags | TARGET_COIN_GONE);
         }
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);

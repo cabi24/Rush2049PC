@@ -148,13 +148,13 @@ probability of about 1 - 8 MB / 4 GB.
 | `src/blob/groups/memsys/group.c` | `InitHeap` | 2 | harmless | window: heap header set-up |
 | `src/blob/groups/memsys/group.c` | `create_heap` | 1 | harmless | window: a sub-heap's end |
 | `src/blob/groups/memsys/group.c` | `locate_main_heap` | 1 | harmless | window: the heap's start, `align32(0x8017A640)` |
-| `src/blob/groups/AudioInitSys/AudioInitSys.c` | `AudioInitSys` | 1 | harmless | small integer: `D_00039B40` is the sample bank's ROM offset 0x39B40 |
+| `src/blob/groups/AudioInitSys/AudioInitSys.c` | `AudioInitSys` | 1 | harmless | small integer: `sample_bank_rom` is the sample bank's ROM offset 0x39B40 |
 | `src/blob/groups/blast/blast.c` | `StartBlast` | 1 | harmless | ignored: EmitGameSound's `dir` reaches `AudEmitEffect`'s unread `a1` (and is the arena's unit matrix) |
 | `src/blob/groups/targetpaths/group.c` | `camera_track_entry` | 1 | harmless | ignored: `AudEmitEffect`'s `a1` is never read |
 | `src/blob/groups/SetupCarColor/SetupCarColor.c` | `SetupCarColor` | 1 | harmless | heap: frees its `AllocateMemoryHeap` palette buffer |
-| `src/blob/groups/SetupCarColor/ctx_deflate_mem.c` | `zcfree` | 1 | harmless | heap: zlib's ZFREE of a `ZALLOC` (`AllocateMemoryHeap`) block |
-| `src/blob/groups/SetupCarColor/ctx_initsystem.c` | `FreeBuffers_Init` | 2 | harmless | never runs: a static of the weak `InitSystem` copy |
-| `src/blob/groups/SetupCarColor/ctx_initsystem.c` | `_InitGfx_Init` | 2 | harmless | never runs: a static of the weak `InitSystem` copy |
+| `src/blob/groups/heap_release/zcfree.c` | `zcfree` | 1 | harmless | heap: zlib's ZFREE of a `ZALLOC` (`AllocateMemoryHeap`) block |
+| `src/blob/groups/heap_release/initsystem_start.c` | `FreeBuffers_Init` | 2 | harmless | never runs: a static of the weak `InitSystem` copy |
+| `src/blob/groups/heap_release/initsystem_start.c` | `_InitGfx_Init` | 2 | harmless | never runs: a static of the weak `InitSystem` copy |
 | `src/blob/groups/update_model/group.c` | `UpdateModel` | 1 (0) | **bug**, fixed | held a ghost handle from `gGhosts` in an `s32` (sign extension) and read its header at N64 +0x28 |
 | `src/blob/groups/destroy_heap/destroy_heap.c` | `destroy_heap` | 1 | harmless | heap: frees a sub-heap |
 | `src/blob/groups/highscore_rank/RankScores.c` | `RankScores` | 1 (0) | **bug**, fixed | stored a profile handle (`&gJustPlayers[n]`, own storage) into the `s32` name slot `gThisPlayer` |
@@ -170,19 +170,19 @@ probability of about 1 - 8 MB / 4 GB.
 | `src/blob/groups/targets/group.c` | `SetTargetDefs` | 1 | records agent | the level-object node pool `gTargetList`: an `s32` GTLD key compared with a pointer slot, sign-extended |
 | `src/blob/groups/loadtrack/loadtrack.c` | `LoadTrack` | 1 | harmless | window: WHDR offsets rebased on the world file, a heap block |
 | `src/blob/groups/listeners/AudRemoveListener.c` | `StopListeners` | 1 | records agent | `gPlayers[i].object` held as `s32` and turned into a pointer |
-| `src/blob/groups/save/ctx_newghost.c` | `CompressGhost` | 3 | harmless | heap: frees the zip buffer; a heap block's size |
-| `src/blob/groups/save/ctx_newghost.c` | `ghost_free_start` | 1 | harmless | heap: frees the ghost data |
-| `src/blob/groups/save/ctx_slot.c` | `PS_PurgeFile` | 1 | harmless | heap: frees a slot's data handle |
-| `src/blob/groups/save/ctx_slot.c` | `SaveGhost` | 2 | harmless | heap: a handle's block size |
-| `src/blob/groups/save/ctx_slot.c` | `cart_free` | 1 | harmless | heap: frees a handle |
-| `src/blob/groups/save/ctx_slot.c` | `cart_free_direct` | 1 | harmless | heap: frees a handle |
-| `src/blob/groups/save/ctx_slot.c` | `PurgeGhostData` | 1 | harmless | heap: frees a handle |
+| `src/blob/groups/save/NewGhost.c` | `CompressGhost` | 3 | harmless | heap: frees the zip buffer; a heap block's size |
+| `src/blob/groups/save/NewGhost.c` | `ghost_free_start` | 1 | harmless | heap: frees the ghost data |
+| `src/blob/groups/save/ghost_files.c` | `PS_PurgeFile` | 1 | harmless | heap: frees a slot's data handle |
+| `src/blob/groups/save/ghost_files.c` | `SaveGhost` | 2 | harmless | heap: a handle's block size |
+| `src/blob/groups/save/ghost_files.c` | `cart_free` | 1 | harmless | heap: frees a handle |
+| `src/blob/groups/save/ghost_files.c` | `cart_free_direct` | 1 | harmless | heap: frees a handle |
+| `src/blob/groups/save/ghost_files.c` | `PurgeGhostData` | 1 | harmless | heap: frees a handle |
 | `src/blob/groups/save/group.c` | `CreatePlayer` | 1 | harmless | id: `(u32)player << 3 | pak` is the profile's 32-bit id in its save file, never a pointer again |
 | `src/blob/groups/save/AudioInit.c` | `AudioInit` | 3 | harmless | heap: `PurgeableMemory` of `AllocateMemoryHeap` blocks |
 | `src/blob/groups/save/save.c` | `SaveInit` | 2 | harmless | heap: `PurgeableMemory` of `AllocateMemoryHeap` blocks |
-| `src/blob/groups/car_sounds/d5e64.c` | `StartCarSounds` | 1 | harmless | dead store: `object = (s32)&D_8010FFC4[player]` is overwritten before any use |
-| `src/blob/groups/car_sounds/mode.c` | `UpdateEngineSound` | 1 | harmless | ignored: `AudEmitEffect`'s `a1` |
-| `src/blob/groups/car_sounds/mode.c` | `UpdateCarSounds` | 1 | harmless | ignored: `AudEmitEffect`'s `a1` |
+| `src/blob/groups/car_sounds/StartCarSounds.c` | `StartCarSounds` | 1 | harmless | dead store: `object = (s32)&gCarActive[player]` is overwritten before any use |
+| `src/blob/groups/car_sounds/UpdateCarSounds.c` | `UpdateEngineSound` | 1 | harmless | ignored: `AudEmitEffect`'s `a1` |
+| `src/blob/groups/car_sounds/UpdateCarSounds.c` | `UpdateCarSounds` | 1 | harmless | ignored: `AudEmitEffect`'s `a1` |
 | `src/blob/groups/paksysdc/group.c` | `RemovePak` | 1 | harmless | heap: frees a pak file's data handle |
 | `src/blob/groups/paksysdc/group.c` | `PS_DeleteFile` | 1 | harmless | heap: frees a pak file's data handle |
 | `src/blob/groups/zoid_draw/group.c` | `ZOID_EndFrame` | 3 | harmless | window: `pal->table` is a u32 window address (WAD palettes, the car palettes in the arena), zero-extended |
@@ -224,18 +224,18 @@ probability of about 1 - 8 MB / 4 GB.
 | `src/blob/groups/SetupCarColor/ctx_overlay_loader.c` | `load_overlay` (1) | `src/blob/groups/heap_release/overlay_loader.c` |
 | `src/blob/groups/purgeable_memory/group.c` | `unload_extra_overlay` (1), `unload_start_overlay` (1), `DeallocateMemoryInternal` (6), `FindChunk` (3), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
 | `src/blob/groups/hud_text_anims/gr3_e.c` | `updateAudioScreen` (2) | `src/blob/groups/audioscr_update/updateAudioScreen.c` |
-| `src/blob/groups/free_sequence/group.c` | `ProcessSequences` (20) | `src/blob/groups/audiomgr/audio_effect_setup_b132.c` |
+| `src/blob/groups/free_sequence/group.c` | `ProcessSequences` (20) | `src/blob/groups/audiomgr/ProcessSequences.c` |
 | `src/blob/groups/destroy_heap/heap_release_context.c` | `unload_extra_overlay` (1), `unload_start_overlay` (1), `DeallocateMemoryInternal` (6), `FindChunk` (5), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
 | `src/blob/groups/game_music/func_800D6530.c` | `StartListeners` (1) | `src/blob/groups/game_sounds/StartListeners.c` |
-| `src/blob/groups/heap_release/zip.c` | `zcfree` (1) | `src/blob/groups/SetupCarColor/ctx_deflate_mem.c` |
+| `src/blob/groups/heap_release/zip.c` | `zcfree` (1) | `src/blob/groups/heap_release/zcfree.c` |
 | `src/blob/groups/heap_release/group.c` | `FindChunk` (3), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c` |
-| `src/blob/groups/save/ctx_slot.c` | `DeallocateMemoryInternal` (6), `FindChunk` (3), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
+| `src/blob/groups/save/ghost_files.c` | `DeallocateMemoryInternal` (6), `FindChunk` (3), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
 | `src/blob/groups/paksysdc/ctx_heap.c` | `unload_extra_overlay` (1), `unload_start_overlay` (1), `DeallocateMemoryInternal` (6), `FindChunk` (5), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
 | `src/blob/groups/pointer_counters/group.c` | `FindHeap` (4) | `src/blob/FindHeap.c` |
 | `src/blob/groups/resurrect/particle_context.c` | `ZOID_EndFrame` (3) | `src/blob/groups/zoid_draw/group.c` |
 | `src/blob/groups/save_limbo/alloc_at.c` | `allocate_memory_at` (7) | `src/blob/groups/heap_release/alloc_at.c` |
 | `src/blob/groups/save_limbo/car_damage_visual.c` | `ClearMemoryHeap` (3) | `src/blob/groups/heap_release/ClearMemoryHeap.c` |
-| `src/blob/groups/save_limbo/deflate_mem.c` | `zcfree` (1) | `src/blob/groups/SetupCarColor/ctx_deflate_mem.c` |
+| `src/blob/groups/save_limbo/deflate_mem.c` | `zcfree` (1) | `src/blob/groups/heap_release/zcfree.c` |
 | `src/blob/groups/save_limbo/group.c` | `unload_extra_overlay` (1), `unload_start_overlay` (1), `DeallocateMemoryInternal` (6), `FindChunk` (5), `FindHeap` (4) | `src/blob/FindChunk.c`, `src/blob/FindHeap.c`, `src/blob/groups/heap_release/group.c` |
 | `src/blob/groups/save_limbo/overlay_loader.c` | `load_overlay` (1) | `src/blob/groups/heap_release/overlay_loader.c` |
 | `src/blob/groups/state/ctx_alloc_at.c` | `allocate_memory_at` (7) | `src/blob/groups/heap_release/alloc_at.c` |

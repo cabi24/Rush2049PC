@@ -21,7 +21,7 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* Posts "stop the song" to the sound manager: a free message from the pool (under the audio lock), its command
  * set, then sent to the manager's queue. */
-void post_type1(void) {
+void post_stop_song(void) {
     ShutdownMsg *msg;
     ShutdownMsg *cmd;
 
@@ -32,8 +32,8 @@ void post_type1(void) {
     osSendMesg((OSMesgQueue *) &audio_command_queue,msg,1);
 }
 
-/* Posts "stop every effect" to the sound manager, as post_type1. */
-void post_type7(void) {
+/* Posts "stop every effect" to the sound manager, as post_stop_song. */
+void post_stop_all_effects(void) {
     ShutdownMsg *msg;
     ShutdownMsg *cmd;
 

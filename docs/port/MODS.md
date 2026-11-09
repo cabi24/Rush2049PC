@@ -248,7 +248,7 @@ Three files need more:
   language into the same block. When a mod's bank (or its overrides) is larger than that first bank, the first bank's
   size in the table becomes the largest (and its place in the region has the room after it), so the block holds them.
 - **The samples** (wave 9, `samples`) are no wave the game loads: the sample directory (wave 8) gives each sample's
-  offset from the sample base, ROM 0x39B40 (`(s32)D_00039B40`, MUSYX_DATA.md). A mod's sample data goes in the region
+  offset from the sample base, ROM 0x39B40 (`(s32)sample_bank_rom`, MUSYX_DATA.md). A mod's sample data goes in the region
   and the sample directory in use (the mod's, or a copy of the cartridge's) gets every record's offset moved by the
   difference (`SampleRecord.offset` at +4, `include/sound_sample_record.h`), so `0xB0039B40 + offset` is the
   sample's address in the region. The sample DMA reads it there.

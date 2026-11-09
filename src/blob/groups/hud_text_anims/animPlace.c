@@ -41,7 +41,7 @@ s32 animPlace(s32 blit)
     }
     w = HAL_GetCharWidth('8');
     for (i = 0; i < gNumWindows; i++) {
-        if (AreWeSolid(i) == 0 || PC_CAR_FINISHED(i) == 1) {
+        if (AreWeSolid(i) == 0 || PC_CAR_PLACE_LOCKED(i) == 1) {
             continue;
         }
         x = placePos[gNumWindows - 1][i].x;

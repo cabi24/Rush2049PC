@@ -59,8 +59,8 @@ void GhostEnd(void)
                 }
             } else {
                 g->flag = 0;
-                if (PC_CAR_FINISHED(i) != 0) {
-                    g->finish = PC_CAR_TIME(i);
+                if (PC_CAR_PLACE_LOCKED(i) != 0) {
+                    g->finish = PC_CAR_SCORE(i);
                     g->size = g->offset;
                     gGhostToSave = g;
                 } else {

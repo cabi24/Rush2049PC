@@ -1,0 +1,126 @@
+# Wave 2c's names (docs/port/PCONLY.md 3 and 4): the names wave 2b's area agents found wrong, the last address names
+# of src/, include/ and port/ (and the tools' lists that name them: port/data/decoupled.txt, asm_functions.txt), and
+# the files named after an address or after something they don't hold. Evidence: the MAT3 decomp (symbols.txt, its
+# C) and the code. The copies of a global under an address-suffixed name (TB_FlashTextColors_AEAC, Hidden_9F54,
+# getB6_*, item_refresh_*, pak_slot_b* ...) went by hand before this map (their callers call the global), and so did
+# image A's calls of six functions by the runtime images' stale labels (player_mode_set, sound_handles_array_clear,
+# audio_dma_sync, audio_bus_mix, audio_interrupt_handler, particle_lifetime_set): their rows below rename what is left
+# of them, the runtime images' table keys. The boot tail's hand-written GSM routines (func_80027980 ...) were named by
+# hand too, in port/data/asm_functions.txt and asm/us/boot_data/kernels.s, the only places they are named.
+old	new	kind	source	confidence	note
+cs_draw1_DC	DrawPakErrNoController	func	mat3	sure	MAT3 pakerr.c _DrawPakErrNoController (leading _ dropped, as DrawPakErrNoPak): ShowPakError's kPS_ErrNoCont case; the message, two newlines, the message after, centred in the box less 20
+cs_draw3_DC	DrawPakErrNewPak	func	mat3	sure	MAT3 pakerr.c _DrawPakErrNewPak: ShowPakError's kPS_ErrNewPak case, the new-pak question with ControlChoice
+cs_drawT0_DC	DrawPakErrInconsistent	func	mat3	sure	MAT3 pakerr.c _DrawPakErrInconsistent: kPS_ErrInconsistent; two messages through DrawPakErrNQA, the second shared with BadData (MAT3 120/120, here 110/110)
+cs_drawT1_DC	DrawPakErrUnknown	func	mat3	sure	MAT3 pakerr.c _DrawPakErrUnknown: kPS_ErrUnknown (15 on the N64); the message, then the no-controller dialog's second message (MAT3 110, here 102), through DrawPakErrNQA
+cs_drawT2_DC	DrawPakErrFull	func	mat3	sure	MAT3 pakerr.c _DrawPakErrFull: kPS_ErrFull; two consecutive messages (MAT3 123/124, here 113/114) through DrawPakErrNQA
+cs_drawT3_DC	DrawPakErrBadData	func	mat3	sure	MAT3 pakerr.c _DrawPakErrBadData: kPS_ErrBadData; its message and Inconsistent's second (MAT3 125/120, here 115/110) through DrawPakErrNQA
+cs_ctl10_DC	ControlChoice3	func	code	sure	the three-answer counterpart of ControlChoice (MAT3 _ControlChoice): down and up move round the three answers, A takes it; with DrawChoice3 for kPS_ErrRecognize
+cs_wait11_DC	DrawPakErrReread	func	code	likely	kPS_ErrReread's dialog: draws message 119 through DrawPakErrNQA and closes itself at its timeout (MAT3 _ControlPakErrTimeout's test); the error's name is inferred (save.h)
+cs_wait12_DC	DrawPakErrRepairFailed	func	code	likely	kPS_ErrRepairFailed's dialog: message 120, closes at its timeout, as DrawPakErrReread
+cs_wait13_DC	DrawPakErrRepaired	func	code	likely	kPS_ErrRepaired's dialog: message 121, closes at its timeout, as DrawPakErrReread
+rear_traction_by_tune	carEngineFwdForce	data	mat3	sure	f32[9][3]: MAT3 cars.c carEngineFwdForce, read by dotireforce as traction *= carEngineFwdForce[m->engine_type][m->handling] (MAT3 tires.c 76)
+rear_traction_by_surface	carTransTraction_by_gear	data	code	sure	the label 4 bytes into MAT3 cars.c carTransTraction[8][6] (carTransGearRatio 0x80110EBC + 0xC0 is 0x80110F7C, gCarHandling 0xC0 after it as in MAT3): [trans][gear] here is MAT3's [trans][gear + 1] (tires.c 77)
+update_player_visibility	UpdateArrowVis	func	mat3	sure	MAT3 visuals.c UpdateArrowVis: the same loops (i < gNumPlayers - 1, j from 1), 5.0f up, ShotToWorldCollision(.., 0.5f, 0, 65535), gFadePlayerArrow both ways; its file moves with it
+player_mode_set	SetControllerStickEdges	func	mat3	sure	alias: the runtime images' tables name 0x800C84C0 player_mode_set, the game image's SetControllerStickEdges (symbol_addrs.us.txt: GC controlsys.c, renamed from player_mode_set); playerscr.c calls it as MAT3 playerscr.c does
+sound_handles_array_clear	RemovePane	func	mat3	sure	alias: the runtime images' tables name 0x800DC720 sound_handles_array_clear, the game image's RemovePane (symbol_addrs.us.txt: GC pane.c); the screens' uninit calls it on their panes as MAT3's do
+audio_dma_sync	AllocateMemoryHeap	func	mat3	sure	alias: the runtime images' tables name 0x80097470 audio_dma_sync, the game image's AllocateMemoryHeap (symbol_addrs.us.txt: GC memsys.c); trackscr.c allocates its map blocks with it
+audio_bus_mix	SavePlayerOption	func	mat3	sure	alias: the runtime images' tables name 0x800B4818 audio_bus_mix, the game image's SavePlayerOption (symbol_addrs.us.txt: GC save.c); trackscr.c saves the race options with it as MAT3 trackscr.c does
+audio_interrupt_handler	LoadCars	func	mat3	sure	alias: the runtime images' tables name 0x800BB140 audio_interrupt_handler, the game image's LoadCars (symbol_addrs.us.txt: GC carload.c); carscr.c loads the select screen's cars with it (LoadCars(1))
+particle_lifetime_set	createBG	func	mat3	sure	alias: the runtime images' tables name 0x800B8374 particle_lifetime_set, the game image's createBG (symbol_addrs.us.txt: GC front.c); every front-end screen's init puts its background up with it, as MAT3's call createBG
+tire_sound_on	wing_sound_on	func	code	sure	AnimateWing.c: starts the wing's sound (effect 61) on the model's sound handle, MAT3 visuals.c AnimateWing's m->wingSnd = AudPlayEffect(..), inlined there
+tire_extend	wing_extend	func	code	sure	AnimateWing.c: shows the wing and starts it sliding out (flags 0x1110), MAT3 AnimateWing's MBOX_ShowObject and v->data |= 0x1110, inlined there
+tire_sound_off	wing_sound_off	func	code	sure	AnimateWing.c: stops the wing's sound (MAT3 AnimateWing's AudStopEffect(m->wingSnd)), inlined there
+post_type1	post_stop_song	func	code	sure	AudioShutdown's post of the sound manager's command 1 (AUDIO_CMD_STOP_SONG), waiting for a free message on the PC
+post_type7	post_stop_all_effects	func	code	sure	AudioShutdown's post of the sound manager's command 7 (AUDIO_CMD_STOP_ALL_EFFECTS), as post_stop_song
+PC_CAR_FINISHED	PC_CAR_PLACE_LOCKED	data	mat3	sure	pc_game_types.h's accessor of pc_car +0xEF, MAT3 tCarData.place_locked (0xEF there too): set once the car finished, its place locked
+PC_CAR_TIME	PC_CAR_SCORE	data	mat3	sure	accessor of pc_car +0xF0, MAT3 tCarData.score (0xF0): the finish time or score CarReportsGameOver ranks by
+PC_CAR_F108	PC_CAR_MILEAGE	data	mat3	sure	accessor of pc_car +0x108, MAT3 tCarData.mileage (0x108; the fields to +0x110 have MAT3's offsets): animOdometer shows it, InitCPTime zeroes it
+PC_CAR_B358	PC_CAR_CRASH_STATE	data	mat3	sure	accessor of pc_car +0x358, MAT3 tCarData.crash_state (0x370 there: past the visuals the N64's fields are MAT3's less 0x18, weight_index 0x356/0x36E, slot 0x35B/0x373)
+PC_CAR_STATE	PC_CAR_DEAD	data	mat3	sure	accessor of pc_car +0x359, MAT3 tCarData.dead (0x371): 0 racing, 1 out of a deaths race
+PC_CAR_DISABLED	PC_CAR_IN_TUNNEL	data	mat3	sure	accessor of pc_car +0x35A, MAT3 tCarData.in_tunnel (0x372): forces1 turns the wind off with it as MAT3 drivsym.c forces1 does, AnimateFrame fades the sheen; update_game_data sets it from the tires' sound flag 0x100
+PC_CAR_VIEW	PC_CAR_CAMERA	data	mat3	sure	accessor of pc_car +0x35C, MAT3 tCarData.camera (0x374), the window showing the car (CheckVisible's 1 << camera); MAT3's view is the next byte
+PC_CAR_HEADING	PC_CAR_STRAY_ANGLE	data	mat3	sure	accessor of pc_car +0x364, MAT3 tCarData.strayAngle (0x37C): DetectDroneAbort's wrong-way angle, animWrongWay reads it
+PC_CAR_KIND	PC_CAR_WEAPON_TYPE	data	mat3	sure	accessor of pc_car +0x384, MAT3 tCarData.battle.weapon.type (0x39C): animAmmoCounts tests it against WEAPON_NONE
+PC_CAR_LIVES	PC_CAR_AMMO_COUNT	data	mat3	sure	accessor of pc_car +0x385, MAT3 battle.weapon.ammoCnt: animAmmoCounts prints it with ammo_count_format when not negative, as MAT3 hudextra.c 444
+PC_CAR_BATTLE_FLAGS	PC_CAR_DEFENSE_ACTIVE	data	mat3	sure	accessor of pc_car +0x38C, MAT3 battle.defense.active (initialize clears it as MAT3 initiali.c 178; hudextra_icons picks the icon by it as MAT3 hudextra.c 507)
+PC_CAR_B3A0	PC_CAR_SHOOT	data	mat3	sure	accessor of pc_car +0x3A0, MAT3 battle.shoot (initialize clears shoot, fadeState, defense.active, pitch, yaw in MAT3 initiali.c 176-180's order)
+PC_CAR_B3A2	PC_CAR_FADE_STATE	data	mat3	sure	accessor of pc_car +0x3A2, MAT3 battle.fadeState (initiali.c 177)
+PC_CAR_F3B0	PC_CAR_BATTLE_PITCH	data	mat3	sure	accessor of pc_car +0x3B0, MAT3 battle.pitch (initiali.c 179); BATTLE_ for the car's own orientation's pitch
+PC_CAR_F3B4	PC_CAR_BATTLE_YAW	data	mat3	sure	accessor of pc_car +0x3B4, MAT3 battle.yaw (initiali.c 180)
+PC_MODEL_B00F	PC_MODEL_TIRE_RIMS	data	mat3	sure	accessor of pc_model +0x00F, MAT3 tModelData.tireRims (0xF; the N64 record is tModelData field for field): SetupCar picks the wheel texture by it
+PC_MODEL_SCALE	PC_MODEL_CATCHUP	data	mat3	sure	accessor of pc_model +0x400, MAT3 tModelData.catchup (0x400): SetCatchup's filtered catch-up, UpdateModel's time_fudge
+PC_MODEL_S7D0	PC_MODEL_RPM	data	mat3	sure	accessor of pc_model +0x7D0, MAT3 tModelData.rpm (0x7D0): animTach's needle
+PC_MODEL_FLAG_A	PC_MODEL_ABORT	data	mat3	sure	accessor of pc_model +0x732, MAT3 mainin.abort (tModelData 0x720 + 0x12): GhostUpdate's bit 3, as MAT3 ghost.c 133
+PC_MODEL_FLAG_B	PC_MODEL_WING	data	mat3	sure	accessor of pc_model +0x731, MAT3 mainin.wing (0x720 + 0x11): GhostUpdate's bit 4, as MAT3 ghost.c 134
+D_00039B40	sample_bank_rom	data	code	sure	not RDRAM: the cartridge offset 0x39B40 of MusyX's raw ADPCM sample data (AudioInitSys's musyx_samples, MUSYX_DATA.md; ASSETS.md row 9); gen_stubs gives it the cartridge address, as it did by the spelling
+D_80153E88	gLink	data	mat3	sure	retired by pc_links (decoupled.txt): MAT3 game.c gLink[13], the race roster, 13 records of 8 bytes
+D_80140420	gEngineSounds	data	mat3	sure	retired by pc_engine_sounds: MAT3 audio.c static gEngineSounds[6] (anon_specs_state_54: 84 bytes each, as the N64's), the engine sound sets StartCarSounds fills
+D_80140640	gPaveSkidSounds	data	mat3	sure	retired by pc_screech_sounds: MAT3 audio.c static gPaveSkidSounds[6] (anon_sound_vol_14: 20 bytes each), the tire screech's records
+D_8010FFC4	gCarActive	data	mat3	sure	retired by pc_car_sounds_on: MAT3 audio.c static signed char gCarActive[6] = {0}: StartCarSounds sets it, StopCarSounds clears it
+D_8010FFCC	gCarUpdatedLastTime	data	mat3	sure	retired by pc_engine_phase: MAT3 audio.c static signed char gCarUpdatedLastTime[6] = {0, 1, 0, 1, 0, 1}; StopCarSounds sets !(p & 1)
+D_80152218	gPrevPos	data	mat3	sure	retired by pc_cp_last_pos: MAT3 checkpoint.c static float gPrevPos[6][3], each car's dr_pos at the last CheckCPs (InitCPTime sets it)
+D_801527E8	lastDotProd	data	mat3	sure	retired by pc_cp_plane: MAT3 checkpoint.c float lastDotProd[6], each car's distance to its next checkpoint's plane
+D_80110668	finish_cam_stime	data	mat3	sure	retired by pc_finish_cam_time: MAT3 camera.c float finish_cam_stime[6] = {0}, the finish camera's start time
+D_80110680	finish_cam	data	mat3	sure	retired by pc_finish_cam: MAT3 camera.c signed char finish_cam[6] = {0}, the finish camera's state (1 circling, 2 frozen)
+D_801527D8	drones	data	mat3	sure	retired by pc_drones: MAT3 mdrive.c signed short drones[MAX_CARS], the drones in the race
+D_80152808	our_drones	data	mat3	sure	retired by pc_our_drones: MAT3 mdrive.c signed short our_drones[MAX_CARS], the drones this node drives
+D_80153F28	lastwheel	data	mat3	sure	retired by pc_mp_steer: MAT3 maxpath.c static float lastwheel[6] (BSS in reverse: lastwheel, lastbrake, lastthrottle up from 0x80153F28), AdjustSteer's
+D_80153F48	lastbrake	data	mat3	sure	retired by pc_mp_brake: MAT3 maxpath.c static float lastbrake[6], AdjustSpeed's
+D_80153F68	lastthrottle	data	mat3	sure	retired by pc_mp_gas: MAT3 maxpath.c static float lastthrottle[6], AdjustSpeed's
+D_80153F88	last_dir	data	mat3	sure	retired by pc_mp_dir: MAT3 maxpath.c static float last_dir[6][3], avoid_areas' last direction (PC_MP_DIR, as MAT3's last_dir in the same tests)
+D_80154138	last_save_dir	data	mat3	sure	retired by pc_mp_save_dir: MAT3 maxpath.c static float last_save_dir[6][3], avoid_areas' last direction to the target
+src/blob/groups/SetupCarColor/ctx_func_800C8918.c	src/blob/groups/heap_release/audio_shutdown_posts.c	file	code	sure	holds post_stop_song and post_stop_all_effects, AudioShutdown's (heap_release/AudioShutdown.c) posts; nothing of the car colour
+src/blob/groups/SetupCarColor/ctx_deflate_mem.c	src/blob/groups/heap_release/zcfree.c	file	code	sure	holds zcfree, the free heap_release/zip.c gives zlib, and its two nested frees down to DeallocateMemoryInternal
+src/blob/groups/SetupCarColor/ctx_initsystem.c	src/blob/groups/heap_release/initsystem_start.c	file	code	sure	holds InitSystem's (heap_release/initsystem.c) text start-up HAL_InitText_Init and free DeallocateMemory_Init, and the frame command buffers pc_frame_dl
+src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c	src/blob/groups/car_checkpoints/PlaceUnlockedCars.c	file	code	sure	holds PlaceUnlockedCars (MAT3 checkpoint.c)
+src/blob/groups/car_checkpoints/car_checkpoints_car_setup_confirm.c	src/blob/groups/car_checkpoints/CarReportsGameOver.c	file	code	sure	holds CarReportsGameOver (MAT3 checkpoint.c)
+src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c	src/blob/groups/car_checkpoints/CheckCPs.c	file	code	sure	holds CheckCPs (MAT3 checkpoint.c); the folder already says car_checkpoints
+src/blob/groups/resurrect/camera_pair.c	src/blob/groups/resurrect/SetResurrectionData.c	file	code	sure	holds SetResurrectionData and FindSurfaceUvsFromResPoint (MAT3 resurrect.c), no camera code
+src/blob/groups/car_sounds/d5e64.c	src/blob/groups/car_sounds/StartCarSounds.c	file	code	sure	holds StartCarSounds and InitBumps (MAT3 audio.c); was named for its N64 address 0x800D5E64
+src/blob/groups/car_sounds/ded78.c	src/blob/groups/car_sounds/GetForceAndPeak.c	file	code	sure	holds GetForceAndPeak (MAT3 audio.c _GetForceAndPeak); was named for its N64 address
+src/blob/groups/car_sounds/msh.c	src/blob/groups/car_sounds/UpdateBumps.c	file	code	sure	holds UpdateBumps and CheckForces (MAT3 audio.c)
+src/blob/groups/car_sounds/mode.c	src/blob/groups/car_sounds/UpdateCarSounds.c	file	code	sure	holds UpdateCarSounds and the engine, road and screech updates it calls (MAT3 audio.c)
+src/blob/groups/controlscr/d8154.c	src/blob/groups/controlscr/controls_validOption.c	file	code	sure	holds controls_validOption (MAT3 controlscr.c validOption); was named for its N64 address
+src/blob/groups/controlscr/d9058.c	src/blob/groups/controlscr/calcControlMenuMaxSize.c	file	code	sure	holds calcControlMenuMaxSize (MAT3 controlscr.c); was named for its N64 address
+src/blob/groups/controlscr/dtc.c	src/blob/groups/controlscr/controls_initButtons.c	file	code	sure	holds controls_initButtons (MAT3 controlscr.c initButtons)
+src/blob/groups/controlscr/predicate.c	src/blob/groups/controlscr/controls_validControl.c	file	code	sure	holds controls_validControl (MAT3 controlscr.c validControl)
+src/blob/groups/controlscr/target.c	src/blob/groups/controlscr/controls_updateButtons.c	file	code	sure	holds controls_updateButtons (MAT3 controlscr.c updateButtons)
+src/blob/groups/controlscr/rows.c	src/blob/groups/controlscr/cleanupControlScreen.c	file	code	sure	holds cleanupControlScreen and controls_uninitButtons (MAT3 controlscr.c)
+src/blob/groups/controlscr/caller.c	src/blob/groups/controlscr/updateControlScreen.c	file	code	sure	holds updateControlScreen (MAT3 controlscr.c)
+src/blob/groups/audioscr_update/init_w36q.c	src/blob/groups/audioscr_update/audio_initScreen.c	file	code	sure	holds audio_initScreen (MAT3 audioscr.c initScreen and initButtons)
+src/blob/groups/audioscr_update/rect_w38a.c	src/blob/groups/audioscr_update/audio_calcMenuRect.c	file	code	sure	holds audio_calcMenuRect (MAT3 audioscr.c calcMenuRect)
+src/blob/groups/audioscr_update/uninit_w36w3.c	src/blob/groups/audioscr_update/audio_uninitScreen.c	file	code	sure	holds audio_uninitScreen and its buttons' (MAT3 audioscr.c uninitScreen, uninitButtons)
+src/blob/groups/hud_text_anims/gr3_b.c	src/blob/groups/hud_text_anims/HAL_SetFontInternal.c	file	code	sure	holds HAL_SetFontInternal (MAT3 HAL_text.c _HAL_SetFont)
+src/blob/groups/hud_text_anims/gr3_c.c	src/blob/groups/hud_text_anims/title_panes.c	file	code	sure	holds audio_TitlePane and options_TitlePane, the two screens' title panes (MAT3 audioscr.c, optionscr.c _TitlePane)
+src/blob/groups/hud_text_anims/gr3_w.c	src/blob/groups/hud_text_anims/HAL_StartText.c	file	code	sure	holds HAL_StartText (MAT3 HAL_text.c)
+src/blob/groups/animgear/ctx_gr3.c	src/blob/groups/animgear/TB_GetFontHeight.c	file	code	sure	holds TB_GetFontHeight and TB_GetFontLineHeight (MAT3 TB_text.c)
+src/blob/groups/hud_text_anims/ctx_option_init.c	src/blob/groups/hud_text_anims/op_initButtons.c	file	code	sure	holds op_initButtons and op_calcOptionMenuMaxSize (MAT3 optionscr.c initButtons, calcOptionMenuMaxSize)
+src/blob/groups/countdown_show/audio_doppler_full.c	src/blob/groups/countdown_show/ShowCountdown.c	file	code	sure	holds ShowCountdown (MAT3 countdown.c); nothing of audio or doppler
+src/blob/groups/save_get_option/reverb.c	src/blob/groups/save_get_option/GetPlayerOption.c	file	code	sure	holds GetPlayerOption and the race, battle, stunt and obstacle settings it reads (MAT3 save.c)
+src/blob/groups/save_player_controls/filename.c	src/blob/groups/save_player_controls/SavePlayerControls.c	file	code	sure	holds SavePlayerControls (MAT3 save.c)
+src/blob/groups/save_coins/range_update.c	src/blob/groups/save_coins/SavePlayerCoins.c	file	code	sure	holds SavePlayerCoins (MAT3 save.c)
+src/blob/groups/save_default_car/dn.c	src/blob/groups/save_default_car/SetDefaultCarSettings.c	file	code	sure	holds SetDefaultCarSettings (MAT3 save.c _SetDefaultCarSettings)
+src/blob/groups/videoscr_update/slp.c	src/blob/groups/videoscr_update/video_TitlePane.c	file	code	sure	holds video_TitlePane (MAT3 videoscr.c _TitlePane) and its font setter
+src/blob/groups/interrupt_fx_tag/ap.c	src/blob/groups/interrupt_fx_tag/InterruptFxTag.c	file	code	sure	holds InterruptFxTag (MAT3 audiomgr.c _InterruptFxTag)
+src/blob/groups/visuals/anim_tire_donor.c	src/blob/groups/visuals/AnimateTire.c	file	code	sure	holds AnimateTire (MAT3 visuals.c)
+src/blob/groups/visuals/visibility_wrappers.c	src/blob/groups/visuals/CheckVisible.c	file	code	sure	holds CheckVisible (MAT3 visuals.c)
+src/blob/groups/loadcars/root.c	src/blob/groups/loadcars/LoadCars.c	file	code	sure	holds LoadCars (MAT3 carload.c)
+src/blob/groups/audiomgr/audio_effect_setup_b132.c	src/blob/groups/audiomgr/ProcessSequences.c	file	code	sure	holds ProcessSequences and FreeFxTag (MAT3 audiomgr.c _ProcessSequences, _FreeFxTag)
+src/blob/groups/save/ctx_newghost.c	src/blob/groups/save/NewGhost.c	file	code	sure	holds NewGhost and CompressGhost, a race's ghost made and compressed (MAT3 save.c _NewGhost)
+src/blob/groups/save/ctx_slot.c	src/blob/groups/save/ghost_files.c	file	code	sure	holds the ghost files' functions: SaveGhost, reading, decoding and dropping a ghost's data, PS_PurgeFile (MAT3 save.c, ghost.c)
+src/blob/groups/get_res_pt/path.c	src/blob/groups/get_res_pt/GetResPt.c	file	code	sure	holds GetResPt and raise_ob_res_pt (MAT3 resurrect.c GetResPt)
+src/ovl_b/AddBattlePoint.c	src/ovl_b/AddBattlePointInternal.c	file	code	sure	holds AddBattlePointInternal (image B's), not AddBattlePoint (src/blob/AddBattlePoint.c)
+src/blob/groups/state_waves/audio.c	src/blob/groups/state_waves/FindWaveInstanceInternal.c	file	code	sure	holds FindWaveInstanceInternal (MAT3 waves.c _FindWaveInstance) and the stand-in audio_user; nothing of audio
+src/blob/groups/state_waves/slots.c	src/blob/groups/state_waves/LoadFrontEndWaves.c	file	code	sure	holds LoadFrontEndWaves and LockAndLoad (MAT3 state.c), the front end's waves
+src/blob/groups/ZOID_InitializeWindow/candidate.c	src/blob/groups/ZOID_InitializeWindow/ZOID_InitializeWindow.c	file	code	sure	holds ZOID_InitializeWindow
+src/blob/groups/ZOID_ProjectWindow/candidate.c	src/blob/groups/ZOID_ProjectWindow/ZOID_ProjectWindow.c	file	code	sure	holds ZOID_ProjectWindow
+src/blob/groups/ZOID_SetFog/candidate.c	src/blob/groups/ZOID_SetFog/ZOID_SetFog.c	file	code	sure	holds ZOID_SetFog
+src/blob/groups/save_car_setting/candidate.c	src/blob/groups/save_car_setting/SavePlayerCarSetting.c	file	code	sure	holds SavePlayerCarSetting
+src/blob/groups/save_stats/candidate.c	src/blob/groups/save_stats/SavePlayerStats.c	file	code	sure	holds SavePlayerStats
+src/blob/groups/shot_world_collision/candidate.c	src/blob/groups/shot_world_collision/ShotToWorldCollision.c	file	code	sure	holds ShotToWorldCollision
+port/assets/tests/musyx_lib_15a10.c	port/assets/tests/musyx_lib_groups.c	file	code	sure	test_musyx's wrapper of src/rom/sound/groups.c; was named for its boot-segment offset
+port/assets/tests/musyx_lib_16320.c	port/assets/tests/musyx_lib_registry.c	file	code	sure	test_musyx's wrapper of src/rom/sound/registry.c
+port/assets/tests/musyx_lib_17dc0.c	port/assets/tests/musyx_lib_sequencer.c	file	code	sure	test_musyx's wrapper of src/rom/sound/sequencer.c
+port/assets/tests/musyx_lib_1f340.c	port/assets/tests/musyx_lib_util.c	file	code	sure	test_musyx's wrapper of src/rom/sound/util.c
+port/assets/tests/musyx_lib_1f5b0.c	port/assets/tests/musyx_lib_voices.c	file	code	sure	test_musyx's wrapper of src/rom/sound/voices.c
+port/assets/tests/musyx_lib_22300.c	port/assets/tests/musyx_lib_macros.c	file	code	sure	test_musyx's wrapper of src/rom/sound/macros.c

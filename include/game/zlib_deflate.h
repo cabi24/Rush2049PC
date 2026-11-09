@@ -1,6 +1,6 @@
 /* include/game/zlib_deflate.h: zlib 1.0.4's macros (zconf.h, zlib.h, zutil.h, deflate.h) as the game's deflater has
  * them, for its three files: zlib_deflate/group.c (deflate.c and trees.c), heap_release/zip.c (zip, the one-shot
- * compressor CompressGhost calls) and SetupCarColor/ctx_deflate_mem.c. zlib's checks and traces compile to nothing.
+ * compressor CompressGhost calls) and heap_release/zcfree.c. zlib's checks and traces compile to nothing.
  * zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler, under the zlib licence. */
 #ifndef GAME_ZLIB_DEFLATE_H
 #define GAME_ZLIB_DEFLATE_H
@@ -56,7 +56,7 @@
 #define TOO_FAR 4096
 /* The work buffers come from the main heap. */
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
-/* zlib's zcfree, the game's: the heap's free under its lock (zip.c, ctx_deflate_mem.c; deflate.c has its own). */
+/* zlib's zcfree, the game's: the heap's free under its lock (zip.c, zcfree.c; deflate.c has its own). */
 #define FREECALL(p) zcfree((voidpf)(p))
 
 #endif /* GAME_ZLIB_DEFLATE_H */

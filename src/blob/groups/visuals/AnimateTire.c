@@ -1,4 +1,4 @@
-/* anim_tire_donor.c (visuals): a car's tire each frame (MAT3 visuals.c, AnimateTire()). */
+/* AnimateTire.c (visuals): a car's tire each frame (MAT3 visuals.c, AnimateTire()). */
 #include "game/game.h"
 
 typedef f32 Vec3[3];

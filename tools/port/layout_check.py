@@ -1396,7 +1396,7 @@ REVIEWED = [
      "by design: game_memcmp compares bytes (memcmp); its callers pass typed pointers"),
     (r"src/blob/groups/interrupt_fx_tag/ap\.c$|audio_effect_setup_b132\.c$|src/blob/RemoveLLE\.c$",
      r"^\*caller_[ab]\.arg0$",
-     "dead: ap.c's caller_a and caller_b are stand-in callers kept for matching (never called); their walk through "
+     "dead: InterruptFxTag.c's caller_a and caller_b are stand-in callers kept for matching (never called); their walk through "
      "the tag's list field is not the tags' link"),
 ]
 

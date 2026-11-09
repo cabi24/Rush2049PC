@@ -39,7 +39,7 @@ void velocities(tModelData *m)
         if(fabsf(m->v[0])<0.025f)m->v[0]=0.0f;
         if(fabsf(m->v[2])<0.025f)m->v[2]=0.0f;
     }
-    if(PC_CAR_STATE(m->slot)!=CAR_DEAD)m->magvel=vector_magnitude(m->v);
+    if(PC_CAR_DEAD(m->slot)!=CAR_DEAD)m->magvel=vector_magnitude(m->v);
     if(m->magvel>300.0f) {
         velfact=300.0f/m->magvel;
         m->v[0]*=velfact;

@@ -54,7 +54,7 @@ void SetupCar(s16 slot, u8 type, int for_game)
  ZOID_SetObjectDef(parts->hood,gObjList[(s16)(slot*3) + 1]);
  for(i=0;i<4;i++)ZOID_SetObjectDef(gCarParts[slot].tires[i],gObjList[OBJLIST_TIRE]);
  if(expansion_pak_present || gTrackNum>=6) {
-  ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[PC_MODEL_B00F(slot) + 3],-1);
+  ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[PC_MODEL_TIRE_RIMS(slot) + 3],-1);
  } else {
   ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[16],-1);
  }

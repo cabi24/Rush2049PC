@@ -1356,16 +1356,16 @@ add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_ch
 if(NOT WIN32)
     set(SOUND_FX_VIEWS
         src/blob/groups/save/AudioInit.c src/blob/groups/audio_emitters/group.c
-        src/blob/groups/audiomgr/audio_effect_setup_b132.c src/blob/groups/audiomgr/audiomgr_thread.c
+        src/blob/groups/audiomgr/ProcessSequences.c src/blob/groups/audiomgr/audiomgr_thread.c
         src/blob/groups/aud_stop_effect/group.c src/blob/groups/audiomgr_emitters/group.c src/blob/groups/transform/group.c
         src/blob/groups/audiomgr/ProcessEmitters.c src/blob/groups/update_fx/updatefx.c
-        src/blob/groups/interrupt_fx_tag/ap.c src/blob/groups/weighted_priority/group.c src/blob/AudEffectPlaying.c)
+        src/blob/groups/interrupt_fx_tag/InterruptFxTag.c src/blob/groups/weighted_priority/group.c src/blob/AudEffectPlaying.c)
     set(SOUND_SEQ_VIEWS
-        src/blob/groups/audiomgr/audiomgr_thread.c src/blob/groups/audiomgr/audio_effect_setup_b132.c
+        src/blob/groups/audiomgr/audiomgr_thread.c src/blob/groups/audiomgr/ProcessSequences.c
         src/blob/groups/save/AudioInit.c src/blob/AudInit3D.c src/blob/AudPlaySequence.c
         src/blob/NewSequence.c src/blob/stop_sequence.c)
     set(SOUND_EMITTER_VIEWS
-        src/blob/groups/audio_emitters/group.c src/blob/groups/audiomgr/audio_effect_setup_b132.c
+        src/blob/groups/audio_emitters/group.c src/blob/groups/audiomgr/ProcessSequences.c
         src/blob/AudInit3D.c src/blob/groups/audiomgr_emitters/group.c src/blob/groups/aud_stop_effect/group.c
         src/blob/groups/audiomgr/ProcessEmitters.c)
     string(REPLACE ";" "," SOUND_FX_VIEWS "${SOUND_FX_VIEWS}")

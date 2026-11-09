@@ -50,7 +50,7 @@ s32 animRadarBlip(tBlit *blt) {
         return Hidden(blt, 1);
     }
     slot = blt->animID & 0xF;
-    if (Hidden(blt, !gShowRadar || PC_CAR_FINISHED(me) == 1)) {
+    if (Hidden(blt, !gShowRadar || PC_CAR_PLACE_LOCKED(me) == 1)) {
         return 1;
     }
     m = PC_MODEL(slot);

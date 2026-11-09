@@ -125,7 +125,7 @@ void UpdateGame(void)
             case 2:
                 numDeaths = 0;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (PC_CAR_INPUT_AS(Player76, i)->numCrashes >= gStuntModeDeaths) { PC_CAR_STATE(i) = 1; numDeaths++; }
+                    if (PC_CAR_INPUT_AS(Player76, i)->numCrashes >= gStuntModeDeaths) { PC_CAR_DEAD(i) = 1; numDeaths++; }
                 }
                 if (numDeaths == gNumPlayers) {
                     gCoastFlag = 1;
@@ -157,7 +157,7 @@ void UpdateGame(void)
                 break;
             }
         } else if (gRace == kOneRace || gRace == kPractice || gRace == kCircuit) {
-            for (i = 0; i < gNumPlayers; i++) if (!PC_CAR_FINISHED(gPlayers[i].slot)) goto done;
+            for (i = 0; i < gNumPlayers; i++) if (!PC_CAR_PLACE_LOCKED(gPlayers[i].slot)) goto done;
             gAPlayerReallyFinished = 0;
             for (i = 0; i < gNumPlayers; i++) if (gNumLaps == PC_MODEL_LAP(i)) gAPlayerReallyFinished = 1;
             if (!gCoastFlag) {

@@ -24,13 +24,13 @@ void SetCatchup(void)
     if ((gNumPlayers == 1 && gDifficulty < 5) || gUseCatchup == 0) {
         for (j = 0; j < PC_RACE_CARS; j++) {
             if (PC_LINK_OWNER(j) == 0 || PC_LINK_OWNER(j) == 6) {   /* LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
-                PC_MODEL_SCALE(j) = 1.0f;
+                PC_MODEL_CATCHUP(j) = 1.0f;
             }
         }
     } else {
         high_index = -1;
         for (i = 0; i < PC_RACE_CARS; i++) {
-            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < CAR_DEAD &&
+            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_DEAD(i) < CAR_DEAD &&
                 (PC_MODEL_DRONE_TYPE(i) == DRONE_TYPE_HUMAN || gDifficulty == 5)) {
                 if (high_index == -1) {
                     high_index = i;
@@ -45,7 +45,7 @@ void SetCatchup(void)
          * too); nothing uses the value then. */
         firstdist = PC_CAR_DISTANCE(high_index);
         for (i = 0; i < PC_RACE_CARS; i++) {
-            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_STATE(i) < CAR_DEAD &&
+            if (PC_MODEL_ACTIVE(i) != 0 && PC_CAR_DEAD(i) < CAR_DEAD &&
                 (PC_MODEL_DRONE_TYPE(i) == DRONE_TYPE_HUMAN || gDifficulty == 5)) {
                 lagdist = firstdist - PC_CAR_DISTANCE(i);
                 if (lagdist > k2) {
@@ -56,7 +56,7 @@ void SetCatchup(void)
                 if (gUseCatchup == 1) {
                     target_catchup = (1 - target_catchup) * 0.5f + 1;
                 }
-                PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * PC_FILTER(0.97f) + PC_FILTER_REST(0.97f, 0.03f) * target_catchup;
+                PC_MODEL_CATCHUP(i) = PC_MODEL_CATCHUP(i) * PC_FILTER(0.97f) + PC_FILTER_REST(0.97f, 0.03f) * target_catchup;
             }
         }
     }

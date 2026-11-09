@@ -28,11 +28,11 @@ GS_RACE_START	GS_GO	0x100000	race.h
 GAME_STATE_COUNTDOWN	GS_COUNTDOWN	0x200000	system.h
 GS_RACE_COUNTDOWN	GS_COUNTDOWN	0x200000	race.h
 GAME_STATE_RACE	GS_COUNTDOWN	0x200000	UpdateHUDPostCamera.c: the countdown bit, called "racing" there
-GAME_STATE_NO_THUMPS	GS_COUNTDOWN	0x200000	car_sounds/msh.c
+GAME_STATE_NO_THUMPS	GS_COUNTDOWN	0x200000	car_sounds/UpdateBumps.c
 GAME_STATE_PLAY	GS_RACING	0x400000	system.h
 GS_RACE_PLAY	GS_RACING	0x400000	race.h
 GAME_STATE_RESULTS	GS_RACING	0x400000	the HUD files: the race (and its end)
-GAME_STATE_NO_RACE	GS_RACING	0x400000	car_sounds/mode.c
+GAME_STATE_NO_RACE	GS_RACING	0x400000	car_sounds/UpdateCarSounds.c
 GAME_STATE_GAME_OVER	GS_GAME_OVER	0x800000	system.h
 GAME_STATE_RACE_END	GS_END_GAME	0x1000000	system.h
 GS_RACE_END	GS_END_GAME	0x1000000	race.h
@@ -47,8 +47,8 @@ GAME_STATES_RACE_START	GS_RACE_MASK	0x007C0000	system.h
 GS_RACE	GS_RACE_MASK	0x7C0000	race.h
 GAME_STATES_ON_TRACK	GS_ON_TRACK_MASK	0x00600000	system.h
 # The race kinds (gRace): race.h's enum, MAT3's enum_kNumRaceTypes.
-RACE_BATTLE	kBattle	6	update_player_visibility.c
-RACE_GHOST	kGhost	2	car_sounds/mode.c, game_sounds/StartListeners.c
+RACE_BATTLE	kBattle	6	UpdateArrowVis.c
+RACE_GHOST	kGhost	2	car_sounds/UpdateCarSounds.c, game_sounds/StartListeners.c
 # The game's buttons (gActiveEdges ...): input.h's BUTTON_*. audio.h called bits 0 and 1 A and B; the front end's
 # evidence (the title starts on bit 0, name entry takes a letter on bit 1 and ends on bit 0) and the sounds each plays
 # (bit 1: 0x25, which pakscr and circuitscr play for A) make them Start and A.
@@ -73,11 +73,11 @@ kSfxMenuSelect	SND_MENU_START	0x2E	audio.h ("the A button"): played for bit 0, S
 SND_MENU_SELECT	SND_MENU_A	37	pakscr.c: played for A
 SND_MENU_B	SND_MENU_BACK	0x26	circuitscr.c
 SND_BACK	SND_MENU_BACK	38	carscr.c, trackscr.c
-SND_MENU_DEFAULTS	SND_MENU_DELETE	43	controlscr/caller.c: the controls set back to their defaults
+SND_MENU_DEFAULTS	SND_MENU_DELETE	43	controlscr/updateControlScreen.c: the controls set back to their defaults
 # The tracks (gTrackNum): track.h, the track screen's names.
-FIRST_BATTLE_TRACK	TRACK_BATTLE_FIRST	6	RecordBattle.c, save_stats/candidate.c
+FIRST_BATTLE_TRACK	TRACK_BATTLE_FIRST	6	RecordBattle.c, save_stats/SavePlayerStats.c
 FIRST_STUNT_TRACK	TRACK_STUNT_FIRST	14	6 files
-OBSTACLE_TRACK	TRACK_OBSTACLE	18	RecordObstacle.c, save_stats/candidate.c
+OBSTACLE_TRACK	TRACK_OBSTACLE	18	RecordObstacle.c, save_stats/SavePlayerStats.c
 TRACK_OBSTACLE_UNLOCK	TRACK_OBSTACLE	18	modescr.c: the obstacle course, unlocked
 FIRST_BACKWARD_TRACK	TRACK_BACKWARD_FIRST	19	the records' numbering
 TRACKS	NUM_TRACKS	19	trackscr.c
@@ -91,13 +91,13 @@ OPTION_FX_VOLUME	kOptEffectsVolume	13	game_sounds
 TEX_TEXTURE	TEX_IMAGE_DIRECT	0x08000000	scene.h; the texture animation files' name says what it is
 # The audio manager's commands: audio.h's kAudioCmd*, named after the MAT3 calls that post them.
 AUDIO_CMD_PLAY_SONG	kAudioCmdPlaySong	0	audiomgr_thread.c
-AUDIO_CMD_STOP_SONG	kAudioCmdKillSong	1	audiomgr_thread.c, gameover.c, SetupCarColor/ctx_func_800C8918.c
+AUDIO_CMD_STOP_SONG	kAudioCmdKillSong	1	audiomgr_thread.c, gameover.c, heap_release/audio_shutdown_posts.c
 AUDIO_CMD_PLAY_EFFECT	kAudioCmdPlayEffect	2	audiomgr_thread.c
 AUDIO_CMD_START_EFFECT	kAudioCmdStartEffect	3	audiomgr_thread.c
 AUDIO_CMD_CHANGE_EFFECT	kAudioCmdChangeEffect	4	audiomgr_thread.c
 AUDIO_CMD_INTERRUPT_EFFECT	kAudioCmdInterruptEffect	5	audiomgr_thread.c
 AUDIO_CMD_STOP_EFFECT	kAudioCmdStopEffect	6	audiomgr_thread.c
-AUDIO_CMD_STOP_ALL_EFFECTS	kAudioCmdStopAllEffects	7	audiomgr_thread.c, gameover.c, SetupCarColor/ctx_func_800C8918.c
+AUDIO_CMD_STOP_ALL_EFFECTS	kAudioCmdStopAllEffects	7	audiomgr_thread.c, gameover.c, heap_release/audio_shutdown_posts.c
 AUDIO_CMD_PAUSE_EFFECTS	kAudioCmdPauseAllEffects	8	audiomgr_thread.c
 AUDIO_CMD_RESUME_EFFECTS	kAudioCmdResumeAllEffects	9	audiomgr_thread.c
 AUDIO_CMD_MASTER_VOLUME	kAudioCmdSetMasterVol	10	audiomgr_thread.c
@@ -105,7 +105,7 @@ AUDIO_CMD_MONO	kAudioCmdMono	11	audiomgr_thread.c
 # The songs and the horns (audio.h).
 SONG_MENU	AUDIO_FRONT_END_SONG	6	start_screen/group.c
 SND_HORNS	SND_HORN_FIRST	26	carscr.c
-SFX_HORN_FIRST	SND_HORN_FIRST	26	car_sounds/mode.c
+SFX_HORN_FIRST	SND_HORN_FIRST	26	car_sounds/UpdateCarSounds.c
 # The display-list commands: gbi.h's G_ names (the files' GBI_ names for the same opcodes).
 GBI_ENDDL	G_ENDDL	0xDF	displaylist_*.c
 GBI_SETTIMG	G_SETTIMG	0xFD	displaylist_*.c, relocate_texture_loads.c

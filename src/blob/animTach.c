@@ -23,7 +23,7 @@ s32 animTach(tBlit *blt)
         return 1;
     }
     hide = gShowTach == 0 || PC_MODEL_AUTOTRANS(slot) != 0 ||
-           PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1;
+           PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(slot)) == 1;
     if (hide != blt->hide) {
         blt->hide = hide;
         UpdateBlit(blt);
@@ -35,7 +35,7 @@ s32 animTach(tBlit *blt)
     blt->y=tachPos[gNumWindows-1][slot][1];
     if(kind==TACH_DIAL) blt->bot=blt->height/2-1;
     else if(kind==TACH_NEEDLE) {
-        amount=(PC_MODEL_S7D0(slot)*1.35f)*0.0001f;
+        amount=(PC_MODEL_RPM(slot)*1.35f)*0.0001f;
         if(amount<0.0f) amount=-amount;
         if(amount>1.0f) amount=1.0f;
         blt->right=(s32)((blt->width-1)*amount);

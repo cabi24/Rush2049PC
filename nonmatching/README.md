@@ -26,8 +26,8 @@ evidence for names; [`docs/game-asm-ceiling.md`](../docs/game-asm-ceiling.md) ha
 | game | TB_DrawText | 396 | TB_DrawText@TB_text.c | `game/TB_DrawText.c` |
 | game | video_animPanes | 340 | animPanes@videoscr.c | `game/video_animPanes.c` |
 | game | LoadFrontEndOverlay | 316 | LoadFrontEndOverlay@state.c | `src/blob/groups/state/state.c` |
-| game | TB_GetFontLineHeight | 84 | TB_GetFontLineHeight | `src/blob/groups/animgear/ctx_gr3.c` |
-| game | TB_GetFontHeight | 72 | TB_GetFontHeight | `src/blob/groups/animgear/ctx_gr3.c` |
+| game | TB_GetFontLineHeight | 84 | TB_GetFontLineHeight | `src/blob/groups/animgear/TB_GetFontHeight.c` |
+| game | TB_GetFontHeight | 72 | TB_GetFontHeight | `src/blob/groups/animgear/TB_GetFontHeight.c` |
 | ovl_a | buildTrackMaps | 4,824 | track loader | `src/ovl_a/groups/trackscr/trackscr.c` |
 | ovl_a | drawDeletePlayer | 3,668 | drawDeletePlayer@playerscr.c | `src/ovl_a/groups/playerscr_draw/playerscr_draw.c` |
 | ovl_a | carscr_animText | 3,668 | – | `ovl_a/carscr_animText.c` |

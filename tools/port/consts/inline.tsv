@@ -22,4 +22,4 @@ LINK_SLOTS	PC_MAX_LINKS	-	fake_init.c, CalcPolePositions.c
 MAX_LINKS	PC_MAX_LINKS	-	drones/group.c (munge_gLink_data.c's MAX_LINKS was LINK_OWNER_HUMAN)
 RACE_CARS	PC_RACE_CARS	-	CheckCameraView.c (CalcPolePositions.c's RACE_CARS chooses the circuit's 6: kept)
 PC_LATCH_CARS	.*pc_race_cars_begin\(\);	-	fake_init.c, CalcPolePositions.c: two bodies, each used once
-PC_CMD_SEND	osSendMesg\(q,m,1\)	-	SetupCarColor/ctx_func_800C8918.c: a blocking send
+PC_CMD_SEND	osSendMesg\(q,m,1\)	-	heap_release/audio_shutdown_posts.c: a blocking send

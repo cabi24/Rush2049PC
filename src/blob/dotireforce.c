@@ -58,7 +58,7 @@ f32 fabsf(f32);
  *   then scaled by a step-rate polynomial (dotireforce_idt_coef, _offset: MAT3 0.000047744 idt - 0.017552, times
  *   idt), at least 0 and at most the car's weight.
  * - The forward and side forces from frictioncircle. A rear tire's forward force is scaled by
- *   rear_traction_by_tune ([engine][handling]), by rear_traction_by_surface ([transmission][gear]: the label is
+ *   carEngineFwdForce ([engine][handling]), by carTransTraction_by_gear ([transmission][gear]: the label is
  *   4 bytes into MAT3's carTransTraction, which MAT3 reads at [transmission][gear + 1]) less the more the wheel is
  *   turned, and by the tune's fwdfk; its side force by the tires' sidefk less 0.1 of the tune's
  *   (dotireforce_side_drop), and with poor traction by 0.7 for the special tires cheat or 0.9 plus 0.1 of the
@@ -106,8 +106,8 @@ void dotireforce(tModelData *m, f32 *tirev, void *tireuvs, Tire *tire, f32 torqu
     frictioncircle(m, tirev, normal, torque, tire, &sideforce, &traction);
 
     if (tire == &m->tires[2] || tire == &m->tires[3]) {
-        traction *= rear_traction_by_tune[m->engine_type][m->handling];
-        traction *= 1.0f + (rear_traction_by_surface[m->trans][m->gear] - 1) * (1.0f - fabsf(m->wheel));
+        traction *= carEngineFwdForce[m->engine_type][m->handling];
+        traction *= 1.0f + (carTransTraction_by_gear[m->trans][m->gear] - 1) * (1.0f - fabsf(m->wheel));
         traction *= N64P(m->tune)->fwdfk;
         sideforce *= m->sidefk * (1.0f - N64P(m->tune)->sidefk * dotireforce_side_drop);
         if (poortract) {

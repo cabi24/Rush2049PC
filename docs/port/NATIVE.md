@@ -311,7 +311,7 @@ too. The 26 physics files that read them through `N64P` (`forces1.c`, `forces2.c
 `dotireforce.c`, `enginetorque.c`, `torques.c`, `calcaa.c`, `transmission.c`, `find_best_gear.c`,
 `steer_constants.c`, `positions.c`, `init_cars.c`, `init_road.c`, `init_collision.c`, `engine.c`,
 `MovingSurfaceForce.c`, `whatslips/group.c`, `update_game_data/update_game_data.c`, `carsetup/group.c`,
-`stree_collide/CollideCarBody.c`, `stree_tiresurf/TireSurf.c`, `visuals/anim_tire_donor.c`, `UpdateSmoke.c`,
+`stree_collide/CollideCarBody.c`, `stree_tiresurf/TireSurf.c`, `visuals/AnimateTire.c`, `UpdateSmoke.c`,
 `stunt/group.c`, `visuals/AnimateWing.c`), `port/include/pc_game_types.h` (the record), the view check
 `views_model_road`, the asset tests that build model records. The record grows, so every stride by 0x808 must be
 the type's. Proof: the gate; `view_audit.py`; the crossing counter shows the car sites at 0; the census's

@@ -92,7 +92,7 @@ void DetectDroneAbort(void) {
         for (i = 0; i < PC_RACE_CARS; i++) {
             PC_MODEL_STUCK_TIME(i) = 0.0f;
             PC_CAR_FWD_PROGRESS(i) = 0.0f;
-            PC_CAR_HEADING(i) = 0.0f;
+            PC_CAR_STRAY_ANGLE(i) = 0.0f;
         }
         return;
     }

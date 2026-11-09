@@ -182,7 +182,7 @@ void ReadShifter(CarState *car, InputRecord *player)
     if (car->crashflag != 0) {
         return;
     }
-    if (PC_CAR_STATE(car->slot) > 0 || gCoastFlag != 0) {
+    if (PC_CAR_DEAD(car->slot) > 0 || gCoastFlag != 0) {
         return;
     }
     if (gRealLevels[player->controller] & player->controls[CONTROL_REVERSE]) {

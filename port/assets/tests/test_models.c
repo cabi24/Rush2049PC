@@ -13,7 +13,7 @@
  * next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what
  * pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to the 12th, PC_MODELS_END
  * being the end of the race's cars.
- * game: src/blob/init_model_task.c src/blob/FinishResurrecting.c src/blob/multigo.c src/blob/groups/get_res_pt/path.c
+ * game: src/blob/init_model_task.c src/blob/FinishResurrecting.c src/blob/multigo.c src/blob/groups/get_res_pt/GetResPt.c
  * game: src/blob/modelgo.c src/blob/TargetCollRadius.c src/blob/collision.c
  */
 #include <stddef.h>

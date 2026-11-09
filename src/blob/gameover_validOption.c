@@ -12,7 +12,7 @@ s32 gameover_validOption(s32 option)
         option == kGameOverMainMenuNewTrack || option == kGameOverMainMenuNewCar) {
       result = 0;
     }
-    if (option == kGameOverMainMenuNextRace && (PC_CAR_FINISHED(gCircuitPlayer)) == 0) {
+    if (option == kGameOverMainMenuNextRace && (PC_CAR_PLACE_LOCKED(gCircuitPlayer)) == 0) {
       result = 0;
     }
   } else if (gRace == kPractice) {

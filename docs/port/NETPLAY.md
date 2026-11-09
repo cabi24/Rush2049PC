@@ -551,7 +551,7 @@ How it feels, as rules of thumb to measure in phase 3:
   - `gControllerData`, `gCamera`, the places.
 - Once a second, the whole window, without the words that hold host pointers. Experiment E6 found them: with ASLR
   on, two processes' 8 MiB windows differ only in 81 words. 80 are the audio manager's effect tags' `list` pointer
-  to `gFreeFxTags` (`audio_effect_setup_b132.c:170`). One is `last_frame_text_dl_end`, the low half of a display-list pointer
+  to `gFreeFxTags` (`ProcessSequences.c:170`). One is `last_frame_text_dl_end`, the low half of a display-list pointer
   (`EndGraphics.c:143`). These also differ between Windows and Linux, whose image layouts differ.
   Either leave out a list of such words, or replace each value that points into the executable by its offset there.
 - Each PC sends its hashes. The first mismatch ends the session (or warns, in a debug mode). Each PC writes a desync
@@ -672,7 +672,7 @@ floats, with its lap and place. The experiments' scripts and logs aren't in the 
 | E1 | Do two runs with the same scripted inputs give identical state? | `--fast`, twice | **Identical.** 2,763 physics lines (every retrace, 46.0 s of game time), not one differs; every state change at the same retrace (the race at vi 1563). Each run took 1.7 s of wall time: about 27 times real time on the Pi on this light cartridge |
 | E4 | Does a slow host change the game's course? | `--fast` with `RUSH_SIM_GFX_MS=40` (each graphics task holds the RDP 40 ms of N64 time, so every frame takes 3 retraces or more) | **Yes.** The states come later (PrePlay at vi 1414 against 1403, the race at 1579 against 1563). Aligned by model tick, the cars first differ at tick -57, in the countdown: car 0's position in the last bits, then 486 of 1,353 ticks differ. The synthetic cars are put back on the same course every few seconds, so they meet again. This is FRAMERATE.md 7.4's per-frame decisions (DoDrones) taken at other retraces |
 | E5 | What changes with `game.frame_rate = 60`? | `--fast --set game.frame_rate=60` | The front end runs a retrace or two sooner (the race at vi 1561). By model tick the cars first differ at tick -58 and 599 of 752 ticks differ, as FRAMERATE.md 7.4-7.5 found. So the frame rate is part of the simulation and must match |
-| E6 | Can the whole RDRAM window be hashed across processes? | gdb stops each run at `pc_si_finish` after `--frames 1000` (vi 2027, in the race), dumps 0x80000000-0x80800000. Two pairs with ASLR off, one pair with ASLR on | ASLR off: **the two 8 MiB windows are identical, byte for byte** (both pairs). ASLR on: 243 bytes in 82 words differ. 80 are the same host pointer in heap records 0x58 apart from 0x801CBD10: the audio manager's effect tags, whose `list` points at `gFreeFxTags` in host storage (`audio_effect_setup_b132.c:170`; the address resolved to `gFreeFxTags` in the executable). One is `last_frame_text_dl_end`, the low half of a display-list pointer (`EndGraphics.c:143`). One, `retraces_since_frame` (retraces since the frame began), 1 against 2, is the experiment's own race: the loop's last retrace event had already woken the game threads when gdb stopped the main thread. A session hashes before the retrace's event, as `snapshot()` reads. So **the window is deterministic but for host pointers**, which a window hash must leave out or normalise |
+| E6 | Can the whole RDRAM window be hashed across processes? | gdb stops each run at `pc_si_finish` after `--frames 1000` (vi 2027, in the race), dumps 0x80000000-0x80800000. Two pairs with ASLR off, one pair with ASLR on | ASLR off: **the two 8 MiB windows are identical, byte for byte** (both pairs). ASLR on: 243 bytes in 82 words differ. 80 are the same host pointer in heap records 0x58 apart from 0x801CBD10: the audio manager's effect tags, whose `list` points at `gFreeFxTags` in host storage (`ProcessSequences.c:170`; the address resolved to `gFreeFxTags` in the executable). One is `last_frame_text_dl_end`, the low half of a display-list pointer (`EndGraphics.c:143`). One, `retraces_since_frame` (retraces since the frame began), 1 against 2, is the experiment's own race: the loop's last retrace event had already woken the game threads when gdb stopped the main thread. A session hashes before the retrace's event, as `snapshot()` reads. So **the window is deterministic but for host pointers**, which a window hash must leave out or normalise |
 | E7 | Is real time deterministic, on a host that keeps up? | the same script without `--fast`, twice, 35 s each | **No.** Both runs kept 60.00 retraces a second (none late, none dropped), and every state change came at the same retrace. But the physics differ: by model tick, 161 of 689 differ, from tick 56 in the race (car 0's y position `0x1.86a1p+0` against `0x1.86a0fep+0`). The audio tasks were 2,094 against 2,096. The likely cause (not bisected): in real time the host's timing decides where the model thread's steps, the audio tasks and the AI events fall against the game thread's per-frame decisions (1.1) |
 
 What these don't show:
@@ -951,7 +951,7 @@ Code: `port/ultra/loop.c` 528-540, 543-, 579-586, 612, 633-647, 688-716; `port/u
 `src/blob/SkyClear.c` 3806; `src/blob/animRadarBlip.c` 125, 160; the LCG at `src/blob/init_camera_on_track.c:48`,
 `UpdateSmoke.c:168`, `CheckCameraView.c:156`, `AnimateNewBlast.c:104`, `groups/blast/blast.c:135`,
 `groups/audioscr_update/func_800D6160.c:33-34`; `src/blob/ZOID_WindowTo3D.c` 47-62;
-`src/blob/groups/audiomgr/audio_effect_setup_b132.c` 170; `src/blob/EndGraphics.c` 143;
+`src/blob/groups/audiomgr/ProcessSequences.c` 170; `src/blob/EndGraphics.c` 143;
 `tools/port/synth/race2p.press`. MODS.md 6 (how mods reach the game); RELEASE.md "Release archives".
 
 ## 11. Robustness: any latency, and no desyncs
@@ -1186,7 +1186,7 @@ then has (a `--fast` replay with the default takes the same course).
   screen (pause state 4 or 3); on rocky, seed 3 of the ctest's at retrace 4038. The session's input log replayed in
   one process hangs at the same retrace, with 543e5b0's program too (no session code): it is the game's, or the
   port's, on the synthetic cartridge at least. Where (gdb, seed 11's replay): the controls screen's step through a
-  control's values, `do { controls[slot]--; } while (!controls_validControl(p))` (`src/blob/groups/controlscr/caller.c`
+  control's values, `do { controls[slot]--; } while (!controls_validControl(p))` (`src/blob/groups/controlscr/updateControlScreen.c`
   251-268, the same for ++), which never ends when no value passes the predicate; the predicate reads row
   `gNewControls[gPlayers[car].row]` while the loop changes `gNewControls[gPlayers[p].controller]`, and its table
   `gControlValid` is cartridge data. Not looked into further here (game C). The fuzzer says such a

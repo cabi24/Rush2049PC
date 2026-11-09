@@ -111,7 +111,7 @@ window symbols were tentatively defined in eleven game files. They are declarati
 (`PC_ONLY(extern)`, as `ClearControls.c` already did for alignment), and their sizes are in
 `port/data/extents.txt`:
 
-- D_80110680
+- finish_cam
 - gJust
 - blit_cache_tile
 - gDriveHulk

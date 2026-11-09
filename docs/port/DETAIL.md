@@ -115,7 +115,7 @@ countdown and the race (`update_game/UpdateGame.c:331-333`), when the fog option
 
 zoid_draw_window (`zoid_draw/group.c:1260-1533`) loads, for each view, `guPerspective(fov, aspect, near x 16, far x
 16)` from the window record `ZoidWinInfo[view]` (or guOrtho for an orthographic window) and multiplies the camera's
-lookat into the projection. ZOID_InitializeWindow (`ZOID_InitializeWindow`, `ZOID_InitializeWindow/candidate.c:24-44`) sets the near
+lookat into the projection. ZOID_InitializeWindow (`ZOID_InitializeWindow`, `ZOID_InitializeWindow/ZOID_InitializeWindow.c:24-44`) sets the near
 plane to 2.5 ft and the far plane to 2,000 ft (the record's fields at +0x38 and +0x3C, which that file calls `zoom`
 and `fog`), the fog to 1000/999 and black, and `gViewableDistance` to 2,000; WorldFogDensity changes the far plane with a fog
 option (1.4). Nothing else writes them.
@@ -126,7 +126,7 @@ gSPFogPosition's past the far plane.
 
 ### 1.7 The fog and its colour
 
-- ZOID_SetFog (`ZOID_SetFog`, `ZOID_SetFog/candidate.c:27-38`) writes the fog's start and end and colour into the window
+- ZOID_SetFog (`ZOID_SetFog`, `ZOID_SetFog/ZOID_SetFog.c:27-38`) writes the fog's start and end and colour into the window
   record and the frame's clear colour (`ZOID_SetBGColor`, used at `StartGraphics.c:184`). PrePlay
   (`PrePlay.c:379`) gives each window `ZOID_SetFog(1000, 999, gFogColors[gFogColor], 255)`: start past
   end, no fog (gSPFogPosition's s16 words wrap to fm 3072, fo -3072, 0 inside the far plane), in the track's colour,

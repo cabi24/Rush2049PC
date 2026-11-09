@@ -152,4 +152,4 @@ the N64 draws by (`n64`) and updates the sky.
   ghosts).
 - **Walks to the next datum**: the arena keeps some arrays longer than include/game declares (`gCircuitCars[6]`,
   the circuit races), and the N64 code's loops ended at the next symbol; GetCircuitCode now stops by its count.
-- **N64 addresses in names**: `car_checkpoints_func_800D1AB0.c` (PlaceUnlockedCars) is a file name with an address.
+- **N64 addresses in names**: `PlaceUnlockedCars.c` (PlaceUnlockedCars) is a file name with an address.

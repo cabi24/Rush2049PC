@@ -78,7 +78,7 @@ static void multiinit_n64(s16 mode,s16 slot)
   else m->polepos=slot+PC_RESPAWN_BASE;
  }
  Resurrect(m);
- PC_CAR_B358(slot)=CRASH_NONE;   /* crash_state */
+ PC_CAR_CRASH_STATE(slot)=CRASH_NONE;   /* crash_state */
  for(i=0;i<4;i++) {
   m->skidIntensity[i]=0.0f;
   m->tires[i].sideforce=0.0f;

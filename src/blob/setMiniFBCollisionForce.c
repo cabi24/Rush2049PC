@@ -145,7 +145,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
     m->centerForce[2] -= cent[2];
     hum_car = (m->drone_type == 2);   /* DRONE_TYPE_HUMAN */
     if (gSuicideMode == 1 || (gSuicideMode == 2 && hum_car) || vector_magnitude(cent) > m->crashthreshold * 0.8f) {
-        if (gRace != kBattle && m->crashflag == 0 && PC_CAR_STATE(m->slot) != CAR_DEAD) {
+        if (gRace != kBattle && m->crashflag == 0 && PC_CAR_DEAD(m->slot) != CAR_DEAD) {
             m->crashflag = 1;
         }
     }

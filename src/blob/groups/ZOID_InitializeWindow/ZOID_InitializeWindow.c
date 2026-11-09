@@ -1,4 +1,4 @@
-/* ZOID_InitializeWindow/candidate.c: set a window up from scratch (MAT3 zoidwindow.c, ZOID_InitializeWindow()). */
+/* ZOID_InitializeWindow/ZOID_InitializeWindow.c: set a window up from scratch (MAT3 zoidwindow.c, ZOID_InitializeWindow()). */
 #include "game/game.h"
 
 /* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes). */

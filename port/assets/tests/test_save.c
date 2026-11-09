@@ -15,14 +15,14 @@
  * game: src/blob/groups/paksysdc_flush/group.c src/blob/SaveFlush.c src/blob/pak_poll_inserted.c
  * game: src/blob/InsertLLE.c src/blob/RemoveLLE.c src/blob/pak_encode_name.c src/blob/pak_decode_name.c
  * game: src/blob/groups/save/save.c src/blob/groups/save/group.c
- * game: src/blob/groups/save/ctx_slot.c src/blob/groups/save/ctx_newghost.c
- * game: src/blob/groups/save_option/save_option.c src/blob/groups/save_car_setting/candidate.c
- * game: src/blob/groups/save_player_controls/filename.c src/blob/RemovePlayerFile.c src/blob/MovePlayerFile.c
+ * game: src/blob/groups/save/ghost_files.c src/blob/groups/save/NewGhost.c
+ * game: src/blob/groups/save_option/save_option.c src/blob/groups/save_car_setting/SavePlayerCarSetting.c
+ * game: src/blob/groups/save_player_controls/SavePlayerControls.c src/blob/RemovePlayerFile.c src/blob/MovePlayerFile.c
  * game: src/blob/PurgePlayerData.c src/blob/groups/CalcChecksum/group.c src/blob/game_strcmp.c
  * game: src/blob/game_strncmp.c src/blob/game_memcmp.c src/blob/game_strcpy.c src/blob/SetDefaultControls.c
  * game: src/blob/groups/memsys/group.c src/blob/GhostUpdate.c src/ovl_a/pakscr_FindFile.c
  * game: src/blob/groups/pak_error_from_pfs/pak_error_from_pfs.c
- * game: src/blob/groups/save_default_car/dn.c src/blob/si_unlock.c
+ * game: src/blob/groups/save_default_car/SetDefaultCarSettings.c src/blob/si_unlock.c
  */
 #include <stddef.h>
 #include <stdio.h>

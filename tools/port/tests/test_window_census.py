@@ -88,11 +88,11 @@ LAYOUT = {
                  ["ovl_a_text", 0x803B0000]],
     "sets": [["inner_label", "own_record", 8]],
     "own": [["own_record", 16], ["own_ptrs", 64]],
-    "decoupled": [["pc_links", 104, ["D_80153E88"]]],
+    "decoupled": [["pc_links", 104, ["gLink"]]],
     "reserved": [["pc_matrix_spill", 0x8014A250, 6144]],
 }
 ALIASES = """\
-PROVIDE(D_00039B40 = ABSOLUTE(0xB0039B40));
+PROVIDE(sample_bank_rom = ABSOLUTE(0xB0039B40));
 PROVIDE(game_bss_end = ABSOLUTE(0x8017A640));
 PROVIDE(osMemSize = ABSOLUTE(0x80000318));
 """

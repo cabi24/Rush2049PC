@@ -159,7 +159,7 @@ void sym(tModelData *m) {
     s32 absvel, i, j;   /* absvel: unused */
 
     ModelControls(m);
-    if (m->crashflag || PC_CAR_STATE(m->slot)) {
+    if (m->crashflag || PC_CAR_DEAD(m->slot)) {
         m->steerangle = 0.0f;
         m->clutch = 0.0f;
         m->brake = 0.0f;

@@ -162,17 +162,17 @@ void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
                             }
                         }
                         if (type == 4) {
-                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
                                 AddBattlePoint(car->slot, car->slot, -1);
                                 car->crashflag = 1;
                             }
                         } else if (type == 7) {
-                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
                                 car->waterAbort = 1;
                                 AbortCar(car->slot, 1);
                             }
                         } else if (type == 3) {
-                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
                                 car->waterAbort = 1;
                                 AbortCar(car->slot, 1);
                                 if (PC_LINK_OWNER(car->slot) == 6) {

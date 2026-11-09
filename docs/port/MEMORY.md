@@ -16,7 +16,7 @@ shown, what the game does with the room, what a later "mods" feature can rely on
 | The setting, its warning | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/main.c` |
 | The overlay | `port/input/menu.c`: Game > Memory, About > Memory |
 | The renderer's physical rule | `port/gfx/gfx_rsp.c:79-90` (`pcgfx_resolve`) |
-| The game C | `relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/root.c`, `car_palette_init.c` |
+| The game C | `relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/LoadCars.c`, `car_palette_init.c` |
 
 ## 1. The setting
 
@@ -122,7 +122,7 @@ retail one fewer), and the runs of section 6 took as long with the walks as with
 
 | Where | The check | The fallback | The log line, once |
 |---|---|---|---|
-| LoadCars, a drone's car (`loadcars/root.c:87`) | `heap_total_free(0) < gWaveSizes[88 + type] + 512` | another type not loaded that fits, then any type that fits, then a loaded car of an earlier slot ([MORECARS.md](MORECARS.md) 5) | `heap: LoadCars, a drone's car: N bytes wanted, F free: the game falls back ...` |
+| LoadCars, a drone's car (`loadcars/LoadCars.c:87`) | `heap_total_free(0) < gWaveSizes[88 + type] + 512` | another type not loaded that fits, then any type that fits, then a loaded car of an earlier slot ([MORECARS.md](MORECARS.md) 5) | `heap: LoadCars, a drone's car: N bytes wanted, F free: the game falls back ...` |
 | LoadCars, a player's car (`:108`) | the same | any type that fits, then slot 0's | `heap: LoadCars, a player's car: ...` |
 | a car's paint (`car_palette_init.c:62`) | fewer than 512 bytes free | another car's paint of the same type | `heap: a car's paint: ...` |
 | `AllocateMemory` (`memsys/group.c:183`) | none: the game takes the first free block that fits, and none fitting leaves it a null block, which the N64 game dereferences | (the game faults, as on the N64) | `heap: no free block of N bytes (F free, the largest L): the game takes a null block, as on the N64; game.memory gives it more` |
@@ -285,7 +285,7 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 | `registry.c:664`, `macros.c:968`, `streams.c:249`, `decode.c:74` | `& 0xFFFFFF` | a sample's length, a frequency, offsets in a stream table: not addresses |
 | `flip_triangle_winding.c`, `displaylist_set_texture_image.c`, `displaylist_get_texture_image.c`, `InitTextureAnimation.c`, `TextureAnimation.c` | the other walkers of ROM lists and TXLD | opcodes only; the addresses they copy are the relocated words |
 | `waves.c` (SetupWaveModel), the loaders' `+= base` | 32-bit sums of K0 addresses | right at any address |
-| `loadcars/root.c:87, 108`, `car_palette_init.c:62` | the heap's free total | real sizes: right (section 5's finding stands as on the N64) |
+| `loadcars/LoadCars.c:87, 108`, `car_palette_init.c:62` | the heap's free total | real sizes: right (section 5's finding stands as on the N64) |
 | state, flags and colours: `0x400000`, `0x800000`, `0x7FFFFFFF` in `gGameState`, node flags, `AnimID`, `gDPSetCombine`'s words | not addresses | |
 
 ## 8. Not done, or not tested

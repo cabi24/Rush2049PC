@@ -498,7 +498,7 @@ picked out: the frame time (`gFrameSeconds`, `gFrameSeconds`), the frame delta (
 files over the first 78 runs, which were read in six parts, each with the rest of its files' per-frame functions and
 those the coverage didn't run; then 31 lines in 8 more files the last 28 runs reached (the name entry, the records),
 39 that step by a named constant (`p->a0C += roll_unwind_negative`), and a last sweep for self-updates of any form, which found
-two through accessor macros (`PC_MODEL_SCALE(i) = PC_MODEL_SCALE(i) * 0.97f + ...`). Every use of the frame time in the
+two through accessor macros (`PC_MODEL_CATCHUP(i) = PC_MODEL_CATCHUP(i) * 0.97f + ...`). Every use of the frame time in the
 C was read, run or not. The 775 per-frame functions with none of those lines step nothing a frame (they draw, look up or decide from
 state set elsewhere).
 
@@ -533,7 +533,7 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/groups/view3_camera/group.c:202, 204 | View3Cam | the share of the last frame's camera directions kept a frame | changed | `PC_FILTER` |
 | src/blob/groups/view3_camera/group.c:208-227 | View3Cam | the camera blends' ramps | time | |
 | src/blob/vector_magnitude.c:201-220 | (a weak copy of View3Cam's blends) | the same ramps | time | |
-| src/blob/groups/visuals/anim_tire_donor.c:224 | AnimateTire | the camera spring (the in-car view's bob, `update_camera.c:140`), `·0.75 + random` a frame | changed | `PC_SPRING_KEEP`, `PC_SPRING_NOISE`: every frame, 0.75^f and the noise × `pc_fps_noise` (the bob's spread kept); it was `PC_EACH30`, a bob stepping 30 times a second at 60 (2026-11-04, 7.6) |
+| src/blob/groups/visuals/AnimateTire.c:224 | AnimateTire | the camera spring (the in-car view's bob, `update_camera.c:140`), `·0.75 + random` a frame | changed | `PC_SPRING_KEEP`, `PC_SPRING_NOISE`: every frame, 0.75^f and the noise × `pc_fps_noise` (the bob's spread kept); it was `PC_EACH30`, a bob stepping 30 times a second at 60 (2026-11-04, 7.6) |
 | src/blob/groups/targetpaths/group.c:4434, 4525 | AnimatePathTarget | the scripted cameras' key time; a texture cycle's timer | time | |
 | src/blob/groups/targetpaths/group.c:4533 | AnimatePathTarget | the texture index, once the timer runs out | unchanged | an event of a timed timer |
 | src/blob/groups/targetpaths/group.c:3927-3990 | PlacePathTargetQuat, PlayMoveSound | a key's rotation from t/dur; a volume from speeds | unchanged | absolute time, rates |
@@ -551,13 +551,13 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/groups/update_game_data/update_game_data.c:340 | UpdateTireAppearance | the skids' intensity, −0.125 a frame | changed | `PC_FSCALE` |
 | src/blob/groups/update_game_data/update_game_data.c:408, 419 | update_game_data | the body's pitch (0.6/0.4) and roll (0.7/0.3) filters | changed | `PC_FILTER`, `PC_FILTER_REST` (1 − e^f) |
 | src/blob/groups/update_game_data/update_game_data.c:371-376 | update_game_data | the model's stunt rotation handed over and zeroed a frame | unchanged | its reader sums it: the same total at any rate |
-| src/blob/groups/visuals/anim_tire_donor.c:228, 229 | AnimateTire | the fast tire's spin, +3.7 a frame; the slow one by model time | changed / time | `PC_FSCALE` |
-| src/blob/groups/visuals/AnimateWing.c:122, 183, 198 | tire_extend, AnimateWing | the wings out and in by sixths, one at a frame whose model time passed a 0.015 s gap | changed | `PC_GAP30`: 0.03 s at 60, 30 sixths a second |
+| src/blob/groups/visuals/AnimateTire.c:228, 229 | AnimateTire | the fast tire's spin, +3.7 a frame; the slow one by model time | changed / time | `PC_FSCALE` |
+| src/blob/groups/visuals/AnimateWing.c:122, 183, 198 | wing_extend, AnimateWing | the wings out and in by sixths, one at a frame whose model time passed a 0.015 s gap | changed | `PC_GAP30`: 0.03 s at 60, 30 sixths a second |
 | src/blob/groups/visuals/rocket.c:345, 351 | AnimateFrame | the car's fade, alpha ±0x19 a frame | changed | `PC_EACH30` |
 | src/blob/groups/visuals/rocket.c:510, 516, 522 | AnimateRocketFlame | the flame's shrink, −(Random(.025) + .01) a frame | changed | `PC_FSCALE` |
-| visual_tire_module (rocket.c, anim_tire_donor.c:251, AnimateWing.c) | AnimateFrame, AnimateTire, AnimateWing | translucency by a flag toggled each frame | unchanged | the alternation is the effect: 30 Hz at 60, 15 at 30 |
-| src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c:150, 170 | CheckCPs (the checkpoints) | the distance, a sum of moves; a crossing's time within the frame | unchanged / time | finer at 60 (7.4) |
-| src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c:74-96 | PlaceUnlockedCars | the places | unchanged | made again each frame |
+| visual_tire_module (rocket.c, AnimateTire.c:251, AnimateWing.c) | AnimateFrame, AnimateTire, AnimateWing | translucency by a flag toggled each frame | unchanged | the alternation is the effect: 30 Hz at 60, 15 at 30 |
+| src/blob/groups/car_checkpoints/CheckCPs.c:150, 170 | CheckCPs (the checkpoints) | the distance, a sum of moves; a crossing's time within the frame | unchanged / time | finer at 60 (7.4) |
+| src/blob/groups/car_checkpoints/PlaceUnlockedCars.c:74-96 | PlaceUnlockedCars | the places | unchanged | made again each frame |
 | src/blob/groups/stunt/group.c:4276, 4287, 4083-4241 | CheckForStunt, the trick scores | the stunt idle and combo timers; points by model time | time | |
 | src/blob/groups/stunt/group.c:3943-4048 | CheckFlip, 26C4, 2944 | the trick detectors' sums of the car's rotation; a full turn off on a trick | unchanged | rate-independent sums; events |
 | src/blob/are_all_cars_stopped.c:56, 63 | are_all_cars_stopped | the race end's settle timer | time | |
@@ -594,7 +594,7 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/groups/controlsys/group.c:3796 | UpdateControls | the frames of input skipped | changed | `PC_EACH30` |
 | src/blob/groups/controlsys/group.c:3834 | UpdateControls | a held button's repeat, every 0.2 s of retraces | delta | |
 | UpdateControls, ControlIRQ (gPrevPressed) | UpdateControls | a press: the model thread ORs each retrace's in, the frame takes them once | unchanged | a press registers once at any rate |
-| the menus' screens: optionscr/buttons.c:169-232, videoscr_update/group.c:135-197, controlscr/target.c:107-157, audioscr_update/updateAudioScreen.c:103-162, recordscr/recordscr.c:730-964, seven_option_group/eligibility.c:103-142, seven_option_init/group.c:85-125, text_helpers/group.c:450, 602-713, start_screen/group.c:378-452, availability_refresh/group.c:503-597, carscr/carscr.c:1211-1256, 1595-1622 | each screen's updateButtons | the buttons' flips (4π·dt), slides (180·dt), the cursor's spin (2π·dt) and slide (its speed from the distance left, × dt) | time | |
+| the menus' screens: optionscr/buttons.c:169-232, videoscr_update/group.c:135-197, controlscr/controls_updateButtons.c:107-157, audioscr_update/updateAudioScreen.c:103-162, recordscr/recordscr.c:730-964, seven_option_group/eligibility.c:103-142, seven_option_init/group.c:85-125, text_helpers/group.c:450, 602-713, start_screen/group.c:378-452, availability_refresh/group.c:503-597, carscr/carscr.c:1211-1256, 1595-1622 | each screen's updateButtons | the buttons' flips (4π·dt), slides (180·dt), the cursor's spin (2π·dt) and slide (its speed from the distance left, × dt) | time | |
 | the same screens' control functions | (each screen's control) | selection, values, the cheat code's steps | unchanged | edges and the input's repeat edges |
 | src/blob/animDot.c:172 | animDot | a blink from the retrace count | delta | |
 | src/blob/updateBG.c:81-82 | updateBG | the HUD's point list scroll by dx·dt | time | |
@@ -824,7 +824,7 @@ it moved at a lower rate, through the corners' pans and at other times. Two thin
   makes from the model record once a frame (update_game_data), after the model's step of that retrace: the model
   thread has the higher priority and the baton (port/ultra/sched.c), and a step never lets the game thread run
   inside it (7.4).
-- *A camera state stepping once a 30 Hz frame*: the camera spring of the in-car view (`anim_tire_donor.c:224`,
+- *A camera state stepping once a 30 Hz frame*: the camera spring of the in-car view (`AnimateTire.c:224`,
   `spring_save`, which `update_camera.c:140` bobs the eye by) was stored with `PC_EACH30`. It is now taken every
   frame, 0.75^f with the noise scaled to keep its spread (`pc_fps_noise`; 7.3). No other `PC_EACH30` or `PC_STEPS`
   is on a camera's path.

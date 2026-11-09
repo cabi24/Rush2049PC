@@ -1,4 +1,4 @@
-/* ZOID_ProjectWindow/candidate.c: where a world point appears in a window (MAT3 zoidwindow.c, ZOID_ProjectWindow()).
+/* ZOID_ProjectWindow/ZOID_ProjectWindow.c: where a world point appears in a window (MAT3 zoidwindow.c, ZOID_ProjectWindow()).
  *
  * The front end's screens use it to place their labels by the 3D buttons, the HUD to put markers over cars. */
 #include "game/game.h"

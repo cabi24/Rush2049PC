@@ -40,7 +40,7 @@ goes:
 
 | Piece | Files | What |
 |---|---|---|
-| HAL_text (MAT3 `HAL_text.c`) | `HAL_*.c`, `groups/hal_text/*.c`, `groups/state/halfont.c`, `groups/hud_text_anims/gr3_b.c` (HAL_SetFontInternal), `gr3_w.c` (HAL_StartText), `groups/sound_channel_extra/*.c`, `groups/animgear/ctx_gr3.c` | the fonts and the drawing of strings |
+| HAL_text (MAT3 `HAL_text.c`) | `HAL_*.c`, `groups/hal_text/*.c`, `groups/state/halfont.c`, `groups/hud_text_anims/HAL_SetFontInternal.c` (HAL_SetFontInternal), `HAL_StartText.c` (HAL_StartText), `groups/sound_channel_extra/*.c`, `groups/animgear/TB_GetFontHeight.c` | the fonts and the drawing of strings |
 | TB_text (MAT3 `TB_text.c`) | `TB_*.c`, `groups/audioscr/audio.c` (TB_FlashTextColors) | what the screens call: justification, colours, flashing text, word wrapping, string helpers |
 | The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c` | `gText` (`TextTables`): the current language's strings, from its wave: `single[n]`, and `taba[tab[n] + i]` (MAT3's names) |
 
@@ -109,10 +109,10 @@ cars' settings, each part with its own checksum (`CalcChecksumInternal`).
 | Piece | Files |
 |---|---|
 | Profiles | `groups/save/group.c` (InitPlayer, CheckAndRepairPlayer, ReadPlayerData, CreatePlayer, ReadPlayer, SaveServer), `ClearPlayerRecords.c`, `PurgePlayerData.c`, `MovePlayerFile.c`, `RemovePlayerFile.c` |
-| Settings and options | `GetPlayer*.c`, `groups/save_*/*.c`, `groups/save_option/save_option.c`, `groups/save_get_option/reverb.c`, `GetDefaultOption.c`, `SaveSelectPlayer.c`, `groups/game_sounds/InitOptions.c`, `groups/options_set/group.c` (`gOptions`, MAT3's `s8[41]`, indexed by `kOpt*`) |
+| Settings and options | `GetPlayer*.c`, `groups/save_*/*.c`, `groups/save_option/save_option.c`, `groups/save_get_option/GetPlayerOption.c`, `GetDefaultOption.c`, `SaveSelectPlayer.c`, `groups/game_sounds/InitOptions.c`, `groups/options_set/group.c` (`gOptions`, MAT3's `s8[41]`, indexed by `kOpt*`) |
 | Records | `Record*.c` (after a race, per race type), `AddPlayerScores.c`, `AddPlayerStats.c`, `RemovePlayerScores.c`, `FindWinner.c`, `FindTempNameIdx.c`, `InitRecords.c`, `ClearTotalStats.c` |
 | Unlocks and coins | `CalcUnlockedStuff.c`, `Is*Unlocked.c`, `FoundCoin.c`, `IsCoinFound.c`, `NumCoinsFound.c`, `CountBits.c` |
-| Ghosts | `groups/save/ctx_slot.c` (SaveGhost ...), `groups/save_limbo/SaveGhostInLimbo.c`: `tGhostFile`, `tGhostHeader` |
+| Ghosts | `groups/save/ghost_files.c` (SaveGhost ...), `groups/save_limbo/SaveGhostInLimbo.c`: `tGhostFile`, `tGhostHeader` |
 | Passwords (MAT3 `password.c`) | `NewPassword.c`, `StorePasswordElement.c`, `GetPasswordElement.c`, `groups/password/group.c` |
 
 After a race `RecordGameOver` adds each player's results to its profile and to the totals over all profiles
@@ -124,9 +124,9 @@ the circuit before). A player without a profile plays on a "just play" profile (
 
 - **Layouts by N64 offsets.** `PROFILE_OFS`, `PSF_OFS` and `GHOST_OFS` (pc_prelude.h) map the N64's offsets of the
   profile, pak file and ghost records to the PC's: `groups/save/group.c` (CheckAndRepairPlayer, CreatePlayer,
-  ReadPlayer ...) and `groups/save/ctx_slot.c` still read them so; `tProfile`, `PakFileRecord` and `tGhostFile` are
+  ReadPlayer ...) and `groups/save/ghost_files.c` still read them so; `tProfile`, `PakFileRecord` and `tGhostFile` are
   the structures to use instead. Several files still read a record through a view of their own with N64-sized
-  padding (`groups/save/ctx_slot.c`'s `Slot`, `Obj`, `MenuData`; the HUD's input records `gPlayers`, 0x4C bytes on
+  padding (`groups/save/ghost_files.c`'s `Slot`, `Obj`, `MenuData`; the HUD's input records `gPlayers`, 0x4C bytes on
   the N64).
 - **Window addresses in data.** A font letter's kerning row (`FontLetter.kerns`), a font texture's and the track
   map's texels (`TXHD` records keep the N64 layout), `tGhostHeader.start`, the heap's links and the handle slots are

@@ -394,7 +394,7 @@ void model_iteration(void) {
                             AbortCar(rec->slot, 0);
                         }
                     }
-                    if (PC_CAR_STATE(rec->slot) < CAR_DEAD) {
+                    if (PC_CAR_DEAD(rec->slot) < CAR_DEAD) {
                         UpdateModel(rec->slot);
                     } else {
                         collision(m);

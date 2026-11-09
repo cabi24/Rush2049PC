@@ -16,7 +16,7 @@ weak ones included, but their own references (the C library, zlib, pthreads) are
   first: it is what the matching build links.
 - Data the game uses by its N64 address, which nothing else defines, becomes an absolute symbol there: RDRAM
   addresses (the low-memory globals at 0x80000300, the heap start game_bss_end, the runtime images' base
-  overlay_base) point into port/ultra's RDRAM window, and ROM offsets (D_00039B40) become cartridge addresses
+  overlay_base) point into port/ultra's RDRAM window, and ROM offsets (sample_bank_rom) become cartridge addresses
   (0xB0000000 | offset), which the game's PI and MusyX address callbacks accept. port/ultra fixes their GOT
   slots at startup (memory.c: binutils 2.40 on aarch64 relocates them in a PIE).
 - Functions become stubs that call pc_stub_hit (port/ultra/misc.c): it prints the name, the N64 thread and a

@@ -1,6 +1,6 @@
 /* A car's sounds each frame (MAT3 audio.c's UpdateCarSounds, _UpdateEngineSound, _UpdateRoadSounds, _SetSoundVP and
  * the N64's tire screech): the engine's two layers and its random sound, the screech, the road noises, the
- * bumps (msh.c), the horn and the bog. A human's car (drone_type 2) plays plain effects, a drone's 3D emitters. */
+ * bumps (UpdateBumps.c), the horn and the bog. A human's car (drone_type 2) plays plain effects, a drone's 3D emitters. */
 #include "game/game.h"
 
 /* The model record's fields this file reads (MAT3 tModelData, the N64's layout, which MAT3 shares here:

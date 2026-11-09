@@ -166,7 +166,7 @@ the real value first or an ignored extra (`sound_seq_stop(id, id)`, `osGetThread
 - InitPane stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
   (`PadConfig`) gets the blit's two pointer-sized fields (`Info`, `AnimFunc`), so position, size and the animation
   function land where `Blit` has them. The title panes it returns (`audio_gTitlePane`, `options_gTitlePane`) are `intptr_t` in
-  all their users, and so are `ChangePaneSize`'s and its own views in `gr3_c.c`.
+  all their users, and so are `ChangePaneSize`'s and its own views in `title_panes.c`.
 - Blits from `NewMultiBlit` kept in `s32`: `highscore_blit`, `backBlit`, `PS_ErrorFunc`' `snd`,
   `RemoveMultiplayerHUD`'s `handle`; `RemoveBlit`'s parameter is `intptr_t` in the views that pass them.
 - MBOX wrappers: `InitCarObj`, `MBOX_NewObjectCam` and `MBOX_NewObject` end in a call to `ZOID_AddObject`
@@ -196,7 +196,7 @@ The first run found 20 views of three functions, all passing a constant 0:
 
 | Function | Argument | Views | Fix |
 |---|---|---|---|
-| `LoadWave` | 5: the heap, `void *` | `AudioInitSys.c`, `loadtrack.c`, `slots.c` (`LockAndLoad`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
+| `LoadWave` | 5: the heap, `void *` | `AudioInitSys.c`, `loadtrack.c`, `LoadFrontEndWaves.c` (`LockAndLoad`), image A's `cleanup_colortrace` and `runtime_a_c93c_closure` | pointer-sized on the PC |
 | `InitPane` | 6: the pane's animation, `intptr_t` (section 3.5) | 14 files, one under the name `InitPane` | `intptr_t` on the PC |
 | `CylinderInSurf` | 6: `f32 *` | the weak copy in `stree_tiresurf/group.c` | reviewed: its only calls are the matching stand-ins `__standin_input_process_controller_a/b`, which nothing calls |
 
@@ -255,7 +255,7 @@ Harmful views in files I may not edit:
 | `groups/heap_release/UnloadWaveInstance.c`, `audio_sfx_shutdown.c` | `DeallocateMemory_stub` (stub) | `#define DeallocateMemory_stub DeallocateMemory` under `TARGET_PC`, as `AudioShutdown.c` does |
 | `src/rom/sound/hardware.c` | `bzero(void *, int)` | sizes in variables reach the host's `size_t`: declare it with `__SIZE_TYPE__` on the PC |
 | `src/rom/sound/hardware.c`, `dma_queue.c` | `dcache_create_dirty_lines` | **`port/ultra/misc.c` defines it `void`**, but it returns `start` advanced in 16-byte cache lines to at least `end` (`asm/us/boot_data/func_8002C5E0.s`), and `sound_dma_flush_requests` keeps that as its audio DMA cursor: `uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }` |
-| `src/ovl_a/groups/trackscr/trackscr.c` | `LoadWave`, `audio_dma_sync`, `DeallocateMemory`, `MBOX_NewObject` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
+| `src/ovl_a/groups/trackscr/trackscr.c` | `LoadWave`, `AllocateMemoryHeap`, `DeallocateMemory`, `MBOX_NewObject` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
 | `nonmatching/game/PrePlay.c` | `gLights` | section 5 |
 
 Harmful views that needed a typed PC version or struct unification, not a prototype change, are done

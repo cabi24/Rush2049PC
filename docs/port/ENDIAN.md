@@ -126,8 +126,8 @@ R, G, B, A, the loader swaps the word, and the node got A, B, G, R.
 | Data | Reader | What |
 |---|---|---|
 | `smoke_white`..`smoke_dirt_color` | `StartSmoke` | track effects' surface colours |
-| `controls_initButtonColor` | `controlscr/dtc.c` | controls screen buttons |
-| `controls_updateButtonColor` | `controlscr/target.c` | controls screen buttons (then the alpha byte is stored over byte 3) |
+| `controls_initButtonColor` | `controlscr/controls_initButtons.c` | controls screen buttons |
+| `controls_updateButtonColor` | `controlscr/controls_updateButtons.c` | controls screen buttons (then the alpha byte is stored over byte 3) |
 | `coin_gold_glow_color`, `coin_silver_glow_color` | `AnimateCoin.c` | gold and silver coins (0xFFC800FF, 0xC8E6FFFF) |
 
 Each read is `PC_RGBA(...)`. No game code stores a colour constant as a word into byte-read storage (the detector
@@ -201,7 +201,7 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 - **The controller pak** (`src/rom` Pfs): page links are `{bank, page}` bytes next to native u16 `ipage` tests,
   by design (ULTRA.md, controller pak); the detector's conflicts there are marked reviewed.
 - `sound_hw_set_envelope` (`src/rom/sound/hardware.c`, MusyX) reads `__unaligned` u16s natively; MUSYX_DATA.md's.
-- Car and model records (another part): `mode.c` (`UpdateCarSounds`) and `PauseTargets` read and write car and
+- Car and model records (another part): `UpdateCarSounds.c` (`UpdateCarSounds`) and `PauseTargets` read and write car and
   level-object fields at N64 offsets inside pads; the widths agree, but the offsets are the layout work's.
 - Weak context copies keep their N64 views; they never run.
 

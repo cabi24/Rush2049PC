@@ -90,21 +90,21 @@ are in types.h; the menu sounds' ids (`SND_MENU_*`) in audio.h, the buttons they
 | `groups/aud_stop_effect/group.c` | `ConvertTag`, `AudStopEffect` (audiomgr.c) |
 | `groups/audiomgr_emitters/group.c` | `AudStopEmitter`, `AudEmitterPlaying`, `AudUpdateEmitter` (audiomgr.c) |
 | `AudEffectPlaying.c`, `AudPlaySequence.c`, `AudInit3D.c`, `AudAddListener.c`, `groups/listeners/*` | tests, sequences, the 3D start-up, the listeners (audiomgr.c) |
-| `groups/audiomgr/audio_effect_setup_b132.c` | `FreeFxTag`, `ProcessSequences` (audiomgr.c) |
-| `groups/update_fx/updatefx.c`, `groups/weighted_priority/group.c`, `OrderFx.c`, `groups/interrupt_fx_tag/ap.c` | the priority pass (audiomgr.c) |
+| `groups/audiomgr/ProcessSequences.c` | `FreeFxTag`, `ProcessSequences` (audiomgr.c) |
+| `groups/update_fx/updatefx.c`, `groups/weighted_priority/group.c`, `OrderFx.c`, `groups/interrupt_fx_tag/InterruptFxTag.c` | the priority pass (audiomgr.c) |
 | `groups/abort_game/GetCmd.c`, `groups/heap_release/audio_lock.c`, `audio_unlock.c`, `AudioShutdown.c` | the message pool, the lock, the shut-down |
 | `NewEmitter.c`, `NewListener.c`, `ValidateEmitter.c` | the free lists' takers; the empty debug check |
 | `groups/audiosfx/group.c`, `FindChangeCmd.c`, `AudioSfxInit.c`, `AudioEffectPlaying.c`, `AudioStopAllEffects.c`, `groups/audiosfx_play/group.c` | the sound server (audiosfx.c, audiosfxps2.c) |
 | `groups/AudioInitSys/AudioInitSys.c`, `AudioShutdownSys.c`, `AudioSetMasterVolume.c`, `AudioTimeout*.c`, `GetAudioTime.c` | the system under the manager: MusyX's start-up, the clock (audiosysps2.c) |
 | `groups/slot_sound/AudioSongPlay.c`, `AudioSongStop.c`, `AudioSongInit.c` | the songs (audiosongps2.c) |
 | `PlayGameSound.c`, `EmitGameSound.c`, `PlayTargetSound.c`, `Play{Exit,LR,UD,StartAB}Sound.c`, `groups/game_sounds/*`, `groups/mode_init/group.c`, `UpdateListeners.c` | the game's helpers: race sounds, menu sounds, volumes, music, listeners (audio.c) |
-| `groups/car_sounds/d5e64.c`, `mode.c`, `msh.c`, `ded78.c`, `StopCarSounds.c`, `InitSoundState.c`, `StopSound.c` | a car's engine, screech, road noises, bumps, scrapes, thumps, horn, bog (audio.c) |
+| `groups/car_sounds/StartCarSounds.c`, `UpdateCarSounds.c`, `UpdateBumps.c`, `GetForceAndPeak.c`, `StopCarSounds.c`, `InitSoundState.c`, `StopSound.c` | a car's engine, screech, road noises, bumps, scrapes, thumps, horn, bog (audio.c) |
 | `groups/audioscr_update/*`, `groups/hud_text_anims/*` | the audio options screen and its panes (audioscr.c) |
 | `musyx_submit_audio_task.c` | MusyX's service that sends the audio task to the scheduler |
 
 Also in the area's list, not sound: `FillFreeMem.c` (the heap's freed-memory fill), `heap_lock.c`/`heap_unlock.c`
-(empty), `update_player_visibility.c` (MAT3 visuals.c's UpdateArrowVis), `groups/slot_sound/AdjustTextWavePointers.c`
-(the text bank), `groups/state_waves/slots.c` (the front end's waves). The audio manager thread itself, AudioInit,
+(empty), `UpdateArrowVis.c` (MAT3 visuals.c's UpdateArrowVis), `groups/slot_sound/AdjustTextWavePointers.c`
+(the text bank), `groups/state_waves/LoadFrontEndWaves.c` (the front end's waves). The audio manager thread itself, AudioInit,
 ProcessEmitters and the MusyX services other than the task are the system area's.
 
 **The cars** (MAT3 audio.c): `StartCarSounds` starts a car's two engine layers (`gEngineSpecs[type]`): plain effects
@@ -155,7 +155,7 @@ sent (`SetSoundVP`).
   queue that runs out on a loaded host (`PC_CMD_OR_UNLOCK` ..., docs/port/QA.md "Integration soak").
 - **Window addresses in records.** A player record keeps its listener as a 32-bit window address (`PC_N64A`,
   `PC_N64P`: StartListeners, UpdateListeners, StopListeners). `musyx_samples` is a cartridge address
-  (`D_00039B40`). The heap blocks are given to `PurgeableMemory` as window addresses.
+  (`sample_bank_rom`). The heap blocks are given to `PurgeableMemory` as window addresses.
 - **The model record** (`tModelData`, 0x808 bytes) is read in the N64's layout by the car sounds' views.
 - **MusyX's voices** keep the N64's 0x1A0-byte layout, read through about 30 per-function views in macros.c,
   synth.c, voices.c, api.c and controllers.c; their macro pointers (+0, +4, +8, +0xC, +0x1C, +0x20) are 32-bit
@@ -173,5 +173,5 @@ sent (`SetSoundVP`).
 - **The speech** streams' cartridge reads (async DMA) and its KSEG0 test in `speech_set_bank`.
 - **Dead or misnamed code** a later cleanup can take: `NewListener` (nothing calls it), `other_user` (a stand-in
   caller), the empty `ValidateEmitter`/`pc_ValidateEmitter`/`ValidateListener` with their N64-build leftovers,
-  `update_player_visibility` (MAT3 visuals.c), the library's own emitters and streams (unused by the game), the
+  `UpdateArrowVis` (MAT3 visuals.c), the library's own emitters and streams (unused by the game), the
   `AudPauseAllEffects` that stops (as MAT3's).

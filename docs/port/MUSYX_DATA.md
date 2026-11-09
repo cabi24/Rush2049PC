@@ -31,7 +31,7 @@ bytes were read: the formats below are what the game's code reads, and the tests
 | Step | Where | What |
 |---|---|---|
 | load | `_ReadWave` (`waves.c`) → `pc_wave_loaded` → `pc_assets_musyx` | the file, in a locked heap block, converted once per read; the read's big-endian registration is dropped |
-| addresses kept | `AudioInitSys` | `musyx_project` project, `musyx_pool` pool, `musyx_sdir` sample directory, `musyx_samples` sample base (`(s32)D_00039B40`) |
+| addresses kept | `AudioInitSys` | `musyx_project` project, `musyx_pool` pool, `musyx_sdir` sample directory, `musyx_samples` sample base (`(s32)sample_bank_rom`) |
 | push | `sound_push_group` (sndPushGroup) | walks the project's groups; registers the group's macros, tables, keymaps, layers (pool entries), samples (directory records) and sfx table by id |
 | registries | `registry.c` BSS | `{payload, id, refs}`: macros `sound_macros` (in 512 buckets by `id >> 6`), tables `sound_tables`, keymaps `sound_keymaps`, layers `sound_layers` (+ count), sfx tables `sound_sfx_tables`, sample directories `sound_sample_directories` (`{records, base, count}`); groups pushed `sound_groups` |
 | look up | `sound_find_macro` macro, `sound_find_table` table, `sound_find_keymap` keymap, `sound_find_layer` layer, `sound_find_sfx` sfx entry, `sound_find_sample` sample | bsearch (`sound_bsearch`) by id |
@@ -137,7 +137,7 @@ Offsets are from the song start; the sequencer adds them with 32-bit arithmetic 
   pointer-bearing tables host-sized storage); so are the sequencer's slots (section 8.2). The voices keep their
   N64 layout with 32-bit window addresses (section 8.3).
 
-The sample base is `(s32)D_00039B40` in `AudioInitSys`: sign-extended to 0xFFFFFFFFB0039B40 in the
+The sample base is `(s32)sample_bank_rom` in `AudioInitSys`: sign-extended to 0xFFFFFFFFB0039B40 in the
 pointer-sized `musyx_samples`, then truncated back to 0xB0039B40 + offset in the u32 record. `sound_hw_translate_address` takes
 the 64-bit value for a host pointer and returns it unchanged, which is what the N64 does for a 0xB0 address too.
 

@@ -124,7 +124,7 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
         car->sound_flags[wheel] &= 0x7FF;
     }
     if ((*surf == 3 || *surf == 4 || *surf == 7) && out[1] < 0.25f) {
-        if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+        if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
             if (PC_CAR_SLOT(car->slot)) {}
             if (*surf == 4) {
                 AddBattlePoint(car->slot, car->slot, -1);

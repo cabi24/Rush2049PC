@@ -324,7 +324,7 @@ All game-C changes are `TARGET_PC` types, macros or function versions at file sc
    an fx tag (`tFxSequence`) is 88 bytes, a command (`tAudioMsg`) 32, a sequence 72, an emitter 56, a sorted-tag node
    24. AudioInit allocated the fx tags at 80 and the tag nodes at 12; the command allocator and AudioShutdown stepped
    the command table at 24; nine views read the records at N64 offsets (`entity_lookup`, `entity_helpers`,
-   `transform` (whose change command put its floats at +8), `ProcessEmitters`, `ap.c`, `record_score`,
+   `transform` (whose change command put its floats at +8), `ProcessEmitters`, `InterruptFxTag.c`, `record_score`,
    `AudEffectPlaying`, the sequences in `AudPlaySequence`, `stop_sequence`, `NewSequence`,
    `FreeSequence`, the emitter pop in `NewEmitter`). Tests: `assets_sound` runs AudioInit, two effect
    starts, the command table and a sequence on the game's code; `views_sound_{fxtag,sequence,emitter,commands}`

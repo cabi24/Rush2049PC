@@ -49,15 +49,15 @@ s32 GhostUpdate(s32 idx, f32 *out)
             }
         }
         if (s->pos == s->count) {
-            PC_MODEL_FLAG_A(idx) = 0;
-            PC_MODEL_FLAG_B(idx) = 0;
+            PC_MODEL_ABORT(idx) = 0;
+            PC_MODEL_WING(idx) = 0;
             PC_MODEL_STEER(idx) = 0.0f;
             PC_MODEL_GAS(idx) = 0.0f;
             PC_MODEL_BRAKE(idx) = 0.0f;
         } else {
             PC_MODEL_GEAR(idx) = (s8) (DATA(s)[s->pos] & 7) - 1;
-            PC_MODEL_FLAG_A(idx) = (DATA(s)[s->pos] & 8) >> 3;
-            PC_MODEL_FLAG_B(idx) = (DATA(s)[s->pos] & 0x10) >> 4;
+            PC_MODEL_ABORT(idx) = (DATA(s)[s->pos] & 8) >> 3;
+            PC_MODEL_WING(idx) = (DATA(s)[s->pos] & 0x10) >> 4;
             PC_MODEL_STEER(idx) = (f32) ((s8 *) DATA(s))[s->pos + s->count] / 127;
             PC_MODEL_GAS(idx) = (f32) (DATA(s)[s->pos + s->count + s->count] >> 4) / 15.0f;
             PC_MODEL_BRAKE(idx) = (f32) (DATA(s)[s->pos + s->count + s->count] & 0xF) / 15.0f;
@@ -70,13 +70,13 @@ s32 GhostUpdate(s32 idx, f32 *out)
         }
         return 0;
     } else {
-        if (PC_CAR_FINISHED(idx)) {
+        if (PC_CAR_PLACE_LOCKED(idx)) {
             return 0;
         }
         if (!(s->pos < s->count)) {
             return 0;
         }
-        DATA(s)[s->pos] = (PC_MODEL_GEAR(idx) + 1) | (PC_MODEL_FLAG_A(idx) * 8) | (PC_MODEL_FLAG_B(idx) * 16);
+        DATA(s)[s->pos] = (PC_MODEL_GEAR(idx) + 1) | (PC_MODEL_ABORT(idx) * 8) | (PC_MODEL_WING(idx) * 16);
         if (PC_MODEL_STEER(idx) * 127.0f < 0.0f) {
             f = PC_MODEL_STEER(idx) * 127.0f - 0.5f;
         } else {

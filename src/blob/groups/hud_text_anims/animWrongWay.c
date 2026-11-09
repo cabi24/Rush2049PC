@@ -19,8 +19,8 @@ s32 animWrongWay(void *item)
     HAL_SetTextDepth(0.0f);
     TB_SetJust(1, 1);
     for (slot = 0; slot < gNumWindows; slot++) {
-        if ((-1.5707964f <= PC_CAR_HEADING(slot) && PC_CAR_HEADING(slot) <= 1.5707964f) ||
-            !(gGameState & GS_RACING) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == kPractice) {
+        if ((-1.5707964f <= PC_CAR_STRAY_ANGLE(slot) && PC_CAR_STRAY_ANGLE(slot) <= 1.5707964f) ||
+            !(gGameState & GS_RACING) || PC_CAR_PLACE_LOCKED(slot) == 1 || !gShowWrongWay || gRace == kPractice) {
             wrongWayTime[slot] = gSeconds;
             wasStrayed[slot] = 0;
             continue;

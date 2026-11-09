@@ -43,7 +43,7 @@ s32 animOdometer(Blit *blt) {
     slot = (blt->AnimID & 0xF0) >> 4;
     digit = blt->AnimID & 0xF;
     frac = 0.0f;
-    dist = PC_CAR_F108(slot);
+    dist = PC_CAR_MILEAGE(slot);
     if (gOptions[kOptMetric]) {
         dist = dist / 0.6f;
     }
@@ -55,7 +55,7 @@ s32 animOdometer(Blit *blt) {
         }
         return 1;
     }
-    hide = gShowOdometer == 0 || PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1;
+    hide = gShowOdometer == 0 || PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(slot)) == 1;
     if (hide != blt->Hide) {
         blt->Hide = hide;
         UpdateBlit(blt);

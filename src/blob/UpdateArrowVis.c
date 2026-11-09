@@ -1,4 +1,4 @@
-/* update_player_visibility: which battle players can see each other (MAT3 visuals.c). Each
+/* UpdateArrowVis: which battle players can see each other (MAT3 visuals.c). Each
  * frame of a battle with the player arrows shown, a car's arrow over another player's car is faded where a wall
  * stands between them (gFadePlayerArrow, read by the arrow's animator). */
 #include "game/game.h"
@@ -12,7 +12,7 @@
  * have a wall between them (a ray from one, SIGHT_HEIGHT up, to the other hits the world).
  * Original game: the inner loop starts at 1, not i + 1, so each pair is tested twice and each car against itself
  * once (as in MAT3). */
-void update_player_visibility(void) {
+void UpdateArrowVis(void) {
     s32 i, j, k;
     f32 from[3], to[3];
     f32 hit_matrix[9];

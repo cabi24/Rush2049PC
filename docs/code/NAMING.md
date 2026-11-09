@@ -282,7 +282,7 @@ When the maps are applied (`tools/port/rename.py`), in this order:
 6. **`#define` aliases** that became `#define X X` (109 names, e.g. `#define gNumPlayers D_8014A108` in resurrect.c,
    `#define HAL_GetTextWidth object_manager_update` in overlay B): delete. Four are function-like or casts that still
    work after the rename but should go: `HAL_GetTextWidth(s, n)` (runtime_a_text_helpers), `Random(range)`
-   (anim_tire_donor.c), `gCarComponents` (cleanup_colortrace), `gFrameSeconds` (runtime_b_resource_callbacks).
+   (AnimateTire.c), `gCarComponents` (cleanup_colortrace), `gFrameSeconds` (runtime_b_resource_callbacks).
 7. **Declarations**: the arcade headers `include/game/*.h` (no source includes them; 125 of their names now clash
    with other signatures, e.g. `SetCountdownTimer(int)` against the real `f32` one); the extern declarations of
    dropped labels in the context preambles (335 entries); the stale `extern u8 gspF3DEX2_fifoTextStart[]` lines.

@@ -27,7 +27,7 @@ s32 animLapCount(void *item)
         if (gNumLaps == PC_MODEL_LAP(i)) {
             continue;
         }
-        if (PC_CAR_FINISHED(i) == 1) {
+        if (PC_CAR_PLACE_LOCKED(i) == 1) {
             continue;
         }
         x = lapCountPos[gNumWindows - 1][i].x;

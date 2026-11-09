@@ -442,7 +442,7 @@ def musyx_song():
 # screech) and a short one-shot for the rest; and the engine table gives every car its two layers, with levels.
 SOUND_IDS = 228
 SOUND_LOOPS = (1, 2, 36)        # the engines' layers (the engine table below) and the screech (UpdateCarSounds)
-SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: AudioInitSys's D_00039B40
+SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: AudioInitSys's sample_bank_rom
 LOOP_SAMPLE, SHOT_SAMPLE = 5, 6
 LOOP_MACRO, SHOT_MACRO = 1, 2
 

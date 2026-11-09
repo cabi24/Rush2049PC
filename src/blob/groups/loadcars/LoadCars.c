@@ -1,4 +1,4 @@
-/* root.c (loadcars): load the race's car models (MAT3 carload.c, LoadCars()). */
+/* LoadCars.c (loadcars): load the race's car models (MAT3 carload.c, LoadCars()). */
 #include "game/game.h"
 
 #define CAR_WAVE 88             /* the wave (asset file) of car type 0; type c is CAR_WAVE + c */
