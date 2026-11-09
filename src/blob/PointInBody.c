@@ -6,7 +6,9 @@
 
 /* The model record (tModelData), the body corners it reads. */
 typedef struct tModelData {
-    u8 pad0[0xF4];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0xEC];
     f32 bodyR[4][3];            /* +0x0F4 the body's corners in the car's frame: [0] front right, [3] rear left */
 } tModelData;
 

@@ -22,12 +22,20 @@ typedef struct tResurrect {
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    char pad0[0x220];
+    _tCar *car;
+    Tune44 *tune;
+    char pad8[0x218];
     f32 rwv[3];                 /* 0x220 the velocity in the world, feet a second */
     f32 rwr[3];                 /* 0x22C the position in the world, feet */
     char pad238[0x2EC - 0x238];
     f32 uvs[3][3];              /* 0x2EC the orientation */
-    char pad310[0x660 - 0x310];
+    char pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    char pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    char pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    char pad64C[0x660 - 0x64C];
     tResurrect resurrect;       /* 0x660 */
     char pad6D0[0x6D4 - 0x6D0];
     f32 initin_pos[3];          /* 0x6D4 initin.pos: where the flight began (Resurrect sets it) */

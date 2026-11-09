@@ -15,9 +15,17 @@ typedef struct InputRecord {
 
 /* The car record's input fields (MAT3 tModelData: crashflag, mainin, slot). */
 typedef struct CarState {
-    u8 pad0[0x640];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x230];
     s8 crashflag;               /* 0x640: crashed: no shifting */
-    u8 pad641[0x720 - 0x641];
+    u8 pad641[0x648 - 0x641];
+    surftyp *movingSurface;
+    u8 pad64C[0x720 - 0x64C];
     f32 wheel;                  /* 0x720: steering, -1..1 */
     u8 pad724[4];               /* 0x724: clutch */
     volatile f32 brake;         /* 0x728: 0..1 in fifteenths */

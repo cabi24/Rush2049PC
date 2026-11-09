@@ -52,7 +52,9 @@ typedef struct tReckon {        /* anon_base_rwa_base_rwv_90 */
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here: MAT3's names and layout. */
 typedef struct tModelData {
-    u8 pad000[0x40];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad008[0x38];
     float v[3];                 /* 0x040 */
     u8 pad04C[0x94 - 0x4C];
     float tireV[4][3];          /* 0x094 */
@@ -62,7 +64,11 @@ typedef struct tModelData {
     float rwr[3];               /* 0x22c */
     u8 pad238[0x2EC - 0x238];
     float uvs[3][3];            /* 0x2ec */
-    u8 pad310[0x430 - 0x310];
+    u8 pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x430 - 0x410];
     tTire tires[4];             /* 0x430 */
     u8 pad5A0[0x5CC - 0x5A0];
     float suscomp[4];           /* 0x5cc */
@@ -73,7 +79,9 @@ typedef struct tModelData {
     s8 topscrape;               /* 0x641 */
     s8 thumpflag;               /* 0x642 */
     s8 mthumpflag;              /* 0x643 */
-    u8 pad644[0x660 - 0x644];
+    u8 pad644[0x648 - 0x644];
+    surftyp *movingSurface;
+    u8 pad64C[0x660 - 0x64C];
     tResurrect resurrect;       /* 0x660 */
     tInitIn initin;             /* 0x6d0 */
     tFastIn fastin;             /* 0x710 */

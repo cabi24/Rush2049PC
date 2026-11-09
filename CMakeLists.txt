@@ -1406,8 +1406,8 @@ if(NOT WIN32)
     # to its own view, so the views are the live readers' record types (the three the symbol's declarations were).
     add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --n64-size 0x20 --tag ShutdownMsg,Slot24,Slot18
         --in src/blob/groups/heap_release/AudioShutdown.c,src/blob/groups/save/AudioInit.c,src/blob/groups/abort_game/GetCmd.c)
-    # The road collision's views of the car's model record (model, N64 layout): the tires' road nodes at
-    # +0x3A0 are u32 window addresses (docs/port/CARS.md 2.2).
+    # The road collision's views of the car's model record (pc_models): the tires' road nodes at MAT3's +0x3A0 and the
+    # moving surface at +0x648 are host pointers (docs/port/CARS.md 4).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
         --in src/blob/groups/stree_collide/CollideCarBody.c,src/blob/groups/stree_tiresurf/TireSurf.c,src/blob/groups/update_game_data/update_game_data.c)
 endif()

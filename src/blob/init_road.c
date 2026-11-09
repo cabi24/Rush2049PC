@@ -9,15 +9,16 @@
 
 /* The car's physics descriptor (MAT3 _tCar), its tire positions. */
 typedef struct {
-    /* 0x000 */ u8 pad0[0x70];
+    /* 0x000 */ u8 pad0[0x60];
+    /* 0x060 */ TireDesc *tires[4];   /* each tire's constants */
     /* 0x070 */ f32 tireR[4][3];   /* each tire's position from the centre of mass, car frame */
 } tCar;
 
-enum n64p_tCar { n64p_tCar_ };
 /* The model record (tModelData), the fields init_road reads and writes. */
 typedef struct tModelData {
-    /* 0x000 */ enum n64p_tCar car;     /* the physics descriptor (a window address) */
-    /* 0x004 */ u8 pad4[0xF0];
+    /* 0x000 */ tCar *car;           /* the physics descriptor */
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ u8 pad8[0xEC];
     /* 0x0F4 */ f32 bodyR[4][3];        /* the body's corners, car frame */
     /* 0x124 */ u8 pad124[0x108];
     /* 0x22C */ f32 rwr[3];             /* the position */
@@ -27,7 +28,11 @@ typedef struct tModelData {
     /* 0x2A4 */ f32 bodyrwr2[4][3];     /* the same a step ago */
     /* 0x2D4 */ u8 pad2D4[0x18];
     /* 0x2EC */ f32 uvs[3][3];          /* the orientation */
-    /* 0x310 */ u8 pad310[0x2BC];
+    /* 0x310 */ u8 pad310[0x90];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x5C];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x1BC];
     /* 0x5CC */ f32 suscomp[4];
     /* 0x5DC */ f32 tpcomp[4];
     /* 0x5EC */ u8 pad5EC[0x20];
@@ -35,7 +40,9 @@ typedef struct tModelData {
     /* 0x61C */ u16 sviscode[4];
     /* 0x624 */ u16 roadboost[4];
     /* 0x62C */ u16 sound_flags[4];
-    /* 0x634 */ u8 pad634[0xA0];
+    /* 0x634 */ u8 pad634[0x14];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x88];
     /* 0x6D4 */ f32 initpos[3];         /* initin: the start point */
     /* 0x6E0 */ f32 inituvs[3][3];      /* the orientation there */
     /* 0x704 */ f32 initoffset[3];      /* the car's offset from it (its grid place), car frame */
@@ -48,8 +55,6 @@ typedef struct tModelData {
     /* 0x7C6 */ s16 slot;
     /* 0x7C8 */ u8 pad7C8[0x40];
 } tModelData; /* 0x808 */
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
 
 /* Place model m at its start: the orientation from initin (stretched with the super speed cheat) for the model, the
  * dead reckoning and the car record (dr_uvs); the position the start point plus the car's offset turned into the
@@ -72,7 +77,7 @@ void init_road(tModelData *m) {
     veccopy(m->rwr, m->reckon_base_rwr);
     veccopy(m->rwr, PC_CAR_POS(m->slot));
     for (i = 0; i < 4; i++) {
-        WorldVector(N64P(m->car)->tireR[i], m->tireRwr[i], m->uvs);
+        WorldVector(m->car->tireR[i], m->tireRwr[i], m->uvs);
         vecadd(m->tireRwr[i], m->rwr, m->tireRwr[i]);
         m->suscomp[i] = 0;
         m->tpcomp[i] = 0;

@@ -490,9 +490,9 @@ static void test_camera(void)
     memset(polys, 0, 4 * 24);
     NF(polys + 24, 2, uint16_t) = 0x20 | (4 << 11);               /* a camera trigger of scene 4 */
     stree_surf = polys;
-    memset(MODEL(0), 0, 0x808);
-    NF(MODEL(0), 0x6C4, int16_t) = -1;
-    NF(MODEL(0), 0x5A0, uint16_t) = 1;
+    memset(MODEL(0), 0, sizeof(struct pc_model));
+    NF(MODEL(0), MODEL_OFS(0x6C4), int16_t) = -1;
+    NF(MODEL(0), MODEL_OFS(0x5A0), uint16_t) = 1;
     TargetCollTrigger(cam, &player, 0, 0);
     CHECK((NF(sc, 0x10, uint32_t) & (1u << 24)) && (NF(sc, 0x10, uint32_t) & 0x200));
     scene_cars(cam, sc);
@@ -504,9 +504,9 @@ static void test_camera(void)
  * the first one comes in). In a race of 6, a car past them is not of it. */
 static void car_on(int16_t car, int on)
 {
-    memset(MODEL(car), 0, 0x808);
-    NF(MODEL(car), 0x6C4, int16_t) = -1;
-    NF(MODEL(car), 0x5A0, uint16_t) = on ? 1 : 0;     /* a wheel on polygon 1, the trigger, or none */
+    memset(MODEL(car), 0, sizeof(struct pc_model));
+    NF(MODEL(car), MODEL_OFS(0x6C4), int16_t) = -1;
+    NF(MODEL(car), MODEL_OFS(0x5A0), uint16_t) = on ? 1 : 0;     /* a wheel on polygon 1, the trigger, or none */
 }
 
 static void scene_cars(uint8_t *cam, uint8_t *sc)
@@ -569,21 +569,22 @@ static void test_reckon(void)
     memcpy(rec + 4, unitmatrix, sizeof unitmatrix);
     memset(rec + 0x28, 0, 24);
     NF(obj, 0x65, int8_t) = 0;
-    memset(m, 0, 0x808);
-    NF(m, 0x7EA, int8_t) = 1, NF(m, 0x654, float) = 3.0f, NF(m, 0x640, int8_t) = 1;
-    memcpy(m + 0x798, unitmatrix, sizeof unitmatrix);
-    memcpy(m + 0x7A0, unitmatrix, sizeof unitmatrix);
+    memset(m, 0, sizeof(struct pc_model));
+    NF(m, MODEL_OFS(0x7EA), int8_t) = 1, NF(m, MODEL_OFS(0x654), float) = 3.0f, NF(m, MODEL_OFS(0x640), int8_t) = 1;
+    memcpy(m + MODEL_OFS(0x798), unitmatrix, sizeof unitmatrix);
+    memcpy(m + MODEL_OFS(0x7A0), unitmatrix, sizeof unitmatrix);
     /* The car is inside the record's box and already pushed (+0x640): setMiniFBCollisionForce hands it to MiniForceApart. */
     g_hit_other = NULL;
     TargetCollBBox(obj, &index, NULL, 0);
     CHECK(g_hit_other == m);
     /* Past the box's far side (z 12 > 10) and closing at 1 along z: a push of 2500 x the mass ratio (4 / 2). */
-    NF(m, 0x79C, float) = 12.0f;
+    NF(m, MODEL_OFS(0x79C), float) = 12.0f;
     NF(rec, 0x3C, float) = -1.0f;                              /* the record's velocity z */
     g_hit_other = NULL;
     setMiniFBCollisionForce(0, m, rec, dir, pos);
     CHECK(g_hit_other == NULL);
-    CHECK(NF(m, 0x124, float) == 0.0f && NF(m, 0x128, float) == 0.0f && NF(m, 0x12C, float) == -5000.0f);
+    CHECK(NF(m, MODEL_OFS(0x124), float) == 0.0f && NF(m, MODEL_OFS(0x128), float) == 0.0f &&
+          NF(m, MODEL_OFS(0x12C), float) == -5000.0f);
 }
 
 int main(void)

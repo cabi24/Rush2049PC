@@ -9,9 +9,17 @@ typedef struct Vec3 { float x, y, z; } Vec3;
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    u8 pad0[0xF4];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0xEC];
     Vec3 bodyR[4];              /* 0x0F4 the body's four corners, car frame, feet */
-    u8 pad124[0x654 - 0x124];
+    u8 pad124[0x3A0 - 0x124];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x654 - 0x64C];
     float colrad;               /* 0x654 the radius of the sphere around the car, feet */
     u8 pad658[0x794 - 0x658];
     Vec3 reckon_rwr;            /* 0x794 reckon.rwr: the position the collisions use */

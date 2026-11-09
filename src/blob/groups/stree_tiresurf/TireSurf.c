@@ -3,14 +3,15 @@
 
 float fabsf(float);
 
-enum n64p_Poly { n64p_Poly_ };
-enum n64p_QNode { n64p_QNode_ };
-/* The model record (MAT3 tModelData): the fields this reads and sets. Its pointers are u32 window addresses on the
- * PC too (docs/port/CARS.md 4). */
+/* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct EUCar {
-    u8 pad0[928];
-    enum n64p_QNode node[4];        /* 0x3A0 each tyre's node of the surface tree */
-    u8 pad944[1440 - 944];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[920];
+    streetyp *lasttp[4];            /* 0x3A0 each tyre's last node of the surface tree */
+    u8 pad944[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad1040[0x5A0 - 0x410];
     u16 tiresli[4];                 /* 0x5A0 each tyre's surface last found, which DecodeSlist puts first */
     u8 pad1448[1564 - 1448];
     s16 sviscode[4];                /* 0x61C each tyre's surface's visual code (flags bits 4-7) */
@@ -19,7 +20,7 @@ typedef struct EUCar {
     u8 pad1588[1600 - 1588];
     u8 crashflag;                   /* 0x640 */
     u8 pad1601[7];
-    enum n64p_Poly movingSurface;   /* 0x648 a moving surface it is on (snd_flags 0x30) */
+    surftyp *movingSurface;         /* 0x648 a moving surface it is on (snd_flags 0x30) */
     u8 pad1612[1732 - 1612];
     s16 moving_state;               /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 pad1734[1741 - 1734];
@@ -27,7 +28,6 @@ typedef struct EUCar {
     u8 pad1742[1990 - 1742];
     s16 slot;                       /* 0x7C6 */
 } EUCar;
-#define N64P(x) _Generic((x), enum n64p_Poly: (surftyp *)PC_N64P(x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
 
 /* An empty function the N64 code calls after the kill wall's sound. */
 static void eu_nop(void) {}
@@ -69,11 +69,11 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
     } else {
         z = pos[2];
     }
-    node = updownleaf(N64P(car->node[wheel]), (s32)x, (s32)z, &quad);
+    node = updownleaf(car->lasttp[wheel], (s32)x, (s32)z, &quad);
     if (node == NULL) {
         goto miss;
     }
-    car->node[wheel] = PC_N64W(node);
+    car->lasttp[wheel] = node;
     off = node->child[quad];
     if (node->flags & (16 << quad)) {
         off |= 0x10000;
@@ -103,7 +103,7 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
     }
     if (bestAbs != 250.0f) {
     if (out[1] < 1.0f && (best->snd_flags & 0x30)) {
-        car->movingSurface = PC_N64W(best);
+        car->movingSurface = best;
     }
     if (best->flags & 0x2000) {
         fHalfPipeInterp((intptr_t)best, bestIdx, pos, out, mat, 250.0f);

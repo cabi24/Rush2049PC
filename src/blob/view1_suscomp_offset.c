@@ -3,7 +3,15 @@
 
 /* The model record (MAT3 tModelData): the front tyres' suspension compression. */
 struct tModelData {
-    u8 pad0[0x75C];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0x110];
     f32 suscomp[2]; /* 0x75C reckon.suscomp: the front tyres' suspension compression, feet */
 };
 

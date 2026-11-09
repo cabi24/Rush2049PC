@@ -9,11 +9,19 @@
 typedef struct TireForces { float sideforce, traction; u8 rest[84]; } TireForces;
 /* The model record (tModelData), the fields Init_MDrive and multiinit read and write. */
 typedef struct tModelData {
- u8 pad0[0x480];
+ _tCar *car;
+ Tune44 *tune;
+ u8 pad8[0x398];
+ streetyp *lasttp[4];
+ u8 pad3B0[0x5C];
+ const s16 *torquecurve;
+ u8 pad410[0x70];
  TireForces tires[4];           /* +0x480 tires[i].sideforce, .traction */
  u8 pad5F0[0x640 - 0x5F0];
  s8 crashflag;                  /* +0x640 */
- u8 pad641[0x6BC - 0x641];
+ u8 pad641[0x648 - 0x641];
+ surftyp *movingSurface;
+ u8 pad64C[0x6BC - 0x64C];
  int resurrect_velocity;        /* +0x6BC resurrect.velocity: the respawn's speed, feet a second */
  u8 pad6C0[0x6D0 - 0x6C0];
  s16 polepos;                   /* +0x6D0 initin.polepos: the start place (PC_RESPAWN_BASE and up: a respawn) */

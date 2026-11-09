@@ -41,9 +41,17 @@ typedef struct GameCar {
 
 /* The model record's view (MAT3 tModelData): only its crash flag. */
 typedef struct ModelData {
-    u8 pad000[0x640];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad008[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x230];
     s8 crashflag;           /* 0x640 the car is wrecked */
-    u8 pad641[0x808 - 0x641];
+    u8 pad641[0x648 - 0x641];
+    surftyp *movingSurface;
+    u8 pad64C[0x808 - 0x64C];
 } ModelData;
 
 /* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's

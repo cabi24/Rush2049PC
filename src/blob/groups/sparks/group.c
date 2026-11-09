@@ -35,13 +35,21 @@ typedef struct tVisual {
 typedef struct { f32 tradius; u8 pad04[0x5C - 4]; } Tire;
 /* The model record (tModelData): the speed, the tires' radii, the roof scraping. */
 typedef struct {
-    /* 0x000 */ u8 pad000[0x3F0];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ u8 pad008[0x3A0 - 0x008];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x3F0 - 0x3B0];
     /* 0x3F0 */ f32 magvel;     /* the speed, mph */
-    /* 0x3F4 */ u8 pad3F4[0x430 - 0x3F4];
+    /* 0x3F4 */ u8 pad3F4[0x40C - 0x3F4];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x430 - 0x410];
     /* 0x430 */ Tire tires[4];
     /* 0x5A0 */ u8 pad5A0[0x641 - 0x5A0];
     /* 0x641 */ s8 topscrape;   /* the roof is scraping */
-    /* 0x642 */ u8 pad642[0x808 - 0x642];
+    /* 0x642 */ u8 pad642[0x648 - 0x642];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x808 - 0x64C];
 } tModelData;
 
 /* Show visual v's spark object in every view if `on`, else hide it; returns `on`. */

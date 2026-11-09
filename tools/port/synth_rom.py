@@ -1650,8 +1650,8 @@ def race(c):
     c.set("game", "car_descriptors", "f32", 3000.0, "car descriptor: steerratio", offset=0x50)
     c.set("game", "car_descriptors", "f32", 1.0, "car descriptor: swtpg", offset=0x54)
     for i in range(4):
-        c.set("game", "car_descriptors", "u32", curves + 24 * (i // 2),
-              f"car descriptor: tire {i}'s curve (a u32 window address)", offset=0x60 + 4 * i)
+        c.set("game", "car_descriptors", "ptr", curves + 24 * (i // 2), f"car descriptor: tire {i}'s curve",
+              offset=0x60 + 4 * i)
     for i, pos in enumerate(((4.0, 0.0, 2.5), (4.0, 0.0, -2.5), (-4.0, 0.0, 2.5), (-4.0, 0.0, -2.5))):
         for k, v in enumerate(pos):
             c.set("game", "car_descriptors", "f32", v, f"car descriptor: tire {i}'s position",

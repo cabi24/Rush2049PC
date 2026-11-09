@@ -2166,8 +2166,8 @@ typedef struct TireDesc { /* 0x18 bytes */
 } TireDesc;
 
 /* A car type's physics descriptor (MAT3 _tCar): car_descriptors[], which gCarModels[body] points at, and the model
- * record's car. Offsets are the N64's (MAT3's). tires[] holds the 32-bit window addresses of the tire records it
- * uses (in frontTire), so the record keeps its N64 layout. */
+ * record's car. Offsets are MAT3's (the N64's): tires[] are 8-byte host pointers on the PC (to frontTire's records),
+ * so the fields after them lie 0x10 further on and a descriptor is 0xC8 bytes (own storage, docs/port/CARS.md 4). */
 typedef struct _tCar { /* 0xB4 bytes */
     f32 i[3];               /* 0x0 the moments of inertia about x, y, z (the car's frame) */
     f32 invi[3];            /* 0xC their inverses */
@@ -2180,7 +2180,7 @@ typedef struct _tCar { /* 0xB4 bytes */
     f32 swtpg;              /* 0x54 the trail's factor (steer_constants) */
     f32 srefpcybo2;         /* 0x58 the air drag coefficient */
     f32 rollresist;         /* 0x5C the rolling resistance */
-    u32 tires[4];           /* 0x60 each tire's constants (TireDesc), a window address */
+    TireDesc *tires[4];     /* 0x60 each tire's constants (frontTire's records) */
     f32 tireR[4][3];        /* 0x70 each tire's position from the centre of mass, feet (the car's frame) */
     f32 enginvmi;           /* 0xA0 the engine's inverse moment of inertia */
     f32 dwratio;            /* 0xA4 the differential's ratio */

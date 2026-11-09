@@ -5,11 +5,19 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-  u8 pad000[0x214];
+  _tCar *car;
+  Tune44 *tune;
+  u8 pad008[0x20C];
   f32 rwa[3];                   /* 0x214 the acceleration in the world */
   f32 rwv[3];                   /* 0x220 the velocity in the world, feet a second */
   f32 rwr[3];                   /* 0x22C the position in the world, feet */
-  u8 pad238[0x734 - 0x238];
+  u8 pad238[0x3A0 - 0x238];
+  streetyp *lasttp[4];
+  u8 pad3B0[0x40C - 0x3B0];
+  const s16 *torquecurve;
+  u8 pad410[0x648 - 0x410];
+  surftyp *movingSurface;
+  u8 pad64C[0x734 - 0x64C];
   f32 reckon_base_rwa[3];       /* 0x734 reckon.base_rwa */
   f32 reckon_base_rwv[3];       /* 0x740 reckon.base_rwv */
   f32 reckon_base_rwr[3];       /* 0x74C reckon.base_rwr */

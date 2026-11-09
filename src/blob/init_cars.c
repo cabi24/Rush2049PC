@@ -12,11 +12,10 @@ typedef struct PadTrans {
     void *save;                 /* +0x48 */
 } PadTrans;
 
-enum n64p_void { n64p_void_ };
 /* The model record (tModelData, docs/port/CARS.md 4), the fields init_cars sets. */
 typedef struct tModelData {
-    enum n64p_void car;         /* +0x000 the physics descriptor's window address */
-    u8 tune[4];
+    _tCar *car;                 /* +0x000 the physics descriptor */
+    Tune44 *tune;               /* +0x004 its tune (carsetup) */
     s8 body_type;               /* +0x008 the car type, 0-12 */
     s8 trans;
     s8 autotrans;
@@ -27,10 +26,16 @@ typedef struct tModelData {
     s8 tireRims;
     u8 pad010[228];
     float bodyR[4][3];          /* +0x0F4 the body's four collision corners, feet */
-    u8 pad124[728];
+    u8 pad124[636];
+    streetyp *lasttp[4];
+    u8 pad3B0[76];
     s32 wingSnd;                /* +0x3FC */
     float catchup;              /* +0x400 */
-    u8 pad404[592];
+    u8 pad404[8];
+    const s16 *torquecurve;
+    u8 pad410[568];
+    surftyp *movingSurface;
+    u8 pad64C[8];
     float colrad;               /* +0x654 the collision radius, feet */
     u8 pad658[108];
     s16 moving_state;           /* +0x6C4 resurrect.moving_state */
@@ -59,8 +64,6 @@ typedef struct tModelData {
     float time_boost;
     u8 pad7F4[20];
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields init_cars sets. */
 typedef struct tCarData {
     u8 pad000[232];
@@ -126,7 +129,7 @@ void init_cars(void) {
         m->dt=dt;
         for(j=0;j<sizeof(tCarData);j++)
             ((s8 *)car)[j]=0;
-        m->car=PC_N64W(gCarModels[0]);
+        m->car=gCarModels[0];
         m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
         car->saveview=2;
         car->camera=-1;

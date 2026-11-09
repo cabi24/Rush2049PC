@@ -3,7 +3,15 @@
 
 /* The model record (tModelData), the fields End_MDrive clears. */
 typedef struct tModelData {
-    u8 pad0[0x71C];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0xD0];
     s16 modelrun;               /* +0x71C fastin.modelrun: the model thread steps this car */
     u8 pad71E[0x7F8 - 0x71E];
     f32 skidIntensity[4];       /* +0x7F8 each tire's skid sound level */

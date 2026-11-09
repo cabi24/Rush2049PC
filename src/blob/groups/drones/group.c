@@ -21,9 +21,17 @@ typedef float F32;
 
 /* The model record (MAT3 tModelData): the fields the catch-up reads and sets. */
 typedef struct MODELDAT {
-    /* 0x000 */ U8 pad0[0x400];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ U8 pad8[0x3A0 - 0x8];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ U8 pad3B0[0x400 - 0x3B0];
     /* 0x400 */ F32 catchup;
-    /* 0x404 */ U8 pad404[0x7C6 - 0x404];
+    /* 0x404 */ U8 pad404[0x40C - 0x404];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ U8 pad410[0x648 - 0x410];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ U8 pad64C[0x7C6 - 0x64C];
     /* 0x7C6 */ S16 slot;
     /* 0x7C8 */ S16 in_game;
     /* 0x7CA */ S16 we_control;

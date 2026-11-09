@@ -4,10 +4,11 @@
  * mark it as moving: a boost strip pushes the car up to a speed, a platform or conveyor carries it. */
 #include "game/game.h"
 
-enum n64p_surftyp { n64p_surftyp_ };
 /* The model record (tModelData), the fields MovingSurfaceForce reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0x64];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x5C];
     f32 tireForce[4][3];    /* +0x064 the force on each tire, in the car's frame */
     u8 pad94[0x124 - 0x94];
     f32 centerForce[3];     /* +0x124 the force at the centre of mass, in the car's frame */
@@ -16,7 +17,11 @@ typedef struct tModelData {
     f32 rwr[3];             /* +0x22C the position, world frame, feet */
     u8 pad238[0x2EC - 0x238];
     f32 uvs[9];             /* +0x2EC the orientation (rows: the car's axes) */
-    u8 pad310[0x5A0 - 0x310];
+    u8 pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x5A0 - 0x410];
     u16 tiresli[4];         /* +0x5A0 each tire's road surface (an index into stree_surf) */
     u8 pad5A8[0x5C0 - 0x5A8];
     f32 mass;               /* +0x5C0 */
@@ -25,10 +30,8 @@ typedef struct tModelData {
     u8 pad5FC[0x634 - 0x5FC];
     f32 dt;                 /* +0x634 the step, seconds */
     u8 pad638[0x648 - 0x638];
-    enum n64p_surftyp movingSurface;    /* +0x648 the moving surface under the car (a window address) */
+    surftyp *movingSurface; /* +0x648 the moving surface under the car */
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_surftyp: (surftyp *)PC_N64P(x), default: (x))
 
 /* Apply model m's moving surface (m->movingSurface) for this step:
  * - a push strip (snd_flags 0x10) faster than 50 mph: a force at the centre along the strip's direction, mass times
@@ -46,7 +49,7 @@ void MovingSurfaceForce(tModelData *m) {
     u32 mask;
     f32 speed;
 
-    sp = N64P(m->movingSurface);
+    sp = m->movingSurface;
     on = 0;
     mask = 0;
     i = 0;

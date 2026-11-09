@@ -13,9 +13,17 @@ typedef struct Car {
 
 /* A model record (MAT3 tModelData) as this reads it. */
 typedef struct Model {
-    u8 pad0[1600];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[920];
+    streetyp *lasttp[4];
+    u8 pad3B0[92];
+    const s16 *torquecurve;
+    u8 pad410[560];
     s8 crash;
-    u8 pad641[1732 - 1601];
+    u8 pad641[0x648 - 0x641];
+    surftyp *movingSurface;
+    u8 pad64C[0x6C4 - 0x64C];
     s16 hit_target;
     u8 pad6C6[1996 - 1734];
     s8 mode;

@@ -3,7 +3,15 @@
 
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct Model {
-    u8 pad000[0x7C6];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad008[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0x17A];
     s16 slot;          /* +0x7C6 the car slot */
     u8 pad7C8[0x7D4 - 0x7C8];
     u32 appearance;    /* +0x7D4 appearance flags; 8 a ghost (not collidable) */

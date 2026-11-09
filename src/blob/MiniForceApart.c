@@ -6,11 +6,19 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    char pad0[0x124];
+    _tCar *car;
+    Tune44 *tune;
+    char pad8[0x11C];
     f32 centerForce[3];                         /* +0x124 the force on the body's centre this step, car frame */
-    char pad130[0x510];
+    char pad130[0x270];
+    streetyp *lasttp[4];
+    char pad3B0[0x5C];
+    const s16 *torquecurve;
+    char pad410[0x230];
     s8 crashflag;                               /* +0x640 crashed */
-    char pad641[0x15F];
+    char pad641[0x7];
+    surftyp *movingSurface;
+    char pad64C[0x154];
     f32 reckon_uvs[3][3];                       /* +0x7A0 reckon.uvs: the orientation the collisions use */
 } tModelData;
 

@@ -5,33 +5,36 @@
 
 /* The tune record (MAT3 anon_diffbl_weight_scale_2c, gTune[handling]). */
 typedef struct tTune { u8 pad0[0x24]; f32 antispin; /* +0x24 */ } tTune;
-enum n64p_tTune { n64p_tTune_ };
 /* The model record (tModelData), the fields antispin reads and writes. */
 typedef struct tModelData {
-    u8 pad0[4];
-    enum n64p_tTune tune;       /* +0x004 the tune record (a window address) */
+    _tCar *car;                 /* +0x000 the physics descriptor */
+    tTune *tune;                /* +0x004 the tune record */
     u8 pad8[0x40 - 0x8];
     f32 v[3];                   /* +0x040 the velocity in the car's frame (x sideways, z forward), feet a second */
     f32 w[3];                   /* +0x04C the angular velocity in the car's frame (w[1]: the yaw rate) */
     u8 pad58[0x13C - 0x58];
     f32 centerMoment[3];        /* +0x13C the moment about the centre of mass */
-    u8 pad148[0x3D4 - 0x148];
+    u8 pad148[0x3A0 - 0x148];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x3D4 - 0x3B0];
     f32 brake;                  /* +0x3D4 0..1 */
     u8 pad3D8[0x3F0 - 0x3D8];
     f32 magvel;                 /* +0x3F0 the speed, feet a second */
-    u8 pad3F4[0x5AC - 0x3F4];
+    u8 pad3F4[0x40C - 0x3F4];
+    const s16 *torquecurve;
+    u8 pad410[0x5AC - 0x410];
     f32 drift;                  /* +0x5AC the drift factor (CalcDrift) */
     u8 pad5B0[0x60C - 0x5B0];
     s32 roadcode[4];            /* +0x60C each tire's road code */
-    u8 pad61C[0x720 - 0x61C];
+    u8 pad61C[0x648 - 0x61C];
+    surftyp *movingSurface;
+    u8 pad64C[0x720 - 0x64C];
     f32 wheel;                  /* +0x720 mainin.wheel, the steering -1..1 */
     u8 pad724[0x7CA - 0x724];
     s16 we_control;             /* +0x7CA a drone this machine drives */
     u8 pad7CC[0x7D4 - 0x7CC];
     s32 appearance;             /* +0x7D4 APPEAR_* */
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
 
 /* Add model m's arcade yaw moments, unless it is a hulk:
  * - with a front tire on the road, a yaw moment straight from the steering wheel (12000 times the wheel at 100 ft/s
@@ -65,7 +68,7 @@ void antispin(tModelData *m) {
                 }
             } else {
                 if (m->v[0] * m->w[1] > 0.0f && m->brake < 0.5f) {
-                    m->centerMoment[1] -= m->v[0] * 100.0f * N64P(m->tune)->antispin;
+                    m->centerMoment[1] -= m->v[0] * 100.0f * m->tune->antispin;
                 }
             }
         }

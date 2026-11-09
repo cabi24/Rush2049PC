@@ -9,13 +9,18 @@
 typedef struct ROADUVS { f32 fpuvs[3][3]; } ROADUVS;
 /* The model record (tModelData), the fields road reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0xC4];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0xBC];
     f32 bodyForce[4][3];        /* 0x0C4 each body corner's force, from the world */
     u8 pad0F4[0x244 - 0xF4];
     f32 tireRwr[4][3];          /* 0x244 each tire's world position */
     u8 pad274[0x310 - 0x274];
     ROADUVS roaduvs[4];         /* 0x310 the road's orientation under each tire */
-    u8 pad3A0[0x5CC - 0x3A0];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x5CC - 0x410];
     f32 suscomp[4];             /* 0x5CC each suspension's compression, feet (negative: the tire in the air) */
     f32 tpcomp[4];              /* 0x5DC the same, at least 0 */
     f32 airdist[4];             /* 0x5EC each tire's height above the road */
@@ -25,7 +30,7 @@ typedef struct tModelData {
     u8 pad624[0x638 - 0x624];
     f32 idt;                    /* 0x638 1 / dt */
     u8 pad63C[0x648 - 0x63C];
-    s32 movingSurface;          /* 0x648 the moving surface under the car (TireSurf sets it, MovingSurfaceForce uses it) */
+    surftyp *movingSurface;     /* 0x648 the moving surface under the car (TireSurf; MovingSurfaceForce) */
 } tModelData;
 
 /* The road step of model m: the body's forces cleared and the body collided with the world; no moving surface until
@@ -43,7 +48,7 @@ void road(tModelData *m)
             m->bodyForce[j][i] = 0.f;
 
     CollideCarBody(m);
-    m->movingSurface = 0;
+    m->movingSurface = NULL;
     for (i = 0; i < 4; ++i) {
         TireSurf(m, &m->tireRwr[i][0], igpos, &m->roadcode[i], m->roaduvs[i].fpuvs[0], i);
         last_airdist = m->airdist[i];

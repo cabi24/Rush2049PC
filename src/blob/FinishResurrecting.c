@@ -15,16 +15,24 @@ typedef struct tModelTire {
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-  u8 pad000[0x40];
+  _tCar *car;
+  Tune44 *tune;
+  u8 pad008[0x38];
   f32 v[3];                                     /* +0x040 the velocity in the car's frame, feet a second */
   u8 pad04C[0x94 - 0x4C];
   f32 tireV[4][3];                              /* +0x094 each tire's velocity in the car's frame */
-  u8 pad0C4[0x3F4 - 0xC4];
+  u8 pad0C4[0x3A0 - 0x0C4];
+  streetyp *lasttp[4];
+  u8 pad3B0[0x3F4 - 0x3B0];
   s16 gear;                                     /* +0x3F4 */
   s16 commandgear;                              /* +0x3F6 */
-  u8 pad3F8[0x430 - 0x3F8];
+  u8 pad3F8[0x40C - 0x3F8];
+  const s16 *torquecurve;
+  u8 pad410[0x430 - 0x410];
   tModelTire tires[4];                          /* +0x430 */
-  u8 pad5A0[0x660 - 0x5A0];
+  u8 pad5A0[0x648 - 0x5A0];
+  surftyp *movingSurface;
+  u8 pad64C[0x660 - 0x64C];
   f32 resurrect_pos[3];                         /* +0x660 resurrect.pos: where the car respawns */
   u8 pad66C[0x678 - 0x66C];
   f32 resurrect_uvs[3][3];                      /* +0x678 resurrect.uvs: its orientation there */

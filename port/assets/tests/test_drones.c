@@ -97,9 +97,9 @@ void model_iteration(void);
 void UpdateModel(int32_t slot);
 void DoDrones(void);
 
-#define MF(i, off) (*(float *)((uint8_t *)&pc_models[i] + (off)))
-#define MS16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
-#define MS8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + (off)))
+#define MF(i, off) (*(float *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* model i's fields at MAT3's offsets */
+#define MS16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
+#define MS8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
 #define NEAR(a, b) (fabsf((a) - (b)) <= 1e-5f * (1 + fabsf(b)))
 
 static void test_layout(void)

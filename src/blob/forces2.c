@@ -7,12 +7,10 @@
 typedef f32 Vec3[3];
 /* The tune record (MAT3 anon_diffbl_weight_scale_2c), its differential blend. */
 typedef struct tTune {f32 diffbl; /* +0x00 */} tTune;
-enum n64p_tTune { n64p_tTune_ };
-enum n64p_void { n64p_void_ };
 /* The model record (tModelData), the fields forces2 reads and writes. */
 typedef struct tModelData {
-    enum n64p_void car;
-    enum n64p_tTune tune;       /* +0x004 the tune record (a window address) */
+    _tCar *car;                 /* +0x000 the physics descriptor */
+    tTune *tune;                /* +0x004 the tune record */
     u8 body_type;               /* +0x008 the car, 0..12 */
     u8 pad9[0x10 - 0x9];
     Vec3 f,m,a,aa,v,w,d;        /* +0x010 the total force, moment, accelerations, velocities, the drag (forces1) */
@@ -30,15 +28,21 @@ typedef struct tModelData {
     Vec3 grw;                   /* +0x2D4 gravity in the world's frame */
     u8 pad2E0[0x2EC - 0x2E0];
     f32 uvs[9];                 /* +0x2EC the orientation */
-    u8 pad310[0x3F8 - 0x310];
+    u8 pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x3F8 - 0x3B0];
     s16 wing;                   /* +0x3F8 the wing deployed */
-    u8 pad3FA[0x5A9 - 0x3FA];
+    u8 pad3FA[0x40C - 0x3FA];
+    const s16 *torquecurve;
+    u8 pad410[0x5A9 - 0x410];
     s8 nothrusttorque;          /* +0x5A9 average the rear tires' forward force */
     u8 pad5AA[0x5C0 - 0x5AA];
     f32 mass;                   /* +0x5C0 */
     u8 pad5C4[0x60C - 0x5C4];
     s32 roadcode[4];            /* +0x60C each tire's road code */
-    u8 pad61C[0x650 - 0x61C];
+    u8 pad61C[0x648 - 0x61C];
+    surftyp *movingSurface;
+    u8 pad64C[0x650 - 0x64C];
     f32 bodyForces;             /* +0x650 the size of the body's contact force (velocities damps the spin by it) */
     u8 pad654[0x7C6 - 0x654];
     s16 slot;                   /* +0x7C6 */
@@ -46,9 +50,6 @@ typedef struct tModelData {
     s8 drone_type;              /* +0x7CC DRONE_TYPE_* */
     u8 tail[0x808 - 0x7CD];
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-
 #define vecadd(a,b,r) {r[0]=a[0]+b[0];r[1]=a[1]+b[1];r[2]=a[2]+b[2];}
 
 /* Model m's total force f, in the car's frame: the four tires, gravity (mass times gGravity, down; with the wing out
@@ -64,12 +65,12 @@ void forces2(tModelData *m)
         if(mean>0) {
             if(m->roadcode[3]==ROADCODE_AIRBORNE) m->tireForce[2][2]=0;
             else {
-                blend=N64P(m->tune)->diffbl;
+                blend=m->tune->diffbl;
                 m->tireForce[2][2]=m->tireForce[2][2]*blend+mean*((f32)1.0-blend);
             }
             if(m->roadcode[2]==ROADCODE_AIRBORNE) m->tireForce[3][2]=0;
             else {
-                blend=N64P(m->tune)->diffbl;
+                blend=m->tune->diffbl;
                 m->tireForce[3][2]=m->tireForce[3][2]*blend+mean*((f32)1.0-blend);
             }
         }

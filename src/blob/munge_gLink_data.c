@@ -9,7 +9,15 @@
 
 /* The model record (tModelData), the race fields. */
 typedef struct tModelData {
-    /* 0x000 */ u8 pad0[0x7C6];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ u8 pad8[0x398];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x5C];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x238];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x17A];
     /* 0x7C6 */ s16 slot;
     /* 0x7C8 */ s16 in_game;
     /* 0x7CA */ s16 we_control;     /* this machine simulates it (its owner is 0, LINK_OWNER_DRONE) */

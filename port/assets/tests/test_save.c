@@ -121,7 +121,8 @@ _Static_assert(sizeof(PakRecord) == 0x310, "the controller/pak record");
 #define GHOST_OF(h) ((struct ghost *)*(void **)(h))
 #define U32(p, o) (*(uint32_t *)((uint8_t *)(p) + (o)))
 #define F32(p, o) (*(float *)((uint8_t *)(p) + (o)))
-#define MODEL_F(o) (*(float *)&model[0][o])
+#define MODEL_B(o) (((uint8_t *)&pc_models[0])[MODEL_OFS(o)])   /* record 0's byte at MAT3's offset o */
+#define MODEL_F(o) (*(float *)&MODEL_B(o))
 
 /* ---------------------------------------------------------------- the game's code under test */
 
@@ -194,7 +195,6 @@ float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t gEndingGhosts;
 int32_t gModelIteration;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
-#define model ((uint8_t (*)[0x808])pc_models)
 struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t gPickedPak;
 int8_t gCarHandling[13], gCarEngines[13], gCarTires[13], gCarFrame[13], gCarWings[13], car_color_choice_a[13],
@@ -650,14 +650,14 @@ static void test_ghost(void)
     h[GH_FLAG] = 1;
     gGhosts[0] = back;
     CHECK(GhostUpdate(0, &t) == 0 && t == F32(h, GH_TIME));
-    CHECK(U32(h, GH_OFFSET) == 1 && (int8_t)model[0][0x730] == 2 && model[0][0x732] == 1);
+    CHECK(U32(h, GH_OFFSET) == 1 && (int8_t)MODEL_B(0x730) == 2 && MODEL_B(0x732) == 1);
     CHECK(MODEL_F(0x720) == 1.0f && MODEL_F(0x72C) == 1.0f && MODEL_F(0x728) == 0.0f);   /* steer, gas, brake */
     for (i = 1; i < 4; i++)
         GhostUpdate(0, &t);
     CHECK(U32(h, GH_OFFSET) == 4);
     h[GH_FLAG] = (uint8_t)-1;                                    /* recording */
     U32(h, GH_OFFSET) = 2;
-    model[0][0x730] = 4, model[0][0x732] = 1, model[0][0x731] = 0;
+    MODEL_B(0x730) = 4, MODEL_B(0x732) = 1, MODEL_B(0x731) = 0;
     MODEL_F(0x720) = -1.0f, MODEL_F(0x72C) = 1.0f, MODEL_F(0x728) = 0.0f;
     GhostUpdate(0, &t);
     CHECK(h[GH_BYTES + 2] == (5 | 8) && (int8_t)h[GH_BYTES + 4 + 2] == -127 && h[GH_BYTES + 8 + 2] == 0xF0);

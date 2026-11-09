@@ -20,8 +20,12 @@ typedef struct tCarData
 /* The model record (tModelData), the fields CheckCrash reads. */
 typedef struct tModelData
 {
-  u8 pad000[0x640]; s8 crashflag;               /* +0x640 the simulation crashed the car */
-  u8 pad641[0x714 - 0x641]; f32 modelTime;      /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
+  _tCar *car; Tune44 *tune;                     /* +0x000 the physics descriptor and its tune */
+  u8 pad008[0x3A0 - 0x008]; streetyp *lasttp[4]; /* +0x3A0 each tire's last road node */
+  u8 pad3B0[0x40C - 0x3B0]; const s16 *torquecurve;   /* +0x40C the torque curve */
+  u8 pad410[0x640 - 0x410]; s8 crashflag;       /* +0x640 the simulation crashed the car */
+  u8 pad641[0x648 - 0x641]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
+  u8 pad64C[0x714 - 0x64C]; f32 modelTime;      /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
 } tModelData;
 
 /* Step car `slot`'s crash state. CRASH_NONE: a car still in the race (dead CAR_ALIVE or CAR_ABORTED) whose model

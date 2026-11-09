@@ -172,7 +172,9 @@ typedef struct CCol {
 
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct CCar {
-    u8 p0[0x40];
+    _tCar *car;
+    Tune44 *tune;
+    u8 p8[0x38];
     f32 v[3];               /* 0x040 the velocity in the car's frame */
     f32 w[3];               /* 0x04C the turning speed */
     u8 p88[108];
@@ -187,13 +189,19 @@ typedef struct CCar {
     f32 bodyrwr[4][3];      /* 0x274 */
     u8 p676[72];
     f32 uvs[9];             /* 0x2EC the orientation */
-    u8 p784[688];
+    u8 p784[144];
+    streetyp *lasttp[4];
+    u8 p944[92];
+    const s16 *torquecurve;
+    u8 p1040[432];
     f32 mass;               /* 0x5C0 */
     u8 p1476[72];
     s32 roadcode[4];        /* 0x60C each tyre's road (8 ...) */
     u8 p1564[28];
     f32 idt;                /* 0x638 1 / the step */
-    u8 p1596[344];
+    u8 p1596[12];
+    surftyp *movingSurface;
+    u8 p1612[328];
     f32 reckon_rwr[3];      /* 0x794 the dead-reckoned position */
     u8 p1952[44];
     s8 drone_type;          /* 0x7CC 1 a drone */

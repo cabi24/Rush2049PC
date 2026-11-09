@@ -7,14 +7,22 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    u8 pad0[0x4C];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x44];
     f32 w[3];                   /* 0x04C the angular velocity, car frame, radians a second */
     u8 pad58[0x220 - 0x58];
     f32 rwv[3];                 /* 0x220 the velocity in the world, feet a second */
     f32 rwr[3];                 /* 0x22C the position in the world, feet */
     u8 pad238[0x2EC - 0x238];
     f32 uvs[3][3];              /* 0x2EC the orientation */
-    u8 pad310[0x714 - 0x310];
+    u8 pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x714 - 0x64C];
     f32 modelTime;              /* 0x714 fastin.modelTime: the time of the last model step, seconds */
     u8 pad718[0x794 - 0x718];
     f32 reckon_rwr[3];          /* 0x794 reckon.rwr: the position to draw */

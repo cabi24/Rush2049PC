@@ -19,10 +19,18 @@ typedef struct Object {
 } Object;
 /* The model record (MAT3 tModelData): the fields this reads and clears. */
 typedef struct Model {
-    u8 other0[328];
+    _tCar *car;
+    Tune44 *tune;
+    u8 other8[320];
     f32 body_force[2][3];   /* 0x148 peak_body_force: the body's peak forces since the last frame, +x +z and -x -z */
     f32 center_force[2][3]; /* 0x160 peak_center_force: the centre's */
-    u8 other376[1356];
+    u8 other376[552];
+    streetyp *lasttp[4];
+    u8 other944[92];
+    const s16 *torquecurve;
+    u8 other1040[568];
+    surftyp *movingSurface;
+    u8 other1612[120];
     s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 other1734[322];
 } Model;                    /* 0x808 */

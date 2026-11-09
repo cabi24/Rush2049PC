@@ -169,7 +169,7 @@ extern u16 taillight_colors_dark[EXTENT(8)];
 extern tUVPair taillight_colors_dim;
 extern u16 taillight_colors_bright[EXTENT(8)];
 extern tUVPair headlight_colors_night;
-extern u16 stdtorquecurve[EXTENT(120)];
+extern s16 stdtorquecurve[EXTENT(120)];   /* MAT3 signed short [10][12]: torque by throttle and rpm */
 extern TireDesc frontTire[EXTENT(2)];   /* MAT3 frontTire and backTire: the front and the rear tires' */
 extern Collision16 collsize[EXTENT(13)];
 extern f32 shadow_scales[EXTENT(14)][4];

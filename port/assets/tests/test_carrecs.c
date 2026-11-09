@@ -30,12 +30,12 @@
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_car pc_cars[PC_CAR_SLOTS];        /* data.c defines it in the game */
-struct pc_model pc_models[PC_MODEL_SLOTS];  /* the model records (N64 layout) */
+struct pc_model pc_models[PC_MODEL_SLOTS];  /* the model records (pc_game_types.h) */
 struct pc_link pc_links[PC_LINK_SLOTS];     /* the race roster */
 #define SENTINEL 0xEE
 #define RAW(i, off) (((const unsigned char *)pc_cars)[(i) * PC_CAR_SIZE + (off)])
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */
-#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + (off)))      /* model i's field */
+#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* model i's field at MAT3's offset */
 
 int32_t gRace, gRace;
 int16_t gNumPlayers, gNumPlayers;

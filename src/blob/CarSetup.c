@@ -3,9 +3,16 @@
 
 /* The model record (MAT3 tModelData): the fields this reads. */
 struct tModelData {
-    u8 pad0[8];
+    _tCar *car;
+    Tune44 *tune;
     u8 body_type;       /* 0x008 the car's body (the roster's car) */
-    u8 pad9[0x7DD - 9];
+    u8 pad9[0x3A0 - 0x9];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x7DD - 0x64C];
     s8 data_valid;      /* 0x7DD the model thread has filled it in */
 };
 

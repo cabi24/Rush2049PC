@@ -50,13 +50,20 @@ typedef struct tCarData {
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields these functions read. */
 typedef struct tModelData {
-    /* 0x000 */ u8 pad0[8];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
     /* 0x008 */ u8 body_type;       /* the car, 0-12; 13 the wreck */
-    /* 0x009 */ u8 pad9[0x3D0 - 9];
+    /* 0x009 */ u8 pad9[0x3A0 - 0x9];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x3D0 - 0x3B0];
     /* 0x3D0 */ f32 throttle;       /* 0..1 */
-    /* 0x3D4 */ u8 pad3D4[0x5F4 - 0x3D4];
+    /* 0x3D4 */ u8 pad3D4[0x40C - 0x3D4];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x5F4 - 0x410];
     /* 0x5F4 */ f32 airdist2;       /* airdist[2]: how far the rear left tire is off the ground, feet */
-    /* 0x5F8 */ u8 pad5F8[0x6C4 - 0x5F8];
+    /* 0x5F8 */ u8 pad5F8[0x648 - 0x5F8];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
     /* 0x6C4 */ s16 moving_state;   /* resurrect.moving_state: RES_IDLE, else respawning */
     /* 0x6C6 */ u8 pad6C6[0x7D0 - 0x6C6];
     /* 0x7D0 */ s16 rpm;
