@@ -1,25 +1,6 @@
 /* SetPakError: open a pak's error dialog (MAT3 pakerr.c). */
 #include "game/game.h"
 
-/* One of a pak's two error dialogs (gPakError; PakErrorState's layout). */
-typedef struct Slot {
-    /* 0x00 */ s8 busy;
-    /* 0x01 */ s8 enabled;
-    /* 0x02 */ s8 unk2;
-    /* 0x03 */ s8 player;
-    /* 0x04 */ u8 primary[4];
-    /* 0x08 */ u8 secondary[4];
-    /* 0x0C */ u8 previous[4];
-    /* 0x10 */ s8 present;
-    /* 0x14 */ s32 mode;
-    /* 0x18 */ s16 arg[4];
-    /* 0x20 */ u8 pad20[8];
-    /* 0x28 */ u32 deadline;
-} Slot; /* 0x2C */
-
-VIEW(Slot[4][2], gPakError);
-#define gPakError gPakError_view
-
 /* Opens an error dialog of mode (kPS_Err*) for player's pak in its first closed slot, over the rectangle x, y, w, h,
  * with a 3-second deadline: the controllers' active flags and stick edges are saved and only the pak's player (or
  * every controller, for kPS_ErrNoCont and kPS_ErrNoPak) may answer. kPS_ErrRecognize is noted

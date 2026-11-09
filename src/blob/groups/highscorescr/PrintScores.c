@@ -6,16 +6,9 @@ typedef struct Player {
     void *next, *prev; void *fileh; u32 id[2];
     char name[13];                      /* 0x20 (N64 0x14) */
 } Player;
-typedef struct RaceStats {              /* GC struct __anon_2dfd (0x60) */
-    u32 checksum;
-    f32 scores[3][5];                   /* +0x04 */
-    u8 rest[0x60 - 0x40];
-} RaceStats;
 
 VIEW(Player **[][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
-VIEW(RaceStats[], gTotalRaceStats);
-#define gTotalRaceStats gTotalRaceStats_view
 
 #define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles (gTable 0-2) */
 #define NO_HOLDER ((Player **)-1)   /* gTotalNames[]: nobody yet (a made-up holder and time) */

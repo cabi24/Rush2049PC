@@ -126,16 +126,12 @@ VIEW(TextBox, gScreenRect);
 #define gScreenRect gScreenRect_view
 VIEW(FiveParts *, recordscr_viewPane);
 #define recordscr_viewPane recordscr_viewPane_view
-VIEW(u8 *[], gPS_PakName);
-#define gPS_PakName gPS_PakName_view
 VIEW(u8 *[], gTrackTitles);
 #define gTrackTitles gTrackTitles_view
 VIEW(u8 *[], CarTitles);
 #define CarTitles CarTitles_view
 VIEW(StuntStats[], gTotalStuntStats);
 #define gTotalStuntStats gTotalStuntStats_view
-VIEW(RaceStats[], gTotalRaceStats);
-#define gTotalRaceStats gTotalRaceStats_view
 VIEW(BattleStats[], gTotalBattleStats);
 #define gTotalBattleStats gTotalBattleStats_view
 VIEW(ObstacleStats[], gTotalObstacleStats);

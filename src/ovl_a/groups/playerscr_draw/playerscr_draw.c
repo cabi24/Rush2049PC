@@ -23,9 +23,6 @@ VIEW(Color4, flashColors_at_1);
 VIEW(Profile **[], gSelectedPlayer);
 #define gSelectedPlayer gSelectedPlayer_view
 
-VIEW(u8 *[], gPS_PakName);
-#define gPS_PakName gPS_PakName_view
-
 extern void TB_FlashTextColors(Color4,Color4);
 
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
