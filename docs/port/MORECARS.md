@@ -698,7 +698,7 @@ why. `pc_frame_pools` runs every frame where the SDK's check was an empty `if` (
 (`synth_compare.py` reads the state and status lines and the loader's summary).
 
 **The window range** (until 2026-11-09; since [NATIVE.md](NATIVE.md) step 4 the spill is PC storage that
-`ZOID_NewMatrix.c` defines, and `reserved.txt` is empty). GetMatrix's matrices had to stay in the window (a window's
+`ZOID_NewMatrix.c` defines, and `reserved.txt` was empty until step 5 removed it and gen_data's rules). GetMatrix's matrices had to stay in the window (a window's
 camera matrix was kept as a u32, `skyMatrices`: 2.7), so the spill was a named reservation, not a bare address: `port/data/reserved.txt` (`PC_NAME
 ADDRESS`) named `pc_matrix_spill 0x8014A250`; gen_data takes its size from its one declaration
 (`float[PC_MATRIX_SPILL][12]`, pc_game_types.h), and refuses a range outside the game's BSS or outside a range a
