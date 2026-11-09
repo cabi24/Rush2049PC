@@ -3,8 +3,6 @@
 
 /* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
 typedef struct tVisual {void *next;s16 index,objnum,slot;u16 pad;u32 data,timeStamp;intptr_t func;} tVisual;
-/* The car's input record (MAT3 tPadState), up to the stick. */
-typedef struct tPadState {u8 slot,controller;u8 pad2[2];u32 edges,levels,autoEdges;f32 analog[2];} tPadState;
 /* A scene node's matrix, its rotation part. */
 typedef struct tUVMatrix {f32 uvs[3][3];} tUVMatrix;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateWingFlame reads. */

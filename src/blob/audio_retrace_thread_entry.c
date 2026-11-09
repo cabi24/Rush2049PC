@@ -26,10 +26,8 @@ VIEW(OSMesgQueue, audio_retrace_queue);
 VIEW(OSMesg[8], audio_retrace_msgs);
 #define audio_retrace_msgs audio_retrace_msgs_view
 
-/* The scheduler's message kinds (the first s16 of its message; libultra sched.h): a retrace, and the reset
- * button's pre-NMI. */
-#define OS_SC_RETRACE_MSG 1
-#define OS_SC_PRE_NMI_MSG 4
+/* The scheduler's message kinds (the first s16 of its message) are system.h's: OS_SC_RETRACE_MSG, a retrace, and
+ * OS_SC_PRE_NMI_MSG, the reset button's pre-NMI. */
 
 /* The thread's body (arg unused): join the scheduler, then forever wait for its messages. On a retrace, wait while
  * the last audio task (scheduler_audio_task) is still the RSP's current task, then call musyx_retrace_callback;

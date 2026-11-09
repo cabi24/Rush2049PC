@@ -14,14 +14,7 @@ float sqrtf(float);
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-/* A player's input record (MAT3 tPadState, gPlayers; 80 bytes on the PC): the car it drives, its controller and
- * its profile (a host pointer on the PC). */
-typedef struct tPadState {
-    u8 slot;                    /* 0x00 */
-    u8 controller;              /* 0x01 */
-    u8 pad2[0x48 - 0x2];
-    void **save;                /* 0x48 the profile: *save is the profile record */
-} tPadState;
+/* The players' input records (tPadState: the car each drives, its controller, its profile). */
 extern tPadState gPlayers[];
 
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */

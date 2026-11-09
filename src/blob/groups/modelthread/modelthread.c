@@ -11,9 +11,6 @@ typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSScMsg { s16 type; s8 misc[30]; } OSScMsg;
 
-#define OS_SC_RETRACE_MSG 1
-#define OS_SC_PRE_NMI_MSG 4
-
 VIEW(OSMesgQueue, model_thread_queue);
 #define model_thread_queue model_thread_queue_view
 VIEW(OSMesg[8], model_thread_msgs);

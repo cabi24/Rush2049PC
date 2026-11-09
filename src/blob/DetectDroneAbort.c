@@ -53,16 +53,6 @@ typedef struct {
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
 } tCarData;
 
-/* A player's input record (MAT3 tPadState, gPlayers; 80 bytes on the PC), the fields used here. */
-typedef struct tPadState {
-    u8 slot;                    /* 0x00 the car it drives */
-    u8 pad1[7];
-    s32 levels;                 /* 0x08 the buttons held */
-    u8 padC[0x2C - 0xC];
-    s32 control_reverse;        /* 0x2C controls[5]: the reverse control's buttons */
-    u8 pad30[0x48 - 0x30]; void *ref;
-} tPadState;
-
 /* A branch of the resurrection path (MAT3 anon_resurrect_firstPath_10): its points. */
 typedef struct {
     u8 pad0[0xC];
@@ -77,7 +67,7 @@ typedef struct {
     tResPathAlt *alt;
 } tResPath;
 
-extern tPadState gPlayers[];
+extern tPadState gPlayers[];   /* the players' input records */
 VIEW(tResPath, gResPath);
 #define gResPath gResPath_view
 
@@ -148,7 +138,7 @@ void DetectDroneAbort(void) {
                         m->stuck_time = m->modelTime;
                     } else {
                         wait_time = 1;
-                        if (gPlayers[node].levels & gPlayers[node].control_reverse) {
+                        if (gPlayers[node].levels & gPlayers[node].controls[CONTROL_REVERSE]) {
                             wait_time = 2;
                         }
                         if (wait_time != 4) {   /* always: wait_time is 1 or 2 */
