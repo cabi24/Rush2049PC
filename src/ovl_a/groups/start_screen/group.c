@@ -24,9 +24,6 @@ VIEW(volatile u8, gNumModels);
 VIEW(ButtonInfo[18], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
 
-VIEW(MultiBlit[], startscr_mblit);
-#define startscr_mblit startscr_mblit_view
-
 VIEW(Egg *, gEgg);
 #define gEgg gEgg_view
 

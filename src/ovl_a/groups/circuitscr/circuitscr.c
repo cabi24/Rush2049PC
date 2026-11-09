@@ -206,9 +206,6 @@ VIEW(f32[12], unitmatrix);
 VIEW(Object[], object_list_scale_view);
 #define object_list_scale_view object_list_scale_view_view
 
-VIEW(MultiBlit[], circuitscr_mblit);
-#define circuitscr_mblit circuitscr_mblit_view
-
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 

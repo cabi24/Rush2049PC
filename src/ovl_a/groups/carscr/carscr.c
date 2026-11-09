@@ -37,9 +37,6 @@ VIEW(volatile u8, gNumModels);
 VIEW(f32[12], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-VIEW(MultiBlit[], carscr_mb);
-#define carscr_mb carscr_mb_view
-
 extern void audio_interrupt_handler(s32);
 
 extern void particle_lifetime_set(void);

@@ -13,9 +13,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-VIEW(const MultiBlit[], cheatscr_multiblit);
-#define cheatscr_multiblit cheatscr_multiblit_view
-
 extern void particle_lifetime_set(void);
 extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 extern void RemoveBlit(Blit *);

@@ -107,9 +107,6 @@ VIEW(Color, trackscr_init_button_color);
 VIEW(Color, trackscr_update_button_color);
 #define trackscr_update_button_color trackscr_update_button_color_view
 
-VIEW(MultiBlit[], trackscr_mblit);
-#define trackscr_mblit trackscr_mblit_view
-
 /* game functions */
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);

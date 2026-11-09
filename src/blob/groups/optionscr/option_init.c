@@ -4,11 +4,6 @@
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 
-VIEW(const MultiBlit, options_frontEndBlit);
-#define options_frontEndBlit options_frontEndBlit_view
-VIEW(const MultiBlit, options_pauseBlit);
-#define options_pauseBlit options_pauseBlit_view
-
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);

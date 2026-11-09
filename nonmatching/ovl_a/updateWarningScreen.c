@@ -12,8 +12,6 @@ typedef struct MultiBlit {
 
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
-VIEW(MultiBlit[1], warningscr_blits);
-#define warningscr_blits warningscr_blits_view
 
 extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
 extern void RemoveBlit(Blit *);

@@ -102,9 +102,6 @@ extern Player gPlayers[];
 VIEW(u8[], gCarTeam);
 #define gCarTeam gCarTeam_view
 
-VIEW(MultiBlit[], multiBlit);
-#define multiBlit multiBlit_view
-
 extern void particle_lifetime_set(void);
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);

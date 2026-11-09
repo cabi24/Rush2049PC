@@ -12,9 +12,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-VIEW(MultiBlit, pakscr_mblit);
-#define pakscr_mblit pakscr_mblit_view
-
 extern void RemoveBlit(Blit *);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 extern void particle_lifetime_set(void);
@@ -139,7 +136,7 @@ void updatePakScreen(void)
     s8 result;
     s8 choice;
     if(!pakscr_gInited) {
-        MultiBlit descriptor;
+        HudBlitDef descriptor;
         descriptor=pakscr_mblit;
         SetState(kStatePickPak);
         if(gGameState&GS_FRONTEND_MASK)particle_lifetime_set();
