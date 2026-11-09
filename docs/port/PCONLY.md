@@ -372,10 +372,14 @@ counter and arena guard, `tools/port/crossings.py`, section 9). Done: step 1 (th
 (steps 2, 3, 4: the car record's, the level objects', the sky's and palettes' pointers; the images by pointer) and
 wave 3.2 (step 5, the arenas out of the RDRAM window as blocks of host memory; step 6, the heap's own code on host
 pointers with the N64's accounting; step 8, the text bank, the world and the paths as native records; a synthetic
-path `language`, so the gate is 64 paths). Along the 64 paths the game and the PC layer crossed between a host pointer
-and an N64 address 73.2 million times at 243 places before step 1, 30.6 million at 47 after wave 3.2; the arena guard
-finds no access by an N64 address. The gate compares the data loader's summary with `--data-moved` since step 2 (its
-pointer counts by class move as data leaves the arenas). Left: the WAD records and MusyX (wave 3.3), the display lists
-and the rest that holds heap addresses (3.4), the window itself (3.5), one object per datum under ASan and the last of
-the N64's byte order (3.6).
+path `language`, so the gate is 64 paths) and wave 3.3 (step 7, the WAD's records and the font letters native; step
+9, MusyX on pointers, the samples named by cartridge address). Along the 64 paths the game and the PC layer crossed
+between a host pointer and an N64 address 73.2 million times at 243 places before step 1, 30.6 million at 47 after
+wave 3.2, 27.0 million at 20 after wave 3.3 (most of what is left: the renderer's and the heap's, steps 10 and 11);
+the arena guard finds no access by an N64 address. The gate compares the data loader's summary with `--data-moved`
+since step 2 (its pointer counts by class move as data leaves the arenas). Step 9 found the synthetic cartridge
+silent (MusyX's pitch and volume tables were zero), so the gate's `--audio` had compared silence until then;
+`synth_rom.py --sounds` makes a cartridge whose sound bank and a song are heard, and a step that touches the sound
+compares on it too. Left: the display lists and the rest that holds heap addresses (wave 3.4), the window itself
+(3.5), one object per datum under ASan and the last of the N64's byte order (3.6).
 
