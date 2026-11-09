@@ -5,19 +5,10 @@
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
 VIEW(Item[4][17], controls_buttonInfo);
 #define controls_buttonInfo controls_buttonInfo_view
-VIEW(Node[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 typedef struct NameEntry NameEntry;
 
 void *memcpy(void *,const void *,u32);
@@ -129,8 +120,8 @@ void controls_updateButtons(s8 player) {
             }
             ScaleUV(unitmatrix,controls_buttonInfo[player][i].matrix,controls_gButtonScale);
             WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][i].matrix);
-            if (controls_buttonInfo[player][i].angle > HALF_PI) tex=MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels-1),1);
-            else tex=MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels-1),1);
+            if (controls_buttonInfo[player][i].angle > HALF_PI) tex=MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels[0]-1),1);
+            else tex=MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels[0]-1),1);
             ZOID_SetTexture((s16)controls_buttonInfo[player][i].handle,tex,-1);
             top = controls_maxY;
             spacing = controls_gButtonSpace*controls_gButtonScale;

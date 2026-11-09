@@ -32,9 +32,6 @@ typedef struct CarState {
 
 extern InputRecord gPlayers[];
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 /* The steering from the stick's x: with the dead-zone setting (CONTROL_VALUE_STICK_DEAD) the dead zone is taken
  * out, else the stick is cubed (fine control near the centre); quantized to 1/127; a change smaller than the
  * thresholds keeps the previous value. Mirrored or upside-down tracks reverse it (unless both, without

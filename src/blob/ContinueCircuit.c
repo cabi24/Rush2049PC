@@ -21,18 +21,9 @@ struct tCircuit {
 typedef struct { u8 pad[0x6F4]; struct tCircuit info; } Sess;
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data's handle. */
 typedef struct { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Sess **s; } A;
-/* A fog or wind range of a circuit type (ResourceRange): its top. */
-typedef struct { u16 hi, lo; } Pair;
 /* A player's input record (gPlayers): its profile slot and profile. */
 typedef struct { u8 pad0; u8 selector; u8 pad[0x46]; A **profile; } InRec;
 extern InRec gPlayers[];
-
-VIEW(s32[], gCircuitPoints);
-#define gCircuitPoints gCircuitPoints_view
-VIEW(Pair[], gCircuitFog);
-#define gCircuitFog gCircuitFog_view
-VIEW(Pair[], gCircuitWind);
-#define gCircuitWind gCircuitWind_view
 
 /* The circuit's drones: the cars after the players. */
 #define RI(e) gCircuitCars[(e) + gNumPlayers]
@@ -118,9 +109,9 @@ void ContinueCircuit(void) {
             gCircuitTracks[i].trackNum = i % n;
             gCircuitTracks[i].backward = i >= n;
         }
-        r = irand(gCircuitFog[info->type].lo);
+        r = irand(gCircuitFog[info->type].range);
         gCircuitTracks[i].fog = r < 4 ? 0 : r < 7 ? 1 : r < 9 ? 2 : 3;
-        gCircuitTracks[i].wind = irand(gCircuitWind[info->type].lo);
+        gCircuitTracks[i].wind = irand(gCircuitWind[info->type].range);
     }
     m = 6 - (gNumPlayers == 1 ? 0 : 2);
     for (i = 0; i < m; i++) {

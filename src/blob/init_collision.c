@@ -15,8 +15,6 @@ typedef struct tModelData {
     unsigned char pad178[0x3A0 - 0x178];
     int lasttp[4];                  /* 0x3A0 each tire's last road-tree node: a 32-bit window address */
 } tModelData;
-VIEW(intptr_t, stree_nodes);
-#define stree_nodes stree_nodes_view
 
 /* Clear model `m`'s centre force, its peak body and centre forces and each corner's body force, and start each
  * tire's road search from the root of the road tree (stree_nodes, MAT3 stree). */

@@ -3,33 +3,13 @@
  * Nodes live in ObjInstanceList; a free one has index 0xFFFF, and gNumObjects is one past the last node in use. */
 #include "game/game.h"
 
-/* The scene node (ObjInstanceList's record, types.h ObjectInstance) with MAT3's field names. */
-typedef struct ObjInstance {
-    s32 flags;                  /* +0x00 OBJ_* */
-    u32 culling;                /* +0x04 its culling box (ZOID_BuildCullingList), 0 none */
-    void *mat;                  /* +0x08 its matrix, relative to its parent */
-    f32 scale;                  /* +0x10 */
-    f32 w;                      /* +0x14 */
-    u16 index;                  /* +0x18 the object's handle, (model << 10) | definition; 0xFFFF a free node */
-    s16 child, next;            /* +0x1A the first child, the next sibling, -1 none */
-    s16 numLights;              /* +0x1E its own lights' count, -1 the scene's */
-    void *lights;               /* +0x20 its own lights */
-    void *texture[4];           /* +0x28 a texture per level of detail in place of the model's, NULL none */
-    void *tile, *tileSize;      /* +0x48 texture tile and tile size in place of the model's */
-    void *palette;              /* +0x58 a palette in place of the model's */
-    u32 color;                  /* +0x60 the primitive colour */
-    s32 envcolor;               /* +0x64 the environment colour */
-} ObjInstance;
-
-VIEW(ObjInstance[600], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 /* Add an instance of object `obj` (a handle, MBOX_FindObject_WORK) with matrix `mat` (ZOID_NewMatrix) and `flags`
  * as the last child of node `parent` (-1: a root): the first free node, else a new one at the end. It starts at
  * scale 1 with the model's own textures, palette and lights and colour 0; the environment colour is left as it
  * was. Returns the node's index. */
 s32 ZOID_AddObject(s32 obj, void *mat, s16 parent, s32 flags) {
-    ObjInstance *node;
+    ObjectInstance *node;
     s32 i;
 
     for (i = 0; i < gNumObjects; i++) {

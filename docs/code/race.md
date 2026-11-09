@@ -140,13 +140,14 @@ the N64 draws by (`n64`) and updates the sky.
   record: the files' views pad over the visuals (`struct pc_visual visuals[21]`), and `CAR_OFS` maps an N64 offset.
   Many fields the files read (MAT3's `restart`, `camera`, `view`, `saveview`, `collidable`, `crash_state`,
   `lastResPath` ...) are not in `pc_car` yet.
-- **Data laid out by bytes**: `gCamera`'s `CameraView`, `gStuntInfo`'s `StuntInfo`, `tCMuzzleObj` keep byte arrays
-  where the files read fields, because the data loader lays the data out by include/game's declaration and the
-  tables were kept as they were (data.c the base's). Giving them their real members changes only data.c's runs
-  for BSS data, which the loader does not use (swap_arena stops at the initialized part), and is for wave 3.
-- **Views that should go**: files still reach a datum through a VIEW of their own where include/game's type has
-  other member names or is too coarse (`gStuntInfo`, `gCamera`, the surfaces, `tCircuit` in the profile,
-  `tBasicTargetPath`, which waves.c and circuitscr.c also define for themselves).
+- **Data laid out by bytes**: `ZoidWinInfo`'s `ArbEntry` (MAT3 `tWindowInfo`) keeps a byte array where the files
+  read fields: it is own BSS, whose field runs data.c carries, so its real members change data.c (runs the loader
+  does not use for BSS); its last view (ZOID_InitializeWindow, which writes the clip planes and the fog) waits for that, wave 3.
+  `gCamera` (`tCamera`), `gStuntInfo` (`StuntInfo`, MAT3 tStuntInfo) and `gCannMuzzleObjs` (`tCMuzzleObj`) have
+  their real members since 2026-11-09: they are arena BSS, which data.c places by address and size only.
+- **One type per datum** (2026-11-09): every file reads the race, track and camera data by include/game's types;
+  the records some files still complete for themselves are those include/game leaves incomplete (`tBasicTargetPath`,
+  `pathtyp`, `tModelPart`, `tVisual`), and `tCircuit` in the profile.
 - **The profile's data** is read through `PROFILE_OFS` and `SLOT_DATA` offsets and pointer-sized reads (circuits,
   ghosts).
 - **Walks to the next datum**: the arena keeps some arrays longer than include/game declares (`gCircuitCars[6]`,

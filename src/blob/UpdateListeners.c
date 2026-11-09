@@ -11,14 +11,10 @@ typedef struct CarRec {
 } CarRec;
 #define NO_LISTENER 0xFFFFFFFFu
 
-/* The camera record's fields this file reads: its matrix's forward and up rows (MAT3 mat.mat4.uvs[2], [1]). */
-typedef struct View { u8 pad0[12]; f32 up[3]; f32 forward[3]; u8 pad24[152 - 36]; } View;  /* 152 */
 
 extern CarRec gPlayers[];
 VIEW(f32[], unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
-VIEW(View[], gCamera);
-#define gCamera gCamera_view
 
 /* For each player with a listener: places it at the car's position (its model's rwr), at rest, looking along the
  * camera's forward axis with the camera's up. */
@@ -31,7 +27,7 @@ void UpdateListeners(void)
         if (gPlayers[i].listener != NO_LISTENER) {
             listener = (void *)PC_N64P(gPlayers[i].listener);
             AudUpdateListener(listener, PC_MODEL_RWR(gPlayers[i].model), unitmatrix_origin,
-                            gCamera[i].forward, gCamera[i].up);
+                            gCamera[i].mat.uvs[2], gCamera[i].mat.uvs[1]);
         }
     }
 }

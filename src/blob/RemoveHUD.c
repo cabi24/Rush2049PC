@@ -5,12 +5,6 @@
 typedef struct RecordSlot { s16 id; u8 pad2[50]; } RecordSlot;       /* 52 bytes */
 typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */
 
-VIEW(intptr_t[], resultPane);
-#define resultPane resultPane_view
-
-VIEW(RecordRow[], gPlayerCoin);
-#define gPlayerCoin gPlayerCoin_view
-
 /* Removes the HUD ShowHUD made: the panes, the HUD's multiblit (HudBlit1), each window's result pane and coin
  * objects and the middle result pane (resultPane[4]), the second multiblit (HudBlit2), and in battle and stunt races
  * the extras (RemoveHUDExtra). */

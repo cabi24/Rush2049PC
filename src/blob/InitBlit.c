@@ -8,8 +8,6 @@ struct tTexture {
     u8 pad[16];
 };
 
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
 
 /* Sets up blit from its name: a NULL name is a plain coloured rectangle (default_blit_image's colour, no size yet),
  * BLIT_NO_TEXTURE a text blit (nothing), any other the texture of that name in the loaded models, at its own size.
@@ -28,7 +26,7 @@ void InitBlit(tBlit *blit) {
         blit->height = 0;
         blit->palette = 0;
     } else {
-        blit->texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels - 1, MBOX_WARN);
+        blit->texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels[0] - 1, MBOX_WARN);
         blit->width = blit->texture->width;
         blit->height = blit->texture->height;
         blit->palette = 0;

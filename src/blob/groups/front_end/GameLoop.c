@@ -4,12 +4,8 @@
 
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 
-VIEW(struct pc_multiblit[1], idle_warning_multiblit);
-#define idle_warning_multiblit idle_warning_multiblit_view
 VIEW(OSMesgQueue *, frame_dl);
 #define frame_dl frame_dl_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 VIEW(volatile Clock, gScheduler);

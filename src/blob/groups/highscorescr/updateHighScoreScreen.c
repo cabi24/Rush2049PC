@@ -10,9 +10,6 @@ VIEW(s8, highscore_inited);
 
 extern Rec76 gPlayers[];
 
-VIEW(intptr_t, gGhostToSave);
-#define gGhostToSave gGhostToSave_view
-
 /* PC: game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt"): the save prompt
    after a ghost race for every profile, not only the developer's (gSaveGhostFiles, LoadPlayerData); off, the N64's. */
 int pc_ghost_prompt(int developer);

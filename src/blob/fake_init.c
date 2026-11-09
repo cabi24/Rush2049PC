@@ -3,10 +3,6 @@
 
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern s8 gPlayers;   /* the first player's record; its first byte is the car slot it watches */
-/* The cameras (152 bytes each; the declaration the others share): the car a camera follows is its byte at +0x94. */
-typedef struct Camera { float uv[3][3], position[3]; u8 unknown30[104]; } Camera;
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 
 /* PC: the attract demo races the setting's cars, all drones (pc_game_types.h, docs/port/MORECARS.md 3.1), latched
  * here at its start; the camera's car (the counter) goes round them all. The loop walks every slot a PC race can
@@ -20,7 +16,6 @@ VIEW(Camera[], gCamera);
  * catch up (gUseCatchup 2). */
 void fake_init(s8 track)
 {
-    struct { u8 head[0x94]; s8 slot; } *camera0 = (void *) &gCamera[0];
     s16 i;
     s16 place;
     static s16 attractSlot = 0;
@@ -44,6 +39,6 @@ void fake_init(s8 track)
         attractSlot = 0;
     }
     gPlayers = attractSlot & 0xFF;
-    camera0->slot = attractSlot;
+    gCamera[0].slot = attractSlot;
     gUseCatchup = 2;
 }

@@ -8,8 +8,6 @@ typedef struct MultiBlit {
     const char *texname; s16 dulx,duly,width,height,top,bot,left,right;
     u32 zdepth,alpha; s32 (*animfunc)(Voice *); u32 animid;
 } MultiBlit;
-typedef struct RecordSlot { s16 id; u8 pad02[50]; } RecordSlot;   /* 52 bytes */
-typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */
 /* Complete native resource-table layout, shared with its actual loader. */
 /* PC: gText's pointer sections are native char * tables (port/assets/text.c) */
 typedef struct ModelTables {
@@ -17,37 +15,9 @@ typedef struct ModelTables {
     u16 count3,count4,count5; u16 *data3,*data4; char **ptrs5;
 } ModelTables;
 
-VIEW(Voice *, HudBlit1);
-#define HudBlit1 HudBlit1_view
-VIEW(Voice *, HudBlit2);
-#define HudBlit2 HudBlit2_view
-VIEW(Voice *, multiPlayerBlit);
-#define multiPlayerBlit multiPlayerBlit_view
-VIEW(RecordRow[], gPlayerCoin);
-#define gPlayerCoin gPlayerCoin_view
-VIEW(f32[4], gCheckPtTimeout);
-#define gCheckPtTimeout gCheckPtTimeout_view
-VIEW(f32[4], gLapTime);
-#define gLapTime gLapTime_view
-VIEW(f32[4], gElapsedTime);
-#define gElapsedTime gElapsedTime_view
-
-VIEW(MultiBlit[], OverlayMultiBlit);
-#define OverlayMultiBlit OverlayMultiBlit_view
-VIEW(MultiBlit[], TwoPlayerMultiBlit);
-#define TwoPlayerMultiBlit TwoPlayerMultiBlit_view
-VIEW(MultiBlit[], ThreePlayerMultiBlit);
-#define ThreePlayerMultiBlit ThreePlayerMultiBlit_view
-VIEW(MultiBlit[], RaceMultiBlit);
-#define RaceMultiBlit RaceMultiBlit_view
-VIEW(MultiBlit[], HudMultiBlit);
-#define HudMultiBlit HudMultiBlit_view
-
 VIEW(volatile f32, gSeconds);
 #define gSeconds gSeconds_view
 
-VIEW(char *[][11], cStrCreditNames);
-#define cStrCreditNames cStrCreditNames_view
 VIEW(ModelTables, gText);
 #define gText gText_view
 
@@ -121,8 +91,8 @@ void ShowHUD(void) {
             gCheckPtTimeout[i] = 0.0f;
             gLapTime[i] = 0.0f;
             gElapsedTime[i] = 0.0f;
-            gPlayerCoin[i].a.id = -1;
-            gPlayerCoin[i].b.id = -1;
+            gPlayerCoin[i].slot[0].id = -1;
+            gPlayerCoin[i].slot[1].id = -1;
         }
         if (gGameState & GS_HIGH_SCORE) {
             HudBlit1 = NewMultiBlit(0, 0, OverlayMultiBlit, 1);
@@ -159,9 +129,9 @@ void ShowHUD(void) {
             gCorner = Random(4.0f);
             HAL_SetFont(11);
             gCreditWidth = HAL_GetTextWidth((void *)gText.ptrs2[gText.data1[0] + gCredit], -1);
-            for (gNumCreditNames = 0; cStrCreditNames[gCredit][gNumCreditNames]; gNumCreditNames++) {
-                if (gCreditWidth < HAL_GetTextWidth(cStrCreditNames[gCredit][gNumCreditNames], -1)) {
-                    gCreditWidth = HAL_GetTextWidth(cStrCreditNames[gCredit][gNumCreditNames], -1);
+            for (gNumCreditNames = 0; cStrCreditNames[gCredit].names[gNumCreditNames]; gNumCreditNames++) {
+                if (gCreditWidth < HAL_GetTextWidth(cStrCreditNames[gCredit].names[gNumCreditNames], -1)) {
+                    gCreditWidth = HAL_GetTextWidth(cStrCreditNames[gCredit].names[gNumCreditNames], -1);
                 }
             }
             switch (gCorner) {

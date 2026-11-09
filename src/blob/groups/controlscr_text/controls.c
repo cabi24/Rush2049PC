@@ -30,9 +30,6 @@ extern PadState gPlayers[];
 VIEW(ContData[], gControllerData);
 #define gControllerData gControllerData_view
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 
 /* gText's entries */
 #define TEXT_CONTROLS_TITLE 37      /* single[]: "%s's controls" over a player's list */

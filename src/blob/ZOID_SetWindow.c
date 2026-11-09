@@ -20,9 +20,6 @@ typedef struct tWindowInfo {
     s32 pad[4];                 /* the clip planes and the fog */
 } tWindowInfo;
 
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* Set window `winidx`: `width` by `height` pixels centred at (hcenter, vcenter), with a horizontal field of view of
  * `hangle` degrees and a vertical one of `vangle` degrees, or the vertical one that keeps the pixels square when
  * `vangle` is 0. With `hangle` 0 both are 90 degrees (flags 1). In the N64's high-resolution modes (more than 240

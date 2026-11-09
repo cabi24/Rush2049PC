@@ -5,35 +5,6 @@
  * show. ZOID_SplitScreen is the race's version. */
 #include "game/game.h"
 
-VIEW(PcViewport, vp0);
-#define vp0 vp0_view
-VIEW(PcViewport, vp1);
-#define vp1 vp1_view
-VIEW(PcViewport, vp2);
-#define vp2 vp2_view
-VIEW(PcViewport, vpul);
-#define vpul vpul_view
-VIEW(PcViewport, vpur);
-#define vpur vpur_view
-VIEW(PcViewport, vpll);
-#define vpll vpll_view
-VIEW(PcViewport, vplr);
-#define vplr vplr_view
-VIEW(s16[4], scissor0);
-#define scissor0 scissor0_view
-VIEW(s16[4], scissor1);
-#define scissor1 scissor1_view
-VIEW(s16[4], scissor2);
-#define scissor2 scissor2_view
-VIEW(s16[4], scissorul);
-#define scissorul scissorul_view
-VIEW(s16[4], scissorur);
-#define scissorur scissorur_view
-VIEW(s16[4], scissorll);
-#define scissorll scissorll_view
-VIEW(s16[4], scissorlr);
-#define scissorlr scissorlr_view
-
 /* Lay the screen out for `num` players (nothing for 0 or less) and return the layout, gSplitScreen: 0 one
  * full-screen window; 1 two windows one above the other, each three quarters of the screen's width, from x 2;
  * 2 four quarters (for 3 or 4 players), with a field of view 0.95 times the default (HFOV). (view_bind is

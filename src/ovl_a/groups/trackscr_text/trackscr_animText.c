@@ -7,13 +7,8 @@ typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) *
 VIEW(f32[3], trackscr_title_button_position);
 #define trackscr_title_button_position trackscr_title_button_position_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
-
-VIEW(u8[][5], gCircuitTracks);
-#define gCircuitTracks gCircuitTracks_view
 
 extern int sprintf(char *,const char *,...);
 
@@ -79,10 +74,10 @@ void trackscr_animButtonText(void)
             x = point[0] - 35.0f * trackscr_gButtonScale;
             y = point[1];
             if (trackscr_buttonInfo[index].angle < 1.5707963705062866f) {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             label = gText.taba[gText.tab[TEXT_OPTION_NAMES] + trackscr_gOpts[i]];
@@ -94,10 +89,10 @@ void trackscr_animButtonText(void)
             x = point[0] - 35.0f * trackscr_gButtonScale;
             y = point[1];
             if (trackscr_buttonInfo[index + TRACK_OPTS].angle < 1.5707963705062866f) {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             switch (index) {
@@ -153,7 +148,7 @@ void trackscr_animButtonText(void)
                 break;
             case TRACK_OPT_MIRROR:
                 if (gRace == kCircuit) {
-                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gCircuitTracks[gCircuitTrack][2] == 0 ? 0 : 1)]);
+                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gCircuitTracks[gCircuitTrack].mirror == 0 ? 0 : 1)]);
                 } else if (gOptions.mode == MIRROR_SECRET) {
                     TB_DrawText(x, y, gText.taba[gText.tab[TEXT_MIRROR_SECRET] + 2]);
                 } else {

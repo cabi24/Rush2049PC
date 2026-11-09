@@ -1,27 +1,5 @@
 /* RemoveHUDExtra: remove the battle and stunt HUD extras (MAT3 hudextra.c; runtime image B). */
 #include "game/game.h"
-#define tHudIcon tHudIconView   /* this file's own tHudIcon: include/game's tHudIcon is another type */
-#define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
-
-typedef struct tUVMatrix { f32 uvs[4][3]; } tUVMatrix;
-typedef struct tHudIcon { s16 type, idx; tUVMatrix mat; } tHudIcon;          /* anon_type_idx_34 */
-typedef struct tBattleCoin { s16 idx; s16 pad; tUVMatrix mat; } tBattleCoin; /* anon_idx_mat_34 */
-typedef struct tStuntCoin {
-    s16 type, idx;
-    tUVMatrix mat;
-    f32 alpha;
-    s16 screenPos[2], startPos[2], destPos[2];
-    f32 scrollTime;
-} tStuntCoin;
-
-VIEW(tHudIcon[4], weaponIcon);
-#define weaponIcon weaponIcon_view
-VIEW(tHudIcon[4], powerupIcon);
-#define powerupIcon powerupIcon_view
-VIEW(tBattleCoin[4], battleCoin);
-#define battleCoin battleCoin_view
-VIEW(tStuntCoin[4][10], stuntCoin);
-#define stuntCoin stuntCoin_view
 
 #define blit hudextra_blit
 

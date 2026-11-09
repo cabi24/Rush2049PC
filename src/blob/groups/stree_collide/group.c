@@ -4,36 +4,18 @@
  * nodes are the collision WAD's (InitSTree). */
 #include "game/game.h"
 
-VIEW(f32[][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
-VIEW(sverttyp *, stree_svert);
-#define stree_svert stree_svert_view
-
-VIEW(intptr_t, stree_vlist);
-#define stree_vlist stree_vlist_view
-
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls the cars bounce softly off,
-                               * PointInSurf's test of q); 0x2000 soft too */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
-
 /* The squared length of `v` in x and z. */
 f32 lsq(f32 *v) { return (v[0] * v[0]) + (v[2] * v[2]); }
 
 /* The nearest point to `p` of the edge from the origin to `a`, in x and z: sets `out` to it less p (out[1] 0; before
- * the edge's start, the origin, unitmatrix[3]) and returns 1 if that is shorter than sqrt(`rad2`). */
+ * the edge's start, the origin, unitmatrix_origin) and returns 1 if that is shorter than sqrt(`rad2`). */
 s32 VectorToSurfEdge(f32 *a, f32 *p, f32 *out, f32 rad2) {
     f32 t;
     t = ((a[2] * p[2]) + (p[0] * a[0])) / lsq(a);
     if (t < 0.0f) {
-        out[0] = unitmatrix[3][0] - p[0];
+        out[0] = unitmatrix_origin.x - p[0];
         out[1] = 0.0f;
-        out[2] = unitmatrix[3][2] - p[2];
+        out[2] = unitmatrix_origin.z - p[2];
     } else if (t > 1.0f) {
         out[0] = a[0] - p[0];
         out[1] = 0.0f;
@@ -87,7 +69,7 @@ s16 PointInSurf(surftyp *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx
 
     n = poly->snd_flags & 0xF;
     res = 1;
-    *outIdx = DecodeVlist((u8 *) (stree_vlist + poly->vli), n, (s16 *) idx);
+    *outIdx = DecodeVlist(stree_vlist + poly->vli, n, (s16 *) idx);
     mats2fcopy(poly->uvs, mat);
     i = idx[0];
     e = i + stree_svert;
@@ -158,9 +140,6 @@ done:
     }
     return res;
 }
-
-VIEW(streetyp *, stree_nodes);
-#define stree_nodes stree_nodes_view
 
 /* Finds the leaf of the surface tree under point (x, z) = (`x`, `y`), starting from node `n` (NULL the root): up
  * through the parents until a node holds the point (none: NULL), then down to the leaf (downleaf, which sets *out). */

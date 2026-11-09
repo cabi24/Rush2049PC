@@ -29,14 +29,6 @@ typedef struct Car {
     Battle battle;        /* 0x384 */
 } Car;
 
-typedef struct Model {
-    u8 pad00[8];
-    u8 body_type;         /* 0x08 */
-    u8 pad09[0x640 - 9];
-    s8 crashflag;         /* 0x640 */
-    u8 pad641[0x808 - 0x641];
-} Model;
-
 typedef struct Visual {
     struct Visual *next;  /* 0x00 */
     s16 index;            /* 0x04 */
@@ -47,40 +39,11 @@ typedef struct Visual {
     void (*func)(struct Visual *, s16); /* 0x14 */
 } Visual;
 
-typedef struct CarParts {
-    s32 frame;            /* 0x00 */
-    u8 pad04[0x14];
-    s32 weap;             /* 0x18 */
-    u8 pad1c[0x24];
-} CarParts;
-
-typedef struct CMuzzleObj {
-    s32 mdls[5];          /* 0x00 */
-    MuzzleMat mats[5];    /* 0x14 */
-    s32 ripdl;            /* 0x104 */
-    UVMat mat;            /* 0x108 */
-    s8 ripCnt;            /* 0x138 */
-    s8 ripTIdx;           /* 0x139 */
-    s16 on;               /* 0x13a */
-    f32 ripScale;         /* 0x13c */
-    f32 ripTime;          /* 0x140 */
-    f32 onTime;           /* 0x144 */
-} CMuzzleObj;
-
-typedef struct TexDef { u8 b[36]; } TexDef;
-typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 b[36]; } TexDef;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
-
-VIEW(s32[7], gWfxObjList);
-#define gWfxObjList gWfxObjList_view
-VIEW(u16[5], gRipTextures);
-#define gRipTextures gRipTextures_view
-VIEW(TexDefSet[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 f32 weaponOffsets[8][13][3] = {
     0.0f, 2.5f, 0.3f, 0.0f, 3.0f, 0.3f, 0.0f, 2.8f, 0.3f, 0.0f, 3.0f, 0.1f, 0.0f, 3.0f, 0.1f, 0.0f,
@@ -116,12 +79,6 @@ f32 weaponOffsets[8][13][3] = {
  * addresses a C-defined symbol covers to it, and a ninth row took the next data's. */
 static const f32 pc_no_weapon[13][3];
 #define WEAPON_OFF(type) ((type) < 8 ? weaponOffsets[type] : pc_no_weapon)
-VIEW(s8[4], gCurWeaponType);
-#define gCurWeaponType gCurWeaponType_view
-VIEW(MuzzleObj[4], gGattMuzzleObjs);
-#define gGattMuzzleObjs gGattMuzzleObjs_view
-VIEW(CMuzzleObj[4], gCannMuzzleObjs);
-#define gCannMuzzleObjs gCannMuzzleObjs_view
 
 /* Removes car `slot`'s machine gun flash (its five scene objects). */
 void RemoveGattMFlash(s16 slot)

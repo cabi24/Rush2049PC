@@ -50,14 +50,6 @@ typedef struct tModelData {
     /* 0x7E0 */ u8 pad7E0[0x808 - 0x7E0];
 } tModelData;
 
-VIEW(Poly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-
-VIEW(f32[14][4], shadow_scales);
-#define shadow_scales shadow_scales_view
-VIEW(u8[4], gShadowColor);
-#define gShadowColor gShadowColor_view
-
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 
 /* Car v->slot's shadow (VIS_SHADOW), each frame (op 1): a polygon whose corners are under the four tires (taken
@@ -141,13 +133,13 @@ void AnimateShadow(tVisual *v, s16 op) {
     }
 
     ZOID_ShowPoly(&PolyInstanceList[v->objnum]);
-    gShadowColor[3] = 255.0f - rng(d1 * 8.0f, 20.0f, 255.0f);
-    if (gShadowColor[3] > 192) {
-        gShadowColor[3] = 192;
+    gShadowColor.c[3] = 255.0f - rng(d1 * 8.0f, 20.0f, 255.0f);
+    if (gShadowColor.c[3] > 192) {
+        gShadowColor.c[3] = 192;
     }
 
     if (car->camera >= 0 && (car->view == 0 || car->view == 1))
         ZOID_ClearPolyFlags(&PolyInstanceList[v->objnum], 1 << car->camera);
     else ZOID_SetPolyFlags(&PolyInstanceList[v->objnum], 15);
-    ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, gShadowColor, 0, 0);
+    ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, gShadowColor.c, 0, 0);
 }

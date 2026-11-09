@@ -44,15 +44,12 @@ typedef struct PlayerProfile {void *next, *prev, *fileh; u32 id[2]; char name[13
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct PlayerRow {u8 slot;u8 other[71];PlayerProfile **profile;} PlayerRow;
 
-typedef struct PlayerStats {s32 words[18];s16 laps[24];} PlayerStats;
 #define TEXT_STUNT_RECORDS 37       /* gText.tab[]: the stunt score page's record rows */
 
 VIEW(s8[][4], gBattlePoints);
 #define gBattlePoints gBattlePoints_view
 
 extern PlayerRow gPlayers[];
-VIEW(PlayerStats[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
 VIEW(s32[2], gJust);
 #define gJust gJust_view
 
@@ -349,11 +346,11 @@ void drawStuntStandings(void)
                 } else if(column==1) {
                     TB_SetTextColor(kTB_WhiteText);
                     text=value;
-                    TB_Sprintf(value,stunt_standings_points_format,gStuntPlayer[gRankedPlayer[row-1]].words[5]);
+                    TB_Sprintf(value,stunt_standings_points_format,gStuntPlayer[gRankedPlayer[row-1]].totalPoints);
                 } else if(column==2) {
                     TB_SetTextColor(kTB_WhiteText);
                     text=value;
-                    TB_Sprintf(value,stunt_standings_best_format,gStuntPlayer[gRankedPlayer[row-1]].words[2]);
+                    TB_Sprintf(value,stunt_standings_best_format,gStuntPlayer[gRankedPlayer[row-1]].maxStuntPoints);
                 }
                 if(column!=0) TB_DrawText((s16)(column*60+100),(s16)(row*14+43),text);
                 osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
@@ -441,15 +438,15 @@ void drawStuntScore(void)
                     }
                 } else if(row==1) {
                                         TB_SetTextColor(kTB_WhiteText);
-                    TB_Sprintf(value,stunt_score_total_format,gStuntPlayer[column-1].words[5]);
+                    TB_Sprintf(value,stunt_score_total_format,gStuntPlayer[column-1].totalPoints);
                     text=value;
                 } else if(row==2) {
                                         TB_SetTextColor(kTB_WhiteText);
-                    TB_Sprintf(value,stunt_score_best_format,gStuntPlayer[column-1].words[2]);
+                    TB_Sprintf(value,stunt_score_best_format,gStuntPlayer[column-1].maxStuntPoints);
                     text=value;
                 } else {
                                         TB_SetTextColor(kTB_WhiteText);
-                    TB_Sprintf(value,stunt_score_count_format,gStuntPlayer[column-1].laps[row-3]);
+                    TB_Sprintf(value,stunt_score_count_format,gStuntPlayer[column-1].totalStunts[row-3]);
                     text=value;
                 }
                 if(row!=0) TB_DrawText(column*60-columns*60/2+190,y+7,text);

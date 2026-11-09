@@ -15,16 +15,6 @@ typedef struct tModelData {
     s8 frame;           /* +0x00E the frame (durability) choice */
 } tModelData;
 
-/* The tables as the code indexes them: their own storage, through other types (include/game/view.h). */
-VIEW(f32[13], gCarMass);
-#define gCarMass gCarMass_view[0]
-
-VIEW(f32, carDurability);
-#define carDurability carDurability_view
-
-VIEW(s32, gTune);
-#define gTune gTune_view
-
 /* The weight of model m: the body's gCarMass, plus mass_unit (MAT3 31.0559) for each step of its frame's durability
  * above mass_durability_base and for each step of the "massive mass" cheat (gMassiveMass), all scaled by its tune's
  * weight_scale (the second word of gTune[handling]). */
@@ -32,6 +22,6 @@ f32 CalcMass(tModelData *m)
 {
   f32 durability = 0.0f;
   if (mass_unit) {}   /* no effect: the N64 compiler's code reads mass_unit here */
-  durability = (&carDurability)[m->frame] - mass_durability_base;
-  return ((&gCarMass)[m->body_type] + durability * mass_unit + ((f32) gMassiveMass) * mass_unit) * ((Tune44 *) &gTune)[m->handling].weight_scale;
+  durability = carDurability[m->frame] - mass_durability_base;
+  return (gCarMass[m->body_type] + durability * mass_unit + ((f32) gMassiveMass) * mass_unit) * gTune[m->handling].weight_scale;
 }

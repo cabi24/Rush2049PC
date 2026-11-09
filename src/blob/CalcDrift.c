@@ -14,21 +14,14 @@ typedef struct tModelData {
     s8 tire_type;       /* +0x00D */
 } tModelData;
 
-/* The tables as the code indexes them: their own storage, through another type (include/game/view.h). */
-VIEW(f32[5][3], gTireDrift);
-#define gTireDrift gTireDrift_view[0][0]
-
-VIEW(s8, gCarSuspensions);
-#define gCarSuspensions gCarSuspensions_view
-
 /* The drift (MAT3 tModelData.drift) of model m: gTireDrift by its tire type and handling, raised for a car with
  * soft suspension (gCarSuspensions 0) and lowered for a stiff one (2). */
 f32 CalcDrift(tModelData *m) {
     f32 drift;
     s8 suspension;
 
-    drift = ((f32 (*)[3]) &gTireDrift)[m->tire_type][m->handling];
-    suspension = (&gCarSuspensions)[m->body_type];
+    drift = gTireDrift[m->tire_type][m->handling];
+    suspension = gCarSuspensions[m->body_type];
     if (suspension == 0) {
         drift += drift_soft_suspension_bonus;
     } else if (suspension == 2) {

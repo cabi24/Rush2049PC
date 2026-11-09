@@ -1,14 +1,6 @@
 /* animElapsedTimerText: the race clock's digits, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct { s32 x, y; } Pos;
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
-VIEW(Pos[], elapsedTimerPos);
-#define elapsedTimerPos elapsedTimerPos_view
-
 /* Draws the race clock (gModelTime) as m:ss.hh centred on elapsedTimerPos, each digit over a dim "8" (the unlit
  * segments), the separators half a digit and half a separator wide; nothing in attract mode, outside a race, or when
  * the HUD hides the clock. Returns 1. (The thousandths are computed but not drawn.) */

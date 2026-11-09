@@ -63,20 +63,9 @@ typedef struct TrackRec { u16 time; u8 pad[94]; } TrackRec;
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 
-VIEW(PlayerRec[], gRealGhostPlayers);
-#define gRealGhostPlayers gRealGhostPlayers_view
-
-VIEW(GhostHeader[], gRealNewGhostHeaders);
-#define gRealNewGhostHeaders gRealNewGhostHeaders_view
-
-VIEW(Ghost[], gRealNewGhosts);
-#define gRealNewGhosts gRealNewGhosts_view
 VIEW(Ghost **[], gGhosts);
 #define gGhosts gGhosts_view
 extern Player gPlayers[];                                 /* GC gPlayers */
-
-VIEW(s8[][13], gTireRims);
-#define gTireRims gTireRims_view
 
 /* Sets a ghost race's ghosts up (only in a ghost race): each player gets a new ghost to record, its header from the
  * player (best time for the track, name, id, car, transmission and settings, the frame time) and, but on a restart,
@@ -159,7 +148,7 @@ void GhostStart(void) {
         gCarTires[i + 1][car] = g->settings[2];
         gCarFrame[i + 1][car] = g->settings[3];
         gCarWings[i + 1][car] = g->settings[4];
-        gTireRims[i + 1][car] = g->settings[8];
+        TIRE_RIMS(i + 1)[car] = g->settings[8];
         gCarHorn[i + 1][car] = g->settings[9];
         gFrontTireScale[i + 1][car] = g->settings[10] / 100.0f + 0.75f;
         gRearTireScale[i + 1][car] = g->settings[11] / 100.0f + 0.75f;

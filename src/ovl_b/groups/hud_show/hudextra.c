@@ -1,41 +1,6 @@
 /* ShowHUDExtra and ClearBattlePoints: the HUD extras of battle and stunt races, made at the race's start (MAT3
  * hudextra.c; runtime image B). */
 #include "game/game.h"
-#define tHudIcon tHudIconView   /* this file's own tHudIcon: include/game's tHudIcon is another type */
-#define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
-
-typedef struct tUVMatrix { f32 uvs[4][3]; } tUVMatrix;
-typedef struct tHudIcon { s16 type, idx; tUVMatrix mat; } tHudIcon;          /* anon_type_idx_34 */
-typedef struct tBattleCoin { s16 idx; s16 pad; tUVMatrix mat; } tBattleCoin; /* anon_idx_mat_34 */
-typedef struct tStuntCoin {
-    s16 type, idx;
-    tUVMatrix mat;
-    f32 alpha;
-    s16 screenPos[2], startPos[2], destPos[2];
-    f32 scrollTime;
-} tStuntCoin;
-typedef struct tBattlePoint {      /* anon_active_cnt_18 */
-    s8 active, cnt, plto, plfrom;
-    f32 startx, starty, endx, endy;
-    s8 p;
-    u8 pad[3];
-} tBattlePoint;
-
-VIEW(tHudIcon[4], weaponIcon);
-#define weaponIcon weaponIcon_view
-VIEW(tHudIcon[4], powerupIcon);
-#define powerupIcon powerupIcon_view
-VIEW(tBattleCoin[4], battleCoin);
-#define battleCoin battleCoin_view
-VIEW(tStuntCoin[4][10], stuntCoin);
-#define stuntCoin stuntCoin_view
-
-VIEW(tBattlePoint[4], battlePoint);
-#define battlePoint battlePoint_view
-VIEW(s32[4][4][2], stuntPos);
-#define stuntPos stuntPos_view
-VIEW(u8[4][2][4], hudextra_playerPaneColors);
-#define hudextra_playerPaneColors hudextra_playerPaneColors_view
 
 #define blit hudextra_blit
 #define playerPaneColors hudextra_playerPaneColors

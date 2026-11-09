@@ -1,9 +1,6 @@
 /* InitCarObj.c: make one of a car's scene objects (MAT3 visuals.c, InitCarObj()). */
 #include "game/game.h"
 
-VIEW(s32, unitmatrix);
-#define unitmatrix unitmatrix_view
-
 /* Add a scene object of definition `objnum` under `parent` (-1 none) and return its handle. `camlink` is the mask
  * of the windows that show it (15 all four; the object is hidden in the others). Its matrix: a new one in a race
  * (`for_game`); on the car screen the car's preset matrix for part `car_obj_num` of the screen player slot / 13

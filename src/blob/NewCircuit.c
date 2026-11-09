@@ -39,9 +39,6 @@ extern void *memset(void *s, s32 c, u32 n);
 VIEW(s32, gSeconds);
 #define gSeconds gSeconds_view
 
-VIEW(s32[4], gCircuitDiff);
-#define gCircuitDiff gCircuitDiff_view[0]
-
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #define INPUT_SIZE 80  /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);
                        * the profile's save data, at SaveSlot.data, is read pointer-sized (intptr_t) */
@@ -64,5 +61,5 @@ void NewCircuit(s32 type) {
     if (options[31] != 0) {
         circuit->death = 1;
     }
-    circuit->difficulty = (s8) (&gCircuitDiff)[type];
+    circuit->difficulty = (s8) gCircuitDiff[type];
 }

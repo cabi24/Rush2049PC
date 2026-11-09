@@ -2,41 +2,10 @@
  * scissor boxes. */
 #include "game/game.h"
 
-VIEW(PcViewport, vp0);
-#define vp0 vp0_view
-VIEW(PcViewport, vp1);
-#define vp1 vp1_view
-VIEW(PcViewport, vp2);
-#define vp2 vp2_view
-VIEW(PcViewport, vpul);
-#define vpul vpul_view
-VIEW(PcViewport, vpur);
-#define vpur vpur_view
-VIEW(PcViewport, vpll);
-#define vpll vpll_view
-VIEW(PcViewport, vplr);
-#define vplr vplr_view
-VIEW(s16[4], scissor0);
-#define scissor0 scissor0_view
-VIEW(s16[4], scissor1);
-#define scissor1 scissor1_view
-VIEW(s16[4], scissor2);
-#define scissor2 scissor2_view
-VIEW(s16[4], scissorul);
-#define scissorul scissorul_view
-VIEW(s16[4], scissorur);
-#define scissorur scissorur_view
-VIEW(s16[4], scissorll);
-#define scissorll scissorll_view
-VIEW(s16[4], scissorlr);
-#define scissorlr scissorlr_view
-VIEW(ArbEntry[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* Gives window k the viewport vp and the scissor box r (left, top, right, bottom); returns the window. */
 ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
-    ZoidWinInfo[k].f0 = vp;
-    ZoidWinInfo[k].f4 = r;
+    ZoidWinInfo[k].vp = vp;
+    ZoidWinInfo[k].s = r;
     return &ZoidWinInfo[k];
 }
 

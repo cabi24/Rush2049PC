@@ -19,8 +19,6 @@ VIEW(s8[4], gTeamPoints);
 VIEW(Ghost40 **[], gGhosts);
 #define gGhosts gGhosts_view
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 
 void *memset(void *, s32, u32);
 

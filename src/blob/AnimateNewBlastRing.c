@@ -19,8 +19,6 @@ typedef struct tBlastRingStruct {
     f32 incTime;            /* seconds to its next step */
 } tBlastRingStruct;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { u32 flags, culling; void *mat; f32 scale, w; u16 index; s16 child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; u32 color; u8 envcolor[4]; } ObjInstance;
 typedef union tRGBA {struct {u8 red,green,blue,alpha;} c;u32 rgba;} tRGBA;
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
@@ -28,8 +26,6 @@ typedef union tRGBA {struct {u8 red,green,blue,alpha;} c;u32 rgba;} tRGBA;
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
 #define gBlastRingObjs (*(tBlastRingStruct (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

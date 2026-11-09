@@ -132,7 +132,7 @@ extern s32 gStuntsDone;
 extern s8 gNumActiveCars;
 extern s16 num_our_drones;
 extern volatile s16 num_drones;
-extern s16 sched_to_use;
+extern volatile s16 sched_to_use;   /* the drone schedule in use: the game thread sets it, the model thread steps it */
 extern s16 new_sched_to_use;
 extern s16 sched_index;
 extern s16 cur_drone;

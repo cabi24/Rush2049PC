@@ -29,9 +29,6 @@ typedef struct tVisual {
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { unsigned int flags, culling; tUVMatrix *mat; float scale; float w; u16 index; short child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; unsigned int color; unsigned int envcolor; } ObjInstance;
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
@@ -40,11 +37,6 @@ VIEW(volatile f32, gFrameSeconds);
 #define gBlastObjs pc_blasts
 #define gBlastRingObjs pc_blast_rings
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-VIEW(float[4][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 /* Set car `slot`'s fireball off: four flame balls (gObjList[158..161]) 3 ft under the car, starting at 0.4 of
  * their size and growing, turning at random and rising (AnimateNewBlast); with 8 MB or on the later tracks, and with
@@ -213,6 +205,6 @@ void StartBlast(void *data, int linkToCar, float scale, int playSound)
     if (++gBlastMatCnt >= 50) gBlastMatCnt = 0;
     if (playSound) {
         snd = scale >= 1.0f ? 45 : scale >= 0.5f ? 69 : 47;     /* the big, medium and small explosion sounds */
-        EmitGameSound(mat->pos, unitmatrix[3], 400.0f, 0.0f, 1.0f, 0.0f, snd, v->objnum, 0, 128);
+        EmitGameSound(mat->pos, &unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, snd, v->objnum, 0, 128);
     }
 }

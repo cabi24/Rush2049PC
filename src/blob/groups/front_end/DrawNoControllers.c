@@ -7,8 +7,6 @@ typedef struct { void *unk0; char **single; } TextTable;
 
 VIEW(volatile ControllerData[], gControllerData);
 #define gControllerData gControllerData_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 VIEW(TextTable, gText);
 #define gText gText_view
 

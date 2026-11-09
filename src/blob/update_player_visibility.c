@@ -3,9 +3,6 @@
  * stands between them (gFadePlayerArrow, read by the arrow's animator). */
 #include "game/game.h"
 
-VIEW(s8[4][4], gFadePlayerArrow);
-#define gFadePlayerArrow gFadePlayerArrow_view
-
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 /* How far above the cars' positions the line of sight runs, in world units. */

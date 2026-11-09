@@ -61,14 +61,14 @@ enum {
 /* Data */
 extern u32 gCircuitPoints[EXTENT(6)];
 extern s32 gNumCircuitTracks[EXTENT(4)];
-extern ResourceRange gCircuitFog[EXTENT(4)];
-extern ResourceRange gCircuitWind[EXTENT(4)];
+extern CircuitChance gCircuitFog[EXTENT(4)];
+extern CircuitChance gCircuitWind[EXTENT(4)];
 extern s32 gCircuitDiff[EXTENT(4)];
 extern s32 circuit_drone_skills[EXTENT(6)][12];
 extern struct pc_multiblit demo_multiblit[EXTENT(1)];
 extern s8 gRestartGame;
 extern s8 gGamePointPlayed;
-extern RGB gFogColors[EXTENT(28)];
+extern u8 gFogColors[EXTENT(28)][3];   /* the fog colours (ZOID_SetFog), R G B */
 extern s32 playerTextColor[EXTENT(4)];
 extern TextColor flashColors[EXTENT(2)];
 extern struct pc_multiblit idle_warning_multiblit[EXTENT(1)];
@@ -76,7 +76,7 @@ extern void *inactiveBlit;
 extern s8 ghost_gInited;
 extern volatile s8 gEndingGhosts;
 extern u32 gGameState;
-extern s32 gNewGameState;
+extern u32 gNewGameState;
 extern u32 gSkipToGameState;
 extern f32 gravityArray[EXTENT(4)];
 extern f32 flip_abort_angle;

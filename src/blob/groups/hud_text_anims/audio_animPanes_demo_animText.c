@@ -2,9 +2,6 @@
  * animation functions, run each frame through their blits. */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 typedef struct { s8 flag; s8 pad[15]; } Slot16;
 VIEW(Slot16[], gControllerData);
 #define gControllerData gControllerData_view

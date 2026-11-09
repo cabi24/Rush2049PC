@@ -1,9 +1,6 @@
 /* UpdateHUDPostCamera: the HUD's work after the camera has moved (MAT3 hud.c). */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

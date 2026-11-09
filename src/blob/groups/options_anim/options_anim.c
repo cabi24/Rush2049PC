@@ -1,6 +1,7 @@
 /* The options screen's text: its options and values, the flashing colours (MAT3 optionscr.c and TB_text.c). */
 #include "game/game.h"
 
+/* A colour (MAT3 tRGBA): include/game's TextColor, the flashing colours' type. */
 typedef TextColor Color;   /* the file's name for include/game's TextColor */
 
 typedef struct TextHdr {
@@ -35,10 +36,6 @@ VIEW(Text, gText);
 VIEW(ButtonInfo[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
-VIEW(u8[], gCamera);
-#define gCamera gCamera_view
-VIEW(Color[2], flashColors);
-#define flashColors flashColors_view
 VIEW(Color, gFlashColor1);
 #define gFlashColor1 gFlashColor1_view
 VIEW(Color, gFlashColor2);

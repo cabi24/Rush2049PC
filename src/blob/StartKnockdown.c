@@ -44,9 +44,6 @@ typedef struct MATRIX {
     f32 pos[3];
 } MATRIX;
 
-VIEW(Visual *, gEnvList);
-#define gEnvList gEnvList_view
-
 /* Turn the matrix to look along the direction (MAT3 inlines LookInDir on a tUVMatrix here). */
 static void PointInDir(f32 *dir, MATRIX *m)
 {

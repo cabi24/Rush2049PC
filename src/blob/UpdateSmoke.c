@@ -42,38 +42,12 @@ typedef struct tCarData {
     u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384];
 } tCarData;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance {
-    u32 flags, culling;
-    void *mat;
-    f32 scale;          /* N64 12 */
-    f32 w;
-    s16 index;          /* N64 20: its object definition */
-    s16 child, next, numLights;
-    void *lights, *texture[4], *tile, *tileSize, *palette;
-    u8 rgb[3];
-    u8 alpha;           /* N64 63 */
-    u8 envcolor[4];
-} ObjInstance;
-/* PC: a StatLL list header's host layout, as every view has it (InitSmoke.c, docs/port/POINTERS.md 9): the active
- * list is head. */
-typedef struct SmokeList {
-    u8 dbl;
-    int numElements;
-    int elementSize;
-    void *list;
-    void *head, *store;
-} SmokeList;
-VIEW(SmokeList, gSmokeList);
-#define gSmokeList gSmokeList_view
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
@@ -240,8 +214,8 @@ release:
             }
             gFrameSeconds;      /* a read of the volatile and nothing more (MAT3: t = gFrameSeconds, unused) */
             if (puff->lifeTime < 1.0f) {
-                if (ObjInstanceList[puff->mbIdx.handle].alpha >= 9) {
-                    PC_EACH30(ObjInstanceList[puff->mbIdx.handle].alpha -= 9;)
+                if (OBJ_COLOR(ObjInstanceList[puff->mbIdx.handle].color)[3] >= 9) {
+                    PC_EACH30(OBJ_COLOR(ObjInstanceList[puff->mbIdx.handle].color)[3] -= 9;)
                 }
             }
             if (type == SMOKE_WRECK) {

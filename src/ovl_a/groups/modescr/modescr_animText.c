@@ -3,18 +3,13 @@
 
 typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
-typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 
 VIEW(f32[3], modescr_title_button_position);
 #define modescr_title_button_position modescr_title_button_position_view
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 
 VIEW(Slot[], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
@@ -70,10 +65,10 @@ s32 modescr_animText(void *callback_context)
                     HAL_SetTextTranslucency(-1.0f);
                 }
                 if (slot->angle < 1.5707964f) {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_WhiteText);
                 } else {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_FlashText);
                 }
                 ZOID_ProjectWindow(0, slot->position, &gCamera[0], 0, point);
@@ -88,7 +83,7 @@ s32 modescr_animText(void *callback_context)
     }
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextTranslucency(-1.0f);
-    TB_FlashTextColors(flashColors, flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

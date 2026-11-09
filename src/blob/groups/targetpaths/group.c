@@ -41,16 +41,7 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
 VIEW(s32, unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 
-VIEW(s32[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-VIEW(struct pc_visual *, gEnvList);
-#define gEnvList gEnvList_view
-
 extern tTarget *CollisionTargetPtrs[];
-
-VIEW(u16, gObjList);
-#define gObjList gObjList_view
 
 /* Starts sound `id` at the target's position (unless game sounds are off or it is -1, which give -1), fading over
  * `fadeDist` with replace mode `replace`; returns the emitter. */

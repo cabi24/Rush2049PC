@@ -12,9 +12,6 @@ typedef struct tWindowInfo {
     u8 pad52[20];
 } tWindowInfo;
 
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* Scale each window in use (gNumZoidWindows) by x horizontally and y vertically: its scissor rectangle, its size
  * and its centre (the field of view stays). Used when the screen's resolution changes under the layout. */
 void zoid_scale_windows(f32 x, f32 y) {

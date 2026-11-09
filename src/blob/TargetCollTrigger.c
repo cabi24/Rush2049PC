@@ -4,13 +4,6 @@
  * start; it never reports a hit itself. */
 #include "game/game.h"
 
-/* A road polygon (stree_surf, 24 bytes): its sound flags carry the trigger marks. */
-typedef struct Poly24 {
-    u16 pad0;
-    u16 flags;              /* 0x02 snd_flags: 0x20 a trigger polygon, bits 11-15 its trigger number */
-    u8 pad4[20];
-} Poly24;
-
 /* The model record's view (MAT3 tModelData, 0x808 bytes, kept in its N64 layout): what the test reads. */
 typedef struct Car {
     u8 pad0[0x5A0];
@@ -49,9 +42,6 @@ typedef struct Target {
 #define TRIGGER_NUMBER 0xF800   /* a polygon's trigger number, << 11 */
 #define PATH_START 0x200        /* the path target starts moving */
 #define PATH_RETRIGGER 0x4000   /* a car on the trigger starts it again even when others are on it */
-
-VIEW(Poly24 *, stree_surf);
-#define stree_surf stree_surf_view
 
 /* PC: the cars on a trigger are bits 24-31 of its flags (car n: bit 24 + n), room for 8. Cars 8 and up (the more-cars
  * setting) keep theirs in their car record's `scenes` word, a bit per trigger number below 32 (pc_game_types.h).
@@ -104,10 +94,10 @@ s32 TargetCollTrigger(Target *t, s16 *player, s32 unused3, s32 unused4) {
     path = N64P(pathData->path);
     id = path->id;
     id <<= 11;
-    f0 = stree_surf[car->wheelPoly[0]].flags;
-    f1 = stree_surf[car->wheelPoly[1]].flags;
-    f2 = stree_surf[car->wheelPoly[2]].flags;
-    f3 = stree_surf[car->wheelPoly[3]].flags;
+    f0 = stree_surf[car->wheelPoly[0]].snd_flags;
+    f1 = stree_surf[car->wheelPoly[1]].snd_flags;
+    f2 = stree_surf[car->wheelPoly[2]].snd_flags;
+    f3 = stree_surf[car->wheelPoly[3]].snd_flags;
     if (((f0 & TRIGGER_POLY) && (f0 & TRIGGER_NUMBER) == id) || ((f1 & TRIGGER_POLY) && (f1 & TRIGGER_NUMBER) == id) ||
         ((f2 & TRIGGER_POLY) && (f2 & TRIGGER_NUMBER) == id) || ((f3 & TRIGGER_POLY) && (f3 & TRIGGER_NUMBER) == id)) {
         if (SCENE_CARS(path) == 0 || (path->flags & PATH_RETRIGGER)) {

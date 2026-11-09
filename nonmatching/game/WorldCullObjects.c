@@ -1,6 +1,6 @@
 #include "game/game.h"
 
-typedef struct {
+typedef struct tModelPart {
     char name[16];          /* 0x00 */
     f32 uvs[4][3];          /* 0x10 mat; pos = uvs[3] at 0x34 */
     u32 dlflags;            /* 0x40 */
@@ -13,16 +13,7 @@ typedef struct {
     f32 max[3];             /* 0x5C */
 } tModelPart; /* 0x68 */
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct {
-    u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
-} ObjInstance;
 
-VIEW(tModelPart *, WorldBase);
-#define WorldBase WorldBase_view
-
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 float sqrtf(float);
 #pragma intrinsic(sqrtf)

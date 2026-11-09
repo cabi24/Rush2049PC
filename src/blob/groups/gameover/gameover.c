@@ -39,17 +39,6 @@ VIEW(OSMesgQueue, audio_lock_queue);
 VIEW(OSMesgQueue, audio_command_queue);
 #define audio_command_queue audio_command_queue_view
 
-VIEW(void *, gEnvList);
-#define gEnvList gEnvList_view
-
-VIEW(Voice *, multiPlayerBlit);
-#define multiPlayerBlit multiPlayerBlit_view
-VIEW(s32, gSkipToGameState);
-#define gSkipToGameState gSkipToGameState_view
-
-VIEW(u8, gRestartGame);
-#define gRestartGame gRestartGame_view
-
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 

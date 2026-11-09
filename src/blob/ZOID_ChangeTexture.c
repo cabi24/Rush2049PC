@@ -4,17 +4,11 @@
  * Unlike ZOID_SetTexture, which changes one scene node, this changes the object's definition in its model file,
  * so every node that draws the object changes. */
 #include "game/game.h"
-#define ModelList ModelListView   /* this file's own ModelList: include/game's ModelList is another type */
 
 /* One level of detail of an object definition (MAT3 anon_texidx_flags_c, 16 bytes on the N64). */
 typedef struct LodDef { u16 texidx; u16 flags; u8 pad4[4]; PART_DL displayList; u8 padC[4]; } LodDef;
 /* An object definition (MAT3 tModelDef): the name, the radius, the levels of detail. */
 typedef struct tModelDef { u8 pad0[0x16]; s16 lodCount; LodDef lod[4]; } tModelDef;
-/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8). */
-typedef struct ModelList { tModelDef *romObjDefs; s32 count; } ModelList;
-
-VIEW(ModelList[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
 
 /* Make object `obj` (a handle, (model << 10) | definition) draw with texture `texidx` (a texture handle,
  * MBOX_FindTexture_WORK) at level of detail `lod`, or at all its levels when `lod` is negative; LOD_TEXTURE_SET

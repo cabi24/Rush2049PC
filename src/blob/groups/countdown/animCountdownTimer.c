@@ -4,16 +4,11 @@
 #define SOUND_COUNTDOWN_BEEP 2
 
 #define sc gScheduler_view
-#define mapPos hud_mapPos_view
 #define gFontSem text_lock_queue_view
 
 typedef struct tSchedCtl { u8 pad000[0x27C]; s32 frameCount; } tSchedCtl;
 
 VIEW(volatile tSchedCtl, gScheduler);
-
-VIEW(s32[4][2], countdownTimerPos);
-#define countdownTimerPos countdownTimerPos_view
-VIEW(s32[4][2], hud_mapPos);
 
 VIEW(OSMesgQueue, text_lock_queue);
 
@@ -61,8 +56,8 @@ skip:
     HAL_SetTextDepth(0.0f);
     TB_SetJust(kTB_JustCenter, kTB_JustTop);
     if (gRace == kStunt && gNumWindows > 1) {
-        x = mapPos[gNumWindows - 1][0];
-        y = mapPos[gNumWindows - 1][1];
+        x = hud_mapPos[gNumWindows - 1].x;
+        y = hud_mapPos[gNumWindows - 1].y;
         TB_SetJust(kTB_JustCenter, kTB_JustCenter);
     }
     digits[0] = t / 600 + '0';

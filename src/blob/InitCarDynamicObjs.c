@@ -3,9 +3,6 @@
 
 #define CAR_PARTS 3             /* the frame, the hood, the sheen (MAT3 has 9) */
 
-VIEW(char *[CAR_PARTS], carObjNames);
-#define carObjNames carObjNames_view
-
 extern int sprintf(char *, const char *, ...);
 
 /* Look up the parts of car type `car` ("<car name><part name>", car_part_name_format) in model file `model` and keep

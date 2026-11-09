@@ -11,14 +11,8 @@ typedef struct Slot64 {
 typedef struct Player76 { u8 unknown0[72]; void **profile; } Player76;
 typedef struct Blit Blit;
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
@@ -88,12 +82,12 @@ void modescr_initButtons(void)
         if(slot->id==-1) {
             matrix=slot->matrix;
             memcpy(matrix,unitmatrix,36);
-            slot->id=MBOX_NewObject(MBOX_FindObject_WORK(modescr_buttonNames[slot->type],0,gNumModels-1,1),matrix,-1,(slot->type==0 || slot->type==1) ? 0x42000 : 0);
+            slot->id=MBOX_NewObject(MBOX_FindObject_WORK(modescr_buttonNames[slot->type],0,gNumModels[0]-1,1),matrix,-1,(slot->type==0 || slot->type==1) ? 0x42000 : 0);
             ZOID_SetColor(slot->id,&color);
         }
     }
-    ZOID_SetTexture(modescr_buttonInfo[MODE_CURSOR].id,MBOX_FindTexture_WORK(modescr_cursor_texture_name,&texture,0,gNumModels-1,1),-1);
-    ZOID_SetTexture(modescr_buttonInfo[MODE_A_ICON].id,MBOX_FindTexture_WORK(modescr_a_button_texture_name,&texture,0,gNumModels-1,1),-1);
+    ZOID_SetTexture(modescr_buttonInfo[MODE_CURSOR].id,MBOX_FindTexture_WORK(modescr_cursor_texture_name,&texture,0,gNumModels[0]-1,1),-1);
+    ZOID_SetTexture(modescr_buttonInfo[MODE_A_ICON].id,MBOX_FindTexture_WORK(modescr_a_button_texture_name,&texture,0,gNumModels[0]-1,1),-1);
     memcpy(modescr_buttonInfo[MODE_A_ICON].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,modescr_buttonInfo[MODE_A_ICON].matrix);
     modescr_buttonInfo[MODE_A_ICON].position[0]=75.1f;
@@ -106,7 +100,7 @@ void modescr_initButtons(void)
     modescr_buttonInfo[MODE_A_ARROW].position[0]=87.1f;
     modescr_buttonInfo[MODE_A_ARROW].position[1]=55.2f;
     modescr_buttonInfo[MODE_A_ARROW].position[2]=100.0f;
-    ZOID_SetTexture(modescr_buttonInfo[MODE_B_ICON].id,MBOX_FindTexture_WORK(modescr_b_button_texture_name,&texture,0,gNumModels-1,1),-1);
+    ZOID_SetTexture(modescr_buttonInfo[MODE_B_ICON].id,MBOX_FindTexture_WORK(modescr_b_button_texture_name,&texture,0,gNumModels[0]-1,1),-1);
     memcpy(modescr_buttonInfo[MODE_B_ICON].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,modescr_buttonInfo[MODE_B_ICON].matrix);
     modescr_buttonInfo[MODE_B_ICON].position[0]=-75.1f;
@@ -118,7 +112,7 @@ void modescr_initButtons(void)
     modescr_buttonInfo[MODE_B_ARROW].position[0]=-87.1f;
     modescr_buttonInfo[MODE_B_ARROW].position[1]=55.2f;
     modescr_buttonInfo[MODE_B_ARROW].position[2]=100.0f;
-    ZOID_SetTexture(modescr_buttonInfo[MODE_TITLE].id,MBOX_FindTexture_WORK(modescr_title_texture_name,&texture,0,gNumModels-1,1),-1);
+    ZOID_SetTexture(modescr_buttonInfo[MODE_TITLE].id,MBOX_FindTexture_WORK(modescr_title_texture_name,&texture,0,gNumModels[0]-1,1),-1);
     memcpy(modescr_buttonInfo[MODE_TITLE].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,modescr_buttonInfo[MODE_TITLE].matrix);
     modescr_buttonInfo[MODE_TITLE].position[0]=0.0f;

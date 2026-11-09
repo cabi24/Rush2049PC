@@ -33,14 +33,6 @@ typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;
 
 VIEW(void *[48], gCarMatrices);
 #define gCarMatrices gCarMatrices_view
-VIEW(u8[4], gDriveHulk);
-#define gDriveHulk gDriveHulk_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
-VIEW(f32[12], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(MultiBlit[], carscr_mb);
 #define carscr_mb carscr_mb_view
 
@@ -48,8 +40,6 @@ extern void audio_interrupt_handler(s32);
 
 extern void particle_lifetime_set(void);
 
-VIEW(s8[], gCarTeamColor);
-#define gCarTeamColor gCarTeamColor_view
 VIEW(s16[], gCheatState);
 #define gCheatState gCheatState_view
 
@@ -59,8 +49,6 @@ VIEW(s8[][13], car_color_choice_b);
 #define car_color_choice_b car_color_choice_b_view
 VIEW(s8[][13], car_color_choice_c);
 #define car_color_choice_c car_color_choice_c_view
-VIEW(s8[][13], gTireRims);
-#define gTireRims gTireRims_view
 
 
 /* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's SaveHeader.settings). */
@@ -364,8 +352,8 @@ void carscr_InitScreen(void)
         pl = &gPlayers[p];
         CopyUV(unitmatrix, gTurntableMat[p][0]);
         CopyUV(unitmatrix, gTurntableMat[p][1]);
-        gTurntableIdx[p][0] = MBOX_NewObject(MBOX_FindObject_WORK(carscr_turntable_model_name, 0, gNumModels - 1, 1), gTurntableMat[p][0], -1, 0x40000);
-        gTurntableIdx[p][1] = MBOX_NewObject(MBOX_FindObject_WORK(carscr_turntable_base_model_name, 0, gNumModels - 1, 1), gTurntableMat[p][1], -1, 0);
+        gTurntableIdx[p][0] = MBOX_NewObject(MBOX_FindObject_WORK(carscr_turntable_model_name, 0, gNumModels[0] - 1, 1), gTurntableMat[p][0], -1, 0x40000);
+        gTurntableIdx[p][1] = MBOX_NewObject(MBOX_FindObject_WORK(carscr_turntable_base_model_name, 0, gNumModels[0] - 1, 1), gTurntableMat[p][1], -1, 0);
         MBOX_HideObject(gTurntableIdx[p][0], 1, 15);
         MBOX_HideObject(gTurntableIdx[p][1], 1, 15);
         if (gRace == kGhost) {
@@ -407,7 +395,7 @@ void carscr_InitScreen(void)
             car_color_choice_a[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_A);
             car_color_choice_b[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_B);
             car_color_choice_c[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_C);
-            gTireRims[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_RIMS);
+            TIRE_RIMS(p + 1)[i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_RIMS);
             gCarHorn[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_HORN);
             gFrontTireScale[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_FRONT_TIRE_SCALE) / 100.0f + 0.75f;
             gRearTireScale[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_REAR_TIRE_SCALE) / 100.0f + 0.75f;
@@ -702,11 +690,11 @@ void updateCarScreen(void)
                 break;
             case CAR_OPT_RIMS:
                 if (d) {
-                    gTireRims[p + 1][gThisCar[p]] += d;
-                    if (gTireRims[p + 1][gThisCar[p]] < 0) gTireRims[p + 1][gThisCar[p]] = 20;
-                    else if (gTireRims[p + 1][gThisCar[p]] > 20) gTireRims[p + 1][gThisCar[p]] = 0;
-                } else gTireRims[p + 1][gThisCar[p]] = gTireRims[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_RIMS, gTireRims[p + 1][gThisCar[p]]);
+                    TIRE_RIMS(p + 1)[gThisCar[p]] += d;
+                    if (TIRE_RIMS(p + 1)[gThisCar[p]] < 0) TIRE_RIMS(p + 1)[gThisCar[p]] = 20;
+                    else if (TIRE_RIMS(p + 1)[gThisCar[p]] > 20) TIRE_RIMS(p + 1)[gThisCar[p]] = 0;
+                } else TIRE_RIMS(p + 1)[gThisCar[p]] = TIRE_RIMS(0)[gThisCar[p]];
+                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_RIMS, TIRE_RIMS(p + 1)[gThisCar[p]]);
                 break;
             case CAR_OPT_HORN:
                 if (d) {
@@ -965,7 +953,7 @@ void carscr_initButtons(s8 p)
         if(carscr_buttonInfo[p][buttonIdx].handle==-1) {
             memcpy(carscr_buttonInfo[p][buttonIdx].matrix,unitmatrix,36);
             carscr_buttonInfo[p][buttonIdx].handle=MBOX_NewObject(
-                MBOX_FindObject_WORK(carscr_buttonNames[carscr_buttonInfo[p][buttonIdx].type],0,gNumModels-1,1),
+                MBOX_FindObject_WORK(carscr_buttonNames[carscr_buttonInfo[p][buttonIdx].type],0,gNumModels[0]-1,1),
                 carscr_buttonInfo[p][buttonIdx].matrix,-1,
                 (carscr_buttonInfo[p][buttonIdx].type==0 || carscr_buttonInfo[p][buttonIdx].type==1 || carscr_buttonInfo[p][buttonIdx].type==2) ? 0x42000 : 0);
             ZOID_SetColor((s16)carscr_buttonInfo[p][buttonIdx].handle,&buttonColor);
@@ -973,7 +961,7 @@ void carscr_initButtons(s8 p)
             MBOX_ShowObject(carscr_buttonInfo[p][buttonIdx].handle,0,1<<p);
         }
     }
-    tex=MBOX_FindTexture_WORK(carscr_title_texture_name,&texIdx,0,gNumModels-1,1);
+    tex=MBOX_FindTexture_WORK(carscr_title_texture_name,&texIdx,0,gNumModels[0]-1,1);
     ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_BUTTON_TITLE].handle,tex,-1);
     memcpy(carscr_buttonInfo[p][CAR_BUTTON_TITLE].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,carscr_buttonInfo[p][CAR_BUTTON_TITLE].matrix);
@@ -984,9 +972,9 @@ void carscr_initButtons(s8 p)
     carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1];
     carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2];
     if(gRace==kGhost)MBOX_ShowObject(carscr_buttonInfo[p][CAR_BUTTON_TITLE].handle,0,15);
-    tex=MBOX_FindTexture_WORK(carscr_cursor_texture_name,&texIdx,0,gNumModels-1,1);
+    tex=MBOX_FindTexture_WORK(carscr_cursor_texture_name,&texIdx,0,gNumModels[0]-1,1);
     ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_BUTTON_CURSOR].handle,tex,-1);
-    tex=MBOX_FindTexture_WORK(carscr_a_button_texture_name,&texIdx,0,gNumModels-1,1);
+    tex=MBOX_FindTexture_WORK(carscr_a_button_texture_name,&texIdx,0,gNumModels[0]-1,1);
     ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_BUTTON_A_ICON].handle,tex,-1);
     memcpy(carscr_buttonInfo[p][CAR_BUTTON_A_ICON].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,carscr_buttonInfo[p][CAR_BUTTON_A_ICON].matrix);
@@ -1000,7 +988,7 @@ void carscr_initButtons(s8 p)
     carscr_buttonInfo[p][CAR_BUTTON_A_ARROW].position[0]=87.1f;
     carscr_buttonInfo[p][CAR_BUTTON_A_ARROW].position[1]=gNumWindows>1 ? 50.2f : 55.2f;
     carscr_buttonInfo[p][CAR_BUTTON_A_ARROW].position[2]=100.0f;
-    tex=MBOX_FindTexture_WORK(carscr_b_button_texture_name,&texIdx,0,gNumModels-1,1);
+    tex=MBOX_FindTexture_WORK(carscr_b_button_texture_name,&texIdx,0,gNumModels[0]-1,1);
     ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_BUTTON_B_ICON].handle,tex,-1);
     memcpy(carscr_buttonInfo[p][CAR_BUTTON_B_ICON].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,carscr_buttonInfo[p][CAR_BUTTON_B_ICON].matrix);
@@ -1110,8 +1098,8 @@ void carscr_updateButtons(s8 p)
         ScaleUV(unitmatrix,carscr_buttonInfo[p][CAR_VALUE_BUTTON(buttonIdx)].matrix,carscr_gButtonScale);
         WPitchUV(carscr_buttonInfo[p][buttonIdx].angle-1.5707964f,carscr_buttonInfo[p][buttonIdx].matrix);
         WPitchUV(carscr_buttonInfo[p][CAR_VALUE_BUTTON(buttonIdx)].angle-1.5707964f,carscr_buttonInfo[p][CAR_VALUE_BUTTON(buttonIdx)].matrix);
-        if(carscr_buttonInfo[p][buttonIdx].angle>1.5707964f)tex=MBOX_FindTexture_WORK(carscr_select_texture_name,&texIdx,0,gNumModels-1,1);
-        else tex=MBOX_FindTexture_WORK(carscr_button_texture_name,&texIdx,0,gNumModels-1,1);
+        if(carscr_buttonInfo[p][buttonIdx].angle>1.5707964f)tex=MBOX_FindTexture_WORK(carscr_select_texture_name,&texIdx,0,gNumModels[0]-1,1);
+        else tex=MBOX_FindTexture_WORK(carscr_button_texture_name,&texIdx,0,gNumModels[0]-1,1);
         ZOID_SetTexture((s16)carscr_buttonInfo[p][buttonIdx].handle,tex,-1);
         ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_VALUE_BUTTON(buttonIdx)].handle,tex,-1);
         if(carscr_buttonInfo[p][buttonIdx].position[1]>carscr_maxY+carscr_gButtonSpace*carscr_gButtonScale || carscr_buttonInfo[p][buttonIdx].position[1]<carscr_minY-carscr_gButtonSpace*carscr_gButtonScale)carscr_buttonInfo[p][buttonIdx].alpha=0;
@@ -1157,10 +1145,6 @@ void carscr_updateButtons(s8 p)
     carscr_buttonsJustInited[p]=0;
 }
 
-/* A car's scene objects (gCarParts; as selectcarload.c's ModelState): the body, its parts, the four tyres. */
-typedef struct CarHandles {s32 body;s32 parts[5];s32 unknown18;s32 tires[4];u8 unknown2C[20];} CarHandles;
-VIEW(CarHandles[], gCarParts);
-#define gCarParts gCarParts_view
 VIEW(Color4, carscr_solidColor);
 #define carscr_solidColor carscr_solidColor_view
 VIEW(Color4, carscr_normalColor);
@@ -1171,10 +1155,10 @@ void showGridMap(s32 enabled)
 {
     if(enabled==1) {
         Color4 color=carscr_solidColor;
-        if(gCarParts[gThisCar[0]].body) {
-            ZOID_SetColor(gCarParts[gThisCar[0]].body,&color);
-            ZOID_SetColor(gCarParts[gThisCar[0]].parts[3],&color);
-            ZOID_SetColor(gCarParts[gThisCar[0]].parts[4],&color);
+        if(gCarParts[gThisCar[0]].frame) {
+            ZOID_SetColor(gCarParts[gThisCar[0]].frame,&color);
+            ZOID_SetColor(gCarParts[gThisCar[0]].hood,&color);
+            ZOID_SetColor(gCarParts[gThisCar[0]].sheen,&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[0],&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[1],&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[2],&color);
@@ -1182,10 +1166,10 @@ void showGridMap(s32 enabled)
         }
     } else {
         Color4 color=carscr_normalColor;
-        if(gCarParts[gThisCar[0]].body) {
-            ZOID_SetColor(gCarParts[gThisCar[0]].body,&color);
-            ZOID_SetColor(gCarParts[gThisCar[0]].parts[3],&color);
-            ZOID_SetColor(gCarParts[gThisCar[0]].parts[4],&color);
+        if(gCarParts[gThisCar[0]].frame) {
+            ZOID_SetColor(gCarParts[gThisCar[0]].frame,&color);
+            ZOID_SetColor(gCarParts[gThisCar[0]].hood,&color);
+            ZOID_SetColor(gCarParts[gThisCar[0]].sheen,&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[0],&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[1],&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[2],&color);
@@ -1194,8 +1178,6 @@ void showGridMap(s32 enabled)
     }
 }
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): mat is N64 +0x08. */
-typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
 typedef struct tUVMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;   /* a scene node's matrix (ZOID_FindMatrix) */
 ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
@@ -1205,9 +1187,6 @@ VIEW(s16[11], componentToName);
 #define componentToName componentToName_view
 VIEW(char *[5], carComponentNames);
 #define carComponentNames carComponentNames_view
-
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 extern s32 sprintf(char *, const char *, ...);
 
@@ -1221,7 +1200,7 @@ void updateCarComponents(s32 p)
     s32 i;
     f32 lightVec[3] = {-0.57f, 0.57f, -0.57f};
     f32 lightDir[3];
-    CarHandles *car;
+    CarParts *car;
     s16 currentLevel;
     s32 whichLight;
     f32 compScale;
@@ -1240,13 +1219,13 @@ void updateCarComponents(s32 p)
     }
     car = &gCarParts[p * CARS + gThisCar[p]];
     if (gCarPartFrame == -1) {
-        gCarPartFrame = MBOX_NewObjectCam(MBOX_FindObject_WORK(carscr_part_frame_model_name, 0, gNumModels - 1, 1), ZOID_FindMatrix((s16)car->body), 15, -1, 0);
+        gCarPartFrame = MBOX_NewObjectCam(MBOX_FindObject_WORK(carscr_part_frame_model_name, 0, gNumModels[0] - 1, 1), ZOID_FindMatrix((s16)car->frame), 15, -1, 0);
         MBOX_HideObject(gCarPartFrame, 1, 15);
     } else {
-        ObjInstanceList[gCarPartFrame].mat = ZOID_FindMatrix((s16)car->body);
+        ObjInstanceList[gCarPartFrame].mat = (void *)ZOID_FindMatrix((s16)car->frame);
     }
     compLight[1].col[0] = 255.0f * TB_GetFlashTextCycle();
-    BodyVector(lightVec, lightDir, ZOID_FindMatrix((s16)car->body)->uvs);
+    BodyVector(lightVec, lightDir, ZOID_FindMatrix((s16)car->frame)->uvs);
     compLight[0].l[0].dir[0] = lightVec[0] * 10.0f;
     compLight[0].l[0].dir[1] = lightVec[1] * 10.0f;
     compLight[0].l[0].dir[2] = lightVec[2] * 10.0f;
@@ -1301,7 +1280,7 @@ void updateCarComponents(s32 p)
                 components[p][i].idx = -1;
                 components[p][i].level = -1;
             }
-            components[p][i].idx = MBOX_NewObject(MBOX_FindObject_WORK(componentName, 0, gNumModels - 1, 1), components[p][i].uvs, -1, 0);
+            components[p][i].idx = MBOX_NewObject(MBOX_FindObject_WORK(componentName, 0, gNumModels[0] - 1, 1), components[p][i].uvs, -1, 0);
             MBOX_HideObject(components[p][i].idx, 1, 15);
             if (gNumWindows == 1) {
                 components[p][i].pos[0] = 0.0f;
@@ -1476,7 +1455,7 @@ void showCarSelect(void)
                         gLastCar[ghostIdx] = ghostCar;
                         carscr_cars[ghostIdx][ghostCar].car = ghostCar + ghostIdx * CARS;
                         gCarTires[ghostIdx + 1][ghostCar] = (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_TIRES];
-                        gTireRims[ghostIdx + 1][ghostCar] = (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_RIMS];
+                        TIRE_RIMS(ghostIdx + 1)[ghostCar] = (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_RIMS];
                         gFrontTireScale[ghostIdx + 1][ghostCar] = (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_FRONT_TIRE_SCALE] / 100.0f + 0.75f;
                         gRearTireScale[ghostIdx + 1][ghostCar] = (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_REAR_TIRE_SCALE] / 100.0f + 0.75f;
                         UpdateSelectCar(carscr_cars[ghostIdx][ghostCar].car, ghostIdx, (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_COLOR_A], (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_COLOR_B], (*(*gGhosts[ghostIdx])->header)->settings[CAR_SETTING_COLOR_C], 0, carPos, uv, 255);

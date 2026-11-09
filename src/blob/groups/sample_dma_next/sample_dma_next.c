@@ -34,10 +34,6 @@ typedef struct {
 DmaList pc_sample_dma_list;
 
 extern DmaList sample_dma_list;
-VIEW(OSIoMesg, sample_dma_io);
-#define sample_dma_io sample_dma_io_view
-VIEW(OSMesgQueue, sample_dma_pi_queue);
-#define sample_dma_pi_queue sample_dma_pi_queue_view
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 
 /* Start the list's next request (a cartridge read, its completion to sample_dma_pi_queue) and return 1, or 0 when

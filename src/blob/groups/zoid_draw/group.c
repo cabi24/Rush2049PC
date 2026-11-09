@@ -134,7 +134,7 @@ typedef struct TexTile {
     u16 uls, ult, lrs, lrt;
 } TexTile;
 /* A palette definition (MAT3 anon_name_start_18): the colours start..end of the TLUT. */
-typedef struct Palette {
+typedef struct tPaletteDef {
     u8 name[16];
     u8 start;
     u8 end;
@@ -316,10 +316,6 @@ typedef union {
     long long int force_structure_alignment[2];
 } Vp;
 
-typedef union Vtx {
-    Vtx_t v;
-    long long int force_structure_alignment;
-} Vtx;
 typedef struct {
     unsigned char col[3];
     char pad1;
@@ -363,13 +359,6 @@ typedef struct {
     Mtx ident;      /* 0x680 */
 } GfxBuf;
 
-/* A view's camera (gCamera's record, MAT3 anon_mat_n64_98): its matrix, then what the camera code keeps. `View` is
- * the name scene.h's prototype of zoid_draw_window gives it. */
-typedef struct View {
-    f32 uvs[3][3];              /* the rotation: right, up and forward rows */
-    f32 pos[3];                 /* the position, feet */
-    u8 pad30[0x98 - 0x30];
-} View;
 /* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
@@ -390,77 +379,13 @@ typedef struct tModelDef {
     LodDef lod[4];
 } tModelDef;
 
-/* A scene node (ObjInstanceList's record, types.h ObjectInstance) with MAT3's field names. */
-typedef struct ObjInstance {
-    u32 flags;                  /* OBJ_* */
-    u32 culling;                /* its culling box: (first cull vertex << 3) | (vertices - 1), 0 none */
-    tUVMatrix *mat;             /* its matrix, relative to its parent */
-    f32 scale;
-    f32 w;                      /* the matrix's w */
-    u16 index;                  /* its object, (model << 10) | definition */
-    s16 child;
-    s16 next;
-    s16 numLights;              /* its own lights' count (0-2), -1 the scene's */
-    Lights2 *lights;
-    tTexture *texture[4];       /* a texture per level of detail in place of the model's */
-    TexTile *tile;              /* the part of the texture to load */
-    TexTile *tileSize;          /* the part of it to draw */
-    Palette *palette;           /* a palette in place of the model's */
-    u8 color[4];                /* the primitive colour: red, green, blue, alpha */
-    u8 envcolor[4];             /* the environment colour */
-} ObjInstance;
-
-/* A model file's tables of object, texture and palette definitions (MAT3 anon_romObjDefs_count_8 ...). */
-typedef struct {
-    tModelDef *romObjDefs;
-    s32 count;
-} ModelDefTable;
-typedef struct {
-    tTexture *texDefs;
-    s32 count;
-} TextureDefTable;
-typedef struct {
-    Palette *palDefs;
-    s32 count;
-} PaletteDefTable;
-
 VIEW(GfxBuf *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 VIEW(Mtx *, frame_matrix_cursor);
 #define frame_matrix_cursor frame_matrix_cursor_view
-VIEW(ObjInstance[600], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(View[], gCamera);
-#define gCamera gCamera_view
-VIEW(ModelDefTable[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
-VIEW(TextureDefTable[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
-VIEW(PaletteDefTable[], gPalDefPtrs);
-#define gPalDefPtrs gPalDefPtrs_view
-
-VIEW(f32[4][4], zoid_view_matrix);
-#define zoid_view_matrix zoid_view_matrix_view
-VIEW(f32[4][4], zoid_upright_matrix);
-#define zoid_upright_matrix zoid_upright_matrix_view
-VIEW(f32[4][4], zoid_scaled_matrix);
-#define zoid_scaled_matrix zoid_scaled_matrix_view
-VIEW(f32[3], zoid_node_position);
-#define zoid_node_position zoid_node_position_view
-
-VIEW(tTexture *, zoid_current_texture);
-#define zoid_current_texture zoid_current_texture_view
-VIEW(Vtx[], cull_vertices);
-#define cull_vertices cull_vertices_view
-VIEW(Vtx[], cull_box_vertices_a);
-#define cull_box_vertices_a cull_box_vertices_a_view
-VIEW(Vtx[], cull_box_vertices_b);
-#define cull_box_vertices_b cull_box_vertices_b_view
 
 float sqrtf(float);
 float fabsf(float);
-VIEW(Gfx *, zoid_branch_slot);
-#define zoid_branch_slot zoid_branch_slot_view
 
 /* gDPSetTileSize with its coordinates masked to their 12 bits (the coordinates here are already 10.2) */
 #define gDPSetTileSizeS(pkt, t, uls, ult, lrs, lrt) \
@@ -620,8 +545,6 @@ void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, Pa
     *gp = gfx;
 }
 
-VIEW(f32[4], asin_offsets);
-#define asin_offsets asin_offsets_view
 /* The arcsine of x (flag 0) or its arccosine (flag 1), radians, by Cody and Waite's rational approximation (MAT3
  * asincos.c, farcsine()):
  * |x| above 1/2 is reduced through asin(x) = pi/2 - 2 asin(sqrt((1 - x) / 2)); asin_offsets holds the multiples of
@@ -691,7 +614,7 @@ f32 farcsine(f32 x, s32 flag)
  * scale), then set what that level needs (reflection, lighting, palette, texture or tile, colours) and call its
  * display list. `parent` is the node above (depth 1). `palette` is the palette in force from above, loaded again
  * after a level that changes it (LOD_RESET_TLUT). Advances *gp; returns 1 if it drew, else 0. */
-s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_distance, ObjInstance *node, s32 view,
+s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent_distance, ObjectInstance *node, s32 view,
                      Palette *palette)
 {
     Gfx *gfx = *gp;
@@ -699,7 +622,7 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
     s32 lod;
     TexTile reflection;
     Gfx *dl;
-    View *cam;
+    tCamera *cam;
     f32 d[3];
     s32 drawn = 0;
     f32 dir[3];
@@ -724,14 +647,14 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
                 d[1] = parent->mat->pos[1] + node->mat->pos[1];
                 d[2] = parent->mat->pos[2] + node->mat->pos[2];
                 cam = &gCamera[view];
-                d[0] = d[0] - cam->pos[0];
-                d[1] = d[1] - cam->pos[1];
-                d[2] = d[2] - cam->pos[2];
+                d[0] = d[0] - cam->mat.pos[0];
+                d[1] = d[1] - cam->mat.pos[1];
+                d[2] = d[2] - cam->mat.pos[2];
             } else {
                 cam = &gCamera[view];
-                d[0] = node->mat->pos[0] - cam->pos[0];
-                d[1] = node->mat->pos[1] - cam->pos[1];
-                d[2] = node->mat->pos[2] - cam->pos[2];
+                d[0] = node->mat->pos[0] - cam->mat.pos[0];
+                d[1] = node->mat->pos[1] - cam->mat.pos[1];
+                d[2] = node->mat->pos[2] - cam->mat.pos[2];
             }
         }
         /* Original game: from depth 2 on, d is never set and the distance comes from whatever it holds (MAT3 the
@@ -761,7 +684,7 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
                      * 1303.8 = 4096 / pi, so a turn of the yaw moves it 8192 (two texture widths of 128 texels in
                      * 10.5), the pitch likewise. */
                     cam = &gCamera[view];
-                    lookat_reflect_fill(&frame_dynamic->la[frame_lookat_count], -cam->pos[0], cam->pos[1], cam->pos[2],
+                    lookat_reflect_fill(&frame_dynamic->la[frame_lookat_count], -cam->mat.pos[0], cam->mat.pos[1], cam->mat.pos[2],
                                     -zoid_node_position[0], zoid_node_position[1], zoid_node_position[2], 0.0f, 1.0f, 0.0f);
                     gSPLookAt(gfx++, &frame_dynamic->la[frame_lookat_count]);
                     gSPSetGeometryMode(gfx++, G_TEXTURE_GEN);
@@ -773,9 +696,9 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
                         gSPTexture(gfx++, node->texture[lod]->width << 7, node->texture[lod]->height << 6, 0,
                                    G_TX_RENDERTILE, G_ON);
                     }
-                    dir[0] = zoid_node_position[0] - cam->pos[0];
-                    dir[1] = zoid_node_position[1] - cam->pos[1];
-                    dir[2] = zoid_node_position[2] - cam->pos[2];
+                    dir[0] = zoid_node_position[0] - cam->mat.pos[0];
+                    dir[1] = zoid_node_position[1] - cam->mat.pos[1];
+                    dir[2] = zoid_node_position[2] - cam->mat.pos[2];
                     NormalVector(dir);
                     yaw = fatan2(dir[0], dir[2]);
                     reflection.uls = -yaw * 1303.7972f + 6144.0f;
@@ -806,7 +729,7 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
                                    node->tile->lrs >> 3, node->tile->lrt >> 3);
                 }
                 if ((def->lod[lod].flags & LOD_PRIM_COLOR) || (node->flags & OBJ_PRIM_COLOR)) {
-                    alpha = node->color[3];
+                    alpha = OBJ_COLOR(node->color)[3];
                     /* OBJ_FADE: full from 0 to 24 feet, gone at 80 */
                     if ((node->flags & OBJ_FADE) && node_eye_distance > 24.0f) {
                         if (node_eye_distance > 80.0f) {
@@ -815,10 +738,11 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
                             alpha = alpha * (80.0f - node_eye_distance) / 56.0f;
                         }
                     }
-                    gDPSetPrimColor(gfx++, 0, 0, node->color[0], node->color[1], node->color[2], alpha);
+                    gDPSetPrimColor(gfx++, 0, 0, OBJ_COLOR(node->color)[0], OBJ_COLOR(node->color)[1], OBJ_COLOR(node->color)[2], alpha);
                 }
                 if (node->flags & OBJ_ENV_COLOR) {
-                    gDPSetEnvColor(gfx++, node->envcolor[0], node->envcolor[1], node->envcolor[2], node->envcolor[3]);
+                    gDPSetEnvColor(gfx++, OBJ_COLOR(node->envcolor)[0], OBJ_COLOR(node->envcolor)[1], OBJ_COLOR(node->envcolor)[2],
+                                   OBJ_COLOR(node->envcolor)[3]);
                 }
                 gSPDisplayList(gfx++, dl);
                 if (zoid_tlut_mode == 0) {
@@ -859,7 +783,7 @@ s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_di
  * zoid_late_node_a or _b; during that pass only those nodes are drawn), or past the draw range. A culled node
  * (OBJ_CULL_BOX_A/B or its culling box) is drawn inside a branch the RSP skips when the box is off screen, the
  * branch dropped again if nothing in it was drawn. Advances *gp; returns how many objects it drew. */
-s32 Traverse(Gfx **gp, ObjInstance *parent, ObjInstance *node, s32 view, s32 depth, s32 more_after,
+s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth, s32 more_after,
              s32 use_parent_distance, Palette *palette)
 {
     Gfx *gfx = *gp;
@@ -868,7 +792,7 @@ s32 Traverse(Gfx **gp, ObjInstance *parent, ObjInstance *node, s32 view, s32 dep
     s32 i, j;
     s32 n;
     Vtx *box;
-    View *cam;
+    tCamera *cam;
     f32 x, z, radius;
     s32 pad[4];                 /* unused */
 
@@ -972,8 +896,8 @@ s32 Traverse(Gfx **gp, ObjInstance *parent, ObjInstance *node, s32 view, s32 dep
                     x = (box[0].v.ob[0] < box[7].v.ob[0]) ? box[7].v.ob[0] : box[0].v.ob[0];
                     z = (box[0].v.ob[2] < box[7].v.ob[2]) ? box[7].v.ob[2] : box[0].v.ob[2];
                     radius = sqrtf(x * x + z * z) * 0.0625f;
-                    x = node->mat->pos[0] - cam->pos[0];
-                    z = node->mat->pos[2] - cam->pos[2];
+                    x = node->mat->pos[0] - cam->mat.pos[0];
+                    z = node->mat->pos[2] - cam->mat.pos[2];
                     if (PC_DRAW_REACH(gViewableDistance) < sqrtf(x * x + z * z) - radius) {
                         PC_SCENE(RADIUS) goto children;
                     }
@@ -1083,19 +1007,6 @@ typedef struct tPoly {
 
 VIEW(Gfx *, frame_dl);
 #define frame_dl frame_dl_view
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
-VIEW(MtxF, zoid_lookat_matrix);
-#define zoid_lookat_matrix zoid_lookat_matrix_view
-
-VIEW(s16, ObjHead);
-#define ObjHead ObjHead_view
-
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-VIEW(Vtx *, zoid_poly_vertices);
-#define zoid_poly_vertices zoid_poly_vertices_view
 
 void *memcpy(void *, const void *, unsigned int);
 
@@ -1105,7 +1016,7 @@ void *memcpy(void *, const void *, unsigned int);
  * camera's lookat, mirrored for a mirrored track (gMirrorWaves) and rolled over for an upside-down one; the camera-
  * facing matrices; then the scene tree (Traverse), the flat polygons shown in this view (POLY_VIEW0 << view), and the
  * two late passes. */
-void zoid_draw_window(s32 view, View *eye)
+void zoid_draw_window(s32 view, tCamera *eye)
 {
     tWindowInfo *win = &ZoidWinInfo[view];
     Vp *vp = &frame_dynamic->vp[view];
@@ -1117,7 +1028,7 @@ void zoid_draw_window(s32 view, View *eye)
     s32 depth;                  /* the primitive depth set, -1 the pixels' own depth */
     s32 i;
 
-    PC_VIEW_BEGIN WorldCullObjects(view, eye->pos, 0);
+    PC_VIEW_BEGIN WorldCullObjects(view, eye->mat.pos, 0);
     memcpy(vp, win->vp, sizeof(Vp));
     vp->vp.vscale[0] = (s16)win->wwidth * 2;
     vp->vp.vscale[1] = (s16)win->wheight * 2;
@@ -1156,7 +1067,7 @@ void zoid_draw_window(s32 view, View *eye)
     if (gUpsideDownTrack) {
         f32 uv[3][3];
 
-        CopyUV(&gCamera[view], uv);
+        CopyUV(gCamera[view].mat.uvs, uv);
         RollUV(3.1415927f, uv);
         if (gMirrorWaves) {
             uv[2][0] *= -1.0f;
@@ -1164,16 +1075,16 @@ void zoid_draw_window(s32 view, View *eye)
         }
         guLookAtF(zoid_lookat_matrix, 0.0f, 0.0f, 0.0f, -uv[2][0], uv[2][1], uv[2][2], -uv[1][0], uv[1][1], uv[1][2]);
     } else if (gMirrorWaves) {
-        guLookAtF(zoid_lookat_matrix, 0.0f, 0.0f, 0.0f, -(-gCamera[view].uvs[2][0]), gCamera[view].uvs[2][1],
-                  gCamera[view].uvs[2][2], -(-gCamera[view].uvs[1][0]), gCamera[view].uvs[1][1],
-                  gCamera[view].uvs[1][2]);
+        guLookAtF(zoid_lookat_matrix, 0.0f, 0.0f, 0.0f, -(-gCamera[view].mat.uvs[2][0]), gCamera[view].mat.uvs[2][1],
+                  gCamera[view].mat.uvs[2][2], -(-gCamera[view].mat.uvs[1][0]), gCamera[view].mat.uvs[1][1],
+                  gCamera[view].mat.uvs[1][2]);
     } else {
-        guLookAtF(zoid_lookat_matrix, 0.0f, 0.0f, 0.0f, -gCamera[view].uvs[2][0], gCamera[view].uvs[2][1],
-                  gCamera[view].uvs[2][2], -gCamera[view].uvs[1][0], gCamera[view].uvs[1][1],
-                  gCamera[view].uvs[1][2]);
+        guLookAtF(zoid_lookat_matrix, 0.0f, 0.0f, 0.0f, -gCamera[view].mat.uvs[2][0], gCamera[view].mat.uvs[2][1],
+                  gCamera[view].mat.uvs[2][2], -gCamera[view].mat.uvs[1][0], gCamera[view].mat.uvs[1][1],
+                  gCamera[view].mat.uvs[1][2]);
     }
-    guLookAtF(zoid_view_matrix, gCamera[view].uvs[2][0], gCamera[view].uvs[2][1], gCamera[view].uvs[2][2], 0.0f,
-              0.0f, 0.0f, gCamera[view].uvs[1][0], gCamera[view].uvs[1][1], gCamera[view].uvs[1][2]);
+    guLookAtF(zoid_view_matrix, gCamera[view].mat.uvs[2][0], gCamera[view].mat.uvs[2][1], gCamera[view].mat.uvs[2][2], 0.0f,
+              0.0f, 0.0f, gCamera[view].mat.uvs[1][0], gCamera[view].mat.uvs[1][1], gCamera[view].mat.uvs[1][2]);
     if (gGlobalCameraFacingScale != 1) {
         s32 j;
 
@@ -1260,9 +1171,9 @@ void zoid_draw_window(s32 view, View *eye)
             /* Each vertex relative to the camera, in the scene's units, as an s16: a polygon out of that range
              * (2,048 feet) is skipped. */
             if (!(poly->flags & POLY_CAMERA_FRAME)) {
-                p[0] = poly->u.v[j].pos[0] - gCamera[view].pos[0] * 16.0f;
-                p[1] = poly->u.v[j].pos[1] - gCamera[view].pos[1] * 16.0f;
-                p[2] = poly->u.v[j].pos[2] - gCamera[view].pos[2] * 16.0f;
+                p[0] = poly->u.v[j].pos[0] - gCamera[view].mat.pos[0] * 16.0f;
+                p[1] = poly->u.v[j].pos[1] - gCamera[view].mat.pos[1] * 16.0f;
+                p[2] = poly->u.v[j].pos[2] - gCamera[view].mat.pos[2] * 16.0f;
                 if (p[0] <= -32768.0f || 32768.0f <= p[0] || p[1] <= -32768.0f || 32768.0f <= p[1] ||
                     p[2] <= -32768.0f || 32768.0f <= p[2]) {
                     goto skip;
@@ -1367,7 +1278,7 @@ void zoid_draw_window(s32 view, View *eye)
         gDPSetCycleType(frame_dl++, G_CYC_2CYCLE);
     }
     if (zoid_late_node_a >= 0) {
-        ObjInstance *n = &ObjInstanceList[zoid_late_node_a];
+        ObjectInstance *n = &ObjInstanceList[zoid_late_node_a];
 
         zoid_late_pass_a = 1;
         zoid_late_pass_b = 0;
@@ -1376,7 +1287,7 @@ void zoid_draw_window(s32 view, View *eye)
         zoid_current_texture = NULL;
     }
     if (zoid_late_node_b >= 0) {
-        ObjInstance *n = &ObjInstanceList[zoid_late_node_b];
+        ObjectInstance *n = &ObjInstanceList[zoid_late_node_b];
 
         zoid_late_pass_a = 0;
         zoid_late_pass_b = 1;
@@ -1405,18 +1316,8 @@ typedef struct BlitInstance {
     s16 top, left, bot, right;  /* 0x18 the part of the texture drawn, texels */
 } BlitInstance;
 
-VIEW(Lights2 *, gLights);
-#define gLights gLights_view
-VIEW(s16, gNumLights);
-#define gNumLights gNumLights_view
-
-VIEW(Vtx[][3200], zoid_poly_vertex_buffers);
-#define zoid_poly_vertex_buffers zoid_poly_vertex_buffers_view
-
 VIEW(BlitInstance[200], gBlitInstanceList);
 #define gBlitInstanceList gBlitInstanceList_view
-VIEW(u8[4], blit_ia_palette);
-#define blit_ia_palette blit_ia_palette_view
 
 /* Draw the frame's scene into frame_dl: the scene's lights, every window (zoid_draw_window), then, unless
  * `skip_blits`, the 2D blit instances in order (gBlitInstanceList, gNumBlitInsts of them) through the blitter: a

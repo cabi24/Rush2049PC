@@ -47,15 +47,8 @@ typedef struct { s32 x, w, h, cx; } MenuRect;          /* MAT3 videoscr.c menuRe
 VIEW(MenuRect, video_menuRect);
 #define video_menuRect video_menuRect_view
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 VIEW(ButtonInfo[], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
-
-VIEW(u8[], gCamera);
-#define gCamera gCamera_view
-VIEW(TextColor[2], flashColors);
-#define flashColors flashColors_view
 
 /* The confirm pane's text width: 160. */
 void vs_setWidth(s16 *width)

@@ -92,8 +92,6 @@ typedef struct SaveData {
 #define kSelectMenuPakStatus 2
 #define kSelectMenuSelectPlayer 3
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 extern Player gPlayers[];
@@ -113,10 +111,6 @@ VIEW(FiveParts *, recordscr_viewPane);
 #define recordscr_viewPane recordscr_viewPane_view
 VIEW(u8 *[], gPS_PakName);
 #define gPS_PakName gPS_PakName_view
-VIEW(u8 *[], gTrackTitles);
-#define gTrackTitles gTrackTitles_view
-VIEW(u8 *[], CarTitles);
-#define CarTitles CarTitles_view
 VIEW(StuntStats[], gTotalStuntStats);
 #define gTotalStuntStats gTotalStuntStats_view
 VIEW(RaceStats[], gTotalRaceStats);
@@ -231,10 +225,10 @@ void recordscr_drawSelect(void)
                 (recordscr_buttonInfo[13].angle < 0.6981317f || recordscr_buttonInfo[13].angle > 2.443461f) && recordscr_buttonInfo[13].alpha) {
                 HAL_SetTextTranslucency(recordscr_buttonInfo[13].alpha);
                 if (recordscr_buttonInfo[13].angle < 1.5707964f) {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_WhiteText);
                 } else {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_FlashText);
                 }
                 str = NAME(50, 2);
@@ -246,10 +240,10 @@ void recordscr_drawSelect(void)
             if (!recordscr_buttonInfo[i].alpha) continue;
             HAL_SetTextTranslucency(recordscr_buttonInfo[i].alpha);
             if (recordscr_buttonInfo[i].angle < 1.5707964f) {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             if (i == kSelectMenuTotals) {
@@ -740,9 +734,9 @@ void recordscr_drawView(void)
             if(!recordscr_buttonInfo[i+11].alpha)continue;
             HAL_SetTextTranslucency((f32)(u32)recordscr_buttonInfo[i+11].alpha);
             if(recordscr_buttonInfo[i+11].angle<1.5707963705062866f) {
-                TB_FlashTextColors(flashColors,flashColors_at_1);TB_SetTextColor(kTB_WhiteText);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors,flashColors_at_1);TB_SetTextColor(kTB_FlashText);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);TB_SetTextColor(kTB_FlashText);
             }
             HAL_SetMenuTextDepth(recordscr_buttonInfo[i+11].position[2]-10.0f);
             ZOID_ProjectWindow(0,recordscr_buttonInfo[i+11].position,&gCamera[0],0,screenPos);

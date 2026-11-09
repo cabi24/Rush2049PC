@@ -11,12 +11,6 @@ typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSScMsg { s16 type; s8 misc[30]; } OSScMsg;
 
-VIEW(OSMesgQueue, model_thread_queue);
-#define model_thread_queue model_thread_queue_view
-VIEW(OSMesg[8], model_thread_msgs);
-#define model_thread_msgs model_thread_msgs_view
-VIEW(u16, modelrun);
-#define modelrun modelrun_view
 VIEW(u8[], gScheduler);
 #define gScheduler gScheduler_view
 

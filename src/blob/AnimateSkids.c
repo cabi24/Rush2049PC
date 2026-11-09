@@ -16,18 +16,6 @@ struct tSkid {
     u8 color[4];        /* r, g, b, alpha */
     s32 active;         /* set once the skid has stopped: the mark fades */
 };
-/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
- * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
-typedef struct SkidList {
-    u8 dbl;
-    s32 numElements, elementSize;
-    void *list;
-    tSkid *head;        /* the marks in use */
-    tSkid *store;       /* the free marks */
-} SkidList;
-VIEW(SkidList, gSkidList);
-#define gSkidList gSkidList_view
-
 /* PC: a float to u32 that is negative while a mark's lastTime is ahead of the clock. Undefined in C, and the hosts
  * differ: x86-64 and IDO's code for the N64 go through a signed conversion and keep the bits (-125 is 0xFFFFFF83, no
  * fade), aarch64's fcvtzu gives 0 (the fade at full). So through s32 below 0, as the N64 (docs/port/SANITIZE.md). */

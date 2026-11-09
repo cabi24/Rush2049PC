@@ -1,9 +1,6 @@
 /* anim_show_on_high_score.c: a blit animator that shows its blit on the high score screen. */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 /* PC: a blit's AnimFunc that shows it on the results screen (gGameState bit 25), over the Blit's host layout
  * (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): Hide is at +0x26, where the N64's +0x1A is the low byte of X. */
 typedef struct HostBlit {

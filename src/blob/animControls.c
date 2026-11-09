@@ -27,8 +27,6 @@ typedef struct Player {
 
 extern Player gPlayers[];
 
-VIEW(u8[][152], gCamera);
-#define gCamera gCamera_view
 
 #define CONTROL_ANALOG_STICK 25     /* a control's last value, an analog source: gas and brake (rows 0, 1) show icon 26 for it */
 
@@ -90,7 +88,7 @@ s32 animControls(Blit *blt)
             RenameBlit(blt, "CONTROLS_SM", 0);
         }
         if (controls_buttonsInited[p]) {
-            ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, gCamera[p], 0, screenPos);
+            ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, &gCamera[p], 0, screenPos);
             blt->x = screenPos[0] + 55.0f * gTextPosScale * 300.0f / controls_buttonZ;
             blt->y = screenPos[1] - blt->h / 2;
             blt->alpha = controls_buttonInfo[p][action].alpha;
@@ -109,7 +107,7 @@ s32 animControls(Blit *blt)
         }
     }
     if (controls_buttonsInited[p]) {
-        ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, gCamera[p], 0, screenPos);
+        ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, &gCamera[p], 0, screenPos);
         blt->x = screenPos[0] + 75.0f * gTextPosScale * 300.0f / controls_buttonZ;
         blt->y = screenPos[1] - blt->h / 2;
         blt->half18 = 0x7F00;

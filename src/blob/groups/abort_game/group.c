@@ -4,8 +4,6 @@
 /* An audio manager command (GetCmd): its operation (7: stop every effect). */
 typedef struct MessageNode {s16 id;s8 operation,used;float payload[4];void *entity;} MessageNode;
 
-VIEW(void *, gEnvList);
-#define gEnvList gEnvList_view
 VIEW(u8[], audio_lock_queue);
 #define audio_lock_queue audio_lock_queue_view
 VIEW(u8[], audio_command_queue);

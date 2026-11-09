@@ -17,40 +17,6 @@ struct tTexture {
 #define MAP_ROAD 0xE          /* the map's colours (4-bit texels): the road, */
 #define MAP_EDGE 0xD          /* and its border */
 
-typedef struct PathPoint {
-    s16 pos[3];
-} PathPoint;
-
-typedef struct PathSet {
-    /* 0x0 */ u8 type;
-    /* 0x1 */ u8 pad1[9];
-    /* 0xA */ u16 count;
-    /* 0xC */ PathPoint *points;
-} PathSet; /* 0x10 */
-
-typedef struct PathGraph {
-    /* 0x0 */ u16 count;
-    /* 0x4 */ PathPoint *points;
-    /* 0x8 */ u8 numSets;
-    /* 0xC */ PathSet *sets;
-} PathGraph;
-
-typedef struct {
-    s32 x;
-    s32 y;
-} Pos;
-
-VIEW(Pos[], hud_mapPos);
-#define hud_mapPos hud_mapPos_view
-VIEW(s16[3], gPathMax);
-#define gPathMax gPathMax_view
-VIEW(s16[3], gPathMin);
-#define gPathMin gPathMin_view
-VIEW(PathGraph, gResPath);
-#define gResPath gResPath_view
-VIEW(PathPoint *, gResPathPtList);
-#define gResPathPtList gResPathPtList_view
-
 /* The track map: hidden with 5 windows or more or when the HUD hides it. The first time (animID's MAP_FIRST_DRAW)
  * it takes the medium texture with 4 windows, places itself at hud_mapPos, and draws the track into its texture
  * (4-bit texels, two a byte): every point of the path (gResPath) as a 5x5 square of road colour with a border colour
@@ -112,20 +78,20 @@ s32 hud_animTrackMap(tBlit *blt) {
             TEXELS(blt->texture)[pz * kMapSize / 2 + px] = 0;
         }
     }
-    for (i = 0; i < gResPath.count; i++) {
-        if (i >= gResPath.count) {
-            for (j = 0; j < gResPath.numSets; j++) {
-                if (&gResPathPtList[i] >= gResPath.sets[j].points && &gResPathPtList[i] < gResPath.sets[j].points + gResPath.sets[j].count) {
+    for (i = 0; i < gResPath.numPts; i++) {
+        if (i >= gResPath.numPts) {
+            for (j = 0; j < gResPath.numAlt; j++) {
+                if (&gResPathPtList[i] >= gResPath.alt[j].pts && &gResPathPtList[i] < gResPath.alt[j].pts + gResPath.alt[j].numPts) {
                     break;
                 }
             }
-            if (gResPath.sets[j].type == 0) {
-                i += gResPath.sets[j].count - 1;
+            if (gResPath.alt[j].resurrect == 0) {
+                i += gResPath.alt[j].numPts - 1;
                 continue;
             }
         }
-        px = (gResPath.points[i].pos[0] - gPathMin[0]) * w / dx + offx;
-        pz = (gResPath.points[i].pos[2] - gPathMin[2]) * h / dz + offz;
+        px = (gResPath.pts[i][0] - gPathMin[0]) * w / dx + offx;
+        pz = (gResPath.pts[i][2] - gPathMin[2]) * h / dz + offz;
         for (y = pz - 2; y <= pz + 2; y++) {
             for (x = px - 2; x <= px + 2; x++) {
                 if (x >= 0 && x < kMapSize && y >= 0 && y < kMapSize) {

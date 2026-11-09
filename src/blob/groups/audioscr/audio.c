@@ -10,19 +10,12 @@ typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } Bu
 VIEW(TextState, gText);
 #define gText gText_view
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 VIEW(Options, gOptions);
 #define gOptions gOptions_view
 
-VIEW(TextColor[2], flashColors);
-#define flashColors flashColors_view
 VIEW(ButtonInfo[], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 
-VIEW(u8[], gCamera);
-#define gCamera gCamera_view
 VIEW(s32[2], gJust);
 #define gJust gJust_view
 

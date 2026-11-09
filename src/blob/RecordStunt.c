@@ -9,8 +9,6 @@ extern PlayerPad gPlayers[];
 
 VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
-VIEW(StuntPlayer[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
 
 /* Adds each player's session to its profile's stunt stats for the arena and to the totals: the best stunt, the best
  * points a minute, the points, the minutes, the crashes and each kind of stunt; then writes the profile's stats. A

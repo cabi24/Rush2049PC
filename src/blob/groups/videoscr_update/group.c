@@ -13,22 +13,14 @@ typedef struct {
 VIEW(Button[], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
 
 VIEW(intptr_t, video_blit);
 #define video_blit video_blit_view
-
-VIEW(intptr_t, video_gTitlePane);
-#define video_gTitlePane video_gTitlePane_view
 
 /* Removes the video screen's panes (the permanent ones stay). */
 void video_uninitButtons(void) {
@@ -113,9 +105,9 @@ void video_updateButtons(void) {
         WPitchUV(video_buttonInfo[i].ang - 1.5707964f, video_buttonInfo[i].mat);
         memcpy(video_buttonInfo[i + 4].mat, video_buttonInfo[i].mat, 36);
         if (1.5707964f < video_buttonInfo[i].ang)
-            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(video_buttonInfo[i].handle, texture, -1);
         ZOID_SetTexture(video_buttonInfo[i + 4].handle, texture, -1);
         if ((vis = video_validOption(i)) == 0) {
@@ -157,10 +149,6 @@ void video_updateButtons(void) {
     ScaleUV(video_buttonInfo[8].mat, video_buttonInfo[8].mat, 0.4f);
     video_buttonsJustInited = 0;
 }
-
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 VIEW(u8[], gOptions);
 #define gOptions gOptions_view

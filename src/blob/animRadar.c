@@ -1,13 +1,6 @@
 /* animRadar: the radar's frame, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct { s32 x, y; } Pos;
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-VIEW(Pos[][4], radarPos);
-#define radarPos radarPos_view
-
 /* The radar of player animID: hidden (and its animation stopped) past the windows, in attract mode or with fewer than
  * two cars; hidden when the HUD hides it or the car finished; else placed at radarPos, the medium texture and alpha
  * 0x60 on split screens. Its size goes to radarWidth and radarHeight for the blips. Returns whether hidden, 1. */

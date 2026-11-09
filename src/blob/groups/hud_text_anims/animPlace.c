@@ -1,19 +1,6 @@
 /* animPlace: each player's place ("2/6"), a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct { s32 x, y; } Pos;
-typedef struct { u8 r, g, b, a; } Rgba;
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-VIEW(s16, gNumCars);
-#define gNumCars gNumCars_view
-
-VIEW(Pos[4][4], placePos);
-#define placePos placePos_view
-VIEW(Rgba[], hud_playerColor);
-#define hud_playerColor hud_playerColor_view
-
 /* PC: the place's and the count's digits (docs/port/MORECARS.md 7), n from 1 to 99: one or two. */
 static s32 place_digits(char *out, s32 n)
 {

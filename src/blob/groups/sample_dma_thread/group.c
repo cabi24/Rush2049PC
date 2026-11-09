@@ -36,9 +36,6 @@ void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-VIEW(s32, sample_dma_pi_queue);
-#define sample_dma_pi_queue sample_dma_pi_queue_view
-
 /* PC: the DMA request list has its own storage, and its done queue follows the 8-byte request pointer
  * (sample_dma_next.c's DmaList, docs/port/MUSYX_DATA.md 8.1). The fields used here: */
 typedef struct SampleDmaList {

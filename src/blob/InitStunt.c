@@ -3,12 +3,6 @@
 
 extern void *memset(void *s, s32 c, u32 n);
 
-VIEW(s32, gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
-
-VIEW(s32, gStuntInfo);
-#define gStuntInfo gStuntInfo_view
-
 /* Clears the four players' stunt scores (gStuntPlayer: MAT3 tStuntPlayer, 0x78 bytes each) and their stunts in
  * progress (gStuntInfo: MAT3 tStuntInfo, 0x7C bytes each, the N64's inline ResetStunts: each one's active word
  * gets 0x15000000), and the stunt clock.

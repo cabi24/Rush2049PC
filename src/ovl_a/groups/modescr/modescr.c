@@ -20,15 +20,10 @@ typedef struct Blit Blit;
 VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
@@ -87,8 +82,8 @@ void modescr_updateButtons(void)
             if (modescr_buttonInfo[buttonIdx].position[1] < prevPos[1] - 180.0f * gFrameSeconds) modescr_buttonInfo[buttonIdx].position[1] = prevPos[1] - 180.0f * gFrameSeconds;
         }
         WPitchUV(modescr_buttonInfo[buttonIdx].angle - 1.5707964f, modescr_buttonInfo[buttonIdx].matrix);
-        if (modescr_buttonInfo[buttonIdx].angle > 1.5707964f) tex = MBOX_FindTexture_WORK(modescr_select_texture_name, (s16 *)&texIdx, 0, gNumModels - 1, 1);
-        else tex = MBOX_FindTexture_WORK(modescr_button_texture_name, (s16 *)&texIdx, 0, gNumModels - 1, 1);
+        if (modescr_buttonInfo[buttonIdx].angle > 1.5707964f) tex = MBOX_FindTexture_WORK(modescr_select_texture_name, (s16 *)&texIdx, 0, gNumModels[0] - 1, 1);
+        else tex = MBOX_FindTexture_WORK(modescr_button_texture_name, (s16 *)&texIdx, 0, gNumModels[0] - 1, 1);
         ZOID_SetTexture((s16)modescr_buttonInfo[buttonIdx].id, tex, -1);
         if (!modescr_optionValid(buttonIdx)) MBOX_HideObject(modescr_buttonInfo[buttonIdx].id, 0, 15);
         else {

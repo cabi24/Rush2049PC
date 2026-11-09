@@ -23,7 +23,6 @@ struct Basis;
 struct Blit;
 struct Block;
 struct BSTNode;
-struct Box104;
 struct C96Handle;
 struct CCar;
 struct CCol;
@@ -230,15 +229,13 @@ struct SynthVoicePriorityView;
 struct SynthVoiceVariablesView;
 struct Table;
 struct Target;
-struct TexDef;
 struct TexRect;
-struct Texture;
+struct TexTile;
 struct Tire;
 struct TireDesc;
 struct TexTile;
 struct TrackNode;
 struct Tree;
-struct surftyp;
 struct V3s;
 struct VCar;
 struct Vec3;
@@ -262,16 +259,20 @@ struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
 struct tAudioSequence;
+struct pathtyp;
+struct tBasicTargetPath;
 struct tCircuit;
 struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
 struct tMemoryChunk;
 struct tMiniModelData;
 struct tModelData;
+struct tModelDef;
 struct tModelPart;
 struct tNewSkid;
 struct tPoly;
 struct tPS_File;
+struct tPaletteDef;
 struct tPlayerProfile;
 struct tSfxCmd;
 struct tSfxEmitter;
@@ -285,7 +286,6 @@ struct tree_desc_s;
 struct z_stream_s;
 union Color;
 union InputSequence;
-union Vtx;
 union tAudioMsg;
 union tRGBA;
 
@@ -403,6 +403,12 @@ typedef struct Vtx_t { /* 0x10 bytes */
     s16 tc[2]; /* 0x8 */
     u8 cn[4];  /* 0xC */
 } Vtx_t;
+
+/* A vertex (libultra Vtx, as the game uses it: no normals). */
+typedef union Vtx { /* 0x10 bytes */
+    Vtx_t v;
+    s64 force_structure_alignment;
+} Vtx;
 
 typedef union __OSInodeUnit { /* 0x2 bytes */
     struct { u8 bank; u8 page; } inode_t;
@@ -661,6 +667,19 @@ typedef struct ResourceRange { /* 0x4 bytes */
     u16 first; /* 0x2 */
 } ResourceRange;
 
+/* A screen position in 16-bit coordinates (the battle HUD's icon and ammunition places, ammoPos, powerupPos). */
+typedef struct ScreenPos16 { /* 0x4 bytes */
+    s16 x; /* 0x0 */
+    s16 y; /* 0x2 */
+} ScreenPos16;
+
+/* A circuit type's random fog or wind (gCircuitFog, gCircuitWind): the draw is irand(range); no code reads the first
+ * halfword. */
+typedef struct CircuitChance { /* 0x4 bytes */
+    u16 unused; /* 0x0 */
+    u16 range;  /* 0x2 */
+} CircuitChance;
+
 typedef struct ScreenButton { /* 0x40 bytes */
     s32 type;      /* 0x0 */
     s32 handle;    /* 0x4 */
@@ -825,15 +844,6 @@ typedef struct static_tree_desc_s { /* 0x20 bytes */
 } static_tree_desc_s;
 
 /* ---- maths: vectors, matrices, angles, random numbers */
-
-typedef union CullVertex { /* 0x10 bytes */
-    Vtx_t v;
-    s64 force_structure_alignment;
-} CullVertex;
-
-typedef struct UnitMatrix { /* 0x24 bytes */
-    f32 values[9]; /* 0x0 */
-} UnitMatrix;
 
 /* ---- audio: the sound manager, effects, music and the MusyX sound library
  *
@@ -1082,10 +1092,14 @@ typedef struct tOrderedList { /* 0x18 bytes */
 
 /* ---- scene: the scene objects (mbox and zoid), models, textures, windows, the sky and the world */
 
+/* A window (MAT3 tWindowInfo, ZoidWinInfo[4]; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes):
+ * its viewport and scissor rectangle, then as bytes the flags, the view angles and their tangents, the size and
+ * centre, the aspect, the clip planes and the fog (min, max, colour), which the window files read through their own
+ * tWindowInfo: the data loader keeps this declaration's field runs for the own-BSS datum (docs/code/race.md 6). */
 typedef struct ArbEntry { /* 0x50 bytes */
-    void *f0;    /* 0x0 */
-    void *f4;    /* 0x8 */
-    u8 unk8[64]; /* 0x10 */
+    void *vp;    /* 0x0 its viewport (vp0 ...) */
+    void *s;     /* 0x8 its scissor rectangle (scissor0 ...) */
+    u8 rest[64]; /* 0x10 */
 } ArbEntry;
 
 typedef struct DmaList { /* 0x18 bytes */
@@ -1105,32 +1119,53 @@ typedef struct Item12 { /* 0x18 bytes */
     void *texBase;               /* 0x10 */
 } Item12;
 
-typedef struct ModelList { /* 0x10 bytes */
-    struct Model *models; /* 0x0 */
-    s32 count;            /* 0x8 */
-} ModelList;
+/* A loaded model file's tables, one entry per wave instance (waves.c's SetupWaveModel fills them from the file): its
+ * object definitions (MAT3 tModelDef, 0x58 bytes each; gRomObjDefPtrs), its textures (MAT3 tTexture, 0x24 bytes;
+ * gTexDefPtrs), its palettes (MAT3 anon_name_start_18, 0x18 bytes; gPalDefPtrs), each sorted by name; and the
+ * track's target paths (MAT3 tBasicTargetPath, 0x24 bytes; gTargetPaths). A handle to one of them is the wave
+ * instance's number times 1024 plus its index here. The records keep their N64 layout (a file holds them); the files
+ * that read them define the record types. */
+typedef struct ModelDefTable { /* 0x10 bytes (MAT3 anon_romObjDefs_count_8) */
+    struct tModelDef *romObjDefs; /* 0x0 */
+    s32 count;                    /* 0x8 */
+} ModelDefTable;
+
+typedef struct TextureDefTable { /* 0x10 bytes (MAT3 anon_texDefs_count_8) */
+    struct tTexture *texDefs; /* 0x0 */
+    s32 count;                /* 0x8 */
+} TextureDefTable;
+
+typedef struct PaletteDefTable { /* 0x10 bytes (MAT3 anon_palDefs_count_8) */
+    struct tPaletteDef *palDefs; /* 0x0 */
+    s32 count;                   /* 0x8 */
+} PaletteDefTable;
+
+typedef struct TargetPathTable { /* 0x10 bytes (MAT3 anon_paths_count_8) */
+    struct tBasicTargetPath *paths; /* 0x0 */
+    s32 count;                      /* 0x8 */
+} TargetPathTable;
 
 /* A scene node, an entry of ObjInstanceList (MAT3 ObjInstance; the N64's 0x44 bytes with the pointers widened):
  * its flags (OBJ_*, scene.h), its culling word, its matrix (a tUVMatrix, relative to its parent), the object handle
  * ((model << 10) | definition; 0xFFFF a free node), the first child and the next sibling (-1 none), its lights, a
  * texture for each level of detail, its tile, tile size and palette, and two colours. */
 typedef struct ObjectInstance { /* 0x68 bytes */
-    u32 flags;           /* 0x0 */
-    u32 culling;         /* 0x4 */
-    void *mat;           /* 0x8 */
-    f32 scale;           /* 0x10 */
-    f32 w;               /* 0x14 */
-    u16 index;           /* 0x18 */
-    s16 child;           /* 0x1A */
-    s16 next;            /* 0x1C */
-    s16 numLights;       /* 0x1E */
-    void *lights;        /* 0x20 */
-    void *texture[4];    /* 0x28 */
-    void *tile;          /* 0x48 */
-    void *tileSize;      /* 0x50 */
-    void *palette;       /* 0x58 */
-    u32 color;           /* 0x60 */
-    u32 envcolor;        /* 0x64 */
+    u32 flags;                    /* 0x0 OBJ_* (scene.h) */
+    u32 culling;                  /* 0x4 its culling box: (first cull vertex << 3) | 7 (ZOID_BuildCullingList), 0 none */
+    struct tUVMatrix *mat;        /* 0x8 its matrix, relative to its parent */
+    f32 scale;                    /* 0x10 */
+    f32 w;                        /* 0x14 the matrix's w */
+    u16 index;                    /* 0x18 its object, (model << 10) | definition; 0xFFFF a free node */
+    s16 child;                    /* 0x1A its first child, -1 none */
+    s16 next;                     /* 0x1C its next sibling, -1 none */
+    s16 numLights;                /* 0x1E its own lights' count, -1 the scene's */
+    struct Lights2 *lights;       /* 0x20 its own lights */
+    struct tTexture *texture[4];  /* 0x28 a texture per level of detail in place of the model's, NULL none */
+    struct TexTile *tile;         /* 0x48 the part of the texture to load in place of the model's */
+    struct TexTile *tileSize;     /* 0x50 the part of it to draw */
+    struct tPaletteDef *palette;  /* 0x58 a palette in place of the model's */
+    u32 color;                    /* 0x60 the primitive colour, OBJ_COLOR */
+    u32 envcolor;                 /* 0x64 the environment colour, OBJ_COLOR */
 } ObjectInstance;
 
 typedef struct PcViewport { /* 0x10 bytes */
@@ -1746,13 +1781,16 @@ typedef struct tBlastMat { /* 0x8 bytes */
     struct tUVMatrix *mat; /* 0x0 */
 } tBlastMat;
 
+/* A pool of fixed-size elements (MAT3 tStatList; InitStatLL, GetStatLLE, FreeStatLLE): its elements linked through
+ * their first pointer (and their second when dbl, doubly linked), the ones in use from head, the free ones from store.
+ * The PC's layout: the pointers are host pointers (40 bytes, docs/port/POINTERS.md 9). */
 typedef struct tStatList { /* 0x28 bytes */
-    u8 flag;     /* 0x0 */
-    s32 count;   /* 0x4 */
-    s32 size;    /* 0x8 */
-    void *mem;   /* 0x10 */
-    void *head;  /* 0x18 */
-    void *store; /* 0x20 */
+    u8 dbl;          /* 0x0 doubly linked */
+    s32 numElements; /* 0x4 */
+    s32 elementSize; /* 0x8 the host size of an element */
+    void *list;      /* 0x10 the elements */
+    void *head;      /* 0x18 the ones in use */
+    void *store;     /* 0x20 the free ones */
 } tStatList;
 
 /* ---- track: tracks, the road tree, targets, paths and checkpoints */
@@ -1933,8 +1971,8 @@ typedef struct tMiniModelData { /* 0x40 bytes */
 } tMiniModelData;
 
 /* The surface tree (MAT3 stree.c): the track's collision surfaces, from its collision WAD (InitSTree). No pointers,
- * the same layout on both; the files read stree_save, stree_svert and stree_nodes (declared u8 *) through views of
- * these. A vertex position is in 1/32 feet: whole feet in pos, the three axes' 5-bit fractions in overflow. */
+ * the same layout on both. A vertex position is in 1/32 feet: whole feet in pos, the three axes' 5-bit fractions in
+ * overflow. */
 /* The collision WAD's header (MAT3 stheadertyp, gRoadHead): how many of each record follow it, in this order: the
  * road path (gRoadPath, MAT3 pathtyp, 0x84 bytes each), the tree's nodes, the surfaces, the vertices, the saved
  * surfaces, the vertex lists, the surface lists (InitSTree). */
@@ -1947,6 +1985,16 @@ typedef struct stheadertyp { /* 0x10 bytes */
     u16 vlnum;    /* 0xA bytes of vertex lists */
     u32 slnum;    /* 0xC bytes of surface lists */
 } stheadertyp;
+
+/* A surface (MAT3 surftyp, stree_surf[]): a road or wall polygon of the collision WAD. */
+typedef struct surftyp { /* 0x18 bytes */
+    u16 flags;      /* 0x00 low nibble its kind (5 and 6: walls the cars bounce softly off, PointInSurf), 15 out of
+                     * the road (RemoveCollisionObject); 0x2000 soft too, a half pipe (resurrect) */
+    u16 snd_flags;  /* 0x02 low nibble its vertex count; 0x10 a push strip, 0x20 moved by a target or a trigger
+                     * polygon, 0x30 moving at all; bits 11-15 the push speed (8 mph steps) or the target's number */
+    s16 uvs[3][3];  /* 0x04 its orientation, 1.0 = 0x4000: uvs[0] the direction it moves */
+    u16 vli;        /* 0x16 its vertex list, a byte offset in stree_vlist */
+} surftyp;
 
 typedef struct sverttyp { /* 0x8 bytes, stree_svert[] */
     s16 pos[3];   /* 0x0 whole feet */
@@ -1994,12 +2042,6 @@ typedef struct TrackLoadInfo { /* 0x2C bytes */
     TrackLoadState other;     /* 0x24 */
 } TrackLoadInfo;
 
-typedef struct WorldPoint { /* 0x6 bytes */
-    s16 x; /* 0x0 */
-    s16 y; /* 0x2 */
-    s16 z; /* 0x4 */
-} WorldPoint;
-
 typedef struct tCheckpoints { /* 0x32C bytes */
     s16 startTime;          /* 0x0 */
     s16 loopPt;             /* 0x2 */
@@ -2025,12 +2067,21 @@ typedef struct CarPalette { /* 0x18 bytes */
     u32 data;      /* 0x14 */
 } CarPalette;
 
-typedef struct CarPartSet { /* 0x40 bytes */
-    s32 frame;        /* 0x0 */
-    u8 unknown04[20]; /* 0x4 */
-    s32 weap;         /* 0x18 */
-    u8 unknown1c[36]; /* 0x1C */
-} CarPartSet;
+/* A car's scene objects (MAT3 CarParts; the N64's is 0x40 bytes, without MAT3's headlights, trim and hood sheens),
+ * gCarParts[slot]: each an s32 scene handle whose low half, (s16)handle, is the node (ObjInstanceList's index). */
+typedef struct CarParts { /* 0x40 bytes */
+    s32 frame;         /* 0x00 the body: the parent of the rest */
+    s32 extraparts[3]; /* 0x04 the rocket car's flames (StartFrame) */
+    s32 hood;          /* 0x10 shown in the cockpit view */
+    s32 sheen;         /* 0x14 the environment-mapped shine over the body */
+    s32 weap;          /* 0x18 the battle weapon */
+    s32 tires[4];      /* 0x1C */
+    s32 lfSpark;       /* 0x2C the sparks: front left, rear left, front right, rear right, under the car */
+    s32 lrSpark;       /* 0x30 */
+    s32 rfSpark;       /* 0x34 */
+    s32 rrSpark;       /* 0x38 */
+    s32 bSpark;        /* 0x3C */
+} CarParts;
 
 typedef struct Collision16 { /* 0x10 bytes */
     f32 front;  /* 0x0 */
@@ -2273,12 +2324,6 @@ typedef struct PcShotObj { /* 0x48 bytes */
     void *shotInfo; /* 0x40 */
 } PcShotObj;
 
-typedef struct RGB { /* 0x3 bytes */
-    u8 r; /* 0x0 */
-    u8 g; /* 0x1 */
-    u8 b; /* 0x2 */
-} RGB;
-
 /* The scorch marks on the track (MAT3 worlddam.c's DamagePolys, anon_full_oldest_68): a ring of 25 polygons, the
  * oldest replaced once full. Host layout. */
 typedef struct RingState { /* 0xD0 bytes */
@@ -2293,9 +2338,21 @@ typedef struct Shield { /* 0x34 bytes */
     UVMat mat; /* 0x4 */
 } Shield;
 
+/* A tracker's times (MAT3 tStuntTimes). */
+typedef struct tStuntTimes { /* 0x8 bytes */
+    f32 startTime; /* 0x0 */
+    f32 endTime;   /* 0x4 */
+} tStuntTimes;
+
+/* A player's stunt in progress (MAT3 tStuntInfo, gStuntInfo[4]). */
 typedef struct StuntInfo { /* 0x7C bytes */
-    s32 active;  /* 0x0 */
-    u8 pad[120]; /* 0x4 */
+    s32 active;          /* 0x00 the trackers running: 0x1 on the two wheels of a side, 0x2 on the front wheels, 0x4
+                          * on the back ones, 0x10 a spin, 0x20 a roll, 0x40 a flip, 0x80 the combination, 0x100 air
+                          * time; above, each axis's turn direction */
+    f32 stuntW[4][3];    /* 0x04 rotation snapshots and sums */
+    tStuntTimes time[4]; /* 0x34 each tracker's start and end times */
+    f32 endTime;         /* 0x54 */
+    f32 initUV[3][3];    /* 0x58 */
 } StuntInfo;
 
 /* A power-up on the battle arena (MAT3 tBattlePowerUpT, gBattlePowerUps.tS[]): its target. Host layout. */
@@ -2309,22 +2366,28 @@ typedef struct tBattlePowerUpT { /* 0x10 bytes */
  * appears again (health, invisibility, shield). */
 typedef struct tBattlePowerUps { /* 0x18 bytes */
     s8 num;               /* 0x0 */
-    u8 idx[3];            /* 0x1 MAT3 hIdx, sIdx, iIdx: the power-up each kind last came at */
+    s8 hIdx;              /* 0x1 the power-up spot health last came at */
+    s8 sIdx;              /* 0x2 the shield's */
+    s8 iIdx;              /* 0x3 invisibility's */
     f32 healthTLeft;      /* 0x4 */
     f32 invsTLeft;        /* 0x8 */
     f32 shieldTLeft;      /* 0xC */
     tBattlePowerUpT *tS;  /* 0x10 the power-ups (a heap block) */
 } tBattlePowerUps;
 
-/* A car's cannon flash (MAT3 tCMuzzleObj, gCannMuzzleObjs[4]). The data loader lays it out by this declaration, so
- * its other members stay bytes; weapons.c reads it whole as CMuzzleObj. */
+/* A car's cannon flash (MAT3 tCMuzzleObj, gCannMuzzleObjs[4]): the five flame objects and their matrices, the
+ * ripple and its animation. */
 typedef struct tCMuzzleObj { /* 0x148 bytes */
-    u8 mdls_mats[260];  /* 0x0 mdls[5] (s32), mats[5] (UVMat) */
+    s32 mdls[5];        /* 0x0 the flames' scene objects, -1 none */
+    MuzzleMat mats[5];  /* 0x14 */
     s32 ripdl;          /* 0x104 the ripple's scene object, -1 none */
-    u8 mat[48];         /* 0x108 the ripple's UVMat */
-    s8 ripCnt;          /* 0x138 -1 none */
-    u8 ripTIdx_ripTime[11]; /* 0x139 ripTIdx, on, ripScale, ripTime */
-    f32 onTime;         /* 0x144 */
+    UVMat mat;          /* 0x108 the ripple's */
+    s8 ripCnt;          /* 0x138 its frame, -1 none */
+    s8 ripTIdx;         /* 0x139 its texture (gRipTextures) */
+    s16 on;             /* 0x13A the flames show */
+    f32 ripScale;       /* 0x13C */
+    f32 ripTime;        /* 0x140 to its next frame */
+    f32 onTime;         /* 0x144 the flames have shown */
 } tCMuzzleObj;
 
 /* A car of a circuit (MAT3 tCircuitCar, gCircuitCars[6]: the arena holds six; the data loader knows the first):
@@ -2340,15 +2403,7 @@ typedef struct tCircuitCar { /* 0x4C bytes */
 
 /* ---- camera: the cameras */
 
-/* A camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. The data loader lays gCamera
- * out by this declaration, its bytes from 0x30 as bytes; the camera files read it whole as tCamera (below). */
-typedef struct CameraView { /* 0x98 bytes */
-    f32 uvs[3][3];     /* 0x0 its orientation */
-    f32 pos[3];        /* 0x24 its position */
-    u8 rest[104];      /* 0x30 n64, fcam, view2spring, slot */
-} CameraView;
-
-/* A camera whole (MAT3 anon_mat_n64_98): the camera files' view of gCamera (VIEW(tCamera[], gCamera)). */
+/* A window's camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. */
 typedef struct tCamera { /* 0x98 bytes */
     UVMat mat;        /* 0x00 its orientation and position, as the cameras set them */
     UVMat n64;        /* 0x30 what the N64 draws by: mat with four elements negated (UpdateCameras) */
@@ -2400,6 +2455,13 @@ typedef struct tHudIcon { /* 0x34 bytes */
     s16 idx;          /* 0x2 */
     UVMatrixRows mat; /* 0x4 */
 } tHudIcon;
+
+/* A window's battle coin (MAT3 anon_idx_mat_34, battleCoin[4]): its 3D object (-1 none) and its matrix. */
+typedef struct tBattleCoin { /* 0x34 bytes */
+    s16 idx;          /* 0x0 */
+    s16 pad2;         /* 0x2 */
+    UVMatrixRows mat; /* 0x4 */
+} tBattleCoin;
 
 typedef struct tPalette { /* 0x18 bytes */
     char name[16]; /* 0x0 */

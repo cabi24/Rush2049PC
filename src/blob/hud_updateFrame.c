@@ -9,8 +9,6 @@ typedef struct {
 
 /* The car and model records are the PC's pc_cars and pc_models (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern Pad gPlayers[];
-VIEW(u8[6][8], TrackTimeStr);
-#define TrackTimeStr TrackTimeStr_view
 
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
  * 8 hold its 6; AddressSanitizer saw 12 cars write past them), and in a race of more than 6 cars the HUD order

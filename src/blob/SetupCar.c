@@ -16,27 +16,11 @@ typedef struct tCarData {
     u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384];
 } tCarData;
 
-/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
-typedef struct CarParts {
-    int frame;                  /* 0x00 */
-    u8 pad04[12];               /* extraparts */
-    int hood;                   /* 0x10 */
-    u8 pad14[8];                /* sheen, weap */
-    int tires[4];               /* 0x1C */
-    int sparks[5];              /* 0x2C lfSpark, lrSpark, rfSpark, rrSpark, bSpark */
-} CarParts;
-
 typedef struct OSThread OSThread;
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
 
 VIEW(OSThread, model_thread);
 #define model_thread model_thread_view
 
-/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
-typedef struct TexDef TexDef;
-VIEW(TexDef *[24], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
 
@@ -80,11 +64,11 @@ void SetupCar(s16 slot, u8 type, int for_game)
  MBOX_ShowObject(parts->frame,1,15);
  if(car->view!=1)MBOX_HideObject(parts->hood,1,15);
  if(for_game) {
-  MBOX_HideObject(parts->sparks[0],1,15);
-  MBOX_HideObject(parts->sparks[1],1,15);
-  MBOX_HideObject(parts->sparks[2],1,15);
-  MBOX_HideObject(parts->sparks[3],1,15);
-  MBOX_HideObject(parts->sparks[4],1,15);
+  MBOX_HideObject(parts->lfSpark,1,15);
+  MBOX_HideObject(parts->lrSpark,1,15);
+  MBOX_HideObject(parts->rfSpark,1,15);
+  MBOX_HideObject(parts->rrSpark,1,15);
+  MBOX_HideObject(parts->bSpark,1,15);
   if(type==13 || car->view<2) {
    for(i=0;i<4;i++)MBOX_HideObject(gCarParts[slot].tires[i],1,15);
    if(type==13) {

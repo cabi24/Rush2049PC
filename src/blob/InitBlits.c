@@ -1,9 +1,6 @@
 /* InitBlits: empty the blit pool (MAT3 blit.c). */
 #include "game/game.h"
 
-VIEW(intptr_t, inactiveBlit);
-#define inactiveBlit inactiveBlit_view
-
 VIEW(intptr_t, BlitPtrs);
 #define BlitPtrs BlitPtrs_view
 

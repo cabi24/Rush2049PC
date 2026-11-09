@@ -10,14 +10,6 @@ typedef struct V3 { float x, y, z; } V3;
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-VIEW(V3[], steady_start_pos);
-#define steady_start_pos steady_start_pos_view
-
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
-
-VIEW(V3[], cur_acc);
-#define cur_acc cur_acc_view
 
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;
@@ -117,9 +109,9 @@ void steady_move_cam(s16 mode, Cr *car, f32 *pos, void *uvs) {
             car->mode = v;
             car->mode2 = v;
             if (car->mode == 1) {
-                cur_acc[car->player].x = 0;
-                cur_acc[car->player].y = 0;
-                cur_acc[car->player].z = 0;
+                cur_acc[car->player][0] = 0;
+                cur_acc[car->player][1] = 0;
+                cur_acc[car->player][2] = 0;
             }
         }
         break;

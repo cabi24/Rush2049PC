@@ -7,8 +7,6 @@ typedef struct tVisual {void *next;s16 index,objnum,slot;u16 pad;u32 data,timeSt
 typedef struct tUVMatrix {f32 uvs[3][3];} tUVMatrix;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateWingFlame reads. */
 typedef struct tCarData {u8 pad0[0xE8];u32 appearance;u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];s8 camera,view,saveview,carMine;u8 pad360[0x380 - 0x360];tPadState *player;u8 pad384[0x3B8 - 0x384];} tCarData;
-VIEW(tUVMatrix, unitmatrix);
-#define unitmatrix unitmatrix_view
 
 /* The flame of car v->slot's wing on side v->data (0 left, 1 right; VIS_WING_FLAMES + side), each frame: while the
  * wing is out (its visual's data bit 0x10, set by AnimateWing) the flame shows, stretched along its Y axis by the

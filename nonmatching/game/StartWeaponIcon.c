@@ -33,21 +33,6 @@ typedef struct Model {
     u8 pad658[0x808 - 0x658];
 } Model;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
-/* PC: a target info record is 0x40 bytes (its first four words are pointers), every field spelled out as in the
- * other views, whichever one the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
-typedef struct TargetInfo {
-    char *name, *file;
-    void *start;
-    void *visFunc;
-    s16 kind;
-    u16 flags;
-    s16 shape;
-    s8 category, element;
-    f32 value;
-    s32 startSnd;         /* 0x1c, PC 0x2c */
-    s32 w20, w24, w28;
-    f32 f2C;
-} TargetInfo;
 typedef struct Target {
     u8 pad00[4];
     u8 Flags;             /* 0x04 */
@@ -61,13 +46,6 @@ typedef struct Target {
     u8 pad52[0x5c - 0x52];
     s8 slot;              /* 0x5c */
 } Target;
-
-VIEW(TargetInfo[], targetInfo);
-#define targetInfo targetInfo_view
-VIEW(s32[8], ammoCnts);
-#define ammoCnts ammoCnts_view
-VIEW(CollSize[], collsize);
-#define collsize collsize_view
 
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
@@ -88,7 +66,7 @@ void StartWeaponIcon(Target *t)
             t->Flags |= 2;
             return;
         }
-        PlayTargetSound(targetInfo[t->infoIdx].startSnd, t->slot, t->pos, 2);
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->pos, 2);
         switch (t->type) {
         case 350:
             type = 0;

@@ -6,7 +6,6 @@
  * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
-typedef struct Vec3 { f32 x, y, z; } Vec3;
 typedef union tRGBA {struct {u8 r,g,b,a;} c;u32 rgba;} tRGBA;
 /* A car visual (MAT3 tVisual). PC: 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual {
@@ -43,13 +42,6 @@ typedef struct tModelData {
     s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
     u8 pad7CD[2056 - 1997];
 } tModelData;
-/* A view's camera (gCamera[view], MAT3 anon_mat_n64_98): its orientation and place, and the N64's own matrix. */
-typedef struct Camera {
-    f32 uvs[3][3];          /* 0 */
-    Vec3 pos;               /* 36 */
-    f32 n64_uvs[3][3];      /* 48 */
-    u8 pad54[152 - 84];
-} Camera;
 /* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
 typedef struct tWindowInfo {
     void *vp; void *s; u8 pad8[0xC - 0x8];
@@ -60,21 +52,6 @@ typedef struct tWindowInfo {
 /* A scene polygon (PolyInstanceList, MAT3 tPoly): four vertices. */
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
-
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-VIEW(s8[4][4], gFadePlayerArrow);
-#define gFadePlayerArrow gFadePlayerArrow_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-VIEW(tRGBA[5], arrowColors);
-#define arrowColors arrowColors_view
-VIEW(tRGBA, arrow_base_color);
-#define arrow_base_color arrow_base_color_view
 
 /* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };
@@ -94,7 +71,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     f32 scale;
     s32 oslot;
     s32 i;
-    tRGBA clr;
+    ArrowColor clr;
     f32 vec[3];
     tWindowInfo *window;
     f32 x, y, z, border, vscale, voffset;
@@ -122,13 +99,13 @@ void AnimateArrow(tVisual *v, s16 op) {
     }
     if (m->drone_type == 2) {                         /* DRONE_TYPE_HUMAN */
         if (gRace == kBattle) {
-            clr.c.r = arrowColors[gCarTeam[m->slot]].c.r;
-            clr.c.g = arrowColors[gCarTeam[m->slot]].c.g;
-            clr.c.b = arrowColors[gCarTeam[m->slot]].c.b;
+            clr.c.r = arrowColors[gCarTeam[m->slot]].c[0];
+            clr.c.g = arrowColors[gCarTeam[m->slot]].c[1];
+            clr.c.b = arrowColors[gCarTeam[m->slot]].c[2];
         } else {
-            clr.c.r = arrowColors[m->slot].c.r;
-            clr.c.g = arrowColors[m->slot].c.g;
-            clr.c.b = arrowColors[m->slot].c.b;
+            clr.c.r = arrowColors[m->slot].c[0];
+            clr.c.g = arrowColors[m->slot].c[1];
+            clr.c.b = arrowColors[m->slot].c[2];
         }
         if (gFadePlayerArrow[m->slot][oslot] && clr.c.a > 112) {
             clr.c.a = 112;
@@ -137,17 +114,17 @@ void AnimateArrow(tVisual *v, s16 op) {
             clr.c.a = 128;
         }
     } else {
-        clr.c.r = arrowColors[4].c.r;
-        clr.c.g = arrowColors[4].c.g;
-        clr.c.b = arrowColors[4].c.b;
+        clr.c.r = arrowColors[4].c[0];
+        clr.c.g = arrowColors[4].c[1];
+        clr.c.b = arrowColors[4].c[2];
     }
-    vec[0] = car->dr_pos[0] - gCamera[oslot].pos.x;
-    vec[1] = car->dr_pos[1] - gCamera[oslot].pos.y;
-    vec[2] = car->dr_pos[2] - gCamera[oslot].pos.z;
+    vec[0] = car->dr_pos[0] - gCamera[oslot].mat.pos[0];
+    vec[1] = car->dr_pos[1] - gCamera[oslot].mat.pos[1];
+    vec[2] = car->dr_pos[2] - gCamera[oslot].mat.pos[2];
     if (gRace == kBattle) {
         /* the car's bearing from the camera: 0 straight ahead, negative to the -x side */
         window = &ZoidWinInfo[oslot];
-        U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].uvs);
+        U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].mat.uvs[0]);
         scale = fatan2(-xyz[0][0], xyz[0][2]);
         border = 19.0f;
         z = 31.415927f / window->whviewang;
@@ -198,7 +175,7 @@ draw:
 
     scale = vector_magnitude(&vec[0]) / 25.0f;
     for (i = 0; i < 4; i++) {
-        U64WorldVector(&gDummyVtx[i][0], &xyz[i][0], gCamera[oslot].n64_uvs);
+        U64WorldVector(&gDummyVtx[i][0], &xyz[i][0], gCamera[oslot].n64.uvs[0]);
         xyz[i][0] = xyz[i][0] * scale + car->dr_pos[0];
         xyz[i][1] = xyz[i][1] * scale + car->dr_pos[1] + scale + 5.0f;
         xyz[i][2] = xyz[i][2] * scale + car->dr_pos[2];

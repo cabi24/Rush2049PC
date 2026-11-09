@@ -137,45 +137,9 @@ typedef struct tDronePath {     /* anon_numPts_pts_8 */
     tDronePt *pts;
 } tDronePath;
 
-typedef struct tAltPath {       /* anon_resurrect_firstPath_10 */
-    u8 resurrect;               /* 0x0 */
-    s8 firstPath;               /* 0x1 */
-    u16 firstIdx;               /* 0x2 */
-    s8 lastPath;                /* 0x4 */
-    u16 lastIdx;                /* 0x6 */
-    s8 startSection;            /* 0x8 */
-    u16 numPts;                 /* 0xa */
-    s16 (*pts)[3];              /* 0xc */
-} tAltPath;
-
-typedef struct tResPath {       /* anon_numPts_pts_10 */
-    u16 numPts;                 /* 0x0 */
-    s16 (*pts)[3];              /* 0x4 */
-    u8 numAlt;                  /* 0x8 */
-    tAltPath *alt;              /* 0xc */
-} tResPath;
-
-/* A road polygon (MAT3 surftyp): its flags (0x2000: a half pipe). */
-typedef struct surftyp {
-    u16 flags;
-} surftyp;
-
 /* MAT3's names for the race kinds (gRace), the human owner of a car slot and the attract mode's game state (the race
  * area's values: for race.h to declare). */
 
-VIEW(float[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
-VIEW(tDronePath[], gDronePaths);
-#define gDronePaths gDronePaths_view
-
-VIEW(tResPath, gResPath);
-#define gResPath gResPath_view
-
-VIEW(float[4], res_last_time);
-#define res_last_time res_last_time_view
-VIEW(float[12][3], pole_pos_offset);
-#define pole_pos_offset pole_pos_offset_view
 
 extern float sinf(float);
 extern float cosf(float);

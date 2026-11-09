@@ -42,40 +42,19 @@ typedef struct CarState {
     /* 0x76C */ u8 pad76C[0x808 - 0x76C];
 } CarState;                             /* 0x808 */
 
-typedef struct Surface {
-    /* 0x0 */ u8 pad0[2];
-    /* 0x2 */ u16 flags;
-    /* 0x4 */ u8 pad4[0x18 - 4];
-} Surface;                              /* 0x18 */
-
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
 #define gNewSkid pc_skids
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 VIEW(u32[4], skid_tire_flags);
 #define skid_tire_flags skid_tire_flags_view
 
-VIEW(u8[], gShadowColor);
-#define gShadowColor gShadowColor_view
 extern f32 gDummyVtx[];
-VIEW(Surface *, stree_surf);
-#define stree_surf stree_surf_view
 
 VIEW(f32[], gSeconds);
 #define gSeconds gSeconds_view
-VIEW(char[], gSkidList);
-#define gSkidList gSkidList_view
-#define POOL_HEAD 3   /* the list in use: the pool header's (tStatList) fourth pointer-sized word, +0x18 */
-typedef struct {
-    /* 0x00 */ f32 uvs[3][3];
-    /* 0x24 */ f32 pos[3];
-} CamXform;
-VIEW(CamXform, gCamera);
-#define gCamera gCamera_view
 
 /* Moves skid slot's leading edge to tyre wheel of player's car: across the axle (the direction from tyre wheel & 2
  * to tyre wheel | 1, with their heights), 0.75 to either side of the tyre and lifted by skid_lift; stamps the time
@@ -128,13 +107,13 @@ EffectObj *GetSkid(u8 *color)
     f32 dsq;
     f32 fardsq;
 
-    s = GetStatLLE(gSkidList);
+    s = GetStatLLE(&gSkidList);
     if (s == 0) {
         fardsq = -1.0f;
-        fars = ((EffectObj **) gSkidList)[POOL_HEAD];
-        for (s = ((EffectObj **) gSkidList)[POOL_HEAD]; s->next; s = s->next) {
+        fars = (EffectObj *) gSkidList.head;
+        for (s = (EffectObj *) gSkidList.head; s->next; s = s->next) {
             for (dsq = 0.0f, i = 0; i < 3; i++) {
-                d = s->pos[i] - gCamera.pos[i];
+                d = s->pos[i] - gCamera[0].mat.pos[i];
                 dsq += d * d;
             }
             if (dsq > fardsq) {
@@ -144,8 +123,8 @@ EffectObj *GetSkid(u8 *color)
         }
         s = fars;
         ZOID_RemovePoly(s->dl);
-        FreeStatLLE(gSkidList, s);
-        s = GetStatLLE(gSkidList);
+        FreeStatLLE(&gSkidList, s);
+        s = GetStatLLE(&gSkidList);
     }
     s->f20 = 0;
     s->color[0] = color[0];
@@ -155,7 +134,7 @@ EffectObj *GetSkid(u8 *color)
     s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
                           ((gGameState & GS_CAR) ? 1 : 15) | 0x1200, 1);
     if (s->dl == 0) {
-        FreeStatLLE(gSkidList, s);
+        FreeStatLLE(&gSkidList, s);
         return 0;
     }
     return s;
@@ -243,9 +222,9 @@ void UpdateSkids(s32 slot)
     ns = gNewSkid[slot];
     for (i = 0; i < 4; i++, ns++) {
         on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
-             (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].flags & 0x30) == 0);
+             (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].snd_flags & 0x30) == 0);
         laston = (ns->obj != 0);
-        color = (m->terrain[i] == 0) ? gShadowColor : gDirtColor;
+        color = (m->terrain[i] == 0) ? gShadowColor.c : gDirtColor;
 
         if (!laston && on) {
             StartSkid(ns, slot, i, color);

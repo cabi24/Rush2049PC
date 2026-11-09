@@ -53,23 +53,7 @@ typedef struct {
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
 } tCarData;
 
-/* A branch of the resurrection path (MAT3 anon_resurrect_firstPath_10): its points. */
-typedef struct {
-    u8 pad0[0xC];
-    s16 (*pts)[3];
-} tResPathAlt;
-
-/* The resurrection path (MAT3 gResPath, anon_numPts_pts_10): the main path's points and its branches. */
-typedef struct {
-    u8 pad0[4];
-    s16 (*pts)[3];
-    u8 pad8[4];
-    tResPathAlt *alt;
-} tResPath;
-
 extern tPadState gPlayers[];   /* the players' input records */
-VIEW(tResPath, gResPath);
-#define gResPath gResPath_view
 
 /* Abort cars that fell out of the world or are stuck, and measure each human's wrong-way angle.
  *

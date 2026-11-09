@@ -10,7 +10,6 @@ typedef struct TextState { void *word0; char **fixed; void *word8; ArIdx *indice
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
-typedef struct Pos { s32 x, y; } Pos;
 
 VIEW(OSMesgQueue, text_lock_queue);
 #define text_lock_queue text_lock_queue_view
@@ -20,14 +19,9 @@ VIEW(TextState, gText);
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern PlayerRow gPlayers[];                   /* gPlayers */
-VIEW(Pos[][4], wrongWayPos);
-#define wrongWayPos wrongWayPos_view
 
 VIEW(s8, gRankedPlayer);
 #define gRankedPlayer gRankedPlayer_view
-
-VIEW(tStuntPlayer[4], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 

@@ -40,6 +40,10 @@
 #define OBJ_LATE_B            0x800000    /* drawn in the second pass after the flat polygons */
 #define OBJ_HIDDEN            0x80000000  /* not drawn in any view */
 
+/* ObjInstanceList[].color and .envcolor hold a colour's bytes R, G, B, A in memory, as the scene draw reads them; a
+ * word only moves them (docs/port/ENDIAN.md). OBJ_COLOR(node->color)[i] is byte i. */
+#define OBJ_COLOR(word)       ((u8 *)&(word))
+
 /* tModelDef.lod[].flags: what a level of detail of an object needs before its display list. */
 #define LOD_TEXTURED          0x1         /* load its texture (the node's, or the one ZOID_ChangeTexture set) */
 #define LOD_RESET_TLUT        0x2         /* its list changes the palette: load the node's again after it */
@@ -79,7 +83,7 @@
 #define POLY_HIDDEN           0x8000      /* not drawn (ZOID_HidePoly) */
 
 /* Data */
-extern ModelList gRomObjDefPtrs[EXTENT(64)];
+extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
 extern Item12 texture_swap_shared_frames[EXTENT(400)];
 extern struct Sequence20 *TextureSwapLists[EXTENT(19)];
 extern struct Row20 *PaletteLists[EXTENT(19)];
@@ -132,15 +136,18 @@ extern f32 tan_q1;
 extern u32 gBgColor;
 extern s32 skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
-extern ModelList gPalDefPtrs[EXTENT(64)];
+extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;
-extern u16 gNumLights;
+extern s16 gNumLights;
 extern s8 gInvisibleTrack;
 extern struct Lights2 *gLights;
-extern u8 gNumModels[EXTENT(4)];
+/* How many wave instances the model searches look through (MAT3 unsigned char gNumModels): gNumModels[0]. The
+ * data loader lays the datum out as 4 bytes (to the next one), so it stays an array until the layout may change
+ * (wave 3). Volatile: the background loader raises it (SetWaveInstanceModel) while the game reads it. */
+extern volatile u8 gNumModels[EXTENT(4)];
 extern s32 gMaxPolyInsts;
 extern u8 gNumZoidWindows;
-extern u32 *gWorldData;
+extern s32 *gWorldData;
 extern struct NameEntry *WorldTable;
 extern s16 scissor0[EXTENT(4)];
 extern s16 scissor1[EXTENT(4)];
@@ -149,11 +156,11 @@ extern s16 scissorul[EXTENT(4)];
 extern s16 scissorur[EXTENT(4)];
 extern s16 scissorll[EXTENT(4)];
 extern s16 scissorlr[EXTENT(4)];
-extern struct Box104 *WorldBase;
+extern struct tModelPart *WorldBase;   /* the track's world parts (FindWorld), linked by index */
 extern s16 Worlddlidx;
 extern struct Node104 *cur_world_obj;
 extern f32 gViewableDistance;
-extern ModelList gTexDefPtrs[EXTENT(64)];
+extern TextureDefTable gTexDefPtrs[EXTENT(64)];
 extern OSMesgQueueWords audio_retrace_queue;
 extern OSMesg audio_retrace_msgs[EXTENT(8)];
 extern OSMesgQueue sample_dma_pi_queue;
@@ -224,7 +231,7 @@ s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx);
 void ZOID_ClearPolyFlags(struct Header *poly, u16 mask);
 s32 zoid_draw_object(Gfx **gp, struct ObjInstance *parent, s32 depth, s32 use_parent_distance,
                      struct ObjInstance *node, s32 view, struct Palette *palette);
-void zoid_draw_window(s32 view, struct View *eye);
+void zoid_draw_window(s32 view, tCamera *eye);
 struct tUVMatrix *ZOID_FindMatrix(s16 node);
 s16 ZOID_FindObjInstance(void *name);
 void *ZOID_GetColor(s16 node);

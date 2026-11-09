@@ -3,18 +3,13 @@
 
 typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
-typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
 VIEW(ButtonInfo[], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 VIEW(f32[3], startscr_title_button_position);
 #define startscr_title_button_position startscr_title_button_position_view
 VIEW(f32[3], startscr_players_button_position);
 #define startscr_players_button_position startscr_players_button_position_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
@@ -59,10 +54,10 @@ void startscr_animButtonText(void)
         if(startscr_buttonInfo[i].angle>0.34906584f && startscr_buttonInfo[i].angle<2.7925267f)HAL_SetTextTranslucency(128.0f);
         else HAL_SetTextTranslucency(-1.0f);
         if(startscr_buttonInfo[i].angle<1.5707964f) {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             HAL_SetTextColor(224,224,224,255);
         } else {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(kTB_FlashText);
         }
         ZOID_ProjectWindow(0,position,&gCamera[0],0,point);
@@ -88,7 +83,7 @@ void startscr_animButtonText(void)
     }
     HAL_SetTextTranslucency(-1.0f);
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    TB_FlashTextColors(flashColors,flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
 }
 
@@ -140,7 +135,7 @@ s32 startscr_animText(void *callback_context)
     }
     HAL_SetTextTranslucency(-1.0f);
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    TB_FlashTextColors(flashColors,flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

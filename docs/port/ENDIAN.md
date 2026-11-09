@@ -114,7 +114,9 @@ set frames, colours, textures and palettes on node 0, and removed node 0:
 | `PlayerRec` | `SetFrameColor.c` | the car's colour on its six part nodes (`gCarParts[i]` +0x0, +0x10, +0x1C..+0x28) |
 
 Under `TARGET_PC` each view puts the low half first; the s32 and the halves keep their meaning. `Handle` and
-`PlayerRec` are views of the car parts table `gCarParts`; its size and offsets are unchanged.
+`PlayerRec` are views of the car parts table `gCarParts`; its size and offsets are unchanged. Since 2026-11-09
+SetupCarColor, SetFrameColor and the power-ups read include/game's records instead (`CarParts`, `tTarget.dlIdx`)
+and take a handle's node as `(s16)handle`, its low half on either byte order.
 
 ### 3.2 Colour words from the ROM (`7aa03ff`)
 
@@ -175,7 +177,8 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
   colour symbols of initialized data with such a union are read as bytes, directly or after word copies, and their
   words are only copied or tested for equality (no shift, no comparison with a constant, no word constant stored),
   so none is read both ways; the other unions of initialized data (`Vtx`, `Gfx`, `MenuSlot`) have no such member
-  and keep their layout, and BSS is zeroed. The 22nd, `flashColors_at_1`, is `flashColors[1]` under image A's `struct Color4 { u32 word; }`: bytes now
+  and keep their layout, and BSS is zeroed. The 22nd, `flashColors_at_1`, is `flashColors[1]` under image A's `struct Color4 { u32 word; }` (since 2026-11-09
+  the screens read `flashColors[1]` and the label has left the loader's tables): bytes now
   take part in the arena's overlap resolution, and the union's bytes rank first (DATA.md 3). Loaded as bytes now:
   `gFlashColor1`/`gFlashColor2` (the menus' flashing text colours), `flashColors`/`flashColors_at_1` (their source pairs,
   TB_FlashTextColors), `arrowColors` and `arrow_base_color` (arrows), `gShadowColor`, `SheenColors` and `Track1Colors` (the

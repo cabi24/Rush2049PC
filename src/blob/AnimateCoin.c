@@ -51,17 +51,8 @@ typedef struct Visual {
 /* A player's window bit; a view of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
 #define VIEW_BIT(s) 1 << ((s) & 31)
-
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
-VIEW(Mat3, unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(s32, gTargetList);
-#define gTargetList gTargetList_view
 
 /* One frame of a coin (op 1), or release its visual (op 0). Gold coins are numbered from 8 (gWhichGoldCoin + 8),
  * silver ones from 0, in the order their visuals first run; a coin every player has already found is removed at
@@ -102,7 +93,7 @@ void AnimateCoin(Visual *v, s16 op)
             coin->whichcoin = number;
             gWhichSilverCoin++;
         }
-        ZOID_SetObjectDef(t->dlIdx.part.index, MBOX_FindObject_WORK(coin_glow_object_name, 0, gNumModels - 1, 1));
+        ZOID_SetObjectDef(t->dlIdx.part.index, MBOX_FindObject_WORK(coin_glow_object_name, 0, gNumModels[0] - 1, 1));
         coin->angV[0] = 0.0f;
         coin->angV[2] = 0.0f;
         coin->angV[1] = 3.0f;
@@ -111,10 +102,10 @@ void AnimateCoin(Visual *v, s16 op)
         coin->pos[1] = t->matPos[1];
         coin->pos[2] = t->matPos[2];
         if (t->flags & TARGET_GOLD) {
-            coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(gold_coin_object_name, 0, gNumModels - 1, 1), coin->uvs, -1, 0x40000);
+            coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(gold_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
             ZOID_SetColor(t->dlIdx.part.index, goldGlow);
         } else {
-            coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(silver_coin_object_name, 0, gNumModels - 1, 1), coin->uvs, -1, 0x40000);
+            coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(silver_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
             ZOID_SetColor(t->dlIdx.part.index, silverGlow);
         }
         coin->cameras = 0;

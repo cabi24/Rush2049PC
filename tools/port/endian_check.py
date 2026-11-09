@@ -2152,11 +2152,12 @@ LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState",
                  ("percentTable", 0x8C, 4), ("wingOffsets", 0xC, 4), ("wingOffsets", 0x98, 4),
                  # FSCLS and the respawn records after it (runtime_a_joint_transforms): flag bytes, f32 places
                  ("FSCLS", 0x8, 4), ("FSCLS", 0xC, 1), ("FSCLS", 0x10, 4), ("FSCLS", 0x1DC, 1)]
-# The colour unions gen_data copies as bytes (a byte member covers them), flashColors's element 1 under
-# flashColors_at_1's word view, unions without such a member (Vtx, Gfx), and the boot's flags after the viewport offset
-# table, which its s16[32] declarations ran over (docs/port/DATA.md 1, 2).
+# The colour unions gen_data copies as bytes (a byte member covers them), flashColors's element 1 (the screens read it
+# as flashColors[1] since 2026-11-09, so its interior label flashColors_at_1 has left the loader's tables), unions
+# without such a member (Vtx, Gfx), and the boot's flags after the viewport offset table, which its s16[32]
+# declarations ran over (docs/port/DATA.md 1, 2).
 LOADER_EXPECT += [(sym, off, 1) for sym in (
-    "flashColors", "flashColors_at_1", "options_buttonColor", "gFlashColor1", "gFlashColor2", "gShadowColor", "SheenColors", "Track1Colors",
+    "flashColors", "options_buttonColor", "gFlashColor1", "gFlashColor2", "gShadowColor", "SheenColors", "Track1Colors",
     "arrowColors", "arrow_base_color", "hudextra_playerColor", "stunt_coin_color", "weapon_icon_color", "hitColor", "carscr_solidColor", "carscr_normalColor",
     "circuitscr_init_button_color", "circuitscr_button_color", "loadTrackScreen_backColor", "race_map_vertex_color", "trackscr_init_button_color", "trackscr_update_button_color") for off in (0x0, 0x3)]
 LOADER_EXPECT += [("flashColors", 0x4, 1), ("flashColors", 0x7, 1), ("arrowColors", 0x10, 1), ("cull_box_vertices_a", 0x0, 2),

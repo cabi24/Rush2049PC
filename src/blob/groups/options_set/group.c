@@ -10,8 +10,6 @@ extern InputRecord gPlayers[];
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
-VIEW(u8[][5], gCircuitTracks);
-#define gCircuitTracks gCircuitTracks_view
 
 /* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
  * parts, and the race settings of the race type (gRace) from its options, or fixed ones in attract mode (3 laps, 6
@@ -20,7 +18,7 @@ void SetOptions(void)
 {
     s32 i, setting;
     s8 configuration_mode;
-    u8 *options;
+    CircuitTrackSlot *options;
     Player *player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
@@ -108,12 +106,12 @@ void SetOptions(void)
         case 3:
             gNumLaps = 3;
             gNumDrones = 5;
-            options = gCircuitTracks[gCircuitTrack];
-            gBackwards = options[1];
-            gMirrorWaves = options[2];
+            options = &gCircuitTracks[gCircuitTrack];
+            gBackwards = options->backward;
+            gMirrorWaves = options->mirror;
             gMirrorControls = 0;
-            gFogIntensity = options[3];
-            gWind = options[4];
+            gFogIntensity = options->fog;
+            gWind = options->wind;
             gGravityScale = 1;
             player = gPlayers[gCircuitPlayer].player;
             gDifficulty = player->state->profile->stats->option_b;

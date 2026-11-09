@@ -13,16 +13,6 @@ struct tVisual {
     void (*func)(tVisual *, s16); /* 0x14 */
 };
 
-/* A car's parts (gCarParts): its frame's and its weapon's scene objects. */
-typedef struct tCarParts {
-    s32 frame;                      /* 0x00 */
-    u8 unknown04[0x14];
-    s32 weap;                       /* 0x18 */
-    u8 unknown1c[0x24];
-} tCarParts;                        /* 0x40 */
-
-VIEW(tCarParts[], gCarParts);
-#define gCarParts gCarParts_view
 extern f32 weaponOffsets[8][13][3];
 VIEW(volatile f32, gSeconds);
 #define gSeconds gSeconds_view

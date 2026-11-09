@@ -9,15 +9,6 @@ typedef struct tCarData {
     u8 pad0[0x110]; struct pc_visual visuals[21]; u8 pad308[0x380 - 0x308]; void *player; u8 pad384[0x3B8 - 0x384];
 } tCarData;
 
-/* The car's parts (gCarParts[slot], 0x40 bytes on the N64; MAT3 CarParts): the five spark objects. */
-typedef struct CarParts {
-    u8 pad0[0x2C];
-    s32 lfSpark, lrSpark, rfSpark, rrSpark, bSpark;
-} CarParts;
-
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
-
 /* Set car `slot`'s visuals 1-5 to the five sparks, each not sparking yet (index -1) and drawing its spark object.
  * The attract demo (gGameState 8: GS_DEMO) has no sparks. */
 void StartSparks(s16 slot) {

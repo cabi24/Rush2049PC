@@ -6,20 +6,6 @@
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
 
-/* A scene node (ObjInstanceList), host layout (docs/port/POINTERS.md 9). */
-typedef struct Ent {
-    s32 flags;
-    s32 w4;
-    f32 *mat;       /* its matrix (MAT3 tUVMatrix *): [9..11] its position */
-    f32 scaleA;
-    f32 scaleB;
-    u16 model;      /* its object definition */
-    s16 link[3];
-    void *w28[8];
-    s32 w60;
-    s32 w64;
-} Ent;
-
 /* A target path (MAT3 tBasicTargetPath, a PTHD record; targetpaths/group.c has it all). N64 layout. */
 typedef struct tBasicTargetPath {
     char name[16];  /* 0x00 */
@@ -57,35 +43,9 @@ typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16
 /* A kind's start function (TargInfo.startFunc, a void * in the table). */
 #define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
-/* The level's target paths (MAT3 gTargetPaths; waves.c's anon_paths_count_8): count of them at paths. */
-typedef struct anon_paths_count_8 { tBasicTargetPath *paths; s32 count; } anon_paths_count_8;
-VIEW(anon_paths_count_8, gTargetPaths);
-#define gTargetPaths gTargetPaths_view
-
-VIEW(s8[8], gTargetStructCount);
-#define gTargetStructCount gTargetStructCount_view
-
-VIEW(u8 *[8], gTargetStructPtrs);
-#define gTargetStructPtrs gTargetStructPtrs_view
-VIEW(u8 *[8], gTargetOwnStructPtrs);
-#define gTargetOwnStructPtrs gTargetOwnStructPtrs_view
-
 /* The keys of gTargetGroupList, before SetTargetDefs turns them into targets */
-VIEW(void **, gTargetGroupList);
-#define gTargetGroupList gTargetGroupList_view
 
-VIEW(Ent[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(struct pc_visual *, gEnvList);
-#define gEnvList gEnvList_view
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 #define BODY_TABLE ((u8 *)BBoxCollInfo)
-VIEW(Vec3, zero_velocity);
-#define zero_velocity zero_velocity_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern int strlen(const char *);
 
 /* Defines target `t` once the race's targets are counted: its kind's record (set_target_data), its scene object's
@@ -99,14 +59,14 @@ void SetTargetDef(tTarget *t)
     s32 resource;
     u16 value;
     struct pc_visual *v;
-    Vec3 transform;
+    Vector transform;
     info=&targetInfo[t->infoIdx];
     category=info->structureID;
     set_target_data(t,info,category);
     if(t->otype!=-1) {
         resource=(s16)t->dlIdx;
         value=gObjList[t->otype];
-        ObjInstanceList[resource].model=value;
+        ObjInstanceList[resource].index=value;
     }
     if(info->Flags&2) {
         v=GrabEnvEntry();
@@ -243,7 +203,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         if (typeFlags & 0x8000) {
             gBBoxModelCount++;
         }
-        t->mbIdx = MBOX_FindObject_WORK(info->mboxname, 0, (s8)(gNumModels - 1), 1);
+        t->mbIdx = MBOX_FindObject_WORK(info->mboxname, 0, (s8)(gNumModels[0] - 1), 1);
         t->infoIdx = i;
         objListIdx = info->objListIdx;
         t->slot = -1;
@@ -311,7 +271,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
                 t->dlIdx = ZOID_AddObject(t->mbIdx, t->mat.uvs[0], superGroup, dlflags);
             }
             if ((typeFlags & 0x300) && superGroup >= 0) {
-                groupMat = ObjInstanceList[superGroup].mat;
+                groupMat = (f32 *)ObjInstanceList[superGroup].mat;
                 t->mat.pos[0] -= groupMat[9];
                 t->mat.pos[1] -= groupMat[10];
                 t->mat.pos[2] -= groupMat[11];

@@ -74,11 +74,6 @@ VIEW(Entry *, gFontLetters);
 #define gFontLetters gFontLetters_view
 VIEW(intptr_t[], gFontTextures);
 #define gFontTextures gFontTextures_view
-/* PC: the gTexDefPtrs pairs are {tTexture *, s32}, 16 bytes, as SetupWaveModel declares them. first is the window
- * address of the instance's TXHD records, widened without sign extension. */
-typedef struct { uintptr_t first; s32 second; } TexDefPair;
-VIEW(TexDefPair[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 VIEW(u8, gLeading);
 #define gLeading gLeading_view
 VIEW(u8, gSpacing);
@@ -115,7 +110,7 @@ void SetupFontData(s32 force)
     }
     if (force) {
         for (i = 0; i < gFontHeader->numTextures; i++) {
-            gFontTextures[i] = gTexDefPtrs[gFontTexWaveInst].first + i * TEXTURE_RECORD_SIZE;
+            gFontTextures[i] = (uintptr_t)gTexDefPtrs[gFontTexWaveInst].texDefs + i * TEXTURE_RECORD_SIZE;
         }
         gLeading = gFontHeader->leading;
         gSpacing = gFontHeader->spacing;

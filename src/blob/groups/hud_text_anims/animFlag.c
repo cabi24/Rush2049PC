@@ -23,36 +23,6 @@ typedef struct Blit {
     intptr_t animDTA;   /* milliseconds to the next frame */
 } Blit;
 
-typedef struct CheckPoint {
-    f32 pos[3];
-    f32 normal[3];
-    s32 radius;
-    s16 flags;
-    s16 time[2];
-    s16 pathPts[20];
-    f32 distToNext;
-} CheckPoint;
-
-typedef struct Checkpoints {
-    s16 startTime;
-    s16 loopPt;
-    s16 finishPt;
-    s16 startPt;
-    s16 numPoints;
-    CheckPoint points[10];
-} Checkpoints;
-
-VIEW(s16[3], gPathMax);
-#define gPathMax gPathMax_view
-VIEW(s16[3], gPathMin);
-#define gPathMin gPathMin_view
-
-VIEW(s32[4][2], hud_mapPos);
-#define hud_mapPos hud_mapPos_view
-
-VIEW(Checkpoints, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
@@ -88,8 +58,8 @@ s32 animFlag(Blit *blt)
     }
     xoff = (kMapSize - 8 - w) / 2 + 4;
     yoff = (kMapSize - 8 - h) / 2 + 4;
-    x = hud_mapPos[gNumWindows - 1][0] + xoff - kMapSize / 2;
-    y = hud_mapPos[gNumWindows - 1][1] + yoff - kMapSize / 2;
+    x = hud_mapPos[gNumWindows - 1].x + xoff - kMapSize / 2;
+    y = hud_mapPos[gNumWindows - 1].y + yoff - kMapSize / 2;
     if (gMirrorWaves)
         x += (gCheckpoints.points[gCheckpoints.finishPt].pos[0] - gPathMin[0]) * w / width;
     else

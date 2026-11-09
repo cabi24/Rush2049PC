@@ -23,8 +23,6 @@ VIEW(OSMesgQueue, si_lock_queue);
 
 VIEW(OSMesgQueue, si_event_queue);
 #define si_event_queue si_event_queue_view
-VIEW(OSMesg[8], si_event_msgs);
-#define si_event_msgs si_event_msgs_view
 
 VIEW(Rumble16[4], gControllerData);
 #define gControllerData gControllerData_view

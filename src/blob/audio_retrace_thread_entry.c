@@ -21,11 +21,6 @@ VIEW(Sched, gScheduler);
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
-VIEW(OSMesgQueue, audio_retrace_queue);
-#define audio_retrace_queue audio_retrace_queue_view
-VIEW(OSMesg[8], audio_retrace_msgs);
-#define audio_retrace_msgs audio_retrace_msgs_view
-
 /* The scheduler's message kinds (the first s16 of its message) are system.h's: OS_SC_RETRACE_MSG, a retrace, and
  * OS_SC_PRE_NMI_MSG, the reset button's pre-NMI. */
 

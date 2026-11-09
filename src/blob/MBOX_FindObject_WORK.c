@@ -11,18 +11,6 @@ extern char *strcpy(char *, const char *);
 typedef struct tModelDef {
     char name[88];
 } tModelDef;
-
-/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8). */
-typedef struct ModelDefTable {
-    tModelDef *romObjDefs;
-    u32 count;
-} ModelDefTable;
-
-VIEW(ModelDefTable[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* The handle of the object called `name` (compared on its first 15 characters, objcmp) in models firstModel to
  * lastModel (a negative bound means the first or the last model), searching only the models that are active
  * (ModelActive): (model << 10) | index, or -1 if none has it. A NULL or empty name looks for "AAANULLOBJ", the
@@ -42,8 +30,8 @@ s32 MBOX_FindObject_WORK(char *name, s8 firstModel, s8 lastModel, s8 complain) {
     if (firstModel < 0) {
         firstModel = 0;
     }
-    if (lastModel < 0 || lastModel >= gNumModels) {
-        lastModel = gNumModels - 1;
+    if (lastModel < 0 || lastModel >= gNumModels[0]) {
+        lastModel = gNumModels[0] - 1;
     }
     for (i = firstModel; i <= lastModel; i++) {
         if (ModelActive(i) == 0) {

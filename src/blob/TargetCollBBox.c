@@ -41,8 +41,6 @@ typedef struct CollisionReckon {
     f32 velocity[3];
 } CollisionReckon;
 #define BODY(r) ((CollisionBounds *)PC_N64P((r)->body))
-VIEW(CollisionReckon *, gBBoxModelStructs);
-#define gBBoxModelStructs gBBoxModelStructs_view
 
 /* Test car *index against the box of target `object`. Nothing happens if the car isn't collidable or its circle
  * doesn't reach the box's; else each of the car's four corners is taken into the box's space, and at the first

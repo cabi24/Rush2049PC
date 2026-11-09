@@ -27,13 +27,8 @@ VIEW(Color, options_buttonColor);
 VIEW(Button[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
@@ -167,9 +162,9 @@ void options_updateButtons(void) {
         WPitchUV(options_buttonInfo[i].ang - 1.5707964f, options_buttonInfo[i].mat);
         WPitchUV(options_buttonInfo[i + 14].ang - 1.5707964f, options_buttonInfo[i + 14].mat);
         if (1.5707964f < options_buttonInfo[i].ang)
-            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(options_buttonInfo[i].handle, texture, -1);
         ZOID_SetTexture(options_buttonInfo[i + 14].handle, texture, -1);
         if (140.0f < options_buttonInfo[i].pos[1] || options_buttonInfo[i].pos[1] < -160.0f)

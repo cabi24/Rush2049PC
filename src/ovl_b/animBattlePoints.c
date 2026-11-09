@@ -10,10 +10,6 @@
 typedef struct PlayerInfo { tProfile **profile; u8 unknown04[72]; } PlayerInfo;
 VIEW(PlayerInfo[], gPlayers_save);
 #define gPlayers_save gPlayers_save_view
-VIEW(s32[4][4][2], fragPos);
-#define fragPos fragPos_view
-VIEW(s32[4][4][2], wrongWayPos);
-#define wrongWayPos wrongWayPos_view
 
 
 extern int sprintf(char *, const char *, ...);
@@ -54,8 +50,8 @@ s32 animBattlePoints(void *callback_context)
                 if (event->column == event->row) {
                     TB_SetTextColor(kTB_WhiteText);
                     TB_DrawText(x, y, battle_point_lost_text);
-                    x = wrongWayPos[gNumWindows - 1][event->column][0];
-                    y = wrongWayPos[gNumWindows - 1][event->column][1];
+                    x = wrongWayPos[gNumWindows - 1][event->column].x;
+                    y = wrongWayPos[gNumWindows - 1][event->column].y;
                     if (gNumPlayers >= 3) {
                         HAL_SetFont(11);
                         TB_SetTextColor(kTB_BlackText);
@@ -66,8 +62,8 @@ s32 animBattlePoints(void *callback_context)
                 } else {
                     TB_SetTextColor(kTB_WhiteText);
                     TB_DrawText(x, y, battle_point_won_text);
-                    x = wrongWayPos[gNumWindows - 1][event->column][0];
-                    y = wrongWayPos[gNumWindows - 1][event->column][1];
+                    x = wrongWayPos[gNumWindows - 1][event->column].x;
+                    y = wrongWayPos[gNumWindows - 1][event->column].y;
                     TB_Sprintf(text, gText.single[POINT_WON_FORMAT],
                                  (*gPlayers_save[event->row].profile)->name);
                     if (gNumPlayers >= 3) {

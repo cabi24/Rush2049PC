@@ -9,19 +9,9 @@ typedef struct {
     /* 0x48 */ tProfile **profile;
 } PlayerPad; /* 0x4C */
 
-/* The circuit's result as this reads it: the circuit player's place (0 first) and points. */
-typedef struct {
-    u8 unk0;
-    u8 place;
-    u16 points;
-} CircuitResult;
-
 extern PlayerPad gPlayers[];
 VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
-
-VIEW(CircuitResult, gCircuitCars);
-#define gCircuitCars gCircuitCars_view
 
 /* Adds the circuit the circuit player (gCircuitPlayer) finished to its profile's stats for that circuit (the type of
  * its circuit in progress) and to the totals: a circuit, a first, second or third place, the death mode attempts and
@@ -43,22 +33,22 @@ void RecordCircuit(void) {
             rec = &gTotalCircuitStats[circuit];
         }
         rec->numCircuits++;
-        if (gCircuitCars.place == 0) {
+        if (gCircuitCars[0].totalPlace == 0) {
             rec->num1st++;
-        } else if (gCircuitCars.place == 1) {
+        } else if (gCircuitCars[0].totalPlace == 1) {
             rec->num2nd++;
-        } else if (gCircuitCars.place == 2) {
+        } else if (gCircuitCars[0].totalPlace == 2) {
             rec->num3rd++;
         }
         if (gDeathMode) {
             rec->numDeathAttempted++;
-            if (gCircuitCars.place < 3) {
+            if (gCircuitCars[0].totalPlace < 3) {
                 rec->numDeathCompleted++;
             }
         }
-        rec->totalPts += gCircuitCars.points;
-        if (rec->bestPts < gCircuitCars.points) {
-            rec->bestPts = gCircuitCars.points;
+        rec->totalPts += gCircuitCars[0].totalPoints;
+        if (rec->bestPts < gCircuitCars[0].totalPoints) {
+            rec->bestPts = gCircuitCars[0].totalPoints;
         }
         if (rec->bestTime == 0.0f || (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.totalTime < rec->bestTime) {
             rec->bestTime = (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.totalTime;

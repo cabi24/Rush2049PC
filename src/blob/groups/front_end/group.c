@@ -2,9 +2,6 @@
  * (GS_FRONTEND_MASK). */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 #define WAVE_START_MENU 0x36        /* the start menu's models */
 
 /* Run the screen of the current state (one state bit is set), then the background's frame and the profile saver

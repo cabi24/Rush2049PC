@@ -33,10 +33,6 @@ typedef struct Visual {
     default: (x))
 
 #define FLAG_FRAMES 10          /* the wave's models */
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* The flag's visual function (op 1 each frame, op 0 to release it). The first unpaused frame colours the flag: its
  * palette (flag_pals: red, green, blue) by "BLU" or "GRN" in its name, written into its scene object, and its first
  * frame of the wave from the digit after "_OFF" (0 without one). Every unpaused frame then makes
@@ -67,7 +63,7 @@ void AnimateFlag(Visual *v, s16 op) {
         } else {
             i = 0;
         }
-        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels - 1));
+        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels[0] - 1));
         i = t->dlIdx;
         ObjInstanceList[i].palette = palette;
         offSuffix = game_strstr(N64P(t->data), "_OFF");

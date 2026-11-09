@@ -1,11 +1,6 @@
 /* animLapTimeText: a checkpoint's split time, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct { s32 x, y; } Pos;
-
-VIEW(Pos[][4], lapTimePos);
-#define lapTimePos lapTimePos_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

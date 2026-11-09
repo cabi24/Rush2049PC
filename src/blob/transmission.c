@@ -3,11 +3,6 @@
  * The drivetrain (drivetrain.c) calls it each step, after the gear may have changed. */
 #include "game/game.h"
 
-/* carTransGearRatio as the code indexes it: a row per transmission, a column per gear from reverse (its own
- * storage, through another type: include/game/view.h). */
-VIEW(s32, carTransGearRatio);
-#define carTransGearRatio carTransGearRatio_view
-
 /* The car's physics descriptor (MAT3 _tCar), its final drive. */
 typedef struct tCar {
   u8 pad0[0xA4];

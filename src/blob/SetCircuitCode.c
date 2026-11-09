@@ -25,13 +25,6 @@ typedef struct Player76 { u8 index, selector; u8 pad2[70]; Handle *handle; } Pla
 
 extern Player76 gPlayers[];
 
-VIEW(s16[][6], gTempCircuitPoints);
-#define gTempCircuitPoints gTempCircuitPoints_view
-VIEW(u32[], gNumCircuitTracks);
-#define gNumCircuitTracks gNumCircuitTracks_view
-VIEW(u32[6], gCircuitPoints);
-#define gCircuitPoints gCircuitPoints_view
-
 /* Reads circuit code `input` (a password of 86 bits in 14 characters: the type, the death death, the races driven,
  * the seed, the difficulty, the six cars' points) and, if it holds together (races within the circuit, the points
  * those races can give, the best no more than all wins), starts that circuit for the player (NewCircuit) at that

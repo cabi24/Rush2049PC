@@ -4,44 +4,11 @@
  * and colour them; StartCar then gives them their animators. */
 #include "game/game.h"
 
+/* A colour (MAT3 tRGBA): gTrackColors' entries, read as a word. */
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 pad[36]; } tTexture;
 
-/* gCarParts[slot]: the scene objects of a car (MAT3 CarParts; the N64's is 0x40 bytes, without MAT3's headlights,
- * trim and hood sheens). */
-typedef struct CarParts {
-    int frame;                  /* 0x00 the body: the parent of the rest */
-    int extraparts[3];          /* 0x04 the rocket car's flames (StartFrame) */
-    int hood;                   /* 0x10 shown in the cockpit view */
-    int sheen;                  /* 0x14 the environment-mapped shine over the body */
-    int weap;                   /* 0x18 the battle weapon */
-    int tires[4];               /* 0x1C */
-    int lfSpark;                /* 0x2C the sparks: front left, rear left, front right, rear right, under the car */
-    int lrSpark;                /* 0x30 */
-    int rfSpark;                /* 0x34 */
-    int rrSpark;                /* 0x38 */
-    int bSpark;                 /* 0x3C */
-} CarParts;
-
-typedef struct tTexDef { u8 pad[36]; } tTexDef;
-typedef struct tTexDefPtr { tTexDef *texDefs; int pad; } tTexDefPtr;   /* gTexDefPtrs: a model file's textures */
-
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
-
-VIEW(tTexDefPtr[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
-
-VIEW(tRGBA[][2], SheenColors);
-#define SheenColors SheenColors_view
-VIEW(tRGBA[], Track1Colors);
-#define Track1Colors Track1Colors_view
-
-VIEW(s8[][13], gTireRims);
-#define gTireRims gTireRims_view
-/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
-typedef struct TexDef TexDef;
-VIEW(TexDef *[24], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
 
 /* Make the scene objects of car slot `slot`, shown in the windows of mask `camlink`: the frame (the root), the hood
  * and the sheen from the slot's part definitions (OBJLIST_CAR_PARTS), the four tires, and in a race (`for_game`) the
@@ -75,7 +42,7 @@ void CreateCar(s16 slot, s16 camlink, int for_game)
     car->tires[2] = InitCarObj(gObjList[OBJLIST_TIRE], camlink, car->frame, flags2 | 0x2000, slot, 5, for_game);
     car->tires[3] = InitCarObj(gObjList[OBJLIST_TIRE], camlink, car->frame, flags2 | 0x2000, slot, 6, for_game);
     if (expansion_pak_present || gTrackNum >= 6) {
-        ZOID_SetTexture(car->tires[0], gWheelTextures[gTireRims[PC_LINK_OWNER(idx) == 6 ? idx + 1 : 0][idx] + 3], -1);
+        ZOID_SetTexture(car->tires[0], gWheelTextures[TIRE_RIMS(PC_LINK_OWNER(idx) == 6 ? idx + 1 : 0)[idx] + 3], -1);
     } else ZOID_SetTexture(car->tires[0], gWheelTextures[16], -1);
     if (for_game) {
         car->lfSpark = InitCarObj(gObjList[OBJLIST_SPARK], camlink, car->frame, 0xf00, slot, 7, for_game);

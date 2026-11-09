@@ -2,8 +2,6 @@
 #include "game/game.h"
 
 /* The cameras' smoothed accelerations, as arrays. */
-VIEW(f32[][3], cur_acc);
-#define cur_acc cur_acc_view
 
 /* Clears camera `camera`'s smoothed acceleration (cur_acc), which the chase views lag by, so a new view starts
  * steady. */

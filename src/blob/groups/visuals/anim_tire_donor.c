@@ -58,18 +58,6 @@ typedef struct tCar {
 } tCar;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_f32: (f32 *)PC_N64P(x), default: (x))
-typedef struct Control152 {
-    u8 prefix[144];
-    f32 spring_save;             /* the cockpit view's bounce (MAT3 view2spring) */
-    u8 tail[4];
-} Control152;
-VIEW(tCar *[], gCarModels);
-#define gCarModels gCarModels_view
-VIEW(Control152[], gCamera);
-#define gCamera gCamera_view
-
-VIEW(intptr_t[], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
 
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
@@ -81,7 +69,7 @@ VIEW(intptr_t[], gWheelTextures);
 /* Tire v->index of car v->slot (VIS_TIRES + tire), each frame (op 1): not shown for a hulk or a car shown as a
  * mine, and in the car's own window only in views 2 and up. The tire sits at its place on the body, down by its
  * radius and up by its suspension's compression (0 to 0.5 feet), with a random bounce on dirt that grows with the
- * speed; in the cockpit view the first tire also shakes the camera (gCamera's spring_save: less on pavement, none
+ * speed; in the cockpit view the first tire also shakes the camera (gCamera's view2spring: less on pavement, none
  * in the air). It turns by its spin times the time since the last frame (a fixed 3.7 a frame above 64 radians a
  * second) and the front tires steer. The first tire's node gets the texture: the blurred rim (tire_blur_texture)
  * above that spin, else the rim (gWheelTextures from 3), or without the Expansion Pak on tracks 0-5 the plain ones
@@ -136,7 +124,7 @@ void AnimateTire(tVisual *v, s16 op)
         if (PC_MODEL_VISCODE(slot)[tire] == SURF_VIS_DIRT) spring2 = (Random(2.0f) - 1.0f) * t;
         else if (PC_MODEL_VISCODE(slot)[tire] == SURF_VIS_AIRBORNE) spring2 = 0;
         else spring2 = (Random(2.0f) - 1.0f) * t * 0.25f;
-        gCamera[camera].spring_save = gCamera[camera].spring_save * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
+        gCamera[camera].view2spring = gCamera[camera].view2spring * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
     }
     vel = m->tires[tire].angvel;
     lastpos = v->angle;
@@ -154,7 +142,7 @@ void AnimateTire(tVisual *v, s16 op)
         } else {
             index = (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6) ? 16 : index + 3;
         }
-        ZOID_SetTexture(v->objnum, (void *) gWheelTextures[index], -1);
+        ZOID_SetTexture(v->objnum, (void *) (intptr_t)gWheelTextures[index], -1);
     }
     CreateYPRMatrix(mat, rpy);
     if (tire >= 2) {

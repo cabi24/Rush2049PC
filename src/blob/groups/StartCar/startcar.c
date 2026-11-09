@@ -2,29 +2,11 @@
  * StartBrakeLights()). */
 #include "game/game.h"
 
-/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
-typedef struct tCarParts {
-    s32 frame;
-    u8 pad04[0x18];
-    s32 tires[4];                /* 0x1C */
-    u8 pad2C[0x14];
-} tCarParts;
-
 /* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
 typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; u16 headlights[8]; } CarTlut;
 
 /* PC: the car palette descriptors car_palettes (CarPalette) keep a palette record's N64 layout (24 bytes, data a
  * u32 window address; car_palette_init.c). */
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
-VIEW(tCarParts[], gCarParts);
-#define gCarParts gCarParts_view
-VIEW(tUVPair, taillight_colors_dim);
-#define taillight_colors_dim taillight_colors_dim_view
-VIEW(tUVPair, headlight_colors_night);
-#define headlight_colors_night headlight_colors_night_view
 
 static void StartHeadLights(s16 slot);
 static void StartTire(s16 slot, u32 tire);

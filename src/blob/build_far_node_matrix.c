@@ -8,9 +8,6 @@ typedef struct View {
     char pad30[0x68];
 } View; /* 0x98 */
 
-VIEW(View[], gCamera);
-#define gCamera gCamera_view
-
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
@@ -32,9 +29,9 @@ s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute) {
         y = obj->pos[1];
         z = obj->pos[2];
     } else {
-        x = obj->pos[0] - gCamera[idx].pos[0];
-        y = obj->pos[1] - gCamera[idx].pos[1];
-        z = obj->pos[2] - gCamera[idx].pos[2];
+        x = obj->pos[0] - gCamera[idx].mat.pos[0];
+        y = obj->pos[1] - gCamera[idx].mat.pos[1];
+        z = obj->pos[2] - gCamera[idx].mat.pos[2];
     }
     return !(x - x == 0.0f && y - y == 0.0f && z - z == 0.0f);   /* NaN or infinite */
 }
@@ -54,9 +51,9 @@ void build_far_node_matrix(s32 idx, View *obj, u32 *m, f32 scale, s32 absolute) 
         y = obj->pos[1];
         z = obj->pos[2];
     } else {
-        x = obj->pos[0] - gCamera[idx].pos[0];
-        y = obj->pos[1] - gCamera[idx].pos[1];
-        z = obj->pos[2] - gCamera[idx].pos[2];
+        x = obj->pos[0] - gCamera[idx].mat.pos[0];
+        y = obj->pos[1] - gCamera[idx].mat.pos[1];
+        z = obj->pos[2] - gCamera[idx].mat.pos[2];
     }
     reach = PC_DRAW_REACH(1600.0f);
     s = sqrtf(x * x + y * y + z * z);

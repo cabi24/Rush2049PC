@@ -1,15 +1,6 @@
 /* animElapsedTimer: the box behind the race clock, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Pos {
-    s32 x, y;
-} Pos;
-
-VIEW(Pos[], elapsedTimerPos);
-#define elapsedTimerPos elapsedTimerPos_view
-VIEW(u8[4], hud_box_color);
-#define hud_box_color hud_box_color_view
-
 /* The race clock's box: animID says for which screens (1: one window only, 2: split screens only); hidden on other
  * screens (its animation then stops), in attract mode, outside a race, or when the HUD hides the clock; else as wide
  * as the clock's seven digits and two separators in its font, centred on elapsedTimerPos, at the HUD's box alpha,

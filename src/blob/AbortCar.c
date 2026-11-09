@@ -13,9 +13,6 @@ typedef struct tCarData
   u8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
 } tCarData;
 
-VIEW(u8, gDeathMode);
-#define gDeathMode gDeathMode_view
-
 /* The model record (tModelData): only its size, 0x808, matters here. */
 typedef struct tModelData tModelData;
 

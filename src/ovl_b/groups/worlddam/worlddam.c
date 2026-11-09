@@ -3,7 +3,6 @@
 #define tRGBA tRGBAView   /* this file's own tRGBA: include/game's tRGBA is another type */
 
 typedef struct tPoly tPoly;
-typedef struct surftyp surftyp;
 typedef struct tRGBA { u8 c[4]; } tRGBA;
 
 /* The model record (MAT3 tModelData): each tyre's height off the ground. */
@@ -12,21 +11,6 @@ typedef struct tModelData {
     f32 airdist[4];
     u8 unknown5fc[0x808 - 0x5fc];
 } tModelData;
-
-/* DamagePolys (RingState; MAT3 anon_full_oldest_68). */
-typedef struct DamageRing {
-    s8 full;
-    u16 oldest;
-    tPoly *polys[25];
-} DamageRing;
-
-VIEW(DamageRing, DamagePolys);
-#define DamagePolys DamagePolys_view
-
-VIEW(f32[4][3], dummyVtx);
-#define dummyVtx dummyVtx_view
-VIEW(tRGBA[5], damColor);
-#define damColor damColor_view
 
 extern f32 fabsf(f32);
 

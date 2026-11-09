@@ -51,11 +51,7 @@ VIEW(s32[4], gContLevels);
 VIEW(s32[4], gContEdges);
 #define gContEdges gContEdges_view
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 extern Player76 gPlayers[];
-VIEW(Vec3[], cur_acc);
-#define cur_acc cur_acc_view
 
 
 /* Picks each window's view and moves its camera (update_camera), then places the drones' scene nodes where their cars

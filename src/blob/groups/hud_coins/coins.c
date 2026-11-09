@@ -1,23 +1,8 @@
 /* animCoins: the coin counters, 3D coins and their counts (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
-typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
-typedef struct Cam152 { u8 pad[152]; } Cam152;
-
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): scale is N64 +0x10, host +0x14. */
-typedef struct Model68 { u32 flags, w4; void *obj; f32 w; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
 typedef struct Pos { s16 x, y; } Pos;
-
-VIEW(RecordRow[], gPlayerCoin);
-#define gPlayerCoin gPlayerCoin_view
-VIEW(Cam152[], gCamera);
-#define gCamera gCamera_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-VIEW(Model68[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
@@ -41,11 +26,11 @@ s32 animCoins(void *blit) {
         for (j = 0; j < 2; j++) {
             if (gPlayerCoin[i].slot[j].id == -1) {
                 char *names[2] = { coin_gold_name, coin_silver_name };
-                gPlayerCoin[i].slot[j].id = ZOID_AddObject(MBOX_FindObject_WORK(names[j], 0, gNumModels - 1, 1), gPlayerCoin[i].slot[j].pos, -1, 0);
+                gPlayerCoin[i].slot[j].id = ZOID_AddObject(MBOX_FindObject_WORK(names[j], 0, gNumModels[0] - 1, 1), gPlayerCoin[i].slot[j].pos, -1, 0);
                 MBOX_HideObject(gPlayerCoin[i].slot[j].id, 1, 15);
-                ObjInstanceList[gPlayerCoin[i].slot[j].id].scale = 10.0f;
+                ObjInstanceList[gPlayerCoin[i].slot[j].id].w = 10.0f;
             }
-            ScaleUV(&gCamera[i], gPlayerCoin[i].slot[j].pos,
+            ScaleUV(gCamera[i].mat.uvs, gPlayerCoin[i].slot[j].pos,
                           (gNumPlayers == 1) ? 0.03f : (gNumPlayers == 2) ? 0.03f : 0.04f);
             YawUV(hudObjAngle, gPlayerCoin[i].slot[j].pos);
             if (gRace == kStunt) {

@@ -51,27 +51,16 @@ typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enu
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
 
-typedef struct Texture36 {u8 bytes[36];} Texture36;
-typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture {u8 bytes[36];} Texture36;
 
 /* An always-colliding entry (MAT3 tAlwaysCol): the link, then the target it stands for. */
 typedef struct Link {struct Link *next;Target *target;} Link;
-/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
- * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
-typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
 
-VIEW(s32[10], gWprObjList);
-#define gWprObjList gWprObjList_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-VIEW(TextureBank[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
-VIEW(Pool, gAlwaysColList);
-#define gAlwaysColList gAlwaysColList_view
-VIEW(Pool, gTargetList);
-#define gTargetList gTargetList_view
 
 /* One frame of the mine (op 1), or release its visual (op 0); nothing happens while the game is paused.
  * - First frame: if the owner already has three mines, the oldest is aged past 120 s so it goes next; the mine
@@ -136,7 +125,7 @@ void AnimateMine(Visual *v, s16 op)
         ZOID_SetColor(m->dlIdx, &clr);
         ZOID_SetObjectFlags(t->dlIdx, ZOID_ObjectFlags(t->dlIdx) | 0x2000);
         ZOID_SetColor(t->dlIdx, &clr);
-        ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+        ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].texDefs[gMineTextures[4] & 1023], -1);
         m->flashTime = 0.0f;
         m->on = 0;
         clrPtr = &clr;
@@ -175,10 +164,10 @@ void AnimateMine(Visual *v, s16 op)
     if (m->flashTime >= 0.25f) {
         if (m->on) {
             m->on = 0;
-            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].texDefs[gMineTextures[4] & 1023], -1);
         } else {
             m->on = 1;
-            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[gCarTeam[t->owner]] >> 10].base[gMineTextures[gCarTeam[t->owner]] & 1023], -1);
+            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[gCarTeam[t->owner]] >> 10].texDefs[gMineTextures[gCarTeam[t->owner]] & 1023], -1);
         }
         m->flashTime = 0.0f;
     }
@@ -221,7 +210,7 @@ void AnimateMine(Visual *v, s16 op)
     }
     t->timeStamp += gFrameSeconds;
     if (!(t->flags & TARGET_ACTIVE) || (t->flags & TARGET_HIT) || t->timeStamp > 120.0f) {
-        acol = gAlwaysColList.active;
+        acol = gAlwaysColList.head;
         while (acol) {
             acolnext = acol->next;
             if (acol->target == t) FreeStatLLE(&gAlwaysColList, acol);

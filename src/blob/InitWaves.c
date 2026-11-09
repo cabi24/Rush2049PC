@@ -4,10 +4,6 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-
-VIEW(unsigned char, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(OSMesgQueue, bg_load_idle_queue);
 #define bg_load_idle_queue bg_load_idle_queue_view
 
@@ -47,8 +43,8 @@ void InitWaves(void)
     for (i = 0; i < 64; i++) {
         if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) UnloadWaveInstance(i);
     }
-    gNumModels = 0;
-    for (i = 0; i < 64; i++) if (gWaveInstance[i].ptr) gNumModels = i + 1;
+    gNumModels[0] = 0;
+    for (i = 0; i < 64; i++) if (gWaveInstance[i].ptr) gNumModels[0] = i + 1;
     ClearMemory();
     InitTextWave();
 }

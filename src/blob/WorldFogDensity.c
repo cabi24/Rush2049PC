@@ -28,11 +28,6 @@ typedef struct tWindowInfo {
 /* PC: a window is 80 bytes, its first two words are pointers (docs/port/POINTERS.md 10). */
 #define WININFO_SIZE (s32)sizeof(tWindowInfo)
 
-VIEW(FogRegion *[], trackFog);
-#define trackFog trackFog_view
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 

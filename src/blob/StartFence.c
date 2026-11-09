@@ -35,7 +35,7 @@ void StartFence(Target *t)
         v->timeStamp = fence_frame_time;
         t->flags = (u8) (t->flags & ~(TARGET_ACTIVE | TARGET_HIT));
         v->next = gEnvList;
-        gEnvList = (struct Node *) v;
+        gEnvList = (struct tVisual *) v;
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
     }
 }

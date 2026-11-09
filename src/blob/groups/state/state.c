@@ -12,9 +12,6 @@ typedef struct { u32 opaque[6]; } OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
 
-VIEW(u32, gNewGameState);
-#define gNewGameState gNewGameState_view
-
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
@@ -23,8 +20,6 @@ extern PadState gPlayers[];           /* gPlayers */
 struct PlayerFiles { u32 unknown0,  unknown4 ; PlayerData ** head,  ** tail ; };
 VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
-VIEW(u8[][3], gFogColors);
-#define gFogColors gFogColors_view
 
 extern u8 overlay_base[];                 /* runtime image base (A and B) */
 VIEW(OSMesgQueue, heap_lock_queue);

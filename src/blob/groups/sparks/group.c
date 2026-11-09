@@ -7,9 +7,6 @@
  * spark textures while its scrape lasts, turned along the car's motion and smaller at low speed. */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 /* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its motion, its tires' places and its appearance. */
 typedef struct {
     u8 pad000[0xA4];
@@ -25,9 +22,6 @@ typedef struct {
     u8 Points;
     u8 pad3A4[0x3B8 - 0x3A4];
 } tCarData;
-
-VIEW(s32, ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 /* A car visual (MAT3 tVisual) as the sparks use it. PC: next is a host pointer. */
 typedef struct tVisual {

@@ -18,9 +18,6 @@ typedef struct tModelData {
     u8 pad65E[0x7C6 - 0x65E]; s16 slot;        /* +0x7C6 */
 } tModelData;
 
-VIEW(f32[9], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 /* Reset model m: no pitch, no drive torque on the front wheels and 50 on the rear, the model step (model_step_dt,
  * MAT3 0.0025 s: 400 steps a second), brakeroll 3, no shift pending, the thump threshold (initial_thump_threshold,
  * MAT3 7500), every force, acceleration and velocity 0, the engine stopped, the orientation the identity (with the

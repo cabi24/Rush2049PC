@@ -15,17 +15,9 @@ typedef struct tVisual {
     void (*func)(struct tVisual *, s16);   /* 0x18 */
 } tVisual;
 
-typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; } tPoly;
+typedef PolyInstance tPoly;   /* a flat polygon (MAT3 tPoly) */
 
-VIEW(tRGBA, gShadowColor);
-#define gShadowColor gShadowColor_view
 extern f32 gDummyVtx[4][3];            /* gDummyVtx */
-
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-
-VIEW(tRGBA[5], arrowColors);
-#define arrowColors arrowColors_view
 
 /* Give car `slot` its shadow: a four-cornered polygon (the shadow texture, gTexList[6], in gShadowColor at alpha
  * 192), which AnimateShadow lays on the road each frame. Its polygon number is the visual's objnum. MAT3 builds the

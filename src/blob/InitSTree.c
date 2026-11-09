@@ -9,12 +9,12 @@
 void InitSTree(void) {
     stheadertyp *hp = gRoadDat;
     gRoadHead = hp;
-    gRoadPath = (u8 *)(hp + 1);
-    stree_nodes = gRoadPath + hp->pnum * 132;
-    stree_surf = stree_nodes + hp->tnum * 20;
-    stree_svert = stree_surf + hp->snum * 24;
-    stree_save = stree_svert + hp->vnum * 8;
+    gRoadPath = (struct pathtyp *)(hp + 1);
+    stree_nodes = (streetyp *)((u8 *)gRoadPath + hp->pnum * 132);
+    stree_surf = (surftyp *)(stree_nodes + hp->tnum);
+    stree_svert = (sverttyp *)(stree_surf + hp->snum);
+    stree_save = (savetyp *)(stree_svert + hp->vnum);
     stree_savenum = hp->savenum;
-    stree_vlist = stree_save + hp->savenum * 32;
+    stree_vlist = (u8 *)(stree_save + hp->savenum);
     stree_slist = stree_vlist + hp->vlnum;
 }

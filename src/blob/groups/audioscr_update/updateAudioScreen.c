@@ -20,13 +20,8 @@ typedef struct {
 VIEW(Button[], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
 
@@ -87,9 +82,9 @@ void audio_updateButtons(void) {
         WPitchUV(audio_buttonInfo[i].ang - 1.5707964f, audio_buttonInfo[i].mat);
         memcpy(audio_buttonInfo[i + 4].mat, audio_buttonInfo[i].mat, 36);
         if (1.5707964f < audio_buttonInfo[i].ang)
-            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[i].handle, texture, -1);
         ZOID_SetTexture(audio_buttonInfo[i + 4].handle, texture, -1);
         if ((vis = audio_validOption(i)) == 0) {

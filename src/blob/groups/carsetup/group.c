@@ -87,13 +87,7 @@ typedef struct tModelData {
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_Tune44: (Tune44 *)PC_N64P(x), enum n64p_u16: (u16 *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 
 /* The tables as the code indexes them: their own storage, through other types (include/game/view.h). */
-VIEW(s8[], gCarWings);
-#define gCarWings gCarWings_view
 
-VIEW(u16[10 * 12], stdtorquecurve);
-#define stdtorquecurve stdtorquecurve_view
-VIEW(float[2][6], frontTire);
-#define frontTire frontTire_view
 /* A PC datum: frontTire's address (the descriptors' tire constants), declared for the data loader in
  * port/data/game_decls.c. */
 float (*const pc_tire_records)[6] = frontTire;
@@ -120,7 +114,7 @@ void carsetup(tModelData *m)
  car=gCarModels[body];
  m->tune=PC_N64W(&gTune[m->handling]);
  m->car=PC_N64W(car);
- m->wingEffect=gWingSizes[gCarWings[row*13+body]];
+ m->wingEffect=gWingSizes[gCarWings[row][body]];
  m->mass=CalcMass(m);
  durability=carDurability[m->frame]-carsetup_durability_base;
  body=m->body_type;

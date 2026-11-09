@@ -42,10 +42,6 @@ VIEW(Control[], gPaks);
 #define gPaks gPaks_view
 VIEW(Pos[][4], no_rumble_text_pos);
 #define no_rumble_text_pos no_rumble_text_pos_view
-VIEW(u8[4][2][4], no_rumble_pane_colors);
-#define no_rumble_pane_colors no_rumble_pane_colors_view
-VIEW(void *[4], resultPane);
-#define resultPane resultPane_view
 
 /* Whether controller ctl has a Rumble Pak in. */
 s32 getB6_6874(s32 ctl)

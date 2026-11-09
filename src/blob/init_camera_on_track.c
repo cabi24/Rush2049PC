@@ -5,8 +5,6 @@ typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): its speed and its place on its drone path. */
 typedef struct Object { u8 other0[248]; s16 mph; u8 other250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 other250_308[0x338 - 0x308]; s16 idx; s16 other826; s16 path; } Object;
-VIEW(PcRespawn *[], trackSpots);
-#define trackSpots trackSpots_view
 
 /* Sets car `object`'s track camera (view 6, fix_camera_in_space) on drone path 0 a little ahead of the car (5
  * points, more the faster it goes): at the track's first camera spot within 200 feet of there (trackSpots, which

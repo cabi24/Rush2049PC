@@ -37,13 +37,6 @@ typedef struct tTextureSwap {
     Item12 *swapTexs;   /* the frames (MAT3 tTextureBase: name, tex, texBase) */
 } tTextureSwap;
 
-VIEW(tPaletteAnim *[], PaletteLists);
-#define PaletteLists PaletteLists_view
-VIEW(tTextureSwap *[], TextureSwapLists);
-#define TextureSwapLists TextureSwapLists_view
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* Find the textures and palettes of the track's (gTrackNum) animations, none in the attract demo without the
  * Expansion Pak. Palette animations: each restarts its period, and gets its palette's colours (or for a scroll, the
  * texture's load display list). Flipbooks (not when the race restarts: they are found already): each frame's
@@ -63,9 +56,9 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = ((void *)PC_N64P(((Resource32 *) MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1))->texBase));
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = ((void *)PC_N64P(((Resource32 *) MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1))->texBase));
         else {
-            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1);
+            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels[0] - 1);
             if (resource) plist->ptr = ((void *)PC_N64P(resource->palBase));
         }
         plist++;
@@ -77,9 +70,9 @@ flipbooks:
     while (tlist->num) {
         for (i = 0; i < tlist->num; i++) {
             if (expansion_pak_present || gTrackNum >= 6) {
-                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && tlist->swapTexs != texture_swap_shared_frames) {
-                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else continue;
             resource = tlist->swapTexs[i].tex;
             if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = resource->texBase;

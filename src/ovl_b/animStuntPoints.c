@@ -20,20 +20,8 @@ typedef struct tText {
     u8 **taba;
 } tText;
 
-VIEW(tStuntPlayer[4], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
 VIEW(tText, gText);
 #define gText gText_view
-VIEW(s32[4][4][2], wrongWayPos);
-#define wrongWayPos wrongWayPos_view
-VIEW(s32[4][4][2], stuntPos);
-#define stuntPos stuntPos_view
-VIEW(s32[4][4][2], stuntCoinPos);
-#define stuntCoinPos stuntCoinPos_view
-VIEW(s32[4], bonuscnt);
-#define bonuscnt bonuscnt_view
-VIEW(tStuntCoin[4][10], stuntCoin);
-#define stuntCoin stuntCoin_view
 
 /* Draws each stunt player's points, the stunt just landed and its bonus, and scrolls the coins won to the player's
  * coin row (stuntCoin), for the stunt race HUD. Returns 1. */
@@ -88,8 +76,8 @@ int animStuntPoints(void *blt)
             }
             else if (bonuscnt[i] == -2) bonuscnt[i] = 10;
             if (bonuscnt[i] >= 0) {
-                int x = wrongWayPos[gNumWindows-1][i][0];
-                int y = wrongWayPos[gNumWindows-1][i][1];
+                int x = wrongWayPos[gNumWindows-1][i].x;
+                int y = wrongWayPos[gNumWindows-1][i].y;
                 TB_Sprintf(str, gText.single[181]);
                 TB_Sprintf(str, stunt_bonus_format, str, p->bonusHud);
                 TB_DrawText(TB_CenterText(str, x), y, str);
@@ -98,8 +86,8 @@ int animStuntPoints(void *blt)
         } else bonuscnt[i] = -2;
         if (!p->done) p->pointsHud = p->points;
         else if (!p->crash) {
-            x = wrongWayPos[gNumWindows-1][i][0];
-            y = wrongWayPos[gNumWindows-1][i][1];
+            x = wrongWayPos[gNumWindows-1][i].x;
+            y = wrongWayPos[gNumWindows-1][i].y;
             if (p->bonusHud > 1) {
                 TB_Sprintf(str, gText.single[181]);
                 TB_Sprintf(str, stunt_landed_bonus_format, str, p->bonusHud);

@@ -14,9 +14,6 @@ typedef struct ObjInstance {
     u32 color, envcolor;
 } ObjInstance;
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
 /* Draw node `node` with texture `tex` (a texture definition) in place of its model's: at level of detail `lod`
  * (0-3), or at all four when `lod` is negative. NULL gives the model's own back. */
 void ZOID_SetTexture(s16 node, void *tex, s32 lod)

@@ -5,27 +5,9 @@
 #include "game/game.h"
 
 typedef union tRGBA {u8 c[4];u32 rgba;} tRGBA;      /* MAT3 rush_types.h */
-/* A car's scene objects (gCarParts, MAT3 tCarParts; the N64 has its own order): the body, its parts, the tyres. */
-typedef struct ModelState {
-    s32 handle,parts[5];    /* the body (MAT3 frame) and its parts; parts[3] stays hidden here */
-    u8 unaccessed24[4];
-    s32 tires[4];           /* 0x1C the tyres: front left, front right, rear left, rear right */
-    u8 unaccessed44[20];
-} ModelState;
 typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 /* A car model's description (gCarModels, MAT3 _tCar): only the tyres' places. */
 typedef struct ModelDescription {u8 unaccessed[112];f32 tireR[4][3];} ModelDescription;
-VIEW(ModelState[], gCarParts);
-#define gCarParts gCarParts_view
-VIEW(ModelDescription *[13], gCarModels);
-#define gCarModels gCarModels_view
-
-VIEW(s8[5][13], gTireRims);
-#define gTireRims gTireRims_view
-VIEW(intptr_t[], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 #define RIM_TEXTURES 3              /* gWheelTextures[]: the rims' textures from here on (gTireRims + this) */
 #define RIM_TEXTURE_SMALL_MEMORY 16 /* the one rim texture used without an Expansion Pak on the first six tracks */
@@ -63,10 +45,10 @@ void SetSelectTireSizes(s16 id,s16 player)
  * tyres for player. */
 void CreateSelectCar(s16 slot, s16 player, s32 cam)
 {
-    ModelState *car = &gCarParts[slot];
+    CarParts *car = &gCarParts[slot];
     CreateCar(slot, cam, 0);
-    MBOX_ShowObject(car->handle, 1, cam);
-    MBOX_HideObject(car->parts[3], 1, cam);
+    MBOX_ShowObject(car->frame, 1, cam);
+    MBOX_HideObject(car->hood, 1, cam);
     SetSelectTireSizes(slot, player);
 }
 
@@ -99,7 +81,7 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
     if (alpha == 0) {
         if (!gSelectCar[slot].hidden) {
             gSelectCar[slot].hidden = 1;
-            MBOX_HideObject(gCarParts[slot].handle, 0, cam);
+            MBOX_HideObject(gCarParts[slot].frame, 0, cam);
         } else if (gSelectCar[slot].waveInst != -1 && WaveInstanceReady(gSelectCar[slot].waveInst) && gSelectCar[slot].created) {
             UnloadSelectCar(slot);
             gSelectCar[slot].created = 0;
@@ -111,13 +93,13 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
             gSelectCar[slot].color[2] = -1;
             gSelectCar[slot].rims = -1;
             gSelectCar[slot].frontTireScale = gSelectCar[slot].rearTireScale = -1.0f;
-            ZOID_RemoveObjectTree(gCarParts[slot].handle, 1);
-            gCarParts[slot].handle = 0;
-            gCarParts[slot].parts[0] = 0;
-            gCarParts[slot].parts[1] = 0;
-            gCarParts[slot].parts[2] = 0;
-            gCarParts[slot].parts[3] = 0;
-            gCarParts[slot].parts[4] = 0;
+            ZOID_RemoveObjectTree(gCarParts[slot].frame, 1);
+            gCarParts[slot].frame = 0;
+            gCarParts[slot].extraparts[0] = 0;
+            gCarParts[slot].extraparts[1] = 0;
+            gCarParts[slot].extraparts[2] = 0;
+            gCarParts[slot].hood = 0;
+            gCarParts[slot].sheen = 0;
             gCarParts[slot].tires[0] = 0;
             gCarParts[slot].tires[1] = 0;
             gCarParts[slot].tires[2] = 0;
@@ -141,7 +123,7 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
             SetSheen(idx, player, sheenIdx);
         }
         if (gSelectCar[slot].hidden) {
-            MBOX_ShowObject(gCarParts[slot].handle, 0, cam);
+            MBOX_ShowObject(gCarParts[slot].frame, 0, cam);
             gSelectCar[slot].hidden = 0;
         }
         if (gSelectCar[slot].color[0] != r || gSelectCar[slot].color[1] != g || gSelectCar[slot].color[2] != b) {
@@ -158,10 +140,10 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
             newuvs[1][1] *= FSCLS.fscls[gFrameScale - 1];
             newuvs[2][1] *= FSCLS.fscls[gFrameScale - 1];
         }
-        ZOID_UpdateObject(gCarParts[slot].handle, pos, newuvs);
-        if (gSelectCar[slot].rims != gTireRims[player + 1][idx]) {
-            wheelTex = (void *) gWheelTextures[gTireRims[player + 1][idx] + RIM_TEXTURES];
-            gSelectCar[slot].rims = gTireRims[player + 1][idx];
+        ZOID_UpdateObject(gCarParts[slot].frame, pos, newuvs);
+        if (gSelectCar[slot].rims != TIRE_RIMS(player + 1)[idx]) {
+            wheelTex = (void *) gWheelTextures[TIRE_RIMS(player + 1)[idx] + RIM_TEXTURES];
+            gSelectCar[slot].rims = TIRE_RIMS(player + 1)[idx];
             if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6)
                 ZOID_SetTexture(gCarParts[slot].tires[0], (void *) gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
             else
@@ -174,8 +156,8 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
             gSelectCar[slot].rearTireScale = gRearTireScale[player + 1][idx];
             SetSelectTireSizes(slot, player);
         }
-        ObjInstanceList[gCarParts[slot].handle].flags &= ~OBJ_FLAG_16;
-        ObjInstanceList[gCarParts[slot].handle].flags &= ~OBJ_FLAG_32;
-        ObjInstanceList[gCarParts[slot].handle].culling = 0;
+        ObjInstanceList[gCarParts[slot].frame].flags &= ~OBJ_FLAG_16;
+        ObjInstanceList[gCarParts[slot].frame].flags &= ~OBJ_FLAG_32;
+        ObjInstanceList[gCarParts[slot].frame].culling = 0;
     }
 }

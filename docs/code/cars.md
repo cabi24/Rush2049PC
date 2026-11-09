@@ -280,9 +280,11 @@ own copies and other spellings to it).
 - **The pools** keep their N64 element order with pointer-sized links (the StatLL headers' 40-byte host layout; the
   puffs, skids and streaks are larger than on the N64); scene handles are `s32` whose low half is the node (read
   through an endian-aware union, ENDIAN.md).
-- **Views of shared data** with other types than include/game's (`VIEW`), and the node and window records declared
-  in each file: `ObjectInstance`, `ArbEntry` (MAT3 `tWindowInfo`) and `ModelList` in types.h want MAT3's fields
-  so the files can drop their copies.
+- **The window record**: `ArbEntry` (MAT3 `tWindowInfo`) is still bytes after its pointers, so the window files read
+  `ZoidWinInfo` through their own `tWindowInfo` (race.md 6). The scene nodes (`ObjectInstance`, MAT3's fields, typed
+  pointers), the model files' tables (`ModelDefTable`, `TextureDefTable`, `PaletteDefTable`), the car parts
+  (`CarParts`), the surface tree (`surftyp` ...) and the pools (`tStatList`, MAT3's fields) are one type each since
+  2026-11-09. A scene colour word holds R, G, B, A in memory; `OBJ_COLOR` reads its bytes.
 
 ## 11. The original game's oddities
 

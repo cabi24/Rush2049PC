@@ -5,13 +5,9 @@ typedef f32 Mat3[3][3];
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct tCarData { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other_308[0x35B - 0x308]; s8 slot,camera; } tCarData;
 
-/* A camera (gCamera, 152 bytes): its place (MAT3 fcam: the orientation, then the position) from +96. */
-typedef struct { u8 other[96];Mat3 matrix;f32 position[3];u8 tail[8]; } Slot152;
 
 VIEW(volatile s32, gLastFrameCount);
 #define gLastFrameCount gLastFrameCount_view
-VIEW(Slot152[], gCamera);
-#define gCamera gCamera_view
 
 /* game.frame_rate 60: the elasticity is per frame of two retraces, e; a frame of one gets e^(1/2), so two of them
  * follow the car as one of two retraces does (docs/port/FRAMERATE.md 7). The N64's own scaling stays for 3-5. */
@@ -36,8 +32,8 @@ void point_at_car(tCarData *car,f32 *pos,Mat3 *uvs,f32 *res)
         else if(gLastFrameCount==5) elasticity[camera]*=0.5f;
     }
     for(i=0;i<3;i++) {
-        gCamera[camera].position[i]=(gCamera[camera].position[i]*elasticity[camera]+(pos[i]+res[i])*(1.0f-elasticity[camera]));
-        rpos[i]=pos[i]-gCamera[camera].position[i];
+        gCamera[camera].fcam.pos[i]=(gCamera[camera].fcam.pos[i]*elasticity[camera]+(pos[i]+res[i])*(1.0f-elasticity[camera]));
+        rpos[i]=pos[i]-gCamera[camera].fcam.pos[i];
     }
-    LookInDir(rpos,gCamera[camera].matrix);
+    LookInDir(rpos,gCamera[camera].fcam.uvs);
 }

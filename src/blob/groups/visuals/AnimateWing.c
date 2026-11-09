@@ -8,12 +8,6 @@ typedef struct Model2056 { u8 opaque0[8]; u8 type; u8 opaque9[1007]; s16 state; 
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
 typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Model68 { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Model68;
-VIEW(Model68[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-VIEW(f32[9], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,

@@ -1,9 +1,6 @@
 /* CarSetup: the cars' visuals once their models are ready (MAT3 game.c). */
 #include "game/game.h"
 
-VIEW(u8, gNumActiveCars);
-#define gNumActiveCars gNumActiveCars_view
-
 /* The model record (MAT3 tModelData): the fields this reads. */
 struct tModelData {
     u8 pad0[8];

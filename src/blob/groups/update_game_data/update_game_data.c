@@ -132,14 +132,6 @@ void osStartThread(void *t);
 /* The appearance bits of each skid direction and tire: sSmoke and sSkid by skid direction (0 the -x pair sliding
  * sideways, 1 the +x pair, 2 the front wheels spinning or locked, 3 the rear), sSmoke2 by tire (the dust behind a
  * tire on dirt); sSkidData each direction's force table and its thresholds for skid marks and smoke. */
-VIEW(u32[4], sSmoke);
-#define sSmoke sSmoke_view
-VIEW(u32[4], sSmoke2);
-#define sSmoke2 sSmoke2_view
-VIEW(u32[4], sSkid);
-#define sSkid sSkid_view
-VIEW(tSkidData[4], sSkidData);
-#define sSkidData sSkidData_view
 
 f32 fabsf(f32);
 
