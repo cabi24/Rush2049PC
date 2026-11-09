@@ -1,8 +1,12 @@
+/* The title panes of the audio and options screens in the pause screen (MAT3 audioscr.c's and optionscr.c's
+ * _TitlePane). */
 #include "game/game.h"
 
 void ChangePaneSize(intptr_t, s32, s32, s32, s32);
 intptr_t InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
+/* Makes or resizes the audio screen's title pane for its title, or for "player N: controller removed" when the
+ * pausing player's controller is out. */
 void audio_TitlePane(void)
 {
     char buf[76];
@@ -23,6 +27,7 @@ void audio_TitlePane(void)
 }
 
 
+/* The same for the options screen. */
 void options_TitlePane(void)
 {
     char buf[76];

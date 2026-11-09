@@ -1,4 +1,12 @@
+/* The audio options screen's set-up (MAT3 audioscr.c's initScreen and initButtons): its buttons, blits and the song. */
 #include "game/game.h"
+
+/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
+#define GAME_STATE_FRONT_END 0x7C03FFFE
+/* The song line's choices (audio_gSong): a song of gSongNames, then the track's own. */
+#define AUDIO_SONG_TRACKS 12
+/* The song the front end plays for the track's own choice. */
+#define AUDIO_FRONT_END_SONG 6
 
 typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
@@ -22,20 +30,18 @@ void ZOID_SetTexture(s16,TexDef *,s32);
 Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * transform/group.c's AudChangeEffect says when). The stop of the song (command 1) that di_post_type1 posts
- * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
- * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
 
+/* Opens the audio screen: keeps the globals (SaveGlobals), sizes the menu; in the front end makes the background,
+ * the 3D buttons (the lines' pairs, the cursor and three decorations) and the front end's blit, in the pause
+ * screen the pause blit. Then, if the music or song line is chosen, restarts the chosen song at the options'
+ * music volume. */
 void audio_initScreen(void)
 {
     s32 u0, u1, u2, u3;
 
     SaveGlobals();
     audio_calcMenuRect();
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GAME_STATE_FRONT_END) {
         createBG();
         {
         Color buttonColor = {255, 255, 255, 255};
@@ -90,9 +96,9 @@ void audio_initScreen(void)
     if (gAudioMenuSelect == 1 || gAudioMenuSelect == 2) {
         AudKillSong();
         AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
-        if (audio_gSong < 12) AudPlaySong(audio_gSong,1);
-        else if (audio_gSong == 12) {
-            if (gGameState & 0x7C03FFFE) AudPlaySong(6,1);
+        if (audio_gSong < AUDIO_SONG_TRACKS) AudPlaySong(audio_gSong,1);
+        else if (audio_gSong == AUDIO_SONG_TRACKS) {
+            if (gGameState & GAME_STATE_FRONT_END) AudPlaySong(AUDIO_FRONT_END_SONG,1);
             else StartGameMusic();
         }
     }

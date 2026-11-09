@@ -1,19 +1,17 @@
+/* NewEmitter: takes a free 3D sound source (MAT3 audiomgr.c's _NewEmitter). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-VIEW(s32, gFreeEmitters);
-#define gFreeEmitters gFreeEmitters_view
+/* Takes the first emitter off gFreeEmitters and marks it taken (free = 0), or returns NULL when none is free.
+ * Called by AudEmitEffect under the audio lock. */
+tSfxEmitter *NewEmitter(void) {
+    tSfxEmitter *emitter;
 
-/* PC: an emitter (AudEmitEffect's Cam) has host-sized links, so its active flag is at +0x10
- * (docs/port/SYNTH.md). The list header keeps its head at +8. */
-#define EMITTER_ACTIVE 0x10
-s32 *NewEmitter(void) {
-    s32 *sp1C;
-
-    if (M2C_FIELD(&gFreeEmitters, s32 **, 8) == NULL) {
+    if (gFreeEmitters.head == NULL) {
         return NULL;
     }
-    sp1C = M2C_FIELD(&gFreeEmitters, s32 **, 8);
-    RemoveLLE(&gFreeEmitters, M2C_FIELD(&gFreeEmitters, s32 **, 8));
-    M2C_FIELD(sp1C, s8 *, EMITTER_ACTIVE) = 0;
-    return sp1C;
+    emitter = (tSfxEmitter *) gFreeEmitters.head;
+    RemoveLLE(&gFreeEmitters, gFreeEmitters.head);
+    emitter->free = 0;
+    return emitter;
 }

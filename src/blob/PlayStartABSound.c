@@ -1,9 +1,11 @@
+/* PlayStartABSound: the start screen's sound for its buttons (MAT3 audio.c). */
 #include "game/game.h"
 
-void PlayStartABSound(s32 arg0)
+/* Plays the select sound for A, the start screen's B sound for B, else the back sound (edges: the menu's button
+ * edges). */
+void PlayStartABSound(s32 edges)
 {
-  s32 type;
-  type = (arg0 & 1) ? 0x2E : ((arg0 & 2) ? 0x25 : 0x26);
-  AudPlayEffect(type, 0, 1, 0U);
+  s32 fxid;
+  fxid = (edges & MENU_EDGE_A) ? kSfxMenuSelect : ((edges & MENU_EDGE_B) ? kSfxMenuStartB : kSfxMenuBack);
+  AudPlayEffect(fxid, 0, 1, 0U);
 }
-

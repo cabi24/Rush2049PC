@@ -1,12 +1,14 @@
+/* PlayUDSound: the front end's sound for a move up or down in a menu (MAT3 audio.c). */
 #include "game/game.h"
 
-void PlayUDSound(s32 arg0) {
-    s32 var_a0;
+/* Plays the up sound when edges (the menu's button edges) has up, else the down sound. */
+void PlayUDSound(s32 edges) {
+    s32 fxid;
 
-    if (arg0 & 0x400) {
-        var_a0 = 0x28;
+    if (edges & MENU_EDGE_UP) {
+        fxid = kSfxMenuUp;
     } else {
-        var_a0 = 0x27;
+        fxid = kSfxMenuDown;
     }
-    AudPlayEffect(var_a0, 0, 1, 0U);
+    AudPlayEffect(fxid, 0, 1, 0U);
 }

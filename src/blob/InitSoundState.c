@@ -1,9 +1,11 @@
+/* InitSoundState: empties a car's sound record (MAT3 audio.c's _InitSoundState). */
 #include "game/game.h"
 
-void InitSoundState(void *arg0) {
-    M2C_FIELD(arg0, s32 *, 0) = -1;
-    M2C_FIELD(arg0, f32 *, 4) = -2.0f;
-    M2C_FIELD(arg0, f32 *, 8) = -2.0f;
-    M2C_FIELD(arg0, f32 *, 0xC) = -2.0f;
-    M2C_FIELD(arg0, f32 *, 0x10) = -2.0f;
+/* No sound (-1) and no values sent yet (AUDIO_NO_CHANGE, -2: the next SetSoundVP sends whatever it gets). */
+void InitSoundState(tSoundState *sound) {
+    sound->sound = -1;
+    sound->vol = -2.0f;
+    sound->pitch = -2.0f;
+    sound->lrpan = -2.0f;
+    sound->fbpan = -2.0f;
 }

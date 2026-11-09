@@ -1,375 +1,248 @@
+/* The sound server's work of each retrace (MAT3 audiosfx.c's AudioSfxServer) and the start of an effect on MusyX
+ * (the N64 form of MAT3's audiosfxps2.c _AudioPlayEffect). The audio manager thread runs AudioSfxServer after its
+ * priority pass: it frees the instances whose sound has ended and carries out the queued commands against MusyX
+ * (sound_start_sfx, sound_set_volume ...), retrying the ones MusyX refuses on the next retraces. */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
 VIEW(s8, gStopAllEffects);
 #define gStopAllEffects gStopAllEffects_view
 
-VIEW(intptr_t, gSfxInstances);
-#define gSfxInstances gSfxInstances_view
-
-VIEW(s32, gFreeQ);
+/* The queues in this file's view of the header's (gCmdQ without its volatile). */
+VIEW(AudioList, gFreeQ);
 #define gFreeQ gFreeQ_view
-
-VIEW(s32, gCmdQ);
+VIEW(AudioList, gCmdQ);
 #define gCmdQ gCmdQ_view
 
+/* Declared without a prototype, as this file always had it: AudioSfxServer passes the handle a second time,
+ * which the callee ignores. */
 M2C_UNK sound_set_volume();                    /* extern */
 
-/* PC: the sound entry's resource (audiosfx/group.c's Entry, s32 at +0xC) is the effect to start, read
- * as its low half, the u16 at +0xE on the N64 and at +0xC here; +0xE is its high half, 0, so every effect started
- * sfx 0 (docs/port/AUDIO.md 9). The volume and pan conversions are IDO's (pc_prelude.h). */
-#define SFX_ENTRY_ITEM 0xC
-/* PC: AudioSfxServer's four conversions of a volume, a pan, a front/back pan and a pitch to an unsigned int are
- * IDO's inlined (u32)f (the FCSR's flags read, which the PC's m2c reads as 0); its signed step, (s32)f, is undefined in
- * C for NaN or out of range, which the synthetic cartridge's sounds reach (a NaN front/back pan at a race's set-up:
- * the sanitizers' float-cast-overflow). There IDO's code gives -1, the low byte 0xFF; AArch64 gave 0. */
+/* PC: the volume and pan conversions of AudioPlayEffectInternal are IDO's (N64_F2U, pc_prelude.h). AudioSfxServer's
+ * conversions of a volume, a pan, a front/back pan and a pitch to MusyX's units are IDO's inlined (u32)f, whose
+ * signed step, (s32)f, is undefined in C for NaN or out of range, which the synthetic cartridge's sounds reach (a
+ * NaN front/back pan at a race's set-up: the sanitizers' float-cast-overflow). There IDO's code gives -1, the low
+ * byte 0xFF; AArch64 gave 0. */
 #define PC_CVT_S32(f) ((f) > -2147483648.0f && (f) < 2147483648.0f ? (s32)(f) : -1)
 
-s32 AudioPlayEffectInternal(void *ipa_s0, f32 ipa_f20, f32 ipa_f22) {
-    if ((M2C_FIELD(ipa_s0, s32 *, 0x10) = sound_start_sfx(M2C_FIELD(ipa_s0, u16 *, SFX_ENTRY_ITEM), 0xFF, 0xFF)) == -1) {
+/* A command that MusyX refused this many times is dropped (but a play command never is; MAT3 drops any after
+ * 20). */
+#define SFX_CMD_MAX_FAILS 10
+/* The stop-all pass stops fewer than this share of the instances per retrace (N64 only). */
+#define SFX_STOP_ALL_SHARE 4
+
+/* Starts the effect of instance theSound on MusyX, at volume (0 to 1) and left/right pan (-1 to 1): a MusyX sfx
+ * voice for its effect (the low half of soundId: PC note below), whose handle the instance keeps. Returns 1, or 0
+ * when MusyX has no voice for it (the command is retried next retrace).
+ * PC: soundId is read as the u16 at +0xC, its low half on the PC; the N64's +0xE, the same half there. Read as a
+ * whole s32 on the N64 layout it would have been its high half, 0, and every effect would have started sfx 0
+ * (docs/port/AUDIO.md 9). */
+s32 AudioPlayEffectInternal(tSfxVoice *theSound, f32 volume, f32 pan) {
+    if ((theSound->sound = sound_start_sfx(*(u16 *)&theSound->soundId, 0xFF, 0xFF)) == -1) {
         pc_snd_count(PC_SND_FX_REFUSED); return 0;
     }
-    sound_set_volume(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U(ipa_f20 * 127.0f));
-    sound_set_pan(M2C_FIELD(ipa_s0, s32 *, 0x10), (u8) N64_F2U((ipa_f22 + 1.0f) * 0.5f * 127.0f));
-    M2C_FIELD(ipa_s0, s8 *, 1) = 1;
+    sound_set_volume(theSound->sound, (u8) N64_F2U(volume * 127.0f));
+    sound_set_pan(theSound->sound, (u8) N64_F2U((pan + 1.0f) * 0.5f * 127.0f));
+    theSound->started = 1;
     return 1;
 }
 
-/* PC: AudioSfxServer walks the sound request list (audiosfx/group.c's List and Node), whose pointers
- * are 8 bytes here; its 24-byte entries have none. Its offsets into a node and the list header are these
- * (docs/port/MUSYX_DATA.md 8.4). */
-typedef struct { void *prev, *next; u8 kind, busy, pad[2]; void *entry; f32 value, stream, priority, route; } PcSfxNode;
-typedef struct { u32 pad[2]; void *tail, *head; } PcSfxList;
-#define SFX_NODE_NEXT __builtin_offsetof(PcSfxNode, next)
-#define SFX_NODE_KIND __builtin_offsetof(PcSfxNode, kind)
-#define SFX_NODE_BUSY __builtin_offsetof(PcSfxNode, busy)
-#define SFX_NODE_ENTRY __builtin_offsetof(PcSfxNode, entry)
-#define SFX_NODE_VALUE __builtin_offsetof(PcSfxNode, value)
-#define SFX_NODE_STREAM __builtin_offsetof(PcSfxNode, stream)
-#define SFX_NODE_PRIORITY __builtin_offsetof(PcSfxNode, priority)
-#define SFX_NODE_ROUTE __builtin_offsetof(PcSfxNode, route)
-#define SFX_LIST_HEAD __builtin_offsetof(PcSfxList, head)
-
 #define sound_set_doppler(m2c_zero, identifier, value) sound_set_doppler(identifier, value)
 
-void AudioSfxServer(void) {
-    /* gStoppedChannels, s32[5]: the channels stopped in the last frames, [4] this frame's count */
-    s32 *stopped = (s32 *) &gStoppedChannels;
-    f32 temp_f0;
-    f32 temp_f0_2;
-    f32 temp_f0_3;
-    f32 temp_f0_4;
-    f32 temp_f10;
-    f32 temp_f2;
-    f32 temp_f4;
-    f32 temp_f6;
-    f32 var_f2;
-    s32 *temp_s2;
-    s32 *temp_s2_2;
-    s32 *var_s1_2;
-    s32 *var_s1_3;
-    s32 *var_s1_4;
-    s32 *var_v0;
-    s32 temp_a0_2;
-    s32 temp_a0_3;
-    s32 temp_a0_4;
-    s32 temp_a1;
-    s32 temp_a2;
-    s32 temp_t6;
-    s32 temp_v0;
-    intptr_t temp_v0_2;
-    s32 var_a1;
-    s32 var_a1_2;
-    s32 var_a1_3;
-    s32 var_a1_4;
-    s32 var_s0;
-    s32 var_s0_2;
-    s32 var_s1;
-    s32 var_s4;
-    s32 var_s4_2;
-    s32 var_v0_2;
-    s32 var_v0_3;
-    s32 var_v0_4;
-    s32 var_v0_5;
-    s32 var_v0_6;
-    u8 temp_v0_3;
-    void *temp_a0;
-    void *temp_a0_5;
-    void *temp_v1;
-    void *temp_v1_2;
-    void *temp_v1_3;
+/* Takes cmd off the command queue and puts it back on the free queue (MAT3's _FreeCmd). */
+#define FREE_CMD(cmd) (RemoveLLE(&gCmdQ, (cmd)), InsertLLE(&gFreeQ, (cmd), gFreeQ.head))
 
-    if (audiosfx_gInited != 0) {
-        gNumChannels += stopped[4];
-        var_v0 = &stopped[4];
-        do {
-            temp_t6 = M2C_FIELD(var_v0, s32 *, -4);
-            var_v0 = var_v0 - 1;
-            *var_v0 = temp_t6;
-        } while ((uintptr_t) var_v0 >= (uintptr_t) &stopped[1]);
-        stopped[4] = 0;
-        if (gStopAllEffects != 0) {
-            temp_v0 = gNumInstances;
-            var_s4 = 0;
-            var_s1 = 0;
-            var_s0 = 0;
-            if (temp_v0 > 0) {
-loop_5:
-                temp_v1 = gSfxInstances + var_s0;
-                if ((M2C_FIELD(temp_v1, s8 *, 0) != 0) && (M2C_FIELD(temp_v1, s8 *, 4) != 0) && (M2C_FIELD(temp_v1, s8 *, 2) == 0)) {
-                    var_s1 += 1;
-                    if (var_s1 != (temp_v0 / 4)) {
-                        AudioStopEffect(M2C_FIELD(temp_v1, s32 *, 8));
-                        goto block_10;
-                    }
-                } else {
-block_10:
-                    var_s4 += 1;
-                    var_s0 += 0x18;
-                    if (var_s4 < temp_v0) {
-                        goto loop_5;
-                    }
+/* A float in MusyX's byte or word units, IDO's conversion: a negative or invalid value is -1 (PC note above). */
+static s32 sfx_units(f32 value) {
+    s32 units = PC_CVT_S32(value);
+    if (units < 0) {
+        units = -1;
+    }
+    return units;
+}
+
+/* Carries out one change command (MAT3's case 3): each of its values that is not AUDIO_NO_CHANGE goes to the
+ * instance's MusyX voice (volume 0..1 to 0..127, the pans -1..1 to 0..127, the pitch as a doppler factor of 8192
+ * units); a voice that has ended (-1) takes none. Returns 0 when MusyX refused one, so that the command is retried
+ * (the values already set are set again then). */
+static s32 sfx_change(tSfxCmd *cmd) {
+    s32 voice;
+    f32 doppler;
+
+    if (cmd->vol != -2.0f) {
+        voice = cmd->sound->sound;
+        if (voice != -1 && sound_set_volume(voice, sfx_units(cmd->vol * 127.0f) & 0xFF, voice) != 0) {
+            return 0;
+        }
+    }
+    if (cmd->lrpan != -2.0f) {
+        voice = cmd->sound->sound;
+        if (voice != -1 && sound_set_pan(voice, sfx_units((cmd->lrpan + 1.0f) * 0.5f * 127.0f) & 0xFF) != 0) {
+            return 0;
+        }
+    }
+    if (cmd->fbpan != -2.0f) {
+        voice = cmd->sound->sound;
+        if (voice != -1 && sound_set_span(voice, sfx_units((cmd->fbpan + 1.0f) * 0.5f * 127.0f) & 0xFF) != 0) {
+            return 0;
+        }
+    }
+    if (cmd->pitch != -2.0f) {
+        voice = cmd->sound->sound;
+        if (voice != -1) {
+            doppler = (cmd->pitch * 8192.0f) - 1.0f;
+            if (doppler < 0.0f) {
+                doppler = 0.0f;
+            }
+            if (sound_set_doppler(0, voice, sfx_units(doppler) & 0xFFFF) != 0) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
+/* Carries out one stop command (MAT3's case 2): keys the voice off once, then frees the instance when the voice
+ * has gone (at once if it had none). Returns 0 while the voice still sounds or MusyX refused the key-off: the
+ * command is retried next retrace. */
+static s32 sfx_stop(tSfxVoice *sound) {
+    s32 voice = sound->sound;
+
+    if (voice == -1) {
+        sound->used = 0;
+        sound->index = 0;
+        return 1;
+    }
+    if (sound->stopped == 0 && sound_key_off(voice, voice) != 0) {
+        return 0;
+    }
+    sound->stopped = 1;
+    if (sound_check(sound->sound) != -1) {
+        return 0;
+    }
+    sound->used = 0;
+    sound->index = 0;
+    return 1;
+}
+
+/* Each retrace: gives back the channels freed last retrace; stops a share of the instances AudioStopAllEffects
+ * marked; frees the instances whose MusyX voice has ended (and their queued commands); then runs the queue from
+ * its oldest command. A command whose instance is being stopped is dropped (but the stop itself), one whose
+ * instance failed this retrace waits, and one that MusyX refuses marks its instance failed (so its later commands
+ * wait for the next retrace, in order) and is kept for the next retrace, up to SFX_CMD_MAX_FAILS times. */
+void AudioSfxServer(void) {
+    /* gStoppedChannels, s32[5]: the channels stopped this retrace in [4] */
+    s32 *stopped = (s32 *) &gStoppedChannels;
+    s32 *count;
+    s32 older;
+    s32 numInstances;
+    s32 found;
+    s32 i;
+    s32 ok;
+    tSfxVoice *sound;
+    tSfxCmd *cmd;
+    tSfxCmd *next;
+
+    if (audiosfx_gInited == 0) {
+        return;
+    }
+    gNumChannels += stopped[4];
+    /* Original game: meant to age the counts, it copies each of stopped[3] .. stopped[0] onto itself (as the
+     * decompiled N64 code reads), so only [4] is used: as in MAT3, which keeps one count, the channels freed on one
+     * retrace come back on the next. */
+    count = &stopped[4];
+    do {
+        older = count[-1];
+        count = count - 1;
+        *count = older;
+    } while ((uintptr_t) count >= (uintptr_t) &stopped[1]);
+    stopped[4] = 0;
+
+    if (gStopAllEffects != 0) {
+        numInstances = gNumInstances;
+        found = 0;
+        for (i = 0; i < numInstances; i++) {
+            sound = &gSfxInstances[i];
+            if (sound->used != 0 && sound->stopAll != 0 && sound->stop == 0) {
+                /* the N64 stops fewer than a quarter of them per retrace: the rest wait for the next */
+                if (++found == numInstances / SFX_STOP_ALL_SHARE) {
+                    break;
+                }
+                AudioStopEffect(sound->index);
+            }
+        }
+        if (i == numInstances) {
+            gStopAllEffects = 0;
+        }
+    }
+
+    /* MAT3 also updates each playing instance here (_AudioUpdateEffect, the GameCube's pitch glide); the N64 only
+     * frees the ended ones. */
+    for (i = 0; i < gNumInstances; i++) {
+        sound = &gSfxInstances[i];
+        if (sound->used != 0 && sound->started != 0 && sound_check(sound->sound) == -1) {
+            for (cmd = gCmdQ.tail; cmd != NULL; cmd = next) {
+                next = cmd->dlle.prev;
+                if (cmd->sound == sound) {
+                    FREE_CMD(cmd);
                 }
             }
-            if (var_s4 == temp_v0) {
-                gStopAllEffects = 0;
+            stopped[4] += 1;
+            sound->index = 0;
+            sound->used = 0;
+        }
+    }
+
+    for (cmd = gCmdQ.tail; cmd != NULL; cmd = next) {
+        sound = cmd->sound;
+        next = cmd->dlle.prev;
+        if (sound != NULL && sound->stop != 0 && cmd->cmd != kSfxCmdStop) {
+            FREE_CMD(cmd);
+            continue;
+        }
+        if (sound != NULL && sound->fail != 0) {
+            continue;
+        }
+        switch (cmd->cmd) {
+        case kSfxCmdPlay:
+            ok = gNumChannels > 0 && AudioPlayEffectInternal(sound, cmd->vol, cmd->lrpan) != 0;
+            if (ok) {
+                gNumChannels -= 1;
+            }
+            break;
+        case kSfxCmdStop:
+            ok = sfx_stop(sound);
+            if (ok) {
+                stopped[4] += 1;
+            }
+            break;
+        case kSfxCmdChange:
+            ok = sfx_change(cmd);
+            break;
+        case kSfxCmdMono:
+            sound_set_mono((s32) cmd->vol & 0xFF);
+            ok = 1;
+            break;
+        default:
+            ok = 1;
+            break;
+        }
+        if (ok) {
+            FREE_CMD(cmd);
+        } else {
+            cmd->failCounter = (u8) (cmd->failCounter + 1);
+            if (cmd->sound != NULL) {
+                cmd->sound->fail = 1;
+            }
+            if ((s32) cmd->failCounter >= SFX_CMD_MAX_FAILS && cmd->cmd != kSfxCmdPlay) {
+                FREE_CMD(cmd);
             }
         }
-        var_s4_2 = 0;
-        var_s0_2 = 0;
-        if (gNumInstances > 0) {
-            do {
-                temp_v1_2 = gSfxInstances + var_s0_2;
-                if ((M2C_FIELD(temp_v1_2, s8 *, 0) != 0) && (M2C_FIELD(temp_v1_2, s8 *, 1) != 0) && (sound_check(M2C_FIELD((var_s0_2 + gSfxInstances), s32 *, 0x10)) == -1)) {
-                    var_s1_2 = M2C_FIELD(&gCmdQ, s32 **, SFX_LIST_HEAD);
-                    temp_v0_2 = gSfxInstances;
-                    if (var_s1_2 != NULL) {
-                        do {
-                            temp_s2 = M2C_FIELD(var_s1_2, s32 **, SFX_NODE_NEXT);
-                            if ((temp_v0_2 + var_s0_2) == M2C_FIELD(var_s1_2, intptr_t *, SFX_NODE_ENTRY)) {
-                                RemoveLLE(&gCmdQ, var_s1_2);
-                                InsertLLE(&gFreeQ, var_s1_2, M2C_FIELD(&gFreeQ, s32 **, 8));
-                            }
-                            var_s1_2 = temp_s2;
-                        } while (temp_s2 != NULL);
-                    }
-                    temp_v1_3 = var_s0_2 + temp_v0_2;
-                    stopped[4] += 1;
-                    M2C_FIELD(temp_v1_3, s32 *, 8) = 0;
-                    M2C_FIELD(temp_v1_3, s8 *, 0) = 0;
-                }
-                var_s4_2 += 1;
-                var_s0_2 += 0x18;
-            } while (var_s4_2 < gNumInstances);
-        }
-        var_s1_3 = M2C_FIELD(&gCmdQ, s32 **, SFX_LIST_HEAD);
-        if (var_s1_3 != NULL) {
-            do {
-                temp_a0 = M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY);
-                temp_s2_2 = M2C_FIELD(var_s1_3, s32 **, SFX_NODE_NEXT);
-                if ((temp_a0 != NULL) && (M2C_FIELD(temp_a0, s8 *, 2) != 0) && (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND) != 2)) {
-                    RemoveLLE(&gCmdQ, var_s1_3);
-                    InsertLLE(&gFreeQ, var_s1_3, M2C_FIELD(&gFreeQ, s32 **, 8));
-                } else if ((temp_a0 == NULL) || (M2C_FIELD(temp_a0, s8 *, 5) == 0)) {
-                    temp_v0_3 = M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND);
-                    switch (temp_v0_3) {            /* irregular */
-                    case 0:
-                        if (gNumChannels > 0) {
-                            if (AudioPlayEffectInternal(temp_a0, M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE), M2C_FIELD(var_s1_3, f32 *, SFX_NODE_STREAM)) == 0) {
-                                goto block_109;
-                            }
-                            gNumChannels -= 1;
-                        default:
-block_108:
-                            RemoveLLE(&gCmdQ, var_s1_3);
-                            InsertLLE(&gFreeQ, var_s1_3, M2C_FIELD(&gFreeQ, s32 **, 8));
-                        } else {
-block_109:
-                            M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) = (u8) (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) + 1);
-                            if (M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY) != NULL) {
-                                M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s8 *, 5) = 1;
-                            }
-                            if (((s32) M2C_FIELD(var_s1_3, u8 *, SFX_NODE_BUSY) >= 0xA) && (M2C_FIELD(var_s1_3, u8 *, SFX_NODE_KIND) != 0)) {
-                                RemoveLLE(&gCmdQ, var_s1_3);
-                                InsertLLE(&gFreeQ, var_s1_3, M2C_FIELD(&gFreeQ, s32 **, 8));
-                            }
-                        }
-                        break;
-                    case 2:
-                        temp_a1 = M2C_FIELD(temp_a0, s32 *, 0x10);
-                        var_v0_2 = 1;
-                        if (temp_a1 == -1) {
-                            M2C_FIELD(temp_a0, s8 *, 0) = 0;
-                            M2C_FIELD(temp_a0, s32 *, 8) = 0;
-                        } else if ((M2C_FIELD(temp_a0, s8 *, 3) == 0) && (sound_key_off(temp_a1, temp_a1) != 0)) {
-                            var_v0_2 = 0;
-                        } else {
-                            M2C_FIELD(temp_a0, s8 *, 3) = 1;
-                            if (sound_check(M2C_FIELD(temp_a0, s32 *, 0x10)) != -1) {
-                                var_v0_2 = 0;
-                            } else {
-                                M2C_FIELD(temp_a0, s8 *, 0) = 0;
-                                M2C_FIELD(temp_a0, s32 *, 8) = 0;
-                                var_v0_2 = 1;
-                            }
-                        }
-                        if (var_v0_2 == 0) {
-                            goto block_109;
-                        }
-                        stopped[4] += 1;
-                        goto block_108;
-                    case 3:
-                        temp_f0 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE);
-                        if (temp_f0 != -2.0f) {
-                            temp_a2 = M2C_FIELD(temp_a0, s32 *, 0x10);
-                            if (temp_a2 == -1) {
-                                goto block_62;
-                            }
-                            temp_f6 = temp_f0 * 127.0f;
-                            if (M2C_ERROR(/* cfc1 */) & 0x78) {
-                                if (!(M2C_ERROR(/* cfc1 */) & 0x78)) {
-                                    var_a1 = (s32) (temp_f6 - 2.1474836e9f) | 0x80000000;
-                                } else {
-                                    goto block_58;
-                                }
-                            } else {
-                                var_a1 = PC_CVT_S32(temp_f6);
-                                if (var_a1 < 0) {
-block_58:
-                                    var_a1 = -1;
-                                }
-                            }
-                            if (sound_set_volume(temp_a2, var_a1 & 0xFF, temp_a2) != 0) {
-                                var_v0_3 = 0;
-                            } else {
-block_62:
-                                var_v0_3 = 1;
-                            }
-                            if (var_v0_3 == 0) {
-                                goto block_109;
-                            }
-                            goto block_65;
-                        }
-block_65:
-                        temp_f0_2 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_STREAM);
-                        if (temp_f0_2 != -2.0f) {
-                            temp_a0_2 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
-                            if (temp_a0_2 == -1) {
-                                goto block_75;
-                            }
-                            temp_f4 = (temp_f0_2 + 1.0f) * 0.5f * 127.0f;
-                            if (M2C_ERROR(/* cfc1 */) & 0x78) {
-                                if (!(M2C_ERROR(/* cfc1 */) & 0x78)) {
-                                    var_a1_2 = (s32) (temp_f4 - 2.1474836e9f) | 0x80000000;
-                                } else {
-                                    goto block_71;
-                                }
-                            } else {
-                                var_a1_2 = PC_CVT_S32(temp_f4);
-                                if (var_a1_2 < 0) {
-block_71:
-                                    var_a1_2 = -1;
-                                }
-                            }
-                            if (sound_set_pan(temp_a0_2, var_a1_2 & 0xFF) != 0) {
-                                var_v0_4 = 0;
-                            } else {
-block_75:
-                                var_v0_4 = 1;
-                            }
-                            if (var_v0_4 == 0) {
-                                goto block_109;
-                            }
-                            goto block_78;
-                        }
-block_78:
-                        temp_f0_3 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_PRIORITY);
-                        if (temp_f0_3 != -2.0f) {
-                            temp_a0_3 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
-                            if (temp_a0_3 == -1) {
-                                goto block_88;
-                            }
-                            temp_f10 = (temp_f0_3 + 1.0f) * 0.5f * 127.0f;
-                            if (M2C_ERROR(/* cfc1 */) & 0x78) {
-                                if (!(M2C_ERROR(/* cfc1 */) & 0x78)) {
-                                    var_a1_3 = (s32) (temp_f10 - 2.1474836e9f) | 0x80000000;
-                                } else {
-                                    goto block_84;
-                                }
-                            } else {
-                                var_a1_3 = PC_CVT_S32(temp_f10);
-                                if (var_a1_3 < 0) {
-block_84:
-                                    var_a1_3 = -1;
-                                }
-                            }
-                            if (sound_set_span(temp_a0_3, var_a1_3 & 0xFF) != 0) {
-                                var_v0_5 = 0;
-                            } else {
-block_88:
-                                var_v0_5 = 1;
-                            }
-                            if (var_v0_5 == 0) {
-                                goto block_109;
-                            }
-                            goto block_91;
-                        }
-block_91:
-                        temp_f2 = M2C_FIELD(var_s1_3, f32 *, SFX_NODE_ROUTE);
-                        if (temp_f2 != -2.0f) {
-                            temp_a0_4 = M2C_FIELD(M2C_FIELD(var_s1_3, void **, SFX_NODE_ENTRY), s32 *, 0x10);
-                            if (temp_a0_4 == -1) {
-                                goto block_104;
-                            }
-                            temp_f0_4 = (temp_f2 * 8192.0f) - 1.0f;
-                            if (temp_f0_4 < 0.0f) {
-                                var_f2 = 0.0f;
-                            } else {
-                                var_f2 = temp_f0_4;
-                            }
-                            if (M2C_ERROR(/* cfc1 */) & 0x78) {
-                                if (!(M2C_ERROR(/* cfc1 */) & 0x78)) {
-                                    var_a1_4 = (s32) (var_f2 - 2.1474836e9f) | 0x80000000;
-                                } else {
-                                    goto block_100;
-                                }
-                            } else {
-                                var_a1_4 = PC_CVT_S32(var_f2);
-                                if (var_a1_4 < 0) {
-block_100:
-                                    var_a1_4 = -1;
-                                }
-                            }
-                            if (sound_set_doppler(0, temp_a0_4, var_a1_4 & 0xFFFF) != 0) {
-                                var_v0_6 = 0;
-                            } else {
-block_104:
-                                var_v0_6 = 1;
-                            }
-                            if (var_v0_6 == 0) {
-                                goto block_109;
-                            }
-                            goto block_108;
-                        }
-                        goto block_108;
-                    case 4:
-                        sound_set_mono((s32) M2C_FIELD(var_s1_3, f32 *, SFX_NODE_VALUE) & 0xFF);
-                        goto block_108;
-                    }
-                }
-                var_s1_3 = temp_s2_2;
-            } while (temp_s2_2 != NULL);
-        }
-        var_s1_4 = M2C_FIELD(&gCmdQ, s32 **, SFX_LIST_HEAD);
-        if (var_s1_4 != NULL) {
-            do {
-                temp_a0_5 = M2C_FIELD(var_s1_4, void **, SFX_NODE_ENTRY);
-                if (temp_a0_5 != NULL) {
-                    M2C_FIELD(temp_a0_5, s8 *, 5) = 0;
-                }
-                var_s1_4 = M2C_FIELD(var_s1_4, s32 **, SFX_NODE_NEXT);
-            } while (var_s1_4 != NULL);
+    }
+
+    for (cmd = gCmdQ.tail; cmd != NULL; cmd = cmd->dlle.prev) {
+        if (cmd->sound != NULL) {
+            cmd->sound->fail = 0;
         }
     }
 }
-
-/* stand-in caller: keeps AudioPlayEffectInternal out of line under -O3 */

@@ -1,75 +1,56 @@
-/* GENERATED ROM-aligned TU — segment 0x1f340 (rom/lib_1f340)
- * layout map e00424843f6bc10c711360c058d6ac0994494b0a03b7951830560602027a25aa.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* src/rom/sound/util.c: small services of the MusyX sound library: memory through the game's allocator, the random
+ * numbers and the sine table the synth's LFOs and macros use, a binary search for the resource registries, and
+ * conversions between milliseconds, ticks and the library's time unit. MusyX is the N64's sound library: no MAT3
+ * counterpart. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-04 — sound_alloc
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+#define SINE_QUARTER 1024              /* sound_sine_table: one quarter wave, 1024 steps */
+
 extern void *(*sound_service_alloc)(unsigned int size, unsigned int mode);
+extern void (*sound_service_free)(void *allocation);
+extern unsigned int sound_random_seed;
+extern const short sound_sine_table[1024];
+extern const short sound_sine_table_end[];
+extern u32 sound_synth_get_tick_rate(unsigned char *);
+
+/* size bytes from the game's allocator (sound_set_services). */
 void *sound_alloc(unsigned int size)
 {
     return sound_service_alloc(size, 0);
 }
 
-/* PROMOTED 2026-10-04 — sound_free
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern void (*sound_service_free)(void *allocation);
+/* Gives memory from sound_alloc back. */
 void sound_free(void *allocation)
 {
     sound_service_free(allocation);
 }
 
-/* PROMOTED 2026-10-11 — sound_random
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern unsigned int sound_random_seed;
+/* The next pseudo-random number: a multiplicative step of sound_random_seed, its bits 6 to 21. */
 unsigned short sound_random(void)
 {
     sound_random_seed *= 2822053219U;
     return sound_random_seed >> 6;
 }
 
-/* PROMOTED 2026-10-11 — sound_sine
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern const short sound_sine_table[1024];
-extern const short sound_sine_table_end[];
+/* The sine of phase (4096 steps a turn), from the quarter-wave table: rising, falling (the table read backwards
+ * from its end), and both negated. */
 short sound_sine(u16 phase)
 {
     phase &= 4095;
-    if (phase < 1024) {
+    if (phase < SINE_QUARTER) {
         return sound_sine_table[phase];
     }
-    if (phase < 2048) {
+    if (phase < 2 * SINE_QUARTER) {
         return (&sound_sine_table_end[-1023])[1023 - (phase & 1023)];
     }
-    if (phase < 3072) {
+    if (phase < 3 * SINE_QUARTER) {
         return -sound_sine_table[phase & 1023];
     }
     return -(&sound_sine_table_end[-1023])[1023 - (phase & 1023)];
 }
 
-/* PROMOTED 2026-10-11 — sound_bsearch
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Binary search of count elements of size bytes from base, sorted by compare (key first); returns the match or
+ * 0. */
 void *sound_bsearch(const void *key, const void *base, int count, int size,
                   int (*compare)(const void *, const void *))
 {
@@ -98,24 +79,13 @@ void *sound_bsearch(const void *key, const void *base, int count, int size,
     return 0;
 }
 
-/* PROMOTED 2026-10-04 — sound_ms_to_time
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Milliseconds to the library's time unit (1/256 ms), in place. */
 void sound_ms_to_time(unsigned int *time)
 {
     *time *= 256U;
 }
 
-/* PROMOTED 2026-10-04 — sound_ticks_to_time
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern u32 sound_synth_get_tick_rate(unsigned char *);
+/* Ticks of a sequence's tempo (sound_synth_get_tick_rate of state) to the library's time unit, in place. */
 void sound_ticks_to_time(u32 *value, unsigned char *state)
 {
     u32 rate;
@@ -123,14 +93,8 @@ void sound_ticks_to_time(u32 *value, unsigned char *state)
     *value = (((*value << 16) / rate) * 1000U) >> 5;
 }
 
-/* PROMOTED 2026-10-04 — sound_time_to_ms
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The library's time unit to milliseconds. */
 unsigned int sound_time_to_ms(unsigned int time)
 {
     return time / 256U;
 }
-

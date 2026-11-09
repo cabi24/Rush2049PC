@@ -1,51 +1,42 @@
+/* AudioSfxInit: the sound server's start-up (MAT3 audiosfx.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-typedef struct Link {
-    struct Link *next, *prev;
-} Link;
-
-typedef struct List {
-    u8 indirect, doubly, pad[2];
-    u32 count;
-    Link *head, *tail;
-} List;
-
-typedef struct { u8 bytes[24]; } Rec24;
-typedef struct Rec32 { Link link; u8 kind, busy, pad[2]; void *entry; f32 values[4]; } Rec32;
-
-VIEW(List, gCmdQ);
+/* The sound server's lists, in this file's view of the header's (the same layout, without the volatile). */
+VIEW(AudioList, gCmdQ);
 #define gCmdQ gCmdQ_view
-VIEW(List, gFreeQ);
+VIEW(AudioList, gFreeQ);
 #define gFreeQ gFreeQ_view
 
-VIEW(Rec24 *, gSfxInstances);
-#define gSfxInstances gSfxInstances_view
-VIEW(Rec32 *, audiosfx_gCmds);
-#define audiosfx_gCmds audiosfx_gCmds_view
-
-#define N64A(x) PC_N64A(x)
 void *memset(void *, s32, u32);
 
-void AudioSfxInit(s32 count) {
+/* The number of command records per effect instance (MAT3 audiosfx.c's numCmds = maxSfx * 3). */
+#define SFX_CMDS_PER_INSTANCE 3
+
+/* Sets up the sound server for maxSfx effects at once (AudioInitSys passes the effect quota): maxSfx effect
+ * instances (gSfxInstances) and three times as many command records on the free queue (gFreeQ), from the heap;
+ * every channel free (gNumChannels), none stopped this frame. */
+void AudioSfxInit(s32 maxSfx) {
     s32 i;
-    s32 n;
+    s32 numCmds;
 
     sound_list_init(&gCmdQ, 0, 1);
-    if (count == 0) {
+    if (maxSfx == 0) {
     }
-    gNumInstances = count;
+    gNumInstances = maxSfx;
     sound_list_init(&gFreeQ, 0, 1);
-    gSfxInstances = AllocateMemoryHeap(0, gNumInstances * sizeof(Rec24));
-    PurgeableMemory(N64A(gSfxInstances), 0);
-    memset(gSfxInstances, 0, gNumInstances * sizeof(Rec24));
-    n = count * 3;
-    audiosfx_gCmds = AllocateMemoryHeap(0, n * sizeof(Rec32));
-    PurgeableMemory(N64A(audiosfx_gCmds), 0);
-    memset(audiosfx_gCmds, 0, n * sizeof(Rec32));
-    for (i = 0; i < n; i++) {
-        InsertLLE(&gFreeQ, &audiosfx_gCmds[i].link, gFreeQ.head);
+    gSfxInstances = AllocateMemoryHeap(0, gNumInstances * sizeof(tSfxVoice));
+    PurgeableMemory(PC_N64A(gSfxInstances), 0);
+    memset(gSfxInstances, 0, gNumInstances * sizeof(tSfxVoice));
+    numCmds = maxSfx * SFX_CMDS_PER_INSTANCE;
+    audiosfx_gCmds = AllocateMemoryHeap(0, numCmds * sizeof(tSfxCmd));
+    PurgeableMemory(PC_N64A(audiosfx_gCmds), 0);
+    memset(audiosfx_gCmds, 0, numCmds * sizeof(tSfxCmd));
+    for (i = 0; i < numCmds; i++) {
+        InsertLLE(&gFreeQ, &audiosfx_gCmds[i].dlle, gFreeQ.head);
     }
-    gNumChannels = count;
+    gNumChannels = maxSfx;
+    /* The N64 keeps five counts of stopped channels where MAT3 keeps one (AudioSfxServer). */
     for (i = 0; i < 5; i++) {
         gStoppedChannels[i] = 0;
     }

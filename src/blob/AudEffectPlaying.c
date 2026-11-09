@@ -1,50 +1,23 @@
+/* AudEffectPlaying: whether a sound the game asked for is still on (MAT3 audiomgr.c). */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-#define OSThread_s OSThread_sView   /* this file's own OSThread_s: include/game's OSThread_s is another type */
-#define __OSThreadContext __OSThreadContextView   /* this file's own __OSThreadContext: include/game's __OSThreadContext is another type */
+#include "game/audiomgr.h"
 
-typedef struct __OSThreadContext {
-    u64 at, v0, v1, a0, a1, a2, a3;
-    u64 t0, t1, t2, t3, t4, t5, t6, t7;
-    u64 s0, s1, s2, s3, s4, s5, s6, s7;
-    u64 t8, t9, gp, sp, s8, ra;
-    u64 lo, hi;
-    u32 sr, pc, cause, badvaddr, rcp;
-    u32 fpcsr;
-    f32 fp0, fp2, fp4, fp6, fp8, fp10, fp12, fp14;
-    f32 fp16, fp18, fp20, fp22, fp24, fp26, fp28, fp30;
-} __OSThreadContext;
-typedef struct OSThread_s {
-    struct OSThread_s *next;
-    s32 priority;
-    struct OSThread_s **queue;
-    struct OSThread_s *tlnext;
-    u16 state;
-    u16 flags;
-    s32 id;
-    s32 fp;
-    struct __OSThreadprofile_s *thprof;
-    __OSThreadContext context;
-} OSThread;
+s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
+s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
+extern tFxSequence *ConvertTag(s32 tag);
 
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-
-/* PC: an fx tag (audiomgr_thread.c's tFxSequence): state at +0x1C, sysId at +0x48 (docs/port/SYNTH.md). */
-typedef struct { void *pad[3]; u32 id; s32 type; u8 pad2[0x28]; s32 link; } ResEntry;
-extern ResEntry *ConvertTag(s32 arg0);
-s32 AudEffectPlaying(s32 arg0) {
-    s32 result; ResEntry *e;
-    osRecvMesg((OSMesgQueue *) &audio_lock_queue, NULL, 1);
-    e = ConvertTag(arg0);
-    if (e != NULL) {
-        if (e->type == 1 || e->type == 3) { result = 1; }
-        else if (e->type != 2) { result = 0; }
-        else { result = AudioEffectPlaying(e->link); }
-    } else { result = 0; }
-    osSendMesg((OSMesgQueue *) &audio_lock_queue, NULL, 0);
-    return result;
+/* Whether the effect of fx tag handle tag is playing or still to play: 1 while it waits for a voice or for its
+ * restart (pending, interrupted), the sound server's answer while it plays (AudioEffectPlaying), 0 once its tag is
+ * gone. */
+s32 AudEffectPlaying(s32 tag) {
+    s32 playing; tFxSequence *fx_tag;
+    osRecvMesg(&audio_lock_queue, NULL, 1);
+    fx_tag = ConvertTag(tag);
+    if (fx_tag != NULL) {
+        if (fx_tag->state == kFxPending || fx_tag->state == kFxInterrupted) { playing = 1; }
+        else if (fx_tag->state != kFxPlaying) { playing = 0; }
+        else { playing = AudioEffectPlaying(fx_tag->sysId); }
+    } else { playing = 0; }
+    osSendMesg(&audio_lock_queue, NULL, 0);
+    return playing;
 }

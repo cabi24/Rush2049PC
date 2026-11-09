@@ -1,34 +1,11 @@
+/* UpdateFx: the priority pass's decision for one fx tag (MAT3 audiomgr.c's _UpdateFx). */
 #include "game/game.h"
-
-typedef struct FxTag {
-    void *next, *prev;      /* 0x00 ll */
-    void *list;             /* 0x08 */
-    u32 id;                 /* 0x0C */
-    s32 state;              /* 0x10 */
-    s32 type;               /* 0x14 */
-    s8 paused;              /* 0x18 */
-    s8 loop;                /* 0x19 */
-    u8 numCmds;             /* 0x1A */
-    u8 priority;            /* 0x1B */
-    s32 wpriority;          /* 0x1C */
-    f32 startTime;          /* 0x20 */
-    f32 vol;                /* 0x24 */
-} FxTag;
-typedef struct SortedTag {
-    void *left, *right;     /* 0x00 tBSTE */
-    FxTag *tag;             /* 0x08 */
-} SortedTag;
-typedef struct AudioMsg {
-    s16 type;               /* 0x00 */
-    s8 cmd;                 /* 0x02 */
-    s8 used;                /* 0x03 */
-    FxTag *tag;             /* 0x04 */
-} AudioMsg;
+#include "game/audiomgr.h"
 
 /* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
-#define gStopCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
-#define gStartCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
-AudioMsg *GetCmd(void);      /* _GetCmd */
+#define gStopCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
+#define gStartCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
+tAudioMsg *GetCmd(void);      /* _GetCmd */
 
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */
@@ -38,29 +15,36 @@ AudioMsg *GetCmd(void);      /* _GetCmd */
  * is the same comparison. */
 #define PC_OVER_BUDGET(tag, rank, budget) \
     pc_snd_over_budget((tag)->id, rank, budget, (tag)->state == 2 || (tag)->vol > 0.1f)
+
+/* WalkBST's callback for each node of the tag tree, element (a tSortedFxTag) in rank elNum by weighted
+ * priority. A tag ranked past three quarters of the effect quota (gMaxSfx), or a silent loop playing for more than
+ * 0.2 s, loses its voice: an interrupt command if it plays. Otherwise a tag waiting for a voice that is audible
+ * (above 0.1), or a one-shot emitter's, gets a start command. The commands are collected (gStopCmds,
+ * gStartCmds) and run after the walk. Pending tags (just asked for) wait a pass. */
 void UpdateFx(void *element, int elNum)
 {
-    SortedTag *stag = element;
-    AudioMsg *cmd;
+    tSortedFxTag *stag = element;
+    tAudioMsg *cmd;
+    /* A leftover of the N64 build's matching: evaluates elNum == 2 and the tag's state and does nothing. */
     { s32 t = elNum == 2; if (stag->tag->state != 2) { if (t) {} if (t) {} } }
-    if (stag->tag->state != 1) {
+    if (stag->tag->state != kFxPending) {
         if (PC_OVER_BUDGET(stag->tag, elNum, gMaxSfx * 0.75f) ||
-            (stag->tag->loop && stag->tag->state == 2 && stag->tag->vol <= 0.0f &&
+            (stag->tag->loop && stag->tag->state == kFxPlaying && stag->tag->vol <= 0.0f &&
              AudioTimeout(stag->tag->startTime, 0.2f))) {
-            if (stag->tag->state == 2) {
+            if (stag->tag->state == kFxPlaying) {
                 cmd = GetCmd(); PC_CMD_OR_RETURN(cmd)
                 gStopCmds[gNumStopCmds++] = cmd;
-                cmd->cmd = 5;
-                cmd->tag = stag->tag;
-                cmd->tag->numCmds++;
+                cmd->hdr.cmd = kAudioCmdInterruptEffect;
+                cmd->intEffect.tag = stag->tag;
+                cmd->intEffect.tag->numCmds++;
             }
-        } else if (stag->tag->state != 2 &&
-                   (stag->tag->vol > 0.1f || (!stag->tag->loop && stag->tag->type == 1))) {
+        } else if (stag->tag->state != kFxPlaying &&
+                   (stag->tag->vol > 0.1f || (!stag->tag->loop && stag->tag->type == kFxEmitter))) {
             cmd = GetCmd(); PC_CMD_OR_RETURN(cmd)
             gStartCmds[gNumStartCmds++] = cmd;
-            cmd->cmd = 3;
-            cmd->tag = stag->tag;
-            cmd->tag->numCmds++;
+            cmd->hdr.cmd = kAudioCmdStartEffect;
+            cmd->startEffect.tag = stag->tag;
+            cmd->startEffect.tag->numCmds++;
         }
     }
 }

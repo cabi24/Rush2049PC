@@ -1,5 +1,20 @@
+/* The audio options screen's update (MAT3 audioscr.c's updateAudioScreen, validOption, updateButtons): from the
+ * front end's options or the pause screen, four lines (effects volume, music volume, song, mono or stereo) on
+ * spinning 3D buttons, with a cursor. */
 #include "game/game.h"
 
+/* The audio screen's lines (gAudioMenuSelect). */
+enum { AUDIO_MENU_SFX = 0, AUDIO_MENU_MUSIC = 1, AUDIO_MENU_SONG = 2, AUDIO_MENU_MONO = 3 };
+/* The song line's choices (audio_gSong, gOptions' track): a song of gSongNames, the track's own, none. */
+#define AUDIO_SONG_TRACKS 12
+#define AUDIO_SONG_LAST 13
+/* The song the front end plays for the track's own (song 12) choice. */
+#define AUDIO_FRONT_END_SONG 6
+/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
+#define GAME_STATE_FRONT_END 0x7C03FFFE
+
+/* An audio screen button (audio_buttonInfo: 0-3 the lines' left buttons, 4-7 their right, 8 the cursor, 9-11
+ * the decorations). */
 typedef struct {
     s32 type;            /* 0x00 */
     s32 handle;          /* 0x04 */
@@ -20,17 +35,20 @@ VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
 f32 fabsf(f32);
-#pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
 intptr_t MBOX_FindTexture_WORK();
 void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 
+/* Whether line i of the screen can be chosen: always (MAT3 hides some lines on other machines). */
 s32 audio_validOption(s32 i) {
     s32 v;
     v = 1;
     return v;
 }
 
+/* Moves the buttons each frame: the chosen line's pair turns to face the player (a quarter turn in an eighth of a
+ * second), the others turn away; the lines slide to their places (at most 180 units a second); the cursor spins
+ * and follows the chosen line, faster the farther it has to go. */
 void audio_updateButtons(void) {
     s32 i;
     intptr_t name;
@@ -138,13 +156,12 @@ VIEW(Pad16[], gControllerData);
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * transform/group.c's AudChangeEffect says when). The stop of the song (command 1) posted here is then
- * dropped: with no message the lock is given back and nothing is sent, and a message the full queue refuses is
- * given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
 
+/* Each frame of the audio screen: reads the controller (the first in the front end, the pausing player's in the
+ * pause screen); A or start leaves, B restarts the chosen song, up and down move between the lines, left and right
+ * change the line's value (the volumes 0 to 10 with wrap, the song, mono) and play the change at once. Then
+ * moves the buttons, notes a pulled controller in the title, and on leaving (or a soft reset) goes back to the
+ * options or the pause screen. */
 void updateAudioScreen(void) {
     Pad16 *p;
     s32 padB;
@@ -153,7 +170,7 @@ void updateAudioScreen(void) {
     s32 ds;
     s32 dz;
 
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GAME_STATE_FRONT_END) {
         stick[0] = gContStick[0].x;
         stick[1] = gContStick[0].y;
         btn = gActiveEdges;
@@ -169,18 +186,18 @@ void updateAudioScreen(void) {
         exitAudioScreen = 2;
     } else if (btn & 2) {
         switch (gAudioMenuSelect) {
-        case 0:
+        case AUDIO_MENU_SFX:
             break;
-        case 1:
+        case AUDIO_MENU_MUSIC:
             break;
-        case 2:
+        case AUDIO_MENU_SONG:
             AudKillSong();
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
-            if (audio_gSong < 12)
+            if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
-            else if (audio_gSong == 12) {
-                if (gGameState & 0x7C03FFFE)
-                    AudPlaySong(6, 1);
+            else if (audio_gSong == AUDIO_SONG_TRACKS) {
+                if (gGameState & GAME_STATE_FRONT_END)
+                    AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
             }
@@ -196,13 +213,13 @@ void updateAudioScreen(void) {
             else if (gAudioMenuSelect < 0)
                 gAudioMenuSelect = 3;
         } while (!audio_validOption(gAudioMenuSelect));
-        if (gAudioMenuSelect == 1 || gAudioMenuSelect == 2) {
+        if (gAudioMenuSelect == AUDIO_MENU_MUSIC || gAudioMenuSelect == AUDIO_MENU_SONG) {
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
-            if (audio_gSong < 12)
+            if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
-            else if (audio_gSong == 12) {
-                if (gGameState & 0x7C03FFFE)
-                    AudPlaySong(6, 1);
+            else if (audio_gSong == AUDIO_SONG_TRACKS) {
+                if (gGameState & GAME_STATE_FRONT_END)
+                    AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
             }
@@ -211,7 +228,7 @@ void updateAudioScreen(void) {
         dz = (btn & 0x1000) ? -1 : 1;
         PlayLRSound(btn);
         switch (gAudioMenuSelect) {
-        case 0:
+        case AUDIO_MENU_SFX:
             gOptions.sfx += dz;
             if (gOptions.sfx > 10)
                 gOptions.sfx = 0;
@@ -219,7 +236,7 @@ void updateAudioScreen(void) {
                 gOptions.sfx = 10;
             AudSetFxVol(gOptions.sfx / 10.0f, 0.05f);
             break;
-        case 1:
+        case AUDIO_MENU_MUSIC:
             gOptions.music += dz;
             if (gOptions.music > 10)
                 gOptions.music = 0;
@@ -227,27 +244,27 @@ void updateAudioScreen(void) {
                 gOptions.music = 10;
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
             break;
-        case 2:
+        case AUDIO_MENU_SONG:
             AudKillSong();
             do {} while (0);
             audio_gSong += dz;
-            if (audio_gSong > 13)
+            if (audio_gSong > AUDIO_SONG_LAST)
                 audio_gSong = 0;
             else if (audio_gSong < 0)
-                audio_gSong = 13;
+                audio_gSong = AUDIO_SONG_LAST;
             gLastSong = audio_gSong;
             gOptions.track = audio_gSong;
             AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
-            if (audio_gSong < 12)
+            if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
-            else if (audio_gSong == 12) {
-                if (gGameState & 0x7C03FFFE)
-                    AudPlaySong(6, 1);
+            else if (audio_gSong == AUDIO_SONG_TRACKS) {
+                if (gGameState & GAME_STATE_FRONT_END)
+                    AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
             }
             break;
-        case 3:
+        case AUDIO_MENU_MONO:
             gOptions.mono = !gOptions.mono;
             AudMono(gOptions.mono);
             break;
@@ -263,13 +280,13 @@ void updateAudioScreen(void) {
     }
     if (gSoftReset) {
         audio_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
+        if (gGameState & GAME_STATE_FRONT_END)
             gNewGameState = 4;
         else
             setPauseState(1);
     } else if (exitAudioScreen) {
         audio_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
+        if (gGameState & GAME_STATE_FRONT_END)
             gNewGameState = 16;
         else
             setPauseState(1);

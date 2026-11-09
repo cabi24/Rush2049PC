@@ -1,13 +1,10 @@
+/* audio_lock: takes the sound manager's lock (N64 only: MAT3's sound manager runs on the game's thread). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue OSMesgQueue;
+s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-
+/* Waits for audio_lock_queue's one message: the lock that the game's requests and the audio manager thread take
+ * around the sound manager's lists and tags. audio_unlock gives it back. */
 void audio_lock(void) {
-    osRecvMesg((OSMesgQueue *) &audio_lock_queue, NULL, 1);
+    osRecvMesg(&audio_lock_queue, NULL, 1);
 }
-

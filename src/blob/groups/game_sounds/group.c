@@ -1,73 +1,82 @@
+/* The master volume requests of the sound manager (MAT3 audiomgr.c's _AudSetMasterVol, AudSetMusicVol,
+ * AudSetFxVol) and the race's music and sound switches (MAT3 audio.c's PauseGameMusic, EnableGameSounds). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+#include "game/audiomgr.h"
 
-typedef struct OSMesgQueue OSMesgQueue;
-
-#undef M2C_FIELD
-#define M2C_FIELD(p,t,o) (*(t)((char *)(p)+(o)))
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(s32, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
-extern void *GetCmd(void);
-extern s32 osRecvMesg(OSMesgQueue *,void *,s32);
-extern s32 osSendMesg(OSMesgQueue *,void *,s32);
+s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
+s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
+tAudioMsg *GetCmd(void);
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
+
+/* gOptions' effects volume, 0 to 10 (the audio screen's). */
+#define OPTION_FX_VOLUME 13
+
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * transform/group.c's AudChangeEffect says when). A volume change (command 10) is then dropped: with no
- * message the lock is given back and nothing is sent, and a message the full queue refuses is given back (its
- * in-use byte, +3); the volume stays as it was until the next change. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg((OSMesgQueue *)&audio_lock_queue,NULL,0);return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)M2C_FIELD(m,s8 *,3)=0
-void AudSetMasterVol(f32 blend,f32 amount,s32 first,s32 second) {
-    f32 var_f0;
-    void *temp_v0;
+ * transform/group.c's AudChangeEffect says when). A volume change is then dropped: with no message the lock is
+ * given back and nothing is sent, and a message the full queue refuses is given back; the volume stays as it was
+ * until the next change. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,NULL,0);return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->hdr.used=0
 
-    osRecvMesg((OSMesgQueue *) &audio_lock_queue, NULL, 1);
-    temp_v0 = GetCmd(); PC_CMD_OR_UNLOCK(temp_v0)
-    M2C_FIELD(temp_v0, s8 *, 2) = 0xA;
-    if (blend < 0.0f) {
-        M2C_FIELD(temp_v0, f32 *, 4) = 0.0f;
+/* Asks the audio manager thread to fade the music (music nonzero) and/or the effects (sfx nonzero) to volume
+ * (clamped to 0..1) over time seconds (not below 0). */
+void AudSetMasterVol(f32 volume,f32 time,s32 music,s32 sfx) {
+    f32 clamped;
+    tAudioMsg *msg;
+
+    osRecvMesg(&audio_lock_queue, NULL, 1);
+    msg = GetCmd(); PC_CMD_OR_UNLOCK(msg)
+    msg->hdr.cmd = kAudioCmdSetMasterVol;
+    if (volume < 0.0f) {
+        msg->setMasterVol.vol = 0.0f;
     } else {
-        if (blend > 1.0f) {
-            var_f0 = 1.0f;
+        if (volume > 1.0f) {
+            clamped = 1.0f;
         } else {
-            var_f0 = blend;
+            clamped = volume;
         }
-        M2C_FIELD(temp_v0, f32 *, 4) = var_f0;
+        msg->setMasterVol.vol = clamped;
     }
-    if (amount < 0.0f) {
-        M2C_FIELD(temp_v0, f32 *, 8) = 0.0f;
+    if (time < 0.0f) {
+        msg->setMasterVol.time = 0.0f;
     } else {
-        M2C_FIELD(temp_v0, f32 *, 8) = (f32) amount;
+        msg->setMasterVol.time = (f32) time;
     }
-    M2C_FIELD(temp_v0, s8 *, 0xC) = (s8) first;
-    M2C_FIELD(temp_v0, s8 *, 0xD) = (s8) second;
-    osSendMesg((OSMesgQueue *) &audio_lock_queue, NULL, 0);
-    PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, temp_v0);
+    msg->setMasterVol.music = (s8) music;
+    msg->setMasterVol.sfx = (s8) sfx;
+    osSendMesg(&audio_lock_queue, NULL, 0);
+    PC_CMD_SEND(&audio_command_queue, msg);
 }
 
-void AudSetMusicVol(f32 blend, f32 amount)
+/* Fades the music to volume over time seconds. */
+void AudSetMusicVol(f32 volume, f32 time)
 {
-    AudSetMasterVol(blend, amount, 1, 0);
+    AudSetMasterVol(volume, time, 1, 0);
 }
 
-void AudSetFxVol(f32 blend, f32 amount)
+/* Fades the effects to volume over time seconds. */
+void AudSetFxVol(f32 volume, f32 time)
 {
-    AudSetMasterVol(blend, amount, 0, 1);
+    AudSetMasterVol(volume, time, 0, 1);
 }
 
+/* Silences the music quickly (a twentieth of a second), for the pause screen; ResumeGameMusic brings it back.
+ * (Empty in MAT3.) */
 void PauseGameMusic(void)
 {
     AudSetMasterVol(0.0f, 0.05f, 1, 0);
 }
 
-void EnableGameSounds(s32 flag) {
-    f32 blend;
-    gGameSoundsEnabled=flag;
-    if(flag) blend=0.0f;
-    else blend=(f32)gOptions[13]/10.0f;
-    AudSetMasterVol(blend,fx_volume_fade_time,0,1);
+/* Turns the race's sounds on or off (gGameSoundsEnabled, which PlayGameSound, EmitGameSound and the car sounds
+ * test), at the race's start (PrePlay: off in the demo). Turning them on also silences the effects, which
+ * StartListeners then fades up to the options' volume; turning them off sets the options' volume at once, for the
+ * menu sounds over the demo. */
+void EnableGameSounds(s32 enabled) {
+    f32 volume;
+    gGameSoundsEnabled=enabled;
+    if(enabled) volume=0.0f;
+    else volume=(f32)gOptions[OPTION_FX_VOLUME]/10.0f;
+    AudSetMasterVol(volume,fx_volume_fade_time,0,1);
 }

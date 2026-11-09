@@ -1,26 +1,15 @@
+/* FillFreeMem: the heap's marking of freed memory (MAT3 memsys.c's _FillFreeMem). */
 #include "game/game.h"
 
-void FillFreeMem(s32 *arg0, u32 arg1)
+/* The word freed heap memory is filled with, to spot reads of freed blocks (MAT3 fills with bytes 0xEF). */
+#define FREED_MEMORY_WORD 0x7FFF0BAD
+
+/* Fills size bytes at ptr (whole words: the last size % 4 bytes are left) with FREED_MEMORY_WORD. */
+void FillFreeMem(s32 *ptr, u32 size)
 {
-  int new_var2;
-  int new_var;
-  s32 *var_v1;
-  u32 var_v0;
-  u32 temp_a2;
-  ;
-  var_v0 = 0;
-  new_var = 0x7FFF0BAD;
-  var_v1 = arg0;
-  if ((arg1 >> 2) != 0)
-  {
-    do
-    {
-      new_var2 = 4;
-      new_var2 = 1;
-      var_v0 += new_var2;
-      *var_v1 = new_var;
-      var_v1 += new_var2;
+    u32 i;
+
+    for (i = 0; i < (size >> 2); i++) {
+        ptr[i] = FREED_MEMORY_WORD;
     }
-    while (var_v0 < (arg1 >> 2));
-  }
 }

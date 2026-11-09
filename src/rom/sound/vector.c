@@ -1,17 +1,15 @@
-/* GENERATED ROM-aligned TU — segment 0x257f0 (rom/lib_257f0)
- * layout map 1f4c654a273510a3d1bc3afe375aae20d5732a86ac8c1bcf9496c5a73fb09799.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* src/rom/sound/vector.c: the vector maths of the MusyX sound library's 3D sound (streams_3d.c): transforming a
+ * point, normalizing, the cross product, inverting a listener's transform. MusyX is the N64's sound library: no MAT3
+ * counterpart. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-04 — sound_transform_point
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* A point, and a transform: a 3x3 matrix (rows) and a translation */
 typedef struct SalVector { float x, y, z; } SalVector;
 typedef struct SalMatrix { float m[3][3]; float t[3]; } SalMatrix;
+typedef struct Vector { float x, y, z; } Vector;
+extern float sqrtf(float);
+
+/* out = mat * in + mat's translation. */
 void sound_transform_point(const SalMatrix *mat, const SalVector *in, SalVector *out)
 {
     out->x = mat->m[0][0] * in->x + mat->m[0][1] * in->y + mat->m[0][2] * in->z + mat->t[0];
@@ -19,14 +17,7 @@ void sound_transform_point(const SalMatrix *mat, const SalVector *in, SalVector 
     out->z = mat->m[2][0] * in->x + mat->m[2][1] * in->y + mat->m[2][2] * in->z + mat->t[2];
 }
 
-/* PROMOTED 2026-10-04 — sound_normalize
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-typedef struct Vector { float x, y, z; } Vector;
-extern float sqrtf(float);
+/* Scales vec to length 1 and returns the length it had (no check for 0). */
 float sound_normalize(Vector *vec)
 {
     float length;
@@ -37,12 +28,7 @@ float sound_normalize(Vector *vec)
     return length;
 }
 
-/* PROMOTED 2026-10-04 — sound_cross
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* out = a x b. */
 void sound_cross(Vector *out, const Vector *a, const Vector *b)
 {
     out->x = (a->y * b->z) - (a->z * b->y);
@@ -50,33 +36,28 @@ void sound_cross(Vector *out, const Vector *a, const Vector *b)
     out->z = (a->x * b->y) - (a->y * b->x);
 }
 
-/* PROMOTED 2026-10-04 — sound_invert_transform
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* out = the inverse of transform in: the 3x3 part inverted by its cofactors over its determinant, and the
+ * translation that undoes in's (-inverse * t). */
 void sound_invert_transform(SalMatrix *out, const SalMatrix *in) {
-  float a;
-  float b;
-  float c;
-  float f;
+  float cofactor00;
+  float cofactor10;
+  float cofactor20;
+  float inverse_det;
 
-  a = in->m[1][1] * in->m[2][2] - in->m[2][1] * in->m[1][2];
-  b = -(in->m[1][0] * in->m[2][2] - in->m[2][0] * in->m[1][2]);
-  c = in->m[1][0] * in->m[2][1] - in->m[2][0] * in->m[1][1];
-  f = 1.f / (in->m[0][0] * a + in->m[0][1] * b + in->m[0][2] * c);
-  out->m[0][0] = f * a;
-  out->m[1][0] = f * b;
-  out->m[2][0] = f * c;
-  out->m[0][1] = -f * (in->m[0][1] * in->m[2][2] - in->m[2][1] * in->m[0][2]);
-  out->m[1][1] = f * (in->m[0][0] * in->m[2][2] - in->m[2][0] * in->m[0][2]);
-  out->m[2][1] = -f * (in->m[0][0] * in->m[2][1] - in->m[2][0] * in->m[0][1]);
-  out->m[0][2] = f * (in->m[0][1] * in->m[1][2] - in->m[1][1] * in->m[0][2]);
-  out->m[1][2] = -f * (in->m[0][0] * in->m[1][2] - in->m[1][0] * in->m[0][2]);
-  out->m[2][2] = f * (in->m[0][0] * in->m[1][1] - in->m[1][0] * in->m[0][1]);
+  cofactor00 = in->m[1][1] * in->m[2][2] - in->m[2][1] * in->m[1][2];
+  cofactor10 = -(in->m[1][0] * in->m[2][2] - in->m[2][0] * in->m[1][2]);
+  cofactor20 = in->m[1][0] * in->m[2][1] - in->m[2][0] * in->m[1][1];
+  inverse_det = 1.f / (in->m[0][0] * cofactor00 + in->m[0][1] * cofactor10 + in->m[0][2] * cofactor20);
+  out->m[0][0] = inverse_det * cofactor00;
+  out->m[1][0] = inverse_det * cofactor10;
+  out->m[2][0] = inverse_det * cofactor20;
+  out->m[0][1] = -inverse_det * (in->m[0][1] * in->m[2][2] - in->m[2][1] * in->m[0][2]);
+  out->m[1][1] = inverse_det * (in->m[0][0] * in->m[2][2] - in->m[2][0] * in->m[0][2]);
+  out->m[2][1] = -inverse_det * (in->m[0][0] * in->m[2][1] - in->m[2][0] * in->m[0][1]);
+  out->m[0][2] = inverse_det * (in->m[0][1] * in->m[1][2] - in->m[1][1] * in->m[0][2]);
+  out->m[1][2] = -inverse_det * (in->m[0][0] * in->m[1][2] - in->m[1][0] * in->m[0][2]);
+  out->m[2][2] = inverse_det * (in->m[0][0] * in->m[1][1] - in->m[1][0] * in->m[0][1]);
   out->t[0] = (-in->t[0] * out->m[0][0] - in->t[1] * out->m[0][1]) - in->t[2] * out->m[0][2];
   out->t[1] = (-in->t[0] * out->m[1][0] - in->t[1] * out->m[1][1]) - in->t[2] * out->m[1][2];
   out->t[2] = (-in->t[0] * out->m[2][0] - in->t[1] * out->m[2][1]) - in->t[2] * out->m[2][2];
 }
-

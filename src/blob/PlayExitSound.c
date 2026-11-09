@@ -1,12 +1,14 @@
+/* PlayExitSound: the front end's sound for leaving a screen (MAT3 audio.c). */
 #include "game/game.h"
 
-void PlayExitSound(s32 arg0) {
-    s32 var_a0;
+/* Plays the select sound when edges (the menu's button edges) has A, else the back sound. */
+void PlayExitSound(s32 edges) {
+    s32 fxid;
 
-    if (arg0 & 1) {
-        var_a0 = 0x2E;
+    if (edges & MENU_EDGE_A) {
+        fxid = kSfxMenuSelect;
     } else {
-        var_a0 = 0x26;
+        fxid = kSfxMenuBack;
     }
-    AudPlayEffect(var_a0, 0, 1, 0U);
+    AudPlayEffect(fxid, 0, 1, 0U);
 }

@@ -1,47 +1,47 @@
+/* AudAddListener: adds a listener for the 3D sounds (MAT3 audiomgr.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-typedef struct Link {struct Link *next,*prev;} Link;
-typedef struct List {u8 indirect,doubly,pad[2];u32 count;Link *head,*tail;} List;
 typedef struct Vec3 {float x,y,z;} Vec3;
-typedef struct Packet {Link link;u8 type,ready,opaque[2];Vec3 a,b,c,d;} Packet;
 
-VIEW(List, gFreeListeners);
-#define gFreeListeners gFreeListeners_view
-VIEW(List, gActiveListeners);
-#define gActiveListeners gActiveListeners_view
-
-static Packet *packet_alloc(void) {
-    Packet *p;
-    p = (Packet *)gFreeListeners.head;
-    RemoveLLE(&gFreeListeners, &p->link);
-    p->type = 0;
-    return p;
+/* MAT3's _NewListener (the N64 keeps its own out-of-line copy, NewListener, which nothing calls): takes the first
+ * free listener and marks it taken. */
+static tSfxListener *take_free_listener(void) {
+    tSfxListener *listener;
+    listener = (tSfxListener *)gFreeListeners.head;
+    RemoveLLE(&gFreeListeners, &listener->ll);
+    listener->free = 0;
+    return listener;
 }
 
-static void packet_post(Packet *p) {
-    InsertLLE(&gActiveListeners, &p->link, gActiveListeners.head);
-    p->ready = 1;
+/* MAT3's _ActivateListener: puts the listener on the active list, where the emitters hear it. */
+static void activate_listener(tSfxListener *listener) {
+    InsertLLE(&gActiveListeners, &listener->ll, gActiveListeners.head);
+    listener->active = 1;
 }
 
-Packet *AudAddListener(Vec3 *a,Vec3 *b,Vec3 *c,Vec3 *d) {
-    Packet *packet;
-    if(!gListeners) return (Packet *)-1;
+/* Adds a listener at pos moving with dir, looking along look with up, and returns it (the caller keeps it, as a
+ * window address, in its player record: StartListeners); -1 when the sound manager has no listeners
+ * (AudInit3D). */
+tSfxListener *AudAddListener(Vec3 *pos,Vec3 *dir,Vec3 *look,Vec3 *up) {
+    tSfxListener *listener;
+    if(!gListeners) return (tSfxListener *)-1;
     audio_lock();
     if (gFreeListeners.head) {}
-    packet = packet_alloc();
-    packet->a.x=a->x;
-    packet->a.y=a->y;
-    packet->a.z=a->z;
-    packet->b.x=b->x;
-    packet->b.y=b->y;
-    packet->b.z=b->z;
-    packet->c.x=c->x;
-    packet->c.y=c->y;
-    packet->c.z=c->z;
-    packet->d.x=d->x;
-    packet->d.y=d->y;
-    packet->d.z=d->z;
-    packet_post(packet);
+    listener = take_free_listener();
+    listener->pos[0]=pos->x;
+    listener->pos[1]=pos->y;
+    listener->pos[2]=pos->z;
+    listener->dir[0]=dir->x;
+    listener->dir[1]=dir->y;
+    listener->dir[2]=dir->z;
+    listener->look[0]=look->x;
+    listener->look[1]=look->y;
+    listener->look[2]=look->z;
+    listener->up[0]=up->x;
+    listener->up[1]=up->y;
+    listener->up[2]=up->z;
+    activate_listener(listener);
     audio_unlock();
-    return packet;
+    return listener;
 }
