@@ -1,34 +1,38 @@
+/* AnimateRotGeneric: the animation of the track objects that spin in place forever, such as the windmills' rotors
+ * and a trolley's wheel (MAT3 targets.c _AnimateRotGeneric). It is the environment visual's function, called each
+ * frame with op 1, and with op 0 when the visual is released. */
 #include "game/game.h"
 
-float fabsf(float);
-float sqrtf(float);
-#pragma intrinsic (fabsf)
-#pragma intrinsic (sqrtf)
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+typedef struct Target {
+    u8 pad00[0x14];
+    f32 uvs[3][3];          /* 0x14 mat: its orientation */
+    u8 pad38[0x6C - 0x38];
+    u32 data;               /* 0x6C its spin rate, f32[3] radians a second about x, y, z (a window address) */
+} Target;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-/* PC: arg0 is a visual (struct pc_visual) whose data is the target, a level-object node in its N64 layout; both the
- * data and the target's state (+0x6C) are 32-bit window addresses (docs/port/CARS.md, POINTERS.md 10). */
-#define VIS_DATA(v) (void *) PC_N64P(M2C_FIELD(v, u32 *, VIS_OFS(0xC)))
-#define NODE_STATE(t) (void *) PC_N64P(M2C_FIELD(t, u32 *, 0x6C))
-void AnimateRotGeneric(void *arg0, s16 arg1) {
-    void *temp_v0;
-    void *temp_v1;
-    s32 reserved;
-    f32 xyz[3];
+/* Spin the visual's target by its rate times the frame's length; nothing moves while the game is paused. With op
+ * 0 the visual goes back to the free list. */
+void AnimateRotGeneric(struct pc_visual *v, s16 op)
+{
+    Target *t;
+    f32 *rate;
+    f32 angle[3];
 
-    if (arg1 == 0) {
-        ReleaseEnviron(arg0, 1);
+    if (op == 0) {
+        ReleaseEnviron(v, 1);
         return;
     }
     if (gPauseState == 0) {
-        temp_v1 = VIS_DATA(arg0);
-        temp_v0 = NODE_STATE(temp_v1);
-        xyz[0] = M2C_FIELD(temp_v0, f32 *, 0) * gFrameSeconds;
-        xyz[1] = M2C_FIELD(temp_v0, f32 *, 4) * gFrameSeconds;
-        xyz[2] = M2C_FIELD(temp_v0, f32 *, 8) * gFrameSeconds;
-        RotateUV(xyz, (u8 *) temp_v1 + 0x14);
+        t = (void *) PC_N64P(v->data);
+        rate = (void *) PC_N64P(t->data);
+        angle[0] = rate[0] * gFrameSeconds;
+        angle[1] = rate[1] * gFrameSeconds;
+        angle[2] = rate[2] * gFrameSeconds;
+        RotateUV(angle, t->uvs);
     }
 }
-

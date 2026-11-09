@@ -1,32 +1,21 @@
+/* TargetCollRadius: collision test 0 of the track objects (gTargetCollFuncPtrs[0], MAT3 targets.c
+ * _TargetCollRadius): a car against a sphere, for most of the small targets (in MAT3's table: coins, cones, pumps,
+ * cacti, fences, signs). The arcade game's targets.c has the same test as OverlapTarget. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Historical TargetCollRadius is a target-overlap sphere callback.
- * Algorithm/declaration/phase/return donor: targets.c:OverlapTarget in
- * rushtherock 845329d7b36f5a384c5625ed9a0aef584ab46139, lines 673-693.
- * Vector macros: game/vecmath.h:20-21 at the same pinned revision.
- *
- * N64 takes a signed selector and radius by pointer, snapshots the origin,
- * and uses a 3.5f radius margin. It returns zero for disabled models;
- * otherwise it optionally writes the squared gap and accepts gap <= 0.
- * Every local is consumed. Preserve the donor's scalar-before-vector
- * declaration order, distance-before-radius phases, and boolean return.
- * Unknown structure bytes below are observed storage offsets/strides,
- * not dummy local padding or claims of full original structure recovery.
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- */
 #define mvecsub(a,b,r) {r[0]=a[0]-b[0]; r[1]=a[1]-b[1]; r[2]=a[2]-b[2];}
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 
+/* The car record's view (MAT3 tCarData) in the PC layout: only its position. */
 typedef struct ProximityPlayer {
     unsigned char unknown0[8];
-    float position[3];
+    float position[3];      /* 0x08 dr_pos: the position, feet */
     unsigned char unknown14[0x110 - 0x14]; struct pc_visual visuals[21]; unsigned char unknown14_308[0x380 - 0x308]; void *input; unsigned char unknown14_384[0x3B8 - 0x384];
 } ProximityPlayer;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
+/* Does car *player_index touch the sphere of radius *radius_in at point? The car counts as a 3.5 ft sphere.
+ * radial_error, if not NULL, gets the squared distance minus the squared radius (not positive: they overlap). A car
+ * that isn't collidable never hits. */
 int TargetCollRadius(short *player_index, float *point, float *radius_in,
                   float *radial_error)
 {

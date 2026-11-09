@@ -1,28 +1,65 @@
+/* AnimateMine: a battle mine on the road (MAT3 targets.c _AnimateMine). It is the mine's environment visual,
+ * called each frame: the first time it registers the mine with its owner (at most three each: a fourth retires the
+ * oldest), lays it flat on the road and makes its models (the base and two glow rings in its team's colour); then
+ * it flashes the base and pulses the rings, and when a car has hit it (StartMine) or it has lain for 120 seconds,
+ * it blows up and frees itself. */
 #include "game/game.h"
 
 typedef union Color {struct {u8 r,g,b,a;} c;u32 word;} Color;
+
+/* A mine's own record (MAT3 tTargetStructMine, 0x88 bytes), the target's per-kind data. */
 typedef struct MineData {
- s32 base,ring[2]; f32 timer; f32 mat[2][4][3];
- f32 elapsed[2]; s8 step[2]; u8 alpha[2]; f32 scale[2]; s16 phase,active;
+    s32 dlIdx;              /* 0x00 the mine's base, a scene object */
+    s32 glowdls[2];         /* 0x04 the two glow rings, scene objects (-1 none) */
+    f32 flashTime;          /* 0x0C the time since the base last flashed */
+    f32 mats[2][4][3];      /* 0x10 each ring's matrix: orientation rows, then the position */
+    f32 glowTimes[2];       /* 0x70 each ring's time since its last step */
+    s8 glowCnts[2];         /* 0x78 each ring's step of its pulse, -1 idle */
+    u8 alphs[2];            /* 0x7A each ring's alpha */
+    f32 sc[2];              /* 0x7C each ring's scale */
+    s16 on;                 /* 0x84 the base shows the team's colour */
+    s16 used;               /* 0x86 the record is in use */
 } MineData;
-/* PC: a target (a level-object node, 112 bytes) keeps its N64 layout: next and its state, the mine's data (a heap
- * record of its category), are 32-bit window addresses (docs/port/POINTERS.md 10). */
+
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). */
 enum n64p_Target { n64p_Target_ };
 enum n64p_MineData { n64p_MineData_ };
 typedef struct Target {
- enum n64p_Target next;u8 flags,pad5[7];s32 model;s16 info;u8 pad18[2];
- f32 mat[4][3],position[3];s16 kind;u8 pad82[10];s8 car;u8 pad93[3];
- s32 sound;s8 sound_state,owner;u8 pad102[2];f32 age;enum n64p_MineData data;
+    enum n64p_Target next;  /* 0x00 ll: the next in its list */
+    u8 flags;               /* 0x04 Flags: TARGET_STARTED, TARGET_ACTIVE, TARGET_HIT */
+    u8 pad05[7];            /* 0x05 mbIdx at 0x08 */
+    s32 dlIdx;              /* 0x0C its scene object */
+    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
+    u8 pad12[2];
+    f32 mat[4][3];          /* 0x14 its matrix: orientation rows, then the position */
+    f32 pos[3];             /* 0x44 its position */
+    s16 type;               /* 0x50 its object */
+    u8 pad52[10];           /* 0x52 radius, otype, frames */
+    s8 slot;                /* 0x5C the car that hit it */
+    u8 pad5D[3];
+    s32 sound;              /* 0x60 */
+    s8 sndState, owner;     /* 0x64, 0x65: the car that dropped it */
+    u8 pad66[2];
+    f32 timeStamp;          /* 0x68 the seconds it has lain on the road */
+    enum n64p_MineData data; /* 0x6C its MineData (a window address) */
 } Target;
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+
+/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
+ * window address. */
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
+#define TARGET_STARTED 1        /* registered and given its models */
+#define TARGET_ACTIVE 2         /* it collides; StartMine clears it when a car sets the mine off */
+#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
+
 typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
 
+/* An always-colliding entry (MAT3 tAlwaysCol): the link, then the target it stands for. */
 typedef struct Link {struct Link *next;Target *target;} Link;
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
@@ -45,6 +82,15 @@ extern void *RoadPosition(f32 *,f32 *,f32 (*)[3]);
 
 extern void ZOID_SetTexture(s16,Texture36 *,s32);
 
+/* One frame of the mine (op 1), or release its visual (op 0); nothing happens while the game is paused.
+ * - First frame: if the owner already has three mines, the oldest is aged past 120 s so it goes next; the mine
+ *   takes a free slot of its owner's (gPlayerMines), copies the road's orientation under it, and makes its base
+ *   (gWprObjList[5], white) and two rings (gWprObjList[6], gMineRingColors of the owner's team), the second hidden.
+ * - Every 0.25 s the base swaps between the neutral texture (gMineTextures[4]) and the team's.
+ * - Each ring grows by a quarter every 1/30 s for 45 steps, fades from step 20 and starts the other ring at step 25.
+ * - It blows up (StartBlast; after 120 s also ProximityDamage, 1600 within 400 ft) once it is no longer active,
+ *   has been hit or is over 120 s old: it leaves the always-colliding list and its owner's slots, its models go, and the
+ *   target and the visual are freed. */
 void AnimateMine(Visual *v, s16 op)
 {
     int i;
@@ -66,17 +112,17 @@ void AnimateMine(Visual *v, s16 op)
     if (gPauseState != 0) return;
     t = N64P(v->data);
     m = N64P(t->data);
-    if (!(t->flags & 1)) {
+    if (!(t->flags & TARGET_STARTED)) {
         if (gPlayerMines[t->owner].count == 3) {
             oldT = 0.0f;
             j = -1;
             for (i = 0; i < 4; i++) {
-                if (gPlayerMines[t->owner].target[i] && gPlayerMines[t->owner].target[i]->age > oldT) {
+                if (gPlayerMines[t->owner].target[i] && gPlayerMines[t->owner].target[i]->timeStamp > oldT) {
                     j = i;
-                    oldT = gPlayerMines[t->owner].target[i]->age;
+                    oldT = gPlayerMines[t->owner].target[i]->timeStamp;
                 }
             }
-            if (j != -1) gPlayerMines[t->owner].target[j]->age = 121.0f;
+            if (j != -1) gPlayerMines[t->owner].target[j]->timeStamp = 121.0f;
         }
         for (i = 0; i < 4; i++) {
             if (!gPlayerMines[t->owner].target[i]) {
@@ -85,105 +131,105 @@ void AnimateMine(Visual *v, s16 op)
                 break;
             }
         }
-        if (RoadPosition(t->position, opos, uvs)) {
+        if (RoadPosition(t->pos, opos, uvs)) {
             for (i = 0; i < 3; i++) {
                 for (j = 0; j < 3; j++) t->mat[i][j] = uvs[i][j];
             }
         }
         j = -1;
-        m->base = MBOX_NewObject(gWprObjList[5], 0, t->model, 0x2080);
+        m->dlIdx = MBOX_NewObject(gWprObjList[5], 0, t->dlIdx, 0x2080);
         clr.c.r = 255;
         clr.c.g = 255;
         clr.c.b = 255;
         clr.c.a = 255;
-        ZOID_SetColor(m->base, &clr);
-        ZOID_SetObjectFlags(t->model, ZOID_ObjectFlags(t->model) | 0x2000);
-        ZOID_SetColor(t->model, &clr);
-        ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
-        m->timer = 0.0f;
-        m->phase = 0;
+        ZOID_SetColor(m->dlIdx, &clr);
+        ZOID_SetObjectFlags(t->dlIdx, ZOID_ObjectFlags(t->dlIdx) | 0x2000);
+        ZOID_SetColor(t->dlIdx, &clr);
+        ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+        m->flashTime = 0.0f;
+        m->on = 0;
         clrPtr = &clr;
         clrPtr->c.r = gMineRingColors[gCarTeam[t->owner]][0];
         clrPtr->c.g = gMineRingColors[gCarTeam[t->owner]][1];
         clrPtr->c.b = gMineRingColors[gCarTeam[t->owner]][2];
-        CopyUV(t->mat, m->mat[0]);
-        CopyUV(t->mat, m->mat[1]);
-        m->mat[0][3][0] = t->position[0];
-        m->mat[0][3][1] = t->position[1];
-        m->mat[0][3][2] = t->position[2];
-        m->mat[0][3][0] = m->mat[0][3][0] + m->mat[0][1][0] * 0.75f;
-        m->mat[0][3][1] = m->mat[0][3][1] + m->mat[0][1][1] * 0.75f;
-        m->mat[0][3][2] = m->mat[0][3][2] + m->mat[0][1][2] * 0.75f;
-        m->mat[1][3][0] = t->position[0];
-        m->mat[1][3][1] = t->position[1];
-        m->mat[1][3][2] = t->position[2];
-        m->mat[1][3][0] = m->mat[1][3][0] + m->mat[1][1][0];
-        m->mat[1][3][1] = m->mat[1][3][1] + m->mat[1][1][1]; m->mat[1][3][2] = m->mat[1][3][2] + m->mat[1][1][2];
-        m->ring[0] = MBOX_NewObject(gWprObjList[6], m->mat[0], -1, 0x42000);
-        ZOID_SetColor(m->ring[0], &clr);
-        m->ring[1] = MBOX_NewObject(gWprObjList[6], m->mat[1], -1, 0x42000);
-        ZOID_SetColor(m->ring[1], &clr);
-        m->alpha[0] = 255;
-        m->alpha[1] = 255;
-        m->step[0] = 0;
-        m->step[1] = -1;
-        m->scale[0] = 1.0f;
-        m->scale[1] = 1.0f;
-        m->elapsed[0] = 0.0f;
-        m->elapsed[1] = 0.0f;
-        MBOX_HideObject(m->ring[1], 0, 15);
-        t->flags |= 3;
+        CopyUV(t->mat, m->mats[0]);
+        CopyUV(t->mat, m->mats[1]);
+        m->mats[0][3][0] = t->pos[0];
+        m->mats[0][3][1] = t->pos[1];
+        m->mats[0][3][2] = t->pos[2];
+        m->mats[0][3][0] = m->mats[0][3][0] + m->mats[0][1][0] * 0.75f;
+        m->mats[0][3][1] = m->mats[0][3][1] + m->mats[0][1][1] * 0.75f;
+        m->mats[0][3][2] = m->mats[0][3][2] + m->mats[0][1][2] * 0.75f;
+        m->mats[1][3][0] = t->pos[0];
+        m->mats[1][3][1] = t->pos[1];
+        m->mats[1][3][2] = t->pos[2];
+        m->mats[1][3][0] = m->mats[1][3][0] + m->mats[1][1][0];
+        m->mats[1][3][1] = m->mats[1][3][1] + m->mats[1][1][1]; m->mats[1][3][2] = m->mats[1][3][2] + m->mats[1][1][2];
+        m->glowdls[0] = MBOX_NewObject(gWprObjList[6], m->mats[0], -1, 0x42000);
+        ZOID_SetColor(m->glowdls[0], &clr);
+        m->glowdls[1] = MBOX_NewObject(gWprObjList[6], m->mats[1], -1, 0x42000);
+        ZOID_SetColor(m->glowdls[1], &clr);
+        m->alphs[0] = 255;
+        m->alphs[1] = 255;
+        m->glowCnts[0] = 0;
+        m->glowCnts[1] = -1;
+        m->sc[0] = 1.0f;
+        m->sc[1] = 1.0f;
+        m->glowTimes[0] = 0.0f;
+        m->glowTimes[1] = 0.0f;
+        MBOX_HideObject(m->glowdls[1], 0, 15);
+        t->flags |= TARGET_STARTED | TARGET_ACTIVE;
     }
-    m->timer += gFrameSeconds;
-    if (m->timer >= 0.25f) {
-        if (m->phase) {
-            m->phase = 0;
-            ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
+    m->flashTime += gFrameSeconds;
+    if (m->flashTime >= 0.25f) {
+        if (m->on) {
+            m->on = 0;
+            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[4] >> 10].base[gMineTextures[4] & 1023], -1);
         } else {
-            m->phase = 1;
-            ZOID_SetTexture(m->base, &gTexDefPtrs[gMineTextures[gCarTeam[t->owner]] >> 10].base[gMineTextures[gCarTeam[t->owner]] & 1023], -1);
+            m->on = 1;
+            ZOID_SetTexture(m->dlIdx, &gTexDefPtrs[gMineTextures[gCarTeam[t->owner]] >> 10].base[gMineTextures[gCarTeam[t->owner]] & 1023], -1);
         }
-        m->timer = 0.0f;
+        m->flashTime = 0.0f;
     }
     for (i = 0; i < 2; i++) {
-        if (m->step[i] < 0) continue;
-        if (m->step[i] >= 45) {
-            m->scale[i] = 1.0f;
-            m->alpha[i] = 255;
-            clrPtr = ZOID_GetColor(m->ring[i]);
+        if (m->glowCnts[i] < 0) continue;
+        if (m->glowCnts[i] >= 45) {
+            m->sc[i] = 1.0f;
+            m->alphs[i] = 255;
+            clrPtr = ZOID_GetColor(m->glowdls[i]);
             clrPtr->c.a = 255;
-            CopyUV(t->mat, m->mat[i]);
-            m->step[i] = -1;
-            MBOX_HideObject(m->ring[i], 0, 15);
+            CopyUV(t->mat, m->mats[i]);
+            m->glowCnts[i] = -1;
+            MBOX_HideObject(m->glowdls[i], 0, 15);
             continue;
         }
-        if (m->elapsed[i] >= 0.0333333f) {
-            CopyUV(t->mat, m->mat[i]);
+        if (m->glowTimes[i] >= 0.0333333f) {
+            CopyUV(t->mat, m->mats[i]);
             for (j = 0; j < 3; j++) {
                 for (k = 0; k < 3; k++) {
-                    m->mat[i][j][k] *= m->scale[i];
+                    m->mats[i][j][k] *= m->sc[i];
                 }
             }
-            m->scale[i] += 0.25f;
-            m->elapsed[i] = 0.0f;
-            m->step[i]++;
+            m->sc[i] += 0.25f;
+            m->glowTimes[i] = 0.0f;
+            m->glowCnts[i]++;
         }
-        m->elapsed[i] += gFrameSeconds;
-        if (m->step[i] >= 20) {
-            if (m->alpha[i] > 8) m->alpha[i] -= 8;
-            clrPtr = ZOID_GetColor(m->ring[i]);
-            clrPtr->c.a = m->alpha[i];
+        m->glowTimes[i] += gFrameSeconds;
+        if (m->glowCnts[i] >= 20) {
+            if (m->alphs[i] > 8) m->alphs[i] -= 8;
+            clrPtr = ZOID_GetColor(m->glowdls[i]);
+            clrPtr->c.a = m->alphs[i];
         }
-        if (m->step[i] >= 25) {
+        if (m->glowCnts[i] >= 25) {
             j = !i;
-            if (m->step[j] < 0) {
-                m->step[j] = 0;
-                MBOX_ShowObject(m->ring[j], 0, 15);
+            if (m->glowCnts[j] < 0) {
+                m->glowCnts[j] = 0;
+                MBOX_ShowObject(m->glowdls[j], 0, 15);
             }
         }
     }
-    t->age += gFrameSeconds;
-    if (!(t->flags & 2) || (t->flags & 4) || t->age > 120.0f) {
+    t->timeStamp += gFrameSeconds;
+    if (!(t->flags & TARGET_ACTIVE) || (t->flags & TARGET_HIT) || t->timeStamp > 120.0f) {
         acol = gAlwaysColList.active;
         while (acol) {
             acolnext = acol->next;
@@ -197,22 +243,22 @@ void AnimateMine(Visual *v, s16 op)
                 break;
             }
         }
-        if (t->age > 120.0f) ProximityDamage(t->position, t->position, t->owner, 400.0f, 1600);
-        StartBlast(t->position, 0, 0.4f, 1);
-        if (m->ring[0] != -1) {
-            ZOID_RemoveObject(m->ring[0]);
-            m->ring[0] = -1;
+        if (t->timeStamp > 120.0f) ProximityDamage(t->pos, t->pos, t->owner, 400.0f, 1600);
+        StartBlast(t->pos, 0, 0.4f, 1);
+        if (m->glowdls[0] != -1) {
+            ZOID_RemoveObject(m->glowdls[0]);
+            m->glowdls[0] = -1;
         }
-        if (m->ring[1] != -1) {
-            ZOID_RemoveObject(m->ring[1]);
-            m->ring[1] = -1;
+        if (m->glowdls[1] != -1) {
+            ZOID_RemoveObject(m->glowdls[1]);
+            m->glowdls[1] = -1;
         }
-        if (m->base != -1) {
-            ZOID_RemoveObject(m->base);
-            m->base = -1;
+        if (m->dlIdx != -1) {
+            ZOID_RemoveObject(m->dlIdx);
+            m->dlIdx = -1;
         }
-        m->active = 0;
-        ZOID_RemoveObject(t->model);
+        m->used = 0;
+        ZOID_RemoveObject(t->dlIdx);
         t->flags = 0;
         FreeStatLLE(&gTargetList, t);
         ReleaseEnviron(v, 1);

@@ -1,63 +1,60 @@
+/* StartCactus: the start function of the cactus track object (MAT3 targets.c _StartCactus). A target's start
+ * function runs when a car first hits it (CheckTargetCollision through targetInfo[].start); the cactus then plays
+ * its knock-over animation, an environment visual that swaps through its models (AnimateObjSwapGeneric). */
 #include "game/game.h"
 
-typedef struct {
-    u8 pad000[0xE8];
-    s32 unkE8;
-    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-    u8 unk35B;
-    u8 pad35C[0x380 - 0x35C];
-    void *unk380;
-    u8 pad384[0x3A3 - 0x384];
-    u8 unk3A3;
-    u8 pad3A4[0x3B8 - 0x3A4];
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+typedef struct Target {
+    u8 pad00[4];
+    u8 flags;               /* 0x04 Flags: TARGET_ACTIVE, TARGET_HIT */
+    u8 pad05[11];
+    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
+    u8 pad12[2];
+    f32 uvs[3][3];          /* 0x14 mat: its orientation */
+    f32 matPos[3];          /* 0x38 mat: its position, where its sounds play */
+    u8 pad44[0x5A - 0x44];
+    s16 frames;             /* 0x5A the animation's frame count */
+    s8 slot;                /* 0x5C the car that hit it */
+} Target;
+
+/* The car record's view (MAT3 tCarData): only its velocity, in the PC layout. */
+typedef struct GameCar {
+    u8 pad000[0x14];
+    f32 dr_vel[3];          /* 0x14 the velocity, feet a second */
+    u8 pad020[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad308[0x380 - 0x308]; void *input; u8 pad384[0x3B8 - 0x384];
 } GameCar;
 
-float fabsf(float);
-float sqrtf(float);
-#pragma intrinsic (fabsf)
-#pragma intrinsic (sqrtf)
+#define TARGET_ACTIVE 2         /* the target collides */
+#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
-VIEW(M2C_UNK, targetInfo);
-#define targetInfo targetInfo_view
+struct pc_visual *GrabEnvEntry();
 
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct BNode { struct BNode *next; s16 active; u8 pad[6]; u32 owner; f32 timer; void *stat; } BNode;
-/* The target info records (targetInfo) are 0x40 bytes, their visual function a pointer (docs/port/POINTERS.md 10). */
-#define TI_VISUAL(t) M2C_FIELD(t, void **, TINFO_OFS(0xC))
-#define N64P(x) ((void *)PC_N64P(x))
-#define N64W(x) PC_N64W(x)
-VIEW(BNode *, gEnvList);
-#define gEnvList gEnvList_view
+/* Start the cactus a car has just hit: an environment visual (the next free one, if any) runs its animation for 7
+ * frames, the cactus turns to fall the way the car was going, and the cactus's start sound plays. */
+void StartCactus(Target *t)
+{
+    struct pc_visual *v;
+    TargInfo *info;
+    GameCar *car;
+    f32 fallDir[3];
 
-/* callees outside the group */
-BNode *GrabEnvEntry();
-
-void StartCactus(void *arg0) {
-    BNode *temp_v0;
-    void *sp30;
-    GameCar *temp_v0_2;
-    BNode **head;
-    f32 vector[3];
-
-    sp30 = (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + (u8 *) &targetInfo;
-    M2C_FIELD(arg0, s16 *, 0x5A) = 7;
-    temp_v0 = GrabEnvEntry();
-    if (temp_v0 != NULL) {
-        temp_v0->active = 0;
-        temp_v0->stat = TI_VISUAL(sp30);
-        temp_v0->owner = N64W(arg0);
-        temp_v0->timer = (f32) cactus_frame_time;
-        temp_v0_2 = PC_CAR(M2C_FIELD(arg0, s8 *, 0x5C));
-        vector[0] = M2C_FIELD(temp_v0_2, f32 *, 0x14) * 0.125f;
-        vector[1] = M2C_FIELD(temp_v0_2, f32 *, 0x18) * 0.125f;
-        vector[2] = M2C_FIELD(temp_v0_2, f32 *, 0x1C) * 0.125f;
-        LookInDir(&vector[0], (u8 *) arg0 + 0x14);
-        M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
-        head = &gEnvList;
-        temp_v0->next = *head;
-        *head = temp_v0;
-        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
-        PlayTargetSound(*(s32*)((u8 *) &targetInfo + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+    info = &targetInfo[t->infoIdx];
+    t->frames = 7;
+    v = GrabEnvEntry();
+    if (v != NULL) {
+        v->index = 0;
+        v->func = info->visFunc;
+        v->data = PC_N64W(t);
+        v->timeStamp = cactus_frame_time;
+        car = PC_CAR(t->slot);
+        fallDir[0] = car->dr_vel[0] * 0.125f;
+        fallDir[1] = car->dr_vel[1] * 0.125f;
+        fallDir[2] = car->dr_vel[2] * 0.125f;
+        LookInDir(&fallDir[0], t->uvs);
+        t->flags = (u8) (t->flags & ~(TARGET_ACTIVE | TARGET_HIT));
+        v->next = gEnvList;
+        gEnvList = (struct Node *) v;
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
     }
 }
-

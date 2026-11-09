@@ -1,94 +1,86 @@
+/* AnimateVelRotGeneric: the flight of a knocked-over cone or gas pump (MAT3 targets.c _AnimateVelRotGeneric). It
+ * is the environment visual StartCone sets up: each frame the debris falls under gravity and tumbles, and when its
+ * time runs out it is removed. */
 #include "game/game.h"
 
-typedef struct Phys {
-    f32 W[3];
-    f32 V[3];
-} Phys;
-/* PC: a target (a level-object node) keeps its N64 layout; its state, the debris' physics, is a heap record of its
- * category, held as a 32-bit window address (docs/port/POINTERS.md 10). */
-enum n64p_Phys { n64p_Phys_ };
-enum n64p_Model { n64p_Model_ };
-typedef struct Model {
-    u8 pad0[0xC];
-    s32 id;                 /* the target's handle, whose low half is the model id (N64 +0xE): +0xC here */
-    s16 type;
-    u8 pad12[2];
-    f32 UV[3][3];
-    f32 RWR[3];
-    u8 pad44[0x6C - 0x44];
-    enum n64p_Phys phys;
-} Model;
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct Obj {
-    void *next;
-    u8 pad4[0xC - 4];
-    enum n64p_Model model;
-    f32 timer;
-    void (*fn)();
-} Obj;
-#define N64P(x) _Generic((x), enum n64p_Phys: (Phys *)PC_N64P(x), enum n64p_Model: (Model *)PC_N64P(x), \
-    default: (x))
-#define N64W(x) PC_N64W(x)
-/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
- * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
- * (docs/port/POINTERS.md 10). */
-typedef struct Kind {
-    char *name, *file;
-    void *start, *visual;
-    s16 kind;
-    u16 flags;              /* 0x12 */
-    s16 shape;
-    s8 category, element;
-    f32 value;
-    s32 sound, w20, w24, w28;
-    f32 f2C;
-} Kind;
+/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data. */
+typedef struct VelRot {
+    f32 angV[3];            /* 0x00 its spin, radians a second about x, y, z */
+    f32 vel[3];             /* 0x0C its velocity, feet a frame */
+} VelRot;
 
-VIEW(f32[3], velrot_gravity);
-#define velrot_gravity velrot_gravity_view
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+enum n64p_VelRot { n64p_VelRot_ };
+enum n64p_Target { n64p_Target_ };
+typedef struct Target {
+    u8 pad00[0xC];
+    s32 dlIdx;              /* 0x0C its scene object: the handle, whose low half is the object's index */
+    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
+    u8 pad12[2];
+    f32 uvs[3][3];          /* 0x14 mat: its orientation */
+    f32 matPos[3];          /* 0x38 mat: its position */
+    u8 pad44[0x6C - 0x44];
+    enum n64p_VelRot data;  /* 0x6C its VelRot (a window address) */
+} Target;
+
+/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
+ * window address. */
+typedef struct Visual {
+    void *next;
+    u8 pad08[0x10 - 8];
+    enum n64p_Target data;  /* 0x10 */
+    f32 timeStamp;          /* 0x14 the seconds of flight left (StartCone gives 5) */
+    void (*func)();
+} Visual;
+#define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), enum n64p_Target: (Target *)PC_N64P(x), \
+    default: (x))
+
+/* targetInfo[].flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
+#define TINFO_REMOVE_WHEN_DONE 0x2000
+
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(Kind[], targetInfo);
-#define targetInfo targetInfo_view
-VIEW(u8[], gTargetList);
-#define gTargetList gTargetList_view
 
-static void debris_remove(Obj *obj, Model *m, Kind *k) {
-    if (k->flags & 0x2000) {
-        RemoveObjectTree(m->id, 0, 0);
+/* The end of the flight: remove the scene object if the kind says so, free the target and release the visual. */
+static void debris_remove(Visual *v, Target *t, TargInfo *info) {
+    if (info->flags & TINFO_REMOVE_WHEN_DONE) {
+        RemoveObjectTree(t->dlIdx, 0, 0);
     }
-    FreeStatLLE(gTargetList, m);
-    ReleaseEnviron(obj, 1);
+    FreeStatLLE(&gTargetList, t);
+    ReleaseEnviron(v, 1);
 }
 
-void AnimateVelRotGeneric(Obj *obj, s16 mode) {
-    Phys *p;
-    Model *m;
-    f32 a[6];
-    f32 temp[3];
-    f32 *v;
+/* One frame of the debris (op 1), or release its visual (op 0). Its velocity gains gravity (velrot_gravity, scaled
+ * by 0.15) and moves it, a fixed step a frame; its spin turns it by the frame's length; and its time is counted
+ * down. Nothing moves while the game is paused. */
+void AnimateVelRotGeneric(Visual *v, s16 op) {
+    VelRot *motion;
+    Target *t;
+    f32 angle[3];
+    f32 *vel;
     s16 i;
 
-    if (mode == 0) {
-        ReleaseEnviron(obj, 1);
+    if (op == 0) {
+        ReleaseEnviron(v, 1);
         return;
     }
     if (gPauseState != 0) {
         return;
     }
-    m = N64P(obj->model);
-    p = N64P(m->phys);
-    v = p->V;
+    t = N64P(v->data);
+    motion = N64P(t->data);
+    vel = motion->vel;
     for (i = 0; i < 3; i++) {
-        v[i] += velrot_gravity[i] * 0.15f;
-        m->RWR[i] += v[i] + velrot_gravity[i] * 0.15f;
+        vel[i] += velrot_gravity[i] * 0.15f;
+        t->matPos[i] += vel[i] + velrot_gravity[i] * 0.15f;
     }
-    temp[0] = p->W[0] * gFrameSeconds;
-    temp[1] = p->W[1] * gFrameSeconds;
-    temp[2] = p->W[2] * gFrameSeconds;
-    RotateUV(temp, m->UV);
-    obj->timer -= gFrameSeconds;
-    if (obj->timer <= 0.0f) {
-        debris_remove(obj, m, &targetInfo[m->type]);
+    angle[0] = motion->angV[0] * gFrameSeconds;
+    angle[1] = motion->angV[1] * gFrameSeconds;
+    angle[2] = motion->angV[2] * gFrameSeconds;
+    RotateUV(angle, t->uvs);
+    v->timeStamp -= gFrameSeconds;
+    if (v->timeStamp <= 0.0f) {
+        debris_remove(v, t, &targetInfo[t->infoIdx]);
     }
 }
