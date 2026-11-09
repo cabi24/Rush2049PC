@@ -1,3 +1,7 @@
+/* SetupCarColor.c: a car's paint job, made in its palette (MAT3 visuals.c, SetupCarColor()).
+ *
+ * The N64's cars are painted through their palette (TLUT): the three colours a player picks become 32-step ramps
+ * in a copy of the car type's palette, which the frame and the hood draw with. MAT3 swaps textures instead. */
 #include "game/game.h"
 #define Handle HandleView   /* this file's own Handle: include/game's Handle is another type */
 
@@ -6,6 +10,7 @@
  * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
 #define PAL_DATA u32 data
 #define TLUT_COPY_IN(dst, src, size) tlut_copy_in(dst, src, size)
+/* Copy `size` bytes of big-endian RGBA 5551 entries from the window address `src` to `dst`, native. */
 static void tlut_copy_in(u16 *dst, u32 src, u32 size)
 {
     const u8 *s = (const u8 *)PC_N64P(src);
@@ -21,16 +26,13 @@ typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 typedef union Handle { s32 value; struct { s16 id, bank; } halves; } Handle;
-typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Model68 { u32 flags, w4; void *obj; float scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip; Resource24 *palette; u32 texture0, texture1; } Model68;
+/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
+typedef struct CarParts { Handle frame; u32 extraparts[3]; Handle hood, sheen; u32 rest[10]; } CarParts;
 
 VIEW(Resource24[], car_palettes);
 #define car_palettes car_palettes_view
-VIEW(Handles64[], gCarParts);
+VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
-VIEW(Model68[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
@@ -45,6 +47,8 @@ int osSendMesg(struct OSMesgQueue *, void *, int);
 #define heap_lock() osRecvMesg(&heap_lock_queue, 0, 1)
 #define heap_unlock() osSendMesg(&heap_lock_queue, 0, 0)
 
+/* The RGBA 5551 colour `ratio`/255 of the way from `left` to `right` (0 gives left, 255 or more right), each of red,
+ * green and blue blended apart; alpha 1. */
 u32 blend_rgb5551(u32 left, u32 right, s32 ratio)
 {
     u32 inverse, red, green, blue;
@@ -58,16 +62,20 @@ u32 blend_rgb5551(u32 left, u32 right, s32 ratio)
 }
 
 
+/* Draw scene node `id` with the palette `descriptor`. */
 void SetModelPalette(s32 id, Resource24 *descriptor)
 {
-    Model68 *m;
+    ObjectInstance *m;
     m = &ObjInstanceList[id];
-    m->palette = descriptor;
+    m->pal = descriptor;
 }
 
 
 
-u16 *MakeRamps(u16 *colors, u32 first_color, u32 second_color, u32 third_color)   /* MakeRamps */
+/* Write the three paint ramps into the palette `colors`: entry 32 the first colour, then 31 steps from it toward
+ * black (blend_rgb5551 with 1, black with alpha), 64 on the second colour, 96 on the third; returns colors.
+ * Original game: the third ramp stops at entry 126, one short of the others, so 127 keeps the palette file's. */
+u16 *MakeRamps(u16 *colors, u32 first_color, u32 second_color, u32 third_color)
 {
     s32 i;
 
@@ -86,7 +94,14 @@ u16 *MakeRamps(u16 *colors, u32 first_color, u32 second_color, u32 third_color) 
     return colors;
 }
 
-void SetupCarColor(s16 index,s16 palette,u8 first,u8 second,u8 third)
+/* Paint car `slot` (of car type `car`) in the paint colours `first`, `second` and `third` (paint_colors numbers):
+ * read the car type's palette ("car_palette_name_format" with car + 1) into a heap block, make it native, make
+ * the ramps, copy the result into the car's palette record (car_palettes[slot], car_palette_init) and give it to
+ * the frame and the hood. Colour 0 for the first paint makes the palette's first 31 entries a brighter grey (their
+ * red, a quarter more).
+ * Original game: with `second` 0 it greys entries 33-63 the same way, which MakeRamps then overwrites with the
+ * first colour's ramp, so it does nothing; 65-95, the second ramp's, may have been meant. */
+void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
 {
     char name[32];
     u16 *colors;
@@ -95,9 +110,9 @@ void SetupCarColor(s16 index,s16 palette,u8 first,u8 second,u8 third)
     s32 r, g, b;
     u32 first_color, second_color, third_color;
     Resource24 *descriptor;
-    gCarPaintJobInited[index]=1;
+    gCarPaintJobInited[slot]=1;
     colors=AllocateMemoryHeap(0,512);
-    sprintf(name,car_palette_name_format,palette+1);
+    sprintf(name,car_palette_name_format,car+1);
     TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,gNumModels-1,1)->data,512);
     if (first == 0) {
         for (i = 1; i < 32; i++) {
@@ -121,11 +136,11 @@ void SetupCarColor(s16 index,s16 palette,u8 first,u8 second,u8 third)
     first_color=paint_colors[first];
     second_color=paint_colors[second]; third_color=paint_colors[third];
     MakeRamps(colors, first_color, second_color, third_color);
-    descriptor=&car_palettes[index];
+    descriptor=&car_palettes[slot];
     memcpy(N64PTR0(void *, descriptor->data),colors,512);
     heap_lock();
     DeallocateMemoryInternal(N64A(colors), 0);
     heap_unlock();
-    SetModelPalette(gCarParts[index].root.halves.id,descriptor);
-    SetModelPalette(gCarParts[index].secondary.halves.id,descriptor);
+    SetModelPalette(gCarParts[slot].frame.halves.id,descriptor);
+    SetModelPalette(gCarParts[slot].hood.halves.id,descriptor);
 }

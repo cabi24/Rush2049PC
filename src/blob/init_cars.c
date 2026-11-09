@@ -1,104 +1,93 @@
+/* init_cars.c: set the car and model records up for a race (MAT3 mdrive.c, init_cars()). */
 #include "game/game.h"
 
-typedef struct Reference {
+/* The input record of a human (gPlayers[i], MAT3 tPadState; 80 bytes): its transmission choice. */
+typedef struct tPadState {
     u32 word0;
-    u8 opaque4[62];
-    u8 flags;
-    u8 opaque67[0x48 - 0x43]; void *ref;
-} Reference;
+    u8 pad4[62];
+    u8 trans;                   /* +0x42 bit 0: manual */
+    u8 pad43[0x48 - 0x43]; void *save;
+} tPadState;
 enum n64p_void { n64p_void_ };
-typedef struct Car {
-    enum n64p_void object;
-    u8 opaque4[4];
-    s8 byte8;
-    s8 byte9;
-    s8 byte10;
-    s8 byte11;
-    s8 byte12;
-    s8 byte13;
-    s8 byte14;
-    s8 byte15;
-    u8 opaque16[228];
-    float value244;
-    float value248;
-    float value252;
-    float value256;
-    float value260;
-    float value264;
-    float value268;
-    float value272;
-    float value276;
-    float value280;
-    float value284;
-    float value288;
-    u8 opaque292[728];
-    s32 word1020;
-    float value1024;
-    u8 opaque1028[592];
-    float radius;
-    u8 opaque1624[108];
-    s16 half1732;
-    u8 opaque1734[82];
-    float preserved;
-    u8 opaque1820[168];
-    s16 half1988;
-    s16 half1990;
-    s16 half1992;
-    s16 half1994;
-    s8 byte1996;
-    s8 byte1997;
-    s8 byte1998;
-    s8 byte1999;
-    u8 opaque2000[4];
-    s32 word2004;
-    u8 opaque2008[4];
-    s8 byte2012;
-    s8 byte2013;
-    u8 opaque2014[4];
-    s16 half2018;
-    s16 half2020;
-    s16 half2022;
-    u8 opaque2024[2];
-    s8 byte2026;
-    s8 byte2027;
-    float scale;
+/* The model record (tModelData, docs/port/CARS.md 4), the fields init_cars sets. */
+typedef struct tModelData {
+    enum n64p_void car;         /* +0x000 the physics descriptor's window address */
+    u8 tune[4];
+    s8 body_type;               /* +0x008 the car type, 0-12 */
+    s8 trans;
+    s8 autotrans;
+    s8 handling;                /* the per-player choices (gCarHandling ... gTireRims) */
+    s8 engine_type;
+    s8 tire_type;
+    s8 frame;
+    s8 tireRims;
+    u8 pad010[228];
+    float bodyR[4][3];          /* +0x0F4 the body's four collision corners, feet */
+    u8 pad124[728];
+    s32 wingSnd;                /* +0x3FC */
+    float catchup;              /* +0x400 */
+    u8 pad404[592];
+    float colrad;               /* +0x654 the collision radius, feet */
+    u8 pad658[108];
+    s16 moving_state;           /* +0x6C4 resurrect.moving_state */
+    u8 pad6C6[82];
+    float dt;                   /* +0x718 fastin.dt: the model step, kept across the reset */
+    u8 pad71C[168];
+    s16 obResPt;                /* +0x7C4 */
+    s16 slot;
+    s16 in_game;
+    s16 we_control;             /* the computer drives it: a drone of this machine's */
+    s8 drone_type;              /* +0x7CC DRONE_TYPE_NONE 0, AI 1, HUMAN 2 */
+    s8 color[3];                /* +0x7CD the three paint colours (MAT3 PaintJob) */
+    u8 pad7D0[4];
+    s32 appearance;             /* +0x7D4 APPEAR_* */
+    u8 pad7D8[4];
+    s8 started;
+    s8 data_valid;
+    u8 pad7DE[4];
+    s16 last_cp_index;          /* +0x7E2 */
+    s16 next_cp_index;
+    s16 drone_target;
+    u8 pad7E8[2];
+    s8 collidable;              /* +0x7EA */
+    s8 solid;
+    float drone_scale;          /* +0x7EC */
     float time_boost;
-    u8 opaque2036[20];
-} Car;
+    u8 pad7F4[20];
+} tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-typedef struct Player {
-    u8 opaque0[232];
-    s32 word232;
-    s8 byte236;
-    u8 opaque237[1];
-    s8 byte238;
-    u8 opaque239[17];
-    float distance;
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields init_cars sets. */
+typedef struct tCarData {
+    u8 pad000[232];
+    s32 appearance;             /* +0x0E8 */
+    s8 data_valid;
+    u8 pad0ED[1];
+    s8 place;                   /* +0x0EE */
+    u8 pad0EF[17];
+    float distance;             /* +0x100 along the track, feet: the grid's order before the start */
     float last_distance;
-    u8 opaque264[0x110 - 0x108]; struct pc_visual visuals[21]; u8 opaque264_308[0x309 - 0x308];
-    s8 byte777;
-    u8 opaque778[7];
-    s8 byte785;
-    u8 opaque786[70];
-    s8 byte856;
-    u8 opaque857[2];
-    s8 byte859;
-    s8 byte860;
-    s8 byte861;
-    s8 byte862;
-    u8 opaque863[33];
-    Reference * reference;
-    u8 opaque900[52];
-} Player;
+    u8 pad108[0x110 - 0x108]; struct pc_visual visuals[21]; u8 pad308[0x309 - 0x308];
+    s8 solid;                   /* +0x309 */
+    u8 pad30A[7];
+    s8 collide_state;           /* +0x311 */
+    u8 pad312[70];
+    s8 crash_state;             /* +0x358 */
+    u8 pad359[2];
+    s8 slot;                    /* +0x35B */
+    s8 camera;                  /* +0x35C the window that follows it, -1 none */
+    s8 view;
+    s8 saveview;
+    u8 pad35F[33];
+    tPadState *player;          /* +0x380 the input record, NULL for a drone (a host pointer) */
+    u8 pad384[52];
+} tCarData;
 
+/* collsize[body]: the collision box of a car type, feet (MAT3 colfront, colrear, colside, colheight). */
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Reference gPlayers[];
+extern tPadState gPlayers[];
 VIEW(Bounds[], collsize);
 #define collsize collsize_view
 
@@ -122,124 +111,133 @@ extern float sqrtf(float);
 #define GRID_CARS (gNumCars > PC_N64_CARS ? gNumCars : PC_N64_CARS)
 #define CLEAR_SLOTS PC_MODEL_SLOTS
 
+/* Reset the race's cars at the race start: clear each model and car record (the model step dt survives), give
+ * it the first physics descriptor, the grid order (a human behind the drones), solid and collidable, no window, the
+ * views 2, no checkpoint and no respawn; and for each car in the race (the roster's LINK_FLAG_IN_GAME, 0x80) its
+ * slot and place, drone or human (owner 6, LINK_OWNER_HUMAN: its input record, and the "drive the hulk" cheat's
+ * hulk), its car type, transmission and the per-player choices of handling, engine, tires, frame and rims (row
+ * slot + 1 a human's, row 0 the drones', whose engine is slot & 3) and paint, its path, and for a car neither human
+ * nor ours (another machine's) the collision box. The rest of the slots are out of the race. In the attract demo
+ * the first car is an automatic. Then the drones' schedule (sched_to_use; split screen's from
+ * PC_DRONE_SCHED_TWO on). */
 void init_cars(void) {
     s32 i,j,index;
-    Car *car;
-    Player *player;
-    Bounds *bounds;
-    float preserved,value,maxlen;
+    tModelData *m;
+    tCarData *car;
+    Bounds *sizep;
+    float dt,value,maxlen;
     gNumActiveCars=0;
     for(i=0;i<gNumCars;i++) {
-        car=PC_MODEL(i);
-        player=PC_CAR(i);
-        preserved=car->preserved;
-        for(j=0;j<sizeof(Car);j++)
+        m=PC_MODEL(i);
+        car=PC_CAR(i);
+        dt=m->dt;
+        for(j=0;j<sizeof(tModelData);j++)
+            ((s8 *)m)[j]=0;
+        m->dt=dt;
+        for(j=0;j<sizeof(tCarData);j++)
             ((s8 *)car)[j]=0;
-        car->preserved=preserved;
-        for(j=0;j<sizeof(Player);j++)
-            ((s8 *)player)[j]=0;
-        car->object=N64W(gCarModels);
-        car->half1994=PC_LINK_OWNER(i)==0;
-        player->byte862=2;
-        player->byte860=-1;
-        player->byte861=player->byte862;
+        m->car=N64W(gCarModels);
+        m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
+        car->saveview=2;
+        car->camera=-1;
+        car->view=car->saveview;
         index=PC_LINK_OWNER(i)==6?GRID_CARS-i:i-gNumPlayers+1;
-        player->distance=(float)-index;
-        car->byte2027=1;
-        car->byte2026=1;
-        player->byte777=car->byte2027;
-        player->byte785=-1;
-        car->half2022=0;
-        car->scale=1.0f;
-        car->time_boost=1.0f;
-        player->last_distance=-100.0f;
-        car->value1024=1.0f;
-        car->half1988=0;
-        car->half1732=-1;
-        player->byte856=0;
-        car->word1020=-1;
-        InitCarVisuals(player);
-        car->half1992=(PC_LINK_FLAGS(i)&0x80)!=0;
-        if(car->half1992) {
+        car->distance=(float)-index;
+        m->solid=1;
+        m->collidable=1;
+        car->solid=m->solid;
+        car->collide_state=-1;
+        m->drone_target=0;
+        m->drone_scale=1.0f;
+        m->time_boost=1.0f;
+        car->last_distance=-100.0f;
+        m->catchup=1.0f;
+        m->obResPt=0;
+        m->moving_state=RES_IDLE;
+        car->crash_state=CRASH_NONE;
+        m->wingSnd=-1;
+        InitCarVisuals(car);
+        m->in_game=(PC_LINK_FLAGS(i)&0x80)!=0;
+        if(m->in_game) {
             PC_MODEL_SLOT(gNumActiveCars++)=i;
-            player->byte859=i;
-            player->byte238=PC_LINK_PLACE(i);
-            car->byte1996=PC_LINK_OWNER(i)<6?1:2;
-            if(car->byte1996==2) {
-                player->reference=&gPlayers[i];
+            car->slot=i;
+            car->place=PC_LINK_PLACE(i);
+            m->drone_type=PC_LINK_OWNER(i)<6?1:2;   /* DRONE_TYPE_AI, DRONE_TYPE_HUMAN */
+            if(m->drone_type==2) {
+                car->player=&gPlayers[i];
                 switch(gDriveHulk[i]) {
                 case 1:
-                    player->word232=112;
-                    car->word2004=112;
+                    car->appearance=APPEAR_CRASHED;
+                    m->appearance=APPEAR_CRASHED;
                     break;
                 case 2:
-                    player->word232=16;
-                    car->word2004=16;
+                    car->appearance=APPEAR_HULK;
+                    m->appearance=APPEAR_HULK;
                     break;
                 }
             }
-            if(player->reference) {
-                car->byte8=PC_LINK_CAR(i);
-                car->byte9=player->reference->flags;
-                car->byte10=(car->byte9&1)^1;
-                car->byte11=gCarHandling[car->half1990+1][(u8)car->byte8];
-                car->byte12=gCarEngines[car->half1990+1][(u8)car->byte8];
-                car->byte13=gCarTires[car->half1990+1][(u8)car->byte8];
-                car->byte14=gCarFrame[car->half1990+1][(u8)car->byte8];
-                car->byte15=gTireRims[car->half1990+1][(u8)car->byte8];
-                car->byte1997=PC_LINK_COLOR0(i);
-                car->byte1998=PC_LINK_COLOR1(i);
-                car->byte1999=PC_LINK_COLOR2(i);
-                car->byte2013=1;
-                player->byte236=1;
-            } else if(car->half1994) {
-                car->byte8=PC_LINK_CAR(i);
-                car->byte9=0;
-                car->byte10=1;
-                car->byte11=gCarHandling[0][(u8)car->byte8];
-                car->byte12=car->half1990&3;
-                car->byte13=gCarTires[0][(u8)car->byte8];
-                car->byte14=gCarFrame[0][(u8)car->byte8];
-                car->byte15=gTireRims[0][(u8)car->byte8];
-                car->byte1997=PC_LINK_COLOR0(i);
-                car->byte1998=PC_LINK_COLOR1(i);
-                car->byte1999=PC_LINK_COLOR2(i);
-                car->byte2013=1;
-                player->byte236=1;
+            if(car->player) {
+                m->body_type=PC_LINK_CAR(i);
+                m->trans=car->player->trans;
+                m->autotrans=(m->trans&1)^1;
+                m->handling=gCarHandling[m->slot+1][(u8)m->body_type];
+                m->engine_type=gCarEngines[m->slot+1][(u8)m->body_type];
+                m->tire_type=gCarTires[m->slot+1][(u8)m->body_type];
+                m->frame=gCarFrame[m->slot+1][(u8)m->body_type];
+                m->tireRims=gTireRims[m->slot+1][(u8)m->body_type];
+                m->color[0]=PC_LINK_COLOR0(i);
+                m->color[1]=PC_LINK_COLOR1(i);
+                m->color[2]=PC_LINK_COLOR2(i);
+                m->data_valid=1;
+                car->data_valid=1;
+            } else if(m->we_control) {
+                m->body_type=PC_LINK_CAR(i);
+                m->trans=0;
+                m->autotrans=1;
+                m->handling=gCarHandling[0][(u8)m->body_type];
+                m->engine_type=m->slot&3;
+                m->tire_type=gCarTires[0][(u8)m->body_type];
+                m->frame=gCarFrame[0][(u8)m->body_type];
+                m->tireRims=gTireRims[0][(u8)m->body_type];
+                m->color[0]=PC_LINK_COLOR0(i);
+                m->color[1]=PC_LINK_COLOR1(i);
+                m->color[2]=PC_LINK_COLOR2(i);
+                m->data_valid=1;
+                car->data_valid=1;
             }
-            car->half2018=0;
-            car->half2020=GetNextCheckpoint(car->half2018);
-            InitCarPath(car,player);
-            if(!player->reference&&!car->half1994) {
-                bounds=&collsize[(u8)car->byte8];
-                value=bounds->side;
-                car->value268=value;
-                car->value244=value;
-                value=-bounds->side;
-                car->value280=value;
-                car->value256=value;
-                value=bounds->height;
-                car->value260=value;
-                car->value248=value;
-                value=bounds->height;
-                car->value284=value;
-                car->value272=value;
-                value=bounds->front;
-                car->value264=value;
-                car->value252=value;
-                value=-bounds->rear;
-                car->value288=value;
-                car->value276=value;
-                maxlen=bounds->front>bounds->rear?bounds->front:bounds->rear;
-                car->radius=sqrtf((maxlen*maxlen+bounds->side*bounds->side)+bounds->height*bounds->height);
+            m->last_cp_index=0;
+            m->next_cp_index=GetNextCheckpoint(m->last_cp_index);
+            InitCarPath(m,car);
+            if(!car->player&&!m->we_control) {
+                sizep=&collsize[(u8)m->body_type];
+                value=sizep->side;
+                m->bodyR[2][0]=value;
+                m->bodyR[0][0]=value;
+                value=-sizep->side;
+                m->bodyR[3][0]=value;
+                m->bodyR[1][0]=value;
+                value=sizep->height;
+                m->bodyR[1][1]=value;
+                m->bodyR[0][1]=value;
+                value=sizep->height;
+                m->bodyR[3][1]=value;
+                m->bodyR[2][1]=value;
+                value=sizep->front;
+                m->bodyR[1][2]=value;
+                m->bodyR[0][2]=value;
+                value=-sizep->rear;
+                m->bodyR[3][2]=value;
+                m->bodyR[2][2]=value;
+                maxlen=sizep->front>sizep->rear?sizep->front:sizep->rear;
+                m->colrad=sqrtf((maxlen*maxlen+sizep->side*sizep->side)+sizep->height*sizep->height);
             }
         }
     }
     for(i=gNumCars;i<CLEAR_SLOTS;i++) {
-        car=PC_MODEL(i);
-        car->half1994=PC_LINK_OWNER(i)==0;
-        car->byte1996=0;
-        car->half1992=0;
+        m=PC_MODEL(i);
+        m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
+        m->drone_type=0;   /* DRONE_TYPE_NONE */
+        m->in_game=0;
     }
     if(gGameState&8) {
         PC_MODEL_INPUT_FLAGS(0)=0;

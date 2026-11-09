@@ -1,12 +1,14 @@
+/* SetSheen.c: the car screen's sheen over a car (MAT3 visuals.c, SetSheen()). */
 #include "game/game.h"
 
+/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
 typedef struct {
     u8 pad0[20];
-    s32 model;      /* 20 */
+    s32 sheen;      /* 0x14 the environment-mapped shine over the body */
     u8 pad24[40];
-} CarPart;          /* 64 */
+} CarParts;         /* 64 */
 
-VIEW(CarPart[], gCarParts);
+VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
 
 VIEW(volatile u8, gNumModels);
@@ -15,36 +17,39 @@ VIEW(volatile u8, gNumModels);
 void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 lo, s8 hi, s32 err);
 void ZOID_SetTexture(s16 object, void *tex, s32 mode);
 
-void SetSheen(s16 part, s16 car, s16 tex)
+/* On the car screen, give car `slot` of screen player `player` (0-3; its cars are slots player * 13 + slot) the sheen
+ * texture "SHEEN<sheen_index>" (sheenName, 0-10) and show it in that player's window, or hide the sheen there for
+ * sheen_index -1. Any other index does nothing. */
+void SetSheen(s16 slot, s16 player, s16 sheen_index)
 {
-    CarPart *p;
-    void *t;
-    u16 index;
-    s16 mask;
+    CarParts *car;
+    void *tex;
+    u16 texidx;
+    s16 cam;
 
-    if (tex < -1 || tex >= 11) {
+    if (sheen_index < -1 || sheen_index >= 11) {
         return;
     }
-    switch (car) {
+    switch (player) {
     case 0:
-        mask = 1;
+        cam = 1;
         break;
     case 1:
-        mask = 2;
+        cam = 2;
         break;
     case 2:
-        mask = 4;
+        cam = 4;
         break;
     case 3:
-        mask = 8;
+        cam = 8;
         break;
     }
-    if (tex == -1) {
-        MBOX_HideObject(gCarParts[car * 13 + part].model, 0, mask);
+    if (sheen_index == -1) {
+        MBOX_HideObject(gCarParts[player * 13 + slot].sheen, 0, cam);
     } else {
-        t = MBOX_FindTexture_WORK(sheenName[tex], &index, 0, gNumModels - 1, 1);
-        p = &gCarParts[car * 13 + part];
-        ZOID_SetTexture(p->model, t, -1);
-        MBOX_ShowObject(p->model, 0, mask);
+        tex = MBOX_FindTexture_WORK(sheenName[sheen_index], &texidx, 0, gNumModels - 1, 1);
+        car = &gCarParts[player * 13 + slot];
+        ZOID_SetTexture(car->sheen, tex, -1);
+        MBOX_ShowObject(car->sheen, 0, cam);
     }
 }

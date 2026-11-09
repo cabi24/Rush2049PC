@@ -1,46 +1,54 @@
+/* StartFrame.c: start a car's frame visual (MAT3 visuals.c, StartFrame()). */
 #include "game/game.h"
 
-typedef struct 
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields StartFrame sets. */
+typedef struct tCarData
 {
-  u8 pad000[0xE8];
-  s32 unkE8;
-  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-  u8 unk35B;
-  u8 pad35C[0x380 - 0x35C];
-  void *unk380;
-  u8 pad384[0x3A3 - 0x384];
-  u8 unk3A3;
-  u8 pad3A4[0x3B8 - 0x3A4];
-} GameCar;
+  u8 pad000[0x110]; struct pc_visual visuals[21]; u8 pad308[0x374 - 0x308];
+  f32 roktScale[3];             /* +0x374 the scale of the rocket car's three flames */
+} tCarData;
 
-VIEW(s32[], gCarParts);
+/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
+typedef struct CarParts {
+  s32 frame;                    /* 0x00 */
+  s32 extraparts[3];            /* 0x04 the rocket car's flames */
+  s32 hood;                     /* 0x10 */
+  s32 sheen;                    /* 0x14 */
+  u8 pad18[0x40 - 0x18];
+} CarParts;
+
+VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
 
 VIEW(u16, gObjList);
 #define gObjList gObjList_view
 
-void StartFrame(s16 arg0)
+/* Give car `slot`'s frame its visual (VIS_FRAME, animated by AnimateFrame: the body, its colour and the rocket's
+ * flames) and show it. The rocket car (body 2) gets its three flame objects, with their starting scales. In a
+ * battle or a stunt race (gRace 6 kBattle, 4 kStunt) with three or four players the sheen is hidden, a cost the
+ * N64 saves (MAT3 has no such test). */
+void StartFrame(s16 slot)
 {
-  GameCar *temp_s1;
-  void *temp_s2;
-  u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]): the rocket's parts at 213..215 */
-  temp_s2 = (s32 *) ((arg0 << 6) + ((u8 *) (&gCarParts)));
-  temp_s1 = PC_CAR(arg0);
-  *((intptr_t *) (((s8 *) temp_s1) + CAR_OFS(0x274))) = (intptr_t)AnimateFrame;
-  *((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x266))) = (s16) (*((s32 *) (((s8 *) temp_s2) + 0)));
-  *((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x268))) = arg0;
-  MBOX_ShowObject(*((s16 *) (((s8 *) temp_s1) + CAR_OFS(0x266))), 0, 0xF);
-  if ((PC_MODEL_BODY(arg0)) == 2)
+  tCarData *car;
+  CarParts *parts;
+  u16 *objects = (u16 *) &gObjList;
+  parts = &gCarParts[slot];
+  car = PC_CAR(slot);
+  car->visuals[VIS_FRAME].func = AnimateFrame;
+  car->visuals[VIS_FRAME].objnum = (s16) parts->frame;
+  car->visuals[VIS_FRAME].slot = slot;
+  MBOX_ShowObject(car->visuals[VIS_FRAME].objnum, 0, 15);
+  if ((PC_MODEL_BODY(slot)) == 2)
   {
-    *((s32 *) (((s8 *) temp_s2) + 8)) = InitCarObj(objects[214], 0xF, -1, 0x42000, (s32) arg0, -1, 1);
-    *((f32 *) (((s8 *) temp_s1) + CAR_OFS(0x378))) = 0.25f;
-    *((s32 *) (((s8 *) temp_s2) + 0xC)) = InitCarObj(objects[215], 0xF, -1, 0x42000, (s32) arg0, -1, 1);
-    *((f32 *) (((s8 *) temp_s1) + CAR_OFS(0x37C))) = 0.5f;
-    *((s32 *) (((s8 *) temp_s2) + 4)) = InitCarObj(objects[213], 0xF, -1, 0x42000, (s32) arg0, -1, 1);
-    *((f32 *) (((s8 *) temp_s1) + CAR_OFS(0x374))) = 0.25f;
+    parts->extraparts[1] = InitCarObj(objects[OBJLIST_ROCKET_FLAME + 1], 15, -1, 0x42000, slot, -1, 1);
+    car->roktScale[1] = 0.25f;
+    parts->extraparts[2] = InitCarObj(objects[OBJLIST_ROCKET_FLAME + 2], 15, -1, 0x42000, slot, -1, 1);
+    car->roktScale[2] = 0.5f;
+    parts->extraparts[0] = InitCarObj(objects[OBJLIST_ROCKET_FLAME], 15, -1, 0x42000, slot, -1, 1);
+    car->roktScale[0] = 0.25f;
   }
   if (((gRace == 6) || (gRace == 4)) && (gNumPlayers >= 3))
   {
-    MBOX_HideObject(*((s32 *) (((s8 *) temp_s2) + 0x14)), 1, 0xF);
+    MBOX_HideObject(parts->sheen, 1, 15);
   }
 }

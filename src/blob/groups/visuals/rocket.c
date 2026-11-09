@@ -1,3 +1,5 @@
+/* rocket.c (visuals): the car's frame each frame, its IR colour and the rocket car's flames (MAT3 visuals.c,
+ * AnimateFrame(), GetCarsIRColor(), AnimateRocketFlame()). */
 #include "game/game.h"
 
 float sqrtf(float);
@@ -10,95 +12,77 @@ typedef union Color {
     u32 w;
 } Color;
 
-/* 3x3 matrix followed by a translation; CopyUV copies m[9] */
-typedef struct Node {
-    /* 0x00 */ f32 m[9];
-    /* 0x24 */ f32 t[3];
-} Node;
+/* A scene node's matrix: its rotation (CopyUV copies the 3x3) and its position relative to its parent. */
+typedef struct tUVMatrix {
+    /* 0x00 */ f32 uvs[3][3];
+    /* 0x24 */ f32 pos[3];
+} tUVMatrix;
 
-/* table at 0x8012E700, 0x44 bytes each; flags bit 31 = hidden */
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ModelSlot {
-    /* 0x00 */ u32 flags;
-    /* 0x04 */ u32 w4;
-    /* 0x08 */ Node *node;
-    /* 0x10 */ f32 scale, w;
-    /* 0x18 */ u16 tex;
-    /* 0x1A */ s16 child;
-    /* 0x1C */ s16 sibling;
-    /* 0x1E */ s16 mode;
-    /* 0x20 */ void *light, *texture[4], *rect, *clip, *pal;
-    /* 0x60 */ u32 colA;
-    /* 0x64 */ u32 colB;
-} ModelSlot;
-
-/* table at 0x80139320, 0x40 bytes each: four model-slot ids per car */
-typedef struct CarModels {
-    /* 0x00 */ s32 id[4];
-    /* 0x10 */ s32 wheelA;
-    /* 0x14 */ s32 wheelB;
+/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
+typedef struct CarParts {
+    /* 0x00 */ s32 frame;
+    /* 0x04 */ s32 extraparts[3];   /* the rocket car's flames */
+    /* 0x10 */ s32 hood;
+    /* 0x14 */ s32 sheen;
     /* 0x18 */ s32 pad18[10];
-} CarModels;
+} CarParts;
 
-/* gGameCar element (0x3B8 bytes) */
-typedef struct Car {
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields these functions use. */
+typedef struct tCarData {
     /* 0x000 */ u8 pad0[0xE8];
-    /* 0x0E8 */ u32 flagsE8;
+    /* 0x0E8 */ u32 appearance;
     /* 0x0EC */ u8 padEC[0xF8 - 0xEC];
-    /* 0x0F8 */ s16 sF8;
-    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x344 - 0x308];
-    /* 0x344 */ u16 pal[4];
-    /* 0x34C */ u32 irColor;
-    /* 0x350 */ u32 prevIRColor;
+    /* 0x0F8 */ s16 rwmph;          /* the speed, mph x 4, negative backwards */
+    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x344 - 0x308];
+    /* 0x344 */ u16 sound_flags[4]; /* each tire's road polygon's sound flags: bits 11-15 a colour of the track's */
+    /* 0x34C */ u32 IRclr;          /* the colour the car's frame takes (tRGBA) */
+    /* 0x350 */ u32 prevIRclr;
     /* 0x354 */ u8 pad354[4];
     /* 0x358 */ u8 pad358[2];
-    /* 0x35A */ s8 fade;
+    /* 0x35A */ s8 in_tunnel;       /* the sheen fades out in a tunnel */
     /* 0x35B */ u8 pad35B;
-    /* 0x35C */ s8 lightIdx;
-    /* 0x35D */ s8 lightMode;
+    /* 0x35C */ s8 camera;          /* the window that follows this car, -1 none */
+    /* 0x35D */ s8 view;            /* that window's view: 1 shows the hood, 2 and up the whole car */
     /* 0x35E */ u8 pad35E;
-    /* 0x35F */ s8 nameSet;
-    /* 0x360 */ u32 alpha;
+    /* 0x35F */ s8 carMine;         /* the car screen's "car mines" cheat shows the car as a mine */
+    /* 0x360 */ u32 sheenAlpha;
     /* 0x364 */ u8 pad364[0x374 - 0x364];
-    /* 0x374 */ f32 scale[3];
-    /* 0x380 */ void *input;         /* the car's input record, a host pointer */
-    /* 0x384 */ s8 b384;
+    /* 0x374 */ f32 roktScale[3];   /* the rocket car's three flames' lengths */
+    /* 0x380 */ void *player;       /* the car's input record, a host pointer */
+    /* 0x384 */ s8 weapon_type;     /* battle.weapon.type */
     /* 0x385 */ u8 pad385[0x38C - 0x385];
-    /* 0x38C */ u32 f38C;
+    /* 0x38C */ u32 defense_active; /* battle.defense.active: bit 0 the car is fading (invisibility) */
     /* 0x390 */ u8 pad390[0x3A1 - 0x390];
-    /* 0x3A1 */ u8 b3A1;
+    /* 0x3A1 */ u8 fadeAlpha;       /* battle.fadeAlpha */
     /* 0x3A2 */ u8 pad3A2[0x3B8 - 0x3A2];
-} Car;
+} tCarData;
 
-/* model element (0x808 bytes) */
-typedef struct CarState {
+/* The model record (tModelData, docs/port/CARS.md 4), the fields these functions read. */
+typedef struct tModelData {
     /* 0x000 */ u8 pad0[8];
-    /* 0x008 */ u8 mode;
+    /* 0x008 */ u8 body_type;       /* the car, 0-12; 13 the wreck */
     /* 0x009 */ u8 pad9[0x3D0 - 9];
-    /* 0x3D0 */ f32 f3D0;
+    /* 0x3D0 */ f32 throttle;       /* 0..1 */
     /* 0x3D4 */ u8 pad3D4[0x5F4 - 0x3D4];
-    /* 0x5F4 */ f32 dist;
+    /* 0x5F4 */ f32 airdist2;       /* airdist[2]: how far the rear left tire is off the ground, feet */
     /* 0x5F8 */ u8 pad5F8[0x6C4 - 0x5F8];
-    /* 0x6C4 */ s16 s6C4;
+    /* 0x6C4 */ s16 moving_state;   /* resurrect.moving_state: RES_IDLE, else respawning */
     /* 0x6C6 */ u8 pad6C6[0x7D0 - 0x6C6];
-    /* 0x7D0 */ s16 s7D0;
+    /* 0x7D0 */ s16 rpm;
     /* 0x7D2 */ u8 pad7D2[0x808 - 0x7D2];
-} CarState;
+} tModelData;
 
-/* the entity drone_ai_update is called with */
-typedef struct Entity {
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-    /* 0x00 */ void *pad0;
-    /* 0x04 */ u8 pad4[2];
-    /* 0x06 */ s16 slot;
-    /* 0x08 */ s16 car;
-    /* 0x0A */ u8 padA[0x14 - 0xA];
-    /* 0x14 */ intptr_t field14;
-} Entity;
+/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+typedef struct tVisual {
+    /* 0x00 */ void *next;
+    /* 0x08 */ u8 pad8[2];          /* index */
+    /* 0x0A */ s16 objnum;
+    /* 0x0C */ s16 slot;
+    /* 0x0E */ u8 padE[0x18 - 0xE];
+    /* 0x18 */ intptr_t func;
+} tVisual;
 
-VIEW(ModelSlot[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(CarModels[], gCarParts);
+VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
 
 VIEW(s32, gGameState);
@@ -113,13 +97,15 @@ VIEW(unsigned char *[], gTrackColors);
 VIEW(s32[][2], SheenColors);
 #define SheenColors SheenColors_view
 
-Node *ZOID_FindMatrix(s16 objnum);
+tUVMatrix *ZOID_FindMatrix(s16 objnum);
 
-/* GetCarsIRColor: N64 form (no colour smoothing); inlined into AnimateFrame. */
-Color GetCarsIRColor(Car *car, CarState *m)
+/* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four
+ * tires' road polygons name, and, as its rear left tire gets more than 20 feet off the ground, more and more
+ * (fully at 60 feet) the track's base colour (gTrackBaseColors). Alpha 255. MAT3 also smooths it with the last
+ * frame's (prevIRclr, a third of the new); the N64 doesn't. */
+Color GetCarsIRColor(tCarData *car, tModelData *m)
 {
     Color clr;
-    int u6;
     Color sclr2;
     unsigned char rgb[3];
     float d1;
@@ -131,19 +117,18 @@ Color GetCarsIRColor(Car *car, CarState *m)
     unsigned int i3;
     unsigned int a;
     unsigned int b;
-    int u8,u9,u10,u11;
-    i0=(car->pal[0]&0xf800)>>11;
-    i1=(car->pal[1]&0xf800)>>11;
-    i2=(car->pal[2]&0xf800)>>11;
-    i3=(car->pal[3]&0xf800)>>11;
+    i0=(car->sound_flags[0]&0xf800)>>11;
+    i1=(car->sound_flags[1]&0xf800)>>11;
+    i2=(car->sound_flags[2]&0xf800)>>11;
+    i3=(car->sound_flags[3]&0xf800)>>11;
     sum = ((Color *)gTrackColors[gTrackNum])[i0].b[0]+((Color *)gTrackColors[gTrackNum])[i1].b[0]+((Color *)gTrackColors[gTrackNum])[i2].b[0]+((Color *)gTrackColors[gTrackNum])[i3].b[0];
     rgb[0] = sum >> 2;
     sum = ((Color *)gTrackColors[gTrackNum])[i0].b[1]+((Color *)gTrackColors[gTrackNum])[i1].b[1]+((Color *)gTrackColors[gTrackNum])[i2].b[1]+((Color *)gTrackColors[gTrackNum])[i3].b[1];
     rgb[1] = sum >> 2;
     sum = ((Color *)gTrackColors[gTrackNum])[i0].b[2]+((Color *)gTrackColors[gTrackNum])[i1].b[2]+((Color *)gTrackColors[gTrackNum])[i2].b[2]+((Color *)gTrackColors[gTrackNum])[i3].b[2];
     rgb[2] = sum >> 2;
-    if (m->dist >= 20.0f) {
-        d1 = 0.025f * (m->dist - 20.0f);
+    if (m->airdist2 >= 20.0f) {
+        d1 = 0.025f * (m->airdist2 - 20.0f);
         if (d1 > 1.0f)
             return ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]];
         if (d1 > 0.0f) {
@@ -167,75 +152,76 @@ Color GetCarsIRColor(Car *car, CarState *m)
     return clr;
 }
 
-/* AnimateFrame */
-void AnimateFrame(Entity *ent, s16 alive)
+/* The frame visual of car v->slot (VIS_FRAME), each frame (op 1): the IR colour and the sheen's fade (out in a
+ * tunnel, 25 a frame), alpha 128 for the ghosts in a ghost race and the battle's fade; the rocket car's flames;
+ * the wreck's body for a hulk (the hood and sheen hidden); the car screen's "car mines" cheat body; then, in a
+ * race, the sheen (hidden when fading out, in a 3- or 4-window battle or stunt race, in fog, and in the car's own
+ * window unless it shows the whole car), the body's definition, the invisible cheat and the respawn blink (the
+ * battle hides a respawning car), and the hood, shown only in a one-window race's hood view (1). op 0 stops it:
+ * the frame is hidden. */
+void AnimateFrame(tVisual *v, s16 op)
 {
     int hulk;
-    s16 u0;
     s16 slot;
-    CarState *m;
-    Car *car;
+    tModelData *m;
+    tCarData *car;
     int def;
     u32 flags;
     u32 hobj;
-    u32 tobj;
-    u32 eobj;
     u32 sobj;
     Color clr;
     Color sclr1;
     Color sclr2;
     int tex;
-    int rear;
-    int u5;
     Color nextclr;
 
-    slot = ent->car;
+    slot = v->slot;
     m = PC_MODEL(slot);
     car = PC_CAR(slot);
-    def = ObjInstanceList[ent->slot].tex;
-    if (alive == 0) {
-        if (ent->slot >= 0) {
-            MBOX_HideObject(ent->slot, 1, 15);
+    def = ObjInstanceList[v->objnum].index;
+    if (op == 0) {
+        if (v->objnum >= 0) {
+            MBOX_HideObject(v->objnum, 1, 15);
         }
-        ent->field14 = 0;
-        ent->slot = -1;
+        v->func = 0;
+        v->objnum = -1;
         return;
     }
-    hulk = (car->flagsE8 & 0x10) != 0;
-    sobj = gCarParts[slot].wheelB;
-    hobj = gCarParts[slot].wheelA;
-    if (m->mode == 2) {
+    hulk = (car->appearance & 0x10) != 0;
+    sobj = gCarParts[slot].sheen;
+    hobj = gCarParts[slot].hood;
+    if (m->body_type == 2) {
         AnimateRocketFlame(slot, hulk);
     }
 
     nextclr = GetCarsIRColor(car, m);
     clr.w = nextclr.w;
-    car->prevIRColor = car->irColor;
-    car->irColor = clr.w;
+    car->prevIRclr = car->IRclr;
+    car->IRclr = clr.w;
     sclr1.w = SheenColors[gTrackNum][0];
     sclr2.w = SheenColors[gTrackNum][1];
 
-    if (car->fade != 0) {
-        if (car->alpha < 0x20) {
-            car->alpha = 0;
+    if (car->in_tunnel != 0) {
+        if (car->sheenAlpha < 0x20) {
+            car->sheenAlpha = 0;
         } else {
-            PC_EACH30(car->alpha -= 0x19;)
+            PC_EACH30(car->sheenAlpha -= 0x19;)
         }
     } else {
-        if (car->alpha >= 0xE1) {
-            car->alpha = 0xFF;
+        if (car->sheenAlpha >= 0xE1) {
+            car->sheenAlpha = 0xFF;
         } else {
-            PC_EACH30(car->alpha += 0x19;)
+            PC_EACH30(car->sheenAlpha += 0x19;)
         }
     }
-    sclr1.b[3] = car->alpha;
-    sclr2.b[3] = car->alpha;
+    sclr1.b[3] = car->sheenAlpha;
+    sclr2.b[3] = car->sheenAlpha;
     if (gRace == 2 && slot > 0) {
         clr.b[3] = 0x80;
-    } else if (gRace == 6 && (car->f38C & 1)) {
-        clr.b[3] = car->b3A1;
-        sclr1.b[3] = car->b3A1;
-        sclr2.b[3] = car->b3A1;
+    } else if (gRace == 6 && (car->defense_active & 1)) {
+        clr.b[3] = car->fadeAlpha;
+        sclr1.b[3] = car->fadeAlpha;
+        sclr2.b[3] = car->fadeAlpha;
     } else {
         clr.b[3] = 0xFF;
     }
@@ -243,73 +229,73 @@ void AnimateFrame(Entity *ent, s16 alive)
     SetSheenColor(slot, &sclr1, &sclr2);
 
     if (hulk) {
-        car->nameSet = 0;
+        car->carMine = 0;
         if (PickCar(slot, 13) != def) {
-            ZOID_SetObjectDef(ent->slot, PickCar(slot, 13));
+            ZOID_SetObjectDef(v->objnum, PickCar(slot, 13));
         }
         MBOX_HideObject(hobj, 1, 15);
         MBOX_HideObject(sobj, 1, 15);
-        CheckVisible(ent,1,car->lightIdx);
+        CheckVisible(v,1,car->camera);
         return;
     }
-    if ((gGameState & 0x100) && gCarMines != 0 && car->nameSet == 0) {
-        gObjList[236] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
-        car->nameSet = 1;
+    if ((gGameState & 0x100) && gCarMines != 0 && car->carMine == 0) {
+        gObjList[OBJLIST_MINE] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
+        car->carMine = 1;
     }
-    if ((gGameState & 0x100) && gCarMines == 0 && car->nameSet != 0) {
-        car->nameSet = 0;
+    if ((gGameState & 0x100) && gCarMines == 0 && car->carMine != 0) {
+        car->carMine = 0;
     }
-    if (car->nameSet != 0) {
-        if (def != gObjList[236]) {
-            ZOID_SetObjectDef(ent->slot, gObjList[236]);
+    if (car->carMine != 0) {
+        if (def != gObjList[OBJLIST_MINE]) {
+            ZOID_SetObjectDef(v->objnum, gObjList[OBJLIST_MINE]);
         }
         MBOX_HideObject(hobj, 1, 15);
         MBOX_HideObject(sobj, 1, 15);
-        CheckVisible(ent,car->lightMode>=2,car->lightIdx);
+        CheckVisible(v,car->view>=2,car->camera);
         return;
     }
     if (gGameState & 0x100) return;
-    CheckVisible(ent,car->lightMode>=2,car->lightIdx);
-    if (car->fade != 0) {
-        if (car->alpha < 0x11) {
+    CheckVisible(v,car->view>=2,car->camera);
+    if (car->in_tunnel != 0) {
+        if (car->sheenAlpha < 0x11) {
             MBOX_HideObject(sobj, 1, 15);
         } else {
-            sclr1.b[3] = car->alpha;
-            sclr2.b[3] = car->alpha;
+            sclr1.b[3] = car->sheenAlpha;
+            sclr2.b[3] = car->sheenAlpha;
             SetSheenColor(slot, &sclr1, &sclr2);
         }
     } else if ((gRace == 6 || gRace == 4) && gNumWindows >= 3) {
         MBOX_HideObject(sobj, 1, 15);
     } else if ((gGameState & 0x7C0000) && gFogIntensity != 0) {
         MBOX_HideObject(sobj, 1, 15);
-    } else if (car->lightIdx < 0 || car->lightMode >= 2) {
+    } else if (car->camera < 0 || car->view >= 2) {
         MBOX_ShowObject(sobj, 0, 15);
     } else {
-        MBOX_HideObject(sobj, 1, 1 << car->lightIdx);
+        MBOX_HideObject(sobj, 1, 1 << car->camera);
     }
-    if (PickCar(slot, m->mode) != def) {
-        ZOID_SetObjectDef(ent->slot, PickCar(slot, m->mode));
+    if (PickCar(slot, m->body_type) != def) {
+        ZOID_SetObjectDef(v->objnum, PickCar(slot, m->body_type));
     }
-    if (gRace == 6 && m->s6C4 >= 0) {
-        ObjInstanceList[ent->slot].flags |= 0x80000000;
-    } else if (gInvisibleCar != 0 || (car->flagsE8 & 8)) {
-        ObjInstanceList[ent->slot].flags ^= 0x80000000;
+    if (gRace == 6 && m->moving_state >= 0) {
+        ObjInstanceList[v->objnum].flags |= 0x80000000;
+    } else if (gInvisibleCar != 0 || (car->appearance & 8)) {
+        ObjInstanceList[v->objnum].flags ^= 0x80000000;
     } else {
-        ObjInstanceList[ent->slot].flags &= 0x7FFFFFFF;
+        ObjInstanceList[v->objnum].flags &= 0x7FFFFFFF;
     }
-    if (car->lightMode != 1 || gNumWindows >= 2) {
+    if (car->view != 1 || gNumWindows >= 2) {
         MBOX_HideObject(hobj, 1, 15);
     } else {
-        if (car->lightIdx) {}
+        if (car->camera) {}
         flags = ZOID_ObjectFlags(hobj);
-        tex = ObjInstanceList[hobj].tex;
+        tex = ObjInstanceList[hobj].index;
         if (tex != (int)gObjList[(s16)(slot * 3 + 1)]) {
             ZOID_SetObjectDef(hobj, gObjList[(s16)(slot * 3 + 1)]);
         }
-        if (flags & (0x100 << car->lightIdx)) {
-            MBOX_ShowObject(hobj, 0, 1 << car->lightIdx);
+        if (flags & (0x100 << car->camera)) {
+            MBOX_ShowObject(hobj, 0, 1 << car->camera);
         }
-        if (gInvisibleCar != 0 || (car->flagsE8 & 8)) {
+        if (gInvisibleCar != 0 || (car->appearance & 8)) {
             ObjInstanceList[hobj].flags ^= 0x80000000;
         } else {
             ObjInstanceList[hobj].flags &= 0x7FFFFFFF;
@@ -317,127 +303,130 @@ void AnimateFrame(Entity *ent, s16 alive)
     }
 }
 
-/* AnimateRocketFlame */
+/* The rocket car's three flames (body 2; AnimateFrame calls it), car `slot`: hidden for a hulk, else in the car's
+ * colour (alpha as AnimateFrame's), placed behind the body (2 up, 5.6 back along the frame's axes) with its
+ * rotation, and scaled along the car: small with weapon 3 in a battle, flickering short backwards or off the
+ * throttle (shrinking back to it), else growing with the rpm; hidden while respawning in a battle, blinking with
+ * the invisible cheat or the respawn. MAT3 also hides them in the car's own window unless it shows the whole car. */
 void AnimateRocketFlame(s16 slot, int hulk)
 {
 {
-    CarState *m;
-    Car *car;
-    Node *mat;
-    Node *flames[3];
+    tModelData *m;
+    tCarData *car;
+    tUVMatrix *mat;
+    tUVMatrix *flames[3];
     Color clr = { {255,255,255,255} };
     float scale1;
     float pos[3];
     int mph;
     int b;
-    int u1, u2, u3, u4, u5, u6;
     m=PC_MODEL(slot);
     car=PC_CAR(slot);
     if(hulk) {
-        MBOX_HideObject(gCarParts[slot].id[1],1,15);
-        MBOX_HideObject(gCarParts[slot].id[2],1,15);
-        MBOX_HideObject(gCarParts[slot].id[3],1,15);
+        MBOX_HideObject(gCarParts[slot].extraparts[0],1,15);
+        MBOX_HideObject(gCarParts[slot].extraparts[1],1,15);
+        MBOX_HideObject(gCarParts[slot].extraparts[2],1,15);
         return;
     }
-    MBOX_ShowObject(gCarParts[slot].id[1],0,15);
-    MBOX_ShowObject(gCarParts[slot].id[2],0,15);
-    MBOX_ShowObject(gCarParts[slot].id[3],0,15);
+    MBOX_ShowObject(gCarParts[slot].extraparts[0],0,15);
+    MBOX_ShowObject(gCarParts[slot].extraparts[1],0,15);
+    MBOX_ShowObject(gCarParts[slot].extraparts[2],0,15);
     if(gRace==2 && slot>0) clr.b[3]=128;
-    else if(gRace==6 && (car->f38C&1))
-        clr.b[3]=car->b3A1;
-    ZOID_SetColor(gCarParts[slot].id[1], &clr);
-    ZOID_SetColor(gCarParts[slot].id[2], &clr);
-    ZOID_SetColor(gCarParts[slot].id[3], &clr);
-    mat=ZOID_FindMatrix(gCarParts[slot].id[0]);
-    pos[0]=mat->t[0]+2.0f*mat->m[3];
-    pos[1]=mat->t[1]+2.0f*mat->m[4];
-    pos[2]=mat->t[2]+2.0f*mat->m[5];
-    pos[0]=pos[0]+mat->m[6]*-5.6f;
-    pos[1]=pos[1]+mat->m[7]*-5.6f;
-    pos[2]=pos[2]+mat->m[8]*-5.6f;
-    flames[0]=ZOID_FindMatrix(gCarParts[slot].id[1]);
-    CopyUV(mat->m,flames[0]->m);
-    flames[0]->t[0]=pos[0];
-    flames[0]->t[1]=pos[1];
-    flames[0]->t[2]=pos[2];
-    flames[1]=ZOID_FindMatrix(gCarParts[slot].id[2]);
-    CopyUV(mat->m,flames[1]->m);
-    flames[1]->t[0]=pos[0];
-    flames[1]->t[1]=pos[1];
-    flames[1]->t[2]=pos[2];
-    flames[2]=ZOID_FindMatrix(gCarParts[slot].id[3]);
-    CopyUV(mat->m,flames[2]->m);
-    flames[2]->t[0]=pos[0];
-    flames[2]->t[1]=pos[1];
-    flames[2]->t[2]=pos[2];
+    else if(gRace==6 && (car->defense_active&1))
+        clr.b[3]=car->fadeAlpha;
+    ZOID_SetColor(gCarParts[slot].extraparts[0], &clr);
+    ZOID_SetColor(gCarParts[slot].extraparts[1], &clr);
+    ZOID_SetColor(gCarParts[slot].extraparts[2], &clr);
+    mat=ZOID_FindMatrix(gCarParts[slot].frame);
+    pos[0]=mat->pos[0]+2.0f*mat->uvs[1][0];
+    pos[1]=mat->pos[1]+2.0f*mat->uvs[1][1];
+    pos[2]=mat->pos[2]+2.0f*mat->uvs[1][2];
+    pos[0]=pos[0]+mat->uvs[2][0]*-5.6f;
+    pos[1]=pos[1]+mat->uvs[2][1]*-5.6f;
+    pos[2]=pos[2]+mat->uvs[2][2]*-5.6f;
+    flames[0]=ZOID_FindMatrix(gCarParts[slot].extraparts[0]);
+    CopyUV(mat->uvs,flames[0]->uvs);
+    flames[0]->pos[0]=pos[0];
+    flames[0]->pos[1]=pos[1];
+    flames[0]->pos[2]=pos[2];
+    flames[1]=ZOID_FindMatrix(gCarParts[slot].extraparts[1]);
+    CopyUV(mat->uvs,flames[1]->uvs);
+    flames[1]->pos[0]=pos[0];
+    flames[1]->pos[1]=pos[1];
+    flames[1]->pos[2]=pos[2];
+    flames[2]=ZOID_FindMatrix(gCarParts[slot].extraparts[2]);
+    CopyUV(mat->uvs,flames[2]->uvs);
+    flames[2]->pos[0]=pos[0];
+    flames[2]->pos[1]=pos[1];
+    flames[2]->pos[2]=pos[2];
     b=0;
-    if(gRace==6 && car->b384==3) {
+    if(gRace==6 && car->weapon_type==3) {
         b=1;
-        car->scale[0]=0.1f;
-        car->scale[1]=0.1f;
-        car->scale[2]=0.2f;
-    } else if((car->sF8>>2)<0) {
-        car->scale[0]=0.25f-Random(0.15f);
-        car->scale[1]=0.25f-Random(0.15f);
-        car->scale[2]=0.55f-Random(0.1);
-    } else if(m->f3D0<0.1f) {
-        if(car->scale[0]<0.28f)
-            car->scale[0]=0.25f-Random(0.15f);
+        car->roktScale[0]=0.1f;
+        car->roktScale[1]=0.1f;
+        car->roktScale[2]=0.2f;
+    } else if((car->rwmph>>2)<0) {
+        car->roktScale[0]=0.25f-Random(0.15f);
+        car->roktScale[1]=0.25f-Random(0.15f);
+        car->roktScale[2]=0.55f-Random(0.1);
+    } else if(m->throttle<0.1f) {
+        if(car->roktScale[0]<0.28f)
+            car->roktScale[0]=0.25f-Random(0.15f);
         else {
-            car->scale[0]-=PC_FSCALE(Random(0.025f)+0.01f);
-            if(car->scale[0]<0.2f) car->scale[0]=0.2f;
+            car->roktScale[0]-=PC_FSCALE(Random(0.025f)+0.01f);
+            if(car->roktScale[0]<0.2f) car->roktScale[0]=0.2f;
         }
-        if(car->scale[1]<0.28f)
-            car->scale[1]=0.25f-Random(0.15f);
+        if(car->roktScale[1]<0.28f)
+            car->roktScale[1]=0.25f-Random(0.15f);
         else {
-            car->scale[1]-=PC_FSCALE(Random(0.025f)+0.01f);
-            if(car->scale[1]<0.2f) car->scale[1]=0.2f;
+            car->roktScale[1]-=PC_FSCALE(Random(0.025f)+0.01f);
+            if(car->roktScale[1]<0.2f) car->roktScale[1]=0.2f;
         }
-        if(car->scale[2]<0.58f)
-            car->scale[2]=0.55f-Random(0.1);
+        if(car->roktScale[2]<0.58f)
+            car->roktScale[2]=0.55f-Random(0.1);
         else {
-            car->scale[2]-=PC_FSCALE(Random(0.025f)+0.01f);
-            if(car->scale[2]<0.5f) car->scale[2]=0.5f;
+            car->roktScale[2]-=PC_FSCALE(Random(0.025f)+0.01f);
+            if(car->roktScale[2]<0.5f) car->roktScale[2]=0.5f;
         }
     } else {
-        mph=m->s7D0;
+        mph=m->rpm;
         scale1=0.2f+(1.35f*mph)/10000.0f;
         if(scale1>1.0f) scale1=1.0f;
-        car->scale[0]=scale1-Random(0.15f);
-        car->scale[1]=scale1-Random(0.15f);
+        car->roktScale[0]=scale1-Random(0.15f);
+        car->roktScale[1]=scale1-Random(0.15f);
         scale1=0.5f+mph/10000.0f;
         if(scale1>1.0f) scale1=1.0f;
-        car->scale[2]=scale1-Random(0.1);
+        car->roktScale[2]=scale1-Random(0.1);
     }
-    flames[0]->m[6]*=car->scale[0];
-    flames[0]->m[7]*=car->scale[0];
-    flames[0]->m[8]*=car->scale[0];
-    flames[1]->m[6]*=car->scale[1];
-    flames[1]->m[7]*=car->scale[1];
-    flames[1]->m[8]*=car->scale[1];
+    flames[0]->uvs[2][0]*=car->roktScale[0];
+    flames[0]->uvs[2][1]*=car->roktScale[0];
+    flames[0]->uvs[2][2]*=car->roktScale[0];
+    flames[1]->uvs[2][0]*=car->roktScale[1];
+    flames[1]->uvs[2][1]*=car->roktScale[1];
+    flames[1]->uvs[2][2]*=car->roktScale[1];
     if(b)
-        ScaleUV(flames[2]->m,flames[2]->m,
-                car->scale[2]);
+        ScaleUV(flames[2]->uvs,flames[2]->uvs,
+                car->roktScale[2]);
     else {
-        flames[2]->m[0]*=car->scale[2];
-        flames[2]->m[1]*=car->scale[2];
-        flames[2]->m[2]*=car->scale[2];
-        flames[2]->m[3]*=car->scale[2];
-        flames[2]->m[4]*=car->scale[2];
-        flames[2]->m[5]*=car->scale[2];
+        flames[2]->uvs[0][0]*=car->roktScale[2];
+        flames[2]->uvs[0][1]*=car->roktScale[2];
+        flames[2]->uvs[0][2]*=car->roktScale[2];
+        flames[2]->uvs[1][0]*=car->roktScale[2];
+        flames[2]->uvs[1][1]*=car->roktScale[2];
+        flames[2]->uvs[1][2]*=car->roktScale[2];
     }
-    if(gRace==6 && m->s6C4>=0) {
-        ObjInstanceList[gCarParts[slot].id[1]].flags |=0x80000000;
-        ObjInstanceList[gCarParts[slot].id[2]].flags |=0x80000000;
-        ObjInstanceList[gCarParts[slot].id[3]].flags |=0x80000000;
-    } else if(gInvisibleCar || (car->flagsE8&8)) {
-        ObjInstanceList[gCarParts[slot].id[1]].flags ^=0x80000000;
-        ObjInstanceList[gCarParts[slot].id[2]].flags ^=0x80000000;
-        ObjInstanceList[gCarParts[slot].id[3]].flags ^=0x80000000;
+    if(gRace==6 && m->moving_state>=0) {
+        ObjInstanceList[gCarParts[slot].extraparts[0]].flags |=0x80000000;
+        ObjInstanceList[gCarParts[slot].extraparts[1]].flags |=0x80000000;
+        ObjInstanceList[gCarParts[slot].extraparts[2]].flags |=0x80000000;
+    } else if(gInvisibleCar || (car->appearance&8)) {
+        ObjInstanceList[gCarParts[slot].extraparts[0]].flags ^=0x80000000;
+        ObjInstanceList[gCarParts[slot].extraparts[1]].flags ^=0x80000000;
+        ObjInstanceList[gCarParts[slot].extraparts[2]].flags ^=0x80000000;
     } else {
-        ObjInstanceList[gCarParts[slot].id[1]].flags &=0x7fffffff;
-        ObjInstanceList[gCarParts[slot].id[2]].flags &=0x7fffffff;
-        ObjInstanceList[gCarParts[slot].id[3]].flags &=0x7fffffff;
+        ObjInstanceList[gCarParts[slot].extraparts[0]].flags &=0x7fffffff;
+        ObjInstanceList[gCarParts[slot].extraparts[1]].flags &=0x7fffffff;
+        ObjInstanceList[gCarParts[slot].extraparts[2]].flags &=0x7fffffff;
     }
 }
 }
