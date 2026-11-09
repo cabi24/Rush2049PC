@@ -28,7 +28,7 @@ VIEW(void *, scorePanes);
 #define NO_HOLDER ((Player **)-1)   /* gTotalNames[]: nobody yet (a made-up holder and time) */
 #define TEMP_NAMES 20               /* a holder up to this is a temporary name's index (gTempNames), else a profile */
 
-extern void sprintf(char *, char *, ...);
+extern int sprintf(char *, const char *, ...);
 
 /* Fill gScoreNames and gScoreTimes with the five rows of table gTable (0 and 1 a race's two tables, 2 the ghost
  * race's) of this track and direction (gThisTrack: the track, plus 6 backwards). Rows nobody holds yet get a name from

@@ -312,7 +312,8 @@ every node after the first that MBOX_NewObject made overwrote the next symbols. 
   callers' `(s32)` casts are `(intptr_t)`, and the three options-menu files read `MBOX_FindTexture_WORK` (the texture
   lookup) as `intptr_t`. `AnimateFlag` declares MBOX_FindPalette_WORK, old-style (the call passes a fifth word),
   with a pointer-sized result. `ZOID_SetObjLights` (the light), `zoid_set_obj_tile_size` (clip) and `zoid_set_obj_palette` (palette)
-  take `uintptr_t`.
+  take `uintptr_t`. (Since wave 2c every caller goes through scene.h's one prototype: the textures, matrices and
+  lights are pointers, `MBOX_FindPalette_WORK` takes four arguments and returns a `tPalette *`; PROTOTYPES.md 7.)
 - Test: `assets_zoid`.
 
 ### 9.3 Sprites `gBlitInstanceList` and blits
@@ -345,8 +346,8 @@ A **Blit** (NewMultiBlit.c's) is 0x68 bytes on the PC:
   gr3_a53c, f6b3c, fbc84, animOdometer, DelBlit's, runtime_a_c93c_closure's, carscr_animNewSlider), UpdateBlit's
   (`update_blit/group.c`) and `animControllerDimInternal`'s, ChangePaneSize's, and the views that call the `AnimFunc`
   slot `AnimDTA` or `state` and clear it. The `AnimDTA` field of the others is `intptr_t`. 40 views agree.
-- `DrawBlits` (the AnimFunc pass, m2c code at `+0x28`/`+0` through an `s32`) has a PC version; its
-  `RemoveBlit` (DelBlit) view takes `intptr_t`.
+- `DrawBlits` (the AnimFunc pass, m2c code at `+0x28`/`+0` through an `s32`) has a PC version; it calls
+  `RemoveBlit` (DelBlit) through blit.h's prototype with the blit (PROTOTYPES.md 7).
 - Test: `assets_blit`.
 
 ### 9.4 Pane groups `gPaneBlits`
@@ -354,7 +355,7 @@ A **Blit** (NewMultiBlit.c's) is 0x68 bytes on the PC:
 16 `FiveParts` (an active flag, the owner flag, two RGBA colours and five blits), 0x38 bytes on the PC with the
 blits pointer-sized from +0x10 (N64: 0x20, blits from +0xC). RemovePane, `RemovePanes` (which also stopped
 at `gPasswordAlphabet`, a variable of its own on the PC) and ChangePaneColor were m2c code at N64 offsets; they have PC
-versions. Their `RemoveBlit` views take `intptr_t`.
+versions. They call `RemoveBlit` through blit.h's prototype (PROTOTYPES.md 7).
 
 ### 9.5 StatLL lists and their elements
 

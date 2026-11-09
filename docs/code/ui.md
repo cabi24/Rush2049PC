@@ -41,7 +41,7 @@ goes:
 | Piece | Files | What |
 |---|---|---|
 | HAL_text (MAT3 `HAL_text.c`) | `HAL_*.c`, `groups/hal_text/*.c`, `groups/state/halfont.c`, `groups/hud_text_anims/gr3_b.c` (HAL_SetFontInternal), `gr3_w.c` (HAL_StartText), `groups/sound_channel_extra/*.c`, `groups/animgear/ctx_gr3.c` | the fonts and the drawing of strings |
-| TB_text (MAT3 `TB_text.c`) | `TB_*.c`, `groups/options_anim/options_anim.c` (TB_FlashTextColors_AEAC) | what the screens call: justification, colours, flashing text, word wrapping, string helpers |
+| TB_text (MAT3 `TB_text.c`) | `TB_*.c`, `groups/audioscr/audio.c` (TB_FlashTextColors) | what the screens call: justification, colours, flashing text, word wrapping, string helpers |
 | The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c` | `gText` (`TextTables`): the current language's strings, from its wave |
 
 A font is two asset waves (`FONT_DATA_WAVE(n)`, `FONT_TEXTURE_WAVE(n)`): a header (`FontHeader`), its letters
