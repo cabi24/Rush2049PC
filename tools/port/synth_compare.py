@@ -20,7 +20,8 @@ builds. Two settings:
   before the exit or not, which on a loaded machine makes some paths vary; docs/port/AUDIO.md 10.6).
 
 A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
-decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4), its state changes (the state, the retrace it
+decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4; with --data-moved also without its counts of the
+ROM's pointers by where they resolve, for a change that moves them: below), its state changes (the state, the retrace it
 happened at, the players, windows, cars, mode, track, pause state, the car) and its status lines (the same at a
 fixed retrace), without the graphics-task counts. Runs of one executable give the baseline. The verdict per path:
 
@@ -75,6 +76,10 @@ EXACT = True   # RUSH_STATE_EXACT: positions and speeds as exact floats (--coars
 SAME = False   # --same: only "same" passes
 SHOTS = False  # --shots: the run's screenshots (a path's --screenshot) are part of its trace, by their bytes
 AUDIO = False  # --audio: the run's sound (--dump-audio) is part of its trace, by its bytes
+DATA_MOVED = False  # --data-moved: the loader's summary without its pointer counts by class
+# The loader's counts of the ROM's pointers by where each resolved (pc_data.c's summary): own storage, C data, an
+# arena, the heap, NULL, a raw value. A declaration given pointers or own storage moves pointers between them.
+_POINTER_CLASSES = re.compile(r"\b\d+ (own|C data|arena|heap \(kept\)|null|raw)\b")
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
@@ -100,7 +105,10 @@ def trace(text):
     for line in text.splitlines():
         line = exact_floats(line)
         if line.startswith("pc_data: "):   # the loader's summary: what it filled and how pointers resolved
-            out.append(("data", None, "", re.sub(r"^\d+ symbols, ", "", line[9:].strip())))
+            info = re.sub(r"^\d+ symbols, ", "", line[9:].strip())
+            if DATA_MOVED:
+                info = _POINTER_CLASSES.sub(r"_ \1", info)
+            out.append(("data", None, "", info))
             continue
         m = _STATE.match(line)
         if m:
@@ -302,6 +310,11 @@ def main():
                     help="compare the screenshots a path takes (its --screenshot) too, byte for byte")
     ap.add_argument("--audio", action="store_true",
                     help="compare what each run plays (--dump-audio) too, byte for byte")
+    ap.add_argument("--data-moved", action="store_true",
+                    help="compare the loader's summary without its counts of the ROM's pointers by where they resolve "
+                         "(own, C data, arena, heap, null, raw): for a change that gives a datum pointers or own "
+                         "storage (docs/port/NATIVE.md 5, step 2), whose data.c diff shows where they go; the rest of "
+                         "the line (undescribed and text targets, functions, unresolved, address words) stays")
     ap.add_argument("-j", "--jobs", type=int, default=1, help="runs at once (each a process on the virtual clock)")
     ap.add_argument("--set", dest="sets", action="append", default=[], metavar="SECTION.KEY=VALUE",
                     help="a setting for both executables' runs (--set)")
@@ -315,11 +328,12 @@ def main():
                     help="options for the second executable's runs, as one string (--args-b='--audio sdl')")
     ap.add_argument("names", nargs="*", help="the paths (default: every tools/port/synth/*.press)")
     a = ap.parse_args()
+    global EXACT, SAME, SHOTS, AUDIO, DATA_MOVED
+    DATA_MOVED = a.data_moved
     if a.from_logs:
         sys.exit(from_logs(*a.from_logs))
     if not a.exe or len(a.exe) != 2:
         ap.error("give --exe twice")
-    global EXACT, SAME, SHOTS, AUDIO
     EXACT, SAME, SHOTS, AUDIO = not a.coarse, a.same, a.shots, a.audio
     B_SETS.extend(a.set_b)
     B_ARGS.extend(w for s in a.args_b for w in shlex.split(s))

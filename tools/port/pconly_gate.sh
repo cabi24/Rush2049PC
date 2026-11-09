@@ -4,6 +4,7 @@
 # summary. On Rocky, from a checkout there:
 #
 #   tools/port/pconly_gate.sh [TREE] [--base DIR] [--build DIR] [--paths 'NAME ...'] [--skip build|ctest|realtime|compare]...
+#       [--data-moved]
 #   RUSH_REMOTE=rocky tools/port/remote.sh -n NAME 'tools/port/pconly_gate.sh'
 #
 # TREE is the checkout to test (default: the current folder); DIR the base, a build of the commit the wave started
@@ -17,7 +18,9 @@
 #             `same`. A path that isn't is run again alone (twice at most), as PCONLY.md 2 says for --audio's
 #             `varies` on a loaded machine; it passes if a run alone is `same`.
 #
-# --paths runs only those synthetic paths (a quick look; the gate is all of them). Logs go to TREE/build/pconly-gate.
+# --paths runs only those synthetic paths (a quick look; the gate is all of them). --data-moved is synth_compare.py's:
+# the loader's summary compared without its pointer counts by class, for a change that moves where the ROM's pointers
+# resolve (a datum given pointers or own storage), whose data.c diff shows where. Logs go to TREE/build/pconly-gate.
 # Exit status 0 when every part passes. Every process the gate starts is stopped when it ends, however it ends.
 set -uo pipefail
 
@@ -25,6 +28,7 @@ tree=.
 base=${PCONLY_BASE:-$HOME/rush2049pc/pconly-base}
 build=build/pc
 paths=""
+data_moved=""
 skip=" "
 jobs_build=8
 jobs_ctest=4
@@ -35,6 +39,7 @@ while [ $# -gt 0 ]; do
         --base) base=$2; shift 2 ;;
         --build) build=$2; shift 2 ;;
         --paths) paths=$2; shift 2 ;;
+        --data-moved) data_moved=--data-moved; shift ;;
         --skip) skip="$skip$2 "; shift 2 ;;
         -h|--help) sed -n '2,/^set -uo/p' "$0" | sed 's/^# \{0,1\}//; /^set -uo/d'; exit 0 ;;
         -*) echo "pconly_gate: unknown option $1" >&2; exit 2 ;;
@@ -174,7 +179,7 @@ if ! skipped compare; then
     else
         say "compare: $base_exe against $build/rush2049pc on $base_rom${paths:+ ($paths)}"
         cmp=(python3 tools/port/synth_compare.py --exe "$base_exe" --exe "$build/rush2049pc" --rom "$base_rom"
-             --same --shots --audio)
+             --same --shots --audio $data_moved)
         # shellcheck disable=SC2086
         run "${cmp[@]}" -j "$jobs_compare" --logs build/pconly-compare $paths > "$logs/compare.log" 2>&1
         declare -A verdict

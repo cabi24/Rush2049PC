@@ -63,5 +63,20 @@ check(sc.trace(GLIBC) != sc.trace(GLIBC.replace("-0x1.8p+3", "-0x1.8000000000001
       "exact floats a bit apart: different traces")
 check(sc.trace(GLIBC) != sc.trace(GLIBC.replace("-0x1.8p+3", "0x1.8p+3")), "the sign kept")
 check(sc.trace(GLIBC)[0][2] == "0x00400000", "the state word (hex without p) left as it is")
+# The loader's summary: its symbol count left out; with --data-moved its pointer counts by class too, the rest kept.
+DATA = ("pc_data: 418 symbols, pointers: 0 own, 0 C data, 306 arena (288 to undescribed data, 0 to text in words), "
+        "16 functions, 0 heap (kept), 3198 null, 1 raw, 0 unresolved, 0 to functions with no C (0 inexact, 0 ambiguous); "
+        "0 address-like words (0 to host storage or code); 5 tables only pointers reach (8 elements)")
+MOVED = DATA.replace("418 symbols", "419 symbols").replace("0 own", "13 own").replace("306 arena", "297 arena") \
+    .replace("3198 null", "3218 null")
+check(sc.trace(DATA) == sc.trace(DATA.replace("418 symbols", "419 symbols")), "the symbol count: not compared")
+check(sc.trace(DATA) != sc.trace(MOVED), "pointers moved between classes: different traces")
+sc.DATA_MOVED = True
+check(sc.trace(DATA) == sc.trace(MOVED), "--data-moved: pointers moved between classes, the same trace")
+check(sc.trace(DATA) != sc.trace(DATA.replace("0 unresolved", "2 unresolved")), "--data-moved: unresolved kept")
+check(sc.trace(DATA) != sc.trace(DATA.replace("288 to undescribed", "287 to undescribed")),
+      "--data-moved: undescribed targets kept")
+check(sc.trace(DATA) != sc.trace(DATA.replace("0 address-like", "4 address-like")), "--data-moved: address words kept")
+sc.DATA_MOVED = False
 print(f"synth_compare_expect: {'ok' if not fails else f'{fails} failed'}")
 sys.exit(1 if fails else 0)
