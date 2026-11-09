@@ -50,7 +50,6 @@ typedef struct Target {
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;

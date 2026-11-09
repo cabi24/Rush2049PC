@@ -6,8 +6,6 @@
  * sequencer, the synth, the streams and the 3D emitters. MusyX is the N64's sound library: no MAT3 counterpart. */
 #include "../rom_tu.h"
 
-#define PC_MX_CAP(n) PC_MX_VOICE_SLOTS   /* the most voices the PC gives (pc_game_types.h, docs/port/AUDIO.md 10) */
-
 extern unsigned char sound_initialized;
 extern volatile unsigned char sound_voices_locked;
 extern void sound_reset_groups(void);

@@ -23,9 +23,6 @@ typedef struct tPaletteAnim {
 /* PC: tTexture is a texture record (TXHD) of a WAD, which keeps its N64 layout: texBase is a 32-bit RDRAM-window
  * address. The palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists (port/assets/wad.c). */
 #define PAL_SET(entry, value) pc_be16_set(&(entry), value)
-/* ... which displaylist_set_texture_image writes the frame's address into: N64PTR0(T, a) is the pointer at N64 address a
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 /* A texture (MAT3 tTexture), the fields used here. */
 typedef struct tTexture {
     u8 before24[24];
@@ -174,7 +171,7 @@ void TextureAnimation(void)
                     }
                     tex=tlist->swapTexs[tlist->startnum].tex;
                     if(tex->flags&TEX_IMAGE_DIRECT) tex->texBase=tlist->swapTexs[tlist->idx].texBase;
-                    else displaylist_set_texture_image(N64PTR0(Gfx *, tex->texBase),tlist->swapTexs[tlist->idx].texBase);
+                    else displaylist_set_texture_image(((Gfx *)PC_N64P(tex->texBase)),tlist->swapTexs[tlist->idx].texBase);
                 }
             }
             tlist++;

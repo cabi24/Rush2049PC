@@ -32,9 +32,6 @@ VIEW(void *, gRoadDat);
 uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
 
-/* The world headers' offsets become 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 /* Loads track `track` a step at a time (`background`: the loads go to the background loader), each part's state in
  * gTrackLoadInfo: its track wave (101 + track), its world WAD (120 + track: the world headers, the target groups),
  * its collision WAD (139 + track: gRoadDat), its path file (158 + track, 177 + track backwards: gPathWave), then
@@ -73,7 +70,7 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
         WorldTable = (WorldHdr *)(gWorldData + 1);
         if (!gTrackLoadInfo.world.inited) {
             for (i = 0, whdr = WorldTable; i < *gWorldData; i++, whdr++) {
-                whdr->woff += N64A(worldptr);
+                whdr->woff += PC_N64A(worldptr);
             }
             gTrackLoadInfo.world.inited = 1;
         }

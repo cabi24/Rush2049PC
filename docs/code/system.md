@@ -175,7 +175,7 @@ same input.
 ## 8. What is still N64-shaped (for wave 3)
 
 - **The heap's headers** keep the N64 layout in the RDRAM window: their links are 32-bit window addresses
-  (heap.h's enums, `N64P`, `N64W`), the heap's interface takes window addresses (`DeallocateMemory(u32)`,
+  (heap.h's enums, its typed `N64P`, `PC_N64W`), the heap's interface takes window addresses (`DeallocateMemory(u32)`,
   `PurgeableMemory`, `FindHeap`), master slots are 8 bytes holding a zero-extended address. `GetPtrSize` returns
   the size read as a pointer (its upper half is the master link). Every heap file still declares its own
   `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way. Other areas' heap files

@@ -6,7 +6,6 @@
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. A message is
  * 32 bytes, its fx tag pointer host-sized. */
 #define audiomgr_gCmds (*(volatile tAudioMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 /* PC test hook (docs/port/QA.md "Integration soak", fix 6): with pc_audio_pool_fail_every N > 0, every Nth call
  * finds the pool empty, as a starved host's would, to run its callers' guards; port/main.c sets it from
  * RUSH2049_TEST_AUDIO_POOL_FAIL. 0, the default, never. */

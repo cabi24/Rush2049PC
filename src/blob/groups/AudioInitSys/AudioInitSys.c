@@ -15,8 +15,7 @@ VIEW(intptr_t, musyx_samples);
 #define musyx_samples musyx_samples_view
 extern u8 D_00039B40[];
 /* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
- * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
-#define N64AS(x) (s32)PC_N64A(x)
+ * 32-bit value the translation gives back (PC_N64A; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
 VIEW(void (*[8])(void), audio_driver_services);
 #define audio_driver_services audio_driver_services_view
 
@@ -65,7 +64,7 @@ void AudioInitSys(s32 maxVoices,s32 maxSfx,s32 maxMusic)
         handle=LoadWave(WAVE_MUSYX_SDIR,0,0,0,0);
         LockWaveInstance(handle);
         musyx_sdir=GetWaveInstanceAddr(handle);
-        musyx_samples=N64AS(D_00039B40);
+        musyx_samples=(s32)PC_N64A(D_00039B40);
         sound_set_services(&audio_driver_services);
     }
     if(audio_driver_started) {

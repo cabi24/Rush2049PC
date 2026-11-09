@@ -222,7 +222,6 @@ typedef struct Palette {
     gDPPipeSync(pkt); \
 }
 
-
 /* ---- the F3DEX2 microcode's forms (PR/gbi.h with F3DEX_GBI_2) ---- */
 #define G_VTX 0x01
 #define G_CULLDL 0x03
@@ -1537,9 +1536,6 @@ VIEW(BlitInstance[200], gBlitInstanceList);
 VIEW(u8[4], blit_ia_palette);
 #define blit_ia_palette blit_ia_palette_view
 
-/* A palette's table is a 32-bit N64 address its loader reads through: N64PTR(T, a) the pointer at one (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64PTR(T, a) ((T)PC_N64P(a))
 /* Draw the frame's scene into frame_dl: the scene's lights, every window (zoid_draw_window), then, unless
  * `skip_blits`, the 2D blit instances in order (gBlitInstanceList, gNumBlitInsts of them) through the blitter: a
  * fill or a texture, cut into loads of as many rows as the texture memory holds, flipped in y unless the instance's
@@ -1679,17 +1675,17 @@ void ZOID_EndFrame(s32 skip_blits)
         }
         if (blit->palette != NULL) {
             pal = blit->palette;
-            BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
         } else if (tex->palIndex >= 0) {
             pal = &gPalDefPtrs[blit->texIndex >> 10].palDefs[tex->palIndex];
-            BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
         } else if (tex->format == 3) {
             blit_ia_palette[3] = blit->alpha;
             BlitColors(blit_ia_palette, tex->format, tex->size, 0);
         } else if (tex->format != 0) {
             if (gPalDefPtrs[blit->texIndex >> 10].count != 0) {
                 pal = gPalDefPtrs[blit->texIndex >> 10].palDefs;
-                BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+                BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
             }
         }
         if (blit->bot >= tex->height) {

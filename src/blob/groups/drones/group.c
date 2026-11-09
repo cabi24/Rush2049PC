@@ -13,9 +13,9 @@ typedef signed int S32;
 
 typedef float F32;
 
-/* DoDrones' locals are indexed by a car slot or count the cars: on the PC as many as a race may hold
- * (pc_game_types.h, docs/port/DECOUPLE.md 8). MAX_LINKS has no other use here. */
-#define MAX_LINKS PC_MAX_LINKS
+/* DoDrones' locals indexed by a car slot or counting the cars are PC_MAX_LINKS long, as many as a race may hold on
+ * the PC (pc_game_types.h, docs/port/DECOUPLE.md 8). */
+
 #define DRONE 1
 #define HUMAN 2
 
@@ -55,7 +55,6 @@ typedef struct {
 
 #define num_active_cars gNumActiveCars
 
-
 #define coast_flag gCoastFlag
 #define end_game_flag gEndGame
 #define lap_flag gOneMoreCP
@@ -89,8 +88,6 @@ F32 LinearInterp(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 ou
     return (slope * input + offset);
 }
 
-
-
 /* Sets every drone's catch-up for this frame. The cars are ranked by place; in the demo every drone runs at scale 1.
  * In the first 5 seconds the drones get a small boost by their place. Then each human not in a pack with another
  * gets the nearest drone just ahead of or behind them as its rival (drone_target); a drone with a rival speeds up
@@ -103,11 +100,11 @@ void DoDrones(void)
 {
     S16 i, j, k, indx, index, index2, index3, temp, high_index;
     S16 high_place;
-    S16 total_drones[MAX_LINKS], human_slots[MAX_LINKS], drones[MAX_LINKS];
-    S16 car_in_conflict[MAX_LINKS], cars_in_order[MAX_LINKS], my_place;
-    S16 ttype, place[MAX_LINKS], human_count, drone_count;
+    S16 total_drones[PC_MAX_LINKS], human_slots[PC_MAX_LINKS], drones[PC_MAX_LINKS];
+    S16 car_in_conflict[PC_MAX_LINKS], cars_in_order[PC_MAX_LINKS], my_place;
+    S16 ttype, place[PC_MAX_LINKS], human_count, drone_count;
     F32 scale, delta_dist, delta_dist2, slope, offset, delta[3];
-    F32 time_scale, target_dist, car_distance[MAX_LINKS][MAX_LINKS];
+    F32 time_scale, target_dist, car_distance[PC_MAX_LINKS][PC_MAX_LINKS];
     F32 max_brake, min_brake, max_boost, min_boost, temp1;
     F32 place_scale, diff_scale;
     MODELDAT *m;
@@ -233,7 +230,6 @@ void DoDrones(void)
                 if (PC_MODEL_WE_CONTROL(index)) {
                     index2 = PC_MODEL_DRONE_TARGET(index);
                     my_place = place[index];
-
 
                     if (gDifficulty == 5)
                         place_scale = 0;
@@ -385,4 +381,3 @@ void DoDrones(void)
         }
     }
 }
-

@@ -10,8 +10,6 @@ VIEW(unsigned char, gCamera);
 /* skyMatrices holds each window's camera matrix (ZOID_NewMatrix's pool in the game arena) as a 32-bit RDRAM-window
  * address: zero-extend it into a pointer (docs/port/CASTS.md). */
 #define MTX_WORD u32
-/* ... and N64PTR(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64PTR(T, a) ((T)PC_N64P(a))
 /* The x and z of a place's position (MAT3 tUVMatrix mat3.pos, after the 3x3 orientation), by byte offset as the
  * decompiled code reaches them, in the sky's matrix and in the camera (gCamera[].position, 0x98 bytes a camera). */
 #define POS_X(p) (*((f32 *) (((s8 *) (p)) + 0x24)))
@@ -29,7 +27,7 @@ void SkyUpdate(s32 winidx)
   if (sky != 0)
   {
     camera = (winidx * 0x98) + (&gCamera);
-    POS_X(N64PTR(s8 *, sky)) = (f32) POS_X(camera);
-    POS_Z(N64PTR(s8 *, (*slot))) = (f32) POS_Z(camera);
+    POS_X(((s8 *)PC_N64P(sky))) = (f32) POS_X(camera);
+    POS_Z(((s8 *)PC_N64P((*slot)))) = (f32) POS_Z(camera);
   }
 }

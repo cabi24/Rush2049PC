@@ -77,15 +77,12 @@ __inline void mem_free(unsigned int address)
 {
     heap_free_locked(address);
 }
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 /* zlib's free: ptr's chunk. */
 __inline void zcfree(voidpf ptr)
 {
-    mem_free(N64A(ptr));
+    mem_free(PC_N64A(ptr));
 }
 #define FREECALL(p) zcfree((voidpf)(p))
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }
-

@@ -1,0 +1,25 @@
+# Inlined abbreviations (tools/port/one_spelling.py, pass 2): a file's own short name for a shared conversion or name;
+# each use becomes the definition's body (token for token what the preprocessor made of it) and the definition goes.
+# body_regex: the definitions inlined (others of the name, a file's typed _Generic N64P, stay). comment_name: what the
+# name becomes in comments (- leaves them). Tab separated: name  body_regex  comment_name  note
+name	body_regex	comment_name	note
+# The conversions between an N64 address and a host pointer (port/include/pc_prelude.h), so wave 3 finds each under
+# the prelude's name.
+N64W	PC_N64W\(x\)	PC_N64W	a pointer stored in a 4-byte N64 address field (30 files)
+N64W	pc_voice_node_address\(x\)	-	voices.c: a voice record's address, translated
+N64A	PC_N64A\(x\)	PC_N64A	a pointer's 32-bit N64 address (29 files)
+N64A	pc_n64_identity\(x\)	-	save/group.c: a profile handle's id
+N64A0	PC_N64A\(x\)	PC_N64A	the same, under another name
+N64AS	\(s32\)PC_N64A\(x\)	-	the address as an s32
+N64PTR	\(\(T\)PC_N64P\(a\)\)	-	the pointer at an N64 address, cast
+N64PTR0	\(\(T\)PC_N64P\(a\)\)	-	the same, under another name
+N64P	\(\((void|Model) \*\)PC_N64P\(x\)\)	-	the untyped and the one-type N64P (the typed _Generic ones stay)
+N64P	pc_voice_node\(x\)	-	voices.c: a voice record at an address, translated
+FONT_KERNS	\(\((u8|unsigned char) \*\)PC_N64P\(k\)\)	-	a font's kerning table
+LISTENER	.*PC_N64P.*	-	the listener at an address (two files, two forms)
+# PC glue used once in its file, or an alias of a PC name.
+LINK_SLOTS	PC_MAX_LINKS	-	fake_init.c, CalcPolePositions.c
+MAX_LINKS	PC_MAX_LINKS	-	drones/group.c (munge_gLink_data.c's MAX_LINKS was LINK_OWNER_HUMAN)
+RACE_CARS	PC_RACE_CARS	-	CheckCameraView.c (CalcPolePositions.c's RACE_CARS chooses the circuit's 6: kept)
+PC_LATCH_CARS	.*pc_race_cars_begin\(\);	-	fake_init.c, CalcPolePositions.c: two bodies, each used once
+PC_CMD_SEND	osSendMesg\(q,m,1\)	-	SetupCarColor/ctx_func_800C8918.c: a blocking send

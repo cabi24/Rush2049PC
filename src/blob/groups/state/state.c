@@ -32,9 +32,6 @@ VIEW(OSMesgQueue, heap_lock_queue);
 
 void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win);
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 /* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load
  * clear). Both share one heap block (overlay_base). Does nothing when image A already is, or isn't, loaded. */
 void LoadFrontEndOverlay(s32 load)
@@ -44,7 +41,7 @@ void LoadFrontEndOverlay(s32 load)
         if (!loaded) {
             if (extra_overlay_loaded) {
                 osRecvMesg(&heap_lock_queue, (void **)0, 1);
-                DeallocateMemoryInternal(N64A(overlay_base), 0);
+                DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
                 osSendMesg(&heap_lock_queue, (void *)0, 0);
                 extra_overlay_loaded = 0;
             }
@@ -54,7 +51,7 @@ void LoadFrontEndOverlay(s32 load)
     } else if (loaded) {
         if (start_overlay_loaded) {
             osRecvMesg(&heap_lock_queue, (void **)0, 1);
-            DeallocateMemoryInternal(N64A(overlay_base), 0);
+            DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
             osSendMesg(&heap_lock_queue, (void *)0, 0);
             start_overlay_loaded = 0;
         }

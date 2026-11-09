@@ -26,7 +26,6 @@ typedef struct Obj {
     unsigned int model;
     f32 timer;
 } Obj;
-#define N64P(x) ((Model *)PC_N64P(x))
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Ent { unsigned int flags, w4; void *obj; f32 scale, w; u16 tex; s16 child, next, mode; void *light, *texture[4], *rect, *clip, *pal; unsigned int prim, env; } Ent;
 /* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
@@ -71,7 +70,7 @@ apply:
     if (gPauseState != 0) {
         return;
     }
-    m = N64P(obj->model);
+    m = ((Model *)PC_N64P(obj->model));
     obj->timer -= gFrameSeconds;
     if (obj->timer > 0.0f) {
         return;

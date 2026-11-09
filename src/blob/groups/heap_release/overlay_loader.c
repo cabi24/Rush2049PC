@@ -9,10 +9,6 @@ extern u8 start_overlay_bss_end [ ];
 VIEW(u8[], start_overlay_bss_start);
 #define start_overlay_bss_start start_overlay_bss_start_view
 
-#define N64A(x) PC_N64A(x)
-#define N64A0(x) PC_N64A(x)
-#define N64PTR(T, a) ((T)PC_N64P(a))
-
 /* The game heap's region the runtime images are loaded into (the N64's addresses, which the heap still keeps; the
  * memory model's wave 3 makes it PC memory). */
 #define RUNTIME_IMAGE_START 0x8038A400
@@ -39,18 +35,18 @@ void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bs
     if (bssEnd) {}
     if (bssEnd) {}
     if (bssStart) {}
-    p = allocate_memory_at(N64A(dst), end - dst);
-    PurgeableMemory(N64A0(p), 0);
+    p = allocate_memory_at(PC_N64A(dst), end - dst);
+    PurgeableMemory(PC_N64A(p), 0);
     pc_data_overlay_load(loaded == &extra_overlay_loaded);
     *loaded = 1;
 }
 
 /* Loads runtime image B, the battle and stunt HUD extras. */
 void load_extra_overlay(void) {
-    load_overlay(N64PTR(u8 *, RUNTIME_IMAGE_START), "Extra", N64PTR(u8 *, RUNTIME_IMAGE_END), extra_overlay_bss_end, 0, extra_overlay_bss_start, &extra_overlay_loaded, 0);
+    load_overlay(((u8 *)PC_N64P(RUNTIME_IMAGE_START)), "Extra", ((u8 *)PC_N64P(RUNTIME_IMAGE_END)), extra_overlay_bss_end, 0, extra_overlay_bss_start, &extra_overlay_loaded, 0);
 }
 
 /* Loads runtime image A, the front end. */
 void load_start_overlay(void) {
-    load_overlay(N64PTR(u8 *, RUNTIME_IMAGE_START), "Start", N64PTR(u8 *, RUNTIME_IMAGE_END), start_overlay_bss_end, 0, start_overlay_bss_start, &start_overlay_loaded, 0);
+    load_overlay(((u8 *)PC_N64P(RUNTIME_IMAGE_START)), "Start", ((u8 *)PC_N64P(RUNTIME_IMAGE_END)), start_overlay_bss_end, 0, start_overlay_bss_start, &start_overlay_loaded, 0);
 }

@@ -86,7 +86,6 @@ VIEW(OSMesgQueue, audio_command_queue);
  * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
 #define gStartCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 #define gStopCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 
 VIEW(tDLList, gPlayingFxTags);
 #define gPlayingFxTags gPlayingFxTags_view

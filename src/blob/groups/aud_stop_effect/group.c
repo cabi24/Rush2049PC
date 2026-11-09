@@ -28,11 +28,6 @@ tFxSequence *ConvertTag(s32 tag)
     return &gFxTags[tag & gTagMask];
 }
 
-/* PC: a stop that finds the message pool empty, or the manager's queue full, as AudChangeEffect
- * (transform/group.c) handles a change. */
-#define PC_MSG_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,0,0);return;}
-#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
-
 /* Asks the audio manager thread to stop the sound of fx tag handle tag (a stale handle is ignored). */
 void AudStopEffect(s32 tag)
 {
@@ -42,7 +37,7 @@ void AudStopEffect(s32 tag)
     osRecvMesg(&audio_lock_queue, 0, 1);
     fx_tag = ConvertTag(tag);
     if (fx_tag != 0) {
-        msg = GetCmd(); PC_MSG_OR_UNLOCK(msg)
+        msg = GetCmd(); PC_CMD_OR_UNLOCK(msg)
         msg->hdr.cmd = kAudioCmdStopEffect;
         msg->stopEffect.tag = fx_tag;
         fx_tag->numCmds++;

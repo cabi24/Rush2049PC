@@ -17,8 +17,6 @@ void *memcpy(void *, const void *, u32);
 
 static void release_handle(u32 address);
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 /* Keeps the ghost entry (its header) and its recording payload in memory, "in limbo", when it couldn't go to a pak:
  * the gNumLimbo slots of its track and direction (all ghosts share one row without the Expansion Pak) hold the
  * fastest, slowest first; a ghost faster than some of them pushes the slowest out (its memory freed) and takes its
@@ -44,7 +42,7 @@ void SaveGhostInLimbo(tGhostHeader *entry, void *payload) {
     i--;
     if (i >= 0) {
         if (row[0]->header != 0) {
-            release_handle(N64A(row[0]->header));
+            release_handle(PC_N64A(row[0]->header));
         }
         if (i > 0) {
             game_memmove(row[0], row[1], i * sizeof(tGhostFile));

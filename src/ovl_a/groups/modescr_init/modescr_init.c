@@ -45,7 +45,6 @@ extern void particle_lifetime_set ( void );
 
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
-#define PC_WORD_ALIGNED __attribute__((aligned(4)))
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 /* modescr_buttonInfo[]: the seven rows' buttons, then these. */

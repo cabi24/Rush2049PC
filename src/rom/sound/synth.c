@@ -136,7 +136,6 @@ typedef struct SynthVoiceLegatoView {
  * docs/port/DECOUPLE.md 9), seen here in this file's view; PC_MX_LOOP(32) is the run's voices where the N64 sets up
  * its 32 (docs/port/AUDIO.md 10). */
 #define sound_synth_voices (*(SynthVoiceLegatoView (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
-#define PC_MX_LOOP(n) PC_MX_SLOTS
 
 /* A layer of a layer list (registry.c): a key range plays the macro id with its own transpose, volume, priority and
  * pan (bit 7 of panning: keep the note's pan as given). */

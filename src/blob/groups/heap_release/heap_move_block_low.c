@@ -26,7 +26,6 @@ typedef struct Heap {
 } Heap;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_ptr: (void **)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
 VIEW(OSMesgQueue, heap_lock_queue);
@@ -36,8 +35,6 @@ s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 Block *FindChunk(Heap *heap, u32 addr, s32 tag);
-
-#define N64A(x) PC_N64A(x)
 
 /* Moves the handle-owned block at addr down to the first free block before it that is big enough (or that it adjoins):
  * the data is copied, the owner's handle pointed at the new place, the rest of the free block split off when it is
@@ -57,8 +54,8 @@ void heap_move_block_low(void *addr)
     s32 pad[7];
 
     osRecvMesg(&heap_lock_queue, 0, 1);
-    heap = FindHeap(N64A(addr));
-    old = FindChunk(heap, N64A(addr), 0);
+    heap = FindHeap(PC_N64A(addr));
+    old = FindChunk(heap, PC_N64A(addr), 0);
     after = N64P(old->next);
     adjacent = 0;
     for (b = N64P(heap->first); b != 0; b = next) {
@@ -94,16 +91,16 @@ void heap_move_block_low(void *addr)
     if (adjacent || b->size - size >= 64) {
         n = (Block *)((u8 *)b + size + 32);
         if (adjacent) {
-            n->next = N64W(after);
+            n->next = PC_N64W(after);
         } else {
             n->next = b->next;
         }
         if (n->next != 0) {
-            N64P(n->next)->prev = N64W(n);
+            N64P(n->next)->prev = PC_N64W(n);
         } else {
-            heap->last = N64W(n);
+            heap->last = PC_N64W(n);
         }
-        n->prev = N64W(b);
+        n->prev = PC_N64W(b);
         if (adjacent) {
             used = 0;
         } else {
@@ -115,12 +112,12 @@ void heap_move_block_low(void *addr)
         n->tag = 0;
         n->count = 0;
         n->magic = 0xFEDCBA98;
-        b->next = N64W(n);
+        b->next = PC_N64W(n);
         b->size = size;
         if (adjacent) {
             old = n;
         }
     }
-    DeallocateMemoryInternal(N64A((u8 *)old + 32), 0);
+    DeallocateMemoryInternal(PC_N64A((u8 *)old + 32), 0);
     osSendMesg(&heap_lock_queue, 0, 0);
 }

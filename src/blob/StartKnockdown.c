@@ -44,9 +44,6 @@ typedef struct MATRIX {
     f32 pos[3];
 } MATRIX;
 
-#define N64P(x) ((void *)PC_N64P(x))
-#define N64W(x) PC_N64W(x)
-
 VIEW(Visual *, gEnvList);
 #define gEnvList gEnvList_view
 
@@ -71,7 +68,7 @@ void StartKnockdown(Target *t)
     }
     v->index = 0;
     v->func = targetInfo[t->infoIdx].visFunc;
-    v->data = N64W(t);
+    v->data = PC_N64W(t);
     v->timeStamp = 0.0333333f;
     t->frames = 4;
     t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);

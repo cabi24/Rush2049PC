@@ -9,8 +9,8 @@
  *
  * On the PC the headers keep their N64 layout in the RDRAM window (docs/port/POINTERS.md 1, MEMORY.md 4): each link
  * is the 32-bit window address of what it points to. The links are typed as enums so that N64P(link) turns one into
- * a pointer of the right type; N64W(p) turns a pointer back into a link. The heap's interface (DeallocateMemory,
- * PurgeableMemory, FindHeap ...) also takes 32-bit window addresses: N64A(p) is a pointer's, N64PTR(T, a) the
+ * a pointer of the right type; PC_N64W(p) turns a pointer back into a link. The heap's interface (DeallocateMemory,
+ * PurgeableMemory, FindHeap ...) also takes 32-bit window addresses: PC_N64A(p) is a pointer's, (T)PC_N64P(a) the
  * pointer at one (port/include/pc_prelude.h, docs/port/NOFIXED.md 2.3). Wave 3 of the PC-only work makes all of
  * this native memory.
  *
@@ -75,11 +75,6 @@ typedef struct Heap {
 #define N64P(x) _Generic((x), enum ChunkLink: (tMemoryChunk *)PC_N64P(x), enum HeapLink: (tHeap *)PC_N64P(x), \
     enum MasterBlockLink: (tMasterBlock *)PC_N64P(x), enum MastersLink: (uintptr_t *)PC_N64P(x), \
     enum DataLink: (void *)PC_N64P(x), default: (x))
-/* A pointer as a link. */
-#define N64W(x) PC_N64W(x)
-/* A pointer as the heap interface's 32-bit address, and the pointer at such an address. */
-#define N64A(x) PC_N64A(x)
-#define N64PTR(T, a) ((T)PC_N64P(a))
 
 /* The heap's own functions that take or return its headers (game/memory.h has the rest). */
 tHeap *ConvertHeap(tHeap *heap);

@@ -12,9 +12,7 @@ VIEW(Player[], gCircuitCars);
 #define gCircuitCars gCircuitCars_view
 /* The race roster is the PC's pc_links (pc_game_types.h, docs/port/DECOUPLE.md); the number of cars a race holds
  * is the PC's setting (PC_RACE_CARS: 6 by default), a circuit always the N64's 6 (docs/port/MORECARS.md). */
-#define PC_LATCH_CARS() if (!(gGameState & GS_HIGH_SCORE)) pc_race_cars_begin();
 #define RACE_CARS (gRace == kCircuit ? PC_N64_CARS : PC_RACE_CARS)
-#define LINK_SLOTS PC_MAX_LINKS
 
 /* Fills the roster (each link: its place on the grid, who drives it, its flags and the track): the players
  * (driven here, owner 6) start behind the drones (owner 0), as many drones as asked for and fit (none in stunt,
@@ -28,7 +26,7 @@ void CalcPolePositions(void)
     u8 next = 0;
     PC_LINK *config;
 
-    PC_LATCH_CARS() extra = gNumDrones;
+    if (!(gGameState & GS_HIGH_SCORE)) pc_race_cars_begin(); extra = gNumDrones;
     if (RACE_CARS - gNumPlayers < extra) {
         extra = RACE_CARS - gNumPlayers;
     }
@@ -36,7 +34,7 @@ void CalcPolePositions(void)
         extra = 0;
     }
     gNumCars = gNumPlayers + extra;
-    for (slot = 0, config = PC_LINKS; slot < LINK_SLOTS; slot++, config++) {
+    for (slot = 0, config = PC_LINKS; slot < PC_MAX_LINKS; slot++, config++) {
         if (gRace == kCircuit && slot < gNumCars && gCircuitTrack > 0) {
             PC_LINKP_PLACE(config) = gCircuitCars[(slot == 0) ? gCircuitPlayer : ((slot == 1) ? gCircuitPlayer ^ 1 : slot)].id;
             PC_LINKP_FLAGS(config) = 176;

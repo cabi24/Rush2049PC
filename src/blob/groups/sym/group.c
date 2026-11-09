@@ -150,11 +150,6 @@ void ModelControls(tModelData *m) {
     }
 }
 
-/* PC: the engine speed to s16, which a car's engine spinning past +-32767 rpm overruns (seen in a 12-car race,
- * docs/port/MORECARS.md 4); undefined in C. Through s32, whose low half the conversion keeps, as the N64's trunc.w.s
- * and sh do (docs/port/SANITIZE.md, particle_knot's V16). */
-#define TRUNC_W (s32)
-
 /* One step of model m: its controls (none for a crashed car or one out of the race), the drivetrain, the ordinary
  * step, the crash test; the rpm (engangvel in rpm, 9.549305 = 60 / 2 pi, times 0.9: MAT3 mcommunication); a manual
  * car below 600 rpm on more than half throttle bogs down (bogState 1, for the sound) and recovers once it doesn't

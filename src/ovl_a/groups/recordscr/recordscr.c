@@ -451,10 +451,6 @@ VIEW(struct pc_multiblit[1], recordscr_mblit);
 extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
 
-/* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned (docs/port/SANITIZE.md
- * 3.2) */
-#define PC_WORD_ALIGNED __attribute__((aligned(4)))
-
 extern void *MBOX_FindTexture_WORK(char *, s16 *, s32, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
 

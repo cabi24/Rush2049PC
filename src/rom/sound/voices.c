@@ -14,7 +14,7 @@
  *
  * MusyX is the N64's sound library: no MAT3 counterpart. On the PC the per-voice storage is PC data, PC_MX_VOICE_SLOTS
  * long (pc_game_types.h, docs/port/DECOUPLE.md 9), where the N64 has 32 voices; each voice keeps the N64's layout, its
- * handle node as the node's N64 address (N64P, N64W below: docs/port/MUSYX_DATA.md 8.3). */
+ * handle node as the node's N64 address (pc_voice_node, pc_voice_node_address below: docs/port/MUSYX_DATA.md 8.3). */
 #include "../rom_tu.h"
 
 #define VOICE_NONE 0xFFFFFFFFU     /* no voice, the end of a voice chain, an invalid handle */
@@ -36,12 +36,12 @@ typedef struct VoicePriorityLink { u8 previous, next; u16 active; } VoicePriorit
  * docs/port/DECOUPLE.md 9): the handle nodes, one a voice, seen here in this file's view; PC_MX_LOOP(32) is the
  * run's voices where the N64 links its 32 (docs/port/AUDIO.md 10). */
 #define sound_handle_nodes (*(SequenceNode (*)[PC_MX_VOICE_SLOTS])pc_mx_nodes)
-#define PC_MX_LOOP(n) PC_MX_SLOTS
 
 /* A synth voice, as this file reads it (macros.c has the whole voice). */
 #pragma pack(1)
 /* PC: the voice keeps its N64 layout (macros.c), so the node at +0x18, one of sound_handle_nodes's, is kept as its N64
- * address, HANDLE_NODES_N64 + 16 * index: N64P(x) gives the node, N64W(x) the word (docs/port/MUSYX_DATA.md 8.3). */
+ * address, HANDLE_NODES_N64 + 16 * index: pc_voice_node(x) gives the node, pc_voice_node_address(x) the word
+ * (docs/port/MUSYX_DATA.md 8.3). */
 enum n64p_SequenceNode { n64p_SequenceNode_ };
 typedef struct VoiceState {
     u32 addr00;                             /* the macro's first step; 0: no macro runs */
@@ -125,8 +125,6 @@ static enum n64p_SequenceNode pc_voice_node_address(SequenceNode *node)
 {
     return (enum n64p_SequenceNode)(node != 0 ? HANDLE_NODES_N64 + (u32)(node - sound_handle_nodes) * 16 : 0);
 }
-#define N64P(x) pc_voice_node(x)
-#define N64W(x) pc_voice_node_address(x)
 
 /* The used handle node with this key, or NULL (the list is sorted, so the walk stops at a larger key). */
 SequenceNode *sound_find_handle(u32 key)
@@ -162,22 +160,22 @@ void sound_unlink_voice(VoiceState *state)
                 sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].parent14=state->parent14;
             }
         } else if (state->child10 != VOICE_NONE) {
-            N64P(state->handleNode18)->voice=state->child10;
+            pc_voice_node(state->handleNode18)->voice=state->child10;
             sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].parent14=VOICE_NONE;
             sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].handleNode18=state->handleNode18;
         } else {
-            if (N64P(state->handleNode18)->previous != 0) {
-                N64P(state->handleNode18)->previous->next=N64P(state->handleNode18)->next;
+            if (pc_voice_node(state->handleNode18)->previous != 0) {
+                pc_voice_node(state->handleNode18)->previous->next=pc_voice_node(state->handleNode18)->next;
             } else {
-                sound_handles_used=N64P(state->handleNode18)->next;
+                sound_handles_used=pc_voice_node(state->handleNode18)->next;
             }
-            if (N64P(state->handleNode18)->next != 0) {
-                N64P(state->handleNode18)->next->previous=N64P(state->handleNode18)->previous;
+            if (pc_voice_node(state->handleNode18)->next != 0) {
+                pc_voice_node(state->handleNode18)->next->previous=pc_voice_node(state->handleNode18)->previous;
             }
-            N64P(state->handleNode18)->next=sound_handles_free;
-            if (sound_handles_free != 0) sound_handles_free->previous=N64P(state->handleNode18);
-            N64P(state->handleNode18)->previous=0;
-            sound_handles_free=N64P(state->handleNode18);
+            pc_voice_node(state->handleNode18)->next=sound_handles_free;
+            if (sound_handles_free != 0) sound_handles_free->previous=pc_voice_node(state->handleNode18);
+            pc_voice_node(state->handleNode18)->previous=0;
+            sound_handles_free=pc_voice_node(state->handleNode18);
         }
     }
 }
@@ -208,7 +206,7 @@ u32 sound_new_handle(VoiceState *state)
     if (current != 0) current->previous = node;
     node->key = key;
     node->voice = state->identifier60;
-    state->handleNode18 = N64W(node);
+    state->handleNode18 = pc_voice_node_address(node);
     return key;
 }
 

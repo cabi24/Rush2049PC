@@ -13,7 +13,6 @@ tAudioMsg *GetCmd(void);
  * next retrace sends the sound's values again) and its message given back, instead of a write through NULL
  * or a message lost for good (docs/port/QA.md "Integration soak"). */
 #define PC_MSG_OR_RETURN(m) if((m)==0)return;
-#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
 
 /* Asks the audio manager thread to change the sound of fx tag handle tag: each of volume, lrpan, fbpan and pitch
  * that is not AUDIO_NO_CHANGE and differs from the tag's last value; nothing is sent when none does. The caller

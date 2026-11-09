@@ -44,7 +44,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 extern void dotireforce(tModelData *,Vec3 *,Basis *,void *,float,Vec3 *,float,float,float,float,float,float,int,float);
 

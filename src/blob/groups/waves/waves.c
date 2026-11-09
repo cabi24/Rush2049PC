@@ -16,13 +16,6 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 #define WADP(type) u32
 /* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
 #define HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
-/* The relocation's base and offset, and the records' addresses, are 32-bit N64 addresses: N64A(p) is a window
- * pointer's, N64PTR(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). An offset between two blocks
- * (a pointer less an N64 address) translates to the difference. */
-#define N64A(x) PC_N64A(x)
-#define N64AS(x) (s32)PC_N64A(x)
-#define N64PTR(T, a) ((T)PC_N64P(a))
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 
 typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
     u16 texidx;
@@ -161,15 +154,15 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         MBSetupWad(&wad, WADptr);
     } else {
-        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - N64A(gWaveInstance[idx].lastPtr);
-        MBOffsetWad(&wad, N64AS(WADptr), N64AS(offset));
+        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - PC_N64A(gWaveInstance[idx].lastPtr);
+        MBOffsetWad(&wad, (s32)PC_N64A(WADptr), (s32)PC_N64A(offset));
     }
     gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
-    gRomObjDefPtrs[modelIdx].romObjDefs = N64PTR(tModelDef *, MBGetFromWad(&wad, WAD_TAG_OBHD, &gRomObjDefPtrs[modelIdx].count));
-    gTexDefPtrs[modelIdx].texDefs = N64PTR(tTexture *, MBGetFromWad(&wad, WAD_TAG_TXHD, &gTexDefPtrs[modelIdx].count));
-    gPalDefPtrs[modelIdx].palDefs = N64PTR(anon_name_start_18 *, MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count));
+    gRomObjDefPtrs[modelIdx].romObjDefs = ((tModelDef *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_OBHD, &gRomObjDefPtrs[modelIdx].count)));
+    gTexDefPtrs[modelIdx].texDefs = ((tTexture *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_TXHD, &gTexDefPtrs[modelIdx].count)));
+    gPalDefPtrs[modelIdx].palDefs = ((anon_name_start_18 *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count)));
     if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
-        gTargetPaths.paths = N64PTR(tBasicTargetPath *, MBGetFromWad(&wad, WAD_TAG_PTHD, &gTargetPaths.count));
+        gTargetPaths.paths = ((tBasicTargetPath *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_PTHD, &gTargetPaths.count)));
     }
     TXLDptr = MBGetFromWad(&wad, WAD_TAG_TXLD, &TXLDcnt);
     IMAGptr = MBGetFromWad(&wad, WAD_TAG_IMAG, NULL);
@@ -183,16 +176,16 @@ void SetupWaveModel(s32 idx, s32 first) {
     if (first != 0) {
         for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
             for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + N64A(WADptr));
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + N64A(WADptr));
-                relocate_model_dl(N64PTR0(u32 *, gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList), N64AS(WADptr), -1, gMirrorWaves ? 1 : 0, flags);
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + PC_N64A(WADptr));
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + PC_N64A(WADptr));
+                relocate_model_dl(((u32 *)PC_N64P(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList)), (s32)PC_N64A(WADptr), -1, gMirrorWaves ? 1 : 0, flags);
             }
         }
     }
     if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
         for (i = 0; i < gTargetPaths.count; i++) {
-            gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + N64A((first ? WADptr : offset));
-            gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + N64A((first ? WADptr : offset));
+            gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + PC_N64A((first ? WADptr : offset));
+            gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + PC_N64A((first ? WADptr : offset));
         }
     }
     gWaveInstance[idx].ready = 1;

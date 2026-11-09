@@ -24,7 +24,6 @@ extern void TB_FlashTextColors(Color4,Color4);
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
 int pc_start_valid(int index, int value);
 const char *pc_start_label(int index, const char *label);
-#define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_LABEL(i, s) ((void *)pc_start_label((i), (s)))
 
 #define TEXT_START_TITLE 39         /* gText.single[]: the menu's title */

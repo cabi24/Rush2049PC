@@ -48,7 +48,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 #define vecadd(a,b,r) {r[0]=a[0]+b[0];r[1]=a[1]+b[1];r[2]=a[2]+b[2];}
 

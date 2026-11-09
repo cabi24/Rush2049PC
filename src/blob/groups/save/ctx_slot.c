@@ -2,7 +2,6 @@
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-
 #undef M2C_FIELD
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 typedef struct OSMesgQueue OSMesgQueue;
@@ -20,7 +19,6 @@ typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
 
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* ---- menu objects ---- */
 typedef struct MenuData {
@@ -84,11 +82,10 @@ Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
 void PS_WriteFile(void *, void *, u32);
 
 /* The ghost's buffer is kept as its 32-bit N64 address (MenuData.buffer), read from its handle's slot (PC_SLOT_N64);
- * unzipdata and CalcChecksumInternal take the pointer at it, N64PTR0(T, a) (pc_prelude.h,
+ * unzipdata and CalcChecksumInternal take the pointer at it, (T)PC_N64P(a) (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 s32 unzipdata(void *, s32, void *);
 
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 #define SLOT_S32(h) (s32)PC_SLOT_N64(h)
 
 /* The seats are the record's 16 file entries (0x28 bytes from +0x84 on the N64); the N64 view starts them 0x20
@@ -108,9 +105,6 @@ typedef struct {
 VIEW(PlayerSeats[], gPaks);
 #define gPaks gPaks_view
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 /* Frees an open pak file's data (it is read again when needed) and clears the file's lock flag. */
 void PS_PurgeFile(Handle h) {
     Slot *s = *(Slot **)h;
@@ -118,7 +112,7 @@ void PS_PurgeFile(Handle h) {
     if (s->data != NULL) {
         void **data = s->data;
         osRecvMesg(&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(N64A(data), 0);
+        DeallocateMemoryInternal(PC_N64A(data), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         s->data = NULL;
         gPaks[s->id].seat[s->seat].busy = 0;
@@ -132,7 +126,7 @@ void PurgeGhostData(Handle h) {
     if (o->h36 != NULL) {
         void **old = o->h36;
         osRecvMesg(&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(N64A(old), 0);
+        DeallocateMemoryInternal(PC_N64A(old), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         o->h36 = NULL;
         ((START_VIEW *)*o->h40)->f76 = 0;
@@ -152,10 +146,10 @@ void DecodeGhost(Handle h) {
     if (m->buffer == 0) {
         (*h)->h36 = (void **)AllocateHandleHeap(NULL, m->tag);
         m->buffer = SLOT_S32((*h)->h36);
-        n = unzipdata(m->data, m->size, N64PTR0(void *, m->buffer));
+        n = unzipdata(m->data, m->size, ((void *)PC_N64P(m->buffer)));
         m->count = n / 3;
         do {} while (0);
-        CalcChecksumInternal(N64PTR0(void *, m->buffer), n);
+        CalcChecksumInternal(((void *)PC_N64P(m->buffer)), n);
         m->loaded = 1;
     }
 }
@@ -171,7 +165,7 @@ void ghost_heap_unlock(void) {
 /* Frees the heap block at address, under the heap lock. */
 void cart_free(void **address) {
     ghost_heap_lock();
-    DeallocateMemoryInternal(N64A(address), 0);
+    DeallocateMemoryInternal(PC_N64A(address), 0);
     ghost_heap_unlock();
 }
 
@@ -189,7 +183,7 @@ void slot_forget(Handle node) {
 /* Frees the heap block at address, under the heap lock (cart_free written out). */
 void cart_free_direct(void **address) {
     osRecvMesg(&heap_lock_queue, NULL, 1);
-    DeallocateMemoryInternal(N64A(address), 0);
+    DeallocateMemoryInternal(PC_N64A(address), 0);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
 /* Deletes the ghost's file from its pak, if it has one. */
@@ -241,7 +235,7 @@ s32 SaveGhost(s32 pak, Handle player, Handle saveGhosth, s32 limbo) {
         }
     }
     obj = *saveGhosth;
-    size = (u32)GetPtrSize(N64A(obj->h40));
+    size = (u32)GetPtrSize(PC_N64A(obj->h40));
     sprintf(buf, ghost_file_name_format, (char *)*M2C_FIELD(*player, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
             GhostDirName(m));
     created = PS_CreateFile(pak, buf, ghost_file_ext, size, GAME_COMPANY_CODE, GAME_CODE);

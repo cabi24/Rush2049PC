@@ -13,8 +13,6 @@ VIEW(OSMesgQueue, bg_load_request_queue);
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
-#define N64A(x) PC_N64A(x)
-
 /* Takes the first free wave instance for wave waveNum and allocates its block from heap (0: the main heap), as a
  * handle when handle is set (the heap may then move it). Returns the instance's index (MAT3 _NewWaveInstance).
  * Original game: with all 64 instances taken it returns nothing (MAT3 the same). */
@@ -29,7 +27,7 @@ int NewWaveInstance(int waveNum, int handle, void *heap)
             winst->wave = waveNum; winst->handle = handle;
             if (handle) winst->ptr = AllocateHandleHeap(heap, (gWaveSizes[waveNum] + 31) & ~31);
             else winst->ptr = AllocateMemoryHeap(heap, (gWaveSizes[waveNum] + 31) & ~31);
-            winst->size = GetPtrSize(N64A(winst->ptr));
+            winst->size = GetPtrSize(PC_N64A(winst->ptr));
             SetWaveInstanceModel(idx);
             return idx;
         }

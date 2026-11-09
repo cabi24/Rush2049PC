@@ -18,10 +18,8 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
     for (i = 0; i < size / 2; i++)
         dst[i] = pc_be16_get(s + 2 * i);
 }
-/* The car's copy and the heap's API take 32-bit N64 addresses: N64A(p) is a window pointer's, N64PTR0(T, a) the
+/* The car's copy and the heap's API take 32-bit N64 addresses: PC_N64A(p) is a window pointer's, (T)PC_N64P(a) the
  * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
@@ -61,7 +59,6 @@ u32 blend_rgb5551(u32 left, u32 right, s32 ratio)
     return red | green | blue | 1;
 }
 
-
 /* Draw scene node `id` with the palette `descriptor`. */
 void SetModelPalette(s32 id, Resource24 *descriptor)
 {
@@ -69,8 +66,6 @@ void SetModelPalette(s32 id, Resource24 *descriptor)
     m = &ObjInstanceList[id];
     m->palette = descriptor;
 }
-
-
 
 /* Write the three paint ramps into the palette `colors`: entry 32 the first colour, then 31 steps from it toward
  * black (blend_rgb5551 with 1, black with alpha), 64 on the second colour, 96 on the third; returns colors.
@@ -137,9 +132,9 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     second_color=paint_colors[second]; third_color=paint_colors[third];
     MakeRamps(colors, first_color, second_color, third_color);
     descriptor=&car_palettes[slot];
-    memcpy(N64PTR0(void *, descriptor->data),colors,512);
+    memcpy(((void *)PC_N64P(descriptor->data)),colors,512);
     heap_lock();
-    DeallocateMemoryInternal(N64A(colors), 0);
+    DeallocateMemoryInternal(PC_N64A(colors), 0);
     heap_unlock();
     SetModelPalette(gCarParts[slot].frame.halves.id,descriptor);
     SetModelPalette(gCarParts[slot].hood.halves.id,descriptor);

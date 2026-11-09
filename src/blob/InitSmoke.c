@@ -31,8 +31,6 @@ VIEW(u8, gNumModels);
 
 void MBOX_FindTexture_WORK(char *name, s16 *handle, int firstModel, int lastModel, int flag);
 
-/* one-line multi-statement macro: stands in for the inlined kept InitStatLL (one .loc) */
-#define POOL_SETUP(pool, m, n, sz) { (pool).list = (m); (pool).numElements = (n); (pool).elementSize = (sz); (pool).dbl = 0; }
 
 /* Make gSmokeList a singly linked list of the 100 puffs of gSmokeObjs (88 bytes each on the N64, PcPuff's size
  * here), all free; clear every car's smoke latches (SMOKE_* in cars.h); and look the six fire textures up by name
@@ -42,7 +40,10 @@ void InitSmoke(void)
 {
     int i;
 
-    POOL_SETUP(gSmokeList, gSmokeObjs, 100, sizeof(PcPuff));
+    gSmokeList.list = gSmokeObjs;   /* MAT3 InitStatLL, inlined: the elements, how many, their size, singly linked */
+    gSmokeList.numElements = 100;
+    gSmokeList.elementSize = sizeof(PcPuff);
+    gSmokeList.dbl = 0;
     ClearStatLL(&gSmokeList);
     for (i = 0; i < PC_MAX_LINKS; i++) {
         gCarSmokeDir[i] = 0;

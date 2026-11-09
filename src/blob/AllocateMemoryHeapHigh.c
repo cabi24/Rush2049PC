@@ -48,18 +48,18 @@ void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
         chunkSize = chunk->size;
         taken->next = chunk->next;
         if (taken->next != 0) {
-            N64P(taken->next)->prev = N64W(taken);
+            N64P(taken->next)->prev = PC_N64W(taken);
         } else {
-            heap->lastChunk = N64W(taken);
+            heap->lastChunk = PC_N64W(taken);
         }
-        taken->prev = N64W(chunk);
+        taken->prev = PC_N64W(chunk);
         taken->size = size;
         taken->master = 0;
         taken->used = 1;
         taken->internal = 0;
         taken->locked = 0;
         taken->magic = HEAP_MAGIC_WORD;
-        chunk->next = N64W(taken);
+        chunk->next = PC_N64W(taken);
         chunk->size = chunk->size - size - HEAP_CHUNK_HEADER;
         chunk = taken;
     } else {

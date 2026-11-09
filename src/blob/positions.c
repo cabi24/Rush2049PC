@@ -45,7 +45,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* One step of model m's motion:
  * - the velocity and acceleration to the world frame, and the position moved by rwv dt (the old one kept in rwr2);

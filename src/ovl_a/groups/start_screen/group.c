@@ -60,7 +60,6 @@ extern void ZOID_SetTexture(s16, void *, s32);
    N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
-#define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_EXIT(e) ((e) = pc_start_exit((e), gStartMenuSelect))
 
 /* The menu's rows (gStartMenuSelect, MAT3 enum_kStartMenuCount). */

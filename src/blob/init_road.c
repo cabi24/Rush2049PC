@@ -4,7 +4,6 @@
  * record, the tires and the body corners placed with it, the road state cleared. */
 #include "game/game.h"
 
-
 #define vecadd(a, b, r) { r[0] = a[0] + b[0]; r[1] = a[1] + b[1]; r[2] = a[2] + b[2]; }
 #define veccopy(a, r) { r[0] = a[0]; r[1] = a[1]; r[2] = a[2]; }
 
@@ -51,7 +50,6 @@ typedef struct tModelData {
 } tModelData; /* 0x808 */
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* Place model m at its start: the orientation from initin (stretched with the super speed cheat) for the model, the
  * dead reckoning and the car record (dr_uvs); the position the start point plus the car's offset turned into the

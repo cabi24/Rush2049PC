@@ -10,13 +10,6 @@ tAudioMsg *GetCmd(void);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * transform/group.c's AudChangeEffect says when). A volume change is then dropped: with no message the lock is
- * given back and nothing is sent, and a message the full queue refuses is given back; the volume stays as it was
- * until the next change. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,NULL,0);return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->hdr.used=0
-
 /* Asks the audio manager thread to fade the music (music nonzero) and/or the effects (sfx nonzero) to volume
  * (clamped to 0..1) over time seconds (not below 0). */
 void AudSetMasterVol(f32 volume,f32 time,s32 music,s32 sfx) {

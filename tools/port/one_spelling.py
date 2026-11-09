@@ -20,9 +20,10 @@ the old way or keeps a file's own copy, and it changes only what is left. Three 
    had) must be the value `new` has in the file's headers, or the file is left and reported. An old name may have
    rows for several values (a name two files gave two meanings): the row whose value is the file's is used.
 2. inline (tools/port/consts/inline.tsv: `name  body_regex  comment_name  note`): a file's own abbreviation of a
-   shared conversion (`#define N64W(x) PC_N64W(x)`, `#define N64PTR(T, a) ((T)PC_N64P(a))`) goes, and each use is
-   replaced by the definition's body with the use's arguments, token for token what the preprocessor made of it,
-   so the code is the same (`N64PTR(Foo *, p)` becomes `((Foo *)PC_N64P(p))`). Only a definition whose body
+   shared conversion (`#define N64W(x) PC_N64W(x)`, `#define N64PTR(T, a) ((T)PC_N64P(a))`) or an alias of a PC
+   name (`#define LINK_SLOTS PC_MAX_LINKS`) goes, and each use is replaced by the definition's body with the use's
+   arguments, token for token what the preprocessor made of it, so the code is the same (`N64PTR(Foo *, p)` becomes
+   `((Foo *)PC_N64P(p))`; a body that ends its statement loses its `;` before the use's own). Only a definition whose body
    matches the row's regex is inlined (the typed `_Generic` N64P of a file's own N64-address fields is a converter
    of its own and stays); a definition in a header is inlined in every file that includes the header. In comments
    the name becomes comment_name (`-` leaves comments alone).
@@ -562,9 +563,10 @@ def expand_uses(text, name, params, body):
             break
         # not a definition of the name, not a member
         line_start = code.rfind("\n", 0, m.start()) + 1
-        if DEFINE.match(code[line_start:code.find("\n", m.start()) if "\n" in code[m.start():] else len(code)]) and \
-                DEFINE.match(code[line_start:]).group(2) == name:
-            out.append(code[i:m.end()])
+        line_end = code.find("\n", m.start())
+        dm = DEFINE.match(code[line_start:len(code) if line_end < 0 else line_end])
+        if dm and dm.group(2) == name and m.start() - line_start == dm.start(2):
+            out.append(code[i:m.end()])   # the definition itself
             i = m.end()
             continue
         prev = code[:m.start()].rstrip()
@@ -584,6 +586,8 @@ def expand_uses(text, name, params, body):
             raise ValueError(f"{name}: {len(args)} arguments for {len(params)}")
         sub = dict(zip(params, args))
         exp = IDENT.sub(lambda g: sub.get(g.group(0), g.group(0)), body)
+        if exp.rstrip().endswith(";") and code[after:].lstrip(" \t").startswith(";"):
+            exp = exp.rstrip()[:-1]   # `NAME();` of a body that ends its own statement: one semicolon
         out.append(code[i:m.start()])
         out.append(exp)
         count += 1
@@ -707,7 +711,7 @@ class Run:
                 if rel == PRELUDE:
                     continue
                 for d in self.tree.defines(rel):
-                    if d.name != name or d.params is None:
+                    if d.name != name:
                         continue
                     body = strip_comments(d.body).strip()
                     if not rx.fullmatch(body):
@@ -717,7 +721,10 @@ class Run:
                     if d.depth:
                         self.say(f"{rel}:{d.first + 1}: {name} inside a conditional block: kept")
                         continue
-                    params = [p.strip() for p in d.params[1:-1].split(",") if p.strip()]
+                    if d.params is None and not IDENT.fullmatch(body):
+                        self.say(f"{rel}:{d.first + 1}: {name} is `{body}`: only an alias of a name is inlined: kept")
+                        continue
+                    params = None if d.params is None else [p.strip() for p in d.params[1:-1].split(",") if p.strip()]
                     users = [rel] if rel.endswith(".c") else [
                         f for f in sorted(self.tree.text) if f != rel and rel in self.tree.closure(f)
                         and not any(x.name == name for x in self.tree.defines(f))]
@@ -726,7 +733,11 @@ class Run:
                     for f in users:
                         t = self.tree.text[f]
                         try:
-                            nt, k = expand_uses(t, name, params, body)
+                            if params is None:   # an alias of another name: the name's tokens in code
+                                nt = sub_tokens(t, {name: body}, {})   # its definition becomes `body body`
+                                k = t.count(name)
+                            else:
+                                nt, k = expand_uses(t, name, params, body)
                         except ValueError as e:
                             self.say(f"{f}: {e}: left")
                             continue
@@ -737,7 +748,9 @@ class Run:
                             self.changes[f"inline {name}"] += k
                     # the definition itself
                     lines = self.tree.text[rel].split("\n")
-                    dd = [x for x in parse_defines(lines, not rel.endswith(".c")) if x.name == name and x.params]
+                    dd = [x for x in parse_defines(lines, not rel.endswith(".c"))
+                          if (x.name == name or (params is None and x.name == body))
+                          and (x.params is None) == (params is None)]
                     spans = [(x.first, x.last) for x in dd if rx.fullmatch(strip_comments(x.body).strip())]
                     spans += [(k, k) for x in dd for k in [x.first - 1]
                               if k >= 0 and UNDEF.match(lines[k]) and UNDEF.match(lines[k]).group(1) == name]

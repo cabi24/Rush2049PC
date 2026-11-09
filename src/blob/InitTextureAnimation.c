@@ -14,9 +14,6 @@ typedef struct Resource32 {
     u32 texBase;        /* +24 a texture's load display list (TXLD), or its image (flags & TEX_IMAGE_DIRECT) */
     u32 flags;          /* +28 */
 } Resource32;
-/* A row's palette or texture list is written through (TextureAnimation): N64PTR0(T, a) is the pointer at N64 address a
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). An item's output stays the 32-bit address the display list takes. */
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 
 /* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
 typedef struct tPaletteAnim {
@@ -68,10 +65,10 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1)->texBase);
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = ((void *)PC_N64P(MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1)->texBase));
         else {
             resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1, 1);
-            if (resource) plist->ptr = N64PTR0(void *, resource->palBase);
+            if (resource) plist->ptr = ((void *)PC_N64P(resource->palBase));
         }
         plist++;
     }
@@ -88,7 +85,7 @@ flipbooks:
             } else continue;
             resource = tlist->swapTexs[i].tex;
             if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = resource->texBase;
-            else tlist->swapTexs[i].texBase = displaylist_get_texture_image(N64PTR0(void *, resource->texBase));
+            else tlist->swapTexs[i].texBase = displaylist_get_texture_image(((void *)PC_N64P(resource->texBase)));
             tlist->time = tlist->initTime;
             tlist->idx = tlist->startnum;
         }

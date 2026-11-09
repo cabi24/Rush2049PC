@@ -12,9 +12,7 @@ VIEW(Camera[], gCamera);
  * here at its start; the camera's car (the counter) goes round them all. The loop walks every slot a PC race can
  * use, so the slots after the demo's cars take the loop's own arm for slots past the count, which the N64's 6
  * never reaches: flags 0, not in the race, whatever an earlier race of more cars left in them. */
-#define PC_LATCH_CARS() pc_race_cars_begin();
 #define DEMO_CARS PC_RACE_CARS
-#define LINK_SLOTS PC_MAX_LINKS
 
 /* Set up the attract demo's race on `track`: every car a drone (owner 0, LINK_OWNER_DRONE) in the race (flags
  * 0xB0, LINK_FLAGS_RACER) in slot order on the grid, the other slots empty (owner slot + 6, out of the race). Each
@@ -27,9 +25,9 @@ void fake_init(s8 track)
     s16 place;
     static s16 attractSlot = 0;
 
-    PC_LATCH_CARS() gTrackNum = track;
+    pc_race_cars_begin(); gTrackNum = track;
     gNumCars = DEMO_CARS;
-    for (i = 0, place = 0; i < LINK_SLOTS; i++) {
+    for (i = 0, place = 0; i < PC_MAX_LINKS; i++) {
         if (i >= DEMO_CARS) {
             PC_LINK_FLAGS(i) = 0;
             PC_LINK_OWNER(i) = i + 6;

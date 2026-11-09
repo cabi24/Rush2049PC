@@ -152,9 +152,6 @@ tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company,
 VIEW(OSMesgQueue, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 /* Deletes the open file fileh from its pak and closes it: its RemoveFile is told, its data freed, its handle given
  * back. A failure goes to the error function; the deletion is retried if the player asks and the file is still open. */
 void PS_DeleteFile(tPakHandle *fileh)
@@ -195,7 +192,7 @@ delete_retry:
     if (psfile->RemoveFile) psfile->RemoveFile(fileh);
     state->file_size = 0;
     if (psfile->data) {
-        pdf_dealloc(N64A(psfile->data));
+        pdf_dealloc(PC_N64A(psfile->data));
         psfile->data = 0;
     }
     pdf_release(fileh);
@@ -232,7 +229,7 @@ void RemovePak(s32 pak)
         if (psfile->data != 0) {
             u8 **data = psfile->data;
             osRecvMesg(&heap_lock_queue, 0, 1);
-            DeallocateMemoryInternal(N64A(data), 0);
+            DeallocateMemoryInternal(PC_N64A(data), 0);
             osSendMesg(&heap_lock_queue, 0, 0);
             psfile->data = 0;
         }

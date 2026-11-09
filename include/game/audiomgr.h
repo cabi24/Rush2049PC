@@ -134,6 +134,14 @@ typedef struct tAudioMsgHeader {
     s8 used;            /* 0x3: taken from the pool */
 } tAudioMsgHeader;
 
+/* PC: the audio manager's message pool and its queue can run out (docs/port/QA.md "Integration soak", fix 6). A
+ * request is then dropped: PC_CMD_OR_UNLOCK(m) gives the lock back and returns when GetCmd had no message,
+ * PC_CMD_SEND(q, m) gives a message the full queue refuses back, PC_SEND_OR_GIVE_BACK(q, m, e) gives it back and
+ * takes the command off tag e's count. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,NULL,0);return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->hdr.used=0
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
+
 typedef union tAudioMsg {
     tAudioMsgHeader hdr;
     struct { tAudioMsgHeader hdr; s32 song; s8 loop; } playSong;                                /* song 0x4, loop 0x8 */

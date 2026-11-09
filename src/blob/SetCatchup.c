@@ -5,11 +5,6 @@
  * docs/port/DECOUPLE.md). */
 #include "game/game.h"
 
-/* PC: game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7). The catch-up scale moves 0.03 of the way to its
- * target a frame of two retraces, a filter the cars' physics reads: e^frames and its other weight, 1 - e^frames
- * (0.03, as written, at original). */
-#define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
-
 /* Without catch-up (one player below difficulty 5, or the option off: MAT3 no_catchup) every drone and human gets
  * the factor 1. Otherwise, among the cars still racing that count (humans, or every car at difficulty 5), the one
  * furthest along the track leads, and each of them aims for 1 plus 0.1 times its distance behind the leader over

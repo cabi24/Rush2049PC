@@ -1,9 +1,6 @@
 /* HAL_GetTextWidth: how wide a string is in the current font (MAT3 HAL_text.c). */
 #include "game/game.h"
 
-/* A letter's row of the kerning table: its kerns field holds a window address (port/assets/font.c). */
-#define FONT_KERNS(k) ((u8 *)PC_N64P(k))
-
 VIEW(FontHeader *, gFontHeader);
 #define gFontHeader gFontHeader_view
 VIEW(s16[256], gCharMap);
@@ -62,7 +59,7 @@ s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
                 } else {
                     width += gFontLetters[ch].lrs - gFontLetters[ch].uls + gSpacing + 1;
                     if (prev > 0 && gFontHeader->kern) {
-                        width -= FONT_KERNS(gFontLetters[ch].kerns)[prev];
+                        width -= ((u8 *)PC_N64P(gFontLetters[ch].kerns))[prev];
                     }
                     prev = ch;
                 }

@@ -155,8 +155,7 @@ VIEW(config[10], configuration_table);
 #define configuration_table configuration_table_view
 #define NIL 0
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
+/* The heap's API takes N64 addresses: PC_N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define FREECALL(p) zcfree((voidpf)(p))
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))

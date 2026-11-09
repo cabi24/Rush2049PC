@@ -43,6 +43,11 @@
 #define ROADCODE_WATER       2      /* water (rear_water_drag_factor; likewise) */
 #define ROADCODE_AIRBORNE    8      /* the tire touches no road (road, init_road) */
 
+/* PC: an engine speed to s16 through s32, (s16) TRUNC_W (rpm): an engine spinning past +-32767 rpm overruns s16 (seen
+ * in a 12-car race, docs/port/MORECARS.md 4), which is undefined in C; s32's low half is what the N64's trunc.w.s and
+ * sh keep (docs/port/SANITIZE.md, particle_knot's V16). */
+#define TRUNC_W              (s32)
+
 /* gLink[slot].owner: who drives a car slot (MAT3 rush_flags.h; an arcade leftover, the cabinet that simulated the
  * car: fake_init, CalcPolePositions, munge_gLink_data). */
 #define LINK_OWNER_DRONE     0      /* a drone, simulated here: an owner below LINK_OWNER_HUMAN */

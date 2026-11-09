@@ -259,7 +259,7 @@ with the MAT3 name in a comment (`gRace == 6 /* kBattle */`), for their headers 
 
 - **The model record** keeps the N64 layout in `pc_models`; its pointer fields (`car` +0, `tune` +4, `lasttp[4]`
   +0x3A0, `torquecurve` +0x40C, `movingSurface` +0x648) are 32-bit window addresses, read through `PC_N64P` (or a
-  file's `N64P` over `enum n64p_*` fields) and written through `N64W` (carsetup). The car descriptors
+  file's typed `N64P` over `enum n64p_*` fields) and written through `PC_N64W` (carsetup). The car descriptors
   (`gCarModels`) and their tire pointers point into the arena; the road's nodes and polygons are in the road file.
   Every file declares its own partial view of the record; one shared definition is for when the layout is the
   PC's.

@@ -303,7 +303,6 @@ static unsigned int pc_sfd_size(void);   /* sizeof(SfdBlock) with 32 voices: 257
 static void pc_sfd_layout(unsigned short count);
 static unsigned int pc_sfd_state_size(void);
 #define PC_MX_STATE(n) pc_sfd_state_size()
-#define PC_MX_CAP(n) PC_MX_VOICE_SLOTS   /* the most voices the PC gives (pc_game_types.h, docs/port/AUDIO.md 10) */
 
 /* The AI output thread (on the PC, port/ultra's AI hands the buffers to port/audio). Allocates the ring of 768-byte output
  * buffers (16, or 24 at half rate; half as many at 22,050 Hz or below), queues the first to the AI, then the next

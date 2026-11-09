@@ -46,7 +46,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 f32 fabsf(f32);
 

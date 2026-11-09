@@ -192,7 +192,6 @@ VIEW(void *[7], map_vertex_blocks);
 VIEW(ModelBank[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
-#define N64A0(x) PC_N64A(x)
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
@@ -1121,9 +1120,9 @@ void clearTrackMaps(void)
             model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels - 1,1);
             def = &gRomObjDefPtrs[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = saved_map_lods[i];
-            if (map_display_list_blocks[i]) DeallocateMemory(N64A0(map_display_list_blocks[i]));
+            if (map_display_list_blocks[i]) DeallocateMemory(PC_N64A(map_display_list_blocks[i]));
             map_display_list_blocks[i] = 0;
-            if (map_vertex_blocks[i]) DeallocateMemory(N64A0(map_vertex_blocks[i]));
+            if (map_vertex_blocks[i]) DeallocateMemory(PC_N64A(map_vertex_blocks[i]));
             map_vertex_blocks[i] = 0;
             mapObj[i].displayList = 0;
             mapObj[i].verts = 0;

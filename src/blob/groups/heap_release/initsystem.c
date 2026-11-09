@@ -6,11 +6,6 @@
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
 #define PC_ZEXT(x) ((uintptr_t)PC_N64P((u32)(x)))   /* an RDRAM-window address held as s32: its pointer */
-/* The heap's API and the color buffers take 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-#define N64A0(x) PC_N64A(x)
-#define N64AS(x) (s32)PC_N64A(x)
 
 extern s32 osTvType;
 
@@ -45,9 +40,9 @@ static void _InitGfx_Init(void)
     video_texture_filter = 0; video_color_dither = 0; video_dither_filter = 0; video_divot = 0; HFOV = 90.0f;
     while (osTvType == 0) {}
     video_set_mode(osTvType, video_mode_base_index(), screen_width, screen_height);
-    zbuffer = (intptr_t)AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(N64A0(zbuffer), 0);
-    framebuffer_a = N64AS(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_a, 0);
-    framebuffer_b = N64AS(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_b, 0);
+    zbuffer = (intptr_t)AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(PC_N64A(zbuffer), 0);
+    framebuffer_a = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_a, 0);
+    framebuffer_b = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_b, 0);
     zbuffer = (zbuffer + 32) & ~63; framebuffer_a = (framebuffer_a + 32) & ~63; framebuffer_b = (framebuffer_b + 32) & ~63;
     frame_records[0].colorBuffer = PC_ZEXT(framebuffer_a); frame_records[1].colorBuffer = PC_ZEXT(framebuffer_b);
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
@@ -71,11 +66,11 @@ static void FreeBuffers_Init(void)
 {
     if (!expansion_pak_present) {
         if (gListeners) {
-            DeallocateMemory_Init(N64A(gListeners));
+            DeallocateMemory_Init(PC_N64A(gListeners));
             gListeners = 0;
         }
         if (gEmitters) {
-            DeallocateMemory_Init(N64A(gEmitters));
+            DeallocateMemory_Init(PC_N64A(gEmitters));
             gEmitters = 0;
         }
     }

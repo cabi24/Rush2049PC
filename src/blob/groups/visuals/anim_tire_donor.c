@@ -58,7 +58,6 @@ typedef struct tCar {
 } tCar;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_f32: (f32 *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 typedef struct Control152 {
     u8 prefix[144];
     f32 spring_save;             /* the cockpit view's bounce (MAT3 view2spring) */

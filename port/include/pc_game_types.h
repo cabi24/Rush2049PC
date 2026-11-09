@@ -575,6 +575,10 @@ extern signed char pc_carsetup_flags[PC_MAX_LINKS];
 #define PC_MX_VOICE_SLOTS 96   /* the most pc_mx_voices() gives: the per-voice storage below is this long */
 int pc_mx_voices(void);
 #define PC_MX_SLOTS (pc_mx_voices())
+/* In the library's C, where the N64 has a literal n (32) for the voices: PC_MX_LOOP(n) the run's voices (a loop over
+ * them, a cap), PC_MX_CAP(n) the most a run can have (sound_lib_init's cap). The n stays, the N64's number. */
+#define PC_MX_LOOP(n) PC_MX_SLOTS
+#define PC_MX_CAP(n) PC_MX_VOICE_SLOTS
 #define PC_SND_EMITTERS 128    /* the positional emitters above original (the N64's 64; AUDIO.md 10 says why) */
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters);
 
@@ -614,6 +618,8 @@ extern struct pc_mx_stream pc_mx_streams[PC_MX_VOICE_SLOTS];  /* N64 sound_strea
 #define PC_SND_N64_MSGS 128
 #define PC_SND_MSG_SLOTS 256
 int pc_snd_messages(void);
+/* In the sound manager's C, where the N64 has a literal n (128) for the messages: the run's, pc_snd_messages(). */
+#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 struct pc_snd_msg { short id; signed char type, used; unsigned char payload[16]; void *ent; };
 extern struct pc_snd_msg pc_snd_msgs[PC_SND_MSG_SLOTS];   /* N64 audiomgr_gCmds */
 extern void *pc_snd_start_cmds[PC_SND_MSG_SLOTS];        /* N64 gStartCmds */
