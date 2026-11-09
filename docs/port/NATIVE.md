@@ -349,7 +349,9 @@ the type's. Proof: the gate; `view_audit.py`; the crossing counter shows the car
 `fields.link_enum` down by the car files'. Depends on: nothing. Can run with 3 and 4. Risk: a raw offset or stride
 nothing caught (offset_check and layout_check are the net; races on every path).
 
-### Step 3. The level objects (medium-large)
+### Step 3. The level objects (medium-large): done
+
+Done 2026-11-09 (wave 3.1): what changed, the crossings before and after and the proof are section 10. The plan was:
 
 The level-object nodes (`Target`: `next`, `data`) get their host layout: the node pool `gTargetArray` (130 nodes of
 0x70 bytes in the game arena, [POINTERS.md](POINTERS.md) 10.2) becomes own storage of the host type, the StatLL
@@ -782,3 +784,94 @@ traces leave out. Compare kinds and sites, not the last digits; `--baseline` all
 - The runtime images' block (`image_block`: `overlay_loader.c`, `alloc_at.c`, `state.c`, 431 crossings) is step 6's.
 - The guard can't give steps 2-4 their targets before step 5 (9.3); the counter's arena regions do, and step 5's
   guard run with no fault is the proof that they found them all on these paths.
+
+## 10. Step 3: the level objects (done 2026-11-09)
+
+Wave 3.1's step 3: the level-object nodes, the StatLL lists, the visuals' data word and the target groups' list are
+host data with host pointers. Three commits: the visuals' data word first (a layout change alone), then the nodes,
+then the views of a visual spelled out for the checks and the checks' rules.
+
+| What | Before | After |
+|---|---|---|
+| a node (MAT3 `tTarget`) | 0x70 bytes, the N64 layout in the game arena block `gTargetArray` (0x8014D280): `next` and `data` 32-bit window addresses | `struct tTarget` (`pc_game_types.h`; the game C's `tTarget`), 0x78 bytes, MAT3's fields in MAT3's order, `next` and `data` pointers |
+| the pool | `gTargetArray`, 130 x 0x70 in the arena | `pc_target_nodes[PC_TARGET_NODES]` (130), decoupled storage data.c defines ([DECOUPLE.md](DECOUPLE.md) 10); `gTargetArray` retired |
+| the StatLL lists | the node pool's header flagged `n64`; `pc_statll_link`/`pc_statll_set_link` in the four list functions | every list linked by host pointers (`tStatList`, `tStatLLE`, `tDLLE`); the flag and both helpers gone |
+| a visual's data word (`struct pc_visual`) | a u32: a target's visual held its node as a window address (`PC_N64W`) | pointer-sized (`uintptr_t`): a visual is 0x28 bytes, a car record 0x510 (`CAR_OFS`, `VIS_OFS`; [CARS.md](CARS.md) 2, 3) |
+| the readers of a node | 19 files with views of their own at N64 offsets (`Target`, `Model`, `CollisionObject` ...), `N64P` on the link and the record | every one reads `tTarget` |
+| the target groups' list (GTLD) | a native array of the keys as `void *`, replaced in place by the targets | a native side table of keys and targets (`struct pc_target_group`, [ASSETS.md](ASSETS.md) 4 #14) |
+| a bounding box model's box (`tMiniModelData`) | `bboxInfo`, `BBoxCollInfo`'s row as a window address (`PC_N64W`) | `bboxRow`, the row (the model is a heap block of the N64's 64 bytes: 4.3); `MINI_MODEL_BOX` |
+| `CollisionTargetPtrs` | `intptr_t[30]` (and `struct Camera *[30]` in the declarations) | `tTarget *[30]` |
+
+The kinds' records stay what they were: heap blocks of the ROM's sizes (or the game's static tables), with no
+pointer but a path target's record's path (`tTargetStructPath.pathData`, a PTHD record), which keeps its window
+address with the PTHD records' own for step 7. What holds a record is the node's `data`, a pointer now.
+
+**The crossings** (`crossings.py --guard`, the 63 synthetic paths; 1f592ce8 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 118 | 32,127,083 | 115 | 32,127,059 | the walks of the node list: `PauseTargets.c` (4), `SetTargetDefs` (8), `InitBattlePowerUps.c` (8): 15 into `gTargetArray`, 5 null; the other 4 are the frames around the exit (9.4) |
+| `PC_N64W` | 30 | 1,975,908 | 29 | 1,975,900 | `set_target_data`'s record into the node's data (8, heap) |
+| `pc_statll_link` | 1 | 8 | 0 | 0 | `GetStatLLE.c` (8, `gTargetArray`) |
+| `pc_statll_set_link` | 3 | 7,418 | 0 | 0 | `ClearStatLL.c` (7,353 into `gTargetArray`, 57 null), `GetStatLLE.c` (8) |
+| the other ten kinds | 91 | 39,069,530 | 91 | 39,069,530 | none |
+| total | 243 | 73,179,947 | 235 | 73,172,489 | 8 sites, 7,458 crossings |
+
+The 8 sites were the step's 7,454 crossings: every one the synthetic paths make into the node pool (the report names
+`gTargetArray` nowhere now), and the record a set-up stores. The rest of what the step changed the synthetic
+cartridge doesn't reach: it has 8 targets (the battle arena's power-up spots, on 2 paths), no visual of a
+target, no box, no target group; the tests run those (`assets_targets`, `assets_battle`, `assets_weapons`), and the
+lead's retail scripts. The guard (counting): 4,428,996 faults at 452 instructions before, 4,428,364 at 449 after:
+the node reads of `PauseTargets`, `UpdateBattleHealth` and `ClearStatLL` are gone (the guard sees a page's first
+access in a frame, so `initTargetStructs`'s own by-name reads show where `ClearStatLL`'s were).
+
+The step's checks, on the counting build's dumps (`crossings.py --report build/crossings/paths --exe
+build/count/rush2049pc`): `--zero-kind pc_statll_link,pc_statll_set_link` passes, and so does `--zero-site` for each
+of the step's 28 game files (the StatLL functions, `targets/group.c`, `initTargetStructs.c`, `PauseTargets.c`,
+`InitBattlePowerUps.c`, `CheckTargetCollision.c`, the collision tests and response, the target visuals' 14
+`Animate*`/`Start*` files, the weapon icons' two) and for `gTargetArray` and `BBoxCollInfo`; the control,
+`--zero-site src/blob/FindChunk.c`, fails. What the step leaves in its files is the PTHD records' (step 7's):
+`targetpaths/group.c`, `GetTargetVelocity.c` and `TargetCollTrigger.c` read a path record's path and a path's points
+by `PC_N64P`, which no synthetic path reaches; and `pc_world_chunk` reads GTLD's keys from the file by the chunk's
+window address (`pc_n64_ptr`, 171 crossings into the heap, as before).
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3-ref --skip realtime` (Rocky, Debug, against 68069845) | PASS: ctest 572 of 572, synth_compare `--same --shots --audio` 63 of 63 `same` |
+| the visuals' commit alone (Debug): ctest; synth_compare against the base on `battle2p`, `battlequit`, `stunt`, `race`, `demo`, `race12`, `circuit` | 572 of 572; 7 of 7 `same` |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio -j6`) | 63 of 63 `same` |
+| `ctest --test-dir build/opt -LE realtime` | 572 of 572 |
+| the counting build (`crossings.py --guard --check`) | every run as its script expects, every guarded run's trace its plain run's; the zero checks above |
+| the synthetic cartridge | the same file as the base's |
+| `gen_data.py --check` (in the build) | OK, 39 decoupled |
+| `offset_check.py --strict` (Debug) | no open finding; 3 reviewed: the flat polygons, which the flow types through `FreeStatLLE`'s back link (LAYOUT.md 9.3) |
+| `layout_check.py` (Debug) | the base's open findings (3 layout, 1 width: `pc_sample_dma_list`, `sound_seq_players`, the heap's chunk size), none new; the StatLL functions' back link reviewed (LAYOUT.md 7, the rule `pc_statll_link` had) |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; none new |
+| `nofixed_audit.py --baseline` | no class grew (`symbols.decoupled` 39 in the baseline) |
+| `census.py` | 1,070 of 1,070 compile |
+| the views spelled out (the third commit) | each unit's code the same (objdump, Debug and RelWithDebInfo) |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug) against the fixed one (`synth_compare.py --runs 1 --same`, as CI's job) | builds; 63 of 63 `same` |
+| the tools' tests (`layout_check`, `offset_check`, `endian_check`, `crossings_tool`, `window_census_tool`, `hash_decoupled_list`, the view checks) after the rules changed | pass |
+
+**What this changes for the later steps.**
+
+- **The plan's "records hold pointers" meets 4.3's accounting.** A record the game allocates on its heap can't grow
+  without changing what the heap holds (the bounding box models, `gBBoxModelCount * 64`; the path targets' records,
+  `gTargetStructSizes[4]` bytes each). Step 3 keeps the box as its row (an index into a table, as `infoIdx` is), not
+  the row's address. Step 7 meets the same with `tTargetStructPath.pathData` (a PTHD record, 72-byte heap records):
+  the path's index (the target's `owner` names it at set-up) or a native side record, not a wider heap record.
+- **Pointers to PC data in the window's heap blocks.** The battle's always-colliding list (`gAlwaysCol`) and power-up
+  slots (`gBattlePowerUps.tS`) are heap blocks that hold nodes, now host pointers into `pc_target_nodes`, which differ
+  from one process to the next: the state hash names them by `statehash.c`'s `g_record_arrays` (each node's first
+  byte a start, as a named datum's is), or `hash_aslr` fails. A later step that puts pointers to other PC data in
+  the heap lists the array there.
+- **The car record is 0x510 bytes and a visual 0x28** (`CAR_OFS`, `VIS_OFS`): steps 2 and 4 rebase on it; views of
+  the car with `struct pc_visual visuals[21]` and N64-offset padding after it follow by themselves.
+- **GTLD's keys are still read from the file by its window address**: `pc_world_chunk` gets the chunk from
+  `MBGetFromWad`, a 32-bit address it translates (`pc_n64_ptr`, 171 crossings into the heap); the side table goes
+  native with the WAD's records (steps 7, 8).
+- `pc_statll_link` and `pc_statll_set_link` stay in the counter's kinds (always 0 now), so a report still lists every
+  kind; `port/assets/tests/support.h`'s `TEST_N64_gTargetArray` is unused (left to spare step 2's edits beside it a
+  merge conflict).

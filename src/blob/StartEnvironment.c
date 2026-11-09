@@ -3,16 +3,16 @@
 #include "game/game.h"
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual,
+ * docs/port/CARS.md 3). */
 typedef struct tVisual {
     struct tVisual *next;       /* 0x00 */
     s16 index;                  /* 0x08 */
     s16 objnum;                 /* 0x0A */
     s16 slot;                   /* 0x0C */
-    u8 pad0E[2];
-    u32 data;                   /* 0x10 */
-    float timeStamp;            /* 0x14 */
-    void (*func)(struct tVisual *, s16);   /* 0x18 */
+    uintptr_t data;             /* 0x10 */
+    float timeStamp;            /* 0x18 */
+    void (*func)(struct tVisual *, s16);   /* 0x20 */
 } tVisual;
 
 typedef PolyInstance tPoly;   /* a flat polygon (MAT3 tPoly) */

@@ -1,8 +1,9 @@
 /* UpdateVisuals.c: animate a car's visuals for a frame (MAT3 visuals.c, UpdateVisuals()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
-typedef struct tVisual { struct tVisual *next; s16 index, objnum, slot; u32 data; f32 timeStamp; void (*func)(struct tVisual *v, s16 op); } tVisual;
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
+ * 3). */
+typedef struct tVisual { struct tVisual *next; s16 index, objnum, slot; uintptr_t data; f32 timeStamp; void (*func)(struct tVisual *v, s16 op); } tVisual;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields UpdateVisuals reads. */
 typedef struct tCarData { u8 pad0[0xE8]; u32 appearance; u8 pad0EC[0x110 - 0xEC]; tVisual visuals[21]; u8 pad308[0x380 - 0x308]; void *player; u8 pad384[0x3B8 - 0x384]; } tCarData;
 

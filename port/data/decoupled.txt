@@ -99,3 +99,9 @@ pc_mx_streams      sound_streams  0x300
 pc_snd_msgs        audiomgr_gCmds  0xC00
 pc_snd_start_cmds  gStartCmds  0x200
 pc_snd_stop_cmds   gStopCmds  0x200
+
+# The level objects' nodes, the targets (MAT3 tTarget, gTargetArray; docs/port/POINTERS.md 10.2, NATIVE.md step 3):
+# struct tTarget[PC_TARGET_NODES], 130 nodes of 0x70 bytes on the N64 (0x8014D280-0x80150B60, game BSS), whose
+# link and kind's record were 32-bit addresses, and the StatLL pool linked them by them (the n64 flag); 0x78 bytes
+# on the PC, their link and record host pointers. initTargetStructs makes gTargetList's pool of them.
+pc_target_nodes    gTargetArray  0x38E0

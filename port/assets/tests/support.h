@@ -44,7 +44,6 @@ int pc_fix_absolute_got(void);
 #define TEST_N64_gTune 0x801116D0               /* the tune table, 44 bytes an entry */
 #define TEST_N64_stdtorquecurve 0x8011F724      /* the torque curve */
 #define TEST_N64_frontTire 0x8011F814           /* the tire records after the torque curve */
-#define TEST_N64_gTargetArray 0x8014D280        /* the battle and target nodes, 130 of 0x70 bytes */
 #define TEST_N64_BBoxCollInfo 0x80118C10        /* the level objects' bodies and static states */
 #define TEST_N64_ghost_file_handles 0x8013F1F8  /* the N64's ghost file handle slots */
 #define TEST_N64_ghost_file_records 0x8013F390  /* and records */

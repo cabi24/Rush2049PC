@@ -1,10 +1,6 @@
 #include "game/game.h"
 
 typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[0x48 - 0x8]; void *ref; } Player76;
-/* PC: a target is a level-object node, which keeps its N64 layout in the arena: the link is a 32-bit window address
- * (the node pool's n64 flag), so the sound and the state are at +0x60 and +0x64 (docs/port/POINTERS.md 10). */
-typedef struct Target { u32 next; u8 pad04[92]; s32 f96; s8 f100; } Target;
-#define TARGET_NEXT(t) ((Target *)PC_N64P((t)->next))
 
 extern Player76 gPlayers[];   /* gPlayers */
 

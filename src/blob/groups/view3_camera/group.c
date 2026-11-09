@@ -6,7 +6,7 @@
 float sqrtf(float);
 
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x20 bytes). */
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x28 bytes). */
 struct tCarData {
     u8 pad0[0x14];
     f32 dr_vel[3];          /* 0x14 its velocity */

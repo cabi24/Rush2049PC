@@ -1329,10 +1329,9 @@ LINKS = {
 # optionally (unit regex, view name) of the layout when it is another view's (records that reach the two views
 # through paths the flow does not follow, such as message queues).
 REFERENCE = [
-    (r"src/blob/groups/targets/group\.c$", "Node",
-     "the level-object nodes (the targets): N64 layout in the arena, 32-bit links and state (POINTERS.md 10.2)"),
-    (r"src/blob/groups/targets/group\.c$", "Matrix64",
-     "the dead-reckoning records gBBoxModelStructs: N64 layout, body a u32 window address (POINTERS.md 10.2)"),
+    (r"src/blob/groups/targets/group\.c$", "tMiniModelData",
+     "the bounding box models gBBoxModelStructs (a heap block): N64 layout, the box a row of BBoxCollInfo "
+     "(POINTERS.md 10.2)"),
     (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tFxSequence",
      "the audio manager's FX tags, MAT3 audiomgr.c's tFxSequence: InsertLLE's two links are pointers"),
     (r"src/blob/groups/save/AudioInit\.c$", "Voice",
@@ -1362,9 +1361,10 @@ SYMBOL_REFERENCE = {
 # Findings read and judged: (unit regex, regex on the function, view, field, access text or storage, why). A finding
 # whose accesses all match one rule (or one side's, for an 8-byte and 4-byte pair) is listed as reviewed.
 REVIEWED = [
-    (r".", r"^pc_statll_(set_)?link$",
-     "by design: the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other "
-     "width never runs on that list"),
+    (r"src/blob/(GetStatLLE|FreeStatLLE)\.c$", r"^(GetStatLLE|FreeStatLLE)$",
+     "by design: the StatLL functions reach an element's link back (tDLLE.prev, its second pointer) only on a doubly "
+     "linked list (dbl: the skid marks); the flow joins every list's elements, and a singly linked list's element has "
+     "a field of its own there (POINTERS.md 9.5)"),
     (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/scheduler\.c$", r"^(Sched|PcSched)$",
      "by design: audio_retrace_thread_entry's Sched is a PC view of the native scheduler (scheduler.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),

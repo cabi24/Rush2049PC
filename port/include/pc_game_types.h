@@ -279,8 +279,8 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 
 /* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar (6 records of 0x3B8 bytes, BSS; sample_dma_pi_queue, a
  * message queue, follows). One record per car slot: its position and orientation for the cameras and effects, its
- * visuals, its place and finish, and its battle state. On the PC a record is 0x468 bytes (docs/port/CARS.md 2): its 21
- * visuals hold host pointers (0x20 bytes each, not 0x18) and its input record pointer at N64 +0x380 is 8 bytes, so a
+ * visuals, its place and finish, and its battle state. On the PC a record is 0x510 bytes (docs/port/CARS.md 2): its 21
+ * visuals hold host pointers (0x28 bytes each, not 0x18) and its input record pointer at N64 +0x380 is 8 bytes, so a
  * field's PC offset is CAR_OFS of its N64 one (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized
  * members, as in every view. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars), so the
  * storage is PC_CAR_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the
@@ -290,15 +290,17 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_N64_CAR_SLOTS 6
 #define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
 
-/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for the car record and the views that pad over its
- * 21 visuals at +0x110 (and the environment visual pool gEnvirons): next and func are host pointers there, data
- * a u32 (docs/port/CARS.md 3). */
+/* A visual (MAT3 tVisual: N64 0x18 bytes, PC 0x28): one of a car's 21 (the car record at +0x110) or of the
+ * environment visual pool gEnvirons, animated each frame by its func. next and func are host pointers. data is
+ * MAT3's data word: the N64 kept a 32-bit address in it, so on the PC it is pointer-sized: an environment visual
+ * keeps the target it animates there (a tTarget *, the level-object nodes, docs/port/POINTERS.md 10.2), a car's
+ * visuals keep numbers (a wing's side and state, a tire's angle as a float in its low half: docs/port/CARS.md 3). */
 struct pc_visual {
-    void *next;
-    short index, objnum, slot;
-    unsigned int data;
-    float timeStamp;
-    void (*func)(void *, short);
+    void *next;                         /* +0x00 the next on its list (gEnvList, the free list) */
+    short index, objnum, slot;          /* +0x08 an index of the animator's own, the scene object, the car */
+    __UINTPTR_TYPE__ data;              /* +0x10 the data word: a pointer or a number (uintptr_t) */
+    float timeStamp;                    /* +0x18 the animator's time */
+    void (*func)(void *, short);        /* +0x20 the animator: op 1 each frame, op 0 to release it */
 };
 
 /* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
@@ -370,7 +372,7 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     float reloading_time;               /* +0x3AC battle */
     float battle_pitch;                 /* +0x3B0 battle: MAT3 battle.pitch */
     float battle_yaw;                   /* +0x3B4 battle: MAT3 battle.yaw */
-    unsigned int scenes;                /* PC +0x464, in the record's alignment padding, no N64 field: car 8 and up,
+    unsigned int scenes;                /* PC +0x50C, in the record's alignment padding, no N64 field: car 8 and up,
                                          * bit n set while it is in a scene trigger of collision index n (0-31),
                                          * which the trigger's flags have no bit for (TargetCollTrigger) */
 };
@@ -424,6 +426,53 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_SCENES(i) (pc_cars[i].scenes)
 #define PC_CAR_BATTLE_PITCH(i) (pc_cars[i].battle_pitch)
 #define PC_CAR_BATTLE_YAW(i) (pc_cars[i].battle_yaw)
+
+/* ---- The level objects, the targets: MAT3 tTarget and its pool gTargetArray (130 nodes of 0x70 bytes on the N64,
+ * game BSS at 0x8014D280, whose link and data were 32-bit addresses). One node per track object that takes part in
+ * the race (a cone, a cactus, a fence, a window, a coin, a mine, a weapon, an object moving on a path), taken from
+ * the StatLL pool gTargetList (SetupTarget; initTargetStructs makes the pool of pc_target_nodes, which data.c
+ * defines). On the PC a node is in the host layout, 0x78 bytes: its link and its kind's record are host pointers,
+ * and so is everything that holds a node (a visual's data word, the target groups' list, the mines' slots, the
+ * always-colliding list, the power-ups, the cameras' path targets; docs/port/POINTERS.md 10.2). The game C names it
+ * tTarget (include/game/types.h, with the TARGET_* flags). */
+#define PC_TARGET_NODES 130
+struct tTarget {
+    struct tTarget *next;               /* +0x00 ll.next: the next target in its list, NULL the last */
+    unsigned char Flags;                /* +0x08 TARGET_* */
+    int mbIdx;                          /* +0x0C its model (MBOX_FindObject_WORK); once set up a world object's or a
+                                         * path target's key, which the target groups' list names it by */
+    int dlIdx;                          /* +0x10 its scene object (ZOID_AddObject): a handle whose low half is the
+                                         * object's index, -1 none */
+    short infoIdx;                      /* +0x14 its kind: its index in targetInfo */
+    struct {
+        float uvs[3][3];                /* +0x18 its orientation */
+        float pos[3];                   /* +0x3C its position, which its scene object is drawn at */
+    } mat;                              /* MAT3 tUVMatrix */
+    float pos[3];                       /* +0x48 its position in the world (MBOX_GetPosition) */
+    short type;                         /* +0x54 the object definition it shows now (gObjList) */
+    float radius;                       /* +0x58 its collision radius */
+    short otype;                        /* +0x5C the object definition it started with */
+    short frames;                       /* +0x5E its animation's frames */
+    signed char slot;                   /* +0x60 the car that hit it, -1 none */
+    int sound;                          /* +0x64 its sound emitter, -1 none */
+    signed char sndState;               /* +0x68 its sound: 0 starting, 1 moving, 2 stopped */
+    signed char owner;                  /* +0x69 the car that owns it (a mine), a path target's path, a box's model */
+    float timeStamp;                    /* +0x6C a mine's seconds on the road */
+    void *data;                         /* +0x70 its kind's record: its own of its kind's (gTargetOwnStructPtrs), its
+                                         * kind's static one (gTargetStructInfoPtrs), or a flag's world object; NULL
+                                         * none */
+};
+extern struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* N64 gTargetArray */
+
+/* The world's target groups' list (MAT3 gTargetGroupList, the world WAD's GTLD chunk): one entry per key the
+ * quadtree's leaves (gTargetGroups) index, which CheckTargetCollision tests a car against. On the N64 race set-up
+ * replaced the file's 32-bit keys in place by the targets they name; on the PC the list is a native side table
+ * that LoadTrack gets from the world's converter with the file's keys (pc_world_chunk, port/assets/world.c;
+ * docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
+struct pc_target_group {
+    int key;                            /* the file's key: a world object's tidx, a path's parent */
+    struct tTarget *target;             /* the target whose mbIdx is the key (SetTargetDefs), NULL none */
+};
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets

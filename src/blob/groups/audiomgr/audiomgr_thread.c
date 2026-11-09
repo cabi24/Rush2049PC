@@ -10,7 +10,6 @@ typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSSched OSSched;
 
-typedef struct tDLLE { void *next; void *prev; } tDLLE;
 typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
 
 typedef struct tBSTE { void *left; void *right; } tBSTE;

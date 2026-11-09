@@ -81,6 +81,11 @@ REVIEWED = [
     (r"src/blob/AnimateMine\.c$", r"^AnimateMine$",
      "by design: ZOID_GetColor returns the scene node's colour on the PC (ObjInstance's prim, host +0x60), whose bytes "
      "AnimateMine sets through its Color; the static copy it called until wave 2 gave the same address typed"),
+    (r"src/blob/(ZOID_NewPoly\.c|groups/zoid_update_poly/group\.c|groups/zoid_draw/group\.c)$", r"^PolyInstanceList$",
+     "false positive: the flat polygons are typed through FreeStatLLE's tDLLE view, which the flow (no call contexts) "
+     "joins over every list: a hit poly (gHitPolyList's element) holds its polygon where a doubly linked element has "
+     "its link back, but the hit polys' list is singly linked, so FreeStatLLE's back-link branch never reaches a "
+     "polygon; tPoly keeps its N64 layout on the PC (no pointer)"),
 ]
 
 

@@ -92,7 +92,7 @@ static void test_visuals(void)
     for (i = 0; i < 4; i++) {
         visuals[i].next = i < 3 ? &visuals[i + 1] : NULL;
         visuals[i].timeStamp = 0.0333333f;   /* N64 +0x14, where the 32-bit walk took the func from */
-        visuals[i].data = TEST_SCRATCH + i;   /* a u32 window address */
+        visuals[i].data = TEST_SCRATCH + i;   /* a data word */
     }
     visuals[0].func = end_self;
     visuals[1].func = record;

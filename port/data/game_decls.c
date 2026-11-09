@@ -10,7 +10,7 @@
  * that define them declare them, so include/game can't; their layout is still this one. */
 extern f32 gDummyVtx[EXTENT(4)][3];   /* src/blob/groups/animate_arrow/group.c: defines it */
 extern EnvironNode gEnvirons[EXTENT(100)];   /* src/blob/InitEnvs.c: defines it */
-extern struct Camera *CollisionTargetPtrs[EXTENT(30)];   /* src/blob/InitCollisionTargetPtrs.c: defines it */
+extern tTarget *CollisionTargetPtrs[EXTENT(30)];   /* src/blob/InitCollisionTargetPtrs.c: defines it */
 extern PlayerInput gPlayers[EXTENT(4)];   /* src/blob/groups/game_sounds/InitOptions.c: defines it */
 extern intptr_t gOPPFuncs[EXTENT(10)];   /* src/blob/groups/hal_time/group.c: defines it */
 extern f32 weaponOffsets[EXTENT(8)][13][3];   /* src/ovl_b/groups/weapons/weapons.c: defines it */

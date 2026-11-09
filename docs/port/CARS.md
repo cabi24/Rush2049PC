@@ -13,8 +13,8 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 
 | Record | N64 | PC | Storage on the PC | Why |
 |---|---:|---:|---|---|
-| car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x468** | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
-| visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x20** | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds flags or a window address |
+| car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x510** (0x468 until 2026-11-09) | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
+| visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x28** (0x20 until 2026-11-09) | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds numbers or a pointer (a target: section 3), pointer-sized |
 | model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x830** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | its five pointer fields (MAT3's `car`, `tune`, `lasttp[4]`, `torquecurve`, `movingSurface`) are host pointers (since 2026-11-09, section 4) |
 | car physics descriptor, `car_descriptors[6]` (MAT3 `_tCar`; `model->car`, `gCarModels[body]`) | 0xB4 | **0xC8** | own storage (data.c), filled from the image | its four tire pointers (`tires[4]`, to `frontTire`) are host pointers (since 2026-11-09, section 4) |
 
@@ -37,7 +37,7 @@ inside the array (`D_80152907` and 10 others) are the accessors of the fields th
 |---|---|---|---|
 | +0x110 + 0x18k (k < 21) | `visuals[k].next` | another visual (unused for car visuals; the car array is host storage) | `void *`, 8 |
 | +0x124 + 0x18k | `visuals[k].func` | the visual's animator, a host function (`AnimateTire`, `AnimateShadow`, ...) | function pointer, 8 |
-| +0x11C + 0x18k | `visuals[k].data` | flags (`VIS_BIT` ...) or a float (the tires' angle) | u32 |
+| +0x11C + 0x18k | `visuals[k].data` | flags (`VIS_BIT` ...) or a float (the tires' angle) | `uintptr_t`, 8 (section 3) |
 | +0x380 | `input` | the car's input record `&gPlayers[i]` (own storage), NULL for drones | `void *`, 8 |
 
 So the car can't keep its N64 size, and the PC layout is the N64 field order with those widened:
@@ -45,14 +45,14 @@ So the car can't keep its N64 size, and the PC layout is the N64 field order wit
 | N64 | PC | |
 |---|---|---|
 | 0x000–0x110 | 0x000–0x110 | unchanged |
-| 0x110 + 0x18k + f | 0x110 + 0x20k + f' | f' = f for `next` (f < 4), f + 4 after it (`index` +8, `objnum` +0xA, `slot` +0xC, `data` +0x10, `timeStamp` +0x14, `func` +0x18) |
-| 0x308–0x380 | 0x3B0–0x428 | +0xA8 |
-| 0x380 (`input`) | 0x428 | 8 bytes |
-| 0x384–0x3B8 | 0x430–0x464 | +0xAC, then 4 bytes to 8-byte alignment: `struct pc_car` names them `scenes`, a PC field with no N64 one (a scene trigger's cars from 8 on, [MORECARS.md](MORECARS.md) 3.1); every view leaves them as its alignment padding |
-| stride 0x3B8 | **0x468** | |
+| 0x110 + 0x18k + f | 0x110 + 0x28k + f' | f' = f for `next` (f < 4), f + 4 for `index`, `objnum`, `slot` and `data` (+8, +0xA, +0xC, +0x10), f + 8 for `timeStamp` (+0x18), f + 0xC for `func` (+0x20) |
+| 0x308–0x380 | 0x458–0x4D0 | +0x150 |
+| 0x380 (`input`) | 0x4D0 | 8 bytes |
+| 0x384–0x3B8 | 0x4D8–0x50C | +0x154, then 4 bytes to 8-byte alignment: `struct pc_car` names them `scenes`, a PC field with no N64 one (a scene trigger's cars from 8 on, [MORECARS.md](MORECARS.md) 3.1); every view leaves them as its alignment padding |
+| stride 0x3B8 | **0x510** | |
 
 `port/include/pc_prelude.h` has it as `PC_CAR_SIZE` and `CAR_OFS(n)` (the PC offset of N64 offset n, which may run
-into later cars: `CAR_OFS(0x3B8)` is the stride) and `VIS_OFS(x)` (inside a visual, `VIS_OFS(0x18)` = 0x20);
+into later cars: `CAR_OFS(0x3B8)` is the stride) and `VIS_OFS(x)` (inside a visual, `VIS_OFS(0x18)` = 0x28);
 `struct pc_visual` is in `port/include/pc_game_types.h` (which `pc_prelude.h` includes), with the record itself,
 `struct pc_car`, since the record is PC data ([DECOUPLE.md](DECOUPLE.md) 4). Game files that use them define the N64
 side, `#define CAR_OFS(n) n`, so the N64 tokens are the original ones.
@@ -105,19 +105,25 @@ they use views, not raw offsets.
 
 ## 3. The visual record
 
-On the PC a visual is `{void *next; s16 index, objnum, slot; u32 data; f32 timeStamp; void (*func)(); }`, 0x20
-bytes, in the cars and in the environment visual pool `gEnvirons` (100 nodes, defined in `InitEnvs.c`;
-`GrabEnvEntry` `GrabEnvEntry`, the list `gEnvList`, `ReleaseEnviron` to free one).
+On the PC a visual is `struct pc_visual` (`port/include/pc_game_types.h`): `{void *next; s16 index, objnum, slot;
+uintptr_t data; f32 timeStamp; void (*func)(); }`, 0x28 bytes (next +0, index +8, objnum +0xA, slot +0xC, data +0x10,
+timeStamp +0x18, func +0x20), in the cars and in the environment visual pool `gEnvirons` (100 nodes, defined in
+`InitEnvs.c`; `GrabEnvEntry` `GrabEnvEntry`, the list `gEnvList`, `ReleaseEnviron` to free one).
 
-`data` stays a u32. For car visuals it holds flags or a float. For environment visuals it holds what the visual
-animates, and every such pointee is in the window: the targets, which are the level-object nodes, in the arena
-block `gTargetArray` (`AnimateMine`, `StartWindow`, `StartKnockdown`, `StartCactus`, `AnimateVelRotGeneric`,
-`Animation24`, and the cameras of `CamNode`; their state records are heap blocks of their category,
-POINTERS.md 10.2). Those views store it through `N64W()` and read
-it through `N64P()`. `func` is pointer-sized in every view: the pool's `Node` views had it as `u32` (and `data` as a
-pointer), `StartCone`, `BNode`, `CamNode`, rocket's `Entity` and `ModelObj` as an integer (now `intptr_t`), and the
-callbacks' own views (`AnimateShadow`, `AnimateNewBlast`, `AnimateWing`, the tire views) had padding
-standing for `next`.
+`data` is MAT3's `unsigned int data`, a word that holds a number or a pointer: on the PC it is pointer-sized
+(`uintptr_t`, since 2026-11-09, [NATIVE.md](NATIVE.md) step 3; a u32 before, and a visual 0x20 bytes). For car visuals
+it holds flags (a wing's side and state) or a float (a tire's angle, in the word's low half: `AnimateTire`'s view).
+For environment visuals it holds what the visual animates: a target, a level-object node (`AnimateMine`,
+`StartWindow`, `StartKnockdown`, `StartCactus`, `StartCone`, `StartFence`, `AnimateVelRotGeneric`, `AnimateCoin`,
+`AnimateFlag`, `AnimateObjSwapGeneric`, `AnimateRotGeneric`, `AnimateKnockdown`, `AnimateWeaponIcon`, the path
+targets' `AnimatePathTarget`), stored as `(uintptr_t)t` and read as `(tTarget *)v->data`. The nodes are PC data
+(`pc_target_nodes`, POINTERS.md 10.2): a node's address is a host pointer, which a u32 couldn't hold. `func` is
+pointer-sized in every view: the pool's `Node` views had it as `u32` (and `data` as a pointer), `StartCone`, `BNode`,
+`CamNode`, rocket's `Entity` and `ModelObj` as an integer (now `intptr_t`), and the callbacks' own views
+(`AnimateShadow`, `AnimateNewBlast`, `AnimateWing`, the tire views) had padding standing for `next`. Every view of a
+visual has the 0x28-byte layout, padding included (`ReleaseEnviron`, `UpdateEnvirons`, `RemoveCar`, `rocket.c`,
+`AnimateShadow`, `AnimateNewBlast`, `AnimateNewBlastRing` pad to `func` at +0x20); the target visuals are `struct
+pc_visual` itself.
 
 ## 4. The model record
 
@@ -202,7 +208,7 @@ those translations as the bulk of the game C's crossings into the arenas.
 
 | | Before | After |
 |---|---:|---:|
-| `gGameCar` storage | 6,720 B (1,120 a car), link warning | 6,768 B (0x468 a car), no warning; since DECOUPLE.md 4, `pc_cars`: 13,536 B (12 of 0x468) |
+| `gGameCar` storage | 6,720 B (1,120 a car), link warning | 6,768 B (0x468 a car), no warning; since DECOUPLE.md 4, `pc_cars`: 13,536 B (12 of 0x468); since NATIVE.md step 3, 19,440 B (12 of 0x510) |
 | `D_8014A250` storage | own, 12,384 B (0x810 a model) | arena at 0x8014A250, 12,336 B; since DECOUPLE.md 3, `pc_models`: own, 24,672 B (12 of 0x808) |
 | gen_data pointer conflicts, all symbols / these | 394 / 154 | 241 / 1 |
 | view_audit, car views disagreeing | 137 of 140 | 0 of 134 |

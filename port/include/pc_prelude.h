@@ -136,7 +136,7 @@ static __inline__ unsigned int pc_n64w_checked(__UINTPTR_TYPE__ v, const char *f
 void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 
-/* A car visual (tVisual: N64 0x18 bytes, PC 0x20), struct pc_visual, is declared with the car record in
+/* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
  * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 
 /* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
@@ -150,16 +150,17 @@ struct pc_multiblit {
     unsigned int animid;
 };
 
-/* The car record (gGameCar, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
- * from +0x110 to N64 +0x308, and its input record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of
- * N64 offset n, which may run into the next cars (CAR_OFS(0x3B8) is the PC stride). Code that reaches cars by raw
- * offsets goes through it. */
-#define PC_CAR_SIZE 0x468
-#define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x20 \
-    + (((r) - 0x110) % 0x18 < 4 ? ((r) - 0x110) % 0x18 : ((r) - 0x110) % 0x18 + 4) : (r) <= 0x380 ? (r) + 0xA8 \
-    : (r) + 0xAC)
+/* The car record (gGameCar, 6 cars) is 0x510 bytes on the PC, 0x3B8 on the N64: its 21 visuals are 0x28 bytes (struct
+ * pc_visual: next, the data word and func pointer-sized) from +0x110 to N64 +0x308, and its input record pointer at
+ * N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of N64 offset n, which may run into the next cars (CAR_OFS(0x3B8)
+ * is the PC stride). Code that reaches cars by raw offsets goes through it. Inside a visual the N64's next (+0) stays
+ * at +0, index, objnum and slot (+4..+0xA) and data (+0xC) move 4 bytes on, timeStamp (+0x10) 8 and func (+0x14) 0xC. */
+#define PC_CAR_SIZE 0x510
+#define PC_VIS_REL(o) ((o) < 4 ? (o) : (o) < 0x10 ? (o) + 4 : (o) < 0x14 ? (o) + 8 : (o) + 0xC)
+#define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x28 \
+    + PC_VIS_REL(((r) - 0x110) % 0x18) : (r) <= 0x380 ? (r) + 0x150 : (r) + 0x154)
 #define CAR_OFS(n) ((n) / 0x3B8 * PC_CAR_SIZE + PC_CAR_REL((n) % 0x3B8))
-/* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x20). */
+/* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x28). */
 #define VIS_OFS(x) (CAR_OFS(0x110 + (x)) - 0x110)
 
 /* The save records (docs/port/POINTERS.md 9.10). Each is RAM-only and starts with pointers, so on the PC the rest
@@ -187,18 +188,6 @@ struct pc_multiblit {
  * the stride; docs/port/POINTERS.md 10). */
 #define TINFO_OFS(n) ((n) / 0x30 * 0x40 + ((n) % 0x30 < 0x10 ? (n) % 0x30 * 2 : (n) % 0x30 + 0x10))
 
-/* A StatLL list links its elements through their first word, and a doubly linked list back through the second.
- * Link k of element e: a host pointer, or a 32-bit window address when the list's header is flagged n64 (its
- * elements keep their N64 layout: the level-object nodes, docs/port/POINTERS.md 10). */
-static __inline__ void *pc_statll_link(int n64, void *e, int k) {
-    return n64 ? (void *)PC_N64P(((unsigned int *)e)[k]) : ((void **)e)[k];
-}
-static __inline__ void pc_statll_set_link(int n64, void *e, int k, void *v) {
-    if (n64)
-        ((unsigned int *)e)[k] = PC_N64W(v);
-    else
-        ((void **)e)[k] = v;
-}
 
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
@@ -236,10 +225,10 @@ static __inline__ unsigned int pc_mips_d2u(double d)
 #define N64_D2U(x) pc_mips_d2u(x)
 
 /* The crossing counter (cmake -DRUSH_COUNT_CROSSINGS=ON, docs/port/NATIVE.md 9): each translation above is counted at
- * the line that uses it (a file's own macro, N64P or LINK, where the file uses it), the StatLL links at the list
- * function's line rather than here. Values and results are the default build's; only the count is added. The moved
- * and the cast-checking builds translate or check every crossing themselves, and the counter is not combined with
- * them (CMakeLists.txt); a file that checks its own casts (port/assets/tests/test_casts.c) keeps its checks. */
+ * the line that uses it (a file's own macro, N64P or LINK, where the file uses it). Values and results are the
+ * default build's; only the count is added. The moved and the cast-checking builds translate or check every
+ * crossing themselves, and the counter is not combined with them (CMakeLists.txt); a file that checks its own casts
+ * (port/assets/tests/test_casts.c) keeps its checks. */
 #if defined(RUSH_COUNT_CROSSINGS) && !defined(RUSH_NOFIXED) && !defined(RUSH_CHECK_CASTS)
 #include "pc_crossings.h"
 static __inline__ __UINTPTR_TYPE__ pc_counted_n64p(unsigned int a, const char *file, int line)
@@ -270,21 +259,6 @@ static __inline__ unsigned int pc_counted_slot(int kind, unsigned int a, const c
 #define PC_N64W(x) pc_counted_n64a(PC_CROSS_N64W, (__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
 #define PC_SLOT_N64(s) pc_counted_slot(PC_CROSS_SLOT_N64, *(unsigned int *)(s), __FILE__, __LINE__)
 #define PC_SLOT_SET(s, a) (*(unsigned int *)(s) = pc_counted_slot(PC_CROSS_SLOT_SET, (a), __FILE__, __LINE__))
-/* A link counted only where the list is in the N64-linked form (n64): a host-pointer link is no crossing. */
-static __inline__ void *pc_counted_statll_link(int n64, void *e, int k, const char *file, int line)
-{
-    if (n64 && pc_cross_at)
-        pc_cross_at(PC_CROSS_STATLL_GET, ((unsigned int *)e)[k], file, line);
-    return pc_statll_link(n64, e, k);
-}
-static __inline__ void pc_counted_statll_set_link(int n64, void *e, int k, void *v, const char *file, int line)
-{
-    if (n64 && pc_cross_at)
-        pc_cross_at(PC_CROSS_STATLL_SET, (__UINTPTR_TYPE__)v, file, line);
-    pc_statll_set_link(n64, e, k, v);
-}
-#define pc_statll_link(n64, e, k) pc_counted_statll_link((n64), (e), (k), __FILE__, __LINE__)
-#define pc_statll_set_link(n64, e, k, v) pc_counted_statll_set_link((n64), (e), (k), (v), __FILE__, __LINE__)
 #endif
 
 /* Game data the PC owns, with no N64 address: the race roster, the model records, the car records

@@ -9,8 +9,6 @@ typedef union {
     f32 v[3];
 } Vector3;
 
-/* A track object (MAT3 tTarget): only owner, which for a box target is the index of its box record. */
-typedef struct CollisionObject { char unknown00[0x65]; s8 index; } CollisionObject;
 
 /* The model record's view (MAT3 tModelData): what the test reads. */
 typedef struct {
@@ -34,28 +32,14 @@ typedef struct {
     char unknown7EB[0x808-0x7EB];
 } CollisionModel;
 
-/* A box's extent (MAT3 tBBoxColl, BBoxCollInfo), in the box's own space. */
-typedef struct {
-    f32 xmin, xmax, zmax, zmin, ymax, ymin, radius;
-    f32 mass;
-} CollisionBounds;
 
-/* A moving box (MAT3 tMiniModelData, gBBoxModelStructs): its extent (a window address), orientation, position and
- * velocity. */
-typedef struct CollisionReckon {
-    unsigned int body;
-    f32 basis[3][3];
-    f32 position[3];
-    f32 velocity[3];
-} CollisionReckon;
-#define BODY(r) ((CollisionBounds *)PC_N64P((r)->body))
-
-/* Test car *index against the box of target `object`. Nothing happens if the car isn't collidable or its circle
+/* Test car *index against the box of target t: its bounding box model (gBBoxModelStructs[t->owner]: where it is,
+ * which way it faces, its box, a row of BBoxCollInfo). Nothing happens if the car isn't collidable or its circle
  * doesn't reach the box's; else each of the car's four corners is taken into the box's space, and at the first
  * that lies inside the box the push is applied. Always returns 0. */
-s32 TargetCollBBox(CollisionObject *object, s16 *index, void *unused3, s32 unused4) {
+s32 TargetCollBBox(tTarget *t, s16 *index, void *unused3, s32 unused4) {
     CollisionModel *car;
-    CollisionReckon *other;
+    tMiniModelData *other;
     s32 mnum;
     f32 radius;
     f32 radius_squared;
@@ -65,17 +49,17 @@ s32 TargetCollBBox(CollisionObject *object, s16 *index, void *unused3, s32 unuse
     s32 i, hit;
     mnum = *index;
     car = PC_MODEL(mnum);
-    other = &gBBoxModelStructs[object->index];
+    other = &gBBoxModelStructs[t->owner];
     if (!car->collidable) {
         return 0;
     }
-    delta[0] = car->position[0] - other->position[0];
-    delta[1] = car->position[1] - other->position[1];
-    delta[2] = car->position[2] - other->position[2];
+    delta[0] = car->position[0] - other->pos[0];
+    delta[1] = car->position[1] - other->pos[1];
+    delta[2] = car->position[2] - other->pos[2];
     for (i = 0, distance = 0.0; i < 3; i++) {
         distance += delta[i] * delta[i];
     }
-    radius = BODY(other)->radius + car->radius;
+    radius = MINI_MODEL_BOX(other)->rad + car->radius;
     radius_squared = radius * radius;
     if (distance > radius_squared) {
         return 0;
@@ -85,15 +69,15 @@ s32 TargetCollBBox(CollisionObject *object, s16 *index, void *unused3, s32 unuse
         world.c.x = car->position[0] + world.c.x;
         world.c.y = car->position[1] + world.c.y;
         world.c.z = car->position[2] + world.c.z;
-        world.c.x -= other->position[0];
-        world.c.y -= other->position[1];
-        world.c.z -= other->position[2];
-        BodyVector(world.v, local, other->basis[0]);
-        if (local[0] > BODY(other)->xmax || local[0] < BODY(other)->xmin) {
+        world.c.x -= other->pos[0];
+        world.c.y -= other->pos[1];
+        world.c.z -= other->pos[2];
+        BodyVector(world.v, local, other->uvs[0]);
+        if (local[0] > MINI_MODEL_BOX(other)->right || local[0] < MINI_MODEL_BOX(other)->left) {
             hit = 0;
-        } else if (local[1] > BODY(other)->ymax || local[1] < BODY(other)->ymin) {
+        } else if (local[1] > MINI_MODEL_BOX(other)->top || local[1] < MINI_MODEL_BOX(other)->bot) {
             hit = 0;
-        } else if (local[2] > BODY(other)->zmax || local[2] < BODY(other)->zmin) {
+        } else if (local[2] > MINI_MODEL_BOX(other)->front || local[2] < MINI_MODEL_BOX(other)->back) {
             hit = 0;
         } else {
             hit = 1;

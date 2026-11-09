@@ -629,8 +629,9 @@ From `data_layout.txt`:
   byte-swaps text, so these are worth reading.
 - **Inside own storage, but with pointers the storage lacks: 10**, all in other parts' structures: MusyX's
   `sound_services` hooks and stream state `speech_streams` (`hardware.c`, `streams.c`), the scene-node table
-  `ObjInstanceList`, and the object pool `gTargetList`, whose three `Pool` views disagree on its pointers. (The pool's
-  views now agree, and its nodes keep their N64 layout in the arena block `gTargetArray`: POINTERS.md 10.2.)
+  `ObjInstanceList`, and the object pool `gTargetList`, whose three `Pool` views disagree on its pointers. (The pool is a
+  `tStatList` now, and its nodes PC data in the host layout, `pc_target_nodes`, since NATIVE.md step 3: POINTERS.md
+  10.2.)
 - **Gap extents crossing symbol-table addresses: 44.** Open-ended arrays whose size came from the gap, but which
   run over an address the image's symbol table knows. Most are field addresses inside struct arrays
   (`gGameCar`, `Camera[]`). Some may be separate tables that no C declares: the file table's

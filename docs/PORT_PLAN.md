@@ -208,7 +208,7 @@ A third wave of parallel work, with builds on a 20-thread x86-64 host (`tools/po
 
 | Part | Document | What it does |
 |---|---|---|
-| Car, visual and model records | [port/CARS.md](port/CARS.md) | A car is 0x468 bytes on the PC (its 21 visuals and its input pointer are pointer-sized); the model records keep their N64 layout with u32 window addresses, in the arena. `tools/port/view_audit.py` checks every view against the reference layout by DWARF |
+| Car, visual and model records | [port/CARS.md](port/CARS.md) | A car is 0x510 bytes on the PC (its 21 visuals, 0x28 bytes each, and its input pointer have pointer-sized fields); the model records keep their N64 layout with u32 window addresses, in the arena. `tools/port/view_audit.py` checks every view against the reference layout by DWARF |
 | Race-time records | [port/POINTERS.md](port/POINTERS.md) §10 | The target info table, the level-object nodes (N64 layout, 32-bit links), the input records (80 bytes), the ZOID windows and the frame records |
 | Save records | POINTERS.md §9.10 | The pak file records, profiles and ghosts; heap handle slots are pointer-sized. The game's own code saves, reloads and deletes on a test pak |
 | Byte order | [port/ENDIAN.md](port/ENDIAN.md) | `tools/port/endian_check.py` follows each access of the live game code through GCC's GIMPLE and DWARF; node handles read as their N64 low half, colour words, and declarations fixed; the loader copies colour unions as bytes |

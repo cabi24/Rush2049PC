@@ -1,14 +1,15 @@
 /* StartWeapon: a car's weapon appears on it (MAT3 weapons.c). */
 #include "game/game.h"
 
-/* A visual (MAT3 tVisual; the PC's 0x20-byte struct pc_visual: next and func are host pointers). */
+/* A visual (MAT3 tVisual; the PC's 0x28-byte struct pc_visual: next, data and func are pointer-sized). The offsets
+ * are the N64's. */
 typedef struct tVisual tVisual;
 struct tVisual {
     tVisual *next;      /* 0x00 */
     s16 index;          /* 0x04 */
     s16 objnum;         /* 0x06 */
     s16 slot;           /* 0x08 */
-    u32 data;           /* 0x0C */
+    uintptr_t data;     /* 0x0C */
     f32 timeStamp;      /* 0x10 */
     void (*func)(tVisual *, s16); /* 0x14 */
 };

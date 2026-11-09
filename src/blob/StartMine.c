@@ -4,21 +4,6 @@
  * up. */
 #include "game/game.h"
 
-/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
- * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
-typedef struct Target {
-    u8 pad00[4];
-    u8 flags;               /* 0x04 Flags: TARGET_ACTIVE */
-    u8 pad05[11];
-    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
-    u8 pad12[0x38 - 0x12];
-    f32 matPos[3];          /* 0x38 mat's position, where its sounds play */
-    f32 pos[3];             /* 0x44 its position */
-    u8 pad50[0x5C - 0x50];
-    s8 slot;                /* 0x5C the car that hit it */
-    u8 pad5D[0x65 - 0x5D];
-    s8 owner;               /* 0x65 the car that dropped it */
-} Target;
 
 
 /* The weapon (pc_car.weapon_type, MAT3 battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
@@ -27,9 +12,10 @@ typedef struct Target {
 #define MINE_DAMAGE_FRONT_ARMOUR 280
 #define MINE_DAMAGE 800
 
-/* A car has driven over the mine: unless the car is already wrecked, it takes 800 damage (280 if it has the
- * front-armour weapon and the mine is ahead of it), the mine is spent, and the mine's start sound plays. */
-void StartMine(Target *t)
+/* A car (the target's slot) has driven over the mine (the target t; its owner is the car that dropped it): unless
+ * the car is already wrecked, it takes 800 damage (280 if it has the front-armour weapon and the mine is ahead of
+ * it), the mine is spent, and the mine's start sound plays. */
+void StartMine(tTarget *t)
 {
     struct pc_car *car;
     f32 delta[3];
@@ -50,7 +36,7 @@ void StartMine(Target *t)
         } else {
             BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
         }
-        t->flags &= ~TARGET_ACTIVE; /* AnimateMine blows up a mine without it */
-        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
+        t->Flags &= ~TARGET_ACTIVE; /* AnimateMine blows up a mine without it */
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
     }
 }

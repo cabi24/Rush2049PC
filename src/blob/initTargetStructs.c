@@ -1,11 +1,8 @@
 /* initTargetStructs: the targets' lists at a track's set-up (MAT3 targets.c). */
 #include "game/game.h"
 
-/* The node pool as these lists' header (gTargetList's TargetNodePool; gAlwaysColList's tStatList lays out alike). */
-typedef TargetNodePool Pool;
-
-/* InitStatLL, as the N64 code has it here: `count` elements of `size` bytes at `mem`, none in use. */
-static void pool_init(Pool *p, void *mem, s32 count, s32 size) {
+/* InitStatLL, as the N64 code has it here: `count` elements of `size` bytes at `mem`, none in use, singly linked. */
+static void pool_init(tStatList *p, void *mem, s32 count, s32 size) {
     p->list = mem;
     p->numElements = count;
     p->elementSize = size;
@@ -13,15 +10,16 @@ static void pool_init(Pool *p, void *mem, s32 count, s32 size) {
     ClearStatLL(p);
 }
 
-/* Sets up the targets for a track: gTargetList's 130 nodes of 0x70 bytes (in the N64's layout, linked by window
- * addresses: the pool's n64 flag), no path targets or kinds' records counted yet, no player mines; in battle the
- * list of targets every car is tested against (15 of them, allocated once, a restart keeping it; the PC's elements
- * are 16 bytes, the N64's 8) and the power-ups' records (PreInitBattlePowerUps). No boxes, no coins. `unused` is
- * not read. */
+/* Sets up the targets for a track: gTargetList's 130 nodes, pc_target_nodes (MAT3 gTargetArray: on the N64 0x70
+ * bytes a node in the game's BSS, linked by 32-bit addresses; on the PC tTarget's host layout, PC data, linked by
+ * pointers like every StatLL: docs/port/NATIVE.md step 3), no path targets or kinds' records counted yet, no player
+ * mines; in battle the list of targets every car is tested against (15 of them, allocated once, a restart keeping
+ * it; the PC's elements are 16 bytes, the N64's 8) and the power-ups' records (PreInitBattlePowerUps). No boxes, no
+ * coins. `unused` is not read. */
 void initTargetStructs(s32 unused) {
     s16 i;
 
-    gTargetList.n64 = 1; pool_init(&gTargetList, gTargetArray, 130, 112);
+    pool_init(&gTargetList, pc_target_nodes, PC_TARGET_NODES, sizeof(tTarget));
     Restarting = gRestartGame;
     InitCollisionTargetPtrs();
     gPathCount = 0;
@@ -42,7 +40,7 @@ void initTargetStructs(s32 unused) {
         }
         gTargetStructCount[5] = 16;
         PreInitBattlePowerUps();
-        pool_init((Pool *) &gAlwaysColList, gAlwaysCol, 15, sizeof(tAlwaysCol));
+        pool_init(&gAlwaysColList, gAlwaysCol, 15, sizeof(tAlwaysCol));
     }
     gBBoxModelCount = 0;
     gSilverCoinCnt = 0;

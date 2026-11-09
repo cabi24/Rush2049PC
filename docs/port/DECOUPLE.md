@@ -974,3 +974,53 @@ and `update_fx/getcmd.c`, and carcolor's weak `AudioShutdown`) are 24, as before
 | `assets_mxvoices`, `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr`, `assets_mgrstart`, `views_sound_commands` | pass (build host Debug and RelWithDebInfo, Pi ASan + UBSan: [AUDIO.md](AUDIO.md) 10.9) |
 | the IDO check (`ido_check.sh`, IDO 5.3 and 7.1, every N64 object, cc3a517 against 09da2f0) | 1,011 objects: 755 identical, 256 differ only in debug sections, 0 differ, 0 missing |
 | `n64_neutral.py --base 09da2f0` | passes |
+
+## 10. The level-object nodes
+
+**What it is.** The pool of the track's targets (MAT3 `tTarget`, `gTargetArray`: cones, cacti, fences, windows,
+coins, mines, weapons, objects moving on paths; [POINTERS.md](POINTERS.md) 10.2): 130 nodes of 0x70 bytes at
+0x8014D280-0x80150B60 in the game's BSS, which `initTargetStructs` makes the StatLL pool `gTargetList` of. Until
+2026-11-09 the nodes kept their N64 layout there: a node's link and its kind's record were 32-bit window addresses,
+the pool linked its nodes by them (its header's `n64` flag, `pc_statll_link`), and a visual held its target as one in
+its 32-bit data word. That is the step of [NATIVE.md](NATIVE.md) (step 3) that takes them out of the window.
+
+**Inventory.** One object references `gTargetArray`: `initTargetStructs.c` (the pool's set-up); the tests
+`assets_targets`, `assets_battle` and `assets_weapons` placed it at its N64 address. The N64 range had one other
+reference, the model records' collision walk to their end, which is `PC_MODELS_END` since section 3. What holds a
+node: the pool's links, an environment visual's data word (`struct pc_visual`), the target groups' list
+(`gTargetGroupList`), the path targets with a collision object (`CollisionTargetPtrs`), the mines' slots, the
+always-colliding list and the power-ups; the last four were pointer-sized already. What a node holds: its link, and
+its kind's record (a heap block, a static per-kind table in the game's data, or a flag's world object). Nineteen files
+read a node through views of their own at the N64 offsets.
+
+**The change.**
+
+- `pc_game_types.h`: `struct tTarget`, the host layout (0x78 bytes: `next` and `data` pointers, MAT3's fields in
+  MAT3's order), `PC_TARGET_NODES` (130) and `pc_target_nodes`; include/game/types.h names it `tTarget`, and every
+  file that reads a node reads it so (the per-file `Target`, `Model` and `CollisionObject` views are gone).
+  `decoupled.txt`: `pc_target_nodes gTargetArray 0x38E0`; `extents.txt` loses `gTargetArray`; the state hash
+  (`statehash.c`) takes `pc_target_nodes` with the other decoupled items.
+- The StatLL functions link every list by host pointers (include/game's `tStatList`, `tStatLLE`, `tDLLE`); the `n64`
+  flag and `pc_statll_link`/`pc_statll_set_link` (pc_prelude.h) are gone, and `gTargetList` is a `tStatList`.
+- `struct pc_visual`'s data word is pointer-sized (`uintptr_t`): a visual is 0x28 bytes and a car record 0x510
+  ([CARS.md](CARS.md) 2, 3); `CAR_OFS` and `VIS_OFS` follow.
+- The target groups' list is a native side table of keys and targets (`struct pc_target_group`, `pc_world_chunk`;
+  [ASSETS.md](ASSETS.md) 4 #14).
+- What stays N64-shaped, because the game's heap accounts for it (NATIVE.md 4.3): the kinds' records keep their N64
+  sizes; a path target's record keeps its PTHD record as a window address (step 7's); a bounding box model
+  (`tMiniModelData`) keeps its box as its row of `BBoxCollInfo` (`bboxRow`; MAT3 the row's address).
+
+**What the tables say.** `data_symbols.txt` loses `gTargetArray` (gen_data retires it and the three names the image
+tables have inside its range, `D_80150000`, `D_80150004` and `gEffectsPoolBase`, which no C names); `data.c` loses its
+`.set` and gains `pc_target_nodes` (`struct tTarget[130]`, 15,600 bytes, `.bss`). Four own storages change type, all
+BSS: `gTargetList` (`tStatList`, 40 bytes as before), `gEnvirons` (`EnvironNode[100]`, 4,000 bytes, its data word a
+pointer-sized long), `CollisionTargetPtrs` (`tTarget *[30]`) and `gTargetGroupList` (`struct pc_target_group *`). The
+synthetic cartridge is the same file. The game arena's 0x8014D280-0x80150B60 has no symbol now. The proof and the
+crossings are NATIVE.md step 3's (section 10).
+
+**The tests.** `assets_targets` builds the pool and its functions, the target set-up with the target groups' side
+table, the start functions, the visuals, the collision pass, a path target and a bounding box model's collision on
+`pc_target_nodes` (the host type's offsets and size checked, every link a host pointer, records past the first);
+`assets_battle` walks the list in the power-ups' selection and updates and in both `PauseTargets`; `assets_weapons`
+the weapon icons; `assets_world` the side table `pc_world_chunk` builds; `assets_zoid` and `assets_endian` the flag's
+and the coin's node; `assets_carrecs` the visual's and the car's new offsets.

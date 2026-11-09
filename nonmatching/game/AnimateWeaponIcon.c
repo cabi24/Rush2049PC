@@ -1,30 +1,12 @@
 #include "game/game.h"
 
-typedef struct Visual {
-    struct Visual *next;  /* 0x00 */
-    s16 index;            /* 0x04 */
-    s16 objnum;           /* 0x06 */
-    s16 slot;             /* 0x08 */
-    u32 data;             /* 0x0c */
-    f32 timeStamp;        /* 0x10 */
-    void (*func)(struct Visual *, s16); /* 0x14 */
-} Visual;
-typedef struct Target {
-    u8 pad00[4];
-    u8 Flags;             /* 0x04 */
-    u8 pad05[0x0c - 5];
-    s32 dlIdx;            /* 0x0c */
-    u8 pad10[0x14 - 0x10];
-    f32 uvs[3][3];        /* 0x14 (mat.mat3.uvs) */
-    u8 pad38[0x50 - 0x38];
-    s16 type;             /* 0x50 */
-    u8 pad52[0x6c - 0x52];
-    u32 data;             /* 0x6c: a window address (the node keeps its N64 layout) */
-} Target;
-
-void AnimateWeaponIcon(Visual *v, s16 op)
+/* A battle power-up's icon (MAT3 targets.c _AnimateWeaponIcon), the environment visual of a weapon target: while
+ * the target is shown (Flags 2) it spins by its spin (its data: f32[3] radians a second about x, y, z); while hidden
+ * it shows again once no player's car has the weapon its object (type) stands for. The visual's data is the
+ * target. */
+void AnimateWeaponIcon(struct pc_visual *v, s16 op)
 {
-    Target *t;
+    tTarget *t;
     f32 *angV;
     s32 pad;
     f32 angVF[3];
@@ -36,13 +18,13 @@ void AnimateWeaponIcon(Visual *v, s16 op)
         return;
     }
     if (gPauseState != 0) return;
-    t = (Target *)((void *)PC_N64P(v->data));
+    t = (tTarget *) v->data;
     if (t->Flags & 2) {
-        angV = ((void *)PC_N64P(t->data));
+        angV = t->data;
         angVF[0] = angV[0] * gFrameSeconds;
         angVF[1] = angV[1] * gFrameSeconds;
         angVF[2] = angV[2] * gFrameSeconds;
-        RotateUV(angVF, t->uvs);
+        RotateUV(angVF, t->mat.uvs);
     } else if (ZOID_ObjectFlags(t->dlIdx) & 0x80000000) {
         switch (t->type) {
         case 350: wep = 0; break;

@@ -21,44 +21,8 @@ typedef struct MineData {
     s16 used;               /* 0x86 the record is in use */
 } MineData;
 
-/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
- * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). */
-enum n64p_Target { n64p_Target_ };
-enum n64p_MineData { n64p_MineData_ };
-typedef struct Target {
-    enum n64p_Target next;  /* 0x00 ll: the next in its list */
-    u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_ACTIVE, TARGET_HIT */
-    u8 pad05[7];            /* 0x05 mbIdx at 0x08 */
-    s32 dlIdx;              /* 0x0C its scene object */
-    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
-    u8 pad12[2];
-    f32 mat[4][3];          /* 0x14 its matrix: orientation rows, then the position */
-    f32 pos[3];             /* 0x44 its position */
-    s16 type;               /* 0x50 its object */
-    u8 pad52[10];           /* 0x52 radius, otype, frames */
-    s8 slot;                /* 0x5C the car that hit it */
-    u8 pad5D[3];
-    s32 sound;              /* 0x60 */
-    s8 sndState, owner;     /* 0x64, 0x65: the car that dropped it */
-    u8 pad66[2];
-    f32 timeStamp;          /* 0x68 the seconds it has lain on the road */
-    enum n64p_MineData data; /* 0x6C its MineData (a window address) */
-} Target;
-
-/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
- * window address. */
-typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
-#define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
-    enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
-
 /* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
 typedef struct tTexture {u8 bytes[36];} Texture36;
-
-/* An always-colliding entry (MAT3 tAlwaysCol): the link, then the target it stands for. */
-typedef struct Link {struct Link *next;Target *target;} Link;
-
-
-
 
 /* One frame of the mine (op 1), or release its visual (op 0); nothing happens while the game is paused.
  * - First frame: if the owner already has three mines, the oldest is aged past 120 s so it goes next; the mine
@@ -68,29 +32,30 @@ typedef struct Link {struct Link *next;Target *target;} Link;
  * - Each ring grows by a quarter every 1/30 s for 45 steps, fades from step 20 and starts the other ring at step 25.
  * - It blows up (StartBlast; after 120 s also ProximityDamage, 1600 within 400 ft) once it is no longer active,
  *   has been hit or is over 120 s old: it leaves the always-colliding list and its owner's slots, its models go, and the
- *   target and the visual are freed. */
-void AnimateMine(Visual *v, s16 op)
+ *   target and the visual are freed.
+ * The visual's data is the mine's target. */
+void AnimateMine(struct pc_visual *v, s16 op)
 {
     int i;
     int j;
     int k;
-    Target *t;
+    tTarget *t;
     MineData *m;
     Color clr;
     Color *clrPtr;
     f32 opos[3];
     f32 uvs[3][3];
     f32 oldT;
-    Link *acol;
-    Link *acolnext;
+    tAlwaysCol *acol;
+    tAlwaysCol *acolnext;
     if (!op) {
         ReleaseEnviron(v, 1);
         return;
     }
     if (gPauseState != 0) return;
-    t = N64P(v->data);
-    m = N64P(t->data);
-    if (!(t->flags & TARGET_SET_UP)) {
+    t = (tTarget *) v->data;
+    m = t->data;
+    if (!(t->Flags & TARGET_SET_UP)) {
         if (gPlayerMines[t->owner].count == 3) {
             oldT = 0.0f;
             j = -1;
@@ -111,7 +76,7 @@ void AnimateMine(Visual *v, s16 op)
         }
         if (RoadPosition(t->pos, opos, uvs)) {
             for (i = 0; i < 3; i++) {
-                for (j = 0; j < 3; j++) t->mat[i][j] = uvs[i][j];
+                for (j = 0; j < 3; j++) t->mat.uvs[i][j] = uvs[i][j];
             }
         }
         j = -1;
@@ -130,8 +95,8 @@ void AnimateMine(Visual *v, s16 op)
         clrPtr->c.r = gMineRingColors[gCarTeam[t->owner]][0];
         clrPtr->c.g = gMineRingColors[gCarTeam[t->owner]][1];
         clrPtr->c.b = gMineRingColors[gCarTeam[t->owner]][2];
-        CopyUV(t->mat, m->mats[0]);
-        CopyUV(t->mat, m->mats[1]);
+        CopyUV(t->mat.uvs, m->mats[0]);
+        CopyUV(t->mat.uvs, m->mats[1]);
         m->mats[0][3][0] = t->pos[0];
         m->mats[0][3][1] = t->pos[1];
         m->mats[0][3][2] = t->pos[2];
@@ -156,7 +121,7 @@ void AnimateMine(Visual *v, s16 op)
         m->glowTimes[0] = 0.0f;
         m->glowTimes[1] = 0.0f;
         MBOX_HideObject(m->glowdls[1], 0, 15);
-        t->flags |= TARGET_SET_UP | TARGET_ACTIVE;
+        t->Flags |= TARGET_SET_UP | TARGET_ACTIVE;
     }
     m->flashTime += gFrameSeconds;
     if (m->flashTime >= 0.25f) {
@@ -176,13 +141,13 @@ void AnimateMine(Visual *v, s16 op)
             m->alphs[i] = 255;
             clrPtr = ZOID_GetColor(m->glowdls[i]);
             clrPtr->c.a = 255;
-            CopyUV(t->mat, m->mats[i]);
+            CopyUV(t->mat.uvs, m->mats[i]);
             m->glowCnts[i] = -1;
             MBOX_HideObject(m->glowdls[i], 0, 15);
             continue;
         }
         if (m->glowTimes[i] >= 0.0333333f) {
-            CopyUV(t->mat, m->mats[i]);
+            CopyUV(t->mat.uvs, m->mats[i]);
             for (j = 0; j < 3; j++) {
                 for (k = 0; k < 3; k++) {
                     m->mats[i][j][k] *= m->sc[i];
@@ -207,11 +172,11 @@ void AnimateMine(Visual *v, s16 op)
         }
     }
     t->timeStamp += gFrameSeconds;
-    if (!(t->flags & TARGET_ACTIVE) || (t->flags & TARGET_HIT) || t->timeStamp > 120.0f) {
+    if (!(t->Flags & TARGET_ACTIVE) || (t->Flags & TARGET_HIT) || t->timeStamp > 120.0f) {
         acol = gAlwaysColList.head;
         while (acol) {
             acolnext = acol->next;
-            if (acol->target == t) FreeStatLLE(&gAlwaysColList, acol);
+            if (acol->t == t) FreeStatLLE(&gAlwaysColList, acol);
             acol = acolnext;
         }
         for (i = 0; i < 4; i++) {
@@ -237,7 +202,7 @@ void AnimateMine(Visual *v, s16 op)
         }
         m->used = 0;
         ZOID_RemoveObject(t->dlIdx);
-        t->flags = 0;
+        t->Flags = 0;
         FreeStatLLE(&gTargetList, t);
         ReleaseEnviron(v, 1);
     }

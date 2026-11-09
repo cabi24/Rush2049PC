@@ -70,14 +70,16 @@ typedef struct tModelData {
     /* 0x7D2 */ u8 pad7D2[0x808 - 0x7D2];
 } tModelData;
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
+ * 3). */
 typedef struct tVisual {
     /* 0x00 */ void *next;
-    /* 0x08 */ u8 pad8[2];          /* index */
+    /* 0x08 */ s16 index;
     /* 0x0A */ s16 objnum;
     /* 0x0C */ s16 slot;
-    /* 0x0E */ u8 padE[0x18 - 0xE];
-    /* 0x18 */ intptr_t func;
+    /* 0x10 */ uintptr_t data;
+    /* 0x18 */ f32 timeStamp;
+    /* 0x20 */ intptr_t func;
 } tVisual;
 /* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four
  * tires' road polygons name, and, as its rear left tire gets more than 20 feet off the ground, more and more

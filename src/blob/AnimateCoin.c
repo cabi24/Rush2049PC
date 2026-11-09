@@ -24,29 +24,8 @@ typedef struct CoinData {
     s16 whichcoin;          /* 0x4A its number in the profile's found-coin bits (gold coins from 8) */
 } CoinData;
 
-/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
- * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
-enum n64p_CoinData { n64p_CoinData_ };
-enum n64p_Target { n64p_Target_ };
-typedef struct Target {
-    u8 pad00[4];
-    u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_GOLD, TARGET_COIN_GONE */
-    u8 pad05[7];
-    SceneHandle dlIdx;      /* 0x0C the coin's glow, a scene object */
-    u8 pad10[0x38 - 0x10];
-    f32 matPos[3];          /* 0x38 mat: its position */
-    u8 pad44[0x6C - 0x44];
-    enum n64p_CoinData data; /* 0x6C its CoinData (a window address) */
-} Target;
-
-/* The environment visual (MAT3 tVisual) in its PC layout: next is a host pointer, data the target's window address. */
-typedef struct Visual {
-    void *next;
-    u8 pad08[8];
-    enum n64p_Target data;  /* 0x10 */
-} Visual;
-#define N64P(x) _Generic((x), enum n64p_CoinData: (CoinData *)PC_N64P(x), enum n64p_Target: (Target *)PC_N64P(x), \
-    default: (x))
+/* The coin's glow, its target's scene object (tTarget.dlIdx): the object's index is the handle's low half. */
+#define GLOW_INDEX(t) ((s16) (t)->dlIdx)
 
 /* A player's window bit; a view of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
@@ -54,10 +33,11 @@ typedef struct Visual {
 
 /* One frame of a coin (op 1), or release its visual (op 0). Gold coins are numbered from 8 (gWhichGoldCoin + 8),
  * silver ones from 0, in the order their visuals first run; a coin every player has already found is removed at
- * once. Nothing moves while the game is paused. */
-void AnimateCoin(Visual *v, s16 op)
+ * once. Nothing moves while the game is paused. The visual's data is the coin's target, whose data is the coin's
+ * record, its dlIdx the coin's glow. */
+void AnimateCoin(struct pc_visual *v, s16 op)
 {
-    Target *t;
+    tTarget *t;
     CoinData *coin;
     f32 spin[3];
     s32 number, i, foundByAll;
@@ -70,19 +50,19 @@ void AnimateCoin(Visual *v, s16 op)
         return;
     }
     if (gPauseState) return;
-    t = N64P(v->data);
-    coin = N64P(t->data);
-    if (t->flags & TARGET_COIN_GONE) {
+    t = (tTarget *) v->data;
+    coin = t->data;
+    if (t->Flags & TARGET_COIN_GONE) {
         RemoveObjectTree(coin->dlIdx.part.index, 0, 0);
-        RemoveObjectTree(t->dlIdx.part.index, 0, 0);
+        RemoveObjectTree(GLOW_INDEX(t), 0, 0);
         FreeStatLLE(&gTargetList, t);
         ReleaseEnviron(v, 1);
         return;
     }
-    if (!(t->flags & TARGET_SET_UP)) {
+    if (!(t->Flags & TARGET_SET_UP)) {
         goldGlow[0] = PC_RGBA(coin_gold_glow_color);
         silverGlow[0] = PC_RGBA(coin_silver_glow_color);
-        if (t->flags & TARGET_GOLD) {
+        if (t->Flags & TARGET_GOLD) {
             number = gWhichGoldCoin + 8;
             coin->whichcoin = number;
             gWhichGoldCoin++;
@@ -91,20 +71,20 @@ void AnimateCoin(Visual *v, s16 op)
             coin->whichcoin = number;
             gWhichSilverCoin++;
         }
-        ZOID_SetObjectDef(t->dlIdx.part.index, MBOX_FindObject_WORK(coin_glow_object_name, 0, gNumModels[0] - 1, 1));
+        ZOID_SetObjectDef(GLOW_INDEX(t), MBOX_FindObject_WORK(coin_glow_object_name, 0, gNumModels[0] - 1, 1));
         coin->angV[0] = 0.0f;
         coin->angV[2] = 0.0f;
         coin->angV[1] = 3.0f;
         CopyUV(unitmatrix, coin->uvs);
-        coin->pos[0] = t->matPos[0];
-        coin->pos[1] = t->matPos[1];
-        coin->pos[2] = t->matPos[2];
-        if (t->flags & TARGET_GOLD) {
+        coin->pos[0] = t->mat.pos[0];
+        coin->pos[1] = t->mat.pos[1];
+        coin->pos[2] = t->mat.pos[2];
+        if (t->Flags & TARGET_GOLD) {
             coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(gold_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
-            ZOID_SetColor(t->dlIdx.part.index, goldGlow);
+            ZOID_SetColor(GLOW_INDEX(t), goldGlow);
         } else {
             coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(silver_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
-            ZOID_SetColor(t->dlIdx.part.index, silverGlow);
+            ZOID_SetColor(GLOW_INDEX(t), silverGlow);
         }
         coin->cameras = 0;
         foundByAll = 1;
@@ -114,20 +94,20 @@ void AnimateCoin(Visual *v, s16 op)
                 coin->cameras |= 1 << i;
             } else {
                 car = PC_CAR(i);
-                MBOX_HideObject(t->dlIdx.handle, 1, VIEW_BIT(car->camera));
+                MBOX_HideObject(t->dlIdx, 1, VIEW_BIT(car->camera));
                 MBOX_HideObject(coin->dlIdx.handle, 1, VIEW_BIT(car->camera));
             }
         }
         if (foundByAll) {
             RemoveObjectTree(coin->dlIdx.part.index, 0, 0);
-            RemoveObjectTree(t->dlIdx.part.index, 0, 0);
+            RemoveObjectTree(GLOW_INDEX(t), 0, 0);
             FreeStatLLE(&gTargetList, t);
             ReleaseEnviron(v, 1);
             return;
         }
-        t->flags |= TARGET_SET_UP;
+        t->Flags |= TARGET_SET_UP;
     }
-    angV = N64P(t->data)->angV;
+    angV = ((CoinData *) t->data)->angV;
     spin[0] = angV[0] * gFrameSeconds;
     spin[1] = angV[1] * gFrameSeconds;
     spin[2] = angV[2] * gFrameSeconds;

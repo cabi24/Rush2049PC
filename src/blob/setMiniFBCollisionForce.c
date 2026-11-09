@@ -33,15 +33,8 @@ typedef struct tModelData {
     s8 drone_type;              /* 0x7CC DRONE_TYPE_HUMAN: a human's car */
 } tModelData;
 
-/* An object's collision box (MAT3 tBBoxColl): its sides in its own frame, feet, and its weight. */
-typedef struct {
-    f32 sides[4];               /* 0x00 left (x min), right (x max), front (z max), back (z min) */
-    char pad10[0xC];            /* 0x10 top, bottom, radius */
-    f32 weight;                 /* 0x1C */
-} tBBoxColl;
-
-/* A track object as a body: tMiniModelData (game/types.h), whose bboxInfo is its tBBoxColl's window address. */
-#define BBOX(m2) ((tBBoxColl *)PC_N64P((m2)->bboxInfo))
+/* A track object as a body: tMiniModelData (game/types.h), whose box is a row of BBoxCollInfo (MINI_MODEL_BOX). */
+#define BBOX(m2) MINI_MODEL_BOX(m2)
 
 extern f32 fabsf(f32);
 
@@ -71,8 +64,8 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
     temp[1] = m->reckon_rwr[1] - m2->pos[1];
     temp[2] = m->reckon_rwr[2] - m2->pos[2];
     BodyVector(temp, cent, m2->uvs[0]);
-    beside = ((cent[2] < BBOX(m2)->sides[2]) && (cent[2] > BBOX(m2)->sides[3]));
-    behind = ((cent[0] < BBOX(m2)->sides[1]) && (cent[0] > BBOX(m2)->sides[0]));
+    beside = ((cent[2] < BBOX(m2)->front) && (cent[2] > BBOX(m2)->back));
+    behind = ((cent[0] < BBOX(m2)->right) && (cent[0] > BBOX(m2)->left));
     if (beside && behind && m->crashflag) {
         MiniForceApart(m, dir);
         return;
@@ -91,7 +84,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
                 force[2] = -4000.0f;
             }
             if (behind) {
-                temp[2] = pos[2] - BBOX(m2)->sides[2];
+                temp[2] = pos[2] - BBOX(m2)->front;
                 temp[2] *= 10000.0f * fabsf(temp[2]);
                 if (temp[2] < force[2]) {
                     force[2] = temp[2];
@@ -102,7 +95,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
                 force[2] = 4000.0f;
             }
             if (behind) {
-                temp[2] = pos[2] - BBOX(m2)->sides[3];
+                temp[2] = pos[2] - BBOX(m2)->back;
                 temp[2] *= 10000.0f * fabsf(temp[2]);
                 if (temp[2] > force[2]) {
                     force[2] = temp[2];
@@ -120,7 +113,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
                 force[0] = -4000.0f;
             }
             if (beside) {
-                temp[0] = pos[0] - BBOX(m2)->sides[1];
+                temp[0] = pos[0] - BBOX(m2)->right;
                 temp[0] *= 20000.0f * fabsf(temp[0]);
                 if (temp[0] < force[0]) {
                     force[0] = temp[0];
@@ -131,7 +124,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
                 force[0] = 4000.0f;
             }
             if (beside) {
-                temp[0] = pos[0] - BBOX(m2)->sides[0];
+                temp[0] = pos[0] - BBOX(m2)->left;
                 temp[0] *= 20000.0f * fabsf(temp[0]);
                 if (temp[0] > force[0]) {
                     force[0] = temp[0];

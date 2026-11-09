@@ -1,7 +1,9 @@
 /* Targets (MAT3 targets.c): setting up the track's targets, the objects of its world and the path targets of its
  * PTHD records whose names match a kind in targetInfo (SetupTarget), giving each its kind's record, its environment
- * visual and its start (SetTargetDef, SetTargetDefs). The targets and their records keep the N64's layout on the
- * PC: their pointers are 32-bit window addresses (PC_N64W, PC_N64P; docs/port/POINTERS.md 10). */
+ * visual and its start (SetTargetDef, SetTargetDefs). The targets are PC data in the host layout (tTarget,
+ * pc_target_nodes: their link and their kind's record are pointers; docs/port/POINTERS.md 10.2). The track WAD's
+ * PTHD records and a path target's record keep the N64's layout, with 32-bit window addresses (PC_N64W, PC_N64P),
+ * until the WAD's records are native (docs/port/NATIVE.md step 7). */
 #include "game/game.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
@@ -31,21 +33,12 @@ typedef struct tModelPart {
 /* A mine's record (MAT3 tTargetStructMine, battle's 16 in gTargetStructPtrs[5]): the fields read here. */
 typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16 used; } tTargetStructMine;
 
-/* A path target's record starts with its path (a PTHD record) as a window address. */
-#define STATE_SCENE(s) (*(u32 *)PC_N64P(s))
-#define SCENE_OF(s) ((tBasicTargetPath *)PC_N64P(*(u32 *)PC_N64P(s)))
-/* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
-#define KEY(k) (void *)(intptr_t)k
-/* A kind with flag 0x400 keeps the world object as the target's data, a 32-bit window address. A world object is
- * the track WAD's (the heap, in the window), except for the mine shots.c drops, which passes its name, a host
- * string: that one is not kept, the data stays 0 (docs/port/LAYOUT.md 6). */
-#define PLACE_STATE(x) ((uintptr_t)(x) >> 16 >> 16 ? 0u : PC_N64W(x))
+/* A path target's record (tTargetStructPath) starts with its path, a PTHD record, as a window address. */
+#define STATE_PATH(s) (((tTargetStructPath *) (s))->pathData)
+#define PATH_OF(s) ((tBasicTargetPath *) PC_N64P(STATE_PATH(s)))
 /* A kind's start function (TargInfo.startFunc, a void * in the table). */
 #define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
-/* The keys of gTargetGroupList, before SetTargetDefs turns them into targets */
-
-#define BODY_TABLE ((u8 *)BBoxCollInfo)
 extern int strlen(const char *);
 
 /* Defines target `t` once the race's targets are counted: its kind's record (set_target_data), its scene object's
@@ -73,7 +66,7 @@ void SetTargetDef(tTarget *t)
         if(v) {
             v->index=0;
             v->func=info->visFunc;
-            v->data=PC_N64W(t);
+            v->data=(uintptr_t)t;           /* the visual animates the target */
             v->timeStamp=0.0f;
             v->next=gEnvList;
             gEnvList=v;
@@ -92,25 +85,25 @@ void SetTargetDef(tTarget *t)
  * array (gTargetOwnStructPtrs, kinds with flag 8; a path target's starts with its PTHD record, whose flag 0x10 makes
  * it not collide), else its kind's static one (gTargetStructInfoPtrs[category], record structureIdx; none for kind
  * 7). A box (collFuncIdx 4) takes the next bounding box model, at rest, with its row of BBoxCollInfo (collVal). In
- * a race under way (state bit 0x400000: battle drops mines then) a mine takes the first free mine record. */
+ * a race under way (state bit 0x400000: battle drops mines then) a mine takes the first free mine record. The
+ * records are the kinds' (heap blocks, or the game's data), in the N64's layout: the target keeps a pointer. */
 void set_target_data(tTarget *t,TargInfo *info,s32 category)
 {
     s32 index,j;
     tMiniModelData *matrix;
-    tBasicTargetPath *scene;
     tTargetStructMine *mine;
     if(!(gGameState&GS_RACING)) {
         if(info->Flags&8) {
-            t->data=PC_N64W(gTargetOwnStructPtrs[category]);
+            t->data=gTargetOwnStructPtrs[category];
             if(!(t->Flags&16) && category==4) {
                 j=t->owner;
-                STATE_SCENE(t->data)=PC_N64W(&gTargetPaths.paths[j]);
+                STATE_PATH(t->data)=PC_N64W(&gTargetPaths.paths[j]);
                 if(gTargetPaths.paths) {}
-                if((SCENE_OF(t->data))->flags&16) t->Flags&=~8;
+                if((PATH_OF(t->data))->flags&16) t->Flags&=~8;
             }
             gTargetOwnStructPtrs[category]=gTargetOwnStructPtrs[category]+gTargetStructSizes[category];
         } else if(category!=7) {
-            t->data=PC_N64W(gTargetStructInfoPtrs[category]+gTargetStructSizes[category]*info->structureIdx);
+            t->data=gTargetStructInfoPtrs[category]+gTargetStructSizes[category]*info->structureIdx;
         }
         if(info->collFuncIdx==4) {
             t->owner=gBBoxModelUsed++;
@@ -121,7 +114,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
                 matrix->pos[index]=0.0f;
             }
             index=(s32)targetInfo[t->infoIdx].collVal;
-            matrix->bboxInfo=PC_N64W(BODY_TABLE+index*32);
+            matrix->bboxRow=index;          /* MAT3: &BBoxCollInfo[index] */
         }
     } else if((info->Flags&8) && info->structureID==5) {
         mine=(tTargetStructMine *)gTargetStructPtrs[5];
@@ -129,7 +122,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
             if(!mine->used && mine->dlIdx==-1 && mine->glowdls[0]==-1 && mine->glowdls[1]==-1) break;
         }
         mine->used=1;
-        t->data=PC_N64W(gTargetOwnStructPtrs[category]+gTargetStructSizes[category]*index);
+        t->data=gTargetOwnStructPtrs[category]+gTargetStructSizes[category]*index;
     }
 }
 
@@ -214,7 +207,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         t->sound = -1;
         t->timeStamp = 0.0f;
         if (typeFlags & 0x400) {
-            t->data = PLACE_STATE(obj);
+            t->data = obj;   /* its world object (a flag's name: AnimateFlag) */
         }
         if (typeFlags & 0x80) {
             dlflags |= 0x8000;
@@ -296,7 +289,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         }
         if (gGameState & GS_RACING) {
             if (gRace == kBattle) {
-                ((tTarget **)GetStatLLE(&gAlwaysColList))[1] = t;
+                ((tAlwaysCol *) GetStatLLE(&gAlwaysColList))->t = t;
             }
             SetTargetDef(t);
         }
@@ -311,15 +304,16 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
 /* Sets up the target paths of this race's direction (a ghost race only those with a point flagged 0x1000000, the
  * others' collision objects removed): a target at each point flagged 1; a path for the other direction loses its
  * collision object if flagged 0x800. On a fresh load it allocates the kinds' records and the bounding box models
- * and turns gTargetGroupList's keys into the targets they name (0 for none); in battle the mine records are made
- * free. Then defines every target (SetTargetDef) and, in battle, the power-ups. Not in the demo without the
+ * and finds, for each key of the target groups' list (gTargetGroupList), the colliding target it names (NULL for
+ * none: MAT3 replaced the keys by the targets in place; the PC's list keeps both); in battle the mine records are
+ * made free. Then defines every target (SetTargetDef) and, in battle, the power-ups. Not in the demo without the
  * Expansion Pak. */
 void SetTargetDefs(void)
 {
     s32 i, j, offset, enabled, other;
     tTarget *t;
     Vec3 zero;
-    void *key;
+    struct pc_target_group *group;
     tTargetStructMine *mine;
 
     if ((gGameState & GS_DEMO) && !expansion_pak_present) {
@@ -370,17 +364,13 @@ void SetTargetDefs(void)
             gBBoxModelStructs = AllocateMemoryHeap(0, gBBoxModelCount * 64);
         }
         for (i = 0; i < numgTargetGroupList; i++) {
-            key = gTargetGroupList[i];
-            t = (tTarget *) ((tTarget *) gTargetList.head);
-            while (t != 0) {
-                if ((t->Flags & 8) && KEY(t->mbIdx) == key) {
-                    gTargetGroupList[i] = t;
+            group = &gTargetGroupList[i];
+            group->target = NULL;
+            for (t = gTargetList.head; t != NULL; t = t->next) {
+                if ((t->Flags & TARGET_COLLIDES) && t->mbIdx == group->key) {
+                    group->target = t;
                     break;
                 }
-                t = (tTarget *) PC_N64P(t->next);
-            }
-            if (key == gTargetGroupList[i]) {
-                gTargetGroupList[i] = 0;
             }
         }
     }
@@ -398,10 +388,8 @@ void SetTargetDefs(void)
             gTargetOwnStructPtrs[i] = gTargetStructPtrs[i];
         }
     }
-    t = (tTarget *) ((tTarget *) gTargetList.head);
-    while (t != 0) {
+    for (t = gTargetList.head; t != NULL; t = t->next) {
         SetTargetDef(t);
-        t = (tTarget *) PC_N64P(t->next);
     }
     if (gRace == kBattle) {
         InitBattlePowerUps(Restarting);

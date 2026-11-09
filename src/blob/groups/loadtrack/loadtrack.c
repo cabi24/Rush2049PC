@@ -13,9 +13,10 @@ typedef struct Wad {
     void *TOC;
 } Wad;
 
-/* PC: the GTLD keys become object pointers at race setup (SetTargetDefs), which don't fit the file's 4-byte
- * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned
- * as they are. */
+/* PC: the GTLD keys name the targets SetTargetDefs finds for them (on the N64 it replaced each key by its target's
+ * address in place), and a target's pointer doesn't fit the file's 4-byte slots, so LoadTrack gets GTLD as a native
+ * side table, each key with room for its target (struct pc_target_group, port/assets/world.c); other chunks are
+ * returned as they are. */
 uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
 #define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
 

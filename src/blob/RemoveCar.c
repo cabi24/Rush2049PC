@@ -1,12 +1,15 @@
 /* RemoveCar.c: take a car out of the scene at the end of a race (MAT3 visuals.c, RemoveCar() with RemoveVisuals()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
+ * 3). */
 typedef struct tVisual {
   void *next;
   s16 index;
   s16 objnum;                   /* its scene object, -1 none */
-  u8 padC[0x18 - 0xC];          /* slot, data, timeStamp */
+  s16 slot;
+  uintptr_t data;
+  f32 timeStamp;
   M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
 } tVisual;
 

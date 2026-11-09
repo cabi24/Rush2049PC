@@ -2,11 +2,12 @@
  * CheckVisible()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual,
+ * docs/port/CARS.md 3). */
 typedef struct tVisual {
     void *next;
     s16 index,objnum,slot,pad;
-    u32 data;
+    uintptr_t data;
     f32 timeStamp;
     void (*func)(void);
 } tVisual;

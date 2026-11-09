@@ -5,52 +5,15 @@
 #define TARGET_DESTROY_AT_END 0x2000  /* the cycle runs once, then the object goes */
 #define SWAP_FRAME_TIME 0.0625f       /* seconds a frame */
 
-typedef struct Model {
-    /* PC: id is the low half of the target's handle (an s32 at +0xC), at +0xC on a little-endian host, not +0xE:
-     * the view reads the word (docs/port/POINTERS.md 10). */
-    u8 pad0[0xC];
-    s32 id;
-    s16 type;
-    u8 pad12[0x50 - 0x12];
-    s16 cur;
-    u8 pad52[0x58 - 0x52];
-    s16 base;
-    s16 count;
-} Model;
-/* PC: obj is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data is the target, a
- * level-object node, as a 32-bit window address (docs/port/CARS.md, POINTERS.md 10). */
-typedef struct Obj {
-    void *next;
-    s16 frame;
-    u8 pad6[6];
-    unsigned int model;
-    f32 timer;
-} Obj;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
- * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
- * (docs/port/POINTERS.md 10). */
-typedef struct Kind {
-    char *name, *file;
-    void *start, *visual;
-    s16 kind;
-    u16 flags;              /* 0x12 */
-    s16 shape;
-    signed char category, element;
-    f32 value;
-    s32 sound, w20, w24, w28;
-    f32 f2C;
-} Kind;
-
-
-
-/* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (base .. base + count - 1
- * of gObjList) on its scene object; at the end of the cycle starts again, or ends the visual (and with
- * TARGET_DESTROY_AT_END removes the object). mode 0 ends the visual at once. */
-void AnimateObjSwapGeneric(Obj *obj, s16 mode)
+/* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (its otype .. otype +
+ * frames - 1 of gObjList) on its scene object (its dlIdx, whose low half is the object's index) and keeps the one it
+ * shows as its type; at the end of the cycle starts again, or ends the visual (and with TARGET_DESTROY_AT_END
+ * removes the object). mode 0 ends the visual at once. The visual (obj) holds the target in its data, the frame it
+ * shows in its index and the time to the next in its timeStamp. */
+void AnimateObjSwapGeneric(struct pc_visual *obj, s16 mode)
 {
-    Model *m;
-    Kind *kind;
+    tTarget *t;
+    TargInfo *info;
     s16 f;
     s16 id;
     u16 tex;
@@ -63,30 +26,30 @@ apply:
     if (gPauseState != 0) {
         return;
     }
-    m = ((Model *)PC_N64P(obj->model));
-    obj->timer -= gFrameSeconds;
-    if (obj->timer > 0.0f) {
+    t = (tTarget *) obj->data;
+    obj->timeStamp -= gFrameSeconds;
+    if (obj->timeStamp > 0.0f) {
         return;
     }
-    obj->frame++;
-    obj->timer = SWAP_FRAME_TIME;
-    if (obj->frame >= m->count) {
-        kind = &targetInfo[m->type];
-        if (kind->flags & TARGET_REMOVE_AT_END) {
+    obj->index++;
+    obj->timeStamp = SWAP_FRAME_TIME;
+    if (obj->index >= t->frames) {
+        info = &targetInfo[t->infoIdx];
+        if (info->Flags & TARGET_REMOVE_AT_END) {
             goto apply;
         }
-        if (kind->flags & TARGET_DESTROY_AT_END) {
-            RemoveObjectTree(m->id, 0, 0);
+        if (info->Flags & TARGET_DESTROY_AT_END) {
+            RemoveObjectTree(t->dlIdx, 0, 0);
             goto apply;
         }
-        obj->frame = 0;
+        obj->index = 0;
     }
-    f = m->base + obj->frame;
-    if (f != m->cur) {
+    f = t->otype + obj->index;
+    if (f != t->type) {
         if (gObjList[f]) {}
-        id = m->id;
+        id = t->dlIdx;
         tex = gObjList[f];
         ObjInstanceList[id].index = tex;
-        m->cur = f;
+        t->type = f;
     }
 }

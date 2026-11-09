@@ -1,34 +1,30 @@
 /* FreeStatLLE (MAT3 statll.c): gives an element back to a static list (InitStatLL.c has the header). */
 #include "game/game.h"
 
-/* An element's links: link 0 the next element, link 1 the previous one (doubly-linked lists only). */
-typedef struct Node {struct Node *next,*prev;} Node;
-typedef struct Pool {u8 dbl,n64;s32 numElements,elementSize;void *list;Node *head,*store;} Pool;
-#define NEXT(n) ((Node *)pc_statll_link(list->n64,n,0))
-#define PREV(n) ((Node *)pc_statll_link(list->n64,n,1))
+/* Unlinks `element` from the list of elements in use (in place when doubly linked, else by a walk from the head) and
+ * puts it at the head of the free elements. Nothing for NULL. An element's links are its first two pointers
+ * (tDLLE): next, and prev on a doubly linked list. */
+void FreeStatLLE(tStatList *list, void *element) {
+    tDLLE *e = element;
+    tDLLE *cur, *prev;
 
-/* Unlinks element from the list of elements in use (in place when doubly linked, else by a walk from the head) and
- * puts it at the head of the free elements. Nothing for 0. */
-void FreeStatLLE(Pool *list, Node *element) {
-    Node *cur, *prev;
-
-    if (element) {
+    if (e) {
         if (list->dbl) {
-            if (NEXT(element)) pc_statll_set_link(list->n64, NEXT(element), 1, PREV(element));
-            cur = PREV(element);
-            if (cur) pc_statll_set_link(list->n64, cur, 0, NEXT(element));
-            else list->head = NEXT(element);
+            if (e->next) ((tDLLE *) e->next)->prev = e->prev;
+            cur = e->prev;
+            if (cur) cur->next = e->next;
+            else list->head = e->next;
         } else {
-            cur = list->head; prev = 0;
+            cur = list->head; prev = NULL;
             while (cur) {
-                if (element == cur) {
-                    if (prev) pc_statll_set_link(list->n64, prev, 0, NEXT(element));
-                    else list->head = NEXT(element);
+                if (e == cur) {
+                    if (prev) prev->next = e->next;
+                    else list->head = e->next;
                     break;
                 }
-                prev = cur; cur = NEXT(cur);
+                prev = cur; cur = cur->next;
             }
         }
-        pc_statll_set_link(list->n64, element, 0, list->store); list->store = element;
+        e->next = list->store; list->store = e;
     }
 }
