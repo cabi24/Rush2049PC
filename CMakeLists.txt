@@ -887,10 +887,12 @@ set_tests_properties(hfr_realtime PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT
 # by the display's vblanks, at most 10% of them lost to skipped ticks (1.7-5.6% measured), frames drawn between (at
 # least half of what the same host draws with vsync off: a GPU's count, not the pacing's), the retraces at 60 a
 # second and the audio's bounds. The loop's waits precise, as Windows' high-resolution timer has them. The vsync
-# model is Linux's: on Windows the hfr_paced tests are skipped (exit 77).
+# model is Linux's: on Windows the hfr_paced tests are skipped (exit 77). In every pacing test at most 30 retraces
+# one after another a whole retrace late (--max-late-run): the display's swaps once held the 60 Hz retraces a retrace
+# behind for good, every retrace from the 1,000th caught up (FRAMERATE.md 2, "The retraces keep their 60 Hz").
 add_test(NAME hfr_paced COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced --seconds 30 --pacing display,60,120
-    --timer-step-us 0)
+    --timer-step-us 0 --max-late-run 30)
 set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 500 RUN_SERIAL TRUE SKIP_RETURN_CODE 77
     LABELS realtime)
 # A driver that queues frames and never blocks (WGL on NVIDIA and Intel in steady state) on a 59.94 Hz display that SDL
@@ -899,7 +901,8 @@ set_tests_properties(hfr_paced PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 50
 # twice with nothing decided for them (1 measured; a grid at SDL's 59: about 22).
 add_test(NAME hfr_paced_queue COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_queue --seconds 30 --pacing display
-    --timer-step-us 0 --vsync-queue never --display-hz 59 --display-timing rate,vblank --max-doubled 5)
+    --timer-step-us 0 --vsync-queue never --display-hz 59 --display-timing rate,vblank --max-doubled 5
+    --max-late-run 30)
 set_tests_properties(hfr_paced_queue PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
 # An exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase: 1114 of 1200 ticks
@@ -907,7 +910,7 @@ set_tests_properties(hfr_paced_queue PROPERTIES FIXTURES_REQUIRED synth_rom TIME
 # at most 10% of the vblanks are lost to skipped ticks (2 measured), frames drawn between as hfr_paced's.
 add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_60 --seconds 30 --pacing display
-    --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank)
+    --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank --max-late-run 30)
 set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
 # game.frame_rate 60 (docs/port/FRAMERATE.md 7). The game at 60 against original along the synthetic paths, on the
@@ -953,12 +956,23 @@ if(NOT PC_SANITIZE_ADDRESS)
 endif()
 add_test(NAME hfr_paced_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_game60 --seconds 30 --pacing display,60,120
-    --timer-step-us 0 --game-fps 60)
+    --timer-step-us 0 --game-fps 60 --max-late-run 30)
 set_tests_properties(hfr_paced_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 500 RUN_SERIAL TRUE
+    SKIP_RETURN_CODE 77 LABELS realtime)
+# The same on a busy host, whose timed waits are precise but now and then late (RUSH_SIM_WAKE_LATE: every 50th that
+# times out returns 2.5 ms late; on rocky held to two cores with llvmpipe, 1-8% of them came 2 ms late or more), at
+# display and 60 (FRAMERATE.md 2, "The retraces keep their 60 Hz"): the loop stays off the coarse waits' way (one late
+# wait once put it there for good: the game at 60 kept 0.6 of its frames, and CI's runners saw 805 of 1,800 retraces
+# caught up), the game keeps 0.9 of its frames and no retrace is held behind. The ticks are planned earlier, and a late
+# wake costs its tick, so up to 25% of the vblanks may be lost to skipped ticks (11% measured).
+add_test(NAME hfr_paced_busy COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
+    --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_busy --seconds 30 --pacing display,60
+    --timer-step-us 0 --game-fps 60 --wake-late 50:2500 --max-late-run 30 --max-lost 0.25)
+set_tests_properties(hfr_paced_busy PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 400 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
 add_test(NAME audio_realtime_game60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py
     --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime60 --seconds 30
-    --game-fps 60 --timer-step-us 0)
+    --game-fps 60 --timer-step-us 0 --max-late-run 30)
 set_tests_properties(audio_realtime_game60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
     LABELS realtime)
 # The game at 60 with video.frame_rate original on an exact 60.000 Hz display whose vblanks come just after the
@@ -969,7 +983,8 @@ set_tests_properties(audio_realtime_game60 PROPERTIES FIXTURES_REQUIRED synth_ro
 # x86-64 runner (run 41908916509), 0.264 before the pacing.
 add_test(NAME realtime_game60_v60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py
     --exe $<TARGET_FILE:rush2049pc> --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/realtime60_v60 --seconds 30
-    --game-fps 60 --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.02 --display-timing vblank --max-stale 0.1)
+    --game-fps 60 --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.02 --display-timing vblank --max-stale 0.1
+    --max-late-run 30)
 set_tests_properties(realtime_game60_v60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 200 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
 # video.frame_rate = auto with the game at 60 under the vsync model at 60 and 120 Hz (the platform giving the rate):
