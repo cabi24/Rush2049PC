@@ -1,63 +1,35 @@
+/* RoadPosition: the road surface under a point (MAT3 stree.c). */
 #include "game/game.h"
 
 float fabsf(float);
-#pragma intrinsic (fabsf)
 
-typedef struct QNode {
-    s16 next;
-    u8 pad2;
-    u8 mask;
-    s16 x0;
-    s16 x1;
-    s16 y0;
-    s16 y1;
-    u16 child[4];
-} QNode;
-VIEW(QNode *, stree_nodes);
+VIEW(streetyp *, stree_nodes);
 #define stree_nodes stree_nodes_view
 
-typedef struct Poly {
-    u16 type;
-    u16 cnt;
-    u8 body[0x12];
-    u16 off;
-} Poly;
-VIEW(Poly *, stree_surf);
+/* A surface (MAT3 surftyp, stree_surf[]). */
+typedef struct surftyp {
+    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
+    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
+    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
+    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
+} surftyp;
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
 
-/*
- * RoadPosition (0x800C4200, 308 words) -- , .
- * Historical label; it is a "find the road surface under a point" query (N64-only, no arcade
- * ancestor found):
- *   floor(pos.x), floor(pos.z) -> quadtree cell (updownleaf on stree_nodes, quadrant in `quad`);
- *   the cell's packed polygon list (stree_slist + child offset, bit 0x10000 from the node mask) is
- *   expanded by DecodeSlist into list[]; every polygon that is not type 5/6/15 is tested with
- *   PointInSurf (point-above-polygon, zmin -20, bound = best so far); the polygon with the
- *   smallest |height| wins (out = hit point, mat = its basis via CopyUV).
- *   Winner flags 0x2000 -> fHalfPipeInterp (rounded edge; fails below -5),
- *   0x1000 -> fPathInterp + NormalVector on the three basis rows.  out = pos - up * h.
- *   On a miss the probe is nudged (+x, then -x+z, then -2z) and retried; returns the polygon or 0.
- * Shaping (each measured in the whole-program unit):
- *   - u8 n (declared right after quad, it fills the s16 pad) and u32 i with `i < n`: n lives in
- *     s1 across DecodeSlist, the entry test is beqz, and n is spilled to a temp at loop entry;
- *     with s32/u32 n it is spilled before the call (one extra word);
- *   - `n = *p++; DecodeSlist(p, n, ...)` keeps p in a0;
- *   - poly = &stree_surf[list[i]] (no pointer local): the strength-reduced pointer takes s1;
- *   - bestH = 250 (int literal) and bestAbs = 250.0f are separate constant webs (two mtc1);
- *   - fabsf(h) written twice (no named local) gives abs in $f2 and keeps h in $f4;
- *   - best/bestIdx/bestAbs/bestH assigned before the out[] copies;
- *   - mat[1][k] * -out[1] operand order; out[k] = pt[k] + pos[k];
- *   - PointInSurf's real parameter order is (poly, wp, q, pt, bound, outIdx, mat, zmin):
- *     callers set up s4, s2, s6, s0, s8, s5, s7, f20 in that order (TireSurf agrees).
- */
-Poly *RoadPosition(f32 *pos, f32 *out, f32 (*mat)[3]) {
+/* Finds the road surface under `pos` (MAT3 RoadPosition): the surfaces of the tree's leaf under the point but walls
+ * (kinds 5 and 6) and removed ones (15) are tested (PointInSurf, from 20 feet below to the best height so far), and
+ * the one nearest in height wins: `out` gets the point on it below `pos`, `mat` its frame (a half-pipe's rounded
+ * edge, flag 0x2000, from fHalfPipeInterp, failing more than 5 feet below; a road path surface, 0x1000, from
+ * fPathInterp). With nothing found the probe moves a foot (+x, then -x +z, then -2z) and tries again. Returns the
+ * surface, or NULL. */
+surftyp *RoadPosition(f32 *pos, f32 *out, f32 (*mat)[3]) {
     f32 m[3][3];
     u32 i;
     u16 idx;
     u16 bestIdx;
     s16 quad;
     u8 n;
-    QNode *node;
+    streetyp *node;
     f32 h;
     u32 off;
     u8 *p;
@@ -65,8 +37,8 @@ Poly *RoadPosition(f32 *pos, f32 *out, f32 (*mat)[3]) {
     u16 list[36];
     f32 bestAbs;
     f32 bestH;
-    Poly *poly;
-    Poly *best;
+    surftyp *poly;
+    surftyp *best;
     s32 tries;
     f32 x;
     f32 z;
@@ -87,7 +59,7 @@ again:
     node = updownleaf(stree_nodes, (s32)x, (s32)z, &quad);
     if (node != NULL) {
         off = node->child[quad];
-        if (node->mask & (16 << quad)) {
+        if (node->flags & (16 << quad)) {
             off |= 0x10000;
         }
         if (off != 0) {
@@ -98,7 +70,7 @@ again:
             DecodeSlist(p, n, list, -1);
             for (i = 0; i < n; i++) {
                 poly = &stree_surf[list[i]];
-                if ((poly->type & 0xF) == 5 || (poly->type & 0xF) == 6 || (poly->type & 0xF) == 15) {
+                if ((poly->flags & 0xF) == 5 || (poly->flags & 0xF) == 6 || (poly->flags & 0xF) == 15) {
                     continue;
                 }
                 h = bestAbs;
@@ -116,7 +88,7 @@ again:
                 }
             }
             if (bestAbs != 250.0f) {
-                if (best->type & 0x2000) {
+                if (best->flags & 0x2000) {
                     fHalfPipeInterp((intptr_t)best, bestIdx, pos, out, mat, 250.0f);
                     if (out[1] < -5.0f) {
                         goto fail;
@@ -125,7 +97,7 @@ again:
                     pt[1] = mat[1][1] * -out[1];
                     pt[2] = mat[1][2] * -out[1];
                 } else {
-                    if (best->type & 0x1000) {
+                    if (best->flags & 0x1000) {
                         fPathInterp((intptr_t)best, bestIdx, pos, out, mat);
                         NormalVector(mat[0]);
                         NormalVector(mat[1]);

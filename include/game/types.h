@@ -232,6 +232,7 @@ struct Texture;
 struct Tire;
 struct TrackNode;
 struct Tree;
+struct surftyp;
 struct V3s;
 struct VCar;
 struct Vec3;
@@ -1494,6 +1495,19 @@ typedef struct tMiniModelData { /* 0x40 bytes */
 /* The surface tree (MAT3 stree.c): the track's collision surfaces, from its collision WAD (InitSTree). No pointers,
  * the same layout on both; the files read stree_save, stree_svert and stree_nodes (declared u8 *) through views of
  * these. A vertex position is in 1/32 feet: whole feet in pos, the three axes' 5-bit fractions in overflow. */
+/* The collision WAD's header (MAT3 stheadertyp, gRoadHead): how many of each record follow it, in this order: the
+ * road path (gRoadPath, MAT3 pathtyp, 0x84 bytes each), the tree's nodes, the surfaces, the vertices, the saved
+ * surfaces, the vertex lists, the surface lists (InitSTree). */
+typedef struct stheadertyp { /* 0x10 bytes */
+    u16 pnum;     /* 0x0 road path points */
+    u16 tnum;     /* 0x2 tree nodes */
+    u16 snum;     /* 0x4 surfaces */
+    u16 vnum;     /* 0x6 vertices */
+    u16 savenum;  /* 0x8 saved surfaces */
+    u16 vlnum;    /* 0xA bytes of vertex lists */
+    u32 slnum;    /* 0xC bytes of surface lists */
+} stheadertyp;
+
 typedef struct sverttyp { /* 0x8 bytes, stree_svert[] */
     s16 pos[3];   /* 0x0 whole feet */
     u16 overflow; /* 0x6 the fractions: x << 10 | y << 5 | z, 32nds */
