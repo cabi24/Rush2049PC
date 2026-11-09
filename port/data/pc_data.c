@@ -23,6 +23,7 @@
  *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
  * addresses (likely mistyped declarations, unless they point at window data). */
+#include "pc_crossings.h"   /* the counting build's arena guard (docs/port/NATIVE.md 9): nothing in the default build */
 #include "pc_data.h"
 #include "pc_n64_map.h"   /* the N64's address space: KSEG0 and KSEG1, its 8 MiB of RDRAM, low memory */
 
@@ -790,6 +791,7 @@ static void reach_image(const PcDataTables *t, int image)
 
 int pc_data_load_image(const PcDataTables *t, int image)
 {
+    PC_CROSS_GUARD_PAUSED();   /* the counting build: the arena guard's pages open until the load returns */
     if (image < 0 || (uint32_t)image >= t->n_images)
         return -1;
     const uint8_t *img = image_bytes(t, image);

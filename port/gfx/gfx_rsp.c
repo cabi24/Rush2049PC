@@ -6,9 +6,22 @@
 #include <string.h>
 
 #include "gfx_internal.h"
+#include "pc_crossings.h"
 #include "pc_port.h"
 
 GfxState pcgfx;
+
+/* The counting build (RUSH_COUNT_CROSSINGS, docs/port/NATIVE.md 9): every address below 4 GiB the renderer takes for
+ * an N64 one is counted by the code that asked, as a ROM list's (N64 form) or a native list's, by the form of the list
+ * the command came from. Nothing in the default build. */
+#ifdef RUSH_COUNT_CROSSINGS
+static int g_cross_rom_list;
+#define GFX_CROSSING(value) PC_CROSS_CALLER(g_cross_rom_list ? PC_CROSS_GFX_ROM_LIST : PC_CROSS_GFX_LIST, value)
+#define GFX_CROSSING_LIST(be) (g_cross_rom_list = (be))
+#else
+#define GFX_CROSSING(value) ((void)0)
+#define GFX_CROSSING_LIST(be) ((void)0)
+#endif
 
 /* Clipping (GFX.md "Clipping"). The NoN microcode has no near plane. As the RSP does, a polygon that crosses the
  * guard band, |x| <= GFX_GUARD w and |y| <= GFX_GUARD w (x as the view sees it), is clipped to it, on the CPU, so GL
@@ -63,6 +76,7 @@ uintptr_t pcgfx_segment_value(uintptr_t v) {
     uint32_t a;
     if (v == 0 || is_host(v))
         return v;
+    GFX_CROSSING(v);
     a = (uint32_t)v;
     return (uintptr_t)(a >= N64_KSEG0 ? pc_n64_ptr(a) : rdram(a));
 }
@@ -74,6 +88,7 @@ const uint8_t *pcgfx_resolve(uintptr_t a) {
         return NULL;
     if (is_host(a))
         return (const uint8_t *)a;
+    GFX_CROSSING(a);
     a32 = (uint32_t)a;
     if (a32 >= N64_KSEG0)
         return (const uint8_t *)pc_n64_ptr(a32);
@@ -902,6 +917,7 @@ void pcgfx_run_list(const void *dl) {
     static int task;
     int trace = pcgfx_cfg.trace_task != 0 && ++task == pcgfx_cfg.trace_task;
 
+    PC_CROSS_FRAME();   /* the counting build's arena guard closes its pages again (docs/port/NATIVE.md 9) */
     pcgfx_rsp_reset();
     cur.p = (const uint8_t *)dl;
     cur.be = pcgfx_is_be(dl);
@@ -909,6 +925,7 @@ void pcgfx_run_list(const void *dl) {
         uint32_t w0, op;
         uintptr_t w1;
         fetch(&cur, &w0, &w1);
+        GFX_CROSSING_LIST(cur.be);
         op = w0 >> 24;
         pcgfx.stat_cmds++;
         if (trace)   /* RUSH_GFX_TRACE: the task's commands, with the depth of the list they are in */
