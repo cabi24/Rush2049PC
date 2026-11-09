@@ -2,23 +2,15 @@
  * PTHD records whose names match a kind in targetInfo (SetupTarget), giving each its kind's record, its environment
  * visual and its start (SetTargetDef, SetTargetDefs). The targets are PC data in the host layout (tTarget,
  * pc_target_nodes: their link and their kind's record are pointers; docs/port/POINTERS.md 10.2). The track WAD's
- * PTHD records and a path target's record keep the N64's layout, with 32-bit window addresses (PC_N64W, PC_N64P),
- * until the WAD's records are native (docs/port/NATIVE.md step 7). */
+ * PTHD records are the WAD's converter's (tBasicTargetPath, pc_game_types.h), and a path target's record names its
+ * path by its index (tTargetStructPath.pathIdx): docs/port/NATIVE.md step 7. */
 #include "game/game.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
 
-/* A target path (MAT3 tBasicTargetPath, a PTHD record; targetpaths/group.c has it all). N64 layout. */
-typedef struct tBasicTargetPath {
-    char name[16];  /* 0x00 */
-    u32 flags;      /* 0x10 4 in forward races, 8 in backward races, 0x10 the target doesn't collide, 0x800 its
-                     * collision object goes when not in this race's direction, 0x8000 not shown */
-    s16 numPts;     /* 0x14 */
-    s16 collIdx;    /* 0x16 its collision object, 0 none */
-    u32 trigPtr;    /* 0x18 */
-    u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
-    s32 parent;     /* 0x20 its target's record (a window address), here the key the world's groups know it by */
-} tBasicTargetPath;
+/* A target path's flags read here (tBasicTargetPath.flags; targetpaths/group.c has them all): 4 in forward races, 8
+ * in backward races, 0x10 the target doesn't collide, 0x800 its collision object goes when not in this race's
+ * direction, 0x8000 not shown. */
 
 /* A world object (MAT3 tModelPart), the track WAD's: a target where its name matches a kind's. */
 typedef struct tModelPart {
@@ -33,9 +25,9 @@ typedef struct tModelPart {
 /* A mine's record (MAT3 tTargetStructMine, battle's 16 in gTargetStructPtrs[5]): the fields read here. */
 typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16 used; } tTargetStructMine;
 
-/* A path target's record (tTargetStructPath) starts with its path, a PTHD record, as a window address. */
-#define STATE_PATH(s) (((tTargetStructPath *) (s))->pathData)
-#define PATH_OF(s) ((tBasicTargetPath *) PC_N64P(STATE_PATH(s)))
+/* A path target's record (tTargetStructPath) names its path: the PTHD record's index (MAT3 pathData, a pointer). */
+#define STATE_PATH(s) (((tTargetStructPath *) (s))->pathIdx)
+#define PATH_OF(s) TARGET_PATH((tTargetStructPath *) (s))
 /* A kind's start function (TargInfo.startFunc, a void * in the table). */
 #define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
@@ -82,8 +74,8 @@ void SetTargetDef(tTarget *t)
     }
 }
 /* Gives target `t` (of kind `info`, record kind `category` = info->structureID) its record: its own of its kind's
- * array (gTargetOwnStructPtrs, kinds with flag 8; a path target's starts with its PTHD record, whose flag 0x10 makes
- * it not collide), else its kind's static one (gTargetStructInfoPtrs[category], record structureIdx; none for kind
+ * array (gTargetOwnStructPtrs, kinds with flag 8; a path target's names its path, the PTHD record `owner`, whose flag
+ * 0x10 makes it not collide), else its kind's static one (gTargetStructInfoPtrs[category], record structureIdx; none for kind
  * 7). A box (collFuncIdx 4) takes the next bounding box model, at rest, with its row of BBoxCollInfo (collVal). In
  * a race under way (state bit 0x400000: battle drops mines then) a mine takes the first free mine record. The
  * records are the kinds' (heap blocks, or the game's data), in the N64's layout: the target keeps a pointer. */
@@ -97,8 +89,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
             t->data=gTargetOwnStructPtrs[category];
             if(!(t->Flags&16) && category==4) {
                 j=t->owner;
-                STATE_PATH(t->data)=PC_N64W(&gTargetPaths.paths[j]);
-                if(gTargetPaths.paths) {}
+                STATE_PATH(t->data)=j;
                 if((PATH_OF(t->data))->flags&16) t->Flags&=~8;
             }
             gTargetOwnStructPtrs[category]=gTargetOwnStructPtrs[category]+gTargetStructSizes[category];
@@ -285,7 +276,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         if (fromWorld != 0) {
             t->mbIdx = obj->tidx;
         } else if (info->structureID == 4) {
-            t->mbIdx = gTargetPaths.paths[owner].parent;
+            t->mbIdx = gTargetPaths.paths[owner].key;
         }
         if (gGameState & GS_RACING) {
             if (gRace == kBattle) {
@@ -298,9 +289,6 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
     return 0;
 }
 
-/* path i, as the N64 code reaches it: by its byte offset (offset = 36 * i) */
-#define SCENE ((tBasicTargetPath *)((u8 *)gTargetPaths.paths + offset))
-
 /* Sets up the target paths of this race's direction (a ghost race only those with a point flagged 0x1000000, the
  * others' collision objects removed): a target at each point flagged 1; a path for the other direction loses its
  * collision object if flagged 0x800. On a fresh load it allocates the kinds' records and the bounding box models
@@ -310,7 +298,8 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
  * Expansion Pak. */
 void SetTargetDefs(void)
 {
-    s32 i, j, offset, enabled, other;
+    s32 i, j, enabled, other;
+    tBasicTargetPath *path;   /* path i (the N64 code reached it by its byte offset in the file, 36 * i) */
     tTarget *t;
     Vec3 zero;
     struct pc_target_group *group;
@@ -321,36 +310,37 @@ void SetTargetDefs(void)
     }
     if (gTargetPaths.count) {
         zero.z = zero.x = zero.y = 0.0f;
-        for (i = 0, offset = 0; i < gTargetPaths.count; i++, offset += 36) {
-            if (gRace == kGhost && SCENE->collIdx > 0) {
-                for (j = 0; j < SCENE->numPts; j++) {
-                    if (PATH_PTS(SCENE)[j].flags & 0x01000000) {
+        for (i = 0; i < gTargetPaths.count; i++) {
+            path = &gTargetPaths.paths[i];
+            if (gRace == kGhost && path->collIdx > 0) {
+                for (j = 0; j < path->numPts; j++) {
+                    if (path->pts[j].flags & 0x01000000) {
                         goto process;
                     }
                 }
-                if (SCENE->collIdx > 0) {
-                    RemoveCollisionObject(SCENE->collIdx);
+                if (path->collIdx > 0) {
+                    RemoveCollisionObject(path->collIdx);
                 }
                 continue;
             }
         process:
-            if (((SCENE->flags & 4) && (SCENE->flags & 8)) || (gBackwards && (SCENE->flags & 8)) ||
-                (!gBackwards && (SCENE->flags & 4))) {
-                enabled = (SCENE->flags & 0x8000) ? 0 : 1;
-                other = (SCENE->flags & 0x10) ? 0 : 1;
-                for (j = 0; j < SCENE->numPts; j++) {
+            if (((path->flags & 4) && (path->flags & 8)) || (gBackwards && (path->flags & 8)) ||
+                (!gBackwards && (path->flags & 4))) {
+                enabled = (path->flags & 0x8000) ? 0 : 1;
+                other = (path->flags & 0x10) ? 0 : 1;
+                for (j = 0; j < path->numPts; j++) {
                     if (Restarting) {
-                        PATH_PTS(SCENE)[j].flags &= ~0x1000;
+                        path->pts[j].flags &= ~0x1000;
                     }
-                    if (PATH_PTS(SCENE)[j].flags & 1) {
-                        SetupTarget((tModelPart *)SCENE, -1, &zero.x, 0, i, enabled, other);
+                    if (path->pts[j].flags & 1) {
+                        SetupTarget((tModelPart *)path, -1, &zero.x, 0, i, enabled, other);
                     }
                 }
-                if (Restarting && SCENE->collIdx > 0) {
-                    ResetCollisionObject(SCENE->collIdx);
+                if (Restarting && path->collIdx > 0) {
+                    ResetCollisionObject(path->collIdx);
                 }
-            } else if (SCENE->flags & 0x800) {
-                RemoveCollisionObject(SCENE->collIdx);
+            } else if (path->flags & 0x800) {
+                RemoveCollisionObject(path->collIdx);
             }
         }
     }

@@ -113,35 +113,13 @@
 }
 #define gSPDisplayList(pkt,dl) gDma1p(pkt,G_DL,dl,0,G_DL_PUSH)
 
-/* The model files' records the draw reads. PC: a WAD's TXHD, PLHD and OBHD records (the texture, palette and object
- * definitions) keep their N64 layout (port/assets/wad.c): texBase, palBase and displayList are 32-bit RDRAM-window
- * addresses, unsigned so they widen to host pointers by zero extension. */
-#define WAD_ADDR u32
-/* A texture definition (MAT3 tTexture, 36 bytes on the N64); its flags are TEX_* (scene.h). */
-typedef struct tTexture {
-    u8 name[16];
-    u16 width;
-    u16 height;                 /* texels */
-    u8 size;                    /* G_IM_SIZ_*: 4, 8, 16 or 32 bits a texel */
-    u8 format;                  /* G_IM_FMT_*: RGBA, CI (palette), IA, I */
-    s16 palIndex;               /* its palette in its model's palette table, -1 none */
-    WADP(void) texBase;         /* the image, or a display list that loads it (no TEX_IMAGE_DIRECT) */
-    u32 flags;
-    u32 xflags;
-} tTexture;
+/* The model files' records the draw reads (the texture, palette and object definitions: tTexture, tPaletteDef,
+ * tModelDef) are the WAD's records, built beside the file with host pointers to its texels, colours and display lists
+ * (pc_game_types.h, port/assets/wad.c); on the N64 they were the file's, with 32-bit addresses. */
 /* A texture tile, the part of a texture a node draws (MAT3 anon_uls_ult_8), in 10.5 fixed point (32 a texel). */
 typedef struct TexTile {
     u16 uls, ult, lrs, lrt;
 } TexTile;
-/* A palette definition (MAT3 anon_name_start_18): the colours start..end of the TLUT. */
-typedef struct tPaletteDef {
-    u8 name[16];
-    u8 start;
-    u8 end;
-    u8 pad12[2];
-    WAD_ADDR palBase;           /* the 16-bit colours */
-} Palette;
-
 #define gDPTileSync(pkt) gDPNoParam(pkt, G_RDPTILESYNC)
 #define gDPLoadTLUTCmd(pkt, tile, count) \
 { \
@@ -362,23 +340,6 @@ typedef struct {
 /* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-/* One level of detail of an object definition (MAT3 anon_texidx_flags_c, 16 bytes on the N64). */
-typedef struct LodDef {
-    u16 texidx;                 /* the texture ZOID_ChangeTexture gave it (LOD_TEXTURE_SET), a handle */
-    u16 flags;                  /* LOD_* */
-    f32 lodRad;                 /* drawn up to this distance, feet times the node's scale; 0: no limit */
-    WADP(Gfx) displayList;
-    u32 pad;
-} LodDef;
-/* An object definition (MAT3 tModelDef, 88 bytes on the N64). */
-typedef struct tModelDef {
-    u8 name[16];
-    f32 radius;
-    s16 unused;
-    s16 lodCount;               /* its levels of detail, nearest first */
-    LodDef lod[4];
-} tModelDef;
-
 VIEW(GfxBuf *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 VIEW(Mtx *, frame_matrix_cursor);
@@ -398,7 +359,7 @@ float fabsf(float);
 /* Load palette `pal` into the TLUT (colours start..end, at TMEM 0x100 + start), unless it is the one loaded already
  * (zoid_current_tlut). Inside a culled branch (zoid_branch_slot) it always loads: the branch may be skipped, and
  * what follows must not count on what it loads. Advances *gfxp past the commands. */
-void zoid_load_palette(Gfx **gfxp, Palette *pal) {
+void zoid_load_palette(Gfx **gfxp, tPaletteDef *pal) {
     Gfx *gfx = *gfxp;
 
     if (zoid_current_tlut != pal->palBase || zoid_branch_slot != 0) {
@@ -419,7 +380,7 @@ void zoid_load_palette(Gfx **gfxp, Palette *pal) {
  * the TLUT mode set (zoid_tlut_mode keeps the mode last set). The render tile then spans `clip` if given, else
  * `rect`. Its palette (palIndex in `palettes`, the model's palette table; NULL: the caller has set one) is loaded
  * last. Advances *gp past the commands. */
-void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, Palette *palettes)
+void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, tPaletteDef *palettes)
 {
     u16 masks, maskt;
     u16 cms, cmt;
@@ -615,7 +576,7 @@ f32 farcsine(f32 x, s32 flag)
  * display list. `parent` is the node above (depth 1). `palette` is the palette in force from above, loaded again
  * after a level that changes it (LOD_RESET_TLUT). Advances *gp; returns 1 if it drew, else 0. */
 s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent_distance, ObjectInstance *node, s32 view,
-                     Palette *palette)
+                     tPaletteDef *palette)
 {
     Gfx *gfx = *gp;
     tModelDef *def;
@@ -626,7 +587,7 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
     f32 d[3];
     s32 drawn = 0;
     f32 dir[3];
-    Palette *palettes;
+    tPaletteDef *palettes;
     u8 alpha;
     f32 x, y, z;
     f32 yaw, pitch;
@@ -676,7 +637,7 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
                     lod--;
                 }
             }
-            dl = def->lod[lod].displayList;
+            dl = (Gfx *)def->lod[lod].displayList;   /* the file's list, in the N64's form, or the track map's own */
             if (dl != NULL) {
                 if (node->flags & OBJ_ENV_MAPPED) {
                     /* A reflection: texture coordinates generated from the normals by a lookat from the camera to
@@ -784,7 +745,7 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
  * (OBJ_CULL_BOX_A/B or its culling box) is drawn inside a branch the RSP skips when the box is off screen, the
  * branch dropped again if nothing in it was drawn. Advances *gp; returns how many objects it drew. */
 s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth, s32 more_after,
-             s32 use_parent_distance, Palette *palette)
+             s32 use_parent_distance, tPaletteDef *palette)
 {
     Gfx *gfx = *gp;
     s32 push_matrix;            /* this node's matrix is pushed, to be popped after it and its children */
@@ -1345,7 +1306,7 @@ void ZOID_EndFrame(s32 skip_blits)
     for (i = 0; i < gNumBlitInsts; i++) {
         tBlitInstance *blit;
         tTexture *tex;
-        Palette *pal;
+        tPaletteDef *pal;
         s32 h;                  /* unused */
         s32 sw;                 /* the width drawn, texels */
         s32 th;                 /* the height drawn, texels */
@@ -1366,7 +1327,7 @@ void ZOID_EndFrame(s32 skip_blits)
         }
         if (blit->flags & 0x80) {
             if (blit->texture != NULL) {
-                ((void (*)(Palette *))blit->texture)(blit->palette);
+                ((void (*)(tPaletteDef *))blit->texture)(blit->palette);
             }
             continue;
         }
@@ -1437,19 +1398,18 @@ void ZOID_EndFrame(s32 skip_blits)
             BlitXLU(blit->alpha);
         }
         if (blit->palette != NULL) {
-            /* a palette the game filled in for this blit (healthPal, n64FogPal): its colours are a pointer, where
-             * the N64 kept their 32-bit address (as the WAD's palettes below still do) */
-            BlitColors(((tBlitPalette *)blit->palette)->palBase, tex->format, tex->size, 0);
+            /* a palette the game filled in for this blit (healthPal, n64FogPal) */
+            BlitColors(((tPaletteDef *)blit->palette)->palBase, tex->format, tex->size, 0);
         } else if (tex->palIndex >= 0) {
             pal = &gPalDefPtrs[blit->texIndex >> 10].palDefs[tex->palIndex];
-            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
+            BlitColors(pal->palBase, tex->format, tex->size, 0);
         } else if (tex->format == 3) {
             blit_ia_palette[3] = blit->alpha;
             BlitColors(blit_ia_palette, tex->format, tex->size, 0);
         } else if (tex->format != 0) {
             if (gPalDefPtrs[blit->texIndex >> 10].count != 0) {
                 pal = gPalDefPtrs[blit->texIndex >> 10].palDefs;
-                BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
+                BlitColors(pal->palBase, tex->format, tex->size, 0);
             }
         }
         if (blit->bot >= tex->height) {

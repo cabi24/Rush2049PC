@@ -1,13 +1,6 @@
 /* SelectBlit: show one frame of a texture laid out as a grid of frames (MAT3 blit.c). */
 #include "game/game.h"
 
-/* The start of a texture's definition (MAT3 tTexture), all a blit reads of it. */
-struct tTexture {
-    char name[16];
-    u16 width, height;
-    u8 other[16];
-};
-
 /* Crops blt to frame number index of its texture, a grid of frames hSize by vSize texels, numbered across then down
  * (the HUD's digits, gears, place numbers). A flipped blit counts its columns from the right, starting where the
  * texture's width leaves off. Finds the texture first if the blit has none yet (RenameBlit with preserve). */

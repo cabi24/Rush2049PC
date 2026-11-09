@@ -15,8 +15,6 @@ typedef struct tModelData {_tCar *car; Tune44 *tune;u8 body_type;u8 pad9[919]; s
  * returned, and index its low half: the second s16 on the N64, the first on a little-endian host
  * (docs/port/ENDIAN.md). */
 typedef struct SmokePuff { void *next; f32 uvs[9]; f32 pos[3]; union { s32 handle; struct {s16 index,high;} part; } mbIdx; s32 tlifeTime; f32 lifeTime; f32 swTime; f32 vel[3]; u32 data; s16 slot; s16 tIdx; } SmokePuff;
-/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
-typedef struct tTexture { u8 bytes[36]; } tTexture;
 /* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx

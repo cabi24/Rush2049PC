@@ -77,11 +77,7 @@ uint32_t IsCoinFound(int32_t player, int32_t number) { return 1; }
 void MBOX_HideObject(int32_t node, int32_t mode, uint32_t mask) {}
 void RotateUV(void *spin, void *matrix) {}
 
-/* ---- SetupCarColor.c (SetupCarColor, SetModelPalette): its views, host layout */
-typedef struct {
-    uint8_t directory_fields[20];
-    uint32_t data;   /* a window address */
-} Resource24;
+/* ---- SetupCarColor.c (SetupCarColor, SetModelPalette): the palettes are MAT3's records (struct tPaletteDef) */
 typedef struct {
     int32_t root;
     uint32_t unknown04[3];
@@ -93,14 +89,14 @@ void SetFrameColor(int16_t index, uint32_t *color);   /* a car's colour on its s
 
 uint8_t gCarPaintJobInited[8];
 uint32_t paint_colors[8];
-Resource24 car_palettes[8];
+struct tPaletteDef car_palettes[8];
 Handles64 gCarParts[8];
 char car_palette_name_format[] = "CARPAL%d";
 int heap_lock_queue;
 static uint16_t g_colors[256];
-static Resource24 g_wad_palette;
+static struct tPaletteDef g_wad_palette;
 void *AllocateMemoryHeap(void *heap, uint32_t size) { return g_colors; }
-Resource24 *MBOX_FindPalette_WORK(char *name, uint16_t *handle, int8_t lo, int8_t hi, int32_t err)
+struct tPaletteDef *MBOX_FindPalette_WORK(char *name, uint16_t *handle, int8_t lo, int8_t hi, int32_t err)
 {
     *handle = 0;
     return &g_wad_palette;
@@ -171,8 +167,8 @@ int main(void)
     }
     for (i = 0; i < 256; i++)
         test_put16(w + 0x200000 + 2 * i, (uint16_t)(0x8000 | i));   /* the WAD's TLUT, big-endian */
-    g_wad_palette.data = PC_RDRAM_BASE + 0x200000u;     /* window addresses */
-    car_palettes[3].data = PC_RDRAM_BASE + 0x201000u;   /* the car's descriptor block */
+    g_wad_palette.palBase = w + 0x200000;     /* the WAD's colours */
+    car_palettes[3].palBase = w + 0x201000;   /* the car's colours: its heap block */
     gCarParts[3].root = 42;
     gCarParts[3].secondary = 43;
     memset(ObjInstanceList, 0, sizeof(ObjInstanceList));

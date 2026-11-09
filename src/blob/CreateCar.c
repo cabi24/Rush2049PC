@@ -6,8 +6,6 @@
 
 /* A colour (MAT3 tRGBA): gTrackColors' entries, read as a word. */
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
-/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
-typedef struct tTexture { u8 pad[36]; } tTexture;
 
 
 /* Make the scene objects of car slot `slot`, shown in the windows of mask `camlink`: the frame (the root), the hood

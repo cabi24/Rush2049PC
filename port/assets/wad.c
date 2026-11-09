@@ -1,46 +1,57 @@
-/* port/assets/wad.c: the WAD container (docs/port/ASSETS.md §3.1, §5; docs/port/LOADERS.md): the font texture
- * waves 22..37, the model, car and track waves 54..119, and the world waves 120..138 (world.c converts their
- * own chunks after this).
+/* port/assets/wad.c: the WAD container (docs/port/ASSETS.md 3.1, docs/port/NATIVE.md 4.4 and step 7): the font texture
+ * waves 22..37, the model, car and track waves 54..119, and the world waves 120..138 (world.c reads their own chunks
+ * after this).
  *
- * Swapped in place, with the N64 record sizes kept (the game indexes them by hard-coded strides):
- *   header      u32 TOC offset, u32 entry count
- *   TOC         per entry u32 tag, u32 offset, u32 length in bytes or record count
- *   OBHD 0x58   f32 radius @10; s16 @14, @16; 4 LODs @18 of 0x10: u16 @0, @2; u32 @4, @8, @C
- *   TXHD 0x24   u16 @10, @12, @16; u32 @18, @1C, @20
- *   PLHD 0x18   u16 @12; u32 @14
- *   PTHD 0x24   u32 @10; s16 @14, @16; u32 @18, @1C, @20
- *   PATH 0x44   the points a PTHD record's pts reaches, 17 x 32 bits each
- * The pointer fields among them (displayList, vtxList, texBase, palBase, trigPtr, pts, parent) are offsets in the
- * file: SetupWaveModel adds the file's or the IMAG chunk's address, so on PC they become 32-bit RDRAM-window
- * addresses, valid host pointers once widened (the game's views declare them u32).
+ * A WAD is a table of contents of chunks: the header's u32 TOC offset and entry count, then per entry a u32 tag, the
+ * chunk's u32 offset in the file and a u32 count (records, or bytes). The game reads four chunks as records, which the
+ * file holds in the N64's layout, big-endian, with 32-bit offsets where MAT3's records have pointers:
+ *   OBHD 0x58   name[16]; f32 radius @10; s16 unused @14, lodCount @16; 4 LODs @18 of 0x10: u16 texidx @0, flags @2,
+ *               f32 lodRad @4, u32 displayList @8 and vtxList @C (offsets in the file)
+ *   TXHD 0x24   name[16]; u16 width @10, height @12; u8 size @14, format @15; s16 palIndex @16; u32 texBase @18 (an
+ *               offset from IMAG, in 32-bit arithmetic: a texture's load list in TXLD lies before IMAG); u32 flags
+ *               @1C, xflags @20
+ *   PLHD 0x18   name[16]; u8 start @10, end @11; u16 format @12; u32 palBase @14 (an offset from IMAG)
+ *   PTHD 0x24   name[16]; u32 flags @10; s16 numPts @14, collIdx @16; u32 trigPtr @18 (another PTHD record's offset,
+ *               or 0), pts @1C (an offset in the file), parent @20 (the key the world's target groups know it by)
+ *   PATH 0x44   the points a PTHD record's pts reaches, 17 x 32 bits each (TargetPathPt)
+ * On the N64 SetupWaveModel (MBSetupWad, MBGetFromWad) added the file's or IMAG's address to those offsets in place,
+ * making them 32-bit addresses. Here the converter builds the records beside the file instead, native (struct
+ * pc_wad_records, port/include/pc_game_types.h), with host pointers where the file has offsets, and keeps them with
+ * the file's heap block (records.c); SetupWaveModel takes them by the block (pc_wad_records). The file's table of
+ * contents and its record chunks stay as the file has them: the game no longer reads them there. The paths' points
+ * are read where they are, through the paths' pts, so they are swapped in place.
  *
- * Everything else stays big-endian: the TXLD texture-load lists, the model display lists and their Vtx, IMAG
- * texels and TLUTs. port/gfx reads them in N64 form, and the game's own walkers (relocate_model_dl,
- * relocate_texture_loads, display_list_traverse, flip_triangle_winding, mirror_vertex_texcoords, the texture animation) use big-endian
- * accessors. The whole block is one pc_mem_register_be range; port/ultra's PI DMA and decompressors registered
- * the file already, so this only makes the range cover the block. Nothing in the converted records is read
- * through port/gfx.
+ * Everything else stays big-endian: the TXLD texture-load lists, the model display lists and their Vtx, IMAG texels
+ * and TLUTs. port/gfx reads them in N64 form, and the game's own walkers (relocate_model_dl, relocate_texture_loads,
+ * display_list_traverse, flip_triangle_winding, mirror_vertex_texcoords, the texture animation) use big-endian
+ * accessors, until docs/port/NATIVE.md step 10. The whole block is one pc_mem_register_be range; port/ultra's PI DMA
+ * and decompressors registered the file already, so this only makes the range cover the block.
  *
  * Release: the game's heap reports every block it frees (pc_heap_block_freed, from DeallocateMemoryInternal), and
- * pc_wave_released drops a wave's block on request. WAD blocks never move: heap compaction moves only handle
- * blocks, and the only waves loaded as handles are the font data (38..53). Only one N64 thread runs at a time
- * (docs/port/ULTRA.md), so the block list needs no lock. */
+ * pc_wave_released drops a wave's block on request; the records go with it (records.c). WAD blocks never move: heap
+ * compaction moves only handle blocks, and the only waves loaded as handles are the font data (38..53). Only one N64
+ * thread runs at a time (docs/port/ULTRA.md), so the block list needs no lock. */
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 
 #define TAG(a, b, c, d) ((uint32_t)(a) << 24 | (uint32_t)(b) << 16 | (uint32_t)(c) << 8 | (uint32_t)(d))
 #define TAG_OBHD TAG('O', 'B', 'H', 'D')
 #define TAG_TXHD TAG('T', 'X', 'H', 'D')
 #define TAG_PLHD TAG('P', 'L', 'H', 'D')
 #define TAG_PTHD TAG('P', 'T', 'H', 'D')
+#define TAG_TXLD TAG('T', 'X', 'L', 'D')
+#define TAG_IMAG TAG('I', 'M', 'A', 'G')
 
+/* The records' sizes in the file */
 #define OBHD_SIZE 0x58
 #define TXHD_SIZE 0x24
 #define PLHD_SIZE 0x18
 #define PTHD_SIZE 0x24
 #define PATH_POINT_SIZE 0x44
+#define LOD_SIZE 0x10
 
 static int verbose(void)
 {
@@ -111,37 +122,162 @@ void pc_assets_wad_block_freed(uint8_t *p, size_t size)
     drop_blocks_in(p, size);
 }
 
-/* ---------------------------------------------------------------- records */
+/* ---------------------------------------------------------------- the table of contents */
 
-static void swap_obhd(uint8_t *r)
+typedef struct {
+    uint32_t off, count;   /* the chunk's offset in the file and the TOC's count word */
+    int found;
+} Chunk;
+
+static float be_f32(const uint8_t *p)
 {
-    pc_swap32_at(r + 0x10);           /* radius */
-    pc_swap16_n(r + 0x14, 2);         /* kind, lodCount */
-    for (int k = 0; k < 4; k++) {
-        uint8_t *lod = r + 0x18 + 0x10 * k;
-        pc_swap16_n(lod, 2);          /* texidx, flags */
-        pc_swap32_n(lod + 4, 3);      /* lodRad, displayList, vtxList */
+    uint32_t u = pc_be32(p);
+    float f;
+    memcpy(&f, &u, 4);
+    return f;
+}
+
+/* The header and TOC, big-endian. Returns the entry count, or -1 if buf doesn't hold a WAD. */
+static long check_toc(int wave, const uint8_t *buf, size_t size)
+{
+    if (size < 8)
+        return -1;
+    uint32_t toc = pc_be32(buf), n = pc_be32(buf + 4);
+    if (toc < 8 || (toc & 3) || toc > size || n > (size - toc) / 12) {
+        if (toc == 0 && n == 0)
+            return -1;   /* an empty file (a blank cartridge's) */
+        fprintf(stderr, "rush2049pc: wad %d: no WAD table of contents (offset 0x%X, %u entries, block 0x%zX); "
+                "not converted\n", wave, toc, n, size);
+        return -1;
+    }
+    return (long)n;
+}
+
+/* The first entry tagged tag (the game fetched each tag's first, MBFindInWad; later duplicates were never reached). */
+static Chunk find_chunk(const uint8_t *buf, long n, uint32_t tag)
+{
+    const uint8_t *e = buf + pc_be32(buf);
+    for (long i = 0; i < n; i++, e += 12)
+        if (pc_be32(e) == tag)
+            return (Chunk){pc_be32(e + 4), pc_be32(e + 8), 1};
+    return (Chunk){0, 0, 0};
+}
+
+/* A record chunk's count when its records fit the file, else 0, said so. */
+static int records_in(int wave, Chunk c, uint32_t tag, size_t rec_size, size_t size)
+{
+    if (!c.found || !c.count)
+        return 0;
+    if ((c.off & 3) || c.off > size || c.count > (size - c.off) / rec_size || c.count > 0x7FFFFFFF) {
+        fprintf(stderr, "rush2049pc: wad %d: %c%c%c%c (0x%X, %u records) is outside the file: none\n", wave,
+                tag >> 24, tag >> 16 & 0xFF, tag >> 8 & 0xFF, tag & 0xFF, c.off, c.count);
+        return 0;
+    }
+    return (int)c.count;
+}
+
+/* ---------------------------------------------------------------- the records */
+
+/* The file at offset off (32 bits, as the N64's sum was), or NULL past its end. */
+static void *in_file(uint8_t *buf, size_t size, uint32_t off)
+{
+    return off < size ? buf + off : NULL;
+}
+
+static void build_models(int wave, struct pc_wad_records *w, uint8_t *buf, size_t size, Chunk c)
+{
+    int n = records_in(wave, c, TAG_OBHD, OBHD_SIZE, size);
+    if (!c.found)
+        return;
+    w->models = calloc(n ? (size_t)n : 1, sizeof *w->models);
+    if (!w->models)
+        abort();
+    w->numModels = n;
+    for (int i = 0; i < n; i++) {
+        const uint8_t *r = buf + c.off + (size_t)i * OBHD_SIZE;
+        struct tModelDef *m = &w->models[i];
+        memcpy(m->name, r, sizeof m->name);
+        m->radius = be_f32(r + 0x10);
+        m->unused = (short)pc_be16(r + 0x14);
+        m->lodCount = (short)pc_be16(r + 0x16);
+        if (m->lodCount > 4) {   /* the N64 relocated the record after it as its levels past 4 */
+            fprintf(stderr, "rush2049pc: wad %d: model %d ('%.16s') has %d levels of detail; 4 kept\n", wave, i,
+                    m->name, m->lodCount);
+            m->lodCount = 4;
+        }
+        for (int k = 0; k < 4; k++) {
+            const uint8_t *l = r + 0x18 + LOD_SIZE * k;
+            struct tLod *lod = &m->lod[k];
+            uint32_t dl = pc_be32(l + 8);
+            lod->texidx = pc_be16(l);
+            lod->flags = pc_be16(l + 2);
+            lod->lodRad = be_f32(l + 4);
+            /* The N64 relocated the levels it has (lodCount) and left the rest offsets, which nothing reads. */
+            if (k >= m->lodCount)
+                continue;
+            lod->displayList = in_file(buf, size, dl);
+            lod->vtxList = in_file(buf, size, pc_be32(l + 12));   /* unread: no check of the file's */
+            if (!lod->displayList || (dl & 7))
+                fprintf(stderr, "rush2049pc: wad %d: model %d ('%.16s') LOD %d's display list 0x%X is not an 8-aligned "
+                        "place in the file\n", wave, i, m->name, k, dl);
+        }
     }
 }
 
-static void swap_txhd(uint8_t *r)
+static void build_textures(int wave, struct pc_wad_records *w, uint8_t *buf, size_t size, Chunk c, Chunk imag)
 {
-    pc_swap16_n(r + 0x10, 2);         /* width, height; size and format @14 are bytes */
-    pc_swap16_at(r + 0x16);           /* palIndex */
-    pc_swap32_n(r + 0x18, 3);         /* texBase, flags, xflags */
+    int n = records_in(wave, c, TAG_TXHD, TXHD_SIZE, size);
+    if (!c.found)
+        return;
+    w->textures = calloc(n ? (size_t)n : 1, sizeof *w->textures);
+    if (!w->textures)
+        abort();
+    w->numTextures = n;
+    for (int i = 0; i < n; i++) {
+        const uint8_t *r = buf + c.off + (size_t)i * TXHD_SIZE;
+        struct tTexture *t = &w->textures[i];
+        uint32_t base = pc_be32(r + 0x18);
+        memcpy(t->name, r, sizeof t->name);
+        t->width = pc_be16(r + 0x10);
+        t->height = pc_be16(r + 0x12);
+        t->size = r[0x14];
+        t->format = r[0x15];
+        t->palIndex = (short)pc_be16(r + 0x16);
+        t->flags = pc_be32(r + 0x1C);
+        t->xflags = pc_be32(r + 0x20);
+        /* texBase is IMAG's offset plus the record's, in 32 bits (a load list before IMAG is a negative offset) */
+        t->texBase = imag.found ? in_file(buf, size, imag.off + base) : NULL;
+        if (!imag.found)
+            fprintf(stderr, "rush2049pc: wad %d: texture %d ('%.16s') has no texels: the file has no IMAG\n", wave, i,
+                    t->name);
+        else if (!t->texBase)
+            fprintf(stderr, "rush2049pc: wad %d: texture %d ('%.16s') at 0x%X past IMAG is outside the file\n", wave,
+                    i, t->name, base);
+    }
 }
 
-static void swap_plhd(uint8_t *r)
+static void build_palettes(int wave, struct pc_wad_records *w, uint8_t *buf, size_t size, Chunk c, Chunk imag)
 {
-    pc_swap16_at(r + 0x12);           /* format; start and end @10 are bytes */
-    pc_swap32_at(r + 0x14);           /* palBase */
-}
-
-static void swap_pthd(uint8_t *r)
-{
-    pc_swap32_at(r + 0x10);           /* flags */
-    pc_swap16_n(r + 0x14, 2);         /* numPts, collIdx */
-    pc_swap32_n(r + 0x18, 3);         /* trigPtr, pts, parent */
+    int n = records_in(wave, c, TAG_PLHD, PLHD_SIZE, size);
+    if (!c.found)
+        return;
+    w->palettes = calloc(n ? (size_t)n : 1, sizeof *w->palettes);
+    if (!w->palettes)
+        abort();
+    w->numPalettes = n;
+    for (int i = 0; i < n; i++) {
+        const uint8_t *r = buf + c.off + (size_t)i * PLHD_SIZE;
+        struct tPaletteDef *p = &w->palettes[i];
+        uint32_t base = pc_be32(r + 0x14);
+        memcpy(p->name, r, sizeof p->name);
+        p->start = r[0x10];
+        p->end = r[0x11];
+        p->format = pc_be16(r + 0x12);
+        p->palBase = imag.found ? in_file(buf, size, imag.off + base) : NULL;   /* IMAG's offset plus the record's */
+        if (!p->palBase)
+            fprintf(stderr, "rush2049pc: wad %d: palette %d ('%.16s') at 0x%X past IMAG is outside the file\n", wave,
+                    i, p->name, base);
+    }
 }
 
 typedef struct {
@@ -154,33 +290,53 @@ static int span_cmp(const void *a, const void *b)
     return x->start < y->start ? -1 : x->start > y->start;
 }
 
-/* The path points of the (already swapped) PTHD records. Paths may share points, so the spans are merged and
- * every word is swapped once. */
-static void swap_paths(int wave, uint8_t *buf, size_t size, const uint8_t *pthd, uint32_t count)
+/* The paths, and their points swapped in place in the file. Paths may share points, so the spans are merged and every
+ * word is swapped once. */
+static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t size, Chunk c)
 {
-    Span *spans = malloc(count * sizeof *spans);
-    size_t n = 0;
-    if (!spans)
+    int n = records_in(wave, c, TAG_PTHD, PTHD_SIZE, size);
+    Span *spans;
+    size_t nspans = 0;
+
+    if (!c.found)
         return;
-    for (uint32_t i = 0; i < count; i++) {
-        const uint8_t *r = pthd + (size_t)i * PTHD_SIZE;
-        int16_t pts_n;
-        uint32_t pts;
-        memcpy(&pts_n, r + 0x14, 2);
-        memcpy(&pts, r + 0x1C, 4);
-        if (pts_n <= 0)
-            continue;
-        uint64_t end = (uint64_t)pts + (uint64_t)pts_n * PATH_POINT_SIZE;
-        if ((pts & 3) || end > size) {
-            fprintf(stderr, "rush2049pc: wad %d: path %u's points (0x%X, %d) are outside the file; left as is\n",
-                    wave, i, pts, pts_n);
+    spans = malloc((n ? (size_t)n : 1) * sizeof *spans);
+    w->paths = calloc(n ? (size_t)n : 1, sizeof *w->paths);
+    if (!w->paths || !spans)
+        abort();
+    w->numPaths = n;
+    for (int i = 0; i < n; i++) {
+        const uint8_t *r = buf + c.off + (size_t)i * PTHD_SIZE;
+        struct tBasicTargetPath *p = &w->paths[i];
+        uint32_t trig = pc_be32(r + 0x18), pts = pc_be32(r + 0x1C);
+        memcpy(p->name, r, sizeof p->name);
+        p->flags = pc_be32(r + 0x10);
+        p->numPts = (short)pc_be16(r + 0x14);
+        p->collIdx = (short)pc_be16(r + 0x16);
+        p->key = (int)pc_be32(r + 0x20);
+        p->parent = NULL;
+        /* The trigger is another record of this chunk; 0 is none. */
+        if (trig >= c.off && (trig - c.off) % PTHD_SIZE == 0 && (trig - c.off) / PTHD_SIZE < (uint32_t)n)
+            p->trigPtr = &w->paths[(trig - c.off) / PTHD_SIZE];
+        else if (trig)
+            fprintf(stderr, "rush2049pc: wad %d: path %d ('%.16s') names 0x%X as its trigger, no path record: none\n",
+                    wave, i, p->name, trig);
+        if (p->numPts <= 0) {
+            p->pts = in_file(buf, size, pts);   /* no points to read there */
             continue;
         }
-        spans[n++] = (Span){pts, (uint32_t)end};
+        uint64_t end = (uint64_t)pts + (uint64_t)p->numPts * PATH_POINT_SIZE;
+        if ((pts & 3) || end > size) {
+            fprintf(stderr, "rush2049pc: wad %d: path %d's points (0x%X, %d) are outside the file: none\n", wave, i,
+                    pts, p->numPts);
+            continue;
+        }
+        p->pts = (struct TargetPathPt *)(buf + pts);
+        spans[nspans++] = (Span){pts, (uint32_t)end};
     }
-    qsort(spans, n, sizeof *spans, span_cmp);
+    qsort(spans, nspans, sizeof *spans, span_cmp);
     uint32_t done = 0;   /* words below this offset are swapped */
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < nspans; i++) {
         uint32_t s = spans[i].start > done ? spans[i].start : done;
         if (s < spans[i].end) {
             pc_swap32_n(buf + s, (spans[i].end - s) / 4);
@@ -190,38 +346,15 @@ static void swap_paths(int wave, uint8_t *buf, size_t size, const uint8_t *pthd,
     free(spans);
 }
 
-/* ---------------------------------------------------------------- the container */
-
-typedef struct {
-    uint32_t tag, rec_size;
-    void (*swap)(uint8_t *);
-} RecordKind;
-
-static const RecordKind g_kinds[] = {
-    {TAG_OBHD, OBHD_SIZE, swap_obhd},
-    {TAG_TXHD, TXHD_SIZE, swap_txhd},
-    {TAG_PLHD, PLHD_SIZE, swap_plhd},
-    {TAG_PTHD, PTHD_SIZE, swap_pthd},
-};
-
-/* The header and TOC are still big-endian here. Returns the entry count, or -1 if buf doesn't hold a WAD. */
-static long check_toc(int wave, const uint8_t *buf, size_t size)
+static void release_wad(void *records)
 {
-    if (size < 8)
-        return -1;
-    uint32_t toc = pc_be32(buf), n = pc_be32(buf + 4);
-    if (toc >= N64_KSEG0) {   /* an N64 address (the file's load address + the offset), not an offset */
-        fprintf(stderr, "rush2049pc: wad %d: already relocated (TOC 0x%08X); not converted\n", wave, toc);
-        return -1;
-    }
-    if (toc < 8 || (toc & 3) || toc > size || n > (size - toc) / 12) {
-        if (toc == 0 && n == 0)
-            return -1;   /* an empty file (a blank cartridge's) */
-        fprintf(stderr, "rush2049pc: wad %d: no WAD table of contents (offset 0x%X, %u entries, block 0x%zX); "
-                "not converted\n", wave, toc, n, size);
-        return -1;
-    }
-    return (long)n;
+    struct pc_wad_records *w = records;
+
+    free(w->models);
+    free(w->textures);
+    free(w->palettes);
+    free(w->paths);
+    free(w);
 }
 
 void pc_assets_wad(int wave, uint8_t *buf, size_t size)
@@ -229,39 +362,38 @@ void pc_assets_wad(int wave, uint8_t *buf, size_t size)
     long n = check_toc(wave, buf, size);
     if (n < 0)
         return;
-    pc_swap32_n(buf, 2);
-    uint32_t toc;
-    memcpy(&toc, buf, 4);
-    uint8_t *entries = buf + toc;
-    pc_swap32_n(entries, (size_t)n * 3);
+    Chunk imag = find_chunk(buf, n, TAG_IMAG), txld = find_chunk(buf, n, TAG_TXLD);
+    struct pc_wad_records *w = calloc(1, sizeof *w);
 
-    /* The game fetches each tag's first entry (MBFindInWad); later duplicates are never reached. */
-    const uint8_t *pthd = NULL;
-    uint32_t pthd_count = 0;
-    for (size_t k = 0; k < sizeof g_kinds / sizeof g_kinds[0]; k++) {
-        const RecordKind *kind = &g_kinds[k];
-        for (long i = 0; i < n; i++) {
-            uint32_t e[3];
-            memcpy(e, entries + 12 * i, 12);
-            if (e[0] != kind->tag)
-                continue;
-            uint32_t off = e[1], count = e[2];
-            if ((off & 3) || off > size || count > (size - off) / kind->rec_size) {
-                fprintf(stderr, "rush2049pc: wad %d: %c%c%c%c (0x%X, %u records) is outside the file; left as "
-                        "is\n", wave, kind->tag >> 24, kind->tag >> 16 & 0xFF, kind->tag >> 8 & 0xFF,
-                        kind->tag & 0xFF, off, count);
-                break;
-            }
-            for (uint32_t j = 0; j < count; j++)
-                kind->swap(buf + off + (size_t)j * kind->rec_size);
-            if (kind->tag == TAG_PTHD)
-                pthd = buf + off, pthd_count = count;
-            break;
-        }
-    }
-    if (pthd)
-        swap_paths(wave, buf, size, pthd, pthd_count);
+    if (!w)
+        abort();
+    build_models(wave, w, buf, size, find_chunk(buf, n, TAG_OBHD));
+    build_textures(wave, w, buf, size, find_chunk(buf, n, TAG_TXHD), imag);
+    build_palettes(wave, w, buf, size, find_chunk(buf, n, TAG_PLHD), imag);
+    build_paths(wave, w, buf, size, find_chunk(buf, n, TAG_PTHD));
+    if (txld.found && txld.off <= size && txld.count <= size - txld.off && txld.count <= 0x7FFFFFFF) {
+        w->textureLoads = buf + txld.off;
+        w->textureLoadsSize = (int)txld.count;
+    } else if (txld.found)
+        fprintf(stderr, "rush2049pc: wad %d: TXLD (0x%X, 0x%X bytes) is outside the file: none\n", wave, txld.off,
+                txld.count);
+    if (imag.found)
+        w->images = in_file(buf, size, imag.off);
+    pc_records_keep(buf, size, PC_RECORDS_WAD, w, release_wad);
     add_block(wave, buf, size);
     if (verbose())
-        fprintf(stderr, "rush2049pc: wad %d: %ld chunks converted at %p\n", wave, n, (void *)buf);
+        fprintf(stderr, "rush2049pc: wad %d: %ld chunks, %d models, %d textures, %d palettes, %d paths at %p\n", wave,
+                n, w->numModels, w->numTextures, w->numPalettes, w->numPaths, (void *)buf);
+}
+
+struct pc_wad_records *pc_wad_records(const void *file)
+{
+    static struct pc_wad_records none;
+    struct pc_wad_records *w = pc_records_find(file, PC_RECORDS_WAD);
+
+    if (w)
+        return w;
+    fprintf(stderr, "rush2049pc: no WAD was converted at %p: no models, textures, palettes or paths\n", file);
+    memset(&none, 0, sizeof none);
+    return &none;
 }

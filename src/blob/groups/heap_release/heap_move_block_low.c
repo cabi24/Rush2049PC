@@ -62,6 +62,7 @@ void heap_move_block_low(void *ptr)
     size = old->size;
     old->master = NULL;
     game_memmove((u8 *)b + HEAP_CHUNK_HEADER, (u8 *)old + HEAP_CHUNK_HEADER, old->size);
+    pc_heap_block_moved((u8 *)old + HEAP_CHUNK_HEADER, (u8 *)b + HEAP_CHUNK_HEADER, size);
     if (adjacent || b->size - size >= HEAP_MIN_SPLIT) {
         n = (tMemoryChunk *)((u8 *)b + size + HEAP_CHUNK_HEADER);
         if (adjacent) {

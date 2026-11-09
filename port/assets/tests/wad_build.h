@@ -5,7 +5,7 @@
  *   0x008 OBHD   2 models; model 0 has 2 LODs, model 1 has 1
  *   0x0B8 TXHD   3 textures, sorted by name (MBOX_FindTexture bsearches them)
  *   0x124 PLHD   2 palettes
- *   0x154 PTHD   3 target paths: 0 and 1 share their middle point, 2 has none
+ *   0x154 PTHD   3 target paths: 0 and 1 share their middle point, 2 has none; 0's trigger is 1, 1's is 2
  *   0x1C0 PATH   4 points of 0x44
  *   0x2D0 TXLD   SETTIMG, SETTILE, E1+04 (a branch), SETTILESIZE, ENDDL; texture 1's list
  *   0x300 OBJS   display lists (LOD 0: VTX, TRI1, a LOD marker the load flags keep, a call, a LOD marker they
@@ -123,9 +123,9 @@ static size_t wad_build(uint8_t *buf)
         test_put32(r + 0x10, 0x00010000u << p);
         test_put16(r + 0x14, (uint16_t)num[p]);
         test_put16(r + 0x16, (uint16_t)(p - 1));
-        test_put32(r + 0x18, W_PATH + 0x44 * first[p] + 0x40);   /* trigPtr: some file offset */
+        test_put32(r + 0x18, p == 2 ? 0 : (uint32_t)(W_PTHD + 0x24 * (p + 1)));   /* trigPtr: the next path's record */
         test_put32(r + 0x1C, W_PATH + 0x44 * first[p]);          /* pts */
-        test_put32(r + 0x20, 0);                                 /* parent */
+        test_put32(r + 0x20, 0x700u + (uint32_t)p);              /* parent: the key the world's groups name it by */
     }
     for (int i = 0; i < 4; i++) {
         uint8_t *pt = buf + W_PATH + 0x44 * i;

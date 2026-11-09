@@ -4,33 +4,19 @@
  * an orientation, a scale and the time to the next; a path with collision (flag 0x20) moves its collision object
  * with the target (MoveCollisionObject, RotateCollisionObject). An environment visual animates each one every frame
  * (AnimatePathTarget), and each plays its start, move and stop sounds. The targets are PC data with pointers (a
- * target's record is its data); the PTHD records and the targets' records keep the N64's layout on the PC: their
- * pointers are 32-bit window addresses (PC_N64P, PC_N64W; docs/port/POINTERS.md 10, NATIVE.md step 7). */
+ * target's record is its data); the PTHD records are the WAD's converter's, with pointers (tBasicTargetPath,
+ * pc_game_types.h), and a target's record (a heap record of the N64's size) names its path by its index
+ * (TARGET_PATH): docs/port/POINTERS.md 10, NATIVE.md step 7.
+ * A path's flags: 1 back and forth, 2 a loop, 4 in forward races, 8 in backward races, 0x10 the target doesn't
+ * collide, 0x20 a collision object moves with it, 0x40 worked by a trigger, 0x80 stops at its end, 0x100 stopped,
+ * 0x8000 its object definition never changes, 0x100000 showing OBJ_PATH_MOVING, 0x200000 showing OBJ_PATH_STOPPED. */
 #include "game/game.h"
 
 float fabsf(float);
 float sqrtf(float);
 
-/* A target path (MAT3 tBasicTargetPath, the track WAD's PTHD record; waves.c has its own view). N64 layout. */
-typedef struct tBasicTargetPath { /* 0x24 bytes */
-    char name[16];  /* 0x00 */
-    s32 flags;      /* 0x10 1 back and forth, 2 a loop, 4 in forward races, 8 in backward races, 0x10 the target
-                     * doesn't collide, 0x20 a collision object moves with it, 0x40 worked by a trigger
-                     * (trigPtr), 0x80 stops at its end, 0x100 stopped, 0x8000 its object definition never
-                     * changes, 0x100000 showing OBJ_PATH_MOVING, 0x200000 showing OBJ_PATH_STOPPED */
-    s16 numPts;     /* 0x14 */
-    s16 collIdx;    /* 0x16 its collision object, 0 none */
-    u32 trigPtr;    /* 0x18 the path that triggers it, a window address */
-    u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
-    u32 parent;     /* 0x20 the record of the target on it (tTargetStructPath), a window address */
-} tBasicTargetPath;
-
-/* A target's record (its data), and the N64-layout records' links, as host pointers: a record's path, a path's
- * trigger and target record; and the target an environment visual animates (its data). */
+/* A target's record (its data), and the target an environment visual animates (its data). */
 #define TARGET_STATE(t) ((tTargetStructPath *) (t)->data)
-#define STATE_PATH(s) ((tBasicTargetPath *) PC_N64P((s)->pathData))
-#define PATH_TRIGGER(p) ((tBasicTargetPath *) PC_N64P((p)->trigPtr))
-#define PATH_PARENT(p) ((tTargetStructPath *) PC_N64P((p)->parent))
 #define VISUAL_TARGET(v) ((tTarget *) (v)->data)
 
 /* The object definitions (gObjList) a worked path target shows, moving and stopped. */
@@ -100,10 +86,10 @@ void PlacePathTargetQuat(tTarget *target) {
     f32 dist;
 
     state = TARGET_STATE(target);
-    path = STATE_PATH(TARGET_STATE(target));
+    path = TARGET_PATH(TARGET_STATE(target));
     idx = state->ptOn;
-    pt = &PATH_PTS(path)[idx];
-    pts = PATH_PTS(path);
+    pt = &path->pts[idx];
+    pts = path->pts;
     if (pt->flags & 0x20) {
         goto plain;
     }
@@ -201,7 +187,7 @@ void ResetPath(tTarget *target, s32 idx) {
     s32 i;
 
     state = TARGET_STATE(target);
-    path = STATE_PATH(state);
+    path = TARGET_PATH(state);
     if ((path->flags & 1) && idx >= path->numPts - 1) {
         state->flags = TPATH_BACKWARD;
     } else {
@@ -210,26 +196,26 @@ void ResetPath(tTarget *target, s32 idx) {
     state->ptOn = idx;
     state->timeElapsed = 0.0f;
     state->curVel = 0.0f;
-    target->mat.pos[0] = PATH_PTS(path)[state->ptOn].pos[0];
-    target->mat.pos[1] = PATH_PTS(path)[state->ptOn].pos[1];
-    target->mat.pos[2] = PATH_PTS(path)[state->ptOn].pos[2];
-    state->lastPos[0] = PATH_PTS(path)[state->ptOn].pos[0];
-    state->lastPos[1] = PATH_PTS(path)[state->ptOn].pos[1];
-    state->lastPos[2] = PATH_PTS(path)[state->ptOn].pos[2];
+    target->mat.pos[0] = path->pts[state->ptOn].pos[0];
+    target->mat.pos[1] = path->pts[state->ptOn].pos[1];
+    target->mat.pos[2] = path->pts[state->ptOn].pos[2];
+    state->lastPos[0] = path->pts[state->ptOn].pos[0];
+    state->lastPos[1] = path->pts[state->ptOn].pos[1];
+    state->lastPos[2] = path->pts[state->ptOn].pos[2];
     if (path->flags & 0xC0) {
         path->flags |= 0x100;
-        path->parent = PC_N64W(state);
+        path->parent = state;
     }
     if (path->flags & 0x5000) {
         path->flags |= 0x400;
     }
-    CreateQuatMat(target->mat.uvs, PATH_PTS(path)[state->ptOn].quat, 1);
+    CreateQuatMat(target->mat.uvs, path->pts[state->ptOn].quat, 1);
     CopyUV(target->mat.uvs, state->lastUVS);
     TransposeUV(state->lastUVS);
     for (i = 0; i < 3; i++) {
-        target->mat.uvs[0][i] = PATH_PTS(path)[state->ptOn].scale[0] * target->mat.uvs[0][i];
-        target->mat.uvs[1][i] = PATH_PTS(path)[state->ptOn].scale[1] * target->mat.uvs[1][i];
-        target->mat.uvs[2][i] = PATH_PTS(path)[state->ptOn].scale[2] * target->mat.uvs[2][i];
+        target->mat.uvs[0][i] = path->pts[state->ptOn].scale[0] * target->mat.uvs[0][i];
+        target->mat.uvs[1][i] = path->pts[state->ptOn].scale[1] * target->mat.uvs[1][i];
+        target->mat.uvs[2][i] = path->pts[state->ptOn].scale[2] * target->mat.uvs[2][i];
     }
 }
 
@@ -260,10 +246,10 @@ void PlacePathTargetPos(tTarget *target) {
 
     state = TARGET_STATE(target);
     idx = state->ptOn;
-    path = STATE_PATH(state);
-    pt = &PATH_PTS(path)[idx];
+    path = TARGET_PATH(state);
+    pt = &path->pts[idx];
     n = path->numPts;
-    pts = PATH_PTS(path);
+    pts = path->pts;
     if (idx < n - 1 || (path->flags & 2) != 0 || !(path->flags & 0x80)) {
         if (pt->flags & 0x10000008) {
             if (state->flags & TPATH_BACKWARD) {
@@ -362,7 +348,7 @@ void StartPathTarget(tTarget *target) {
     target->sndState = 2;
     info = &targetInfo[target->infoIdx];
     state = TARGET_STATE(target);
-    path = STATE_PATH(TARGET_STATE(target));
+    path = TARGET_PATH(TARGET_STATE(target));
     if (!(target->Flags & TARGET_SET_UP)) {
         state->flags = 0;
         state->timeElapsed = 0.0f;
@@ -373,11 +359,11 @@ void StartPathTarget(tTarget *target) {
             f32 delta[3];
             f32 mat[9];
 
-            s = STATE_PATH(TARGET_STATE(target));
+            s = TARGET_PATH(TARGET_STATE(target));
             for (j = 0; j < s->numPts; j++) {
-                TargetPathPt *pt = &PATH_PTS(s)[j];
+                TargetPathPt *pt = &s->pts[j];
 
-                if (PATH_PTS(s)[j].flags & 0x1000000) {
+                if (s->pts[j].flags & 0x1000000) {
                     target->mat.pos[0] = pt->pos[0];
                     target->mat.pos[1] = pt->pos[1];
                     target->mat.pos[2] = pt->pos[2];
@@ -385,10 +371,10 @@ void StartPathTarget(tTarget *target) {
                 }
             }
             if (s->flags & 0x20) {
-                v[0] = PATH_PTS(s)[0].pos[0];
-                v[1] = PATH_PTS(s)[0].pos[1];
-                v[2] = PATH_PTS(s)[0].pos[2];
-                CreateQuatMat(mat, PATH_PTS(s)[0].quat, 1);
+                v[0] = s->pts[0].pos[0];
+                v[1] = s->pts[0].pos[1];
+                v[2] = s->pts[0].pos[2];
+                CreateQuatMat(mat, s->pts[0].quat, 1);
                 TransposeUV(mat);
                 delta[0] = target->mat.pos[0] - v[0];
                 delta[1] = target->mat.pos[1] - v[1];
@@ -402,15 +388,15 @@ void StartPathTarget(tTarget *target) {
             }
             mx = 0.0f;
             for (i = 0; i < path->numPts; i++) {
-                if (mx < PATH_PTS(path)[i].speed) {
-                    mx = PATH_PTS(path)[i].speed;
+                if (mx < path->pts[i].speed) {
+                    mx = path->pts[i].speed;
                 }
             }
             state->maxVel = mx;
             for (i = 0; i < path->numPts; i++) {
-                if ((PATH_PTS(path)[i].flags & 1) && !(PATH_PTS(path)[i].flags & 0x1000)) {
+                if ((path->pts[i].flags & 1) && !(path->pts[i].flags & 0x1000)) {
                     ResetPath(target, i);
-                    PATH_PTS(path)[i].flags |= 0x1000;
+                    path->pts[i].flags |= 0x1000;
                     i = path->numPts;
                 }
             }
@@ -480,7 +466,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
     if (((gGameState & GS_RACE_MASK) || (gGameState & GS_DEMO)) && gPauseState == 0) {
         target = VISUAL_TARGET(node);
         state = TARGET_STATE(target);
-        path = STATE_PATH(state);
+        path = TARGET_PATH(state);
         if (path->flags & 0x40) {
             if (path->flags & 0x4000) {
                 if (!(path->flags & 0x200)) {
@@ -488,7 +474,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                         if (state->flags & TPATH_FORWARD) {
                             state->flags &= ~TPATH_FORWARD;
                             state->flags |= TPATH_BACKWARD;
-                            state->timeElapsed = PATH_PTS(path)[state->ptOn].timeToNext - state->timeElapsed;
+                            state->timeElapsed = path->pts[state->ptOn].timeToNext - state->timeElapsed;
                         }
                         if (path->flags & 0x100) {
                             PlayStartSound(target);
@@ -504,7 +490,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                 }
             } else {
                 if ((path->flags & 0x2000) && (path->flags & 0x100000)) {
-                    if (PATH_TRIGGER(path)->flags & 0x100) {
+                    if (path->trigPtr->flags & 0x100) {
                         path->flags &= ~0x100000;
                         path->flags |= 0x200400;
                         if (!(path->flags & 0x8000)) {
@@ -515,19 +501,19 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                     }
                 }
                 if ((path->flags & 0x400) && (path->flags & 0x200)) {
-                    trig = PATH_TRIGGER(path);
+                    trig = path->trigPtr;
                     if (trig->flags & 0x100) {
                         trig->flags &= ~0x100;
                     } else if (path->flags & 0x1000) {
-                        trigState = PATH_PARENT(trig);
+                        trigState = trig->parent;
                         if (trigState->flags & TPATH_BACKWARD) {
                             trigState->flags &= ~TPATH_BACKWARD;
                             trigState->flags |= TPATH_FORWARD;
-                            trigState->timeElapsed = PATH_PTS(trig)[trigState->ptOn].timeToNext - trigState->timeElapsed;
+                            trigState->timeElapsed = trig->pts[trigState->ptOn].timeToNext - trigState->timeElapsed;
                         } else {
                             trigState->flags &= ~TPATH_FORWARD;
                             trigState->flags |= TPATH_BACKWARD;
-                            trigState->timeElapsed = PATH_PTS(trig)[trigState->ptOn].timeToNext - trigState->timeElapsed;
+                            trigState->timeElapsed = trig->pts[trigState->ptOn].timeToNext - trigState->timeElapsed;
                         }
                     }
                     path->flags = path->flags & ~0x700;
@@ -564,7 +550,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
             idx = state->ptOn;
             do {
                 fr = state->timeElapsed;
-                f = PATH_PTS(path)[idx].timeToNext;
+                f = path->pts[idx].timeToNext;
                 if (f <= fr) {
                     state->timeElapsed = fr - f;
                     if (state->flags & TPATH_BACKWARD) {
@@ -602,7 +588,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                     } else {
                         state->ptOn = idx + 1;
                         idx = state->ptOn;
-                        if (PATH_PTS(path)[idx].flags & 0x40) {
+                        if (path->pts[idx].flags & 0x40) {
                             i = 1;
                             path->flags |= 0x100;
                             state->timeElapsed = 0.0f;
@@ -630,11 +616,11 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                     i = 1;
                 }
             } while (i == 0);
-            idx = PATH_PTS(path)[idx].flags;
+            idx = path->pts[idx].flags;
             if (!(idx & 2)) {
                 PlacePathTargetPos(target);
                 moved = 1;
-                idx = PATH_PTS(path)[state->ptOn].flags;
+                idx = path->pts[state->ptOn].flags;
             }
             if (!(idx & 0x10) || !(idx & 4)) {
                 moved = 1;
@@ -667,7 +653,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
                     flag = target->otype + idx;
                     if (flag != target->type) {
                         m = objects[flag];
-                        trig = PATH_TRIGGER(path);
+                        trig = path->trigPtr;
                         if (trig) {} /* the N64 code reads the trigger here and does nothing with it */
                         if (path->flags & 0x8000) {
                         } else {
@@ -681,33 +667,33 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
 motion:
                 if (info->collFuncIdx == 4) {
                     if (state->flags & TPATH_BACKWARD) {
-                        dv[0] = PATH_PTS(path)[state->ptOn].norm[0] * -state->curVel;
-                        dv[1] = PATH_PTS(path)[state->ptOn].norm[1] * -state->curVel;
-                        dv[2] = PATH_PTS(path)[state->ptOn].norm[2] * -state->curVel;
+                        dv[0] = path->pts[state->ptOn].norm[0] * -state->curVel;
+                        dv[1] = path->pts[state->ptOn].norm[1] * -state->curVel;
+                        dv[2] = path->pts[state->ptOn].norm[2] * -state->curVel;
                     } else {
-                        dv[0] = PATH_PTS(path)[state->ptOn].norm[0] * state->curVel;
-                        dv[1] = PATH_PTS(path)[state->ptOn].norm[1] * state->curVel;
-                        dv[2] = PATH_PTS(path)[state->ptOn].norm[2] * state->curVel;
+                        dv[0] = path->pts[state->ptOn].norm[0] * state->curVel;
+                        dv[1] = path->pts[state->ptOn].norm[1] * state->curVel;
+                        dv[2] = path->pts[state->ptOn].norm[2] * state->curVel;
                     }
                     UpdateMiniModelStruct(target->owner, dv, target->mat.pos, target->mat.uvs);
                 }
                 idx = state->ptOn;
-                if (!(PATH_PTS(path)[idx].flags & 0x10)) {
+                if (!(path->pts[idx].flags & 0x10)) {
                     nx = idx + 1;
                     if (nx >= path->numPts) {
                         nx = 0;
                     }
                     if (state->flags & TPATH_BACKWARD) {
-                        f = PATH_PTS(path)[idx].timeToNext;
+                        f = path->pts[idx].timeToNext;
                         tt = f - state->timeElapsed;
                     } else {
                         tt = state->timeElapsed;
-                        f = PATH_PTS(path)[idx].timeToNext;
+                        f = path->pts[idx].timeToNext;
                     }
                     fr = tt / f;
-                    if (PATH_PTS(path)[idx].timeToNext != 0.0f) {} /* likewise, a test that does nothing */
+                    if (path->pts[idx].timeToNext != 0.0f) {} /* likewise, a test that does nothing */
                     for (i = 0; i < 3; i++) {
-                        sv[i] = PATH_PTS(path)[state->ptOn].scale[i] + (PATH_PTS(path)[nx].scale[i] - PATH_PTS(path)[state->ptOn].scale[i]) * fr;
+                        sv[i] = path->pts[state->ptOn].scale[i] + (path->pts[nx].scale[i] - path->pts[state->ptOn].scale[i]) * fr;
                     }
                     for (i = 0; i < 3; i++) {
                         target->mat.uvs[0][i] *= sv[0];

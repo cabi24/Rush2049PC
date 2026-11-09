@@ -75,4 +75,9 @@ typedef struct Heap {
 
 /* The heap's functions are game/memory.h's, with these headers as struct Heap and struct tMemoryChunk. */
 
+/* PC: the compaction (ClearMemoryHeap, heap_move_block_low) has moved a handle's data from `from` to `to`, size
+ * bytes, and is about to free the old chunk: what the PC layer keeps by the block (a font's letters, built beside the
+ * file: port/assets/records.c) follows it. */
+void pc_heap_block_moved(void *from, void *to, __SIZE_TYPE__ size);
+
 #endif /* GAME_HEAP_H */

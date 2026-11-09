@@ -16,7 +16,7 @@ void AnimateFlag(struct pc_visual *v, s16 op) {
     tTarget *t;
     char *offSuffix;
     s32 i;
-    tPalette *palette;
+    tPaletteDef *palette;
 
     if (op == 0) {
         ReleaseEnviron(v, 1);

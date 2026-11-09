@@ -4,20 +4,16 @@
  * in a copy of the car type's palette, which the frame and the hood draw with. MAT3 swaps textures instead. */
 #include "game/game.h"
 
-/* PC: Resource24 is a palette record, a WAD's PLHD (MBOX_FindPalette_WORK) or a car's descriptor car_palettes, both
- * in the N64 layout (port/assets/wad.c): data is a 32-bit window address. The WAD's TLUT stays big-endian; the
- * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
-#define PAL_DATA u32 data
+/* PC: the WAD's TLUT (a palette record's colours: MBOX_FindPalette_WORK) stays big-endian; the car's copy, in a heap
+ * block that port/gfx reads natively, is made native as it is read. */
 #define TLUT_COPY_IN(dst, src, size) tlut_copy_in(dst, src, size)
-/* Copy `size` bytes of big-endian RGBA 5551 entries from the window address `src` to `dst`, native. */
-static void tlut_copy_in(u16 *dst, u32 src, u32 size)
+/* Copy `size` bytes of big-endian RGBA 5551 entries from `src` to `dst`, native. */
+static void tlut_copy_in(u16 *dst, const u8 *src, u32 size)
 {
-    const u8 *s = (const u8 *)PC_N64P(src);
     u32 i;
     for (i = 0; i < size / 2; i++)
-        dst[i] = pc_be16_get(s + 2 * i);
+        dst[i] = pc_be16_get(src + 2 * i);
 }
-typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 extern s32 sprintf(char *, char *, ...);
@@ -43,7 +39,7 @@ u32 blend_rgb5551(u32 left, u32 right, s32 ratio)
 }
 
 /* Draw scene node `id` with the palette `descriptor`. */
-void SetModelPalette(s32 id, Resource24 *descriptor)
+void SetModelPalette(s32 id, tPaletteDef *descriptor)
 {
     ObjectInstance *m;
     m = &ObjInstanceList[id];
@@ -87,11 +83,11 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     s32 i, value;
     s32 r, g, b;
     u32 first_color, second_color, third_color;
-    Resource24 *descriptor;
+    tPaletteDef *descriptor;
     gCarPaintJobInited[slot]=1;
     colors=AllocateMemoryHeap(0,512);
     sprintf(name,car_palette_name_format,car+1);
-    TLUT_COPY_IN(colors,((Resource24 *)MBOX_FindPalette_WORK(name,&handle,0,gNumModels[0]-1))->data,512);
+    TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,gNumModels[0]-1)->palBase,512);
     if (first == 0) {
         for (i = 1; i < 32; i++) {
             value = (s32)((((colors[i] >> 11) & 0x7f) << 3) * 1.25f);
@@ -115,7 +111,7 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     second_color=paint_colors[second]; third_color=paint_colors[third];
     MakeRamps(colors, first_color, second_color, third_color);
     descriptor=&car_palettes[slot];
-    memcpy(((void *)PC_N64P(descriptor->data)),colors,512);
+    memcpy(descriptor->palBase,colors,512);
     heap_lock();
     DeallocateMemoryInternal(colors, 0);
     heap_unlock();

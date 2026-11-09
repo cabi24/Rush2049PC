@@ -6,18 +6,18 @@
  * Each converter is a strong definition in its own file of this directory. assets.c has a weak no-op for each,
  * so a format that isn't converted yet stays big-endian:
  *
- *   wad.c     WAD container: TOC, OBHD, TXHD, PLHD, PTHD/PATH; registers the big-endian payloads
- *             (TXLD, OBJS display lists, Vtx, IMAG texels and TLUTs) with pc_mem_register_be
+ *   wad.c     WAD container: the OBHD, TXHD, PLHD and PTHD records built native, the PATH points; registers the
+ *             big-endian payloads (TXLD, OBJS display lists, Vtx, IMAG texels and TLUTs) with pc_mem_register_be
  *   world.c   world WADs' WHDR, WOBJ, GDAT, GTLD (after the WAD pass)
  *   road.c    road / collision
  *   path.c    paths
  *   text.c    text bank
- *   font.c    font data
+ *   font.c    font data: its letters built native
  *   musyx.c   MusyX project, pool, sample directory, songs
  *
- * Strategies (ASSETS.md §5): swap scalar fields in place and keep the N64 size, with pointer fields staying u32
- * window addresses; build a native array beside the file; or leave it big-endian for port/gfx or port/audio,
- * registered with pc_mem_register_be. */
+ * Strategies (ASSETS.md §5): swap scalar fields in place and keep the N64 size; build native records beside the
+ * file, with host pointers where the file has offsets (records.c, docs/port/NATIVE.md 4.4); or leave it big-endian
+ * for port/gfx or port/audio, registered with pc_mem_register_be. */
 #ifndef PC_ASSETS_H
 #define PC_ASSETS_H
 
@@ -73,16 +73,23 @@ void pc_assets_wave_released(int wave, uint8_t *buf);
  * pc_assets_wad_block_freed is wad.c's part. */
 void pc_heap_block_freed(void *p, size_t size);
 void pc_assets_wad_block_freed(uint8_t *p, size_t size);
+/* The game's heap moved a handle's block (heap compaction: ClearMemoryHeap, heap_move_block_low) from `from` to `to`,
+ * size bytes, before it frees the old place: what was kept for the block follows it. */
+void pc_heap_block_moved(void *from, void *to, size_t size);
 
 /* The native records a converter builds beside a file, kept by the file's heap block (records.c, docs/port/NATIVE.md
  * 4.4): the game reads them in place of what it wrote into the file on the N64. */
-enum { PC_RECORDS_TEXT = 1, PC_RECORDS_WORLD, PC_RECORDS_PATH };
+enum { PC_RECORDS_TEXT = 1, PC_RECORDS_WORLD, PC_RECORDS_PATH, PC_RECORDS_WAD, PC_RECORDS_FONT };
 /* Keeps records (of kind PC_RECORDS_*) for the file in block, size bytes; release(records) frees them when the block
- * goes. Whatever was kept for memory this block overlaps goes first: that file isn't there any more. */
+ * goes. Whatever was kept for memory this block overlaps goes first (that file isn't there any more), but the same
+ * block's records of another kind (the same file's). */
 void pc_records_keep(void *block, size_t size, int kind, void *records, void (*release)(void *records));
 void *pc_records_find(const void *block, int kind);     /* NULL: none */
 void *pc_records_detach(const void *block, int kind);   /* the records, no longer kept (not released), or NULL */
 void pc_records_drop(const void *p, size_t size);       /* releases the records of every block [p, p + size) overlaps */
+/* The heap moved the block at from to to (size bytes): its records are kept by the new place. They hold no pointer
+ * into the block (the only blocks that move are handles, the font data's). */
+void pc_records_move(const void *from, void *to, size_t size);
 
 /* Byte order. */
 static inline uint16_t pc_be16(const void *p)

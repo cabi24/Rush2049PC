@@ -6,15 +6,6 @@
  * each frame. */
 #include "game/game.h"
 
-/* PC: Resource32 is a WAD's texture (TXHD: texBase at +24) or palette record (PLHD: palBase at +20), which keep
- * their N64 layout: the pointers are 32-bit RDRAM-window addresses (port/assets/wad.c). */
-typedef struct Resource32 {
-    u8 opaque[20];
-    u32 palBase;        /* +20 a palette's colours */
-    u32 texBase;        /* +24 a texture's load display list (TXLD), or its image (flags & TEX_IMAGE_DIRECT) */
-    u32 flags;          /* +28 */
-} Resource32;
-
 /* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
 typedef struct tPaletteAnim {
     char *name;         /* the palette's name (a texture's for the scrolls); NULL ends the list */
@@ -45,7 +36,8 @@ typedef struct tTextureSwap {
 void InitTextureAnimation(void) {
     tPaletteAnim *plist;
     tTextureSwap *tlist;
-    Resource32 *resource;
+    tPaletteDef *palette;
+    tTexture *texture;
     int i;
     u16 index;
     int unused1;
@@ -56,10 +48,10 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = ((void *)PC_N64P(((Resource32 *) MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1))->texBase));
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1)->texBase;
         else {
-            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels[0] - 1);
-            if (resource) plist->ptr = ((void *)PC_N64P(resource->palBase));
+            palette = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels[0] - 1);
+            if (palette) plist->ptr = palette->palBase;
         }
         plist++;
     }
@@ -74,9 +66,11 @@ flipbooks:
             } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && tlist->swapTexs != texture_swap_shared_frames) {
                 tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else continue;
-            resource = tlist->swapTexs[i].tex;
-            if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = resource->texBase;
-            else tlist->swapTexs[i].texBase = displaylist_get_texture_image(((void *)PC_N64P(resource->texBase)));
+            texture = tlist->swapTexs[i].tex;
+            /* the frame's image: a texture's own texels, or the address its load list's G_SETTIMG holds (the list's
+             * N64 form, which TextureAnimation writes it back into: docs/port/NATIVE.md step 10) */
+            if (texture->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = texture->texBase;
+            else tlist->swapTexs[i].texBase = (void *)(uintptr_t)displaylist_get_texture_image(texture->texBase);
             tlist->time = tlist->initTime;
             tlist->idx = tlist->startnum;
         }

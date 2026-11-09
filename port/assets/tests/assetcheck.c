@@ -7,16 +7,18 @@
  * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block in the RDRAM window and
  * passed to pc_wave_loaded. Then:
  *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...);
- *   - WADs: each record chunk's count fits before the next chunk; OBHD radii and LOD radii are finite, display
- *     lists 8-aligned in the file; texture and palette bases inside IMAG; PTHD points inside the file, their
- *     normals unit length and distToNext the distance to the next point; trigPtr 0 or a PTHD record;
+ *   - WADs (the records the converter built beside the file, against the file's own): each record chunk's count fits
+ *     before the next chunk; OBHD radii and LOD radii are finite, display lists 8-aligned in the file, and a level
+ *     past lodCount has none (the mirror pass reads all four); texture and palette bases inside IMAG; PTHD points
+ *     inside the file, their normals unit length and distToNext the distance to the next point; trigPtr 0 or a PTHD
+ *     record, and one where the game reads a path's trigger (flags 0x40, not 0x4000, and 0x1000 or 0x2000);
  *   - worlds: WHDR names and offsets; every node WHDR reaches is inside WOBJ, finite, with ordered bounds; the
  *     quadtree's children inside GDAT and its leaves' keys inside GTLD;
  *   - roads: the sections fit; path floats finite; tree parents inside the tree; each surface's basis rows of
  *     about one length (a swapped s16 is off by orders of magnitude);
  *   - paths: the walk fits the file; checkpoint normals unit length;
  *   - text: every string offset inside the file, right after a NUL;
- *   - font data: letters and kern table inside the block.
+ *   - font data: letters and kern table inside the block, and the converter's letters the file's.
  * It prints counts and failures only, nothing of the files' contents. Without a ROM it says so and exits 77
  * (ctest: skipped). The images' places in the ROM are written here; their load addresses and the file table's
  * symbols are looked up by name in the game's symbol file (PC_SYMBOL_FILE). */
@@ -28,6 +30,7 @@
 #include <zlib.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 #include "pc_symbol_file.h"
 #include "support.h"
 
@@ -149,14 +152,15 @@ static int g_ntoc;
 static const uint8_t *W;
 static size_t WS;
 
+/* The file's table of contents, which stays big-endian (the converter builds the records beside the file). */
 static int read_toc(void)
 {
-    uint32_t toc = n32(W), n = n32(W + 4);
+    uint32_t toc = pc_be32(W), n = pc_be32(W + 4);
     g_ntoc = 0;
     if (toc < 8 || toc > WS || n > 256 || (size_t)n * 12 > WS - toc)
         return 0;
     for (uint32_t i = 0; i < n; i++)
-        g_toc[i] = (Entry){n32(W + toc + 12 * i), n32(W + toc + 12 * i + 4), n32(W + toc + 12 * i + 8)};
+        g_toc[i] = (Entry){pc_be32(W + toc + 12 * i), pc_be32(W + toc + 12 * i + 4), pc_be32(W + toc + 12 * i + 8)};
     g_ntoc = (int)n;
     return 1;
 }
@@ -172,7 +176,7 @@ static const Entry *chunk(uint32_t tag)
 /* Bytes from a chunk's start to the next chunk (or the TOC, or the end). */
 static uint32_t room(uint32_t off)
 {
-    uint32_t end = (uint32_t)WS, toc = n32(W);
+    uint32_t end = (uint32_t)WS, toc = pc_be32(W);
     for (int i = 0; i < g_ntoc; i++)
         if (g_toc[i].off > off && g_toc[i].off < end)
             end = g_toc[i].off;
@@ -194,51 +198,74 @@ static void check_records(void)
                        g_toc[i].tag, g_toc[i].count);
 }
 
+/* A pointer of the WAD's records into the file: its offset there, or ~0 when it isn't in the file. */
+static uint32_t in_wad(const void *p)
+{
+    return p && (const uint8_t *)p >= W && (const uint8_t *)p < W + WS ? (uint32_t)((const uint8_t *)p - W) : ~0u;
+}
+
 static void check_wad(void)
 {
     const Entry *ob, *tx, *pl, *pt, *im;
+    const struct pc_wad_records *wr = pc_records_find(W, PC_RECORDS_WAD);
     uint32_t imag;
 
-    EXPECT(read_toc(), "no table of contents after conversion", n32(W), n32(W + 4));
+    EXPECT(read_toc(), "no table of contents", pc_be32(W), pc_be32(W + 4));
     if (!g_ntoc)
+        return;
+    EXPECT(wr != NULL, "no WAD records", 0, 0);
+    if (!wr)
         return;
     ob = chunk(T4('O', 'B', 'H', 'D')), tx = chunk(T4('T', 'X', 'H', 'D'));
     pl = chunk(T4('P', 'L', 'H', 'D')), pt = chunk(T4('P', 'T', 'H', 'D')), im = chunk(T4('I', 'M', 'A', 'G'));
     imag = im ? room(im->off) : 0;
     check_records();
-    for (uint32_t i = 0; ob && i < ob->count && (uint64_t)(i + 1) * 0x58 <= room(ob->off); i++) {
-        const uint8_t *r = W + ob->off + 0x58 * i;
-        int16_t lods = s16(r + 0x16);
-        EXPECT(finite_f(r + 0x10, 1) && f32(r + 0x10) >= 0, "OBHD radius", i, n32(r + 0x10));
+    EXPECT(!ob || (uint32_t)wr->numModels == ob->count, "OBHD records", wr->numModels, ob ? ob->count : 0);
+    EXPECT(!tx || (uint32_t)wr->numTextures == tx->count, "TXHD records", wr->numTextures, tx ? tx->count : 0);
+    EXPECT(!pl || (uint32_t)wr->numPalettes == pl->count, "PLHD records", wr->numPalettes, pl ? pl->count : 0);
+    EXPECT(!pt || (uint32_t)wr->numPaths == pt->count, "PTHD records", wr->numPaths, pt ? pt->count : 0);
+    for (int i = 0; ob && i < wr->numModels; i++) {
+        const struct tModelDef *m = &wr->models[i];
+        int16_t lods = (int16_t)pc_be16(W + ob->off + 0x58 * i + 0x16);   /* the file's, before the converter's 4 */
+        EXPECT(isfinite(m->radius) && m->radius >= 0 && fabsf(m->radius) <= 1e7f, "OBHD radius", i, 0);
         EXPECT(lods >= 0 && lods <= 4, "OBHD lodCount", i, (uint16_t)lods);
-        for (int l = 0; l < lods && l < 4; l++) {
-            const uint8_t *d = r + 0x18 + 0x10 * l;
-            EXPECT(finite_f(d + 4, 1), "OBHD lodRad", i, l);
-            EXPECT(n32(d + 8) < WS && !(n32(d + 8) & 7), "OBHD display list", i, n32(d + 8));
-            EXPECT(n32(d + 12) < WS, "OBHD vertices", i, n32(d + 12));
-            EXPECT(!tx || n16(d) < tx->count || n16(d) == 0 || n16(d) == 0xFFFF, "OBHD texidx", i, n16(d));
+        for (int l = 0; l < 4; l++) {
+            const struct tLod *d = &m->lod[l];
+            if (l >= lods) {   /* the mirror pass (MirrorWaveInstance) walks a level's list if it has one */
+                EXPECT(pc_be32(W + ob->off + 0x58 * i + 0x18 + 0x10 * l + 8) == 0, "OBHD display list past lodCount",
+                       i, l);
+                continue;
+            }
+            EXPECT(isfinite(d->lodRad) && fabsf(d->lodRad) <= 1e7f, "OBHD lodRad", i, l);
+            EXPECT(in_wad(d->displayList) != ~0u && !(in_wad(d->displayList) & 7), "OBHD display list", i,
+                   in_wad(d->displayList));
+            EXPECT(in_wad(d->vtxList) != ~0u, "OBHD vertices", i, l);
+            EXPECT(!tx || d->texidx < tx->count || d->texidx == 0 || d->texidx == 0xFFFF, "OBHD texidx", i, d->texidx);
         }
     }
-    for (uint32_t i = 0; tx && i < tx->count && (uint64_t)(i + 1) * 0x24 <= room(tx->off); i++) {
-        const uint8_t *r = W + tx->off + 0x24 * i;
-        EXPECT(n16(r + 0x10) && n16(r + 0x10) <= 1024 && n16(r + 0x12) && n16(r + 0x12) <= 1024, "TXHD size", i,
-               n32(r + 0x10));
-        EXPECT(r[0x14] <= 3, "TXHD texel size", i, r[0x14]);
-        EXPECT(!(n32(r + 0x1C) & 0x08000000) || !im || n32(r + 0x18) < imag, "TXHD texBase", i, n32(r + 0x18));
+    for (int i = 0; tx && i < wr->numTextures; i++) {
+        const struct tTexture *t = &wr->textures[i];
+        EXPECT(t->width && t->width <= 1024 && t->height && t->height <= 1024, "TXHD size", i, t->width);
+        EXPECT(t->size <= 3, "TXHD texel size", i, t->size);
+        EXPECT(!(t->flags & 0x08000000) || !im || in_wad(t->texBase) - im->off < imag, "TXHD texBase", i,
+               in_wad(t->texBase));
+        EXPECT(in_wad(t->texBase) != ~0u, "TXHD texBase outside the file", i, in_wad(t->texBase));
     }
-    for (uint32_t i = 0; pl && i < pl->count && (uint64_t)(i + 1) * 0x18 <= room(pl->off); i++) {
-        const uint8_t *r = W + pl->off + 0x18 * i;
-        EXPECT(r[0x10] <= r[0x11], "PLHD range", i, n16(r + 0x10));
-        EXPECT(!im || n32(r + 0x14) < imag, "PLHD palBase", i, n32(r + 0x14));
+    for (int i = 0; pl && i < wr->numPalettes; i++) {
+        const struct tPaletteDef *r = &wr->palettes[i];
+        EXPECT(r->start <= r->end, "PLHD range", i, r->start);
+        EXPECT(!im || in_wad(r->palBase) - im->off < imag, "PLHD palBase", i, in_wad(r->palBase));
     }
-    for (uint32_t i = 0; pt && i < pt->count && (uint64_t)(i + 1) * 0x24 <= room(pt->off); i++) {
-        const uint8_t *r = W + pt->off + 0x24 * i;
-        int16_t n = s16(r + 0x14);
-        uint32_t pts = n32(r + 0x1C), trig = n32(r + 0x18);
-        EXPECT(!trig || (trig >= pt->off && (trig - pt->off) % 0x24 == 0 && (trig - pt->off) / 0x24 < pt->count),
+    for (int i = 0; pt && i < wr->numPaths; i++) {
+        const struct tBasicTargetPath *r = &wr->paths[i];
+        uint32_t trig = pc_be32(W + pt->off + 0x24 * i + 0x18), pts = in_wad(r->pts);
+        int16_t n = r->numPts;
+        EXPECT(!trig || (r->trigPtr && (uint32_t)(r->trigPtr - wr->paths) == (trig - pt->off) / 0x24),
                "PTHD trigPtr is not a PTHD record", i, trig);
-        EXPECT(n > 0 && !(pts & 3) && pts + 0x44ull * n <= WS, "PTHD points", i, pts);
-        if (n <= 0 || pts + 0x44ull * n > WS)
+        EXPECT(!(r->flags & 0x40) || (r->flags & 0x4000) || !(r->flags & 0x3000) || r->trigPtr,
+               "PTHD the game reads a trigger this path hasn't", i, r->flags);
+        EXPECT(n > 0 && pts != ~0u && !(pts & 3) && pts + 0x44ull * n <= WS, "PTHD points", i, pts);
+        if (n <= 0 || pts == ~0u || pts + 0x44ull * n > WS)
             continue;
         for (int k = 0; k < n; k++) {
             const uint8_t *q = W + pts + 0x44 * k;
@@ -395,7 +422,12 @@ static void check_text(size_t size)
 static void check_font(size_t block)
 {
     size_t chars = W[12], need = 16 + chars * 12 + (W[10] ? chars * chars : 0);
+    const struct FontLetter *l = pc_records_find(W, PC_RECORDS_FONT);
     EXPECT(need <= block, "font letters past the block", need, block);
+    EXPECT(l != NULL, "no font letters", chars, 0);
+    for (size_t i = 0; l && i < chars; i++)   /* the converter's letters are the file's, with their kerning rows */
+        EXPECT(l[i].value == W[16 + 12 * i + 4] && l[i].lrs == W[16 + 12 * i + 8] &&
+               (!W[10] || memcmp(l[i].kerns, W + 16 + 12 * chars + chars * i, chars) == 0), "font letter", i, 0);
 }
 
 /* ---------------------------------------------------------------- the waves */
@@ -515,6 +547,7 @@ int main(int argc, char **argv)
             check_road(size), files[5]++;
         else
             check_path(size), files[6]++;
+        pc_heap_block_freed(buf, block);   /* as the game's heap frees a wave's block: its records go */
     }
     printf("assetcheck: %u text, %u MusyX, %u WAD, %u font, %u world, %u road, %u path files; %u checks, %u failed\n",
            files[0], files[1], files[2], files[3], files[4], files[5], files[6], g_checked, g_fail);

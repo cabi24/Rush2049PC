@@ -85,7 +85,7 @@ uint16_t gFireTexs[6], gObjList[220], gTexList[10];   /* the smoke, fire and spr
 char *FireTexNames[6];
 int8_t gCarWings[(PC_MAX_LINKS + 1) * 13];   /* row 0 the default, then each player's option per car type ([5][13] in the game) */
 int32_t smoke_white, smoke_wing_color1, smoke_wing_color2, smoke_wing_color3, smoke_road_color, smoke_dirt_color;
-struct { uint8_t *data; uint32_t other; } gTexDefPtrs[64];
+struct { struct tTexture *data; int32_t count; } gTexDefPtrs[64];   /* TextureDefTable */
 void *gBlastMats[50];
 void *gEnvList;
 uint32_t skid_tire_flags[4] = { 1, 2, 4, 8 };
@@ -194,7 +194,7 @@ int main(void)
 {
     int s, t, k;
 
-    static uint8_t texdefs[64 * 36];
+    static struct tTexture texdefs[64];   /* a model's textures (the WAD's records) */
     gTexDefPtrs[0].data = texdefs;
     memset(pc_cars, 0, sizeof pc_cars);
     memset(pc_models, SENTINEL, sizeof pc_models);

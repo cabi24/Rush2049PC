@@ -20,17 +20,10 @@ typedef struct tPaletteAnim {
     f32 time;           /* the time left to the next step, seconds */
     AnimatedData ptr;
 } tPaletteAnim;
-/* PC: tTexture is a texture record (TXHD) of a WAD, which keeps its N64 layout: texBase is a 32-bit RDRAM-window
- * address. The palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists (port/assets/wad.c). */
+/* PC: the palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists (port/assets/wad.c). */
 #define PAL_SET(entry, value) pc_be16_set(&(entry), value)
-/* A texture (MAT3 tTexture), the fields used here. */
-typedef struct tTexture {
-    u8 before24[24];
-    u32 texBase;            /* +24 its load display list (Gfx *), or its image (flags & TEX_IMAGE_DIRECT) */
-    u32 flags;              /* +28 */
-} tTexture;
-/* A flipbook frame (MAT3 tTextureBase). PC: its first word is its name, a pointer (InitTextureAnimation's Item12;
- * docs/port/POINTERS.md 10). */
+/* A flipbook frame (MAT3 tTextureBase; InitTextureAnimation's Item12): its texture's name, the texture (the WAD's
+ * record, MAT3 tTexture), the image it shows. */
 typedef struct tTextureBase { char *name; tTexture *tex; Gfx *texBase; } tTextureBase;
 /* A texture flipbook (MAT3 tTextureSwap; InitTextureAnimation.c). */
 typedef struct tTextureSwap {
@@ -38,6 +31,12 @@ typedef struct tTextureSwap {
     f32 time, initTime;
     tTextureBase *swapTexs;
 } tTextureSwap;
+/* The image of flipbook frame f in the form a texture's load display list holds (G_SETTIMG's word: the list keeps the
+ * N64's form until docs/port/NATIVE.md step 10): a frame of a texel texture holds that texture's texBase, a host pointer
+ * into its WAD, which is its N64 address in the RDRAM window (PC_N64A: the same 32 bits in the fixed build); a frame of
+ * a listed texture holds the address its own list's G_SETTIMG had (InitTextureAnimation) already. */
+#define FRAME_IMAGE_IN_LIST(f) \
+    (((f)->tex->flags & TEX_IMAGE_DIRECT) ? PC_N64A((f)->texBase) : (u32)(uintptr_t)(f)->texBase)
 /* PC: game.frame_rate 60 (pc_game_fps.h). The texture scrolls (actions 9 and 10) add step x the frame's retraces each
  * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
@@ -161,7 +160,7 @@ void TextureAnimation(void)
                     }
                     tex=tlist->swapTexs[tlist->startnum].tex;
                     if(tex->flags&TEX_IMAGE_DIRECT) tex->texBase=tlist->swapTexs[tlist->idx].texBase;
-                    else displaylist_set_texture_image(((Gfx *)PC_N64P(tex->texBase)),tlist->swapTexs[tlist->idx].texBase);
+                    else displaylist_set_texture_image(tex->texBase,FRAME_IMAGE_IN_LIST(&tlist->swapTexs[tlist->idx]));
                 }
             }
             tlist++;

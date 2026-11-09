@@ -1,17 +1,8 @@
 /* hud_animTrackMap: the track map, drawn into its texture (MAT3 hud.c's animTrackMap). */
 #include "game/game.h"
 
-/* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
- * address of the texels. */
-#define TXHD_DATA u32 data
-#define TEXELS(tex) ((u8 *)PC_N64P((tex)->data))
-/* The map's texture definition as this reads it (struct tTexture): its texels' address. */
-struct tTexture {
-    /* 0x00 */ char name[16];
-    /* 0x10 */ u16 width, height;
-    /* 0x14 */ u8 pad14[4];
-    /* 0x18 */ TXHD_DATA;
-};
+/* The map's texture's texels (tTexture.texBase: they are its image, in its WAD's IMAG chunk). */
+#define TEXELS(tex) ((u8 *)(tex)->texBase)
 
 #define MAP_FIRST_DRAW 0x10   /* animID: the map is yet to be placed and drawn */
 #define MAP_ROAD 0xE          /* the map's colours (4-bit texels): the road, */

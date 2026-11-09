@@ -184,8 +184,6 @@ struct Region;
 struct RelativeEntry;
 struct ReplaySlot;
 struct ResSlot;
-struct Resource24;
-struct Resource32;
 struct ResourceGroup;
 struct ResourceOffsets;
 struct Respawn;
@@ -800,31 +798,9 @@ typedef struct anon_loaded_ready_14 { /* 0x20 bytes */
     u8 wave;     /* 0x6: which wave (an index into gWaveSizes, wave_rom_offsets ...) */
     u32 size;    /* 0x8: the block's size */
     u8 *ptr;     /* 0x10: the block, or its handle; 0 for a free slot */
-    u8 *lastPtr; /* 0x18: a handle wave's block when it was last set up: the heap may move it */
+    u8 *lastPtr; /* 0x18: MAT3's handle wave's block when it was last set up, to rebase it after the heap moved it;
+                  * unused on the PC, whose WAD records follow their block (docs/port/NATIVE.md step 7) */
 } anon_loaded_ready_14;
-
-/* A WAD's table of contents entry (MAT3 anon_tag_address_c): a four-character tag ('TXHD', 'OBHD' ...), where the
- * data is and how long. address is the file's offset until MBSetupWad rebases it to the data's 32-bit window
- * address. The WAD keeps its N64 layout in the window (port/assets swaps it to host byte order). */
-typedef struct WadEntry { /* 0xC bytes */
-    u32 tag;     /* 0x0 */
-    u32 address; /* 0x4 */
-    u32 length;  /* 0x8: in bytes, or a count of records */
-} WadEntry;
-
-/* A WAD file's first two words: its table of contents (an offset, a window address once rebased) and how many
- * entries it has. */
-typedef struct WadFileHeader { /* 0x8 bytes */
-    u32 toc;        /* 0x0 */
-    s32 TOCentries; /* 0x4 */
-} WadFileHeader;
-
-/* A WAD's handle (MAT3 anon_base_TOCentries_c), filled by MBSetupWad or MBOffsetWad; host layout. */
-typedef struct WadHandle { /* 0x18 bytes */
-    WadFileHeader *base; /* 0x0: the file */
-    s32 TOCentries;      /* 0x8 */
-    WadEntry *TOC;       /* 0x10 */
-} WadHandle;
 
 typedef struct config_s { /* 0x8 bytes */
     u16 good_length; /* 0x0 */
@@ -1114,16 +1090,22 @@ typedef struct DmaList { /* 0x18 bytes */
  * to show (its texBase, or the address its display list loads). */
 typedef struct Item12 { /* 0x18 bytes */
     char *name;                  /* 0x0 */
-    struct Resource32 *tex;      /* 0x8 */
+    struct tTexture *tex;        /* 0x8 */
     void *texBase;               /* 0x10 */
 } Item12;
 
-/* A loaded model file's tables, one entry per wave instance (waves.c's SetupWaveModel fills them from the file): its
- * object definitions (MAT3 tModelDef, 0x58 bytes each; gRomObjDefPtrs), its textures (MAT3 tTexture, 0x24 bytes;
- * gTexDefPtrs), its palettes (MAT3 anon_name_start_18, 0x18 bytes; gPalDefPtrs), each sorted by name; and the
- * track's target paths (MAT3 tBasicTargetPath, 0x24 bytes; gTargetPaths). A handle to one of them is the wave
- * instance's number times 1024 plus its index here. The records keep their N64 layout (a file holds them); the files
- * that read them define the record types. */
+/* A model WAD's records (MAT3's names; pc_game_types.h declares them: the WAD's converter builds them beside the
+ * file, port/assets/wad.c). */
+typedef struct tLod tLod;                         /* a level of detail of an object definition */
+typedef struct tModelDef tModelDef;               /* an object definition (OBHD) */
+typedef struct tTexture tTexture;                 /* a texture (TXHD) */
+typedef struct tPaletteDef tPaletteDef;           /* a palette (PLHD), a car's paint, a blit's colours */
+typedef struct tBasicTargetPath tBasicTargetPath; /* a track's target path (PTHD) */
+
+/* A loaded model file's tables, one entry per wave instance (waves.c's SetupWaveModel fills them from the WAD's
+ * records): its object definitions (gRomObjDefPtrs), its textures (gTexDefPtrs), its palettes (gPalDefPtrs), each
+ * sorted by name; and the track's target paths (gTargetPaths). A handle to one of them is the wave instance's number
+ * times 1024 plus its index here. */
 typedef struct ModelDefTable { /* 0x10 bytes (MAT3 anon_romObjDefs_count_8) */
     struct tModelDef *romObjDefs; /* 0x0 */
     s32 count;                    /* 0x8 */
@@ -1303,18 +1285,9 @@ typedef struct FontHeader { /* 0x10 bytes */
     u8 pad13[3];    /* 0xD */
 } FontHeader;
 
-/* One letter of a font (MAT3 anon_kerns_value_c), 12 bytes as in the font's file: where it is in which texture page.
- * kerns is the window address of its row of the kerning table (port/assets/font.c), read through PC_N64P. */
-typedef struct FontLetter { /* 0xC bytes */
-    u32 kerns;   /* 0x0 */
-    u8 value;    /* 0x4 the character it draws */
-    u8 texIdx;   /* 0x5 its texture page */
-    u8 uls;      /* 0x6 its texels: columns uls..lrs, rows ult..lrt */
-    u8 ult;      /* 0x7 */
-    u8 lrs;      /* 0x8 */
-    u8 lrt;      /* 0x9 */
-    s16 pad12;   /* 0xA */
-} FontLetter;
+/* One letter of a font (MAT3 anon_kerns_value_c): where it is in which texture page, and its row of the kerning
+ * table. pc_game_types.h declares it: the font's converter builds the letters beside the file (port/assets/font.c). */
+typedef struct FontLetter FontLetter;
 
 typedef struct Color8 { /* 0x8 bytes */
     BlitColor color; /* 0x0 */
@@ -1854,10 +1827,11 @@ typedef struct TargetPathPt {
 } TargetPathPt;
 
 /* A path target's record (MAT3 tTargetStructPath, tTarget.data of a target whose structureID is 4): where it is on
- * its path. A heap record in the N64's layout: pathData is a 32-bit window address (a PTHD record of the track WAD,
- * which keeps its N64 layout: docs/port/NATIVE.md step 7). */
+ * its path. A heap record of the N64's 0x48 bytes (gTargetStructSizes[4]: the heap's accounting keeps the size), so
+ * it names its path by the path's index, where MAT3 has a pointer (pathData) and the N64 kept the PTHD record's
+ * 32-bit address: TARGET_PATH (track.h) is the path (docs/port/NATIVE.md step 7). */
 typedef struct tTargetStructPath { /* 0x48 bytes */
-    u32 pathData;       /* 0x00 its path (a PTHD record, tBasicTargetPath), a window address */
+    s32 pathIdx;        /* 0x00 its path, gTargetPaths.paths[pathIdx] (MAT3 pathData) */
     f32 timeElapsed;    /* 0x04 the time since it left point ptOn (or, going backwards, to reach it) */
     f32 curDistToNext;  /* 0x08 */
     s16 ptOn;           /* 0x0C the point it is at or last passed */
@@ -1998,15 +1972,6 @@ typedef union ArrowColor { /* 0x4 bytes */
     struct { u8 r; u8 g; u8 b; u8 a; } c;
     u32 rgba;
 } ArrowColor;
-
-typedef struct CarPalette { /* 0x18 bytes */
-    u8 flag;       /* 0x0 */
-    u8 other1[15]; /* 0x1 */
-    u8 active;     /* 0x10 */
-    u8 marker;     /* 0x11 */
-    u16 value;     /* 0x12 */
-    u32 data;      /* 0x14 */
-} CarPalette;
 
 /* A car's scene objects (MAT3 CarParts; the N64's is 0x40 bytes, without MAT3's headlights, trim and hood sheens),
  * gCarParts[slot]: each an s32 scene handle whose low half, (s16)handle, is the node (ObjInstanceList's index). */
@@ -2440,29 +2405,6 @@ typedef struct tBattleCoin { /* 0x34 bytes */
     UVMatrixRows mat; /* 0x4 */
 } tBattleCoin;
 
-/* A palette definition (MAT3 anon_name_start_18): a model file's PLHD record, which MBOX_FindPalette_WORK finds by
- * name. It keeps the N64 layout (port/assets/wad.c): palBase, its colours, is a 32-bit RDRAM-window address. */
-typedef struct tPalette { /* 0x18 bytes */
-    char name[16]; /* 0x0 */
-    u8 start;      /* 0x10 */
-    u8 end;        /* 0x11 */
-    u16 format;    /* 0x12 */
-    u32 palBase;   /* 0x14 */
-} tPalette;
-
-/* A palette the game fills in itself for a textured blit (tBlit.palette): the battle HUD's health bars (healthPal) and
- * the track select's fog (n64FogPal). MAT3 makes them tPalette records too; on the PC palBase is a pointer, where the
- * N64 kept the colours' 32-bit address (as the PC did, through the RDRAM window, until docs/port/NATIVE.md step 4).
- * The blit draw (ZOID_EndFrame) reads only palBase: for these blits' intensity textures, the primitive colour
- * (palBase[0..3]) and the environment colour (palBase[4..7]) (BlitColors). */
-typedef struct tBlitPalette { /* 0x20 bytes (0x18 on the N64) */
-    char name[16]; /* 0x0  unused */
-    u8 start;      /* 0x10 unused */
-    u8 end;        /* 0x11 unused */
-    u16 format;    /* 0x12 unused */
-    u8 *palBase;   /* 0x18 the colours */
-} tBlitPalette;
-
 typedef struct tStuntCoin { /* 0x48 bytes */
     s16 type;         /* 0x0 */
     s16 idx;          /* 0x2 */
@@ -2526,14 +2468,6 @@ typedef struct HighScoreRect { /* 0xC bytes: a player's box on the high-score sc
     s16 cx;         /* 0x8 its centre, where the text goes */
     s16 cy;         /* 0xA */
 } HighScoreRect;
-
-typedef struct MapLod { /* 0x10 bytes */
-    u16 texidx;      /* 0x0 */
-    u16 flags;       /* 0x2 */
-    f32 lodRad;      /* 0x4 */
-    u32 displayList; /* 0x8 */
-    u32 verts;       /* 0xC */
-} MapLod;
 
 typedef struct MenuButton { /* 0x40 bytes */
     s32 type;         /* 0x0 */

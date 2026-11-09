@@ -1,13 +1,8 @@
 /* MBOX_FindTexture_WORK.c: find a texture by name in the loaded model files (MAT3 mbox.c, MBOX_FindTexture_WORK()).
  *
- * Each model file has a table of 36-byte texture definitions sorted by name (gTexDefPtrs[model]); a texture is
- * named by a packed handle, its model's number times 1024 plus its index in that table. */
+ * Each model file has a table of texture definitions sorted by name (gTexDefPtrs[model], the WAD's TXHD records); a
+ * texture is named by a packed handle, its model's number times 1024 plus its index in that table. */
 #include "game/game.h"
-
-/* A texture definition (MAT3 tTexture; 36 bytes on the N64): only its name matters here, as the search key. */
-typedef struct tTexture {
-    char name[36];
-} tTexture;
 
 /* What to do when the texture is missing (`flag`): nothing, warn, or stop. The messages are compiled out. */
 #define MBOX_NOERR 0
@@ -33,7 +28,7 @@ tTexture *MBOX_FindTexture_WORK(char *name, s16 *handle, s8 firstModel, s8 lastM
         if (!ModelActive(i)) {
             continue;
         }
-        found = game_bsearch(key, gTexDefPtrs[i].texDefs, gTexDefPtrs[i].count, 36, texcmp);
+        found = game_bsearch(key, gTexDefPtrs[i].texDefs, gTexDefPtrs[i].count, sizeof(tTexture), texcmp);
         if (found != 0) {
             break;
         }

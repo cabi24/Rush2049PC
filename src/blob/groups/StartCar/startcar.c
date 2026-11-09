@@ -5,9 +5,6 @@
 /* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
 typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; u16 headlights[8]; } CarTlut;
 
-/* PC: the car palette descriptors car_palettes (CarPalette) keep a palette record's N64 layout (24 bytes, data a
- * u32 window address; car_palette_init.c). */
-
 static void StartHeadLights(s16 slot);
 static void StartTire(s16 slot, u32 tire);
 static void StartBrakeLights(s16 slot);
@@ -36,11 +33,10 @@ void StartCar(s16 slot)
 }
 
 /* On the night tracks (3 and 5) turn car `slot`'s lights on: the tail lights dim and the headlights lit, in its
- * palette. MAT3 makes headlight objects and a visual instead (headlights.c).
- * PC: the descriptor's data is a u32 window address: the palette is at PC_N64P of it (as in AnimateBrakeLights). */
+ * palette (car_palettes[slot]'s colours). MAT3 makes headlight objects and a visual instead (headlights.c). */
 static void StartHeadLights(s16 slot)
 {
-    CarTlut *tlut = (CarTlut *) PC_N64P(car_palettes[slot].data);
+    CarTlut *tlut = car_palettes[slot].palBase;
 
     if (gTrackNum == 3 || gTrackNum == 5) {
         tlut->taillights[0] = taillight_colors_dim.uv[0];

@@ -61,6 +61,7 @@ void ClearMemoryHeap(tHeap *hint) {
                 size = chunk->size;
                 chunk->master = NULL;
                 game_memmove((u8 *)cursor + HEAP_CHUNK_HEADER, (u8 *)chunk + HEAP_CHUNK_HEADER, chunk->size);
+                pc_heap_block_moved((u8 *)chunk + HEAP_CHUNK_HEADER, (u8 *)cursor + HEAP_CHUNK_HEADER, size);
                 if (adjacent || cursor->size - size >= HEAP_MIN_SPLIT) {
                     tail = (tMemoryChunk *)((u8 *)cursor + size + HEAP_CHUNK_HEADER);
                     if (adjacent) tail->next = after;

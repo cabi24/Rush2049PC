@@ -17,16 +17,6 @@ typedef struct tPoly {
     u16 z;                      /* its depth, for the screen-space ones (ZOID_SetPolyZ) */
     PolyVertex verts[4];
 } tPoly;
-/* A texture definition (MAT3 tTexture, 36 bytes on the N64). */
-typedef struct tTexture {
-    u8 name[16];
-    u16 width, height;          /* +0x10 in texels */
-    u8 size, format;
-    s16 palIndex;
-    u32 texBase;
-    u32 flags;                  /* +0x1C TEX_* */
-    u32 xflags;
-} tTexture;
 
 /* Update polygon `poly`: its vertex count (`nverts`, 0 keeps it), its flags (`flags`, 0 keeps them), its texture
  * (`texidx` if `useTidx`, which sets POLY_TEXTURED), then for each vertex what is given:

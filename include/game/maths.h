@@ -62,7 +62,7 @@ extern f32 zoid_lookat_matrix[EXTENT(4)][4];
 extern Gfx *zoid_branch_slot;
 extern Vtx *zoid_poly_vertices;
 extern Vtx zoid_poly_vertex_buffers[EXTENT(1)][3200];
-extern s32 zoid_current_tlut;
+extern void *zoid_current_tlut;   /* the colours of the palette in the TLUT (zoid_load_palette), NULL none */
 extern struct tTexture *zoid_current_texture;
 extern s32 zoid_tlut_mode;
 

@@ -6,8 +6,8 @@
  * (StartWindow, StartKnockdown, StartCone, StartFence, StartCactus) and a hit function (StartCoin), the target visuals
  * (AnimateKnockdown, AnimateRotGeneric, AnimateObjSwapGeneric, the debris AnimateVelRotGeneric, which frees its target
  * into the pool), the collision pass that calls a target's hit function (CheckTargetCollision), the path targets
- * (StartPathTarget, GetTargetVelocity, TargetCollTrigger: the path record and the PTHD record, which keep their N64
- * layout with window addresses) and a bounding box model's collision (TargetCollBBox and its response
+ * (StartPathTarget, GetTargetVelocity, TargetCollTrigger: the path record, a heap record that names its path by its
+ * index, and the PTHD record, the WAD's native one with pointers) and a bounding box model's collision (TargetCollBBox and its response
  * setMiniFBCollisionForce: the model keeps its box as a row of BBoxCollInfo). Records past the first are used
  * throughout, so an N64 stride or offset lands somewhere else. The heap records and the track records sit in an
  * RDRAM window the test maps (exit 77, skipped, if it can't).
@@ -73,7 +73,7 @@ int32_t gBBoxModelCount, gBBoxModelUsed, gSilverCoinCnt, gGoldCoinCnt, gWhichSil
 void *gBBoxModelStructs;
 intptr_t gPlayerMines[4][5];
 void *gAlwaysCol;
-struct { void *paths; int32_t count; } gTargetPaths;   /* paths, Scene36 *: the PTHD scenes, a track WAD record */
+struct { struct tBasicTargetPath *paths; int32_t count; } gTargetPaths;   /* the track WAD's PTHD records (native) */
 struct pc_target_group *gTargetGroupList;   /* GTLD's side table (pc_game_types.h) */
 int32_t numgTargetGroupList;
 uint32_t gGameState, gGameState;
@@ -214,8 +214,8 @@ void setMiniFBCollisionForce(int32_t a, void *car, void *other, float *dir, floa
 #define CONE 5                        /* table records: past the first, so an N64 stride misses them */
 #define CAMERA 9
 #define DEBRIS 12
-#define SCENES (HEAP + 0x100u)        /* Scene36[2] */
-#define KEYS (HEAP + 0x200u)          /* the camera scene's keys, 0x44 bytes each */
+static struct tBasicTargetPath g_paths[2];   /* the track's paths, as the WAD's converter builds them */
+#define KEYS (HEAP + 0x200u)          /* the camera path's points, 0x44 bytes each (in the file, in the heap) */
 #define PLACE (HEAP + 0x400u)         /* a Place record (the cone's) */
 #define STATIC (HEAP + 0x800u)        /* a static per-kind table */
 
@@ -241,14 +241,14 @@ static void setup_table(void)
 
 static void setup_track(void)
 {
-    uint8_t *sc = WP(SCENES), *k = WP(KEYS), *place = WP(PLACE);
+    uint8_t *k = WP(KEYS), *place = WP(PLACE);
 
-    memset(sc, 0, 0x400);
-    gTargetPaths.paths = WP(SCENES);
-    NF(sc + 36, 0x10, uint32_t) = 0x20;       /* scene 1: the camera's; it has three keys */
-    NF(sc + 36, 0x14, int16_t) = 3, NF(sc + 36, 0x16, int16_t) = 4;
-    NF(sc + 36, 0x1C, uint32_t) = KEYS;
-    NF(sc + 36, 0x20, int32_t) = 0x5151;      /* its key */
+    memset(g_paths, 0, sizeof g_paths);
+    gTargetPaths.paths = g_paths;
+    g_paths[1].flags = 0x20;                  /* path 1: the camera's; it has three points */
+    g_paths[1].numPts = 3, g_paths[1].collIdx = 4;
+    g_paths[1].pts = (struct TargetPathPt *)k;
+    g_paths[1].key = 0x5151;                  /* its key */
     for (int i = 0; i < 3; i++) {
         uint8_t *key = k + 0x44 * i;
         NF(key, 0, float) = 100.0f + (float)i, NF(key, 4, float) = 5.0f, NF(key, 8, float) = -(float)i;
@@ -316,7 +316,7 @@ static void test_instantiate(void)
     ctl = cam->data;                                                 /* the camera's path record, a heap block */
     CHECK(W32(gTargetStructPtrs[2]) >= HEAP && cone->data == gTargetStructPtrs[2]);
     CHECK(gTargetOwnStructPtrs[2] == gTargetStructPtrs[2] + 24 && ctl == gTargetStructPtrs[4]);
-    CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* its path: &gTargetPaths.paths[1] (N64 form) */
+    CHECK(ctl && NF(ctl, 0, int32_t) == 1);                         /* its path: gTargetPaths.paths[1], by index */
     CHECK(W32(gBBoxModelStructs) >= HEAP && cam->owner == 0 && gBBoxModelUsed == 1);
     CHECK(NF(gBBoxModelStructs, 0, int32_t) == 2);                  /* its box: row 2 of BBoxCollInfo */
     CHECK(NF(gBBoxModelStructs, 4, float) == 1.0f && NF(gBBoxModelStructs, 0x14, float) == 1.0f);
@@ -474,11 +474,11 @@ static void test_collision(void)
 static void scene_cars(struct tTarget *cam, uint8_t *sc);
 
 /* A path target (a scripted camera): its path record (a heap record, the target's data) and its path (a PTHD
- * record, through the record's 32-bit field). */
+ * record, by the record's index of it). */
 static void test_camera(void)
 {
     struct tTarget *cam = NODE(1);
-    uint8_t *ctl = gTargetStructPtrs[4], *sc = WP(SCENES + 36), *k = WP(KEYS);
+    uint8_t *ctl = gTargetStructPtrs[4], *sc = (uint8_t *)&g_paths[1], *k = WP(KEYS);
     struct pc_visual *v;
     float out[3];
     int16_t player = 0;

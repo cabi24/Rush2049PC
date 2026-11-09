@@ -3,9 +3,6 @@
 
 #define GPACK_RGBA5551(r, g, b, a) ((((r) << 8) & 0xf800) | (((g) << 3) & 0x7c0) | (((b) >> 2) & 0x3e) | ((a) & 0x1))
 
-/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
-typedef struct tTexture { u8 pad[36]; } TexDef;
-
 extern void *memset(void *, s32, u32);
 
 /* Make the 32 paint colours (paint_colors, RGBA 5551, from paint_colors_rgb) and the four battle teams' colour

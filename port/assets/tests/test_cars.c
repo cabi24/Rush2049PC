@@ -94,7 +94,7 @@ int8_t gTrackNum, expansion_pak_present, gCarTeam[8];
 uint8_t taillight_colors_dark[16], taillight_colors_dim[16], taillight_colors_bright[16], headlight_colors_night[16], gShadowColor[4], arrowColors[5][4];
 float gDummyVtx[4][3];
 uint16_t gTexList[16], gObjList[600];
-uint8_t car_palettes[6 * 24];                /* the car palette descriptors (24 bytes; data, a u32 window address, at +0x14) */
+struct tPaletteDef car_palettes[6];          /* the car palettes (MAT3's palette records, pc_game_types.h) */
 float wingOffsets[8 * 3], wing_flame_height = 0.75f, weaponOffsets[8][13][3];
 uint8_t PolyInstanceList[32 * 88];               /* tPoly instances */
 int16_t gEnvCount, gEnvCountMax;
@@ -506,18 +506,19 @@ static void test_race_init(void)
     gRace = 0;
 }
 
-/* The brake lights (AnimateBrakeLights, AnimateBrakeLights) of a braking car take the brake colours into its palette
- * record (a u32 window address, car_palettes[slot].data): the car is the visual's slot (+0xC on the PC; +8 is its index). */
-#define PALETTES_AT (TEST_SCRATCH + 0x2000u)
+/* The brake lights (AnimateBrakeLights, AnimateBrakeLights) of a braking car take the brake colours into its palette's
+ * colours (car_palettes[slot].palBase, host memory: a heap block of 512 bytes each in the game): the car is the
+ * visual's slot (+0xC on the PC; +8 is its index). */
 static void test_brake_lights(void)
 {
+    static uint8_t colours[6 * 0x200];
     struct pc_visual v;
-    uint16_t *pal = (uint16_t *)(uintptr_t)(PALETTES_AT + 320);
+    uint16_t *pal = (uint16_t *)(colours + 320);
     int i, k;
 
     for (i = 0; i < 6; i++) {
         CF(&CARS[i], 0xE8, uint32_t) = i == 1 ? 0x1000 : 0;
-        MF(car_palettes, 24 * i + 0x14, uint32_t) = PALETTES_AT + 0x200 * (uint32_t)i;
+        car_palettes[i].palBase = colours + 0x200 * i;
         memset((uint8_t *)pal + 0x200 * i, 0, 16);
     }
     for (k = 0; k < 8; k++)
