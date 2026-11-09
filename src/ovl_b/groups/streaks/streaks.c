@@ -1,17 +1,27 @@
+/* streaks.c: the light streaks behind battle shots, frame by frame (MAT3 streaks.c, UpdateStreaks(), with
+ * _AnimateStreakPolys() and _NewStreakPoly() compiled into it).
+ *
+ * A streak (gStreakArray, NewStreak) follows a shot; each step it lays a ribbon segment (a four-vertex polygon,
+ * gStreakPolyArray) from its last point to the shot's new one, and each segment fades out and is freed. Runtime
+ * image B (battle and stunt races). */
 #include "game/game.h"
 
-typedef struct Record88 Record88;
-typedef struct Trail Trail;
-typedef struct Fade Fade;
-struct Trail { Trail *next; u32 unknown04, flags; f32 lifetime; f32 origin[3], previous[3], lower[3], upper[3]; };
-struct Fade { Fade *next; u32 unknown04; Record88 *object; f32 lifetime, interval; u8 color[4]; Trail *source; };
+typedef struct Record88 Record88;   /* a scene polygon (ZOID_NewPoly) */
+typedef struct tStreak tStreak;
+typedef struct tStreakPoly tStreakPoly;
+/* A streak (MAT3 tStreak; types.h's PcTrail): flags STREAK_*, the time to its next segment, its shot's new and last
+ * points and the ribbon's back edge (backVerts: [0] the lower corner, [1] the upper). */
+struct tStreak { tStreak *next; u32 prev, flags; f32 delay; f32 newpos[3], lastpos[3], backVerts[2][3]; };
+/* A ribbon segment (MAT3 tStreakPoly; types.h's PcFade): its polygon, the seconds it has left, the time to its next
+ * fade step, its colour and the streak it belongs to. */
+struct tStreakPoly { tStreakPoly *next; u32 prev; Record88 *poly; f32 lifeTime, incTime; u8 clr[4]; tStreak *s; };
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
-typedef struct FadePool { u8 dbl; s32 numElements, elementSize; void *list; Fade *active; void *store; } FadePool;
-typedef struct TrailPool { u8 dbl; s32 numElements, elementSize; void *list; Trail *active; void *store; } TrailPool;
-VIEW(FadePool, gStreakPolyList);
+typedef struct StreakPolyList { u8 dbl; s32 numElements, elementSize; void *list; tStreakPoly *head; void *store; } StreakPolyList;
+typedef struct StreakList { u8 dbl; s32 numElements, elementSize; void *list; tStreak *head; void *store; } StreakList;
+VIEW(StreakPolyList, gStreakPolyList);
 #define gStreakPolyList gStreakPolyList_view
-VIEW(TrailPool, gStreakList);
+VIEW(StreakList, gStreakList);
 #define gStreakList gStreakList_view
 
 VIEW(u8[4][4], gStreakColors);
@@ -24,131 +34,137 @@ extern void ZOID_UpdatePoly(Record88 *,s32,f32 *,u16,u8 *,u16,s32);
  * 60 it takes the other branch's 1/30 s, which the frame time counts down to a step every two frames. */
 #define PC_FRAME_INTERVAL(x) (pc_fps60 ? 0.0333333f : (x))
 
+/* Once a frame, first the ribbon segments: each counts its life down and is freed at the end; in its last 0.2 s
+ * (at once when its streak is done) it fades, its alpha down 23 every 1/30 s (every frame for STREAK_THIN), and is
+ * freed when the alpha is spent. Then the streaks: a done one is freed; while its delay runs the ribbon's back edge
+ * stays at the shot's start (the streak's half width above and below it); after that, each time its shot has moved
+ * (STREAK_NEWPOS) it lays a segment from the back edge to the new point, which becomes the back edge, and waits 1/30 s
+ * (0.1 s with three or four players, whose segments also last half as long). */
 void UpdateStreaks(void)
 {
-    Fade *fade, *next_fade, *new_fade;
-    Trail *trail, *next_trail;
-    f32 width;
+    tStreakPoly *sp, *nextsp, *newsp;
+    tStreak *s, *nexts;
+    f32 w;
     f32 x;
-    s32 unused_local_0, unused_local_1;
-    f32 corners[4][3];
+    f32 xyz[4][3];
     f32 y, z;
-    for (fade = gStreakPolyList.active; fade; fade = next_fade) {
-        if (gStreakPolyList.active) {}
-        next_fade = fade->next;
-        fade->lifetime -= gFrameSeconds;
-        if (fade->lifetime <= 0.0f) {
+    for (sp = gStreakPolyList.head; sp; sp = nextsp) {
+        nextsp = sp->next;
+        sp->lifeTime -= gFrameSeconds;
+        if (sp->lifeTime <= 0.0f) {
 remove_fade:
-            ZOID_RemovePoly(fade->object);
-            FreeStatLLE(&gStreakPolyList, fade);
+            ZOID_RemovePoly(sp->poly);
+            FreeStatLLE(&gStreakPolyList, sp);
         } else {
-            if (fade->source->flags & 0x1000) fade->lifetime = 0.2f;
-            if (fade->lifetime <= 0.2f) {
-                fade->interval -= gFrameSeconds;
-                if (fade->interval <= 0.0f) {
-                    if (fade->source->flags & 8) fade->interval = PC_FRAME_INTERVAL(0.0f);
-                    else fade->interval = 0.0333333f;
-                    if (fade->color[3] < 23) {
+            if (sp->s->flags & STREAK_DONE) sp->lifeTime = 0.2f;
+            if (sp->lifeTime <= 0.2f) {
+                sp->incTime -= gFrameSeconds;
+                if (sp->incTime <= 0.0f) {
+                    if (sp->s->flags & STREAK_THIN) sp->incTime = PC_FRAME_INTERVAL(0.0f);
+                    else sp->incTime = 0.0333333f;
+                    if (sp->clr[3] < 23) {
                         goto remove_fade;
                     } else {
-                        fade->color[3] -= 23;
-                        ZOID_UpdatePoly(fade->object, 0, 0, 0, fade->color, 0, 0);
+                        sp->clr[3] -= 23;
+                        ZOID_UpdatePoly(sp->poly, 0, 0, 0, sp->clr, 0, 0);
                     }
                 }
             }
         }
     }
-    for (trail = gStreakList.active; trail; trail = next_trail) {
-        next_trail = trail->next;
-        if (trail->flags & 0x1000) {
-            trail->flags &= ~0x1000;
-            FreeStatLLE(&gStreakList, trail);
-        } else if (trail->lifetime >= 0.0f) {
-            trail->lifetime -= gFrameSeconds;
-            if (!(trail->flags & 0x2000) && (trail->flags & 0x10)) {
-                x = trail->origin[0];
-                y = trail->origin[1];
-                z = trail->origin[2];
-                trail->lower[0] = x;
-                trail->upper[0] = x;
-                trail->lower[1] = y;
-                trail->upper[1] = y;
-                trail->lower[2] = z;
-                trail->upper[2] = z;
-                if (trail->flags & 1) width = 0.75f;
-                else if (trail->flags & 2) width = 0.5f;
-                else if (trail->flags & 4) width = 0.35f;
-                else width = 0.025f;
-                trail->lower[1] -= width;
-                trail->upper[1] += width;
+    for (s = gStreakList.head; s; s = nexts) {
+        nexts = s->next;
+        if (s->flags & STREAK_DONE) {
+            s->flags &= ~STREAK_DONE;
+            FreeStatLLE(&gStreakList, s);
+        } else if (s->delay >= 0.0f) {
+            s->delay -= gFrameSeconds;
+            if (!(s->flags & STREAK_STARTED) && (s->flags & STREAK_NEWPOS)) {
+                x = s->newpos[0];
+                y = s->newpos[1];
+                z = s->newpos[2];
+                s->backVerts[0][0] = x;
+                s->backVerts[1][0] = x;
+                s->backVerts[0][1] = y;
+                s->backVerts[1][1] = y;
+                s->backVerts[0][2] = z;
+                s->backVerts[1][2] = z;
+                if (s->flags & STREAK_WIDE) w = 0.75f;
+                else if (s->flags & STREAK_MEDIUM) w = 0.5f;
+                else if (s->flags & STREAK_NARROW) w = 0.35f;
+                else w = 0.025f;
+                s->backVerts[0][1] -= w;
+                s->backVerts[1][1] += w;
             }
-        } else if (trail->flags & 0x10) {
-            if (!(trail->flags & 0x2000)) trail->flags |= 0x2000;
-            if (gNumPlayers >= 3) trail->lifetime = 0.1f;
-            else trail->lifetime = 0.0333333f;
-            trail->flags &= ~0x10;
-            new_fade = GetStatLLE(&gStreakPolyList);
-            if (new_fade) {
-                if (trail->flags & 1) {
-                    new_fade->lifetime = 0.75f;
-                    width = 0.75f;
-                    new_fade->color[0] = gStreakColors[0][0];
-                    new_fade->color[1] = gStreakColors[0][1];
-                    new_fade->color[2] = gStreakColors[0][2];
-                    new_fade->color[3] = gStreakColors[0][3];
-                } else if (trail->flags & 2) {
-                    new_fade->lifetime = 0.5f;
-                    width = 0.5f;
-                    new_fade->color[0] = gStreakColors[1][0];
-                    new_fade->color[1] = gStreakColors[1][1];
-                    new_fade->color[2] = gStreakColors[1][2];
-                    new_fade->color[3] = gStreakColors[1][3];
-                } else if (trail->flags & 4) {
-                    new_fade->lifetime = 0.25f;
-                    width = 0.35f;
-                    new_fade->color[0] = gStreakColors[2][0];
-                    new_fade->color[1] = gStreakColors[2][1];
-                    new_fade->color[2] = gStreakColors[2][2];
-                    new_fade->color[3] = gStreakColors[2][3];
+        } else if (s->flags & STREAK_NEWPOS) {
+            if (!(s->flags & STREAK_STARTED)) s->flags |= STREAK_STARTED;
+            if (gNumPlayers >= 3) s->delay = 0.1f;
+            else s->delay = 0.0333333f;
+            s->flags &= ~STREAK_NEWPOS;
+            /* the new segment (MAT3 _NewStreakPoly) */
+            newsp = GetStatLLE(&gStreakPolyList);
+            if (newsp) {
+                if (s->flags & STREAK_WIDE) {
+                    newsp->lifeTime = 0.75f;
+                    w = 0.75f;
+                    newsp->clr[0] = gStreakColors[0][0];
+                    newsp->clr[1] = gStreakColors[0][1];
+                    newsp->clr[2] = gStreakColors[0][2];
+                    newsp->clr[3] = gStreakColors[0][3];
+                } else if (s->flags & STREAK_MEDIUM) {
+                    newsp->lifeTime = 0.5f;
+                    w = 0.5f;
+                    newsp->clr[0] = gStreakColors[1][0];
+                    newsp->clr[1] = gStreakColors[1][1];
+                    newsp->clr[2] = gStreakColors[1][2];
+                    newsp->clr[3] = gStreakColors[1][3];
+                } else if (s->flags & STREAK_NARROW) {
+                    newsp->lifeTime = 0.25f;
+                    w = 0.35f;
+                    newsp->clr[0] = gStreakColors[2][0];
+                    newsp->clr[1] = gStreakColors[2][1];
+                    newsp->clr[2] = gStreakColors[2][2];
+                    newsp->clr[3] = gStreakColors[2][3];
                 } else {
-                    new_fade->lifetime = 0.16f;
-                    width = 0.025f;
-                    new_fade->color[0] = gStreakColors[3][0];
-                    new_fade->color[1] = gStreakColors[3][1];
-                    new_fade->color[2] = gStreakColors[3][2];
-                    new_fade->color[3] = gStreakColors[3][3];
+                    newsp->lifeTime = 0.16f;
+                    w = 0.025f;
+                    newsp->clr[0] = gStreakColors[3][0];
+                    newsp->clr[1] = gStreakColors[3][1];
+                    newsp->clr[2] = gStreakColors[3][2];
+                    newsp->clr[3] = gStreakColors[3][3];
                 }
-                if (gNumPlayers >= 3) new_fade->lifetime *= 0.5f;
-                if (trail->flags & 8) new_fade->interval = 0.0f;
-                else new_fade->interval = 0.0333333f;
-                new_fade->source = trail;
-                corners[0][0] = trail->lower[0];
-                corners[0][1] = trail->lower[1];
-                corners[0][2] = trail->lower[2];
-                corners[1][0] = trail->upper[0];
-                corners[1][1] = trail->upper[1];
-                corners[1][2] = trail->upper[2];
-                corners[2][0] = trail->origin[0];
-                corners[2][1] = trail->origin[1];
-                corners[2][2] = trail->origin[2];
-                corners[3][0] = trail->origin[0];
-                corners[3][1] = trail->origin[1];
-                corners[3][2] = trail->origin[2];
-                corners[2][1] += width;
-                corners[3][1] -= width;
-                new_fade->object = ZOID_NewPoly(4, &corners[0][0], 0, new_fade->color, 0x120f, 0);
-                if (new_fade->object) {
-                    trail->upper[0] = corners[2][0];
-                    trail->upper[1] = corners[2][1];
-                    trail->upper[2] = corners[2][2];
-                    trail->lower[0] = corners[3][0];
-                    trail->lower[1] = corners[3][1];
-                    trail->lower[2] = corners[3][2];
-                    trail->previous[0] = trail->origin[0];
-                    trail->previous[1] = trail->origin[1];
-                    trail->previous[2] = trail->origin[2];
+                if (gNumPlayers >= 3) newsp->lifeTime *= 0.5f;
+                if (s->flags & STREAK_THIN) newsp->incTime = 0.0f;
+                else newsp->incTime = 0.0333333f;
+                newsp->s = s;
+                /* the back edge's two corners, then the new point's, w above and below it */
+                xyz[0][0] = s->backVerts[0][0];
+                xyz[0][1] = s->backVerts[0][1];
+                xyz[0][2] = s->backVerts[0][2];
+                xyz[1][0] = s->backVerts[1][0];
+                xyz[1][1] = s->backVerts[1][1];
+                xyz[1][2] = s->backVerts[1][2];
+                xyz[2][0] = s->newpos[0];
+                xyz[2][1] = s->newpos[1];
+                xyz[2][2] = s->newpos[2];
+                xyz[3][0] = s->newpos[0];
+                xyz[3][1] = s->newpos[1];
+                xyz[3][2] = s->newpos[2];
+                xyz[2][1] += w;
+                xyz[3][1] -= w;
+                newsp->poly = ZOID_NewPoly(4, &xyz[0][0], 0, newsp->clr, 0x120f, 0);
+                if (newsp->poly) {
+                    s->backVerts[1][0] = xyz[2][0];
+                    s->backVerts[1][1] = xyz[2][1];
+                    s->backVerts[1][2] = xyz[2][2];
+                    s->backVerts[0][0] = xyz[3][0];
+                    s->backVerts[0][1] = xyz[3][1];
+                    s->backVerts[0][2] = xyz[3][2];
+                    s->lastpos[0] = s->newpos[0];
+                    s->lastpos[1] = s->newpos[1];
+                    s->lastpos[2] = s->newpos[2];
                 } else {
-                    FreeStatLLE(&gStreakPolyList, new_fade);
+                    FreeStatLLE(&gStreakPolyList, newsp);
                 }
             }
         }

@@ -63,8 +63,8 @@ void *game_bsearch(void *key, void *base, uint32_t n, uint32_t size, int (*cmp)(
     return bsearch(key, base, n, size, cmp);
 }
 
-/* The texture-animation tables, in the host layout both of their game views agree on (InitTextureAnimation's
- * Row20/Sequence20/Item12, TextureAnimation's PaletteAnimation20/ObjectAnimation20/AnimationFrame12). */
+/* The texture-animation tables, in the host layout both of their game views agree on (MAT3 tPaletteAnim,
+ * tTextureSwap and tTextureBase: InitTextureAnimation's and TextureAnimation's views). */
 typedef struct {
     const char *name;
     int16_t first, last;

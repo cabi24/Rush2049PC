@@ -1,15 +1,27 @@
+/* downshift.c: the automatic gearbox's shift down (MAT3 drivetra.c, downshift()). */
 #include "game/game.h"
 
-void downshift(void *arg0) {
-    f32 temp_f0;
-    s16 temp_v0;
+/* The model record (tModelData), the fields downshift reads and writes. */
+typedef struct tModelData {
+    u8 pad0[0x3F4];
+    s16 gear;                   /* +0x3F4 -1 reverse, 0 neutral, 1..4 */
+    u8 pad3F6[0x658 - 0x3F6];
+    f32 shifttime;              /* +0x658 the model time before which no other shift happens */
+    u8 pad65C[0x714 - 0x65C];
+    f32 modelTime;              /* +0x714 fastin.modelTime, seconds */
+} tModelData;
 
-    temp_v0 = M2C_FIELD(arg0, s16 *, 0x3F4);
-    if (temp_v0 >= 2) {
-        temp_f0 = M2C_FIELD(arg0, f32 *, 0x714);
-        if (M2C_FIELD(arg0, f32 *, 0x658) < temp_f0) {
-            M2C_FIELD(arg0, s16 *, 0x3F4) = (s16) (temp_v0 - 1);
-            M2C_FIELD(arg0, f32 *, 0x658) = (f32) (temp_f0 + 1.0f);
+/* Shift model m down a gear, unless it is in first (or neutral or reverse) or shifted less than a second ago. */
+void downshift(tModelData *m) {
+    f32 model_time;
+    s16 gear;
+
+    gear = m->gear;
+    if (gear >= 2) {
+        model_time = m->modelTime;
+        if (m->shifttime < model_time) {
+            m->gear = gear - 1;
+            m->shifttime = model_time + 1.0f;
         }
     }
 }

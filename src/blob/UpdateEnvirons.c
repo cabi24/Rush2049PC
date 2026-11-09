@@ -1,32 +1,40 @@
+/* UpdateEnvirons.c: animate the environment visuals for a frame (MAT3 visuals.c, UpdateEnvirons()). */
 #include "game/game.h"
 
-VIEW(intptr_t, gEnvList);
+/* A visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+typedef struct tVisual {
+    struct tVisual *next;
+    u8 pad8[0x18 - 0x8];        /* index, objnum, slot, data, timeStamp */
+    M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
+} tVisual;
+
+VIEW(tVisual *, gEnvList);
 #define gEnvList gEnvList_view
 
-/* The list gEnvList links the environment visuals (gEnvirons, struct pc_visual on the PC: next and func are
- * host pointers, func at 0x18), so the walk holds them pointer-sized (docs/port/CASTS.md). */
+/* Call each visual's animator on gEnvList with op 1 (update), then the skid marks'. The next visual is read before
+ * the call, since an animator may release its own visual (ReleaseEnviron unlinks it). */
 void UpdateEnvirons(void) {
-    M2C_UNK (*temp_v0)(intptr_t, M2C_UNK);
-    intptr_t var_a0;
-    intptr_t var_s0;
+    M2C_UNK (*func)(tVisual *, M2C_UNK);
+    tVisual *v;
+    tVisual *next;
 
-    var_a0 = gEnvList;
+    v = gEnvList;
     if (gEnvList != 0) {
-        var_s0 = M2C_FIELD(gEnvList, intptr_t *, 0);
+        next = gEnvList->next;
     } else {
-        var_s0 = 0;
+        next = 0;
     }
-    if (var_a0 != 0) {
+    if (v != 0) {
         do {
-            temp_v0 = M2C_FIELD(var_a0, M2C_UNK (**)(intptr_t, M2C_UNK), VIS_OFS(0x14));
-            if (temp_v0 != NULL) {
-                temp_v0(var_a0, 1);
+            func = v->func;
+            if (func != NULL) {
+                func(v, 1);
             }
-            var_a0 = var_s0;
-            if (var_s0 != 0) {
-                var_s0 = M2C_FIELD(var_a0, intptr_t *, 0);
+            v = next;
+            if (next != 0) {
+                next = v->next;
             }
-        } while (var_a0 != 0);
+        } while (v != 0);
     }
     AnimateSkids();
 }

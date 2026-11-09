@@ -1,13 +1,16 @@
+/* AnimateBrakeLights.c: a car's brake lights (MAT3 visuals.c, AnimateBrakeLights()).
+ *
+ * The lights are colours in the car's palette (the TLUT SetupCarColor made, car_palettes[slot]), not objects: the
+ * animator rewrites the eight tail-light entries each frame. */
 #include "game/game.h"
 
-typedef struct In { void *next; s16 index, objnum; s16 idx; } In;
-typedef struct { u8 pad[320]; u16 v[8]; } Out;
+/* A car visual (tVisual) on the PC: next a host pointer (docs/port/CARS.md 3). */
+typedef struct tVisual { void *next; s16 index, objnum; s16 slot; } tVisual;
+/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
+typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; } CarTlut;
 
-/* PC: the car palette descriptors car_palettes keep a palette record's N64 layout (24 bytes, data a u32 window
- * address; car_palette_init.c). */
-typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; u32 data; } Slot24;
-VIEW(Slot24[], car_palettes);
-#define car_palettes car_palettes_view
+/* PC: the car palette descriptors car_palettes (CarPalette) keep a palette record's N64 layout (24 bytes, data a
+ * u32 window address; car_palette_init.c). */
 
 VIEW(u16[8], taillight_colors_dark);
 #define taillight_colors_dark taillight_colors_dark_view
@@ -16,19 +19,23 @@ VIEW(u16[8], taillight_colors_dim);
 VIEW(u16[8], taillight_colors_bright);
 #define taillight_colors_bright taillight_colors_bright_view
 #define CP(src) do { \
-    o->v[0] = (src)[0]; o->v[1] = (src)[1]; o->v[2] = (src)[2]; o->v[3] = (src)[3]; \
-    o->v[4] = (src)[4]; o->v[5] = (src)[5]; o->v[6] = (src)[6]; o->v[7] = (src)[7]; } while (0)
+    tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
+    tlut->taillights[4] = (src)[4]; tlut->taillights[5] = (src)[5]; tlut->taillights[6] = (src)[6]; tlut->taillights[7] = (src)[7]; } while (0)
 
 /* The descriptor's data is a 32-bit N64 address: N64PTR0(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md
  * 2.3). */
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-void AnimateBrakeLights(In *in, s16 flag)
+
+/* The brake-light visual of car v->slot (VIS_BRAKE_LIGHTS): bright tail lights while it brakes (APPEAR_BRAKE) and is
+ * not a hulk, else the plain ones; op 0 (stop) puts the plain ones back. On the night tracks (3 and 5) the lights
+ * are on, so plain is dim and braking bright; elsewhere plain is dark and braking dim. */
+void AnimateBrakeLights(tVisual *v, s16 op)
 {
-s32 i; Out *o; s32 ok;
- i = in->idx;
- ok = (PC_CAR_FLAGS(i) & 0x1000) != 0 && (PC_CAR_FLAGS(i) & 0x10) == 0;
- o = N64PTR0(Out *, car_palettes[i].data);
-    if (flag == 0 || !ok) {
+s32 slot; CarTlut *tlut; s32 braking;
+ slot = v->slot;
+ braking = (PC_CAR_FLAGS(slot) & APPEAR_BRAKE) != 0 && (PC_CAR_FLAGS(slot) & APPEAR_HULK) == 0;
+ tlut = N64PTR0(CarTlut *, car_palettes[slot].data);
+    if (op == 0 || !braking) {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_dim); } else { CP(taillight_colors_dark); }
     } else {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_bright); } else { CP(taillight_colors_dim); }

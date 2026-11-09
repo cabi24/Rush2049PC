@@ -1,32 +1,37 @@
+/* ReleaseEnviron.c: give an environment visual back to the pool (MAT3 visuals.c, ReleaseEnviron()). */
 #include "game/game.h"
 
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct Node {
-    struct Node *next;
-    unsigned short tag;
-    s16 handle;
-    unsigned char opaque[12];
-    intptr_t state;
-} Node;
+/* A visual (tVisual) on the PC: 0x20 bytes, next and func host pointers, data a u32 (docs/port/CARS.md 3). */
+typedef struct tVisual {
+    struct tVisual *next;
+    u16 index;
+    s16 objnum;                 /* its scene object, -1 none */
+    u8 pad8[12];                /* slot, data, timeStamp */
+    intptr_t func;              /* its animator */
+} tVisual;
 
-void ReleaseEnviron(Node *node,int unlink) {
-    Node *previous,*current;
-    if (node->handle>=0) MBOX_HideObject(node->handle,1,15);
-    node->state=0;
-    node->handle=-1;
+/* Hide visual v's scene object, clear its animator and, if `unlink`, take it off gEnvList (a caller walking the list
+ * itself passes 0), then put it on the free list. gEnvCount drops by one.
+ * Original game: the high-water mark gEnvCountMax is updated here too, after the count went down, where it can't
+ * grow (MAT3 has the same test). */
+void ReleaseEnviron(tVisual *v, int unlink) {
+    tVisual *previous, *current;
+    if (v->objnum >= 0) MBOX_HideObject(v->objnum, 1, 15);
+    v->func = 0;
+    v->objnum = -1;
     if (unlink) {
-        current=gEnvList;
-        if (node==current) gEnvList=current->next;
+        current = gEnvList;
+        if (v == current) gEnvList = current->next;
         else {
-            previous=current;
-            while (current && ((current=current->next),node!=current)) {
-                previous=current;
+            previous = current;
+            while (current && ((current = current->next), v != current)) {
+                previous = current;
             }
-            if (previous && previous->next==node) previous->next=node->next;
+            if (previous && previous->next == v) previous->next = v->next;
         }
     }
-    node->next=gFreeVis;
+    v->next = gFreeVis;
     gEnvCount--;
-    gFreeVis=node;
-    if (gEnvCountMax<gEnvCount) gEnvCountMax=gEnvCount;
+    gFreeVis = v;
+    if (gEnvCountMax < gEnvCount) gEnvCountMax = gEnvCount;
 }

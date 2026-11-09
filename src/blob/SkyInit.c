@@ -1,3 +1,4 @@
+/* SkyInit.c: make each window's sky dome (MAT3 sky.c, SkyInit()). */
 #include "game/game.h"
 
 VIEW(u16, gNumWindows);
@@ -14,9 +15,15 @@ s32 ZOID_AddObject();
 /* A window's camera matrix is kept as its 32-bit N64 address (skyMatrices): N64A(p) is a window pointer's
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+
+/* Give each window a sky dome: the sky model (sky_object_name, MAT3 "SKYSKY") as a scene node of its own matrix
+ * (ZOID_NewMatrix), drawn in that window only (its flags hide it in the other three: bits 8-11 hide a node in
+ * windows 0-3). None in a fog (the fog's colour is the sky) or on the tracks without one: 7-13 (the battle arenas
+ * but the first), 17 (the fourth stunt arena) and 18 (the obstacle course). MAT3 scales the dome's matrix by 2.5;
+ * the N64 leaves the new matrix as it is. */
 void SkyInit(void)
 {
-  s32 i; s32 *dst; s32 handle; intptr_t val;
+  s32 i; s32 *dst; s32 handle; intptr_t matrix;
   if (PC_SKY_FOG(gFogIntensity) > 0) {
     SkyClear();
     return;
@@ -30,9 +37,9 @@ void SkyInit(void)
   dst = skyMatrices;
   for (i = 0; i < (s16) gNumWindows; i++) {
     handle = MBOX_FindObject_WORK(sky_object_name, 0, gNumModels - 1, 1);
-    val = ZOID_NewMatrix();
-    *dst = N64A(val);
-    ZOID_AddObject(handle, val, -1, (((s16) (1 << i)) << 8) ^ 0xF00);
+    matrix = ZOID_NewMatrix();
+    *dst = N64A(matrix);
+    ZOID_AddObject(handle, matrix, -1, (((s16) (1 << i)) << 8) ^ 0xF00);
     dst++;
   }
 }

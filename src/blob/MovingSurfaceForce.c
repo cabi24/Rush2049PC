@@ -1,119 +1,128 @@
+/* MovingSurfaceForce.c: what a moving road surface does to a car (MAT3 drivsym.c, MovingSurfaceForce()).
+ *
+ * A stage of the physics step (sym), run when road contact (TireSurf) found the car on a surface whose sound flags
+ * mark it as moving: a boost strip pushes the car up to a speed, a platform or conveyor carries it. */
 #include "game/game.h"
 
-typedef struct Push {
-    u16 pad0;
-    u16 flags;              /* +2: bits 11..15 id/strength, 0x10, 0x20 */
-    s16 dir[3];             /* +4 */
-} Push;
+/* A road surface (MAT3 surftyp, 0x18 bytes): the road tree's polygons (stree_surf) and the surface the car is on. */
+typedef struct surftyp {
+    u16 flags;              /* +0x00 the road flags (road code, visual code, boost) */
+    u16 snd_flags;          /* +0x02 0x10 a push strip, 0x20 moved by a target, 0x30 moving at all; bits 11-15 the
+                             * speed (in 8 mph steps for a push strip) or the target */
+    s16 uvs[3][3];          /* +0x04 the surface's orientation, units of 1/16384: uvs[0] the direction it moves */
+    u16 vli;                /* +0x16 */
+} surftyp;
 
-typedef struct Surface {
-    u16 pad0;
-    u16 flags;              /* +2 */
-    u8 pad4[20];
-} Surface;
-
-enum n64p_Push { n64p_Push_ };
-typedef struct Car {
-    u8 pad0[100];
-    f32 wheelForce[4][3];   /* +100 */
-    u8 pad148[144];
-    f32 force[3];           /* +292 */
-    u8 pad304[240];
-    f32 uv[3];              /* +544 */
-    f32 torque[3];          /* +556 */
-    u8 pad568[180];
-    f32 bodyUV[9];          /* +748 */
-    u8 pad784[656];
-    u16 surface[4];         /* +1440 */
-    u8 pad1448[24];
-    f32 mass;               /* +1472 */
-    u8 pad1476[40];
-    f32 tireLoad[4];        /* +1516 */
-    u8 pad1532[56];
-    f32 scale;              /* +1588 */
-    u8 pad1592[16];
-    enum n64p_Push push;             /* +1608 */
-} Car;
+enum n64p_surftyp { n64p_surftyp_ };
+/* The model record (tModelData), the fields MovingSurfaceForce reads and writes. */
+typedef struct tModelData {
+    u8 pad0[0x64];
+    f32 tireForce[4][3];    /* +0x064 the force on each tire, in the car's frame */
+    u8 pad94[0x124 - 0x94];
+    f32 centerForce[3];     /* +0x124 the force at the centre of mass, in the car's frame */
+    u8 pad130[0x220 - 0x130];
+    f32 rwv[3];             /* +0x220 the velocity, world frame, feet a second */
+    f32 rwr[3];             /* +0x22C the position, world frame, feet */
+    u8 pad238[0x2EC - 0x238];
+    f32 uvs[9];             /* +0x2EC the orientation (rows: the car's axes) */
+    u8 pad310[0x5A0 - 0x310];
+    u16 tiresli[4];         /* +0x5A0 each tire's road surface (an index into stree_surf) */
+    u8 pad5A8[0x5C0 - 0x5A8];
+    f32 mass;               /* +0x5C0 */
+    u8 pad5C4[0x5EC - 0x5C4];
+    f32 airdist[4];         /* +0x5EC each tire's height above the road (0 or less: touching) */
+    u8 pad5FC[0x634 - 0x5FC];
+    f32 dt;                 /* +0x634 the step, seconds */
+    u8 pad638[0x648 - 0x638];
+    enum n64p_surftyp movingSurface;    /* +0x648 the moving surface under the car (a window address) */
+} tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Push: (Push *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_surftyp: (surftyp *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-VIEW(Surface *, stree_surf);
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
 
-void MovingSurfaceForce(Car *m) {
-    Push *p;
+/* Apply model m's moving surface (m->movingSurface) for this step:
+ * - a push strip (snd_flags 0x10) faster than 50 mph: a force at the centre along the strip's direction, mass times
+ *   the speed the car lacks along it, so the car is driven up to the strip's speed;
+ * - else, with three or four tires on moving surfaces: the car rides it, its position moved by the surface's motion
+ *   for the step (a target's velocity, snd_flags 0x20, or the surface's direction at its speed);
+ * - else a force of 30 times the mass on each tire that is on a moving surface, along its motion. */
+void MovingSurfaceForce(tModelData *m) {
+    surftyp *sp;
     s32 i;
-    f32 v[3];
-    f32 out[3];
-    s32 count;
-    s32 mag;
+    f32 temp[3];
+    f32 temp1[3];
+    s32 on;
+    s32 obj;
     u32 mask;
-    f32 d;
+    f32 speed;
 
-    p = N64P(m->push);
-    count = 0;
+    sp = N64P(m->movingSurface);
+    on = 0;
     mask = 0;
     i = 0;
-    mag = (p->flags & 0xF800) >> 11;
-    if (p->flags & 0x10) {
-        mag *= 8;
-        if (mag > 50) {
-            v[0] = p->dir[0] * (1.0f / 16384.0f);
-            v[1] = p->dir[1] * (1.0f / 16384.0f);
-            v[2] = p->dir[2] * (1.0f / 16384.0f);
-            d = v[0] * m->uv[0] + v[1] * m->uv[1] + v[2] * m->uv[2];
-            d = mag * 1.4666667f - d;
-            d *= m->mass;
-            out[0] = v[0] * d;
-            out[1] = v[1] * d;
-            out[2] = v[2] * d;
-            BodyVector(out, v, m->bodyUV);
-            m->force[0] += v[0];
-            m->force[1] += v[1];
-            m->force[2] += v[2];
+    obj = (sp->snd_flags & 0xF800) >> 11;
+    if (sp->snd_flags & 0x10) {
+        obj *= 8;
+        if (obj > 50) {
+            temp[0] = sp->uvs[0][0] * (1.0f / 16384.0f);
+            temp[1] = sp->uvs[0][1] * (1.0f / 16384.0f);
+            temp[2] = sp->uvs[0][2] * (1.0f / 16384.0f);
+            speed = temp[0] * m->rwv[0] + temp[1] * m->rwv[1] + temp[2] * m->rwv[2];
+            speed = obj * MPH_TO_FTPS - speed;
+            speed *= m->mass;
+            temp1[0] = temp[0] * speed;
+            temp1[1] = temp[1] * speed;
+            temp1[2] = temp[2] * speed;
+            BodyVector(temp1, temp, m->uvs);
+            m->centerForce[0] += temp[0];
+            m->centerForce[1] += temp[1];
+            m->centerForce[2] += temp[2];
             return;
         }
     }
     for (i = 0; i < 4; i++) {
-        if (m->tireLoad[i] <= 0.0f) {
-            if (stree_surf[m->surface[i]].flags & 0x30) {
-                count++;
+        if (m->airdist[i] <= 0.0f) {
+            if (stree_surf[m->tiresli[i]].snd_flags & 0x30) {
+                on++;
                 mask |= 1 << i;
             }
         }
     }
-    if (count >= 3) {
-        if (p->flags & 0x20) {
-            GetTargetVelocity(mag, v);
-            m->torque[0] += v[0] * m->scale;
-            m->torque[2] += v[2] * m->scale;
+    if (on >= 3) {
+        if (sp->snd_flags & 0x20) {
+            GetTargetVelocity(obj, temp);
+            m->rwr[0] += temp[0] * m->dt;
+            m->rwr[2] += temp[2] * m->dt;
         } else {
-            d = mag * 1.4666667f * m->scale;
-            m->torque[0] += d * p->dir[0] * (1.0f / 16384.0f);
-            m->torque[2] += d * p->dir[2] * (1.0f / 16384.0f);
+            speed = obj * MPH_TO_FTPS * m->dt;
+            m->rwr[0] += speed * sp->uvs[0][0] * (1.0f / 16384.0f);
+            m->rwr[2] += speed * sp->uvs[0][2] * (1.0f / 16384.0f);
         }
         return;
     }
     for (i = 0; i < 4; i++) {
         if ((1 << i) & mask) {
-            if (p->flags & 0x20) {
-                GetTargetVelocity(mag, v);
-                NormalVector(v);
+            if (sp->snd_flags & 0x20) {
+                GetTargetVelocity(obj, temp);
+                NormalVector(temp);
             } else {
-                v[0] = p->dir[0] * (1.0f / 16384.0f);
-                v[1] = p->dir[1] * (1.0f / 16384.0f);
-                v[2] = p->dir[2] * (1.0f / 16384.0f);
+                temp[0] = sp->uvs[0][0] * (1.0f / 16384.0f);
+                temp[1] = sp->uvs[0][1] * (1.0f / 16384.0f);
+                temp[2] = sp->uvs[0][2] * (1.0f / 16384.0f);
             }
-            v[0] *= 30.0f * m->mass;
-            v[1] *= 30.0f * m->mass;
-            v[2] *= 30.0f * m->mass;
-            BodyVector(v, out, m->bodyUV);
+            temp[0] *= 30.0f * m->mass;
+            temp[1] *= 30.0f * m->mass;
+            temp[2] *= 30.0f * m->mass;
+            BodyVector(temp, temp1, m->uvs);
             if (i) {
+                /* no effect */
             }
-            m->wheelForce[i][0] += out[0];
-            m->wheelForce[i][1] += out[1];
-            m->wheelForce[i][2] += out[2];
+            m->tireForce[i][0] += temp1[0];
+            m->tireForce[i][1] += temp1[1];
+            m->tireForce[i][2] += temp1[2];
         }
     }
 }

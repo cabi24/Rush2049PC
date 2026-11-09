@@ -1,14 +1,17 @@
+/* ZOID_SetViewport.c: set a window's viewport and scissor rectangle (MAT3 zoidwindow.c, ZOID_SetViewport()). */
 #include "game/game.h"
 
 VIEW(s32[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 
-/* PC: a ZOID window (ZoidWinInfo) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
- * 10); the m2c body uses the N64 stride. Stores a window's first and bounds. */
-typedef struct { void *first, *bounds; u8 rest[0x48 - 8]; } PcWindow;
-void ZOID_SetViewport(s32 arg0, void *arg1, void *arg2) {
-    PcWindow *w = &((PcWindow *) &ZoidWinInfo)[arg0];
+/* A window (MAT3 tWindowInfo): 0x48 bytes on the N64, 0x50 on the PC, whose viewport and scissor pointers are 8
+ * bytes each (docs/port/POINTERS.md 10). */
+typedef struct tWindowInfo { void *vp, *s; u8 rest[0x48 - 8]; } tWindowInfo;
 
-    w->first = arg1;
-    w->bounds = arg2;
+/* Give window `winidx` the viewport `vp` (vp0 ...) and the scissor rectangle `s` (scissor0 ...). */
+void ZOID_SetViewport(s32 winidx, void *vp, void *s) {
+    tWindowInfo *win = &((tWindowInfo *) &ZoidWinInfo)[winidx];
+
+    win->vp = vp;
+    win->s = s;
 }

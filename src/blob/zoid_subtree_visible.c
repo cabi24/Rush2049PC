@@ -1,16 +1,16 @@
+/* zoid_subtree_visible.c: whether anything in a part of the scene tree shows in a view (the N64's; part of its
+ * scene walk). */
 #include "game/game.h"
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct TrackNode { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 left; s16 right; s16 mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } TrackNode;
-VIEW(TrackNode[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-s32 zoid_subtree_visible(TrackNode *node, s32 type)
+/* Whether `node`, one of its later siblings, or anything below them is not hidden in view `view` (OBJ_HIDDEN_VIEW0
+ * << view). */
+s32 zoid_subtree_visible(ObjectInstance *node, s32 view)
 {
-  u32 mask = 256 << type;
+  u32 mask = OBJ_HIDDEN_VIEW0 << view;
   while (1) {
     if (!(node->flags & mask)) return 1;
-    if (node->left >= 0 && zoid_subtree_visible(&ObjInstanceList[node->left], type)) return 1;
-    if (node->right >= 0) { node = &ObjInstanceList[node->right]; continue; }
+    if (node->child >= 0 && zoid_subtree_visible(&ObjInstanceList[node->child], view)) return 1;
+    if (node->next >= 0) { node = &ObjInstanceList[node->next]; continue; }
     return 0;
   }
 }

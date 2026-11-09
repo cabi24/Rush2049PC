@@ -1,3 +1,4 @@
+/* SkyUpdate.c: keep a window's sky dome on its camera (MAT3 sky.c, SkyUpdate()). */
 #include "game/game.h"
 
 VIEW(s32, skyMatrices);
@@ -11,17 +12,24 @@ VIEW(unsigned char, gCamera);
 #define MTX_WORD u32
 /* ... and N64PTR(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64PTR(T, a) ((T)PC_N64P(a))
-void SkyUpdate(s32 arg0)
+/* The x and z of a place's position (MAT3 tUVMatrix mat3.pos, after the 3x3 orientation), by byte offset as the
+ * decompiled code reaches them, in the sky's matrix and in the camera (gCamera[].position, 0x98 bytes a camera). */
+#define POS_X(p) (*((f32 *) (((s8 *) (p)) + 0x24)))
+#define POS_Z(p) (*((f32 *) (((s8 *) (p)) + 0x2C)))
+
+/* Move window winidx's sky dome, if it has one, to its camera's x and z (the dome keeps its height), so the sky is
+ * always around the camera. */
+void SkyUpdate(s32 winidx)
 {
-  MTX_WORD *temp_v0;
-  MTX_WORD temp_v1;
-  void *temp_a1;
-  temp_v0 = &(&skyMatrices)[arg0];
-  temp_v1 = *temp_v0;
-  if (temp_v1 != 0)
+  MTX_WORD *slot;
+  MTX_WORD sky;
+  void *camera;
+  slot = &(&skyMatrices)[winidx];
+  sky = *slot;
+  if (sky != 0)
   {
-    temp_a1 = (arg0 * 0x98) + (&gCamera);
-    *((f32 *) ((N64PTR(s8 *, temp_v1)) + 0x24)) = (f32) (*((f32 *) (((s8 *) temp_a1) + 0x24)));
-    *((f32 *) ((N64PTR(s8 *, (*temp_v0))) + 0x2C)) = (f32) (*((f32 *) (((s8 *) temp_a1) + 0x2C)));
+    camera = (winidx * 0x98) + (&gCamera);
+    POS_X(N64PTR(s8 *, sky)) = (f32) POS_X(camera);
+    POS_Z(N64PTR(s8 *, (*slot))) = (f32) POS_Z(camera);
   }
 }

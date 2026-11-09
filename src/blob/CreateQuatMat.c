@@ -1,5 +1,13 @@
+/* CreateQuatMat.c: a rotation matrix from a quaternion (MAT3 fmath.c, CreateQuatMat()).
+ *
+ * The scripted camera paths (targetpaths) keep their key orientations as quaternions, interpolate them
+ * (InterpQuats) and turn the result into the camera's matrix with this. */
 #include "game/game.h"
 
+/* Write the rotation of quaternion q = (x, y, z, w), w last (MakeUvsFromQuat's quaternions have it first), into the
+ * 3x3 matrix mat (nine floats, row by row). With `normal` set, q is taken to be a unit quaternion (the scale is 2);
+ * else it is normalised on the way (2 / |q|^2, 0 for a zero quaternion). The off-diagonal signs are the game's own,
+ * not the textbook matrix's. */
 void CreateQuatMat(f32 *mat, f32 q[], int normal)
 {
 	f32 s;

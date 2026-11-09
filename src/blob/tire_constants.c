@@ -1,33 +1,33 @@
+/* tire_constants.c: a tire's model coefficients from its load (MAT3 initiali.c, tire_constants()).
+ *
+ * Part of the car set-up (carsetup), once per tire. The side force follows the Fiala brush model, a cubic in the
+ * slip angle up to the full slide: F = Fz (k1 a - k2 a^2 + k3 a^3) for |a| < afmax (frictioncircle evaluates it).
+ * The reciprocal coefficients are written as the N64 has them, (f32)(1.0 / 3.4), rounded to float from the double:
+ * 1.0f / 3.4f is one unit in the last place off. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Tire load and polynomial-coefficient setup, 0x800D08E4..0x800D09E8.
- * Historical target label retained; this is not a track-preview renderer.
- * Adapted from historicalsource/rushtherock 845329d7, game/initiali.c:
- * copy_tire_info load formula and tire_constants field expressions.
- * N64 receives the combined load at model +1468 and the tire offset separately.
- * Its l2 uses addition, and its reciprocal coefficients are rounded to float
- * from the donor's double literals before multiplication. This preserves the
- * actual binary32 pool, notably 1/3.4; float-first division is one ULP wrong.
- * Natural field expressions eliminate archived decompiler scalar ownership.
- * O2 also matches. No artificial locals, helpers, volatility or compiler changes.
- * Opaque bytes describe the real 2056-byte model and 92-byte tire records.
- */
-typedef float F32;
-typedef unsigned char U8;
-typedef struct Tire { F32 tradius,springK,rubdamp,Cstiff,Cfmax,invmi,Zforce,Afmax,k1,k2,k3,l2,l3,m1,m2,m3,m4,patchy; U8 tail72[20]; } Tire;
-typedef struct Model { U8 other[1072]; Tire tires[4]; U8 other1440[28]; F32 load; U8 other1472[8]; F32 wheelbase; U8 tail1484[572]; } Model;
-void tire_constants(Model *m,Tire *tdes,F32 otw) {
- tdes->Zforce = (m->load * otw / m->wheelbase) * .5f;
- tdes->Afmax = 3*tdes->Cfmax*tdes->Zforce/tdes->Cstiff;
- tdes->k1 = tdes->Cstiff/tdes->Zforce;
- tdes->k2 = tdes->k1*tdes->k1/(3*tdes->Cfmax);
- tdes->k3 = tdes->k1*tdes->k1*tdes->k1/(27*tdes->Cfmax*tdes->Cfmax);
+/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
+typedef struct Tire { f32 tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3,l2,l3,m1,m2,m3,m4,patchy; u8 tail48[20]; } Tire;
+/* The model record (tModelData), the fields tire_constants reads. */
+typedef struct tModelData { u8 pad0[0x430]; Tire tires[4]; u8 pad5A0[0x5BC - 0x5A0]; f32 weight; u8 pad5C0[0x5C8 - 0x5C0]; f32 wheelbase; u8 tail5CC[0x808 - 0x5CC]; } tModelData;
+
+/* Tire tdes's coefficients on model m. otw is the other axle's distance from the centre of mass, so the tire's
+ * static load is half its axle's share of the weight: zforce = weight * otw / wheelbase / 2. Then the Fiala terms
+ * from the cornering stiffness cstiff and the friction cfmax: afmax = 3 cfmax zforce / cstiff (the slip angle of the
+ * full slide), k1 = cstiff / zforce, k2 = k1^2 / (3 cfmax), k3 = k1^3 / (27 cfmax^2), and their slopes l2 = 2 k2,
+ * l3 = 3 k3; m1 .. m4 the longitudinal slip's (m1 = 4.16 / cfmax, m2 = m1^2 / 3.4, m3 = m1^3 / 46.3,
+ * m4 = 1 / 0.000055); patchy 0. */
+void tire_constants(tModelData *m,Tire *tdes,f32 otw) {
+ tdes->zforce = (m->weight * otw / m->wheelbase) * .5f;
+ tdes->afmax = 3*tdes->cfmax*tdes->zforce/tdes->cstiff;
+ tdes->k1 = tdes->cstiff/tdes->zforce;
+ tdes->k2 = tdes->k1*tdes->k1/(3*tdes->cfmax);
+ tdes->k3 = tdes->k1*tdes->k1*tdes->k1/(27*tdes->cfmax*tdes->cfmax);
  tdes->l2 = tdes->k2+tdes->k2;
  tdes->l3 = tdes->k3*3;
- tdes->m1 = 4.16f/tdes->Cfmax;
- tdes->m2 = tdes->m1*tdes->m1*(F32)(1.0/3.4);
- tdes->m3 = tdes->m1*tdes->m1*tdes->m1*(F32)(1.0/46.3);
- tdes->m4 = (F32)(1.0/.000055);
+ tdes->m1 = 4.16f/tdes->cfmax;
+ tdes->m2 = tdes->m1*tdes->m1*(f32)(1.0/3.4);
+ tdes->m3 = tdes->m1*tdes->m1*tdes->m1*(f32)(1.0/46.3);
+ tdes->m4 = (f32)(1.0/.000055);
  tdes->patchy = 0;
 }

@@ -1,44 +1,32 @@
+/* ZOID_TrueObjParent.c: a scene node's parent (MAT3 zoid.c, ZOID_TrueObjParent()). */
 #include "game/game.h"
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct SceneRecord {
-    unsigned int flags, w4;
-    void *obj;
-    float scale, w;
-    unsigned short model;
-    s16 child;
-    s16 sibling;
-    s16 mode;
-    void *light, *tex[4], *rect, *clip, *pal;
-    unsigned int prim, env;
-} SceneRecord;
-VIEW(SceneRecord[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
+/* The parent of node `child`: the node among whose children (its first child and that one's siblings) it is,
+ * or -1 for a root. A search of the whole table: the nodes keep no parent link. */
 s16 ZOID_TrueObjParent(s16 child)
 {
     s32 i;
-    s16 search_key;
-    s32 next;
+    s16 target;
+    s32 node;
     s16 first_child;
     s16 sibling;
-    SceneRecord *record;
+    ObjectInstance *parent;
 
     i = 0;
     if (gNumObjects > 0) {
-        search_key = child;
+        target = child;
         do {
-            record = &ObjInstanceList[i];
-            first_child = record->child;
-            if (search_key == first_child)
+            parent = &ObjInstanceList[i];
+            first_child = parent->child;
+            if (target == first_child)
                 return i;
-            next = first_child;
+            node = first_child;
             if (first_child != -1) {
                 do {
-                    sibling = ObjInstanceList[next].sibling;
-                    if (search_key == sibling)
+                    sibling = ObjInstanceList[node].next;
+                    if (target == sibling)
                         return i;
-                    next = sibling;
+                    node = sibling;
                 } while (sibling != -1);
             }
             i++;

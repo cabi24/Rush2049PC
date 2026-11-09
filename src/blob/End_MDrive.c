@@ -1,18 +1,29 @@
+/* End_MDrive.c: stop a car's simulation at the end of its race (MAT3 mdrive.c, End_MDrive()). */
 #include "game/game.h"
 
-void End_MDrive(s16 arg0)
+/* The model record (tModelData), the fields End_MDrive clears. */
+typedef struct tModelData {
+    u8 pad0[0x71C];
+    s16 modelrun;               /* +0x71C fastin.modelrun: the model thread steps this car */
+    u8 pad71E[0x7F8 - 0x71E];
+    f32 skidIntensity[4];       /* +0x7F8 each tire's skid sound level */
+} tModelData;
+
+/* Stop car `slot`: the model thread no longer steps it (modelrun 0), its engine and tire sounds stop
+ * (StopCarSounds) and its skids fall silent. */
+void End_MDrive(s16 slot)
 {
-  void *sp1C;
-  void *temp_a0;
-  temp_a0 = PC_MODEL(arg0);
+  tModelData *m_copy;   /* m2c's copy of m, kept: the code stores it */
+  tModelData *m;
+  m = PC_MODEL(slot);
   if (1)
   {
-    *((s16 *) (((s8 *) temp_a0) + 0x71C)) = 0;
-    sp1C = temp_a0;
-    StopCarSounds(temp_a0);
-    *((f32 *) (((s8 *) temp_a0) + 0x7FC)) = 0.0f;
-    *((f32 *) (((s8 *) temp_a0) + 0x800)) = 0.0f;
+    m->modelrun = 0;
+    m_copy = m;
+    StopCarSounds(m);
+    m->skidIntensity[1] = 0.0f;
+    m->skidIntensity[2] = 0.0f;
   }
-  *((f32 *) (((s8 *) temp_a0) + 0x804)) = 0.0f;
-  *((f32 *) (((s8 *) temp_a0) + 0x7F8)) = 0.0f;
+  m->skidIntensity[3] = 0.0f;
+  m->skidIntensity[0] = 0.0f;
 }

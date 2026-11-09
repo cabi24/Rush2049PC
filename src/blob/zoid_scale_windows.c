@@ -1,21 +1,34 @@
+/* zoid_scale_windows.c: scale every window to another screen size (the N64's; no MAT3 counterpart). */
 #include "game/game.h"
 
-typedef struct Record {void *first; u16 *bounds; u8 pad8[28]; f32 x0, y0, x1, y1; u8 pad52[20];} Record;
+/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): its scissor
+ * rectangle, size and centre. */
+typedef struct tWindowInfo {
+    void *vp;
+    u16 *s;                     /* the scissor rectangle: left, top, right, bottom */
+    u8 pad8[28];
+    f32 wwidth, wheight;        /* +0x2C the size, pixels */
+    f32 whcenter, wvcenter;     /* the centre, pixels */
+    u8 pad52[20];
+} tWindowInfo;
 
-VIEW(Record[], ZoidWinInfo);
+VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
+
+/* Scale each window in use (gNumZoidWindows) by x horizontally and y vertically: its scissor rectangle, its size
+ * and its centre (the field of view stays). Used when the screen's resolution changes under the layout. */
 void zoid_scale_windows(f32 x, f32 y) {
     s32 i;
-    Record *record;
+    tWindowInfo *win;
     for (i = 0; i < gNumZoidWindows; i++) {
-        record = &ZoidWinInfo[i];
-        record->bounds[0] = (u32)((f32)(u32)record->bounds[0] * x);
-        record->bounds[2] = (u32)((f32)(u32)record->bounds[2] * x);
-        record->x0 *= x;
-        record->x1 *= x;
-        record->bounds[1] = (u32)((f32)(u32)record->bounds[1] * y);
-        record->bounds[3] = (u32)((f32)(u32)record->bounds[3] * y);
-        record->y0 *= y;
-        record->y1 *= y;
+        win = &ZoidWinInfo[i];
+        win->s[0] = (u32)((f32)(u32)win->s[0] * x);
+        win->s[2] = (u32)((f32)(u32)win->s[2] * x);
+        win->wwidth *= x;
+        win->whcenter *= x;
+        win->s[1] = (u32)((f32)(u32)win->s[1] * y);
+        win->s[3] = (u32)((f32)(u32)win->s[3] * y);
+        win->wheight *= y;
+        win->wvcenter *= y;
     }
 }

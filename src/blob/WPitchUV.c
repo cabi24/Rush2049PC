@@ -1,20 +1,16 @@
+/* WPitchUV.c: pitch an orientation matrix about the world's x axis (MAT3 fmath.c, WPitchUV()).
+ *
+ * The world-axis rotation family (WYawUV, WPitchUV, WRollUV): they combine the matrix's columns, so every axis of
+ * the object turns about the world's axis; PitchUV.c has the object-axis family. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * WPitchUV — arcade LIB/fmath.c WPitchUV(angle, uv): rotate the three rows of a
- * 3x3 unit-vector matrix about the universe X axis (columns 1 and 2) when
- * |angle| > 0.001. Pasted from the arcade function; the only N64 changes are
- * float literals (-0.001f / 0.001f, retail compares with c.lt.s) and sinf/cosf
- * for fsin/fcos. Quirk: the operand order of the uv[i][2] sum
- * (uv[i][2]*cost + uv[i][1]*sint, as in the arcade) selects the mul.s order.
- */
-typedef float F32;
-extern F32 sinf(F32);
-extern F32 cosf(F32);
+extern f32 sinf(f32);
+extern f32 cosf(f32);
 
-void WPitchUV(F32 angle, F32 uv[][3]) {
-    F32 ut, sint, cost;
+/* Turn the orientation uv by `angle` radians about the world's x axis (each row's y and z components turn into
+ * each other). Angles within 0.001 of zero are ignored. */
+void WPitchUV(f32 angle, f32 uv[][3]) {
+    f32 ut, sint, cost;
     int i;
 
     if ((angle < -0.001f) || (angle > 0.001f)) {

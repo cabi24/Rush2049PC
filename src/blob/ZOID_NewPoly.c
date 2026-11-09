@@ -1,26 +1,36 @@
+/* ZOID_NewPoly.c: add a flat polygon to the scene (MAT3 zoidpoly.c, ZOID_NewPoly()).
+ *
+ * The flat polygons (PolyInstanceList, 200 of them, MAT3 tPoly) are quads drawn after the scene's models: the cars'
+ * shadows and arrows, the skid marks. A free one has no vertices; gNumPolyInsts is one past the last in use. */
 #include "game/game.h"
 
-typedef struct Record88 { s16 active; u16 flags, parameter; unsigned char rest[82]; } Record88;
-VIEW(Record88[], PolyInstanceList);
+/* A flat polygon (MAT3 tPoly, 88 bytes): what this file sets. */
+typedef struct tPoly { s16 nverts; u16 flags, texidx; unsigned char rest[82]; } tPoly;
+VIEW(tPoly[], PolyInstanceList);
 #define PolyInstanceList PolyInstanceList_view
 
-extern void ZOID_UpdatePoly(Record88 *, int, f32 *, u16, u8 *, u16, int);
-Record88 *ZOID_NewPoly(int active, f32 *vertices, u16 parameter, u8 *color, u16 flags, int indexed)
+extern void ZOID_UpdatePoly(tPoly *, int, f32 *, u16, u8 *, u16, int);
+
+/* A new polygon of `nverts` vertices (up to 4) at xyz[nverts][3], coloured *color (bytes red, green, blue, alpha;
+ * NULL leaves the colour) with `flags` (POLY_*); if `useTidx` it is textured with texture handle `texidx`
+ * (POLY_TEXTURED). ZOID_UpdatePoly fills the vertices.
+ * Returns the polygon, or NULL when all 200 are in use. */
+tPoly *ZOID_NewPoly(int nverts, f32 *xyz, u16 texidx, u8 *color, u16 flags, int useTidx)
 {
     int i;
-    Record88 *record;
+    tPoly *poly;
     for (i = 0; i < gNumPolyInsts; i++) {
-        if (!PolyInstanceList[i].active) break;
+        if (!PolyInstanceList[i].nverts) break;
     }
     if (i >= 200) return 0;
-    record = &PolyInstanceList[i];
+    poly = &PolyInstanceList[i];
     if (i >= gNumPolyInsts) gNumPolyInsts = i + 1;
     if (gMaxPolyInsts < gNumPolyInsts) gMaxPolyInsts = gNumPolyInsts;
-    record->flags = flags;
-    if (indexed) {
-        record->flags |= 0x400;
-        record->parameter = parameter;
+    poly->flags = flags;
+    if (useTidx) {
+        poly->flags |= POLY_TEXTURED;
+        poly->texidx = texidx;
     }
-    ZOID_UpdatePoly(record, active, vertices, parameter, color, 0, indexed);
-    return record;
+    ZOID_UpdatePoly(poly, nverts, xyz, texidx, color, 0, useTidx);
+    return poly;
 }

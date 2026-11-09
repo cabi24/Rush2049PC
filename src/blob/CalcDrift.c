@@ -1,21 +1,38 @@
+/* CalcDrift.c: a car's tire drift factor (MAT3 initiali.c, CalcDrift()).
+ *
+ * One of the set-up helpers carsetup calls to fill the model record from the car's parts. */
 #include "game/game.h"
 
+/* The model record (tModelData), the car's parts it reads. */
+typedef struct tModelData {
+    u8 pad0[8];
+    u8 body_type;       /* +0x008 the car, 0..12 */
+    s8 trans;           /* +0x009 */
+    s8 autotrans;       /* +0x00A */
+    s8 handling;        /* +0x00B the handling (tune) choice */
+    s8 engine_type;     /* +0x00C */
+    s8 tire_type;       /* +0x00D */
+} tModelData;
+
+/* The tables as the code indexes them: their own storage, through another type (include/game/view.h). */
 VIEW(f32[5][3], gTireDrift);
 #define gTireDrift gTireDrift_view[0][0]
 
 VIEW(s8, gCarSuspensions);
 #define gCarSuspensions gCarSuspensions_view
 
-f32 CalcDrift(void *arg0) {
-    f32 var_f2;
-    s8 temp_v0;
+/* The drift (MAT3 tModelData.drift) of model m: gTireDrift by its tire type and handling, raised for a car with
+ * soft suspension (gCarSuspensions 0) and lowered for a stiff one (2). */
+f32 CalcDrift(tModelData *m) {
+    f32 drift;
+    s8 suspension;
 
-    var_f2 = ((f32 (*)[3]) &gTireDrift)[M2C_FIELD(arg0, s8 *, 0xD)][M2C_FIELD(arg0, s8 *, 0xB)];
-    temp_v0 = (&gCarSuspensions)[M2C_FIELD(arg0, u8 *, 8)];
-    if (temp_v0 == 0) {
-        var_f2 += drift_soft_suspension_bonus;
-    } else if (temp_v0 == 2) {
-        var_f2 -= drift_stiff_suspension_penalty;
+    drift = ((f32 (*)[3]) &gTireDrift)[m->tire_type][m->handling];
+    suspension = (&gCarSuspensions)[m->body_type];
+    if (suspension == 0) {
+        drift += drift_soft_suspension_bonus;
+    } else if (suspension == 2) {
+        drift -= drift_stiff_suspension_penalty;
     }
-    return var_f2;
+    return drift;
 }

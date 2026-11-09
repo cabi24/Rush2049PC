@@ -1,5 +1,7 @@
+/* ZOID_SetPolyZ.c: set a flat polygon's depth (MAT3 zoidpoly.c, ZOID_SetPolyZ()). */
 #include "game/game.h"
 
-void ZOID_SetPolyZ(void *arg0, s16 arg1) {
-    M2C_FIELD(arg0, s16 *, 6) = arg1;
+/* Set polygon `poly`'s depth `z`, which orders the screen-space polygons. */
+void ZOID_SetPolyZ(PolyInstance *poly, s16 z) {
+    poly->z = z;
 }

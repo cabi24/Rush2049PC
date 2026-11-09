@@ -1,96 +1,94 @@
+/* torques.c: the moments on a car (MAT3 drivsym.c, torques()).
+ *
+ * A stage of the physics step (regular, sym), after the forces: the moment of each tire's and body corner's force
+ * about the centre of mass, the wing's air control, and the centre moment (antispin, collisions). accelerations
+ * turns the sum into an angular acceleration. */
 #include "game/game.h"
 
 typedef f32 Vec3[3];
-typedef struct Model { u8 pad[16]; f32 x, y; } Model;
-typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; Model *model; u8 rest[52]; } Player;
-typedef struct Parameters { u8 pad[112]; Vec3 tireArm[4]; } Parameters;
-enum n64p_Parameters { n64p_Parameters_ };
-typedef struct State {
-    enum n64p_Parameters parameters;
-    u8 pad4[24];
-    Vec3 sum;
-    u8 pad40[60];
-    Vec3 tireForce[4];
-    u8 pad148[48];
-    Vec3 bodyForce[4];
-    u8 pad244[72];
-    Vec3 extra;
-    u8 pad328[680];
-    f32 factor;
-    u8 pad1012[4];
-    s16 active;
-    u8 pad1018[446];
-    f32 gain;
-    u8 pad1468[16];
-    f32 delta[4];
-    u8 pad1500[16];
-    f32 check[4];
-    u8 pad1532[309];
-    s8 enabled;
-    u8 pad1842[148];
-    s16 player;
-    u8 pad1992[12];
-    s32 flags;
-} State;
+/* The input record (MAT3 tPadState, gPlayers[i]): the stick. */
+typedef struct tPadState { u8 pad[16]; f32 analog[2]; /* +0x10 the stick: [0] across, [1] up and down */ } tPadState;
+/* The car record (tCarData), its input record: a host pointer on the PC (docs/port/CARS.md 2.1), NULL for a drone. */
+typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; tPadState *player; u8 rest[52]; } tCarData;
+/* The car's physics descriptor (MAT3 _tCar), its tire positions. */
+typedef struct tCar { u8 pad[0x70]; Vec3 tireR[4]; /* +0x70 each tire's position from the centre of mass */ } tCar;
+enum n64p_tCar { n64p_tCar_ };
+/* The model record (tModelData), the fields torques reads and writes. */
+typedef struct tModelData {
+    enum n64p_tCar car;         /* +0x000 the physics descriptor (a window address) */
+    u8 pad4[0x1C - 0x4];
+    Vec3 m;                     /* +0x01C the total moment, the result */
+    u8 pad28[0x64 - 0x28];
+    Vec3 tireForce[4];          /* +0x064 each tire's force */
+    u8 pad94[0xC4 - 0x94];
+    Vec3 bodyForce[4];          /* +0x0C4 each body corner's force */
+    u8 padF4[0x13C - 0xF4];
+    Vec3 centerMoment;          /* +0x13C */
+    u8 pad148[0x3F0 - 0x148];
+    f32 magvel;                 /* +0x3F0 the speed, feet a second */
+    u8 pad3F4[0x3F8 - 0x3F4];
+    s16 wing;                   /* +0x3F8 the wing deployed */
+    u8 pad3FA[0x5B8 - 0x3FA];
+    f32 wingEffect;             /* +0x5B8 the wing's size (gWingSizes) */
+    u8 pad5BC[0x5CC - 0x5BC];
+    f32 suscomp[4];             /* +0x5CC each corner's suspension compression */
+    u8 pad5DC[0x5EC - 0x5DC];
+    f32 airdist[4];             /* +0x5EC each tire's height above the road */
+    u8 pad5FC[0x731 - 0x5FC];
+    s8 mainin_wing;             /* +0x731 mainin.wing: the player holds the wing button */
+    u8 pad732[0x7C6 - 0x732];
+    s16 slot;                   /* +0x7C6 */
+    u8 pad7C8[0x7D4 - 0x7C8];
+    s32 appearance;             /* +0x7D4 APPEAR_* */
+} tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-/* Native Y is the arcade vertical Z; vectors follow native axes.
- * Arcade ancestry: drivsym.c:torques, vecmath.h vector macros.
- * N64 adds four-body unrolling and controller correction. */
 #define veccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 #define crossprod(a,b,r) {r[0]=a[1]*b[2]-a[2]*b[1]; r[1]=a[2]*b[0]-a[0]*b[2]; r[2]=a[0]*b[1]-a[1]*b[0];}
 #define vecadd(a,b,r) {r[0]=a[0]+b[0]; r[1]=a[1]+b[1]; r[2]=a[2]+b[2];}
-void torques(State *state) {
-    f32 temp[3],temp1[3],*rp,*fp;
+
+/* Model m's total moment, in the car's frame: for each tire its force crossed with its arm (its position from the
+ * centre of mass, lowered by the suspension's compression), for each body corner its force crossed with the tire's
+ * arm at the centre's height. High in the air (all four tires above 5 ft, not a hulk, not a battle) the wing button
+ * puts the wing out, and with it a human's stick pitches the car (its up and down) and rolls it (across, the other
+ * way on a mirrored track), in proportion to the wing's size and the speed. Then the centre moment. */
+void torques(tModelData *m) {
+    f32 moment[3],arm[3],*rp,*fp;
     int i;
-    f32 gain,factor;
-    Player *player;
-    Model *model;
+    f32 wing_effect,speed;
+    tCarData *car;
+    tPadState *player;
     int sign;
-    state->sum[0]=0; state->sum[1]=0; state->sum[2]=0;
-    for(i=0,rp=N64P(state->parameters)->tireArm[0],fp=state->tireForce[0];i<4;++i,rp+=3,fp+=3) {
-        veccopy(rp,temp1);
-        temp1[1] += state->delta[i];
-        crossprod(fp,temp1,temp);
-        vecadd(state->sum,temp,state->sum);
+    m->m[0]=0; m->m[1]=0; m->m[2]=0;
+    for(i=0,rp=N64P(m->car)->tireR[0],fp=m->tireForce[0];i<4;++i,rp+=3,fp+=3) {
+        veccopy(rp,arm);
+        arm[1] += m->suscomp[i];
+        crossprod(fp,arm,moment);
+        vecadd(m->m,moment,m->m);
     }
-    for(i=0,rp=N64P(state->parameters)->tireArm[0],fp=state->bodyForce[0];i<4;++i,rp+=3,fp+=3) {
-        veccopy(rp,temp1);
-        temp1[1]=0;
-        crossprod(fp,temp1,temp);
-        vecadd(state->sum,temp,state->sum);
+    for(i=0,rp=N64P(m->car)->tireR[0],fp=m->bodyForce[0];i<4;++i,rp+=3,fp+=3) {
+        veccopy(rp,arm);
+        arm[1]=0;
+        crossprod(fp,arm,moment);
+        vecadd(m->m,moment,m->m);
     }
-    if (!(state->flags & 16) && state->check[0]>5.0f && state->check[1]>5.0f && state->check[2]>5.0f && state->check[3]>5.0f && gRace != 6) {
-        if(state->enabled) state->active=1; else state->active=0;
-        if(state->active) {
-            player=PC_CAR(state->player);
-            model=player->model;
-            if(model) {
-                gain=state->gain;
-                factor=state->factor;
-                state->sum[0] -= model->y * gain * factor;
+    if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != 6 /* kBattle */) {
+        if(m->mainin_wing) m->wing=1; else m->wing=0;
+        if(m->wing) {
+            car=PC_CAR(m->slot);
+            player=car->player;
+            if(player) {
+                wing_effect=m->wingEffect;
+                speed=m->magvel;
+                m->m[0] -= player->analog[1] * wing_effect * speed;
                 if(gMirrorWaves) sign=-1; else sign=1;
-                state->sum[2] += player->model->x * gain * factor * (f32)sign;
+                m->m[2] += car->player->analog[0] * wing_effect * speed * (f32)sign;
             }
         }
-    } else state->active=0;
-    state->sum[0] += state->extra[0];
-    state->sum[1] += state->extra[1];
-    state->sum[2] += state->extra[2];
+    } else m->wing=0;
+    m->m[0] += m->centerMoment[0];
+    m->m[1] += m->centerMoment[1];
+    m->m[2] += m->centerMoment[2];
 }
-
-/* Complete scanner/closure extent: 0x800E15A0..0x800E1AA0, 1,280 bytes.
- * Native ABI is one ordinary model pointer, with a 24-byte leaf frame.
- * parameters->tireArm starts at owner+112; tireForce is state+100 and
- * bodyForce is state+196. Both passes compute cross(force,arm) in the
- * native coordinate system. delta changes the arm's vertical Y coordinate.
- * The parameter tire-arm vector is copied to temp1 before each operation.
- * temp and temp1 are the two consumed native three-float arrays.
- * Native N64 correction is reconstructed from its actual controller lookup,
- * player stride 952, model pointer+896 and original condition/store order.
- * Integer zero shares the initial FP zero across both moment passes; the
- * explicit signed direction selection preserves the native branch shape.
- * No standalone vector-helper ABI or source-owned pool is required.
- */

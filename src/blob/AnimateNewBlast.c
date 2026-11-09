@@ -1,27 +1,33 @@
+/* AnimateNewBlast.c: a car's fireball, frame by frame (MAT3 visuals.c, AnimateNewBlast()).
+ *
+ * StartNewBlast (groups/blast) sets the fireball off when a car blows up: four flame balls that grow, turn and
+ * rise, and a flickering glow. This, its visual's animator, runs once a frame until the car is no longer crashed.
+ * The fireball's state is the car's pc_blasts entry. */
 #include "game/game.h"
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
+/* One of the four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
 typedef struct tBlastObj {
-    int mbIdx;                  /* 0x00 */
-    tUVMatrix mat;              /* 0x04 */
-    float scale;                /* 0x34 */
-    float scaleInc;             /* 0x38 */
-    float yaw;                  /* 0x3C */
+    int mbIdx;                  /* 0x00 its scene object, -1 none */
+    tUVMatrix mat;              /* 0x04 its matrix: its scene node points here */
+    float scale;                /* 0x34 its size */
+    float scaleInc;             /* 0x38 its growth a step (slowing by 0.002 a step) */
+    float yaw;                  /* 0x3C its turn, radians */
     float yawInc;               /* 0x40 */
     float pitch;                /* 0x44 */
     float pitchInc;             /* 0x48 */
     unsigned char alpha;        /* 0x4C */
-    unsigned char alphaInc;     /* 0x4D */
+    unsigned char alphaInc;     /* 0x4D its fade a step at the end */
     signed short unused;        /* 0x4E */
-    float ht;                   /* 0x50 */
+    float ht;                   /* 0x50 its height above the start, feet (and its spread from the middle) */
 } tBlastObj;
 
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual { void *next; u8 pad4[2]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { unsigned int flags, w4; void *mat; float scale; float w; unsigned short index; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int color; unsigned int envcolor; } ObjInstance;
+typedef struct ObjInstance { unsigned int flags, culling; void *mat; float scale; float w; unsigned short index; short child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; unsigned int color; unsigned int envcolor; } ObjInstance;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
@@ -31,15 +37,19 @@ VIEW(volatile f32, gFrameSeconds);
 VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
+/* The fireball's animator (a visual's func): `op` 0 removes it. The flame balls go when the fireball's 0.7 s run
+ * out or the car starts its respawn; everything goes, and the visual ends, when the car is no longer crashed.
+ * Every 1/30 s the fireball follows the car: the glow flickers (alpha 95, 64, 95, then held for up to two more
+ * steps) and grows to its full size, and each flame ball grows, turns and rises 0.2 ft, the last three spreading
+ * from the first along the diagonals; in the last 0.2 s they fade. Nothing moves while the game is paused. (The N64
+ * draws the glow only with 8 MB or on the later tracks, and with fewer than four players: StartNewBlast.) */
 void AnimateNewBlast(tVisual *v, s16 op)
 {
     int i;
     tBlastObj *b;
-    int u0, u1;
     tRGBA clr;
     float x;
     float y;
-    int u2, u3;
     if (gPauseState) return;
     gBlastObjs[v->slot].lifeTime -= gFrameSeconds;
     if (gBlastObjs[v->slot].lifeTime <= 0.0f || PC_MODEL_MOVING_STATE(v->slot) >= 0) {

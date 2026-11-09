@@ -1,64 +1,72 @@
+/* antispin.c: the steering's yaw help and the anti-spin moment (MAT3 drivsym.c, antispin()).
+ *
+ * A stage of the physics step (sym), after the forces: arcade handling on top of the tire model. */
 #include "game/game.h"
 
-typedef struct Sub { u8 p0[36]; f32 f36; } Sub;
-enum n64p_Sub { n64p_Sub_ };
-typedef struct Car {
-    u8 p0[4];
-    enum n64p_Sub sub;
-    u8 p8[56];
-    f32 f64;
-    u8 p68[4];
-    f32 f72;
-    u8 p76[4];
-    f32 f80;
-    u8 p84[236];
-    f32 f320;
-    u8 p324[656];
-    f32 f980;
-    u8 p984[24];
-    f32 f1008;
-    u8 p1012[440];
-    f32 f1452;
-    u8 p1456[92];
-    s32 w1548;
-    s32 w1552;
-    u8 p1556[268];
-    f32 f1824;
-    u8 p1828[166];
-    s16 h1994;
-    u8 p1996[8];
-    s32 flags2004;
-} Car;
+/* The tune record (MAT3 anon_diffbl_weight_scale_2c, gTune[handling]). */
+typedef struct tTune { u8 pad0[0x24]; f32 antispin; /* +0x24 */ } tTune;
+enum n64p_tTune { n64p_tTune_ };
+/* The model record (tModelData), the fields antispin reads and writes. */
+typedef struct tModelData {
+    u8 pad0[4];
+    enum n64p_tTune tune;       /* +0x004 the tune record (a window address) */
+    u8 pad8[0x40 - 0x8];
+    f32 v[3];                   /* +0x040 the velocity in the car's frame (x sideways, z forward), feet a second */
+    f32 w[3];                   /* +0x04C the angular velocity in the car's frame (w[1]: the yaw rate) */
+    u8 pad58[0x13C - 0x58];
+    f32 centerMoment[3];        /* +0x13C the moment about the centre of mass */
+    u8 pad148[0x3D4 - 0x148];
+    f32 brake;                  /* +0x3D4 0..1 */
+    u8 pad3D8[0x3F0 - 0x3D8];
+    f32 magvel;                 /* +0x3F0 the speed, feet a second */
+    u8 pad3F4[0x5AC - 0x3F4];
+    f32 drift;                  /* +0x5AC the drift factor (CalcDrift) */
+    u8 pad5B0[0x60C - 0x5B0];
+    s32 roadcode[4];            /* +0x60C each tire's road code */
+    u8 pad61C[0x720 - 0x61C];
+    f32 wheel;                  /* +0x720 mainin.wheel, the steering -1..1 */
+    u8 pad724[0x7CA - 0x724];
+    s16 we_control;             /* +0x7CA a drone this machine drives */
+    u8 pad7CC[0x7D4 - 0x7CC];
+    s32 appearance;             /* +0x7D4 APPEAR_* */
+} tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Sub: (Sub *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-void antispin(Car *m) {
-    f32 scale;
+/* Add model m's arcade yaw moments, unless it is a hulk:
+ * - with a front tire on the road, a yaw moment straight from the steering wheel (12000 times the wheel at 100 ft/s
+ *   and up, 120 times wheel times speed below), times the drift factor plus half the brake (at most 1): the car
+ *   turns into a slide when braking;
+ * - going forward and yawing the way it is sliding (w[1] and v[0] of one sign: a spin starting), a moment of 100
+ *   times the sideways speed against it: in full for a drone driven here, else times the tune's antispin and only
+ *   below half brake. */
+void antispin(tModelData *m) {
+    f32 drift;
     f32 speed;
 
-    if (!(m->flags2004 & 0x10)) {
-        if (m->w1548 != 8 || m->w1552 != 8) {
-            scale = m->f1452;
-            scale += m->f980 * 0.5f;
-            if (scale > 1.0f) {
-                scale = 1.0f;
+    if (!(m->appearance & APPEAR_HULK)) {
+        if (m->roadcode[0] != ROADCODE_AIRBORNE || m->roadcode[1] != ROADCODE_AIRBORNE) {
+            drift = m->drift;
+            drift += m->brake * 0.5f;
+            if (drift > 1.0f) {
+                drift = 1.0f;
             }
-            speed = m->f1008;
+            speed = m->magvel;
             if (speed > 100.0f) {
-                m->f320 -= m->f1824 * 12000.0f * scale;
+                m->centerMoment[1] -= m->wheel * 12000.0f * drift;
             } else {
-                m->f320 -= m->f1824 * speed * 120.0f * scale;
+                m->centerMoment[1] -= m->wheel * speed * 120.0f * drift;
             }
         }
-        if (!(m->f72 < 0)) {
-            if (m->h1994 != 0) {
-                if (m->f64 * m->f80 > 0.0f) {
-                    m->f320 -= m->f64 * 100.0f;
+        if (!(m->v[2] < 0)) {
+            if (m->we_control != 0) {
+                if (m->v[0] * m->w[1] > 0.0f) {
+                    m->centerMoment[1] -= m->v[0] * 100.0f;
                 }
             } else {
-                if (m->f64 * m->f80 > 0.0f && m->f980 < 0.5f) {
-                    m->f320 -= m->f64 * 100.0f * N64P(m->sub)->f36;
+                if (m->v[0] * m->w[1] > 0.0f && m->brake < 0.5f) {
+                    m->centerMoment[1] -= m->v[0] * 100.0f * N64P(m->tune)->antispin;
                 }
             }
         }

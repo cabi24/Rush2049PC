@@ -1,5 +1,7 @@
+/* ZOID_HidePoly.c: hide a flat polygon (MAT3 zoidpoly.c, ZOID_HidePoly()). */
 #include "game/game.h"
 
-void ZOID_HidePoly(void *arg0) {
-    M2C_FIELD(arg0, u16 *, 2) = (u16) (M2C_FIELD(arg0, u16 *, 2) | 0x8000);
+/* Hide polygon `poly` (POLY_HIDDEN) without freeing it. */
+void ZOID_HidePoly(PolyInstance *poly) {
+    poly->flags |= POLY_HIDDEN;
 }

@@ -1,8 +1,11 @@
+/* normal_vector/group.c: make a 3D vector unit length (MAT3 fmath.c, NormalVector()). */
 #include "game/game.h"
 
 f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
+/* Scale the vector v to length 1 in place and return its old length; a vector no longer than normalvector_floor
+ * (MAT3 0.00001) is left as it is and gives 0. */
 f32 NormalVector(f32 *v)
 {
     f32 length, inverse_length;

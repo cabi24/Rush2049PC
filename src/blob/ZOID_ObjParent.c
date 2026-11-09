@@ -1,17 +1,14 @@
+/* ZOID_ObjParent.c: the node a scene node is the first child of (MAT3 zoid.c, ZOID_ObjParent()). */
 #include "game/game.h"
 
-VIEW(s32, ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node whose
- * first child is arg0, or -1. */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
-s16 ZOID_ObjParent(s16 arg0)
+/* The node whose first child is `node`, or -1 (also when `node` is a later sibling: ZOID_TrueObjParent finds
+ * those). */
+s16 ZOID_ObjParent(s16 node)
 {
   s32 i;
   for (i = 0; i < gNumObjects; i++)
   {
-    if (((PcNode *) &ObjInstanceList)[i].child == arg0)
+    if ((ObjInstanceList + i)->child == node)
     {
       return i;
     }

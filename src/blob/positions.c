@@ -1,103 +1,111 @@
+/* positions.c: a car's position and orientation from its velocities (MAT3 drivsym.c, positions()).
+ *
+ * The last stage of the physics step (regular, sym): integrates the position and the orientation over the step and
+ * moves the tires' and body corners' world positions with the car. */
 #include "game/game.h"
 
-typedef f32 F32;
-
-#define XCOMP 0
-#define YCOMP 1
-#define ZCOMP 2
-
+/* The car's physics descriptor (MAT3 _tCar), its tire positions. */
 typedef struct {
     char pad0[0x70];
-    F32 TIRER[4][3];        /* 0x70 */
-} CARTYPE;
+    f32 tireR[4][3];        /* 0x70 each tire's position from the centre of mass, car frame */
+} tCar;
 
+/* An orientation matrix: rows the car's x (side), y (up) and z (forward) axes in world coordinates. */
 typedef struct {
-    F32 fpuvs[3][3];
+    f32 fpuvs[3][3];
 } UVECT;
 
-enum n64p_CARTYPE { n64p_CARTYPE_ };
-typedef struct MODELDAT {
-    enum n64p_CARTYPE car;           /* 0x000 */
+enum n64p_tCar { n64p_tCar_ };
+/* The model record (tModelData), the fields positions reads and writes. */
+typedef struct tModelData {
+    enum n64p_tCar car;     /* 0x000 the physics descriptor (a window address) */
     char pad4[0x24];
-    F32 A[3];               /* 0x028 */
+    f32 a[3];               /* 0x028 the acceleration, car frame */
     char pad34[0xC];
-    F32 V[3];               /* 0x040 */
-    F32 W[3];               /* 0x04C */
+    f32 v[3];               /* 0x040 the velocity, car frame */
+    f32 w[3];               /* 0x04C the angular velocity, car frame */
     char pad58[0x9C];
-    F32 BODYR[4][3];        /* 0x0F4 */
+    f32 bodyR[4][3];        /* 0x0F4 the body's corners, car frame */
     char pad124[0xF0];
-    F32 RWA[3];             /* 0x214 */
-    F32 RWV[3];             /* 0x220 */
-    F32 RWR[3];             /* 0x22C */
-    F32 lastRWR[3];         /* 0x238 */
-    F32 TIRERWR[4][3];      /* 0x244 */
-    F32 BODYRWR[4][3];      /* 0x274 */
+    f32 rwa[3];             /* 0x214 the acceleration, world frame */
+    f32 rwv[3];             /* 0x220 the velocity, world frame */
+    f32 rwr[3];             /* 0x22C the position, world frame */
+    f32 rwr2[3];            /* 0x238 the position a step ago */
+    f32 tireRwr[4][3];      /* 0x244 each tire's world position */
+    f32 bodyrwr[4][3];      /* 0x274 each body corner's world position */
     char pad2A4[0x3C];
-    F32 angle[3];           /* 0x2E0 */
-    UVECT UV;               /* 0x2EC */
+    f32 stuntW[3];          /* 0x2E0 the rotation summed for the stunt score */
+    UVECT uvs;              /* 0x2EC the orientation */
     char pad310[0x2CC];
-    F32 tpcomp[4];          /* 0x5DC */
+    f32 tpcomp[4];          /* 0x5DC each tire's suspension compression (0 or more) */
     char pad5EC[0x48];
-    F32 dt;                 /* 0x634 */
+    f32 dt;                 /* 0x634 the step, seconds */
     char pad638[0xD8];
-    s32 frame;              /* 0x710 */
-} MODELDAT;
+    s32 modelIteration;     /* 0x710 fastin.modelIteration: the steps run */
+} tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_CARTYPE: (CARTYPE *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-void positions(MODELDAT *m) {
-    F32 temp[3], temp1[3], temp2[3], *bp, *rwp;
-    F32 movef, mover;
-    F32 yvect[3], ftroll[3], rtroll[3];
-    F32 rollang;
+/* One step of model m's motion:
+ * - the velocity and acceleration to the world frame, and the position moved by rwv dt (the old one kept in rwr2);
+ * - the orientation turned by w dt (RotateUV), the same angles summed into stuntW in a stunt race; every 1024 steps
+ *   its rows renormalized (or, with the super speed cheat, stretched: make_super_speed) against rounding drift;
+ *   the velocity back to the car frame in the new orientation;
+ * - a suspension compressed past 0.5 ft caps at 0.5 and lifts the car by the largest excess (along its up axis);
+ * - the tires' world positions (their arm, lowered by the compression) and the body corners'. */
+void positions(tModelData *m) {
+    f32 temp[3], temp1[3], temp2[3], *bp, *rwp;
+    f32 movef, mover;
+    f32 yvect[3], ftroll[3], rtroll[3];   /* temp2, mover, these and rollang are unused (they shape the frame) */
+    f32 rollang;
     s32 i;
 
-    m->lastRWR[0] = m->RWR[0], m->lastRWR[1] = m->RWR[1], m->lastRWR[2] = m->RWR[2];
+    m->rwr2[0] = m->rwr[0], m->rwr2[1] = m->rwr[1], m->rwr2[2] = m->rwr[2];
 
-    WorldVector(m->A, m->RWA, m->UV.fpuvs[0]);
-    WorldVector(m->V, m->RWV, m->UV.fpuvs[0]);
+    WorldVector(m->a, m->rwa, m->uvs.fpuvs[0]);
+    WorldVector(m->v, m->rwv, m->uvs.fpuvs[0]);
 
-    temp[0] = m->RWV[0] * m->dt;
-    temp[1] = m->RWV[1] * m->dt;
-    temp[2] = m->RWV[2] * m->dt;
+    temp[0] = m->rwv[0] * m->dt;
+    temp[1] = m->rwv[1] * m->dt;
+    temp[2] = m->rwv[2] * m->dt;
 
-    m->RWR[0] = temp[0] + m->RWR[0];
-    m->RWR[1] = temp[1] + m->RWR[1];
-    m->RWR[2] = temp[2] + m->RWR[2];
+    m->rwr[0] = temp[0] + m->rwr[0];
+    m->rwr[1] = temp[1] + m->rwr[1];
+    m->rwr[2] = temp[2] + m->rwr[2];
 
-    temp[XCOMP] = m->W[XCOMP] * m->dt;
-    temp[YCOMP] = m->W[YCOMP] * m->dt;
-    temp[ZCOMP] = m->W[ZCOMP] * m->dt;
+    temp[0] = m->w[0] * m->dt;
+    temp[1] = m->w[1] * m->dt;
+    temp[2] = m->w[2] * m->dt;
 
-    if (gRace == 4) {
-        m->angle[0] = temp[0] + m->angle[0];
-        m->angle[1] = temp[1] + m->angle[1];
-        m->angle[2] = temp[2] + m->angle[2];
+    if (gRace == 4) {   /* kStunt */
+        m->stuntW[0] = temp[0] + m->stuntW[0];
+        m->stuntW[1] = temp[1] + m->stuntW[1];
+        m->stuntW[2] = temp[2] + m->stuntW[2];
     }
 
-    RotateUV(temp, &m->UV);
+    RotateUV(temp, &m->uvs);
 
-    if ((m->frame & 0x3FF) == 0x3FF) {
+    if ((m->modelIteration & 0x3FF) == 0x3FF) {
         if (gSuperSpeed != 0) {
             make_super_speed(m);
         } else {
-            movef = invmagnitude(m->UV.fpuvs[0]);
-            m->UV.fpuvs[0][0] *= movef;
-            m->UV.fpuvs[0][1] *= movef;
-            m->UV.fpuvs[0][2] *= movef;
-            movef = invmagnitude(m->UV.fpuvs[1]);
-            m->UV.fpuvs[1][0] *= movef;
-            m->UV.fpuvs[1][1] *= movef;
-            m->UV.fpuvs[1][2] *= movef;
-            movef = invmagnitude(m->UV.fpuvs[2]);
-            m->UV.fpuvs[2][0] *= movef;
-            m->UV.fpuvs[2][1] *= movef;
-            m->UV.fpuvs[2][2] *= movef;
+            movef = invmagnitude(m->uvs.fpuvs[0]);
+            m->uvs.fpuvs[0][0] *= movef;
+            m->uvs.fpuvs[0][1] *= movef;
+            m->uvs.fpuvs[0][2] *= movef;
+            movef = invmagnitude(m->uvs.fpuvs[1]);
+            m->uvs.fpuvs[1][0] *= movef;
+            m->uvs.fpuvs[1][1] *= movef;
+            m->uvs.fpuvs[1][2] *= movef;
+            movef = invmagnitude(m->uvs.fpuvs[2]);
+            m->uvs.fpuvs[2][0] *= movef;
+            m->uvs.fpuvs[2][1] *= movef;
+            m->uvs.fpuvs[2][2] *= movef;
         }
     }
 
-    BodyVector(m->RWV, m->V, m->UV.fpuvs[0]);
+    BodyVector(m->rwv, m->v, m->uvs.fpuvs[0]);
 
     temp[1] = 0.0f;
     for (i = 0; i < 4; i++) {
@@ -110,30 +118,30 @@ void positions(MODELDAT *m) {
     if (temp[1] > 0.0f) {
         temp[0] = 0.0f;
         temp[2] = 0.0f;
-        WorldVector(temp, temp1, m->UV.fpuvs[0]);
-        m->RWR[0] = temp1[0] + m->RWR[0];
-        m->RWR[1] = temp1[1] + m->RWR[1];
-        m->RWR[2] = temp1[2] + m->RWR[2];
+        WorldVector(temp, temp1, m->uvs.fpuvs[0]);
+        m->rwr[0] = temp1[0] + m->rwr[0];
+        m->rwr[1] = temp1[1] + m->rwr[1];
+        m->rwr[2] = temp1[2] + m->rwr[2];
     }
 
     for (i = 0; i < 4; i++) {
-        rwp = m->TIRERWR[i];
-        bp = N64P(m->car)->TIRER[i];
+        rwp = m->tireRwr[i];
+        bp = N64P(m->car)->tireR[i];
         temp[0] = bp[0];
         temp[1] = bp[1] + m->tpcomp[i];
         temp[2] = bp[2];
-        WorldVector(temp, rwp, m->UV.fpuvs[0]);
-        rwp[0] = rwp[0] + m->RWR[0];
-        rwp[1] = rwp[1] + m->RWR[1];
-        rwp[2] = rwp[2] + m->RWR[2];
+        WorldVector(temp, rwp, m->uvs.fpuvs[0]);
+        rwp[0] = rwp[0] + m->rwr[0];
+        rwp[1] = rwp[1] + m->rwr[1];
+        rwp[2] = rwp[2] + m->rwr[2];
     }
 
     for (i = 0; i < 4; i++) {
-        bp = m->BODYR[i];
-        rwp = m->BODYRWR[i];
-        WorldVector(bp, rwp, m->UV.fpuvs[0]);
-        rwp[0] = rwp[0] + m->RWR[0];
-        rwp[1] = rwp[1] + m->RWR[1];
-        rwp[2] = rwp[2] + m->RWR[2];
+        bp = m->bodyR[i];
+        rwp = m->bodyrwr[i];
+        WorldVector(bp, rwp, m->uvs.fpuvs[0]);
+        rwp[0] = rwp[0] + m->rwr[0];
+        rwp[1] = rwp[1] + m->rwr[1];
+        rwp[2] = rwp[2] + m->rwr[2];
     }
 }

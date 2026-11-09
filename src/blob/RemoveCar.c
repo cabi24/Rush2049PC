@@ -1,28 +1,58 @@
+/* RemoveCar.c: take a car out of the scene at the end of a race (MAT3 visuals.c, RemoveCar() with RemoveVisuals()). */
 #include "game/game.h"
 
-typedef struct 
+/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+typedef struct tVisual {
+  void *next;
+  s16 index;
+  s16 objnum;                   /* its scene object, -1 none */
+  u8 padC[0x18 - 0xC];          /* slot, data, timeStamp */
+  M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
+} tVisual;
+
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields RemoveCar reads. */
+typedef struct tCarData
 {
-  u8 pad000[0xE8];
-  s32 unkE8;
-  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-  u8 unk35B;
-  u8 pad35C[0x380 - 0x35C];
-  void *unk380;
-  u8 pad384[0x3A3 - 0x384];
-  u8 unk3A3;
-  u8 pad3A4[0x3B8 - 0x3A4];
-} GameCar;
+  u8 pad000[0xF4];
+  s32 objnum;                   /* +0x0F4 the frame's scene object, -1 none */
+  u8 pad0F8[0x110 - 0xF8];
+  tVisual visuals[21];          /* +0x110 */
+} tCarData;
 
 VIEW(s32, gCarParts);
 #define gCarParts gCarParts_view
 
-void RemoveCar(s16 arg0)
+/* If car `slot` is in the scene, remove its frame object (and so the parts under it), then stop each of its
+ * visuals: an animator is called with op 0 (stop: it hides its own objects), a visual without one has its object
+ * hidden. MAT3 also frees the car's shadow strips here; the N64's shadow is a polygon (StartShadow). */
+void RemoveCar(s16 slot)
 {
-  GameCar *temp_s2;
-  M2C_UNK (*temp_v0)(u8 *, M2C_UNK);
-  s16 temp_a0;
-  s16 var_s1;
-  u8 *var_s0;
-  int new_var;
- do { temp_s2 = PC_CAR(arg0); if ((*((s32 *) (((s8 *) temp_s2) + 0xF4))) >= 0) { MBOX_HideObject((*((s32 *) (((u8 *) (&gCarParts)) + (arg0 << 6)))), 2, 0xF); var_s0 = &temp_s2->pad0EC[0x24]; var_s1 = 0; do { temp_v0 = *((M2C_UNK (**)(u8 *, M2C_UNK)) (((s8 *) var_s0) + VIS_OFS(0x14))); if (temp_v0 != ((void *) 0)) { temp_v0(var_s0, 0); } else { temp_a0 = *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))); if (temp_a0 >= 0) { MBOX_HideObject(temp_a0, 1, 0xF); *((s16 *) (((s8 *) var_s0) + VIS_OFS(6))) = -(new_var = 1); } } var_s1 += 1; var_s0 += VIS_OFS(0x18); } while (var_s1 < 0x15); } } while (0);
+  tCarData *car;
+  M2C_UNK (*func)(tVisual *, M2C_UNK);
+  s16 objnum;
+  s16 i;
+  tVisual *v;
+  int one;
+  do {
+    car = PC_CAR(slot);
+    if (car->objnum >= 0) {
+      MBOX_HideObject(*((s32 *) (((u8 *) (&gCarParts)) + (slot << 6))), 2, 15);   /* gCarParts[slot].frame */
+      v = car->visuals;
+      i = 0;
+      do {
+        func = v->func;
+        if (func != NULL) {
+          func(v, 0);
+        } else {
+          objnum = v->objnum;
+          if (objnum >= 0) {
+            MBOX_HideObject(objnum, 1, 15);
+            v->objnum = -(one = 1);
+          }
+        }
+        i += 1;
+        v += 1;
+      } while (i < CAR_VISUALS);
+    }
+  } while (0);
 }

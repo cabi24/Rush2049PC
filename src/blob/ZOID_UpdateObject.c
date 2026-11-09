@@ -1,22 +1,35 @@
+/* ZOID_UpdateObject.c: move a scene node (MAT3 zoid.c, ZOID_UpdateObject()). */
 #include "game/game.h"
 
-VIEW(s32, ObjInstanceList);
+/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
+typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
+
+/* The scene node as this file reads it: ObjInstanceList's layout (types.h ObjectInstance), its matrix typed. */
+typedef struct ObjInstance {
+    u32 flags, culling;
+    tUVMatrix *mat;
+    f32 scale, w;
+    u16 index;
+    s16 child, next, numLights;
+    void *lights, *texture[4], *tile, *tileSize, *palette;
+    u32 color, envcolor;
+} ObjInstance;
+
+VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's
- * object (a View: rot[3][3], pos[3], no pointers) keeps its N64 offsets. */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
-void ZOID_UpdateObject(s16 arg0, void *arg1, void *arg2)
+/* Set node `node`'s position to pos[3] and its rotation to the 3x3 uvs, each only if given (not NULL). */
+void ZOID_UpdateObject(s16 node, void *pos, void *uvs)
 {
-  u8 *obj = (u8 *) ((PcNode *) &ObjInstanceList)[arg0].obj;
-  if (arg1 != ((void *) 0))
+  tUVMatrix *mat = (ObjInstanceList + node)->mat;
+  if (pos != ((void *) 0))
   {
-    *((f32 *) (obj + 0x24)) = ((f32 *) arg1)[0];
-    *((f32 *) (obj + 0x28)) = ((f32 *) arg1)[1];
-    *((f32 *) (obj + 0x2C)) = ((f32 *) arg1)[2];
+    mat->pos[0] = ((f32 *) pos)[0];
+    mat->pos[1] = ((f32 *) pos)[1];
+    mat->pos[2] = ((f32 *) pos)[2];
   }
-  if (arg2 != ((void *) 0))
+  if (uvs != ((void *) 0))
   {
-    CopyUV(arg2, obj);
+    CopyUV(uvs, mat);
   }
 }

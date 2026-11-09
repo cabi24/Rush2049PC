@@ -1,20 +1,26 @@
+/* dead_reckon_all.c: take each car's dead-reckoning snapshot (MAT3 rekon.c, dead_reckon_all()).
+ *
+ * The model thread calls it after a step: the game thread then draws the cars from these snapshots, extrapolated
+ * to the frame's time (game_reckon_all), rather than from the simulation's own state. */
 #include "game/game.h"
 
-typedef struct ModelRecord {
+/* The model record (tModelData, docs/port/CARS.md 4): its size, 0x808, and the field used here. */
+typedef struct tModelData {
     u8 pad000[0x7C6];
-    u16 unk7C6;
-    u8 pad7C8[0x7E8 - 0x7C8];
-    u8 unk7E8;
-} ModelRecord;
+    u16 slot;                   /* 0x7C6 */
+    s16 in_game;                /* 0x7C8 in the race */
+    u8 pad7CA[0x7E8 - 0x7CA];
+    u8 laps;                    /* 0x7E8 */
+} tModelData;
 
-/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
-#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+/* For each car in the race that isn't dead (dead below CAR_DEAD), copy its position, velocity, acceleration,
+ * orientation, suspension and speed into its reckon snapshot (dead_reckon_posuv). */
 void dead_reckon_all(void) {
-    ModelRecord *r;
+    tModelData *m;
     s32 i;
-    for (i = 0, r = PC_MODELS; i != PC_RACE_CARS; i++, r = (ModelRecord *) ((s8 *) r + 0x808)) {
-        if ((*(s16 *) ((s8 *) r + 0x7C8) != 0) && ((s8) PC_CAR_STATE(i) < 2)) {
-            dead_reckon_posuv(r);
+    for (i = 0, m = PC_MODELS; i != PC_RACE_CARS; i++, m = (tModelData *) ((s8 *) m + 0x808)) {
+        if ((m->in_game != 0) && ((s8) PC_CAR_STATE(i) < CAR_DEAD)) {
+            dead_reckon_posuv(m);
         }
     }
 }

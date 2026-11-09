@@ -1,39 +1,51 @@
+/* road.c: a car's contact with the road for one step (MAT3 road.c, road()).
+ *
+ * The first stage of the physics step (regular): the body against the world (CollideCarBody), then each tire
+ * against the road under it (TireSurf: the road tree's polygon, its code and orientation), the suspensions'
+ * compression from that, and last the cars against each other (collision). */
 #include "game/game.h"
 
+/* An orientation matrix: rows the x, y (the road's normal) and z axes. */
 typedef struct ROADUVS { f32 fpuvs[3][3]; } ROADUVS;
-typedef struct MODELDAT {
-    u8 pad0[196];
-    f32 BODYFORCE[4][3];        /* 0x0C4 */
-    u8 pad244[580 - 244];
-    f32 TIRERWR[4][3];          /* 0x244 */
-    u8 pad628[784 - 628];
-    ROADUVS roaduvs[4];         /* 0x310 */
-    u8 pad928[1484 - 928];
-    f32 suscomp[4];             /* 0x5CC */
-    f32 tpcomp[4];              /* 0x5DC */
-    f32 airdist[4];             /* 0x5EC */
-    f32 airvel[4];              /* 0x5FC */
-    s32 roadcode[4];            /* 0x60C */
-    u16 sviscode[4];            /* 0x61C */
-    u8 pad1572[1592 - 1572];
-    f32 idt;                    /* 0x638 */
-    u8 pad1596[1608 - 1596];
-    s32 unk648;                 /* 0x648, cleared each frame before the tire loop */
-} MODELDAT;
+/* The model record (tModelData), the fields road reads and writes. */
+typedef struct tModelData {
+    u8 pad0[0xC4];
+    f32 bodyForce[4][3];        /* 0x0C4 each body corner's force, from the world */
+    u8 pad0F4[0x244 - 0xF4];
+    f32 tireRwr[4][3];          /* 0x244 each tire's world position */
+    u8 pad274[0x310 - 0x274];
+    ROADUVS roaduvs[4];         /* 0x310 the road's orientation under each tire */
+    u8 pad3A0[0x5CC - 0x3A0];
+    f32 suscomp[4];             /* 0x5CC each suspension's compression, feet (negative: the tire in the air) */
+    f32 tpcomp[4];              /* 0x5DC the same, at least 0 */
+    f32 airdist[4];             /* 0x5EC each tire's height above the road */
+    f32 airvel[4];              /* 0x5FC its rate of change, feet a second */
+    s32 roadcode[4];            /* 0x60C each tire's road code */
+    u16 sviscode[4];            /* 0x61C each tire's surface (SURF_VIS_*) */
+    u8 pad624[0x638 - 0x624];
+    f32 idt;                    /* 0x638 1 / dt */
+    u8 pad63C[0x648 - 0x63C];
+    s32 movingSurface;          /* 0x648 the moving surface under the car (TireSurf sets it, MovingSurfaceForce uses it) */
+} tModelData;
 
-void road(MODELDAT *m)
+/* The road step of model m: the body's forces cleared and the body collided with the world; no moving surface until
+ * a tire finds one; for each tire the road under it (TireSurf gives the ground point in the tire's frame, igpos, its
+ * road code and orientation), the compression (the last one less the ground's height, within +-3 ft; in the air the
+ * codes become 8), the height above the road and how fast it changes (within +-40 ft/s); then the collisions with the
+ * other cars. */
+void road(tModelData *m)
 {
-    f32 BODYRWV[3], igpos[3], temp[3], last_airdist;
+    f32 BODYRWV[3], igpos[3], temp[3], last_airdist;   /* BODYRWV and temp: unused */
     s32 i, j;
 
     for (i = 0; i < 3; i++)
         for (j = 0; j < 4; j++)
-            m->BODYFORCE[j][i] = 0.f;
+            m->bodyForce[j][i] = 0.f;
 
     CollideCarBody(m);
-    m->unk648 = 0;
+    m->movingSurface = 0;
     for (i = 0; i < 4; ++i) {
-        TireSurf(m, &m->TIRERWR[i][0], igpos, &m->roadcode[i], m->roaduvs[i].fpuvs[0], i);
+        TireSurf(m, &m->tireRwr[i][0], igpos, &m->roadcode[i], m->roaduvs[i].fpuvs[0], i);
         last_airdist = m->airdist[i];
         m->suscomp[i] = m->tpcomp[i] - igpos[1];
         m->airdist[i] = -m->suscomp[i];
@@ -43,7 +55,7 @@ void road(MODELDAT *m)
             m->suscomp[i] = -3.0f;
         m->tpcomp[i] = (m->suscomp[i] < 0.0f) ? 0.0f : m->suscomp[i];
         if (m->suscomp[i] < 0.0f)
-            m->roadcode[i] = m->sviscode[i] = 8;
+            m->roadcode[i] = m->sviscode[i] = SURF_VIS_AIRBORNE;
         m->airvel[i] = (m->airdist[i] - last_airdist) * m->idt;
         if (m->airvel[i] < -40.0f)
             m->airvel[i] = -40.0f;

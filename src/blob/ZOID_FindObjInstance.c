@@ -1,19 +1,18 @@
+/* ZOID_FindObjInstance.c: find a scene node by its object's name (MAT3 zoid.c, ZOID_FindObjInstance()). */
 #include "game/game.h"
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 key; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Ent;
-typedef struct { u8 *base; s32 x; } Tab;
+/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8): 88-byte records, name first. */
+typedef struct ModelDefTable { u8 *romObjDefs; s32 count; } ModelDefTable;
 
-VIEW(Ent[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(Tab[], gRomObjDefPtrs);
+VIEW(ModelDefTable[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
-s16 ZOID_FindObjInstance(void *a) {
+/* The first node whose object (index: its handle, (model << 10) | definition) is called `name`, or -1. */
+s16 ZOID_FindObjInstance(void *name) {
     s32 i;
-    Ent *e = ObjInstanceList;
-    for (i = 0; i < gNumObjects; i++, e++) {
-        if (game_strcmp(a, gRomObjDefPtrs[e->key >> 10].base + (e->key & 0x3FF) * 88) == 0) {
+    ObjectInstance *node = ObjInstanceList;
+    for (i = 0; i < gNumObjects; i++, node++) {
+        if (game_strcmp(name, gRomObjDefPtrs[node->index >> 10].romObjDefs + (node->index & 0x3FF) * 88) == 0) {
             return i;
         }
     }

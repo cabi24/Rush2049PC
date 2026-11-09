@@ -1,22 +1,29 @@
+/* SetFrameColor.c: the colour of a car's frame, hood and tires (MAT3 visuals.c, SetFrameColor()). */
 #include "game/game.h"
 
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ModelSlot { unsigned int flags, w4; void *obj; float scale, w; unsigned short model; short child, next, mode; void *light, *tex[4], *rect, *clip, *pal; unsigned int v3C; char pad40[4]; } ModelSlot;
-/* PC: a..f are the low halves of the car parts' s32 model handles (MBOX_NewObject's): the second s16 of each word on
- * the N64, the first on a little-endian host (docs/port/ENDIAN.md). */
-typedef struct PlayerRec { short a; short p0; char p4[12]; short b; short p12; char p14[8]; short c; short p1E; short d; short q; short e; short q2; short f; short q3; char p2C[20]; } PlayerRec;
-VIEW(ModelSlot[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(PlayerRec[], gCarParts);
+/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c), each an s32 handle
+ * read by its low half: the second s16 of the word on the N64, the first on a little-endian host
+ * (docs/port/ENDIAN.md). */
+typedef struct CarParts {
+    short frame; short frame_high;
+    char extraparts[12];
+    short hood; short hood_high;
+    char sheen_weap[8];
+    struct { short low; short high; } tires[4];
+    char sparks[20];
+} CarParts;
+VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
-void SetFrameColor(short idx, unsigned int *val) {
-    PlayerRec *r = &gCarParts[idx];
-    short a, b, c, d, e, f;
-    a = r->a; ObjInstanceList[a].v3C = *val;
-    b = r->b; ObjInstanceList[b].v3C = *val;
-    c = r->c; ObjInstanceList[c].v3C = *val;
-    d = r->d; ObjInstanceList[d].v3C = *val;
-    e = r->e; ObjInstanceList[e].v3C = *val;
-    f = r->f; ObjInstanceList[f].v3C = *val;
+
+/* Give car `slot`'s frame, hood and four tires the colour *col (an RGBA word; CreateCar gives white), as MAT3's six
+ * ZOID_SetColor calls do, written straight into the nodes. */
+void SetFrameColor(short slot, unsigned int *col) {
+    CarParts *car = &gCarParts[slot];
+    short frame, hood, tire0, tire1, tire2, tire3;
+    frame = car->frame; ObjInstanceList[frame].color = *col;
+    hood = car->hood; ObjInstanceList[hood].color = *col;
+    tire0 = car->tires[0].low; ObjInstanceList[tire0].color = *col;
+    tire1 = car->tires[1].low; ObjInstanceList[tire1].color = *col;
+    tire2 = car->tires[2].low; ObjInstanceList[tire2].color = *col;
+    tire3 = car->tires[3].low; ObjInstanceList[tire3].color = *col;
 }

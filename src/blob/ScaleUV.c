@@ -1,7 +1,7 @@
+/* ScaleUV.c: scale a 3x3 matrix (MAT3 fmath.c, ScaleUV()). */
 #include "game/game.h"
 
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Scale each element of a 3-by-3 matrix, preserving row-major store order. */
+/* dst = src times `scale`, element by element (row by row; src and dst may be the same matrix). */
 void ScaleUV(float src[3][3], float dst[3][3], float scale)
 {
  int i, j;

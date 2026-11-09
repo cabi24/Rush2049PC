@@ -1,48 +1,54 @@
+/* AnimateShadow.c: a car's shadow each frame (MAT3 visuals.c, AnimateShadow()).
+ *
+ * The N64's shadow is one four-cornered polygon under the tires (StartShadow); MAT3's is built from strips. */
 #include "game/game.h"
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
-typedef struct Visual {
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-    /* 0x00 */ void *pad0;
-    /* 0x04 */ u8 pad4[2];
-    /* 0x06 */ s16 objnum;
-    /* 0x08 */ s16 slot;
-    /* 0x0A */ u8 padA[0x14 - 0x0A];
-    /* 0x14 */ void (*func)(struct Visual *v, s16 op);
-} Visual;
+/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+typedef struct tVisual {
+    /* 0x00 */ void *next;
+    /* 0x08 */ u8 pad8[2];          /* index */
+    /* 0x0A */ s16 objnum;          /* the shadow's polygon */
+    /* 0x0C */ s16 slot;
+    /* 0x0E */ u8 padE[0x18 - 0x0E];
+    /* 0x18 */ void (*func)(struct tVisual *v, s16 op);
+} tVisual;
 
+/* A polygon of the scene (PolyInstanceList). */
 typedef struct Poly {
     /* 0x00 */ s16 active;
     /* 0x02 */ u16 flags;
     /* 0x04 */ u8 pad[0x54];
 } Poly;
 
-typedef struct {
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateShadow reads. */
+typedef struct tCarData {
     /* 0x000 */ u8 pad0[0x74];
-    /* 0x074 */ f32 dr_tirepos[4][3];
+    /* 0x074 */ f32 dr_tirepos[4][3];   /* each tire's dead-reckoned position, feet */
     /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
-    /* 0x0E8 */ u32 flags;
-    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x35C - 0x308];
-    /* 0x35C */ s8 unk35C;
-    /* 0x35D */ s8 unk35D;
-    /* 0x35E */ s8 unk35E;
-    /* 0x35F */ s8 unk35F;
-    /* 0x360 */ u8 pad360[0x380 - 0x360]; void *input; u8 pad360_384[0x3B8 - 0x384];
-} CarData;
+    /* 0x0E8 */ u32 appearance;
+    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
+    /* 0x35C */ s8 camera;              /* the window that follows the car, -1 none */
+    /* 0x35D */ s8 view;                /* that window's view */
+    /* 0x35E */ s8 saveview;
+    /* 0x35F */ s8 carMine;             /* shown as a mine (the car mines cheat) */
+    /* 0x360 */ u8 pad360[0x380 - 0x360]; void *player; u8 pad384[0x3B8 - 0x384];
+} tCarData;
 
-typedef struct {
+/* The model record (tModelData, docs/port/CARS.md 4), the fields AnimateShadow reads. */
+typedef struct tModelData {
     /* 0x000 */ u8 pad0[8];
     /* 0x008 */ u8 body_type;
     /* 0x009 */ u8 pad9[0x6C4 - 9];
-    /* 0x6C4 */ s16 moving_state;
+    /* 0x6C4 */ s16 moving_state;       /* resurrect.moving_state: RES_IDLE, else respawning */
     /* 0x6C6 */ u8 pad6C6[0x76C - 0x6C6];
-    /* 0x76C */ f32 airdist[4];
+    /* 0x76C */ f32 airdist[4];         /* reckon.airdist: each tire's dead-reckoned height off the ground, feet */
     /* 0x77C */ u8 pad77C[0x7DF - 0x77C];
     /* 0x7DF */ s8 hide_car;
     /* 0x7E0 */ u8 pad7E0[0x808 - 0x7E0];
-} ModelDat;
+} tModelData;
 
 VIEW(Poly[], PolyInstanceList);
 #define PolyInstanceList PolyInstanceList_view
@@ -55,14 +61,20 @@ VIEW(u8[4], gShadowColor);
 extern void ZOID_RemovePoly(Poly *p);
 extern void ZOID_UpdatePoly(Poly *record, s32 count, f32 (*positions)[3], u16 parameter, u8 *color, u16 flags, s32 indexed);
 
-#define DEBUG_PRINT(x)
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 
-void AnimateShadow(Visual *v, s16 op) {
+/* Car v->slot's shadow (VIS_SHADOW), each frame (op 1): a polygon whose corners are under the four tires (taken
+ * round the car: 0, 1, 3, 2), each lowered by its tire's height off the ground and lifted a little (1 foot, up to
+ * 2 as the tire is higher) to stay above the road, then widened at the front and back and lengthened by the body's
+ * shadow_scales (the wreck's for a hulk). It fades as the car rises (alpha 255 less 8 times the tires' mean height,
+ * from 20 to 255; 192 at most). It is hidden when the tires' heights differ by more than 20 feet (the car over an
+ * edge), for a car shown as a mine, while respawning, with the invisible cheat or a hidden car; the car's own window
+ * doesn't show it in views 0 and 1. op 0 stops it: the polygon is removed. */
+void AnimateShadow(tVisual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
     s16 i, whl;
-    CarData *car = PC_CAR(v->slot);
-    ModelDat *m = PC_MODEL(v->slot);
+    tCarData *car = PC_CAR(v->slot);
+    tModelData *m = PC_MODEL(v->slot);
     f32 fscale, bscale, len, offset;
     s32 body;
 
@@ -80,7 +92,7 @@ void AnimateShadow(Visual *v, s16 op) {
     fscale = m->airdist[1] - m->airdist[0];
     bscale = m->airdist[3] - m->airdist[2];
     if (fabsf(d1) > 20 || fabsf(offset) > 20 || fabsf(fscale) > 20 || fabsf(bscale) > 20 ||
-        car->unk35F != 0 || m->moving_state > -1 || (car->flags & 8) || gInvisibleCar != 0 || m->hide_car) {
+        car->carMine != 0 || m->moving_state > -1 || (car->appearance & APPEAR_INVISIBLE) || gInvisibleCar != 0 || m->hide_car) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
@@ -101,7 +113,7 @@ void AnimateShadow(Visual *v, s16 op) {
         xyz[i][2] = car->dr_tirepos[whl][2];
     }
 
-    if (car->flags & 0x10) {
+    if (car->appearance & APPEAR_HULK) {
         body = 13;
     } else {
         body = m->body_type;
@@ -137,8 +149,8 @@ void AnimateShadow(Visual *v, s16 op) {
         gShadowColor[3] = 192;
     }
 
-    if (car->unk35C >= 0 && (car->unk35D == 0 || car->unk35D == 1))
-        ZOID_ClearPolyFlags(&PolyInstanceList[v->objnum], 1 << car->unk35C);
+    if (car->camera >= 0 && (car->view == 0 || car->view == 1))
+        ZOID_ClearPolyFlags(&PolyInstanceList[v->objnum], 1 << car->camera);
     else ZOID_SetPolyFlags(&PolyInstanceList[v->objnum], 15);
     ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, gShadowColor, 0, 0);
 }

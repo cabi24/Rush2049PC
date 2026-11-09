@@ -1,18 +1,15 @@
+/* WRollUV.c: roll an orientation matrix about the world's z axis (MAT3 fmath.c, WRollUV()).
+ *
+ * The world-axis rotation family of WPitchUV.c (see there). */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * WRollUV — arcade WRollUV(angle, uv): rows uv[i][0..1], epsilon 0.001f; arcade signs.
- * Same family as WPitchUV (arcade LIB/fmath.c *UV rotations): rotate a 3x3 unit-vector
- * matrix by angle when |angle| > epsilon. Quirks: epsilon literal is a float (c.lt.s);
- * operand order of each sum/difference follows the arcade spelling and fixes the mul.s order.
- */
-typedef float F32;
-extern F32 sinf(F32);
-extern F32 cosf(F32);
+extern f32 sinf(f32);
+extern f32 cosf(f32);
 
-void WRollUV(F32 angle, F32 uv[][3]) {
-    F32 ut, sint, cost;
+/* Turn the orientation uv by `angle` radians about the world's z axis (each row's x and y components turn into
+ * each other). Angles within 0.001 of zero are ignored. */
+void WRollUV(f32 angle, f32 uv[][3]) {
+    f32 ut, sint, cost;
     int i;
 
     if ((angle < -0.001f) || (angle > 0.001f)) {

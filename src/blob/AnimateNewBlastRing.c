@@ -1,79 +1,89 @@
+/* AnimateNewBlastRing.c: widen and fade a blast's shock ring (MAT3 visuals.c, AnimateNewBlastRing()).
+ *
+ * StartNewBlastRing (groups/blast) starts the ring around an exploding car; this, its visual's animator, runs once a
+ * frame until the ring is gone. The ring's state is the car's pc_blast_rings entry. */
 #include "game/game.h"
 
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-typedef struct Node {struct Node *next;u16 tag;s16 handle,index;u8 opaque10[10];intptr_t state;} Node;
+/* A visual (MAT3 tVisual). PC: 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+typedef struct tVisual {struct tVisual *next;u16 index;s16 objnum,slot;u8 pad0E[10];intptr_t func;} tVisual;
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
  * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id {s32 handle;struct {s16 index,high;} part;} Id;
 typedef struct Vec3 {f32 x,y,z;} Vec3;
-typedef struct Effect {
-    Id id;
-    f32 matrix[3][3];
-    Vec3 position;
-    u8 alpha,phase,opaque54[2];
-    f32 delay;
-} Effect;
+/* A car's shock ring (MAT3 tBlastRingStruct; PC: struct pc_blast_ring). */
+typedef struct tBlastRingStruct {
+    Id ringIdx;             /* its scene object, -1 none */
+    f32 uvs[3][3];          /* its matrix: its scene node points here */
+    Vec3 pos;
+    u8 ralpha,ralphaCnt,unused[2];  /* its alpha; the steps it has taken */
+    f32 incTime;            /* seconds to its next step */
+} tBlastRingStruct;
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 opaque64[4]; } Resource;
-typedef union Color {struct {u8 red,green,blue,alpha;} component;u32 word;} Color;
+typedef struct ObjInstance { u32 flags, culling; void *mat; f32 scale, w; u16 index; s16 child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; u32 color; u8 envcolor[4]; } ObjInstance;
+typedef union tRGBA {struct {u8 red,green,blue,alpha;} c;u32 rgba;} tRGBA;
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
-#define gBlastRingObjs (*(Effect (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
-VIEW(Resource[], ObjInstanceList);
+#define gBlastRingObjs (*(tBlastRingStruct (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
+VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-void AnimateNewBlastRing(Node *node,s16 update) {
-    Vec3 position;
-    s32 phase;
-    Color color;
+/* The ring's animator (a visual's func): `op` 0 removes it. While its car is crashed the ring stays on the car
+ * and, every 1/30 s, its scale grows by 1.5 (from 1); from its 8th step it fades (alpha down 24 a step) and after
+ * its 16th it is removed. It ends at once when the car is no longer crashed. Nothing moves while the game is
+ * paused. */
+void AnimateNewBlastRing(tVisual *v,s16 op) {
+    Vec3 pos;           /* unused: kept, as it shapes the function's stack frame */
+    s32 phase;          /* the step count, then (below) the ring's scene node */
+    tRGBA clr;
     if(gPauseState) return;
-    if(!PC_MODEL_CRASHFLAG(node->index)) {
-        if(gBlastRingObjs[node->index].id.handle!=-1) {
-            RemoveObjectTree(gBlastRingObjs[node->index].id.handle,0,0);
-            gBlastRingObjs[node->index].id.handle=-1;
+    if(!PC_MODEL_CRASHFLAG(v->slot)) {
+        if(gBlastRingObjs[v->slot].ringIdx.handle!=-1) {
+            RemoveObjectTree(gBlastRingObjs[v->slot].ringIdx.handle,0,0);
+            gBlastRingObjs[v->slot].ringIdx.handle=-1;
         }
         goto release;
     }
-    if(!update) {
+    if(!op) {
 release:
-        ReleaseEnviron(node,1);
+        ReleaseEnviron(v,1);
         return;
     }
-    gBlastRingObjs[node->index].position.x=PC_CAR_POS_X(node->index);
-    gBlastRingObjs[node->index].position.y=PC_CAR_POS_Y(node->index);
-    gBlastRingObjs[node->index].position.z=PC_CAR_POS_Z(node->index);
-    gBlastRingObjs[node->index].delay-=gFrameSeconds;
-    if(gBlastRingObjs[node->index].delay<=0.0f) {
-        gBlastRingObjs[node->index].matrix[0][0]+=1.5f;
-        gBlastRingObjs[node->index].matrix[1][1]+=1.5f;
-        gBlastRingObjs[node->index].matrix[2][2]+=1.5f;
-        phase=gBlastRingObjs[node->index].phase;
+    gBlastRingObjs[v->slot].pos.x=PC_CAR_POS_X(v->slot);
+    gBlastRingObjs[v->slot].pos.y=PC_CAR_POS_Y(v->slot);
+    gBlastRingObjs[v->slot].pos.z=PC_CAR_POS_Z(v->slot);
+    gBlastRingObjs[v->slot].incTime-=gFrameSeconds;
+    if(gBlastRingObjs[v->slot].incTime<=0.0f) {
+        gBlastRingObjs[v->slot].uvs[0][0]+=1.5f;
+        gBlastRingObjs[v->slot].uvs[1][1]+=1.5f;
+        gBlastRingObjs[v->slot].uvs[2][2]+=1.5f;
+        phase=gBlastRingObjs[v->slot].ralphaCnt;
         if(phase>=16) {
-            if(gBlastRingObjs[node->index].id.handle!=-1) {
-                RemoveObjectTree(gBlastRingObjs[node->index].id.handle,0,0);
-                gBlastRingObjs[node->index].id.handle=-1;
+            if(gBlastRingObjs[v->slot].ringIdx.handle!=-1) {
+                RemoveObjectTree(gBlastRingObjs[v->slot].ringIdx.handle,0,0);
+                gBlastRingObjs[v->slot].ringIdx.handle=-1;
             }
             goto release;
         }
         if(phase>=7) {
-            color.component.red=255;
-            color.component.green=255;
-            color.component.blue=255;
-            color.component.alpha=gBlastRingObjs[node->index].alpha;
-            phase=gBlastRingObjs[node->index].id.part.index;
-            ObjInstanceList[phase].color=color.word;
-            if(gBlastRingObjs[node->index].alpha>=25) {
-                gBlastRingObjs[node->index].alpha-=24;
+            /* ZOID_SetColor, inlined */
+            clr.c.red=255;
+            clr.c.green=255;
+            clr.c.blue=255;
+            clr.c.alpha=gBlastRingObjs[v->slot].ralpha;
+            phase=gBlastRingObjs[v->slot].ringIdx.part.index;
+            ObjInstanceList[phase].color=clr.rgba;
+            if(gBlastRingObjs[v->slot].ralpha>=25) {
+                gBlastRingObjs[v->slot].ralpha-=24;
             }
         }
-        gBlastRingObjs[node->index].phase++;
-        gBlastRingObjs[node->index].delay=0.0333333f;
+        gBlastRingObjs[v->slot].ralphaCnt++;
+        gBlastRingObjs[v->slot].incTime=0.0333333f;
     }
     return;
 }

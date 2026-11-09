@@ -1,22 +1,32 @@
+/* Update_MDrive.c: the game thread's per-frame car update (MAT3 mdrive.c, Update_MDrive()).
+ *
+ * Copies the model thread's results into the car records (update_game_data), places the ghost cars of a ghost race,
+ * and picks the camera views (CheckCameraView). */
 #include "game/game.h"
 
-/* PC: +0xF4 is a car's scene-node handle, an s32, and the s16 read is its low half: the second s16 on the N64, the
- * first on a little-endian host (docs/port/ENDIAN.md 3.1). */
-#define NODE_LOW 0xF4
+/* The car record (tCarData): its scene node handle. objnum is an s32 the code reads the low half of as an s16:
+ * the second half on the N64, the first on a little-endian host, so the PC view puts it first (docs/port/ENDIAN.md
+ * 3.1). */
+typedef struct tCarData {
+    u8 pad0[0xF4];
+    s16 objnum_low;             /* +0x0F4 the low half of objnum, the scene node */
+} tCarData;
+
+/* After update_game_data has copied the cars' states over, move the ghost cars' scene nodes (cars 1 on, the
+ * recorded runs a ghost race replays) to their positions (dr_pos) and orientations (dr_car_uvs); then choose what
+ * each view's camera shows. */
 void Update_MDrive(void)
 {
   s32 i;
-  s32 j;
+  s32 j;   /* counts along with i; nothing reads it */
 
   update_game_data();
-  if (gRace == 2)
+  if (gRace == 2)   /* kGhost */
   {
     for (i = 1, j = 0; i < gNumPlayers; i++, j++)
     {
-      /* car i = j + 1: its scene node, position (MAT3 dr_pos) and orientation (dr_car_uvs) */
-      ZOID_UpdateObject(*((s16 *) ((s8 *) PC_CAR(i) + NODE_LOW)), (s8 *) PC_CAR_POS(i), (s8 *) PC_CAR_UVS50(i));
+      ZOID_UpdateObject(((tCarData *) PC_CAR(i))->objnum_low, (s8 *) PC_CAR_POS(i), (s8 *) PC_CAR_UVS50(i));
     }
   }
   CheckCameraView();
 }
-
