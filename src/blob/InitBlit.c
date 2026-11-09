@@ -1,14 +1,6 @@
 /* InitBlit: a blit's texture and defaults from its name (MAT3 blit.c). */
 #include "game/game.h"
 
-/* The start of a texture's definition (MAT3 tTexture), all a blit reads of it. */
-struct tTexture {
-    char name[16];
-    u16 width, height;
-    u8 pad[16];
-};
-
-
 /* Sets up blit from its name: a NULL name is a plain coloured rectangle (default_blit_image's colour, no size yet),
  * BLIT_NO_TEXTURE a text blit (nothing), any other the texture of that name in the loaded models, at its own size.
  * Then the defaults: depth 0, opaque, the whole texture shown, no colour. */

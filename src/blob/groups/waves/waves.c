@@ -1,7 +1,7 @@
 /* Reading a wave from the cartridge and setting it up (MAT3 waves.c _ReadWave, _SetupWaveModel): a wave is stored
  * raw, LZSS-compressed or deflated (wave_storage_kinds); a model wave is a WAD whose model, texture and palette
- * tables go into gRomObjDefPtrs, gTexDefPtrs and gPalDefPtrs, with their addresses rebased and their display lists
- * relocated (waves/group.c has the waves). */
+ * records (built beside the file by its converter, port/assets/wad.c) go into gRomObjDefPtrs, gTexDefPtrs and
+ * gPalDefPtrs, and its display lists are relocated (waves/group.c has the waves). */
 #include "game/game.h"
 #define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
 #define OSIoMesgHdr OSIoMesgHdrView   /* this file's own OSIoMesgHdr: include/game's OSIoMesgHdr is another type */
@@ -14,56 +14,6 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 /* A handle wave's ptr is a heap master slot (a handle): its block is the address the slot holds. */
 #define HANDLE_BLOCK(h) (*(u8 **)(h))
 
-typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
-    u16 texidx;
-    u16 flags;
-    f32 lodRad;
-    WADP(u32) displayList;          /* 0x8 */
-    WADP(u32) vtxList;              /* 0xc N64 only, relocated with the display list */
-} tLod;
-typedef struct tModelDef {          /* N64 0x58 */
-    char name[16];
-    f32 radius;
-    s16 unused;
-    s16 lodCount;                   /* 0x16 */
-    tLod lod[4];                    /* 0x18 */
-} tModelDef;
-typedef struct tTexture {           /* N64 0x24 */
-    char name[16];
-    u16 width;
-    u16 height;
-    u8 size;
-    u8 format;
-    s16 palIndex;
-    WADP(char) texBase;             /* 0x18 */
-    u32 flags;
-    u32 xflags;
-} tTexture;
-typedef struct tPaletteDef { /* palette, 0x18 */
-    char name[16];
-    u8 start;
-    u8 end;
-    u16 format;
-    WADP(char) palBase;             /* 0x14 */
-} tPaletteDef;
-typedef struct tBasicTargetPath {   /* 0x24 */
-    char name[16];
-    u32 flags;
-    s16 numPts;
-    s16 collIdx;
-    WADP(char) trigPtr;             /* 0x18 */
-    WADP(char) pts;                 /* 0x1c */
-    WADP(void) parent;
-} tBasicTargetPath;
-
-
-/* A model WAD's tables, by tag. */
-#define WAD_TAG_OBHD 0x4F424844     /* 'OBHD': the models (tModelDef) */
-#define WAD_TAG_TXHD 0x54584844     /* 'TXHD': the textures (tTexture) */
-#define WAD_TAG_PLHD 0x504C4844     /* 'PLHD': the palettes */
-#define WAD_TAG_PTHD 0x50544844     /* 'PTHD': a track's target paths (tBasicTargetPath) */
-#define WAD_TAG_TXLD 0x54584C44     /* 'TXLD': the texture load commands */
-#define WAD_TAG_IMAG 0x494D4147     /* 'IMAG': the texels and palettes */
 /* The waves that hold a track's target paths. */
 #define WAVE_TRACK_PATHS_FIRST 101
 #define WAVE_TRACK_PATHS_END 120
@@ -73,31 +23,29 @@ typedef struct tBasicTargetPath {   /* 0x24 */
 #define DL_KEEP_FORWARD 8           /* the track run the usual way */
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
-#define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
-#define relocate_texture_loads(start, end, IMAGptr) \
-    relocate_texture_loads((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
-
 void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
-/* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, fills the instance's
- * entries of the model, texture, palette (and, for a track wave, target path) tables, rebases the textures' and
- * palettes' data to the WAD's IMAG block and relocates the texture loads; the first time (first set) also rebases
- * each level of detail's display and vertex lists and relocates the display lists, keeping the sections for this
- * race's player count and direction (and mirroring them for a mirrored track). With first clear, after the heap has
- * moved a handle wave, the tables are rebased by how far it moved. Then the instance is ready, and mirrored to the
- * current direction.
- * PC: video.detail high keeps the one-player sections of the models' display lists in split screen too (the LOD
- * markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
+/* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, points the instance's
+ * entries of the model, texture and palette tables (and, for a track wave, the target paths) at the WAD's records,
+ * relocates its texture loads and its display lists, keeping the sections for this race's player count and
+ * direction (and mirroring them for a mirrored track). Then the instance is ready, and mirrored to the current
+ * direction. With first clear MAT3 set up a handle wave the heap had moved again; no caller asks for that (a model
+ * WAD is never a handle: the font data is, which has no models).
+ * PC: the records are the WAD's converter's, built beside the file when it loaded, with host pointers into it
+ * (pc_wad_records, port/assets/wad.c). On the N64 this rebased the file's own records in place: the table of contents
+ * (MBSetupWad), every record's offsets by the file's or the IMAG chunk's address (texBase, palBase, displayList,
+ * vtxList, pts, trigPtr), and a moved handle wave's by how far it had moved (MBOffsetWad). The display lists and
+ * texture loads keep the N64's form and are relocated in place by the N64 addresses of the file and of its IMAG chunk
+ * (docs/port/NATIVE.md step 10). video.detail high keeps the one-player sections of the models' display lists in
+ * split screen too (the LOD markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is
+ * pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
-    WadHandle wad;
+    struct pc_wad_records *wad;
     u8 *WADptr;
-    s32 TXLDptr;
-    s32 TXLDcnt;
-    s32 IMAGptr;
-    u8 *offset;
+    s32 n64File;
     s32 i;
     s32 j;
     s32 modelIdx;
@@ -108,7 +56,7 @@ void SetupWaveModel(s32 idx, s32 first) {
         gWaveInstance[idx].ready = 1;
         return;
     }
-    if (first == 0 && gWaveInstance[idx].handle == 0) {
+    if (first == 0) {
         return;
     }
     if (PC_DETAIL_PLAYERS(gNumPlayers) == 1) {
@@ -127,41 +75,25 @@ void SetupWaveModel(s32 idx, s32 first) {
         WADptr = gWaveInstance[idx].ptr;
     }
     modelIdx = idx;
-    if (first != 0) {
-        MBSetupWad(&wad, WADptr);
-    } else {
-        offset = HANDLE_BLOCK(gWaveInstance[idx].ptr) - PC_N64A(gWaveInstance[idx].lastPtr);
-        MBOffsetWad(&wad, (s32)PC_N64A(WADptr), (s32)PC_N64A(offset));
-    }
-    gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
-    gRomObjDefPtrs[modelIdx].romObjDefs = ((tModelDef *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_OBHD, &gRomObjDefPtrs[modelIdx].count)));
-    gTexDefPtrs[modelIdx].texDefs = ((tTexture *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_TXHD, &gTexDefPtrs[modelIdx].count)));
-    gPalDefPtrs[modelIdx].palDefs = ((tPaletteDef *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count)));
+    wad = pc_wad_records(WADptr);
+    gRomObjDefPtrs[modelIdx].romObjDefs = wad->models;
+    gRomObjDefPtrs[modelIdx].count = wad->numModels;
+    gTexDefPtrs[modelIdx].texDefs = wad->textures;
+    gTexDefPtrs[modelIdx].count = wad->numTextures;
+    gPalDefPtrs[modelIdx].palDefs = wad->palettes;
+    gPalDefPtrs[modelIdx].count = wad->numPalettes;
     if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
-        gTargetPaths.paths = ((tBasicTargetPath *)PC_N64P(MBGetFromWad(&wad, WAD_TAG_PTHD, &gTargetPaths.count)));
+        gTargetPaths.paths = wad->paths;
+        gTargetPaths.count = wad->numPaths;
     }
-    TXLDptr = MBGetFromWad(&wad, WAD_TAG_TXLD, &TXLDcnt);
-    IMAGptr = MBGetFromWad(&wad, WAD_TAG_IMAG, NULL);
-    relocate_texture_loads(TXLDptr, TXLDptr + TXLDcnt, IMAGptr);
-    for (i = 0; i < gTexDefPtrs[modelIdx].count; i++) {
-        gTexDefPtrs[modelIdx].texDefs[i].texBase += IMAGptr;
+    if (wad->textureLoads != NULL) {
+        relocate_texture_loads(wad->textureLoads, (struct N64Gfx *)((u8 *)wad->textureLoads + wad->textureLoadsSize),
+                               PC_N64A(wad->images));
     }
-    for (i = 0; i < gPalDefPtrs[modelIdx].count; i++) {
-        gPalDefPtrs[modelIdx].palDefs[i].palBase += IMAGptr;
-    }
-    if (first != 0) {
-        for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
-            for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + PC_N64A(WADptr));
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + PC_N64A(WADptr));
-                relocate_model_dl(((u32 *)PC_N64P(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList)), (s32)PC_N64A(WADptr), -1, gMirrorWaves ? 1 : 0, flags);
-            }
-        }
-    }
-    if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
-        for (i = 0; i < gTargetPaths.count; i++) {
-            gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + PC_N64A((first ? WADptr : offset));
-            gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + PC_N64A((first ? WADptr : offset));
+    n64File = PC_N64A(WADptr);
+    for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
+        for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
+            relocate_model_dl(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, n64File, -1, gMirrorWaves ? 1 : 0, flags);
         }
     }
     gWaveInstance[idx].ready = 1;
@@ -221,8 +153,3 @@ void ReadWave(s32 slot) {
     SetupWaveModel(slot, 1);
 }
 
-/* Sets up a handle wave again after the heap moved it: its tables are rebased by the distance (SetupWaveModel with
- * first = 0). */
-void relocate_wave_model(s32 idx) {
-    SetupWaveModel(idx, 0);
-}

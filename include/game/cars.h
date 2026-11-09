@@ -199,7 +199,9 @@ extern tStatList gSmokeList;
 extern u32 paint_colors[EXTENT(32)];
 extern u16 gFireTexs[EXTENT(1416)];
 extern u8 gCarPaintJobInited[EXTENT(52)];
-extern CarPalette car_palettes[EXTENT(1)];
+/* Each car slot's paint (car_palette_init.c): the whole TLUT, its colours a heap block. A race's slots, or the car
+ * select's 4 players x 13 cars (slot = car, UpdateSelectCar): 52, to gRealEdges on the N64, as gCarPaintJobInited. */
+extern tPaletteDef car_palettes[EXTENT(52)];
 extern s8 gInvisibleCar;
 extern s8 gEnableTireScaling;
 extern u16 gObjList[EXTENT(1)];

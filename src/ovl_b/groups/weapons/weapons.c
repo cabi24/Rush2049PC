@@ -41,9 +41,6 @@ typedef struct Visual {
     void (*func)(struct Visual *, s16); /* 0x14 */
 } Visual;
 
-/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
-typedef struct tTexture { u8 b[36]; } TexDef;
-
 
 f32 weaponOffsets[8][13][3] = {
     0.0f, 2.5f, 0.3f, 0.0f, 3.0f, 0.3f, 0.0f, 2.8f, 0.3f, 0.0f, 3.0f, 0.1f, 0.0f, 3.0f, 0.1f, 0.0f,

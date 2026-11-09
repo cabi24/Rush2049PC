@@ -368,7 +368,7 @@ void rmonPrintf(const char *fmt, ...);
 void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text);
 void SaveFlush_TTL(s32 x);
 void SetCountdownTimer(f32 seconds);
-void SetModelPalette(s32 id, struct Resource24 *descriptor);
+void SetModelPalette(s32 id, struct tPaletteDef *descriptor);
 void SetPausePlayer(s32 player);
 void slot_forget(struct Obj **node);
 void sound_list_init(struct List *list, s8 handle, s8 dbl);

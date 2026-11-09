@@ -14,7 +14,6 @@ typedef struct MultiBlit {
 } MultiBlit;
 typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 typedef union Color {u32 word;u8 channel[4];} Color;
-typedef struct Texture Texture;
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
 /* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest, stats its
@@ -117,9 +116,6 @@ struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 
-#define MAPLOD_PTR(x) (uintptr_t) x
-/* An object definition (MAT3 tModelDef, 88 bytes). */
-typedef struct tModelDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lod[4];} RomObjDef;
 
 
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
@@ -672,7 +668,7 @@ void buildTrackMap(void)
             memcpy(map_vertex_blocks[MAP_LOD_SELECTED], map_vertex_blocks[desiredTrackMap], vtxSize);
             dlSize = (kNumMapSects * 5 + 7) * sizeof(Gfx);
             memcpy(map_display_list_blocks[MAP_LOD_SELECTED], map_display_list_blocks[desiredTrackMap], dlSize);
-            gfx = mapObj[MAP_LOD_SELECTED].displayList;   /* the selected map's display list */
+            gfx = (Gfx *)mapObj[MAP_LOD_SELECTED].displayList;   /* the selected map's display list */
             if ((gRace == kCircuit && gCircuitTracks[gCircuitTrack].mirror == 1)
                 || (gRace != kCircuit && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
@@ -800,7 +796,7 @@ void buildRaceTrackMaps(void)
     f32 dx0, dy0, len0, dx1, dy1, len1, dx2, dy2, len2;
     f32 xoffset, yoffset, zoffset;
     s32 trackMBIdx;
-    RomObjDef *trackRomObjDef;
+    tModelDef *trackRomObjDef;
     Gfx *dl;
     Vtx_t *vtx;
     s32 vtxSize, dlSize;
@@ -820,7 +816,7 @@ void buildRaceTrackMaps(void)
             saved_map_lods[gTrackNum] = trackRomObjDef->lod[0];
             vtxSize = kNumMapSects * 64 + 64;
             map_vertex_blocks[gTrackNum] = AllocateMemoryHeap(0, vtxSize + 7);
-            mapObj[gTrackNum].verts = vtx = (Vtx_t *)(((uintptr_t)map_vertex_blocks[gTrackNum] + 7) & ~7);
+            mapObj[gTrackNum].vtxList = vtx = (Vtx_t *)(((uintptr_t)map_vertex_blocks[gTrackNum] + 7) & ~7);
             dlSize = kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
             map_display_list_blocks[gTrackNum] = AllocateMemoryHeap(0, dlSize + 7);
             mapObj[gTrackNum].displayList = (u32 *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
@@ -942,7 +938,7 @@ void buildRaceTrackMaps(void)
     trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
     saved_map_lods[MAP_LOD_SELECTED] = trackRomObjDef->lod[0];
     map_vertex_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * 64 + 64 + 7);
-    mapObj[MAP_LOD_SELECTED].verts = (void *)(((uintptr_t)map_vertex_blocks[MAP_LOD_SELECTED] + 7) & ~7);
+    mapObj[MAP_LOD_SELECTED].vtxList = (void *)(((uintptr_t)map_vertex_blocks[MAP_LOD_SELECTED] + 7) & ~7);
     map_display_list_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
     mapObj[MAP_LOD_SELECTED].displayList = (u32 *)(((uintptr_t)map_display_list_blocks[MAP_LOD_SELECTED] + 7) & ~7);
     mapObj[MAP_LOD_SELECTED].flags = 0;
@@ -1007,7 +1003,7 @@ void buildObstacleTrackMaps(void)
 void clearTrackMaps(void)
 {
     s32 i,model;
-    RomObjDef *def;
+    tModelDef *def;
     if (trackMapsBuilt) {
         for (i = 0; i < 20; i++) {
             if (trackMap[i].handle != -1) {
@@ -1025,7 +1021,7 @@ void clearTrackMaps(void)
             if (map_vertex_blocks[i]) DeallocateMemory(map_vertex_blocks[i]);
             map_vertex_blocks[i] = 0;
             mapObj[i].displayList = 0;
-            mapObj[i].verts = 0;
+            mapObj[i].vtxList = 0;
         }
         trackMapsBuilt = 0;
     }
@@ -1069,7 +1065,7 @@ void animTrackMaps(void)
                 if (trackIdx < MAP_LOD_SELECTED || trackIdx == TRACK_MAP_SELECTED) {
                     if (mapObj[mapIdx].displayList) {
                         for (pointIdx = 0; pointIdx < kNumMapSects; pointIdx++) {
-                            pStrip = (MapVtx *)MAPLOD_PTR(mapObj[mapIdx].verts);
+                            pStrip = (MapVtx *)mapObj[mapIdx].vtxList;
                             pStrip += pointIdx * 4;
                             if (gOptions[27] == 0) fade = pathPos * kNumMapSects - pointIdx;
                             else fade = pathPos * kNumMapSects + pointIdx;
@@ -1214,7 +1210,7 @@ void trackscr_updateButtons(void)
     f32 buttonY;
     f32 selectedPos;
     s8 clearScrollSpeed = 1;
-    Texture *tex;
+    tTexture *tex;
     s16 texIdx;
     Color buttonColor = trackscr_update_button_color;
     if (trackscr_buttonsInited) {

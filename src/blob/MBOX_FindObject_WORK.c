@@ -6,11 +6,6 @@
 
 extern char *strcpy(char *, const char *);
 
-/* An object definition (MAT3 tModelDef; 88 bytes on the N64, which the model files keep): only its name matters
- * here, as the search key. */
-typedef struct tModelDef {
-    char name[88];
-} tModelDef;
 /* The handle of the object called `name` (compared on its first 15 characters, objcmp) in models firstModel to
  * lastModel (a negative bound means the first or the last model), searching only the models that are active
  * (ModelActive): (model << 10) | index, or -1 if none has it. A NULL or empty name looks for "AAANULLOBJ", the

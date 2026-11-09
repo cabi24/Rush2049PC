@@ -9,9 +9,6 @@ typedef struct tVisual { void *next; s16 index, objnum; s16 slot; } tVisual;
 /* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
 typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; } CarTlut;
 
-/* PC: the car palette descriptors car_palettes (CarPalette) keep a palette record's N64 layout (24 bytes, data a
- * u32 window address; car_palette_init.c). */
-
 #define CP(src) do { \
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
     tlut->taillights[4] = (src)[4]; tlut->taillights[5] = (src)[5]; tlut->taillights[6] = (src)[6]; tlut->taillights[7] = (src)[7]; } while (0)
@@ -24,7 +21,7 @@ void AnimateBrakeLights(tVisual *v, s16 op)
 s32 slot; CarTlut *tlut; s32 braking;
  slot = v->slot;
  braking = (PC_CAR_FLAGS(slot) & APPEAR_BRAKE) != 0 && (PC_CAR_FLAGS(slot) & APPEAR_HULK) == 0;
- tlut = ((CarTlut *)PC_N64P(car_palettes[slot].data));
+ tlut = car_palettes[slot].palBase;
     if (op == 0 || !braking) {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_dim.uv); } else { CP(taillight_colors_dark); }
     } else {

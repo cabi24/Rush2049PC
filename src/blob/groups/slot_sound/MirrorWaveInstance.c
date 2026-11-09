@@ -2,13 +2,11 @@
  * (waves/group.c has the waves). */
 #include "game/game.h"
 
-/* PC: the OBHD records (MAT3 tModelDef, 0x58 bytes) keep their N64 layout (port/assets/wad.c): a level of detail's
- * display list is a 32-bit window address. */
-typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;           /* MAT3 tLod */
-typedef struct tModelDef { u8 pad0[0x18]; Part part[4]; } tModelDef;    /* name, radius, LODs */
-
 /* If wave instance index holds a model whose triangles don't face the way the track now needs (gMirrorWaves), flips
- * every level of detail's display list (flip_triangle_winding through display_list_traverse) and notes it. */
+ * every level of detail's display list (flip_triangle_winding through display_list_traverse) and notes it.
+ * PC: every level is looked at, as on the N64; a level past the model's lodCount has no display list in the WAD's
+ * records (port/assets/wad.c), where the N64 had the file's word unrelocated (which rush2049pc_assetcheck expects to
+ * be 0, none). */
 void MirrorWaveInstance(s32 index)
 {
     tModelDef *m;
@@ -23,8 +21,8 @@ void MirrorWaveInstance(s32 index)
             count = gRomObjDefPtrs[index].count;
             for (i = 0; i < count; i++) {
                 for (j = 0; j < 4; j++) {
-                    if (m->part[j].dl) {
-                        display_list_traverse(m->part[j].dl, 0, 0, 2, flip_triangle_winding);
+                    if (m->lod[j].displayList) {
+                        display_list_traverse(m->lod[j].displayList, 0, 0, 2, flip_triangle_winding);
                     }
                 }
                 m++;

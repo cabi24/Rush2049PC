@@ -23,23 +23,9 @@ typedef struct Car {
     u8 pad6C6[0x808 - 0x6C6];
 } Car;
 
-/* PC: the target (tTarget, PC data) holds its path record as a pointer; the path record (MAT3 tTargetStructPath, a
- * heap record of its category) and the path (MAT3 tBasicTargetPath, a track WAD record) keep their N64 layout: the
- * record's path is a 32-bit window address (docs/port/POINTERS.md 10, NATIVE.md step 7). */
-enum n64p_TargetPath { n64p_TargetPath_ };
-/* The path (MAT3 tBasicTargetPath): only its flags and its trigger number. */
-typedef struct TargetPath {
-    u8 pad00[0x10];
-    u32 flags;              /* 0x10 0x200 start, 0x4000 restart while cars are on it; bits 24-31 the cars on it */
-    s16 count;              /* 0x14 */
-    s16 id;                 /* 0x16 collIdx: the trigger number its polygons carry */
-} TargetPath;
-/* The target's path record (MAT3 tTargetStructPath): first the path. */
-typedef struct PathData {
-    enum n64p_TargetPath path;
-} PathData;
-#define N64P(x) _Generic((x), enum n64p_TargetPath: (TargetPath *)PC_N64P(x), default: (x))
-
+/* The target's data is its path record (MAT3 tTargetStructPath), which names its path (TARGET_PATH: a track WAD
+ * record, tBasicTargetPath). What this reads of the path: its flags (PATH_START, PATH_RETRIGGER; bits 24-31 the cars
+ * on it) and its collision object's number (collIdx), which is the trigger number its polygons carry. */
 #define TRIGGER_POLY 0x20       /* a polygon's flag: part of a trigger */
 #define TRIGGER_NUMBER 0xF800   /* a polygon's trigger number, << 11 */
 #define PATH_START 0x200        /* the path target starts moving */
@@ -48,27 +34,27 @@ typedef struct PathData {
 /* PC: the cars on a trigger are bits 24-31 of its flags (car n: bit 24 + n), room for 8. Cars 8 and up (the more-cars
  * setting) keep theirs in their car record's `scenes` word, a bit per trigger number below 32 (pc_game_types.h).
  * scene_cars_past_8 says whether any of those is on this trigger; scene_car puts car idx on it (in) or off it. */
-static u32 scene_cars_past_8(TargetPath *path)
+static u32 scene_cars_past_8(tBasicTargetPath *path)
 {
     s32 j;
     u32 any = 0;
 
-    if ((u32)path->id < 32) {
+    if ((u32)path->collIdx < 32) {
         for (j = 8; j < gNumCars; j++) {
-            any |= (PC_CAR_SCENES(j) >> path->id) & 1;
+            any |= (PC_CAR_SCENES(j) >> path->collIdx) & 1;
         }
     }
     return any;
 }
-static void scene_car(TargetPath *path, s32 idx, s32 in)
+static void scene_car(tBasicTargetPath *path, s32 idx, s32 in)
 {
     u32 bit;
 
     if (idx < 8) {
         bit = 1u << (idx + 24);
         path->flags = in ? path->flags | bit : path->flags & ~bit;
-    } else if ((u32)path->id < 32) {
-        bit = 1u << path->id;
+    } else if ((u32)path->collIdx < 32) {
+        bit = 1u << path->collIdx;
         PC_CAR_SCENES(idx) = in ? PC_CAR_SCENES(idx) | bit : PC_CAR_SCENES(idx) & ~bit;
     }
 }
@@ -82,8 +68,8 @@ static void scene_car(TargetPath *path, s32 idx, s32 in)
 s32 TargetCollTrigger(tTarget *t, s16 *player, s32 unused3, s32 unused4) {
     s32 idx;
     Car *car;
-    PathData *pathData;
-    TargetPath *path;
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
     s32 id;
     u16 f0, f1, f2, f3;
 
@@ -92,9 +78,9 @@ s32 TargetCollTrigger(tTarget *t, s16 *player, s32 unused3, s32 unused4) {
     if (car->crashflag != 0 || car->moving_state >= 0) {
         return 0;
     }
-    pathData = t->data;
-    path = N64P(pathData->path);
-    id = path->id;
+    state = t->data;
+    path = TARGET_PATH(state);
+    id = path->collIdx;
     id <<= 11;
     f0 = stree_surf[car->wheelPoly[0]].snd_flags;
     f1 = stree_surf[car->wheelPoly[1]].snd_flags;

@@ -476,9 +476,10 @@ struct pc_target_group {
 
 /* ---- The game's files as native records (docs/port/NATIVE.md 4.4, docs/port/ASSETS.md 4). On the N64 the game wrote
  * pointers into some of the files it loaded, as 32-bit addresses: the text bank's string offsets, a world's name
- * table, a path file's headers. On the PC each stays in its heap block as the game allocated it, converted to the
- * host's byte order, and its converter (port/assets) builds these records beside it when it loads, with host
- * pointers into the block; the game asks for them by the block. They go with the block (port/assets/records.c). */
+ * table, a path file's headers, a model WAD's records, a font's letters. On the PC each stays in its heap block as the
+ * game allocated it, its size unchanged (converted to the host's byte order where the game still reads it), and its
+ * converter (port/assets) builds these records beside it when it loads, with host pointers into the block; the game
+ * asks for them by the block. They go with the block, and move with it when the heap moves it (port/assets/records.c). */
 
 /* The strings of one language (MAT3 text.c's sections; the game's TextTables, gText): the text bank's (text wave's)
  * six sections, each a count and its table. The three string tables are host pointers to the bank's strings, built
@@ -573,6 +574,114 @@ struct pc_path_records {
     struct DronePath dronePaths[4];     /* gDronePaths */
 };
 const struct pc_path_records *pc_path_records(const void *file);   /* the path file in the heap block `file` */
+
+/* The model WADs' records (MAT3 waves.c, mb_wad.c; docs/port/ASSETS.md 3.1): a WAD's object definitions (OBHD), its
+ * textures (TXHD), its palettes (PLHD) and a track's target paths (PTHD). The file holds them in the N64's layout,
+ * with offsets where these have pointers; on the N64 SetupWaveModel turned the offsets into 32-bit addresses in place
+ * (MBSetupWad, MBGetFromWad: `+= (u32)base`). On the PC the WAD's converter (port/assets/wad.c) builds these beside the
+ * file when it loads, MAT3's fields in MAT3's order with host pointers, and SetupWaveModel points the wave's entries
+ * of gRomObjDefPtrs, gTexDefPtrs, gPalDefPtrs and gTargetPaths at them. The file keeps the rest in the N64's form: the
+ * display lists and their vertices, the texture loads (TXLD), the texels and colours (IMAG), all big-endian until
+ * docs/port/NATIVE.md step 10, and the paths' points (PATH), which the converter swaps in place. */
+
+/* One level of detail of an object definition (MAT3 anon_texidx_flags_c; 0x10 bytes in the file). The track select
+ * puts lists of its own into a map's first level (trackscr.c's mapObj) and puts the file's back after
+ * (saved_map_lods). */
+struct tLod {                           /* 0x18 */
+    unsigned short texidx;              /* +0x00 with LOD_TEXTURE_SET a texture ZOID_ChangeTexture gave it, a handle:
+                                         * (model << 10) | its index in that model file's textures */
+    unsigned short flags;               /* +0x02 LOD_* (scene.h) */
+    float lodRad;                       /* +0x04 drawn up to this distance, feet times the node's scale; 0: no limit */
+    unsigned int *displayList;          /* +0x08 its display list: in the file, in the N64's form (8-byte big-endian
+                                         * commands, which SetupWaveModel relocates in place: relocate_model_dl) */
+    void *vtxList;                      /* +0x10 its vertices, in the file (the N64's; MAT3 has none): read only in the
+                                         * track map's own copies, where they are its map's */
+};
+/* An object definition (MAT3 tModelDef; the OBHD record, 0x58 bytes in the file), sorted by name in its file
+ * (MBOX_FindObject_WORK bsearches them). */
+struct tModelDef {                      /* 0x78 */
+    char name[16];                      /* +0x00 */
+    float radius;                       /* +0x10 its bounding sphere's (MBOX_GetObjectRadius) */
+    short unused;                       /* +0x14 no reader */
+    short lodCount;                     /* +0x16 its levels of detail, nearest first */
+    struct tLod lod[4];                 /* +0x18 */
+};
+/* A texture (MAT3 tTexture; the TXHD record, 0x24 bytes in the file, 0x30 on the GameCube), sorted by name in its
+ * file (MBOX_FindTexture_WORK). */
+struct tTexture {                       /* 0x28 */
+    char name[16];                      /* +0x00 */
+    unsigned short width, height;       /* +0x10 in texels */
+    unsigned char size, format;         /* +0x14 G_IM_SIZ_*, G_IM_FMT_* */
+    short palIndex;                     /* +0x16 its palette among its file's, -1 none */
+    void *texBase;                      /* +0x18 with TEX_IMAGE_DIRECT its texels, in the file's IMAG; else the display
+                                         * list in TXLD that loads them (N64 form). The texture animation's flipbooks
+                                         * change it (MAT3 char *) */
+    unsigned int flags;                 /* +0x20 TEX_* (scene.h) */
+    unsigned int xflags;                /* +0x24 no reader */
+};
+/* A palette (MAT3 anon_name_start_18; the PLHD record, 0x18 bytes in the file): the TLUT entries start..end, which
+ * the model draw loads (zoid_load_palette). A car's paint is one too (car_palettes, car_palette_init.c: the whole
+ * TLUT, the car's own colours), and so are the blits' own colours (healthPal, n64FogPal: primitive and environment
+ * colours, BlitColors). */
+struct tPaletteDef {                    /* 0x20 */
+    char name[16];                      /* +0x00 */
+    unsigned char start, end;           /* +0x10 */
+    unsigned short format;              /* +0x12 no reader */
+    void *palBase;                      /* +0x18 its colours, RGBA 5551: in the file's IMAG (big-endian), or a heap block
+                                         * (a car's paint: native) (MAT3 char *) */
+};
+/* A track's target path (MAT3 tBasicTargetPath; the PTHD record, 0x24 bytes in the file): a track object that moves
+ * along points (a tram, a lift, a drawbridge: targetpaths/group.c), a target of its own (SetupTarget). */
+struct tBasicTargetPath {               /* 0x38 */
+    char name[16];                      /* +0x00 a target kind's name and more (SetupTarget) */
+    unsigned int flags;                 /* +0x10 targetpaths/group.c */
+    short numPts;                       /* +0x14 */
+    short collIdx;                      /* +0x16 its collision object, 0 none */
+    struct tBasicTargetPath *trigPtr;   /* +0x18 the path that triggers it, a record of the same file; NULL none (the
+                                         * file's offset 0, which on the N64 became the file's own address) */
+    struct TargetPathPt *pts;           /* +0x20 its points, in the file */
+    struct tTargetStructPath *parent;   /* +0x28 the record of the target on it once ResetPath has set it, else NULL */
+    int key;                            /* +0x30 the word the file has in parent's place: the key the world's target
+                                         * groups (GTLD) know the path's target by (SetupTarget gives the target it as
+                                         * its mbIdx). On the N64 ResetPath wrote the target's record over it, so a
+                                         * restart's SetupTarget read that address; only SetTargetDefs' group search
+                                         * reads a target's key, and a restart skips it */
+};
+/* A WAD's records (port/assets/wad.c builds them when the file loads), each chunk's a native array; a chunk the file
+ * doesn't have is NULL with a count of 0, as MBGetFromWad gave it (one it has with no records is an empty array).
+ * textureLoads and images are the file's own: SetupWaveModel relocates the texture loads (relocate_texture_loads)
+ * and the display lists in the N64's form. */
+struct pc_wad_records {
+    struct tModelDef *models;           /* OBHD */
+    int numModels;
+    struct tTexture *textures;          /* TXHD */
+    int numTextures;
+    struct tPaletteDef *palettes;       /* PLHD */
+    int numPalettes;
+    struct tBasicTargetPath *paths;     /* PTHD */
+    int numPaths;
+    void *textureLoads;                 /* TXLD: the texture loads' display lists, N64 form */
+    int textureLoadsSize;               /* their bytes */
+    void *images;                       /* IMAG: the texels and colours */
+};
+struct pc_wad_records *pc_wad_records(const void *file);   /* the WAD in the heap block `file` */
+
+/* One letter of a font (MAT3 anon_kerns_value_c; 12 bytes in the font data file, numChars of them after its 16-byte
+ * header (FontHeader)): where it is in which texture page, and its row of the font's kerning table, which follows the
+ * letters in the file. On the N64 SetupFontData wrote the row's address into the letter's first word, in the file,
+ * and again whenever the heap moved the file (a handle). The font's converter (port/assets/font.c) builds the letters
+ * beside the file when it loads, with a copy of the kerning table, and keeps them with the file as the heap moves it
+ * (port/assets/records.c); SetupFontData takes them (pc_font_letters). */
+struct FontLetter {                     /* 0x10 */
+    unsigned char *kerns;               /* +0x0 its row of the kerning table, the font's numChars amounts: kerns[p] is
+                                         * how much closer it is drawn after letter p; NULL when the font has none */
+    unsigned char value;                /* +0x8 the character it draws */
+    unsigned char texIdx;               /* +0x9 its texture page (gFontTextures) */
+    unsigned char uls, ult;             /* +0xA its texels: columns uls..lrs, rows ult..lrt */
+    unsigned char lrs, lrt;             /* +0xC */
+    short pad12;                        /* +0xE the file's last two bytes, unread */
+};
+struct FontLetter *pc_font_letters(const void *file);   /* the font data in the heap block `file` */
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets

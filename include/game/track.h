@@ -26,8 +26,9 @@
     (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
     (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
 
-/* A target path's points (TargetPath.pts, a 32-bit window address in the path's N64-layout record). */
-#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
+/* A target path's points (tBasicTargetPath.pts), and a path target's path (its record's pathIdx: MAT3 pathData). */
+#define PATH_PTS(path) ((path)->pts)
+#define TARGET_PATH(state) (&gTargetPaths.paths[(state)->pathIdx])
 
 /* Data */
 extern f32 ghostRaceTimes[EXTENT(6)];

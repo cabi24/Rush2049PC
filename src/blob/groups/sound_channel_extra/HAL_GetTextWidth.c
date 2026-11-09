@@ -54,7 +54,7 @@ s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
                 } else {
                     width += gFontLetters[ch].lrs - gFontLetters[ch].uls + gSpacing + 1;
                     if (prev > 0 && gFontHeader->kern) {
-                        width -= ((u8 *)PC_N64P(gFontLetters[ch].kerns))[prev];
+                        width -= gFontLetters[ch].kerns[prev];
                     }
                     prev = ch;
                 }

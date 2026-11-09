@@ -21,9 +21,6 @@ typedef struct MineData {
     s16 used;               /* 0x86 the record is in use */
 } MineData;
 
-/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
-typedef struct tTexture {u8 bytes[36];} Texture36;
-
 /* One frame of the mine (op 1), or release its visual (op 0); nothing happens while the game is paused.
  * - First frame: if the owner already has three mines, the oldest is aged past 120 s so it goes next; the mine
  *   takes a free slot of its owner's (gPlayerMines), copies the road's orientation under it, and makes its base

@@ -64,6 +64,11 @@ WEAK void pc_assets_wave_released(int wave, uint8_t *buf)
 
 WEAK void pc_assets_wad_block_freed(uint8_t *p, size_t size) { (void)p, (void)size; }
 
+void pc_heap_block_moved(void *from, void *to, size_t size)
+{
+    pc_records_move(from, to, size);
+}
+
 void pc_heap_block_freed(void *p, size_t size)
 {
     pc_assets_wad_block_freed((uint8_t *)p, size);

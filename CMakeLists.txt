@@ -1270,10 +1270,9 @@ target_compile_options(test_musyx_game PRIVATE -w)
 target_sources(test_assets_musyx PRIVATE $<TARGET_OBJECTS:test_musyx_game>)
 set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # The game's own WAD loader reading a converted synthetic WAD (port/assets/tests/wad_game.c): _ReadWave,
-# SetupWaveModel, the TOC functions, the display-list walkers, the texture lookups and the texture animation,
+# SetupWaveModel on the WAD's records, the display-list walkers, the texture lookups and the texture animation,
 # built with the game's flags, in an RDRAM window the test maps itself (exit 77, skipped, if it can't).
-add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c src/blob/MBSetupWad.c
-    src/blob/MBGetFromWad.c src/blob/MBFindInWad.c src/blob/MBOffsetWad.c src/blob/relocate_texture_loads.c
+add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c src/blob/relocate_texture_loads.c
     src/blob/relocate_model_dl.c src/blob/mirror_vertex_texcoords.c src/blob/groups/slot_sound/MirrorWaveInstance.c
     src/blob/display_list_traverse.c src/blob/flip_triangle_winding.c src/blob/ModelActive.c src/blob/MBOX_FindTexture_WORK.c
     src/blob/MBOX_FindPalette_WORK.c src/blob/InitTextureAnimation.c src/blob/TextureAnimation.c src/blob/displaylist_get_texture_image.c

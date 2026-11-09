@@ -4,11 +4,6 @@
 
 #include "game/types.h"
 
-/* A pointer field of a loaded WAD record: the records keep their N64 layout on the PC (port/assets/wad.c swaps their
- * scalars in place), so the field is a 32-bit RDRAM-window address, which widens to a host pointer
- * (docs/port/ASSETS.md 5). WADP(type) names what it points to. */
-#define WADP(type) u32
-
 /* Data */
 extern u32 gWaveSizes[EXTENT(183)];
 extern u8 gLargestTextWave;
@@ -109,10 +104,6 @@ void lock_memory(void *ptr);
 void LockWaveInstance(s32 index);
 u32 longest_match(struct internal_state *s, u16 cur_match);
 s32 lzss_decompress(u32 src, void *dst);
-void *MBFindInWad(WadHandle *wad, s32 tag);
-u32 MBGetFromWad(WadHandle *wad, s32 tag, s32 *length);
-void MBOffsetWad(WadHandle *wad, s32 oldBase, s32 offset);
-void MBSetupWad(WadHandle *wad, WadFileHeader *file);
 void mirror_vertex_texcoords(s32 vertices, s32 mirrored);
 void MirrorWaveInstance(s32 index);
 s8 ModelActive(s32 index);

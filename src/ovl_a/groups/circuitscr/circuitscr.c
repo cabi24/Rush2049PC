@@ -162,7 +162,6 @@ struct MenuOwner { OwnerBody *body; };
 typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;
-typedef struct Texture Texture;
 typedef struct MultiBlit {
     char *name;
     s16 x,y,width,height,top,bottom,left,right;
@@ -478,7 +477,7 @@ void circuitscr_updateButtons(void)
     f32 buttonY;
     f32 selectedPos = 0.0f;
     s8 clearScrollSpeed = 1;
-    Texture *tex;
+    tTexture *tex;
     s16 texIdx;
     Color buttonColor = circuitscr_button_color;
 

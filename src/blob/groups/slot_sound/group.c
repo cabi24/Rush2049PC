@@ -45,20 +45,19 @@ void UnlockWaveInstance(s32 index)
     do { slot->locked = 0; } while (0);
 }
 
-/* A font file is its header (FontHeader), then its letters, then each letter's kerning row when the font has
- * kerning; the file keeps its N64 layout in the window. */
-#define FONT_SLOT(p) PC_N64A(p)
 /* A handle wave's block: the address its master slot holds (the heap may move the block and update the slot). */
 #define WAVE_HANDLE_BLOCK(h) (*(u8 **)(h))
-/* A texture record of the font's texture wave (tTexture, N64 layout). */
-#define TEXTURE_RECORD_SIZE 36
 
 
 /* Points the font globals at the current font's file (gFontDatWaveInst, a handle wave) when it has moved or force is
- * set: the header, the letters, the kerning rows, the character map (gCharMap: a letter's index by character, -1
- * for none). With force it also takes the font's textures (gFontTexWaveInst) and its default leading and spacing.
- * Then sets the texture format the text draw uses: 4-bit intensity for a font of type 1, else 8-bit
- * intensity-alpha (G_IM_FMT_I or G_IM_FMT_IA, G_IM_SIZ_4b or G_IM_SIZ_8b). */
+ * set: the header (the file's first 16 bytes, FontHeader), the letters with their kerning rows, the character map
+ * (gCharMap: a letter's index by character, -1 for none). With force it also takes the font's textures
+ * (gFontTexWaveInst's) and its default leading and spacing. Then sets the texture format the text draw uses: 4-bit
+ * intensity for a font of type 1, else 8-bit intensity-alpha (G_IM_FMT_I or G_IM_FMT_IA, G_IM_SIZ_4b or
+ * G_IM_SIZ_8b).
+ * PC: the letters are the font's converter's, built beside the file with a pointer to each letter's kerning row
+ * (pc_font_letters, port/assets/font.c). On the N64 they were the file's, after its header, and this wrote each row's
+ * 32-bit address into its letter, again whenever the heap had moved the file; the converter's follow the file. */
 void SetupFontData(s32 force)
 {
     u8 *p;
@@ -67,15 +66,7 @@ void SetupFontData(s32 force)
     p = WAVE_HANDLE_BLOCK(GetWaveInstanceAddr(gFontDatWaveInst));
     if (force || p != (u8 *)gFontHeader) {
         gFontHeader = (FontHeader *)p;
-        p += 16;
-        gFontLetters = (FontLetter *)p;
-        p += gFontHeader->numChars * 12;
-        if (gFontHeader->kern != 0) {
-            for (i = 0; i < gFontHeader->numChars; i++) {
-                gFontLetters[i].kerns = FONT_SLOT(p);
-                p += gFontHeader->numChars;
-            }
-        }
+        gFontLetters = pc_font_letters(p);
         for (i = 0; i < 256; i++) {
             gCharMap[i] = -1;
         }
@@ -85,7 +76,7 @@ void SetupFontData(s32 force)
     }
     if (force) {
         for (i = 0; i < gFontHeader->numTextures; i++) {
-            gFontTextures[i] = (struct tTexture *) ((uintptr_t)gTexDefPtrs[gFontTexWaveInst].texDefs + i * TEXTURE_RECORD_SIZE);
+            gFontTextures[i] = &gTexDefPtrs[gFontTexWaveInst].texDefs[i];
         }
         gLeading = gFontHeader->leading;
         gSpacing = gFontHeader->spacing;

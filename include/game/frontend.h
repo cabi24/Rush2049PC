@@ -786,7 +786,7 @@ extern s32 carscr_gOpts[EXTENT(4)][19];
 extern f32 gStats[EXTENT(4)][4];
 extern s32 gHornSnd[EXTENT(4)];
 extern u8 trackscr_fogColor[EXTENT(8)];
-extern tBlitPalette n64FogPal;   /* the fog blit's colours, trackscr_fogColor (SetFogIntensity) */
+extern tPaletteDef n64FogPal;   /* the fog blit's colours, trackscr_fogColor (SetFogIntensity) */
 extern SelectCarWaveSlot gSelectCarWavePtrs[EXTENT(16)];
 extern SelectCarState gSelectCar[EXTENT(52)];
 extern s32 recordscr_buttonsInited;
@@ -828,8 +828,8 @@ extern f32 gDefTime;
 extern s8 trackscr_gActiveZ;
 extern TrackSlot gTracks[EXTENT(19)];
 extern s8 trackMapsBuilt;
-extern MapLod mapObj[EXTENT(7)];
-extern MapLod saved_map_lods[EXTENT(7)];
+extern tLod mapObj[EXTENT(7)];          /* each track's map, the first level of detail of its map object (trackscr.c) */
+extern tLod saved_map_lods[EXTENT(7)];   /* the map objects' own first levels, put back by clearTrackMaps */
 extern void *map_display_list_blocks[EXTENT(7)];
 extern void *map_vertex_blocks[EXTENT(7)];
 extern struct FiveParts *playerscr_pane[EXTENT(4)];

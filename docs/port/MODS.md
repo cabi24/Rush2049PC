@@ -240,7 +240,9 @@ table (`gWaveSizes`, [MEMORY.md](MEMORY.md) 5), which the mods set. At start, be
    and kind 0 (raw). `pc_rom_copy` (the PI DMA), `lzss_decode` and `unzipdata_from_rom` read the region as the ROM
    (`mods_at`, `pi.c:148`).
 4. **The game** then does what it does for any file: LoadWave allocates the block by the size, `_ReadWave` DMAs the
-   file into it, `pc_wave_loaded` converts it, SetupWaveModel relocates it. Nothing in the game C changed.
+   file into it, `pc_wave_loaded` converts it (a WAD's records, built beside the file: the game finds a mod's models,
+   textures and palettes by name through them, as the cartridge's: [NATIVE.md](NATIVE.md) step 7), SetupWaveModel
+   relocates its display lists. Nothing in the game C changed for the mods.
 
 Three files need more:
 

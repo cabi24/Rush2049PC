@@ -1,7 +1,6 @@
 /* The options screen's set-up (MAT3 optionscr.c calcOptionMenuMaxSize and initButtons). */
 #include "game/game.h"
 
-typedef struct TexDef TexDef;
 
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
 
@@ -33,7 +32,7 @@ void op_calcOptionMenuMaxSize(void)
 void op_initButtons(void)
 {
     Color buttonColor = { { 255, 255, 255, 255 } };
-    TexDef *tex;
+    tTexture *tex;
     u16 texIdx;
     s32 buttonIdx;
 
