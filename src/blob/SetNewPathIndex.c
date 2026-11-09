@@ -1,13 +1,20 @@
+/* SetNewPathIndex: moves a drone to another point of its drone path (MAT3 maxpath.c). */
 #include "game/game.h"
 
-/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
-#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
-void SetNewPathIndex(void *arg0, s16 arg1) {
- u8 *temp_v0;
- temp_v0 = &PC_CAR_NAV(M2C_FIELD(arg0, s16 *, 0x7C6));
-M2C_FIELD(temp_v0, s16 *, 0x24) = arg1;
-M2C_FIELD(temp_v0, f32 *, 0x20) = (f32) gModelTime;
-M2C_FIELD(temp_v0, s16 *, 0x26) = -1;
-M2C_FIELD(temp_v0, f32 *, 0) = 20.0f;
-M2C_FIELD(temp_v0, f32 *, 4) = 0.0f;
+/* The model record (MAT3 tModelData): the field this reads. */
+struct tModelData {
+    u8 pad[0x7C6];
+    s16 slot; /* 0x7C6 the car slot */
+};
+
+/* Puts the drone of model `m` on point `idx` of its drone path, as if it had just reached it: 20 feet along the
+ * stretch from there, on its line, with no jump pending. */
+void SetNewPathIndex(struct tModelData *m, s16 idx) {
+    struct pc_car_nav *ctl;
+    ctl = &PC_CAR_NAV(m->slot);
+    ctl->idx = idx;
+    ctl->interval_time = (f32) gModelTime;
+    ctl->newIdx = -1;
+    ctl->xrel = 20.0f;
+    ctl->yrel = 0.0f;
 }

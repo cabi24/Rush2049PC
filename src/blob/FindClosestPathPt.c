@@ -1,44 +1,34 @@
+/* FindClosestPathPt: the point of a drone path nearest a position (MAT3 maxpath.c). */
 #include "game/game.h"
 
-typedef struct P3 {
-    s16 x, y, z, pad;
-} P3;
-
-typedef struct {
-    u16 n;
-    P3 *pts;
-} PSet;
-
-VIEW(PSet[], gDronePaths);
-#define gDronePaths gDronePaths_view
-
-s16 FindClosestPathPt(P3 *pos, s16 set)
+/* Returns the index of the point of drone path `path` (gDronePaths) nearest to `pos` (x, y, z), by straight-line
+ * distance. The respawn uses it to put a drone back on its path (resurrect.c). The result is unset if the path has
+ * no points. */
+s16 FindClosestPathPt(s16 *pos, s16 path)
 {
-    P3 *p;
+    DronePathPt *pt;
     s32 i;
     s32 pad0[4];
-    s16 best;
-    f32 dx, dy, dz, d;
+    s16 closest;
+    f32 dx, dy, dz, dist;
     f32 min;
 
     min = 1e20f;
     i = 0;
-    if (gDronePaths[set].n > 0) {
-        p = gDronePaths[set].pts;
-    loop:
-        dx = p->x - pos->x;
-        dy = p->y - pos->y;
-        dz = p->z - pos->z;
-        d = dx * dx + dy * dy + dz * dz;
-        if (d < min) {
-            min = d;
-            best = i;
-        }
-        i++;
-        p++;
-        if (i < gDronePaths[set].n) {
-            goto loop;
-        }
+    if (gDronePaths[path].numPts > 0) {
+        pt = gDronePaths[path].pts;
+        do {
+            dx = pt->pos[0] - pos[0];
+            dy = pt->pos[1] - pos[1];
+            dz = pt->pos[2] - pos[2];
+            dist = dx * dx + dy * dy + dz * dz;
+            if (dist < min) {
+                min = dist;
+                closest = i;
+            }
+            i++;
+            pt++;
+        } while (i < gDronePaths[path].numPts);
     }
-    return best;
+    return closest;
 }

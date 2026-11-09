@@ -1,27 +1,16 @@
+/* CalcResPathBounds: the bounding box of the track's resurrection path, which the HUD's track map scales to (MAT3
+ * pathcommon.c). */
 #include "game/game.h"
 
-typedef s16 Vertex[3];
-typedef struct AltPath {
-    u8 type;
-    u8 unk01[9];
-    u16 numPts;
-    Vertex *pts;
-} AltPath;
-/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (ReadPathData), so these views take host offsets and strides */
-typedef struct ResPath {
-    u16 numPrimary;
-    u8 unk02[14];
-    u8 numAlt;
-    u8 unk09[3];
-    AltPath *alt;
-} ResPath;
+/* The bounds as arrays, indexed by axis (include/game declares them as WorldPoint, x y z). */
 VIEW(s16[3], gPathMin);
 #define gPathMin gPathMin_view
 VIEW(s16[3], gPathMax);
 #define gPathMax gPathMax_view
-VIEW(ResPath, gResPath);
-#define gResPath gResPath_view
 
+/* Sets gPathMin and gPathMax to the smallest and largest coordinates of the resurrection path's points: every point
+ * of the main path, and of the alternative paths only those of a path cars may be put back on (ALT_PATH_RESURRECT).
+ * The points of all the paths lie one after the other in gResPathPtList (ReadPathData), the main path's first. */
 void CalcResPathBounds(void)
 {
     int i, j, validPt;
@@ -29,14 +18,15 @@ void CalcResPathBounds(void)
     gPathMin[0] = gPathMin[1] = gPathMin[2] = 0x7FFF;
     gPathMax[0] = gPathMax[1] = gPathMax[2] = -0x7FFF;
     for (i = 0; i < gNumResPathPts; i++) {
-        if (i < gResPath.numPrimary) {
+        if (i < gResPath.numPts) {
             validPt = 1;
         } else {
+            /* a point of an alternative path: find the path it belongs to */
             validPt = 0;
             for (j = 0; j < gResPath.numAlt; j++) {
                 if (&gResPathPtList[i] >= gResPath.alt[j].pts &&
                     &gResPathPtList[i] < gResPath.alt[j].pts + gResPath.alt[j].numPts &&
-                    gResPath.alt[j].type == 1) {
+                    gResPath.alt[j].resurrect == ALT_PATH_RESURRECT) {
                     validPt = 1;
                 }
             }

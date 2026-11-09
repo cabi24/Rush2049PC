@@ -4,6 +4,21 @@
 
 #include "game/types.h"
 
+/* gRace: the kind of race (MAT3's enum, the same numbers on the N64) */
+enum {
+    kOneRace = 0,  /* a single race against the drones */
+    kPractice = 1, /* practice: no laps counted, no places */
+    kGhost = 2,    /* a race against a ghost: only the first player's car counts */
+    kCircuit = 3,  /* a race of a circuit */
+    kStunt = 4,    /* the stunt arena */
+    kObstacle = 5, /* the obstacle course: no drones */
+    kBattle = 6,   /* battle: weapons and power-ups, no laps */
+    kNumRaceTypes = 7
+};
+
+/* gGameState's bits (MAT3 has the numbers only) */
+#define GS_DEMO 0x8 /* the attract mode's demo race: no laps counted for records, no crash counts, game sounds off */
+
 /* Data */
 extern u32 gCircuitPoints[EXTENT(6)];
 extern s32 gNumCircuitTracks[EXTENT(4)];

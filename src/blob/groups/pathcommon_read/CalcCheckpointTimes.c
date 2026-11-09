@@ -1,98 +1,73 @@
+/* CalcCheckpointTimes: the time each stretch between checkpoints takes, and the race's starting time (MAT3
+ * pathcommon.c). */
 #include "game/game.h"
 
-typedef struct Route {
-    /* 0x00 */ s16 total;     /* record 0: lap time */
-    /* 0x02 */ s16 first;     /* record 0: section the ring wraps to */
-    /* 0x04 */ s16 last;      /* record 0: last (finish) section */
-    /* 0x06 */ s16 start;     /* record 0: first section of the race */
-    /* 0x08 */ s16 count;     /* record 0: number of sections */
-    /* 0x0A */ char padA[0x20];
-    /* 0x2A */ s16 time[2];
-    /* 0x2E */ s16 pad2E;
-    /* 0x30 */ s16 pt_start[16];
-} Route; /* 0x50 */
-
-typedef struct PathPt {
-    /* 0x00 */ s16 pos[3];
-    /* 0x06 */ u8 speed;
-    /* 0x07 */ u8 unk7;
-} PathPt; /* 0x08 */
-
-
-VIEW(Route[], gCheckpoints);
-#define gCheckpoints (gCheckpoints_view[0])
-typedef struct {
-    /* 0x00 */ u16 num;
-    /* 0x04 */ PathPt *pts;
-} PathSet; /* 0x08 */
-
-VIEW(PathSet[], gDronePaths);
-#define gDronePaths gDronePaths_view
-
 f32 sqrtf(f32);
-#pragma intrinsic (sqrtf)
 
+/* Times every stretch between checkpoints by driving drone path `path` (0) at its points' speeds: time[0], from
+ * the starting grid's checkpoint round to the finish (the first lap), and time[1], from the finish round to the
+ * finish again (the later laps). The race starts with the first stretch's time plus 10 seconds plus a thirtieth of
+ * a lap's; the finish stretch's later-lap time gets that thirtieth too. */
 void CalcCheckpointTimes(void) {
-    s32 p;
+    s32 lap;
     s32 path;
-    s32 cur;
+    s32 cp;
     s32 next;
     s32 end;
     s32 i;
-    s32 done;
+    s32 started;
     f32 d[3];
     f32 t;
 
     path = 0;
-    for (p = 0; p < 2; p++) {
-        done = (gCheckpoints.start == 0 || p != 0);
-        if (p == 0) {
-            cur = gCheckpoints.start;
+    for (lap = 0; lap < 2; lap++) {
+        started = (gCheckpoints.startPt == 0 || lap != 0);
+        if (lap == 0) {
+            cp = gCheckpoints.startPt;
         } else {
-            cur = gCheckpoints.last;
+            cp = gCheckpoints.finishPt;
         }
         for (;;) {
-            next = GetNextCheckpoint(cur);
-            do {} while (0);
-            if (next < cur) {
-                end = gDronePaths[path].num - 1;
+            next = GetNextCheckpoint(cp);
+            if (next < cp) {
+                end = gDronePaths[path].numPts - 1;
             } else {
-                end = (&gCheckpoints)[next].pt_start[path] - 1;
+                end = gCheckpoints.points[next].dronePathPt[path] - 1;
             }
             t = 0.0f;
-            for (i = (&gCheckpoints)[cur].pt_start[path]; i < end; i++) {
+            for (i = gCheckpoints.points[cp].dronePathPt[path]; i < end; i++) {
                 d[0] = gDronePaths[path].pts[i + 1].pos[0] - gDronePaths[path].pts[i].pos[0];
                 d[1] = gDronePaths[path].pts[i + 1].pos[1] - gDronePaths[path].pts[i].pos[1];
                 d[2] = gDronePaths[path].pts[i + 1].pos[2] - gDronePaths[path].pts[i].pos[2];
-                t += sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) / ((u32) gDronePaths[path].pts[i].speed * 1.4666667f);
+                t += sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) / ((u32) gDronePaths[path].pts[i].mph * 1.4666667f);
             }
+            /* the last step, onto the next checkpoint's point (round the loop after the path's end) */
             d[0] = gDronePaths[path].pts[NextPathPt(i, path)].pos[0] - gDronePaths[path].pts[i].pos[0];
             d[1] = gDronePaths[path].pts[NextPathPt(i, path)].pos[1] - gDronePaths[path].pts[i].pos[1];
             d[2] = gDronePaths[path].pts[NextPathPt(i, path)].pos[2] - gDronePaths[path].pts[i].pos[2];
-            t += sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) / ((u32) gDronePaths[path].pts[i].speed * 1.4666667f);
-            (&gCheckpoints)[cur].time[p] = t;
-            do {} while (0);
-            cur = next;
-            if (next == gCheckpoints.last) {
-                if (done) {
+            t += sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]) / ((u32) gDronePaths[path].pts[i].mph * 1.4666667f);
+            gCheckpoints.points[cp].time[lap] = t;
+            cp = next;
+            if (next == gCheckpoints.finishPt) {
+                if (started) {
                     break;
                 }
-                done = 1;
+                started = 1;
             }
         }
     }
-    gCheckpoints.total = gCheckpoints.time[0] + 10;
-    cur = gCheckpoints.last;
+    gCheckpoints.startTime = gCheckpoints.points[0].time[0] + 10;
+    cp = gCheckpoints.finishPt;
     t = 0.0f;
     do {
-        t += (&gCheckpoints)[cur].time[1];
-        if (cur == gCheckpoints.count - 1) {
-            i = gCheckpoints.first;
+        t += gCheckpoints.points[cp].time[1];
+        if (cp == gCheckpoints.numPoints - 1) {
+            i = gCheckpoints.loopPt;
         } else {
-            i = cur + 1;
+            i = cp + 1;
         }
-        cur = i;
-    } while (cur != gCheckpoints.last);
-    gCheckpoints.total = gCheckpoints.total + t / 30.0f;
-    (&gCheckpoints)[gCheckpoints.last].time[1] = (&gCheckpoints)[gCheckpoints.last].time[1] + t / 30.0f;
+        cp = i;
+    } while (cp != gCheckpoints.finishPt);
+    gCheckpoints.startTime = gCheckpoints.startTime + t / 30.0f;
+    gCheckpoints.points[gCheckpoints.finishPt].time[1] = gCheckpoints.points[gCheckpoints.finishPt].time[1] + t / 30.0f;
 }

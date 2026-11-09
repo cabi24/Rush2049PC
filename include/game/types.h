@@ -255,6 +255,7 @@ struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
 struct tCircuit;
+struct tCarData;
 struct tModelData;
 struct tPS_File;
 struct tPlayerProfile;
@@ -725,15 +726,31 @@ typedef struct ct_data_s { /* 0x4 bytes */
     union { u16 dad; u16 len; } dl;   /* 0x2 */
 } ct_data;
 
+/* A checkpoint (MAT3 anon_pos_normal_50, gCheckpoints.points[]; it belongs with the track's types below): a gate
+ * across the road, read from the track's path file (ReadCheckpointData). A car passes it when it crosses the plane
+ * through pos along normal within the radius (CheckCPs). */
 typedef struct tCheckpoint { /* 0x50 bytes */
-    f32 pos[3];      /* 0x0 */
-    f32 normal[3];   /* 0xC */
-    s32 radius;      /* 0x18 */
-    s16 flags;       /* 0x1C */
-    s16 time[2];     /* 0x1E */
-    s16 pathPts[20]; /* 0x22 */
-    f32 distToNext;  /* 0x4C */
+    f32 pos[3];      /* 0x0 the gate's centre */
+    f32 normal[3];   /* 0xC the direction a car crosses it in */
+    s32 radius;      /* 0x18 the gate's radius, squared (compared with dx * dx + dz * dz) */
+    s16 flags;       /* 0x1C CP_FLAG_FINISH, CP_FLAG_START, CP_FLAG_LOOP */
+    s16 time[2];     /* 0x1E seconds the drone paths take from here to the next checkpoint: [0] on the first lap
+                      * (from the start), [1] on the others (CalcCheckpointTimes) */
+    union {
+        s16 pathPts[20];         /* 0x22 where each path crosses this gate (SyncCheckpointsToPaths): */
+        struct {
+            s16 resPathPt;       /* 0x22 pathPts[0]: the point of the resurrection path gResPath */
+            s16 dronePathPt[4];  /* 0x24 pathPts[1 + n]: the point of drone path n (gDronePaths[n]) */
+            s16 altPathPt[15];   /* 0x2C pathPts[5 + n]: the point of alternative path n (gResPath.alt[n]), -1 none */
+        };
+    };
+    f32 distToNext;  /* 0x4C the resurrection path's length from here to the next checkpoint (FindPathDistances) */
 } tCheckpoint;
+
+/* tCheckpoint.flags */
+#define CP_FLAG_FINISH 1 /* the finish line: gCheckpoints.finishPt */
+#define CP_FLAG_START 2  /* the starting grid's checkpoint: gCheckpoints.startPt */
+#define CP_FLAG_LOOP 4   /* where a lap begins once the first one is done: gCheckpoints.loopPt */
 
 /* ---- memory: the heap, the asset wads and waves, lists and trees */
 
@@ -1303,22 +1320,53 @@ typedef struct tStatList { /* 0x28 bytes */
 
 /* ---- track: tracks, the road tree, targets, paths and checkpoints */
 
-typedef struct DronePathPoint { /* 0x10 bytes */
-    u16 count;                /* 0x0 */
-    u16 other2;               /* 0x2 */
-    struct PathPoint *points; /* 0x8 */
-} DronePathPoint;
+/* A point of a drone path (MAT3 anon_pos_mph_8): where the computer cars drive, and how fast. */
+typedef struct DronePathPt { /* 0x8 bytes */
+    s16 pos[3]; /* 0x0 */
+    u8 mph;     /* 0x6 the speed to drive at here (CalcCheckpointTimes: mph * 1.4666667 is feet a second) */
+    s8 hints;   /* 0x7 driving hints for the drones here */
+} DronePathPt;
+
+/* A drone path (MAT3 anon_numPts_pts_8, gDronePaths[4]): a loop of points round the track that the computer cars
+ * follow (maxpath.c), read from the track's path file (ReadPathData). Host layout: pts is a host pointer. */
+typedef struct DronePath { /* 0x10 bytes */
+    u16 numPts;       /* 0x0 */
+    u16 pad02;        /* 0x2 the path file's padding, copied with numPts (ReadPathData) */
+    DronePathPt *pts; /* 0x8 */
+} DronePath;
+
+/* An alternative path (MAT3 anon_resurrect_firstPath_10, gResPath.alt[] = gAltPaths): a branch of the resurrection
+ * path, a shortcut or a second route, whose ends join the main path or another branch (SyncAltPaths links them). On
+ * the PC ReadPathData keeps them in a host array of its own (pts is a host pointer). */
+typedef struct AltPath { /* 0x18 bytes */
+    u8 resurrect;    /* 0x0 0 a branch no car is put back on (a respawn point on it is traced on to the path it
+                      * joins: FindResPt); ALT_PATH_RESURRECT one cars may be put back on (its points count in the
+                      * track's bounds, CalcResPathBounds); ALT_PATH_ALONE one joined to nothing (SyncAltPaths) */
+    s8 firstPath;    /* 0x1 the path its first point joins: an alternative path, or -1 the main path */
+    u16 firstIdx;    /* 0x2 the point of firstPath it joins there */
+    s8 lastPath;     /* 0x4 the path its last point joins */
+    u16 lastIdx;     /* 0x6 the point of lastPath it joins there */
+    s8 startSection; /* 0x8 the checkpoint section it starts in (TraceToCheckpoint), -1 none */
+    u16 numPts;      /* 0xA */
+    s16 (*pts)[3];   /* 0x10 */
+} AltPath;
+
+/* AltPath.resurrect */
+#define ALT_PATH_RESURRECT 1
+#define ALT_PATH_ALONE 2
 
 typedef struct MineSlots { /* 0x28 bytes */
     struct Target *target[4]; /* 0x0 */
     s32 count;                /* 0x20 */
 } MineSlots;
 
+/* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
+ * is put back on (resurrect.c) and that measures the cars' progress (maxpath.c), with its branches. Host layout. */
 typedef struct ResurrectPath { /* 0x20 bytes */
-    u16 numPoints;         /* 0x0 */
-    struct PathPt *points; /* 0x8 */
-    u8 numNodes;           /* 0x10 */
-    void *nodes;           /* 0x18 */
+    u16 numPts;    /* 0x0 the main path's points */
+    s16 (*pts)[3]; /* 0x8 = gResPathPtList */
+    u8 numAlt;     /* 0x10 */
+    AltPath *alt;  /* 0x18 = gAltPaths, NULL when there are none */
 } ResurrectPath;
 
 typedef struct TargInfo { /* 0x40 bytes */

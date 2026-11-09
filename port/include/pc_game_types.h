@@ -291,17 +291,20 @@ struct pc_visual {
     void (*func)(void *, short);
 };
 
-/* The drone's path state inside the car record (maxpath's Nav, SetDroneResPathIndex's Region): no pointers, the same layout
- * on both. Code takes its address (&PC_CAR_NAV(i)) and reads it in its own view. */
+/* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
+ * no pointers, the same layout on both. Code takes its address (&PC_CAR_NAV(i)). */
 struct pc_car_nav {
-    float a, b, c, d;                   /* +0x00 */
-    float spd;                          /* +0x10 the target speed */
-    float tgt[3];                       /* +0x14 the target point */
-    float tm;                           /* +0x20 the model time it was set */
-    short pt;                           /* +0x24 the point on the path */
-    short flag;                         /* +0x26 */
-    short sel;                          /* +0x28 the path (Region's path) */
-    short tk;                           /* +0x2A */
+    float xrel;                         /* +0x00 how far along the current stretch of drone path the car is */
+    float yrel;                         /* +0x04 how far to the side of it */
+    float cyrel;                        /* +0x08 the side offset of the point after next, from the stretch */
+    float len;                          /* +0x0C the stretch's length */
+    float tgtspd;                       /* +0x10 the target speed, feet a second */
+    float tgtpos[3];                    /* +0x14 the target point, then the steering direction */
+    float interval_time;                /* +0x20 the model time the car reached this stretch */
+    short idx;                          /* +0x24 the stretch's first point on the path */
+    short newIdx;                       /* +0x26 a point to jump to, -1 none */
+    short path;                         /* +0x28 the drone path followed (gDronePaths) */
+    short basePath;                     /* +0x2A the drone path the car started on, which it prefers */
 };
 
 struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS(n) */

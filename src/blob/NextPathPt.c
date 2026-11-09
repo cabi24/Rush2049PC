@@ -1,18 +1,13 @@
+/* NextPathPt: the next point along a drone path (MAT3 pathcommon.c). */
 #include "game/game.h"
 
-VIEW(u16, gDronePaths);
-#define gDronePaths gDronePaths_view
-
-VIEW(s32, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-
-/* PC: gDronePaths is native (ReadPathData), 16 bytes a path. */
-#define DRONE_PATH_SIZE 16
-s16 NextPathPt(s16 arg0, s16 arg1)
+/* Returns the point after point `idx` of drone path `path`. After the path's last point comes the point where it
+ * crosses the checkpoint a lap starts from (gCheckpoints.loopPt), so the path loops without its run-up from the
+ * starting grid. */
+s16 NextPathPt(s16 idx, s16 path)
 {
-  if ((arg0 + 1) == (*((u16 *) (((u8 *) (&gDronePaths)) + (arg1 * DRONE_PATH_SIZE)))))
-  {
-    return *((s16 *) (((u8 *) (((*((s16 *) (((s8 *) (&gCheckpoints)) + 2))) * 0x50) + ((u8 *) ((0, &gCheckpoints))))) + (arg1 * 2) + 0x30));
-  }
-  return (s16) ((arg0 & 0xFFFFFFFFu) + 1);
+    if (idx + 1 == gDronePaths[path].numPts) {
+        return gCheckpoints.points[gCheckpoints.loopPt].dronePathPt[path];
+    }
+    return idx + 1;
 }

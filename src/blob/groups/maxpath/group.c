@@ -1,172 +1,154 @@
+/* maxpath: the drones' driving along the drone paths (MAT3 maxpath.c): which stretch of which path a drone is on,
+ * the speed and the point it aims for, steering round the other cars, and the steer, gas and brake that come of it.
+ * MaxPathControls runs for each drone on the model thread every step. The drone's state is its car record's
+ * maxpath control (MAT3 mpctl, the PC's pc_car.nav). */
 #include "game/game.h"
 
-typedef struct ModelRecord {
+/* The model record (MAT3 tModelData): the fields maxpath reads and sets. */
+typedef struct tModelData {
     u8 pad0[0x220];
-    f32 vx; /* 0x220 */
-    f32 vy; /* 0x224 */
-    f32 vz; /* 0x228 */
-    f32 x22C; /* 0x22C */
-    f32 y230; /* 0x230 */
-    f32 z234; /* 0x234 */
+    f32 rwv[3];             /* 0x220 the velocity, feet a second */
+    f32 rwr[3];             /* 0x22C the position */
     u8 pad238[0x1B8];
-    f32 speed; /* 0x3F0 */
+    f32 magvel;             /* 0x3F0 the speed */
     u8 pad3F4[0x94];
-    s8 b488; /* 0x488 */
+    s8 slipflag0;           /* 0x488 tires[0].slipflag: the front tyres' surface flags (40 below: no gas, no brake) */
     u8 pad489[0x5B];
-    s8 b4E4; /* 0x4E4 */
+    s8 slipflag1;           /* 0x4E4 tires[1].slipflag */
     u8 pad4E5[0x14F];
-    f32 f634; /* 0x634 */
-    f32 f638; /* 0x638 */
+    f32 dt;                 /* 0x634 the model step, seconds */
+    f32 idt;                /* 0x638 its inverse, 0 while paused */
     u8 pad63C[0x4];
-    s8 b640; /* 0x640 */
+    s8 crashflag;           /* 0x640 */
     u8 pad641[0x83];
-    s16 s6C4; /* 0x6C4 */
+    s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back on the road */
     u8 pad6C6[0x6];
-    s8 b6CC; /* 0x6CC */
+    s8 autoAbort;           /* 0x6CC resurrect.autoAbort */
     u8 pad6CD[0x43];
-    s32 lastTick; /* 0x710 */
-    f32 tickTime; /* 0x714 */
-    f32 dt; /* 0x718 */
+    s32 modelIteration;     /* 0x710 fastin.modelIteration */
+    f32 modelTime;          /* 0x714 fastin.modelTime */
+    f32 fastDt;             /* 0x718 fastin.dt */
     u8 pad71C[0x4];
-    f32 f720; /* 0x720 */
+    f32 wheel;              /* 0x720 mainin.wheel: the steer */
     u8 pad724[0x4];
-    f32 f728; /* 0x728 */
-    f32 f72C; /* 0x72C */
+    f32 brake;              /* 0x728 mainin.brake */
+    f32 throttle;           /* 0x72C mainin.throttle */
     u8 pad730[0x2];
-    s8 b732; /* 0x732 */
+    s8 abort;               /* 0x732 mainin.abort */
     u8 pad733[0x55];
-    f32 vel[3]; /* 0x788 */
-    f32 pos[3]; /* 0x794 */
-    u8 pad7A0[0x26];
-    s16 unk7C6; /* 0x7C6 */
+    f32 reckon_rwv[3];      /* 0x788 reckon.rwv: the dead-reckoned velocity */
+    f32 reckon_rwr[3];      /* 0x794 reckon.rwr: the dead-reckoned position */
+    f32 reckon_uvs[3][3];   /* 0x7A0 reckon.uvs: the dead-reckoned orientation */
+    u8 pad7C4[0x2];
+    s16 slot;               /* 0x7C6 the car slot */
     u8 pad7C8[0x2];
-    s16 s7CA; /* 0x7CA */
-    s8 b7CC; /* 0x7CC */
+    s16 we_control;         /* 0x7CA this machine drives it */
+    s8 drone_type;          /* 0x7CC 1 a drone, 2 a human */
     u8 pad7CD[0x11];
-    s8 b7DE; /* 0x7DE */
+    s8 can_we_cheat;        /* 0x7DE */
     u8 pad7DF[0x1];
-    s16 s7E0; /* 0x7E0 */
-    s16 unk7E2; /* 0x7E2 */
+    s16 please_abort_me;    /* 0x7E0 the drone is stuck: put it back on the road (DetectDroneAbort) */
+    s16 last_cp_index;      /* 0x7E2 the last checkpoint it passed */
     u8 pad7E4[0x8];
-    f32 f7EC; /* 0x7EC */
+    f32 drone_scale;        /* 0x7EC its speed scale (the catch-up) */
     u8 pad7F0[0x18];
-} ModelRecord;
-typedef struct Nav {
-    f32 a;                  /* 0x00 */
-    f32 b;                  /* 0x04 */
-    f32 c;                  /* 0x08 */
-    f32 d;                  /* 0x0C */
-    f32 spd;                /* 0x10 */
-    f32 tgt[3];             /* 0x14 */
-    f32 tm;                 /* 0x20 */
-    s16 pt;                 /* 0x24 */
-    s16 flag;               /* 0x26 */
-    s16 sel;                /* 0x28 */
-    s16 tk;                 /* 0x2A */
-} Nav;
-typedef struct {
-    /* 0x00 */ u8 pad0[2];
-    /* 0x02 */ s16 last;       /* valid in element 0 */
-    /* 0x04 */ u8 pad4[4];
-    /* 0x08 */ s16 count;      /* valid in element 0 */
-    /* 0x0A */ u8 padA[0x30 - 0xA];
-    /* 0x30 */ s16 start[16];
-} Section;                     /* 0x50 */
-typedef struct { /* 0x0 */ s16 x, y, z; /* 0x6 */ u8 flag; /* 0x7 */ u8 pad7; } TrackPt;
-typedef struct { /* 0x0 */ u16 numPoints; /* 0x2 */ u16 pad2; /* 0x4 */ TrackPt *points; } Track;
-
-VIEW(Section[], gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-VIEW(Track[], gDronePaths);
-#define gDronePaths gDronePaths_view
+} tModelData;
 
 extern f32 sqrtf(f32), fabsf(f32);
-#pragma intrinsic(sqrtf, fabsf)
 
-s16 FindClosestDronePathPtEfficiently(s16 *pos, s16 prev, s16 ptIdx, s16 row, s16 cur) {
-    Section *ent;
-    s16 d;
-    s16 diff;
-    s16 win;
-    s16 best;
+/* Returns the point of drone path `path` nearest `pos`, searching only round where a car at point `lastIdx` of
+ * drone path `lastPath` would be: the same distance past checkpoint `lastCP` (its last one) on the other path, give
+ * or take the difference in the two paths' lengths over that checkpoint's stretch (at least 5 points). */
+s16 FindClosestDronePathPtEfficiently(s16 *pos, s16 lastPath, s16 lastIdx, s16 lastCP, s16 path) {
+    tCheckpoint *cp;
+    s16 offset;
+    s16 delta;
+    s16 window;
+    s16 closest;
     s32 idx;
-    s32 k;
-    f32 bestd;
+    s32 i;
+    f32 min;
     f32 dx, dy, dz, dist;
-    TrackPt *pt;
+    DronePathPt *pt;
 
-    ent = &gCheckpoints[row];
-    d = ent->start[cur] - ent->start[prev];
-    if (row + 1 == gCheckpoints[0].count) {
-        diff = (gDronePaths[cur].numPoints - gDronePaths[prev].numPoints) - d;
+    cp = &gCheckpoints.points[lastCP];
+    offset = cp->dronePathPt[path] - cp->dronePathPt[lastPath];
+    if (lastCP + 1 == gCheckpoints.numPoints) {
+        delta = (gDronePaths[path].numPts - gDronePaths[lastPath].numPts) - offset;
     } else {
-        diff = (ent[1].start[cur] - ent[1].start[prev]) - d;
+        delta = (cp[1].dronePathPt[path] - cp[1].dronePathPt[lastPath]) - offset;
     }
-    if (diff < 0) {
-        diff = -diff;
+    if (delta < 0) {
+        delta = -delta;
     }
-    bestd = 1e20f;
-    best = 0;
-    if (diff < 5) {
-        win = 5;
+    min = 1e20f;
+    closest = 0;
+    if (delta < 5) {
+        window = 5;
     } else {
-        win = diff;
+        window = delta;
     }
-    idx = ptIdx + d - win;
+    idx = lastIdx + offset - window;
     while (idx < 0) {
-        idx += gDronePaths[cur].numPoints;
+        idx += gDronePaths[path].numPts;
     }
-    while (idx >= gDronePaths[cur].numPoints) {
-        idx -= gDronePaths[cur].numPoints;
+    while (idx >= gDronePaths[path].numPts) {
+        idx -= gDronePaths[path].numPts;
     }
-    win = win * 2 + 1;
-    k = 0; if (win > 0) for (;;) {
-        pt = &gDronePaths[cur].points[idx];
-        dx = (f32) (pt->x - pos[0]);
-        dy = (f32) (pt->y - pos[1]);
-        dz = (f32) (pt->z - pos[2]);
+    window = window * 2 + 1;
+    for (i = 0; i < window; i++) {
+        pt = &gDronePaths[path].pts[idx];
+        dx = (f32) (pt->pos[0] - pos[0]);
+        dy = (f32) (pt->pos[1] - pos[1]);
+        dz = (f32) (pt->pos[2] - pos[2]);
         dist = dx * dx + dy * dy + dz * dz;
-        if (dist < bestd) {
-            bestd = dist;
-            best = idx;
+        if (dist < min) {
+            min = dist;
+            closest = idx;
         }
-        if (idx == gDronePaths[cur].numPoints - 1) {
-            idx = gCheckpoints[gCheckpoints[0].last].start[cur];
+        if (idx == gDronePaths[path].numPts - 1) {
+            idx = gCheckpoints.points[gCheckpoints.loopPt].dronePathPt[path];
         } else {
             idx++;
         }
-        if (++k == win) break;
     }
-    return best;
+    return closest;
 }
 
-/* arcade mp_interval_pos; inlined, the retail 2-word stub remains */
-void IntervalPos(ModelRecord *m, Nav *cp) {
-    TrackPt *mp;
-    TrackPt *nmp;
+/* Measures where model `m` is against the stretch of drone path it is on (from point cp->idx to the next):
+ * cp->len the stretch's length, cp->xrel how far along it the car is and cp->yrel how far to the side (both in x
+ * and z), and cp->cyrel how far to the side of the stretch's line the point after next lies (the bend ahead). */
+void IntervalPos(tModelData *m, struct pc_car_nav *cp) {
+    DronePathPt *mp;
+    DronePathPt *nmp;
     s16 nmpi;
     f32 x;
     f32 y;
     f32 invdist;
     f32 n[2];
 
-    mp = &gDronePaths[cp->sel].points[cp->pt];
-    nmpi = NextPathPt(cp->pt, cp->sel);
-    nmp = &gDronePaths[cp->sel].points[nmpi];
-    n[0] = nmp->x - mp->x;
-    n[1] = nmp->z - mp->z;
-    cp->d = TB_Vector2Normalize(n);
-    invdist = (cp->d > 0.01f) ? 1.0f / cp->d : 0.0f;
-    x = m->x22C - mp->x;
-    y = m->z234 - mp->z;
-    cp->a = (y * n[1]) + (n[0] * x);
-    cp->b = (x * n[1]) - (n[0] * y);
-    nmpi = NextPathPt(nmpi, cp->sel);
-    nmp = &gDronePaths[cp->sel].points[nmpi];
-    cp->c = ((nmp->x - mp->x) * n[1]) - (n[0] * (nmp->z - mp->z));
+    mp = &gDronePaths[cp->path].pts[cp->idx];
+    nmpi = NextPathPt(cp->idx, cp->path);
+    nmp = &gDronePaths[cp->path].pts[nmpi];
+    n[0] = nmp->pos[0] - mp->pos[0];
+    n[1] = nmp->pos[2] - mp->pos[2];
+    cp->len = TB_Vector2Normalize(n);
+    invdist = (cp->len > 0.01f) ? 1.0f / cp->len : 0.0f;
+    x = m->rwr[0] - mp->pos[0];
+    y = m->rwr[2] - mp->pos[2];
+    cp->xrel = (y * n[1]) + (n[0] * x);
+    cp->yrel = (x * n[1]) - (n[0] * y);
+    nmpi = NextPathPt(nmpi, cp->path);
+    nmp = &gDronePaths[cp->path].pts[nmpi];
+    cp->cyrel = ((nmp->pos[0] - mp->pos[0]) * n[1]) - (n[0] * (nmp->pos[2] - mp->pos[2]));
 }
 
-void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
+/* IntervalPos, first taking a pending jump's time (cp->newIdx) and, with `change_flag`, maybe moving the drone to
+ * another drone path. One drone at a time looks (current_drone goes round the drones this machine drives, at most
+ * every half second): each of the four paths' nearest points (FindClosestDronePathPtEfficiently) is scored for
+ * being within 20 feet and on the path's line, for its speed being near the car's, for being the drone's own path
+ * (basePath), and for heading the way the car goes; the drone takes the best one's path. */
+void IntervalPosChange(tModelData *m, struct pc_car_nav *cp, s32 change_flag) {
     s16 j, high_nextmp, nnmpi, index, node, high_index;
     s32 nmpi;
     f32 x, y, z, nx, ny, score, high_score, delta_spd, mspd;
@@ -176,10 +158,10 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
     s32 i;
     s16 pp[3];
 
-    node = m->unk7C6;
-    if (cp->flag >= 0) {
-        cp->tm = gModelTime;
-        cp->flag = -1;
+    node = m->slot;
+    if (cp->newIdx >= 0) {
+        cp->interval_time = gModelTime;
+        cp->newIdx = -1;
     }
     cur_time = gModelTime;
     if (change_flag && ((cur_time - gLastPathSwitchTime) > 0.5f) &&
@@ -194,16 +176,16 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
         }
         gLastPathSwitchTime = cur_time;
 
-        xpos = m->pos[0];
-        ypos = m->pos[2];
+        xpos = m->reckon_rwr[0];
+        ypos = m->reckon_rwr[2];
 
         high_score = 0.0f;
         high_index = -1;
         high_nextmp = 0;
 
-        x = m->vx;
-        y = m->vz;
-        z = m->vy;
+        x = m->rwv[0];
+        y = m->rwv[2];
+        z = m->rwv[1];
         xy_speed = (x * x) + (y * y);
         speed = (z * z) + xy_speed;
 
@@ -221,18 +203,18 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
             score = 0.0f;
             index = i;
 
-            pp[0] = m->pos[0];
-            pp[1] = m->pos[1];
-            pp[2] = m->pos[2];
-            nmpi = FindClosestDronePathPtEfficiently(pp, cp->sel, cp->pt, m->unk7E2, index);
+            pp[0] = m->reckon_rwr[0];
+            pp[1] = m->reckon_rwr[1];
+            pp[2] = m->reckon_rwr[2];
+            nmpi = FindClosestDronePathPtEfficiently(pp, cp->path, cp->idx, m->last_cp_index, index);
 
-            y1 = gDronePaths[i].points[nmpi].z;
-            x1 = gDronePaths[i].points[nmpi].x;
+            y1 = gDronePaths[i].pts[nmpi].pos[2];
+            x1 = gDronePaths[i].pts[nmpi].pos[0];
 
             nnmpi = NextPathPt(nmpi, index);
 
-            y2 = gDronePaths[i].points[nnmpi].z;
-            x2 = gDronePaths[i].points[nnmpi].x;
+            y2 = gDronePaths[i].pts[nnmpi].pos[2];
+            x2 = gDronePaths[i].pts[nnmpi].pos[0];
 
             dy = y1 - ypos;
             dx = x1 - xpos;
@@ -256,14 +238,17 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
                 }
             }
 
-            mspd = gDronePaths[i].points[nmpi].flag * 1.4666667f;
+            /* Original game: `speed` is the square of the car's speed, so the difference of squares is measured
+             * against a speed (50 mph in feet a second); the term only scores speeds within a few mph of the
+             * path's. MAT3 has it so too. */
+            mspd = gDronePaths[i].pts[nmpi].mph * 1.4666667f;
             delta_spd = fabsf(speed - (mspd * mspd));
 
             if (delta_spd < (50.0f * (5280.0f / 3600.0f))) {
                 score += (1 - (delta_spd / (50.0f * (5280.0f / 3600.0f)))) * 0.5f;
             }
 
-            if (i == cp->tk) {
+            if (i == cp->basePath) {
                 score += 1.0f;
             }
 
@@ -289,11 +274,11 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
             }
         }
 
-        if ((high_index != -1) && (high_index != cp->sel)) {
-            cp->pt = high_nextmp;
-            cp->tm = cur_time;
-            cp->flag = -1;
-            cp->sel = high_index;
+        if ((high_index != -1) && (high_index != cp->path)) {
+            cp->idx = high_nextmp;
+            cp->interval_time = cur_time;
+            cp->newIdx = -1;
+            cp->path = high_index;
         }
     }
 
@@ -304,7 +289,12 @@ void IntervalPosChange(ModelRecord *m, Nav *cp, s32 change_flag) {
 #define vecsub(a, b, c) { (c)[0] = (a)[0] - (b)[0]; (c)[1] = (a)[1] - (b)[1]; (c)[2] = (a)[2] - (b)[2]; }
 #define scalmul(a, s, b) { (b)[0] = (a)[0] * (s); (b)[1] = (a)[1] * (s); (b)[2] = (a)[2] * (s); }
 
-/* arcade avoid_areas */
+/* Turns the drone in slot `drone_index`'s target point (cp->tgtpos) into the direction to steer, in the car's own
+ * frame (BodyVector), slowing (cp->tgtspd) and edging aside for cars close ahead and for moving targets
+ * (TargetPathAvoid). A stopped or paused drone aims straight on at 100 feet a second; one going under half the
+ * path's speed aims gently at 1.5 times it; a target behind or far to the side is aimed at as it is. The drone path
+ * point's hint picks how the new direction blends with the last (pc_mp_dir) and the one before (pc_mp_save_dir).
+ * can_we_cheat goes off when a human is near (within 60 feet across, 200 along). */
 void AvoidAreas(s16 drone_index) {
     s16 i, index, hint, can_we_cheat;
     f32 dist, scale, scale1, scale2, tmp2;
@@ -312,32 +302,32 @@ void AvoidAreas(s16 drone_index) {
     f32 pos[3], tpos[3], own_rwr[3], dir[3], temp[3];
     f32 dir_list[6][3], dir_weight[6];
     f32 cur_rate[3], save_dir[3];
-    Nav *cp;
-    ModelRecord *m;
+    struct pc_car_nav *cp;
+    tModelData *m;
 
     m = PC_MODEL(drone_index);
     cp = &PC_CAR_NAV(drone_index);
 
-    veccopy(cp->tgt, tpos);
+    veccopy(cp->tgtpos, tpos);
 
-    vecsub(tpos, m->pos, pos);
-    BodyVector(pos, rpos, (f32 *) ((u8 *) m + 0x7A0));
+    vecsub(tpos, m->reckon_rwr, pos);
+    BodyVector(pos, rpos, (f32 *) m->reckon_uvs);
 
-    if ((m->f638 ==  0.f ) || (m->speed < .1f)) {
+    if ((m->idt ==  0.f ) || (m->magvel < .1f)) {
         PC_MODEL_CAN_CHEAT(drone_index) = 0;
         rpos[0] =  0.0f ;
-        cp->spd = 100.0f;
-        veccopy(rpos, cp->tgt);
+        cp->tgtspd = 100.0f;
+        veccopy(rpos, cp->tgtpos);
         for (i = 0; i < 3; i++) {
             PC_MP_DIR(drone_index)[i] =  0.0f ;
         }
         return;
     }
 
-    if (m->speed < (f32) (u32) gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f * .5f) {
+    if (m->magvel < (f32) (u32) gDronePaths[cp->path].pts[cp->idx].mph * 1.4666667f * .5f) {
         rpos[0] *= .2f;
-        cp->spd = (f32) (u32) gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f * 1.5f;
-        veccopy(rpos, cp->tgt);
+        cp->tgtspd = (f32) (u32) gDronePaths[cp->path].pts[cp->idx].mph * 1.4666667f * 1.5f;
+        veccopy(rpos, cp->tgtpos);
         for (i = 0; i < 3; i++) {
             PC_MP_DIR(drone_index)[i] = 0;
         }
@@ -346,7 +336,7 @@ void AvoidAreas(s16 drone_index) {
     }
 
     if (rpos[2] < fabsf(rpos[0] + rpos[0])) {
-        veccopy(rpos, cp->tgt);
+        veccopy(rpos, cp->tgtpos);
         for (i = 0; i < 3; i++) {
             PC_MP_DIR(drone_index)[i] = 0;
         }
@@ -355,7 +345,7 @@ void AvoidAreas(s16 drone_index) {
     }
 
     dist = vector_magnitude(rpos);
-    scale = m->speed * m->f634 / dist;
+    scale = m->magvel * m->dt / dist;
     scalmul(rpos, scale, dir);
     veccopy(dir, save_dir);
 
@@ -371,14 +361,14 @@ void AvoidAreas(s16 drone_index) {
         }
         m = PC_MODEL(index);
 
-        vecsub(m->pos, own_rwr, pos);
-        BodyVector(pos, rpos, (f32 *) ((u8 *) PC_MODEL(drone_index) + 0x7A0));
+        vecsub(m->reckon_rwr, own_rwr, pos);
+        BodyVector(pos, rpos, (f32 *) ((tModelData *) PC_MODEL(drone_index))->reckon_uvs);
 
         dist = rpos[0] * rpos[0] + rpos[2] * rpos[2];
         if (dist > 90000.0f) {
             continue;
         }
-        if (m->b7CC == 2) {
+        if (m->drone_type == 2) {
             if (fabsf(rpos[0]) < 60 && fabsf(rpos[2]) < 200) {
                 can_we_cheat = 0;
             }
@@ -416,23 +406,23 @@ void AvoidAreas(s16 drone_index) {
         }
     }
 
-    hint = ((s8 *) &gDronePaths[cp->sel].points[cp->pt])[7];
+    hint = gDronePaths[cp->path].pts[cp->idx].hints;
 
     if (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0) {
         dir[0] = 0;
-        cp->spd *= 1.0f - (1.0f - scale1) * .3f;
-    } else if (hint == 5 || m->s6C4 >= 0) {
+        cp->tgtspd *= 1.0f - (1.0f - scale1) * .3f;
+    } else if (hint == 5 || m->moving_state >= 0) {
         dir[0] *= .4f;
     } else if (hint == 2 || (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0)) {
         veccopy(save_dir, dir);
-        cp->spd *= 1.0f - (1.0f - scale1) * .3f;
+        cp->tgtspd *= 1.0f - (1.0f - scale1) * .3f;
     } else if (hint == 1) {
         if (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0) {
             veccopy(save_dir, dir);
         } else {
             dir[0] = save_dir[0] * .15f + PC_MP_DIR(drone_index)[0] * .85f;
         }
-        cp->spd *= 1.0f - (1.0f - scale1) * .1f;
+        cp->tgtspd *= 1.0f - (1.0f - scale1) * .1f;
     } else if (hint == 3) {
         dir[0] = save_dir[0] - PC_MP_SAVE_DIR(drone_index)[0];
         veccopy(PC_MP_SAVE_DIR(drone_index), save_dir);
@@ -444,7 +434,7 @@ void AvoidAreas(s16 drone_index) {
 
     PC_MODEL_CAN_CHEAT(drone_index) = can_we_cheat;
 
-    veccopy(dir, cp->tgt);
+    veccopy(dir, cp->tgtpos);
 
     veccopy(dir, PC_MP_DIR(drone_index));
 
@@ -453,65 +443,71 @@ void AvoidAreas(s16 drone_index) {
 
 #define range_it(v,l,h)		( ((v) < (l)) ? (l) : (((v) > (h)) ? (h) : (v)) )
 
-/* arcade MaxPathControls; defined before its helpers as in maxpath.c */
-void MaxPathControls(ModelRecord *m)
+/* One step of a drone's driving, on the model thread: finds its stretch of drone path (FindInterval), its target
+ * speed (TargetSpeed) and point (TargetSteerPos), steers round the others (AvoidAreas), and sets its gas, brake and
+ * steer (AdjustSpeed, AdjustSteer). The target speed goes up downhill and has a floor uphill by the gravity setting,
+ * and is scaled by the drone's catch-up scale. A drone more than a second on one stretch (past point 10) or more
+ * than 100 feet off its path asks to be put back on the road (please_abort_me). */
+void MaxPathControls(tModelData *m)
 {
     f32 tspd;
-    Nav *cp;
+    struct pc_car_nav *cp;
 
-    cp = &PC_CAR_NAV(m->unk7C6);
+    cp = &PC_CAR_NAV(m->slot);
     FindInterval(m, cp);
     TargetSpeed(m, cp);
     TargetSteerPos(m, cp);
 
-    AvoidAreas(m->unk7C6);
+    AvoidAreas(m->slot);
 
-    tspd = cp->spd;
-    if (m->vy <  0.0f ) {
+    tspd = cp->tgtspd;
+    if (m->rwv[1] <  0.0f ) {
         tspd *= gravitySpeedIncrease[gGravityScale];
     } else if (tspd < gravitySpeedMin[gGravityScale]) {
         tspd = gravitySpeedMin[gGravityScale];
     }
-    tspd *= m->f7EC;
+    tspd *= m->drone_scale;
 
     AdjustSpeed(m, tspd);
-    AdjustSteer(m, cp->tgt);
+    AdjustSteer(m, cp->tgtpos);
 
-    m->s7E0 = (gModelTime - cp->tm > 1.0f) && (cp->pt > 10);
+    m->please_abort_me = (gModelTime - cp->interval_time > 1.0f) && (cp->idx > 10);
 
-    if (fabsf(cp->a) > 100.0f || fabsf(cp->b) > 100.0f) {
-        m->s7E0 = 1;
+    if (fabsf(cp->xrel) > 100.0f || fabsf(cp->yrel) > 100.0f) {
+        m->please_abort_me = 1;
     }
 }
 
-/* arcade MP_FindInterval; inlined, the retail 2-word stub remains */
-void FindInterval(ModelRecord *m, Nav *cp)
+/* Finds the stretch of drone path model `m` is on: IntervalPosChange, then a step on to the next stretch once the
+ * car is past this one's end (its time taken), or back to the previous one if it is behind its start. */
+void FindInterval(tModelData *m, struct pc_car_nav *cp)
 {
     IntervalPosChange(m, cp, 1);
-    if (cp->a >= cp->d) {
-        cp->pt = NextPathPt(cp->pt, cp->sel);
-        cp->tm = gModelTime;
+    if (cp->xrel >= cp->len) {
+        cp->idx = NextPathPt(cp->idx, cp->path);
+        cp->interval_time = gModelTime;
         IntervalPosChange(m, cp, 0);
-    } else if (cp->a < 0.0f) {
-        cp->pt = PrevPathPt(cp->pt, cp->sel);
+    } else if (cp->xrel < 0.0f) {
+        cp->idx = PrevPathPt(cp->idx, cp->path);
         IntervalPosChange(m, cp, 0);
     }
 }
 
-/* arcade unload_extra_overlay; inlined, the retail 2-word stub remains */
-void TargetSpeed(ModelRecord *m, Nav *cp)
+/* Sets the target speed (cp->tgtspd, feet a second): the path's speeds at the stretch's two points, interpolated by
+ * how far along it the car is, cut the further the car is to the side (to a fifth at 80 feet), and at least 28. */
+void TargetSpeed(tModelData *m, struct pc_car_nav *cp)
 {
-    TrackPt *mp, *nmp;
+    DronePathPt *mp, *nmp;
     s32 nmpi;
     f32 fraction, yrel, offsc;
 
-    nmpi = NextPathPt(cp->pt, cp->sel);
+    nmpi = NextPathPt(cp->idx, cp->path);
 
-    fraction = cp->a / cp->d;
+    fraction = cp->xrel / cp->len;
     fraction = range_it(fraction, 0.0f, 1.0f);
-    cp->spd = (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f + ((f32)(u32)gDronePaths[cp->sel].points[nmpi].flag * 1.4666667f - (f32)(u32)gDronePaths[cp->sel].points[cp->pt].flag * 1.4666667f) * fraction;
+    cp->tgtspd = (f32)(u32)gDronePaths[cp->path].pts[cp->idx].mph * 1.4666667f + ((f32)(u32)gDronePaths[cp->path].pts[nmpi].mph * 1.4666667f - (f32)(u32)gDronePaths[cp->path].pts[cp->idx].mph * 1.4666667f) * fraction;
 
-    yrel = (cp->b > 0.0f) ? cp->b : -cp->b;
+    yrel = (cp->yrel > 0.0f) ? cp->yrel : -cp->yrel;
     if (yrel < 0.1f) {
         offsc = 1.0f;
     } else if (yrel > 80.0f) {
@@ -519,34 +515,35 @@ void TargetSpeed(ModelRecord *m, Nav *cp)
     } else {
         offsc = 1.0f - (yrel * yrel * 0.00003125f);
     }
-    cp->spd *= offsc;
-    if (cp->spd < 28.0f) {
-        cp->spd = 28;
+    cp->tgtspd *= offsc;
+    if (cp->tgtspd < 28.0f) {
+        cp->tgtspd = 28;
     }
 }
 
-/* arcade AudioPlayEffectInternal; inlined, the retail 2-word stub remains */
-void TargetSteerPos(ModelRecord *m, Nav *cp)
+/* Sets the target point (cp->tgtpos): 80 feet ahead of the car along the drone path. A stretch of zero length
+ * shows a message on the screen (target_steer_zero_dist_message), a leftover of the arcade's debugging. */
+void TargetSteerPos(tModelData *m, struct pc_car_nav *cp)
 {
-    TrackPt *mp, *nmp;
+    DronePathPt *mp, *nmp;
     s16 nmpi;
     f32 x, y, z, dist, tgtdist, fraction;
 
-    mp = &gDronePaths[cp->sel].points[cp->pt];
-    nmpi = NextPathPt(cp->pt, cp->sel);
-    nmp = &gDronePaths[cp->sel].points[nmpi];
+    mp = &gDronePaths[cp->path].pts[cp->idx];
+    nmpi = NextPathPt(cp->idx, cp->path);
+    nmp = &gDronePaths[cp->path].pts[nmpi];
 
-    tgtdist = 80.0f + cp->a;
-    dist = cp->d;
+    tgtdist = 80.0f + cp->xrel;
+    dist = cp->len;
     tgtdist -= dist;
     while (tgtdist > 0.0f) {
         mp = nmp;
-        nmpi = NextPathPt(nmpi, cp->sel);
-        nmp = &gDronePaths[cp->sel].points[nmpi];
+        nmpi = NextPathPt(nmpi, cp->path);
+        nmp = &gDronePaths[cp->path].pts[nmpi];
 
-        x = nmp->x - mp->x;
-        y = nmp->y - mp->y;
-        z = nmp->z - mp->z;
+        x = nmp->pos[0] - mp->pos[0];
+        y = nmp->pos[1] - mp->pos[1];
+        z = nmp->pos[2] - mp->pos[2];
         dist = sqrtf(x * x + y * y + z * z);
         tgtdist -= dist;
     }
@@ -560,28 +557,30 @@ void TargetSteerPos(ModelRecord *m, Nav *cp)
     }
     fraction = range_it(fraction, 0.0f, 1.0f);
 
-    cp->tgt[0] = (nmp->x - mp->x) * fraction + mp->x;
-    cp->tgt[1] = (nmp->y - mp->y) * fraction + mp->y;
-    cp->tgt[2] = (nmp->z - mp->z) * fraction + mp->z;
+    cp->tgtpos[0] = (nmp->pos[0] - mp->pos[0]) * fraction + mp->pos[0];
+    cp->tgtpos[1] = (nmp->pos[1] - mp->pos[1]) * fraction + mp->pos[1];
+    cp->tgtpos[2] = (nmp->pos[2] - mp->pos[2]) * fraction + mp->pos[2];
 }
 
-/* arcade AdjustSpeed; inlined, the retail 2-word stub remains */
-void AdjustSpeed(ModelRecord *m, f32 tspd)
+/* Sets model `m`'s gas and brake to make its speed `tspd` (and 5% more): the gas follows the speed shortfall
+ * (an excess counts half), the brake comes on once the gas would be below -0.75; both 0 to 1, kept per slot
+ * (pc_mp_gas, pc_mp_brake). On the two lowest gravity settings a front tyre's slip flag 40 cuts both. */
+void AdjustSpeed(tModelData *m, f32 tspd)
 {
     s32 i, slip, spddir, node, cur_time;
     f32 x, y, z, dspd, delta_speed;
 
-    node = m->unk7C6;
+    node = m->slot;
 
     tspd *= 1.05f;
 
-    if ((gGravityScale < 2) && ((m->b488 == 40) || (m->b4E4 == 40))) {
+    if ((gGravityScale < 2) && ((m->slipflag0 == 40) || (m->slipflag1 == 40))) {
         PC_MP_BRAKE(node) = 0;
         PC_MP_GAS(node) = 0;
     } else {
-        x = m->vx;
-        y = m->vy;
-        z = m->vz;
+        x = m->rwv[0];
+        y = m->rwv[1];
+        z = m->rwv[2];
         dspd = sqrtf(x * x + y * y + z * z);
 
         delta_speed = tspd - dspd;
@@ -611,25 +610,26 @@ void AdjustSpeed(ModelRecord *m, f32 tspd)
         PC_MP_BRAKE(node) = 1.0f;
     }
 
-    m->f72C = PC_MP_GAS(node);
-    m->f728 = PC_MP_BRAKE(node);
+    m->throttle = PC_MP_GAS(node);
+    m->brake = PC_MP_BRAKE(node);
 }
 
-/* arcade PS_PurgeFile; inlined, the retail 2-word stub remains */
-void AdjustSteer(ModelRecord *m, f32 *pos)
+/* Sets model `m`'s steer (pc_mp_steer, and the model's wheel) from the direction to steer, `pos`, in the car's
+ * frame: its angle off straight ahead, 1 full one way to -1 the other, the sideways part first scaled by the step. */
+void AdjustSteer(tModelData *m, f32 *pos)
 {
     s32 node;
     f32 angle;
 
-    node = m->unk7C6;
+    node = m->slot;
 
-    pos[0] *= m->f634 * 108.43373f;
+    pos[0] *= m->dt * 108.43373f;
 
     angle = fatan2(pos[2], pos[0]);
 
     angle = range_it(angle, 0, 3.1415927f);
 
     PC_MP_STEER(node) = 1.0f - angle * 0.63661975f;
-    m->f720 = PC_MP_STEER(node);
+    m->wheel = PC_MP_STEER(node);
 }
 

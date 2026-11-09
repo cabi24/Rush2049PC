@@ -1,48 +1,35 @@
+/* ReadCheckpointData: the track's checkpoints from its path file (MAT3 pathcommon.c). */
 #include "game/game.h"
 
-typedef struct Track80 {
-    unsigned char prefix[28];
-    s16 flags;
-    s16 timer_a;
-    s16 timer_b;
-    s16 cells[20];
-    unsigned char tail[6];
-} Track80;
-typedef struct Track812 {
-    s16 limit;
-    s16 selected_a;
-    s16 selected_b;
-    s16 selected_c;
-    s16 count;
-    s16 reserved;
-    Track80 tracks[10];
-} Track812;
-VIEW(Track812, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
+extern void *memcpy(void *, const void *, unsigned int);
 
-extern void *memcpy(void *,const void *,unsigned int);
+/* Copies the checkpoints from the start of the track's path file (gPathWave, already in host byte order:
+ * port/assets/path.c) into gCheckpoints, finds the finish line, the starting grid's checkpoint and the lap's first
+ * checkpoint by their flags (checkpoint 0 for any the file doesn't flag), clears the paths' crossing points
+ * (SyncCheckpointsToPaths finds them) and gives every stretch 45 seconds (CalcCheckpointTimes works them out) and the
+ * race 90. */
 void ReadCheckpointData(void)
 {
-    s16 i,j;
-    memcpy(&gCheckpoints,gPathWave,812);
-    gCheckpoints.selected_c=-1;
-    gCheckpoints.selected_a=gCheckpoints.selected_c;
-    gCheckpoints.selected_b=gCheckpoints.selected_a;
-    gCheckpoints.limit=90;
-    for(i=0;i<gCheckpoints.count;i++) {
-        /* The original executes this three-iteration no-write loop. */
-        for(j=0;j<3;j++) {}
-        if(gCheckpoints.selected_b<0 && (gCheckpoints.tracks[i].flags&1))
-            gCheckpoints.selected_b=i;
-        if(gCheckpoints.selected_a<0 && (gCheckpoints.tracks[i].flags&4))
-            gCheckpoints.selected_a=i;
-        if(gCheckpoints.selected_c<0 && (gCheckpoints.tracks[i].flags&2))
-            gCheckpoints.selected_c=i;
-        for(j=0;j<20;j++) gCheckpoints.tracks[i].cells[j]=0;
-        gCheckpoints.tracks[i].timer_b=45;
-        gCheckpoints.tracks[i].timer_a=gCheckpoints.tracks[i].timer_b;
+    s16 i, j;
+    memcpy(&gCheckpoints, gPathWave, sizeof(gCheckpoints));
+    gCheckpoints.startPt = -1;
+    gCheckpoints.loopPt = gCheckpoints.startPt;
+    gCheckpoints.finishPt = gCheckpoints.loopPt;
+    gCheckpoints.startTime = 90;
+    for (i = 0; i < gCheckpoints.numPoints; i++) {
+        /* MAT3 byte-swaps the gate's position and normal here; the N64's swap is nothing, its loop is left */
+        for (j = 0; j < 3; j++) {}
+        if (gCheckpoints.finishPt < 0 && (gCheckpoints.points[i].flags & CP_FLAG_FINISH))
+            gCheckpoints.finishPt = i;
+        if (gCheckpoints.loopPt < 0 && (gCheckpoints.points[i].flags & CP_FLAG_LOOP))
+            gCheckpoints.loopPt = i;
+        if (gCheckpoints.startPt < 0 && (gCheckpoints.points[i].flags & CP_FLAG_START))
+            gCheckpoints.startPt = i;
+        for (j = 0; j < 20; j++) gCheckpoints.points[i].pathPts[j] = 0;
+        gCheckpoints.points[i].time[1] = 45;
+        gCheckpoints.points[i].time[0] = gCheckpoints.points[i].time[1];
     }
-    if(gCheckpoints.selected_b<0)gCheckpoints.selected_b=0;
-    if(gCheckpoints.selected_a<0)gCheckpoints.selected_a=0;
-    if(gCheckpoints.selected_c<0)gCheckpoints.selected_c=0;
+    if (gCheckpoints.finishPt < 0) gCheckpoints.finishPt = 0;
+    if (gCheckpoints.loopPt < 0) gCheckpoints.loopPt = 0;
+    if (gCheckpoints.startPt < 0) gCheckpoints.startPt = 0;
 }
