@@ -20,8 +20,8 @@ static void activate_listener(tSfxListener *listener) {
     listener->active = 1;
 }
 
-/* Adds a listener at pos moving with dir, looking along look with up, and returns it (the caller keeps it, as a
- * window address, in its player record: StartListeners); -1 when the sound manager has no listeners
+/* Adds a listener at pos moving with dir, looking along look with up, and returns it (the caller keeps its number
+ * in gListeners in its player record: StartListeners); -1 when the sound manager has no listeners
  * (AudInit3D). */
 tSfxListener *AudAddListener(Vec3 *pos,Vec3 *dir,Vec3 *look,Vec3 *up) {
     tSfxListener *listener;
