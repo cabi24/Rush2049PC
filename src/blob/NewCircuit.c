@@ -42,7 +42,7 @@ VIEW(s32, gSeconds);
 VIEW(s32[4], gCircuitDiff);
 #define gCircuitDiff gCircuitDiff_view[0]
 
-void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
+void PS_WriteFile(void **fileh, uintptr_t data, s32 size);
 
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #define INPUT_SIZE 80  /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);

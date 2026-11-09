@@ -53,9 +53,9 @@ extern tTarget *CollisionTargetPtrs[];
 VIEW(u16, gObjList);
 #define gObjList gObjList_view
 
-void AudUpdateEmitter(s32 arg0, intptr_t arg1, intptr_t arg2, f32 arg3, f32 arg4);
+void AudUpdateEmitter(s32 tag, intptr_t pos, intptr_t dir, f32 maxVol, f32 pitch);
 
-s32 AudEmitEffect(void *arg0, intptr_t arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9);
+s32 AudEmitEffect(void *pos, intptr_t dir, f32 fade, f32 a, f32 b, f32 c, s32 id, s32 slot, s32 replace, s32 vol);
 
 struct pc_visual *GrabEnvEntry(void);
 

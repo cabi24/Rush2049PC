@@ -170,8 +170,6 @@ extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2);
 
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
-#pragma intrinsic(sqrtf)
-#pragma intrinsic(fabsf)
 
 extern ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);
 

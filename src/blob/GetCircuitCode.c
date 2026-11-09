@@ -23,7 +23,7 @@ typedef struct
 VIEW(SavedPlayerSlot **, gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
-void GetPasswordString(intptr_t arg0);
+void GetPasswordString(intptr_t code);
 
 /* PC: an input record (gPlayers) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10), and
  * SaveSlot.data is at the profile record's PC offset (pc_prelude.h, POINTERS.md 9.10). */

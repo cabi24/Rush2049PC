@@ -19,7 +19,7 @@ VIEW(tCamera[], gCamera);
 VIEW(V3[], cur_acc);
 #define cur_acc cur_acc_view
 
-void point_at_car(void *arg0, intptr_t arg1, intptr_t arg2, f32 *arg3);
+void point_at_car(void *car, intptr_t pos, intptr_t uvs, f32 *offset);
 
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;

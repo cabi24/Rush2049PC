@@ -169,8 +169,8 @@ void AnimateWeapon(Visual *v, s16 op)
     RGBA clr2 = { { 0, 255, 0, 255 } };
     UVMat *mat;
     f32 off[3];
-    s32 pad1;   /* unused: retail frame */
-    s32 pad2;   /* unused: retail frame */
+    s32 pad1;   /* unused (the N64 code's) */
+    s32 pad2;   /* unused (the N64 code's) */
 
     if (!op || PC_MODEL_CRASHFLAG(v->slot)) {
         if (gCurWeaponType[v->slot] == 1)

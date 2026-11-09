@@ -23,7 +23,7 @@ static DemoBlit *demo_blit = 0;
 VIEW(struct pc_multiblit[1], demo_multiblit);
 #define demo_multiblit demo_multiblit_view
 
-DemoBlit *NewMultiBlit(s16 arg0, s16 arg1, void *arg2, s16 arg3);
+DemoBlit *NewMultiBlit(s16 x, s16 y, void *def, s16 count);
 void RemoveBlit(DemoBlit *sound);
 
 s32 CountdownTimeOut(void);

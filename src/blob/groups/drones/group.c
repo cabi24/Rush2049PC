@@ -1,8 +1,8 @@
-#include "game/game.h"
-
 /* The drones' catch-up (MAT3 drones.c, model.c's SetCatchup): each frame every drone this machine drives gets a
  * speed scale (drone_scale) and a boost (time_boost) by how it stands against the humans. The code keeps the arcade
  * game's style (its types, game_car, FoundCoin); RecordGhost and RecordPractice are folded in. */
+#include "game/game.h"
+
 float fabsf(float);
 
 typedef signed char S8;

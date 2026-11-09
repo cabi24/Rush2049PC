@@ -8,7 +8,7 @@ typedef struct Object { u8 other0[248]; s16 mph; u8 other250[0x110 - 0xFA]; stru
 VIEW(PcRespawn *[], trackSpots);
 #define trackSpots trackSpots_view
 
-extern s32 CameraCollision(void *arg0, void *arg1);
+extern s32 CameraCollision(void *ipos, void *lookat);
 
 /* Sets car `object`'s track camera (view 6, fix_camera_in_space) on drone path 0 a little ahead of the car (5
  * points, more the faster it goes): at the track's first camera spot within 200 feet of there (trackSpots, which
