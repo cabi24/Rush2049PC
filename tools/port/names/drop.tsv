@@ -1712,3 +1712,7 @@ wingOffsets_y	blob	0x8011B4B8: interior label, &wingOffsets[0][1]: the C reads w
 wingOffsets_y	ovl_a	0x8011B4B8: interior label, &wingOffsets[0][1]: the C reads wingOffsets[type][1] (wave 2)
 wingOffsets_y	ovl_b	0x8011B4B8: interior label, &wingOffsets[0][1]: the C reads wingOffsets[type][1] (wave 2)
 wingOffsets_y	symbol_addrs	0x8011B4B8: interior label, &wingOffsets[0][1]: the C reads wingOffsets[type][1] (wave 2) (its line of symbol_addrs.us.txt)
+resultPane4	blob	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c)
+resultPane4	ovl_a	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c)
+resultPane4	ovl_b	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c)
+resultPane4	symbol_addrs	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c) (its line of symbol_addrs.us.txt)

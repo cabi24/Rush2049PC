@@ -14,8 +14,9 @@ VIEW(intptr_t[], resultPane);
 VIEW(RecordRow[], gPlayerCoin);
 #define gPlayerCoin gPlayerCoin_view
 
-/* Removes the HUD ShowHUD made: the panes, the HUD's multiblit (HudBlit1) and each window's result pane and coin
- * objects, the second multiblit (HudBlit2), and in battle and stunt races the extras (RemoveHUDExtra). */
+/* Removes the HUD ShowHUD made: the panes, the HUD's multiblit (HudBlit1), each window's result pane and coin
+ * objects and the middle result pane (resultPane[4]), the second multiblit (HudBlit2), and in battle and stunt races
+ * the extras (RemoveHUDExtra). */
 void RemoveHUD(void) {
     s32 i;
     s32 id;
@@ -48,7 +49,7 @@ void RemoveHUD(void) {
                 row++;
             } while (i < gNumWindows);
         }
-        resultPane4 = 0;
+        resultPane[4] = 0;
     }
     if (HudBlit2 != 0) {
         RemoveBlit(HudBlit2);

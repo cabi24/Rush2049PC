@@ -5128,7 +5128,6 @@ multiPlayerBlit = 0x801541A4; // type:data renamed
 gPlayerCoin = 0x801541A8; // type:data renamed
 gDemoPathPt = 0x80154348; // type:data renamed
 resultPane = 0x80154350; // type:data renamed
-resultPane4 = 0x80154360; // type:data renamed
 countdown_poly = 0x80154368; // type:data renamed
 rumble_queue = 0x80154378; // type:data renamed
 resurrectTime = 0x80154390; // type:data renamed
