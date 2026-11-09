@@ -274,9 +274,10 @@ own copies and other spellings to it).
   `magvel`, `lap` its `laps`.
 - **The scene** emits N64 display lists (libultra's gbi.h macros, F3DEX2, s15.16 `Mtx`, viewports in quarter
   pixels) that port/gfx interprets; the wad records (TXHD, PLHD, OBHD) keep the N64 layout with window addresses
-  (`texBase`, `palBase`, `displayList`); `gMatrices` and `pc_matrix_spill` are in the window; the texture loads and
-  the models' display lists stay big-endian (`pc_be32_get`/`set`); `FindChunk` walks the N64-layout heap; the sky's
-  matrices and the world table hold window addresses; `car_palettes`' data is a window address.
+  (`texBase`, `palBase`, `displayList`); `gMatrices` is in the window (`pc_matrix_spill`, the spill past it, is PC
+  storage); the texture loads and the models' display lists stay big-endian (`pc_be32_get`/`set`); `FindChunk` walks
+  the N64-layout heap; the world table holds window addresses (the sky's matrices are pointers since
+  [NATIVE.md](../port/NATIVE.md) step 4); `car_palettes`' data is a window address.
 - **The pools** keep their N64 element order with pointer-sized links (the StatLL headers' 40-byte host layout; the
   puffs, skids and streaks are larger than on the N64); scene handles are `s32` whose low half is the node (read
   through an endian-aware union, ENDIAN.md).

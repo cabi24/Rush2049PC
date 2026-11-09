@@ -147,10 +147,10 @@ was to be looked at:
 
 **Record pointers kept in game structs.** The scene nodes (`ZOID_SetTexture`, `AnimateFlag`'s palette), the
 blits and the sprite list now keep texture and palette pointers whole, in one host layout (POINTERS.md 9). Left:
-- **Overlay B's health palettes** `healthPal` have a palette record's shape but point at game data (`healthColor`,
-  `healthColor`). The arenas are now at their N64 addresses in the window ([DATA.md](DATA.md) §3), so a u32 field
-  can hold that address, and the records can take the PLHD N64 layout like the car palettes. Their own declaration
-  still has the host layout (own storage, `data` a pointer), which works too.
+- **Overlay B's health palettes** `healthPal` have a palette record's shape but point at game data (`healthColor`).
+  Since [NATIVE.md](NATIVE.md) step 4 they and the track select's fog palette `n64FogPal` are `tBlitPalette`
+  records (own storage, `palBase` a pointer), which the blit draw reads as such; the WAD's PLHD records keep the N64
+  layout until step 7.
 
 ## Text bank, font data, world, road and paths (2026-10-27)
 

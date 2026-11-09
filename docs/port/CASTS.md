@@ -23,7 +23,8 @@ Of the 331 before:
 | records agent (the input records, the level-object nodes) | 5 | 5 |
 | unknown: needs the ROM | 1 | 1 |
 
-The 6 fewer are the fixed sites; `SkyUpdate`'s 2 stay, as correct zero extensions of a u32. No
+The 6 fewer are the fixed sites; `SkyUpdate`'s 2 stay, as correct zero extensions of a u32 (gone since
+[NATIVE.md](NATIVE.md) step 4: `skyMatrices` holds pointers). No
 harmless warning was silenced: the N64-world casts say what the code does (POINTERS.md 4.1), and the neutral
 rewrite, `(u32)` to `(uintptr_t)`, would only move the truncation into an implicit conversion.
 

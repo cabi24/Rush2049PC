@@ -11,7 +11,7 @@
  * the N64 leaves the new matrix as it is. */
 void SkyInit(void)
 {
-  s32 i; s32 *dst; s32 handle; void *matrix;
+  s32 i; struct tUVMatrix **dst; s32 handle; struct tUVMatrix *matrix;
   if (PC_SKY_FOG(gFogIntensity) > 0) {
     SkyClear();
     return;
@@ -26,7 +26,7 @@ void SkyInit(void)
   for (i = 0; i < (s16) gNumWindows; i++) {
     handle = MBOX_FindObject_WORK(sky_object_name, 0, gNumModels[0] - 1, 1);
     matrix = ZOID_NewMatrix();
-    *dst = PC_N64A(matrix);
+    *dst = matrix;   /* a pointer (the N64 kept its 32-bit address) */
     ZOID_AddObject(handle, matrix, -1, (((s16) (1 << i)) << 8) ^ 0xF00);
     dst++;
   }

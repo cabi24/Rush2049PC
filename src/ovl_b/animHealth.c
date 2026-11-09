@@ -4,9 +4,6 @@
 #define HEALTH_FULL 800.0f   /* a car's health at its best */
 #define HEALTH_FRAME 0       /* animID's low nibble: the bar's frame; else the bar */
 
-
-#define PAL_BASE(p) PC_N64W(p)
-
 /* The health bar of player animID >> 4 at healthPos: the frame (drawn with the alpha threshold), or the bar, as long
  * as the health left, in a colour from green through yellow to red (written into the player's palette, healthPal).
  * Past the players it is hidden and stops animating. Returns 1. */
@@ -52,7 +49,7 @@ int animHealth(tBlit *blt)
             healthColor[slot][0][0] = 224; healthColor[slot][0][1] = 0; healthColor[slot][0][2] = 0;
             healthColor[slot][1][0] = 112; healthColor[slot][1][1] = 0; healthColor[slot][1][2] = 0;
         }
-        healthPal[slot].palBase = PAL_BASE((char *)healthColor[slot]);
+        healthPal[slot].palBase = (u8 *)healthColor[slot];   /* a pointer (the N64 kept a 32-bit address) */
         blt->palette = &healthPal[slot];
     }
     UpdateBlit(blt);

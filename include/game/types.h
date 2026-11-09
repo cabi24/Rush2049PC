@@ -2443,6 +2443,8 @@ typedef struct tBattleCoin { /* 0x34 bytes */
     UVMatrixRows mat; /* 0x4 */
 } tBattleCoin;
 
+/* A palette definition (MAT3 anon_name_start_18): a model file's PLHD record, which MBOX_FindPalette_WORK finds by
+ * name. It keeps the N64 layout (port/assets/wad.c): palBase, its colours, is a 32-bit RDRAM-window address. */
 typedef struct tPalette { /* 0x18 bytes */
     char name[16]; /* 0x0 */
     u8 start;      /* 0x10 */
@@ -2450,6 +2452,19 @@ typedef struct tPalette { /* 0x18 bytes */
     u16 format;    /* 0x12 */
     u32 palBase;   /* 0x14 */
 } tPalette;
+
+/* A palette the game fills in itself for a textured blit (tBlit.palette): the battle HUD's health bars (healthPal) and
+ * the track select's fog (n64FogPal). MAT3 makes them tPalette records too; on the PC palBase is a pointer, where the
+ * N64 kept the colours' 32-bit address (as the PC did, through the RDRAM window, until docs/port/NATIVE.md step 4).
+ * The blit draw (ZOID_EndFrame) reads only palBase: for these blits' intensity textures, the primitive colour
+ * (palBase[0..3]) and the environment colour (palBase[4..7]) (BlitColors). */
+typedef struct tBlitPalette { /* 0x20 bytes (0x18 on the N64) */
+    char name[16]; /* 0x0  unused */
+    u8 start;      /* 0x10 unused */
+    u8 end;        /* 0x11 unused */
+    u16 format;    /* 0x12 unused */
+    u8 *palBase;   /* 0x18 the colours */
+} tBlitPalette;
 
 typedef struct tStuntCoin { /* 0x48 bytes */
     s16 type;         /* 0x0 */

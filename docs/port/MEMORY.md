@@ -9,7 +9,7 @@ shown, what the game does with the room, what a later "mods" feature can rely on
 
 | Piece | Where |
 |---|---|
-| The window's size, its views, `pc_n64_ptr`, `osVirtualToPhysical` | `port/ultra/memory.c` (`pc_mem_set_size`, `pc_rdram_size`) |
+| The window's size, its views, `pc_n64_ptr` | `port/ultra/memory.c` (`pc_mem_set_size`, `pc_rdram_size`) |
 | The rule past 16 MiB, the display lists' relocation | `port/ultra/rcpaddr.c` (`pc_rdram_k0_high`, `pc_rcp_reloc`) |
 | osMemSize | `port/ultra/misc.c` (`pc_os_set_mem_size`) |
 | The heap's high-water marks, the exit line, the test floor | `port/ultra/heap.c` |
@@ -84,7 +84,7 @@ can be met when the window is 8 MiB):
 
 | Site | The N64's rule | Past 16 MiB on the PC |
 |---|---|---|
-| `osVirtualToPhysical` (`memory.c:216-228`): the colour and depth images (`StartGraphics.c:177-186`, `ClearScreen.c:92`) | `addr & 0x1FFFFFFF` | the K0 address |
+| (`osVirtualToPhysical`: the colour and depth images, `StartGraphics.c`, `ClearScreen.c`. Gone since [NATIVE.md](NATIVE.md) step 4: the game gives the renderer the buffers' pointers) | `addr & 0x1FFFFFFF` | (was the K0 address) |
 | `relocate_model_dl.c:107, 111, 129, 134` (SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches) | `((w1 + base) & 0xFFFFFF) \| segment` | `pc_rcp_reloc` (`rcpaddr.c:29-39`): the K0 address of `w1 + base` when the segment is 0 |
 | `relocate_texture_loads.c:42, 47` (the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | the same, `pc_rcp_reloc` |
 | `display_list_traverse.c:33, 52` (the mirror pass and the game's other walks of ROM lists: a G_DL or BRANCH_Z target) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | a K0 address past 16 MiB is not segmented (`SEGMENTED`, `pc_rdram_k0_high`) |
@@ -188,8 +188,8 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 |---|---|
 | `frontend.memory` | `game.memory`: the default `original`, 16-256 each set and read back (16, 17, 32, 64, 100, 128, 255, 256), 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set`, the file written and read back, a bad line skipped, the warning only for `expansion_pak = off` with a size |
 | `frontend.menu.live`, `frontend.menu.pages` | the Game page's Memory: original to 64 and 256, wrapping, Defaults; About's Memory row |
-| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize, `osVirtualToPhysical` and `pc_rcp_reloc` below and past 16 MiB (and at 8 MiB, `ultra_selftest`: the N64's rules) |
-| `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (an N64-form list, its matrix, vertices, a segment's base and a 32 x 32 texture) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set through `osVirtualToPhysical`; each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.belist` and `.textures` check the harness on the window |
+| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize, and `pc_rcp_reloc` below and past 16 MiB (`osVirtualToPhysical` too, until [NATIVE.md](NATIVE.md) step 4) (and at 8 MiB, `ultra_selftest`: the N64's rules) |
+| `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (an N64-form list, its matrix, vertices, a segment's base and a 32 x 32 texture) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set as its pointer, as the game sets it (through `osVirtualToPhysical` until [NATIVE.md](NATIVE.md) step 4); each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.belist` and `.textures` check the harness on the window |
 | `audio_window` | test_forms' scene (PCM16 big-endian, ADPCM with a big-endian book, native PCM16, the delay effect) as N64-form records and samples in that window, at the same three places and both kinds of address: every render, the state and the delay line the first's; the scene is loud enough to prove it |
 | `assets_wad_game` | the game's own WAD loader with the WAD at 0x81200000 too: `_ReadWave`, SetupWaveModel, `relocate_model_dl`, `relocate_texture_loads`, the vertex pass (`mirror_vertex_texcoords`) and `display_list_traverse`, which follows the K0 addresses to the called list and the branch and flips their windings |
 | `assets_heap` | `port/ultra/heap.c` on the game's own heap: its size, the least free as the game sums it, the allocations counted, a fallback counted; at 32 MiB with the floor at 17 MiB, the game's next blocks at 0x81100000, the runtime images' block taken and locked where `allocate_memory_at` finds it |
@@ -204,7 +204,6 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 | Fix taken out | Fails |
 |---|---|
 | `pc_n64_ptr` at 8 MiB | `gfx.window.highmem` (no RAM at 0x81200000), `audio_window` |
-| `osVirtualToPhysical` physical past 16 MiB | `gfx.window.highmem` (its check of the RCP's addresses; the picture itself is saved by the renderer's rule) |
 | the renderer's physical rule | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
 | `pc_rcp_reloc` with the N64's 24 bits | `assets_wad_game`: the relocated VTX, G_DL and SETTIMG words 16 MiB low |
 | `display_list_traverse`'s N64 segment test | `assets_wad_game`: the called list's and the branch's windings not flipped |
@@ -254,7 +253,7 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 |---|---|---|
 | `memory.c:52-64, 88-99, 134-168` | the window's size, its two views (memfd; the Windows section; the fallback), the LSan root | follows `game.memory` |
 | `memory.c:186-206` | `pc_n64_ptr`, `pc_n64_addr` | follow the window's size |
-| `memory.c:216-234` | `osVirtualToPhysical`, `osPhysicalToVirtual` | K0 past 16 MiB (section 3); the inverse takes a physical address in the window |
+| (`memory.c`) | `osVirtualToPhysical`, `osPhysicalToVirtual` | gone since [NATIVE.md](NATIVE.md) step 4 (no caller: the images are pointers); were K0 past 16 MiB (section 3) |
 | `misc.c:59-84` | osMemSize | `original`: 8 or 4 MiB; a size: the window's |
 | `misc.c` `__osTLBLookup` | `vaddr & 0x1FFFFFFF` | no caller in the PC build |
 | `pi.c:127-129` | `rom_offset`: a device address 0x10000000-0x1FBFFFFF is the cartridge | device addresses, not RAM: right |

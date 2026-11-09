@@ -1,12 +1,12 @@
 /* port/assets/tests/test_casts.c: game code that held host pointers in 32-bit integers, run on host pointers
  * (docs/port/CASTS.md): the blast matrix table InitBlast fills, the environment visual walk
- * UpdateEnvirons, the camera matrix SkyUpdate reads from a window address, and the
+ * UpdateEnvirons, the camera matrix SkyUpdate moves through a pointer, and the
  * high-score name table gTotalNames with each player's name slot gThisPlayer, whose slots hold a name index or a
  * profile handle (InitRecords, FindTempNameIdx, RemovePlayerScores and its caller ClearPlayerRecords,
  * RankScores), the ghost allocator _NewGhost (NewGhost), the audio manager's walk of its sound requests
  * (AudioSfxServer), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is
- * above 4 GB, as the game's own storage is; the parts with window data (the camera matrix, the sound requests) map
- * the RDRAM window and are skipped if it can't be.
+ * above 4 GB, as the game's own storage is; the part with window data (the sound requests) maps the RDRAM window
+ * and is skipped if it can't be.
  * game: src/blob/InitBlast.c src/blob/UpdateEnvirons.c src/blob/SkyUpdate.c
  * game: src/blob/InitRecords.c src/blob/FindTempNameIdx.c src/blob/RemovePlayerScores.c
  * game: src/blob/ClearPlayerRecords.c src/blob/groups/highscore_rank/RankScores.c
@@ -113,29 +113,25 @@ static void test_visuals(void)
 
 void SkyUpdate(int32_t arg0);
 
-TEST_ABS(skyMatrices);                     /* each window's matrix, a u32 window address (game arena) */
-TEST_ABS(gCamera);                         /* Camera[], 0x98 bytes each (game arena) */
-#define MTX_AT TEST_SCRATCH                /* a matrix of ZOID_NewMatrix's pool, in the window */
+/* Each window's sky matrix: a pointer since 2026-11-09 (docs/port/NATIVE.md step 4); the N64 kept a 32-bit address,
+ * which SkyUpdate once read through an s32 (sign-extended) and then a u32 into the RDRAM window. */
+void *skyMatrices[4];
+uint8_t gCamera[4][0x98] __attribute__((aligned(16)));   /* Camera[], 0x98 bytes each: its position at +0x24 */
 
 static void test_camera_matrix(void)
 {
-    uint8_t *w = test_rdram();
-    float *cam, *mtx;
+    static float mtx[12];   /* a matrix of ZOID_NewMatrix's pool: host storage */
+    float *cam = (float *)gCamera[2];
 
-    if (!w) {
-        fprintf(stderr, "test_casts: the RDRAM window can't be mapped here: camera matrix part skipped\n");
-        return;
-    }
-    mtx = (float *)(uintptr_t)MTX_AT;
-    cam = (float *)(TEST_AT(gCamera) + 2 * 0x98);
-    memset(mtx, 0, 0x40);
-    ((uint32_t *)TEST_AT(skyMatrices))[2] = MTX_AT;
+    CHECK(HIGH(mtx));
+    skyMatrices[2] = mtx;
     cam[0x24 / 4] = 3.5f;
     cam[0x2C / 4] = -2.0f;
     SkyUpdate(2);
     CHECK(mtx[0x24 / 4] == 3.5f);
     CHECK(mtx[0x2C / 4] == -2.0f);
-    ((uint32_t *)TEST_AT(skyMatrices))[3] = 0;   /* no matrix: nothing happens */
+    CHECK(mtx[0x28 / 4] == 0.0f);   /* the dome keeps its height */
+    skyMatrices[3] = NULL;   /* no matrix: nothing happens */
     SkyUpdate(3);
 }
 

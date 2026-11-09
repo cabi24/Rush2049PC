@@ -95,7 +95,7 @@ const uint8_t *pcgfx_resolve(uintptr_t a) {
     seg = (a32 & N64_SEGMENT_ID_MASK) >> 24;
     /* A physical address past 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3) whose segment has no
      * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The PC gives the RCP the K0 address
-     * there (osVirtualToPhysical, the game's relocations), so this is for code that strips it itself. Outside the
+     * there (the game's display-list relocations), so this is for code that strips it itself. Outside the
      * window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never applies. */
     if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= PC_RDRAM_MAX) &&
         (p = (const uint8_t *)pc_n64_ptr(a32)) != NULL)

@@ -133,14 +133,14 @@ before and after) before the moved one runs. For speed, the prelude gets inline 
 | Silent: through `uintptr_t` to a narrower type | 5 (`FONT_SLOT`, `PACKET`, zlib's `DeallocateMemoryInternal`, `DMA_SOURCE`, hardware.c's `PC_ONLY`) | read each |
 | Silent: a pointer from an integer through `uintptr_t` | 72 in 33 files (not counting the N64P definitions; `find_best_gear.c`'s `M2C_N64P` among them) | read each: most hold a pointer already |
 | Literal addresses in live code (section 4.2) | 14 | 2 to change: `load_overlay((u8 *)0x8038A400, ..., (u8 *)0x803BB380, ...)` in `heap_release/overlay_loader.c:78, 82` (and its 3 weak copies); the rest are N64 values (`h->end = osMemSize \| 0x80000000`, `display_list_traverse`'s K0 that `DL_AT` translates) |
-| `osVirtualToPhysical`, `rcpaddr.c` | `pc_n64_addr` of the pointer, then the N64's rule; pure N64-address arithmetic | nothing |
+| `osVirtualToPhysical` (gone since [NATIVE.md](NATIVE.md) step 4), `rcpaddr.c` | `pc_n64_addr` of the pointer, then the N64's rule; pure N64-address arithmetic | nothing |
 | The heap (blocks, handles) | the allocator works in 32-bit N64 addresses: its headers keep them (`enum n64p_Block`...), its start is `(Heap *)(((u32)game_bss_end + 31) & ~31)` (`memsys/group.c:310`), its API passes `(u32)p` (POINTERS.md 4.1); handle slots are 8 bytes and hold host pointers (9.10) | the start and the `(u32)p`s translate (the explicit-cast rows); headers stay N64 addresses through N64P/N64W; handle slots stay host pointers |
 | The loader (`pc_data.c`) | arenas at their N64 addresses (`host == n64_lo`), heap values kept as they are | done in phase A behind `pc_data_set_window`: an arena is filled at the window's place for it and a kept RDRAM value is translated; phase B gives the tables `pc_window + off` and drops the hook |
 | port/assets' converted files (u32 fields holding addresses) | the game relocates in place with `+= (u32)base` (SetupWaveModel, MBSetupWad, LoadTrack); readers zero-extend (`WADP`, N64P) | `(u32)base` is the block's N64 address (explicit-cast rows: `MBSetupWad.c:33, 36`, `waves.c`); readers translate (N64P rows); `port/assets/world.c:223` and `:239` read the GTLD keys through an N64 address taken as a pointer: `pc_n64_ptr` |
 | The renderer, the audio interpreter | below 4 GiB: `pc_n64_ptr`; above: a host pointer (`gfx_rsp.c:45-90`, `musyx.c:105-117`) | nothing: W is above 4 GiB (2.1) |
 | PI DMA, inflate, LZSS (`pi.c`) | take the game's host pointer; inflate's room from `pc_n64_addr(dst)` | nothing |
 | The runtime images' arenas in the heap | the tables' hosts 0x80393B34, 0x803AF978 in the heap block at 0x8038A400 | `pc_window + off`, as every arena |
-| `reserved.txt` | `pc_matrix_spill` absolute at 0x8014A250 | relative, as the arenas |
+| `reserved.txt` | `pc_matrix_spill` absolute at 0x8014A250 (the file is empty since [NATIVE.md](NATIVE.md) step 4: the spill is PC storage) | relative, as the arenas |
 | The mods' region (`pi.c` `mods_at`) | cartridge offsets 0x04000000-0x0FC00000 | nothing: cartridge space, not RAM |
 | The controller pak and the saves | the PIF and pak files (`si.c`, `pakfs.c`, `pakstore.c`) see bytes; the game's Pfs C keeps its state in the boot arena by name; the save records hold host pointers (POINTERS.md 9.10) | nothing beyond the names (2.2) |
 | The StatLL lists' N64-flagged links (`pc_statll_link`, `pc_statll_set_link`, `pc_prelude.h:149-157`) | zero-extend and truncate | translate |
@@ -341,7 +341,7 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
 
 - **The window**: `data.c` defines `pc_window`, a `.n64window` section (`%nobits`, 64 KiB aligned, 0x10000000 bytes,
   `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names,
-  `pc_matrix_spill`, and the six names gen_stubs made absolute (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`,
+  `reserved.txt`'s items (`pc_matrix_spill` until [NATIVE.md](NATIVE.md) step 4), and the six names gen_stubs made absolute (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`,
   `overlay_base`, and the cartridge address `sample_bank_rom` at `pc_window + 0x30039B40`, past the section's end: the game
   only takes its 32-bit value, through the translation, `AudioInitSys.c:110`). Those six are `data.c`'s because a
   linker script can't make them relative: `PROVIDE(x = pc_window + off)` linked as an absolute symbol (nm `A`, the

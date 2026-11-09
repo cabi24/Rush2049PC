@@ -1,6 +1,6 @@
 /* port/ultra/rcpaddr.c: addresses past 16 MiB of a larger RDRAM window (game.memory, docs/port/MEMORY.md 3), for the
- * game's display-list relocations and its RAM tests (pc_prelude.h) and for osVirtualToPhysical (memory.c). It needs
- * only pc_rdram_size(), so the tests that build the game's relocations link it with their own window. */
+ * game's display-list relocations and its RAM tests (pc_prelude.h). It needs only pc_rdram_size(), so the tests that
+ * build the game's relocations link it with their own window. */
 #include "pc_port.h"
 
 /* The RSP takes an address below KSEG0 as segmented: bits 24-27 the segment, the low 24 bits an offset. On the

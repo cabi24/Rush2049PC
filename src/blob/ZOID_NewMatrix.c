@@ -6,9 +6,13 @@
 /* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-/* Matrix i of the pool. PC: the N64's PC_N64_MATRICES at gMatrices, then PC_MATRIX_SPILL more in pc_matrix_spill,
- * a range of the RDRAM window the PC reserves (pc_game_types.h, docs/port/MORECARS.md 8). Past those it says so
- * (pc_pool_overflow: a Debug build stops) and hands out the last one again. */
+/* The pool's matrices past the N64's PC_N64_MATRICES (pc_game_types.h, docs/port/MORECARS.md 8): PC storage. Until
+ * 2026-11-09 the PC reserved them a range of the RDRAM window, since each window's sky matrix was kept as a 32-bit
+ * address (skyMatrices, pointers since: MORECARS.md 2.7). */
+float pc_matrix_spill[PC_MATRIX_SPILL][12] __attribute__((aligned(16)));
+
+/* Matrix i of the pool. PC: the N64's PC_N64_MATRICES at gMatrices, then PC_MATRIX_SPILL more in pc_matrix_spill.
+ * Past those it says so (pc_pool_overflow: a Debug build stops) and hands out the last one again. */
 static tUVMatrix *pc_matrix_at(s32 i)
 {
   if (i < PC_N64_MATRICES)

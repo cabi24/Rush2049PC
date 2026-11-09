@@ -26,8 +26,7 @@ void osWritebackDCacheAll(void);
 /* Memory operations */
 void bzero(void *s, s32 n);
 void bcopy(const void *src, void *dst, s32 len);
-u32 osVirtualToPhysical(void *vaddr);
-void *osPhysicalToVirtual(u32 paddr);
+/* (osVirtualToPhysical and osPhysicalToVirtual: none on the PC, which gives the renderer pointers, docs/port/GFX.md) */
 
 /* Interrupt control */
 u32 __osDisableInt(void);

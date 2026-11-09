@@ -102,8 +102,9 @@ and the commit that made the rule general.)
 
 The track select faulted in its first frame, in the 2D draw's palette load, with a NULL colour table. The fog blit's
 palette is `n64FogPal`, a WAD-style Palette whose colour table the draw reads at +0x14 as a u32 window address: the
-word `n64FogPal_palBase`, which the C declared `u8 *` and so gave storage of its own outside the window. It is a u32 in the
-arena now (`FOG_TABLE`, `PC_N64W`). Test: the synthetic cartridge makes the fog (an IA texture, its option valid);
+word `n64FogPal_palBase`, which the C declared `u8 *` and so gave storage of its own outside the window. It was made
+a u32 in the arena (`FOG_TABLE`, `PC_N64W`); since [NATIVE.md](NATIVE.md) step 4 the record is a `tBlitPalette`, a
+pointer that the draw reads as one too. Test: the synthetic cartridge makes the fog (an IA texture, its option valid);
 without the fix its paths fault at the track select. (8d469cf.)
 
 ### 8. Tables only pointers reach
@@ -132,7 +133,8 @@ Test: the synthetic cartridge sets the second blits, which its generator refuses
 
 Battle mode faulted in PrePlay in the same palette load as section 7: `animHealth` points each health bar's palette
 (`healthPal`, image B) at the bar's colours, and the game C's palette type had a pointer for the colour table, 8
-bytes at +0x18 instead of the u32 at +0x14 the draw reads. It has the u32 on the PC (`PAL_BASE`). Test: the synthetic
+bytes at +0x18 instead of the u32 at +0x14 the draw reads. It had the u32 on the PC (`PAL_BASE`) until
+[NATIVE.md](NATIVE.md) step 4, which made the record and the draw agree on a pointer (`tBlitPalette`). Test: the synthetic
 battle HUD has an IA blit and player 1's health bar; without the fix the battle2p path faults. (1fb6262.)
 
 ### 11. Battle: the gear ratios

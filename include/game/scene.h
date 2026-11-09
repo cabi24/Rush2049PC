@@ -134,7 +134,9 @@ extern f32 tan_q3;
 extern f32 tan_q2;
 extern f32 tan_q1;
 extern u32 gBgColor;
-extern s32 skyMatrices[EXTENT(4)];
+/* Each window's sky dome matrix (SkyInit; SkyUpdate keeps it on the camera), NULL for none: a matrix of the
+ * persistent pool (ZOID_NewMatrix). MAT3 sky.c's tUVMatrix *skyMatrices[4]; the N64 kept them as 32-bit addresses. */
+extern struct tUVMatrix *skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
 extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;

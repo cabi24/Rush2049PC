@@ -63,7 +63,6 @@ uint32_t osSpTaskYielded(void *task);
 int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
-uint32_t osVirtualToPhysical(void *vaddr);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
  * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data loader's
@@ -413,7 +412,7 @@ static void t_memory(void)
                                           *(volatile uint8_t *)(uintptr_t)PROBE_K1 == 0x5A)),
           d);
     /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none;
-     * past 16 MiB the RCP and the display lists get K0 addresses, below it physical ones, as on the N64. */
+     * past 16 MiB the display lists' relocations keep K0 addresses, below it physical ones, as on the N64. */
     uint32_t size = pc_rdram_size(), top = PC_RDRAM_BASE + size - 1;
     uint8_t *last = pc_n64_ptr(top);
     if (last)
@@ -427,15 +426,12 @@ static void t_memory(void)
                                      (size == PC_RDRAM_SIZE || mem_size == size), d);
     uint32_t hi = RELOC_HIGH + 0x40, lo = RELOC_LOW + 0x40, lo_phys = N64_TO_PHYS(lo);
     int big = size > PC_RCP_SEGMENT_SPAN;
-    snprintf(d, sizeof d, "osVirtualToPhysical 0x%X, 0x%X; relocation 0x%X, 0x%X", osVirtualToPhysical(k0),
-             big ? osVirtualToPhysical(pc_n64_ptr(hi)) : 0u, pc_rcp_reloc(0x40, RELOC_LOW, -1),
+    snprintf(d, sizeof d, "relocation 0x%X, 0x%X", pc_rcp_reloc(0x40, RELOC_LOW, -1),
              pc_rcp_reloc(0x40, RELOC_HIGH, -1));
-    check("RCP addresses", osVirtualToPhysical(k0) == PROBE_PHYS && osVirtualToPhysical(pc_n64_ptr(lo)) == lo_phys &&
-                               pc_rcp_reloc(0x40, RELOC_LOW, -1) == lo_phys &&
+    check("RCP addresses", pc_rcp_reloc(0x40, RELOC_LOW, -1) == lo_phys &&
                                pc_rcp_reloc(0x06000040, RELOC_LOW, -1) == (0x06000000u | lo_phys) &&
                                pc_rcp_reloc(0x40, RELOC_LOW, 6) == (0x06000000u | lo_phys) &&
-                               (big ? osVirtualToPhysical(pc_n64_ptr(hi)) == hi &&
-                                          pc_rcp_reloc(0x40, RELOC_HIGH, -1) == hi &&
+                               (big ? pc_rcp_reloc(0x40, RELOC_HIGH, -1) == hi &&
                                           pc_rcp_reloc(hi - PC_RCP_SEGMENT_SPAN, PC_RCP_SEGMENT_SPAN, -1) == hi &&
                                           pc_rcp_reloc(0x40, RELOC_HIGH, 6) == 0x06000040 &&
                                           pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)

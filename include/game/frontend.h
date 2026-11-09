@@ -786,7 +786,7 @@ extern s32 carscr_gOpts[EXTENT(4)][19];
 extern f32 gStats[EXTENT(4)][4];
 extern s32 gHornSnd[EXTENT(4)];
 extern u8 trackscr_fogColor[EXTENT(8)];
-extern u8 n64FogPal[EXTENT(20)];
+extern tBlitPalette n64FogPal;   /* the fog blit's colours, trackscr_fogColor (SetFogIntensity) */
 extern SelectCarWaveSlot gSelectCarWavePtrs[EXTENT(16)];
 extern SelectCarState gSelectCar[EXTENT(52)];
 extern s32 recordscr_buttonsInited;

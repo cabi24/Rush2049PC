@@ -102,7 +102,7 @@ extern char ammo_count_format[EXTENT(64)];
 extern char battle_points_format[EXTENT(4)];
 extern char battle_point_lost_text[EXTENT(4)];
 extern char battle_point_won_text[EXTENT(540)];
-extern tPalette healthPal[EXTENT(4)];
+extern tBlitPalette healthPal[EXTENT(4)];   /* each player's health bar's colours (animHealth) */
 extern tStuntCoin stuntCoin[EXTENT(4)][10];
 extern tHudIcon weaponIcon[EXTENT(4)];
 extern tHudIcon powerupIcon[EXTENT(4)];

@@ -9,6 +9,6 @@ void SkyClear(void)
 {
   s32 i;
   for (i = 0; i < gNumWindows; i++) {
-    skyMatrices[i] = 0;
+    skyMatrices[i] = NULL;
   }
 }

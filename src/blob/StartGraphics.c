@@ -79,7 +79,6 @@ typedef struct {
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 
-u32 osVirtualToPhysical(void *);
 void osViSetSpecialFeatures(u32);
 #define OS_VI_DIVOT_ON 0x0010
 #define OS_VI_DIVOT_OFF 0x0020
@@ -106,16 +105,19 @@ void StartGraphics(void) {
     gSPSegment(frame_dl++, 0, 0);
     gSPDisplayList(frame_dl++, rsp_init_dl);
     gSPDisplayList(frame_dl++, rdp_init_dl);
-    gDPSetDepthImage(frame_dl++, osVirtualToPhysical(zbuffer));
+    /* The depth and colour images are the buffers' pointers, which the renderer draws into. The N64 gives the RDP
+     * their physical addresses (osVirtualToPhysical), as the PC did through the RDRAM window until
+     * docs/port/NATIVE.md step 4 (docs/port/GFX.md "Command formats and addresses"). */
+    gDPSetDepthImage(frame_dl++, zbuffer);
     gDPPipeSync(frame_dl++);
     gDPSetCycleType(frame_dl++, G_CYC_FILL);
-    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, osVirtualToPhysical(zbuffer));
+    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, zbuffer);
     gDPSetFillColor(frame_dl++, ZBUFFER_CLEAR);
     gDPFillRectangle(frame_dl++, 0,0,screen_width-1,screen_height-1);
     gSPSetGeometryMode(frame_dl++, G_ZBUFFER);
     color=gBgColor;
     gDPPipeSync(frame_dl++);
-    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, osVirtualToPhysical(frame->colorBuffer));
+    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, frame->colorBuffer);
     gDPSetFillColor(frame_dl++, color);
     gDPFillRectangle(frame_dl++, 0,0,screen_width-1,screen_height-1);
     switch(ZOID_SplitMenuScreen(0)) {

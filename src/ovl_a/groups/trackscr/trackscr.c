@@ -114,13 +114,6 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
 
-/* PC: the fog blit's palette n64FogPal is a Palette (gfx's draw reads its colour table palBase, at +0x14, as a u32
- * window address), which must stay in the arena at its N64 address. palBase holds the colour pair trackscr_fogColor's
- * address, a window address (FOG_TABLE). As a host pointer it had storage of its own, and the draw read a table of 0
- * (docs/port/BRINGUP.md 7). */
-typedef struct FogPalette { u8 head[0x14]; u32 palBase; } FogPalette;
-#define FOG_TABLE(p) PC_N64W(p)
-
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 
@@ -597,14 +590,14 @@ void SetFogIntensity(s32 initialize)
     }
     trackscr_fogColor[3] = gFogIntensity * 192 / 3;
     if (trackFogPoly) {
-        ((FogPalette *) n64FogPal)->palBase = FOG_TABLE(trackscr_fogColor);
+        n64FogPal.palBase = trackscr_fogColor;   /* a pointer (the N64 kept a 32-bit address) */
         trackscr_fogColor[4] = 0;
         trackscr_fogColor[5] = 0;
         trackscr_fogColor[6] = 0;
         trackscr_fogColor[7] = 0;
         trackFogPoly->Z = 0x7E00;
         trackFogPoly->Alpha = trackscr_fogColor[3];
-        trackFogPoly->Image = n64FogPal;
+        trackFogPoly->Image = &n64FogPal;
         UpdateBlit(trackFogPoly);
     }
 }

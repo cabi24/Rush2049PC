@@ -2,8 +2,8 @@
  *
  * A crossing is a place where the game or the PC layer turns a 32-bit N64 address into a host pointer, or a host
  * pointer into one: the game C's translations (PC_N64P, PC_N64A, PC_N64W, the handle slots, the StatLL lists' 32-bit
- * links), port/ultra's pc_n64_ptr and pc_n64_addr, osVirtualToPhysical, and the renderer's and the audio interpreter's
- * reads of values below 4 GiB as RDRAM addresses. Wave 3 takes them away one by one; a build with RUSH_COUNT_CROSSINGS
+ * links), port/ultra's pc_n64_ptr and pc_n64_addr, and the renderer's and the audio interpreter's reads of values below
+ * 4 GiB as RDRAM addresses. Wave 3 takes them away one by one; a build with RUSH_COUNT_CROSSINGS
  * (cmake -DRUSH_COUNT_CROSSINGS=ON) counts them, by site and by where the address points, and writes the counts at exit
  * (port/ultra/crossings.c; tools/port/crossings.py runs the synthetic paths and reports them). The same build has the
  * arena guard: RUSH2049_WINDOW_GUARD=arenas maps the game's data arenas in the RDRAM window without access, so
@@ -26,7 +26,9 @@ enum pc_cross_kind {
     PC_CROSS_STATLL_SET,     /* game C: one written (pc_statll_set_link) */
     PC_CROSS_N64_PTR,        /* by caller: pc_n64_ptr(a), an N64 address made a host pointer */
     PC_CROSS_N64_ADDR,       /* by caller: pc_n64_addr(p), a host pointer's N64 address */
-    PC_CROSS_VIRT_TO_PHYS,   /* by caller: osVirtualToPhysical(p), the colour and depth images' addresses */
+    PC_CROSS_VIRT_TO_PHYS,   /* by caller: osVirtualToPhysical(p), the colour and depth images' addresses. None since
+                              * NATIVE.md step 4, which took the function away; the kind stays so that a report
+                              * compares with the baseline (NATIVE.md 9.4) line by line */
     PC_CROSS_GFX_ROM_LIST,   /* by caller: the renderer reads an address below 4 GiB from a list in the ROM's form */
     PC_CROSS_GFX_LIST,       /* by caller: the same from a native list (one the game or the PC built) */
     PC_CROSS_AUDIO_N64PTR,   /* by caller: the audio interpreter reads an N64 address (n64ptr: an N64-form record's
