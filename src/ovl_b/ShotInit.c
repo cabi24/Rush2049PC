@@ -1,3 +1,4 @@
+/* ShotInit: the battle's weapons at a battle's start (MAT3 shots.c). */
 #include "game/game.h"
 
 typedef struct NameEntry NameEntry;
@@ -50,6 +51,8 @@ VIEW(s16[5], gRipTextures);
 typedef struct PlayerEffect { s32 handle; float transform[12]; } PlayerEffect;
 VIEW(PlayerEffect[4], gCarShield);
 #define gCarShield gCarShield_view
+/* Sets up the shots' lists (24 shots, hit polygons and shot objects, 30 cases), finds the weapons' models
+ * (WprObjNames, WfxObjNames) and the mines' and ripples' textures, turns every shield off and starts the streaks. */
 void ShotInit(void)
 {
     s32 *model;

@@ -1,3 +1,5 @@
+/* The battle's weapons on the cars (MAT3 weapons.c): the weapon a car carries, animated on it (AnimateWeapon), and
+ * the machine gun's and cannon's muzzle flashes. */
 #include "game/game.h"
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
@@ -125,7 +127,7 @@ VIEW(MuzzleObj[4], gGattMuzzleObjs);
 VIEW(CMuzzleObj[4], gCannMuzzleObjs);
 #define gCannMuzzleObjs gCannMuzzleObjs_view
 
-/* 0x8038AA14 _RemoveGattMFlash */
+/* Removes car `slot`'s machine gun flash (its five scene objects). */
 void RemoveGattMFlash(s16 slot)
 {
     s32 i;
@@ -137,7 +139,7 @@ void RemoveGattMFlash(s16 slot)
     }
 }
 
-/* 0x8038A95C _RemoveCannMFlash */
+/* Removes car `slot`'s cannon flash and its ripple. */
 void RemoveCannMFlash(s16 slot)
 {
     s32 i;
@@ -154,7 +156,8 @@ void RemoveCannMFlash(s16 slot)
     }
 }
 
-/* 0x8038AA8C AnimateWeapon */
+/* The weapon visual of a car (`v`; `op` 0 removes it): the weapon's model follows the car's weapon type (the
+ * car's frame, its offset by body), the flashes and the ripple fade, and the weapon goes when the car has none. */
 void AnimateWeapon(Visual *v, s16 op)
 {
     Car *car = PC_CAR(v->slot);

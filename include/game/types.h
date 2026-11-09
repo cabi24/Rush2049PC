@@ -1816,11 +1816,13 @@ typedef struct RGB { /* 0x3 bytes */
     u8 b; /* 0x2 */
 } RGB;
 
+/* The scorch marks on the track (MAT3 worlddam.c's DamagePolys, anon_full_oldest_68): a ring of 25 polygons, the
+ * oldest replaced once full. Host layout. */
 typedef struct RingState { /* 0xD0 bytes */
-    s8 wrapped;        /* 0x0 */
+    s8 full;           /* 0x0 all 25 used */
     u8 unknown01;      /* 0x1 */
-    u16 next;          /* 0x2 */
-    void *objects[25]; /* 0x8 */
+    u16 oldest;        /* 0x2 the next to replace */
+    void *polys[25];   /* 0x8 */
 } RingState;
 
 typedef struct Shield { /* 0x34 bytes */
@@ -1833,22 +1835,33 @@ typedef struct StuntInfo { /* 0x7C bytes */
     u8 pad[120]; /* 0x4 */
 } StuntInfo;
 
+/* A power-up on the battle arena (MAT3 tBattlePowerUpT, gBattlePowerUps.tS[]): its target. Host layout. */
+typedef struct tBattlePowerUpT { /* 0x10 bytes */
+    tTarget *t;  /* 0x0 */
+    s16 last;    /* 0x8 */
+    s16 type;    /* 0xA */
+} tBattlePowerUpT;
+
+/* The battle arena's power-ups (MAT3 tBattlePowerUps, gBattlePowerUps): how many, and the time left until each kind
+ * appears again (health, invisibility, shield). */
 typedef struct tBattlePowerUps { /* 0x18 bytes */
-    s8 count;           /* 0x0 */
-    u8 unknown_1[3];    /* 0x1 */
-    f32 delay;          /* 0x4 */
-    f32 phase_a;        /* 0x8 */
-    f32 phase_b;        /* 0xC */
-    struct Slot *slots; /* 0x10 */
+    s8 num;               /* 0x0 */
+    u8 idx[3];            /* 0x1 MAT3 hIdx, sIdx, iIdx: the power-up each kind last came at */
+    f32 healthTLeft;      /* 0x4 */
+    f32 invsTLeft;        /* 0x8 */
+    f32 shieldTLeft;      /* 0xC */
+    tBattlePowerUpT *tS;  /* 0x10 the power-ups (a heap block) */
 } tBattlePowerUps;
 
+/* A car's cannon flash (MAT3 tCMuzzleObj, gCannMuzzleObjs[4]). The data loader lays it out by this declaration, so
+ * its other members stay bytes; weapons.c reads it whole as CMuzzleObj. */
 typedef struct tCMuzzleObj { /* 0x148 bytes */
-    u8 unknown000[260]; /* 0x0 */
-    s32 handle;         /* 0x104 */
-    u8 unknown108[48];  /* 0x108 */
-    s8 selection;       /* 0x138 */
-    u8 unknown139[11];  /* 0x139 */
-    f32 timer;          /* 0x144 */
+    u8 mdls_mats[260];  /* 0x0 mdls[5] (s32), mats[5] (UVMat) */
+    s32 ripdl;          /* 0x104 the ripple's scene object, -1 none */
+    u8 mat[48];         /* 0x108 the ripple's UVMat */
+    s8 ripCnt;          /* 0x138 -1 none */
+    u8 ripTIdx_ripTime[11]; /* 0x139 ripTIdx, on, ripScale, ripTime */
+    f32 onTime;         /* 0x144 */
 } tCMuzzleObj;
 
 /* A car of a circuit (MAT3 tCircuitCar, gCircuitCars[6]: the arena holds six; the data loader knows the first):

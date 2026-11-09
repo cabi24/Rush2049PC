@@ -1,3 +1,6 @@
+/* The battle's shots (MAT3 shots.c): the guns' bullets, the missiles, the mines, the sonic blast and the shells'
+ * cases; each frame they fly, hit the track (ShotToWorldCollision) or a car, and do their damage; the cars' shields
+ * and invisibility (UpdateDefense) and the gun's aim (ElevateGun) too. */
 #include "game/game.h"
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
@@ -198,7 +201,8 @@ static s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };
  * machine gun's 12 shots a second against 10). */
 #define PC_DT30(dt) (pc_fps60 ? (pc_frame_steps ? (f32)pc_frame_steps * ((dt) / pc_frame_scale) : 0.0f) : (dt))
 
-/* 0x8038F568 ElevateGun */
+/* Turns car `car`'s gun (its yaw and pitch, 0.01 a frame) towards the nearest car of another team in a cone ahead of
+ * it within 2000 feet, or back to straight ahead. */
 void ElevateGun(Car *car)
 {
     Car *hit;
@@ -243,7 +247,10 @@ next:;
         car->battle.pitch += PC_FSCALE(0.01f);
 }
 
-/* 0x8038DA78 ShotToCarCollision */
+/* Returns the first car shot `shot` hits on its way from `old` this frame (not its own car, nor one crashed, being
+ * put back or not collidable; a car as an upright cylinder 6.75 feet round and 3.5 high), the shot moved to the hit,
+ * or NULL. A car carrying weapon 5 turns away shots that hit it from the front (shot flag 1). Mines (type 3) hit
+ * nothing here. */
 Car *ShotToCarCollision(Shot *shot, f32 *old)
 {
     Car *car;
@@ -311,7 +318,7 @@ Car *ShotToCarCollision(Shot *shot, f32 *old)
     return hit;
 }
 
-/* 0x8038D498 SonicCarCollision */
+/* The sonic blast `shot`: every other car within its growing ring is hit, pushed away and damaged once. */
 void SonicCarCollision(Shot *shot)
 {
     Car *car;
@@ -371,7 +378,7 @@ void SonicCarCollision(Shot *shot)
     }
 }
 
-/* 0x8038E088 ShotDone */
+/* Ends shot `shot`: its streak and scene objects go and it returns to the free list. */
 void ShotDone(Shot *shot)
 {
     ShotObj *o;
@@ -397,7 +404,8 @@ void ShotDone(Shot *shot)
     }
 }
 
-/* 0x8038D328 _CreateShotObject */
+/* Makes a scene object of shot model `idx` (under `parent`, with scene flags `flags`; `o2` its second object) in a
+ * new shot object of gShotObjList. Returns it, or NULL with none free. */
 ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2)
 {
     ShotObj *o;
@@ -409,7 +417,7 @@ ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2)
     return o;
 }
 
-/* 0x8038D200 _UpdateShotObject */
+/* Moves shot `shot`'s scene objects to its position and orientation (`unt`: the second object too). */
 void UpdateShotObject(Shot *shot, s32 unt)
 {
     ShotObj *o = shot->obj;
@@ -442,7 +450,8 @@ reduceScale:
         PitchUV(PC_FSCALE(0.18f), &o->mat.uvs[0][0]);
 }
 
-/* 0x8038F938 UpdateDefense */
+/* Car `car`'s (model `m`, slot `i`) defence `defense`: its shield (grown to the car's size, spun, faded out) or
+ * its invisibility (the car faded out and back) counts down and ends. */
 void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
 {
     RGBA clr = { { 255, 255, 255, 255 } };
@@ -514,7 +523,8 @@ removeShield:
     }
 }
 
-/* 0x8038E114 UpdateShots */
+/* One frame of every shot: it flies (bullets straight, missiles homing on their lock, mines falling to the road),
+ * hits the track (a scorch mark) or a car (BattleDamage, the hit's sound and sparks), or times out (ShotDone). */
 void UpdateShots(void)
 {
     s32 padx;
@@ -892,7 +902,8 @@ carHit:
     }
 }
 
-/* _InitNewShot (MAT3 static, inlined into ShotUpdate; retail keeps the deleted-procedure stub) */
+/* Fills in new shot `shot` fired by car `car`: its type, owner, time, position at the gun and velocity (MAT3
+ * _InitNewShot). */
 void InitNewShot(Shot *shot, Car *car)
 {
     shot->slotDamaged = 0;
@@ -914,7 +925,7 @@ void InitNewShot(Shot *shot, Car *car)
     CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
 }
 
-/* AnimateCase (MAT3 shots.c): inlined into ShotUpdate ShotUpdate; deleted stub 0x8038FCD8. Loop moved verbatim. */
+/* One frame of the spent shell cases: each falls and spins, and goes after its time. */
 void AnimateCase(void)
 {
     ShotCase *casing, *next;
@@ -936,7 +947,8 @@ void AnimateCase(void)
     }
 }
 
-/* 0x8038FCE0 ShotUpdate */
+/* One frame of the battle's weapons (PlayGame): each car's gun aim, its firing (a new shot of its weapon when it
+ * shoots and has ammunition, the muzzle flash and the sound), its defence; then the shots and the cases. */
 void ShotUpdate(void)
 {
     s32 i;
