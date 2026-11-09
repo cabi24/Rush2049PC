@@ -6,8 +6,6 @@
  * extents are the fields' room, not a promise of a terminator (tools/port/capacity.py has the producers' bounds). */
 typedef struct Record { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak, fileNo;
     char name[35]; char suffix[15]; u32 blocks; } Record;
-VIEW(Record **, gDeleteFile);
-#define gDeleteFile gDeleteFile_view
 
 #define TEXT_YES_NO 24              /* gText.tab[]: "yes", "no" */
 #define TEXT_DELETE_ACTION 47       /* gText.tab[]: the two lines of the delete combination's instructions */
@@ -155,8 +153,8 @@ void DrawFileDelVerify(void)
     s32 height;
     s32 y=130;
     title[0]=0;
-    TB_Strcpy(name,(*gDeleteFile)->name);
-    TB_Strcpy(suffix,(*gDeleteFile)->suffix);
+    TB_Strcpy(name,gDeleteFile->file->name);
+    TB_Strcpy(suffix,gDeleteFile->file->ext);
     if (suffix[0]) {
         TB_Strcat(name,pakscr_verify_name_separator);
         TB_Strcat(name,suffix);

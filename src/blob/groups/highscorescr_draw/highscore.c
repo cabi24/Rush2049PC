@@ -105,10 +105,9 @@ VIEW(s8[][5], gNewTotalScore);
 
 extern s32 sprintf(char *, const char *, ...);
 
-/* SaveInit' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
+/* A ghost on a pak (tGhostFile), the struct gPakGhosts points to; its link and file handle are pointer-sized on the
+ * PC (docs/port/CASTS.md). */
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
-VIEW(Ghost **, gSavedGhost);
-#define gSavedGhost gSavedGhost_view
 
 #define NAME_SEL_END (-1)           /* highscore_gNameSelect[]: the buttons under the letter grid */
 #define NAME_SEL_DELETE (-2)
@@ -259,8 +258,8 @@ void DrawGhost(void)
     TB_DrawText(TB_CenterText(str, 160), y, str);
     y += TB_GetFontLineHeight();
     gh_SetFont(2);
-    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gSavedGhost)->time / 60.0f), (s32)(*gSavedGhost)->time % 60,
-                 (s32)((*gSavedGhost)->time * 1000.0f) % 1000);
+    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gSavedGhost)->finish / 60.0f), (s32)(*gSavedGhost)->finish % 60,
+                 (s32)((*gSavedGhost)->finish * 1000.0f) % 1000);
     TB_DrawText(TB_CenterText(time, 160), y, time);
     if (gGhostMenuConflict == 1) {
         gh_SetFont(10);

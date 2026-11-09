@@ -68,8 +68,8 @@ s32 animRumbleText(Blit *blt)
     }
     if (!ok) {
         HAL_SetFont(10);
-        x = pause_gPlayerRects[0][1].x;
-        y = pause_gPlayerRects[0][1].y - TB_GetFontLineHeight() / 2;
+        x = pause_gPlayerRects[0][1].cx;
+        y = pause_gPlayerRects[0][1].cy - TB_GetFontLineHeight() / 2;
         TB_SetTextColor(22);
         str = gText.single[TEXT_RUMBLE_TITLE];
         TB_DrawText(TB_CenterText(str, x), y, str);
@@ -77,8 +77,8 @@ s32 animRumbleText(Blit *blt)
     HAL_SetFont(11);
     TB_SetTextColor(1);
     for (i = 0; i < gNumPlayers; i++) {
-        x = pause_gPlayerRects[gNumPlayers - 1][i].x;
-        y = pause_gPlayerRects[gNumPlayers - 1][i].y - TB_GetFontLineHeight();
+        x = pause_gPlayerRects[gNumPlayers - 1][i].cx;
+        y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
         TB_SetTextColor(playerTextColor[i]);
         str = (char *)(*gPlayers[i].name + PROFILE_OFS(20));
         TB_DrawText(TB_CenterText(str, x), y, str);

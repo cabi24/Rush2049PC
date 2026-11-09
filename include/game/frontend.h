@@ -316,7 +316,7 @@ extern s8 gGhostMenuConfirm;
 extern s8 highscore_gYes;
 extern s8 gGhostMenuNotify;
 extern struct Ghost **gPakGhosts[EXTENT(4)];
-extern void *gSavedGhost;
+extern tGhostFile **gSavedGhost;   /* the race's ghost, compressed for the pak (CompressGhost), until saved */
 extern s32 gGhostStatus[EXTENT(4)];
 extern OSMesgQueue text_lock_queue;
 extern s8 *codePane;
@@ -713,7 +713,7 @@ extern s32 gMaxMenuHeight;
 extern s8 pakscr_gYes;
 extern s16 gPickedPak;
 extern s16 pakscr_gFreePages;
-extern void **gDeleteFile;
+extern tPakHandle *gDeleteFile;   /* the pak file the pak screen asks to delete (MAT3 tPS_File **) */
 extern s16 gDeleteSize;
 extern s16 gDeleteSelect;
 extern CarScreenCar carscr_cars[EXTENT(4)][13];

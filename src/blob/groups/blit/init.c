@@ -54,9 +54,6 @@ typedef union {
 Gfx pc_text_dl[2][2400];
 #define TEXT_DL pc_text_dl
 
-VIEW(u8[4], blitPrimColor);
-#define blitPrimColor blitPrimColor_view
-
 /* Starts the blitter for a frame, once (nothing when blit_dl is already set): resets its state (no attributes, the
  * scissor box the whole screen, depth 0, opaque, no mode, no palette, nothing cached), switches to the other of its two
  * display lists (blitDLnum), and opens it with the RDP set-up every blit relies on: the blend colour's alpha 16
@@ -71,7 +68,7 @@ void BlitInit(void)
         blitXmax = screen_width - 1;
         blitYmax = screen_height - 1;
         blitZDist = 0;
-        blitPrimColor[3] = 255;
+        blitPrimColor.a = 255;
         blit_cache_image = 0;
         blit_cache_tile = 0;
         if (++blitDLnum >= 2) blitDLnum = 0;

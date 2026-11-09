@@ -35,7 +35,6 @@ struct CarA;
 struct CarB;
 struct CarE;
 struct CarState;
-struct Cell;
 struct Chan;
 struct CollisionObject;
 struct CollisionReckon;
@@ -704,12 +703,6 @@ typedef struct SequenceTrack { /* 0x38 bytes */
     u8 *active14;     /* 0x20 */
     u8 unknown18[16]; /* 0x28 */
 } SequenceTrack;
-
-typedef struct TPos { /* 0x18 bytes */
-    s32 pad0[4]; /* 0x0 */
-    s32 x;       /* 0x10 */
-    s32 y;       /* 0x14 */
-} TPos;
 
 typedef struct TableRecord { /* 0x8 bytes */
     u32 payload;    /* 0x0 */
@@ -1424,19 +1417,25 @@ typedef struct tPakHandle {
     struct PakFileRecord *file;
 } tPakHandle;
 
+/* A pak error dialog (gPakError[4][2], two a pak; MAT3 pakerr.c's anon_done_choice1_34, whose names these are, in
+ * the N64's order). SetPakError opens one, ShowPakError runs and draws it, CancelPakError closes it. */
 typedef struct PakErrorState { /* 0x2C bytes */
-    s8 busy;         /* 0x0 */
-    s8 enabled;      /* 0x1 */
-    s8 unk2;         /* 0x2 */
-    s8 player;       /* 0x3 */
-    u8 primary[4];   /* 0x4 */
-    u8 secondary[4]; /* 0x8 */
-    u8 previous[4];  /* 0xC */
-    s8 present;      /* 0x10 */
-    s32 mode;        /* 0x14 */
-    s16 arg[4];      /* 0x18 */
-    u8 pad20[8];     /* 0x20 */
-    u32 deadline;    /* 0x28 */
+    s8 done;          /* 0x0 answered or timed out */
+    s8 choice1;       /* 0x1 the first answer chosen (of two or three) */
+    s8 choice2;       /* 0x2 the second answer chosen (of three) */
+    s8 cont;          /* 0x3 the controller that answers (any, for kPS_ErrNoCont and kPS_ErrNoPak) */
+    s8 contActive[4]; /* 0x4 the controllers' active flags before the dialog, put back after it */
+    s8 contStick[4];  /* 0x8 their stick edges before it */
+    s8 contDebug[4];  /* 0xC */
+    s8 rumble;        /* 0x10 a Rumble Pak is in (the new-pak dialog says so) */
+    s32 err;          /* 0x14 the dialog (kPS_Err*), 0 when closed */
+    s16 left;         /* 0x18 its box on the screen */
+    s16 top;          /* 0x1A */
+    s16 width;        /* 0x1C */
+    s16 height;       /* 0x1E */
+    u32 edges;        /* 0x20 the buttons pressed this frame */
+    u32 levels;       /* 0x24 held */
+    u32 timeout;      /* 0x28 the retrace count at which a waiting dialog closes itself */
 } PakErrorState;
 
 /* An open pak file (MAT3 tPS_File), in the PC's layout: pak_file_records holds 64, their handles pak_file_handles;

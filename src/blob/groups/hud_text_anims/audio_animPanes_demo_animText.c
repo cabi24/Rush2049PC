@@ -8,14 +8,8 @@
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-VIEW(s32[3], audio_menuRect);
-#define audio_menuRect audio_menuRect_view
-
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
-/* The menu box's left, width and height (audio_menuRect, audio_calcMenuRect's). */
-typedef struct { s32 x, w, h; } MenuRect;
 
 /* The audio screen's panes, made once: in the pause screen the title pane (with "controller removed" if the
  * pausing player's controller is out) and the menu's backing pane around audio_menuRect. blit is unused; returns 1
@@ -34,9 +28,9 @@ s32 audio_animPanes(s32 blit)
             audio_TitlePane();
             y = 10 + 2 * TB_GetFontLineHeight();
             HAL_SetFont(10);
-            InitPane(((MenuRect *)audio_menuRect)->x - 8, y - 4,
-                              ((MenuRect *)audio_menuRect)->x + ((MenuRect *)audio_menuRect)->w + 8,
-                              y + ((MenuRect *)audio_menuRect)->h + 4, 176, 0, 0, 0);
+            InitPane(audio_menuRect.x - 8, y - 4,
+                              audio_menuRect.x + audio_menuRect.w + 8,
+                              y + audio_menuRect.h + 4, 176, 0, 0, 0);
         }
         audio_panesCreated = 1;
     }

@@ -4,26 +4,7 @@
  * controllers it lists are made active (and their sticks drive the d-pad) as it asks. */
 #include "game/game.h"
 
-/* A pak error dialog (MAT3 anon_done_choice1_34, the N64's 44 bytes). */
-typedef struct Cell {
-    s8 done;            /* 0x00: answered (or timed out) */
-    s8 choice1;         /* 0x01: the first answer chosen (of two or three) */
-    s8 choice2;         /* 0x02: the second answer chosen (of three) */
-    u8 pad3;
-    s8 contActive[4];   /* 0x04: which controllers count as active while it is up */
-    s8 contStick[4];    /* 0x08: which controllers' sticks drive the d-pad */
-    u8 pad0C[4];
-    s8 alt;             /* 0x10: which of two messages the new-pak dialog shows */
-    u8 pad11[3];
-    s32 err;            /* 0x14: the error (the cases of ShowPakError), 0 when no dialog */
-    s16 left, top, width, height;   /* 0x18: its box on the screen */
-    s32 edges;          /* 0x20: the buttons pressed this frame */
-    s32 levels;         /* 0x24: held */
-    u32 timeout;        /* 0x28: the retrace count at which a waiting dialog closes itself */
-} Cell;                 /* 44 bytes */
 
-VIEW(Cell[][2], gPakError);
-#define gPakError gPakError_view
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
@@ -40,7 +21,7 @@ extern s32 sprintf(char *, const char *, ...);
 /* Draws text in dialog [row][col]'s box, a dialog with nothing to answer (MAT3 _DrawPakErrNQA). */
 void DrawPakErrNQA(s32 row, s32 col, u8 *text)
 {
-    Cell *c;
+    PakErrorState *c;
 
     HAL_SetFont(11);
     TB_SetTextColor(1);
@@ -54,7 +35,7 @@ void DrawPakErrNQA(s32 row, s32 col, u8 *text)
  * in the highlighted font and colour, a pixel higher. */
 void DrawChoice3(s32 row, s32 col, u8 *text, char *s1, char *s2, char *s3, s32 sel1, s32 sel2)
 {
-    Cell *c;
+    PakErrorState *c;
     s32 y;
     s32 fh;
     s32 x;
@@ -82,7 +63,7 @@ void DrawChoice3(s32 row, s32 col, u8 *text, char *s1, char *s2, char *s3, s32 s
 /* A dialog with nothing to answer closes on START, A or B (MAT3 _ControlPakErrNQA). */
 void ControlPakErrNQA(s32 row, s32 col)
 {
-  Cell *c;
+  PakErrorState *c;
   s32 edges;
   c = &gPakError[row][col];
   edges = c->edges;
@@ -96,7 +77,7 @@ void ControlPakErrNQA(s32 row, s32 col)
 /* A two-answer dialog: up or down swaps the answer, A takes it (MAT3 _ControlChoice). */
 void ControlChoice(s32 row, s32 col)
 {
-  Cell *c;
+  PakErrorState *c;
   c = &gPakError[row][col];
   if (c->edges & BUTTONS_DPAD_UP_DOWN)
   {
@@ -114,7 +95,7 @@ void ControlChoice(s32 row, s32 col)
  * message 236, the chosen one (sel: the first) highlighted. a and b are unused (MAT3 has fixed labels too). */
 void DrawChoice(s32 row, s32 col, intptr_t text, char *a, char *b, s32 sel)
 {
-    Cell *c;
+    PakErrorState *c;
     s32 y;
     s32 fh;
     s32 x;
@@ -192,7 +173,7 @@ void cs_draw3_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, C.alt ? gText.single[106] : gText.single[107]);
+    TB_Strcpy(str, C.rumble ? gText.single[106] : gText.single[107]);
     TB_Strcat(str, (u8 *)pakerr_newlines_new_pak);
     TB_Strcat(str, (u8 *)gText.single[108]);
     DrawChoice(row, col, (intptr_t)str, gText.taba[gText.tab[25]], gText.single[236], C.choice1);
@@ -265,7 +246,7 @@ void cs_wait13_DC(s32 row, s32 col)
 }
 
 /* A three-answer dialog: down and up move the answer round (first, second, third), A takes it. */
-void cs_ctl10_DC(Cell *c)
+void cs_ctl10_DC(PakErrorState *c)
 {
     if (c->edges & BUTTON_DPAD_DOWN) {
         PlayUDSound(c->edges);

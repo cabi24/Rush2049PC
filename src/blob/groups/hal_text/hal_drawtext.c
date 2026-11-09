@@ -3,9 +3,6 @@
 
 extern void *memcpy(void *, const void *, u32);
 
-VIEW(u32, gFontColor);
-#define gFontColor gFontColor_view
-
 
 /* The number of bytes of text that numChars characters take (all of it when numChars < 0), its double-byte mark and
  * its ending zero (or zeros) included. (MAT3's _TextLen.) */
@@ -69,7 +66,7 @@ void HAL_DrawText(void *text, s16 numChars)
     if (lastSpacing != gSpacing) size += 2;
     if (lastFontXpos != gFontXpos || lastFontYpos != gFontYpos) size += 5;
     if (lastTrans != gTrans) size += 5;
-    if (lastFontColor != gFontColor) size += 5;
+    if (lastFontColor != gFontColor.rgba) size += 5;
     length = TextLen(text, numChars);
     size += length + 2;
     if (gBufLen + size >= TEXT_BUFFER_SIZE) {
@@ -108,8 +105,8 @@ void HAL_DrawText(void *text, s16 numChars)
         gBuffer[gBufLen++] = (*(u32 *)&gTrans >> 8) & 255;
         gBuffer[gBufLen++] = (*(u32 *)&gTrans) & 255;
     }
-    if (lastFontColor != gFontColor) {
-        lastFontColor = gFontColor;
+    if (lastFontColor != gFontColor.rgba) {   /* the 4 bytes as one host word, for equality only */
+        lastFontColor = gFontColor.rgba;
         gBuffer[gBufLen++] = TEXT_CMD_COLOR;
         memcpy(gBuffer + gBufLen, &gFontColor, 4);
         gBufLen += 4;

@@ -184,7 +184,7 @@ extern u8 highscore_inited;
 extern ScreenPos no_rumble_text_pos[EXTENT(4)][4];
 extern PaneColors hud_playerPaneColors[EXTENT(4)];
 extern char *options_buttonNames[EXTENT(9)];
-extern TPos pause_gPlayerRects[EXTENT(4)][4];
+extern PlayerRect pause_gPlayerRects[EXTENT(4)][4];   /* each window's box (and centre) on the pause screen, by players */
 extern s16 pause_titlePos[EXTENT(2)];   /* the pause screen title's centre: x, y */
 extern void *pause_DimBlit;
 extern void *pause_TitleBlit;
@@ -311,7 +311,7 @@ void AudPlaySong_TTL(s32 song, s32 loop);
 void cart_free(void **address);
 void cart_free_direct(void **address);
 void ClearScreen(u16 color);
-void cs_ctl10_DC(struct Cell *c);
+void cs_ctl10_DC(PakErrorState *c);
 void cs_draw1_DC(s32 row, s32 col);
 void cs_draw3_DC(s32 row, s32 col);
 void cs_drawT0_DC(s32 row, s32 col);

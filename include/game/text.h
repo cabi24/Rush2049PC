@@ -89,7 +89,7 @@ extern struct tTexture *gFontTextures[EXTENT(16)];
 extern s16 gCharMap[EXTENT(256)];
 extern s32 font_image_format;
 extern s32 font_texel_size;
-extern PcText4 gFontColor;
+extern TextColor gFontColor;   /* the text's colour, R, G, B, A (HAL_SetTextColor) */
 extern s8 gLeading;
 extern s8 gSpacing;
 extern u32 gFontAttribute;

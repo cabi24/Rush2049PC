@@ -4,10 +4,6 @@
 
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
-typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
-
-VIEW(Rect[][4], pause_gPlayerRects);
-#define pause_gPlayerRects pause_gPlayerRects_view
 
 void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
