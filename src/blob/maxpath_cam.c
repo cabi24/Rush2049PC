@@ -8,8 +8,6 @@ typedef struct Object { u8 other0[248]; s16 mph; u8 other250[0x110 - 0xFA]; stru
 
 extern f32 sqrtf(f32);
 
-extern void point_at_car(Object *,f32 *,Mat3 *,f32 *);
-
 /* Car `object`'s drone path camera (view 9). `update` 0 starts it at point (s32) position[0] of the car's drone
  * path; else the camera moves along the path from there at 100 feet a second plus the car's speed, 10 feet up, and
  * points at the car (`position`, its orientation into `matrix`: point_at_car). */

@@ -8,8 +8,6 @@ VIEW(s8[4][4], gFadePlayerArrow);
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
-u16 *ShotToWorldCollision(void *from, void *to, f32 *hit_matrix, f32 radius, s32 first, s32 mask);
-
 /* The race type of a battle (MAT3 kBattle). */
 #define RACE_BATTLE 6
 /* How far above the cars' positions the line of sight runs, in world units. */

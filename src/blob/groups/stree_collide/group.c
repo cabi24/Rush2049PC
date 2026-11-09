@@ -168,8 +168,6 @@ done:
 VIEW(streetyp *, stree_nodes);
 #define stree_nodes stree_nodes_view
 
-void *downleaf(streetyp *n, s16 x, s16 y, s16 *out);
-
 /* Finds the leaf of the surface tree under point (x, z) = (`x`, `y`), starting from node `n` (NULL the root): up
  * through the parents until a node holds the point (none: NULL), then down to the leaf (downleaf, which sets *out). */
 void *updownleaf(streetyp *n, s16 x, s16 y, s16 *out) {

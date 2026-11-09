@@ -5,8 +5,6 @@
 
 s32 osRecvMesg(void *,void *,s32);
 s32 osSendMesg(void *,void *,s32);
-tFxSequence *ConvertTag(s32 tag);
-tAudioMsg *GetCmd(void);
 /* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
  * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
  * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the

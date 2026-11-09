@@ -108,8 +108,6 @@ void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-void lzss_decompress(s32 src, void *dst);
-void inflate_decompress(s32 src, void *dst, s32 flag);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, fills the instance's
  * entries of the model, texture, palette (and, for a track wave, target path) tables, rebases the textures' and

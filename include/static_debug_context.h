@@ -10,8 +10,9 @@ extern s8 decompress_lock_ready;
 extern OSMesg decompress_lock_message;
 extern OSMesgQueue decompress_lock_queue;
 extern void init_decompress_lock(void);
-extern s32 lzss_decode(void *, void *);
-extern s32 unzipdata_from_rom(void *, void *, s32);
+/* port/ultra/pi.c's decoders: src is a cartridge address or offset, or (the game image) a host pointer. */
+extern s32 lzss_decode(uintptr_t src, void *dst);
+extern s32 unzipdata_from_rom(uintptr_t src, void *dst, s32 heap_window);
 
 typedef struct {
     unsigned sign:1;

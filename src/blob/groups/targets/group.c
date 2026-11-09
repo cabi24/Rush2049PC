@@ -87,8 +87,6 @@ VIEW(Vec3, zero_velocity);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-extern struct pc_visual *GrabEnvEntry(void);
-
 extern int strlen(const char *);
 
 /* Defines target `t` once the race's targets are counted: its kind's record (set_target_data), its scene object's
@@ -186,7 +184,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
  * against every car). Returns 1 if a kind matched (made or not), 0 if none did.
  * PC: video.detail high gives a kind that is one player only (0x100) its scene object in split screen too, as one
  * player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
-s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, void *fromWorld, s8 owner, s32 vis, s32 col)
+s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, s32 vis, s32 col)
 {
     s32 i;
     s32 pad152;

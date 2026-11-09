@@ -29,8 +29,6 @@ VIEW(s8[], gOptions);
 #define RACE_GHOST 2
 #define OPTION_FX_VOLUME 13
 
-tSfxListener *AudAddListener(Vec3 *pos, Vec3 *dir, Vec3 *look, Vec3 *up);
-
 /* Outside the demo: gives each player a listener at the origin, at rest, looking along z with y up (each frame
  * UpdateListeners moves it), except the second player of a ghost race (the ghost: -1), and fades the effects up to
  * the options' volume. */

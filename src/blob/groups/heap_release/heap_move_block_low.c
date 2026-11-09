@@ -35,8 +35,6 @@ VIEW(OSMesgQueue, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-Block *FindChunk(Heap *heap, u32 addr, s32 tag);
-
 #define N64A(x) PC_N64A(x)
 
 /* Moves the handle-owned block at addr down to the first free block before it that is big enough (or that it adjoins):

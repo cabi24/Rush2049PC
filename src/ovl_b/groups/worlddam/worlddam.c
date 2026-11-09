@@ -28,8 +28,6 @@ VIEW(f32[4][3], dummyVtx);
 VIEW(tRGBA[5], damColor);
 #define damColor damColor_view
 
-extern surftyp *RoadPosition(f32 *, f32 *, f32 (*)[3]);
-
 extern f32 fabsf(f32);
 
 /* Returns the next scorch mark of the ring: a new polygon until there are 25, then the oldest, hidden. The four

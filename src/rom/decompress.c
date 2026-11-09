@@ -16,9 +16,9 @@ void release_decompress_lock(void) {
 }
 
 /* Decompresses the LZSS data at cartridge offset src into dst, under the lock. Returns lzss_decode's result. */
-s32 lzss_decompress(void* src,void* dst) { s32 result; if(!acquire_decompress_lock(1)) return 0; result=lzss_decode(src,dst); release_decompress_lock(); return result; }
+s32 lzss_decompress(u32 src,void* dst) { s32 result; if(!acquire_decompress_lock(1)) return 0; result=lzss_decode(src,dst); release_decompress_lock(); return result; }
 
 /* Inflates the deflated data at cartridge offset src into dst, under the lock (flag as unzipdata_from_rom takes it).
  * Returns its result. */
-s32 inflate_decompress(void* src,void* dst,s32 n) { s32 result; if(!acquire_decompress_lock(1)) return 0; result=unzipdata_from_rom(src,dst,n); release_decompress_lock(); return result; }
+s32 inflate_decompress(u32 src,void* dst,s32 n) { s32 result; if(!acquire_decompress_lock(1)) return 0; result=unzipdata_from_rom(src,dst,n); release_decompress_lock(); return result; }
 

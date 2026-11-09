@@ -35,8 +35,6 @@ VIEW(OSMesgQueue, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-Heap *ConvertHeap(Heap *heap);
-
 /* Returns the bytes free in `heap` (NULL the main heap: ConvertHeap), under the heap's lock. */
 u32 heap_total_free(Heap *heap)
 {

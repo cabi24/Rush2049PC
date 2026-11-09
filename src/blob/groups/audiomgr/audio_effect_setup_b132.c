@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-extern intptr_t ConvertTag(s32);
-
 /* Frees tag: invalidates its handle (keeps the index bits only), and for an emitter's tag gives the emitter back
  * (off the active list, onto the free list). The tag itself goes back to gFreeFxTags only when no message names it
  * any more (numCmds 0); otherwise the last message's handler frees it. */

@@ -4,7 +4,6 @@
 
 s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
-extern tFxSequence *ConvertTag(s32 tag);
 
 /* Whether the effect of fx tag handle tag is playing or still to play: 1 while it waits for a voice or for its
  * restart (pending, interrupted), the sound server's answer while it plays (AudioEffectPlaying), 0 once its tag is

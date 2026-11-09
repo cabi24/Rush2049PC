@@ -78,8 +78,6 @@ VIEW(Pool, gAlwaysColList);
 VIEW(Pool, gTargetList);
 #define gTargetList gTargetList_view
 
-extern void *RoadPosition(f32 *,f32 *,f32 (*)[3]);
-
 /* One frame of the mine (op 1), or release its visual (op 0); nothing happens while the game is paused.
  * - First frame: if the owner already has three mines, the oldest is aged past 120 s so it goes next; the mine
  *   takes a free slot of its owner's (gPlayerMines), copies the road's orientation under it, and makes its base

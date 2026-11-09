@@ -57,8 +57,6 @@ VIEW(u8, gRestartGame);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 
-SceneMsg *GetCmd(void);
-
 /* Switch the screen to state mode (kGameOverState*). Leaving the menu removes its panes; entering it puts up a box
  * for the title and one sized to the widest of the rows gameover_validOption offers. */
 void setGameOverState(s32 mode)

@@ -36,8 +36,6 @@ VIEW(s32, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-Heap *ConvertHeap(Heap *heap);   /* the heap, or the main heap for NULL (memsys/group.c) */
-
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's; a block's owner is a handle slot, which the
  * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)

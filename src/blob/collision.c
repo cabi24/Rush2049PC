@@ -23,8 +23,6 @@ typedef struct tModelData {
     u8 pad7EB[0x808 - 0x7EB];
 } tModelData;
 
-extern void setFBCollisionForce(tModelData *, tModelData *, tModelData *, Vec3 *, Vec3 *, float);
-
 /* Collide model `m` with each later car in the race (later only, so each pair is tested once a step). Nothing
  * collides with collisions off (outside practice), when `m` is not collidable, or in a ghost race. For a pair whose
  * bounding spheres overlap (the distance squared against the sum of the radii squared), each of m's corners is
@@ -57,7 +55,7 @@ void collision(tModelData *m)
    world.x -= other->reckon_rwr.x; world.y -= other->reckon_rwr.y; world.z -= other->reckon_rwr.z;
    BodyVector(&world, &local, other->reckon_uvs);
    if (PointInBody(other, &local, 5.0f)) {
-    setFBCollisionForce(m, m, other, &delta, &local, 5.0f); return;
+    setFBCollisionForce(m, m, other, &delta, &local); return;
    }
   }
   for (offset = 0, corner = other->bodyR; offset != (int)sizeof(other->bodyR); offset += (int)sizeof(Vec3), corner++) {
@@ -66,7 +64,7 @@ void collision(tModelData *m)
    world.x -= m->reckon_rwr.x; world.y -= m->reckon_rwr.y; world.z -= m->reckon_rwr.z;
    BodyVector(&world, &local, m->reckon_uvs);
    if (PointInBody(m, &local, 5.0f)) {
-    setFBCollisionForce(m, other, m, &delta, &local, 5.0f); return;
+    setFBCollisionForce(m, other, m, &delta, &local); return;
    }
   }
  }

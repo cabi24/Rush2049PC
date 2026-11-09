@@ -265,6 +265,7 @@ struct tAudioSequence;
 struct tCircuit;
 struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
+struct tMemoryChunk;
 struct tMiniModelData;
 struct tModelData;
 struct tModelPart;

@@ -5,7 +5,6 @@
 /* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
 #define gStopCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define gStartCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
-tAudioMsg *GetCmd(void);      /* _GetCmd */
 
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */

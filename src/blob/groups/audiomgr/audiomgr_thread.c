@@ -102,8 +102,6 @@ void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
-void AudioSongStop(int song);
-
 /* ClearBST and WalkBST of the fx tag tree (tOrderedList, the host layout: the root at +16). The game's ClearBST
  * and WalkBST do the same since 2026-11-08 (until then they read the N64's offsets); these copies stay because
  * port/assets/tests/test_mgrstart.c links this file without them. */
@@ -263,7 +261,7 @@ void audio_manager_thread_entry(void *arg)
                 break;
             case AUDIO_CMD_STOP_SONG:
                 if (audiomgr_gSong >= 0) {
-                    AudioSongStop(audiomgr_gSong);
+                    AudioSongStop();
                     audiomgr_gSong = -1;
                 }
                 break;

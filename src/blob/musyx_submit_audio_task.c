@@ -37,7 +37,7 @@ extern int osSendMesg(OSMesgQueue *, OSMesg, int);
 
 /* Copies task into the one scheduler record and queues it as an audio task that reports to
  * musyx_task_done_queue when done (musyx_wait_audio_task waits for it), then wakes the scheduler. */
-void musyx_submit_audio_task(OSTask *task)
+void musyx_submit_audio_task(void *task)
 {
     static OSScTask scTask;
 

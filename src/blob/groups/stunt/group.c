@@ -47,8 +47,6 @@ extern void *memset(void *s, s32 c, u32 n);
 VIEW(f32[3], stunt_GCabsW);
 #define stunt_GCabsW stunt_GCabsW_view
 
-void AddStunt(s32 idx, s32 code);
-
 /* Adds trick `code` to player `idx`'s run: 0-4 and 7-8 (flips, spins, rolls ...) 5 points, 5 and 6 (the combination,
  * two wheels) 3, 9 (air time) 5; a new kind of trick in a run of more than one adds to the bonus multiplier. Code 11
  * is the landing: unless crashed, the run's bonuses (a clean single trick or two with air: 15 or 25 and its name; a

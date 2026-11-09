@@ -73,7 +73,6 @@ extern void osScAddClient(MainThreadScheduler *, OSScClient *, OSMesgQueue *);
 extern void osInvalICache(void *vaddr, s32 nbytes);
 extern void osInvalDCache(void *vaddr, s32 nbytes);
 extern void bzero(void *s, s32 n);
-extern s32 unzipdata_from_rom(void *, void *, s32);
 extern s32 video_mode_base_index(void);
 extern void BGLoadWaveMain(void *);
 extern void ModelThread(void *);
@@ -101,7 +100,7 @@ void main_thread_entry(void *arg) {
     tvType = video_mode_base_index(), osCreateScheduler(&gScheduler, gSchedulerStack + 0x640, THREAD_PRI_SCHEDULER, tvType, 1);
     osInvalICache(gDecompressedDataStart, gDecompressedDataEnd1 - gDecompressedDataStart);
     osInvalDCache(gDecompressedDataEnd1, gBssStart - gDecompressedDataEnd1);
-    unzipdata_from_rom(gRomCompressedData, gDecompressedDataStart, 0);
+    unzipdata_from_rom((uintptr_t) gRomCompressedData, gDecompressedDataStart, 0);
     osScAddClient(&gScheduler, &client, &main_thread_queue);
     osCreateThread(&bg_load_thread, THREAD_ID_BG_LOAD, BGLoadWaveMain, 0, bg_load_thread_stack + 0x960, THREAD_PRI_BG_LOAD);
     osCreateMesgQueue(&bg_load_idle_queue, gSyncMesgBuf, 1);

@@ -166,10 +166,6 @@ VIEW(f32[3], unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 extern PlayerPad gPlayers[];
 
-s32 AudEmitEffect(f32 *,intptr_t,f32,f32,f32,f32,s32,s32,s32,u8);
-
-void AudUpdateEmitter(s32,f32 *,f32 *,f32,f32);
-
 /* The engine record of a car (pc_engine_sounds: MAT3's specs, state[2], hum, rev): its car type's two layers,
  * their sounds, an unused one and the drones' random engine sound. */
 typedef struct {
@@ -256,7 +252,7 @@ void UpdateEngineSound(MODELDAT *m) {
             } else if (0.75f < gCountDown) {
                 if (set->rec[3].sound == -1 || AudEmitterPlaying(set->rec[3].sound) == 0) {
                     if ((s32) Random(5.0f) == 0) {
-                        set->rec[3].sound = AudEmitEffect(origin, (s32) origin, 400.0f, 0.0f, 1.0f, 0.0f,
+                        set->rec[3].sound = AudEmitEffect(origin, origin, 400.0f, 0.0f, 1.0f, 0.0f,
                             (s32) (Random(3.0f) + SFX_ENGINE_RANDOM_FIRST), slot, 0, 128);
                         AudUpdateEmitter(set->rec[3].sound, pos, origin, 0.8f, -2.0f);
                     }
@@ -312,7 +308,7 @@ void UpdateCarSounds(ModelView *model)
             if(model->drone_type==DRONE_TYPE_HUMAN) {
                 screech->sound=AudPlayEffect(SFX_SCREECH,model->slot,2,2);
             } else {
-                screech->sound=AudEmitEffect(MODEL_RWR(model),(s32)unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,SFX_SCREECH,slot,0,130);
+                screech->sound=AudEmitEffect(MODEL_RWR(model),unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,SFX_SCREECH,slot,0,130);
             }
         }
         if(screech->sound!=-1) {

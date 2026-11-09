@@ -53,12 +53,6 @@ extern tTarget *CollisionTargetPtrs[];
 VIEW(u16, gObjList);
 #define gObjList gObjList_view
 
-void AudUpdateEmitter(s32 tag, intptr_t pos, intptr_t dir, f32 maxVol, f32 pitch);
-
-s32 AudEmitEffect(void *pos, intptr_t dir, f32 fade, f32 a, f32 b, f32 c, s32 id, s32 slot, s32 replace, s32 vol);
-
-struct pc_visual *GrabEnvEntry(void);
-
 /* Starts sound `id` at the target's position (unless game sounds are off or it is -1, which give -1), fading over
  * `fadeDist` with replace mode `replace`; returns the emitter. */
 static __inline s32 target_emit_sound(tTarget *target, f32 fadeDist, s32 id, s32 replace) {
@@ -68,7 +62,7 @@ static __inline s32 target_emit_sound(tTarget *target, f32 fadeDist, s32 id, s32
     if (id == -1) {
         return -1;
     }
-    return AudEmitEffect(&target->mat.pos, (s32) &unitmatrix_origin, fadeDist, 0.0f, 1.0f, 0.0f, id, 0, replace, 0x80);
+    return AudEmitEffect(target->mat.pos, &unitmatrix_origin, fadeDist, 0.0f, 1.0f, 0.0f, id, 0, replace, 0x80);
 }
 
 /* The target starts moving: its kind's start sound replaces whatever it was playing. */
@@ -195,10 +189,10 @@ void PlayMoveSound(tTarget *target) {
                 }
             } else ratio = 1.0f;
             if (targetInfo[target->infoIdx].moveSnd == 0x12)
-                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.8f, 1.0f);
+                AudUpdateEmitter(target->sound, target->mat.pos, &unitmatrix_origin, 0.8f, 1.0f);
             else if (targetInfo[target->infoIdx].moveSnd == 0x61)
-                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 1.0f, 0.75f);
-            else AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.75f * ratio + 0.25f, ratio);
+                AudUpdateEmitter(target->sound, target->mat.pos, &unitmatrix_origin, 1.0f, 0.75f);
+            else AudUpdateEmitter(target->sound, target->mat.pos, &unitmatrix_origin, 0.75f * ratio + 0.25f, ratio);
         }
     } else if (target->sndState == 2) PlayStartSound(target);
     else if (!AudEmitterPlaying(target->sound)) {
@@ -206,7 +200,7 @@ void PlayMoveSound(tTarget *target) {
         if (targetInfo[target->infoIdx].moveSnd != -1) {
             target->sound = target_emit_sound(target, targetInfo[target->infoIdx].fadeDist, targetInfo[target->infoIdx].moveSnd, targetInfo[target->infoIdx].replace);
             if (targetInfo[target->infoIdx].moveSnd == 1)
-                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.0f, 1.0f);
+                AudUpdateEmitter(target->sound, target->mat.pos, &unitmatrix_origin, 0.0f, 1.0f);
         } else target->sound = -1;
         target->sndState = 1;
     }

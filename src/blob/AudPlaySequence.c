@@ -11,7 +11,6 @@ typedef __builtin_va_list va_list;
 
 int osRecvMesg(void *, void *, int);
 int osSendMesg(void *, void *, int);
-tAudioSequence *NewSequence(void);
 
 /* Starts a sequence of up to four effects (the num variable arguments, each an effect id or -1 to skip) that
  * ProcessSequences plays one after another, each with subId, replace and priority as AudPlayEffect's. If the

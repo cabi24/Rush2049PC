@@ -10,7 +10,6 @@ VIEW(s32, gTagMask);
 s32 osRecvMesg(void *, void *, s32);
 s32 osSendMesg(void *, void *, s32);
 
-tFxSequence *ConvertTag(s32 tag);
 /* src/blob/ValidateEmitter.c has the empty ValidateEmitter that the function tables reach; this file's calls go
  * to its own empty copy, which gets its own name (docs/port/PROTOTYPES.md). */
 #define ValidateEmitter pc_ValidateEmitter
@@ -76,7 +75,7 @@ s32 AudEmitterPlaying(s32 tag)
 /* Moves the emitter of fx tag handle tag to pos and sets its loudest volume (clamped to 0..1) and its base pitch;
  * the next ProcessEmitters makes the sound follow. dir_unused is the N64's velocity argument, which MAT3 doesn't
  * have and nothing reads. */
-void AudUpdateEmitter(s32 tag, f32 *pos, intptr_t dir_unused, f32 maxVol, f32 pitch)
+void AudUpdateEmitter(s32 tag, f32 *pos, void *dir_unused, f32 maxVol, f32 pitch)
 {
     tFxSequence *fx_tag;
     tSfxEmitter *emitter;

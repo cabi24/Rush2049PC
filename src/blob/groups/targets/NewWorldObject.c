@@ -20,8 +20,6 @@ VIEW(tModelPart *, WorldBase);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-extern int SetupTarget(tModelPart *,s16,int,int,int,int,int);
-
 /* Add the part `wnode`, its siblings and (recursively) their children to the scene under the scene node `parent`
  * (-1: the top). Each part that is not a target becomes a scene node of its model (MBOX_FindObject_WORK by name)
  * with its flags; in the attract demo (GS_DEMO) with the flags get_world_part_flags gives and 0xE00 (hidden in

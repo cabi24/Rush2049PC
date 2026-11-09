@@ -42,7 +42,7 @@ typedef struct Heap {
 /* The block of `heap` with category `tag` that holds the N64 address addr, or NULL. An address inside one of the
  * heap's handle pools is a handle: the address its slot holds is looked up instead. A block holds the addresses
  * from its header to the next block's (the last block, everything after it). */
-Block *FindChunk(Heap *heap, u32 addr, s32 tag) {
+struct tMemoryChunk *FindChunk(Heap *heap, u32 addr, s32 tag) {
     Pool *p;
     Block *b;
     p = &heap->pool;
@@ -60,5 +60,5 @@ Block *FindChunk(Heap *heap, u32 addr, s32 tag) {
             b = N64P(b->next);
         } else break;
     }
-    return b;
+    return (struct tMemoryChunk *)b;   /* a chunk (game/heap.h's tMemoryChunk), read here as a Block */
 }

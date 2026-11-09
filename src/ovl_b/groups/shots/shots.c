@@ -164,18 +164,8 @@ VIEW(volatile u8, gNumModels);
 VIEW(RGBA, hitColor);
 #define hitColor hitColor_view
 
-extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2);
-
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
-
-extern ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);
-
-extern Car *ShotToCarCollision(Shot *shot, f32 *old);
-
-extern intptr_t ShotToWorldCollision(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b);
-
-extern void SetupTarget(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d);
 
 static const f32 CaseOffsets[1][3] = { 0.6f, 0.65f, -0.69f };
 static const f32 ShotOffsets[10][3] = {
@@ -725,7 +715,7 @@ straightShot:
                     if (shot->flags & 2) {
                         if (fabsf(shot->vel[0]) < 10.f && fabsf(shot->vel[2]) < 10.f) {
                             shot->lifeTime = 0.0000001f;
-                            SetupTarget("WPR_MINE", -2, shot->pos, 0, shot->slot, 1, 0);
+                            SetupTarget((struct tModelPart *) "WPR_MINE", -2, shot->pos, 0, shot->slot, 1, 0);   /* read by its name alone */
                             break;
                         } else {
                             BodyVector(shot->vel, v1, &uvs[0][0]);
