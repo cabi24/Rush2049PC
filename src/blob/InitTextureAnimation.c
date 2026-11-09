@@ -84,13 +84,13 @@ flipbooks:
     while (tlist->num) {
         for (i = 0; i < tlist->num; i++) {
             if (expansion_pak_present || gTrackNum >= 6) {
-                tlist->swapTexs[i].resource = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
             } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && tlist->swapTexs != texture_swap_shared_frames) {
-                tlist->swapTexs[i].resource = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
             } else continue;
-            resource = tlist->swapTexs[i].resource;
-            if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].output = resource->texBase;
-            else tlist->swapTexs[i].output = displaylist_get_texture_image(N64PTR0(void *, resource->texBase));
+            resource = tlist->swapTexs[i].tex;
+            if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = resource->texBase;
+            else tlist->swapTexs[i].texBase = displaylist_get_texture_image(N64PTR0(void *, resource->texBase));
             tlist->time = tlist->initTime;
             tlist->idx = tlist->startnum;
         }

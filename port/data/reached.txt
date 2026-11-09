@@ -12,12 +12,13 @@
 # part of it); `parent FIELD` (that field of the element holding the pointer); TABLE[i] (element i of a table of
 # integers, for the root's pointer i).
 
-# The track animations (InitTextureAnimation sets them up, TextureAnimation runs them), per track: object-animation
-# sequences, ended by a count of 0, each with `count` frames (the shared texture_swap_shared_frames on tracks 0-5, which resolves to
-# its storage, else frames of its own); and palette animations, ended by one without an owner.
-TextureSwapLists                  ObjectAnimation20    until count
-ObjectAnimation20.frames    AnimationFrame12     parent count
-PaletteLists                  PaletteAnimation20   until owner
+# The track animations (InitTextureAnimation sets them up, TextureAnimation runs them), per track: texture flipbooks
+# (MAT3 tTextureSwap), ended by one of 0 frames, each with `num` frames (tTextureBase: the shared
+# texture_swap_shared_frames on tracks 0-5, which resolves to its storage, else frames of its own); and palette
+# animations (tPaletteAnim), ended by one without a name.
+TextureSwapLists                  tTextureSwap         until num
+tTextureSwap.swapTexs       tTextureBase         parent num
+PaletteLists                  tPaletteAnim         until name
 
 # carSuspensions (carSuspensions, _tSusp *[3]): nine floats each (forward, back, side: force minimum, range, angle).
 carSuspensions                  f32[9]               1

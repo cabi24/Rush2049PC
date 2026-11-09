@@ -67,7 +67,7 @@ void SetModelPalette(s32 id, Resource24 *descriptor)
 {
     ObjectInstance *m;
     m = &ObjInstanceList[id];
-    m->pal = descriptor;
+    m->palette = descriptor;
 }
 
 

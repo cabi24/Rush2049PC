@@ -230,6 +230,7 @@ struct TexDef;
 struct TexRect;
 struct Texture;
 struct Tire;
+struct TireDesc;
 struct TrackNode;
 struct Tree;
 struct V3s;
@@ -255,7 +256,10 @@ struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
 struct tCircuit;
+struct tMiniModelData;
 struct tModelData;
+struct tModelPart;
+struct tNewSkid;
 struct tPS_File;
 struct tPlayerProfile;
 struct tTexture;
@@ -1018,10 +1022,12 @@ typedef struct DmaList { /* 0x18 bytes */
     struct OSMesgQueue_s *done; /* 0x10 */
 } DmaList;
 
+/* A flipbook frame of texture animation (MAT3 tTextureBase): the texture's name, the texture once found, the image
+ * to show (its texBase, or the address its display list loads). */
 typedef struct Item12 { /* 0x18 bytes */
     char *name;                  /* 0x0 */
-    struct Resource32 *resource; /* 0x8 */
-    void *output;                /* 0x10 */
+    struct Resource32 *tex;      /* 0x8 */
+    void *texBase;               /* 0x10 */
 } Item12;
 
 typedef struct ModelList { /* 0x10 bytes */
@@ -1029,23 +1035,27 @@ typedef struct ModelList { /* 0x10 bytes */
     s32 count;            /* 0x8 */
 } ModelList;
 
+/* A scene node, an entry of ObjInstanceList (MAT3 ObjInstance; the N64's 0x44 bytes with the pointers widened):
+ * its flags (OBJ_*, scene.h), its culling word, its matrix (a tUVMatrix, relative to its parent), the object handle
+ * ((model << 10) | definition; 0xFFFF a free node), the first child and the next sibling (-1 none), its lights, a
+ * texture for each level of detail, its tile, tile size and palette, and two colours. */
 typedef struct ObjectInstance { /* 0x68 bytes */
-    u32 flags;    /* 0x0 */
-    u32 w4;       /* 0x4 */
-    void *mat;    /* 0x8 */
-    f32 scale;    /* 0x10 */
-    f32 w;        /* 0x14 */
-    u16 index;    /* 0x18 */
-    s16 child;    /* 0x1A */
-    s16 next;     /* 0x1C */
-    s16 mode;     /* 0x1E */
-    void *light;  /* 0x20 */
-    void *tex[4]; /* 0x28 */
-    void *rect;   /* 0x48 */
-    void *clip;   /* 0x50 */
-    void *pal;    /* 0x58 */
-    u32 color;    /* 0x60 */
-    u32 envcolor; /* 0x64 */
+    u32 flags;           /* 0x0 */
+    u32 culling;         /* 0x4 */
+    void *mat;           /* 0x8 */
+    f32 scale;           /* 0x10 */
+    f32 w;               /* 0x14 */
+    u16 index;           /* 0x18 */
+    s16 child;           /* 0x1A */
+    s16 next;            /* 0x1C */
+    s16 numLights;       /* 0x1E */
+    void *lights;        /* 0x20 */
+    void *texture[4];    /* 0x28 */
+    void *tile;          /* 0x48 */
+    void *tileSize;      /* 0x50 */
+    void *palette;       /* 0x58 */
+    u32 color;           /* 0x60 */
+    u32 envcolor;        /* 0x64 */
 } ObjectInstance;
 
 typedef struct PcViewport { /* 0x10 bytes */
@@ -1404,64 +1414,87 @@ typedef struct Collision16 { /* 0x10 bytes */
     f32 height; /* 0xC */
 } Collision16;
 
+/* An environment visual, an entry of gEnvirons (a tVisual: the next on its list, its index, scene node and car
+ * slot, a data word, a time and its animator). */
 typedef struct EnvironNode { /* 0x20 bytes */
     struct Node *next; /* 0x0 */
-    s16 field4;        /* 0x8 */
-    s16 field6;        /* 0xA */
-    s16 field8;        /* 0xC */
+    s16 index;         /* 0x8 */
+    s16 objnum;        /* 0xA */
+    s16 slot;          /* 0xC */
     u8 padA[2];        /* 0xE */
-    u32 fieldC;        /* 0x10 */
-    f32 field10;       /* 0x14 */
-    void *field14;     /* 0x18 */
+    u32 data;          /* 0x10 */
+    f32 timeStamp;     /* 0x14 */
+    void *func;        /* 0x18 */
 } EnvironNode;
 
+/* A skid mark, an entry of gSkidArray (MAT3 tSkid): its list links, when it last grew, its polygon, its middle, its
+ * colour, and whether it has stopped (and so fades). */
 typedef struct PcEffectObj { /* 0x38 bytes */
-    void *next;  /* 0x0 */
-    void *prev;  /* 0x8 */
-    f32 f8;      /* 0x10 */
-    void *dl;    /* 0x18 */
-    f32 pos[3];  /* 0x20 */
-    u8 color[4]; /* 0x2C */
-    s32 f20;     /* 0x30 */
+    void *next;      /* 0x0 */
+    void *prev;      /* 0x8 */
+    f32 lastTime;    /* 0x10 */
+    void *poly;      /* 0x18 */
+    f32 pos[3];      /* 0x20 */
+    u8 color[4];     /* 0x2C */
+    s32 active;      /* 0x30 */
 } PcEffectObj;
 
+/* A segment of a light streak's ribbon, an entry of gStreakPolyArray (MAT3 tStreakPoly): its polygon, the seconds
+ * it has left, the time to its next fade step, its colour and its streak. */
 typedef struct PcFade { /* 0x30 bytes */
     void *next;    /* 0x0 */
-    s32 unknown04; /* 0x8 */
-    void *object;  /* 0x10 */
-    f32 lifetime;  /* 0x18 */
-    f32 interval;  /* 0x1C */
-    u8 color[4];   /* 0x20 */
-    void *source;  /* 0x28 */
+    s32 prev;      /* 0x8 */
+    void *poly;    /* 0x10 */
+    f32 lifeTime;  /* 0x18 */
+    f32 incTime;   /* 0x1C */
+    u8 clr[4];     /* 0x20 */
+    void *s;       /* 0x28 */
 } PcFade;
 
+/* A smoke or spray puff, an entry of gSmokeObjs (MAT3 smoke.c's puff): its orientation and size, its position, its
+ * scene node, the seconds it has left, the time to its next animation frame, its drift, its data word (PUFF_*),
+ * its car and its animation frame. */
 typedef struct PcPuff { /* 0x60 bytes */
     void *next;       /* 0x0 */
-    f32 matrix[3][3]; /* 0x8 */
-    f32 position[3];  /* 0x2C */
-    s32 id;           /* 0x38 */
-    u8 pad56[4];      /* 0x3C */
-    f32 life;         /* 0x40 */
-    f32 timer;        /* 0x44 */
-    f32 velocity[3];  /* 0x48 */
-    u32 flags;        /* 0x54 */
-    s16 car;          /* 0x58 */
-    s16 frame;        /* 0x5A */
+    f32 uvs[3][3];    /* 0x8 */
+    f32 pos[3];       /* 0x2C */
+    s32 mbIdx;        /* 0x38 */
+    u8 pad3C[4];      /* 0x3C MAT3 tlifeTime, a float the code reads through its own views */
+    f32 lifeTime;     /* 0x40 */
+    f32 swTime;       /* 0x44 */
+    f32 vel[3];       /* 0x48 */
+    u32 data;         /* 0x54 */
+    s16 slot;         /* 0x58 */
+    s16 tIdx;         /* 0x5A */
 } PcPuff;
 
+/* A light streak behind a battle shot, an entry of gStreakArray (MAT3 tStreak): its flags (STREAK_*), the time to
+ * its next segment, its shot's new and last points, and its ribbon's back edge ([0] the lower corner, [1] the
+ * upper). */
 typedef struct PcTrail { /* 0x48 bytes */
-    void *next;      /* 0x0 */
-    s32 unknown04;   /* 0x8 */
-    s32 flags;       /* 0xC */
-    f32 lifetime;    /* 0x10 */
-    f32 origin[3];   /* 0x14 */
-    f32 previous[3]; /* 0x20 */
-    f32 lower[3];    /* 0x2C */
-    f32 upper[3];    /* 0x38 */
+    void *next;          /* 0x0 */
+    s32 prev;            /* 0x8 */
+    s32 flags;           /* 0xC */
+    f32 delay;           /* 0x10 */
+    f32 newpos[3];       /* 0x14 */
+    f32 lastpos[3];      /* 0x20 */
+    f32 backVerts[2][3]; /* 0x2C */
 } PcTrail;
 
+/* A handling tune, an entry of gTune (MAT3's anonymous tune record, through tModelData.tune): the factors carsetup
+ * applies to the car's descriptor (MAT3's field names). */
 typedef struct Tune44 { /* 0x2C bytes */
-    f32 values[11]; /* 0x0 */
+    f32 diffbl;          /* 0x0 */
+    f32 weight_scale;    /* 0x4 the mass (CalcMass) */
+    f32 torque_scale;    /* 0x8 the engine's torque */
+    f32 trans_scale;     /* 0xC the gear ratios */
+    f32 clutchmaxtk;     /* 0x10 */
+    f32 shiftk;          /* 0x14 */
+    f32 fwdfk;           /* 0x18 */
+    f32 sidefk;          /* 0x1C */
+    f32 skidk;           /* 0x20 */
+    f32 antispin;        /* 0x24 */
+    f32 drift;           /* 0x28 */
 } Tune44;
 
 typedef struct tUVPair { /* 0x10 bytes */

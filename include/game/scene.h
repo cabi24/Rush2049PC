@@ -164,10 +164,10 @@ extern s8 gSplitScreen;
 /* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */
 
 /* Functions */
-struct tModelPart;   /* a world part (MAT3 tModelPart): groups/targets/NewWorldObject.c defines it */
 s32 anim_show_on_high_score(void *blit);
 void audio_retrace_thread_entry(void *arg);
 u32 displaylist_get_texture_image(u32 *dl);
+void displaylist_set_texture_image(u32 *dl, u32 value);
 void displaylist_set_tile_size(struct Command *commands, s32 uls, s32 ult, s32 lrs, s32 lrt);
 s32 FindWorldGroup(f32 *position);
 s32 flip_triangle_winding(u32 *gfx);
@@ -214,6 +214,7 @@ void ZOID_Init(void);
 void ZOID_InsertObject(s16 node, s16 parent);
 s16 ZOID_LastSibling(s16 node);
 void *ZOID_NewMatrix(void);
+s32 zoid_node_visible(void *node, s32 view);
 u32 ZOID_ObjectFlags(s16 node);
 s16 ZOID_ObjParent(s16 node);
 s16 ZOID_ObjPrevObj(s16 node);
@@ -240,6 +241,7 @@ void ZOID_SetScissor(u16 *s, u16 ulx, u16 uly, u16 lrx, u16 lry);
 void ZOID_SetViewport(s32 winidx, void *vp, void *s);
 void ZOID_ShowPoly(PolyInstance *poly);
 s32 ZOID_SplitMenuScreen(s32 num);
+s32 zoid_subtree_visible(ObjectInstance *node, s32 view);
 s32 ZOID_SplitScreen(s32 n);
 s16 ZOID_TrueObjParent(s16 child);
 void ZOID_UpdateObject(s16 node, void *pos, void *uvs);

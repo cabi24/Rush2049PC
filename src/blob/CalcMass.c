@@ -33,5 +33,5 @@ f32 CalcMass(tModelData *m)
   f32 durability = 0.0f;
   if (mass_unit) {}   /* no effect: the N64 compiler's code reads mass_unit here */
   durability = (&carDurability)[m->frame] - mass_durability_base;
-  return ((&gCarMass)[m->body_type] + durability * mass_unit + ((f32) gMassiveMass) * mass_unit) * ((Tune44 *) &gTune)[m->handling].values[1];
+  return ((&gCarMass)[m->body_type] + durability * mass_unit + ((f32) gMassiveMass) * mass_unit) * ((Tune44 *) &gTune)[m->handling].weight_scale;
 }

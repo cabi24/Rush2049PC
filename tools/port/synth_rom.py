@@ -1838,10 +1838,10 @@ def blits(c):
 def track_animations(c):
     """Track 0's animations (InitTextureAnimation sets them up, TextureAnimation runs them every frame): tables only
     pointers reach, which port/data/reached.txt has the loader convert (BRINGUP.md 8). In N64 form, in bytes no
-    symbol covers. A palette animation (PaletteAnimation20, 20 bytes: owner, first, last, step, action, ticks, delay,
-    data) that rotates entries 0-3 of the palette named "" every tick, and an object animation (ObjectAnimation20, 20
-    bytes: count, object_index, direction, index, delay, interval, frames) of two frames (AnimationFrame12, 12 bytes:
-    name, object, commands) of the texture "", each ended by an empty record. Track 0 is not one with the shared
+    symbol covers. A palette animation (MAT3 tPaletteAnim, 20 bytes: name, start, end, offset, state, speed, time,
+    ptr) that rotates entries 0-3 of the palette named "" every tick, and an object animation (MAT3 tTextureSwap, 20
+    bytes: num, startnum, fd, idx, time, initTime, swapTexs) of two frames (MAT3 tTextureBase, 12 bytes:
+    name, tex, texBase) of the texture "", each ended by an empty record. Track 0 is not one with the shared
     frames, so InitTextureAnimation looks its frames up."""
     empty = c.string("")
     frames = c.blob(be32(empty) + be32(0) + be32(0) + be32(empty) + be32(0) + be32(0), "track 0's animation frames")

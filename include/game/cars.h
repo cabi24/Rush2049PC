@@ -213,9 +213,6 @@ extern PcTrail gStreakArray[EXTENT(50)];
 extern tStatList gStreakPolyList[EXTENT(1)];
 extern PcFade gStreakPolyArray[EXTENT(150)];
 
-/* Structures the prototypes below point to that types.h does not declare yet (each file defines its own view) */
-struct tNewSkid;   /* a tire's skid state (MAT3 tNewSkid; skid_marks' WheelSlot) */
-
 /* Functions */
 void AddToEnvList(struct tVisual *v);
 void AnimateArrow(struct tVisual *v, s16 op);

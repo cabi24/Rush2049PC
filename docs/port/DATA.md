@@ -355,8 +355,8 @@ line of `port/data/reached.txt` is a rule:
 
 ```
 ROOT                        TYPE                 COUNT
-TextureSwapLists                  ObjectAnimation20    until count
-ObjectAnimation20.frames    AnimationFrame12     parent count
+TextureSwapLists                  tTextureSwap         until num
+tTextureSwap.swapTexs       tTextureBase         parent num
 carSuspensions                  f32[9]               1
 demo_path_points                  s16                  num_demo_ppoints[i]
 ```
@@ -377,7 +377,7 @@ pointer it reads the count from the ROM, then
   pointer in the root (or the parent's copy) rewritten to it. What the game writes there is lost on a reload of the
   image, as on the N64;
 - a pointer into a symbol whose own storage holds that type already (gen_data lists them: the shared frames
-  `texture_swap_shared_frames` for `AnimationFrame12`) resolves as usual;
+  `texture_swap_shared_frames` for `tTextureBase`) resolves as usual;
 - any other type is swapped in place in its arena, unless an element there describes it already.
 
 The report has a `reached` line per table (its address, count, and which of the three), and the stats line counts the

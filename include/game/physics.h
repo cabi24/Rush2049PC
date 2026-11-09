@@ -139,8 +139,6 @@ extern s8 gSuicideMode;
 /* pc_tire_records: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
 
 /* Functions */
-struct tMiniModelData;   /* a track object as a collision body (MAT3; setMiniFBCollisionForce.c) */
-struct TireDesc;   /* copy_tire_info: a tire's constants in the car's physics descriptor (MAT3 anon_tradius_springK_18) */
 void AbortCar(s16 slot, s32 death);
 void accelerations(struct tModelData *m);
 void antispin(struct tModelData *m);
@@ -163,7 +161,6 @@ void copy_tire_info(struct TireDesc *tp1, struct Tire *tp2);
 void dead_reckon_all(void);
 void dead_reckon_posuv(struct tModelData *m);
 void DetectDroneAbort(void);
-void displaylist_set_texture_image(u32 *dl, u32 value);
 void downshift(struct tModelData *m);
 void drivetrain(struct tModelData *m);
 void End_MDrive(s16 slot);
