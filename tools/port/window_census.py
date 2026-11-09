@@ -204,7 +204,7 @@ class Census:
 
     def add(self, kind, path, line, text):
         assert kind in KIND_NAMES, kind
-        self.sites[kind].append((str(path), line, text.strip()[:160]))
+        self.sites[kind].append((str(path).replace(os.sep, "/"), line, text.strip()[:160]))   # tree paths with /
         self.measured.add(kind)
 
     def count(self, kind, n):

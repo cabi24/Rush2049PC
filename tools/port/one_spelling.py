@@ -56,6 +56,7 @@ import argparse
 import collections
 import fnmatch
 import os
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -362,7 +363,7 @@ class Tree:
     def resolve(self, rel, inc):
         here = Path(rel).parent
         for base in [here] + [Path(d) for d in INCLUDE_DIRS] + [Path("port/include")]:
-            cand = os.path.normpath((base / inc).as_posix())
+            cand = posixpath.normpath((base / inc).as_posix())   # the tree path with /, on Windows too
             if cand in self.text:
                 return cand
             if (self.root / cand).is_file() and cand.startswith("port/"):

@@ -78,6 +78,9 @@ def main():
                        "  echo \"fn_$a\"\n  echo \"/src/tree/port/ultra/x.c:${#a} (discriminator 2)\"\ndone\n")
         a2l.chmod(0o755)
         env = dict(os.environ, PATH=f"{bin_}{os.pathsep}{os.environ.get('PATH', '')}")
+        # The stand-in addr2line is a shell script, which Windows doesn't run; the counting build it names the sites
+        # of is Linux only (RUSH_COUNT_CROSSINGS), so on Windows the checks of the names it gives are left out.
+        named = os.name != "nt"
 
         code, out = tool("--report", dumps, env=env)
         print(out)
@@ -96,12 +99,14 @@ def main():
               "sites sorted by name")
         check("paths  2" in lines[i + 2] and "game_arena 14 (gTune)" in lines[i + 2],
               "a site's paths and the datum it points at, the offset dropped")
-        check("fn_0x1234 port/ultra/x.c:6" in out, "a PC layer site named by addr2line, relative to its tree")
+        if named:
+            check("fn_0x1234 port/ultra/x.c:6" in out, "a PC layer site named by addr2line, relative to its tree")
         check("libc.so.6+0x99" in out, "a library's site as it is")
         check("14 faults at 3 instructions in 1 runs; 3 more" in out, "the guard's totals")
-        check("fn_0x3000 port/ultra/x.c:6" in out and "(start_overlay_loaded)" in out, "the guard's instructions")
-        check("libc.so.6+0x1584c3 from fn_0x4000 port/ultra/x.c:6" in out and "(gMemcpied)" in out,
-              "a library's instruction named with the program's call of it")
+        if named:
+            check("fn_0x3000 port/ultra/x.c:6" in out and "(start_overlay_loaded)" in out, "the guard's instructions")
+            check("libc.so.6+0x1584c3 from fn_0x4000 port/ultra/x.c:6" in out and "(gMemcpied)" in out,
+                  "a library's instruction named with the program's call of it")
 
         code, out2 = tool("--report", dumps, "--sort", "count", env=env)
         i = out2.splitlines().index(next(l for l in out2.splitlines() if l.startswith("PC_N64P: 2 sites")))
@@ -115,7 +120,7 @@ def main():
                 (["--zero-region", "game_arena"], True, "--zero-region fails for a region crossed into"),
                 (["--zero-region", "boot_arena"], False, "--zero-region passes for one no crossing reaches"),
                 (["--zero-site", "FindChunk"], True, "--zero-site fails for a live site"),
-                (["--zero-site", "fn_0x1234"], True, "--zero-site matches a PC layer site's name"),
+                *([(["--zero-site", "fn_0x1234"], True, "--zero-site matches a PC layer site's name")] if named else []),
                 (["--zero-site", "nowhere.c"], False, "--zero-site passes for no such site"),
                 (["--no-faults"], True, "--no-faults fails when the guard found something"),
                 (["--expect-faults"], False, "--expect-faults passes then")):
