@@ -1,9 +1,18 @@
+/* view1_suscomp_offset: the driver's eye rides with the front suspension (MAT3 camera.c). */
 #include "game/game.h"
 
-f32 view1_suscomp_offset(void *arg0) {
+/* The model record (MAT3 tModelData): the front tyres' suspension compression. */
+struct tModelData {
+    u8 pad0[0x75C];
+    f32 suscomp[2]; /* 0x75C reckon.suscomp: the front tyres' suspension compression, feet */
+};
+
+/* Returns how far the driver's eye of model `m` rises: the front tyres' mean compression beyond
+ * view1_suscomp_bias, 0 if less. The empty test is the N64 code's. */
+f32 view1_suscomp_offset(struct tModelData *m) {
     f32 t = 0.0f;
     if (view1_suscomp_bias) {}
-    t = (*(f32 *) ((u8 *) arg0 + 0x75C) + *(f32 *) ((u8 *) arg0 + 0x760)) * 0.5f;
+    t = (m->suscomp[0] + m->suscomp[1]) * 0.5f;
     if (view1_suscomp_bias < t) {
         return t - view1_suscomp_bias;
     }

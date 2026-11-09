@@ -1861,11 +1861,23 @@ typedef struct tCircuitCar { /* 0x4C bytes */
 
 /* ---- camera: the cameras */
 
+/* A camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. The data loader lays gCamera
+ * out by this declaration, its bytes from 0x30 as bytes; the camera files read it whole as tCamera (below). */
 typedef struct CameraView { /* 0x98 bytes */
-    f32 uv[3][3];      /* 0x0 */
-    f32 position[3];   /* 0x24 */
-    u8 unknown30[104]; /* 0x30 */
+    f32 uvs[3][3];     /* 0x0 its orientation */
+    f32 pos[3];        /* 0x24 its position */
+    u8 rest[104];      /* 0x30 n64, fcam, view2spring, slot */
 } CameraView;
+
+/* A camera whole (MAT3 anon_mat_n64_98): the camera files' view of gCamera (VIEW(tCamera[], gCamera)). */
+typedef struct tCamera { /* 0x98 bytes */
+    UVMat mat;        /* 0x00 its orientation and position, as the cameras set them */
+    UVMat n64;        /* 0x30 what the N64 draws by: mat with four elements negated (UpdateCameras) */
+    UVMat fcam;       /* 0x60 the fixed camera's: its pos is where the crash and finish views look from */
+    f32 view2spring;  /* 0x90 */
+    u8 slot;          /* 0x94 the car it shows (ZeroCamera starts camera i on car i) */
+    u8 pad95[3];
+} tCamera;
 
 typedef struct PcFscls { /* 0x1EC bytes */
     f32 fscls[3];          /* 0x0 */

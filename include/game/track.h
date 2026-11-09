@@ -137,7 +137,7 @@ s16 FindResPathIntersect(s16 cp);
 s32 FindResPt(s32 inPath, s32 inIdx, s32 *outPath, s32 *outIdx, s32 honorAltRes);
 s32 FindResPtRecurse(s32 inPath, s32 inIdx, s32 *outPath, s32 *outIdx, s32 honorAltRes, s32 depth);
 void fPathInterp(s32 unused, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
-void FVecInterp(f32 *arg0, f32 *arg1, f32 arg2, f32 *arg3);
+void FVecInterp(f32 *a, f32 *b, f32 t, f32 *out);
 s32 GetNextCheckpoint(s32 index);
 f32 GetPathDistance(s32 from, s32 to);
 void GetTargetVelocity(s32 collIdx, f32 *vel);

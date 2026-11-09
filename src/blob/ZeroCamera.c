@@ -1,18 +1,18 @@
+/* ZeroCamera: a camera back to the origin (MAT3 camera.c). */
 #include "game/game.h"
 
-typedef struct PartSlot {
-  u8 pad0[0x24]; f32 f24; f32 f28; f32 f2C; u8 pad30[0x60]; f32 f90; s8 f94; u8 pad95[3];
-} PartSlot;
 VIEW(s32, unitmatrix);
 #define unitmatrix unitmatrix_view
-VIEW(PartSlot[], gCamera);
+VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 
-void ZeroCamera(s16 arg0)
+/* Resets the camera of window bit `camera` (1, 2, 4 or 8: camera 0 to 3): at the origin, looking down the axes,
+ * with its spring at rest. */
+void ZeroCamera(s16 camera)
 {
-s32 i = ((arg0 & 1) ? 0 : (arg0 & 2) ? 1 : (arg0 & 4) ? 2 : 3);
- gCamera[i].f94 = i;
- gCamera[i].f24 = 0.0f; gCamera[i].f28 = 0.0f; gCamera[i].f2C = 0.0f;
- CopyUV(&unitmatrix, &gCamera[i]);
- gCamera[i].f90 = 0.0f;
+    s32 i = ((camera & 1) ? 0 : (camera & 2) ? 1 : (camera & 4) ? 2 : 3);
+    gCamera[i].slot = i;
+    gCamera[i].mat.pos[0] = 0.0f; gCamera[i].mat.pos[1] = 0.0f; gCamera[i].mat.pos[2] = 0.0f;
+    CopyUV(&unitmatrix, &gCamera[i]);
+    gCamera[i].view2spring = 0.0f;
 }

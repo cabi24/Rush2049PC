@@ -4,14 +4,7 @@ typedef struct Poly {
     s16 active;
     u16 flags;
 } Poly;
-
-typedef struct Camera {
-    u8 pad0[0x24];
-    f32 pos[3];
-    u8 mat[0x98 - 0x30];
-} Camera;
-
-VIEW(Camera[], gCamera);
+VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
@@ -46,10 +39,10 @@ void ShowCountdown(s32 active)
             }
             for (i = 0; i < 4; i++) {
                 polyXYZ[i][2] = dist;
-                U64WorldVector(polyXYZ[i], xyz[i], gCamera[winidx].mat);
-                xyz[i][0] += gCamera[winidx].pos[0];
-                xyz[i][1] += gCamera[winidx].pos[1];
-                xyz[i][2] += gCamera[winidx].pos[2];
+                U64WorldVector(polyXYZ[i], xyz[i], gCamera[winidx].n64.uvs);
+                xyz[i][0] += gCamera[winidx].mat.pos[0];
+                xyz[i][1] += gCamera[winidx].mat.pos[1];
+                xyz[i][2] += gCamera[winidx].mat.pos[2];
             }
             if (poly[winidx] == 0) {
                 MBOX_FindTexture_WORK("CNTDWN3", &polyTidx, 0, gNumModels - 1, 1);

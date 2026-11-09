@@ -1,8 +1,11 @@
+/* LookInDir: an orientation looking along a direction (MAT3 camera.c). */
 #include "game/game.h"
 
 VIEW(f32[3], rvector);
 #define rvector rvector_view
 
+/* Sets `m` to look along `dir`: its forward row (m[2]) dir normalised, its side row (m[0]) level and square to
+ * it (rvector when dir is straight up or down), its up row (m[1]) square to both. */
 void LookInDir(f32 *dir, f32 m[3][3]) {
     f32 len;
     f32 inv;
