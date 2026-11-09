@@ -134,6 +134,27 @@ if(RUSH_NOFIXED)
     # gen_data.py also defines the names gen_stubs would make absolute, for which the PC layer's definitions count
     set(PC_DATA_NOFIXED_ARGS --nofixed --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt)
 endif()
+# The crossing counter and the arena guard (docs/port/NATIVE.md 9, wave 3's measure): every place the game or the PC
+# layer turns a 32-bit N64 address into a host pointer or back, counted by its site and written at exit
+# (RUSH2049_CROSSINGS=FILE; tools/port/crossings.py runs the synthetic paths and reports), and RUSH2049_WINDOW_GUARD=
+# arenas, the game's data arenas in the window without access. port/ultra/crossings.c is built only here, and the
+# hooks elsewhere (port/include/pc_crossings.h) are nothing without the option: the default build doesn't change. Make
+# it a Debug build (crossings.py does): the PC layer's sites are counted by their caller, which inlining would hide.
+# Linux only (mprotect, a SIGSEGV handler), and the default layout only: the moved and cast-checking builds translate
+# or check every crossing themselves.
+option(RUSH_COUNT_CROSSINGS "Count the crossings between N64 addresses and host pointers; the arena guard" OFF)
+if(RUSH_COUNT_CROSSINGS)
+    if(WIN32 OR APPLE)
+        message(FATAL_ERROR "RUSH_COUNT_CROSSINGS is Linux only so far (docs/port/NATIVE.md 9)")
+    endif()
+    if(RUSH_NOFIXED OR RUSH_CHECK_CASTS)
+        message(FATAL_ERROR "RUSH_COUNT_CROSSINGS counts the default build's crossings: not with RUSH_NOFIXED or "
+                "RUSH_CHECK_CASTS (docs/port/NATIVE.md 9)")
+    endif()
+    add_compile_definitions(RUSH_COUNT_CROSSINGS)   # the game C (pc_prelude.h), the PC layer and the tests
+    # the game C's sites as paths in the tree (src/blob/forces1.c:71), wherever the checkout is
+    add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/=)
+endif()
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
@@ -300,6 +321,9 @@ find_package(Threads REQUIRED)
 file(GLOB PC_ULTRA_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/ultra/*.c)
 if(NOT WIN32)
     list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/win32\\.c$")   # Windows' fault handler (docs/port/WINDOWS.md)
+endif()
+if(NOT RUSH_COUNT_CROSSINGS)   # the crossing counter (docs/port/NATIVE.md 9): only in its own build
+    list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/crossings\\.c$")
 endif()
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
 # The state hash (docs/port/LOCKSTEP.md 5) normalises and hashes the 8-256 MiB RDRAM window: optimized in every build,

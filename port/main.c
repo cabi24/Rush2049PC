@@ -20,6 +20,7 @@
 #include "mods.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
+#include "pc_crossings.h"   /* the counting build (docs/port/NATIVE.md 9): nothing in the default build */
 #include "pc_data.h"
 #include "pakfs.h"
 #include "pc_game_fps.h"
@@ -1569,6 +1570,7 @@ static int rush_main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
+    PC_CROSSINGS_START();   /* the counting build: the arena guard, once the data is in (docs/port/NATIVE.md 9) */
     mods_install();   /* docs/port/MODS.md */
     saves_game_names();   /* game.saves = files: what an imported ghost gets on the pak (docs/port/SAVES.md) */
     test_grow_waves();
@@ -1792,6 +1794,7 @@ static int rush_main(int argc, char **argv)
         pc_gfx_scene_stats(&tasks, &tris, &most);
         pc_scene_report(tasks, tris, most);   /* port/config/detail.c: what the scene drew (docs/port/DETAIL.md) */
     }
+    PC_CROSSINGS_FINISH();   /* the counting build: the crossings counted, written (docs/port/NATIVE.md 9) */
     remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();

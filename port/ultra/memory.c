@@ -37,6 +37,7 @@
 #include <unistd.h>
 #endif
 
+#include "pc_crossings.h"   /* the counting build's hooks (docs/port/NATIVE.md 9): nothing in the default build */
 #include "ultra.h"
 
 #if defined(__SANITIZE_ADDRESS__)
@@ -382,9 +383,10 @@ static void guard_cut(uint32_t addr)
     abort();
 }
 
-void *pc_n64_ptr(uint32_t addr)
+PC_CROSS_NOINLINE void *pc_n64_ptr(uint32_t addr)
 {
     uint32_t phys;
+    PC_CROSS_CALLER(PC_CROSS_N64_PTR, addr);   /* the counting build: counted by the caller */
     if (addr - g_cut < g_cut_size)
         guard_cut(addr);
     if (N64_IS_KSEG0_OR_1(addr))
@@ -396,9 +398,10 @@ void *pc_n64_ptr(uint32_t addr)
     return phys < g_size && g_rdram ? g_rdram + phys : NULL;
 }
 
-uint32_t pc_n64_addr(const void *host)
+PC_CROSS_NOINLINE uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;
+    PC_CROSS_CALLER(PC_CROSS_N64_ADDR, (uintptr_t)host);
     if (g_rdram && p >= g_rdram && p < g_rdram + g_size)
         return N64_KSEG0 + (uint32_t)(p - g_rdram);
     if (g_rdram_k1 && p >= g_rdram_k1 && p < g_rdram_k1 + g_size)
@@ -413,8 +416,9 @@ uint32_t pc_n64_addr(const void *host)
 /* RDRAM addresses become physical, as on the N64, below 16 MiB; past it, K0 (above). A host address (the game's own
  * code, data or stacks, all above 4 GiB) doesn't fit the u32 the game stores it in: it is truncated, with one
  * warning. The game's framebuffers and loaded files live in the heap, inside the window. */
-uint32_t osVirtualToPhysical(void *vaddr)
+PC_CROSS_NOINLINE uint32_t osVirtualToPhysical(void *vaddr)
 {
+    PC_CROSS_CALLER(PC_CROSS_VIRT_TO_PHYS, (uintptr_t)vaddr);
     uint32_t n64 = pc_n64_addr(vaddr);
     if (n64)
         return N64_TO_PHYS(n64) < PC_RCP_SEGMENT_SPAN ? N64_TO_PHYS(n64) : n64;

@@ -28,6 +28,7 @@
 
 #include "musyx.h"
 #include "pc_audio.h"
+#include "pc_crossings.h"   /* the counting build's hooks (docs/port/NATIVE.md 9): nothing in the default build */
 
 #define BUF 0x200          /* the microcode's decoded-sample buffer, in samples */
 #define BUF_PAD 8          /* reads just past it see zeros */
@@ -100,19 +101,25 @@ static inline uint32_t ld32(const uint8_t *p, int be)
     return v;
 }
 
-static inline void *n64ptr(uint32_t addr)
+/* An N64 address read from a record. The counting build counts each one (but 0) by its reader: an N64-form record's,
+ * or resolve for a native one's field (docs/port/NATIVE.md 9). */
+static PC_CROSS_INLINE void *n64ptr(uint32_t addr)
 {
+    PC_CROSS_CALLER(PC_CROSS_AUDIO_N64PTR, addr);
     return addr ? pc_n64_ptr(addr) : NULL;
 }
 
 /* A native-form pointer field: a host pointer, or below 4 GB an N64 address (the RDRAM window at host
- * PC_RDRAM_BASE, K0, K1 or physical). Host data is never below 4 GB on a 64-bit host: the executable is PIE. */
-static inline void *resolve(const void *p)
+ * PC_RDRAM_BASE, K0, K1 or physical). Host data is never below 4 GB on a 64-bit host: the executable is PIE. The
+ * counting build counts the N64 ones by the record's reader. */
+static PC_CROSS_INLINE void *resolve(const void *p)
 {
 #if UINTPTR_MAX > 0xFFFFFFFFu
     uintptr_t v = (uintptr_t)p;
-    if (v < ((uintptr_t)1 << 32))
+    if (v < ((uintptr_t)1 << 32)) {
+        PC_CROSS_CALLER(PC_CROSS_AUDIO_FIELD, v);
         return n64ptr((uint32_t)v);
+    }
 #endif
     return (void *)(uintptr_t)p;
 }
