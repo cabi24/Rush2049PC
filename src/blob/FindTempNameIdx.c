@@ -1,3 +1,4 @@
+/* FindTempNameIdx: a slot for a name typed on the high score screen (MAT3 gamerecords.c). */
 #include "game/game.h"
 
 VIEW(u8[20][13], gTempNames);
@@ -7,6 +8,10 @@ VIEW(u16[20], gTempNameAges);
 VIEW(intptr_t[12][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
 
+/* The index of name in the 20 names typed for the high score tables without a profile (gTempNames), which the
+ * tables (gTotalNames) refer to by that index: the slot already holding it, else an empty slot, else one no table
+ * entry refers to, else the oldest (gTempNameAges counts the calls since each was used), whose entries are then
+ * cleared. The slot's age becomes 0. */
 s16 FindTempNameIdx(u8 *name)
 {
     s16 i, j, k;

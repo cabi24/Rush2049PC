@@ -1,13 +1,17 @@
+/* GetPlayerTrack: the track a profile last chose (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct { u8 pad[76]; u8 b76; u8 pad1[19]; u8 b96; u8 pad2[15]; u8 b112; u8 pad3[19]; u8 b132; } Inner;
-typedef struct { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Inner **inner; } Mid;
-typedef struct Outer { Mid *mid; } Outer;
-u8 GetPlayerTrack(Outer *a0, s32 a1) {
-    switch (a1) {
-    case 6: return (*a0->mid->inner)->b96;
-    case 4: return (*a0->mid->inner)->b112;
-    case 5: return (*a0->mid->inner)->b132;
-    default: return (*a0->mid->inner)->b76;
+#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
+#define kObstacle 5
+#define kBattle 6
+
+/* The track (arena) the profile last chose for race type raceType: from the battle, stunt or obstacle settings, else
+ * the race settings. The file must be read. */
+u8 GetPlayerTrack(tProfile **profile, s32 raceType) {
+    switch (raceType) {
+    case kBattle: return (*(*profile)->datah)->battleSettings.track;
+    case kStunt: return (*(*profile)->datah)->stuntSettings.track;
+    case kObstacle: return (*(*profile)->datah)->obstacleSettings.track;
+    default: return (*(*profile)->datah)->raceSettings.track;
     }
 }

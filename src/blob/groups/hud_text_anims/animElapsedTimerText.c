@@ -1,4 +1,8 @@
+/* animElapsedTimerText: the race clock's digits, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
+
+#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
+#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
 
 typedef struct { s32 x, y; } Pos;
 
@@ -8,7 +12,10 @@ VIEW(s32, gGameState);
 VIEW(Pos[], elapsedTimerPos);
 #define elapsedTimerPos elapsedTimerPos_view
 
-s32 animElapsedTimerText(s32 arg0)
+/* Draws the race clock (gModelTime) as m:ss.hh centred on elapsedTimerPos, each digit over a dim "8" (the unlit
+ * segments), the separators half a digit and half a separator wide; nothing in attract mode, outside a race, or when
+ * the HUD hides the clock. Returns 1. (The thousandths are computed but not drawn.) */
+s32 animElapsedTimerText(s32 blit)
 {
     s32 t;
     char digits[9];
@@ -20,7 +27,7 @@ s32 animElapsedTimerText(s32 arg0)
     s32 y;
     s32 digitIdx;
 
-    if ((gGameState & 8) || !(gGameState & 0x400000) || !gShowElapsed) {
+    if ((gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || !gShowElapsed) {
         return 1;
     }
     t = gModelTime * 1000.0f;
@@ -35,7 +42,7 @@ s32 animElapsedTimerText(s32 arg0)
     digits[7] = t / 10 % 10 + '0';
     digits[8] = t % 10 + '0';
     HAL_SetTextDepth(0.0f);
-    TB_SetJust(1, 3);
+    TB_SetJust(kTB_JustCenter, kTB_JustTop);
     if (gNumWindows == 1) {
         HAL_SetFont(1);
     } else {
@@ -51,11 +58,11 @@ s32 animElapsedTimerText(s32 arg0)
     for (digitIdx = 0; digitIdx < 8; digitIdx++) {
         if ((str[0] = digits[digitIdx]) != ':' && str[0] != '.') {
             str[0] = '8';
-            TB_SetTextColor(0);
+            TB_SetTextColor(kTB_BlackText);
             TB_DrawText(x, y, str);
             str[0] = digits[digitIdx];
         }
-        TB_SetTextColor(1);
+        TB_SetTextColor(kTB_WhiteText);
         TB_DrawText(x, y, str);
         if (digitIdx == 1 || digitIdx == 2 || digitIdx == 4 || digitIdx == 5) {
             x += (digitW + colonW) / 2;
@@ -63,7 +70,7 @@ s32 animElapsedTimerText(s32 arg0)
             x += digitW;
         }
     }
-    TB_SetJust(0, 3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

@@ -1,11 +1,13 @@
+/* game_strcat: the game's strcat (the N64's own C library routines). */
 #include "game/game.h"
 
-u8 *game_strcat(u8 *arg0, u8 *arg1) {
-    u8 *r = arg0;
-    while (*arg0 != 0) {
-        arg0++;
+/* Appends src to dst and returns dst. */
+u8 *game_strcat(u8 *dst, u8 *src) {
+    u8 *r = dst;
+    while (*dst != 0) {
+        dst++;
     }
-    while ((*arg0++ = *arg1++) != 0) {
+    while ((*dst++ = *src++) != 0) {
     }
     return r;
 }

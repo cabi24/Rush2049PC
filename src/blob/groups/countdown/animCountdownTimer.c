@@ -1,4 +1,13 @@
+/* animCountdownTimer: the time left, a text blit's draw function (MAT3 hud.c); and the countdown's beep. */
 #include "game/game.h"
+
+#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
+#define kOneRace 0    /* gRace (MAT3 enum kNumRaceTypes) */
+#define kPractice 1
+#define kCircuit 3
+#define kStunt 4
+#define kBattle 6
+#define SOUND_COUNTDOWN_BEEP 2
 
 
 #define sc gScheduler_view
@@ -15,6 +24,10 @@ VIEW(s32[4][2], hud_mapPos);
 
 VIEW(OSMesgQueue, text_lock_queue);
 
+/* Draws the time left (GetCountdownTimeRemaining, seconds) as m:ss in yellow with a black shadow, centred on
+ * countdownTimerPos (a split-screen stunt race: on the map's place), without a leading zero; beeps at 30 seconds and
+ * each of the last 5, when it also blinks. Nothing outside a race, when the HUD hides it, in a race, practice or
+ * circuit, in a points battle or a stunt race of the timeless mode. Returns 1. */
 s32 animCountdownTimer(void *blt)
 {
     s32 t;
@@ -24,13 +37,13 @@ s32 animCountdownTimer(void *blt)
     static s32 sec;
     static s32 nextBeep = 30;
 
-    if (!(gGameState & 0x400000) || !gShowRemaining)
+    if (!(gGameState & GAME_STATE_RESULTS) || !gShowRemaining)
         goto skip;
-    if (gRace == 6 && gBattleMode == 0)
+    if (gRace == kBattle && gBattleMode == 0)
         goto skip;
-    if (gRace == 4 && gStuntMode == 1)
+    if (gRace == kStunt && gStuntMode == 1)
         goto skip;
-    if (gRace == 0 || gRace == 1 || gRace == 3) {
+    if (gRace == kOneRace || gRace == kPractice || gRace == kCircuit) {
 skip:
         return 1;
     }
@@ -44,7 +57,7 @@ skip:
                 nextBeep = 5;
             else
                 nextBeep--;
-            PlayGameSound_Countdown(2, 0, 2, 0);
+            PlayGameSound_Countdown(SOUND_COUNTDOWN_BEEP, 0, 2, 0);
         }
         if (sec <= 5 && (sc.frameCount & 8))
             return 1;
@@ -53,11 +66,11 @@ skip:
     x = countdownTimerPos[gNumWindows - 1][0];
     y = countdownTimerPos[gNumWindows - 1][1];
     HAL_SetTextDepth(0.0f);
-    TB_SetJust(1, 3);
-    if (gRace == 4 && gNumWindows > 1) {
+    TB_SetJust(kTB_JustCenter, kTB_JustTop);
+    if (gRace == kStunt && gNumWindows > 1) {
         x = mapPos[gNumWindows - 1][0];
         y = mapPos[gNumWindows - 1][1];
-        TB_SetJust(1, 1);
+        TB_SetJust(kTB_JustCenter, kTB_JustCenter);
     }
     digits[0] = t / 600 + '0';
     digits[1] = (t / 60) % 10 + '0';
@@ -77,9 +90,9 @@ skip:
         str[0] = digits[digitIdx];
         str[1] = 0;
         if (digitIdx > 0 || str[0] != '0') {
-            TB_SetTextColor(0);
+            TB_SetTextColor(kTB_BlackText);
             TB_DrawText(x + 1, y + 1, str);
-            TB_SetTextColor(14);
+            TB_SetTextColor(kTB_YellowText);
             TB_DrawText(x, y, str);
         }
         if (digitIdx == 1 || digitIdx == 2)
@@ -87,13 +100,15 @@ skip:
         else
             x += digitW;
     }
-    TB_SetJust(0, 3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
  
 
+/* Plays sound effect fxid (AudPlayEffect) unless the game's sounds are off or fxid is -1; returns its handle, -1
+ * when none. */
 s32 PlayGameSound_Countdown(s32 fxid, s32 subId, s32 replace, u8 priority)
 {
     if (!gGameSoundsEnabled) return -1;

@@ -1,3 +1,4 @@
+/* ClearMemoryHeap: free and compact a heap (MAT3 memsys.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -41,6 +42,9 @@ Heap *ConvertHeap(Heap *heap);   /* the heap, or the main heap for NULL (memsys/
  * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define SLOT_SET(s, v) PC_SLOT_SET(N64P(s), v)
+/* Frees every block of the heap (hint, or the main heap for NULL) that nobody owns or has locked or tagged, then
+ * moves each handle-owned unlocked block down into the first free block that fits (or that it adjoins), pointing
+ * its handle at the new place, as heap_move_block_low does for one block. Under the heap lock. */
 void ClearMemoryHeap(Heap *hint) {
     Heap *heap;
     Block *block, *cursor, *after, *tail, *previous;

@@ -1,6 +1,8 @@
+/* TB_DrawTextC: draw a string in one of the table's colours (MAT3 TB_text.c). */
 #include "game/game.h"
 
-void TB_DrawTextC(s16 arg0, s16 arg1, s32 arg2, void *arg3) {
-    TB_SetTextColor(arg2);
-    TB_DrawText(arg0, (s32) arg1, arg3);
+/* Draws text at (x, y) in colour color (kTB_*Text, TB_SetTextColor). */
+void TB_DrawTextC(s16 x, s16 y, s32 color, void *text) {
+    TB_SetTextColor(color);
+    TB_DrawText(x, (s32) y, text);
 }

@@ -1,16 +1,18 @@
+/* PurgePlayerData: drop a profile's file data from memory (MAT3 save.c). */
 #include "game/game.h"
 
-void PurgePlayerData(void **arg0) {
-    void *temp_v0;
-    void **temp_a0;
+/* Frees the profile's file data (PS_PurgeFile), which ReadPlayerData reads again when needed; nothing when it is not
+ * read or the profile has no file. */
+void PurgePlayerData(tProfile **profile) {
+    tProfile *p;
+    tPakHandle *fileh;
 
-    temp_v0 = *arg0;
-    if (M2C_FIELD(temp_v0, intptr_t *, PROFILE_OFS(0x2C)) != 0) {
-        temp_a0 = M2C_FIELD(temp_v0, void ***, PROFILE_OFS(8));
-        if (temp_a0 != NULL) {
-            PS_PurgeFile(temp_a0);
-            M2C_FIELD(temp_v0, intptr_t *, PROFILE_OFS(0x2C)) = 0;
+    p = *profile;
+    if (p->datah != NULL) {
+        fileh = p->fileh;
+        if (fileh != NULL) {
+            PS_PurgeFile(fileh);
+            p->datah = 0;
         }
     }
 }
-

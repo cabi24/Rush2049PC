@@ -1,4 +1,7 @@
+/* animCoins: the coin counters, 3D coins and their counts (MAT3 hud.c). */
 #include "game/game.h"
+
+#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
 
 typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
 typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
@@ -20,9 +23,12 @@ VIEW(Model68[], ObjInstanceList);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-s32 ZOID_AddObject(s32 arg0, void *arg1, s16 arg2, s32 arg3);
+s32 ZOID_AddObject(s32 model, void *matrix, s16 parent, s32 flags);
 
-s32 animCoins(void *arg0) {
+/* For each window's two counters (gold coins, silver coins): makes its spinning 3D coin the first time, places it at
+ * coinPos (coinStuntPos in stunt races) turned by hudObjAngle, and with the HUD's coins shown and the race on shows it
+ * with the count found (NumCoinsFound) beside it, in white with a black shadow; else hides it. Returns 1. */
+s32 animCoins(void *blit) {
     Pos pos;
     char buf[8];
     s16 i;
@@ -34,7 +40,7 @@ s32 animCoins(void *arg0) {
     } else {
         HAL_SetFont(12);
     }
-    TB_SetJust(0, 1);
+    TB_SetJust(kTB_JustLeft, kTB_JustCenter);
     for (i = 0; i < gNumWindows; i++) {
         for (j = 0; j < 2; j++) {
             if (gPlayerCoin[i].slot[j].id == -1) {
@@ -46,7 +52,7 @@ s32 animCoins(void *arg0) {
             ScaleUV(&gCamera[i], gPlayerCoin[i].slot[j].pos,
                           (gNumPlayers == 1) ? 0.03f : (gNumPlayers == 2) ? 0.03f : 0.04f);
             YawUV(hudObjAngle, gPlayerCoin[i].slot[j].pos);
-            if (gRace == 4) {
+            if (gRace == kStunt) {
                 pos.x = coinStuntPos[gNumWindows - 1][i][0];
                 pos.y = coinStuntPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
             } else {
@@ -54,13 +60,13 @@ s32 animCoins(void *arg0) {
                 pos.y = coinPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
             }
             ZOID_WindowTo3D(i, &pos, &gCamera[i], 2.0f, gPlayerCoin[i].slot[j].obj);
-            if (gOptions[11] && PC_CAR_FINISHED(i) != 1) {
+            if (gOptions[kOptCoins] && PC_CAR_FINISHED(i) != 1) {
                 s16 x;
                 s16 y;
                 f32 xoffset, yoffset;
 
                 MBOX_ShowObject(gPlayerCoin[i].slot[j].id, 0, hud_whichCam[i]);
-                if (gRace == 4) {
+                if (gRace == kStunt) {
                     x = coinStuntPos[gNumWindows - 1][i][0] + ((gNumWindows == 1) ? 12 : 8);
                     y = coinStuntPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
                 } else {
@@ -68,16 +74,16 @@ s32 animCoins(void *arg0) {
                     y = coinPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
                 }
                 TB_Sprintf(buf, coin_count_format, NumCoinsFound(i, j + 1));
-                TB_SetTextColor(0);
+                TB_SetTextColor(kTB_BlackText);
                 TB_DrawText(x + 1, y + 1, buf);
-                TB_SetTextColor(1);
+                TB_SetTextColor(kTB_WhiteText);
                 TB_DrawText(x, y, buf);
             } else {
                 MBOX_HideObject(gPlayerCoin[i].slot[j].id, 1, 15);
             }
         }
     }
-    TB_SetJust(0, 3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

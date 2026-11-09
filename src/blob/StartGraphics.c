@@ -1,3 +1,4 @@
+/* StartGraphics: begin a frame's display list (MAT3 gfx.c; the N64 side, the RDP set-up of every frame). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -120,12 +121,22 @@ void osViSetSpecialFeatures(u32);
 #define OS_VI_DITHER_FILTER_ON 0x0040
 #define OS_VI_DITHER_FILTER_OFF 0x0080
 
+#define FRAME_MATRIX_OFFSET 1728   /* where a frame buffer's matrices start (frame_matrix_cursor) */
+#define ZBUFFER_CLEAR 0xFFFCFFFC   /* the depth buffer's far value, twice (a fill colour covers two pixels) */
+#define SPLIT_LINE_COLOR 0x00010001 /* near black, the lines between the windows of a split screen */
+
+/* Starts the frame's display list in the frame buffer of frame_record_index: the RSP and RDP set-up lists, the depth
+ * buffer cleared to far, the colour buffer filled with gBgColor, the lines between the windows of a split screen
+ * (gSplitScreen, which ZOID_SplitMenuScreen(0) returns: 2 the grid of quarters, the fourth one black with three
+ * windows; 1 two windows stacked, three quarters of the width, the last quarter black), the
+ * texture filter and dither the video options chose (video_texture_filter, video_color_dither, the VI's dither
+ * filter and divot), then the blitter's and the text's frame (BlitInit, HAL_StartText). EndGraphics ends it. */
 void StartGraphics(void) {
     u32 color;
     FrameBuf *frame;
     frame=&frame_records[frame_record_index];
     frame_dynamic=frame->commands;
-    frame_matrix_cursor=frame_dynamic+1728;
+    frame_matrix_cursor=frame_dynamic+FRAME_MATRIX_OFFSET;
     frame_dl=(Gfx *)(frame_dynamic+PC_GLIST_OFFSET);
     gSPSegment(frame_dl++, 0, 0);
     gSPDisplayList(frame_dl++, rsp_init_dl);
@@ -134,7 +145,7 @@ void StartGraphics(void) {
     gDPPipeSync(frame_dl++);
     gDPSetCycleType(frame_dl++, G_CYC_FILL);
     gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, osVirtualToPhysical(zbuffer));
-    gDPSetFillColor(frame_dl++, 0xFFFCFFFC);
+    gDPSetFillColor(frame_dl++, ZBUFFER_CLEAR);
     gDPFillRectangle(frame_dl++, 0,0,screen_width-1,screen_height-1);
     gSPSetGeometryMode(frame_dl++, G_ZBUFFER);
     color=gBgColor;
@@ -146,18 +157,18 @@ void StartGraphics(void) {
     case 2:
         if(gNumWindows==3) {
             gDPPipeSync(frame_dl++);
-            gDPSetFillColor(frame_dl++, 0x00010001);
+            gDPSetFillColor(frame_dl++, SPLIT_LINE_COLOR);
             gDPFillRectangle(frame_dl++, screen_width/2,screen_height/2,screen_width-1,screen_height-1);
         }
         gDPPipeSync(frame_dl++);
-        gDPSetFillColor(frame_dl++, 0x00010001);
+        gDPSetFillColor(frame_dl++, SPLIT_LINE_COLOR);
         gDPFillRectangle(frame_dl++, screen_width/2-1,0,screen_width/2,screen_height-1);
         gDPPipeSync(frame_dl++);
         gDPFillRectangle(frame_dl++, 0,screen_height/2-1,screen_width-1,screen_height/2);
         break;
     case 1:
         gDPPipeSync(frame_dl++);
-        gDPSetFillColor(frame_dl++, 0x00010001);
+        gDPSetFillColor(frame_dl++, SPLIT_LINE_COLOR);
         gDPFillRectangle(frame_dl++, (screen_width*3)/4,0,screen_width-1,screen_height-1);
         gDPPipeSync(frame_dl++);
         gDPFillRectangle(frame_dl++, 0,screen_height/2-1,screen_width-1,screen_height/2);

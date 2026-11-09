@@ -1,16 +1,20 @@
+/* HAL_SetTextColor: the colour of the text drawn next (MAT3 HAL_text.c). */
 #include "game/game.h"
 
 VIEW(unsigned char[4], gFontColor);
 #define gFontColor gFontColor_view
 VIEW(intptr_t, blitColors);
 #define blitColors blitColors_view
-void HAL_SetTextColor(unsigned char a, unsigned char b, unsigned char c, unsigned char d)
+
+/* Makes red, green, blue, alpha the text's colour; a new colour forgets the blitter's colour cache so that the next
+ * glyph loads it (MAT3 calls BlitClearColors). */
+void HAL_SetTextColor(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha)
 {
-    if (a != gFontColor[0] || b != gFontColor[1] || c != gFontColor[2] || d != gFontColor[3]) {
-        gFontColor[0] = a;
-        gFontColor[1] = b;
-        gFontColor[2] = c;
-        gFontColor[3] = d;
+    if (red != gFontColor[0] || green != gFontColor[1] || blue != gFontColor[2] || alpha != gFontColor[3]) {
+        gFontColor[0] = red;
+        gFontColor[1] = green;
+        gFontColor[2] = blue;
+        gFontColor[3] = alpha;
         blitColors = 0;
     }
 }

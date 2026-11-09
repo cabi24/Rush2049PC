@@ -1,3 +1,4 @@
+/* allocate_memory_at: take the heap block at a given address (the N64's own; it reserves a runtime image's place). */
 #include "game/game.h"
 
 enum n64p_Block { n64p_Block_ };
@@ -37,6 +38,10 @@ s32 osSendMesg(void *mq, void *msg, s32 flags);
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
+/* Takes size bytes (rounded up to 32) of the heap at the N64 address addr, which must lie in a free block: the
+ * block is split there (the part before stays free, or joins the block before when under 64 bytes) and after the
+ * size (when 64 bytes or more are left). Returns the taken data, at addr. Under the heap lock. load_overlay takes a
+ * runtime image's region so. */
 void *allocate_memory_at(u32 addr, u32 size) {
     Heap *heap;
     Block *b;

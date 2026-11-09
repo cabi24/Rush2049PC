@@ -1,22 +1,5 @@
+/* animSpeed: the box behind the speedometer's digits, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
-
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    uintptr_t word0;
-    void *rgba;
-    uintptr_t word8;
-    u16 half12;
-    s16 x, y;
-    u16 half18;
-    s16 w, h;
-    u8 alpha, byte25;
-    s8 hidden;
-    u8 byte27;
-    s16 left, right, top, bottom;
-    u32 word36;
-    intptr_t state;     /* AnimFunc */
-    s32 data;
-} Blit;
 
 typedef struct Pos { s32 x, y; } Pos;
 
@@ -25,23 +8,27 @@ VIEW(u8[4], hud_box_color);
 VIEW(Pos[][4], speedPos);
 #define speedPos speedPos_view
 
-s32 animSpeed(Blit *blt)
+/* The speedometer box of the window in animID's low nibble; its high nibble says for which screens (1: one window
+ * only, 2: split screens only). Hidden on other screens (and its animation then stops), when the HUD hides the
+ * speed or the car has finished; else placed left of speedPos by two digits of the speed's font, at the HUD's box
+ * alpha, depth 100. Returns 1. */
+s32 animSpeed(tBlit *blt)
 {
-    s32 x;          /* unused (frame residual) */
+    s32 x;          /* unused */
     s32 win;
     s32 mode;
     s32 hide;
     s32 digitW;
-    s32 y;          /* unused (frame residual) */
-    s32 yoff;       /* unused (frame residual) */
-    s32 w;          /* unused (frame residual) */
-    s32 h;          /* unused (frame residual) */
+    s32 y;          /* unused */
+    s32 yoff;       /* unused */
+    s32 w;          /* unused */
+    s32 h;          /* unused */
 
-    win = blt->data & 15;
-    mode = ((u32)blt->data & 0xF0) >> 4;
+    win = blt->animID & 15;
+    mode = ((u32)blt->animID & 0xF0) >> 4;
     hide = (mode == 1 && gNumWindows >= 2) || (mode == 2 && gNumWindows < 2) || win >= gNumWindows;
     if (Hidden(blt, hide)) {
-        blt->state = 0;
+        blt->animFunc = 0;
         return 1;
     }
     hide = !gShowSpeed || PC_CAR_FINISHED(PC_MODEL_SLOT(win)) == 1;
@@ -57,7 +44,7 @@ s32 animSpeed(Blit *blt)
     blt->x = speedPos[gNumWindows - 1][win].x - digitW * 2 - 2;
     blt->y = speedPos[gNumWindows - 1][win].y + ((gNumWindows == 1) ? 1 : 0);
     blt->alpha = hud_box_color[3];
-    blt->half18 = 100;
+    blt->z = 100;
     UpdateBlit(blt);
     return 1;
 }

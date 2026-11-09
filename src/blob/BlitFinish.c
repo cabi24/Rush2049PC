@@ -1,9 +1,10 @@
+/* BlitFinish: end the blitter's display list for this frame (MAT3 blit_pc.c; the N64 side of it). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef union 
+typedef union
 {
-  struct 
+  struct
   {
     u32 w0;
     uintptr_t w1;
@@ -14,20 +15,24 @@ typedef union
 VIEW(intptr_t, blit_dl);
 #define blit_dl blit_dl_view
 
-/* PC: the same with host Gfx (16-byte commands). blit_dl holds a Gfx pointer; the two buffers are
- * pc_text_dl (groups/blit/init.c). */
+#define G_ENDDL 0xDF /* the RSP's end of display list */
+
+/* The two display lists the blitter fills alternately (groups/blit/init.c): host Gfx, 16 bytes a command. */
 extern Gfx pc_text_dl[2][2400];
+
+/* Ends the blitter's display list with G_ENDDL and returns its start for the frame's main list to call, or NULL when
+ * no blitting began this frame (blit_dl NULL: BlitInit wasn't called). blit_dl is NULL again afterwards, so the next
+ * BlitInit starts the other list. */
 void *BlitFinish(void)
 {
   Gfx **head = (Gfx **) (&blit_dl);
-  Gfx *g = *head;
-  if (g == ((void *) 0))
+  Gfx *cmd = *head;
+  if (cmd == NULL)
   {
-    return (void *) 0;
+    return NULL;
   }
-  g->words.w0 = 0xDF000000;
-  g->words.w1 = 0;
-  *head = (void *) 0;
+  cmd->words.w0 = (u32) G_ENDDL << 24;
+  cmd->words.w1 = 0;
+  *head = NULL;
   return pc_text_dl[blitDLnum];
 }
-

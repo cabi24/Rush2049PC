@@ -1,12 +1,13 @@
+/* hud_updateFrame: the HUD's per-frame bookkeeping, a blit animation function (MAT3 hud.c's updateFrame). */
 #include "game/game.h"
 
+/* A player's input record as this reads it: its car. */
 typedef struct {
     u8 slot;
     char pad1[0x48 - 0x1]; void *ref;
 } Pad;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The car and model records are the PC's pc_cars and pc_models (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern Pad gPlayers[];
 VIEW(u8[6][8], TrackTimeStr);
 #define TrackTimeStr TrackTimeStr_view
@@ -18,7 +19,10 @@ VIEW(u8[6][8], TrackTimeStr);
 #define PC_HUD_ORDER_N PC_MAX_LINKS
 #define PC_HUD_CLEAR_N (PC_RACE_CARS > PC_N64_CARS ? PC_MAX_LINKS : 6)
 
-s32 hud_updateFrame(s32 arg0) {
+/* Each frame: the four players' race times as digits (TrackTimeStr: a finisher's own time, else the race clock), and
+ * the order the minimap draws the cars' dots in (dot_order_list, read from the end): the humans' cars on top, then
+ * the drones by place. Always returns 1 (the blit stays). */
+s32 hud_updateFrame(s32 blit) {
     s16 order[PC_HUD_ORDER_N];
     s32 k;
     s16 i;

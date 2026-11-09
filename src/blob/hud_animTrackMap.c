@@ -1,37 +1,21 @@
+/* hud_animTrackMap: the track map, drawn into its texture (MAT3 hud.c's animTrackMap). */
 #include "game/game.h"
 
 /* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
  * address of the texels. */
 #define TXHD_DATA u32 data
 #define TEXELS(tex) ((u8 *)PC_N64P((tex)->data))
-typedef struct TexDef {
+/* The map's texture definition as this reads it (struct tTexture): its texels' address. */
+struct tTexture {
     /* 0x00 */ char name[16];
     /* 0x10 */ u16 width, height;
     /* 0x14 */ u8 pad14[4];
     /* 0x18 */ TXHD_DATA;
-} TexDef;
+};
 
-typedef struct Blit {
-    /* 0x00 */ char *name;
-    /* 0x04 */ void *image;
-    /* 0x08 */ TexDef *info;
-    /* 0x0C */ s16 texIndex;
-    /* 0x0E */ s16 X;
-    /* 0x10 */ s16 Y;
-    /* 0x12 */ s16 pad12;
-    /* 0x14 */ s16 Width;
-    /* 0x16 */ s16 Height;
-    /* 0x18 */ u8 Alpha;
-    /* 0x19 */ u8 pad19;
-    /* 0x1A */ s8 Hide;
-    /* 0x1C */ s16 Top;
-    /* 0x1E */ s16 Bot;
-    /* 0x20 */ s16 Left;
-    /* 0x22 */ s16 Right;
-    /* 0x24 */ s32 pad24;
-    /* 0x28 */ intptr_t AnimDTA;
-    /* 0x2C */ u32 AnimID;
-} Blit;
+#define MAP_FIRST_DRAW 0x10   /* animID: the map is yet to be placed and drawn */
+#define MAP_ROAD 0xE          /* the map's colours (4-bit texels): the road, */
+#define MAP_EDGE 0xD          /* and its border */
 
 typedef struct PathPoint {
     s16 pos[3];
@@ -67,7 +51,11 @@ VIEW(PathGraph, gResPath);
 VIEW(PathPoint *, gResPathPtList);
 #define gResPathPtList gResPathPtList_view
 
-s32 hud_animTrackMap(Blit *blt) {
+/* The track map: hidden with 5 windows or more or when the HUD hides it. The first time (animID's MAP_FIRST_DRAW)
+ * it takes the medium texture with 4 windows, places itself at hud_mapPos, and draws the track into its texture
+ * (4-bit texels, two a byte): every point of the path (gResPath) as a 5x5 square of road colour with a border colour
+ * edge, fitted in the map less 4 pixels a side, mirrored with gMirrorWaves. Sets kMapSize for the dots. Returns 1. */
+s32 hud_animTrackMap(tBlit *blt) {
     s32 dx;
     s32 dz;
     s32 w;
@@ -86,24 +74,24 @@ s32 hud_animTrackMap(Blit *blt) {
     s32 t;
 
     hide = gNumWindows >= 5 || gShowTrackMap == 0;
-    if (hide != blt->Hide) {
-        blt->Hide = hide;
+    if (hide != blt->hide) {
+        blt->hide = hide;
         UpdateBlit(blt);
     }
-    if (blt->Hide) {
+    if (blt->hide) {
         return 1;
     }
-    if (!(blt->AnimID & 0x10)) {
+    if (!(blt->animID & MAP_FIRST_DRAW)) {
         return 1;
     }
     if (gNumWindows == 4) {
         RenameBlit(blt, "MAP_MD", 0);
     }
-    kMapSize = blt->Width;
-    if (blt->AnimID & 0x10) {
-        blt->AnimID = blt->AnimID & 0xF;
-        blt->X = hud_mapPos[gNumWindows - 1].x - kMapSize / 2;
-        blt->Y = hud_mapPos[gNumWindows - 1].y - kMapSize / 2;
+    kMapSize = blt->width;
+    if (blt->animID & MAP_FIRST_DRAW) {
+        blt->animID = blt->animID & 0xF;
+        blt->x = hud_mapPos[gNumWindows - 1].x - kMapSize / 2;
+        blt->y = hud_mapPos[gNumWindows - 1].y - kMapSize / 2;
         UpdateBlit(blt);
     }
     dx = gPathMax[0] - gPathMin[0];
@@ -121,7 +109,7 @@ s32 hud_animTrackMap(Blit *blt) {
     offz = (kMapSize - h - 8) / 2 + 4;
     for (pz = 0; pz < kMapSize; pz++) {
         for (px = 0; px < kMapSize / 2; px++) {
-            TEXELS(blt->info)[pz * kMapSize / 2 + px] = 0;
+            TEXELS(blt->texture)[pz * kMapSize / 2 + px] = 0;
         }
     }
     for (i = 0; i < gResPath.count; i++) {
@@ -142,21 +130,21 @@ s32 hud_animTrackMap(Blit *blt) {
             for (x = px - 2; x <= px + 2; x++) {
                 if (x >= 0 && x < kMapSize && y >= 0 && y < kMapSize) {
                     col = gMirrorWaves == 0 ? kMapSize - x - 1 : x;
-                    row = TEXELS(blt->info) + (kMapSize - y - 1) * kMapSize / 2 + col / 2;
+                    row = TEXELS(blt->texture) + (kMapSize - y - 1) * kMapSize / 2 + col / 2;
                     if (x <= px - 2 || x >= px + 2 || y <= pz - 2 || y >= pz + 2) {
                         if (col & 1) {
-                            if ((*row & 0xF) != 0xE) {
-                                *row = (*row & 0xF0) | 0xD;
+                            if ((*row & 0xF) != MAP_ROAD) {
+                                *row = (*row & 0xF0) | MAP_EDGE;
                             }
                         } else {
-                            if ((*row & 0xF0) != 0xE0) {
-                                *row = (*row & 0xF) | 0xD0;
+                            if ((*row & 0xF0) != MAP_ROAD << 4) {
+                                *row = (*row & 0xF) | MAP_EDGE << 4;
                             }
                         }
                     } else if (col & 1) {
-                        *row = (*row & 0xF0) | 0xE;
+                        *row = (*row & 0xF0) | MAP_ROAD;
                     } else {
-                        *row = (*row & 0xF) | 0xE0;
+                        *row = (*row & 0xF) | MAP_ROAD << 4;
                     }
                 }
             }

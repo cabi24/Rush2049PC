@@ -1,37 +1,15 @@
+/* AddPlayerScores: merge a profile's best times into the high score tables (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-typedef struct TrackTimes {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ f32 times[3][5];
-    /* 0x40 */ u8 pad40[0x20];
-} TrackTimes; /* 0x60 */
-
-typedef struct SaveData {
-    /* 0x00 */ u8 pad0[0x8C];
-    /* 0x8C */ TrackTimes tracks[12];
-} SaveData;
-
-typedef struct SaveSlot {
-    /* 0x00 */ SaveData *data;
-} SaveSlot;
-
-typedef struct Owner {
-    /* 0x00 */ void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
-    /* 0x2C */ SaveSlot *slot;
-} Owner;
-
-typedef struct Entry {
-    /* 0x00 */ Owner *owner;
-} Entry;
-
-VIEW(TrackTimes[12], gTotalRaceStats);
-#define gTotalRaceStats gTotalRaceStats_view
-VIEW(Entry *[12][3][5], gTotalNames);
+VIEW(tProfile **[12][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
 
-void AddPlayerScores(Entry *entry)
+/* Merges the best times of the profile's file (each track's three lists of five) into the tables over all profiles
+ * (gTotalRaceStats' scores, the owners in gTotalNames): each time above 0 that beats an entry is put in its place,
+ * pushing the rest down and the last off. Nothing for a profile whose file is not read. */
+void AddPlayerScores(tProfile **profile)
 {
-    SaveData *data;
+    tSaveData *data;
     s32 i;
     s32 j;
     s32 k;
@@ -39,17 +17,17 @@ void AddPlayerScores(Entry *entry)
     s32 l;
     f32 *src;
     f32 *times;
-    Entry **owners;
+    tProfile ***owners;
 
-    if (entry->owner->slot == 0) {
+    if ((*profile)->datah == 0) {
         return;
     }
-    data = entry->owner->slot->data;
+    data = *(*profile)->datah;
     for (i = 0; i < 12; i++) {
         for (j = 0; j < 3; j++) {
-            src = data->tracks[i].times[j];
+            src = data->raceStats[i].scores[j];
             l = 0;
-            times = gTotalRaceStats[i].times[j];
+            times = gTotalRaceStats[i].scores[j];
             owners = gTotalNames[i][j];
             for (k = 0; k < 5; k++) {
                 if (0.0f < src[l]) {
@@ -59,7 +37,7 @@ void AddPlayerScores(Entry *entry)
                             owners[m] = owners[m - 1];
                         }
                         times[k] = src[l];
-                        owners[m] = entry;
+                        owners[m] = profile;
                         l++;
                     }
                 }

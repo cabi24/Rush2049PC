@@ -1,3 +1,5 @@
+/* blit_load_texture: load a texture, or a part of it, into the RDP's texture memory for the blitter (the N64 side of
+ * MAT3 blit_pc.c, which MAT3's GameCube build has no need of). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -161,11 +163,25 @@ typedef union {
 VIEW(Gfx *, blit_dl);
 #define blit_dl blit_dl_view
 
+/* The four ways of loading: a rectangle of the texture (TILE) or whole rows from row ult down (BLOCK), 4-bit texels
+ * apart (TILE4, BLOCK4); clamped, masked to the size's power of two. */
 #define TILE(fmt, sz) gDPLoadTextureTile(blit_dl++, img, fmt, G_IM_SIZ_##sz, width, height, uls, ult, lrs, lrt, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define TILE4(fmt) gDPLoadTextureTile_4b(blit_dl++, img, fmt, width, height, uls, ult, lrs, lrt, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define BLOCK(fmt, sz) gDPLoadTextureBlockAt(blit_dl++, img, fmt, G_IM_SIZ_##sz, width, height, uls, ult, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define BLOCK4(fmt) gDPLoadTextureBlockAt_4b(blit_dl++, img, fmt, width, height, uls, ult, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 
+/* Loads the texture img for the next BlitDraw and chooses the blitter's mode for it:
+ *   type        its format: 0 RGBA, 2 colour-indexed, 3 IA, 4 I (G_IM_FMT_*), 5 colour-indexed 8-bit with a 4-bit
+ *               second tile (BLIT_MODE_TWO_TILE)
+ *   siz         its texel size (G_IM_SIZ_*: 0 4-bit, 1 8-bit, 2 16-bit, 3 32-bit)
+ *   width, height  its size in texels
+ *   uls, ult, lrs, lrt  the part wanted: columns uls..lrs, rows ult..lrt
+ *   pal         the palette bank of a 4-bit colour-indexed texture
+ *   tile        0: load whole rows ult..lrt as one block (the image pointer advanced to row ult); else the rectangle
+ *               alone, which the RDP's texture memory may need when the rows don't fit
+ * RGBA and colour-indexed textures use copy mode unless translucent, depth-tested or tall; I and IA ones the
+ * intensity modes (with the alpha threshold when BLIT_ATTR_ALPHA_COMPARE); IA is always translucent. Nothing is loaded
+ * when the same image and part are already there (blit_cache_image, blit_cache_tile: the part packed in 64 bits). */
 void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls, u16 ult, u16 lrs, u16 lrt,
                    u16 pal, s32 tile)
 {
@@ -191,27 +207,27 @@ void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 
     else {
         tile = ((s64)uls << 48) + ((s64)ult << 32) + ((s64)lrs << 16) + lrt;
     }
-    if (type == 0 || type == 2) {
-        if ((blitAttribute & 0x20) || (blitAttribute & 0x10) || (blitAttribute & 0x8000)) {
-            mode = 1;
+    if (type == G_IM_FMT_RGBA || type == G_IM_FMT_CI) {
+        if ((blitAttribute & BLIT_ATTR_XLU) || (blitAttribute & BLIT_ATTR_ZDIST) || (blitAttribute & BLIT_ATTR_TALL)) {
+            mode = BLIT_MODE_TEXTURE;
         }
         else {
-            mode = 0;
+            mode = BLIT_MODE_COPY;
         }
     }
     else if (type == 5) {
-        mode = 4;
+        mode = BLIT_MODE_TWO_TILE;
     }
-    else if (type == 4 || type == 3) {
-        if (blitAttribute & 1) {
-            mode = 3;
+    else if (type == G_IM_FMT_I || type == G_IM_FMT_IA) {
+        if (blitAttribute & BLIT_ATTR_ALPHA_COMPARE) {
+            mode = BLIT_MODE_INTENSITY_ALPHA;
         }
         else {
-            mode = 2;
+            mode = BLIT_MODE_INTENSITY;
         }
     }
-    if (type == 3) {
-        BlitSetAttribute(0x20);
+    if (type == G_IM_FMT_IA) {
+        BlitSetAttribute(BLIT_ATTR_XLU);
     }
     if (mode != blitMode) {
         blit_set_mode(mode);
@@ -227,7 +243,7 @@ void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 
         masks = blit_mask_bits(width);
         maskt = blit_mask_bits(height);
     }
-    if (type == 0) {
+    if (type == G_IM_FMT_RGBA) {
         if (blitLUT != 0) {
             gDPSetTextureLUT(blit_dl++, G_TT_NONE);
             blitLUT = 0;
@@ -249,7 +265,7 @@ void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 
             }
         }
     }
-    else if (type == 2 || type == 5) {
+    else if (type == G_IM_FMT_CI || type == 5) {
         if (blitLUT != 1) {
             gDPSetTextureLUT(blit_dl++, G_TT_RGBA16);
             blitLUT = 1;
@@ -277,7 +293,7 @@ void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 
             }
         }
     }
-    else if (type == 4) {
+    else if (type == G_IM_FMT_I) {
         if (blitLUT != 0) {
             gDPSetTextureLUT(blit_dl++, G_TT_NONE);
             blitLUT = 0;
@@ -299,7 +315,7 @@ void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 
             }
         }
     }
-    else if (type == 3) {
+    else if (type == G_IM_FMT_IA) {
         if (blitLUT != 0) {
             gDPSetTextureLUT(blit_dl++, G_TT_NONE);
             blitLUT = 0;

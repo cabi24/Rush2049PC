@@ -1,3 +1,5 @@
+/* animStuntPoints: the stunt points and the stunts' messages, a text blit's draw function (MAT3 hudextra.c;
+ * runtime image B). */
 #include "game/game.h"
 #define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
 
@@ -33,7 +35,9 @@ VIEW(s32[4], bonuscnt);
 VIEW(tStuntCoin[4][10], stuntCoin);
 #define stuntCoin stuntCoin_view
 
-int animStuntPoints(void *blt) /* animStuntPoints */
+/* Draws each stunt player's points, the stunt just landed and its bonus, and scrolls the coins won to the player's
+ * coin row (stuntCoin), for the stunt race HUD. Returns 1. */
+int animStuntPoints(void *blt)
 {
     u8 str[32];
     int i, j;

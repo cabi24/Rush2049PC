@@ -1,22 +1,8 @@
+/* animElapsedTimer: the box behind the race clock, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    uintptr_t word0;
-    void *rgba;
-    uintptr_t word8;
-    u16 half12;
-    s16 x, y;
-    u16 half18;
-    s16 w, h;
-    u8 alpha, byte25;
-    s8 hidden;
-    u8 byte27;
-    s16 left, right, top, bottom;
-    u32 word36;
-    intptr_t state;     /* AnimFunc */
-    s32 data;
-} Blit;
+#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
+#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
 
 typedef struct Pos {
     s32 x, y;
@@ -27,7 +13,11 @@ VIEW(Pos[], elapsedTimerPos);
 VIEW(u8[4], hud_box_color);
 #define hud_box_color hud_box_color_view
 
-s32 animElapsedTimer(Blit *blt)
+/* The race clock's box: animID says for which screens (1: one window only, 2: split screens only); hidden on other
+ * screens (its animation then stops), in attract mode, outside a race, or when the HUD hides the clock; else as wide
+ * as the clock's seven digits and two separators in its font, centred on elapsedTimerPos, at the HUD's box alpha,
+ * depth 100. Returns 1. */
+s32 animElapsedTimer(tBlit *blt)
 {
     s32 x;
     s32 w;
@@ -38,12 +28,12 @@ s32 animElapsedTimer(Blit *blt)
     s8 fixedWidth;
     s32 y;
 
-    win = blt->data;
+    win = blt->animID;
     if (Hidden(blt, (win == 1 && gNumWindows > 1) || (win == 2 && gNumWindows < 2))) {
-        blt->state = 0;
+        blt->animFunc = 0;
         return 1;
     }
-    if (Hidden(blt, (gGameState & 8) || !(gGameState & 0x400000) || !gShowElapsed)) {
+    if (Hidden(blt, (gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || !gShowElapsed)) {
         return 1;
     }
     if (gNumWindows == 1) {
@@ -51,14 +41,14 @@ s32 animElapsedTimer(Blit *blt)
     } else {
         HAL_SetFont(2);
     }
-    digitW = HAL_GetCharWidth(56) + 1;
+    digitW = HAL_GetCharWidth('8') + 1;
     fixedWidth = HAL_SetFontFixedWidth(0);
-    colonW = HAL_GetCharWidth(58) + 1;
+    colonW = HAL_GetCharWidth(':') + 1;
     HAL_SetFontFixedWidth(fixedWidth);
     blt->x = elapsedTimerPos[gNumWindows - 1].x - (7 * digitW + 2 * colonW) / 2;
     blt->y = elapsedTimerPos[gNumWindows - 1].y - 1;
     blt->alpha = hud_box_color[3];
-    blt->half18 = 100;
+    blt->z = 100;
     UpdateBlit(blt);
     return 1;
 }

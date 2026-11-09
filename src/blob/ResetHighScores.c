@@ -1,8 +1,11 @@
+/* ResetHighScores: forget the race's laps and new high scores (MAT3 gamerecords.c). */
 #include "game/game.h"
 
 VIEW(signed char[3][5], gNewTotalScore);
 #define gNewTotalScore gNewTotalScore_view
 
+/* At a race's start: no laps done and no best lap (5999.999 s) for each player, and no new entry in the high score
+ * lists (gNewTotalScore). */
 void ResetHighScores(void)
 {
     int i, j;

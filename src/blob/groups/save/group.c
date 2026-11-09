@@ -1,3 +1,6 @@
+/* Profiles and ghosts on the paks: creating, reading, checking and repairing them, and the save server that reads a
+ * pak's profiles and ghosts when it comes in (MAT3 save.c). The profile's file (tSaveData) is still reached here by
+ * its byte offsets. */
 #include "game/game.h"
 
 
@@ -18,6 +21,9 @@ void SavePlayerOption(Handle, u8, s8);
 Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
 void PS_WriteFile(Handle, void *, u32);
 
+/* Gives the profile h a fresh file: its record cleared, the data zeroed, revision PROFILE_REVISION, the default
+ * controls with rumble, every car's default settings, every option's default (the race type settings for every
+ * track), the default car and view for every race type. */
 void InitPlayer(Handle h) {
     u8 *data;
     s32 i;
@@ -26,7 +32,7 @@ void InitPlayer(Handle h) {
     memset(*h, 0, SLOT_DATA);
     data = *F(*h, Handle, SLOT_DATA);
     memset(data, 0, 2064);
-    data[12] = 16;
+    data[12] = PROFILE_REVISION;
     SetDefaultControls(data + 60);
     data[70] = 1;
     F(data, s32, 56) = CalcChecksumInternal(data + 60, 11);
@@ -57,6 +63,10 @@ VIEW(s8[], gOptions);
 VIEW(s16[], gCheatState);
 #define gCheatState gCheatState_view
 
+/* Checks the profile's file: its revision and every part's checksum. Returns 1 when something is wrong. With repair
+ * each bad part is reset (the options and settings from the game's, the controls to the defaults, the records
+ * zeroed) and written; a file of another revision is deleted instead (and 0 returned). Original game: only the first
+ * 6 of the 12 race stats are checked (MAT3 alike); the other 6 (the tracks backwards) are never repaired. */
 s32 CheckAndRepairPlayer(Handle h, s32 repair) {
     s32 dirty;
     u8 *save;
@@ -67,7 +77,7 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
 
     dirty = 0;
     save = *F(*h, Handle, SLOT_DATA);
-    if (save[12] != 16) {
+    if (save[12] != PROFILE_REVISION) {
         if (repair) {
             PS_DeleteFile(F(*h, Handle, PROFILE_OFS(8)));
             return 0;
@@ -216,6 +226,8 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
     return dirty;
 }
 
+/* Reads the profile's file into memory, unless it is (its data handle), and checks and repairs it; takes its
+ * controls; the cheat profile turns every cheat on. Returns 0 when it can't be read or repaired. */
 s32 ReadPlayerData(Handle h) {
     u8 *obj;
     void **data;
@@ -247,6 +259,7 @@ s32 ReadPlayerData(Handle h) {
     return 1;
 }
 
+/* Deletes the profile's file (once it can be read), or for a profile without one resets it (InitPlayer). */
 void DeletePlayer(Handle h) {
     if (F(*h, intptr_t, PROFILE_OFS(8)) != 0) {
         if (ReadPlayerData(h)) {
@@ -259,8 +272,6 @@ void DeletePlayer(Handle h) {
 
 typedef struct { char c[9]; } Name9;
 
-VIEW(ProfileRec[][16][1], player_profile_records);
-#define player_profile_records player_profile_records_view
 VIEW(u8[], gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
 VIEW(u8[][24], gPS_Files);
@@ -268,7 +279,7 @@ VIEW(u8[][24], gPS_Files);
 VIEW(int[], gScheduler);
 #define gScheduler gScheduler_view
 
-/* deleted static at 0x800CD0FC (caller-less stub): GC save.c _Pow(int num, int exp) */
+/* 10 to the power exp (MAT3 _Pow). */
 s32 Pow(s32 exp) {
     s32 result = 1;
     while (exp--) {
@@ -277,7 +288,8 @@ s32 Pow(s32 exp) {
     return result;
 }
 
-Handle NewPlayer(s32 pak, s32 slot) {   /* deleted static at 0x800C7EC0: GC save.c _NewPlayer (N64: pak, slot) */
+/* The profile record of pak's file number slot (player_profile_records), through its handle (MAT3 _NewPlayer). */
+Handle NewPlayer(s32 pak, s32 slot) {
     Handle player;
 
     player = &player_profile_handles[pak][slot];
@@ -285,9 +297,12 @@ Handle NewPlayer(s32 pak, s32 slot) {   /* deleted static at 0x800C7EC0: GC save
     return player;
 }
 
-/* GC save.c CreatePlayer(int pak, unsigned char *name) */
 /* A profile keeps its handle's N64 address: the handle's own (pc_n64_identity, pc_prelude.h; LOCKSTEP.md 5). */
 #define N64A(x) pc_n64_identity(x)
+/* Creates a profile named name on pak's pak: a file named after the name (its first six letters, others made '*',
+ * numbered when the name is taken), a fresh file (InitPlayer) with the profile's id (the creation time, the
+ * record and the pak) and name, written at once; the profile joins the profile list in name order. Returns its
+ * handle, or NULL when the file can't be created. */
 void **CreatePlayer(s32 pak, u8 *name) {
     Handle player;
     Handle before;
@@ -335,7 +350,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
             break;
         }
     }
-    fileh = PS_CreateFile(pak, file, player_file_ext, 2064, 0x3544, 0x4E525545);
+    fileh = PS_CreateFile(pak, file, player_file_ext, PROFILE_FILE_SIZE, GAME_COMPANY_CODE, GAME_CODE);
     if (fileh == NULL) {
         return NULL;
     }
@@ -352,7 +367,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     F(data, s32, 0) = CalcChecksumInternal(data + 4, (data + 28) - (data + 4));
     memcpy(p + PROFILE_OFS(20), data + 13, 13);
     memcpy(p + PROFILE_OFS(12), data + 4, 8);
-    PS_WriteFile(F(p, Handle, PROFILE_OFS(8)), data, 2064);
+    PS_WriteFile(F(p, Handle, PROFILE_OFS(8)), data, PROFILE_FILE_SIZE);
     PS_FlushFile(F(p, Handle, PROFILE_OFS(8)), 0);
     PS_FlushPak(((u8 *)*F(p, Handle, PROFILE_OFS(8)))[PSF_OFS(16)], 1);
     for (before = F(gPlayerFiles, Handle, 8); before != NULL; before = *(Handle *)*before) {
@@ -365,9 +380,13 @@ void **CreatePlayer(s32 pak, u8 *name) {
 }
 
 
-/* ===== ReadPlayer = GC save.c _ReadPlayer(fileh); IPA: fileh in s0 ===== */
+
 s8 GetPlayerOption(Handle player, u8 option);      /* GC GetPlayerOption */
 
+/* Opens the profile in the pak file fileh (nothing if it is open already): reads and checks it, takes its name, id
+ * and controls; the first profile read when no options are set gives the game its options (and language and screen
+ * offset). It joins the profile list in name order and the high score tables, and its data is dropped from memory.
+ * Returns its handle, or NULL. */
 void **ReadPlayer(void **fileh) {
     Handle player;
     u8 *p;
@@ -415,8 +434,8 @@ void **ReadPlayer(void **fileh) {
     return player;
 }
 
-/* ===== CheckAndRepairGhost = GC _CheckAndRepairGhost ===== */
-typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the retail words) */
+
+typedef struct GhostHeader {      /* tGhostHeader's layout */
     u32 headerChecksum;           /* 0x00 */
     u8 revision;                  /* 0x04 */
     s8 flag;                      /* 0x05 */
@@ -451,13 +470,15 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
 } Ghost;
 
 
+/* Checks a ghost's file: its revision (GHOST_REVISION) and header checksum, and with data the recording's checksum.
+ * Returns 1 when something is wrong; with repair a bad ghost's file is deleted (and 0 returned). */
 s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
     s32 result;
     GhostHeader *header;
 
     result = 0;
     header = *(*ghosth)->header;
-    if (header->revision != 17) {
+    if (header->revision != GHOST_REVISION) {
         if (repair) {
             if ((*ghosth)->fileh) {
                 PS_DeleteFile((*ghosth)->fileh);
@@ -492,6 +513,9 @@ s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
 
 #define N64A0(x) PC_N64A(x)
 
+/* Reads the ghost's file (again: the data already read is purged first) and checks it, repairing it if need be; with
+ * decode decompresses the recording; with select moves the header and the recording low in the heap (for the race)
+ * and points the header at the recording. Returns 0 when it can't be read. */
 s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
     Ghost *ghost;
 
@@ -527,29 +551,19 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
     return 1;
 }
 
-typedef struct PakChannel {
-    s8 present;                /* 0x00 */
-    s8 state;                  /* 0x01 */
-    u8 unk02[4];
-    s8 busy;                   /* 0x06 */
-    u8 unk07[5];
-    PcPfs pfs;
-    u8 pad74[0x304 - 0x74];
-} PakChannel;
-VIEW(PakChannel[], gPaks);
-#define gPaks gPaks_view
-/* pak-TU channel getters (locked singles, re-typed on the gPaks record so the inlined copies share one
- * address CSE in SaveServer; each still compiles to its locked body) */
+/* Whether pak's pak changed at the last PS_PakServer (MAT3 paksysdc.c). */
 s8 PS_PakChanged(s32 pak) {
-    return gPaks[pak].present;
+    return gPaks[pak].changed;
 }
 
+/* Whether a pak the pak system has read is in pak's controller. */
 s8 PS_PakInserted(s32 pak) {
-    return gPaks[pak].state;
+    return gPaks[pak].inserted;
 }
 
+/* Whether pak's pak is a Rumble Pak. */
 s8 PS_PakRumble(s32 pak) {
-    return gPaks[pak].busy;
+    return gPaks[pak].rumble;
 }
 VIEW(u8[], gGhostFiles);
 #define gGhostFiles gGhostFiles_view
@@ -558,12 +572,14 @@ VIEW(u8[], gGhostFiles);
  * rumbleOnly; the decomp's call passes nothing (docs/port/PROTOTYPES.md). */
 #define PS_PakServer() PS_PakServer(forceUpdate, rumbleOnly)
 
-/* deleted static at 0x800C7300 (caller-less stub): GC save.c _ReadGhostHeader(fileh), with GC _AlreadyReadGhost
- * written inline (one `ghosth` variable for the search and the new ghost) */
-void FreeGhost(Handle ghosth) {   /* GC _FreeGhost */
+/* Drops a ghost (MAT3 _FreeGhost). */
+void FreeGhost(Handle ghosth) {
     *ghosth = NULL;
 }
 
+/* Opens the ghost in the pak file fileh (nothing if it is open already; MAT3 _ReadGhostHeader with _AlreadyReadGhost
+ * inline): reads its header, checks and repairs it, takes its track, direction, driver and time, drops the data
+ * from memory, and puts it in the ghost list in order of its time. Returns its handle, or NULL. */
 Handle _ReadGhostHeader(Handle fileh) {
     Handle ghosth;
     Ghost *ghost;
@@ -610,13 +626,16 @@ Handle _ReadGhostHeader(Handle fileh) {
     return ghosth;
 }
 
+/* Serves the paks (PS_PakServer), then, after the first three calls, opens the profiles and ghosts (by their file
+ * names) of every pak that changed and was read and isn't a Rumble Pak; a pak whose reading the error screen
+ * interrupted is read again on the next call. */
 void SaveServer(s32 forceUpdate, s32 rumbleOnly) {
     s32 pak;
     Handle fileh;
     Handle next;
-    static s8 sInitCountdown = 3;              /* 0x8011742C */
-    static s8 sLastPak = -1;                   /* 0x80117430 */
-    static s8 sReadingPak[4] = { 0, 0, 0, 0 }; /* 0x80117434 */
+    static s8 sInitCountdown = 3;
+    static s8 sLastPak = -1;
+    static s8 sReadingPak[4] = { 0, 0, 0, 0 };
 
     if (forceUpdate | rumbleOnly) {
     }

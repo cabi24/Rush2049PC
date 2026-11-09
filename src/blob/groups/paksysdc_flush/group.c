@@ -1,8 +1,11 @@
+/* Writing pak files back (MAT3 paksysdc.c, the N64's libultra form of it): the dirty maps, PS_WriteFile,
+ * PS_FlushFile and PS_FlushPak, and the serial bus lock they take. */
 #include "game/game.h"
 #define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
 typedef struct OSThread_s OSThread;
 
+/* libultra's OSPfs (PcPfs's layout). */
 typedef struct OSPfs {
     s32 status;
     OSMesgQueue *queue;
@@ -17,48 +20,13 @@ extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osWritebackDCache(void *, s32);
 
-typedef struct C96File C96File;
-typedef struct C96Handle { C96File *file; } C96Handle;
-struct C96File {
-    C96Handle *next;
-    C96Handle *prev;    /* PC: paksys' tPS_File, 96 bytes (docs/port/POINTERS.md 9.10) */
-    void (*RemoveFile)(C96Handle *);
-    void (*MoveFile)(C96Handle *, C96Handle *);
-    u8 channel, slot;
-    u8 unknown12[46];
-    u32 data_size;
-    u8 unknown44[4];
-    u8 **data;
-};
-typedef struct C96Slot {
-    u8 unknown0;
-    s8 modified;
-    s8 flag2;
-    u8 unknown3;
-    u16 map_bytes;
-    u16 unknown6;
-    u32 allocation;
-    u8 unknown12[28];
-} C96Slot;
-typedef struct C96Channel {
-    u8 unknown0;
-    s8 state;
-    u8 unknown2[4];
-    s8 flag6, busy, result, flag9;
-    u8 unknown10;
-    s8 modified;
-    OSPfs pfs;
-    s32 error;
-    u8 unknown120[12];
-    C96Slot slots[16];
-} C96Channel;
-/* Each pak's open files (paksysdc's tDLList, MAT3 tDLList): head the first. */
+/* Each pak's open files (MAT3 tDLList): head the first. */
 typedef struct tDLList {
     u8 indirect, doubly, opaque2[2];
     u32 count;
-    C96Handle *head, *tail;
+    tPakHandle *head, *tail;
 } tDLList;
-VIEW(volatile C96Channel[], gPaks);
+VIEW(volatile tPak[], gPaks);
 #define gPaks gPaks_view
 VIEW(tDLList[], gPS_Files);
 #define gPS_Files gPS_Files_view
@@ -66,49 +34,59 @@ VIEW(tDLList[], gPS_Files);
 VIEW(void (*)(s32,  s32,  s32,  s32,  s8 *,  s8 *,  s32), gErrorFunc);
 #define gErrorFunc gErrorFunc_view
 
+#define DIRTY_RUN 32   /* the dirty map's grain: one bit for each 32 bytes of a file */
+
+/* Makes the serial bus lock (a one-message queue) the first time it is needed. */
 void pfs_queue_init(void) {
     if (!si_lock_inited) {
         si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
         osSendMesg(&si_lock_queue, 0, 0);
     }
 }
+
+/* Takes the serial bus lock (si_lock's twin); si_unlock gives it back. */
 void pfs_lock(void) {
     OSMesg message;
     pfs_queue_init();
     osRecvMesg(&si_lock_queue, &message, 1);
 }
-void ClearFlush(s32 index) {
-    C96Handle *p, *next;
-    C96File *data;
 
-    if (gPaks[index].modified == 0) { next = p = 0; goto out; }
+/* Clears pak index's flush flag when none of its open files is dirty any more. */
+void ClearFlush(s32 index) {
+    tPakHandle *p, *next;
+    PakFileRecord *data;
+
+    if (gPaks[index].flush == 0) { next = p = 0; goto out; }
     next = p = gPS_Files[index].head;
     while (p != 0) {
         data = p->file;
         next = data->next;
         if (data->data != 0) {
-            if (gPaks[index].slots[data->slot].modified != 0) { next = 0; break; }
+            if (gPaks[index].files[data->fileNo].dirty != 0) { next = 0; break; }
         }
         p = next;
     }
-    if (p == 0) gPaks[index].modified = 0;
+    if (p == 0) gPaks[index].flush = 0;
 out:
     if (next) {}
 }
-s32 pak_find_dirty_run(C96Handle *handle, u8 **address, s32 *bytes, s32 *offset) {
+
+/* Finds the first run of dirty 32-byte pieces in the file's data (its dirty map follows the data): its address, its
+ * size in bytes and its offset in the file. Returns 1 if there is one, 0 when the file is clean or not read. */
+s32 pak_find_dirty_run(tPakHandle *handle, u8 **address, s32 *bytes, s32 *offset) {
     u8 complete = 0;
-    C96File *file = handle->file;
+    PakFileRecord *file = handle->file;
     u8 *map;
     u32 i, j;
     if (!file->data) return 0;
     *bytes = 0;
-    map = *file->data + file->data_size;
-    for (i = 0; i < gPaks[file->channel].slots[file->slot].map_bytes; i++) {
+    map = *file->data + file->size;
+    for (i = 0; i < gPaks[file->pak].files[file->fileNo].mapBytes; i++) {
         if (map[i] != 0) {
         for (j = 0; j < 8; j++) {
             if (map[i] & (1 << j)) {
                 if (*bytes == 0) {
-                    *offset = (i * 8 + j) * 32;
+                    *offset = (i * 8 + j) * DIRTY_RUN;
                     *address = *file->data + *offset;
                     *bytes = 1;
                 } else (*bytes)++;
@@ -120,22 +98,25 @@ s32 pak_find_dirty_run(C96Handle *handle, u8 **address, s32 *bytes, s32 *offset)
         if (complete) break;
         }
     }
-    *bytes *= 32;
+    *bytes *= DIRTY_RUN;
     return (*bytes == 0) ^ 1;
 }
-void pak_mark_dirty(C96Handle *handle, u8 *address, u32 bytes, s32 mark) {
-    C96File *file = handle->file;
+
+/* Marks (mark set) or clears the dirty bits of the 32-byte pieces that bytes bytes at address cover in the file's
+ * data. (Nothing checks that address lies in the file.) */
+void pak_mark_dirty(tPakHandle *handle, u8 *address, u32 bytes, s32 mark) {
+    PakFileRecord *file = handle->file;
     u8 *map;
     u32 first, last, i;
     u8 *end;
-    if (address < *file->data || address >= *file->data + file->data_size) {
+    if (address < *file->data || address >= *file->data + file->size) {
     }
     end = address + bytes;
     bytes = (u32)(address - *file->data);
     first = bytes;
     bytes >>= 5;
     last = (u32)(end - *file->data - 1) >> 5;
-    map = *file->data + file->data_size;
+    map = *file->data + file->size;
     for (i = bytes; i <= last; i++) {
         if (mark) map[i >> 3] |= 1 << (i & 7);
         else map[i >> 3] &= ~(1 << (i & 7));
@@ -143,7 +124,11 @@ void pak_mark_dirty(C96Handle *handle, u8 *address, u32 bytes, s32 mark) {
     if (first) {}
 }
 
-s32 PS_FlushFileInternal(C96Handle *handle, s32 mode) {
+/* Writes the dirty runs of the file to its pak, the caller holding the serial bus lock, and marks it clean. A write
+ * that fails: with mode 0 the error function asks the player (a Rumble Pak, a pak that isn't the original or no pak
+ * become kPS_ErrNewPak or kPS_ErrNoPak) and the write is retried if the player asks, else the file is marked clean
+ * anyway; with mode set it stays dirty. Returns 1 when written (or nothing to write), 0 on a failure. */
+s32 PS_FlushFileInternal(tPakHandle *handle, s32 mode) {
     s32 result;
     s32 index, slot_index;
     s8 retry, callback_value;
@@ -151,11 +136,11 @@ s32 PS_FlushFileInternal(C96Handle *handle, s32 mode) {
     s32 bytes, offset;
     u8 **allocation;
     if (!handle) return 1;
-    index = handle->file->channel;
-    slot_index = handle->file->slot;
+    index = handle->file->pak;
+    slot_index = handle->file->fileNo;
     allocation = handle->file->data;
-    if (!gPaks[index].slots[slot_index].modified) return 1;
-    osWritebackDCache(*allocation, handle->file->data_size);
+    if (!gPaks[index].files[slot_index].dirty) return 1;
+    osWritebackDCache(*allocation, handle->file->size);
     if (pak_find_dirty_run(handle, &address, &bytes, &offset)) {
         do {
             osWritebackDCache(address, bytes);
@@ -164,9 +149,9 @@ write_retry:
             if (result) {
                 gPaks[index].error = pak_error_from_pfs(result);
                 if (!mode) {
-                    if (gPaks[index].flag6) gPaks[index].error = 3;
-                    else if (gPaks[index].state && !gPaks[index].flag9) gPaks[index].error = 3;
-                    else if (!gPaks[index].state) gPaks[index].error = 2;
+                    if (gPaks[index].rumble) gPaks[index].error = kPS_ErrNewPak;
+                    else if (gPaks[index].inserted && !gPaks[index].original) gPaks[index].error = kPS_ErrNewPak;
+                    else if (!gPaks[index].inserted) gPaks[index].error = kPS_ErrNoPak;
                     si_unlock();
                     gErrPak = index;
                     gErrorFunc(index, gPaks[index].error, 0, 0, &retry, &callback_value, 0);
@@ -175,7 +160,7 @@ write_retry:
                     if (retry) goto write_retry;
                 }
                 if (!mode) {
-                    gPaks[index].slots[slot_index].modified = 0;
+                    gPaks[index].files[slot_index].dirty = 0;
                     ClearFlush(index);
                 }
                 return 0;
@@ -183,45 +168,53 @@ write_retry:
             pak_mark_dirty(handle, address, bytes, 0);
         } while (pak_find_dirty_run(handle, &address, &bytes, &offset));
     }
-    gPaks[index].slots[slot_index].modified = 0;
+    gPaks[index].files[slot_index].dirty = 0;
     ClearFlush(index);
     return 1;
 }
+
+/* Writes every dirty open file of pak index (PS_FlushFileInternal), stopping at the first failure. flushed says
+ * whether anything was written. Returns 1 when all were written. */
 s32 PS_FlushPak(s32 index, s32 mode) {
-    C96Handle *node;
-    C96Handle *next;
-    gPaks[index].result = 0;
-    if (!gPaks[index].modified) return 1;
+    tPakHandle *node;
+    tPakHandle *next;
+    gPaks[index].flushed = 0;
+    if (!gPaks[index].flush) return 1;
     pfs_lock();
-    gPaks[index].busy = 1;
+    gPaks[index].flushing = 1;
     node = gPS_Files[index].head;
     while (node) {
         next = node->file->next;
-        if (node->file->data && gPaks[index].slots[node->file->slot].modified) {
+        if (node->file->data && gPaks[index].files[node->file->fileNo].dirty) {
             if (!PS_FlushFileInternal(node, mode)) break;
-            gPaks[index].result = 1;
+            gPaks[index].flushed = 1;
         }
         node = next;
     }
-    gPaks[index].busy = 0;
+    gPaks[index].flushing = 0;
     si_unlock();
     return node == 0;
 }
-s32 PS_FlushFile(C96Handle *handle, s32 mode) {
+
+/* Writes the file's dirty runs to its pak (PS_FlushFileInternal under the lock). Returns 1 when written. */
+s32 PS_FlushFile(tPakHandle *handle, s32 mode) {
     pfs_lock();
-    gPaks[handle->file->channel].busy = 1;
-    gPaks[handle->file->channel].result = 0;
-    gPaks[handle->file->channel].result = PS_FlushFileInternal(handle, mode);
-    gPaks[handle->file->channel].busy = 0;
+    gPaks[handle->file->pak].flushing = 1;
+    gPaks[handle->file->pak].flushed = 0;
+    gPaks[handle->file->pak].flushed = PS_FlushFileInternal(handle, mode);
+    gPaks[handle->file->pak].flushing = 0;
     si_unlock();
-    return gPaks[handle->file->channel].result;
+    return gPaks[handle->file->pak].flushed;
 }
-void PS_WriteFile(C96Handle *handle, u8 *address, u32 bytes) {
-    C96File *file;
+
+/* Notes that bytes bytes at address in the file's data have changed: they become dirty, and so do the file and its
+ * pak, for the next flush to write. Not in include/game: its callers pass the address as a pointer or an integer. */
+void PS_WriteFile(tPakHandle *handle, u8 *address, u32 bytes) {
+    PakFileRecord *file;
     if (!handle) return;
     file = handle->file;
-    if (gPaks[file->channel].slots[file->slot].flag2) {}
+    if (gPaks[file->pak].files[file->fileNo].flag2) {}
     pak_mark_dirty(handle, address, bytes, 1);
-    gPaks[file->channel].slots[file->slot].modified = 1;
-    gPaks[file->channel].modified = 1;
+    gPaks[file->pak].files[file->fileNo].dirty = 1;
+    gPaks[file->pak].flush = 1;
 }

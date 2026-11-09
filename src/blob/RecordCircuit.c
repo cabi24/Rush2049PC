@@ -1,92 +1,68 @@
+/* RecordCircuit: record a finished circuit (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-typedef struct {
-    /* 0x00 */ s32 checksum;
-    /* 0x04 */ u16 total;
-    /* 0x06 */ u16 count[3];
-    /* 0x0C */ u16 unkC;
-    /* 0x0E */ u16 unkE;
-    /* 0x10 */ u16 best;
-    /* 0x14 */ f32 bestTime;
-    /* 0x18 */ s32 sum;
-} Rec; /* 0x1C */
-
-typedef struct {
-    /* 0x000 */ u8 pad0[0x684];
-    /* 0x684 */ Rec recs[4];
-    /* 0x6F4 */ u8 pad6F4[8];
-    /* 0x6FC */ s8 unk6FC;
-    /* 0x700 */ f32 unk700;
-    /* 0x704 */ f32 unk704;
-} Base;
-
-typedef struct {
-    Base *base;
-} Data;
-
-typedef struct Car {
-    void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
-    Data *data;
-} Car;
-
+/* A player's input record as this reads it: which "just play" profile, the profile handle in use. */
 typedef struct {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 index;
     /* 0x02 */ u8 pad2[0x46];
-    /* 0x48 */ Car **ref;
-} Player76; /* 0x4C */
+    /* 0x48 */ tProfile **profile;
+} PlayerPad; /* 0x4C */
 
+/* The circuit's result as this reads it: the circuit player's place (0 first) and points. */
 typedef struct {
     u8 unk0;
-    u8 unk1;
-    u16 unk2;
-} Result;
+    u8 place;
+    u16 points;
+} CircuitResult;
 
-extern Player76 gPlayers[];
-VIEW(Car *[], gJustPlayers);
+extern PlayerPad gPlayers[];
+VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
-VIEW(Rec[], gTotalCircuitStats);
-#define gTotalCircuitStats gTotalCircuitStats_view
 
-VIEW(Result, gCircuitCars);
+VIEW(CircuitResult, gCircuitCars);
 #define gCircuitCars gCircuitCars_view
 
+/* Adds the circuit the circuit player (gCircuitPlayer) finished to its profile's stats for that circuit (the type of
+ * its circuit in progress) and to the totals: a circuit, a first, second or third place, the death mode attempts and
+ * completions (a place in the top three), the points and the best points, the best time; then writes the stats. A
+ * player without a profile uses its "just play" one. */
 void RecordCircuit(void) {
     s32 i;
-    s32 idx;
-    Rec *rec;
+    s32 circuit;
+    tCircuitStats *rec;
 
-    if (gPlayers[gCircuitPlayer].ref == 0) {
-        gPlayers[gCircuitPlayer].ref = &gJustPlayers[gPlayers[gCircuitPlayer].index];
+    if (gPlayers[gCircuitPlayer].profile == 0) {
+        gPlayers[gCircuitPlayer].profile = &gJustPlayers[gPlayers[gCircuitPlayer].index];
     }
-    idx = (*gPlayers[gCircuitPlayer].ref)->data->base->unk6FC;
+    circuit = (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.type;
     for (i = 0; i < 2; i++) {
         if (i == 0) {
-            rec = &(*gPlayers[gCircuitPlayer].ref)->data->base->recs[idx];
+            rec = &(*(*gPlayers[gCircuitPlayer].profile)->datah)->circuitStats[circuit];
         } else {
-            rec = &gTotalCircuitStats[idx];
+            rec = &gTotalCircuitStats[circuit];
         }
-        rec->total++;
-        if (gCircuitCars.unk1 == 0) {
-            rec->count[0]++;
-        } else if (gCircuitCars.unk1 == 1) {
-            rec->count[1]++;
-        } else if (gCircuitCars.unk1 == 2) {
-            rec->count[2]++;
+        rec->numCircuits++;
+        if (gCircuitCars.place == 0) {
+            rec->num1st++;
+        } else if (gCircuitCars.place == 1) {
+            rec->num2nd++;
+        } else if (gCircuitCars.place == 2) {
+            rec->num3rd++;
         }
         if (gDeathMode) {
-            rec->unkC++;
-            if (gCircuitCars.unk1 < 3) {
-                rec->unkE++;
+            rec->numDeathAttempted++;
+            if (gCircuitCars.place < 3) {
+                rec->numDeathCompleted++;
             }
         }
-        rec->sum += gCircuitCars.unk2;
-        if (rec->best < gCircuitCars.unk2) {
-            rec->best = gCircuitCars.unk2;
+        rec->totalPts += gCircuitCars.points;
+        if (rec->bestPts < gCircuitCars.points) {
+            rec->bestPts = gCircuitCars.points;
         }
-        if (rec->bestTime == 0.0f || (*gPlayers[gCircuitPlayer].ref)->data->base->unk704 < rec->bestTime) {
-            rec->bestTime = (*gPlayers[gCircuitPlayer].ref)->data->base->unk704;
+        if (rec->bestTime == 0.0f || (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.totalTime < rec->bestTime) {
+            rec->bestTime = (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.totalTime;
         }
     }
-    SavePlayerCircuitStats(gPlayers[gCircuitPlayer].ref, (*gPlayers[gCircuitPlayer].ref)->data->base->unk6FC);
+    SavePlayerCircuitStats(gPlayers[gCircuitPlayer].profile, (*(*gPlayers[gCircuitPlayer].profile)->datah)->circuit.type);
 }

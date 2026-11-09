@@ -1,19 +1,22 @@
+/* GetPlayerCarView: the camera view a profile last chose (MAT3 save.c). */
 #include "game/game.h"
 
+#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
+#define kObstacle 5
+#define kBattle 6
 
-#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
+/* The camera view the profile last chose for its last race type (tSaveData.raceType). The file must be read. */
+u8 GetPlayerCarView(tProfile **profile) {
+    tSaveData *data;
 
-u8 GetPlayerCarView(void **arg0) {
-    u8 *p;
-
-    p = *M2C_FIELD(*arg0, u8 ***, SLOT_DATA);
-    switch (p[0x47]) {
-    case 6:
-        return p[0x63];
-    case 4:
-        return p[0x73];
-    case 5:
-        return p[0x87];
+    data = *(*profile)->datah;
+    switch (data->raceType) {
+    case kBattle:
+        return data->battleSettings.carView;
+    case kStunt:
+        return data->stuntSettings.carView;
+    case kObstacle:
+        return data->obstacleSettings.carView;
     }
-    return p[0x4F];
+    return data->raceSettings.carView;
 }

@@ -1,16 +1,7 @@
+/* DrawText: draw a string with the blitter, glyph by glyph (MAT3 HAL_text.c's _DrawText). */
 #include "game/game.h"
 
-typedef struct anon_version_type_10 {
-    unsigned char version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth;
-    unsigned char spacing, nonProp, kern, numTextures, numChars, pad16[3];
-} anon_version_type_10;
-/* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c);
- * FONT_KERNS reads it as a pointer. */
-typedef struct anon_kerns_value_c {
-    unsigned int kerns;
-    unsigned char value, texIdx, uls, ult, lrs, lrt;
-    signed short pad12;
-} anon_kerns_value_c;
+/* A letter's row of the kerning table: its kerns field holds a window address (port/assets/font.c). */
 #define FONT_KERNS(k) ((unsigned char *)PC_N64P(k))
 typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
 /* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
@@ -24,7 +15,7 @@ typedef struct tTexture {
     TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
 
-VIEW(anon_version_type_10 *, gFontHeader);
+VIEW(FontHeader *, gFontHeader);
 #define gFontHeader gFontHeader_view
 
 VIEW(tTexture *[16], gFontTextures);
@@ -40,6 +31,13 @@ VIEW(s32, gFontAttribute);
 VIEW(void *, blitColors);
 #define blitColors blitColors_view
 
+/* Draws length bytes of text (a single- or double-byte string, its mark and ending zeros counted) at the text position
+ * in the current font, colour, translucency and depth, now: the blitter's state set from gFontAttribute, the scissor
+ * box the whole screen, the font's colours loaded, then a BlitDraw per glyph, loading each texture page as the glyphs
+ * need it. A newline goes to the next line (ascent + descent + leading below, back to the start's x); a space, a
+ * character over 255 or one the font lacks advances by a space; a fixed-width font centres each glyph in maxWidth;
+ * a proportional one with a kerning table pulls a letter towards the one before it. HAL_FinishText calls it for the
+ * buffered text, HAL_DrawText for text with a depth. */
 void DrawText(const unsigned char *text, unsigned short length)
 {
     int i;
@@ -52,18 +50,18 @@ void DrawText(const unsigned char *text, unsigned short length)
     int lastPage;
     const unsigned char *t;
     int dbl;
-    anon_kerns_value_c *l;
+    FontLetter *letter;
     SetupFontData(0);
     BlitScissor(0, 0, screen_width - 1, screen_height - 1);
     BlitSetAttribute(gFontAttribute);
     BlitClearAttribute(~gFontAttribute);
     blitColors = 0;
-    if (gFontAttribute & 32)
+    if (gFontAttribute & BLIT_ATTR_XLU)
         gFontColor.rgba[3] = gTrans;
     BlitColors(&gFontColor, font_image_format, font_texel_size, 0);
     lastPage = 0;
     blit_load_texture(gFontTextures[0]->image, font_image_format, font_texel_size, gFontTextures[0]->width, gFontTextures[0]->height, 0, 0, gFontTextures[0]->width - 1, gFontTextures[0]->height - 1, 0, 0);
-    if (text[0] == 255) {
+    if (text[0] == TEXT_DOUBLE_BYTE) {
         t = text + 1;
         dbl = 1;
         step = 2;
@@ -98,14 +96,14 @@ void DrawText(const unsigned char *text, unsigned short length)
                     goto space;
                 if (chPrev > 0 && gFontHeader->kern && !gFontHeader->nonProp)
                     x0 -= FONT_KERNS(gFontLetters[ch].kerns)[chPrev];
-                l = gFontLetters + ch;
-                if (l->texIdx != lastPage) {
-                    lastPage = l->texIdx;
+                letter = gFontLetters + ch;
+                if (letter->texIdx != lastPage) {
+                    lastPage = letter->texIdx;
                     blit_load_texture(gFontTextures[lastPage]->image, font_image_format, font_texel_size, gFontTextures[lastPage]->width, gFontTextures[lastPage]->height, 0, 0, gFontTextures[lastPage]->width - 1, gFontTextures[lastPage]->height - 1, 0, 0);
                 }
-                x = (gFontHeader->nonProp ? (gFontHeader->maxWidth - (l->lrs - l->uls + 1)) / 2 : 0) + x0;
-                BlitDraw(x, y0, x + l->lrs - l->uls, y0 + l->lrt - l->ult, l->uls, l->ult);
-                x0 += (gFontHeader->nonProp ? gFontHeader->maxWidth : l->lrs - l->uls + 1) + gSpacing;
+                x = (gFontHeader->nonProp ? (gFontHeader->maxWidth - (letter->lrs - letter->uls + 1)) / 2 : 0) + x0;
+                BlitDraw(x, y0, x + letter->lrs - letter->uls, y0 + letter->lrt - letter->ult, letter->uls, letter->ult);
+                x0 += (gFontHeader->nonProp ? gFontHeader->maxWidth : letter->lrs - letter->uls + 1) + gSpacing;
             }
         }
         i += step;

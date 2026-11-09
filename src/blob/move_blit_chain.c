@@ -1,11 +1,12 @@
+/* move_blit_chain: move a multiblit (the N64's own helper; MAT3 has no such function). */
 #include "game/game.h"
 
-typedef struct Config64 {u8 pad0[14];s16 x,y;u8 pad18[42];struct Config64 *next;} Config64;
-void move_blit_chain(Config64 *config,s16 dx,s16 dy) {
- if(config) {
-  config->x+=dx;
-  config->y+=dy;
-  UpdateBlit(config);
-  move_blit_chain(config->next,dx,dy);
+/* Moves blit and every blit chained after it (child) by dx, dy pixels and updates each one's zoid blit list entry. */
+void move_blit_chain(tBlit *blit,s16 dx,s16 dy) {
+ if(blit) {
+  blit->x+=dx;
+  blit->y+=dy;
+  UpdateBlit(blit);
+  move_blit_chain(blit->child,dx,dy);
  }
 }

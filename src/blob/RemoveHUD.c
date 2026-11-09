@@ -1,6 +1,10 @@
+/* RemoveHUD: remove the race's HUD (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Voice Voice;
+#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
+#define kBattle 6
+
+/* A player's two coin counters' 3D coins (gPlayerCoin; CoinSlot's layout): the objects' ids. */
 typedef struct RecordSlot { s16 id; u8 pad2[50]; } RecordSlot;       /* 52 bytes */
 typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */
 
@@ -10,8 +14,10 @@ VIEW(intptr_t[], resultPane);
 VIEW(RecordRow[], gPlayerCoin);
 #define gPlayerCoin gPlayerCoin_view
 
-void RemoveBlit(Voice *voice);
+void RemoveBlit(void *blit);
 
+/* Removes the HUD ShowHUD made: the panes, the HUD's multiblit (HudBlit1) and each window's result pane and coin
+ * objects, the second multiblit (HudBlit2), and in battle and stunt races the extras (RemoveHUDExtra). */
 void RemoveHUD(void) {
     s32 i;
     s32 id;
@@ -50,7 +56,7 @@ void RemoveHUD(void) {
         RemoveBlit(HudBlit2);
         HudBlit2 = 0;
     }
-    if (gRace == 6 || gRace == 4) {
+    if (gRace == kBattle || gRace == kStunt) {
         RemoveHUDExtra();
     }
 }

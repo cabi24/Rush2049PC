@@ -1,102 +1,94 @@
+/* GetPlayerOption and the race settings it reads: a profile's options (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct Fields {
-    u8 opaque0[32];
-    /* 0x20 */ s8 normal[21];
-    u8 opaque53[27];
-    /* 0x50 */ s8 modeA[10];
-    u8 opaque90[10];
-    /* 0x64 */ s8 primary[8];
-    u8 opaque108[8];
-    /* 0x74 */ s8 secondary[9];
-    u8 opaque125[11];
-    /* 0x88 */ s8 fallback[4];
-} Fields;
-typedef struct Resource {Fields *fields;} Resource;
-typedef struct Object {void *next; void *prev; void *fileh; u8 opaque0_C[0x2C - 0xC];Resource *resource;} Object;
-typedef struct Owner {Object *object;} Owner;
-
-s8 GetBattleSetting(Owner *owner, u8 selector) {
-    Fields *fields = owner->object->resource->fields;
+/* A battle setting of the profile (option 23, 28..30, 37..40: SavePlayerOption's numbering), 0 for another option. */
+s8 GetBattleSetting(tProfile **profile, u8 selector) {
+    tSaveData *fields = *(*profile)->datah;
 
     switch (selector) {
-    case 23: return fields->primary[0];
-    case 28: return fields->primary[1];
-    case 29: return fields->primary[2];
-    case 30: return fields->primary[3];
-    case 37: return fields->primary[4];
-    case 38: return fields->primary[5];
-    case 39: return fields->primary[6];
-    case 40: return fields->primary[7];
+    case kOptGravity: return fields->battleSettings.gravity;
+    case kOptMirror: return fields->battleSettings.mirror;
+    case kOptFog: return fields->battleSettings.fog;
+    case kOptWind: return fields->battleSettings.wind;
+    case kOptBattleMode: return fields->battleSettings.mode;
+    case kOptBattlePoints: return fields->battleSettings.points;
+    case kOptBattleMinutes: return fields->battleSettings.minutes;
+    case kOptBattleNeg: return fields->battleSettings.neg;
     default: return 0;
     }
 }
 
-s8 GetStuntSetting(Owner *owner, u8 selector) {
-    Fields *fields = owner->object->resource->fields;
+/* A stunt setting of the profile (23, 28..30, 32..36), 0 for another option. */
+s8 GetStuntSetting(tProfile **profile, u8 selector) {
+    tSaveData *fields = *(*profile)->datah;
 
     switch (selector) {
-    case 23: return fields->secondary[0];
-    case 28: return fields->secondary[1];
-    case 29: return fields->secondary[2];
-    case 30: return fields->secondary[3];
-    case 32: return fields->secondary[4];
-    case 33: return fields->secondary[5];
-    case 34: return fields->secondary[6];
-    case 35: return fields->secondary[7];
-    case 36: return fields->secondary[8];
+    case kOptGravity: return fields->stuntSettings.gravity;
+    case kOptMirror: return fields->stuntSettings.mirror;
+    case kOptFog: return fields->stuntSettings.fog;
+    case kOptWind: return fields->stuntSettings.wind;
+    case kOptStuntMode: return fields->stuntSettings.mode;
+    case kOptStuntFlow: return fields->stuntSettings.flow;
+    case kOptStuntPoints: return fields->stuntSettings.points;
+    case kOptStuntMinutes: return fields->stuntSettings.minutes;
+    case kOptStuntDeaths: return fields->stuntSettings.deaths;
     default: return 0;
     }
 }
 
-s8 GetObstacleSetting(Owner *owner, u8 selector) {
-    Fields *fields = owner->object->resource->fields;
+/* An obstacle course setting of the profile (23, 28..30), 0 for another option. */
+s8 GetObstacleSetting(tProfile **profile, u8 selector) {
+    tSaveData *fields = *(*profile)->datah;
 
     switch (selector) {
-    case 23: return fields->fallback[0];
-    case 28: return fields->fallback[1];
-    case 29: return fields->fallback[2];
-    case 30: return fields->fallback[3];
+    case kOptGravity: return fields->obstacleSettings.gravity;
+    case kOptMirror: return fields->obstacleSettings.mirror;
+    case kOptFog: return fields->obstacleSettings.fog;
+    case kOptWind: return fields->obstacleSettings.wind;
     default: return 0;
     }
 }
 
-s8 GetRaceSetting(Owner *owner, u8 selector, s32 mode) {
-    Fields *fields = owner->object->resource->fields;
+/* A race setting of the profile (21..24, 26..31), 0 for another option; mode is unused. */
+s8 GetRaceSetting(tProfile **profile, u8 selector, s32 mode) {
+    tSaveData *fields = *(*profile)->datah;
 
     switch (selector) {
-    case 21: return fields->modeA[0];
-    case 22: return fields->modeA[1];
-    case 23: return fields->modeA[2];
-    case 24: return fields->modeA[3];
-    case 26: return fields->modeA[4];
-    case 27: return fields->modeA[5];
-    case 28: return fields->modeA[6];
-    case 29: return fields->modeA[7];
-    case 30: return fields->modeA[8];
-    case 31: return fields->modeA[9];
+    case kOptLaps: return fields->raceSettings.laps;
+    case kOptDrones: return fields->raceSettings.drones;
+    case kOptGravity: return fields->raceSettings.gravity;
+    case kOptDifficulty: return fields->raceSettings.difficulty;
+    case kOptCatchup: return fields->raceSettings.catchup;
+    case kOptBackwards: return fields->raceSettings.backwards;
+    case kOptMirror: return fields->raceSettings.mirror;
+    case kOptFog: return fields->raceSettings.fog;
+    case kOptWind: return fields->raceSettings.wind;
+    case kOptDeathMode: return fields->raceSettings.deaths;
     default: return 0;
     }
 }
 
-s32 GetPlayerOption(Owner *owner, u8 selector) {
+/* Option selector of the profile's file, which must be read: a game option (0..20), or a setting of the race type of
+ * the track gTrackNum (race tracks 0..5 and 19..24, battle arenas 6..13, stunt arenas 14..17, else the obstacle
+ * course). */
+s32 GetPlayerOption(tProfile **profile, u8 selector) {
     s32 mode;
 
-    if (selector < 21) {
-        return owner->object->resource->fields->normal[selector];
+    if (selector < kNumGameOptions) {
+        return (*(*profile)->datah)->options[selector];
     }
     mode = gTrackNum;
     if (mode >= 0 && mode < 6) {
-        return GetRaceSetting(owner, selector, mode);
+        return GetRaceSetting(profile, selector, mode);
     }
     if (mode >= 19 && mode < 25) {
-        return GetRaceSetting(owner, selector, mode);
+        return GetRaceSetting(profile, selector, mode);
     }
     if (mode >= 6 && mode < 14) {
-        return GetBattleSetting(owner, selector);
+        return GetBattleSetting(profile, selector);
     }
     if (mode >= 14 && mode < 18) {
-        return GetStuntSetting(owner, selector);
+        return GetStuntSetting(profile, selector);
     }
-    return GetObstacleSetting(owner, selector);
+    return GetObstacleSetting(profile, selector);
 }

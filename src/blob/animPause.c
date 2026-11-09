@@ -1,5 +1,7 @@
+/* Hidden and animPause: show or hide a blit, and the pause screen's dimming (MAT3 hud.c and pausescr.c). */
 #include "game/game.h"
 
+/* The blit as these read it (tBlit's layout; frontend.h's prototype of animPause takes a struct Blit). */
 typedef struct Blit {
     const char *Name;
     void *image;
@@ -18,7 +20,7 @@ typedef struct Blit {
     u32 AnimID;
 } Blit;
 
-/* MAT3 hud.c Hidden: the blit hidden or shown, updated when that changes. */
+/* Hides (hide 1) or shows blt, updating it only when that changes; returns whether it is hidden. */
 s32 Hidden(Blit *blt, s32 hide)
 {
     if (hide != blt->Hide) {
@@ -27,6 +29,8 @@ s32 Hidden(Blit *blt, s32 hide)
     }
     return blt->Hide;
 }
+/* The pause screen's dimming: hidden unless the pause menu's first item is chosen; else it takes the dim colour
+ * (animPause_color) once and stops animating. Returns 1. */
 s32 animPause(Blit *blt)
 {
     if (Hidden(blt, pauseMenuSelect != 0))

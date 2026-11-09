@@ -1,5 +1,5 @@
+/* animGear: the gear shown by the speedometer, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
-
 
 #define gFontSem text_lock_queue_view
 
@@ -11,6 +11,9 @@ VIEW(tText, gText);
 #define gText gText_view
 VIEW(OSMesgQueue, text_lock_queue);
 
+/* Draws, for each window's player who shifts by hand and races on, the gear label right of gearPos's x and the gear
+ * (R, N or its number) left of it, each with a black shadow a pixel down and right, in the HUD font for the number of
+ * windows, at no depth. Returns 1. */
 s32 animGear(void *blt)
 {
     u8 str[2];
@@ -32,9 +35,9 @@ s32 animGear(void *blt)
             continue;
         x = gearPos[gNumWindows - 1][slot][0] - 4;
         y = gearPos[gNumWindows - 1][slot][1];
-        TB_SetTextColor(0);
+        TB_SetTextColor(kTB_BlackText);
         TB_DrawText(TB_RightText(gText.single[204], x + 1), y + 1, gText.single[204]);
-        TB_SetTextColor(1);
+        TB_SetTextColor(kTB_WhiteText);
         TB_DrawText(TB_RightText(gText.single[204], x), y, gText.single[204]);
         x = gearPos[gNumWindows - 1][slot][0] + 4;
         y = gearPos[gNumWindows - 1][slot][1];
@@ -45,9 +48,9 @@ s32 animGear(void *blt)
         else
             str[0] = gear + '0';
         str[1] = 0;
-        TB_SetTextColor(0);
+        TB_SetTextColor(kTB_BlackText);
         TB_DrawText(x + 1, y + 1, str);
-        TB_SetTextColor(14);
+        TB_SetTextColor(kTB_YellowText);
         TB_DrawText(x, y, str);
     }
     HAL_SetTextDepth(-1.0f);

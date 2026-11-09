@@ -1,5 +1,7 @@
+/* TB_RightText: where to start a string to end it at x (MAT3 TB_text.c). */
 #include "game/game.h"
 
-s16 TB_RightText(void *arg0, s16 arg1) {
-    return (s16) (arg1 - HAL_GetTextWidth(arg0, -1));
+/* The x at which text, drawn in the current font, ends at rightX. */
+s16 TB_RightText(void *text, s16 rightX) {
+    return (s16) (rightX - HAL_GetTextWidth(text, -1));
 }

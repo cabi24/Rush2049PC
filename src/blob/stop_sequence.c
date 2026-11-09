@@ -1,3 +1,4 @@
+/* stop_sequence: stop a sequence of timed sound events (MAT3 audiomgr.c). */
 #include "game/game.h"
 
 /* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
@@ -10,7 +11,7 @@ typedef struct Event {
     u32 handle;     /* 8 */
     u8 busy;        /* 12 */
     u8 active;      /* 13 */
-    u8 flag14;      /* 14 */
+    u8 stop;        /* 14 */
     u8 pad15;
     f32 start;      /* 16 */
     f32 delay;      /* 20 */
@@ -32,6 +33,7 @@ VIEW(Event *, gSequences);
 int osRecvMesg(void *, void *, int);
 int osSendMesg(void *, void *, int);
 
+/* The sequence of handle h (its slot is h's tag bits), or NULL for -1 or a handle the slot no longer holds. */
 static Event *find_sequence(s32 h)
 {
     if (h == -1) {
@@ -43,6 +45,7 @@ static Event *find_sequence(s32 h)
     return &gSequences[h & gTagMask];
 }
 
+/* Asks the sequence of handle h, if it still runs, to stop (its stop flag), under the audio lock. */
 void stop_sequence(s32 h)
 {
     Event *e;
@@ -50,7 +53,7 @@ void stop_sequence(s32 h)
     osRecvMesg(audio_lock_queue, 0, 1);
     e = find_sequence(h);
     if (e != 0) {
-        e->flag14 = 1;
+        e->stop = 1;
     }
     osSendMesg(audio_lock_queue, 0, 0);
 }

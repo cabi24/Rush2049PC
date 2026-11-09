@@ -1,4 +1,9 @@
+/* AnimateObjSwapGeneric: a track object that cycles through models, a visual's function (MAT3 visuals.c). */
 #include "game/game.h"
+
+#define TARGET_REMOVE_AT_END 0x1000   /* targetInfo flags: the cycle runs once, then the visual ends */
+#define TARGET_DESTROY_AT_END 0x2000  /* the cycle runs once, then the object goes */
+#define SWAP_FRAME_TIME 0.0625f       /* seconds a frame */
 
 typedef struct Model {
     /* PC: id is the low half of the target's handle (an s32 at +0xC), at +0xC on a little-endian host, not +0xE:
@@ -47,6 +52,9 @@ VIEW(Kind[], targetInfo);
 VIEW(Ent[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
+/* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (base .. base + count - 1
+ * of gObjList) on its scene object; at the end of the cycle starts again, or ends the visual (and with
+ * TARGET_DESTROY_AT_END removes the object). mode 0 ends the visual at once. */
 void AnimateObjSwapGeneric(Obj *obj, s16 mode)
 {
     Model *m;
@@ -69,13 +77,13 @@ apply:
         return;
     }
     obj->frame++;
-    obj->timer = 0.0625f;
+    obj->timer = SWAP_FRAME_TIME;
     if (obj->frame >= m->count) {
         kind = &targetInfo[m->type];
-        if (kind->flags & 0x1000) {
+        if (kind->flags & TARGET_REMOVE_AT_END) {
             goto apply;
         }
-        if (kind->flags & 0x2000) {
+        if (kind->flags & TARGET_DESTROY_AT_END) {
             RemoveObjectTree(m->id, 0, 0);
             goto apply;
         }

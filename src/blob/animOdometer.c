@@ -1,4 +1,8 @@
+/* animOdometer: the odometer's digits, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
+
+#define kObstacle 5   /* gRace (MAT3 enum kNumRaceTypes) */
+#define FEET_PER_TENTH_MILE 528.0f
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
@@ -17,7 +21,7 @@ typedef struct Blit {
     s16 Left;
     s16 Right;
     s32 pad24;
-    intptr_t AnimDTA;   /* the AnimFunc slot */
+    intptr_t animFunc;
     u32 AnimID;
 } Blit;
 
@@ -34,6 +38,10 @@ VIEW(Pos[][4], odometerPos);
 
 #define HW (blt->Width / 2)
 
+/* Digit animID & 0xF (0 hundreds .. 3 tenths of a mile, or of a kilometre with kOptMetric) of the odometer of the
+ * player in animID's high nibble, a strip of digits scrolled to the car's distance: the tenths roll smoothly, each
+ * higher digit rolls when all those below it read 9. Hidden (and its animation stopped) past the windows or on the
+ * obstacle course; hidden when the HUD hides it or the car finished. Placed at odometerPos. Returns 1. */
 s32 animOdometer(Blit *blt) {
     s32 slot;
     s32 digit;
@@ -50,11 +58,11 @@ s32 animOdometer(Blit *blt) {
     digit = blt->AnimID & 0xF;
     frac = 0.0f;
     dist = PC_CAR_F108(slot);
-    if (gOptions[9]) {
+    if (gOptions[kOptMetric]) {
         dist = dist / 0.6f;
     }
-    if (!(slot < gNumWindows) || gRace == 5) {
-        blt->AnimDTA = 0;
+    if (!(slot < gNumWindows) || gRace == kObstacle) {
+        blt->animFunc = 0;
         if (blt->Hide != 1) {
             blt->Hide = 1;
             UpdateBlit(blt);
@@ -70,7 +78,7 @@ s32 animOdometer(Blit *blt) {
     if (hide) {
         return 1;
     }
-    tenths = dist / 528.0f;
+    tenths = dist / FEET_PER_TENTH_MILE;
     itenths = tenths;
     if (itenths % 10 == 9) {
         frac = tenths - itenths;

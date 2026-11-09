@@ -1,25 +1,7 @@
+/* animDot: a car's dot on the track map, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Blit {
-    const char *Name;
-    void *image;
-    void *Info;
-    s16 TexIndex;
-    s16 X, Y;
-    u16 Z;
-    s16 Width, Height;
-    u8 Alpha, Flip;
-    s8 Hide;
-    u8 Init;
-    s16 Top, Bot, Left, Right;
-    s16 color;
-    u16 unknown26;
-    s32 (*AnimFunc)(struct Blit *);
-    u32 AnimID;
-    uintptr_t unk30;
-    u16 render_slot;
-} Blit;
-
+/* A car record as this reads it: its position, whether it is dead or resurrecting. */
 typedef struct Car {
     u8 pad0[8];
     f32 position[3];
@@ -29,6 +11,7 @@ typedef struct Car {
     u8 tail[0x380 - 0x35A]; void *input; u8 tail_384[0x3B8 - 0x384];
 } Car;
 
+/* A model record (MAT3 tModelData) as this reads it. */
 typedef struct Model {
     u8 pad0[1600];
     s8 crash;
@@ -44,20 +27,21 @@ typedef struct Model {
 } Model;
 
 typedef struct MapOrigin { s32 x, y; } MapOrigin;
-/* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct RenderRec { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } RenderRec;
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 
 VIEW(MapOrigin[], hud_mapPos);
 #define hud_mapPos hud_mapPos_view
 
-VIEW(RenderRec[], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
 
 VIEW(volatile Clock, gScheduler);
 #define gScheduler gScheduler_view
 
-s32 animDot(Blit *blt)
+/* The dot of the car at place animID & 0xF of the map's drawing order (dot_order_list, hud_updateFrame) on the track
+ * map (hud_mapPos, kMapSize square, the track's path bounds fitted in it; mirrored with gMirrorWaves): a human's own
+ * colour frame (its slot), a drone's frame 7; it flashes (alpha 64 every 8 retraces) while the car is dead,
+ * crashing, not collidable, hidden or hit. Hidden with 5 windows or more, without a car there, or when the HUD hides
+ * the map. Returns 1 (or Hidden's answer). */
+s32 animDot(tBlit *blt)
 {
     Model *m;
     Car *car;
@@ -66,7 +50,7 @@ s32 animDot(Blit *blt)
     u32 id;
     s32 world_width, world_height, map_width, map_height, xo, yo;
 
-    id = blt->AnimID;
+    id = blt->animID;
     slot = dot_order_list[id & 0xf];
     if (Hidden(blt, gNumWindows >= 5 || slot == -1 || !gShowTrackMap))
         return 1;
@@ -75,7 +59,7 @@ s32 animDot(Blit *blt)
 
     world_width = gPathMax.x - gPathMin.x;
     world_height = gPathMax.z - gPathMin.z;
-    size = blt->Height;
+    size = blt->height;
     if (world_height < world_width) {
         map_width = kMapSize - 8;
         map_height = (s32)(world_height * (u32)(kMapSize - 8)) / world_width;
@@ -85,21 +69,21 @@ s32 animDot(Blit *blt)
     }
     xo = (kMapSize - map_width - 8) / 2 + 4;
     yo = (kMapSize - map_height - 8) / 2 + 4;
-    blt->X = hud_mapPos[gNumWindows - 1].x + xo - (size + kMapSize) / 2;
-    blt->Y = hud_mapPos[gNumWindows - 1].y + yo - (size + kMapSize) / 2;
+    blt->x = hud_mapPos[gNumWindows - 1].x + xo - (size + kMapSize) / 2;
+    blt->y = hud_mapPos[gNumWindows - 1].y + yo - (size + kMapSize) / 2;
     if (gMirrorWaves) {
-        blt->X += (car->position[0] - gPathMin.x) * map_width / world_width;
+        blt->x += (car->position[0] - gPathMin.x) * map_width / world_width;
     } else {
-        blt->X += ((map_width - 1) - (car->position[0] - gPathMin.x) * map_width / world_width);
+        blt->x += ((map_width - 1) - (car->position[0] - gPathMin.x) * map_width / world_width);
     }
-    blt->Y += (car->position[2] - gPathMin.z) * map_height / world_height;
-    gBlitInstanceList[blt->render_slot].flags |= 1;
+    blt->y += (car->position[2] - gPathMin.z) * map_height / world_height;
+    gBlitInstanceList[blt->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (size) { }
     flash = car->dead || m->crash || !m->collidable || m->hide || m->hit_target != -1;
     if (car->active > 0)
         flash = 0;
     if (slot < gNumCars) {
-        blt->Alpha = ((gScheduler.tick & 8) && flash) ? 64 : 255;
+        blt->alpha = ((gScheduler.tick & 8) && flash) ? 64 : 255;
         if (m->mode == 2)
             SelectBlit(blt, slot, size, size);
         else if (m->mode == 1)

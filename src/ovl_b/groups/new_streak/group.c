@@ -1,3 +1,4 @@
+/* NewStreak: a light streak behind a shot (MAT3 streaks.c; runtime image B). */
 #include "game/game.h"
 
 typedef struct Effect {
@@ -11,6 +12,9 @@ typedef struct Pool Pool;
 VIEW(Pool, gStreakList);
 #define gStreakList gStreakList_view
 
+/* Takes a streak from gStreakList at position, its kind and half height by mode (0 to 3: 0.75, 0.5, 0.35 and 0.025;
+ * mode 3 lives no time, the others 0.1 s), its four points all at position but for the top and bottom. NULL when
+ * none is free. */
 Effect *NewStreak(s32 mode, f32 *position, f32 *unused_position)
 {
     Effect *effect;

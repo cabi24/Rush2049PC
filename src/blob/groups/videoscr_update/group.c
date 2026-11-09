@@ -1,3 +1,4 @@
+/* The video options screen: its buttons and its update (MAT3 videoscr.c). */
 #include "game/game.h"
 
 typedef struct {
@@ -24,7 +25,7 @@ f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
 intptr_t MBOX_FindTexture_WORK();
 
-void ZOID_SetTexture(s16 arg0, intptr_t arg1, s32 arg2);
+void ZOID_SetTexture(s16 object, intptr_t texture, s32 index);
 
 VIEW(intptr_t, video_blit);
 #define video_blit video_blit_view
@@ -34,10 +35,12 @@ VIEW(intptr_t, video_gTitlePane);
 
 void RemoveBlit(intptr_t sound_id);
 
+/* Removes the video screen's panes (the permanent ones stay). */
 void video_uninitButtons(void) {
     RemovePanes(0);
 }
 
+/* Leaves the video screen: the paks' files written (SaveFlush), its 3D buttons, panes, blit and background removed. */
 void video_uninitScreen(void) {
     s32 i;
 
@@ -62,12 +65,14 @@ void video_uninitScreen(void) {
     }
 }
 
+/* Whether video option i can be chosen. */
 s32 video_validOption(s32 i) {
     s32 v;
     v = video_optionValid[i];
     return v;
 }
 
+/* Moves and turns the video screen's 3D buttons towards the chosen option. */
 void video_updateButtons(void) {
     s32 i;
     intptr_t name;
@@ -170,6 +175,8 @@ VIEW(Pad16[], gControllerData);
 
 s32 CountdownTimeOut(void);
 
+/* The video screen's frame: reads the controls (choose an option, change its value: the screen's offset, the
+ * texture filter, the dither ...), applies the changes and leaves on a back or a confirm. */
 void updateVideoScreen(void) {
     Pad16 *p;
     s32 v;

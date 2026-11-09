@@ -1,3 +1,4 @@
+/* Ghost files: SaveGhost, reading, decoding and dropping a ghost's data, PS_PurgeFile (MAT3 save.c and ghost.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -107,9 +108,10 @@ typedef struct {
 VIEW(PlayerSeats[], gPaks);
 #define gPaks gPaks_view
 
-/* PS_PurgeFile (historical label): release a slot's data block and clear its seat flag. */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+
+/* Frees an open pak file's data (it is read again when needed) and clears the file's lock flag. */
 void PS_PurgeFile(Handle h) {
     Slot *s = *(Slot **)h;
 
@@ -123,6 +125,7 @@ void PS_PurgeFile(Handle h) {
     }
 }
 
+/* Frees a ghost's decoded recording and its file's data (PS_PurgeFile), clearing the header's recording address. */
 void PurgeGhostData(Handle h) {
     Obj *o = *h;
 
@@ -140,6 +143,8 @@ void PurgeGhostData(Handle h) {
     }
 }
 
+/* Decompresses a ghost's recording (unzipdata) into a new heap block, once: the header then holds the block's address
+ * and the number of samples (three bytes each). */
 void DecodeGhost(Handle h) {
     MenuData *m = *(MenuData **)(*h)->h40;
     s32 n;
@@ -149,27 +154,28 @@ void DecodeGhost(Handle h) {
         m->buffer = SLOT_S32((*h)->h36);
         n = unzipdata(m->data, m->size, N64PTR0(void *, m->buffer));
         m->count = n / 3;
-        do {} while (0); /* f1: compiled-out block end (disclosed shaping): retail colours n into a1 */
+        do {} while (0);
         CalcChecksumInternal(N64PTR0(void *, m->buffer), n);
         m->loaded = 1;
     }
 }
 
-/* GC DeallocateMemory as used by SaveGhost's main path: heap lock/unlock as nested inlined helpers (frame
- * evidence: the inlined `address` slot sits at retail's 80(sp) only with the two nested 8 B areas below it, as
- * PS_DeleteFile's pak_buffer_free). Non-static, internal (not on keep). */
+/* The heap lock (MAT3's DeallocateMemory, inline in SaveGhost: take, free, give back). */
 void ghost_heap_lock(void) {
     osRecvMesg(&heap_lock_queue, NULL, 1);
 }
+/* Gives the heap lock back. */
 void ghost_heap_unlock(void) {
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
+/* Frees the heap block at address, under the heap lock. */
 void cart_free(void **address) {
     ghost_heap_lock();
     DeallocateMemoryInternal(N64A(address), 0);
     ghost_heap_unlock();
 }
 
+/* Forgets the ghost node if a player races against it (gGhosts). */
 void slot_forget(Handle node) {
     s32 i;
     for (i = 0; i < 4; i++) {
@@ -180,21 +186,20 @@ void slot_forget(Handle node) {
     }
 }
 
-/* SaveGhost's limbo-path free: the same heap free written without nested helpers (one 8 B inline area; frame
- * evidence). Identity hypothesis: disclosed. */
+/* Frees the heap block at address, under the heap lock (cart_free written out). */
 void cart_free_direct(void **address) {
     osRecvMesg(&heap_lock_queue, NULL, 1);
     DeallocateMemoryInternal(N64A(address), 0);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
-void DeleteGhost(Handle ghosth) {   /* GC save.c DeleteGhost */
+/* Deletes the ghost's file from its pak, if it has one. */
+void DeleteGhost(Handle ghosth) {
     if ((*ghosth)->slot != NULL) {
         PS_DeleteFile((*ghosth)->slot);
     }
 }
 
-/* "BCK"/"FWD" for the ghost file extension (GC SaveGhost picks it inline next to GetGhostExtension); an inlined
- * helper taking the header pointer (8 B inline area + retail's temp-ring register for the byte load). */
+/* The ghost file name's direction suffix: backward or forward, by the header. */
 char *GhostDirName(MenuData *header) {
     if (header->variant) {
         return ghost_backward_suffix;
@@ -202,13 +207,12 @@ char *GhostDirName(MenuData *header) {
     return ghost_forward_suffix;
 }
 
-/* func_800CC040 = GC save.c SaveGhost(pak, saveGhosth, limbo), N64 form (pak, player, saveGhosth, limbo); member
- * since (EQUAL in the whole-program unit, MATCH in the group compile). Parameter names kept from the draft:
- * id = pak, owner = player handle, self = saveGhosth, release = limbo; m = header, node = before, buf = str,
- * obj = ghost, created = fileh. GC calls: SaveGhostInLimbo, DeallocateMemory = cart_free /
- * cart_free_direct, _FreeGhost = FreeGhost, _ReadGhostData = ReadGhostDataInternal, DeleteGhost, GetPtrSize =
- * GetPtrSize, InsertLLE, gGhostFiles = gGhostFiles. */
-s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
+/* Saves the new ghost saveGhosth of player on pak's pak (MAT3 SaveGhost(pak, saveGhosth, limbo); the N64 adds the
+ * player). With limbo it is only kept in memory (SaveGhostInLimbo) and freed. Else an older ghost of the same
+ * driver, track and direction on that pak goes to limbo and is deleted; a file named after the player's file, the
+ * track and the direction is created, the ghost written to it and its data dropped from memory, and the ghost joins
+ * the ghost list in order of its time. Returns 0 when the file can't be created. */
+s32 SaveGhost(s32 pak, Handle player, Handle saveGhosth, s32 limbo) {
     MenuData *m;
     Handle node;
     char buf[32];
@@ -216,16 +220,16 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
     Handle created;
     u32 size;
 
-    m = *(MenuData **)(*self)->h40;
-    if (release) {
+    m = *(MenuData **)(*saveGhosth)->h40;
+    if (limbo) {
         SaveGhostInLimbo(m, m->data);
-        cart_free_direct((*self)->h40);
-        FreeGhost(self);
+        cart_free_direct((*saveGhosth)->h40);
+        FreeGhost(saveGhosth);
         return 1;
     }
     for (node = gGhostFiles.head; node != NULL; node = obj->next) {
         obj = *node;
-        if (id == ((Slot *)*obj->slot)->id && game_strcmp(obj->name, m->name) == 0 &&
+        if (pak == ((Slot *)*obj->slot)->id && game_strcmp(obj->name, m->name) == 0 &&
             m->key0 == obj->key0 && m->key1 == obj->key1 &&
             obj->index == m->index && obj->variant == m->variant) {
             slot_forget(node);
@@ -236,11 +240,11 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
             break;
         }
     }
-    obj = *self;
+    obj = *saveGhosth;
     size = (u32)GetPtrSize(N64A(obj->h40));
-    sprintf(buf, ghost_file_name_format, (char *)*M2C_FIELD(*owner, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
+    sprintf(buf, ghost_file_name_format, (char *)*M2C_FIELD(*player, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
             GhostDirName(m));
-    created = PS_CreateFile(id, buf, ghost_file_ext, size, 0x3544, 0x4E525545);
+    created = PS_CreateFile(pak, buf, ghost_file_ext, size, GAME_COMPANY_CODE, GAME_CODE);
     if (created == NULL) {
         return 0;
     }
@@ -252,7 +256,7 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
     obj->h40 = ((Slot *)*created)->data;
     PS_WriteFile(created, *obj->h40, size);
     PS_FlushFile(created, 0);
-    PS_FlushPak(id, 1);
+    PS_FlushPak(pak, 1);
     PS_PurgeFile(created);
     obj->h40 = NULL;
     obj->h36 = NULL;
@@ -261,10 +265,11 @@ s32 SaveGhost(s32 id, Handle owner, Handle self, s32 release) {
             break;
         }
     }
-    InsertLLE(&gGhostFiles, self, node);
+    InsertLLE(&gGhostFiles, saveGhosth, node);
     return 1;
 }
 
+/* Reads the ghost's file, checks it, decodes its recording and moves both low in the heap (ReadGhostDataInternal). */
 s32 ReadGhostData(Handle h) {
     return ReadGhostDataInternal(h, 1, 1);
 }

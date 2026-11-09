@@ -1,3 +1,4 @@
+/* ShowHUD: make the race's HUD (MAT3 hud.c). */
 #include "game/game.h"
 
 typedef struct Blit Voice;
@@ -66,6 +67,7 @@ Pane *InitPane(s32,s32,s32,s32,s32,PaneAnimation,u32,s32);
 static MultiBlit pc_hud_race[PC_HUD_RACE_MAX];
 static s16 pc_hud_race_count;
 
+/* Builds pc_hud_race: the race set with each run of dots and blips continued past car 7 to the race's cars. */
 static void pc_hud_race_build(void)
 {
     s32 cars = PC_RACE_CARS, i, k, n = 0;
@@ -84,6 +86,7 @@ static void pc_hud_race_build(void)
     pc_hud_race_count = n;
 }
 
+/* The race set for this race: RaceMultiBlit itself for 8 cars or fewer, else the built copy. */
 static const MultiBlit *pc_hud_race_set(void)
 {
     if (PC_RACE_CARS <= 8) {
@@ -93,6 +96,7 @@ static const MultiBlit *pc_hud_race_set(void)
     return pc_hud_race;
 }
 
+/* The number of entries of pc_hud_race_set's set. */
 static s16 pc_hud_race_n(void)
 {
     if (PC_RACE_CARS <= 8) {
@@ -104,6 +108,10 @@ static s16 pc_hud_race_n(void)
 #define PC_HUD_RACE_SET pc_hud_race_set()
 #define PC_HUD_RACE_N pc_hud_race_n()
 
+/* Makes the race's HUD once (nothing when HudBlit1 exists): the multiblit of the race HUD (speedometer, tachometer,
+ * gear, odometer, place, laps, clocks, map with a dot per car, radar with a blip per car ...), the split screen's or
+ * the overlays' set by the number of windows, the result panes and the coin counters' objects; then in battle and
+ * stunt races the extras (ShowHUDExtra). */
 void ShowHUD(void) {
     s32 created = 0;
     s32 x;

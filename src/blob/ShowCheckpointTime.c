@@ -1,3 +1,4 @@
+/* ShowCheckpointTime: show a checkpoint's split time (MAT3 hud.c). */
 #include "game/game.h"
 
 VIEW(f32, gCheckPtTimeout);
@@ -9,12 +10,14 @@ VIEW(f32, gLapTime);
 VIEW(f32, gElapsedTime);
 #define gElapsedTime gElapsedTime_view
 
-void ShowCheckpointTime(s32 arg0, f32 arg1)
+/* Player reached a checkpoint at race time time: the HUD shows the time since the last one for 6 seconds
+ * (gCheckPtTimeout, gLapTime), and the time itself as digits in the player's 8 bytes of CheckpointStr. */
+void ShowCheckpointTime(s32 player, f32 time)
 {
-  f32 *temp_v1;
+  f32 *unused;
   ;
-  (&gCheckPtTimeout)[arg0] = 6.0f;
-  (&gLapTime)[arg0] = arg1 - (*(&(&gElapsedTime)[arg0]));
-  *(&(&gElapsedTime)[arg0]) = arg1;
-  cvt_time(arg1, (arg0 * 8) + (&CheckpointStr), 0x66);
+  (&gCheckPtTimeout)[player] = 6.0f;
+  (&gLapTime)[player] = time - (*(&(&gElapsedTime)[player]));
+  *(&(&gElapsedTime)[player]) = time;
+  cvt_time(time, (player * 8) + (&CheckpointStr), 'f');
 }

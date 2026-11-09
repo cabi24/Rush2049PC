@@ -1,20 +1,23 @@
+/* GetPasswordElement: take bits from the password being read (MAT3 password.c). */
 #include "game/game.h"
 
-s32 GetPasswordElement(s32 *arg0, u32 arg1)
+/* Reads the next nbits bits of the password's data (password_gData, from bit gNumBits), lowest first, into *value.
+ * Returns 0 without reading when nbits is over 32 or past gDataBits, else 1. */
+s32 GetPasswordElement(s32 *value, u32 nbits)
 {
   u16 i;
-  if (arg1 > 0x20)
+  if (nbits > 0x20)
   {
     return 0;
   }
-  if (gDataBits < gNumBits + arg1)
+  if (gDataBits < gNumBits + nbits)
   {
     return 0;
   }
-  *arg0 = 0;
-  for (i = 0; i < arg1; i++, gNumBits++)
+  *value = 0;
+  for (i = 0; i < nbits; i++, gNumBits++)
   {
-    *arg0 |= ((password_gData[gNumBits >> 3] >> (gNumBits & 7)) & 1) << i;
+    *value |= ((password_gData[gNumBits >> 3] >> (gNumBits & 7)) & 1) << i;
   }
   return 1;
 }

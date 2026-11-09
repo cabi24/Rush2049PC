@@ -1,44 +1,41 @@
+/* animLapCount: the lap counter, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct TblHdr {
-    char *pad0[0x338 / 4];
-    char *text;
-} TblHdr;
-
-typedef struct StrTable {
-    u8 pad0[4];
-    TblHdr *hdr;
-} StrTable;
+#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
+#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
+#define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
+#define kObstacle 5
+#define LAP_FORMAT 206   /* gText.single: the "lap n of m" format */
 
 typedef struct Pos {
     s32 x, y;
 } Pos;
 
-typedef struct Pair {
-    s32 a, b;
-} Pair;
+typedef struct Justification {
+    s32 h, v;
+} Justification;
 
-VIEW(Pair, gJust);
+VIEW(Justification, gJust);
 #define gJust gJust_view
-VIEW(StrTable, gText);
-#define gText gText_view
 
 VIEW(Pos[][4], lapCountPos);
 #define lapCountPos lapCountPos_view
 
+/* Draws each window's lap ("lap n of m", centred on lapCountPos, with a black shadow) while it races, in the HUD font
+ * for the number of windows, at no depth; nothing in attract mode, outside a race, in practice or the obstacle course,
+ * or when the HUD hides the place. Returns 1. */
 s32 animLapCount(void *item)
 {
     s32 i;
     s32 x;
     s32 y;
 
-    if ((gGameState & 8) || !(gGameState & 0x400000) || gRace == 1 || gRace == 5 || !gShowPlace) {
+    if ((gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || gRace == kPractice || gRace == kObstacle || !gShowPlace) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    gJust.b = 3;
-    gJust.a = 1;
+    gJust.v = kTB_JustTop;
+    gJust.h = kTB_JustCenter;
     if (gNumWindows == 1) {
         HAL_SetFont(11);
     } else {
@@ -53,13 +50,13 @@ s32 animLapCount(void *item)
         }
         x = lapCountPos[gNumWindows - 1][i].x;
         y = lapCountPos[gNumWindows - 1][i].y;
-        TB_SetTextColor(0);
-        TB_Printf(x + 1, y + 1, gText.hdr->text, PC_MODEL_LAP(i) + 1, gNumLaps);
-        TB_SetTextColor(1);
-        TB_Printf(x, y, gText.hdr->text, PC_MODEL_LAP(i) + 1, gNumLaps);
+        TB_SetTextColor(kTB_BlackText);
+        TB_Printf(x + 1, y + 1, gText.single[LAP_FORMAT], PC_MODEL_LAP(i) + 1, gNumLaps);
+        TB_SetTextColor(kTB_WhiteText);
+        TB_Printf(x, y, gText.single[LAP_FORMAT], PC_MODEL_LAP(i) + 1, gNumLaps);
     }
-    gJust.b = 3;
-    gJust.a = 0;
+    gJust.v = kTB_JustTop;
+    gJust.h = kTB_JustLeft;
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

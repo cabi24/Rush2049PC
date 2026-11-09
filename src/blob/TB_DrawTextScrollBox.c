@@ -1,9 +1,16 @@
+/* TB_DrawTextScrollBox: word-wrapped text in a box, one page of it (MAT3 TB_text.c). */
 #include "game/game.h"
 
-typedef struct { s32 h, v; } Just;
-VIEW(Just, gJust);
+typedef struct { s32 h, v; } Justification;
+VIEW(Justification, gJust);
 #define gJust gJust_view
 
+/* Draws text word-wrapped to width pixels in a box height pixels tall at (x, y), from page page and line line of it:
+ * the lines that fit in the box make a page (the pages before page hold one line fewer); a negative page draws from
+ * the start with one more line's room. Each line is placed by the
+ * justification (gJust: across against x; down, the whole text against y unless kTB_JustTop). A line breaks at a
+ * carriage return, a newline or the last space that keeps it within width; spaces that start a line are skipped.
+ * Double-byte text is drawn a line at a time by putting a 0xFF before the line in place, then the byte back. */
 void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 line, void *text)
 {
     s32 tw;
@@ -16,14 +23,14 @@ void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 lin
     fontHeight = TB_GetFontLineHeight();
     spacing = HAL_GetFontSpacing();
     top = y;
-    if (gJust.v != 3) {
+    if (gJust.v != kTB_JustTop) {
         numLines = TB_GetTextNumLines(width, text);
-        if (gJust.v == 1) top = y - (numLines * fontHeight) / 2;
+        if (gJust.v == kTB_JustCenter) top = y - (numLines * fontHeight) / 2;
         else top = y - numLines * fontHeight;
     }
     str = text;
     bottom = top + height;
-    dbl = *str == 255;
+    dbl = *str == TEXT_DOUBLE_BYTE;
     if (dbl) {
         str++;
         charSize = 2;
@@ -65,10 +72,10 @@ void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 lin
                 if (len > 0) {
                     if (dbl) {
                         saveChar = str[-1];
-                        str[-1] = 255;
+                        str[-1] = TEXT_DOUBLE_BYTE;
                     }
                     tw = HAL_GetTextWidth(str - (dbl ? 1 : 0), len);
-                    HAL_SetTextPos((gJust.h == 1) ? x - (tw >> 1) : (gJust.h == 2) ? x - tw : x, top);
+                    HAL_SetTextPos((gJust.h == kTB_JustCenter) ? x - (tw >> 1) : (gJust.h == kTB_JustRight) ? x - tw : x, top);
                     HAL_DrawText(str - (dbl ? 1 : 0), len);
                     if (dbl) str[-1] = saveChar;
                 }

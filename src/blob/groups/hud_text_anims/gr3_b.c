@@ -1,20 +1,23 @@
+/* HAL_SetFontInternal: choose a font, loading it if need be (MAT3 HAL_text.c's _HAL_SetFont). */
 #include "game/game.h"
 
-s32 HAL_SetFontInternal(s32 selection) {
+/* Makes font fontID (0..15; -1 none) the current one: its data wave and its texture wave are found or loaded and
+ * locked (the textures into gFontHeap), and SetupFontData reads its header, again in full when the font changed.
+ * Font 0 is made fixed width. Returns the font that was current. The caller holds the text lock. */
+s32 HAL_SetFontInternal(s32 fontID) {
     s8 old;
     old = gFontIndex;
-    gFontIndex = selection;
-    if (selection != -1) {
-        if ((gFontDatWaveInst = FindWaveInstanceInternal(gFontIndex + 0x26, -1)) < 0) {
-            LockWaveInstance(gFontDatWaveInst = LoadWave(gFontIndex + 0x26, 0, 0, 1, 0));
+    gFontIndex = fontID;
+    if (fontID != -1) {
+        if ((gFontDatWaveInst = FindWaveInstanceInternal(FONT_DATA_WAVE(gFontIndex), -1)) < 0) {
+            LockWaveInstance(gFontDatWaveInst = LoadWave(FONT_DATA_WAVE(gFontIndex), 0, 0, 1, 0));
         }
-        do {} while (0); /* : compiled-out block boundary, */
-        if ((gFontTexWaveInst = FindWaveInstanceInternal(gFontIndex + 0x16, -1)) < 0) {
-            LockWaveInstance(gFontTexWaveInst = LoadWave(gFontIndex + 0x16, 0, 0, 0, gFontHeap));
+        if ((gFontTexWaveInst = FindWaveInstanceInternal(FONT_TEXTURE_WAVE(gFontIndex), -1)) < 0) {
+            LockWaveInstance(gFontTexWaveInst = LoadWave(FONT_TEXTURE_WAVE(gFontIndex), 0, 0, 0, gFontHeap));
         }
-        SetupFontData(old != selection);
+        SetupFontData(old != fontID);
     }
-    if (selection == 0) {
+    if (fontID == 0) {
         HAL_SetFontFixedWidth(1);
     }
     return old;

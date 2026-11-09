@@ -1,8 +1,10 @@
+/* TB_CenterText: where to start a string to centre it (MAT3 TB_text.c). */
 #include "game/game.h"
 
-s16 TB_CenterText(void *arg0, s16 arg1)
+/* The x at which text, drawn in the current font, is centred on centerX. */
+s16 TB_CenterText(void *text, s16 centerX)
 {
-  unsigned int new_var;
-  new_var = HAL_GetTextWidth(arg0, -1);
-  return (s16) (arg1 - (new_var >> 1));
+  unsigned int width;
+  width = HAL_GetTextWidth(text, -1);
+  return (s16) (centerX - (width >> 1));
 }

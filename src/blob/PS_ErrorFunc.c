@@ -1,3 +1,5 @@
+/* PS_ErrorFunc: the pak system's error function, the error screen in the middle of whatever was running (MAT3
+ * pakerr.c). */
 #include "game/game.h"
 #define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
@@ -6,43 +8,51 @@ typedef struct OSThread OSThread;
 VIEW(struct pc_multiblit[1], PS_ErrorFunc_dimMultiBlit);
 #define PS_ErrorFunc_dimMultiBlit PS_ErrorFunc_dimMultiBlit_view
 
-extern intptr_t NewMultiBlit(s16 arg0, s16 arg1, void *arg2, s16 arg3);
-extern void RemoveBlit(intptr_t sound_id);
+extern intptr_t NewMultiBlit(s16 ulx, s16 uly, void *mblit, s16 nblits);
+extern void RemoveBlit(intptr_t blit);
 
 extern OSId osGetThreadId(OSThread *thread);
-s32 ShowPakError(s32 arg0, intptr_t arg1, intptr_t arg2, s8 *done, s32 (*arg4)(void));
+s32 ShowPakError(s32 pak, intptr_t retry, intptr_t status, s8 *done, s32 (*poll)(void));
 
-void ZOID_SetFog(s16 arg0, s16 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5, s32 arg6);
+void ZOID_SetFog(s16 fogNear, s16 fogFar, u8 r, u8 g, u8 b, u8 a, s32 window);
 
-void PS_ErrorFunc(s32 arg0, s32 mode, s32 arg2, s32 arg3, intptr_t arg4, intptr_t arg5, s32 (*arg6)(void)) {
+#define GAME_THREAD_ID 7   /* the game thread's id: only it may draw frames */
+
+/* Shows pak's error mode (kPS_Err*) and waits for the player's answer: the screen is dimmed (a full-screen blit and
+ * every window's fog pushed to black), the error dialog made (SetPakError) and run until done (ShowPakError, which
+ * writes the answer to *retry and *status and closes by itself when poll says the pak is gone), drawing frames when
+ * called on the game thread and serving the paks unless the error is about reading the pak itself (10 to 13: the
+ * pak server is what called). Then the fog and the screen are put back. The pak system calls it as gErrorFunc;
+ * blocks is unused. */
+void PS_ErrorFunc(s32 pak, s32 mode, s32 blocks, s32 unused, intptr_t retry, intptr_t status, s32 (*poll)(void)) {
     s8 done;
-    intptr_t snd;
-    s16 a[4];
-    s16 b[4];
-    u8 c[4];
-    u8 d[4];
-    u8 e[4];
-    u8 f[4];
+    intptr_t dim;
+    s16 fog_near[4];
+    s16 fog_far[4];
+    u8 fog_r[4];
+    u8 fog_g[4];
+    u8 fog_b[4];
+    u8 fog_a[4];
     s32 i;
 
     done = 0;
-    snd = NewMultiBlit(0, 0, &PS_ErrorFunc_dimMultiBlit, 1);
-    SetPakError(arg0, mode, 10, 10, 300, 180);
+    dim = NewMultiBlit(0, 0, &PS_ErrorFunc_dimMultiBlit, 1);
+    SetPakError(pak, mode, 10, 10, 300, 180);
     for (i = 0; i < gNumWindows; i++) {
-        ZOID_GetFog(&a[i], &b[i], &c[i], &d[i], &e[i], &f[i], i);
+        ZOID_GetFog(&fog_near[i], &fog_far[i], &fog_r[i], &fog_g[i], &fog_b[i], &fog_a[i], i);
         ZOID_SetFog(1000, 999, 0, 0, 0, 255, i);
     }
     while (!done) {
-        if (osGetThreadId(0) == 7) {
+        if (osGetThreadId(0) == GAME_THREAD_ID) {
             UpdateFrame();
         }
-        if (mode != 11 && mode != 12 && mode != 13 && mode != 10) {
+        if (mode != kPS_ErrReread && mode != kPS_ErrRepairFailed && mode != kPS_ErrRepaired && mode != kPS_ErrRecognize) {
             SaveServer(0, 0);
         }
-        ShowPakError(arg0, arg4, arg5, &done, arg6);
+        ShowPakError(pak, retry, status, &done, poll);
     }
-    RemoveBlit(snd);
+    RemoveBlit(dim);
     for (i = 0; i < gNumWindows; i++) {
-        ZOID_SetFog(a[i], b[i], c[i], d[i], e[i], f[i], i);
+        ZOID_SetFog(fog_near[i], fog_far[i], fog_r[i], fog_g[i], fog_b[i], fog_a[i], i);
     }
 }

@@ -1,9 +1,10 @@
+/* BlitZDist: the depth of what the blitter draws next (MAT3 blit_pc.c). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef union 
+typedef union
 {
-  struct 
+  struct
   {
     u32 w0;
     uintptr_t w1;
@@ -14,17 +15,20 @@ typedef union
 VIEW(intptr_t, blit_dl);
 #define blit_dl blit_dl_view
 
-/* PC: the same G_SETPRIMDEPTH with host Gfx (16-byte commands); blit_dl holds a Gfx pointer. */
-void BlitZDist(unsigned short arg0)
+#define G_SETPRIMDEPTH 0xEE
+
+/* Sets the depth the blitter's rectangles are drawn at: a G_SETPRIMDEPTH command when it differs from the last one
+ * (blitZDist), and BLIT_ATTR_ZDIST, which makes the RDP take the depth from it. */
+void BlitZDist(unsigned short depth)
 {
   Gfx **head = (Gfx **) (&blit_dl);
-  Gfx *g;
-  if ((u16) blitZDist != arg0)
+  Gfx *cmd;
+  if ((u16) blitZDist != depth)
   {
-    g = (*head)++;
-    g->words.w0 = 0xEE000000;
-    g->words.w1 = (((u32) arg0) & 0xFFFF) << 0x10;
-    blitZDist = arg0;
+    cmd = (*head)++;
+    cmd->words.w0 = (u32) G_SETPRIMDEPTH << 24;
+    cmd->words.w1 = (((u32) depth) & 0xFFFF) << 0x10;
+    blitZDist = depth;
   }
-  BlitSetAttribute(0x10);
+  BlitSetAttribute(BLIT_ATTR_ZDIST);
 }

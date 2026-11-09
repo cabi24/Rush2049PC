@@ -1,3 +1,4 @@
+/* RemoveHUDExtra: remove the battle and stunt HUD extras (MAT3 hudextra.c; runtime image B). */
 #include "game/game.h"
 #define tHudIcon tHudIconView   /* this file's own tHudIcon: include/game's tHudIcon is another type */
 #define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
@@ -25,7 +26,9 @@ extern void RemoveBlit(void *);
 
 #define blit hudextra_blit
 
-void RemoveHUDExtra(void) /* RemoveHUDExtra */
+/* Removes the extras' multiblit and every window's weapon, powerup, battle coin and stunt coin icons (3D objects),
+ * leaving them their "none" types (8, 0 and 11). */
+void RemoveHUDExtra(void)
 {
     int player, j;
     if (blit) { RemoveBlit(blit); blit = 0; }

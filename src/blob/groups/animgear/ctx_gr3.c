@@ -1,25 +1,18 @@
+/* TB_GetFontHeight and TB_GetFontLineHeight: the current font's height (MAT3 TB_text.c). */
 #include "game/game.h"
 
-typedef struct Bank {
-    /* 0x0 */ u8 pad0;
-    /* 0x1 */ u8 mode;
-    /* 0x2 */ u8 pad2[2];
-    /* 0x4 */ u8 f4;
-    /* 0x5 */ u8 pad5;
-    /* 0x6 */ u8 f6;
-    /* 0x7 */ u8 f7;
-    /* 0x8 */ u8 f8;
-    /* 0x9 */ s8 f9;
-    /* 0xA */ u8 f10;
-    /* 0xB */ u8 f11;
-    /* 0xC */ u8 f12;
-} Bank;
+VIEW(FontHeader *, gFontHeader);
+#define gFontHeader gFontHeader_view
 
-s16 TB_GetFontHeight(void) { u8 first; first=HAL_GetFontAscent(); return (s16)(first + HAL_GetFontDescent()); }
+/* The current font's height in pixels: ascent and descent. */
+s16 TB_GetFontHeight(void) { u8 ascent; ascent=HAL_GetFontAscent(); return (s16)(ascent + HAL_GetFontDescent()); }
+
+/* The distance from one line of text to the next: ascent, descent and leading (HAL_GetFontAscent and
+ * HAL_GetFontDescent, inline). */
 s16 TB_GetFontLineHeight(void) {
- u8 first;
+ u8 descent;
  SetupFontData(0);
- first = *((u8 *)gFontHeader + 3);
+ descent = gFontHeader->descent;
  SetupFontData(0);
- return (s16)(gLeading + *((u8 *)gFontHeader + 2) + first);
+ return (s16)(gLeading + gFontHeader->ascent + descent);
 }

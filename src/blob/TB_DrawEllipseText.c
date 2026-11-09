@@ -1,9 +1,11 @@
+/* TB_DrawEllipseText: draw a string cut to a width with "..." (MAT3 TB_text.c). */
 #include "game/game.h"
 
-void TB_DrawEllipseText(s16 arg0, s16 arg1, s16 arg2, void *arg3) {
+/* Draws text at (x, y), shortened with an ellipsis when it is wider than width pixels (TB_EllipseText; strings up to
+ * 127 bytes). */
+void TB_DrawEllipseText(s16 x, s16 y, s16 width, void *text) {
     u8 buf[0x80];
 
-    TB_EllipseText(buf, arg3, arg2);
-    TB_DrawText(arg0, (s32) arg1, buf);
+    TB_EllipseText(buf, text, width);
+    TB_DrawText(x, (s32) y, buf);
 }
-

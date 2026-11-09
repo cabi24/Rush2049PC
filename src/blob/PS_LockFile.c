@@ -1,47 +1,33 @@
+/* PS_LockFile: keep a pak file while it is in use (MAT3 paksysdc.c). */
 #include "game/game.h"
 
-/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
-typedef struct Object { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 port, file; } Object;
-typedef struct Handle { Object *object; } Handle;
-typedef struct PakFile40 { s8 active; u8 opaque1[39]; } PakFile40;
-
-typedef struct Pak772 {
-    u8 index;
-    s8 enabled;
-    u8 opaque2[7];
-    s8 retained;
-    s8 files_active;
-    u8 opaque11;
-    PcPfs pfs;
-    s32 error, FreeSpace;
-    u8 opaque7C[8];
-    PakFile40 files[16];
-} Pak772;
-
-VIEW(volatile Pak772[], gPaks);
+VIEW(volatile tPak[], gPaks);
 #define gPaks gPaks_view
 
-void PS_LockFile(Handle *handle, s32 active)
+/* Locks (active set) or unlocks the open file handle. A pak with a locked file keeps its files when it is taken out
+ * (PS_PakServer), so a profile in use survives the pak coming out and going back in. Unlocking its last locked file
+ * unlocks the pak, and a pak that is not the original one is then forgotten as inserted. */
+void PS_LockFile(tPakHandle *handle, s32 active)
 {
-    s32 port;
+    s32 pak;
     s32 i;
 
     if (handle != 0) {
-        port = handle->object->port;
-        if (active != gPaks[port].files[handle->object->file].active) {
-            gPaks[port].files[handle->object->file].active = active;
+        pak = handle->file->pak;
+        if (active != gPaks[pak].files[handle->file->fileNo].locked) {
+            gPaks[pak].files[handle->file->fileNo].locked = active;
             if (active) {
-                gPaks[port].files_active = 1;
+                gPaks[pak].locked = 1;
             } else {
-                for (i = 0; i < 16; i++) {
-                    if (gPaks[port].files[i].active) {
+                for (i = 0; i < PAK_MAX_FILES; i++) {
+                    if (gPaks[pak].files[i].locked) {
                         break;
                     }
                 }
-                if (i >= 16) {
-                    gPaks[port].files_active = 0;
-                    if (gPaks[port].retained == 0) {
-                        gPaks[port].enabled = 0;
+                if (i >= PAK_MAX_FILES) {
+                    gPaks[pak].locked = 0;
+                    if (gPaks[pak].original == 0) {
+                        gPaks[pak].inserted = 0;
                     }
                 }
             }

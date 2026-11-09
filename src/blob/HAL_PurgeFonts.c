@@ -1,20 +1,22 @@
+/* HAL_PurgeFonts: let the fonts' waves go (MAT3 HAL_text.c). */
 #include "game/game.h"
 
+/* Unlocks the data and texture waves of every font that is loaded, so the wave loader may reuse their memory. */
 void HAL_PurgeFonts(void) {
-    s32 temp_v0;
-    s32 temp_v0_2;
-    s32 var_s0;
+    s32 wave;
+    s32 wave2;
+    s32 font;
 
-    var_s0 = 0;
+    font = 0;
     do {
-        temp_v0 = FindWaveInstanceInternal(var_s0 + 0x26, -1);
-        if (temp_v0 >= 0) {
-            UnlockWaveInstance(temp_v0);
+        wave = FindWaveInstanceInternal(FONT_DATA_WAVE(font), -1);
+        if (wave >= 0) {
+            UnlockWaveInstance(wave);
         }
-        temp_v0_2 = FindWaveInstanceInternal(var_s0 + 0x16, -1);
-        if (temp_v0_2 >= 0) {
-            UnlockWaveInstance(temp_v0_2);
+        wave2 = FindWaveInstanceInternal(FONT_TEXTURE_WAVE(font), -1);
+        if (wave2 >= 0) {
+            UnlockWaveInstance(wave2);
         }
-        var_s0 += 1;
-    } while (var_s0 != 0x10);
+        font += 1;
+    } while (font != NUM_FONTS);
 }

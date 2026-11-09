@@ -1,35 +1,38 @@
+/* RemovePlayerFile: a profile's or ghost's file is gone (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct Handle Handle;
-/* PC: a profile's pak file handle is at +16 (primary_id), a ghost's at +8 (secondary_id): their host layouts
- * (pc_prelude.h). The handle is a host pointer: PS_DeleteFile passes it whole. */
-typedef struct Object {Handle *next;uintptr_t secondary_id,primary_id;} Object;
-struct Handle {Object *object;};
-typedef struct List16 {u8 indirect,doubly;u8 gap[2];int count;Handle *head,*tail;} List16;
-typedef struct Player76 {u8 opaque[72];Handle *handle;} Player76;
-VIEW(List16, gPlayerFiles);
+/* The profile and ghost lists (MAT3 tDLList). */
+typedef struct ProfileList {u8 indirect,doubly;u8 gap[2];int count;tProfile **head,**tail;} ProfileList;
+typedef struct GhostList {u8 indirect,doubly;u8 gap[2];int count;tGhostFile **head,**tail;} GhostList;
+/* A player's input record as this reads it: the handle of the profile it uses. */
+typedef struct PlayerPad {u8 opaque[72];tProfile **profile;} PlayerPad;
+VIEW(ProfileList, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
-VIEW(List16, gGhostFiles);
+VIEW(GhostList, gGhostFiles);
 #define gGhostFiles gGhostFiles_view
-extern Player76 gPlayers[];
+extern PlayerPad gPlayers[];
 
-void RemovePlayerFile(uintptr_t identifier) {
- Handle *node,*pending;
+/* The pak file records' RemoveFile for profiles and ghosts (the file was deleted, or its pak taken out): the profile
+ * whose file handle is fileh leaves the profile list, the players and the high score tables; else the ghost whose
+ * file it is leaves the ghost list. (The handle is passed whole, as an integer.) */
+void RemovePlayerFile(uintptr_t fileh) {
+ tProfile **profile;
+ tGhostFile **ghost;
  int i;
- for(node=gPlayerFiles.head;node!=0;node=node->object->next) {
-  if(node->object->primary_id==identifier) {
+ for(profile=gPlayerFiles.head;profile!=0;profile=(*profile)->next) {
+  if((uintptr_t)(*profile)->fileh==fileh) {
    for(i=0;i<gNumPlayers;i++) {
-    if(gPlayers[i].handle==node)gPlayers[i].handle=0;
+    if(gPlayers[i].profile==profile)gPlayers[i].profile=0;
    }
-   RemovePlayerScores(node);
-   RemoveLLE(&gPlayerFiles,node);
+   RemovePlayerScores(profile);
+   RemoveLLE(&gPlayerFiles,profile);
    return;
   }
  }
- for(pending=gGhostFiles.head;pending!=0;pending=pending->object->next) {
-  if(pending->object->secondary_id==identifier) {
-   RemoveLLE(&gGhostFiles,pending);
-   pending->object=0;
+ for(ghost=gGhostFiles.head;ghost!=0;ghost=(*ghost)->ll) {
+  if((uintptr_t)(*ghost)->fileh==fileh) {
+   RemoveLLE(&gGhostFiles,ghost);
+   *ghost=0;
    return;
   }
  }

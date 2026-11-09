@@ -1,3 +1,4 @@
+/* CalcChecksumInternal: the save files' checksum (MAT3 save.c's _CalcChecksum). */
 #include "game/game.h"
 
 /* The save files' checksum (MAT3 save.c _CalcChecksum): each byte's low three bits pick how it folds into the sum.

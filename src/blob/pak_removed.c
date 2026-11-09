@@ -1,11 +1,8 @@
+/* pak_removed: whether a pak has been taken out (MAT3 paksysdc.c). */
 #include "game/game.h"
 
-VIEW(s8, gPaks);
-#define gPaks gPaks_view
-
-/* PC: the controller/pak records gPaks are 0x310 bytes (paksys' PakRecord, docs/port/POINTERS.md 9.6); the inserted
- * flag, +1, is before the OSPfs's pointer, so it is where the N64 has it. */
-#define PAK_RECORD 0x310
-s32 pak_removed(s32 arg0) {
-    return ((s8 *) &gPaks)[arg0 * PAK_RECORD + 1] == 0;
+/* 1 when pak's pak is not in (tPak.inserted clear): the error screens' poll, which closes a pak's dialog when the
+ * pak is pulled. */
+s32 pak_removed(s32 pak) {
+    return gPaks[pak].inserted == 0;
 }

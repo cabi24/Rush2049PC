@@ -1,3 +1,4 @@
+/* The options screen's text: its options and values, the flashing colours (MAT3 optionscr.c and TB_text.c). */
 #include "game/game.h"
 
 typedef union Color {
@@ -52,6 +53,7 @@ VIEW(s8[], gOptions);
 VIEW(s32[14], options_validOption);
 #define options_validOption options_validOption_view
 
+/* Sets the two colours flashing text moves between (MAT3 TB_text.c's TB_FlashTextColors). */
 void TB_FlashTextColors_AEAC(Color a, Color b)
 {
     gFlashColor1.rgba = a.rgba;
@@ -60,6 +62,8 @@ void TB_FlashTextColors_AEAC(Color a, Color b)
 
 
 
+/* Draws option item's name and value at (x, y): the chosen one flashing (with the 3D buttons, the one facing the
+ * viewer), the others white. */
 void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 {
     if (options_buttonsInited == 1) {
@@ -79,6 +83,7 @@ void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 
 #define OPT_VALUE(k) gText.strings[gText.info->base + gOptions[k]]
 
+/* Draws the options screen's title over its 3D buttons (projected from the title button's position). */
 void options_animButtonText(void)
 {
     s32 i;
@@ -159,6 +164,8 @@ void options_animButtonText(void)
     HAL_SetTextDepth(-1.0f);
 }
 
+/* The options screen's text blit's draw function: the title and every option with its value (or the 3D buttons'
+ * text). Returns 1. */
 s32 options_animText(void *item)
 {
     u32 gs;

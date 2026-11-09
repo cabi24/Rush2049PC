@@ -1,43 +1,48 @@
+/* pause_TitlePane: the pane behind the pause screen's title (MAT3 pausescr.c's _TitlePane). */
 #include "game/game.h"
 
+#define kPauseRumbleScreen 6  /* gPauseState (MAT3 enum kNumPauseStates) */
+#define kPauseRestart 7
+#define kPauseQuit 8
+#define PAUSE_TITLE_FONT 13
 
-#define F(p,t,o) (*(t *)((u8 *)(p)+(o)))
-/* PC: gText has host pointers (port/assets/text.c), so its header fields and string-table
- * entries sit at host offsets: TXH maps an N64 header offset, TXS an N64 string-table byte offset. */
-#define TXH(o) ((o) == 4 ? 8 : (o) == 12 ? 24 : (o) == 16 ? 32 : (o))
-#define TXS(o) ((o) / 4 * (int)sizeof(char *))
 #define INPUT_SIZE 80   /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */
-VIEW(u8[], pause_titlePos);
+/* A player's record as this reads it: the handle of the player's profile first. */
+typedef struct { void **save; u8 rest[INPUT_SIZE - 8]; } PausePlayer;
+typedef struct { s16 x, y; } PauseTitlePos;
+VIEW(PauseTitlePos, pause_titlePos);
 #define pause_titlePos pause_titlePos_view
-VIEW(u8[], gPlayers_save);
+VIEW(PausePlayer[], gPlayers_save);
 #define gPlayers_save gPlayers_save_view
-VIEW(u8[], gText);
-#define gText gText_view
 
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 void ChangePaneSize(void *,s32,s32,s32,s32);
 
+/* Sizes the pane behind the pause screen's title to the title in font 13, centred on pause_titlePos, making the
+ * pane the first time. The title: the controller's number and a message when a controller came out, the restart or
+ * the quit question, else the pausing player's name and the pause title (strings of gText); on the rumble screen the
+ * pane is put off screen. (MAT3 checks that the player has a profile before reading its name; the N64 doesn't.) */
 void pause_TitlePane(void)
 {
     s32 x,y,width;
     unsigned char *str;
     unsigned char text[64];
-    HAL_SetFont(13);
+    HAL_SetFont(PAUSE_TITLE_FONT);
     str = text;
     if(pause_gControllerRemoved) {
-        TB_Sprintf(text,pause_title_format,playerInPause+1,F(F(gText,void *,TXH(4)),char *,TXS(932)));
+        TB_Sprintf(text,pause_title_format,playerInPause+1,gText.single[233]);
         width=HAL_GetTextWidth(str,-1);
-    } else if(gPauseState==7 || gPauseState==8) {
-        width=HAL_GetTextWidth(F(gText,u8 **,TXH(16))[F(F(gText,void *,TXH(12)),u16,112)+gPauseState],-1);
-    } else if(gPauseState==6) {
+    } else if(gPauseState==kPauseRestart || gPauseState==kPauseQuit) {
+        width=HAL_GetTextWidth(gText.taba[gText.tab[56]+gPauseState],-1);
+    } else if(gPauseState==kPauseRumbleScreen) {
         width=0;
     } else {
-        TB_Sprintf(text,pause_title_name_format,(u8 *)*F(gPlayers_save+playerInPause*INPUT_SIZE,void **,0)+PROFILE_OFS(20),F(gText,char **,TXH(16))[F(F(gText,void *,TXH(12)),u16,112)]);
+        TB_Sprintf(text,pause_title_name_format,(u8 *)*gPlayers_save[playerInPause].save+PROFILE_OFS(20),gText.taba[gText.tab[56]]);
         width=HAL_GetTextWidth(str,-1);
     }
-    x=F(pause_titlePos,s16,0);
-    y=F(pause_titlePos,s16,2);
+    x=pause_titlePos.x;
+    y=pause_titlePos.y;
     if(!pause_gTitlePane) pause_gTitlePane=InitPane(-20,0,-10,10,176,0,0,0);
     if(!width) {
         ChangePaneSize(pause_gTitlePane,-20,0,-10,10);

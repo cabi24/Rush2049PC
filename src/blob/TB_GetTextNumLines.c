@@ -1,18 +1,22 @@
+/* TB_GetTextNumLines: how many lines a string word-wraps to (MAT3 TB_text.c). */
 #include "game/game.h"
 
+/* The number of lines text takes word-wrapped to width pixels in the current font, broken as TB_DrawTextScrollBox
+ * breaks them (at a carriage return, a newline, or the last space that keeps the line within width); at most
+ * 0x7FFF. */
 s16 TB_GetTextNumLines(s16 width, u8 *text) {
     u8 *start;
     s16 lines;
     s32 step;
     u8 *p;
     s16 ch;
-    s16 w;
-    s16 n;
-    s16 gap;
+    s16 lineWidth;
+    s16 count;
+    s16 spacing;
     u8 *space;
     s8 wide;
 
-    wide = (*text == 0xFF);
+    wide = (*text == TEXT_DOUBLE_BYTE);
     if (wide) {
         start = text + 1;
         step = 2;
@@ -20,9 +24,9 @@ s16 TB_GetTextNumLines(s16 width, u8 *text) {
         start = text;
         step = 1;
     }
-    gap = HAL_GetFontSpacing();
-    w = 0;
-    n = 0;
+    spacing = HAL_GetFontSpacing();
+    lineWidth = 0;
+    count = 0;
     lines = 0;
     space = 0;
     for (;;) {
@@ -33,7 +37,7 @@ s16 TB_GetTextNumLines(s16 width, u8 *text) {
             } else {
                 ch = *p;
             }
-            if (ch == ' ' && w == 0) {
+            if (ch == ' ' && lineWidth == 0) {
                 start += step;
                 p = start;
                 continue;
@@ -47,18 +51,18 @@ s16 TB_GetTextNumLines(s16 width, u8 *text) {
             if (ch == 10) {
                 break;
             }
-            w += HAL_GetCharWidth(ch);
+            lineWidth += HAL_GetCharWidth(ch);
             if (ch != ' ') {
-                w += gap;
+                lineWidth += spacing;
             } else if (space != p - step) {
                 space = p;
             }
             p += step;
-            if (width < w && space != 0) {
+            if (width < lineWidth && space != 0) {
                 p = space;
                 break;
             }
-            n++;
+            count++;
         }
         if (start) {
         }
@@ -67,8 +71,8 @@ s16 TB_GetTextNumLines(s16 width, u8 *text) {
             break;
         }
         start = step + p;
-        n = 0;
-        w = 0;
+        count = 0;
+        lineWidth = 0;
         space = 0;
     }
     return lines;
