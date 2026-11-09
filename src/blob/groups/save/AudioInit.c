@@ -103,12 +103,12 @@ void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEm
     }
     gNumFxTags = (gMaxSfx + numEmitters < gNumFxTags) ? gNumFxTags : gMaxSfx + numEmitters;
     gFxTags = AllocateMemoryHeap(0, gNumFxTags * sizeof(Voice));
-    PurgeableMemory(PC_N64A(gFxTags), 0);
+    PurgeableMemory(gFxTags, 0);
     sound_list_init(&gFreeFxTags, 0, 1);
     sound_list_init(&gPlayingFxTags, 0, 1);
     sound_list_init(&gInterruptedFxTags, 0, 1);
     gSortedFxTags = AllocateMemoryHeap(0, gNumFxTags * SORTED_TAG_SIZE);
-    PurgeableMemory(PC_N64A(gSortedFxTags), 0);
+    PurgeableMemory(gSortedFxTags, 0);
     gSortedFxTagTree.OrderFunc = OrderFx;
     gSortedFxTagTree.root = 0;
     gSortedFxTagTree.numElements = 0;
@@ -124,7 +124,7 @@ void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEm
     }
     gTagMask = (1 << gTagShift) - 1;
     gSequences = AllocateMemoryHeap(0, 6 * sizeof(Chan));
-    PurgeableMemory(PC_N64A(gSequences), 0);
+    PurgeableMemory(gSequences, 0);
     sound_list_init(&gFreeSequences, 0, 1);
     sound_list_init(&gActiveSequences, 0, 1);
     for (i = 0; i < 6; i++) {

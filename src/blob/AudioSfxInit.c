@@ -22,11 +22,11 @@ void AudioSfxInit(s32 maxSfx) {
     gNumInstances = maxSfx;
     sound_list_init(&gFreeQ, 0, 1);
     gSfxInstances = AllocateMemoryHeap(0, gNumInstances * sizeof(tSfxVoice));
-    PurgeableMemory(PC_N64A(gSfxInstances), 0);
+    PurgeableMemory(gSfxInstances, 0);
     memset(gSfxInstances, 0, gNumInstances * sizeof(tSfxVoice));
     numCmds = maxSfx * SFX_CMDS_PER_INSTANCE;
     audiosfx_gCmds = AllocateMemoryHeap(0, numCmds * sizeof(tSfxCmd));
-    PurgeableMemory(PC_N64A(audiosfx_gCmds), 0);
+    PurgeableMemory(audiosfx_gCmds, 0);
     memset(audiosfx_gCmds, 0, numCmds * sizeof(tSfxCmd));
     for (i = 0; i < numCmds; i++) {
         InsertLLE(&gFreeQ, &audiosfx_gCmds[i].dlle, gFreeQ.head);

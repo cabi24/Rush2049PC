@@ -9,7 +9,7 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 void *memcpy(void *, const void *, u32);
 
-static void release_handle(u32 address);
+static void release_handle(void *ptr);
 
 /* Keeps the ghost entry (its header) and its recording payload in memory, "in limbo", when it couldn't go to a pak:
  * the gNumLimbo slots of its track and direction (all ghosts share one row without the Expansion Pak) hold the
@@ -36,7 +36,7 @@ void SaveGhostInLimbo(tGhostHeader *entry, void *payload) {
     i--;
     if (i >= 0) {
         if (row[0]->header != 0) {
-            release_handle(PC_N64A(row[0]->header));
+            release_handle(row[0]->header);
         }
         if (i > 0) {
             game_memmove(row[0], row[1], i * sizeof(tGhostFile));
@@ -55,9 +55,9 @@ void SaveGhostInLimbo(tGhostHeader *entry, void *payload) {
     }
 }
 
-/* Frees the heap block at the N64 address, under the heap lock. */
-static void release_handle(u32 address) {
+/* Frees the heap block of handle ptr, under the heap lock. */
+static void release_handle(void *ptr) {
     osRecvMesg((OSMesgQueue *) &heap_lock_queue, 0, 1);
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     osSendMesg((OSMesgQueue *) &heap_lock_queue, 0, 0);
 }

@@ -106,7 +106,7 @@ Resource24 *MBOX_FindPalette_WORK(char *name, uint16_t *handle, int8_t lo, int8_
     return &g_wad_palette;
 }
 void *n64_memcpy(void *dst, const void *src, uint32_t n) { return memcpy(dst, src, n); }
-void DeallocateMemoryInternal(uint32_t block, int32_t mode) {}
+void DeallocateMemoryInternal(void *block, int32_t mode) {}
 int osRecvMesg(void *mq, void **msg, int block) { return 0; }
 int osSendMesg(void *mq, void *msg, int block) { return 0; }
 

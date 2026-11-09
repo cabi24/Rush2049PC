@@ -36,3 +36,17 @@ void car_palette_init(int index, int kind, void *data)
         car_palettes[index].data = PC_N64A(AllocateMemoryHeap(0, 512));
     }
 }
+
+int osRecvMesg(OSMesgQueue *, void **, int);
+int osSendMesg(OSMesgQueue *, void *, int);
+
+/* Frees car `index`'s palette block (car_palettes[index].data), under the heap lock. The descriptor's data is the
+ * block's window address (its PLHD layout, above), and the heap takes the block's pointer. (heap_release/group.c had
+ * this function until the heap took pointers, docs/port/NATIVE.md step 6.) */
+void free_car_palette(s32 index) {
+    void *block = (void *)PC_N64P(car_palettes[index].data);
+
+    osRecvMesg(&heap_lock_queue, NULL, 1);
+    DeallocateMemoryInternal(block, 0);
+    osSendMesg(&heap_lock_queue, NULL, 0);
+}

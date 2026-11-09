@@ -50,9 +50,12 @@ unsigned int pc_n64_addr(const void *host);
 unsigned int pc_rcp_reloc(unsigned int w1, unsigned int base, int seg);
 int pc_rdram_k0_high(unsigned int addr);
 
-/* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): the allocator says when the heap is made and after each
- * block it takes, under the heap's lock; an allocation no free block can hold, and the game's own fallbacks when it
- * finds the heap short (LoadCars, a car's paint), are logged the first time and counted. */
+/* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): pc_heap_memory is the memory the main heap manages on a
+ * console with mem_size bytes of RDRAM (osMemSize), its size in *size (locate_main_heap). The allocator says when the
+ * heap is made and after each block it takes, under the heap's lock; an allocation no free block can hold, and the
+ * game's own fallbacks when it finds the heap short (LoadCars, a car's paint), are logged the first time and
+ * counted. */
+void *pc_heap_memory(unsigned int mem_size, unsigned int *size);
 void pc_heap_created(void *heap);
 void pc_heap_allocated(void *heap);
 void pc_heap_none(void *heap, unsigned int size, unsigned int free_bytes, unsigned int largest);
@@ -88,20 +91,6 @@ static __inline__ unsigned int pc_n64a(__UINTPTR_TYPE__ p)
  * PC_N64A). A profile's id is its handle's (save/group.c), and the handles are own storage: cut to 32
  * bits it was the process's own (ASLR), in the pak's saves and the game's memory (docs/port/LOCKSTEP.md 5). */
 unsigned int pc_n64_identity(const void *p);
-
-/* A heap handle's slot (AllocateHandleHeap, memsys/group.c) is 8 bytes on the PC and holds its block's host
- * pointer, which the game reads through the handle (`*(u8 **)h`, docs/port/POINTERS.md 9.10); the heap and a few
- * readers take the slot as the N64's u32 instead. PC_SLOT_N64(s) is the N64 address the slot at host address s holds,
- * PC_SLOT_SET(s, a) stores N64 address a's pointer in it. With the window at PC_RDRAM_BASE the pointer is that address
- * zero-extended, so the N64's 4-byte read and write of the slot's first half are what they do; a RUSH_NOFIXED build's
- * pointer is taken whole. */
-#ifdef RUSH_NOFIXED
-#define PC_SLOT_N64(s) PC_N64A(*(void **)(s))
-#define PC_SLOT_SET(s, a) (*(void **)(s) = PC_N64P(a))
-#else
-#define PC_SLOT_N64(s) (*(unsigned int *)(s))
-#define PC_SLOT_SET(s, a) (*(unsigned int *)(s) = (a))
-#endif
 
 /* A pointer stored as a 32-bit N64 address: the u32 fields of records that keep their N64 layout (each file's
  * N64W(x) is PC_N64W(x)). That is right for RDRAM-window addresses only. A RUSH_CHECK_CASTS build
@@ -243,22 +232,12 @@ static __inline__ unsigned int pc_counted_n64a(int kind, __UINTPTR_TYPE__ p, con
         pc_cross_at(kind, p, file, line);
     return (unsigned int)p;
 }
-static __inline__ unsigned int pc_counted_slot(int kind, unsigned int a, const char *file, int line)
-{
-    if (pc_cross_at)
-        pc_cross_at(kind, a, file, line);
-    return a;
-}
 #undef PC_N64P
 #undef PC_N64A
 #undef PC_N64W
-#undef PC_SLOT_N64
-#undef PC_SLOT_SET
 #define PC_N64P(x) pc_counted_n64p((unsigned int)(x), __FILE__, __LINE__)
 #define PC_N64A(x) pc_counted_n64a(PC_CROSS_N64A, (__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
 #define PC_N64W(x) pc_counted_n64a(PC_CROSS_N64W, (__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
-#define PC_SLOT_N64(s) pc_counted_slot(PC_CROSS_SLOT_N64, *(unsigned int *)(s), __FILE__, __LINE__)
-#define PC_SLOT_SET(s, a) (*(unsigned int *)(s) = pc_counted_slot(PC_CROSS_SLOT_SET, (a), __FILE__, __LINE__))
 #endif
 
 /* Game data the PC owns, with no N64 address: the race roster, the model records, the car records

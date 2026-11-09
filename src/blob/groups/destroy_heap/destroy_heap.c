@@ -17,12 +17,12 @@ void destroy_heap(tHeap *heap)
 
     osRecvMesg(&heap_lock_queue, NULL, 1);
     target = ConvertHeap(heap);
-    for (other = gMainHeap; other != NULL; other = N64P(other->next)) {
-        if (N64P(other->next) == target) {
+    for (other = gMainHeap; other != NULL; other = other->next) {
+        if (other->next == target) {
             other->next = target->next;
             break;
         }
     }
-    DeallocateMemoryInternal(PC_N64A(target), 1);
+    DeallocateMemoryInternal(target, 1);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }

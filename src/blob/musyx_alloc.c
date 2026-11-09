@@ -8,6 +8,6 @@ void *musyx_alloc(s32 size, M2C_UNK alignment) {
     void *block;
 
     block = AllocateMemoryHeap(0, size);
-    PurgeableMemory(PC_N64A(block), 0);
+    PurgeableMemory(block, 0);
     return block;
 }

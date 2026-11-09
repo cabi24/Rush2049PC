@@ -27,15 +27,15 @@ u32 LargestAvailableMemoryChunk(tHeap *heap)
     u32 largest;
     tMemoryChunk *chunk;
 
-    chunk = N64P(ConvertHeap(heap)->chunks);
+    chunk = ConvertHeap(heap)->chunks;
     largest = 0;
-    while (chunk != 0) {
+    while (chunk != NULL) {
         if (chunk->used == 0) {
             if (largest < chunk->size) {
                 largest = chunk->size;
             }
         }
-        chunk = N64P(chunk->next);
+        chunk = chunk->next;
     }
     return largest;
 }

@@ -11,8 +11,8 @@ typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32
 typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
 typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
 
-/* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
-#define HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
+/* A handle wave's ptr is a heap master slot (a handle): its block is the address the slot holds. */
+#define HANDLE_BLOCK(h) (*(u8 **)(h))
 
 typedef struct tLod {               /* N64 0x10 (GC anon_texidx_flags_c 0xc) */
     u16 texidx;

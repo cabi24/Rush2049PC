@@ -1,9 +1,9 @@
 /* port/ultra/memory.c: the RDRAM window, N64 address translation and big-endian ranges (docs/port/ULTRA.md).
  *
- * The game addresses RDRAM outside its own symbols, with 32-bit arithmetic: the heap from the end of the game
- * BSS (game_bss_end) to osMemSize | KSEG0, where every loaded file lands and is relocated in place with
- * `+= (u32)base` and `| KSEG0` (docs/port/ASSETS.md); libultra's boot parameters in low memory (N64_BOOT_PARAMS); the
- * runtime images' block (N64_OVERLAY_BASE). So an 8 MiB window is mapped at host PC_RDRAM_BASE (the N64's KSEG0) and,
+ * The game addresses RDRAM outside its own symbols, with 32-bit arithmetic: its heap, which the PC puts where the
+ * N64's was (pc_heap_memory, heap.c: from the end of the game's BSS, N64_HEAP_BASE, to osMemSize), where every loaded
+ * file lands and is relocated in place with `+= (u32)base` and `| KSEG0` (docs/port/ASSETS.md); libultra's boot
+ * parameters in low memory (N64_BOOT_PARAMS). So an 8 MiB window is mapped at host PC_RDRAM_BASE (the N64's KSEG0) and,
  * from the same memory, at N64_KSEG1: those N64 addresses are host addresses (the numbers: pc_n64_map.h, the N64's
  * memory map). The game's pointer-free data and BSS live there too,
  * at their N64 addresses (port/data's arenas, docs/port/DATA.md). The window is load-bearing, so on Linux the

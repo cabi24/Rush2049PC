@@ -22,7 +22,7 @@ int NewWaveInstance(int waveNum, int handle, void *heap)
             winst->wave = waveNum; winst->handle = handle;
             if (handle) winst->ptr = AllocateHandleHeap(heap, (gWaveSizes[waveNum] + 31) & ~31);
             else winst->ptr = AllocateMemoryHeap(heap, (gWaveSizes[waveNum] + 31) & ~31);
-            winst->size = GetPtrSize(PC_N64A(winst->ptr));
+            winst->size = GetPtrSize(winst->ptr);
             SetWaveInstanceModel(idx);
             return idx;
         }

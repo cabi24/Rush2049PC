@@ -1,7 +1,7 @@
 /* port/assets/tests/test_font.c: font data (port/assets/font.c needs no swap) read by the game's own
  * _SetupFontData (SetupFontData) and string-width code (HAL_GetTextWidth): the 12-byte letters keep a
- * 4-byte kern slot that holds a window address, the wave is reached through a u32 heap handle slot, and a heap move
- * of the block is picked up on the next call.
+ * 4-byte kern slot that holds a window address, the wave is reached through a heap handle (a pointer-sized master
+ * slot, include/game/heap.h), and a heap move of the block is picked up on the next call.
  * game: src/blob/groups/slot_sound/group.c src/blob/groups/sound_channel_extra/HAL_GetTextWidth.c
  */
 #include <string.h>
@@ -81,7 +81,7 @@ static void check_letters(uint8_t *font)
 int main(void)
 {
     uint8_t *w = test_rdram(), *font, copy[64];
-    uint32_t *handles;
+    void **handles;
     size_t size;
     int32_t width;
 
@@ -89,16 +89,16 @@ int main(void)
         fprintf(stderr, "test_font: no RDRAM window here, skipped\n");
         return 0;
     }
-    handles = (uint32_t *)(w + 0x200000);
+    handles = (void **)(w + 0x200000);
     font = w + 0x200100;
     size = make_font(font);
     memcpy(copy, font, size);
     pc_assets_font(38, font, 0x40);
     CHECK(memcmp(copy, font, size) == 0);   /* bytes only: nothing to swap */
 
-    /* A handle wave: the instance holds the handle, a u32 heap slot; the next slot is another handle's. */
-    handles[0] = (uint32_t)(uintptr_t)font;
-    handles[1] = PC_RDRAM_BASE + 0x123450u;   /* a window address */
+    /* A handle wave: the instance holds the handle, a heap master slot; the next slot is another handle's. */
+    handles[0] = font;
+    handles[1] = w + 0x123450u;
     gWaveInstance[2].data = handles;
     gFontDatWaveInst = 2;
     SetupFontData(1);
@@ -114,7 +114,7 @@ int main(void)
     /* Heap compaction moves the block and rewrites the handle; the next call re-derives the letters. */
     memmove(font + 0x1000, font, size);
     font += 0x1000;
-    handles[0] = (uint32_t)(uintptr_t)font;
+    handles[0] = font;
     SetupFontData(0);
     check_letters(font);
     width = HAL_GetTextWidth((uint8_t *)"BC", -1);

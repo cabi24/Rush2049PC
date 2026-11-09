@@ -9,13 +9,17 @@
 #include "game/game.h"
 #include "game/heap.h"
 
-extern u8 game_bss_end[];   /* the end of the game image's BSS: the main heap starts at the next 32-byte boundary */
 extern u32 osMemSize;       /* libultra: the RDRAM's size in bytes */
 
 s32 osRecvMesg();
 s32 osSendMesg();
 void osCreateMesgQueue();
-void *memset(void *, int, unsigned int);   /* the master slots: N64P gives their pointer */
+void *memset(void *, int, unsigned int);
+
+/* The headers' sizes are the N64's (include/game/heap.h): the allocator's arithmetic depends on them. */
+_Static_assert(sizeof(tMemoryChunk) == HEAP_CHUNK_HEADER, "a chunk's header is 32 bytes");
+_Static_assert(sizeof(tHeap) <= HEAP_HEADER_ROOM, "a heap's header fits before its first chunk");
+_Static_assert(sizeof(tMasterBlock) <= HEAP_CHUNK_HEADER, "a master table's header takes one 32-byte unit");
 
 /* The heap a caller means: heap itself, or the main heap for 0 (MAT3 _ConvertHeap). */
 tHeap *ConvertHeap(tHeap *heap)
@@ -28,8 +32,8 @@ tHeap *ConvertHeap(tHeap *heap)
 
 /* Takes size bytes (rounded up to 32) from the lowest free chunk of heap that holds them, and splits off what is
  * left as a free chunk when that is at least HEAP_MIN_SPLIT bytes. master is the slot that will hold the data's
- * address (AllocateHandleHeap's) or 0; internal is 1 for the heap's own tables. Returns the data's address. The
- * caller holds the heap lock (MAT3 _AllocateMemory, without its out-of-memory callback and fill).
+ * address (AllocateHandleHeap's) or NULL; internal is 1 for the heap's own tables. Returns the data. The caller holds
+ * the heap lock (MAT3 _AllocateMemory, without its out-of-memory callback and fill).
  * Original game: when no free chunk is large enough the search ends at chunk 0 and the code goes on to read it;
  * the PC reports that first (pc_heap_none). */
 void *AllocateMemory(tHeap *heap, u32 size, void *master, s32 internal)
@@ -41,7 +45,7 @@ void *AllocateMemory(tHeap *heap, u32 size, void *master, s32 internal)
     u32 chunkSize;
 
     size = (size + 31) & ~31;
-    for (chunk = N64P(heap->chunks); chunk != 0; chunk = N64P(chunk->next)) {
+    for (chunk = heap->chunks; chunk != NULL; chunk = chunk->next) {
         if (chunk->used == 0) {
             chunkSize = chunk->size;
             freeTotal += chunkSize;
@@ -53,68 +57,71 @@ void *AllocateMemory(tHeap *heap, u32 size, void *master, s32 internal)
             }
         }
     }
-    if (chunk == 0) pc_heap_none(heap, size, freeTotal, largestFree);
+    if (chunk == NULL) pc_heap_none(heap, size, freeTotal, largestFree);
     chunkSize = chunk->size;
     if (chunkSize - size >= HEAP_MIN_SPLIT) {
         rest = (tMemoryChunk *)((u8 *)chunk + size + HEAP_CHUNK_HEADER);
         rest->next = chunk->next;
-        if (rest->next != 0) {
-            N64P(rest->next)->prev = PC_N64W(rest);
+        if (rest->next != NULL) {
+            rest->next->prev = rest;
         } else {
-            heap->lastChunk = PC_N64W(rest);
+            heap->lastChunk = rest;
         }
-        rest->prev = PC_N64W(chunk);
+        rest->prev = chunk;
         rest->size = chunk->size - size - HEAP_CHUNK_HEADER;
-        rest->master = 0;
+        rest->master = NULL;
         rest->used = 0;
         rest->internal = 0;
         rest->locked = 0;
-        rest->magic = HEAP_MAGIC_WORD;
-        chunk->next = PC_N64W(rest);
+        rest->magic = HEAP_CHUNK_MAGIC;
+        chunk->next = rest;
         chunk->size = size;
     }
     chunk->used = 1;
-    chunk->master = PC_N64W(master);
+    chunk->master = master;
     chunk->internal = internal; pc_heap_allocated(heap);
     return (u8 *)chunk + HEAP_CHUNK_HEADER;
 }
 
 /* Lays out a heap whose header is at heap and whose end (endRam) is already set: one free chunk from the first
- * 32-byte boundary past the header to the end, and a first master table of numInitialMasters slots (none for 0;
- * AllocateHandleHeap then makes one of numAdditionalMasters). The caller holds the lock or has none yet
- * (MAT3 _InitHeap). */
+ * 32-byte boundary past the header's room (HEAP_HEADER_ROOM) to the end, and a first master table of
+ * numInitialMasters slots (none for 0; AllocateHandleHeap then makes one of numAdditionalMasters). The caller holds
+ * the lock or has none yet (MAT3 _InitHeap). */
 void InitHeap(tHeap *heap, u16 numInitialMasters, u16 numAdditionalMasters)
 {
+    tMemoryChunk *first;
+
     heap->magic = HEAP_MAGIC_WORD;
-    heap->next = 0;
-    heap->chunks = PC_N64W(((tMemoryChunk *)PC_N64P(((PC_N64A(heap) + 67) & ~31))));
-    N64P(heap->chunks)->magic = HEAP_MAGIC_WORD;
-    N64P(heap->chunks)->next = 0;
-    N64P(heap->chunks)->prev = 0;
-    N64P(heap->chunks)->size = heap->endRam - (u32)heap->chunks - HEAP_CHUNK_HEADER;
-    N64P(heap->chunks)->master = 0;
-    N64P(heap->chunks)->used = 0;
-    N64P(heap->chunks)->internal = 0;
-    N64P(heap->chunks)->locked = 0;
+    heap->next = NULL;
+    first = (tMemoryChunk *)(((uintptr_t)heap + HEAP_HEADER_ROOM + 3) & ~(uintptr_t)31);
+    heap->chunks = first;
+    first->magic = HEAP_CHUNK_MAGIC;
+    first->next = NULL;
+    first->prev = NULL;
+    first->size = heap->endRam - (u8 *)first - HEAP_CHUNK_HEADER;
+    first->master = NULL;
+    first->used = 0;
+    first->internal = 0;
+    first->locked = 0;
     heap->lastChunk = heap->chunks;
     heap->masters.numMasters = numInitialMasters;
     heap->numAdditionalMasters = numAdditionalMasters;
-    heap->masters.nextBlock = 0;
+    heap->masters.nextBlock = NULL;
     if (numInitialMasters > 0) {
-        heap->masters.masters = PC_N64W(AllocateMemory(heap, numInitialMasters * HEAP_MASTER_SLOT, 0, 1));
-        memset(N64P(heap->masters.masters), 0, numInitialMasters * HEAP_MASTER_SLOT);
+        heap->masters.masters = AllocateMemory(heap, numInitialMasters * HEAP_MASTER_SLOT, NULL, 1);
+        memset(heap->masters.masters, 0, numInitialMasters * HEAP_MASTER_SLOT);
     } else {
-        heap->masters.masters = 0;
+        heap->masters.masters = NULL;
     }
 }
 
-/* Allocates size bytes from heap (0: the main heap), under the heap lock. Returns the data's address. */
+/* Allocates size bytes from heap (0: the main heap), under the heap lock. Returns the data. */
 void *AllocateMemoryHeap(tHeap *heap, u32 size)
 {
     void *data;
 
     osRecvMesg(&heap_lock_queue, 0, 1);
-    data = AllocateMemory(ConvertHeap(heap), size, 0, 0);
+    data = AllocateMemory(ConvertHeap(heap), size, NULL, 0);
     osSendMesg(&heap_lock_queue, 0, 0);
     return data;
 }
@@ -125,24 +132,24 @@ void *AllocateMemoryHeap(tHeap *heap, u32 size)
 void *AllocateHandleHeap(tHeap *heap, u32 size)
 {
     tHeap *target;
-    uintptr_t *slot;
+    void **slot;
     tMasterBlock *table;
     u32 i;
 
     osRecvMesg(&heap_lock_queue, 0, 1);
     target = ConvertHeap(heap);
     table = &target->masters;
-    if (table->masters == 0) {
+    if (table->masters == NULL) {
         table->numMasters = target->numAdditionalMasters;
-        table->masters = PC_N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
-        memset(N64P(table->masters), 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
-        table->nextBlock = 0;
+        table->masters = AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, NULL, 1);
+        memset(table->masters, 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
+        table->nextBlock = NULL;
     }
     i = 0;
     for (;;) {
-        slot = N64P(table->masters);
+        slot = table->masters;
         for (; i < table->numMasters; i++, slot++) {
-            if (*slot == 0) {
+            if (*slot == NULL) {
                 break;
             }
         }
@@ -150,36 +157,36 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
             break;
         }
         i = 0;
-        if (table->nextBlock == 0) {
-            table->nextBlock = PC_N64W(AllocateMemory(target, sizeof(tMasterBlock), 0, 1));
-            N64P(table->nextBlock)->numMasters = target->numAdditionalMasters;
-            N64P(table->nextBlock)->masters =
-                PC_N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
-            memset(N64P(N64P(table->nextBlock)->masters), 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
-            N64P(table->nextBlock)->nextBlock = 0;
+        if (table->nextBlock == NULL) {
+            table->nextBlock = AllocateMemory(target, sizeof(tMasterBlock), NULL, 1);
+            table->nextBlock->numMasters = target->numAdditionalMasters;
+            table->nextBlock->masters = AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, NULL, 1);
+            memset(table->nextBlock->masters, 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
+            table->nextBlock->nextBlock = NULL;
         }
-        table = N64P(table->nextBlock);
+        table = table->nextBlock;
     }
-    *slot = (uintptr_t)AllocateMemory(target, size, slot, 0);
+    *slot = AllocateMemory(target, size, slot, 0);
     osSendMesg(&heap_lock_queue, 0, 0);
     return slot;
 }
 
 /* Makes a heap of size bytes inside parent (0: the main heap): a chunk of the parent, marked internal, laid out by
  * InitHeap with the given master tables, and appended to the chain of heaps that starts at gMainHeap (which
- * FindHeap walks). Returns the new heap; destroy_heap gives it back. */
+ * FindHeap walks). Its end is the chunk's: the size and the header's room, rounded up to 32 as the chunk's data
+ * is. Returns the new heap; destroy_heap gives it back. */
 void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditionalMasters)
 {
     tHeap *heap;
     tHeap *other;
 
     osRecvMesg(&heap_lock_queue, 0, 1);
-    heap = AllocateMemory(ConvertHeap(parent), size + 64, 0, 1);
-    heap->endRam = PC_N64A(heap) + ((size + 95) & ~31);
+    heap = AllocateMemory(ConvertHeap(parent), size + HEAP_HEADER_ROOM, NULL, 1);
+    heap->endRam = (u8 *)heap + ((size + HEAP_HEADER_ROOM + 31) & ~31);
     InitHeap(heap, numInitialMasters, numAdditionalMasters);
-    for (other = gMainHeap; other != 0; other = N64P(other->next)) {
-        if (other->next == 0) {
-            other->next = PC_N64W(heap);
+    for (other = gMainHeap; other != NULL; other = other->next) {
+        if (other->next == NULL) {
+            other->next = heap;
             break;
         }
     }
@@ -187,16 +194,22 @@ void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditio
     return heap;
 }
 
-/* Puts the main heap's header at the first 32-byte boundary past the game's BSS and its end at the end of RDRAM, and
- * notes an Expansion Pak (more than 4 MiB), which changes what the game keeps loaded (expansion_pak_present). */
+/* Puts the main heap over the memory the PC gives it for the console's RDRAM (pc_heap_memory: on the N64 everything
+ * from the end of the game's BSS to the end of RDRAM): its header at the memory's first 32-byte boundary, its end at
+ * the memory's end. Notes an Expansion Pak, more than 4 MiB of RDRAM, which changes what the game keeps loaded
+ * (expansion_pak_present). The N64 found its heap at game_bss_end and tested its end, osMemSize | 0x80000000, past
+ * 0x80400000: the same heap and the same test. */
 void locate_main_heap(void)
 {
     tHeap *heap;
+    u8 *memory;
+    u32 size;
 
-    heap = ((tHeap *)PC_N64P(((PC_N64A(game_bss_end) + 31) & ~31)));
+    memory = pc_heap_memory(osMemSize, &size);
+    heap = (tHeap *)(((uintptr_t)memory + 31) & ~(uintptr_t)31);
     gMainHeap = heap;
-    heap->endRam = osMemSize | 0x80000000;
-    if (heap->endRam >= 0x80400001) {
+    heap->endRam = memory + size;
+    if (osMemSize > 0x400000) {
         expansion_pak_present = 1;
     }
 }

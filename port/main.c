@@ -189,7 +189,7 @@ extern void musyx_clear_retrace_callback(int32_t unused);                       
 extern int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
 extern intptr_t musyx_cart_address(intptr_t address);                    /* 5: cartridge address */
 extern void *musyx_alloc(int32_t size, int32_t mode);       /* 6: allocate */
-extern void musyx_free(uint32_t address);                  /* 7: free */
+extern void musyx_free(void *ptr);                         /* 7: free */
 
 static void musyx_services(int no_rom)
 {

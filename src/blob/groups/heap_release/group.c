@@ -1,16 +1,12 @@
 /* Freeing and resizing heap chunks (MAT3 memsys.c _DeallocateMemory, DeallocateMemory, ReallocateMemory), and the
- * small functions that free one known block: the runtime image (overlay), a car's palette, the 3D sound tables.
- * include/game/heap.h has the headers; memsys/group.c allocates. */
+ * small functions that free one known block: the runtime image (overlay), the sound library's blocks, the 3D sound
+ * tables. include/game/heap.h has the headers; memsys/group.c allocates. */
 #include "game/game.h"
 #include "game/heap.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-/* A chunk's master is the handle slot that holds its data's address (AllocateHandleHeap): freeing the chunk clears
- * the slot (PC_SLOT_SET writes a whole pointer-sized slot). */
-#define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
 typedef struct OSMesgQueue OSMesgQueue;
 
-extern u8 overlay_base[];   /* where the runtime image (front end A or race extras B) is loaded: its heap chunk */
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 /* PC: the free's first fill poisons the freed data (chunk + 32, size). Whatever the asset layer had registered in
@@ -18,57 +14,57 @@ s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s3
 void pc_heap_block_freed(void *p, __SIZE_TYPE__ size);
 #define FillFreeMem(p, n) (pc_heap_block_freed(p, n), FillFreeMem(p, n))
 
-/* Frees the chunk whose data is at address (a window address): fills the data, clears its master slot if it has
- * one, and merges it with a free chunk above and then a free chunk below. internal says whether the caller frees
- * one of the heap's own chunks (destroy_heap: 1) or an ordinary one (0). The caller holds the heap lock
- * (MAT3 _DeallocateMemory). */
-void DeallocateMemoryInternal(u32 address, s32 internal) {
+/* Frees the chunk whose data is at ptr (or the handle's chunk, for a master slot's address): fills the data, clears
+ * its master slot if it has one, and merges it with a free chunk above and then a free chunk below. internal says
+ * whether the caller frees one of the heap's own chunks (destroy_heap: 1) or an ordinary one (0). The caller holds
+ * the heap lock (MAT3 _DeallocateMemory). */
+void DeallocateMemoryInternal(void *ptr, s32 internal) {
     tHeap *heap;
     tMemoryChunk *chunk, *next, *prev;
 
-    heap = FindHeap(address);
-    chunk = FindChunk(heap, address, internal);
+    heap = FindHeap(ptr);
+    chunk = FindChunk(heap, ptr, internal);
     FillFreeMem((u8 *)chunk + HEAP_CHUNK_HEADER, chunk->size);
-    if (chunk->master) SLOT_CLEAR(chunk->master);
-    next = N64P(chunk->next);
+    if (chunk->master) *chunk->master = NULL;
+    next = chunk->next;
     if (next && next->used == 0) {
         chunk->next = next->next;
-        if (chunk->next) N64P(chunk->next)->prev = PC_N64A(chunk);
-        else heap->lastChunk = PC_N64A(chunk);
+        if (chunk->next) chunk->next->prev = chunk;
+        else heap->lastChunk = chunk;
         chunk->size += next->size + HEAP_CHUNK_HEADER;
         FillFreeMem(next, HEAP_CHUNK_HEADER);
     }
-    prev = ((tMemoryChunk *)PC_N64P(chunk->prev));
-    chunk->master = 0; chunk->used = 0; chunk->internal = 0; chunk->locked = 0;
+    prev = chunk->prev;
+    chunk->master = NULL; chunk->used = 0; chunk->internal = 0; chunk->locked = 0;
     if (prev && prev->used == 0) {
         prev->next = chunk->next;
-        if (prev->next) N64P(prev->next)->prev = PC_N64A(prev);
-        else heap->lastChunk = PC_N64A(prev);
+        if (prev->next) prev->next->prev = prev;
+        else heap->lastChunk = prev;
         prev->size += chunk->size + HEAP_CHUNK_HEADER;
         FillFreeMem(chunk, HEAP_CHUNK_HEADER);
     }
 }
 #undef FillFreeMem
 
-/* Frees the chunk whose data is at address (a window address), under the heap lock (MAT3 DeallocateMemory). */
-__inline void DeallocateMemory(u32 address) {
+/* Frees the chunk whose data is at ptr, under the heap lock (MAT3 DeallocateMemory). */
+__inline void DeallocateMemory(void *ptr) {
     osRecvMesg(&heap_lock_queue, NULL, 1);
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
 /* The sound library's free (its allocator hook), the same as DeallocateMemory. */
-void musyx_free(u32 address) {
+void musyx_free(void *ptr) {
     osRecvMesg(&heap_lock_queue, NULL, 1);
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
-/* Frees runtime image B (the race extras) if it is loaded. */
+/* Frees runtime image B (the race extras) if it is loaded: its block (runtime_image_block). */
 void unload_extra_overlay(void) {
     if (extra_overlay_loaded) {
         osRecvMesg(&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
+        DeallocateMemoryInternal(runtime_image_block(), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         extra_overlay_loaded = 0;
     }
@@ -79,22 +75,13 @@ void unload_extra_overlay(void) {
 void unload_start_overlay(void) {
     if (start_overlay_loaded) {
         osRecvMesg(&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
+        DeallocateMemoryInternal(runtime_image_block(), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         start_overlay_loaded = 0;
     }
 }
 
-/* Frees the heap block of car palette index (car_palettes[index].data, its window address). */
-void free_car_palette(s32 index) {
-    u32 address = car_palettes[index].data;
-
-    osRecvMesg(&heap_lock_queue, NULL, 1);
-    DeallocateMemoryInternal(address, 0);
-    osSendMesg(&heap_lock_queue, NULL, 0);
-}
-
-/* Resizes the chunk whose data is at address to desired bytes (rounded up to 32), in place, under the heap lock
+/* Resizes the chunk whose data is at ptr to desired bytes (rounded up to 32), in place, under the heap lock
  * (MAT3 ReallocateMemory and _ReallocateMemory):
  *   smaller, and the chunk above is missing or in use: splits off the rest as a free chunk if it is at least
  *     HEAP_MIN_SPLIT bytes;
@@ -104,7 +91,7 @@ void free_car_palette(s32 index) {
  * Original game: growing takes the chunk above without checking that there is one, or that it is free and large
  * enough.
  * PC: a chunk that grows takes from the heap: reported as an allocation (port/ultra/heap.c). */
-void ReallocateMemory(u32 address, u32 desired) {
+void ReallocateMemory(void *ptr, u32 desired) {
     tHeap *heap;
     tMemoryChunk *chunk;
     tMemoryChunk *next;
@@ -114,77 +101,77 @@ void ReallocateMemory(u32 address, u32 desired) {
 
     osRecvMesg(&heap_lock_queue, NULL, 1);
     desired = (desired + 31) & ~31U;
-    heap = (tHeap *)FindHeap(address);
-    chunk = FindChunk(heap, address, 0);
+    heap = FindHeap(ptr);
+    chunk = FindChunk(heap, ptr, 0);
     size = chunk->size;
     if (size >= desired) {
-        next = N64P(chunk->next);
-        if (N64P(chunk->next) == NULL || next->used != 0) {
+        next = chunk->next;
+        if (chunk->next == NULL || next->used != 0) {
             if (size - desired >= HEAP_MIN_SPLIT) {
                 moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
                 moved->next = chunk->next;
-                if (N64P(moved->next) != NULL) {
-                    N64P(moved->next)->prev = PC_N64W(moved);
+                if (moved->next != NULL) {
+                    moved->next->prev = moved;
                 } else {
-                    heap->lastChunk = PC_N64W(moved);
+                    heap->lastChunk = moved;
                 }
-                moved->prev = PC_N64W(chunk);
+                moved->prev = chunk;
                 moved->size = chunk->size - desired - HEAP_CHUNK_HEADER;
-                moved->master = PC_N64W(NULL);
+                moved->master = NULL;
                 moved->used = 0;
                 moved->internal = 0;
                 moved->locked = 0;
-                moved->magic = HEAP_MAGIC_WORD;
-                chunk->next = PC_N64W(moved);
+                moved->magic = HEAP_CHUNK_MAGIC;
+                chunk->next = moved;
                 chunk->size = desired;
             }
         } else {
             if (size - desired >= HEAP_CHUNK_HEADER) {
                 moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
                 moved->next = next->next;
-                if (N64P(moved->next) != NULL) {
-                    N64P(moved->next)->prev = PC_N64W(moved);
+                if (moved->next != NULL) {
+                    moved->next->prev = moved;
                 } else {
-                    heap->lastChunk = PC_N64W(moved);
+                    heap->lastChunk = moved;
                 }
-                moved->prev = PC_N64W(chunk);
+                moved->prev = chunk;
                 moved->size = chunk->size - desired + next->size;
-                moved->master = PC_N64W(NULL);
+                moved->master = NULL;
                 moved->used = 0;
                 moved->internal = 0;
                 moved->locked = 0;
-                moved->magic = HEAP_MAGIC_WORD;
-                chunk->next = PC_N64W(moved);
+                moved->magic = HEAP_CHUNK_MAGIC;
+                chunk->next = moved;
                 chunk->size = desired;
             }
         }
     } else {
-        next = N64P(chunk->next);
+        next = chunk->next;
         nextSize = next->size;
         if (nextSize - desired + size < HEAP_CHUNK_HEADER) {
             chunk->next = next->next;
-            if (N64P(chunk->next) != NULL) {
-                N64P(chunk->next)->prev = PC_N64W(chunk);
+            if (chunk->next != NULL) {
+                chunk->next->prev = chunk;
             } else {
-                heap->lastChunk = PC_N64W(chunk);
+                heap->lastChunk = chunk;
             }
             desired = chunk->size + next->size + HEAP_CHUNK_HEADER;
         } else {
             moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
             moved->next = next->next;
-            if (N64P(moved->next) != NULL) {
-                N64P(moved->next)->prev = PC_N64W(moved);
+            if (moved->next != NULL) {
+                moved->next->prev = moved;
             } else {
-                heap->lastChunk = PC_N64W(moved);
+                heap->lastChunk = moved;
             }
-            moved->prev = PC_N64W(chunk);
+            moved->prev = chunk;
             moved->size = chunk->size + next->size - desired;
-            moved->master = PC_N64W(NULL);
+            moved->master = NULL;
             moved->used = 0;
             moved->internal = 0;
             moved->locked = 0;
-            moved->magic = HEAP_MAGIC_WORD;
-            chunk->next = PC_N64W(moved);
+            moved->magic = HEAP_CHUNK_MAGIC;
+            chunk->next = moved;
         }
         chunk->size = desired;
     }

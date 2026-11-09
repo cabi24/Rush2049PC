@@ -1420,7 +1420,7 @@ local block_state deflate_slow(s)
     return block_done; /* the game returns 1 here */
 }
 
-#define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
+#define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal((ptr), (flag))   /* zlib's opaque goes */
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 

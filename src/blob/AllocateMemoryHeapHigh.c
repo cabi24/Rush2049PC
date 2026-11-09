@@ -12,7 +12,7 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Takes size bytes (rounded up to 32) from the highest free chunk of heap (0: the main heap) that holds them: from
  * the chunk's top end when the rest is worth keeping as a free chunk (at least HEAP_MIN_SPLIT bytes), else the
- * whole chunk. Returns the data's address. Takes the heap lock.
+ * whole chunk. Returns the data. Takes the heap lock.
  * Original game: when no free chunk is large enough the search ends at chunk 0 and the code goes on to read it (the
  * MAT3 code calls the heap's out-of-memory callback there). The totals it keeps are never used. */
 void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
@@ -28,7 +28,7 @@ void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
     largestFree = 0;
     heap = ConvertHeap(heap);
     size = (size + 31) & ~31;
-    for (chunk = N64P(heap->lastChunk); chunk != 0; chunk = N64P(chunk->prev)) {
+    for (chunk = heap->lastChunk; chunk != NULL; chunk = chunk->prev) {
         if (chunk->used == 0) {
             chunkSize = chunk->size;
             freeTotal += chunkSize;
@@ -45,23 +45,23 @@ void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
         taken = (tMemoryChunk *)((u8 *)chunk + chunkSize - size);
         chunkSize = chunk->size;
         taken->next = chunk->next;
-        if (taken->next != 0) {
-            N64P(taken->next)->prev = PC_N64W(taken);
+        if (taken->next != NULL) {
+            taken->next->prev = taken;
         } else {
-            heap->lastChunk = PC_N64W(taken);
+            heap->lastChunk = taken;
         }
-        taken->prev = PC_N64W(chunk);
+        taken->prev = chunk;
         taken->size = size;
-        taken->master = 0;
+        taken->master = NULL;
         taken->used = 1;
         taken->internal = 0;
         taken->locked = 0;
-        taken->magic = HEAP_MAGIC_WORD;
-        chunk->next = PC_N64W(taken);
+        taken->magic = HEAP_CHUNK_MAGIC;
+        chunk->next = taken;
         chunk->size = chunk->size - size - HEAP_CHUNK_HEADER;
         chunk = taken;
     } else {
-        chunk->master = 0;
+        chunk->master = NULL;
         chunk->used = 1;
         chunk->internal = 0;
     }

@@ -66,6 +66,13 @@
 #define N64_CART_KSEG1 (N64_KSEG1 | N64_CART_PHYS)        /* the cartridge's first byte through KSEG1 (osRomBase) */
 #define N64_CART_SPAN (N64_PIF_ROM_PHYS - N64_CART_PHYS)   /* the bytes of ROM the bus can address */
 
+/* ---------------------------------------------------------------- the game's heap */
+
+/* The game's main heap started at the end of its image's BSS (game_bss_end on the N64) and ran to the end of RDRAM
+ * (osMemSize). The PC gives the game's heap those bytes of the window (port/ultra/heap.c, pc_heap_memory) until wave 3
+ * makes the heap a block of PC memory (docs/port/NATIVE.md step 12). */
+#define N64_HEAP_BASE 0x8017A640u
+
 /* ---------------------------------------------------------------- the runtime images (overlays) */
 
 /* The game's overlay loader (src/blob/groups/heap_release/overlay_loader.c) loads runtime image A (the front end) or

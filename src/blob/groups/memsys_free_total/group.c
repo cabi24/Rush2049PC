@@ -1,30 +1,7 @@
-/* heap_total_free: the free space of a heap (MAT3 memsys.c). */
+/* heap_total_free: the free space of a heap (MAT3 memsys.c). include/game/heap.h has the headers. */
 #include "game/game.h"
+#include "game/heap.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-enum n64p_Block { n64p_Block_ };
-enum n64p_Heap { n64p_Heap_ };
-enum n64p_void { n64p_void_ };
-/* A heap block's header (MAT3 tMemoryChunk), the N64's layout: its links are window addresses. */
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Block next;
-    /* 0x08 */ enum n64p_Block prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ enum n64p_void owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ u8 tag;
-    /* 0x16 */ u8 pad16[10];
-} Block; /* 0x20 */
-
-/* A heap (MAT3 tHeap): its first block. */
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Heap next;
-    /* 0x08 */ enum n64p_Block first;
-} Heap;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 
 typedef struct OSMesgQueue OSMesgQueue;
 
@@ -32,7 +9,7 @@ s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Returns the bytes free in `heap` (NULL the main heap: ConvertHeap), under the heap's lock. */
-u32 heap_total_free(Heap *heap)
+u32 heap_total_free(tHeap *heap)
 {
     u32 sum;
 
@@ -42,19 +19,19 @@ u32 heap_total_free(Heap *heap)
     return sum;
 }
 
-/* The same without the lock: the sizes of its unused blocks added up. */
-u32 heap_total_free_unlocked(Heap *heap)
+/* The same without the lock: the sizes of its unused chunks added up. */
+u32 heap_total_free_unlocked(tHeap *heap)
 {
     u32 sum;
-    Block *block;
+    tMemoryChunk *chunk;
 
-    block = N64P(ConvertHeap(heap)->first);
+    chunk = ConvertHeap(heap)->chunks;
     sum = 0;
-    while (block != 0) {
-        if (block->used == 0) {
-            sum += block->size;
+    while (chunk != NULL) {
+        if (chunk->used == 0) {
+            sum += chunk->size;
         }
-        block = N64P(block->next);
+        chunk = chunk->next;
     }
     return sum;
 }
