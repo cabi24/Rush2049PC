@@ -1,24 +1,10 @@
+/* animRadarBlip: a car's blip on a player's radar, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Blit {
-    /* 0x00 */ char *Name;
-    /* 0x04 */ void *Image;
-    /* 0x08 */ void *Info;
-    /* 0x0C */ s16 TexIndex;
-    /* 0x0E */ s16 X;
-    /* 0x10 */ s16 Y;
-    /* 0x12 */ u16 State;
-    /* 0x14 */ s16 Width;
-    /* 0x16 */ s16 Height;
-    /* 0x18 */ u8 Alpha, Flip;
-    /* 0x1A */ s8 Hide;
-    /* 0x1B */ u8 Init;
-    /* 0x1C */ s16 Top, Bot, Left, Right;
-    /* 0x24 */ s32 pad24;
-    /* 0x28 */ void *AnimFunc;
-    /* 0x2C */ u32 AnimID;
-} Blit;
+#define GAME_STATE_ATTRACT 0x8   /* gGameState: attract mode (the demo) */
+#define RADAR_RANGE 480.0f       /* the radar's reach across, feet */
 
+/* A model record (MAT3 tModelData, 0x808 bytes) as this reads it. */
 typedef struct MODELDAT {
     u8 pad0[1990];
     s16 index;              /* 1990 */
@@ -27,6 +13,7 @@ typedef struct MODELDAT {
     s8 drone_type;          /* 1996 */
     u8 pad7CD[2056 - 1997];
 } MODELDAT;
+/* A car record as this reads it: its position and orientation. */
 typedef struct CAR_DATA {
     u8 pad0[8];
     f32 dr_pos[3];          /* 8 */
@@ -43,7 +30,12 @@ VIEW(s32, gGameState);
 VIEW(Pos[][4], radarPos);
 #define radarPos radarPos_view
 
-s32 animRadarBlip(Blit *blt) {
+/* The blip of car animID & 0xF on the radar of player (animID >> 8) & 0xF: the car's position relative to the
+ * player's car, turned into the player's car's frame, scaled to the radar (RADAR_RANGE feet across; mirrored with
+ * gMirrorWaves), and drawn as the car's own frame of the blip strip (a human's: its index; a drone: frame 5). Hidden
+ * off the radar, when the radar or the car is not shown, or the car is not solid; its animation stops past the
+ * windows, in attract mode, with one car, or for a car out of the game. Returns 1 (or Hidden's answer). */
+s32 animRadarBlip(tBlit *blt) {
     s32 me;
     MODELDAT *m;
     CAR_DATA *gc;
@@ -57,21 +49,21 @@ s32 animRadarBlip(Blit *blt) {
     s32 hw;
     s32 hh;
 
-    me = (blt->AnimID >> 8) & 0xF;
-    hw = blt->Width * 0.125f;
-    hh = blt->Height;
-    if (me >= gNumWindows || (gGameState & 8) || gNumCars < 2) {
-        blt->AnimFunc = 0;
+    me = (blt->animID >> 8) & 0xF;
+    hw = blt->width * 0.125f;
+    hh = blt->height;
+    if (me >= gNumWindows || (gGameState & GAME_STATE_ATTRACT) || gNumCars < 2) {
+        blt->animFunc = 0;
         return Hidden(blt, 1);
     }
-    slot = blt->AnimID & 0xF;
+    slot = blt->animID & 0xF;
     if (Hidden(blt, !gShowRadar || PC_CAR_FINISHED(me) == 1)) {
         return 1;
     }
     m = PC_MODEL(slot);
     gc = PC_CAR(slot);
     if (!m->in_game) {
-        blt->AnimFunc = 0;
+        blt->animFunc = 0;
         return Hidden(blt, 1);
     }
     if (Hidden(blt, slot != me && !AreWeSolid(slot))) {
@@ -82,28 +74,28 @@ s32 animRadarBlip(Blit *blt) {
     lpos[1] = gc->dr_pos[1] - mc->dr_pos[1];
     lpos[2] = gc->dr_pos[2] - mc->dr_pos[2];
     BodyVector(lpos, rpos, mc->dr_uvs[0]);
-    blt->X = radarWidth * 0.5f;
-    blt->Y = 16;
+    blt->x = radarWidth * 0.5f;
+    blt->y = 16;
     if (gMirrorWaves) {
-        scale = (1.0f / 480.0f);
-        blt->X += -rpos[0] * scale * radarWidth;
+        scale = (1.0f / RADAR_RANGE);
+        blt->x += -rpos[0] * scale * radarWidth;
     } else {
-        scale = (1.0f / 480.0f);
-        blt->X += rpos[0] * scale * radarWidth;
+        scale = (1.0f / RADAR_RANGE);
+        blt->x += rpos[0] * scale * radarWidth;
     }
-    blt->Y += rpos[2] * -scale * radarHeight;
-    if (Hidden(blt, blt->X < hw || radarWidth - hw < blt->X || blt->Y < hh || radarHeight - hh < blt->Y)) {
+    blt->y += rpos[2] * -scale * radarHeight;
+    if (Hidden(blt, blt->x < hw || radarWidth - hw < blt->x || blt->y < hh || radarHeight - hh < blt->y)) {
         return 1;
     }
-    blt->X += radarPos[gNumWindows - 1][me].x;
-    blt->Y += radarPos[gNumWindows - 1][me].y;
+    blt->x += radarPos[gNumWindows - 1][me].x;
+    blt->y += radarPos[gNumWindows - 1][me].y;
     if (m->drone_type == 2) {
-        SelectBlit(blt, m->index, blt->Width * 0.125f, blt->Height);
+        SelectBlit(blt, m->index, blt->width * 0.125f, blt->height);
     } else if (m->drone_type == 1) {
-        SelectBlit(blt, 5, blt->Width * 0.125f, blt->Height);
+        SelectBlit(blt, 5, blt->width * 0.125f, blt->height);
     }
-    blt->X -= hw / 2;
-    blt->Y -= hh / 2;
+    blt->x -= hw / 2;
+    blt->y -= hh / 2;
     UpdateBlit(blt);
     return 1;
 }

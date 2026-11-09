@@ -1,38 +1,42 @@
+/* FoundCoin: a player found one of a track's coins (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct Resource {u8 *data;} Resource;
-typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
-typedef struct Handle {Object *object;} Handle;
-typedef struct Player {u8 index,selector;u8 opaque[70];Handle *handle;} Player;
+#define FIRST_STUNT_TRACK 14   /* gTrackNum: 0..5 the race tracks, 14..17 the stunt arenas */
+#define NUM_RACE_TRACKS 6      /* raceStats[track + 6] is the same track's second record (gTrackNum 19..24) */
 
-extern Player gPlayers[];
-VIEW(Object *[], gJustPlayers);
+/* A player's input record as this reads it: which "just play" profile, and the profile handle in use. */
+typedef struct PlayerPad {u8 index,selector;u8 opaque[70];tProfile **profile;} PlayerPad;
+
+extern PlayerPad gPlayers[];
+VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
 
-#define FLAGS(base,stride,state,offset) (*(u16 *)((base)+(stride)*(state)+(offset)))
+/* Sets coin bit's bit in the player's profile (or its "just play" profile): on a race track in both of the track's
+ * race stats, on a stunt arena in its stunt stats; a profile with a pak file writes it (SavePlayerCoins). Nothing in
+ * attract mode or on other tracks. */
 void FoundCoin(int player,int bit) {
- Player *record;
+ PlayerPad *record;
  u32 mask;
  if(gGameState&8)return;
  if(gTrackNum>=0 && gTrackNum<6) {
   record=&gPlayers[player];
-  if(record->handle==0) {
+  if(record->profile==0) {
    mask=1u<<bit;
-   FLAGS(gJustPlayers[record->selector]->resource->data,96,gTrackNum,232)|=mask;
-   FLAGS(gJustPlayers[record->selector]->resource->data,96,gTrackNum,808)|=mask;
-  } else if(record->handle->object->resource!=0) {
+   (*gJustPlayers[record->selector]->datah)->raceStats[gTrackNum].coinsFound|=mask;
+   (*gJustPlayers[record->selector]->datah)->raceStats[gTrackNum+NUM_RACE_TRACKS].coinsFound|=mask;
+  } else if((*record->profile)->datah!=0) {
    mask=1u<<bit;
-   FLAGS(record->handle->object->resource->data,96,gTrackNum,232)|=mask;
-   FLAGS(record->handle->object->resource->data,96,gTrackNum,808)|=mask;
-   SavePlayerCoins(record->handle,(u8)gTrackNum);
+   (*(*record->profile)->datah)->raceStats[gTrackNum].coinsFound|=mask;
+   (*(*record->profile)->datah)->raceStats[gTrackNum+NUM_RACE_TRACKS].coinsFound|=mask;
+   SavePlayerCoins(record->profile,(u8)gTrackNum);
   }
- } else if(gTrackNum>=14 && gTrackNum<18) {
+ } else if(gTrackNum>=FIRST_STUNT_TRACK && gTrackNum<18) {
   record=&gPlayers[player];
-  if(record->handle==0) {
-   FLAGS(gJustPlayers[record->selector]->resource->data,64,gTrackNum,456)|=1u<<bit;
+  if(record->profile==0) {
+   (*gJustPlayers[record->selector]->datah)->stuntStats[gTrackNum-FIRST_STUNT_TRACK].coinsFound|=1u<<bit;
   } else {
-   FLAGS(record->handle->object->resource->data,64,gTrackNum,456)|=1u<<bit;
-   SavePlayerCoins(record->handle,(u8)gTrackNum);
+   (*(*record->profile)->datah)->stuntStats[gTrackNum-FIRST_STUNT_TRACK].coinsFound|=1u<<bit;
+   SavePlayerCoins(record->profile,(u8)gTrackNum);
   }
  }
 }

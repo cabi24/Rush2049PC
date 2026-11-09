@@ -1,3 +1,5 @@
+/* animPowerupIcons, animWeaponIcons and UpdateHUDExtraPostCamera: the battle HUD's 3D icons (MAT3 hudextra.c;
+ * runtime image B). */
 #include "game/game.h"
 
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
@@ -63,6 +65,8 @@ VIEW(ScoreState[], gStuntPlayer);
 VIEW(Effect[4][10], stuntCoin);
 #define stuntCoin stuntCoin_view
 
+/* Shows each window's powerup icon, a 3D object turning by hudObjAngle at powerupPos, for the powerup its car has
+ * (made or swapped when that changes, removed when none). Returns 1. */
 s32 animPowerupIcons(void *unused)
 {
     Point point;
@@ -99,6 +103,7 @@ s32 animPowerupIcons(void *unused)
     }
     return 1;
 }
+/* The same for each window's weapon icon (weaponPos), the weapon its car carries. Returns 1. */
 s32 animWeaponIcons(void *unused)
 {
     Point point;
@@ -147,6 +152,8 @@ s32 animWeaponIcons(void *unused)
     return 1;
 }
 
+/* After the camera has moved: turns the extras' 3D icons and coins (UpdateHUDPostCamera calls it in battle and stunt
+ * races). */
 void UpdateHUDExtraPostCamera(void)
 {
     s32 i, j, kind, y_offset;

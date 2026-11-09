@@ -1,3 +1,5 @@
+/* heap_move_block_low: move a heap block to the lowest free place it fits (MAT3 memsys.c; the heap's blocks are a
+ * 32-byte header, FEDCBA98, then the data, linked by N64 addresses until the memory model's wave 3). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -37,6 +39,10 @@ Block *FindChunk(Heap *heap, u32 addr, s32 tag);
 
 #define N64A(x) PC_N64A(x)
 
+/* Moves the handle-owned block at addr down to the first free block before it that is big enough (or that it adjoins):
+ * the data is copied, the owner's handle pointed at the new place, the rest of the free block split off when it is
+ * 64 bytes or more, and the old block freed. Nothing when no free place lies before it. Under the heap lock. Keeps
+ * the heap's free space together (a ghost's data is moved low before a race, ReadGhostDataInternal). */
 void heap_move_block_low(void *addr)
 {
     Heap *heap;

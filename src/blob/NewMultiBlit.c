@@ -1,63 +1,42 @@
+/* NewMultiBlit: make a chain of blits from a table (MAT3 blit.c). */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-struct Blit {
-    const char *Name;
-    void *Image;
-    void *Info;
-    u16 TexIndex;
-    s16 X, Y;
-    u16 Z;
-    s16 Width, Height;
-    u8 Alpha, Flip;
-    s8 Hide, Init;
-    s16 Top, Bot, Left, Right, color;
-    u16 reserved;
-    s32 (*AnimFunc)(Blit *);
-    u32 AnimID;
-    intptr_t AnimDTA;
-    u16 BLIdx;
-    u16 reserved36;
-    void *data;
-    Blit *child;
-};
-typedef struct MultiBlit {
- const char *texname;
- s16 dulx,duly,width,height,top,bot,left,right;
- u32 zdepth,alpha;
- s32 (*animfunc)(Blit *);
- u32 animid;
-} MultiBlit;
-extern Blit *NewBlit();
+extern tBlit *NewBlit();
+extern void RemoveBlit(tBlit *);
 
-extern void RemoveBlit(Blit *);
-Blit *NewMultiBlit(s16 ulx, s16 uly, const MultiBlit *mblit, s16 nblits)
+/* Makes one blit for each of the nblits entries of mblit, at (ulx, uly) plus each entry's offset, with the entry's
+ * alpha, depth, crop and (unless -1) size, and chains them through child: the first is returned and removing it removes
+ * them all. An entry with an animation function: for a texture, the function becomes the blit's and is called at once,
+ * and if it returns 0 that blit goes and the chain ends there (the blits made so far are returned); for
+ * BLIT_NO_TEXTURE the function is the text blit's draw function, called by the renderer with the blit. Bit 31 of animid
+ * is passed to NewBlit, the rest is the animation's animID. Returns NULL when nblits <= 0. */
+tBlit *NewMultiBlit(s16 ulx, s16 uly, const tBlitDef *mblit, s16 nblits)
 {
- Blit *rootblit,*lastblit,*curblit;
+ tBlit *rootblit,*lastblit,*curblit;
  int i;
- if(nblits<=0) return (Blit *)0;
- rootblit=(Blit *)0;
- lastblit=(Blit *)0;
+ if(nblits<=0) return (tBlit *)0;
+ rootblit=(tBlit *)0;
+ lastblit=(tBlit *)0;
  for(i=0;i<nblits;i++) {
   curblit=NewBlit(mblit[i].texname,ulx+mblit[i].dulx,uly+mblit[i].duly,mblit[i].animid & 0x80000000U);
-  curblit->Alpha=mblit[i].alpha;
-  curblit->Z=mblit[i].zdepth;
-  curblit->Left=mblit[i].left;
-  curblit->Top=mblit[i].top;
-  curblit->Right=mblit[i].right;
-  curblit->Bot=mblit[i].bot;
-  if(mblit[i].width>=0) curblit->Width=mblit[i].width;
-  if(mblit[i].height>=0) curblit->Height=mblit[i].height;
+  curblit->alpha=mblit[i].alpha;
+  curblit->z=mblit[i].zdepth;
+  curblit->left=mblit[i].left;
+  curblit->top=mblit[i].top;
+  curblit->right=mblit[i].right;
+  curblit->bot=mblit[i].bot;
+  if(mblit[i].width>=0) curblit->width=mblit[i].width;
+  if(mblit[i].height>=0) curblit->height=mblit[i].height;
   UpdateBlit(curblit);
   if(mblit[i].animfunc) {
-   curblit->AnimID=mblit[i].animid & 0x7fffffffU;
-   if(mblit[i].texname==(char *)-1) {
-    curblit->Info=(void *)mblit[i].animfunc;
-    curblit->Image=curblit;
+   curblit->animID=mblit[i].animid & 0x7fffffffU;
+   if(mblit[i].texname==BLIT_NO_TEXTURE) {
+    curblit->texture=(void *)mblit[i].animfunc;
+    curblit->palette=curblit;
     UpdateBlit(curblit);
    } else {
-    curblit->AnimFunc=mblit[i].animfunc;
-    if(!curblit->AnimFunc(curblit)) {
+    curblit->animFunc=mblit[i].animfunc;
+    if(!curblit->animFunc(curblit)) {
      RemoveBlit(curblit);
      return rootblit;
     }

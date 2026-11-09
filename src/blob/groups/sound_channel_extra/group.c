@@ -1,50 +1,47 @@
+/* HAL_SetFontFixedWidth, font_get_char_list and HAL_GetCharWidth: font metrics (MAT3 HAL_text.c; the character list
+ * is the N64's own). */
 #include "game/game.h"
 
-typedef struct Bank {
-    /* 0x0 */ u8 pad0;
-    /* 0x1 */ u8 mode;
-    /* 0x2 */ u8 pad2[2];
-    /* 0x4 */ u8 f4;
-    /* 0x5 */ u8 pad5;
-    /* 0x6 */ u8 f6;
-    /* 0x7 */ u8 f7;
-    /* 0x8 */ u8 f8;
-    /* 0x9 */ s8 f9;
-    /* 0xA */ u8 f10;
-    /* 0xB */ u8 f11;
-    /* 0xC */ u8 f12;
-} Bank;
-
-typedef struct Entry { u32 ptr; u8 id; u8 pad[7]; } Entry;
-
-VIEW(Entry *, gFontLetters);
-#define gFontLetters gFontLetters_view
+/* The font header as these functions read it: nonProp signed (the old value is returned as a signed char). */
+typedef struct FontHeaderS {
+    u8 version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth, spacing;
+    s8 nonProp;
+    u8 kern, numTextures, numChars;
+} FontHeaderS;
+VIEW(FontHeaderS *, gFontHeader);
+#define gFontHeader gFontHeader_view
 VIEW(s16[256], gCharMap);
 #define gCharMap gCharMap_view
 
+/* Makes the current font fixed width (value 1) or proportional (0), changing the font's header itself, and returns
+ * what it was. HAL_SetFont makes font 0 fixed width whenever it is chosen. */
 s8 HAL_SetFontFixedWidth(s8 value) {
  s8 old;
  SetupFontData(0);
- old = gFontHeader->f9;
- gFontHeader->f9 = value;
+ old = gFontHeader->nonProp;
+ gFontHeader->nonProp = value;
  return old;
 }
+
+/* Writes the characters the current font has, in its order, to out, ended by a zero. Nothing calls it. */
 void font_get_char_list(u8 *out) {
- s32 offset;
  s32 i;
  SetupFontData(0);
- for (i = 0, offset = 0; i < gFontHeader->f12; offset += 12, i++) {
-  out[i] = *((u8 *)gFontLetters + offset + 4);
+ for (i = 0; i < gFontHeader->numChars; i++) {
+  out[i] = gFontLetters[i].value;
  }
  out[i] = 0;
 }
+
+/* The width in pixels of character id in the current font, without the spacing: maxWidth in a fixed-width font, a
+ * space's width for a space, a character over 255 or one the font lacks, 0 for a newline. */
 s32 HAL_GetCharWidth(u16 id) {
  s16 index;
  SetupFontData(0);
- if ((u8)gFontHeader->f9 != 0) return gFontHeader->f6;
- if (id == 32 || id >= 256) return gFontHeader->f7;
+ if ((u8)gFontHeader->nonProp != 0) return gFontHeader->maxWidth;
+ if (id == 32 || id >= 256) return gFontHeader->spaceWidth;
  if (id == 10) return 0;
  index = gCharMap[id];
- if (index < 0) return gFontHeader->f7;
- return gFontLetters[index].pad[3] - gFontLetters[index].pad[1] + 1;
+ if (index < 0) return gFontHeader->spaceWidth;
+ return gFontLetters[index].lrs - gFontLetters[index].uls + 1;
 }

@@ -1,5 +1,9 @@
+/* TB_Strcat: append a string, single- or double-byte (MAT3 TB_text.c). */
 #include "game/game.h"
 
+/* Appends source to destination and returns destination. When either is double-byte (TEXT_DOUBLE_BYTE) so is the
+ * result: a single-byte destination is converted in place first (each byte after a zero byte, through a 256-byte
+ * copy), and a single-byte source is appended the same way. */
 u8 *TB_Strcat(u8 *destination, u8 *source) {
     u8 *ret;
     u8 *out;
@@ -10,8 +14,8 @@ u8 *TB_Strcat(u8 *destination, u8 *source) {
     ret = destination;
     out = destination;
     in = source;
-    if (*destination == 255 || *source == 255) {
-        if (*destination == 255) {
+    if (*destination == TEXT_DOUBLE_BYTE || *source == TEXT_DOUBLE_BYTE) {
+        if (*destination == TEXT_DOUBLE_BYTE) {
             out++;
             while (out[0] != 0 || out[1] != 0) {
                 out += 2;
@@ -20,7 +24,7 @@ u8 *TB_Strcat(u8 *destination, u8 *source) {
             p = buf;
             while ((*p++ = *ret++) != 0) {}
             ret = destination;
-            *destination++ = 255;
+            *destination++ = TEXT_DOUBLE_BYTE;
             out = destination;
             p = buf;
             while (*p != 0) {
@@ -28,7 +32,7 @@ u8 *TB_Strcat(u8 *destination, u8 *source) {
                 *out++ = *p++;
             }
         }
-        if (*source == 255) {
+        if (*source == TEXT_DOUBLE_BYTE) {
             in++;
             while (in[0] != 0 || in[1] != 0) {
                 *out++ = *in++;

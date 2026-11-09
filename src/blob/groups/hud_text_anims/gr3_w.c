@@ -1,3 +1,4 @@
+/* HAL_StartText: begin a frame's text (MAT3 HAL_text.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -13,6 +14,8 @@ VIEW(s32, gFontColor);
 VIEW(s32, gFontAttribute);
 #define gFontAttribute gFontAttribute_view
 
+/* Starts a frame's text, under the text lock: the default state (SetDefaults) in the current font, the blitter
+ * attributes cleared but for BLIT_ATTR_TALL on a screen taller than 220 lines, the buffer empty. */
 void HAL_StartText(void)
 {
     osRecvMesg(&text_lock_queue, (void *)0, 1);
@@ -20,7 +23,7 @@ void HAL_StartText(void)
     HAL_SetFontInternal(gFontIndex);
     gFontAttribute = 0;
     if (screen_height > 220) {
-        gFontAttribute |= 0x8000;
+        gFontAttribute |= BLIT_ATTR_TALL;
     }
     gBufferInited = 0;
     gFinished = 0;

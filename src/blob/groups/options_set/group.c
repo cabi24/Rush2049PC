@@ -1,3 +1,4 @@
+/* SetOptions: the game takes the options screen's choices (MAT3 options.c). */
 #include "game/game.h"
 
 typedef struct Stats { u8 pad[1785]; u8 option_a; u8 pad1786; u8 option_b; } Stats;
@@ -14,6 +15,9 @@ VIEW(u8[][5], gCircuitTracks);
 
 void SavePlayerOption(Player *, u8, s8);
 
+/* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
+ * parts, and the race settings of the race type (gRace) from its options, or fixed ones in attract mode (3 laps, 6
+ * drones, no mirror, fog or wind, normal gravity, difficulty and catch-up 2). */
 void SetOptions(void)
 {
     s32 i, setting;

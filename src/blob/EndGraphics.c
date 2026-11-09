@@ -1,3 +1,4 @@
+/* EndGraphics: end a frame's display list and hand it to the scheduler (MAT3 gfx.c; the N64 side of it). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
@@ -69,6 +70,15 @@ void osStopThread(void *);
 void osStartThread(void *);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
+#define M_GFXTASK 1                 /* OSTask type: a graphics task */
+#define OS_TASK_DP_WAIT 2           /* OSTask flag: wait for the RDP to finish the last task's output */
+#define OS_SC_SWAP_AND_LAST 99      /* the frame record's scheduler flags (OS_SC_NEEDS_RSP | RDP | LAST_TASK | SWAPBUFFER) */
+
+/* Ends the frame StartGraphics began: the text drawn (HAL_FinishText) and the blitter's list ended (BlitFinish) and
+ * called from the frame's list, which is closed with a full sync; then fills in the frame record's graphics task
+ * (the F3DEX2 microcode, the frame's list, the RSP's stack, yield buffer and RDP FIFO), waits for the RDP only when
+ * graphics tasks are still pending, and sends it to the scheduler, its done message to the main thread. The ends of
+ * the frame's and the blitter's lists stay in last_frame_dl_end and last_frame_text_dl_end. */
 void EndGraphics(void)
 {
     Frame *f;
@@ -85,7 +95,7 @@ void EndGraphics(void)
     if (PC_FRAME_OVER) {}
     f->t.data_ptr = (u64 *)frame_dynamic->glist;
     f->t.data_size = (u32)((frame_dl - frame_dynamic->glist) * sizeof(Gfx));
-    f->t.type = 1;
+    f->t.type = M_GFXTASK;
     f->t.ucode_boot = rspbootTextStart;
     f->t.ucode_boot_size = (u8 *)rspbootTextEnd - (u8 *)rspbootTextStart;
     f->t.ucode_data_size = 2048;
@@ -94,7 +104,7 @@ void EndGraphics(void)
     if (gfx_tasks_pending == 0) {
         f->t.flags = 0;
     } else {
-        f->t.flags = 2;
+        f->t.flags = OS_TASK_DP_WAIT;
     }
     if (frame_dl - frame_dynamic->glist > GLIST_LEN) {}
     f->t.ucode = gspF3DEX2_NoN_fifoTextStart;
@@ -104,7 +114,7 @@ void EndGraphics(void)
     f->t.yield_data_ptr = rsp_yield_buffer;
     f->t.yield_data_size = 3072;
     f->next = 0;
-    f->flags = 99;
+    f->flags = OS_SC_SWAP_AND_LAST;
     f->msgQ = &main_thread_queue;
     f->msg = &f->doneMsg;
     f->framebuffer = f->buffer;

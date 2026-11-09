@@ -1,5 +1,7 @@
+/* SetPakError: open a pak's error dialog (MAT3 pakerr.c). */
 #include "game/game.h"
 
+/* One of a pak's two error dialogs (gPakError; PakErrorState's layout). */
 typedef struct Slot {
     /* 0x00 */ s8 busy;
     /* 0x01 */ s8 enabled;
@@ -15,34 +17,29 @@ typedef struct Slot {
     /* 0x28 */ u32 deadline;
 } Slot; /* 0x2C */
 
-typedef struct {
-    u8 pad0[6];
-    s8 present;
-    u8 pad7[5];
-    PcPfs pfs;
-    u8 pad74[0x304 - 0x74];
-} Controller;
-
+/* The scheduler as this reads it: its retrace count. */
 typedef struct {
     u8 pad0[0x27C];
-    volatile u32 unk27C;
+    volatile u32 frameCount;
 } Sched;
 
 VIEW(Slot[4][2], gPakError);
 #define gPakError gPakError_view
-VIEW(Controller[], gPaks);
-#define gPaks gPaks_view
 
 VIEW(Sched, gScheduler);
 #define gScheduler gScheduler_view
 
-void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
+/* Opens an error dialog of mode (kPS_Err*) for player's pak in its first closed slot, over the rectangle x, y, w, h,
+ * with a 3-second deadline: the controllers' active flags and stick edges are saved and only the pak's player (or
+ * every controller, for kPS_ErrNoCont and kPS_ErrNoPak) may answer. kPS_ErrRecognize is noted
+ * (pak_recognize_error_seen). The first call clears every slot. */
+void SetPakError(s32 player, s32 mode, s32 x, s32 y, s32 w, s32 h) {
     s32 i;
     s32 j;
     s8 present;
     static s8 sInited = 0;
 
-    if (mode == 10) {
+    if (mode == kPS_ErrRecognize) {
         pak_recognize_error_seen = 1;
     }
     if (!sInited) {
@@ -63,7 +60,7 @@ void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
      * into the record past the row: the next pak's first one, or past gPakError for pak 3. MAT3 pakerr.c has the
      * same loop over three records. Kept as retail. */
     gPakError[player][j].busy = 0;
-    gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.unk27C;
+    gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.frameCount;
     gPakError[player][j].enabled = 1;
     gPakError[player][j].unk2 = 0;
     gPakError[player][j].mode = mode;
@@ -74,12 +71,12 @@ void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
     }
     SetControllerActive(-1, 0);
     SetControllerStickEdges(-1, 0);
-    if (mode == 1) {
+    if (mode == kPS_ErrNoCont) {
         SetControllerActive(-1, 1);
         SetControllerStickEdges(-1, 1);
     } else {
         gPakError[player][j].player = player;
-        if (mode == 2) {
+        if (mode == kPS_ErrNoPak) {
             SetControllerActive(-1, 1);
             SetControllerStickEdges(-1, 1);
         } else {
@@ -87,10 +84,10 @@ void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
             SetControllerStickEdges(gPakError[player][j].player, 1);
         }
     }
-    present = gPaks[player].present;
-    gPakError[player][j].arg[0] = arg2;
+    present = gPaks[player].rumble;
+    gPakError[player][j].arg[0] = x;
     gPakError[player][j].present = present;
-    gPakError[player][j].arg[1] = arg3;
-    gPakError[player][j].arg[2] = arg4;
-    gPakError[player][j].arg[3] = arg5;
+    gPakError[player][j].arg[1] = y;
+    gPakError[player][j].arg[2] = w;
+    gPakError[player][j].arg[3] = h;
 }

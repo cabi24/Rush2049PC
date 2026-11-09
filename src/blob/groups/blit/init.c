@@ -1,3 +1,5 @@
+/* BlitInit: start the blitter's display list for a frame (MAT3 blit_pc.c; the N64 side of it), and the PC's storage
+ * for the two lists. */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -61,6 +63,11 @@ VIEW(u8[4], blitPrimColor);
 VIEW(intptr_t, blitColors);
 #define blitColors blitColors_view
 
+/* Starts the blitter for a frame, once (nothing when blit_dl is already set): resets its state (no attributes, the
+ * scissor box the whole screen, depth 0, opaque, no mode, no palette, nothing cached), switches to the other of its two
+ * display lists (blitDLnum), and opens it with the RDP set-up every blit relies on: the blend colour's alpha 16
+ * (the alpha threshold), no perspective correction, no geometry modes, then BLIT_MODE_TEXTURE. On a screen taller
+ * than 220 lines BLIT_ATTR_TALL draws textures at double height. BlitFinish closes the list. */
 void BlitInit(void)
 {
     if (blit_dl == 0) {
@@ -75,14 +82,14 @@ void BlitInit(void)
         blit_cache_tile = 0;
         if (++blitDLnum >= 2) blitDLnum = 0;
         blit_dl = TEXT_DL[blitDLnum];
-        blitMode = -1;
+        blitMode = -1;          /* no mode yet: the first blit_set_mode sets the cycle type */
         blitLUT = -1;
         blitColors = 0;
         gDPSetBlendColor(blit_dl++, 0, 0, 0, 16);
         gDPPipeSync(blit_dl++);
         gDPSetTexturePersp(blit_dl++, G_TP_NONE);
         gSPClearGeometryMode(blit_dl++, -1);
-        blit_set_mode(1);
-        if (screen_height >= 221) BlitSetAttribute(0x8000);
+        blit_set_mode(BLIT_MODE_TEXTURE);
+        if (screen_height >= 221) BlitSetAttribute(BLIT_ATTR_TALL);
     }
 }

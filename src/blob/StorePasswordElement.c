@@ -1,5 +1,8 @@
+/* StorePasswordElement: add bits to the password being built (MAT3 password.c). */
 #include "game/game.h"
 
+/* Appends the low nbits bits of value, lowest first, to the password's data (password_gData, gNumBits used so far).
+ * Returns 0 without storing anything when nbits is over 32 or the data would exceed gDataBits, else 1. */
 s32 StorePasswordElement(u32 value, u32 nbits)
 {
     s32 i;
@@ -11,4 +14,3 @@ s32 StorePasswordElement(u32 value, u32 nbits)
     }
     return 1;
 }
-

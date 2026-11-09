@@ -1,3 +1,5 @@
+/* ShowHUDExtra and ClearBattlePoints: the HUD extras of battle and stunt races, made at the race's start (MAT3
+ * hudextra.c; runtime image B). */
 #include "game/game.h"
 #define tHudIcon tHudIconView   /* this file's own tHudIcon: include/game's tHudIcon is another type */
 #define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
@@ -18,12 +20,6 @@ typedef struct tBattlePoint {      /* anon_active_cnt_18 */
     s8 p;
     u8 pad[3];
 } tBattlePoint;
-typedef struct tBlitSet tBlitSet;
-typedef struct tBlitDef tBlitDef;
-/* gcc rejects arrays of an incomplete type, which IDO accepts. MAT3 tBlitDef (size 0x24), the same layout as
-   MultiBlit in src/blob/NewMultiBlit.c. */
-struct tBlitDef { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
-                  s32 (*animfunc)(void *); u32 animid; };
 
 VIEW(tHudIcon[4], weaponIcon);
 #define weaponIcon weaponIcon_view
@@ -40,21 +36,21 @@ VIEW(s32[4][4][2], stuntPos);
 #define stuntPos stuntPos_view
 VIEW(u8[4][2][4], hudextra_playerPaneColors);
 #define hudextra_playerPaneColors hudextra_playerPaneColors_view
-VIEW(tBlitDef[], BattleMultiBlit);
-#define BattleMultiBlit BattleMultiBlit_view
-VIEW(tBlitDef[], StuntMultiBlit);
-#define StuntMultiBlit StuntMultiBlit_view
 
 #define blit hudextra_blit
 #define playerPaneColors hudextra_playerPaneColors
+#define kStunt 4  /* gRace: the race types (MAT3 enum kNumRaceTypes) */
 #define kBattle 6
-#define kStunt 4
 
 extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);
 
 extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32);
 
-void ShowHUDExtra(void) /* ShowHUDExtra */
+/* Makes the battle or stunt HUD once a race (nothing when hudextra_blit exists): battle's multiblit (BattleMultiBlit:
+ * health, ammo, weapons, points), or for stunt races a pane in the player's colours behind each player's points (as
+ * wide as "8888888" in the HUD font of this many windows) and StuntMultiBlit; then no battle point is flying and no
+ * weapon, powerup, battle coin or stunt coin icon is shown (type 8, 0 and 11 their "none" icons). */
+void ShowHUDExtra(void)
 {
     int i;
     tBlitSet *pane;
@@ -95,6 +91,7 @@ void ShowHUDExtra(void) /* ShowHUDExtra */
     }
 }
 
+/* Ends every flying battle point (animBattlePoints) and forgets them. */
 void ClearBattlePoints(void)
 {
     int i;

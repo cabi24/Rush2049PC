@@ -1,5 +1,8 @@
+/* game_memmove: the game's memmove (the N64's own C library routines). */
 #include "game/game.h"
 
+/* Copies n bytes from src to dst, the regions allowed to overlap: backwards when dst lies inside src, else forwards;
+ * four bytes at a time while both are 4-byte aligned. Returns dst. */
 void *game_memmove(void *dst, const void *src, u32 n) {
     char *d = (char *)dst;
     const char *s = (const char *)src;

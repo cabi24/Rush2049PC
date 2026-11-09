@@ -1,35 +1,19 @@
+/* ZOID_FlipBlit: mirror a zoid blit list entry (MAT3 zoidblit.c). */
 #include "game/game.h"
 
-typedef struct PadConfig_s {
-    struct PadConfig_s *unk0;
-    struct PadConfig_s *unk4;
-    s16 unk8;
-    s16 unkA;
-    s16 unkC;
-    s16 unkE;
-    s16 unk10;
-    s16 unk12;
-    u8 unk14;
-    u8 unk15;
-    u8 unk16;
-    u8 pad17;
-    s16 unk18;
-    s16 unk1A;
-    s16 unk1C;
-    s16 unk1E;
-} PadConfig;
-VIEW(PadConfig[4], gBlitInstanceList);
+VIEW(tBlitInstance[4], gBlitInstanceList);
 #define gBlitInstanceList (gBlitInstanceList_view[0])
 
-void ZOID_FlipBlit(s32 arg0, s32 arg1) {
-    PadConfig *temp_v0;
-    PadConfig *temp_v0_2;
+/* Sets or clears BLITINST_FLIP of entry index: the renderer then draws it mirrored left to right. */
+void ZOID_FlipBlit(s32 index, s32 flip) {
+    tBlitInstance *inst;
+    tBlitInstance *inst2;
 
-    if (arg1 != 0) {
-        temp_v0 = &(&gBlitInstanceList)[arg0];
-        temp_v0->unk15 |= 4;
+    if (flip != 0) {
+        inst = &(&gBlitInstanceList)[index];
+        inst->flags |= BLITINST_FLIP;
         return;
     }
-    temp_v0_2 = &(&gBlitInstanceList)[arg0];
-    temp_v0_2->unk15 &= 0xFFFB;
+    inst2 = &(&gBlitInstanceList)[index];
+    inst2->flags &= 0xFFFB;   /* ~BLITINST_FLIP */
 }

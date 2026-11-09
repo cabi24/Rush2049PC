@@ -1,8 +1,7 @@
+/* GetPlayerRaceType: the race type a profile last played (MAT3 save.c). */
 #include "game/game.h"
 
-
-#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
-
-u8 GetPlayerRaceType(void **arg0) {
-    return M2C_FIELD(*M2C_FIELD(*arg0, void ***, SLOT_DATA), u8 *, 0x47);
+/* The race type (gRace's values) the profile last played, from its file, which must be read. */
+u8 GetPlayerRaceType(tProfile **profile) {
+    return (*(*profile)->datah)->raceType;
 }

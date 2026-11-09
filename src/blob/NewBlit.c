@@ -1,36 +1,15 @@
+/* NewBlit: make a blit (MAT3 blit.c). */
 #include "game/game.h"
 
-typedef struct Blit {
-    /* 0x00 */ char *name;
-    /* 0x04 */ void *image;
-    /* 0x08 */ void *info;
-    /* 0x0C */ u16 texIndex;
-    /* 0x0E */ s16 x;
-    /* 0x10 */ s16 y;
-    /* 0x12 */ u16 state;
-    /* 0x14 */ u16 width, height;
-    /* 0x18 */ u8 alpha;
-    /* 0x19 */ u8 flip;
-    /* 0x1A */ u8 hide;
-    /* 0x1B */ u8 init;
-    /* 0x1C */ s16 top, bot, left, right, color;
-    /* 0x26 */ s16 pad26;
-    /* 0x28 */ void *animFunc;
-    /* 0x2C */ unsigned int animID;
-    /* 0x30 */ intptr_t animDTA;
-    /* 0x34 */ s16 blIdx;
-    /* 0x36 */ s16 pad36;
-    /* 0x38 */ void *data;
-    /* 0x3C */ struct Blit *child;
-} Blit;
-
-#define MAXBLITS 200
-
-Blit *NewBlit(char *name, s32 x, s32 y, s32 flags)
+/* Takes a free blit from the pool and makes it the texture name (InitBlit: NULL a plain rectangle, BLIT_NO_TEXTURE a
+ * text blit) at screen position x, y, shown, not flipped, without an animation function, with an entry of its own in
+ * the zoid blit list. Returns NULL when all MAX_BLITS are in use. flags is unused here (NewMultiBlit passes bit 31 of
+ * its animid; MAT3 halves the position when it is set). */
+tBlit *NewBlit(char *name, s32 x, s32 y, s32 flags)
 {
-    Blit *blit;
+    tBlit *blit;
 
-    if (NumBlits >= MAXBLITS) {
+    if (NumBlits >= MAX_BLITS) {
         return 0;
     }
 
@@ -50,7 +29,7 @@ Blit *NewBlit(char *name, s32 x, s32 y, s32 flags)
     blit->animDTA = -1;
     blit->data = 0;
     InitBlit(blit);
-    blit->blIdx = ZOID_AddBlit(blit->texIndex, 0, 0, x, y, -1, -1);
+    blit->blidx = ZOID_AddBlit(blit->texIndex, 0, 0, x, y, -1, -1);
     UpdateBlit(blit);
     return blit;
 }

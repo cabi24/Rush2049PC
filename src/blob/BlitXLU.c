@@ -1,16 +1,19 @@
+/* BlitXLU: draw translucent blits (MAT3 blit_pc.c). */
 #include "game/game.h"
 
-typedef struct { u8 a; u8 b; u8 c; u8 d; } S;
-VIEW(S, blitPrimColor);
+VIEW(BlitColor, blitPrimColor);
 #define blitPrimColor blitPrimColor_view
 VIEW(intptr_t, blitColors);
 #define blitColors blitColors_view
 
-void BlitXLU(u16 arg0) {
-    if (blitPrimColor.d != arg0) {
-        blitPrimColor.d = arg0;
+/* Makes what the blitter draws next translucent: alpha (0..255) becomes the primitive colour's alpha, loaded into the
+ * RDP's primitive and environment colours (BlitColors with the I format), and BLIT_ATTR_XLU is set. A new alpha
+ * forgets the colour cache first, so BlitColors loads it even though the colour's address is the same. */
+void BlitXLU(u16 alpha) {
+    if (blitPrimColor.a != alpha) {
+        blitPrimColor.a = alpha;
         blitColors = 0;
     }
     BlitColors(&blitPrimColor, 4, 1, 0);
-    BlitSetAttribute(32);
+    BlitSetAttribute(BLIT_ATTR_XLU);
 }

@@ -1,5 +1,7 @@
+/* InitOptions: the options and race state at start-up (MAT3 options.c), and the players' input records. */
 #include "game/game.h"
 
+/* A player's input record (MAT3 tPadState) as this file defines it. */
 typedef struct Player {
     u8 node;
     s8 unk1;
@@ -18,11 +20,15 @@ VIEW(s8[4], gDriveHulk);
 VIEW(Rec164A4, gCheatState);
 #define gCheatState gCheatState_view
 
+/* One player in one window. */
 static void reset_player_counts(void) {
     gNumWindows = 1;
     gNumPlayers = 1;
 }
 
+/* Gives every option its default (GetDefaultOption) and sets the game from them: the volumes and mono, the HUD's
+ * parts, the race settings, the stunt and battle settings; clears every cheat; one player in one window. The input
+ * records' defaults too. */
 void InitOptions(void) {
     s32 i;
 
@@ -36,46 +42,46 @@ void InitOptions(void) {
         }
     }
     SetControls(1);
-    for (i = 0; i < 41; i++) {
+    for (i = 0; i < kNumOptions; i++) {
         gOptions[i] = GetDefaultOption(i);
     }
-    AudSetMasterVol(gOptions[13] / 10.0f, 0.05f, 0, 1);
-    AudSetMasterVol(gOptions[12] / 10.0f, 0.05f, 1, 0);
-    AudMono(gOptions[15]);
-    gNumLaps = gOptions[21];
-    gNumDrones = gOptions[22];
-    gShowTrackMap = gOptions[0];
-    gGravityScale = gOptions[23];
-    gShowRadar = gOptions[1];
-    gShowElapsed = gOptions[2];
-    gShowRemaining = gOptions[3];
-    gShowTach = gOptions[4];
-    gShowSpeed = gOptions[5];
-    gShowOdometer = gOptions[6];
-    gShowPlace = gOptions[7];
-    gShowShifter = gOptions[8];
-    gDifficulty = gOptions[24];
-    gGhostSelect = gOptions[25];
-    gCatchup = gOptions[26];
-    gBackwards = gOptions[27];
-    gMirrorWaves = gOptions[28] > 0;
-    gMirrorControls = gOptions[28] >= 2;
-    gFogIntensity = gOptions[29];
-    gWind = gOptions[30];
-    gShowMetric = gOptions[9];
-    gDeathMode = gOptions[31];
-    gShowPlayerArrows = gOptions[10];
-    gShowCoins = gOptions[11];
-    gLang = gOptions[16];
-    gShowWrongWay = gOptions[18];
-    gStuntMode = gOptions[32];
-    gStuntFlow = gOptions[33];
-    gStuntModeMins = gOptions[35];
-    gStuntModePoints = gOptions[34];
-    gStuntModeDeaths = gOptions[36];
-    gBattleMode = gOptions[37];
-    gBattleModeMins = gOptions[39];
-    gBattleModePoints = gOptions[38];
+    AudSetMasterVol(gOptions[kOptEffectsVolume] / 10.0f, 0.05f, 0, 1);
+    AudSetMasterVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f, 1, 0);
+    AudMono(gOptions[kOptMono]);
+    gNumLaps = gOptions[kOptLaps];
+    gNumDrones = gOptions[kOptDrones];
+    gShowTrackMap = gOptions[kOptTrackMap];
+    gGravityScale = gOptions[kOptGravity];
+    gShowRadar = gOptions[kOptRadar];
+    gShowElapsed = gOptions[kOptElapsed];
+    gShowRemaining = gOptions[kOptRemaining];
+    gShowTach = gOptions[kOptTach];
+    gShowSpeed = gOptions[kOptSpeed];
+    gShowOdometer = gOptions[kOptOdometer];
+    gShowPlace = gOptions[kOptPlace];
+    gShowShifter = gOptions[kOptShifter];
+    gDifficulty = gOptions[kOptDifficulty];
+    gGhostSelect = gOptions[kOptGhostSelect];
+    gCatchup = gOptions[kOptCatchup];
+    gBackwards = gOptions[kOptBackwards];
+    gMirrorWaves = gOptions[kOptMirror] > 0;
+    gMirrorControls = gOptions[kOptMirror] >= 2;
+    gFogIntensity = gOptions[kOptFog];
+    gWind = gOptions[kOptWind];
+    gShowMetric = gOptions[kOptMetric];
+    gDeathMode = gOptions[kOptDeathMode];
+    gShowPlayerArrows = gOptions[kOptPlayerArrows];
+    gShowCoins = gOptions[kOptCoins];
+    gLang = gOptions[kOptLanguage];
+    gShowWrongWay = gOptions[kOptWrongWay];
+    gStuntMode = gOptions[kOptStuntMode];
+    gStuntFlow = gOptions[kOptStuntFlow];
+    gStuntModeMins = gOptions[kOptStuntMinutes];
+    gStuntModePoints = gOptions[kOptStuntPoints];
+    gStuntModeDeaths = gOptions[kOptStuntDeaths];
+    gBattleMode = gOptions[kOptBattleMode];
+    gBattleModeMins = gOptions[kOptBattleMinutes];
+    gBattleModePoints = gOptions[kOptBattlePoints];
     gNoCarCollisions = 0;
     gFogColor = 0;
     gMineCones = 0;

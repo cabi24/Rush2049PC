@@ -1,15 +1,15 @@
+/* SetPasswordString, CalcChecksum and GetPasswordString: the cheat passwords (MAT3 password.c). A password is
+ * gDataBits of data and gChecksumBits of checksum (NewPassword), five bits a letter of gPasswordAlphabet. */
 #include "game/game.h"
+
+#define PASSWORD_LETTER_BITS 5
+#define NOT_A_LETTER 0xFF   /* gInversePasswordAlphabet of a character not in the alphabet */
 
 void GetPasswordString(char *out);
 
-/*
- * decode `str` into the bit buffer and verify its checksum.
- * Shaping (all compile-affecting): one u16 counter `i` for both loops, set to 0 before the call to
- * CalcChecksum and again in the for-init (retail keeps it in t1 across the call, which that callee
- * preserves, and still loads the constant 0 for the loop's working copy); the table value is an int
- * local (`s32 v`; with `u8 v` uopt swaps the operands of the 0xFF compare); the checksum loop advances
- * the bit position in the for-header as `pos += 1` (with `pos++` got/pos swap registers).
- */
+/* Reads the password str into the password's data (password_gData) and checks its checksum. Returns 1 when every
+ * letter is in the alphabet and the checksum agrees, the data then ready to be read from the start
+ * (GetPasswordElement); else 0. */
 s32 SetPasswordString(u8 *str)
 {
     u16 i;
@@ -27,11 +27,11 @@ s32 SetPasswordString(u8 *str)
     while ((c = *str) != 0) {
         v = gInversePasswordAlphabet[c];
         str++;
-        if (v == 0xFF) {
+        if (v == NOT_A_LETTER) {
             gDataBits -= gChecksumBits;
             return 0;
         }
-        if (!StorePasswordElement(v, 5)) {
+        if (!StorePasswordElement(v, PASSWORD_LETTER_BITS)) {
             gDataBits -= gChecksumBits;
             return 0;
         }
@@ -51,7 +51,8 @@ s32 SetPasswordString(u8 *str)
     return 1;
 }
 
-/* checksum of the payload bits */
+/* The checksum of the password's data bits: the sum of each set bit's value folded below 1 << gChecksumBits (0 when
+ * the password has no checksum). */
 s32 CalcChecksum(void)
 {
     u32 bit;
@@ -74,14 +75,8 @@ s32 CalcChecksum(void)
     return sum;
 }
 
-/*
- * append the checksum to the bit buffer and encode the whole buffer as password characters
- * (5 bits per character through the gPasswordAlphabet alphabet), NUL-terminated, into `out`
- * . Shaping: `i` is the bit position in both loops; the first loop's
- * counter `j` is its own variable (sharing `n` lets uopt skip re-zeroing `n` on the empty-loop
- * path); `j++, i++, sum >>= 1` in the for-header in that order; `i = 0` stated before the second
- * loop's empty for-init.
- */
+/* Appends the checksum to the password's data and writes the whole as letters of gPasswordAlphabet, five bits a
+ * letter (the last one padded with zeros), ended by a zero, to out. */
 void GetPasswordString(char *out)
 {
     u32 sum;

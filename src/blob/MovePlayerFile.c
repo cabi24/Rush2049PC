@@ -1,52 +1,30 @@
+/* MovePlayerFile: a profile's or ghost's file got a new handle (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct PlayerFileNode {
-    struct PlayerFileNode *next;
-} PlayerFileNode;
-
-VIEW(s32, gPlayerFiles);
+/* The profile and ghost lists: their first handles. */
+typedef struct { u32 unknown0, unknown4; tProfile **head, **tail; } ProfileList;
+typedef struct { u8 indirect, doubly, unknown02[2]; s32 count; tGhostFile **first, **last; } GhostList;
+VIEW(ProfileList, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
-
-VIEW(s32, gGhostFiles);
+VIEW(GhostList, gGhostFiles);
 #define gGhostFiles gGhostFiles_view
 
-void MovePlayerFile(intptr_t arg0, intptr_t arg1) {
-    /* the profile and ghost file lists (playerscr.c's struct PlayerFiles, carscr.c's RecordList): their heads */
-    struct { u32 unknown0, unknown4; void *head, *tail; } *player_files = (void *) &gPlayerFiles;
-    struct { u8 indirect, doubly, unknown02[2]; s32 count; void *first, *last; } *ghost_files = (void *) &gGhostFiles;
-    PlayerFileNode *temp_v1;
-    PlayerFileNode *var_v0;
-    intptr_t var_v0_2;
-    void *temp_v1_2;
+/* The pak file records' MoveFile for profiles and ghosts: the profile, else the ghost, whose file handle is from now
+ * has the handle to (PS_PakServer moves a pak's files to another port). */
+void MovePlayerFile(tPakHandle *from, tPakHandle *to) {
+    tProfile **profile;
+    tGhostFile **ghost;
 
-    var_v0 = player_files->head;
-    if (var_v0 != NULL) {
-loop_1:
-        temp_v1 = var_v0->next;
-        if (arg0 == M2C_FIELD(temp_v1, intptr_t *, PROFILE_OFS(8))) {
-            M2C_FIELD(temp_v1, intptr_t *, PROFILE_OFS(8)) = arg1;
+    for (profile = gPlayerFiles.head; profile != NULL; profile = (*profile)->next) {
+        if ((*profile)->fileh == from) {
+            (*profile)->fileh = to;
             return;
         }
-        var_v0 = temp_v1->next;
-        if (var_v0 == NULL) {
-            goto block_4;
-        }
-        goto loop_1;
     }
-block_4:
-    var_v0_2 = (intptr_t) ghost_files->first;
-    if (var_v0_2 != 0) {
-loop_5:
-        temp_v1_2 = M2C_FIELD(var_v0_2, void **, 0);
-        if (arg0 == M2C_FIELD(temp_v1_2, intptr_t *, GHOST_OFS(4))) {
-            M2C_FIELD(temp_v1_2, intptr_t *, GHOST_OFS(4)) = arg1;
+    for (ghost = gGhostFiles.first; ghost != NULL; ghost = (*ghost)->ll) {
+        if ((*ghost)->fileh == from) {
+            (*ghost)->fileh = to;
             return;
-        }
-        var_v0_2 = M2C_FIELD(temp_v1_2, intptr_t *, 0);
-        if (var_v0_2 == 0) {
-
-        } else {
-            goto loop_5;
         }
     }
 }

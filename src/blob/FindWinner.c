@@ -1,10 +1,17 @@
+/* FindWinner: rank the players at a race's end (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-typedef struct { u8 pad0[20]; s32 key; u8 pad1[0x78 - 24]; } Ent;
+#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
+#define kBattle 6
 
-VIEW(Ent[], gStuntPlayer);
+/* A player's stunt session as this reads it (MAT3 tStuntPlayer): its points. */
+typedef struct { u8 pad0[20]; s32 totalPoints; u8 pad1[0x78 - 24]; } StuntPlayer;
+
+VIEW(StuntPlayer[], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
 
+/* Sorts the players into gRankedPlayer, the winner first (a bubble sort): by stunt points in a stunt race, by points
+ * and then by team points in a battle, else by place; counts the players who tie with the winner (ties, tied[]). */
 void FindWinner(void)
 {
   s32 i;
@@ -17,7 +24,7 @@ void FindWinner(void)
   for (i = 0; i < gNumWindows; i++) {
     gRankedPlayer[i] = i;
   }
-  if (gRace == 4) {
+  if (gRace == kStunt) {
     s16 ia; s16 ib; s16 f; s16 c;
     for (i = 0; i < gNumPlayers - 1; i++) {
       for (j = 0; j < gNumPlayers - 1; j++) {
@@ -26,7 +33,7 @@ void FindWinner(void)
         ia = PC_MODEL_SLOT(a);
         ib = PC_MODEL_SLOT(b);
         if (ia + ib) {}
-        if (gStuntPlayer[ia].key < gStuntPlayer[ib].key) {
+        if (gStuntPlayer[ia].totalPoints < gStuntPlayer[ib].totalPoints) {
           gRankedPlayer[j + 1] = a & 0xFF;
           gRankedPlayer[j] = b;
         }
@@ -36,12 +43,12 @@ void FindWinner(void)
     for (i = 1; i < gNumPlayers; i++) {
       f = PC_MODEL_SLOT(gRankedPlayer[0]);
       c = PC_MODEL_SLOT(gRankedPlayer[i]);
-      if (gStuntPlayer[f].key == gStuntPlayer[c].key) {
+      if (gStuntPlayer[f].totalPoints == gStuntPlayer[c].totalPoints) {
         ties++;
         tied[i] = 1;
       }
     }
-  } else if (gRace == 6) {
+  } else if (gRace == kBattle) {
     s16 ia; s16 ib; s16 f; s16 c;
     for (i = 0; i < gNumPlayers - 1; i++) {
       for (j = 0; j < gNumPlayers - 1; j++) {

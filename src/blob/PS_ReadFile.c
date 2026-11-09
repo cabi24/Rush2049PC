@@ -1,5 +1,7 @@
+/* PS_ReadFile: read a whole pak file (MAT3 paksysdc.c). */
 #include "game/game.h"
 
-void PS_ReadFile(void **arg0) {
-    PS_ReadPartialFile(arg0, 0, M2C_FIELD(*arg0, s32 *, PSF_OFS(0x40)));
+/* Reads all of the open file fileh's data from its pak into memory (PS_ReadPartialFile from 0 for its size). */
+void PS_ReadFile(void **fileh) {
+    PS_ReadPartialFile(fileh, 0, ((PakFileRecord *) *fileh)->size);
 }

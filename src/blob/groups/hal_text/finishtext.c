@@ -1,3 +1,4 @@
+/* HAL_FinishText: draw the frame's buffered text (MAT3 HAL_text.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -16,6 +17,9 @@ VIEW(s32, gFontAttribute);
 VIEW(u8[800], gBuffer);
 #define gBuffer gBuffer_view
 
+/* Runs the text commands HAL_DrawText buffered since HAL_StartText (TEXT_CMD_*), drawing the strings with DrawText,
+ * from the default font, colour and position; under the text lock. end becomes gFinished (HAL_StartText clears it
+ * again). Nothing when no text was buffered. */
 void HAL_FinishText(s8 end)
 {
     s32 i;
@@ -27,33 +31,33 @@ void HAL_FinishText(s8 end)
         gFinished = end;
         SetDefaults((u8 *)&gFontColor, &gTrans, &gFontXpos, &gFontYpos, &gFontIndex, &gLeading, &gSpacing);
         HAL_SetFontInternal(gFontIndex);
-        gFontAttribute &= 0x8000;
+        gFontAttribute &= BLIT_ATTR_TALL;
         for (i = 0; i < gBufLen;) {
             switch (gBuffer[i++]) {
-                case 0:
+                case TEXT_CMD_FONT:
                     HAL_SetFontInternal(gBuffer[i++]);
                     break;
-                case 1:
+                case TEXT_CMD_LEADING:
                     HAL_SetFontLeading(gBuffer[i++]);
                     break;
-                case 2:
+                case TEXT_CMD_SPACING:
                     HAL_SetFontSpacing(gBuffer[i++]);
                     break;
-                case 3:
+                case TEXT_CMD_POS:
                     HAL_SetTextPos(((s16)gBuffer[i] << 8) | gBuffer[i + 1],
                                   ((s16)gBuffer[i + 2] << 8) | gBuffer[i + 3]);
                     i += 4;
                     break;
-                case 4:
+                case TEXT_CMD_TRANSLUCENCY:
                     aLong = (gBuffer[i] << 24) | (gBuffer[i + 1] << 16) | (gBuffer[i + 2] << 8) | gBuffer[i + 3];
                     i += 4;
                     HAL_SetTextTranslucency(*(f32 *)&aLong);
                     break;
-                case 5:
+                case TEXT_CMD_COLOR:
                     HAL_SetTextColor(gBuffer[i], gBuffer[i + 1], gBuffer[i + 2], gBuffer[i + 3]);
                     i += 4;
                     break;
-                case 6:
+                case TEXT_CMD_TEXT:
                     length = gBuffer[i++];
                     DrawText(gBuffer + i, length);
                     i += length;

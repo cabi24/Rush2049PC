@@ -1,3 +1,4 @@
+/* InitRecords: clear the high score tables (MAT3 gamerecords.c). */
 #include "game/game.h"
 
 typedef struct Table {intptr_t value[3][5];} Table;   /* a name index or a profile handle (docs/port/CASTS.md) */
@@ -9,6 +10,8 @@ VIEW(unsigned short[20], gTempNameAges);
 #define gTempNameAges gTempNameAges_view
 
 extern void *memset(void *,int,u32);
+
+/* Clears the totals over all profiles and the high score tables: every owner -1 (none), no names typed. */
 void InitRecords(void) {
     s32 i,j,k;
     ClearTotalStats();

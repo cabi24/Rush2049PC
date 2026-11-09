@@ -1,3 +1,4 @@
+/* HAL_DrawText: draw a string, or buffer it for the frame's end (MAT3 HAL_text.c); and TextLen. */
 #include "game/game.h"
 
 extern void *memcpy(void *, const void *, u32);
@@ -9,12 +10,14 @@ VIEW(u8[800], gBuffer);
 #define gBuffer gBuffer_view
 
 
-u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
+/* The number of bytes of text that numChars characters take (all of it when numChars < 0), its double-byte mark and
+ * its ending zero (or zeros) included. (MAT3's _TextLen.) */
+u32 TextLen(const u8 *text, s16 numChars)
 {
     u32 len;
     s32 nc;
     nc = 0;
-    if (text[0] == 255) {
+    if (text[0] == TEXT_DOUBLE_BYTE) {
         len = 1;
         do {
             len += 2;
@@ -30,18 +33,24 @@ u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
     return len;
 }
 
+/* Draws numChars characters of text (all when negative) at the text position in the current font and colour. Text
+ * with a depth (gDepth >= 0) is drawn at once (DrawText); otherwise it is appended to gBuffer as commands
+ * (TEXT_CMD_*), only the state that changed since the last string buffered before it, and HAL_FinishText draws it
+ * all at the frame's end; when it doesn't fit in the TEXT_BUFFER_SIZE bytes it is dropped. With gFinished set the
+ * string is first copied to a local buffer that nothing reads (MAT3 alike). Under the text lock. */
 void HAL_DrawText(void *text, s16 numChars)
 {
     s32 size;
     s32 length;
     u8 str[256];
-    static u32 lastFontColor;    /* 0x80153F60 */
-    static f32 lastTrans;    /* 0x80153F80 */
-    static s16 lastFontXpos;    /* 0x80153FD0 */
-    static s16 lastFontYpos;    /* 0x80154180 */
-    static s8 lastFontIndex;    /* 0x80154184 */
-    static s8 lastLeading;    /* 0x80154194 */
-    static s8 lastSpacing;    /* 0x8015419C */
+    /* The state the buffer's commands have reached: a command goes in only for what differs. */
+    static u32 lastFontColor;
+    static f32 lastTrans;
+    static s16 lastFontXpos;
+    static s16 lastFontYpos;
+    static s8 lastFontIndex;
+    static s8 lastLeading;
+    static s8 lastSpacing;
 
     if (gDepth >= 0.0f) {
         DrawText(text, TextLen(text, numChars));
@@ -66,29 +75,29 @@ void HAL_DrawText(void *text, s16 numChars)
     if (lastFontColor != gFontColor) size += 5;
     length = TextLen(text, numChars);
     size += length + 2;
-    if (gBufLen + size >= 800) {
+    if (gBufLen + size >= TEXT_BUFFER_SIZE) {
         text_unlock();
         return;
     }
     if (lastFontIndex != gFontIndex) {
         lastFontIndex = gFontIndex;
-        gBuffer[gBufLen++] = 0;
+        gBuffer[gBufLen++] = TEXT_CMD_FONT;
         gBuffer[gBufLen++] = gFontIndex;
     }
     if (lastLeading != gLeading) {
         lastLeading = gLeading;
-        gBuffer[gBufLen++] = 1;
+        gBuffer[gBufLen++] = TEXT_CMD_LEADING;
         gBuffer[gBufLen++] = gLeading;
     }
     if (lastSpacing != gSpacing) {
         lastSpacing = gSpacing;
-        gBuffer[gBufLen++] = 2;
+        gBuffer[gBufLen++] = TEXT_CMD_SPACING;
         gBuffer[gBufLen++] = gSpacing;
     }
     if (lastFontXpos != gFontXpos || lastFontYpos != gFontYpos) {
         lastFontXpos = gFontXpos;
         lastFontYpos = gFontYpos;
-        gBuffer[gBufLen++] = 3;
+        gBuffer[gBufLen++] = TEXT_CMD_POS;
         gBuffer[gBufLen++] = (lastFontXpos >> 8) & 255;
         gBuffer[gBufLen++] = lastFontXpos & 255;
         gBuffer[gBufLen++] = (lastFontYpos >> 8) & 255;
@@ -96,7 +105,7 @@ void HAL_DrawText(void *text, s16 numChars)
     }
     if (lastTrans != gTrans) {
         lastTrans = gTrans;
-        gBuffer[gBufLen++] = 4;
+        gBuffer[gBufLen++] = TEXT_CMD_TRANSLUCENCY;
         gBuffer[gBufLen++] = (*(u32 *)&gTrans >> 24) & 255;
         gBuffer[gBufLen++] = (*(u32 *)&gTrans >> 16) & 255;
         gBuffer[gBufLen++] = (*(u32 *)&gTrans >> 8) & 255;
@@ -104,11 +113,11 @@ void HAL_DrawText(void *text, s16 numChars)
     }
     if (lastFontColor != gFontColor) {
         lastFontColor = gFontColor;
-        gBuffer[gBufLen++] = 5;
+        gBuffer[gBufLen++] = TEXT_CMD_COLOR;
         memcpy(gBuffer + gBufLen, &gFontColor, 4);
         gBufLen += 4;
     }
-    gBuffer[gBufLen++] = 6;
+    gBuffer[gBufLen++] = TEXT_CMD_TEXT;
     gBuffer[gBufLen++] = length;
     memcpy(gBuffer + gBufLen, text, length);
     gBufLen += length;

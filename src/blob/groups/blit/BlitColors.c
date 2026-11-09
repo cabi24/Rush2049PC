@@ -1,3 +1,4 @@
+/* BlitColors: load a texture's palette or colours into the RDP (MAT3 blit_pc.c; the N64 side of it). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -14,6 +15,9 @@ typedef union {
 #define G_LOADTLUT 0xF0
 #define G_RDPPIPESYNC 0xE7
 #define G_IM_FMT_RGBA 0
+#define G_IM_FMT_CI 2
+#define G_IM_FMT_IA 3
+#define G_IM_FMT_I 4
 #define G_IM_SIZ_16b 2
 #define G_TX_LOADTILE 7
 
@@ -94,17 +98,23 @@ typedef union {
 VIEW(Gfx *, blit_dl);
 #define blit_dl blit_dl_view
 
-void BlitColors(u8 *img, s32 mode, s32 pal, s32 bank) {
-    if (img == blitColors) {
+/* Loads the colours a texture of this format draws with, unless they are the ones loaded last (blitColors):
+ *   colors      a colour-indexed texture's palette (RGBA16 entries), or for intensity textures two RGBA colours
+ *   format      the texture's format: 2 colour-indexed (5: the two-tile form), 3 IA, 4 I (G_IM_FMT_*)
+ *   texel_size  1 for 8-bit texels (a 256-colour palette), 0 for 4-bit (16 colours, in bank palette_bank)
+ * An intensity texture is tinted by the primitive colour (colors[0..3]) over the environment colour (colors[4..7]).
+ * BlitRect passes -1 for both, which loads nothing and only remembers the colour. */
+void BlitColors(u8 *colors, s32 format, s32 texel_size, s32 palette_bank) {
+    if (colors == blitColors) {
         return;
     }
-    if ((mode == 2 || mode == 5) && pal == 1) {
-        gDPLoadTLUT_pal256(blit_dl++, img);
-    } else if (mode == 2 && pal == 0) {
-        gDPLoadTLUT_pal16(blit_dl++, bank, img);
-    } else if (mode == 4 || mode == 3) {
-        gDPSetPrimColor(blit_dl++, 0, 0, img[0], img[1], img[2], img[3]);
-        gDPSetEnvColor(blit_dl++, img[4], img[5], img[6], img[7]);
+    if ((format == G_IM_FMT_CI || format == 5) && texel_size == 1) {
+        gDPLoadTLUT_pal256(blit_dl++, colors);
+    } else if (format == G_IM_FMT_CI && texel_size == 0) {
+        gDPLoadTLUT_pal16(blit_dl++, palette_bank, colors);
+    } else if (format == G_IM_FMT_I || format == G_IM_FMT_IA) {
+        gDPSetPrimColor(blit_dl++, 0, 0, colors[0], colors[1], colors[2], colors[3]);
+        gDPSetEnvColor(blit_dl++, colors[4], colors[5], colors[6], colors[7]);
     }
-    blitColors = img;
+    blitColors = colors;
 }

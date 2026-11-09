@@ -1,3 +1,4 @@
+/* HAL_InitText: start the text system (MAT3 HAL_text.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -18,6 +19,8 @@ VIEW(OSMesgQueue, text_lock_queue);
 VIEW(OSMesg, text_lock_msg);
 #define text_lock_msg text_lock_msg_view
 
+/* Makes the text lock once (a one-message queue holding its one message: text_lock takes it, text_unlock gives it
+ * back; MAT3's semaphore) and forgets the current font, so the next HAL_SetFont loads one. */
 void HAL_InitText(void)
 {
     const s8 initialized = 1;

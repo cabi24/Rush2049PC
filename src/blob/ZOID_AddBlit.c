@@ -1,64 +1,50 @@
+/* ZOID_AddBlit: take an entry of the zoid blit list (MAT3 zoidblit.c). */
 #include "game/game.h"
 
-typedef struct Slot {
-    void *p0;   /* 0x00 */
-    void *p4;   /* 0x04 */
-    s16 id;     /* 0x08 */
-    s16 a;      /* 0x0A */
-    s16 b;      /* 0x0C */
-    s16 e;      /* 0x0E */
-    s16 w;      /* 0x10 */
-    s16 h;      /* 0x12 */
-    u8 alpha;   /* 0x14 */
-    u8 f15;     /* 0x15 */
-    s8 state;   /* 0x16 */
-    s8 f17;     /* 0x17 */
-    s16 x18;    /* 0x18 */
-    s16 x1A;    /* 0x1A */
-    s16 hm1;    /* 0x1C */
-    s16 wm1;    /* 0x1E */
-} Slot;
-
-VIEW(Slot[200], gBlitInstanceList);
+VIEW(tBlitInstance[MAX_BLITS], gBlitInstanceList);
 #define gBlitInstanceList gBlitInstanceList_view
 
-s32 ZOID_AddBlit(s32 id, void *p4, void *p0, s32 a, s32 b, s32 w, s32 h)
+/* Hands out the first free entry of the zoid blit list (a freed one, else a new one at the end: gNumBlitInsts grows,
+ * gMaxBlitInsts keeps the most ever used) and fills it: texture texIndex/texture, colours palette, position x, y,
+ * size width x height, depth 0, opaque, the whole texture, shown, no flags. Returns its index, or -1 when all
+ * MAX_BLITS are taken. (The N64 fills the fields itself where MAT3 calls ZOID_UpdateBlit.) */
+s32 ZOID_AddBlit(s32 texIndex, void *texture, void *palette, s32 x, s32 y, s32 width, s32 height)
 {
-    Slot *s;
+    tBlitInstance *inst;
     s32 i;
 
     for (i = 0; i < gNumBlitInsts; i++) {
-        if (gBlitInstanceList[i].state == 2) {
+        if (gBlitInstanceList[i].hide == BLITINST_FREE) {
             break;
         }
     }
-    if (i >= 200) {
+    if (i >= MAX_BLITS) {
         return -1;
     }
-    s = &gBlitInstanceList[i];
+    inst = &gBlitInstanceList[i];
     if (i >= gNumBlitInsts) {
         gNumBlitInsts++;
     }
     if (gMaxBlitInsts < gNumBlitInsts) {
         gMaxBlitInsts = gNumBlitInsts;
     }
-    
-    s->b = b;
-    s->p4 = p4;
-    s->p0 = p0;
-    s->id = id;
-    s->a = a;
-    s->e = 0;
-    s->alpha = 255;
-    s->x18 = 0;
-    s->x1A = 0;
-    s->w = w;
-    s->h = h;
+
+    inst->y = y;
+    inst->texture = texture;
+    inst->palette = palette;
+    inst->texIndex = texIndex;
+    inst->x = x;
+    inst->z = 0;
+    inst->alpha = 255;
+    inst->top = 0;
+    inst->left = 0;
+    inst->width = width;
+    inst->height = height;
     do {} while (0);
-    s->hm1 = h - 1;
-    s->wm1 = w - 1;
-    s->state = 0;
-    s->f15 = 0;
+    inst->bot = height - 1;
+    inst->right = width - 1;
+    inst->hide = 0;
+    inst->flags = 0;
 
     return i;
 }

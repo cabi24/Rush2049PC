@@ -1,16 +1,14 @@
+/* CancelPakError: close a pak's error dialog (MAT3 pakerr.c). */
 #include "game/game.h"
 
-VIEW(s32, gPakError);
-#define gPakError gPakError_view
-
-typedef struct { u8 pad[0x14]; s32 f14; u8 pad2[0x14]; } S2C;
-void CancelPakError(s32 arg0)
+/* Closes the latest of pak's two error dialogs that is open (mode 0: closed). */
+void CancelPakError(s32 pak)
 {
   s32 i;
-  S2C *d = (S2C *) (((u8 *) &gPakError) + arg0 * 0x58);
+  PakErrorState *d = gPakError[pak];
   for (i = 1; i >= 0; i--) {
-    if (d[i].f14 != 0) {
-      d[i].f14 = 0;
+    if (d[i].mode != 0) {
+      d[i].mode = 0;
       return;
     }
   }

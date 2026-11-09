@@ -1,34 +1,37 @@
+/* game_strstr: the game's strstr (the N64's own C library routines). */
 #include "game/game.h"
 
-u8 *game_strstr(u8 *arg0, u8 *arg1)
+/* The first place needle occurs in haystack, or NULL; an empty needle is found at the start (an empty haystack holds
+ * only the empty needle). */
+u8 *game_strstr(u8 *haystack, u8 *needle)
 {
   s32 i;
   u8 *p;
-  if (*arg0 == 0)
+  if (*haystack == 0)
   {
-    if (*arg1 != 0)
+    if (*needle != 0)
     {
       return (u8 *) 0;
     }
-    return arg0;
+    return haystack;
   }
-  if (*arg0 != 0)
+  if (*haystack != 0)
   {
     do
     {
       i = 0;
-      p = arg1;
+      p = needle;
       while (1)
       {
         if (*p == 0)
         {
-          return arg0;
+          return haystack;
         }
-        if (*p != arg0[i]) break;
+        if (*p != haystack[i]) break;
         i++;
         p++;
       }
-    } while (*++arg0 != 0);
+    } while (*++haystack != 0);
   }
   return (u8 *) 0;
 }

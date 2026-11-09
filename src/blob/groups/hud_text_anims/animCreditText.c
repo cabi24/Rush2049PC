@@ -1,31 +1,13 @@
+/* animCreditText: the credits shown in the demo, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    void *name, *image, *info;
-    u16 texIndex;
-    s16 x, y;
-    u16 z;
-    s16 width, height;
-    u8 alpha, flip;
-    s8 hidden;
-} Blit;
+#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
+#define CREDIT_TITLES 0              /* gText.tab: where the credits' titles start in taba */
 
-typedef struct LangInfo {
-    u16 lang;
-} LangInfo;
-
-/* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
-typedef struct StrTable {
-    void *pad0[3];
-    LangInfo *info;
-    char **strings;
-} StrTable;
-
-VIEW(StrTable, gText);
-#define gText gText_view
-
-s32 animCreditText(Blit *blt)
+/* In the demo with credits on (gShowCredits): draws credit page gCredit, its title in yellow and its gNumCreditNames
+ * names below in white, in corner gCorner of the screen (0 top left, 1 top right, 2 bottom left, 3 bottom right).
+ * The blit is hidden otherwise. Returns 1. */
+s32 animCreditText(tBlit *blt)
 {
     s32 x;
     s32 hide;
@@ -33,12 +15,12 @@ s32 animCreditText(Blit *blt)
     s16 sx;
     s32 i;
 
-    hide = !(gGameState & 8) || !gShowCredits;
-    if (blt->hidden != hide) {
-        blt->hidden = hide;
+    hide = !(gGameState & GAME_STATE_ATTRACT) || !gShowCredits;
+    if (blt->hide != hide) {
+        blt->hide = hide;
         UpdateBlit(blt);
     }
-    if (blt->hidden) {
+    if (blt->hide) {
         return 1;
     }
     switch (gCorner) {
@@ -60,10 +42,10 @@ s32 animCreditText(Blit *blt)
         break;
     }
     HAL_SetFont(11);
-    TB_SetTextColor(14);
+    TB_SetTextColor(kTB_YellowText);
     sx = x;
-    TB_DrawText(sx, y, gText.strings[gText.info->lang + gCredit]);
-    TB_SetTextColor(1);
+    TB_DrawText(sx, y, gText.taba[gText.tab[CREDIT_TITLES] + gCredit]);
+    TB_SetTextColor(kTB_WhiteText);
     i = 0;
     y += 15;
     for (; i < gNumCreditNames; i++) {

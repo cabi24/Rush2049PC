@@ -1,78 +1,82 @@
+/* RecordBattle: record a battle (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-typedef struct Tgt { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; u8 **blk; } Tgt;
-typedef struct Rec { u8 pad0; u8 idx; u8 pad2[0x46]; Tgt **tgt; } Rec;
-typedef struct Acc { u16 w0; u16 w2; u16 w4; u16 w6; u16 w8; u16 wA; } Acc;
+#define FIRST_BATTLE_TRACK 6   /* gTrackNum: 6..13 the battle arenas */
 
-extern Rec gPlayers[];
-VIEW(void *[], gJustPlayers);
+/* A player's input record as this reads it: which "just play" profile, the profile handle in use. */
+typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
+
+extern PlayerPad gPlayers[];
+VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
 VIEW(s8, gRankedPlayer);
 #define gRankedPlayer gRankedPlayer_view
 
 VIEW(s8[], gBattlePoints);
 #define gBattlePoints gBattlePoints_view
-VIEW(Acc[], gTotalBattleStats);
-#define gTotalBattleStats gTotalBattleStats_view
 
+/* Adds each player's battle to its profile's stats for the arena and to the totals: the kills (its points against
+ * each other player), the deaths (the size of every player's points against it, its own included), a match, and a win
+ * for the winner (gRankedPlayer), its team, or a tie; then writes the profile's stats. A player without a profile
+ * uses its "just play" one; a profile whose file isn't read stops it all. */
 void RecordBattle(void)
 {
-    s32 t2;
+    s32 arena;
     s32 i;
 
-    t2 = gTrackNum - 6;
+    arena = gTrackNum - FIRST_BATTLE_TRACK;
     for (i = 0; i < gNumPlayers; i++)
     {
-        if (gPlayers[i].tgt == 0)
+        if (gPlayers[i].profile == 0)
         {
-            gPlayers[i].tgt = (Tgt **) &gJustPlayers[gPlayers[i].idx];
+            gPlayers[i].profile = &gJustPlayers[gPlayers[i].selector];
         }
-        if ((*gPlayers[i].tgt)->blk == 0)
+        if ((*gPlayers[i].profile)->datah == 0)
         {
             return;
         }
         {
           s32 pass;
-          Acc *a2;
+          tBattleStats *stats;
           for (pass = 0; pass < 2; pass++)
           {
             s32 k;
             if (pass == 0)
             {
-                a2 = (Acc *) ((u8 *) (*((*gPlayers[i].tgt)->blk)) + 12 * t2 + 0x60C);
+                stats = &(*(*gPlayers[i].profile)->datah)->battleStats[arena];
             }
             else
             {
-                a2 = (Acc *) ((u8 *) gTotalBattleStats + 12 * t2);
+                stats = &gTotalBattleStats[arena];
             }
             for (k = 0; k < gNumPlayers; k++)
             {
                 if (k != i)
                 {
-                    a2->w8 += gBattlePoints[i * 4 + k];
+                    stats->totalKills += gBattlePoints[i * 4 + k];
                 }
                 {
-                    s32 v1;
-                    s8 v0;
-                    v0 = gBattlePoints[k * 4 + i];
-                    if (v0 >= 0)
+                    s32 deaths;
+                    s8 points;
+                    points = gBattlePoints[k * 4 + i];
+                    if (points >= 0)
                     {
-                        v1 = v0;
+                        deaths = points;
                     }
                     else
                     {
-                        v1 = -v0;
+                        deaths = -points;
                     }
-                    a2->wA = (u16) (a2->wA + v1);
+                    stats->totalDeaths = (u16) (stats->totalDeaths + deaths);
                 }
             }
-            a2->w4 = (u16) (a2->w4 + 1);
+            stats->totalMatches = (u16) (stats->totalMatches + 1);
             if (i == gRankedPlayer || gCarTeam[i] == gCarTeam[gRankedPlayer] || tied[i] == 1)
             {
-                a2->w6 = (u16) (a2->w6 + 1);
+                stats->totalWins = (u16) (stats->totalWins + 1);
             }
           }
         }
-        SavePlayerStats((void **) gPlayers[i].tgt, gTrackNum);
+        SavePlayerStats(gPlayers[i].profile, gTrackNum);
     }
 }

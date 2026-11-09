@@ -1,36 +1,37 @@
+/* ClearPlayerRecords: erase a profile's records (MAT3 save.c). */
 #include "game/game.h"
 
 extern void *memset(void *s, s32 c, u32 n);
 
-void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
+void PS_WriteFile(tPakHandle *fileh, void *data, s32 size);
 
-#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
+/* Erases the profile's records and totals (the race, stunt, battle, obstacle and circuit stats and the circuit in
+ * progress) in its file and writes the file. Returns 1 when done; 0 when the file can't be read, or can't be written
+ * (its data is then dropped from memory). The profile's times leave the high score tables. */
+s32 ClearPlayerRecords(tProfile **profile) {
+    tSaveData *data;
 
-s32 ClearPlayerRecords(void **arg0) {
-    intptr_t temp_s1;
-
-    if (ReadPlayerData(arg0) == 0) {
+    if (ReadPlayerData(profile) == 0) {
         return 0;
     }
-    temp_s1 = *M2C_FIELD(*arg0, intptr_t **, SLOT_DATA);
-    memset((void *) (temp_s1 + 0x8C), 0, 0x480U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x8C), 0x480);
-    memset((void *) (temp_s1 + 0x50C), 0, 0x100U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x50C), 0x100);
-    memset((void *) (temp_s1 + 0x60C), 0, 0x60U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x60C), 0x60);
-    memset((void *) (temp_s1 + 0x66C), 0, 0x18U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x66C), 0x18);
-    memset((void *) (temp_s1 + 0x684), 0, 0x70U);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x684), 0x70);
-    memset((void *) (temp_s1 + 0x6F4), 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), (uintptr_t) (temp_s1 + 0x6F4), 0x4C);
-    if (PS_FlushFile(M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), 0) == 0) {
-        PurgePlayerData(arg0);
+    data = *(*profile)->datah;
+    memset(data->raceStats, 0, sizeof(data->raceStats));
+    PS_WriteFile((*profile)->fileh, data->raceStats, sizeof(data->raceStats));
+    memset(data->stuntStats, 0, sizeof(data->stuntStats));
+    PS_WriteFile((*profile)->fileh, data->stuntStats, sizeof(data->stuntStats));
+    memset(data->battleStats, 0, sizeof(data->battleStats));
+    PS_WriteFile((*profile)->fileh, data->battleStats, sizeof(data->battleStats));
+    memset(data->obstacleStats, 0, sizeof(data->obstacleStats));
+    PS_WriteFile((*profile)->fileh, data->obstacleStats, sizeof(data->obstacleStats));
+    memset(data->circuitStats, 0, sizeof(data->circuitStats));
+    PS_WriteFile((*profile)->fileh, data->circuitStats, sizeof(data->circuitStats));
+    memset(&data->circuit, 0, sizeof(data->circuit));
+    PS_WriteFile((*profile)->fileh, &data->circuit, sizeof(data->circuit));
+    if (PS_FlushFile((*profile)->fileh, 0) == 0) {
+        PurgePlayerData(profile);
         return 0;
     }
-    RemovePlayerScores((intptr_t) arg0);
-    PS_FlushPak((s32) M2C_FIELD(*M2C_FIELD(*arg0, void ***, PROFILE_OFS(8)), u8 *, PSF_OFS(0x10)), 1);
+    RemovePlayerScores((intptr_t) profile);
+    PS_FlushPak((*profile)->fileh->file->pak, 1);
     return 1;
 }
-

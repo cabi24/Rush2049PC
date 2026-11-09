@@ -1,18 +1,15 @@
+/* SavePlayerCarSetting: save one of a profile's car settings (MAT3 save.c). */
 #include "game/game.h"
 
-
-#undef M2C_FIELD
-#define M2C_FIELD(expr, type, offset) (*(type)((u8 *)(expr) + (offset)))
-#define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
-
 extern void PS_WriteFile(void *, void *, u32);
-typedef struct Setting { u32 checksum; s8 fields[12]; } Setting;
-typedef struct SaveData { u8 prior[1856]; Setting settings[13]; } SaveData;
-void SavePlayerCarSetting(void *obj,u8 index,u8 field,s8 value) {
- SaveData *base=M2C_FIELD(M2C_FIELD(M2C_FIELD(obj,void **,0),void **,SLOT_DATA),SaveData **,0);
- if(base->settings[index].fields[field] != value) {
-  base->settings[index].fields[field]=value;
-  base->settings[index].checksum=CalcChecksumInternal((u8 *)base->settings[index].fields,12);
-  PS_WriteFile(M2C_FIELD(M2C_FIELD(obj,void **,0),void **,PROFILE_OFS(8)),&base->settings[index],16);
+
+/* Sets setting field of car index in the profile's file to value; when it changed, the car's settings get their
+ * checksum again and are marked to write. The file must be read. */
+void SavePlayerCarSetting(tProfile **profile,u8 index,u8 field,s8 value) {
+ tSaveData *base=*(*profile)->datah;
+ if(base->carSettings[index].settings[field] != value) {
+  base->carSettings[index].settings[field]=value;
+  base->carSettings[index].checksum=CalcChecksumInternal((u8 *)base->carSettings[index].settings,12);
+  PS_WriteFile((*profile)->fileh,&base->carSettings[index],16);
  }
 }

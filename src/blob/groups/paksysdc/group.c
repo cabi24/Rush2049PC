@@ -1,3 +1,5 @@
+/* The pak system's file and pak management (MAT3 paksysdc.c, the N64's libultra form of it): creating and deleting
+ * files, forgetting a pak's files, the pak server that notices paks being put in and taken out, and the start-up. */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 #define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
@@ -8,6 +10,7 @@ typedef struct OSMesgQueue {
     s32 validCount, first, msgCount;
     OSMesg *msg;
 } OSMesgQueue;
+/* libultra's OSPfs, as the local copy of a pak's handle (PcPfs's layout). */
 typedef struct OSPfs {
     s32 status;
     OSMesgQueue *queue;
@@ -16,50 +19,16 @@ typedef struct OSPfs {
     s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
     u8 banks, activebank;
 } OSPfs;
-typedef struct OSPfsState {
-    u32 file_size, game_code;
-    u16 company_code;
-    u8 ext_name[4], game_name[16];
-} OSPfsState;
-/* one Controller Pak file slot (40 bytes; offsets from retail) */
-typedef struct PakFile {
-    s8 flush, flag1, flag2, opaque3;
-    u16 mapBytes, opaque6;
-    OSPfsState state;
-} PakFile;
-/* gPaks[pak] (GC anon_changed_inserted_25c; N64 772 bytes) */
-typedef struct PakRecord {
-    u8 changed;
-    s8 inserted, opaque2, opaque3, opaque4, damaged, opaque6, flushing, flushed, opaque9, opaque10, flush;
-    OSPfs pfs;
-    s32 error, FreeSpace;
-    u8 motorOn, request, level, opaque127;   /* rumble thread state (rumble_thread) */
-    s16 phase;
-    u8 opaque130[2];
-    PakFile files[16];
-} PakRecord;
-typedef struct tPS_File tPS_File;
-typedef struct PakHandle { tPS_File *file; } PakHandle;
-/* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
-struct tPS_File {
-    PakHandle *next;
-    PakHandle *prev;                  /* PC: a pointer (InsertLLE's link); the record is 96 bytes (pc_prelude.h) */
-    void (*RemoveFile)(PakHandle *);
-    void (*MoveFile)(PakHandle *, PakHandle *);
-    u8 pak, fileNo;
-    u8 name[35], ext[11];
-    u32 size, blocks;
-    u8 **data;
-};
+/* A pak's open files (MAT3 tDLList), linked through their records' next. */
 typedef struct tDLList {
     u8 indirect, doubly, opaque2[2];
     u32 count;
-    PakHandle *head, *tail;
+    tPakHandle *head, *tail;
 } tDLList;
 typedef s32 (*PakPredicate)(s32);
 typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
 
-VIEW(volatile PakRecord[], gPaks);
+VIEW(volatile tPak[], gPaks);
 #define gPaks gPaks_view
 VIEW(tDLList[], gPS_Files);
 #define gPS_Files gPS_Files_view
@@ -71,17 +40,20 @@ extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 
 extern void *memset(void *, s32, u32);
 
-/* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
-void pak_insert_file(PakHandle *fileh)
+/* Puts the open file fileh at the head of its pak's list of files. */
+void pak_insert_file(tPakHandle *fileh)
 {
     InsertLLE(&gPS_Files[fileh->file->pak], fileh, gPS_Files[fileh->file->pak].head);
 }
 
-/* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
-PakHandle *pfs_get_node(void);
+/* Takes a handle off the free list (pak_free_handles); it lives in the system group. */
+tPakHandle *pfs_get_node(void);
 
-/* 0x800A2D4C */
-PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
+/* Creates the file name.ext of numBytes bytes (rounded up to whole pages) on pak's pak, for company and gameCode, and
+ * opens it: its data, all zeros, and its dirty map, all clean, are allocated in the heap. A failure goes to the error
+ * function (gErrorFunc), which asks the player: retry, or give up (NULL). When the file exists and the player retries,
+ * the open handle of the existing file is deleted first. Returns the new file's handle, or NULL. */
+tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
 {
     s32 error;
     s32 file;
@@ -89,9 +61,9 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
     u8 ext_name[4];
     s8 retry;
     s8 status;
-    PakHandle *fileh;
-    tPS_File *psfile;
-    OSPfsState *state;
+    tPakHandle *fileh;
+    PakFileRecord *psfile;
+    PakFileState *state;
 
     paksys_lock();
     pak_encode_name(game_name, name, 16);
@@ -104,20 +76,20 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
             si_unlock();
             gErrPak = pak;
             gErrorFunc(pak, gPaks[pak].error, (numBytes + 255) >> 8, 0, &retry, &status,
-                       gPaks[pak].error == 3 ? 0 : pak_removed);
+                       gPaks[pak].error == kPS_ErrNewPak ? 0 : pak_removed);
             gErrPak = -1;
-            if (gPaks[pak].error != 3 && !gPaks[pak].inserted) return 0;
+            if (gPaks[pak].error != kPS_ErrNewPak && !gPaks[pak].inserted) return 0;
             paksys_lock();
-            if (gPaks[pak].error == 8 && retry) {
+            if (gPaks[pak].error == kPS_ErrExist && retry) {
                 /* the file exists: find its slot and delete our handle for it */
-                for (file = 0; file < 16; file++) {
+                for (file = 0; file < PAK_MAX_FILES; file++) {
                     state = &gPaks[pak].files[file].state;
                     if (game_strcmp(state->game_name, game_name) == 0 &&
                         game_strcmp(state->ext_name, ext_name) == 0 &&
                         state->game_code == (u32)gameCode &&
                         company == state->company_code) break;
                 }
-                if (file == 16) continue;
+                if (file == PAK_MAX_FILES) continue;
                 si_unlock();
                 for (fileh = gPS_Files[pak].head; fileh != 0; fileh = fileh->file->next) {
                     if (fileh->file->fileNo == file) {
@@ -127,7 +99,7 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
                 }
                 paksys_lock();
             }
-            if (gPaks[pak].error == 6 && retry) retry = 0;
+            if (gPaks[pak].error == kPS_ErrFull && retry) retry = 0;
             if (!retry) {
                 si_unlock();
                 return 0;
@@ -163,12 +135,12 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
     psfile->fileNo = file;
     psfile->size = gPaks[pak].files[file].state.file_size;
     psfile->blocks = (psfile->size + 255) >> 8;
-    gPaks[pak].files[file].mapBytes = (((psfile->size + 31) >> 5) + 7) >> 3;
+    gPaks[pak].files[file].mapBytes = (((psfile->size + 31) >> 5) + 7) >> 3;   /* a bit for each 32 bytes */
     psfile->data = AllocateHandleHeap(0, gPaks[pak].files[file].mapBytes + psfile->size);
     memset(*psfile->data, 0, psfile->size);
     memset(*psfile->data + psfile->size, 255, gPaks[pak].files[file].mapBytes);
-    gPaks[pak].files[file].flush = 0;
-    gPaks[pak].files[file].flag1 = 0;
+    gPaks[pak].files[file].locked = 0;
+    gPaks[pak].files[file].dirty = 0;
     gPaks[pak].files[file].flag2 = 0;
     pak_decode_name(psfile->name, gPaks[pak].files[file].state.game_name, 16);
     pak_decode_name(psfile->ext, gPaks[pak].files[file].state.ext_name, 4);
@@ -180,25 +152,27 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
 VIEW(OSMesgQueue, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-/* 0x800A2680: PS_DeleteFile */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-void PS_DeleteFile(PakHandle *fileh)
+
+/* Deletes the open file fileh from its pak and closes it: its RemoveFile is told, its data freed, its handle given
+ * back. A failure goes to the error function; the deletion is retried if the player asks and the file is still open. */
+void PS_DeleteFile(tPakHandle *fileh)
 {
     s32 pak;
     s32 fileNo;
-    OSPfsState *state;
-    PakHandle *cur;
+    PakFileState *state;
+    tPakHandle *cur;
     s8 retry;
     s8 status;
-    tPS_File *psfile;
+    PakFileRecord *psfile;
     s32 error;
 
     paksys_lock();
     psfile = fileh->file;
     pak = psfile->pak;
     fileNo = psfile->fileNo;
-    state = (OSPfsState *)&gPaks[pak].files[fileNo].state;
+    state = (PakFileState *)&gPaks[pak].files[fileNo].state;
 delete_retry:
     error = osPfsDeleteFile((OSPfs *)&gPaks[pak].pfs, state->company_code, state->game_code,
                             state->game_name, state->ext_name);
@@ -240,12 +214,13 @@ VIEW(OSMesgQueue, heap_lock_queue);
 
 extern void *memcpy(void *, const void *, u32);
 
-/* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
+/* Forgets every open file of pak's pak (MAT3 _RemovePak): each file's RemoveFile is told, its data freed under the
+ * heap lock, its handle given back to the free list. */
 void RemovePak(s32 pak)
 {
-    PakHandle *fileh;
-    PakHandle *next;
-    tPS_File *psfile;
+    tPakHandle *fileh;
+    tPakHandle *next;
+    PakFileRecord *psfile;
 
     fileh = gPS_Files[pak].head;
     while (fileh != 0) {
@@ -267,50 +242,57 @@ void RemovePak(s32 pak)
     }
 }
 
-/* 0x800A3724: _ClearPak (private IPA: pak in a3) */
+/* Clears pak's record to zeros but for its damaged flag (MAT3 _ClearPak). */
 void ClearPak(u8 pak)
 {
     s8 damaged;
 
     damaged = gPaks[pak].damaged;
-    memset((void *)&gPaks[pak], 0, sizeof(PakRecord));
+    memset((void *)&gPaks[pak], 0, sizeof(tPak));
     gPaks[pak].damaged = damaged;
 }
 
-/* 0x800A377C: PS_PakServer */
+/* Looks at every controller's pak (only gErrPak's while an error screen is up) and keeps gPaks up to date: a pak
+ * taken out has its files forgotten (unless they are locked or being written: they wait for it to come back); a pak
+ * put in is read (osPfsInitPak): a Rumble Pak is noted (with rumbleOnly nothing else is done), an unreadable one goes
+ * to the error screen (kPS_ErrRecognize: repair it, give up, or read it again), then the pak is compared with the
+ * one before by its id: the same pak keeps its files (the changed ones marked to write), a pak another port had
+ * takes that port's files, any other has its dirty files written first (PS_FlushPak) and its directory read afresh,
+ * each file there opened (without its data). tPak.changed says which paks changed. forceUpdate is unused. */
 void PS_PakServer(s32 forceUpdate, s32 rumbleOnly)
 {
     s32 i;
     s32 j;
     s32 ret;
-    s32 err;                /* unreferenced: frame slot sp+416 (disclosed) */
+    s32 err;                /* unused */
     OSPfs pfs;
-    s8 X;                   /* unreferenced: frame slot sp+311 (disclosed) */
+    s8 X;                   /* unused */
     s8 status = 0;
     s8 retry = 0;
     s8 changed[4];
     s8 dup;
     s8 same;
-    PakHandle *fileh;
-    tPS_File *psfile;
+    tPakHandle *fileh;
+    PakFileRecord *psfile;
 
     if (!gPakSysInited) return;
-    for (i = 0; i < 4; i++) changed[i] = 0;
+    for (i = 0; i < NUM_PAKS; i++) changed[i] = 0;
     si_lock();
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NUM_PAKS; i++) {
         if (gErrPak >= 0 && i != gErrPak) continue;
-        if (!gControllerData[i].present || !gPaks[i].opaque2 || gPaks[i].opaque3) {
-            gPaks[i].opaque3 = 0;
+        if (!gControllerData[i].present || !gPaks[i].plugged || gPaks[i].wasRemoved) {
+            /* no pak: forget it */
+            gPaks[i].wasRemoved = 0;
             if (gPaks[i].inserted) {
                 gPaks[i].inserted = 0;
-                gPaks[i].opaque9 = 0;
+                gPaks[i].original = 0;
                 gPaks[i].error = 0;
-                if (gPaks[i].opaque6) {
+                if (gPaks[i].rumble) {
                     _StopRumble(i);
                     changed[i] = 1;
                     continue;
                 }
-                if (gPaks[i].opaque10) goto rj;
+                if (gPaks[i].locked) goto rj;
                 if (!gPaks[i].flush) {
                     if (gPaks[i].flushing) goto rj;
                     RemovePak(i);
@@ -319,13 +301,14 @@ void PS_PakServer(s32 forceUpdate, s32 rumbleOnly)
 rj:
                 gPaks[i].damaged = 0;
                 changed[i] = 1;
-            } else if (gPaks[i].opaque4 && !gPaks[i].opaque10 && !gPaks[i].flush && !gPaks[i].flushing) {
+            } else if (gPaks[i].inited && !gPaks[i].locked && !gPaks[i].flush && !gPaks[i].flushing) {
                 RemovePak(i);
                 ClearPak(i);
             }
             continue;
         }
         if (gPaks[i].inserted) continue;
+        /* a pak was put in: read it */
         changed[i] = 1;
         gPaks[i].inserted = 1;
         dup = 0; same = 0; memcpy(&pfs, (void *)&gPaks[i].pfs, sizeof(OSPfs));
@@ -334,9 +317,9 @@ init:
         ret = osPfsInitPak(&si_event_queue, &pfs, i);
         if (!pfs.queue) ret = 1;
         gPaks[i].error = pak_error_from_pfs(ret);
-        if (gPaks[i].error == 10) {
+        if (gPaks[i].error == kPS_ErrRecognize) {
             if (!osMotorInit(&si_event_queue, &pfs, i)) {
-                if (!gPaks[i].opaque6) gPaks[i].opaque6 = 1;
+                if (!gPaks[i].rumble) gPaks[i].rumble = 1;
                 else changed[i] = 0;
                 continue;
             }
@@ -348,7 +331,7 @@ init:
             si_unlock();
 prompt:
             gErrPak = i;
-            gErrorFunc(i, 10, 0, 0, &retry, &status, pak_removed);
+            gErrorFunc(i, kPS_ErrRecognize, 0, 0, &retry, &status, pak_removed);
             gErrPak = -1;
             if (!gPaks[i].inserted) {
                 si_lock();
@@ -356,6 +339,7 @@ prompt:
                 continue;
             }
             if (status) {
+                /* repair it */
                 si_lock();
                 ret = osPfsInitPak(&si_event_queue, &pfs, i);
                 if (!ret) goto inited;
@@ -363,51 +347,53 @@ prompt:
                 si_unlock();
                 if (ret) {
                     gErrPak = i;
-                    gErrorFunc(i, 12, 0, 0, &retry, &status, 0);
+                    gErrorFunc(i, kPS_ErrRepairFailed, 0, 0, &retry, &status, 0);
                     gErrPak = -1;
                     goto prompt;
                 }
                 gErrPak = i;
-                gErrorFunc(i, 13, 0, 0, &retry, &status, 0);
+                gErrorFunc(i, kPS_ErrRepaired, 0, 0, &retry, &status, 0);
                 gErrPak = -1;
             } else if (retry) {
+                /* give up: the pak is damaged */
                 si_lock();
                 gPaks[i].damaged = 1;
-                gPaks[i].opaque9 = 0;
+                gPaks[i].original = 0;
                 changed[i] = 0;
                 continue;
             } else {
                 gErrPak = i;
-                gErrorFunc(i, 11, 0, 0, &retry, &status, 0);
+                gErrorFunc(i, kPS_ErrReread, 0, 0, &retry, &status, 0);
                 gErrPak = -1;
             }
             si_lock();
             goto init;
         }
 inited:
-        gPaks[i].opaque6 = 0;
+        gPaks[i].rumble = 0;
         gPaks[i].phase = 0;
         gPaks[i].level = 0;
         gPaks[i].request = 0;
         gPaks[i].motorOn = 0;
-        if (ret == 2) gPaks[i].error = 0;
+        if (ret == 2) gPaks[i].error = 0;   /* PFS_ERR_NEW_PACK */
         else if (ret) {
             changed[i] = 0;
             gPaks[i].damaged = 1;
-            gPaks[i].opaque9 = 0;
+            gPaks[i].original = 0;
             continue;
         }
-        if (!gPaks[i].opaque4) {
-            gPaks[i].opaque4 = 1;
+        if (!gPaks[i].inited) {
+            gPaks[i].inited = 1;
         } else if (!game_memcmp((u8 *)gPaks[i].pfs.id, pfs.id, 32)) {
+            /* the same pak as before: keep its files, marking those changed meanwhile to write */
             changed[i] = 0;
             memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
             osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
-            gPaks[i].opaque9 = 1;
+            gPaks[i].original = 1;
             if (!gPaks[i].flushing) {
                 for (fileh = gPS_Files[i].head; fileh; fileh = fileh->file->next) {
                     if (_FileChanged(fileh->file)) {
-                        gPaks[i].files[fileh->file->fileNo].flag1 = 1;
+                        gPaks[i].files[fileh->file->fileNo].dirty = 1;
                         gPaks[i].flush = 1;
                     }
                 }
@@ -416,41 +402,43 @@ inited:
             }
             continue;
         }
-        for (j = 0; j < 4; j++) {
+        for (j = 0; j < NUM_PAKS; j++) {
             if (i == j) continue;
-            if (gPaks[j].opaque4 && !game_memcmp(pfs.id, (u8 *)gPaks[j].pfs.id, 32)) {
-                if (gPaks[i].opaque4) {
+            if (gPaks[j].inited && !game_memcmp(pfs.id, (u8 *)gPaks[j].pfs.id, 32)) {
+                /* the pak port j had: its files move here */
+                if (gPaks[i].inited) {
                     dup = 1;
                     goto locked;
                 }
 move:
                 memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
                 osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
-                gPaks[i].opaque9 = 1;
+                gPaks[i].original = 1;
                 memcpy(&gPS_Files[i], &gPS_Files[j], sizeof(tDLList));
                 ClearLL(&gPS_Files[j]);
                 for (fileh = gPS_Files[i].head; fileh; fileh = fileh->file->next)
                     fileh->file->pak = i;
                 memcpy((void *)gPaks[i].files, (void *)gPaks[j].files, sizeof(gPaks[i].files));
                 changed[i] = 0;
-                gPaks[j].opaque4 = 0;
-                gPaks[j].opaque9 = 0;
-                if (gPaks[j].inserted && !gPaks[j].damaged) gPaks[j].opaque3 = 1;
+                gPaks[j].inited = 0;
+                gPaks[j].original = 0;
+                if (gPaks[j].inserted && !gPaks[j].damaged) gPaks[j].wasRemoved = 1;
                 changed[j] = 1;
                 break;
             }
         }
-        if (j < 4) continue;
+        if (j < NUM_PAKS) continue;
         if (gPaks[i].flushing) {
             changed[i] = 0;
             continue;
         }
 locked:
-        if (gPaks[i].opaque10) {
+        if (gPaks[i].locked) {
             changed[i] = 0;
             continue;
         }
 flush:
+        /* write what the files before had unwritten, then read the new pak's directory */
         si_unlock();
         if (!PS_FlushPak(i, 0)) {
             changed[i] = 0;
@@ -466,16 +454,16 @@ flush:
         if (same) continue;
         RemovePak(i);
         if (dup) goto move;
-        gPaks[i].opaque9 = 1;
-        gPaks[i].opaque10 = 0;
+        gPaks[i].original = 1;
+        gPaks[i].locked = 0;
         gPaks[i].flush = 0;
         memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
         osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
-        for (j = 0; j < 16; j++) {
-            ret = osPfsFileState((OSPfs *)&gPaks[i].pfs, j, (OSPfsState *)&gPaks[i].files[j].state);
+        for (j = 0; j < PAK_MAX_FILES; j++) {
+            ret = osPfsFileState((OSPfs *)&gPaks[i].pfs, j, (PakFileState *)&gPaks[i].files[j].state);
             if (ret) gPaks[i].files[j].state.file_size = 0;
-            gPaks[i].files[j].flush = 0;
-            gPaks[i].files[j].flag1 = 0;
+            gPaks[i].files[j].locked = 0;
+            gPaks[i].files[j].dirty = 0;
             gPaks[i].files[j].flag2 = 0;
             gPaks[i].files[j].mapBytes = (((gPaks[i].files[j].state.file_size + 31) >> 5) + 7) >> 3;
             gPaks[i].error = pak_error_from_pfs(ret);
@@ -497,19 +485,21 @@ flush:
         }
     }
     si_unlock();
-    for (i = 0; i < 4; i++) gPaks[i].changed = changed[i];
-    if (forceUpdate) {}     /* disclosed umerge-budget device (one branch) */
+    for (i = 0; i < NUM_PAKS; i++) gPaks[i].changed = changed[i];
+    if (forceUpdate) {}
 }
 
-VIEW(PakHandle[], pak_file_handles);
+VIEW(tPakHandle[], pak_file_handles);
 #define pak_file_handles pak_file_handles_view
-VIEW(tPS_File[], pak_file_records);
+VIEW(PakFileRecord[], pak_file_records);
 #define pak_file_records pak_file_records_view
 
 extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
 extern void osStartThread(void *);
 
-/* 0x800A4508: PS_InitPakSys */
+/* Starts the pak system: errorFunc is what asks the player when a pak fails (PS_ErrorFunc); the 64 file handles go
+ * on the free list; every pak record is cleared (keeping no damage: each is cleared to undamaged); the rumble thread
+ * starts; then the paks in are noted (pak_poll_inserted). */
 void PS_InitPakSys(PakErrorFunc errorFunc)
 {
     s32 i;
@@ -520,7 +510,7 @@ void PS_InitPakSys(PakErrorFunc errorFunc)
         pak_file_handles[i].file = &pak_file_records[i];
         InsertLLE(&pak_free_handles, &pak_file_handles[i], pak_free_handles.head);
     }
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NUM_PAKS; i++) {
         InitLL(&gPS_Files[i], 1, 1);
         gPaks[i].damaged = 0;
         ClearPak(i);

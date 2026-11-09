@@ -1147,36 +1147,127 @@ typedef struct BlitColor { /* 0x4 bytes */
     u8 a; /* 0x3 */
 } BlitColor;
 
-typedef struct PaneBlits { /* 0x38 bytes */
-    s8 active;                 /* 0x0 */
-    u8 own;                    /* 0x1 */
-    u8 a;                      /* 0x2 */
-    u8 b;                      /* 0x3 */
-    u8 c;                      /* 0x4 */
-    u8 d;                      /* 0x5 */
-    u8 e;                      /* 0x6 */
-    u8 f;                      /* 0x7 */
-    u8 g;                      /* 0x8 */
-    u8 h;                      /* 0x9 */
-    u8 other10[2];             /* 0xA */
-    struct PadConfig *part[5]; /* 0x10 */
-} PaneBlits;
+/* A blit: one 2D sprite of the HUD or a menu (MAT3 blit.c's _tBlit), in the PC's layout (pointers 8 bytes; the N64's
+ * record was 0x40 bytes). The pool is InitBlits' 200 records, BlitPtrs points to each, the first NumBlits of them in
+ * use. Each owns one entry of the zoid blit list (tBlitInstance, by blidx) that the renderer draws; UpdateBlit copies
+ * the blit's fields into it. A blit's children (child) are the rest of a multiblit, removed with it. */
+typedef struct tBlit { /* 0x68 bytes */
+    const char *name;               /* 0x0  texture name; NULL: a plain colour (default_blit_image), BLIT_NO_TEXTURE:
+                                     *      no texture (a text blit: texture is then its draw function) */
+    void *palette;                  /* 0x8  the colours: an RGBA colour (a pane's) or the texture's palette */
+    struct tTexture *texture;       /* 0x10 the texture's definition (MBOX_FindTexture_WORK) */
+    u16 texIndex;                   /* 0x18 the texture's index in the model data */
+    s16 x;                          /* 0x1A screen position of the top left corner */
+    s16 y;                          /* 0x1C */
+    u16 z;                          /* 0x1E depth (draw order) */
+    s16 width;                      /* 0x20 size on screen */
+    s16 height;                     /* 0x22 */
+    u8 alpha;                       /* 0x24 */
+    u8 flip;                        /* 0x25 mirrored left to right */
+    u8 hide;                        /* 0x26 */
+    u8 init;                        /* 0x27 set by NewBlit: the animation function's first call is yet to come */
+    s16 top;                        /* 0x28 the part of the texture shown: rows top..bot, columns left..right */
+    s16 bot;                        /* 0x2A   (-1: the whole texture) */
+    s16 left;                       /* 0x2C */
+    s16 right;                      /* 0x2E */
+    s16 color;                      /* 0x30 */
+    u16 reserved32;                 /* 0x32 */
+    s32 (*animFunc)(struct tBlit *); /* 0x38 called each frame by DrawBlits; returning 0 removes the blit */
+    u32 animID;                     /* 0x40 the animation function's argument (which player, which item) */
+    intptr_t animDTA;               /* 0x48 the animation function's own data (a pane, a counter) */
+    u16 blidx;                      /* 0x50 index of the blit's entry in gBlitInstanceList */
+    u16 reserved52;                 /* 0x52 */
+    void *data;                     /* 0x58 */
+    struct tBlit *child;            /* 0x60 the next blit of the same multiblit */
+} tBlit;
 
+/* The texname of a blit without a texture (MAT3 `(const char *)-1`): DrawBlits skips its animation function, and
+ * the renderer draws it by the function in its texture field (ZOID_TextBlit). */
+#define BLIT_NO_TEXTURE ((const char *)-1)
+
+/* One blit of a multiblit's table (MAT3 tBlitDef): NewMultiBlit makes a chain of blits from an array of these. */
+typedef struct tBlitDef { /* 0x30 bytes */
+    const char *texname;             /* 0x0  the texture, or BLIT_NO_TEXTURE */
+    s16 dulx;                        /* 0x8  position relative to the multiblit's */
+    s16 duly;                        /* 0xA */
+    s16 width;                       /* 0xC  size, or -1 for the texture's */
+    s16 height;                      /* 0xE */
+    s16 top;                         /* 0x10 the part of the texture shown (tBlit.top ...) */
+    s16 bot;                         /* 0x12 */
+    s16 left;                        /* 0x14 */
+    s16 right;                       /* 0x16 */
+    u32 zdepth;                      /* 0x18 */
+    u32 alpha;                       /* 0x1C */
+    s32 (*animfunc)(struct tBlit *); /* 0x20 the blit's animation function (tBlit.animFunc) */
+    u32 animid;                      /* 0x28 its argument; bit 31 is NewBlit's flags argument */
+} tBlitDef;
+typedef tBlitDef HudBlitDef; /* frontend.h's name for tBlitDef (its data), to be folded into tBlitDef */
+
+/* A pane (MAT3 pane.c's tBlitSet): a bordered rectangle made of five blits, the four one-pixel edges in the border
+ * colour and the inside in the pane colour. gPaneBlits holds the 16 panes. */
+typedef struct tBlitSet { /* 0x38 bytes */
+    s8 used;                   /* 0x0 */
+    s8 perm;                   /* 0x1 permanent: RemovePanes(0) keeps it */
+    u8 blackColor[4];          /* 0x2 the inside's RGBA (blits[2]) */
+    u8 grayColor[4];           /* 0x6 the border's RGBA (the other four) */
+    u8 pad10[2];               /* 0xA */
+    struct tBlit *blits[5];    /* 0x10 top edge, left edge, inside, right edge, bottom edge */
+} tBlitSet;
+
+/* One entry of the zoid blit list gBlitInstanceList (MAT3 zoidblit.c's anon_palette_texture_20), in the PC's layout:
+ * what the renderer draws for one blit. ZOID_AddBlit hands out a free entry, the ZOID_*Blit setters fill it. */
 typedef struct tBlitInstance { /* 0x28 bytes */
-    struct tPalette *palette; /* 0x0 */
-    void *texture;            /* 0x8 */
-    u16 texIndex;             /* 0x10 */
-    s16 x;                    /* 0x12 */
-    s16 y;                    /* 0x14 */
-    u16 z;                    /* 0x16 */
-    s16 width;                /* 0x18 */
-    s16 height;               /* 0x1A */
-    u8 alpha;                 /* 0x1C */
-    u8 flags;                 /* 0x1D */
-    u8 pad16[10];             /* 0x1E */
+    void *palette;             /* 0x0  the blit's colours (tBlit.palette) */
+    void *texture;             /* 0x8  its texture's definition, or a text blit's draw function */
+    u16 texIndex;              /* 0x10 */
+    s16 x;                     /* 0x12 */
+    s16 y;                     /* 0x14 */
+    u16 z;                     /* 0x16 */
+    s16 width;                 /* 0x18 */
+    s16 height;                /* 0x1A */
+    u8 alpha;                  /* 0x1C */
+    u8 flags;                  /* 0x1D BLITINST_FLIP ... */
+    s8 hide;                   /* 0x1E 0 shown, 1 hidden, BLITINST_FREE the entry is unused */
+    u8 pad1F;                  /* 0x1F */
+    s16 top;                   /* 0x20 the part of the texture drawn */
+    s16 left;                  /* 0x22 */
+    s16 bot;                   /* 0x24 */
+    s16 right;                 /* 0x26 */
 } tBlitInstance;
 
 /* ---- text: fonts and text */
+
+/* A font's header (MAT3 HAL_text.c's anon_version_type_10), the start of the font's data wave; numChars letters
+ * (FontLetter) follow it, then, when kern is set, one row of numChars kerning amounts per letter. Sizes in pixels. */
+typedef struct FontHeader { /* 0x10 bytes */
+    u8 version;     /* 0x0 */
+    u8 type;        /* 0x1 */
+    u8 ascent;      /* 0x2 */
+    u8 descent;     /* 0x3 */
+    u8 leading;     /* 0x4 the default space between lines */
+    u8 totalHeight; /* 0x5 */
+    u8 maxWidth;    /* 0x6 the widest letter: every letter's width when nonProp */
+    u8 spaceWidth;  /* 0x7 */
+    u8 spacing;     /* 0x8 the default space between letters */
+    u8 nonProp;     /* 0x9 fixed width (HAL_SetFontFixedWidth) */
+    u8 kern;        /* 0xA has a kerning table */
+    u8 numTextures; /* 0xB the font's texture pages (gFontTextures) */
+    u8 numChars;    /* 0xC */
+    u8 pad13[3];    /* 0xD */
+} FontHeader;
+
+/* One letter of a font (MAT3 anon_kerns_value_c), 12 bytes as in the font's file: where it is in which texture page.
+ * kerns is the window address of its row of the kerning table (port/assets/font.c), read through PC_N64P. */
+typedef struct FontLetter { /* 0xC bytes */
+    u32 kerns;   /* 0x0 */
+    u8 value;    /* 0x4 the character it draws */
+    u8 texIdx;   /* 0x5 its texture page */
+    u8 uls;      /* 0x6 its texels: columns uls..lrs, rows ult..lrt */
+    u8 ult;      /* 0x7 */
+    u8 lrs;      /* 0x8 */
+    u8 lrt;      /* 0x9 */
+    s16 pad12;   /* 0xA */
+} FontLetter;
 
 typedef struct Color8 { /* 0x8 bytes */
     BlitColor color; /* 0x0 */
@@ -1265,13 +1356,62 @@ typedef struct tPadState { /* 0x50 bytes */
 
 /* ---- save: the Controller Pak, profiles, records, options and passwords */
 
-typedef struct Control { /* 0x310 bytes */
-    u8 pad0[6];    /* 0x0 */
-    s8 b6;         /* 0x6 */
-    u8 pad7[5];    /* 0x7 */
-    PcPfs pfs;     /* 0x10 */
-    u8 pad74[656]; /* 0x80 */
-} Control;
+/* libultra's OSPfsState: a file's entry in a pak's directory (the same layout on the PC). */
+typedef struct PakFileState { /* 0x20 bytes */
+    u32 file_size;     /* 0x0 0: no file */
+    u32 game_code;     /* 0x4 */
+    u16 company_code;  /* 0x8 */
+    u8 ext_name[4];    /* 0xA in the pak's character set (pak_charset) */
+    u8 game_name[16];  /* 0xE */
+} PakFileState;
+
+/* One of the 16 files of a pak, as the pak system keeps it (tPak.files, by the file's number on the pak). */
+typedef struct tPakFile { /* 0x28 bytes */
+    s8 locked;           /* 0x0 in use (PS_LockFile): the pak's files stay while it is out */
+    s8 dirty;            /* 0x1 holds data PS_FlushFile is yet to write */
+    s8 flag2;            /* 0x2 cleared with the others; PS_WriteFile tests it and does nothing */
+    u8 pad3;             /* 0x3 */
+    u16 mapBytes;        /* 0x4 the size of its dirty map: one bit for each 32 bytes of its data, after the data */
+    u16 pad6;            /* 0x6 */
+    PakFileState state;  /* 0x8 its directory entry (osPfsFileState) */
+} tPakFile;
+
+/* One controller's pak, as the pak system keeps it (gPaks; MAT3 paksysdc.c's anon_changed_inserted_25c, whose flags
+ * are these but formatted and in another order), in the PC's layout (pointers 8 bytes; 0x304 bytes on the N64). The
+ * rumble thread keeps the motor's state in it too. */
+typedef struct tPak { /* 0x310 bytes */
+    s8 changed;          /* 0x0 PS_PakServer found it put in, taken out or another pak (PS_PakChanged) */
+    s8 inserted;         /* 0x1 a pak the pak system has read is in (PS_PakInserted) */
+    s8 plugged;          /* 0x2 something is plugged into the controller (pak_poll_inserted) */
+    s8 wasRemoved;       /* 0x3 the pak was taken out while its files were kept (another port has it now) */
+    s8 inited;           /* 0x4 pfs holds a pak that was read (its id tells whether the next pak is the same) */
+    s8 damaged;          /* 0x5 the pak can't be read (PS_PakDamaged) */
+    s8 rumble;           /* 0x6 the pak is a Rumble Pak (PS_PakRumble) */
+    s8 flushing;         /* 0x7 PS_FlushPak is writing it */
+    s8 flushed;          /* 0x8 PS_FlushPak wrote something */
+    s8 original;         /* 0x9 the pak in is the one the files came from */
+    s8 locked;           /* 0xA one of its files is locked (tPakFile.locked) */
+    s8 flush;            /* 0xB one of its files is dirty */
+    PcPfs pfs;           /* 0x10 the pak's libultra handle */
+    s32 error;           /* 0x80 the last error (kPS_Err*) */
+    s32 FreeSpace;       /* 0x84 free bytes (osPfsFreeBlocks) */
+    u8 motorOn;          /* 0x88 the rumble thread's: the motor is running */
+    u8 request;          /* 0x89 the rumble wanted, 0..40 (PS_SetRumblePercent) */
+    u8 level;            /* 0x8A the rumble now: falls one a retrace towards request */
+    u8 pad8B;            /* 0x8B */
+    s16 phase;           /* 0x8C the retrace in the rumble's 10-retrace duty cycle (rumble_duty_masks) */
+    u8 pad8E[2];         /* 0x8E */
+    tPakFile files[16];  /* 0x90 */
+} tPak;
+
+#define NUM_PAKS 4          /* one a controller */
+#define PAK_MAX_FILES 16    /* the files a pak holds (tPak.files) */
+#define PAK_BLOCK_SIZE 256  /* a pak's page: files are sized in them */
+
+/* A pak file's handle: what the pak system's callers hold. */
+typedef struct tPakHandle {
+    struct PakFileRecord *file;
+} tPakHandle;
 
 typedef struct Ent19 { /* 0x13 bytes */
     s8 b[19]; /* 0x0 */
@@ -1292,18 +1432,21 @@ typedef struct PakErrorState { /* 0x2C bytes */
     u32 deadline;    /* 0x28 */
 } PakErrorState;
 
+/* An open pak file (MAT3 tPS_File), in the PC's layout: pak_file_records holds 64, their handles pak_file_handles;
+ * each pak's open files are a list (gPS_Files, linked through next). */
 typedef struct PakFileRecord { /* 0x60 bytes */
-    struct PakHandle *next;                                   /* 0x0 */
-    struct PakHandle *prev;                                   /* 0x8 */
-    void (*RemoveFile)(struct PakHandle *);                   /* 0x10 */
-    void (*MoveFile)(struct PakHandle *, struct PakHandle *); /* 0x18 */
-    u8 pak;                                                   /* 0x20 */
-    u8 fileNo;                                                /* 0x21 */
-    u8 name[35];                                              /* 0x22 */
-    u8 ext[11];                                               /* 0x45 */
-    u32 size;                                                 /* 0x50 */
-    u32 blocks;                                               /* 0x54 */
-    u8 **data;                                                /* 0x58 */
+    struct tPakHandle *next;                                   /* 0x0 */
+    struct tPakHandle *prev;                                   /* 0x8 */
+    void (*RemoveFile)(struct tPakHandle *);                   /* 0x10 called when the file goes (the pak removed) */
+    void (*MoveFile)(struct tPakHandle *, struct tPakHandle *); /* 0x18 */
+    u8 pak;                                                   /* 0x20 the controller it is on */
+    u8 fileNo;                                                /* 0x21 its number on the pak (tPak.files) */
+    u8 name[35];                                              /* 0x22 its name and extension, in the game's */
+    u8 ext[11];                                               /* 0x45   characters (pak_decode_name) */
+    u32 size;                                                 /* 0x50 bytes */
+    u32 blocks;                                               /* 0x54 pages of PAK_BLOCK_SIZE */
+    u8 **data;                                                /* 0x58 its data in the heap (a handle), then its
+                                                               *      dirty map; NULL until read */
 } PakFileRecord;
 
 typedef struct PlayerFileList { /* 0x18 bytes */
@@ -1313,27 +1456,252 @@ typedef struct PlayerFileList { /* 0x18 bytes */
     struct PlayerData **tail; /* 0x10 */
 } PlayerFileList;
 
-typedef struct PlayerSaveData { /* 0x810 bytes */
-    char pad0[13];   /* 0x0 */
-    char name[2051]; /* 0xD */
-} PlayerSaveData;
+/* The parts of a profile file (tSaveData). Each starts with the checksum of the rest (CalcChecksumInternal), which
+ * CheckAndRepairPlayer checks. MAT3's layouts and names (save.c's anon_checksum_*). */
+typedef struct tRaceSettings { /* 0x14 bytes */
+    u32 checksum;   /* 0x0 */
+    u8 track;       /* 0x4 */
+    u8 car;         /* 0x5 */
+    u8 trans;       /* 0x6 */
+    u8 carView;     /* 0x7 */
+    s8 laps;        /* 0x8 */
+    s8 drones;      /* 0x9 */
+    s8 gravity;     /* 0xA */
+    s8 difficulty;  /* 0xB */
+    s8 catchup;     /* 0xC */
+    s8 backwards;   /* 0xD */
+    s8 mirror;      /* 0xE */
+    s8 fog;         /* 0xF */
+    s8 wind;        /* 0x10 */
+    s8 deaths;      /* 0x11 */
+    u8 pad12[2];    /* 0x12 */
+} tRaceSettings;
 
-typedef struct PlayerSaveSlot { /* 0x40 bytes */
-    void *next;             /* 0x0 */
-    void *prev;             /* 0x8 */
-    void *fileh;            /* 0x10 */
-    char pad0_C[8];         /* 0x18 */
-    char name[24];          /* 0x20 */
-    struct SaveData **data; /* 0x38 */
-} PlayerSaveSlot;
+typedef struct tBattleSettings { /* 0x10 bytes */
+    u32 checksum;  /* 0x0 */
+    u8 track;      /* 0x4 */
+    u8 car;        /* 0x5 */
+    u8 trans;      /* 0x6 */
+    u8 carView;    /* 0x7 */
+    s8 gravity;    /* 0x8 */
+    s8 mirror;     /* 0x9 */
+    s8 fog;        /* 0xA */
+    s8 wind;       /* 0xB */
+    s8 mode;       /* 0xC */
+    s8 points;     /* 0xD */
+    s8 minutes;    /* 0xE */
+    s8 neg;        /* 0xF */
+} tBattleSettings;
 
-typedef struct ProfileRec { /* 0x40 bytes */
-    void *next;   /* 0x0 */
-    void *prev;   /* 0x8 */
-    void **fileh; /* 0x10 */
-    u8 pad0C[32]; /* 0x18 */
-    void **data;  /* 0x38 */
-} ProfileRec;
+typedef struct tStuntSettings { /* 0x14 bytes */
+    u32 checksum;  /* 0x0 */
+    u8 track;      /* 0x4 */
+    u8 car;        /* 0x5 */
+    u8 trans;      /* 0x6 */
+    u8 carView;    /* 0x7 */
+    s8 gravity;    /* 0x8 */
+    s8 mirror;     /* 0x9 */
+    s8 fog;        /* 0xA */
+    s8 wind;       /* 0xB */
+    s8 mode;       /* 0xC */
+    s8 flow;       /* 0xD */
+    s8 points;     /* 0xE */
+    s8 minutes;    /* 0xF */
+    s8 deaths;     /* 0x10 */
+    u8 pad11[3];   /* 0x11 */
+} tStuntSettings;
+
+typedef struct tObstacleSettings { /* 0xC bytes */
+    u32 checksum;  /* 0x0 */
+    u8 track;      /* 0x4 */
+    u8 car;        /* 0x5 */
+    u8 trans;      /* 0x6 */
+    u8 carView;    /* 0x7 */
+    s8 gravity;    /* 0x8 */
+    s8 mirror;     /* 0x9 */
+    s8 fog;        /* 0xA */
+    s8 wind;       /* 0xB */
+} tObstacleSettings;
+
+/* A track's race records and totals (one per track; gTotalRaceStats sums them over the profiles). */
+typedef struct tRaceStats { /* 0x60 bytes */
+    u32 checksum;              /* 0x0 */
+    f32 scores[3][5];          /* 0x4 the five best laps, average laps and ghost race times (RecordRace,
+                                *      RecordGhost; gTotalNames: their owners, gNewTotalScore: this race's) */
+    f32 totalTime;             /* 0x40 */
+    u16 totalLaps;             /* 0x44 */
+    u16 totalRaces;            /* 0x46 */
+    u16 total1st;              /* 0x48 */
+    u16 total2nd;              /* 0x4A */
+    u16 total3rd;              /* 0x4C */
+    u16 totalCrashes;          /* 0x4E */
+    u16 totalDeathAttempted;   /* 0x50 */
+    u16 totalDeathCompleted;   /* 0x52 */
+    u16 totalGhosts;           /* 0x54 */
+    u8 pad56[2];               /* 0x56 */
+    u32 totalMiles;            /* 0x58 */
+    u16 coinsFound;            /* 0x5C a bit for each coin found on the track */
+    u8 pad5E[2];               /* 0x5E */
+} tRaceStats;
+
+/* A stunt arena's records and totals. */
+typedef struct tStuntStats { /* 0x40 bytes */
+    u32 checksum;          /* 0x0 */
+    u32 bestStunt;         /* 0x4 */
+    u32 bestAvg;           /* 0x8 */
+    u32 totalPoints;       /* 0xC */
+    u16 totalTime;         /* 0x10 */
+    u16 totalCrashes;      /* 0x12 */
+    u32 totalStunts[10];   /* 0x14 each kind of stunt */
+    u16 coinsFound;        /* 0x3C */
+    u8 pad3E[2];           /* 0x3E */
+} tStuntStats;
+
+/* A battle arena's totals. */
+typedef struct tBattleStats { /* 0xC bytes */
+    u32 checksum;       /* 0x0 */
+    u16 totalMatches;   /* 0x4 */
+    u16 totalWins;      /* 0x6 */
+    u16 totalKills;     /* 0x8 */
+    u16 totalDeaths;    /* 0xA */
+} tBattleStats;
+
+/* The obstacle course's records and totals. */
+typedef struct tObstacleStats { /* 0x18 bytes */
+    u32 checksum;            /* 0x0 */
+    f32 bestTime;            /* 0x4 */
+    f32 totalTime;           /* 0x8 */
+    u16 totalRaces;          /* 0xC */
+    u16 totalFinished;       /* 0xE */
+    u16 totalCrashes;        /* 0x10 */
+    u16 numDeathAttempted;   /* 0x12 */
+    u16 numDeathCompleted;   /* 0x14 */
+    u8 pad16[2];             /* 0x16 */
+} tObstacleStats;
+
+/* A circuit's records and totals (one per circuit). */
+typedef struct tCircuitStats { /* 0x1C bytes */
+    u32 checksum;            /* 0x0 */
+    u16 numCircuits;         /* 0x4 */
+    u16 num1st;              /* 0x6 */
+    u16 num2nd;              /* 0x8 */
+    u16 num3rd;              /* 0xA */
+    u16 numDeathAttempted;   /* 0xC */
+    u16 numDeathCompleted;   /* 0xE */
+    u16 bestPts;             /* 0x10 */
+    u8 pad12[2];             /* 0x12 */
+    f32 bestTime;            /* 0x14 */
+    u32 totalPts;            /* 0x18 */
+} tCircuitStats;
+
+/* A car's settings (the car setup screen's sliders). */
+typedef struct tCarSettings { /* 0x10 bytes */
+    u32 checksum;      /* 0x0 */
+    s8 settings[10];   /* 0x4 */
+    u8 pad0E[2];       /* 0xE */
+} tCarSettings;
+
+/* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
+typedef struct tCircuitRecord { /* 0x4C bytes */
+    u32 checksum;      /* 0x0 */
+    u8 active;         /* 0x4 */
+    u8 death;          /* 0x5 */
+    u8 temp;           /* 0x6 */
+    u8 difficulty;     /* 0x7 */
+    s8 type;           /* 0x8 the circuit (circuitStats' index) */
+    s8 track;          /* 0x9 */
+    u8 padA[2];        /* 0xA */
+    u32 seed;          /* 0xC */
+    f32 totalTime;     /* 0x10 */
+    u8 ranks[6][9];    /* 0x14 */
+    u8 pad4A[2];       /* 0x4A */
+} tCircuitRecord;
+
+/* A profile's file on the pak (MAT3 save.c's tSaveData, the N64's revision 16 of it: controls 10 bytes, then rumble
+ * and the race type), 2064 bytes. A file format: its layout is the pak file's, byte for byte. */
+typedef struct tSaveData { /* 0x810 bytes */
+    u32 nameChecksum;                     /* 0x0 over id, revision and name */
+    u32 id[2];                            /* 0x4 the profile's id: the creation time, the record's address and pak */
+    u8 revision;                          /* 0xC PROFILE_REVISION */
+    u8 name[13];                          /* 0xD */
+    u8 pad1A[2];                          /* 0x1A */
+    u32 optChecksum;                      /* 0x1C */
+    s8 options[21];                       /* 0x20 the game options (gOptions' first 21) */
+    u8 pad35[3];                          /* 0x35 */
+    u32 contChecksum;                     /* 0x38 over the controls and rumble */
+    s8 controls[10];                      /* 0x3C */
+    s8 rumble;                            /* 0x46 */
+    u8 raceType;                          /* 0x47 the race type last played (gRace) */
+    tRaceSettings raceSettings;           /* 0x48 */
+    tBattleSettings battleSettings;       /* 0x5C */
+    tStuntSettings stuntSettings;         /* 0x6C */
+    tObstacleSettings obstacleSettings;   /* 0x80 */
+    tRaceStats raceStats[12];             /* 0x8C */
+    tStuntStats stuntStats[4];            /* 0x50C */
+    tBattleStats battleStats[8];          /* 0x60C */
+    tObstacleStats obstacleStats[1];      /* 0x66C */
+    tCircuitStats circuitStats[4];        /* 0x684 */
+    tCircuitRecord circuit;               /* 0x6F4 the circuit in progress */
+    tCarSettings carSettings[13];         /* 0x740 */
+} tSaveData;
+
+#define PROFILE_REVISION 16   /* tSaveData.revision (MAT3's is 19) */
+
+/* A ghost file's header (MAT3 save.c's tSaveHeader, the N64's 0x58 bytes): file data, so in the file's layout; the
+ * compressed recording follows it. */
+typedef struct tGhostHeader { /* 0x58 bytes */
+    u32 headerChecksum;     /* 0x0 over revision .. unzippedSize */
+    u8 revision;            /* 0x4 GHOST_REVISION */
+    s8 flag;                /* 0x5 */
+    s8 track;               /* 0x6 */
+    u8 backward;            /* 0x7 */
+    u8 pad08[0x16 - 0x08];  /* 0x8 */
+    u8 name[13];            /* 0x16 the driver's */
+    u8 pad23[0x28 - 0x23];  /* 0x23 */
+    u32 playerId[2];        /* 0x28 the driver's profile id */
+    u8 pad30[0x38 - 0x30];  /* 0x30 */
+    f32 finish;             /* 0x38 the race time */
+    u32 zippedSize;         /* 0x3C */
+    u32 unzippedSize;       /* 0x40 */
+    u32 zippedChecksum;     /* 0x44 over the compressed recording */
+    u32 unzippedChecksum;   /* 0x48 */
+    u32 start;              /* 0x4C the recording's heap block once read: a window address, 32 bits as in the file */
+    u32 offset;             /* 0x50 */
+    u32 size;               /* 0x54 */
+} tGhostHeader;
+
+#define GHOST_REVISION 17
+
+/* A ghost on a pak, as the ghost list keeps it (MAT3 tGhostFile), in the PC's layout (the N64's is 0x2C bytes:
+ * GHOST_OFS). gGhostFiles lists them, fastest first. */
+typedef struct tGhostFile { /* 0x40 bytes */
+    void *ll;                 /* 0x0 the list's link (the next ghost's handle) */
+    struct tPakHandle *fileh;  /* 0x8 */
+    s8 track;                 /* 0x10 */
+    u8 backward;              /* 0x11 */
+    u8 name[13];              /* 0x12 */
+    u8 pad1F;                 /* 0x1F */
+    u32 playerId[2];          /* 0x20 */
+    f32 finish;               /* 0x28 */
+    u8 **datah;               /* 0x30 the recording once read */
+    tGhostHeader **header;    /* 0x38 the file's data (its header first) once read */
+} tGhostFile;
+#define PROFILE_FILE_SIZE 2064
+
+/* A profile in memory (MAT3 save.c's tPlayerProfile), in the PC's layout (pointers 8 bytes; the N64's is 0x30
+ * bytes): PROFILE_OFS(n) is the PC offset of the N64's offset n, for the code that still reaches it so. Each pak's
+ * profiles are player_profile_records, reached through handles (player_profile_handles); gPlayerFiles lists the
+ * profiles read, gRealJustPlayers are the four without a pak ("just play"). */
+typedef struct tProfile { /* 0x40 bytes */
+    void *next;                /* 0x0 the list of profiles (handles) */
+    void *prev;                /* 0x8 */
+    struct tPakHandle *fileh;   /* 0x10 its pak file, NULL for a profile without one */
+    u32 id[2];                 /* 0x18 tSaveData.id */
+    u8 name[13];               /* 0x20 */
+    s8 controls[10];           /* 0x2D */
+    s8 rumble;                 /* 0x37 */
+    tSaveData **datah;         /* 0x38 its file's data once read (the pak file's data handle), else NULL */
+} tProfile;
 
 typedef struct Rec164A4 { /* 0x2A bytes */
     s16 unk00[3]; /* 0x0 */
@@ -1366,44 +1734,6 @@ typedef struct Settings { /* 0x29 bytes */
     s8 i;             /* 0x28 */
 } Settings;
 
-typedef struct StatsB { /* 0x40 bytes */
-    u32 first;   /* 0x0 */
-    u32 max0;    /* 0x4 */
-    u32 max1;    /* 0x8 */
-    u32 total;   /* 0xC */
-    u16 count0;  /* 0x10 */
-    u16 count1;  /* 0x12 */
-    u32 sum[10]; /* 0x14 */
-    u16 flags;   /* 0x3C */
-    u8 pad62[2]; /* 0x3E */
-} StatsB;
-
-typedef struct StatsC { /* 0xC bytes */
-    u32 first;    /* 0x0 */
-    u16 count[4]; /* 0x4 */
-} StatsC;
-
-typedef struct StatsD { /* 0x18 bytes */
-    u32 first;    /* 0x0 */
-    f32 minimum;  /* 0x4 */
-    f32 total;    /* 0x8 */
-    u16 count[5]; /* 0xC */
-    u8 pad22[2];  /* 0x16 */
-} StatsD;
-
-typedef struct StatsE { /* 0x1C bytes */
-    u32 first;    /* 0x0 */
-    u16 count[6]; /* 0x4 */
-    u16 maximum;  /* 0x10 */
-    u8 pad18[6];  /* 0x12 */
-    u32 total;    /* 0x18 */
-} StatsE;
-
-typedef struct WeightRecord { /* 0x60 bytes */
-    u8 prefix[4];     /* 0x0 */
-    f32 weight[3][5]; /* 0x4 */
-    u8 suffix[32];    /* 0x40 */
-} WeightRecord;
 
 typedef struct tBlastMat { /* 0x8 bytes */
     struct tUVMatrix *mat; /* 0x0 */
@@ -2046,22 +2376,6 @@ typedef struct CoinRow { /* 0x68 bytes */
 typedef struct CreditPage { /* 0x58 bytes */
     char *names[11]; /* 0x0 */
 } CreditPage;
-
-typedef struct HudBlitDef { /* 0x30 bytes */
-    const char *texname;            /* 0x0 */
-    s16 dulx;                       /* 0x8 */
-    s16 duly;                       /* 0xA */
-    s16 width;                      /* 0xC */
-    s16 height;                     /* 0xE */
-    s16 top;                        /* 0x10 */
-    s16 bot;                        /* 0x12 */
-    s16 left;                       /* 0x14 */
-    s16 right;                      /* 0x16 */
-    u32 zdepth;                     /* 0x18 */
-    u32 alpha;                      /* 0x1C */
-    s32 (*animfunc)(struct Blit *); /* 0x20 */
-    u32 animid;                     /* 0x28 */
-} HudBlitDef;
 
 typedef union HudColor { /* 0x4 bytes */
     u32 word;

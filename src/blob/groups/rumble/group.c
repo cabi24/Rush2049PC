@@ -1,3 +1,5 @@
+/* si_lock and the rumble thread: the serial bus lock and the Rumble Paks' motors (MAT3 controlsys.c and paksysdc.c;
+ * the duty cycle is the N64's own). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -5,9 +7,10 @@ typedef struct { s32 w[6]; } OSMesgQueue;
 
 typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
 
+/* A pak's record (tPak) as the rumble thread reads it, its level and phase volatile. */
 typedef struct {
     char pad0[6];
-    s8 present;
+    s8 rumble;                  /* a Rumble Pak is in */
     char pad7[5];
     PcPfs pfs[1];               /* the OSPfs the motor calls take */
     s32 error, FreeSpace;
@@ -37,12 +40,18 @@ void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
+#define RUMBLE_MAX 40        /* the most rumble a pak is asked for */
+#define RUMBLE_FULL 10       /* from this level the motor runs all the time */
+#define RUMBLE_PERIOD 10     /* retraces of the duty cycle (rumble_duty_masks) */
+
+/* Makes the serial bus lock: a one-message queue holding its message. */
 static void si_lock_init(void) {
     si_lock_inited = 1;
     osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
     osSendMesg(&si_lock_queue, 0, 0);
 }
 
+/* Takes the serial bus lock (the controllers and their paks), making it the first time; si_unlock gives it back. */
 void si_lock(void) {
     OSMesg msg;
 
@@ -53,6 +62,11 @@ void si_lock(void) {
 }
 
 
+/* The rumble thread: woken each retrace by the scheduler, it runs each Rumble Pak's motor under the serial bus lock.
+ * A pak's level follows its request (at most RUMBLE_MAX), falling by one a retrace; from RUMBLE_FULL up the motor
+ * runs, below it the motor runs on the retraces of the RUMBLE_PERIOD-retrace cycle that rumble_duty_masks[level]
+ * marks. With rumbling stopped (gRumble 0, the pause screen) every motor is stopped. A motor command that fails is
+ * retried once after osMotorInit. */
 void rumble_thread_entry(void *arg) {
     OSScClient client;
     OSMesg msg;
@@ -67,18 +81,18 @@ void rumble_thread_entry(void *arg) {
         osRecvMesg(&rumble_queue, &msg, 1);
         si_lock();
         for (i = 0; i < 4; i++) {
-            switch (gPaks[i].present) {
+            switch (gPaks[i].rumble) {
             case 0:
 skip:
                 continue;
             }
             retried = 0;
-            if (++gPaks[i].phase >= 10) {
+            if (++gPaks[i].phase >= RUMBLE_PERIOD) {
                 gPaks[i].phase = 0;
             }
             level = gPaks[i].request;
-            if (level > 40) {
-                level = 40;
+            if (level > RUMBLE_MAX) {
+                level = RUMBLE_MAX;
             }
             if (level < gPaks[i].level) {
                 level = gPaks[i].level - 1;
@@ -103,7 +117,7 @@ off:
             }
             goto skip;
 check:
-            if (level < 10) goto check2;
+            if (level < RUMBLE_FULL) goto check2;
 on:
             if (!gPaks[i].motorOn) {
                 while (1) {

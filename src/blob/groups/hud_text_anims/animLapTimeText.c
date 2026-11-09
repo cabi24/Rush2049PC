@@ -1,4 +1,7 @@
+/* animLapTimeText: a checkpoint's split time, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
+
+#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
 
 typedef struct { s32 x, y; } Pos;
 
@@ -8,7 +11,10 @@ VIEW(Pos[][4], lapTimePos);
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-s32 animLapTimeText(s32 arg0)
+/* For each window whose split time shows (gCheckPtTimeout, counted down here while not paused): the time since the
+ * last checkpoint (gLapTime) as m:ss.hhh centred on lapTimePos, each digit over a dim "8", in the flashing colour,
+ * fading out over its last 3 seconds. Nothing in attract mode or when the HUD hides the clock. Returns 1. */
+s32 animLapTimeText(s32 blit)
 {
     s32 t;
     u8 digits[9];
@@ -22,11 +28,11 @@ s32 animLapTimeText(s32 arg0)
     s8 fixedWidth;
     f32 remaining;
 
-    if ((gGameState & 8) || !gShowElapsed) {
+    if ((gGameState & GAME_STATE_ATTRACT) || !gShowElapsed) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    TB_SetJust(1, 3);
+    TB_SetJust(kTB_JustCenter, kTB_JustTop);
     if (gNumWindows == 1) {
         HAL_SetFont(1);
     } else {
@@ -68,11 +74,11 @@ s32 animLapTimeText(s32 arg0)
             str[0] = digits[digitIdx];
             if (digits[digitIdx] != ':' && digits[digitIdx] != '.') {
                 str[0] = '8';
-                TB_SetTextColor(0);
+                TB_SetTextColor(kTB_BlackText);
                 TB_DrawText(x, y, str);
                 str[0] = digits[digitIdx];
             }
-            TB_SetTextColor(22);
+            TB_SetTextColor(kTB_FlashText);
             TB_DrawText(x, y, str);
             if (digitIdx == 1 || digitIdx == 2 || digitIdx == 4 || digitIdx == 5) {
                 x += (digitW + colonW) / 2;
@@ -82,7 +88,7 @@ s32 animLapTimeText(s32 arg0)
         }
         HAL_SetTextTranslucency(-1.0f);
     }
-    TB_SetJust(0, 3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

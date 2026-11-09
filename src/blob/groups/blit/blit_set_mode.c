@@ -1,3 +1,4 @@
+/* blit_set_mode: the RDP modes of the blitter's rectangles (MAT3 blit_pc.c; the N64 side of it, which MAT3 lacks). */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -53,29 +54,33 @@ typedef union {
 VIEW(Gfx *, blit_dl);
 #define blit_dl blit_dl_view
 
+/* Puts the RDP into one of the blitter's modes (BLIT_MODE_*): its cycle type, render mode and colour combiner, the
+ * combiner and render mode also chosen by BLIT_ATTR_XLU (the alpha from the primitive colour) and BLIT_ATTR_ZDIST
+ * (depth-tested render modes). The cycle type is set only when the mode before (blitMode) had another; blitMode is
+ * then the new mode. BlitSetAttribute and BlitClearAttribute call it again with blitMode when those two bits change. */
 void blit_set_mode(s32 mode)
 {
     switch (mode) {
-    case 0:
-        if (blitMode != 0) {
-            gDPSetCycleType(blit_dl++, 0x200000);
+    case BLIT_MODE_COPY:
+        if (blitMode != BLIT_MODE_COPY) {
+            gDPSetCycleType(blit_dl++, G_CYC_COPY);
         }
         gDPSetRenderModeRaw(blit_dl++, 0x0F0A4000);
         gDPSetCombine(blit_dl++, 0xFFFFFF, 0xFFFCF279);
         break;
-    case 1:
-        if (blitMode <= 0 || blitMode >= 4) {
-            gDPSetCycleType(blit_dl++, 0);
+    case BLIT_MODE_TEXTURE:
+        if (blitMode <= BLIT_MODE_COPY || blitMode >= BLIT_MODE_TWO_TILE) {
+            gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
-        if ((blitAttribute & 0x10) && (blitAttribute & 0x20)) {
+        if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x20) {
+        else if (blitAttribute & BLIT_ATTR_XLU) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504240);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x10) {
+        else if (blitAttribute & BLIT_ATTR_ZDIST) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
             gDPSetCombine(blit_dl++, 0xFFFFFF, 0xFFFCF279);
         }
@@ -84,19 +89,19 @@ void blit_set_mode(s32 mode)
             gDPSetCombine(blit_dl++, 0xFFFFFF, 0xFFFCF279);
         }
         break;
-    case 2:
-        if (blitMode <= 0 || blitMode >= 4) {
-            gDPSetCycleType(blit_dl++, 0);
+    case BLIT_MODE_INTENSITY:
+        if (blitMode <= BLIT_MODE_COPY || blitMode >= BLIT_MODE_TWO_TILE) {
+            gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
-        if ((blitAttribute & 0x10) && (blitAttribute & 0x20)) {
+        if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x20) {
+        else if (blitAttribute & BLIT_ATTR_XLU) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504240);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x10) {
+        else if (blitAttribute & BLIT_ATTR_ZDIST) {
             gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
             gDPSetCombine(blit_dl++, 0x11FE23, 0xFFFFF3F9);
         }
@@ -105,19 +110,19 @@ void blit_set_mode(s32 mode)
             gDPSetCombine(blit_dl++, 0x11FE23, 0xFFFFF3F9);
         }
         break;
-    case 3:
-        if (blitMode <= 0 || blitMode >= 4) {
-            gDPSetCycleType(blit_dl++, 0);
+    case BLIT_MODE_INTENSITY_ALPHA:
+        if (blitMode <= BLIT_MODE_COPY || blitMode >= BLIT_MODE_TWO_TILE) {
+            gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
-        if ((blitAttribute & 0x10) && (blitAttribute & 0x20)) {
+        if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
             gDPSetRenderModeRaw(blit_dl++, 0x00553078);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x20) {
+        else if (blitAttribute & BLIT_ATTR_XLU) {
             gDPSetRenderModeRaw(blit_dl++, 0x0F0A7008);
             gDPSetCombine(blit_dl++, 0x119623, 0xFF2FFFFF);
         }
-        else if (blitAttribute & 0x10) {
+        else if (blitAttribute & BLIT_ATTR_ZDIST) {
             gDPSetRenderModeRaw(blit_dl++, 0x00553078);
             gDPSetCombine(blit_dl++, 0x11FE23, 0xFFFFF3F9);
         }
@@ -126,9 +131,9 @@ void blit_set_mode(s32 mode)
             gDPSetCombine(blit_dl++, 0x11FE23, 0xFFFFF3F9);
         }
         break;
-    case 4:
-        if (blitMode < 4) {
-            gDPSetCycleType(blit_dl++, 0x100000);
+    case BLIT_MODE_TWO_TILE:
+        if (blitMode < BLIT_MODE_TWO_TILE) {
+            gDPSetCycleType(blit_dl++, G_CYC_2CYCLE);
         }
         gDPSetRenderModeRaw(blit_dl++, 0x00504240);
         gDPSetCombine(blit_dl++, 0xFFABFF, 0xFFFC9238);

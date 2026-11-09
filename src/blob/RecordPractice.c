@@ -1,54 +1,61 @@
+/* RecordPractice: record a practice run (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-typedef struct Tgt { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; u8 **blk; } Tgt;
-typedef struct Rec { u8 b0; u8 idx; u8 pad2[0x46]; Tgt **tgt; } Rec;
-typedef struct Car { u8 pad[264]; f32 dist; u8 pad2[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad2_308[0x380 - 0x308]; void *input; u8 pad2_384[0x3B8 - 0x384]; } Car;
+#define NUM_RACE_TRACKS 6     /* raceStats[6..11]: the tracks backwards */
+#define FIRST_BACKWARD_TRACK 19   /* gTrackNum of the first track backwards (SavePlayerStats' numbering) */
+#define FEET_PER_TENTH_MILE 528.0f
 
-extern Rec gPlayers[];
-VIEW(void *[], gJustPlayers);
+/* A player's input record as this reads it: the car, which "just play" profile, the profile handle in use. */
+typedef struct PlayerPad { u8 car; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
+/* A car's record as this reads it: the distance driven, in feet. */
+typedef struct CarDistance { u8 pad[264]; f32 dist; u8 pad2[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad2_308[0x380 - 0x308]; void *input; u8 pad2_384[0x3B8 - 0x384]; } CarDistance;
+
+extern PlayerPad gPlayers[];
+VIEW(tProfile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
-VIEW(u8[], gTotalRaceStats);
-#define gTotalRaceStats gTotalRaceStats_view
 
+/* Adds the distance each player drove (in tenths of a mile, kept whole) to its profile's stats for the track (the
+ * backward ones when gBackwards) and to the totals, then writes the profile's stats. A player without a profile uses
+ * its "just play" one; a profile whose file isn't read stops it all. */
 void RecordPractice(void)
 {
     s32 i;
-    s32 s6;
-    s32 s7;
+    s32 stats_index;
+    s32 track;
 
-    s6 = gTrackNum;
-    s7 = gTrackNum;
+    stats_index = gTrackNum;
+    track = gTrackNum;
     if (gBackwards)
     {
-        s6 += 6;
-        s7 += 19;
+        stats_index += NUM_RACE_TRACKS;
+        track += FIRST_BACKWARD_TRACK;
     }
     for (i = 0; i < gNumPlayers; i++)
     {
         s32 pass;
-        Car *cp;
-        if (gPlayers[i].tgt == 0)
+        CarDistance *car;
+        if (gPlayers[i].profile == 0)
         {
-            gPlayers[i].tgt = (Tgt **) &gJustPlayers[gPlayers[i].idx];
+            gPlayers[i].profile = &gJustPlayers[gPlayers[i].selector];
         }
-        if ((*gPlayers[i].tgt)->blk == 0)
+        if ((*gPlayers[i].profile)->datah == 0)
         {
             return;
         }
         for (pass = 0; pass < 2; pass++)
         {
-            u8 *p;
+            tRaceStats *stats;
             if (pass == 0)
             {
-                p = *((*gPlayers[i].tgt)->blk) + s6 * 96 + 140;
+                stats = &(*(*gPlayers[i].profile)->datah)->raceStats[stats_index];
             }
             else
             {
-                p = gTotalRaceStats + s6 * 96;
+                stats = &gTotalRaceStats[stats_index];
             }
-            cp = PC_CAR(gPlayers[i].b0);
-            *((u32 *) (p + 88)) = (u32) ((f32) *((u32 *) (p + 88)) + cp->dist / 528.0f);
+            car = PC_CAR(gPlayers[i].car);
+            stats->totalMiles = (u32) ((f32) stats->totalMiles + car->dist / FEET_PER_TENTH_MILE);
         }
-        SavePlayerStats((void **) gPlayers[i].tgt, (u8) s7);
+        SavePlayerStats(gPlayers[i].profile, (u8) track);
     }
 }

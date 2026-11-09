@@ -1,40 +1,44 @@
+/* SavePlayerTrack: save the track a profile chose (MAT3 save.c). */
 #include "game/game.h"
 
-typedef struct Resource {u8 *data;} Resource;
-typedef struct Object {void *next; void *prev;void *lookup;u8 other12[32];Resource *resource;} Object;
-typedef struct Handle {Object *object;} Handle;
+#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
+#define kObstacle 5
+#define kBattle 6
 
 extern void PS_WriteFile(void *,u32 *,int);
 
-void SavePlayerTrack(Handle *handle,int selector,u8 value)
+/* Stores track value in the settings of race type raceType (a race, practice or ghost race: the race settings; a
+ * circuit isn't stored), with their checksum, marked to write, and makes raceType the profile's last
+ * (SavePlayerRaceType). The file must be read. */
+void SavePlayerTrack(tProfile **profile,int raceType,u8 value)
 {
-    u8 *data=handle->object->resource->data;
-    switch(selector) {
+    tSaveData *data=*(*profile)->datah;
+    switch(raceType) {
     case 0:case 1:case 2:
-        if(value==data[76])break;
-        data[76]=value;
-        *(u32 *)(data+72)=CalcChecksumInternal(data+76,16);
-        PS_WriteFile(handle->object->lookup,(u32 *)(data+72),20);
+        if(value==data->raceSettings.track)break;
+        data->raceSettings.track=value;
+        data->raceSettings.checksum=CalcChecksumInternal(&data->raceSettings.track,16);
+        PS_WriteFile((*profile)->fileh,&data->raceSettings.checksum,20);
         break;
-    case 6:
-        if(value==data[96])break;
-        data[96]=value;
-        *(u32 *)(data+92)=CalcChecksumInternal(data+96,12);
-        PS_WriteFile(handle->object->lookup,(u32 *)(data+92),16);
+    case kBattle:
+        if(value==data->battleSettings.track)break;
+        data->battleSettings.track=value;
+        data->battleSettings.checksum=CalcChecksumInternal(&data->battleSettings.track,12);
+        PS_WriteFile((*profile)->fileh,&data->battleSettings.checksum,16);
         break;
-    case 4:
-        if(value==data[112])break;
-        data[112]=value;
-        *(u32 *)(data+108)=CalcChecksumInternal(data+112,16);
-        PS_WriteFile(handle->object->lookup,(u32 *)(data+108),20);
+    case kStunt:
+        if(value==data->stuntSettings.track)break;
+        data->stuntSettings.track=value;
+        data->stuntSettings.checksum=CalcChecksumInternal(&data->stuntSettings.track,16);
+        PS_WriteFile((*profile)->fileh,&data->stuntSettings.checksum,20);
         break;
-    case 5:
-        if(value==data[132])break;
-        data[132]=value;
-        *(u32 *)(data+128)=CalcChecksumInternal(data+132,8);
-        PS_WriteFile(handle->object->lookup,(u32 *)(data+128),12);
+    case kObstacle:
+        if(value==data->obstacleSettings.track)break;
+        data->obstacleSettings.track=value;
+        data->obstacleSettings.checksum=CalcChecksumInternal(&data->obstacleSettings.track,8);
+        PS_WriteFile((*profile)->fileh,&data->obstacleSettings.checksum,12);
         break;
     default:return;
     }
-    SavePlayerRaceType(handle,selector);
+    SavePlayerRaceType(profile,raceType);
 }

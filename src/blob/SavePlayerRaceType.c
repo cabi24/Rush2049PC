@@ -1,13 +1,16 @@
+/* SavePlayerRaceType: remember the race type a profile last played (MAT3 save.c). */
 #include "game/game.h"
 
-void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
+void PS_WriteFile(tPakHandle *fileh, void *data, s32 size);
 
-void SavePlayerRaceType(u8 ***arg0, s32 arg1) {
-    u8 *p;
+/* Stores raceType (gRace's values) in the profile's file, marking that byte to write, when it changed. The file must
+ * be read. */
+void SavePlayerRaceType(tProfile **profile, s32 raceType) {
+    tSaveData *data;
 
-    p = *(u8 **) *(u8 ***) ((u8 *) *arg0 + PROFILE_OFS(0x2C));
-    if (arg1 != p[0x47]) {
-        p[0x47] = arg1;
-        PS_WriteFile(*(void ***) ((u8 *) *arg0 + PROFILE_OFS(8)), (uintptr_t) (*(u8 **) *(u8 ***) ((u8 *) *arg0 + PROFILE_OFS(0x2C)) + 0x47), 1);
+    data = *(*profile)->datah;
+    if (raceType != data->raceType) {
+        data->raceType = raceType;
+        PS_WriteFile((*profile)->fileh, &(*(*profile)->datah)->raceType, 1);
     }
 }

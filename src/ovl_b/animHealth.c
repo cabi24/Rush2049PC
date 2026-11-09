@@ -1,26 +1,11 @@
+/* animHealth: a battle car's health bar, a blit animation function (MAT3 hudextra.c; runtime image B). */
 #include "game/game.h"
+
+#define HEALTH_FULL 800.0f   /* a car's health at its best */
+#define HEALTH_FRAME 0       /* animID's low nibble: the bar's frame; else the bar */
 
 
 #define PAL_BASE(p) PC_N64W(p)
-typedef struct _tBlit_2 {
-    const char *name;
-    tPalette *palette;
-    void *texture;
-    u16 texIndex;
-    s16 x, y;
-    u16 z;
-    s16 width, height;
-    u8 alpha, flip;
-    char hide, init;
-    s16 top, bot, left, right, color;
-    int (*animFunc)(struct _tBlit_2 *);
-    u32 animID;
-    intptr_t animDTA;
-    u16 blidx;
-    void *data;
-    struct _tBlit_2 *child;
-} _tBlit_2;
-
 VIEW(s32[4][4][2], healthPos);
 #define healthPos healthPos_view
 VIEW(u8[4][2][4], healthColor);
@@ -28,7 +13,10 @@ VIEW(u8[4][2][4], healthColor);
 VIEW(tPalette[4], healthPal);
 #define healthPal healthPal_view
 
-int animHealth(_tBlit_2 *blt) /* animHealth */
+/* The health bar of player animID >> 4 at healthPos: the frame (drawn with the alpha threshold), or the bar, as long
+ * as the health left, in a colour from green through yellow to red (written into the player's palette, healthPal).
+ * Past the players it is hidden and stops animating. Returns 1. */
+int animHealth(tBlit *blt)
 {
     int slot = (blt->animID & 0xf0) >> 4;
     int type = blt->animID & 15;
@@ -37,11 +25,11 @@ int animHealth(_tBlit_2 *blt) /* animHealth */
         blt->animFunc = 0;
         return Hidden(blt, 1);
     }
-    healthPct = PC_CAR_HEALTH(slot) / 800.0f;
+    healthPct = PC_CAR_HEALTH(slot) / HEALTH_FULL;
     blt->x = healthPos[gNumWindows-1][slot][0] - blt->width / 2;
     blt->y = healthPos[gNumWindows-1][slot][1] - blt->height / 2;
-    if (type == 0) {
-        { tBlitInstance *inst = &gBlitInstanceList[blt->blidx]; inst->flags |= 1; }
+    if (type == HEALTH_FRAME) {
+        { tBlitInstance *inst = &gBlitInstanceList[blt->blidx]; inst->flags |= BLITINST_ALPHA_COMPARE; }
     } else {
         blt->x += 8;
         blt->left = 8;

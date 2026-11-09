@@ -1,10 +1,7 @@
+/* PS_PakDamaged: whether a pak can't be read (MAT3 paksysdc.c). */
 #include "game/game.h"
 
-VIEW(s8, gPaks);
-#define gPaks gPaks_view
-
-typedef struct { u8 changed; s8 inserted, b2, b3, b4, damaged, b6, b7, b8, b9, b10, b11; PcPfs pfs; s32 error, FreeSpace;
-    u8 rest[0x304 - 0x7C]; } PcPak;
-s8 PS_PakDamaged(s32 arg0) {
-    return ((PcPak *) &gPaks)[arg0].damaged;
+/* Whether pak's pak is in but could not be read (or the player gave up repairing it). */
+s8 PS_PakDamaged(s32 pak) {
+    return gPaks[pak].damaged;
 }

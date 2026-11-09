@@ -1,3 +1,4 @@
+/* The video options screen's start: its font, menu rectangle and blits (MAT3 videoscr.c). */
 #include "game/game.h"
 
 typedef struct TexDef TexDef;
@@ -31,6 +32,7 @@ void ZOID_SetTexture(s16, TexDef *, s32);
 
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
+/* Sets the font under the text lock (HAL_SetFont, inline). */
 void vi_SetFont(s32 font)
 {
     text_lock();
@@ -38,6 +40,7 @@ void vi_SetFont(s32 font)
     text_unlock();
 }
 
+/* Sizes the video screen's menu rectangle to its options' widest text. */
 void video_calcMenuRect(void)
 {
     s32 menuSize;
@@ -70,6 +73,7 @@ void video_calcMenuRect(void)
     video_menuRect.cx = video_menuRect.x + optionWidth + 5;
 }
 
+/* Starts the video screen: its blits (from the front end or the pause screen), buttons and menu rectangle. */
 void video_initScreen(void)
 {
     s32 u0, u1, u2, u3;

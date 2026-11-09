@@ -1,3 +1,4 @@
+/* animBones: the crossbones of deaths mode, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
 VIEW(u8, gDeathMode);
@@ -11,19 +12,12 @@ float sqrtf(float);
 #pragma intrinsic (fabsf)
 #pragma intrinsic (sqrtf)
 
-/* referenced data (types guessed from access width) */
 /* PC: the crossbones' positions, {x, y} per window count and player: bonesPos[4][4][2] of the GC's hud.c. The
  * complete declaration gives the table its extent (an M2C_UNK described only its first word to the loader). */
 typedef struct { s32 x, y; } BonesPos;
 VIEW(BonesPos[4][4], bonesPos);
 #define bonesPos bonesPos_view
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
-/* PC: animBones (GC hud.c), the crossbones by the speedometer in deaths mode, over the Blit's host layout
- * (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): the name, image and info are pointers, so X..Hide are 0x0C later
- * than on the N64 and the AnimID (the player) is at +0x40. The N64 offsets of the m2c body below hid nothing on the
- * PC: outside deaths mode they set the low byte of X to 1 instead of Hide, and the skull was drawn at the top left. */
+/* The blit as this reads it (tBlit's layout; the animation function's slot read as an integer). */
 typedef struct BonesBlit {
     void *Name, *Image, *Info;
     u16 TexIndex;
@@ -38,8 +32,10 @@ typedef struct BonesBlit {
     u32 AnimID;
 } BonesBlit;
 
-s32 animBones(void *arg0) {
-    BonesBlit *blt = arg0;
+/* Shows the crossbones of player animID by its speedometer while it races in deaths mode (bonesPos for the number of
+ * windows); hides them otherwise (not deaths mode, no such player, or it finished). Returns whether hidden, 1. */
+s32 animBones(void *blit) {
+    BonesBlit *blt = blit;
     u32 player;
 
     if (((s8) gDeathMode == 0) || ((player = blt->AnimID) >= (u32) (s16) gNumWindows) || (PC_CAR_FINISHED(PC_MODEL_SLOT(player)) == 1)) {
