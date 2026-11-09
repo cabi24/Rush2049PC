@@ -58,7 +58,7 @@ extern s32 zoid_tlut_mode;
 
 /* Functions */
 void AnimatePathTarget(struct CamNode *node, s16 flag);
-void BodyVector(f32 *arg0, f32 *arg1, f32 *arg2);
+void BodyVector(f32 *src, f32 *dst, f32 *uvs);
 void build_far_node_matrix(s32 idx, struct View *obj, u32 *m, f32 scale, s32 absolute);
 s32 build_node_matrix(s32 view, struct XForm *src, u32 (*out)[16], f32 w, s32 depth);
 s32 build_node_matrix_rows4(s32 view, f32 (*m)[4], f32 *pos, u32 (*out)[16], f32 w, s32 depth);

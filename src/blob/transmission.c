@@ -1,16 +1,42 @@
+/* transmission.c: the gearbox's ratios for the gear the car is in (MAT3 drivetra.c, transmission()).
+ *
+ * The drivetrain (drivetrain.c) calls it each step, after the gear may have changed. */
 #include "game/game.h"
 
+/* carTransGearRatio as the code indexes it: a row per transmission, a column per gear from reverse (its own
+ * storage, through another type: include/game/view.h). */
 VIEW(s32, carTransGearRatio);
 #define carTransGearRatio carTransGearRatio_view
 
-/* PC: the record is the car's model (D_8014A250), which keeps its N64 layout: its car and tune pointers at +0 and +4
- * are u32 window addresses (docs/port/CARS.md 2.2), which m2c's `*(s8 **)` read as 8-byte host pointers. */
-#define MODEL_AT(p, o) ((s8 *)PC_N64P(*((u32 *) ((p) + (o)))))
-void transmission(s8 *arg0)
-{
-  /* carTransGearRatio, f32[][6]: a row per transmission (model +9), the gear (+0x3F4) from 0 in column 1 */
-  f32 (*gear_ratio)[6] = (f32 (*)[6]) &carTransGearRatio;
-  *((f32 *) (arg0 + 0x428)) = (*((f32 *) (MODEL_AT(arg0, 4) + 0xC))) * gear_ratio[*((s8 *) (arg0 + 9))][*((s16 *) (arg0 + 0x3F4)) + 1];
-  *((f32 *) (arg0 + 0x42C)) = (*((f32 *) (MODEL_AT(arg0, 0) + 0xA4))) * (*((f32 *) (arg0 + 0x428)));
-}
+/* The car's physics descriptor (MAT3 _tCar), its final drive. */
+typedef struct tCar {
+  u8 pad0[0xA4];
+  f32 dwratio;                  /* +0xA4 the differential's ratio */
+} tCar;
+/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its gearbox scale. */
+typedef struct tTune {
+  u8 pad0[0xC];
+  f32 trans_scale;              /* +0x0C */
+} tTune;
+/* The model record (tModelData), the fields transmission reads and writes. Its descriptor and tune pointers are u32
+ * window addresses: the record keeps its N64 layout (docs/port/CARS.md 4). */
+typedef struct tModelData {
+  u32 car;                      /* +0x000 the physics descriptor (tCar) */
+  u32 tune;                     /* +0x004 the tune record (tTune) */
+  u8 pad8;
+  s8 trans;                     /* +0x009 the transmission (a row of carTransGearRatio) */
+  u8 padA[0x3F4 - 0xA];
+  s16 gear;                     /* +0x3F4 -1 reverse, 0 neutral, 1..4 */
+  u8 pad3F6[0x428 - 0x3F6];
+  f32 transratio;               /* +0x428 the gearbox's ratio */
+  f32 totalratio;               /* +0x42C the gearbox's and the differential's */
+} tModelData;
 
+/* Model m's gearbox ratio, its transmission's ratio for its gear (carTransGearRatio[trans][gear + 1], column 0
+ * reverse) times the tune's trans_scale, and the total ratio to the wheels, that times the descriptor's dwratio. */
+void transmission(tModelData *m)
+{
+  f32 (*gear_ratio)[6] = (f32 (*)[6]) &carTransGearRatio;
+  m->transratio = ((tTune *) PC_N64P(m->tune))->trans_scale * gear_ratio[m->trans][m->gear + 1];
+  m->totalratio = ((tCar *) PC_N64P(m->car))->dwratio * m->transratio;
+}

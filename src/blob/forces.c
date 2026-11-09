@@ -1,6 +1,12 @@
+/* forces.c: all the forces on a car for one step (MAT3 drivsym.c, forces()). */
 #include "game/game.h"
 
-void forces(void *arg0) {
-    forces1(arg0);
-    forces2(arg0);
+/* The model record (tModelData): forces1 and forces2 read it. */
+typedef struct tModelData tModelData;
+
+/* The forces on model m: forces1 (the drivetrain, the body's contacts, the resistances) then forces2 (the tires, the
+ * gravity). */
+void forces(tModelData *m) {
+    forces1(m);
+    forces2(m);
 }

@@ -1,24 +1,32 @@
+/* make_super_speed.c: the super speed cheat's trick (MAT3 road.c, make_super_speed()).
+ *
+ * With gSuperSpeed set, init_road and the physics step call it on the car's orientation. */
 #include "game/game.h"
 
+/* The model record (tModelData), its orientation. */
+typedef struct tModelData {
+    u8 pad0[0x2EC];
+    f32 uvs[3][3];              /* +0x2EC the orientation: rows the car's x, y and z axes */
+} tModelData;
 
-#undef M2C_FIELD
-#define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
+/* Rescale each row of model m's orientation to a length of super_speed_scale_x, _y and _z (MAT3 1.00025) instead of
+ * 1. The orientation turns the car's velocity into the world's every step, so a matrix a little longer than a
+ * rotation makes the car gain speed step after step: that is the cheat. */
+void make_super_speed(tModelData *m) {
+    f32 scale;
+    f32 scale_2;
+    f32 scale_3;
 
-void make_super_speed(void *arg0) {
-    f32 temp_f2;
-    f32 temp_f2_2;
-    f32 temp_f2_3;
-
-    temp_f2 = invmagnitude((f32 *)((u8 *)arg0+0x2EC)) * super_speed_scale_x;
-    M2C_FIELD(arg0, f32 *, 0x2EC) = (f32) (M2C_FIELD(arg0, f32 *, 0x2EC) * temp_f2);
-    M2C_FIELD(arg0, f32 *, 0x2F0) = (f32) (M2C_FIELD(arg0, f32 *, 0x2F0) * temp_f2);
-    M2C_FIELD(arg0, f32 *, 0x2F4) = (f32) (M2C_FIELD(arg0, f32 *, 0x2F4) * temp_f2);
-    temp_f2_2 = invmagnitude((f32 *)((u8 *)arg0+0x2F8)) * super_speed_scale_y;
-    M2C_FIELD(arg0, f32 *, 0x2F8) = (f32) (M2C_FIELD(arg0, f32 *, 0x2F8) * temp_f2_2);
-    M2C_FIELD(arg0, f32 *, 0x2FC) = (f32) (M2C_FIELD(arg0, f32 *, 0x2FC) * temp_f2_2);
-    M2C_FIELD(arg0, f32 *, 0x300) = (f32) (M2C_FIELD(arg0, f32 *, 0x300) * temp_f2_2);
-    temp_f2_3 = invmagnitude((f32 *)((u8 *)arg0+0x304)) * super_speed_scale_z;
-    M2C_FIELD(arg0, f32 *, 0x304) = (f32) (M2C_FIELD(arg0, f32 *, 0x304) * temp_f2_3);
-    M2C_FIELD(arg0, f32 *, 0x308) = (f32) (M2C_FIELD(arg0, f32 *, 0x308) * temp_f2_3);
-    M2C_FIELD(arg0, f32 *, 0x30C) = (f32) (M2C_FIELD(arg0, f32 *, 0x30C) * temp_f2_3);
+    scale = invmagnitude(m->uvs[0]) * super_speed_scale_x;
+    m->uvs[0][0] = m->uvs[0][0] * scale;
+    m->uvs[0][1] = m->uvs[0][1] * scale;
+    m->uvs[0][2] = m->uvs[0][2] * scale;
+    scale_2 = invmagnitude(m->uvs[1]) * super_speed_scale_y;
+    m->uvs[1][0] = m->uvs[1][0] * scale_2;
+    m->uvs[1][1] = m->uvs[1][1] * scale_2;
+    m->uvs[1][2] = m->uvs[1][2] * scale_2;
+    scale_3 = invmagnitude(m->uvs[2]) * super_speed_scale_z;
+    m->uvs[2][0] = m->uvs[2][0] * scale_3;
+    m->uvs[2][1] = m->uvs[2][1] * scale_3;
+    m->uvs[2][2] = m->uvs[2][2] * scale_3;
 }
