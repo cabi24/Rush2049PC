@@ -49,17 +49,11 @@ void UnlockWaveInstance(s32 index)
 
 /* A font file is its header (FontHeader), then its letters, then each letter's kerning row when the font has
  * kerning; the file keeps its N64 layout in the window. */
-/* A letter (MAT3 anon_kerns_value_c, N64 layout, 12 bytes): its kerning row's window address, and its character. */
-typedef struct Entry { u32 kerns; u8 value; u8 pad[7]; } Entry;
 #define FONT_SLOT(p) PC_N64A(p)
 #define WAVE_HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
 /* A texture record of the font's texture wave (tTexture, N64 layout). */
 #define TEXTURE_RECORD_SIZE 36
 
-VIEW(Entry *, gFontLetters);
-#define gFontLetters gFontLetters_view
-VIEW(intptr_t[], gFontTextures);
-#define gFontTextures gFontTextures_view
 /* PC: the gTexDefPtrs pairs are {tTexture *, s32}, 16 bytes, as SetupWaveModel declares them. first is the window
  * address of the instance's TXHD records, widened without sign extension. */
 typedef struct { uintptr_t first; s32 second; } TexDefPair;
@@ -80,7 +74,7 @@ void SetupFontData(s32 force)
     if (force || p != (u8 *)gFontHeader) {
         gFontHeader = (FontHeader *)p;
         p += 16;
-        gFontLetters = (Entry *)p;
+        gFontLetters = (FontLetter *)p;
         p += gFontHeader->numChars * 12;
         if (gFontHeader->kern != 0) {
             for (i = 0; i < gFontHeader->numChars; i++) {
@@ -97,7 +91,7 @@ void SetupFontData(s32 force)
     }
     if (force) {
         for (i = 0; i < gFontHeader->numTextures; i++) {
-            gFontTextures[i] = gTexDefPtrs[gFontTexWaveInst].first + i * TEXTURE_RECORD_SIZE;
+            gFontTextures[i] = (struct tTexture *) (gTexDefPtrs[gFontTexWaveInst].first + i * TEXTURE_RECORD_SIZE);
         }
         gLeading = gFontHeader->leading;
         gSpacing = gFontHeader->spacing;

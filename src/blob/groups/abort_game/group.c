@@ -6,10 +6,6 @@ typedef struct MessageNode {s16 id;s8 operation,used;float payload[4];void *enti
 
 VIEW(void *, gEnvList);
 #define gEnvList gEnvList_view
-VIEW(u8[], audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(u8[], audio_command_queue);
-#define audio_command_queue audio_command_queue_view
 
 void RemoveBlit(void *);
 
@@ -44,12 +40,12 @@ void AbortGame(void)
     StopListeners();
     while((node=gEnvList)!=0) ReleaseEnviron(node,1);
     InitSkids();
-    osRecvMesg(audio_lock_queue,0,1);
+    osRecvMesg(&audio_lock_queue,0,1);
     node=GetCmd();PC_CMD_OR_SCRATCH(node)
     ((MessageNode *)node)->operation=7;
     message=node;
-    osSendMesg(audio_lock_queue,0,0);
-    PC_CMD_SEND(audio_command_queue,message);
+    osSendMesg(&audio_lock_queue,0,0);
+    PC_CMD_SEND(&audio_command_queue,message);
     if(gRestartGame) gNewGameState=GS_RACE_SETUP;
     else {
         GhostEnd();

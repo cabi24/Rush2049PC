@@ -42,9 +42,6 @@ void *memcpy(void *, const void *, u32);
 intptr_t MBOX_FindTexture_WORK();
 void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 
-VIEW(intptr_t, options_blit);
-#define options_blit options_blit_view
-
 void RemoveBlit(intptr_t sound_id);
 
 /* Take the screen down: the pause menu's panes, the text blit, the background and the buttons. */

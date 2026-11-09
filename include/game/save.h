@@ -111,7 +111,7 @@ extern s8 gRankedPlayer[EXTENT(4)];
 extern void (*gErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, s32 (*)(s32));
 extern u8 gLap[EXTENT(4)];
 extern tPak gPaks[EXTENT(4)];
-extern tBlastMat pak_file_handles[EXTENT(64)];
+extern tPakHandle pak_file_handles[EXTENT(64)];   /* the open files' handles, one a pak_file_records entry */
 extern AudioList gPS_Files[EXTENT(4)];
 extern f32 gBestLapTime[EXTENT(4)];
 extern PakFileRecord pak_file_records[EXTENT(64)];

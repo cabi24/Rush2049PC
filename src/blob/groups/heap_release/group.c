@@ -191,11 +191,6 @@ void ReallocateMemory(u32 address, u32 desired) {
     pc_heap_allocated(heap); osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
-VIEW(uintptr_t, gListeners);
-#define gListeners gListeners_view
-VIEW(uintptr_t, gEmitters);
-#define gEmitters gEmitters_view
-
 /* Frees the 3D sound tables (the listeners and the emitters), if they are allocated (MAT3 audiomgr.c AudFree3D). */
 void AudFree3D(void) {
     if (gListeners) {

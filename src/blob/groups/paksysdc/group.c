@@ -469,9 +469,6 @@ flush:
     if (forceUpdate) {}
 }
 
-VIEW(tPakHandle[], pak_file_handles);
-#define pak_file_handles pak_file_handles_view
-
 extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
 extern void osStartThread(void *);
 

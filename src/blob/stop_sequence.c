@@ -25,8 +25,6 @@ typedef struct Event {
     int link;       /* 56 */
 } Event;
 
-VIEW(char[], audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
 VIEW(Event *, gSequences);
 #define gSequences gSequences_view
 
@@ -50,10 +48,10 @@ void stop_sequence(s32 h)
 {
     Event *e;
 
-    osRecvMesg(audio_lock_queue, 0, 1);
+    osRecvMesg(&audio_lock_queue, 0, 1);
     e = find_sequence(h);
     if (e != 0) {
         e->stop = 1;
     }
-    osSendMesg(audio_lock_queue, 0, 0);
+    osSendMesg(&audio_lock_queue, 0, 0);
 }

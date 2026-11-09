@@ -25,9 +25,6 @@ intptr_t MBOX_FindTexture_WORK();
 
 void ZOID_SetTexture(s16 object, intptr_t texture, s32 index);
 
-VIEW(intptr_t, video_blit);
-#define video_blit video_blit_view
-
 VIEW(intptr_t, video_gTitlePane);
 #define video_gTitlePane video_gTitlePane_view
 

@@ -5,14 +5,9 @@
 /* A sound group to push (its id in the project, MusyX's group id). */
 typedef struct { u16 other,id; } Instrument4;
 
-VIEW(u8[], musyx_task_done_queue);
-#define musyx_task_done_queue musyx_task_done_queue_view
-
 VIEW(Instrument4[4], boot_sfx_groups);
 #define boot_sfx_groups boot_sfx_groups_view
 
-VIEW(intptr_t, musyx_samples);
-#define musyx_samples musyx_samples_view
 extern u8 D_00039B40[];
 /* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
  * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
@@ -48,7 +43,7 @@ void AudioInitSys(s32 maxVoices,s32 maxSfx,s32 maxMusic)
     if(music_disabled) flags=SOUND_CACHE_CLASS_LARGE;
     else flags=SOUND_CACHE_CLASS_SMALL;
     if(!audio_driver_started) {
-        osCreateMesgQueue(musyx_task_done_queue,musyx_task_done_msg,1);
+        osCreateMesgQueue(&musyx_task_done_queue,musyx_task_done_msg,1);
         osCreateThread(sample_dma_thread,3,sample_dma_thread_entry,0,sample_dma_thread_stack_top,10);
         osStartThread(sample_dma_thread);
         osCreateThread(audio_retrace_thread,9,audio_retrace_thread_entry,0,audio_retrace_thread_stack_top,9);

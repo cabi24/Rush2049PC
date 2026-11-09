@@ -4,8 +4,6 @@
 
 extern void RemoveBlit(intptr_t blit);
 
-VIEW(intptr_t, backBlit);
-#define backBlit backBlit_view
 VIEW(s16 *[4], backPolys);
 #define backPolys backPolys_view
 

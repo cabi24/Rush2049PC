@@ -10,8 +10,6 @@ typedef struct Handle { Profile *object; } Handle;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
 
-VIEW(uintptr_t, pause_gTitlePane);
-#define pause_gTitlePane pause_gTitlePane_view
 extern Player gPlayers[];
 
 extern void RemoveBlit(void *);
