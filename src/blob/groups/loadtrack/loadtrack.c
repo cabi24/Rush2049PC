@@ -1,25 +1,6 @@
 /* LoadTrack: a track's files loaded and the track set up (MAT3 tracks.c). */
 #include "game/game.h"
 
-/* A world group's header (MAT3 world.c's anon_woff_wname_14): its offset in the world WAD and its name. */
-typedef struct WorldHdr {
-    u32 woff;                  /* 0x00 */
-    char wname[16];            /* 0x04 */
-} WorldHdr;
-/* A WAD being read (MAT3 mb_wad.c's anon_base_TOCentries_c). */
-typedef struct Wad {
-    u32 *base;
-    s32 TOCentries;
-    void *TOC;
-} Wad;
-
-/* PC: the GTLD keys name the targets SetTargetDefs finds for them (on the N64 it replaced each key by its target's
- * address in place), and a target's pointer doesn't fit the file's 4-byte slots, so LoadTrack gets GTLD as a native
- * side table, each key with room for its target (struct pc_target_group, port/assets/world.c); other chunks are
- * returned as they are. */
-uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
-#define MBGetFromWad(wad, tag, count) pc_world_chunk(MBGetFromWad(wad, tag, count), tag, count)
-
 /* Loads track `track` a step at a time (`background`: the loads go to the background loader), each part's state in
  * gTrackLoadInfo: its track wave (101 + track), its world WAD (120 + track: the world headers, the target groups),
  * its collision WAD (139 + track: gRoadDat), its path file (158 + track, 177 + track backwards: gPathWave), then
@@ -28,10 +9,7 @@ uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
  * environment, dynamic objects, the cars (but on a reload or in state 0x100), visuals, checkpoints, paths, the demo
  * path point, skids, smoke, blasts and world damage. Then returns 1. */
 s32 LoadTrack(s32 track, s32 background, s32 reloading) {
-    Wad wad;
-    WorldHdr *whdr;
-    u8 *worldptr;
-    s32 i;
+    struct pc_world_records *world;
 
     if (!gTrackLoadInfo.track.loading) {
         gTrackLoadInfo.track.idx = LoadWave(track + 101, 0, background, 0, 0);
@@ -52,18 +30,19 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     }
     gTrackLoadInfo.world.loaded = 1;
     if (!gTrackLoadInfo.world.ready) {
-        worldptr = GetWaveInstanceAddr(gTrackLoadInfo.world.idx);
-        MBSetupWad(&wad, worldptr);
-        gWorldData = MBGetFromWad(&wad, 0x57484452, NULL);
-        WorldTable = (WorldHdr *)(gWorldData + 1);
-        if (!gTrackLoadInfo.world.inited) {
-            for (i = 0, whdr = WorldTable; i < *gWorldData; i++, whdr++) {
-                whdr->woff += PC_N64A(worldptr);
-            }
-            gTrackLoadInfo.world.inited = 1;
-        }
-        gTargetGroups = MBGetFromWad(&wad, 0x47444154, &numgTargetGroups);
-        gTargetGroupList = MBGetFromWad(&wad, 0x47544C44, &numgTargetGroupList);
+        /* MAT3 finds the world's chunks through the WAD's table of contents (MBSetupWad, MBGetFromWad: WHDR, GDAT,
+         * GTLD) and, the first time, adds the file's address to each world tree's offset in WHDR. On the PC the
+         * world's converter has built those as records beside the file when it loaded (port/assets/world.c): the
+         * names with each root a host pointer, GDAT where it is in the file, GTLD's keys with room for their
+         * targets. */
+        world = pc_world_records(GetWaveInstanceAddr(gTrackLoadInfo.world.idx));
+        gWorldData = &world->numWorlds;
+        WorldTable = world->worlds;
+        gTrackLoadInfo.world.inited = 1;
+        gTargetGroups = world->targetGroups;
+        numgTargetGroups = world->numTargetGroups;
+        gTargetGroupList = world->targetGroupList;
+        numgTargetGroupList = world->numTargetGroupList;
         gTrackLoadInfo.world.ready = 1;
     }
     if (!gTrackLoadInfo.collision.loading) {

@@ -58,6 +58,7 @@ src/blob/SkyClear.c skyMatrices view safe: no function reaches two places of it 
 src/blob/NextPathPt.c gDronePaths view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/NextPathPt.c gCheckpoints view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/CalcResPathBounds.c gPathMax tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
+src/blob/groups/pathcommon_read/ReadPathData.c pc_alt_paths tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function: the copy of the path file's branches, i below gResPath.numAlt (a u8, so at most 255 of the array's 256) [gcc14]
 src/blob/CalcResPathBounds.c gPathMin tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/NextResPathPt.c gCheckpoints view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]
 src/blob/NextResPathPt.c gCheckpoints warn safe: GCC proves an access past the declaration; no function writes two places of it (view, const) [gcc13,gcc14,mingw12]

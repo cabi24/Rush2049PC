@@ -11,11 +11,15 @@
  *          4 x {drone path 8 B: u16 num; u16; u32 pts slot; num x 8 B points {s16 pos[3]; u8 mph; s8 hints}}
  * Only 2-byte alignment is guaranteed after the alternative paths; the swaps are bytewise.
  *
- * The pointer slots are swapped like any u32 and never read: on PC ReadPathData copies the headers field by
- * field into native structs and keeps the alternative paths in a native array (ASSETS.md §4 #22). */
+ * The pointer slots are swapped like any u32 and never read. Once the file is swapped, its headers are decoded beside
+ * it (records.c, docs/port/NATIVE.md 4.4) into struct pc_path_records (pc_game_types.h): the resurrection path, its
+ * branches and the drone paths with host pointers to their points in the file, which ReadPathData copies into the
+ * track's paths (ASSETS.md §4 #22). */
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 
 #define CHECKPOINTS 0x32C
 
@@ -91,10 +95,88 @@ static int walk(uint8_t *buf, size_t size, int swap)
     return 1;
 }
 
+static uint16_t rd16(const uint8_t *p)
+{
+    uint16_t v;
+    memcpy(&v, p, 2);
+    return v;
+}
+
+static void release_paths(void *records)
+{
+    struct pc_path_records *r = (struct pc_path_records *)records;
+
+    free(r->alt);
+    free(r);
+}
+
+/* The headers of the swapped file at buf (which walk has found to fit), in the order the file has them: the
+ * resurrection path's, its branches', the count of all the resurrection points, the main path's points then each
+ * branch's, each drone path's header and points. */
+static struct pc_path_records *decode(uint8_t *buf)
+{
+    struct pc_path_records *r = (struct pc_path_records *)calloc(1, sizeof *r);
+    uint8_t *at = buf + CHECKPOINTS;
+    int i, p;
+
+    if (!r)
+        abort();
+    r->resPath.numPts = rd16(at);
+    r->resPath.numAlt = at[8];
+    at += 0x10;
+    r->alt = (struct AltPath *)calloc(r->resPath.numAlt ? r->resPath.numAlt : 1, sizeof *r->alt);
+    if (!r->alt)
+        abort();
+    for (i = 0; i < r->resPath.numAlt; i++, at += 0x10) {
+        struct AltPath *a = &r->alt[i];
+
+        a->resurrect = at[0];
+        a->firstPath = (signed char)at[1];
+        a->firstIdx = rd16(at + 2);
+        a->lastPath = (signed char)at[4];
+        a->lastIdx = rd16(at + 6);
+        a->startSection = (signed char)at[8];
+        a->numPts = rd16(at + 0xA);
+    }
+    r->numResPathPts = rd16(at);
+    at += 2;
+    r->resPath.pts = (short (*)[3])at;
+    at += (size_t)r->resPath.numPts * 6;
+    r->resPath.alt = r->resPath.numAlt ? r->alt : NULL;
+    for (i = 0; i < r->resPath.numAlt; i++) {
+        r->alt[i].pts = (short (*)[3])at;
+        at += (size_t)r->alt[i].numPts * 6;
+    }
+    for (p = 0; p < 4; p++) {
+        struct DronePath *d = &r->dronePaths[p];
+
+        d->numPts = rd16(at);
+        d->pad02 = rd16(at + 2);
+        at += 8;
+        d->pts = (struct DronePathPt *)at;
+        at += (size_t)d->numPts * 8;
+    }
+    return r;
+}
+
 void pc_assets_path(int wave, uint8_t *buf, size_t size)
 {
-    if (walk(buf, size, 0))
+    if (walk(buf, size, 0)) {
         walk(buf, size, 1);
-    else
+        pc_records_keep(buf, size, PC_RECORDS_PATH, decode(buf), release_paths);
+    } else {
         fprintf(stderr, "rush2049pc: path wave %d: runs past its 0x%zx-byte block, left as is\n", wave, size);
+        pc_records_drop(buf, size);
+    }
+}
+
+const struct pc_path_records *pc_path_records(const void *file)
+{
+    static const struct pc_path_records none;
+    const struct pc_path_records *r = (const struct pc_path_records *)pc_records_find(file, PC_RECORDS_PATH);
+
+    if (r)
+        return r;
+    fprintf(stderr, "rush2049pc: no path file was converted at %p: no paths\n", file);
+    return &none;
 }

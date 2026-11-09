@@ -1,41 +1,27 @@
-/* port/assets/tests/test_path.c: the path converter (port/assets/path.c) on a synthetic big-endian path file, then
- * the game's own ReadCheckpointData and PC ReadPathData (ReadPathData: native headers and
- * alternative paths), and three readers that index the results by hand-written strides (NextResPathPt,
- * NextPathPt, PrevPathPt).
+/* port/assets/tests/test_path.c: the path converter (port/assets/path.c) on a synthetic big-endian path file: the
+ * file swapped in place, its headers decoded beside it (struct pc_path_records: the paths with host pointers to
+ * their points); then the game's own ReadCheckpointData and ReadPathData (which copies the decoded headers into the
+ * track's paths), three readers that walk the results (NextResPathPt, NextPathPt, PrevPathPt), and the records'
+ * going with the block.
  * game: src/blob/ReadCheckpointData.c src/blob/groups/pathcommon_read/ReadPathData.c
  * game: src/blob/NextResPathPt.c src/blob/NextPathPt.c src/blob/PrevPathPt.c
  */
 #include <string.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 #include "support.h"
 
-/* The native layouts the game's PC views share (ReadPathData's ResPath, AltPath, DronePath). */
-struct ResPath {
-    uint16_t numPrimary, unk02;
-    int16_t (*pts)[3];
-    uint8_t numAlt, unk09[3];
-    struct AltPath *alt;
-};
-struct AltPath {
-    uint8_t type, unk01[9];
-    uint16_t numPts;
-    int16_t (*pts)[3];
-};
-struct DronePath {
-    uint16_t num, unk02;
-    void *pts;
-};
-
+/* The game's paths: their one declaration (pc_game_types.h). */
 int8_t gRestartGame;
-char *gPathWave;
-struct ResPath gResPath;
+void *gPathWave;
+struct ResurrectPath gResPath;
 struct AltPath *gAltPaths;
 uint16_t gNumResPathPts;
-void *gResPathPtList;
+int16_t (*gResPathPtList)[3];
 struct DronePath gDronePaths[4];
 int16_t gNumPathPts[4];
-void *gPathPtList[4];
+struct DronePathPt *gPathPtList[4];
 uint8_t gCheckpoints[812] __attribute__((aligned(8)));
 void *n64_memcpy(void *d, const void *s, unsigned n) { return memcpy(d, s, n); }
 void CalcCheckpointTimes(void) {}
@@ -105,6 +91,7 @@ static size_t make_path(uint8_t *f, size_t *res_at, size_t *alt_pts_at, size_t *
     *drone_at = pos;   /* 2 mod 4 here: only 2-byte alignment from now on */
     for (p = 0; p < 4; p++) {
         test_put16(f + pos, k_drone_pts[p]);
+        test_put16(f + pos + 2, (uint16_t)(0x5A00 + p));   /* the padding after the count, kept */
         pos += 8;
         for (i = 0; i < k_drone_pts[p]; i++, pos += 8) {
             for (k = 0; k < 3; k++)
@@ -118,8 +105,8 @@ static size_t make_path(uint8_t *f, size_t *res_at, size_t *alt_pts_at, size_t *
 
 int main(void)
 {
-    static uint8_t buf[0x800];
-    uint8_t *w = test_rdram(), *f = w ? w + 0x500000 : buf;
+    static uint8_t f[0x800];   /* the path file's heap block */
+    const struct pc_path_records *r;
     size_t res_at, alt_at, drone_at, size, pos;
     int32_t a2 = 0, a3 = 0;
     float x;
@@ -127,53 +114,61 @@ int main(void)
 
     size = make_path(f, &res_at, &alt_at, &drone_at);
     CHECK(drone_at % 4 == 2);
-    pc_assets_path(158, f, size - 1);   /* one byte short: left as it is */
+    pc_assets_path(158, f, size - 1);   /* one byte short: left as it is, no records */
     CHECK(pc_be16(f + 8) == 2 && pc_be16(f + 0x32C) == PRIMARY);
+    CHECK(pc_path_records(f)->resPath.numPts == 0 && !pc_path_records(f)->alt);
     pc_assets_path(158, f, size);
 
+    /* The records: the headers, each points a host pointer into the file. */
+    r = pc_path_records(f);
+    CHECK(r->resPath.numPts == PRIMARY && r->resPath.numAlt == ALTS && r->numResPathPts == PRIMARY);
+    CHECK((uint8_t *)r->resPath.pts == f + res_at && r->resPath.alt == r->alt);
+    CHECK((uint8_t *)r->alt[0].pts == f + alt_at && r->alt[1].numPts == k_alt_pts[1]);
+    CHECK((uint8_t *)r->dronePaths[0].pts == f + drone_at + 8 && r->dronePaths[3].numPts == 0);
+
     /* ReadCheckpointData copies the block into gCheckpoints. */
-    gPathWave = (char *)f;
+    gPathWave = f;
     ReadCheckpointData();
     {
         int16_t h;
-        int32_t r;
+        int32_t cr;
         memcpy(&h, gCheckpoints + 8, 2);
         CHECK(h == 2);
         memcpy(&h, gCheckpoints + 2, 2);
         CHECK(h == 0);   /* loopPt: the first checkpoint with flag 4 */
         memcpy(&x, gCheckpoints + 12 + 0x50 + 4 * 4, 4);
         CHECK(x == 14.0f);
-        memcpy(&r, gCheckpoints + 12 + 0x50 * 3 + 0x18, 4);
-        CHECK(r == 503);
+        memcpy(&cr, gCheckpoints + 12 + 0x50 * 3 + 0x18, 4);
+        CHECK(cr == 503);
         memcpy(&x, gCheckpoints + 12 + 0x50 * 4 + 0x4C, 4);
         CHECK(x == 50.0f);
     }
 
-    /* ReadPathData. */
+    /* ReadPathData: the track's paths, the branches the game's own copy. */
     ReadPathData();
-    CHECK(gResPath.numPrimary == PRIMARY && gResPath.numAlt == ALTS && gNumResPathPts == PRIMARY);
+    CHECK(gResPath.numPts == PRIMARY && gResPath.numAlt == ALTS && gNumResPathPts == PRIMARY);
     CHECK((uint8_t *)gResPath.pts == f + res_at && gResPathPtList == gResPath.pts);
     CHECK(gResPath.pts[2][1] == -1000 - 7);
-    CHECK(gResPath.alt == gAltPaths && gAltPaths != NULL);
+    CHECK(gResPath.alt == gAltPaths && gAltPaths != NULL && gAltPaths != r->alt);
     for (i = 0, pos = alt_at; i < ALTS; i++) {
         struct AltPath *a = &gResPath.alt[i];
-        CHECK(a->type == i + 1 && (int8_t)a->unk01[0] == -1 && a->numPts == k_alt_pts[i]);
-        CHECK(a->unk01[3] == 2 + i && a->unk01[7] == 9);
+        CHECK(a->resurrect == i + 1 && a->firstPath == -1 && a->firstIdx == 30 + i && a->numPts == k_alt_pts[i]);
+        CHECK(a->lastPath == 2 + i && a->lastIdx == 77 + i && a->startSection == 9);
         CHECK((uint8_t *)a->pts == f + pos && a->pts[0][2] == 2000 + 100 * i + 2);
         pos += a->numPts * 6;
     }
     for (p = 0, pos = drone_at; p < 4; p++) {
         uint8_t *pt;
-        CHECK(gDronePaths[p].num == k_drone_pts[p] && gNumPathPts[p] == k_drone_pts[p]);
+        CHECK(gDronePaths[p].numPts == k_drone_pts[p] && gNumPathPts[p] == k_drone_pts[p]);
+        CHECK(gDronePaths[p].pad02 == 0x5A00 + p);
         CHECK((uint8_t *)gDronePaths[p].pts == f + pos + 8 && gPathPtList[p] == gDronePaths[p].pts);
         pt = (uint8_t *)gDronePaths[p].pts;
-        for (i = 0; i < k_drone_pts[p]; i++)
-            for (k = 0; k < 3; k++) {
-                int16_t h;
-                memcpy(&h, pt + 8 * i + 2 * k, 2);
-                CHECK(h == -(300 * p + 10 * i + k));
-                CHECK(pt[8 * i + 6] == 60 + i && (int8_t)pt[8 * i + 7] == -3);
-            }
+        for (i = 0; i < k_drone_pts[p]; i++) {
+            for (k = 0; k < 3; k++)
+                CHECK(gDronePaths[p].pts[i].pos[k] == -(300 * p + 10 * i + k));
+            CHECK(gDronePaths[p].pts[i].mph == 60 + i && gDronePaths[p].pts[i].hints == -3);
+            CHECK(pt[8 * i + 6] == 60 + i);
+        }
         pos += 8 + 8 * (size_t)k_drone_pts[p];
     }
 
@@ -186,5 +181,15 @@ int main(void)
     CHECK(PrevPathPt(0, 1) == k_drone_pts[1] - 1);
     CHECK(NextPathPt(k_drone_pts[1] - 1, 1) == 0);   /* end of drone path 1: the loop checkpoint's entry */
     CHECK(NextPathPt(1, 1) == 2);
+
+    /* What the game does to its copy of a branch stays there: ReadPathData copies the file's again. */
+    gAltPaths[0].firstPath = 5;
+    CHECK(r->alt[0].firstPath == -1);
+    ReadPathData();
+    CHECK(gAltPaths[0].firstPath == -1);
+
+    /* The records go with the block. */
+    pc_heap_block_freed(f, sizeof f);
+    CHECK(pc_path_records(f)->resPath.numPts == 0);
     return TEST_DONE();
 }

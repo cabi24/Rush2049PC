@@ -1,7 +1,6 @@
 /* initWorldDamage: the scorch marks on the track at its set-up (MAT3 worlddam.c). */
 #include "game/game.h"
 
-typedef struct NameEntry { char name[36]; } NameEntry;
 /* Empties the ring of 25 scorch marks (DamagePolys) and finds the scorch texture. */
 void initWorldDamage(void)
 {

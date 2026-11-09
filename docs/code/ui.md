@@ -42,7 +42,7 @@ goes:
 |---|---|---|
 | HAL_text (MAT3 `HAL_text.c`) | `HAL_*.c`, `groups/hal_text/*.c`, `groups/state/halfont.c`, `groups/hud_text_anims/HAL_SetFontInternal.c` (HAL_SetFontInternal), `HAL_StartText.c` (HAL_StartText), `groups/sound_channel_extra/*.c`, `groups/animgear/TB_GetFontHeight.c` | the fonts and the drawing of strings |
 | TB_text (MAT3 `TB_text.c`) | `TB_*.c`, `groups/audioscr/audio.c` (TB_FlashTextColors) | what the screens call: justification, colours, flashing text, word wrapping, string helpers |
-| The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c` | `gText` (`TextTables`): the current language's strings, from its wave: `single[n]`, and `taba[tab[n] + i]` (MAT3's names) |
+| The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c`, `groups/slot_sound/AdjustTextWavePointers.c` | `gText` (`TextTables`): the current language's strings, from its wave: `single[n]`, and `taba[tab[n] + i]` (MAT3's names). The text bank's converter builds the tables beside the file when it loads (`port/assets/text.c`, the strings as host pointers), and `AdjustTextWavePointers` copies them into `gText`; a language change (`LoadTextWave`: `ReplaceWave` reads the language's wave into the same block) converts the new bank, its tables where the last ones were |
 
 A font is two asset waves (`FONT_DATA_WAVE(n)`, `FONT_TEXTURE_WAVE(n)`): a header (`FontHeader`), its letters
 (`FontLetter`: where each is in which texture page) and a kerning table. `HAL_DrawText` doesn't draw: between

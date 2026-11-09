@@ -467,12 +467,112 @@ extern struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* N64 gTargetArray */
 /* The world's target groups' list (MAT3 gTargetGroupList, the world WAD's GTLD chunk): one entry per key the
  * quadtree's leaves (gTargetGroups) index, which CheckTargetCollision tests a car against. On the N64 race set-up
  * replaced the file's 32-bit keys in place by the targets they name; on the PC the list is a native side table
- * that LoadTrack gets from the world's converter with the file's keys (pc_world_chunk, port/assets/world.c;
- * docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
+ * that the world's converter builds with the file's keys when it loads (struct pc_world_records below,
+ * port/assets/world.c; docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
 struct pc_target_group {
     int key;                            /* the file's key: a world object's tidx, a path's parent */
     struct tTarget *target;             /* the target whose mbIdx is the key (SetTargetDefs), NULL none */
 };
+
+/* ---- The game's files as native records (docs/port/NATIVE.md 4.4, docs/port/ASSETS.md 4). On the N64 the game wrote
+ * pointers into some of the files it loaded, as 32-bit addresses: the text bank's string offsets, a world's name
+ * table, a path file's headers. On the PC each stays in its heap block as the game allocated it, converted to the
+ * host's byte order, and its converter (port/assets) builds these records beside it when it loads, with host
+ * pointers into the block; the game asks for them by the block. They go with the block (port/assets/records.c). */
+
+/* The strings of one language (MAT3 text.c's sections; the game's TextTables, gText): the text bank's (text wave's)
+ * six sections, each a count and its table. The three string tables are host pointers to the bank's strings, built
+ * from the file's offsets; the three 16-bit tables are the file's own. gText.taba[gText.tab[n] + i] is the i-th
+ * string of table n (include/game/text.h). */
+struct TextTables {                     /* 0x48 */
+    unsigned short numSingle;           /* +0x00 section 0 */
+    unsigned char **single;             /* +0x08 the single strings */
+    unsigned short numTab;              /* +0x10 section 1 */
+    unsigned short numTabA;             /* +0x12 section 2 */
+    unsigned short *tab;                /* +0x18 where each of taba's tables starts */
+    unsigned char **taba;               /* +0x20 the strings of the tables */
+    unsigned short numTab2;             /* +0x28 section 3 */
+    unsigned short numTab2a;            /* +0x2A section 4 */
+    unsigned short numTab2b;            /* +0x2C section 5 */
+    unsigned short *tab2;               /* +0x30 */
+    unsigned short *tab2a;              /* +0x38 */
+    unsigned char **tab2b;              /* +0x40 */
+};
+/* The tables of the text bank in the heap block `file`: port/assets/text.c builds them when the bank loads, and again
+ * when ReplaceWave reads another language into the block, where they were. */
+const struct TextTables *pc_text_bank(const void *file);
+
+/* A world tree's name and root node (MAT3 anon_woff_wname_14, the world WAD's 0x14-byte WHDR entry {woff, wname}):
+ * the node a host pointer where the file has its offset (LoadTrack added the file's address to it on the N64). The
+ * table is sorted by name, as the file's is; NewWorld bsearches it (WorldTable). */
+struct NameEntry {
+    struct tModelPart *node;            /* the tree's root: a WOBJ node in the file */
+    char name[16];
+};
+/* A world WAD's records (port/assets/world.c builds them when the file loads), which LoadTrack points the world's
+ * globals at: the names of its trees, its targets' quadtree (GDAT, in the file: no pointers) and the target groups'
+ * list (GTLD's keys, each with room for the target SetTargetDefs finds for it; none found yet). A chunk the file
+ * doesn't have is NULL with a count of 0, as MBGetFromWad gave it. */
+struct pc_world_records {
+    int numWorlds;                      /* *gWorldData: WHDR's count */
+    struct NameEntry *worlds;           /* WorldTable */
+    struct tTargetGroup *targetGroups;  /* gTargetGroups: GDAT */
+    int numTargetGroups;                /* numgTargetGroups: GDAT's count word in the file's table of contents */
+    struct pc_target_group *targetGroupList;   /* gTargetGroupList: GTLD */
+    int numTargetGroupList;             /* numgTargetGroupList: its keys */
+};
+struct pc_world_records *pc_world_records(const void *file);   /* the world WAD in the heap block `file` */
+
+/* The track's paths (docs/code/race.md 2), read from its path file after the checkpoints (ReadPathData). Their
+ * points are the file's; the headers hold host pointers to them. */
+struct DronePathPt {                    /* 0x8: a point of a drone path (MAT3 anon_pos_mph_8) */
+    short pos[3];                       /* +0x0 where the computer cars drive */
+    unsigned char mph;                  /* +0x6 the speed to drive at here (CalcCheckpointTimes: mph * 1.4666667 is
+                                         * feet a second) */
+    signed char hints;                  /* +0x7 driving hints for the drones here */
+};
+/* A drone path (MAT3 anon_numPts_pts_8, gDronePaths[4]): a loop of points round the track that the computer cars
+ * follow (maxpath.c). */
+struct DronePath {                      /* 0x10 */
+    unsigned short numPts;              /* +0x0 */
+    unsigned short pad02;               /* +0x2 the path file's padding after numPts, kept */
+    struct DronePathPt *pts;            /* +0x8 */
+};
+/* An alternative path (MAT3 anon_resurrect_firstPath_10, gResPath.alt[] = gAltPaths): a branch of the resurrection
+ * path, a shortcut or a second route, whose ends join the main path or another branch (SyncAltPaths links them). Its
+ * first twelve bytes are the file's header's. */
+struct AltPath {                        /* 0x18 */
+    unsigned char resurrect;            /* +0x0 0 a branch no car is put back on (a respawn point on it is traced on
+                                         * to the path it joins: FindResPt); ALT_PATH_RESURRECT one cars may be put
+                                         * back on (its points count in the track's bounds, CalcResPathBounds);
+                                         * ALT_PATH_ALONE one joined to nothing (SyncAltPaths) */
+    signed char firstPath;              /* +0x1 the path its first point joins: an alternative path, or -1 the main
+                                         * path */
+    unsigned short firstIdx;            /* +0x2 the point of firstPath it joins there */
+    signed char lastPath;               /* +0x4 the path its last point joins */
+    unsigned short lastIdx;             /* +0x6 the point of lastPath it joins there */
+    signed char startSection;           /* +0x8 the checkpoint section it starts in (TraceToCheckpoint), -1 none */
+    unsigned short numPts;              /* +0xA */
+    short (*pts)[3];                    /* +0x10 */
+};
+/* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
+ * is put back on (resurrect.c) and that measures the cars' progress (maxpath.c), with its branches. */
+struct ResurrectPath {                  /* 0x20 */
+    unsigned short numPts;              /* +0x00 the main path's points */
+    short (*pts)[3];                    /* +0x08 = gResPathPtList */
+    unsigned char numAlt;               /* +0x10 */
+    struct AltPath *alt;                /* +0x18 = gAltPaths, NULL when there are none */
+};
+/* A path file's headers, decoded when it loads (port/assets/path.c), each points a host pointer into the file:
+ * ReadPathData copies them into the track's paths. On the N64 ReadPathData copied the headers out of the file and
+ * set the pointers itself (the branches' in place, in the file). */
+struct pc_path_records {
+    struct ResurrectPath resPath;       /* gResPath (alt: this record's) */
+    unsigned short numResPathPts;       /* gNumResPathPts: the count of all the resurrection points in the file */
+    struct AltPath *alt;                /* resPath.numAlt branches */
+    struct DronePath dronePaths[4];     /* gDronePaths */
+};
+const struct pc_path_records *pc_path_records(const void *file);   /* the path file in the heap block `file` */
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets

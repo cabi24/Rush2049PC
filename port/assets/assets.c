@@ -53,6 +53,7 @@ void pc_wave_loaded(int wave, void *buf, size_t size)
 void pc_wave_released(int wave, void *buf)
 {
     pc_assets_wave_released(wave, (uint8_t *)buf);
+    pc_records_drop(buf, 1);   /* the native records built beside the file (records.c) */
 }
 
 WEAK void pc_assets_wave_released(int wave, uint8_t *buf)
@@ -66,6 +67,7 @@ WEAK void pc_assets_wad_block_freed(uint8_t *p, size_t size) { (void)p, (void)si
 void pc_heap_block_freed(void *p, size_t size)
 {
     pc_assets_wad_block_freed((uint8_t *)p, size);
+    pc_records_drop(p, size);  /* the native records built beside its files (records.c) */
     pc_mem_unregister_be(p);   /* a file the PI DMA or a decompressor registered at the block's start */
 }
 
