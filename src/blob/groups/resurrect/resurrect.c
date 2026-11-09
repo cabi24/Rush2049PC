@@ -1,3 +1,12 @@
+/* resurrect.c: placing cars at the race start and respawning them (MAT3 resurrect.c: Resurrect(), FindHumanResPt(),
+ * FindDroneResPt(), FindSurfaceUvsInPlace(), FindBestQuat()).
+ *
+ * Resurrect sets a car's flight up when it respawns after a crash or an abort (UpdateModel calls it when the car's
+ * crash_state is CRASH_RESPAWN), and at the race start places it on the grid. A human respawns on the resurrection
+ * path (FindHumanResPt), a drone on its own drone path; in racing modes the respawn point is moved on along the
+ * path by the distance the car would have covered while wrecked and in flight. UpdateResurrectingCar then flies the
+ * car there and FinishResurrecting drops it in. The PC adds the grid places past the N64's six (pc_pole_row,
+ * pc_grid_start: docs/port/MORECARS.md 4). */
 #include "game/game.h"
 
 typedef struct tTire {          /* anon_tradius_springK_5c */
@@ -41,6 +50,7 @@ typedef struct tReckon {        /* anon_base_rwa_base_rwv_90 */
     float uvs[3][3];            /* 0x6c */
 } tReckon;
 
+/* The model record (tModelData, docs/port/CARS.md 4), the fields used here: MAT3's names and layout. */
 typedef struct tModelData {
     u8 pad000[0x40];
     float v[3];                 /* 0x040 */
@@ -100,6 +110,7 @@ typedef struct tPathPoint {
     s16 basePath;               /* 0x2a */
 } tPathPoint;
 
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct tCarData {       /* N64 0x3B8 */
     u8 pad000[0xED];
     s8 restart;                 /* 0x0ed */
@@ -144,9 +155,13 @@ typedef struct tResPath {       /* anon_numPts_pts_10 */
     tAltPath *alt;              /* 0xc */
 } tResPath;
 
+/* A road polygon (MAT3 surftyp): its flags (0x2000: a half pipe). */
 typedef struct surftyp {
     u16 flags;
 } surftyp;
+
+/* MAT3's names for the race kinds (gRace), the human owner of a car slot and the attract mode's game state (the race
+ * area's values: for race.h to declare). */
 
 #define kOneRace 0
 #define kPractice 1
@@ -157,10 +172,6 @@ typedef struct surftyp {
 #define kBattle 6
 #define LINK_OWNER_HUMAN 6
 #define GS_DEMO 0x8
-#define APPEAR_HULK 0x10
-#define RES_IDLE (-1)
-#define RES_START 0
-#define MPH_TO_FTPS 1.4666667f
 
 VIEW(float[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
@@ -180,7 +191,6 @@ VIEW(float[12][3], pole_pos_offset);
 extern float sinf(float);
 extern float cosf(float);
 extern float fabsf(float);
-#pragma intrinsic(fabsf)
 
 surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);
 
@@ -197,6 +207,8 @@ int CountdownTimeOut(void);
 #define PC_GRID_PERIOD (PC_GRID_PLACES - PC_GRID_COLUMNS)
 float pc_pole_offsets[PC_MAX_LINKS][3];
 
+/* The start grid's row for `place`: its offset from the start point in the car's frame (x sideways, z back), feet.
+ * (Fills pc_pole_offsets on each call.) */
 float *pc_pole_row(int place)
 {
     int p, k, c;
@@ -228,7 +240,9 @@ float *pc_pole_row(int place)
 #define PC_GRID_CANDIDATES (PC_GRID_BACK + PC_GRID_ROWS * PC_GRID_COLUMNS)
 static float pc_grid_point[3], pc_grid_uvs[3][3], pc_grid_offset[3];
 
-/* Candidate c's point, orientation and offset, into pc_grid_*. */
+/* Candidate c's point, orientation and offset, into pc_grid_*: c below PC_GRID_BACK the row continued back for
+ * place PC_GRID_PLACES + c, walked back along the resurrection path from model m's start checkpoint; from
+ * PC_GRID_BACK on, the column beside the grid (side 0 left, 1 right) at row (c - PC_GRID_BACK) / 2. */
 static void pc_grid_candidate(tModelData *m, int c)
 {
     int s, j, q, loop, k, side;
@@ -297,6 +311,9 @@ static int pc_grid_on_road(void)
     return RoadPosition(at, snap, uvs) != 0;
 }
 
+/* Work out model m's grid start into pc_grid_* if it is a place past the N64's grid in a mode that uses the grid
+ * (not a respawn, the attract mode, a battle, stunt or obstacle race): the nth candidate with road under it for
+ * place 6 + n. Returns 0 when the table's start applies instead. */
 static int pc_grid_pose(tModelData *m)
 {
     static tModelData *last;
@@ -336,6 +353,8 @@ static int pc_grid_pose(tModelData *m)
     return 1;
 }
 
+/* Model m's start: `what` 0 the point, 1 the orientation (3x3), 2 the grid offset; the table's (the start point
+ * and pc_pole_row) unless pc_grid_pose places it past the N64's grid. */
 float *pc_grid_start(tModelData *m, int what)
 {
     if (!pc_grid_pose(m))
@@ -346,15 +365,26 @@ float *pc_grid_start(tModelData *m, int what)
 #define PC_START_UVS(m) ((float (*)[3]) pc_grid_start(m, 1))
 #define PC_POLE_ROW(p) pc_grid_start(m, 2)
 
-/* Respawn point for a human car (MAT3 FindHumanResPt). */
+/* Where human car `m` respawns: into *outPath the resurrection path's branch (-1 the main path) and *outIdx the
+ * point on it (MAT3 FindHumanResPt).
+ *   In a battle: after InitBattlePlayer, the point of the main path furthest (on the ground, x and z) from every
+ *   other player (a respawning one counts at its respawn point), searched from a random point on.
+ *   In an obstacle race: the course's high-water mark (obResPt, GetResPt).
+ *   Else the point nearest where the car crashed; outside practice and stunts, if that is more than 40 feet away
+ *   (1,600 squared) the nearest on any branch. A branch you can't respawn on (resurrect 0) hands over to the
+ *   point FindResPt picks; a branch whose respawns stay at its point (resurrect 2) is kept as it is. Otherwise the
+ *   point is kept between the last checkpoint passed and the next one: on a branch through both, the nearest
+ *   point between them; on a branch that begins after the last one, not before its start; a branch neither
+ *   checkpoint is on (and that doesn't start at the last one) is left for the main path; on the main path, the
+ *   nearest point from the last checkpoint's to the next one's (or the path's end on the last lap section). */
 void FindHumanResPt(tModelData *m, int *outPath, int *outIdx)
 {
     int a;
     int p;
     int k;
     int end;
-    float new_dist, scale, mag1, mag2, dist1, dist2;
-    float pos[3], delta1[3];
+    float new_dist, scale, mag1, mag2, dist1, dist2;   /* unused */
+    float pos[3], delta1[3];                           /* unused */
     int path = -1;
     int idx = 0;
     float min = 1.0e20f;
@@ -471,24 +501,47 @@ void FindHumanResPt(tModelData *m, int *outPath, int *outIdx)
     *outIdx = idx;
 }
 
-/* Respawn point for an AI car: nearest point of its own racing line between its checkpoints
- * (MAT3 FindDroneResPt, static: inlined into Resurrect, deleted stub at 0x800D3B20). */
-/* Start a car's respawn (or, at race start, place it on the grid) (MAT3 Resurrect). */
+/* Start model m's respawn, or at the race start place it (MAT3 Resurrect).
+ *
+ * In death mode a car that has crashed (crash time set) respawns only if the game aborted it. The respawn-in-place
+ * option, for a human not out of water, at most once every two seconds and never in death mode, respawns the car
+ * where it is (MAT3's FindSurfaceUvsInPlace, written inline here: the road's orientation under it, turned to the
+ * car's heading, ten feet up) unless the road there is a half pipe.
+ *
+ * At the race start (crash time 0) the car starts at its start point and grid row (pc_grid_start; no row in battle,
+ * stunt and obstacle races or for a drone respawning), not respawning; in the attract mode it rolls off at half its
+ * drone path's speed there. Its simulation starts at once (modelrun).
+ *
+ * Otherwise the car stops being solid (it blinks: BlinkResurrectingCars) and is hidden for the flight. Its respawn
+ * point: a human's from FindHumanResPt (kept as it is on a branch whose respawns stay at their point), a drone's the
+ * nearest point of its own drone path between its checkpoints (MAT3's FindDroneResPt, written inline). The flight
+ * takes resurrectTime (0.01 seconds in single, practice, circuit, ghost and obstacle races, else 1.5). The car
+ * respawns at the speed of the path there (none in practice, battle, stunt and obstacle races, or with
+ * respawn-in-place on; 100 mph at most), and the point moves on by the distance at that speed over the time since
+ * the crash plus the flight (10% more for a car that was solid, 20% less for one that had just respawned; about
+ * 20 feet a path point), on the last lap at most half way to the finish. Passing a checkpoint on the way counts
+ * (PassedCP). In racing modes the car then arrives at 58 feet a second (about 40 mph). The point is three feet
+ * above the path, facing along it; a human's is moved by its slot's respawn row of the grid table (row 6 in a
+ * ghost race) outside battle, stunt and obstacle races and respawn-in-place.
+ *
+ * Finally: the flight's start and end orientations as quaternions (the end's sign chosen for the short way round,
+ * FindBestQuat), moving_state RES_START, the simulation reset at the car's current place (keeping its velocity), the
+ * suspension, body forces and road sounds cleared, and the car marked restarted. */
 void Resurrect(tModelData *m)
 {
     int inPlace;
-    float *dp;
+    float *dp;                  /* unused */
     s16 node = m->slot;
     int i;
-    float new_dist, scale, mag1, mag2, dist1, dist2;
+    float new_dist, scale, mag1, mag2, dist1, dist2;           /* unused */
     int startPath, endPath, startIdx, endIdx;
     int jumpPts, numPts;
-    float pos[3], delta1[3], track_width, angle;
+    float pos[3], delta1[3], track_width, angle;               /* unused */
     float time_scale, crash_time;
     float vel[3];
     tCarData *gc = PC_CAR(node);
     int human;
-    float c_dist, dist_e, dist_d, dist_bc, dist_b1, dist_b2, half_dist;
+    float c_dist, dist_e, dist_d, dist_bc, dist_b1, dist_b2, half_dist;   /* unused */
     if (gDeathMode && m->resurrect.crash_time != 0.0f && !m->resurrect.autoAbort) return;
     m->resurrect.autoAbort = 0;
     human = PC_LINK_OWNER(node) == LINK_OWNER_HUMAN;
@@ -538,12 +591,12 @@ void Resurrect(tModelData *m)
             float snapPos[3];
             surftyp *surf;
             int res;
-            int ipos, temp;
+            int ipos, temp;     /* unused */
             ExtractYaw(m->reckon.uvs, &inYaw);
             inYaw = -inYaw;
             surf = RoadPosition(m->resurrect.pos, snapPos, m->resurrect.uvs);
             if (surf) {
-                if (surf->flags & 0x2000) {
+                if (surf->flags & 0x2000) {   /* a half pipe: no respawn in place */
                     res = 1;
                     goto done;
                 }
@@ -565,7 +618,7 @@ done:
                 goto finish;
             }
         }
-    } else {}
+    }
     time_scale = gc->solid ? 1.1f : 0.8f;
     gc->collidable = m->collidable = 0;
     gc->solid = m->solid = 0;
@@ -713,7 +766,8 @@ finish:
     gc->restart = 1;
 }
 
-/* FindBestQuat (static; inlined into Resurrect, deleted stub at 0x800D3B20) */
+/* Make quaternion q2 the one of q2 and -q2 (the same orientation) nearer q1, by the sum of the components'
+ * differences, so that interpolating from q1 turns the short way round (MAT3 FindBestQuat, a static there). */
 void FindBestQuat(float *q1, float *q2)
 {
     s16 i;

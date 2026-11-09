@@ -1,80 +1,94 @@
+/* BlinkResurrectingCars.c: make respawned cars blink until they are solid again (MAT3 resurrect.c,
+ * BlinkResurrectingCars()).
+ *
+ * After a respawn a car is not solid for a while (it can't hit or be hit); meanwhile it blinks, hidden for a few
+ * frames and shown for one, the hidden phase getting shorter as the time since the respawn grows. */
 #include "game/game.h"
 
-typedef struct 
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields BlinkResurrectingCars uses. */
+typedef struct tCarData
 {
-  u8 pad000[0xE8];
-  s32 unkE8;
-  u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-  u8 unk35B;
-  u8 pad35C[0x380 - 0x35C];
-  void *unk380;
-  u8 pad384[0x3A3 - 0x384];
-  u8 unk3A3;
-  u8 pad3A4[0x3B8 - 0x3A4];
-} GameCar;
+  u8 pad000[0xEC];
+  s8 data_valid;                                /* +0x0EC the record holds a car this race */
+  u8 pad0ED[0x110 - 0xED]; struct pc_visual visuals[21];
+  s8 collidable;                                /* +0x308 */
+  s8 solid;                                     /* +0x309 solid again since the last respawn */
+  u8 pad30A[0x30C - 0x30A];
+  f32 collide_time;                             /* +0x30C the model time it stopped being solid (the respawn) */
+  s8 collide_count;                             /* +0x310 frames left in this blink phase */
+  s8 collide_state;                             /* +0x311 the blink phase: odd shown, even hidden */
+  u8 pad312[0x359 - 0x312];
+  s8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
+} tCarData;
 
-/* GameCar's pad0EC[x] is the car's byte 0xEC + x; on the PC it is at CAR_OFS(0xEC + x) (docs/port/CARS.md). */
-#define PAD0EC(a, x) (*((u8 *)(a) - 0xEC + CAR_OFS(0xEC + (x))))
+/* The model record (tModelData), the fields BlinkResurrectingCars uses. */
+typedef struct tModelData
+{
+  u8 pad000[0x714]; f32 modelTime;              /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
+  u8 pad718[0x7C8 - 0x718]; s16 in_game;        /* +0x7C8 in the race */
+  u8 pad7CA[0x7D4 - 0x7CA]; s32 appearance;     /* +0x7D4 APPEAR_* bits */
+} tModelData;
+
+/* Once a frame, for each car in the race: while it is not solid, count its blink phase down (a frame of the game's
+ * 30 a second: at 60 frames a second only every other one, PC_EACH30); when the count runs out the phase flips. A
+ * shown phase lasts one frame and clears APPEAR_INVISIBLE; a hidden one lasts 2 frames in the first two seconds
+ * after the respawn, 1 frame up to four seconds, then none, and sets APPEAR_INVISIBLE unless the car is out of the
+ * race (dead CAR_DYING or CAR_DEAD). A solid car is always shown. */
 void BlinkResurrectingCars(void)
 {
-  GameCar *temp_a0;
-  s16 var_v0;
-  float new_var;
-  unsigned int temp_f8;
-  void *temp_v1;
-  for (var_v0 = 0; var_v0 < PC_RACE_CARS; var_v0++)
+  tCarData *car;
+  s16 i;
+  float delta_time;
+  unsigned int whole_seconds;
+  tModelData *m;
+  for (i = 0; i < PC_RACE_CARS; i++)
   {
-    temp_v1 = PC_MODEL(var_v0);
-    if ((*((s16 *) (((s8 *) temp_v1) + 0x7C8))) != 0)
+    m = PC_MODEL(i);
+    if (m->in_game != 0)
     {
-      temp_a0 = PC_CAR(var_v0);
-      if (((s8) temp_a0->pad0EC[0]) != 0)
+      car = PC_CAR(i);
+      if (car->data_valid != 0)
       {
-        if (((s8) PAD0EC(temp_a0->pad0EC, 0x21D)) == 0)
+        if (car->solid == 0)
         {
-          PC_EACH30(PAD0EC(temp_a0->pad0EC, 0x224) = ((s8) PAD0EC(temp_a0->pad0EC, 0x224)) - 1;)
-          new_var = (*((f32 *) (((s8 *) temp_v1) + 0x714))) - (*((f32 *) (((s8 *) temp_a0) + CAR_OFS(0x30C))));
-          if (((s8) PAD0EC(temp_a0->pad0EC, 0x224)) < 0)
+          PC_EACH30(car->collide_count = car->collide_count - 1;)
+          delta_time = m->modelTime - car->collide_time;
+          if (car->collide_count < 0)
           {
-            PAD0EC(temp_a0->pad0EC, 0x225) = ((s8) PAD0EC(temp_a0->pad0EC, 0x225)) + 1;
-            if (((s8) PAD0EC(temp_a0->pad0EC, 0x225)) & 1)
+            car->collide_state = car->collide_state + 1;
+            if (car->collide_state & 1)
             {
-              PAD0EC(temp_a0->pad0EC, 0x224) = 0;
-              *((s32 *) (((s8 *) temp_v1) + 0x7D4)) = (s32) ((*((s32 *) (((s8 *) temp_v1) + 0x7D4))) & (~8));
+              car->collide_count = 0;
+              m->appearance = (s32) (m->appearance & (~APPEAR_INVISIBLE));
             }
             else
             {
-              temp_f8 = (s32) new_var;
-              switch (temp_f8)
+              whole_seconds = (s32) delta_time;
+              switch (whole_seconds)
               {
                 default:
-                  PAD0EC(temp_a0->pad0EC, 0x224) = 0;
+                  car->collide_count = 0;
                   break;
-
                 case 0:
-
                 case 1:
-                  PAD0EC(temp_a0->pad0EC, 0x224) = 2;
+                  car->collide_count = 2;
                   break;
-
                 case 2:
-
                 case 3:
-                  PAD0EC(temp_a0->pad0EC, 0x224) = 1;
+                  car->collide_count = 1;
                   break;
-
               }
 
-              if (((s8) PAD0EC(temp_a0->pad0EC, 0x26D)) <= 0)
+              if (car->dead <= CAR_ALIVE)
               {
-                *((s32 *) (((s8 *) temp_v1) + 0x7D4)) = (s32) ((*((s32 *) (((s8 *) temp_v1) + 0x7D4))) | 8);
+                m->appearance = (s32) (m->appearance | APPEAR_INVISIBLE);
               }
             }
           }
         }
         else
         {
-          *((s32 *) (((s8 *) temp_v1) + 0x7D4)) = (s32) ((*((s32 *) (((s8 *) temp_v1) + 0x7D4))) & (~8));
+          m->appearance = (s32) (m->appearance & (~APPEAR_INVISIBLE));
         }
       }
     }

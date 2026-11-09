@@ -1,29 +1,37 @@
+/* ForceApart.c: push two overlapping cars apart (MAT3 collision.c, ForceApart()).
+ *
+ * The car-to-car collision (collision.c, setFBCollisionForce) calls it when two cars' bodies have sunk into each
+ * other: an equal and opposite force along the line between them moves them apart over the next steps. */
 #include "game/game.h"
 
-typedef struct Car {
+/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
+typedef struct tModelData {
     char pad0[0x124];
-    f32 unk124[3];
+    f32 centerForce[3];                         /* +0x124 the force on the body's centre this step, car frame */
     char pad130[0x510];
-    s8 unk640;
+    s8 crashflag;                               /* +0x640 */
     char pad641[0x15F];
-    f32 unk7A0[3][3];
-} Car;
+    f32 reckon_uvs[3][3];                       /* +0x7A0 reckon.uvs: the orientation the collisions use */
+} tModelData;
 
 extern f32 sqrtf(f32);
-#pragma intrinsic(sqrtf)
 
-void ForceApart(Car *car, Car *a, Car *b, f32 *dir) {
-    Car *other;
+/* Push the pair m1, m2 apart; `m` is the one of them this step is for, `dir` the world direction to push it in
+ * (the other goes the opposite way). The force is force_apart_force (MAT3 40,000) along `dir`, or along world x
+ * when the cars are on top of each other (|dir|^2 below force_apart_min_dist_sq). It goes into each car's
+ * centerForce in its own frame (BodyVector by its orientation): added to m's, taken from the other's. */
+void ForceApart(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir) {
+    tModelData *other;
     f32 len;
-    f32 mag;
+    f32 mag;       /* unused */
     f32 force[3];
-    f32 out[3];
+    f32 cent[3];
     s32 i;
 
-    if (car == a) {
-        other = b;
+    if (m == m1) {
+        other = m2;
     } else {
-        other = a;
+        other = m1;
     }
     len = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
     if (len < force_apart_min_dist_sq) {
@@ -36,12 +44,12 @@ void ForceApart(Car *car, Car *a, Car *b, f32 *dir) {
             force[i] = dir[i] * len;
         }
     }
-    BodyVector(force, out, car->unk7A0[0]);
-    car->unk124[0] = car->unk124[0] + out[0];
-    car->unk124[1] = car->unk124[1] + out[1];
-    car->unk124[2] = car->unk124[2] + out[2];
-    BodyVector(force, out, other->unk7A0[0]);
-    other->unk124[0] = other->unk124[0] - out[0];
-    other->unk124[1] = other->unk124[1] - out[1];
-    other->unk124[2] = other->unk124[2] - out[2];
+    BodyVector(force, cent, m->reckon_uvs[0]);
+    m->centerForce[0] = m->centerForce[0] + cent[0];
+    m->centerForce[1] = m->centerForce[1] + cent[1];
+    m->centerForce[2] = m->centerForce[2] + cent[2];
+    BodyVector(force, cent, other->reckon_uvs[0]);
+    other->centerForce[0] = other->centerForce[0] - cent[0];
+    other->centerForce[1] = other->centerForce[1] - cent[1];
+    other->centerForce[2] = other->centerForce[2] - cent[2];
 }
