@@ -11,11 +11,6 @@ typedef struct Blit {
     s32 (*AnimFunc)(struct Blit *); u32 AnimID; intptr_t AnimDTA; u16 BLIdx, reserved36; void *data, *child;
 } Blit;
 
-#define CAR_OPT_FRONT_TIRE_SCALE 13     /* carscr.c's options */
-#define CAR_OPT_REAR_TIRE_SCALE 14
-#define CAR_OPTS 19                     /* an option's value button is carscr_buttonInfo[p][option + 19] */
-#define SLIDER_FILLED 1                 /* the AnimID's type: the filled part (0 the empty bar) */
-
 /* One slider blit, each frame. The AnimID packs its type (bits 0-3: 0 the empty bar, 1 the filled part), its player
  * (4-7) and its option (16 up). Hidden for a player not playing (for good), while the car is locked, while the
  * option's button faces away or is invisible. It sits on the option's value button with the button's alpha: a

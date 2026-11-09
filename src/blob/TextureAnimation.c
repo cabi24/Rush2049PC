@@ -23,17 +23,12 @@ typedef struct tPaletteAnim {
 /* PC: tTexture is a texture record (TXHD) of a WAD, which keeps its N64 layout: texBase is a 32-bit RDRAM-window
  * address. The palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists (port/assets/wad.c). */
 #define PAL_SET(entry, value) pc_be16_set(&(entry), value)
-/* ... which displaylist_set_texture_image writes the frame's address into: N64PTR0(T, a) is the pointer at N64 address a
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 /* A texture (MAT3 tTexture), the fields used here. */
 typedef struct tTexture {
     u8 before24[24];
     u32 texBase;            /* +24 its load display list (Gfx *), or its image (flags & TEX_IMAGE_DIRECT) */
     u32 flags;              /* +28 */
 } tTexture;
-/* A texture whose texBase is its image's address itself, not a load display list holding it. */
-#define TEX_IMAGE_DIRECT 0x08000000
 /* A flipbook frame (MAT3 tTextureBase). PC: its first word is its name, a pointer (InitTextureAnimation's Item12;
  * docs/port/POINTERS.md 10). */
 typedef struct tTextureBase { char *name; tTexture *tex; Gfx *texBase; } tTextureBase;
@@ -75,7 +70,7 @@ void TextureAnimation(void)
     u16 saved;
     int i,gap;
     tTexture *tex;
-    if((gGameState&8) && !expansion_pak_present) return;   /* GS_DEMO */
+    if((gGameState&GS_DEMO) && !expansion_pak_present) return;
     plist=PaletteLists[gTrackNum];
     if(plist && plist->name) {
         do {
@@ -176,7 +171,7 @@ void TextureAnimation(void)
                     }
                     tex=tlist->swapTexs[tlist->startnum].tex;
                     if(tex->flags&TEX_IMAGE_DIRECT) tex->texBase=tlist->swapTexs[tlist->idx].texBase;
-                    else displaylist_set_texture_image(N64PTR0(Gfx *, tex->texBase),tlist->swapTexs[tlist->idx].texBase);
+                    else displaylist_set_texture_image(((Gfx *)PC_N64P(tex->texBase)),tlist->swapTexs[tlist->idx].texBase);
                 }
             }
             tlist++;

@@ -54,7 +54,7 @@ The audio and video screens, the pause menu itself and the HUD are the UI area's
 
 ## 2. How the screens follow one another
 
-The game's state `gGameState` has one bit set; its values are `GS_*` in `include/game/frontend.h` (MAT3's
+The game's state `gGameState` has one bit set; its values are `GS_*` in `include/game/race.h` (MAT3's
 `rush_flags.h` names). `setGameState(s)` asks for a state, and `updateGameState` switches at the top of the next
 frame (`uninitGameState`, `initGameState`: fonts, waves, overlays). `GameLoop` calls `updateFrontEnd` in every state
 of `GS_FRONTEND_MASK`; it runs the screen of the state, then `updateBG` and the profile saver `SaveServer`.
@@ -112,12 +112,12 @@ tree: `modescr_initScreen`, `trackscr_buttonInfo`):
 
 The **buttons** are `gActiveEdges` (newly pressed, any pad), `gActiveAutoEdges` (newly pressed or auto-repeating),
 `gActiveLevels` (held), and per player `gPlayers[p].edges` / `.repeated`: bits `BUTTON_START`, `BUTTON_A`,
-`BUTTON_B`, `BUTTON_UP` ... (frontend.h). `PlayStartABSound`, `PlayUDSound` and `PlayLRSound` play the matching
+`BUTTON_B`, `BUTTON_UP` ... (input.h). `PlayStartABSound`, `PlayUDSound` and `PlayLRSound` play the matching
 menu sound. The secret codes (`gEggs`, `CheckForEgg`) are sequences of held and new buttons.
 
 **Text** comes from `gText` (include/game's `TextTables`): `gText.single[n]` single strings,
 `gText.taba[gText.tab[n] + i]` the i-th string of table n. Each file names the entries it uses (`TEXT_*`);
-`TB_SetTextColor` and `TB_SetJust` take MAT3's `kTB_*` names (frontend.h; `kTB_FlashText` is the flashing colour of
+`TB_SetTextColor` and `TB_SetJust` take MAT3's `kTB_*` names (text.h; `kTB_FlashText` is the flashing colour of
 the selection).
 
 ## 4. The main data
@@ -136,7 +136,11 @@ the selection).
   variables (`gModeMenuSelect`, `gPlayerState[]`, `gHighScoreState`, `gGameOverState`, `gState` ...), with MAT3's
   enums as macros in frontend.h where several files share them (`kPlayerState*`, `kHighScore*`, `kGhostMenu*`,
   `kGameOver*`, `kState*`) and in the file otherwise (`kModeMenu*`, `kStartMenu*`, `kCircuitMenu*`, `kRecordState*`,
-  `kViewMenu*`, `kTrackType*`; `kSelectMenu*` in the player and record screens' four files, each the same).
+  `kViewMenu*`, `kTrackType*`; `kSelectMenu*` in the player and record screens' four files, each the same). The
+  screens' own button indexes and options shared by a screen's files are frontend.h's too (`TRACK_OPT_*`,
+  `CAR_OPT_*`, `PLAYER_BUTTON_*`, `RECORD_*`, `CONTROLS_*`, the name grid's `NAME_SEL_*`, a pak's `PAK_*`); the
+  tracks (`TRACK_RACE_FIRST` ... `TRACK_OBSTACLE`, `NUM_TRACKS`) are track.h's, the menu sounds (`SND_MENU_*`)
+  audio.h's, the shared text tables (`TEXT_YES_NO` ...) text.h's.
 - The car screen's models: `gSelectCar[52]` (`SelectCarState`: created, hidden, ready, loading, its wave instance,
   the colours and rims and tyre scales it was last drawn with) and `gSelectCarWavePtrs[16]` (`SelectCarWaveSlot`:
   a model load: its wave, whether it started, the car slot).

@@ -12,60 +12,8 @@
 
 /* ---- libultra's display-list macros (PR/gbi.h), the forms this file uses ---- */
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_SETTIMG 0xFD
-#define G_SETTILE 0xF5
-#define G_LOADBLOCK 0xF3
-#define G_LOADTILE 0xF4
-#define G_SETTILESIZE 0xF2
-#define G_RDPLOADSYNC 0xE6
-#define G_RDPPIPESYNC 0xE7
-#define G_SETOTHERMODE_H 0xE3
-#define G_MDSFT_TEXTLUT 14
-#define G_TT_NONE (0 << G_MDSFT_TEXTLUT)
-#define G_TT_RGBA16 (2 << G_MDSFT_TEXTLUT)
-#define G_IM_FMT_RGBA 0
-#define G_IM_FMT_YUV 1
-#define G_IM_FMT_CI 2
-#define G_IM_FMT_IA 3
-#define G_IM_FMT_I 4
-#define G_IM_SIZ_4b 0
-#define G_IM_SIZ_8b 1
-#define G_IM_SIZ_16b 2
-#define G_IM_SIZ_32b 3
-#define G_IM_SIZ_8b_BYTES 1
-#define G_IM_SIZ_8b_TILE_BYTES G_IM_SIZ_8b_BYTES
-#define G_IM_SIZ_8b_LINE_BYTES G_IM_SIZ_8b_BYTES
-#define G_IM_SIZ_16b_BYTES 2
-#define G_IM_SIZ_16b_TILE_BYTES G_IM_SIZ_16b_BYTES
-#define G_IM_SIZ_16b_LINE_BYTES G_IM_SIZ_16b_BYTES
-#define G_IM_SIZ_32b_BYTES 4
-#define G_IM_SIZ_32b_TILE_BYTES 2
-#define G_IM_SIZ_32b_LINE_BYTES 2
-#define G_IM_SIZ_4b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_8b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_16b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_32b_LOAD_BLOCK G_IM_SIZ_32b
-#define G_IM_SIZ_4b_SHIFT 2
-#define G_IM_SIZ_8b_SHIFT 1
-#define G_IM_SIZ_16b_SHIFT 0
-#define G_IM_SIZ_32b_SHIFT 0
-#define G_IM_SIZ_4b_INCR 3
-#define G_IM_SIZ_8b_INCR 1
-#define G_IM_SIZ_16b_INCR 0
-#define G_IM_SIZ_32b_INCR 0
-#define G_TEXTURE_IMAGE_FRAC 2
-#define G_TX_LOADTILE 7
-#define G_TX_RENDERTILE 0
-#define G_TX_NOMIRROR 0
-#define G_TX_WRAP 0
-#define G_TX_MIRROR 0x1
-#define G_TX_CLAMP 0x2
-#define G_TX_NOMASK 0
-#define G_TX_NOLOD 0
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define G_TX_DXT_FRAC 11
-#define G_TX_LDBLK_MAX_TXL 2047
 #define TXL2WORDS(txls, b_txl) MAX(1, ((txls)*(b_txl)/8))
 #define CALC_DXT(width, b_txl) \
     (((1 << G_TX_DXT_FRAC) + TXL2WORDS(width, b_txl) - 1) / TXL2WORDS(width, b_txl))
@@ -157,8 +105,6 @@
     gDPSetTile(pkt, fmt, G_IM_SIZ_4b, ((((width)>>1)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
     gDPSetTileSize(pkt, G_TX_RENDERTILE, 0, 0, ((width)-1) << G_TEXTURE_IMAGE_FRAC, ((height)-1) << G_TEXTURE_IMAGE_FRAC) \
 }
-#define G_DL 0xDE
-#define G_DL_PUSH 0x00
 #define gDma1p(pkt, c, s, l, p) \
 { \
     Gfx *_g = (Gfx *)(pkt); \
@@ -170,7 +116,6 @@
 /* The model files' records the draw reads. PC: a WAD's TXHD, PLHD and OBHD records (the texture, palette and object
  * definitions) keep their N64 layout (port/assets/wad.c): texBase, palBase and displayList are 32-bit RDRAM-window
  * addresses, unsigned so they widen to host pointers by zero extension. */
-#define WADP(type) u32
 #define WAD_ADDR u32
 /* A texture definition (MAT3 tTexture, 36 bytes on the N64); its flags are TEX_* (scene.h). */
 typedef struct tTexture {
@@ -180,7 +125,7 @@ typedef struct tTexture {
     u8 size;                    /* G_IM_SIZ_*: 4, 8, 16 or 32 bits a texel */
     u8 format;                  /* G_IM_FMT_*: RGBA, CI (palette), IA, I */
     s16 palIndex;               /* its palette in its model's palette table, -1 none */
-    WADP(void) texBase;         /* the image, or a display list that loads it (no TEX_TEXTURE) */
+    WADP(void) texBase;         /* the image, or a display list that loads it (no TEX_IMAGE_DIRECT) */
     u32 flags;
     u32 xflags;
 } tTexture;
@@ -197,8 +142,6 @@ typedef struct Palette {
     WAD_ADDR palBase;           /* the 16-bit colours */
 } Palette;
 
-#define G_LOADTLUT 0xF0
-#define G_RDPTILESYNC 0xE8
 #define gDPTileSync(pkt) gDPNoParam(pkt, G_RDPTILESYNC)
 #define gDPLoadTLUTCmd(pkt, tile, count) \
 { \
@@ -216,59 +159,11 @@ typedef struct Palette {
     gDPPipeSync(pkt); \
 }
 
-
 /* ---- the F3DEX2 microcode's forms (PR/gbi.h with F3DEX_GBI_2) ---- */
-#define G_VTX 0x01
-#define G_CULLDL 0x03
-#define G_TRI1 0x05
-#define G_TRI2 0x06
-#define G_TEXTURE 0xD7
-#define G_POPMTX 0xD8
-#define G_GEOMETRYMODE 0xD9
-#define G_MTX 0xDA
-#define G_MOVEWORD 0xDB
-#define G_MOVEMEM 0xDC
-#define G_ENDDL 0xDF
-#define G_SETOTHERMODE_L 0xE2
-#define G_SETPRIMDEPTH 0xEE
-#define G_SETSCISSOR 0xED
-#define G_FILLRECT 0xF6
-#define G_SETFOGCOLOR 0xF8
-#define G_SETPRIMCOLOR 0xFA
-#define G_SETENVCOLOR 0xFB
-#define G_SETCOMBINE 0xFC
-#define G_DL_NOPUSH 0x01
-#define G_MV_VIEWPORT 8
-#define G_MV_LIGHT 10
-#define G_MVO_LOOKATX 0
-#define G_MVO_LOOKATY 24
-#define G_MW_NUMLIGHT 0x02
-#define G_MW_FOG 0x08
-#define G_MW_PERSPNORM 0x0E
-#define G_MWO_NUMLIGHT 0x00
-#define G_MWO_FOG 0x00
 #define NUML(n) ((n) * 24)
 #define NUMLIGHTS_0 1
 #define NUMLIGHTS_1 1
 #define NUMLIGHTS_2 2
-#define G_MTX_NOPUSH 0x00
-#define G_MTX_PUSH 0x01
-#define G_MTX_MUL 0x00
-#define G_MTX_LOAD 0x02
-#define G_MTX_MODELVIEW 0x00
-#define G_MTX_PROJECTION 0x04
-#define G_FOG 0x00010000
-#define G_LIGHTING 0x00020000
-#define G_TEXTURE_GEN 0x00040000
-#define G_MDSFT_CYCLETYPE 20
-#define G_MDSFT_ZSRCSEL 2
-#define G_MDSFT_RENDERMODE 3
-#define G_CYC_1CYCLE (0 << G_MDSFT_CYCLETYPE)
-#define G_CYC_2CYCLE (1 << G_MDSFT_CYCLETYPE)
-#define G_ZS_PIXEL (0 << G_MDSFT_ZSRCSEL)
-#define G_ZS_PRIM (1 << G_MDSFT_ZSRCSEL)
-#define G_ON 1
-#define G_SC_NON_INTERLACE 0
 #define BOWTIE_VAL 0
 
 #define gDma2p(pkt, c, adrs, len, idx, ofs) \
@@ -594,7 +489,7 @@ void zoid_load_palette(Gfx **gfxp, Palette *pal) {
 #define BLOCK(fmt, sz) gDPLoadTextureBlock(gfx++, tex->texBase, fmt, G_IM_SIZ_##sz, tex->width, tex->height, 0, cms, cmt, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define BLOCK4(fmt) gDPLoadTextureBlock_4b(gfx++, tex->texBase, fmt, tex->width, tex->height, 0, cms, cmt, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 
-/* Load texture `tex` for what is drawn next: a texture without TEX_TEXTURE is loaded by its own display list; else
+/* Load texture `tex` for what is drawn next: a texture without TEX_IMAGE_DIRECT is loaded by its own display list; else
  * its image, all of it or the tile `rect` (10.5 texels), with its clamp and mirror flags and, for a colour-index one,
  * the TLUT mode set (zoid_tlut_mode keeps the mode last set). The render tile then spans `clip` if given, else
  * `rect`. Its palette (palIndex in `palettes`, the model's palette table; NULL: the caller has set one) is loaded
@@ -608,7 +503,7 @@ void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, Pa
     if (tex == NULL) {
         return;
     }
-    if (!(tex->flags & TEX_TEXTURE)) {
+    if (!(tex->flags & TEX_IMAGE_DIRECT)) {
         gSPDisplayList(gfx++, tex->texBase);
     } else {
         if (rect != NULL) {
@@ -1492,8 +1387,6 @@ void zoid_draw_window(s32 view, View *eye)
 }
 
 /* ---- ZOID_EndFrame: the frame's scene and its 2D blits ---- */
-#define G_MDSFT_TEXTFILT 12
-#define G_TF_POINT (0 << G_MDSFT_TEXTFILT)
 #define gDPSetTextureFilter(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTFILT, 2, type)
 /* A 2D blit instance (gBlitInstanceList, MAT3 anon_palette_texture_20; 32 bytes on the N64, offsets N64's): a
  * texture drawn on the screen over the scene (the HUD, the menus), or a filled rectangle. */
@@ -1525,9 +1418,6 @@ VIEW(BlitInstance[200], gBlitInstanceList);
 VIEW(u8[4], blit_ia_palette);
 #define blit_ia_palette blit_ia_palette_view
 
-/* A palette's table is a 32-bit N64 address its loader reads through: N64PTR(T, a) the pointer at one (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64PTR(T, a) ((T)PC_N64P(a))
 /* Draw the frame's scene into frame_dl: the scene's lights, every window (zoid_draw_window), then, unless
  * `skip_blits`, the 2D blit instances in order (gBlitInstanceList, gNumBlitInsts of them) through the blitter: a
  * fill or a texture, cut into loads of as many rows as the texture memory holds, flipped in y unless the instance's
@@ -1667,17 +1557,17 @@ void ZOID_EndFrame(s32 skip_blits)
         }
         if (blit->palette != NULL) {
             pal = blit->palette;
-            BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
         } else if (tex->palIndex >= 0) {
             pal = &gPalDefPtrs[blit->texIndex >> 10].palDefs[tex->palIndex];
-            BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+            BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
         } else if (tex->format == 3) {
             blit_ia_palette[3] = blit->alpha;
             BlitColors(blit_ia_palette, tex->format, tex->size, 0);
         } else if (tex->format != 0) {
             if (gPalDefPtrs[blit->texIndex >> 10].count != 0) {
                 pal = gPalDefPtrs[blit->texIndex >> 10].palDefs;
-                BlitColors(N64PTR(u8 *, pal->palBase), tex->format, tex->size, 0);
+                BlitColors(((u8 *)PC_N64P(pal->palBase)), tex->format, tex->size, 0);
             }
         }
         if (blit->bot >= tex->height) {

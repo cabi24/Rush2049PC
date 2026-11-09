@@ -33,11 +33,6 @@ VIEW(ContData[], gControllerData);
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
-#define CONTROLS_ROW_RUMBLE 10      /* the list's rumble row */
-#define CONTROLS_ROW_DEFAULTS 11    /* the list's "default controls" row */
-#define CONTROLS_ROWS 12
-#define CONTROLS_TITLE 13           /* controls_buttonInfo[player][]: the title's button */
 
 /* gText's entries */
 #define TEXT_CONTROLS_TITLE 37      /* single[]: "%s's controls" over a player's list */

@@ -61,7 +61,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields init_cars sets. */
 typedef struct tCarData {
     u8 pad000[232];
@@ -140,7 +139,7 @@ void init_cars(void) {
         m->dt=dt;
         for(j=0;j<sizeof(tCarData);j++)
             ((s8 *)car)[j]=0;
-        m->car=N64W(gCarModels);
+        m->car=PC_N64W(gCarModels);
         m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
         car->saveview=2;
         car->camera=-1;
@@ -243,7 +242,7 @@ void init_cars(void) {
         m->drone_type=0;   /* DRONE_TYPE_NONE */
         m->in_game=0;
     }
-    if(gGameState&8) {
+    if(gGameState&GS_DEMO) {
         PC_MODEL_INPUT_FLAGS(0)=0;
         PC_MODEL_AUTOTRANS(0)=1;
     }

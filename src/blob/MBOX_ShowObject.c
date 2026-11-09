@@ -3,8 +3,6 @@
  * The counterpart of MBOX_HideObject: clears OBJ_HIDDEN and the views' bits 8-11. */
 #include "game/game.h"
 
-#define DEBUG_PRINT(args)
-
 /* The ways to show (`mode`): note the numbers differ from MBOX_HideObject's. */
 #define SHOW_NODE       0   /* the node alone */
 #define SHOW_TREE       1   /* the node and all its descendants */

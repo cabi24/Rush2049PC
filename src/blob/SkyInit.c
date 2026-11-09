@@ -10,9 +10,6 @@ VIEW(volatile char, gNumModels);
 /* PC: video.fog off keeps the sky dome with the track select's fog option on (docs/port/DETAIL.md 2.4): the N64 makes
  * none in a fog, whose colour is then the whole sky; without the fog that is a flat colour behind the world. */
 #define PC_SKY_FOG(f) (pc_fog() == PC_FOG_OFF ? 0 : (f))
-/* A window's camera matrix is kept as its 32-bit N64 address (skyMatrices): N64A(p) is a window pointer's
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 
 /* Give each window a sky dome: the sky model (sky_object_name, MAT3 "SKYSKY") as a scene node of its own matrix
  * (ZOID_NewMatrix), drawn in that window only (its flags hide it in the other three: bits 8-11 hide a node in
@@ -36,7 +33,7 @@ void SkyInit(void)
   for (i = 0; i < (s16) gNumWindows; i++) {
     handle = MBOX_FindObject_WORK(sky_object_name, 0, gNumModels - 1, 1);
     matrix = ZOID_NewMatrix();
-    *dst = N64A(matrix);
+    *dst = PC_N64A(matrix);
     ZOID_AddObject(handle, matrix, -1, (((s16) (1 << i)) << 8) ^ 0xF00);
     dst++;
   }

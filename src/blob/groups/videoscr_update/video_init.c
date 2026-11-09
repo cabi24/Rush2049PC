@@ -75,7 +75,7 @@ void video_initScreen(void)
 
     SaveGlobals();
     video_calcMenuRect();
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GS_FRONTEND_MASK) {
         createBG();
         {
             Color buttonColor = { { 255, 255, 255, 255 } };

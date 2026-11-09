@@ -5,13 +5,6 @@
 
 /* The audio screen's lines (gAudioMenuSelect). */
 enum { AUDIO_MENU_SFX = 0, AUDIO_MENU_MUSIC = 1, AUDIO_MENU_SONG = 2, AUDIO_MENU_MONO = 3 };
-/* The song line's choices (audio_gSong, gOptions' track): a song of gSongNames, the track's own, none. */
-#define AUDIO_SONG_TRACKS 12
-#define AUDIO_SONG_LAST 13
-/* The song the front end plays for the track's own (song 12) choice. */
-#define AUDIO_FRONT_END_SONG 6
-/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
-#define GAME_STATE_FRONT_END 0x7C03FFFE
 
 /* An audio screen button (audio_buttonInfo: 0-3 the lines' left buttons, 4-7 their right, 8 the cursor, 9-11
  * the decorations). */
@@ -136,7 +129,6 @@ void audio_updateButtons(void) {
     audio_buttonsJustInited = 0;
 }
 
-
 typedef struct { f32 x, y; } Stick;
 typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
@@ -154,7 +146,6 @@ VIEW(Pad16[], gControllerData);
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-
 /* Each frame of the audio screen: reads the controller (the first in the front end, the pausing player's in the
  * pause screen); A or start leaves, B restarts the chosen song, up and down move between the lines, left and right
  * change the line's value (the volumes 0 to 10 with wrap, the song, mono) and play the change at once. Then
@@ -168,7 +159,7 @@ void updateAudioScreen(void) {
     s32 ds;
     s32 dz;
 
-    if (gGameState & GAME_STATE_FRONT_END) {
+    if (gGameState & GS_FRONTEND_MASK) {
         stick[0] = gContStick[0].x;
         stick[1] = gContStick[0].y;
         btn = gActiveEdges;
@@ -194,7 +185,7 @@ void updateAudioScreen(void) {
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
-                if (gGameState & GAME_STATE_FRONT_END)
+                if (gGameState & GS_FRONTEND_MASK)
                     AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
@@ -216,7 +207,7 @@ void updateAudioScreen(void) {
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
-                if (gGameState & GAME_STATE_FRONT_END)
+                if (gGameState & GS_FRONTEND_MASK)
                     AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
@@ -256,7 +247,7 @@ void updateAudioScreen(void) {
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
-                if (gGameState & GAME_STATE_FRONT_END)
+                if (gGameState & GS_FRONTEND_MASK)
                     AudPlaySong(AUDIO_FRONT_END_SONG, 1);
                 else
                     StartGameMusic();
@@ -269,7 +260,7 @@ void updateAudioScreen(void) {
         }
     }
     audio_updateButtons();
-    if (gGameState & 0x7C0000) {
+    if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
         if (!p->b0 != audio_gControllerRemoved) {
             audio_gControllerRemoved = !p->b0;
@@ -278,14 +269,14 @@ void updateAudioScreen(void) {
     }
     if (gSoftReset) {
         audio_uninitScreen();
-        if (gGameState & GAME_STATE_FRONT_END)
-            gNewGameState = 4;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_TITLE;
         else
             setPauseState(1);
     } else if (exitAudioScreen) {
         audio_uninitScreen();
-        if (gGameState & GAME_STATE_FRONT_END)
-            gNewGameState = 16;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_START;
         else
             setPauseState(1);
     }

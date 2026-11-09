@@ -45,7 +45,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* One step of model m's motion:
  * - the velocity and acceleration to the world frame, and the position moved by rwv dt (the old one kept in rwr2);
@@ -78,7 +77,7 @@ void positions(tModelData *m) {
     temp[1] = m->w[1] * m->dt;
     temp[2] = m->w[2] * m->dt;
 
-    if (gRace == 4) {   /* kStunt */
+    if (gRace == kStunt) {
         m->stuntW[0] = temp[0] + m->stuntW[0];
         m->stuntW[1] = temp[1] + m->stuntW[1];
         m->stuntW[2] = temp[2] + m->stuntW[2];

@@ -1,9 +1,6 @@
 /* SavePlayerCarView: save the camera view a profile chose (MAT3 save.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
-#define kBattle 6
 
 /* Stores camera view value in the settings of the profile's last race type, as SavePlayerCar stores the car. */
 void SavePlayerCarView(tProfile **profile,u8 value)

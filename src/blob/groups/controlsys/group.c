@@ -43,10 +43,6 @@ VIEW(s32[4], gRealEdges);
 /* How far the raw stick must go to count as a d-pad press (gStickEdges). */
 #define STICK_EDGE 56
 /* The game's button bits UpdateControls and ControlIRQ use (n64_button_map's order). */
-#define BUTTON_DPAD_UP 0x400
-#define BUTTON_DPAD_DOWN 0x800
-#define BUTTON_DPAD_LEFT 0x1000
-#define BUTTON_DPAD_RIGHT 0x2000
 #define BUTTON_STICK_RESET 0x40000  /* the last mapped bit: by its use, the pad's reset flag (L+R+START recentres) */
 
 /* Makes the frame's input state from what ControlIRQ gathered: the sticks scaled to -1..1, the buttons held and
@@ -171,16 +167,16 @@ void ControlIRQ(void)
             gNewStick[i][1] = gControllerData[i].stick[1];
             if (gStickEdges[i]) {
                 if (gNewStick[i][0] < -STICK_EDGE) {
-                    buttons |= BUTTON_DPAD_LEFT;
+                    buttons |= BUTTON_LEFT;
                 }
                 if (gNewStick[i][0] > STICK_EDGE) {
-                    buttons |= BUTTON_DPAD_RIGHT;
+                    buttons |= BUTTON_RIGHT;
                 }
                 if (gNewStick[i][1] < -STICK_EDGE) {
-                    buttons |= BUTTON_DPAD_DOWN;
+                    buttons |= BUTTON_DOWN;
                 }
                 if (gNewStick[i][1] > STICK_EDGE) {
-                    buttons |= BUTTON_DPAD_UP;
+                    buttons |= BUTTON_UP;
                 }
             }
             if (buttons & BUTTON_STICK_RESET) {

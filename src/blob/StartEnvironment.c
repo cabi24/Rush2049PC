@@ -38,7 +38,7 @@ static void StartShadow(s16 slot)
     v->slot = slot;
     v->timeStamp = gModelTime;
     gShadowColor.c[3] = 192;
-    v->objnum = ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & 0x100) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
+    v->objnum = ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & GS_CAR) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
 }
 
 /* Give a human's car `slot` in split screen its arrows: one polygon for each other player's window (window mask bit
@@ -50,7 +50,7 @@ static void StartArrow(s16 slot)
     int i;
     tRGBA clr = { { 255, 255, 255, 255 } };
     tPoly *poly;
-    if (gRace == 6) {   /* kBattle */
+    if (gRace == kBattle) {
         clr.c[0] = arrowColors[gCarTeam[slot]].c[0];
         clr.c[1] = arrowColors[gCarTeam[slot]].c[1];
         clr.c[2] = arrowColors[gCarTeam[slot]].c[2];
@@ -66,7 +66,7 @@ static void StartArrow(s16 slot)
         v->func = AnimateArrow;
         v->slot = slot;
         v->index = i;
-        if (gRace == 6) poly = ZOID_NewPoly(4, gDummyVtx, gTexList[7], &clr, (1 << i) | 0x3200, 1);
+        if (gRace == kBattle) poly = ZOID_NewPoly(4, gDummyVtx, gTexList[7], &clr, (1 << i) | 0x3200, 1);
         else poly = ZOID_NewPoly(4, gDummyVtx, gTexList[7], &clr, (1 << i) | 0x1200, 1);
         ZOID_SetPolyZ(poly, 1);
         v->objnum = poly - PolyInstanceList;

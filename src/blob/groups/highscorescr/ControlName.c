@@ -21,12 +21,6 @@ VIEW(intptr_t[12][3][5], gTotalNames);
 VIEW(s8[3][5], gNewTotalScore);
 #define gNewTotalScore gNewTotalScore_view
 
-/* highscore_gNameSelect[]: a letter of the grid (0-53), or one of the three buttons under it. */
-#define NAME_SEL_END (-1)
-#define NAME_SEL_DELETE (-2)
-#define NAME_SEL_SPACE (-3)
-#define NAME_GRID_COLUMNS 9
-#define NAME_MAX 12                 /* letters in a name */
 
 /* One frame of player's name entry. The d-pad (auto-repeating) moves over the grid, wrapping round its rows and
  * columns, the bottom row's three buttons under the grid's columns 0-2, 3-5 and 6-8. A adds the letter (or a space,

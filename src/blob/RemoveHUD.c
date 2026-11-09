@@ -1,9 +1,6 @@
 /* RemoveHUD: remove the race's HUD (MAT3 hud.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
-#define kBattle 6
-
 /* A player's two coin counters' 3D coins (gPlayerCoin; CoinSlot's layout): the objects' ids. */
 typedef struct RecordSlot { s16 id; u8 pad2[50]; } RecordSlot;       /* 52 bytes */
 typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */

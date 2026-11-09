@@ -1,9 +1,6 @@
 /* RecordGhost: record a ghost race (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define NUM_RACE_TRACKS 6         /* raceStats[6..11]: the tracks backwards */
-#define FIRST_BACKWARD_TRACK 19   /* gTrackNum of the first track backwards (SavePlayerStats' numbering) */
-#define FEET_PER_TENTH_MILE 528.0f
 #define GHOST_SCORES 2            /* tRaceStats.scores[2]: the best ghost race times */
 
 /* The high score tables' owners for a track (gTotalNames): two lists of five by name index or handle, then the
@@ -57,7 +54,7 @@ void RecordGhost(void)
     saveTrack = gTrackNum;
     if (gBackwards) {
         track = gTrackNum + NUM_RACE_TRACKS;
-        saveTrack += FIRST_BACKWARD_TRACK;
+        saveTrack += TRACK_BACKWARD_FIRST;
     }
     for (i = 0; i < gNumPlayers; i++) {
         if (gPlayers[i].profile == 0)

@@ -153,7 +153,7 @@ EffectObj *GetSkid(u8 *color)
     s->color[2] = color[2];
     s->color[3] = 0xC0;
     s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
-                          ((gGameState & GAME_STATE_CAR) ? 1 : 15) | 0x1200, 1);
+                          ((gGameState & GS_CAR) ? 1 : 15) | 0x1200, 1);
     if (s->dl == 0) {
         FreeStatLLE(gSkidList, s);
         return 0;

@@ -18,7 +18,7 @@ void init_model_task(s32 frames)
     gModelTime = gModelIteration * dt;
     i = 0;
     do {
-        if (gRace != 2 || i == 0 || PC_MODEL_DT(i) == 0.0f) {   /* kGhost */
+        if (gRace != kGhost || i == 0 || PC_MODEL_DT(i) == 0.0f) {
             PC_MODEL_ITERATION(i) = gModelIteration;
             PC_MODEL_MODEL_TIME(i) = gModelTime;
             PC_MODEL_DT(i) = dt;

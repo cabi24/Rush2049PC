@@ -10,13 +10,6 @@ typedef struct Blit {
     s32 (*AnimFunc)(struct Blit *); u32 AnimID;
 } Blit;
 
-#define TRACK_OPT_FOG 14                /* trackscr.c's options */
-#define TRACK_OPT_WIND 15
-#define TRACK_OPT_DIFFICULTY 18
-#define TRACK_OPT_CATCHUP 19
-#define TRACK_OPTS 21                   /* an option's value button is trackscr_buttonInfo[option + 21] */
-#define SLIDER_FILLED 1                 /* the AnimID's segment: the filled part (0 the empty bar) */
-
 /* One slider blit, each frame. The AnimID packs its segment (bits 0-3: 0 the empty bar, 1 the filled part) and its
  * option (16 up). Hidden while the option's value button faces away (between 40 and 140 degrees) or is invisible.
  * It sits on the value button with the button's alpha (254 at most): a quarter-height strip of the slider texture

@@ -131,10 +131,6 @@ void prpf_nop(void)
 {
 }
 
-/* 0x800A2990: PS_ReadPartialFile(fileh, offset, numBytes) */
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 void PS_ReadPartialFile(PakHandle *fileh, s32 offset, u32 numBytes)
 {
     tPS_File *psfile;
@@ -178,7 +174,7 @@ read_retry:
         for (cur = gPS_Files[pak].head; cur != 0; cur = cur->file->next) {
             if (fileh == cur) {
                 if (psfile->data) {
-                    pdf_dealloc(N64A(psfile->data));
+                    pdf_dealloc(PC_N64A(psfile->data));
                     psfile->data = 0;
                 }
                 break;

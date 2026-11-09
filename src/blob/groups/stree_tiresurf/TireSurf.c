@@ -38,7 +38,6 @@ typedef struct EUCar {
     s16 slot;                       /* 0x7C6 */
 } EUCar;
 #define N64P(x) _Generic((x), enum n64p_Poly: (surftyp *)PC_N64P(x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 VIEW(f32[], unitmatrix);
 #define unitmatrix unitmatrix_view
@@ -87,7 +86,7 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
     if (node == NULL) {
         goto miss;
     }
-    car->node[wheel] = N64W(node);
+    car->node[wheel] = PC_N64W(node);
     off = node->child[quad];
     if (node->flags & (16 << quad)) {
         off |= 0x10000;
@@ -117,7 +116,7 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
     }
     if (bestAbs != 250.0f) {
     if (out[1] < 1.0f && (best->snd_flags & 0x30)) {
-        car->movingSurface = N64W(best);
+        car->movingSurface = PC_N64W(best);
     }
     if (best->flags & 0x2000) {
         fHalfPipeInterp((intptr_t)best, bestIdx, pos, out, mat, 250.0f);

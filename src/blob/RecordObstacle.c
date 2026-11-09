@@ -1,8 +1,6 @@
 /* RecordObstacle: record an obstacle course run (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define OBSTACLE_TRACK 18   /* gTrackNum of the obstacle course */
-
 /* A player's input record as this reads it (MAT3 tPadState): the car, which "just play" profile, the crashes, the
  * profile handle in use. */
 typedef struct PlayerPad {u8 index,selector;u8 opaque[62];u16 numCrashes;u8 rest[6];tProfile **profile;} PlayerPad;
@@ -17,7 +15,7 @@ VIEW(tProfile *[], gJustPlayers);
  * the best finishing time, the crashes, and the death mode runs; then writes the profile's stats (SavePlayerStats).
  * A player without a profile uses its "just play" one; a profile whose file isn't read stops it all. */
 void RecordObstacle(void) {
- int player,which,course=gTrackNum-OBSTACLE_TRACK;
+ int player,which,course=gTrackNum-TRACK_OBSTACLE;
  PlayerPad *record;
  tObstacleStats *stats;
  CarTime *car;

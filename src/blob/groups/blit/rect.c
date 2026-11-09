@@ -8,9 +8,6 @@ typedef union {
 } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_RDPPIPESYNC 0xE7
-#define G_SETPRIMCOLOR 0xFA
-#define G_FILLRECT 0xF6
 #define gDPNoParam(pkt, cmd) \
 { \
     Gfx *_g = (Gfx *)(pkt); \

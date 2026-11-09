@@ -27,7 +27,6 @@ VIEW(intptr_t[], gWheelTextures);
 VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-#define CARS 13                     /* the roster; a record's car is its slot % 13 */
 #define RIM_TEXTURES 3              /* gWheelTextures[]: the rims' textures from here on (gTireRims + this) */
 #define RIM_TEXTURE_SMALL_MEMORY 16 /* the one rim texture used without an Expansion Pak on the first six tracks */
 #define TIRE_LIFT 1.25f             /* the tyres sit this much higher than the model's places for them */

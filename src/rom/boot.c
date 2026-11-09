@@ -3,28 +3,13 @@
  * the scheduler, inflates the game image, starts the background loader and the car simulation, runs InitSystem,
  * starts the game thread, and then serves the scheduler's messages forever (process_scheduler_message). On the PC
  * the threads are host threads and the inflate fills the RDRAM window from the cartridge (port/ultra). The
- * threads' ids and priorities are system.h's THREAD_*. */
+ * threads' ids and priorities are game/threads.h's THREAD_*. */
 #include "static_debug_context.h"
+#include "game/threads.h"
 
 /* The game threads' FPU control: flush denormals to zero (FS) and trap invalid operations, divide by zero and
  * overflow. port/ultra records it. */
 #define FPCSR_GAME 0x01000E00
-/* The thread ids and priorities (include/game/system.h, which this boot code doesn't include). */
-#define THREAD_ID_IDLE 1
-#define THREAD_ID_MODEL 5
-#define THREAD_ID_MAIN 6
-#define THREAD_ID_GAME 7
-#define THREAD_ID_BG_LOAD 8
-#define THREAD_PRI_IDLE_START 2
-#define THREAD_PRI_BG_LOAD 3
-#define THREAD_PRI_MAIN 4
-#define THREAD_PRI_GAME 5
-#define THREAD_PRI_MODEL 7
-#define THREAD_PRI_SCHEDULER 12
-#define THREAD_PRI_PI_MANAGER 150
-/* The game thread's message asking the main thread to end a frame, and the main thread's to start one. */
-#define GAME_MSG_END_FRAME 0xABE
-#define GAME_MSG_START_FRAME 0xABF
 
 /* The N64's entry point (libultra's boot calls it): starts libultra, reads the cartridge header's first 64 bytes
  * (unused), and starts the idle thread, which runs everything else. */

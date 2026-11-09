@@ -17,11 +17,6 @@ typedef struct tModelData {
     s16 rpm;                    /* 0x7D0 the engine's rpm, for the sounds and the HUD */
 } tModelData;
 
-/* PC: the engine speed to s16, which a car's engine spinning past +-32767 rpm overruns (seen in a 12-car race,
- * docs/port/MORECARS.md 4); undefined in C. Through s32, whose low half the conversion keeps, as the N64's trunc.w.s
- * and sh do (docs/port/SANITIZE.md, particle_knot's V16). */
-#define TRUNC_W (int)
-
 /* Set model m up (initialize: the state, the car's constants, the road, the collision box), reset its controls
  * (MAT3 _InitModelControls: no steering, clutch or brake, throttle 1, first gear), find the road under it and place
  * its tires (road, positions), and give the sounds its rpm: engangvel in rpm (9.549305 = 60 / 2 pi) times 0.9

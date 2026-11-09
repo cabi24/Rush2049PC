@@ -22,10 +22,6 @@ VIEW(u16[8], taillight_colors_bright);
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
     tlut->taillights[4] = (src)[4]; tlut->taillights[5] = (src)[5]; tlut->taillights[6] = (src)[6]; tlut->taillights[7] = (src)[7]; } while (0)
 
-/* The descriptor's data is a 32-bit N64 address: N64PTR0(T, a) is the pointer at one (pc_prelude.h, docs/port/NOFIXED.md
- * 2.3). */
-#define N64PTR0(T, a) ((T)PC_N64P(a))
-
 /* The brake-light visual of car v->slot (VIS_BRAKE_LIGHTS): bright tail lights while it brakes (APPEAR_BRAKE) and is
  * not a hulk, else the plain ones; op 0 (stop) puts the plain ones back. On the night tracks (3 and 5) the lights
  * are on, so plain is dim and braking bright; elsewhere plain is dark and braking dim. */
@@ -34,7 +30,7 @@ void AnimateBrakeLights(tVisual *v, s16 op)
 s32 slot; CarTlut *tlut; s32 braking;
  slot = v->slot;
  braking = (PC_CAR_FLAGS(slot) & APPEAR_BRAKE) != 0 && (PC_CAR_FLAGS(slot) & APPEAR_HULK) == 0;
- tlut = N64PTR0(CarTlut *, car_palettes[slot].data);
+ tlut = ((CarTlut *)PC_N64P(car_palettes[slot].data));
     if (op == 0 || !braking) {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_dim); } else { CP(taillight_colors_dark); }
     } else {

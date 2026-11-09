@@ -22,14 +22,14 @@ void modelgo(void)
   s8 *m;
   s32 i;
 
-  if ((gGameState & 8) || (gGameState & 0x7C0000))   /* GS_DEMO, GS_RACE_MASK */
+  if ((gGameState & GS_DEMO) || (gGameState & GS_RACE_MASK))
   {
     for (i = 0, m = (s8 *) PC_MODELS; i < (s8) gNumActiveCars; i++, m += 0x808)
     {
       StartCarSounds((tModelData *) m);
     }
   }
-  if (!(gGameState & 8))   /* GS_DEMO */
+  if (!(gGameState & GS_DEMO))
   {
     gRumble = 1;
   }

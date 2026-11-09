@@ -42,8 +42,6 @@ typedef struct Cr {
     Q *q;               /* 0x380 its input record, NULL for a drone */
 } Cr;
 
-#define MAX_VEL 100.0f
-
 /* Car `car`'s steady camera (view 7). `mode` 0 starts it at `pos` looking at the car (init_steady_move_cam). Then
  * it flies in legs of steady_leg_duration seconds, pointing at the car (`pos`, its orientation into `uvs`): leg 0
  * from the start to 40 feet behind the car and 5 up, leg 1 from there to the rear chase camera's place

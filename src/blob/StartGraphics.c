@@ -8,12 +8,6 @@ typedef union {
 } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_RDPPIPESYNC 0xE7
-#define G_SETCIMG 0xFF
-#define G_SETFILLCOLOR 0xF7
-#define G_FILLRECT 0xF6
-#define G_IM_FMT_RGBA 0
-#define G_IM_SIZ_16b 2
 
 #define gSetImage(pkt, cmd, fmt, siz, width, i) \
 { \
@@ -43,25 +37,6 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-#define G_SETZIMG 0xFE
-#define G_MOVEWORD 0xDB
-#define G_MW_SEGMENT 0x06
-#define G_DL 0xDE
-#define G_DL_PUSH 0x00
-#define G_SETOTHERMODE_H 0xE3
-#define G_GEOMETRYMODE 0xD9
-#define G_MDSFT_CYCLETYPE 20
-#define G_MDSFT_TEXTFILT 12
-#define G_MDSFT_RGBDITHER 6
-#define G_CYC_FILL (3 << G_MDSFT_CYCLETYPE)
-#define G_TF_POINT (0 << G_MDSFT_TEXTFILT)
-#define G_TF_AVERAGE (3 << G_MDSFT_TEXTFILT)
-#define G_TF_BILERP (2 << G_MDSFT_TEXTFILT)
-#define G_CD_MAGICSQ (0 << G_MDSFT_RGBDITHER)
-#define G_CD_BAYER (1 << G_MDSFT_RGBDITHER)
-#define G_CD_NOISE (2 << G_MDSFT_RGBDITHER)
-#define G_CD_DISABLE (3 << G_MDSFT_RGBDITHER)
-#define G_ZBUFFER 0x00000001
 #define gDPSetDepthImage(pkt, i) gSetImage(pkt, G_SETZIMG, 0, 0, 1, i)
 #define gMoveWd(pkt, index, offset, data) \
 { \

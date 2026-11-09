@@ -46,7 +46,7 @@ int animStuntPoints(void *blt)
     tStuntCoin *coin;
     int showBonus;
     int unused0, unused1;
-    if (gGameState & 0x7c03fffe) return 1;
+    if (gGameState & GS_FRONTEND_MASK) return 1;
     HAL_SetTextDepth(0.0f);
     TB_SetJust(0, 1);
     if (gNumWindows == 1) HAL_SetFont(10); else HAL_SetFont(12);

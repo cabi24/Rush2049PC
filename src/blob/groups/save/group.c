@@ -3,13 +3,11 @@
  * its byte offsets. */
 #include "game/game.h"
 
-
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
 /* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
  * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
  * it keeps its N64 layout; its sample buffer `start` is a window address. */
 #define SLOT_DATA PROFILE_OFS(44)   /* SaveSlot.data */
-#define N64W(x) PC_N64W(x)
 typedef void **Handle;
 
 void *memset(void *, s32, u32);
@@ -292,8 +290,6 @@ Handle NewPlayer(s32 pak, s32 slot) {
     return player;
 }
 
-/* A profile keeps its handle's N64 address: the handle's own (pc_n64_identity, pc_prelude.h; LOCKSTEP.md 5). */
-#define N64A(x) pc_n64_identity(x)
 /* Creates a profile named name on pak's pak: a file named after the name (its first six letters, others made '*',
  * numbered when the name is taken), a fresh file (InitPlayer) with the profile's id (the creation time, the
  * record and the pak) and name, written at once; the profile joins the profile list in name order. Returns its
@@ -357,7 +353,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
     F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = MovePlayerFile;
     F(data, s32, 4) = gScheduler[159];
-    F(data, s32, 8) = (N64A(player) << 3) | pak;
+    F(data, s32, 8) = (pc_n64_identity(player) << 3) | pak;
     game_strcpy(data + 13, name);
     F(data, s32, 0) = CalcChecksumInternal(data + 4, (data + 28) - (data + 4));
     memcpy(p + PROFILE_OFS(20), data + 13, 13);
@@ -373,7 +369,6 @@ void **CreatePlayer(s32 pak, u8 *name) {
     InsertLLE(gPlayerFiles, player, before);
     return player;
 }
-
 
 
 /* Opens the profile in the pak file fileh (nothing if it is open already): reads and checks it, takes its name, id
@@ -427,7 +422,6 @@ void **ReadPlayer(void **fileh) {
     return player;
 }
 
-
 typedef struct GhostHeader {      /* tGhostHeader's layout */
     u32 headerChecksum;           /* 0x00 */
     u8 revision;                  /* 0x04 */
@@ -461,7 +455,6 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     u8 **datah;                   /* 0x24 */
     GhostHeader **header;         /* 0x28 */
 } Ghost;
-
 
 /* Checks a ghost's file: its revision (GHOST_REVISION) and header checksum, and with data the recording's checksum.
  * Returns 1 when something is wrong; with repair a bad ghost's file is deleted (and 0 returned). */
@@ -504,8 +497,6 @@ s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
     return result;
 }
 
-#define N64A0(x) PC_N64A(x)
-
 /* Reads the ghost's file (again: the data already read is purged first) and checks it, repairing it if need be; with
  * decode decompresses the recording; with select moves the header and the recording low in the heap (for the race)
  * and points the header at the recording. Returns 0 when it can't be read. */
@@ -536,10 +527,10 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
         DecodeGhost(ghosth);
     }
     if (select) {
-        ReallocateMemory(N64A0(ghost->header), 88);
+        ReallocateMemory(PC_N64A(ghost->header), 88);
         heap_move_block_low(ghost->header);
         heap_move_block_low(ghost->datah);
-        (*ghost->header)->start = N64W(*ghost->datah);
+        (*ghost->header)->start = PC_N64W(*ghost->datah);
     }
     return 1;
 }

@@ -1,10 +1,6 @@
 /* GetPlayerCarView: the camera view a profile last chose (MAT3 save.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
-#define kBattle 6
-
 /* The camera view the profile last chose for its last race type (tSaveData.raceType). The file must be read. */
 u8 GetPlayerCarView(tProfile **profile) {
     tSaveData *data;

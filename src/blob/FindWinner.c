@@ -1,9 +1,6 @@
 /* FindWinner: rank the players at a race's end (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
-#define kBattle 6
-
 /* A player's stunt session as this reads it (MAT3 tStuntPlayer): its points. */
 typedef struct { u8 pad0[20]; s32 totalPoints; u8 pad1[0x78 - 24]; } StuntPlayer;
 

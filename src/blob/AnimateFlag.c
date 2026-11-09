@@ -10,7 +10,7 @@ enum n64p_Target { n64p_Target_ };
 enum n64p_char { n64p_char_ };
 typedef struct Target {
     u8 pad00[4];
-    u8 flags;               /* 0x04 Flags: TARGET_STARTED */
+    u8 flags;               /* 0x04 Flags: TARGET_SET_UP */
     u8 pad05[7];
     s32 dlIdx;              /* 0x0C its scene object: the handle, whose low half is the object's index */
     u8 pad10[0x5A - 0x10];
@@ -32,7 +32,6 @@ typedef struct Visual {
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), enum n64p_char: (char *)PC_N64P(x), \
     default: (x))
 
-#define TARGET_STARTED 1        /* the flag has been coloured */
 #define FLAG_FRAMES 10          /* the wave's models */
 
 VIEW(volatile u8, gNumModels);
@@ -58,7 +57,7 @@ void AnimateFlag(Visual *v, s16 op) {
         return;
     }
     t = N64P(v->data);
-    if (!(t->flags & TARGET_STARTED)) {
+    if (!(t->flags & TARGET_SET_UP)) {
         name = N64P(t->data);
         t->frames = FLAG_FRAMES;
         if (game_strstr(name, "BLU") != 0) {
@@ -78,7 +77,7 @@ void AnimateFlag(Visual *v, s16 op) {
             i = 0;
         }
         v->index = i;
-        t->flags |= TARGET_STARTED;
+        t->flags |= TARGET_SET_UP;
     }
     v->func = AnimateObjSwapGeneric;
     v->timeStamp = 0.0f;

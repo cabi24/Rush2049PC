@@ -41,7 +41,6 @@ typedef struct SmokePuff {
 VIEW(u8[], gSmokeList);
 #define gSmokeList gSmokeList_view
 
-#define DEBUG_PRINT(args)
 
 /* Put puff `smk` in the scene as frame tIdx of the spray's animation (gObjList[205..212]). */
 static void attach(SmokePuff *smk) {

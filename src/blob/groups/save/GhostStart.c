@@ -1,9 +1,6 @@
 /* GhostStart: a ghost race's ghosts, recorded and raced against (MAT3 ghost.c). */
 #include "game/game.h"
 
-/* PC: the ghost header keeps its N64 layout, file data; the profile record is 64 bytes (docs/port/POINTERS.md 9.10) */
-#define N64W(x) PC_N64W(x)
-
 typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 headerChecksum;           /* 0x00 */
     u8 revision;                  /* 0x04 */
@@ -131,7 +128,7 @@ void GhostStart(void) {
         g->frameTime = gRetraceTime;
         if (!gRestartGame) {
             g->size = (f32)(ghostRaceTimes[gTrackNum] + 10.0) * gRetraceRate;
-            g->start = N64W(AllocateMemoryHeap(NULL, g->size * 3));
+            g->start = PC_N64W(AllocateMemoryHeap(NULL, g->size * 3));
         }
         g->offset = 0;
     }
@@ -146,7 +143,7 @@ void GhostStart(void) {
             continue;
         }
         ghost = *gGhosts[i];
-        (*ghost->header)->start = N64W(*ghost->datah);
+        (*ghost->header)->start = PC_N64W(*ghost->datah);
         g = *(*gGhosts[i])->header;
         g->offset = 0;
         car = g->car;

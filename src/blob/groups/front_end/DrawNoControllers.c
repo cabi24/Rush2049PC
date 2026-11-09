@@ -45,8 +45,8 @@ void DrawNoControllers(void)
     game_strcat(str, gText.single[128]);
     HAL_SetFont(11);
     TB_SetTextColor(22);
-    if (!(gGameState & 1) && !(gGameState & 2)) {
-        if ((gGameState & 0x40000000) || (gGameState & 4) || (gGameState & 8)) {
+    if (!(gGameState & GS_BOOT) && !(gGameState & GS_LICENSE)) {
+        if ((gGameState & GS_WARNING) || (gGameState & GS_TITLE) || (gGameState & GS_DEMO)) {
             TB_DrawText(x, 8, str);
         } else {
             TB_DrawText(x, 205, str);

@@ -154,18 +154,18 @@ void UpdateModelControls(void)
     player = gPlayers;
     for (i = 0; i < gNumPlayers; i++, player++) {
         car = PC_MODEL(player->slot);
-        if (gPauseState != 0 || (gGameState & GAME_STATE_DEMO)) {
+        if (gPauseState != 0 || (gGameState & GS_DEMO)) {
             continue;
         }
         ReadGasAndBrake(car, player);
         ReadSteeringWheel(car, player);
         ReadShifter(car, player);
-        if (gRace != 2 && gCoastFlag == 0 && (gRealLevels[player->controller] & player->controls[CONTROL_WINGS])) {
+        if (gRace != kGhost && gCoastFlag == 0 && (gRealLevels[player->controller] & player->controls[CONTROL_WINGS])) {
             car->wing = 1;
         } else {
             car->wing = 0;
         }
-        if (gRace != 6 && gCoastFlag == 0 && (gRealEdges[player->controller] & player->controls[CONTROL_ABORT])) {
+        if (gRace != kBattle && gCoastFlag == 0 && (gRealEdges[player->controller] & player->controls[CONTROL_ABORT])) {
             car->abort = 1;
             continue;
         } else {

@@ -4,7 +4,8 @@
 
 #include "game/types.h"
 
-/* gRace: the kind of race (MAT3's enum, the same numbers on the N64) */
+/* gRace: the kind of race (MAT3's enum_kNumRaceTypes, the same numbers on the N64); the mode menu's rows are in
+ * this order (MAT3 kModeMenuRace ... kModeMenuBattle). */
 enum {
     kOneRace = 0,  /* a single race against the drones */
     kPractice = 1, /* practice: no laps counted, no places */
@@ -16,18 +17,46 @@ enum {
     kNumRaceTypes = 7
 };
 
-/* gGameState's bits (MAT3 has the numbers only). A race goes SETUP, LOAD, COUNTDOWN, START, PLAY, END, then the
- * high score screen (UpdateGame). */
-#define GS_DEMO 0x8                /* the attract mode's demo race: no records, no crash counts, game sounds off */
-#define GS_RACE_SETUP 0x40000      /* options and pole positions */
-#define GS_RACE_LOAD 0x80000       /* PrePlay: the track and cars loaded and placed */
-#define GS_RACE_START 0x100000     /* the countdown is over: the race clock and the music start */
-#define GS_RACE_COUNTDOWN 0x200000 /* the countdown */
-#define GS_RACE_PLAY 0x400000      /* the race (PlayGame) */
-#define GS_GAME_OVER 0x800000      /* the game over screen */
-#define GS_RACE_END 0x1000000      /* the race is over (EndGame) */
-#define GS_HIGH_SCORE 0x2000000    /* the high score screen */
-#define GS_RACE 0x7C0000           /* any of the race's own states, SETUP to PLAY */
+/* gGameState, gNewGameState, gSkipToGameState: the game's state, one bit set (MAT3 rush_flags.h's names; MAT3's
+ * DWARF has the numbers only). setGameState asks for one; updateGameState switches at the top of the next frame
+ * (uninitGameState, then initGameState, state.c). The front end's states are dispatched by updateFrontEnd (the
+ * screens of runtime image A), the race's by UpdateGame: a race goes GAME_INIT, PREPLAY, COUNTDOWN, GO, RACING,
+ * then END_GAME and the high score or game over screen. */
+#define GS_BOOT 0x1                /* start-up: options and records, three frames, then GS_LICENSE */
+#define GS_LICENSE 0x2             /* updateLicenseScreen */
+#define GS_TITLE 0x4               /* updateTitleScreen */
+#define GS_DEMO 0x8                /* the attract mode's demo race, every car a drone: no records, no crash counts */
+#define GS_START 0x10              /* updateStartScreen: the start menu */
+#define GS_PLAYER 0x20             /* updatePlayerScreen: the profiles */
+#define GS_MODE 0x40               /* updateModeScreen: the race kind (gRace) */
+#define GS_TRACK 0x80              /* updateTrackScreen */
+#define GS_CAR 0x100               /* updateCarScreen */
+#define GS_OPTIONS 0x200           /* updateOptionScreen */
+#define GS_CONTROLS 0x400          /* updateControlScreen */
+#define GS_AUDIO 0x800             /* updateAudioScreen */
+#define GS_VIDEO 0x1000            /* updateVideoScreen */
+#define GS_RECORDS 0x2000          /* updateRecordScreen */
+#define GS_CIRCUIT 0x4000          /* updateCircuitScreen */
+#define GS_GAME_INIT 0x40000       /* a race chosen: its options and pole positions; the track, cars and race image load */
+#define GS_PREPLAY 0x80000         /* PrePlay until the track and cars are in and placed, then GS_COUNTDOWN */
+#define GS_GO 0x100000             /* the countdown has run out: the race clock and the music start, then GS_RACING */
+#define GS_COUNTDOWN 0x200000      /* the cars and physics live, the start countdown */
+#define GS_RACING 0x400000         /* the race proper (PlayGame) */
+#define GS_GAME_OVER 0x800000      /* updateGameOverScreen */
+#define GS_END_GAME 0x1000000      /* EndGame: the race torn down, then the high scores or game over */
+#define GS_HIGH_SCORE 0x2000000    /* updateHighScoreScreen */
+#define GS_PAK 0x4000000           /* updatePakScreen: the Controller Pak manager */
+#define GS_CHEAT 0x8000000         /* updateCheatScreen */
+#define GS_DEBUG 0x10000000        /* the start menu's debug row leads here; no screen updates it (MAT3 guesses
+                                    * GS_PAK_EXIT from its pak screen) */
+/* 0x20000000 has no name: initGameState loads wave 55 for it, nothing sets it. */
+#define GS_WARNING 0x40000000      /* updateWarningScreen: the Controller Pak warning after the licence */
+/* Groups of states. */
+#define GS_FRONTEND_MASK 0x7C03FFFE /* every state updateFrontEnd handles: the boot, the menus, the demo, pak, warning */
+#define GS_IN_GAME_MASK 0x3FC0000  /* every state UpdateGame handles: GS_GAME_INIT to GS_HIGH_SCORE */
+#define GS_RACE_MASK 0x7C0000      /* the race's set-up to the race: GS_GAME_INIT, GS_PREPLAY, GS_GO, GS_COUNTDOWN,
+                                    * GS_RACING */
+#define GS_ON_TRACK_MASK 0x600000  /* the cars on the track: GS_COUNTDOWN, GS_RACING */
 
 /* Data */
 extern u32 gCircuitPoints[EXTENT(6)];

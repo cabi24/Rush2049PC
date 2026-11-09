@@ -19,7 +19,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* Choose model m's gear. Neutral and reverse are the player's (commandgear 0 or -1) and taken as they are; in a
  * forward gear the box shifts up past the car's upshift engine speed and down below its downshift speed, both

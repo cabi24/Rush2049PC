@@ -1872,9 +1872,11 @@ typedef struct tTarget { /* 0x70 bytes */
 #define TARGET_ACTIVE 0x2    /* still in play: CheckTargetCollision tests only these (with TARGET_COLLIDES); a hit
                               * object's start function clears it, and a path target without it is removed
                               * (AnimatePathTarget) */
+#define TARGET_HIT 0x4       /* a car has hit it (CheckTargetCollision sets it before the start function) */
 #define TARGET_COLLIDES 0x8  /* it has a collision test (collFuncIdx not 6) */
 #define TARGET_IN_WORLD 0x10 /* a path target the world placed (not from a PTHD record) */
 #define TARGET_GOLD 0x40     /* a gold coin */
+#define TARGET_COIN_GONE 0x80 /* a coin every player has found: AnimateCoin removes it */
 
 /* A point of a target path (MAT3 anon_pos_norm_44), the track WAD's PTHD records' points. N64 layout, 0x44 bytes. */
 typedef struct TargetPathPt {

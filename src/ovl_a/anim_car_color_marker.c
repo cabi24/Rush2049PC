@@ -17,11 +17,6 @@ VIEW(Color[][3], carscr_marker_colors);
 VIEW(Color[], paint_colors_rgb);
 #define paint_colors_rgb paint_colors_rgb_view
 
-#define CAR_OPT_COLOR_A 7               /* carscr.c's options: the paint's three colours */
-#define CAR_OPT_COLOR_B 8
-#define CAR_OPT_COLOR_C 9
-#define CAR_OPTS 19                     /* an option's value button is carscr_buttonInfo[p][option + 19] */
-
 /* One swatch blit, each frame. The AnimID packs its player (bits 0-3), its option (16-23) and, written here, the
  * palette entry shown (28-31). Hidden for a player not playing (for good), while the car is locked, or while the
  * option's button faces away or is invisible. It sits on the option's value button with the button's alpha, and is

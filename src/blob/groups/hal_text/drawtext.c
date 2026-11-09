@@ -1,8 +1,6 @@
 /* DrawText: draw a string with the blitter, glyph by glyph (MAT3 HAL_text.c's _DrawText). */
 #include "game/game.h"
 
-/* A letter's row of the kerning table: its kerns field holds a window address (port/assets/font.c). */
-#define FONT_KERNS(k) ((unsigned char *)PC_N64P(k))
 typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
 /* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
  * 32-bit RDRAM-window address. */
@@ -95,7 +93,7 @@ void DrawText(const unsigned char *text, unsigned short length)
                 if (ch < 0)
                     goto space;
                 if (chPrev > 0 && gFontHeader->kern && !gFontHeader->nonProp)
-                    x0 -= FONT_KERNS(gFontLetters[ch].kerns)[chPrev];
+                    x0 -= ((unsigned char *)PC_N64P(gFontLetters[ch].kerns))[chPrev];
                 letter = gFontLetters + ch;
                 if (letter->texIdx != lastPage) {
                     lastPage = letter->texIdx;

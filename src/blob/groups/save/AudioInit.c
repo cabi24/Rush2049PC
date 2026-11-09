@@ -39,7 +39,6 @@ typedef struct Slot24 { u8 pad0[3]; u8 used; u8 pad4[28]; } Slot24;   /* a comma
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(Slot24 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 VIEW(OSMesgQueue, audio_lock_queue);
 #define audio_lock_queue audio_lock_queue_view
 VIEW(OSMesg[1], audio_lock_msg);
@@ -80,8 +79,6 @@ void sound_list_init(List *list, s8 handle, s8 dbl) {
     ClearLL(list);
 }
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 /* Starts or restarts the sound manager with numVoices voices, maxSfx of them for effects and maxMusic for music,
  * numListeners listeners and numEmitters emitters, footUnits units a foot, the front frontDistance away, Doppler
  * or not. A restart with the same effect and music voices does nothing; else the old set-up is shut down first.
@@ -126,12 +123,12 @@ void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEm
     }
     gNumFxTags = (gMaxSfx + numEmitters < gNumFxTags) ? gNumFxTags : gMaxSfx + numEmitters;
     gFxTags = AllocateMemoryHeap(0, gNumFxTags * sizeof(Voice));
-    PurgeableMemory(N64A(gFxTags), 0);
+    PurgeableMemory(PC_N64A(gFxTags), 0);
     sound_list_init(&gFreeFxTags, 0, 1);
     sound_list_init(&gPlayingFxTags, 0, 1);
     sound_list_init(&gInterruptedFxTags, 0, 1);
     gSortedFxTags = AllocateMemoryHeap(0, gNumFxTags * SORTED_TAG_SIZE);
-    PurgeableMemory(N64A(gSortedFxTags), 0);
+    PurgeableMemory(PC_N64A(gSortedFxTags), 0);
     gSortedFxTagTree.OrderFunc = OrderFx;
     gSortedFxTagTree.root = 0;
     gSortedFxTagTree.numElements = 0;
@@ -147,7 +144,7 @@ void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEm
     }
     gTagMask = (1 << gTagShift) - 1;
     gSequences = AllocateMemoryHeap(0, 6 * sizeof(Chan));
-    PurgeableMemory(N64A(gSequences), 0);
+    PurgeableMemory(PC_N64A(gSequences), 0);
     sound_list_init(&gFreeSequences, 0, 1);
     sound_list_init(&gActiveSequences, 0, 1);
     for (i = 0; i < 6; i++) {

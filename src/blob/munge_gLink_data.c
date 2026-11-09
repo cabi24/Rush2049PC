@@ -5,8 +5,6 @@
  * the drones' driving walk. */
 #include "game/game.h"
 
-
-#define MAX_LINKS 6             /* MAT3 LINK_OWNER_HUMAN: an owner below it is a drone */
 #define LINK_ACTIVE 0x80        /* MAT3 LINK_FLAG_IN_GAME: the slot is in the race */
 
 /* The model record (tModelData), the race fields. */
@@ -51,7 +49,7 @@ void munge_gLink_data(void) {
             PC_MODEL_SLOT(gNumActiveCars++) = i;
             car->slot = i;
             car->place = PC_LINK_PLACE(i);
-            m->drone_type = (PC_LINK_OWNER(i) < MAX_LINKS) ? DRONE_TYPE_AI : DRONE_TYPE_HUMAN;
+            m->drone_type = (PC_LINK_OWNER(i) < LINK_OWNER_HUMAN) ? DRONE_TYPE_AI : DRONE_TYPE_HUMAN;
         }
     }
     for (i = gNumCars; i < PC_MODEL_SLOTS; i++) {

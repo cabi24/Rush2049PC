@@ -25,7 +25,7 @@ typedef struct HostBlit {
 s32 anim_show_on_high_score(void *blit) {
     HostBlit *blt = blit;
 
-    if ((gGameState & 0x02000000) && (blt->Hide != 0)) {
+    if ((gGameState & GS_HIGH_SCORE) && (blt->Hide != 0)) {
         blt->Hide = 0;
         UpdateBlit(blt);
     }

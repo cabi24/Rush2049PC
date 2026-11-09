@@ -8,6 +8,7 @@
  * World units are feet, speeds feet a second, Y is up. */
 
 #define MPH_TO_FTPS          1.4666667f /* miles an hour to feet a second: 88 ft/s = 60 mph */
+#define FEET_PER_TENTH_MILE  528.0f     /* the odometer's and the records' distances */
 
 /* tCarData.crash_state (CheckCrash) */
 #define CRASH_NONE           0
@@ -41,6 +42,16 @@
 #define ROADCODE_DIRT        1      /* dirt (rear_dirt_drag_factor; the engine gives more torque, poor traction) */
 #define ROADCODE_WATER       2      /* water (rear_water_drag_factor; likewise) */
 #define ROADCODE_AIRBORNE    8      /* the tire touches no road (road, init_road) */
+
+/* PC: an engine speed to s16 through s32, (s16) TRUNC_W (rpm): an engine spinning past +-32767 rpm overruns s16 (seen
+ * in a 12-car race, docs/port/MORECARS.md 4), which is undefined in C; s32's low half is what the N64's trunc.w.s and
+ * sh keep (docs/port/SANITIZE.md, particle_knot's V16). */
+#define TRUNC_W              (s32)
+
+/* gLink[slot].owner: who drives a car slot (MAT3 rush_flags.h; an arcade leftover, the cabinet that simulated the
+ * car: fake_init, CalcPolePositions, munge_gLink_data). */
+#define LINK_OWNER_DRONE     0      /* a drone, simulated here: an owner below LINK_OWNER_HUMAN */
+#define LINK_OWNER_HUMAN     6      /* a human player's car */
 
 /* tModelData.drone_type (munge_gLink_data, init_cars) */
 #define DRONE_TYPE_NONE      0      /* the slot is not in the race */

@@ -71,7 +71,7 @@ void updatePauseScreen(void)
                 StartListeners();
                 AudResumeAllEffects();
                 ResumeGameMusic();
-                if (!(gGameState & 0x200000)) StartGameMusic();
+                if (!(gGameState & GS_COUNTDOWN)) StartGameMusic();
                 modelgo();
                 SetControllerStickEdges(-1, 0);
                 return;
@@ -84,7 +84,7 @@ void updatePauseScreen(void)
             case 7:
                 if (gModelTime < 15.0f) {
                     gRestartGame = 0;
-                    if (gGameState & 0x400000) goto retire_game;
+                    if (gGameState & GS_RACING) goto retire_game;
                     goto abort_game;
                 } else setPauseState(8);
                 break;
@@ -115,7 +115,7 @@ void updatePauseScreen(void)
         }
         if (gPlayers[playerInPause].edges & 2) {
             if (pause_gYes) {
-                if ((gGameState & 0x400000) && gPauseState == 8) {
+                if ((gGameState & GS_RACING) && gPauseState == 8) {
                 retire_game:
                     gRetireGame = 1;
                     setPauseState(0);

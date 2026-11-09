@@ -1,9 +1,6 @@
 /* pause_TitlePane: the pane behind the pause screen's title (MAT3 pausescr.c's _TitlePane). */
 #include "game/game.h"
 
-#define kPauseRumbleScreen 6  /* gPauseState (MAT3 enum kNumPauseStates) */
-#define kPauseRestart 7
-#define kPauseQuit 8
 #define PAUSE_TITLE_FONT 13
 
 #define INPUT_SIZE 80   /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */

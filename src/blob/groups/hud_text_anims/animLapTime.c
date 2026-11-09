@@ -1,8 +1,6 @@
 /* animLapTime: the box behind a checkpoint's split time, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
-
 typedef struct Pos {
     s32 x, y;
 } Pos;
@@ -30,7 +28,7 @@ s32 animLapTime(tBlit *blt)
         Hidden(blt, 1);
         return 1;
     }
-    show = (gGameState & GAME_STATE_ATTRACT) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_FINISHED(win) == 1;
+    show = (gGameState & GS_DEMO) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_FINISHED(win) == 1;
     if (Hidden(blt, show)) {
         return 1;
     }

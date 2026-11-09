@@ -38,9 +38,9 @@ void collision(tModelData *m)
  float *value;
  float length;
  int offset;
- if (gNoCarCollisions && gRace != 1) return;   /* kPractice */
+ if (gNoCarCollisions && gRace != kPractice) return;
  if (!m->collidable) return;
- if (gRace == 2) return;   /* kGhost */
+ if (gRace == kGhost) return;
  for (other = m + 1; other < PC_MODELS_END; other++) {
   if (!other->in_game || !other->collidable) continue;
   delta.x = m->reckon_rwr.x - other->reckon_rwr.x;

@@ -36,8 +36,6 @@ VIEW(PcEffectObj[100], gSkidArray);
 
 void *memset(void *, int, unsigned int);
 
-/* one-line multi-statement macro: stands in for the inlined kept InitStatLL (one .loc) */
-#define POOL_SETUP(pool, m, sz, n, f) { (pool).list = (m); (pool).numElements = (n); (pool).elementSize = (sz); (pool).dbl = (f); }
 
 /* Remove every skid mark's polygon and free its element, make gSkidList a doubly linked list of the 100 marks of
  * gSkidArray again, all free, and clear every tire's skid state. (MAT3 also builds each mark's GameCube strip;
@@ -51,7 +49,10 @@ void InitSkids(void)
         ZOID_RemovePoly(s->poly);
         FreeStatLLE(&gSkidList, s);
     }
-    POOL_SETUP(gSkidList, gSkidArray, sizeof(PcEffectObj), 100, 1);
+    gSkidList.list = gSkidArray;    /* MAT3 InitStatLL, inlined: the elements, how many, their size, doubly linked */
+    gSkidList.numElements = 100;
+    gSkidList.elementSize = sizeof(PcEffectObj);
+    gSkidList.dbl = 1;
     ClearStatLL(&gSkidList);
     memset(gNewSkid, 0, SKID_TABLE_BYTES);
 }

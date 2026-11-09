@@ -25,7 +25,6 @@ typedef struct Heap {
 } Heap;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
 

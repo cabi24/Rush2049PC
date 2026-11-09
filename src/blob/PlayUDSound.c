@@ -5,10 +5,10 @@
 void PlayUDSound(s32 edges) {
     s32 fxid;
 
-    if (edges & MENU_EDGE_UP) {
-        fxid = kSfxMenuUp;
+    if (edges & BUTTON_UP) {
+        fxid = SND_MENU_UP;
     } else {
-        fxid = kSfxMenuDown;
+        fxid = SND_MENU_DOWN;
     }
     AudPlayEffect(fxid, 0, 1, 0U);
 }

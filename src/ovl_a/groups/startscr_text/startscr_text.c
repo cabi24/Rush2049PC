@@ -22,7 +22,6 @@ VIEW(Color4, flashColors_at_1);
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
 int pc_start_valid(int index, int value);
 const char *pc_start_label(int index, const char *label);
-#define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_LABEL(i, s) ((void *)pc_start_label((i), (s)))
 
 #define TEXT_START_TITLE 39         /* gText.single[]: the menu's title */
@@ -32,7 +31,6 @@ const char *pc_start_label(int index, const char *label);
 #define START_ROW_CHEAT 6
 #define START_ROW_DEBUG 7
 #define DEBUG_BUTTON 0x100          /* game button 8: held, it offers the debug row */
-#define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
 
 /* The menu's text over its 3D buttons: the title on its button, each offered row's name beside its button (skipped
  * while the button faces away, half see-through while it turns, flashing on the selected one), and after the player

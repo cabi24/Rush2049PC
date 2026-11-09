@@ -7,24 +7,48 @@
 
 #include "game/types.h"
 
-/* The front end's menu sounds: effect ids (AudPlayEffect's fxid) as the Play*Sound helpers play them. */
+/* The front end's menu sounds: effect ids (AudPlayEffect's fxid), as the screens and the helpers PlayStartABSound,
+ * PlayExitSound, PlayUDSound and PlayLRSound play them for the buttons (BUTTON_*, input.h). */
 enum {
-    kSfxMenuStartB = 0x25,  /* the start screen's B button */
-    kSfxMenuBack = 0x26,    /* leaving a screen by another button than A */
-    kSfxMenuDown = 0x27,
-    kSfxMenuUp = 0x28,
-    kSfxMenuLeft = 0x29,
-    kSfxMenuRight = 0x2C,
-    kSfxMenuSelect = 0x2E   /* the A button */
+    SND_MENU_A = 0x25,       /* A: a row chosen */
+    SND_MENU_BACK = 0x26,    /* B, or a screen left by another button than Start */
+    SND_MENU_DOWN = 0x27,
+    SND_MENU_UP = 0x28,
+    SND_MENU_LEFT = 0x29,
+    SND_MENU_ERROR = 0x2A,   /* refused: the controls in conflict, an option that is not to be had */
+    SND_MENU_DELETE = 0x2B,  /* a pak file deleted, the controls set back to their defaults */
+    SND_MENU_RIGHT = 0x2C,
+    SND_MENU_START = 0x2E    /* Start */
 };
 
-/* A menu's button edges (gActiveEdges ...) as the Play*Sound helpers test them. */
-#define MENU_EDGE_A 0x1
-#define MENU_EDGE_B 0x2
-#define MENU_EDGE_UP 0x400
-#define MENU_EDGE_DOWN 0x800
-#define MENU_EDGE_LEFT 0x1000
-#define MENU_EDGE_RIGHT 0x2000
+/* The audio manager's commands (tAudioMsg.hdr.cmd, game/audiomgr.h): each named after the MAT3 call that posts it
+ * (AudPlaySong, AudKillSong ...); ProcessCommand carries them out on the audio manager thread. */
+enum {
+    kAudioCmdPlaySong = 0,
+    kAudioCmdKillSong = 1,
+    kAudioCmdPlayEffect = 2,        /* a new tag: replace a like one, then wait for the priority pass */
+    kAudioCmdStartEffect = 3,       /* the priority pass: give the tag a voice */
+    kAudioCmdChangeEffect = 4,      /* volume, pans, pitch (AUDIO_NO_CHANGE: keep) */
+    kAudioCmdInterruptEffect = 5,   /* the priority pass: take the tag's voice (a loop waits to restart) */
+    kAudioCmdStopEffect = 6,
+    kAudioCmdStopAllEffects = 7,
+    kAudioCmdPauseAllEffects = 8,
+    kAudioCmdResumeAllEffects = 9,
+    kAudioCmdSetMasterVol = 10,
+    kAudioCmdMono = 11
+};
+/* A sound value a change leaves as it is (AudChangeEffect, the commands' volume, pan and pitch). */
+#define AUDIO_NO_CHANGE (-2.0f)
+/* The sound clock gAudioSeconds wraps every four hours (audio_retrace_thread_entry). */
+#define AUDIO_CLOCK_WRAP_SECONDS 14400.0f
+
+/* The songs (AudPlaySong): the audio screen's song line (audio_gSong, gOptions' track) offers a song of gSongNames,
+ * then the track's own (AUDIO_SONG_TRACKS), then none (AUDIO_SONG_LAST); the front end plays AUDIO_FRONT_END_SONG. */
+#define AUDIO_SONG_TRACKS 12
+#define AUDIO_SONG_LAST 13
+#define AUDIO_FRONT_END_SONG 6
+/* The horns' effects: SND_HORN_FIRST + the horn. */
+#define SND_HORN_FIRST 26
 
 /* Data */
 extern u64 rspbootTextStart[EXTENT(26)];

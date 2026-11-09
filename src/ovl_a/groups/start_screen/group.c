@@ -53,7 +53,6 @@ extern void particle_lifetime_set(void);      /* createBG */
    N64, is PC SETUP while it is on, A on it opens the settings overlay over the menu; game.cheats_menu: slot 6 valid. */
 int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
-#define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_EXIT(e) ((e) = pc_start_exit((e), gStartMenuSelect))
 
 /* The menu's rows (gStartMenuSelect, MAT3 enum_kStartMenuCount). */
@@ -68,10 +67,7 @@ int pc_start_exit(int exit, int select);
 #define kStartMenuPath 8            /* MAT3's; PC SETUP on the PC */
 #define kStartMenuExit 9
 #define kStartMenuCount 10
-#define GS_DEBUG 0x10000000         /* the debug row's state (MAT3 rush_flags.h guesses GS_PAK_EXIT) */
 #define EGG_START_MENU 23           /* the start menu's code, past gEggs' own (start_screen_egg) */
-#define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
-#define SONG_MENU 6                 /* the front end's music */
 /* startscr_buttonInfo[]: the ten rows' buttons, then these. */
 #define START_PLAYERS_VALUE 10      /* the player count's value button */
 #define START_TITLE 11
@@ -107,7 +103,7 @@ void updateStartScreen(void)
         if (gSkipToGameState != gGameState) {
             if (!(gSkipToGameState & GS_RACE_MASK) && gOptions[14] <= 12) {
                 AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
-                AudPlaySong(SONG_MENU, 1);
+                AudPlaySong(AUDIO_FRONT_END_SONG, 1);
             }
             setGameState(GS_PLAYER);
             return;
@@ -207,7 +203,7 @@ void startscr_initScreen(void)
 {
     if (gOptions[14] <= 12) {
         AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
-        AudPlaySong(SONG_MENU, 1);
+        AudPlaySong(AUDIO_FRONT_END_SONG, 1);
     }
     particle_lifetime_set();
     startscr_initButtons();

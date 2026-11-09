@@ -14,7 +14,7 @@ checked. Three sources:
    size (-Wint-to-pointer-cast, -Wpointer-to-int-cast). A warning in a function the file's weak header lists is a
    weak copy, which is never linked. --warnings LOG parses a build log instead (a build of a copy with
    -Wno-int-conversion taken out of CMakeLists.txt's game_flags, `cmake --build ... -- -k 0`).
-2. The sources, with comments and strings told apart from code: the N64P/N64W/PC_N64W uses and their PC
+2. The sources, with comments and strings told apart from code: the N64P and PC_N64W uses and the files' N64P
    definitions, the conversions the compiler can't see (an integer cast through uintptr_t to a narrower type, a
    pointer made from an integer through uintptr_t), the 4-byte N64 address fields (enum n64p_), the literal
    K0/K1 addresses (in code: an address or a bit; in comments; beside a declaration; in group.json notes), and the
@@ -131,8 +131,9 @@ TRUNC = re.compile(r"\(\s*(?:u32|s32|unsigned(?:\s+int)?|int|uint32_t|int32_t|u1
 ZEXT = re.compile(r"\(\s*(?:const\s+)?[A-Za-z_][\w\s]*?\*+\s*\)\s*\(\s*(?:uintptr_t|intptr_t|__UINTPTR_TYPE__|"
                   r"__INTPTR_TYPE__)\s*\)")
 N64P_USE = re.compile(r"\bN64P\s*\(")
-N64W_USE = re.compile(r"\bN64W\s*\(")
-PC_N64W_USE = re.compile(r"\bPC_N64W\s*\(")
+# A pointer stored in a 4-byte N64 address field: the prelude's PC_N64W (a file's own N64W was that, until
+# tools/port/one_spelling.py inlined them).
+N64W_USE = re.compile(r"\b(PC_)?N64W\s*\(")
 # A file's own macro that translates through the prelude (phase B's N64A, N64PTR...; NOFIXED.md 2.3).
 TRANSLATE_DEF = re.compile(r"^\s*#\s*define\s+\w+\s*\([^)]*\).*\bPC_(N64A|N64P|SLOT_N64|SLOT_SET)\s*\(")
 DEF_N64P = re.compile(r"^\s*#\s*define\s+N64P\s*\(\s*(\w+)\s*\)\s*(.*)$")
@@ -256,8 +257,6 @@ def scan_game_file(inv, path, rel, built):
                 inv.add("src.n64p", rel, ln, line)
             if N64W_USE.search(c):
                 inv.add("src.n64w", rel, ln, line)
-        if PC_N64W_USE.search(c) and not dw:
-            inv.add("src.pc_n64w", rel, ln, line)
         if N64P_FIELD.search(c):
             inv.add("src.n64p_field", rel, ln, line)
         if TRUNC.search(c):
@@ -505,8 +504,7 @@ ORDER = [
     ("symbols.decoupled", "context: decoupled (PC-owned, outside the window)"),
     ("cc.", "compiler: casts of another size and implicit conversions (.weak: in a weak copy, never linked)"),
     ("src.n64p", "N64P: a 4-byte N64 address field read as a pointer"),
-    ("src.n64w", "N64W: a pointer stored as a 4-byte N64 address"),
-    ("src.pc_n64w", "PC_N64W outside N64W's definitions"),
+    ("src.n64w", "PC_N64W (or a file's N64W): a pointer stored as a 4-byte N64 address"),
     ("src.def.", "the files' N64P/N64W definitions, by kind (n64: the N64 side; translate: through PC_N64P), and "
                  "their own translating macros"),
     ("src.n64p_field", "4-byte N64 address fields (enum n64p_X) in N64-layout records"),

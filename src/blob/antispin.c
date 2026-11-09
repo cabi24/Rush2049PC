@@ -32,7 +32,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* Add model m's arcade yaw moments, unless it is a hulk:
  * - with a front tire on the road, a yaw moment straight from the steering wheel (12000 times the wheel at 100 ft/s

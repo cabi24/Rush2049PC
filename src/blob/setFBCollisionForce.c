@@ -87,7 +87,7 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
 
     gc1 = PC_CAR(m1->slot);
     gc2 = PC_CAR(m2->slot);
-    if (m1->slot >= 0 && m2->slot >= 0 && gRace != 6) {   /* kBattle */
+    if (m1->slot >= 0 && m2->slot >= 0 && gRace != kBattle) {
         if (gc1->carMine) {
             m2->crashflag = 1;
             gc1->carMine = 0;
@@ -111,7 +111,7 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     beside = (cent[2] < m2->bodyR[0][2]) && (cent[2] > m2->bodyR[3][2]);
     behind = (cent[0] < m2->bodyR[0][0]) && (cent[0] > m2->bodyR[3][0]);
 
-    if (gRace == 6 && gCarTeam[gc1->slot] != gCarTeam[gc2->slot]) {   /* kBattle */
+    if (gRace == kBattle && gCarTeam[gc1->slot] != gCarTeam[gc2->slot]) {
         if (gc1->weapon_type == 5 && m2->resurrect_moving_state == RES_IDLE && gc1->reloadingTime <= 0 &&
             gc2->crash_state == CRASH_NONE) {
             temp[0] = m2->reckon_rwr[0] - m1->reckon_rwr[0];
@@ -207,7 +207,7 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     m1->centerForce[2] -= cent[2];
     hum_car = (m1->drone_type == 2) || (m2->drone_type == 2);   /* DRONE_TYPE_HUMAN */
     if (gSuicideMode == 1 || (gSuicideMode == 2 && hum_car) || vector_magnitude(cent) > m1->crashthreshold * 0.5f) {
-        if (gRace != 6 && m1->crashflag == 0 && gc1->dead != CAR_DEAD) {   /* kBattle */
+        if (gRace != kBattle && m1->crashflag == 0 && gc1->dead != CAR_DEAD) {
             m1->crashflag = 1;
         }
     }
@@ -220,7 +220,7 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     m2->centerForce[1] = m2->centerForce[1] + force[1];
     m2->centerForce[2] = m2->centerForce[2] + force[2];
     if (gSuicideMode == 1 || (gSuicideMode == 2 && hum_car) || vector_magnitude(force) > m2->crashthreshold * 0.5f) {
-        if (gRace != 6 && m2->crashflag == 0 && gc2->dead != CAR_DEAD) {   /* kBattle */
+        if (gRace != kBattle && m2->crashflag == 0 && gc2->dead != CAR_DEAD) {
             m2->crashflag = 1;
         }
     }

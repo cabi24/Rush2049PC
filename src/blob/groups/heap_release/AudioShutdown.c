@@ -5,7 +5,6 @@
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(volatile tAudioMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 
 /* The three blocks as plain addresses, as this file always passed them. */
 VIEW(uintptr_t, gFxTags);

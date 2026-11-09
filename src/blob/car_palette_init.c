@@ -4,9 +4,6 @@
 /* PC: the car palette descriptors car_palettes have a WAD palette record's (PLHD) N64 layout, which the model draw
  * reads them through: data is a u32 window address (a heap block). docs/port/LOADERS.md */
 #define DESC_PTR(name) u32 name
-/* ... so a block's address goes in as its 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 /* A palette descriptor (a WAD palette record, PLHD: MAT3 anon_name_start_18's shape). */
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 
@@ -27,7 +24,7 @@ void car_palette_init(int index, int kind, void *data)
     car_palettes[index].marker = 255;
     car_palettes[index].value = 0x8000;
     if (data != 0) {
-        car_palettes[index].data = N64A(data);
+        car_palettes[index].data = PC_N64A(data);
     } else if (heap_total_free(0) < 512) { pc_heap_short("a car's paint", 512);
         for (i = 0; i < index; i++) {
             if (kind == PC_LINK_CAR(i)) {
@@ -41,6 +38,6 @@ void car_palette_init(int index, int kind, void *data)
         if (i == index) {
         }
     } else {
-        car_palettes[index].data = N64A(AllocateMemoryHeap(0, 512));
+        car_palettes[index].data = PC_N64A(AllocateMemoryHeap(0, 512));
     }
 }

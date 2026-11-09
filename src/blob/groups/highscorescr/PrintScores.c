@@ -24,7 +24,6 @@ VIEW(char *[5], gScoreNames);
 VIEW(void *, scorePanes);
 #define scorePanes scorePanes_view
 
-#define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles (gTable 0-2) */
 #define NO_HOLDER ((Player **)-1)   /* gTotalNames[]: nobody yet (a made-up holder and time) */
 #define TEMP_NAMES 20               /* a holder up to this is a temporary name's index (gTempNames), else a profile */
 

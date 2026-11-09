@@ -10,12 +10,6 @@ typedef union {
 
 /* SDK GBI forms, using the same self-contained types as gfx_modes. */
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_SETBLENDCOLOR 0xF9
-#define G_RDPPIPESYNC 0xE7
-#define G_SETOTHERMODE_H 0xE3
-#define G_GEOMETRYMODE 0xD9
-#define G_MDSFT_TEXTPERSP 19
-#define G_TP_NONE (0 << G_MDSFT_TEXTPERSP)
 
 #define gDPSetColor(pkt, c, d) \
 { \

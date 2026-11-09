@@ -31,7 +31,6 @@ typedef struct tBasicTargetPath {
     u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
     s32 parent;     /* 0x20 its target's record (a window address), here the key the world's groups know it by */
 } tBasicTargetPath;
-#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
 
 /* A world object (MAT3 tModelPart), the track WAD's: a target where its name matches a kind's. */
 typedef struct tModelPart {
@@ -140,7 +139,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
     tMiniModelData *matrix;
     tBasicTargetPath *scene;
     tTargetStructMine *mine;
-    if(!(gGameState&0x400000)) {
+    if(!(gGameState&GS_RACING)) {
         if(info->Flags&8) {
             t->data=PC_N64W(gTargetOwnStructPtrs[category]);
             if(!(t->Flags&16) && category==4) {
@@ -335,7 +334,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         } else if (info->structureID == 4) {
             t->mbIdx = gTargetPaths.paths[owner].parent;
         }
-        if (gGameState & 0x400000) {
+        if (gGameState & GS_RACING) {
             if (gRace == kBattle) {
                 ((tTarget **)GetStatLLE(&gAlwaysColList))[1] = t;
             }
@@ -448,4 +447,3 @@ void SetTargetDefs(void)
         InitBattlePowerUps(Restarting);
     }
 }
-

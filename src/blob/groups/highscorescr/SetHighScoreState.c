@@ -6,13 +6,10 @@ VIEW(s8 *[3], ghostPanes);
 VIEW(s8 *[2], scorePanes);
 #define scorePanes scorePanes_view
 
-
 VIEW(struct pc_multiblit[1], highscore_mblit);
 #define highscore_mblit highscore_mblit_view
 
-#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 #define PANE_STYLE_CODE 192         /* the circuit code's box */
-#define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles (gTable 0-2) */
 
 /* Go to page newState (kHighScore*): the text blit goes, the old page's boxes go, the new page's come up and its
  * time limit starts (CountdownTimeOut): the unlocked notices and name entry a box per player, the circuit code one

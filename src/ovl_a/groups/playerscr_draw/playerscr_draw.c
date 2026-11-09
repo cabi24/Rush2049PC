@@ -46,32 +46,14 @@ VIEW(u8 *[], gPS_PakName);
 #define SELECT_MENU_PROFILES 8          /* the profile rows */
 
 /* gSelectPlayerNum[]: a pak's profile count, or why it has none (playerscr.c's PAK_*). */
-#define PAK_NOT_INSERTED (-1)
-#define PAK_DAMAGED (-2)
-#define PAK_RUMBLE (-3)
-#define PAK_NO_CONTROLLER (-4)
 #define PAK_FULL (-5)                   /* never set: gPakFull says it */
 
-/* playerscr_buttonInfo[player][]: the 14 rows' buttons, then these (playerscr.c). */
-#define PLAYER_BUTTON_CONTROLS 14
-#define PLAYER_BUTTON_PAK_VALUE 15
-#define PLAYER_BUTTON_TITLE 16
-
-#define NAME_SEL_END (-1)               /* playerscr_gNameSelect[]: the buttons under the letter grid */
-#define NAME_SEL_DELETE (-2)
-#define NAME_SEL_SPACE (-3)
-#define NAME_GRID_COLUMNS 9
 #define NAME_GRID_LETTERS 54
 
 /* gText's entries this file uses */
 #define TEXT_PLAYER 29                  /* single[]: "player", in each window's title */
 #define TEXT_CONTROLS_BUTTON 51         /* single[]: the controls button's label */
 #define TEXT_SELECT_ROWS 21             /* tab[]: the select menu's rows' names */
-#define TEXT_YES_NO 24                  /* tab[]: yes, no */
-
-/* A button's text is hidden while the button is edge-on (between 40 and 140 degrees of its turn). */
-#define EDGE_ON_FROM 0.6981316804885864f
-#define EDGE_ON_TO 2.4434609413146973f
 
 /* 1 if profile `owner` is held by a player other than `skip`, else 0 (also for no profile). */
 s32 playerClaimed(s32 skip,Profile **owner)
@@ -547,4 +529,3 @@ s32 playerscr_animText(void *callback_context)
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
-

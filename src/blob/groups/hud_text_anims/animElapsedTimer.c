@@ -1,9 +1,6 @@
 /* animElapsedTimer: the box behind the race clock, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
-#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
-
 typedef struct Pos {
     s32 x, y;
 } Pos;
@@ -33,7 +30,7 @@ s32 animElapsedTimer(tBlit *blt)
         blt->animFunc = 0;
         return 1;
     }
-    if (Hidden(blt, (gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || !gShowElapsed)) {
+    if (Hidden(blt, (gGameState & GS_DEMO) || !(gGameState & GS_RACING) || !gShowElapsed)) {
         return 1;
     }
     if (gNumWindows == 1) {

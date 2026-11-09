@@ -6,11 +6,6 @@
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
 #define PC_ZEXT(x) ((uintptr_t)PC_N64P((u32)(x)))   /* an RDRAM-window address held as s32: its pointer */
-/* The heap's API and the color buffers take 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-#define N64A0(x) PC_N64A(x)
-#define N64AS(x) (s32)PC_N64A(x)
 
 extern s32 osTvType;
 
@@ -19,8 +14,6 @@ VIEW(intptr_t, zbuffer);
 
 /* The frame command buffers (ctx_initsystem.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
-#define DL_BUFFER_0 pc_frame_dl[0]
-#define DL_BUFFER_1 pc_frame_dl[1]
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 VIEW(u8 *, frame_dl);
@@ -32,9 +25,6 @@ VIEW(void *, gEmitters);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 
-/* The frame buffers' and z-buffer's size: 320 x 220 16-bit pixels, and 32 bytes to align them to 64. */
-#define FRAME_BUFFER_BYTES 0x22620
-
 /* The video and frame set-up (MAT3 has its own in its graphics layer): no texture filter or dithering options,
  * a 90-degree field of view; waits for libultra to know the TV type and sets the video mode; allocates the
  * z-buffer at the heap's bottom and the two frame buffers at its top, each locked and aligned to 64 bytes; and gives
@@ -45,9 +35,9 @@ static void _InitGfx_Init(void)
     video_texture_filter = 0; video_color_dither = 0; video_dither_filter = 0; video_divot = 0; HFOV = 90.0f;
     while (osTvType == 0) {}
     video_set_mode(osTvType, video_mode_base_index(), screen_width, screen_height);
-    zbuffer = (intptr_t)AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(N64A0(zbuffer), 0);
-    framebuffer_a = N64AS(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_a, 0);
-    framebuffer_b = N64AS(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_b, 0);
+    zbuffer = (intptr_t)AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(PC_N64A(zbuffer), 0);
+    framebuffer_a = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_a, 0);
+    framebuffer_b = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_b, 0);
     zbuffer = (zbuffer + 32) & ~63; framebuffer_a = (framebuffer_a + 32) & ~63; framebuffer_b = (framebuffer_b + 32) & ~63;
     frame_records[0].colorBuffer = PC_ZEXT(framebuffer_a); frame_records[1].colorBuffer = PC_ZEXT(framebuffer_b);
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
@@ -71,11 +61,11 @@ static void FreeBuffers_Init(void)
 {
     if (!expansion_pak_present) {
         if (gListeners) {
-            DeallocateMemory_Init(N64A(gListeners));
+            DeallocateMemory_Init(PC_N64A(gListeners));
             gListeners = 0;
         }
         if (gEmitters) {
-            DeallocateMemory_Init(N64A(gEmitters));
+            DeallocateMemory_Init(PC_N64A(gEmitters));
             gEmitters = 0;
         }
     }

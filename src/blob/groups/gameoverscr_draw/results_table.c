@@ -11,11 +11,6 @@ typedef struct OSMesgQueue OSMesgQueue;
 typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_RDPPIPESYNC 0xE7
-#define G_SETPRIMDEPTH 0xEE
-#define G_SETPRIMCOLOR 0xFA
-#define G_SETCOMBINE 0xFC
-#define G_FILLRECT 0xF6
 
 #define gDPNoParam(pkt, cmd) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = _SHIFTL(cmd, 24, 8); _g->words.w1 = 0; }
 #define gDPPipeSync(pkt) gDPNoParam(pkt, G_RDPPIPESYNC)
@@ -51,8 +46,6 @@ typedef struct PlayerRow {u8 slot;u8 other[71];PlayerProfile **profile;} PlayerR
 
 typedef struct PlayerStats {s32 words[18];s16 laps[24];} PlayerStats;
 #define TEXT_STUNT_RECORDS 37       /* gText.tab[]: the stunt score page's record rows */
-#define TEXT_GAME_OVER_MENU 45      /* gText.tab[]: the menu's rows */
-#define TEXT_PLACES 54              /* gText.tab[]: the ordinals, first to sixth */
 
 VIEW(s8[][4], gBattlePoints);
 #define gBattlePoints gBattlePoints_view
@@ -62,7 +55,6 @@ VIEW(PlayerStats[], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
 VIEW(s32[2], gJust);
 #define gJust gJust_view
-
 
 VIEW(OSMesgQueue, text_lock_queue);
 #define text_lock_queue text_lock_queue_view
@@ -76,7 +68,6 @@ void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text)
     TB_EllipseText(str, text, w);
     TB_DrawText(x, y, str);
 }
-
 
 /* PC: the finishing place's text (docs/port/MORECARS.md 7). The text bank holds six ordinals from `first`, first to
  * sixth, in the language in effect; what follows them is other text (in English, Dutch and French each ordinal's
@@ -372,9 +363,6 @@ void drawStuntStandings(void)
     HAL_SetTextDepth(-1.0f);
     gJust[1]=3;gJust[0]=0;
 }
-
-
-
 
 /* A stunt race's score page: each player's totals and record rows. */
 void drawStuntScore(void)
@@ -759,4 +747,3 @@ s32 gameover_animText(s32 blit)
     }
     return 1;
 }
-

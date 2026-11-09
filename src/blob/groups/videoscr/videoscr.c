@@ -133,7 +133,7 @@ s32 video_animText(s32 unused)
     HAL_SetTextDepth(0.0f);
     vs_SetFont(13);
     TB_SetTextColor(1);
-    if ((gGameState & GAME_STATES_RACE_START) && video_gControllerRemoved) {
+    if ((gGameState & GS_RACE_MASK) && video_gControllerRemoved) {
         TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
         TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {

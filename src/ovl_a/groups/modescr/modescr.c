@@ -44,16 +44,13 @@ extern f32 fabsf(f32);
 #define kModeMenuObstacle 5
 #define kModeMenuBattle 6
 #define kModeMenuCount 7
-#define MODE_CURSOR 7               /* modescr_buttonInfo[]: the cursor, after the seven rows' buttons */
-#define MODE_BUTTONS 13
-#define TRACK_OBSTACLE_UNLOCK 18    /* the track whose unlocking offers the obstacle course */
 
 /* Is the menu's row `index` offered? By the player count (modescr_validOption[players - 1][row]); the obstacle
  * course also needs track 18 unlocked. */
 s32 modescr_optionValid(s32 index)
 {
     s32 value=modescr_validOption[gNumPlayers-1][index];
-    if(index==kModeMenuObstacle && !IsTrackUnlocked(TRACK_OBSTACLE_UNLOCK))value=0;
+    if(index==kModeMenuObstacle && !IsTrackUnlocked(TRACK_OBSTACLE))value=0;
     return value;
 }
 

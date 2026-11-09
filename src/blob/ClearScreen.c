@@ -8,12 +8,6 @@ typedef union {
 } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_RDPPIPESYNC 0xE7
-#define G_SETCIMG 0xFF
-#define G_SETFILLCOLOR 0xF7
-#define G_FILLRECT 0xF6
-#define G_IM_FMT_RGBA 0
-#define G_IM_SIZ_16b 2
 
 #define gSetImage(pkt, cmd, fmt, siz, width, i) \
 { \

@@ -86,10 +86,10 @@ s32 animResults(s32 unused)
             resultPane[playerIdx] = InitPane(x - 69, y - h - 4, x + 69, h + y + 4, 192, 0, playerIdx << 4, 1);
             ChangePaneColor(resultPane[playerIdx], &hud_playerPaneColors[playerIdx].x, &hud_playerPaneColors[playerIdx].y);
         }
-        if (gRace == 4) {
+        if (gRace == kStunt) {
             TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gStuntPlayer[playerIdx].totalPoints,
                          gText.fixed[130]);
-        } else if (gRace == 5) {
+        } else if (gRace == kObstacle) {
             if (gLap[playerIdx] != 1) {
                 TB_Sprintf(str, "%s\n%s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.fixed[214]);
             } else {
@@ -105,7 +105,7 @@ s32 animResults(s32 unused)
                 TB_Sprintf(str, "%s\n%s %d:%02d.%03d", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.fixed[208],
                              min, sec, thou);
             }
-        } else if (gRace == 6) {
+        } else if (gRace == kBattle) {
             TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), PC_CAR_POINTS(playerIdx),
                          gText.fixed[130]);
         } else {

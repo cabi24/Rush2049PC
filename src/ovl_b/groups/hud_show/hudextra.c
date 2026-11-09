@@ -39,8 +39,6 @@ VIEW(u8[4][2][4], hudextra_playerPaneColors);
 
 #define blit hudextra_blit
 #define playerPaneColors hudextra_playerPaneColors
-#define kStunt 4  /* gRace: the race types (MAT3 enum kNumRaceTypes) */
-#define kBattle 6
 
 /* Makes the battle or stunt HUD once a race (nothing when hudextra_blit exists): battle's multiblit (BattleMultiBlit:
  * health, ammo, weapons, points), or for stunt races a pane in the player's colours behind each player's points (as

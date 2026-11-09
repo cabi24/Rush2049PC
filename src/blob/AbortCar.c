@@ -35,11 +35,11 @@ void AbortCar(s16 slot, s32 death)
     ;
     aborted = -1U;    /* CAR_ABORTED */
     models = PC_MODELS;
-    if (gRace == 4)   /* kStunt */
+    if (gRace == kStunt)
     {
       CrashedStunt((s32) slot);
     }
-    if (gRace == 6)   /* kBattle */
+    if (gRace == kBattle)
     {
       InitBattlePlayer(slot);
     }

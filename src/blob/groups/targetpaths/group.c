@@ -29,7 +29,6 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
  * target record, and the target an environment visual animates (its data). */
 #define TARGET_STATE(t) ((tTargetStructPath *) PC_N64P((t)->data))
 #define STATE_PATH(s) ((tBasicTargetPath *) PC_N64P((s)->pathData))
-#define PATH_PTS(p) ((TargetPathPt *) PC_N64P((p)->pts))
 #define PATH_TRIGGER(p) ((tBasicTargetPath *) PC_N64P((p)->trigPtr))
 #define PATH_PARENT(p) ((tTargetStructPath *) PC_N64P((p)->parent))
 #define VISUAL_TARGET(v) ((tTarget *) PC_N64P((v)->data))
@@ -95,7 +94,6 @@ void PlayStopSound(tTarget *target) {
         target->sndState = 2;
     }
 }
-
 
 /* Sets the target's orientation on its path: its point's (a point flagged 0x20, or one with no time to the next,
  * holds it), else turning evenly (InterpQuats) towards the next point's by the time on the stretch. A path with a
@@ -492,7 +490,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
         ReleaseEnviron(node, 1);
         return;
     }
-    if (((gGameState & 0x7C0000) || (gGameState & GS_DEMO)) && gPauseState == 0) {
+    if (((gGameState & GS_RACE_MASK) || (gGameState & GS_DEMO)) && gPauseState == 0) {
         target = VISUAL_TARGET(node);
         state = TARGET_STATE(target);
         path = STATE_PATH(state);

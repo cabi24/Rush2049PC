@@ -1,8 +1,6 @@
 /* InitSelectCarLoad: the car select screens' model loader reset (MAT3 selectcarload.c InitSelectCarLoad). */
 #include "game/game.h"
 
-#define SELECT_CAR_LOADS 16
-
 /* Each of the 13 cars' links points at its own car, and every model load slot is free (no wave, no car). */
 void InitSelectCarLoad(void)
 {

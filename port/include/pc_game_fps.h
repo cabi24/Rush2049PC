@@ -33,6 +33,8 @@ float pc_fps_noise(float e);
 #define PC_EACH30(stmt) if (!pc_fps60 || pc_frame_steps) { stmt }
 /* A filter or decay applied once a frame, x = x * e + y * (1 - e), tuned to a frame of two retraces: e^(frames). */
 #define PC_FILTER(e) (pc_fps60 ? pc_fps_filter(e) : (e))
+/* Its other weight, 1 - e^(frames): rest is the original's (1 - e as written) at the original frame rate. */
+#define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
 /* The scheduler's retraces between two swaps (src/rom/scheduler.c). */
 #define PC_SWAP_RETRACES ((unsigned int)(pc_fps60 ? 1 : 2))
 

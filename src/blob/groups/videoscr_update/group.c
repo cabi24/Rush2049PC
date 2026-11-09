@@ -181,7 +181,7 @@ void updateVideoScreen(void) {
     s32 dz;
     s32 ds;
 
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GS_FRONTEND_MASK) {
         btn = gActiveEdges;
         rep = gActiveAutoEdges;
         hold = gActiveLevels;
@@ -258,7 +258,7 @@ void updateVideoScreen(void) {
         }
     }
     video_updateButtons();
-    if (gGameState & 0x7C0000) {
+    if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
         if (!p->b0 != video_gControllerRemoved) {
             video_gControllerRemoved = !p->b0;
@@ -267,14 +267,14 @@ void updateVideoScreen(void) {
     }
     if (gSoftReset) {
         video_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
-            gNewGameState = 4;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_TITLE;
         else
             setPauseState(1);
     } else if (exitVideoScreen) {
         video_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
-            gNewGameState = 16;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_START;
         else
             setPauseState(1);
     }

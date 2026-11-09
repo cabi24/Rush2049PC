@@ -8,18 +8,6 @@ typedef union {
 } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_SETTIMG 0xFD
-#define G_RDPTILESYNC 0xE8
-#define G_SETTILE 0xF5
-#define G_RDPLOADSYNC 0xE6
-#define G_LOADTLUT 0xF0
-#define G_RDPPIPESYNC 0xE7
-#define G_IM_FMT_RGBA 0
-#define G_IM_FMT_CI 2
-#define G_IM_FMT_IA 3
-#define G_IM_FMT_I 4
-#define G_IM_SIZ_16b 2
-#define G_TX_LOADTILE 7
 
 #define gSetImage(pkt, cmd, fmt, siz, width, i) \
 { \
@@ -59,8 +47,6 @@ typedef union {
     gDPPipeSync(pkt); \
 }
 
-#define G_SETPRIMCOLOR 0xFA
-#define G_SETENVCOLOR 0xFB
 #define gDPSetColor(pkt, c, d) \
 { \
     Gfx *_g = (Gfx *)(pkt); \

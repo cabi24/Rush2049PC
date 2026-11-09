@@ -1,10 +1,6 @@
 /* RecordPractice: record a practice run (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define NUM_RACE_TRACKS 6     /* raceStats[6..11]: the tracks backwards */
-#define FIRST_BACKWARD_TRACK 19   /* gTrackNum of the first track backwards (SavePlayerStats' numbering) */
-#define FEET_PER_TENTH_MILE 528.0f
-
 /* A player's input record as this reads it: the car, which "just play" profile, the profile handle in use. */
 typedef struct PlayerPad { u8 car; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
 /* A car's record as this reads it: the distance driven, in feet. */
@@ -28,7 +24,7 @@ void RecordPractice(void)
     if (gBackwards)
     {
         stats_index += NUM_RACE_TRACKS;
-        track += FIRST_BACKWARD_TRACK;
+        track += TRACK_BACKWARD_FIRST;
     }
     for (i = 0; i < gNumPlayers; i++)
     {

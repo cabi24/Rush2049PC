@@ -42,7 +42,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 #define veccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 #define crossprod(a,b,r) {r[0]=a[1]*b[2]-a[2]*b[1]; r[1]=a[2]*b[0]-a[0]*b[2]; r[2]=a[0]*b[1]-a[1]*b[0];}
@@ -73,7 +72,7 @@ void torques(tModelData *m) {
         crossprod(fp,arm,moment);
         vecadd(m->m,moment,m->m);
     }
-    if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != 6 /* kBattle */) {
+    if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != kBattle /* kBattle */) {
         if(m->mainin_wing) m->wing=1; else m->wing=0;
         if(m->wing) {
             car=PC_CAR(m->slot);

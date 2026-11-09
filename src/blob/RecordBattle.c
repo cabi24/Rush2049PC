@@ -1,8 +1,6 @@
 /* RecordBattle: record a battle (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define FIRST_BATTLE_TRACK 6   /* gTrackNum: 6..13 the battle arenas */
-
 /* A player's input record as this reads it: which "just play" profile, the profile handle in use. */
 typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
 
@@ -24,7 +22,7 @@ void RecordBattle(void)
     s32 arena;
     s32 i;
 
-    arena = gTrackNum - FIRST_BATTLE_TRACK;
+    arena = gTrackNum - TRACK_BATTLE_FIRST;
     for (i = 0; i < gNumPlayers; i++)
     {
         if (gPlayers[i].profile == 0)

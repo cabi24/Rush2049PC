@@ -17,7 +17,6 @@ typedef struct TextureDefTable {
 
 /* What to do when the texture is missing (`flag`): nothing, warn, or stop. The messages are compiled out. */
 #define MBOX_NOERR 0
-#define MBOX_WARN 1
 #define MBOX_FATAL 2
 #define WARN_MSG(s)
 

@@ -35,19 +35,19 @@ void updateDemoGame(void) {
     playDemoGame(1, 0);
     if (gSoftReset && demo_preplayDone) {
         uninitDemoGame();
-        setGameState(4);
+        setGameState(GS_TITLE);
         return;
     }
     if ((gActiveEdges & 7) && demo_preplayDone || CountdownTimeOut()) {
         x = (gActiveEdges & 1) != 0;
         uninitDemoGame();
         if (gCurrentDemoTrack == 5 && CountdownTimeOut()) {
-            setGameState(2);
+            setGameState(GS_LICENSE);
             return;
         }
-        setGameState(4);
+        setGameState(GS_TITLE);
         if (x) {
-            gSkipToGameState = 16;
+            gSkipToGameState = GS_START;
         }
     }
 }

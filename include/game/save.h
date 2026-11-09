@@ -26,6 +26,9 @@ enum {
     kNumOptions = 41
 };
 
+/* A profile's save data, in bytes (PS_GetBlocks: the pages a profile takes). */
+#define PROFILE_BYTES 0x810
+
 /* The pak files' company and game codes (osPfsAllocateFile). */
 #define GAME_COMPANY_CODE 0x3544
 #define GAME_CODE 0x4E525545

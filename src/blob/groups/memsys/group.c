@@ -62,22 +62,22 @@ void *AllocateMemory(tHeap *heap, u32 size, void *master, s32 internal)
         rest = (tMemoryChunk *)((u8 *)chunk + size + HEAP_CHUNK_HEADER);
         rest->next = chunk->next;
         if (rest->next != 0) {
-            N64P(rest->next)->prev = N64W(rest);
+            N64P(rest->next)->prev = PC_N64W(rest);
         } else {
-            heap->lastChunk = N64W(rest);
+            heap->lastChunk = PC_N64W(rest);
         }
-        rest->prev = N64W(chunk);
+        rest->prev = PC_N64W(chunk);
         rest->size = chunk->size - size - HEAP_CHUNK_HEADER;
         rest->master = 0;
         rest->used = 0;
         rest->internal = 0;
         rest->locked = 0;
         rest->magic = HEAP_MAGIC_WORD;
-        chunk->next = N64W(rest);
+        chunk->next = PC_N64W(rest);
         chunk->size = size;
     }
     chunk->used = 1;
-    chunk->master = N64W(master);
+    chunk->master = PC_N64W(master);
     chunk->internal = internal; pc_heap_allocated(heap);
     return (u8 *)chunk + HEAP_CHUNK_HEADER;
 }
@@ -90,7 +90,7 @@ void InitHeap(tHeap *heap, u16 numInitialMasters, u16 numAdditionalMasters)
 {
     heap->magic = HEAP_MAGIC_WORD;
     heap->next = 0;
-    heap->chunks = N64W(N64PTR(tMemoryChunk *, ((N64A(heap) + 67) & ~31)));
+    heap->chunks = PC_N64W(((tMemoryChunk *)PC_N64P(((PC_N64A(heap) + 67) & ~31))));
     N64P(heap->chunks)->magic = HEAP_MAGIC_WORD;
     N64P(heap->chunks)->next = 0;
     N64P(heap->chunks)->prev = 0;
@@ -104,7 +104,7 @@ void InitHeap(tHeap *heap, u16 numInitialMasters, u16 numAdditionalMasters)
     heap->numAdditionalMasters = numAdditionalMasters;
     heap->masters.nextBlock = 0;
     if (numInitialMasters > 0) {
-        heap->masters.masters = N64W(AllocateMemory(heap, numInitialMasters * HEAP_MASTER_SLOT, 0, 1));
+        heap->masters.masters = PC_N64W(AllocateMemory(heap, numInitialMasters * HEAP_MASTER_SLOT, 0, 1));
         memset(N64P(heap->masters.masters), 0, numInitialMasters * HEAP_MASTER_SLOT);
     } else {
         heap->masters.masters = 0;
@@ -137,7 +137,7 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
     table = &target->masters;
     if (table->masters == 0) {
         table->numMasters = target->numAdditionalMasters;
-        table->masters = N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
+        table->masters = PC_N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
         memset(N64P(table->masters), 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
         table->nextBlock = 0;
     }
@@ -154,10 +154,10 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
         }
         i = 0;
         if (table->nextBlock == 0) {
-            table->nextBlock = N64W(AllocateMemory(target, sizeof(tMasterBlock), 0, 1));
+            table->nextBlock = PC_N64W(AllocateMemory(target, sizeof(tMasterBlock), 0, 1));
             N64P(table->nextBlock)->numMasters = target->numAdditionalMasters;
             N64P(table->nextBlock)->masters =
-                N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
+                PC_N64W(AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, 0, 1));
             memset(N64P(N64P(table->nextBlock)->masters), 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
             N64P(table->nextBlock)->nextBlock = 0;
         }
@@ -178,11 +178,11 @@ void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditio
 
     osRecvMesg(heap_lock_queue, 0, 1);
     heap = AllocateMemory(ConvertHeap(parent), size + 64, 0, 1);
-    heap->endRam = N64A(heap) + ((size + 95) & ~31);
+    heap->endRam = PC_N64A(heap) + ((size + 95) & ~31);
     InitHeap(heap, numInitialMasters, numAdditionalMasters);
     for (other = gMainHeap; other != 0; other = N64P(other->next)) {
         if (other->next == 0) {
-            other->next = N64W(heap);
+            other->next = PC_N64W(heap);
             break;
         }
     }
@@ -196,7 +196,7 @@ void locate_main_heap(void)
 {
     tHeap *heap;
 
-    heap = N64PTR(tHeap *, ((N64A(game_bss_end) + 31) & ~31));
+    heap = ((tHeap *)PC_N64P(((PC_N64A(game_bss_end) + 31) & ~31)));
     gMainHeap = heap;
     heap->endRam = osMemSize | 0x80000000;
     if (heap->endRam >= 0x80400001) {

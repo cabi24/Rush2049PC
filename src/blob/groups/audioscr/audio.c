@@ -141,7 +141,7 @@ s32 audio_animText(s32 unused)
     HAL_SetTextDepth(0.0f);
     au_SetFont(13);
     TB_SetTextColor(1);
-    if ((gGameState & GAME_STATES_RACE_START) && audio_gControllerRemoved) {
+    if ((gGameState & GS_RACE_MASK) && audio_gControllerRemoved) {
         TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
         TB_DrawText(TB_CenterText(str, 160), 10, str);
     } else {

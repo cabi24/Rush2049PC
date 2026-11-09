@@ -15,6 +15,14 @@ add_test(NAME rename_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_rename.p
 # names_check.py on maps written for each error and warning
 add_test(NAME names_check_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_names_check.py)
 set_tests_properties(rename_tool names_check_tool PROPERTIES TIMEOUT 300)
+# one_spelling.py: each constant's meaning one name, defined once in its header (tools/port/consts: the other
+# spellings, the files' abbreviations of shared conversions, the numbers that stand for names); --check fails when a
+# file still has a copy or another spelling the tables know (after a merge: one_spelling.py --apply). Seconds.
+add_test(NAME one_spelling COMMAND ${PC_PYTHON} ${PORT_TOOLS}/one_spelling.py --root ${CMAKE_SOURCE_DIR} --check)
+# one_spelling.py on a made-up tree: renames checked by value, copies dropped with their comments, a copy with another
+# value reported, conversions inlined, numbers named, a second run changes nothing
+add_test(NAME one_spelling_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_one_spelling.py)
+set_tests_properties(one_spelling one_spelling_tool PROPERTIES TIMEOUT 300)
 # objsame.py on objects compiled for the test: declarations, local names, comments and moved lines give `same`; code,
 # data, strings, references, exports and __LINE__ don't (the tool compares two builds' game objects: PCONLY.md 2)
 if(NOT WIN32)

@@ -30,8 +30,6 @@ extern Player gPlayers[];
 VIEW(u8[][152], gCamera);
 #define gCamera gCamera_view
 
-#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
-#define CONTROLS_COUNT 10           /* the controls a profile keeps */
 #define CONTROL_ANALOG_STICK 25     /* a control's last value, an analog source: gas and brake (rows 0, 1) show icon 26 for it */
 
 /* The controls list's rows as this file counts them: every one but row 8. */

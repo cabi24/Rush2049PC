@@ -22,8 +22,6 @@ typedef struct Target {
     u32 data;             /* 0x6c: a window address (the node keeps its N64 layout) */
 } Target;
 
-#define N64P(x) ((void *)PC_N64P(x))
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
@@ -41,9 +39,9 @@ void AnimateWeaponIcon(Visual *v, s16 op)
         return;
     }
     if (gPauseState != 0) return;
-    t = (Target *)N64P(v->data);
+    t = (Target *)((void *)PC_N64P(v->data));
     if (t->Flags & 2) {
-        angV = N64P(t->data);
+        angV = ((void *)PC_N64P(t->data));
         angVF[0] = angV[0] * gFrameSeconds;
         angVF[1] = angV[1] * gFrameSeconds;
         angVF[2] = angV[2] * gFrameSeconds;

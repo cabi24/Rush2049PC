@@ -10,60 +10,8 @@ typedef union {
 
 /* SDK forms, reference/repos/ultralib/include/PR/gbi.h */
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_SETTIMG 0xFD
-#define G_SETTILE 0xF5
-#define G_LOADBLOCK 0xF3
-#define G_LOADTILE 0xF4
-#define G_SETTILESIZE 0xF2
-#define G_RDPLOADSYNC 0xE6
-#define G_RDPPIPESYNC 0xE7
-#define G_SETOTHERMODE_H 0xE3
-#define G_MDSFT_TEXTLUT 14
-#define G_TT_NONE (0 << G_MDSFT_TEXTLUT)
-#define G_TT_RGBA16 (2 << G_MDSFT_TEXTLUT)
-#define G_IM_FMT_RGBA 0
-#define G_IM_FMT_YUV 1
-#define G_IM_FMT_CI 2
-#define G_IM_FMT_IA 3
-#define G_IM_FMT_I 4
-#define G_IM_SIZ_4b 0
-#define G_IM_SIZ_8b 1
-#define G_IM_SIZ_16b 2
-#define G_IM_SIZ_32b 3
-#define G_IM_SIZ_8b_BYTES 1
-#define G_IM_SIZ_8b_TILE_BYTES G_IM_SIZ_8b_BYTES
-#define G_IM_SIZ_8b_LINE_BYTES G_IM_SIZ_8b_BYTES
-#define G_IM_SIZ_16b_BYTES 2
-#define G_IM_SIZ_16b_TILE_BYTES G_IM_SIZ_16b_BYTES
-#define G_IM_SIZ_16b_LINE_BYTES G_IM_SIZ_16b_BYTES
-#define G_IM_SIZ_32b_BYTES 4
-#define G_IM_SIZ_32b_TILE_BYTES 2
-#define G_IM_SIZ_32b_LINE_BYTES 2
-#define G_IM_SIZ_4b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_8b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_16b_LOAD_BLOCK G_IM_SIZ_16b
-#define G_IM_SIZ_32b_LOAD_BLOCK G_IM_SIZ_32b
-#define G_IM_SIZ_4b_SHIFT 2
-#define G_IM_SIZ_8b_SHIFT 1
-#define G_IM_SIZ_16b_SHIFT 0
-#define G_IM_SIZ_32b_SHIFT 0
-#define G_IM_SIZ_4b_INCR 3
-#define G_IM_SIZ_8b_INCR 1
-#define G_IM_SIZ_16b_INCR 0
-#define G_IM_SIZ_32b_INCR 0
-#define G_TEXTURE_IMAGE_FRAC 2
-#define G_TX_LOADTILE 7
-#define G_TX_RENDERTILE 0
-#define G_TX_NOMIRROR 0
-#define G_TX_WRAP 0
-#define G_TX_MIRROR 0x1
-#define G_TX_CLAMP 0x2
-#define G_TX_NOMASK 0
-#define G_TX_NOLOD 0
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define G_TX_DXT_FRAC 11
-#define G_TX_LDBLK_MAX_TXL 2047
 #define TXL2WORDS(txls, b_txl) MAX(1, ((txls)*(b_txl)/8))
 #define CALC_DXT(width, b_txl) \
     (((1 << G_TX_DXT_FRAC) + TXL2WORDS(width, b_txl) - 1) / TXL2WORDS(width, b_txl))

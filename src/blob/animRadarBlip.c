@@ -1,7 +1,6 @@
 /* animRadarBlip: a car's blip on a player's radar, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8   /* gGameState: attract mode (the demo) */
 #define RADAR_RANGE 480.0f       /* the radar's reach across, feet */
 
 /* A model record (MAT3 tModelData, 0x808 bytes) as this reads it. */
@@ -52,7 +51,7 @@ s32 animRadarBlip(tBlit *blt) {
     me = (blt->animID >> 8) & 0xF;
     hw = blt->width * 0.125f;
     hh = blt->height;
-    if (me >= gNumWindows || (gGameState & GAME_STATE_ATTRACT) || gNumCars < 2) {
+    if (me >= gNumWindows || (gGameState & GS_DEMO) || gNumCars < 2) {
         blt->animFunc = 0;
         return Hidden(blt, 1);
     }

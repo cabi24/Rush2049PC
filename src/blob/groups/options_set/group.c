@@ -22,7 +22,7 @@ void SetOptions(void)
     s8 configuration_mode;
     u8 *options;
     Player *player;
-    if (!(gGameState & 8)) {
+    if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
             if (gPlayers[i].player != 0) {
                 for (setting = 0; setting < 21; setting++) {
@@ -42,7 +42,7 @@ void SetOptions(void)
     gShowMetric = gOptions[9];
     gShowPlayerArrows = gOptions[10];
     gShowWrongWay = gOptions[18];
-    if (gGameState & 8) {
+    if (gGameState & GS_DEMO) {
         gNumLaps = 3;
         gNumDrones = 6;
         gBackwards = 0;
@@ -185,7 +185,7 @@ void SetOptions(void)
             break;
         }
     }
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GS_FRONTEND_MASK) {
         gMirrorWaves = 0;
         gMirrorControls = 0;
     }

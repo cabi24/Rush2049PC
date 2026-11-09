@@ -26,44 +26,11 @@ typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u
 /* A circuit's race (gCircuitTracks): the track and its set direction, mirror, fog and wind. */
 typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack;
 
-/* trackscr_gOpts[]: the race options, in their order down the list (OptionValid keeps the offered ones). The
- * gOptions entry each changes is in updateTrackScreen; 3-11 are gOptions[32..40]. */
-#define TRACK_OPT_TRACK 0
-#define TRACK_OPT_GHOSTS 1              /* gOptions[25]: which ghosts (gGhostSelect) */
-#define TRACK_OPT_LAPS 2                /* gOptions[21], 1-8 */
-#define TRACK_OPT_STUNT_MODE 3          /* gOptions[32]: 0 time, 1 points, 2 death (MAT3 kTimeStuntMode ...) */
-#define TRACK_OPT_STUNT_POINTS 5        /* offered in stunt mode 1 */
-#define TRACK_OPT_STUNT_TIME 6          /* offered in stunt mode 0 */
-#define TRACK_OPT_STUNT_DEATH 7         /* offered in stunt mode 2 */
-#define TRACK_OPT_BATTLE_MODE 8         /* gOptions[37]: 0 points, 1 time (MAT3 kPointBattleMode, kTimeBattleMode) */
-#define TRACK_OPT_BATTLE_POINTS 9       /* offered in battle mode 0 */
-#define TRACK_OPT_BATTLE_TIME 10        /* offered in battle mode 1 */
-#define TRACK_OPT_BATTLE_11 11          /* offered in battle mode 0 */
-#define TRACK_OPT_BACKWARDS 12          /* gOptions[27]: the race tracks only */
-#define TRACK_OPT_MIRROR 13             /* gOptions[28] */
-#define TRACK_OPT_FOG 14                /* gOptions[29], 0-3 */
-#define TRACK_OPT_WIND 15               /* gOptions[30], 0-4 */
-#define TRACK_OPT_DRONES 17             /* gOptions[22] */
-#define TRACK_OPT_DIFFICULTY 18         /* gOptions[24], 0-5 */
-#define TRACK_OPT_CATCHUP 19            /* gOptions[26], 0-2 */
-#define TRACK_OPT_DEATH_MODE 20         /* gOptions[31] */
-#define TRACK_OPTS 21
-
 #define RACE_OPTIONS_FIRST 21           /* gOptions[21..40]: the race options, kept per profile */
 #define RACE_OPTIONS_END 41
-#define MIRROR_SECRET 2                 /* gOptions[28]: the mirror option's hidden third value */
 #define SECRET_BUTTONS 0x3C000          /* held with the change, they give MIRROR_SECRET (game button bits 14-17) */
 
 /* The tracks (gTrackNum): the race tracks, the battle arenas, the stunt arenas and the obstacle course. */
-#define TRACKS 19
-#define TRACK_RACE_FIRST 0
-#define TRACK_RACE_LAST 5
-#define TRACK_BATTLE_FIRST 6
-#define TRACK_BATTLE_LAST 13
-#define TRACK_STUNT_FIRST 14
-#define TRACK_STUNT_LAST 17
-#define TRACK_OBSTACLE 18
-#define TRACK_NEEDS_EXPANSION 5         /* this race track can't be raced without an Expansion Pak */
 #define TRACK_MAP_SELECTED 19           /* trackMap[]: the highlighted race track's map */
 #define MAP_LOD_SELECTED 6              /* mapObj[], saved_map_lods[] ...: the selected map's copy */
 
@@ -77,10 +44,6 @@ typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack
 #define TRACK_BUTTON_B_ARROW 47
 #define TRACK_BUTTONS 48
 
-#define SND_BACK 38                     /* the menu sounds */
-#define SND_MENU_DOWN 39
-#define SND_MENU_UP 40
-#define BUTTON_DEFAULT_OPTION 0x80      /* with trackscr_gActiveZ, would put an option back to its default */
 #define WAVE_PATHS 158                  /* a race track's path data: this + the track */
 #define CIRCUIT_DEATH_MODE_BYTE 1785    /* the profile's save data: the circuit's death mode */
 
@@ -222,7 +185,6 @@ VIEW(void *[7], map_vertex_blocks);
 VIEW(ModelBank[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
-#define N64A0(x) PC_N64A(x)
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
@@ -308,7 +270,7 @@ void updateTrackScreen(void)
         return;
     }
     if (gActiveEdges & BUTTON_B) {
-        AudPlayEffect(SND_BACK, 0, 1, 0); trackscr_UninitScreen();
+        AudPlayEffect(SND_MENU_BACK, 0, 1, 0); trackscr_UninitScreen();
         if (gRace == kCircuit) setGameState(GS_CIRCUIT);
         else setGameState(GS_MODE);
         return;
@@ -329,8 +291,8 @@ void updateTrackScreen(void)
                 else if (gTrack >= gNumTracks) gTrack = 0;
                 do {
                     gTrackNum += add;
-                    if (gTrackNum < 0) gTrackNum = TRACKS - 1;
-                    else if (gTrackNum >= TRACKS) gTrackNum = 0;
+                    if (gTrackNum < 0) gTrackNum = NUM_TRACKS - 1;
+                    else if (gTrackNum >= NUM_TRACKS) gTrackNum = 0;
                 } while (!TrackValid(gTrackNum));
                 for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++)
                     gOptions[i] = GetPlayerOption(gPlayers[0].save, i);
@@ -557,16 +519,16 @@ void trackscr_InitScreen(void)
     trackscr_initButtons();
     trackscr_blit = NewMultiBlit(0, 0, trackscr_mblit, 17);
     i = 0;
-    for (j = 0; j < TRACKS; j++) {
+    for (j = 0; j < NUM_TRACKS; j++) {
         if (TrackValid(j)) {
             if (j == gTrackNum) { gTrack = i; break; }
             i++;
         }
     }
-    gNumTracks = TRACKS;
+    gNumTracks = NUM_TRACKS;
     i = 0;
     pos = 0.0f;
-    for (j = 0; j < TRACKS; j++) {
+    for (j = 0; j < NUM_TRACKS; j++) {
         if (TrackValid(j)) {
             gTracks[i].gTrackNum = j;
             gTracks[i].slot = i - gTrack;
@@ -1150,9 +1112,9 @@ void clearTrackMaps(void)
             model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels - 1,1);
             def = &gRomObjDefPtrs[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = saved_map_lods[i];
-            if (map_display_list_blocks[i]) DeallocateMemory(N64A0(map_display_list_blocks[i]));
+            if (map_display_list_blocks[i]) DeallocateMemory(PC_N64A(map_display_list_blocks[i]));
             map_display_list_blocks[i] = 0;
-            if (map_vertex_blocks[i]) DeallocateMemory(N64A0(map_vertex_blocks[i]));
+            if (map_vertex_blocks[i]) DeallocateMemory(PC_N64A(map_vertex_blocks[i]));
             map_vertex_blocks[i] = 0;
             mapObj[i].displayList = 0;
             mapObj[i].verts = 0;
@@ -1442,4 +1404,3 @@ void trackscr_updateButtons(void)
         trackscr_buttonsJustInited = 0;
     }
 }
-

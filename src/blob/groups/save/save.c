@@ -2,9 +2,6 @@
  * InitLL and ClearLL (MAT3 ll.c; InsertLLE.c has the lists). */
 #include "game/game.h"
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 typedef struct SaveData {
     char pad0[13];
     char name[2051];
@@ -94,10 +91,10 @@ void SaveInit(void) {
     }
     n = (expansion_pak_present ? 12 : 1) * 3;
     gRealLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record));
-    PurgeableMemory(N64A(gRealLimboGhosts), 0);
+    PurgeableMemory(PC_N64A(gRealLimboGhosts), 0);
     memset(gRealLimboGhosts, 0, n * sizeof(Record));
     gLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record *));
-    PurgeableMemory(N64A(gLimboGhosts), 0);
+    PurgeableMemory(PC_N64A(gLimboGhosts), 0);
     for (i = 0; i < n; i++) {
         gLimboGhosts[i] = &gRealLimboGhosts[i];
     }

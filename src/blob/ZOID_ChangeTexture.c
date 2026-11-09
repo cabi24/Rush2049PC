@@ -6,9 +6,6 @@
 #include "game/game.h"
 #define ModelList ModelListView   /* this file's own ModelList: include/game's ModelList is another type */
 
-/* PC: an object definition (tModelDef) is a WAD's OBHD record, which keeps its N64 layout (port/assets/wad.c): the
- * display list is a 32-bit window address. */
-#define PART_DL u32
 /* One level of detail of an object definition (MAT3 anon_texidx_flags_c, 16 bytes on the N64). */
 typedef struct LodDef { u16 texidx; u16 flags; u8 pad4[4]; PART_DL displayList; u8 padC[4]; } LodDef;
 /* An object definition (MAT3 tModelDef): the name, the radius, the levels of detail. */

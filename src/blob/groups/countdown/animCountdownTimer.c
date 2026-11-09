@@ -1,14 +1,7 @@
 /* animCountdownTimer: the time left, a text blit's draw function (MAT3 hud.c); and the countdown's beep. */
 #include "game/game.h"
 
-#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
-#define kOneRace 0    /* gRace (MAT3 enum kNumRaceTypes) */
-#define kPractice 1
-#define kCircuit 3
-#define kStunt 4
-#define kBattle 6
 #define SOUND_COUNTDOWN_BEEP 2
-
 
 #define sc gScheduler_view
 #define mapPos hud_mapPos_view
@@ -37,7 +30,7 @@ s32 animCountdownTimer(void *blt)
     static s32 sec;
     static s32 nextBeep = 30;
 
-    if (!(gGameState & GAME_STATE_RESULTS) || !gShowRemaining)
+    if (!(gGameState & GS_RACING) || !gShowRemaining)
         goto skip;
     if (gRace == kBattle && gBattleMode == 0)
         goto skip;
@@ -104,8 +97,6 @@ skip:
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
-
- 
 
 /* Plays sound effect fxid (AudPlayEffect) unless the game's sounds are off or fxid is -1; returns its handle, -1
  * when none. */

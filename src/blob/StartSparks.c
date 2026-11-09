@@ -24,7 +24,7 @@ void StartSparks(s16 slot) {
     tCarData *car;
     CarParts *parts;
 
-    if (gGameState & 8) {
+    if (gGameState & GS_DEMO) {
         return;
     }
     car = PC_CAR(slot);

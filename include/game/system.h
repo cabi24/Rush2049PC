@@ -5,65 +5,13 @@
 
 #include "game/types.h"
 
-/* The game's threads (src/rom/boot.c): libultra thread ids, and priorities (the higher runs first). On the PC each is
- * a host thread and port/ultra keeps their priority order (docs/port/ULTRA.md). */
-#define THREAD_ID_IDLE 1        /* main's first thread: starts the PI manager and the main thread, then idles */
-#define THREAD_ID_MODEL 5       /* the car simulation (ModelThread) */
-#define THREAD_ID_MAIN 6        /* start-up, then the scheduler's client that starts and ends frames */
-#define THREAD_ID_GAME 7        /* GameLoop forever */
-#define THREAD_ID_BG_LOAD 8     /* the background wave loader (BGLoadWaveMain) */
-#define THREAD_PRI_IDLE_START 2 /* the idle thread until it has started the main thread; then 0 */
-#define THREAD_PRI_BG_LOAD 3
-#define THREAD_PRI_MAIN 4
-#define THREAD_PRI_GAME 5
-#define THREAD_PRI_MODEL 7
-#define THREAD_PRI_SCHEDULER 12
-#define THREAD_PRI_PI_MANAGER 150
+#include "game/threads.h"   /* the threads' ids and priorities, the main thread's messages (the boot code's too) */
 
-/* The messages on the main thread's queue (main_thread_queue): the scheduler's (libultra's sched.h names), and the
- * game thread's request to end a frame (UpdateFrame); the main thread sends frame_start_msg to the game thread. */
-#define OS_SC_RETRACE_MSG 1
-#define OS_SC_DONE_MSG 2
-#define OS_SC_PRE_NMI_MSG 4
-#define GAME_MSG_END_FRAME 0xABE    /* 2750 */
-#define GAME_MSG_START_FRAME 0xABF
-
-/* The game state machine's states (gGameState, gNewGameState: setGameState, updateGameState in state.c). One bit
- * each; MAT3 has the same bits, unnamed. The front end's states are the screens of runtime image A. */
-#define GAME_STATE_BOOT 0x1             /* start-up: options, records, then the licence screen */
-#define GAME_STATE_LICENSE 0x2
-#define GAME_STATE_TITLE 0x4
-#define GAME_STATE_DEMO 0x8             /* the attract mode's demo race */
-#define GAME_STATE_START 0x10           /* the start menu */
-#define GAME_STATE_PLAYERS 0x20
-#define GAME_STATE_MODE 0x40
-#define GAME_STATE_TRACK 0x80
-#define GAME_STATE_CAR 0x100
-#define GAME_STATE_OPTIONS 0x200
-#define GAME_STATE_CONTROLS 0x400
-#define GAME_STATE_AUDIO 0x800
-#define GAME_STATE_VIDEO 0x1000
-#define GAME_STATE_RECORDS 0x2000
-#define GAME_STATE_CIRCUIT 0x4000
-#define GAME_STATE_RACE_LOAD 0x40000    /* a race chosen: load the track, the cars, the race image */
-#define GAME_STATE_PREPLAY 0x80000      /* PrePlay until the track and cars are in */
-#define GAME_STATE_GO 0x100000          /* the countdown has run out: start the race clock and the music */
-#define GAME_STATE_COUNTDOWN 0x200000
-#define GAME_STATE_PLAY 0x400000        /* the race */
-#define GAME_STATE_GAME_OVER 0x800000
-#define GAME_STATE_RACE_END 0x1000000   /* EndGame: results, then high scores or game over */
-#define GAME_STATE_HIGH_SCORE 0x2000000
-#define GAME_STATE_PAK 0x4000000        /* the Controller Pak manager */
-#define GAME_STATE_CHEATS 0x8000000
-/* 0x10000000 (the start menu's item 7 and the pak manager's exit lead there; no screen updates it) and 0x20000000
- * (initGameState loads wave 55 for it) have no name: what they were for isn't known. */
-#define GAME_STATE_WARNING 0x40000000   /* the Controller Pak warning after the licence */
-/* The front end's states (the screens of image A, and the boot); the race's (race set-up to high scores); the race
- * from its loading to its play; the race on the track. */
-#define GAME_STATES_FRONT_END 0x7C03FFFE
-#define GAME_STATES_RACE 0x03FC0000
-#define GAME_STATES_RACE_START 0x007C0000
-#define GAME_STATES_ON_TRACK 0x00600000
+/* The frame command buffers (pc_frame_dl: heap_release/ctx_initsystem.c has their storage and their sizes), and the
+ * frame buffers' and z-buffer's size: 320 x 220 16-bit pixels, and 32 bytes to align them to 64. */
+#define DL_BUFFER_0 pc_frame_dl[0]
+#define DL_BUFFER_1 pc_frame_dl[1]
+#define FRAME_BUFFER_BYTES 0x22620
 
 /* Data */
 extern void *scheduler_audio_task;

@@ -57,9 +57,6 @@ extern Player76 gPlayers[];
 VIEW(Vec3[], cur_acc);
 #define cur_acc cur_acc_view
 
-/* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7), and
- * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */
-#define RACE_CARS PC_RACE_CARS
 
 /* Picks each window's view and moves its camera (update_camera), then places the drones' scene nodes where their cars
  * are. In a ghost race the second controller's button 4 (with 2 held) moves window 0 to the next car in the race.
@@ -174,7 +171,7 @@ void CheckCameraView(void)
         }
     }
     BlinkResurrectingCars();
-    for (j = 0; j < RACE_CARS; j++) {
+    for (j = 0; j < PC_RACE_CARS; j++) {
         if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
             cam = ZOID_FindMatrix(PC_CAR_NODE(j));
             cam->mat.pos[0] = PC_CAR_POS(j)[0];

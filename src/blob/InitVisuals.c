@@ -58,7 +58,7 @@ void InitVisuals(s32 cars) {
         return;
     }
     memset(gCarParts, 0, 3328);
-    if (gGameState & 0x100) {
+    if (gGameState & GS_CAR) {
         InitVisualsCarScr();
         for (j = 0; j < OBJLIST_TIRE; j++) {
             gObjList[j] = 0;

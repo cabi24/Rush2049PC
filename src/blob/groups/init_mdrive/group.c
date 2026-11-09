@@ -73,11 +73,11 @@ static void multiinit_n64(s16 mode,s16 slot)
  tModelData *m=PC_MODEL(slot);
  int i;
  if(mode==INIT_MODE_START) {
-  if(gRace==2) m->polepos=0;   /* kGhost */
+  if(gRace==kGhost) m->polepos=0;
   else m->polepos=PC_LINK_PLACE(slot);
   SetResurrectionData(INIT_MODE_START,m,0);
  } else {
-  if(gRace==2) m->polepos=PC_RESPAWN_BASE;
+  if(gRace==kGhost) m->polepos=PC_RESPAWN_BASE;
   else m->polepos=slot+PC_RESPAWN_BASE;
  }
  Resurrect(m);
@@ -87,5 +87,5 @@ static void multiinit_n64(s16 mode,s16 slot)
   m->tires[i].sideforce=0.0f;
   m->tires[i].traction=0.0f;
  }
- if(gRace!=2 || m->slot==0)StartCarSounds(m);
+ if(gRace!=kGhost || m->slot==0)StartCarSounds(m);
 }

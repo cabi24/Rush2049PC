@@ -105,8 +105,8 @@ void checkok(tModelData *m)
             forceavg -= tot * 0.2f;
         }
     }
-    if ((gRace != 6 /* kBattle */ && forceavg > m->crashthreshold) ||
-        (gRace != 6 && (m->magvel > 400.0f || m->w[1] > 10.0f || m->w[1] < -10.0f))) {
+    if ((gRace != kBattle /* kBattle */ && forceavg > m->crashthreshold) ||
+        (gRace != kBattle && (m->magvel > 400.0f || m->w[1] > 10.0f || m->w[1] < -10.0f))) {
         if (!m->crashflag && (m->drone_type != DRONE_TYPE_HUMAN || !gInvincible)) {
             m->crashflag = 1;
         }

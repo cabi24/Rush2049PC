@@ -1,8 +1,6 @@
 /* animLapTimeText: a checkpoint's split time, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
-
 typedef struct { s32 x, y; } Pos;
 
 VIEW(Pos[][4], lapTimePos);
@@ -28,7 +26,7 @@ s32 animLapTimeText(s32 blit)
     s8 fixedWidth;
     f32 remaining;
 
-    if ((gGameState & GAME_STATE_ATTRACT) || !gShowElapsed) {
+    if ((gGameState & GS_DEMO) || !gShowElapsed) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);

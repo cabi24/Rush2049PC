@@ -30,8 +30,6 @@ extern u8 overlay_base[];                 /* runtime image base (A and B) */
 VIEW(OSMesgQueue, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 
 /* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load
  * clear). Both share one heap block (overlay_base). Does nothing when image A already is, or isn't, loaded. */
@@ -42,7 +40,7 @@ void LoadFrontEndOverlay(s32 load)
         if (!loaded) {
             if (extra_overlay_loaded) {
                 osRecvMesg(&heap_lock_queue, (void **)0, 1);
-                DeallocateMemoryInternal(N64A(overlay_base), 0);
+                DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
                 osSendMesg(&heap_lock_queue, (void *)0, 0);
                 extra_overlay_loaded = 0;
             }
@@ -52,7 +50,7 @@ void LoadFrontEndOverlay(s32 load)
     } else if (loaded) {
         if (start_overlay_loaded) {
             osRecvMesg(&heap_lock_queue, (void **)0, 1);
-            DeallocateMemoryInternal(N64A(overlay_base), 0);
+            DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
             osSendMesg(&heap_lock_queue, (void *)0, 0);
             start_overlay_loaded = 0;
         }
@@ -81,7 +79,7 @@ void initGameState(void)
 {
     s32 i;
 
-    if (gGameState & GAME_STATE_BOOT) {
+    if (gGameState & GS_BOOT) {
         gGameStarted = 0;
         gSofdecShown = 0;
         gLicenseShown = 0;
@@ -102,8 +100,8 @@ void initGameState(void)
         UpdateFrame();
         UpdateFrame();
         InitRecords();
-        setGameState(GAME_STATE_LICENSE);
-    } else if (gGameState & GAME_STATE_LICENSE) {
+        setGameState(GS_LICENSE);
+    } else if (gGameState & GS_LICENSE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -116,8 +114,8 @@ void initGameState(void)
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_WARNING) {
-    } else if (gGameState & GAME_STATE_TITLE) {
+    } else if (gGameState & GS_WARNING) {
+    } else if (gGameState & GS_TITLE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -137,12 +135,12 @@ void initGameState(void)
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-        if (expansion_pak_present && !(gSkipToGameState & GAME_STATES_RACE_START) && gOptions[14] < 13) {
+        if (expansion_pak_present && !(gSkipToGameState & GS_RACE_MASK) && gOptions[14] < 13) {
             AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
             AudPlaySong(6, 1);
         }
         gUpsideDownTrack = 0;
-    } else if (gGameState & GAME_STATE_DEMO) {
+    } else if (gGameState & GS_DEMO) {
         PlayerData **h;
         for (h = gPlayerFiles.head; h; h = (*h)->next) {
             PurgePlayerData(h);
@@ -157,11 +155,11 @@ void initGameState(void)
         if (expansion_pak_present) {
             load_extra_overlay();
         }
-    } else if (gGameState & GAME_STATE_START) {
+    } else if (gGameState & GS_START) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_PLAYERS) {
+    } else if (gGameState & GS_PLAYER) {
         s32 p;
 
         for (p = 0; p < gNumPlayers; p++) {
@@ -171,20 +169,20 @@ void initGameState(void)
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
         }
-    } else if (gGameState & GAME_STATE_MODE) {
+    } else if (gGameState & GS_MODE) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
-    } else if (gGameState & GAME_STATE_OPTIONS) {
-    } else if (gGameState & GAME_STATE_CONTROLS) {
-    } else if (gGameState & GAME_STATE_AUDIO) {
-    } else if (gGameState & GAME_STATE_VIDEO) {
-    } else if (gGameState & GAME_STATE_RECORDS) {
-    } else if (gGameState & GAME_STATE_CHEATS) {
-    } else if (gGameState & GAME_STATE_CIRCUIT) {
+    } else if (gGameState & GS_OPTIONS) {
+    } else if (gGameState & GS_CONTROLS) {
+    } else if (gGameState & GS_AUDIO) {
+    } else if (gGameState & GS_VIDEO) {
+    } else if (gGameState & GS_RECORDS) {
+    } else if (gGameState & GS_CHEAT) {
+    } else if (gGameState & GS_CIRCUIT) {
         loading_effect_none();
         LoadWave(57, 0, 0, 0, 0);
         loading_effect_none();
-    } else if (gGameState & GAME_STATE_CAR) {
+    } else if (gGameState & GS_CAR) {
         s32 p;
 
         LoadWave(56, 0, 0, 0, 0);
@@ -195,13 +193,13 @@ void initGameState(void)
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
         }
-    } else if (gGameState & GAME_STATE_TRACK) {
+    } else if (gGameState & GS_TRACK) {
         loading_effect_none();
         LoadWave(60, 0, 0, 0, 0);
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         loading_effect_none();
-    } else if (gGameState & GAME_STATE_RACE_LOAD) {
+    } else if (gGameState & GS_GAME_INIT) {
         if (!gRestartGame) {
             UnloadFrontEndWaves();
             HAL_PurgeFonts();
@@ -209,15 +207,15 @@ void initGameState(void)
         }
         LoadFrontEndOverlay(0);
         if (!gRestartGame) {
-            if (!expansion_pak_present && gRace != 6 && gRace != 4 && gRace != 5) {
+            if (!expansion_pak_present && gRace != kBattle && gRace != kStunt && gRace != kObstacle) {
                 AudioInit(8, 8, 0, 0, 0, 1.0f, 200.0f, 0);
             }
-            if (!expansion_pak_present && gRace == 6) {
+            if (!expansion_pak_present && gRace == kBattle) {
                 AudInit3D(5, 64, 1.0f, 200.0f, 0);
             }
             SaveFlush(1);
         }
-        if (gRace == 6 || gRace == 4 || gRace == 5 || expansion_pak_present) {
+        if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || expansion_pak_present) {
             load_extra_overlay();
         }
         if (!gRestartGame) {
@@ -236,9 +234,9 @@ void initGameState(void)
             HAL_SetFont(7);
         }
         SetControllerStickEdges(-1, 0);
-    } else if (gGameState & GAME_STATE_RACE_END) {
+    } else if (gGameState & GS_END_GAME) {
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_GAME_OVER) {
+    } else if (gGameState & GS_GAME_OVER) {
         SaveServer(1, 0);
         SaveFlush(1);
     } else if (gGameState & 0x20000000) {
@@ -246,7 +244,7 @@ void initGameState(void)
         InitWaves();
         LoadWave(55, 0, 0, 0, 0);
     }
-    if (gGameState & GAME_STATES_FRONT_END) {
+    if (gGameState & GS_FRONTEND_MASK) {
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 0);
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 1);
     }

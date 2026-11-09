@@ -2,7 +2,6 @@
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-
 #define BLOCK_MAGIC 0xFEDCBA98
 
 enum n64p_Block { n64p_Block_ };
@@ -28,7 +27,6 @@ typedef struct Heap {
 } Heap;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
 VIEW(s32, heap_lock_queue);
@@ -36,9 +34,8 @@ VIEW(s32, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's; a block's owner is a handle slot, which the
+/* The heap's API takes N64 addresses: PC_N64A(p) is a window pointer's; a block's owner is a handle slot, which the
  * compaction points at the block's new place as a slot (PC_SLOT_SET) (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 #define SLOT_SET(s, v) PC_SLOT_SET(N64P(s), v)
 /* Frees every block of the heap (hint, or the main heap for NULL) that nobody owns or has locked or tagged, then
  * moves each handle-owned unlocked block down into the first free block that fits (or that it adjoins), pointing
@@ -55,7 +52,7 @@ void ClearMemoryHeap(Heap *hint) {
     block = N64P(heap->first);
     while (block != NULL) {
         if (block->used && !block->lock && !block->ref && !block->tag) {
-            DeallocateMemoryInternal(N64A(((u8 *)block + 32)), 0);
+            DeallocateMemoryInternal(PC_N64A(((u8 *)block + 32)), 0);
             block = N64P(heap->first);
         }
         block = N64P(block->next);
@@ -85,7 +82,7 @@ void ClearMemoryHeap(Heap *hint) {
             }
             if (cursor != NULL) {
                 cursor->ref = block->ref;
-                SLOT_SET(cursor->ref, N64A(((u8 *)cursor + 32)));
+                SLOT_SET(cursor->ref, PC_N64A(((u8 *)cursor + 32)));
                 cursor->used = 1;
                 cursor->tag = block->tag;
                 cursor->lock = block->lock;
@@ -94,11 +91,11 @@ void ClearMemoryHeap(Heap *hint) {
                 game_memmove((u8 *)cursor + 32, (u8 *)block + 32, block->size);
                 if (adjacent || cursor->size - size >= 64) {
                     tail = (Block *)((u8 *)cursor + size + 32);
-                    if (adjacent) tail->next = N64W(after);
+                    if (adjacent) tail->next = PC_N64W(after);
                     else tail->next = cursor->next;
-                    if (N64P(tail->next) != NULL) N64P(tail->next)->prev = N64W(tail);
-                    else heap->last = N64W(tail);
-                    tail->prev = N64W(cursor);
+                    if (N64P(tail->next) != NULL) N64P(tail->next)->prev = PC_N64W(tail);
+                    else heap->last = PC_N64W(tail);
+                    tail->prev = PC_N64W(cursor);
                     if (adjacent) difference = 0; else difference = size + 32;
                     tail->size = cursor->size - difference;
                     tail->ref = 0;
@@ -106,12 +103,12 @@ void ClearMemoryHeap(Heap *hint) {
                     tail->tag = 0;
                     tail->lock = 0;
                     tail->magic = BLOCK_MAGIC;
-                    cursor->next = N64W(tail);
+                    cursor->next = PC_N64W(tail);
                     cursor->size = size;
                     if (adjacent) block = tail;
                 }
                 previous = N64P(block->prev);
-                DeallocateMemoryInternal(N64A(((u8 *)block + 32)), 0);
+                DeallocateMemoryInternal(PC_N64A(((u8 *)block + 32)), 0);
                 if (after->magic != BLOCK_MAGIC) {
                     if (block->magic != BLOCK_MAGIC) after = N64P(previous->next);
                     else after = N64P(block->next);

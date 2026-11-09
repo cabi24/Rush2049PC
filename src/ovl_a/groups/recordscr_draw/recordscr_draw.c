@@ -83,35 +83,14 @@ typedef struct SaveData {
 #define PROFILE_SAVE ((SaveData *)*(*gStatPlayer)->datah)
 
 /* gRecordTrack's kinds (recordscr.c) */
-#define RECORD_FIRST_BATTLE 12
-#define RECORD_FIRST_STUNT 20
-#define RECORD_FIRST_OBSTACLE 24
 #define kTrackTypeCircuit 4
 #define kTrackTypeTotals 5
-
-/* recordscr_buttonInfo[]: the select menu's rows 0-10, the view's rows 11 and 12, then (recordscr.c) */
-#define RECORD_VIEW_ROW_BUTTON 11
-#define RECORD_BUTTON_CLEAR 13
-#define RECORD_BUTTON_PAK_VALUE 14
-#define RECORD_BUTTON_TRACK_VALUE 15
-#define RECORD_BUTTON_TITLE 17
 
 /* The select menu's rows (recordscr.c) */
 #define kSelectMenuTotals 0
 #define kSelectMenuSelectPak 1
 #define kSelectMenuPakStatus 2
 #define kSelectMenuSelectPlayer 3
-#define RECORD_SELECT_ROWS 11
-
-/* recordscr_gNumPakPlayers[pak]: why a pak has no profiles (recordscr.c) */
-#define PAK_NOT_INSERTED (-1)
-#define PAK_DAMAGED (-2)
-#define PAK_RUMBLE (-3)
-#define PAK_NO_CONTROLLER (-4)
-
-/* A button's text is hidden while the button is edge-on (between 40 and 140 degrees of its turn). */
-#define EDGE_ON_FROM 0.6981316804885864f
-#define EDGE_ON_TO 2.4434609413146973f
 
 VIEW(Color4, flashColors);
 #define flashColors flashColors_view

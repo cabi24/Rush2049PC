@@ -85,7 +85,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_Tune44: (Tune44 *)PC_N64P(x), enum n64p_u16: (u16 *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* The tables as the code indexes them: their own storage, through other types (include/game/view.h). */
 VIEW(s8[], gCarWings);
@@ -119,8 +118,8 @@ void carsetup(tModelData *m)
  if(m->drone_type==DRONE_TYPE_HUMAN)row=m->slot+1;else row=0;
  body=m->body_type;
  car=gCarModels[body];
- m->tune=N64W(&gTune[m->handling]);
- m->car=N64W(car);
+ m->tune=PC_N64W(&gTune[m->handling]);
+ m->car=PC_N64W(car);
  m->wingEffect=gWingSizes[gCarWings[row*13+body]];
  m->mass=CalcMass(m);
  durability=carDurability[m->frame]-carsetup_durability_base;
@@ -130,7 +129,7 @@ void carsetup(tModelData *m)
  m->weight=m->mass*gGravity;
  m->magicdiff=gCarDifferential[body]&1;
  m->nothrusttorque=gCarDifferential[body]&2;
- m->torquecurve=N64W(stdtorquecurve);
+ m->torquecurve=PC_N64W(stdtorquecurve);
  m->offroadtires=CalcOffroadTires(m);
  drift=CalcDrift(m);m->drift=drift;
  m->sidefk=CalcTireSideForce(m);

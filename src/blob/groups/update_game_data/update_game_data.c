@@ -74,7 +74,6 @@ typedef struct tModelData {
 } tModelData; /* 0x808 */
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), enum n64p__tCar: (_tCar *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields set here. */
 typedef struct tCarData {
@@ -143,10 +142,6 @@ VIEW(tSkidData[4], sSkidData);
 #define sSkidData sSkidData_view
 
 f32 fabsf(f32);
-/* PC: game.frame_rate 60 (pc_game_fps.h). The skids' fade and the body's pitch and roll filters step once a frame of
- * two retraces on the N64: scaled to the frame. PC_FILTER_REST(e, rest) is the filter's other weight, 1 - e^frames
- * (rest, 1 - e, at original). */
-#define PC_FILTER_REST(e, rest) (pc_fps60 ? 1.0f - pc_fps_filter(e) : (rest))
 
 /* Car `droneIndex`'s skid marks and tire smoke (MAT3 _UpdateTireAppearance, a static there).
  *
@@ -202,7 +197,7 @@ void UpdateTireAppearance(s16 droneIndex)
                 break;
             }
             {
-                f32 scale = gRace == 6 ? 3.0f : N64P(m->tune)->skidk;   /* kBattle */
+                f32 scale = gRace == kBattle ? 3.0f : N64P(m->tune)->skidk;
                 f32 intensity;
                 s32 maxForce;
 

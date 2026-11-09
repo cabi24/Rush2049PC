@@ -193,7 +193,7 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
     void *chkpnt;                           /* unused */
     switch (mode) {
     case INIT_MODE_START:
-        if (gGameState & 8) {   /* GS_DEMO */
+        if (gGameState & GS_DEMO) {
             FindSurfaceUvsFromResPoint(1, -1, gDemoPathPt, m->resurrect_uvs);
             for (i = CP_NUM_POINTS - 1; i >= 0; i--) {
                 if (gDemoPathPt >= CP_PATHPT0(i)) {
@@ -209,7 +209,7 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
             m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
             m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
             m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];
-        } else if (gRace == 6 || gRace == 4) {   /* kBattle, kStunt */
+        } else if (gRace == kBattle || gRace == kStunt) {
 #define ARENA_START(slot) ((slot) == 0 ? 0 : ((slot) == 1 ? 2 : ((slot) == 2 ? 1 : 3)))
             m->resurrect_save_pos[0] = CP_POS(ARENA_START(m->slot), 0);
             m->resurrect_save_pos[1] = CP_POS(ARENA_START(m->slot), 1);

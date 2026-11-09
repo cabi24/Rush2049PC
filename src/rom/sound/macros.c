@@ -10,8 +10,9 @@
  *
  * MusyX is the N64's sound library; MAT3, the GameCube build, has its own sound code, so there is no MAT3
  * counterpart. N64-shaped: the voice keeps its N64 layout (below), which every handler reads through its own view
- * with fields named after their N64 offsets, and its macro pointers are 32-bit window addresses (N64P, N64W). */
+ * with fields named after their N64 offsets, and its macro pointers are 32-bit window addresses (N64P, PC_N64W). */
 #include "../rom_tu.h"
+#include "musyx.h"
 
 /* ---- The synth voice ----
  * sound_synth_voices[i], 0x1A0 bytes, keeps the N64 layout on the PC (docs/port/MUSYX_DATA.md 8.3). Each handler
@@ -55,50 +56,13 @@
  *   +0x168 lfo[2]                    12 bytes each: time, period, value
  *   +0x180 localVars[16]             the macro's variables (the globals are sound_global_variables) */
 
-/* The voice's control flags (+0x24). */
-#define VOICE_HW_BUSY_AT_START    0x00000001U /* the hardware voice was still playing when the macro started: break it off */
-#define VOICE_STARTING            0x00000002U /* the macro was just started: its first run sets the voice up */
-#define VOICE_WAIT_KEY_OFF        0x00000004U /* the current WAIT ends at key off */
-#define VOICE_KEY_OFF             0x00000008U /* key off received (sound_synth_key_off_voice) */
-#define VOICE_PLAYING             0x00000010U /* the synth started the hardware voice */
-#define VOICE_START_SAMPLE        0x00000020U /* START_SAMPLE set a sample: the synth's tick starts it */
-#define VOICE_RELEASE             0x00000080U /* KEY_OFF: release the hardware voice at the next tick (unless the pedal holds it) */
-#define VOICE_PITCH_FROM_RATE     0x00000100U /* SET_PITCH set the note from a sample rate */
-#define VOICE_ADSR_SET            0x00000200U /* SET_ADSR gave the hardware voice its envelope: a new sample keeps it */
-#define VOICE_PORTAMENTO          0x00000800U
-#define VOICE_PORTAMENTO_BY_MACRO 0x00001000U /* PORTAMENTO decides, not the portamento controller */
-#define VOICE_UPDATED             0x00002000U /* the synth has updated the voice since its macro started (synth.c) */
-#define VOICE_VIBRATO             0x00004000U
-#define VOICE_VIBRATO_BY_MODULATION 0x00008000U /* the modulation wheel scales the vibrato */
-#define VOICE_PAN_SWEEP           0x00010000U /* a PANNING sweep runs */
-#define VOICE_VOLUME_SWEEP        0x00020000U /* an ENVELOPE or FADE_IN runs */
-#define VOICE_TRACK_PITCH_WHEEL   0x00040000U /* the pitch wheel applies */
-#define VOICE_LEGATO              0x00080000U /* retriggered legato (synth.c) */
-#define VOICE_WAIT_SAMPLE_END     0x00100000U /* the current WAIT ends when the sample does */
-#define VOICE_INPUT_VOLUME        0x00200000U /* VOICE_INPUT_*: a SELECT_* step set this input's mix (else the default) */
-#define VOICE_INPUT_PAN           0x00400000U
-#define VOICE_INPUT_PITCH_BEND    0x00800000U
-#define VOICE_INPUT_MODULATION    0x01000000U
-#define VOICE_INPUT_REVERB        0x02000000U
-#define VOICE_INPUT_PORTAMENTO    0x04000000U
-#define VOICE_INPUT_PEDAL         0x08000000U
-#define VOICE_INPUT_SPAN          0x10000000U
-#define VOICE_INPUT_DOPPLER       0x20000000U
-#define VOICE_PEDAL_DOWN          0x40000000U /* the sustain pedal is down: key offs wait for it */
-
 /* The voice's controller inputs (+0xC4), in controllers.c's order. */
 enum SynthInput {
     SYNTH_INPUT_VOLUME, SYNTH_INPUT_PAN, SYNTH_INPUT_SPAN, SYNTH_INPUT_PITCH_BEND, SYNTH_INPUT_DOPPLER,
     SYNTH_INPUT_MODULATION, SYNTH_INPUT_PEDAL, SYNTH_INPUT_PORTAMENTO, SYNTH_INPUT_REVERB, SYNTH_INPUT_COUNT
 };
 
-#define VOICE_NONE                0xFFFFFFFFU /* a voice id, handle or chain link that names no voice */
-#define VOICE_INDEX_MASK          255         /* a voice id's low byte is the voice's index */
-#define VOICE_INDEX(id)           ((id) & VOICE_INDEX_MASK)
-#define NO_CHANNEL                255
-#define VOICE_OWN_SET             255         /* the controller set of an effect voice: its own (pc_mx_fx_ctrl) */
 #define MACRO_WAIT_FOREVER        0xFFFFFFFFU /* +0x9C: wait until key off or the sample's end */
-#define NO_LAST_KEY               255         /* a channel's last key before any (controllers.c) */
 #define MACRO_KEY_EFFECT          128         /* sound_macro_start's key: an effect, with its own controllers */
 #define MACRO_STEPS_PER_RUN       32          /* sound_macro_run gives up after this many steps in one tick */
 
@@ -141,18 +105,16 @@ typedef struct VoiceState { u8 unknown00[36]; u32 flags24; u8 unknown28[34]; u8 
  * PC_MX_LOOP(32) is the run's voices where the N64 clears its 32 (docs/port/AUDIO.md 10). */
 #define sound_synth_voices (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
 #define sound_voice_channel_owners (*(u8 (*)[PC_MX_VOICE_SLOTS])pc_mx_fx_legato)
-#define PC_MX_LOOP(n) PC_MX_SLOTS
 
 /* The generic voice (the handlers' first parameter where they need no fields) and a macro step. */
 typedef struct MacroState { u8 unknown00[0x30]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroState;
 typedef struct MacroCommand { u32 word[2]; } MacroCommand;
 /* PC: the voice's macro and trap pointers (+0, +4, +8, +0xC, +0x1C, +0x20) point into the pool, in the game heap, so
- * on the PC they are 32-bit window addresses: N64P(x) is such a field as a pointer, N64W(x) a pointer stored into
+ * on the PC they are 32-bit window addresses: N64P(x) is such a field as a pointer, PC_N64W(x) a pointer stored into
  * one, and N64_NEXT(x) moves one to the next step (docs/port/MUSYX_DATA.md 8.3). */
 enum n64p_MacroCommand { n64p_MacroCommand_ };
 #define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
-#define N64_NEXT(x) ((x) = N64W(N64P(x) + 1))
+#define N64_NEXT(x) ((x) = PC_N64W(N64P(x) + 1))
 
 /* ---- What the file uses from the rest of the library ---- */
 struct MacroStateSplitModulation;
@@ -381,8 +343,8 @@ u8 sound_macro_split_key(MacroStateSplitKey *state, MacroCommand *command)
     MacroCommand *address;
     if (state->curNote50 >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = N64W(address);
-            state->curAddr04 = N64W(address + (command->word[1] & 0xFFFF));
+            state->addr00 = PC_N64W(address);
+            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -397,8 +359,8 @@ u8 sound_macro_split_velocity(MacroStateSplitVelocity *state, MacroCommand *comm
     MacroCommand *address;
     if ((state->volume30 >> 16) >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = N64W(address);
-            state->curAddr04 = N64W(address + (command->word[1] & 0xFFFF));
+            state->addr00 = PC_N64W(address);
+            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -416,8 +378,8 @@ u8 sound_macro_split_modulation(MacroStateSplitModulation *state, MacroCommand *
         modulation = sound_synth_get_modulation_input(state) >> 7;
         if (modulation >= (u8)(command->word[0] >> 8)) {
             if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-                state->addr00 = N64W(address);
-                state->curAddr04 = N64W(address + (command->word[1] & 0xFFFF));
+                state->addr00 = PC_N64W(address);
+                state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
             }
         }
     }
@@ -433,8 +395,8 @@ u8 sound_macro_split_random(MacroStateSplitRandom *state, MacroCommand *command)
     MacroCommand *address;
     if ((u8)sound_random() >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = N64W(address);
-            state->curAddr04 = N64W(address + (command->word[1] & 0xFFFF));
+            state->addr00 = PC_N64W(address);
+            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
         }
     }
     return 0;
@@ -451,8 +413,8 @@ u8 sound_macro_gosub(MacroStateGosub *state, MacroCommand *command)
     if ((address = sound_find_macro(command->word[0] >> 16)) != 0) {
         state->retAddr08 = state->addr00;
         state->retCurAddr0C = state->curAddr04;
-        state->addr00 = N64W(address);
-        state->curAddr04 = N64W(address + (command->word[1] & 0xFFFF));
+        state->addr00 = PC_N64W(address);
+        state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
         return 0;
     }
     return sound_macro_end((MacroState *)state, command);
@@ -468,8 +430,8 @@ u8 sound_macro_trap_key_off(MacroStateTrapKeyOff *state, MacroCommand *command)
     MacroCommand *start;
     start = sound_find_macro((command->word[0] >> 16) & 0xFFFF);
     if (start != 0) {
-        state->trapAddr1C = N64W(start);
-        state->trapCurAddr20 = N64W(start + (command->word[1] & 0xFFFF));
+        state->trapAddr1C = PC_N64W(start);
+        state->trapCurAddr20 = PC_N64W(start + (command->word[1] & 0xFFFF));
     }
     return 0;
 }
@@ -516,7 +478,7 @@ skip:
             state->loop68 = 0;
             return 0;
         }
-        state->curAddr04 = N64W(N64P(state->addr00) + (command->word[1] & 0xFFFF));
+        state->curAddr04 = PC_N64W(N64P(state->addr00) + (command->word[1] & 0xFFFF));
     }
     return 0;
 }
@@ -1430,7 +1392,7 @@ u8 sound_macro_compare(MacroStateCompare *voice, MacroCommand *command, u8 compa
         condition = !condition;
     }
     if (condition) {
-        voice->curAddr04 = N64W(((command->word[1] >> 16) & 65535) + N64P(voice->addr00));
+        voice->curAddr04 = PC_N64W(((command->word[1] >> 16) & 65535) + N64P(voice->addr00));
     }
     return 0;
 }
@@ -1771,8 +1733,8 @@ u32 sound_macro_start(u32 packed, u16 allocation, u8 key, u8 volume,
             state->allocIdBA = allocation;
             state->age28 = 60000U << 15;
             state->ageSpeed2C = 1024;
-            state->addr00 = N64W(program);
-            state->curAddr04 = N64W(program + offset);
+            state->addr00 = PC_N64W(program);
+            state->curAddr04 = PC_N64W(program + offset);
             state->orgNote4E = key;
             state->curNote50 = key;
             state->curDetuneC0 = 0;
@@ -1791,4 +1753,3 @@ u32 sound_macro_start(u32 packed, u16 allocation, u8 key, u8 volume,
     }
     return VOICE_NONE;
 }
-

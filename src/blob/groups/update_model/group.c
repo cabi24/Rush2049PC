@@ -234,7 +234,7 @@ void UpdateModel(s32 slot) {
     if (m->resurrect_moving_state >= RES_START) {
         if (player != NULL) {
             UpdateResurrectingCar(m);
-            if (gGameState & 0x400000) {   /* GS_RACING */
+            if (gGameState & GS_RACING) {
                 id = player->controller;
                 PAK_RUMBLE_REQUEST(id) = 0;
             }
@@ -245,10 +245,10 @@ void UpdateModel(s32 slot) {
     } else if (m->modelrun != 0) {
         if (player != NULL) {
             sym(m);
-            if ((gGameState & 0x400000) && ((gRace != 2) || (ghost = (&gGhosts)[m->slot], (ghost == 0)) || (GHOST_HEADER_FLAG(ghost) < 0))) {   /* GS_RACING; kGhost */
+            if ((gGameState & GS_RACING) && ((gRace != kGhost) || (ghost = (&gGhosts)[m->slot], (ghost == 0)) || (GHOST_HEADER_FLAG(ghost) < 0))) {
                 force = (s32) ((fabsf(m->f[0]) + fabsf(m->f[1])) + fabsf(m->f[2]));
                 work = force;
-                if (gRace == 6) {   /* kBattle */
+                if (gRace == kBattle) {
                     work /= 2;
                     if ((s8) car->crash_state == CRASH_WRECKED) {
                         work += 100000;
@@ -287,7 +287,7 @@ rumble_off:
         }
         update_reckon_base((s32) slot, *(s32 *) &m->modelTime);
     }
-    if ((gRace != 2) || (m->slot == 0)) {   /* kGhost: only the player's car */
+    if ((gRace != kGhost) || (m->slot == 0)) {   /* kGhost: only the player's car */
         UpdateCarSounds(m);
     }
     if (m->crashflag != 0) {
@@ -308,7 +308,7 @@ rumble_off:
         /* Original game: `(gRace != 6) || (gRace != 5)` (not battle or not obstacle) is always true, so every mode
          * takes the 5-second solid delay as well, and battle and obstacle become solid at whichever of the two
          * delays comes first; `&&` was meant. MAT3 marks the same line as a bug. Kept as retail. */
-        if ((((s8) gCoastFlag != 0) || (((gRace != 6) || (gRace != 5)) && (since >= 5.0f)) || (((gRace == 6) || (gRace == 5)) && (solid_delay_arena < since))) && ((id = PC_LINK_OWNER(m->slot), (id == 0)) || (id == 6))) {   /* kBattle, kObstacle; LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
+        if ((((s8) gCoastFlag != 0) || (((gRace != kBattle) || (gRace != kObstacle)) && (since >= 5.0f)) || (((gRace == kBattle) || (gRace == kObstacle)) && (solid_delay_arena < since))) && ((id = PC_LINK_OWNER(m->slot), (id == 0)) || (id == 6))) {   /* kBattle, kObstacle; LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
             m->collidable = 1;
             m->solid = 1;
             car->collide_time = 0.0f;
@@ -362,7 +362,7 @@ void model_iteration(void) {
     f32 t;
     tPadState *rec;
 
-    if ((gGameState & 0x600008) && (modelrun != 0)) {   /* GS_COUNTDOWN | GS_RACING | GS_DEMO */
+    if ((gGameState & (GS_RACING | GS_COUNTDOWN | GS_DEMO)) && (modelrun != 0)) {
         gModelIteration = gModelIteration + 1;
         gModelTime = (f32) gModelIteration * gRetraceTime;
         for (v = 0; v != PC_RACE_CARS; v++) {
@@ -384,7 +384,7 @@ void model_iteration(void) {
                 m = PC_MODEL(rec->slot);
                 j = 0;
                 for (;;) {
-                    if (gRace == 2) {   /* kGhost */
+                    if (gRace == kGhost) {
                         r = GhostUpdate(i, &t);
                         if (r < 0) {
                             break;
@@ -398,10 +398,10 @@ void model_iteration(void) {
                         m->modelTime = gModelTime;
                     }
                     SetClutch(m);
-                    if ((m->abort != 0) && ((gRace != 6) || (m->crashflag != 0)) && (gGameState & 0x400000) && (m->resurrect_moving_state == RES_IDLE)) {   /* kBattle; GS_RACING */
+                    if ((m->abort != 0) && ((gRace != kBattle) || (m->crashflag != 0)) && (gGameState & GS_RACING) && (m->resurrect_moving_state == RES_IDLE)) {
                         gc = &((tCarData *) PC_CARS)[rec->slot];
                         if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && ((s8) gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
-                            if (gRace == 4) {   /* kStunt */
+                            if (gRace == kStunt) {
                                 CrashedStunt(i);
                             }
                             m->resurrect_autoAbort = 1;
@@ -413,7 +413,7 @@ void model_iteration(void) {
                     } else {
                         collision(m);
                     }
-                    if ((gRace == 2) && (j == 0) && (r > 0)) {
+                    if ((gRace == kGhost) && (j == 0) && (r > 0)) {
                         j = 1;
                         continue;
                     }

@@ -26,9 +26,6 @@ typedef struct Target {
     u32 data;               /* 0x6C its CoinData (a window address) */
 } Target;
 
-#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
-#define TARGET_COIN_GONE 0x80   /* every player has the coin: AnimateCoin removes it */
-
 /* A car has touched the coin: if the car is a player's (it has a window) and the player hasn't found this coin, the
  * profile records it, the coin disappears from that player's window, and when no window shows it any more the coin
  * is marked gone. The hit is handled either way; the coin stays active for the other players. */

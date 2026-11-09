@@ -24,7 +24,6 @@ typedef struct tModelData {
 } tModelData;
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 #define rpmtordps (2.0*3.14159/60.0)   /* rpm to radians a second */
 
 /* The clutch of model m this step. The engine idles at no less than 1000 rpm. The clutch takes up to 1.25 times the

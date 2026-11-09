@@ -17,8 +17,6 @@ VIEW(s32[14], options_validOption);
 VIEW(ContData[], gControllerData);
 #define gControllerData gControllerData_view
 
-#define OPTIONS_ROWS 14
-#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 
 /* Set the screen up: keep the options as they are now (SaveGlobals), size the list, select the first offered row.
  * In the front end: the background, the 3D buttons and the text blit. In the pause menu: whether the pausing
@@ -52,4 +50,3 @@ void options_initScreen(void)
     ClearRushControls();
     options_inited = 1;
 }
-

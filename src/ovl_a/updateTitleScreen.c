@@ -24,7 +24,6 @@ VIEW(u32, gActiveEdges);
 extern PlayerStatus gPlayers[4];
 
 #define SND_START 0x4F              /* the effect Start plays here */
-#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
 
 /* The screen's frame. The first frame puts up its blits and starts a 5-second timer; a soft reset is over once the
  * title is back. Start: player 1 takes controller 1 (the others none, until the player screen) and the start

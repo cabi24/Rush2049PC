@@ -2,9 +2,6 @@
  * animation functions, run each frame through their blits. */
 #include "game/game.h"
 
-/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
-#define GAME_STATE_FRONT_END 0x7C03FFFE
-
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
@@ -33,7 +30,7 @@ s32 audio_animPanes(s32 blit)
     s32 unused2;
 
     if (!audio_panesCreated) {
-        if (!(gGameState & GAME_STATE_FRONT_END)) {
+        if (!(gGameState & GS_FRONTEND_MASK)) {
             HAL_SetFont(13);
             audio_gControllerRemoved = !gControllerData[playerInPause].flag;
             audio_TitlePane();

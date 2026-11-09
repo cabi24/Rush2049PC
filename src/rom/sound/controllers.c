@@ -11,28 +11,12 @@
  * Part of MusyX, the N64's sound library: no MAT3 counterpart. The voice is read at its N64 offsets (macros.c has
  * the map of its fields). */
 #include "../rom_tu.h"
+#include "musyx.h"
 
 /* Controller numbers: 0..127 are MIDI's, 128 and up the library's own. A controller below 64 is the high half of a
  * 14-bit value whose low half is the controller 32 above; 128/129 and 132/133 are 14-bit pairs too. */
-#define CTRL_MODULATION      1
-#define CTRL_VOLUME          7
-#define CTRL_PAN             10
-#define CTRL_PEDAL           64  /* sustain; 64..69 are switches, read as off (0) or on (16383) */
-#define CTRL_PORTAMENTO      65
-#define CTRL_REVERB          91
-#define CTRL_PITCH_BEND      128
-#define CTRL_PITCH_BEND_LOW  129
-#define CTRL_PRESSURE        130 /* channel pressure (the sequencer's) */
-#define CTRL_SPAN            131 /* front-back pan */
-#define CTRL_DOPPLER         132
-#define CTRL_DOPPLER_LOW     133
-#define CTRL_LFO1            160 /* not stored: the voice's first LFO (+0x170) */
-#define CTRL_LFO2            161 /* not stored: the voice's second LFO (+0x17C) */
 #define MIDI_CONTROLLER_COUNT 134
 
-#define VOICE_OWN_SET        255 /* the controller set of an effect voice: its own, indexed by the voice */
-#define NO_CHANNEL           255
-#define NO_LAST_KEY          255
 #define CONTROL_SCALE_ONE    256 /* an input source's scale, 8.8 fixed point: 1.0 */
 
 /* How an input source combines with the sources before it. */

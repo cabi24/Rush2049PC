@@ -1,9 +1,6 @@
 /* RecordRace: record a race (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define NUM_RACE_TRACKS 6         /* raceStats[6..11]: the tracks backwards */
-#define FIRST_BACKWARD_TRACK 19   /* gTrackNum of the first track backwards (SavePlayerStats' numbering) */
-#define FEET_PER_TENTH_MILE 528.0f
 #define LAP_SCORES 0              /* tRaceStats.scores[0]: the best laps */
 #define AVERAGE_SCORES 1          /* scores[1]: the best average laps */
 
@@ -57,7 +54,7 @@ void RecordRace(void)
     saveTrack = gTrackNum;
     if (gBackwards) {
         course += NUM_RACE_TRACKS;
-        saveTrack += FIRST_BACKWARD_TRACK;
+        saveTrack += TRACK_BACKWARD_FIRST;
     }
     for (player = 0; player < gNumPlayers; player++) {
         if (gPlayers[player].profile == 0) {

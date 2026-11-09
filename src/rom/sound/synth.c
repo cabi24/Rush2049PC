@@ -14,51 +14,14 @@
  * (pc_game_types.h, docs/port/DECOUPLE.md 9). Pitches are 16.16 note numbers until sound_synth_key_to_pitch turns
  * them into the hardware's 4.12 playback rate; volumes and pans are 16.16, 0x7F0000 the loudest or rightmost. */
 #include "../rom_tu.h"
+#include "musyx.h"
 
-#define VOICE_NONE 0xFFFFFFFFU     /* no voice, the end of a voice chain, an invalid handle */
-#define VOICE_INDEX_MASK 255       /* a voice id's low byte is the voice's index */
-#define NO_CHANNEL 255             /* a voice's MIDI channel when no MIDI channel drives it (an effect) */
 #define TICK_RATE_SFX 8            /* sound_tick_rates: [0..7] the song players', [8] the effects' */
 #define VOICE_MIDI_SET_BYTE 0x4B   /* a voice's midiSet4B, as sound_synth_get_tick_rate reads it */
-
-/* A voice's flags (flags24, cFlags24). Bits 0 and 2 belong to the macros. */
-#define VOICE_STARTING 0x2                 /* a macro was just started on the voice and has not run yet */
-#define VOICE_KEY_OFF 0x8                  /* key off asked (the macro decides what it does) */
-#define VOICE_PLAYING 0x10                 /* its sample plays */
-#define VOICE_START_SAMPLE 0x20            /* start the sample at this update */
-#define VOICE_RELEASE 0x80                 /* release the sample once the pedal is up */
-#define VOICE_PORTAMENTO 0x800             /* portamento is on */
-#define VOICE_PORTAMENTO_BY_MACRO 0x1000   /* the macro set portamento; the channel's controller 65 is not read */
-#define VOICE_UPDATED 0x2000               /* the voice has had an update since its macro started */
-#define VOICE_VIBRATO 0x4000
-#define VOICE_VIBRATO_BY_MODULATION 0x8000 /* the modulation wheel scales the vibrato */
-#define VOICE_PAN_SWEEP 0x10000
-#define VOICE_VOLUME_SWEEP 0x20000
-#define VOICE_TRACK_PITCH_WHEEL 0x40000
-#define VOICE_LEGATO 0x80000               /* retriggered legato (sound_synth_retrigger_legato) */
-#define VOICE_PEDAL_DOWN 0x40000000        /* the sustain pedal (controller 64) is down */
 
 #define CONTROLLER_SWITCH_ON 0x1F80        /* a 14-bit switch controller (pedal, portamento) above this is on */
 #define PITCH_BEND_CENTER 0x2000
 
-/* MIDI controllers (sound_midi_set_controller): the standard ones, and the library's own from 128. */
-#define CTRL_VOLUME 7
-#define CTRL_PAN 10
-#define CTRL_REVERB 91
-#define CTRL_PITCH_BEND 128        /* 14 bits: 128 the high 7, 129 the low 7 */
-#define CTRL_PITCH_BEND_LOW 129
-#define CTRL_SPAN 131              /* surround */
-#define CTRL_DOPPLER 132           /* 14 bits: 132 the high 7, 133 the low 7 */
-#define CTRL_DOPPLER_LOW 133
-
-/* The volume group faders (sound_volume_faders, 32 of them). */
-#define FADER_COUNT 32
-#define FADER_MUSIC 21             /* the music's master fader */
-#define FADER_SFX 22               /* the effects' master fader */
-#define FADER_SONG_FIRST 23        /* 23-30: the song players' default groups; 31: the effects' default group */
-/* A fader's type: 0 a song track's group (sound_seq_start), 1 the effects' default group (31), 2 a song's studio group
- * (sound_seq_set_studio_group), 3 an effects' group (sound_set_sfx_volume_group), 4 not in use. */
-#define FADER_UNUSED 4
 /* What a finished fade then does to its song (seqMode). */
 #define FADE_THEN_STOP 1
 #define FADE_THEN_PAUSE 2
@@ -136,7 +99,6 @@ typedef struct SynthVoiceLegatoView {
  * docs/port/DECOUPLE.md 9), seen here in this file's view; PC_MX_LOOP(32) is the run's voices where the N64 sets up
  * its 32 (docs/port/AUDIO.md 10). */
 #define sound_synth_voices (*(SynthVoiceLegatoView (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
-#define PC_MX_LOOP(n) PC_MX_SLOTS
 
 /* A layer of a layer list (registry.c): a key range plays the macro id with its own transpose, volume, priority and
  * pan (bit 7 of panning: keep the note's pan as given). */

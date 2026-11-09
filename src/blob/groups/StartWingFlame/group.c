@@ -24,7 +24,7 @@ void StartWingFlame(s16 slot, s16 side) {
     tModelData *m;
     s32 index;
     s16 objnum;
-    if (gRace == 2 || gRace == 6 || (m = PC_MODEL(slot), m->we_control != 0)) {
+    if (gRace == kGhost || gRace == kBattle || (m = PC_MODEL(slot), m->we_control != 0)) {
         PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].func = 0;
         return;
     }

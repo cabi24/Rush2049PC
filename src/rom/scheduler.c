@@ -91,7 +91,6 @@ __asm__(PC_ALIAS("scheduler_interrupt_queue", "gScheduler + 0x40")
 #define OS_SC_SP 0x2
 #define OS_SC_DP 0x1
 
-
 /* Makes the scheduler: no tasks, no clients, its command and task queues, the VI manager and the video mode (from
  * libultra's mode table), the screen black; the RSP, RDP and pre-NMI interrupts and the retrace (every numFields
  * fields) as messages on its command queue; then its thread at priority. */
@@ -163,8 +162,6 @@ OSScTask *__scTaskReady(OSSched *,OSScTask *);
 s32 __scExecTask(OSSched *,OSScTask *);
 void __scAppendList(OSSched *,OSScTask *),__scExec(OSSched *,OSScTask *,OSScTask *),__scHandlePreNMI(OSSched *);
 s32 __scScheduleCore(OSSched *,OSScTask **,OSScTask **,s32);
-#define OS_MESG_NOBLOCK 0
-#define OS_MESG_BLOCK 1
 void __scMain(void *arg) {
  OSMesg message;
  OSSched *scheduler=(OSSched *)arg;
@@ -219,10 +216,8 @@ void __scSchedule(OSSched *scheduler)
 extern s32 __osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osViSwapBuffer(void *mode);
-/* The pending swap keeps the frame buffer as a 32-bit N64 address: N64AS(p) is a window pointer's, N64PTR(T, a) the
- * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64AS(x) (s32)PC_N64A(x)
-#define N64PTR(T, a) ((T)PC_N64P(a))
+/* The pending swap keeps the frame buffer as a 32-bit N64 address: (s32)PC_N64A(p) is a window pointer's, PC_N64P(a)
+ * the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 extern void video_apply_pending_mode(void);
 extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 void __scHandleRetrace(OSSched *scheduler) {
@@ -235,7 +230,7 @@ void __scHandleRetrace(OSSched *scheduler) {
 
     scheduler->retraceCount++;
     if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
-        osViSwapBuffer(N64PTR(void *, (u32)__osScPendingSwap));
+        osViSwapBuffer(((void *)PC_N64P((u32)__osScPendingSwap)));
         video_apply_pending_mode();
         __osScSwapCount = scheduler->retraceCount;
         __osScPendingSwap = 0;
@@ -319,7 +314,7 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
                     osViSwapBuffer(task->framebuffer);
                     video_apply_pending_mode();
                 } else {
-                    __osScPendingSwap = N64AS(task->framebuffer);
+                    __osScPendingSwap = (s32)PC_N64A(task->framebuffer);
                 }
             }
         }
@@ -354,8 +349,6 @@ void __scAppendList(OSSched *scheduler, OSScTask *task)
 
 /* Starts sp on the RSP (an audio task's start time noted, a fresh graphics task's retrace time noted) and dp's
  * output on the RDP. */
-#define OS_MESG_NOBLOCK 0
-#define OS_MESG_BLOCK 1
 void __scExec(OSSched *scheduler,OSScTask *sp,OSScTask *dp) {
  s32 rv;
  if(sp) {

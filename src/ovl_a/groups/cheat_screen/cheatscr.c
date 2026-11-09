@@ -35,11 +35,6 @@ int pc_cheat_active(int active);
 #define FOG_COLOR_BASE 18           /* gFogColor of colour n is n + 18 */
 #define FOG_COLORS 8
 #define ROWS_SHOWN 13               /* the list shows the selected row and six each side, wrapping round */
-/* The menu sounds (PlayStartABSound's and PlayUDSound's effects). */
-#define SND_MENU_START 46
-#define SND_MENU_BACK 38
-#define SND_MENU_DOWN 39
-#define SND_MENU_UP 40
 
 /* The screen's frame. Start or B leaves (to the start menu; a soft reset to the title). Up and down
  * (auto-repeating) move round the cheats and start watching for the new row's code. Left or right changes the

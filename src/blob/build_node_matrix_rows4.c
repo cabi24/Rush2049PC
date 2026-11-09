@@ -9,10 +9,6 @@ typedef u32 Mtx[16];
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
-/* The two words of a pair of elements a, b (each times 65536 already): the integer halves, and the fractions. */
-#define HI(a, b) (((u32)(a) & 0xFFFF0000) | ((u32)(b) >> 16))
-#define LO(a, b) (((u32)(a) << 16) | ((u32)(b) & 0xFFFF))
-
 /* Write into out the matrix of a node at `pos` turned by the 4x4 float matrix m, for the view `view`: rows 0-2 are
  * m's columns 0-2 (m is a lookat-style view matrix, so its transpose turns the object toward the eye), row 3 the
  * position and w, as in build_node_matrix (depth 0, no node matrix above: pos is a world position, taken
@@ -54,30 +50,30 @@ s32 build_node_matrix_rows4(s32 view, f32 (*m)[4], f32 *pos, Mtx *out, f32 w, s3
     b = (s32)(y * 1048576.0f);
     c = (s32)(z * 1048576.0f);
     d = (s32)(w * 65536.0f);
-    words[6] = HI(a, b);
-    words[14] = LO(a, b);
-    words[7] = HI(c, d);
-    words[15] = LO(c, d);
+    words[6] = MTX_HI(a, b);
+    words[14] = MTX_LO(a, b);
+    words[7] = MTX_HI(c, d);
+    words[15] = MTX_LO(c, d);
     a = (s32)(m[0][0] * sc);
     b = (s32)(m[1][0] * sc);
-    words[0] = HI(a, b);
-    words[8] = LO(a, b);
+    words[0] = MTX_HI(a, b);
+    words[8] = MTX_LO(a, b);
     a = (s32)(m[2][0] * sc);
-    words[1] = HI(a, 0);
-    words[9] = LO(a, 0);
+    words[1] = MTX_HI(a, 0);
+    words[9] = MTX_LO(a, 0);
     a = (s32)(m[0][1] * sc);
     b = (s32)(m[1][1] * sc);
-    words[2] = HI(a, b);
-    words[10] = LO(a, b);
+    words[2] = MTX_HI(a, b);
+    words[10] = MTX_LO(a, b);
     a = (s32)(m[2][1] * sc);
-    words[3] = HI(a, 0);
-    words[11] = LO(a, 0);
+    words[3] = MTX_HI(a, 0);
+    words[11] = MTX_LO(a, 0);
     a = (s32)(m[0][2] * sc);
     b = (s32)(m[1][2] * sc);
-    words[4] = HI(a, b);
-    words[12] = LO(a, b);
+    words[4] = MTX_HI(a, b);
+    words[12] = MTX_LO(a, b);
     a = (s32)(m[2][2] * sc);
-    words[5] = HI(a, 0);
-    words[13] = LO(a, 0);
+    words[5] = MTX_HI(a, 0);
+    words[13] = MTX_LO(a, 0);
     return 1;
 }

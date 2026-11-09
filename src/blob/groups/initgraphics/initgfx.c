@@ -13,15 +13,10 @@ VIEW(u32, framebuffer_b);
 
 /* The frame command buffers (ctx_initsystem.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
-#define DL_BUFFER_0 pc_frame_dl[0]
-#define DL_BUFFER_1 pc_frame_dl[1]
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 VIEW(u8 *, frame_dl);
 #define frame_dl frame_dl_view
-
-/* The frame buffers' and z-buffer's size: 320 x 220 16-bit pixels, and 32 bytes to align them to 64. */
-#define FRAME_BUFFER_BYTES 0x22620
 
 /* As initsystem.c's _InitGfx_Init: the video mode, the z-buffer and frame buffers, the frame records. */
 void InitGfx(void)

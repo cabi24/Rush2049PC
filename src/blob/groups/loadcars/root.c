@@ -29,7 +29,7 @@ void LoadCars(s32 select)
  }
  numLoadedCars=0;
  for(i=0;i<13;i++) {
-  if(i<PC_RACE_CARS && ((gGameState&8)||PC_MODEL_DRONE_TYPE(i)==1)) {   /* GS_DEMO, DRONE_TYPE_AI */
+  if(i<PC_RACE_CARS && ((gGameState&GS_DEMO)||PC_MODEL_DRONE_TYPE(i)==1)) {   /* GS_DEMO, DRONE_TYPE_AI */
 again:
    PC_LINK_CAR(i)=Random(13.0f);
    for(j=0;j<i;j++) {

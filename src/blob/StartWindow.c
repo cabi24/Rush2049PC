@@ -38,11 +38,6 @@ typedef struct GameCar {
     u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
 } GameCar;                  /* 0x3B8 */
 
-#define N64P(x) ((void *)PC_N64P(x))
-#define N64W(x) PC_N64W(x)
-
-#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
-
 VIEW(Visual *, gEnvList);
 #define gEnvList gEnvList_view
 
@@ -63,7 +58,7 @@ void StartWindow(Target *t)
     }
     v->index = 0;
     v->func = info->visFunc;
-    v->data = N64W(t);
+    v->data = PC_N64W(t);
     v->timeStamp = 0.0333333f;
     car = PC_CAR(t->slot);
     dot = car->dr_vel[0] * t->uvs[2][0] + car->dr_vel[1] * t->uvs[2][1] + car->dr_vel[2] * t->uvs[2][2];

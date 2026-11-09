@@ -54,8 +54,8 @@ s32 PrePlay(s32 useHud, s32 cancel)
     if (!inited) {
         inited = 1;
         SetOptions();
-        EnableGameSounds(!(gGameState & 8) && !(gGameState & 0x2000000));
-        if (gGameState & 0x2000000) {
+        EnableGameSounds(!(gGameState & GS_DEMO) && !(gGameState & GS_HIGH_SCORE));
+        if (gGameState & GS_HIGH_SCORE) {
             num_our_drones = 0;
             *(volatile s16 *)&num_drones = num_our_drones;
             *(volatile s16 *)&num_humans = num_our_drones;
@@ -98,18 +98,18 @@ s32 PrePlay(s32 useHud, s32 cancel)
             return 1;
         }
         HFOV = 90.0f;
-        if (!(gGameState & 8)) AudKillSong();
+        if (!(gGameState & GS_DEMO)) AudKillSong();
         if (gRestartGame) { ZOID_Reset(); InitBlits(); }
-        else if (!(gGameState & 8)) InitWaves();
+        else if (!(gGameState & GS_DEMO)) InitWaves();
         munge_gLink_data();
         GhostStart();
         ResetHighScores();
     }
     if (gFogColor < 19) gFogColor = gTrackNum;
-    if (!(gGameState & 8)) {
+    if (!(gGameState & GS_DEMO)) {
         HFOV = 90.0f;
         ZOID_ResetWindows();
-        gNumWindows = gRace == 2 ? (s16)1 : gNumPlayers;
+        gNumWindows = gRace == kGhost ? (s16)1 : gNumPlayers;
         ZOID_SplitMenuScreen(gNumWindows);
     }
     if (gRestartGame) ReloadTrack();
@@ -125,7 +125,7 @@ s32 PrePlay(s32 useHud, s32 cancel)
         ZOID_SetFog(1000, 999, gFogColors[gFogColor][0], gFogColors[gFogColor][1], gFogColors[gFogColor][2], 255, i);
         WorldFogDensity(i, gCamera[i].pos);
     }
-    if (!(gGameState & 8)) AudStopAllEffects();
+    if (!(gGameState & GS_DEMO)) AudStopAllEffects();
     InitCPS();
     init_cars();
     for (i = 0; i < PC_MAX_LINKS; i++) PC_CARSETUP_FLAG(i) = 0;
@@ -144,14 +144,14 @@ s32 PrePlay(s32 useHud, s32 cancel)
         PC_CAR_HEALTH(i) = 800;
         PC_CAR_POINTS(i) = 0;
         PC_CAR_RELOADING_TIME(i) = 0.0f;
-        if (gRace == 6) InitBattlePlayer(i);
+        if (gRace == kBattle) InitBattlePlayer(i);
         gGamePointPlayed = 0;
     }
-    if (!(gGameState & 8)) ClearRushControls();
+    if (!(gGameState & GS_DEMO)) ClearRushControls();
     StartListeners();
-    if (gRace == 6) { InitBattlePoints(); ShotInit(); }
-    if (gRace == 4) InitStunt();
-    if (!(gGameState & 8)) PS_RumbleGo();
+    if (gRace == kBattle) { InitBattlePoints(); ShotInit(); }
+    if (gRace == kStunt) InitStunt();
+    if (!(gGameState & GS_DEMO)) PS_RumbleGo();
     gUpsideDownTrack = gCheatState[3];
     inited = 0;
     return 1;

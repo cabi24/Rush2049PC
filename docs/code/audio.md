@@ -80,7 +80,7 @@ The sound manager's own records are in `include/game/audiomgr.h` (`tFxSequence`,
 PC's layout and with MAT3's field names. It is not in game.h because audiomgr_thread.c (the system area) still defines
 its own copies of `tFxSequence` and `tAudioMsg`; when it includes the header instead, the header can join types.h.
 The car sounds' records (`tSoundState`, `tRoadNoises`, `Definition32` the engine layers, `Impact24` the bump peaks)
-are in types.h; the menu sounds' ids (`kSfxMenu*`) and button edges (`MENU_EDGE_*`) in audio.h.
+are in types.h; the menu sounds' ids (`SND_MENU_*`) in audio.h, the buttons they answer (`BUTTON_*`) in input.h.
 
 | File | What (MAT3 module) |
 |---|---|
@@ -159,9 +159,9 @@ sent (`SetSoundVP`).
 - **The model record** (`tModelData`, 0x808 bytes) is read in the N64's layout by the car sounds' views.
 - **MusyX's voices** keep the N64's 0x1A0-byte layout, read through about 30 per-function views in macros.c,
   synth.c, voices.c, api.c and controllers.c; their macro pointers (+0, +4, +8, +0xC, +0x1C, +0x20) are 32-bit
-  window addresses (`N64P`/`N64W`) and +0x18 holds a handle node as an N64 address (`pc_voice_node`). One shared
-  `SynthVoice` type would replace the views (macros.c's byte map is its spec); the voice flags, controller numbers and
-  input indexes are defined in each of those files.
+  window addresses (`N64P`/`PC_N64W`) and +0x18 holds a handle node as an N64 address (`pc_voice_node`). One shared
+  `SynthVoice` type would replace the views (macros.c's byte map is its spec); the voice flags, the controller numbers
+  and the faders are src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
 - **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; samples and
   codebooks are addressed by 32-bit cartridge or window addresses; the DMA list's sources are 32-bit; the cache
   bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD records).

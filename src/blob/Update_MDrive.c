@@ -21,7 +21,7 @@ void Update_MDrive(void)
   s32 j;   /* counts along with i; nothing reads it */
 
   update_game_data();
-  if (gRace == 2)   /* kGhost */
+  if (gRace == kGhost)
   {
     for (i = 1, j = 0; i < gNumPlayers; i++, j++)
     {

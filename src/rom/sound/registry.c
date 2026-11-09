@@ -11,15 +11,8 @@
  * pool, wave 7, in the heap) as a 32-bit address of the RDRAM window, so the records keep the N64's sizes and strides
  * (docs/port/MUSYX_DATA.md 2); the sample records keep their samples' cartridge addresses. */
 #include "../rom_tu.h"
+#include "musyx.h"
 #include "sound_sample_record.h"
-
-/* PC: the registries keep their payloads as 32-bit window addresses (into the pool, wave 7, in the heap):
- * N64A(p) is a window pointer's, N64A0(p) the same where the N64 stores the pointer itself, N64PTR(T, a) and
- * N64PTR0(T, a) the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-#define N64A0(x) PC_N64A(x)
-#define N64PTR(T, a) ((T)PC_N64P(a))
-#define N64PTR0(T, a) ((T)PC_N64P(a))
 
 /* The registries' capacities. */
 #define MAX_TABLES 2048
@@ -32,7 +25,6 @@
 #define MAX_SAMPLE_DIRECTORIES 8
 
 #define SAMPLE_ID_END 0xFFFF            /* ends a sample directory */
-#define SFX_DEFAULT_VOLUME_GROUP 31     /* the volume group an effect has until sound_set_sfx_volume_group */
 #define SAMPLE_LENGTH_MASK 0xFFFFFF     /* a sample's length word: format << 24 | length in samples */
 
 /* PC: the keymap and macro registries hold window addresses into the pool (wave 7, in the heap) as u32, so a
@@ -161,7 +153,7 @@ int sound_add_keymap(u16 id, void *payload)
             return 0;
         }
     }
-    ((KeymapRecord *)&sound_keymaps[i])->payload = N64A0(payload);
+    ((KeymapRecord *)&sound_keymaps[i])->payload = PC_N64A(payload);
     ((KeymapRecord *)&sound_keymaps[i])->id = id;
     ((KeymapRecord *)&sound_keymaps[i])->references = 1;
     sound_hw_unlock();
@@ -222,7 +214,7 @@ int sound_add_layer(u16 id, void *payload, u16 count)
         return 0;
     }
     ((LayerRecord *)&sound_layers[i])->id = id;
-    ((LayerRecord *)&sound_layers[i])->payload = N64A(payload);
+    ((LayerRecord *)&sound_layers[i])->payload = PC_N64A(payload);
     ((LayerRecord *)&sound_layers[i])->count = count;
     ((LayerRecord *)&sound_layers[i])->references = 1;
     sound_hw_unlock();
@@ -283,7 +275,7 @@ int sound_add_table(u16 id, void *payload)
         return 0;
     }
     ((TableRecord *)&sound_tables[i])->id = id;
-    ((TableRecord *)&sound_tables[i])->payload = N64A(payload);
+    ((TableRecord *)&sound_tables[i])->payload = PC_N64A(payload);
     ((TableRecord *)&sound_tables[i])->references = 1;
     sound_hw_unlock();
     return 1;
@@ -380,7 +372,7 @@ int sound_add_sample(u16 id, SampleRecord *records)
     while (records->identifier != SAMPLE_ID_END) {
         if (records->identifier == id) {
             if (records->references == 0) {
-                records->data = N64A0(sound_sample_directories[index].base + records->offset);
+                records->data = PC_N64A(sound_sample_directories[index].base + records->offset);
                 descriptor = records->descriptor;
                 sound_hw_save_sample(&descriptor, &records->data);
             }
@@ -504,7 +496,7 @@ int sound_add_macro(u16 id, void *payload)
             sound_macros[i + 1] = sound_macros[i];
         }
         ((MacroRecord *)&sound_macros[pos])->id = id;
-        ((MacroRecord *)&sound_macros[pos])->payload = N64A0(payload);
+        ((MacroRecord *)&sound_macros[pos])->payload = PC_N64A(payload);
         ((MacroRecord *)&sound_macros[pos])->references = 1;
         sound_macro_buckets[bucket].count++;
         sound_macro_count++;
@@ -566,7 +558,7 @@ void *sound_find_macro(u16 id)
         key.id = id;
         if ((result = sound_bsearch(&key, &sound_macros[base], sound_macro_buckets[bucket].count, sizeof(MacroRecord),
                                     (int (*)(const void *, const void *))sound_compare_macro_ids)) != 0) {
-            return N64PTR0(void *, result->payload);
+            return ((void *)PC_N64P(result->payload));
         }
     }
     return 0;
@@ -620,7 +612,7 @@ void *sound_find_table(u16 id)
     key.id = id;
     if ((result = sound_bsearch(&key, sound_tables, sound_table_count, sizeof(TableRecord),
                                 (int (*)(const void *, const void *))sound_compare_record_ids)) != 0) {
-        return N64PTR(void *, result->payload);
+        return ((void *)PC_N64P(result->payload));
     }
     return 0;
 }
@@ -634,7 +626,7 @@ void *sound_find_keymap(u16 id)
     key.id = id;
     if ((result = sound_bsearch(&key, sound_keymaps, sound_keymap_count, sizeof(KeymapRecord),
                                 (int (*)(const void *, const void *))sound_compare_record_ids)) != 0) {
-        return N64PTR0(void *, result->payload);
+        return ((void *)PC_N64P(result->payload));
     }
     return 0;
 }
@@ -655,7 +647,7 @@ void *sound_find_layer(u16 id, u16 *count)
     if ((result = sound_bsearch(&key, sound_layers, sound_layer_count, sizeof(LayerRecord),
                                 (int (*)(const void *, const void *))sound_compare_layer_ids)) != 0) {
         *count = result->count;
-        return N64PTR(void *, result->payload);
+        return ((void *)PC_N64P(result->payload));
     }
     return 0;
 }

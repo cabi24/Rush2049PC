@@ -17,9 +17,6 @@ typedef struct tModelData {
 } tModelData;
 VIEW(intptr_t, stree_nodes);
 #define stree_nodes stree_nodes_view
-/* The model's road-tree nodes keep 32-bit N64 addresses (CollideCarBody's enum n64p_QNode): N64A(p) is a window
- * pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
 
 /* Clear model `m`'s centre force, its peak body and centre forces and each corner's body force, and start each
  * tire's road search from the root of the road tree (stree_nodes, MAT3 stree). */
@@ -33,7 +30,7 @@ void init_collision(tModelData *m) {
         m->peak_body_force[1][i] = 0.0f;
     }
     for (i = 0; i < 4; i++) {
-        m->lasttp[i] = N64A(stree_nodes);
+        m->lasttp[i] = PC_N64A(stree_nodes);
         j = 0;
         do {
             j++;

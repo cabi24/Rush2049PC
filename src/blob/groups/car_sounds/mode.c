@@ -38,15 +38,8 @@ typedef struct MODELDAT {
     s16 rpm;            /* 0x7D0 */
 } MODELDAT;
 
-/* A human's car (tModelData.drone_type): its sounds are plain effects, a drone's are 3D emitters. */
-#define DRONE_TYPE_HUMAN 2
-/* gGameState's bit while the race is not running yet (the drones' engines are not capped, their random sound
- * stopped). */
-#define GAME_STATE_NO_RACE 0x400000
 /* tModelData.appearance's bit of a car without a horn. */
 #define APPEARANCE_NO_HORN 0x10
-/* The race type of a ghost race (gRace). */
-#define RACE_GHOST 2
 
 /* The effects (AudPlayEffect's fxid): the road noises, the screech, the bog, the first horn, the first of the
  * drones' three random engine sounds. */
@@ -54,10 +47,8 @@ typedef struct MODELDAT {
 #define SFX_WATER 20
 #define SFX_SPLASH 21
 #define SFX_BOG 25
-#define SFX_HORN_FIRST 26
 #define SFX_SCREECH 36
 #define SFX_ENGINE_RANDOM_FIRST 98
-
 
 /* Sends sound its volume and pitch, each only when it has changed since last sent. */
 void SetSoundVP(tSoundState *sound,f32 vol,f32 pitch)
@@ -207,7 +198,7 @@ void UpdateEngineSound(MODELDAT *m) {
         rpm = m->rpm;
     }
     torque = m->engtorque;
-    if (!(gGameState & GAME_STATE_NO_RACE) && m->drone_type != DRONE_TYPE_HUMAN && !(rpm < 890.0f)) {
+    if (!(gGameState & GS_RACING) && m->drone_type != DRONE_TYPE_HUMAN && !(rpm < 890.0f)) {
         rpm = 890.0f;
     }
     set = PC_ENGINE_SOUND(slot);
@@ -233,7 +224,7 @@ void UpdateEngineSound(MODELDAT *m) {
         }
         vol *= 0.85f + ((torque + 200.0f) / 900.0f) * 0.15f;
         if (m->drone_type == DRONE_TYPE_HUMAN) {
-            vol *= 0.8f - 0.05f * (gRace == RACE_GHOST ? 1 : gNumPlayers);
+            vol *= 0.8f - 0.05f * (gRace == kGhost ? 1 : gNumPlayers);
             if (pitch != set->rec[i].pitch) {
                 set->rec[i].pitch = pitch;
                 AudChangeEffectPitch(set->rec[i].sound, pitch);
@@ -245,7 +236,7 @@ void UpdateEngineSound(MODELDAT *m) {
         } else {
             vol *= 0.75f;
             pos = m->rwr;
-            if (gGameState & GAME_STATE_NO_RACE) {
+            if (gGameState & GS_RACING) {
                 if (set->rec[3].sound != -1) {
                     StopSound(&set->rec[3], 1);
                 }
@@ -340,7 +331,7 @@ void UpdateCarSounds(ModelView *model)
        (gPlayers[original_slot].edges&gPlayers[original_slot].hornControl) &&
        gSeconds-sLastHornTime[original_slot]>0.1f) {
         sLastHornTime[original_slot]=gSeconds;
-        gHornSounds[original_slot]=AudPlayEffect(gCarHorn[original_slot + 1][model->body_type]+SFX_HORN_FIRST,original_slot,1,4);
+        gHornSounds[original_slot]=AudPlayEffect(gCarHorn[original_slot + 1][model->body_type]+SND_HORN_FIRST,original_slot,1,4);
     }
     if(model->bogState==1) {
         gBogSounds[original_slot]=AudPlayEffect(SFX_BOG,original_slot,2,1);

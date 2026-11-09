@@ -24,8 +24,6 @@ VIEW(s32, gGameState);
 
 f32 fabsf(f32);
 
-/* gGameState's bit that silences the thumps. */
-#define GAME_STATE_NO_THUMPS 0x200000
 /* The effects (fxid): the first of 13 bump sounds, the scrape loop, the thumps of the three collision kinds. */
 #define SFX_BUMP_FIRST 48.0f
 #define SFX_SCRAPE 19
@@ -204,7 +202,7 @@ void UpdateBumps(AudioModel2056 *m) {
         m->last_collision_kind = m->collision_kind;
         if (gThumpTime[p] == 0.0f) {
             gThumpTime[p] = gSeconds;
-            if (!(gGameState & GAME_STATE_NO_THUMPS)) {
+            if (!(gGameState & GS_COUNTDOWN)) {
                 switch (m->last_collision_kind) {
                 case 1:
                     AudPlayEffectVP(SFX_THUMP_1, m->player, 1, 2, 1.0f, gBumpLRTab[m->collision_direction], gBumpFBTab[m->collision_direction]);

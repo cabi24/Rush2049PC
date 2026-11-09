@@ -4,10 +4,6 @@
  * display_list_traverse and this callback, so the mirrored triangles still face the camera. */
 #include "game/game.h"
 
-/* ROM display lists stay in N64 form on PC: 8-byte big-endian commands (docs/port/POINTERS.md). */
-#define DLW(w) pc_be32_get(&(w))
-#define DLW_SET(w, v) pc_be32_set(&(w), v)
-
 /* The F3DEX2 triangle commands, in a command's top byte: one triangle (three vertex indices in the first word), two
  * triangles or a quad (three indices in each word). */
 #define GBI_TRI1 0x05000000

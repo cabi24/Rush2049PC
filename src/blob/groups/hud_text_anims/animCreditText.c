@@ -1,7 +1,6 @@
 /* animCreditText: the credits shown in the demo, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
 #define CREDIT_TITLES 0              /* gText.tab: where the credits' titles start in taba */
 
 /* In the demo with credits on (gShowCredits): draws credit page gCredit, its title in yellow and its gNumCreditNames
@@ -15,7 +14,7 @@ s32 animCreditText(tBlit *blt)
     s16 sx;
     s32 i;
 
-    hide = !(gGameState & GAME_STATE_ATTRACT) || !gShowCredits;
+    hide = !(gGameState & GS_DEMO) || !gShowCredits;
     if (blt->hide != hide) {
         blt->hide = hide;
         UpdateBlit(blt);

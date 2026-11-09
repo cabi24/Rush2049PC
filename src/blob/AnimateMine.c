@@ -27,7 +27,7 @@ enum n64p_Target { n64p_Target_ };
 enum n64p_MineData { n64p_MineData_ };
 typedef struct Target {
     enum n64p_Target next;  /* 0x00 ll: the next in its list */
-    u8 flags;               /* 0x04 Flags: TARGET_STARTED, TARGET_ACTIVE, TARGET_HIT */
+    u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_ACTIVE, TARGET_HIT */
     u8 pad05[7];            /* 0x05 mbIdx at 0x08 */
     s32 dlIdx;              /* 0x0C its scene object */
     s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
@@ -50,11 +50,6 @@ typedef struct Target {
 typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
-
-#define TARGET_STARTED 1        /* registered and given its models */
-/* TARGET_ACTIVE (game/types.h): it collides; StartMine clears it when a car sets the mine off */
-#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
 typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
@@ -108,7 +103,7 @@ void AnimateMine(Visual *v, s16 op)
     if (gPauseState != 0) return;
     t = N64P(v->data);
     m = N64P(t->data);
-    if (!(t->flags & TARGET_STARTED)) {
+    if (!(t->flags & TARGET_SET_UP)) {
         if (gPlayerMines[t->owner].count == 3) {
             oldT = 0.0f;
             j = -1;
@@ -174,7 +169,7 @@ void AnimateMine(Visual *v, s16 op)
         m->glowTimes[0] = 0.0f;
         m->glowTimes[1] = 0.0f;
         MBOX_HideObject(m->glowdls[1], 0, 15);
-        t->flags |= TARGET_STARTED | TARGET_ACTIVE;
+        t->flags |= TARGET_SET_UP | TARGET_ACTIVE;
     }
     m->flashTime += gFrameSeconds;
     if (m->flashTime >= 0.25f) {

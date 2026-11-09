@@ -2,30 +2,12 @@
  * models have no display lists). Called by SetupWaveModel for each level of detail. */
 #include "game/game.h"
 
-/* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
- * (docs/port/POINTERS.md). */
-#define DLW(w) pc_be32_get(&(w))
-#define DLW_SET(w, v) pc_be32_set(&(w), v)
-#define DL_AT(addr) ((u32 *)pc_n64_ptr(addr))
 /* The relocated address past 16 MiB of a larger window (game.memory) is the K0 one, not the 24-bit offset; at
  * original, the N64's (pc_rcp_reloc, docs/port/MEMORY.md 3). KEEP: w's own segment; SEG: segment bits >> 24. */
 #define RELOC_KEEP(w, b) pc_rcp_reloc(w, b, -1)
 #define RELOC_SEG(w, b, bits) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
 #define LOD_KEEP(sum, bits, w, b) pc_rcp_reloc(w, b, -1)
 #define LOD_SEG(sum, bits, w, b) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
-
-/* The F3DEX2 commands the walk looks at (the first byte of a command). */
-#define G_VTX 0x01
-#define G_BRANCH_Z 0x04
-#define G_MTX 0xDA
-#define G_MOVEWORD 0xDB
-#define G_MOVEMEM 0xDC
-#define G_LOAD_UCODE 0xDD
-#define G_DL 0xDE
-#define G_ENDDL 0xDF
-#define G_SPNOOP 0xE0       /* the models' section markers: type 1 in bits 16-23, the section's bit in 0-15 */
-#define G_RDPHALF_1 0xE1
-#define G_SETTIMG 0xFD
 
 /* Walks the display list at dl to its end and relocates every address in it by base: vertices, matrices, the lists
  * it calls or branches to, images. seg < 0 keeps each address's own segment, else the relocated addresses get

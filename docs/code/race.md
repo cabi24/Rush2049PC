@@ -17,12 +17,12 @@ The game thread runs `GameLoop` (`groups/front_end/GameLoop.c`) once a frame. A 
 
 | State | What happens (`UpdateGame`, `groups/update_game/UpdateGame.c`) |
 |---|---|
-| `GS_RACE_SETUP` | the options, the roster and grid (`CalcPolePositions`), the catch-up setting |
-| `GS_RACE_LOAD` | `PrePlay` loads the track (`LoadTrack`) and the cars, a step a frame, then sets the cars on the grid |
-| `GS_RACE_COUNTDOWN` | the cars sit on the grid (`CarSetup`, `Update_MDrive`); `CountDown` counts 3.5 seconds |
-| `GS_RACE_START` | the race clock (`SetCountdownTimer`: by the race kind), the start call and the music |
-| `GS_RACE_PLAY` | `PlayGame` each frame; the race's end decided (below) |
-| `GS_RACE_END` | `EndGame`: the models stop, the high score screen follows |
+| `GS_GAME_INIT` | the options, the roster and grid (`CalcPolePositions`), the catch-up setting |
+| `GS_PREPLAY` | `PrePlay` loads the track (`LoadTrack`) and the cars, a step a frame, then sets the cars on the grid |
+| `GS_COUNTDOWN` | the cars sit on the grid (`CarSetup`, `Update_MDrive`); `CountDown` counts 3.5 seconds |
+| `GS_GO` | the race clock (`SetCountdownTimer`: by the race kind), the start call and the music |
+| `GS_RACING` | `PlayGame` each frame; the race's end decided (below) |
+| `GS_END_GAME` | `EndGame`: the models stop, the high score screen follows |
 
 `PlayGame` (`groups/car_checkpoints/PlayGame.c`) is one frame of a race: the model thread's results into the car
 records (`Update_MDrive`), the race kind's own rules (`CheckForStunt`; battle's `ShotUpdate` and

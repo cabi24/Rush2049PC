@@ -15,8 +15,6 @@ typedef union
 VIEW(intptr_t, blit_dl);
 #define blit_dl blit_dl_view
 
-#define G_ENDDL 0xDF /* the RSP's end of display list */
-
 /* The two display lists the blitter fills alternately (groups/blit/init.c): host Gfx, 16 bytes a command. */
 extern Gfx pc_text_dl[2][2400];
 

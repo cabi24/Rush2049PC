@@ -1,9 +1,6 @@
 /* SavePlayerTrack: save the track a profile chose (MAT3 save.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
-#define kBattle 6
 
 /* Stores track value in the settings of race type raceType (a race, practice or ghost race: the race settings; a
  * circuit isn't stored), with their checksum, marked to write, and makes raceType the profile's last

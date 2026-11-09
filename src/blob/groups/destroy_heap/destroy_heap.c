@@ -26,6 +26,6 @@ void destroy_heap(tHeap *heap)
             break;
         }
     }
-    DeallocateMemoryInternal(N64A(target), 1);
+    DeallocateMemoryInternal(PC_N64A(target), 1);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }

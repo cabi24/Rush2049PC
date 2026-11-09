@@ -26,9 +26,6 @@ typedef struct EngineSounds {Definitions64 *specs;tSoundState state[2];tSoundSta
 /* The model record's fields this file reads (MAT3 tModelData, the N64's layout). */
 typedef struct Vehicle2056 {u8 prefix[12];s8 engine_type;u8 gap13[1587];s8 crashflag;u8 gap1601[389];s16 slot;u8 gap1992[4];s8 drone_type;u8 tail[59];} Vehicle2056;
 
-/* A human's car (tModelData.drone_type): plain effects; a drone's sounds are 3D emitters. */
-#define DRONE_TYPE_HUMAN 2
-
 VIEW(char[], unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 

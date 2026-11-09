@@ -4,6 +4,31 @@
 
 #include "game/types.h"
 
+/* gTrackNum: the tracks, in the track menu's order: the six race tracks, the eight battle arenas, the four stunt
+ * arenas and the obstacle course. The records (raceStats, SavePlayerStats) number a race track run backwards
+ * TRACK_BACKWARD_FIRST + the track (19..24). */
+#define TRACK_RACE_FIRST 0
+#define TRACK_RACE_LAST 5
+#define NUM_RACE_TRACKS 6         /* the race tracks; raceStats[track + 6] is the same track's backwards record */
+#define TRACK_NEEDS_EXPANSION 5   /* the race track that can't be raced without an Expansion Pak */
+#define TRACK_BATTLE_FIRST 6
+#define TRACK_BATTLE_LAST 13
+#define TRACK_STUNT_FIRST 14
+#define TRACK_STUNT_LAST 17
+#define TRACK_OBSTACLE 18         /* the obstacle course */
+#define NUM_TRACKS 19             /* the tracks the menu offers */
+#define TRACK_BACKWARD_FIRST 19   /* the records' number of the first race track run backwards */
+
+/* The road tree's vertices (sverttyp): v[0..2] the position of vertex e in feet, whole feet and 32nds (stree's
+ * collisions, the shots' world collision). */
+#define DECODE_SVERT(v, e) \
+    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
+    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
+    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
+
+/* A target path's points (TargetPath.pts, a 32-bit window address in the path's N64-layout record). */
+#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
+
 /* Data */
 extern f32 ghostRaceTimes[EXTENT(6)];
 extern f32 gravitySpeedIncrease[EXTENT(4)];

@@ -43,11 +43,6 @@ typedef struct CCar {
     s16 slot;               /* 0x7C6 */
 } CCar;
 
-#define DECODE(v, e) \
-    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
-    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
-    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
-
 /* Tests model `car`'s body (its corners, BodyVerts) against wall `poly`: finds how deep the car's outline, flattened
  * into the wall's plane, is into the wall's outline and on which edge; keeps the deepest contact of the step in
  * `col` (a wall facing the car's up more than 45 degrees away is no wall). A wall's kind can end the car, unless it
@@ -93,7 +88,7 @@ void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
     DecodeVlist((u8 *) (poly->vli + stree_vlist), n, (s16 *) idx);
     i = idx[0];
     v = &stree_svert[i];
-    DECODE(org, v);
+    DECODE_SVERT(org, v);
     mats2fcopy(poly->uvs, mtx);
     for (ka = 0; ka < 4; ka++) {
         d[0] = car->bodyrwr[tireIndex[ka]][0] - org[0];

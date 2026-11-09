@@ -4,8 +4,6 @@
  * screen's windows: OBJ_HIDDEN_VIEW0 << view). MBOX_ShowObject undoes it. */
 #include "game/game.h"
 
-#define DEBUG_PRINT(args)
-
 /* The ways to hide (`mode`). */
 #define HIDE_TREE       2   /* the node and all its descendants, in the views of `views` */
 #define HIDE_ALL_VIEWS  0   /* the node alone, everywhere (OBJ_HIDDEN) */

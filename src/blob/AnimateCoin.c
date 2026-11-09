@@ -30,7 +30,7 @@ enum n64p_CoinData { n64p_CoinData_ };
 enum n64p_Target { n64p_Target_ };
 typedef struct Target {
     u8 pad00[4];
-    u8 flags;               /* 0x04 Flags: TARGET_STARTED, TARGET_GOLD, TARGET_COIN_GONE */
+    u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_GOLD, TARGET_COIN_GONE */
     u8 pad05[7];
     SceneHandle dlIdx;      /* 0x0C the coin's glow, a scene object */
     u8 pad10[0x38 - 0x10];
@@ -47,10 +47,6 @@ typedef struct Visual {
 } Visual;
 #define N64P(x) _Generic((x), enum n64p_CoinData: (CoinData *)PC_N64P(x), enum n64p_Target: (Target *)PC_N64P(x), \
     default: (x))
-
-#define TARGET_STARTED 1        /* the coin has been set up */
-#define TARGET_GOLD 0x40        /* a gold coin (else silver) */
-#define TARGET_COIN_GONE 0x80   /* every player has found it */
 
 /* A player's window bit; a view of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
@@ -94,7 +90,7 @@ void AnimateCoin(Visual *v, s16 op)
         ReleaseEnviron(v, 1);
         return;
     }
-    if (!(t->flags & TARGET_STARTED)) {
+    if (!(t->flags & TARGET_SET_UP)) {
         goldGlow[0] = PC_RGBA(coin_gold_glow_color);
         silverGlow[0] = PC_RGBA(coin_silver_glow_color);
         if (t->flags & TARGET_GOLD) {
@@ -140,7 +136,7 @@ void AnimateCoin(Visual *v, s16 op)
             ReleaseEnviron(v, 1);
             return;
         }
-        t->flags |= TARGET_STARTED;
+        t->flags |= TARGET_SET_UP;
     }
     angV = N64P(t->data)->angV;
     spin[0] = angV[0] * gFrameSeconds;

@@ -8,8 +8,6 @@ struct tTexture {
     u8 pad[16];
 };
 
-#define MBOX_WARN 1 /* MBOX_FindTexture_WORK: complain when the texture isn't found */
-
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 

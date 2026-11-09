@@ -1,10 +1,6 @@
 /* animLapCount: the lap counter, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
-#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
-#define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
 #define LAP_FORMAT 206   /* gText.single: the "lap n of m" format */
 
 typedef struct Pos {
@@ -30,7 +26,7 @@ s32 animLapCount(void *item)
     s32 x;
     s32 y;
 
-    if ((gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || gRace == kPractice || gRace == kObstacle || !gShowPlace) {
+    if ((gGameState & GS_DEMO) || !(gGameState & GS_RACING) || gRace == kPractice || gRace == kObstacle || !gShowPlace) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);

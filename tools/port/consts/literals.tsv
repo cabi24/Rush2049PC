@@ -1,0 +1,7 @@
+# Numbers that stand for a named value (tools/port/one_spelling.py, pass 4). pattern: a regex, group lit the number.
+# names: a regex of the names that may stand for it. Tab separated: pattern  names  note
+pattern	names	note
+\bgSkipToGameState\s*(?:==|!=|=)\s*(?P<lit>1)\b	SKIP_NONE	gSkipToGameState: no screen to skip to
+\b(?:gGameState|gNewGameState|gSkipToGameState)\s*(?:&|==|!=|=|\|)\s*\(?\s*(?P<lit>0[xX][0-9A-Fa-f]+|[0-9]+)\b	GS_\w+	gGameState's bits
+\bsetGameState\(\s*(?P<lit>0[xX][0-9A-Fa-f]+|[0-9]+)\s*\)	GS_\w+	gGameState's bits
+\bgRace\s*(?:==|!=)\s*(?P<lit>[0-9]+)\b	k(?:OneRace|Practice|Ghost|Circuit|Stunt|Obstacle|Battle)	gRace, the race kind

@@ -36,17 +36,17 @@ void DeallocateMemoryInternal(u32 address, s32 internal) {
     next = N64P(chunk->next);
     if (next && next->used == 0) {
         chunk->next = next->next;
-        if (chunk->next) N64P(chunk->next)->prev = N64A(chunk);
-        else heap->lastChunk = N64A(chunk);
+        if (chunk->next) N64P(chunk->next)->prev = PC_N64A(chunk);
+        else heap->lastChunk = PC_N64A(chunk);
         chunk->size += next->size + HEAP_CHUNK_HEADER;
         FillFreeMem(next, HEAP_CHUNK_HEADER);
     }
-    prev = N64PTR(tMemoryChunk *, chunk->prev);
+    prev = ((tMemoryChunk *)PC_N64P(chunk->prev));
     chunk->master = 0; chunk->used = 0; chunk->internal = 0; chunk->locked = 0;
     if (prev && prev->used == 0) {
         prev->next = chunk->next;
-        if (prev->next) N64P(prev->next)->prev = N64A(prev);
-        else heap->lastChunk = N64A(prev);
+        if (prev->next) N64P(prev->next)->prev = PC_N64A(prev);
+        else heap->lastChunk = PC_N64A(prev);
         prev->size += chunk->size + HEAP_CHUNK_HEADER;
         FillFreeMem(chunk, HEAP_CHUNK_HEADER);
     }
@@ -71,7 +71,7 @@ void musyx_free(u32 address) {
 void unload_extra_overlay(void) {
     if (extra_overlay_loaded) {
         osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(N64A(overlay_base), 0);
+        DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
         osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
         extra_overlay_loaded = 0;
     }
@@ -82,7 +82,7 @@ void unload_extra_overlay(void) {
 void unload_start_overlay(void) {
     if (start_overlay_loaded) {
         osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
-        DeallocateMemoryInternal(N64A(overlay_base), 0);
+        DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
         osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
         start_overlay_loaded = 0;
     }
@@ -127,18 +127,18 @@ void ReallocateMemory(u32 address, u32 desired) {
                 moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
                 moved->next = chunk->next;
                 if (N64P(moved->next) != NULL) {
-                    N64P(moved->next)->prev = N64W(moved);
+                    N64P(moved->next)->prev = PC_N64W(moved);
                 } else {
-                    heap->lastChunk = N64W(moved);
+                    heap->lastChunk = PC_N64W(moved);
                 }
-                moved->prev = N64W(chunk);
+                moved->prev = PC_N64W(chunk);
                 moved->size = chunk->size - desired - HEAP_CHUNK_HEADER;
-                moved->master = N64W(NULL);
+                moved->master = PC_N64W(NULL);
                 moved->used = 0;
                 moved->internal = 0;
                 moved->locked = 0;
                 moved->magic = HEAP_MAGIC_WORD;
-                chunk->next = N64W(moved);
+                chunk->next = PC_N64W(moved);
                 chunk->size = desired;
             }
         } else {
@@ -146,18 +146,18 @@ void ReallocateMemory(u32 address, u32 desired) {
                 moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
                 moved->next = next->next;
                 if (N64P(moved->next) != NULL) {
-                    N64P(moved->next)->prev = N64W(moved);
+                    N64P(moved->next)->prev = PC_N64W(moved);
                 } else {
-                    heap->lastChunk = N64W(moved);
+                    heap->lastChunk = PC_N64W(moved);
                 }
-                moved->prev = N64W(chunk);
+                moved->prev = PC_N64W(chunk);
                 moved->size = chunk->size - desired + next->size;
-                moved->master = N64W(NULL);
+                moved->master = PC_N64W(NULL);
                 moved->used = 0;
                 moved->internal = 0;
                 moved->locked = 0;
                 moved->magic = HEAP_MAGIC_WORD;
-                chunk->next = N64W(moved);
+                chunk->next = PC_N64W(moved);
                 chunk->size = desired;
             }
         }
@@ -167,27 +167,27 @@ void ReallocateMemory(u32 address, u32 desired) {
         if (nextSize - desired + size < HEAP_CHUNK_HEADER) {
             chunk->next = next->next;
             if (N64P(chunk->next) != NULL) {
-                N64P(chunk->next)->prev = N64W(chunk);
+                N64P(chunk->next)->prev = PC_N64W(chunk);
             } else {
-                heap->lastChunk = N64W(chunk);
+                heap->lastChunk = PC_N64W(chunk);
             }
             desired = chunk->size + next->size + HEAP_CHUNK_HEADER;
         } else {
             moved = (tMemoryChunk *)((u8 *)chunk + desired + HEAP_CHUNK_HEADER);
             moved->next = next->next;
             if (N64P(moved->next) != NULL) {
-                N64P(moved->next)->prev = N64W(moved);
+                N64P(moved->next)->prev = PC_N64W(moved);
             } else {
-                heap->lastChunk = N64W(moved);
+                heap->lastChunk = PC_N64W(moved);
             }
-            moved->prev = N64W(chunk);
+            moved->prev = PC_N64W(chunk);
             moved->size = chunk->size + next->size - desired;
-            moved->master = N64W(NULL);
+            moved->master = PC_N64W(NULL);
             moved->used = 0;
             moved->internal = 0;
             moved->locked = 0;
             moved->magic = HEAP_MAGIC_WORD;
-            chunk->next = N64W(moved);
+            chunk->next = PC_N64W(moved);
         }
         chunk->size = desired;
     }

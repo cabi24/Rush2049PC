@@ -13,7 +13,7 @@ s32 video_animPanes(void *item)
     s8 c;
 
     if (!video_panesCreated) {
-        if (!(gGameState & 0x7C03FFFE)) {
+        if (!(gGameState & GS_FRONTEND_MASK)) {
             HAL_SetFont(13);
             c = gControllerData[playerInPause][0];
             video_gControllerRemoved = c == 0;

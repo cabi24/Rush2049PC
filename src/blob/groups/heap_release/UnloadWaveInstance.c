@@ -15,10 +15,6 @@ VIEW(u8[], gPalDefPtrs);
 #define gPalDefPtrs gPalDefPtrs_view
 void *memset(void *, int, u32);
 
-/* The free takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-
 /* Waits until the RSP has finished the frame being drawn (gRenderInProgress), which may still read the wave. */
 static void wait_for_render(void)
 {
@@ -36,7 +32,7 @@ void UnloadWaveInstance(s32 index)
         return;
     }
     wait_for_render();
-    DeallocateMemory(N64A(slot->ptr));
+    DeallocateMemory(PC_N64A(slot->ptr));
     slot->ptr = 0;
     memset(gRomObjDefPtrs + index * WAVE_TABLE_ENTRY, 0, WAVE_TABLE_ENTRY);
     memset(gTexDefPtrs + index * WAVE_TABLE_ENTRY, 0, WAVE_TABLE_ENTRY);

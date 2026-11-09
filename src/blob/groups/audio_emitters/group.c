@@ -32,7 +32,6 @@ tFxSequence *GetFxTag(void) {
 #define PC_OBJ_OR_UNLOCK(o) if((o)==0){osSendMesg(&audio_lock_queue,0,0);return (u32)-1;}
 #define PC_OBJ_OR_UNLOCK_CAM(o,c) \
     if((o)==0){InsertLLE(&gFreeEmitters,(struct Link*)(c),gFreeEmitters.head);osSendMesg(&audio_lock_queue,0,0);return -1;}
-#define PC_OBJ_SEND(q,o) if(osSendMesg(q,o,0)!=0)(o)->hdr.used=0
 /* So can the tags (gFreeFxTags: 80 with the Expansion Pak, 16 without, as AudioInit makes them), which
  * GetFxTag takes from the list's head unchecked: in a race of more cars than the N64's 6 their engines can take
  * the last one (docs/port/MORECARS.md 6). A start that finds none gives its message back and is not started
@@ -58,7 +57,7 @@ u32 AudPlayEffect(u32 fxid,u32 subId,u32 replace,u8 priority) {
  msg->playEffect.fbpan=-2.0f;
  result=msg->playEffect.tag->id;
  osSendMesg(&audio_lock_queue,0,0);
- PC_OBJ_SEND(&audio_command_queue,msg);
+ PC_CMD_SEND(&audio_command_queue,msg);
  return result;
 }
 /* AudPlayEffect with a volume (clamped to 0..1), a left/right and a front/back pan (each clamped to -1..1). */
@@ -76,7 +75,7 @@ u32 AudPlayEffectVP(u32 fxid,u32 subId,u32 replace,u8 priority,f32 volume,f32 lr
  msg->playEffect.fbpan=(fbpan<-1.0f)?-1.0f:((1.0f<fbpan)?1.0f:fbpan);
  result=msg->playEffect.tag->id;
  osSendMesg(&audio_lock_queue,0,0);
- PC_OBJ_SEND(&audio_command_queue,msg);
+ PC_CMD_SEND(&audio_command_queue,msg);
  return result;
 }
 
@@ -111,7 +110,7 @@ s32 AudEmitEffect(const f32 *pos,void *dir,f32 fadeDistance,f32 fadeCompression,
  msg->playEffect.tag->data=emitter;
  result=emitter->sndTag=msg->playEffect.tag->id;
  osSendMesg(&audio_lock_queue,0,0);
- PC_OBJ_SEND(&audio_command_queue,msg);
+ PC_CMD_SEND(&audio_command_queue,msg);
  osRecvMesg(&audio_lock_queue,0,1);
  /* MAT3's _ActivateEmitter, unless the play message has already freed the emitter (free again) */
  if(emitter->free==0){InsertLLE(&gActiveEmitters,&emitter->ll,gActiveEmitters.head);emitter->active=1;PC_EMITTERS_MOST(gActiveEmitters)}

@@ -3,8 +3,6 @@
  * getters), which reads the font's wave through them. waves/group.c has the waves. */
 #include "game/game.h"
 
-#define N64A(x) PC_N64A(x)
-
 /* MAT3's _ValidateWaveInstance(idx, loaded, ready), a debug check of a wave instance's state: empty in the retail
  * game (the decompiler's body for it computed nothing it kept). */
 void ValidateWaveInstance(s32 index, s32 loaded, s32 ready)
@@ -25,7 +23,7 @@ void LockWaveInstance(s32 index)
 
     ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(N64A(slot->ptr), 0);
+    PurgeableMemory(PC_N64A(slot->ptr), 0);
     do { slot->locked = 1; } while (0);
 }
 
@@ -43,7 +41,7 @@ void UnlockWaveInstance(s32 index)
 
     ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(N64A(slot->ptr), 1);
+    PurgeableMemory(PC_N64A(slot->ptr), 1);
     do { slot->locked = 0; } while (0);
 }
 

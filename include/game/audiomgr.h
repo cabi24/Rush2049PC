@@ -48,8 +48,6 @@ enum {
     kFxNoReplace = 2    /* keep it and drop the new one */
 };
 
-/* A sound value a change leaves as it is (AudChangeEffect, the commands' volume, pan and pitch). */
-#define AUDIO_NO_CHANGE (-2.0f)
 
 /* An fx tag (MAT3 tFxSequence, 0x58 bytes on the PC): one sound the game asked for. Its handle (id) is
  * (generation << gTagShift) | index into gFxTags; ConvertTag gives the tag of a handle, or NULL once the tag has
@@ -132,24 +130,17 @@ typedef struct tAudioSequence {
  * (ProcessCommand) and gives it back (used = 0). */
 typedef struct tAudioMsgHeader {
     s16 type;           /* 0x0: -1 (GetCmd) */
-    u8 cmd;             /* 0x2: kAudioCmd* */
+    u8 cmd;             /* 0x2: kAudioCmd* (audio.h) */
     s8 used;            /* 0x3: taken from the pool */
 } tAudioMsgHeader;
 
-enum {
-    kAudioCmdPlaySong = 0,
-    kAudioCmdKillSong = 1,
-    kAudioCmdPlayEffect = 2,        /* a new tag: replace a like one, then wait for the priority pass */
-    kAudioCmdStartEffect = 3,       /* the priority pass: give the tag a voice */
-    kAudioCmdChangeEffect = 4,      /* volume, pans, pitch (AUDIO_NO_CHANGE: keep) */
-    kAudioCmdInterruptEffect = 5,   /* the priority pass: take the tag's voice (a loop waits to restart) */
-    kAudioCmdStopEffect = 6,
-    kAudioCmdStopAllEffects = 7,
-    kAudioCmdPauseAllEffects = 8,
-    kAudioCmdResumeAllEffects = 9,
-    kAudioCmdSetMasterVol = 10,
-    kAudioCmdMono = 11
-};
+/* PC: the audio manager's message pool and its queue can run out (docs/port/QA.md "Integration soak", fix 6). A
+ * request is then dropped: PC_CMD_OR_UNLOCK(m) gives the lock back and returns when GetCmd had no message,
+ * PC_CMD_SEND(q, m) gives a message the full queue refuses back, PC_SEND_OR_GIVE_BACK(q, m, e) gives it back and
+ * takes the command off tag e's count. */
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,NULL,0);return;}
+#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->hdr.used=0
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
 
 typedef union tAudioMsg {
     tAudioMsgHeader hdr;

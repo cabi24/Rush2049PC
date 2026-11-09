@@ -41,18 +41,13 @@ VIEW(MultiBlit, modescr_mblit);
 #define modescr_mblit modescr_mblit_view
 extern void particle_lifetime_set ( void );
 
-/* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
- * frame has them (docs/port/SANITIZE.md 3.2) */
-#define PC_WORD_ALIGNED __attribute__((aligned(4)))
 
 /* modescr_buttonInfo[]: the seven rows' buttons, then these. */
-#define MODE_CURSOR 7
 #define MODE_A_ICON 8               /* the A button's icon and its arrow, by the "select" text */
 #define MODE_A_ARROW 9
 #define MODE_B_ICON 10              /* the B button's icon and its arrow, by the "back" text */
 #define MODE_B_ARROW 11
 #define MODE_TITLE 12
-#define MODE_BUTTONS 13
 
 /* Set the screen up: flush the profile saves, make the buttons and the text blit, drop the presses so far, and
  * select the mode the first player's profile last raced (GetPlayerRaceType; anything unknown selects a race). */
