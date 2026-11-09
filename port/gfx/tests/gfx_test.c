@@ -1240,9 +1240,9 @@ static void case_belist(void) {
 /* game.memory (docs/port/MEMORY.md 3, 6): belist's RDRAM scene at three places in a 64 MiB window, 1 MiB in, 18 MiB in
  * and in its last MiB, with its colour image there too (its pointer, as the game sets it: StartGraphics). Past 16 MiB
  * a physical address would read as a segmented one: the display lists' relocations keep K0 addresses there, and the
- * renderer takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0 addresses and at
- * physical ones, and each picture must be the first's, pixel for pixel. Only in gfx_window_test, on port/ultra's own
- * window; gfx_test, whose RDRAM is 8 MiB, skips it. */
+ * renderer takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0
+ * addresses and at physical ones, and each picture must be the first's, pixel for pixel. Only in gfx_window_test, on
+ * port/ultra's own window; gfx_test, whose RDRAM is 8 MiB, skips it. */
 #ifdef GFX_TEST_WINDOW
 enum { HM_DL = 0, HM_MTX = 0x800, HM_VTX = 0xC00, HM_TVTX = 0xD00, HM_TEX = 0x1000, HM_SEG7 = 0x2000, HM_FB = 0x4000,
        HM_SIZE = 0x4000 + FB_W * FB_H * 2 };
