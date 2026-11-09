@@ -256,8 +256,6 @@ VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 extern void *memcpy(void *,const void *,u32);
 
-/* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned (docs/port/SANITIZE.md
- * 3.2) */
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,void *,s32);
 

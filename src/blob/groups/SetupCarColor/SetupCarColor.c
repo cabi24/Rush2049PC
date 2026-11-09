@@ -18,8 +18,6 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
     for (i = 0; i < size / 2; i++)
         dst[i] = pc_be16_get(s + 2 * i);
 }
-/* The car's copy and the heap's API take 32-bit N64 addresses: PC_N64A(p) is a window pointer's, (T)PC_N64P(a) the
- * pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */

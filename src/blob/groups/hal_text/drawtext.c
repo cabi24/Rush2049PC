@@ -1,7 +1,6 @@
 /* DrawText: draw a string with the blitter, glyph by glyph (MAT3 HAL_text.c's _DrawText). */
 #include "game/game.h"
 
-/* A letter's row of the kerning table: its kerns field holds a window address (port/assets/font.c). */
 typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
 /* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
  * 32-bit RDRAM-window address. */
