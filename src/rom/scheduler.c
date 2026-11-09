@@ -135,7 +135,8 @@ void osScAddClient(OSSched *scheduler,OSScClient *client,OSMesgQueue *queue) {
  * the next tasks started), the RSP done, the RDP done (the RDP's time for the frame), a request to schedule, or a
  * pre-NMI (every client gets the pre-NMI message). */
 extern OSViMode osViModeTable[];
-extern s32 __osScPendingSwap,frame_cycle_count;
+extern void *__osScPendingSwap;
+extern s32 frame_cycle_count;
 extern u32 __osScSwapCount;
 extern OSScTask *scheduler_audio_task;
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
@@ -213,11 +214,11 @@ void __scSchedule(OSSched *scheduler)
 
 /* A retrace: counts it; a frame buffer waiting to be shown is swapped in once PC_SWAP_RETRACES have passed since
  * the last swap (the pending video mode with it); and every client gets the retrace message. */
-extern s32 __osScPendingSwap;
+extern void *__osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osViSwapBuffer(void *mode);
-/* The pending swap keeps the frame buffer as a 32-bit N64 address: (s32)PC_N64A(p) is a window pointer's, PC_N64P(a)
- * the pointer at one (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+/* The pending swap is the frame buffer waiting to be shown, or NULL (a pointer since docs/port/NATIVE.md step 6; the
+ * N64 kept its 32-bit address). */
 extern void video_apply_pending_mode(void);
 extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 void __scHandleRetrace(OSSched *scheduler) {
@@ -230,10 +231,10 @@ void __scHandleRetrace(OSSched *scheduler) {
 
     scheduler->retraceCount++;
     if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
-        osViSwapBuffer(((void *)PC_N64P((u32)__osScPendingSwap)));
+        osViSwapBuffer(__osScPendingSwap);
         video_apply_pending_mode();
         __osScSwapCount = scheduler->retraceCount;
-        __osScPendingSwap = 0;
+        __osScPendingSwap = NULL;
     } else {
     }
     for (client = scheduler->clientList; client != 0; client = client->next) {
@@ -314,7 +315,7 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
                     osViSwapBuffer(task->framebuffer);
                     video_apply_pending_mode();
                 } else {
-                    __osScPendingSwap = (s32)PC_N64A(task->framebuffer);
+                    __osScPendingSwap = task->framebuffer;
                 }
             }
         }

@@ -12,7 +12,7 @@ extern s32 __scExecTask(OSSched *,OSScTask *);
 extern s32 __scScheduleCore(OSSched *,OSScTask **,OSScTask **,s32);
 extern void __scHandlePreNMI(OSSched *);
 extern void *osViGetCurrentFramebuffer(void),*osViGetNextFramebuffer(void);
-extern s32 __osScPendingSwap;
+extern void *__osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osSpTaskYield(void);
 #endif

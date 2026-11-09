@@ -15,7 +15,7 @@
 
 /* Data */
 extern void *scheduler_audio_task;
-extern s32 __osScPendingSwap;
+extern void *__osScPendingSwap;
 extern u32 __osScSwapCount;
 extern s32 gTimerPaused;
 extern f32 gRetraceRate;
