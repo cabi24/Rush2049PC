@@ -390,7 +390,7 @@ s32 osPfsIsPlug(OSMesgQueue *mq, u8 *pattern);
 s32 osPfsReadWriteFile(struct OSPfs *pfs, s32 file_no, u8 flag, s32 offset, s32 size_in_bytes, u8 *data_buffer);
 s32 osPfsRepairId(struct OSPfs *pfs);
 void osScAddClient(PcSched *scheduler, struct OSScClient_s *client, OSMesgQueue *queue);
-void osSyncPrintf(s32 fmt, s32 arg1, s32 arg2, s32 arg3);
+void osSyncPrintf(s32 fmt, s32 value1, s32 value2, s32 value3);
 void other_user(s32 x);
 s32 pak_slot_b1(s32 pak);
 s32 pak_slot_b5(s32 pak);

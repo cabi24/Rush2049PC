@@ -107,12 +107,14 @@ void AudioSongStop(int song);
 /* ClearBST and WalkBST of the fx tag tree (tOrderedList, the host layout: the root at +16). The game's ClearBST
  * and WalkBST do the same since 2026-11-08 (until then they read the N64's offsets); these copies stay because
  * port/assets/tests/test_mgrstart.c links this file without them. */
+/* Empties the priority tree (ClearBST). */
 static void clear_fx_tag_tree(tOrderedList *tree)
 {
     tree->root = 0;
     tree->numElements = 0;
 }
 
+/* Calls WalkFunc on each tag of the priority tree in order (WalkBST). */
 static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
 {
     int num = 0; WalkBSTInternal(tree, tree->root, &num, WalkFunc);

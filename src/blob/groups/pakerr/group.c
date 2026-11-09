@@ -263,12 +263,14 @@ void cs_wait11_DC(s32 row, s32 col)
     DrawPakErrNQA(row, col, (u8 *)gText.msg[476 / 4]);
 }
 
+/* As cs_wait11_DC, with message 120. */
 void cs_wait12_DC(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.frameCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[480 / 4]);
 }
 
+/* As cs_wait11_DC, with message 121. */
 void cs_wait13_DC(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.frameCount) C.done = 1;

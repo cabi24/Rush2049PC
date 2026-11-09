@@ -61,11 +61,14 @@ Three threads take part:
    sends the RSP task) and switches frame record (`frame_record_index`). A finished task (`OS_SC_DONE_MSG`) frees a
    slot (`gfx_tasks_pending`). Pre-NMI (`OS_SC_PRE_NMI_MSG`, the reset button): `MainPreNMI` silences and blacks
    everything.
-3. **The game thread** (`GameLoop`, the race area's): updates the game state (section 3), the screen or the race,
-   builds the frame's display list into the frame record's command buffer (`frame_records[i].commands`,
-   `pc_frame_dl`: dynamic data, matrices from +1728, the display list from `PC_GLIST_OFFSET`) and ends it
-   (`UpdateFrame`). `UpdateFrameTimer` (src/rom/timer.c) measures each frame in retraces (`gLastFrameCount`, at
-   most 5 counted: `gFrameSeconds`) and keeps the game time (`gSeconds`, stopped while paused) and the countdown.
+3. **The game thread** (`GameLoop`, src/blob/groups/front_end/GameLoop.c, the race area's) begins each call with
+   `UpdateFrame`: it asks the main thread to end the frame it built, waits for the next frame's start, then
+   measures the frame (`UpdateFrameTimer`, src/rom/timer.c: `gLastFrameCount` retraces, at most 5, `gFrameSeconds`;
+   the game time `gSeconds`, stopped while paused; the countdown), reads the controls (`UpdateRushControls`) and
+   runs the once-a-frame functions (`HAL_CallOncePerFrameFuncs`). Then it updates the game state (section 3), the
+   screen or the race, and builds the frame's display list into the frame record's command buffer
+   (`frame_records[i].commands`, `pc_frame_dl`: dynamic data, matrices from +1728, the display list from
+   `PC_GLIST_OFFSET`).
 
 The model thread runs beside them at each retrace: `ControllerUpdate` (section 6), then the car simulation step.
 

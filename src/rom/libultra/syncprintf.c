@@ -3,7 +3,7 @@
 #include "../rom_tu.h"
 
 /* Debug print: nothing in the retail library. */
-void osSyncPrintf(s32 arg0, s32 arg1, s32 arg2, s32 arg3)
+void osSyncPrintf(s32 fmt, s32 value1, s32 value2, s32 value3)
 {
   int new_var;
   if (!new_var)
