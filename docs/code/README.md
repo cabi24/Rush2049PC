@@ -6,8 +6,20 @@ it: what each part does, where the original source files are, the main data, how
 what only the N64 has. They use the names of `tools/port/names/*.tsv`, the maps that rename the tree in wave 2;
 [NAMING.md](NAMING.md) has their conventions and how the six areas' names were made one set.
 
-These pages (and NAMING.md) were written before the maps were applied (2026-11-08, wave 2's first step) and are kept
-as written: where they give an old name or a file's old path beside a new name (`SaveRaceSetting` (voice_stop_2)),
+Start with the six subsystem pages (wave 2b, 2026-11-09): they use the tree's names and paths as they are now, and
+each ends with what is still N64-shaped (for wave 3, the memory model).
+
+| Page | Covers |
+|---|---|
+| [system.md](system.md) | boot, threads and the scheduler, the frame loop and the game states, the heap, asset and wave loading, the inflater, the controllers |
+| [cars.md](cars.md) | the car model and the physics step, collisions, respawning, car set-up and visuals, weapons and blasts, the maths, the scene and the ZOID renderer front end |
+| [race.md](race.md) | tracks, paths and checkpoints, targets and target paths, the surface tree, the race rules (laps, battle, stunt), the drones' driving, the cameras |
+| [frontend.md](frontend.md) | the menus and screens (title, options, car and track select, players, records, high scores), the menu boxes, runtime image A |
+| [ui.md](ui.md) | the Controller Pak saves (profiles, ghosts, records), the text engine and fonts, blits and panes, the in-race HUD |
+| [audio.md](audio.md) | the sound manager and server, emitters and listeners, car sounds, songs, the MusyX sound library, speech |
+
+The older pages below map the game image by address range. They (and NAMING.md) were written before the maps were
+applied (2026-11-08, wave 2's first step) and are kept as written: where they give an old name or a file's old path beside a new name (`SaveRaceSetting` (voice_stop_2)),
 it is the tree's name before `tools/port/rename.py`; `tools/port/names/applied.tsv` maps every one to the name the
 tree has now.
 

@@ -299,3 +299,40 @@ After merging other work that edits the game's files: apply the maps (`rename.py
 include/game too), build Debug, `to_headers.py --build build/pc --apply`, build, and check with objsame against the
 merged tree before the conversion and the gate. to_headers reports a name the headers declare that a file gives
 another kind; a prototype a merged definition no longer matches is a compile error to fix in the header.
+
+### Wave 2b: readable, area by area (2026-11-09)
+
+Six agents, one area each, on the headers' tree 4c3c3c2a: a comment at the top of every file and before every
+function, names for m2c's parameters and locals (`arg0`, `var_v1`, `sp2C`, `temp_f0`, `phi_*`), struct fields for
+raw offsets (`M2C_FIELD`, `*(T *)((u8 *)p + 0x5A)`) with MAT3's field names where the layout is MAT3's, named
+constants (MAT3's enums and flags where it has them), m2c's leftovers cleaned, and a page per area:
+
+| Area | Page | Files | Functions commented | Notes |
+|---|---|---|---|---|
+| system, memory, input | [system.md](../code/system.md) | 143 | ~360 | `GAME_STATE_*`, threads, scheduler messages; game/heap.h (MAT3's heap records) |
+| cars, physics, maths, scene | [cars.md](../code/cars.md) | 272 | 327 | ~450 offsets to fields; tModelData/tCarData views; 144 constants |
+| track, race, cameras | [race.md](../code/race.md) | 133 | 208 | 15 shared types (paths, targets, stree, cameras); the race kinds and `GS_*` in race.h |
+| front end | [frontend.md](../code/frontend.md) | 93 | 262 | ~480 constants for ~1,300 literals |
+| saves, text, blits, HUD | [ui.md](../code/ui.md) | 222 | 303 | tSaveData byte-exact, tProfile, ghosts, tPak, tBlit; ~150 constants |
+| audio | [audio.md](../code/audio.md) | 94 | ~460 | game/audiomgr.h (MAT3's sound manager records); MusyX's 62 macro opcodes |
+
+The proof is objsame where a unit's code is unchanged (comments, names, types that lay out alike), and the gate
+where it is not: at -O0 a field compiles to a folded displacement where the raw offset took an add, so most field
+conversions change their unit's code without changing what it does; each area's commit messages list its changed
+units and why. Each area passed the gate on its own tree (63 of 63 paths `same`, Debug and RelWithDebInfo; ctest;
+the realtime tests). Merging the six met clashes between one area's new shared types and another area's file views
+(`tPadState`, `tMiniModelData`, `streetyp`, `CameraView`, `TargInfo`, `ObjectInstance`'s field names); each was fixed
+to the shared type where the code stays the same (objsame against both parents), else kept as a file view under its
+own name.
+
+Port bugs found on the way and fixed toward the original game: the attract demo's cars started on one drone-path point
+(SetResurrectionData read N64 offset 0x338 of the PC car record; the two demo paths change from the demo race on,
+every other path is `same`); StartHeadLights' palette without PC_N64P (wrong only under RUSH_NOFIXED); NewListener's
+`free` byte at its N64 offset; move_blit_chain's N64 offsets and PS_SetRumblePercent's N64 record size (both
+uncalled). Possible original-game bugs are marked `/* Original game: ... */` and kept.
+
+Left for a follow-up: one spelling per constant across areas (`GAME_STATE_*` against MAT3's `GS_*`, the race kinds
+and button bits defined in several places); the names the areas found wrong (each report lists its evidence: the pak
+error screens `cs_draw*_DC` are MAT3's `_DrawPakErr*`, `rear_traction_by_tune` is `carEngineFwdForce` ...); files
+still named after an address or misnamed; the shared records some files still view on their own (gPlayers, gPaks,
+the profile, `struct Target`); the 33 + 4 + 35 functions the headers leave to their files.
