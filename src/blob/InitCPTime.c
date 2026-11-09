@@ -14,7 +14,7 @@ void InitCPTime(void)
     gFirstPlaceTime = 0;
     gInFirstPlace = 0;
     for (i = 0; i < (s8) gNumActiveCars; i++) {
-        PC_CAR_F108(i) = 0.0f; /* the car's mileage (MAT3 tCarData.mileage) */
+        PC_CAR_MILEAGE(i) = 0.0f; /* the car's mileage (MAT3 tCarData.mileage) */
         PC_CP_LAST_POS_X(i) = PC_CAR_POS_X(i);
         PC_CP_LAST_POS_Y(i) = PC_CAR_POS_Y(i);
         PC_CP_LAST_POS_Z(i) = PC_CAR_POS_Z(i);

@@ -67,8 +67,8 @@ is too long is worse than one that is too short. That is what the bound fixes:
 | `gGameCar` | `GameCar[8]`, 17 files | 6 cars, 0x1650 B | `sample_dma_pi_queue` (an `OSMesgQueue`) at +0x1650; the symbol file says 6 entries; `Car gGameCar[6]` in `path_D169C`. `gAltPaths`, `gPathPtList`, `gPathWave` and the rest were inside its storage, the pointer-sized ones overlapping their neighbours |
 | `gResPath` | 28-byte `Header` | 16 B | `{numPts, pts, numAlt, alt}`; `gGhostToSave` (`GhostHeader *`) at +0x10. The 28-byte views were written to the PC layout, and `gResPath_pts` (`pts`) sat at host +4 instead of +8 |
 | the ghost headers (`gRealNewGhostHeaders`) | 1 of 0x58 (the gap) | 4 | `GhostStart`: `gNewGhostHeaders[i] = &gRealNewGhostHeaders[i]`, i < 4 |
-| `gInterruptedFxTags` | ap.c's 20-byte `Node` | 16 B | the list head of 6 files' `List`/`tDLList`; `pak_file_handles` (`PakHandle[]`, 64 pointers) follows |
-| `D_80110680` | 2-byte `Flags` | 6 B (`u8[6]`) | per car, cleared for 6 by `init_views`, which defines it |
+| `gInterruptedFxTags` | InterruptFxTag.c's 20-byte `Node` | 16 B | the list head of 6 files' `List`/`tDLList`; `pak_file_handles` (`PakHandle[]`, 64 pointers) follows |
+| `finish_cam` | 2-byte `Flags` | 6 B (`u8[6]`) | per car, cleared for 6 by `init_views`, which defines it |
 | `gDriveHulk` | `s8[]`, 8 B by the gap | `s8[4]` | `InitOptions`'s definition |
 | `video_default_x`, `video_default_y` (0x8002AFFC, 0x8002AFFE) | `s16[32]` (`m2c_types.h`) | `s16[9]`, 18 B, the PC declaration | one table `s16[3][4]` from `video_default_extra_width` (0x8002AFF8) to `video_pending_frames` (0x8002B010), a row per TV type: `video_mode.c` reads `((s16 (*)[4])video_default_x)[video_tv_type][0]` with `video_tv_type` = `osTvType` (0-2). These two are its columns 2 and 3. The 64-byte views ran over `video_pending_frames`, `video_adjusted_mode`, `gInitFlag` and `decompress_lock_ready` (arena, section 3), and the loader swapped the two flags with the bytes after them |
 
@@ -134,7 +134,7 @@ names one past an overlay's BSS (`start_overlay_bss_end`, `extra_overlay_bss_end
 arena. The window bytes under own storage hold that data's N64 form and are not used.
 A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it with one declaration of its own, data.c
 defines it outside the window at its host size, and its N64 name and every name inside its N64 extent are retired
-([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `D_80153E88`), the second the model
+([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `gLink`), the second the model
 records, `pc_models` (was `model`), the third the car records, `pc_cars` (was `gGameCar`, which was own
 storage: it leaves the loader's table). One that was initialized data (`init=image`: the cars' sounds-started flags,
 engine phase and finish cameras, [DECOUPLE.md](DECOUPLE.md) 7) is filled from the image when the image loads
@@ -463,7 +463,7 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
 - Words after a declared table that read as floats, addresses or integers in the ROM's order, which no PC C reads:
   after `gSongNames` (`gSongNames`, 12 used: `songIdx < 12`), a table of string pointers with no name and no pointer
   to it; after `placePos`, `res_last_time`, `controls_updateButtonColor` (the asm's `countdown_polyColor`, `countdown_polyXYZ`), `no_rumble_pane_colors` (the
-  asm's `D_801161B8`, `D_801161BC`), `rear_traction_by_surface`, `fog_viewable_distance`, and image A's `carscr_msgPos`, `buildTrackMap_mapPos`,
+  asm's `D_801161B8`, `D_801161BC`), `carTransTraction_by_gear`, `fog_viewable_distance`, and image A's `carscr_msgPos`, `buildTrackMap_mapPos`,
   `buildBattleTrackMaps_mapPos`. A C reader added later must declare them.
 - f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
   `tire_info` words (`steady_leg_duration`, QA.md round 3), and read-only constants.
@@ -556,7 +556,7 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
   against DWARF (0 differences). Element conflicts in the arenas, bytes included, are resolved by rank and listed:
   none open, 5 read and judged (section 3).
 - **Link warnings**: the size and alignment warnings of game commons against `data.c` are gone (`gGameCar`, the
-  last one, with the car layout of [CARS.md](CARS.md)). Before: `gGameCar` (5712 vs 8960), `D_80110680` (6 vs 2), `gDriveHulk` (4 vs 8),
+  last one, with the car layout of [CARS.md](CARS.md)). Before: `gGameCar` (5712 vs 8960), `finish_cam` (6 vs 2), `gDriveHulk` (4 vs 8),
   `gPlayers` (304 vs 320), and the alignments of `gActiveControllers`, `gStickEdges` (aarch64: 4 vs a common's 8) and
   `gContStick` (x86-64: 8 vs 32). The first three were the sizes above. `gPlayers`'s 76-byte records have a
   pointer at +0x48 (`Player76.ref`, into `gJustPlayers`), so its defining file's view (`InitOptions.c`) gets it under
@@ -640,7 +640,7 @@ From `data_layout.txt`:
   loader through weak references, so the link test still links without it (`pc_data_init` returns -1). Keep the
   executable PIE. The game heap must start at the end of the game's BSS, 0x8017A640 in the window: `game_bss_end`
   and `game_bss_end` are left undefined for that, along with the low-memory boot parameters (`osTvType`...), the ROM
-  offset symbols (`gRomCompressedData`, `D_00039B40`), `gDecompressedDataStart`, `AnimateBrakeLights` (an address in the
+  offset symbols (`gRomCompressedData`, `sample_bank_rom`), `gDecompressedDataStart`, `AnimateBrakeLights` (an address in the
   game's code used as data) and `overlay_base` (the runtime images' base, used as the heap block's address). Boot
   commons (tentative definitions in `src/rom`, such as `gScheduler`) are left as they are for the libultra layer.
 - **Agent D:** the conflict lists above. Declaring sizes for open-ended arrays makes extents exact.

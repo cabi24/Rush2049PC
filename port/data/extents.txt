@@ -16,7 +16,7 @@ wave_is_model 0xB7     # model flag, s8[183]
 gResPath 0x10     # gResPath {numPts, pts, numAlt, alt}: gGhostToSave (GhostHeader *) is at +0x10. The 28-byte
                     # Header/PGraph views were written to the PC layout (ReadPathData's 32 bytes)
 gRealNewGhostHeaders 0x160    # the ghost headers, 4 of 0x58 (GhostStart: gNewGhostHeaders[i] = &gRealNewGhostHeaders[i], i < 4), not 1
-gInterruptedFxTags 0x10     # a 16-byte list head (List, tDLList); ap.c's 20-byte Node runs into pak_file_handles (PakHandle[])
+gInterruptedFxTags 0x10     # a 16-byte list head (List, tDLList); InterruptFxTag.c's 20-byte Node runs into pak_file_handles (PakHandle[])
 
 # The level-object node pool's elements (docs/port/POINTERS.md 10): 130 nodes of 0x70 bytes, which keep their N64
 # layout in the arena (initTargetStructs's pool_init). collision' Vehicle2056 view only takes the address

@@ -240,7 +240,7 @@ static void pool_build(Pool *P)
 }
 
 /* MusyX's sample base: the cartridge address (KSEG1) of ROM offset 0x39B40, where the game's sample data starts (its
- * D_00039B40). */
+ * sample_bank_rom). */
 #define SAMPLE_BASE (N64_CART_KSEG1 | 0x39B40u)
 
 static void sdir_build(Build *B)

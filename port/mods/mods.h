@@ -139,7 +139,7 @@ int pc_mods_scan(PcMods *m, const PcModsConfig *cfg);
 /* Checks every file of the mods that are on (port/assets/check.c, with the cartridge's file), settles which file each
  * wave takes, makes the text overrides and the sample directory for moved samples, and the memory the files need:
  * m->memory is cfg->memory, or raised (logged), and a file that needs more than can be had is refused. Logs what it
- * did. sample_base: the ROM offset the sample directory's offsets count from (the game's D_00039B40). */
+ * did. sample_base: the ROM offset the sample directory's offsets count from (the game's sample_bank_rom). */
 int pc_mods_prepare(PcMods *m, const PcModsConfig *cfg, const PcModsCart *cart, uint32_t sample_base);
 /* Puts the files in the cartridge's mods region (pc_rom_set_mods) and points the file table at them: the game's own
  * tables in the window (offsets wave_rom_offsets, sizes gWaveSizes, kinds wave_storage_kinds). The waves it changed. */

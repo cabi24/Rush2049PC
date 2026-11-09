@@ -11,7 +11,7 @@ VIEW(u32, framebuffer_a);
 VIEW(u32, framebuffer_b);
 #define framebuffer_b framebuffer_b_view
 
-/* The frame command buffers (ctx_initsystem.c has their storage and their sizes). */
+/* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]

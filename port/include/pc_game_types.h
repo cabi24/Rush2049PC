@@ -224,11 +224,11 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_BODY(i) (pc_models[i].body)
 #define PC_MODEL_INPUT_FLAGS(i) (pc_models[i].input_flags)
 #define PC_MODEL_AUTOTRANS(i) (pc_models[i].autotrans)
-#define PC_MODEL_B00F(i) (pc_models[i].tire_rims)
+#define PC_MODEL_TIRE_RIMS(i) (pc_models[i].tire_rims)
 #define PC_MODEL_RWV(i) (pc_models[i].rwv)
 #define PC_MODEL_RWR(i) (pc_models[i].rwr)
 #define PC_MODEL_SPEED(i) (pc_models[i].speed)
-#define PC_MODEL_SCALE(i) (pc_models[i].catchup)
+#define PC_MODEL_CATCHUP(i) (pc_models[i].catchup)
 #define PC_MODEL_F544(i) (pc_models[i].f544)
 #define PC_MODEL_VISCODE(i) (pc_models[i].viscode)
 #define PC_MODEL_CRASHFLAG(i) (pc_models[i].crashflag)
@@ -243,8 +243,8 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_BRAKE(i) (pc_models[i].brake)
 #define PC_MODEL_GAS(i) (pc_models[i].gas)
 #define PC_MODEL_GEAR(i) (pc_models[i].gear)
-#define PC_MODEL_FLAG_B(i) (pc_models[i].wing)
-#define PC_MODEL_FLAG_A(i) (pc_models[i].abort)
+#define PC_MODEL_WING(i) (pc_models[i].wing)
+#define PC_MODEL_ABORT(i) (pc_models[i].abort)
 #define PC_MODEL_SUSPENSION(i) (pc_models[i].suspension)
 #define PC_MODEL_RECKON_RWR(i) (pc_models[i].reckon_rwr)
 #define PC_MODEL_OB_RES_PT(i) (pc_models[i].ob_res_pt)
@@ -255,7 +255,7 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_COLOR0(i) (pc_models[i].color[0])
 #define PC_MODEL_COLOR1(i) (pc_models[i].color[1])
 #define PC_MODEL_COLOR2(i) (pc_models[i].color[2])
-#define PC_MODEL_S7D0(i) (pc_models[i].rpm)
+#define PC_MODEL_RPM(i) (pc_models[i].rpm)
 #define PC_MODEL_FLAGS(i) (pc_models[i].flags)
 #define PC_MODEL_STUCK_TIME(i) (pc_models[i].stuck_time)
 #define PC_MODEL_CAN_CHEAT(i) (pc_models[i].can_cheat)
@@ -382,38 +382,38 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_WHEEL_POS(i) (pc_cars[i].wheel_pos)
 #define PC_CAR_FLAGS(i) (pc_cars[i].flags)
 #define PC_CAR_PLACE(i) (pc_cars[i].place)
-#define PC_CAR_FINISHED(i) (pc_cars[i].place_locked)
-#define PC_CAR_TIME(i) (pc_cars[i].score)
+#define PC_CAR_PLACE_LOCKED(i) (pc_cars[i].place_locked)
+#define PC_CAR_SCORE(i) (pc_cars[i].score)
 #define PC_CAR_NODE(i) (pc_cars[i].node)
 #define PC_CAR_MPH(i) (pc_cars[i].mph)
 #define PC_CAR_DISTANCE(i) (pc_cars[i].distance)
-#define PC_CAR_F108(i) (pc_cars[i].mileage)
+#define PC_CAR_MILEAGE(i) (pc_cars[i].mileage)
 #define PC_CAR_VISUALS(i) (pc_cars[i].visuals)
 #define PC_CAR_NAV(i) (pc_cars[i].nav)
 #define PC_CAR_FWD_PROGRESS(i) (pc_cars[i].fwd_progress)
 #define PC_CAR_IR_COLOR(i) (pc_cars[i].ir_color)
 #define PC_CAR_PREV_IR_COLOR(i) (pc_cars[i].prev_ir_color)
 #define PC_CAR_WEIGHT_INDEX(i) (pc_cars[i].weight_index)
-#define PC_CAR_B358(i) (pc_cars[i].crash_state)
-#define PC_CAR_STATE(i) (pc_cars[i].dead)
-#define PC_CAR_DISABLED(i) (pc_cars[i].in_tunnel)
+#define PC_CAR_CRASH_STATE(i) (pc_cars[i].crash_state)
+#define PC_CAR_DEAD(i) (pc_cars[i].dead)
+#define PC_CAR_IN_TUNNEL(i) (pc_cars[i].in_tunnel)
 #define PC_CAR_SLOT(i) (pc_cars[i].slot)
-#define PC_CAR_VIEW(i) (pc_cars[i].camera)
+#define PC_CAR_CAMERA(i) (pc_cars[i].camera)
 #define PC_CAR_SHEEN_ALPHA(i) (pc_cars[i].sheen_alpha)
-#define PC_CAR_HEADING(i) (pc_cars[i].stray_angle)
+#define PC_CAR_STRAY_ANGLE(i) (pc_cars[i].stray_angle)
 #define PC_CAR_INPUT(i) (pc_cars[i].input)
 #define PC_CAR_INPUT_AS(T, i) ((T *)pc_cars[i].input)
-#define PC_CAR_KIND(i) (pc_cars[i].weapon_type)
-#define PC_CAR_LIVES(i) (pc_cars[i].ammo_count)
+#define PC_CAR_WEAPON_TYPE(i) (pc_cars[i].weapon_type)
+#define PC_CAR_AMMO_COUNT(i) (pc_cars[i].ammo_count)
 #define PC_CAR_HEALTH(i) (pc_cars[i].health)
-#define PC_CAR_BATTLE_FLAGS(i) (pc_cars[i].defense_active)
-#define PC_CAR_B3A0(i) (pc_cars[i].shoot)
-#define PC_CAR_B3A2(i) (pc_cars[i].fade_state)
+#define PC_CAR_DEFENSE_ACTIVE(i) (pc_cars[i].defense_active)
+#define PC_CAR_SHOOT(i) (pc_cars[i].shoot)
+#define PC_CAR_FADE_STATE(i) (pc_cars[i].fade_state)
 #define PC_CAR_POINTS(i) (pc_cars[i].points)
 #define PC_CAR_RELOADING_TIME(i) (pc_cars[i].reloading_time)
 #define PC_CAR_SCENES(i) (pc_cars[i].scenes)
-#define PC_CAR_F3B0(i) (pc_cars[i].battle_pitch)
-#define PC_CAR_F3B4(i) (pc_cars[i].battle_yaw)
+#define PC_CAR_BATTLE_PITCH(i) (pc_cars[i].battle_pitch)
+#define PC_CAR_BATTLE_YAW(i) (pc_cars[i].battle_yaw)
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
@@ -474,19 +474,19 @@ extern struct pc_skid pc_skids[PC_MAX_LINKS][4];    /* N64 gNewSkid: each car's 
  * slot, 6 on the N64, PC_MAX_LINKS here; the N64 symbols are retired. A sound record is a sound manager handle and the
  * values last sent to it (InitSoundState sets -1 and -2.0f: none); each file reads it through its own view
  * (State20, SndRec, LayerState: 20 bytes on both), so the record accessors are void *.
- *   pc_engine_sounds (D_80140420, 6 x 84 B, BSS; own storage before, the table pointer making it 88 B here):
- *     StartCarSounds (d5e64.c) sets the car type's engine table and starts layers 0 and 1, the engine update
- *     (UpdateEngineSound, mode.c) sets their pitch and volume and keeps a random sound in record 3, StopCarSounds
+ *   pc_engine_sounds (gEngineSounds, 6 x 84 B, BSS; own storage before, the table pointer making it 88 B here):
+ *     StartCarSounds (StartCarSounds.c) sets the car type's engine table and starts layers 0 and 1, the engine update
+ *     (UpdateEngineSound, UpdateCarSounds.c) sets their pitch and volume and keeps a random sound in record 3, StopCarSounds
  *     (StopCarSounds) releases 0, 1 and 3. Record 2 is never used.
- *   pc_screech_sounds (D_80140640, 6 x 20 B, BSS): the tire screech, reset per car, played for humans (mode.c).
- *   pc_car_sounds_on (D_8010FFC4, 6 B, data, zero in the image): StartCarSounds sets it, StopCarSounds clears it.
- *   pc_engine_phase (D_8010FFCC, 6 B, data): each car's engine is updated every other frame, the cars alternating
+ *   pc_screech_sounds (gPaveSkidSounds, 6 x 20 B, BSS): the tire screech, reset per car, played for humans (UpdateCarSounds.c).
+ *   pc_car_sounds_on (gCarActive, 6 B, data, zero in the image): StartCarSounds sets it, StopCarSounds clears it.
+ *   pc_engine_phase (gCarUpdatedLastTime, 6 B, data): each car's engine is updated every other frame, the cars alternating
  *     (UpdateCarSounds skips the frames it is 1, toggling it; StopCarSounds sets it to (slot & 1) == 0). The image's
  *     alternation is filled in at startup, and slots 6 on continue it with a period of 2 (decoupled.txt).
- *   pc_cp_last_pos (D_80152218, 6 x 12 B, BSS): each car's position at the last CheckCPs, for the distance it
- *     drove (car_checkpoints_CheckCPs.c), set at the race's start by InitCPTime.
- *   pc_cp_plane (D_801527E8, 6 x 4 B, BSS): each car's distance to its next checkpoint's plane at the last CheckCPs.
- *   pc_finish_cam, pc_finish_cam_time (D_80110680, 6 B, and D_80110668, 6 x 4 B, data, zero in the image): a human's
+ *   pc_cp_last_pos (gPrevPos, 6 x 12 B, BSS): each car's position at the last CheckCPs, for the distance it
+ *     drove (CheckCPs.c), set at the race's start by InitCPTime.
+ *   pc_cp_plane (lastDotProd, 6 x 4 B, BSS): each car's distance to its next checkpoint's plane at the last CheckCPs.
+ *   pc_finish_cam, pc_finish_cam_time (finish_cam, 6 B, and finish_cam_stime, 6 x 4 B, data, zero in the image): a human's
  *     circling camera after the finish (PassedCP sets 1 and the time, circle_camera_around_car freezes it at 2
  *     after 10 s, CheckCameraView turns the view to it, init_views and InitCheckpointData clear it). */
 struct pc_sound_rec {
@@ -529,8 +529,8 @@ extern float pc_finish_cam_time[PC_MAX_LINKS];
  * BSS): the drones in the race (num_drones of them) and those this node drives (num_our_drones), built by munge
  * (munge_gLink_data) and PrePlay's restart, read by maxpath's camera pick (IntervalPosChange) and update_drone_models.
  * And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake and gas PS_PurgeFile and
- * AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last direction and last direction to the
- * target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones (the attract demo), so each is
+ * AdjustSpeed keep (lastwheel, lastbrake, lastthrottle: f32), and avoid_areas' last direction and last direction to the
+ * target (last_dir, last_save_dir: f32[3]). The race's 12 cars may all be drones (the attract demo), so each is
  * PC_MAX_LINKS long. The N64's extents end at the next symbol, or at one of HAL_DrawText's statics (lastFontColor,
  * lastTrans, lastFontXpos, lastFontYpos), which are host statics on the PC. */
 extern short pc_drones[PC_MAX_LINKS];

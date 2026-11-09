@@ -30,7 +30,7 @@ s32 animLapTime(tBlit *blt)
         Hidden(blt, 1);
         return 1;
     }
-    show = (gGameState & GAME_STATE_ATTRACT) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_FINISHED(win) == 1;
+    show = (gGameState & GAME_STATE_ATTRACT) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_PLACE_LOCKED(win) == 1;
     if (Hidden(blt, show)) {
         return 1;
     }

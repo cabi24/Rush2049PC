@@ -23,14 +23,14 @@ Most pointer warnings:
 |---|---:|
 | `src/rom/sound/hardware.c` | 16 |
 | `src/rom/sound/sequencer.c` | 16 |
-| `src/blob/groups/SetupCarColor/ctx_initsystem.c` | 4 |
-| `src/blob/groups/car_sounds/mode.c` | 2 |
+| `src/blob/groups/heap_release/initsystem_start.c` | 4 |
+| `src/blob/groups/car_sounds/UpdateCarSounds.c` | 2 |
 | `src/blob/MBSetupWad.c` | 1 |
 | `src/blob/groups/blast/blast.c` | 1 |
 | `src/blob/groups/targetpaths/group.c` | 1 |
-| `src/blob/groups/save/ctx_newghost.c` | 1 |
-| `src/blob/groups/save/ctx_slot.c` | 1 |
-| `src/blob/groups/car_sounds/d5e64.c` | 1 |
+| `src/blob/groups/save/NewGhost.c` | 1 |
+| `src/blob/groups/save/ghost_files.c` | 1 |
+| `src/blob/groups/car_sounds/StartCarSounds.c` | 1 |
 | `src/rom/scheduler.c` | 1 |
 | `src/rom/speech/streams.c` | 1 |
 | `src/rom/libc/memset.c` | 1 |

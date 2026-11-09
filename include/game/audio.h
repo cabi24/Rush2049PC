@@ -814,7 +814,7 @@ void StartListeners(void);
 void StopCarSounds(struct MODELDAT *m);
 void StopListeners(void);
 void StopSound(tSoundState *sound, s32 emitter);
-void update_player_visibility(void);
+void UpdateArrowVis(void);
 void update_skid_emitter(tSoundState *sound, f32 *pos, f32 vol, f32 pitch);
 void UpdateBumps(struct AudioModel2056 *m);
 void UpdateCarSounds(struct ModelView *model);

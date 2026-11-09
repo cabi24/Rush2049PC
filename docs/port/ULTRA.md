@@ -112,7 +112,7 @@ segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
 (`osTvType`, `osTvType`, `osMemSize` for osMemSize), the heap start `game_bss_end`, the images' base
-`overlay_base`, `gDecompressedDataStart`, and the ROM offset `D_00039B40`. gen_stubs makes them absolute symbols
+`overlay_base`, `gDecompressedDataStart`, and the ROM offset `sample_bank_rom`. gen_stubs makes them absolute symbols
 (`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI
 and MusyX address callbacks accept). port/data's arena names are absolute symbols too (`data.c`, about 1,800). The
 game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a

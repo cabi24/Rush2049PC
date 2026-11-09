@@ -31,7 +31,7 @@ s32 animGear(void *blt)
     for (slot = 0; slot < gNumWindows; slot++) {
         gear = PC_MODEL_GEAR(slot);
         if (slot >= gNumWindows || !gShowShifter || PC_MODEL_AUTOTRANS(slot) ||
-            PC_CAR_FINISHED(PC_MODEL_SLOT(slot)) == 1)
+            PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(slot)) == 1)
             continue;
         x = gearPos[gNumWindows - 1][slot][0] - 4;
         y = gearPos[gNumWindows - 1][slot][1];

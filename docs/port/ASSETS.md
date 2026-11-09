@@ -51,7 +51,7 @@ Function names are the repository's (often historical labels); the real role is 
 | `SetupWaveModel` / `MBSetupWad` / `MBOffsetWad` / `MBGetFromWad` | 0x80096CA8 / 0x80096C28 / 0x80096BBC / 0x80096B5C | WAD relocation (§3.1) | | | in place | C |
 | MusyX sample DMA: `musyx_start_dma_list` (no direct caller; reached through the MusyX callback table `sound_services`) → `sample_dma_next` → `osPiStartDma`; thread `sample_dma_thread_entry` | 0x8010FD1C, 0x8008ABE4 (`groups/sample_dma_next/sample_dma_next.c:40-50`), 0x8008AC74 | sample data | cart address of ROM 0x39B40 + sample offset, from the address callback `sound_service_translate_address` (by signature `musyx_cart_address`: `(a & 0x0FFFFFFF) \| 0xB0000000`) | none (ADPCM) | MusyX RAM buffers from the alloc callback `sound_service_alloc` (by signature `musyx_alloc` 0x8010FC80, heap) | C |
 | `main` | 0x800020F0 (`boot.c:16-20`) | 16 words at cart 0xFFB000 via `osPiReadIo`, then discarded | | | stack | C |
-| `DecodeGhost` → `unzipdata` | 0x800CBE08 → 0x8000697C (`groups/save/ctx_slot.c:209`) | ghost data from the Controller Pak, not the ROM | RAM | DEFLATE | buffer | C |
+| `DecodeGhost` → `unzipdata` | 0x800CBE08 → 0x8000697C (`groups/save/ghost_files.c:209`) | ghost data from the Controller Pak, not the ROM | RAM | DEFLATE | buffer | C |
 | Stream bank `speech_set_bank` / `speech_play` (boot library) | | 8 or 16 kHz streams, index table `u32 = rate << 24 \| offset` | | | | C: no caller in the game, image A or image B (unused) |
 
 Decompressors [C, from `asm/us/nonmatchings/rom/lib_5610/*.s`]:
@@ -93,7 +93,7 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 | 6 | MusyX project | 3.8 | `AudioInitSys` (`AudioInitSys` 0x800A5D34, `groups/AudioInitSys/AudioInitSys.c:80`), locked | — |
 | 7 | MusyX pool | 3.8 | same, `:83` | — |
 | 8 | MusyX sample directory | 3.8 | same, `:86` | — |
-| 9 | sample data, raw ADPCM, 0x2D2A30 B [R] | 3.8 | not loaded as a wave. The code passes ROM 0x39B40 (`D_00039B40`, `:89`) to `sndPushGroup` and DMAs on demand | — |
+| 9 | sample data, raw ADPCM, 0x2D2A30 B [R] | 3.8 | not loaded as a wave. The code passes ROM 0x39B40 (`sample_bank_rom`, `:89`) to `sndPushGroup` and DMAs on demand | — |
 | 10–21 | songs 0–11 | 3.8 | `AudioSongPlay` (song start, `groups/slot_sound/AudioSongPlay.c:38`): wave `song + 10`, locked | — |
 | 22–37 | 16 font texture WADs | WAD 3.1 | `_HAL_SetFont` (`HAL_SetFontInternal` 0x800B4200): wave `font + 22`, heap `gFontHeap` | `*fonttex.lzs` (8–23) |
 | 38–53 | 16 font metric files, loaded as handles | Font 3.7 | same: wave `font + 38`, `handle = 1` | `*fontdat.lzs` (24–39) |
@@ -111,7 +111,7 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 | 78 / 79 | vehicles (track 18, or race tracks with Expansion Pak) / the variant used without it | WAD | `:163-169` | `vehicles` (57) / N64 only |
 | 80 / 81 | wheels [R]: 80 with Expansion Pak or track ≥ 6, else 81 | WAD | `:176-179` | N64 only |
 | 82–87 | per-track animated objects, race tracks 0–5 (Expansion Pak) | WAD | `:167`, wave `gTrackNum + 82` | `targetst1..6` (58–63) |
-| 88–100 | 13 cars | WAD | `LoadCars` 0x800BB140 (`groups/loadcars/root.c:61,75`, `loadAgain = 1`); image A `LoadSelectCar` (car select) | `car1..13` (64–76) |
+| 88–100 | 13 cars | WAD | `LoadCars` 0x800BB140 (`groups/loadcars/LoadCars.c:61,75`, `loadAgain = 1`); image A `LoadSelectCar` (car select) | `car1..13` (64–76) |
 | 101–119 | 19 track geometries: 0–5 race, 6–13 DM1–8, 14–17 stunt, 18 obstacle; with PTHD/PATH | WAD | `LoadTrack` 0x800BB9B0 (`loadtrack.c:96`), wave `track + 101` | `track1`..`obstacle1` (233–251) |
 | 120–138 | worlds: placement trees | World WAD 3.4 | `loadtrack.c:106` | `*worlds` (252–270) |
 | 139–157 | road: collision | Road 3.5 | `loadtrack.c:129` | `*road` (271–289) |

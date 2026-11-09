@@ -81,7 +81,7 @@ DWARF:
   pointers can't sit, so on the PC they keep only their stride (`u8 rest[PC_CAR_SIZE - 1]`); gen_data placed those
   names at the mapped offset (`D_80152B70 = gGameCar + 0x400`) whatever they declared. Since DECOUPLE.md 4 they
   are retired with the array, and each use is the accessor of the field it named (`D_80152907[i].flag` is
-  `PC_CAR_FINISHED(i)`).
+  `PC_CAR_PLACE_LOCKED(i)`).
 
 ### 2.3 Code at raw offsets
 
@@ -140,7 +140,7 @@ inside the array (`D_8014A964` and 10 others) are the accessors of the fields th
 The 15 views that declared them as pointers have them as `enum n64p_X` (`ptr64_u32fields.py`; `N64P()` at each
 dereference, `N64W()` at each store): `MODELDAT` (`positions`, `init_road`), `State`
 (`torques`), `Model2056` (`forces2`, `autoshift`, `physics_clutch`), `VehicleModel` (`forces1`),
-`Vehicle2056` (`car_resistance`, `loadcars/root.c`), `tModelData` (`update_game_data`), `Car` (`init_cars`,
+`Vehicle2056` (`car_resistance`, `loadcars/LoadCars.c`), `tModelData` (`update_game_data`), `Car` (`init_cars`,
 which defines the array, `antispin`, `MovingSurfaceForce`), `Model` (`dotireforce`), `EUCar`
 (`TireSurf`). Two m2c functions read +0 and +4 at raw offsets as pointers and now read u32 (`MODEL_P` in
 `steer_constants`, `M2C_N64P` in `find_best_gear`), and `engine` passes the torque curve to `enginetorque`

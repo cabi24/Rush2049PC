@@ -163,11 +163,11 @@ same input.
 |---|---|
 | Boot, threads, timer, video, scheduler | src/rom/boot.c, timer.c, video_mode.c, scheduler.c, decompress.c |
 | libultra, libc | src/rom/libultra/*.c (controllers, the Controller Pak file system, the Rumble Pak, matrices, 64-bit helpers), src/rom/libc/*.c |
-| Frame loop, states, start-up | groups/mainloop/mainloop.c, groups/state/state.c, groups/heap_release/initsystem.c, groups/SetupCarColor/ctx_initsystem.c, groups/initgraphics/*.c (not called on the PC), UpdateGraphics.c (not called), ClearScreen.c, ZOID_SplitScreen.c, groups/hal_time/group.c, HAL_CallOncePerFrameFuncs.c |
+| Frame loop, states, start-up | groups/mainloop/mainloop.c, groups/state/state.c, groups/heap_release/initsystem.c, groups/heap_release/initsystem_start.c, groups/initgraphics/*.c (not called on the PC), UpdateGraphics.c (not called), ClearScreen.c, ZOID_SplitScreen.c, groups/hal_time/group.c, HAL_CallOncePerFrameFuncs.c |
 | Heap | groups/memsys/group.c, AllocateMemoryHeapHigh.c, FindHeap.c, groups/heap_release/group.c, groups/destroy_heap, groups/largest_heap_chunk, groups/purgeable_memory, groups/pointer_counters (and FindChunk.c, ClearMemoryHeap.c, alloc_at.c, heap_move_block_low.c, memsys_free_total: other areas' files) |
 | Lists and trees | InitStatLL.c, GetStatLLE.c, FreeStatLLE.c, ClearStatLL.c, InsertLLE.c, RemoveLLE.c, groups/save/save.c (InitLL, ClearLL), InitBST.c, ClearBST.c, InsertBSTE.c, InsertBSTEInternal.c, WalkBST.c, WalkBSTInternal.c |
-| Waves and WADs | InitWaves.c, FindWaveInstance.c, ModelActive.c, groups/waves/*.c, groups/UnloadWaveAll, groups/slot_sound/*.c, groups/state_waves/audio.c, groups/heap_release/UnloadWaveInstance.c, MB*Wad.c, relocate_model_dl.c, display_list_traverse.c, mirror_vertex_texcoords.c |
-| Compression | groups/heap_release/zip.c, groups/zlib_deflate/group.c, groups/SetupCarColor/ctx_deflate_mem.c (zlib 1.0.4's deflate, for the ghosts) |
+| Waves and WADs | InitWaves.c, FindWaveInstance.c, ModelActive.c, groups/waves/*.c, groups/UnloadWaveAll, groups/slot_sound/*.c, groups/state_waves/FindWaveInstanceInternal.c, groups/heap_release/UnloadWaveInstance.c, MB*Wad.c, relocate_model_dl.c, display_list_traverse.c, mirror_vertex_texcoords.c |
+| Compression | groups/heap_release/zip.c, groups/zlib_deflate/group.c, groups/heap_release/zcfree.c (zlib 1.0.4's deflate, for the ghosts) |
 | Input | ControllerUpdate.c, groups/controlsys/group.c, InitControlSys.c, ClearControls.c, Get/SetController*, InitRushControls.c, SetDefaultControls.c, SetControls.c, UpdateRushControls.c, ClearRushControls.c, FindPlayerNum.c, groups/model_controls_input/group.c, pak_poll_inserted.c, groups/pakerr/group.c |
 
 ## 8. What is still N64-shaped (for wave 3)

@@ -185,7 +185,7 @@ void DrawPakErrNoPak(s32 row, s32 col)
 
 #define C (gPakError[row][col])
 /* The no-controller dialog (MAT3 _DrawPakErrNoController). */
-void cs_draw1_DC(s32 row, s32 col)
+void DrawPakErrNoController(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -201,7 +201,7 @@ void cs_draw1_DC(s32 row, s32 col)
 }
 
 /* The new-pak dialog: a pak other than the one the player started with (MAT3 _DrawPakErrNewPak). */
-void cs_draw3_DC(s32 row, s32 col)
+void DrawPakErrNewPak(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -212,7 +212,7 @@ void cs_draw3_DC(s32 row, s32 col)
 }
 
 /* The damaged (inconsistent) pak dialog (MAT3 _DrawPakErrInconsistent). */
-void cs_drawT0_DC(s32 row, s32 col)
+void DrawPakErrInconsistent(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -223,7 +223,7 @@ void cs_drawT0_DC(s32 row, s32 col)
 }
 
 /* The unknown error dialog (MAT3 _DrawPakErrUnknown). */
-void cs_drawT1_DC(s32 row, s32 col)
+void DrawPakErrUnknown(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -234,7 +234,7 @@ void cs_drawT1_DC(s32 row, s32 col)
 }
 
 /* The full pak dialog (MAT3 _DrawPakErrFull). */
-void cs_drawT2_DC(s32 row, s32 col)
+void DrawPakErrFull(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -245,7 +245,7 @@ void cs_drawT2_DC(s32 row, s32 col)
 }
 
 /* The bad data dialog (MAT3 _DrawPakErrBadData). */
-void cs_drawT3_DC(s32 row, s32 col)
+void DrawPakErrBadData(s32 row, s32 col)
 {
     u8 str[256];
 
@@ -257,28 +257,28 @@ void cs_drawT3_DC(s32 row, s32 col)
 
 /* The three waiting dialogs (messages 119, 120 and 121): each draws its message and closes itself at its
  * timeout (MAT3 _ControlPakErrTimeout with the draw). */
-void cs_wait11_DC(s32 row, s32 col)
+void DrawPakErrReread(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.frameCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[476 / 4]);
 }
 
-/* As cs_wait11_DC, with message 120. */
-void cs_wait12_DC(s32 row, s32 col)
+/* As DrawPakErrReread, with message 120. */
+void DrawPakErrRepairFailed(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.frameCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[480 / 4]);
 }
 
-/* As cs_wait11_DC, with message 121. */
-void cs_wait13_DC(s32 row, s32 col)
+/* As DrawPakErrReread, with message 121. */
+void DrawPakErrRepaired(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.frameCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[484 / 4]);
 }
 
 /* A three-answer dialog: down and up move the answer round (first, second, third), A takes it. */
-void cs_ctl10_DC(Cell *c)
+void ControlChoice3(Cell *c)
 {
     if (c->edges & BUTTON_DPAD_DOWN) {
         PlayUDSound(c->edges);
@@ -348,7 +348,7 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
     switch (C.err) {
     case 1:
         ControlChoice(row, col);
-        cs_draw1_DC(row, col);
+        DrawPakErrNoController(row, col);
         break;
     case 2:
         if (!(gGameState & GAME_STATES_FRONT_END)) {
@@ -360,15 +360,15 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
         break;
     case 3:
         ControlChoice(row, col);
-        cs_draw3_DC(row, col);
+        DrawPakErrNewPak(row, col);
         break;
     case 4:
         ControlPakErrNQA(row, col);
-        cs_drawT0_DC(row, col);
+        DrawPakErrInconsistent(row, col);
         break;
     case 15:
         ControlPakErrNQA(row, col);
-        cs_drawT1_DC(row, col);
+        DrawPakErrUnknown(row, col);
         break;
     case 5:
     case 7:
@@ -381,24 +381,24 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
         break;
     case 6:
         ControlChoice(row, col);
-        cs_drawT2_DC(row, col);
+        DrawPakErrFull(row, col);
         break;
     case 9:
         ControlPakErrNQA(row, col);
-        cs_drawT3_DC(row, col);
+        DrawPakErrBadData(row, col);
         break;
     case 10:
-        cs_ctl10_DC(&C);
+        ControlChoice3(&C);
         DrawChoice3(row, col, (u8 *)gText.msg[472 / 4], gText.msg[944 / 4], gText.strings[gText.lang[26]], (gText.strings + gText.lang[26])[1], C.choice1, C.choice2);
         break;
     case 11:
-        cs_wait11_DC(row, col);
+        DrawPakErrReread(row, col);
         break;
     case 12:
-        cs_wait12_DC(row, col);
+        DrawPakErrRepairFailed(row, col);
         break;
     case 13:
-        cs_wait13_DC(row, col);
+        DrawPakErrRepaired(row, col);
         break;
     case 14:
         C.done = 1;

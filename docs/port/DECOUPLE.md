@@ -4,7 +4,7 @@ Most of the game's data sits at its N64 address in the RDRAM window ([DATA.md](D
 unchanged. That costs the port: an array can't grow (its neighbours follow it), address arithmetic between symbols
 is baked in, AddressSanitizer can't run on x86-64, and macOS arm64 can't map the address. Decoupling moves one item
 to storage the PC owns outright, with one PC declaration and no N64 address. The first item is the race roster
-(the arcade's `D_80153E88`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
+(the arcade's `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
 (`gGameCar`, MAT3 `gGameCar`), which had host storage of their own already: steps toward 12 cars a race
 (`PC_MAX_LINKS`, 8 until 2026-10-29). 2026-10-28, the car records 2026-10-29.
 
@@ -71,13 +71,13 @@ bytes; the signed ones (`s8 owner` at +0 in fake_init, `s8 type` in CalcPolePosi
 GhostStart.c and cleanup_colortrace) are only stored to, so one `unsigned char` type reads the same values. Every access
 is one byte through an index or a record pointer: no file reaches a neighbour from it or it from a neighbour
 (`bounds_reviewed.txt` and the data tables have no view across it). The image symbol tables name five addresses in
-it: `D_80153E88`, `D_80153E89` (`[0].car`), `D_80153E8F` (`[0].owner`, read by `PlayTargetSound` and UpdateModel's
+it: `gLink`, `D_80153E89` (`[0].car`), `D_80153E8F` (`[0].owner`, read by `PlayTargetSound` and UpdateModel's
 group with a stride of 8), `D_80153E97` (`[1].owner`) and `D_80153EB8` (`&[6]`, likely the end pointer of a
 6-slot loop); only the first and third had C users. No PC code stores its address (`PC_N64W`, a u32 field, an
 absolute address). A scan of the four images inflated from the retail cartridge found no data word in
 0x80153E88-0x80153EF0, and 38 code references (`lui 0x8015` plus an offset in range: 36 in the game image, 2 in image
 A), which are the C above.
-`layout_check.py --storage` before: 123 accesses on `D_80153E88` and 2 on `D_80153E8F`, which it could not place in
+`layout_check.py --storage` before: 123 accesses on `gLink` and 2 on `D_80153E8F`, which it could not place in
 the record (`N64 ?`); after: 125 on `pc_links`, every one a byte at the offset of the reference layout, the two
 through the alias at +7.
 
@@ -89,9 +89,9 @@ race may hold on the PC, then; 12 since 2026-10-29); with 8 or 12 it is 13, 104 
 
 **The change.** `pc_game_types.h`: `struct pc_link`, `pc_links[PC_LINK_SLOTS]`, accessors `PC_LINK_TRACK(i)` ...
 `PC_LINK_OWNER(i)`, `PC_LINKP_*(p)` for record pointers, `PC_LINK` and `PC_LINKS`. The 30 files use them; each
-defines the N64 side with its own view (`#define PC_LINK_OWNER(i) D_80153E88[i].state`, `#define PC_LINK_OWNER(i)
-*(&D_80153E8F + (i * 8))`). `decoupled.txt`: `pc_links D_80153E88 0x68 D_80153E8F`. `test_cars` and
-`test_audiocmds` define `pc_links` where they defined `D_80153E88`.
+defines the N64 side with its own view (`#define PC_LINK_OWNER(i) gLink[i].state`, `#define PC_LINK_OWNER(i)
+*(&D_80153E8F + (i * 8))`). `decoupled.txt`: `pc_links gLink 0x68 D_80153E8F`. `test_cars` and
+`test_audiocmds` define `pc_links` where they defined `gLink`.
 
 **What the tables say.** `data_symbols.txt` loses its two rows; `data.c` loses their two `.set` lines and two report
 names, and gains `pc_links` (104 bytes, own-storage style, `.bss`); `data_layout.txt` lists it under "Decoupled". The
@@ -108,7 +108,7 @@ cartridge, generated from `data_symbols.txt`, is the same file byte for byte.
 | Debug and RelWithDebInfo `data.c`, `data_symbols.txt` | the same files |
 | `n64_neutral.py --base 09da2f0` | passes (29 changed game files, all "shifted") |
 | `synth_compare.py --same --runs 2`, the same, build host (x86-64, GCC 14) | 19 of 19 paths |
-| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; the reports differ only by line numbers and one storage fewer (two roots, `D_80153E88` and `D_80153E8F`, are one, `pc_links`) |
+| `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; the reports differ only by line numbers and one storage fewer (two roots, `gLink` and `D_80153E8F`, are one, `pc_links`) |
 | `bounds_check`, build host (GCC 14) | 5 new *tmr* entries on `pc_links`, none `clamped` or `two offsets`, added to `bounds_reviewed.txt` as `[gcc14]`; the `D_80153E8F` entry, which nothing can find now, removed; then none new, 7 kept (as before). GCC 13 (CI's runner) and mingw-w64 12 not run on it |
 | Windows cross build (Pi, mingw-w64, fresh configure) | builds; `gen_data.py --check --pe`: OK, 1 decoupled |
 | `assets_roster` (16 slots declared) | passes; with `PC_LINK_OWNER` reading `flags`, 20 checks fail |
@@ -280,7 +280,7 @@ in sample_dma_next, sample_dma_thread_entry's); the three objects whose C names 
 context copy), and the retail code's two references to 0x80153E68 are theirs. No C names the array plus 6 or
 `&gGameCar[6]`; the walks of the array end at the cars in the race (`gGameCar + gNumCars`, image B's homing and
 radius effects, the shots), which is `PC_CARS_END(n)` now. The array had storage of its own before, so a walk from a
-neighbour (`D_80152808`, `D_801527E8`) into it would have missed it before as after: bounds_check, offset_check and
+neighbour (`our_drones`, `lastDotProd`) into it would have missed it before as after: bounds_check, offset_check and
 layout_check list none. The window's 0x80152818-0x80153E68 was unused before (own storage leaves the window bytes alone)
 and is still: filled with 0x5A after the loader ran (a throwaway build on the build host), it left 7 synthetic paths'
 traces the same (race, race4p, battle2p, demo, stunt, pause, circuit), and none of its 5,712 bytes changed by the end of
@@ -303,12 +303,12 @@ the indexed fields, `PC_CAR_INPUT_AS(T, i)` for the input pointer read through a
 that keeps a record pointer in its own view: `PC_CAR(i)` (a record), `PC_CARS` (the array, for the pointer walks and
 m2c's byte strides) and `PC_CARS_END(n)` (the end of the first n). The 143 files use them: about 280 field uses, 144
 record addresses, 23 of the array and 4 ends rewritten by a script from each file's DWARF (the view's member path to
-its N64 offset to the accessor: `gGameCar[i].battle.type` is `PC_CAR_KIND(i)`, `gGameCar[i].position.x`
+its N64 offset to the accessor: `gGameCar[i].battle.type` is `PC_CAR_WEAPON_TYPE(i)`, `gGameCar[i].position.x`
 `PC_CAR_POS_X(i)`), and 18 by hand: the m2c strides on the names inside (`*((s8 *) &D_80152907 + (i *
-CAR_OFS(0x3B8)))` is `PC_CAR_FINISHED(i)`), GameCar's `pad0EC` windows (`PAD0EC(gGameCar[i].pad0EC, 0x26D)` is
-`PC_CAR_STATE(i)`), the three reads through the input pointer, and a second spelling of a record's address in
-UpdateModel's group. Each file defines the N64 side with its own view (`#define PC_CAR_FINISHED(i)
-gGameCar[i].place_locked`, `#define PC_CAR_FINISHED(i) *((&D_80152907) + (i * CAR_OFS(0x3B8)))`, `#define
+CAR_OFS(0x3B8)))` is `PC_CAR_PLACE_LOCKED(i)`), GameCar's `pad0EC` windows (`PAD0EC(gGameCar[i].pad0EC, 0x26D)` is
+`PC_CAR_DEAD(i)`), the three reads through the input pointer, and a second spelling of a record's address in
+UpdateModel's group. Each file defines the N64 side with its own view (`#define PC_CAR_PLACE_LOCKED(i)
+gGameCar[i].place_locked`, `#define PC_CAR_PLACE_LOCKED(i) *((&D_80152907) + (i * CAR_OFS(0x3B8)))`, `#define
 PC_CARS_END(n) gGameCar + n`). Update_MDrive steps from car 1's names to car j + 1 by `CAR_OFS(0x3B8)`, so on the
 PC they are car 1's record, position and +0x50 (`#define car1_dr_pos (*(s32 *) PC_CAR_POS(1))`). InitCPTime walks
 the array as bytes (`PC_CARS + i * CAR_OFS(952) + 264`: GNU C's arithmetic on a `void *`). path_D169C's three copies
@@ -367,11 +367,11 @@ end pointer too.
 |---|---|---|---|---|
 | 1 | the input records `gPlayers` | 4 x 76 = 304 B, 4 x 80 = 320 B | 73 | own storage; 5 names inside; `INPUT_SIZE` strides (POINTERS.md 10.3); the car record holds its address (`pc_cars[i].input`, a host pointer already): init_cars gives a human's car `&gPlayers[i]` by the car's slot i, and the humans have the first slots (0-3), so 4 records stay enough while they do |
 | 2 | the car parts `gCarParts` (`tCarParts`) | 3,328 B by the gap, 0x40 a car | 20 | arena BSS; the extent is the gap, so the real count first |
-| 3 | the race's per-car words: `rear_y`, `rear_z` (f32), `cur_acc` (12-byte V3), `D_80152218` (f32[3]) | 16-72 B each, by the gap | 3-5 each | arena BSS; declared whole for OPTIMIZED.md 2.7; sizes by the gap, so the true counts first (`D_80152218` is 6 cars' positions, InitCPTime copies them from the car records) |
+| 3 | the race's per-car words: `rear_y`, `rear_z` (f32), `cur_acc` (12-byte V3), `gPrevPos` (f32[3]) | 16-72 B each, by the gap | 3-5 each | arena BSS; declared whole for OPTIMIZED.md 2.7; sizes by the gap, so the true counts first (`gPrevPos` is 6 cars' positions, InitCPTime copies them from the car records) |
 | 4 | the maxpath weights `gTotalRaceStats` (`WeightRecord[12]`), stats `gTotalBattleStats` (`StatsC[8]`) | 1,152 B, 96 B | 9, 4 | arena BSS, already 12 and 8 long |
 | 5 | the 13-slot arrays beside the roster: `gCarModelNums` (s16[13], each slot's engine wave), `gCarPaintJobInited` (u8, 52 B by the gap) | 26 B, 52 B | 4, 3 | arena BSS; walked with the roster's 13 |
-| 6 | the human and drone lists `humans`, `D_801527D8`, `D_80152808` (s16) | 12-16 B by the gap | 1-3 | arena BSS; small, sized by the gap |
-| 7 | per car, initialized: `D_80110680` (u8[6]), the car palette descriptors `car_palettes` (`Slot24`, a u32 window address inside) | 6 B, 24 B | 6, 3 | `D_80110680` is ROM data, which decoupled.txt doesn't take yet |
+| 6 | the human and drone lists `humans`, `drones`, `our_drones` (s16) | 12-16 B by the gap | 1-3 | arena BSS; small, sized by the gap |
+| 7 | per car, initialized: `finish_cam` (u8[6]), the car palette descriptors `car_palettes` (`Slot24`, a u32 window address inside) | 6 B, 24 B | 6, 3 | `finish_cam` is ROM data, which decoupled.txt doesn't take yet |
 
 Beyond data, the loops: the 6-car bounds in the code (`i < 6`, `MAX_LINKS` 6 in about a dozen files, `gNumCars`)
 are what activates cars, and the per-window and per-player arrays (cameras, HUD) follow the players, not the cars.
@@ -541,30 +541,30 @@ image's initialized data, which a decoupled rule couldn't take before (below).
 
 | N64 | What | N64 storage | PC |
 |---|---|---|---|
-| `D_80140420` | the engine sound sets (`Player84`, `SndSet`): the car type's engine table, `&gEngineSpecs[type]`, and four sound records: the two engine layers, one nothing uses, and the random sound (MORECARS.md 6) | 6 x 84 B at 0x80140420, BSS; own storage before (its pointer: 88 B a car) | `pc_engine_sounds`, `struct pc_engine_sound[12]`, 1,056 B |
-| `D_80140640` | the tire screech's record (`State20`, `SndRec`, `LayerState`: a handle and the last level and style sent) | 6 x 20 B at 0x80140640, BSS | `pc_screech_sounds`, `struct pc_sound_rec[12]`, 240 B |
-| `D_8010FFC4` | the car's sounds started: StartCarSounds sets it, StopCarSounds clears it, the engine update needs it | 6 B at 0x8010FFC4 (8 by the gap), game image data | `pc_car_sounds_on`, `signed char[12]`, from the image |
-| `D_8010FFCC` | the engine update's phase: UpdateCarSounds skips a car while it is 1 and toggles it, so each car's engine is updated every other frame and half the cars each frame; StopCarSounds sets it to `(slot & 1) == 0` | 6 B at 0x8010FFCC (8 by the gap), game image data | `pc_engine_phase`, `signed char[12]`, from the image, continued |
-| `D_80152218` | each car's position at the last CheckCPs, for the distance it drove; InitCPTime sets it at the race's start | 6 x 12 B at 0x80152218, BSS | `pc_cp_last_pos`, `float[12][3]`, 144 B |
-| `D_801527E8` | each car's distance to its next checkpoint's plane at the last CheckCPs, which times a crossing | 6 x 4 B at 0x801527E8, BSS | `pc_cp_plane`, `float[12]`, 48 B |
-| `D_80110680` | a human's finish camera: 1 circling since the finish (PassedCP), 2 frozen 10 s later (circle_camera_around_car); CheckCameraView turns the window's view to it; init_views defined it and clears it, InitCheckpointData clears the first two | 6 B at 0x80110680 (8 by the gap), game image data | `pc_finish_cam`, `unsigned char[12]`, from the image |
-| `D_80110668` | the finish camera's start time, then the time it froze at | 6 x 4 B at 0x80110668, game image data | `pc_finish_cam_time`, `float[12]`, from the image |
+| `gEngineSounds` | the engine sound sets (`Player84`, `SndSet`): the car type's engine table, `&gEngineSpecs[type]`, and four sound records: the two engine layers, one nothing uses, and the random sound (MORECARS.md 6) | 6 x 84 B at 0x80140420, BSS; own storage before (its pointer: 88 B a car) | `pc_engine_sounds`, `struct pc_engine_sound[12]`, 1,056 B |
+| `gPaveSkidSounds` | the tire screech's record (`State20`, `SndRec`, `LayerState`: a handle and the last level and style sent) | 6 x 20 B at 0x80140640, BSS | `pc_screech_sounds`, `struct pc_sound_rec[12]`, 240 B |
+| `gCarActive` | the car's sounds started: StartCarSounds sets it, StopCarSounds clears it, the engine update needs it | 6 B at 0x8010FFC4 (8 by the gap), game image data | `pc_car_sounds_on`, `signed char[12]`, from the image |
+| `gCarUpdatedLastTime` | the engine update's phase: UpdateCarSounds skips a car while it is 1 and toggles it, so each car's engine is updated every other frame and half the cars each frame; StopCarSounds sets it to `(slot & 1) == 0` | 6 B at 0x8010FFCC (8 by the gap), game image data | `pc_engine_phase`, `signed char[12]`, from the image, continued |
+| `gPrevPos` | each car's position at the last CheckCPs, for the distance it drove; InitCPTime sets it at the race's start | 6 x 12 B at 0x80152218, BSS | `pc_cp_last_pos`, `float[12][3]`, 144 B |
+| `lastDotProd` | each car's distance to its next checkpoint's plane at the last CheckCPs, which times a crossing | 6 x 4 B at 0x801527E8, BSS | `pc_cp_plane`, `float[12]`, 48 B |
+| `finish_cam` | a human's finish camera: 1 circling since the finish (PassedCP), 2 frozen 10 s later (circle_camera_around_car); CheckCameraView turns the window's view to it; init_views defined it and clears it, InitCheckpointData clears the first two | 6 B at 0x80110680 (8 by the gap), game image data | `pc_finish_cam`, `unsigned char[12]`, from the image |
+| `finish_cam_stime` | the finish camera's start time, then the time it froze at | 6 x 4 B at 0x80110668, game image data | `pc_finish_cam_time`, `float[12]`, from the image |
 
 With them, CheckCameraView's drone cameras (`j < 6`, MORECARS.md 3.1). CalcPlaces' locals (MORECARS.md 2.5), which
 this item had too, are item 3's on main (`CARS_N`, MORECARS.md 3.1 "Done"); its test runs CalcPlaces with 12 cars.
 
 **Inventory.** 13 objects reference the eight names (nm over `game_objects.txt`, build host, 8ff5be1): for the sound
-`car_sounds/d5e64.c` (StartCarSounds), `car_sounds/mode.c` (the engine update) and `StopCarSounds.c` (StopCarSounds)
-with its `slot18_alloc` copy; for the checkpoints `car_checkpoints_CheckCPs.c` (CheckCPs) with its `demo_pair`
+`car_sounds/StartCarSounds.c` (StartCarSounds), `car_sounds/UpdateCarSounds.c` (the engine update) and `StopCarSounds.c` (StopCarSounds)
+with its `slot18_alloc` copy; for the checkpoints `CheckCPs.c` (CheckCPs) with its `demo_pair`
 copy and `InitCPTime.c`; for the cameras `PassedCP.c`, `circle_camera_around_car.c`, `CheckCameraView.c`,
 `init_views.c` and `InitCheckpointData.c` with its `loadtrack` copy (the three copies are weak). Their views:
-of `D_80140420` four, all 84 bytes on the N64 and 88 here but one: the table is a `Definitions64 *` (d5e64.c), an
-`EngTbl *` (mode.c), an `intptr_t` (StopCarSounds.c) and an `s32` in the `slot18_alloc` copy, which never runs
-(view_audit's one disagreement before); the sound records are 20 bytes everywhere, a handle and four floats (mode.c
+of `gEngineSounds` four, all 84 bytes on the N64 and 88 here but one: the table is a `Definitions64 *` (StartCarSounds.c), an
+`EngTbl *` (UpdateCarSounds.c), an `intptr_t` (StopCarSounds.c) and an `s32` in the `slot18_alloc` copy, which never runs
+(view_audit's one disagreement before); the sound records are 20 bytes everywhere, a handle and four floats (UpdateCarSounds.c
 names +4 `level` and +8 `style` and pads the rest); the flags and the phase are `s8`; the cameras' state is `s8` in
 three files and `u8` in two (init_views's `u8[6]`, InitCheckpointData's `Flags {u8 first, second;}`), stores
 and tests of 0, 1 and 2, so one `unsigned char` reads the same; the floats are `f32`, InitCPTime's `s32` with
-m2c's 12-byte stride and `f32` stores. The image symbol tables name one more address inside them, `D_80110681` (`D_80110680[1]`, InitCheckpointData's
+m2c's 12-byte stride and `f32` stores. The image symbol tables name one more address inside them, `D_80110681` (`finish_cam[1]`, InitCheckpointData's
 `.second`), which no C names. No file reaches a neighbour from them or them from a neighbour (bounds_check,
 offset_check and layout_check list none).
 
@@ -584,7 +584,7 @@ functions, each one whose C is among the 13 objects (LoadTrack has InitCheckpoin
 layout_check finds no pointer store whose value reaches them; the records' addresses go to InitSoundState
 and StopSound (which reset and release a record), update_skid_emitter and SetSoundVP (which pass its
 handle on), and they keep none; CheckCPs' `prev` is a local; the sound manager is given handles and positions (the
-model's +0x22C, `unitmatrix_origin`), not records. d5e64.c's `object = (s32)&D_8010FFC4[player]` truncates the flag's
+model's +0x22C, `unitmatrix_origin`), not records. StartCarSounds.c's `object = (s32)&gCarActive[player]` truncates the flag's
 address into an int that is overwritten before any use ([CASTS.md](CASTS.md) 5's dead store, the same on the PC).
 A `RUSH_CHECK_CASTS` build ran every synthetic path without a stop.
 
@@ -596,7 +596,7 @@ clears 6. So each is `PC_MAX_LINKS` (12) long on the PC. init_views clears every
 CheckCameraView places the drone cameras of `PC_RACE_CARS` cars (`RACE_CARS`); with 6 cars the slots after 6 are never
 set, so the default is the N64's.
 
-**The four the image initializes.** `D_8010FFC4`, `D_8010FFCC`, `D_80110668` and `D_80110680` lie in the game image's
+**The four the image initializes.** `gCarActive`, `gCarUpdatedLastTime`, `finish_cam_stime` and `finish_cam` lie in the game image's
 initialized data, which the loader copies into the arena from the image. On the retail cartridge (checked on the Pi)
 the image holds zeros in the flags, the times and the cameras' state, and in the phase the alternation by slot that
 starts with 0: the opposite of StopCarSounds' `(slot & 1) == 0`, so at the first race the odd slots skip their first
@@ -626,20 +626,20 @@ accessors: `void *` ones for the records, which each file reads through its own 
 `PC_ENGINE_SOUND_REC(i, k)`, `PC_SCREECH(i)`), and `PC_ENGINE_SOUND_HANDLE(i, k)`, `PC_SCREECH_LEVEL(i)`,
 `PC_SCREECH_STYLE(i)`, `PC_CAR_SOUNDS_ON(i)`, `PC_ENGINE_PHASE(i)`, `PC_CP_LAST_POS(i)` (and `_X`, `_Y`, `_Z`),
 `PC_CP_PLANE(i)`, `PC_FINISH_CAM(i)`, `PC_FINISH_CAM_TIME(i)`. The 13 files use them, each defining the N64 side
-with its own view (`#define PC_ENGINE_SOUND(i) &D_80140420[i]`, `#define PC_ENGINE_SOUND_HANDLE(i, k)
-D_80140420[i].rec[k].handle`, `#define PC_SCREECH_LEVEL(i) D_80140640[i].level`, `#define FINISH_CAM_FIRST
-D_80110680.first` in InitCheckpointData, and InitCPTime's strides, `#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *)
-&D_80152218 + i * 12)`); init_views defines `D_80110680` on the N64 only (on the PC it was a
-declaration, WINDOWS.md). InitCPTime had `D_80152218` open-ended for [OPTIMIZED.md](OPTIMIZED.md) 2.7 (three
+with its own view (`#define PC_ENGINE_SOUND(i) &gEngineSounds[i]`, `#define PC_ENGINE_SOUND_HANDLE(i, k)
+gEngineSounds[i].rec[k].handle`, `#define PC_SCREECH_LEVEL(i) gPaveSkidSounds[i].level`, `#define FINISH_CAM_FIRST
+finish_cam.first` in InitCheckpointData, and InitCPTime's strides, `#define PC_CP_LAST_POS_X(i) *(f32 *) ((u8 *)
+&gPrevPos + i * 12)`); init_views defines `finish_cam` on the N64 only (on the PC it was a
+declaration, WINDOWS.md). InitCPTime had `gPrevPos` open-ended for [OPTIMIZED.md](OPTIMIZED.md) 2.7 (three
 stores a car in a loop, the stick's shape); `pc_cp_last_pos` has its true size, which GCC reads correctly.
 `decoupled.txt`: the eight rules, four with `init=image`, the phase's with `period=2`; `extents.txt` loses
-`D_80110680`'s 6. `assets_cars` and `assets_carrecs` define `pc_cp_last_pos` where they defined `D_80152218`.
+`finish_cam`'s 6. `assets_cars` and `assets_carrecs` define `pc_cp_last_pos` where they defined `gPrevPos`.
 
-**What the tables say.** `data_symbols.txt` loses the 8 rows (2,209 lines to 2,201); `data.c` loses `D_80140420`'s own
-storage (528 B), its loader entry (418 to 417) and 24 runs, the 7 `.set` lines of the others, `D_80110668`'s arena run
+**What the tables say.** `data_symbols.txt` loses the 8 rows (2,209 lines to 2,201); `data.c` loses `gEngineSounds`'s own
+storage (528 B), its loader entry (418 to 417) and 24 runs, the 7 `.set` lines of the others, `finish_cam_stime`'s arena run
 and the 8 report names, and gains the 8 storages (1,572 B, `.bss`), `pc_inits` (4 rows) and its 4 runs; the later own
 storage's C names and the run indices are renumbered: 1,317 changed lines, 56 with those normalized. `data_layout.txt`:
-one own storage fewer, two pointer and two width conflicts fewer (the views of `D_80140420` and `D_80140640` above),
+one own storage fewer, two pointer and two width conflicts fewer (the views of `gEngineSounds` and `gPaveSkidSounds` above),
 the 8 under "Decoupled", and `pc_race_cars` under "Not placed" (CheckCameraView calls it, as `pc_os_idle` and the other
 port functions the game C calls are). The loader's summary line differs only by its table's size, which synth_compare
 leaves out. The synthetic cartridge is the same file.
@@ -658,7 +658,7 @@ leaves out. The synthetic cartridge is the same file.
 | `n64_neutral.py --base 09da2f0` | passes (1,013 files: 92 code-exact, 921 shifted); 13 changed game files under `src/` (`git diff --name-only 597098e -- src`) |
 | `offset_check --strict`, `alias_check`, `layout_check`, `endian_check` (and `--check-loader`), over the game, build host | no open findings, before and after; offset_check's report the same file; layout_check's differs by one count (N64-layout storages 561 to 560); alias_check counts 8 placed names fewer (1,727 to 1,719); endian_check the same counts but its puns, 3,486 to 3,498 (the files' views of the sound records and the PC structs on one storage), and the same 2 open value conflicts in 1 storage (CARS.md 6); `--check-loader`: 96 places, 0 wrong |
 | `layout_check.py --storage` on each, before (N64 name) and after | the same accesses, none off a reference: 36 on the engine sound sets (`struct pc_engine_sound[12]` after, `SndSet[]` before), 22 on the screeches, 9 on the positions, 8 on the cameras' state, 4 each on the flags, the phase and the times, 2 on the plane distances |
-| `view_audit.py --symbols pc_engine_sounds --size 84 --tags Player84,SndSet,pc_engine_sound --ref d5e64.c`; the same for `pc_screech_sounds` (`--size 20`, `State20,SndRec,LayerState,pc_sound_rec`) | 5 views, 0 disagree; 6 views, 0 disagree (before, on the N64 names: 4 and 1, the `slot18_alloc` copy's; 4 and 0) |
+| `view_audit.py --symbols pc_engine_sounds --size 84 --tags Player84,SndSet,pc_engine_sound --ref StartCarSounds.c`; the same for `pc_screech_sounds` (`--size 20`, `State20,SndRec,LayerState,pc_sound_rec`) | 5 views, 0 disagree; 6 views, 0 disagree (before, on the N64 names: 4 and 1, the `slot18_alloc` copy's; 4 and 0) |
 | `bounds_check`, build host (GCC 14) | none new, 0 `two offsets`, 0 `clamped`, 9 reviewed keys kept (as on main); `bounds_reviewed.txt` had no entry on the eight names. GCC 13 and mingw-w64 12 not run on it |
 | a `RUSH_CHECK_CASTS` build (build host): every synthetic path | 19 of 19 paths reached, no stop |
 | Windows cross build (Pi, mingw-w64, fresh configure, headless: no SDL2 fetched) | builds; `gen_data.py --check --pe`: OK, 11 decoupled. (Before d616933 the PE link of `assets_percar` failed: a weak copy, StopCarSounds.c's StopSound, can't stand for the symbol on PE; the test links the owner now) |
@@ -678,7 +678,7 @@ crossings reported with their interpolated times, the last lap ended, the humans
 to it, the drone cameras placed for 12 cars and then for the N64's 6; every finish camera cleared, then the first two.
 Nothing past car 11 is touched.
 
-**Left to the other items.** Section 5's rank 3 (`D_80152218` among the race's per-car words) and rank 7 (`D_80110680`,
+**Left to the other items.** Section 5's rank 3 (`gPrevPos` among the race's per-car words) and rank 7 (`finish_cam`,
 initialized data) are done here; the other per-car words there (`rear_y`, `rear_z`, `cur_acc`) are per
 window (MORECARS.md 2.4). The 6s left in these files are not car counts: the owner codes (`== 6`) in CheckCPs and
 PassedCP, and InitCheckpointData's two slots. The finish camera is only ever set for a human (owner 6),
@@ -696,10 +696,10 @@ order them, and the schedule that updates them. Eight arrays in the game's BSS, 
 |---|---|---|---|---|---|
 | `D_801527D8` (0x801527D8, 12 B; the own `si_lock_msg` at +12) | `pc_drones` | short[12] | `drones[]` | the drones in the race, `num_drones` of them | munge (munge_gLink_data) and PrePlay's restart write it; MP_IntervalPos (IntervalPosChange) reads it for the camera's drone pick (`current_drone`) |
 | `D_80152808` (0x80152808, 12 B, 16 by the gap; the car records after it) | `pc_our_drones` | short[12] | `our_drones[]` | the drones this node drives, `num_our_drones` | munge and PrePlay write it; update_drone_models walks it; UpdateModel takes a retired drone out |
-| `D_80153F28` (24 B; `cur_drone`, update_drone_models' cursor, at +24) | `pc_mp_steer` | float[12] | PS_PurgeFile's steer | car slot | maxpath (AdjustSteer); InitPathData clears 6 |
-| `D_80153F48`, `D_80153F68` (24 B each) | `pc_mp_brake`, `pc_mp_gas` | float[12] | AdjustSpeed's brake, gas | car slot | maxpath (AdjustSpeed); InitPathData clears 6 |
-| `D_80153F88` (72 B; HAL_DrawText's lastFontXpos, then `num_humans`, after it) | `pc_mp_dir` | float[12][3] | avoid_areas' last direction | car slot | maxpath (AvoidAreas) |
-| `D_80154138` (72 B) | `pc_mp_save_dir` | float[12][3] | avoid_areas' last direction to the target | car slot | maxpath (AvoidAreas) |
+| `lastwheel` (24 B; `cur_drone`, update_drone_models' cursor, at +24) | `pc_mp_steer` | float[12] | PS_PurgeFile's steer | car slot | maxpath (AdjustSteer); InitPathData clears 6 |
+| `lastbrake`, `lastthrottle` (24 B each) | `pc_mp_brake`, `pc_mp_gas` | float[12] | AdjustSpeed's brake, gas | car slot | maxpath (AdjustSpeed); InitPathData clears 6 |
+| `last_dir` (72 B; HAL_DrawText's lastFontXpos, then `num_humans`, after it) | `pc_mp_dir` | float[12][3] | avoid_areas' last direction | car slot | maxpath (AvoidAreas) |
+| `last_save_dir` (72 B) | `pc_mp_save_dir` | float[12][3] | avoid_areas' last direction to the target | car slot | maxpath (AvoidAreas) |
 | `carsetup_flag` (6 B, 8 by the gap; the controllers' `gAutoEdges` at +8) | `pc_carsetup_flags` | signed char[12] | carsetup_flag | car slot | CarSetup sets a car's when it starts the car's visuals; PrePlay clears 6 |
 
 The last one isn't in MORECARS.md 2.3: PrePlay's `for (i = 0; i < 6; i++) carsetup_flag[i] = 0` (its line 374
@@ -707,23 +707,23 @@ at c1ab1d7) is a per-car bound, and CarSetup reaches the flag as `(u8 *) &carset
 9th car's flag would write the first controller's pressed buttons. The image symbol tables give the N64 extents: past
 the brake, the gas and the two directions sit HAL_DrawText's statics (HAL_DrawText, `hal_drawtext.c`:
 lastFontColor at 0x80153F60, lastTrans 0x80153F80, lastFontXpos 0x80153FD0, lastFontYpos 0x80154180), which are host
-statics of that file on the PC, so `data_symbols.txt`'s 32 bytes for `D_80153F48` and `D_80153F68` were the gap, not the
+statics of that file on the PC, so `data_symbols.txt`'s 32 bytes for `lastbrake` and `lastthrottle` were the gap, not the
 arrays; on the N64 a 7th car's brake would have changed the text's colour state. Not moved: the human list
 `humans` (16 B by the gap, written by munge, read by nothing) holds the players, 4 at most; the counts
 (`num_drones`, `num_our_drones`, `num_humans`: s16) hold 12; the schedule's state (`sched_to_use`, `new_sched_to_use`,
 `sched_index`, `cur_drone`) is scalars.
 
 **Inventory.** nm over `game_objects.txt` (main, 8ff5be1, build host; 597098e and c1ab1d7 change no use of them):
-`D_801527D8` 3 objects (munge_gLink_data, maxpath/group.c, nonmatching/display_list_flush.c), `D_80152808` 3
-(munge_gLink_data, update_model/group.c, PrePlay), `D_80153F28`, `D_80153F48`, `D_80153F68` 2 each
-(InitPathData, maxpath_controls), `D_80153F88`, `D_80154138` 1 each (maxpath_controls), `carsetup_flag` 2 (CarSetup,
+`drones` 3 objects (munge_gLink_data, maxpath/group.c, nonmatching/display_list_flush.c), `our_drones` 3
+(munge_gLink_data, update_model/group.c, PrePlay), `lastwheel`, `lastbrake`, `lastthrottle` 2 each
+(InitPathData, maxpath_controls), `last_dir`, `last_save_dir` 1 each (maxpath_controls), `carsetup_flag` 2 (CarSetup,
 PrePlay): 6 objects, no context copies. Every file declares them as what they are (s16 lists, f32 and f32[3]
-by slot, bytes), but two through a scalar and a cast: InitPathData's `((f32 *) &D_80153F28)[i]` (its m2c block
-declares `D_80153F48` and `D_80153F68` as s32, stored as f32) and CarSetup's `(u8 *) &carsetup_flag + slot` (declared s32,
+by slot, bytes), but two through a scalar and a cast: InitPathData's `((f32 *) &lastwheel)[i]` (its m2c block
+declares `lastbrake` and `lastthrottle` as s32, stored as f32) and CarSetup's `(u8 *) &carsetup_flag + slot` (declared s32,
 stored as s8). The image symbol tables name one address inside the extents, `D_801439FE` (+6 of the flags:
 PrePlay's loop end), which no C names. The other names nearby are neighbours used by their own names:
 `cur_drone` (the cursor), the HAL_DrawText statics, `num_humans`, `si_lock_msg` (a message queue's buffer, 11 objects),
-`D_80154138` as SetPakError' end of `gPakError` (by index on the PC), `carsetup_flag` as hud_updateFrame's end of
+`last_save_dir` as SetPakError' end of `gPakError` (by index on the PC), `carsetup_flag` as hud_updateFrame's end of
 `TrackTimeStr` (likewise).
 
 **What holds an address.** Nothing in memory. A scan of the four images inflated from the retail cartridge (in memory,
@@ -751,7 +751,7 @@ MP_IntervalPos `num_drones`, maxpath indexes by the model's slot, CarSetup by th
 **The change.** `pc_game_types.h`: the 8 declarations and their accessors (`PC_DRONE(j)`, `PC_OUR_DRONE(j)`,
 `PC_MP_STEER(slot)`, `PC_MP_BRAKE`, `PC_MP_GAS`, `PC_MP_DIR(slot)` and `PC_MP_SAVE_DIR(slot)` (a row of 3),
 `PC_CARSETUP_FLAG(slot)`). The 6 files use them, each defining the N64 side (`#define PC_MP_DIR(slot)
-D_80153F88[slot]`, `#define PC_MP_STEER(i) ((f32 *) &D_80153F28)[i]`); CarSetup keeps its spelling and on the PC
+last_dir[slot]`, `#define PC_MP_STEER(i) ((f32 *) &lastwheel)[i]`); CarSetup keeps its spelling and on the PC
 defines `carsetup_flag` as `PC_CARSETUP_FLAG(0)`, the first flag (FinishResurrecting's way with `model_modelrun`, section 3).
 `decoupled.txt`: the 8 lines, sizes the N64 extents (0xC, 0xC, 0x18 three times, 0x48 twice, 0x8). In the same files,
 the bounds that walk them or the cars (MORECARS.md 3.1, 2.5): munge's clear of the model records after the race's,
@@ -878,7 +878,7 @@ reached its state, no fault, the 12 cars on `drive` at 12 places, all moving.
 locals), and relies on munge's clear reaching `PC_MODEL_SLOTS` (above) so that LoadCars, which reads every record's
 drone type below the race's cars, doesn't load cars for records an earlier race of more cars left as drones. DoDrones
 reads the circuit's per-slot ratings `gCircuitCars_skill[slot][38]` in mode 3 only: the circuit stays 6 cars (MORECARS.md
-3.3). MORECARS.md 2.3 lists `D_80153F48` and `D_80153F68` as 32 bytes, 8 by the gap: they are 24, with HAL_DrawText's
+3.3). MORECARS.md 2.3 lists `lastbrake` and `lastthrottle` as 32 bytes, 8 by the gap: they are 24, with HAL_DrawText's
 statics after them.
 
 ## 9. MusyX's per-voice storage

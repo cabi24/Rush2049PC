@@ -49,7 +49,7 @@ game C is now proven by running the game (PCONLY.md 2).
 - Code that assumed 8-byte commands:
   - the two frame command buffers (`frame_command_buffer_a`/`frame_command_buffer_b`: 0x9CC0 bytes of matrices and vertices, then 4000
     commands) are `pc_frame_dl[2][0x9CC0 + 4000*16]` on PC, in all three copies of `_InitGfx`
-    (`initgraphics/initgfx.c`, `heap_release/initsystem.c` (the running `InitSystem`), `SetupCarColor/ctx_initsystem.c`);
+    (`initgraphics/initgfx.c`, `heap_release/initsystem.c` (the running `InitSystem`), `heap_release/initsystem_start.c`);
   - the text display-list double buffer (`blit_display_lists[2][2400]`, cursor `blit_dl`) is `pc_text_dl` (defined in
     `blit/init.c`, `BlitInit`); `BlitFinish` and `BlitZDist`, m2c code that wrote raw words through an
     `s32` cursor with `+ 8`, have PC versions with host `Gfx`;
@@ -156,7 +156,7 @@ hid nothing on the PC ([BRINGUP.md](BRINGUP.md) 15). The car record's raw offset
   Done: pointer-sized in every live view (CASTS.md 2.1).
 - `gPlayers` (0x4C-byte player records): `.message`, `.object`, `.name` hold pointers as `s32`, through six struct
   views in 38 files.
-- `d5e64.c` (`Definition32.object`, `-1` or a pointer), `save/group.c` (`(u32)player << 3 | pak` into
+- `StartCarSounds.c` (`Definition32.object`, `-1` or a pointer), `save/group.c` (`(u32)player << 3 | pak` into
   save data), `blast.c` (`EmitGameSound`'s int second argument): harmless (a dead store, a 32-bit id,
   an argument `AudEmitEffect` never reads; CASTS.md 5.1).
 
@@ -396,7 +396,7 @@ have PC versions. 18 views agree. Test: `assets_pak`.
   head and tail as two `s32` at +8 and +0xC: the head's two halves on the PC, and the tail at +0x10 was left. The
   `ListHead` view's head and tail are `intptr_t`.
 - `AudioInit` cleared the sound handlers' ordered list's root (`gSortedFxTagTree`) as an `s32` at +8 (`intptr_t` now).
-- Mode select's `SndSet` view of `D_80140420` (`StopCarSounds`) read its records 4 bytes early behind `Player84`'s
+- Mode select's `SndSet` view of `gEngineSounds` (`StopCarSounds`) read its records 4 bytes early behind `Player84`'s
   definition pointer.
 - `ClearPlayerRecords` (clear a save slot) kept the slot's data pointer in an `s32` and passed the buffers to
   `PS_WriteFile` as `u32`.
@@ -484,12 +484,12 @@ profile's views put its file handle where the list keeps `prev`.
   updateHighScoreScreen's `Q`, overlay A's `FileInfo` (4), `Item` (3), `Resource` (2), `Owner`, `ListOwner` and the file
   list's `Record`. The profile: save.c's `SaveSlot` and 28 more 48-byte views whose padding hid the links
   (`view_pads.py --ref save_option/save_option.c --name 0x0=next --name 0x4=prev --name 0x8=fileh`), and by hand
-  `RecordGhost`' `Profile`, `RecordRace`'s `ResourceRoot`, the two `filename.c` `X`, `RankScores`'s, state.c's
+  `RecordGhost`' `Profile`, `RecordRace`'s `ResourceRoot`, the two `SavePlayerControls.c` `X`, `RankScores`'s, state.c's
   and track_texture_load's views with an `s32` handle at +8, controlscr's `Profile`, updateHighScoreScreen's `Player` (2),
   `CheckCameraView`'s `HObject`, the `HN` of steady_camera and `UpdateRearCamera`, overlay A's seven-option `Owner` (2) and
   callers_deep's `ListPayload`. The ghost: `GhostUpdate`'s `ReplayOwner` (the replay read its header 16 bytes
   early) and `ReplayStream`, `SaveGhostInLimbo`'s `Record44` and save.c's limbo `Record`. The ghost header: `start` in
-  group.c, ctx_newghost.c, GhostStart.c and `GhostEnd`.
+  group.c, NewGhost.c, GhostStart.c and `GhostEnd`.
 - **Raw offsets** (on existing lines, through the macros): CreatePlayer, `_ReadPlayer`, the check and repair
   (`CheckAndRepairPlayer`, 15 file handles), `InitPlayer`, LoadPlayerData (`ReadPlayerData`), `DeletePlayer`,
   `_ReadGhostHeader`, `_ReadGhostData` (`ReadGhostDataInternal`) and SaveServer in SaveInit' group.c; SaveGhost;

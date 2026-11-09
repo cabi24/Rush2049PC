@@ -18,8 +18,8 @@
  * SetCatchup (set_catchup) scales the 12 cars' catch-up from the one ahead.
  * game: src/blob/InitCPTime.c src/blob/DetectDroneAbort.c src/blob/AreWeSolid.c
  * game: src/ovl_b/groups/missile_lock/group.c src/blob/initialize.c src/blob/Update_MDrive.c
- * game: src/blob/gameover_validOption.c src/blob/groups/car_checkpoints/car_checkpoints_car_setup_confirm.c
- * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c src/blob/SetCatchup.c
+ * game: src/blob/gameover_validOption.c src/blob/groups/car_checkpoints/CarReportsGameOver.c
+ * game: src/blob/groups/car_checkpoints/PlaceUnlockedCars.c src/blob/SetCatchup.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -152,7 +152,7 @@ static void test_start(void)
     for (int i = 0; i < 6; i++) {
         CHECK(pc_cp_last_pos[i][0] == 10.0f * i && pc_cp_last_pos[i][1] == 1.0f + i);
         CHECK(pc_cp_last_pos[i][2] == -2.0f * i);
-        CHECK(CF(i, 0x108, float) == 0.0f && PC_CAR_F108(i) == 0.0f);
+        CHECK(CF(i, 0x108, float) == 0.0f && PC_CAR_MILEAGE(i) == 0.0f);
         memset(&PC_CAR_POS(i), SENTINEL, 12);                                      /* set above */
         CHECK(only(i, f108, 1));
     }
@@ -173,7 +173,7 @@ static void test_remap(void)
     gModelTime = 1.0f;
     DetectDroneAbort();
     for (int i = 0; i < 6; i++) {
-        CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_HEADING(i) == 0.0f && only(i, progress, 2));
+        CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_STRAY_ANGLE(i) == 0.0f && only(i, progress, 2));
         CHECK(PC_MODEL_STUCK_TIME(i) == 0.0f);
     }
     CHECK(untouched_from(6) && MF(6, 0x7D8, uint32_t) == 0xEEEEEEEEu);
@@ -199,7 +199,7 @@ static void test_remap(void)
 
     CF(9, 0x358, int8_t) = 0, CF(9, 0x340, float) = 0.0f;                          /* drivable */
     MF(9, 0x640, int8_t) = 0, MF(9, 0x6C4, int16_t) = -1, MF(9, 0x7EB, int8_t) = 1, MF(9, 0x7DF, int8_t) = 0;
-    CHECK(AreWeSolid(9) == 1 && PC_CAR_B358(9) == 0);
+    CHECK(AreWeSolid(9) == 1 && PC_CAR_CRASH_STATE(9) == 0);
     DetectDroneAbort();
     CHECK(CF(9, 0x340, float) == 7.5f && PC_CAR_FWD_PROGRESS(9) == 7.5f && g_nstuck == 0);
 }
@@ -214,7 +214,7 @@ static void test_remap12(void)
     gModelTime = 1.0f;
     DetectDroneAbort();
     for (int i = 0; i < 12; i++) {
-        CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_HEADING(i) == 0.0f && only(i, progress, 2));
+        CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_STRAY_ANGLE(i) == 0.0f && only(i, progress, 2));
         CHECK(PC_MODEL_STUCK_TIME(i) == 0.0f);
     }
     CHECK(untouched_from(12) && MF(12, 0x7D8, uint32_t) == 0xEEEEEEEEu);
@@ -231,7 +231,7 @@ static void race12(void)
     gNumCars = 12;
     for (int i = 0; i < PC_CAR_SLOTS; i++) {
         MF(i, 0x7C6, int16_t) = (int16_t)i, MF(i, 0x7CC, int8_t) = i == 0 ? 2 : 1, MF(i, 0x7E8, int8_t) = 3;
-        PC_CAR_FINISHED(i) = 0, PC_CAR_STATE(i) = 0;
+        PC_CAR_PLACE_LOCKED(i) = 0, PC_CAR_DEAD(i) = 0;
         PC_CAR_DISTANCE(i) = 100.0f * (float)((i * 7) % 12);   /* every distance different */
     }
 }
@@ -258,13 +258,13 @@ static void test_places12(void)
         int car = 11 - k;
         CarReportsGameOver(car, 10.0f + (float)k);
         for (int j = 11; j >= car; j--)                         /* the finished, in their order */
-            CHECK(PC_CAR_FINISHED(j) == 1 && PC_CAR_PLACE(j) == 11 - j && PC_CAR_TIME(j) == 10.0f + (float)(11 - j));
+            CHECK(PC_CAR_PLACE_LOCKED(j) == 1 && PC_CAR_PLACE(j) == 11 - j && PC_CAR_SCORE(j) == 10.0f + (float)(11 - j));
         for (int j = 0; j < car; j++)                           /* the others after them, by distance */
-            CHECK(PC_CAR_FINISHED(j) == 0 && PC_CAR_PLACE(j) == k + 1 + ahead(j, car));
+            CHECK(PC_CAR_PLACE_LOCKED(j) == 0 && PC_CAR_PLACE(j) == k + 1 + ahead(j, car));
     }
     CHECK(gEndGame == 1);                                       /* the human's finish ends the race's clock */
     for (int i = 12; i < PC_CAR_SLOTS; i++)
-        CHECK(PC_CAR_FINISHED(i) == 0 && CF(i, 0xEE, uint8_t) == SENTINEL);
+        CHECK(PC_CAR_PLACE_LOCKED(i) == 0 && CF(i, 0xEE, uint8_t) == SENTINEL);
 }
 
 /* set_catchup over 12 cars: with no catch-up, each car of the 12 a drone or human (owner 0 or 6) at scale 1; with
@@ -283,7 +283,7 @@ static void test_catchup12(void)
 
     for (int i = 0; i < PC_CAR_SLOTS; i++) {
         MF(i, 0x7C8, int16_t) = 1, MF(i, 0x7CC, int8_t) = i == 0 ? 2 : 1, MF(i, 0x400, float) = 1.0f;
-        PC_CAR_STATE(i) = 0, PC_CAR_DISTANCE(i) = i < 12 ? 100.0f * (float)i : 1e6f;
+        PC_CAR_DEAD(i) = 0, PC_CAR_DISTANCE(i) = i < 12 ? 100.0f * (float)i : 1e6f;
     }
     gNumPlayers = 1, gDifficulty = 5, gUseCatchup = 2;
     SetCatchup();
@@ -329,9 +329,9 @@ static void test_battle_reset(void)
     sentinels();
     MF(10, 0x7C6, int16_t) = 10;
     initialize(PC_MODEL(10));
-    CHECK(PC_CAR_HEALTH(10) == 800 && CF(10, 0x386, int16_t) == 800 && PC_CAR_B358(10) == 0);
-    CHECK(PC_CAR_BATTLE_FLAGS(10) == 0 && PC_CAR_B3A0(10) == 0 && PC_CAR_B3A2(10) == 0);
-    CHECK(PC_CAR_F3B0(10) == 0.0f && PC_CAR_F3B4(10) == 0.0f && only(10, reset, 6));
+    CHECK(PC_CAR_HEALTH(10) == 800 && CF(10, 0x386, int16_t) == 800 && PC_CAR_CRASH_STATE(10) == 0);
+    CHECK(PC_CAR_DEFENSE_ACTIVE(10) == 0 && PC_CAR_SHOOT(10) == 0 && PC_CAR_FADE_STATE(10) == 0);
+    CHECK(PC_CAR_BATTLE_PITCH(10) == 0.0f && PC_CAR_BATTLE_YAW(10) == 0.0f && only(10, reset, 6));
     for (int i = 0; i < PC_CAR_SLOTS; i++)
         CHECK(i == 10 || only(i, NULL, 0));
 }
@@ -357,9 +357,9 @@ static void test_finished(void)
 {
     sentinels();
     gRace = 3, gCircuitPlayer = 7;
-    PC_CAR_FINISHED(7) = 0, PC_CAR_FINISHED(6) = 1, PC_CAR_FINISHED(8) = 1;
+    PC_CAR_PLACE_LOCKED(7) = 0, PC_CAR_PLACE_LOCKED(6) = 1, PC_CAR_PLACE_LOCKED(8) = 1;
     CHECK(gameover_validOption(5) == 0 && gameover_validOption(0) == 1);
-    PC_CAR_FINISHED(7) = 1, PC_CAR_FINISHED(6) = 0;
+    PC_CAR_PLACE_LOCKED(7) = 1, PC_CAR_PLACE_LOCKED(6) = 0;
     CHECK(gameover_validOption(5) == 1 && CF(7, 0xEF, int8_t) == 1);
 }
 

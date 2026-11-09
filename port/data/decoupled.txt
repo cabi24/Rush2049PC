@@ -14,7 +14,7 @@
 # (0x80153E88-0x80153EF0). The game C read [0].owner (+7) with a stride of 8 through a label of its own; the
 # image symbol tables also label [0].car, [1].owner and &[6] (likely the end pointer of a 6-slot loop), all
 # retired with the range.
-pc_links   D_80153E88   0x68
+pc_links   gLink   0x68
 
 # The model records (MAT3 model[], tModelData): struct pc_model[PC_MODEL_SLOTS], 6 records of 0x808 bytes on the N64
 # (0x8014A250-0x8014D280), the same layout on the PC. The alias is the name inside it the game C reached by name,
@@ -50,27 +50,27 @@ pc_resurrect_mid  resurrect_save_pos  0x48
 # handles (struct pc_sound_rec), each car's last position and checkpoint-plane distance (BSS); and four that the game
 # image initializes, filled from it: the sounds-started flags and the finish cameras' state (bytes, 8 by the gap) and
 # start times (f32), and the engine update's phase (bytes), whose alternation slots 6 on continue.
-pc_engine_sounds    D_80140420  0x1F8
-pc_screech_sounds   D_80140640  0x78
-pc_car_sounds_on    D_8010FFC4  6     init=image
-pc_engine_phase     D_8010FFCC  6     init=image period=2
-pc_cp_last_pos      D_80152218  0x48
-pc_cp_plane         D_801527E8  0x18
-pc_finish_cam_time  D_80110668  0x18  init=image
-pc_finish_cam       D_80110680  6     init=image
+pc_engine_sounds    gEngineSounds  0x1F8
+pc_screech_sounds   gPaveSkidSounds  0x78
+pc_car_sounds_on    gCarActive  6     init=image
+pc_engine_phase     gCarUpdatedLastTime  6     init=image period=2
+pc_cp_last_pos      gPrevPos  0x48
+pc_cp_plane         lastDotProd  0x18
+pc_finish_cam_time  finish_cam_stime  0x18  init=image
+pc_finish_cam       finish_cam  6     init=image
 
 # The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[] (short[PC_MAX_LINKS]; 6 s16 on the N64,
 # 0x801527D8-0x801527E4, the own si_lock_msg after it, and 0x80152808-0x80152814, the car records after the gap), and
 # maxpath's controls per car slot (float[PC_MAX_LINKS], float[PC_MAX_LINKS][3]; 6 on the N64): steer, brake, gas
 # (0x80153F28, 0x80153F48, 0x80153F68: 24 B each, cur_drone and HAL_DrawText's statics at 0x80153F60 and 0x80153F80
 # after them) and avoid_areas' two directions (0x80153F88, 0x80154138: 72 B each, statics at 0x80153FD0, 0x80154180).
-pc_drones       D_801527D8  0xC
-pc_our_drones   D_80152808  0xC
-pc_mp_steer     D_80153F28  0x18
-pc_mp_brake     D_80153F48  0x18
-pc_mp_gas       D_80153F68  0x18
-pc_mp_dir       D_80153F88  0x48
-pc_mp_save_dir  D_80154138  0x48
+pc_drones       drones  0xC
+pc_our_drones   our_drones  0xC
+pc_mp_steer     lastwheel  0x18
+pc_mp_brake     lastbrake  0x18
+pc_mp_gas       lastthrottle  0x18
+pc_mp_dir       last_dir  0x48
+pc_mp_save_dir  last_save_dir  0x48
 
 # CarSetup's flag per car slot (carsetup_flag): signed char[PC_MAX_LINKS], 6 bytes on the N64 (0x801439F8; the gap is
 # 8, the controllers' gAutoEdges after it). The image symbol tables label +6 inside it: the end of PrePlay's

@@ -1,4 +1,4 @@
-/* visibility_wrappers.c (visuals): show or hide a car visual in the car's own window (MAT3 visuals.c,
+/* CheckVisible.c (visuals): show or hide a car visual in the car's own window (MAT3 visuals.c,
  * CheckVisible()). */
 #include "game/game.h"
 

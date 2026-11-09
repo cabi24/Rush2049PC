@@ -37,7 +37,7 @@ void game_reckon_all(f32 time) {
 
     for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
-        if (m->in_game && PC_CAR_STATE(i) < CAR_DEAD) {
+        if (m->in_game && PC_CAR_DEAD(i) < CAR_DEAD) {
             deltime = (time - m->modelTime) * m->time_fudge;
             temp[0] = m->rwv[0] * deltime;
             temp[1] = m->rwv[1] * deltime;

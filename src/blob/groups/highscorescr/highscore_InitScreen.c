@@ -91,12 +91,12 @@ void highscore_InitScreen(void)
     gHighScoreState = 0;
     highscore_inited = 1;
     circuitCode = 0;
-    if (gRace == 3 && PC_CAR_FINISHED(gCircuitPlayer)) {
+    if (gRace == 3 && PC_CAR_PLACE_LOCKED(gCircuitPlayer)) {
         for (i = 0; i < 6; i++) {
             ranks[i] = PC_CAR_PLACE(i);
         }
         oldCircuitTrack = gCircuitTrack;
-        UpdateCircuit(ranks, PC_CAR_TIME(gCircuitPlayer));
+        UpdateCircuit(ranks, PC_CAR_SCORE(gCircuitPlayer));
         gCircuitTrack = oldCircuitTrack;
         if ((*gPlayers_save[gCircuitPlayer].rec)->f8 == 0 && gCircuitTrack < gCircuitSize - 1) {
             circuitCode = 1;

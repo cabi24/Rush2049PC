@@ -310,7 +310,7 @@ So the inventory's live casts are the work order, and the heap's (`audio_heap`, 
 - **N64 addresses inside the N64 world.** The N64-layout records (the heap's headers, the WAD records, the voices'
   macro pointers, the 130 `enum n64p_` fields) keep 32-bit N64 addresses: that is their layout, ROM data holds them, and
   they translate only where they become pointers. "No fixed address" means no fixed *host* address.
-- **The cartridge's names.** `D_00039B40` is `ABSOLUTE(0xB0039B40)`, a cartridge address the PI and MusyX callbacks
+- **The cartridge's names.** `sample_bank_rom` is `ABSOLUTE(0xB0039B40)`, a cartridge address the PI and MusyX callbacks
   take as a number; it is no RAM address and stays absolute.
 - **The 4 GiB rule** (a value below 4 GiB is an N64 address). It holds with the window in the image (2.1); it needs the
   executable PIE and host data high, as today.
@@ -337,7 +337,7 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
 - **The window**: `data.c` defines `pc_window`, a `.n64window` section (`%nobits`, 64 KiB aligned, 0x10000000 bytes,
   `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names,
   `pc_matrix_spill`, and the six names gen_stubs made absolute (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`,
-  `overlay_base`, and the cartridge address `D_00039B40` at `pc_window + 0x30039B40`, past the section's end: the game
+  `overlay_base`, and the cartridge address `sample_bank_rom` at `pc_window + 0x30039B40`, past the section's end: the game
   only takes its 32-bit value, through the translation, `AudioInitSys.c:110`). Those six are `data.c`'s because a
   linker script can't make them relative: `PROVIDE(x = pc_window + off)` linked as an absolute symbol (nm `A`, the
   window's link-time address plus the offset), right at run time only through the RELATIVE relocation binutils gives
@@ -466,8 +466,8 @@ Every synthetic path runs moved; these are the sites they don't reach, by class 
   sample's address). The synthetic cartridge has a sound bank but no songs.
 - **The rest of the live compiler sites**: 39 `cc.ptr_to_int`, 8 `cc.int_to_ptr`, 23 and 12 implicit; most of what
   is left is an N64 value that stays one (a display-list word, `displaylist_set_texture_image`'s value, the texture lists of
-  `particle_knot`, an id or index: `blast.c:340`, `mode.c:290`, `d5e64.c:101`, `targetpaths/group.c:3895`,
-  `__scMain`'s message), each to read and mark; `SetupCarColor/ctx_initsystem.c`'s 4 are a context copy's statics that
+  `particle_knot`, an id or index: `blast.c:340`, `UpdateCarSounds.c:290`, `StartCarSounds.c:101`, `targetpaths/group.c:3895`,
+  `__scMain`'s message), each to read and mark; `heap_release/initsystem_start.c`'s 4 are a context copy's statics that
   only a weak `InitSystem` calls.
 - **`src.zext` (42) and `src.trunc` (3)**: 30 of the zext are `(T *)(uintptr_t)&D_x` or `PC_CAR`/`PC_MODEL` (host
   pointers through `uintptr_t`, no truncation) and `targets/group.c:188`'s GTLD keys (comparison values,

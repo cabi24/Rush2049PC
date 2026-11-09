@@ -28,7 +28,7 @@ s32 animRadar(tBlit *node) {
     }
     hidden = gShowRadar == 0;
     if (hidden == 0) {
-        hidden = PC_CAR_FINISHED(index) == 1;
+        hidden = PC_CAR_PLACE_LOCKED(index) == 1;
     }
     if (hidden != node->hide) {
         node->hide = hidden;

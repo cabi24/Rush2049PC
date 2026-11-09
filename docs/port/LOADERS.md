@@ -172,7 +172,7 @@ leaves a file that doesn't as it is (with a message): a bogus file is not half c
 host pointers, so its fields sit at host offsets (8, 24, 32, ...) and its string tables have 8-byte entries. Views
 that already declared pointer fields line up by themselves. The ones changed: header views padded with `s32[3]` or
 `u8[12]` (`SetHighScoreState.c`, `animCreditText.c`, `animPauseText.c`, `animStatText.c`); overlays of the single table as a
-struct with byte pads at N64 offsets, now `char *pad[N / 4]` (`anim_no_rumble_panes.c`, `anim_no_rumble_text.c`, `slp.c`, `animRumbleText.c`,
+struct with byte pads at N64 offsets, now `char *pad[N / 4]` (`anim_no_rumble_panes.c`, `anim_no_rumble_text.c`, `video_TitlePane.c`, `animRumbleText.c`,
 `animWrongWay.c`, `animLapCount.c`, `animTitleText.c`, `animSureText.c`, `licensescr_animText.c`, `warningscr_animText.c`, `titlescr_animText.c`,
 `recordscr/recordscr.c`, `animBattlePoints.c`); string slots read as `s32` are `intptr_t` (`animTitleText.c`,
 `animPauseText.c`, `animSureText.c`); `showhud.c`'s `u32 *` tables are `char **`; `pause_TitlePane.c`'s raw N64 offsets go through `TXH`
@@ -183,7 +183,7 @@ the window address.
 16), a drone path 16. Changed: the `Header`/`Descriptor`/`Count` views of `NumPtsToCheckpoint.c`,
 `TracePathPtForward.c` and `TraceToIndex.c`; `CalcResPathBounds.c` (CalcResPathBounds); `NextResPathPt.c` (its
 `* 0x10` stride is `ALT_PATH_SIZE`); `pathcommon_sync/group.c`; `find_res_pt_entry/group.c`; the `CountEntry` views of
-`SetDroneResPathIndex.c` and `camera_pair.c`; the raw `* 8` drone strides of `NextPathPt.c` and `PrevPathPt.c`
+`SetDroneResPathIndex.c` and `SetResurrectionData.c`; the raw `* 8` drone strides of `NextPathPt.c` and `PrevPathPt.c`
 (`DRONE_PATH_SIZE`). The other views (about 20) already had the native layout. The checkpoint block (812 bytes,
 no pointers) is copied as it is; its views all read the swapped widths. Overlay A's track-map `loadPathData`
 calls the same ReadCheckpointData and ReadPathData and needs nothing.
@@ -226,7 +226,7 @@ and unread byte pads.
 - **`gTexDefPtrs` in `SetupFontData`**: its `Pair {s32 first; s32 second}` view (the font textures,
   `gFontTextures[i] = first + i * 36`) has to match whatever layout the WAD part gives the `{pointer, count}` tables
   (ASSETS.md §4 #19): `intptr_t first` if they stay native, as now in gen_data.
-- **Weak copies** of `SetupFontData` (in `ctx_gr3.c` and seven other context files) and of
+- **Weak copies** of `SetupFontData` (in `TB_GetFontHeight.c` and seven other context files) and of
   `AdjustTextWavePointers` keep their N64-sized views; they never run.
 - Checked on the retail cartridge ([ASSETS.md](ASSETS.md) §8.1): none of the messages below appears for any wave;
   WOBJ is the tag and its count word a record count (the converter now takes it as records only, and walks from

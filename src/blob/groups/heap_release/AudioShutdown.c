@@ -15,7 +15,7 @@ VIEW(uintptr_t, gSortedFxTags);
 VIEW(uintptr_t, gSequences);
 #define gSequences gSequences_view
 
-/* If the sound manager is up: frees the 3D sound, stops the song and every effect (post_type1, post_type7), waits
+/* If the sound manager is up: frees the 3D sound, stops the song and every effect (post_stop_song, post_stop_all_effects), waits
  * until the audio manager thread has run every message of the pool, shuts the sound system down
  * (AudioShutdownSys) and frees the fx tags, the tag tree's nodes and the sequences.
  * PC: the wait is a busy-wait that lets the manager run (docs/port/ULTRA.md 6). */
@@ -24,8 +24,8 @@ void AudioShutdown(void) {
 
     if (gInited_AudioMgr) {
         AudFree3D();
-        post_type1();
-        post_type7();
+        post_stop_song();
+        post_stop_all_effects();
         do { pc_os_spin_yield("AudioShutdown");
             for (i = 0; i < PC_SND_MSG_LOOP(128); i++) {
                 if (audiomgr_gCmds[i].hdr.used) {

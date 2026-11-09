@@ -44,7 +44,7 @@ On the PC both images are linked in; image A's data is an arena refilled when th
 | cheats (`GS_CHEAT`) | `src/ovl_a/groups/cheat_screen/cheatscr.c` | cheatscr.c |
 | pak manager (`GS_PAK`) | `src/ovl_a/groups/pakscr/`, `pakscr_draw/`, `pakscr_FindFile.c`, `CancelFunc.c` | pakscr.c |
 | options (`GS_OPTIONS`, pause page 5) | `src/blob/groups/optionscr/` (`buttons.c`, `option_init.c`) | optionscr.c |
-| controls (`GS_CONTROLS`, pause page 4) | `src/blob/groups/controlscr/` (`caller.c`, `dtc.c`, `rows.c`, `d9058.c`), `controlscr_text/controls.c`, `src/blob/animControls.c` | controlscr.c |
+| controls (`GS_CONTROLS`, pause page 4) | `src/blob/groups/controlscr/` (`updateControlScreen.c`, `controls_initButtons.c`, `cleanupControlScreen.c`, `calcControlMenuMaxSize.c`), `controlscr_text/controls.c`, `src/blob/animControls.c` | controlscr.c |
 | pause menu's tear-down | `src/blob/groups/pausescr_cleanup/group.c` | pausescr.c |
 | high score (`GS_HIGH_SCORE`) | `src/blob/groups/highscorescr/` (five of its files), `highscore_rank/`, `highscore_uninit/`, `highscore_unlocked/`, `highscorescr_draw/highscore.c`, `src/blob/censor.c` | highscorescr.c |
 | game over (`GS_GAME_OVER`) | `src/blob/groups/gameover/gameover.c`, `gameoverscr_draw/results_table.c`, `src/blob/gameover_validOption.c` | gameoverscr.c |

@@ -2594,7 +2594,7 @@
         {
           "kind": "function",
           "size": 452,
-          "target_id": "update_player_visibility",
+          "target_id": "UpdateArrowVis",
           "vaddr": 2148199252
         },
         {

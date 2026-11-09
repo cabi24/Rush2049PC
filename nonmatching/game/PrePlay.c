@@ -64,8 +64,8 @@ s32 PrePlay(s32 useHud, s32 cancel)
             for (i = 0; i < gNumPlayers; i++) {
                 slot = gPlayers[i].slot;
                 PC_LINK_OWNER(slot) -= 6;
-                PC_CAR_STATE(slot) = 0;
-                PC_CAR_FINISHED(slot) = 0;
+                PC_CAR_DEAD(slot) = 0;
+                PC_CAR_PLACE_LOCKED(slot) = 0;
                 PC_CAR_INPUT(slot) = 0;
                 PC_MODEL_DRONE_TYPE(slot) = 1;
                 PC_MODEL_WE_CONTROL(slot) = 1;
@@ -77,8 +77,8 @@ s32 PrePlay(s32 useHud, s32 cancel)
                 PC_OUR_DRONE(num_our_drones++) = i;
             }
             for (; i < gNumActiveCars; i++) {
-                PC_CAR_STATE(i) = 0;
-                PC_CAR_FINISHED(i) = 0;
+                PC_CAR_DEAD(i) = 0;
+                PC_CAR_PLACE_LOCKED(i) = 0;
                 PC_CAR_FLAGS(i) = 0;
                 PC_MODEL_FLAGS(i) = 0;
                 SetupCar(i, PC_MODEL_BODY(i), 1);

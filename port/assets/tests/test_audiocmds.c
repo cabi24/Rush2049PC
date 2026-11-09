@@ -9,12 +9,12 @@
  * game: src/blob/groups/abort_game/GetCmd.c src/blob/AudResumeAllEffects.c src/blob/AudMono.c
  * game: src/blob/AudPlaySong.c src/blob/AudKillSong.c src/blob/AudStopAllEffects.c
  * game: src/blob/AudPauseAllEffects.c src/blob/groups/game_sounds/group.c src/blob/groups/heap_release/AudioShutdown.c
- * game: src/blob/groups/audioscr_update/uninit_w36w3.c src/blob/groups/audioscr_update/init_w36q.c
+ * game: src/blob/groups/audioscr_update/audio_uninitScreen.c src/blob/groups/audioscr_update/audio_initScreen.c
  * game: src/blob/groups/audioscr_update/updateAudioScreen.c src/blob/groups/highscorescr/highscore_InitScreen.c
  * game: src/blob/groups/gameover/gameover.c src/blob/groups/abort_game/group.c
  * game: nonmatching/game/updatePauseScreen.c nonmatching/game/PrePlay.c
  * game: src/blob/PauseTargets.c src/blob/InitBattlePoints.c
- * game: src/blob/groups/SetupCarColor/ctx_func_800C8918.c
+ * game: src/blob/groups/heap_release/audio_shutdown_posts.c
  * game: src/blob/InitStunt.c src/blob/ZOID_Reset.c src/blob/groups/state/halfont.c src/blob/ZOID_SetColor.c
  */
 #include <stddef.h>
@@ -155,8 +155,8 @@ void AudKillSong(void);                           /* 1: stop the song */
 void AudStopAllEffects(void);                           /* 7: stop every effect */
 void AudPauseAllEffects(void);
 void AudSetMasterVol(float blend, float amount, int32_t first, int32_t second);   /* 10: the volumes */
-void post_type1(void);                                    /* the audio shutdown's (carcolor's, their owner) */
-void post_type7(void);
+void post_stop_song(void);                                    /* the audio shutdown's (carcolor's, their owner) */
+void post_stop_all_effects(void);
 void AudioShutdown(void);                                 /* the audio shutdown */
 void controlMain(void);                                 /* the game over screen's choice */
 void updateGameOverScreen(void);                              /* the game over screen */
@@ -221,18 +221,18 @@ static void posters(void)
 
 static void shutdown(void)
 {
-    /* post_type1 with the pool empty waits (yielding) for the manager to free a message */
+    /* post_stop_song with the pool empty waits (yielding) for the manager to free a message */
     reset();
     drain();
     g_drain_on_spin = 1;
-    post_type1();
+    post_stop_song();
     CHECK(g_locks == 0 && g_spins == 1 && g_nsent == 1 && g_sent[0]->cmd == 1 && g_sent[0]->used == 1);
-    /* post_type7 with the queue full blocks until the manager takes one, instead of losing its message */
+    /* post_stop_all_effects with the queue full blocks until the manager takes one, instead of losing its message */
     reset();
     drain();
     audiomgr_gCmds[5].used = 0;
     g_queue_full = 1;
-    post_type7();
+    post_stop_all_effects();
     CHECK(g_locks == 0 && g_spins == 0 && g_blocked == 1 && g_nsent == 1 && g_sent[0] == &audiomgr_gCmds[5] &&
           audiomgr_gCmds[5].cmd == 7);
     /* the whole shutdown from an empty pool: both posts get through, and its wait for the pool ends */

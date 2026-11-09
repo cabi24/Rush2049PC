@@ -21,21 +21,21 @@ VIEW(f32[9], unitmatrix);
 #define PC_GAP30(x) (pc_fps60 ? (x) * 2.0f : (x))
 
 /* The wing's sound (effect 61 at three quarters pitch, half volume), on the car's player. */
-__inline void tire_sound_on(Model2056 *model)
+__inline void wing_sound_on(Model2056 *model)
 {
     model->sound = AudPlayEffect(61, model->player, 2, 2);
     AudChangeEffectPitch(model->sound, 0.75f);
     AudChangeEffectVol(model->sound, 0.5f);
 }
 /* Starts the wing sliding out: shown, flags out-and-moving (0x1110), the first step a moment from now. */
-__inline void tire_extend(Visual *v, Model2056 *model)
+__inline void wing_extend(Visual *v, Model2056 *model)
 {
     MBOX_ShowObject(v->object, 0, 15);
     v->flags |= 0x1110;
     v->time = gModelTime + PC_GAP30(0.015f); v->index = 0;
 }
 /* Stops the wing's sound. */
-__inline void tire_sound_off(Model2056 *model)
+__inline void wing_sound_off(Model2056 *model)
 {
     if (model->sound != -1) {
         AudStopEffect(model->sound);
@@ -91,8 +91,8 @@ void AnimateWing(Visual *v, s16 op)
         }
     }
     if (model->state != 0 && !(v->flags & 0x10)) {
-        tire_extend(v, model);
-        if (model->sound == -1) tire_sound_on(model);
+        wing_extend(v, model);
+        if (model->sound == -1) wing_sound_on(model);
     }
     if (v->flags & 0x1000) {
         if (v->flags & 0x100) {
@@ -103,7 +103,7 @@ grow:
                 v->time = gModelTime + PC_GAP30(0.015f); v->index++;
                 if (v->index == 6) {
                     v->flags &= ~0x1100;
-                    tire_sound_off(model);
+                    wing_sound_off(model);
                 }
             }
         } else if (v->flags & 0x200) {
@@ -118,7 +118,7 @@ grow:
                 v->time = gModelTime + PC_GAP30(0.015f); v->index--;
                 if (v->index == -1) {
                     v->flags &= ~0x1210;
-                    tire_sound_off(model);
+                    wing_sound_off(model);
                 }
             }
         }

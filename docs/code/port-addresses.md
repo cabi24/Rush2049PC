@@ -85,7 +85,7 @@ Comments: the addresses in port/'s comments became names (`game_bss_end`, `overl
 | port/data/decoupled.txt | 20 addresses in comments: where each decoupled record was on the N64 | documentation of the N64 layout the rules undo, in gen_data's input; left with gen_data |
 | port/data/test_pc_data_decls.c | the fixtures named by their address (D_80010020 ...) | they test the loader's address parsing (as the brief says) |
 | port/assets/tests/test_musyx.c | `NODE_TOKEN(i)`, 0x80050A50 + 16 i | the token src/rom/sound/voices.c keeps for a voice node (its N64 address); the game C defines the number, the test mirrors it (see below) |
-| port/main.c, test_mods.c, test_musyx.c, test_casts.c | MusyX's sample base, ROM offset 0x39B40 (`MODS_SAMPLE_BASE`, `SAMPLE_BASE`) | a ROM offset, named; the game C's `D_00039B40` |
+| port/main.c, test_mods.c, test_musyx.c, test_casts.c | MusyX's sample base, ROM offset 0x39B40 (`MODS_SAMPLE_BASE`, `SAMPLE_BASE`) | a ROM offset, named; the game C's `sample_bank_rom` |
 
 Names still spelled as addresses in port/ (224, from 251): the game symbols no map named, which tests define or name
 because the game C uses them (D_80114C58, D_8015F740, D_80120E74 ...: since named by tools/port/names/wave2.tsv,
@@ -614,18 +614,18 @@ become ordinary definitions); scratch places become host buffers once the code u
 | `port/assets/tests/test_mods.c:402` | `0x8002E000u` | the base of a synthetic boot/game data slice around the file table | derive from the file table symbols' names |
 | `port/assets/tests/test_mods.c:403` | `0x8011B000u` | the base of a synthetic boot/game data slice around the file table | derive from the file table symbols' names |
 | `port/assets/tests/test_mods.c:434` | `0x80123564u` | `wave_storage_kinds` (the file table) read by its N64 address | the symbol by name through the loader |
-| `port/assets/tests/test_mods.c:776` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:810` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:815` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:829` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:834` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:837` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:840` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:848` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
-| `port/assets/tests/test_mods.c:868` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:776` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:810` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:815` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:829` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:834` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:837` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:840` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:848` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:868` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
 | `port/assets/tests/test_mods.c:882` | `0xB0039B40u`, `0xB0000000u` | a cartridge address: MusyX's sample base (KSEG1 / the game's sample offset); `0xB0000000u`: KSEG1 base of the cartridge | PHYS_TO_K1(PI_DOM1_ADDR2) + the sample base offset (named as the game names it) |
 | `port/assets/tests/test_mods.c:883` | `0xB0039B40u`, `0xB0000000u` | a cartridge address: MusyX's sample base (KSEG1 / the game's sample offset); `0xB0000000u`: KSEG1 base of the cartridge | PHYS_TO_K1(PI_DOM1_ADDR2) + the sample base offset (named as the game names it) |
-| `port/assets/tests/test_mods.c:893` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name, or a named test constant |
+| `port/assets/tests/test_mods.c:893` | `0x39B40` | MusyX's sample base as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name, or a named test constant |
 | `port/assets/tests/test_musyx.c:242` | `0xB0039B40u` | a cartridge address: MusyX's sample base (KSEG1 / the game's sample offset) | PHYS_TO_K1(PI_DOM1_ADDR2) + the sample base offset (named as the game names it) |
 | `port/assets/tests/test_musyx.c:647` | `0x80000000UL` | KSEG0 base (a mapping of the window at its fixed address) | PC_RDRAM_BASE |
 | `port/assets/tests/test_musyx.c:761` | `0x80050A50u` | `sound_handle_nodes` (now pc_mx_nodes): the voice's node link, a 32-bit token the game C keeps as the old N64 address (src/rom/sound/voices.c) | a named token base from the game C (its PC_MX node encoding), not the literal |
@@ -774,7 +774,7 @@ window offset into an N64 address; alias_check.py's message about a row that run
 | `tools/port/nofixed_audit.py:277` | `0x80000000` | KSEG0 base / range (the audit of window uses) | K0BASE from n64syms; the audit goes with the window |
 | `tools/port/nofixed_audit.py:443` | `0xA0000000` | KSEG1 base: RDRAM versus cartridge aliases | K1BASE from n64syms |
 | `tools/port/nofixed_audit.py:522` | `0x80000000` | KSEG0 base / range (the audit of window uses) | K0BASE from n64syms; the audit goes with the window |
-| `tools/port/synth_rom.py:445` | `0x39B40` | MusyX's sample base, as a ROM offset (the game C's `D_00039B40`) | the game's symbol by name |
+| `tools/port/synth_rom.py:445` | `0x39B40` | MusyX's sample base, as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name |
 | `tools/port/synth_rom.py:1645` | `0x801108D0`, `0x80110A00` | `steady_leg_duration` + 0x8: the car physics descriptors; `0x80110A00`: `steady_leg_duration` + 0x138: the descriptors' suspension part | base + offset (the base is already looked up by name two lines up) |
 
 ## Not addresses

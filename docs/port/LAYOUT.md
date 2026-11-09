@@ -144,7 +144,7 @@ manager (`audiomgr/audiomgr_thread.c`) has their PC layouts; the other views kep
 | message (`tAudioMsg`), the pool `audiomgr_gCmds[128]` | 0x18 | **0x20** | changeEffect's vol..pitch at 0x04–0x10, its tag 0x18; a stop's or an interrupt's tag at 0x08 |
 | 3D-sound source (`Source`; `Owner`), a tag's data | 0x2C | **0x38** | active/queued 0x10, position 0x14, radius 0x20, nearVolume 0x24, parameter 0x2C |
 
-- FX tags: `_InterruptFxTag` (`InterruptFxTag`, ap.c: it read the tag's list from its `prev` link and wrote
+- FX tags: `_InterruptFxTag` (`InterruptFxTag`, InterruptFxTag.c: it read the tag's list from its `prev` link and wrote
   `&gInterruptedFxTags` over it; its list header `gInterruptedFxTags` gets a view of its own), `_CalcPriority`
   (`WeightedPriority`, record_score), the 3D update's `Effect` (ProcessEmitters.c), `_GetFxTag` (`ConvertTag`,
   entity_lookup: the id at +0xC and a 0x48-byte stride) and `AudStopEffect`, the tag views of entity_helpers
@@ -246,14 +246,14 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 | ProcessEmitters's `Effect` | a PC view of the FX tag padded in host bytes; each access is the tag's field |
 | sequencer.c's `Seq_*`, `SequenceContext*` views | PC views of a sequence slot padded in host bytes (`SEQ_PC_OFF`, include/sequence_context.h) |
 | updatefx's `AudioMsg`, entity_lookup's `Msg` | a stop's or an interrupt's tag after the header (tAudioMsg's startEffect, +8); the union's N64 positions are its largest member's (updatefx's is shared with the N64 build, so it scores 4) |
-| ctx_slot.c's `DecodeGhost` | a heap handle slot is 8 bytes holding a zero-extended window address; a u32 reader takes its low half (POINTERS.md 9.10) |
+| ghost_files.c's `DecodeGhost` | a heap handle slot is 8 bytes holding a zero-extended window address; a u32 reader takes its low half (POINTERS.md 9.10) |
 | initTargetStructs's `Rec20` | it clears the mine slots' count and its padding with an `intptr_t` 0 |
 | Update_MDrive | the s16 at +0xF4 is the node handle's low half |
 | blast.c's `StartBlast` | StartBlast's data is an s16 slot or an f32 position (endian_check's NOT_FOLLOWED) |
 | src/rom's `__osSiDmaBuffer` | libultra builds the PIF commands byte by byte in its word buffer |
 | `NewEmitter` | the source's active byte; ProcessEmitters's `Source` names it and `queued` as a u32 word nothing reads whole |
 | `game_memcmp` | a byte compare (memcmp) |
-| ap.c's `caller_a`, `caller_b` | dead stand-in callers kept for matching; their walk through the tag's list field is not the tags' link |
+| InterruptFxTag.c's `caller_a`, `caller_b` | dead stand-in callers kept for matching; their walk through the tag's list field is not the tags' link |
 
 `REFERENCE`: level_objects' `Node` (the level-object nodes) and `Matrix64` (the dead-reckoning records),
 audiomgr_thread's `tFxSequence`, `anon_ll_id_3c` and the sorted-tag node `anon_te_tag_c` (also for AudioInit's

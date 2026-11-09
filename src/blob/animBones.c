@@ -38,7 +38,7 @@ s32 animBones(void *blit) {
     BonesBlit *blt = blit;
     u32 player;
 
-    if (((s8) gDeathMode == 0) || ((player = blt->AnimID) >= (u32) (s16) gNumWindows) || (PC_CAR_FINISHED(PC_MODEL_SLOT(player)) == 1)) {
+    if (((s8) gDeathMode == 0) || ((player = blt->AnimID) >= (u32) (s16) gNumWindows) || (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(player)) == 1)) {
         if (blt->Hide != 1) {
             blt->Hide = 1;
             UpdateBlit(blt);

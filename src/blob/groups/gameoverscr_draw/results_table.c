@@ -124,7 +124,7 @@ void drawRaceStandings(void)
     RGBA c;
 
     rows = gNumPlayers + 1;
-    cols = (gNumCars == 1 || (gRace == kCircuit && !PC_CAR_FINISHED(gCircuitPlayer))) ? 3 : 4;
+    cols = (gNumCars == 1 || (gRace == kCircuit && !PC_CAR_PLACE_LOCKED(gCircuitPlayer))) ? 3 : 4;
     for (row = 0; row < rows; row++) {
         for (col = 0; col < cols; col++) {
             if (row == 0 && col == 0) continue;
@@ -172,7 +172,7 @@ void drawRaceStandings(void)
             } else {
                 if (col == 1) {
                     if (gLap[gRankedPlayer[row - 1]] == gNumLaps) {
-                        time = PC_CAR_TIME(gRankedPlayer[row - 1]);
+                        time = PC_CAR_SCORE(gRankedPlayer[row - 1]);
                         HAL_SetFont(3);
                         TB_SetTextColor(kTB_WhiteText);
                         TB_Sprintf(str1, race_standings_time_format, (u32)(time / 60.0f), (u32)time % 60, (u32)(time * 1000.0f) % 1000);
@@ -712,7 +712,7 @@ s32 gameover_animText(s32 blit)
                             }
                         } else if(row==1) {
                             if(gLap[gPlayers[column-1].slot]==gNumLaps) {
-                                t=PC_CAR_TIME(gPlayers[column-1].slot);
+                                t=PC_CAR_SCORE(gPlayers[column-1].slot);
                                 HAL_SetFont(3);
                                 TB_SetTextColor(kTB_WhiteText);
                                 TB_Sprintf(value,race_score_time_format,(u32)(t/60.0f),(u32)t%60,(u32)(t*1000.0f)%1000);

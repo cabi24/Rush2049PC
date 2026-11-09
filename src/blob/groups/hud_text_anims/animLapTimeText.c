@@ -46,7 +46,7 @@ s32 animLapTimeText(s32 blit)
         if (gPauseState == 0) {
             gCheckPtTimeout[slot] -= gFrameSeconds;
         }
-        if (gCheckPtTimeout[slot] <= 0.f || PC_CAR_FINISHED(slot) == 1) {
+        if (gCheckPtTimeout[slot] <= 0.f || PC_CAR_PLACE_LOCKED(slot) == 1) {
             gCheckPtTimeout[slot] = 0.f;
             continue;
         }

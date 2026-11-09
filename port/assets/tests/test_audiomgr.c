@@ -13,7 +13,7 @@
  * - the fade nodes' lookup FindChangeCmd (the prev link, the entry pointer as the key);
  * - an ordered list's insertion through InsertBSTE (its root at +0x10).
  * game: src/blob/groups/aud_stop_effect/group.c src/blob/groups/abort_game/GetCmd.c
- * game: src/blob/groups/transform/group.c src/blob/groups/interrupt_fx_tag/ap.c
+ * game: src/blob/groups/transform/group.c src/blob/groups/interrupt_fx_tag/InterruptFxTag.c
  * game: src/blob/InsertLLE.c src/blob/RemoveLLE.c src/blob/groups/weighted_priority/group.c
  * game: src/blob/AudEffectPlaying.c src/blob/groups/audiomgr_emitters/group.c
  * game: src/blob/NewSequence.c src/blob/AudPlaySequence.c src/blob/stop_sequence.c

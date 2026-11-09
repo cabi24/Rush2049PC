@@ -1,6 +1,6 @@
 /* A human's car's bumps, scrapes and thumps (MAT3 audio.c's _UpdateBumps and _CheckForces; the arcade game's
  * carsnd.c has the same logic, do_bump_sounds and check_forces_on_car). Each frame UpdateCarSounds calls
- * UpdateBumps, which first gathers the frame's body forces (CheckForces, GetForceAndPeak in ded78.c), then plays
+ * UpdateBumps, which first gathers the frame's body forces (CheckForces, GetForceAndPeak in GetForceAndPeak.c), then plays
  * a bump for a settled hit, a scrape while a side rubs, and a thump when the car lands or hits harder than before. */
 #include "game/game.h"
 

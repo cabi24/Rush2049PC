@@ -214,7 +214,7 @@ the same `T *`, `x` the same lvalue), as 2.2's second names do.
 | `src/blob/update_reckon_base.c`, `End_MDrive.c` | `model` | `ModelRecord []` | a 2,026-byte record | the cars, 0x808 bytes each, fields to +2052 |
 | `src/blob/init_view3.c` | `rear_y`, `rear_z` | `f32 []` + macro | `f32` | `(&x)[car] = 5.0f`, `= 3.0f` |
 | `src/blob/SetCameraView.c` | `cur_acc` | `s32 []` | `s32` | +0, +4, +8 of 12-byte records |
-| `src/blob/InitCPTime.c` | `D_80152218` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
+| `src/blob/InitCPTime.c` | `gPrevPos` | `s32 []` | `s32` | x, y, z of each car's 12 bytes in a loop: the stick's shape, three stores |
 | `src/blob/groups/controlsys/group.c` | `gContStickRange` (`gStickCal`), `gNewEdges` (`gPrevPressed`), `gNewStick` (`gStickRaw`), `gAutoEdgeTimes` (`gRepeatTime`) | `s8 [4][2]` + macro, `s32 [4]`, `s32 [2]`, `s32 [128]` | `s8`, `s32` | per pad, in the loop that had the stick's bug |
 | `src/blob/groups/update_model/group.c` | `gPaks_rumble_request` | `s8 []` + macro | `s8` | the rumble byte of each pak record, three stores |
 | `src/blob/groups/pathcommon_read/CalcCheckpointTimes.c` | `gCheckpoints` | `Route []` + macro | `Route` (80 B) | the header and `(&gCheckpoints)[i]`'s records |
@@ -264,9 +264,9 @@ one *warn*:
 
 | Found by | Entries |
 |---|---|
-| GCC 13 and mingw-w64 12, not GCC 14 | `pak_encode_name.c` pak_charset, `ctx_newghost.c` pc_ghost_slot, `voices.c` sound_voice_free_links (*tmr*) |
+| GCC 13 and mingw-w64 12, not GCC 14 | `pak_encode_name.c` pak_charset, `NewGhost.c` pc_ghost_slot, `voices.c` sound_voice_free_links (*tmr*) |
 | GCC 14 only | `controlsys/group.c` gActiveControllers and gContStick (*tmr*) |
-| GCC 13 and 14, not mingw-w64 12 | `PrintScores.c` gScoreNames, `controlscr/caller.c` controlScrActive, `controlscr/rows.c` prevControlScrActive, controlScrActive and controls_buttonsInited, `runtime_b_status_scene` stuntCoin (*tmr*) |
+| GCC 13 and 14, not mingw-w64 12 | `PrintScores.c` gScoreNames, `controlscr/updateControlScreen.c` controlScrActive, `controlscr/cleanupControlScreen.c` prevControlScrActive, controlScrActive and controls_buttonsInited, `runtime_b_status_scene` stuntCoin (*tmr*) |
 | mingw-w64 12 only | `SaveSelectPlayer.c` gOptions, `InitVisuals.c` RimNames and gWheelTextures (*tmr*); `runtime_b_nearest_steering` `?` (*warn*: a note that names no symbol) |
 
 So a GCC 13 run reports 6 reviewed keys it doesn't find, GCC 14 7 and mingw-w64 8 ("kept: other GCC versions");

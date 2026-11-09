@@ -567,10 +567,10 @@ front-back pan; the pitch 0.5 is 4095 and goes to the effect's voice), and the c
 engine loops are created as positioned effects while the race loads and stay pending until `_UpdateFx`
 (`update_fx/updatefx.c`) sees a level over 0.1. Two faults kept every one of them there:
 
-4. **The engine table was loaded big-endian.** `UpdateEngineSound` (`car_sounds/mode.c`, the per-car engine update;
+4. **The engine table was loaded big-endian.** `UpdateEngineSound` (`car_sounds/UpdateCarSounds.c`, the per-car engine update;
    its `vol` is the pitch ratio from the revs and its `pitch` the level, which `AudChangeEffectVol` sets as the volume) reads
    the car category's two 32-byte entries of `gEngineSpecs` as rev points (u16) and levels (f32). The only typed
-   declaration, `d5e64.c`'s, was `{s32 object; u8 rest[28];}`, so the loader swapped the word and left the rest in
+   declaration, `StartCarSounds.c`'s, was `{s32 object; u8 rest[28];}`, so the loader swapped the word and left the rest in
    the ROM's byte order: the levels came out as denormals and every engine's volume as 0. Its PC `Definition32` has
    the fields; `endian_check --check-loader` pins their widths.
 5. **The listener was out of range.** The game's listener is a packet (`AudAddListener`) that `UpdateListeners` fills
@@ -626,7 +626,7 @@ only without the pak), `AudioInit(8, 8, 0, 0, 0, ...)` without it for a race (`s
 | the manager's messages (`audiomgr_gCmds`) | a command from the game to the manager's thread (a start, a change of volume, pan or pitch, a stop) and from its priority pass; the emitter pass sends one for each emitter whose sound changed | fixed storage | 128 | 128 |
 
 A drone's engine is two looping layers on two emitters, at 400 ft gone (its gain falls linearly to 0 there:
-`ProcessEmitters.c`), priority 128 (`d5e64.c`), so a weighted priority of 136 to 216; a human's two layers are not
+`ProcessEmitters.c`), priority 128 (`StartCarSounds.c`), so a weighted priority of 136 to 216; a human's two layers are not
 positional (`AudPlayEffectVP`, priority 0). With 6 cars the 12 of the budget hold the player's engines and those of
 the four or five drones in earshot; with 12 cars they hold the player's and the nearest four or five, and the effects
 compete with them for the same 12, and the 16 entries and the 16 effect voices.

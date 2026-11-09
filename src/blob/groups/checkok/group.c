@@ -57,7 +57,7 @@ void checkok(tModelData *m)
 
     thump_it = 0;
     thump_side = 0;
-    if (PC_CAR_STATE(m->slot) != CAR_ALIVE) {
+    if (PC_CAR_DEAD(m->slot) != CAR_ALIVE) {
         return;
     }
     for (i = 0; i < 4; i++) {

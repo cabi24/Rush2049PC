@@ -1,4 +1,4 @@
-/* camera_pair.c: where a car respawns from, and how it faces there (MAT3 resurrect.c, FindSurfaceUvsFromResPoint()
+/* SetResurrectionData.c: where a car respawns from, and how it faces there (MAT3 resurrect.c, FindSurfaceUvsFromResPoint()
  * and SetResurrectionData()).
  *
  * (The file's name is an old guess: it holds no camera code.) A car's respawn point is kept in its model record

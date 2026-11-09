@@ -6,9 +6,9 @@
  * (ZOID_WindowTo3D): each reads the window through its own view, so a view off the host layout breaks the round
  * trip. Windows 1 to 3 are used, so a 72-byte stride lands in the wrong one. Then the frame-buffer clear
  * (ClearScreen) of frame 1.
- * game: src/blob/groups/ZOID_InitializeWindow/candidate.c src/blob/ZOID_SetWindow.c src/blob/groups/ZOID_SetFog/candidate.c
+ * game: src/blob/groups/ZOID_InitializeWindow/ZOID_InitializeWindow.c src/blob/ZOID_SetWindow.c src/blob/groups/ZOID_SetFog/ZOID_SetFog.c
  * game: src/blob/ZOID_SetViewport.c src/blob/ZOID_GetWindow.c src/blob/ZOID_GetFog.c src/blob/WorldFogDensity.c
- * game: src/blob/groups/ZOID_ProjectWindow/candidate.c src/blob/ZOID_WindowTo3D.c src/blob/ClearScreen.c
+ * game: src/blob/groups/ZOID_ProjectWindow/ZOID_ProjectWindow.c src/blob/ZOID_WindowTo3D.c src/blob/ClearScreen.c
  */
 #include <math.h>
 #include <stddef.h>

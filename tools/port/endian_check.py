@@ -2142,7 +2142,7 @@ LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState",
                  ("gIgnoreCount", 0x0, 1), ("gStopAllEffects", 0x0, 1), ("vp1", 0x0, 2), ("vp1", 0xC, 2),
                  ("vplr", 0x6, 2), ("modescr_button_color", 0x0, 1), ("modescr_button_color", 0x3, 1),
                  ("target_steer_zero_dist_message", 0x0, 1), ("target_steer_zero_dist_message", 0x3, 1),
-                 # the engine sound table (car_sounds/d5e64.c): rev points u16, levels f32, in both 32-byte entries
+                 # the engine sound table (car_sounds/StartCarSounds.c): rev points u16, levels f32, in both 32-byte entries
                  ("gEngineSpecs", 0x0, 4), ("gEngineSpecs", 0x4, 2), ("gEngineSpecs", 0xC, 2), ("gEngineSpecs", 0x10, 4),
                  ("gEngineSpecs", 0x18, 4), ("gEngineSpecs", 0x24, 2), ("gEngineSpecs", 0x30, 4),
                  # tables declared as one element, one row or bytes (docs/port/DATA.md 8): the level objects' bodies

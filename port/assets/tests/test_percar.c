@@ -15,10 +15,10 @@
  * arrays; circle_camera_around_car circles and then freezes a finish camera; CheckCameraView turns a window to it and places the
  * drone cameras of PC_RACE_CARS cars; init_views clears every finish camera, InitCheckpointData the first
  * two.
- * game: src/blob/groups/car_sounds/d5e64.c src/blob/groups/car_sounds/mode.c src/blob/StopCarSounds.c
+ * game: src/blob/groups/car_sounds/StartCarSounds.c src/blob/groups/car_sounds/UpdateCarSounds.c src/blob/StopCarSounds.c
  * game: src/blob/InitSoundState.c src/blob/StopSound.c src/blob/InitCPTime.c
- * game: src/blob/groups/car_checkpoints/car_checkpoints_CheckCPs.c
- * game: src/blob/groups/car_checkpoints/car_checkpoints_func_800D1AB0.c
+ * game: src/blob/groups/car_checkpoints/CheckCPs.c
+ * game: src/blob/groups/car_checkpoints/PlaceUnlockedCars.c
  * game: src/blob/groups/passed_cp/PassedCP.c src/blob/circle_camera_around_car.c
  * game: src/blob/CheckCameraView.c src/blob/init_views.c src/blob/InitCheckpointData.c
  * game: src/blob/ZOID_FindMatrix.c
@@ -47,7 +47,7 @@ float pc_cp_last_pos[PC_MAX_LINKS][3], pc_cp_plane[PC_MAX_LINKS];
 unsigned char pc_finish_cam[PC_MAX_LINKS];
 float pc_finish_cam_time[PC_MAX_LINKS];
 
-/* The engine table gEngineSpecs: per car type two 32-byte layers (d5e64.c's Definition32, mode.c's EngTbl). */
+/* The engine table gEngineSpecs: per car type two 32-byte layers (StartCarSounds.c's Definition32, UpdateCarSounds.c's EngTbl). */
 struct eng_layer { int32_t object; uint16_t r0, r1, b0, b1, b2; uint8_t padE[2]; float p0, p1, p2; uint8_t pad1C[4]; };
 struct eng_layer gEngineSpecs[13][2];
 int8_t gGameSoundsEnabled = 1;
@@ -111,7 +111,7 @@ static int g_nsync;
 static int32_t g_sync;
 void AudChangeEffectVol(int32_t h, float v) { if (h == 7036) g_sync = h, g_nsync++; }   /* the screech's level */
 void AudChangeEffect(int32_t h, float x, float y, float z, float w) {}
-void AudChangeEffectPitch(int32_t h, float v) {}   /* an inline in mode.c, its owner elsewhere in the game */
+void AudChangeEffectPitch(int32_t h, float v) {}   /* an inline in UpdateCarSounds.c, its owner elsewhere in the game */
 int32_t osRecvMesg(void *q, void *m, int32_t f) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t f) { return 0; }
 int32_t AudPlayEffect(int32_t a, int32_t b, int32_t c, int32_t d) { return 7000 + a; }
@@ -209,7 +209,7 @@ static void test_sounds(void)
         MF(k, 0xC, int8_t) = (int8_t)type_of(k);
         PC_MODEL_CRASHFLAG(k) = 0;
         PC_MODEL_DRONE_TYPE(k) = k == 0 ? 2 : 1;
-        PC_MODEL_S7D0(k) = (short)(100 * (k + 1));   /* the rpm */
+        PC_MODEL_RPM(k) = (short)(100 * (k + 1));   /* the rpm */
         MF(k, 0x404, float) = 700.0f;                 /* the load: (700 + 200) / 900, a factor of 1 */
         for (int w = 0; w < 4; w++)
             PC_MODEL_VISCODE(k)[w] = 1, MF(k, 0x7F8 + 4 * w, float) = 0.0f;
@@ -309,7 +309,7 @@ static void test_checkpoints(void)
     InitCPTime();
     for (int k = 0; k < CARS; k++)
         CHECK(pc_cp_last_pos[k][0] == (float)k && pc_cp_last_pos[k][1] == 0.0f && pc_cp_last_pos[k][2] == 5.0f &&
-              PC_CAR_F108(k) == 0.0f);
+              PC_CAR_MILEAGE(k) == 0.0f);
     for (int k = CARS; k < PC_MAX_LINKS; k++)
         CHECK(all_bytes(pc_cp_last_pos[k], sizeof pc_cp_last_pos[k], SENTINEL));
 
@@ -321,8 +321,8 @@ static void test_checkpoints(void)
         PC_CAR_POS(k)[0] = (float)k + 10.0f;
         PC_LINK_OWNER(k) = is_human(k) ? 6 : 0;
         CF(k, 0x004, float) = 100.0f + (float)k;    /* the car's clock */
-        PC_CAR_B358(k) = 0, PC_CAR_STATE(k) = 0;    /* not crashed; racing */
-        PC_CAR_FINISHED(k) = 0, PC_CAR_PLACE(k) = 1;
+        PC_CAR_CRASH_STATE(k) = 0, PC_CAR_DEAD(k) = 0;    /* not crashed; racing */
+        PC_CAR_PLACE_LOCKED(k) = 0, PC_CAR_PLACE(k) = 1;
         PC_CAR_DISTANCE(k) = 1000.0f + 37.0f * (float)((5 * k) % 12);
         PC_MODEL_SLOT(k) = (short)k, PC_MODEL_MOVING_STATE(k) = -1, PC_MODEL_FLAGS(k) = 0xFF;
         MF(k, 0x7E4, int16_t) = 0;                  /* the next checkpoint */
@@ -341,7 +341,7 @@ static void test_checkpoints(void)
     CHECK(g_ncross == CARS);
     for (int k = 0; k < CARS; k++) {
         float plane = (float)k + 10.0f, cent = plane / (plane - -(float)(k + 1)) * (1.0f / 60.0f);
-        CHECK(PC_CAR_F108(k) == 10.0f && pc_cp_last_pos[k][0] == (float)k + 10.0f && pc_cp_last_pos[k][2] == 5.0f);
+        CHECK(PC_CAR_MILEAGE(k) == 10.0f && pc_cp_last_pos[k][0] == (float)k + 10.0f && pc_cp_last_pos[k][2] == 5.0f);
         CHECK(MF(k, 0x7E9, int8_t) == 1 && pc_cp_plane[k] == plane);
         CHECK(g_cross[k].slot == k && near(g_cross[k].time, 100.0f + (float)k - cent));
         CHECK(PC_MODEL_LAP(k) == 3 && PC_MODEL_LAST_CP(k) == 0 && MF(k, 0x7E4, int16_t) == 1);
@@ -363,8 +363,8 @@ static void test_checkpoints(void)
 static void test_cameras(void)
 {
     /* circle_camera_around_car circles car 9's camera with the clock, then 10 s after the finish freezes it there. */
-    PC_CAR_SLOT(9) = 9, PC_CAR_VIEW(9) = 0;
-    PC_CAR_SLOT(0) = 0, PC_CAR_VIEW(0) = 0;
+    PC_CAR_SLOT(9) = 9, PC_CAR_CAMERA(9) = 0;
+    PC_CAR_SLOT(0) = 0, PC_CAR_CAMERA(0) = 0;
     gModelTime = 61.0f;
     circle_camera_around_car(PC_CAR(9), PC_CAR_POS(9), NULL);
     float ang = (float)(61000u % 6000) * (1.0f / 6000) * 6.2831855f;

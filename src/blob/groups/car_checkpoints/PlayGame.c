@@ -63,7 +63,7 @@ void PlayGame(void) {
         CheckCPs();
     }
     UpdateSmoke();
-    update_player_visibility();
+    UpdateArrowVis();
     for (i = 0; i < gNumActiveCars; i++) {
         car = PC_CAR(i);
         slot = PC_MODEL_SLOT(i);

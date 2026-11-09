@@ -60,7 +60,7 @@ s32 animCoins(void *blit) {
                 pos.y = coinPos[gNumWindows - 1][i][1] + j * ((gNumWindows == 1) ? 15 : (gNumWindows == 2) ? 12 : 8);
             }
             ZOID_WindowTo3D(i, &pos, &gCamera[i], 2.0f, gPlayerCoin[i].slot[j].obj);
-            if (gOptions[kOptCoins] && PC_CAR_FINISHED(i) != 1) {
+            if (gOptions[kOptCoins] && PC_CAR_PLACE_LOCKED(i) != 1) {
                 s16 x;
                 s16 y;
                 f32 xoffset, yoffset;

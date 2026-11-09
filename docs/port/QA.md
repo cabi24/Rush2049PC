@@ -331,7 +331,7 @@ the shutdown reads it. The other 22 are guarded the same way, under `TARGET_PC` 
   lock back and returns. With the queue full, it gives its message back (in-use byte +3). `AudSend`, the send in
   the nonmatching drafts, gives it back the same way.
 - **The audio shutdown's two posts wait.** `AudioShutdown` posts a stop of the song and of every effect, busy-waits
-  until the manager has freed every message, then frees the effects' blocks. Its `post_type1`/`post_type7` don't drop
+  until the manager has freed every message, then frees the effects' blocks. Its `post_stop_song`/`post_stop_all_effects` don't drop
   their stops ahead of those frees. With the pool empty, they give the lock back and yield (`PC_SPIN`) until the
   manager frees a message; with the queue full, they send with `OS_MESG_BLOCK` (the lock is free by then). This
   waits on nothing new: the shutdown waits on the same manager right after.
