@@ -1,18 +1,15 @@
+/* YawUV.c: yaw an orientation matrix about its own y axis (MAT3 fmath.c, YawUV()).
+ *
+ * The object-axis rotation family of PitchUV.c (see there). */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * YawUV — YawUV(angle, uv) variant: columns uv[0][i]/uv[2][i], epsilon 0.0001f; N64 sign is the reverse of the arcade (ut = a*cos + b*sin; b = b*cos - a*sin).
- * Same family as WPitchUV (arcade LIB/fmath.c *UV rotations): rotate a 3x3 unit-vector
- * matrix by angle when |angle| > epsilon. Quirks: epsilon literal is a float (c.lt.s);
- * operand order of each sum/difference follows the arcade spelling and fixes the mul.s order.
- */
-typedef float F32;
-extern F32 sinf(F32);
-extern F32 cosf(F32);
+extern f32 sinf(f32);
+extern f32 cosf(f32);
 
-void YawUV(F32 angle, F32 uv[][3]) {
-    F32 ut, sint, cost;
+/* Turn the orientation uv by `angle` radians about its own y (up) axis: the right and forward rows turn into each
+ * other. Angles within 0.0001 of zero are ignored. */
+void YawUV(f32 angle, f32 uv[][3]) {
+    f32 ut, sint, cost;
     int i;
 
     if ((angle < -0.0001f) || (angle > 0.0001f)) {

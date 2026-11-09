@@ -1,60 +1,99 @@
+/* InitTextureAnimation.c: set up a track's texture animations (MAT3 textureanim.c, InitTextureAnimation()).
+ *
+ * Each track has a list of palette animations (PaletteLists: palette rotations, light cycles, texture scrolls) and
+ * a list of texture flipbooks (TextureSwapLists: a texture whose image steps through a series of others).
+ * This looks their textures and palettes up by name once the track's models are loaded; TextureAnimation runs them
+ * each frame. */
 #include "game/game.h"
 
-/* PC: Resource32 is a WAD's texture (TXHD: data = texBase at +24) or palette record (PLHD: bank = palBase at +20),
- * which keep their N64 layout: the pointers are 32-bit RDRAM-window addresses (port/assets/wad.c). */
-#define WAD_PTR_BASE u32
-#define WAD_PTR(name) name
+/* PC: Resource32 is a WAD's texture (TXHD: texBase at +24) or palette record (PLHD: palBase at +20), which keep
+ * their N64 layout: the pointers are 32-bit RDRAM-window addresses (port/assets/wad.c). */
+typedef struct Resource32 {
+    u8 opaque[20];
+    u32 palBase;        /* +20 a palette's colours */
+    u32 texBase;        /* +24 a texture's load display list (TXLD), or its image (flags & TEX_IMAGE_DIRECT) */
+    u32 flags;          /* +28 */
+} Resource32;
+/* A texture whose texBase is its image's address itself, not a load display list holding it. */
+#define TEX_IMAGE_DIRECT 0x08000000
 /* A row's palette or texture list is written through (TextureAnimation): N64PTR0(T, a) is the pointer at N64 address a
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). An item's output stays the 32-bit address the display list takes. */
 #define N64PTR0(T, a) ((T)PC_N64P(a))
-typedef struct Resource32 { u8 opaque[20]; WAD_PTR_BASE WAD_PTR(bank), WAD_PTR(data); u32 flags; } Resource32;
-typedef struct Row20 { char *name; u8 opaque[5]; s8 kind; u8 gap[2]; f32 time; void *data; } Row20;
 
-typedef struct Sequence20 { s16 count, maximum, unused, current; f32 time, default_time; Item12 *items; } Sequence20;
+/* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
+typedef struct tPaletteAnim {
+    char *name;         /* the palette's name (a texture's for the scrolls); NULL ends the list */
+    s16 start, end;
+    s8 offset;
+    s8 state;
+    s16 speed;          /* the period, in 30 Hz frames */
+    f32 time;           /* the time left to the next step, seconds */
+    void *ptr;          /* the palette's colours, or the texture's load display list */
+} tPaletteAnim;
 
+/* A texture flipbook (MAT3 tTextureSwap): the texture swapTexs[startnum] shows swapTexs[idx]'s image, idx stepping
+ * every initTime seconds. */
+typedef struct tTextureSwap {
+    s16 num;            /* the frames; 0 ends the list */
+    s16 startnum;       /* the frame whose texture is the one drawn */
+    s16 fd;             /* 1 steps forward, 0 backward */
+    s16 idx;            /* the frame shown */
+    f32 time, initTime;
+    Item12 *swapTexs;   /* the frames (MAT3 tTextureBase: name, tex, texBase) */
+} tTextureSwap;
+
+VIEW(tPaletteAnim *[], PaletteLists);
+#define PaletteLists PaletteLists_view
+VIEW(tTextureSwap *[], TextureSwapLists);
+#define TextureSwapLists TextureSwapLists_view
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
 extern Resource32 *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, int);
 extern Resource32 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, int);
 
+/* Find the textures and palettes of the track's (gTrackNum) animations, none in the attract demo without the
+ * Expansion Pak. Palette animations: each restarts its period, and gets its palette's colours (or for a scroll, the
+ * texture's load display list). Flipbooks (not when the race restarts: they are found already): each frame's
+ * texture and its image address, the flipbook back at its first frame. Without the Expansion Pak the first six
+ * tracks leave out the flipbooks that use the shared frames (texture_swap_shared_frames). */
 void InitTextureAnimation(void) {
-    Row20 *row;
-    Sequence20 *sequence;
+    tPaletteAnim *plist;
+    tTextureSwap *tlist;
     Resource32 *resource;
     int i;
-    u16 id;
+    u16 index;
     int unused1;
     int unused2;
 
-    if ((gGameState & 8) && !expansion_pak_present) return;
-    row = PaletteLists[gTrackNum];
-    if (!row) goto second;
-    while (row->name) {
-        row->time = 0.0333333f;
-        if (row->kind >= 9) row->data = N64PTR0(void *, MBOX_FindTexture_WORK(row->name, &id, 0, gNumModels - 1, 1)->data);
+    if ((gGameState & 8) && !expansion_pak_present) return;   /* GS_DEMO */
+    plist = PaletteLists[gTrackNum];
+    if (!plist) goto flipbooks;
+    while (plist->name) {
+        plist->time = 0.0333333f;
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1)->texBase);
         else {
-            resource = MBOX_FindPalette_WORK(row->name, &id, 0, gNumModels - 1, 1);
-            if (resource) row->data = N64PTR0(void *, resource->bank);
+            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1, 1);
+            if (resource) plist->ptr = N64PTR0(void *, resource->palBase);
         }
-        row++;
+        plist++;
     }
-second:
+flipbooks:
     if (gRestartGame) return;
-    sequence = TextureSwapLists[gTrackNum];
-    if (!sequence) return;
-    while (sequence->count) {
-        for (i = 0; i < sequence->count; i++) {
+    tlist = TextureSwapLists[gTrackNum];
+    if (!tlist) return;
+    while (tlist->num) {
+        for (i = 0; i < tlist->num; i++) {
             if (expansion_pak_present || gTrackNum >= 6) {
-                sequence->items[i].resource = MBOX_FindTexture_WORK(sequence->items[i].name, &id, 0, gNumModels - 1, 1);
-            } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && sequence->items != texture_swap_shared_frames) {
-                sequence->items[i].resource = MBOX_FindTexture_WORK(sequence->items[i].name, &id, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].resource = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+            } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && tlist->swapTexs != texture_swap_shared_frames) {
+                tlist->swapTexs[i].resource = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
             } else continue;
-            resource = sequence->items[i].resource;
-            if (resource->flags & 0x08000000) sequence->items[i].output = resource->data;
-            else sequence->items[i].output = displaylist_get_texture_image(N64PTR0(void *, resource->data));
-            sequence->time = sequence->default_time;
-            sequence->current = sequence->maximum;
+            resource = tlist->swapTexs[i].resource;
+            if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].output = resource->texBase;
+            else tlist->swapTexs[i].output = displaylist_get_texture_image(N64PTR0(void *, resource->texBase));
+            tlist->time = tlist->initTime;
+            tlist->idx = tlist->startnum;
         }
-        sequence++;
+        tlist++;
     }
 }

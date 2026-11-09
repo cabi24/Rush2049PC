@@ -1,26 +1,26 @@
+/* TB_Vector2Normalize.c: make a 2D vector unit length (MAT3 TB_Vector.c, TB_Vector2Normalize()). */
 #include "game/game.h"
 
-
-#undef M2C_FIELD
-#define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
-f32 TB_Vector2Normalize(f32 *arg0) {
-    f32 temp_f0;
-    f32 temp_f12;
-    f32 temp_f16;
-    f32 temp_f2;
 
-    temp_f2 = arg0[1];
-    temp_f12 = arg0[0];
-    temp_f0 = sqrtf((temp_f2 * temp_f2) + (temp_f12 * temp_f12));
-    if (temp_f0 != 0.0f) {
-        temp_f16 = 1.0f / temp_f0;
-        arg0[0] = (f32) (temp_f12 * temp_f16);
-        arg0[1] = (f32) (temp_f2 * temp_f16);
+/* Scale the 2D vector v (v[0], v[1]) to length 1 and return its old length. A zero vector becomes (1, 0). */
+f32 TB_Vector2Normalize(f32 *v) {
+    f32 len;
+    f32 x;
+    f32 invlen;
+    f32 y;
+
+    y = v[1];
+    x = v[0];
+    len = sqrtf((y * y) + (x * x));
+    if (len != 0.0f) {
+        invlen = 1.0f / len;
+        v[0] = x * invlen;
+        v[1] = y * invlen;
     } else {
-    arg0[1] = 0.0f;
-    arg0[0] = 1.0f;
+        v[1] = 0.0f;
+        v[0] = 1.0f;
     }
-    return temp_f0;
+    return len;
 }

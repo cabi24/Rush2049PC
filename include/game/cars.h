@@ -240,7 +240,7 @@ s32 CheckVisible(struct tVisual *v, s32 on, s32 camera);
 s32 CheckVisibleAll(struct tVisual *v, s32 on);
 void ContinueSkid(void);
 void CreateCar(s16 slot, s16 camlink, s32 for_game);
-void *game_bsearch(void *key, void *base, u32 n, u32 size, s32 (*compar)(void *, void *));
+void *game_bsearch(void *key, void *base, u32 nmemb, u32 size, s32 (*compar)(void *, void *));
 void HandleASpark(struct tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op);
 void InitBlast(void);
 void InitCarDynamicObjs(s16 slot, s16 car, s8 model);

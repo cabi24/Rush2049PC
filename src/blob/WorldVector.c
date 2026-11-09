@@ -1,7 +1,10 @@
+/* WorldVector.c: a vector from an object's frame into world coordinates (MAT3 fmath.c, WorldVector()). */
 #include "game/game.h"
 
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2) {
-    arg1[0] = (arg0[0] * arg2[0] + arg0[1] * arg2[3]) + arg0[2] * arg2[6];
-    arg1[1] = (arg0[0] * arg2[1] + arg0[1] * arg2[4]) + arg0[2] * arg2[7];
-    arg1[2] = (arg0[0] * arg2[2] + arg0[1] * arg2[5]) + arg0[2] * arg2[8];
+/* dst = src (in the frame of the orientation uvs, nine floats row by row) in world coordinates: the sum of the rows
+ * of uvs (the object's axes) weighted by src's components. BodyVector is the inverse. */
+void WorldVector(f32 *src, f32 *dst, f32 *uvs) {
+    dst[0] = (src[0] * uvs[0] + src[1] * uvs[3]) + src[2] * uvs[6];
+    dst[1] = (src[0] * uvs[1] + src[1] * uvs[4]) + src[2] * uvs[7];
+    dst[2] = (src[0] * uvs[2] + src[1] * uvs[5]) + src[2] * uvs[8];
 }

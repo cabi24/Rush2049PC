@@ -1,3 +1,10 @@
+/* TransposeUV.c: transpose a 3x3 matrix in place (MAT3 fmath.c, TransposeUV()). */
 #include "game/game.h"
 
-void TransposeUV(f32 *a) {f32 t;t=a[1];a[1]=a[3];a[3]=t;t=a[2];a[2]=a[6];a[6]=t;t=a[5];a[5]=a[7];a[7]=t;}
+/* Transpose the matrix uv (nine floats, row by row) in place; for an orientation matrix that is its inverse. */
+void TransposeUV(f32 *uv) {
+    f32 tmp;
+    tmp = uv[1]; uv[1] = uv[3]; uv[3] = tmp;
+    tmp = uv[2]; uv[2] = uv[6]; uv[6] = tmp;
+    tmp = uv[5]; uv[5] = uv[7]; uv[7] = tmp;
+}

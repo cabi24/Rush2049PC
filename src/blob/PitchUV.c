@@ -1,18 +1,18 @@
+/* PitchUV.c: pitch an orientation matrix about its own x axis (MAT3 fmath.c, PitchUV()).
+ *
+ * One of six rotations of a 3x3 orientation matrix (uvs: row k the object's axis k in world coordinates): YawUV,
+ * PitchUV and RollUV turn the object about its own axes (they combine its rows), WYawUV, WPitchUV and WRollUV
+ * about the world's (they combine its columns). The arcade's code; on the N64 the threshold is a float and the
+ * sine and cosine are sinf and cosf. The operand order of each product is the original's. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_80090F44 — arcade PitchUV(angle, uv): columns uv[1][i]/uv[2][i], epsilon 0.0001f (N64 change); arcade signs.
- * Same family as WPitchUV (arcade LIB/fmath.c *UV rotations): rotate a 3x3 unit-vector
- * matrix by angle when |angle| > epsilon. Quirks: epsilon literal is a float (c.lt.s);
- * operand order of each sum/difference follows the arcade spelling and fixes the mul.s order.
- */
-typedef float F32;
-extern F32 sinf(F32);
-extern F32 cosf(F32);
+extern f32 sinf(f32);
+extern f32 cosf(f32);
 
-void PitchUV(F32 angle, F32 uv[][3]) {
-    F32 ut, sint, cost;
+/* Turn the orientation uv by `angle` radians about its own x axis (the up and forward rows turn into each other).
+ * Angles within 0.0001 of zero are ignored. */
+void PitchUV(f32 angle, f32 uv[][3]) {
+    f32 ut, sint, cost;
     int i;
 
     if ((angle < -0.0001f) || (angle > 0.0001f)) {

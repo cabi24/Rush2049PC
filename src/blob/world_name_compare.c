@@ -1,9 +1,10 @@
+/* world_name_compare.c: the comparator of the world name search (NewWorld). */
 #include "game/game.h"
 
-/* NewWorld's bsearch comparator (NewWorld): it gets pointers (its key is on the stack), and the
- * search reads the result game_strcmp leaves in v0 through the void return. On the PC both are explicit. */
-#define PC_V0_S32 s32
-#define PC_V0_RETURN return
-PC_V0_S32 world_name_compare(intptr_t arg0, intptr_t arg1) {
-    PC_V0_RETURN game_strcmp(arg0 + 4, arg1 + 4);
+/* Compare the names of the search key and a world table entry (each record has its name at +4: NewWorld's
+ * NameKey and the WHDR entry NameEntry): game_strcmp's result. The records come as integers of pointer width. On the
+ * N64 the function returned nothing and passed game_strcmp's result on by leaving it in the return register; on the
+ * PC it returns it. */
+s32 world_name_compare(intptr_t key, intptr_t entry) {
+    return game_strcmp(key + 4, entry + 4);
 }

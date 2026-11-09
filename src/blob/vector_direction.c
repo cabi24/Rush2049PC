@@ -1,10 +1,12 @@
+/* vector_direction.c: the unit vector along a 3D vector (MAT3 fmath.c, direction()). */
 #include "game/game.h"
 
-void vector_direction(void *arg0, void *arg1) {
-    f32 temp_f0;
+/* dir = vec / |vec| (invmagnitude: a zero vector gives a zero dir). vec and dir may be the same vector. */
+void vector_direction(f32 *vec, f32 *dir) {
+    f32 invmag;
 
-    temp_f0 = invmagnitude(arg0);
-    M2C_FIELD(arg1, f32 *, 0) = (f32) (M2C_FIELD(arg0, f32 *, 0) * temp_f0);
-    M2C_FIELD(arg1, f32 *, 4) = (f32) (M2C_FIELD(arg0, f32 *, 4) * temp_f0);
-    M2C_FIELD(arg1, f32 *, 8) = (f32) (M2C_FIELD(arg0, f32 *, 8) * temp_f0);
+    invmag = invmagnitude(vec);
+    dir[0] = vec[0] * invmag;
+    dir[1] = vec[1] * invmag;
+    dir[2] = vec[2] * invmag;
 }

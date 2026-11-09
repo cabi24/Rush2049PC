@@ -1,21 +1,15 @@
+/* MakeUvsFromQuat.c: an orientation matrix from a quaternion (MAT3 resurrect.c, MakeUvsFromQuat()).
+ *
+ * The inverse of MakeQuatFromUvs: UpdateResurrectingCar turns the quaternion it interpolates during a respawn's
+ * flight back into the car's matrix. The arcade's code, with its double constants made float on the N64. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Historical label MakeUvsFromQuat is misleading: this is arcade
- * make_uvs_from_quat (reference/repos/rushtherock/game/resurrect.c:874),
- * "create uv matrix from quaternion", proven by the body: the arcade source
- * compiles to the retail words unchanged except that the three double
- * constants in `s = (Nq > 0.0) ? (1.0 / Nq) : 0.0;` are float on the N64
- * (0.0f, 1.0f, 0.0f).  Declarations, statement order and the integer `2`
- * are the arcade's.  Also matches at -O2.  No shaping quirk.
- */
-typedef float F32;
-
-void MakeUvsFromQuat(F32 q[], F32 uvs[][3]) {
-    F32 Nq, q1, q2, q3, q4, q11, q22, q33, q44;
-    F32 q12, q13, q14, q23, q24, q34;
-    F32 s;
+/* Fill the orientation matrix uvs from the quaternion q = (w, x, y, z), w first (q1 is w here), normalising it on the
+ * way (1 / |q|^2; a zero quaternion gives a zero matrix). The qNM are the products of components N and M. */
+void MakeUvsFromQuat(f32 q[], f32 uvs[][3]) {
+    f32 Nq, q1, q2, q3, q4, q11, q22, q33, q44;
+    f32 q12, q13, q14, q23, q24, q34;
+    f32 s;
 
     q1 = q[0];      q2 = q[1];      q3 = q[2];      q4 = q[3];
 

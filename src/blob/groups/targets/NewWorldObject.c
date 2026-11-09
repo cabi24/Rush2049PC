@@ -1,56 +1,69 @@
+/* targets/NewWorldObject.c: add a world tree's parts to the scene (MAT3 world.c, NewWorldObject(), static there).
+ *
+ * NewWorld calls it with a world's root part. Each part is a model part of the world file: a named model with its
+ * place and draw flags, linked to its next sibling and its first child by index into WorldBase. A part that is a
+ * target (SetupTarget: a moving or breakable track object) becomes that instead of a plain scene node. */
 #include "game/game.h"
 
-typedef struct Node104 {
-    u8 name[16];
-    f32 transform[12];
-    u32 flags;
-    s16 sibling,child;
-    u8 opaque72[8];
-    f32 minimum[3],maximum[3];
-} Node104;
-VIEW(Node104 *, WorldBase);
+/* A world part (MAT3 tModelPart, 0x68 bytes). */
+typedef struct tModelPart {
+    u8 name[16];        /* +0x00 its model's name */
+    f32 mat[12];        /* +0x10 its place: the orientation (3x3) and position (MAT3 tUVMatrix) */
+    u32 dlflags;        /* +0x40 its scene node flags */
+    s16 next,child;     /* +0x44 its next sibling and first child, indexes into WorldBase; -1 none */
+    u8 opaque72[8];     /* +0x48 sfx1, sfx2, tidx */
+    f32 min[3],max[3];  /* +0x50 its bounding box, for the culling list */
+} tModelPart;
+VIEW(tModelPart *, WorldBase);
 #define WorldBase WorldBase_view
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-extern int SetupTarget(Node104 *,s16,int,int,int,int,int);
+extern int SetupTarget(tModelPart *,s16,int,int,int,int,int);
 extern int ZOID_AddObject ( int , f32 * , s16 , u32 );
 
-void NewWorldObject(Node104 *node,s16 parent)
+/* Add the part `wnode`, its siblings and (recursively) their children to the scene under the scene node `parent`
+ * (-1: the top). Each part that is not a target becomes a scene node of its model (MBOX_FindObject_WORK by name)
+ * with its flags; in the attract demo (GS_DEMO) with the flags get_world_part_flags gives and 0xE00 (hidden in
+ * windows 1-3: the demo has one). A top-level part with a bounding box gets a culling list. The first node made is
+ * kept in Worlddlidx (NewWorld's result). The children of the k-th part made at this level go under the scene
+ * node first + k: the nodes of one level are consecutive. cur_world_obj is the part being added, for SetupTarget.
+ * The empty ifs are the decompiled code's and keep the unoptimised code as it was. */
+void NewWorldObject(tModelPart *wnode,s16 parent)
 {
-    Node104 *current;
+    tModelPart *ptr;
     s16 first;
-    int result;
-    int model;
+    int dlindex;
+    int mbobj;
     first=-1;
-    current=node;
-    if(current) { if(cur_world_obj){} do {
-        cur_world_obj=current;
-        if(!SetupTarget(current,parent,0,1,-1,1,0)) {
-            result=parent;
-            model=MBOX_FindObject_WORK(current,0,gNumModels-1,1);
+    ptr=wnode;
+    if(ptr) { if(cur_world_obj){} do {
+        cur_world_obj=ptr;
+        if(!SetupTarget(ptr,parent,0,1,-1,1,0)) {
+            dlindex=parent;
+            mbobj=MBOX_FindObject_WORK(ptr,0,gNumModels-1,1);
             if(gGameState & 8)
-                result=(s16)ZOID_AddObject(model,current->transform,result,get_world_part_flags(current)|0xE00);
+                dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,get_world_part_flags(ptr)|0xE00);
             else
-                result=(s16)ZOID_AddObject(model,current->transform,result,current->flags);
-            if(current->minimum[0]!=current->maximum[0] || current->minimum[1]!=current->maximum[1]) {
-                if(parent==-1)ZOID_BuildCullingList(current->minimum,current->maximum,result);
+                dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,ptr->dlflags);
+            if(ptr->min[0]!=ptr->max[0] || ptr->min[1]!=ptr->max[1]) {
+                if(parent==-1)ZOID_BuildCullingList(ptr->min,ptr->max,dlindex);
             }
-            if(Worlddlidx==-1)Worlddlidx=result;
-            if(first==-1)first=result;
+            if(Worlddlidx==-1)Worlddlidx=dlindex;
+            if(first==-1)first=dlindex;
         }
         if(cur_world_obj){}
-        if(current->sibling>=0)current=&WorldBase[current->sibling];
-        else current=0;
-    } while(current);
+        if(ptr->next>=0)ptr=&WorldBase[ptr->next];
+        else ptr=0;
+    } while(ptr);
     }
-    current=node;
-    while(current) {
-        if(current->child>=0)NewWorldObject(&WorldBase[current->child],first);
+    ptr=wnode;
+    while(ptr) {
+        if(ptr->child>=0)NewWorldObject(&WorldBase[ptr->child],first);
         first++;
-        if(current->sibling>=0)current=&WorldBase[current->sibling];
-        else current=0;
+        if(ptr->next>=0)ptr=&WorldBase[ptr->next];
+        else ptr=0;
     }
     if(parent){}
     if(parent){}
@@ -58,7 +71,8 @@ void NewWorldObject(Node104 *node,s16 parent)
     if(parent){}
 }
 
-u32 get_world_part_flags(Node104 *n)
+/* The scene node flags of the world part n (its dlflags). */
+u32 get_world_part_flags(tModelPart *n)
 {
-    return n->flags;
+    return n->dlflags;
 }

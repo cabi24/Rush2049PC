@@ -1,42 +1,56 @@
+/* MakeQuatFromUvs.c: a quaternion from an orientation matrix (MAT3 resurrect.c, MakeQuatFromUvs()).
+ *
+ * A respawn (Resurrect) turns the car's crash orientation and its respawn orientation into quaternions, and
+ * UpdateResurrectingCar interpolates between them during the flight and turns the result back with
+ * MakeUvsFromQuat. */
 #include "game/game.h"
 
-void MakeQuatFromUvs(void *arg0, void *arg1)
+/* Element (row, col) of the matrix by its byte offset, as the decompiled code reaches it (plain indexing gives other
+ * unoptimised code). */
+#define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
+/* Component i of the quaternion, likewise. */
+#define Q_AT(q, i) (*((f32 *) (((s8 *) (q)) + (i) * 4)))
+
+/* The quaternion q = (w, x, y, z), w first and not normalised (MakeUvsFromQuat normalises), of the orientation
+ * matrix uvs. Of the four standard formulas it uses the one whose large first term (1 plus or minus the diagonal
+ * elements) is largest, judged by the signs of the diagonal, which keeps the result well conditioned. The
+ * local copies are the original code's. */
+void MakeQuatFromUvs(f32 (*uvs)[3], f32 *q)
 {
-  f32 temp_f0;
-  f32 temp_f12;
-  f32 temp_f2;
-  float new_var;
-  temp_f0 = *((f32 *) (((s8 *) arg0) + 0));
-  if (temp_f0 >= 0.0f)
+  f32 u00;
+  f32 u11;
+  f32 u22;
+  float first;
+  u00 = UV_AT(uvs, 0, 0);
+  if (u00 >= 0.0f)
   {
-    temp_f2 = *((f32 *) (((s8 *) arg0) + 0x20));
-    temp_f12 = *((f32 *) (((s8 *) arg0) + 0x10));
-    if ((temp_f2 + temp_f12) >= 0.0f)
+    u22 = UV_AT(uvs, 2, 2);
+    u11 = UV_AT(uvs, 1, 1);
+    if ((u22 + u11) >= 0.0f)
     {
-      new_var = (1.0f + temp_f0) + temp_f12;
-      *((f32 *) (((s8 *) arg1) + 0)) = (f32) (temp_f2 + new_var);
-      *((f32 *) (((s8 *) arg1) + 4)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0x1C))) - (*((f32 *) (((s8 *) arg0) + 0x14))));
-      *((f32 *) (((s8 *) arg1) + 8)) = (f32) ((*((f32 *) (((s8 *) arg0) + 8))) - (*((f32 *) (((s8 *) arg0) + 0x18))));
-      *((f32 *) (((s8 *) arg1) + 0xC)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0xC))) - (*((f32 *) (((s8 *) arg0) + 4))));
+      first = (1.0f + u00) + u11;
+      Q_AT(q, 0) = u22 + first;
+      Q_AT(q, 1) = UV_AT(uvs, 2, 1) - UV_AT(uvs, 1, 2);
+      Q_AT(q, 2) = UV_AT(uvs, 0, 2) - UV_AT(uvs, 2, 0);
+      Q_AT(q, 3) = UV_AT(uvs, 1, 0) - UV_AT(uvs, 0, 1);
       return;
     }
-    *((f32 *) (((s8 *) arg1) + 0)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0x1C))) - (*((f32 *) (((s8 *) arg0) + 0x14))));
-    *((f32 *) (((s8 *) arg1) + 4)) = (f32) (((1.0f + (*((f32 *) (((s8 *) arg0) + 0)))) - (*((f32 *) (((s8 *) arg0) + 0x10)))) - (*((f32 *) (((s8 *) arg0) + 0x20))));
-    *((f32 *) (((s8 *) arg1) + 8)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0xC))) + (*((f32 *) (((s8 *) arg0) + 4))));
-    *((f32 *) (((s8 *) arg1) + 0xC)) = (f32) ((*((f32 *) (((s8 *) arg0) + 8))) + (*((f32 *) (((s8 *) arg0) + 0x18))));
+    Q_AT(q, 0) = UV_AT(uvs, 2, 1) - UV_AT(uvs, 1, 2);
+    Q_AT(q, 1) = ((1.0f + UV_AT(uvs, 0, 0)) - UV_AT(uvs, 1, 1)) - UV_AT(uvs, 2, 2);
+    Q_AT(q, 2) = UV_AT(uvs, 1, 0) + UV_AT(uvs, 0, 1);
+    Q_AT(q, 3) = UV_AT(uvs, 0, 2) + UV_AT(uvs, 2, 0);
     return;
   }
-  if ((*((f32 *) (((s8 *) arg0) + 0x20))) <= (*((f32 *) (((s8 *) arg0) + 0x10))))
+  if (UV_AT(uvs, 2, 2) <= UV_AT(uvs, 1, 1))
   {
-    *((f32 *) (((s8 *) arg1) + 0)) = (f32) ((*((f32 *) (((s8 *) arg0) + 8))) - (*((f32 *) (((s8 *) arg0) + 0x18))));
-    *((f32 *) (((s8 *) arg1) + 4)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0xC))) + (*((f32 *) (((s8 *) arg0) + 4))));
-    *((f32 *) (((s8 *) arg1) + 8)) = (f32) (((1.0f - (*((f32 *) (((s8 *) arg0) + 0)))) + (*((f32 *) (((s8 *) arg0) + 0x10)))) - (*((f32 *) (((s8 *) arg0) + 0x20))));
-    *((f32 *) (((s8 *) arg1) + 0xC)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0x1C))) + (*((f32 *) (((s8 *) arg0) + 0x14))));
+    Q_AT(q, 0) = UV_AT(uvs, 0, 2) - UV_AT(uvs, 2, 0);
+    Q_AT(q, 1) = UV_AT(uvs, 1, 0) + UV_AT(uvs, 0, 1);
+    Q_AT(q, 2) = ((1.0f - UV_AT(uvs, 0, 0)) + UV_AT(uvs, 1, 1)) - UV_AT(uvs, 2, 2);
+    Q_AT(q, 3) = UV_AT(uvs, 2, 1) + UV_AT(uvs, 1, 2);
     return;
   }
-  *((f32 *) (((s8 *) arg1) + 0)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0xC))) - (*((f32 *) (((s8 *) arg0) + 4))));
-  *((f32 *) (((s8 *) arg1) + 4)) = (f32) ((*((f32 *) (((s8 *) arg0) + 8))) + (*((f32 *) (((s8 *) arg0) + 0x18))));
-  *((f32 *) (((s8 *) arg1) + 8)) = (f32) ((*((f32 *) (((s8 *) arg0) + 0x1C))) + (*((f32 *) (((s8 *) arg0) + 0x14))));
-  *((f32 *) (((s8 *) arg1) + 0xC)) = (f32) (((1.0f - (*((f32 *) (((s8 *) arg0) + 0)))) - (*((f32 *) (((s8 *) arg0) + 0x10)))) + (*((f32 *) (((s8 *) arg0) + 0x20))));
+  Q_AT(q, 0) = UV_AT(uvs, 1, 0) - UV_AT(uvs, 0, 1);
+  Q_AT(q, 1) = UV_AT(uvs, 0, 2) + UV_AT(uvs, 2, 0);
+  Q_AT(q, 2) = UV_AT(uvs, 2, 1) + UV_AT(uvs, 1, 2);
+  Q_AT(q, 3) = ((1.0f - UV_AT(uvs, 0, 0)) - UV_AT(uvs, 1, 1)) + UV_AT(uvs, 2, 2);
 }
-

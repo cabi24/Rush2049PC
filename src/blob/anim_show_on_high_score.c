@@ -1,3 +1,4 @@
+/* anim_show_on_high_score.c: a blit animator that shows its blit on the high score screen. */
 #include "game/game.h"
 
 VIEW(s32, gGameState);
@@ -19,8 +20,10 @@ typedef struct HostBlit {
     u32 AnimID;
 } HostBlit;
 
-s32 anim_show_on_high_score(void *arg0) {
-    HostBlit *blt = arg0;
+/* The blit's animation function, each frame: once the game is in the high score screen (GS_HIGH_SCORE,
+ * 0x02000000) a hidden blit is shown (and redrawn with UpdateBlit). Returns 1 (keep animating). */
+s32 anim_show_on_high_score(void *blit) {
+    HostBlit *blt = blit;
 
     if ((gGameState & 0x02000000) && (blt->Hide != 0)) {
         blt->Hide = 0;
