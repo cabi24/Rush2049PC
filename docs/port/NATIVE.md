@@ -136,7 +136,7 @@ Four things live in the window today:
 
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
-| the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses | the car record's u32 fields, the sky matrix slots, the level-object nodes and lists, two palettes, `pc_matrix_spill`'s users (section 2) |
+| the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's, done) |
 | the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API; the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers; ghosts, palettes, listeners; `osVirtualToPhysical` |
 | the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
@@ -160,7 +160,7 @@ So the order is forced:
 - The heap is last because almost everything that keeps a 32-bit address keeps one into the heap. It can only
   leave once the files, display lists, audio data and records that hold heap addresses hold pointers.
 - The renderer can't stop treating values below 4 GiB as N64 addresses while display lists still hold them: the
-  ROM's lists (step 10) and the colour and depth images (step 4).
+  ROM's lists (step 10) and the colour and depth images (step 4, done: they are pointers).
 - The image block is heap accounting: it goes with the heap's addresses (step 6 makes it an offset).
 - Separate objects per datum need AddressSanitizer to find walks, and AddressSanitizer on x86-64 needs nothing at
   0x80000000 (or the moved build, [NOFIXED.md](NOFIXED.md) 9).
@@ -337,7 +337,52 @@ target records in `include/game/types.h`, `pc_statll_link` in `port/include/pc_p
 (battle, stunt and race paths reach the targets; the retail battle scripts); `assets_targets`, `assets_battle`.
 Depends on: nothing. Can run with 2 and 4. Risk: the pool's element size is 112 in `pool_init` and in walks.
 
-### Step 4. The sky, the palettes, the spill and the image addresses (small-medium)
+### Step 4. The sky, the palettes, the spill and the image addresses (small-medium): done
+
+Done 2026-11-09 (wave 3.1). What no longer keeps an arena address, and what the renderer gets in place of physical
+images:
+
+| What | Before | Now |
+|---|---|---|
+| each window's sky dome matrix (`SkyInit.c`, `SkyUpdate.c`, `SkyClear.c`) | `skyMatrices`, `s32[4]` in the game arena: the matrix's `PC_N64A` stored, `PC_N64P` read back (104,356 crossings into `gMatrices`, 70 the other way) | `struct tUVMatrix *[4]`, MAT3's type: own storage, read and written as pointers |
+| GetMatrix's matrices past the N64's 150 | `pc_matrix_spill`, reserved in the window at 0x8014A250 (`reserved.txt`) because of the sky's u32s | PC storage `ZOID_NewMatrix.c` defines; `reserved.txt` is empty (gen_data's rules for it go with step 5) |
+| the battle HUD's health bars' palette (`animHealth.c`) and the track select's fog palette (`trackscr.c`) | `healthPal`, `n64FogPal`: MAT3's `tPalette`, the WAD's PLHD layout, holding the colours' 32-bit address (`PAL_BASE`, `FOG_TABLE`: `PC_N64W`, 6,020 crossings into the runtime images' arenas), which the blit draw read with `PC_N64P` (`zoid_draw/group.c`, 6,018) | `tBlitPalette` (`include/game/types.h`): `palBase` a pointer, which the blit draw reads as one; own storage. The WAD's palettes (`tPalette`, the draw's `Palette`) keep the N64 layout until step 7 |
+| the colour and depth images (`StartGraphics.c`, `ClearScreen.c`) | `osVirtualToPhysical(buffer)` in SETCIMG and SETZIMG (3 sites, 307,446 calls, each through `pc_n64_addr`; `pcgfx_rdp_command` read 292,204 physical images) | the buffers' pointers. `osVirtualToPhysical` and `osPhysicalToVirtual` had no other caller and are gone from port/ultra and `PR/os.h`; the counter keeps the kind, at 0 |
+
+The renderer resolves a buffer's pointer and the physical address it replaces to the same host pointer, so its
+targets, the screenshots and the high frame rate's copies are what they were: the gate's screenshots byte for byte,
+the `gfx_*` and `hfr_*` tests.
+
+The crossings along the 63 synthetic paths (`crossings.py --guard`, 1f592ce8 against this step; the last digits of
+the per-frame counts vary between runs, 9.4):
+
+| Kind | Before: sites, crossings | After | What went |
+|---|---:|---:|---|
+| `PC_N64P` | 118, 32,127,279 | 115, 32,016,705 | `SkyUpdate.c` (2), the blit palette's read in `zoid_draw/group.c` |
+| `PC_N64A` | 58, 1,651,346 | 57, 1,651,276 | `SkyInit.c` |
+| `PC_N64W` | 30, 1,975,924 | 28, 1,969,888 | the fog palette (`trackscr.c`), `animHealth.c` |
+| `pc_n64_addr` | 4, 332,729 | 3, 25,283 | `osVirtualToPhysical`'s |
+| `osVirtualToPhysical` | 3, 307,446 | 0, 0 | all |
+| `gfx.native_list` | 7, 7,895,283 (phys 292,204) | 7, 7,895,283 (phys 0) | no physical image: the buffers are heap pointers in the window until step 12 |
+| total | 243, 73,180,159 | 233, 72,448,587 | |
+
+Into the arenas: `PC_N64P` game arena 23,210,820 to 23,106,300 and the runtime images' arenas 6,018 to 0, `PC_N64A`
+game arena 70 to 0, `PC_N64W` runtime images' arenas 6,020 to 0 (`--check --zero-region ovl_a_arena,ovl_b_arena`
+passes, and `--zero-site` for the step's files, `--zero-kind osVirtualToPhysical`). What still crosses into an arena is
+steps 2's and 3's (the car record, the level objects) and the renderer's pointers to arena data in native lists
+(9.4). The census: `data.reserved` 1 to 0, `conv.virt_to_phys.game` 4 to 0, `conv.PC_N64P.game` 64 to 61,
+`conv.PC_N64A.game` 84 to 83, `conv.file_macros.defs` 64 to 62, `data.arena.game`, `ovl_a`, `ovl_b` one name fewer
+each (`context.own` 390 to 393).
+
+**Left for step 6: the scheduler's pending swap.** `__osScPendingSwap` (`src/rom/scheduler.c:233, 317`) keeps the
+frame buffer waiting to be swapped in as a 32-bit address (`PC_N64A`, `PC_N64P`, 101,426 crossings each, into the
+heap). As a `void *` it plays the same, but it is initialized boot data: own storage the loader fills from the image,
+so the loader's summary line counts one more null pointer (3,198 to 3,199 on the synthetic cartridge), and that line
+is the first event of the gate's trace: every path `DIFFERS`. Decoupled (`port/data/decoupled.txt`, without `init`:
+the PC's own zero, as the image's word must be, or the first retrace would swap in a frame buffer that isn't one) it
+keeps the summary as it is. Step 6's, with the heap's other holders.
+
+The plan was:
 
 What else keeps an arena address, and the renderer's two image addresses: the sky's matrix slots (`SkyInit.c`,
 `SkyUpdate.c`: `skyMatrices` as pointers), which lets `pc_matrix_spill` be ordinary PC storage (`reserved.txt` empty,
@@ -372,7 +417,8 @@ audio_sfx_shutdown}.c`, `FindChunk.c`, `FindHeap.c`, `AllocateMemoryHeapHigh.c`,
 `purgeable_memory/group.c`), the API in `include/game/memory.h`, `save.h`, `system.h` and its callers (42 files:
 `state.c`, `loadwave.c`, `initgfx.c`, the save files, `SetupCarColor`, `car_palette_init.c`, `musyx_alloc.c`,
 `AudInit3D.c`, `AudioSfxInit.c`, `paksysdc`, `trackscr.c`, `InitBattlePowerUps.c` ...), the image block as an offset,
-`port/ultra/heap.c` (its walker reads the headers). The block stays at 0x8017A640 in the window until step 12.
+`port/ultra/heap.c` (its walker reads the headers), and the scheduler's pending swap `__osScPendingSwap`, which
+step 4 left (its section says why and how). The block stays at 0x8017A640 in the window until step 12.
 Proof: the gate, including the memory paths (`mem64`, `membig`, `memhigh`); the heap's exit line (peak, least free,
 allocations) the base's on every path; `assets_heap`; the crossing counter: no heap crossing in the heap's files.
 Depends on: nothing in this list, but its 42 caller files must be free: run it where steps 2-4 and 7-9 don't edit
@@ -702,8 +748,9 @@ traces leave out. Compare kinds and sites, not the last digits; `--baseline` all
   `AnimateWing.c`) reach the heap (the road's nodes) or aren't reached on these paths: their sites are the counter's
   heap lines, and they still change with the record.
 - Step 4: on these paths only `StartGraphics.c` calls `osVirtualToPhysical` (3 sites, the colour and depth images);
-  the renderer's physical image addresses are `pcgfx_rdp_command`'s (292,204 in `gfx.native_list`). `ClearScreen.c` and
-  `scheduler.c` reach the frame buffer through `PC_N64P`/`PC_N64A` (heap), not through an image address.
+  the renderer's physical image addresses are `pcgfx_rdp_command`'s (292,204 in `gfx.native_list`). `scheduler.c`
+  reaches the frame buffer through `PC_N64P`/`PC_N64A` (heap), not through an image address. (Step 4 is done: its
+  numbers and what it left are in section 5.)
 - The runtime images' block (`image_block`: `overlay_loader.c`, `alloc_at.c`, `state.c`, 431 crossings) is step 6's.
 - The guard can't give steps 2-4 their targets before step 5 (9.3); the counter's arena regions do, and step 5's
   guard run with no fault is the proof that they found them all on these paths.

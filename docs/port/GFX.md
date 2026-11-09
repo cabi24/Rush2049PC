@@ -877,11 +877,13 @@ by w in double for every triangle that uses it; computing that once a vertex at 
   - Every pointer stored in w1 must be the full pointer: macros, raw `words.w1 =` writes, and the 32-bit pointer
     store that patches the inline CULLDL branch (particle_context.c:1116).
   - List arithmetic must count in `Gfx` units, never in bytes or `<< 3`.
-- **Masked addresses.** A masked address (`osVirtualToPhysical`, `& 0xFFFFFF`, `| 0x80000000`) is fine for memory
-  inside the RDRAM window, because it stays an N64 address. Host pointers above 4 GB must never be masked.
+- **Masked addresses.** A masked address (`& 0xFFFFFF`, `| 0x80000000`) is fine for memory inside the RDRAM window,
+  because it stays an N64 address. Host pointers above 4 GB must never be masked.
 - **Tasks and present.** `osSpTaskStart` → `pc_gfx_run_dl(task->t.data_ptr)`. `osViSwapBuffer(fb)` →
-  `pc_gfx_present(fb)`, with fb as the game holds it (K0 or host). Color images set through
-  `osVirtualToPhysical(fb)` resolve to the same target.
+  `pc_gfx_present(fb)`, with fb as the game holds it (K0 or host). The colour and depth images are set as the
+  buffers' pointers (`StartGraphics`, `ClearScreen`), the same values, so they resolve to the same target. Until
+  [NATIVE.md](NATIVE.md) step 4 they were the physical addresses `osVirtualToPhysical` made of them, as on the N64;
+  the renderer resolved those to the same pointers, and still takes a physical address from a ROM list.
 - **Data structures.** Build Mtx with `guMtxF2L` (32-bit words) and write Vtx, Vp and Light by field.
   - A `memcpy` of big-endian ROM fields into a native `Vtx` leaves them big-endian. particle_context.c:1372 copies tc
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.

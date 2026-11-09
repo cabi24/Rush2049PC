@@ -16,7 +16,7 @@ owns `main()`. About 3,300 lines of C11.
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
-| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, `osVirtualToPhysical`, big-endian ranges, the absolute-symbol fix-up |
+| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
 | `rcpaddr.c` | addresses past 16 MiB of a larger window: the display lists' relocation ([MEMORY.md](MEMORY.md) 3) |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
 | `crossings.c` | only in the counting build (`cmake -DRUSH_COUNT_CROSSINGS=ON`): every crossing between an N64 address and a host pointer counted by site, and the arena guard (`RUSH2049_WINDOW_GUARD=arenas`) ([NATIVE.md](NATIVE.md) 9) |
@@ -106,10 +106,10 @@ addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
 
 **Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'
 stacks are mapped high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical,
-segmented), and game data in the window is simply RDRAM to it. `osVirtualToPhysical` maps window addresses to
-physical; it truncates a host address, with one warning, since the game keeps the result in a u32. In a window of
-more than 16 MiB it gives the K0 address past 16 MiB instead, where a physical one would read to the RSP as a
-segmented one ([MEMORY.md](MEMORY.md) 3).
+segmented), and game data in the window is simply RDRAM to it. The game gives the renderer its colour and depth
+images as the buffers' pointers; there is no `osVirtualToPhysical` (until [NATIVE.md](NATIVE.md) step 4 it made
+their physical addresses). In a window of more than 16 MiB the display lists' relocations keep the K0 address past
+16 MiB, where a physical one would read to the RSP as a segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
 (`osTvType`, `osTvType`, `osMemSize` for osMemSize), the heap start `game_bss_end`, the images' base

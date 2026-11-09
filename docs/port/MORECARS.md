@@ -215,11 +215,15 @@ the trails' colour comes from the wing's animator with one player), with any num
 
 A per-car array can't simply move to PC storage when something stores its address as a 32-bit N64 address. The
 spike moved the matrix pool `gMatrices` out of the window to grow it, and every path faulted in its first race frame
-in `SkyUpdate` (`SkyUpdate.c:3804-3822`: `skyMatrices` holds each window's camera matrix as
+in `SkyUpdate` (`skyMatrices` held each window's camera matrix as
 a u32; `InitBlast.c`'s 50 blast matrices from the same pool are s32 on the N64 and already pointers on the
 PC, `InitBlast.c:3813-3817`). The other arrays of 2.3 moved out of the window in the spike without a fault on
 any path, which is not proof; the decoupling recipe's inventory step ([DECOUPLE.md](DECOUPLE.md) 1: `PC_N64W` stores,
 u32 fields, a `RUSH_CHECK_CASTS` run) decides it for each.
+
+Since 2026-11-09 ([NATIVE.md](NATIVE.md) step 4) `skyMatrices` holds pointers (`struct tUVMatrix *[4]`, MAT3's
+type), so nothing keeps a 32-bit address of a pool matrix: the spill (section 8) is ordinary PC storage, and the pool
+could leave the window whole.
 
 ## 3. The bounds
 
@@ -660,7 +664,7 @@ more matrices, which is what the spike used.
 |---|---|
 | Sizes | `port/include/pc_game_types.h` ("The pools a race fills"): `PC_N64_MATRICES`, `PC_MATRIX_SPILL`, `PC_SCENE_NODES`, `PC_FRAME_LOOKATS`, `PC_FRAME_MATRICES`, `PC_GLIST_LEN`, `PC_GLIST_OFFSET`, `PC_FRAME_BYTES` |
 | The checks and the high-water marks | `port/ultra/pools.c` (`pc_pool_overflow`, `pc_frame_pools`, `pc_pools_report`) |
-| GetMatrix's spill in the window | `pc_matrix_spill`, `port/data/reserved.txt` (gen_data: `load_reserved`, `reserved_place`, `reserved_lines`, `check_reserved`) |
+| GetMatrix's spill | `pc_matrix_spill`, PC storage `ZOID_NewMatrix.c` defines (until 2026-11-09 in the window: `port/data/reserved.txt`, gen_data's `load_reserved`, `reserved_place`, `reserved_lines`, `check_reserved`) |
 | The frame's buffer | `pc_frame_dl` in the three copies of _InitGfx (`initgraphics/initgfx.c`, `heap_release/initsystem_start.c`, `heap_release/initsystem.c`), `StartGraphics.c`, the `Dynamic` view and the check in `EndGraphics.c` |
 | The test | `assets_pools` (`port/assets/tests/test_pools.c`) |
 
@@ -668,7 +672,7 @@ more matrices, which is what the spike used.
 
 | Pool | N64 | PC | Past its end |
 |---|---|---|---|
-| persistent matrices (GetMatrix, `ZOID_NewMatrix.c`) | 150 at `gMatrices` (0x8015F740-0x80161360), index 0 unused; no limit | the same 150 at their N64 addresses, then 128 more in `pc_matrix_spill` (0x8014A250-0x8014BA50, 6,144 B, in the window: 2.7): indexes 1-277 | said; the last matrix handed out again |
+| persistent matrices (GetMatrix, `ZOID_NewMatrix.c`) | 150 at `gMatrices` (0x8015F740-0x80161360), index 0 unused; no limit | the same 150 at their N64 addresses, then 128 more in `pc_matrix_spill` (6,144 B of PC storage; until 2026-11-09 in the window at 0x8014A250-0x8014BA50: 2.7): indexes 1-277 | said; the last matrix handed out again |
 | scene nodes (`ZOID_AddObject`, `ObjInstanceList`) | 600; no limit (a 601st is written past the table) | 600 (`PC_SCENE_NODES`) | said; the last node handed out again, the count kept at 600 |
 | the frame's lookats (`GfxBuf.la[32]` at +0x280 of the frame's buffer, `frame_lookat_count`) | 32; no limit (past it: the identity, then the frame's matrices) | 32 (`PC_FRAME_LOOKATS`) | said, at the frame's end |
 | the frame's matrices (`frame_matrix_cursor`, from +1,728) | 600 (to +0x9CC0) | 1,200 (`PC_FRAME_MATRICES`, to `PC_GLIST_OFFSET` = +78,528) | said, at the frame's end |
@@ -693,17 +697,18 @@ why. `pc_frame_pools` runs every frame where the SDK's check was an empty `if` (
 `gEnvCountMax` and the sprites `gMaxBlitInsts`, never reset; the port's for the frame's three). It is not part of a trace
 (`synth_compare.py` reads the state and status lines and the loader's summary).
 
-**The window range.** GetMatrix's matrices must stay in the window (a window's camera matrix is kept as a u32,
-`skyMatrices`: 2.7), so the spill is a named reservation, not a bare address: `port/data/reserved.txt` (`PC_NAME
-ADDRESS`) names `pc_matrix_spill 0x8014A250`; gen_data takes its size from its one declaration
+**The window range** (until 2026-11-09; since [NATIVE.md](NATIVE.md) step 4 the spill is PC storage that
+`ZOID_NewMatrix.c` defines, and `reserved.txt` is empty). GetMatrix's matrices had to stay in the window (a window's
+camera matrix was kept as a u32, `skyMatrices`: 2.7), so the spill was a named reservation, not a bare address: `port/data/reserved.txt` (`PC_NAME
+ADDRESS`) named `pc_matrix_spill 0x8014A250`; gen_data takes its size from its one declaration
 (`float[PC_MATRIX_SPILL][12]`, pc_game_types.h), and refuses a range outside the game's BSS or outside a range a
 decoupled item freed (here the model records' 0x8014A250-0x8014D280), over a placed symbol or another reservation, or
 a type laid out otherwise on the N64; it defines the symbol absolute in data.c (zeroed with the game arena's BSS, as the bytes were), lists it in
 `data_layout.txt` ("Reserved"), and `--check` fails if the executable doesn't have it there (`gen_data check: ...
 1 reserved in the window`). `data_symbols.txt`, the loader's tables and the synthetic cartridge don't have it, so they
 are the same files. A `RUSH_CHECK_CASTS` build ran the race, the demo, two players, drive and pause with 12 cars on
-the synthetic cartridge with the spill in use (indexes to 207) and stopped nowhere. 0x8014BA50-0x8014D280 (6,192 B)
-is left for others.
+the synthetic cartridge with the spill in use (indexes to 207) and stopped nowhere. With the spill out of the window,
+the model records' old range, 0x8014A250-0x8014D280, holds nothing.
 
 **The frame's buffer.** Only the list's start and the two lengths moved: the GfxBuf (viewports, vertices,
 projections, lookats, identity: particle_knot's and particle_context's view, 1,728 B) and the matrices' start

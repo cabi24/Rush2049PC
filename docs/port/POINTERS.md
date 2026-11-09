@@ -44,7 +44,8 @@ game C is now proven by running the game (PCONLY.md 2).
   (`zoid_draw/group.c` and `resurrect/particle_context.c`, `zoid_branch_slot[-1].words.w1`) stores the full pointer.
 - **Contract for the renderer (agent C):** in a native list, `w1` of VTX, DL, BRANCH (E1 before 04/DD), MTX,
   MOVEMEM, MOVEWORD SEGMENT and SETxIMG holds what the game stored: a host pointer, or a 32-bit N64 address the
-  game computed (K0 `0x80xxxxxx`, physical from `osVirtualToPhysical`, segmented). Heap and frame buffers are in the
+  game computed (K0 `0x80xxxxxx`, segmented; the colour and depth images were physical, from `osVirtualToPhysical`,
+  until [NATIVE.md](NATIVE.md) step 4 made them the buffers' pointers). Heap and frame buffers are in the
   RDRAM window, so masked addresses of them are fine. For every other command use `(u32)w1`.
 - Code that assumed 8-byte commands:
   - the two frame command buffers (`frame_command_buffer_a`/`frame_command_buffer_b`: 0x9CC0 bytes of matrices and vertices, then 4000
@@ -201,7 +202,7 @@ hid nothing on the PC ([BRINGUP.md](BRINGUP.md) 15). The car record's raw offset
 `long` is 32-bit on the N64. There are 56 plain `long` tokens (not 159; that count included `long long`): 24 in
 `src/rom` (agent A), the rest here. Under `TARGET_PC` the four zlib deflate copies use `unsigned int` for
 `uLong`/`ulg` and `int` for `block_start`, and `zlib_deflate`'s `(long)` casts go through `N64_LONG`.
-`skyMatrices` and `tOrderedList.numElements` are `int`. Left: `include/static_formatter_context.h` (only
+`tOrderedList.numElements` is `int` (`skyMatrices` was too; matrix pointers since [NATIVE.md](NATIVE.md) step 4). Left: `include/static_formatter_context.h` (only
 `src/rom/lib_34a0.c`, which the PC build replaces) and overlay B's `(unsigned long)&gFrameSeconds`, a pointer cast that
 is already right on LP64.
 
