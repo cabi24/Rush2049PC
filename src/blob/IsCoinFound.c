@@ -5,8 +5,7 @@
 
 /* A player's input record as this reads it: which "just play" profile, and the profile handle in use. */
 typedef struct PlayerPad {u8 pad0;u8 index;u8 pad2[70];tProfile **profile;} PlayerPad;
-extern PlayerPad gPlayers[];VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
+extern PlayerPad gPlayers[];
 
 /* Whether player has found coin number bit of the current track (the coins found bits of its race or stunt stats),
  * from the player's profile or else its "just play" profile. 1 (found) in attract mode, on other tracks, and for a

@@ -8,8 +8,6 @@
 typedef struct PlayerPad {u8 index,selector;u8 opaque[70];tProfile **profile;} PlayerPad;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* Sets coin bit's bit in the player's profile (or its "just play" profile): on a race track in both of the track's
  * race stats, on a stunt arena in its stunt stats; a profile with a pak file writes it (SavePlayerCoins). Nothing in

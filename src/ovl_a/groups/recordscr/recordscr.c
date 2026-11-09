@@ -231,8 +231,6 @@ void updateRecordScreen(void)
 
 VIEW(char[], gDeleteName);
 #define gDeleteName gDeleteName_view
-VIEW(ProfileHandle[4], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* The select menu's input (MAT3 recordscr.c controlSelect). The selection first moves off a row that isn't offered.
  * With the "clear" button turned (left and right on a profile row) A asks to clear that profile's records (or all

@@ -31,9 +31,6 @@ void *NewMultiBlit(s16, s16, void *, s16);
 
 extern PadState gPlayers[4];           /* gPlayers */
 
-VIEW(Profile *[4], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
-
 /* The list's rows (gControlSelect): the ten controls, then these two. */
 #define CONTROLS_ROW_RUMBLE 10      /* the rumble setting (0-2), offered when the player's pak is a Rumble Pak */
 #define CONTROLS_ROW_DEFAULTS 11    /* A sets the default controls */

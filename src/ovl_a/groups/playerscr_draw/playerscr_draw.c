@@ -15,8 +15,6 @@ typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;
 typedef struct FiveParts FiveParts;
 
 extern Player gPlayers[];
-VIEW(Profile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 VIEW(Color4, flashColors);
 #define flashColors flashColors_view

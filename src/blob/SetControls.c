@@ -6,9 +6,6 @@ extern tPadState gPlayers[];
 VIEW(s8[10], gDefaultControls);
 #define gDefaultControls gDefaultControls_view
 
-VIEW(void *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
-
 /* For each player: takes the default layout (resetToDefault) or the layout chosen for their controller
  * (gNewControls); if the controls screen changed that controller's layout (gControlsSet), saves it in the player's
  * profile and, without a profile or when resetting, in the controller's own (gJustPlayers); then turns the layout's

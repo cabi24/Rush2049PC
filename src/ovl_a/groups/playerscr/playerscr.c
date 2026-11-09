@@ -184,8 +184,6 @@ void calcSelectMenuMaxSize(void)
 struct PlayerFiles { u32 unknown0,  unknown4 ; Owner * head,  * tail ; };
 VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
-VIEW(Owner[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 extern void *memset(void *,s32,u32);
 
@@ -977,7 +975,7 @@ void updatePlayerScreen(void)
                 s32 i;
                 Owner *player;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (gPlayers[i].owner != &gJustPlayers[i]) {
+                    if (gPlayers[i].owner != (Owner *) &gJustPlayers[i]) {   /* Owner: this file's profile handle */
                         for (player = gPlayerFiles.head; player; player = player->body->next)
                             if (gPlayers[i].owner == player) break;
                         if (!player) {

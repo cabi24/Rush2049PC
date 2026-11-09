@@ -5,17 +5,6 @@
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 
-typedef struct SaveData {
-    char pad0[13];
-    char name[2051];
-} SaveData; /* 0x810 */
-
-typedef struct SaveSlot {
-    void *next; void *prev; void *fileh; char pad0_C[0x14 - 0xC];
-    char name[24];
-    SaveData **data;
-} SaveSlot; /* 0x30 */
-
 typedef struct ListHead {   /* a list's header (MAT3 tDLList), the PC's layout */
     s8 handle;      /* the list links handles, not records */
     s8 dbl;         /* doubly linked */
@@ -31,11 +20,6 @@ typedef struct Record {     /* a ghost (SaveInit' Ghost), 64 bytes on the PC (do
     void **datah;
     void **header;
 } Record;
-
-VIEW(SaveSlot *[4], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
-VIEW(SaveSlot[4], gRealJustPlayers);
-#define gRealJustPlayers gRealJustPlayers_view
 
 s32 sprintf(char *, const char *, ...);
 
@@ -64,11 +48,11 @@ void SaveInit(void) {
 
     for (i = 0; i < 4; i++) {
         gJustPlayers[i] = &gRealJustPlayers[i];
-        gRealJustPlayers[i].data = &gJustPlayerData[i];
+        gRealJustPlayers[i].datah = &gJustPlayerData[i];
         gJustPlayerData[i] = &gRealJustPlayerData[i];
         InitPlayer(&gJustPlayers[i]);
         sprintf(gJustPlayers[i]->name, player_name_format, i + 1);
-        game_strcpy((*gJustPlayers[i]->data)->name, gJustPlayers[i]->name);
+        game_strcpy((*gJustPlayers[i]->datah)->name, gJustPlayers[i]->name);
     }
     InitLL(&gPlayerFiles, 1, 1);
     InitLL(&gGhostFiles, 1, 0);

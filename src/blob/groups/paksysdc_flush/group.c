@@ -26,8 +26,6 @@ typedef struct tDLList {
     u32 count;
     tPakHandle *head, *tail;
 } tDLList;
-VIEW(volatile tPak[], gPaks);
-#define gPaks gPaks_view
 VIEW(tDLList[], gPS_Files);
 #define gPS_Files gPS_Files_view
 

@@ -101,7 +101,7 @@ extern u8 password_gData[EXTENT(32)];
 extern PlayerFileList gPlayerFiles;
 extern struct Record **gLimboGhosts;
 extern tProfile gRealJustPlayers[EXTENT(4)];
-extern struct SaveData *gJustPlayerData[EXTENT(4)];
+extern tSaveData *gJustPlayerData[EXTENT(4)];   /* their data (gRealJustPlayerData), through these handles */
 extern tSaveData gRealJustPlayerData[EXTENT(4)];
 extern void **player_profile_handles[EXTENT(4)][16];
 extern tProfile player_profile_records[EXTENT(4)][16][1];
@@ -116,7 +116,7 @@ extern AudioList gPS_Files[EXTENT(4)];
 extern f32 gBestLapTime[EXTENT(4)];
 extern PakFileRecord pak_file_records[EXTENT(64)];
 extern s8 gOptions[EXTENT(kNumOptions)];   /* the options, a byte each by kOpt* (MAT3: signed char gOptions[41]) */
-extern tBlastMat gJustPlayers[EXTENT(4)];
+extern tProfile *gJustPlayers[EXTENT(4)];   /* the controllers' own profiles, "Player n" (gRealJustPlayers) */
 extern s32 gBattlePoints;
 extern f32 gLapTimes[EXTENT(4)][8];
 extern s32 ties;

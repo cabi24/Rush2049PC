@@ -7,23 +7,6 @@ typedef struct { s32 w[6]; } OSMesgQueue;
 
 typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
 
-/* A pak's record (tPak) as the rumble thread reads it, its level and phase volatile. */
-typedef struct {
-    char pad0[6];
-    s8 rumble;                  /* a Rumble Pak is in */
-    char pad7[5];
-    PcPfs pfs[1];               /* the OSPfs the motor calls take */
-    s32 error, FreeSpace;
-    s8 motorOn;
-    s8 request;
-    volatile s8 level;
-    s8 unk7F;
-    volatile s16 phase;
-    char pad82[0x282];
-} Controller;
-
-VIEW(Controller[4], gPaks);
-#define gPaks gPaks_view
 
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
@@ -62,7 +45,6 @@ void rumble_thread_entry(void *arg) {
     s32 i;
     s32 retried;
     s32 level;
-    Controller *p;
 
     osCreateMesgQueue(&rumble_queue, &rumble_msg, 1);
     osScAddClient(&gScheduler, &client, &rumble_queue);
@@ -92,15 +74,15 @@ skip:
 off:
             if (gPaks[i].motorOn) {
                 if (!gRumble) {
-                    osMotorInit(&si_event_queue, gPaks[i].pfs, i);
+                    osMotorInit(&si_event_queue, &gPaks[i].pfs, i);
                 }
                 while (1) {
-                    if (__osMotorAccess(gPaks[i].pfs, 0) == 0) {
+                    if (__osMotorAccess(&gPaks[i].pfs, 0) == 0) {
                         gPaks[i].motorOn = 0;
                         break;
                     }
                     if (retried) break;
-                    if (osMotorInit(&si_event_queue, gPaks[i].pfs, i) != 0) break;
+                    if (osMotorInit(&si_event_queue, &gPaks[i].pfs, i) != 0) break;
                     retried = 1;
                 }
             }
@@ -110,12 +92,12 @@ check:
 on:
             if (!gPaks[i].motorOn) {
                 while (1) {
-                    if (__osMotorAccess(gPaks[i].pfs, 1) == 0) {
+                    if (__osMotorAccess(&gPaks[i].pfs, 1) == 0) {
                         gPaks[i].motorOn = 1;
                         break;
                     }
                     if (retried) break;
-                    if (osMotorInit(&si_event_queue, gPaks[i].pfs, i) != 0) break;
+                    if (osMotorInit(&si_event_queue, &gPaks[i].pfs, i) != 0) break;
                     retried = 1;
                 }
             }

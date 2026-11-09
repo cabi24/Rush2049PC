@@ -85,23 +85,6 @@ s32 unzipdata(void *, s32, void *);
 #define N64PTR0(T, a) ((T)PC_N64P(a))
 #define SLOT_S32(h) (s32)PC_SLOT_N64(h)
 
-/* The seats are the record's 16 file entries (0x28 bytes from +0x84 on the N64); the N64 view starts them 0x20
- * early, at +0x64, with busy at +0x22. */
-typedef struct {
-    u8 pad0[2];
-    u8 busy;          /* file entry +2 */
-    u8 pad3[37];
-} SeatEntry;
-typedef struct {
-    u8 pad0[12];
-    PcPfs pfs;
-    s32 error, FreeSpace;
-    u8 pad7C[8];
-    SeatEntry seat[16];  /* the file entries */
-} PlayerSeats;
-VIEW(PlayerSeats[], gPaks);
-#define gPaks gPaks_view
-
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 
@@ -115,7 +98,7 @@ void PS_PurgeFile(Handle h) {
         DeallocateMemoryInternal(N64A(data), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         s->data = NULL;
-        gPaks[s->id].seat[s->seat].busy = 0;
+        gPaks[s->id].files[s->seat].flag2 = 0;
     }
 }
 
