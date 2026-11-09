@@ -22,8 +22,9 @@ enum pc_cross_kind {
     PC_CROSS_N64W,           /* game C: PC_N64W(p), a pointer stored in a 32-bit field */
     PC_CROSS_SLOT_N64,       /* game C: PC_SLOT_N64(s), a heap handle's slot read as an N64 address */
     PC_CROSS_SLOT_SET,       /* game C: PC_SLOT_SET(s, a), an N64 address stored in a handle's slot */
-    PC_CROSS_STATLL_GET,     /* game C: a StatLL list's 32-bit link read (pc_statll_link, the level-object nodes) */
-    PC_CROSS_STATLL_SET,     /* game C: one written (pc_statll_set_link) */
+    PC_CROSS_STATLL_GET,     /* game C: a StatLL list's 32-bit link read (the level-object nodes' pc_statll_link,
+                              * gone with NATIVE.md step 3: every list links by host pointers; the kind stays, 0) */
+    PC_CROSS_STATLL_SET,     /* game C: one written (pc_statll_set_link, gone with step 3) */
     PC_CROSS_N64_PTR,        /* by caller: pc_n64_ptr(a), an N64 address made a host pointer */
     PC_CROSS_N64_ADDR,       /* by caller: pc_n64_addr(p), a host pointer's N64 address */
     PC_CROSS_VIRT_TO_PHYS,   /* by caller: osVirtualToPhysical(p), the colour and depth images' addresses */

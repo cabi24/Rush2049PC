@@ -1,10 +1,10 @@
 /* InitBattlePowerUps: the battle arena's power-ups at a battle's start (MAT3 powerups.c). */
 #include "game/game.h"
 
-/* Finds the arena's power-ups: the targets flagged 0x20 (gTargetList's, whose nodes link by window addresses on the
- * PC: docs/port/POINTERS.md 10), each in the list gBattlePowerUps.tS (allocated unless `restart`: a restart keeps
- * it; a PC entry holds a host pointer, 16 bytes). Then the times until each kind of power-up appears: health in 5 to
- * 15 seconds, invisibility and shield in 15 to 60, one of the two 45 later. */
+/* Finds the arena's power-ups: the targets in use flagged 0x20 (gTargetList's list), each in the list
+ * gBattlePowerUps.tS (allocated unless `restart`: a restart keeps it; a PC entry holds a host pointer, 16 bytes).
+ * Then the times until each kind of power-up appears: health in 5 to 15 seconds, invisibility and shield in 15 to
+ * 60, one of the two 45 later. */
 void InitBattlePowerUps(s32 restart)
 {
     tTarget *t;
@@ -13,7 +13,7 @@ void InitBattlePowerUps(s32 restart)
         gBattlePowerUps.tS = AllocateMemoryHeap(0, gBattlePowerUps.num * (s32) sizeof(tBattlePowerUpT));
     }
     n = 0;
-    for (t = (tTarget *) gTargetList.head; t != 0; t = (tTarget *) PC_N64P(t->next)) {
+    for (t = gTargetList.head; t != NULL; t = t->next) {
         if (t->Flags & 0x20) {
             gBattlePowerUps.tS[n].t = t;
             gBattlePowerUps.tS[n].last = 1;

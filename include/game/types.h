@@ -224,7 +224,6 @@ struct SynthVoicePanView;
 struct SynthVoicePriorityView;
 struct SynthVoiceVariablesView;
 struct Table;
-struct Target;
 struct TexRect;
 struct TexTile;
 struct Tire;
@@ -1761,9 +1760,10 @@ typedef struct tBlastMat { /* 0x8 bytes */
     struct tUVMatrix *mat; /* 0x0 */
 } tBlastMat;
 
-/* A pool of fixed-size elements (MAT3 tStatList; InitStatLL, GetStatLLE, FreeStatLLE): its elements linked through
- * their first pointer (and their second when dbl, doubly linked), the ones in use from head, the free ones from store.
- * The PC's layout: the pointers are host pointers (40 bytes, docs/port/POINTERS.md 9). */
+/* A pool of fixed-size elements (MAT3 tStatList; InitStatLL, GetStatLLE, FreeStatLLE, ClearStatLL): its elements
+ * linked through their first pointer (MAT3 tStatLLE) and, when dbl, back through their second (tDLLE), the ones in
+ * use from head, the free ones from store. The PC's layout: the pointers are host pointers (40 bytes), and so are
+ * the elements' links, in every list: an element is its host type, links first (docs/port/POINTERS.md 9.5). */
 typedef struct tStatList { /* 0x28 bytes */
     u8 dbl;          /* 0x0 doubly linked */
     s32 numElements; /* 0x4 */
@@ -1772,6 +1772,18 @@ typedef struct tStatList { /* 0x28 bytes */
     void *head;      /* 0x18 the ones in use */
     void *store;     /* 0x20 the free ones */
 } tStatList;
+
+/* A StatLL element's link (MAT3 tStatLLE): the next element, on the list in use or the free list. */
+typedef struct tStatLLE {
+    void *next; /* 0x0 */
+} tStatLLE;
+
+/* A doubly linked element's links (MAT3 ll.c's tDLLE): a doubly linked StatLL's, an AudioList's (InsertLLE,
+ * RemoveLLE). */
+typedef struct tDLLE {
+    void *next; /* 0x0 */
+    void *prev; /* 0x8 */
+} tDLLE;
 
 /* ---- track: tracks, the road tree, targets, paths and checkpoints */
 
@@ -1810,9 +1822,10 @@ typedef struct AltPath { /* 0x18 bytes */
 #define ALT_PATH_RESURRECT 1
 #define ALT_PATH_ALONE 2
 
+/* A player's mines on the road (MAT3 tPlayerMines, gPlayerMines): at most three at once (AnimateMine). */
 typedef struct MineSlots { /* 0x28 bytes */
-    struct Target *target[4]; /* 0x0 */
-    s32 count;                /* 0x20 */
+    struct tTarget *target[4]; /* 0x0 */
+    s32 count;                 /* 0x20 */
 } MineSlots;
 
 /* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
@@ -1848,42 +1861,12 @@ typedef struct TargInfo { /* 0x40 bytes */
     f32 fadeDist;       /* 0x3C the sound's fade distance */
 } TargInfo;
 
-/* gTargetList, the targets' node pool (MAT3 tStatList): 130 nodes of 0x70 bytes in gTargetArray. Host layout; the
- * nodes themselves keep the N64's (tTarget). */
-typedef struct TargetNodePool { /* 0x28 bytes */
-    u8 dbl;          /* 0x0 doubly linked (not this one) */
-    u8 n64;          /* 0x1 PC: the nodes link by 32-bit window addresses (pc_statll_link) */
-    u8 pad2[2];      /* 0x2 */
-    s32 numElements; /* 0x4 */
-    s32 elementSize; /* 0x8 */
-    u8 *list;        /* 0x10 the nodes */
-    intptr_t head;   /* 0x18 the first target in use (a tTarget *), 0 none */
-    u8 *store;       /* 0x20 the first free node */
-} TargetNodePool;
-
 /* A target (MAT3 tTarget): one of the track's objects that take part in the race: a cone, a cactus, a fence, a
  * window, a coin, a mine, a weapon, a moving object on a path. Each is a node of gTargetList (SetupTarget), with a
- * kind (targetInfo[infoIdx]) and maybe a record of its kind's (data). In the N64's layout on the PC: its link and
- * its data are 32-bit window addresses (PC_N64P; docs/port/POINTERS.md 10). */
-typedef struct tTarget { /* 0x70 bytes */
-    u32 next;      /* 0x00 ll.next: the next target in its list, a window address; 0 the last */
-    u8 Flags;      /* 0x04 TARGET_* */
-    s32 mbIdx;     /* 0x08 its model (MBOX_FindObject_WORK); a path target's or a world object's key, once set up */
-    s32 dlIdx;     /* 0x0C its scene object (ZOID_AddObject), -1 none */
-    s16 infoIdx;   /* 0x10 its kind: its index in targetInfo */
-    UVMat mat;     /* 0x14 its orientation and position, which its scene object is drawn at */
-    f32 pos[3];    /* 0x44 its position in the world (MBOX_GetPosition) */
-    s16 type;      /* 0x50 the object definition it shows now (gObjList) */
-    f32 radius;    /* 0x54 its collision radius */
-    s16 otype;     /* 0x58 the object definition it started with */
-    s16 frames;    /* 0x5A its animation's frames */
-    s8 slot;       /* 0x5C the car that hit it, -1 none */
-    s32 sound;     /* 0x60 its sound emitter, -1 none */
-    s8 sndState;   /* 0x64 its sound: 0 starting, 1 moving, 2 stopped */
-    s8 owner;      /* 0x65 the car that owns it (a mine); a path target's path; a box's mini model */
-    f32 timeStamp; /* 0x68 */
-    u32 data;      /* 0x6C its kind's record (gTargetStructPtrs[structureID]), a window address; 0 none */
-} tTarget;
+ * kind (targetInfo[infoIdx]) and maybe a record of its kind's (data). The struct is declared with its pool,
+ * pc_target_nodes, in pc_game_types.h: PC data in the host layout (0x78 bytes), its link and its data pointers
+ * (docs/port/POINTERS.md 10.2). */
+typedef struct tTarget tTarget;
 
 /* tTarget.Flags */
 #define TARGET_SET_UP 0x1    /* its first frame is done (a path target's StartPathTarget) */
@@ -1909,7 +1892,8 @@ typedef struct TargetPathPt {
 } TargetPathPt;
 
 /* A path target's record (MAT3 tTargetStructPath, tTarget.data of a target whose structureID is 4): where it is on
- * its path. A heap record in the N64's layout: pathData is a 32-bit window address. */
+ * its path. A heap record in the N64's layout: pathData is a 32-bit window address (a PTHD record of the track WAD,
+ * which keeps its N64 layout: docs/port/NATIVE.md step 7). */
 typedef struct tTargetStructPath { /* 0x48 bytes */
     u32 pathData;       /* 0x00 its path (a PTHD record, tBasicTargetPath), a window address */
     f32 timeElapsed;    /* 0x04 the time since it left point ptOn (or, going backwards, to reach it) */
@@ -1941,10 +1925,25 @@ typedef struct tTargetGroup { /* 0x1C bytes */
                    * gTargetGroupList */
 } tTargetGroup;
 
+/* A box a moving target collides as (MAT3 tBBoxColl, a row of BBoxCollInfo): its sides in its own frame, feet, its
+ * radius and its weight. */
+typedef struct tBBoxColl { /* 0x20 bytes */
+    f32 left;   /* 0x00 x from */
+    f32 right;  /* 0x04 x to */
+    f32 front;  /* 0x08 z to */
+    f32 back;   /* 0x0C z from */
+    f32 top;    /* 0x10 y to */
+    f32 bot;    /* 0x14 y from */
+    f32 rad;    /* 0x18 the radius of the circle round it */
+    f32 weight; /* 0x1C */
+} tBBoxColl;
+
 /* A bounding box model (MAT3 tMiniModelData, gBBoxModelStructs[]): a moving target the cars collide with as a box.
- * A heap record in the N64's layout: bboxInfo is a 32-bit window address. */
+ * A heap block of the N64's 64 bytes a model (SetTargetDefs), which the game's heap accounts as it did
+ * (docs/port/NATIVE.md 4.3), so the box is kept as its row of BBoxCollInfo, where MAT3 kept the row's address
+ * (bboxInfo): MINI_MODEL_BOX (track.h) is the row. */
 typedef struct tMiniModelData { /* 0x40 bytes */
-    u32 bboxInfo;  /* 0x00 its box, a row of BBoxCollInfo (a window address) */
+    s32 bboxRow;   /* 0x00 its box: its row of BBoxCollInfo (its kind's collVal) */
     f32 uvs[3][3]; /* 0x04 its orientation */
     f32 pos[3];    /* 0x28 */
     f32 vel[3];    /* 0x34 */
@@ -2007,7 +2006,7 @@ typedef struct streetyp { /* 0x14 bytes */
 } streetyp;
 
 /* An element of gAlwaysColList (MAT3 tAlwaysCol): a target every car is tested against, wherever it is (battle's
- * weapons). Host layout: both are host pointers (16 bytes). */
+ * weapons and mines). Host layout: both are host pointers (16 bytes). */
 typedef struct tAlwaysCol {
     struct tAlwaysCol *next; /* ll.next */
     tTarget *t;

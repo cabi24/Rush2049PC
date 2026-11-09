@@ -26,7 +26,7 @@ void GetTargetVelocity(s32 collIdx, f32 *vel) {
     vel[1] = 0.0f;
     vel[2] = 0.0f;
     for (i = 0; i < numCollisionTargetPtrs; i++) {
-        state = (tTargetStructPath *) PC_N64P(CollisionTargetPtrs[i]->data);
+        state = CollisionTargetPtrs[i]->data;
         path = (tBasicTargetPath *) PC_N64P(state->pathData);
         if (collIdx == path->collIdx) {
             if (state->flags & TPATH_BACKWARD) {

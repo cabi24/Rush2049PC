@@ -18,10 +18,7 @@ gResPath 0x10     # gResPath {numPts, pts, numAlt, alt}: gGhostToSave (GhostHead
 gRealNewGhostHeaders 0x160    # the ghost headers, 4 of 0x58 (GhostStart: gNewGhostHeaders[i] = &gRealNewGhostHeaders[i], i < 4), not 1
 gInterruptedFxTags 0x10     # a 16-byte list head (List, tDLList); InterruptFxTag.c's 20-byte Node runs into pak_file_handles (PakHandle[])
 
-# The level-object node pool's elements (docs/port/POINTERS.md 10): 130 nodes of 0x70 bytes, which keep their N64
-# layout in the arena (initTargetStructs's pool_init). collision' Vehicle2056 view only takes the address
-# (the end of the model array), and its 0x808-byte elements left the extent at 7 of them.
-gTargetArray 0x38E0
+
 # Sizes the game C's tentative definitions gave, which are declarations on the PC (PC_ONLY(extern): Windows' code
 # can't reach a symbol in the RDRAM window PC-relatively, docs/port/WINDOWS.md).
 gJust 8        # the TB_SetJust pair (gJust), coins.c, controls.c, countdown.c, audio_animPanes_demo_animText.c, videoscr.c

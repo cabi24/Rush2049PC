@@ -1362,9 +1362,6 @@ SYMBOL_REFERENCE = {
 # Findings read and judged: (unit regex, regex on the function, view, field, access text or storage, why). A finding
 # whose accesses all match one rule (or one side's, for an 8-byte and 4-byte pair) is listed as reviewed.
 REVIEWED = [
-    (r".", r"^pc_statll_(set_)?link$",
-     "by design: the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other "
-     "width never runs on that list"),
     (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/scheduler\.c$", r"^(Sched|PcSched)$",
      "by design: audio_retrace_thread_entry's Sched is a PC view of the native scheduler (scheduler.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),

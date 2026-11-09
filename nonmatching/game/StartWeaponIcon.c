@@ -33,24 +33,15 @@ typedef struct Model {
     u8 pad658[0x808 - 0x658];
 } Model;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
-typedef struct Target {
-    u8 pad00[4];
-    u8 Flags;             /* 0x04 */
-    u8 pad05[0x0c - 5];
-    s32 dlIdx;            /* 0x0c */
-    s16 infoIdx;          /* 0x10 */
-    u8 pad12[0x38 - 0x12];
-    f32 pos[3];           /* 0x38 (mat.mat3.pos) */
-    u8 pad44[0x50 - 0x44];
-    s16 type;             /* 0x50 */
-    u8 pad52[0x5c - 0x52];
-    s8 slot;              /* 0x5c */
-} Target;
-
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 
-void StartWeaponIcon(Target *t)
+/* A battle power-up's start function (MAT3 targets.c _StartWeaponIcon), for target t (its type is the power-up's
+ * object). Hit by a car (TARGET_HIT): it goes (not active) and gives the car what it is, unless the car is
+ * invisible: a weapon and its ammunition (the missile, type 5, lengthens the car's front), health, invisibility or
+ * a shield, with its sound. Started when defined (its kind's flag 0x4000): it becomes a power-up spot (Flags
+ * 0x20), counted (IncBattlePowerUps) and hidden. */
+void StartWeaponIcon(tTarget *t)
 {
     Car *car;
     Model *m;
@@ -66,7 +57,7 @@ void StartWeaponIcon(Target *t)
             t->Flags |= 2;
             return;
         }
-        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->pos, 2);
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
         switch (t->type) {
         case 350:
             type = 0;

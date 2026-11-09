@@ -39,6 +39,8 @@ extern u8 gTargetStructSizes[EXTENT(8)];
 extern s32 (*gTargetCollFuncPtrs[EXTENT(6)])(void *, void *, void *, s32);
 extern TargInfo targetInfo[EXTENT(122)];
 extern f32 BBoxCollInfo[EXTENT(115)];
+/* A bounding box model's box (tMiniModelData): its row of BBoxCollInfo, a tBBoxColl of eight floats. */
+#define MINI_MODEL_BOX(m) ((tBBoxColl *) BBoxCollInfo + (m)->bboxRow)
 extern u8 *gTargetStructInfoPtrs[EXTENT(8)];
 extern Vector zero_velocity;
 extern char *flag_pals[EXTENT(3)];
@@ -76,15 +78,15 @@ extern ResurrectPath gResPath;
 extern s16 (*gResPathPtList)[3];
 extern TrackLoadInfo gTrackLoadInfo;
 extern s32 gPathTrace[EXTENT(16)];
-extern TargetNodePool gTargetList;
+extern tStatList gTargetList;   /* the targets in use (head) and free, nodes of pc_target_nodes (pc_game_types.h) */
 extern f32 save_server_tick_time;
 extern tTargetGroup *gTargetGroups;
 extern s8 gTrackNum;
 extern s32 numgTargetGroups;
-extern tTarget **gTargetGroupList;
+extern struct pc_target_group *gTargetGroupList;   /* GTLD's native side table (pc_game_types.h) */
 extern s32 numgTargetGroupList;
 extern surftyp *stree_surf;
-extern u8 gTargetArray[EXTENT(14560)];
+
 extern s32 gPathCount;
 extern s8 Restarting;
 extern u8 gTargetStructCount[EXTENT(8)];

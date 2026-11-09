@@ -188,18 +188,6 @@ struct pc_multiblit {
  * the stride; docs/port/POINTERS.md 10). */
 #define TINFO_OFS(n) ((n) / 0x30 * 0x40 + ((n) % 0x30 < 0x10 ? (n) % 0x30 * 2 : (n) % 0x30 + 0x10))
 
-/* A StatLL list links its elements through their first word, and a doubly linked list back through the second.
- * Link k of element e: a host pointer, or a 32-bit window address when the list's header is flagged n64 (its
- * elements keep their N64 layout: the level-object nodes, docs/port/POINTERS.md 10). */
-static __inline__ void *pc_statll_link(int n64, void *e, int k) {
-    return n64 ? (void *)PC_N64P(((unsigned int *)e)[k]) : ((void **)e)[k];
-}
-static __inline__ void pc_statll_set_link(int n64, void *e, int k, void *v) {
-    if (n64)
-        ((unsigned int *)e)[k] = PC_N64W(v);
-    else
-        ((void **)e)[k] = v;
-}
 
 /* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
 void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
@@ -237,10 +225,10 @@ static __inline__ unsigned int pc_mips_d2u(double d)
 #define N64_D2U(x) pc_mips_d2u(x)
 
 /* The crossing counter (cmake -DRUSH_COUNT_CROSSINGS=ON, docs/port/NATIVE.md 9): each translation above is counted at
- * the line that uses it (a file's own macro, N64P or LINK, where the file uses it), the StatLL links at the list
- * function's line rather than here. Values and results are the default build's; only the count is added. The moved
- * and the cast-checking builds translate or check every crossing themselves, and the counter is not combined with
- * them (CMakeLists.txt); a file that checks its own casts (port/assets/tests/test_casts.c) keeps its checks. */
+ * the line that uses it (a file's own macro, N64P or LINK, where the file uses it). Values and results are the
+ * default build's; only the count is added. The moved and the cast-checking builds translate or check every
+ * crossing themselves, and the counter is not combined with them (CMakeLists.txt); a file that checks its own casts
+ * (port/assets/tests/test_casts.c) keeps its checks. */
 #if defined(RUSH_COUNT_CROSSINGS) && !defined(RUSH_NOFIXED) && !defined(RUSH_CHECK_CASTS)
 #include "pc_crossings.h"
 static __inline__ __UINTPTR_TYPE__ pc_counted_n64p(unsigned int a, const char *file, int line)
@@ -271,21 +259,6 @@ static __inline__ unsigned int pc_counted_slot(int kind, unsigned int a, const c
 #define PC_N64W(x) pc_counted_n64a(PC_CROSS_N64W, (__UINTPTR_TYPE__)(x), __FILE__, __LINE__)
 #define PC_SLOT_N64(s) pc_counted_slot(PC_CROSS_SLOT_N64, *(unsigned int *)(s), __FILE__, __LINE__)
 #define PC_SLOT_SET(s, a) (*(unsigned int *)(s) = pc_counted_slot(PC_CROSS_SLOT_SET, (a), __FILE__, __LINE__))
-/* A link counted only where the list is in the N64-linked form (n64): a host-pointer link is no crossing. */
-static __inline__ void *pc_counted_statll_link(int n64, void *e, int k, const char *file, int line)
-{
-    if (n64 && pc_cross_at)
-        pc_cross_at(PC_CROSS_STATLL_GET, ((unsigned int *)e)[k], file, line);
-    return pc_statll_link(n64, e, k);
-}
-static __inline__ void pc_counted_statll_set_link(int n64, void *e, int k, void *v, const char *file, int line)
-{
-    if (n64 && pc_cross_at)
-        pc_cross_at(PC_CROSS_STATLL_SET, (__UINTPTR_TYPE__)v, file, line);
-    pc_statll_set_link(n64, e, k, v);
-}
-#define pc_statll_link(n64, e, k) pc_counted_statll_link((n64), (e), (k), __FILE__, __LINE__)
-#define pc_statll_set_link(n64, e, k, v) pc_counted_statll_set_link((n64), (e), (k), (v), __FILE__, __LINE__)
 #endif
 
 /* Game data the PC owns, with no N64 address: the race roster, the model records, the car records

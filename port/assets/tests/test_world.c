@@ -1,13 +1,14 @@
 /* port/assets/tests/test_world.c: the world WAD converter (port/assets/world.c) on a synthetic world WAD whose
  * table of contents is big-endian (before pc_assets_wad) or already native (after it), with and without a WOBJ
  * entry, and with WOBJ and GDAT count words that don't fit; then the game's own NewWorld (NewWorld and its bsearch over the WHDR names) on the converted
- * file, and LoadTrack's native GTLD array (pc_world_chunk).
+ * file, and LoadTrack's native GTLD side table (pc_world_chunk: struct pc_target_group).
  * game: src/blob/NewWorld.c src/blob/game_bsearch.c src/blob/world_name_compare.c
  * game: src/blob/game_strcpy.c src/blob/game_strcmp.c
  */
 #include <string.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 #include "support.h"
 
 uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count);
@@ -218,14 +219,17 @@ int main(void)
     NewWorld((uint8_t *)"ALPHA", 3);
     CHECK(g_placed == f + WOBJ && g_placed_parent == 3);
 
-    /* GTLD as LoadTrack's PC view gets it: a native array of the keys, sign-extended. */
+    /* GTLD as LoadTrack gets it: a native side table, each of the file's keys (an s32) with no target yet. */
     {
         int32_t count = 3;
         uint32_t addr = (uint32_t)(uintptr_t)(f + GTLD);
-        void **keys = (void **)pc_world_chunk(addr, 0x47544C44, &count);
-        CHECK((uint8_t *)keys != f + GTLD);
-        CHECK(keys[0] == (void *)(intptr_t)5 && keys[1] == (void *)(intptr_t)-1);
-        CHECK(keys[2] == (void *)(intptr_t)(int32_t)(PC_RDRAM_BASE + 0x1234u));
+        struct pc_target_group *groups = (struct pc_target_group *)pc_world_chunk(addr, 0x47544C44, &count);
+        CHECK((uint8_t *)groups != f + GTLD);
+        CHECK(groups[0].key == 5 && groups[1].key == -1 && groups[2].key == (int32_t)(PC_RDRAM_BASE + 0x1234u));
+        CHECK(!groups[0].target && !groups[1].target && !groups[2].target);
+        groups[1].target = (struct tTarget *)groups;                /* a target found; the next track's table has none */
+        count = 2;
+        CHECK((struct pc_target_group *)pc_world_chunk(addr, 0x47544C44, &count) == groups && !groups[1].target);
         CHECK(pc_world_chunk(addr, 0x47444154, &count) == addr);
         CHECK(pc_world_chunk(addr, 0x57484452, NULL) == addr);
         count = 0;

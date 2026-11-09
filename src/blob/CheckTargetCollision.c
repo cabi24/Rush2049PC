@@ -72,7 +72,7 @@ void CheckTargetCollision(s16 slot) {
         }
     }
     for (i = 0; i < tg->child[0]; i++) {
-        t = gTargetGroupList[tg->child[1] + i];
+        t = gTargetGroupList[tg->child[1] + i].target;
         if (t != 0 && (t->Flags & TARGET_ACTIVE) && (t->Flags & TARGET_COLLIDES)) {
             info = &targetInfo[t->infoIdx];
             collFunc = info->collFuncIdx;

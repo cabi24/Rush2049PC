@@ -1,15 +1,16 @@
 /* port/assets/tests/test_targets.c: the target info table (targetInfo, 0x40 bytes a record on the PC) and the
- * level-object nodes, the targets (0x70 bytes, their N64 layout, in the arena block gTargetArray), through the game's
- * own code (docs/port/POINTERS.md 10): the node pool's set-up (initTargetStructs, with 32-bit links: the n64
- * flag), the instantiation and per-node set-up (level_objects: SetupTarget, SetTargetDefs,
- * SetTargetDef), the start functions the table names (StartWindow, StartKnockdown, StartCone, StartFence,
- * StartCactus) and a hit function (StartCoin), the target visuals (AnimateKnockdown, AnimateRotGeneric,
- * AnimateObjSwapGeneric, the debris AnimateVelRotGeneric, which frees its target into the pool), the collision pass that
- * calls a target's hit function (CheckTargetCollision), the scripted cameras (StartPathTarget, GetTargetVelocity,
- * TargetCollTrigger: camera, controller and PTHD scene, all window addresses) and a dead-reckoned collision
- * (TargetCollBBox and its response setMiniFBCollisionForce: Matrix64, whose body is a window address). Records past the first are used throughout, so an N64 stride or a host-sized pointer
- * lands somewhere else. The nodes, the heap records and the track records sit in an RDRAM window the test maps
- * (exit 77, skipped, if it can't).
+ * level-object nodes, the targets (struct tTarget, 0x78 bytes in the host layout, the pool pc_target_nodes: PC data,
+ * linked by host pointers, their kinds' records pointers; docs/port/POINTERS.md 10.2), through the game's own code:
+ * the node pool's set-up (initTargetStructs, ClearStatLL), the instantiation and per-node set-up (targets/group.c:
+ * SetupTarget, SetTargetDefs with the target groups' side table, SetTargetDef), the start functions the table names
+ * (StartWindow, StartKnockdown, StartCone, StartFence, StartCactus) and a hit function (StartCoin), the target visuals
+ * (AnimateKnockdown, AnimateRotGeneric, AnimateObjSwapGeneric, the debris AnimateVelRotGeneric, which frees its target
+ * into the pool), the collision pass that calls a target's hit function (CheckTargetCollision), the path targets
+ * (StartPathTarget, GetTargetVelocity, TargetCollTrigger: the path record and the PTHD record, which keep their N64
+ * layout with window addresses) and a bounding box model's collision (TargetCollBBox and its response
+ * setMiniFBCollisionForce: the model keeps its box as a row of BBoxCollInfo). Records past the first are used
+ * throughout, so an N64 stride or offset lands somewhere else. The heap records and the track records sit in an
+ * RDRAM window the test maps (exit 77, skipped, if it can't).
  * game: src/blob/initTargetStructs.c src/blob/ClearStatLL.c src/blob/GetStatLLE.c
  * game: src/blob/FreeStatLLE.c src/blob/groups/targets/group.c src/blob/UpdateMiniModelStruct.c
  * game: src/blob/StartWindow.c src/blob/StartKnockdown.c src/blob/StartCone.c src/blob/StartFence.c
@@ -45,20 +46,19 @@ typedef struct {
 } TInfo;
 _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TINFO_OFS(0x1C), "the record");
 
-/* A StatLL header on the PC (shots.c's StatLL) with the n64 flag. */
-typedef struct { uint8_t doubly, n64; int32_t count, size; void *mem, *active, *free; } StatLL;
+/* A StatLL header on the PC (tStatList, host pointers). */
+typedef struct { uint8_t doubly; int32_t count, size; void *mem, *active, *free; } StatLL;
 
-#define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a node field at its N64 offset */
+#define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a record's field at its offset (the N64-layout records) */
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 #define WP(a) ((void *)(uintptr_t)(a))
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODES TEST_N64(gTargetArray)  /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
-#define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
-TEST_ABS(gTargetArray);
-TEST_ABS(BBoxCollInfo);              /* the dead-reckoning bodies (arena data) */
+struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* the nodes (pc_game_types.h), which data.c defines */
+#define NODE(i) (&pc_target_nodes[i])
+TEST_ABS(BBoxCollInfo);              /* the bounding boxes, a row of eight floats each (arena data) */
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 #define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap), the track's records */
@@ -74,7 +74,7 @@ void *gBBoxModelStructs;
 intptr_t gPlayerMines[4][5];
 void *gAlwaysCol;
 struct { void *paths; int32_t count; } gTargetPaths;   /* paths, Scene36 *: the PTHD scenes, a track WAD record */
-void **gTargetGroupList;
+struct pc_target_group *gTargetGroupList;   /* GTLD's side table (pc_game_types.h) */
 int32_t numgTargetGroupList;
 uint32_t gGameState, gGameState;
 int8_t expansion_pak_present, Restarting, gRestartGame, gBackwards, gMineCones, gCarMines;
@@ -88,7 +88,7 @@ float zero_velocity[3], velrot_gravity[3] = {0.0f, -0.25f, 0.0f}, unitmatrix_ori
 float cactus_frame_time = 0.75f, fence_frame_time = 1.25f;
 volatile float gFrameSeconds = 0.5f;
 int8_t gGameSoundsEnabled;
-intptr_t CollisionTargetPtrs[30];
+struct tTarget *CollisionTargetPtrs[30];
 void *gTargetGroups;                    /* the collision quadtree (a track record) */
 void *stree_surf;                    /* the road polygons */
 void *gEnvList;
@@ -269,26 +269,29 @@ static void setup_track(void)
 
 /* ---------------------------------------------------------------- tests */
 
-/* initTargetStructs: 130 nodes linked by 32-bit window addresses, their fields after +4 untouched. */
+/* initTargetStructs: 130 nodes of the host type, linked by host pointers, their fields after the link untouched. */
 static void test_pool(void)
 {
-    memset(NODE(0), 0xEE, 130 * 0x70);
+    CHECK(sizeof(struct tTarget) == 0x78 && offsetof(struct tTarget, data) == 0x70 && sizeof pc_target_nodes == 130 * 0x78);
+    CHECK(offsetof(struct tTarget, mat.pos) == 0x3C && offsetof(struct tTarget, pos) == 0x48 && offsetof(struct tTarget, slot) == 0x60);
+    memset(pc_target_nodes, 0xEE, sizeof pc_target_nodes);
     memset(&gTargetList, 0, sizeof gTargetList);
     gRace = 0;
     initTargetStructs(0);
-    CHECK(gTargetList.n64 == 1 && gTargetList.count == 130 && gTargetList.size == 0x70);
+    CHECK(gTargetList.count == 130 && gTargetList.size == (int32_t)sizeof(struct tTarget) && gTargetList.doubly == 0);
     CHECK(gTargetList.mem == NODE(0) && gTargetList.free == NODE(0) && gTargetList.active == NULL);
-    CHECK(NF(NODE(0), 0, uint32_t) == W32(NODE(1)) && NF(NODE(1), 0, uint32_t) == W32(NODE(2)));
-    CHECK(NF(NODE(128), 0, uint32_t) == W32(NODE(129)) && NF(NODE(129), 0, uint32_t) == 0);
-    CHECK(NF(NODE(0), 4, uint32_t) == 0xEEEEEEEEu && NF(NODE(1), 0x6C, uint32_t) == 0xEEEEEEEEu);
-    memset(NODE(0), 0, 130 * 0x70);
+    CHECK(NODE(0)->next == NODE(1) && NODE(1)->next == NODE(2));
+    CHECK(NODE(128)->next == NODE(129) && NODE(129)->next == NULL);
+    CHECK(NODE(0)->Flags == 0xEE && NODE(1)->data == (void *)(uintptr_t)0xEEEEEEEEEEEEEEEEull);
+    memset(pc_target_nodes, 0, sizeof pc_target_nodes);
     initTargetStructs(0);
 }
 
 /* Instantiate a cone (with its place record) and a camera (scene 1), then set them up. */
 static void test_instantiate(void)
 {
-    uint8_t *cone, *cam, *ctl;
+    struct tTarget *cone, *cam;
+    uint8_t *ctl;
     struct pc_visual *v;
     float zero[3] = {0, 0, 0};
     StatLL *pool = &gTargetList;
@@ -301,116 +304,120 @@ static void test_instantiate(void)
     strcpy((char *)WP(PLACE + 0x100), "CAMERA_1");
     CHECK(SetupTarget(WP(PLACE + 0x100), -1, zero, NULL, 1, 1, 1) == 1);
     cone = NODE(0), cam = NODE(1);
-    CHECK(pool->active == cam && NF(cam, 0, uint32_t) == W32(cone) && NF(cone, 0, uint32_t) == 0);
-    CHECK(pool->free == NODE(2) && NF(NODE(2), 0, uint32_t) == W32(NODE(3)));
-    CHECK(NF(cone, 0x10, int16_t) == CONE && NF(cam, 0x10, int16_t) == CAMERA && NF(cone, 0x65, int8_t) == 0);
-    CHECK(NF(cone, 0x54, float) == 3.5f && NF(cone, 0x58, int16_t) == 3 && NF(cone, 0x0C, int32_t) == 7);
-    CHECK(NF(cone, 0x08, int32_t) == 0x4242 && NF(cam, 0x08, int32_t) == 0x5151 && (NF(cam, 4, uint8_t) & 8));
-    CHECK(NF(cone, 0x38, float) == 30.0f && NF(cone, 0x40, float) == -20.0f);
+    CHECK(pool->active == cam && cam->next == cone && cone->next == NULL);
+    CHECK(pool->free == NODE(2) && NODE(2)->next == NODE(3));
+    CHECK(cone->infoIdx == CONE && cam->infoIdx == CAMERA && cone->owner == 0);
+    CHECK(cone->radius == 3.5f && cone->otype == 3 && cone->dlIdx == 7);
+    CHECK(cone->mbIdx == 0x4242 && cam->mbIdx == 0x5151 && (cam->Flags & 8));
+    CHECK(cone->mat.pos[0] == 30.0f && cone->mat.pos[2] == -20.0f);
     CHECK(gTargetStructCount[2] == 1 && gTargetStructCount[4] == 1 && gBBoxModelCount == 1);
 
     SetTargetDefs();
-    ctl = NF(cam, 0x6C, uint32_t) ? WP(NF(cam, 0x6C, uint32_t)) : NULL;   /* an N64 address, 4-aligned */
-    CHECK(W32(gTargetStructPtrs[2]) >= HEAP && NF(cone, 0x6C, uint32_t) == W32(gTargetStructPtrs[2]));
+    ctl = cam->data;                                                 /* the camera's path record, a heap block */
+    CHECK(W32(gTargetStructPtrs[2]) >= HEAP && cone->data == gTargetStructPtrs[2]);
     CHECK(gTargetOwnStructPtrs[2] == gTargetStructPtrs[2] + 24 && ctl == gTargetStructPtrs[4]);
-    CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* CamCtl.scene: &gTargetPaths.paths[1] */
-    CHECK(W32(gBBoxModelStructs) >= HEAP && NF(cam, 0x65, int8_t) == 0 && gBBoxModelUsed == 1);
-    CHECK(NF(gBBoxModelStructs, 0, uint32_t) == TEST_N64(BBoxCollInfo) + 2 * 32);    /* its body record */
+    CHECK(ctl && NF(ctl, 0, uint32_t) == SCENES + 36);              /* its path: &gTargetPaths.paths[1] (N64 form) */
+    CHECK(W32(gBBoxModelStructs) >= HEAP && cam->owner == 0 && gBBoxModelUsed == 1);
+    CHECK(NF(gBBoxModelStructs, 0, int32_t) == 2);                  /* its box: row 2 of BBoxCollInfo */
     CHECK(NF(gBBoxModelStructs, 4, float) == 1.0f && NF(gBBoxModelStructs, 0x14, float) == 1.0f);
     CHECK(NF(ObjInstanceList + 7 * 0x68, 0x18, uint16_t) == 0x1234);    /* the cone's texture (N64 +0x14) */
     v = (struct pc_visual *)gEnvList;                              /* the cone's animation */
-    CHECK(v == &g_visuals[0] && v->data == W32(cone) && v->func == visual_fn && v->timeStamp == 0.0f);
+    CHECK(v == &g_visuals[0] && v->data == (uintptr_t)cone && v->func == visual_fn && v->timeStamp == 0.0f);
     CHECK(g_started == cone);                                        /* flags & 4: its start function */
 }
 
 /* The start functions: a visual with the table's visual function and the target, and the table's sound. */
 static void test_start(void)
 {
-    uint8_t *t = NODE(0), *car = CAR(1);
+    struct tTarget *t = NODE(0);
+    uint8_t *car = CAR(1);
     struct pc_visual *v;
     uint8_t *motion = WP(HEAP + 0x900u);
 
     memset(car, 0, PC_CAR_SIZE);
     NF(car, 0x14, float) = 8.0f, NF(car, 0x18, float) = 16.0f, NF(car, 0x1C, float) = 24.0f;
-    NF(t, 0x5C, int8_t) = 1;
-    NF(t, 0x2C, float) = 1.0f;
+    t->slot = 1;
+    t->mat.uvs[2][0] = 1.0f;                     /* the way it faces (StartWindow) */
 
     gEnvList = NULL, g_nvisual = 0, g_sound = 0;
     StartWindow(t);
     v = &g_visuals[0];
-    CHECK(gEnvList == v && v->func == visual_fn && v->data == W32(t) && v->timeStamp == 0.0333333f);
-    CHECK(NF(t, 0x5A, int16_t) == 7 && g_sound == 0x77 && g_sound_pos == t + 0x38 && !(NF(t, 4, uint8_t) & 6));
+    CHECK(gEnvList == v && v->func == visual_fn && v->data == (uintptr_t)t && v->timeStamp == 0.0333333f);
+    CHECK(t->frames == 7 && g_sound == 0x77 && g_sound_pos == t->mat.pos && !(t->Flags & 6));
 
     g_sound = 0;
     StartKnockdown(t);
     v = &g_visuals[1];
-    CHECK(gEnvList == v && v->next == &g_visuals[0] && v->func == visual_fn && v->data == W32(t));
-    CHECK(NF(t, 0x5A, int16_t) == 4 && g_sound == 0x77);
+    CHECK(gEnvList == v && v->next == &g_visuals[0] && v->func == visual_fn && v->data == (uintptr_t)t);
+    CHECK(t->frames == 4 && g_sound == 0x77);
 
     g_sound = 0;
     StartFence(t);
     v = &g_visuals[2];
-    CHECK(gEnvList == v && v->func == visual_fn && v->data == W32(t) && v->timeStamp == 1.25f && v->index == 0);
-    CHECK(NF(t, 0x5A, int16_t) == 0xC && g_sound == 0x77);
+    CHECK(gEnvList == v && v->func == visual_fn && v->data == (uintptr_t)t && v->timeStamp == 1.25f && v->index == 0);
+    CHECK(t->frames == 0xC && g_sound == 0x77);
 
     g_sound = 0;
     StartCactus(t);
     v = &g_visuals[3];
-    CHECK(gEnvList == v && v->func == visual_fn && v->data == W32(t) && v->timeStamp == 0.75f);
-    CHECK(NF(t, 0x5A, int16_t) == 7 && g_sound == 0x77);
+    CHECK(gEnvList == v && v->func == visual_fn && v->data == (uintptr_t)t && v->timeStamp == 0.75f);
+    CHECK(t->frames == 7 && g_sound == 0x77);
 
     memset(motion, 0, 24);
-    NF(t, 0x6C, uint32_t) = W32(motion);
+    t->data = motion;
     targetInfo[CONE].shape = 3;
     g_sound = 0;
     StartCone(t);
     v = &g_visuals[4];
-    CHECK(gEnvList == v && v->func == visual_fn && v->data == W32(t) && v->timeStamp == 5.0f);
+    CHECK(gEnvList == v && v->func == visual_fn && v->data == (uintptr_t)t && v->timeStamp == 5.0f);
     CHECK(NF(motion, 0xC, float) == 1.0f && NF(motion, 0x10, float) == 4.0f && NF(motion, 0x14, float) == 3.0f);
     CHECK(NF(motion, 4, float) == 12.0f && NF(motion, 8, float) == 15.0f && g_sound == 0x77);
 }
 
-/* A hit function: its state is the target's +0x6C, a window address. */
+/* A hit function: its state is the target's data, the coin's record (a heap block in the N64 layout). */
 static void test_hit(void)
 {
-    uint8_t *t = NODE(0), *state = WP(HEAP + 0xA00u);
+    struct tTarget *t = NODE(0);
+    uint8_t *state = WP(HEAP + 0xA00u);
 
     memset(state, 0, 0x50);
     NF(state, 0x4A, uint16_t) = 9, NF(state, 0x48, uint16_t) = 1;   /* car 0's slot bit */
-    NF(t, 0x6C, uint32_t) = W32(state);
-    NF(t, 0x5C, int8_t) = 0;
+    t->data = state;
+    t->slot = 0;
     NF(CAR(0), CAR_OFS(0x35C), int8_t) = 0;
     g_interp = 0, g_sound = 0;
     StartCoin(t);
-    CHECK(g_interp == 9 && NF(state, 0x48, uint16_t) == 0 && (NF(t, 4, uint8_t) & 0x80) && g_sound == 0x77);
+    CHECK(g_interp == 9 && NF(state, 0x48, uint16_t) == 0 && (t->Flags & 0x80) && g_sound == 0x77);
 }
 
-/* The target visuals: each finds its target through the visual's 32-bit data, and the target's state. */
+/* The target visuals: each finds its target through the visual's data word, and the target's record through its
+ * data. */
 static void test_visuals(void)
 {
-    uint8_t *t = NODE(2), *rate = WP(HEAP + 0xB00u);
+    struct tTarget *t = NODE(2);
+    uint8_t *rate = WP(HEAP + 0xB00u);
     struct pc_visual v;
 
-    memset(t, 0, 0x70);
+    memset(t, 0, sizeof *t);
     memset(&v, 0, sizeof v);
-    v.data = W32(t);
-    NF(t, 0x6C, uint32_t) = W32(rate);
+    v.data = (uintptr_t)t;
+    t->data = rate;
     NF(rate, 0, float) = 2.0f, NF(rate, 4, float) = 4.0f, NF(rate, 8, float) = 6.0f;
 
-    NF(t, 0x5A, int16_t) = 2, g_nreleased = 0;
+    t->frames = 2, g_nreleased = 0;
     AnimateKnockdown(&v, 1);
-    CHECK(g_rate == rate && g_uvs == t + 0x14 && NF(t, 0x5A, int16_t) == 1 && g_nreleased == 0);
+    CHECK(g_rate == rate && g_uvs == t->mat.uvs && t->frames == 1 && g_nreleased == 0);
     AnimateKnockdown(&v, 1);
-    CHECK(NF(t, 0x5A, int16_t) == 0 && g_nreleased == 1 && g_released[0] == &v);
+    CHECK(t->frames == 0 && g_nreleased == 1 && g_released[0] == &v);
 
     g_uvs = NULL;
     AnimateRotGeneric(&v, 1);
-    CHECK(g_uvs == t + 0x14 && g_rate != rate);   /* rate * frame time, on the stack */
+    CHECK(g_uvs == t->mat.uvs && g_rate != rate);   /* rate * frame time, on the stack */
     CHECK(g_rate_copy[0] == 1.0f && g_rate_copy[2] == 3.0f);   /* g_rate itself points into a returned frame */
 
     /* the frame stepper: the last frame of a kind with flag 0x2000 removes the object */
-    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0C, int32_t) = 33;   /* the handle; its low half is the model id */
-    NF(t, 0x58, int16_t) = 4, NF(t, 0x5A, int16_t) = 2, NF(t, 0x50, int16_t) = 4;
+    t->infoIdx = DEBRIS, t->dlIdx = 33;          /* the handle; its low half is the model id */
+    t->otype = 4, t->frames = 2, t->type = 4;
     v.index = 1, v.timeStamp = 0.0f, g_nspawned = 0, g_nreleased = 0;
     AnimateObjSwapGeneric(&v, 1);
     CHECK(g_nspawned == 1 && g_spawned[0] == 33 && g_nreleased == 1 && g_released[0] == &v);
@@ -420,68 +427,73 @@ static void test_visuals(void)
 static void test_debris(void)
 {
     StatLL *pool = &gTargetList;
-    uint8_t *t = NODE(1), *phys = WP(HEAP + 0xC00u);
+    struct tTarget *t = NODE(1);
+    uint8_t *phys = WP(HEAP + 0xC00u);
     struct pc_visual v;
     void *free_before = pool->free;
 
     memset(phys, 0, 24);
-    NF(t, 0x6C, uint32_t) = W32(phys);
-    NF(t, 0x10, int16_t) = DEBRIS, NF(t, 0x0C, int32_t) = 44, NF(t, 0x38, float) = 1.0f;
+    t->data = phys;
+    t->infoIdx = DEBRIS, t->dlIdx = 44, t->mat.pos[0] = 1.0f;
     memset(&v, 0, sizeof v);
-    v.data = W32(t), v.timeStamp = 1.0f;
+    v.data = (uintptr_t)t, v.timeStamp = 1.0f;
     g_nspawned = 0, g_nreleased = 0;
     AnimateVelRotGeneric(&v, 1);
-    CHECK(NF(phys, 0x10, float) == -0.25f * 0.15f && NF(t, 0x3C, float) == 2 * (-0.25f * 0.15f));
+    CHECK(NF(phys, 0x10, float) == -0.25f * 0.15f && t->mat.pos[1] == 2 * (-0.25f * 0.15f));
     CHECK(v.timeStamp == 0.5f && g_nreleased == 0 && pool->active == t);
     AnimateVelRotGeneric(&v, 1);
     CHECK(g_nspawned == 1 && g_spawned[0] == 44 && g_nreleased == 1 && g_released[0] == &v);
-    CHECK(pool->free == t && NF(t, 0, uint32_t) == W32(free_before) && pool->active == NODE(0));
+    CHECK(pool->free == t && t->next == free_before && pool->active == NODE(0));
 }
 
-/* The collision pass: the target in the car's quadtree leaf is hit through the table's kind (its shape: +0x10)
- * and hit function. */
+/* The collision pass: the target in the car's quadtree leaf (the target groups' side table's entry) is hit through
+ * the table's kind (its shape: +0x10) and hit function. */
 static void test_collision(void)
 {
-    uint8_t *tree = WP(HEAP + 0xD00u), *t = NODE(0);
-    static void *side[4];
+    uint8_t *tree = WP(HEAP + 0xD00u);
+    struct tTarget *t = NODE(0);
+    static struct pc_target_group side[4];
 
     memset(tree, 0, 28);
     NF(tree, 3, uint8_t) = 0;                         /* a leaf */
     NF(tree, 4, float) = -1000.0f, NF(tree, 8, float) = 1000.0f, NF(tree, 12, float) = -1000.0f;
     NF(tree, 16, float) = 1000.0f, NF(tree, 20, uint16_t) = 1, NF(tree, 22, uint16_t) = 2;
     gTargetGroups = tree;
-    side[2] = t;
+    side[1].target = NODE(5), side[2].target = t, side[3].target = NODE(6);   /* only entry 2 is the leaf's */
     gTargetGroupList = side;
-    NF(t, 4, uint8_t) = 2 | 8;
+    t->Flags = 2 | 8;
+    NODE(5)->Flags = NODE(6)->Flags = 0;
     for (int i = 0; i < 6; i++)
         gTargetCollFuncPtrs[i] = NULL;
     gTargetCollFuncPtrs[1] = hit_fn;                           /* the cone's kind */
     gRace = 0, gGameState = 0, g_hit_calls = 0, g_started = NULL;
     CheckTargetCollision(1);
-    CHECK(g_hit_calls == 1 && g_started == t && (NF(t, 4, uint8_t) & 4) && NF(t, 0x5C, int8_t) == 1);
+    CHECK(g_hit_calls == 1 && g_started == t && (t->Flags & 4) && t->slot == 1);
 }
 
-static void scene_cars(uint8_t *cam, uint8_t *sc);
+static void scene_cars(struct tTarget *cam, uint8_t *sc);
 
-/* A scripted camera: its controller (a heap record) and its scene (a PTHD record) through 32-bit fields. */
+/* A path target (a scripted camera): its path record (a heap record, the target's data) and its path (a PTHD
+ * record, through the record's 32-bit field). */
 static void test_camera(void)
 {
-    uint8_t *cam = NODE(1), *ctl = gTargetStructPtrs[4], *sc = WP(SCENES + 36), *k = WP(KEYS);
+    struct tTarget *cam = NODE(1);
+    uint8_t *ctl = gTargetStructPtrs[4], *sc = WP(SCENES + 36), *k = WP(KEYS);
     struct pc_visual *v;
     float out[3];
     int16_t player = 0;
     uint8_t *polys = WP(HEAP + 0xE00u);
 
     /* the debris test freed node 1; give the camera back its fields */
-    NF(cam, 0x10, int16_t) = CAMERA, NF(cam, 0x6C, uint32_t) = W32(ctl), NF(cam, 4, uint8_t) = 0;
+    cam->infoIdx = CAMERA, cam->data = ctl, cam->Flags = 0;
     numCollisionTargetPtrs = 0, gRace = 0, gEnvList = NULL, g_nvisual = 0;
     StartPathTarget(cam);
     v = &g_visuals[0];
-    CHECK(numCollisionTargetPtrs == 1 && CollisionTargetPtrs[0] == (intptr_t)cam && NF(cam, 0x64, int8_t) == 2 && (NF(cam, 4, uint8_t) & 1));
+    CHECK(numCollisionTargetPtrs == 1 && CollisionTargetPtrs[0] == cam && cam->sndState == 2 && (cam->Flags & 1));
     CHECK(NF(ctl, 0x14, float) == 20.0f && NF(ctl, 0xC, int16_t) == 1 && NF(ctl, 0xE, uint16_t) == 4);
-    CHECK(NF(cam, 0x38, float) == 101.0f && NF(cam, 0x3C, float) == 5.0f && NF(ctl, 0x18, float) == 101.0f);
-    CHECK((NF(k + 0x44, 0x40, uint32_t) & 0x1000) && NF(cam, 0x5A, int16_t) == 4);
-    CHECK(gEnvList == v && v->func == camera_visual_fn && v->data == W32(cam) && v->timeStamp == 0.25f);
+    CHECK(cam->mat.pos[0] == 101.0f && cam->mat.pos[1] == 5.0f && NF(ctl, 0x18, float) == 101.0f);
+    CHECK((NF(k + 0x44, 0x40, uint32_t) & 0x1000) && cam->frames == 4);
+    CHECK(gEnvList == v && v->func == camera_visual_fn && v->data == (uintptr_t)cam && v->timeStamp == 0.25f);
 
     NF(ctl, 0x10, float) = 2.0f;
     GetTargetVelocity(4, out);
@@ -509,7 +521,7 @@ static void car_on(int16_t car, int on)
     NF(MODEL(car), 0x5A0, uint16_t) = on ? 1 : 0;     /* a wheel on polygon 1, the trigger, or none */
 }
 
-static void scene_cars(uint8_t *cam, uint8_t *sc)
+static void scene_cars(struct tTarget *cam, uint8_t *sc)
 {
     uint32_t *flags = (uint32_t *)(sc + 0x10);
     int16_t p0 = 0, p7 = 7, p8 = 8, p11 = 11;
@@ -554,21 +566,24 @@ static void scene_cars(uint8_t *cam, uint8_t *sc)
     PC_CAR_SCENES(8) = 0;
 }
 
-/* A dead-reckoned collision: the record's body is a 32-bit window address, read by the hit test (TargetCollBBox)
- * and by the response (setMiniFBCollisionForce), which reads the record's basis, position and velocity after it. */
+/* A bounding box model's collision: the model's box is a row of BBoxCollInfo (row 2, its kind's collVal), read by
+ * the hit test (TargetCollBBox) and by the response (setMiniFBCollisionForce), which read the model's orientation,
+ * position and velocity after it. */
 static void test_reckon(void)
 {
-    uint8_t *obj = NODE(1), *body = TEST_AT(BBoxCollInfo) + 2 * 32, *rec = gBBoxModelStructs, *m = MODEL(0);
+    struct tTarget *obj = NODE(1);
+    uint8_t *body = TEST_AT(BBoxCollInfo) + 2 * 32, *rec = gBBoxModelStructs, *m = MODEL(0);
     int16_t index = 0;
     float dir[3] = {0, 0, 0}, pos[3] = {0, 0, 0};
 
     memset(body, 0, 32);
     NF(body, 0, float) = -10.0f, NF(body, 4, float) = 10.0f, NF(body, 8, float) = 10.0f;
     NF(body, 12, float) = -10.0f, NF(body, 16, float) = 10.0f, NF(body, 20, float) = -10.0f;
-    NF(body, 24, float) = 5.0f, NF(body, 28, float) = 4.0f;   /* radius, mass */
+    NF(body, 24, float) = 5.0f, NF(body, 28, float) = 4.0f;   /* radius, weight */
     memcpy(rec + 4, unitmatrix, sizeof unitmatrix);
     memset(rec + 0x28, 0, 24);
-    NF(obj, 0x65, int8_t) = 0;
+    obj->owner = 0;                                            /* its model: gBBoxModelStructs[0] */
+    CHECK(NF(rec, 0, int32_t) == 2);
     memset(m, 0, 0x808);
     NF(m, 0x7EA, int8_t) = 1, NF(m, 0x654, float) = 3.0f, NF(m, 0x640, int8_t) = 1;
     memcpy(m + 0x798, unitmatrix, sizeof unitmatrix);

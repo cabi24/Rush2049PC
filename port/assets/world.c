@@ -6,10 +6,11 @@
  *   WOBJ  0x68-byte world nodes: char name[16]; f32 mat[12] @0x10; u32 dlflags @0x40; s16 next, child, sfx1,
  *         sfx2 @0x44; s32 tidx @0x4C; f32 min[3], max[3] @0x50. next and child index from the world's first node.
  *   GDAT  0x1C-byte quadtree nodes: s16 parent; u8, u8 flags; f32 minh, maxh, minv, maxv; u16 child[4].
- *   GTLD  u32 target keys, which race setup (SetTargetDefs, groups/targets) replaces in place by
- *         object pointers.
- * pc_assets_world swaps all four in place. A host object pointer doesn't fit a GTLD slot, so LoadTrack's PC view
- * (groups/loadtrack/loadtrack.c) gets GTLD as a native array of the keys from pc_world_chunk instead (§4 #14).
+ *   GTLD  u32 target keys, which race setup (SetTargetDefs, groups/targets) replaced in place by the targets they
+ *         name on the N64.
+ * pc_assets_world swaps all four in place. A target is a host pointer, which doesn't fit a GTLD slot, so LoadTrack
+ * (groups/loadtrack/loadtrack.c) gets GTLD from pc_world_chunk as a native side table instead (pc_game_types.h's
+ * struct pc_target_group: each key, and the target SetTargetDefs finds for it; ASSETS.md §4 #14).
  *
  * The chunks are found through the WAD's table of contents (file +0: TOC offset, +4: entry count; entries
  * {u32 tag, u32 offset, u32 count}). pc_assets_wad may already have swapped it to host order, or not: each word
@@ -23,6 +24,7 @@
 #include <stdlib.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 
 #define TAG_WHDR 0x57484452u
 #define TAG_WOBJ 0x574F424Au
@@ -213,12 +215,13 @@ void pc_assets_world(int wave, uint8_t *buf, size_t size)
         pc_swap32_n(buf + off, chunk_records(wave, "GTLD", off, count, 4, size));
 }
 
-/* LoadTrack's MBGetFromWad on PC: the chunk's host address, from its 32-bit window address, for every tag but GTLD,
- * for which it is a native array of the keys, each sign-extended as SetTargetDefs compares it
- * ((void *)node->key with an s32 key). One array, reused by the next track. */
+/* LoadTrack's MBGetFromWad on PC: the chunk's host address, from its 32-bit window address, for every tag but GTLD.
+ * For GTLD, the target groups' list as a native side table (struct pc_target_group): each of the file's count keys
+ * (an s32, as SetTargetDefs compares it with a target's mbIdx) with no target yet, which SetTargetDefs fills in. One
+ * table, reused by the next track (a track loads its world once; a restart keeps the targets found). */
 uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
 {
-    static void **keys;
+    static struct pc_target_group *groups;
     static size_t cap;
     const uint32_t *src = addr ? (const uint32_t *)pc_n64_ptr(addr) : NULL;   /* 0: no such chunk */
     int32_t n = count ? *count : 0, i;
@@ -227,15 +230,17 @@ uintptr_t pc_world_chunk(uint32_t addr, int32_t tag, int32_t *count)
         return (uintptr_t)src;
     if (n < 0)
         n = 0;
-    if (cap < (size_t)n || !keys) {
+    if (cap < (size_t)n || !groups) {
         size_t c = n ? (size_t)n : 1;
-        void **v = (void **)realloc(keys, c * sizeof *v);
-        if (!v)
+        struct pc_target_group *g = (struct pc_target_group *)realloc(groups, c * sizeof *g);
+        if (!g)
             abort();
-        keys = v;
+        groups = g;
         cap = c;
     }
-    for (i = 0; i < n; i++)
-        keys[i] = (void *)(intptr_t)(int32_t)src[i];
-    return (uintptr_t)keys;
+    for (i = 0; i < n; i++) {
+        groups[i].key = (int32_t)src[i];
+        groups[i].target = NULL;
+    }
+    return (uintptr_t)groups;
 }

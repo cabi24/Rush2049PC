@@ -15,10 +15,9 @@ typedef struct Car {
     u8 pad6C6[0x808 - 0x6C6];
 } Car;
 
-/* PC: the target (a level-object node), its path record (MAT3 tTargetStructPath, a heap record of its category)
- * and the path (MAT3 tBasicTargetPath, a track WAD record) keep their N64 layout: their pointers are 32-bit window
- * addresses (docs/port/POINTERS.md 10). */
-enum n64p_PathData { n64p_PathData_ };
+/* PC: the target (tTarget, PC data) holds its path record as a pointer; the path record (MAT3 tTargetStructPath, a
+ * heap record of its category) and the path (MAT3 tBasicTargetPath, a track WAD record) keep their N64 layout: the
+ * record's path is a 32-bit window address (docs/port/POINTERS.md 10, NATIVE.md step 7). */
 enum n64p_TargetPath { n64p_TargetPath_ };
 /* The path (MAT3 tBasicTargetPath): only its flags and its trigger number. */
 typedef struct TargetPath {
@@ -31,12 +30,7 @@ typedef struct TargetPath {
 typedef struct PathData {
     enum n64p_TargetPath path;
 } PathData;
-/* A track object (MAT3 tTarget, 0x70 bytes): only its per-kind data, the path record. */
-typedef struct Target {
-    u8 pad00[0x6C];
-    enum n64p_PathData data; /* 0x6C its path record (a window address) */
-} Target;
-#define N64P(x) _Generic((x), enum n64p_PathData: (PathData *)PC_N64P(x), enum n64p_TargetPath: (TargetPath *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_TargetPath: (TargetPath *)PC_N64P(x), default: (x))
 
 #define TRIGGER_POLY 0x20       /* a polygon's flag: part of a trigger */
 #define TRIGGER_NUMBER 0xF800   /* a polygon's trigger number, << 11 */
@@ -74,10 +68,10 @@ static void scene_car(TargetPath *path, s32 idx, s32 in)
 #define SCENE_CAR_IN(path, idx) scene_car(path, idx, 1)
 #define SCENE_CAR_OUT(path, idx) scene_car(path, idx, 0)
 
-/* Car *player against the trigger of target t: a car that is wrecked or respawning is ignored. If any of its
- * four tyres is on a polygon of this trigger, the path starts when it is the first car on (or always, with
- * PATH_RETRIGGER) and the car is marked on it; else the car is marked off it. Always returns 0. */
-s32 TargetCollTrigger(Target *t, s16 *player, s32 unused3, s32 unused4) {
+/* Car *player against the trigger of target t (its data is its path record): a car that is wrecked or respawning is
+ * ignored. If any of its four tyres is on a polygon of this trigger, the path starts when it is the first car on (or
+ * always, with PATH_RETRIGGER) and the car is marked on it; else the car is marked off it. Always returns 0. */
+s32 TargetCollTrigger(tTarget *t, s16 *player, s32 unused3, s32 unused4) {
     s32 idx;
     Car *car;
     PathData *pathData;
@@ -90,7 +84,7 @@ s32 TargetCollTrigger(Target *t, s16 *player, s32 unused3, s32 unused4) {
     if (car->crashflag != 0 || car->moving_state >= 0) {
         return 0;
     }
-    pathData = N64P(t->data);
+    pathData = t->data;
     path = N64P(pathData->path);
     id = path->id;
     id <<= 11;

@@ -28,8 +28,8 @@ _Static_assert(sizeof(Node) == 0x68, "the node's host size");
 Node ObjInstanceList[600];
 
 /* ---- AnimateCoin (the coin updater): its views. The visual is 0x28 bytes, its data the coin's target, a
- * level-object node in its N64 layout whose state (+0x6C) is the coin record: both window addresses
- * (docs/port/POINTERS.md 10). */
+ * level-object node (struct tTarget, the host layout) whose data is the coin's record (a heap block in the N64
+ * layout): both pointers (docs/port/POINTERS.md 10.2). */
 typedef struct {
     int32_t model;
     float matrix[3][3];
@@ -39,16 +39,7 @@ typedef struct {
     uint16_t missing;
     int16_t number;
 } Coin;
-typedef struct {
-    uint8_t pad0[4];
-    uint8_t flags;
-    uint8_t pad5[7];
-    int32_t handle;   /* Id: MBOX_NewObject's s32 */
-    uint8_t pad16[40];
-    float position[3];
-    uint8_t pad68[40];
-    uint32_t coin;
-} Entity;
+
 typedef struct {   /* the coin's visual (struct pc_visual): its data the coin's target */
     void *next;
     uint8_t pad8[8];
@@ -126,16 +117,17 @@ int main(void)
     int i;
 
     if (w) {
-        Coin *coin = (Coin *)(w + 0x310000);        /* a heap record and a level-object node, in the window */
-        Entity *entity = (Entity *)(w + 0x310100);
+        Coin *coin = (Coin *)(w + 0x310000);        /* a heap record, in the window */
+        static struct tTarget target;               /* the coin's level-object node */
+        struct tTarget *entity = &target;
 
         /* The coin: its scene node is 7, its model will be MBOX_NewObject's 9. */
         memset(ObjInstanceList, 0, sizeof(ObjInstanceList));
         memset(coin, 0, sizeof *coin);
         memset(entity, 0, sizeof *entity);
-        entity->flags = 0x40;   /* gold, first update */
-        entity->handle = 7;
-        entity->coin = (uint32_t)(uintptr_t)coin;
+        entity->Flags = 0x40;   /* gold, first update */
+        entity->dlIdx = 7;      /* its glow: a scene node handle */
+        entity->data = coin;
         node.entity = (uintptr_t)entity;
         AnimateCoin(&node, 1);
         CHECK(ObjInstanceList[7].model == 0x123);                  /* resource_set_object(id.part.index) */
@@ -145,8 +137,8 @@ int main(void)
         CHECK(ObjInstanceList[0].model == 0 && memcmp(ObjInstanceList[0].prim, "\0\0\0\0", 4) == 0);
 
         /* Silver, a second coin. */
-        entity->flags = 0;
-        entity->handle = 12;
+        entity->Flags = 0;
+        entity->dlIdx = 12;
         g_nspawned = 0;
         AnimateCoin(&node, 1);
         CHECK(memcmp(ObjInstanceList[12].prim, "\xC8\xE6\xFF\xFF", 4) == 0);

@@ -417,6 +417,53 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_BATTLE_PITCH(i) (pc_cars[i].battle_pitch)
 #define PC_CAR_BATTLE_YAW(i) (pc_cars[i].battle_yaw)
 
+/* ---- The level objects, the targets: MAT3 tTarget and its pool gTargetArray (130 nodes of 0x70 bytes on the N64,
+ * game BSS at 0x8014D280, whose link and data were 32-bit addresses). One node per track object that takes part in
+ * the race (a cone, a cactus, a fence, a window, a coin, a mine, a weapon, an object moving on a path), taken from
+ * the StatLL pool gTargetList (SetupTarget; initTargetStructs makes the pool of pc_target_nodes, which data.c
+ * defines). On the PC a node is in the host layout, 0x78 bytes: its link and its kind's record are host pointers,
+ * and so is everything that holds a node (a visual's data word, the target groups' list, the mines' slots, the
+ * always-colliding list, the power-ups, the cameras' path targets; docs/port/POINTERS.md 10.2). The game C names it
+ * tTarget (include/game/types.h, with the TARGET_* flags). */
+#define PC_TARGET_NODES 130
+struct tTarget {
+    struct tTarget *next;               /* +0x00 ll.next: the next target in its list, NULL the last */
+    unsigned char Flags;                /* +0x08 TARGET_* */
+    int mbIdx;                          /* +0x0C its model (MBOX_FindObject_WORK); once set up a world object's or a
+                                         * path target's key, which the target groups' list names it by */
+    int dlIdx;                          /* +0x10 its scene object (ZOID_AddObject): a handle whose low half is the
+                                         * object's index, -1 none */
+    short infoIdx;                      /* +0x14 its kind: its index in targetInfo */
+    struct {
+        float uvs[3][3];                /* +0x18 its orientation */
+        float pos[3];                   /* +0x3C its position, which its scene object is drawn at */
+    } mat;                              /* MAT3 tUVMatrix */
+    float pos[3];                       /* +0x48 its position in the world (MBOX_GetPosition) */
+    short type;                         /* +0x54 the object definition it shows now (gObjList) */
+    float radius;                       /* +0x58 its collision radius */
+    short otype;                        /* +0x5C the object definition it started with */
+    short frames;                       /* +0x5E its animation's frames */
+    signed char slot;                   /* +0x60 the car that hit it, -1 none */
+    int sound;                          /* +0x64 its sound emitter, -1 none */
+    signed char sndState;               /* +0x68 its sound: 0 starting, 1 moving, 2 stopped */
+    signed char owner;                  /* +0x69 the car that owns it (a mine), a path target's path, a box's model */
+    float timeStamp;                    /* +0x6C a mine's seconds on the road */
+    void *data;                         /* +0x70 its kind's record: its own of its kind's (gTargetOwnStructPtrs), its
+                                         * kind's static one (gTargetStructInfoPtrs), or a flag's world object; NULL
+                                         * none */
+};
+extern struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* N64 gTargetArray */
+
+/* The world's target groups' list (MAT3 gTargetGroupList, the world WAD's GTLD chunk): one entry per key the
+ * quadtree's leaves (gTargetGroups) index, which CheckTargetCollision tests a car against. On the N64 race set-up
+ * replaced the file's 32-bit keys in place by the targets they name; on the PC the list is a native side table
+ * that LoadTrack gets from the world's converter with the file's keys (pc_world_chunk, port/assets/world.c;
+ * docs/port/ASSETS.md 4 #14), and SetTargetDefs fills in the targets. */
+struct pc_target_group {
+    int key;                            /* the file's key: a world object's tidx, a path's parent */
+    struct tTarget *target;             /* the target whose mbIdx is the key (SetTargetDefs), NULL none */
+};
+
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
  * clear every slot (InitSmoke, InitBlasts, InitSkids: PC_MAX_LINKS on the PC), and the rest reaches

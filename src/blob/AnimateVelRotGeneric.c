@@ -3,33 +3,17 @@
  * time runs out it is removed. */
 #include "game/game.h"
 
-/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data. */
+/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data (a record of its kind's). */
 typedef struct VelRot {
     f32 angV[3];            /* 0x00 its spin, radians a second about x, y, z */
     f32 vel[3];             /* 0x0C its velocity, feet a frame */
 } VelRot;
 
-/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
- * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
-enum n64p_VelRot { n64p_VelRot_ };
-typedef struct Target {
-    u8 pad00[0xC];
-    s32 dlIdx;              /* 0x0C its scene object: the handle, whose low half is the object's index */
-    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
-    u8 pad12[2];
-    f32 uvs[3][3];          /* 0x14 mat: its orientation */
-    f32 matPos[3];          /* 0x38 mat: its position */
-    u8 pad44[0x6C - 0x44];
-    enum n64p_VelRot data;  /* 0x6C its VelRot (a window address) */
-} Target;
-
-#define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), default: (x))
-
 /* targetInfo[].Flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
 #define TINFO_REMOVE_WHEN_DONE 0x2000
 
 /* The end of the flight: remove the scene object if the kind says so, free the target and release the visual. */
-static void debris_remove(struct pc_visual *v, Target *t, TargInfo *info) {
+static void debris_remove(struct pc_visual *v, tTarget *t, TargInfo *info) {
     if (info->Flags & TINFO_REMOVE_WHEN_DONE) {
         RemoveObjectTree(t->dlIdx, 0, 0);
     }
@@ -43,7 +27,7 @@ static void debris_remove(struct pc_visual *v, Target *t, TargInfo *info) {
  * flight left (StartCone gives 5). */
 void AnimateVelRotGeneric(struct pc_visual *v, s16 op) {
     VelRot *motion;
-    Target *t;
+    tTarget *t;
     f32 angle[3];
     f32 *vel;
     s16 i;
@@ -55,17 +39,17 @@ void AnimateVelRotGeneric(struct pc_visual *v, s16 op) {
     if (gPauseState != 0) {
         return;
     }
-    t = (Target *) v->data;
-    motion = N64P(t->data);
+    t = (tTarget *) v->data;
+    motion = t->data;
     vel = motion->vel;
     for (i = 0; i < 3; i++) {
         vel[i] += velrot_gravity[i] * 0.15f;
-        t->matPos[i] += vel[i] + velrot_gravity[i] * 0.15f;
+        t->mat.pos[i] += vel[i] + velrot_gravity[i] * 0.15f;
     }
     angle[0] = motion->angV[0] * gFrameSeconds;
     angle[1] = motion->angV[1] * gFrameSeconds;
     angle[2] = motion->angV[2] * gFrameSeconds;
-    RotateUV(angle, t->uvs);
+    RotateUV(angle, t->mat.uvs);
     v->timeStamp -= gFrameSeconds;
     if (v->timeStamp <= 0.0f) {
         debris_remove(v, t, &targetInfo[t->infoIdx]);

@@ -3,9 +3,9 @@
  * paths are the track WAD's PTHD records (tBasicTargetPath, gTargetPaths), each a list of points with a position,
  * an orientation, a scale and the time to the next; a path with collision (flag 0x20) moves its collision object
  * with the target (MoveCollisionObject, RotateCollisionObject). An environment visual animates each one every frame
- * (AnimatePathTarget), and each plays its start, move and stop sounds. The PTHD records, the targets and their
- * records keep the N64's layout on the PC: their pointers are 32-bit window addresses (PC_N64P, PC_N64W;
- * docs/port/POINTERS.md 10). */
+ * (AnimatePathTarget), and each plays its start, move and stop sounds. The targets are PC data with pointers (a
+ * target's record is its data); the PTHD records and the targets' records keep the N64's layout on the PC: their
+ * pointers are 32-bit window addresses (PC_N64P, PC_N64W; docs/port/POINTERS.md 10, NATIVE.md step 7). */
 #include "game/game.h"
 
 float fabsf(float);
@@ -25,9 +25,9 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
     u32 parent;     /* 0x20 the record of the target on it (tTargetStructPath), a window address */
 } tBasicTargetPath;
 
-/* The N64-layout records' links, as host pointers: a target's record, a record's path, a path's points, trigger and
- * target record, and the target an environment visual animates (its data). */
-#define TARGET_STATE(t) ((tTargetStructPath *) PC_N64P((t)->data))
+/* A target's record (its data), and the N64-layout records' links, as host pointers: a record's path, a path's
+ * trigger and target record; and the target an environment visual animates (its data). */
+#define TARGET_STATE(t) ((tTargetStructPath *) (t)->data)
 #define STATE_PATH(s) ((tBasicTargetPath *) PC_N64P((s)->pathData))
 #define PATH_TRIGGER(p) ((tBasicTargetPath *) PC_N64P((p)->trigPtr))
 #define PATH_PARENT(p) ((tTargetStructPath *) PC_N64P((p)->parent))
@@ -719,7 +719,7 @@ motion:
                     if (!(path->flags & 0x8000)) {
                         RemoveObjectTree(target->dlIdx, 0, 0);
                     }
-                    FreeStatLLE(&gTargetList, (s32 *) target);
+                    FreeStatLLE(&gTargetList, target);
                     ReleaseEnviron(node, 1);
                 }
             }

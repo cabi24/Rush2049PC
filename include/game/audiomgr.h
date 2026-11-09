@@ -19,12 +19,8 @@
 
 #include "game/types.h"
 
-/* A list element's links (MAT3 ll.c's tDLLE). The lists are AudioList (MAT3 tDLList): InsertLLE puts an element
- * before another (or at the tail), RemoveLLE takes it out. */
-typedef struct tDLLE {
-    void *next; /* 0x0 */
-    void *prev; /* 0x8 */
-} tDLLE;
+/* A list element's links are a tDLLE (MAT3 ll.c's, game/types.h). The lists are AudioList (MAT3 tDLList): InsertLLE
+ * puts an element before another (or at the tail), RemoveLLE takes it out. */
 
 /* An fx tag's state (MAT3 enum kFx*): which list it is on and whether the sound server has a voice for it. */
 enum {

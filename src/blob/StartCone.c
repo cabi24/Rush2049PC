@@ -4,31 +4,11 @@
  * gMineCones it blows up under the car. */
 #include "game/game.h"
 
-/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data. */
+/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data (a record of its kind's). */
 typedef struct VelRot {
     f32 angV[3];            /* 0x00 its spin, radians a second about x, y, z */
     f32 vel[3];             /* 0x0C its velocity, feet a frame */
 } VelRot;
-
-/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
- * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
-enum n64p_VelRot { n64p_VelRot_ };
-typedef struct Target {
-    u8 pad00[4];
-    u8 flags;               /* 0x04 Flags: TARGET_ACTIVE, TARGET_HIT */
-    u8 pad05[7];
-    s32 dlIdx;              /* 0x0C its scene object */
-    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
-    u8 pad12[2];
-    f32 uvs[3][3];          /* 0x14 mat: its orientation */
-    f32 matPos[3];          /* 0x38 mat: its position, where its sounds play */
-    f32 pos[3];             /* 0x44 its position */
-    s16 type;               /* 0x50 its object (a gObjList index) */
-    u8 pad52[0x5C - 0x52];
-    s8 slot;                /* 0x5C the car that hit it */
-    u8 pad5D[0x6C - 0x5D];
-    enum n64p_VelRot data;  /* 0x6C its VelRot (a window address) */
-} Target;
 
 /* The car record's view (MAT3 tCarData) in the PC layout: the velocity and the picked-up-mine flag. */
 typedef struct GameCar {
@@ -47,7 +27,6 @@ typedef struct ModelData {
 } ModelData;
 
 
-#define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), default: (x))
 
 #define OBJ_CONE 236            /* the cone's object (MAT3 550) */
 #define OBJ_LIGHT_DEBRIS_A 339  /* the two objects that fly up only a foot a frame (MAT3 653 and 551) */
@@ -64,8 +43,9 @@ static void crash_car(ModelData *m)
 /* A car has hit the cone or pump. With the gCarMines cheat a cone is taken as the car's mine; with gMineCones it
  * blows up and wrecks the car. Otherwise an environment visual (if one is free) flies it off for 5 seconds: an
  * eighth of the car's speed plus a hop up (1 ft a frame for the two light objects, else 2), a fixed spin, facing
- * the way the car went. The target stops colliding either way, and the start sound plays when it flies. */
-void StartCone(Target *t)
+ * the way the car went. The target stops colliding either way, and the start sound plays when it flies. t is the
+ * target: its type the object it shows, its data its VelRot. */
+void StartCone(tTarget *t)
 {
     struct pc_visual *v;
     f32 tmat[4][3];
@@ -79,14 +59,14 @@ void StartCone(Target *t)
     if (gCarMines && info->objListIdx == OBJ_CONE) {
         car->carMine = 1;
         MBOX_HideObject(t->dlIdx, 0, 15);
-        t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
+        t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
         return;
     }
     if (gMineCones && info->objListIdx == OBJ_CONE) {
         MBOX_HideObject(t->dlIdx, 0, 15);
         StartBlast(t->pos, 0, 0.4f, 1);
         crash_car(PC_MODEL(t->slot));
-        t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
+        t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
         return;
     }
     v = GrabEnvEntry();
@@ -97,9 +77,9 @@ void StartCone(Target *t)
     v->func = info->visFunc;
     v->data = (uintptr_t) t;
     v->timeStamp = 5.0f;           /* the seconds the flight lasts */
-    t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
-    vel = N64P(t->data)->vel;
-    motion = N64P(t->data);
+    t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
+    vel = ((VelRot *) t->data)->vel;
+    motion = t->data;
     vel[0] = car->dr_vel[0] * 0.125f;
     vel[1] = car->dr_vel[1] * 0.125f;
     vel[2] = car->dr_vel[2] * 0.125f;
@@ -115,8 +95,8 @@ void StartCone(Target *t)
         motion->angV[1] = 12.0f;
         motion->angV[2] = 15.0f;
     }
-    CopyUV(tmat, t->uvs);
+    CopyUV(tmat, t->mat.uvs);
     v->next = gEnvList;
     gEnvList = (struct tVisual *) v;
-    PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
+    PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
 }

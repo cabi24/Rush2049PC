@@ -12,7 +12,8 @@
  * what port/data's tables say it points to: an own-storage symbol's N64 address and N64 offset (the same on every
  * OS), a game function's N64 address, a decoupled item and offset, a runtime image's C data; a pointer elsewhere in
  * the image (the PC's buffers in game C) only as such. Which values are pointers depends on the bytes (scan()):
- *   - N64-layout data (the window, own storage's untyped bytes): a u64 equal to a named target's first byte or to a
+ *   - N64-layout data (the window, own storage's untyped bytes): a u64 equal to a named target's first byte (or to a
+ *     record's of a decoupled array the window's data points into, g_record_arrays: the level-object nodes) or to a
  *     function, which no pair of numbers or texels hits by chance;
  *   - own storage's elements the tables type as pointers or as the N64's longs (8 bytes on the PC: intptr_t): any value
  *     but a 32-bit one (0, a window address, a number), one outside the image taken as "a heap pointer" (a table the
@@ -170,7 +171,7 @@ enum { K_OWN = 1, K_FUNC = 2, K_DECOUPLED = 3, K_CRANGE = 4, K_IMAGE = 5, K_HEAP
     X(pc_drones) X(pc_our_drones) X(pc_mp_steer) X(pc_mp_brake) X(pc_mp_gas) X(pc_mp_dir) X(pc_mp_save_dir) \
     X(pc_carsetup_flags) X(pc_mx_voice) X(pc_mx_nodes) X(pc_mx_prio_links) X(pc_mx_free_links) X(pc_mx_fx_ctrl) \
     X(pc_mx_fx_chan_a) X(pc_mx_fx_chan_b) X(pc_mx_fx_legato) X(pc_mx_streams) X(pc_snd_msgs) X(pc_snd_start_cmds) \
-    X(pc_snd_stop_cmds)
+    X(pc_snd_stop_cmds) X(pc_target_nodes)
 #define DECOUPLED_ROW(name) {#name, (const void *)name, (uint32_t)sizeof name},
 static const struct {
     const char *name;
@@ -178,6 +179,16 @@ static const struct {
     uint32_t size;
 } g_decoupled[] = {DECOUPLED(DECOUPLED_ROW)};
 #define N_DECOUPLED ((int)(sizeof g_decoupled / sizeof g_decoupled[0]))
+/* Decoupled arrays whose records data in the window points to (the heap's blocks the game fills: the battle's
+ * always-colliding list and power-up slots hold level-object nodes, pc_target_nodes): each record's first byte is a
+ * start too, so the window's pointer to a record is taken as one (scan's SCAN_EXACT rule). */
+static const struct {
+    const void *p;
+    uint32_t count, stride;
+} g_record_arrays[] = {
+    {pc_target_nodes, PC_TARGET_NODES, (uint32_t)sizeof pc_target_nodes[0]},
+};
+#define N_RECORD_ARRAYS ((int)(sizeof g_record_arrays / sizeof g_record_arrays[0]))
 #define TAG(kind, image) (0xFEED0000u | (uint32_t)(kind) << 8 | (uint32_t)(image))
 
 typedef struct {
@@ -261,9 +272,15 @@ static void pointers_build(void)
         add_target((uintptr_t)t->cranges[i].start, (size_t)(t->cranges[i].end - t->cranges[i].start), 0, K_CRANGE,
                    t->cranges[i].image, -1);
     qsort(P.t, (size_t)P.nt, sizeof *P.t, by_lo);
-    P.starts = calloc((size_t)P.nt + t->n_funcs + 1, sizeof *P.starts);
+    size_t records = 0;
+    for (int i = 0; i < N_RECORD_ARRAYS; i++)
+        records += g_record_arrays[i].count;
+    P.starts = calloc((size_t)P.nt + t->n_funcs + records + 1, sizeof *P.starts);
     for (int i = 0; P.starts && i < P.nt; i++)
         P.starts[P.nstarts++] = P.t[i].lo;
+    for (int i = 0; P.starts && i < N_RECORD_ARRAYS; i++)
+        for (uint32_t k = 1; k < g_record_arrays[i].count; k++)   /* record 0's start is the array's, above */
+            P.starts[P.nstarts++] = (uintptr_t)g_record_arrays[i].p + (uintptr_t)k * g_record_arrays[i].stride;
     for (uint32_t i = 0; P.starts && i < t->n_funcs; i++)
         if (t->funcs[i].host)
             P.starts[P.nstarts++] = (uintptr_t)t->funcs[i].host;

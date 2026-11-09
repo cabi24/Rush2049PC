@@ -1,9 +1,10 @@
 /* port/assets/tests/test_weapons.c: the weapon icons, the targets that the target info table (targetInfo, 0x40 bytes
  * a record on the PC) names the start and visual functions of: StartWeaponIcon (_StartWeaponIcon) and AnimateWeaponIcon
  * (_AnimateWeaponIcon), from their drafts in nonmatching/game (docs/port/POINTERS.md 10). The icon is a level-object
- * node (0x70 bytes, its N64 layout) in the RDRAM window, the cars have their PC layout (0x468 bytes, docs/port/CARS.md)
- * and the model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field
- * at its N64 offset lands somewhere else. The window is mapped by the test (exit 77, skipped, if it can't).
+ * node (struct tTarget, the host layout), the cars have their PC layout (0x510 bytes, docs/port/CARS.md) and the
+ * model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field at its
+ * N64 offset lands somewhere else. The heap's records sit in an RDRAM window the test maps (exit 77, skipped, if it
+ * can't).
  * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/AnimateWeaponIcon.c
  * game: src/blob/ZOID_ObjectFlags.c
  */
@@ -31,14 +32,15 @@ typedef struct {
 } TInfo;
 _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TINFO_OFS(0x1C), "the record");
 
-#define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a field at its N64 offset (node, model) */
+#define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a field at its N64 offset (a heap record, the model) */
 #define CF(c, off, T) (*(T *)((uint8_t *)(c) + CAR_OFS(off)))   /* a car field by its N64 offset */
 #define W32(p) ((uint32_t)(uintptr_t)(p))
 #define WP(a) ((void *)(uintptr_t)(a))
 
 /* ---------------------------------------------------------------- the game's data */
 
-#define NODE(i) ((uint8_t *)WP(TEST_N64(gTargetArray) + 0x70u * (i)))   /* the node block gTargetArray (game arena) */
+static struct tTarget g_nodes[8];   /* level-object nodes (the game's are pc_target_nodes) */
+#define NODE(i) (&g_nodes[i])
 #define HEAP TEST_SCRATCH   /* the game heap's blocks */
 TInfo targetInfo[122];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
@@ -81,16 +83,16 @@ void AnimateWeaponIcon(struct pc_visual *v, int16_t op);
 
 #define INFO 7                       /* the icon's info record: past the first */
 
-static uint8_t *icon(int type, uint8_t flags, int8_t slot)
+static struct tTarget *icon(int type, uint8_t flags, int8_t slot)
 {
-    uint8_t *t = NODE(5);
-    memset(t, 0, 0x70);
-    NF(t, 4, uint8_t) = flags;
-    NF(t, 0x0C, int32_t) = 0x10021;  /* the scene-node handle: its low half is the node, 33 */
-    NF(t, 0x10, int16_t) = INFO;
-    NF(t, 0x38, float) = 1.0f, NF(t, 0x3C, float) = 2.0f, NF(t, 0x40, float) = 3.0f;
-    NF(t, 0x50, int16_t) = (int16_t)type;
-    NF(t, 0x5C, int8_t) = slot;
+    struct tTarget *t = NODE(5);
+    memset(t, 0, sizeof *t);
+    t->Flags = flags;
+    t->dlIdx = 0x10021;              /* the scene-node handle: its low half is the node, 33 */
+    t->infoIdx = INFO;
+    t->mat.pos[0] = 1.0f, t->mat.pos[1] = 2.0f, t->mat.pos[2] = 3.0f;
+    t->type = (int16_t)type;
+    t->slot = slot;
     g_sound = 0, g_hidden = 0, g_shown = 0, g_powerups = 0;
     return t;
 }
@@ -98,22 +100,23 @@ static uint8_t *icon(int type, uint8_t flags, int8_t slot)
 /* Set-up (flag 4 clear): one more power-up for battle mode, the icon hidden. */
 static void test_setup(void)
 {
-    uint8_t *t = icon(351, 0x02 | 0x08, 0);
+    struct tTarget *t = icon(351, 0x02 | 0x08, 0);
     StartWeaponIcon(t);
-    CHECK(g_powerups == 1 && NF(t, 4, uint8_t) == (0x08 | 0x20) && g_hidden == 0x10021 && g_sound == 0);
+    CHECK(g_powerups == 1 && t->Flags == (0x08 | 0x20) && g_hidden == 0x10021 && g_sound == 0);
 }
 
 /* A pickup (flag 4, the car in the slot): the info record's sound at the icon, and the car's weapon. */
 static void test_pickup(void)
 {
-    uint8_t *t, *car = CAR(3);
+    struct tTarget *t;
+    uint8_t *car = CAR(3);
 
     memset(car, 0, PC_CAR_SIZE);
     CF(car, 0x384, int8_t) = 1, CF(car, 0x385, int8_t) = 4;   /* weapon 1, 4 shots */
     t = icon(351, 0x04 | 0x02 | 0x08, 3);
     StartWeaponIcon(t);
-    CHECK(g_sound == 0x5151 && g_sound_slot == 3 && g_sound_pos == t + 0x38 && g_sound_mode == 2);
-    CHECK(NF(t, 4, uint8_t) == 0x08 && g_powerups == 0);
+    CHECK(g_sound == 0x5151 && g_sound_slot == 3 && g_sound_pos == t->mat.pos && g_sound_mode == 2);
+    CHECK(t->Flags == 0x08 && g_powerups == 0);
     CHECK(CF(car, 0x384, int8_t) == 1 && CF(car, 0x385, int8_t) == 4 + 11);   /* the same weapon: more shots */
 
     t = icon(356, 0x04, 3);                                     /* another weapon replaces it */
@@ -150,15 +153,16 @@ static void test_pickup(void)
     CF(car, 0xE8, uint32_t) = 0x10;
     t = icon(352, 0x04, 3);
     StartWeaponIcon(t);
-    CHECK(NF(t, 4, uint8_t) == 0x02 && g_sound == 0 && CF(car, 0x384, int8_t) == 5);
+    CHECK(t->Flags == 0x02 && g_sound == 0 && CF(car, 0x384, int8_t) == 5);
     CF(car, 0xE8, uint32_t) = 0;
 }
 
-/* The visual: the icon through the visual's 32-bit data. */
+/* The visual: the icon through the visual's data word, its spin through the icon's data. */
 static void test_visual(void)
 {
     struct pc_visual v;
-    uint8_t *t, *rate = WP(HEAP + 0x100u);
+    struct tTarget *t;
+    uint8_t *rate = WP(HEAP + 0x100u);
 
     memset(&v, 0, sizeof v);
     t = icon(352, 0x02, 0);
@@ -167,16 +171,16 @@ static void test_visual(void)
     CHECK(g_released == &v && g_unlink == 1);
 
     NF(rate, 0, float) = 2.0f, NF(rate, 4, float) = 4.0f, NF(rate, 8, float) = 6.0f;
-    NF(t, 0x6C, uint32_t) = W32(rate);                         /* its state: the spin rates, a heap record */
+    t->data = rate;                                            /* its state: the spin rates, a heap record */
     gPauseState = 1, g_uvs = NULL;
     AnimateWeaponIcon(&v, 1);                                      /* paused */
     CHECK(g_uvs == NULL);
     gPauseState = 0;
     AnimateWeaponIcon(&v, 1);                                      /* shown (flag 2): it spins */
-    CHECK(g_uvs == t + 0x14 && g_rate[0] == 1.0f && g_rate[1] == 2.0f && g_rate[2] == 3.0f);
+    CHECK(g_uvs == t->mat.uvs && g_rate[0] == 1.0f && g_rate[1] == 2.0f && g_rate[2] == 3.0f);
 
     /* hidden: shown again once no car has its weapon (the scene node's flag 31 says it is ready) */
-    NF(t, 4, uint8_t) = 0, g_hidden = 0;
+    t->Flags = 0, g_hidden = 0;
     AnimateWeaponIcon(&v, 1);
     CHECK(g_hidden == 0x10021 && g_shown == 0);
     NF(ObjInstanceList + 33 * 0x68, 0, uint32_t) = 1u << 31;   /* flag 31: ready */
@@ -185,13 +189,13 @@ static void test_visual(void)
     CF(CAR(2), 0x384, int8_t) = 2;                             /* car 2 has weapon 2 */
     g_hidden = 0;
     AnimateWeaponIcon(&v, 1);
-    CHECK(g_shown == 0 && g_hidden == 0 && NF(t, 4, uint8_t) == 0);
+    CHECK(g_shown == 0 && g_hidden == 0 && t->Flags == 0);
     CF(CAR(2), 0x384, int8_t) = 0;
     AnimateWeaponIcon(&v, 1);
-    CHECK(g_shown == 0x10021 && NF(t, 4, uint8_t) == 0x02);
-    NF(t, 4, uint8_t) = 0, NF(t, 0x50, int16_t) = 353, g_shown = 0;   /* not a weapon: stays */
+    CHECK(g_shown == 0x10021 && t->Flags == 0x02);
+    t->Flags = 0, t->type = 353, g_shown = 0;                  /* not a weapon: stays */
     AnimateWeaponIcon(&v, 1);
-    CHECK(g_shown == 0 && g_hidden == 0 && NF(t, 4, uint8_t) == 0);
+    CHECK(g_shown == 0 && g_hidden == 0 && t->Flags == 0);
 }
 
 int main(void)
