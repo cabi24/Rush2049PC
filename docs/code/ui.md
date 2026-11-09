@@ -93,7 +93,8 @@ rumble motor's state and its 16 directory entries (`tPakFile`). The files the ga
   only the dirty runs.
 - Errors (`kPS_Err*`, from libultra's by `pak_error_from_pfs`) go to `gErrorFunc`, which is `PS_ErrorFunc`: it dims
   the screen and runs the error dialog (`SetPakError`, the pak error screens of `groups/pakerr`) until the player
-  answers.
+  answers. A dialog is a `PakErrorState` of `gPakError[pak][2]`, with MAT3's field names (`err`, `done`,
+  `choice1`, the box `left`, `top`, `width`, `height`, `timeout` ...).
 - The serial bus lock (`si_lock`, `si_unlock`) guards the controllers and paks; the rumble thread
   (`groups/rumble/group.c`) runs the motors once a retrace from each pak's `request`.
 
