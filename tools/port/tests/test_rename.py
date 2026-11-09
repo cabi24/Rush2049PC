@@ -158,10 +158,12 @@ class Apply(Fixture):
                                         "thing_table": "0x80F00100", "zeta_keep": "0x80F00300"})
         self.assertEqual(table, json.dumps(d, indent=2, sort_keys=True) + "\n")
         sums = dict(reversed(line.split("  ")) for line in self.text("asm/us/blob/SHA256SUMS").splitlines())
-        self.assertEqual(sums["symbols.json"], hashlib.sha256(table.encode()).hexdigest())
+        # the checksums are of the files' bytes (CRLF on a Windows checkout), not of the text read back
+        blob = self.root / "asm/us/blob"
+        self.assertEqual(sums["symbols.json"], hashlib.sha256((blob / "symbols.json").read_bytes()).hexdigest())
         region = self.text("asm/us/blob/region.s")   # assembly labels are names too; its checksum follows
         self.assertIn(".globl thing_count_read", region)
-        self.assertEqual(sums["region.s"], hashlib.sha256(region.encode()).hexdigest())
+        self.assertEqual(sums["region.s"], hashlib.sha256((blob / "region.s").read_bytes()).hexdigest())
         # symbol_addrs.us.txt: named entries renamed in place; the address names gain their address and kind
         syms = self.text("symbol_addrs.us.txt")
         self.assertIn("thing_assist = 0x80F00200; // type:func a named function", syms)
