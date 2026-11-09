@@ -21,7 +21,8 @@ builds. Two settings:
 
 A run's trace is the loader's summary line (without the size of its symbol table, which is the build's data.c: a
 decoupled own-storage symbol leaves it, docs/port/DECOUPLE.md 4; with --data-moved also without its counts of the
-ROM's pointers by where they resolve, for a change that moves them: below), its state changes (the state, the retrace it
+ROM's pointers by where they resolve and of its address-like words that reach host storage, for a change that moves
+them: below), its state changes (the state, the retrace it
 happened at, the players, windows, cars, mode, track, pause state, the car) and its status lines (the same at a
 fixed retrace), without the graphics-task counts. Runs of one executable give the baseline. The verdict per path:
 
@@ -80,6 +81,9 @@ DATA_MOVED = False  # --data-moved: the loader's summary without its pointer cou
 # The loader's counts of the ROM's pointers by where each resolved (pc_data.c's summary): own storage, C data, an
 # arena, the heap, NULL, a raw value. A declaration given pointers or own storage moves pointers between them.
 _POINTER_CLASSES = re.compile(r"\b\d+ (own|C data|arena|heap \(kept\)|null|raw)\b")
+# And its count of the address-like u32 words that reach host storage or code: a word that held the N64 address of
+# arena data counts there once the arenas are host blocks (docs/port/NATIVE.md step 5), though nothing reads it.
+_HOST_WORDS = re.compile(r"\(\d+ to host storage or code\)")
 _STATUS = re.compile(r"^rush2049pc: (status|state reached:|time reached:) t=\S+ vi=(\d+) gfx_tasks=\d+ "
                      r"audio_tasks=\d+(?: state=(0x[0-9A-F]{8}))?(?:: (.*))?$")
 
@@ -107,7 +111,7 @@ def trace(text):
         if line.startswith("pc_data: "):   # the loader's summary: what it filled and how pointers resolved
             info = re.sub(r"^\d+ symbols, ", "", line[9:].strip())
             if DATA_MOVED:
-                info = _POINTER_CLASSES.sub(r"_ \1", info)
+                info = _HOST_WORDS.sub("(_ to host storage or code)", _POINTER_CLASSES.sub(r"_ \1", info))
             out.append(("data", None, "", info))
             continue
         m = _STATE.match(line)
