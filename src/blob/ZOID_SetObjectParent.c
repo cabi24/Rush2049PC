@@ -1,40 +1,37 @@
+/* ZOID_SetObjectParent.c: move a scene node under another parent (MAT3 zoid.c, ZOID_SetObjectParent()). */
 #include "game/game.h"
-
-VIEW(s32[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 VIEW(s16, ObjHead);
 #define ObjHead ObjHead_view
 
-/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. Unlinks node
- * arg0 from its parent's child list, its older sibling or the root list (ObjHead), then links it under arg1
- * (ZOID_InsertObject); nothing when it is arg1's child already. */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
-void ZOID_SetObjectParent(s16 arg0, s16 arg1)
+/* Unlink node `node` from where it is (its parent's first-child link, the sibling before it, or the root list
+ * from ObjHead) and link it in as the last child of `newparent` (ZOID_InsertObject; -1: a root). Nothing happens
+ * when it is newparent's first child already; its own children go with it. */
+void ZOID_SetObjectParent(s16 node, s16 newparent)
 {
-  PcNode *nodes = (PcNode *) &ObjInstanceList;
+  ObjectInstance *nodes = (ObjectInstance *) ObjInstanceList;
   s16 parent;
   s16 prev;
-  parent = ZOID_ObjParent(arg0);
-  if ((parent == (-1)) || (parent != arg1))
+  parent = ZOID_ObjParent(node);
+  if ((parent == (-1)) || (parent != newparent))
   {
     if (parent >= 0)
     {
-      nodes[parent].child = nodes[arg0].next;
+      nodes[parent].child = nodes[node].next;
     }
-    else if (arg0 == ObjHead)
+    else if (node == ObjHead)
     {
-      ObjHead = nodes[arg0].next;
+      ObjHead = nodes[node].next;
     }
     else
     {
-      prev = ZOID_ObjPrevObj(arg0);
+      prev = ZOID_ObjPrevObj(node);
       if (prev >= 0)
       {
-        nodes[prev].next = nodes[arg0].next;
+        nodes[prev].next = nodes[node].next;
       }
     }
-    nodes[arg0].next = -1;
-    ZOID_InsertObject(arg0, arg1);
+    nodes[node].next = -1;
+    ZOID_InsertObject(node, newparent);
   }
 }

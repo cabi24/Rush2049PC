@@ -1,24 +1,12 @@
+/* ZOID_FindMatrix.c: a scene node's matrix (MAT3 zoid.c, ZOID_FindMatrix()). */
 #include "game/game.h"
 
-typedef struct Node Node;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance {
-    unsigned int flags;         /* 0x00 */
-    unsigned int w4;
-    Node *mat;                  /* 0x08 */
-    float scale, w;             /* 0x10 */
-    unsigned short index;       /* 0x18 */
-    short child, next, mode;
-    void *light, *tex[4], *rect, *clip, *pal;   /* 0x20 */
-    unsigned int color;         /* 0x60 */
-    unsigned int envcolor;      /* 0x64 */
-} ObjInstance;
+/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
+typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-/* ZOID_FindMatrix */
-Node *ZOID_FindMatrix(short objnum)
+/* The matrix of node `node`: its rotation and position relative to its parent, which the
+ * caller may change to move the node. (Callers declare it with their own matrix type.) */
+tUVMatrix *ZOID_FindMatrix(short node)
 {
-    return ObjInstanceList[objnum].mat;
+    return ObjInstanceList[node].mat;
 }

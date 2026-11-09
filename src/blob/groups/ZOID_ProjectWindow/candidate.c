@@ -1,56 +1,63 @@
+/* ZOID_ProjectWindow/candidate.c: where a world point appears in a window (MAT3 zoidwindow.c, ZOID_ProjectWindow()).
+ *
+ * The front end's screens use it to place their labels by the 3D buttons, the HUD to put markers over cars. */
 #include "game/game.h"
 
-typedef struct View {
-    /* 0x00 */ f32 uvs[3][3];
-    /* 0x24 */ f32 pos[3];
-} View;
+/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
+typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-typedef struct {
-    /* 0x00 */ void *first; void *bounds; u8 pad0_8[0x1C - 0x8];
-    /* 0x1C */ f32 unk1C;
-    /* 0x20 */ f32 unk20;
-    /* 0x24 */ f32 unk24;
-    /* 0x28 */ f32 unk28;
-    /* 0x2C */ f32 unk2C;
-    /* 0x30 */ f32 unk30;
-    /* 0x34 */ u8 pad34[0x14];
-} Port; /* 0x48 */
+/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): the
+ * projection's numbers. */
+typedef struct tWindowInfo {
+    void *vp; void *s; u8 pad08[0x1C - 0x8];
+    f32 wihvangtan;             /* 0.5 / tan(half the horizontal field of view) */
+    f32 wivvangtan;             /* 0.5 / tan(half the vertical one) */
+    f32 wwidth;                 /* the size, pixels */
+    f32 wheight;
+    f32 whcenter;               /* the centre, pixels */
+    f32 wvcenter;
+    u8 pad34[0x14];
+} tWindowInfo;
 
-void ZOID_ProjectWindow(s32 idx, f32 *pos, View *view, f32 *vout, s16 *sout) {
-    f32 d[3];
+/* Project world point point[3] through camera matrix `mat` (its rotation and position) into window `widx`: the
+ * screen position into screen[2], pixels, clamped to the s16 range; the point in the camera's frame (x right, y up,
+ * z ahead, feet) into body[3] if given. A point nearer than 2.5 feet ahead (MAT3: 0.01), behind the camera
+ * included, is projected as if 2.5 feet ahead. */
+void ZOID_ProjectWindow(s32 widx, f32 *point, tUVMatrix *mat, f32 *body, s16 *screen) {
+    f32 rel[3];
     f32 scr[2];
-    f32 inv;
-    f32 r[3];
-    Port *p;
+    f32 invz;
+    f32 bdy[3];
+    tWindowInfo *win;
 
-    d[0] = pos[0] - view->pos[0];
-    d[1] = pos[1] - view->pos[1];
-    d[2] = pos[2] - view->pos[2];
-    BodyVector(d, r, (f32 *) view);
-    if (r[2] < 2.5f) {
-        r[2] = 2.5f;
+    rel[0] = point[0] - mat->pos[0];
+    rel[1] = point[1] - mat->pos[1];
+    rel[2] = point[2] - mat->pos[2];
+    BodyVector(rel, bdy, (f32 *) mat);
+    if (bdy[2] < 2.5f) {
+        bdy[2] = 2.5f;
     }
-    p = ZOID_GetWindow(idx);
-    inv = 1.0f / r[2];
-    scr[0] = r[0] * inv * p->unk1C * p->unk24 + p->unk2C;
-    scr[1] = p->unk30 - r[1] * inv * p->unk20 * p->unk28;
+    win = ZOID_GetWindow(widx);
+    invz = 1.0f / bdy[2];
+    scr[0] = bdy[0] * invz * win->wihvangtan * win->wwidth + win->whcenter;
+    scr[1] = win->wvcenter - bdy[1] * invz * win->wivvangtan * win->wheight;
     if (scr[0] < -32768.0f) {
-        sout[0] = -32768;
+        screen[0] = -32768;
     } else if (scr[0] > 32767.0f) {
-        sout[0] = 32767;
+        screen[0] = 32767;
     } else {
-        sout[0] = scr[0];
+        screen[0] = scr[0];
     }
     if (scr[1] < -32768.0f) {
-        sout[1] = -32768;
+        screen[1] = -32768;
     } else if (scr[1] > 32767.0f) {
-        sout[1] = 32767;
+        screen[1] = 32767;
     } else {
-        sout[1] = scr[1];
+        screen[1] = scr[1];
     }
-    if (vout != 0) {
-        vout[0] = r[0];
-        vout[1] = r[1];
-        vout[2] = r[2];
+    if (body != 0) {
+        body[0] = bdy[0];
+        body[1] = bdy[1];
+        body[2] = bdy[2];
     }
 }

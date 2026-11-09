@@ -1,44 +1,39 @@
+/* MBOX_FindObject_WORK.c: find a model object by name (MAT3 mbox.c, MBOX_FindObject_WORK()).
+ *
+ * Every loaded model file (wave) has a table of object definitions sorted by name (gRomObjDefPtrs[model]); an
+ * object is named by a packed handle, its model's number times 1024 plus its index in that table. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * MBOX_FindObject_WORK (historical label): look an 88-byte record up by name across a range of sorted
- * tables and return its packed handle (index | table << 10), or -1.
- * The name is copied into a local key with game_strncpy (strncpy, n = 16), or "AAANULLOBJ" when the
- * name is NULL/empty (strcpy intrinsic: retail's lwl/lwr copy of the literal at 0x80120E68). Then the
- * same clamp/loop/bsearch as the matched sibling MBOX_FindTexture_WORK: gRomObjDefPtrs[i] = { base, count },
- * element size 88, game_bsearch = bsearch, objcmp = comparator.
- *
- * STRICT MATCH. Shaping quirk: the fourth parameter `complain` (callers pass 1)
- * is read only by a compiled-out diagnostic in the not-found branch (`if (complain) DEBUG_PRINT(...);`
- * with an empty macro). That read keeps its a3 web alive from entry, so uopt cannot colour the copy
- * of `name` into a3 and picks t0 (retail `move t0,a0`); it also explains the a3 home store that is
- * never reloaded. Without it `name` lands in a3 (36 words). Found with the instrumented uopt
- * globalcolor trace (forbidden mask of the name web lacked a3). Matches in the whole-program unit too.
- */
 #define DEBUG_PRINT(args)
 
 extern char *strcpy(char *, const char *);
-#pragma intrinsic (strcpy)
 
-typedef struct Rec {
+/* An object definition (MAT3 tModelDef; 88 bytes on the N64, which the model files keep): only its name matters
+ * here, as the search key. */
+typedef struct tModelDef {
     char name[88];
-} Rec;
+} tModelDef;
 
-typedef struct RecTable {
-    Rec *base;
+/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8). */
+typedef struct ModelDefTable {
+    tModelDef *romObjDefs;
     u32 count;
-} RecTable;
+} ModelDefTable;
 
-VIEW(RecTable[], gRomObjDefPtrs);
+VIEW(ModelDefTable[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-s32 MBOX_FindObject_WORK(char *name, s8 first, s8 last, s8 complain) {
+/* The handle of the object called `name` (compared on its first 15 characters, objcmp) in models firstModel to
+ * lastModel (a negative bound means the first or the last model), searching only the models that are active
+ * (ModelActive): (model << 10) | index, or -1 if none has it. A NULL or empty name looks for "AAANULLOBJ", the
+ * models' placeholder object. `complain` (callers pass 1) asked for a warning when the object is missing; the
+ * warning is compiled out. */
+s32 MBOX_FindObject_WORK(char *name, s8 firstModel, s8 lastModel, s8 complain) {
     s32 i;
-    Rec key;
-    Rec *found;
+    tModelDef key;
+    tModelDef *found;
 
     found = 0;
     if (name == 0 || *name == 0) {
@@ -46,24 +41,24 @@ s32 MBOX_FindObject_WORK(char *name, s8 first, s8 last, s8 complain) {
     } else {
         game_strncpy(key.name, name, 16);
     }
-    if (first < 0) {
-        first = 0;
+    if (firstModel < 0) {
+        firstModel = 0;
     }
-    if (last < 0 || last >= gNumModels) {
-        last = gNumModels - 1;
+    if (lastModel < 0 || lastModel >= gNumModels) {
+        lastModel = gNumModels - 1;
     }
-    for (i = first; i <= last; i++) {
+    for (i = firstModel; i <= lastModel; i++) {
         if (ModelActive(i) == 0) {
             continue;
         }
-        found = game_bsearch(&key, gRomObjDefPtrs[i].base, gRomObjDefPtrs[i].count, sizeof(Rec), objcmp);
+        found = game_bsearch(&key, gRomObjDefPtrs[i].romObjDefs, gRomObjDefPtrs[i].count, sizeof(tModelDef), objcmp);
         if (found != 0) {
             break;
         }
     }
     if (found == 0) {
-        if (complain) DEBUG_PRINT(("string_copy_format: %s not found\n", key.name));
+        if (complain) DEBUG_PRINT(("MBOX_FindObject: %s not found\n", key.name));
         return -1;
     }
-    return (found - gRomObjDefPtrs[i].base) | (i << 10);
+    return (found - gRomObjDefPtrs[i].romObjDefs) | (i << 10);
 }

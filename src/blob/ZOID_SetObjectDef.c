@@ -1,19 +1,7 @@
+/* ZOID_SetObjectDef.c: change the object a scene node draws (MAT3 zoid.c, ZOID_SetObjectDef()). */
 #include "game/game.h"
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct IndexedRecord44 {
-    unsigned int flags, w4;
-    void *obj;
-    float scale, w;
-    u16 value;
-    s16 child, next, mode;
-    void *light, *tex[4], *rect, *clip, *pal;
-    unsigned int prim, env;
-} IndexedRecord44;
-
-VIEW(IndexedRecord44[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-void ZOID_SetObjectDef(s16 index, u16 value) {
-    ObjInstanceList[index].value = value;
+/* Make node `node` draw object `def` (a handle, (model << 10) | definition). */
+void ZOID_SetObjectDef(s16 node, u16 def) {
+    ObjInstanceList[node].index = def;
 }

@@ -1,19 +1,22 @@
+/* ZOID_GetFog.c: a window's fog (MAT3 zoidwindow.c, ZOID_GetFog()). */
 #include "game/game.h"
 
 VIEW(volatile char, ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 
-/* PC: a ZOID window (ZoidWinInfo) is 80 bytes, its first and bounds pointers 8 bytes each (docs/port/POINTERS.md
- * 10); the m2c body uses the N64 stride and offsets. Reads window arg6's fog range and colour. */
-typedef struct { void *first, *bounds; u8 pad08[0x40 - 8]; u16 range_start, range_end; u8 red, green, blue, alpha; }
-    PcWindow;
-void ZOID_GetFog(u16 *arg0, u16 *arg1, u8 *arg2, u8 *arg3, u8 *arg4, u8 *arg5, s32 arg6)
+/* A window (MAT3 tWindowInfo): 0x48 bytes on the N64, 0x50 on the PC, whose viewport and scissor pointers are 8
+ * bytes each (docs/port/POINTERS.md 10); the fog at its end. */
+typedef struct tWindowInfo { void *vp, *s; u8 pad08[0x40 - 8]; u16 fogmin, fogmax; u8 fogcolor[4]; } tWindowInfo;
+
+/* Window `winidx`'s fog: its range (the fog starts at depth *min and is full at *max, in the RDP's depth units) and
+ * its colour. (MAT3 returns the window; the N64's returns nothing.) */
+void ZOID_GetFog(u16 *min, u16 *max, u8 *red, u8 *green, u8 *blue, u8 *alpha, s32 winidx)
 {
-  PcWindow *w = &((PcWindow *) &ZoidWinInfo)[arg6];
-  *arg0 = w->range_start;
-  *arg1 = w->range_end;
-  *arg2 = w->red;
-  *arg3 = w->green;
-  *arg4 = w->blue;
-  *arg5 = w->alpha;
+  tWindowInfo *win = &((tWindowInfo *) &ZoidWinInfo)[winidx];
+  *min = win->fogmin;
+  *max = win->fogmax;
+  *red = win->fogcolor[0];
+  *green = win->fogcolor[1];
+  *blue = win->fogcolor[2];
+  *alpha = win->fogcolor[3];
 }

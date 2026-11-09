@@ -1,32 +1,39 @@
+/* MBOX_ShowObject.c: show a scene node, or a subtree, again (MAT3 mbox.c, MBOX_ShowObject()).
+ *
+ * The counterpart of MBOX_HideObject: clears OBJ_HIDDEN and the views' bits 8-11. */
 #include "game/game.h"
-
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child; s16 sibling; s16 mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Ent;
-VIEW(Ent[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 #define DEBUG_PRINT(args)
 
-void MBOX_ShowObject(s32 a, s32 mode, u32 v) {
-    s32 t;
-    s32 c;
+/* The ways to show (`mode`): note the numbers differ from MBOX_HideObject's. */
+#define SHOW_NODE       0   /* the node alone */
+#define SHOW_TREE       1   /* the node and all its descendants */
+#define SHOW_SIBLINGS   2   /* the node, its later siblings and all their descendants */
 
-    if (mode == 1) {
-        t = ObjInstanceList[(s16) a].flags; ObjInstanceList[a].flags = t & ~((v << 8) | 0x80000000);
-        if (a < 0) DEBUG_PRINT(("bad object %d\n", a));
-        t = ObjInstanceList[a].child;
-        if (t != -1) MBOX_ShowObject(t, 2, v);
-    } else if (mode == 0) {
-        t = ObjInstanceList[(s16) a].flags; ObjInstanceList[a].flags = t & ~((v << 8) | 0x80000000);
-    } else if (mode == 0) {
-        t = ObjInstanceList[(s16) a].flags; ObjInstanceList[a].flags = (t & 0x7FFFFFFF) | (v << 8);
-    } else if (mode == 2) {
+/* Show node `node` as `mode` says: in the views whose bits `views` has (bit n: view n), and no longer hidden
+ * everywhere. */
+void MBOX_ShowObject(s32 node, s32 mode, u32 views) {
+    s32 flags;
+    s32 child;
+
+    if (mode == SHOW_TREE) {
+        flags = ObjInstanceList[(s16) node].flags; ObjInstanceList[node].flags = flags & ~((views << 8) | OBJ_HIDDEN);
+        if (node < 0) DEBUG_PRINT(("bad object %d\n", node));
+        flags = ObjInstanceList[node].child;
+        if (flags != -1) MBOX_ShowObject(flags, SHOW_SIBLINGS, views);
+    } else if (mode == SHOW_NODE) {
+        flags = ObjInstanceList[(s16) node].flags; ObjInstanceList[node].flags = flags & ~((views << 8) | OBJ_HIDDEN);
+    } else if (mode == SHOW_NODE) {
+        /* Original game: never reached, mode 0 is tested twice (MAT3 too); this would show the node everywhere but
+         * hide it in `views`. */
+        flags = ObjInstanceList[(s16) node].flags; ObjInstanceList[node].flags = (flags & ~OBJ_HIDDEN) | (views << 8);
+    } else if (mode == SHOW_SIBLINGS) {
         do {
-            t = ObjInstanceList[(s16) a].flags; ObjInstanceList[a].flags = t & ~((v << 8) | 0x80000000);
-            if (a < 0) DEBUG_PRINT(("bad object %d\n", a));
-            c = ObjInstanceList[a].child;
-            if (c != -1) MBOX_ShowObject(c, 2, v);
-            a = ObjInstanceList[a].sibling;
-        } while (a != -1);
+            flags = ObjInstanceList[(s16) node].flags; ObjInstanceList[node].flags = flags & ~((views << 8) | OBJ_HIDDEN);
+            if (node < 0) DEBUG_PRINT(("bad object %d\n", node));
+            child = ObjInstanceList[node].child;
+            if (child != -1) MBOX_ShowObject(child, SHOW_SIBLINGS, views);
+            node = ObjInstanceList[node].next;
+        } while (node != -1);
     }
 }

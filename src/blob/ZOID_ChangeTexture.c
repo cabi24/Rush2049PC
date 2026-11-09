@@ -1,34 +1,46 @@
+/* ZOID_ChangeTexture.c: change the texture an object definition draws with (MAT3 zoidtexture.c,
+ * ZOID_ChangeTexture()).
+ *
+ * Unlike ZOID_SetTexture, which changes one scene node, this changes the object's definition in its model file,
+ * so every node that draws the object changes. */
 #include "game/game.h"
 #define ModelList ModelListView   /* this file's own ModelList: include/game's ModelList is another type */
 
-/* PC: Model is a WAD's OBHD record, which keeps its N64 layout (port/assets/wad.c): dl is a 32-bit window address. */
+/* PC: an object definition (tModelDef) is a WAD's OBHD record, which keeps its N64 layout (port/assets/wad.c): the
+ * display list is a 32-bit window address. */
 #define PART_DL u32
-typedef struct { u16 value; u16 flags; u8 pad4[4]; PART_DL dl; u8 padC[4]; } Part;
-typedef struct Model { u8 pad0[0x16]; s16 count; Part part[4]; } Model;
-typedef struct { Model *models; s32 count; } ModelList;
+/* One level of detail of an object definition (MAT3 anon_texidx_flags_c, 16 bytes on the N64). */
+typedef struct LodDef { u16 texidx; u16 flags; u8 pad4[4]; PART_DL displayList; u8 padC[4]; } LodDef;
+/* An object definition (MAT3 tModelDef): the name, the radius, the levels of detail. */
+typedef struct tModelDef { u8 pad0[0x16]; s16 lodCount; LodDef lod[4]; } tModelDef;
+/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8). */
+typedef struct ModelList { tModelDef *romObjDefs; s32 count; } ModelList;
 
 VIEW(ModelList[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
-s32 ZOID_ChangeTexture(u16 id, s16 part, u16 value)
+/* Make object `obj` (a handle, (model << 10) | definition) draw with texture `texidx` (a texture handle,
+ * MBOX_FindTexture_WORK) at level of detail `lod`, or at all its levels when `lod` is negative; LOD_TEXTURE_SET
+ * tells the draw to use it. Returns 0 if the object has no level `lod`, else 1. */
+s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx)
 {
-    Model *m;
+    tModelDef *def;
     s32 i;
 
-    m = &gRomObjDefPtrs[id >> 10].models[id & 0x3FF];
-    if (part >= 0) {
-        if (part >= m->count) {
+    def = &gRomObjDefPtrs[obj >> 10].romObjDefs[obj & 0x3FF];
+    if (lod >= 0) {
+        if (lod >= def->lodCount) {
             return 0;
         }
-        m->part[part].value = value;
-        m->part[part].flags |= 0x8000;
+        def->lod[lod].texidx = texidx;
+        def->lod[lod].flags |= LOD_TEXTURE_SET;
     } else {
-        for (i = 0; i < m->count; i++) {
-            m->part[i].value = value;
-            /* Original game: part, not i: with part < 0 this marks m->part[-1] (the bytes before the part table,
-             * the model's header) on every pass and leaves the parts unmarked. MAT3 zoid has the same slip; the
-             * callers seen pass part 0, so it may never run. Kept as retail. */
-            m->part[part].flags |= 0x8000;
+        for (i = 0; i < def->lodCount; i++) {
+            def->lod[i].texidx = texidx;
+            /* Original game: lod, not i: with lod < 0 this marks def->lod[-1] (the bytes before the table of levels,
+             * the definition's header) on every pass and leaves the levels unmarked. MAT3 has the same slip; the
+             * callers seen pass lod 0, so it may never run. Kept as retail. */
+            def->lod[lod].flags |= LOD_TEXTURE_SET;
         }
     }
     return 1;

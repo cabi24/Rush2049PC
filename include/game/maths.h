@@ -108,7 +108,7 @@ void WRollUV(f32 angle, f32 (*uv)[3]);
 void WYawUV(f32 angle, f32 (*uv)[3]);
 void YawUV(f32 angle, f32 (*uv)[3]);
 void zoid_build_upright_matrix(f32 *m);
-s32 zoid_node_visible(void *arg0, s32 arg1);
-s32 zoid_subtree_visible(struct TrackNode *node, s32 type);
+s32 zoid_node_visible(void *node, s32 view);
+s32 zoid_subtree_visible(ObjectInstance *node, s32 view);
 
 #endif /* GAME_MATHS_H */

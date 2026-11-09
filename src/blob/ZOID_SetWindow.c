@@ -1,65 +1,70 @@
+/* ZOID_SetWindow.c: set a window's size, centre and field of view (MAT3 zoidwindow.c, ZOID_SetWindow()). */
 #include "game/game.h"
 
-typedef struct View {
-/* PC: a window is 80 bytes: the two words at 0 are pointers (ZOID_InitializeWindow's first and bounds;
- * docs/port/POINTERS.md 10). */
-    /* 0x00 */ void *unk0;
-    /* 0x04 */ void *unk4;
-    /* 0x08 */ s32 ortho;
-    /* 0x0C */ f32 fovx;
-    /* 0x10 */ f32 fovy;
-    /* 0x14 */ f32 tanx;
-    /* 0x18 */ f32 tany;
-    /* 0x1C */ f32 invx;
-    /* 0x20 */ f32 invy;
-    /* 0x24 */ f32 width;
-    /* 0x28 */ f32 height;
-    /* 0x2C */ f32 nearz;
-    /* 0x30 */ f32 farz;
-    /* 0x34 */ f32 aspect;
-    /* 0x38 */ s32 pad[4];
-} View;
+/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes). */
+typedef struct tWindowInfo {
+    void *vp;                   /* its viewport */
+    void *s;                    /* its scissor rectangle */
+    s32 flags;                  /* 1: no field of view given, 90 degrees taken */
+    f32 whviewang;              /* the horizontal field of view, radians */
+    f32 wvviewang;              /* the vertical one */
+    f32 whvangtan;              /* the tangent of half the horizontal one */
+    f32 wvvangtan;              /* the tangent of half the vertical one */
+    f32 wihvangtan;             /* 0.5 / whvangtan: screen x = width * wihvangtan * x / z + hcenter */
+    f32 wivvangtan;             /* 0.5 / wvvangtan */
+    f32 wwidth;                 /* the size in screen pixels */
+    f32 wheight;
+    f32 whcenter;               /* the centre on the screen, pixels */
+    f32 wvcenter;
+    f32 aspect;                 /* width / height */
+    s32 pad[4];                 /* the clip planes and the fog */
+} tWindowInfo;
 
-VIEW(View[], ZoidWinInfo);
+VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 
-View *ZOID_SetWindow(s32 idx, f32 fovx, f32 fovy, f32 width, f32 height, f32 nearz, f32 farz) {
-    View *v = &ZoidWinInfo[idx];
-    f32 fx;
-    f32 fy;
+/* Set window `winidx`: `width` by `height` pixels centred at (hcenter, vcenter), with a horizontal field of view of
+ * `hangle` degrees and a vertical one of `vangle` degrees, or the vertical one that keeps the pixels square when
+ * `vangle` is 0. With `hangle` 0 both are 90 degrees (flags 1). In the N64's high-resolution modes (more than 240
+ * lines, interlaced) the aspect and the vertical angle take half the height, as the low-resolution screen has it.
+ * Then the tangents the projection uses. Returns the window. */
+tWindowInfo *ZOID_SetWindow(s32 winidx, f32 hangle, f32 vangle, f32 width, f32 height, f32 hcenter, f32 vcenter) {
+    tWindowInfo *win = &ZoidWinInfo[winidx];
+    f32 hang;
+    f32 vang;
     f32 h;
 
-    v->width = width;
-    v->height = height;
-    v->nearz = nearz;
-    v->farz = farz;
+    win->wwidth = width;
+    win->wheight = height;
+    win->whcenter = hcenter;
+    win->wvcenter = vcenter;
     if (screen_height > 240) {
-        v->aspect = width / (height / 2.0f);
+        win->aspect = width / (height / 2.0f);
     } else {
-        v->aspect = width / height;
+        win->aspect = width / height;
     }
-    if (fovx > 0.0f) {
-        fx = fovx * 0.017453292f;
-        if (fovy > 0.0f) {
-            fy = fovy * 0.017453292f;
+    if (hangle > 0.0f) {
+        hang = hangle * 0.017453292f;           /* degrees to radians */
+        if (vangle > 0.0f) {
+            vang = vangle * 0.017453292f;
         } else {
             if (screen_height > 240) {
                 h = height / 2.0f;
             } else {
                 h = height;
             }
-            fy = fatan(tan_cody_waite(fx / 2.0f) * h / width) * 2;
+            vang = fatan(tan_cody_waite(hang / 2.0f) * h / width) * 2;
         }
-        v->ortho = 0;
+        win->flags = 0;
     } else {
-        fy = fx = 1.5707964f;
-        v->ortho = 1;
+        vang = hang = 1.5707964f;               /* 90 degrees */
+        win->flags = 1;
     }
-    v->fovx = fx;
-    v->fovy = fy;
-    v->tanx = tan_cody_waite(fx / 2.0f);
-    v->tany = tan_cody_waite(v->fovy / 2.0f);
-    v->invy = 0.5f / v->tany;
-    v->invx = .5f / v->tanx;
-    return v;
+    win->whviewang = hang;
+    win->wvviewang = vang;
+    win->whvangtan = tan_cody_waite(hang / 2.0f);
+    win->wvvangtan = tan_cody_waite(win->wvviewang / 2.0f);
+    win->wivvangtan = 0.5f / win->wvvangtan;
+    win->wihvangtan = .5f / win->whvangtan;
+    return win;
 }

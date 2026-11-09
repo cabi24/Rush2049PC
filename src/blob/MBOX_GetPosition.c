@@ -1,24 +1,40 @@
+/* MBOX_GetPosition.c: where a scene node is in the world (MAT3 mbox.c, MBOX_GetPosition()). */
 #include "game/game.h"
 
-VIEW(s32, ObjInstanceList);
+/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
+typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
+
+/* The scene node as this file reads it: ObjInstanceList's layout (types.h ObjectInstance), its matrix typed. A
+ * node's matrix is a rotation and a position relative to its parent. */
+typedef struct ObjInstance {
+    u32 flags, culling;
+    tUVMatrix *mat;
+    f32 scale, w;
+    u16 index;
+    s16 child, next, numLights;
+    void *lights, *texture[4], *tile, *tileSize, *palette;
+    u32 color, envcolor;
+} ObjInstance;
+
+VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, w4; u8 *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } E44;
-void MBOX_GetPosition(void *arg0, int arg1)
+/* The world position of node `node` into pos[3]: its own position plus each ancestor's, up the tree
+ * (ZOID_TrueObjParent). Only the positions add up: the ancestors' rotations are not applied (as in MAT3). */
+void MBOX_GetPosition(void *pos, int node)
 {
-  f32 *out = (f32 *) arg0;
-  E44 *e = (E44 *) &ObjInstanceList;
-  s32 idx;
-  out[0] = *((f32 *) (e[arg1].obj + 0x24));
-  out[1] = *((f32 *) (e[arg1].obj + 0x28));
-  out[2] = *((f32 *) (e[arg1].obj + 0x2C));
-  idx = ZOID_TrueObjParent(arg1);
-  while (idx != -1)
+  f32 *out = (f32 *) pos;
+  ObjInstance *nodes = ObjInstanceList;
+  s32 parent;
+  out[0] = nodes[node].mat->pos[0];
+  out[1] = nodes[node].mat->pos[1];
+  out[2] = nodes[node].mat->pos[2];
+  parent = ZOID_TrueObjParent(node);
+  while (parent != -1)
   {
-    out[0] += *((f32 *) (e[idx].obj + 0x24));
-    out[1] += *((f32 *) (e[idx].obj + 0x28));
-    out[2] += *((f32 *) (e[idx].obj + 0x2C));
-    idx = ZOID_TrueObjParent(idx);
+    out[0] += nodes[parent].mat->pos[0];
+    out[1] += nodes[parent].mat->pos[1];
+    out[2] += nodes[parent].mat->pos[2];
+    parent = ZOID_TrueObjParent(parent);
   }
 }

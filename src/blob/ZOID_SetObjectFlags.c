@@ -1,24 +1,8 @@
+/* ZOID_SetObjectFlags.c: set a scene node's flags (MAT3 zoid.c, ZOID_SetObjectFlags()). */
 #include "game/game.h"
 
-typedef struct Node Node;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance {
-    unsigned int flags;         /* 0x00 */
-    unsigned int w4;
-    Node *mat;                  /* 0x08 */
-    float scale, w;             /* 0x10 */
-    unsigned short index;       /* 0x18 */
-    short child, next, mode;
-    void *light, *tex[4], *rect, *clip, *pal;   /* 0x20 */
-    unsigned int color;         /* 0x60 */
-    unsigned int envcolor;      /* 0x64 */
-} ObjInstance;
-
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
-/* ZOID_SetObjectFlags */
-void ZOID_SetObjectFlags(int objnum, unsigned int flags)
+/* Set the flags of node `node` (ZOID_ObjectFlags). */
+void ZOID_SetObjectFlags(int node, unsigned int flags)
 {
-    ObjInstanceList[objnum].flags = flags;
+    ObjInstanceList[node].flags = flags;
 }

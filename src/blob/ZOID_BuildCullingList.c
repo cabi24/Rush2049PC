@@ -1,31 +1,40 @@
+/* ZOID_BuildCullingList.c: give a scene node a bounding box for view culling (the N64's own: MAT3's
+ * ZOID_BuildCullingList in zoid.c is empty).
+ *
+ * The box's eight corners go into cull_vertices, the vertex list the scene draw loads before a culled node's
+ * display list; the node's culling word says where they are. */
 #include "game/game.h"
 
+/* A vertex (libultra Vtx) as the cull list holds it. */
 typedef union Vtx {
     Vtx_t v;
     long long force_structure_alignment;
 } Vtx;
 
-typedef struct Entry {
-    u32 unk0;
+/* The scene node (ObjInstanceList's record, types.h ObjectInstance) with MAT3's field names. */
+typedef struct ObjInstance {
     u32 flags;
-    void *obj;
+    u32 culling;                /* +0x04 its box: (first cull vertex << 3) | 7 */
+    void *mat;
     f32 scale, w;
-    u16 model;
-    s16 child, next, mode;
-    void *light, *tex[4], *rect, *clip, *pal;
-    u32 prim, env;
-} Entry;
+    u16 index;
+    s16 child, next, numLights;
+    void *lights, *texture[4], *tile, *tileSize, *palette;
+    u32 color, envcolor;
+} ObjInstance;
 
 VIEW(Vtx[], cull_vertices);
 #define cull_vertices cull_vertices_view
-VIEW(Entry[], ObjInstanceList);
+VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-void ZOID_BuildCullingList(f32 *min, f32 *max, s16 idx) {
+/* Give node `node` the box from min[3] to max[3] (feet, in its own frame): its eight corners in the libultra
+ * vertex format the RSP culls by (16 units a foot), min/max in z alternating fastest, then y, then x. */
+void ZOID_BuildCullingList(f32 *min, f32 *max, s16 node) {
     Vtx *vtx;
 
     vtx = &cull_vertices[cull_vertex_count];
-    ObjInstanceList[idx].flags |= (cull_vertex_count << 3) | 7;
+    ObjInstanceList[node].culling |= (cull_vertex_count << 3) | 7;
     cull_vertex_count += 8;
     if (cull_vertex_max < cull_vertex_count) {
         cull_vertex_max = cull_vertex_count;
