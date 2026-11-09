@@ -1,12 +1,14 @@
+/* PlayLRSound: the front end's sound for a move left or right in a menu (MAT3 audio.c). */
 #include "game/game.h"
 
-void PlayLRSound(s32 arg0) {
-    s32 var_a0;
+/* Plays the left sound when edges (the menu's button edges) has left, else the right sound. */
+void PlayLRSound(s32 edges) {
+    s32 fxid;
 
-    if (arg0 & 0x1000) {
-        var_a0 = 0x29;
+    if (edges & MENU_EDGE_LEFT) {
+        fxid = kSfxMenuLeft;
     } else {
-        var_a0 = 0x2C;
+        fxid = kSfxMenuRight;
     }
-    AudPlayEffect(var_a0, 0, 1, 0U);
+    AudPlayEffect(fxid, 0, 1, 0U);
 }

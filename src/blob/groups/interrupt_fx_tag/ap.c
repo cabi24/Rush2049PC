@@ -1,20 +1,13 @@
+/* InterruptFxTag: an fx tag whose voice was taken goes back to wait (MAT3 audiomgr.c's _InterruptFxTag). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-/* PC: an fx tag (audiomgr_thread.c's tFxSequence) has host-sized links, so its list (`next` here) is at +0x10 and its
- * state at +0x1C; the list header gInterruptedFxTags (tDLList) keeps its head at +8 (docs/port/SYNTH.md). */
-typedef struct Node { void *pad0[2]; struct Node *next; s32 pad1[1]; s32 state; } Node;
-typedef struct NodeList { s32 pad0[2]; Node *head; } NodeList;
-
-VIEW(Node, gInterruptedFxTags);
-#define gInterruptedFxTags gInterruptedFxTags_view
-
-void InterruptFxTag(Node *n)
+/* Marks the tag interrupted and moves it from its list to the head of gInterruptedFxTags, where the priority
+ * pass ranks it again (a looped sound restarts when it ranks high enough). */
+void InterruptFxTag(tFxSequence *tag)
 {
-    n->state = 3;
-    RemoveLLE(n->next, n);
-    InsertLLE(&gInterruptedFxTags, n, ((NodeList *)&gInterruptedFxTags)->head);
-    n->next = &gInterruptedFxTags;
+    tag->state = kFxInterrupted;
+    RemoveLLE(tag->list, tag);
+    InsertLLE(&gInterruptedFxTags, tag, gInterruptedFxTags.head);
+    tag->list = &gInterruptedFxTags;
 }
-
-/* stand-in callers (real ones: audio_manager_thread_entry, PeriodicMaintenance) */
-

@@ -1,8 +1,30 @@
-/* include/game/audio.h: the sound manager, effects, music and the MusyX sound library */
+/* include/game/audio.h: the sound manager, effects, music and the MusyX sound library.
+ *
+ * docs/code/audio.md maps the subsystem. The sound manager's own records (fx tags, messages, emitters, the sound
+ * server's instances and commands) are in game/audiomgr.h, which the files that read them include. */
 #ifndef GAME_AUDIO_H
 #define GAME_AUDIO_H
 
 #include "game/types.h"
+
+/* The front end's menu sounds: effect ids (AudPlayEffect's fxid) as the Play*Sound helpers play them. */
+enum {
+    kSfxMenuStartB = 0x25,  /* the start screen's B button */
+    kSfxMenuBack = 0x26,    /* leaving a screen by another button than A */
+    kSfxMenuDown = 0x27,
+    kSfxMenuUp = 0x28,
+    kSfxMenuLeft = 0x29,
+    kSfxMenuRight = 0x2C,
+    kSfxMenuSelect = 0x2E   /* the A button */
+};
+
+/* A menu's button edges (gActiveEdges ...) as the Play*Sound helpers test them. */
+#define MENU_EDGE_A 0x1
+#define MENU_EDGE_B 0x2
+#define MENU_EDGE_UP 0x400
+#define MENU_EDGE_DOWN 0x800
+#define MENU_EDGE_LEFT 0x1000
+#define MENU_EDGE_RIGHT 0x2000
 
 /* Data */
 extern u64 rspbootTextStart[EXTENT(26)];
@@ -180,14 +202,14 @@ extern s8 gGameSoundsEnabled;
 extern f32 sLastHornTime[EXTENT(4)];
 extern char *gSongNames[EXTENT(12)];
 extern s8 gInited_AudioMgr;
-extern struct Entity *gFxTags;
+extern struct tFxSequence *gFxTags;
 extern struct anon_te_tag_c *gSortedFxTags;
 extern s32 gNumStartCmds;
 extern s32 gNumStopCmds;
 extern u32 gNextFxId;
 extern u32 gNextSeqId;
-extern void *gListeners;
-extern struct RecB *gEmitters;
+extern struct tSfxListener *gListeners;
+extern struct tSfxEmitter *gEmitters;
 extern s32 gNumFxTags;
 extern s32 gNumListeners;
 extern s32 gNumEmitters;
@@ -231,7 +253,7 @@ extern f32 music_volume_scale;
 extern f32 fx_volume_fade_time;
 extern f32 gSoundSpeed;
 extern f32 gFrontDistance;
-extern States60 gRoadNoises[EXTENT(4)];
+extern tRoadNoises gRoadNoises[EXTENT(4)];
 extern s32 gBogSounds[EXTENT(4)];
 extern s32 gHornSounds[EXTENT(4)];
 extern Impact120 gBump[EXTENT(4)];
@@ -246,13 +268,13 @@ extern OSMesgQueue audio_command_queue;
 extern tOrderedList gSortedFxTagTree;
 extern AudioList gFreeFxTags;
 extern FxTagList gPlayingFxTags;
-extern struct Entry *gSfxInstances;
+extern struct tSfxVoice *gSfxInstances;
 extern AudioList gInterruptedFxTags;
 extern s32 gNumChannels;
 extern s32 gStoppedChannels[EXTENT(1)];
 extern s32 gNumInstances;
 extern u32 gTagShift;
-extern struct Rec32 *audiosfx_gCmds;
+extern struct tSfxCmd *audiosfx_gCmds;
 extern u32 gTagMask;
 extern SfxQueue gFreeQ;
 extern volatile AudioList gCmdQ;
@@ -284,15 +306,15 @@ extern OSTask sound_task;
 
 /* Functions */
 void AdjustTextWavePointers(void);
-void AudChangeEffect(s32 h, f32 x, f32 y, f32 z, f32 w);
-void AudChangeEffectPitch(s32 h, f32 value);
-void AudChangeEffectVol(s32 h, f32 opacity);
-s32 AudEffectPlaying(s32 arg0);
-s32 AudEmitterPlaying(s32 h);
+void AudChangeEffect(s32 tag, f32 volume, f32 lrpan, f32 fbpan, f32 pitch);
+void AudChangeEffectPitch(s32 tag, f32 pitch);
+void AudChangeEffectVol(s32 tag, f32 volume);
+s32 AudEffectPlaying(s32 tag);
+s32 AudEmitterPlaying(s32 tag);
 void AudFree3D(void);
-void AudInit3D(s32 numA, s32 numB, f32 arg2, f32 arg3, s32 arg4);
+void AudInit3D(s32 numListeners, s32 numEmitters, f32 footUnits, f32 frontDistance, s32 doppler);
 void audio_animButtonText(void);
-s32 audio_animPanes(s32 arg0);
+s32 audio_animPanes(s32 blit);
 void audio_calcMenuRect(void);
 void audio_initScreen(void);
 void audio_lock(void);
@@ -302,82 +324,82 @@ void audio_unlock(void);
 void audio_updateButtons(void);
 s32 audio_validOption(s32 i);
 s32 AudioEffectPlaying(s32 id);
-void AudioInit(u8 arg0, u8 arg1, u8 arg2, s32 numA, s32 numB, f32 arg5, f32 arg6, s32 arg7);
-void AudioInitSys(s32 channels, s32 control, s32 enabled);
-s32 AudioPlayEffect(s32 resource, f32 value, f32 stream);
-s32 AudioPlayEffectInternal(void *ipa_s0, f32 ipa_f20, f32 ipa_f22);
-void AudioSetEffectFBPan(s32 handle, f32 value);
-void AudioSetEffectLRPan(s32 handle, f32 value);
-void AudioSetEffectPitch(s32 handle, f32 value);
-void AudioSetEffectVolume(s32 handle, f32 value);
-void AudioSetMasterVolume(f32 value, u16 channel, s32 first, s32 second);
-void AudioSetMono(s32 value);
-void AudioSfxInit(s32 count);
+void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEmitters, f32 footUnits, f32 frontDistance, s32 doppler);
+void AudioInitSys(s32 maxVoices, s32 maxSfx, s32 maxMusic);
+s32 AudioPlayEffect(s32 soundId, f32 volume, f32 pan);
+s32 AudioPlayEffectInternal(struct tSfxVoice *theSound, f32 volume, f32 pan);
+void AudioSetEffectFBPan(s32 theSound, f32 fbpan);
+void AudioSetEffectLRPan(s32 theSound, f32 lrpan);
+void AudioSetEffectPitch(s32 theSound, f32 pitch);
+void AudioSetEffectVolume(s32 theSound, f32 vol);
+void AudioSetMasterVolume(f32 vol, u16 time, s32 music, s32 sfx);
+void AudioSetMono(s32 mono);
+void AudioSfxInit(s32 maxSfx);
 void AudioSfxServer(void);
 void AudioShutdown(void);
 void AudioShutdownSys(void);
 void AudioSongInit(void);
-void AudioSongPlay(s32 arg0, s32 arg1);
+void AudioSongPlay(s32 song, s32 loop);
 void AudioStopAllEffects(void);
-void AudioStopEffect(s32 handle);
-s32 AudioTimeout(f32 x, f32 delta);
-f32 AudioTimeoutPerc(f32 arg0, f32 arg1);
+void AudioStopEffect(s32 theSound);
+s32 AudioTimeout(f32 startTime, f32 interval);
+f32 AudioTimeoutPerc(f32 startTime, f32 interval);
 void AudKillSong(void);
-void AudMono(s32 arg0);
+void AudMono(s32 mono);
 void AudPauseAllEffects(void);
-u32 AudPlayEffect(u32 index, u32 other, u32 value, u8 mode);
-u32 AudPlayEffectVP(u32 index, u32 other, u32 value, u8 mode, f32 x, f32 y, f32 z);
-u32 AudPlaySequence(s32 type, f32 delay, s32 func, s32 data, s32 nargs, ...);
-void AudPlaySong(s32 arg0, s32 arg1);
-void AudRemoveListener(s32 *arg0);
+u32 AudPlayEffect(u32 fxid, u32 subId, u32 replace, u8 priority);
+u32 AudPlayEffectVP(u32 fxid, u32 subId, u32 replace, u8 priority, f32 volume, f32 lrpan, f32 fbpan);
+u32 AudPlaySequence(s32 priority, f32 timeout, s32 replace, s32 subId, s32 num, ...);
+void AudPlaySong(s32 song, s32 loop);
+void AudRemoveListener(struct tSfxListener *listener);
 void AudResumeAllEffects(void);
-void AudSetFxVol(f32 blend, f32 amount);
-void AudSetMasterVol(f32 blend, f32 amount, s32 first, s32 second);
-void AudSetMusicVol(f32 blend, f32 amount);
+void AudSetFxVol(f32 volume, f32 time);
+void AudSetMasterVol(f32 volume, f32 time, s32 music, s32 sfx);
+void AudSetMusicVol(f32 volume, f32 time);
 void AudStopAllEffects(void);
-void AudStopEffect(s32 h);
-void AudStopEmitter(s32 h);
-void AudUpdateListener(struct Node *node, f32 *a, f32 *b, f32 *c, f32 *d);
-void change_effect_fb_pan(s32 h, f32 value);
-void change_effect_lr_pan(s32 h, f32 value);
+void AudStopEffect(s32 tag);
+void AudStopEmitter(s32 tag);
+void AudUpdateListener(struct tSfxListener *listener, f32 *pos, f32 *dir, f32 *look, f32 *up);
+void change_effect_fb_pan(s32 tag, f32 fbpan);
+void change_effect_lr_pan(s32 tag, f32 lrpan);
 void CheckForces(struct AudioModel2056 *m);
-s32 EmitGameSound(const f32 *first, intptr_t second, f32 x, f32 y, f32 z, f32 scalar, s32 index, s32 mode, s32 flags, u8 final);
-void EnableGameSounds(s32 flag);
-void FillFreeMem(s32 *arg0, u32 arg1);
-void FreeFxTag(struct Effect *input);
+s32 EmitGameSound(const f32 *pos, intptr_t dir, f32 fadeDistance, f32 fadeCompression, f32 maxVol, f32 minVol, s32 fxid, s32 subId, s32 replace, u8 priority);
+void EnableGameSounds(s32 enabled);
+void FillFreeMem(s32 *ptr, u32 size);
+void FreeFxTag(struct tFxSequence *tag);
 f32 GetAudioTime(void);
 void GetForceAndPeak(s16 index, s32 player, f32 *vec, f32 threshold);
-s32 GetSfxInstance(struct Entry **out);
+s32 GetSfxInstance(struct tSfxVoice **theSound);
 s32 gsm_decode_frame(struct GsmState *s, u8 *c, s16 *target);
 void gsm_decode_parameters(struct GsmState *S, s16 *LARcr, s16 *Ncr, s16 *bcr, s16 *Mcr, s16 *xmaxcr, s16 *xMcr, s16 *s);
 s32 gsm_decode_stream_frame(struct GsmStream *stream, s16 *out);
 void gsm_short_term_synthesis(struct GsmState *S, s16 *LARcr, s16 *wt, s16 *s);
 void heap_lock(void);
 void heap_unlock(void);
-void InitBumps(s16 idx);
-void InitSoundState(void *arg0);
-void InterruptFxTag(struct Node *n);
+void InitBumps(s16 slot);
+void InitSoundState(tSoundState *sound);
+void InterruptFxTag(struct tFxSequence *tag);
 void LoadFrontEndWaves(void);
 void LockAndLoad(s32 id);
-s32 *NewEmitter(void);
+struct tSfxEmitter *NewEmitter(void);
 void NewListener(void);
-s32 OrderFx(void *arg0, void *arg1);
+s32 OrderFx(void *el1, void *el2);
 void PauseGameMusic(void);
 void pc_mx_note_macroless(s32 index);
-void PlayExitSound(s32 arg0);
-s32 PlayGameSound(s32 arg0, s32 arg1, s32 arg2, u8 arg3);
-void PlayLRSound(s32 arg0);
+void PlayExitSound(s32 edges);
+s32 PlayGameSound(s32 fxid, s32 subId, s32 replace, u8 priority);
+void PlayLRSound(s32 edges);
 void PlayMoveSound(struct Camera *cam);
-void PlayStartABSound(s32 arg0);
+void PlayStartABSound(s32 edges);
 void PlayStartSound(struct Camera *cam);
 void PlayStopSound(struct Camera *cam);
-s32 PlayTargetSound(s32 sound, s32 slot, f32 *position, u8 mode);
-void PlayUDSound(s32 arg0);
+s32 PlayTargetSound(s32 fxid, s32 slot, f32 *position, u8 priority);
+void PlayUDSound(s32 edges);
 void raise_ob_res_pt(s32 index);
 void ResumeGameMusic(void);
-void SendCmd(struct Node *node);
-void SetSoundVP(struct LayerState *state, f32 level, f32 style);
-void sfx_cmd_list_add(struct List *list, struct Node *node);
+void SendCmd(struct tSfxCmd *cmd);
+void SetSoundVP(tSoundState *sound, f32 vol, f32 pitch);
+void sfx_cmd_list_add(AudioList *list, struct tSfxCmd *cmd);
 s32 sound_add_keymap(u16 id, void *payload);
 s32 sound_add_layer(u16 id, void *payload, u16 type);
 s32 sound_add_macro(u16 id, void *payload);
@@ -794,9 +816,9 @@ void StartGameMusic(void);
 void StartListeners(void);
 void StopCarSounds(struct MODELDAT *m);
 void StopListeners(void);
-void StopSound(s32 *arg0, s32 arg1);
+void StopSound(tSoundState *sound, s32 emitter);
 void update_player_visibility(void);
-void update_skid_emitter(struct LayerState *e, f32 *pos, f32 level, f32 style);
+void update_skid_emitter(tSoundState *sound, f32 *pos, f32 vol, f32 pitch);
 void UpdateBumps(struct AudioModel2056 *m);
 void UpdateCarSounds(struct ModelView *model);
 void UpdateEngineSound(struct MODELDAT *m);
@@ -804,7 +826,7 @@ void UpdateFx(void *element, s32 elNum);
 void UpdateListeners(void);
 void UpdateRoadSounds(struct ModelView *model);
 void ValidateEmitter(void);
-void ValidateListener(struct Node *node);
-s32 WeightedPriority(struct Record *record);
+void ValidateListener(struct tSfxListener *listener);
+s32 WeightedPriority(struct tFxSequence *tag);
 
 #endif /* GAME_AUDIO_H */

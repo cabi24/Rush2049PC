@@ -1,15 +1,9 @@
+/* audio_unlock: gives back the sound manager's lock (N64 only). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue OSMesgQueue;
+s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-
+/* Puts audio_lock_queue's message back, for the next audio_lock. */
 void audio_unlock(void) {
-    osSendMesg((OSMesgQueue *) &audio_lock_queue, NULL, 0);
+    osSendMesg(&audio_lock_queue, NULL, 0);
 }
-
-

@@ -1,59 +1,26 @@
+/* The sound manager's 3D sound sources, after they start: stopping, testing and moving one (MAT3 audiomgr.c's
+ * AudStopEmitter, AudEmitterPlaying, AudUpdateEmitter and the empty _ValidateEmitter). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-/* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
- * (AudEmitEffect's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
-typedef struct CamSlot {
-    void *link[2];
-    u8 pad10[4];
-    /* 0x14 */ f32 x, y, z;
-    u8 pad20[4];
-    /* 0x24 */ f32 blend;
-    u8 pad28[4];
-    /* 0x2C */ f32 extra;
-} CamSlot;
-
-typedef struct Entity {
-    void *pad0[3];
-    /* 0x18 */ s32 id;
-    /* 0x1C */ s32 state;
-    u8 pad20[6];
-    /* 0x26 */ u8 msgCount;
-    u8 pad27[0x48 - 0x27];
-    /* 0x48 */ s32 link;
-    /* 0x50 */ CamSlot *cam;
-} Entity; /* 0x58 */
-
-typedef struct Msg {
-    s16 id;
-    s8 type;
-    s8 used;
-    /* 0x08 */ Entity *ent;
-    u8 pad10[16];
-} Msg; /* 0x20 */
-
+/* gTagMask as a signed word, as this file always read it (only the matching leftover below writes it). */
 VIEW(s32, gTagMask);
 #define gTagMask gTagMask_view
-/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
-#define audiomgr_gCmds (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
 
 s32 osRecvMesg(void *, void *, s32);
 s32 osSendMesg(void *, void *, s32);
 
-Entity *ConvertTag(s32 h);
-/* The manifest owner of ValidateEmitter is an empty deleted-procedure stub (src/blob/ValidateEmitter.c),
- * which this group's calls bind to on PC. The body written here gets its own name
- * (docs/port/PROTOTYPES.md). */
+tFxSequence *ConvertTag(s32 tag);
+/* src/blob/ValidateEmitter.c has the empty ValidateEmitter that the function tables reach; this file's calls go
+ * to its own empty copy, which gets its own name (docs/port/PROTOTYPES.md). */
 #define ValidateEmitter pc_ValidateEmitter
 
-Entity *ConvertTag(s32 h);
-
-void ValidateEmitter(CamSlot *c)
+/* MAT3's _ValidateEmitter: a debug build's check of an emitter, empty in the shipped game. The `if (0)` block is a
+ * leftover of the N64 build's matching (it keeps the function out of line); it never runs. The parameter is
+ * system.h's struct CamSlot, an emitter. */
+void ValidateEmitter(struct CamSlot *emitter)
 {
-    if(c) {}
+    if(emitter) {}
     if (0) {
         switch (gTagMask) {
         case 0:
@@ -72,59 +39,65 @@ void ValidateEmitter(CamSlot *c)
     }
 }
 
-void AudStopEmitter(s32 h)
+/* Stops the 3D sound of fx tag handle tag (AudEmitEffect's): AudStopEffect, which frees its emitter with the
+ * tag. A stale handle is ignored. */
+void AudStopEmitter(s32 tag)
 {
-    Entity *e;
+    tFxSequence *fx_tag;
 
     osRecvMesg(&audio_lock_queue, 0, 1);
-    e = ConvertTag(h);
-    if (e == 0) {
+    fx_tag = ConvertTag(tag);
+    if (fx_tag == 0) {
         osSendMesg(&audio_lock_queue, 0, 0);
         return;
     }
-    ValidateEmitter(e->cam);
+    ValidateEmitter(fx_tag->data);
     osSendMesg(&audio_lock_queue, 0, 0);
-    AudStopEffect(h);
+    AudStopEffect(tag);
 }
 
-s32 AudEmitterPlaying(s32 h)
+/* Whether the 3D sound of fx tag handle tag still plays or is still to play (AudEffectPlaying); 0 for a stale
+ * handle. */
+s32 AudEmitterPlaying(s32 tag)
 {
-    Entity *e;
+    tFxSequence *fx_tag;
 
     osRecvMesg(&audio_lock_queue, 0, 1);
-    e = ConvertTag(h);
-    if (e == 0) {
+    fx_tag = ConvertTag(tag);
+    if (fx_tag == 0) {
         osSendMesg(&audio_lock_queue, 0, 0);
         return 0;
     }
-    ValidateEmitter(e->cam);
+    ValidateEmitter(fx_tag->data);
     osSendMesg(&audio_lock_queue, 0, 0);
-    return AudEffectPlaying(h);
+    return AudEffectPlaying(tag);
 }
 
-void AudUpdateEmitter(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
+/* Moves the emitter of fx tag handle tag to pos and sets its loudest volume (clamped to 0..1) and its base pitch;
+ * the next ProcessEmitters makes the sound follow. dir_unused is the N64's velocity argument, which MAT3 doesn't
+ * have and nothing reads. */
+void AudUpdateEmitter(s32 tag, f32 *pos, intptr_t dir_unused, f32 maxVol, f32 pitch)
 {
-    Entity *e;
-    CamSlot *c;
-    f32 value;
+    tFxSequence *fx_tag;
+    tSfxEmitter *emitter;
+    f32 clamped;
 
     osRecvMesg(&audio_lock_queue, 0, 1);
-    e = ConvertTag(h);
-    if (e != 0) {
-        c = e->cam;
-        ValidateEmitter(c);
-        c->x = p[0];
-        c->y = p[1];
-        c->z = p[2];
-        if (a < 0.0f) {
-            c->blend = 0.0f;
+    fx_tag = ConvertTag(tag);
+    if (fx_tag != 0) {
+        emitter = fx_tag->data;
+        ValidateEmitter(emitter);
+        emitter->pos[0] = pos[0];
+        emitter->pos[1] = pos[1];
+        emitter->pos[2] = pos[2];
+        if (maxVol < 0.0f) {
+            emitter->maxVol = 0.0f;
         } else {
-            if (a > 1.0f) value = 1.0f;
-            else value = a;
-            c->blend = value;
+            if (maxVol > 1.0f) clamped = 1.0f;
+            else clamped = maxVol;
+            emitter->maxVol = clamped;
         }
-        c->extra = b;
+        emitter->basePitch = pitch;
     }
     osSendMesg(&audio_lock_queue, 0, 0);
 }
-

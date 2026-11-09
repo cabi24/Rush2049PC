@@ -889,7 +889,7 @@ u8 sound_macro_setup_lfo(MacroStateSetupLfo *state, MacroCommandSetupLfo *comman
     index = command->word[0] >> 8;
     duration = (u16)(command->word[0] >> 16);
     sound_ms_to_time(&duration);
-    control = (MacroLfoControl *)((u8 *)state + 0x168) + index; /* state->lfo168 + index */
+    control = state->lfo168 + index;
     if (control->period != 0) {
         control->time = 0;
     }

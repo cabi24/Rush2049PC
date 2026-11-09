@@ -1,73 +1,64 @@
+/* The sound manager's changes of a playing sound: volume, pans and pitch (MAT3 audiomgr.c's _AudChangeEffect,
+ * AudChangeEffectVol, AudChangeEffectPitch; the two pans' setters are the N64's). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-typedef struct Entity {
-    void *pad0[3]; s32 id; s32 state; u8 pad20[6];
-    u8 msgCount; u8 pad27[9]; f32 x,y,z,w; u8 pad40[16]; void *data;
-} Entity;
-typedef struct MsgTarget { u32 pad; Entity *target; } __attribute__((packed, aligned(4))) MsgTarget;
-typedef struct Msg {
-    s16 id; s8 type,used;
-    union { struct { f32 x,y,z,w; } value; MsgTarget t; } payload;
-    Entity *ent;
-} Msg;
-#define target t.target
-
-/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
-#define audiomgr_gCmds (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-#define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-VIEW(s32, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(s32, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
 s32 osRecvMesg(void *,void *,s32);
 s32 osSendMesg(void *,void *,s32);
-Entity *ConvertTag(s32 h);
-Msg *GetCmd(void);
+tFxSequence *ConvertTag(s32 tag);
+tAudioMsg *GetCmd(void);
 /* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
  * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
  * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the
  * next retrace sends the sound's values again) and its message given back, instead of a write through NULL
  * or a message lost for good (docs/port/QA.md "Integration soak"). */
 #define PC_MSG_OR_RETURN(m) if((m)==0)return;
-#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->msgCount--;(m)->used=0;}
-void AudChangeEffect(s32 h,f32 x,f32 y,f32 z,f32 w) {
-    Msg *m=0;
-    Entity *e=ConvertTag(h);
-    if(e!=0){
-        if((x!=-2.0f && x!=e->x) || (y!=-2.0f && y!=e->y) ||
-           (z!=-2.0f && z!=e->z) || (w!=-2.0f && w!=e->w)) {
-            m=GetCmd();PC_MSG_OR_RETURN(m)
-            m->type=4;
-            m->ent=e;
-            e->msgCount++;
-            if(x!=-2.0f && x!=e->x)m->payload.value.x=x; else m->payload.value.x=-2.0f;
-            if(y!=-2.0f && y!=e->y)m->payload.value.y=y; else m->payload.value.y=-2.0f;
-            if(z!=-2.0f && z!=e->z)m->payload.value.z=z; else m->payload.value.z=-2.0f;
-            if(w!=-2.0f && w!=e->w)m->payload.value.w=w; else m->payload.value.w=-2.0f;
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
+
+/* Asks the audio manager thread to change the sound of fx tag handle tag: each of volume, lrpan, fbpan and pitch
+ * that is not AUDIO_NO_CHANGE and differs from the tag's last value; nothing is sent when none does. The caller
+ * holds the audio lock. ProcessEmitters calls it each retrace for every emitter. */
+void AudChangeEffect(s32 tag,f32 volume,f32 lrpan,f32 fbpan,f32 pitch) {
+    tAudioMsg *msg=0;
+    tFxSequence *fx_tag=ConvertTag(tag);
+    if(fx_tag!=0){
+        if((volume!=-2.0f && volume!=fx_tag->vol) || (lrpan!=-2.0f && lrpan!=fx_tag->lrpan) ||
+           (fbpan!=-2.0f && fbpan!=fx_tag->fbpan) || (pitch!=-2.0f && pitch!=fx_tag->pitch)) {
+            msg=GetCmd();PC_MSG_OR_RETURN(msg)
+            msg->hdr.cmd=kAudioCmdChangeEffect;
+            msg->changeEffect.tag=fx_tag;
+            fx_tag->numCmds++;
+            if(volume!=-2.0f && volume!=fx_tag->vol)msg->changeEffect.vol=volume; else msg->changeEffect.vol=-2.0f;
+            if(lrpan!=-2.0f && lrpan!=fx_tag->lrpan)msg->changeEffect.lrpan=lrpan; else msg->changeEffect.lrpan=-2.0f;
+            if(fbpan!=-2.0f && fbpan!=fx_tag->fbpan)msg->changeEffect.fbpan=fbpan; else msg->changeEffect.fbpan=-2.0f;
+            if(pitch!=-2.0f && pitch!=fx_tag->pitch)msg->changeEffect.pitch=pitch; else msg->changeEffect.pitch=-2.0f;
         }
     }
-    if(m!=0)PC_SEND_OR_GIVE_BACK(&audio_command_queue,m,e);
+    if(msg!=0)PC_SEND_OR_GIVE_BACK(&audio_command_queue,msg,fx_tag);
 }
-void AudChangeEffectVol(s32 h,f32 opacity) {
+/* Sets the volume of the sound of fx tag handle tag (clamped to 0..1). */
+void AudChangeEffectVol(s32 tag,f32 volume) {
     osRecvMesg(&audio_lock_queue,0,1);
-    AudChangeEffect(h,opacity<0.0f ? 0.0f : opacity>1.0f ? 1.0f : opacity,
+    AudChangeEffect(tag,volume<0.0f ? 0.0f : volume>1.0f ? 1.0f : volume,
                           -2.0f,-2.0f,-2.0f);
     osSendMesg(&audio_lock_queue,0,0);
 }
-void AudChangeEffectPitch(s32 h,f32 value) {
+/* Sets the pitch of the sound of fx tag handle tag (1: its own pitch). */
+void AudChangeEffectPitch(s32 tag,f32 pitch) {
     osRecvMesg(&audio_lock_queue,0,1);
-    AudChangeEffect(h,-2.0f,-2.0f,-2.0f,value);
+    AudChangeEffect(tag,-2.0f,-2.0f,-2.0f,pitch);
     osSendMesg(&audio_lock_queue,0,0);
 }
 
-void change_effect_lr_pan(s32 h,f32 value) {
+/* Sets the left/right pan of the sound of fx tag handle tag (clamped to -1..1). */
+void change_effect_lr_pan(s32 tag,f32 lrpan) {
     osRecvMesg(&audio_lock_queue,0,1);
-    AudChangeEffect(h,-2.0f,value<-1.0f ? -1.0f : value>1.0f ? 1.0f : value,-2.0f,-2.0f);
+    AudChangeEffect(tag,-2.0f,lrpan<-1.0f ? -1.0f : lrpan>1.0f ? 1.0f : lrpan,-2.0f,-2.0f);
     osSendMesg(&audio_lock_queue,0,0);
 }
-void change_effect_fb_pan(s32 h,f32 value) {
+/* Sets the front/back pan of the sound of fx tag handle tag (clamped to -1..1). */
+void change_effect_fb_pan(s32 tag,f32 fbpan) {
     osRecvMesg(&audio_lock_queue,0,1);
-    AudChangeEffect(h,-2.0f,-2.0f,value<-1.0f ? -1.0f : value>1.0f ? 1.0f : value,-2.0f);
+    AudChangeEffect(tag,-2.0f,-2.0f,fbpan<-1.0f ? -1.0f : fbpan>1.0f ? 1.0f : fbpan,-2.0f);
     osSendMesg(&audio_lock_queue,0,0);
 }

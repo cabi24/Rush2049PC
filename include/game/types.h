@@ -255,9 +255,14 @@ struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
 struct tCircuit;
+struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
 struct tModelData;
 struct tPS_File;
 struct tPlayerProfile;
+struct tSfxCmd;
+struct tSfxEmitter;
+struct tSfxListener;
+struct tSfxVoice;
 struct tTexture;
 struct tUVMatrix;
 struct tVisual;
@@ -504,29 +509,34 @@ typedef struct ComponentLight { /* 0x10 bytes */
     u8 pad3[4]; /* 0xC */
 } ComponentLight;
 
+/* An engine sound layer of a car type (MAT3's, unnamed: gEngineSpecs): its effect and how the engine's rpm sets
+ * its pitch and volume (the engine update, UpdateEngineSound). */
 typedef struct Definition32 { /* 0x20 bytes */
-    s32 object;  /* 0x0 */
-    u16 r0;      /* 0x4 */
-    u16 r1;      /* 0x6 */
-    u16 b0;      /* 0x8 */
-    u16 b1;      /* 0xA */
-    u16 b2;      /* 0xC */
-    u8 padE[2];  /* 0xE */
-    f32 p0;      /* 0x10 */
-    f32 p1;      /* 0x14 */
-    f32 p2;      /* 0x18 */
-    u8 pad1C[4]; /* 0x1C */
+    s32 id;             /* 0x0: the effect, -1 for none */
+    u16 basePitchRpm;   /* 0x4: the rpm at which the sound plays at its own pitch */
+    u16 pitchRpmRange;  /* 0x6 */
+    u16 lowVolRpm;      /* 0x8: the rpm of lowVol, midVol and hiVol */
+    u16 midVolRpm;      /* 0xA */
+    u16 hiVolRpm;       /* 0xC */
+    u8 padE[2];         /* 0xE */
+    f32 lowVol;         /* 0x10 */
+    f32 midVol;         /* 0x14 */
+    f32 hiVol;          /* 0x18 */
+    u8 pad1C[4];        /* 0x1C */
 } Definition32;
 
+/* A car type's two engine layers (gEngineSpecs[type]). */
 typedef struct Definitions64 { /* 0x40 bytes */
     Definition32 item[2]; /* 0x0 */
 } Definitions64;
 
+/* A force's peak on one part of a car (MAT3's, unnamed: gBump[car][part], parts 0-3 the body's corners, 4 its
+ * centre): GetForceAndPeak keeps the peak of a hit, UpdateBumps plays a bump when it has settled (bump). */
 typedef struct Impact24 { /* 0x18 bytes */
-    f32 force;     /* 0x0 */
-    f32 vector[3]; /* 0x4 */
-    f32 timestamp; /* 0x10 */
-    s32 flag;      /* 0x14 */
+    f32 peak;       /* 0x0: the force's peak magnitude */
+    f32 peakVec[3]; /* 0x4: the force at its peak */
+    f32 time;       /* 0x10: gSeconds when the hit began or peaked, 0 for none */
+    s32 bump;       /* 0x14: a settled hit for UpdateBumps to play */
 } Impact24;
 
 typedef struct LayerRecord { /* 0xC bytes */
@@ -679,14 +689,6 @@ typedef struct SequenceTrack { /* 0x38 bytes */
     u8 unknown18[16]; /* 0x28 */
 } SequenceTrack;
 
-typedef struct State20 { /* 0x14 bytes */
-    s32 handle; /* 0x0 */
-    f32 a;      /* 0x4 */
-    f32 b;      /* 0x8 */
-    f32 c;      /* 0xC */
-    f32 d;      /* 0x10 */
-} State20;
-
 typedef struct TPos { /* 0x18 bytes */
     s32 pad0[4]; /* 0x0 */
     s32 x;       /* 0x10 */
@@ -776,7 +778,14 @@ typedef struct UnitMatrix { /* 0x24 bytes */
     f32 values[9]; /* 0x0 */
 } UnitMatrix;
 
-/* ---- audio: the sound manager, effects, music and the MusyX sound library */
+/* ---- audio: the sound manager, effects, music and the MusyX sound library
+ *
+ * The MusyX library's records here (ChannelState the volume faders, LargeNode and SmallNode the 3D emitter lists,
+ * SequenceContext and SequenceNode the song slots and their notes, SpeechStream, the registries' storage) only lay
+ * out the library's data for the data loader: no game file reads their fields. The library's own definitions, with
+ * the fields named by what the code does, are in src/rom/sound and include/sequence_context.h,
+ * include/sound_hw_voice.h, include/sound_sample_record.h (docs/code/audio.md). The sound manager's records are in
+ * game/audiomgr.h. */
 
 typedef struct AudioConfiguration { /* 0x208 bytes */
     u32 frequency;     /* 0x0 */
@@ -957,9 +966,22 @@ typedef struct SpeechStream { /* 0x1268 bytes */
     u32 token;                                                   /* 0x1260 */
 } SpeechStream;
 
-typedef struct States60 { /* 0x3C bytes */
-    State20 values[3]; /* 0x0 */
-} States60;
+/* A car's sound (MAT3's, unnamed; 0x14 bytes): its fx tag handle and the values last sent to it, so that a change
+ * is sent only when a value moves (SetSoundVP). InitSoundState empties it: sound -1, the values -2 (none). */
+typedef struct tSoundState { /* 0x14 bytes */
+    s32 sound;  /* 0x0: the sound manager's handle, -1 for none */
+    f32 vol;    /* 0x4 */
+    f32 pitch;  /* 0x8 */
+    f32 lrpan;  /* 0xC */
+    f32 fbpan;  /* 0x10 */
+} tSoundState;
+
+/* A car's road noises (MAT3's, unnamed; 0x3C bytes): the surface sounds under it, one at a time. */
+typedef struct tRoadNoises { /* 0x3C bytes */
+    tSoundState dirt;  /* 0x0 */
+    tSoundState water; /* 0x14 */
+    tSoundState pave;  /* 0x28 */
+} tRoadNoises;
 
 typedef union TableRecordStorage { /* 0x8 bytes */
     TableRecord fields;

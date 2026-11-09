@@ -1,18 +1,14 @@
+/* NewListener: takes a free listener (MAT3 audiomgr.c's _NewListener, which returns it). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-VIEW(s32, gFreeListeners);
-#define gFreeListeners gFreeListeners_view
-
+/* Takes the first listener off gFreeListeners and marks it taken. Nothing calls it: AudAddListener takes its
+ * listener itself (and the N64's form returns nothing). It used to clear the byte at the N64's offset of free
+ * (+8), which on the PC is inside the list links; it clears free itself now. */
 void NewListener(void)
 {
-  s32 *sp1C;
-  s32 **new_var3;
-  s8 *new_var2;
-  s8 *new_var;
-  sp1C = *((s32 **) (((s8 *) (&gFreeListeners)) + 8));
-  RemoveLLE(&gFreeListeners, sp1C);
-  new_var = (s8 *) (*(new_var3 = &sp1C));
-  new_var2 = (s8 *) (new_var + 8);
-  *new_var2 = 0;
+  tSfxListener *listener;
+  listener = (tSfxListener *) gFreeListeners.head;
+  RemoveLLE(&gFreeListeners, listener);
+  listener->free = 0;
 }
-

@@ -1,5 +1,9 @@
+/* AdjustTextWavePointers: points the text bank's header at its sections once its wave is loaded (MAT3
+ * text.c's). Not a sound function: it sits among the sound code in the N64 image. */
 #include "game/game.h"
 
+/* The text bank's header (gText): for each of its six sections a count and where it starts: string tables in
+ * sections 0, 2 and 5, 16-bit data in 1, 3 and 4. */
 typedef struct {
     /* 0x00 */ u16 count0;
     /* 0x04 */ u32 *ptrs0;
@@ -23,6 +27,9 @@ VIEW(ModelTables, gText);
  * header points at those. Readers index them as char ** with host strides. */
 char **pc_text_strings(s32 section, u32 *offsets, s32 count, void *base);
 
+/* Walks the loaded text wave (gTextWaveInst): each section is a 32-bit count then its entries (32-bit string
+ * offsets, or 16-bit values padded to a word), and fills gText's counts and pointers; the string sections become
+ * tables of host pointers (pc_text_strings). */
 void AdjustTextWavePointers(void) {
     u32 *base;
     u32 *p;

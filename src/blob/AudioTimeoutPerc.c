@@ -1,11 +1,17 @@
+/* AudioTimeoutPerc: how far a sound-clock timer has run (MAT3 audiosysps2.c). */
 #include "game/game.h"
 
-f32 AudioTimeoutPerc(f32 arg0, f32 arg1) {
-    f32 var_f2;
+/* The sound clock gAudioSeconds wraps every four hours (audio_retrace_thread_entry). */
+#define AUDIO_CLOCK_WRAP_SECONDS 14400.0f
 
-    var_f2 = gAudioSeconds;
-    if (gAudioSeconds < arg0) {
-        var_f2 = gAudioSeconds + 14400.0f;
+/* The fraction of interval seconds that has passed since startTime on the sound clock (above 1 once it has run
+ * out), allowing for one wrap of the clock. */
+f32 AudioTimeoutPerc(f32 startTime, f32 interval) {
+    f32 now;
+
+    now = gAudioSeconds;
+    if (gAudioSeconds < startTime) {
+        now = gAudioSeconds + AUDIO_CLOCK_WRAP_SECONDS;
     }
-    return (var_f2 - arg0) / arg1;
+    return (now - startTime) / interval;
 }

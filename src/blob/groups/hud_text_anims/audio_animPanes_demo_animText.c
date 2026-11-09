@@ -1,4 +1,9 @@
+/* The audio screen's and the demo's text animators (MAT3 audioscr.c's animPanes; demo.c's animText): blit
+ * animation functions, run each frame through their blits. */
 #include "game/game.h"
+
+/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
+#define GAME_STATE_FRONT_END 0x7C03FFFE
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
@@ -17,23 +22,21 @@ VIEW(Pair, gJust);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
-/* audio_animPanes = animPanes@audioscr.c (MAT3 GameCube audioscr.c animPanes, GC 0x800662D0):
- * font_set_g3d = HAL_SetFont (inlined), audio_TitlePane = _TitlePane@audioscr.c, TB_GetFontLineHeight =
- * TB_GetFontLineHeight, InitPane, audio_menuRect = menuRect {x, w, h}.
- * Disclosed: x, u1 and u2 are UNUSED locals = exact frame residual. Retail frame 120 with y at sp+116; with y
- * alone the frame is 112 (y at sp+110, 5 words differ); x (declared before y) puts y in retail's slot (sp+116)
- * and u1/u2 supply the remaining local area (with 8 bytes of locals or less the frame stays 112). */
+/* The menu box's left, width and height (audio_menuRect, audio_calcMenuRect's). */
 typedef struct { s32 x, w, h; } MenuRect;
 
-s32 audio_animPanes(s32 arg0)
+/* The audio screen's panes, made once: in the pause screen the title pane (with "controller removed" if the
+ * pausing player's controller is out) and the menu's backing pane around audio_menuRect. blit is unused; returns 1
+ * (keep animating). The unused locals x, unused1 and unused2 are left from the N64 build's stack frame. */
+s32 audio_animPanes(s32 blit)
 {
     s16 x;
     s16 y;
-    s32 u1;
-    s32 u2;
+    s32 unused1;
+    s32 unused2;
 
     if (!audio_panesCreated) {
-        if (!(gGameState & 0x7C03FFFE)) {
+        if (!(gGameState & GAME_STATE_FRONT_END)) {
             HAL_SetFont(13);
             audio_gControllerRemoved = !gControllerData[playerInPause].flag;
             audio_TitlePane();
@@ -48,9 +51,11 @@ s32 audio_animPanes(s32 arg0)
     return 1;
 }
 
-s32 demo_animText(s32 arg0)
+/* The attract-mode demo's text each frame: the alternate message and a line of the text bank, or the usual line,
+ * in scroll boxes at the screen's bottom (and top). blit is unused; returns 1. */
+s32 demo_animText(s32 blit)
 {
-    char buf[40];   /* unused: exact frame residual (retail frame 144, 104 without it) -- see RESULTS */
+    char buf[40];   /* unused: left from the N64 build's stack frame */
 
     HAL_SetTextDepth(0.0f);
     TB_SetJust(1, 1);

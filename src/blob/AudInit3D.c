@@ -1,70 +1,37 @@
+/* AudInit3D: the sound manager's start-up of its 3D sound: the listeners and emitters (MAT3 audiomgr.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-typedef struct Link {
-    struct Link *next, *prev;
-} Link;
-
-typedef struct List {
-    u8 indirect, doubly, pad[2];
-    u32 count;
-    Link *head, *tail;
-} List;
-
-typedef struct {
-    /* 0x00 */ Link link;
-    /* 0x08 */ s8 unk8;
-    /* 0x09 */ s8 unk9;
-    /* 0x0A */ u8 padA[0x32];
-} RecA; /* 0x3C */
-
-typedef struct RecB {
-    /* 0x00 */ Link link;
-    /* 0x08 */ s8 unk8;
-    /* 0x09 */ s8 unk9;
-    /* 0x0A */ u8 padA[0x22];
-} RecB; /* 0x2C */
-
-VIEW(List, gFreeListeners);
-#define gFreeListeners gFreeListeners_view
-VIEW(List, gActiveListeners);
-#define gActiveListeners gActiveListeners_view
-VIEW(List, gFreeEmitters);
-#define gFreeEmitters gFreeEmitters_view
-VIEW(List, gActiveEmitters);
-#define gActiveEmitters gActiveEmitters_view
-VIEW(RecA *, gListeners);
-#define gListeners gListeners_view
-VIEW(RecB *, gEmitters);
-#define gEmitters gEmitters_view
-
-#define N64A(x) PC_N64A(x)
-
-void AudInit3D(s32 numA, s32 numB, f32 arg2, f32 arg3, s32 arg4) {
+/* Called once by AudioInit. Empties the four lists and, given both counts, allocates numListeners listeners and
+ * numEmitters emitters from the heap and puts them all on the free lists. footUnits scales the speed of sound
+ * (1100 feet a second) to the world's units; frontDistance and doppler are kept for the emitters (gFrontDistance,
+ * gCalcDoppler). */
+void AudInit3D(s32 numListeners, s32 numEmitters, f32 footUnits, f32 frontDistance, s32 doppler) {
     s32 i;
 
     sound_list_init(&gFreeListeners, 0, 1);
     sound_list_init(&gActiveListeners, 0, 1);
     sound_list_init(&gFreeEmitters, 0, 1);
     sound_list_init(&gActiveEmitters, 0, 1);
-    if (numA > 0 && numB > 0) {
-        gNumListeners = numA;
-        gListeners = AllocateMemoryHeap(0, gNumListeners * sizeof(RecA));
-        PurgeableMemory(N64A(gListeners), 0);
+    if (numListeners > 0 && numEmitters > 0) {
+        gNumListeners = numListeners;
+        gListeners = AllocateMemoryHeap(0, gNumListeners * sizeof(tSfxListener));
+        PurgeableMemory(PC_N64A(gListeners), 0);
         for (i = 0; i < gNumListeners; i++) {
-            gListeners[i].unk8 = 1;
-            gListeners[i].unk9 = 0;
-            InsertLLE(&gFreeListeners, &gListeners[i].link, gFreeListeners.head);
+            gListeners[i].free = 1;
+            gListeners[i].active = 0;
+            InsertLLE(&gFreeListeners, &gListeners[i].ll, gFreeListeners.head);
         }
-        gNumEmitters = numB;
-        gEmitters = AllocateMemoryHeap(0, gNumEmitters * sizeof(RecB));
-        PurgeableMemory(N64A(gEmitters), 0);
+        gNumEmitters = numEmitters;
+        gEmitters = AllocateMemoryHeap(0, gNumEmitters * sizeof(tSfxEmitter));
+        PurgeableMemory(PC_N64A(gEmitters), 0);
         for (i = 0; i < gNumEmitters; i++) {
-            gEmitters[i].unk8 = 1;
-            gEmitters[i].unk9 = 0;
-            InsertLLE(&gFreeEmitters, &gEmitters[i].link, gFreeEmitters.head);
+            gEmitters[i].free = 1;
+            gEmitters[i].active = 0;
+            InsertLLE(&gFreeEmitters, &gEmitters[i].ll, gFreeEmitters.head);
         }
-        gSoundSpeed = 1100.0f * arg2;
-        gFrontDistance = arg3;
-        gCalcDoppler = arg4;
+        gSoundSpeed = 1100.0f * footUnits;
+        gFrontDistance = frontDistance;
+        gCalcDoppler = doppler;
     }
 }

@@ -1,26 +1,19 @@
+/* AudioEffectPlaying: the sound server's answer to whether an effect instance still sounds (MAT3 audiosfx.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
-typedef struct Entry {
-    s8 active;      /* 0 */
-    s8 b1;          /* 1 */
-    u8 pad2[6];
-    s32 id;         /* 8 */
-    s32 pad12;
-    u32 handle;     /* 16 */
-    s32 pad20;
-} Entry;            /* 24 */
-VIEW(Entry *, gSfxInstances);
-#define gSfxInstances gSfxInstances_view
-
+/* Whether the effect instance of handle id (AudioPlayEffect's) is playing: 1 while it waits for its voice, then
+ * whether MusyX still has its voice (sound_check); 0 for -1 or a handle whose instance has been reused.
+ * The instance is the handle's low byte. */
 s32 AudioEffectPlaying(s32 id) {
     u8 slot;
-    Entry *e;
+    tSfxVoice *instance;
     if (id != -1) {
         slot = id;
-        if (id == gSfxInstances[slot].id) {
-            if (gSfxInstances[slot].b1 != 0) {
-                e = gSfxInstances + slot;
-                return sound_check(e->handle) != -1;
+        if (id == gSfxInstances[slot].index) {
+            if (gSfxInstances[slot].started != 0) {
+                instance = gSfxInstances + slot;
+                return sound_check(instance->sound) != -1;
             }
             return 1;
         }

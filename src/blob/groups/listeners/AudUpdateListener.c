@@ -1,30 +1,16 @@
+/* AudUpdateListener: moves a listener (MAT3 audiomgr.c), and the empty listener check it calls. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+#include "game/audiomgr.h"
 
-typedef struct Node {
-    /* A packet (AudAddListener's Packet): its Link is two host pointers on the PC, then the type and ready bytes,
-       so the vectors start at +20. With the N64's 12 bytes before them, each frame's copy wrote the listener's
-       position over the link's prev pointer and the two bytes (docs/port/QA.md 5). */
-    void *link[2];
-    unsigned char type, ready, pad[2];
-    /* 0x0C */ f32 a[3];
-    /* 0x18 */ f32 b[3];
-    /* 0x24 */ f32 c[3];
-    /* 0x30 */ f32 d[3];
-} Node;
-
-typedef struct OSMesgQueue OSMesgQueue;
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-s32 osRecvMesg(OSMesgQueue *mq, void *msg, s32 flag);
-s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
+s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
+s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 extern int __unit_dead[];
 
-/* Empty in retail (`jr ra; nop`) but still called by `jal`, and its callers know it clobbers nothing.
- * The parameter must be read for it to be passed in a0; the `if (0)` block is NOT original source: it is the
- * inline blocker of src/blob/unit_overrides.json (umerge sizes a callee before optimisation). */
-void ValidateListener(Node *node) {
-    if (node) {
+/* MAT3's _ValidateListener: a debug build's check of a listener, empty in the shipped game. The `if (0)` block
+ * is not the game's: it keeps the function out of line for the PC build's unit merger
+ * (src/blob/unit_overrides.json). */
+void ValidateListener(tSfxListener *listener) {
+    if (listener) {
     }
     if (0) {
         __unit_dead[0] = 1;
@@ -38,22 +24,25 @@ void ValidateListener(Node *node) {
     }
 }
 
-void AudUpdateListener(Node *node, f32 *a, f32 *b, f32 *c, f32 *d) {
-    if (node != (Node *) -1) {
+/* Moves listener (AudAddListener's) to pos, with velocity dir, forward axis look and up axis up; -1 (none) is
+ * ignored. On the PC its links are two host pointers, so its vectors start at +0x14: with the N64's +0xC, each
+ * frame's copy wrote the position over the links (docs/port/QA.md 5). */
+void AudUpdateListener(tSfxListener *listener, f32 *pos, f32 *dir, f32 *look, f32 *up) {
+    if (listener != (tSfxListener *) -1) {
         osRecvMesg(&audio_lock_queue, 0, 1);
-        ValidateListener(node);
-        node->a[0] = a[0];
-        node->a[1] = a[1];
-        node->a[2] = a[2];
-        node->b[0] = b[0];
-        node->b[1] = b[1];
-        node->b[2] = b[2];
-        node->c[0] = c[0];
-        node->c[1] = c[1];
-        node->c[2] = c[2];
-        node->d[0] = d[0];
-        node->d[1] = d[1];
-        node->d[2] = d[2];
+        ValidateListener(listener);
+        listener->pos[0] = pos[0];
+        listener->pos[1] = pos[1];
+        listener->pos[2] = pos[2];
+        listener->dir[0] = dir[0];
+        listener->dir[1] = dir[1];
+        listener->dir[2] = dir[2];
+        listener->look[0] = look[0];
+        listener->look[1] = look[1];
+        listener->look[2] = look[2];
+        listener->up[0] = up[0];
+        listener->up[1] = up[1];
+        listener->up[2] = up[2];
         osSendMesg(&audio_lock_queue, 0, 0);
     }
 }

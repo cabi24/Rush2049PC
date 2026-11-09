@@ -1,16 +1,18 @@
+/* StartListeners: a listener for each player's view at a race's start (MAT3 audio.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
-typedef struct Packet Packet;
+/* The player record's fields this file reads (MAT3 tPlayer: slot, listener). */
 typedef struct PlayerRec {
-    /* 0x00 */ u8 unk0;
+    /* 0x00 */ u8 slot;
     /* 0x01 */ u8 pad1[0x43];
-    /* 0x44 */ s32 message;
+    /* 0x44 */ s32 listener;
     /* 0x48 */ void *ref;
 } PlayerRec; /* 0x4C */
-/* PC: an input record is 80 bytes; +0x44 stays 32 bits: a packet is a heap block, so its window address
+/* PC: an input record is 80 bytes; +0x44 stays 32 bits: a listener is a heap block, so its window address
  * (docs/port/POINTERS.md 10; pc_prelude.h's PC_N64A, docs/port/NOFIXED.md 2.3). */
-#define PACKET(p) (s32)PC_N64A(p)
+#define LISTENER_WORD(p) (s32)PC_N64A(p)
 
 extern PlayerRec gPlayers[];
 VIEW(s32, gGameState);
@@ -23,18 +25,26 @@ VIEW(f32[][3], unitmatrix);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-Packet *AudAddListener(Vec3 *a, Vec3 *b, Vec3 *c, Vec3 *d);
+/* gGameState's bit for the attract-mode demo, gRace's ghost race, gOptions' effects volume (0 to 10). */
+#define GAME_STATE_DEMO 8
+#define RACE_GHOST 2
+#define OPTION_FX_VOLUME 13
 
+tSfxListener *AudAddListener(Vec3 *pos, Vec3 *dir, Vec3 *look, Vec3 *up);
+
+/* Outside the demo: gives each player a listener at the origin, at rest, looking along z with y up (each frame
+ * UpdateListeners moves it), except the second player of a ghost race (the ghost: -1), and fades the effects up to
+ * the options' volume. */
 void StartListeners(void)
 {
     s32 i;
 
-    if (!(gGameState & 8)) {
+    if (!(gGameState & GAME_STATE_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
-            if (gRace != 2 || gPlayers[i].unk0 == 0)
-                gPlayers[i].message = PACKET(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));
-            else gPlayers[i].message = -1;
+            if (gRace != RACE_GHOST || gPlayers[i].slot == 0)
+                gPlayers[i].listener = LISTENER_WORD(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));
+            else gPlayers[i].listener = -1;
         }
-        AudSetMasterVol((f32)gOptions[13] / 10.0f, 0.1f, 0, 1);
+        AudSetMasterVol((f32)gOptions[OPTION_FX_VOLUME] / 10.0f, 0.1f, 0, 1);
     }
 }

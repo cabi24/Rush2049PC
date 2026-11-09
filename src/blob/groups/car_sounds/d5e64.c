@@ -1,67 +1,73 @@
+/* A car's sounds at its start (MAT3 audio.c's StartCarSounds and _InitBumps). */
 #include "game/game.h"
 
-typedef struct { float a; s32 pad[3]; float b; s32 c; } Ent;      /* 24 bytes */
-typedef struct Slot { Ent e[5]; } Slot;                                 /* 120 bytes */
-
-VIEW(Slot[], gBump);
-#define gBump gBump_view
-
-void InitBumps(s16 idx)
+/* Clears the bump state of the car in slot (its five parts' peaks), stops its scrape and resets its bump, scrape
+ * and thump timers. */
+void InitBumps(s16 slot)
 {
     s32 i;
     for (i = 0; i < 5; i++) {
-        gBump[idx].e[i].c = 0;
-        gBump[idx].e[i].a = 0.0f;
-        gBump[idx].e[i].b = 0.0f;
+        gBump[slot].point[i].bump = 0;
+        gBump[slot].point[i].peak = 0.0f;
+        gBump[slot].point[i].time = 0.0f;
     }
-    AudStopEffect(gScrapes[idx]);
-    gScrapes[idx] = -1;
-    gScrapeState[idx] = 0;
-    gScrapeTime[idx] = 0.0f;
-    gBumpTime[idx] = 0.0f;
-    gThumpTime[idx] = 0.0f;
+    AudStopEffect(gScrapes[slot]);
+    gScrapes[slot] = -1;
+    gScrapeState[slot] = 0;
+    gScrapeTime[slot] = 0.0f;
+    gBumpTime[slot] = 0.0f;
+    gThumpTime[slot] = 0.0f;
 }
 
-typedef struct Player84 {Definitions64 *definition;State20 pair[3];State20 extra;} Player84;
+/* The engine record of a car (pc_engine_sounds: MAT3's specs, state[2], hum, rev): its car type's layers, their
+ * two sounds, the hum (which the N64 never starts) and the drones' random engine sound. */
+typedef struct EngineSounds {Definitions64 *specs;tSoundState state[2];tSoundState hum;tSoundState rev;} EngineSounds;
 
-typedef struct Vehicle2056 {u8 prefix[12];s8 category;u8 gap13[1587];s8 disabled;u8 gap1601[389];s16 player;u8 gap1992[4];s8 mode;u8 tail[59];} Vehicle2056;
+/* The model record's fields this file reads (MAT3 tModelData, the N64's layout). */
+typedef struct Vehicle2056 {u8 prefix[12];s8 engine_type;u8 gap13[1587];s8 crashflag;u8 gap1601[389];s16 slot;u8 gap1992[4];s8 drone_type;u8 tail[59];} Vehicle2056;
+
+/* A human's car (tModelData.drone_type): plain effects; a drone's sounds are 3D emitters. */
+#define DRONE_TYPE_HUMAN 2
 
 VIEW(char[], unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 
 extern u32 AudEmitEffect(void *,void *,float,float,float,float,u32,u32,u32,u32);
 
+/* Starts the sounds of the car of model vehicle, unless the game's sounds are off or the car has crashed: its
+ * engine type's two layers (silent effects for a human's car, emitters for a drone), its other records empty, and
+ * for the first four slots its road noises, scrape, bumps, horn and bog reset. Then marks its sounds on
+ * (pc_car_sounds_on), which StopCarSounds clears. */
 void StartCarSounds(Vehicle2056 *vehicle)
 {
- s32 player=vehicle->player;
- Player84 *state;
+ s32 slot=vehicle->slot;
+ EngineSounds *engine;
  int i;
- s32 object;
- object=(s32)&PC_CAR_SOUNDS_ON(player);
- state=PC_ENGINE_SOUND(player);
- if(!gGameSoundsEnabled || vehicle->disabled)return;
- if(&PC_CAR_SOUNDS_ON(player)!=0);
- state->definition=&gEngineSpecs[vehicle->category];
+ s32 fxid;
+ fxid=(s32)&PC_CAR_SOUNDS_ON(slot);   /* a dead store and a test of nothing, left from the decompilation */
+ engine=PC_ENGINE_SOUND(slot);
+ if(!gGameSoundsEnabled || vehicle->crashflag)return;
+ if(&PC_CAR_SOUNDS_ON(slot)!=0);
+ engine->specs=&gEngineSpecs[vehicle->engine_type];
  for(i=0;i<2;i++) {
-  InitSoundState(&state->pair[i]);
-  object=state->definition->item[i].object;
-  if(object==-1) continue;
+  InitSoundState(&engine->state[i]);
+  fxid=engine->specs->item[i].id;
+  if(fxid==-1) continue;
   {
-   if(vehicle->mode==2)state->pair[i].handle=AudPlayEffectVP(object,player,0,0,0.0f,0.0f,0.0f);
-   else state->pair[i].handle=AudEmitEffect(unitmatrix_origin,unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,object,player,0,128);
+   if(vehicle->drone_type==DRONE_TYPE_HUMAN)engine->state[i].sound=AudPlayEffectVP(fxid,slot,0,0,0.0f,0.0f,0.0f);
+   else engine->state[i].sound=AudEmitEffect(unitmatrix_origin,unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,fxid,slot,0,128);
   }
  }
- InitSoundState(&state->extra);
- InitSoundState(PC_SCREECH(player));
- if(player<4) {
-  InitSoundState(&gRoadNoises[player].values[0]);
-  InitSoundState(&gRoadNoises[player].values[1]);
-  InitSoundState(&gRoadNoises[player].values[2]);
-  gScrapes[player]=-1;
-  InitBumps(player);
-  gHornSounds[player]=-1;
-  gBogSounds[player]=-1;
+ InitSoundState(&engine->rev);
+ InitSoundState(PC_SCREECH(slot));
+ if(slot<4) {
+  InitSoundState(&gRoadNoises[slot].dirt);
+  InitSoundState(&gRoadNoises[slot].water);
+  InitSoundState(&gRoadNoises[slot].pave);
+  gScrapes[slot]=-1;
+  InitBumps(slot);
+  gHornSounds[slot]=-1;
+  gBogSounds[slot]=-1;
  }
- PC_CAR_SOUNDS_ON(player)=1;
+ PC_CAR_SOUNDS_ON(slot)=1;
 }
-
