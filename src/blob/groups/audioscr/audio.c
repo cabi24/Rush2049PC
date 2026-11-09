@@ -18,8 +18,6 @@ VIEW(ButtonInfo[], audio_buttonInfo);
 
 VIEW(u8[], gCamera);
 #define gCamera gCamera_view
-VIEW(s32[2], gJust);
-#define gJust gJust_view
 
 /* The two colours flashing text alternates between (MAT3 TB_text.c TB_FlashTextColors). */
 void TB_FlashTextColors(TextColor first, TextColor second)
@@ -32,8 +30,8 @@ void TB_FlashTextColors(TextColor first, TextColor second)
 /* The text's horizontal and vertical justification (gJust), as TB_SetJust sets it. */
 void au_SetJust(s32 h, s32 v)
 {
-    gJust[1] = v;
-    gJust[0] = h;
+    gJust.v = v;
+    gJust.h = h;
 }
 
 /* HAL_SetFont without its result. */

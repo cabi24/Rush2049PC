@@ -1,10 +1,6 @@
 /* TB_DrawTextScrollBox: word-wrapped text in a box, one page of it (MAT3 TB_text.c). */
 #include "game/game.h"
 
-typedef struct { s32 h, v; } Justification;
-VIEW(Justification, gJust);
-#define gJust gJust_view
-
 /* Draws text word-wrapped to width pixels in a box height pixels tall at (x, y), from page page and line line of it:
  * the lines that fit in the box make a page (the pages before page hold one line fewer); a negative page draws from
  * the start with one more line's room. Each line is placed by the

@@ -12,9 +12,6 @@
 extern u8 game_bss_end[];   /* the end of the game image's BSS: the main heap starts at the next 32-byte boundary */
 extern u32 osMemSize;       /* libultra: the RDRAM's size in bytes */
 
-VIEW(s32[], heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 s32 osRecvMesg();
 s32 osSendMesg();
 void osCreateMesgQueue();
@@ -116,9 +113,9 @@ void *AllocateMemoryHeap(tHeap *heap, u32 size)
 {
     void *data;
 
-    osRecvMesg(heap_lock_queue, 0, 1);
+    osRecvMesg(&heap_lock_queue, 0, 1);
     data = AllocateMemory(ConvertHeap(heap), size, 0, 0);
-    osSendMesg(heap_lock_queue, 0, 0);
+    osSendMesg(&heap_lock_queue, 0, 0);
     return data;
 }
 
@@ -132,7 +129,7 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
     tMasterBlock *table;
     u32 i;
 
-    osRecvMesg(heap_lock_queue, 0, 1);
+    osRecvMesg(&heap_lock_queue, 0, 1);
     target = ConvertHeap(heap);
     table = &target->masters;
     if (table->masters == 0) {
@@ -164,7 +161,7 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
         table = N64P(table->nextBlock);
     }
     *slot = (uintptr_t)AllocateMemory(target, size, slot, 0);
-    osSendMesg(heap_lock_queue, 0, 0);
+    osSendMesg(&heap_lock_queue, 0, 0);
     return slot;
 }
 
@@ -176,7 +173,7 @@ void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditio
     tHeap *heap;
     tHeap *other;
 
-    osRecvMesg(heap_lock_queue, 0, 1);
+    osRecvMesg(&heap_lock_queue, 0, 1);
     heap = AllocateMemory(ConvertHeap(parent), size + 64, 0, 1);
     heap->endRam = N64A(heap) + ((size + 95) & ~31);
     InitHeap(heap, numInitialMasters, numAdditionalMasters);
@@ -186,7 +183,7 @@ void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditio
             break;
         }
     }
-    osSendMesg(heap_lock_queue, 0, 0);
+    osSendMesg(&heap_lock_queue, 0, 0);
     return heap;
 }
 
@@ -212,8 +209,8 @@ void InitMemory(u16 numInitialMasters, u16 numAdditionalMasters)
 
     if (heap_lock_created == 0) {
         heap_lock_created = 1;
-        osCreateMesgQueue(heap_lock_queue, &heap_lock_msg, 1);
-        osSendMesg(heap_lock_queue, 0, 0);
+        osCreateMesgQueue(&heap_lock_queue, &heap_lock_msg, 1);
+        osSendMesg(&heap_lock_queue, 0, 0);
     }
     locate_main_heap();
     InitHeap(gMainHeap, numInitialMasters, numAdditionalMasters); pc_heap_created(gMainHeap);

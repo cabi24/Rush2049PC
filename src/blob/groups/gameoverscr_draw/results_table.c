@@ -57,8 +57,6 @@ VIEW(s8[][4], gBattlePoints);
 extern PlayerRow gPlayers[];
 VIEW(PlayerStats[], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
-VIEW(s32[2], gJust);
-#define gJust gJust_view
 
 
 extern s32 osRecvMesg(OSMesgQueue *,void **,s32),osSendMesg(OSMesgQueue *,void *,s32);
@@ -237,7 +235,7 @@ void drawBattleStandings(void)
         }
     }
     HAL_SetTextDepth(0.0f);
-    gJust[0]=1;gJust[1]=1;
+    gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
     osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
@@ -282,7 +280,7 @@ void drawBattleStandings(void)
         }
     }
     HAL_SetTextDepth(-1.0f);
-    gJust[1]=3;gJust[0]=0;
+    gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
 }
 
 /* A stunt race's standings under the menu: each player's points and best stunt. */
@@ -321,7 +319,7 @@ void drawStuntStandings(void)
         }
     }
     HAL_SetTextDepth(0.0f);
-    gJust[0]=1;gJust[1]=1;
+    gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
     osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
@@ -364,7 +362,7 @@ void drawStuntStandings(void)
         }
     }
     HAL_SetTextDepth(-1.0f);
-    gJust[1]=3;gJust[0]=0;
+    gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
 }
 
 
@@ -417,7 +415,7 @@ void drawStuntScore(void)
         }
     }
     HAL_SetTextDepth(0.0f);
-    gJust[0]=1;gJust[1]=1;
+    gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
     osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
@@ -464,7 +462,7 @@ void drawStuntScore(void)
         }
     }
     HAL_SetTextDepth(-1.0f);
-    gJust[1]=3;gJust[0]=0;
+    gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
 }
 
 /* The only native direct caller of both callbacks. */
@@ -477,7 +475,7 @@ void drawMain(void)
     s16 x;
     s16 y;
     HAL_SetTextDepth(0.0f);
-    gJust[0]=1;gJust[1]=3;
+    gJust.h=kTB_JustCenter;gJust.v=kTB_JustTop;
     HAL_SetFont(13);
     TB_SetTextColor(kTB_WhiteText);
     x=gameover_titlePos[0];y=gameover_titlePos[1];
@@ -497,7 +495,7 @@ void drawMain(void)
             y+=TB_GetFontLineHeight();
         }
     }
-    gJust[1]=3;gJust[0]=0;
+    gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
     HAL_SetTextDepth(-1.0f);
     switch(gRace) {
     case kStunt:drawStuntStandings();break;
@@ -567,7 +565,7 @@ void drawBattleScore(void)
         }
     }
     HAL_SetTextDepth(0.0f);
-    gJust[0]=1;gJust[1]=1;
+    gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
     text_lock(); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
@@ -611,7 +609,7 @@ void drawBattleScore(void)
         }
     }
     HAL_SetTextDepth(-1.0f);
-    gJust[1]=3;gJust[0]=0;
+    gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
 }
 /* The screen's text blit callback: the menu page, or the score page: for a race, a table of each lap's time per
  * player under the totals' rows. Always 1. */
@@ -675,7 +673,7 @@ s32 gameover_animText(s32 blit)
                 }
             }
             HAL_SetTextDepth(0.0f);
-            gJust[0]=1;gJust[1]=1;
+            gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
             HAL_SetFont(11);
             for(row=0;row<rows;row++) {
                 for(column=0;column<columns;column++) {
@@ -746,7 +744,7 @@ s32 gameover_animText(s32 blit)
                 }
             }
             HAL_SetTextDepth(-1.0f);
-            gJust[1]=3;gJust[0]=0;
+            gJust.v=kTB_JustTop;gJust.h=kTB_JustLeft;
             break;
         }
         break;

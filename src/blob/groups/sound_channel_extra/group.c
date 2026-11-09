@@ -2,15 +2,6 @@
  * is the N64's own). */
 #include "game/game.h"
 
-/* The font header as these functions read it: nonProp signed (the old value is returned as a signed char). */
-typedef struct FontHeaderS {
-    u8 version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth, spacing;
-    s8 nonProp;
-    u8 kern, numTextures, numChars;
-} FontHeaderS;
-VIEW(FontHeaderS *, gFontHeader);
-#define gFontHeader gFontHeader_view
-
 /* Makes the current font fixed width (value 1) or proportional (0), changing the font's header itself, and returns
  * what it was. HAL_SetFont makes font 0 fixed width whenever it is chosen. */
 s8 HAL_SetFontFixedWidth(s8 value) {

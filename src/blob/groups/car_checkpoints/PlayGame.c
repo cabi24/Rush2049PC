@@ -31,8 +31,6 @@ VIEW(Cam152[], gCamera);
 VIEW(Obj40 **[], gGhosts);
 #define gGhosts gGhosts_view
 /* unitmatrix's fourth row, the origin: the crash sound's orientation */
-VIEW(u8[], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
 
 /* Runs one frame of the race on the game thread: the cars' model results (Update_MDrive), the race's own rules
  * (stunts; battle's shots and power-ups; or the drones, or the obstacle course's respawn points, and the

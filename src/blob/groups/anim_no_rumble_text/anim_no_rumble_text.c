@@ -34,18 +34,14 @@ typedef struct Control {
 } Control;
 
 
-typedef struct Pair {
-    s32 a, b;
-} Pair;
-
 extern Player gPlayers[];
 
 /* The text's horizontal and vertical justification (gJust), as TB_SetJust sets it. */
 void TB_SetJust_6B3C(u32 first, u32 second)
 {
-    Pair *p = &gJust;
-    p->a = first;
-    p->b = second;
+    TextJust *p = &gJust;
+    p->h = first;
+    p->v = second;
 }
 
 

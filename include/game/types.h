@@ -18,7 +18,6 @@ struct AltPath;
 struct AudioCacheNode;
 struct AudioModel2056;
 struct AudioNode;
-struct Bank;
 struct Basis;
 struct Blit;
 struct Block;
@@ -668,6 +667,13 @@ typedef struct ScreenPos { /* 0x8 bytes */
     s32 x; /* 0x0 */
     s32 y; /* 0x4 */
 } ScreenPos;
+
+/* How TB_DrawText and the text boxes place a string against its position (gJust, TB_SetJust; MAT3 anon_h_v_8):
+ * across against x (kTB_JustLeft, kTB_JustCenter, kTB_JustRight), down against y (kTB_JustTop ...). */
+typedef struct TextJust { /* 0x8 bytes */
+    s32 h; /* 0x0 */
+    s32 v; /* 0x4 */
+} TextJust;
 
 /* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index). The PC's
  * layout: the scheduler's task is the PC's OSScTask. */

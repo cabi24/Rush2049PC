@@ -40,10 +40,8 @@ extern Resource24 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, s32);    /* text
 extern s32 sprintf(char *, char *, ...);
 extern void *memcpy(void *, const void *, u32);
 
-VIEW(struct OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-int osRecvMesg(struct OSMesgQueue *, void **, int);
-int osSendMesg(struct OSMesgQueue *, void *, int);
+int osRecvMesg(OSMesgQueue *, void **, int);
+int osSendMesg(OSMesgQueue *, void *, int);
 #define heap_lock() osRecvMesg(&heap_lock_queue, 0, 1)
 #define heap_unlock() osSendMesg(&heap_lock_queue, 0, 0)
 

@@ -1,12 +1,9 @@
 #include "game/game.h"
 
 
-typedef struct tFontHeader { u8 pad0[2]; u8 ascent; u8 descent; } tFontHeader;
 
 VIEW(s32[4][4][2], speedPos);
 #define speedPos speedPos_view
-VIEW(tFontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
 
 s32 animSpeedText(void *blt)
 {

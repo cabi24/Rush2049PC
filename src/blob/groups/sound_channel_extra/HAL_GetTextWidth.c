@@ -4,9 +4,6 @@
 /* A letter's row of the kerning table: its kerns field holds a window address (port/assets/font.c). */
 #define FONT_KERNS(k) ((u8 *)PC_N64P(k))
 
-VIEW(FontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
-
 /* The width in pixels of the first maxlen characters of str (all of it when negative; it stops at a newline), in the
  * current font: each letter's width and the spacing between letters, less the kerning, a space's width for spaces,
  * characters over 255 and characters the font lacks, maxWidth plus spacing for each character of a fixed-width font;

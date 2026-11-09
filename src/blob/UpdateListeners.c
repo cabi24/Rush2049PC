@@ -16,8 +16,6 @@ typedef struct CarRec {
 typedef struct View { u8 pad0[12]; f32 up[3]; f32 forward[3]; u8 pad24[152 - 36]; } View;  /* 152 */
 
 extern CarRec gPlayers[];
-VIEW(f32[], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
 VIEW(View[], gCamera);
 #define gCamera gCamera_view
 

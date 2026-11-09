@@ -15,9 +15,6 @@ typedef struct tTexture {
     TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
 
-VIEW(FontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
-
 VIEW(anon_fore_4, gFontColor);
 #define gFontColor gFontColor_view
 

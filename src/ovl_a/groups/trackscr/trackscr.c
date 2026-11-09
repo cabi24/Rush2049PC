@@ -192,11 +192,7 @@ VIEW(ModelBank[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
 #define N64A0(x) PC_N64A(x)
-/* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ImageMeta {void *pal,*tex;u16 model;s16 x,y;u16 mode;s16 w,h;u8 color;u8 flags;s8 hidden;u8 pad17;s16 t0,s0,t1,s1;} ImageMeta;
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
-VIEW(ImageMeta[], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
 
 VIEW(Color, loadTrackScreen_backColor);
 #define loadTrackScreen_backColor loadTrackScreen_backColor_view

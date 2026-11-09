@@ -47,24 +47,8 @@ void UnlockWaveInstance(s32 index)
     do { slot->locked = 0; } while (0);
 }
 
-/* A font file's header (MAT3 anon_version_type_10), 16 bytes, then its letters, then each letter's kerning row when
- * the font has kerning. The file keeps its N64 layout in the window. */
-typedef struct Bank {
-    u8 version;     /* 0x0 */
-    u8 type;        /* 0x1: 1 for a 4-bit font */
-    u8 ascent;      /* 0x2 */
-    u8 descent;     /* 0x3 */
-    u8 leading;     /* 0x4 */
-    u8 totalHeight; /* 0x5 */
-    u8 maxWidth;    /* 0x6 */
-    u8 spaceWidth;  /* 0x7 */
-    u8 spacing;     /* 0x8 */
-    s8 nonProp;     /* 0x9 */
-    u8 kern;        /* 0xA: the letters have kerning rows */
-    u8 numTextures; /* 0xB */
-    u8 numChars;    /* 0xC */
-} Bank;
-
+/* A font file is its header (FontHeader), then its letters, then each letter's kerning row when the font has
+ * kerning; the file keeps its N64 layout in the window. */
 /* A letter (MAT3 anon_kerns_value_c, N64 layout, 12 bytes): its kerning row's window address, and its character. */
 typedef struct Entry { u32 kerns; u8 value; u8 pad[7]; } Entry;
 #define FONT_SLOT(p) PC_N64A(p)
@@ -94,7 +78,7 @@ void SetupFontData(s32 force)
 
     p = WAVE_HANDLE_BLOCK(GetWaveInstanceAddr(gFontDatWaveInst));
     if (force || p != (u8 *)gFontHeader) {
-        gFontHeader = (Bank *)p;
+        gFontHeader = (FontHeader *)p;
         p += 16;
         gFontLetters = (Entry *)p;
         p += gFontHeader->numChars * 12;

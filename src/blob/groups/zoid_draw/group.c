@@ -1505,22 +1505,6 @@ void zoid_draw_window(s32 view, View *eye)
 #define G_MDSFT_TEXTFILT 12
 #define G_TF_POINT (0 << G_MDSFT_TEXTFILT)
 #define gDPSetTextureFilter(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTFILT, 2, type)
-/* A 2D blit instance (gBlitInstanceList, MAT3 anon_palette_texture_20; 32 bytes on the N64, offsets N64's): a
- * texture drawn on the screen over the scene (the HUD, the menus), or a filled rectangle. */
-typedef struct BlitInstance {
-    Palette *palette;           /* 0x00 its palette; for a fill (no texture), the colour's bytes */
-    tTexture *texture;          /* 0x04 its texture, NULL a fill; with flags 0x80 a function to call instead */
-    u16 texIndex;               /* 0x08 the texture's handle: index >> 10 its model, for the palette table */
-    s16 x, y;                   /* 0x0A where on the screen, pixels */
-    u16 z;                      /* 0x0E its depth (BlitZDist), 0 none */
-    s16 width, height;          /* 0x10 its size on the screen, pixels */
-    u8 alpha;                   /* 0x14 255 opaque, else translucent (BlitXLU) */
-    u8 flags;                   /* 0x15 1 BlitSetAttribute(1) while drawn; 4 flipped in x; 8 not flipped in y;
-                                 * 0x80 a callback */
-    s8 hide;                    /* 0x16 */
-    u8 pad17;
-    s16 top, left, bot, right;  /* 0x18 the part of the texture drawn, texels */
-} BlitInstance;
 
 VIEW(Lights2 *, gLights);
 #define gLights gLights_view
@@ -1530,8 +1514,6 @@ VIEW(s16, gNumLights);
 VIEW(Vtx[][3200], zoid_poly_vertex_buffers);
 #define zoid_poly_vertex_buffers zoid_poly_vertex_buffers_view
 
-VIEW(BlitInstance[200], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
 VIEW(u8[4], blit_ia_palette);
 #define blit_ia_palette blit_ia_palette_view
 
@@ -1582,7 +1564,7 @@ void ZOID_EndFrame(s32 skip_blits)
         BlitSetAttribute(0x8000);
     }
     for (i = 0; i < gNumBlitInsts; i++) {
-        BlitInstance *blit;
+        tBlitInstance *blit;
         tTexture *tex;
         Palette *pal;
         s32 h;                  /* unused */

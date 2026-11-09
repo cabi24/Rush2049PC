@@ -10,9 +10,6 @@
 #define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
 typedef struct OSMesgQueue OSMesgQueue;
 
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 extern u8 overlay_base[];   /* where the runtime image (front end A or race extras B) is loaded: its heap chunk */
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
@@ -55,24 +52,24 @@ void DeallocateMemoryInternal(u32 address, s32 internal) {
 
 /* Frees the chunk whose data is at address (a window address), under the heap lock (MAT3 DeallocateMemory). */
 __inline void DeallocateMemory(u32 address) {
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    osRecvMesg(&heap_lock_queue, NULL, 1);
     DeallocateMemoryInternal(address, 0);
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
 /* The sound library's free (its allocator hook), the same as DeallocateMemory. */
 void musyx_free(u32 address) {
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    osRecvMesg(&heap_lock_queue, NULL, 1);
     DeallocateMemoryInternal(address, 0);
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
 /* Frees runtime image B (the race extras) if it is loaded. */
 void unload_extra_overlay(void) {
     if (extra_overlay_loaded) {
-        osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+        osRecvMesg(&heap_lock_queue, NULL, 1);
         DeallocateMemoryInternal(N64A(overlay_base), 0);
-        osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+        osSendMesg(&heap_lock_queue, NULL, 0);
         extra_overlay_loaded = 0;
     }
 }
@@ -81,9 +78,9 @@ void unload_extra_overlay(void) {
  * image itself. */
 void unload_start_overlay(void) {
     if (start_overlay_loaded) {
-        osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+        osRecvMesg(&heap_lock_queue, NULL, 1);
         DeallocateMemoryInternal(N64A(overlay_base), 0);
-        osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+        osSendMesg(&heap_lock_queue, NULL, 0);
         start_overlay_loaded = 0;
     }
 }
@@ -92,9 +89,9 @@ void unload_start_overlay(void) {
 void free_car_palette(s32 index) {
     u32 address = car_palettes[index].data;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    osRecvMesg(&heap_lock_queue, NULL, 1);
     DeallocateMemoryInternal(address, 0);
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
 /* Resizes the chunk whose data is at address to desired bytes (rounded up to 32), in place, under the heap lock
@@ -115,7 +112,7 @@ void ReallocateMemory(u32 address, u32 desired) {
     u32 size;
     u32 nextSize;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    osRecvMesg(&heap_lock_queue, NULL, 1);
     desired = (desired + 31) & ~31U;
     heap = (tHeap *)FindHeap(address);
     chunk = FindChunk(heap, address, 0);
@@ -191,7 +188,7 @@ void ReallocateMemory(u32 address, u32 desired) {
         }
         chunk->size = desired;
     }
-    pc_heap_allocated(heap); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    pc_heap_allocated(heap); osSendMesg(&heap_lock_queue, NULL, 0);
 }
 
 VIEW(uintptr_t, gListeners);

@@ -159,8 +159,6 @@ typedef struct PlayerPad {
     u8 pad3C[80 - 60];
 } PlayerPad;
 
-VIEW(f32[3], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
 extern PlayerPad gPlayers[];
 
 s32 AudEmitEffect(f32 *,intptr_t,f32,f32,f32,f32,s32,s32,s32,u8);

@@ -1,9 +1,6 @@
 /* TB_GetFontHeight and TB_GetFontLineHeight: the current font's height (MAT3 TB_text.c). */
 #include "game/game.h"
 
-VIEW(FontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
-
 /* The current font's height in pixels: ascent and descent. */
 s16 TB_GetFontHeight(void) { u8 ascent; ascent=HAL_GetFontAscent(); return (s16)(ascent + HAL_GetFontDescent()); }
 

@@ -11,10 +11,6 @@ VIEW(s32, gGameState);
 VIEW(s32[3], audio_menuRect);
 #define audio_menuRect audio_menuRect_view
 
-typedef struct { u32 first, second; } Pair;
-VIEW(Pair, gJust);
-#define gJust gJust_view
-
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
@@ -66,8 +62,8 @@ s32 demo_animText(s32 blit)
         TB_DrawTextScrollBox(160, 185, 320, 110, -1, 0, gText.single[32]);
         TB_SetTextColor(1);
     }
-    gJust.second = 3;
-    gJust.first = 0;
+    gJust.v = kTB_JustTop;
+    gJust.h = kTB_JustLeft;
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

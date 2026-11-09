@@ -62,15 +62,12 @@ typedef void  FAR *voidpf;
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 
-VIEW(char[], heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* Frees the chunk at window address address under the heap lock. */
 __inline void heap_free_locked(unsigned int address)
 {
-    osRecvMesg(heap_lock_queue, 0, 1);
+    osRecvMesg(&heap_lock_queue, 0, 1);
     DeallocateMemoryInternal(address, 0);
-    osSendMesg(heap_lock_queue, 0, 0);
+    osSendMesg(&heap_lock_queue, 0, 0);
 }
 /* heap_free_locked. */
 __inline void mem_free(unsigned int address)

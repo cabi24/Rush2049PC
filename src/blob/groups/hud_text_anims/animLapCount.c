@@ -11,13 +11,6 @@ typedef struct Pos {
     s32 x, y;
 } Pos;
 
-typedef struct Justification {
-    s32 h, v;
-} Justification;
-
-VIEW(Justification, gJust);
-#define gJust gJust_view
-
 VIEW(Pos[][4], lapCountPos);
 #define lapCountPos lapCountPos_view
 

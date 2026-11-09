@@ -29,9 +29,6 @@ typedef struct Vehicle2056 {u8 prefix[12];s8 engine_type;u8 gap13[1587];s8 crash
 /* A human's car (tModelData.drone_type): plain effects; a drone's sounds are 3D emitters. */
 #define DRONE_TYPE_HUMAN 2
 
-VIEW(char[], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
-
 extern u32 AudEmitEffect(void *,void *,float,float,float,float,u32,u32,u32,u32);
 
 /* Starts the sounds of the car of model vehicle, unless the game's sounds are off or the car has crashed: its
