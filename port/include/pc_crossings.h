@@ -6,8 +6,9 @@
  * 4 GiB as RDRAM addresses. Wave 3 takes them away one by one; a build with RUSH_COUNT_CROSSINGS
  * (cmake -DRUSH_COUNT_CROSSINGS=ON) counts them, by site and by where the address points, and writes the counts at exit
  * (port/ultra/crossings.c; tools/port/crossings.py runs the synthetic paths and reports them). The same build has the
- * arena guard: RUSH2049_WINDOW_GUARD=arenas maps the game's data arenas in the RDRAM window without access, so
- * whatever still reaches that data by its N64 address faults.
+ * arena guard: RUSH2049_WINDOW_GUARD=arenas maps the RDRAM window's pages over the game's data arenas' N64 ranges
+ * without access (the arenas are blocks of host memory elsewhere), so whatever still reaches that data by its N64
+ * address faults.
  *
  * Without the option every hook below is nothing, and the default build compiles exactly as it did. Included by
  * pc_prelude.h (the game C) and by the PC layer's files with a hook (port/ultra/memory.c, port/gfx/gfx_rsp.c,

@@ -49,10 +49,10 @@ typedef struct {
 } PcDataImage;
 
 /* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
- * n64_hi) is zeroed. The runs byte-swap the known elements in place. The game's arenas are at their N64
- * addresses (host == n64_lo, in the RDRAM window; with the tables' window, host == window + n64_lo - PC_RDRAM_BASE); a
- * runtime image's arena there is cleared again after the first load, since it is game-heap memory until the game
- * loads the image. */
+ * n64_hi) is zeroed. The runs byte-swap the known elements in place. host is the arena's first byte in host memory:
+ * the game's are blocks data.c defines (pc_arena_<image>, docs/port/DATA.md 3), above 4 GiB, each datum at
+ * host + (its N64 address - n64_lo). A runtime image's arena is cleared again after the first load: on the N64 it is
+ * game-heap memory until the game loads the image. */
 typedef struct {
     uint8_t image;
     uint32_t n64_lo, n64_init, n64_hi;
@@ -171,37 +171,37 @@ typedef struct {
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
     uint32_t n_inits;
-    /* The RDRAM window the arenas are in, at window + (N64 address - PC_RDRAM_BASE): data.c's section in a
-     * RUSH_NOFIXED build (docs/port/NOFIXED.md 2). NULL: the window at host PC_RDRAM_BASE (port/include/pc_n64_map.h),
-     * arenas at their N64 addresses. */
+    /* The RDRAM window (the game's heap, libultra's low memory), where an RDRAM address a pointer keeps is, at
+     * window + (N64 address - PC_RDRAM_BASE): data.c's section in a RUSH_NOFIXED build (docs/port/NOFIXED.md 2).
+     * NULL: the window at host PC_RDRAM_BASE (port/include/pc_n64_map.h), where the address is its own host address. */
     uint8_t *window;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
- * address (a ROM offset, a segment address), kept. unresolved: below the heap and in no symbol, kept. arena: an
- * arena's host address, which is the value itself for an arena at its N64 address; undescribed counts those whose
- * target is initialized data no declaration describes, which keeps the ROM's byte order (fine for bytes, wrong for
- * a table of wider values that is reached only through pointers). */
+ * address (a ROM offset, a segment address), kept. unresolved: below the heap and in no symbol, kept. arena: into an
+ * arena, resolved to its block + the offset; undescribed counts those whose target is initialized data no
+ * declaration describes, which keeps the ROM's byte order (fine for bytes, wrong for a table of wider values that is
+ * reached only through pointers). */
 typedef struct {
     uint32_t null, own, cdef, arena, func, rdram, raw, unresolved, no_code, inexact, ambiguous;
     uint32_t addr_words;        /* non-pointer words that look like N64 addresses */
-    uint32_t addr_words_host;   /* ... of host storage, a function or code, which the word can't reach */
+    uint32_t addr_words_host;   /* ... of host storage (an arena's block too), a function or code: out of reach */
     uint32_t undescribed;       /* arena pointers to initialized bytes no element describes: kept in N64 order */
     uint32_t text_in_words;     /* arena pointers to text inside an element wider than a byte, which swaps it */
     uint32_t reached, reached_elems;   /* tables the reach rules converted, and their elements */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the
- * report (env PC_DATA_REPORT, else the build's data_report.txt; "" for none). 0 on success; -1 at once if an
- * arena at its N64 address is not mapped. load_image: fill one image again (an overlay load). report_path NULL
- * means the default. */
+ * report (env PC_DATA_REPORT, else the build's data_report.txt; "" for none). 0 on success; -1 if an image can't be
+ * read or host storage is below 4 GiB (not a PIE). load_image: fill one image again (an overlay load). report_path
+ * NULL means the default. */
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path);
 int pc_data_load_image(const PcDataTables *t, int image);
 const PcDataStats *pc_data_stats(void);
 /* n bytes of the game's data at n64_addr as the cartridge holds them (the N64's byte order), before anything is
  * loaded: from the first image that holds them, inflated for the call. 0, or -1 (no image holds them, a bad stream).
- * For a value the program needs before the RDRAM window is mapped (an online session's handshake: docs/port/NETPLAY.md
- * 17). */
+ * For a value the program needs before the game's data is loaded (an online session's handshake, before the RDRAM
+ * window is mapped: docs/port/NETPLAY.md 17). */
 int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
@@ -210,11 +210,11 @@ void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
  * name, from the tables, rather than a copy of the number (the symbol tables, asm/us/<image>/symbols.json, are the one
  * source). Before or after the data is loaded; a linear search, for startup and checks, not for every frame. */
 uint32_t pc_data_addr_of(const PcDataTables *t, const char *name);
-/* The RDRAM window when it isn't at host PC_RDRAM_BASE (the guard mode, docs/port/NOFIXED.md 5): an arena the tables
- * put at its N64 address is filled at n64_to_host(its address), and an RDRAM address a pointer keeps becomes
- * n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before pc_data_load_all. */
+/* The RDRAM window when it isn't at host PC_RDRAM_BASE (the guard mode, docs/port/NOFIXED.md 5): an RDRAM address a
+ * pointer keeps (the heap's) becomes n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before
+ * pc_data_load_all. */
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
-/* An N64 address by name (a function, own storage, an arena symbol + offset), from the tables the last
+/* An N64 address by name (a function, own storage, an arena's symbol + offset), from the tables the last
  * pc_data_load_all filled; "?" if none. */
 void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n);
 

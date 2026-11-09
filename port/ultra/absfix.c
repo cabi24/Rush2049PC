@@ -1,6 +1,9 @@
 /* port/ultra/absfix.c: the GOT slots of absolute N64-address symbols in the PIE, put back at startup
- * (pc_mem_fix_absolute in memory.c). On its own so that test programs that place game data at its N64 addresses
- * can link it too (port/assets/tests/support.h). */
+ * (pc_mem_fix_absolute in memory.c). The game's names in the RDRAM window are the only ones left (aliases.ld's: the
+ * low-memory globals, the heap's start, the runtime images' base, cartridge offsets); data.c's are relative to their
+ * arenas' blocks since docs/port/NATIVE.md step 5, which the executable's own relocations place. On its own so that
+ * test programs that place game data at its N64 addresses in a window of their own can link it too
+ * (port/assets/tests/support.h). */
 #define _GNU_SOURCE
 #include <stdint.h>
 
@@ -30,11 +33,10 @@ void pc_relro_pages(uintptr_t start, uintptr_t size, uintptr_t page, uintptr_t *
 }
 
 /* gen_stubs puts data the game uses by its N64 address at that address (aliases.ld: the low-memory globals,
- * the heap start, cartridge offsets), and gen_data every arena symbol (data.c: about 1,800 names of the game's
- * data and BSS in the window). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a RELATIVE
- * relocation, so at run time it holds the load address plus the value. Nothing the linker places has a link-time
- * address at N64_KSEG0 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend there
- * is one of these: put the value back. Initialized pointers to them (R_*_ABS64) are resolved at link time. Runs
+ * the heap start, cartridge offsets). binutils 2.40 on aarch64 gives the GOT slot of such an absolute symbol a
+ * RELATIVE relocation, so at run time it holds the load address plus the value. Nothing the linker places has a
+ * link-time address at N64_KSEG0 or above (gen_data.py --check verifies it), so a RELATIVE relocation with an addend
+ * there is one of these: put the value back. Initialized pointers to them (R_*_ABS64) are resolved at link time. Runs
  * before any game code, and before anything touches game data. */
 static int fix_absolute(struct dl_phdr_info *info, size_t size, void *count)
 {
