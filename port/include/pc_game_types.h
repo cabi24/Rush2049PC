@@ -63,9 +63,8 @@ void pc_scene_count(int what, int n);
 /* ---- The pools a race fills, and the start grid (docs/port/MORECARS.md 8 and 4).
  * GetMatrix (ZOID_NewMatrix) hands out the persistent matrices, 48 bytes each (a scene node's, a blast's): the N64's
  * PC_N64_MATRICES at gMatrices (index 0 unused), then PC_MATRIX_SPILL more in
- * pc_matrix_spill, a range of the RDRAM window the PC reserves (port/data/reserved.txt: bytes the decoupled model
- * records freed). They stay in the window: a window's camera matrix is kept as a u32 (skyMatrices, MORECARS.md 2.7).
- * About 12 a car: a 6-car race on track 0 takes indexes 1-130, a 12-car one 1-202. */
+ * pc_matrix_spill, PC storage (ZOID_NewMatrix.c defines it). About 12 a car: a 6-car race on track 0 takes indexes
+ * 1-130, a 12-car one 1-202. */
 #define PC_N64_MATRICES 150
 #ifndef PC_MATRIX_SPILL
 #define PC_MATRIX_SPILL 128

@@ -21,7 +21,7 @@
 /* GetMatrix's */
 int32_t gNumMatrices, gMaxMatrices;
 float gMatrices[PC_N64_MATRICES][12] __attribute__((aligned(16)));
-float pc_matrix_spill[PC_MATRIX_SPILL][12] __attribute__((aligned(16)));   /* data.c's, in the window, in the game */
+/* pc_matrix_spill: ZOID_NewMatrix.c's own, PC_MATRIX_SPILL of them */
 float unitmatrix[3][3];
 static int g_copies;
 static const void *g_copied_to;

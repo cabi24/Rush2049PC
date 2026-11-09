@@ -8,7 +8,6 @@
 # initialized item's range gets the image's bytes at load); the build fails otherwise, and
 # gen_data.py --check fails if the executable doesn't have it there.
 
-# GetMatrix's persistent matrices past the N64's 150 (ZOID_NewMatrix): float[PC_MATRIX_SPILL][12], 48 bytes each,
-# 6,144 bytes with PC_MATRIX_SPILL 128, at the start of the model records' old range (0x8014A250-0x8014D280). A window's
-# camera matrix is kept as a u32 (skyMatrices), so they stay in the window.
-pc_matrix_spill   0x8014A250
+# Empty since 2026-11-09 (docs/port/NATIVE.md step 4). Its one entry was GetMatrix's spill, pc_matrix_spill, kept in
+# the window because each window's sky matrix was a 32-bit address (skyMatrices): those are pointers now, and the spill
+# is PC storage (src/blob/ZOID_NewMatrix.c). Step 5 takes the arenas out of the window and this file with them.
