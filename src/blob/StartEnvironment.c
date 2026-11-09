@@ -30,7 +30,7 @@ static void StartShadow(s16 slot)
     v->slot = slot;
     v->timeStamp = gModelTime;
     gShadowColor.c[3] = 192;
-    v->objnum = ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & GS_CAR) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
+    v->objnum = (PolyInstance *)ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & GS_CAR) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
 }
 
 /* Give a human's car `slot` in split screen its arrows: one polygon for each other player's window (window mask bit

@@ -219,8 +219,8 @@ void SkyUpdate(s32 winidx);
 f32 tan_cody_waite(f32 x);
 s32 texcmp(u8 *ta, u8 *tb);
 void TextureAnimation(void);
-s32 Traverse(Gfx **gp, struct ObjInstance *parent, struct ObjInstance *node, s32 view, s32 depth,
-             s32 more_after, s32 use_parent_distance, struct Palette *palette);
+s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth,
+             s32 more_after, s32 use_parent_distance, struct tPaletteDef *palette);
 s32 world_name_compare(intptr_t key, intptr_t entry);
 void WorldClear(void);
 void WorldCullObjects(s32 unused, f32 *pos, s32 show);
@@ -229,8 +229,8 @@ void ZOID_BuildCullingList(f32 *min, f32 *max, s16 node);
 s32 ZOID_AddObject(s32 obj, void *mat, s16 parent, s32 flags);
 s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx);
 void ZOID_ClearPolyFlags(struct Header *poly, u16 mask);
-s32 zoid_draw_object(Gfx **gp, struct ObjInstance *parent, s32 depth, s32 use_parent_distance,
-                     struct ObjInstance *node, s32 view, struct Palette *palette);
+s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent_distance,
+                     ObjectInstance *node, s32 view, struct tPaletteDef *palette);
 void zoid_draw_window(s32 view, tCamera *eye);
 struct tUVMatrix *ZOID_FindMatrix(s16 node);
 s16 ZOID_FindObjInstance(void *name);
@@ -243,9 +243,9 @@ struct tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, 
                                           f32 hcenter, f32 vcenter);
 void ZOID_InsertObject(s16 node, s16 parent);
 s16 ZOID_LastSibling(s16 node);
-void zoid_load_palette(Gfx **gfxp, struct Palette *pal);
+void zoid_load_palette(Gfx **gfxp, struct tPaletteDef *pal);
 void zoid_load_texture(Gfx **gp, struct tTexture *tex, struct TexTile *rect, struct TexTile *clip,
-                       struct Palette *palettes);
+                       struct tPaletteDef *palettes);
 void *ZOID_NewMatrix(void);
 struct tPoly *ZOID_NewPoly(s32 nverts, f32 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
 s32 zoid_node_visible(void *node, s32 view);
