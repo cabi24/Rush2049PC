@@ -10,10 +10,11 @@ extern f32 fabsf(f32);
  * 3). */
 typedef struct tVisual {
     /* 0x00 */ void *next;
-    /* 0x08 */ u8 pad8[2];          /* index */
+    /* 0x08 */ s16 index;
     /* 0x0A */ s16 objnum;          /* the shadow's polygon */
     /* 0x0C */ s16 slot;
-    /* 0x0E */ u8 padE[0x20 - 0x0E]; /* data, timeStamp */
+    /* 0x10 */ uintptr_t data;
+    /* 0x18 */ f32 timeStamp;
     /* 0x20 */ void (*func)(struct tVisual *v, s16 op);
 } tVisual;
 

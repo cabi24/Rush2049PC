@@ -6,7 +6,7 @@
 
 /* A visual (MAT3 tVisual). PC: 0x28 bytes: next, data and func are pointer-sized (struct pc_visual, docs/port/CARS.md
  * 3). */
-typedef struct tVisual {struct tVisual *next;u16 index;s16 objnum,slot;u8 pad0E[0x20 - 0xE];intptr_t func;} tVisual;
+typedef struct tVisual {struct tVisual *next;u16 index;s16 objnum,slot;uintptr_t data;f32 timeStamp;intptr_t func;} tVisual;
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
  * on a little-endian host (docs/port/ENDIAN.md). */
 typedef union Id {s32 handle;struct {s16 index,high;} part;} Id;

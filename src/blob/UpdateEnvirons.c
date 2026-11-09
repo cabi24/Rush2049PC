@@ -4,7 +4,9 @@
 /* A visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
 typedef struct tVisual {
     struct tVisual *next;
-    u8 pad8[0x20 - 0x8];        /* index, objnum, slot, data, timeStamp */
+    s16 index, objnum, slot;
+    uintptr_t data;
+    f32 timeStamp;
     M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
 } tVisual;
 

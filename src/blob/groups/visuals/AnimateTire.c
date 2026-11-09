@@ -8,8 +8,10 @@ typedef f32 Vec3[3];
 typedef struct tVisual {
     void *next;
     s16 index,objnum,slot,pad;   /* index: the tire, 0-3 */
-    f32 angle;                   /* the data word's low half: the angle the tire has turned through, radians */
-    u32 dataHigh;                /* the data word's high half, 0 (StartTire clears the word) */
+    union {
+        uintptr_t word;
+        f32 angle;               /* the angle the tire has turned through, radians (StartTire clears the word) */
+    } data;
     f32 timeStamp;
     void (*func)(void);
 } tVisual;
@@ -129,10 +131,10 @@ void AnimateTire(tVisual *v, s16 op)
         gCamera[camera].view2spring = gCamera[camera].view2spring * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
     }
     vel = m->tires[tire].angvel;
-    lastpos = v->angle;
+    lastpos = v->data.angle;
     if (vel > 64.0f) lastpos += PC_FSCALE(3.7f);
     else lastpos += vel * (gModelTime - v->timeStamp);
-    v->angle = lastpos;
+    v->data.angle = lastpos;
     v->timeStamp = gModelTime;
     rpy[0] = -lastpos;
     rpy[1] = (tire < 2) ? -m->steerangle : 0;

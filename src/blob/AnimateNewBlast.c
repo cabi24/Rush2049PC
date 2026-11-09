@@ -24,7 +24,7 @@ typedef struct tBlastObj {
 } tBlastObj;
 
 /* PC: a visual (tVisual) is 0x28 bytes: next, data and func are pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
-typedef struct tVisual { void *next; u8 pad8[2]; s16 objnum; s16 slot; u8 padE[0x20 - 0xE]; void *func; } tVisual;
+typedef struct tVisual { void *next; s16 index, objnum, slot; uintptr_t data; f32 timeStamp; void *func; } tVisual;
 
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */

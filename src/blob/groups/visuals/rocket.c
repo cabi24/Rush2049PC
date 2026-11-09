@@ -67,10 +67,11 @@ typedef struct tModelData {
  * 3). */
 typedef struct tVisual {
     /* 0x00 */ void *next;
-    /* 0x08 */ u8 pad8[2];          /* index */
+    /* 0x08 */ s16 index;
     /* 0x0A */ s16 objnum;
     /* 0x0C */ s16 slot;
-    /* 0x0E */ u8 padE[0x20 - 0xE];  /* data, timeStamp */
+    /* 0x10 */ uintptr_t data;
+    /* 0x18 */ f32 timeStamp;
     /* 0x20 */ intptr_t func;
 } tVisual;
 /* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four

@@ -6,7 +6,9 @@ typedef struct tVisual {
     struct tVisual *next;
     u16 index;
     s16 objnum;                 /* its scene object, -1 none */
-    u8 padC[0x20 - 0xC];        /* slot, data, timeStamp */
+    s16 slot;
+    uintptr_t data;
+    f32 timeStamp;
     intptr_t func;              /* its animator */
 } tVisual;
 
