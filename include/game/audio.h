@@ -7,24 +7,19 @@
 
 #include "game/types.h"
 
-/* The front end's menu sounds: effect ids (AudPlayEffect's fxid) as the Play*Sound helpers play them. */
+/* The front end's menu sounds: effect ids (AudPlayEffect's fxid), as the screens and the helpers PlayStartABSound,
+ * PlayExitSound, PlayUDSound and PlayLRSound play them for the buttons (BUTTON_*, input.h). */
 enum {
-    kSfxMenuStartB = 0x25,  /* the start screen's B button */
-    kSfxMenuBack = 0x26,    /* leaving a screen by another button than A */
-    kSfxMenuDown = 0x27,
-    kSfxMenuUp = 0x28,
-    kSfxMenuLeft = 0x29,
-    kSfxMenuRight = 0x2C,
-    kSfxMenuSelect = 0x2E   /* the A button */
+    SND_MENU_A = 0x25,       /* A: a row chosen */
+    SND_MENU_BACK = 0x26,    /* B, or a screen left by another button than Start */
+    SND_MENU_DOWN = 0x27,
+    SND_MENU_UP = 0x28,
+    SND_MENU_LEFT = 0x29,
+    SND_MENU_ERROR = 0x2A,   /* refused: the controls in conflict, an option that is not to be had */
+    SND_MENU_DELETE = 0x2B,  /* a pak file deleted, the controls set back to their defaults */
+    SND_MENU_RIGHT = 0x2C,
+    SND_MENU_START = 0x2E    /* Start */
 };
-
-/* A menu's button edges (gActiveEdges ...) as the Play*Sound helpers test them. */
-#define MENU_EDGE_A 0x1
-#define MENU_EDGE_B 0x2
-#define MENU_EDGE_UP 0x400
-#define MENU_EDGE_DOWN 0x800
-#define MENU_EDGE_LEFT 0x1000
-#define MENU_EDGE_RIGHT 0x2000
 
 /* Data */
 extern u64 rspbootTextStart[EXTENT(26)];

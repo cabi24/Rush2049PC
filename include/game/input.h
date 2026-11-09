@@ -4,6 +4,19 @@
 
 #include "game/types.h"
 
+/* The game's buttons, as gActiveEdges, gActiveLevels, gActiveAutoEdges and each pad's edge and level words hold
+ * them. ControllerUpdate maps the pad's buttons into these bits through the cartridge's n64_button_map; ControlIRQ
+ * adds the stick as the d-pad for the menus. Bit 0 is Start: the title screen starts on it and name entry ends on it,
+ * where A (bit 1) takes a letter. */
+#define BUTTON_START 0x1
+#define BUTTON_A 0x2
+#define BUTTON_B 0x4
+#define BUTTON_UP 0x400
+#define BUTTON_DOWN 0x800
+#define BUTTON_LEFT 0x1000
+#define BUTTON_RIGHT 0x2000
+#define BUTTON_ACCEPT (BUTTON_START | BUTTON_A)   /* what every menu takes as "go on" */
+
 /* Data */
 extern u32 gControlTable[EXTENT(26)];
 extern s8 gInitControls;

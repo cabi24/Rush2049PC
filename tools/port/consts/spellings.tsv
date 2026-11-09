@@ -1,0 +1,76 @@
+# One spelling per constant (tools/port/one_spelling.py, pass 1): another name of a meaning, and the meaning's name.
+# old_value is the value old had where the header defined it (a file's own definition is checked against its own).
+# Tab separated: old  new  old_value  note
+old	new	old_value	note
+# gGameState's bits: MAT3 rush_flags.h's GS_ names, defined in include/game/race.h beside gGameState.
+GAME_STATE_BOOT	GS_BOOT	0x1	system.h
+GAME_STATE_LICENSE	GS_LICENSE	0x2	system.h
+GAME_STATE_TITLE	GS_TITLE	0x4	system.h
+GAME_STATE_DEMO	GS_DEMO	0x8	system.h
+GAME_STATE_ATTRACT	GS_DEMO	0x8	9 HUD files
+GAME_STATE_START	GS_START	0x10	system.h
+GAME_STATE_PLAYERS	GS_PLAYER	0x20	system.h
+GAME_STATE_MODE	GS_MODE	0x40	system.h
+GAME_STATE_TRACK	GS_TRACK	0x80	system.h
+GAME_STATE_CAR	GS_CAR	0x100	system.h
+GAME_STATE_OPTIONS	GS_OPTIONS	0x200	system.h
+GAME_STATE_CONTROLS	GS_CONTROLS	0x400	system.h
+GAME_STATE_AUDIO	GS_AUDIO	0x800	system.h
+GAME_STATE_VIDEO	GS_VIDEO	0x1000	system.h
+GAME_STATE_RECORDS	GS_RECORDS	0x2000	system.h
+GAME_STATE_CIRCUIT	GS_CIRCUIT	0x4000	system.h
+GAME_STATE_RACE_LOAD	GS_GAME_INIT	0x40000	system.h
+GS_RACE_SETUP	GS_GAME_INIT	0x40000	race.h
+GAME_STATE_PREPLAY	GS_PREPLAY	0x80000	system.h
+GS_RACE_LOAD	GS_PREPLAY	0x80000	race.h (system.h's GAME_STATE_RACE_LOAD was 0x40000)
+GAME_STATE_GO	GS_GO	0x100000	system.h
+GS_RACE_START	GS_GO	0x100000	race.h
+GAME_STATE_COUNTDOWN	GS_COUNTDOWN	0x200000	system.h
+GS_RACE_COUNTDOWN	GS_COUNTDOWN	0x200000	race.h
+GAME_STATE_RACE	GS_COUNTDOWN	0x200000	UpdateHUDPostCamera.c: the countdown bit, called "racing" there
+GAME_STATE_NO_THUMPS	GS_COUNTDOWN	0x200000	car_sounds/msh.c
+GAME_STATE_PLAY	GS_RACING	0x400000	system.h
+GS_RACE_PLAY	GS_RACING	0x400000	race.h
+GAME_STATE_RESULTS	GS_RACING	0x400000	the HUD files: the race (and its end)
+GAME_STATE_NO_RACE	GS_RACING	0x400000	car_sounds/mode.c
+GAME_STATE_GAME_OVER	GS_GAME_OVER	0x800000	system.h
+GAME_STATE_RACE_END	GS_END_GAME	0x1000000	system.h
+GS_RACE_END	GS_END_GAME	0x1000000	race.h
+GAME_STATE_HIGH_SCORE	GS_HIGH_SCORE	0x2000000	system.h
+GAME_STATE_PAK	GS_PAK	0x4000000	system.h
+GAME_STATE_CHEATS	GS_CHEAT	0x8000000	system.h
+GAME_STATE_WARNING	GS_WARNING	0x40000000	system.h
+GAME_STATE_FRONT_END	GS_FRONTEND_MASK	0x7C03FFFE	the audio screen and demo text files
+GAME_STATES_FRONT_END	GS_FRONTEND_MASK	0x7C03FFFE	system.h
+GAME_STATES_RACE	GS_IN_GAME_MASK	0x03FC0000	system.h (MAT3 GS_IN_GAME_MASK)
+GAME_STATES_RACE_START	GS_RACE_MASK	0x007C0000	system.h
+GS_RACE	GS_RACE_MASK	0x7C0000	race.h
+GAME_STATES_ON_TRACK	GS_ON_TRACK_MASK	0x00600000	system.h
+# The race kinds (gRace): race.h's enum, MAT3's enum_kNumRaceTypes.
+RACE_BATTLE	kBattle	6	update_player_visibility.c
+RACE_GHOST	kGhost	2	car_sounds/mode.c, game_sounds/StartListeners.c
+# The game's buttons (gActiveEdges ...): input.h's BUTTON_*. audio.h called bits 0 and 1 A and B; the front end's
+# evidence (the title starts on bit 0, name entry takes a letter on bit 1 and ends on bit 0) and the sounds each plays
+# (bit 1: 0x25, which pakscr and circuitscr play for A) make them Start and A.
+MENU_EDGE_A	BUTTON_START	0x1	audio.h
+MENU_EDGE_B	BUTTON_A	0x2	audio.h
+MENU_EDGE_UP	BUTTON_UP	0x400	audio.h
+MENU_EDGE_DOWN	BUTTON_DOWN	0x800	audio.h
+MENU_EDGE_LEFT	BUTTON_LEFT	0x1000	audio.h
+MENU_EDGE_RIGHT	BUTTON_RIGHT	0x2000	audio.h
+BUTTON_DPAD_UP	BUTTON_UP	0x400	controlsys/group.c, pakerr/group.c
+BUTTON_DPAD_DOWN	BUTTON_DOWN	0x800	controlsys/group.c, pakerr/group.c
+BUTTON_DPAD_LEFT	BUTTON_LEFT	0x1000	controlsys/group.c
+BUTTON_DPAD_RIGHT	BUTTON_RIGHT	0x2000	controlsys/group.c
+# The menu sounds (AudPlayEffect ids): audio.h's SND_MENU_*, named for the button each answers.
+kSfxMenuStartB	SND_MENU_A	0x25	audio.h ("the start screen's B"): played for bit 1, A
+kSfxMenuBack	SND_MENU_BACK	0x26	audio.h
+kSfxMenuDown	SND_MENU_DOWN	0x27	audio.h
+kSfxMenuUp	SND_MENU_UP	0x28	audio.h
+kSfxMenuLeft	SND_MENU_LEFT	0x29	audio.h
+kSfxMenuRight	SND_MENU_RIGHT	0x2C	audio.h
+kSfxMenuSelect	SND_MENU_START	0x2E	audio.h ("the A button"): played for bit 0, Start
+SND_MENU_SELECT	SND_MENU_A	37	pakscr.c: played for A
+SND_MENU_B	SND_MENU_BACK	0x26	circuitscr.c
+SND_BACK	SND_MENU_BACK	38	carscr.c, trackscr.c
+SND_MENU_DEFAULTS	SND_MENU_DELETE	43	controlscr/caller.c: the controls set back to their defaults

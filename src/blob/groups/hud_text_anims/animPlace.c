@@ -2,7 +2,6 @@
 #include "game/game.h"
 
 #define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
 
 typedef struct { s32 x, y; } Pos;
 typedef struct { u8 r, g, b, a; } Rgba;
@@ -45,7 +44,7 @@ s32 animPlace(s32 blit)
     s32 n;
     s32 slash;
 
-    if ((gGameState & GAME_STATE_ATTRACT) || gNumCars < 2 || gRace == kPractice || !gShowPlace) {
+    if ((gGameState & GS_DEMO) || gNumCars < 2 || gRace == kPractice || !gShowPlace) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);

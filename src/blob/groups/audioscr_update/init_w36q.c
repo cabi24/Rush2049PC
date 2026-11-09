@@ -1,8 +1,6 @@
 /* The audio options screen's set-up (MAT3 audioscr.c's initScreen and initButtons): its buttons, blits and the song. */
 #include "game/game.h"
 
-/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
-#define GAME_STATE_FRONT_END 0x7C03FFFE
 /* The song line's choices (audio_gSong): a song of gSongNames, then the track's own. */
 #define AUDIO_SONG_TRACKS 12
 /* The song the front end plays for the track's own choice. */
@@ -41,7 +39,7 @@ void audio_initScreen(void)
 
     SaveGlobals();
     audio_calcMenuRect();
-    if (gGameState & GAME_STATE_FRONT_END) {
+    if (gGameState & GS_FRONTEND_MASK) {
         createBG();
         {
         Color buttonColor = {255, 255, 255, 255};
@@ -98,11 +96,9 @@ void audio_initScreen(void)
         AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
         if (audio_gSong < AUDIO_SONG_TRACKS) AudPlaySong(audio_gSong,1);
         else if (audio_gSong == AUDIO_SONG_TRACKS) {
-            if (gGameState & GAME_STATE_FRONT_END) AudPlaySong(AUDIO_FRONT_END_SONG,1);
+            if (gGameState & GS_FRONTEND_MASK) AudPlaySong(AUDIO_FRONT_END_SONG,1);
             else StartGameMusic();
         }
     }
     audio_inited = 1;
 }
-
-

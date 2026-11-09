@@ -1,9 +1,6 @@
 /* The audio options screen's close (MAT3 audioscr.c's uninitScreen and uninitButtons). */
 #include "game/game.h"
 
-/* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
-#define GAME_STATE_FRONT_END 0x7C03FFFE
-
 typedef struct {
     s32 type;            /* 0x00 */
     s32 handle;          /* 0x04 */
@@ -20,7 +17,6 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 void RemoveBlit(intptr_t sound_id);
 
-
 /* Closes the audio screen: stops the song, and if the screen was set up removes its buttons, its panes (in the
  * pause screen), its blit and the background. */
 void audio_uninitScreen(void)
@@ -28,7 +24,7 @@ void audio_uninitScreen(void)
     AudKillSong();
     if (audio_inited) {
         us_uninitButtons();
-        if (!(gGameState & GAME_STATE_FRONT_END)) {
+        if (!(gGameState & GS_FRONTEND_MASK)) {
             RemovePanes(0);
             audio_gTitlePane = 0;
         }

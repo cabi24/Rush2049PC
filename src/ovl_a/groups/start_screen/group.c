@@ -75,7 +75,6 @@ int pc_start_exit(int exit, int select);
 #define kStartMenuPath 8            /* MAT3's; PC SETUP on the PC */
 #define kStartMenuExit 9
 #define kStartMenuCount 10
-#define GS_DEBUG 0x10000000         /* the debug row's state (MAT3 rush_flags.h guesses GS_PAK_EXIT) */
 #define EGG_START_MENU 23           /* the start menu's code, past gEggs' own (start_screen_egg) */
 #define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
 #define SONG_MENU 6                 /* the front end's music */

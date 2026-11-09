@@ -77,7 +77,7 @@ s32 anim_no_rumble_panes(Blit *blt)
     }
     h = TB_GetFontLineHeight();
     for (i = 0; i < gNumWindows; i++) {
-        if ((gGameState & GAME_STATE_COUNTDOWN) && !gPauseState && !getB6_6874(gPlayers[i].control)) {
+        if ((gGameState & GS_COUNTDOWN) && !gPauseState && !getB6_6874(gPlayers[i].control)) {
             if (!resultPane[i]) {
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;
                 y = no_rumble_text_pos[gNumWindows - 1][i].y;
@@ -90,7 +90,7 @@ s32 anim_no_rumble_panes(Blit *blt)
             resultPane[i] = 0;
         }
     }
-    if (gGameState & GAME_STATE_PLAY) {
+    if (gGameState & GS_RACING) {
         blt->state = 0;
         Hidden(blt, 1);
         return 0;

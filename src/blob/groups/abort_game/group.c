@@ -26,7 +26,7 @@ static MessageNode pc_scratch_msg;
 #define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
 /* Abandons the race: the countdown, the HUD and the multiplayer blit go, every car's model stops (End_MDrive), the
  * model thread and the listeners stop, the environment visuals and skid marks go and every sound effect stops. A
- * restart sets the race up again (GS_RACE_SETUP); a quit ends the ghost, unloads the track and goes back to the
+ * restart sets the race up again (GS_GAME_INIT); a quit ends the ghost, unloads the track and goes back to the
  * title screen (state 4) with one window. */
 void AbortGame(void)
 {
@@ -50,7 +50,7 @@ void AbortGame(void)
     message=node;
     osSendMesg(audio_lock_queue,0,0);
     PC_CMD_SEND(audio_command_queue,message);
-    if(gRestartGame) gNewGameState=GS_RACE_SETUP;
+    if(gRestartGame) gNewGameState=GS_GAME_INIT;
     else {
         GhostEnd();
         UnloadTrack(gTrackNum);

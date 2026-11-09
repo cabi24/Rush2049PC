@@ -6,68 +6,13 @@
 
 #include "game/types.h"
 
-/* ---- Constants. Names from MAT3 where it has them: the GS_ states are its rush_flags.h's, the k names its
- * rush_types.h enums'. Macros, each spelled as MAT3 spells it, so that a file that defines the same one
- * (resurrect.c: kOneRace ... kBattle, GS_DEMO) agrees with this one. The game states, the buttons, the race types
- * and the pause states are the whole game's: they belong in race.h and input.h once the areas are merged. */
-
-/* gGameState: the game's state, one bit set. setGameState asks for one; updateGameState switches at the top of the
- * next frame (uninitGameState, initGameState). The front-end states are dispatched by updateFrontEnd, the race's by
- * UpdateGame. */
-#define GS_BOOT          0x1        /* one-time init, then GS_LICENSE */
-#define GS_LICENSE       0x2        /* updateLicenseScreen */
-#define GS_TITLE         0x4        /* updateTitleScreen */
-#define GS_DEMO          0x8        /* the attract-mode race, every car a drone */
-#define GS_START         0x10       /* updateStartScreen */
-#define GS_PLAYER        0x20       /* updatePlayerScreen */
-#define GS_MODE          0x40       /* updateModeScreen */
-#define GS_TRACK         0x80       /* updateTrackScreen */
-#define GS_CAR           0x100      /* updateCarScreen */
-#define GS_OPTIONS       0x200      /* updateOptionScreen */
-#define GS_CONTROLS      0x400      /* updateControlScreen */
-#define GS_AUDIO         0x800      /* updateAudioScreen */
-#define GS_VIDEO         0x1000     /* updateVideoScreen */
-#define GS_RECORDS       0x2000     /* updateRecordScreen */
-#define GS_CIRCUIT       0x4000     /* updateCircuitScreen */
-#define GS_GAME_INIT     0x40000    /* the race's set-up */
-#define GS_PREPLAY       0x80000    /* the track streams in, then GS_COUNTDOWN */
-#define GS_GO            0x100000   /* the countdown hit zero */
-#define GS_COUNTDOWN     0x200000   /* the start countdown */
-#define GS_RACING        0x400000   /* the race proper */
-#define GS_GAME_OVER     0x800000   /* updateGameOverScreen */
-#define GS_END_GAME      0x1000000  /* the race torn down */
-#define GS_HIGH_SCORE    0x2000000  /* updateHighScoreScreen */
-#define GS_PAK           0x4000000  /* updatePakScreen: the controller-pak manager */
-#define GS_CHEAT         0x8000000  /* updateCheatScreen */
-#define GS_WARNING       0x40000000 /* updateWarningScreen */
-#define GS_FRONTEND_MASK 0x7C03FFFE /* every state updateFrontEnd handles (the menus, title, demo, pak and warning) */
-#define GS_RACE_MASK     0x7C0000   /* the race's set-up through the race: GS_GAME_INIT ... GS_RACING */
+/* ---- Constants. Names from MAT3 where it has them (its rush_types.h enums, its rush_flags.h): the front end's
+ * states and menus. The whole game's live with their data: gGameState's bits and the race kinds in race.h, the
+ * buttons in input.h, the menu sounds in audio.h, the text engine's in text.h. */
 
 /* gSkipToGameState: the screen the front end goes straight on to after a race (the game-over menu's new mode,
  * track, car ...: each screen on the way passes the player through until it reaches it), or SKIP_NONE. */
 #define SKIP_NONE        GS_BOOT
-
-/* The game's buttons, as gActiveEdges, gActiveAutoEdges and the per-pad edge words hold them. ControllerUpdate maps
- * the pad's buttons into these bits through the cartridge's n64_button_map; ControlIRQ adds the stick as the d-pad
- * for the menus. Start, A and B by PlayStartABSound, the directions by PlayUDSound, PlayLRSound and ControlIRQ. */
-#define BUTTON_START     0x1
-#define BUTTON_A         0x2
-#define BUTTON_B         0x4
-#define BUTTON_UP        0x400
-#define BUTTON_DOWN      0x800
-#define BUTTON_LEFT      0x1000
-#define BUTTON_RIGHT     0x2000
-#define BUTTON_ACCEPT    (BUTTON_START | BUTTON_A)  /* what every menu takes as "go on" */
-
-/* gRace: the race type (MAT3 enum_kNumRaceTypes); the mode menu's rows in this order. */
-#define kOneRace 0
-#define kPractice 1
-#define kGhost 2
-#define kCircuit 3
-#define kStunt 4
-#define kObstacle 5
-#define kBattle 6
-#define kNumRaceTypes 7
 
 /* gPauseState (MAT3 enum_kNumPauseStates): kNoPause while the race runs. */
 #define kNoPause 0
@@ -79,38 +24,6 @@
 #define kPauseRumbleScreen 6
 #define kPauseRestart 7
 #define kPauseQuit 8
-
-/* The text engine's justification (TB_SetJust(horizontal, vertical); MAT3 enum_kTB_JustBottom) and colours
- * (TB_SetTextColor; MAT3 enum_kTB_FlashText: kTB_FlashText alternates between the two colours TB_FlashTextColors
- * set, the selected row's look). The text engine's: they belong in text.h once the areas are merged. */
-#define kTB_JustLeft 0
-#define kTB_JustCenter 1
-#define kTB_JustRight 2
-#define kTB_JustTop 3
-#define kTB_JustBottom 4
-#define kTB_BlackText 0
-#define kTB_WhiteText 1
-#define kTB_GrayText 2
-#define kTB_MedGryText 3
-#define kTB_DrkGryText 4
-#define kTB_RedText 5
-#define kTB_MagentaText 6
-#define kTB_BlueText 7
-#define kTB_MedBlueText 8
-#define kTB_DrkBlueText 9
-#define kTB_CyanText 10
-#define kTB_GreenText 11
-#define kTB_MedGrnText 12
-#define kTB_DrkGrnText 13
-#define kTB_YellowText 14
-#define kTB_DrkYelText 15
-#define kTB_YelBlkText 16
-#define kTB_YelRedText 17
-#define kTB_RedYelText 18
-#define kTB_RedRedText 19
-#define kTB_CynCynText 20
-#define kTB_CynGrnText 21
-#define kTB_FlashText 22
 
 /* The controller-pak manager's state (gState, MAT3 enum_kNumStates). */
 #define kStatePickPak 0

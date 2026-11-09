@@ -28,43 +28,6 @@
 #define GAME_MSG_END_FRAME 0xABE    /* 2750 */
 #define GAME_MSG_START_FRAME 0xABF
 
-/* The game state machine's states (gGameState, gNewGameState: setGameState, updateGameState in state.c). One bit
- * each; MAT3 has the same bits, unnamed. The front end's states are the screens of runtime image A. */
-#define GAME_STATE_BOOT 0x1             /* start-up: options, records, then the licence screen */
-#define GAME_STATE_LICENSE 0x2
-#define GAME_STATE_TITLE 0x4
-#define GAME_STATE_DEMO 0x8             /* the attract mode's demo race */
-#define GAME_STATE_START 0x10           /* the start menu */
-#define GAME_STATE_PLAYERS 0x20
-#define GAME_STATE_MODE 0x40
-#define GAME_STATE_TRACK 0x80
-#define GAME_STATE_CAR 0x100
-#define GAME_STATE_OPTIONS 0x200
-#define GAME_STATE_CONTROLS 0x400
-#define GAME_STATE_AUDIO 0x800
-#define GAME_STATE_VIDEO 0x1000
-#define GAME_STATE_RECORDS 0x2000
-#define GAME_STATE_CIRCUIT 0x4000
-#define GAME_STATE_RACE_LOAD 0x40000    /* a race chosen: load the track, the cars, the race image */
-#define GAME_STATE_PREPLAY 0x80000      /* PrePlay until the track and cars are in */
-#define GAME_STATE_GO 0x100000          /* the countdown has run out: start the race clock and the music */
-#define GAME_STATE_COUNTDOWN 0x200000
-#define GAME_STATE_PLAY 0x400000        /* the race */
-#define GAME_STATE_GAME_OVER 0x800000
-#define GAME_STATE_RACE_END 0x1000000   /* EndGame: results, then high scores or game over */
-#define GAME_STATE_HIGH_SCORE 0x2000000
-#define GAME_STATE_PAK 0x4000000        /* the Controller Pak manager */
-#define GAME_STATE_CHEATS 0x8000000
-/* 0x10000000 (the start menu's item 7 and the pak manager's exit lead there; no screen updates it) and 0x20000000
- * (initGameState loads wave 55 for it) have no name: what they were for isn't known. */
-#define GAME_STATE_WARNING 0x40000000   /* the Controller Pak warning after the licence */
-/* The front end's states (the screens of image A, and the boot); the race's (race set-up to high scores); the race
- * from its loading to its play; the race on the track. */
-#define GAME_STATES_FRONT_END 0x7C03FFFE
-#define GAME_STATES_RACE 0x03FC0000
-#define GAME_STATES_RACE_START 0x007C0000
-#define GAME_STATES_ON_TRACK 0x00600000
-
 /* Data */
 extern void *scheduler_audio_task;
 extern s32 __osScPendingSwap;

@@ -171,7 +171,6 @@ typedef struct surftyp {
 #define kObstacle 5
 #define kBattle 6
 #define LINK_OWNER_HUMAN 6
-#define GS_DEMO 0x8
 
 VIEW(float[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
@@ -186,7 +185,6 @@ VIEW(float[4], res_last_time);
 #define res_last_time res_last_time_view
 VIEW(float[12][3], pole_pos_offset);
 #define pole_pos_offset pole_pos_offset_view
-
 
 extern float sinf(float);
 extern float cosf(float);
@@ -782,4 +780,3 @@ void FindBestQuat(float *q1, float *q2)
         for (i = 0; i < 4; i++) q2[i] = -q2[i];
     }
 }
-

@@ -25,7 +25,7 @@ VIEW(f32[][3], unitmatrix);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-/* gRace's ghost race, gOptions' effects volume (0 to 10); gGameState's demo bit is system.h's GAME_STATE_DEMO. */
+/* gRace's ghost race, gOptions' effects volume (0 to 10); gGameState's demo bit is race.h's GS_DEMO. */
 #define RACE_GHOST 2
 #define OPTION_FX_VOLUME 13
 
@@ -38,7 +38,7 @@ void StartListeners(void)
 {
     s32 i;
 
-    if (!(gGameState & GAME_STATE_DEMO)) {
+    if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
             if (gRace != RACE_GHOST || gPlayers[i].slot == 0)
                 gPlayers[i].listener = LISTENER_WORD(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));

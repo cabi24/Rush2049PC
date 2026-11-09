@@ -154,7 +154,7 @@ void UpdateModelControls(void)
     player = gPlayers;
     for (i = 0; i < gNumPlayers; i++, player++) {
         car = PC_MODEL(player->slot);
-        if (gPauseState != 0 || (gGameState & GAME_STATE_DEMO)) {
+        if (gPauseState != 0 || (gGameState & GS_DEMO)) {
             continue;
         }
         ReadGasAndBrake(car, player);

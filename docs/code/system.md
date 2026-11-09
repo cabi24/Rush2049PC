@@ -74,22 +74,24 @@ The model thread runs beside them at each retrace: `ControllerUpdate` (section 6
 
 ## 3. The game states
 
-`gGameState` is one bit of system.h's `GAME_STATE_*`; `setGameState` asks for another (`gNewGameState`), and
-`updateGameState` (groups/state/state.c), at the start of each `GameLoop`, leaves the old one (`uninitGameState`:
-its waves go) and enters the new one (`initGameState`). Entering a state chooses which runtime image is in
-(`LoadFrontEndOverlay`: image A, the front end; `load_extra_overlay`: image B, the battle, stunt and obstacle
-extras; both share one heap block), which waves are loaded (`InitWaves` frees the unlocked ones, `LoadWave` loads),
-the sound set (`AudioInit` with fewer voices for a race without an Expansion Pak), and which controllers count
+`gGameState` is one bit of race.h's `GS_*` (MAT3 rush_flags.h's names); `setGameState` asks for another
+(`gNewGameState`), and `updateGameState` (groups/state/state.c), at the start of each `GameLoop`, leaves the old one
+(`uninitGameState`: its waves go) and enters the new one (`initGameState`). Entering a state chooses which runtime
+image is in (`LoadFrontEndOverlay`: image A, the front end; `load_extra_overlay`: image B, the battle, stunt and
+obstacle extras; both share one heap block), which waves are loaded (`InitWaves` frees the unlocked ones, `LoadWave`
+loads), the sound set (`AudioInit` with fewer voices for a race without an Expansion Pak), and which controllers count
 (`SetControllerActive`, `SetControllerStickEdges`).
 
-- The boot and the front end (`GAME_STATES_FRONT_END`): `BOOT` -> `LICENSE` -> `WARNING` -> `TITLE`, the attract
-  `DEMO`, then the menus: `START`, `PLAYERS`, `MODE`, `TRACK`, `CAR`, `CIRCUIT`, `OPTIONS`, `CONTROLS`, `AUDIO`,
-  `VIDEO`, `RECORDS`, `PAK`, `CHEATS`. Each is a screen of image A (`updateFrontEnd`).
-- The race (`GAME_STATES_RACE`): `RACE_LOAD` (the track, the cars, image B) -> `PREPLAY` (until loaded) ->
-  `COUNTDOWN` -> `GO` (the race clock and the music) -> `PLAY` -> `RACE_END` (`EndGame`) -> `HIGH_SCORE` or
-  `GAME_OVER`, back to the front end.
-- Two bits have no name yet: 0x10000000 (the start menu's item 7 and the pak manager's exit lead there; nothing
-  updates it) and 0x20000000 (loads wave 55).
+- The boot and the front end (`GS_FRONTEND_MASK`): `GS_BOOT` -> `GS_LICENSE` -> `GS_WARNING` -> `GS_TITLE`, the
+  attract `GS_DEMO`, then the menus: `GS_START`, `GS_PLAYER`, `GS_MODE`, `GS_TRACK`, `GS_CAR`, `GS_CIRCUIT`,
+  `GS_OPTIONS`, `GS_CONTROLS`, `GS_AUDIO`, `GS_VIDEO`, `GS_RECORDS`, `GS_PAK`, `GS_CHEAT`. Each is a screen of image
+  A (`updateFrontEnd`).
+- The race (`GS_IN_GAME_MASK`): `GS_GAME_INIT` (the track, the cars, image B) -> `GS_PREPLAY` (until loaded) ->
+  `GS_COUNTDOWN` -> `GS_GO` (the race clock and the music) -> `GS_RACING` -> `GS_END_GAME` (`EndGame`) ->
+  `GS_HIGH_SCORE` or `GS_GAME_OVER`, back to the front end. `GS_RACE_MASK` is the race from `GS_GAME_INIT` to
+  `GS_RACING`, `GS_ON_TRACK_MASK` the countdown and the race.
+- `GS_DEBUG` (0x10000000): the start menu's debug row leads there; nothing updates it. 0x20000000 has no name
+  (initGameState loads wave 55 for it; nothing sets it).
 
 ## 4. Memory: the heap
 

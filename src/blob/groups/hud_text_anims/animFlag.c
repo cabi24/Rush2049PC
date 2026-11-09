@@ -97,8 +97,8 @@ s32 animFlag(Blit *blt)
     y += (gCheckpoints.points[gCheckpoints.finishPt].pos[2] - gPathMin[2]) * h / height;
     blt->x = x - blt->width / 2;
     blt->y = y - blt->width / 2;
-    if (Hidden_9F54(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & GAME_STATE_DEMO))) {
-        if (gRace != 1 && !(gGameState & GAME_STATE_DEMO)) {
+    if (Hidden_9F54(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & GS_DEMO))) {
+        if (gRace != 1 && !(gGameState & GS_DEMO)) {
             if (gNumWindows < 4)
                 HAL_SetFont(6);
             else

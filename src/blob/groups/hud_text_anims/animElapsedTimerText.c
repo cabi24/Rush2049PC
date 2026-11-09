@@ -1,9 +1,6 @@
 /* animElapsedTimerText: the race clock's digits, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
-#define GAME_STATE_RESULTS 0x400000  /* gGameState: the race is on (and its end) */
-
 typedef struct { s32 x, y; } Pos;
 
 VIEW(s32, gGameState);
@@ -27,7 +24,7 @@ s32 animElapsedTimerText(s32 blit)
     s32 y;
     s32 digitIdx;
 
-    if ((gGameState & GAME_STATE_ATTRACT) || !(gGameState & GAME_STATE_RESULTS) || !gShowElapsed) {
+    if ((gGameState & GS_DEMO) || !(gGameState & GS_RACING) || !gShowElapsed) {
         return 1;
     }
     t = gModelTime * 1000.0f;

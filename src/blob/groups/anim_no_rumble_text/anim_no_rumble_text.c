@@ -66,7 +66,7 @@ s32 getB6_6B3C(s32 ctl)
     return gPaks[ctl].rumble;
 }
 
-/* Until the race starts (hidden from GAME_STATE_PLAY on, when the blit's animation is dropped): during the
+/* Until the race starts (hidden from GS_RACING on, when the blit's animation is dropped): during the
  * countdown and not paused, message 226 ("no Rumble Pak") centred at each window's place for a player without
  * one, in the player's colour; the smaller font when the message is wider than a window. */
 s32 anim_no_rumble_text(Blit *blt)
@@ -78,7 +78,7 @@ s32 anim_no_rumble_text(Blit *blt)
     s32 y;
     s32 ctl;
 
-    if (Hidden(blt, gGameState & GAME_STATE_PLAY)) {
+    if (Hidden(blt, gGameState & GS_RACING)) {
         blt->state = 0;
         return 0;
     }
@@ -92,7 +92,7 @@ s32 anim_no_rumble_text(Blit *blt)
         text_unlock();
     }
     for (i = 0; i < gNumWindows; i++) {
-        if ((gGameState & GAME_STATE_COUNTDOWN) && !gPauseState) {
+        if ((gGameState & GS_COUNTDOWN) && !gPauseState) {
             ctl = gPlayers[i].control;
             if (!getB6_6B3C(ctl)) {
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;

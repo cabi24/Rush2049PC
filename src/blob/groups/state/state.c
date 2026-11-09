@@ -83,7 +83,7 @@ void initGameState(void)
 {
     s32 i;
 
-    if (gGameState & GAME_STATE_BOOT) {
+    if (gGameState & GS_BOOT) {
         gGameStarted = 0;
         gSofdecShown = 0;
         gLicenseShown = 0;
@@ -104,8 +104,8 @@ void initGameState(void)
         UpdateFrame();
         UpdateFrame();
         InitRecords();
-        setGameState(GAME_STATE_LICENSE);
-    } else if (gGameState & GAME_STATE_LICENSE) {
+        setGameState(GS_LICENSE);
+    } else if (gGameState & GS_LICENSE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -118,8 +118,8 @@ void initGameState(void)
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_WARNING) {
-    } else if (gGameState & GAME_STATE_TITLE) {
+    } else if (gGameState & GS_WARNING) {
+    } else if (gGameState & GS_TITLE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -139,12 +139,12 @@ void initGameState(void)
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-        if (expansion_pak_present && !(gSkipToGameState & GAME_STATES_RACE_START) && gOptions[14] < 13) {
+        if (expansion_pak_present && !(gSkipToGameState & GS_RACE_MASK) && gOptions[14] < 13) {
             AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
             AudPlaySong(6, 1);
         }
         gUpsideDownTrack = 0;
-    } else if (gGameState & GAME_STATE_DEMO) {
+    } else if (gGameState & GS_DEMO) {
         PlayerData **h;
         for (h = gPlayerFiles.head; h; h = (*h)->next) {
             PurgePlayerData(h);
@@ -159,11 +159,11 @@ void initGameState(void)
         if (expansion_pak_present) {
             load_extra_overlay();
         }
-    } else if (gGameState & GAME_STATE_START) {
+    } else if (gGameState & GS_START) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_PLAYERS) {
+    } else if (gGameState & GS_PLAYER) {
         s32 p;
 
         for (p = 0; p < gNumPlayers; p++) {
@@ -173,20 +173,20 @@ void initGameState(void)
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
         }
-    } else if (gGameState & GAME_STATE_MODE) {
+    } else if (gGameState & GS_MODE) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
-    } else if (gGameState & GAME_STATE_OPTIONS) {
-    } else if (gGameState & GAME_STATE_CONTROLS) {
-    } else if (gGameState & GAME_STATE_AUDIO) {
-    } else if (gGameState & GAME_STATE_VIDEO) {
-    } else if (gGameState & GAME_STATE_RECORDS) {
-    } else if (gGameState & GAME_STATE_CHEATS) {
-    } else if (gGameState & GAME_STATE_CIRCUIT) {
+    } else if (gGameState & GS_OPTIONS) {
+    } else if (gGameState & GS_CONTROLS) {
+    } else if (gGameState & GS_AUDIO) {
+    } else if (gGameState & GS_VIDEO) {
+    } else if (gGameState & GS_RECORDS) {
+    } else if (gGameState & GS_CHEAT) {
+    } else if (gGameState & GS_CIRCUIT) {
         loading_effect_none();
         LoadWave(57, 0, 0, 0, 0);
         loading_effect_none();
-    } else if (gGameState & GAME_STATE_CAR) {
+    } else if (gGameState & GS_CAR) {
         s32 p;
 
         LoadWave(56, 0, 0, 0, 0);
@@ -197,13 +197,13 @@ void initGameState(void)
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
         }
-    } else if (gGameState & GAME_STATE_TRACK) {
+    } else if (gGameState & GS_TRACK) {
         loading_effect_none();
         LoadWave(60, 0, 0, 0, 0);
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         loading_effect_none();
-    } else if (gGameState & GAME_STATE_RACE_LOAD) {
+    } else if (gGameState & GS_GAME_INIT) {
         if (!gRestartGame) {
             UnloadFrontEndWaves();
             HAL_PurgeFonts();
@@ -238,9 +238,9 @@ void initGameState(void)
             HAL_SetFont(7);
         }
         SetControllerStickEdges(-1, 0);
-    } else if (gGameState & GAME_STATE_RACE_END) {
+    } else if (gGameState & GS_END_GAME) {
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & GAME_STATE_GAME_OVER) {
+    } else if (gGameState & GS_GAME_OVER) {
         SaveServer(1, 0);
         SaveFlush(1);
     } else if (gGameState & 0x20000000) {
@@ -248,7 +248,7 @@ void initGameState(void)
         InitWaves();
         LoadWave(55, 0, 0, 0, 0);
     }
-    if (gGameState & GAME_STATES_FRONT_END) {
+    if (gGameState & GS_FRONTEND_MASK) {
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 0);
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 1);
     }

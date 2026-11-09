@@ -1,8 +1,6 @@
 /* animRadar: the radar's frame, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define GAME_STATE_ATTRACT 0x8   /* gGameState: attract mode (the demo) */
-
 typedef struct { s32 x, y; } Pos;
 
 VIEW(s32, gGameState);
@@ -18,7 +16,7 @@ s32 animRadar(tBlit *node) {
     s32 hidden;
 
     index = node->animID;
-    if (index >= gNumWindows || (gGameState & GAME_STATE_ATTRACT) || gNumCars < 2) {
+    if (index >= gNumWindows || (gGameState & GS_DEMO) || gNumCars < 2) {
         node->animFunc = 0;
         if (node->hide != 1) {
             node->hide = 1;

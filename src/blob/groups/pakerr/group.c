@@ -159,7 +159,7 @@ void DrawPakErrNoPak(s32 row, s32 col)
     u8 buf[256];
     s32 big;
 
-    big = !(gGameState & GAME_STATES_FRONT_END);
+    big = !(gGameState & GS_FRONTEND_MASK);
     HAL_SetFont(11);
     TB_SetTextColor(1);
     TB_Strcpy(buf, gText.msg[416 / 4]);
@@ -351,7 +351,7 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
         cs_draw1_DC(row, col);
         break;
     case 2:
-        if (!(gGameState & GAME_STATES_FRONT_END)) {
+        if (!(gGameState & GS_FRONTEND_MASK)) {
             ControlChoice(row, col);
         } else {
             ControlPakErrNQA(row, col);

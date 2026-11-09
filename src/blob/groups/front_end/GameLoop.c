@@ -63,7 +63,7 @@ s32 GameLoop(void)
     if (gGameState & 0x7C03FFFE) {
         updateFrontEnd();
     }
-    if ((gGameState & GS_RACE_COUNTDOWN) || (gGameState & GS_RACE_PLAY)) {
+    if ((gGameState & GS_COUNTDOWN) || (gGameState & GS_RACING)) {
         updatePauseScreen();
         if (gPauseState) {
             DrawBlits();

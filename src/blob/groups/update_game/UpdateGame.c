@@ -43,25 +43,25 @@ void UpdateGame(void)
     s32 numDeaths;
     static s8 startCountdown = 0;
 
-    if (gGameState & GS_RACE_SETUP) {
+    if (gGameState & GS_GAME_INIT) {
         gSkipToGameState = 1;
         SetOptions();
         CalcPolePositions();
         gUseCatchup = gCatchup;
-        setGameState(GS_RACE_LOAD);
+        setGameState(GS_PREPLAY);
         goto load;
-    } else if (gGameState & GS_RACE_LOAD) {
+    } else if (gGameState & GS_PREPLAY) {
     load:
         if (PrePlay(1, 0)) {
             startCountdown = 1;
-            setGameState(GS_RACE_COUNTDOWN);
+            setGameState(GS_COUNTDOWN);
             ClearRushControls();
             goto countdown;
         } else {
             SaveServer(0, 1);
             goto done;
         }
-    } else if (gGameState & GS_RACE_COUNTDOWN) {
+    } else if (gGameState & GS_COUNTDOWN) {
     countdown:
         if (gRestartGame) goto done;
         CarSetup();
@@ -76,7 +76,7 @@ void UpdateGame(void)
         CountDown();
         CheckButtons();
         SaveServer(0, 1);
-    } else if (gGameState & GS_RACE_START) {
+    } else if (gGameState & GS_GO) {
         if (gRace == kPractice) SetCountdownTimer(1800.0f);
         else if (gRace == kStunt) {
             if (gStuntMode == 0) SetCountdownTimer(gStuntModeMins * 60);
@@ -89,9 +89,9 @@ void UpdateGame(void)
         PlayGameSound(78, 0, 1, 0);
         StartGameMusic();
         InitCPTime();
-        setGameState(GS_RACE_PLAY);
+        setGameState(GS_RACING);
         save_server_tick_time = gModelTime;
-    } else if (gGameState & GS_RACE_PLAY) {
+    } else if (gGameState & GS_RACING) {
         if (save_server_tick_time + 3.0f < gModelTime) {
             SaveServer(0, 1);
             save_server_tick_time = gModelTime;
@@ -100,7 +100,7 @@ void UpdateGame(void)
         CheckButtons();
         if (gRetireGame) {
             FindWinner();
-            setGameState(GS_RACE_END);
+            setGameState(GS_END_GAME);
             GhostEnd();
             RemoveHUD();
         } else if (gCoastFlag) {
@@ -111,7 +111,7 @@ void UpdateGame(void)
             }
             if (are_all_cars_stopped() && allSolid) {
                 if (gRace == kStunt) FindWinner();
-                setGameState(GS_RACE_END);
+                setGameState(GS_END_GAME);
                 GhostEnd();
                 RemoveHUD();
             }
@@ -190,12 +190,12 @@ void UpdateGame(void)
                 }
             }
         }
-    } else if (gGameState & GS_RACE_END) {
+    } else if (gGameState & GS_END_GAME) {
         EndGame();
     } else if (gGameState & GS_HIGH_SCORE) updateHighScoreScreen();
     else if (gGameState & GS_GAME_OVER) updateGameOverScreen();
 done:
-    if (gGameState & (GS_RACE_COUNTDOWN | GS_RACE_PLAY)) {
+    if (gGameState & (GS_COUNTDOWN | GS_RACING)) {
         for (i = 0; i < gNumWindows; i++) WorldFogDensity(i, gCamera[i].mat.pos);
     }
 }

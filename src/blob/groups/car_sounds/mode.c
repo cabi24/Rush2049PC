@@ -40,9 +40,6 @@ typedef struct MODELDAT {
 
 /* A human's car (tModelData.drone_type): its sounds are plain effects, a drone's are 3D emitters. */
 #define DRONE_TYPE_HUMAN 2
-/* gGameState's bit while the race is not running yet (the drones' engines are not capped, their random sound
- * stopped). */
-#define GAME_STATE_NO_RACE 0x400000
 /* tModelData.appearance's bit of a car without a horn. */
 #define APPEARANCE_NO_HORN 0x10
 /* The race type of a ghost race (gRace). */
@@ -57,7 +54,6 @@ typedef struct MODELDAT {
 #define SFX_HORN_FIRST 26
 #define SFX_SCREECH 36
 #define SFX_ENGINE_RANDOM_FIRST 98
-
 
 /* Sends sound its volume and pitch, each only when it has changed since last sent. */
 void SetSoundVP(tSoundState *sound,f32 vol,f32 pitch)
@@ -211,7 +207,7 @@ void UpdateEngineSound(MODELDAT *m) {
         rpm = m->rpm;
     }
     torque = m->engtorque;
-    if (!(gGameState & GAME_STATE_NO_RACE) && m->drone_type != DRONE_TYPE_HUMAN && !(rpm < 890.0f)) {
+    if (!(gGameState & GS_RACING) && m->drone_type != DRONE_TYPE_HUMAN && !(rpm < 890.0f)) {
         rpm = 890.0f;
     }
     set = PC_ENGINE_SOUND(slot);
@@ -249,7 +245,7 @@ void UpdateEngineSound(MODELDAT *m) {
         } else {
             vol *= 0.75f;
             pos = m->rwr;
-            if (gGameState & GAME_STATE_NO_RACE) {
+            if (gGameState & GS_RACING) {
                 if (set->rec[3].sound != -1) {
                     StopSound(&set->rec[3], 1);
                 }
