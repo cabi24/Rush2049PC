@@ -1,11 +1,14 @@
+/* include/sound_sample_record.h: records the MusyX sound library's units share: the sample directory's records and the
+ * registry of directories (registry.c, groups.c), a stream's buffer record, the emitter and listener list nodes
+ * (streams_3d.c). Each is laid out as the library reads it on the PC (host pointers; the sample record keeps the
+ * file's layout). */
 #ifndef BOOT_TAIL_SAMPLE_CONTRACT_H
 #define BOOT_TAIL_SAMPLE_CONTRACT_H
 
-/* Native shared object contracts for lib_16320 and lib_1cf90. These are
- * object fields, not stack-layout devices. Native offsets are checked by
- * sample_buffer_contract/verify.py; host pointer sizes may differ. */
-/* PC: a record of the sample directory file (wave 8), 0x1C bytes there; data is the sample's 32-bit cartridge
- * address, written at run time (docs/port/MUSYX_DATA.md). The record copy in groups.c matches. */
+/* A record of the sample directory file (wave 8), 0x1C bytes: the sample's id, its reference count (written:
+ * registry.c), its offset from the samples' base, its address (written: the 32-bit cartridge address, base + offset),
+ * then its information (key and rate, format and length, loop start and length: docs/port/MUSYX_DATA.md 3.3). The
+ * copy in groups.c matches. */
 typedef struct SampleRecord {
     unsigned short identifier;
     unsigned short references;
@@ -13,6 +16,7 @@ typedef struct SampleRecord {
     unsigned int data;
     unsigned char descriptor[16];
 } SampleRecord;
+/* A registered sample directory (sound_sample_directories): its records, their base address, their count. */
 typedef struct RegisteredSamples {
     SampleRecord *records;
     unsigned char *base;
@@ -20,6 +24,7 @@ typedef struct RegisteredSamples {
     unsigned short unknown0A;
 } RegisteredSamples;
 
+/* A stream's refill callback and buffer record (streams_3d.c's sound_streams, one a voice). */
 typedef int (*SampleCallback)(short *, unsigned int, short *, unsigned int,
                               unsigned int);
 typedef struct SampleBuffer {
@@ -32,8 +37,8 @@ typedef struct SampleBuffer {
     unsigned int context;
 } SampleBuffer;
 
-/* 1D084 and 1D578 used only the first 56 bytes. 1DDE0 and the native
- * constructor 1D1F4 establish the remaining fields of the same object. */
+/* An emitter (streams_3d.c's sound_emitters list): its links, flags, then its state; the emitter functions read the
+ * rest through their own views of the same record. */
 typedef struct StateNode {
     struct StateNode *next;
     struct StateNode *previous;
@@ -47,7 +52,7 @@ typedef struct StateNode {
 } StateNode;
 typedef StateNode StatePrefix;
 
-/* Separate listener-list prefix, not an emitter or integer-valued head. */
+/* A listener's links (sound_listeners list); the listener views in streams_3d.c begin with them. */
 typedef struct LinkNode {
     struct LinkNode *next;
     struct LinkNode *previous;

@@ -1,18 +1,30 @@
-/* GENERATED ROM-aligned TU — segment 0x1ece0 (rom/lib_1ece0)
- * layout map 9574159704610867be8d0c06826fb45c38860c9806fbcd314befaf1c5d1b3e92.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* src/rom/sound/gains.c: the MusyX sound library's volume, pan and pitch arithmetic: a voice's channel gains from
+ * its volume, pan, surround span and aux send (for the hardware layer's sound_hw_set_volume), and pitches from notes
+ * and semitones (for the synth). MusyX is the N64's sound library: no MAT3 counterpart. */
 #include "../rom_tu.h"
-
-/* PROMOTED 2026-10-11 — sound_compute_gains
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
 #include "types.h"
+
+/* The 16.16 inputs: 127.0 is the most, a pan of 128.0 (0x800000) the special "both sides, out of phase" */
+#define LEVEL_MAX 0x7F0000U
+#define PAN_SURROUND 0x800000U
+#define MINUS_3DB 0.7079f
+/* A note-to-pitch value: the key the sample plays at its own rate (high byte) and that rate in Hz (low 24 bits);
+ * all ones means "key 64 at 22,050 Hz". */
+#define DEFAULT_SAMPLE_PITCH 0x40005622U
+
 extern const float sound_volume_curve[129];
 extern const float sound_pan_curve[3];
+extern const float sound_semitone_ratio;
+extern const float sound_semitone_up_ratios[];
+extern const float sound_semitone_down_ratios[];
+extern int sound_synth_frequency;
+
+/* A voice's four gains (Q15) from its volume, pan, span and aux send, all 16.16 up to 127.0. The volume goes through
+ * sound_volume_curve (129 points, interpolated); the span splits it between the front pair and the surround output
+ * (*span_output, at -3 dB) by sound_pan_curve; the pan then splits the front part between *left and *right by the
+ * same curve, the second from 128.0 - pan; a pan of 128.0 instead puts it at -3 dB on both, the second inverted. The
+ * aux send goes through the volume curve into *aux_output at -3 dB. hardware.c stores *left in the voice's second
+ * target and *right in its first (the SFD's left channel). */
 void sound_compute_gains(u16 *left, u16 *right, u32 volume, u32 pan,
                    u32 span, u16 *span_output, u32 aux, u16 *aux_output)
 {
@@ -21,8 +33,8 @@ void sound_compute_gains(u16 *left, u16 *right, u32 volume, u32 pan,
     float factor;
     const float *entry;
 
-    if (volume > 0x7F0000U) {
-        volume = 0x7F0000U;
+    if (volume > LEVEL_MAX) {
+        volume = LEVEL_MAX;
     }
     entry = &sound_volume_curve[volume >> 16];
     gain = (1.0f - (float)(volume & 0xFFFFU) * (1.0f / 65536.0f)) * entry[0] +
@@ -31,68 +43,56 @@ void sound_compute_gains(u16 *left, u16 *right, u32 volume, u32 pan,
     entry = &sound_pan_curve[span >> 22];
     factor = (1.0f - fraction) * entry[0] +
            entry[1] * fraction;
-    *span_output = (int)(gain * factor * 0.7079f * 32767.0f);
-    span = 0x800000U - span;
-    if (span >= 0x800000U) {
-        span = 0x7F0000U;
+    *span_output = (int)(gain * factor * MINUS_3DB * 32767.0f);
+    span = PAN_SURROUND - span;
+    if (span >= PAN_SURROUND) {
+        span = LEVEL_MAX;
     }
     entry = &sound_pan_curve[span >> 22];
     factor = (1.0f - (float)(span & 0x3FFFFFU) * (1.0f / 4194304.0f)) * entry[0] +
            entry[1] * ((float)(span & 0x3FFFFFU) * (1.0f / 4194304.0f));
     gain *= factor;
-    if (pan == 0x800000U) {
-        *left = (int)(gain * 0.7079f * 32767.0f);
-        *right = (int)(gain * -0.7079f * 32767.0f);
+    if (pan == PAN_SURROUND) {
+        *left = (int)(gain * MINUS_3DB * 32767.0f);
+        *right = (int)(gain * -MINUS_3DB * 32767.0f);
     } else {
         entry = &sound_pan_curve[pan >> 22];
         factor = (1.0f - (float)(pan & 0x3FFFFFU) * (1.0f / 4194304.0f)) * entry[0] +
                entry[1] * ((float)(pan & 0x3FFFFFU) * (1.0f / 4194304.0f));
         *left = (int)(gain * factor * 32767.0f);
-        pan = 0x800000U - pan;
-        if (pan >= 0x800000U) {
-            pan = 0x7F0000U;
+        pan = PAN_SURROUND - pan;
+        if (pan >= PAN_SURROUND) {
+            pan = LEVEL_MAX;
         }
         entry = &sound_pan_curve[pan >> 22];
         factor = (1.0f - (float)(pan & 0x3FFFFFU) * (1.0f / 4194304.0f)) * entry[0] +
                entry[1] * ((float)(pan & 0x3FFFFFU) * (1.0f / 4194304.0f));
         *right = (int)(gain * factor * 32767.0f);
     }
-    if (aux > 0x7F0000U) {
-        aux = 0x7F0000U;
+    if (aux > LEVEL_MAX) {
+        aux = LEVEL_MAX;
     }
     entry = &sound_volume_curve[aux >> 16];
     gain = (1.0f - (float)(aux & 0xFFFFU) * (1.0f / 65536.0f)) * entry[0] +
            entry[1] * ((float)(aux & 0xFFFFU) * (1.0f / 65536.0f));
-    *aux_output = (int)(gain * 0.7079f * 32767.0f);
+    *aux_output = (int)(gain * MINUS_3DB * 32767.0f);
 }
 
-/* PROMOTED 2026-10-11 — sound_pitch_up_semitone
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern const float sound_semitone_ratio;
+/* value one semitone up (times sound_semitone_ratio). */
 u16 sound_pitch_up_semitone(u16 value)
 {
     return (u16)(u32)((float)value * sound_semitone_ratio);
 }
 
-/* PROMOTED 2026-10-11 — sound_note_to_pitch
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-extern const float sound_semitone_up_ratios[];
-extern const float sound_semitone_down_ratios[];
-extern int sound_synth_frequency;
+/* The rate (4.12 fixed point at the synth's output rate) that plays a sample at key note: encoded_value has the
+ * sample's own key and rate (DEFAULT_SAMPLE_PITCH when all ones), and each semitone between them is a ratio from
+ * the tables. */
 u32 sound_note_to_pitch(u8 note, u32 encoded_value)
 {
     u8 reference;
     float value;
     if (encoded_value == 0xFFFFFFFFU) {
-        encoded_value = 0x40005622U;
+        encoded_value = DEFAULT_SAMPLE_PITCH;
     }
     reference = encoded_value >> 24;
     if (note != reference) {
@@ -104,14 +104,8 @@ u32 sound_note_to_pitch(u8 note, u32 encoded_value)
     return (u32)((value * 4096.0f) / (float)sound_synth_frequency);
 }
 
-/* PROMOTED 2026-10-04 — sound_truncate
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* value truncated to a whole number (through a 32-bit unsigned integer, so for 0 to 4 294 967 295 only). */
 double sound_truncate(double value)
 {
     return (unsigned int)value;
 }
-
