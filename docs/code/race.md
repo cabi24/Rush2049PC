@@ -69,6 +69,14 @@ and the distance (`distToNext`, `FindPathDistances`). The places come from how f
 - the four **drone paths** `gDronePaths[4]` (`DronePath`, `DronePathPt`: a position, the speed to drive there in mph
   and hints): loops the computer cars follow (`NextPathPt`, `PrevPathPt`, `FindClosestPathPt`).
 
+The points are the path file's own. The headers are decoded beside the file when it loads, with host pointers to the
+points (`struct pc_path_records`, `port/assets/path.c`), and `ReadPathData` copies them, the branches into an array of
+its own, which `SyncAltPaths` joins up. These types are declared in `pc_game_types.h`, which the converter shares.
+
+The world's names (`WorldTable`, `struct NameEntry`: each world tree's name and root node) and the targets' quadtree
+and list (`gTargetGroups`, `gTargetGroupList`) are records the world file's converter builds the same way
+(`struct pc_world_records`, `port/assets/world.c`), which `LoadTrack` points the globals at.
+
 ### Targets
 
 The track's objects that take part in the race (cones, cacti, fences, windows, coins, mines, weapons, the trams and

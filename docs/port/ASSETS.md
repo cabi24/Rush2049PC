@@ -215,6 +215,12 @@ views (`pakerr/group.c:50-56`, `circuitscr/circuitscr.c:720-726`,
 `pakscr_draw/pakscr_draw.c:49`, `options_anim/options_anim.c`). The language switch re-runs the parse after
 `ReplaceWave` (`LoadTextWave`).
 
+On the PC (2026-11-09, [NATIVE.md](NATIVE.md) step 8): one declaration, `struct TextTables` (`pc_game_types.h`), which
+every reader uses; the converter (`port/assets/text.c`) builds one beside the file when the bank loads, the string
+sections as tables of host pointers, and `AdjustTextWavePointers` copies it into `gText`. The file keeps its offsets.
+`ReplaceWave` reads the next language into the same block, so the converter runs again and rebuilds the tables where
+they were (they move only for a bank with more strings than the first, the largest).
+
 ### 3.4 World WAD (waves 120–138)
 
 [C `loadtrack.c:104-126`, `src/blob/NewWorld.c`, `src/blob/CheckTargetCollision.c:74-85`,
@@ -222,7 +228,7 @@ views (`pakerr/group.c:50-56`, `circuitscr/circuitscr.c:720-726`,
 
 | Chunk | Layout | Pointers / fixup |
 |---|---|---|
-| WHDR | u32 count; count × `{u32 woff; char wname[16]}` (0x14), sorted by name | `woff += (u32)worldptr` once (`loadtrack.c:120`). `NewWorld` (`NewWorld` 0x800AC668) bsearches it with `NameEntry {Node104 *node; char name[16]}` |
+| WHDR | u32 count; count × `{u32 woff; char wname[16]}` (0x14), sorted by name | `woff += (u32)worldptr` once (`loadtrack.c:120`). `NewWorld` (`NewWorld` 0x800AC668) bsearches it with `NameEntry {Node104 *node; char name[16]}`. On the PC a native table beside the file, `struct NameEntry {tModelPart *node; char name[16]}` (§4 #12, #13) |
 | WOBJ (world nodes) | `tModelPart` 0x68 [M `rush_types.h:2831`]: `char name[16]`; `f32 mat[12]` +0x10; `u32 dlflags` +0x40; `s16 next` +0x44, `child` +0x46, `sfx1` +0x48, `sfx2` +0x4A; `s32 tidx` +0x4C; `f32 min[3]` +0x50, `max[3]` +0x5C | none: next and child are indices. Placement: `NewWorldObject` 0x800AC3D8 |
 | GDAT | count × 0x1C `tTargetGroup`: `s16 parent; u8 unused; u8 flags; f32 minh, maxh, minv, maxv; u16 child[4]` [M]. N64 view `Tree` (`CheckTargetCollision.c:74`) | none |
 | GTLD | count × u32 target keys | **overwritten in place with `Object *`** at race setup on the N64 (`SetTargetDefs`); read as `Object **` (`CheckTargetCollision`). On the PC a native side table of keys and targets (§4 #14) |
@@ -320,17 +326,17 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 9 | `display_list_traverse.c:19-21, 38-40` | `addr += 0x80000000` / `&= 0xF0FFFFFF`, then a `u32 *` cast | window; BE32 |
 | 10 | `flip_triangle_winding` | swaps index bytes at fixed bit positions of w0/w1 | BE32 load and store |
 | 11 | `displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | BE accessors |
-| 12 | `loadtrack.c:120` | `woff += (u32)worldptr` into a u32 field | window |
-| 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | `node` as u32 (else the stride becomes 24) |
-| 14 | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | done: a native side table, `struct pc_target_group` (`pc_game_types.h`: each key and the target `SetTargetDefs` finds for it, NULL none), which `pc_world_chunk` (`port/assets/world.c`) builds from the file's keys when `LoadTrack` asks for GTLD; `CheckTargetCollision` reads `gTargetGroupList[i].target` (NATIVE.md step 3) |
-| 15 | `AdjustTextWavePointers.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | native `char *` side arrays; one shared `gText` definition |
+| 12 | `loadtrack.c:120` | `woff += (u32)worldptr` into a u32 field | done: the world's converter builds the name table beside the file with each root a host pointer (`struct pc_world_records`, `port/assets/world.c`); the file keeps its offsets, and `LoadTrack` takes the records instead of `MBSetupWad`/`MBGetFromWad` ([NATIVE.md](NATIVE.md) step 8) |
+| 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | done: `NameEntry` is the native table's entry (`pc_game_types.h`, 24 bytes, `node` a pointer), and the bsearch's stride is its size |
+| 14 | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | done: a native side table, `struct pc_target_group` (`pc_game_types.h`: each key and the target `SetTargetDefs` finds for it, NULL none), which the world's converter (`port/assets/world.c`) builds from the file's keys when the file loads (NATIVE.md step 8; step 3 made it a side table); `CheckTargetCollision` reads `gTargetGroupList[i].target` (NATIVE.md step 3) |
+| 15 | `AdjustTextWavePointers.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | done: one `struct TextTables` (`pc_game_types.h`) that every reader uses; the converter builds the bank's tables beside the file when it loads, the string tables native `char *` arrays, and `AdjustTextWavePointers` copies them into `gText` (NATIVE.md step 8) |
 | 16 | `slot_sound/group.c:108, 135` | 12-byte font letter with a pointer written in place | u32 slot |
 | 17 | `slot_sound/group.c:148` (and its 3 copies), `StartSmoke.c:300` | TXHD stride `+ i * 36`; `gFontTextures[]` holds pointers as s32 | TXHD stays 0x24, pointer fields u32 |
 | 18 | `ZOID_FindObjInstance.c:14` | OBHD stride `* 88` | OBHD stays 0x58 |
 | 19 | `MBOX_GetObjectRadius.c:3704` | `(u8 *)&gRomObjDefPtrs + idx * 8` (the pair is 8 B); `slot_sound/group.c:109` declares the pairs `{s32 first; s32 second}` | pair tables keep a u32 pointer |
 | 20 | `zoid_draw/group.c:544-556` | OBHD overlaid as `LodSet`/`LodLevel`: levels start at +0x14 with stride 0x10, `Gfx *dl` | u32 `dl` |
 | 21 | `trackscr/trackscr.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`saved_map_lods`) | u32 fields |
-| 22 | `ReadPathData.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | field-by-field copy; u32 `pts` |
+| 22 | `ReadPathData.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | done: the path converter decodes the headers beside the file when it loads (`struct pc_path_records`, the points host pointers into the file) and `ReadPathData` copies them into the track's paths, the branches into its own array (NATIVE.md step 8) |
 | 23 | `targets/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)gTargetPaths + offset` | u32 fields |
 | 24 | `sound_add_sample`, `sound_sample_record.h` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | done: u32 under `TARGET_PC` (MUSYX_DATA.md §4) |
 | 25 | `sound_hw_translate_address`, `sound_hw_set_voice_sample` (`hardware.c`) | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit; host pointers (≥ 4 GiB) count as RAM |
@@ -353,13 +359,13 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | PLHD | WADs | swap | 16 at 0x12; 32 at 0x14 | u32 `palBase`/`table` (4 files) |
 | PTHD + PATH points | 101–119 | swap | §3.1 | u32 `pts`/`trigPtr`/`parent`/`resources` (2 files) |
 | TXLD, OBJS DLs, Vtx, IMAG texels and TLUTs | WADs | BE | none; register the buffer | §4 #6–11 (about 12 functions) |
-| WHDR | 120–138 | swap: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)) | u32 count, u32 woff | §4 #12–13 |
+| WHDR | 120–138 | swap + side: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)): the name table native beside the file | u32 count, u32 woff | §4 #12–13 |
 | World nodes (WOBJ) | 120–138 | swap: done | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
 | GDAT | 120–138 | swap: done | s16 at 0, 4 × f32, 4 × u16 | none |
-| GTLD | 120–138 | swap + side: done | u32 keys | §4 #14 (2 files) |
+| GTLD | 120–138 | swap + side: done, built when the file loads | u32 keys | §4 #14 (2 files) |
 | Road | 139–157 | swap: done, `port/assets/road.c` | §3.5 | none |
-| Path | 158–182 | swap: done, `port/assets/path.c`; native headers in ReadPathData | §3.6 | §4 #22 |
-| Text bank | 0–5 | swap + side: done, `port/assets/text.c` ([LOADERS.md](LOADERS.md)) | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redo after `ReplaceWave` |
+| Path | 158–182 | swap + side: done, `port/assets/path.c`: the headers decoded beside the file, which ReadPathData copies | §3.6 | §4 #22 |
+| Text bank | 0–5 | swap + side: done, `port/assets/text.c` ([LOADERS.md](LOADERS.md)): the bank's `TextTables` built beside the file | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redone by the converter after `ReplaceWave` |
 | Font data | 38–53 | none: done, `port/assets/font.c` (needs `waves.c` to read handle slots as u32) | only the 4-byte slot | §4 #16 |
 | MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap: done, `port/assets/musyx.c` ([MUSYX_DATA.md](MUSYX_DATA.md)). The readers use whole-field loads except a few, handled by how the fields are swapped | MUSYX_DATA.md §3 | §4 #24; registries, sample-info views, WAITMS (MUSYX_DATA.md §4) |
 | Samples | ROM 0x39B40 | BE: PC DMA is a `memcpy` from the ROM | none | audio interpreter reads ADPCM bytes |
@@ -486,7 +492,7 @@ every live view.
 
 | Chunk: field | Converted | Readers | Verdict |
 |---|---|---|---|
-| WHDR count, woff | 32 | `LoadTrack` s32/u32, `NewWorld`'s 20-byte `NameEntry` (u32 node) | OK |
+| WHDR count, woff | 32 | the converter's name table (`struct NameEntry`, the root a host pointer: file + woff), which `LoadTrack` points `WorldTable` at and `NewWorld` bsearches | OK |
 | WOBJ mat, min, max | 32 | f32 (`NewWorldObject`, `level_objects`' `Place`, `FindWorldGroup`, `WorldCullObjects`) | OK |
 | WOBJ dlflags +0x40 | 32 | u32 | OK |
 | WOBJ next, child +0x44 | 16 | s16 | OK |
@@ -495,7 +501,7 @@ every live view.
 | GDAT parent +0, byte +2 | 16 / byte | unread | OK |
 | GDAT flags +3 | byte | u8 `& 1` (`CheckTargetCollision`) | OK |
 | GDAT bounds, children | 32 / 16 | f32, u16 (`CheckTargetCollision`'s `Tree`, 0x1C) | OK |
-| GTLD keys | 32 | the native side table (`pc_world_chunk`: `struct pc_target_group`, the keys as s32, the targets `SetTargetDefs` finds); its count is `numgTargetGroupList`, the loop bound in `SetTargetDefs` | OK |
+| GTLD keys | 32 | the native side table (`struct pc_world_records`' `struct pc_target_group`, the keys as s32, the targets `SetTargetDefs` finds); its count is `numgTargetGroupList`, the loop bound in `SetTargetDefs` | OK |
 | TOC count words | — | WHDR: none (fetched with NULL). GTLD: a record count, as the game uses it. GDAT: stored in `numgTargetGroups`, never read. WOBJ: never fetched. The game reaches the nodes from WHDR only | see the fix below |
 
 ### 8.4 Road (`road.c`)

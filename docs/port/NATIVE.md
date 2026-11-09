@@ -469,7 +469,76 @@ addresses inside still window addresses: the heap block is still in the window).
 (textures replaced by mods are looked up through these records). Depends on: 3 (PTHD readers), 6 (the heap API in
 `slot_sound`, `loadwave`). Can run with 8 and 9. Risk: the many views of these records; mods.
 
-### Step 8. The other formats (medium)
+### Step 8. The other formats (medium): done
+
+Done 2026-11-09 (wave 3.2). Each format's converter builds the records the game reads beside the file when it loads,
+with host pointers into the file; the game asks for them by the file's heap block. The block keeps the file's bytes
+and size (converted to the host's byte order, as before), so the heap holds what it held (4.3, 7): the records live
+in PC memory, kept by block in `port/assets/records.c` and released when the heap frees the block
+(`pc_heap_block_freed`), on `pc_wave_released`, or when another file is loaded over its memory.
+
+| Format | The N64 wrote into the file | Now: the records (`pc_game_types.h`), built by | The game |
+|---|---|---|---|
+| text bank (waves 0-5) | each string's address over its offset (`AdjustTextWavePointers`) | `struct TextTables` (the one declaration, moved from `include/game/types.h`): the string tables native `char *` arrays, the 16-bit tables the file's; `port/assets/text.c` | `AdjustTextWavePointers` copies them into `gText` (`pc_text_bank`); `pc_text_strings` is gone |
+| world WAD (120-138) | the file's address into each WHDR `woff` (`LoadTrack`), the targets over GTLD's keys (`SetTargetDefs`) | `struct pc_world_records`: the names (`struct NameEntry`, 24 bytes, the root a host pointer), GDAT in the file with its count word, GTLD's side table (step 3's, now built at load); `port/assets/world.c` | `LoadTrack` points the world's globals at them: no `MBSetupWad`/`MBGetFromWad` for the world, no `PC_N64A`; `NewWorld` bsearches the native table by the name, no `PC_N64P`; `pc_world_chunk` is gone |
+| path file (158-182) | the branches' `pts` in place; headers copied out by byte offsets (`ReadPathData`) | `struct pc_path_records`: the resurrection path, its branches, the drone paths, the points host pointers into the file (the path types moved from `include/game/types.h`); `port/assets/path.c` | `ReadPathData` copies them into `gResPath`, `gDronePaths` and its own array of branches |
+
+The text bank's tables are rebuilt where they were when `ReplaceWave` reads another language into the block (the
+plan's risk: `gText`'s tables never point at freed memory between the read and `AdjustTextWavePointers`); they move
+only for a bank with more strings than the first loaded, the largest. The four views of `gText` the plan feared were
+already one (wave 2). `ReadPathData` keeps copying the branches into an array of its own, so what `SyncAltPaths`
+writes into them stays the game's and each read starts from the file's, as before; the own storage it fills
+(`gResPath`, `gDronePaths`) gets the same fields, and the data loader's tables (data.c, data_layout.json) are the
+base's.
+
+The crossings along the 63 synthetic paths (`crossings.py --guard`, 786dec37 before; the last digits of per-frame
+counts vary, 9.4):
+
+| Kind | Before: sites, crossings | After | What went |
+|---|---:|---:|---|
+| `PC_N64P` | 74, 5,199,707 | 73, 5,199,594 | `NewWorld.c` (57); `MBSetupWad.c:24` 8,570 to 8,513 (the world's TOC, no longer rebased) |
+| `PC_N64A` | 56, 1,633,596 | 55, 1,633,197 | `loadtrack.c`'s `woff` (57); `MBSetupWad.c` 24, 25 and 28 (57, 57, 228: the world's) |
+| `pc_n64_ptr` | 8, 18,224,444 | 7, 18,224,273 | `pc_world_chunk` (171: WHDR, GDAT, GTLD) |
+| the other eleven kinds | 43, 18,679,788 | 43, 18,679,788 | none |
+| total | 181, 43,737,535 | 178, 43,736,852 | 3 sites, 683 crossings |
+
+`--zero-site` passes for `NewWorld.c`, `world_name_compare.c`, `loadtrack.c`, `ReadPathData.c`,
+`AdjustTextWavePointers.c`, `LoadTextWave.c`, `InitTextWave.c` and the converters (`world.c`, `text.c`, `path.c`,
+`records.c`), and for `pc_world_chunk`; the control (`FindChunk.c`) fails. The text bank and the paths had no crossing
+before (their pointers were host pointers into the heap block); what went for them is the game's walk of the files'
+layouts. The guard (counting): 4,428,376 faults at 449 instructions before, 4,428,397 at 450 after: `game_strcmp` now
+reads the world's name in the game arena where `game_strcpy` copied it (2 paths), the name compared as it is. The
+census: `conv.PC_N64P.game` 43 to 42, `conv.PC_N64A.game` 82 to 81, `conv.pc_n64_ptr.port` 27 to 26,
+`conv.silent.trunc` 3 to 2, `conv.cc.implicit` 46 to 40, `fields.u32_address` 27 to 26 (`woff`), `tests.window` 72
+to 69 (`assets_world`'s window addresses: the three tests need no window now), `text.window.game` 134 to 132.
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3b-ref --skip realtime --data-moved` (Rocky, Debug, against 786dec37) | PASS: ctest 572 of 572, synth_compare `--same --shots --audio` 63 of 63 `same` (first runs) |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 63 of 63 `same` |
+| `ctest --test-dir build/opt -LE realtime` | 572 of 572 (`assets_rom` skipped without a ROM) |
+| the language change: an options-screen run that switches the language three times (an ad hoc press script, not committed: the synthetic paths never change it), against the base | `same` (the text bank read into the same block three times; `assets_text` covers the switch, a larger bank and the release) |
+| `assets_text`, `assets_world`, `assets_path` (the records, the game's readers on them, no window); `assets_wad`, `assets_mods`, `assets_dispatch` | pass |
+| the data loader's tables (`data.c`, `data_layout.json`, `aliases.ld`, `stubs.c`) | the base's, byte for byte: the moved types have the same layouts |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, the base's); its rule for `pc_text_strings` (unused) goes with the function |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; one new key reviewed: `ReadPathData`'s copy loop on `pc_alt_paths` (`tmr`, i below a u8 count, of 256) |
+| `census.py` | 1,071 of 1,071 compile |
+| `nofixed_audit.py --baseline` | no class grew; lowered by this step's moves: `cc.implicit.int_to_ptr` 24 to 18, `context.cc_warnings.int-conversion` 90 to 84, `port.rdram_base.tests` 40 to 37, `port.translate` 32 to 31, `port.trunc.tests` 19 to 17, `src.trunc` 3 to 2 |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_*`, `synth_.*`) and against the fixed build (`--runs 1 --same`) | builds; 93 of 93; 63 of 63 `same` |
+| boot without a ROM (CI's) | reaches wave 0 and stops where the base stops (`AudioSfxInit`'s allocation on the blank cartridge), the same log |
+
+**What this changes for later steps.**
+
+- Step 7 has `port/assets/records.c` for the WAD's records (OBHD, TXHD, PLHD, PTHD): keep, find, detach, release by
+  block (handle blocks move: the font data would need a move hook there).
+- `MBSetupWad` and `MBGetFromWad` no longer run on the world WADs: their callers are the model WADs' (`waves.c`)
+  only.
+- The game's text, world and path readers take their records from the PC layer's accessors (`pc_text_bank`,
+  `pc_world_records`, `pc_path_records`); a file the converter refused (it says so) gives empty records.
+
+The plan was:
 
 4.4 for the text bank (`AdjustTextWavePointers` and its 17 readers, `ReplaceWave`, `port/assets/text.c`), the world
 (`NewWorld.c`'s name table, `loadtrack.c`'s `woff`, `port/assets/world.c` but its GTLD part), the paths
@@ -871,7 +940,7 @@ window address (`pc_n64_ptr`, 171 crossings into the heap, as before).
   the car with `struct pc_visual visuals[21]` and N64-offset padding after it follow by themselves.
 - **GTLD's keys are still read from the file by its window address**: `pc_world_chunk` gets the chunk from
   `MBGetFromWad`, a 32-bit address it translates (`pc_n64_ptr`, 171 crossings into the heap); the side table goes
-  native with the WAD's records (steps 7, 8).
+  native with the WAD's records (steps 7, 8). Done in step 8: the world's converter builds it when the file loads.
 - `pc_statll_link` and `pc_statll_set_link` stay in the counter's kinds (always 0 now), so a report still lists every
   kind; `port/assets/tests/support.h`'s `TEST_N64_gTargetArray` is unused (left to spare step 2's edits beside it a
   merge conflict).

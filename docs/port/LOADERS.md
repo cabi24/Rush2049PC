@@ -162,13 +162,13 @@ leaves a file that doesn't as it is (with a message): a bogus file is not half c
 
 | Format | Waves | Converter | Game edits under `TARGET_PC` |
 |---|---|---|---|
-| Text bank | 0–5 | swap: six u32 counts, the three u32 offset tables, the three u16 tables (padded to even counts) | `AdjustTextWavePointers` (`_AdjustTextWavePointers`) has a PC version: the offsets stay in the file, and gText's three pointer sections are native `char *` tables from `pc_text_strings`. The 19 reader files whose views of gText or its string table assumed N64 offsets get host ones (below) |
+| Text bank | 0–5 | swap: six u32 counts, the three u32 offset tables, the three u16 tables (padded to even counts); then the bank's `struct TextTables` beside the file (since 2026-11-09, [NATIVE.md](NATIVE.md) step 8) | `AdjustTextWavePointers` (`_AdjustTextWavePointers`) copies the bank's tables into gText (`pc_text_bank`): the offsets stay in the file, and gText's three pointer sections are native `char *` tables. The 19 reader files whose views of gText or its string table assumed N64 offsets got host ones (below), and since wave 2 every reader uses the one declaration |
 | Font data | 38–53 | none (all bytes); checks the letters and kern table fit | the 12-byte letter keeps its 4-byte kern slot as a u32 window address in `SetupFontData` (writer), `_DrawText`, `HAL_GetTextWidth`, `HAL_GetCharWidth`; `SetupFontData` reads the u32 heap handle slot |
-| World WAD | 120–138 | swap WHDR (count, offsets), WOBJ (0x68-byte nodes), GDAT (0x1C), GTLD (u32 keys). Chunks are found through the WAD TOC in either byte order | `LoadTrack` gets GTLD as a native array of the keys (`pc_world_chunk`), since race setup writes object pointers over them; `NewWorld`'s WHDR entry view is 0x14 bytes (u32 node); its comparator `world_name_compare` takes pointers and returns its result |
+| World WAD | 120–138 | swap WHDR (count, offsets), WOBJ (0x68-byte nodes), GDAT (0x1C), GTLD (u32 keys). Chunks are found through the WAD TOC in either byte order; then the world's records beside the file (`struct pc_world_records`: the name table with host pointers to the roots, GDAT, GTLD's keys with room for their targets; since 2026-11-09) | `LoadTrack` points the world's globals at the records (`pc_world_records`) instead of finding the chunks with `MBSetupWad`/`MBGetFromWad` and relocating the names; `NewWorld` bsearches the native `NameEntry` table (24 bytes, `node` a pointer); its comparator `world_name_compare` takes the name and an entry and returns its result |
 | Road | 139–157 | swap by section; vlist and slist stay bytes | `ResetCollisionObject`'s save-record cursor is `intptr_t` |
-| Path | 158–182 | swap the checkpoint block, the resurrection, alternative and drone path headers and points (drone mph and hints stay bytes) | `ReadPathData` has a PC version: headers copied field by field into the native `gResPath`/`gDronePaths`, alternative paths in a native array; eleven reader files get host offsets or strides (below) |
+| Path | 158–182 | swap the checkpoint block, the resurrection, alternative and drone path headers and points (drone mph and hints stay bytes); then the headers decoded beside the file (`struct pc_path_records`, the points host pointers into it; since 2026-11-09) | `ReadPathData` copies the decoded headers into the native `gResPath`/`gDronePaths`, the alternative paths into its own array; eleven reader files got host offsets or strides (below) |
 
-**Text bank views.** The header gText (`gText`, alias `gText`; `gText_single` = the single table) has
+**Text bank views** (2026-10-27; since wave 2 every file reads gText through the one `TextTables`). The header gText (`gText`, alias `gText`; `gText_single` = the single table) has
 host pointers, so its fields sit at host offsets (8, 24, 32, ...) and its string tables have 8-byte entries. Views
 that already declared pointer fields line up by themselves. The ones changed: header views padded with `s32[3]` or
 `u8[12]` (`SetHighScoreState.c`, `animCreditText.c`, `animPauseText.c`, `animStatText.c`); overlays of the single table as a
@@ -176,8 +176,8 @@ struct with byte pads at N64 offsets, now `char *pad[N / 4]` (`anim_no_rumble_pa
 `animWrongWay.c`, `animLapCount.c`, `animTitleText.c`, `animSureText.c`, `licensescr_animText.c`, `warningscr_animText.c`, `titlescr_animText.c`,
 `recordscr/recordscr.c`, `animBattlePoints.c`); string slots read as `s32` are `intptr_t` (`animTitleText.c`,
 `animPauseText.c`, `animSureText.c`); `showhud.c`'s `u32 *` tables are `char **`; `pause_TitlePane.c`'s raw N64 offsets go through `TXH`
-(header) and `TXS` (table). `titlescr_animText` reads entry 235 as `s32`: the low word of the host pointer, which is
-the window address.
+(header) and `TXS` (table). `titlescr_animText` read entry 235 as `s32`: the low word of the host pointer, which was
+the window address (it reads the pointer since wave 2).
 
 **Path views.** On PC `gResPath` is 32 bytes (pts at 8, numAlt at 16, alt at 24), an alternative path 24 (pts at
 16), a drone path 16. Changed: the `Header`/`Descriptor`/`Count` views of `NumPtsToCheckpoint.c`,
@@ -205,6 +205,10 @@ and unread byte pads.
   `ResetCollisionObject`; `ReadCheckpointData`, `ReadPathData`, `NextResPathPt`, `NextPathPt` and
   `PrevPathPt`. Test files name the game sources they link on ` * game: ` lines (CMakeLists.txt compiles them
   with `game_flags`); `test_rdram()` maps the RDRAM window so the files hold window addresses as heap blocks do.
+  Since 2026-11-09 (NATIVE.md step 8) `assets_text`, `assets_world` and `assets_path` also check the records each
+  converter builds beside its file (`port/assets/records.c`: the text bank's tables kept where they are across a
+  language switch, the world's names and target groups, the paths' headers, and each record going with its block),
+  and need no window: the files sit in host memory.
 - `n64_neutral.py --base 09da2f0`: every changed game file is "shifted".
 - Census: 389 → 381 pointer warnings (the text parser, `showhud`, `fb9c8`, `ResetCollisionObject`), the same two
   classes.
