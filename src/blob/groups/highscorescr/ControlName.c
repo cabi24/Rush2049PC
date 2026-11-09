@@ -21,8 +21,6 @@ VIEW(intptr_t[12][3][5], gTotalNames);
 VIEW(s8[3][5], gNewTotalScore);
 #define gNewTotalScore gNewTotalScore_view
 
-extern s32 CountdownTimeOut(void);
-
 /* highscore_gNameSelect[]: a letter of the grid (0-53), or one of the three buttons under it. */
 #define NAME_SEL_END (-1)
 #define NAME_SEL_DELETE (-2)
@@ -91,7 +89,7 @@ void ControlName(s32 player)
                 gScoreName[player][highscore_gNameLen[player]] = 0;
             }
             name = gScoreName[player];
-            censor((intptr_t)name);
+            censor(name);
             gDrawName[player] = 0;
             gThisPlayer[player] = gLastPlayer[input->controller] = FindTempNameIdx(name);
             for (row = 0; row < 3; row++) {

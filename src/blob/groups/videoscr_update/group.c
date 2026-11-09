@@ -23,9 +23,6 @@ VIEW(volatile u8, gNumModels);
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
-intptr_t MBOX_FindTexture_WORK();
-
-void ZOID_SetTexture(s16 object, intptr_t texture, s32 index);
 
 VIEW(intptr_t, video_blit);
 #define video_blit video_blit_view
@@ -73,7 +70,7 @@ s32 video_validOption(s32 i) {
 /* Moves and turns the video screen's 3D buttons towards the chosen option. */
 void video_updateButtons(void) {
     s32 i;
-    intptr_t name;
+    struct tTexture *texture;
     f32 y;
     f32 cur;
     f32 old[3];
@@ -116,11 +113,11 @@ void video_updateButtons(void) {
         WPitchUV(video_buttonInfo[i].ang - 1.5707964f, video_buttonInfo[i].mat);
         memcpy(video_buttonInfo[i + 4].mat, video_buttonInfo[i].mat, 36);
         if (1.5707964f < video_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
-        ZOID_SetTexture(video_buttonInfo[i].handle, name, -1);
-        ZOID_SetTexture(video_buttonInfo[i + 4].handle, name, -1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+        ZOID_SetTexture(video_buttonInfo[i].handle, texture, -1);
+        ZOID_SetTexture(video_buttonInfo[i + 4].handle, texture, -1);
         if ((vis = video_validOption(i)) == 0) {
             MBOX_HideObject(video_buttonInfo[i].handle, 1, 15);
             MBOX_HideObject(video_buttonInfo[i + 4].handle, 1, 15);
@@ -170,8 +167,6 @@ VIEW(u8[], gOptions);
 typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
 VIEW(Pad16[], gControllerData);
 #define gControllerData gControllerData_view
-
-s32 CountdownTimeOut(void);
 
 /* The video screen's frame: reads the controls (choose an option, change its value: the screen's offset, the
  * texture filter, the dither ...), applies the changes and leaves on a back or a confirm. */

@@ -34,8 +34,6 @@ VIEW(PcEffectObj[100], gSkidArray);
 #define gSkidArray gSkidArray_view
 #define gNewSkid PC_SKIDS
 
-void ZOID_RemovePoly(void *poly);
-
 void *memset(void *, int, unsigned int);
 
 /* one-line multi-statement macro: stands in for the inlined kept InitStatLL (one .loc) */

@@ -10,8 +10,6 @@ VIEW(struct pc_multiblit[1], PS_ErrorFunc_dimMultiBlit);
 
 extern OSId osGetThreadId(OSThread *thread);
 
-void ZOID_SetFog(s16 fogNear, s16 fogFar, u8 r, u8 g, u8 b, u8 a, s32 window);
-
 #define GAME_THREAD_ID 7   /* the game thread's id: only it may draw frames */
 
 /* Shows pak's error mode (kPS_Err*) and waits for the player's answer: the screen is dimmed (a full-screen blit and

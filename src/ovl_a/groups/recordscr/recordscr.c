@@ -481,9 +481,6 @@ extern void *memcpy(void *, const void *, u32);
  * 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
 
-extern void *MBOX_FindTexture_WORK(char *, s16 *, s32, s8, s32);
-extern void ZOID_SetTexture(s16, void *, s32);
-
 /* Set the screen up on the totals: the select menu, the buttons, a box (off screen until a page sizes it) and the
  * text blit. */
 void initRecordScreen(void)

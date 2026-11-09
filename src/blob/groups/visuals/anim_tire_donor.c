@@ -72,8 +72,6 @@ VIEW(Control152[], gCamera);
 VIEW(intptr_t[], gWheelTextures);
 #define gWheelTextures gWheelTextures_view
 
-extern void ZOID_SetTexture(s16,intptr_t,s32);
-
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
  * so the bob keeps the N64's spread (an AR(1) whose stationary variance is the same), instead of stepping once a 30 Hz
@@ -157,7 +155,7 @@ void AnimateTire(tVisual *v, s16 op)
         } else {
             index = (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6) ? 16 : index + 3;
         }
-        ZOID_SetTexture(v->objnum, gWheelTextures[index], -1);
+        ZOID_SetTexture(v->objnum, (void *) gWheelTextures[index], -1);
     }
     CreateYPRMatrix(mat, rpy);
     if (tire >= 2) {

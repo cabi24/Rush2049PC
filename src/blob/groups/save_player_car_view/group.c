@@ -5,8 +5,6 @@
 #define kObstacle 5
 #define kBattle 6
 
-extern void PS_WriteFile(void *,u32 *,int);
-
 /* Stores camera view value in the settings of the profile's last race type, as SavePlayerCar stores the car. */
 void SavePlayerCarView(tProfile **profile,u8 value)
 {

@@ -41,8 +41,6 @@ VIEW(volatile u8, gNumModels);
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
-intptr_t MBOX_FindTexture_WORK();
-void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 
 VIEW(intptr_t, options_blit);
 #define options_blit options_blit_view
@@ -87,7 +85,7 @@ void options_updateButtons(void) {
     f32 old[3];
     f32 sel_y;
     s8 settled;
-    intptr_t name;
+    struct tTexture *texture;
     s32 yi;
     s16 tex;
     Color color;
@@ -173,11 +171,11 @@ void options_updateButtons(void) {
         WPitchUV(options_buttonInfo[i].ang - 1.5707964f, options_buttonInfo[i].mat);
         WPitchUV(options_buttonInfo[i + 14].ang - 1.5707964f, options_buttonInfo[i + 14].mat);
         if (1.5707964f < options_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
-        ZOID_SetTexture(options_buttonInfo[i].handle, name, -1);
-        ZOID_SetTexture(options_buttonInfo[i + 14].handle, name, -1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+        ZOID_SetTexture(options_buttonInfo[i].handle, texture, -1);
+        ZOID_SetTexture(options_buttonInfo[i + 14].handle, texture, -1);
         if (140.0f < options_buttonInfo[i].pos[1] || options_buttonInfo[i].pos[1] < -160.0f)
             options_buttonInfo[i].alpha = 0;
         else if (100.0f < options_buttonInfo[i].pos[1])

@@ -221,9 +221,6 @@ VIEW(Object[], object_list_scale_view);
 VIEW(MultiBlit[], circuitscr_mblit);
 #define circuitscr_mblit circuitscr_mblit_view
 
-extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
-extern void ZOID_SetTexture(s16,intptr_t,s32);
-
 extern void particle_lifetime_set(void);
 
 /* Set the screen up: the players' race type is saved as circuit; a circuit that is active but has run no race is
@@ -250,11 +247,11 @@ void circuitscr_initScreen(void)
             gShowTrophy = 1;
             if (selected < 3) {
                 model = MBOX_FindObject_WORK(gTrophyNames[selected], 0, gNumModels - 1, 1);
-                trophyObjIdx = MBOX_NewObject(model, (uintptr_t)gTrophyMat, -1, 0);
+                trophyObjIdx = MBOX_NewObject(model, gTrophyMat, -1, 0);
                 model = MBOX_FindObject_WORK(gTrophySheenNames[selected], 0, gNumModels - 1, 1);
-                trophySheenObjIdx = MBOX_NewObject(model, (uintptr_t)unitmatrix, trophyObjIdx, 0x2C6084);
+                trophySheenObjIdx = MBOX_NewObject(model, unitmatrix, trophyObjIdx, 0x2C6084);
                 ZOID_SetTexture((s16)trophySheenObjIdx,
-                    (intptr_t)MBOX_FindTexture_WORK(circuitscr_sheen_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+                    MBOX_FindTexture_WORK(circuitscr_sheen_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
                 /* PC: object_list_scale_view is a label 0x10 before ObjInstanceList's N64 address, read as 0x44-byte
                  * records: this writes the float at +0x10 of the sheen's N64 instance record. The PC's ObjInstanceList
                  * has storage of its own (host records), so the write lands in the unused window copy and the
@@ -527,9 +524,6 @@ extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
-extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
-extern void ZOID_SetTexture(s16,intptr_t,s32);
-
 /* Lay the buttons out for this frame. With the trophy up only the title and the A and B icons show. Otherwise each
  * of the four rows' buttons turns to its selected face when selected, the list scrolls to the selection (at most
  * 540 a second) and fades over a button's height past the top or bottom; rows not offered are hidden, and with the
@@ -612,7 +606,7 @@ void circuitscr_updateButtons(void)
                 tex = MBOX_FindTexture_WORK(circuitscr_select_texture_name, &texIdx, 0, *(volatile u8 *)&gNumModels - 1, 1);
             else
                 tex = MBOX_FindTexture_WORK(circuitscr_button_texture_name, &texIdx, 0, *(volatile u8 *)&gNumModels - 1, 1);
-            ZOID_SetTexture(circuitscr_buttonInfo[buttonIdx].handle, (intptr_t)tex, -1);
+            ZOID_SetTexture(circuitscr_buttonInfo[buttonIdx].handle, tex, -1);
             if (circuitscr_buttonInfo[buttonIdx].position[1] > circuitscr_maxY + circuitscr_gButtonSpace * circuitscr_gButtonScale
                 || circuitscr_buttonInfo[buttonIdx].position[1] < circuitscr_minY - circuitscr_gButtonSpace * circuitscr_gButtonScale)
                 circuitscr_buttonInfo[buttonIdx].alpha = 0;
@@ -633,7 +627,7 @@ void circuitscr_updateButtons(void)
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].position[2] = circuitscr_buttonInfo[buttonIdx].position[2];
                 ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix, circuitscr_gButtonScale);
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix);
-                ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, (intptr_t)tex, -1);
+                ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
                 ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, (s32 *)&buttonColor);
                 if (!menuItemValid(buttonIdx))
@@ -649,7 +643,7 @@ void circuitscr_updateButtons(void)
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].position[2] = circuitscr_buttonInfo[buttonIdx].position[2];
                 ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix, circuitscr_gButtonScale);
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix);
-                ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, (intptr_t)tex, -1);
+                ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
                 ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, (s32 *)&buttonColor);
                 if (!menuItemValid(buttonIdx))
@@ -806,14 +800,12 @@ void calcProgressSize(void)
     gProgressTop = gMenuBottom + (220 - gMenuBottom - gProgressHeight) / 2;
 }
 
-VIEW(Color, flashColors);
+VIEW(TextColor, flashColors);
 #define flashColors flashColors_view
-VIEW(Color, flashColors_at_1);
+VIEW(TextColor, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(u8 *[], gDefaultNames);
 #define gDefaultNames gDefaultNames_view
-
-extern void TB_FlashTextColors(Color,Color);
 
 /* The review: the six cars' places, names and points, in two columns of three by place, the players' in their
  * colour, over the whole circuit so far (the review on its last race) or for the reviewed race (a race a car didn't
@@ -1104,13 +1096,13 @@ void circuitscr_initButtons(void)
             memcpy(circuitscr_buttonInfo[i].matrix, unitmatrix, 36);
             circuitscr_buttonInfo[i].handle = MBOX_NewObject(
                 MBOX_FindObject_WORK(circuitscr_buttonNames[circuitscr_buttonInfo[i].type], 0, gNumModels - 1, 1),
-                (uintptr_t)circuitscr_buttonInfo[i].matrix, -1,
+                circuitscr_buttonInfo[i].matrix, -1,
                 (circuitscr_buttonInfo[i].type == 0 || circuitscr_buttonInfo[i].type == 1 || circuitscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
             ZOID_SetColor((s16)circuitscr_buttonInfo[i].handle, (s32 *)&color);
         }
     }
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_title_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        MBOX_FindTexture_WORK(circuitscr_title_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].matrix, unitmatrix, 36);
     yaw = -1.5707963705062866f;
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].matrix);
@@ -1118,9 +1110,9 @@ void circuitscr_initButtons(void)
     circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].position[1] = 115.0f;
     circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].position[2] = 200.0f;
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_cursor_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        MBOX_FindTexture_WORK(circuitscr_cursor_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_a_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        MBOX_FindTexture_WORK(circuitscr_a_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].matrix);
 
@@ -1135,7 +1127,7 @@ void circuitscr_initButtons(void)
     circuitscr_buttonInfo[CIRCUIT_BUTTON_A_BACK].position[1] = 55.2f;
     circuitscr_buttonInfo[CIRCUIT_BUTTON_A_BACK].position[2] = 100.0f;
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_b_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        MBOX_FindTexture_WORK(circuitscr_b_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].matrix);
 

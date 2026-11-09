@@ -67,8 +67,6 @@ VIEW(volatile f32, gFrameSeconds);
 VIEW(s32, gTargetList);
 #define gTargetList gTargetList_view
 
-extern s32 ZOID_AddObject(s32, void *, s16, s32);
-
 /* One frame of a coin (op 1), or release its visual (op 0). Gold coins are numbered from 8 (gWhichGoldCoin + 8),
  * silver ones from 0, in the order their visuals first run; a coin every player has already found is removed at
  * once. Nothing moves while the game is paused. */

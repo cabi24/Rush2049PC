@@ -36,7 +36,6 @@ VIEW(CarParts[], gCarParts);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-extern Resource24 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, s32);    /* texture lookup */
 extern s32 sprintf(char *, char *, ...);
 extern void *memcpy(void *, const void *, u32);
 
@@ -113,7 +112,7 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     gCarPaintJobInited[slot]=1;
     colors=AllocateMemoryHeap(0,512);
     sprintf(name,car_palette_name_format,car+1);
-    TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,gNumModels-1,1)->data,512);
+    TLUT_COPY_IN(colors,((Resource24 *)MBOX_FindPalette_WORK(name,&handle,0,gNumModels-1))->data,512);
     if (first == 0) {
         for (i = 1; i < 32; i++) {
             value = (s32)((((colors[i] >> 11) & 0x7f) << 3) * 1.25f);

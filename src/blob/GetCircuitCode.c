@@ -23,8 +23,6 @@ typedef struct
 VIEW(SavedPlayerSlot **, gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
-void GetPasswordString(intptr_t code);
-
 /* PC: an input record (gPlayers) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10), and
  * SaveSlot.data is at the profile record's PC offset (pc_prelude.h, POINTERS.md 9.10). */
 #define INPUT_SIZE 80
@@ -33,7 +31,7 @@ void GetPasswordString(intptr_t code);
 /* Writes the circuit player's circuit code into `code`: the password (86 bits in 14 characters) of the circuit's
  * type, death option, races driven (the race in progress not counted: gCircuitTrack is set back), seed and
  * difficulty, and the six cars' points (SetCircuitCode reads it). */
-void GetCircuitCode(intptr_t code)
+void GetCircuitCode(u8 *code)
 {
     s32 i;
     struct tCircuit *circuit;
@@ -49,5 +47,5 @@ void GetCircuitCode(intptr_t code)
     for (i = 0; i < 6; i++) {
         StorePasswordElement((u32) gCircuitCars[i].totalPoints, 9U);
     }
-    GetPasswordString(code);
+    GetPasswordString((char *) code);
 }

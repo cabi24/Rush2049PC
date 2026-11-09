@@ -44,9 +44,6 @@ VIEW(s32[4], offsetsValid);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
-Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);
-
 void ZOID_ShowPoly_bg(Poly *poly)
 {
     poly->flags &= ~0x8000;

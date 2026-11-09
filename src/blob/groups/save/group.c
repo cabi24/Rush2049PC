@@ -16,11 +16,6 @@ void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 s32 sprintf(char *, const char *, ...);
 
-void SavePlayerOption(Handle, u8, s8);
-
-Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
-void PS_WriteFile(Handle, void *, u32);
-
 /* Gives the profile h a fresh file: its record cleared, the data zeroed, revision PROFILE_REVISION, the default
  * controls with rumble, every car's default settings, every option's default (the race type settings for every
  * track), the default car and view for every race type. */
@@ -380,8 +375,6 @@ void **CreatePlayer(s32 pak, u8 *name) {
 }
 
 
-
-s8 GetPlayerOption(Handle player, u8 option);      /* GC GetPlayerOption */
 
 /* Opens the profile in the pak file fileh (nothing if it is open already): reads and checks it, takes its name, id
  * and controls; the first profile read when no options are set gives the game its options (and language and screen

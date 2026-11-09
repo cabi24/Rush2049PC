@@ -77,10 +77,6 @@ typedef struct {
 VIEW(CamXform, gCamera);
 #define gCamera gCamera_view
 
-extern void ZOID_RemovePoly(void *dl);
-extern void *ZOID_NewPoly(s32, f32 *, u16, u8 *, s32, s32);
-extern void ZOID_UpdatePoly(void *dl, s32 n, f32 *quad, s32, u8 *color, s32, s32);
-
 /* Moves skid slot's leading edge to tyre wheel of player's car: across the axle (the direction from tyre wheel & 2
  * to tyre wheel | 1, with their heights), 0.75 to either side of the tyre and lifted by skid_lift; stamps the time
  * and the colour, and updates the quad. */

@@ -43,8 +43,6 @@ VIEW(u8[], gSmokeList);
 
 #define DEBUG_PRINT(args)
 
-s32 ZOID_AddObject(s32 a, void *b, s16 parent, s32 d);
-
 /* Put puff `smk` in the scene as frame tIdx of the spray's animation (gObjList[205..212]). */
 static void attach(SmokePuff *smk) {
     s32 handle;

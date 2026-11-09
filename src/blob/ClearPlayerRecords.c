@@ -3,8 +3,6 @@
 
 extern void *memset(void *s, s32 c, u32 n);
 
-void PS_WriteFile(tPakHandle *fileh, void *data, s32 size);
-
 /* Erases the profile's records and totals (the race, stunt, battle, obstacle and circuit stats and the circuit in
  * progress) in its file and writes the file. Returns 1 when done; 0 when the file can't be read, or can't be written
  * (its data is then dropped from memory). The profile's times leave the high score tables. */

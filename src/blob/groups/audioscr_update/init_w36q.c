@@ -24,9 +24,6 @@ VIEW(f32[3][3], unitmatrix);
 
 void *memcpy(void *,const void *,u32);
 
-TexDef *MBOX_FindTexture_WORK(char *,u16 *,s8,s8,s32);
-void ZOID_SetTexture(s16,TexDef *,s32);
-
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Opens the audio screen: keeps the globals (SaveGlobals), sizes the menu; in the front end makes the background,

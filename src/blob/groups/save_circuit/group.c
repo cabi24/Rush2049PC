@@ -1,8 +1,6 @@
 /* SavePlayerCircuitStats and SavePlayerCircuit: write a profile's circuit records (MAT3 save.c). */
 #include "game/game.h"
 
-extern void PS_WriteFile(void *,u32 *,int);
-
 /* Gives the profile's stats of circuit kind their checksum again and marks them to write (the caller changed them).
  * The file must be read. */
 void SavePlayerCircuitStats(tProfile **profile,u8 kind)

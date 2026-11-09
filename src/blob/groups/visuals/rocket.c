@@ -97,8 +97,6 @@ VIEW(unsigned char *[], gTrackColors);
 VIEW(s32[][2], SheenColors);
 #define SheenColors SheenColors_view
 
-tUVMatrix *ZOID_FindMatrix(s16 objnum);
-
 /* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four
  * tires' road polygons name, and, as its rear left tire gets more than 20 feet off the ground, more and more
  * (fully at 60 feet) the track's base colour (gTrackBaseColors). Alpha 255. MAT3 also smooths it with the last

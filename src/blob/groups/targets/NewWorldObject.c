@@ -21,7 +21,6 @@ VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
 extern int SetupTarget(tModelPart *,s16,int,int,int,int,int);
-extern int ZOID_AddObject ( int , f32 * , s16 , u32 );
 
 /* Add the part `wnode`, its siblings and (recursively) their children to the scene under the scene node `parent`
  * (-1: the top). Each part that is not a target becomes a scene node of its model (MBOX_FindObject_WORK by name)

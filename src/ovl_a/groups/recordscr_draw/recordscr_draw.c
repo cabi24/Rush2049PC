@@ -3,7 +3,7 @@
  * ReadPlayerData) or, for the machine's totals, the gTotal*Stats tables AddPlayerStats fills. */
 #include "game/game.h"
 
-typedef struct Color4 { u32 word; } Color4;
+typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
  * the pak it is on. */
 typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } FileInfo;
@@ -162,8 +162,6 @@ VIEW(s8[], gUnlockedTrans);
 #define gUnlockedTrans gUnlockedTrans_view
 VIEW(s8[], gUnlockedTires);
 #define gUnlockedTires gUnlockedTires_view
-
-extern void TB_FlashTextColors(Color4,Color4);
 
 /* gText.tab[g]'s entry i: one of a table of texts. */
 #define NAME(g,i) (gText.taba[gText.tab[g]+(i)])

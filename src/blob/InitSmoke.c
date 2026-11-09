@@ -29,8 +29,6 @@ VIEW(s16[6], gFireTexs);
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
 
-void MBOX_FindTexture_WORK(char *name, s16 *handle, int firstModel, int lastModel, int flag);
-
 /* one-line multi-statement macro: stands in for the inlined kept InitStatLL (one .loc) */
 #define POOL_SETUP(pool, m, n, sz) { (pool).list = (m); (pool).numElements = (n); (pool).elementSize = (sz); (pool).dbl = 0; }
 

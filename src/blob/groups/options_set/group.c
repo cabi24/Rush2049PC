@@ -13,8 +13,6 @@ VIEW(s8[], gOptions);
 VIEW(u8[][5], gCircuitTracks);
 #define gCircuitTracks gCircuitTracks_view
 
-void SavePlayerOption(Player *, u8, s8);
-
 /* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
  * parts, and the race settings of the race type (gRace) from its options, or fixed ones in attract mode (3 laps, 6
  * drones, no mirror, fog or wind, normal gravity, difficulty and catch-up 2). */

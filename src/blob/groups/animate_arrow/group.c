@@ -78,7 +78,6 @@ VIEW(tRGBA, arrow_base_color);
 
 /* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };
-extern void ZOID_UpdatePoly(tPoly *, s32, f32 (*)[3], u16, tRGBA *, u16, s32);
 
 /* The arrow v draws for car v->slot in view v->index, once a frame (`op` is not used). Hidden but while racing
  * (gGameState 0x400000: GS_RACING) with player arrows on, and in a battle while the car is wrecked or respawning.

@@ -91,8 +91,6 @@ extern struct pc_visual *GrabEnvEntry(void);
 
 extern int strlen(const char *);
 
-extern s32 ZOID_AddObject(s32, void *, s16, s32);
-
 /* Defines target `t` once the race's targets are counted: its kind's record (set_target_data), its scene object's
  * object definition, its environment visual (a kind with flag 2: the kind's visFunc animates it, and with flag 4 the
  * start function runs now too), and a kind with flag 0x4000 starts now, or a path target the world placed has its

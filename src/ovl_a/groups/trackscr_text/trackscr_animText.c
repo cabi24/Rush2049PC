@@ -2,7 +2,7 @@
  * name and value beside its 3D buttons. */
 #include "game/game.h"
 
-typedef struct Color4 { u32 word; } Color4;
+typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 
 VIEW(f32[3], trackscr_title_button_position);
 #define trackscr_title_button_position trackscr_title_button_position_view
@@ -16,8 +16,6 @@ VIEW(u8[][5], gCircuitTracks);
 #define gCircuitTracks gCircuitTracks_view
 
 extern int sprintf(char *,const char *,...);
-
-extern void TB_FlashTextColors(Color4,Color4);
 
 /* trackscr.c's options (trackscr_gOpts[]) */
 #define TRACK_OPT_TRACK 0

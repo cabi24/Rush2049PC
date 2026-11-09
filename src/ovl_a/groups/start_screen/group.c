@@ -46,9 +46,6 @@ extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
 extern void particle_lifetime_set(void);      /* createBG */
 
-extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
-extern void ZOID_SetTexture(s16, void *, s32);
-
 /* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, start_screen_egg;
    eggs.c's InitEgg at cheat `egg` of gEggs. Under one name the PC linked eggs.c's for both, so InitEgg(23)
    pointed past the table and the cheat screen could never be opened (docs/port/QA.md). */

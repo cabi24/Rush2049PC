@@ -22,8 +22,6 @@ VIEW(u8[][3], gFogColors);
 VIEW(s16[], gCheatState);
 #define gCheatState gCheatState_view
 
-void ZOID_SetFog(s32 a0, s32 a1, s32 r, s32 g, s32 b, s32 a, s32 win);
-
 void *memset(void *, s32, u32);
 
 void leStartLoadingEffect(void)

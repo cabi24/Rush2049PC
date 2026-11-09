@@ -194,8 +194,6 @@ extern float fabsf(float);
 
 surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);
 
-int CountdownTimeOut(void);
-
 /* PC: a start-grid row for each of PC_MAX_LINKS places (pc_game_types.h, docs/port/MORECARS.md 4). Places 0-5 are
  * pole_pos_offset's rows, read from the loaded table when a car is placed, so the build holds none of its values.
  * The table's grid is two cars a row, 3 rows; each later place continues the places of its column parity two rows

@@ -38,8 +38,6 @@ VIEW(s16[10], gTexList);
 
 extern void *memset(void *, s32, u32);
 
-extern TexDef *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
-
 /* Make the 32 paint colours (paint_colors, RGBA 5551, from paint_colors_rgb) and the four battle teams' colour
  * numbers. With `cars` (the models are loaded) also: clear the car parts (gCarParts, 52 records of 0x40 bytes);
  * on the car screen (game state 0x100, GS_CAR) let it set its cars up (InitVisualsCarScr) and forget the car part

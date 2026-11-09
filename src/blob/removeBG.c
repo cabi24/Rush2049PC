@@ -7,8 +7,6 @@ VIEW(intptr_t, backBlit);
 VIEW(s16 *[4], backPolys);
 #define backPolys backPolys_view
 
-void ZOID_RemovePoly(s16 *poly);
-
 /* Remove the background's blit and its four polygons, if they are up. */
 void removeBG(void)
 {

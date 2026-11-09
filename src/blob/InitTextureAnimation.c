@@ -48,8 +48,6 @@ VIEW(tTextureSwap *[], TextureSwapLists);
 #define TextureSwapLists TextureSwapLists_view
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
-extern Resource32 *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, int);
-extern Resource32 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, int);
 
 /* Find the textures and palettes of the track's (gTrackNum) animations, none in the attract demo without the
  * Expansion Pak. Palette animations: each restarts its period, and gets its palette's colours (or for a scroll, the
@@ -70,9 +68,9 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1)->texBase);
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, ((Resource32 *) MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1))->texBase);
         else {
-            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1, 1);
+            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1);
             if (resource) plist->ptr = N64PTR0(void *, resource->palBase);
         }
         plist++;

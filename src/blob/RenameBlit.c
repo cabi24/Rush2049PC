@@ -12,7 +12,6 @@ struct tTexture {
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-extern struct tTexture *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
 
 /* Makes blit show the texture name. With preserve the blit keeps its size, crop and colours and only the texture
  * changes (SelectBlit's strips of frames); without, InitBlit sets it up afresh at the new texture's size. */

@@ -3,8 +3,6 @@
 
 extern void *memcpy(void *, void *, unsigned);
 
-void PS_WriteFile(tPakHandle *, u8 *, u32);
-
 /* Copies the 11 bytes of controls (the controls and the rumble flag) into the profile and its file when they differ
  * from the file's, gives them their checksum again and marks them to write. Nothing for a profile whose file is not
  * read. */

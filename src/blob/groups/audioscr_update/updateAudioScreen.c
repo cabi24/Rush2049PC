@@ -36,8 +36,6 @@ VIEW(volatile u8, gNumModels);
 
 f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
-intptr_t MBOX_FindTexture_WORK();
-void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 
 /* Whether line i of the screen can be chosen: always (MAT3 hides some lines on other machines). */
 s32 audio_validOption(s32 i) {
@@ -51,7 +49,7 @@ s32 audio_validOption(s32 i) {
  * and follows the chosen line, faster the farther it has to go. */
 void audio_updateButtons(void) {
     s32 i;
-    intptr_t name;
+    struct tTexture *texture;
     f32 y;
     f32 cur;
     f32 m[3][3];
@@ -96,11 +94,11 @@ void audio_updateButtons(void) {
         WPitchUV(audio_buttonInfo[i].ang - 1.5707964f, audio_buttonInfo[i].mat);
         memcpy(audio_buttonInfo[i + 4].mat, audio_buttonInfo[i].mat, 36);
         if (1.5707964f < audio_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
-        ZOID_SetTexture(audio_buttonInfo[i].handle, name, -1);
-        ZOID_SetTexture(audio_buttonInfo[i + 4].handle, name, -1);
+            texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+        ZOID_SetTexture(audio_buttonInfo[i].handle, texture, -1);
+        ZOID_SetTexture(audio_buttonInfo[i + 4].handle, texture, -1);
         if ((vis = audio_validOption(i)) == 0) {
             MBOX_HideObject(audio_buttonInfo[i].handle, 1, 15);
             MBOX_HideObject(audio_buttonInfo[i + 4].handle, 1, 15);

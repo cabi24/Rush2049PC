@@ -23,8 +23,6 @@ VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 extern PlayerStatus gPlayers[4];
 
-extern s32 CountdownTimeOut(void);
-
 #define SND_START 0x4F              /* the effect Start plays here */
 #define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
 

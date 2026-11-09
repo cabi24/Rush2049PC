@@ -101,8 +101,6 @@ VIEW(OSMesgQueue, rom_dma_queue);
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
-/* relocate_texture_loads walks TXLD from start to end as Gfx pointers. */
-void relocate_texture_loads(void *start, void *end, s32 IMAGptr);
 #define relocate_texture_loads(start, end, IMAGptr) \
     relocate_texture_loads((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
 

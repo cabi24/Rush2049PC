@@ -58,9 +58,6 @@ VIEW(f32[14][4], shadow_scales);
 VIEW(u8[4], gShadowColor);
 #define gShadowColor gShadowColor_view
 
-extern void ZOID_RemovePoly(Poly *p);
-extern void ZOID_UpdatePoly(Poly *record, s32 count, f32 (*positions)[3], u16 parameter, u8 *color, u16 flags, s32 indexed);
-
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 
 /* Car v->slot's shadow (VIS_SHADOW), each frame (op 1): a polygon whose corners are under the four tires (taken

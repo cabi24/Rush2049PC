@@ -12,11 +12,7 @@ VIEW(volatile u8, gNumModels);
 #define CONTROLS_B_ICON 15          /* the B button's icon, by the "back" text */
 #define CONTROLS_B_ICON_BACK 16     /* the icon's backing */
 
-s32 ZOID_AddObject(s32 name, void *mat, s16 parent, s32 flags);
-
 typedef struct NameEntry NameEntry;
-NameEntry *MBOX_FindTexture_WORK(char *name, s16 *out, s8 lo, s8 hi, s32 err);
-void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 
 /* Make player's 17 buttons that don't exist yet, each a model by its type (controls_buttonNames; types 0, 1, 2, 9
  * and 10 draw see-through, 0x42000), white, shown only in that player's window. Then texture and place the title,
@@ -48,7 +44,7 @@ void controls_initButtons(s8 player) {
             MBOX_ShowObject(e->handle, 0, mask);
         }
     }
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_TITLE].handle, (intptr_t)MBOX_FindTexture_WORK("BUTTON_TITLE", &tex, 0, (s8)(gNumModels - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_TITLE].handle, MBOX_FindTexture_WORK("BUTTON_TITLE", &tex, 0, (s8)(gNumModels - 1), 1), -1);
     CopyUV(unitmatrix, controls_buttonInfo[player][CONTROLS_TITLE].matrix);
     WPitchUV(-1.5707964f, controls_buttonInfo[player][CONTROLS_TITLE].matrix);
     controls_buttonInfo[player][CONTROLS_TITLE].position[0] = 0.0f;
@@ -60,8 +56,8 @@ void controls_initButtons(s8 player) {
     controls_buttonInfo[player][CONTROLS_TITLE].position[0] *= scale;
     controls_buttonInfo[player][CONTROLS_TITLE].position[1] *= scale;
     controls_buttonInfo[player][CONTROLS_TITLE].position[2] *= scale;
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_CURSOR].handle, (intptr_t)MBOX_FindTexture_WORK("CURSOR", &tex, 0, (s8)(gNumModels - 1), 1), -1);
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_B_ICON].handle, (intptr_t)MBOX_FindTexture_WORK("B1", &tex, 0, (s8)(gNumModels - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_CURSOR].handle, MBOX_FindTexture_WORK("CURSOR", &tex, 0, (s8)(gNumModels - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_B_ICON].handle, MBOX_FindTexture_WORK("B1", &tex, 0, (s8)(gNumModels - 1), 1), -1);
     CopyUV(unitmatrix, controls_buttonInfo[player][CONTROLS_B_ICON].matrix);
     WPitchUV(-1.5707964f, controls_buttonInfo[player][CONTROLS_B_ICON].matrix);
     controls_buttonInfo[player][CONTROLS_B_ICON].position[0] = -75.1f;

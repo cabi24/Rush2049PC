@@ -8,7 +8,6 @@ VIEW(s16, damTexture);
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-extern NameEntry *MBOX_FindTexture_WORK(char *, s16 *, s8, s8, s32);
 /* Empties the ring of 25 scorch marks (DamagePolys) and finds the scorch texture. */
 void initWorldDamage(void)
 {

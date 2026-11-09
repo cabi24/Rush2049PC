@@ -182,7 +182,7 @@ void endDemoGame(void);
 s32 findDamageSlot(void);
 s32 GameLoop(void);
 f32 get_input_idle_seconds(void);
-void GetCircuitCode(intptr_t code);
+void GetCircuitCode(u8 *code);
 void GhostEnd(void);
 void GhostStart(void);
 s32 GhostUpdate(s32 idx, f32 *out);

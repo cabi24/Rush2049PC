@@ -23,8 +23,6 @@ VIEW(Model68[], ObjInstanceList);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-s32 ZOID_AddObject(s32 model, void *matrix, s16 parent, s32 flags);
-
 /* For each window's two counters (gold coins, silver coins): makes its spinning 3D coin the first time, places it at
  * coinPos (coinStuntPos in stunt races) turned by hudObjAngle, and with the HUD's coins shown and the race on shows it
  * with the count found (NumCoinsFound) beside it, in white with a black shadow; else hides it. Returns 1. */

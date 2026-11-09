@@ -9,12 +9,6 @@
  * libultra's gbi.h macros below build them; on the PC port/gfx renders them. Also here: the arcsine and the
  * quaternion interpolation the camera paths use. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
-
-typedef union {
-    Gwords words;
-    long long int force_structure_alignment;
-} Gfx;
 
 /* ---- libultra's display-list macros (PR/gbi.h), the forms this file uses ---- */
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
@@ -572,13 +566,7 @@ float sqrtf(float);
 float fabsf(float);
 VIEW(Gfx *, zoid_branch_slot);
 #define zoid_branch_slot zoid_branch_slot_view
-s32 zoid_draw_object(Gfx **gp, ObjInstance *parent, s32 depth, s32 use_parent_distance, ObjInstance *node, s32 view,
-                     Palette *palette);
-s32 Traverse(Gfx **gp, ObjInstance *parent, ObjInstance *node, s32 view, s32 depth, s32 more_after, s32 use_parent_distance,
-             Palette *palette);
 
-void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, Palette *palettes);
-void zoid_load_palette(Gfx **gfxp, Palette *pal);
 /* gDPSetTileSize with its coordinates masked to their 12 bits (the coordinates here are already 10.2) */
 #define gDPSetTileSizeS(pkt, t, uls, ult, lrs, lrt) \
 { \
