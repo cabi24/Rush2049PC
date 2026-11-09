@@ -21,8 +21,6 @@ VIEW(TextColor[2], flashColors);
 VIEW(ButtonInfo[], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 
-VIEW(u8[], gCamera);
-#define gCamera gCamera_view
 VIEW(s32[2], gJust);
 #define gJust gJust_view
 

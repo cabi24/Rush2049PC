@@ -19,8 +19,6 @@ VIEW(Button[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 void *memcpy(void *,const void *,u32);
 

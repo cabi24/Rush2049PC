@@ -8,8 +8,6 @@ float sqrtf(float);
 
 typedef struct V3 { float x, y, z; } V3;
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 
 void point_at_car(void *car, intptr_t pos, intptr_t uvs, f32 *offset);
 

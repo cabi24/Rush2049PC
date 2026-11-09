@@ -18,7 +18,6 @@ extern s8 gPlayers;   /* the first player's record; its first byte is the car sl
  * catch up (gUseCatchup 2). */
 void fake_init(s8 track)
 {
-    struct { u8 head[0x94]; s8 slot; } *camera0 = (void *) &gCamera[0];
     s16 i;
     s16 place;
     static s16 attractSlot = 0;
@@ -42,6 +41,6 @@ void fake_init(s8 track)
         attractSlot = 0;
     }
     gPlayers = attractSlot & 0xFF;
-    camera0->slot = attractSlot;
+    gCamera[0].slot = attractSlot;
     gUseCatchup = 2;
 }

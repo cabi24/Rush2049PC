@@ -59,9 +59,6 @@ typedef struct Visual {
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(Mat3, unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(s32, gTargetList);

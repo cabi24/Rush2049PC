@@ -14,8 +14,6 @@ typedef struct Car952 {
 
 /* A player's input record (gPlayers): the field this counts. */
 typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-/* A camera (gCamera, MAT3 anon_mat_n64_98): its position and the saved position the crash view looks from. */
-typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[84]; f32 savepos[3]; u8 pad90[8]; } Cam152;
 
 /* A ghost's save header (GhostSaveHeader): the flag that says it is a ghost to race against. */
 typedef struct GhostHeaderView { u8 pad0[5]; s8 flag; } GhostHeaderView;
@@ -25,8 +23,6 @@ typedef struct Obj40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; G
 
 extern Player76 gPlayers[];
 
-VIEW(Cam152[], gCamera);
-#define gCamera gCamera_view
 
 VIEW(Obj40 **[], gGhosts);
 #define gGhosts gGhosts_view
@@ -76,9 +72,9 @@ void PlayGame(void) {
             if (camera >= 0) {
                 car->saveview = car->view;
                 car->view = 4;
-                gCamera[camera].savepos[0] = gCamera[camera].pos[0];
-                gCamera[camera].savepos[1] = gCamera[camera].pos[1];
-                gCamera[camera].savepos[2] = gCamera[camera].pos[2];
+                gCamera[camera].fcam.pos[0] = gCamera[camera].mat.pos[0];
+                gCamera[camera].fcam.pos[1] = gCamera[camera].mat.pos[1];
+                gCamera[camera].fcam.pos[2] = gCamera[camera].mat.pos[2];
             }
             StartBlast(&slot, 1, 1.f, 0);
             StopCarSounds(PC_MODEL(i));

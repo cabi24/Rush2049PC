@@ -27,10 +27,6 @@ typedef struct tTexture {
     u32 flags;                  /* +0x1C TEX_* */
     u32 xflags;
 } tTexture;
-/* One model's table of texture definitions (MAT3 anon_texDefs_count_8). */
-typedef struct TextureDefTable { tTexture *texDefs; int count; } TextureDefTable;
-VIEW(TextureDefTable[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 /* Update polygon `poly`: its vertex count (`nverts`, 0 keeps it), its flags (`flags`, 0 keeps them), its texture
  * (`texidx` if `useTidx`, which sets POLY_TEXTURED), then for each vertex what is given:

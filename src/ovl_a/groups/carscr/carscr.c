@@ -38,9 +38,6 @@ VIEW(u8[4], gDriveHulk);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(f32[12], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(MultiBlit[], carscr_mb);
 #define carscr_mb carscr_mb_view
 
@@ -1234,8 +1231,6 @@ void showGridMap(s32 enabled)
     }
 }
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): mat is N64 +0x08. */
-typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
 typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
 ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
@@ -1246,8 +1241,6 @@ VIEW(s16[11], componentToName);
 VIEW(char *[5], carComponentNames);
 #define carComponentNames carComponentNames_view
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 extern s32 sprintf(char *, const char *, ...);
 
@@ -1284,7 +1277,7 @@ void updateCarComponents(s32 p)
         gCarPartFrame = MBOX_NewObjectCam(MBOX_FindObject_WORK(carscr_part_frame_model_name, 0, gNumModels - 1, 1), ZOID_FindMatrix((s16)car->body), 15, -1, 0);
         MBOX_HideObject(gCarPartFrame, 1, 15);
     } else {
-        ObjInstanceList[gCarPartFrame].mat = ZOID_FindMatrix((s16)car->body);
+        ObjInstanceList[gCarPartFrame].mat = (void *)ZOID_FindMatrix((s16)car->body);
     }
     compLight[1].col[0] = 255.0f * TB_GetFlashTextCycle();
     BodyVector(lightVec, lightDir, ZOID_FindMatrix((s16)car->body)->uvs);

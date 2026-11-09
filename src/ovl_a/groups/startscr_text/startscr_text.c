@@ -3,11 +3,8 @@
 
 typedef struct Color4 { u32 word; } Color4;
 typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
-typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
 VIEW(ButtonInfo[], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 VIEW(f32[3], startscr_title_button_position);
 #define startscr_title_button_position startscr_title_button_position_view
 VIEW(f32[3], startscr_players_button_position);

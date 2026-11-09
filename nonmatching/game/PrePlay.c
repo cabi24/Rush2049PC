@@ -2,7 +2,6 @@
 
 typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
 
-typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
 
 extern Player76 gPlayers[];   /* gPlayers */
 
@@ -11,8 +10,6 @@ VIEW(s16, num_drones);
 VIEW(s16, num_humans);
 #define num_humans num_humans_view
 
-VIEW(Cam152[], gCamera);
-#define gCamera gCamera_view
 VIEW(u8[][3], gFogColors);
 #define gFogColors gFogColors_view
 /* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
@@ -125,7 +122,7 @@ s32 PrePlay(s32 useHud, s32 cancel)
     gRestartGame = 0;
     for (i = 0; i < gNumWindows; i++) {
         ZOID_SetFog(1000, 999, gFogColors[gFogColor][0], gFogColors[gFogColor][1], gFogColors[gFogColor][2], 255, i);
-        WorldFogDensity(i, gCamera[i].pos);
+        WorldFogDensity(i, gCamera[i].mat.pos);
     }
     if (!(gGameState & 8)) AudStopAllEffects();
     InitCPS();

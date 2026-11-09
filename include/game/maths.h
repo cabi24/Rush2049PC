@@ -5,15 +5,18 @@
 #include "game/types.h"
 
 /* Data */
-extern UnitMatrix unitmatrix;
+/* The identity rotation (MAT3 unitmatrix, the rows of its tUVMatrix). unitmatrix_origin, the zero vector right after
+ * it, is its fourth row, the position: together they are MAT3's float unitmatrix[4][3], which some code copies or
+ * points to whole (48 bytes). */
+extern f32 unitmatrix[3][3];
 extern f32 uvector[EXTENT(3)];
 extern f32 rvector[EXTENT(3)];
 extern s32 rand_seed;
 extern void *video_gTitlePane;
 extern u8 blit_ia_palette[EXTENT(4)];
 extern u16 blit_tile_lines[EXTENT(258)];
-extern CullVertex cull_box_vertices_a[EXTENT(8)];
-extern CullVertex cull_box_vertices_b[EXTENT(8)];
+extern Vtx cull_box_vertices_a[EXTENT(8)];
+extern Vtx cull_box_vertices_b[EXTENT(8)];
 extern f32 asin_offsets[EXTENT(4)];
 extern f32 invmagnitude_floor;
 extern f32 atan_p0;
@@ -46,14 +49,14 @@ extern s16 zoid_late_node_a;
 extern s16 zoid_late_pass_b;
 extern s16 zoid_late_node_b;
 extern f32 zoid_scaled_matrix[EXTENT(4)][4];
-extern CullVertex cull_vertices[EXTENT(27)];
+extern Vtx cull_vertices[EXTENT(27)];
 extern volatile s8 frame_record_index;
-extern f32 zoid_lookat_matrix[EXTENT(16)];
+extern f32 zoid_lookat_matrix[EXTENT(4)][4];
 extern Gfx *zoid_branch_slot;
-extern union Vtx *zoid_poly_vertices;
-extern CullVertex zoid_poly_vertex_buffers[EXTENT(1)][3200];
+extern Vtx *zoid_poly_vertices;
+extern Vtx zoid_poly_vertex_buffers[EXTENT(1)][3200];
 extern s32 zoid_current_tlut;
-extern struct Texture *zoid_current_texture;
+extern struct tTexture *zoid_current_texture;
 extern s32 zoid_tlut_mode;
 
 /* Functions */

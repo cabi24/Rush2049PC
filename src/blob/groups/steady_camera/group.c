@@ -13,8 +13,6 @@ VIEW(volatile f32, gFrameSeconds);
 VIEW(V3[], steady_start_pos);
 #define steady_start_pos steady_start_pos_view
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 
 VIEW(V3[], cur_acc);
 #define cur_acc cur_acc_view

@@ -173,9 +173,6 @@ typedef struct surftyp {
 #define LINK_OWNER_HUMAN 6
 #define GS_DEMO 0x8
 
-VIEW(float[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(tDronePath[], gDronePaths);
 #define gDronePaths gDronePaths_view
 

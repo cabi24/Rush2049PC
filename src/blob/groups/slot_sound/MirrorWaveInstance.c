@@ -6,13 +6,13 @@
  * display list is a 32-bit window address. */
 #define PART_DL u32
 typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;           /* MAT3 tLod */
-typedef struct Model { u8 pad0[0x18]; Part part[4]; } Model;            /* MAT3 tModelDef: name, radius, LODs */
+typedef struct tModelDef { u8 pad0[0x18]; Part part[4]; } tModelDef;    /* name, radius, LODs */
 
 /* If wave instance index holds a model whose triangles don't face the way the track now needs (gMirrorWaves), flips
  * every level of detail's display list (flip_triangle_winding through display_list_traverse) and notes it. */
 void MirrorWaveInstance(s32 index)
 {
-    Model *m;
+    tModelDef *m;
     s32 i;
     s32 j;
     s32 count;
@@ -20,7 +20,7 @@ void MirrorWaveInstance(s32 index)
     ValidateWaveInstance(index, 1, 1);
     if (gWaveInstance[index].model) {
         if (gWaveInstance[index].mirrored != (gMirrorWaves != 0)) {
-            m = gRomObjDefPtrs[index].models;
+            m = gRomObjDefPtrs[index].romObjDefs;
             count = gRomObjDefPtrs[index].count;
             for (i = 0; i < count; i++) {
                 for (j = 0; j < 4; j++) {

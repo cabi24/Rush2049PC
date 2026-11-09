@@ -212,8 +212,6 @@ VIEW(u8, gNumModels);
 
 VIEW(f32[12], gTrophyMat);
 #define gTrophyMat gTrophyMat_view
-VIEW(f32[12], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 VIEW(Object[], object_list_scale_view);
 #define object_list_scale_view object_list_scale_view_view
@@ -610,7 +608,7 @@ void circuitscr_updateButtons(void)
                     clearScrollSpeed = 0;
                 }
             }
-            ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[buttonIdx].matrix, circuitscr_gButtonScale);
+            ScaleUV(unitmatrix, circuitscr_buttonInfo[buttonIdx].matrix, circuitscr_gButtonScale);
             WPitchUV(circuitscr_buttonInfo[buttonIdx].angle - 1.5707964f, circuitscr_buttonInfo[buttonIdx].matrix);
             if (circuitscr_buttonInfo[buttonIdx].angle > 1.5707964f)
                 tex = MBOX_FindTexture_WORK(circuitscr_select_texture_name, &texIdx, 0, *(volatile u8 *)&gNumModels - 1, 1);
@@ -635,7 +633,7 @@ void circuitscr_updateButtons(void)
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].position[0] = circuitscr_buttonX + 100.0f * circuitscr_gButtonScale;
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].position[1] = circuitscr_buttonInfo[buttonIdx].position[1];
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].position[2] = circuitscr_buttonInfo[buttonIdx].position[2];
-                ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix, circuitscr_gButtonScale);
+                ScaleUV(unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix, circuitscr_gButtonScale);
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix);
                 ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, (intptr_t)tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
@@ -651,7 +649,7 @@ void circuitscr_updateButtons(void)
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].position[0] = circuitscr_buttonX + 100.0f * circuitscr_gButtonScale;
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].position[1] = circuitscr_buttonInfo[buttonIdx].position[1];
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].position[2] = circuitscr_buttonInfo[buttonIdx].position[2];
-                ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix, circuitscr_gButtonScale);
+                ScaleUV(unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix, circuitscr_gButtonScale);
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix);
                 ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, (intptr_t)tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
@@ -694,7 +692,7 @@ void circuitscr_updateButtons(void)
         else
             cursorSpeed = 180.0f * circuitscr_gButtonScale;
     }
-    ScaleUV((f32 (*)[3])unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix, circuitscr_gButtonScale * 0.4f);
+    ScaleUV(unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix, circuitscr_gButtonScale * 0.4f);
     WRollUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].angle, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix);
     WPitchUV(1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix);
     if (gEnterCircuitCode || gConfirmNewCircuit) {

@@ -13,8 +13,6 @@ typedef struct {
 VIEW(Button[], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(volatile u8, gNumModels);
@@ -29,9 +27,6 @@ void ZOID_SetTexture(s16 object, intptr_t texture, s32 index);
 
 VIEW(intptr_t, video_blit);
 #define video_blit video_blit_view
-
-VIEW(intptr_t, video_gTitlePane);
-#define video_gTitlePane video_gTitlePane_view
 
 void RemoveBlit(intptr_t sound_id);
 

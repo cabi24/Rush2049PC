@@ -6,8 +6,6 @@ typedef struct Poly {
     s16 active;
     u16 flags;
 } Poly;
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 

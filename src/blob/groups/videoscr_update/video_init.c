@@ -19,8 +19,6 @@ VIEW(Button[12], video_buttonInfo);
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view

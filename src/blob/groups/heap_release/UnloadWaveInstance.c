@@ -3,16 +3,8 @@
  * (include/game/types.h). */
 #include "game/game.h"
 
-/* The {pointer, count} tables SetupWaveModel fills per wave instance: 16 bytes an entry on the PC. */
-#define WAVE_TABLE_ENTRY 16
 VIEW(volatile s16, gRenderInProgress);
 #define gRenderInProgress gRenderInProgress_view
-VIEW(u8[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
-VIEW(u8[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
-VIEW(u8[], gPalDefPtrs);
-#define gPalDefPtrs gPalDefPtrs_view
 void *memset(void *, int, u32);
 
 /* The free takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
@@ -38,7 +30,7 @@ void UnloadWaveInstance(s32 index)
     wait_for_render();
     DeallocateMemory(N64A(slot->ptr));
     slot->ptr = 0;
-    memset(gRomObjDefPtrs + index * WAVE_TABLE_ENTRY, 0, WAVE_TABLE_ENTRY);
-    memset(gTexDefPtrs + index * WAVE_TABLE_ENTRY, 0, WAVE_TABLE_ENTRY);
-    memset(gPalDefPtrs + index * WAVE_TABLE_ENTRY, 0, WAVE_TABLE_ENTRY);
+    memset(&gRomObjDefPtrs[index], 0, sizeof(gRomObjDefPtrs[index]));
+    memset(&gTexDefPtrs[index], 0, sizeof(gTexDefPtrs[index]));
+    memset(&gPalDefPtrs[index], 0, sizeof(gPalDefPtrs[index]));
 }

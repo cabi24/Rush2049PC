@@ -468,8 +468,6 @@ void controlView(void)
 
 typedef struct { u8 red, green, blue, alpha; } Color4;
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 

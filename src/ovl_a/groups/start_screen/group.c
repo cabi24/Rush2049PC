@@ -20,8 +20,6 @@ typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 VIEW(s8[], gOptions);
@@ -248,7 +246,7 @@ void startscr_initButtons(void)
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < START_BUTTONS; buttonIdx++)
         if (startscr_buttonInfo[buttonIdx].objIdx == -1) {
-            memcpy(startscr_buttonInfo[buttonIdx].uvs, unitmatrix, 48);
+            memcpy(startscr_buttonInfo[buttonIdx].uvs, unitmatrix, 48);   /* with unitmatrix_origin, its position */
             startscr_buttonInfo[buttonIdx].objIdx = MBOX_NewObject(
                 MBOX_FindObject_WORK(startscr_buttonNames[startscr_buttonInfo[buttonIdx].buttonType], 0, gNumModels - 1, 1),
                 startscr_buttonInfo[buttonIdx].uvs, -1,

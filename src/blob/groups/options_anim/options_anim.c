@@ -38,8 +38,6 @@ VIEW(Text, gText);
 VIEW(ButtonInfo[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
-VIEW(u8[], gCamera);
-#define gCamera gCamera_view
 VIEW(Color[2], flashColors);
 #define flashColors flashColors_view
 VIEW(Color, gFlashColor1);

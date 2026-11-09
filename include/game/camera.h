@@ -41,7 +41,7 @@ extern s16 maxpath_cam_start_path[EXTENT(4)];
 extern s16 maxpath_cam_last_point[EXTENT(4)];
 extern f32 maxpath_cam_start_time[EXTENT(4)];
 extern f32 maxpath_cam_last_dist[EXTENT(4)];
-extern CameraView gCamera[EXTENT(1)];
+extern tCamera gCamera[EXTENT(1)];
 extern s16 gNumWindows;
 extern s8 gUpsideDownTrack;
 extern s8 view3_switch[EXTENT(4)];

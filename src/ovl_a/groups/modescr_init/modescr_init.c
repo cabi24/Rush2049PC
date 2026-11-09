@@ -11,9 +11,6 @@ typedef struct Slot64 {
 typedef struct Player76 { u8 unknown0[72]; void **profile; } Player76;
 typedef struct Blit Blit;
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
 VIEW(u8, gNumModels);

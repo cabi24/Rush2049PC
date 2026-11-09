@@ -74,8 +74,6 @@ typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
 } CamXform;
-VIEW(CamXform, gCamera);
-#define gCamera gCamera_view
 
 extern void ZOID_RemovePoly(void *dl);
 extern void *ZOID_NewPoly(s32, f32 *, u16, u8 *, s32, s32);
@@ -138,7 +136,7 @@ EffectObj *GetSkid(u8 *color)
         fars = ((EffectObj **) gSkidList)[POOL_HEAD];
         for (s = ((EffectObj **) gSkidList)[POOL_HEAD]; s->next; s = s->next) {
             for (dsq = 0.0f, i = 0; i < 3; i++) {
-                d = s->pos[i] - gCamera.pos[i];
+                d = s->pos[i] - gCamera[0].mat.pos[i];
                 dsq += d * d;
             }
             if (dsq > fardsq) {

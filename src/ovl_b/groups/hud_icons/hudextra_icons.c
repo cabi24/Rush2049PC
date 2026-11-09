@@ -4,9 +4,7 @@
 
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
 typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
-typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Scene { u32 flags, w4; void *obj; f32 scaleA; f32 scale; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Scene;
 typedef struct Point { s16 x, y; } Point;
 typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
 /* PC: the fade's alpha passes 255 while a score's start is ahead of the clock; a float out of a u8's range is
@@ -35,10 +33,6 @@ VIEW(Status[], powerupIcon);
 #define powerupIcon powerupIcon_view
 VIEW(Handle[], battleCoin);
 #define battleCoin battleCoin_view
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
-VIEW(Scene[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
@@ -93,9 +87,9 @@ s32 animPowerupIcons(void *unused)
                 powerupIcon[i].uv, -1, 0);
             MBOX_HideObject(status->handle, 1, 15);
             MBOX_ShowObject(status->handle, 0, hudextra_whichCam[i]);
-            ObjInstanceList[status->handle].scale = 1.5f;
+            ObjInstanceList[status->handle].w = 1.5f;
         }
-        ScaleUV(gCamera[i].uv, powerupIcon[i].uv, 0.025f);
+        ScaleUV(gCamera[i].mat.uvs, powerupIcon[i].uv, 0.025f);
         YawUV(hudObjAngle, powerupIcon[i].uv);
         point.x = powerupPos[gNumWindows - 1][i].x;
         point.y = powerupPos[gNumWindows - 1][i].y;
@@ -136,13 +130,13 @@ s32 animWeaponIcons(void *unused)
             }
             weaponIcon[i].handle = MBOX_NewObject(gObjList[resource], weaponIcon[i].uv, -1, 0x42000);
             ZOID_SetColor(weaponIcon[i].handle, &color.word);
-            ObjInstanceList[weaponIcon[i].handle].scale = 1.5f;
+            ObjInstanceList[weaponIcon[i].handle].w = 1.5f;
             MBOX_HideObject(weaponIcon[i].handle, 1, 15);
             MBOX_ShowObject(weaponIcon[i].handle, 0, hudextra_whichCam[i]);
             kind = weaponIcon[i].kind;
         }
-        if (kind == 7) ScaleUV(gCamera[i].uv, weaponIcon[i].uv, 0.175f);
-        else ScaleUV(gCamera[i].uv, weaponIcon[i].uv, 0.069f);
+        if (kind == 7) ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].uv, 0.175f);
+        else ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].uv, 0.069f);
         YawUV(hudObjAngle, weaponIcon[i].uv);
         point.x = ammoPos[gNumWindows - 1][i].x;
         point.y = ammoPos[gNumWindows - 1][i].y;
@@ -181,11 +175,11 @@ void UpdateHUDExtraPostCamera(void)
                 handle->handle = MBOX_NewObject(
                     MBOX_FindObject_WORK(names.name[gCarTeam[i]], 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1),
                     handle->uv, -1, 0);
-                ObjInstanceList[handle->handle].scale = 1.5f;
+                ObjInstanceList[handle->handle].w = 1.5f;
                 MBOX_HideObject(handle->handle, 1, 15);
                 MBOX_ShowObject(handle->handle, 0, hudextra_whichCam[i]);
             }
-            ScaleUV(gCamera[i].uv, handle->uv, gNumPlayers >= 3 ? 0.012f : 0.009f);
+            ScaleUV(gCamera[i].mat.uvs, handle->uv, gNumPlayers >= 3 ? 0.012f : 0.009f);
             PitchUV(-1.5707963267948966f, handle->uv);
             point.x = fragPos[gNumWindows - 1][i][0];
             point.y = fragPos[gNumWindows - 1][i][1];
@@ -217,7 +211,7 @@ void UpdateHUDExtraPostCamera(void)
                                     effect->handle = MBOX_NewObject(
                                         MBOX_FindObject_WORK(name, 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1), effect->uv, -1, 0x42000);
                                 }
-                                ObjInstanceList[effect->handle].scale = 1.5f;
+                                ObjInstanceList[effect->handle].w = 1.5f;
                                 effect->state = kind;
                                 effect->timer = 0.5f;
                                 y_offset = gNumWindows == 1 ? -28 : gNumWindows == 2 ? -16 : -12;
@@ -244,7 +238,7 @@ void UpdateHUDExtraPostCamera(void)
                             selected->x = (selected->from_x - selected->to_x) * fraction + selected->to_x;
                             selected->y = (selected->from_y - selected->to_y) * fraction + selected->to_y;
                             ZOID_WindowTo3D(i, &selected->x, &gCamera[i], 2.0f, selected->position);
-                            ScaleUV(gCamera[i].uv, selected->uv,
+                            ScaleUV(gCamera[i].mat.uvs, selected->uv,
                                 gNumWindows == 1 ? 0.005f : gNumWindows == 2 ? 0.0035f : 0.005f);
                             selected->alpha = alpha;
                             color.rgba.a = ALPHA_U8 alpha;

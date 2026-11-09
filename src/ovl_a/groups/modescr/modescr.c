@@ -20,8 +20,6 @@ typedef struct Blit Blit;
 VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(Slot64[13], modescr_buttonInfo);

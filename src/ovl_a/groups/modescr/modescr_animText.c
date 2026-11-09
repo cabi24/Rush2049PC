@@ -3,12 +3,9 @@
 
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
-typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 
 VIEW(f32[3], modescr_title_button_position);
 #define modescr_title_button_position modescr_title_button_position_view
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 
 VIEW(Slot[], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view

@@ -9,12 +9,6 @@ typedef struct tModelDef {
     u8 lods[88 - 0x14];
 } tModelDef;
 
-/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8); on the PC the pointer is 8 bytes. */
-typedef struct ModelDefTable {
-    tModelDef *romObjDefs;
-    s32 count;
-} ModelDefTable;
-
 /* The radius of object `handle` ((model << 10) | index, MBOX_FindObject_WORK), or 0 if the handle names no loaded
  * object. */
 f32 MBOX_GetObjectRadius(s32 handle) {

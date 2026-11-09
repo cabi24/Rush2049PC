@@ -12,8 +12,6 @@ VIEW(Button[32], options_buttonInfo);
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 VIEW(s32[14], options_validOption);
 #define options_validOption options_validOption_view

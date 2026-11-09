@@ -4,9 +4,6 @@
  * nodes are the collision WAD's (InitSTree). */
 #include "game/game.h"
 
-VIEW(f32[][3], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 VIEW(sverttyp *, stree_svert);
 #define stree_svert stree_svert_view
 
@@ -26,14 +23,14 @@ typedef struct surftyp {
 f32 lsq(f32 *v) { return (v[0] * v[0]) + (v[2] * v[2]); }
 
 /* The nearest point to `p` of the edge from the origin to `a`, in x and z: sets `out` to it less p (out[1] 0; before
- * the edge's start, the origin, unitmatrix[3]) and returns 1 if that is shorter than sqrt(`rad2`). */
+ * the edge's start, the origin, unitmatrix_origin) and returns 1 if that is shorter than sqrt(`rad2`). */
 s32 VectorToSurfEdge(f32 *a, f32 *p, f32 *out, f32 rad2) {
     f32 t;
     t = ((a[2] * p[2]) + (p[0] * a[0])) / lsq(a);
     if (t < 0.0f) {
-        out[0] = unitmatrix[3][0] - p[0];
+        out[0] = unitmatrix_origin.x - p[0];
         out[1] = 0.0f;
-        out[2] = unitmatrix[3][2] - p[2];
+        out[2] = unitmatrix_origin.z - p[2];
     } else if (t > 1.0f) {
         out[0] = a[0] - p[0];
         out[1] = 0.0f;

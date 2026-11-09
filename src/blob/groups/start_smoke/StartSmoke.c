@@ -15,12 +15,8 @@ typedef struct tModelData {u8 pad0[8];u8 body_type;u8 pad9[1555];u16 sviscode[8]
  * returned, and index its low half: the second s16 on the N64, the first on a little-endian host
  * (docs/port/ENDIAN.md). */
 typedef struct SmokePuff { void *next; f32 uvs[9]; f32 pos[3]; union { s32 handle; struct {s16 index,high;} part; } mbIdx; s32 tlifeTime; f32 lifeTime; f32 swTime; f32 vel[3]; u32 data; s16 slot; s16 tIdx; } SmokePuff;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { u32 flags; u32 culling; void *mat; f32 scale; f32 w; u16 index; s16 links[3]; void *words[8]; union { u8 c[4]; u32 rgba; } color; s32 envcolor; } ObjInstance;
-/* gTexDefPtrs[bank]: a bank of texture definitions, 36 bytes each (MAT3 anon_texDefs_count_8). */
-typedef struct TexDefBank {u8 *texDefs;u32 count;} TexDefBank;
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 bytes[36]; } tTexture;
 /* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
@@ -29,8 +25,6 @@ VIEW(ObjInstance[], ObjInstanceList);
 VIEW(u8[], gSmokeList);
 #define gSmokeList gSmokeList_view
 
-VIEW(TexDefBank[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 void ZOID_SetTexture(s16 handle,void *resource,s32 mode);
 
@@ -222,7 +216,7 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             /* the five flames get the five fire textures; vel holds their place on the car (4 ft across, 8 ft
              * along), which UpdateSmoke keeps them at */
             ObjInstanceList[smk->mbIdx.handle].scale = 0.200000003f;
-            ZOID_SetTexture(smk->mbIdx.part.index, gTexDefPtrs[gFireTexs[howmanydone] >> 10].texDefs + (gFireTexs[howmanydone] & 0x3ff) * 36, -1);
+            ZOID_SetTexture(smk->mbIdx.part.index, &gTexDefPtrs[gFireTexs[howmanydone] >> 10].texDefs[gFireTexs[howmanydone] & 0x3ff], -1);
             pos[0] = car->dr_pos[0];
             pos[1] = car->dr_pos[1];
             pos[2] = car->dr_pos[2];
@@ -325,20 +319,20 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             MBOX_HideObject(smk->mbIdx.handle, 0, 1 << car->camera);
         if (type >= SMOKE_WING0) {
             switch (gCarWings[slot + 1][m->body_type]) {
-            case 0: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = wg1; } break;
-            case 1: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = wg2; } break;
-            case 2: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = wg3; } break;
+            case 0: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg1; } break;
+            case 1: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg2; } break;
+            case 2: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg3; } break;
             }
         } else if (type == SMOKE_WRECK) {
-            ObjInstanceList[smk->mbIdx.handle].color.c[0] = gCarBlastSmokeClr[slot];
-            ObjInstanceList[smk->mbIdx.handle].color.c[1] = gCarBlastSmokeClr[slot];
-            ObjInstanceList[smk->mbIdx.handle].color.c[2] = gCarBlastSmokeClr[slot];
-            ObjInstanceList[smk->mbIdx.handle].color.c[3] = 255;
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[0] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[1] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[2] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[3] = 255;
             gCarBlastSmokeClr[slot] -= 3;
             if (gCarBlastSmokeClr[slot] < 53) gCarBlastSmokeClr[slot] = 53;
-        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = wht; }
-        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = dtClr; }
-        else { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color.rgba = rdClr; }
+        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wht; }
+        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = dtClr; }
+        else { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = rdClr; }
         smk->pos[0] = pos[0];
         smk->pos[1] = pos[1];
         smk->pos[2] = pos[2];

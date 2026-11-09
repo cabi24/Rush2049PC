@@ -4,8 +4,6 @@
 VIEW(u16, gNumWindows);
 #define gNumWindows gNumWindows_view
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 
 /* For each window's camera: the matrix the N64 draws by (n64: mat with four elements negated, its handedness), and
  * the sky for it but while paused; then the HUD's camera-dependent parts and the countdown. */

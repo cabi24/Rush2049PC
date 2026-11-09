@@ -49,13 +49,13 @@ typedef struct tTexture {           /* N64 0x24 */
     u32 flags;
     u32 xflags;
 } tTexture;
-typedef struct anon_name_start_18 { /* palette, 0x18 */
+typedef struct tPaletteDef { /* palette, 0x18 */
     char name[16];
     u8 start;
     u8 end;
     u16 format;
     WADP(char) palBase;             /* 0x14 */
-} anon_name_start_18;
+} tPaletteDef;
 typedef struct tBasicTargetPath {   /* 0x24 */
     char name[16];
     u32 flags;
@@ -65,19 +65,7 @@ typedef struct tBasicTargetPath {   /* 0x24 */
     WADP(char) pts;                 /* 0x1c */
     WADP(void) parent;
 } tBasicTargetPath;
-typedef struct anon_romObjDefs_count_8 { tModelDef *romObjDefs; s32 count; } anon_romObjDefs_count_8;
-typedef struct anon_texDefs_count_8 { tTexture *texDefs; s32 count; } anon_texDefs_count_8;
-typedef struct anon_palDefs_count_8 { anon_name_start_18 *palDefs; s32 count; } anon_palDefs_count_8;
-typedef struct anon_paths_count_8 { tBasicTargetPath *paths; s32 count; } anon_paths_count_8;
 
-VIEW(anon_romObjDefs_count_8[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
-VIEW(anon_texDefs_count_8[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
-VIEW(anon_palDefs_count_8[], gPalDefPtrs);
-#define gPalDefPtrs gPalDefPtrs_view
-VIEW(anon_paths_count_8, gTargetPaths);
-#define gTargetPaths gTargetPaths_view
 
 VIEW(s32[], gWaveSizes);
 #define gWaveSizes gWaveSizes_view
@@ -167,7 +155,7 @@ void SetupWaveModel(s32 idx, s32 first) {
     gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
     gRomObjDefPtrs[modelIdx].romObjDefs = N64PTR(tModelDef *, MBGetFromWad(&wad, WAD_TAG_OBHD, &gRomObjDefPtrs[modelIdx].count));
     gTexDefPtrs[modelIdx].texDefs = N64PTR(tTexture *, MBGetFromWad(&wad, WAD_TAG_TXHD, &gTexDefPtrs[modelIdx].count));
-    gPalDefPtrs[modelIdx].palDefs = N64PTR(anon_name_start_18 *, MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count));
+    gPalDefPtrs[modelIdx].palDefs = N64PTR(tPaletteDef *, MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count));
     if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
         gTargetPaths.paths = N64PTR(tBasicTargetPath *, MBGetFromWad(&wad, WAD_TAG_PTHD, &gTargetPaths.count));
     }

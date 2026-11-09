@@ -31,8 +31,6 @@ VIEW(Color, options_buttonColor);
 VIEW(Button[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(volatile u8, gNumModels);

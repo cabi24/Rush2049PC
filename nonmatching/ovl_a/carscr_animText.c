@@ -9,7 +9,6 @@ typedef struct Record Record;
 /* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
 struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
 typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
-typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
 typedef struct Slot { s32 kind, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, unknown3D[3]; } Slot;
 typedef struct Blit Blit;
 
@@ -17,8 +16,6 @@ VIEW(Language, gText);
 #define gText gText_view
 
 extern Player gPlayers[];
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 VIEW(Slot[][44], carscr_buttonInfo);
 #define carscr_buttonInfo carscr_buttonInfo_view
 

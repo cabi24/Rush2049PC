@@ -1,8 +1,6 @@
 /* init_views: the cameras' views at a race's start (MAT3 camera.c). */
 #include "game/game.h"
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
 
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): its camera and view. */
 typedef struct { u8 p[0x110 - 0x0]; struct pc_visual visuals[21]; u8 p_308[0x35C - 0x308]; u8 camera; u8 view; u8 q[0x380 - 0x35E]; void *input; u8 q_384[0x3B8 - 0x384]; } B952;

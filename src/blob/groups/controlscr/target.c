@@ -5,13 +5,8 @@
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
 VIEW(Item[4][17], controls_buttonInfo);
 #define controls_buttonInfo controls_buttonInfo_view
-VIEW(Node[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

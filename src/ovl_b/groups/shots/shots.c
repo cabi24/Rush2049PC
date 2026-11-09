@@ -125,18 +125,14 @@ typedef struct ShotCase {
 
 typedef struct HitPoly { struct HitPoly *next; void *poly; } HitPoly;
 
-typedef struct TexDef { u8 b[36]; } TexDef;
-typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 b[36]; } TexDef;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
 VIEW(ColSize[], collsize);
 #define collsize collsize_view
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
 VIEW(StatLL, gShotObjList);
 #define gShotObjList gShotObjList_view
@@ -154,10 +150,6 @@ VIEW(s32[7], gWfxObjList);
 #define gWfxObjList gWfxObjList_view
 VIEW(u16[5], gMineTextures);
 #define gMineTextures gMineTextures_view
-VIEW(TexDefSet[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
-VIEW(ObjInst[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
@@ -758,7 +750,7 @@ straightShot:
                     BodyVector(shot->vel, v1, &uvs[0][0]);
                     v1[1] = 0.9f*-v1[1];
                     WorldVector(v1, shot->vel, &uvs[0][0]);
-                    EmitGameSound(shot->pos, &unitmatrix[9], 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + Random(3.0f)), shot->slot, 0, 0x80);
+                    EmitGameSound(shot->pos, (intptr_t)&unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + Random(3.0f)), shot->slot, 0, 0x80);
                     break;
                 default:
 wallHit:

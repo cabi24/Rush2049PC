@@ -39,7 +39,7 @@ extern f32 res_path_search_start_dist;
 extern u8 *stree_nodes;
 extern s32 gPathSearch[EXTENT(15)];
 extern DronePath gDronePaths[EXTENT(4)];
-extern ModelList gTargetPaths;
+extern TargetPathTable gTargetPaths;
 /* CollisionTargetPtrs: declared by its files (src/blob/InitCollisionTargetPtrs.c: defines it) */
 extern s32 numCollisionTargetPtrs;
 extern s8 gMineCones;

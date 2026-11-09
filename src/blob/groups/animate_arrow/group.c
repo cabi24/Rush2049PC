@@ -43,13 +43,6 @@ typedef struct tModelData {
     s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
     u8 pad7CD[2056 - 1997];
 } tModelData;
-/* A view's camera (gCamera[view], MAT3 anon_mat_n64_98): its orientation and place, and the N64's own matrix. */
-typedef struct Camera {
-    f32 uvs[3][3];          /* 0 */
-    Vec3 pos;               /* 36 */
-    f32 n64_uvs[3][3];      /* 48 */
-    u8 pad54[152 - 84];
-} Camera;
 /* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
 typedef struct tWindowInfo {
     void *vp; void *s; u8 pad8[0xC - 0x8];
@@ -61,8 +54,6 @@ typedef struct tWindowInfo {
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
 
-VIEW(Camera[], gCamera);
-#define gCamera gCamera_view
 VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 VIEW(tPoly[], PolyInstanceList);
@@ -142,13 +133,13 @@ void AnimateArrow(tVisual *v, s16 op) {
         clr.c.g = arrowColors[4].c.g;
         clr.c.b = arrowColors[4].c.b;
     }
-    vec[0] = car->dr_pos[0] - gCamera[oslot].pos.x;
-    vec[1] = car->dr_pos[1] - gCamera[oslot].pos.y;
-    vec[2] = car->dr_pos[2] - gCamera[oslot].pos.z;
+    vec[0] = car->dr_pos[0] - gCamera[oslot].mat.pos[0];
+    vec[1] = car->dr_pos[1] - gCamera[oslot].mat.pos[1];
+    vec[2] = car->dr_pos[2] - gCamera[oslot].mat.pos[2];
     if (gRace == 6) {
         /* the car's bearing from the camera: 0 straight ahead, negative to the -x side */
         window = &ZoidWinInfo[oslot];
-        U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].uvs);
+        U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].mat.uvs[0]);
         scale = fatan2(-xyz[0][0], xyz[0][2]);
         border = 19.0f;
         z = 31.415927f / window->whviewang;
@@ -199,7 +190,7 @@ draw:
 
     scale = vector_magnitude(&vec[0]) / 25.0f;
     for (i = 0; i < 4; i++) {
-        U64WorldVector(&gDummyVtx[i][0], &xyz[i][0], gCamera[oslot].n64_uvs);
+        U64WorldVector(&gDummyVtx[i][0], &xyz[i][0], gCamera[oslot].n64.uvs[0]);
         xyz[i][0] = xyz[i][0] * scale + car->dr_pos[0];
         xyz[i][1] = xyz[i][1] * scale + car->dr_pos[1] + scale + 5.0f;
         xyz[i][2] = xyz[i][2] * scale + car->dr_pos[2];

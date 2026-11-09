@@ -33,9 +33,9 @@ s32 build_node_matrix_rows4(s32 view, f32 (*m)[4], f32 *pos, Mtx *out, f32 w, s3
         y = pos[1];
         z = pos[2];
     } else {
-        x = pos[0] - gCamera[view].pos[0];
-        y = pos[1] - gCamera[view].pos[1];
-        z = pos[2] - gCamera[view].pos[2];
+        x = pos[0] - gCamera[view].mat.pos[0];
+        y = pos[1] - gCamera[view].mat.pos[1];
+        z = pos[2] - gCamera[view].mat.pos[2];
     }
     h = pc_draw_range_scale(x, y, z);
     if (h == 0) {

@@ -40,6 +40,10 @@
 #define OBJ_LATE_B            0x800000    /* drawn in the second pass after the flat polygons */
 #define OBJ_HIDDEN            0x80000000  /* not drawn in any view */
 
+/* ObjInstanceList[].color and .envcolor hold a colour's bytes R, G, B, A in memory, as the scene draw reads them; a
+ * word only moves them (docs/port/ENDIAN.md). OBJ_COLOR(node->color)[i] is byte i. */
+#define OBJ_COLOR(word)       ((u8 *)&(word))
+
 /* tModelDef.lod[].flags: what a level of detail of an object needs before its display list. */
 #define LOD_TEXTURED          0x1         /* load its texture (the node's, or the one ZOID_ChangeTexture set) */
 #define LOD_RESET_TLUT        0x2         /* its list changes the palette: load the node's again after it */
@@ -67,7 +71,7 @@
 #define POLY_HIDDEN           0x8000      /* not drawn (ZOID_HidePoly) */
 
 /* Data */
-extern ModelList gRomObjDefPtrs[EXTENT(64)];
+extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
 extern Item12 texture_swap_shared_frames[EXTENT(400)];
 extern struct Sequence20 *TextureSwapLists[EXTENT(19)];
 extern struct Row20 *PaletteLists[EXTENT(19)];
@@ -120,7 +124,7 @@ extern f32 tan_q1;
 extern u32 gBgColor;
 extern s32 skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
-extern ModelList gPalDefPtrs[EXTENT(64)];
+extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;
 extern u16 gNumLights;
 extern s8 gInvisibleTrack;
@@ -141,7 +145,7 @@ extern struct Box104 *WorldBase;
 extern s16 Worlddlidx;
 extern struct Node104 *cur_world_obj;
 extern f32 gViewableDistance;
-extern ModelList gTexDefPtrs[EXTENT(64)];
+extern TextureDefTable gTexDefPtrs[EXTENT(64)];
 extern OSMesgQueueWords audio_retrace_queue;
 extern OSMesg audio_retrace_msgs[EXTENT(8)];
 extern OSMesgQueue sample_dma_pi_queue;
@@ -204,7 +208,7 @@ void WorldFogDensity(s32 winidx, f32 *pos);
 void ZOID_BuildCullingList(f32 *min, f32 *max, s16 node);
 s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx);
 void ZOID_ClearPolyFlags(struct Header *poly, u16 mask);
-void zoid_draw_window(s32 view, struct View *eye);
+void zoid_draw_window(s32 view, tCamera *eye);
 s16 ZOID_FindObjInstance(void *name);
 void *ZOID_GetColor(s16 node);
 void ZOID_GetFog(u16 *min, u16 *max, u8 *red, u8 *green, u8 *blue, u8 *alpha, s32 winidx);

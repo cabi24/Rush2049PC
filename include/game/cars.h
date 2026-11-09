@@ -200,7 +200,7 @@ extern u16 gObjList[EXTENT(1)];
 extern s16 gCarModelNums[EXTENT(13)];
 extern u8 gGoodFrameRate;
 extern s8 gMassiveMass;
-extern struct TexDef *gWheelTextures[EXTENT(24)];
+extern struct tTexture *gWheelTextures[EXTENT(24)];
 extern s8 gDriveHulk[EXTENT(4)];
 extern tStatList gSkidList;
 extern PcEffectObj gSkidArray[EXTENT(100)];

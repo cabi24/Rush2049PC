@@ -58,10 +58,6 @@ typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16
 /* A kind's start function (TargInfo.startFunc, a void * in the table). */
 #define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
-/* The level's target paths (MAT3 gTargetPaths; waves.c's anon_paths_count_8): count of them at paths. */
-typedef struct anon_paths_count_8 { tBasicTargetPath *paths; s32 count; } anon_paths_count_8;
-VIEW(anon_paths_count_8, gTargetPaths);
-#define gTargetPaths gTargetPaths_view
 
 VIEW(s8[8], gTargetStructCount);
 #define gTargetStructCount gTargetStructCount_view
@@ -75,12 +71,8 @@ VIEW(u8 *[8], gTargetOwnStructPtrs);
 VIEW(void **, gTargetGroupList);
 #define gTargetGroupList gTargetGroupList_view
 
-VIEW(Ent[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 VIEW(struct pc_visual *, gEnvList);
 #define gEnvList gEnvList_view
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
 #define BODY_TABLE ((u8 *)BBoxCollInfo)
 VIEW(Vec3, zero_velocity);
 #define zero_velocity zero_velocity_view
@@ -111,7 +103,7 @@ void SetTargetDef(tTarget *t)
     if(t->otype!=-1) {
         resource=(s16)t->dlIdx;
         value=gObjList[t->otype];
-        ObjInstanceList[resource].model=value;
+        ObjInstanceList[resource].index=value;
     }
     if(info->Flags&2) {
         v=GrabEnvEntry();
@@ -316,7 +308,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, void *fromWorld, s8 owner
                 t->dlIdx = ZOID_AddObject(t->mbIdx, t->mat.uvs[0], superGroup, dlflags);
             }
             if ((typeFlags & 0x300) && superGroup >= 0) {
-                groupMat = ObjInstanceList[superGroup].mat;
+                groupMat = (f32 *)ObjInstanceList[superGroup].mat;
                 t->mat.pos[0] -= groupMat[9];
                 t->mat.pos[1] -= groupMat[10];
                 t->mat.pos[2] -= groupMat[11];

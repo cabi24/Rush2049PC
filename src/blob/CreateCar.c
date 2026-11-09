@@ -22,14 +22,12 @@ typedef struct CarParts {
     int bSpark;                 /* 0x3C */
 } CarParts;
 
-typedef struct tTexDef { u8 pad[36]; } tTexDef;
-typedef struct tTexDefPtr { tTexDef *texDefs; int pad; } tTexDefPtr;   /* gTexDefPtrs: a model file's textures */
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 pad[36]; } tTexture;
 
 VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
 
-VIEW(tTexDefPtr[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 VIEW(tRGBA[][2], SheenColors);
 #define SheenColors SheenColors_view
@@ -38,10 +36,6 @@ VIEW(tRGBA[], Track1Colors);
 
 VIEW(s8[][13], gTireRims);
 #define gTireRims gTireRims_view
-/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
-typedef struct TexDef TexDef;
-VIEW(TexDef *[24], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
 
 void ZOID_SetTexture(s16 objnum, void *texdef, int bank);
 

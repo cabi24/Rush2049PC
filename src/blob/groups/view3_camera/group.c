@@ -5,12 +5,6 @@
 
 float sqrtf(float);
 
-VIEW(tCamera[], gCamera);
-#define gCamera gCamera_view
-VIEW(f32[3], uvector);
-#define uvector uvector_view
-VIEW(f32[3], rvector);
-#define rvector rvector_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

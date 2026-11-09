@@ -40,9 +40,9 @@ s32 build_node_matrix(s32 view, XForm *src, Mtx *out, f32 w, s32 depth) {
         y = src->pos[1];
         z = src->pos[2];
     } else {
-        x = src->pos[0] - gCamera[view].pos[0];
-        y = src->pos[1] - gCamera[view].pos[1];
-        z = src->pos[2] - gCamera[view].pos[2];
+        x = src->pos[0] - gCamera[view].mat.pos[0];
+        y = src->pos[1] - gCamera[view].mat.pos[1];
+        z = src->pos[2] - gCamera[view].mat.pos[2];
     }
     h = pc_draw_range_scale(x, y, z);
     if (h == 0) {

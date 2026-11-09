@@ -1,8 +1,6 @@
 /* controls_initButtons: the controller-setup screen's 3D buttons for one player (MAT3 controlscr.c initButtons). */
 #include "game/game.h"
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 

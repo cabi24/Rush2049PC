@@ -14,14 +14,6 @@ typedef struct tModelDef {
     char name[88];
 } tModelDef;
 
-/* One model's table of object definitions (MAT3 anon_romObjDefs_count_8). */
-typedef struct ModelDefTable {
-    tModelDef *romObjDefs;
-    u32 count;
-} ModelDefTable;
-
-VIEW(ModelDefTable[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 

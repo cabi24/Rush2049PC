@@ -40,9 +40,6 @@ typedef struct EUCar {
 #define N64P(x) _Generic((x), enum n64p_Poly: (surftyp *)PC_N64P(x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-VIEW(f32[], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 /* An empty function the N64 code calls after the kill wall's sound. */
 static void eu_nop(void) {}
 

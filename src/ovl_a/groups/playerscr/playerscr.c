@@ -279,8 +279,6 @@ void playerscr_updatePakInfo(void)
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 extern void *memcpy(void *,const void *,u32);
 
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned (docs/port/SANITIZE.md

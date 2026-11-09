@@ -67,8 +67,8 @@ typedef struct CMuzzleObj {
     f32 onTime;           /* 0x144 */
 } CMuzzleObj;
 
-typedef struct TexDef { u8 b[36]; } TexDef;
-typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 b[36]; } TexDef;
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
@@ -79,8 +79,6 @@ VIEW(s32[7], gWfxObjList);
 #define gWfxObjList gWfxObjList_view
 VIEW(u16[5], gRipTextures);
 #define gRipTextures gRipTextures_view
-VIEW(TexDefSet[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 extern UVMat *ZOID_FindMatrix(s16 idx);
 

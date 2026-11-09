@@ -9,12 +9,6 @@ typedef struct tTexture {
     char name[36];
 } tTexture;
 
-/* One model's table of texture definitions (MAT3 anon_texDefs_count_8). */
-typedef struct TextureDefTable {
-    tTexture *texDefs;
-    u32 count;
-} TextureDefTable;
-
 /* What to do when the texture is missing (`flag`): nothing, warn, or stop. The messages are compiled out. */
 #define MBOX_NOERR 0
 #define MBOX_WARN 1
@@ -23,8 +17,6 @@ typedef struct TextureDefTable {
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-VIEW(TextureDefTable[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 
 /* The texture called `name` (texcmp: the whole name) in models firstModel to lastModel (a negative bound means the
  * first or the last model), searching only the active models: returns its definition and writes its handle,

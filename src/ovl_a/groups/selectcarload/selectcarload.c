@@ -22,10 +22,6 @@ VIEW(ModelDescription *[13], gCarModels);
 
 VIEW(s8[5][13], gTireRims);
 #define gTireRims gTireRims_view
-VIEW(intptr_t[], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
-VIEW(f32[3][3], unitmatrix);
-#define unitmatrix unitmatrix_view
 
 extern intptr_t ZOID_FindMatrix(s16);
 
@@ -165,15 +161,15 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
         }
         ZOID_UpdateObject(gCarParts[slot].handle, pos, newuvs);
         if (gSelectCar[slot].rims != gTireRims[player + 1][idx]) {
-            wheelTex = gWheelTextures[gTireRims[player + 1][idx] + RIM_TEXTURES];
+            wheelTex = (intptr_t)gWheelTextures[gTireRims[player + 1][idx] + RIM_TEXTURES];
             gSelectCar[slot].rims = gTireRims[player + 1][idx];
             if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6)
-                ZOID_SetTexture(gCarParts[slot].tires[0], gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
+                ZOID_SetTexture(gCarParts[slot].tires[0], (intptr_t)gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
             else
                 ZOID_SetTexture(gCarParts[slot].tires[0], wheelTex, -1);
         }
         if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6)
-            ZOID_SetTexture(gCarParts[slot].tires[0], gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
+            ZOID_SetTexture(gCarParts[slot].tires[0], (intptr_t)gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
         if (gSelectCar[slot].frontTireScale != gFrontTireScale[player + 1][idx] || gSelectCar[slot].rearTireScale != gRearTireScale[player + 1][idx]) {
             gSelectCar[slot].frontTireScale = gFrontTireScale[player + 1][idx];
             gSelectCar[slot].rearTireScale = gRearTireScale[player + 1][idx];

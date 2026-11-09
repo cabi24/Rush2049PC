@@ -33,10 +33,6 @@ VIEW(CarParts[], gCarParts);
 VIEW(OSThread, model_thread);
 #define model_thread model_thread_view
 
-/* The wheel textures (InitVisuals): the rims from 3, by rim type. */
-typedef struct TexDef TexDef;
-VIEW(TexDef *[24], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
 

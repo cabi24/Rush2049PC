@@ -4,8 +4,8 @@
 
 #define GPACK_RGBA5551(r, g, b, a) ((((r) << 8) & 0xf800) | (((g) << 3) & 0x7c0) | (((b) >> 2) & 0x3e) | ((a) & 0x1))
 
-typedef struct TexDef { u8 pad[36]; } TexDef;
-typedef struct TexTable { TexDef *defs; u32 pad; } TexTable;   /* gTexDefPtrs: a model file's textures */
+/* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
+typedef struct tTexture { u8 pad[36]; } TexDef;
 
 typedef struct Rgb { u8 r, g, b, a; } Rgb;
 typedef struct TeamColors { u8 team[4]; } TeamColors;
@@ -24,10 +24,6 @@ VIEW(s16[], gObjList);
 
 VIEW(char *[24], RimNames);
 #define RimNames RimNames_view
-VIEW(TexDef *[24], gWheelTextures);
-#define gWheelTextures gWheelTextures_view
-VIEW(TexTable[], gTexDefPtrs);
-#define gTexDefPtrs gTexDefPtrs_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
@@ -73,7 +69,7 @@ void InitVisuals(s32 cars) {
     }
     for (k = 0; k < 24; k++) {
         if (MBOX_FindTexture_WORK(RimNames[k], (s16 *)&tex, 0, gNumModels - 1, 0)) {
-            gWheelTextures[k] = &gTexDefPtrs[tex >> 10].defs[tex & 0x3FF];
+            gWheelTextures[k] = &gTexDefPtrs[tex >> 10].texDefs[tex & 0x3FF];
         } else {
             gWheelTextures[k] = 0;
         }

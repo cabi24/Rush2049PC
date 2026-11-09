@@ -74,9 +74,6 @@ typedef struct tModelData {
 VIEW(tResPath, gResPath);
 #define gResPath gResPath_view
 
-VIEW(f32[9], unitmatrix);
-#define unitmatrix unitmatrix_view
-
 /* The checkpoints (tCheckpoints), through a view of 80-byte records: the shape the code compiled from */
 typedef struct Record80 { u8 bytes[80]; } Record80;
 VIEW(Record80[], gCheckpoints);

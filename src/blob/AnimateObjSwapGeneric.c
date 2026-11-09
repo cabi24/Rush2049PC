@@ -28,7 +28,6 @@ typedef struct Obj {
 } Obj;
 #define N64P(x) ((Model *)PC_N64P(x))
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Ent { unsigned int flags, w4; void *obj; f32 scale, w; u16 tex; s16 child, next, mode; void *light, *texture[4], *rect, *clip, *pal; unsigned int prim, env; } Ent;
 /* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
  * (docs/port/POINTERS.md 10). */
@@ -49,8 +48,6 @@ VIEW(volatile f32, gFrameSeconds);
 VIEW(Kind[], targetInfo);
 #define targetInfo targetInfo_view
 
-VIEW(Ent[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 /* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (base .. base + count - 1
  * of gObjList) on its scene object; at the end of the cycle starts again, or ends the visual (and with
@@ -94,7 +91,7 @@ apply:
         if (gObjList[f]) {}
         id = m->id;
         tex = gObjList[f];
-        ObjInstanceList[id].tex = tex;
+        ObjInstanceList[id].index = tex;
         m->cur = f;
     }
 }

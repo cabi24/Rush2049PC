@@ -5,28 +5,6 @@
  * display list; the node's culling word says where they are. */
 #include "game/game.h"
 
-/* A vertex (libultra Vtx) as the cull list holds it. */
-typedef union Vtx {
-    Vtx_t v;
-    long long force_structure_alignment;
-} Vtx;
-
-/* The scene node (ObjInstanceList's record, types.h ObjectInstance) with MAT3's field names. */
-typedef struct ObjInstance {
-    u32 flags;
-    u32 culling;                /* +0x04 its box: (first cull vertex << 3) | 7 */
-    void *mat;
-    f32 scale, w;
-    u16 index;
-    s16 child, next, numLights;
-    void *lights, *texture[4], *tile, *tileSize, *palette;
-    u32 color, envcolor;
-} ObjInstance;
-
-VIEW(Vtx[], cull_vertices);
-#define cull_vertices cull_vertices_view
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 /* Give node `node` the box from min[3] to max[3] (feet, in its own frame): its eight corners in the libultra
  * vertex format the RSP culls by (16 units a foot), min/max in z alternating fastest, then y, then x. */

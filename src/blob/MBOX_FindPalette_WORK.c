@@ -5,14 +5,6 @@
  * named by a packed handle, its model's number times 1024 plus its index in that table. */
 #include "game/game.h"
 
-/* One model's table of palette definitions (MAT3 anon_palDefs_count_8): 24-byte records, name first. */
-typedef struct PaletteDefTable {
-    char *palDefs;
-    u32 count;
-} PaletteDefTable;
-
-VIEW(PaletteDefTable[], gPalDefPtrs);
-#define gPalDefPtrs gPalDefPtrs_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
@@ -44,6 +36,6 @@ char *MBOX_FindPalette_WORK(char *name, u16 *handle, s8 firstModel, s8 lastModel
         *handle = 0;
         return 0;
     }
-    *handle = ((found - gPalDefPtrs[i].palDefs) / 24) | (i << 10);
+    *handle = ((found - (char *)gPalDefPtrs[i].palDefs) / 24) | (i << 10);   /* 24-byte records, name first */
     return found;
 }
