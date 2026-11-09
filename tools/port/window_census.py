@@ -260,6 +260,7 @@ class Source:
 
     def __init__(self, path, rel):
         self.path, self.rel = path, rel
+        self.posix = rel.as_posix()   # the tree path with /, on Windows too, for the comparisons by prefix and name
         text = path.read_text(errors="replace")
         self.lines = text.split("\n")
         code, comm = nofixed_audit.split_code(text)
@@ -313,7 +314,7 @@ def scan_game(cen, root, n64map):
     for s in sources:
         if s.path.suffix == ".h":
             for name in conversion_macros(s):
-                header_macros.setdefault(name, set()).add(str(s.rel))
+                header_macros.setdefault(name, set()).add(s.posix)
     n64map_re = re.compile(r"\b(?:%s)\b" % "|".join(sorted(n64map))) if n64map else None
     for s in sources:
         own = conversion_macros(s)
@@ -323,7 +324,7 @@ def scan_game(cen, root, n64map):
         includes = set(re.findall(r'^\s*#\s*include\s+"([^"]+)"', "\n".join(s.lines), re.M))
         for name, hdrs in header_macros.items():
             if name not in seen and (any(h.endswith(i) or Path(h).name == Path(i).name for h in hdrs for i in includes)
-                                     or str(s.rel) in hdrs):
+                                     or s.posix in hdrs):
                 seen[name] = None
         use_re = re.compile(r"\b(?:%s)\s*\(" % "|".join(sorted(seen))) if seen else None
         for k, c in enumerate(s.code):
@@ -349,7 +350,7 @@ def scan_game(cen, root, n64map):
                     cen.add("fields.link_enum", s.rel, ln, line)
                 if STATLL.search(c):
                     cen.add("fields.statll_n64", s.rel, ln, line)
-                if API_ADDR.match(c) and str(s.rel).startswith("include/"):
+                if API_ADDR.match(c) and s.posix.startswith("include/"):
                     cen.add("api.u32_address", s.rel, ln, line)
                 for h in LIT.finditer(c):
                     cls = lit_class(h.group(1), c)

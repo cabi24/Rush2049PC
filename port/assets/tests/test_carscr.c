@@ -44,7 +44,7 @@ Slot carscr_buttonInfo[4][44];
 float carscr_gButtonScale = 2.0f, carscr_buttonZ = 300.0f;
 int8_t gCarLocked[4], gNumGhosts, gThisCar[4], gCarTeam[4];
 Record **gGhosts[4];
-uint32_t flashColors, flashColors_at_1;
+uint32_t flashColors[2];   /* the two colours flashing text moves between (race.h; the screens read [1]) */
 char *CarTitles[8];
 int8_t gCarTrans[5][13], gCarHandling[5][13], gCarEngines[5][13], gCarTires[5][13], gCarFrame[5][13];
 int8_t gCarWings[5][13], gTireRims[5][13], gCarHorn[5][13];
@@ -137,7 +137,7 @@ static void setup(void)
     gCarSheen[1] = 4;
     strcpy(g_ghost.name, "GHOSTY");
     g_ghost.time = 83.25f;                       /* 1:23.250 */
-    flashColors = 0x11223344, flashColors_at_1 = 0x55667788;
+    flashColors[0] = 0x11223344, flashColors[1] = 0x55667788;
     /* player 1's slots: the button at 38, options 0, 15 and 16 with their values at +19 */
     carscr_buttonInfo[1][38].position[0] = 10, carscr_buttonInfo[1][38].position[1] = 20;
     carscr_buttonInfo[0][38].position[0] = 5, carscr_buttonInfo[0][38].position[1] = 60;
