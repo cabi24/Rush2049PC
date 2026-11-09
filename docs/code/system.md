@@ -112,7 +112,9 @@ innermost heap of an address), `destroy_heap` gives it back.
 
 Static lists (statll.c: `InitStatLL`, `GetStatLLE`, `FreeStatLLE`, `ClearStatLL`) are pools of fixed-size records
 from an array; linked lists (ll.c: `InitLL`, `InsertLLE`, `RemoveLLE`) link records the caller owns, singly or
-doubly, directly or through handles; ordered lists (bstree.c: `InitBST`, `InsertBSTE`, `WalkBST`) are the sound
+doubly, directly or through handles (the header is `AudioList`, MAT3's tDLList: `void *head, *tail`, which a walk
+takes into its own record pointer; `PlayerFileList` and `SfxQueue` are the same header with words for the data
+loader); ordered lists (bstree.c: `InitBST`, `InsertBSTE`, `WalkBST`) are the sound
 manager's priority tree.
 
 ## 5. Loading: waves and WADs
@@ -186,9 +188,10 @@ same input.
   `frame_records`.
 - **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
   takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
-- **Data declared with the wrong width** in input.h (`gNewLevels` as one s32, `gNewStick` as s32[2],
-  `gAutoEdgeTimes` as s32[128]): controlsys/group.c views them with MAT3's types. Changing the declarations changes
-  the data loader's layout; a wave-3 task.
+- **Data declared with the wrong width** in input.h: `gNewLevels` is one s32 to the data loader, MAT3's volatile
+  u32[4] in controlsys/group.c's view (the loader's size for the symbol would change). `gNewStick` (volatile
+  s8[4][2]), `gNewEdges`, `gContStickRange`, `gAutoEdgeTimes` (u32[4][32]) and the frame's words (`gContLevels` ...
+  u32, `gContStick` f32[4][2]) have MAT3's types since wave 2c.
 - **gPlayers** has no shared declaration: each file declares it with its own type (InitOptions.c defines it).
   `tPadState` (types.h) is the record; the 67 files that read it could use it once the header declares it.
 - Dead code the PC links but never calls: `InitGraphics`, `InitGfx`, `UpdateGraphics`, `unload_start_overlay`,

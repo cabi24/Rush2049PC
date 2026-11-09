@@ -42,7 +42,7 @@ goes:
 |---|---|---|
 | HAL_text (MAT3 `HAL_text.c`) | `HAL_*.c`, `groups/hal_text/*.c`, `groups/state/halfont.c`, `groups/hud_text_anims/gr3_b.c` (HAL_SetFontInternal), `gr3_w.c` (HAL_StartText), `groups/sound_channel_extra/*.c`, `groups/animgear/ctx_gr3.c` | the fonts and the drawing of strings |
 | TB_text (MAT3 `TB_text.c`) | `TB_*.c`, `groups/options_anim/options_anim.c` (TB_FlashTextColors_AEAC) | what the screens call: justification, colours, flashing text, word wrapping, string helpers |
-| The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c` | `gText` (`TextTables`): the current language's strings, from its wave |
+| The strings (MAT3 `text.c`) | `InitTextWave.c`, `LoadTextWave.c` | `gText` (`TextTables`): the current language's strings, from its wave: `single[n]`, and `taba[tab[n] + i]` (MAT3's names) |
 
 A font is two asset waves (`FONT_DATA_WAVE(n)`, `FONT_TEXTURE_WAVE(n)`): a header (`FontHeader`), its letters
 (`FontLetter`: where each is in which texture page) and a kerning table. `HAL_DrawText` doesn't draw: between
@@ -52,7 +52,7 @@ position, translucency, colour, the string), only the state that changed, and `H
 text lock (`text_lock`, `text_unlock`, a one-message queue) keeps the game thread and the frame's end apart.
 
 Strings are single-byte or double-byte (`TEXT_DOUBLE_BYTE`, 0xFF first, then two bytes a character, ended by two
-zeros); the TB helpers (`TB_Strcpy`, `TB_Strcat`, `TB_Strlen`) handle both. `TB_SetJust` takes MAT3's `kTB_Just*`,
+zeros); the TB helpers (`TB_Strcpy`, `TB_Strcat`, `TB_Strlen`) handle both. `TB_SetJust` takes MAT3's `kTB_Just*` (into `gJust`, a `TextJust` {h, v}),
 `TB_SetTextColor` the colour table's `kTB_*Text` (`kTB_FlashText` moves between `gFlashColor2` and `gFlashColor1`,
 `TB_TextOncePerFrame` driving `gColorCycle`).
 
@@ -108,7 +108,7 @@ cars' settings, each part with its own checksum (`CalcChecksumInternal`).
 | Piece | Files |
 |---|---|
 | Profiles | `groups/save/group.c` (InitPlayer, CheckAndRepairPlayer, ReadPlayerData, CreatePlayer, ReadPlayer, SaveServer), `ClearPlayerRecords.c`, `PurgePlayerData.c`, `MovePlayerFile.c`, `RemovePlayerFile.c` |
-| Settings and options | `GetPlayer*.c`, `groups/save_*/*.c`, `groups/save_option/save_option.c`, `groups/save_get_option/reverb.c`, `GetDefaultOption.c`, `SaveSelectPlayer.c`, `groups/game_sounds/InitOptions.c`, `groups/options_set/group.c` (the options are `kOpt*`) |
+| Settings and options | `GetPlayer*.c`, `groups/save_*/*.c`, `groups/save_option/save_option.c`, `groups/save_get_option/reverb.c`, `GetDefaultOption.c`, `SaveSelectPlayer.c`, `groups/game_sounds/InitOptions.c`, `groups/options_set/group.c` (`gOptions`, MAT3's `s8[41]`, indexed by `kOpt*`) |
 | Records | `Record*.c` (after a race, per race type), `AddPlayerScores.c`, `AddPlayerStats.c`, `RemovePlayerScores.c`, `FindWinner.c`, `FindTempNameIdx.c`, `InitRecords.c`, `ClearTotalStats.c` |
 | Unlocks and coins | `CalcUnlockedStuff.c`, `Is*Unlocked.c`, `FoundCoin.c`, `IsCoinFound.c`, `NumCoinsFound.c`, `CountBits.c` |
 | Ghosts | `groups/save/ctx_slot.c` (SaveGhost ...), `groups/save_limbo/SaveGhostInLimbo.c`: `tGhostFile`, `tGhostHeader` |
@@ -136,7 +136,6 @@ the circuit before). A player without a profile plays on a "just play" profile (
   `pak_file_records`) are own storage at their N64 addresses; the save data's totals are in the arena.
 - **The RDP.** The blitter writes N64 display list commands (`G_TEXRECT`, `G_LOADTLUT` ...) that port/gfx renders;
   `BLIT_ATTR_TALL` and the copy mode are the N64's ways of drawing.
-- **Types to finish**: `gFontHeader` is still declared `struct Bank *` in text.h (slot_sound/group.c completes that
-  tag) and `HudBlitDef` is an alias of `tBlitDef` (frontend.h uses it); the prototypes of `NewBlit`, `NewMultiBlit`,
+- **Types to finish**: `HudBlitDef` is an alias of `tBlitDef` (frontend.h uses it); the prototypes of `NewBlit`, `NewMultiBlit`,
   `InitPane`, `RemoveBlit` and `PS_WriteFile` are still each caller's own, as the callers pass blits and addresses as
   pointers or integers.
