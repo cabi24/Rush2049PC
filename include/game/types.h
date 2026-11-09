@@ -191,7 +191,6 @@ struct Respawn;
 struct Row20;
 struct SalMatrix;
 struct SalVector;
-struct SampleLookup;
 struct SampleRecord;
 struct SaveData;
 struct Sequence20;

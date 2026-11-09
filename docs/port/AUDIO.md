@@ -109,28 +109,22 @@ masks with 7.)
 
 | File | |
 |---|---|
-| `musyx_abi.h` | the records: N64-form offsets, native-form structs (`PcMusyxSfd`, `PcMusyxVoice`, `PcMusyxCat`, `PcMusyxDelay`) |
+| `musyx_abi.h` | the records: the game's structs on the host (`PcMusyxSfd`, `PcMusyxVoice`, `PcMusyxCat`, `PcMusyxDelay`), and the N64 form's offsets the task capture writes |
 | `musyx.c` | the interpreter; `pc_audio_run_task` |
 | `musyx_lut.c` | the resample table |
 | `audio_out.c` | the queue: `pc_audio_init/shutdown/set_frequency/push/queued_frames/pull/pull_f32`; pushes held for their render (section 7); the volume; the counters and the log lines |
 | `resample.c` | device-rate conversion: polyphase windowed sinc, 32 taps, 256 phases, Kaiser β 6, cutoff 0.45 × the lower rate; 16-bit output (clamped, counted) or 32-bit (the overshoot kept) |
 | `out_wav.c` | WAV writer (header rewritten about every second) and reader (tests) |
 | `out_sdl.c`, `out_alsa.c` | device backends, compiled only when CMake finds SDL2 or the ALSA headers |
-| `pc_audio.h` | port/audio's API beyond `pc_port.h`: form selection, `pc_audio_pull`, stats |
+| `pc_audio.h` | port/audio's API beyond `pc_port.h`: `pc_audio_pull`, the SFD's voices, stats |
 
-**Two forms.** CMake cache variable `PC_AUDIO_TASK_FORM` (default `NATIVE`) sets the form; `pc_audio_set_task_form`
-changes it at run time.
-- `NATIVE` is the game's own structs compiled for the host: the same members in the same order, pointers widened
-  and naturally aligned. That is 120 bytes per voice and 3,864 per SFD on LP64. On a 32-bit host it is exactly the
-  N64 layout.
-  - A pointer field holds a host pointer or, below 4 GB, an N64 address resolved with `pc_n64_ptr`: the RDRAM
-    window at host 0x80000000, K0, K1 or physical.
-  - This relies on the executable being PIE, with no host data below 4 GB outside the window (the game's
-    pointer-free data is in it, at its N64 addresses: DATA.md §3). The forms test asserts it.
-- `N64` is the 0xA10 and 0x50 layouts with 32-bit addresses. Multi-byte fields are big-endian when the record is in
-  a `pc_mem_is_be` range, native otherwise.
-
-The interpreter decodes either form into the same internal record. Nothing writes back into the records.
+**The records** are the game's own structs compiled for the host (hardware.c's `SfdBlock`, `SfdVoice`,
+`SoundDelayState`): the same members in the same order, pointers host pointers and naturally aligned, host byte
+order. That is 120 bytes per voice and 3,864 per SFD on LP64; on a 32-bit host it would be exactly the N64 layout.
+Every pointer is the one the game stored (its sample caches, codebooks, outputs and state block in its heap), read as
+it is: nothing is translated, and no range of values is taken for N64 addresses ([NATIVE.md](NATIVE.md) step 9). The
+N64 form (the 0xA10 and 0x50 layouts with 32-bit addresses, big-endian) is the microcode's: only the task capture
+(section 8) writes it. The interpreter decodes the records into an internal one; nothing writes back into them.
 
 **Byte order**:
 - ADPCM frames are bytes.
@@ -189,8 +183,8 @@ cmake -S . -B build/pc -G Ninja && cmake --build build/pc --target pcaudio_tests
 ctest --test-dir build/pc/port/audio          # or standalone: cmake -S port/audio -B build/audio
 ```
 
-The tests link their own copies of the port/ultra functions (`tests/stubs.c`), including a fake 4 MB RDRAM at
-0x80000000 for N64-form records.
+The tests link their own copies of the port/ultra functions (`tests/stubs.c`), including a fake RDRAM: 4 MB of
+buffers standing for the game's heap, where the capture copies a region's neighbours.
 - The references in `tests/ref.c` are written from the format, separately from the interpreter: a per-frame ADPCM
   decoder over a flat frame view, a block packer, and a closed-loop ADPCM encoder.
 - `tb_voice` copies the game's voice builder (`sound_hw_build_voice_command`) and its position update (`sound_hw_advance_voice_position`), so the
@@ -204,7 +198,7 @@ The tests link their own copies of the port/ultra functions (`tests/stubs.c`), i
 | `audio_envmix` | 11 | up and down ramps against the closed form (rounded products); ramps joined across subframes (largest step 86); saturation; last sample per slot and channel; aux silent without the effect |
 | `audio_mix` | 16 | empty SFD; the voice list ends at the output voice; release-mask fade (0xF850 per subframe) across SFDs and tasks; an empty SFD keeps slot records; surround one subframe late and antiphase, across tasks; surround in the base; 6 SFDs in one task = 2 + 4 |
 | `audio_delay` | 10 | echo at the tap delay and gain; feedback halving per pass; taps wrapping the line; filter history carried between subframes |
-| `audio_forms` | 32 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered as native structs, native structs with K0 addresses, N64 form native order, and N64 form big-endian: identical outputs, states and lines; LP64 layout; host data above 4 GB |
+| `audio_forms` | 14 | one scene (big-endian PCM, ADPCM with a big-endian book, native PCM, release mask, delay effect) rendered from the game's records in one task and in two: identical outputs, states and lines; the LP64 layout |
 | `audio_output` | 40 | queue counts, pulls, underruns (the fade out and in, one underrun per dry spell), overflow; the AI's target from pulls, its growth per underrun and 200 ms cap, the `audio.latency` floor; idle and paused silence apart from underruns; the pull hook; a push before its render waits (counted with the queue); 22050 → 48000 frequency, amplitude, ratio, chunked = whole; 48000 → 22050 alias rejection; a forced device rate; WAV round trip; the null backend's clock |
 | `audio_hold` | 151 | pushes held for their render, against a model of the game's ring (8 buffers, renders in order at most 5 past the pushes): renders ahead play each push's own; renders late but before the device needs them play as on time; a render too late is silence, never the ring's last turn, and never plays a turn later out of place; a renderer three behind plays a turn late, in order, and on time again once caught up; the same buffer rendered twice; the renderer's skips counted (a jump right after a render, not one after a pause); 60 runs of random timings with stalls and the game's stop and restart: what plays is in order, never early, never twice, and exact once the renderer is ahead; pushes before any render and long pushes play as pushed |
 | `audio_renderer` | 484 | `sound_hw_service_frame`'s scheduling loops, copied, in the PC and the N64 form: the wrapping range cut by the cap, by hand; rings of 8, 12, 16 and 24 buffers, caps of 1 to 6, 20 runs each of random AI steps (some past the cap, never a turn ahead): the PC loops render every buffer the AI passes once, in the ring's order, and catch up; the N64 loops pass buffers over in the same runs |
@@ -258,10 +252,10 @@ of its 10 checks.
      `AudioLoop` becomes `SoundDelayState`, since `length` moves to +8 on LP64.
    - Use `sizeof(SfdBlock)` for 2576 (`sound_hw_alloc_voices` ×2, `sound_hw_submit_task`) and
      `sizeof(SoundDelayState)` for 72. The 664-byte state block stays 664.
-   - Alternatively, keep the N64 records with `u32` pointer fields holding window addresses and build with
-     `-DPC_AUDIO_TASK_FORM=N64`.
 3. **The RAM test in `sound_hw_set_voice_sample`**, `(data & 0xF0000000) == 0x80000000`, must also count host pointers
    (≥ 4 GB) as RAM, or a host buffer is fetched as a cart address. `sound_hw_translate_address` has the same top-byte test.
+   (Since [NATIVE.md](NATIVE.md) step 9 there is no such test: a sample carries its cartridge address or its RAM
+   pointer apart, include/sound_sample_record.h's `SoundSampleInfo`, and the N64-form records went.)
 4. The other 64-bit casts in the file can stay as they are or become `uintptr_t`:
    - the D-cache cursors `sound_sfd_write_end`/`sound_sfd_cache_cursor` with `dcache_create_dirty_lines` (the writebacks are no-ops)
    - `(unsigned int)V->data` on the streamed path, which is a cart address and fine as `u32`
@@ -465,7 +459,8 @@ again (a race's start), so a replay starts both implementations' state from zero
 the interpreter's are each their own: neither is copied into the other.
 
 **Harness.** Each task's bytes go into two RDRAMs, N64Recomp's word-swapped layout for the microcode and the tests'
-fake RDRAM (big-endian, `PC_AUDIO_FORM_N64`) for the interpreter; the OSTask at DMEM 0xFC0 and the data at DMEM 0;
+fake RDRAM (big-endian, the N64 form, which the interpreter read until [NATIVE.md](NATIVE.md) step 9) for the
+interpreter; the OSTask at DMEM 0xFC0 and the data at DMEM 0;
 both run; the outputs are compared sample by sample. The results don't change with DMEM's other contents or with
 0xF80 data bytes loaded, as N64ModernRuntime loads them. A random mode builds tasks with the tests' copy of the
 game's builder (`tb_voice`) over random PCM16 samples and random ADPCM blocks and codebooks, with random volumes up
@@ -767,7 +762,11 @@ which the microcode can't replay; `capture_summary.py` reads them.
 
 **The synthetic cartridge** (`synth_rom.py --sounds`, build host, Debug, the virtual clock: `synth_voices_race12`,
 `synth_voices_race2p12`). `race12` is one player and 11 drones to 600 frames (20 s) after the start. The bank's sounds
-are squares at volume 0, so they take voices and play nothing; what the sound is like is the retail cartridge's below.
+were squares at volume 0, so they took voices and played nothing (the cartridge's MusyX volume and pitch tables were
+zero); what the sound is like is the retail cartridge's below. Since [NATIVE.md](NATIVE.md) step 9 the cartridge
+has those tables and a song, so it is heard, and race12 plays (Debug, the virtual clock) 1.75, 2.89, 3.32 and 3.58
+voices a subframe at the four sizes (most 26 of 32, 37 of 48, 42 of 64, 52 of 96), MusyX refusing no start; the
+table below is from before.
 
 | `voices` | voices a subframe (mean, most) | held back by the budget, a pass | starts with no entry | drones' engine layers playing at once, most | messages most |
 |---|---|---|---|---|---|
@@ -918,7 +917,7 @@ default stays `original` (the N64's sound).
 
 | Test | What it checks |
 |---|---|
-| `audio_voices` (port/audio) | SFDs of 48, 64 and 96 voices, native and N64 form (native order and big-endian): the sizes (32's the N64's 0xA10 and 3864 bytes; the mask's words; 8-byte rounding; capped at 255); a full SFD, every voice mixed up to the one at the last slot, which names the output; the list's end at slot 40 with louder voices after it unmixed; stopped voices at slots 31, 32 and n - 1 folded into the base by their own bits (bit 31 of the header's word, bit 0 of the first word after the records, bit 31 of the last), decaying; the slots' last outputs where they belong; at 32 the N64's SFD. A mutation that ignores the words after the records fails 6 checks, one that keeps every slot's last output at the N64's place 6 |
+| `audio_voices` (port/audio) | SFDs of 48, 64 and 96 voices: the sizes (32's the N64's 0xA10 in the capture's form and 3864 bytes; the mask's words; 8-byte rounding; capped at 255); a full SFD, every voice mixed up to the one at the last slot, which names the output; the list's end at slot 40 with louder voices after it unmixed; stopped voices at slots 31, 32 and n - 1 folded into the base by their own bits (bit 31 of the header's word, bit 0 of the first word after the records, bit 31 of the last), decaying; the slots' last outputs where they belong; at 32 the N64's SFD. A mutation that ignores the words after the records fails 6 checks, one that keeps every slot's last output at the N64's place 6 |
 | `assets_mxvoices` | the per-voice storage through the library's own allocator, nodes and controllers at 96 ([DECOUPLE.md](DECOUPLE.md) 9); with the node loop at 32, 2 checks fail |
 | `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr` | as before, on the PC arrays (32 voices, 128 messages walked) |
 | `assets_mgrstart` | the manager's thread (`audio_manager_thread_entry`) on scripted queues: two or three starts for one waiting tag give one voice, the first kept, the others counted; a start, the pass's interrupt and a start give two; a start for a freed tag frees it; a start and a stop. Without the guard (10.4), 3 checks fail |

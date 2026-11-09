@@ -11,8 +11,9 @@ bytes were read: the formats below are what the game's code reads, and the tests
   0x39B40 and are DMA'd on demand.
 - **Strategy: swap in place.** `pc_assets_musyx` swaps every field to host order at the width the library reads
   it, before anything parses the file. The files keep their N64 size and layout, so the record strides and
-  offsets the library hard-codes still hold, and the 32-bit addresses it stores into and about them (all in the
-  game heap, inside the RDRAM window) still fit.
+  offsets the library hard-codes still hold. What the library keeps about them it keeps in its own records, with
+  host pointers (section 4, since [NATIVE.md](NATIVE.md) step 9); the one address it writes into a file, a sample's,
+  is the sample's 32-bit cartridge address.
 - **Why not big-endian accessors** in the library: the readers are spread over five units (about 90 functions
   in `groups.c`, `registry.c`, `sequencer.c`, `synth.c`, `macros.c`), two of them reserved by other
   work, and N64 neutrality allows no line changes in function bodies. Almost every reader uses whole-field
@@ -31,16 +32,16 @@ bytes were read: the formats below are what the game's code reads, and the tests
 | Step | Where | What |
 |---|---|---|
 | load | `_ReadWave` (`waves.c`) → `pc_wave_loaded` → `pc_assets_musyx` | the file, in a locked heap block, converted once per read; the read's big-endian registration is dropped |
-| addresses kept | `AudioInitSys` | `musyx_project` project, `musyx_pool` pool, `musyx_sdir` sample directory, `musyx_samples` sample base (`(s32)sample_bank_rom`) |
+| addresses kept | `AudioInitSys` | `musyx_project` project, `musyx_pool` pool, `musyx_sdir` sample directory (pointers), `musyx_samples` the sample bank's ROM offset (`SAMPLE_BANK_ROM_OFFSET`, a u32) |
 | push | `sound_push_group` (sndPushGroup) | walks the project's groups; registers the group's macros, tables, keymaps, layers (pool entries), samples (directory records) and sfx table by id |
-| registries | `registry.c` BSS | `{payload, id, refs}`: macros `sound_macros` (in 512 buckets by `id >> 6`), tables `sound_tables`, keymaps `sound_keymaps`, layers `sound_layers` (+ count), sfx tables `sound_sfx_tables`, sample directories `sound_sample_directories` (`{records, base, count}`); groups pushed `sound_groups` |
+| registries | `registry.c` BSS (own storage) | `ResourceRecord {void *payload; u16 id; u16 references}`: macros `sound_macros` (in 512 buckets by `id >> 6`), tables `sound_tables`, keymaps `sound_keymaps`; `LayerRecord` (+ count): layers `sound_layers`; sfx tables `sound_sfx_tables`, sample directories `sound_sample_directories` (`{records, cart_base, count}`); groups pushed `sound_groups` |
 | look up | `sound_find_macro` macro, `sound_find_table` table, `sound_find_keymap` keymap, `sound_find_layer` layer, `sound_find_sfx` sfx entry, `sound_find_sample` sample | bsearch (`sound_bsearch`) by id |
 | play | macro interpreter `sound_macro_run` (voice `sound_synth_voices`, macro pointers), sequencer `sound_seq_start` (slot `sound_seq_players`, pointers into the song) | |
-| samples | `sound_add_sample`: record `data = base + offset`; `sound_find_sample` → macro 0x10 → `sound_hw_set_voice_sample` → voice; `sound_hw_build_voice_command` builds DMA requests `{length, source, destination}` from `data` | cartridge address 0xB0039B40 + offset; codebook 0x100 bytes at `data`, 40-byte ADPCM blocks from `data + 0x100`; port/ultra copies from the ROM into the big-endian caches, port/audio reads them |
+| samples | `sound_add_sample`: record `cart_address = cart_base + offset`; `sound_find_sample` → macro 0x10 → `sound_hw_set_voice_sample` (`SoundSampleInfo`) → voice; `sound_hw_build_voice_command` builds DMA requests `{length, source, destination}` from the voice's `cart_address` | cartridge address 0xB0039B40 + offset (`sound_hw_cart_address` makes the bank's ROM offset 0x39B40 the cartridge address, through `musyx_cart_address`); codebook 0x100 bytes at it, 40-byte ADPCM blocks from it + 0x100; port/ultra copies from the ROM into the big-endian caches, port/audio reads them |
 
-Every pointer into a file is an address in the game heap, which is the RDRAM window at host 0x80000000 on the
-PC, so a 32-bit field holds it exactly. The sample addresses are cartridge addresses (0xB0000000 | offset), also
-32-bit.
+Every pointer into a file is a host pointer, held in a pointer field (the registries, the voices' macro pointers,
+the sequencer's song pointers: section 4). The sample addresses are cartridge addresses (0xB0000000 | offset), a
+number of the cartridge's bus, never memory: 32-bit fields, `cart_address`.
 
 ## 3. Formats
 
@@ -88,14 +89,14 @@ the u16 id, stride 0x1C):
 | +0 | u16 id | u16 |
 | +2 | u16 reference count, **written** | u16 |
 | +4 | u32 offset from the sample base | u32 |
-| +8 | u32 address, **written**: base + offset (`void *` in the N64 C, u32 on the PC) | u32 |
+| +8 | u32 cartridge address, **written**: the directory's cartridge base + offset (`void *` in the N64 C, `cart_address` on the PC) | u32 |
 | +0xC | u32 info: key << 24 \| rate (macro 0x1F, `sound_macro_set_pitch`) | u32 |
 | +0x10 | u32 length: format << 24 \| samples (format 0 PCM16, 3 ADPCM) | u32 |
 | +0x14, +0x18 | u32 loop start, u32 loop length | u32 |
 
 ### 3.4 Songs (waves 10–21)
 
-Offsets are from the song start; the sequencer adds them with 32-bit arithmetic (`offset + (u32)song`).
+Offsets are from the song start; the sequencer adds them to the song's pointer (`(u8 *)song + offset`).
 
 | Structure | Layout | Readers | Swapped |
 |---|---|---|---|
@@ -122,24 +123,29 @@ Offsets are from the song start; the sequencer adds them with 32-bit arithmetic 
 | `sound_add_sample_directory`, `sound_add_sample` | write the sample record's count and address | swapped fields, written natively afterwards |
 | `sound_synth_start_note` | `keymap[key].panning` with the unmasked key: for sfx (`sound_start_sfx_unlocked` passes key \| 0x80) it reads byte 3 of entry 128 + key, past the keymap | identical where that byte is a byte field; it differs only if entry 128 lands on the next entry's u32 size (key 0 after a keymap of exactly 128 entries) |
 
-**Pointers into the files**, and how they fit on LP64:
-- macro and keymap registries (`MacroRecord`, `KeymapRecord`): `void *payload` made the
-  records 12 bytes natively, while `sound_find_macro` searches with a literal stride of 8 and the comparators read
-  the id at +4. On the PC the payload is a u32 window address (`registry.c`), as the table and layer
-  registries already had it. The keymap search only worked by accident with a single keymap.
-- sample record `data`: a u32 cartridge address (`sound_sample_record.h`, and the copy in
-  `groups.c`), so the record stays 0x1C bytes for the walks and the bsearch. With `void *`, the second
-  record was read 4 bytes off.
-- sample info: `sound_find_sample` fills, `sound_macro_start_sample` passes and `sound_hw_set_voice_sample` reads one record through three
-  views. `sound_hw_set_voice_sample`'s (and `sound_stream_start`'s, whose `data` is a stream's host buffer) has a packed 8-byte
-  pointer at +4; the other two now match it (`registry.c`, `macros.c`).
+**Pointers into the files**, and how they fit on LP64 (since [NATIVE.md](NATIVE.md) step 9, section 13 there):
+- the registries (`registry.c`): `ResourceRecord {void *payload; u16 id; u16 references}` for macros, tables and
+  keymaps, `LayerRecord {void *payload; u16 id; u16 count; u16 references}` for layer lists, 16 bytes each,
+  searched as those types (the comparators take the records). The data loader gives the four registries own
+  storage of the host layout, each its N64 room (2048, 256, 256 and 2048 records). Before, the payload was a u32
+  window address, so the records kept the N64's 8 bytes and the search its literal stride of 8, with the id at +4.
+- sample record `cart_address`: a u32 cartridge address (`sound_sample_record.h`, and the copy in `groups.c`), so the
+  record stays 0x1C bytes for the walks and the bsearch. With `void *`, the second record was read 4 bytes off.
+- sample info: one record, `sound_sample_record.h`'s `SoundSampleInfo`, which `sound_find_sample` fills,
+  `sound_macro_start_sample` passes, `sound_stream_start` fills for a stream and `sound_hw_set_voice_sample` reads: a
+  sample in the cartridge by its `cart_address`, one in RAM (a stream's buffer) by its `data` pointer. The hardware
+  voice keeps both (`SoundHwVoice.cart_address` beside `data`) and fetches a cartridge sample through the caches by
+  its cartridge address; before, one pointer-sized field held either, and a range test (below 4 GiB and not KSEG0)
+  said which.
 - sfx tables, sample directories and pushed groups are native pointers in their own storage (gen_data gives
-  pointer-bearing tables host-sized storage); so are the sequencer's slots (section 8.2). The voices keep their
-  N64 layout with 32-bit window addresses (section 8.3).
+  pointer-bearing tables host-sized storage); so are the sequencer's slots (section 8.2) and the voices' heads
+  (section 8.3).
 
-The sample base is `(s32)sample_bank_rom` in `AudioInitSys`: sign-extended to 0xFFFFFFFFB0039B40 in the
-pointer-sized `musyx_samples`, then truncated back to 0xB0039B40 + offset in the u32 record. `sound_hw_translate_address` takes
-the 64-bit value for a host pointer and returns it unchanged, which is what the N64 does for a 0xB0 address too.
+The sample base: `AudioInitSys` hands `sound_push_group` the sample bank's ROM offset (`SAMPLE_BANK_ROM_OFFSET`,
+0x39B40), and `sound_hw_cart_address` makes it the cartridge address 0xB0039B40 through the game's service
+`musyx_cart_address` (a cartridge address is taken as it is); the records hold 0xB0039B40 + offset. The N64 passed
+the cartridge address itself (the absolute alias `sample_bank_rom`, which the PC took through `PC_N64A`, and before
+that through `(s32)`, sign-extended).
 
 ## 5. The converter
 
@@ -165,10 +171,10 @@ the 64-bit value for a host pointer and returns it unchanged, which is what the 
    bytes that are not events, every note-event kind including key bit 7 with a plain velocity, and a tempo track.
 2. Damaged files: cut at seven points each, 64 garbage blocks, a group whose list offset points at its own
    header, a zero-size block, and all-zero (blank) files. Nothing is written past a block.
-3. The game's own readers on the converted files, placed below 4 GiB as the heap is: `groups.c`,
+3. The game's own readers on the converted files, in host memory (every record holds pointers): `groups.c`,
    `registry.c`, `sequencer.c`, `util.c` and `macros.c` built with the game's flags
    (`test_musyx_game`), with stubs for the rest of the library. sndPushGroup of an sfx group and a song group;
-   every lookup (macros, tables, two keymaps, layers, sfx entries, samples, with the sign-extended sample base);
+   every lookup (macros, tables, two keymaps, layers, sfx entries, samples, with the sample bank's ROM offset);
    the song start through `sound_seq_start` (pages, MIDI setup, track table, tempo track); macro steps 0x0C
    (envelope values), 0x10 (sample address, length, format, loop, offset as `sound_hw_set_voice_sample` receives them) and
    0x07 (250 ms = 64000 clock units, against 7812 for ticks); sndPopGroup twice, with the shared macro kept
@@ -204,15 +210,16 @@ Written 2026-10-27, after the converter. The library's in-memory records were wr
 each is reached through several struct views. A record that only holds 32-bit N64 values (the heap is the RDRAM
 window, the samples are cartridge addresses) keeps its N64 layout, with its pointer fields 4 bytes wide; a record
 that holds host pointers (functions, host storage, a caller's variable) is laid out natively, and every view of
-it then has the native field sequence. All the edits are N64-neutral (`n64_neutral.py`: 0 FAIL against
-`09da2f0`).
+it then has the native field sequence. (Since [NATIVE.md](NATIVE.md) step 9 the records that held 32-bit window
+addresses hold pointers too: the registries, the voices' heads; section 4.) All the edits are N64-neutral
+(`n64_neutral.py`: 0 FAIL against `09da2f0`).
 
 | Record | Layout on the PC | Why |
 |---|---|---|
 | service table `sound_services` | native, 8 pointers | function pointers |
 | DMA request list `sample_dma_list` | native, 24 bytes, own storage | the done queue is a host address |
 | sequencer slot `sound_seq_players[8]` | native, 0x1628 bytes (N64 0xFF8) | sequence nodes in host storage, a caller's result word |
-| voice `sound_synth_voices[32]` | N64, 0x1A0 bytes | 90 views at N64 offsets; its pointers point into the pool (heap) or one node pool |
+| voice `sound_synth_voices[32]` (`pc_mx_voice`) | the N64's after a head of host pointers: 0x1C0 bytes (N64 0x1A0) | 56 views, each the head (`SynthVoiceHead`) then fields at their N64 offsets + 0x1C (section 8.3) |
 | stream `speech_streams[2]` | native, 0x1268 bytes (N64 0x1228) | read callback, host output buffers, message queues |
 | sound request node (audio manager) | native, 48 bytes (N64 32) | generic list links (`InsertLLE`) shared with other game code |
 | scheduler task `OSScTask` | native, as the game builds it | the OSTask inside has host pointers |
@@ -241,9 +248,9 @@ The order comes from the call signatures, not from the ROM's table.
   pointer slots before `allocate` and `release`, and gen_data now places `sound_service_wait_task` … `sound_service_free` at 8-byte steps
   in `sound_services`'s own storage (`data_symbols.txt`).
 - `musyx_set_retrace_callback` takes `intptr_t` (it stores into the pointer-sized `musyx_retrace_callback`, which `audio_retrace_thread_entry` calls
-  each retrace), and `musyx_cart_address` returns a pointer-sized cartridge address (`FD60_WORD`).
-  `musyx_start_dma_list` takes `intptr_t` for the list and the done queue. `musyx_alloc` and
-  `musyx_free` deal in heap blocks, which are window addresses, so their `s32`/`u32` sizes are exact.
+  each retrace), and `musyx_cart_address` takes and returns a u32 (since [NATIVE.md](NATIVE.md) step 9: a ROM offset
+  in, a cartridge address out). `musyx_start_dma_list` takes `intptr_t` for the list and the done queue.
+  `musyx_alloc` and `musyx_free` deal in heap blocks, as pointers since NATIVE.md step 6.
 - The DMA request list: `musyx_start_dma_list`'s `CallSlot` and `sample_dma_next`'s `DmaList` now have one layout
   {u16 × 4; requests; done queue} (24 bytes; `sample_dma_thread_entry` reads the done queue at `DMA_DONE_OFF`). It has
   PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`): at 0x80153F10 there are 16 bytes before
@@ -281,10 +288,21 @@ indexes the slots from a `uintptr_t`.
 
 ### 8.3 The voices
 
-`sound_synth_voices` (32 voices of 0x1A0 bytes) is reached through about 90 views in `macros.c`, `synth.c`,
-`voices.c`, `api.c` and `controllers.c`, almost all of them byte arrays and fields at N64 offsets (and
-raw offsets such as `(u8 *)state + 0xC4` and `+ 0x168`). The voice keeps that layout on the PC. The 15 views that
-declared pointers moved every later field; their pointer fields are 4 bytes now:
+Since [NATIVE.md](NATIVE.md) step 9 (section 13 there): every view of a voice in `macros.c`, `synth.c`, `voices.c`,
+`api.c` and `controllers.c` (56) begins with `src/rom/sound/musyx.h`'s `SynthVoiceHead`, where the N64 had its first
+0x24 bytes: `addr`, `curAddr`, `retAddr`, `retCurAddr`, `trapAddr` and `trapCurAddr` are `MacroCommand` pointers into
+the pool, `node` the handle node (one of `pc_mx_nodes`), `next` and `previous` the chain's voice ids. The head is
+0x40 bytes, so every later field lies 0x1C past the N64 offset its name ends in, and a voice is 0x1C0 bytes
+(`PC_MX_VOICE_SIZE`: the N64's 0x1A0, the growth, and 4 bytes that keep the next voice's pointers 8-aligned; the full
+views end with `tail[SYNTH_VOICE_TAIL]`). The voice's storage is PC data (`pc_mx_voice`, decoupled). ctest
+`views_musyx_voice` (`view_check.py`) checks every view's fields against `macros.c`'s whole view, and
+`assets_musyx`, `assets_mxvoices` read the head by its host offsets. The one raw offset left in the files
+(`sound_synth_get_tick_rate`'s byte 0x4B) reads its view's field.
+
+Before step 9, `sound_synth_voices` (32 voices of 0x1A0 bytes) was reached through about 90 views, almost all of
+them byte arrays and fields at N64 offsets (and raw offsets such as `(u8 *)state + 0xC4` and `+ 0x168`), and the
+voice kept that layout on the PC. The 15 views that declared pointers moved every later field, so their pointer
+fields were 4 bytes:
 
 | Field | Views | What it points to | On the PC |
 |---|---|---|---|
@@ -293,9 +311,8 @@ declared pointers moved every later field; their pointer fields are 4 bytes now:
 | +0x18 sequence node | `voices.c`'s `VoiceState` | one of `sound_handle_nodes[32]`, host storage | the node's N64 address, 0x80050A50 + 16 × index, translated through the pool |
 | +0 (`SynthVoice`) | `synth.c` | the macro start | `u32`: only tested for zero |
 
-In `macros.c`, `N64P(x)` is such a field as a pointer, `N64W(x)` a pointer stored into one and `N64_NEXT(x)` the
-interpreter's step increment; in `voices.c`, `N64P`/`N64W` translate the node. On the N64 each is the original
-tokens. The two pieces of pointer arithmetic on fields (`sound_macro_loop`, `sound_macro_compare`) go through `N64P`.
+In `macros.c`, `N64P(x)` was such a field as a pointer, `N64W(x)` a pointer stored into one and `N64_NEXT(x)` the
+interpreter's step increment; in `voices.c`, `pc_voice_node` translated the node. All of them went with step 9.
 
 Checked by `offaudit` (a scratch tool reading the objects' DWARF): in the five units, every member whose name ends in
 a hex offset (`flags24`, `id60`, `field2E`, `lfo17C`, …) is at that offset, in every view.
@@ -339,8 +356,8 @@ Part 4 of `assets_musyx` (`test_musyx.c`), with `voices.c` and the DMA service's
   the song's controller 104 carries it out.
 - **Voices**: `sound_macro_start` starts macros on voices allocated by `voices.c`, and `sound_macro_run` steps them:
   envelope, sample start and end, freeing the voice and its sequence node; a trap and a subroutine whose wait holds
-  the voice, then key-off running the trap; a stop by key. The words at +0 … +0x20 are checked as window
-  addresses and the node at +0x18 as 0x80050A50.
+  the voice, then key-off running the trap; a stop by key. The head's pointers are checked as pointers into the pool
+  and the node as `&pc_mx_nodes[0]`; the files lie in ordinary host memory (step 9: no mapping below 4 GiB).
 - **The DMA service** walks a request list of 16-byte entries and keeps the done queue.
 
 The synthetic song's loop time is now its loop target's time (0x180); 0x300, the loop event's own time, loops
@@ -395,8 +412,8 @@ do not run there: the blank project has no sounds.
 2. Sample DMA: with sounds playing, `sound_hw_start_dma` hands the request list to `musyx_start_dma_list`, the PI
    copies each request and `sample_dma_thread_entry` sends the done queue; the audio thread must not stall in
    `sound_hw_wait_dma`.
-3. Every macro pointer the interpreter stores comes from the macro registry (`sound_find_macro`), so it is in the pool;
-   a macro outside the RDRAM window would be truncated by `N64W` (a voice crash in the interpreter would show it).
+3. Every macro pointer the interpreter stores comes from the macro registry (`sound_find_macro`), so it is in the pool
+   (a host pointer since step 9, which nothing truncates).
 4. A song from the ROM through the sequencer: its deferred requests (controller 104), loops and tempo tracks.
 5. Speech and streams through `speech_streams` (GSM, section 8.4).
 6. `gGameCar`'s extent (section 8.1), for whatever gen_data places after the car array.
