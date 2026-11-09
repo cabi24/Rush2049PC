@@ -523,6 +523,57 @@ struct pc_world_records {
 };
 struct pc_world_records *pc_world_records(const void *file);   /* the world WAD in the heap block `file` */
 
+/* The track's paths (docs/code/race.md 2), read from its path file after the checkpoints (ReadPathData). Their
+ * points are the file's; the headers hold host pointers to them. */
+struct DronePathPt {                    /* 0x8: a point of a drone path (MAT3 anon_pos_mph_8) */
+    short pos[3];                       /* +0x0 where the computer cars drive */
+    unsigned char mph;                  /* +0x6 the speed to drive at here (CalcCheckpointTimes: mph * 1.4666667 is
+                                         * feet a second) */
+    signed char hints;                  /* +0x7 driving hints for the drones here */
+};
+/* A drone path (MAT3 anon_numPts_pts_8, gDronePaths[4]): a loop of points round the track that the computer cars
+ * follow (maxpath.c). */
+struct DronePath {                      /* 0x10 */
+    unsigned short numPts;              /* +0x0 */
+    unsigned short pad02;               /* +0x2 the path file's padding after numPts, kept */
+    struct DronePathPt *pts;            /* +0x8 */
+};
+/* An alternative path (MAT3 anon_resurrect_firstPath_10, gResPath.alt[] = gAltPaths): a branch of the resurrection
+ * path, a shortcut or a second route, whose ends join the main path or another branch (SyncAltPaths links them). Its
+ * first twelve bytes are the file's header's. */
+struct AltPath {                        /* 0x18 */
+    unsigned char resurrect;            /* +0x0 0 a branch no car is put back on (a respawn point on it is traced on
+                                         * to the path it joins: FindResPt); ALT_PATH_RESURRECT one cars may be put
+                                         * back on (its points count in the track's bounds, CalcResPathBounds);
+                                         * ALT_PATH_ALONE one joined to nothing (SyncAltPaths) */
+    signed char firstPath;              /* +0x1 the path its first point joins: an alternative path, or -1 the main
+                                         * path */
+    unsigned short firstIdx;            /* +0x2 the point of firstPath it joins there */
+    signed char lastPath;               /* +0x4 the path its last point joins */
+    unsigned short lastIdx;             /* +0x6 the point of lastPath it joins there */
+    signed char startSection;           /* +0x8 the checkpoint section it starts in (TraceToCheckpoint), -1 none */
+    unsigned short numPts;              /* +0xA */
+    short (*pts)[3];                    /* +0x10 */
+};
+/* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
+ * is put back on (resurrect.c) and that measures the cars' progress (maxpath.c), with its branches. */
+struct ResurrectPath {                  /* 0x20 */
+    unsigned short numPts;              /* +0x00 the main path's points */
+    short (*pts)[3];                    /* +0x08 = gResPathPtList */
+    unsigned char numAlt;               /* +0x10 */
+    struct AltPath *alt;                /* +0x18 = gAltPaths, NULL when there are none */
+};
+/* A path file's headers, decoded when it loads (port/assets/path.c), each points a host pointer into the file:
+ * ReadPathData copies them into the track's paths. On the N64 ReadPathData copied the headers out of the file and
+ * set the pointers itself (the branches' in place, in the file). */
+struct pc_path_records {
+    struct ResurrectPath resPath;       /* gResPath (alt: this record's) */
+    unsigned short numResPathPts;       /* gNumResPathPts: the count of all the resurrection points in the file */
+    struct AltPath *alt;                /* resPath.numAlt branches */
+    struct DronePath dronePaths[4];     /* gDronePaths */
+};
+const struct pc_path_records *pc_path_records(const void *file);   /* the path file in the heap block `file` */
+
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
  * clear every slot (InitSmoke, InitBlasts, InitSkids: PC_MAX_LINKS on the PC), and the rest reaches

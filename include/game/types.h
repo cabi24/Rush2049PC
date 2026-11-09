@@ -14,7 +14,6 @@ typedef u32 OSIntMask;
 typedef u32 OSYieldResult;
 
 /* Structures the header names only through pointers: each file that reads one defines it, as its own view. */
-struct AltPath;
 struct AudioCacheNode;
 struct AudioModel2056;
 struct AudioNode;
@@ -1781,36 +1780,14 @@ typedef struct tDLLE {
 
 /* ---- track: tracks, the road tree, targets, paths and checkpoints */
 
-/* A point of a drone path (MAT3 anon_pos_mph_8): where the computer cars drive, and how fast. */
-typedef struct DronePathPt { /* 0x8 bytes */
-    s16 pos[3]; /* 0x0 */
-    u8 mph;     /* 0x6 the speed to drive at here (CalcCheckpointTimes: mph * 1.4666667 is feet a second) */
-    s8 hints;   /* 0x7 driving hints for the drones here */
-} DronePathPt;
-
-/* A drone path (MAT3 anon_numPts_pts_8, gDronePaths[4]): a loop of points round the track that the computer cars
- * follow (maxpath.c), read from the track's path file (ReadPathData). Host layout: pts is a host pointer. */
-typedef struct DronePath { /* 0x10 bytes */
-    u16 numPts;       /* 0x0 */
-    u16 pad02;        /* 0x2 the path file's padding, copied with numPts (ReadPathData) */
-    DronePathPt *pts; /* 0x8 */
-} DronePath;
-
-/* An alternative path (MAT3 anon_resurrect_firstPath_10, gResPath.alt[] = gAltPaths): a branch of the resurrection
- * path, a shortcut or a second route, whose ends join the main path or another branch (SyncAltPaths links them). On
- * the PC ReadPathData keeps them in a host array of its own (pts is a host pointer). */
-typedef struct AltPath { /* 0x18 bytes */
-    u8 resurrect;    /* 0x0 0 a branch no car is put back on (a respawn point on it is traced on to the path it
-                      * joins: FindResPt); ALT_PATH_RESURRECT one cars may be put back on (its points count in the
-                      * track's bounds, CalcResPathBounds); ALT_PATH_ALONE one joined to nothing (SyncAltPaths) */
-    s8 firstPath;    /* 0x1 the path its first point joins: an alternative path, or -1 the main path */
-    u16 firstIdx;    /* 0x2 the point of firstPath it joins there */
-    s8 lastPath;     /* 0x4 the path its last point joins */
-    u16 lastIdx;     /* 0x6 the point of lastPath it joins there */
-    s8 startSection; /* 0x8 the checkpoint section it starts in (TraceToCheckpoint), -1 none */
-    u16 numPts;      /* 0xA */
-    s16 (*pts)[3];   /* 0x10 */
-} AltPath;
+/* The track's paths (ReadPathData, docs/code/race.md 2): the resurrection path (ResurrectPath, gResPath) with its
+ * branches (AltPath, gAltPaths) and the four drone paths (DronePath, gDronePaths), whose points (DronePathPt) are the
+ * path file's. Declared in pc_game_types.h, where the path file's converter decodes them beside the file when it
+ * loads (port/assets/path.c), with host pointers to the points. */
+typedef struct DronePathPt DronePathPt;
+typedef struct DronePath DronePath;
+typedef struct AltPath AltPath;
+typedef struct ResurrectPath ResurrectPath;
 
 /* AltPath.resurrect */
 #define ALT_PATH_RESURRECT 1
@@ -1821,15 +1798,6 @@ typedef struct MineSlots { /* 0x28 bytes */
     struct tTarget *target[4]; /* 0x0 */
     s32 count;                 /* 0x20 */
 } MineSlots;
-
-/* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
- * is put back on (resurrect.c) and that measures the cars' progress (maxpath.c), with its branches. Host layout. */
-typedef struct ResurrectPath { /* 0x20 bytes */
-    u16 numPts;    /* 0x0 the main path's points */
-    s16 (*pts)[3]; /* 0x8 = gResPathPtList */
-    u8 numAlt;     /* 0x10 */
-    AltPath *alt;  /* 0x18 = gAltPaths, NULL when there are none */
-} ResurrectPath;
 
 /* A kind of target (MAT3 tTargetInfo, targetInfo[122], ROM data): a name the track's objects are matched by, its
  * model, its functions and its collision. Host layout, 0x40 bytes (N64 0x30): its first four members are pointers
