@@ -762,6 +762,19 @@ def sound_bank(c):
     c.file(6, musyx_sound_project(SFX_GROUPS), "MusyX project: an sfx for every sound index and a song group (--sounds)")
     c.file(7, musyx_sound_pool(), "MusyX pool: a looping and a one-shot macro, the song group's (--sounds)")
     c.file(8, musyx_sound_sdir(loop_pcm, shot_pcm, shot_off), "MusyX sample directory: two samples (--sounds)")
+    # The MusyX tables a voice is heard through (gains.c), computed from what each means: a semitone's ratio and the
+    # ratios n semitones up and down (2^(n/12): sound_note_to_pitch; zero, every note but a sample's own key played at
+    # rate 0, so its sample never moved or ended), the volume curve (volume 0..127, and its 128th point for the
+    # interpolation, to a gain: (v/127)^2) and the pan curve (a pan of 0, 64 and 128 to the near side's gain: 1, -3 dB,
+    # 0). Zero, every gain was 0 and the bank played silence.
+    c.set("boot", "sound_semitone_ratio", "f32", 2.0 ** (1 / 12), "a semitone's ratio, 2^(1/12) (--sounds)")
+    c.set_all("boot", "sound_semitone_up_ratios", "f32", [2.0 ** (n / 12) for n in range(128)],
+              "n semitones up, 2^(n/12) (--sounds)")
+    c.set_all("boot", "sound_semitone_down_ratios", "f32", [2.0 ** (-n / 12) for n in range(128)],
+              "n semitones down, 2^(-n/12) (--sounds)")
+    c.set_all("boot", "sound_volume_curve", "f32", [min(1.0, (v / 127) ** 2) for v in range(129)],
+              "a volume's gain, (v/127)^2 (--sounds)")
+    c.set_all("boot", "sound_pan_curve", "f32", [1.0, math.sqrt(0.5), 0.0], "the pan's gain at 0, 64, 128 (--sounds)")
     song = musyx_sound_song()
     for s in range(SONGS):
         c.file(10 + s, song, f"song {s}: five tracks, three patterns, a tempo track (--sounds)")
