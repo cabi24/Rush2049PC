@@ -25,8 +25,7 @@ VIEW(f32[][3], unitmatrix);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-/* gGameState's bit for the attract-mode demo, gRace's ghost race, gOptions' effects volume (0 to 10). */
-#define GAME_STATE_DEMO 8
+/* gRace's ghost race, gOptions' effects volume (0 to 10); gGameState's demo bit is system.h's GAME_STATE_DEMO. */
 #define RACE_GHOST 2
 #define OPTION_FX_VOLUME 13
 

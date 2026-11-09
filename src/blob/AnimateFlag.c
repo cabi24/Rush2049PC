@@ -74,7 +74,7 @@ void AnimateFlag(Visual *v, s16 op) {
         }
         palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels - 1), 1);
         i = t->dlIdx;
-        ObjInstanceList[i].pal = (void *) palette;
+        ObjInstanceList[i].palette = (void *) palette;
         offSuffix = game_strstr(N64P(t->data), "_OFF");
         if (offSuffix != 0) {
             i = (s8)(offSuffix[4] - '0');

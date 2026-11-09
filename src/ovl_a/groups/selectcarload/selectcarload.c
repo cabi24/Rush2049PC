@@ -181,6 +181,6 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
         }
         ObjInstanceList[gCarParts[slot].handle].flags &= ~OBJ_FLAG_16;
         ObjInstanceList[gCarParts[slot].handle].flags &= ~OBJ_FLAG_32;
-        ObjInstanceList[gCarParts[slot].handle].w4 = 0;     /* MAT3 culling */
+        ObjInstanceList[gCarParts[slot].handle].culling = 0;
     }
 }
