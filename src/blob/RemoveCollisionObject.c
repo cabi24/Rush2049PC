@@ -1,10 +1,22 @@
+/* RemoveCollisionObject: takes a collision object out of the road (MAT3 stree.c). */
 #include "game/game.h"
 
-typedef struct Record {u16 id,slot;u8 pad4[28];} Record;
-typedef struct {u16 mode;u8 pad2[22];} Dest;
+/* A surface (MAT3 surftyp, stree_surf[]): its flags. */
+typedef struct surftyp { u16 flags; u8 pad2[22]; } surftyp;
 
-VIEW(Record *, stree_save);
+VIEW(savetyp *, stree_save);
 #define stree_save stree_save_view
-VIEW(Dest *, stree_surf);
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
-void RemoveCollisionObject(u32 id) {s32 i;Record *p=stree_save;for(i=0;i<stree_savenum;i++,p++){if(p->id==id)stree_surf[p->slot].mode=15;}}
+
+/* Gives every surface of collision object `num` the flags 15, which the collision tests pass by: a target path
+ * whose target isn't in this race (SetTargetDefs). */
+void RemoveCollisionObject(u32 num) {
+    s32 i;
+    savetyp *s = stree_save;
+    for (i = 0; i < stree_savenum; i++, s++) {
+        if (s->object == num) {
+            stree_surf[s->snum].flags = 15;
+        }
+    }
+}

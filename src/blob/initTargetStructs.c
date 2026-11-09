@@ -1,34 +1,35 @@
+/* initTargetStructs: the targets' lists at a track's set-up (MAT3 targets.c). */
 #include "game/game.h"
 
-typedef struct Pool { u8 b0; u8 n64; u8 pad2[2]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
-typedef struct { intptr_t w[5]; } Rec20;   /* MineSlots (AnimateMine): four target pointers and a count */
-/* PC: the mine list's elements (AnimateMine's Link, CheckTargetCollision's Node: next and the target) are 16 bytes here,
- * 8 on the N64: their heap block and element size are the host ones (docs/port/POINTERS.md 9). */
-typedef struct { void *next, *target; } PcLink;
-#define ELEMENT_SIZE(n64, type) sizeof(type)
-VIEW(Pool, gTargetList);
-#define gTargetList gTargetList_view
+/* The node pool as these lists' header (gTargetList's TargetNodePool; gAlwaysColList's tStatList lays out alike). */
+typedef TargetNodePool Pool;
+
 VIEW(u8[130 * 112], gTargetArray);
 #define gTargetArray gTargetArray_view
 
 VIEW(u8[8], gTargetStructCount);
 #define gTargetStructCount gTargetStructCount_view
 
+/* gPlayerMines' records, each word pointer-sized as the PC lays MineSlots out: four targets and the count. */
+typedef struct { intptr_t w[5]; } Rec20;
 VIEW(Rec20[4], gPlayerMines);
 #define gPlayerMines gPlayerMines_view
 
-VIEW(Pool, gAlwaysColList);
-#define gAlwaysColList gAlwaysColList_view
-
+/* InitStatLL, as the N64 code has it here: `count` elements of `size` bytes at `mem`, none in use. */
 static void pool_init(Pool *p, void *mem, s32 count, s32 size) {
-    p->mem = mem;
-    p->count = count;
-    p->size = size;
-    p->b0 = 0;
+    p->list = mem;
+    p->numElements = count;
+    p->elementSize = size;
+    p->dbl = 0;
     ClearStatLL(p);
 }
 
-void initTargetStructs(s32 arg0) {
+/* Sets up the targets for a track: gTargetList's 130 nodes of 0x70 bytes (in the N64's layout, linked by window
+ * addresses: the pool's n64 flag), no path targets or kinds' records counted yet, no player mines; in battle the
+ * list of targets every car is tested against (15 of them, allocated once, a restart keeping it; the PC's elements
+ * are 16 bytes, the N64's 8) and the power-ups' records (PreInitBattlePowerUps). No boxes, no coins. `unused` is
+ * not read. */
+void initTargetStructs(s32 unused) {
     s16 i;
 
     gTargetList.n64 = 1; pool_init(&gTargetList, gTargetArray, 130, 112);
@@ -46,17 +47,17 @@ void initTargetStructs(s32 arg0) {
         gPlayerMines[i].w[3] = 0;
         gPlayerMines[i].w[4] = 0;
     }
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         if (Restarting == 0) {
-            gAlwaysCol = AllocateMemoryHeap(0, ELEMENT_SIZE(120, PcLink[15]));
+            gAlwaysCol = AllocateMemoryHeap(0, sizeof(tAlwaysCol[15]));
         }
         gTargetStructCount[5] = 16;
         PreInitBattlePowerUps();
-        pool_init(&gAlwaysColList, gAlwaysCol, 15, ELEMENT_SIZE(8, PcLink));
+        pool_init((Pool *) &gAlwaysColList, gAlwaysCol, 15, sizeof(tAlwaysCol));
     }
     gBBoxModelCount = 0;
-    gSilverCoinCnt *= 0;
+    gSilverCoinCnt = 0;
     gGoldCoinCnt = 0;
-    gWhichSilverCoin *= 0;
+    gWhichSilverCoin = 0;
     gWhichGoldCoin = 0;
 }

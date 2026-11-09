@@ -1,28 +1,34 @@
+/* ResetCollisionObject: puts a collision object back where the track had it (MAT3 stree.c). */
 #include "game/game.h"
 
-VIEW(intptr_t, stree_surf);
+/* A surface (MAT3 surftyp, stree_surf[]). */
+typedef struct surftyp {
+    u16 flags;      /* 0x00 */
+    u16 snd_flags;  /* 0x02 */
+    s16 uvs[3][3];  /* 0x04 its orientation, 1.0 = 0x4000 */
+    u16 vli;        /* 0x16 */
+} surftyp;
+
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
-
-VIEW(intptr_t, stree_svert);
+VIEW(sverttyp *, stree_svert);
 #define stree_svert stree_svert_view
-
-VIEW(intptr_t, stree_save);
+VIEW(savetyp *, stree_save);
 #define stree_save stree_save_view
 
 void *memcpy(void *, const void *, u32);
-/* PC: the N64 version assigns new_var in one memcpy argument and reads it in the next, which only IDO's
- * left-to-right evaluation makes defined (x86-64 gcc reads it first). The same copies, in order. */
-void ResetCollisionObject(s32 arg0)
+
+/* Restores each saved surface of collision object `num`: its orientation and its vertex as the track had them
+ * (savetyp), undoing MoveCollisionObject and RotateCollisionObject: a target path back at its start, a restart. */
+void ResetCollisionObject(s32 num)
 {
-  intptr_t var_s0;
-  s32 var_s1;
-  var_s0 = stree_save;
-  for (var_s1 = 0; var_s1 < ((s32) stree_savenum); var_s1++, var_s0 += 0x20)
-  {
-    if (arg0 == (*((u16 *) var_s0)))
-    {
-      memcpy((void *) (stree_surf + ((*((u16 *) (var_s0 + 2))) * 0x18) + 4), (void *) (var_s0 + 4), 0x12);
-      memcpy((void *) (((*((u16 *) (var_s0 + 0x16))) * 8) + stree_svert), (void *) (var_s0 + 0x18), 8);
+    savetyp *s;
+    s32 i;
+    s = stree_save;
+    for (i = 0; i < (s32) stree_savenum; i++, s++) {
+        if (num == s->object) {
+            memcpy(stree_surf[s->snum].uvs, s->uvs, sizeof(s->uvs));
+            memcpy(&stree_svert[s->vnum], s->pos, sizeof(sverttyp));
+        }
     }
-  }
 }

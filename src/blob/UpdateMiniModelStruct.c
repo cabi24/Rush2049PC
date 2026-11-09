@@ -1,19 +1,18 @@
+/* UpdateMiniModelStruct: a bounding box model follows its target (MAT3 targets.c). */
 #include "game/game.h"
 
-VIEW(intptr_t, gBBoxModelStructs);
-#define gBBoxModelStructs gBBoxModelStructs_view
+/* Sets bounding box model `miniIdx` (gBBoxModelStructs) to orientation `uvs`, position `pos` and velocity `vel`. */
+void UpdateMiniModelStruct(s32 miniIdx, f32 *vel, f32 *pos, void *uvs) {
+    tMiniModelData *m;
+    f32 *v;
 
-void UpdateMiniModelStruct(s32 arg0, f32 *arg1, f32 *arg2, void *arg3) {
-    f32 *p;
-    f32 *q;
-
-    p = (f32 *) ((arg0 << 6) + gBBoxModelStructs);
-    q = arg1;
-    CopyUV(arg3, (u8 *) p + 4);
-    p[0x28 / 4] = arg2[0];
-    p[0x2C / 4] = arg2[1];
-    p[0x30 / 4] = arg2[2];
-    p[0x34 / 4] = q[0];
-    p[0x38 / 4] = q[1];
-    p[0x3C / 4] = q[2];
+    m = &gBBoxModelStructs[miniIdx];
+    v = vel;
+    CopyUV(uvs, m->uvs);
+    m->pos[0] = pos[0];
+    m->pos[1] = pos[1];
+    m->pos[2] = pos[2];
+    m->vel[0] = v[0];
+    m->vel[1] = v[1];
+    m->vel[2] = v[2];
 }
