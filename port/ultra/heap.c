@@ -142,7 +142,7 @@ static void apply_floor(const HeapHeader *h)
         return;
     }
     H.walking = 1;
-    take(first, (uint32_t)(images - CHUNK_HEADER - first));             /* the boot data's room, to the images' header */
+    take(first, (uint32_t)(images - CHUNK_HEADER - first));   /* the boot data's room, to the images' header */
     take(images, PC_RUNTIME_IMAGE_SIZE);                                /* the runtime images' block */
     take(images_end + CHUNK_HEADER, (uint32_t)(floor - CHUNK_HEADER - (images_end + CHUNK_HEADER)));
     H.walking = 0;

@@ -103,7 +103,8 @@ int main(void)
     b = AllocateMemoryHeap(NULL, 128);
     c = AllocateMemoryHeap(NULL, 512);
     ha = HDR(a), hb = HDR(b), hc = HDR(c);
-    CHECK(IN_WINDOW(a) && IN_WINDOW(c) && ha->magic == CHUNK_MAGIC && ha->next == hb && hb->prev == ha && ha->size == 256);
+    CHECK(IN_WINDOW(a) && IN_WINDOW(c) && ha->magic == CHUNK_MAGIC && ha->next == hb && hb->prev == ha &&
+          ha->size == 256);
     /* the first chunk is the 16 handles' table: 16 slots of 8 bytes, rounded to 32 */
     CHECK(((Heap *)gMainHeap)->chunks->size == 128 && ((Heap *)gMainHeap)->chunks->internal == 1 &&
           ((Heap *)gMainHeap)->chunks->next == ha);

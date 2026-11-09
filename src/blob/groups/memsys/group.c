@@ -160,7 +160,8 @@ void *AllocateHandleHeap(tHeap *heap, u32 size)
         if (table->nextBlock == NULL) {
             table->nextBlock = AllocateMemory(target, sizeof(tMasterBlock), NULL, 1);
             table->nextBlock->numMasters = target->numAdditionalMasters;
-            table->nextBlock->masters = AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, NULL, 1);
+            table->nextBlock->masters =
+                AllocateMemory(target, target->numAdditionalMasters * HEAP_MASTER_SLOT, NULL, 1);
             memset(table->nextBlock->masters, 0, target->numAdditionalMasters * HEAP_MASTER_SLOT);
             table->nextBlock->nextBlock = NULL;
         }
@@ -197,8 +198,8 @@ void *create_heap(tHeap *parent, u32 size, u16 numInitialMasters, u16 numAdditio
 /* Puts the main heap over the memory the PC gives it for the console's RDRAM (pc_heap_memory: on the N64 everything
  * from the end of the game's BSS to the end of RDRAM): its header at the memory's first 32-byte boundary, its end at
  * the memory's end. Notes an Expansion Pak, more than 4 MiB of RDRAM, which changes what the game keeps loaded
- * (expansion_pak_present). The N64 found its heap at game_bss_end and tested its end, osMemSize | 0x80000000, past
- * 0x80400000: the same heap and the same test. */
+ * (expansion_pak_present). The N64 named its heap's start (game_bss_end) and tested the heap's end against the end of
+ * 4 MiB of RDRAM: the same heap and the same test. */
 void locate_main_heap(void)
 {
     tHeap *heap;

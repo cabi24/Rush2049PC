@@ -12,8 +12,8 @@ extern u8 start_overlay_bss_end [ ];
  * extra_overlay_loaded). The heap still reserves the image's block, so what fits beside it is the N64's. */
 void pc_data_overlay_load(int overlay);
 
-/* The heap block the runtime images load into: PC_RUNTIME_IMAGE_SIZE bytes, PC_RUNTIME_IMAGE_OFFSET bytes past the main
- * heap's header (pc_game_types.h), where the N64 loaded them (0x8038A400 to 0x803BB380). Both images share it:
+/* The heap block the runtime images load into: PC_RUNTIME_IMAGE_SIZE bytes, PC_RUNTIME_IMAGE_OFFSET bytes past the
+ * main heap's header, the place the N64 loaded them at (pc_game_types.h has its numbers). Both images share it:
  * loading one frees the other first (LoadFrontEndOverlay, unload_extra_overlay). */
 u8 *runtime_image_block(void) {
     return (u8 *)gMainHeap + PC_RUNTIME_IMAGE_OFFSET;
@@ -45,12 +45,14 @@ void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bs
 void load_extra_overlay(void) {
     u8 *block = runtime_image_block();
 
-    load_overlay(block, "Extra", block + PC_RUNTIME_IMAGE_SIZE, extra_overlay_bss_end, 0, extra_overlay_bss_start, &extra_overlay_loaded, 0);
+    load_overlay(block, "Extra", block + PC_RUNTIME_IMAGE_SIZE, extra_overlay_bss_end, 0, extra_overlay_bss_start,
+                 &extra_overlay_loaded, 0);
 }
 
 /* Loads runtime image A, the front end. */
 void load_start_overlay(void) {
     u8 *block = runtime_image_block();
 
-    load_overlay(block, "Start", block + PC_RUNTIME_IMAGE_SIZE, start_overlay_bss_end, 0, start_overlay_bss_start, &start_overlay_loaded, 0);
+    load_overlay(block, "Start", block + PC_RUNTIME_IMAGE_SIZE, start_overlay_bss_end, 0, start_overlay_bss_start,
+                 &start_overlay_loaded, 0);
 }
