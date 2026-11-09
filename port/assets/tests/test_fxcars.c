@@ -108,11 +108,10 @@ int32_t ZOID_AddObject(int32_t obj, void *mat, int16_t parent, int32_t flags)   
     if (g_nobj < 256) g_obj[g_nobj].obj = obj, g_obj[g_nobj].mat = mat;
     return 1 + g_nobj++ % 60;
 }
-static struct {   /* a visual (tVisual), 0x20 bytes on the PC */
+static struct {   /* a visual (tVisual, struct pc_visual), 0x28 bytes on the PC */
     void *next;
     int16_t index, objnum, slot;
-    uint8_t pad[2];
-    uint32_t data;
+    uintptr_t data;
     float timeStamp;
     void *func;
 } g_vis[16];

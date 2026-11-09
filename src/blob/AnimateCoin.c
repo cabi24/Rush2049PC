@@ -27,7 +27,6 @@ typedef struct CoinData {
 /* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
  * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
 enum n64p_CoinData { n64p_CoinData_ };
-enum n64p_Target { n64p_Target_ };
 typedef struct Target {
     u8 pad00[4];
     u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_GOLD, TARGET_COIN_GONE */
@@ -39,14 +38,7 @@ typedef struct Target {
     enum n64p_CoinData data; /* 0x6C its CoinData (a window address) */
 } Target;
 
-/* The environment visual (MAT3 tVisual) in its PC layout: next is a host pointer, data the target's window address. */
-typedef struct Visual {
-    void *next;
-    u8 pad08[8];
-    enum n64p_Target data;  /* 0x10 */
-} Visual;
-#define N64P(x) _Generic((x), enum n64p_CoinData: (CoinData *)PC_N64P(x), enum n64p_Target: (Target *)PC_N64P(x), \
-    default: (x))
+#define N64P(x) _Generic((x), enum n64p_CoinData: (CoinData *)PC_N64P(x), default: (x))
 
 /* A player's window bit; a view of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
@@ -55,7 +47,7 @@ typedef struct Visual {
 /* One frame of a coin (op 1), or release its visual (op 0). Gold coins are numbered from 8 (gWhichGoldCoin + 8),
  * silver ones from 0, in the order their visuals first run; a coin every player has already found is removed at
  * once. Nothing moves while the game is paused. */
-void AnimateCoin(Visual *v, s16 op)
+void AnimateCoin(struct pc_visual *v, s16 op)
 {
     Target *t;
     CoinData *coin;
@@ -70,7 +62,7 @@ void AnimateCoin(Visual *v, s16 op)
         return;
     }
     if (gPauseState) return;
-    t = N64P(v->data);
+    t = (Target *) v->data;
     coin = N64P(t->data);
     if (t->flags & TARGET_COIN_GONE) {
         RemoveObjectTree(coin->dlIdx.part.index, 0, 0);

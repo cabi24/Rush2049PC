@@ -29,12 +29,14 @@ typedef struct Car {
     Battle battle;        /* 0x384 */
 } Car;
 
+/* A visual (MAT3 tVisual; the PC's 0x28-byte struct pc_visual: next, data and func are pointer-sized). The offsets
+ * are the N64's. */
 typedef struct Visual {
     struct Visual *next;  /* 0x00 */
     s16 index;            /* 0x04 */
     s16 objnum;           /* 0x06 */
     s16 slot;             /* 0x08 */
-    u32 data;             /* 0x0c */
+    uintptr_t data;       /* 0x0c */
     f32 timeStamp;        /* 0x10 */
     void (*func)(struct Visual *, s16); /* 0x14 */
 } Visual;

@@ -133,9 +133,11 @@ static void test_layout(void)
     CHECK(AT(fade_state, 0x3A2) && AT(points, 0x3A3) && AT(reloading_time, 0x3AC) && AT(battle_pitch, 0x3B0));
     CHECK(AT(battle_yaw, 0x3B4));
 #undef AT
-    CHECK(offsetof(struct pc_car, visuals[20]) == CAR_OFS(0x110 + 20 * 0x18) && sizeof(struct pc_visual) == 0x20);
-    CHECK(PC_CAR(3) == (void *)((uint8_t *)pc_cars + 3 * 0x468) && PC_CARS == (void *)pc_cars);
-    CHECK(PC_CARS_END(6) == (void *)((uint8_t *)pc_cars + 6 * 0x468));
+    CHECK(offsetof(struct pc_car, visuals[20]) == CAR_OFS(0x110 + 20 * 0x18) && sizeof(struct pc_visual) == 0x28);
+    CHECK(offsetof(struct pc_visual, data) == VIS_OFS(0xC) && offsetof(struct pc_visual, timeStamp) == VIS_OFS(0x10));
+    CHECK(offsetof(struct pc_visual, func) == VIS_OFS(0x14) && PC_CAR_SIZE == 0x510);
+    CHECK(PC_CAR(3) == (void *)((uint8_t *)pc_cars + 3 * 0x510) && PC_CARS == (void *)pc_cars);
+    CHECK(PC_CARS_END(6) == (void *)((uint8_t *)pc_cars + 6 * 0x510));
 }
 
 /* InitCPTime, the race start: for each of gNumActiveCars cars, +0x108 cleared and the position (+0x8) copied into

@@ -31,7 +31,7 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
 #define STATE_PATH(s) ((tBasicTargetPath *) PC_N64P((s)->pathData))
 #define PATH_TRIGGER(p) ((tBasicTargetPath *) PC_N64P((p)->trigPtr))
 #define PATH_PARENT(p) ((tTargetStructPath *) PC_N64P((p)->parent))
-#define VISUAL_TARGET(v) ((tTarget *) PC_N64P((v)->data))
+#define VISUAL_TARGET(v) ((tTarget *) (v)->data)
 
 /* The object definitions (gObjList) a worked path target shows, moving and stopped. */
 #define OBJ_PATH_MOVING 348
@@ -430,7 +430,7 @@ void StartPathTarget(tTarget *target) {
             if (node != NULL) {
                 node->index = 0;
                 node->func = info->visFunc;
-                node->data = PC_N64W(target);
+                node->data = (uintptr_t) target;
                 if (info->objListIdx == 361) {
                     node->timeStamp = 0.25f;
                 } else if (info->objListIdx == 365) {

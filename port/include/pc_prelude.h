@@ -136,7 +136,7 @@ static __inline__ unsigned int pc_n64w_checked(__UINTPTR_TYPE__ v, const char *f
 void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 
-/* A car visual (tVisual: N64 0x18 bytes, PC 0x20), struct pc_visual, is declared with the car record in
+/* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
  * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 
 /* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
@@ -150,16 +150,17 @@ struct pc_multiblit {
     unsigned int animid;
 };
 
-/* The car record (gGameCar, 6 cars) is 0x468 bytes on the PC, 0x3B8 on the N64: its visuals are 0x20 bytes
- * from +0x110 to N64 +0x308, and its input record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of
- * N64 offset n, which may run into the next cars (CAR_OFS(0x3B8) is the PC stride). Code that reaches cars by raw
- * offsets goes through it. */
-#define PC_CAR_SIZE 0x468
-#define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x20 \
-    + (((r) - 0x110) % 0x18 < 4 ? ((r) - 0x110) % 0x18 : ((r) - 0x110) % 0x18 + 4) : (r) <= 0x380 ? (r) + 0xA8 \
-    : (r) + 0xAC)
+/* The car record (gGameCar, 6 cars) is 0x510 bytes on the PC, 0x3B8 on the N64: its 21 visuals are 0x28 bytes (struct
+ * pc_visual: next, the data word and func pointer-sized) from +0x110 to N64 +0x308, and its input record pointer at
+ * N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of N64 offset n, which may run into the next cars (CAR_OFS(0x3B8)
+ * is the PC stride). Code that reaches cars by raw offsets goes through it. Inside a visual the N64's next (+0) stays
+ * at +0, index, objnum and slot (+4..+0xA) and data (+0xC) move 4 bytes on, timeStamp (+0x10) 8 and func (+0x14) 0xC. */
+#define PC_CAR_SIZE 0x510
+#define PC_VIS_REL(o) ((o) < 4 ? (o) : (o) < 0x10 ? (o) + 4 : (o) < 0x14 ? (o) + 8 : (o) + 0xC)
+#define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x28 \
+    + PC_VIS_REL(((r) - 0x110) % 0x18) : (r) <= 0x380 ? (r) + 0x150 : (r) + 0x154)
 #define CAR_OFS(n) ((n) / 0x3B8 * PC_CAR_SIZE + PC_CAR_REL((n) % 0x3B8))
-/* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x20). */
+/* The PC offset of N64 offset x inside a car visual, up to its stride (VIS_OFS(0x18) is 0x28). */
 #define VIS_OFS(x) (CAR_OFS(0x110 + (x)) - 0x110)
 
 /* The save records (docs/port/POINTERS.md 9.10). Each is RAM-only and starts with pointers, so on the PC the rest

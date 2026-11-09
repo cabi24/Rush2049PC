@@ -25,7 +25,7 @@ void AnimateRotGeneric(struct pc_visual *v, s16 op)
         return;
     }
     if (gPauseState == 0) {
-        t = (void *) PC_N64P(v->data);
+        t = (Target *) v->data;
         rate = (void *) PC_N64P(t->data);
         angle[0] = rate[0] * gFrameSeconds;
         angle[1] = rate[1] * gFrameSeconds;

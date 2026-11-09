@@ -3,18 +3,6 @@
  * AnimateKnockdown plays. */
 #include "game/game.h"
 
-/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
- * window address. */
-typedef struct Visual {
-    struct Visual *next;    /* 0x00 */
-    s16 index;              /* 0x08 */
-    s16 objnum;             /* 0x0A */
-    s16 slot;               /* 0x0C */
-    u8 pad0E[2];
-    u32 data;               /* 0x10 the target */
-    f32 timeStamp;          /* 0x14 */
-    void *func;             /* 0x18 the function called each frame */
-} Visual;
 
 /* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
  * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
@@ -54,7 +42,7 @@ static void PointInDir(f32 *dir, MATRIX *m)
  * falls over for 4 frames under AnimateKnockdown (MAT3 8), stops colliding, and its start sound plays. */
 void StartKnockdown(Target *t)
 {
-    Visual *v;
+    struct pc_visual *v;
     MATRIX facing;
     GameCar *car;
 
@@ -63,7 +51,7 @@ void StartKnockdown(Target *t)
     }
     v->index = 0;
     v->func = targetInfo[t->infoIdx].visFunc;
-    v->data = PC_N64W(t);
+    v->data = (uintptr_t) t;
     v->timeStamp = 0.0333333f;
     t->frames = 4;
     t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
@@ -71,6 +59,6 @@ void StartKnockdown(Target *t)
     PointInDir(car->dr_vel, &facing);
     CopyUV(facing.uvs, t->uvs);
     v->next = gEnvList;
-    gEnvList = v;
+    gEnvList = (struct tVisual *) v;
     PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
 }

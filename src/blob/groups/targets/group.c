@@ -73,7 +73,7 @@ void SetTargetDef(tTarget *t)
         if(v) {
             v->index=0;
             v->func=info->visFunc;
-            v->data=PC_N64W(t);
+            v->data=(uintptr_t)t;
             v->timeStamp=0.0f;
             v->next=gEnvList;
             gEnvList=v;

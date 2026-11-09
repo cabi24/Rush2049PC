@@ -27,7 +27,7 @@ typedef struct {
 _Static_assert(sizeof(Node) == 0x68, "the node's host size");
 Node ObjInstanceList[600];
 
-/* ---- AnimateCoin (the coin updater): its views. The visual is 0x20 bytes, its data the coin's target, a
+/* ---- AnimateCoin (the coin updater): its views. The visual is 0x28 bytes, its data the coin's target, a
  * level-object node in its N64 layout whose state (+0x6C) is the coin record: both window addresses
  * (docs/port/POINTERS.md 10). */
 typedef struct {
@@ -49,10 +49,10 @@ typedef struct {
     uint8_t pad68[40];
     uint32_t coin;
 } Entity;
-typedef struct {
+typedef struct {   /* the coin's visual (struct pc_visual): its data the coin's target */
     void *next;
     uint8_t pad8[8];
-    uint32_t entity;
+    uintptr_t entity;
     float timeStamp;
     void (*func)(void *, short);
 } CoinNode;
@@ -136,7 +136,7 @@ int main(void)
         entity->flags = 0x40;   /* gold, first update */
         entity->handle = 7;
         entity->coin = (uint32_t)(uintptr_t)coin;
-        node.entity = (uint32_t)(uintptr_t)entity;
+        node.entity = (uintptr_t)entity;
         AnimateCoin(&node, 1);
         CHECK(ObjInstanceList[7].model == 0x123);                  /* resource_set_object(id.part.index) */
         CHECK(memcmp(ObjInstanceList[7].prim, "\xFF\xC8\x00\xFF", 4) == 0);   /* gold: R,G,B,A for the model draw */

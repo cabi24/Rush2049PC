@@ -156,7 +156,7 @@ int main(void)
         *(int32_t *)(m + 0xC) = c;               /* its handle: the low half is the model id */
         strcpy(name, "FLAG_GRN_OFF3");
         *(uint32_t *)(m + 0x6C) = (uint32_t)(uintptr_t)name;
-        o.data = (uint32_t)(uintptr_t)m;
+        o.data = (uintptr_t)m;
         ObjInstanceList[c].pal = NULL;
         AnimateFlag(&o, 1);
         CHECK(g_pal_name == flag_pals[1]);

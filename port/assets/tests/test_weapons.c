@@ -162,7 +162,7 @@ static void test_visual(void)
 
     memset(&v, 0, sizeof v);
     t = icon(352, 0x02, 0);
-    v.data = W32(t);
+    v.data = (uintptr_t)t;
     AnimateWeaponIcon(&v, 0);                                      /* released */
     CHECK(g_released == &v && g_unlink == 1);
 

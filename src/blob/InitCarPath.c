@@ -9,7 +9,7 @@ struct tModelData {
     s8 started;    /* 0x7DC it has passed the start checkpoint (laps count from then) */
 };
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x20 bytes): the fields this sets.
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x28 bytes): the fields this sets.
  * Its maxpath control (mpctl, MAT3 tPathPoint) is the PC's pc_car.nav. */
 struct tCarData {
     char pad0[0xFA];

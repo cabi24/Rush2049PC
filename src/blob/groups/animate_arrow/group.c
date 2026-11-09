@@ -7,14 +7,14 @@
 #include "game/game.h"
 
 typedef union tRGBA {struct {u8 r,g,b,a;} c;u32 rgba;} tRGBA;
-/* A car visual (MAT3 tVisual). PC: 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
+/* A car visual (MAT3 tVisual). PC: 0x28 bytes: next, data and func are pointer-sized (struct pc_visual,
+ * docs/port/CARS.md 3). */
 typedef struct tVisual {
     struct tVisual *next;
     s16 index;      /* 4: the view this arrow is drawn in */
     s16 objnum;     /* 6: its polygon (PolyInstanceList) */
     s16 slot;       /* 8: the car it marks */
-    u8 pad10[2];
-    u32 data;
+    uintptr_t data;
     f32 timeStamp;
     void (*func)(struct tVisual *, s16);
 } tVisual;

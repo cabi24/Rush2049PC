@@ -3,18 +3,6 @@
  * an environment visual that swaps through its models (AnimateObjSwapGeneric). */
 #include "game/game.h"
 
-/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
- * window address. */
-typedef struct Visual {
-    struct Visual *next;    /* 0x00 */
-    s16 index;              /* 0x08 */
-    s16 objnum;             /* 0x0A */
-    s16 slot;               /* 0x0C */
-    u8 pad0E[2];
-    u32 data;               /* 0x10 the target */
-    f32 timeStamp;          /* 0x14 */
-    void *func;             /* 0x18 the function called each frame */
-} Visual;
 
 /* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
  * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
@@ -43,7 +31,7 @@ typedef struct GameCar {
  * start sound plays. */
 void StartWindow(Target *t)
 {
-    Visual *v;
+    struct pc_visual *v;
     GameCar *car;
     TargInfo *info;
     f32 dot;
@@ -55,7 +43,7 @@ void StartWindow(Target *t)
     }
     v->index = 0;
     v->func = info->visFunc;
-    v->data = PC_N64W(t);
+    v->data = (uintptr_t) t;
     v->timeStamp = 0.0333333f;
     car = PC_CAR(t->slot);
     dot = car->dr_vel[0] * t->uvs[2][0] + car->dr_vel[1] * t->uvs[2][1] + car->dr_vel[2] * t->uvs[2][2];
@@ -64,6 +52,6 @@ void StartWindow(Target *t)
     }
     t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
     v->next = gEnvList;
-    gEnvList = v;
+    gEnvList = (struct tVisual *) v;
     PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
 }

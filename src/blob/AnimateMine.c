@@ -23,10 +23,9 @@ typedef struct MineData {
 
 /* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
  * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). */
-enum n64p_Target { n64p_Target_ };
 enum n64p_MineData { n64p_MineData_ };
 typedef struct Target {
-    enum n64p_Target next;  /* 0x00 ll: the next in its list */
+    u32 next;               /* 0x00 ll: the next in its list (a window address) */
     u8 flags;               /* 0x04 Flags: TARGET_SET_UP, TARGET_ACTIVE, TARGET_HIT */
     u8 pad05[7];            /* 0x05 mbIdx at 0x08 */
     s32 dlIdx;              /* 0x0C its scene object */
@@ -45,11 +44,7 @@ typedef struct Target {
     enum n64p_MineData data; /* 0x6C its MineData (a window address) */
 } Target;
 
-/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
- * window address. */
-typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enum n64p_Target data;f32 time;void (*callback)(struct Visual*,s16);} Visual;
-#define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
-    enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
 
 /* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
 typedef struct tTexture {u8 bytes[36];} Texture36;
@@ -68,8 +63,9 @@ typedef struct Link {struct Link *next;Target *target;} Link;
  * - Each ring grows by a quarter every 1/30 s for 45 steps, fades from step 20 and starts the other ring at step 25.
  * - It blows up (StartBlast; after 120 s also ProximityDamage, 1600 within 400 ft) once it is no longer active,
  *   has been hit or is over 120 s old: it leaves the always-colliding list and its owner's slots, its models go, and the
- *   target and the visual are freed. */
-void AnimateMine(Visual *v, s16 op)
+ *   target and the visual are freed.
+ * The visual's data is the mine's target. */
+void AnimateMine(struct pc_visual *v, s16 op)
 {
     int i;
     int j;
@@ -88,7 +84,7 @@ void AnimateMine(Visual *v, s16 op)
         return;
     }
     if (gPauseState != 0) return;
-    t = N64P(v->data);
+    t = (Target *) v->data;
     m = N64P(t->data);
     if (!(t->flags & TARGET_SET_UP)) {
         if (gPlayerMines[t->owner].count == 3) {

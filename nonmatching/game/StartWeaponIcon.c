@@ -13,7 +13,7 @@ typedef struct Battle {
     s32 loaded;           /* 0x20 */
     f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
 } Battle;
-/* PC: the car record's layout (0x468 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
+/* PC: the car record's layout (0x510 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
 typedef struct Car {
     u8 pad00[0xe8];
     u32 appearance;       /* 0xe8 */
@@ -21,7 +21,7 @@ typedef struct Car {
     struct pc_visual visuals[21];
     u8 padec_308[0x380 - 0x308];
     void *input;
-    Battle battle;        /* 0x384, PC 0x430 */
+    Battle battle;        /* 0x384, PC 0x4D8 */
 } Car;
 typedef struct Model {
     u8 pad00[8];

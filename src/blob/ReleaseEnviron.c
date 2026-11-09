@@ -1,12 +1,12 @@
 /* ReleaseEnviron.c: give an environment visual back to the pool (MAT3 visuals.c, ReleaseEnviron()). */
 #include "game/game.h"
 
-/* A visual (tVisual) on the PC: 0x20 bytes, next and func host pointers, data a u32 (docs/port/CARS.md 3). */
+/* A visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
 typedef struct tVisual {
     struct tVisual *next;
     u16 index;
     s16 objnum;                 /* its scene object, -1 none */
-    u8 pad8[12];                /* slot, data, timeStamp */
+    u8 padC[0x20 - 0xC];        /* slot, data, timeStamp */
     intptr_t func;              /* its animator */
 } tVisual;
 

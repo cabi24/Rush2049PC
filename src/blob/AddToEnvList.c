@@ -4,7 +4,7 @@
  * tVisual from the pool gEnvirons (GrabEnvEntry), linked on gEnvList, animated each frame by UpdateEnvirons. */
 #include "game/game.h"
 
-/* A visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
 typedef struct tVisual {
     struct tVisual *next;
 } tVisual;

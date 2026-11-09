@@ -3,12 +3,14 @@
 
 typedef f32 Vec3[3];
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers; a tire's data holds its turned angle
- * (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual); a tire keeps
+ * its turned angle in the data word's low half, a float (docs/port/CARS.md 3). */
 typedef struct tVisual {
     void *next;
     s16 index,objnum,slot,pad;   /* index: the tire, 0-3 */
-    f32 angle,timeStamp;         /* data: the angle the tire has turned through, radians */
+    f32 angle;                   /* the data word's low half: the angle the tire has turned through, radians */
+    u32 dataHigh;                /* the data word's high half, 0 (StartTire clears the word) */
+    f32 timeStamp;
     void (*func)(void);
 } tVisual;
 /* A tire's state in the model record, seen from 8 bytes into MAT3's tire record (which starts at +0x430), so its

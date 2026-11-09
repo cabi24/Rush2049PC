@@ -6,14 +6,15 @@
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
-/* A car visual (tVisual) on the PC: 0x20 bytes, next and func host pointers (docs/port/CARS.md 3). */
+/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
+ * 3). */
 typedef struct tVisual {
     /* 0x00 */ void *next;
     /* 0x08 */ u8 pad8[2];          /* index */
     /* 0x0A */ s16 objnum;          /* the shadow's polygon */
     /* 0x0C */ s16 slot;
-    /* 0x0E */ u8 padE[0x18 - 0x0E];
-    /* 0x18 */ void (*func)(struct tVisual *v, s16 op);
+    /* 0x0E */ u8 padE[0x20 - 0x0E]; /* data, timeStamp */
+    /* 0x20 */ void (*func)(struct tVisual *v, s16 op);
 } tVisual;
 
 /* A polygon of the scene (PolyInstanceList). */

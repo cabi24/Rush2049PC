@@ -41,7 +41,7 @@ void StartCactus(Target *t)
     if (v != NULL) {
         v->index = 0;
         v->func = info->visFunc;
-        v->data = PC_N64W(t);
+        v->data = (uintptr_t) t;
         v->timeStamp = cactus_frame_time;
         car = PC_CAR(t->slot);
         fallDir[0] = car->dr_vel[0] * 0.125f;

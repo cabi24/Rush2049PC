@@ -17,15 +17,7 @@ typedef struct Model {
     s16 base;
     s16 count;
 } Model;
-/* PC: obj is a visual (tVisual, 0x20 bytes: next and func are host pointers), and its data is the target, a
- * level-object node, as a 32-bit window address (docs/port/CARS.md, POINTERS.md 10). */
-typedef struct Obj {
-    void *next;
-    s16 frame;
-    u8 pad6[6];
-    unsigned int model;
-    f32 timer;
-} Obj;
+
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 /* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
@@ -46,8 +38,9 @@ typedef struct Kind {
 
 /* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (base .. base + count - 1
  * of gObjList) on its scene object; at the end of the cycle starts again, or ends the visual (and with
- * TARGET_DESTROY_AT_END removes the object). mode 0 ends the visual at once. */
-void AnimateObjSwapGeneric(Obj *obj, s16 mode)
+ * TARGET_DESTROY_AT_END removes the object). mode 0 ends the visual at once. The visual (obj) holds the target in
+ * its data, the frame it shows in its index and the time to the next in its timeStamp. */
+void AnimateObjSwapGeneric(struct pc_visual *obj, s16 mode)
 {
     Model *m;
     Kind *kind;
@@ -63,14 +56,14 @@ apply:
     if (gPauseState != 0) {
         return;
     }
-    m = ((Model *)PC_N64P(obj->model));
-    obj->timer -= gFrameSeconds;
-    if (obj->timer > 0.0f) {
+    m = (Model *) obj->data;
+    obj->timeStamp -= gFrameSeconds;
+    if (obj->timeStamp > 0.0f) {
         return;
     }
-    obj->frame++;
-    obj->timer = SWAP_FRAME_TIME;
-    if (obj->frame >= m->count) {
+    obj->index++;
+    obj->timeStamp = SWAP_FRAME_TIME;
+    if (obj->index >= m->count) {
         kind = &targetInfo[m->type];
         if (kind->flags & TARGET_REMOVE_AT_END) {
             goto apply;
@@ -79,9 +72,9 @@ apply:
             RemoveObjectTree(m->id, 0, 0);
             goto apply;
         }
-        obj->frame = 0;
+        obj->index = 0;
     }
-    f = m->base + obj->frame;
+    f = m->base + obj->index;
     if (f != m->cur) {
         if (gObjList[f]) {}
         id = m->id;

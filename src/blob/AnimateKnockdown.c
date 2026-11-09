@@ -28,7 +28,7 @@ void AnimateKnockdown(struct pc_visual *v, s16 op)
         ReleaseEnviron(v, 1);
     }
     if (gPauseState == 0) {
-        t = (void *) PC_N64P(v->data);
+        t = (Target *) v->data;
         /* the spin goes to RotateUV zero-extended, as the pointer it is */
         spin = (void *) PC_N64P(t->data);
         framesLeft = t->frames;

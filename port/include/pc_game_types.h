@@ -269,8 +269,8 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 
 /* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar (6 records of 0x3B8 bytes, BSS; sample_dma_pi_queue, a
  * message queue, follows). One record per car slot: its position and orientation for the cameras and effects, its
- * visuals, its place and finish, and its battle state. On the PC a record is 0x468 bytes (docs/port/CARS.md 2): its 21
- * visuals hold host pointers (0x20 bytes each, not 0x18) and its input record pointer at N64 +0x380 is 8 bytes, so a
+ * visuals, its place and finish, and its battle state. On the PC a record is 0x510 bytes (docs/port/CARS.md 2): its 21
+ * visuals hold host pointers (0x28 bytes each, not 0x18) and its input record pointer at N64 +0x380 is 8 bytes, so a
  * field's PC offset is CAR_OFS of its N64 one (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized
  * members, as in every view. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars), so the
  * storage is PC_CAR_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the
@@ -280,15 +280,17 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_N64_CAR_SLOTS 6
 #define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
 
-/* A car visual (tVisual: N64 0x18 bytes, PC 0x20) on the PC, for the car record and the views that pad over its
- * 21 visuals at +0x110 (and the environment visual pool gEnvirons): next and func are host pointers there, data
- * a u32 (docs/port/CARS.md 3). */
+/* A visual (MAT3 tVisual: N64 0x18 bytes, PC 0x28): one of a car's 21 (the car record at +0x110) or of the
+ * environment visual pool gEnvirons, animated each frame by its func. next and func are host pointers. data is
+ * MAT3's data word: the N64 kept a 32-bit address in it, so on the PC it is pointer-sized: an environment visual
+ * keeps the target it animates there (a tTarget *, the level-object nodes, docs/port/POINTERS.md 10.2), a car's
+ * visuals keep numbers (a wing's side and state, a tire's angle as a float in its low half: docs/port/CARS.md 3). */
 struct pc_visual {
-    void *next;
-    short index, objnum, slot;
-    unsigned int data;
-    float timeStamp;
-    void (*func)(void *, short);
+    void *next;                         /* +0x00 the next on its list (gEnvList, the free list) */
+    short index, objnum, slot;          /* +0x08 an index of the animator's own, the scene object, the car */
+    __UINTPTR_TYPE__ data;              /* +0x10 the data word: a pointer or a number (uintptr_t) */
+    float timeStamp;                    /* +0x18 the animator's time */
+    void (*func)(void *, short);        /* +0x20 the animator: op 1 each frame, op 0 to release it */
 };
 
 /* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
@@ -360,7 +362,7 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     float reloading_time;               /* +0x3AC battle */
     float battle_pitch;                 /* +0x3B0 battle: MAT3 battle.pitch */
     float battle_yaw;                   /* +0x3B4 battle: MAT3 battle.yaw */
-    unsigned int scenes;                /* PC +0x464, in the record's alignment padding, no N64 field: car 8 and up,
+    unsigned int scenes;                /* PC +0x50C, in the record's alignment padding, no N64 field: car 8 and up,
                                          * bit n set while it is in a scene trigger of collision index n (0-31),
                                          * which the trigger's flags have no bit for (TargetCollTrigger) */
 };

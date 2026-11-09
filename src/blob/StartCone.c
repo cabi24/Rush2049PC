@@ -46,16 +46,6 @@ typedef struct ModelData {
     u8 pad641[0x808 - 0x641];
 } ModelData;
 
-/* The environment visual (MAT3 tVisual) in its PC layout: next and func are host pointers, data the target's
- * window address. */
-typedef struct Visual {
-    struct Visual *next;
-    s16 index;              /* 0x08 */
-    u8 pad0A[6];
-    u32 data;               /* 0x10 */
-    f32 timeStamp;          /* 0x14 the seconds the flight lasts */
-    void *func;             /* 0x18 */
-} Visual;
 
 #define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), default: (x))
 
@@ -77,7 +67,7 @@ static void crash_car(ModelData *m)
  * the way the car went. The target stops colliding either way, and the start sound plays when it flies. */
 void StartCone(Target *t)
 {
-    Visual *v;
+    struct pc_visual *v;
     f32 tmat[4][3];
     f32 *vel;
     VelRot *motion;
@@ -105,8 +95,8 @@ void StartCone(Target *t)
     }
     v->index = 0;
     v->func = info->visFunc;
-    v->data = PC_N64W(t);
-    v->timeStamp = 5.0f;
+    v->data = (uintptr_t) t;
+    v->timeStamp = 5.0f;           /* the seconds the flight lasts */
     t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
     vel = N64P(t->data)->vel;
     motion = N64P(t->data);

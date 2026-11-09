@@ -110,7 +110,7 @@ extern TextTables gText;
 extern f32 gColorCycle;
 
 /* Functions */
-void AnimateObjSwapGeneric(struct Obj *obj, s16 mode);
+void AnimateObjSwapGeneric(struct pc_visual *obj, s16 mode);
 void ClearMemoryHeap(struct Heap *hint);
 void DrawText(const u8 *text, u16 length);
 void EndGraphics(void);

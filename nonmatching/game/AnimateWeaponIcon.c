@@ -1,14 +1,6 @@
 #include "game/game.h"
 
-typedef struct Visual {
-    struct Visual *next;  /* 0x00 */
-    s16 index;            /* 0x04 */
-    s16 objnum;           /* 0x06 */
-    s16 slot;             /* 0x08 */
-    u32 data;             /* 0x0c */
-    f32 timeStamp;        /* 0x10 */
-    void (*func)(struct Visual *, s16); /* 0x14 */
-} Visual;
+
 typedef struct Target {
     u8 pad00[4];
     u8 Flags;             /* 0x04 */
@@ -22,7 +14,7 @@ typedef struct Target {
     u32 data;             /* 0x6c: a window address (the node keeps its N64 layout) */
 } Target;
 
-void AnimateWeaponIcon(Visual *v, s16 op)
+void AnimateWeaponIcon(struct pc_visual *v, s16 op)
 {
     Target *t;
     f32 *angV;
@@ -36,7 +28,7 @@ void AnimateWeaponIcon(Visual *v, s16 op)
         return;
     }
     if (gPauseState != 0) return;
-    t = (Target *)((void *)PC_N64P(v->data));
+    t = (Target *) v->data;
     if (t->Flags & 2) {
         angV = ((void *)PC_N64P(t->data));
         angVF[0] = angV[0] * gFrameSeconds;

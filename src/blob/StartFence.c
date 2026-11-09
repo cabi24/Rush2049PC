@@ -31,7 +31,7 @@ void StartFence(Target *t)
     if (v != NULL) {
         v->index = 0;
         v->func = info->visFunc;
-        v->data = PC_N64W(t);
+        v->data = (uintptr_t) t;
         v->timeStamp = fence_frame_time;
         t->flags = (u8) (t->flags & ~(TARGET_ACTIVE | TARGET_HIT));
         v->next = gEnvList;

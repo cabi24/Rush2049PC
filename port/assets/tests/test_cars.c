@@ -1,4 +1,4 @@
-/* port/assets/tests/test_cars.c: the car record (pc_cars, N64 gGameCar, 0x468 bytes a car on the PC) and the
+/* port/assets/tests/test_cars.c: the car record (pc_cars, N64 gGameCar, 0x510 bytes a car on the PC) and the
  * model record (pc_models, MAT3 model[], 0x808 bytes, its N64 layout) through the game's own code
  * (docs/port/CARS.md): init_cars
  * (init_cars), StartEnvironment and StartCar with every visual starter, the car visuals' stop loop, the
@@ -30,7 +30,7 @@
 
 /* ---------------------------------------------------------------- the PC layouts */
 
-/* The car record on the PC: the N64 fields in order, its 21 visuals (struct pc_visual, 0x20 bytes) and its input
+/* The car record on the PC: the N64 fields in order, its 21 visuals (struct pc_visual, 0x28 bytes) and its input
  * record pointer pointer-sized. */
 struct car {
     uint8_t head[0x110];
@@ -195,7 +195,7 @@ static void test_layout(void)
     CHECK(CAR_OFS(0x3B8 + 0xF6) == sizeof(struct car) + 0xF6);
 }
 
-/* init_cars: clears both records of every car (all 0x468 bytes of a car) and sets them up from gLink. Cars 0
+/* init_cars: clears both records of every car (all 0x510 bytes of a car) and sets them up from gLink. Cars 0
  * and 2 are humans: their input pointers are their input records, 80 bytes apart on the PC (POINTERS.md 10). */
 static void test_init_cars(void)
 {

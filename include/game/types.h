@@ -2070,17 +2070,17 @@ typedef struct Collision16 { /* 0x10 bytes */
     f32 height; /* 0xC */
 } Collision16;
 
-/* An environment visual, an entry of gEnvirons (a tVisual: the next on its list, its index, scene node and car
- * slot, a data word, a time and its animator). */
-typedef struct EnvironNode { /* 0x20 bytes */
+/* An environment visual, an entry of gEnvirons (a tVisual, struct pc_visual's layout: the next on its list, its
+ * index, scene node and car slot, a data word, a time and its animator). The data word is pointer-sized: a target's
+ * visual keeps its node there (a tTarget *). */
+typedef struct EnvironNode { /* 0x28 bytes */
     struct Node *next; /* 0x0 */
     s16 index;         /* 0x8 */
     s16 objnum;        /* 0xA */
     s16 slot;          /* 0xC */
-    u8 padA[2];        /* 0xE */
-    u32 data;          /* 0x10 */
-    f32 timeStamp;     /* 0x14 */
-    void *func;        /* 0x18 */
+    uintptr_t data;    /* 0x10 */
+    f32 timeStamp;     /* 0x18 */
+    void *func;        /* 0x20 */
 } EnvironNode;
 
 /* A skid mark, an entry of gSkidArray (MAT3 tSkid): its list links, when it last grew, its polygon, its middle, its
