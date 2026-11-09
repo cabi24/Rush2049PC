@@ -186,7 +186,7 @@ typedef struct tTexture {
     u8 size;                    /* G_IM_SIZ_*: 4, 8, 16 or 32 bits a texel */
     u8 format;                  /* G_IM_FMT_*: RGBA, CI (palette), IA, I */
     s16 palIndex;               /* its palette in its model's palette table, -1 none */
-    WADP(void) texBase;         /* the image, or a display list that loads it (no TEX_TEXTURE) */
+    WADP(void) texBase;         /* the image, or a display list that loads it (no TEX_IMAGE_DIRECT) */
     u32 flags;
     u32 xflags;
 } tTexture;
@@ -606,7 +606,7 @@ void zoid_load_palette(Gfx **gfxp, Palette *pal) {
 #define BLOCK(fmt, sz) gDPLoadTextureBlock(gfx++, tex->texBase, fmt, G_IM_SIZ_##sz, tex->width, tex->height, 0, cms, cmt, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define BLOCK4(fmt) gDPLoadTextureBlock_4b(gfx++, tex->texBase, fmt, tex->width, tex->height, 0, cms, cmt, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 
-/* Load texture `tex` for what is drawn next: a texture without TEX_TEXTURE is loaded by its own display list; else
+/* Load texture `tex` for what is drawn next: a texture without TEX_IMAGE_DIRECT is loaded by its own display list; else
  * its image, all of it or the tile `rect` (10.5 texels), with its clamp and mirror flags and, for a colour-index one,
  * the TLUT mode set (zoid_tlut_mode keeps the mode last set). The render tile then spans `clip` if given, else
  * `rect`. Its palette (palIndex in `palettes`, the model's palette table; NULL: the caller has set one) is loaded
@@ -620,7 +620,7 @@ void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, Pa
     if (tex == NULL) {
         return;
     }
-    if (!(tex->flags & TEX_TEXTURE)) {
+    if (!(tex->flags & TEX_IMAGE_DIRECT)) {
         gSPDisplayList(gfx++, tex->texBase);
     } else {
         if (rect != NULL) {

@@ -1,8 +1,6 @@
 /* animLapCount: the lap counter, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
 #define LAP_FORMAT 206   /* gText.single: the "lap n of m" format */
 
 typedef struct Pos {

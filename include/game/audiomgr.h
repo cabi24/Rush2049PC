@@ -48,8 +48,6 @@ enum {
     kFxNoReplace = 2    /* keep it and drop the new one */
 };
 
-/* A sound value a change leaves as it is (AudChangeEffect, the commands' volume, pan and pitch). */
-#define AUDIO_NO_CHANGE (-2.0f)
 
 /* An fx tag (MAT3 tFxSequence, 0x58 bytes on the PC): one sound the game asked for. Its handle (id) is
  * (generation << gTagShift) | index into gFxTags; ConvertTag gives the tag of a handle, or NULL once the tag has
@@ -132,24 +130,9 @@ typedef struct tAudioSequence {
  * (ProcessCommand) and gives it back (used = 0). */
 typedef struct tAudioMsgHeader {
     s16 type;           /* 0x0: -1 (GetCmd) */
-    u8 cmd;             /* 0x2: kAudioCmd* */
+    u8 cmd;             /* 0x2: kAudioCmd* (audio.h) */
     s8 used;            /* 0x3: taken from the pool */
 } tAudioMsgHeader;
-
-enum {
-    kAudioCmdPlaySong = 0,
-    kAudioCmdKillSong = 1,
-    kAudioCmdPlayEffect = 2,        /* a new tag: replace a like one, then wait for the priority pass */
-    kAudioCmdStartEffect = 3,       /* the priority pass: give the tag a voice */
-    kAudioCmdChangeEffect = 4,      /* volume, pans, pitch (AUDIO_NO_CHANGE: keep) */
-    kAudioCmdInterruptEffect = 5,   /* the priority pass: take the tag's voice (a loop waits to restart) */
-    kAudioCmdStopEffect = 6,
-    kAudioCmdStopAllEffects = 7,
-    kAudioCmdPauseAllEffects = 8,
-    kAudioCmdResumeAllEffects = 9,
-    kAudioCmdSetMasterVol = 10,
-    kAudioCmdMono = 11
-};
 
 typedef union tAudioMsg {
     tAudioMsgHeader hdr;

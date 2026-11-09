@@ -6,12 +6,6 @@ VIEW(f32[3][3], unitmatrix);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-/* controls_buttonInfo[player][]: the rows' buttons, then these four (MAT3 has one more row, so its are 14-17). */
-#define CONTROLS_TITLE 13           /* the title's button */
-#define CONTROLS_CURSOR 14          /* the cursor */
-#define CONTROLS_B_ICON 15          /* the B button's icon, by the "back" text */
-#define CONTROLS_B_ICON_BACK 16     /* the icon's backing */
-
 s32 ZOID_AddObject(s32 name, void *mat, s16 parent, s32 flags);
 
 typedef struct NameEntry NameEntry;

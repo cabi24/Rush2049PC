@@ -41,8 +41,6 @@ typedef struct GameCar {
 #define N64P(x) ((void *)PC_N64P(x))
 #define N64W(x) PC_N64W(x)
 
-#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
-
 VIEW(Visual *, gEnvList);
 #define gEnvList gEnvList_view
 

@@ -3,8 +3,6 @@
 
 typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 
-#define PLAYER_BUTTONS 22           /* playerscr_buttonInfo[player][]: a window's buttons */
-
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear ( FiveParts * );
 extern void RemoveBlit ( Blit * );

@@ -1,8 +1,6 @@
 /* animPlace: each player's place ("2/6"), a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
-
 typedef struct { s32 x, y; } Pos;
 typedef struct { u8 r, g, b, a; } Rgba;
 

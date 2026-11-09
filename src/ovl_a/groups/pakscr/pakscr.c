@@ -35,12 +35,6 @@ extern void ShowPakError(s32,s8 *,s8 *,s8 *,s32 (*)(s32));
 #define PAK_ERR_NO_PAK 2            /* gPakErr: for a controller without a pak */
 #define DELETE_COMBO_A 0x100        /* game buttons 8 and 7 together (one held, the other pressed) delete a note */
 #define DELETE_COMBO_B 0x80
-/* The menu sounds. */
-#define SND_MENU_SELECT 37
-#define SND_MENU_BACK 38
-#define SND_MENU_DOWN 39
-#define SND_MENU_UP 40
-#define SND_MENU_DELETE 43
 
 /* Go to state mode: the note list is rebuilt on entering it, the "are you sure" answer reset to no. */
 void SetState(s32 mode)
@@ -111,7 +105,7 @@ void ControlPickPak(void)
         if(++gPickedPak>=4)gPickedPak=0;
     }
     if(gActiveEdges&BUTTON_A) {
-        AudPlayEffect(SND_MENU_SELECT,0,1,0);
+        AudPlayEffect(SND_MENU_A,0,1,0);
         if(!gControllerData[gPickedPak].present) {
             SetPakError(gPickedPak,PAK_ERR_NO_CONTROLLER,10,50,300,140);
             gPakErr=PAK_ERR_NO_CONTROLLER;
@@ -188,7 +182,7 @@ void ControlFileDelVerify(void)
         pakscr_gYes=!pakscr_gYes;
     }
     if(gActiveEdges&BUTTON_A) {
-        AudPlayEffect(SND_MENU_SELECT,0,1,0);
+        AudPlayEffect(SND_MENU_A,0,1,0);
         if(pakscr_gYes) {
             PS_DeleteFile(gDeleteFile);
             pakscr_gFreePages=PS_GetFreeBlocks(gPickedPak);
@@ -218,4 +212,3 @@ void ControlDamaged(void)
         SetState(kStatePickPak);
     }
 }
-

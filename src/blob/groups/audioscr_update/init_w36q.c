@@ -1,11 +1,6 @@
 /* The audio options screen's set-up (MAT3 audioscr.c's initScreen and initButtons): its buttons, blits and the song. */
 #include "game/game.h"
 
-/* The song line's choices (audio_gSong): a song of gSongNames, then the track's own. */
-#define AUDIO_SONG_TRACKS 12
-/* The song the front end plays for the track's own choice. */
-#define AUDIO_FRONT_END_SONG 6
-
 typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
 

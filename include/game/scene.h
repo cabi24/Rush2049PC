@@ -52,8 +52,11 @@
 #define TEX_CLAMP_T           0x00020000  /* clamped in t */
 #define TEX_MIRROR_S          0x00040000  /* mirrored in s */
 #define TEX_MIRROR_T          0x00080000  /* mirrored in t */
-#define TEX_TEXTURE           0x08000000  /* texBase is the image (else a display list that loads it) */
+#define TEX_IMAGE_DIRECT           0x08000000  /* texBase is the image (else a display list that loads it) */
 #define TEX_NOPALETTE         0x20000000  /* has no palette of its own */
+
+/* MBOX_FindObject_WORK, MBOX_FindTexture_WORK: warn, the last argument, complains when the name isn't found. */
+#define MBOX_WARN             1
 
 /* PolyInstanceList[].flags: a flat polygon's (ZOID_NewPoly, the scene draw). */
 #define POLY_VIEW0            0x1         /* bits 0-3: drawn in views 0-3 (1 << view) */

@@ -5,11 +5,6 @@
 
 /* The audio screen's lines (gAudioMenuSelect). */
 enum { AUDIO_MENU_SFX = 0, AUDIO_MENU_MUSIC = 1, AUDIO_MENU_SONG = 2, AUDIO_MENU_MONO = 3 };
-/* The song line's choices (audio_gSong, gOptions' track): a song of gSongNames, the track's own, none. */
-#define AUDIO_SONG_TRACKS 12
-#define AUDIO_SONG_LAST 13
-/* The song the front end plays for the track's own (song 12) choice. */
-#define AUDIO_FRONT_END_SONG 6
 
 /* An audio screen button (audio_buttonInfo: 0-3 the lines' left buttons, 4-7 their right, 8 the cursor, 9-11
  * the decorations). */

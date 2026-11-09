@@ -4,8 +4,6 @@
 
 s32 sprintf(char *, const char *, ...);
 
-#define PROFILE_BYTES 0x810         /* a profile's save data (PS_GetBlocks: the pages it takes) */
-
 /* The warning screen's text blit callback: the message (worded by whether any pak was found, with the pages a
  * profile needs), then the two choices, the highlighted one (gPakScr: 0 go on, 1 the pak manager, offered only when
  * a pak was found) flashing in the smaller font. Always 1. */

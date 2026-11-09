@@ -1,8 +1,6 @@
 /* RecordStunt: record a stunt session (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define FIRST_STUNT_TRACK 14   /* gTrackNum: 14..17 the stunt arenas */
-
 /* A player's input record as this reads it (MAT3 tPadState): which "just play" profile, the crashes, the profile. */
 typedef struct PlayerPad {u8 index,selector;u8 other2[62];u16 numCrashes;u8 other66[6];tProfile **profile;} PlayerPad;
 /* A player's stunt session as this reads it (MAT3 tStuntPlayer): the best stunt, the points, each kind's count. */
@@ -20,7 +18,7 @@ VIEW(StuntPlayer[], gStuntPlayer);
 void RecordStunt(void)
 {
     s32 player,which,j;
-    s32 arena=gTrackNum-FIRST_STUNT_TRACK;
+    s32 arena=gTrackNum-TRACK_STUNT_FIRST;
     PlayerPad *record;
     StuntPlayer *live;
     tStuntStats *stats;

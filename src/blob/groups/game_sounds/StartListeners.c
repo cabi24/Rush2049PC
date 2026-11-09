@@ -25,10 +25,6 @@ VIEW(f32[][3], unitmatrix);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-/* gRace's ghost race, gOptions' effects volume (0 to 10); gGameState's demo bit is race.h's GS_DEMO. */
-#define RACE_GHOST 2
-#define OPTION_FX_VOLUME 13
-
 tSfxListener *AudAddListener(Vec3 *pos, Vec3 *dir, Vec3 *look, Vec3 *up);
 
 /* Outside the demo: gives each player a listener at the origin, at rest, looking along z with y up (each frame
@@ -40,10 +36,10 @@ void StartListeners(void)
 
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
-            if (gRace != RACE_GHOST || gPlayers[i].slot == 0)
+            if (gRace != kGhost || gPlayers[i].slot == 0)
                 gPlayers[i].listener = LISTENER_WORD(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));
             else gPlayers[i].listener = -1;
         }
-        AudSetMasterVol((f32)gOptions[OPTION_FX_VOLUME] / 10.0f, 0.1f, 0, 1);
+        AudSetMasterVol((f32)gOptions[kOptEffectsVolume] / 10.0f, 0.1f, 0, 1);
     }
 }

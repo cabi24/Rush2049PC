@@ -20,10 +20,6 @@ typedef struct {
 } Button; /* 0x40, MAT3 tMenuButton */
 
 /* options_buttonInfo[]: the rows' buttons, a label and a value button for each of the 14 rows, then the cursor. */
-#define OPTIONS_ROWS 14
-#define OPTIONS_VALUE_BUTTON(i) ((i) + OPTIONS_ROWS)
-#define OPTIONS_CURSOR 28
-#define OPTIONS_BUTTONS 32
 #define OPTION_ROW_LANGUAGE 0
 
 VIEW(Color, options_buttonColor);
@@ -211,7 +207,6 @@ void options_updateButtons(void) {
         scrollSpeed = 0.0f;
     options_buttonsJustInited = 0;
 }
-
 
 typedef struct {
     volatile s8 b0;

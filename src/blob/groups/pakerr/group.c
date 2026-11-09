@@ -42,10 +42,7 @@ VIEW(Sched, gScheduler);
 #define gScheduler gScheduler_view
 
 /* The game's button bits the dialogs answer to. */
-#define BUTTON_A 0x2
 #define BUTTONS_START_A_B 0x7
-#define BUTTON_DPAD_UP 0x400
-#define BUTTON_DPAD_DOWN 0x800
 #define BUTTONS_DPAD_UP_DOWN 0xC00
 
 extern s32 sprintf(char *, const char *, ...);
@@ -182,7 +179,6 @@ void DrawPakErrNoPak(s32 row, s32 col)
     HAL_SetFont(11);
 }
 
-
 #define C (gPakError[row][col])
 /* The no-controller dialog (MAT3 _DrawPakErrNoController). */
 void cs_draw1_DC(s32 row, s32 col)
@@ -280,7 +276,7 @@ void cs_wait13_DC(s32 row, s32 col)
 /* A three-answer dialog: down and up move the answer round (first, second, third), A takes it. */
 void cs_ctl10_DC(Cell *c)
 {
-    if (c->edges & BUTTON_DPAD_DOWN) {
+    if (c->edges & BUTTON_DOWN) {
         PlayUDSound(c->edges);
         if (c->choice1) {
             c->choice1 = 0;
@@ -291,7 +287,7 @@ void cs_ctl10_DC(Cell *c)
             c->choice1 = 1;
         }
     }
-    if (c->edges & BUTTON_DPAD_UP) {
+    if (c->edges & BUTTON_UP) {
         PlayUDSound(c->edges);
         if (c->choice1) {
             c->choice1 = 0;
@@ -417,5 +413,3 @@ apply:
         UpdateRushControls();
     }
 }
-
-

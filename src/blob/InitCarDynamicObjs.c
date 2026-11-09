@@ -1,7 +1,6 @@
 /* InitCarDynamicObjs.c: find a car's part definitions in its model file (MAT3 visuals.c, InitCarDynamicObjs()). */
 #include "game/game.h"
 
-#define MBOX_WARN 1             /* MBOX_FindObject_WORK: complain if it isn't there */
 #define CAR_PARTS 3             /* the frame, the hood, the sheen (MAT3 has 9) */
 
 VIEW(char *[CAR_PARTS], carObjNames);

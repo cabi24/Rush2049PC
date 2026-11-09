@@ -38,6 +38,7 @@
 #define MAX_BLITS 200      /* the blit pool (InitBlits) and the zoid blit list */
 #define MAX_PANES 16       /* gPaneBlits */
 #define PANE_BLITS 5       /* the blits of a pane (tBlitSet.blits) */
+#define PANE_STYLE 176     /* InitPane's style for the screens' boxes */
 
 /* Data */
 extern u8 default_blit_image[EXTENT(4)];

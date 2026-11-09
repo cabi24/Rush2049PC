@@ -57,20 +57,7 @@ VIEW(struct pc_multiblit[41], buttonsPauseMulti);
 #define buttonsPauseMulti buttonsPauseMulti_view
 
 /* The list's rows (gControlSelect): the ten controls, then these two. */
-#define CONTROLS_ROW_RUMBLE 10      /* the rumble setting (0-2), offered when the player's pak is a Rumble Pak */
-#define CONTROLS_ROW_DEFAULTS 11    /* A sets the default controls */
-#define CONTROLS_ROW_LAST 11
-#define CONTROLS_COUNT 10           /* the controls a profile keeps */
 #define CONTROL_CHOICES 26          /* a control's values: 19 game buttons, then the analog sources (SetControls) */
-#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
-#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
-/* The menu sounds (the effects PlayUDSound, PlayLRSound and PlayStartABSound play). */
-#define SND_MENU_DOWN 39
-#define SND_MENU_UP 40
-#define SND_MENU_LEFT 41
-#define SND_MENU_ERROR 42
-#define SND_MENU_DEFAULTS 43
-#define SND_MENU_RIGHT 44
 
 /* The screen's frame, for every player at once.
  * - First frame: in the front end only if a player has the screen open; in the pause menu a box per window. The
@@ -215,7 +202,7 @@ void updateControlScreen(void) {
         if (gControlFirst[p] < 0) gControlFirst[p] = 0;
         if (gControlSelect[p] == CONTROLS_ROW_DEFAULTS) {
             if (gPlayers[p].edges & BUTTON_A) {
-                AudPlayEffect(SND_MENU_DEFAULTS, 0, 1, 0);
+                AudPlayEffect(SND_MENU_DELETE, 0, 1, 0);
                 SetDefaultControls(controls);
             }
         } else if ((j = gPlayers[p].edges) & BUTTON_LEFT) {

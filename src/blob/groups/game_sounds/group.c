@@ -10,9 +10,6 @@ tAudioMsg *GetCmd(void);
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
-/* gOptions' effects volume, 0 to 10 (the audio screen's). */
-#define OPTION_FX_VOLUME 13
-
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). A volume change is then dropped: with no message the lock is
  * given back and nothing is sent, and a message the full queue refuses is given back; the volume stays as it was
@@ -77,6 +74,6 @@ void EnableGameSounds(s32 enabled) {
     f32 volume;
     gGameSoundsEnabled=enabled;
     if(enabled) volume=0.0f;
-    else volume=(f32)gOptions[OPTION_FX_VOLUME]/10.0f;
+    else volume=(f32)gOptions[kOptEffectsVolume]/10.0f;
     AudSetMasterVol(volume,fx_volume_fade_time,0,1);
 }

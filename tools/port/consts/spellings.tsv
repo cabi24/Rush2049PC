@@ -74,3 +74,35 @@ SND_MENU_SELECT	SND_MENU_A	37	pakscr.c: played for A
 SND_MENU_B	SND_MENU_BACK	0x26	circuitscr.c
 SND_BACK	SND_MENU_BACK	38	carscr.c, trackscr.c
 SND_MENU_DEFAULTS	SND_MENU_DELETE	43	controlscr/caller.c: the controls set back to their defaults
+# The tracks (gTrackNum): track.h, the track screen's names.
+FIRST_BATTLE_TRACK	TRACK_BATTLE_FIRST	6	RecordBattle.c, save_stats/candidate.c
+FIRST_STUNT_TRACK	TRACK_STUNT_FIRST	14	6 files
+OBSTACLE_TRACK	TRACK_OBSTACLE	18	RecordObstacle.c, save_stats/candidate.c
+TRACK_OBSTACLE_UNLOCK	TRACK_OBSTACLE	18	modescr.c: the obstacle course, unlocked
+FIRST_BACKWARD_TRACK	TRACK_BACKWARD_FIRST	19	the records' numbering
+TRACKS	NUM_TRACKS	19	trackscr.c
+# A target's flags (tTarget.Flags, types.h).
+TARGET_STARTED	TARGET_SET_UP	1	AnimateMine.c, AnimateFlag.c, AnimateCoin.c
+# gLink's owners (physics.h, MAT3 rush_flags.h).
+MAX_LINKS	LINK_OWNER_HUMAN	6	munge_gLink_data.c: an owner below it is a drone (drones/group.c's MAX_LINKS is the slot count, PC_MAX_LINKS)
+# The options (gOptions, save.h).
+OPTION_FX_VOLUME	kOptEffectsVolume	13	game_sounds
+# tTexture.flags (scene.h).
+TEX_TEXTURE	TEX_IMAGE_DIRECT	0x08000000	scene.h; the texture animation files' name says what it is
+# The audio manager's commands: audio.h's kAudioCmd*, named after the MAT3 calls that post them.
+AUDIO_CMD_PLAY_SONG	kAudioCmdPlaySong	0	audiomgr_thread.c
+AUDIO_CMD_STOP_SONG	kAudioCmdKillSong	1	audiomgr_thread.c, gameover.c, SetupCarColor/ctx_func_800C8918.c
+AUDIO_CMD_PLAY_EFFECT	kAudioCmdPlayEffect	2	audiomgr_thread.c
+AUDIO_CMD_START_EFFECT	kAudioCmdStartEffect	3	audiomgr_thread.c
+AUDIO_CMD_CHANGE_EFFECT	kAudioCmdChangeEffect	4	audiomgr_thread.c
+AUDIO_CMD_INTERRUPT_EFFECT	kAudioCmdInterruptEffect	5	audiomgr_thread.c
+AUDIO_CMD_STOP_EFFECT	kAudioCmdStopEffect	6	audiomgr_thread.c
+AUDIO_CMD_STOP_ALL_EFFECTS	kAudioCmdStopAllEffects	7	audiomgr_thread.c, gameover.c, SetupCarColor/ctx_func_800C8918.c
+AUDIO_CMD_PAUSE_EFFECTS	kAudioCmdPauseAllEffects	8	audiomgr_thread.c
+AUDIO_CMD_RESUME_EFFECTS	kAudioCmdResumeAllEffects	9	audiomgr_thread.c
+AUDIO_CMD_MASTER_VOLUME	kAudioCmdSetMasterVol	10	audiomgr_thread.c
+AUDIO_CMD_MONO	kAudioCmdMono	11	audiomgr_thread.c
+# The songs and the horns (audio.h).
+SONG_MENU	AUDIO_FRONT_END_SONG	6	start_screen/group.c
+SND_HORNS	SND_HORN_FIRST	26	carscr.c
+SFX_HORN_FIRST	SND_HORN_FIRST	26	car_sounds/mode.c

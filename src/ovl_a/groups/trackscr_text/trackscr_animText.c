@@ -19,26 +19,6 @@ extern int sprintf(char *,const char *,...);
 
 extern void TB_FlashTextColors(Color4,Color4);
 
-/* trackscr.c's options (trackscr_gOpts[]) */
-#define TRACK_OPT_TRACK 0
-#define TRACK_OPT_GHOSTS 1
-#define TRACK_OPT_LAPS 2
-#define TRACK_OPT_STUNT_MODE 3
-#define TRACK_OPT_STUNT_POINTS 5
-#define TRACK_OPT_STUNT_TIME 6
-#define TRACK_OPT_STUNT_DEATH 7
-#define TRACK_OPT_BATTLE_MODE 8
-#define TRACK_OPT_BATTLE_POINTS 9
-#define TRACK_OPT_BATTLE_TIME 10
-#define TRACK_OPT_BATTLE_11 11
-#define TRACK_OPT_BACKWARDS 12
-#define TRACK_OPT_MIRROR 13
-#define TRACK_OPT_DRONES 17
-#define TRACK_OPT_DEATH_MODE 20
-#define TRACK_OPTS 21                   /* an option's value button is trackscr_buttonInfo[option + 21] */
-#define TRACK_NEEDS_EXPANSION 5         /* the race track that needs an Expansion Pak */
-#define MIRROR_SECRET 2                 /* gOptions.mode (gOptions[28], mirror): the hidden third value */
-
 /* gText's entries */
 #define TEXT_TRACK_TITLE 45             /* single[]: the screen's title */
 #define TEXT_NEEDS_EXPANSION 232        /* single[]: the track needs an Expansion Pak */
@@ -195,5 +175,3 @@ void trackscr_animButtonText(void)
     HAL_SetTextTranslucency(-1.0f);
     HAL_SetTextDepth(-1.0f);
 }
-
-

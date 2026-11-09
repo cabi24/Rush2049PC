@@ -21,6 +21,35 @@ enum {
     SND_MENU_START = 0x2E    /* Start */
 };
 
+/* The audio manager's commands (tAudioMsg.hdr.cmd, game/audiomgr.h): each named after the MAT3 call that posts it
+ * (AudPlaySong, AudKillSong ...); ProcessCommand carries them out on the audio manager thread. */
+enum {
+    kAudioCmdPlaySong = 0,
+    kAudioCmdKillSong = 1,
+    kAudioCmdPlayEffect = 2,        /* a new tag: replace a like one, then wait for the priority pass */
+    kAudioCmdStartEffect = 3,       /* the priority pass: give the tag a voice */
+    kAudioCmdChangeEffect = 4,      /* volume, pans, pitch (AUDIO_NO_CHANGE: keep) */
+    kAudioCmdInterruptEffect = 5,   /* the priority pass: take the tag's voice (a loop waits to restart) */
+    kAudioCmdStopEffect = 6,
+    kAudioCmdStopAllEffects = 7,
+    kAudioCmdPauseAllEffects = 8,
+    kAudioCmdResumeAllEffects = 9,
+    kAudioCmdSetMasterVol = 10,
+    kAudioCmdMono = 11
+};
+/* A sound value a change leaves as it is (AudChangeEffect, the commands' volume, pan and pitch). */
+#define AUDIO_NO_CHANGE (-2.0f)
+/* The sound clock gAudioSeconds wraps every four hours (audio_retrace_thread_entry). */
+#define AUDIO_CLOCK_WRAP_SECONDS 14400.0f
+
+/* The songs (AudPlaySong): the audio screen's song line (audio_gSong, gOptions' track) offers a song of gSongNames,
+ * then the track's own (AUDIO_SONG_TRACKS), then none (AUDIO_SONG_LAST); the front end plays AUDIO_FRONT_END_SONG. */
+#define AUDIO_SONG_TRACKS 12
+#define AUDIO_SONG_LAST 13
+#define AUDIO_FRONT_END_SONG 6
+/* The horns' effects: SND_HORN_FIRST + the horn. */
+#define SND_HORN_FIRST 26
+
 /* Data */
 extern u64 rspbootTextStart[EXTENT(26)];
 extern u64 rspbootTextEnd[EXTENT(452)];

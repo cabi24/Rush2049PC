@@ -163,15 +163,6 @@ typedef struct surftyp {
 /* MAT3's names for the race kinds (gRace), the human owner of a car slot and the attract mode's game state (the race
  * area's values: for race.h to declare). */
 
-#define kOneRace 0
-#define kPractice 1
-#define kGhost 2
-#define kCircuit 3
-#define kStunt 4
-#define kObstacle 5
-#define kBattle 6
-#define LINK_OWNER_HUMAN 6
-
 VIEW(float[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 

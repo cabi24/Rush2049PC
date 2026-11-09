@@ -8,6 +8,7 @@
  * World units are feet, speeds feet a second, Y is up. */
 
 #define MPH_TO_FTPS          1.4666667f /* miles an hour to feet a second: 88 ft/s = 60 mph */
+#define FEET_PER_TENTH_MILE  528.0f     /* the odometer's and the records' distances */
 
 /* tCarData.crash_state (CheckCrash) */
 #define CRASH_NONE           0
@@ -41,6 +42,11 @@
 #define ROADCODE_DIRT        1      /* dirt (rear_dirt_drag_factor; the engine gives more torque, poor traction) */
 #define ROADCODE_WATER       2      /* water (rear_water_drag_factor; likewise) */
 #define ROADCODE_AIRBORNE    8      /* the tire touches no road (road, init_road) */
+
+/* gLink[slot].owner: who drives a car slot (MAT3 rush_flags.h; an arcade leftover, the cabinet that simulated the
+ * car: fake_init, CalcPolePositions, munge_gLink_data). */
+#define LINK_OWNER_DRONE     0      /* a drone, simulated here: an owner below LINK_OWNER_HUMAN */
+#define LINK_OWNER_HUMAN     6      /* a human player's car */
 
 /* tModelData.drone_type (munge_gLink_data, init_cars) */
 #define DRONE_TYPE_NONE      0      /* the slot is not in the race */

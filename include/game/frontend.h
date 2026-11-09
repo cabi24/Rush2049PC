@@ -74,6 +74,140 @@
 #define kGameOverMainMenuQuit 6
 #define kGameOverMainMenuCount 7
 
+/* The track screen's options (trackscr_gOpts[]), in their order down the list (OptionValid keeps the offered ones).
+ * The gOptions entry each changes is in updateTrackScreen; 3-11 are gOptions[32..40]. */
+#define TRACK_OPT_TRACK 0
+#define TRACK_OPT_GHOSTS 1              /* gOptions[25]: which ghosts (gGhostSelect) */
+#define TRACK_OPT_LAPS 2                /* gOptions[21], 1-8 */
+#define TRACK_OPT_STUNT_MODE 3          /* gOptions[32]: 0 time, 1 points, 2 death (MAT3 kTimeStuntMode ...) */
+#define TRACK_OPT_STUNT_POINTS 5        /* offered in stunt mode 1 */
+#define TRACK_OPT_STUNT_TIME 6          /* offered in stunt mode 0 */
+#define TRACK_OPT_STUNT_DEATH 7         /* offered in stunt mode 2 */
+#define TRACK_OPT_BATTLE_MODE 8         /* gOptions[37]: 0 points, 1 time (MAT3 kPointBattleMode, kTimeBattleMode) */
+#define TRACK_OPT_BATTLE_POINTS 9       /* offered in battle mode 0 */
+#define TRACK_OPT_BATTLE_TIME 10        /* offered in battle mode 1 */
+#define TRACK_OPT_BATTLE_11 11          /* offered in battle mode 0 */
+#define TRACK_OPT_BACKWARDS 12          /* gOptions[27]: the race tracks only */
+#define TRACK_OPT_MIRROR 13             /* gOptions[28] */
+#define TRACK_OPT_FOG 14                /* gOptions[29], 0-3 */
+#define TRACK_OPT_WIND 15               /* gOptions[30], 0-4 */
+#define TRACK_OPT_DRONES 17             /* gOptions[22] */
+#define TRACK_OPT_DIFFICULTY 18         /* gOptions[24], 0-5 */
+#define TRACK_OPT_CATCHUP 19            /* gOptions[26], 0-2 */
+#define TRACK_OPT_DEATH_MODE 20         /* gOptions[31] */
+#define TRACK_OPTS 21                   /* an option's value button is trackscr_buttonInfo[option + 21] */
+#define MIRROR_SECRET 2                 /* gOptions[28]: the mirror option's hidden third value */
+
+/* The car screen's options (carscr_gOpts[]), in their order down the list (calcValidOptions keeps the offered ones). */
+#define CAR_OPT_CAR 0
+#define CAR_OPT_TRANS 1
+#define CAR_OPT_HANDLING 2
+#define CAR_OPT_ENGINE 3
+#define CAR_OPT_TIRES 4
+#define CAR_OPT_FRAME 5
+#define CAR_OPT_WINGS 6
+#define CAR_OPT_COLOR_A 7               /* the paint's three colour choices (car_color_choice_a/_b/_c) */
+#define CAR_OPT_COLOR_B 8
+#define CAR_OPT_COLOR_C 9
+#define CAR_OPT_TEAM 10                 /* battle only */
+#define CAR_OPT_RIMS 11                 /* the car turns side-on while it is selected */
+#define CAR_OPT_HORN 12                 /* never offered */
+#define CAR_OPT_FRONT_TIRE_SCALE 13     /* with gEnableTireScaling */
+#define CAR_OPT_REAR_TIRE_SCALE 14
+#define CAR_OPT_SHEEN 15                /* never offered */
+#define CAR_OPT_GHOST_1 16              /* ghost races: the three ghosts to race */
+#define CAR_OPT_GHOST_2 17
+#define CAR_OPT_GHOST_3 18
+#define CAR_OPTS 19                     /* an option's value button is carscr_buttonInfo[p][option + 19] */
+#define CARS 13                         /* the roster; a record's car is its slot % 13, carscr_cars[][].car is car + 13
+                                         * x the window's player */
+#define SELECT_CAR_LOADS 16             /* the car screen's model loads (InitSelectCarLoad, UnloadSelectCar) */
+/* The track and car screens: the button that, with Z, would put an option back to its default. */
+#define BUTTON_DEFAULT_OPTION 0x80
+/* The sliders' AnimID: the filled part (0 the empty bar). */
+#define SLIDER_FILLED 1
+
+/* The player screen: playerscr_buttonInfo[player][]: the 14 rows' buttons, then these. */
+#define PLAYER_BUTTON_CONTROLS 14       /* the "controls" button beside the selected profile (or "just play") */
+#define PLAYER_BUTTON_PAK_VALUE 15      /* the pak row's value button */
+#define PLAYER_BUTTON_TITLE 16
+#define PLAYER_BUTTON_CURSOR 17
+#define PLAYER_BUTTON_A_ICON 18
+#define PLAYER_BUTTON_A_BACK 19
+#define PLAYER_BUTTON_B_ICON 20
+#define PLAYER_BUTTON_B_BACK 21
+#define PLAYER_BUTTONS 22
+/* The player and record screens: a pak's profile count (playerscr_gNumPakPlayers[pak], recordscr_gNumPakPlayers[]),
+ * or why it has none. */
+#define PAK_NOT_INSERTED (-1)
+#define PAK_DAMAGED (-2)
+#define PAK_RUMBLE (-3)                 /* a Rumble Pak: no profiles */
+#define PAK_NO_CONTROLLER (-4)
+/* The player and record screens' buttons turn: a button's text is hidden while it is edge-on (between 40 and 140
+ * degrees of its turn). */
+#define EDGE_ON_FROM 0.6981316804885864f
+#define EDGE_ON_TO 2.4434609413146973f
+/* The name grid of the player and high score screens (playerscr_gNameSelect[], highscore_gNameSelect[]): a letter
+ * (0-53, 9 a row) or one of the buttons under it. */
+#define NAME_SEL_END (-1)
+#define NAME_SEL_DELETE (-2)
+#define NAME_SEL_SPACE (-3)
+#define NAME_GRID_COLUMNS 9
+#define NAME_MAX 12                     /* letters in a name */
+
+/* The record screen. gRecordTrack: a record's track. 0-11 the six race tracks, each forward and backward; then the
+ * battle arenas, the stunt tracks, the obstacle course, the four circuits and, for a profile, its totals. gTrackType
+ * is its kind (MAT3 enum_kTrackTypeCount). */
+#define RECORD_SELECT_ROWS 11
+#define RECORD_FIRST_BATTLE 12
+#define RECORD_FIRST_STUNT 20
+#define RECORD_FIRST_OBSTACLE 24
+#define RECORD_FIRST_CIRCUIT 25
+#define RECORD_TOTALS 29
+/* recordscr_buttonInfo[]: the select menu's 11 rows (0-10), the view menu's two (11, 12), then these. */
+#define RECORD_VIEW_ROW_BUTTON 11
+#define RECORD_BUTTON_CLEAR 13          /* the "clear records" button beside the selected profile */
+#define RECORD_BUTTON_PAK_VALUE 14
+#define RECORD_BUTTON_TRACK_VALUE 15
+#define RECORD_BUTTON_STAT_VALUE 16
+#define RECORD_BUTTON_TITLE 17
+#define RECORD_BUTTON_CURSOR 18
+#define RECORD_BUTTON_A_ICON 19
+#define RECORD_BUTTON_A_BACK 20
+#define RECORD_BUTTON_B_ICON 21
+#define RECORD_BUTTON_B_BACK 22
+#define RECORD_BUTTONS 23
+
+/* The mode screen: modescr_buttonInfo[]: the seven rows' buttons, then the cursor. */
+#define MODE_CURSOR 7
+#define MODE_BUTTONS 13
+
+/* The controls screen's rows (gControlSelect): the ten controls, then these two. */
+#define CONTROLS_COUNT 10               /* the controls a profile keeps */
+#define CONTROLS_ROW_RUMBLE 10          /* the rumble setting (0-2), offered when the player's pak is a Rumble Pak */
+#define CONTROLS_ROW_DEFAULTS 11        /* A sets the default controls */
+#define CONTROLS_ROW_LAST 11
+#define CONTROLS_ROWS 12
+/* controls_buttonInfo[player][]: the rows' buttons, then these four (MAT3 has one more row, so its are 14-17). */
+#define CONTROLS_TITLE 13               /* the title's button */
+#define CONTROLS_CURSOR 14              /* the cursor */
+#define CONTROLS_B_ICON 15              /* the B button's icon, by the "back" text */
+#define CONTROLS_B_ICON_BACK 16         /* the icon's backing */
+
+/* The options screen: options_buttonInfo[]: a label and a value button for each of the 14 rows, then the cursor. */
+#define OPTIONS_ROWS 14
+#define OPTIONS_VALUE_BUTTON(i) ((i) + OPTIONS_ROWS)
+#define OPTIONS_CURSOR 28
+#define OPTIONS_BUTTONS 32
+
+/* The start menu: gCheatActive[]'s entry for the start menu's code (the cheat menu unlocked). */
+#define CHEAT_MENU_UNLOCKED 21
+/* PC: is start menu row i offered (v: the game's own answer; the PC's start menu, port/app)? */
+#define PC_START_VALID(i, v) pc_start_valid((i), (v))
+/* PC: ZOID_SetColor reads a colour as one word, so the screens' colours passed to it are word-aligned
+ * (docs/port/SANITIZE.md 3.2). */
+#define PC_WORD_ALIGNED __attribute__((aligned(4)))
+
 /* Data */
 extern s32 build_date_text;
 extern s32 build_time_text;

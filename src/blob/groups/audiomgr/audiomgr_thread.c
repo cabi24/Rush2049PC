@@ -120,26 +120,11 @@ static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
     int num = 0; WalkBSTInternal(tree, tree->root, &num, WalkFunc);
 }
 
-/* The audio manager's commands (tAudioMsg.hdr.cmd). */
-#define AUDIO_CMD_PLAY_SONG 0
-#define AUDIO_CMD_STOP_SONG 1
-#define AUDIO_CMD_PLAY_EFFECT 2     /* a tag set up to start (its start command follows from the priority pass) */
-#define AUDIO_CMD_START_EFFECT 3
-#define AUDIO_CMD_CHANGE_EFFECT 4
-#define AUDIO_CMD_INTERRUPT_EFFECT 5
-#define AUDIO_CMD_STOP_EFFECT 6
-#define AUDIO_CMD_STOP_ALL_EFFECTS 7
-#define AUDIO_CMD_PAUSE_EFFECTS 8
-#define AUDIO_CMD_RESUME_EFFECTS 9
-#define AUDIO_CMD_MASTER_VOLUME 10
-#define AUDIO_CMD_MONO 11
 /* An effect tag's state (tFxSequence.state). */
 #define FX_TAG_FREE 0
 #define FX_TAG_WAITING 1        /* interrupted or not yet started: waits for a voice */
 #define FX_TAG_PLAYING 2
 #define FX_TAG_STARTING 3       /* asked to play: the priority pass will start it */
-/* "Leave this value as it is" in a change command. */
-#define AUDIO_NO_CHANGE (-2.0f)
 
 /* Puts tag in the priority tree (gSortedFxTagTree, ordered by OrderFx) through the next free sorted-tag node. */
 static void _InsertSorted(tFxSequence *tag)
@@ -255,19 +240,19 @@ void audio_manager_thread_entry(void *arg)
             cmd = msg;
             osRecvMesg(&audio_lock_queue, 0, 1);
             switch (cmd->hdr.cmd) {
-            case AUDIO_CMD_PLAY_SONG:
+            case kAudioCmdPlaySong:
                 if (audiomgr_gSong != cmd->playSong.song && audiomgr_gSong < 0) {
                     audiomgr_gSong = cmd->playSong.song;
                     AudioSongPlay(audiomgr_gSong, cmd->playSong.loop);
                 }
                 break;
-            case AUDIO_CMD_STOP_SONG:
+            case kAudioCmdKillSong:
                 if (audiomgr_gSong >= 0) {
                     AudioSongStop(audiomgr_gSong);
                     audiomgr_gSong = -1;
                 }
                 break;
-            case AUDIO_CMD_PLAY_EFFECT:
+            case kAudioCmdPlayEffect:
                 cmd->playEffect.tag->numCmds--;
                 if (cmd->playEffect.tag->state == FX_TAG_FREE) {
                     FreeFxTag(cmd->playEffect.tag);
@@ -308,7 +293,7 @@ void audio_manager_thread_entry(void *arg)
                 else cmd->playEffect.tag->fbpan = 0.0f;
                 cmd->playEffect.tag->state = FX_TAG_STARTING;
                 break;
-            case AUDIO_CMD_START_EFFECT:
+            case kAudioCmdStartEffect:
                 cmd->startEffect.tag->numCmds--;
                 if (cmd->startEffect.tag->state == FX_TAG_FREE) {
                     FreeFxTag(cmd->startEffect.tag);
@@ -329,7 +314,7 @@ void audio_manager_thread_entry(void *arg)
                     cmd->startEffect.tag->startTime = gAudioSeconds;
                 }
                 break;
-            case AUDIO_CMD_CHANGE_EFFECT:
+            case kAudioCmdChangeEffect:
                 cmd->changeEffect.tag->numCmds--;
                 if (cmd->changeEffect.tag->state == FX_TAG_FREE) {
                     FreeFxTag(cmd->changeEffect.tag);
@@ -356,7 +341,7 @@ void audio_manager_thread_entry(void *arg)
                     cmd->changeEffect.tag->pitch = cmd->changeEffect.pitch;
                 }
                 break;
-            case AUDIO_CMD_INTERRUPT_EFFECT:
+            case kAudioCmdInterruptEffect:
                 cmd->intEffect.tag->numCmds--;
                 if (cmd->intEffect.tag->state == FX_TAG_FREE) {
                     FreeFxTag(cmd->intEffect.tag);
@@ -366,7 +351,7 @@ void audio_manager_thread_entry(void *arg)
                 if (cmd->intEffect.tag->loop) InterruptFxTag(cmd->intEffect.tag);
                 else FreeFxTag(cmd->intEffect.tag);
                 break;
-            case AUDIO_CMD_STOP_EFFECT:
+            case kAudioCmdStopEffect:
                 cmd->stopEffect.tag->numCmds--;
                 if (cmd->stopEffect.tag->state == FX_TAG_FREE) {
                     FreeFxTag(cmd->stopEffect.tag);
@@ -375,7 +360,7 @@ void audio_manager_thread_entry(void *arg)
                 if (cmd->stopEffect.tag->state == FX_TAG_PLAYING) AudioStopEffect(cmd->stopEffect.tag->sysId);
                 FreeFxTag(cmd->stopEffect.tag);
                 break;
-            case AUDIO_CMD_STOP_ALL_EFFECTS:
+            case kAudioCmdStopAllEffects:
                 { anon_ll_id_3c *s; for (s = gActiveSequences.head; s; s = s->ll.next) s->stop = 1; }
                 AudioStopAllEffects();
                 for (tag = gPlayingFxTags.head; tag; tag = next) {
@@ -387,7 +372,7 @@ void audio_manager_thread_entry(void *arg)
                     FreeFxTag(tag);
                 }
                 break;
-            case AUDIO_CMD_PAUSE_EFFECTS:
+            case kAudioCmdPauseAllEffects:
                 for (tag = gPlayingFxTags.head; tag; tag = next) {
                     next = tag->ll.next;
                     if (tag->state == FX_TAG_PLAYING) AudioSetEffectPitch(tag->sysId, 0.0f);
@@ -398,7 +383,7 @@ void audio_manager_thread_entry(void *arg)
                     tag->paused = 1;
                 }
                 break;
-            case AUDIO_CMD_RESUME_EFFECTS:
+            case kAudioCmdResumeAllEffects:
                 for (tag = gPlayingFxTags.head; tag; tag = next) {
                     next = tag->ll.next;
                     if (tag->paused && tag->state == FX_TAG_PLAYING) {
@@ -411,11 +396,11 @@ void audio_manager_thread_entry(void *arg)
                     tag->paused = 0;
                 }
                 break;
-            case AUDIO_CMD_MASTER_VOLUME:
+            case kAudioCmdSetMasterVol:
                 AudioSetMasterVolume(cmd->setMasterVol.vol, (unsigned int)(1000.0f * cmd->setMasterVol.time),
                     cmd->setMasterVol.music, cmd->setMasterVol.sfx);
                 break;
-            case AUDIO_CMD_MONO:
+            case kAudioCmdMono:
                 AudioSetMono(cmd->mono.mono);
                 break;
             default:

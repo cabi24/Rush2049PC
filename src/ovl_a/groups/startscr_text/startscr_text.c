@@ -34,7 +34,6 @@ const char *pc_start_label(int index, const char *label);
 #define START_ROW_CHEAT 6
 #define START_ROW_DEBUG 7
 #define DEBUG_BUTTON 0x100          /* game button 8: held, it offers the debug row */
-#define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
 
 /* The menu's text over its 3D buttons: the title on its button, each offered row's name beside its button (skipped
  * while the button faces away, half see-through while it turns, flashing on the selected one), and after the player

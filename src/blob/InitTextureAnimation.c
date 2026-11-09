@@ -14,8 +14,6 @@ typedef struct Resource32 {
     u32 texBase;        /* +24 a texture's load display list (TXLD), or its image (flags & TEX_IMAGE_DIRECT) */
     u32 flags;          /* +28 */
 } Resource32;
-/* A texture whose texBase is its image's address itself, not a load display list holding it. */
-#define TEX_IMAGE_DIRECT 0x08000000
 /* A row's palette or texture list is written through (TextureAnimation): N64PTR0(T, a) is the pointer at N64 address a
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). An item's output stays the 32-bit address the display list takes. */
 #define N64PTR0(T, a) ((T)PC_N64P(a))

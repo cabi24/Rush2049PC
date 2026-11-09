@@ -68,28 +68,6 @@ VIEW(s8[][13], gTireRims);
 
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
-/* carscr_gOpts[]: the screen's options, in their order down the list (calcValidOptions keeps the offered ones). */
-#define CAR_OPT_CAR 0
-#define CAR_OPT_TRANS 1
-#define CAR_OPT_HANDLING 2
-#define CAR_OPT_ENGINE 3
-#define CAR_OPT_TIRES 4
-#define CAR_OPT_FRAME 5
-#define CAR_OPT_WINGS 6
-#define CAR_OPT_COLOR_A 7               /* the paint's three colour choices (car_color_choice_a/_b/_c) */
-#define CAR_OPT_COLOR_B 8
-#define CAR_OPT_COLOR_C 9
-#define CAR_OPT_TEAM 10                 /* battle only */
-#define CAR_OPT_RIMS 11                 /* the car turns side-on while it is selected */
-#define CAR_OPT_HORN 12                 /* never offered */
-#define CAR_OPT_FRONT_TIRE_SCALE 13     /* with gEnableTireScaling */
-#define CAR_OPT_REAR_TIRE_SCALE 14
-#define CAR_OPT_SHEEN 15                /* never offered */
-#define CAR_OPT_GHOST_1 16              /* ghost races: the three ghosts to race */
-#define CAR_OPT_GHOST_2 17
-#define CAR_OPT_GHOST_3 18
-#define CAR_OPTS 19
-
 /* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's SaveHeader.settings). */
 #define CAR_SETTING_HANDLING 0
 #define CAR_SETTING_ENGINE 1
@@ -114,18 +92,11 @@ extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 #define CAR_BUTTON_B_ARROW 43
 #define CAR_BUTTONS 44
 
-#define CARS 13                         /* the roster; carscr_cars[][].car is car + 13 x the window's player */
 #define CAR_TALL 10                     /* the roster's tall car, drawn higher on its turntable */
 #define CAR_READY_FRAMES 10             /* 30 Hz frames from the last player's lock to the race (carscr_wait) */
 #define BATTLE_TRANS 6                  /* the transmission every battle car has */
 #define CHEAT_BATTLE_PAINT 13           /* gCheatState[]: battle cars keep their own paint, not the team's */
 #define PANE_STYLE_MESSAGE 192          /* InitPane's style for the "waiting" boxes */
-#define SND_BACK 38                     /* the menu sounds */
-#define SND_MENU_DOWN 39
-#define SND_MENU_UP 40
-#define SND_MENU_ERROR 42
-#define SND_HORNS 26                    /* a horn's effect: this + the horn */
-#define BUTTON_DEFAULT_OPTION 0x80      /* with carscr_gActiveZ, would put an option back to its default */
 #define TEXT_WAITING_FOR 151            /* gText.single[]: "waiting for" over the player still choosing */
 #define TEXT_WAITING_FOR_ALL 31         /* gText.single[]: ... over several */
 #define TEXT_NO_GHOSTS_SAVED 224        /* gText.single[]: a ghost window without a ghost */
@@ -561,7 +532,7 @@ void updateCarScreen(void)
         s16 gscreenPos[2];
         if (!allLocked && (gPlayers[p].pressed & BUTTON_B)) {
             if (gCarLocked[p] == 1) gCarLocked[p] = 0;
-            else { AudPlayEffect(SND_BACK, 0, 1, 0); carscr_UninitScreen(); setGameState(GS_TRACK); carscr_wait = 0; return; }
+            else { AudPlayEffect(SND_MENU_BACK, 0, 1, 0); carscr_UninitScreen(); setGameState(GS_TRACK); carscr_wait = 0; return; }
         }
         if (gCarLocked[p]) {
             msgPos = carscr_msgPos;
@@ -750,7 +721,7 @@ void updateCarScreen(void)
                 } else gCarHorn[p + 1][gThisCar[p]] = gCarHorn[0][gThisCar[p]];
                 sound = 0;
                 AudStopEffect(gHornSnd[p]);
-                gHornSnd[p] = AudPlayEffect(gCarHorn[p + 1][gThisCar[p]] + SND_HORNS, 0, 1, 0);
+                gHornSnd[p] = AudPlayEffect(gCarHorn[p + 1][gThisCar[p]] + SND_HORN_FIRST, 0, 1, 0);
                 SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_HORN, gCarHorn[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_FRONT_TIRE_SCALE:
@@ -1062,7 +1033,6 @@ void carscr_initButtons(s8 p)
     carscr_buttonsJustInited[p]=1;
     ZeroCameras();
 }
-
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -1396,7 +1366,6 @@ void updateCarComponents(s32 p)
         ZOID_SetObjLights(components[p][i].idx, 1, &compLight[whichLight]);
     }
 }
-
 
 #define CAR_MIN(a,b) ((a) < (b) ? (a) : (b))
 

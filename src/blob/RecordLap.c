@@ -1,8 +1,6 @@
 /* RecordLap: note a lap's time (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-#define kPractice 1   /* gRace (MAT3 enum kNumRaceTypes) */
-
 VIEW(int, gGameState);
 #define gGameState gGameState_view
 

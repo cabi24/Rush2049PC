@@ -9,9 +9,6 @@ typedef struct MODELDAT {
     s8 drone_type;      /* 0x7CC: 2 for a human's car */
 } MODELDAT;
 
-/* A human's car (tModelData.drone_type): its sounds are plain effects, a drone's are 3D emitters. */
-#define DRONE_TYPE_HUMAN 2
-
 /* Stops every sound of the car of model m, if it has started them (StartCarSounds): the two engine layers, the
  * random engine sound and the tire screech, and for a human's car its road noises, scrape, horn and bog sounds.
  * Its engine is then updated on the frames of its slot's parity again (pc_engine_phase). */

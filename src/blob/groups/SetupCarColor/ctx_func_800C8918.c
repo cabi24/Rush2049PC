@@ -17,10 +17,6 @@ VIEW(s32, audio_command_queue);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 ShutdownMsg *GetCmd(void);
 
-/* The sound manager's commands these send. */
-#define AUDIO_CMD_STOP_SONG 1
-#define AUDIO_CMD_STOP_ALL_EFFECTS 7
-
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). The shutdown's stop of the song and of every effect are
  * not dropped: AudioShutdown frees the effects' blocks next, once the manager has drained the pool, so a post
@@ -38,7 +34,7 @@ void post_type1(void) {
     audio_lock();
     cmd = GetCmd(); PC_CMD_OR_WAIT(cmd)
     msg = cmd;
-    cmd->type = AUDIO_CMD_STOP_SONG; audio_unlock();
+    cmd->type = kAudioCmdKillSong; audio_unlock();
     PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, msg);
 }
 
@@ -50,6 +46,6 @@ void post_type7(void) {
     audio_lock();
     cmd = GetCmd(); PC_CMD_OR_WAIT(cmd)
     msg = cmd;
-    cmd->type = AUDIO_CMD_STOP_ALL_EFFECTS; audio_unlock();
+    cmd->type = kAudioCmdStopAllEffects; audio_unlock();
     PC_CMD_SEND((OSMesgQueue *) &audio_command_queue, msg);
 }

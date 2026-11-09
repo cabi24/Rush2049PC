@@ -76,8 +76,6 @@ int pc_start_exit(int exit, int select);
 #define kStartMenuExit 9
 #define kStartMenuCount 10
 #define EGG_START_MENU 23           /* the start menu's code, past gEggs' own (start_screen_egg) */
-#define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
-#define SONG_MENU 6                 /* the front end's music */
 /* startscr_buttonInfo[]: the ten rows' buttons, then these. */
 #define START_PLAYERS_VALUE 10      /* the player count's value button */
 #define START_TITLE 11
@@ -113,7 +111,7 @@ void updateStartScreen(void)
         if (gSkipToGameState != gGameState) {
             if (!(gSkipToGameState & GS_RACE_MASK) && gOptions[14] <= 12) {
                 AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
-                AudPlaySong(SONG_MENU, 1);
+                AudPlaySong(AUDIO_FRONT_END_SONG, 1);
             }
             setGameState(GS_PLAYER);
             return;
@@ -213,7 +211,7 @@ void startscr_initScreen(void)
 {
     if (gOptions[14] <= 12) {
         AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
-        AudPlaySong(SONG_MENU, 1);
+        AudPlaySong(AUDIO_FRONT_END_SONG, 1);
     }
     particle_lifetime_set();
     startscr_initButtons();

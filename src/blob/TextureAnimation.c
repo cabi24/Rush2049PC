@@ -32,8 +32,6 @@ typedef struct tTexture {
     u32 texBase;            /* +24 its load display list (Gfx *), or its image (flags & TEX_IMAGE_DIRECT) */
     u32 flags;              /* +28 */
 } tTexture;
-/* A texture whose texBase is its image's address itself, not a load display list holding it. */
-#define TEX_IMAGE_DIRECT 0x08000000
 /* A flipbook frame (MAT3 tTextureBase). PC: its first word is its name, a pointer (InitTextureAnimation's Item12;
  * docs/port/POINTERS.md 10). */
 typedef struct tTextureBase { char *name; tTexture *tex; Gfx *texBase; } tTextureBase;

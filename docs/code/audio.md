@@ -80,7 +80,7 @@ The sound manager's own records are in `include/game/audiomgr.h` (`tFxSequence`,
 PC's layout and with MAT3's field names. It is not in game.h because audiomgr_thread.c (the system area) still defines
 its own copies of `tFxSequence` and `tAudioMsg`; when it includes the header instead, the header can join types.h.
 The car sounds' records (`tSoundState`, `tRoadNoises`, `Definition32` the engine layers, `Impact24` the bump peaks)
-are in types.h; the menu sounds' ids (`kSfxMenu*`) and button edges (`MENU_EDGE_*`) in audio.h.
+are in types.h; the menu sounds' ids (`SND_MENU_*`) in audio.h, the buttons they answer (`BUTTON_*`) in input.h.
 
 | File | What (MAT3 module) |
 |---|---|

@@ -39,8 +39,6 @@ VIEW(u8[4][2][4], hudextra_playerPaneColors);
 
 #define blit hudextra_blit
 #define playerPaneColors hudextra_playerPaneColors
-#define kStunt 4  /* gRace: the race types (MAT3 enum kNumRaceTypes) */
-#define kBattle 6
 
 extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);
 

@@ -1,10 +1,6 @@
 /* SavePlayerCar: save the car a profile chose (MAT3 save.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* the race types (MAT3 enum kNumRaceTypes) */
-#define kObstacle 5
-#define kBattle 6
-
 extern void PS_WriteFile(void *,u32 *,int);
 
 /* Stores car value in the settings of the profile's last race type (tSaveData.raceType: the race types of a race

@@ -112,7 +112,6 @@ void DrawUnlocked(void)
     }
 }
 
-
 #define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles */
 #define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
@@ -131,10 +130,6 @@ VIEW(char *, gPlayerNameChars);
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
 VIEW(Ghost **, gSavedGhost);
 #define gSavedGhost gSavedGhost_view
-
-#define NAME_SEL_END (-1)           /* highscore_gNameSelect[]: the buttons under the letter grid */
-#define NAME_SEL_DELETE (-2)
-#define NAME_SEL_SPACE (-3)
 
 /* HAL_SetFont, called through a file static of its own (MAT3's DrawName and DrawGhost each inline one). */
 void hs_SetFont(s32 font)

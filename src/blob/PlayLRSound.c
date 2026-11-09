@@ -5,10 +5,10 @@
 void PlayLRSound(s32 edges) {
     s32 fxid;
 
-    if (edges & MENU_EDGE_LEFT) {
-        fxid = kSfxMenuLeft;
+    if (edges & BUTTON_LEFT) {
+        fxid = SND_MENU_LEFT;
     } else {
-        fxid = kSfxMenuRight;
+        fxid = SND_MENU_RIGHT;
     }
     AudPlayEffect(fxid, 0, 1, 0U);
 }

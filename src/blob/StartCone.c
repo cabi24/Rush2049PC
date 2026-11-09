@@ -76,8 +76,6 @@ typedef struct Visual {
 #define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
-
 #define OBJ_CONE 236            /* the cone's object (MAT3 550) */
 #define OBJ_LIGHT_DEBRIS_A 339  /* the two objects that fly up only a foot a frame (MAT3 653 and 551) */
 #define OBJ_LIGHT_DEBRIS_B 237

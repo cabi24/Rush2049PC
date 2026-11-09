@@ -10,8 +10,6 @@ VIEW(s8[4][4], gFadePlayerArrow);
 
 u16 *ShotToWorldCollision(void *from, void *to, f32 *hit_matrix, f32 radius, s32 first, s32 mask);
 
-/* The race type of a battle (MAT3 kBattle). */
-#define RACE_BATTLE 6
 /* How far above the cars' positions the line of sight runs, in world units. */
 #define SIGHT_HEIGHT 5.0f
 
@@ -27,7 +25,7 @@ void update_player_visibility(void) {
     for (i = 0; i < 4; i++)
         for (k = 0; k < 4; k++)
             gFadePlayerArrow[i][k] = 0;
-    if (gShowPlayerArrows && gRace == RACE_BATTLE) {
+    if (gShowPlayerArrows && gRace == kBattle) {
         for (i = 0; i < gNumPlayers - 1; i++) {
             from[0] = PC_CAR_POS(i)[0];
             from[1] = PC_CAR_POS(i)[1];

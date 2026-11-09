@@ -1,9 +1,6 @@
 /* animOdometer: the odometer's digits, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define kObstacle 5   /* gRace (MAT3 enum kNumRaceTypes) */
-#define FEET_PER_TENTH_MILE 528.0f
-
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     void *Name, *Image, *Info;

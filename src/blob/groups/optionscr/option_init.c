@@ -21,9 +21,6 @@ VIEW(ContData[], gControllerData);
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
-#define OPTIONS_ROWS 14
-#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
-
 /* Set the screen up: keep the options as they are now (SaveGlobals), size the list, select the first offered row.
  * In the front end: the background, the 3D buttons and the text blit. In the pause menu: whether the pausing
  * player's controller is out, the title box and a box for the list, and the pause layout's text blit. The pads'
@@ -56,4 +53,3 @@ void options_initScreen(void)
     ClearRushControls();
     options_inited = 1;
 }
-

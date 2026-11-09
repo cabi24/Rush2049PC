@@ -19,33 +19,6 @@ VIEW(intptr_t[], gPakFull);
 #define kSelectMenuCount 14
 #define IS_PROFILE_ROW(row) ((row) >= kSelectMenuSelectPlayer && (row) < kSelectMenuCreatePlayer)
 
-/* playerscr_gNumPakPlayers[pak]: the pak's profile count, or why it has none. */
-#define PAK_NOT_INSERTED (-1)
-#define PAK_DAMAGED (-2)
-#define PAK_RUMBLE (-3)                 /* a Rumble Pak: no profiles */
-#define PAK_NO_CONTROLLER (-4)
-
-#define PROFILE_BYTES 0x810             /* a profile's save data (PS_GetBlocks: the pages it takes) */
-#define CONTROLLER_NONE 5               /* gPlayers[].controller of a player without one */
-
-/* playerscr_buttonInfo[player][]: the 14 rows' buttons, then these. */
-#define PLAYER_BUTTON_CONTROLS 14       /* the "controls" button beside the selected profile (or "just play") */
-#define PLAYER_BUTTON_PAK_VALUE 15      /* the pak row's value button */
-#define PLAYER_BUTTON_TITLE 16
-#define PLAYER_BUTTON_CURSOR 17
-#define PLAYER_BUTTON_A_ICON 18
-#define PLAYER_BUTTON_A_BACK 19
-#define PLAYER_BUTTON_B_ICON 20
-#define PLAYER_BUTTON_B_BACK 21
-#define PLAYER_BUTTONS 22
-
-/* The name grid (playerscr_gNameSelect[]): a letter (0-53, 9 a row) or one of the buttons under it. */
-#define NAME_SEL_END (-1)
-#define NAME_SEL_DELETE (-2)
-#define NAME_SEL_SPACE (-3)
-#define NAME_GRID_COLUMNS 9
-#define NAME_MAX 12
-
 /* Work out which rows player's select menu (or, for -1, every player's) offers (gSelectMenuValid) and shows
  * (gSelectMenuVisible, some shown greyed), and how many show. "Just play" and the pak row always; the pak status
  * line when the pak has no profiles or is full; a row per profile on the pak; create when the pak isn't full; delete

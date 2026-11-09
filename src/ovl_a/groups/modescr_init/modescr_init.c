@@ -26,7 +26,6 @@ extern void *memcpy(void *,const void *,u32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
 
-
 /* PC: the buttons' colour modescr_button_color is R,G,B,A bytes in the ROM, copied whole into the scene nodes (read as bytes).
  * The PC loader fills initialized data by its declarations: as a word it would swap them (docs/port/ENDIAN.md). */
 typedef struct Color4 { u8 c[4]; } Color4;
@@ -50,13 +49,11 @@ extern void particle_lifetime_set ( void );
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 /* modescr_buttonInfo[]: the seven rows' buttons, then these. */
-#define MODE_CURSOR 7
 #define MODE_A_ICON 8               /* the A button's icon and its arrow, by the "select" text */
 #define MODE_A_ARROW 9
 #define MODE_B_ICON 10              /* the B button's icon and its arrow, by the "back" text */
 #define MODE_B_ARROW 11
 #define MODE_TITLE 12
-#define MODE_BUTTONS 13
 
 /* Set the screen up: flush the profile saves, make the buttons and the text blit, drop the presses so far, and
  * select the mode the first player's profile last raced (GetPlayerRaceType; anything unknown selects a race). */

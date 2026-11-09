@@ -27,8 +27,6 @@ extern void RemoveBlit(Blit *);
 
 extern s32 CountdownTimeOut(void);
 
-#define PROFILE_BYTES 0x810         /* a profile's save data (PS_GetBlocks: the pages it takes) */
-
 /* The screen's frame. The first frame of the game starts the pak system (its error box PS_ErrorFunc) and, if Start
  * is held on any controller, goes to the pak manager (GS_PAK) with the pages a profile needs. Then the licence shows
  * for 3 seconds (a button of Start, A or B cuts it short once it has been seen); the first time it is followed by the

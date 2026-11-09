@@ -1,9 +1,6 @@
 /* SavePlayerCoins: write the coins a profile found (MAT3 save.c). */
 #include "game/game.h"
 
-#define NUM_RACE_TRACKS 6      /* raceStats[track + 6] is the same track's second record (gTrackNum 19..24) */
-#define FIRST_STUNT_TRACK 14   /* gTrackNum: 14..17 the stunt arenas */
-
 extern void PS_WriteFile(void *,void *,u32);
 
 /* After FoundCoin: the stats holding track's coin bits get their checksum again (on a race track the first record
@@ -19,9 +16,9 @@ void SavePlayerCoins(tProfile **profile,u8 track)
         PS_WriteFile((*profile)->fileh,&data->raceStats[track].coinsFound,2);
         PS_WriteFile((*profile)->fileh,&data->raceStats[track+NUM_RACE_TRACKS].checksum,1);
         PS_WriteFile((*profile)->fileh,&data->raceStats[track+NUM_RACE_TRACKS].coinsFound,2);
-    } else if(track>=FIRST_STUNT_TRACK && track<18) {
-        data->stuntStats[track-FIRST_STUNT_TRACK].checksum=CalcChecksumInternal((u8 *)&data->stuntStats[track-FIRST_STUNT_TRACK].bestStunt,60);
-        PS_WriteFile((*profile)->fileh,&data->stuntStats[track-FIRST_STUNT_TRACK].checksum,1);
-        PS_WriteFile((*profile)->fileh,&data->stuntStats[track-FIRST_STUNT_TRACK].coinsFound,2);
+    } else if(track>=TRACK_STUNT_FIRST && track<18) {
+        data->stuntStats[track-TRACK_STUNT_FIRST].checksum=CalcChecksumInternal((u8 *)&data->stuntStats[track-TRACK_STUNT_FIRST].bestStunt,60);
+        PS_WriteFile((*profile)->fileh,&data->stuntStats[track-TRACK_STUNT_FIRST].checksum,1);
+        PS_WriteFile((*profile)->fileh,&data->stuntStats[track-TRACK_STUNT_FIRST].coinsFound,2);
     }
 }

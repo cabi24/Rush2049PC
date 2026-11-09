@@ -13,7 +13,6 @@
 #define kSelectMenuPakStatus 2          /* the pak's status line: never selectable */
 #define kSelectMenuSelectPlayer 3       /* 3-10: the pak's profiles */
 #define kSelectMenuLastPlayer 10
-#define RECORD_SELECT_ROWS 11
 
 /* The view menu's rows (gViewMenuSelect, MAT3 enum_kViewMenuCount): the track (or circuit) and the statistic. */
 #define kViewMenuTrack 0
@@ -24,37 +23,12 @@
 /* gRecordTrack: a record's track. 0-11 the six race tracks, each forward and backward; then the battle arenas, the
  * stunt tracks, the obstacle course, the four circuits and, for a profile, its totals. gTrackType is its kind
  * (MAT3 enum_kTrackTypeCount). */
-#define RECORD_FIRST_BATTLE 12
-#define RECORD_FIRST_STUNT 20
-#define RECORD_FIRST_OBSTACLE 24
-#define RECORD_FIRST_CIRCUIT 25
-#define RECORD_TOTALS 29
 #define kTrackTypeRace 0
 #define kTrackTypeBattle 1
 #define kTrackTypeStunt 2
 #define kTrackTypeObstacle 3
 #define kTrackTypeCircuit 4
 #define kTrackTypeTotals 5
-
-/* recordscr_gNumPakPlayers[pak]: the pak's profile count, or why it has none (as the player screen's). */
-#define PAK_NOT_INSERTED (-1)
-#define PAK_DAMAGED (-2)
-#define PAK_RUMBLE (-3)
-#define PAK_NO_CONTROLLER (-4)
-
-/* recordscr_buttonInfo[]: the select menu's 11 rows (0-10), the view menu's two (11, 12), then these. */
-#define RECORD_VIEW_ROW_BUTTON 11
-#define RECORD_BUTTON_CLEAR 13          /* the "clear records" button beside the selected profile */
-#define RECORD_BUTTON_PAK_VALUE 14
-#define RECORD_BUTTON_TRACK_VALUE 15
-#define RECORD_BUTTON_STAT_VALUE 16
-#define RECORD_BUTTON_TITLE 17
-#define RECORD_BUTTON_CURSOR 18
-#define RECORD_BUTTON_A_ICON 19
-#define RECORD_BUTTON_A_BACK 20
-#define RECORD_BUTTON_B_ICON 21
-#define RECORD_BUTTON_B_BACK 22
-#define RECORD_BUTTONS 23
 
 #define TEXT_GUESTS 177                 /* gText.single[]: the guests' name, when the totals' records are cleared */
 
@@ -110,7 +84,6 @@ void recordscr_updateSelectInfo(void)
         recordscr_gSelectMenuVisible[i + kSelectMenuSelectPlayer] = (s32)i < count;
     }
 }
-
 
 typedef struct { s8 enabled; unsigned char remaining[15]; } PlayerSlot;   /* gControllerData: a controller */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
@@ -519,7 +492,6 @@ void recordscr_uninitButtons(void)
     }
     recordscr_buttonsInited = 0;
 }
-
 
 /* Make the buttons that don't exist yet, each a model by its type (recordscr_buttonNames; types 0-2 and 7-11 draw
  * see-through), white; then texture and place the title, the cursor and the A and B icons. */

@@ -1,8 +1,6 @@
 /* NumCoinsFound: how many of a track's coins a player has found (MAT3 save.c). */
 #include "game/game.h"
 
-#define FIRST_STUNT_TRACK 14   /* gTrackNum: 0..5 the race tracks, 14..17 the stunt arenas */
-
 /* A player's input record as this reads it: which "just play" profile, and the profile handle in use. */
 typedef struct PlayerPad {u8 first;u8 selector;u8 opaque[70];tProfile **profile;} PlayerPad;
 
@@ -24,10 +22,10 @@ u8 NumCoinsFound(int index,int lane)
         datah=(*player->profile)->datah;
         if(datah==0)return 16;
         bits=(*datah)->raceStats[track].coinsFound;
-    } else if(track>=FIRST_STUNT_TRACK && track<18) {
+    } else if(track>=TRACK_STUNT_FIRST && track<18) {
         PlayerPad *player=&gPlayers[index];
         if(player->profile==0)player->profile=&gJustPlayers[player->selector];
-        bits=(*(*player->profile)->datah)->stuntStats[track-FIRST_STUNT_TRACK].coinsFound;
+        bits=(*(*player->profile)->datah)->stuntStats[track-TRACK_STUNT_FIRST].coinsFound;
     } else bits=0;
     if(lane!=0) {
         u32 mask;

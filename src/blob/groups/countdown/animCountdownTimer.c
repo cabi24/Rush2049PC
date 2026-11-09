@@ -1,11 +1,6 @@
 /* animCountdownTimer: the time left, a text blit's draw function (MAT3 hud.c); and the countdown's beep. */
 #include "game/game.h"
 
-#define kOneRace 0    /* gRace (MAT3 enum kNumRaceTypes) */
-#define kPractice 1
-#define kCircuit 3
-#define kStunt 4
-#define kBattle 6
 #define SOUND_COUNTDOWN_BEEP 2
 
 #define sc gScheduler_view

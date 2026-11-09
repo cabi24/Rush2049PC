@@ -1,8 +1,6 @@
 /* animCoins: the coin counters, 3D coins and their counts (MAT3 hud.c). */
 #include "game/game.h"
 
-#define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
-
 typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
 typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
 typedef struct Cam152 { u8 pad[152]; } Cam152;
@@ -87,6 +85,3 @@ s32 animCoins(void *blit) {
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
-
- 
-

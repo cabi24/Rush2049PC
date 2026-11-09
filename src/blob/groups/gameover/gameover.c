@@ -14,8 +14,6 @@ typedef struct {
     u8 cmd, used;
     u32 payload[5];
 } SceneMsg;
-#define AUDIO_CMD_STOP_SONG 1           /* stop the music */
-#define AUDIO_CMD_STOP_ALL_EFFECTS 7    /* stop every sound effect and sequence */
 
 /* The game's texts (gText): single strings, and tables of strings indexed through tab. */
 typedef struct {
@@ -27,7 +25,6 @@ typedef struct {
 } TextTable;
 #define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
 #define TEXT_GAME_OVER_MENU 45      /* gText.tab[]: the first of the menu's seven rows */
-#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 
 VIEW(TextTable, gText);
 #define gText gText_view
@@ -152,7 +149,7 @@ void controlMain(void)
         case kGameOverMainMenuRaceAgain:
             if (gRace == kGhost) {
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_SONG;
+                (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdKillSong;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND(&audio_command_queue, msg);
                 UnloadTrack(gTrackNum);
@@ -173,7 +170,7 @@ void controlMain(void)
                 gameover_uninitScreen();
                 gRestartGame = 1;
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_ALL_EFFECTS;
+                (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdStopAllEffects;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND(&audio_command_queue, msg);
                 AbortGame();
@@ -185,7 +182,7 @@ void controlMain(void)
         case kGameOverMainMenuNextRace:
         case kGameOverMainMenuQuit:
             osRecvMesg(&audio_lock_queue, 0, 1);
-            (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_SONG;
+            (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdKillSong;
             osSendMesg(&audio_lock_queue, 0, 0);
             PC_CMD_SEND(&audio_command_queue, msg);
             UnloadTrack(gTrackNum);
@@ -257,7 +254,7 @@ void updateGameOverScreen(void)
     BlinkResurrectingCars();
     if (gSoftReset) {
         osRecvMesg(&audio_lock_queue, 0, 1);
-        msg = PC_CMD(GetCmd()); msg->cmd = AUDIO_CMD_STOP_SONG; osSendMesg(&audio_lock_queue, 0, 0);
+        msg = PC_CMD(GetCmd()); msg->cmd = kAudioCmdKillSong; osSendMesg(&audio_lock_queue, 0, 0);
         PC_CMD_SEND(&audio_command_queue, msg);
         UnloadTrack(gTrackNum);
         entity = gEnvList;

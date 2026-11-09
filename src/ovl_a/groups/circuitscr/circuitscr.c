@@ -34,15 +34,6 @@ typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 #define CODE_LETTERS 32
 #define CODE_LENGTH 20
 
-/* The menu sounds (the effects PlayUDSound, PlayLRSound and PlayStartABSound play). */
-#define SND_MENU_A 0x25
-#define SND_MENU_B 0x26
-#define SND_MENU_DOWN 0x27
-#define SND_MENU_UP 0x28
-#define SND_MENU_LEFT 0x29
-#define SND_MENU_RIGHT 0x2C
-#define SND_MENU_START 0x2E
-
 /* circuitscr_buttonInfo[]: the menu's four rows, then these. */
 #define CIRCUIT_BUTTON_REVIEW_VALUE 4
 #define CIRCUIT_BUTTON_TYPE_VALUE 5
@@ -372,7 +363,7 @@ void updateCircuitScreen(void)
             break;
         }
     } else if (gActiveEdges & BUTTON_B) {
-        AudPlayEffect(SND_MENU_B, 0, 1, 0);
+        AudPlayEffect(SND_MENU_BACK, 0, 1, 0);
         if (gConfirmNewCircuit) {
             gConfirmNewCircuit = 0;
             circuitscr_gYes = 0;
