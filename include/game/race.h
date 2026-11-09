@@ -16,8 +16,18 @@ enum {
     kNumRaceTypes = 7
 };
 
-/* gGameState's bits (MAT3 has the numbers only) */
-#define GS_DEMO 0x8 /* the attract mode's demo race: no laps counted for records, no crash counts, game sounds off */
+/* gGameState's bits (MAT3 has the numbers only). A race goes SETUP, LOAD, COUNTDOWN, START, PLAY, END, then the
+ * high score screen (UpdateGame). */
+#define GS_DEMO 0x8                /* the attract mode's demo race: no records, no crash counts, game sounds off */
+#define GS_RACE_SETUP 0x40000      /* options and pole positions */
+#define GS_RACE_LOAD 0x80000       /* PrePlay: the track and cars loaded and placed */
+#define GS_RACE_START 0x100000     /* the countdown is over: the race clock and the music start */
+#define GS_RACE_COUNTDOWN 0x200000 /* the countdown */
+#define GS_RACE_PLAY 0x400000      /* the race (PlayGame) */
+#define GS_GAME_OVER 0x800000      /* the game over screen */
+#define GS_RACE_END 0x1000000      /* the race is over (EndGame) */
+#define GS_HIGH_SCORE 0x2000000    /* the high score screen */
+#define GS_RACE 0x7C0000           /* any of the race's own states, SETUP to PLAY */
 
 /* Data */
 extern u32 gCircuitPoints[EXTENT(6)];
@@ -172,7 +182,7 @@ void endDemoGame(void);
 s32 findDamageSlot(void);
 s32 GameLoop(void);
 f32 get_input_idle_seconds(void);
-void GetCircuitCode(intptr_t arg0);
+void GetCircuitCode(intptr_t code);
 void GhostEnd(void);
 void GhostStart(void);
 s32 GhostUpdate(s32 idx, f32 *out);
@@ -188,7 +198,7 @@ void initWorldDamage(void);
 f32 LinearInterp(f32 in_bound1, f32 in_bound2, f32 input, f32 out_bound1, f32 out_bound2);
 void LoadFrontEndOverlay(s32 load);
 void MissileLock(struct Object *object);
-void NewCircuit(s32 arg0);
+void NewCircuit(s32 type);
 void newWorldDamage(f32 *pos, s32 slot);
 void nextAvailDemoTrack(void);
 void playDemoGame(s32 on, s32 x);
@@ -201,7 +211,7 @@ void RemoveCannMFlash(s16 slot);
 void RemoveGattMFlash(s16 slot);
 s32 seeded_rand(u32 *seed);
 s32 SetCircuitCode(u8 *input);
-void setGameState(s32 arg0);
+void setGameState(s32 state);
 void ShotDone(struct Shot *shot);
 void ShotInit(void);
 void ShotUpdate(void);

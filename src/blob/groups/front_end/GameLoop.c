@@ -1,3 +1,4 @@
+/* GameLoop: one turn of the game thread's loop (MAT3 game.c). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -24,6 +25,11 @@ VIEW(OSMesgQueue *, frame_dl_start);
 void *NewMultiBlit(s16, s16, void *, s32);
 void RemoveBlit(void *);
 
+/* One frame of the game: a change of game state starts a new frame's graphics (waiting for the last to finish
+ * drawing) and reads the controls; the idle warning after 5 minutes without a key (but in the attract, demo and
+ * front-end states 0x4000000F); the state's own update (updateGameState), the front end's screens, the pause screen
+ * in a race (paused: only the blits, the environment and the cameras drawn), the race (UpdateGame); then, the state
+ * unchanged, the frame is drawn. Returns 1 if a frame was drawn. */
 s32 GameLoop(void)
 {
     s32 renderFlag;
@@ -57,7 +63,7 @@ s32 GameLoop(void)
     if (gGameState & 0x7C03FFFE) {
         updateFrontEnd();
     }
-    if ((gGameState & 0x200000) || (gGameState & 0x400000)) {
+    if ((gGameState & GS_RACE_COUNTDOWN) || (gGameState & GS_RACE_PLAY)) {
         updatePauseScreen();
         if (gPauseState) {
             DrawBlits();

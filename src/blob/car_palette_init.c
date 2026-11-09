@@ -1,3 +1,4 @@
+/* car_palette_init: a car's paint palette at a race's start. */
 #include "game/game.h"
 
 /* PC: the car palette descriptors car_palettes have a WAD palette record's (PLHD) N64 layout, which the model draw
@@ -6,6 +7,7 @@
 /* ... so a block's address goes in as its 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+/* A palette descriptor (a WAD palette record, PLHD: MAT3 anon_name_start_18's shape). */
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; u16 value; DESC_PTR(data); } Slot24;
 
 VIEW(Slot24[], car_palettes);
@@ -13,6 +15,9 @@ VIEW(Slot24[], car_palettes);
 
 /* PC: the heap too short for the paint, where a car shares another's, is logged (port/ultra/heap.c). */
 
+/* Sets car `index`'s palette descriptor (car_palettes[index]) to `data`, or a new 512-byte block of the heap; with
+ * the heap too short, it shares the palette and colours of an earlier car of the same `kind` (the roster's car),
+ * and with none, the car has no palette of its own. */
 void car_palette_init(int index, int kind, void *data)
 {
     int i;

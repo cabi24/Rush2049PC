@@ -1,5 +1,7 @@
+/* ShowCountdown: the countdown's numbers in front of each window's camera (MAT3 countdown.c). */
 #include "game/game.h"
 
+/* A 3D polygon of the scene (ZOID_NewPoly): the fields this file needs. */
 typedef struct Poly {
     s16 active;
     u16 flags;
@@ -15,6 +17,9 @@ void ZOID_UpdatePoly(Poly *, s32, f32 *, u16, u8 *, u16, s32);
 void ZOID_RemovePoly(Poly *);
 s32 sprintf(char *, const char *, ...);
 
+/* With `active`, shows the countdown's number (texture CNTDWN3, 2, 1) on a square in front of each window's camera,
+ * swinging in from the distance each second, and says the number (sounds 75, 76, 77) as it changes; without it,
+ * removes the squares. */
 void ShowCountdown(s32 active)
 {
     f32 xyz[4][3];

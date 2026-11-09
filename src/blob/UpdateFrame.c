@@ -1,3 +1,4 @@
+/* UpdateFrame: the end of a frame on the game thread (MAT3 game.c's frame end, the N64's scheduler hand-off). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -17,8 +18,12 @@ VIEW(intptr_t, frame_dl);
 VIEW(intptr_t, frame_dl_start);
 #define frame_dl_start frame_dl_start_view
 
+/* A message to the main thread (the scheduler): its type. */
 typedef struct { s16 type; s16 pad; u8 data[28]; } SchedMsg;
 
+/* Asks the main thread to end the frame (message 2750) and waits on the game thread's queue for the next frame's
+ * start, emptying it of any older messages; then the new frame's display list, the frame timer, the controls and the
+ * once-a-frame functions. */
 void UpdateFrame(void)
 {
     SchedMsg sm;

@@ -1,5 +1,8 @@
+/* GhostUpdate: a ghost's controls, played back or recorded, each model step (MAT3 ghost.c). */
 #include "game/game.h"
 
+/* A ghost's header (GhostSaveHeader, the N64 layout kept on the PC) and its controls: one byte a step of gear and
+ * buttons, then one of steering, then one of gas and brake (4 bits each). */
 typedef struct ReplayStream {
     u8 pad0[5];
     s8 mode;
@@ -15,11 +18,13 @@ typedef struct ReplayOwner { void *ll; void **fileh; u8 pad10[0x24 - 0x08]; void
 #define DATA(s) ((u8 *)PC_N64P((s)->data))
 typedef struct ReplaySlot { ReplayOwner *owner; } ReplaySlot;
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
 #define ABS(x) ((x) >= 0 ? (x) : -(x))
 
+/* One model step of car `idx`'s ghost: *out is the step's time (the ghost's own, played back). A ghost played back
+ * (mode positive) sets the car's controls from its next step (none, once it ends); one recorded from a frame rate
+ * other than this machine's (a step of 1/50 or 1/60 second) skips a step (-1) or takes an extra one (1) every few
+ * steps to keep time. A recording (mode negative) stores the car's controls until the car finishes or the ghost is
+ * full. Returns 0 to step normally. */
 s32 GhostUpdate(s32 idx, f32 *out)
 {
     ReplayStream *s;

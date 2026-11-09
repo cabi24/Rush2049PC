@@ -1,3 +1,4 @@
+/* GhostStart: a ghost race's ghosts, recorded and raced against (MAT3 ghost.c). */
 #include "game/game.h"
 
 /* PC: the ghost header keeps its N64 layout, file data; the profile record is 64 bytes (docs/port/POINTERS.md 9.10) */
@@ -57,6 +58,8 @@ typedef struct Player {           /* GC gPlayers (0x50); N64 0x4C */
     PlayerRec **handle;           /* 0x48 */
 } Player;
 
+/* A profile's save data (the player's tSaveData): its cars' settings, from +1860, and its tracks' records, from
+ * +224 (forward ones, then backward from the seventh). */
 typedef struct CarCfg { u8 s[16]; } CarCfg;
 typedef struct TrackRec { u16 time; u8 pad[94]; } TrackRec;
 
@@ -78,6 +81,11 @@ extern Player gPlayers[];                                 /* GC gPlayers */
 VIEW(s8[][13], gTireRims);
 #define gTireRims gTireRims_view
 
+/* Sets a ghost race's ghosts up (only in a ghost race): each player gets a new ghost to record, its header from the
+ * player (best time for the track, name, id, car, transmission and settings, the frame time) and, but on a restart,
+ * room for the race's time and 10 seconds of steps (3 bytes each). Then each saved ghost (2 of them, 4 with the
+ * Expansion Pak) is read (ReadGhostData; one that can't be read drops out) and becomes a player driving its car
+ * with its settings, colours and frame time, in a car slot after the humans. */
 void GhostStart(void) {
     GhostHeader *g;
     s32 i;
@@ -90,7 +98,7 @@ void GhostStart(void) {
     s32 size;
 
     n = expansion_pak_present ? 4 : 2;
-    if (gRace != 2) {
+    if (gRace != kGhost) {
         return;
     }
     if (!ghost_gInited) {

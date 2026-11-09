@@ -1709,12 +1709,13 @@ typedef struct tStuntPlayer { /* 0x78 bytes */
 
 /* ---- race: the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
 
+/* A race of a circuit (MAT3 tCircuitTrack, gCircuitTracks[]: the arena holds them all; ContinueCircuit). */
 typedef struct CircuitTrackSlot { /* 0x5 bytes */
-    u8 a; /* 0x0 */
-    u8 b; /* 0x1 */
-    u8 c; /* 0x2 */
-    u8 d; /* 0x3 */
-    u8 e; /* 0x4 */
+    u8 trackNum; /* 0x0 */
+    u8 backward; /* 0x1 */
+    u8 mirror;   /* 0x2 */
+    u8 fog;      /* 0x3 0 none to 3 thick */
+    u8 wind;     /* 0x4 */
 } CircuitTrackSlot;
 
 typedef struct GhostFile { /* 0x40 bytes */
@@ -1850,13 +1851,15 @@ typedef struct tCMuzzleObj { /* 0x148 bytes */
     f32 timer;          /* 0x144 */
 } tCMuzzleObj;
 
+/* A car of a circuit (MAT3 tCircuitCar, gCircuitCars[6]: the arena holds six; the data loader knows the first):
+ * its driver, its standing and its results race by race. */
 typedef struct tCircuitCar { /* 0x4C bytes */
-    u8 id;         /* 0x0 */
-    u8 b1;         /* 0x1 */
-    u16 h2;        /* 0x2 */
-    u8 b4[24];     /* 0x4 */
-    u8 b28[24];    /* 0x1C */
-    s16 skill[12]; /* 0x34 */
+    u8 name;          /* 0x0 its driver (the roster's car) */
+    u8 totalPlace;    /* 0x1 its place in the circuit so far */
+    u16 totalPoints;  /* 0x2 its points so far */
+    u8 places[24];    /* 0x4 its place in each race */
+    u8 points[24];    /* 0x1C its points from each race */
+    s16 skill[12];    /* 0x34 a drone's skill in each race */
 } tCircuitCar;
 
 /* ---- camera: the cameras */
