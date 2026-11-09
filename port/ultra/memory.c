@@ -411,31 +411,10 @@ uint32_t pc_n64_addr(const void *host)
 
 /* ---------------------------------------------------------------- the RCP's addresses (docs/port/MEMORY.md 3) */
 
-/* The rule past 16 MiB, and the display lists' relocation, are in rcpaddr.c (which tests link alone). */
-
-/* RDRAM addresses become physical, as on the N64, below 16 MiB; past it, K0 (above). A host address (the game's own
- * code, data or stacks, all above 4 GiB) doesn't fit the u32 the game stores it in: it is truncated, with one
- * warning. The game's framebuffers and loaded files live in the heap, inside the window. */
-uint32_t osVirtualToPhysical(void *vaddr)
-{
-    PC_CROSS_CALLER(PC_CROSS_VIRT_TO_PHYS, (uintptr_t)vaddr);
-    uint32_t n64 = pc_n64_addr(vaddr);
-    if (n64)
-        return N64_TO_PHYS(n64) < PC_RCP_SEGMENT_SPAN ? N64_TO_PHYS(n64) : n64;
-    uintptr_t a = (uintptr_t)vaddr;
-    if (a >> 32) {
-        static int warned;
-        if (!warned++)
-            pc_log("osVirtualToPhysical(%p): host address above 4 GiB truncated", vaddr);
-    }
-    return (uint32_t)a;
-}
-
-void *osPhysicalToVirtual(uint32_t paddr)
-{
-    void *p = paddr < g_size ? pc_n64_ptr(paddr) : NULL;
-    return p ? p : (void *)(uintptr_t)paddr;
-}
+/* The rule past 16 MiB, and the display lists' relocation, are in rcpaddr.c (which tests link alone). The game gives
+ * the renderer its colour and depth images as pointers (StartGraphics, ClearScreen): libultra's osVirtualToPhysical
+ * and osPhysicalToVirtual, which turned window pointers into the N64's physical addresses and back, went with their
+ * last callers (docs/port/NATIVE.md step 4). */
 
 /* ---------------------------------------------------------------- big-endian ranges */
 

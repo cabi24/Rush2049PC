@@ -128,7 +128,7 @@ void __osResetGlobalIntMask(uint32_t mask) { g_intmask &= ~mask; }
 
 /* ---------------------------------------------------------------- addresses */
 
-/* osVirtualToPhysical and osPhysicalToVirtual are in memory.c, with the window's other address rules. */
+/* (osVirtualToPhysical and osPhysicalToVirtual: none, memory.c says why.) */
 
 /* A generated stub was called (build/pc/pc-data/stubs.c, tools/port/gen_stubs.py). */
 void pc_stub_hit(const char *name)

@@ -39,12 +39,11 @@ void pcgfx_gl_test_nudge(float dx, float dy);
 static uint8_t *s_rdram;
 
 #ifdef GFX_TEST_WINDOW
-/* port/ultra/memory.c's window, big-endian ranges and osVirtualToPhysical; what it calls of the rest of port/ultra. */
+/* port/ultra/memory.c's window and big-endian ranges; what it calls of the rest of port/ultra. */
 #include <stdarg.h>
 int pc_mem_set_size(uint32_t bytes);
 int pc_mem_init(void);
 uint8_t *pc_rdram(void);
-uint32_t osVirtualToPhysical(void *vaddr);
 int pc_verbose;
 void pc_log(const char *fmt, ...) {
     va_list ap;
@@ -1239,9 +1238,9 @@ static void case_belist(void) {
 }
 
 /* game.memory (docs/port/MEMORY.md 3, 6): belist's RDRAM scene at three places in a 64 MiB window, 1 MiB in, 18 MiB in
- * and in its last MiB, with its colour image there too (set through osVirtualToPhysical, as the game sets it). Past
- * 16 MiB a physical address would read as a segmented one: the PC gives the RCP K0 addresses there, and the renderer
- * takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0 addresses and at
+ * and in its last MiB, with its colour image there too (its pointer, as the game sets it: StartGraphics). Past 16 MiB
+ * a physical address would read as a segmented one: the display lists' relocations keep K0 addresses there, and the
+ * renderer takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0 addresses and at
  * physical ones, and each picture must be the first's, pixel for pixel. Only in gfx_window_test, on port/ultra's own
  * window; gfx_test, whose RDRAM is 8 MiB, skips it. */
 #ifdef GFX_TEST_WINDOW
@@ -1257,12 +1256,12 @@ static uint32_t hm_addr(uint32_t base, uint32_t off, int physical) {
 static uint8_t *highmem_draw(uint32_t base, int physical, int *w, int *h, int *n64_w, int *n64_h) {
     uint8_t *ram = (uint8_t *)pc_n64_ptr(base), *rgba;
     uint16_t *fb;
-    uint32_t cimg;
+    uintptr_t cimg;
     int i, pw, ph;
     if (ram == NULL || pc_n64_ptr(base + HM_SIZE - 1) == NULL)
         return NULL;   /* no RAM there */
     fb = (uint16_t *)(ram + HM_FB);
-    cimg = osVirtualToPhysical(fb);
+    cimg = (uintptr_t)fb;
     memset(ram, 0, HM_SIZE);
     be_mtx(ram + HM_MTX, 0, 100);
     be_vtx(ram + HM_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
@@ -1347,12 +1346,9 @@ static void case_highmem(void) {
     uint8_t *first = NULL, *pic;
     char what[96];
     int b, phys, w0 = 0, h0 = 0;
-    /* the RCP's addresses: physical below 16 MiB, K0 past it (port/ultra/memory.c) */
-    if (pc_rdram_size() < (64u << 20) || !pc_n64_ptr(high) || osVirtualToPhysical(pc_n64_ptr(high)) != high ||
-        osVirtualToPhysical(pc_n64_ptr(low)) != N64_TO_PHYS(low)) {
-        printf("  FAIL %s: the window is %u MiB, 0x%08X is at %p; osVirtualToPhysical 0x%08X, 0x%08X\n", s_case,
-               pc_rdram_size() >> 20, high, pc_n64_ptr(high),
-               pc_n64_ptr(high) ? osVirtualToPhysical(pc_n64_ptr(high)) : 0u, osVirtualToPhysical(pc_n64_ptr(low)));
+    if (pc_rdram_size() < (64u << 20) || !pc_n64_ptr(high) || !pc_n64_ptr(low)) {
+        printf("  FAIL %s: the window is %u MiB, 0x%08X is at %p\n", s_case, pc_rdram_size() >> 20, high,
+               pc_n64_ptr(high));
         s_fail++;
     }
     for (b = 0; b < 3; b++)
