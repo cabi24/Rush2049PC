@@ -1,11 +1,12 @@
 # The game's memory: game.memory (port/ultra, the renderer, the game C)
 
-Written 2026-11-03. The N64 game has 8 MiB of RDRAM with the Expansion Pak, 4 without. On the PC the game's RDRAM is
-a window mapped at host 0x80000000 and again at 0xA0000000 ([ULTRA.md](ULTRA.md) 2), and its heap runs from the end
-of its BSS to `osMemSize | K0BASE`. `[game] memory` gives that window, osMemSize and so the heap any size from 16 to
-256 MiB; at `original`, the default, nothing is different from before. This document says what the setting does,
-why 256 MiB is its limit, which addresses had to change for memory past 16 MiB and where, how the heap's use is
-shown, what the game does with the room, what a later "mods" feature can rely on, and how it was tested.
+Written 2026-11-03. The N64 game has 8 MiB of RDRAM with the Expansion Pak, 4 without. On the PC the game's RDRAM is a
+window mapped at host 0x80000000 and again at 0xA0000000 ([ULTRA.md](ULTRA.md) 2), and its heap runs from the end of its
+BSS to `osMemSize | K0BASE` (`pc_heap_memory` gives it those bytes, [NATIVE.md](NATIVE.md) step 6). `[game] memory`
+gives that window, osMemSize and so the heap any size from 16 to 256 MiB; at `original`, the default, nothing is
+different from before. This document says what the setting does, why 256 MiB is its limit, which addresses had to change
+for memory past 16 MiB and where, how the heap's use is shown, what the game does with the room, what a later "mods"
+feature can rely on, and how it was tested.
 
 | Piece | Where |
 |---|---|
@@ -32,8 +33,10 @@ no environment variable.
   `pc_mem_init`) and can't grow while the game holds addresses in it. The overlay's item is marked `*` ("applies
   after a restart") and its change is saved like the others.
 - **What the game sees.** It reads its memory from osMemSize in one place, the heap's set-up
-  (`locate_main_heap`, `memsys/group.c:308-316`): the heap's end is `osMemSize | 0x80000000`, and the Expansion Pak
-  flag is set when that end is past 0x80400000. Nothing else in the game reads the size (every `osMemSize` in the
+  (`locate_main_heap`, `memsys/group.c:198-216`): the heap's memory is what `pc_heap_memory(osMemSize)` gives
+  (`port/ultra/heap.c`: the window from the end of the game's BSS to osMemSize, so its end is `osMemSize |
+  0x80000000` as on the N64), and the Expansion Pak flag is set when osMemSize is past 4 MiB (the N64 tested the
+  heap's end past 0x80400000: the same thing). Nothing else in the game reads the size (every `osMemSize` in the
   game C is an `extern` but that one).
 - **`expansion_pak = off` with a size.** The game decides the Expansion Pak flag from its memory, as a console with
   that much memory would, so with `memory = 64` it uses its Expansion Pak features (the sixth race track, the tracks'
@@ -111,12 +114,13 @@ moment: the allocator is first-fit, and a block is what one load needs. `allocat
 the line ends `(test floor at 0x81100000)`.
 
 **How.** `port/ultra/heap.c`. The game's allocator calls it under the heap's lock: when the heap is made
-(`pc_heap_created`, `InitMemory`, `memsys/group.c:328`) and after each block it takes (`pc_heap_allocated`:
-`AllocateMemory` `:204`, `allocate_memory_at` `alloc_at.c:179`, a growing `ReallocateMemory` `heap_release/group.c:331`).
-Each call walks the default heap's blocks (`gMainHeap`; a sub-heap's own blocks are inside one of its blocks) and
-keeps the least free. The walk is bounded and checks each header's magic and order. Frees aren't followed: they
-can't lower the least free. The cost: a race takes a few hundred blocks from the start (the synthetic one 416, the
-retail one fewer), and the runs of section 6 took as long with the walks as without.
+(`pc_heap_created`, `InitMemory`, `memsys/group.c:230`) and after each block it takes (`pc_heap_allocated`:
+`AllocateMemory` `:82`, `allocate_memory_at` `alloc_at.c:82`, a growing `ReallocateMemory` `heap_release/group.c:178`).
+Each call walks the default heap's blocks (`gMainHeap`; a sub-heap's own blocks are inside one of its blocks) and keeps
+the least free. The walk reads the headers as include/game/heap.h has them (host pointers in the N64's sizes,
+[NATIVE.md](NATIVE.md) step 6), is bounded and checks that each header lies in the heap, in order, with its magic. Frees
+aren't followed: they can't lower the least free. The cost: a race takes a few hundred blocks from the start (the
+synthetic one 416, the retail one fewer), and the runs of section 6 took as long with the walks as without.
 
 **The game's fallbacks, logged.** The game checks the heap in two places, and falls back silently:
 
@@ -125,7 +129,7 @@ retail one fewer), and the runs of section 6 took as long with the walks as with
 | LoadCars, a drone's car (`loadcars/LoadCars.c:87`) | `heap_total_free(0) < gWaveSizes[88 + type] + 512` | another type not loaded that fits, then any type that fits, then a loaded car of an earlier slot ([MORECARS.md](MORECARS.md) 5) | `heap: LoadCars, a drone's car: N bytes wanted, F free: the game falls back ...` |
 | LoadCars, a player's car (`:108`) | the same | any type that fits, then slot 0's | `heap: LoadCars, a player's car: ...` |
 | a car's paint (`car_palette_init.c:62`) | fewer than 512 bytes free | another car's paint of the same type | `heap: a car's paint: ...` |
-| `AllocateMemory` (`memsys/group.c:183`) | none: the game takes the first free block that fits, and none fitting leaves it a null block, which the N64 game dereferences | (the game faults, as on the N64) | `heap: no free block of N bytes (F free, the largest L): the game takes a null block, as on the N64; game.memory gives it more` |
+| `AllocateMemory` (`memsys/group.c:60`) | none: the game takes the first free block that fits, and none fitting leaves it a null block, which the N64 game dereferences | (the game faults, as on the N64) | `heap: no free block of N bytes (F free, the largest L): the game takes a null block, as on the N64; game.memory gives it more` |
 
 Each logs the first time and counts in the exit line's `short` and `none`. The choice is the game's: nothing it does
 changes (the hooks are `PC_ONLY` statements on lines the functions already have; `n64_neutral` passes).
@@ -151,11 +155,11 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
   times and leaves the 4 MiB heap a few KB free (section 6). With the car files each 1 MB larger (`membig8`, at
   `original`) the heap is short for a drone's car once and LoadCars shares a type; with `memory = 64` and files 3 MB
   larger (`membig`) no car is refused and the heap's peak is 18.9 MiB.
-- **A finding: the free total, not the largest block.** LoadCars compares the heap's free total with the file's
-  size, but a file needs one block. At 8 MiB the heap's free space is split by the runtime images' block at
-  0x8038A400 (2 MiB in), so with car files 3 MB larger the check passes (2.98 MB free in all) while the largest free
-  block is 1.79 MB: the allocator finds no block, and the N64 game would fault at the null block, as the PC does
-  (with the log line first). With more memory the largest block is the heap's whole rest.
+- **A finding: the free total, not the largest block.** LoadCars compares the heap's free total with the file's size,
+  but a file needs one block. At 8 MiB the heap's free space is split by the runtime images' block at 0x8038A400 (2 MiB
+  in; `PC_RUNTIME_IMAGE_OFFSET` past the heap's header), so with car files 3 MB larger the check passes (2.98 MB free in
+  all) while the largest free block is 1.79 MB: the allocator finds no block, and the N64 game would fault at the null
+  block, as the PC does (with the log line first). With more memory the largest block is the heap's whole rest.
 
 **What a "mods" feature (files from a mods folder in place of the cartridge's, possibly larger) can rely on:**
 
@@ -273,7 +277,7 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 | `datacheck.c:643` | the file table's sizes under 8 MiB | a check of the ROM's own table |
 | `gen_data.py:83`, `gen_stubs.py:101`, `n64syms.py:73` | the arenas' and absolute symbols' range, the overlay region | the N64 images' layout, inside the first 8 MiB at any size |
 | `absfix.c` | GOT slots of absolute symbols: addends at 0x80000000 or more | the symbols are the N64's: right |
-| `memsys/group.c:308-316` (`locate_main_heap`) | the heap's end `osMemSize \| 0x80000000`; the Expansion Pak flag past 0x80400000 | follows osMemSize (section 1) |
+| `memsys/group.c:198-216` (`locate_main_heap`), `heap.c` (`pc_heap_memory`) | the heap's end `osMemSize \| 0x80000000` (the window's bytes to osMemSize); the Expansion Pak flag past 4 MiB (the N64's end past 0x80400000) | follows osMemSize (section 1) |
 | `relocate_model_dl.c:107, 111, 129, 134`; `relocate_texture_loads.c:42, 47` | 24-bit relocations | `pc_rcp_reloc` (section 3) |
 | `waves/group.c:3854-3887` | a second `relocate_model_dl`, 24-bit | a context copy for IDO's optimizer, weak on the PC: the linked one is `src/blob/relocate_model_dl.c` |
 | `display_list_traverse.c:33, 52` | segmented or physical | section 3 |

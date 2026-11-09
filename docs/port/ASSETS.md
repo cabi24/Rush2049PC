@@ -124,7 +124,7 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 
 | Data | Where | Tag |
 |---|---|---|
-| Heap | `locate_main_heap` (`groups/memsys/group.c:236-245`): base `((u32)game_bss_end + 31) & ~31` (end of game BSS), end `osMemSize \| 0x80000000`; `expansion_pak_present = 1` (Expansion Pak features) when the end is above 0x80400000. First-fit allocator with 0x20-byte block headers, magic 0xFEDCBA98, handle tables of `u32` slots (`:159`, `count * 4`). Handle blocks can move (compaction, `groups/destroy_heap/heap_release_context.c:151-257`). | C |
+| Heap | `locate_main_heap` (`groups/memsys/group.c`): on the N64 base `((u32)game_bss_end + 31) & ~31` (end of game BSS), end `osMemSize \| 0x80000000`; `expansion_pak_present = 1` (Expansion Pak features) when the end is above 0x80400000. First-fit allocator with 0x20-byte block headers, magic 0xFEDCBA98, handle tables of `u32` slots (`count * 4`). Handle blocks can move (compaction, `groups/heap_release/ClearMemoryHeap.c`). On the PC since [NATIVE.md](NATIVE.md) step 6: the same memory (`pc_heap_memory`), headers with host pointers in the same 32 bytes, 8-byte slots (include/game/heap.h) | C |
 | Every wave | a heap block (`AllocateMemoryHeap` / `AllocateHandleHeap`) | C |
 | Game image | 0x80086A50 fixed (PC: linked natively, skip the inflate) | C |
 | Runtime images | 0x8038A400 fixed, reserved inside the heap (PC: `pc_data_overlay_load`, no inflate) | C |

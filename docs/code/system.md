@@ -97,18 +97,22 @@ loads), the sound set (`AudioInit` with fewer voices for a race without an Expan
 
 ## 4. Memory: the heap
 
-The heap (MAT3 memsys.c; include/game/heap.h) carves the RDRAM window above the game's BSS (`game_bss_end`) up to
-the end of memory into **chunks**, each a 32-byte `tMemoryChunk` header (magic, next, prev, size, master, used,
-internal, locked) then its data, linked both ways in address order; a `tHeap` header starts each heap. `gMainHeap`
-is the main heap (`locate_main_heap`); `create_heap` makes a heap inside a chunk of another (FindHeap finds the
-innermost heap of an address), `destroy_heap` gives it back.
+The heap (MAT3 memsys.c; include/game/heap.h) carves the memory the PC gives it (`pc_heap_memory`: on the N64
+everything above the game's BSS up to the end of RDRAM, which is still where it lies) into **chunks**, each a
+32-byte `tMemoryChunk` header (next, prev, master, size, used, internal, locked, a magic byte) then its data, linked
+both ways in address order; a 64-byte `tHeap` header starts each heap. The headers hold host pointers in the N64's
+sizes, so what fits is the original game's ([NATIVE.md](../port/NATIVE.md) step 6). `gMainHeap` is the main heap
+(`locate_main_heap`); `create_heap` makes a heap inside a chunk of another (FindHeap finds the innermost heap of an
+address), `destroy_heap` gives it back. The runtime images' block is the N64's: `PC_RUNTIME_IMAGE_OFFSET` bytes past
+the main heap's header (`runtime_image_block`, heap_release/overlay_loader.c).
 
 - `AllocateMemoryHeap(heap, size)` takes the lowest free chunk that fits (size rounded to 32), splitting off the
   rest when it is at least 64 bytes; `AllocateMemoryHeapHigh` takes from the top (the frame buffers);
   `AllocateHandleHeap` allocates behind a **master slot** and returns the slot's address (a handle), so that the
   data may move: `ClearMemoryHeap` (heap_release/ClearMemoryHeap.c, another area's file) frees the purgeable
-  chunks and compacts, updating the slots. `DeallocateMemory(address)` frees and merges with free neighbours;
-  `ReallocateMemory` resizes in place.
+  chunks and compacts, updating the slots. `DeallocateMemory(ptr)` frees and merges with free neighbours;
+  `ReallocateMemory` resizes in place. Every function takes and returns pointers (MAT3's `void *`); one of a
+  handle's master slot names the handle's chunk.
 - A chunk's lock count (`lock_memory`, `unlock_memory`, `PurgeableMemory`) keeps compaction from moving it.
   `GetPtrSize` is a chunk's size; `LargestAvailableMemoryHeapChunk` the largest free one.
 - Every entry point takes the heap lock (`heap_lock_queue`, a one-message queue); `AllocateMemory` and
@@ -178,18 +182,17 @@ same input.
 
 ## 8. What is still N64-shaped (for wave 3)
 
-- **The heap's headers** keep the N64 layout in the RDRAM window: their links are 32-bit window addresses
-  (heap.h's enums, its typed `N64P`, `PC_N64W`), the heap's interface takes window addresses (`DeallocateMemory(u32)`,
-  `PurgeableMemory`, `FindHeap`), master slots are 8 bytes holding a zero-extended address. `GetPtrSize` returns
-  the size read as a pointer (its upper half is the master link). Every heap file still declares its own
-  `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way. Other areas' heap files
-  (FindChunk.c, ClearMemoryHeap.c ...) still have their own views of the headers; they could include heap.h.
+- **The heap** is native since [NATIVE.md](../port/NATIVE.md) step 6 (its headers, its interface and the image block),
+  but its memory is still the N64's place in the RDRAM window (`pc_heap_memory`) until step 12, and what the game
+  keeps in its blocks may still hold 32-bit addresses (the WAD records, a ghost header's start, a car palette's data:
+  steps 7 and 11). Every heap file still declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its
+  own way.
 - **The WADs and model data** stay in the N64's form: big-endian display lists with 32-bit addresses
   (`relocate_model_dl`, `display_list_traverse`, `mirror_vertex_texcoords` read them through `pc_be32_get` ...),
   tables with 32-bit addresses (`WadEntry.address`, `MBGetFromWad` returns a u32).
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
-  the z-buffer are window addresses (`framebuffer_a`, `zbuffer`); `frame_color_buffers` is a label 0xC8 bytes into
-  `frame_records`.
+  the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`), still in the window; `frame_color_buffers`
+  is a label 0xC8 bytes into `frame_records`.
 - **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
   takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
 - **Data declared with the wrong width** in input.h: `gNewLevels` is one s32 to the data loader, MAT3's volatile
