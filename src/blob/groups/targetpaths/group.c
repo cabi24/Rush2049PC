@@ -496,7 +496,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
         ReleaseEnviron(node, 1);
         return;
     }
-    if (((gGameState & 0x7C0000) || (gGameState & GS_DEMO)) && gPauseState == 0) {
+    if (((gGameState & GS_RACE_MASK) || (gGameState & GS_DEMO)) && gPauseState == 0) {
         target = VISUAL_TARGET(node);
         state = TARGET_STATE(target);
         path = STATE_PATH(state);

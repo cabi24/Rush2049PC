@@ -12,7 +12,7 @@ VIEW(volatile f32, gFrameSeconds);
 void UpdateHUDPostCamera(void) {
     if (gGameState != -1 && ((gGameState & GS_COUNTDOWN) || (gGameState & GS_RACING))) {
         if (!gPauseState) hudObjAngle += hud_obj_angle_speed * gFrameSeconds;
-        if (gRace == 0 || gRace == 1 || gRace == 2 || gRace == 3 || gRace == 4) animCoins(0);
-        if (gRace == 6 || gRace == 4) UpdateHUDExtraPostCamera();
+        if (gRace == kOneRace || gRace == kPractice || gRace == kGhost || gRace == kCircuit || gRace == kStunt) animCoins(0);
+        if (gRace == kBattle || gRace == kStunt) UpdateHUDExtraPostCamera();
     }
 }

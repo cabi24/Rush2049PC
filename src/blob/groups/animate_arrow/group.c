@@ -105,11 +105,11 @@ void AnimateArrow(tVisual *v, s16 op) {
     m = PC_MODEL(v->slot);
     oslot = v->index;
     clr = arrow_base_color;
-    if (!gShowPlayerArrows || !(gGameState & 0x400000) || (!(!car->crash_state && m->resurrect_moving_state < 0) && gRace == 6)) {
+    if (!gShowPlayerArrows || !(gGameState & GS_RACING) || (!(!car->crash_state && m->resurrect_moving_state < 0) && gRace == kBattle)) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
-    if (gRace == 6 && (car->defense_active & 1)) {     /* kBattle */
+    if (gRace == kBattle && (car->defense_active & 1)) {
         if (car->fadeState == 1) {
             clr.c.a = car->fadeAlpha;
         } else if (car->fadeState == 2) {
@@ -122,7 +122,7 @@ void AnimateArrow(tVisual *v, s16 op) {
         }
     }
     if (m->drone_type == 2) {                         /* DRONE_TYPE_HUMAN */
-        if (gRace == 6) {
+        if (gRace == kBattle) {
             clr.c.r = arrowColors[gCarTeam[m->slot]].c.r;
             clr.c.g = arrowColors[gCarTeam[m->slot]].c.g;
             clr.c.b = arrowColors[gCarTeam[m->slot]].c.b;
@@ -134,7 +134,7 @@ void AnimateArrow(tVisual *v, s16 op) {
         if (gFadePlayerArrow[m->slot][oslot] && clr.c.a > 112) {
             clr.c.a = 112;
         }
-        if (gRace == 2 && v->slot > 0) {                /* kGhost */
+        if (gRace == kGhost && v->slot > 0) {
             clr.c.a = 128;
         }
     } else {
@@ -145,7 +145,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     vec[0] = car->dr_pos[0] - gCamera[oslot].pos.x;
     vec[1] = car->dr_pos[1] - gCamera[oslot].pos.y;
     vec[2] = car->dr_pos[2] - gCamera[oslot].pos.z;
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         /* the car's bearing from the camera: 0 straight ahead, negative to the -x side */
         window = &ZoidWinInfo[oslot];
         U64WorldVector(&vec[0], &xyz[0][0], gCamera[oslot].uvs);
@@ -204,7 +204,7 @@ draw:
         xyz[i][1] = xyz[i][1] * scale + car->dr_pos[1] + scale + 5.0f;
         xyz[i][2] = xyz[i][2] * scale + car->dr_pos[2];
     }
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, &clr, (1 << oslot) | 0x3600, 0);
     } else {
         ZOID_UpdatePoly(&PolyInstanceList[v->objnum], 4, xyz, 0, &clr, (1 << oslot) | 0x1600, 0);

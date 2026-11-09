@@ -126,10 +126,10 @@ void DetectDroneAbort(void) {
                 AbortCar(m->slot, 0);
                 return;
             }
-            if (gRace == 4 || gRace == 5 || gRace == 6) {   /* kStunt, kObstacle, kBattle */
+            if (gRace == kStunt || gRace == kObstacle || gRace == kBattle) {
                 continue;
             }
-            if ((gGameState & 0x400008) && gRace != 1 &&   /* GS_RACING | GS_DEMO; kPractice */
+            if ((gGameState & (GS_RACING | GS_DEMO)) && gRace != kPractice &&
                 !gNoAutoAbort && !gEndGame && !gCoastFlag &&
                 gc->place_locked != 1 && AreWeSolid(m->slot) && m->drone_scale > 0.1f &&
                 (m->magvel < 25.0f || abort_me)) {

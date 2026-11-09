@@ -44,7 +44,7 @@ void UpdateGame(void)
     static s8 startCountdown = 0;
 
     if (gGameState & GS_GAME_INIT) {
-        gSkipToGameState = 1;
+        gSkipToGameState = SKIP_NONE;
         SetOptions();
         CalcPolePositions();
         gUseCatchup = gCatchup;

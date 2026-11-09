@@ -262,7 +262,7 @@ void updateAudioScreen(void) {
         }
     }
     audio_updateButtons();
-    if (gGameState & 0x7C0000) {
+    if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
         if (!p->b0 != audio_gControllerRemoved) {
             audio_gControllerRemoved = !p->b0;
@@ -272,13 +272,13 @@ void updateAudioScreen(void) {
     if (gSoftReset) {
         audio_uninitScreen();
         if (gGameState & GS_FRONTEND_MASK)
-            gNewGameState = 4;
+            gNewGameState = GS_TITLE;
         else
             setPauseState(1);
     } else if (exitAudioScreen) {
         audio_uninitScreen();
         if (gGameState & GS_FRONTEND_MASK)
-            gNewGameState = 16;
+            gNewGameState = GS_START;
         else
             setPauseState(1);
     }

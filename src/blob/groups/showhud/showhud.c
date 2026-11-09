@@ -127,9 +127,9 @@ void ShowHUD(void) {
             gPlayerCoin[i].a.id = -1;
             gPlayerCoin[i].b.id = -1;
         }
-        if (gGameState & 0x02000000) {
+        if (gGameState & GS_HIGH_SCORE) {
             HudBlit1 = NewMultiBlit(0, 0, OverlayMultiBlit, 1);
-        } else if (gGameState & 8) {
+        } else if (gGameState & GS_DEMO) {
             HudBlit1 = NewMultiBlit(0, 0, OverlayMultiBlit, 1);
         } else {
             if (expansion_pak_present || gTrackNum >= 6) {
@@ -139,7 +139,7 @@ void ShowHUD(void) {
                     multiPlayerBlit = NewMultiBlit(0, 0, ThreePlayerMultiBlit, 1);
                 }
             }
-            if (gRace == 6 || gRace == 4) {
+            if (gRace == kBattle || gRace == kStunt) {
                 ShowHUDExtra();
             } else {
                 HudBlit2 = NewMultiBlit(0, 0, PC_HUD_RACE_SET, PC_HUD_RACE_N);
@@ -149,7 +149,7 @@ void ShowHUD(void) {
         markers_valid = 0;
         created = 1;
     }
-    if ((gGameState & 8) && gShowCredits) {
+    if ((gGameState & GS_DEMO) && gShowCredits) {
         if (created) {
             gCredit = -1;
             SetCountdownTimer(90.0f);

@@ -242,7 +242,7 @@ void init_cars(void) {
         m->drone_type=0;   /* DRONE_TYPE_NONE */
         m->in_game=0;
     }
-    if(gGameState&8) {
+    if(gGameState&GS_DEMO) {
         PC_MODEL_INPUT_FLAGS(0)=0;
         PC_MODEL_AUTOTRANS(0)=1;
     }

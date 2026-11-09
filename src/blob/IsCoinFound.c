@@ -11,7 +11,7 @@ extern PlayerPad gPlayers[];VIEW(tProfile *[], gJustPlayers);
  * profile whose file is not read on a race track. */
 u32 IsCoinFound(s32 player,s32 bit) {
  s32 selector;PlayerPad *p;tProfile **profile;tSaveData **datah;
- if(gGameState&8)return 1;
+ if(gGameState&GS_DEMO)return 1;
  selector=gTrackNum;
  if(selector>=0&&selector<6) {
   p=&gPlayers[player];profile=p->profile;

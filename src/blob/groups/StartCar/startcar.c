@@ -40,14 +40,14 @@ void StartCar(s16 slot)
 
     StartFrame(slot);
     StartSparks(slot);
-    demo = gGameState & 8;
+    demo = gGameState & GS_DEMO;
     if (demo == 0 || (demo != 0 && expansion_pak_present != 0)) {
         StartWing(slot, 0);
         StartWing(slot, 1);
         StartWingFlame(slot, 0);
         StartWingFlame(slot, 1);
     }
-    if (gRace == 6) StartWeapon(slot);
+    if (gRace == kBattle) StartWeapon(slot);
     StartHeadLights(slot);
     StartBrakeLights(slot);
     for (j = 0; j < 4; j++) StartTire(slot, j);

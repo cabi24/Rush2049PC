@@ -24,7 +24,7 @@ void modelstop(void) {
     for (i = 0, m = PC_MODELS; i < (s8) gNumActiveCars; i++, m = (tModelData *) ((u8 *) m + 0x808)) {
         StopCarSounds(m);
     }
-    if (!(gGameState & 8)) {   /* GS_DEMO */
+    if (!(gGameState & GS_DEMO)) {
         PS_RumbleStop();
     }
 }

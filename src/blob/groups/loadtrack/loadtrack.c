@@ -106,7 +106,7 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     }
     if (!gTrackLoadInfo.other.loading) {
         gTrackLoadInfo.other.loading = 1;
-        if (!(gGameState & 0x100)) {
+        if (!(gGameState & GS_CAR)) {
             if (gRace == kBattle || (track >= 6 && track < 14)) {
                 LoadWave(76, 0, 0, 0, 0);
             }
@@ -163,10 +163,10 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     NewWorld((u8 *)gWorldNames[track], -1);
     InitEnvs();
     InitTrackDynamicObjs();
-    if (!(gGameState & 0x100) && !reloading) {
+    if (!(gGameState & GS_CAR) && !reloading) {
         LoadCars(0);
     }
-    InitVisuals(!(gGameState & 0x100));
+    InitVisuals(!(gGameState & GS_CAR));
     InitCheckpointData();
     InitPathData();
     if (gTrackNum >= 0 && gTrackNum < 6) {

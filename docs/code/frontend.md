@@ -136,7 +136,11 @@ the selection).
   variables (`gModeMenuSelect`, `gPlayerState[]`, `gHighScoreState`, `gGameOverState`, `gState` ...), with MAT3's
   enums as macros in frontend.h where several files share them (`kPlayerState*`, `kHighScore*`, `kGhostMenu*`,
   `kGameOver*`, `kState*`) and in the file otherwise (`kModeMenu*`, `kStartMenu*`, `kCircuitMenu*`, `kRecordState*`,
-  `kViewMenu*`, `kTrackType*`; `kSelectMenu*` in the player and record screens' four files, each the same).
+  `kViewMenu*`, `kTrackType*`; `kSelectMenu*` in the player and record screens' four files, each the same). The
+  screens' own button indexes and options shared by a screen's files are frontend.h's too (`TRACK_OPT_*`,
+  `CAR_OPT_*`, `PLAYER_BUTTON_*`, `RECORD_*`, `CONTROLS_*`, the name grid's `NAME_SEL_*`, a pak's `PAK_*`); the
+  tracks (`TRACK_RACE_FIRST` ... `TRACK_OBSTACLE`, `NUM_TRACKS`) are track.h's, the menu sounds (`SND_MENU_*`)
+  audio.h's, the shared text tables (`TEXT_YES_NO` ...) text.h's.
 - The car screen's models: `gSelectCar[52]` (`SelectCarState`: created, hidden, ready, loading, its wave instance,
   the colours and rims and tyre scales it was last drawn with) and `gSelectCarWavePtrs[16]` (`SelectCarWaveSlot`:
   a model load: its wave, whether it started, the car slot).

@@ -197,7 +197,7 @@ void UpdateTireAppearance(s16 droneIndex)
                 break;
             }
             {
-                f32 scale = gRace == 6 ? 3.0f : N64P(m->tune)->skidk;   /* kBattle */
+                f32 scale = gRace == kBattle ? 3.0f : N64P(m->tune)->skidk;
                 f32 intensity;
                 s32 maxForce;
 

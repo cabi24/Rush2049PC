@@ -216,6 +216,11 @@ job can hold the line while phase B shrinks them (no job is added in phase A).
 | `src.lit.*` | section 4.2 | | |
 | `port.mapping`, `.rdram_base`, `.host_test`, `.translate`, `.trunc`, `.zext`, `.lit` | 26, 27, 15, 37, 11, 20, 52 | 7, 8, 7, 9, 4, 9, 4 | the PC layer's programs (the guard mode's own lines in `memory.c` among them); `.tests`, the test programs: 19, 10, 2, 55, 20, 47, 116 |
 
+Since the PC-only wave 2c (`tools/port/one_spelling.py`) the files' own abbreviations of the prelude's conversions
+(`N64W`, `N64A`, `N64A0`, `N64AS`, `N64PTR`, `N64PTR0`, the untyped `N64P`) are gone: each use is the prelude's
+`PC_N64W(x)`, `PC_N64A(x)`, `((T)PC_N64P(a))`, so `src.n64w` counts `PC_N64W`'s uses and `src.pc_n64w` is no more;
+`N64P` is each file's typed `_Generic` over its own `enum n64p_` fields.
+
 ### 4.2 The 882 lines with a literal 0x80xxxxxx (src/, nonmatching/)
 
 `grep -E '0x80[0-9A-Fa-f]{6}'` over every file of `src/` and `nonmatching/` gives 882 lines in 414 files. The audit

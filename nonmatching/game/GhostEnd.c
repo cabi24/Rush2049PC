@@ -46,7 +46,7 @@ void GhostEnd(void)
     s32 i;
 
     gGhostToSave = 0;
-    if (gRace != 2) {
+    if (gRace != kGhost) {
         return;
     }
     gEndingGhosts = 1;

@@ -59,14 +59,14 @@ s32 animWrongWay(void *item)
     s32 slot;
     static s8 wasStrayed[4];
 
-    if (gRace == 5) {
+    if (gRace == kObstacle) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);
     TB_SetJust(1, 1);
     for (slot = 0; slot < gNumWindows; slot++) {
         if ((-1.5707964f <= PC_CAR_HEADING(slot) && PC_CAR_HEADING(slot) <= 1.5707964f) ||
-            !(gGameState & GS_RACING) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == 1) {
+            !(gGameState & GS_RACING) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == kPractice) {
             wrongWayTime[slot] = gSeconds;
             wasStrayed[slot] = 0;
             continue;

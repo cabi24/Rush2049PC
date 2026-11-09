@@ -91,7 +91,7 @@ void createBG(void)
             }
         }
     }
-    if (gGameState & 0x80) {
+    if (gGameState & GS_TRACK) {
         backBlit = NewMultiBlit(0, 0, trackBack, 2);
     } else {
         backBlit = NewMultiBlit(0, 0, frontBack, 2);

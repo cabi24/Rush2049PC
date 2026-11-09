@@ -167,7 +167,7 @@ void UpdateHUDExtraPostCamera(void)
     Effect *effect, *selected, *previous;
     f32 alpha, fraction;
 
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         animWeaponIcons(0);
         animPowerupIcons(0);
         for (i = 0; i < gNumWindows; i++) {
@@ -192,9 +192,9 @@ void UpdateHUDExtraPostCamera(void)
             ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, handle->position);
         }
     }
-    if (gRace == 4) {
+    if (gRace == kStunt) {
         color.word = stunt_coin_color.word;
-        if ((gGameState & 0x7C03FFFE) || gPauseState) return;
+        if ((gGameState & GS_FRONTEND_MASK) || gPauseState) return;
         for (i = 0; i < gNumPlayers; i++) {
             score = &gStuntPlayer[i];
             if (score->lock) alpha = (1.0f - (gModelTime - score->started) / 2.69f) * 255.0f;

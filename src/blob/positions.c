@@ -77,7 +77,7 @@ void positions(tModelData *m) {
     temp[1] = m->w[1] * m->dt;
     temp[2] = m->w[2] * m->dt;
 
-    if (gRace == 4) {   /* kStunt */
+    if (gRace == kStunt) {
         m->stuntW[0] = temp[0] + m->stuntW[0];
         m->stuntW[1] = temp[1] + m->stuntW[1];
         m->stuntW[2] = temp[2] + m->stuntW[2];

@@ -208,15 +208,15 @@ void initGameState(void)
         }
         LoadFrontEndOverlay(0);
         if (!gRestartGame) {
-            if (!expansion_pak_present && gRace != 6 && gRace != 4 && gRace != 5) {
+            if (!expansion_pak_present && gRace != kBattle && gRace != kStunt && gRace != kObstacle) {
                 AudioInit(8, 8, 0, 0, 0, 1.0f, 200.0f, 0);
             }
-            if (!expansion_pak_present && gRace == 6) {
+            if (!expansion_pak_present && gRace == kBattle) {
                 AudInit3D(5, 64, 1.0f, 200.0f, 0);
             }
             SaveFlush(1);
         }
-        if (gRace == 6 || gRace == 4 || gRace == 5 || expansion_pak_present) {
+        if (gRace == kBattle || gRace == kStunt || gRace == kObstacle || expansion_pak_present) {
             load_extra_overlay();
         }
         if (!gRestartGame) {

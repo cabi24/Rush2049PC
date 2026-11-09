@@ -14,7 +14,7 @@ VIEW(tProfile *[], gJustPlayers);
 void FoundCoin(int player,int bit) {
  PlayerPad *record;
  u32 mask;
- if(gGameState&8)return;
+ if(gGameState&GS_DEMO)return;
  if(gTrackNum>=0 && gTrackNum<6) {
   record=&gPlayers[player];
   if(record->profile==0) {

@@ -56,7 +56,7 @@ void AbortGame(void)
         UnloadTrack(gTrackNum);
         gNumWindows=1;
         ZOID_SplitMenuScreen(1);
-        gNewGameState=4;
+        gNewGameState=GS_TITLE;
         updateGameState();
         updateTitleScreen();
     }

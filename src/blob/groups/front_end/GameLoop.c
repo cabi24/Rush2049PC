@@ -51,7 +51,7 @@ s32 GameLoop(void)
         frame_dl_start = frame_dl;
         UpdateRushControls();
     }
-    if ((elapsed = (f32)(u32)(gScheduler.tick - gLastKeyTime) * gRetraceTime) > 300.0f && !(gGameState & 0x4000000F)) {
+    if ((elapsed = (f32)(u32)(gScheduler.tick - gLastKeyTime) * gRetraceTime) > 300.0f && !(gGameState & (GS_WARNING | GS_DEMO | GS_TITLE | GS_LICENSE | GS_BOOT))) {
         if (!inactiveBlit) {
             inactiveBlit = NewMultiBlit(0, 0, idle_warning_multiblit, 1);
         }
@@ -60,7 +60,7 @@ s32 GameLoop(void)
         inactiveBlit = 0;
     }
     updateGameState();
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GS_FRONTEND_MASK) {
         updateFrontEnd();
     }
     if ((gGameState & GS_COUNTDOWN) || (gGameState & GS_RACING)) {
@@ -73,7 +73,7 @@ s32 GameLoop(void)
             return 1;
         }
     }
-    if (gGameState & 0x3FC0000) {
+    if (gGameState & GS_IN_GAME_MASK) {
         UpdateGame();
     }
     if (gNewGameState == gGameState) {

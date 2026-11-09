@@ -30,7 +30,7 @@ s32 are_all_cars_stopped(void)
         return 0;
     }
     result = 1;
-    if (gRace == 2) {   /* kGhost */
+    if (gRace == kGhost) {
         count = 1;
     } else {
         count = gNumActiveCars;
@@ -46,7 +46,7 @@ s32 are_all_cars_stopped(void)
             }
         }
     }
-    if (result != 0 && gRace == 4) {   /* kStunt */
+    if (result != 0 && gRace == kStunt) {
         return (s16)gStuntsDone;
     }
     return result;

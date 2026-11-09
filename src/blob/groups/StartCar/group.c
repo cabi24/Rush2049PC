@@ -37,7 +37,7 @@ void StartWing(s16 slot, s16 side) {
     s32 index;
     s32 body_type;
 
-    if (gRace == 2 || gRace == 6 || (m = PC_MODEL(slot), m->we_control != 0)) {
+    if (gRace == kGhost || gRace == kBattle || (m = PC_MODEL(slot), m->we_control != 0)) {
         PC_CAR_VISUALS(slot)[side + VIS_WINGS].func = 0;
         return;
     }

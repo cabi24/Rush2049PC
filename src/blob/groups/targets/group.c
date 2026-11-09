@@ -143,7 +143,7 @@ void set_target_data(tTarget *t,TargInfo *info,s32 category)
     tMiniModelData *matrix;
     tBasicTargetPath *scene;
     tTargetStructMine *mine;
-    if(!(gGameState&0x400000)) {
+    if(!(gGameState&GS_RACING)) {
         if(info->Flags&8) {
             t->data=PC_N64W(gTargetOwnStructPtrs[category]);
             if(!(t->Flags&16) && category==4) {
@@ -338,7 +338,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, void *fromWorld, s8 owner
         } else if (info->structureID == 4) {
             t->mbIdx = gTargetPaths.paths[owner].parent;
         }
-        if (gGameState & 0x400000) {
+        if (gGameState & GS_RACING) {
             if (gRace == kBattle) {
                 ((tTarget **)GetStatLLE(&gAlwaysColList))[1] = t;
             }

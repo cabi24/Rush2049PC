@@ -52,7 +52,7 @@ void FindGhosts(s32 pak)
         gGhostStatus[pak] = -3;
     } else {
         gGhostStatus[pak] = 0;
-        if (gRace == 2) {
+        if (gRace == kGhost) {
             for (node = gGhostFiles.first; node != 0; node = ghost->next) {
                 ghost = *node;
                 if (ghost->q != 0 && (*ghost->q)->id == pak && ghost->track == gTrackNum &&

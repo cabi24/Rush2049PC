@@ -160,8 +160,8 @@ sent (`SetSoundVP`).
 - **MusyX's voices** keep the N64's 0x1A0-byte layout, read through about 30 per-function views in macros.c,
   synth.c, voices.c, api.c and controllers.c; their macro pointers (+0, +4, +8, +0xC, +0x1C, +0x20) are 32-bit
   window addresses (`N64P`/`PC_N64W`) and +0x18 holds a handle node as an N64 address (`pc_voice_node`). One shared
-  `SynthVoice` type would replace the views (macros.c's byte map is its spec); the voice flags, controller numbers and
-  input indexes are defined in each of those files.
+  `SynthVoice` type would replace the views (macros.c's byte map is its spec); the voice flags, the controller numbers
+  and the faders are src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
 - **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; samples and
   codebooks are addressed by 32-bit cartridge or window addresses; the DMA list's sources are 32-bit; the cache
   bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD records).

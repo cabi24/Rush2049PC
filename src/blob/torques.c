@@ -72,7 +72,7 @@ void torques(tModelData *m) {
         crossprod(fp,arm,moment);
         vecadd(m->m,moment,m->m);
     }
-    if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != 6 /* kBattle */) {
+    if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != kBattle /* kBattle */) {
         if(m->mainin_wing) m->wing=1; else m->wing=0;
         if(m->wing) {
             car=PC_CAR(m->slot);

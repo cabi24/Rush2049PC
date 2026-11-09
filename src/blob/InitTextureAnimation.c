@@ -60,7 +60,7 @@ void InitTextureAnimation(void) {
     int unused1;
     int unused2;
 
-    if ((gGameState & 8) && !expansion_pak_present) return;   /* GS_DEMO */
+    if ((gGameState & GS_DEMO) && !expansion_pak_present) return;
     plist = PaletteLists[gTrackNum];
     if (!plist) goto flipbooks;
     while (plist->name) {

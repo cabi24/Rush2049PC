@@ -95,7 +95,7 @@ void HandleASpark(tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op) {
     f32 *mat;
 
     car = PC_CAR(v->slot);
-    if (op != 0 && !(gGameState & 8)) {
+    if (op != 0 && !(gGameState & GS_DEMO)) {
         if (v->index < 0) {
             if (on == 0) {
                 goto reload;

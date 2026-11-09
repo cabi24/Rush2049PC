@@ -216,9 +216,9 @@ void AnimateFrame(tVisual *v, s16 op)
     }
     sclr1.b[3] = car->sheenAlpha;
     sclr2.b[3] = car->sheenAlpha;
-    if (gRace == 2 && slot > 0) {
+    if (gRace == kGhost && slot > 0) {
         clr.b[3] = 0x80;
-    } else if (gRace == 6 && (car->defense_active & 1)) {
+    } else if (gRace == kBattle && (car->defense_active & 1)) {
         clr.b[3] = car->fadeAlpha;
         sclr1.b[3] = car->fadeAlpha;
         sclr2.b[3] = car->fadeAlpha;
@@ -238,11 +238,11 @@ void AnimateFrame(tVisual *v, s16 op)
         CheckVisible(v,1,car->camera);
         return;
     }
-    if ((gGameState & 0x100) && gCarMines != 0 && car->carMine == 0) {
+    if ((gGameState & GS_CAR) && gCarMines != 0 && car->carMine == 0) {
         gObjList[OBJLIST_MINE] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
         car->carMine = 1;
     }
-    if ((gGameState & 0x100) && gCarMines == 0 && car->carMine != 0) {
+    if ((gGameState & GS_CAR) && gCarMines == 0 && car->carMine != 0) {
         car->carMine = 0;
     }
     if (car->carMine != 0) {
@@ -254,7 +254,7 @@ void AnimateFrame(tVisual *v, s16 op)
         CheckVisible(v,car->view>=2,car->camera);
         return;
     }
-    if (gGameState & 0x100) return;
+    if (gGameState & GS_CAR) return;
     CheckVisible(v,car->view>=2,car->camera);
     if (car->in_tunnel != 0) {
         if (car->sheenAlpha < 0x11) {
@@ -264,9 +264,9 @@ void AnimateFrame(tVisual *v, s16 op)
             sclr2.b[3] = car->sheenAlpha;
             SetSheenColor(slot, &sclr1, &sclr2);
         }
-    } else if ((gRace == 6 || gRace == 4) && gNumWindows >= 3) {
+    } else if ((gRace == kBattle || gRace == kStunt) && gNumWindows >= 3) {
         MBOX_HideObject(sobj, 1, 15);
-    } else if ((gGameState & 0x7C0000) && gFogIntensity != 0) {
+    } else if ((gGameState & GS_RACE_MASK) && gFogIntensity != 0) {
         MBOX_HideObject(sobj, 1, 15);
     } else if (car->camera < 0 || car->view >= 2) {
         MBOX_ShowObject(sobj, 0, 15);
@@ -276,7 +276,7 @@ void AnimateFrame(tVisual *v, s16 op)
     if (PickCar(slot, m->body_type) != def) {
         ZOID_SetObjectDef(v->objnum, PickCar(slot, m->body_type));
     }
-    if (gRace == 6 && m->moving_state >= 0) {
+    if (gRace == kBattle && m->moving_state >= 0) {
         ObjInstanceList[v->objnum].flags |= 0x80000000;
     } else if (gInvisibleCar != 0 || (car->appearance & 8)) {
         ObjInstanceList[v->objnum].flags ^= 0x80000000;
@@ -331,8 +331,8 @@ void AnimateRocketFlame(s16 slot, int hulk)
     MBOX_ShowObject(gCarParts[slot].extraparts[0],0,15);
     MBOX_ShowObject(gCarParts[slot].extraparts[1],0,15);
     MBOX_ShowObject(gCarParts[slot].extraparts[2],0,15);
-    if(gRace==2 && slot>0) clr.b[3]=128;
-    else if(gRace==6 && (car->defense_active&1))
+    if(gRace==kGhost && slot>0) clr.b[3]=128;
+    else if(gRace==kBattle && (car->defense_active&1))
         clr.b[3]=car->fadeAlpha;
     ZOID_SetColor(gCarParts[slot].extraparts[0], &clr);
     ZOID_SetColor(gCarParts[slot].extraparts[1], &clr);
@@ -360,7 +360,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     flames[2]->pos[1]=pos[1];
     flames[2]->pos[2]=pos[2];
     b=0;
-    if(gRace==6 && car->weapon_type==3) {
+    if(gRace==kBattle && car->weapon_type==3) {
         b=1;
         car->roktScale[0]=0.1f;
         car->roktScale[1]=0.1f;
@@ -415,7 +415,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
         flames[2]->uvs[1][1]*=car->roktScale[2];
         flames[2]->uvs[1][2]*=car->roktScale[2];
     }
-    if(gRace==6 && m->moving_state>=0) {
+    if(gRace==kBattle && m->moving_state>=0) {
         ObjInstanceList[gCarParts[slot].extraparts[0]].flags |=0x80000000;
         ObjInstanceList[gCarParts[slot].extraparts[1]].flags |=0x80000000;
         ObjInstanceList[gCarParts[slot].extraparts[2]].flags |=0x80000000;

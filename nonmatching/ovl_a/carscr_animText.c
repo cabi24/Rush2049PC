@@ -71,7 +71,7 @@ static void animButtonText(s32 p)
     TB_SetTextColor(1);
     TB_DrawEllipseText(x, y, w, str);
     TB_SetJust(0, 1);
-    if (gRace == 2) {
+    if (gRace == kGhost) {
         s32 ghostIdx;
         for (ghostIdx = 1; ghostIdx < gNumGhosts + 1; ghostIdx++) {
             f32 pos[3];

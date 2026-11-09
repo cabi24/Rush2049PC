@@ -91,7 +91,7 @@ void highscore_InitScreen(void)
     gHighScoreState = 0;
     highscore_inited = 1;
     circuitCode = 0;
-    if (gRace == 3 && PC_CAR_FINISHED(gCircuitPlayer)) {
+    if (gRace == kCircuit && PC_CAR_FINISHED(gCircuitPlayer)) {
         for (i = 0; i < 6; i++) {
             ranks[i] = PC_CAR_PLACE(i);
         }
@@ -118,7 +118,7 @@ void highscore_InitScreen(void)
         gDrawName[p] = 0;
     }
     gThisTrack = (gBackwards ? 6 : 0) + gTrackNum;
-    if (gRace == 0 || gRace == 2 || gRace == 3) {
+    if (gRace == kOneRace || gRace == kGhost || gRace == kCircuit) {
         RankScores();
     }
     ClearRushControls();
@@ -127,7 +127,7 @@ void highscore_InitScreen(void)
         SetHighScoreState(1);
     } else if ((s8)circuitCode) {
         SetHighScoreState(2);
-    } else if (gRace == 0 || gRace == 3 || gRace == 2) {
+    } else if (gRace == kOneRace || gRace == kCircuit || gRace == kGhost) {
         SetHighScoreState(3);
     } else {
         highscore_UninitScreen();

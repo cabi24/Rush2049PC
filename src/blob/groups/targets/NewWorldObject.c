@@ -43,7 +43,7 @@ void NewWorldObject(tModelPart *wnode,s16 parent)
         if(!SetupTarget(ptr,parent,0,1,-1,1,0)) {
             dlindex=parent;
             mbobj=MBOX_FindObject_WORK(ptr,0,gNumModels-1,1);
-            if(gGameState & 8)
+            if(gGameState & GS_DEMO)
                 dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,get_world_part_flags(ptr)|0xE00);
             else
                 dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,ptr->dlflags);

@@ -70,7 +70,7 @@ void TextureAnimation(void)
     u16 saved;
     int i,gap;
     tTexture *tex;
-    if((gGameState&8) && !expansion_pak_present) return;   /* GS_DEMO */
+    if((gGameState&GS_DEMO) && !expansion_pak_present) return;
     plist=PaletteLists[gTrackNum];
     if(plist && plist->name) {
         do {

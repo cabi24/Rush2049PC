@@ -47,7 +47,7 @@ void StartFrame(s16 slot)
     parts->extraparts[0] = InitCarObj(objects[OBJLIST_ROCKET_FLAME], 15, -1, 0x42000, slot, -1, 1);
     car->roktScale[0] = 0.25f;
   }
-  if (((gRace == 6) || (gRace == 4)) && (gNumPlayers >= 3))
+  if (((gRace == kBattle) || (gRace == kStunt)) && (gNumPlayers >= 3))
   {
     MBOX_HideObject(parts->sheen, 1, 15);
   }

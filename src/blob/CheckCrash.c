@@ -54,7 +54,7 @@ void CheckCrash(s16 slot)
       return;
 
     case CRASH_WRECKED:
-      if (gRace == 6)   /* kBattle */
+      if (gRace == kBattle)
       {
         if (((PC_MODEL_MODEL_TIME(slot)) - car->crashtime) > 2.25f)
         {

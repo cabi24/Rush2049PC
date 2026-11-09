@@ -74,8 +74,8 @@ s32 animFlag(Blit *blt)
 {
     s32 x, y, width, height, w, h, xoff, yoff;
 
-    if (Hidden_9F54(blt, gNumWindows > 4 || gNumLapsLeft > 1 || gRace == 6 || gRace == 4 ||
-                         gRace == 5 || !gShowTrackMap))
+    if (Hidden_9F54(blt, gNumWindows > 4 || gNumLapsLeft > 1 || gRace == kBattle || gRace == kStunt ||
+                         gRace == kObstacle || !gShowTrackMap))
         return 1;
     width = gPathMax[0] - gPathMin[0];
     height = gPathMax[2] - gPathMin[2];
@@ -97,8 +97,8 @@ s32 animFlag(Blit *blt)
     y += (gCheckpoints.points[gCheckpoints.finishPt].pos[2] - gPathMin[2]) * h / height;
     blt->x = x - blt->width / 2;
     blt->y = y - blt->width / 2;
-    if (Hidden_9F54(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & GS_DEMO))) {
-        if (gRace != 1 && !(gGameState & GS_DEMO)) {
+    if (Hidden_9F54(blt, gRace == kPractice || gNumLapsLeft > 1 || (gGameState & GS_DEMO))) {
+        if (gRace != kPractice && !(gGameState & GS_DEMO)) {
             if (gNumWindows < 4)
                 HAL_SetFont(6);
             else

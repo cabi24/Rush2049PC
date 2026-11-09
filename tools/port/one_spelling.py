@@ -4,7 +4,8 @@
     python3 tools/port/one_spelling.py --dry-run          what would change, per file, and every refusal
     python3 tools/port/one_spelling.py --apply            change the tree
     python3 tools/port/one_spelling.py --census           the macro names still #defined in more than one place
-    options: [--root DIR] [--only PASS[,PASS...]] (passes: spell, inline, dedupe) [--names REGEX] [-v]
+    python3 tools/port/one_spelling.py --check            exit 1 if --apply would change a file (ctest one_spelling)
+    options: [--root DIR] [--tables DIR] [--only PASS[,PASS...]] (passes: spell, inline, dedupe, literals) [--names REGEX] [-v]
 
 Wave 2b's area agents each named the constants of their own files, so a meaning was often defined in several files,
 sometimes under several names (gGameState's bits as GAME_STATE_*, GS_* and GS_RACE_*). The shared definitions are
@@ -36,6 +37,12 @@ the old way or keeps a file's own copy, and it changes only what is left. Three 
    inside a conditional block (other than the header guard), or before the file's first #include, is left. The
    files are the C files and the headers other than the homes (include/game, libultra's include/PR): the boot
    segment's rom_tu.h loses what the libultra headers it includes define.
+
+4. literals (tools/port/consts/literals.tsv: `pattern  names  note`): a number where the code tests or sets a datum
+   whose values have names (`gGameState & 0x100`) becomes the name the file's headers give that value (GS_CAR), or
+   its bits' names ((GS_RACING | GS_DEMO)) when each bit has one; a number with an unnamed bit stays. pattern is a
+   regex whose group `lit` is the number; names a regex of the names that may stand for it. A trailing comment that
+   only named the values (`/* GS_RACING; kPractice */`) goes once the line's code says them.
 
 Removing lines: a definition's continuation lines (a backslash, or a comment that goes on below it) go with it; an
 #undef of the name just above it goes too; a comment block directly above a run of definitions that all went
@@ -433,7 +440,7 @@ def read_tsv(path, ncols):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         cols = line.split("\t")
-        if cols[0] == "old" or cols[0] == "name":
+        if cols[0] in ("old", "name", "pattern"):   # a header row
             continue
         cols += [""] * (ncols - len(cols))
         rows.append((ln, [c.strip() for c in cols[:ncols]]))
@@ -601,7 +608,8 @@ def expand_uses(text, name, params, body):
 
 
 class Run:
-    def __init__(self, root, verbose, names=None):
+    def __init__(self, root, verbose, names=None, consts=CONSTS):
+        self.consts = Path(consts)
         self.names = re.compile(names) if names else None
         self.tree = Tree(root)
         self.root = Path(root)
@@ -625,7 +633,7 @@ class Run:
 
     # ---- pass 1
     def spell(self):
-        rows = read_tsv(CONSTS / "spellings.tsv", 4)
+        rows = read_tsv(self.consts / "spellings.tsv", 4)
         by_old = collections.defaultdict(list)
         for ln, (old, new, old_value, note) in rows:
             if self.wanted(old) or self.wanted(new):
@@ -633,7 +641,7 @@ class Run:
         if not by_old:
             return
         olds = set(by_old)
-        inlined = {r[1][0] for r in read_tsv(CONSTS / "inline.tsv", 4)}
+        inlined = {r[1][0] for r in read_tsv(self.consts / "inline.tsv", 4)}
         for rel in sorted(self.tree.text):
             if rel == PRELUDE:
                 continue
@@ -688,7 +696,7 @@ class Run:
         # the docs: the names as words
         # in prose only a name that can't be a word or another meaning's: one row, an underscore or MAT3's kName,
         # and no inlined abbreviation of the same spelling (a file's MAX_LINKS was LINK_OWNER_HUMAN, another's not)
-        inlined = {r[1][0] for r in read_tsv(CONSTS / "inline.tsv", 4)}
+        inlined = {r[1][0] for r in read_tsv(self.consts / "inline.tsv", 4)}
         simple = {}
         for old, rs in by_old.items():
             if len(rs) == 1 and old not in inlined and ("_" in old or re.fullmatch(r"k[A-Z]\w+", old)):
@@ -707,7 +715,7 @@ class Run:
 
     # ---- pass 2
     def inline(self):
-        rows = read_tsv(CONSTS / "inline.tsv", 4)
+        rows = read_tsv(self.consts / "inline.tsv", 4)
         if not rows:
             return
         for ln, (name, body_re, comment_name, note) in rows:
@@ -812,9 +820,89 @@ class Run:
             if spans:
                 self.write(rel, "\n".join(remove_spans(lines, spans)))
 
+    # ---- pass 4
+    def literals(self):
+        """A number where the code tests or sets a datum whose values have names (literals.tsv) becomes the name."""
+        rows = read_tsv(self.consts / "literals.tsv", 3)
+        if not rows:
+            return
+        said = re.compile("|".join(f"(?:{r[1][1]})" for r in rows))   # every row's names, for the comments
+        for ln, (pattern, names_re, note) in rows:
+            rx = re.compile(pattern)
+            nx = re.compile(names_re)
+            for rel in sorted(self.tree.text):
+                if not rel.endswith(".c") or not rel.startswith(("src/", "nonmatching/")):
+                    continue
+                text = self.tree.text[rel]
+                if not rx.search(text):
+                    nt = drop_said_comments(text, said)
+                    if nt != text:
+                        self.write(rel, nt)
+                        self.changes[f"literal comments ({note})"] += 1
+                    continue
+                env = self.tree.env(rel)
+                named = {}
+                for name, (h, d) in self.tree.header_defs(rel).items():
+                    if not nx.fullmatch(name):
+                        continue
+                    v = d if isinstance(d, tuple) else value_of(d.body, env)
+                    if v[0] == "int" and not v[2]:
+                        named.setdefault(v[1], name)
+                out = []
+                count = 0
+                for kind, seg in segments(text):
+                    if kind != "code":
+                        out.append(seg)
+                        continue
+
+                    def put(m):
+                        nonlocal count
+                        lit = m.group("lit")
+                        v = int(lit, 0)
+                        name = spell_value(v, named)
+                        if name is None:
+                            return m.group(0)
+                        count += 1
+                        a, b = m.span("lit")
+                        return m.group(0)[:a - m.start()] + name + m.group(0)[b - m.start():]
+                    out.append(rx.sub(put, seg))
+                nt = drop_said_comments("".join(out), said)
+                if nt != text:
+                    self.write(rel, nt)
+                    self.changes[f"literal ({note})"] += count
+
     def save(self):
         for rel in sorted(self.edited):
             (self.root / rel).write_text(self.tree.text[rel], errors="surrogateescape")
+
+
+SAID = re.compile(r"[ \t]*/\*\s*([A-Za-z_][A-Za-z0-9_]*(?:\s*[,;|]\s*[A-Za-z_][A-Za-z0-9_]*)*)\s*\*/[ \t]*$")
+
+
+def drop_said_comments(text, nx):
+    """A line's trailing comment that only names values (`/* GS_RACING | GS_DEMO; kPractice */`, left to explain the
+    numbers) goes once the line's code says each of them."""
+    out = []
+    for line in text.split("\n"):
+        m = SAID.search(line)
+        if m:
+            names = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", m.group(1))
+            code = line[:m.start()]
+            if code.strip() and all(nx.fullmatch(n) for n in names) and \
+                    all(re.search(r"\b" + n + r"\b", code) for n in names):
+                line = code.rstrip()
+        out.append(line)
+    return "\n".join(out)
+
+
+def spell_value(v, named):
+    """The name of value v, or of each of its bits ((A | B)) when every bit has one; None if some bit has none."""
+    if v in named:
+        return named[v]
+    bits = [1 << i for i in range(32) if v >> i & 1]
+    if len(bits) < 2 or any(b not in named for b in bits):
+        return None
+    return "(" + " | ".join(named[b] for b in reversed(bits)) + ")"
 
 
 def prior_undef(lines, d):
@@ -866,17 +954,19 @@ def main():
     g.add_argument("--dry-run", action="store_true")
     g.add_argument("--apply", action="store_true")
     g.add_argument("--census", action="store_true")
+    g.add_argument("--check", action="store_true", help="exit 1 if the passes would change a file")
     ap.add_argument("--root", default=str(ROOT))
-    ap.add_argument("--only", default="spell,inline,dedupe")
+    ap.add_argument("--tables", default=str(CONSTS), help="the tables' folder (default tools/port/consts)")
+    ap.add_argument("--only", default="spell,inline,dedupe,literals")
     ap.add_argument("--names", help="only the names this regex matches (whole name)")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
     if a.census:
         census(a.root)
         return 0
-    run = Run(a.root, a.verbose, a.names)
+    run = Run(a.root, a.verbose, a.names, a.tables)
     passes = [p.strip() for p in a.only.split(",") if p.strip()]
-    for p in ("spell", "inline", "dedupe"):
+    for p in ("spell", "inline", "dedupe", "literals"):
         if p in passes:
             getattr(run, p)()
     for k, v in sorted(run.changes.items()):
@@ -889,6 +979,9 @@ def main():
     else:
         for rel in sorted(run.edited):
             print(f"  {rel}")
+    if a.check and run.edited:
+        print("one_spelling: the tree has constants the tables would change: run --apply", file=sys.stderr)
+        return 1
     return 0
 
 

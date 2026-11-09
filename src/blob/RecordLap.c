@@ -10,7 +10,7 @@ void RecordLap(int player, f32 time)
 {
     int i;
 
-    if (!(gGameState & 8) && gRace != kPractice && player < gNumPlayers) {
+    if (!(gGameState & GS_DEMO) && gRace != kPractice && player < gNumPlayers) {
         gLapTimes[player][gLap[player]] = time;
         for (i = 0; i < gLap[player]; i++) {
             gLapTimes[player][gLap[player]] -= gLapTimes[player][i];
