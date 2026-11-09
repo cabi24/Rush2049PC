@@ -187,7 +187,7 @@ struct pc_model {
     unsigned char pad76C[0x794 - 0x76C];
     float reckon_rwr[3];                /* +0x794 the dead-reckoned position (tReckon at +0x734) */
     unsigned char pad7A0[0x7C4 - 0x7A0];
-    short ob_res_pt;                    /* +0x7C4 obResPt: the path's high-water mark (path_D169C) */
+    short ob_res_pt;                    /* +0x7C4 obResPt: the path's high-water mark (GetResPt) */
     short slot;                         /* +0x7C6 the car slot (the roster's and the car record's index) */
     short active;                       /* +0x7C8 in the race */
     short we_control;                   /* +0x7CA this node drives it */

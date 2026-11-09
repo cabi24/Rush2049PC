@@ -14,7 +14,7 @@
 #include "gsm.h"
 
 _Static_assert(offsetof(GsmState, LARpp) == 0x168 && offsetof(GsmState, j) == 0x188 &&
-               sizeof(GsmState) == 0x190, "GsmState_26F60 must keep gsm.c's N64 layout");
+               sizeof(GsmState) == 0x190, "GsmState must keep the N64 layout");
 
 /* MIPS addu/subu and mult+mflo: 32-bit, wrapping. */
 static inline int32_t add32(int32_t a, int32_t b) { return (int32_t)((uint32_t)a + (uint32_t)b); }

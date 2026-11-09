@@ -268,10 +268,10 @@ own copies and other spellings to it).
   Every file declares its own partial view of the record; one shared definition is for when the layout is the
   PC's.
 - **The car record** is host data, but the views' padding is written in N64 offsets around `struct pc_visual
-  visuals[21]` (CARS.md 2), and a few fields are reached through accessors (`PC_CAR_*`, `PC_MODEL_*`) whose names
-  predate MAT3's (`struct pc_car`'s `view` is MAT3's `camera`, `disabled` is `in_tunnel`, `heading` is
-  `strayAngle`, `b358` is `crash_state`, `b3A0`/`b3A2` are `shoot`/`fadeState`; `struct pc_model`'s `scale` is
-  `catchup`, `speed` is `magvel`, `lap` is `laps` ...).
+  visuals[21]` (CARS.md 2), and a few fields are reached through accessors (`PC_CAR_*`, `PC_MODEL_*`); since wave 2c
+  the fields and accessors that were offsets or misread have MAT3's names (`camera`, `in_tunnel`, `stray_angle`,
+  `crash_state`, `shoot`, `fade_state`, `catchup`, `tire_rims` ...); left: `struct pc_model`'s `speed` is MAT3's
+  `magvel`, `lap` its `laps`.
 - **The scene** emits N64 display lists (libultra's gbi.h macros, F3DEX2, s15.16 `Mtx`, viewports in quarter
   pixels) that port/gfx interprets; the wad records (TXHD, PLHD, OBHD) keep the N64 layout with window addresses
   (`texBase`, `palBase`, `displayList`); `gMatrices` and `pc_matrix_spill` are in the window; the texture loads and

@@ -103,7 +103,7 @@ are in types.h; the menu sounds' ids (`SND_MENU_*`) in audio.h, the buttons they
 | `musyx_submit_audio_task.c` | MusyX's service that sends the audio task to the scheduler |
 
 Also in the area's list, not sound: `FillFreeMem.c` (the heap's freed-memory fill), `heap_lock.c`/`heap_unlock.c`
-(empty), `UpdateArrowVis.c` (MAT3 visuals.c's UpdateArrowVis), `groups/slot_sound/AdjustTextWavePointers.c`
+(empty), `UpdateArrowVis.c` (MAT3 visuals.c), `groups/slot_sound/AdjustTextWavePointers.c`
 (the text bank), `groups/state_waves/LoadFrontEndWaves.c` (the front end's waves). The audio manager thread itself, AudioInit,
 ProcessEmitters and the MusyX services other than the task are the system area's.
 
@@ -173,5 +173,5 @@ sent (`SetSoundVP`).
 - **The speech** streams' cartridge reads (async DMA) and its KSEG0 test in `speech_set_bank`.
 - **Dead or misnamed code** a later cleanup can take: `NewListener` (nothing calls it), `other_user` (a stand-in
   caller), the empty `ValidateEmitter`/`pc_ValidateEmitter`/`ValidateListener` with their N64-build leftovers,
-  `UpdateArrowVis` (MAT3 visuals.c), the library's own emitters and streams (unused by the game), the
-  `AudPauseAllEffects` that stops (as MAT3's).
+  the library's own emitters and streams (unused by the game), the `AudPauseAllEffects` that stops (as
+  MAT3's).
