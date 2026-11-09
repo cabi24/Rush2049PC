@@ -44,6 +44,14 @@ display: about one a second).
 60 and the game's own frames (video.frame_rate original) under a vsync swap, each vblank shows the game's next frame
 (docs/port/FRAMERATE.md 7.6).
 
+--max-late-run N checks that at most N retraces one after another came a whole retrace late (the exit line's `at most
+N late one after another`): a late retrace is caught up within a few, and a long run is the loop held a retrace
+behind, as the swaps paced by a 59.94 Hz display once held the 60 Hz retraces (a whole retrace behind after 1,000 of
+them, then every retrace caught up for good: docs/port/FRAMERATE.md 2, "The retraces keep their 60 Hz").
+--wake-late N:US models a busy host's timed waits, every Nth that times out returning US microseconds late
+(RUSH_SIM_WAKE_LATE), for the checked runs and the reference; --max-lost F bounds the vblanks lost to skipped ticks
+at that share (0.10 by default).
+
 --paced runs every run in paced mode (docs/port/ULTRA.md 10): the virtual clock paced to the wall clock, whose
 presentation (the vsync model, frames between, the vblank pacing) is real time's; the retraces are then judged by the
 exit line `paced: N retraces in W s of wall time, R a second` (the virtual clock's own line is always 60), and the
@@ -89,6 +97,12 @@ def main():
     ap.add_argument("--max-stale", type=float, default=-1, help="with the vsync model, at most this share of its "
                     "vblanks showing no new frame (a frame held twice; docs/port/FRAMERATE.md 7.6)")
     ap.add_argument("--paced", action="store_true", help="every run in paced mode (docs/port/ULTRA.md 10)")
+    ap.add_argument("--max-late-run", type=int, default=-1, help="at most this many retraces one after another a "
+                    "whole retrace late (the loop held a retrace behind)")
+    ap.add_argument("--wake-late", default="", help="N:US, every Nth timed wait that times out returns US late "
+                    "(RUSH_SIM_WAKE_LATE: a busy host)")
+    ap.add_argument("--max-lost", type=float, default=0.10, help="--pacing: at most this share of the vblanks lost "
+                    "to skipped ticks")
     args = ap.parse_args()
     if args.max_stale >= 0 and (os.name == "nt" or args.no_sim):
         print("realtime_check: --max-stale reads the vsync model's vblanks, which Linux runs have: skipped")
@@ -127,6 +141,8 @@ def reference(args, logs):
                RUSH2049_AUDIO_RATE="48000")
     if args.timer_step_us not in ("", "0"):
         env.update(RUSH_SIM_TIMER_STEP_US=args.timer_step_us)
+    if args.wake_late:
+        env.update(RUSH_SIM_WAKE_LATE=args.wake_late)
     for key in ("RUSH_SIM_VSYNC_HZ", "RUSH_SIM_VSYNC_QUEUE", "RUSH_SIM_VSYNC_PHASE", "RUSH_SIM_DISPLAY_HZ",
                 "RUSH_SIM_DISPLAY_TIMING", "RUSH_SIM_PRESENT_MS"):
         env.pop(key, None)
@@ -154,6 +170,8 @@ def check(args, frame_rate, logs, timing=""):
         env.update(RUSH_SIM_VSYNC_HZ=args.vsync_hz)
         if args.timer_step_us not in ("", "0"):
             env.update(RUSH_SIM_TIMER_STEP_US=args.timer_step_us)
+        if args.wake_late:
+            env.update(RUSH_SIM_WAKE_LATE=args.wake_late)
         for key, value in (("RUSH_SIM_VSYNC_QUEUE", args.vsync_queue), ("RUSH_SIM_VSYNC_PHASE", args.vsync_phase),
                            ("RUSH_SIM_DISPLAY_HZ", args.display_hz), ("RUSH_SIM_DISPLAY_TIMING", timing)):
             if value:
@@ -182,9 +200,10 @@ def check(args, frame_rate, logs, timing=""):
         between, skipped = int(m[2]), int(k[1])
         vblanks = args.seconds * float(args.vsync_hz)
         need = max(args.min_between, int(args.between_ratio * getattr(args, "ref_between", 0) + 0.5))
-        good = skipped <= 0.10 * vblanks and between >= need
+        good = skipped <= args.max_lost * vblanks and between >= need
         ok &= good
-        print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most 10%), "
+        print(f"realtime_check: {vblanks:.0f} vblanks ({v[1]} Hz measured), {skipped} lost to skipped ticks (at most "
+              f"{args.max_lost:.0%}), "
               f"{between} frames drawn between (at least {need}: {args.between_ratio:g} of vsync off's"
               f"{', and ' + str(args.min_between) if args.min_between else ''}): {'ok' if good else 'FAIL'}")
         if args.max_doubled >= 0:
@@ -225,6 +244,15 @@ def check(args, frame_rate, logs, timing=""):
     ok &= good
     print(f"realtime_check: retraces {rate:.2f} a second, {caught} caught up, {dropped} dropped: "
           f"{'ok' if good else 'FAIL'}")
+    if args.max_late_run >= 0:
+        r = re.search(r"; at most (\d+) late one after another", out)
+        if not r:
+            print("realtime_check: no late-run count in the retrace line")
+            return 1
+        good = int(r[1]) <= args.max_late_run
+        ok &= good
+        print(f"realtime_check: at most {r[1]} retraces late one after another (at most {args.max_late_run}): "
+              f"{'ok' if good else 'FAIL'}")
     if args.game_fps == "60":
         # The game's own frames (graphics tasks) against the retraces: one a retrace, but for the front end's loads.
         g = re.search(r"^rush2049pc: (?:time reached:|state reached:) t=\S+ vi=(\d+) gfx_tasks=(\d+)", out, re.M)

@@ -165,10 +165,52 @@ ticks by the display (`vb` in port/ultra/loop.c):
   retrace has gone out (`swapped after a retrace`), and drops it if the vblank went by meanwhile (`missed it`). A
   tick that fits none of these is skipped: the vblank shows what the last one did. A swap that takes longer than a
   vblank and one more (a slow GPU, `RUSH_SIM_PRESENT_MS`) counts in the cost, so such a host skips ticks as before.
-- **Coarse timers.** Where the loop's timed waits return more than 2 ms late (`RUSH_SIM_TIMER_STEP_US`'s model, or a
-  Windows without the high-resolution waitable timer that `pc_os_wait_main` uses), sleeping until a tick's start
+- **Coarse timers.** Where most of the loop's timed waits return 2 ms late or more (`RUSH_SIM_TIMER_STEP_US`'s model,
+  or a Windows without the high-resolution waitable timer that `pc_os_wait_main` uses), sleeping until a tick's start
   would miss its vblank: the swap is the clock. Each tick is drawn once the vblank before its own has come and its
-  swap waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames.
+  swap waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames;
+  but never while a retrace is already due, which goes out first. A host whose waits are precise but now and then
+  late (busy) plans its ticks that much earlier instead (below).
+- **The retraces keep their 60 Hz** (2026-11-08). The retraces are a grid of exactly 60 a second on the host's clock,
+  as they have been since the port began (`PC_VI_HZ`, port/ultra/ultra.h: 16,666,666 ns apart, 1/60 s of N64 time
+  each, 781,250 of osGetCount's counts), not NTSC's 59.94 and never the display's. A 59.94 Hz display's vblanks come
+  0.1% slower: one vblank fewer than retraces every 1,000 retraces (16.7 s). Two things in the pacing let that hold
+  the retraces back for good on a busy host (CI's x86-64 runners, `hfr_paced_game60`: 805 of 1,800 retraces caught up
+  and the game at 60 keeping 0.59-0.74 of its frames, now and then; rocky held to two cores with llvmpipe: 1,436 of
+  3,600 and 0.745):
+  - One timed wait that returned 2 ms late put the loop on the coarse waits' way, by the decaying maximum of the
+    waits' lateness, and kept it there: that maximum falls only at a timed wait that times out, and with the swap as
+    the clock the loop seldom times one. The swaps then held the loop a refresh at a time, and the game at 60 kept
+    0.6-0.8 of its frames.
+  - On that way a tick was drawn, and its swap waited for its vblank, while a retrace was already due (one a whole
+    retrace late waits up to 2 ms for the game's threads, `pc_os_quiet`, and the ticks came first). So each retrace
+    went out just after a swap returned at a vblank: the retraces at the display's 59.94, a whole retrace behind after
+    1,000 of them, and from then on every retrace caught up and never on time, for the rest of the run.
+
+  Now a due retrace goes out before any tick is drawn, so a swap holds a retrace by less than a refresh and the
+  catch-up gets its turn; and real time takes the coarse waits' way only where most of the timed waits (a share, a
+  sixteenth of the way a wait) return 2 ms late or more, as a timer of 15.6 ms steps does, never on one late wait. A
+  busy host plans its ticks by the decaying maximum, earlier, and skips the ones that can't make their vblank.
+  On rocky, the synthetic race in real time, the game at 60 under the 59.94 Hz vsync model (30 s, RelWithDebInfo):
+
+  | Host | Rate | Before: the game's frames, caught up, vblanks lost | After |
+  |---|---|---|---|
+  | the busy model (`RUSH_SIM_WAKE_LATE=50:2500`: every 50th timed wait that times out returns 2.5 ms late) | display | 1,116 of 1,800, 21, 3 (the coarse way) | 1,759, 0, 193 |
+  | | 60 | 1,080, 2, 1 (the coarse way) | 1,765, 0, 196 |
+  | the same, every 20th | display | 1,099, 2, 3 | 1,724, 0, 372 |
+  | held to two cores, llvmpipe (`taskset`, 60 s) | display | 2,681 of 3,600, 1,436 (from the 1,993rd on), 69 | 3,567, 0, 866 |
+  | idle, no model | display | | 1,768, 0, 72 |
+
+  A busy host loses more vblanks to skipped ticks (a late wake costs its tick, and the ticks are planned earlier)
+  where the coarse way lost few, but the game keeps its frames and its retraces. The exit line says the share of late
+  waits and how many passes took the coarse way, and the retrace line the longest run of retraces late one after
+  another (`at most N late one after another`): a late retrace is caught up within one or two, and a long run is the
+  loop holding the retraces behind.
+
+  The game's timing is untouched: it sees 1/60 s a retrace as it always did, and frame-stepped (`--fast`) and paced
+  runs take the same course to the bit. The retraces stay 60.000 Hz on a 59.94 Hz display too; a setting for 59.94
+  retraces (NTSC's rate, or a 59.94 Hz display's) is not offered: in real time it would run the game 0.1% slow and
+  the sound would have to be resampled to match.
 
 With vsync off, or `--fast`, the ticks are scheduled as before. The exit line `paced by the display's vblanks (H Hz,
 the display's | from SDL's whole hertz; N swaps returned at one, M vblank times from the display): ...; the retraces
@@ -233,6 +275,8 @@ reads the game's values then too, not after the retrace's event, which raced the
 | `gfx.display.*` (`port/gfx/tests/display_test.c`) | the refresh arithmetic on made-up values: XRandR modes (1080p60, 59.94, 1440p "144", interlaced, doublescan), Windows' ratios, a refresh SDL's whole hertz could be the rounding of, the compositor's counter as an age, and which period and vblanks are taken from a monitor's, a compositor's (the same monitor, another one, stale, none) and SDL's |
 | `hfr_realtime` (`realtime_check.py --frame-rate 120 --present-ms 40`) | the same race with each swap held 40 ms, then until the vsync (a host always behind): at least 5 frames shown a second, the game's own |
 | `hfr_timing_game60`, `hfr_paced_game60` | `hfr_timing` and `hfr_paced` with the game at 60 (`--game-fps 60`, section 7.6) |
+| `hfr_paced_busy` (`--game-fps 60 --wake-late 50:2500`) | `hfr_paced_game60` at `display` and 60 on a busy host (`RUSH_SIM_WAKE_LATE`: every 50th timed wait that times out returns 2.5 ms late): the loop stays off the coarse waits' way, the game keeps at least 0.9 of its frames (0.977-0.978 on rocky; 0.60-0.62 before), no retrace held behind, at most 25% of the vblanks lost to skipped ticks (11-13%) (section 2, "The retraces keep their 60 Hz") |
+| `--max-late-run 30` (`realtime_check.py`, in every pacing test above and `audio_realtime_game60`, `realtime_game60_v60`) | at most 30 retraces one after another a whole retrace late (the retrace line's `at most N late one after another`): the 59.94 Hz display's swaps holding the 60 Hz retraces a retrace behind for good made it hundreds |
 | all other tests | unchanged: the setting is off by default |
 
 A mutation check of `gfx_interp.c` (14 deliberate bugs: no blend, always one frame's list, no camera move for new
@@ -355,9 +399,10 @@ its numbers vary from run to run.
   pacing and without it alike (151 and 151 at 60, vsync off and on; 0 not drawn, the rest held), and the race's
   states come at the same retraces on both: which frames are interpolated differs on that host, not when the ticks
   run. `hfr_paced`'s frames-between bound is relative to the same host's with vsync off for that reason. With the coarse-wait model (15.6 ms steps for every timed wait, the
-  main loop's included) the Pi's race at 60 or 120 has 806 of 1800 retraces late and none drawn between; on Windows
-  the main loop waits on a high-resolution waitable timer (and asks for a 1 ms period), so that model is the case
-  where Windows refuses both.
+  main loop's included) the Pi's race at 60 or 120 had 806 of 1800 retraces late and none drawn between, before a due
+  retrace went out ahead of the ticks (section 2, "The retraces keep their 60 Hz"; not measured on the Pi since); on
+  Windows the main loop waits on a high-resolution waitable timer (and asks for a 1 ms period), so that model is the
+  case where Windows refuses both.
 - The retraces are moved against the vblanks only on displays that keep their phase (section 2). At 59.94 the bad
   phase comes for about 2.5 s in every 17 (the vblank just after a retrace); moving the retraces to follow it would
   make them the display's grid, not their own 60 Hz, so it isn't done.

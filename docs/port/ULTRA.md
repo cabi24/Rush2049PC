@@ -322,9 +322,13 @@ loop on the host main thread.
   (`pc_os_quiet`): the system is idle, or the baton is back with the thread that held it when that retrace went out,
   with no thread above it waiting. The wait is at most 2 ms. Sent at once, a burst of them reached the scheduler's
   clients together, and the audio manager, whose 128-message queue also takes a command per sound source per
-  retrace, overflowed it on a loaded host. With `--fast` they come at once, as before.
+  retrace, overflowed it on a loaded host. With `--fast` they come at once, as before. Nothing else goes first: a
+  frame between two (a high frame rate) is not drawn while a retrace is due, so a swap that waits for vsync can't
+  hold the retraces behind ([FRAMERATE.md](FRAMERATE.md) 2, "The retraces keep their 60 Hz").
 - At exit the loop writes `N retraces in T s; C came a whole retrace late and were caught up, D dropped (...); L
-  late ones went out before the game was done with the last` (L: those the 2 ms wait sent anyway). On rocky (load
+  late ones went out before the game was done with the last; at most R late one after another` (L: those the 2 ms
+  wait sent anyway; R: the longest run, one or two where the catch-up works, hundreds where the loop held the
+  retraces a retrace behind). On rocky (load
   2), `realtime_check` with slow presents (`RUSH_SIM_PRESENT_MS=20`): the fullest 128-message queue peaked at 24
   and 27 messages, down from 28 and 40 when they came at once. One late retrace in each run went out at the 2 ms
   limit, and none were dropped.

@@ -357,7 +357,7 @@ static void sim_report(void)
 #define VB_GUARD_NS 300000u      /* ... and this long before a retrace due during it */
 #define VB_VI_WORK_NS 500000u    /* the loop's own work at a retrace (events, the VI's present), about */
 #define VB_BLOCKED_NS 300000u    /* a swap that took longer waited for a vblank */
-#define VB_PRECISE_NS 2000000u   /* the loop's timed waits return within this: a swap can wait for a retrace */
+#define VB_PRECISE_NS 2000000u   /* a timed wait this late is coarse; most of them so: the swap is the clock */
 #define VB_TIMING_NS 100000000u  /* the display's timing is asked for again after this long */
 #define VB_LOCK_EVERY_NS 10000000000u   /* the retraces are moved against the vblanks at most this often */
 
@@ -513,16 +513,16 @@ static uint64_t vb_cost(uint64_t mean, uint64_t dev)
 /* When a tick for vblank v starts, from now t: as late as its drawing (cost: vb_cost's) still ends VB_MARGIN_NS
  * before v, after the loop's wake lateness. Not while the retrace due at r would come during it: then after that
  * retrace if it still makes v, else early enough to end before it (its swap then waits for the retrace). 0: none of
- * these. With waits that return late by more than VB_PRECISE_NS (coarse timers: RUSH_SIM_TIMER_STEP_US, a Windows
- * without the high-resolution timer) the swap is the clock: each tick is drawn as soon as the last swap returns, and
- * its swap waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's
- * frames; not before the vblank before its own. */
-static uint64_t vb_start(uint64_t v, uint64_t cost, uint64_t late, uint64_t r, uint64_t t)
+ * these. With coarse waits (most return VB_PRECISE_NS late or more: RUSH_SIM_TIMER_STEP_US, a Windows without the
+ * high-resolution timer) the swap is the clock: each tick is drawn as soon as the last swap returns, and its swap
+ * waits for the vblank, across a retrace if one comes, as the setting off waits after each of the game's frames; not
+ * before the vblank before its own. */
+static uint64_t vb_start(uint64_t v, uint64_t cost, uint64_t late, int coarse, uint64_t r, uint64_t t)
 {
     uint64_t need = cost + VB_MARGIN_NS + late, s;
     if (v < t + cost + VB_GUARD_NS)
         return 0;
-    if (late >= VB_PRECISE_NS)
+    if (coarse)
         return v > t + (uint64_t)vb.period ? v - (uint64_t)vb.period : t;   /* from the vblank before it */
     s = v > t + need ? v - need : t;
     if (r <= s || r >= s + late + cost + VB_GUARD_NS)
@@ -582,6 +582,29 @@ static int sim_hold_due(void)
     return 1;
 }
 
+/* RUSH_SIM_WAKE_LATE=N:US (tests, docs/port/FRAMERATE.md 4): every Nth timed wait of the loop that times out returns
+ * US µs late, as a busy host's now and then do (the main thread scheduled late: 2-3 ms on a loaded rocky, held to two
+ * cores with llvmpipe). Real time only. */
+static void sim_wake_late(void)
+{
+    static int read;
+    static unsigned every, n;
+    static uint64_t ns;
+    if (!read) {
+        const char *e = getenv("RUSH_SIM_WAKE_LATE");
+        unsigned a = 0, us = 0;
+        if (e && sscanf(e, "%u:%u", &a, &us) == 2 && a && us) {
+            every = a;
+            ns = (uint64_t)us * 1000u;
+        }
+        read = 1;
+    }
+    if (every && ++n >= every) {
+        n = 0;
+        sleep_until(pc_real_ns() + ns);
+    }
+}
+
 int pc_ultra_run(const PcRunOptions *opt)
 {
     const uint64_t vi_ns = 1000000000u / PC_VI_HZ;
@@ -596,10 +619,13 @@ int pc_ultra_run(const PcRunOptions *opt)
     uint64_t tick_ns = 0;                  /* how long showing one takes, in real time (a running mean); paced by
                                             * the display, without the swap's wait for its vblank */
     uint64_t wake_late = 0;                /* how late the loop's timed waits return (a decaying maximum) */
+    double wake_coarse = 0;                /* the share of them VB_PRECISE_NS late or more (a sixteenth a wait) */
+    uint32_t vb_coarse = 0;                /* passes that took the coarse waits' way (the swap as the clock) */
     uint32_t ticks_skipped = 0;            /* frames not shown, to keep the game's retraces on time */
     uint32_t vi_dropped = 0;               /* retraces dropped: the loop stalled VI_CATCH_UP periods or more */
     uint32_t vi_caught_up = 0;             /* retraces a whole period late, caught up */
     uint32_t vi_not_taken = 0;             /* of them, sent before the game was done with the last */
+    uint32_t vi_late_run = 0, vi_late_most = 0;   /* of them, one after another: now, and the longest run */
     uint64_t vi_late_cap = 0;              /* real time: the next retrace is late; it goes out once the game is
                                             * done with the last (pc_os_quiet), and at the latest at this time */
     uint64_t late_at[2] = {0, 0};          /* real time of the last two retraces late (the loop fell behind) */
@@ -791,11 +817,16 @@ int pc_ultra_run(const PcRunOptions *opt)
                 if (now - next_vi >= VI_CATCH_UP * vi_ns) {
                     vi_dropped += (uint32_t)((now - next_vi) / vi_ns + 1);
                     next_vi = now + vi_ns;
+                    vi_late_run = 0;
                 } else {
                     vi_caught_up++;
+                    if (++vi_late_run > vi_late_most)   /* a long run: the loop held a retrace behind (FRAMERATE.md 2) */
+                        vi_late_most = vi_late_run;
                     if (!pc_time_virtual())   /* (the virtual clock, paced or not, never passes a retrace) */
                         vi_late_cap = pc_host_ns() + VI_CATCH_UP_GAP_NS;
                 }
+            } else {
+                vi_late_run = 0;
             }
             vi_at = next_vi - vi_ns;
             deadline = next_vi;
@@ -836,8 +867,15 @@ int pc_ultra_run(const PcRunOptions *opt)
              * each tick drawn as soon as the last swap returns, its swap waiting a whole refresh): that keeps the
              * loop in swaps, and the N64 side moves only in the loop's waits, so it would get a move a refresh (on
              * the Pi 5, whose waits now and then return 2 ms late, the race ran at 17 retraces a second). Its ticks
-             * are planned as late as they make their vblank, whatever the waits; with coarse ones some miss it. */
+             * are planned as late as they make their vblank, whatever the waits; with coarse ones some miss it.
+             * Real time takes that way only where most of the waits are coarse (wake_coarse: a timer of 15.6 ms
+             * steps), not where a busy host returns one 2 ms late now and then: there the ticks are planned that much
+             * earlier (wake_late, the decaying maximum). Taken on one late wait, the swaps held the loop a refresh at
+             * a time, the game at 60 kept 0.6-0.8 of its frames instead of 0.95, and the loop seldom timed a wait
+             * again to see that the waits were precise (docs/port/FRAMERATE.md 2, "The retraces keep their 60 Hz"). */
             uint64_t wl = paced && wake_late >= VB_PRECISE_NS ? VB_PRECISE_NS - 1 : wake_late;
+            int coarse = !paced && wake_coarse >= 0.5 && wl >= VB_PRECISE_NS;
+            vb_coarse += coarse;
             int hz = display_hz(), every;
             if (!next_tick || rate != tick_rate)
                 next_tick = vat;
@@ -892,7 +930,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                         from = next_tick;
                     vb.target = vb_next(from);
                 }
-                uint64_t v = vb.target, start = vb_start(v, cost_hi, late, nvi, t), last;
+                uint64_t v = vb.target, start = vb_start(v, cost_hi, late, coarse, nvi, t), last;
                 double vt = pc_frame + ((double)v - (double)vat) / (double)vi_w;   /* its moment, in retraces */
                 if (!start) {   /* it can't make that vblank without running into a retrace: the screen keeps what
                                  * it shows */
@@ -908,11 +946,16 @@ int pc_ultra_run(const PcRunOptions *opt)
                          * of its own, or the loop would spin while the game computes */
                         if (!paced)
                             deadline = t;
-                    } else if (nvi <= t + cost_hi + VB_GUARD_NS && late < VB_PRECISE_NS) {
-                        if (nvi > t && nvi < *wake)   /* the retrace first (a late one: its own wait) */
+                    } else if (nvi <= t || (nvi <= t + cost_hi + VB_GUARD_NS && !coarse)) {
+                        /* the retrace first: always one already due (a late one waits for the game's threads,
+                         * vi_late_cap: with the swap as the clock a tick drawn meanwhile held it until its vblank,
+                         * and on a 59.94 Hz display the 60 Hz retraces then went at the display's rate, a whole
+                         * retrace behind after 1,000 and caught up for good: docs/port/FRAMERATE.md 2), and with
+                         * precise waits one due before the tick would end */
+                        if (nvi > t && nvi < *wake)   /* (a late one: its own wait) */
                             *wake = nvi;
                     } else if (pc_gfx_tick_waits(vt) &&
-                               (last = v - cost_hi - VB_GUARD_NS - (late < VB_PRECISE_NS ? late : 0)) > t &&
+                               (last = v - cost_hi - VB_GUARD_NS - (coarse ? 0 : late)) > t &&
                                last < v) {
                         /* the frame is between the shown one and the game's next, which isn't drawn yet: its
                          * graphics task wakes the loop, and runs first, as long as the tick still makes its vblank */
@@ -927,7 +970,7 @@ int pc_ultra_run(const PcRunOptions *opt)
                             mode = 2;   /* the game's own frames only */
                         int drew = pc_gfx_present_tick(vt, mode | PC_GFX_TICK_NO_SWAP);
                         cost = pc_real_ns() - r0;
-                        if (drew && nvi + VB_VI_WORK_NS < v && wl < VB_PRECISE_NS) {
+                        if (drew && nvi + VB_VI_WORK_NS < v && !coarse) {
                             vb.swap = v;   /* a retrace comes first: the swap waits for it, not it for the swap */
                             vb.swap_vi = pc_frame;
                             if (nvi < *wake)
@@ -1024,9 +1067,13 @@ int pc_ultra_run(const PcRunOptions *opt)
         if (!pc_os_wait_main(deadline) && !pc_quit)
             goto wait;   /* --fast: a thread still computes; the loop's work waits until it waits (sched.c) */
         if (!pc_time_virtual() && deadline > w0) {   /* a timed wait: how late it returned, if it timed out */
+            if (pc_host_ns() >= deadline)
+                sim_wake_late();
             uint64_t w1 = pc_host_ns(), keep = wake_late - wake_late / 32;
-            if (w1 >= deadline)
+            if (w1 >= deadline) {
                 wake_late = w1 - deadline > keep ? w1 - deadline : keep;
+                wake_coarse += ((w1 - deadline >= VB_PRECISE_NS) - wake_coarse) / 16;
+            }
         }
     }
     pc_si_finish();   /* the paks' writes done before the process ends (si.c) */
@@ -1037,17 +1084,18 @@ int pc_ultra_run(const PcRunOptions *opt)
         fprintf(stderr, "rush2049pc: paced by the display's vblanks (%.3f Hz, %s; %u swaps returned at one, %u "
                 "vblank times from the display): %u ticks shown at their vblank, %u of them swapped after a retrace, "
                 "%u missed it, %u drawn past it; %u of the game's frames shown at their retrace; the loop's waits up "
-                "to %.1f ms late, a tick planned at %.2f ms; the retraces moved %u times to sit between two vblanks, "
-                "by up to %.1f ms\n",
+                "to %.1f ms late (%.0f%% of them by 2 ms or more; %u passes with the swap as the clock), a tick "
+                "planned at %.2f ms; the retraces moved %u times to sit between two vblanks, by up to %.1f ms\n",
                 1e9 / vb.period, vb.exact ? "the display's" : "from SDL's whole hertz", vb.observed, vb.stamps,
                 vb.shown_n, vb.deferred, vb.missed, vb.overran, vb.retrace_shows, wake_late / 1e6,
-                vb_cost(tick_ns, tick_dev) / 1e6, vb.locks, vb.lock_max / 1e6);
+                wake_coarse * 100, vb_coarse, vb_cost(tick_ns, tick_dev) / 1e6, vb.locks, vb.lock_max / 1e6);
     sim_report();
     if (paced)
         pc_pace_report();
     fprintf(stderr, "rush2049pc: %u retraces in %.1f s; %u came a whole retrace late and were caught up, %u dropped "
-            "(the host stalled %u retraces or more); %u late ones went out before the game was done with the last\n",
-            pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped, VI_CATCH_UP, vi_not_taken);
+            "(the host stalled %u retraces or more); %u late ones went out before the game was done with the last; "
+            "at most %u late one after another\n",
+            pc_frame, pc_host_ns() / 1e9, vi_caught_up, vi_dropped, VI_CATCH_UP, vi_not_taken, vi_late_most);
     /* the game's scheduler may still be counting (ThreadSanitizer) */
     fprintf(stderr, "rush2049pc: %u audio tasks; %u graphics tasks yielded to one\n",
             __atomic_load_n(&pc_rcp_audio_tasks, __ATOMIC_RELAXED),
