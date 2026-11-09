@@ -60,10 +60,10 @@ void SaveInit(void) {
     }
     n = (expansion_pak_present ? 12 : 1) * 3;
     gRealLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record));
-    PurgeableMemory(PC_N64A(gRealLimboGhosts), 0);
+    PurgeableMemory(gRealLimboGhosts, 0);
     memset(gRealLimboGhosts, 0, n * sizeof(Record));
     gLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record *));
-    PurgeableMemory(PC_N64A(gLimboGhosts), 0);
+    PurgeableMemory(gLimboGhosts, 0);
     for (i = 0; i < n; i++) {
         gLimboGhosts[i] = &gRealLimboGhosts[i];
     }

@@ -818,4 +818,14 @@ void pc_engine_state(int handle, int state);   /* the emitter pass: an emitter's
 void pc_snd_walk_begin(void);
 int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible);
 
+/* ---- The runtime images' block in the main heap (docs/port/NATIVE.md step 6, MEMORY.md 5).
+ * The N64 game loaded either runtime image (A, the front end; B, the race's extras) at 0x8038A400, and its overlay
+ * loader reserved the heap's bytes from there to 0x803BB380 for it; its main heap's header was at 0x8017A640. The PC
+ * links both images in, but the heap keeps that block reserved at the same place in the heap, so the heap's free space
+ * is split where the N64's was: PC_RUNTIME_IMAGE_OFFSET bytes past the main heap's header (gMainHeap),
+ * PC_RUNTIME_IMAGE_SIZE bytes long. The game's overlay loader takes it (load_overlay, runtime_image_block); the test
+ * floor (port/ultra/heap.c) takes it as the loader would. */
+#define PC_RUNTIME_IMAGE_OFFSET 0x20FDC0   /* 0x8038A400 - 0x8017A640 */
+#define PC_RUNTIME_IMAGE_SIZE 0x30F80      /* 0x803BB380 - 0x8038A400 */
+
 #endif

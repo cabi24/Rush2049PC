@@ -9,16 +9,16 @@ typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 /* Unlocks (purgeable != 0: the count goes down, not below 0) or locks (up, not above 255) the chunk whose data is at
- * address. A handle's chunk (one with a master slot) is left alone. Takes the heap lock. */
-void PurgeableMemory(u32 address, s32 purgeable) {
-    void *heap;
+ * ptr. A handle's chunk (one with a master slot) is left alone. Takes the heap lock. */
+void PurgeableMemory(void *ptr, s32 purgeable) {
+    tHeap *heap;
     tMemoryChunk *chunk;
     s32 count;
 
     osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
-    heap = FindHeap(address);
-    chunk = FindChunk(heap, address, 0);
-    if (chunk->master != 0) {
+    heap = FindHeap(ptr);
+    chunk = FindChunk(heap, ptr, 0);
+    if (chunk->master != NULL) {
         osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
         return;
     }

@@ -21,8 +21,8 @@ enum pc_cross_kind {
     PC_CROSS_N64P = 1,       /* game C, by source line: PC_N64P(a), an N64 address taken as a host pointer */
     PC_CROSS_N64A,           /* game C: PC_N64A(p), a host pointer's N64 address (the heap's arithmetic) */
     PC_CROSS_N64W,           /* game C: PC_N64W(p), a pointer stored in a 32-bit field */
-    PC_CROSS_SLOT_N64,       /* game C: PC_SLOT_N64(s), a heap handle's slot read as an N64 address */
-    PC_CROSS_SLOT_SET,       /* game C: PC_SLOT_SET(s, a), an N64 address stored in a handle's slot */
+    PC_CROSS_SLOT_N64,       /* game C: PC_SLOT_N64(s), a heap handle's slot read as an N64 address (gone, step 6) */
+    PC_CROSS_SLOT_SET,       /* game C: PC_SLOT_SET(s, a), an N64 address stored in a handle's slot (gone, step 6) */
     PC_CROSS_STATLL_GET,     /* game C: a StatLL list's 32-bit link read (the level-object nodes' pc_statll_link,
                               * gone with NATIVE.md step 3: every list links by host pointers; the kind stays, 0) */
     PC_CROSS_STATLL_SET,     /* game C: one written (pc_statll_set_link, gone with step 3) */

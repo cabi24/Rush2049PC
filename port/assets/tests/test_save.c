@@ -186,7 +186,6 @@ char ghost_file_name_format[] = "%s%d%s", ghost_backward_suffix[] = "B", ghost_f
 void **gGhosts[4];                           /* gGhosts: the ghosts of a race */
 void *gMainHeap;                               /* the heap */
 int32_t heap_lock_msg;
-TEST_ABS(game_bss_end);                        /* the end of the game's BSS: the heap starts there */
 TEST_ABS(osMemSize);                           /* osMemSize */
 #define OSMEMSIZE_OFF (TEST_N64(osMemSize) - PC_RDRAM_BASE)   /* osMemSize's offset in the window */
 struct { uint8_t pad[72]; void **handle; } gPlayers[4];   /* the input records' profile handles */
@@ -219,7 +218,7 @@ void si_lock(void) {}
 int32_t pak_removed(int32_t pak) { return 0; }
 int32_t osMotorInit(void *q, OSPfs *pfs, int32_t channel) { return 1; }
 int32_t osPfsRepairId(OSPfs *pfs) { return 0; }
-void PurgeableMemory(uint32_t p, int32_t n) {}
+void PurgeableMemory(void *p, int32_t n) {}
 int8_t GetDefaultOption(int32_t option) { return (int8_t)(option + 1); }   /* an option's default */
 void SavePlayerCar(void **player, int32_t n) {}
 void SavePlayerCarView(void **player, int32_t n) {}
@@ -227,8 +226,8 @@ int8_t GetPlayerOption(void **player, uint8_t option) { return 0; }
 void video_set_offset(int8_t x, int8_t y) {}
 void LoadTextWave(void) {}
 void AddPlayerScores(void **player) {}
-int32_t unzipdata(void *src, int32_t size, uint32_t dst) { return 0; }
-void ReallocateMemory(void *h, int32_t n) {}
+int32_t unzipdata(void *src, int32_t size, void *dst) { return 0; }
+void ReallocateMemory(void *h, uint32_t n) {}
 void heap_move_block_low(void *h) {}
 void SaveGhostInLimbo(void *header, void *data) {}
 void FillFreeMem(void *p, uint32_t n) {}
@@ -260,15 +259,15 @@ void RemovePlayerScores(intptr_t handle)
     nremoved++;
 }
 
-static uint32_t freed[32];       /* DeallocateMemory: the blocks and handles freed (the test's heap never frees) */
+static void *freed[32];          /* DeallocateMemory: the blocks and handles freed (the test's heap never frees) */
 static int nfreed;
-void DeallocateMemoryInternal(uint32_t address, int32_t tag)
+void DeallocateMemoryInternal(void *ptr, int32_t tag)
 {
     if (nfreed < 32)
-        freed[nfreed] = address;
+        freed[nfreed] = ptr;
     nfreed++;
 }
-static int was_freed(uint32_t a)
+static int was_freed(void *a)
 {
     int i;
     for (i = 0; i < nfreed && i < 32; i++)
@@ -278,7 +277,7 @@ static int was_freed(uint32_t a)
 }
 
 static uint32_t ghost_block_size;   /* GetPtrSize of the ghost's header handle */
-void *GetPtrSize(uint32_t handle) { return (void *)(uintptr_t)ghost_block_size; }
+uint32_t GetPtrSize(void *handle) { return ghost_block_size; }
 
 /* ---------------------------------------------------------------- the pak: 16 notes */
 
@@ -592,7 +591,7 @@ static void test_ghost(void)
     *old = NULL;
     ghost_block_size = GH_BYTES + 12;
     ghosth = CompressGhost(rec, &blocks);
-    CHECK(ghosth == old && blocks == 1 && U32(rec, GH_START) == 0 && was_freed(W32(buf)));
+    CHECK(ghosth == old && blocks == 1 && U32(rec, GH_START) == 0 && was_freed(buf));
     if (ghosth != old)
         return;
     g = GHOST_OF(ghosth);

@@ -15,11 +15,8 @@ s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
 extern PadState gPlayers[];           /* gPlayers */
 
 
-extern u8 overlay_base[];                 /* runtime image base (A and B) */
-
-
 /* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load
- * clear). Both share one heap block (overlay_base). Does nothing when image A already is, or isn't, loaded. */
+ * clear). Both share one heap block (runtime_image_block). Does nothing when image A already is, or isn't, loaded. */
 void LoadFrontEndOverlay(s32 load)
 {
     static s32 loaded = 0;
@@ -27,7 +24,7 @@ void LoadFrontEndOverlay(s32 load)
         if (!loaded) {
             if (extra_overlay_loaded) {
                 osRecvMesg(&heap_lock_queue, (void **)0, 1);
-                DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
+                DeallocateMemoryInternal(runtime_image_block(), 0);
                 osSendMesg(&heap_lock_queue, (void *)0, 0);
                 extra_overlay_loaded = 0;
             }
@@ -37,7 +34,7 @@ void LoadFrontEndOverlay(s32 load)
     } else if (loaded) {
         if (start_overlay_loaded) {
             osRecvMesg(&heap_lock_queue, (void **)0, 1);
-            DeallocateMemoryInternal(PC_N64A(overlay_base), 0);
+            DeallocateMemoryInternal(runtime_image_block(), 0);
             osSendMesg(&heap_lock_queue, (void *)0, 0);
             start_overlay_loaded = 0;
         }

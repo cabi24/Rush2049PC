@@ -117,7 +117,7 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     descriptor=&car_palettes[slot];
     memcpy(((void *)PC_N64P(descriptor->data)),colors,512);
     heap_lock();
-    DeallocateMemoryInternal(PC_N64A(colors), 0);
+    DeallocateMemoryInternal(colors, 0);
     heap_unlock();
     SetModelPalette((s16)gCarParts[slot].frame,descriptor);
     SetModelPalette((s16)gCarParts[slot].hood,descriptor);

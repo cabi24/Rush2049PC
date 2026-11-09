@@ -514,7 +514,7 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
         DecodeGhost(ghosth);
     }
     if (select) {
-        ReallocateMemory(PC_N64A(ghost->header), 88);
+        ReallocateMemory(ghost->header, 88);
         heap_move_block_low(ghost->header);
         heap_move_block_low(ghost->datah);
         (*ghost->header)->start = PC_N64W(*ghost->datah);

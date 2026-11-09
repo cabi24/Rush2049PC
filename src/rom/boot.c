@@ -42,7 +42,7 @@ extern OSMesgQueue rom_dma_queue, unzip_dma_queue, main_thread_queue, game_threa
 extern OSMesg gDmaMesgBuf[], gInflateMesgBuf[], gRetraceMesgBuf[], gEventMesgBuf[], gSyncMesgBuf[];
 extern MainThreadScheduler gScheduler;
 extern u8 gSchedulerStack[], bg_load_thread_stack[], model_thread_stack[], game_thread_stack[];
-extern u8 gDecompressedDataStart[], gDecompressedDataEnd1[], gBssStart[], game_bss_end[], gRomCompressedData[];
+extern u8 gDecompressedDataStart[], gDecompressedDataEnd1[], gBssStart[], gRomCompressedData[];
 extern OSThread bg_load_thread, model_thread, game_thread;
 extern s16 frame_start_msg;
 extern s8 gInitFlag;

@@ -155,6 +155,7 @@ uint8_t *test_rdram(void)
  * is built with TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's
  * reference.) */
 #ifndef TEST_OWN_WINDOW
+uint8_t *pc_rdram(void) { return g_window; }
 uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
 void *pc_n64_ptr(uint32_t addr)
 {
@@ -168,8 +169,15 @@ uint32_t pc_n64_addr(const void *host)
 }
 #endif
 
-/* The game heap's reports; a test that links port/ultra/heap.c instead (assets_heap) is built with TEST_HEAP_C. */
+/* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
+ * TEST_HEAP_C. The memory is heap.c's: the window from the end of the game's BSS to mem_size. */
 #ifndef TEST_HEAP_C
+void *pc_heap_memory(uint32_t mem_size, uint32_t *size)
+{
+    const uint32_t below = N64_HEAP_BASE - PC_RDRAM_BASE;
+    *size = mem_size > below ? mem_size - below : 0;
+    return g_window ? g_window + below : NULL;
+}
 void pc_heap_created(void *heap) { (void)heap; }
 void pc_heap_allocated(void *heap) { (void)heap; }
 void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest)

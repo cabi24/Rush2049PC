@@ -4,12 +4,8 @@
 
 extern u32 osTvType;
 
-VIEW(uintptr_t, zbuffer);
-#define zbuffer zbuffer_view
-VIEW(u32, framebuffer_a);
-#define framebuffer_a framebuffer_a_view
-VIEW(u32, framebuffer_b);
-#define framebuffer_b framebuffer_b_view
+/* A buffer's start in its block: the next 64-byte boundary (as initsystem.c's ALIGN_64). */
+#define ALIGN_64(p) ((void *)(((uintptr_t)(p) + 32) & ~(uintptr_t)63))
 
 /* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
@@ -35,11 +31,11 @@ void InitGfx(void)
     PurgeableMemory(framebuffer_a, 0);
     framebuffer_b = AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES);
     PurgeableMemory(framebuffer_b, 0);
-    zbuffer = (zbuffer + 32) & ~63;
-    framebuffer_a = (framebuffer_a + 32) & ~63;
-    framebuffer_b = (framebuffer_b + 32) & ~63;
-    frame_records[0].colorBuffer = framebuffer_a;
-    frame_records[1].colorBuffer = framebuffer_b;
+    zbuffer = ALIGN_64(zbuffer);
+    framebuffer_a = ALIGN_64(framebuffer_a);
+    framebuffer_b = ALIGN_64(framebuffer_b);
+    frame_records[0].colorBuffer = (uintptr_t)framebuffer_a;
+    frame_records[1].colorBuffer = (uintptr_t)framebuffer_b;
     frame_records[0].doneMsgType = OS_SC_DONE_MSG;
     frame_records[1].doneMsgType = OS_SC_DONE_MSG;
     frame_records[0].commands = DL_BUFFER_0;

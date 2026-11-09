@@ -12,22 +12,22 @@ typedef void  FAR *voidpf;
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 
-/* Frees the chunk at window address address under the heap lock. */
-__inline void heap_free_locked(unsigned int address)
+/* Frees ptr's chunk under the heap lock. */
+__inline void heap_free_locked(void *ptr)
 {
     osRecvMesg(&heap_lock_queue, 0, 1);
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     osSendMesg(&heap_lock_queue, 0, 0);
 }
 /* heap_free_locked. */
-__inline void mem_free(unsigned int address)
+__inline void mem_free(void *ptr)
 {
-    heap_free_locked(address);
+    heap_free_locked(ptr);
 }
 /* zlib's free: ptr's chunk. */
 __inline void zcfree(voidpf ptr)
 {
-    mem_free(PC_N64A(ptr));
+    mem_free(ptr);
 }
 
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }

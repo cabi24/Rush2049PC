@@ -66,8 +66,8 @@ int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
 /* The game's names at absolute N64 addresses (gen_stubs, aliases.ld: what the RDRAM window still holds), and data in
  * the arenas' blocks (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data
- * loader's tables by name, and for the first three the N64's memory map (pc_n64_map.h) and the tables' heap start. */
-extern uint8_t game_bss_end[], overlay_base[];
+ * loader's tables by name, and for osTvType the N64's memory map (pc_n64_map.h). The game's heap (pc_heap_memory) is where the
+ * tables put it, from their heap start to osMemSize. */
 extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
 /* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
@@ -449,9 +449,11 @@ static void t_memory(void)
                                           pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)
                                     : pc_rcp_reloc(0x40, RELOC_HIGH, -1) == 0x40 && !pc_rdram_k0_high(hi)),
           d);
-    snprintf(d, sizeof d, "heap %p, image base %p, osTvType %p = %u, osMemSize 0x%X", (void *)game_bss_end,
-             (void *)overlay_base, (void *)&osTvType, tv_type, mem_size);
-    check(AT_N64_WHAT, AT_N64(game_bss_end, pc_data_tables.heap_lo) && AT_N64(overlay_base, N64_OVERLAY_BASE) &&
+    uint32_t heap_size;
+    uint8_t *heap = pc_heap_memory(mem_size, &heap_size);
+    snprintf(d, sizeof d, "heap %p, %u bytes, osTvType %p = %u, osMemSize 0x%X", (void *)heap, heap_size,
+             (void *)&osTvType, tv_type, mem_size);
+    check(AT_N64_WHAT, AT_N64(heap, pc_data_tables.heap_lo) && heap + heap_size == pc_rdram() + mem_size &&
                            AT_N64(&osTvType, N64_BOOT_PARAMS) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
 #ifdef RUSH_NOFIXED
     snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,

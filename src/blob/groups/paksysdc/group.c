@@ -179,7 +179,7 @@ delete_retry:
     if (psfile->RemoveFile) psfile->RemoveFile(fileh);
     state->file_size = 0;
     if (psfile->data) {
-        pdf_dealloc(PC_N64A(psfile->data));
+        pdf_dealloc(psfile->data);
         psfile->data = 0;
     }
     pdf_release(fileh);
@@ -206,7 +206,7 @@ void RemovePak(s32 pak)
         if (psfile->data != 0) {
             u8 **data = psfile->data;
             osRecvMesg(&heap_lock_queue, 0, 1);
-            DeallocateMemoryInternal(PC_N64A(data), 0);
+            DeallocateMemoryInternal(data, 0);
             osSendMesg(&heap_lock_queue, 0, 0);
             psfile->data = 0;
         }

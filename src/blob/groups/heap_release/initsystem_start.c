@@ -34,10 +34,10 @@ void HAL_InitText_Init(void)
     gFontIndex = -1;
 }
 
-/* Frees the chunk whose data is at address, under the heap lock (MAT3 DeallocateMemory). */
-void DeallocateMemory_Init(u32 address)
+/* Frees the chunk whose data is at ptr, under the heap lock (MAT3 DeallocateMemory). */
+void DeallocateMemory_Init(void *ptr)
 {
     heap_lock();
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     heap_unlock();
 }

@@ -69,10 +69,10 @@ void pdf_heap_unlock(void)
 {
     osSendMesg(&heap_lock_queue, 0, 0);
 }
-void pdf_dealloc(u32 address)
+void pdf_dealloc(void *ptr)
 {
     pdf_heap_lock();
-    DeallocateMemoryInternal(address, 0);
+    DeallocateMemoryInternal(ptr, 0);
     pdf_heap_unlock();
 }
 void pdf_free_blocks(s32 pak)
@@ -134,7 +134,7 @@ read_retry:
         for (cur = gPS_Files[pak].head; cur != 0; cur = cur->file->next) {
             if (fileh == cur) {
                 if (psfile->data) {
-                    pdf_dealloc(PC_N64A(psfile->data));
+                    pdf_dealloc(psfile->data);
                     psfile->data = 0;
                 }
                 break;

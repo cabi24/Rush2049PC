@@ -102,21 +102,22 @@ What is left (344):
 
 ### 4.1 The 32-bit N64 world: 239, kept on purpose
 
-The heap allocator and its u32-address API (free, purge, size, handles), and the loaders that relocate ROM records
-in place. On PC the heap is the RDRAM window at host 0x80000000 (ASSETS.md), so `(u32)` of those addresses is exact
-and the casts stay. Files: `ptr64_edit.py` `N64_WORLD` (heap: `audio_heap`, the `alloc_at`/heap-group copies,
-`FindChunk`, `ClearMemoryHeap`, `deflate_mem` frees, `save/ctx_slot`/`ctx_newghost`/`AudioInit`/
-`save`, `paksys`, `state_audio`, `musyx_alloc`; ROM records: `MBSetupWad`, `waves.c`, the text bank
-`AdjustTextWavePointers` copies, `loadtrack`, the sample base in `AudioInitSys`).
-The heap's own headers keep their N64 layout on PC: `Block` (0x20), `Heap`, `HandleTable` and the `Pool` view
-have their pointer fields as 4-byte `enum n64p_X` window addresses (`ptr64_u32fields.py`) in the running heap
-code: `audio_heap`, `counter_guard`, `heap_release/{group,alloc_at,ClearMemoryHeap,heap_move_block_low}.c`,
-`FindChunk`, `AllocateMemoryHeapHigh`, `destroy_heap`, `heap_max`, `loadcars/heap_total`, `heap_free_total`,
-`save/ctx_slot`. Because every view agrees on the N64, they agree on PC with no unification, and the
-hard-coded 0x20 header and the raw readers (`FindHeap`, which now zero-extends what it loads) stay right. The
-weak context copies of the heap code were not converted (they never run). The handle tables were `u32` slots,
-and code that dereferences a handle as `*(void **)h` reads 8 bytes (ASSETS.md §4 #5): on the PC the slots are 8
-bytes now (9.10).
+The heap allocator and its u32-address API (free, purge, size, handles), and the loaders that relocate ROM records in
+place. On PC the heap is the RDRAM window at host 0x80000000 (ASSETS.md), so `(u32)` of those addresses is exact and the
+casts stay. (Since [NATIVE.md](NATIVE.md) step 6 the heap's own part of this is native: its headers hold host pointers
+in the N64's sizes and its API takes and returns pointers, MAT3's; what follows describes the heap before that. The
+loaders' relocations remain.) Files: `ptr64_edit.py` `N64_WORLD` (heap: `audio_heap`, the `alloc_at`/heap-group copies,
+`FindChunk`, `ClearMemoryHeap`, `deflate_mem` frees, `save/ctx_slot`/`ctx_newghost`/`AudioInit`/`save`, `paksys`,
+`state_audio`, `musyx_alloc`; ROM records: `MBSetupWad`, `waves.c`, the text bank `AdjustTextWavePointers` copies,
+`loadtrack`, the sample base in `AudioInitSys`). The heap's own headers keep their N64 layout on PC: `Block` (0x20),
+`Heap`, `HandleTable` and the `Pool` view have their pointer fields as 4-byte `enum n64p_X` window addresses
+(`ptr64_u32fields.py`) in the running heap code: `audio_heap`, `counter_guard`,
+`heap_release/{group,alloc_at,ClearMemoryHeap,heap_move_block_low}.c`, `FindChunk`, `AllocateMemoryHeapHigh`,
+`destroy_heap`, `heap_max`, `loadcars/heap_total`, `heap_free_total`, `save/ctx_slot`. Because every view agrees on the
+N64, they agree on PC with no unification, and the hard-coded 0x20 header and the raw readers (`FindHeap`, which now
+zero-extends what it loads) stay right. The weak context copies of the heap code were not converted (they never run).
+The handle tables were `u32` slots, and code that dereferences a handle as `*(void **)h` reads 8 bytes (ASSETS.md §4
+item 5): on the PC the slots are 8 bytes now (9.10).
 
 ### 4.2 ROM-layout structs: not widened, for Phase 4
 
@@ -510,9 +511,10 @@ profile's views put its file handle where the list keeps `prev`.
 - **Heap handles** (`audio_heap`): a handle is the address of a `u32` slot, and the game reads the slot through it
   as a pointer (the files' data, the save data, the ghost headers): the read took the next slot's address as its
   upper half (4.1, ASSETS.md 4 #5). On the PC AllocateHandleHeap and the heap's init give the tables 8-byte slots
-  holding the block's window address zero-extended; the slot's readers that take a `u32` (the font waves, the
-  compaction's owner update, the frees) still find the address in its first four bytes. This covers every handle
-  user, not only the save code.
+  holding the block's pointer. Since [NATIVE.md](NATIVE.md) step 6 every reader takes the slot as the pointer it is
+  (the font waves, the wave loader, the compaction's owner update, the frees, the ghost's buffer); until then a few
+  took its first four bytes as the window address (`PC_SLOT_N64`, `PC_SLOT_SET`). This covers every handle user, not
+  only the save code.
 - **On the pak, and in RAM.** On the pak are the files' contents: a profile's `tSaveData` and a ghost's header and
   zipped samples, in their N64 layouts (nothing in them is widened), and the pak's directory, which the Pfs C
   keeps in `gPaks`'s file entries (9.6). The file records, handles, lists, profiles and ghosts live only in

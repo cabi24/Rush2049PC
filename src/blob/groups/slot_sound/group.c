@@ -23,7 +23,7 @@ void LockWaveInstance(s32 index)
 
     ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(PC_N64A(slot->ptr), 0);
+    PurgeableMemory(slot->ptr, 0);
     do { slot->locked = 1; } while (0);
 }
 
@@ -41,14 +41,15 @@ void UnlockWaveInstance(s32 index)
 
     ValidateWaveInstance(index, 0, 0);
     slot = &gWaveInstance[index];
-    PurgeableMemory(PC_N64A(slot->ptr), 1);
+    PurgeableMemory(slot->ptr, 1);
     do { slot->locked = 0; } while (0);
 }
 
 /* A font file is its header (FontHeader), then its letters, then each letter's kerning row when the font has
  * kerning; the file keeps its N64 layout in the window. */
 #define FONT_SLOT(p) PC_N64A(p)
-#define WAVE_HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
+/* A handle wave's block: the address its master slot holds (the heap may move the block and update the slot). */
+#define WAVE_HANDLE_BLOCK(h) (*(u8 **)(h))
 /* A texture record of the font's texture wave (tTexture, N64 layout). */
 #define TEXTURE_RECORD_SIZE 36
 

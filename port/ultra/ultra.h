@@ -297,7 +297,7 @@ void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack
 /* ---------------------------------------------------------------- heap.c: the game heap (docs/port/MEMORY.md 4) */
 typedef struct {
     uint32_t memory, mem_size;      /* the window's size, osMemSize */
-    uint32_t base, end, size;       /* the default heap's header, its end and the bytes between */
+    uint32_t base, end, size;       /* the default heap's header, its end (window addresses) and the bytes between */
     uint32_t peak, free_low;        /* the most in use (size - free_low), the least free */
     uint32_t largest_low;           /* the largest free block when the least was free */
     uint32_t allocations, shorts, nones;   /* blocks taken; the game's fallbacks; allocations nothing could hold */
@@ -306,6 +306,7 @@ typedef struct {
 int pc_heap_stats(PcHeapStats *s);  /* 0 once the game has made its heap (s->memory and s->mem_size always) */
 void pc_heap_report(void);          /* the exit line */
 /* The game's allocator's calls (pc_prelude.h): */
+void *pc_heap_memory(uint32_t mem_size, uint32_t *size);   /* the main heap's memory (locate_main_heap) */
 void pc_heap_created(void *heap);
 void pc_heap_allocated(void *heap);
 void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t largest);

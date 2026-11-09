@@ -2,21 +2,22 @@
 #include "game/game.h"
 #include "game/heap.h"
 
-/* The last heap, in the chain from gMainHeap, whose chunks span address (a window address): a heap made inside
- * another lies within its parent's range and comes later in the chain, so the innermost one wins. 0 when none. */
-void *FindHeap(u32 address) {
+/* The last heap, in the chain from gMainHeap, whose chunks span ptr: a heap made inside another lies within its
+ * parent's range and comes later in the chain, so the innermost one wins. NULL when none. */
+tHeap *FindHeap(void *ptr) {
     tHeap *heap;
     tHeap *found;
+    u8 *addr = ptr;
 
     heap = gMainHeap;
-    found = 0;
-    if (heap != 0) {
+    found = NULL;
+    if (heap != NULL) {
         do {
-            if ((address >= (u32) heap->chunks) && (address < (u32) heap->endRam)) {
+            if (addr >= (u8 *)heap->chunks && addr < heap->endRam) {
                 found = heap;
             }
-            heap = N64P(heap->next);
-        } while (heap != 0);
+            heap = heap->next;
+        } while (heap != NULL);
     }
-    return (void *) found;
+    return found;
 }

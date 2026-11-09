@@ -137,8 +137,8 @@ Four things lived in the window when this plan was written (the arenas left it w
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
 | the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses; since step 5 blocks of host memory | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's; all done, so nothing since step 5) |
-| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API; the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers; ghosts, palettes, listeners; `osVirtualToPhysical` |
-| the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
+| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers; ghosts, palettes, listeners; `osVirtualToPhysical` |
+| the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | nothing since step 6: an offset in the heap (`runtime_image_block`); was the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
 
 So the order is forced:
@@ -193,6 +193,8 @@ the data loader's layout if ROM data initializes it (gen_data takes the new layo
 macros that converted (`N64P`, `N64W`) deleted. The gate shows the result is the same game.
 
 ### 4.3 The heap: native pointers, the same accounting
+
+Done in step 6 as written here, but for the block itself, which stays where it is until step 12 (section 12).
 
 The game's allocator decides what fits, and so what the game loads and when: its arithmetic must stay what it is at
 default settings (the N64's, but for the handle slots, 8 bytes on the PC since POINTERS.md 9.10). It does if each
@@ -264,12 +266,13 @@ runs on the Pi, with `--audio` captures compared byte for byte).
 
 They are PC code and data already: both images are linked in and a load resets one image's data
 ([DATA.md](DATA.md) 5). What ties them to the window is their arenas (step 5 makes those blocks) and the heap block
-the loader reserves (step 6 makes it an offset). `RUNTIME_IMAGE_START`, `overlay_base` and `N64_OVERLAY_*` go.
+the loader reserves (an offset in the heap since step 6). `RUNTIME_IMAGE_START` and `overlay_base` went with step 6;
+`N64_OVERLAY_*` stay while the data loader reads the images' link addresses from the ROM's format.
 
 ### 4.7 Low memory
 
 `osTvType`, `osMemSize` and the other boot parameters become ordinary variables port/ultra defines and sets
-(`pc_os_initialize`); `game_bss_end` and `overlay_base` go with the heap (step 6).
+(`pc_os_initialize`); `game_bss_end` and `overlay_base` went with the heap's code (step 6).
 
 ### 4.8 New checks
 
@@ -444,7 +447,10 @@ translation). Can run with 6 and 8. Risk: the retail cartridge's u32 words into 
 the synthetic cartridge has none of): the lead runs the census with `--report` on the Pi's report first; each one is a
 declaration to type as a pointer.
 
-### Step 6. The heap's own code native (large)
+### Step 6. The heap's own code native (large): done
+
+Done 2026-11-09 (wave 3.2): what changed, the crossings before and after and the proof are section 12. The plan
+was:
 
 4.3. The headers (`include/game/heap.h`), the allocator (`memsys/group.c`, `heap_release/{group,alloc_at,
 ClearMemoryHeap,heap_move_block_low,initsystem,overlay_loader,UnloadWaveInstance,zip,AudioShutdown,
@@ -1082,3 +1088,115 @@ and 33 to 5 and 4, `port.mapping` 27 to 24 (`.tests` 19 to 16), `port.rdram_base
   links and checks them (`gen_data.py --check --pe`). Mach-O (never built): the relative `.set`s need `.alt_entry` as
   [NOFIXED.md](NOFIXED.md) 2.2 says.
 - `n64syms.py` needed nothing: its `ARENAS` are the images' N64 ranges, the ROM's format.
+
+
+## 12. Step 6: the heap's own code native (done 2026-11-09)
+
+Wave 3.2's step 6: the heap's headers, its allocator and its interface hold and take host pointers, with the N64's
+sizes; the main heap's memory and the runtime images' block are handed to the game, not named by N64 address; the
+scheduler's pending swap is a pointer. Three commits: the heap, the pending swap, then comments and the audit's
+baseline.
+
+| What | Before | After |
+|---|---|---|
+| a chunk's header (MAT3 `tMemoryChunk`, include/game/heap.h) | 32 bytes, N64 layout: `magic`, then `next`, `prev`, `master` as 32-bit window addresses (link enums, the typed `N64P`, `PC_N64W`) | 32 bytes: `next`, `prev` (`tMemoryChunk *`), `master` (`void **`), `size`, `used`, `internal`, `locked`, and the magic as one byte (`HEAP_CHUNK_MAGIC` 0x98, MAT3's word's low byte) at the end |
+| a heap's header (`tHeap`) | 0x28 bytes, N64 layout, in the 64 bytes before the first chunk | 64 bytes exactly: `magic`, `numAdditionalMasters` beside it, `next`, `chunks`, `lastChunk`, `endRam` (`u8 *`), the first `tMasterBlock`; MAT3's `emergencyFunc`, which the N64 never set, left out |
+| a master table's header (`tMasterBlock`) | 12 bytes, a chunk of 32 | 24 bytes, a chunk of 32; the slots 8 bytes as since POINTERS.md 9.10, now read and written as pointers everywhere |
+| the allocator's files | five views of their own (`Block`, `Heap`, `Pool` in alloc_at, ClearMemoryHeap, heap_move_block_low, FindChunk, the free total) and `PC_N64P/A/W` on every link | heap.h's types in all 13; `_Static_assert`s on the three sizes (memsys/group.c) |
+| the interface (memory.h, save.h, system.h, frontend.h) | `DeallocateMemory(u32)`, `PurgeableMemory(u32, s32)`, `FindHeap(u32)`, `FindChunk(heap, u32, s32)`, `void *GetPtrSize(u32)` (the size read as a pointer), `ReallocateMemory(u32, u32)`, `lock/unlock_memory(u32)`, `allocate_memory_at(u32, u32)`, `musyx_free(u32)`, the callers' wrappers | MAT3's: `void *` in, `struct Heap *FindHeap`, `u32 GetPtrSize`; the callers pass their pointers (18 game files outside the heap's own drop their `PC_N64A` and slot reads) |
+| a handle's slot | read as the N64 address in its first four bytes (`PC_SLOT_N64`: the font's wave, the wave loader, FindChunk, the ghost's buffer; `PC_SLOT_SET`: the free, the compaction) | read and written as the pointer it is; `PC_SLOT_N64/SET` gone from the prelude (the counter keeps the kinds, at 0) |
+| the main heap's place | `align32(game_bss_end)` to `osMemSize \| 0x80000000` (an absolute alias, and a K0 address made a pointer) | `pc_heap_memory(osMemSize, &size)` (port/ultra/heap.c): the window's bytes from `N64_HEAP_BASE` (0x8017A640) to osMemSize, the same bytes; `expansion_pak_present` tests osMemSize past 4 MiB (the N64 tested the end past 0x80400000) |
+| the runtime images' block | 0x8038A400 to 0x803BB380 (`RUNTIME_IMAGE_*`, `overlay_base`) | `runtime_image_block()`: `PC_RUNTIME_IMAGE_OFFSET` (0x20FDC0) past the main heap's header, `PC_RUNTIME_IMAGE_SIZE` (0x30F80) long (pc_game_types.h): the same place |
+| `game_bss_end`, `overlay_base` | absolute aliases (aliases.ld; `data.window_aliases`) | gone: no game object names them |
+| the frame buffers | `framebuffer_a`, `framebuffer_b`: s32 window addresses in the arena, `PC_ZEXT`'d into the frame records | `void *`, own storage, as `zbuffer` was |
+| the pending swap `__osScPendingSwap` | an s32 window address (`PC_N64A` stored, `PC_N64P` read) | a `void *`, own storage |
+| port/ultra/heap.c | walked the headers by window address (`pc_n64_ptr` on every chunk, `pc_n64_addr` on every report) | walks them by pointer; the exit line still gives the heap's window addresses (`window_address`) until step 12 |
+| `free_car_palette` | heap_release/group.c, passing the palette record's u32 as the heap's address | car_palette_init.c, beside the palettes: it reads the record's PLHD-layout word (`PC_N64P`, steps 7 and 11) |
+
+**The accounting.** Each header keeps its size, the first chunk is `(heap + 67) & ~31` as before, every size is
+rounded to 32, a split leaves at least 64, and the heap's memory is the same bytes at the same addresses: every
+block the allocator hands out is where the base's is. The heap's exit line (peak, least free with its largest block,
+allocations, the window addresses) is the base's on every path of the gate, and `assets_heap` checks the layout:
+the heap at `N64_HEAP_BASE`, its first chunk 64 bytes past it, the 16 handles' table a 128-byte chunk, the splits
+and the merges of ReallocateMemory, and the runtime images' block at 0x8038A400 (`PC_RUNTIME_IMAGE_OFFSET` past the
+heap) with the test floor's blocks around it.
+
+**The crossings** (`crossings.py --guard`, the 63 synthetic paths; 786dec37 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 74 | 5,199,708 | 23 | 437,973 | the heap's files (47 sites, 2,986,227), the font's and the wave loader's handle reads (4, 1,680,232), the pending swap (101,426); a new site in `free_car_palette` (car_palette_init.c, 6,150), which passed the palette word to the heap uncounted before |
+| `PC_N64A` | 56 | 1,633,596 | 10 | 112,072 | the heap's files (20, 1,398,748), the callers' arguments (25, 21,350), the pending swap (101,426); into the image block 309 to 0 |
+| `PC_N64W` | 22 | 100,940 | 1 | 3 | the heap's links (21); left: a ghost header's start (GhostStart.c) |
+| `PC_SLOT_N64` | 5 | 1,682,453 | 0 | 0 | all |
+| `PC_SLOT_SET` | 2 | 216 | 0 | 0 | all |
+| `pc_n64_ptr` | 8 | 18,224,444 | 6 | 15,900,340 | port/ultra/heap.c's walk and its floor (2,324,104) |
+| `pc_n64_addr` | 3 | 25,283 | 1 | 4 | port/ultra/heap.c's reports (25,279) |
+| the other seven kinds | 11 | 16,870,896 | 11 | 16,870,896 | none |
+| total | 181 | 43,737,536 | 52 | 33,321,288 | 129 sites, 10,416,248 crossings |
+
+`--check --zero-kind PC_SLOT_N64,PC_SLOT_SET` passes, and `--zero-site` gives 0 for each of the heap's files
+(memsys, heap_release, FindChunk.c, FindHeap.c, AllocateMemoryHeapHigh.c, memsys_free_total, largest_heap_chunk,
+destroy_heap, pointer_counters, purgeable_memory, port/ultra/heap.c), for scheduler.c, and for the callers whose only
+crossings were the heap's (slot_sound, loadwave.c, musyx_alloc.c, AudInit3D.c, AudioSfxInit.c, save/AudioInit.c,
+save/save.c, state.c, trackscr.c); `--zero-region image_block` passes; the control, SetupCarColor.c, fails (its two
+palette words). The guard (counting): 4,428,386 faults at 449 instructions before, 4,428,420 at 449 after (the
+per-frame variance of 9.4).
+
+What crosses into the heap now is what the game keeps in its blocks, not the heap: the WAD's records and their
+relocation (`MBSetupWad.c`, `waves.c`, `InitTextureAnimation.c`: step 7), the world's chunk (`NewWorld.c`,
+`loadtrack.c`: step 8), the listeners (`UpdateListeners.c`, `StartListeners.c`, `AudRemoveListener.c`: step 9),
+the car palettes' word (`AnimateBrakeLights.c`, `startcar.c`, `SetupCarColor.c`, `car_palette_init.c`) and a ghost
+header's start (`GhostUpdate.c`, `GhostStart.c`, `NewGhost.c`, the ghost's buffer in `ghost_files.c`): step 11.
+
+**The proof** (Rocky, x86-64, GCC 14; the base is 786dec37's builds in `~/rush2049pc/w3b-ref`):
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3b-ref --skip realtime --data-moved` (Debug) | PASS: ctest 572 of 572, synth_compare `--same --shots --audio` 63 of 63 `same` (`solo` varied once in its last subframe and was `same` alone, PCONLY.md 2) |
+| the heap's exit line (peak, least free and its largest block, allocations, the window addresses), base against step, both runs of every one of the 63 paths | the same, 63 of 63, the memory paths (`mem64`, `membig`, `membig8`, `memhigh`, `memhigh2p`) among them |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 63 of 63 `same`; the heap's exit line the base's on all 63 |
+| `ctest --test-dir build/opt -LE realtime` | 572 of 572 |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): its CI subset (`ultra_selftest.*`, `pc_data_*`, `synth_.*`), and against the fixed build (`synth_compare.py --runs 1 --same`) | builds; 93 of 93; 63 of 63 `same` |
+| the counting build (`crossings.py --guard --check --zero-kind PC_SLOT_N64,PC_SLOT_SET`) | every run as its script expects, every guarded run's trace its plain run's; the zero checks above |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, as before) |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; none new |
+| `census.py` | 1,070 of 1,070 compile |
+| `nofixed_audit.py --baseline` | no class grew past the baseline, which this step raised for `symbols.own` (394 to 397: the frame buffers and the pending swap), `port.rdram_base` (48 to 52) and `.tests` (40 to 41): the heap's place in the window is port/ultra/heap.c's now. Down: `symbols.aliases.rdram` 4 to 2, `src.n64p` 77 to 6, `src.n64p_field` 43 to 14, `src.n64w` 74 to 23, `src.def.translate` 19 to 10, `cc.implicit.ptr_to_int` 25 to 14 |
+| the loader's summary line (synthetic cartridge) | 3 more symbols (own storage), 1 more null pointer (the pending swap's word): `--data-moved` |
+| the int/pointer conversions of the heap's callers (each recompiled with `-Wint-conversion`) | none from the heap's interface; what is left is the records' (a ghost header's `start = NULL`, the track map's LOD words) |
+
+**The census** (`window_census.py`, Debug, with the compiler pass; 786dec37 before): `api.u32_address` 20 to 5 (left:
+the WAD's, the display lists' and a sound helper's: steps 7, 9, 10), `heap.window_symbols` 8 to 2 (the boot's image
+inflate, `gDecompressedDataStart`), `ovl.image_block` 4 to 0, `data.window_aliases` 4 to 2, `fields.link_enum` 52 to
+15 and `link_enum_types` 26 to 3, `conv.PC_N64A.game` 82 to 19, `conv.PC_N64P.game` 43 to 35, `conv.PC_N64W.game` 73
+to 22, `conv.file_macros.defs` and `uses` 32 and 128 to 16 and 38, `conv.cc.implicit` 46 to 35, `conv.pc_n64_ptr.port`
+27 to 22, `text.window.game` 134 to 118, `data.arena.game` 965 to 963 and `boot` 192 to 191 (`context.own` 394 to
+397). Up: `port.rdram_base` 51 to 52 (port/ultra/heap.c), `tests.window` 72 to 73 (test_heap's check of the heap's
+place), `context.n64map.defs` 25 to 26 (`N64_HEAP_BASE`). `heap.allocate_at` stays at 1: the overlay loader's call,
+now with the block's pointer.
+
+**What this changes for the later steps.**
+
+- **Step 12 has one place to change for the heap's memory**: `pc_heap_memory` (port/ultra/heap.c) hands the game its
+  heap; nothing in the game names where it lies. To keep the accounting, the block it hands out must keep the
+  N64's alignment of the heap's header (0x8017A640 is 64-byte aligned, and the frame buffers align to 64 inside their
+  blocks, `ALIGN_64`; a block 64 KiB aligned with the header at the same offset in it keeps every alignment the N64
+  had), and its size is `osMemSize` less `N64_HEAP_BASE`'s offset, as now. The exit line's window addresses
+  (`window_address`, `PcHeapStats.base`/`end`/`floor`) and `heap_check.py`'s `--memory` test of the end go with it,
+  and the test floor (`RUSH2049_TEST_HEAP_FLOOR`) is a place in RDRAM only while the heap is in the window.
+- **The state hash meets the heap's pointers in step 12.** The headers now hold pointers into the heap (and the
+  master slots pointers to their data, the frame buffers' and the pending swap's own storage pointers into it): in
+  the window they are the same in every process; out of it they differ with ASLR, so `statehash.c` must hash the
+  heap's headers and slots as offsets in the heap (`hash_aslr` is the check).
+- **What the game keeps in its heap blocks** still holds 32-bit addresses, each its step's: the WAD records and their
+  relocation, `MBOffsetWad`'s delta, the font letters' kern rows (`FONT_SLOT`), the track map's LOD records (step 7);
+  the world (step 8); the listeners, the registries (step 9); the car palettes' word (`car_palettes[].data`, a PLHD
+  record's layout, now freed by `free_car_palette` in car_palette_init.c), a ghost header's `start` and the ghost's
+  buffer (`MenuData.buffer`, set by `PC_N64W` from the handle's slot) (step 11). Each of those reads its block's
+  pointer with `PC_N64P` and hands the heap the pointer.
+- **A heap record that holds pointers to PC data** still needs `statehash.c`'s `g_record_arrays` (section 10); the
+  heap itself adds none.
+- `heap.allocate_at` in the census counts the overlay loader's call of `allocate_memory_at`, which now takes the
+  block's pointer: the kind stays at 1 while the heap reserves the images' block. `port/assets/tests/support.h`'s
+  `TEST_N64_game_bss_end` is unused (left to spare step 5's edits of the test windows a conflict).

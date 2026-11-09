@@ -22,7 +22,7 @@ void UnloadWaveInstance(s32 index)
         return;
     }
     wait_for_render();
-    DeallocateMemory(PC_N64A(slot->ptr));
+    DeallocateMemory(slot->ptr);
     slot->ptr = 0;
     memset(&gRomObjDefPtrs[index], 0, sizeof(gRomObjDefPtrs[index]));
     memset(&gTexDefPtrs[index], 0, sizeof(gTexDefPtrs[index]));

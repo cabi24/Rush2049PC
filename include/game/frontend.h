@@ -1023,7 +1023,7 @@ void modescr_updateButtons(void);
 void *musyx_alloc(s32 size, s32 alignment);
 intptr_t musyx_cart_address(intptr_t offset);
 void musyx_clear_retrace_callback(s32 callback);
-void musyx_free(u32 address);
+void musyx_free(void *ptr);
 s32 musyx_set_retrace_callback(intptr_t callback);
 s32 musyx_start_dma_list(intptr_t reqs, s32 count, intptr_t doneQueue);
 void musyx_wait_audio_task(void);

@@ -13,8 +13,8 @@
  "port.lit.tests": 14,
  "port.mapping": 24,
  "port.mapping.tests": 16,
- "port.rdram_base": 45,
- "port.rdram_base.tests": 38,
+ "port.rdram_base": 49,
+ "port.rdram_base.tests": 39,
  "port.translate": 31,
  "port.translate.tests": 48,
  "port.trunc": 13,
@@ -43,5 +43,5 @@
  "symbols.inside_own": 12,
  "symbols.names_reached.game_objects": 5,
  "symbols.names_reached.port_objects": 4,
- "symbols.own": 394
+ "symbols.own": 397
 }

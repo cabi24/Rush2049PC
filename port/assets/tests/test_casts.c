@@ -303,8 +303,8 @@ void **NewGhost(void);
 struct ghost { void *ll; void **fileh; int8_t track; uint8_t backward, name[13], pad17; uint32_t playerId[2];
                float finish; uint8_t **datah; void **header; };
 void *AllocateHandleHeap(void *heap, uint32_t size) { return NULL; }
-void *GetPtrSize(uint32_t address) { return NULL; }
-void DeallocateMemoryInternal(uint32_t address, int32_t mode) {}
+uint32_t GetPtrSize(void *ptr) { return 0; }
+void DeallocateMemoryInternal(void *ptr, int32_t mode) {}
 int32_t zip(void *a, void *b, void *c, int32_t d) { return 0; }
 float gRetraceRate;
 float ghostRaceTimes[64];

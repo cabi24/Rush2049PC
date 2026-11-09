@@ -70,8 +70,8 @@ typedef struct Ghost {
 
 void *memcpy(void *, const void *, u32);
 
-/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes. The heap's API
- * takes N64 addresses: PC_N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
+/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes. The header's
+ * start, the race's recording, is the block's 32-bit window address: START(x) is its pointer (pc_prelude.h). */
 #define START(x) ((u8 *)PC_N64P(x))
 
 /* The Controller Pak blocks (256 bytes) size bytes take (MAT3 PS_GetBlocks). */
@@ -124,7 +124,7 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     (*ghost->header)->unzippedChecksum = unzippedChecksum;
     memcpy((u8 *)*ghost->header + 88, gdata, dataSize);
     osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
-    DeallocateMemoryInternal(PC_N64A(gdata), 0);
+    DeallocateMemoryInternal(gdata, 0);
     osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
     gh = ghost->header;
     ghost->track = (*gh)->track;
@@ -134,9 +134,9 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     ghost->playerId[0] = (*gh)->playerId[0];
     ghost->playerId[1] = (*gh)->playerId[1];
     ghost->finish = (*gh)->finish;
-    *blocks = ghost_blocks_from_size((s32)GetPtrSize(PC_N64A(gh)));
+    *blocks = ghost_blocks_from_size((s32)GetPtrSize(gh));
     return ghosth;
 }
 
 /* Frees the race recording's block (header->start), under the heap lock (MAT3: DeallocateMemory(header->start)). */
-void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1); DeallocateMemoryInternal(PC_N64A(p), 0); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0); }
+void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1); DeallocateMemoryInternal(p, 0); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0); }

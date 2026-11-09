@@ -1020,9 +1020,9 @@ void clearTrackMaps(void)
             model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels[0] - 1,1);
             def = &gRomObjDefPtrs[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = saved_map_lods[i];
-            if (map_display_list_blocks[i]) DeallocateMemory(PC_N64A(map_display_list_blocks[i]));
+            if (map_display_list_blocks[i]) DeallocateMemory(map_display_list_blocks[i]);
             map_display_list_blocks[i] = 0;
-            if (map_vertex_blocks[i]) DeallocateMemory(PC_N64A(map_vertex_blocks[i]));
+            if (map_vertex_blocks[i]) DeallocateMemory(map_vertex_blocks[i]);
             map_vertex_blocks[i] = 0;
             mapObj[i].displayList = 0;
             mapObj[i].verts = 0;

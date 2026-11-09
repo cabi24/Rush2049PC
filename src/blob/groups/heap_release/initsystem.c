@@ -5,12 +5,11 @@
 
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-#define PC_ZEXT(x) ((uintptr_t)PC_N64P((u32)(x)))   /* an RDRAM-window address held as s32: its pointer */
-
 extern s32 osTvType;
 
-VIEW(intptr_t, zbuffer);
-#define zbuffer zbuffer_view
+/* A frame buffer's or the z-buffer's start in its block: the next 64-byte boundary (heap blocks are 32-byte aligned,
+ * and FRAME_BUFFER_BYTES has the 32 bytes to spare). */
+#define ALIGN_64(p) ((void *)(((uintptr_t)(p) + 32) & ~(uintptr_t)63))
 
 /* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
@@ -28,11 +27,11 @@ static void _InitGfx_Init(void)
     video_texture_filter = 0; video_color_dither = 0; video_dither_filter = 0; video_divot = 0; HFOV = 90.0f;
     while (osTvType == 0) {}
     video_set_mode(osTvType, video_mode_base_index(), screen_width, screen_height);
-    zbuffer = (intptr_t)AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(PC_N64A(zbuffer), 0);
-    framebuffer_a = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_a, 0);
-    framebuffer_b = (s32)PC_N64A(AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES)); PurgeableMemory(framebuffer_b, 0);
-    zbuffer = (zbuffer + 32) & ~63; framebuffer_a = (framebuffer_a + 32) & ~63; framebuffer_b = (framebuffer_b + 32) & ~63;
-    frame_records[0].colorBuffer = PC_ZEXT(framebuffer_a); frame_records[1].colorBuffer = PC_ZEXT(framebuffer_b);
+    zbuffer = AllocateMemoryHeap(0, FRAME_BUFFER_BYTES); PurgeableMemory(zbuffer, 0);
+    framebuffer_a = AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES); PurgeableMemory(framebuffer_a, 0);
+    framebuffer_b = AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES); PurgeableMemory(framebuffer_b, 0);
+    zbuffer = ALIGN_64(zbuffer); framebuffer_a = ALIGN_64(framebuffer_a); framebuffer_b = ALIGN_64(framebuffer_b);
+    frame_records[0].colorBuffer = (uintptr_t)framebuffer_a; frame_records[1].colorBuffer = (uintptr_t)framebuffer_b;
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
     frame_records[0].doneMsgType = OS_SC_DONE_MSG; frame_records[1].doneMsgType = OS_SC_DONE_MSG;
     frame_dynamic = frame_records[0].commands; frame_matrix_cursor = (u8 *)frame_records[0].commands + 1728;
@@ -54,11 +53,11 @@ static void FreeBuffers_Init(void)
 {
     if (!expansion_pak_present) {
         if (gListeners) {
-            DeallocateMemory_Init(PC_N64A(gListeners));
+            DeallocateMemory_Init(gListeners);
             gListeners = 0;
         }
         if (gEmitters) {
-            DeallocateMemory_Init(PC_N64A(gEmitters));
+            DeallocateMemory_Init(gEmitters);
             gEmitters = 0;
         }
     }

@@ -16,7 +16,7 @@ void AudInit3D(s32 numListeners, s32 numEmitters, f32 footUnits, f32 frontDistan
     if (numListeners > 0 && numEmitters > 0) {
         gNumListeners = numListeners;
         gListeners = AllocateMemoryHeap(0, gNumListeners * sizeof(tSfxListener));
-        PurgeableMemory(PC_N64A(gListeners), 0);
+        PurgeableMemory(gListeners, 0);
         for (i = 0; i < gNumListeners; i++) {
             gListeners[i].free = 1;
             gListeners[i].active = 0;
@@ -24,7 +24,7 @@ void AudInit3D(s32 numListeners, s32 numEmitters, f32 footUnits, f32 frontDistan
         }
         gNumEmitters = numEmitters;
         gEmitters = AllocateMemoryHeap(0, gNumEmitters * sizeof(tSfxEmitter));
-        PurgeableMemory(PC_N64A(gEmitters), 0);
+        PurgeableMemory(gEmitters, 0);
         for (i = 0; i < gNumEmitters; i++) {
             gEmitters[i].free = 1;
             gEmitters[i].active = 0;

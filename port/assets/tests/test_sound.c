@@ -116,7 +116,7 @@ void ClearLL(List *list)
     list->head = list->tail = NULL;
     list->count = 0;
 }
-void PurgeableMemory(uint32_t p, int32_t purgeable) { (void)p, (void)purgeable; }
+void PurgeableMemory(void *p, int32_t purgeable) { (void)p, (void)purgeable; }
 static void *g_sent[8];
 static int g_nsent;
 int32_t osSendMesg(void *mq, void *msg, int32_t flags)

@@ -114,21 +114,22 @@ than 16 MiB the display lists' relocations keep the K0 address past 16 MiB, wher
 RSP as a segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
-(`osTvType`, `osTvType`, `osMemSize` for osMemSize), the heap start `game_bss_end`, the images' base
-`overlay_base`, `gDecompressedDataStart`, and the ROM offset `sample_bank_rom`. gen_stubs makes them absolute symbols
-(`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI
-and MusyX address callbacks accept). port/data's arena names were absolute symbols too until [NATIVE.md](NATIVE.md)
-step 5 (`data.c`, about 1,800); they are relative to their arenas' blocks now, which the executable's own relocations
-place. The game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute
-symbol in a PIE a RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`,
-called in `main` before anything else runs, puts the values back (1,802 slots with the arenas' names, a handful now:
-`aliases.ld`'s). It only touches RELATIVE relocations whose
-addend is at 0x80000000 or above, where nothing the linker places can be (`gen_data.py --check` verifies that),
-and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time. On x86-64 with
-binutils 2.41 only the 6 `aliases.ld` names' slots carry such a relocation (6 slots fixed); data.c's absolute names
-got slots that held the bare value with no relocation, and its block-relative ones get RELATIVE relocations as any
-relocatable symbol's do. The plan for a window at any address, and the guard
-mode that moves it now (`RUSH2049_NOFIXED=guard`), are in [NOFIXED.md](NOFIXED.md).
+(`osTvType`, `osTvType`, `osMemSize` for osMemSize), `gDecompressedDataStart`, and the ROM offset `sample_bank_rom` (the
+heap start `game_bss_end` and the images' base `overlay_base` were until [NATIVE.md](NATIVE.md) step 6: the heap's
+memory is `pc_heap_memory`'s now, the images' block an offset in it). gen_stubs makes them absolute symbols
+(`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI and
+MusyX address callbacks accept). port/data's arena names were absolute symbols too until NATIVE.md step 5 (`data.c`,
+about 1,800); they are relative to their arenas' blocks now, which the executable's own relocations place. The game
+reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a PIE a
+RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in `main` before
+anything else runs, puts the values back (1,802 slots with the arenas' names, a handful now: `aliases.ld`'s). It only
+touches RELATIVE relocations whose addend is at 0x80000000 or above, where nothing the linker places can be
+(`gen_data.py --check` verifies that), and whose slot holds exactly base + addend. Initialized pointers to them are
+resolved at link time. On x86-64 with binutils 2.41 only the `aliases.ld` names' slots carry such a relocation (6
+slots fixed; game_bss_end's and overlay_base's went with step 6); data.c's absolute names got slots that held the bare
+value with no relocation, and its block-relative ones get RELATIVE relocations as any relocatable symbol's do. The
+plan for a window at any address, and the guard mode that moves it now (`RUSH2049_NOFIXED=guard`), are in
+[NOFIXED.md](NOFIXED.md).
 
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
 Expansion Pak flag (`expansion_pak_present`) and loads overlay B and the extra waves in races, which give it its sixth race
