@@ -1,28 +1,20 @@
+/* MirrorWaveInstance (MAT3 waves.c): turns a model wave's triangles to face the other way, for a mirrored track
+ * (waves/group.c has the waves). */
 #include "game/game.h"
 #define ModelList ModelListView   /* this file's own ModelList: include/game's ModelList is another type */
 
-typedef struct ResSlot {
-    /* 0x00 */ u8 unk0;
-    /* 0x01 */ s8 state;
-    /* 0x02 */ u8 active;
-    /* 0x03 */ s8 loaded;
-    /* 0x04 */ u8 mode;
-    /* 0x05 */ u8 pad5[7];
-    /* 0x0C */ void *data;
-    /* 0x10 */ s32 unk10;
-} ResSlot;
-
-/* PC: the OBHD record keeps its N64 layout (port/assets/wad.c); dl is a 32-bit RDRAM-window address. */
+/* PC: the OBHD records (MAT3 tModelDef, 0x58 bytes) keep their N64 layout (port/assets/wad.c): a level of detail's
+ * display list is a 32-bit window address. */
 #define PART_DL u32
-typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;
-typedef struct Model { u8 pad0[0x18]; Part part[4]; } Model;
-typedef struct { Model *models; s32 count; } ModelList;
+typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;           /* MAT3 tLod */
+typedef struct Model { u8 pad0[0x18]; Part part[4]; } Model;            /* MAT3 tModelDef: name, radius, LODs */
+typedef struct { Model *models; s32 count; } ModelList;                 /* a gRomObjDefPtrs entry */
 
-VIEW(ResSlot[], gWaveInstance);
-#define gWaveInstance gWaveInstance_view
 VIEW(ModelList[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
+/* If wave instance index holds a model whose triangles don't face the way the track now needs (gMirrorWaves), flips
+ * every level of detail's display list (flip_triangle_winding through display_list_traverse) and notes it. */
 void MirrorWaveInstance(s32 index)
 {
     Model *m;
@@ -31,8 +23,8 @@ void MirrorWaveInstance(s32 index)
     s32 count;
 
     ValidateWaveInstance(index, 1, 1);
-    if (gWaveInstance[index].loaded) {
-        if (gWaveInstance[index].mode != (gMirrorWaves != 0)) {
+    if (gWaveInstance[index].model) {
+        if (gWaveInstance[index].mirrored != (gMirrorWaves != 0)) {
             m = gRomObjDefPtrs[index].models;
             count = gRomObjDefPtrs[index].count;
             for (i = 0; i < count; i++) {
@@ -43,7 +35,7 @@ void MirrorWaveInstance(s32 index)
                 }
                 m++;
             }
-            gWaveInstance[index].mode = (gMirrorWaves != 0);
+            gWaveInstance[index].mirrored = (gMirrorWaves != 0);
         }
     }
 }

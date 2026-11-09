@@ -22,6 +22,7 @@ struct Bank;
 struct Basis;
 struct Blit;
 struct Block;
+struct BSTNode;
 struct Box104;
 struct C96Handle;
 struct CCar;
@@ -200,6 +201,7 @@ struct SaveData;
 struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
+struct SequenceHead;
 struct SequenceTimedValue;
 struct SfdSampleRange;
 struct Shot;
@@ -735,20 +737,47 @@ typedef struct tCheckpoint { /* 0x50 bytes */
     f32 distToNext;  /* 0x4C */
 } tCheckpoint;
 
-/* ---- memory: the heap, the asset wads and waves, lists and trees */
+/* ---- memory: the heap, the asset wads and waves, lists and trees
+ *
+ * The heap's own headers are in game/heap.h, which only the heap's files include. */
 
+/* A wave instance (MAT3 waves.c's, an anonymous struct there): one of the 64 slots of gWaveInstance, each holding one
+ * loaded asset file (a "wave": a model WAD, a font, a sound bank ...) in a heap block. Host layout on the PC. */
 typedef struct anon_loaded_ready_14 { /* 0x20 bytes */
-    s8 loaded;   /* 0x0 */
-    s8 ready;    /* 0x1 */
-    s8 locked;   /* 0x2 */
-    s8 model;    /* 0x3 */
-    u8 mirrored; /* 0x4 */
-    s8 handle;   /* 0x5 */
-    u8 wave;     /* 0x6 */
-    u32 size;    /* 0x8 */
-    u8 *ptr;     /* 0x10 */
-    u8 *lastPtr; /* 0x18 */
+    s8 loaded;   /* 0x0: the file has been read into the block */
+    s8 ready;    /* 0x1: and set up (SetupWaveModel) */
+    s8 locked;   /* 0x2: InitWaves keeps it (LockWaveInstance) */
+    s8 model;    /* 0x3: the wave is a model WAD (wave_is_model) */
+    u8 mirrored; /* 0x4: its display lists are mirrored (MirrorWaveInstance) */
+    s8 handle;   /* 0x5: ptr is a heap handle (a master slot) rather than the block */
+    u8 wave;     /* 0x6: which wave (an index into gWaveSizes, wave_rom_offsets ...) */
+    u32 size;    /* 0x8: the block's size */
+    u8 *ptr;     /* 0x10: the block, or its handle; 0 for a free slot */
+    u8 *lastPtr; /* 0x18: a handle wave's block when it was last set up: the heap may move it */
 } anon_loaded_ready_14;
+
+/* A WAD's table of contents entry (MAT3 anon_tag_address_c): a four-character tag ('TXHD', 'OBHD' ...), where the
+ * data is and how long. address is the file's offset until MBSetupWad rebases it to the data's 32-bit window
+ * address. The WAD keeps its N64 layout in the window (port/assets swaps it to host byte order). */
+typedef struct WadEntry { /* 0xC bytes */
+    u32 tag;     /* 0x0 */
+    u32 address; /* 0x4 */
+    u32 length;  /* 0x8: in bytes, or a count of records */
+} WadEntry;
+
+/* A WAD file's first two words: its table of contents (an offset, a window address once rebased) and how many
+ * entries it has. */
+typedef struct WadFileHeader { /* 0x8 bytes */
+    u32 toc;        /* 0x0 */
+    s32 TOCentries; /* 0x4 */
+} WadFileHeader;
+
+/* A WAD's handle (MAT3 anon_base_TOCentries_c), filled by MBSetupWad or MBOffsetWad; host layout. */
+typedef struct WadHandle { /* 0x18 bytes */
+    WadFileHeader *base; /* 0x0: the file */
+    s32 TOCentries;      /* 0x8 */
+    WadEntry *TOC;       /* 0x10 */
+} WadHandle;
 
 typedef struct config_s { /* 0x8 bytes */
     u16 good_length; /* 0x0 */

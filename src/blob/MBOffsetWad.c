@@ -1,23 +1,21 @@
+/* MBOffsetWad (MAT3 mb_wad.c): rebases a WAD the heap has moved (MBSetupWad.c has the WADs). */
 #include "game/game.h"
 
-/* PC: the same steps on MBSetupWad's handle as the PC build lays it out ({u32 *base; s32 count; void *TOC} with
- * host pointers; the N64 code addresses it at +0/+4/+8). The WAD is in the RDRAM window, so its 32-bit address
- * widens to the host pointer. As on the N64, the base is arg1 + arg2. */
-typedef struct { s32 *base; s32 count; s32 *toc; } WadHandle;
-void MBOffsetWad(void *arg0, s32 arg1, s32 arg2)
+/* Fills wad for the WAD now at window address oldBase + offset, whose table and entries still hold addresses for
+ * oldBase: adds offset to the table's address and to every entry's. */
+void MBOffsetWad(WadHandle *wad, s32 oldBase, s32 offset)
 {
-  WadHandle *wad = (WadHandle *) arg0;
-  s32 *base = (s32 *) PC_N64P((u32) (arg1 + arg2));
+  WadFileHeader *file = (WadFileHeader *) PC_N64P((u32) (oldBase + offset));
   s32 i;
   if (wad != ((void *) 0))
   {
-    wad->base = base;
-    base[0] += arg2;
-    wad->toc = (s32 *) PC_N64P((u32) base[0]);
-    wad->count = base[1];
-    for (i = 0; i < wad->count; i++)
+    wad->base = file;
+    file->toc += offset;
+    wad->TOC = (WadEntry *) PC_N64P((u32) file->toc);
+    wad->TOCentries = file->TOCentries;
+    for (i = 0; i < wad->TOCentries; i++)
     {
-      wad->toc[(i * 3) + 1] += arg2;
+      wad->TOC[i].address += offset;
     }
   }
 }

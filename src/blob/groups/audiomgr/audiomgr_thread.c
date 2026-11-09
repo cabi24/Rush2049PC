@@ -99,8 +99,9 @@ s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 void AudioSongStop(int song);
 
-/* ClearBST and WalkBST of the fx tag tree, whose tOrderedList has the PC's layout (the pointers are the host's, so
- * the root is at +16): the game's own ClearBST and WalkBST read the N64's offsets (the root at +8). */
+/* ClearBST and WalkBST of the fx tag tree (tOrderedList, the host layout: the root at +16). The game's ClearBST
+ * and WalkBST do the same since 2026-11-08 (until then they read the N64's offsets); these copies stay because
+ * port/assets/tests/test_mgrstart.c links this file without them. */
 static void clear_fx_tag_tree(tOrderedList *tree)
 {
     tree->root = 0;

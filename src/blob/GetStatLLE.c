@@ -1,24 +1,33 @@
+/* GetStatLLE (MAT3 statll.c): takes an element from a static list (InitStatLL.c has the header). */
 #include "game/game.h"
 
-/* PC: GetStatLLE over the header's host layout (shots.c's StatLL, docs/port/POINTERS.md 9): takes the first free
- * element and puts it at the head of the active list (and links it back when the list is doubly linked); the m2c
- * body uses the N64 offsets. An element's links are its first two words: pointers, or window addresses in a list
- * flagged n64 (POINTERS.md 10). */
-typedef struct { s8 dbl; u8 n64; s32 numElements; s32 elementSize; void *list; void *head; void *store; } PcStatLL;
-void *GetStatLLE(void *arg0) {
-    PcStatLL *list = (PcStatLL *) arg0;
-    void *e = list->store;
+typedef struct {
+    s8 dbl;             /* 0x00: doubly linked */
+    u8 n64;             /* 0x01: PC: the elements link by window addresses */
+    s32 numElements;    /* 0x04 */
+    s32 elementSize;    /* 0x08 */
+    void *list;         /* 0x10: the array */
+    void *head;         /* 0x18: the first element in use */
+    void *store;        /* 0x20: the first free element */
+} StatList;
 
-    if (e != NULL) {
-        list->store = pc_statll_link(list->n64, e, 0);
-        pc_statll_set_link(list->n64, e, 0, list->head);
-        if (list->dbl != 0) {
-            pc_statll_set_link(list->n64, e, 1, NULL);
-            if (list->head != NULL) {
-                pc_statll_set_link(list->n64, list->head, 1, e);
+/* Takes the first free element and puts it at the head of the list of elements in use (linking it back from the old
+ * head when the list is doubly linked). Returns it, or 0 when none is free. An element's links are its first two
+ * words: link 0 the next element, link 1 the previous one (pc_statll_link reads either kind of link). */
+void *GetStatLLE(void *list) {
+    StatList *header = (StatList *) list;
+    void *element = header->store;
+
+    if (element != NULL) {
+        header->store = pc_statll_link(header->n64, element, 0);
+        pc_statll_set_link(header->n64, element, 0, header->head);
+        if (header->dbl != 0) {
+            pc_statll_set_link(header->n64, element, 1, NULL);
+            if (header->head != NULL) {
+                pc_statll_set_link(header->n64, header->head, 1, element);
             }
         }
-        list->head = e;
+        header->head = element;
     }
-    return e;
+    return element;
 }

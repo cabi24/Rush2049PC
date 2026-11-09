@@ -1,9 +1,9 @@
+/* Replacing one wave by another in place (MAT3 waves.c ReplaceWave): the new file is read into the old one's block
+ * (waves/group.c has the waves). */
 #include "game/game.h"
 
-VIEW(anon_loaded_ready_14[64], gWaveInstance);
-#define gWaveInstance gWaveInstance_view
-
-void ReplaceWaveInstance(int idx, int newWave)  /* _ReplaceWaveInstance (deleted stub 0x800A5014) */
+/* Makes wave instance idx hold wave newWave, not yet read (MAT3 _ReplaceWaveInstance). */
+void ReplaceWaveInstance(int idx, int newWave)
 {
     anon_loaded_ready_14 *winst;
     winst = &gWaveInstance[idx];
@@ -12,6 +12,8 @@ void ReplaceWaveInstance(int idx, int newWave)  /* _ReplaceWaveInstance (deleted
     SetWaveInstanceModel(idx);
 }
 
+/* Reads wave newWave over the instance that holds curWave, unless newWave is already loaded or curWave isn't; waits
+ * for the frame being drawn first, since it may still read the old file. */
 void ReplaceWave(int curWave, int newWave)
 {
     int idx;

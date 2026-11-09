@@ -1,28 +1,8 @@
+/* The largest free chunk of a heap (MAT3 memsys.c LargestAvailableMemoryHeapChunk). include/game/heap.h has the
+ * headers. */
 #include "game/game.h"
+#include "game/heap.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-enum n64p_Block { n64p_Block_ };
-enum n64p_Heap { n64p_Heap_ };
-enum n64p_void { n64p_void_ };
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Block next;
-    /* 0x08 */ enum n64p_Block prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ enum n64p_void owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ u8 tag;
-    /* 0x16 */ u8 pad16[10];
-} Block; /* 0x20 */
-
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Heap next;
-    /* 0x08 */ enum n64p_Block first;
-} Heap;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
 
@@ -32,9 +12,8 @@ VIEW(OSMesgQueue, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-Heap *ConvertHeap(Heap *heap);
-
-u32 LargestAvailableMemoryHeapChunk(Heap *heap)
+/* LargestAvailableMemoryChunk under the heap lock. */
+u32 LargestAvailableMemoryHeapChunk(tHeap *heap)
 {
     u32 largest;
 
@@ -44,20 +23,22 @@ u32 LargestAvailableMemoryHeapChunk(Heap *heap)
     return largest;
 }
 
-u32 LargestAvailableMemoryChunk(Heap *heap)
+/* The size in bytes of the largest free chunk of heap (0: the main heap): the most one allocation can get. MAT3
+ * rounds it down to 64; the N64 doesn't. The caller holds the heap lock. */
+u32 LargestAvailableMemoryChunk(tHeap *heap)
 {
     u32 largest;
-    Block *block;
+    tMemoryChunk *chunk;
 
-    block = N64P(ConvertHeap(heap)->first);
+    chunk = N64P(ConvertHeap(heap)->chunks);
     largest = 0;
-    while (block != 0) {
-        if (block->used == 0) {
-            if (largest < block->size) {
-                largest = block->size;
+    while (chunk != 0) {
+        if (chunk->used == 0) {
+            if (largest < chunk->size) {
+                largest = chunk->size;
             }
         }
-        block = N64P(block->next);
+        chunk = N64P(chunk->next);
     }
     return largest;
 }

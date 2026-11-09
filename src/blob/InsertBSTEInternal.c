@@ -1,20 +1,25 @@
+/* InsertBSTEInternal (MAT3 bstree.c _InsertBSTE): the insertion into an ordered list (InitBST.c has the tree). */
 #include "game/game.h"
 
-typedef struct Node { struct Node *left; struct Node *right; } Node;
-typedef struct Tree { s32 (*cmp)(Node *, Node *); s32 count; } Tree;
-void InsertBSTEInternal(Tree *t, Node **pp, Node *n) {
+/* A node's links: the first two words of the caller's record. */
+typedef struct BSTNode { struct BSTNode *left; struct BSTNode *right; } BSTNode;
+
+/* Walks down from the link *link (the root's, at first): left where the order function puts element before the
+ * node there, else right, and hangs element, with no children, on the first empty link. Counts it in the tree. MAT3
+ * recurses; this is the same walk as a loop. */
+void InsertBSTEInternal(tOrderedList *tree, BSTNode **link, BSTNode *element) {
     while (1) {
-        if (*pp == 0) {
-            *pp = n;
-            n->left = 0;
-            (*pp)->right = 0;
-            t->count++;
+        if (*link == 0) {
+            *link = element;
+            element->left = 0;
+            (*link)->right = 0;
+            tree->numElements++;
             return;
         }
-        if (t->cmp(n, *pp) < 0) {
-            pp = &(*pp)->left;
+        if (tree->OrderFunc(element, *link) < 0) {
+            link = &(*link)->left;
         } else {
-            pp = &(*pp)->right;
+            link = &(*link)->right;
         }
     }
 }

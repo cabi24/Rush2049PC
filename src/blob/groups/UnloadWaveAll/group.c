@@ -1,16 +1,15 @@
+/* UnloadWaveAll (MAT3 waves.c): frees every wave instance that holds a given wave (waves/group.c has the waves). */
 #include "game/game.h"
 
-typedef struct ResSlot {s8 f0,loaded,f2,f3,f4,f5;u8 type,pad07;s32 pad08;u8 **p0C;u8 *w10;} ResSlot;
-VIEW(ResSlot[64], gWaveInstance);
-#define gWaveInstance gWaveInstance_view
-
-void UnloadWaveAll(s32 type) {
+/* Frees every wave instance holding wave (both handle kinds). */
+void UnloadWaveAll(s32 wave) {
     s32 i;
     for (i = 0; i < 64; i++) {
-        if (type == 64) {}
-        unload_wave_if_matching(&gWaveInstance[i], i, type, -1);
+        unload_wave_if_matching(&gWaveInstance[i], i, wave, -1);
     }
 }
-void unload_wave_if_matching(ResSlot *slot, s32 i, s32 type, s8 sub) {
-    if ((slot->p0C != 0) && (type == slot->type) && ((sub < 0) || (sub == slot->f5))) UnloadWaveInstance(i);
+
+/* Frees wave instance i (slot) if it holds wave and, unless handle is negative, has that handle kind. */
+void unload_wave_if_matching(anon_loaded_ready_14 *slot, s32 i, s32 wave, s8 handle) {
+    if ((slot->ptr != 0) && (wave == slot->wave) && ((handle < 0) || (handle == slot->handle))) UnloadWaveInstance(i);
 }

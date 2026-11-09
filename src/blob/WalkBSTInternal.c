@@ -1,12 +1,16 @@
+/* WalkBSTInternal (MAT3 bstree.c _WalkBST): the in-order walk of an ordered list (InitBST.c has the tree). */
 #include "game/game.h"
 
-typedef struct Node { struct Node *child; struct Node *next; } Node;
+/* A node's links: the first two words of the caller's record. */
+typedef struct BSTNode { struct BSTNode *left; struct BSTNode *right; } BSTNode;
 
-void WalkBSTInternal(intptr_t arg0, Node *n, s32 *count, void (*fn)(Node *, s32)) {
-    if (n != 0) {
-        WalkBSTInternal(arg0, n->child, count, fn);
-        fn(n, *count);
-        (*count)++;
-        WalkBSTInternal(arg0, n->next, count, fn);
+/* Visits the subtree at root in order: its left subtree, then WalkFunc(root, *num) with *num incremented after,
+ * then its right subtree. tree is unused. */
+void WalkBSTInternal(tOrderedList *tree, void *root, s32 *num, void (*WalkFunc)(void *, s32)) {
+    if (root != 0) {
+        WalkBSTInternal(tree, ((BSTNode *)root)->left, num, WalkFunc);
+        WalkFunc(root, *num);
+        (*num)++;
+        WalkBSTInternal(tree, ((BSTNode *)root)->right, num, WalkFunc);
     }
 }

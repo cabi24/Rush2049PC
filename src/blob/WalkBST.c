@@ -1,8 +1,10 @@
+/* WalkBST (MAT3 bstree.c): visits an ordered list's nodes in order (InitBST.c has the tree). */
 #include "game/game.h"
 
-void WalkBST(void *arg0, s32 (*arg1)(void *, s32)) {
-    s32 sp1C;
+/* Calls WalkFunc(node, n) for each node of tree, smallest first, n counting from 0. */
+void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, s32)) {
+    s32 num;
 
-    sp1C = 0;
-    WalkBSTInternal((intptr_t) arg0, M2C_FIELD(arg0, void **, 8), &sp1C, arg1);
+    num = 0;
+    WalkBSTInternal(tree, tree->root, &num, WalkFunc);
 }

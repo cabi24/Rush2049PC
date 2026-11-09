@@ -1,8 +1,7 @@
+/* InsertBSTE (MAT3 bstree.c): adds a node to an ordered list (InitBST.c has the tree). */
 #include "game/game.h"
 
-/* PC: arg0 is an ordered list (tOrderedList, audiomgr_thread.c): its order function is a pointer, so the root is at
- * +0x10 (docs/port/LAYOUT.md 5). */
-#define OL_ROOT 0x10
-void InsertBSTE(void *arg0, s32 *arg1) {
-    InsertBSTEInternal(arg0, (u8 *) arg0 + OL_ROOT, arg1);
+/* Inserts element (a record whose first two words are free for the links) into tree by its order function. */
+void InsertBSTE(tOrderedList *tree, void *element) {
+    InsertBSTEInternal(tree, (struct BSTNode **)&tree->root, element);
 }

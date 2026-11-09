@@ -1,28 +1,39 @@
+/* InsertLLE (MAT3 ll.c): linked lists of records the caller owns, singly or doubly linked (dbl), whose links are in
+ * the records themselves or, for a list of handles (handle), in the records a handle points to: object is then a
+ * handle, and its links are object->next's. RemoveLLE.c takes a record out. Host pointers on the PC. */
 #include "game/game.h"
 
+/* A record's links (MAT3 tDLLE); in a list of handles, the first word of the handle is the record. */
 typedef struct Link {struct Link *next, *prev;} Link;
-typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
+/* A list's header (MAT3 tDLList). */
+typedef struct List {u8 handle, dbl, pad[2];u32 numElements;Link *head, *tail;} List;
+
+/* Inserts object into list before the record before, or at the tail when before is 0. A doubly-linked list
+ * relinks in place; a singly-linked one walks from the head to find the record that points at before. Nothing for
+ * a null object.
+ * Original game: the singly-linked walk doesn't stop once it has linked object in; it goes on through object,
+ * whose own link is set only after the walk, so it follows whatever object's link held before. */
 void InsertLLE(List *list, Link *object, Link *before) {
-    Link *node, *at, *current, *header, *next;
+    Link *links, *beforeLinks, *current, *header, *next;
     if (object == 0) return;
-    if (list->indirect) {
-        node = object->next;
-        if (before) at = before->next;
-        else at = 0;
+    if (list->handle) {
+        links = object->next;
+        if (before) beforeLinks = before->next;
+        else beforeLinks = 0;
     } else {
-        node = object;
-        at = before;
+        links = object;
+        beforeLinks = before;
     }
     if (before) {
-        if (list->doubly) {
-            if (at->prev) {
-                if (list->indirect) at->prev->next->next = object;
-                else at->prev->next = object;
+        if (list->dbl) {
+            if (beforeLinks->prev) {
+                if (list->handle) beforeLinks->prev->next->next = object;
+                else beforeLinks->prev->next = object;
             } else list->head = object;
-            node->prev = at->prev;
-            at->prev = object;
+            links->prev = beforeLinks->prev;
+            beforeLinks->prev = object;
         } else if (before == list->head) list->head = object;
-        else if (list->indirect) {
+        else if (list->handle) {
             current = list->head;
             while (current) {
                 header = current->next;
@@ -45,13 +56,13 @@ void InsertLLE(List *list, Link *object, Link *before) {
             }
         }
     } else {
-        if (list->doubly) node->prev = list->tail;
+        if (list->dbl) links->prev = list->tail;
         if (list->tail) {
-            if (list->indirect) list->tail->next->next = object;
+            if (list->handle) list->tail->next->next = object;
             else list->tail->next = object;
         } else list->head = object;
         list->tail = object;
     }
-    node->next = before;
-    list->count++;
+    links->next = before;
+    list->numElements++;
 }
