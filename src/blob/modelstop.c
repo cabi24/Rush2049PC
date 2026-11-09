@@ -9,14 +9,8 @@ VIEW(s32, gGameState);
 VIEW(u8, gNumActiveCars);
 #define gNumActiveCars gNumActiveCars_view
 
-/* The model record (tModelData, docs/port/CARS.md 4): only its size, 0x808, matters here. */
-typedef struct ModelRecord
-{
-  u8 pad000[0x7C6];
-  u16 slot;                     /* 0x7C6 */
-  u8 pad7C8[0x7E8 - 0x7C8];
-  u8 laps;                      /* 0x7E8 */
-} ModelRecord;
+/* The model record (tModelData, docs/port/CARS.md 4): no field is read here; the loop steps 0x808 bytes, its size. */
+typedef struct tModelData tModelData;
 
 VIEW(volatile short, modelrun);
 #define modelrun modelrun_view
@@ -25,9 +19,9 @@ VIEW(volatile short, modelrun);
  * outside the attract mode, the Rumble Pak. */
 void modelstop(void) {
     s32 i;
-    ModelRecord *m;
+    tModelData *m;
     modelrun = 0;
-    for (i = 0, m = PC_MODELS; i < (s8) gNumActiveCars; i++, m = (ModelRecord *) ((u8 *) m + 0x808)) {
+    for (i = 0, m = PC_MODELS; i < (s8) gNumActiveCars; i++, m = (tModelData *) ((u8 *) m + 0x808)) {
         StopCarSounds(m);
     }
     if (!(gGameState & 8)) {   /* GS_DEMO */

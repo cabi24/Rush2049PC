@@ -9,14 +9,8 @@ VIEW(s32, gGameState);
 VIEW(u8, gNumActiveCars);
 #define gNumActiveCars gNumActiveCars_view
 
-/* The model record (tModelData, docs/port/CARS.md 4): only its size, 0x808, matters here. */
-typedef struct ModelRecord
-{
-  u8 pad000[0x7C6];
-  u16 slot;                     /* 0x7C6 */
-  u8 pad7C8[0x7E8 - 0x7C8];
-  u8 laps;                      /* 0x7E8 */
-} ModelRecord;
+/* The model record (tModelData, docs/port/CARS.md 4): no field is read here; the loop steps 0x808 bytes, its size. */
+typedef struct tModelData tModelData;
 
 VIEW(volatile short, modelrun);
 #define modelrun modelrun_view
@@ -32,7 +26,7 @@ void modelgo(void)
   {
     for (i = 0, m = (s8 *) PC_MODELS; i < (s8) gNumActiveCars; i++, m += 0x808)
     {
-      StartCarSounds((ModelRecord *) m);
+      StartCarSounds((tModelData *) m);
     }
   }
   if (!(gGameState & 8))   /* GS_DEMO */
