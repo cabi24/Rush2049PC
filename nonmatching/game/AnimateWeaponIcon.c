@@ -24,9 +24,6 @@ typedef struct Target {
 
 #define N64P(x) ((void *)PC_N64P(x))
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 void AnimateWeaponIcon(Visual *v, s16 op)
 {
     Target *t;

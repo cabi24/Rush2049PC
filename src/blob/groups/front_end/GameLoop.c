@@ -6,21 +6,8 @@ typedef struct { s32 opaque[6]; } OSMesgQueue;
 
 VIEW(struct pc_multiblit[1], idle_warning_multiblit);
 #define idle_warning_multiblit idle_warning_multiblit_view
-VIEW(OSMesgQueue *, frame_dl);
-#define frame_dl frame_dl_view
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
-
-typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
-VIEW(volatile Clock, gScheduler);
-#define gScheduler gScheduler_view
-
-VIEW(volatile s16, gRenderInProgress);
-#define gRenderInProgress gRenderInProgress_view
-VIEW(intptr_t, blit_dl);
-#define blit_dl blit_dl_view
-VIEW(OSMesgQueue *, frame_dl_start);
-#define frame_dl_start frame_dl_start_view
 
 void *NewMultiBlit(s16, s16, void *, s32);
 void RemoveBlit(void *);
@@ -48,10 +35,10 @@ s32 GameLoop(void)
         }
         blit_dl = 0; pc_game_fps_begin(); pc_game_fps_state(gNewGameState);
         StartGraphics();
-        frame_dl_start = frame_dl;
+        frame_dl_start = (u8 *) frame_dl;
         UpdateRushControls();
     }
-    if ((elapsed = (f32)(u32)(gScheduler.tick - gLastKeyTime) * gRetraceTime) > 300.0f && !(gGameState & 0x4000000F)) {
+    if ((elapsed = (f32)(u32)(gScheduler.retraceCount - gLastKeyTime) * gRetraceTime) > 300.0f && !(gGameState & 0x4000000F)) {
         if (!inactiveBlit) {
             inactiveBlit = NewMultiBlit(0, 0, idle_warning_multiblit, 1);
         }

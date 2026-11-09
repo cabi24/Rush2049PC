@@ -44,8 +44,6 @@ typedef struct Kind {
     f32 f2C;
 } Kind;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(Kind[], targetInfo);
 #define targetInfo targetInfo_view
 

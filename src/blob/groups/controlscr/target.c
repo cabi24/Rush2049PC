@@ -12,8 +12,6 @@ VIEW(Node[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view

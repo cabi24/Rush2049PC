@@ -7,7 +7,7 @@
 /* Data */
 extern u32 gControlTable[EXTENT(26)];
 extern s8 gInitControls;
-extern s32 gLastKeyTime;
+extern u32 gLastKeyTime;
 extern s8 gResetLastKeyTime;
 extern u8 gIgnoreCount;
 extern s32 controls_updateButtonColor;
@@ -28,25 +28,31 @@ extern s8 gNoBrakes;
 extern u32 gRealLevels[EXTENT(4)];
 extern u32 gRealEdges[EXTENT(4)];
 extern f32 gRealStick[EXTENT(4)][2];
-extern s32 gAutoEdges[EXTENT(4)];
-extern s32 gActiveAutoEdges;
+extern u32 gAutoEdges[EXTENT(4)];
+extern u32 gActiveAutoEdges;
 extern OSMesgQueue controlsys_lock_queue;
-extern s8 gContStickRange[EXTENT(4)][2];
-extern s32 gNewEdges[EXTENT(4)];
+/* What ControlIRQ (the model thread, each retrace) leaves for UpdateControls (the game thread), under
+ * controlsys_lock_queue: each stick's calibration (the raw value that reads as full), the buttons pressed since the
+ * last UpdateControls, the buttons held (controlsys's s32[4]: the data loader has 4 bytes for its symbol), the raw
+ * sticks. Volatile, as MAT3's controlsys.c declares them. */
+extern volatile s8 gContStickRange[EXTENT(4)][2];
+extern volatile u32 gNewEdges[EXTENT(4)];
 extern s32 gNewLevels;
-extern s32 gNewStick[EXTENT(2)];
+extern volatile s8 gNewStick[EXTENT(4)][2];
 extern s8 gActiveControllers[EXTENT(4)];
 extern s8 gStickEdges[EXTENT(4)];
-extern s32 gAutoEdgeTimes[EXTENT(128)];
+extern u32 gAutoEdgeTimes[EXTENT(4)][32];   /* when each held button last auto-repeated, a retrace count (MAT3: int) */
 extern OSMesg controlsys_lock_msg;
 extern s32 controls_buttonsJustInited[EXTENT(4)];
 extern f32 controls_cursorSpeed[EXTENT(4)];
 extern f32 controls_scrollSpeed[EXTENT(4)];
-extern s32 gActiveLevels;
-extern s32 gActiveEdges;
-extern MenuDepthPoint gContStick[EXTENT(4)];
-extern s32 gContLevels[EXTENT(4)];
-extern s32 gContEdges[EXTENT(4)];
+/* The frame's input (UpdateControls): the buttons held, pressed and auto-repeated, and their union over the active
+ * controllers; the sticks, -1 to 1 (x, y). */
+extern u32 gActiveLevels;
+extern u32 gActiveEdges;
+extern f32 gContStick[EXTENT(4)][2];
+extern u32 gContLevels[EXTENT(4)];
+extern u32 gContEdges[EXTENT(4)];
 extern volatile ControllerState gControllerData[EXTENT(4)];
 extern s8 gSoftReset;
 

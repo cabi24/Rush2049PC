@@ -7,9 +7,6 @@ float sqrtf(float);
 
 typedef struct V3 { float x, y, z; } V3;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 VIEW(V3[], steady_start_pos);
 #define steady_start_pos steady_start_pos_view
 

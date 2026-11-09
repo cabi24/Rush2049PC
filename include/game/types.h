@@ -626,14 +626,14 @@ typedef struct PcSched { /* 0x2C0 bytes */
     u8 retMsgs[32];                  /* 0x90 */
     u8 padB0[432];                   /* 0xB0 */
     u8 pad260[28];                   /* 0x260 */
-    s32 retraceCount;                /* 0x27C */
+    volatile s32 retraceCount;       /* 0x27C: the retraces since start-up (the scheduler's thread counts them) */
     s32 doAudio;                     /* 0x280 */
     struct OSScClient_s *clientList; /* 0x288 */
     struct OSScTask_s *audioListHead; /* 0x290 */
     struct OSScTask_s *gfxListHead;  /* 0x298 */
     struct OSScTask_s *audioListTail; /* 0x2A0 */
     struct OSScTask_s *gfxListTail;  /* 0x2A8 */
-    struct OSScTask_s *curRSPTask;   /* 0x2B0 */
+    struct OSScTask_s *volatile curRSPTask; /* 0x2B0: the task on the RSP (scheduler_current_rsp_task) */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;
 

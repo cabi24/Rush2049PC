@@ -27,14 +27,10 @@ typedef struct Model {
 } Model;
 
 typedef struct MapOrigin { s32 x, y; } MapOrigin;
-typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 
 VIEW(MapOrigin[], hud_mapPos);
 #define hud_mapPos hud_mapPos_view
 
-
-VIEW(volatile Clock, gScheduler);
-#define gScheduler gScheduler_view
 
 /* The dot of the car at place animID & 0xF of the map's drawing order (dot_order_list, hud_updateFrame) on the track
  * map (hud_mapPos, kMapSize square, the track's path bounds fitted in it; mirrored with gMirrorWaves): a human's own
@@ -83,7 +79,7 @@ s32 animDot(tBlit *blt)
     if (car->active > 0)
         flash = 0;
     if (slot < gNumCars) {
-        blt->alpha = ((gScheduler.tick & 8) && flash) ? 64 : 255;
+        blt->alpha = ((gScheduler.retraceCount & 8) && flash) ? 64 : 255;
         if (m->mode == 2)
             SelectBlit(blt, slot, size, size);
         else if (m->mode == 1)

@@ -328,7 +328,7 @@ void PlacePathTargetPos(tTarget *target) {
         v[0] = target->mat.pos[0] - state->lastPos[0];
         v[1] = target->mat.pos[1] - state->lastPos[1];
         v[2] = target->mat.pos[2] - state->lastPos[2];
-        state->curVel = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / *(volatile f32 *) &gFrameSeconds;
+        state->curVel = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / gFrameSeconds;
         if (path->flags & 0x20) {
             near = 1;
             if (gRace == kObstacle) {
@@ -577,7 +577,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
         }
         if (!(path->flags & 0x100)) {
             i = 0;
-            state->timeElapsed += *(f32 *)(uintptr_t)&gFrameSeconds;
+            state->timeElapsed += gFrameSeconds;
             idx = state->ptOn;
             do {
                 fr = state->timeElapsed;
@@ -668,7 +668,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
             }
             info = &targetInfo[target->infoIdx];
             if (info->objListIdx != -1) {
-                node->timeStamp -= *(f32 *)(intptr_t)&gFrameSeconds;
+                node->timeStamp -= gFrameSeconds;
                 if (node->timeStamp <= 0.0f) {
                     idx = info->objListIdx;
                     if (idx == 0x169) {

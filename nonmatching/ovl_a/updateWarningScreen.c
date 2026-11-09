@@ -16,8 +16,6 @@ VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
 VIEW(Controller[4], gControllerData);
 #define gControllerData gControllerData_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 VIEW(MultiBlit[1], warningscr_blits);

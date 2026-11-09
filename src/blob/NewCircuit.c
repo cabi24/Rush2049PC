@@ -25,9 +25,6 @@ typedef struct {
 
 extern void *memset(void *s, s32 c, u32 n);
 
-VIEW(s32, gSeconds);
-#define gSeconds gSeconds_view
-
 VIEW(s32[4], gCircuitDiff);
 #define gCircuitDiff gCircuitDiff_view[0]
 
@@ -49,7 +46,7 @@ void NewCircuit(s32 type) {
     memset(circuit, 0, sizeof(struct tCircuit));
     PS_WriteFile(M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (uintptr_t) circuit, sizeof(struct tCircuit));
     circuit->type = (s8) type;
-    circuit->seed = (s32) (gSeconds & 0xFFFFF);
+    circuit->seed = *(s32 *) &gSeconds & 0xFFFFF;   /* the game time's float bits (MAT3: *(unsigned int *)&gSeconds) */
     circuit->active = 1;
     circuit->totalTime = 0.0f;
     if (options[31] != 0) {

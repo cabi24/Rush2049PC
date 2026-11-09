@@ -67,8 +67,6 @@ typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Poo
 
 VIEW(s32[10], gWprObjList);
 #define gWprObjList gWprObjList_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 VIEW(TextureBank[], gTexDefPtrs);
 #define gTexDefPtrs gTexDefPtrs_view

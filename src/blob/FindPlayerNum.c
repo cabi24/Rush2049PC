@@ -3,9 +3,6 @@
 
 extern tPadState gPlayers[];
 
-VIEW(f32[4][2], gContStick);
-#define gContStick gContStick_view
-
 /* Gives player num controller num, with this frame's input copied in, and makes the controller active: always when
  * force is set, else only when the player has no controller yet and controller num's first button (bit 0) was just
  * pressed. */

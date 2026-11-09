@@ -37,9 +37,6 @@ VIEW(StrTable, gText);
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-typedef struct Sched { u8 pad0[0x27C]; volatile u32 frameCount; } Sched; /* gScheduler: its retrace count */
-VIEW(Sched, gScheduler);
-#define gScheduler gScheduler_view
 
 /* The game's button bits the dialogs answer to. */
 #define BUTTON_A 0x2
@@ -259,21 +256,21 @@ void cs_drawT3_DC(s32 row, s32 col)
  * timeout (MAT3 _ControlPakErrTimeout with the draw). */
 void cs_wait11_DC(s32 row, s32 col)
 {
-    if (C.timeout < gScheduler.frameCount) C.done = 1;
+    if (C.timeout < gScheduler.retraceCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[476 / 4]);
 }
 
 /* As cs_wait11_DC, with message 120. */
 void cs_wait12_DC(s32 row, s32 col)
 {
-    if (C.timeout < gScheduler.frameCount) C.done = 1;
+    if (C.timeout < gScheduler.retraceCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[480 / 4]);
 }
 
 /* As cs_wait11_DC, with message 121. */
 void cs_wait13_DC(s32 row, s32 col)
 {
-    if (C.timeout < gScheduler.frameCount) C.done = 1;
+    if (C.timeout < gScheduler.retraceCount) C.done = 1;
     DrawPakErrNQA(row, col, (u8 *)gText.msg[484 / 4]);
 }
 

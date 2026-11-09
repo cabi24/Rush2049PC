@@ -70,8 +70,6 @@ typedef struct CMuzzleObj {
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(CarParts[], gCarParts);
 #define gCarParts gCarParts_view
 

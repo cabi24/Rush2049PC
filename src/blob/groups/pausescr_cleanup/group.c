@@ -9,8 +9,6 @@ typedef struct Profile { void *next; void *prev; void *fileh; u8 opaque_C[0x2C -
 typedef struct Handle { Profile *object; } Handle;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
-VIEW(u32, gPauseState);
-#define gPauseState gPauseState_view
 
 VIEW(uintptr_t, pause_gTitlePane);
 #define pause_gTitlePane pause_gTitlePane_view

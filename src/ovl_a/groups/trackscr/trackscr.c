@@ -93,18 +93,9 @@ VIEW(s8[], gOptions);
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */
 #define PC_DRONES_MAX (pc_cars_setting() - 1)
 
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-VIEW(u32, gActiveLevels);
-#define gActiveLevels gActiveLevels_view
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-
 VIEW(CircuitTrack[], gCircuitTracks);
 #define gCircuitTracks gCircuitTracks_view
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(f32[12], unitmatrix);
 #define unitmatrix unitmatrix_view
 VIEW(volatile u8, gNumModels);
@@ -192,8 +183,6 @@ typedef struct FogPalette { u8 head[0x14]; u32 palBase; } FogPalette;
 
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
-VIEW(volatile s16, gRenderInProgress);
-#define gRenderInProgress gRenderInProgress_view
 
 extern void RemoveBlit(Blit *);   /* RemoveBlit (ZOID_RemovePoly on N64: blits) */
 

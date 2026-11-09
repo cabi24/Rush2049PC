@@ -130,9 +130,6 @@ typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 VIEW(ColSize[], collsize);
 #define collsize collsize_view
 VIEW(f32[], unitmatrix);

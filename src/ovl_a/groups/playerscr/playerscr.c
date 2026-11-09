@@ -363,8 +363,6 @@ void playerscr_initButtons(s8 player)
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* Lay player p's buttons out for this frame. Waiting: only the title and the B icon show. Creating, or deleting with
  * a question or notice up: the title and the A and B icons. Controls, a full or damaged pak: nothing (the controls

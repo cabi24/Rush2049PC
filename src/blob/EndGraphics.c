@@ -32,8 +32,6 @@ VIEW(Frame[], frame_records);
 VIEW(Gfx *, last_frame_dl_end);
 #define last_frame_dl_end last_frame_dl_end_view
 
-VIEW(intptr_t, blit_dl);
-#define blit_dl blit_dl_view
 /* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
  * its list pc_frame_pools checks the list, the frame's matrices (frame_matrix_cursor) and its lookats, which the SDK's empty
  * `if` didn't: a Debug build stops when one ran past its end (docs/port/MORECARS.md 8). */
@@ -44,17 +42,10 @@ typedef struct Dynamic {
     u8 pad[PC_GLIST_OFFSET];
     Gfx glist[GLIST_LEN];
 } Dynamic;
-VIEW(s32, gfx_tasks_pending);
-#define gfx_tasks_pending gfx_tasks_pending_view
 
 extern OSMesgQueue scheduler_task_queue;
 extern u8 scheduler_thread[];                  /* thread */
 
-VIEW(volatile s32, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
-typedef struct { u8 pad[636]; s32 frameCount; } Sched;
-VIEW(volatile Sched, gScheduler);
-#define gScheduler gScheduler_view
 /* PC, game.frame_rate 60 (docs/port/FRAMERATE.md 7): the frame's task waits in the scheduler's task queue until a
  * message on its command queue wakes it (__scMain, 670: schedule). In real time on the PC the RSP finishes the
  * retrace's audio task at once, before the frame is done, so the next message was the next retrace: the frame's
@@ -82,7 +73,7 @@ void EndGraphics(void)
 
     f = &frame_records[frame_record_index];
     last_frame_dl_end = frame_dl;
-    last_frame_text_dl_end = blit_dl;
+    last_frame_text_dl_end = (intptr_t) blit_dl;
     HAL_FinishText(1);
     dl = BlitFinish();
     gSPDisplayList(frame_dl++, dl);
@@ -118,5 +109,5 @@ void EndGraphics(void)
     gRenderInProgress++;
     osStartThread(scheduler_thread);
     osSendMesg(&scheduler_task_queue, f, 1); if (pc_fps60) osSendMesg(&scheduler_interrupt_queue, (OSMesg)670, 0);
-    gLastFrameCount = gScheduler.frameCount;
+    gLastFrameCount = gScheduler.retraceCount;
 }

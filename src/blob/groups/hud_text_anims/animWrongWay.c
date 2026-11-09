@@ -19,9 +19,6 @@ typedef struct Pos {
 VIEW(StrTable, gText);
 #define gText gText_view
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
 VIEW(Pos[][4], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
 

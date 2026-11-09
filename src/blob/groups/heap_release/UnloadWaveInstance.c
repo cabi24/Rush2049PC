@@ -5,8 +5,6 @@
 
 /* The {pointer, count} tables SetupWaveModel fills per wave instance: 16 bytes an entry on the PC. */
 #define WAVE_TABLE_ENTRY 16
-VIEW(volatile s16, gRenderInProgress);
-#define gRenderInProgress gRenderInProgress_view
 VIEW(u8[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 VIEW(u8[], gTexDefPtrs);

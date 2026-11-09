@@ -8,9 +8,6 @@ typedef struct OSMesgQueue OSMesgQueue;
 extern int osRecvMesg(OSMesgQueue *, void **, int);
 extern int osSendMesg(OSMesgQueue *, void *, int);
 
-VIEW(f32[4][2], gContStick);
-#define gContStick gContStick_view
-
 /* Clears the frame's held, pressed and auto-repeated buttons and sticks, each controller's and the active ones'
  * union, and the presses ControlIRQ has gathered since the last frame; under the controls' lock. */
 void ClearControls(void)

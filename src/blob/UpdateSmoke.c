@@ -75,9 +75,6 @@ VIEW(SmokeList, gSmokeList);
 VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 /* PC: game.frame_rate 60 (pc_game_fps.h). The glow's pulse and the puffs' fade, jitter and growth are per frame of

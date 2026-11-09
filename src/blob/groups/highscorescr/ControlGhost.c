@@ -6,11 +6,6 @@
 typedef struct PadRecord { u8 pad00[0x48]; void *profile; } PadRecord;
 extern PadRecord gPlayers[];
 
-VIEW(u32, gActiveLevels);
-#define gActiveLevels gActiveLevels_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-
 /* The menu's input, each frame. Its rows: the pak (left and right), the pak's status (skipped), save (only when
  * the pak has no ghost of this track or the profile's own) and don't save. Up and down move between the offered
  * rows. Start or A: closes the "can't save" notice; answers the overwrite question (left and right flip yes and

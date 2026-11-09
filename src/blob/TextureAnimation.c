@@ -54,10 +54,6 @@ VIEW(tTextureSwap *[], TextureSwapLists);
 #define TextureSwapLists TextureSwapLists_view
 VIEW(tTextureBase[], texture_swap_shared_frames);
 #define texture_swap_shared_frames texture_swap_shared_frames_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-VIEW(volatile int, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
 
 /* One frame of the track's (gTrackNum) texture animations, none in the attract demo without the Expansion Pak.
  * Each palette animation whose period is up starts the next and does its step (the PALANIM_* states; the light

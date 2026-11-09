@@ -1,9 +1,6 @@
 /* licensescr_animText: the licence screen's text (MAT3 licensescr.c animText). */
 #include "game/game.h"
 
-VIEW(u32, gContLevels);
-#define gContLevels gContLevels_view
-
 #define TEXT_LICENSE 234            /* gText.single[]: the licence text */
 #define TEXT_EXPANSION_PAK 230      /* gText.single[]: the Expansion Pak notice */
 #define BUILD_INFO_BUTTONS 0x3C000  /* the buttons that show the build's date and time while held (game bits 14-17) */
@@ -20,7 +17,7 @@ s32 licensescr_animText(s32 blit)
     TB_SetJust(kTB_JustCenter, kTB_JustCenter);
     TB_SetTextColor(kTB_WhiteText);
     TB_DrawTextScrollBox(160, 165, 288, 110, -1, 0, gText.single[TEXT_LICENSE]);
-    if (gContLevels == BUILD_INFO_BUTTONS) {
+    if (gContLevels[0] == BUILD_INFO_BUTTONS) {
         TB_SetTextColor(14);
         TB_Printf(210, 30, licensescr_build_info_format, build_date_text, build_time_text);
     }

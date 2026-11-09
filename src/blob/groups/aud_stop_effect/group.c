@@ -3,10 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-/* gTagMask as a signed word: the index it masks is sign-extended, as this file always read it. */
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
-
 /* Declared without prototypes, as this file always had them (a prototype would change the calls' code). */
 s32 osRecvMesg();
 s32 osSendMesg();

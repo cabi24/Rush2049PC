@@ -41,8 +41,6 @@ typedef struct Player {
 } Player;
 VIEW(State, gBattlePowerUps);
 #define gBattlePowerUps gBattlePowerUps_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
  * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */

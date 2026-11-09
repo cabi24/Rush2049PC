@@ -92,9 +92,6 @@ void resetEnabled(void)
     }
 }
 
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-
 VIEW(u8 *, gPasswordAlphabet);
 #define gPasswordAlphabet gPasswordAlphabet_view
 
@@ -282,9 +279,6 @@ void circuitscr_initScreen(void)
     circuitscr_blit = NewMultiBlit(0, 0, circuitscr_mblit, 1);
     circuitscr_inited = 1;
 }
-
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* Is the menu row `mode` offered? The code entry only to a guest (no pak file), continue and the review only when
  * resetEnabled allows them. */

@@ -43,9 +43,6 @@ VIEW(MultiBlit[], RaceMultiBlit);
 VIEW(MultiBlit[], HudMultiBlit);
 #define HudMultiBlit HudMultiBlit_view
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
 VIEW(char *[][11], cStrCreditNames);
 #define cStrCreditNames cStrCreditNames_view
 VIEW(ModelTables, gText);

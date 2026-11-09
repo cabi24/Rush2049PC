@@ -8,8 +8,6 @@ typedef struct tCarData { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u
 /* A camera (gCamera, 152 bytes): its place (MAT3 fcam: the orientation, then the position) from +96. */
 typedef struct { u8 other[96];Mat3 matrix;f32 position[3];u8 tail[8]; } Slot152;
 
-VIEW(volatile s32, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
 VIEW(Slot152[], gCamera);
 #define gCamera gCamera_view
 

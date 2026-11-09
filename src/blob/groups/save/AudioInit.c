@@ -54,10 +54,6 @@ VIEW(List, gPlayingFxTags);
 #define gPlayingFxTags gPlayingFxTags_view
 VIEW(List, gInterruptedFxTags);
 #define gInterruptedFxTags gInterruptedFxTags_view
-VIEW(s32, gTagShift);
-#define gTagShift gTagShift_view
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
 
 VIEW(List, gFreeSequences);
 #define gFreeSequences gFreeSequences_view

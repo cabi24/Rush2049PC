@@ -32,9 +32,6 @@ typedef struct tVisual {
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInstance { unsigned int flags, culling; tUVMatrix *mat; float scale; float w; u16 index; short child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; unsigned int color; unsigned int envcolor; } ObjInstance;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* On the PC the blasts and their rings are pc_blasts and pc_blast_rings, PC_MAX_LINKS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 6), with these views' MAT3 field names. */
 #define gBlastObjs pc_blasts

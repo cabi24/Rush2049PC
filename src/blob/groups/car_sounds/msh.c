@@ -16,9 +16,6 @@ typedef struct AudioModel2056 {
     u8 to_player[384];s16 player;u8 tail[64];
 } AudioModel2056;
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 

@@ -12,9 +12,6 @@ typedef struct Target {
     u32 data;               /* 0x6C its spin rate, f32[3] radians a second about x, y, z (a window address) */
 } Target;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* Spin the visual's target by its rate times the frame's length; nothing moves while the game is paused. With op
  * 0 the visual goes back to the free list. */
 void AnimateRotGeneric(struct pc_visual *v, s16 op)

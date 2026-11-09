@@ -29,8 +29,6 @@ VIEW(Button[], audio_buttonInfo);
 
 VIEW(f32[], unitmatrix);
 #define unitmatrix unitmatrix_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
@@ -138,13 +136,8 @@ void audio_updateButtons(void) {
     audio_buttonsJustInited = 0;
 }
 
-
-typedef struct { f32 x, y; } Stick;
 typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
-
-VIEW(Stick[4], gContStick);
-#define gContStick gContStick_view
 
 VIEW(AudioCfg, gOptions);
 #define gOptions gOptions_view
@@ -168,13 +161,13 @@ void updateAudioScreen(void) {
     s32 dz;
 
     if (gGameState & GAME_STATE_FRONT_END) {
-        stick[0] = gContStick[0].x;
-        stick[1] = gContStick[0].y;
+        stick[0] = gContStick[0][0];
+        stick[1] = gContStick[0][1];
         btn = gActiveEdges;
     } else {
         btn = gContEdges[playerInPause];
-        stick[0] = gContStick[playerInPause].x;
-        stick[1] = gContStick[playerInPause].y;
+        stick[0] = gContStick[playerInPause][0];
+        stick[1] = gContStick[playerInPause][1];
     }
     if (audio_inited == 0)
         audio_initScreen();

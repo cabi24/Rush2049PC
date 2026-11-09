@@ -1066,8 +1066,6 @@ void carscr_initButtons(s8 p)
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* Lay player p's buttons out for this frame (once they exist). The selected option's place on the list (the list
  * squeezed to fit between maxY and minY when it is long) sets where the list scrolls to; the cursor spins beside it

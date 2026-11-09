@@ -39,7 +39,7 @@ void InitWaves(void)
 {
     int i;
     _BGLoadWaveCheck(1);
-    while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
+    while (gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
     ZOID_Reset(); InitBlits();
     for (i = 0; i < 64; i++) {
         if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) UnloadWaveInstance(i);

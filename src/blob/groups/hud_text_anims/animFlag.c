@@ -53,9 +53,6 @@ VIEW(s32[4][2], hud_mapPos);
 VIEW(Checkpoints, gCheckpoints);
 #define gCheckpoints gCheckpoints_view
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* Sets blt's hidden flag to hide, redrawing it when that changes; returns the flag (MAT3 Hidden). */
 s32 Hidden_9F54(Blit *blt, s32 hide)
 {

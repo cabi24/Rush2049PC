@@ -18,17 +18,12 @@ struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot,
 
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
-
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
 
 VIEW(Controller[4], gControllerData);
 #define gControllerData gControllerData_view

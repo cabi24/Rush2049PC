@@ -18,9 +18,6 @@ VIEW(const MultiBlit[], cheatscr_multiblit);
 VIEW(s16[], gCheatState);
 #define gCheatState gCheatState_view
 
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-
 extern void particle_lifetime_set(void);
 extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 extern void RemoveBlit(Blit *);

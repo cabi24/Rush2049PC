@@ -17,17 +17,8 @@ typedef struct Slot {
     /* 0x28 */ u32 deadline;
 } Slot; /* 0x2C */
 
-/* The scheduler as this reads it: its retrace count. */
-typedef struct {
-    u8 pad0[0x27C];
-    volatile u32 frameCount;
-} Sched;
-
 VIEW(Slot[4][2], gPakError);
 #define gPakError gPakError_view
-
-VIEW(Sched, gScheduler);
-#define gScheduler gScheduler_view
 
 /* Opens an error dialog of mode (kPS_Err*) for player's pak in its first closed slot, over the rectangle x, y, w, h,
  * with a 3-second deadline: the controllers' active flags and stick edges are saved and only the pak's player (or
@@ -60,7 +51,7 @@ void SetPakError(s32 player, s32 mode, s32 x, s32 y, s32 w, s32 h) {
      * into the record past the row: the next pak's first one, or past gPakError for pak 3. MAT3 pakerr.c has the
      * same loop over three records. Kept as retail. */
     gPakError[player][j].busy = 0;
-    gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.frameCount;
+    gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.retraceCount;
     gPakError[player][j].enabled = 1;
     gPakError[player][j].unk2 = 0;
     gPakError[player][j].mode = mode;

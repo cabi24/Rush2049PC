@@ -20,7 +20,7 @@ void ReplaceWave(int curWave, int newWave)
     if (FindWaveInstanceInternal(newWave, -1) < 0) {
         idx = FindWaveInstanceInternal(curWave, -1);
         if (idx >= 0) {
-            while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("ReplaceWave"); }
+            while (gRenderInProgress) { pc_os_spin_yield("ReplaceWave"); }
             ReplaceWaveInstance(idx, newWave); ReadWave(idx);
         }
     }

@@ -81,10 +81,6 @@ VIEW(intptr_t[], gFontTextures);
 typedef struct { uintptr_t first; s32 second; } TexDefPair;
 VIEW(TexDefPair[], gTexDefPtrs);
 #define gTexDefPtrs gTexDefPtrs_view
-VIEW(u8, gLeading);
-#define gLeading gLeading_view
-VIEW(u8, gSpacing);
-#define gSpacing gSpacing_view
 
 /* Points the font globals at the current font's file (gFontDatWaveInst, a handle wave) when it has moved or force is
  * set: the header, the letters, the kerning rows, the character map (gCharMap: a letter's index by character, -1

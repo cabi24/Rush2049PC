@@ -12,9 +12,6 @@ typedef struct SequenceHead {
 /* The two lists' headers (MAT3 tDLList). */
 typedef struct SequenceList { u8 handle, dbl, pad[2]; s32 numElements; SequenceHead *head, *tail; } SequenceList;
 
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
-
 VIEW(SequenceList, gFreeSequences);
 #define gFreeSequences gFreeSequences_view
 

@@ -5,9 +5,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-VIEW(s8, gStopAllEffects);
-#define gStopAllEffects gStopAllEffects_view
-
 /* The queues in this file's view of the header's (gCmdQ without its volatile). */
 VIEW(AudioList, gFreeQ);
 #define gFreeQ gFreeQ_view

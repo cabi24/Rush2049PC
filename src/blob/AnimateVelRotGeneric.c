@@ -39,9 +39,6 @@ typedef struct Visual {
 /* targetInfo[].Flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
 #define TINFO_REMOVE_WHEN_DONE 0x2000
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* The end of the flight: remove the scene object if the kind says so, free the target and release the visual. */
 static void debris_remove(Visual *v, Target *t, TargInfo *info) {
     if (info->Flags & TINFO_REMOVE_WHEN_DONE) {

@@ -3,15 +3,6 @@
 
 extern tPadState gPlayers[];
 
-VIEW(u32[], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(u32[], gContEdges);
-#define gContEdges gContEdges_view
-VIEW(u32[], gAutoEdges);
-#define gAutoEdges gAutoEdges_view
-VIEW(f32[][2], gContStick);
-#define gContStick gContStick_view
-
 /* Reads the controllers (UpdateControls), then copies each player's controller's held, pressed and auto-repeated
  * buttons and stick into the player's record; a player past gNumPlayers, or without a controller, gets nothing. */
 void UpdateRushControls(void) {

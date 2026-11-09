@@ -63,8 +63,6 @@ extern f32 gDummyVtx[];
 VIEW(Surface *, stree_surf);
 #define stree_surf stree_surf_view
 
-VIEW(f32[], gSeconds);
-#define gSeconds gSeconds_view
 VIEW(char[], gSkidList);
 #define gSkidList gSkidList_view
 #define POOL_HEAD 3   /* the list in use: the pool header's (tStatList) fourth pointer-sized word, +0x18 */
@@ -106,7 +104,7 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     up = skid_lift;
     slot->left[1] += up;
     slot->right[1] += up;
-    obj->f8 = *(f32 *) ((uintptr_t) &gSeconds[0]);
+    obj->f8 = gSeconds;
     obj->color[0] = color[0];
     obj->color[1] = color[1];
     obj->color[2] = color[2];

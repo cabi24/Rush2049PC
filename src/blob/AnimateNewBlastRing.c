@@ -30,8 +30,6 @@ typedef union tRGBA {struct {u8 red,green,blue,alpha;} c;u32 rgba;} tRGBA;
 #define gBlastRingObjs (*(tBlastRingStruct (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
 VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* The ring's animator (a visual's func): `op` 0 removes it. While its car is crashed the ring stays on the car
  * and, every 1/30 s, its scale grows by 1.5 (from 1); from its 8th step it fades (alpha down 24 a step) and after

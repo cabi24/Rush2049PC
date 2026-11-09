@@ -17,8 +17,6 @@ VIEW(OSMesg[8], model_thread_msgs);
 #define model_thread_msgs model_thread_msgs_view
 VIEW(u16, modelrun);
 #define modelrun modelrun_view
-VIEW(u8[], gScheduler);
-#define gScheduler gScheduler_view
 
 extern void __setfpcsr(u32 value);
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
@@ -41,7 +39,7 @@ void ModelThread(void *arg)
     init_controllers();
     modelrun = 0;
     init_model_task(0);
-    osScAddClient(gScheduler, &client, &model_thread_queue);
+    osScAddClient(&gScheduler, &client, &model_thread_queue);
     while (1) {
         osRecvMesg(&model_thread_queue, &msg, 1);   /* OS_MESG_BLOCK */
         do {

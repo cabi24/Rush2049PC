@@ -10,12 +10,8 @@
 #define SOUND_COUNTDOWN_BEEP 2
 
 
-#define sc gScheduler_view
 #define mapPos hud_mapPos_view
 
-typedef struct tSchedCtl { u8 pad000[0x27C]; s32 frameCount; } tSchedCtl;
-
-VIEW(volatile tSchedCtl, gScheduler);
 
 VIEW(s32[4][2], countdownTimerPos);
 #define countdownTimerPos countdownTimerPos_view
@@ -56,7 +52,7 @@ skip:
                 nextBeep--;
             PlayGameSound_Countdown(SOUND_COUNTDOWN_BEEP, 0, 2, 0);
         }
-        if (sec <= 5 && (sc.frameCount & 8))
+        if (sec <= 5 && (gScheduler.retraceCount & 8))
             return 1;
     } else
         nextBeep = 30;

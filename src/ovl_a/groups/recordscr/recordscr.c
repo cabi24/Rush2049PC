@@ -587,9 +587,6 @@ void recordscr_initButtons(void)
     ZeroCameras();
 }
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 

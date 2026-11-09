@@ -276,8 +276,6 @@ VIEW(u8[], gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
 VIEW(u8[][24], gPS_Files);
 #define gPS_Files gPS_Files_view
-VIEW(int[], gScheduler);
-#define gScheduler gScheduler_view
 
 /* 10 to the power exp (MAT3 _Pow). */
 s32 Pow(s32 exp) {
@@ -361,7 +359,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     F(p, Handle, PROFILE_OFS(8)) = fileh;
     F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
     F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = MovePlayerFile;
-    F(data, s32, 4) = gScheduler[159];
+    F(data, s32, 4) = gScheduler.retraceCount;
     F(data, s32, 8) = (N64A(player) << 3) | pak;
     game_strcpy(data + 13, name);
     F(data, s32, 0) = CalcChecksumInternal(data + 4, (data + 28) - (data + 4));
