@@ -46,8 +46,6 @@ VIEW(ObjInstance[], ObjInstanceList);
 VIEW(float[4][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-tVisual *GrabEnvEntry(void);
-
 /* Set car `slot`'s fireball off: four flame balls (gObjList[158..161]) 3 ft under the car, starting at 0.4 of
  * their size and growing, turning at random and rising (AnimateNewBlast); with 8 MB or on the later tracks, and with
  * fewer than four players, a glow (gObjList[162]) and five flames (StartSmoke SMOKE_FIRE) as well. The fireball
@@ -215,6 +213,6 @@ void StartBlast(void *data, int linkToCar, float scale, int playSound)
     if (++gBlastMatCnt >= 50) gBlastMatCnt = 0;
     if (playSound) {
         snd = scale >= 1.0f ? 45 : scale >= 0.5f ? 69 : 47;     /* the big, medium and small explosion sounds */
-        EmitGameSound(mat->pos, (int)unitmatrix[3], 400.0f, 0.0f, 1.0f, 0.0f, snd, v->objnum, 0, 128);
+        EmitGameSound(mat->pos, unitmatrix[3], 400.0f, 0.0f, 1.0f, 0.0f, snd, v->objnum, 0, 128);
     }
 }

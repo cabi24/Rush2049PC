@@ -329,6 +329,16 @@ extern s32 osPfsReadWriteFile(OSPfs *, s32, u8, int, int, u8 *);
 extern s32 __osPfsDeclearPage(OSPfs *, __OSInode *, int, int *, u8, int *, int *);
 extern s32 __osEPiRawStartDma(OSPiHandle *, s32, u32, void *, u32);
 extern OSPiHandle *__osPiDevList[2];
+/* The checker's page walks (pfschecker.c), called before their definitions. */
+extern s32 __osPfsCheckPages(OSPfs *pfs, __OSInodeCache *cache);
+extern s32 __osPfsPageCheck(OSPfs *pfs, __OSInodeUnit fpage, __OSInodeCache *cache);
+/* The serial interface's access queue, made on first use (pfsgetstatus.c). */
+extern void __osSiCreateAccessQueue(void);
+/* A word of the cartridge's bus (port/ultra/pi.c). */
+extern s32 osPiReadIo(u32 devAddr, u32 *data);
+/* The C library's, as the boot segment has them (the build renames them n64_*: port/ultra/n64mem.c, libc/string.c). */
+extern int bcmp(const void *a, const void *b, u32 n);
+extern void *memcpy(void *dst, const void *src, u32 n);
 #define PFS_CHECK_ID() if(__osCheckId(pfs)==PFS_ERR_NEW_PACK) return PFS_ERR_NEW_PACK
 #define ROUND_UP_DIVIDE(n,d) (((n)+(d)-1)/(d))
 #define PFS_DATA_FULL 7

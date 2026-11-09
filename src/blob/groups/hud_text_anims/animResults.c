@@ -31,9 +31,6 @@ VIEW(tStuntPlayer[4], gStuntPlayer);
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 /* HAL_SetFont without its result. */
 void ar_SetFont(s32 font)
 {
@@ -43,9 +40,7 @@ void ar_SetFont(s32 font)
 /* Draws, for each window whose player has finished (in death mode, done every lap), a pane in the player's colour
  * with their name and result: stunt points (gRace 4), obstacle time or "failed" (5), battle points (6), else
  * their place and time or laps. With two or more windows all finished, a middle pane names the winner (or the
- * drone, or a tie of n players).
- * PC: resultPane[4], the middle pane, is past resultPane's four entries (the N64's resultPane4 follows it); a
- * known port issue (docs/port/PCONLY.md 4, "Interior labels"). */
+ * drone, or a tie of n players): resultPane[4], the fifth of resultPane's panes (MAT3 hud.c resultPane[5]). */
 s32 animResults(s32 unused)
 {
     s32 playerIdx;

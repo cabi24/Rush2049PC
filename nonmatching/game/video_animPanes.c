@@ -5,8 +5,6 @@ VIEW(s8[][16], gControllerData);
 VIEW(s32[3], video_menuRect);
 #define video_menuRect video_menuRect_view
 
-void *InitPane(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
-
 s32 video_animPanes(void *item)
 {
     s32 u0;

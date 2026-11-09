@@ -14,9 +14,6 @@ VIEW(CarParts[], gCarParts);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 lo, s8 hi, s32 err);
-void ZOID_SetTexture(s16 object, void *tex, s32 mode);
-
 /* On the car screen, give car `slot` of screen player `player` (0-3; its cars are slots player * 13 + slot) the sheen
  * texture "SHEEN<sheen_index>" (sheenName, 0-10) and show it in that player's window, or hide the sheen there for
  * sheen_index -1. Any other index does nothing. */

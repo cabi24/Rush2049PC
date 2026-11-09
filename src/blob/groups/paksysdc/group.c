@@ -46,9 +46,6 @@ void pak_insert_file(tPakHandle *fileh)
     InsertLLE(&gPS_Files[fileh->file->pak], fileh, gPS_Files[fileh->file->pak].head);
 }
 
-/* Takes a handle off the free list (pak_free_handles); it lives in the system group. */
-tPakHandle *pfs_get_node(void);
-
 /* Creates the file name.ext of numBytes bytes (rounded up to whole pages) on pak's pak, for company and gameCode, and
  * opens it: its data, all zeros, and its dirty map, all clean, are allocated in the heap. A failure goes to the error
  * function (gErrorFunc), which asks the player: retry, or give up (NULL). When the file exists and the player retries,

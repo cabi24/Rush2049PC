@@ -5,7 +5,6 @@
 
 s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
-tAudioMsg *GetCmd(void);
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view

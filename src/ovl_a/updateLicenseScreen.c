@@ -22,11 +22,6 @@ VIEW(u32, gActiveEdges);
 VIEW(MultiBlit[], licensescr_blits);
 #define licensescr_blits licensescr_blits_view
 
-extern Blit *NewMultiBlit(short, short, const MultiBlit *, short);
-extern void RemoveBlit(Blit *);
-
-extern s32 CountdownTimeOut(void);
-
 #define PROFILE_BYTES 0x810         /* a profile's save data (PS_GetBlocks: the pages it takes) */
 
 /* The screen's frame. The first frame of the game starts the pak system (its error box PS_ErrorFunc) and, if Start

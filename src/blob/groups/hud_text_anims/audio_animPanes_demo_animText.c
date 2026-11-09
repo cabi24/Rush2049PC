@@ -19,9 +19,6 @@ typedef struct { u32 first, second; } Pair;
 VIEW(Pair, gJust);
 #define gJust gJust_view
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-s32 InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 /* The menu box's left, width and height (audio_menuRect, audio_calcMenuRect's). */
 typedef struct { s32 x, w, h; } MenuRect;
 

@@ -42,8 +42,6 @@ VIEW(s32, gSeconds);
 VIEW(s32[4], gCircuitDiff);
 #define gCircuitDiff gCircuitDiff_view[0]
 
-void PS_WriteFile(void **fileh, uintptr_t data, s32 size);
-
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #define INPUT_SIZE 80  /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);
                        * the profile's save data, at SaveSlot.data, is read pointer-sized (intptr_t) */
@@ -58,7 +56,7 @@ void NewCircuit(s32 type) {
 
     circuit = DATA_PTR(*M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
     memset(circuit, 0, sizeof(struct tCircuit));
-    PS_WriteFile(M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (uintptr_t) circuit, sizeof(struct tCircuit));
+    PS_WriteFile(M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (u8 *) circuit, sizeof(struct tCircuit));
     circuit->type = (s8) type;
     circuit->seed = (s32) (gSeconds & 0xFFFFF);
     circuit->active = 1;

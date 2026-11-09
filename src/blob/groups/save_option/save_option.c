@@ -1,8 +1,6 @@
 /* SavePlayerOption and the race settings it saves: a profile's options and per-race-type settings (MAT3 save.c). */
 #include "game/game.h"
 
-void PS_WriteFile(tPakHandle *fileh, void *data, int size);
-
 /* Saves race setting option (21..31) of the profile: value into its race settings, and when it changed, their
  * checksum again and the settings marked to write. Other options are not race settings and are ignored. track is
  * unused. */

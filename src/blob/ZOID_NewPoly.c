@@ -9,8 +9,6 @@ typedef struct tPoly { s16 nverts; u16 flags, texidx; unsigned char rest[82]; } 
 VIEW(tPoly[], PolyInstanceList);
 #define PolyInstanceList PolyInstanceList_view
 
-extern void ZOID_UpdatePoly(tPoly *, int, f32 *, u16, u8 *, u16, int);
-
 /* A new polygon of `nverts` vertices (up to 4) at xyz[nverts][3], coloured *color (bytes red, green, blue, alpha;
  * NULL leaves the colour) with `flags` (POLY_*); if `useTidx` it is textured with texture handle `texidx`
  * (POLY_TEXTURED). ZOID_UpdatePoly fills the vertices.

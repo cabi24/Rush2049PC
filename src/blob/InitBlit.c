@@ -12,7 +12,6 @@ struct tTexture {
 
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
-extern struct tTexture *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
 
 /* Sets up blit from its name: a NULL name is a plain coloured rectangle (default_blit_image's colour, no size yet),
  * BLIT_NO_TEXTURE a text blit (nothing), any other the texture of that name in the loaded models, at its own size.

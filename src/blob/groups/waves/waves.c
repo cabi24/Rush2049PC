@@ -101,8 +101,6 @@ VIEW(OSMesgQueue, rom_dma_queue);
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
-/* relocate_texture_loads walks TXLD from start to end as Gfx pointers. */
-void relocate_texture_loads(void *start, void *end, s32 IMAGptr);
 #define relocate_texture_loads(start, end, IMAGptr) \
     relocate_texture_loads((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
 
@@ -110,8 +108,6 @@ void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-void lzss_decompress(s32 src, void *dst);
-void inflate_decompress(s32 src, void *dst, s32 flag);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, fills the instance's
  * entries of the model, texture, palette (and, for a track wave, target path) tables, rebases the textures' and

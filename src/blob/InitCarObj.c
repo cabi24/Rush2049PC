@@ -4,8 +4,6 @@
 VIEW(s32, unitmatrix);
 #define unitmatrix unitmatrix_view
 
-s32 ZOID_AddObject(s32 id, void *owner, s16 parent, s32 flags);
-
 /* Add a scene object of definition `objnum` under `parent` (-1 none) and return its handle. `camlink` is the mask
  * of the windows that show it (15 all four; the object is hidden in the others). Its matrix: a new one in a race
  * (`for_game`); on the car screen the car's preset matrix for part `car_obj_num` of the screen player slot / 13

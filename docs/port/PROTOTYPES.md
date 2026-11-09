@@ -82,12 +82,12 @@ Same tool on `3e3c58a` (before) and on this branch (after), Debug build on aarch
 | `aggregate` | 0 | 0 | harmful |
 | `count` | 0 | 0 | harmful |
 | `return` | 0 | 0 | harmful |
-| `narrow` | 82 | 164 | benign |
-| `extra` | 8 | 12 | benign |
-| `unused` | 47 | 79 | benign |
-| `reviewed` | 15 | 22 | benign |
-| `dead` | 41 | 166 | benign |
-| `harmless` | 60 | 246 | benign |
+| `narrow` | 1 | 2 | benign |
+| `extra` | 1 | 1 | benign |
+| `unused` | 3 | 3 | benign |
+| `reviewed` | 1 | 1 | benign |
+| `dead` | 0 | 0 | benign |
+| `harmless` | 18 | 30 | benign |
 | **harmful** | **0** | **0** | |
 <!-- proto_check:end -->
 
@@ -270,3 +270,43 @@ Limits of the check: calls through function pointers aren't seen. `narrow` is be
 leaves the upper bits of narrow arguments and returns unspecified, while IDO trusted the caller's extension. Behavior
 that only works at -O0 (a `void` function leaving `x0` untouched, a 32-bit load zeroing the upper half) passes the
 check and may break in a Release build: the fixes above remove those cases rather than rely on them.
+
+## 7. One declaration each (wave 2c, 2026-11-09)
+
+Since the headers ([PCONLY.md](PCONLY.md) 4, "Wave 2: headers") every game function has one prototype in
+`include/game`, the definition's, and a call goes through it. The headers had left 72 to their files' own
+declarations; they are in the headers now, and no file under `src/blob`, `src/ovl_a`, `src/ovl_b` or `nonmatching`
+declares a game function but the C library's the build renames `n64_*` (`memcpy`, `memset`, `sinf`, `cosf`,
+`strlen`). A structure that only the defining file completes is named in the prototype by its tag, declared in
+`types.h` (`struct tPoly`, `tWindowInfo`, `ObjInstance`, `TexTile`, `N64Gfx`, `tAudioSequence`, `union tAudioMsg`
+...): each file's own definition completes it, as the headers' parameters already did. The heap's `FindChunk` and
+`ConvertHeap` moved from `heap.h` to `memory.h` for the heap files with views of their own.
+
+How each disagreement was settled (from the code, the N64's instructions in the repository's history and MAT3):
+
+| Kind | Functions | Verdict |
+|---|---|---|
+| a pointer kept in a 64-bit integer (`intptr_t`) by the callers, or the definition | `RemoveBlit`, `ChangePaneSize`, `ZOID_SetTexture`, `ZOID_UpdatePoly`, `ZOID_RemovePoly` (it took the polygon as `s16 *`), `ZOID_AddObject`, `PS_WriteFile`, `point_at_car`, `CompressGhost`, `GetPasswordString`, `fixword`, `SavePlayerOption`, `GetPlayerOption` (through `SaveSelectPlayer`), `enginetorque`, `AudUpdateEmitter`, `FindChangeCmd`; and, already in the headers, `SaveSelectPlayer`, `censor`, `GetCircuitCode`, `MBOX_NewObject`, `MBOX_NewObjectCam`, `ZOID_SetObjLights`, `InitCarVisuals`, `fix_camera_in_space`, `steady_move_cam`, `UpdateCarObj`, `EmitGameSound` | harmless (64 bits each way); the pointer type now |
+| a pointer cut to 32 bits by the caller | `AudEmitEffect`'s `dir`: `(s32) origin`, `(s32) &unitmatrix_origin`, `(int) unitmatrix[3]` | harmless: never read; the pointer now |
+| a cartridge offset the definition typed `void *` | `lzss_decompress`, `inflate_decompress` | harmless (positive offsets); `u32` now |
+| more arguments than the definition reads | `dotireforce` (13: the N64 reads no 14th), `setFBCollisionForce` (5), `MBOX_FindPalette_WORK` (4), `AudioSongStop` (none), `CountdownTimeOut` (none), `sound_set_volume` (2), `sound_key_off` (1), `sound_seq_stop` (1) | harmless: the extras go |
+| fewer arguments than the definition reads | `ShowPakError`'s `poll()`: MAT3 and the N64 pass the pak | harmless on the PC (`%edi` still held it); `poll(row)` now |
+| a file's own view or its own forward declaration only | `AddStunt`, `relocate_texture_loads`, `musyx_submit_audio_task`, `zoid_load_palette`, `zoid_load_texture`, `zoid_draw_object`, `Traverse`, `SetupTarget` (its `fromWorld` flag is `s32`, MAT3's), `TB_FlashTextColors` (a `TextColor` by value; options_anim's copy `TB_FlashTextColors_AEAC` is gone) | agree now |
+
+`proto_check.py` (section 1, its table in section 2) went from 156 benign views of 69 functions (26
+unprototyped) to 37 of 24 (5 unprototyped), all of them now the PC layer's, libultra's or the C library's. None
+changed what the PC does. Four port bugs found beside them are fixed toward the original game in their own
+commits: `animResults`' fifth result pane, the trophy sheen's scale, MusyX SET_PITCH at an exact octave, and
+Windows builds without SDL2 ([WINDOWS.md](WINDOWS.md) 3).
+
+Checked by compiling every game unit again with the warnings the build turns off (`-fsyntax-only`
+`-Wimplicit-function-declaration -Wint-conversion -Wincompatible-pointer-types -Wbuiltin-declaration-mismatch`):
+implicit declarations 8 before, 0 after (the last were the boot segment's: `src/rom/rom_tu.h` declares
+`osPiReadIo`, `__osSiCreateAccessQueue`, pfschecker.c's page walks, `bcmp` and `memcpy`); built-in mismatches 1, 0
+(PrintScores.c's `sprintf`); a pointer passed for an integer or back at a call (`-Wint-conversion`, "passing
+argument") 57, 11. The 11 carry a pointer in 64 bits or a window address in 32 (section 4's reviewed kinds:
+`blit_load_texture` 4, `displaylist_set_texture_image`, `display_list_traverse`, `sound_start_song`,
+`HAL_InstallOncePerFrameFunc`, `RemovePlayerScores`, `world_name_compare`'s two `game_strcmp`), left for the memory
+model's wave. `-Wincompatible-pointer-types` grew (905 to 1,177): calls that went through a file's own declaration now meet
+the definition's types, and a file's view of a shared record (`Blit` for `tBlit`, `Color4` ...) is another struct
+type to the compiler, as it was when the file passed it to its own declaration. Same layout, same code.

@@ -1,8 +1,6 @@
 /* DrawBlits: run every blit's animation function, once a frame (MAT3 blit.c). */
 #include "game/game.h"
 
-extern void RemoveBlit(intptr_t blit);
-
 VIEW(intptr_t, BlitPtrs);
 #define BlitPtrs BlitPtrs_view
 
@@ -22,7 +20,7 @@ void DrawBlits(void)
       blit = *slot;
       if ((blit->animFunc != 0) && (blit->name != BLIT_NO_TEXTURE) && (blit->animFunc(blit) == 0))
       {
-        RemoveBlit((intptr_t) blit);
+        RemoveBlit(blit);
         slot -= 1;
       }
       slot += 1;

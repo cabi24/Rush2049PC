@@ -18,8 +18,6 @@ VIEW(tWindowInfo[], ZoidWinInfo);
 VIEW(Viewport16, vp0);
 #define vp0 vp0_view
 
-extern tWindowInfo *ZOID_SetWindow(int, f32, f32, f32, f32, f32, f32);
-
 /* Set window `idx` up: viewport `vp` and scissor `s`, clip planes at 2.5 and 2,000 feet (MAT3: 0.01 and 4,000; the
  * world is drawn out to gViewableDistance, set here too), `width` by `height` pixels centred at (hcenter, vcenter)
  * with fields of view `hang` and `vang` degrees (ZOID_SetWindow), the fog range 1000 to 999 (MAT3: 0 to 0) in

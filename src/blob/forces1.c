@@ -46,8 +46,6 @@ typedef struct tModelData {
 #define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-extern void dotireforce(tModelData *,Vec3 *,Basis *,void *,float,Vec3 *,float,float,float,float,float,float,int,float);
-
 /* The forces on model m's tires and body for this step, in the car's frame:
  * - each tire's frame and contact-patch velocity (the front two steered), then its force from the suspension and
  *   the road (dotireforce: the front pair, then the rear pair, with poor traction when the rear tires are on dirt or
@@ -60,16 +58,14 @@ extern void dotireforce(tModelData *,Vec3 *,Basis *,void *,float,Vec3 *,float,fl
 void forces1(tModelData *m)
 {
  int poortract;
- float airfact;
  float speed,drag_base,drag_scale;
- airfact=1.0f;
  poortract=0;
  calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[0],m->steerangle,&m->uvs,&m->roaduvs[0],&m->tireuvs[0],&m->tireV[0]);
  calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[1],m->steerangle,&m->uvs,&m->roaduvs[1],&m->tireuvs[1],&m->tireV[1]);
  calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[2],0.0f,&m->uvs,&m->roaduvs[2],&m->tireuvs[2],&m->tireV[2]);
  calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[3],0.0f,&m->uvs,&m->roaduvs[3],&m->tireuvs[3],&m->tireV[3]);
- dotireforce(m,&m->tireV[0],&m->tireuvs[0],m->tires[0],m->torque[0],&m->tireForce[0],m->suscomp[0],m->suscomp[1],N64P(m->car)->springrate[0],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[0],N64P(m->car)->rdamping[0],poortract,airfact);
- dotireforce(m,&m->tireV[1],&m->tireuvs[1],m->tires[1],m->torque[1],&m->tireForce[1],m->suscomp[1],m->suscomp[0],N64P(m->car)->springrate[1],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[1],N64P(m->car)->rdamping[1],poortract,airfact);
+ dotireforce(m,&m->tireV[0],&m->tireuvs[0],m->tires[0],m->torque[0],&m->tireForce[0],m->suscomp[0],m->suscomp[1],N64P(m->car)->springrate[0],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[0],N64P(m->car)->rdamping[0],poortract);
+ dotireforce(m,&m->tireV[1],&m->tireuvs[1],m->tires[1],m->torque[1],&m->tireForce[1],m->suscomp[1],m->suscomp[0],N64P(m->car)->springrate[1],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[1],N64P(m->car)->rdamping[1],poortract);
  {
  float tsc;
  tsc=(float)1.0-m->throttle;
@@ -78,8 +74,8 @@ void forces1(tModelData *m)
  }
  /* Original game: the second test reads tire 0 where tire 3 is meant (MAT3 has it too) */
  poortract=((m->roadcode[2]==ROADCODE_DIRT || m->roadcode[2]==ROADCODE_WATER) && (m->roadcode[3]==ROADCODE_DIRT || m->roadcode[0]==ROADCODE_WATER));
- dotireforce(m,&m->tireV[2],&m->tireuvs[2],m->tires[2],m->torque[2],&m->tireForce[2],m->suscomp[2],m->suscomp[3],N64P(m->car)->springrate[2],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[2],N64P(m->car)->rdamping[2],poortract,airfact);
- dotireforce(m,&m->tireV[3],&m->tireuvs[3],m->tires[3],m->torque[3],&m->tireForce[3],m->suscomp[3],m->suscomp[2],N64P(m->car)->springrate[3],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[3],N64P(m->car)->rdamping[3],poortract,airfact);
+ dotireforce(m,&m->tireV[2],&m->tireuvs[2],m->tires[2],m->torque[2],&m->tireForce[2],m->suscomp[2],m->suscomp[3],N64P(m->car)->springrate[2],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[2],N64P(m->car)->rdamping[2],poortract);
+ dotireforce(m,&m->tireV[3],&m->tireuvs[3],m->tires[3],m->torque[3],&m->tireForce[3],m->suscomp[3],m->suscomp[2],N64P(m->car)->springrate[3],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[3],N64P(m->car)->rdamping[3],poortract);
  if(m->movingSurface)MovingSurfaceForce(m);
  /* PC_CAR_DISABLED is the car record's in_tunnel (MAT3): no wind in a tunnel */
  if(!PC_CAR_DISABLED(m->slot) && m->roadcode[0]==ROADCODE_AIRBORNE && m->roadcode[1]==ROADCODE_AIRBORNE && m->roadcode[2]==ROADCODE_AIRBORNE && m->roadcode[3]==ROADCODE_AIRBORNE) {

@@ -34,9 +34,6 @@ VIEW(s16[4], scissorll);
 VIEW(s16[4], scissorlr);
 #define scissorlr scissorlr_view
 
-ArbEntry *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height, f32 hcenter,
-                                f32 vcenter);
-
 /* Lay the screen out for `num` players (nothing for 0 or less) and return the layout, gSplitScreen: 0 one
  * full-screen window; 1 two windows one above the other, each three quarters of the screen's width, from x 2;
  * 2 four quarters (for 3 or 4 players), with a field of view 0.95 times the default (HFOV). (view_bind is

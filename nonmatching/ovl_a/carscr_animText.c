@@ -1,6 +1,6 @@
 #include "game/game.h"
 
-typedef struct Color4 { u32 word; } Color4;
+typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct FileInfo FileInfo;
 typedef struct Profile Profile;
 struct Profile { Profile **next, **previous; FileInfo **file; u32 id0, id1; u8 name[24]; u8 **stats; };
@@ -33,8 +33,6 @@ VIEW(u8 *[], CarTitles);
 
 VIEW(s8[][13], gTireRims);
 #define gTireRims gTireRims_view
-
-extern void TB_FlashTextColors(Color4, Color4);
 
 static void animButtonText(s32 p);
 static void drawOptions(s32 p);

@@ -30,8 +30,6 @@ extern u8 overlay_base[];                 /* runtime image base (A and B) */
 VIEW(OSMesgQueue, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win);
-
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 

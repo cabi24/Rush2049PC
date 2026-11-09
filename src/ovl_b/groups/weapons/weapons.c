@@ -82,10 +82,6 @@ VIEW(u16[5], gRipTextures);
 VIEW(TexDefSet[], gTexDefPtrs);
 #define gTexDefPtrs gTexDefPtrs_view
 
-extern UVMat *ZOID_FindMatrix(s16 idx);
-
-extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
-
 f32 weaponOffsets[8][13][3] = {
     0.0f, 2.5f, 0.3f, 0.0f, 3.0f, 0.3f, 0.0f, 2.8f, 0.3f, 0.0f, 3.0f, 0.1f, 0.0f, 3.0f, 0.1f, 0.0f,
     3.4f, -0.4f, 0.0f, 3.1f, 0.3f, 0.0f, 3.3f, 1.0f, 0.0f, 3.39f, -1.82f, 0.0f, 3.05f, 0.65f, 0.0f,

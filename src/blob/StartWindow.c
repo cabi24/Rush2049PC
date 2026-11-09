@@ -46,8 +46,6 @@ typedef struct GameCar {
 VIEW(Visual *, gEnvList);
 #define gEnvList gEnvList_view
 
-Visual *GrabEnvEntry(void);
-
 /* A car has hit the window: its animation gets 7 frames, and if an environment visual is free it plays; the window
  * turns round first if the car came from behind it (so the glass flies the car's way), stops colliding, and its
  * start sound plays. */

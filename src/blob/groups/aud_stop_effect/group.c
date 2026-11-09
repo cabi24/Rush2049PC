@@ -11,10 +11,6 @@ VIEW(s32, gTagMask);
 s32 osRecvMesg();
 s32 osSendMesg();
 
-tFxSequence *ConvertTag(s32 tag);
-
-tAudioMsg *GetCmd(void);
-
 /* The fx tag of handle tag, or NULL for -1 or a handle whose tag has been freed since (its generation, the
  * bits above gTagMask, no longer matches). */
 tFxSequence *ConvertTag(s32 tag)

@@ -208,8 +208,8 @@ s32 PS_FlushFile(tPakHandle *handle, s32 mode) {
 }
 
 /* Notes that bytes bytes at address in the file's data have changed: they become dirty, and so do the file and its
- * pak, for the next flush to write. Not in include/game: its callers pass the address as a pointer or an integer. */
-void PS_WriteFile(tPakHandle *handle, u8 *address, u32 bytes) {
+ * pak, for the next flush to write. */
+void PS_WriteFile(tPakHandle *handle, void *address, u32 bytes) {
     PakFileRecord *file;
     if (!handle) return;
     file = handle->file;

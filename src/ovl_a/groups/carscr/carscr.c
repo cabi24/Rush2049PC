@@ -47,10 +47,6 @@ VIEW(MultiBlit[], carscr_mb);
 extern void audio_interrupt_handler(s32);
 
 extern void particle_lifetime_set(void);
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-
-extern Blit *NewMultiBlit(s16,s16,MultiBlit *,s16);
 
 VIEW(s8[], gCarTeamColor);
 #define gCarTeamColor gCarTeamColor_view
@@ -65,8 +61,6 @@ VIEW(s8[][13], car_color_choice_c);
 #define car_color_choice_c car_color_choice_c_view
 VIEW(s8[][13], gTireRims);
 #define gTireRims gTireRims_view
-
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
 /* carscr_gOpts[]: the screen's options, in their order down the list (calcValidOptions keeps the offered ones). */
 #define CAR_OPT_CAR 0
@@ -920,8 +914,6 @@ typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarCompo
 
 extern void sound_handles_array_clear(FiveParts *);
 
-extern void RemoveBlit(Blit *);
-
 /* Take the screen down: its waves, the grid backdrop, the "waiting" boxes, each player's buttons, turntable and part
  * models, the text blit and the background; one full-screen window again, and the horns stopped. */
 void carscr_UninitScreen(void)
@@ -983,9 +975,6 @@ void carscr_uninitButtons(s8 p)
 typedef union Color4 {u8 c[4];u32 word;} Color4;
 
 extern void *memcpy(void *,const void *,u32);
-
-extern void *MBOX_FindTexture_WORK(char *,u16 *,s32,s8,s32);
-extern void ZOID_SetTexture(s16,void *,s16);
 
 /* Make player p's buttons (carscr_buttonInfo[p], 64-byte MAT3 tMenuButton records): each that doesn't exist yet is
  * its type's model (carscr_buttonNames; types 0-2 see-through, 0x42000), white, shown only in p's window. Then the
@@ -1236,7 +1225,7 @@ void showGridMap(s32 enabled)
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): mat is N64 +0x08. */
 typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
-typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
+typedef struct tUVMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;   /* a scene node's matrix (ZOID_FindMatrix) */
 ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
     {{255, 0, 0}, 0, {255, 0, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
@@ -1251,7 +1240,6 @@ VIEW(ObjInstance[], ObjInstanceList);
 
 extern s32 sprintf(char *, const char *, ...);
 
-extern ZMatrix *ZOID_FindMatrix(s16);
 /* The part being changed shown on the car, each frame (one player, not a ghost race): while the transmission,
  * handling, engine, tyres or frame option is selected, the 11 part models of the car's current choices (named by
  * carComponentNames and the choice) are placed on the car's frame (the engine and frame parts in the middle, the

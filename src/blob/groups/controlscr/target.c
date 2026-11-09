@@ -18,9 +18,7 @@ VIEW(volatile f32, gFrameSeconds);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-void ZOID_SetTexture(s16,intptr_t,s32);
 typedef struct NameEntry NameEntry;
-NameEntry *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 
 void *memcpy(void *,const void *,u32);
 
@@ -51,7 +49,7 @@ void controls_updateButtons(s8 player) {
     f32 current_y;
     s16 texture;
     Color color;
-    intptr_t tex;
+    struct tTexture *tex;
     s32 valid;
     s32 shown;
     s32 mask;
@@ -131,9 +129,9 @@ void controls_updateButtons(s8 player) {
             }
             ScaleUV(unitmatrix,controls_buttonInfo[player][i].matrix,controls_gButtonScale);
             WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][i].matrix);
-            if (controls_buttonInfo[player][i].angle > HALF_PI) tex=(intptr_t)MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels-1),1);
-            else tex=(intptr_t)MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels-1),1);
-            ZOID_SetTexture((s16)controls_buttonInfo[player][i].handle,(intptr_t)tex,-1);
+            if (controls_buttonInfo[player][i].angle > HALF_PI) tex=MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels-1),1);
+            else tex=MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels-1),1);
+            ZOID_SetTexture((s16)controls_buttonInfo[player][i].handle,tex,-1);
             top = controls_maxY;
             spacing = controls_gButtonSpace*controls_gButtonScale;
             if (controls_buttonInfo[player][i].position[1] > top + spacing || controls_buttonInfo[player][i].position[1] < controls_minY-spacing) controls_buttonInfo[player][i].alpha=0;
@@ -152,7 +150,7 @@ void controls_updateButtons(s8 player) {
                 controls_buttonInfo[player][12].position[0]+=180.0f*controls_gButtonScale;
                 ScaleUV(unitmatrix,controls_buttonInfo[player][12].matrix,controls_gButtonScale);
                 WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][12].matrix);
-                ZOID_SetTexture((s16)controls_buttonInfo[player][12].handle,(intptr_t)tex,-1);
+                ZOID_SetTexture((s16)controls_buttonInfo[player][12].handle,tex,-1);
                 handle = controls_buttonInfo[player][12].handle;
                 ObjInstanceList[handle].color=color.word;
             }

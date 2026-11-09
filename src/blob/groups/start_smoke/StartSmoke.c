@@ -32,10 +32,6 @@ VIEW(u8[], gSmokeList);
 VIEW(TexDefBank[], gTexDefPtrs);
 #define gTexDefPtrs gTexDefPtrs_view
 
-void ZOID_SetTexture(s16 handle,void *resource,s32 mode);
-
-s32 ZOID_AddObject(s32 object,void *basis,s16 parent,s32 flags);
-
 f32 fabsf(f32 x);
 #pragma intrinsic (fabsf)
 VIEW(s8, gGoodFrameRate);

@@ -14,9 +14,6 @@ VIEW(AudioList, gFreeQ);
 VIEW(AudioList, gCmdQ);
 #define gCmdQ gCmdQ_view
 
-/* Declared without a prototype, as this file always had it: AudioSfxServer passes the handle a second time,
- * which the callee ignores. */
-M2C_UNK sound_set_volume();                    /* extern */
 
 /* PC: the volume and pan conversions of AudioPlayEffectInternal are IDO's (N64_F2U, pc_prelude.h). AudioSfxServer's
  * conversions of a volume, a pan, a front/back pan and a pitch to MusyX's units are IDO's inlined (u32)f, whose
@@ -71,7 +68,7 @@ static s32 sfx_change(tSfxCmd *cmd) {
 
     if (cmd->vol != -2.0f) {
         voice = cmd->sound->sound;
-        if (voice != -1 && sound_set_volume(voice, sfx_units(cmd->vol * 127.0f) & 0xFF, voice) != 0) {
+        if (voice != -1 && sound_set_volume(voice, sfx_units(cmd->vol * 127.0f) & 0xFF) != 0) {
             return 0;
         }
     }
@@ -113,7 +110,7 @@ static s32 sfx_stop(tSfxVoice *sound) {
         sound->index = 0;
         return 1;
     }
-    if (sound->stopped == 0 && sound_key_off(voice, voice) != 0) {
+    if (sound->stopped == 0 && sound_key_off(voice) != 0) {
         return 0;
     }
     sound->stopped = 1;

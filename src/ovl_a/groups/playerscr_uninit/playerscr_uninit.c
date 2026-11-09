@@ -7,7 +7,6 @@ typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear ( FiveParts * );
-extern void RemoveBlit ( Blit * );
 
 /* Take the screen down: every player's buttons and pane, the controls screen, the text blit and the background; the
  * view goes back to one window with the usual 90-degree field of view, and the scene is reset. */

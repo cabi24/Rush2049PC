@@ -42,10 +42,6 @@ VIEW(u8[4][2][4], hudextra_playerPaneColors);
 #define kStunt 4  /* gRace: the race types (MAT3 enum kNumRaceTypes) */
 #define kBattle 6
 
-extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);
-
-extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32);
-
 /* Makes the battle or stunt HUD once a race (nothing when hudextra_blit exists): battle's multiblit (BattleMultiBlit:
  * health, ammo, weapons, points), or for stunt races a pane in the player's colours behind each player's points (as
  * wide as "8888888" in the HUD font of this many windows) and StuntMultiBlit; then no battle point is flying and no

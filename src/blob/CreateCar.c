@@ -43,8 +43,6 @@ typedef struct TexDef TexDef;
 VIEW(TexDef *[24], gWheelTextures);
 #define gWheelTextures gWheelTextures_view
 
-void ZOID_SetTexture(s16 objnum, void *texdef, int bank);
-
 /* Make the scene objects of car slot `slot`, shown in the windows of mask `camlink`: the frame (the root), the hood
  * and the sheen from the slot's part definitions (OBJLIST_CAR_PARTS), the four tires, and in a race (`for_game`) the
  * five spark objects. The sheen takes the track's colours in a race. The rim texture (gTireRims: the human's choice

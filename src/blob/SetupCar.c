@@ -40,8 +40,6 @@ VIEW(TexDef *[24], gWheelTextures);
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
 
-extern void ZOID_SetTexture(s16,void *,int);
-
 /* Show car `slot` with body `type` (13: the burnt-out wreck). In a race (`for_game`), a car that was a hulk and now
  * gets a body back loses the hulk flag (APPEAR_HULK), unless a human drives it with the "drive the hulk" cheat
  * (gDriveHulk 1 keeps the flag and the smoke, 2 keeps the flag but not the smoke). The frame takes the body's

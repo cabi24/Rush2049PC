@@ -85,8 +85,6 @@ typedef struct Visual {
 VIEW(TargetInfo[], targetInfo);
 #define targetInfo targetInfo_view
 
-Visual *GrabEnvEntry(void);
-
 /* Wreck the model's car, unless it already is (MAT3: `if (!model[slot].crashflag) model[slot].crashflag = 1`). */
 static void crash_car(ModelData *m)
 {

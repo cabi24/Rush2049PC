@@ -5,7 +5,7 @@
  * text blit) at screen position x, y, shown, not flipped, without an animation function, with an entry of its own in
  * the zoid blit list. Returns NULL when all MAX_BLITS are in use. flags is unused here (NewMultiBlit passes bit 31 of
  * its animid; MAT3 halves the position when it is set). */
-tBlit *NewBlit(char *name, s32 x, s32 y, s32 flags)
+tBlit *NewBlit(const char *name, s32 x, s32 y, s32 flags)
 {
     tBlit *blit;
 

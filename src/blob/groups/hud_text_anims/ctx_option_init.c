@@ -20,9 +20,6 @@ VIEW(s32[14], options_validOption);
 
 void *memcpy(void *, const void *, u32);
 
-TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
-void ZOID_SetTexture(s16, TexDef *, s32);
-
 /* Counts the options offered (gMenuCount) and how many lines of them fit below the title (gOptionMenuSize). */
 void op_calcOptionMenuMaxSize(void)
 {

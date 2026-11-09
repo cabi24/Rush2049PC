@@ -80,9 +80,6 @@ VIEW(Handle[4], gGhosts);
 s32 sprintf(char *, const char *, ...);
 void *memcpy(void *, const void *, u32);
 
-Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
-void PS_WriteFile(void *, void *, u32);
-
 /* The ghost's buffer is kept as its 32-bit N64 address (MenuData.buffer), read from its handle's slot (PC_SLOT_N64);
  * unzipdata and CalcChecksumInternal take the pointer at it, N64PTR0(T, a) (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */

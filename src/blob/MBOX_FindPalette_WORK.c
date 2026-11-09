@@ -17,9 +17,9 @@ VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
 /* The palette called `name` (texcmp: the whole name) in models firstModel to lastModel (a negative bound means the
- * first or the last model), searching only the active models: returns its definition and writes its handle,
- * (model << 10) | index, to *handle; NULL and handle 0 if none has it. */
-char *MBOX_FindPalette_WORK(char *name, u16 *handle, s8 firstModel, s8 lastModel) {
+ * first or the last model), searching only the active models: returns its definition (a tPalette) and writes its
+ * handle, (model << 10) | index, to *handle; NULL and handle 0 if none has it. */
+tPalette *MBOX_FindPalette_WORK(char *name, u16 *handle, s8 firstModel, s8 lastModel) {
     char key[28];
     s32 i;
     char *found = 0;
@@ -45,5 +45,5 @@ char *MBOX_FindPalette_WORK(char *name, u16 *handle, s8 firstModel, s8 lastModel
         return 0;
     }
     *handle = ((found - gPalDefPtrs[i].palDefs) / 24) | (i << 10);
-    return found;
+    return (tPalette *) found;
 }

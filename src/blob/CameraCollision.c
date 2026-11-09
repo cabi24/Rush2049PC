@@ -3,9 +3,6 @@
 
 typedef struct Surface Surface;
 
-extern Surface *ShotToWorldCollision(float *old, float *newpos,
-    float (*uvs)[3], float radius, int interp, int ignore);
-
 /* Traces from `lookat` (what the camera looks at) to the camera's position `ipos` through the track's surfaces
  * (ShotToWorldCollision, half a foot wide, skipping kind 6); on a hit `ipos` is the hit point, moved a quarter foot
  * back towards `lookat`. Returns NULL always. */

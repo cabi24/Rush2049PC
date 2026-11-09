@@ -11,10 +11,6 @@ VIEW(tCamera[], gCamera);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-void *MBOX_FindTexture_WORK(char *name, u16 *out, s8 lo, s8 hi, s32 err);
-Poly *ZOID_NewPoly(s32, f32 *, u16, u8 *, u16, s32);
-void ZOID_UpdatePoly(Poly *, s32, f32 *, u16, u8 *, u16, s32);
-void ZOID_RemovePoly(Poly *);
 s32 sprintf(char *, const char *, ...);
 
 /* With `active`, shows the countdown's number (texture CNTDWN3, 2, 1) on a square in front of each window's camera,

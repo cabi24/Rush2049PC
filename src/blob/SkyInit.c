@@ -7,8 +7,6 @@ VIEW(u16, gNumWindows);
 VIEW(volatile char, gNumModels);
 #define gNumModels gNumModels_view
 
-s32 ZOID_AddObject();
-
 /* PC: video.fog off keeps the sky dome with the track select's fog option on (docs/port/DETAIL.md 2.4): the N64 makes
  * none in a fog, whose colour is then the whole sky; without the fog that is a flat colour behind the world. */
 #define PC_SKY_FOG(f) (pc_fog() == PC_FOG_OFF ? 0 : (f))
@@ -23,7 +21,7 @@ s32 ZOID_AddObject();
  * the N64 leaves the new matrix as it is. */
 void SkyInit(void)
 {
-  s32 i; s32 *dst; s32 handle; intptr_t matrix;
+  s32 i; s32 *dst; s32 handle; void *matrix;
   if (PC_SKY_FOG(gFogIntensity) > 0) {
     SkyClear();
     return;

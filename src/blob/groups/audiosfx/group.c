@@ -13,7 +13,6 @@ VIEW(AudioList, gCmdQ);
 VIEW(u32, gNumInstances);
 #define gNumInstances gNumInstances_view
 
-tSfxCmd *FindChangeCmd(tSfxVoice *sound);
 /* PC: an effect start that finds no free entry (AudioSfxInit's, gNumInstances of them) is counted (--log-voices,
  * port/config/voices.c, docs/port/AUDIO.md 10). */
 #define PC_COUNTED(what, value) (pc_snd_count(what), value)

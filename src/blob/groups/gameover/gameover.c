@@ -57,15 +57,6 @@ VIEW(u8, gRestartGame);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-void *InitPane(s32 x1, s32 y1, s32 x2, s32 y2, s32 style, intptr_t word40, s32 word44, s32 own);
-
-SceneMsg *GetCmd(void);
-
-void RemoveBlit(Voice *);
-
-Voice *NewMultiBlit(s16, s16, const void *, s32);
-
 /* Switch the screen to state mode (kGameOverState*). Leaving the menu removes its panes; entering it puts up a box
  * for the title and one sized to the widest of the rows gameover_validOption offers. */
 void setGameOverState(s32 mode)

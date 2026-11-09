@@ -23,11 +23,6 @@ static DemoBlit *demo_blit = 0;
 VIEW(struct pc_multiblit[1], demo_multiblit);
 #define demo_multiblit demo_multiblit_view
 
-DemoBlit *NewMultiBlit(s16 x, s16 y, void *def, s16 count);
-void RemoveBlit(DemoBlit *sound);
-
-s32 CountdownTimeOut(void);
-
 /* One frame of the demo (state GS_DEMO): set it up the first time, run it (playDemoGame); a soft reset or a button
  * (A, B or Start) once it runs, or its 30 seconds out, ends it back to the title (state 4: the start button takes
  * it on to state 16, and after the last track's demo the credits, state 2). */

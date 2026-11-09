@@ -15,8 +15,6 @@ float sqrtf(float);
 VIEW(M2C_UNK, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-void **CompressGhost(struct GhostHeader *header, s8 *blocks);
-
 /* _NewGhost on the PC. A ghost (Ghost below: 0x2C bytes on the N64, 64 with its four pointers) and its handle (8
  * bytes) don't fit the N64's storage, 64 four-byte handle slots at ghost_file_handles and 64 records 0x2C apart at
  * ghost_file_records in the game arena: the PC keeps both here. Same search order; none free gives NULL

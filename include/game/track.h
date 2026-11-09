@@ -183,6 +183,7 @@ void SetDroneResPathIndex(struct tModelData *m, s16 path, s16 idx);
 void SetNewPathIndex(struct tModelData *m, s16 idx);
 void SetTargetDef(tTarget *t);
 void SetTargetDefs(void);
+s32 SetupTarget(struct tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, s32 vis, s32 col);
 void StartPathTarget(tTarget *target);
 void surfpos(f32 *origin, f32 *basis, f32 *position, f32 *out);
 void SyncAltPaths(void);

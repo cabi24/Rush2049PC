@@ -3,7 +3,7 @@
  * When a wave (an asset bundle) is loaded (waves.c), its texture load display lists (TXLD) still hold image
  * addresses relative to the wave's image chunk (IMAG); this adds the chunk's address to them. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
+#define Gfx N64Gfx   /* a display list command in the N64's form, two 32-bit words (include/game's Gfx is the PC's) */
 
 typedef struct Gfx {
     u32 w0;

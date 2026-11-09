@@ -813,6 +813,21 @@ void pc_gfx_set_tick_hook(int (*tick)(void)) {
     s_tick = tick;
 }
 
+#ifndef PC_GFX_HAVE_SDL
+/* Without SDL2 there is no window (gfx_sdl.c defines these with one): no events for a hook, which is never called,
+ * and nothing to close. Defined here rather than left to port/ultra/defaults.c's weak versions: on Windows (PE) a
+ * weak definition does not satisfy another object's reference (mingw-w64's ld 2.40: an undefined reference), so a
+ * build without SDL2 failed to link port/app's netwait.c and netplay.c (docs/port/WINDOWS.md 3). */
+int pc_gfx_set_event_hook(int (*hook)(const void *sdl_event)) {
+    (void)hook;
+    return -1;
+}
+
+int pc_gfx_window_closed(void) {
+    return 0;
+}
+#endif
+
 int pc_gfx_poll_events(void) {
     int quit = 0;
 #ifdef PC_GFX_HAVE_SDL

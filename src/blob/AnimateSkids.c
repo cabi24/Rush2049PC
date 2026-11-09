@@ -11,7 +11,7 @@ struct tSkid {
     tSkid *next;
     tSkid *prev;        /* the doubly linked list's back link (GetStatLLE), pointer-sized here */
     f32 lastTime;       /* gSeconds when the skid last grew: the fade starts from it */
-    intptr_t poly;      /* the mark's polygon (ZOID_NewPoly) */
+    struct tPoly *poly; /* the mark's polygon (ZOID_NewPoly) */
     f32 pos[3];         /* the mark's middle (StopSkid) */
     u8 color[4];        /* r, g, b, alpha */
     s32 active;         /* set once the skid has stopped: the mark fades */
@@ -27,9 +27,6 @@ typedef struct SkidList {
 } SkidList;
 VIEW(SkidList, gSkidList);
 #define gSkidList gSkidList_view
-
-extern void ZOID_UpdatePoly(intptr_t, s32, s32, s32, u8 *, s32, s32);
-extern void ZOID_RemovePoly(intptr_t);
 
 /* PC: a float to u32 that is negative while a mark's lastTime is ahead of the clock. Undefined in C, and the hosts
  * differ: x86-64 and IDO's code for the N64 go through a signed conversion and keep the bits (-125 is 0xFFFFFF83, no

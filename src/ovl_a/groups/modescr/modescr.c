@@ -33,10 +33,6 @@ extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
 
-extern void ZOID_SetTexture(s16,intptr_t,s32);
-extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
-
-extern void RemoveBlit ( Blit * );
 extern f32 fabsf(f32);
 
 /* The menu's rows (gModeMenuSelect, MAT3 enum_kModeMenuCount): row n sets gRace n. */
@@ -96,7 +92,7 @@ void modescr_updateButtons(void)
         WPitchUV(modescr_buttonInfo[buttonIdx].angle - 1.5707964f, modescr_buttonInfo[buttonIdx].matrix);
         if (modescr_buttonInfo[buttonIdx].angle > 1.5707964f) tex = MBOX_FindTexture_WORK(modescr_select_texture_name, (s16 *)&texIdx, 0, gNumModels - 1, 1);
         else tex = MBOX_FindTexture_WORK(modescr_button_texture_name, (s16 *)&texIdx, 0, gNumModels - 1, 1);
-        ZOID_SetTexture((s16)modescr_buttonInfo[buttonIdx].id, (intptr_t)tex, -1);
+        ZOID_SetTexture((s16)modescr_buttonInfo[buttonIdx].id, tex, -1);
         if (!modescr_optionValid(buttonIdx)) MBOX_HideObject(modescr_buttonInfo[buttonIdx].id, 0, 15);
         else {
             MBOX_ShowObject(modescr_buttonInfo[buttonIdx].id, 0, 15);

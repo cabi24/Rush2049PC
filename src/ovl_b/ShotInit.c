@@ -3,8 +3,6 @@
 
 typedef struct NameEntry NameEntry;
 
-extern NameEntry *MBOX_FindTexture_WORK(char *, s16 *, s8, s8, s32);
-
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 VIEW(s16, wallTidx);

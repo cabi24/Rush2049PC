@@ -38,21 +38,17 @@ typedef struct Visual {
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-/* PC: retail calls it through an implicit declaration (an int result) with a fifth word; the definition
- * returns the palette record, which an int would cut to 32 bits. Old-style, so the five-word call stays. */
-intptr_t MBOX_FindPalette_WORK();
-
 /* The flag's visual function (op 1 each frame, op 0 to release it). The first unpaused frame colours the flag: its
  * palette (flag_pals: red, green, blue) by "BLU" or "GRN" in its name, written into its scene object, and its first
  * frame of the wave from the digit after "_OFF" (0 without one). Every unpaused frame then makes
  * AnimateObjSwapGeneric the visual's function, due at once. */
 void AnimateFlag(Visual *v, s16 op) {
-    s32 paletteHandle;
+    u16 paletteHandle;
     char *name;
     Target *t;
     char *offSuffix;
     s32 i;
-    intptr_t palette;
+    tPalette *palette;
 
     if (op == 0) {
         ReleaseEnviron(v, 1);
@@ -72,9 +68,9 @@ void AnimateFlag(Visual *v, s16 op) {
         } else {
             i = 0;
         }
-        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels - 1), 1);
+        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels - 1));
         i = t->dlIdx;
-        ObjInstanceList[i].palette = (void *) palette;
+        ObjInstanceList[i].palette = palette;
         offSuffix = game_strstr(N64P(t->data), "_OFF");
         if (offSuffix != 0) {
             i = (s8)(offSuffix[4] - '0');

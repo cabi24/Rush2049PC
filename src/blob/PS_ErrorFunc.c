@@ -8,13 +8,7 @@ typedef struct OSThread OSThread;
 VIEW(struct pc_multiblit[1], PS_ErrorFunc_dimMultiBlit);
 #define PS_ErrorFunc_dimMultiBlit PS_ErrorFunc_dimMultiBlit_view
 
-extern intptr_t NewMultiBlit(s16 ulx, s16 uly, void *mblit, s16 nblits);
-extern void RemoveBlit(intptr_t blit);
-
 extern OSId osGetThreadId(OSThread *thread);
-s32 ShowPakError(s32 pak, intptr_t retry, intptr_t status, s8 *done, s32 (*poll)(void));
-
-void ZOID_SetFog(s16 fogNear, s16 fogFar, u8 r, u8 g, u8 b, u8 a, s32 window);
 
 #define GAME_THREAD_ID 7   /* the game thread's id: only it may draw frames */
 
@@ -24,9 +18,9 @@ void ZOID_SetFog(s16 fogNear, s16 fogFar, u8 r, u8 g, u8 b, u8 a, s32 window);
  * called on the game thread and serving the paks unless the error is about reading the pak itself (10 to 13: the
  * pak server is what called). Then the fog and the screen are put back. The pak system calls it as gErrorFunc;
  * blocks is unused. */
-void PS_ErrorFunc(s32 pak, s32 mode, s32 blocks, s32 unused, intptr_t retry, intptr_t status, s32 (*poll)(void)) {
+void PS_ErrorFunc(s32 pak, s32 mode, s32 blocks, s32 unused, s8 *retry, s8 *status, s32 (*poll)(s32)) {
     s8 done;
-    intptr_t dim;
+    tBlit *dim;
     s16 fog_near[4];
     s16 fog_far[4];
     u8 fog_r[4];

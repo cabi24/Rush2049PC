@@ -4,10 +4,9 @@
  * engine's speed and the throttle, then two modifiers apply. */
 #include "game/game.h"
 
-s16 enginetorque(void *m, s16 rpm, s16 throttle, uintptr_t torquecurve);   /* torquecurve: s16 *, zero-extended */
 /* The torque curve's 32-bit N64 address (the model's torquecurve) as the pointer at it (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3) */
-#define CURVE(a) ((uintptr_t)PC_N64P(a))
+#define CURVE(a) ((s16 *)PC_N64P(a))
 
 /* The model record (tModelData, docs/port/CARS.md 4): the fields engine() reads and writes. */
 typedef struct tModelData {

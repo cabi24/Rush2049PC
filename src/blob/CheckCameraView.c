@@ -61,9 +61,6 @@ VIEW(Vec3[], cur_acc);
  * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */
 #define RACE_CARS PC_RACE_CARS
 
-/* A scene node's matrix (orientation and position), read here as a camera's mat. */
-tCamera *ZOID_FindMatrix(s16 node);
-
 /* Picks each window's view and moves its camera (update_camera), then places the drones' scene nodes where their cars
  * are. In a ghost race the second controller's button 4 (with 2 held) moves window 0 to the next car in the race.
  * In the demo the view changes at random every 2.5 to 3.5 seconds (but the crash view, or near the countdown's end):

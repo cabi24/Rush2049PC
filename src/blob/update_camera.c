@@ -40,7 +40,6 @@ extern void osStartThread(OSThread *);
  * tuned to a frame of two retraces (PC_FILTER, pc_game_fps.h); the vertical one also takes the spring each frame, which
  * a shorter frame takes in proportion, so that y = y * e - spring settles where the N64's does. */
 #define PC_DECAY_IN(u, e) (pc_fps60 && pc_frame_scale != 1.0f && (e) < 1.0f ? (u) * (1.0f - pc_fps_filter(e)) / (1.0f - (e)) : (u))
-extern s32 CameraCollision(void *ipos, void *lookat);
 
 #define CAM (gCamera[slot])
 

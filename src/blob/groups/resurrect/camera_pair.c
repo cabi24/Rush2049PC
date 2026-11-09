@@ -92,7 +92,6 @@ VIEW(Record80[], gCheckpoints);
 #define CP_NORMAL(k, n) (*(f32 *)((u8 *)&gCheckpoints[k] + 24 + 4 * (n)))
 
 typedef struct Surface Surface;
-extern Surface *RoadPosition(f32 *, f32 *, f32 *);
 
 /* The orientation `uvs` (3x3, by rows) for a car placed at point `idx` of a path: `res` 1 the resurrection path
  * (the main path if `path` is negative, else branch `path`), 0 drone path `path`. It faces the next point (from a

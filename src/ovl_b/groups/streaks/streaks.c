@@ -26,10 +26,7 @@ VIEW(StreakList, gStreakList);
 
 VIEW(u8[4][4], gStreakColors);
 #define gStreakColors gStreakColors_view
-extern void ZOID_RemovePoly(Record88 *);
 
-extern Record88 *ZOID_NewPoly(s32,f32 *,u16,u8 *,u16,s32);
-extern void ZOID_UpdatePoly(Record88 *,s32,f32 *,u16,u8 *,u16,s32);
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a fade whose interval is 0 steps once a frame, 1/30 s on the N64; at
  * 60 it takes the other branch's 1/30 s, which the frame time counts down to a step every two frames. */
 #define PC_FRAME_INTERVAL(x) (pc_fps60 ? 0.0333333f : (x))

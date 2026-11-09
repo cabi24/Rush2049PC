@@ -12,8 +12,6 @@ VIEW(List, gActiveListeners);
 VIEW(List, gActiveEmitters);
 #define gActiveEmitters gActiveEmitters_view
 
-Effect *ConvertTag(s32);
-
 /* PC: [audio] engines (port/config/voices.c, docs/port/AUDIO.md 10). Before the pass, each drone engine layer's
  * distance to each listener goes to pc_engines_note (the voices module knows which emitters are the drones' engines),
  * which then picks, per listener, the drones whose engines play; the pass sends each emitter's gain through

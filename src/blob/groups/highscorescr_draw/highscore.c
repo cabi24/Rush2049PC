@@ -24,8 +24,6 @@ VIEW(s8[][6], gUnlockedFrames);
 VIEW(s8[][6], gPrevUnlockedFrames);
 #define gPrevUnlockedFrames gPrevUnlockedFrames_view
 
-extern void ChangePaneSize(void *, s32, s32, s32, s32);
-
 /* The "unlocked" page: in each window of a player who unlocked something, centred and its box sized to fit, a
  * two-line heading, then (flashing) each track, car, circuit, transmission, engine, tyre and frame the race
  * unlocked (unlocked now, not before the race). */

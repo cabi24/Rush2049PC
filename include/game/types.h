@@ -157,6 +157,8 @@ struct OSThread_s;
 struct Obj;
 struct Object;
 struct Outer;
+struct N64Gfx;          /* a display list command in the N64's form, two 32-bit words (relocate_texture_loads) */
+struct ObjInstance;
 struct Owner;
 struct P3;
 struct PackedKey;
@@ -233,6 +235,7 @@ struct TexRect;
 struct Texture;
 struct Tire;
 struct TireDesc;
+struct TexTile;
 struct TrackNode;
 struct Tree;
 struct surftyp;
@@ -258,13 +261,16 @@ struct _tSusp;
 struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
+struct tAudioSequence;
 struct tCircuit;
 struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
+struct tMemoryChunk;
 struct tMiniModelData;
 struct tModelData;
 struct tModelPart;
 struct tNewSkid;
+struct tPoly;
 struct tPS_File;
 struct tPlayerProfile;
 struct tSfxCmd;
@@ -274,11 +280,13 @@ struct tSfxVoice;
 struct tTexture;
 struct tUVMatrix;
 struct tVisual;
+struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
 union Color;
 union InputSequence;
 union Vtx;
+union tAudioMsg;
 union tRGBA;
 
 /* ---- ultra: libultra and the RSP microcode: the N64 OS interface port/ultra implements */
@@ -2434,12 +2442,6 @@ typedef struct CarScreenCar { /* 0xC bytes */
 typedef struct CarScreenMsgPos { /* 0xC bytes */
     f32 v[3]; /* 0x0 */
 } CarScreenMsgPos;
-
-typedef struct CircuitScaleView { /* 0x44 bytes */
-    u8 other[32]; /* 0x0 */
-    f32 scale;    /* 0x20 */
-    u8 tail[32];  /* 0x24 */
-} CircuitScaleView;
 
 typedef struct ColorWord { /* 0x4 bytes */
     u32 word; /* 0x0 */

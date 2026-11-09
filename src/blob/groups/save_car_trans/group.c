@@ -5,8 +5,6 @@
 #define kObstacle 5
 #define kBattle 6
 
-extern void PS_WriteFile(void *,u32 *,int);
-
 /* Stores transmission value in the settings of the profile's last race type, as SavePlayerCar stores the car. */
 void SavePlayerCarTrans(tProfile **profile,u8 value)
 {

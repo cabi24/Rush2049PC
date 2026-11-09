@@ -5,8 +5,6 @@
 #define PASSWORD_LETTER_BITS 5
 #define NOT_A_LETTER 0xFF   /* gInversePasswordAlphabet of a character not in the alphabet */
 
-void GetPasswordString(char *out);
-
 /* Reads the password str into the password's data (password_gData) and checks its checksum. Returns 1 when every
  * letter is in the alphabet and the checksum agrees, the data then ready to be read from the start
  * (GetPasswordElement); else 0. */

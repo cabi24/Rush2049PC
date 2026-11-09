@@ -21,10 +21,6 @@ int pc_ghost_prompt(int developer);
 VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 
-extern s32 CountdownTimeOut(void);
-
-extern void *CompressGhost(intptr_t, char *);
-
 #define WAVE_TRACK_MUSIC_BASE 139   /* the track's wave, gTrackNum + this (freed for the ghost's compression) */
 
 /* The screen's frame. The first frame sets it up and saves the profiles (SaveServer, SaveFlush). A soft reset ends
@@ -82,7 +78,7 @@ void updateHighScoreScreen(void)
         if (allNamed == 1) {
             if (gRace == kGhost && gGhostToSave != 0) {
                 UnloadWaveAll(gTrackNum + WAVE_TRACK_MUSIC_BASE);
-                gSavedGhost = CompressGhost(gGhostToSave, gBlocksNeeded);
+                gSavedGhost = CompressGhost((struct GhostHeader *) gGhostToSave, gBlocksNeeded);
                 gGhostToSave = 0;
                 if (PC_GHOST_PROMPT(gSaveGhostFiles) != 0) {
                     SetHighScoreState(kHighScoreGhost);

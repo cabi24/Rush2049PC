@@ -21,9 +21,6 @@ typedef struct tWindowInfo {
 VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 
-tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height, f32 hcenter,
-                                   f32 vcenter);
-
 /* One window, window 0, covering the whole screen (screen_width by screen_height) with the default field of view
  * (HFOV), viewport vp0 and scissor rectangle scissor0. (ZOID_SetScissor and ZOID_SetViewport are written out
  * here.) */

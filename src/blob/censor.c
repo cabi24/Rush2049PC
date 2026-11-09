@@ -6,11 +6,10 @@
 typedef struct List { u8 *p[22]; } List;
 VIEW(List, obscenities);
 #define obscenities obscenities_view
-u8 fixword(u8 *a, intptr_t b);
 
 /* Overwrite with '!' every word of the list that name contains (fixword does one word, letting its letters be
  * doubled or spaced out). Returns non-zero if it changed anything. */
-u8 censor(intptr_t name) {
+u8 censor(u8 *name) {
     u8 changed;
     u8 **word;
     List list;

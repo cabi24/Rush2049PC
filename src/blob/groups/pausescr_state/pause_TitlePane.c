@@ -15,10 +15,6 @@ VIEW(PauseTitlePos, pause_titlePos);
 VIEW(PausePlayer[], gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-void ChangePaneSize(void *,s32,s32,s32,s32);
-
 /* Sizes the pane behind the pause screen's title to the title in font 13, centred on pause_titlePos, making the
  * pane the first time. The title: the controller's number and a message when a controller came out, the restart or
  * the quit question, else the pausing player's name and the pause title (strings of gText); on the rumble screen the

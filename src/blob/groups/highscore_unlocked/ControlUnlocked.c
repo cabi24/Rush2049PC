@@ -13,8 +13,6 @@ extern InputRecord gPlayers[];
 VIEW(s8, circuitCode);
 #define circuitCode circuitCode_view
 
-s32 CountdownTimeOut(s32 arg0);
-
 /* Each player who unlocked something reads its notice until Start or A (or the page's time runs out); a player
  * with nothing (left) to read has its box removed. When nobody is reading, the next page: the circuit's code if
  * there is one, else name entry after a single, circuit or ghost race, else the end of the screen. */
@@ -26,7 +24,7 @@ void ControlUnlocked(void)
     done = 1;
     for (i = 0; i < gNumPlayers; i++) {
         if (gStuffUnlocked[i] == 1) {
-            if ((gPlayers[i].edges & BUTTON_ACCEPT) || CountdownTimeOut(gPlayers[i].edges)) {
+            if ((gPlayers[i].edges & BUTTON_ACCEPT) || CountdownTimeOut()) {
                 PlayStartABSound(gPlayers[i].edges);
                 gStuffUnlocked[i] = 0;
             }

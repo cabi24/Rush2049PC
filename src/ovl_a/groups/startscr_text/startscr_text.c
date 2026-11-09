@@ -1,7 +1,7 @@
 /* The start menu's text and which rows it offers (MAT3 startscr.c animText, animButtonText and optionValid). */
 #include "game/game.h"
 
-typedef struct Color4 { u32 word; } Color4;
+typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
 VIEW(ButtonInfo[], startscr_buttonInfo);
@@ -17,8 +17,6 @@ VIEW(Color4, flashColors);
 #define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
-
-extern void TB_FlashTextColors(Color4,Color4);
 
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */

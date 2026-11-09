@@ -32,8 +32,6 @@ typedef struct Vehicle2056 {u8 prefix[12];s8 engine_type;u8 gap13[1587];s8 crash
 VIEW(char[], unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 
-extern u32 AudEmitEffect(void *,void *,float,float,float,float,u32,u32,u32,u32);
-
 /* Starts the sounds of the car of model vehicle, unless the game's sounds are off or the car has crashed: its
  * engine type's two layers (silent effects for a human's car, emitters for a drone), its other records empty, and
  * for the first four slots its road noises, scrape, bumps, horn and bog reset. Then marks its sounds on

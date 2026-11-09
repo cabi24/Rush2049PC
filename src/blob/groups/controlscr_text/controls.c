@@ -33,8 +33,6 @@ VIEW(ContData[], gControllerData);
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-void TB_FlashTextColors(TextColor first, TextColor second);
-
 #define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
 #define CONTROLS_ROW_RUMBLE 10      /* the list's rumble row */
 #define CONTROLS_ROW_DEFAULTS 11    /* the list's "default controls" row */

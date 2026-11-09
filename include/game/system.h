@@ -307,6 +307,7 @@ void AudPlaySong_TTL(s32 song, s32 loop);
 void cart_free(void **address);
 void cart_free_direct(void **address);
 void ClearScreen(u16 color);
+s32 CountdownTimeOut(void);
 void cs_ctl10_DC(struct Cell *c);
 void cs_draw1_DC(s32 row, s32 col);
 void cs_draw3_DC(s32 row, s32 col);

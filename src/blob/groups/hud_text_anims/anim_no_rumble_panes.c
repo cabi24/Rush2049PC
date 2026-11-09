@@ -47,9 +47,6 @@ VIEW(u8[4][2][4], no_rumble_pane_colors);
 VIEW(void *[4], resultPane);
 #define resultPane resultPane_view
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 /* Whether controller ctl has a Rumble Pak in. */
 s32 getB6_6874(s32 ctl)
 {

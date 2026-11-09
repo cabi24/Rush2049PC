@@ -51,9 +51,6 @@ VIEW(char *[][11], cStrCreditNames);
 VIEW(ModelTables, gText);
 #define gText gText_view
 
-Voice *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-Pane *InitPane(s32,s32,s32,s32,s32,PaneAnimation,u32,s32);
-
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
  * set (RaceMultiBlit, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
  * the entry) and, for each of the 4 viewers, a blip for each of car slots 0-7 (AnimateTraffic, animRadarBlip: AnimID

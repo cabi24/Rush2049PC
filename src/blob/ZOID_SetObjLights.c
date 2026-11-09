@@ -9,7 +9,7 @@ typedef struct ObjInstance {
     u16 index;
     s16 child, next;
     s16 numLights;              /* +0x1E its own lights' count, -1 the scene's */
-    uintptr_t lights;           /* +0x20 its own lights */
+    void *lights;               /* +0x20 its own lights */
     void *texture[4], *tile, *tileSize, *palette;
     u32 color, envcolor;
 } ObjInstance;
@@ -18,7 +18,7 @@ VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
 /* Light node `node` with its own `numLights` lights at `lights` instead of the scene's (-1: the scene's again). */
-void ZOID_SetObjLights(s32 node, s32 numLights, uintptr_t lights)
+void ZOID_SetObjLights(s32 node, s32 numLights, void *lights)
 {
     ObjInstance *obj = &ObjInstanceList[node];
     obj->numLights = numLights;

@@ -16,8 +16,6 @@ VIEW(uintptr_t, pause_gTitlePane);
 #define pause_gTitlePane pause_gTitlePane_view
 extern Player gPlayers[];
 
-extern void RemoveBlit(void *);
-
 /* Remove the pause menu's blits and panes for the state it is leaving. Leaving the pause altogether (kNoPause) also
  * removes the dimming blit and saves each player's profile that has save data (SaveSelectPlayer: the settings may
  * have changed); every page's state removes the title, menu, "are you sure" and rumble blits. */

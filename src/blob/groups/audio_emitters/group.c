@@ -5,7 +5,6 @@
 #include "game/audiomgr.h"
 
 s32 osRecvMesg(OSMesgQueue *queue,OSMesg *message,s32 flags);s32 osSendMesg(OSMesgQueue *queue,OSMesg message,s32 flags);
-tAudioMsg *GetCmd(void);
 
 #define PC_TAGS_MOST() pc_snd_most(PC_SND_MOST_TAGS, gNumFxTags - (s32)gFreeFxTags.count);
 #define PC_EMITTERS_MOST(list) pc_snd_most(PC_SND_MOST_EMITTERS, (s32)(list).count);
@@ -81,16 +80,13 @@ u32 AudPlayEffectVP(u32 fxid,u32 subId,u32 replace,u8 priority,f32 volume,f32 lr
  return result;
 }
 
-/* dir is never read, and every caller passes a pointer there. On the N64 (o32) everything after the leading
- * pointer travels in GPRs, so its type was moot; on the PC an f32 would take s0 and shift every float after it
- * (docs/port/PROTOTYPES.md). */
-#define CTT_A1 void *
 /* Starts effect fxid as a sound source at pos: an emitter (NewEmitter) with fadeDistance, maxVol and minVol
  * (clamped to 0..1) and pitch 1, and a play-effect message for an emitter's tag that starts silent; each retrace
- * ProcessEmitters sets its volume and pans from the listeners. dir and fadeCompression are not read. subId, replace
+ * ProcessEmitters sets its volume and pans from the listeners. dir (a pointer, never read: MAT3 has neither it nor
+ * fadeCompression) and fadeCompression are not read. subId, replace
  * and priority as AudPlayEffect's. Returns the fx tag handle (the emitter keeps it), or -1 when there is no
  * emitter (none at all, or none free). */
-s32 AudEmitEffect(f32 *pos,CTT_A1 dir,f32 fadeDistance,f32 fadeCompression,f32 maxVol,f32 minVol,u32 fxid,u32 subId,u32 replace,u8 priority) {
+s32 AudEmitEffect(const f32 *pos,void *dir,f32 fadeDistance,f32 fadeCompression,f32 maxVol,f32 minVol,u32 fxid,u32 subId,u32 replace,u8 priority) {
  tAudioMsg *msg;tSfxEmitter *emitter;char unused_buf[4];u32 result;
  if(gEmitters==0)return -1;
  osRecvMesg(&audio_lock_queue,0,1);

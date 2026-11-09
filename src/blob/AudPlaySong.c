@@ -4,7 +4,6 @@
 
 s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
-tAudioMsg *GetCmd(void);
 
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). The request is then dropped: with no message the lock is given

@@ -901,6 +901,8 @@ u8 sound_macro_setup_lfo(MacroStateSetupLfo *state, MacroCommandSetupLfo *comman
 typedef struct MacroStateSetPitch { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x28]; u16 curNote50; u8 unknown52[0xA]; u32 sampleInfo5C; u8 unknown60[0x60]; s8 curDetuneC0; } MacroStateSetPitch;
 #pragma pack(0)
 typedef struct MacroCommandSetPitch { u32 word[2]; } MacroCommandSetPitch;
+/* The semitone search's end: i once it has run past kf[0] (the N64's unsigned i at -1). */
+#define PITCH_BELOW_TABLE 0xFFFFFFFFU
 /* SET_PITCH: sets the note and detune that play the sample (its root key and rate, +0x5C) at the rate of bytes 1-2
  * (Hz): the ratio's octaves, then its semitone from the table of 2^(n/12) (in 4096ths) and the cents between. */
 u8 sound_macro_set_pitch(MacroStateSetPitch *state, MacroCommandSetPitch *command)
@@ -930,16 +932,24 @@ u8 sound_macro_set_pitch(MacroStateSetPitch *state, MacroCommandSetPitch *comman
             }
         }
         ratio /= 1 << octaves;
-        /* Original game: i is unsigned, so `i >= 0` always holds; a ratio octaves_ratio exactly a power octaves_ratio two (4096 here)
-         * matches octaves entry and i runs below 0 (on the N64 the halfword before the table is read; on the PC the
-         * index is 4 GiB entries past it). The same below. */
-        for (i = 11; i >= 0; i--) {
+        /* Original game: the search is `for (i = 11; i >= 0; i--)` with an unsigned i. A rate an exact power-of-two
+         * multiple of the sample's leaves ratio exactly 4096, which no entry lies below, and i runs on to -1: the
+         * N64 reads the halfword before the table (another unit's data) as kf[-1] and, as long as that is below
+         * 4096, sets the note one lower and the detune to (4096 - kf[-1]) * 100 / (4096 - kf[-1]) = 100 cents up,
+         * the exact pitch (the synth adds detune / 100 to the note). The PC read kf[0xFFFFFFFF], 8 GiB past the
+         * table, and crashed; it now stops at -1 and keeps the N64's result. The same below. */
+        for (i = 11; i != PITCH_BELOW_TABLE; i--) {
             if (ratio > kf[i]) {
                 break;
             }
         }
-        state->curNote50 = (u8)(state->sampleInfo5C >> 24) + octaves * 12 + i;
-        state->curDetuneC0 = ((ratio - kf[i]) * 100) / (kf[i + 1] - kf[i]);
+        if (i == PITCH_BELOW_TABLE) {
+            state->curNote50 = (u8)(state->sampleInfo5C >> 24) + octaves * 12 - 1;
+            state->curDetuneC0 = 100;
+        } else {
+            state->curNote50 = (u8)(state->sampleInfo5C >> 24) + octaves * 12 + i;
+            state->curDetuneC0 = ((ratio - kf[i]) * 100) / (kf[i + 1] - kf[i]);
+        }
     } else {
         ratio = (sample_rate << 12) / rate;
         octaves_ratio = ratio >> 12;
@@ -949,13 +959,18 @@ u8 sound_macro_set_pitch(MacroStateSetPitch *state, MacroCommandSetPitch *comman
             }
         }
         ratio /= 1 << octaves;
-        for (i = 11; i >= 0; i--) {
+        for (i = 11; i != PITCH_BELOW_TABLE; i--) {
             if (ratio > kf[i]) {
                 break;
             }
         }
-        state->curNote50 = (u8)(state->sampleInfo5C >> 24) - octaves * 12 - i;
-        state->curDetuneC0 = -(s8)(((ratio - kf[i]) * 100) / (kf[i + 1] - kf[i]));
+        if (i == PITCH_BELOW_TABLE) {
+            state->curNote50 = (u8)(state->sampleInfo5C >> 24) - octaves * 12 + 1;
+            state->curDetuneC0 = -100;
+        } else {
+            state->curNote50 = (u8)(state->sampleInfo5C >> 24) - octaves * 12 - i;
+            state->curDetuneC0 = -(s8)(((ratio - kf[i]) * 100) / (kf[i + 1] - kf[i]));
+        }
     }
     state->flags24 |= VOICE_PITCH_FROM_RATE;
     return 0;

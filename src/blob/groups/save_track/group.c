@@ -5,8 +5,6 @@
 #define kObstacle 5
 #define kBattle 6
 
-extern void PS_WriteFile(void *,u32 *,int);
-
 /* Stores track value in the settings of race type raceType (a race, practice or ghost race: the race settings; a
  * circuit isn't stored), with their checksum, marked to write, and makes raceType the profile's last
  * (SavePlayerRaceType). The file must be read. */

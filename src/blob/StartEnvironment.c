@@ -27,8 +27,6 @@ VIEW(tPoly[], PolyInstanceList);
 VIEW(tRGBA[5], arrowColors);
 #define arrowColors arrowColors_view
 
-tPoly *ZOID_NewPoly(int nverts, f32 (*xyz)[3], u16 texidx, tRGBA *color, u16 flags, int useTidx);
-
 /* Give car `slot` its shadow: a four-cornered polygon (the shadow texture, gTexList[6], in gShadowColor at alpha
  * 192), which AnimateShadow lays on the road each frame. Its polygon number is the visual's objnum. MAT3 builds the
  * shadow from strips instead. */

@@ -81,8 +81,6 @@ typedef struct Heap {
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
 
-/* The heap's own functions that take or return its headers (game/memory.h has the rest). */
-tHeap *ConvertHeap(tHeap *heap);
-tMemoryChunk *FindChunk(tHeap *heap, u32 address, s32 internal);
+/* The heap's functions are game/memory.h's, with these headers as struct Heap and struct tMemoryChunk. */
 
 #endif /* GAME_HEAP_H */

@@ -11,8 +11,6 @@ typedef struct V3 { float x, y, z; } V3;
 VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 
-void point_at_car(void *car, intptr_t pos, intptr_t uvs, f32 *offset);
-
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;
 /* A player's input record (gPlayers): its profile's handle. */
@@ -156,7 +154,7 @@ void DeathCam(Cr *car, f32 *pos, f32 *uvs) {
 
 /* The demo's car cameras (views 8 and 10) of car `car`: its scene object moved to `pos` with orientation `uvs`,
  * the camera at the rear chase place (in front of the car in view 10) and pointing at `lookat`. */
-void UpdateCarObj(Cr *car, void *pos, void *uvs, intptr_t lookat) {
+void UpdateCarObj(Cr *car, void *pos, void *uvs, f32 *lookat) {
     volatile s32 padv[5];
     f32 v[3];
     s32 pl;

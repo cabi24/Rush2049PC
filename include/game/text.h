@@ -143,6 +143,7 @@ void TB_DrawText(s16 x, s16 y, void *text);
 void TB_DrawTextC(s16 x, s16 y, s32 color, void *text);
 void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 line, void *text);
 void TB_EllipseText(void *dst, void *src, s16 width);
+void TB_FlashTextColors(TextColor first, TextColor second);
 f32 TB_GetFlashTextCycle(void);
 s16 TB_GetFontHeight(void);
 s16 TB_GetFontLineHeight(void);

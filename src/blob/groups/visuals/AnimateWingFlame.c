@@ -10,8 +10,6 @@ typedef struct tCarData {u8 pad0[0xE8];u32 appearance;u8 pad0EC[0x110 - 0xEC]; s
 VIEW(tUVMatrix, unitmatrix);
 #define unitmatrix unitmatrix_view
 
-tUVMatrix *ZOID_FindMatrix(s16 objnum);
-
 /* The flame of car v->slot's wing on side v->data (0 left, 1 right; VIS_WING_FLAMES + side), each frame: while the
  * wing is out (its visual's data bit 0x10, set by AnimateWing) the flame shows, stretched along its Y axis by the
  * stick: 8 times its x (the player's analog[0], negated for the left wing), 2 at least.

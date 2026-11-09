@@ -15,7 +15,6 @@ VIEW(s32, audio_command_queue);
 #define audio_command_queue audio_command_queue_view
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-ShutdownMsg *GetCmd(void);
 
 /* The sound manager's commands these send. */
 #define AUDIO_CMD_STOP_SONG 1

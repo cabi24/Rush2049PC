@@ -19,8 +19,6 @@ typedef struct Target {
 
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
-struct pc_visual *GrabEnvEntry();
-
 /* Start the fence a car has just hit: an environment visual (the next free one, if any) runs its 12-frame
  * animation, the fence stops colliding and its start sound plays. */
 void StartFence(Target *t)

@@ -57,9 +57,6 @@ VIEW(u8[], gCamera);
 VIEW(TextColor[2], flashColors);
 #define flashColors flashColors_view
 
-extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
-void TB_FlashTextColors(TextColor first, TextColor second);   /* TB_FlashTextColors (ctx_flash.c) */
 /* The confirm pane's text width: 160. */
 void vs_setWidth(s16 *width)
 {

@@ -19,8 +19,6 @@ VIEW(tCamera[], gCamera);
 VIEW(V3[], cur_acc);
 #define cur_acc cur_acc_view
 
-void point_at_car(void *car, intptr_t pos, intptr_t uvs, f32 *offset);
-
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;
 /* A player's input record (gPlayers): its profile's handle. */
@@ -50,7 +48,7 @@ typedef struct Cr {
  * it flies in legs of steady_leg_duration seconds, pointing at the car (`pos`, its orientation into `uvs`): leg 0
  * from the start to 40 feet behind the car and 5 up, leg 1 from there to the rear chase camera's place
  * (UpdateRearCamera), and at the end (leg 2) the car's view becomes view3's, or a player's saved view (or 2). */
-void steady_move_cam(s16 mode, Cr *car, f32 *pos, intptr_t uvs) {
+void steady_move_cam(s16 mode, Cr *car, f32 *pos, void *uvs) {
     V3 delta[4];
     f32 res[3], pos2[3];
     s32 pl;

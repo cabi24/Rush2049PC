@@ -27,10 +27,6 @@ VIEW(intptr_t[], gWheelTextures);
 VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-extern intptr_t ZOID_FindMatrix(s16);
-
-extern void ZOID_SetTexture(s16,intptr_t,s32);
-
 #define CARS 13                     /* the roster; a record's car is its slot % 13 */
 #define RIM_TEXTURES 3              /* gWheelTextures[]: the rims' textures from here on (gTireRims + this) */
 #define RIM_TEXTURE_SMALL_MEMORY 16 /* the one rim texture used without an Expansion Pak on the first six tracks */
@@ -89,7 +85,7 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
     s16 idx;
     s16 cam;
     tRGBA alphaCol = {255, 255, 255, 255};
-    intptr_t wheelTex;
+    void *wheelTex;
     idx = slot % CARS;
     if (gNumWindows < 3) {
         if (player == 2) player = 0;
@@ -165,15 +161,15 @@ void UpdateSelectCar(s16 slot, s16 player, u8 r, u8 g, u8 b, s16 sheenIdx, f32 *
         }
         ZOID_UpdateObject(gCarParts[slot].handle, pos, newuvs);
         if (gSelectCar[slot].rims != gTireRims[player + 1][idx]) {
-            wheelTex = gWheelTextures[gTireRims[player + 1][idx] + RIM_TEXTURES];
+            wheelTex = (void *) gWheelTextures[gTireRims[player + 1][idx] + RIM_TEXTURES];
             gSelectCar[slot].rims = gTireRims[player + 1][idx];
             if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6)
-                ZOID_SetTexture(gCarParts[slot].tires[0], gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
+                ZOID_SetTexture(gCarParts[slot].tires[0], (void *) gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
             else
                 ZOID_SetTexture(gCarParts[slot].tires[0], wheelTex, -1);
         }
         if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6)
-            ZOID_SetTexture(gCarParts[slot].tires[0], gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
+            ZOID_SetTexture(gCarParts[slot].tires[0], (void *) gWheelTextures[RIM_TEXTURE_SMALL_MEMORY], -1);
         if (gSelectCar[slot].frontTireScale != gFrontTireScale[player + 1][idx] || gSelectCar[slot].rearTireScale != gRearTireScale[player + 1][idx]) {
             gSelectCar[slot].frontTireScale = gFrontTireScale[player + 1][idx];
             gSelectCar[slot].rearTireScale = gRearTireScale[player + 1][idx];

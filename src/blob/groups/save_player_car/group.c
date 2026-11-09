@@ -5,8 +5,6 @@
 #define kObstacle 5
 #define kBattle 6
 
-extern void PS_WriteFile(void *,u32 *,int);
-
 /* Stores car value in the settings of the profile's last race type (tSaveData.raceType: the race types of a race
  * share the race settings), with their checksum, marked to write; nothing when it is the same. The file must be
  * read. */

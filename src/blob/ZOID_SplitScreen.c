@@ -40,8 +40,6 @@ ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
     return &ZoidWinInfo[k];
 }
 
-ArbEntry *ZOID_InitializeWindow(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
-
 /* Lays out n windows (nothing for n <= 0): one full screen (90-degree field of view); two, one above the other,
  * each half the height with a wider field of view (127/90) and a line between them; three or four in quarters
  * (0.95 the field of view), a line between them. Returns the split (gSplitScreen: 0 one window, 1 two, 2 four). */

@@ -106,8 +106,6 @@ VIEW(MultiBlit[], multiBlit);
 #define multiBlit multiBlit_view
 
 extern void particle_lifetime_set(void);
-extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 /* Set the screen up: lock the players' profile files, read the paks, start every window on the select menu (on
  * the first profile row) with its buttons, split the screen (three players get four windows), set the buttons'
@@ -286,8 +284,6 @@ extern void *memcpy(void *,const void *,u32);
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned (docs/port/SANITIZE.md
  * 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
-extern void *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
-extern void ZOID_SetTexture(s16,void *,s32);
 
 /* Make player's 22 buttons that don't exist yet, each a model by its type (playerscr_buttonNames; types 0-2 and 7-9
  * draw see-through), white, shown only in that player's window; then texture and place the title, the cursor and the
@@ -301,12 +297,13 @@ void playerscr_initButtons(s8 player)
     s32 j;
     MenuButton *slot;
     void *resource;
+    s32 object;
     for(j=0;j<PLAYER_BUTTONS;j++) {
         slot=&playerscr_buttonInfo[player][j];
         if(slot->handle==-1) {
             memcpy(slot->matrix,unitmatrix,36);
-            resource=MBOX_FindObject_WORK(playerscr_buttonNames[slot->type],0,gNumModels-1,1);
-            slot->handle=MBOX_NewObject(resource,slot->matrix,-1,
+            object=MBOX_FindObject_WORK(playerscr_buttonNames[slot->type],0,gNumModels-1,1);
+            slot->handle=MBOX_NewObject(object,slot->matrix,-1,
                 slot->type==0 || slot->type==1 || slot->type==2 ||
                 slot->type==7 || slot->type==8 || slot->type==9 ? 0x42000:0);
             ZOID_SetColor(slot->handle,color);

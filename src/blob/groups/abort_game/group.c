@@ -11,11 +11,8 @@ VIEW(u8[], audio_lock_queue);
 VIEW(u8[], audio_command_queue);
 #define audio_command_queue audio_command_queue_view
 
-void RemoveBlit(void *);
-
 s32 osRecvMesg(void *,void **,s32);
 s32 osSendMesg(void *,void *,s32);
-MessageNode *GetCmd(void);
 
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). Abandoning a race then drops its stop of every effect,

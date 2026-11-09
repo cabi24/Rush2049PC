@@ -7,7 +7,6 @@ typedef struct Object { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 
 
 extern f32 sinf(f32);
 extern f32 cosf(f32);
-extern void point_at_car(Object *object, f32 *carpos, Mat3 *matrix, f32 *res);
 
 /* Milliseconds of `t` seconds. */
 #define IRQTIME(t) ((u32)((t) * 1000.0f))

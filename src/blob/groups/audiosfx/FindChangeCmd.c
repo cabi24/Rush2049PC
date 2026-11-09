@@ -9,11 +9,11 @@ VIEW(volatile CmdQueue, gCmdQ);
 
 /* The change command queued for instance sound, or NULL: the setters (AudioSetEffectVolume ...) add to it rather
  * than queue another. Walks the queue from its tail (the oldest) through the links' prev, as AudioSfxServer runs
- * it. sound is passed as an integer, as this file always took it. */
-tSfxCmd *FindChangeCmd(intptr_t sound) {
+ * it. */
+tSfxCmd *FindChangeCmd(tSfxVoice *sound) {
     tSfxCmd *cmd;
     for (cmd = (tSfxCmd *)gCmdQ.tail; cmd != 0; cmd = cmd->dlle.prev) {
-        if ((intptr_t)cmd->sound == sound && cmd->cmd == kSfxCmdChange) return cmd;
+        if (cmd->sound == sound && cmd->cmd == kSfxCmdChange) return cmd;
     }
     return 0;
 }

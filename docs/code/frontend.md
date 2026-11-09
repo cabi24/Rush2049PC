@@ -220,8 +220,9 @@ because the library is the same.
 - **The track maps** (trackscr.c): `MapLod.displayList` and `verts` are 32-bit fields given host pointers to the
   display lists `buildTrackMaps` makes; that holds only while the heap is in the fixed window.
 - **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no
-  longer used here), `object_list_scale_view` (circuitscr.c's trophy sheen) writes the window's copy of
-  `ObjInstanceList`, not the PC's own storage (a latent port bug PCONLY.md lists); `gFrontTireScale` and
+  longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
+  through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
+  copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and
   `gRearTireScale` are declared one row long and read rows 1-4, which are `gFrontTireScale_players` after them.
 - **Stale names** the screens still call: `player_mode_set` is `SetControllerStickEdges` and
   `sound_handles_array_clear` is `RemovePane` (image A's symbol table keeps the old names).

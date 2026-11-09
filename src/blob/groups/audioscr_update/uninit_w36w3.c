@@ -18,8 +18,6 @@ VIEW(UButton[12], audio_buttonInfo);
 
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-void RemoveBlit(intptr_t sound_id);
-
 
 /* Closes the audio screen: stops the song, and if the screen was set up removes its buttons, its panes (in the
  * pause screen), its blit and the background. */
@@ -33,7 +31,7 @@ void audio_uninitScreen(void)
             audio_gTitlePane = 0;
         }
         if (audio_blit) {
-            RemoveBlit(audio_blit);
+            RemoveBlit((tBlit *) audio_blit);
             audio_blit = 0;
         }
         removeBG();

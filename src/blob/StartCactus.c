@@ -27,8 +27,6 @@ typedef struct GameCar {
 
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
-struct pc_visual *GrabEnvEntry();
-
 /* Start the cactus a car has just hit: an environment visual (the next free one, if any) runs its animation for 7
  * frames, the cactus turns to fall the way the car was going, and the cactus's start sound plays. */
 void StartCactus(Target *t)

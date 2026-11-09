@@ -22,7 +22,6 @@ VIEW(tBattleCoin[4], battleCoin);
 #define battleCoin battleCoin_view
 VIEW(tStuntCoin[4][10], stuntCoin);
 #define stuntCoin stuntCoin_view
-extern void RemoveBlit(void *);
 
 #define blit hudextra_blit
 

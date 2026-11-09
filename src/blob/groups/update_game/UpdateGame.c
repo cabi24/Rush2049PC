@@ -22,8 +22,6 @@ VIEW(Ghost40 **[], gGhosts);
 VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 
-s32 CountdownTimeOut(void);
-
 void *memset(void *, s32, u32);
 
 /* One turn of a race, by game state: SETUP (the options, the pole positions, the catch-up) goes on to LOAD

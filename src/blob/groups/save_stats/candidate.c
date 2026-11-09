@@ -6,8 +6,6 @@
 #define FIRST_STUNT_TRACK 14   /* 14..17 the stunt arenas, 18 the obstacle course */
 #define OBSTACLE_TRACK 18
 
-extern void PS_WriteFile(void *,void *,u32);
-
 /* After a race on track (gTrackNum's numbering): the stats the race changed get their checksum again and are marked
  * to write: a race track's (0..5, or 19..24 for the second records), a battle arena's, a stunt arena's or the
  * obstacle course's. The file must be read. */
