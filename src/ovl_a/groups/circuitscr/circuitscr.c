@@ -181,8 +181,6 @@ typedef struct OwnerBody {
 struct MenuOwner { OwnerBody *body; };
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
-/* A scene object instance's view (ObjInstanceList): only its scale. */
-typedef struct Object { u8 other[32]; f32 scale; u8 tail[32]; } Object;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;
 typedef struct Texture Texture;
@@ -215,8 +213,6 @@ VIEW(f32[12], gTrophyMat);
 VIEW(f32[12], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-VIEW(Object[], object_list_scale_view);
-#define object_list_scale_view object_list_scale_view_view
 
 VIEW(MultiBlit[], circuitscr_mblit);
 #define circuitscr_mblit circuitscr_mblit_view
@@ -252,11 +248,11 @@ void circuitscr_initScreen(void)
                 trophySheenObjIdx = MBOX_NewObject(model, unitmatrix, trophyObjIdx, 0x2C6084);
                 ZOID_SetTexture((s16)trophySheenObjIdx,
                     MBOX_FindTexture_WORK(circuitscr_sheen_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
-                /* PC: object_list_scale_view is a label 0x10 before ObjInstanceList's N64 address, read as 0x44-byte
-                 * records: this writes the float at +0x10 of the sheen's N64 instance record. The PC's ObjInstanceList
-                 * has storage of its own (host records), so the write lands in the unused window copy and the
-                 * drawn sheen never gets it: a latent port difference (PCONLY.md, "what the names left"). */
-                object_list_scale_view[trophySheenObjIdx].scale = circuitscr_trophy_scale;
+                /* The sheen's scale over the trophy's: the node's w, which the scene draw scales its matrix by
+                 * (ZOID_AddObject makes it 1; MAT3 has no such line). The N64 stores it at +0x10 of the node's
+                 * 0x44-byte record in ObjInstanceList (the decomp wrote it through a label 0x10 before it, read as
+                 * records of 0x44 bytes with the float at +0x20). */
+                ObjInstanceList[trophySheenObjIdx].w = circuitscr_trophy_scale;
                 ZOID_SetColor((s16)trophySheenObjIdx, trophySheenColor);
                 ZOID_SetEnvColor((s16)trophySheenObjIdx, trophySheenColor);
                 MBOX_ShowObject(trophyObjIdx, 0, 15);

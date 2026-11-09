@@ -285,7 +285,6 @@ extern char silver_coin_object_name[EXTENT(16)];
 extern f32 velrot_gravity[EXTENT(3)];
 extern f32 cactus_frame_time;
 extern f32 fence_frame_time;
-extern CircuitScaleView object_list_scale_view[EXTENT(1)];
 extern s32 gGameOverState;
 extern s32 gMainSelect;
 extern s32 gHighScoreState;

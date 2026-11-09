@@ -2444,12 +2444,6 @@ typedef struct CarScreenMsgPos { /* 0xC bytes */
     f32 v[3]; /* 0x0 */
 } CarScreenMsgPos;
 
-typedef struct CircuitScaleView { /* 0x44 bytes */
-    u8 other[32]; /* 0x0 */
-    f32 scale;    /* 0x20 */
-    u8 tail[32];  /* 0x24 */
-} CircuitScaleView;
-
 typedef struct ColorWord { /* 0x4 bytes */
     u32 word; /* 0x0 */
 } ColorWord;

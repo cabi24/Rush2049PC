@@ -4720,7 +4720,6 @@ steady_stage = 0x8012E6C8; // type:data renamed
 blitColors = 0x8012E6D0; // type:data renamed
 gPlayerFiles = 0x8012E6D8; // type:data renamed
 steady_leg_time = 0x8012E6E8; // type:data renamed
-object_list_scale_view = 0x8012E6F0; // type:data renamed
 gLimboGhosts = 0x8012E6F8; // type:data renamed
 ObjInstanceList = 0x8012E700; // type:data renamed
 gShowCredits = 0x80138660; // type:data renamed

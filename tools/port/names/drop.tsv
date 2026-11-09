@@ -1716,3 +1716,4 @@ resultPane4	blob	0x80154360: interior label, resultPane[4] (the middle result pa
 resultPane4	ovl_a	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c)
 resultPane4	ovl_b	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c)
 resultPane4	symbol_addrs	0x80154360: interior label, resultPane[4] (the middle result pane, MAT3 hud.c resultPane[5]): the C writes resultPane[4] (wave 2c) (its line of symbol_addrs.us.txt)
+object_list_scale_view	symbol_addrs	0x8012E6F0: interior label, 0x10 before ObjInstanceList read as 0x44-byte records: circuitscr writes ObjInstanceList[node].w (wave 2c) (its line of symbol_addrs.us.txt)
