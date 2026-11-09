@@ -1,22 +1,11 @@
 /* AudioSongPlay: starts a song on MusyX (the N64 form of MAT3's audiosongps2.c AudioSongPlay). */
 #include "game/game.h"
 
-typedef struct ResourceGroup ResourceGroup;
-typedef struct SampleRecord SampleRecord;
-typedef struct ResourceOffsets ResourceOffsets;
-
 /* A song's sound group (song_groups[song]): its id in the project, MusyX's group id. */
 typedef struct SongGroup { u16 other; u16 id; } SongGroup;
 
 VIEW(SongGroup[], song_groups);
 #define song_groups song_groups_view
-VIEW(ResourceGroup *, musyx_project);
-#define musyx_project musyx_project_view
-
-VIEW(SampleRecord *, musyx_sdir);
-#define musyx_sdir musyx_sdir_view
-VIEW(ResourceOffsets *, musyx_pool);
-#define musyx_pool musyx_pool_view
 
 /* The wave (asset file) of song 0; song n is this plus n. */
 #define WAVE_FIRST_SONG 10

@@ -525,9 +525,6 @@ void playerscr_updateButtons(s8 p)
 
 extern void player_mode_set ( s32 , s32 );
 
-VIEW(char *, gPlayerNameChars);
-#define gPlayerNameChars gPlayerNameChars_view
-
 /* The delete menu's input for player p (MAT3 playerscr.c controlDeletePlayer): pick a profile on a pak (up and
  * down through the profiles of the chosen pak, skipping the ones other players hold; left and right change the pak),
  * A asks "are you sure" (left and right flip yes and no; A on yes deletes it and says so), Start or B backs out of a

@@ -226,9 +226,6 @@ void updateRecordScreen(void)
     recordscr_updateButtons();
 }
 
-VIEW(char[], gDeleteName);
-#define gDeleteName gDeleteName_view
-
 /* The select menu's input (MAT3 recordscr.c controlSelect). The selection first moves off a row that isn't offered.
  * With the "clear" button turned (left and right on a profile row) A asks to clear that profile's records (or all
  * the guests' for the totals), answers the question (left and right flip yes and no) and closes the notice. Else

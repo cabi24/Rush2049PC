@@ -26,8 +26,6 @@ typedef struct {
 #define OPTIONS_BUTTONS 32
 #define OPTION_ROW_LANGUAGE 0
 
-VIEW(Color, options_buttonColor);
-#define options_buttonColor options_buttonColor_view
 VIEW(Button[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
