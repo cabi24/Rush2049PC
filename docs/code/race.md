@@ -72,7 +72,8 @@ and the distance (`distToNext`, `FindPathDistances`). The places come from how f
 ### Targets
 
 The track's objects that take part in the race (cones, cacti, fences, windows, coins, mines, weapons, the trams and
-doors that move along paths) are **targets** (`tTarget`, MAT3's): 130 nodes of `gTargetList` in `gTargetArray`.
+doors that move along paths) are **targets** (`tTarget`, MAT3's): 130 nodes of `gTargetList` in `pc_target_nodes`
+(PC data in the host layout, N64 `gTargetArray`).
 `SetupTarget` (`groups/targets/group.c`) makes one from a world object or a PTHD path record whose name starts with
 a kind's in `targetInfo` (`TargInfo`, 122 kinds: the model, the start and animation functions, the collision test,
 the sounds); `SetTargetDefs` gives each its kind's record and starts it. `CheckTargetCollision` tests each car
@@ -129,14 +130,16 @@ the N64 draws by (`n64`) and updates the sky.
 
 ## 6. What is still the N64's shape (for wave 3)
 
-- **Targets and their records** keep the N64's layout in the arena (`tTarget`, `tTargetStructPath`,
-  `tBasicTargetPath`, `TargetPathPt`, `tMiniModelData`): their links are 32-bit window addresses read through
-  `PC_N64P` and written through `PC_N64W` (targets, targetpaths, PauseTargets, InitBattlePowerUps ...).
-  `gTargetList`'s header flags it (`n64`).
+- **Targets** (`tTarget`) are PC data in the host layout since wave 3's step 3 (docs/port/NATIVE.md): their link
+  and their kind's record are pointers, and so are the visuals' data words and the target groups' list that hold
+  them. **Their records** keep the N64's layout (heap blocks the game's heap accounts): a path target's record
+  (`tTargetStructPath`) holds its path, a PTHD record (`tBasicTargetPath`, its points `TargetPathPt`; its `pts`,
+  `trigPtr` and `parent` are 32-bit window addresses too), as a window address read through `PC_N64P`; a bounding
+  box model (`tMiniModelData`) keeps its box as its row of `BBoxCollInfo`.
 - **The model record** (`tModelData`, 0x808 bytes) keeps the N64's layout; each file reads it through a view of
   the fields it needs (MAT3's names). The tyres' tree nodes and the moving surface in it are window addresses
   (TireSurf, CollideCarBody).
-- **The car record** (`pc_car`, 0x468 bytes on the PC) is the N64's with host pointers in its visuals and input
+- **The car record** (`pc_car`, 0x510 bytes on the PC) is the N64's with host pointers in its visuals and input
   record: the files' views pad over the visuals (`struct pc_visual visuals[21]`), and `CAR_OFS` maps an N64 offset.
   Many fields the files read (MAT3's `restart`, `camera`, `view`, `saveview`, `collidable`, `crash_state`,
   `lastResPath` ...) are not in `pc_car` yet.

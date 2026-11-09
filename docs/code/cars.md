@@ -28,8 +28,8 @@ The records:
 | Record | Where | Layout | What |
 |---|---|---|---|
 | model, `tModelData` | `pc_models[12]` (port/include/pc_game_types.h `struct pc_model`) | the N64's, 0x808 bytes, which is MAT3's field for field | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
-| car, `tCarData` | `pc_cars[12]` (`struct pc_car`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x468 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
-| visual, `tVisual` | in the car record (`visuals[21]`), and the environment pool `gEnvirons[100]` | host, 0x20 bytes | one animated thing: its scene node, a data word, a time and its animator `func(v, op)` |
+| car, `tCarData` | `pc_cars[12]` (`struct pc_car`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x510 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
+| visual, `tVisual` | in the car record (`visuals[21]`), and the environment pool `gEnvirons[100]` | host, 0x28 bytes | one animated thing: its scene node, a data word (pointer-sized: an environment visual's target), a time and its animator `func(v, op)` |
 | car descriptor, `_tCar` | `gCarModels[13]`, through the model's `car` | the N64's (arena data), 0xB4 bytes | a car's fixed physics: inertia, springs, damping, the tire descriptors (`tires[4]`, window addresses), the tire arms `tireR[4][3]`, the drivetrain constants |
 | tune, `Tune44` | `gTune[3]`, through the model's `tune` | 11 floats | the handling's scales (MAT3: diffbl, weight_scale, torque_scale, trans_scale, clutchmaxtk, shiftk, fwdfk, sidefk, skidk, antispin, drift) |
 

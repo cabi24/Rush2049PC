@@ -11,7 +11,7 @@ there are compared. 2026-10-27. Related: [ENDIAN.md](ENDIAN.md) 2 (endian_check,
 
 ```
 python3 tools/port/layout_check.py [--build build/pc] [-j 2] [--reuse]    # build/pc/endian/layout.txt
-python3 tools/port/layout_check.py --reuse --storage gTargetArray           # every access placed on a storage
+python3 tools/port/layout_check.py --reuse --storage pc_target_nodes        # every access placed on a storage
 python3 tools/port/layout_check.py --selftest                             # ctest layout_check
 ```
 
@@ -234,14 +234,15 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
   state (`N64W`), and `shots.c:788` passes the literal `"WPR_MINE"` as `rec`, a host string. That stores a host
   pointer if `WPR_MINE`'s info record (ROM data) has flag 0x400. The code says it can't on the N64 either: a mine
   writes its state record (`m->base`, `m->timer`, `m->phase` in `AnimateMine`), which would then be the string; the
-  record is the category's. On the PC a place record that isn't a window address is not kept: the state stays 0
-  (`PLACE_STATE`), so a wrong flag faults on a NULL rather than on half a pointer.
+  record is the category's. Until NATIVE.md step 3 the PC kept no place record that wasn't a window address (the
+  state stayed 0, `PLACE_STATE`), so a wrong flag faulted on a NULL rather than on half a pointer; since then the node's
+  data is a pointer and keeps `rec` whatever it is, as MAT3 does (whose `WPR_MINE` record has no flag 0x400).
 
 ## 7. The review table (`REVIEWED`), references and links
 
 | Rule | Why |
 |---|---|
-| `pc_statll_link`, `pc_statll_set_link` | the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other width never runs on that list |
+| `GetStatLLE`, `FreeStatLLE` | they reach an element's link back (`tDLLE.prev`, its second pointer) only on a doubly linked list (the skid marks); the flow joins every list's elements, and a singly linked list's element has a field of its own there (POINTERS.md 9.5). Until NATIVE.md step 3 the rule was on `pc_statll_link`/`pc_statll_set_link`, which took a link at the width the node pool's `n64` flag gave |
 | audio_retrace_thread_entry's `Sched`, lib_1050_sdk's `PcSched` | a PC view of the native scheduler padded in host bytes to curRSPTask (ULTRA.md); both reach +0x2B0 |
 | ProcessEmitters's `Effect` | a PC view of the FX tag padded in host bytes; each access is the tag's field |
 | sequencer.c's `Seq_*`, `SequenceContext*` views | PC views of a sequence slot padded in host bytes (`SEQ_PC_OFF`, include/sequence_context.h) |
@@ -382,6 +383,7 @@ no word of a non-pointer field points at code.
 | the text bank's string table (`pc_text_strings()`, 10 functions in the front end and the results) | false positive (reviewed) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
 | the profile's name passed to the text functions (`drawBattleScore`, `drawStuntScore`, `gameover_animText`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10) |
 | `animBattlePoints` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20 |
+| the flat polygons `PolyInstanceList` (`ZOID_NewPoly`, `ZOID_UpdatePoly`, `zoid_draw_window`), since NATIVE.md step 3 | false positive (reviewed) | typed through `FreeStatLLE`'s `tDLLE` view, which the flow joins over every list: a hit poly (`gHitPolyList`'s element) holds its polygon where a doubly linked element has its link back, but that list is singly linked, so the back-link branch never reaches a polygon; `tPoly` keeps its N64 layout (no pointer) |
 | MBSetupWad and `MBFindInWad` (the WAD table), the packets (`AudAddListener`, `ProcessEmitters`), the 3D-sound sources (`AudEmitEffect`, `FreeFxTag`), the skid marks (`StopSkid`), `FindGhosts`, `StartSmoke`, `initTargetStructs` | false positive | typed accesses through views with the PC layout that fit their own fields (the first run counted them through another view of the same record family); layout_check compares those views |
 
 ### 9.4 The untyped storages
@@ -392,7 +394,7 @@ The functions of `offset_untyped.txt` (59 before 9.6's fix, 46 after), by kind:
 |---|---|---|
 | vector and matrix helpers: three floats at +0/+4/+8, a 4x4 matrix | `CopyUV`, `surfpos`, `lsq` (two), `PitchUV`, `WorldDistance`, `TargetCollRadius`, `BodyVector`, `dot_uv_y_axis`, `TargetCollCylinder`, `TargetCollMineCylinder`, `InterpQuats`, `AudUpdateEmitter`, `AdjustSteer`, `ZOID_ProjectWindow`, `copy_tire_info`, `build_node_matrix_rows4`, `YawUV` (a yaw rotation's `F32 uv[][3]`), guOrthoF/guPerspectiveF/guLookAtF | false positive: float arrays, no pointers |
 | libultra and the audio library | the other `src/rom` functions | not game records (ENDIAN.md, ULTRA.md) |
-| the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2) | `StartCoin`, `StartMine`, `AnimateRotGeneric`, `RotateUV`, `AnimateWeaponIcon`, `vector_magnitude` (through `StartCactus`), `PlayTargetSound` | false positive: the record keeps its N64 layout; `NODE_STATE` reads the state |
+| the level-object nodes (the targets), N64 layout with a u32 state at +0x6C (POINTERS.md 10.2), until NATIVE.md step 3 | `StartCoin`, `StartMine`, `AnimateRotGeneric`, `RotateUV`, `AnimateWeaponIcon`, `vector_magnitude` (through `StartCactus`), `PlayTargetSound` | false positive then: the record kept its N64 layout. Since step 3 every one of them reads the node as `tTarget` (host layout) |
 | byte strings and pak file data | `game_strcmp` (strcmp), `game_strncmp`, `game_strcpy`, `SavePlayerCarTrans` (a pak file's bytes) | false positive |
 | small m2c setters with no caller | `ZOID_ShowPoly` (u16 at +2), `ClearBST` and `InitBST` (words at +0..+8), `ZOID_SetPolyZ` (s16 at +6), `PauseTargetPaths` (+0x60, +0x64) | unreachable: no C or asm calls them, no C takes their address, and no table in the ROM's data holds them (9.3) |
 | the SFX server's voices (`tSfxVoice`: bytes, a bank, an id and a u32 handle; no pointer) | `AudioPlayEffectInternal`, `AudioSfxServer` (the voice behind a command's `sound`) | false positive: the same layout on both |

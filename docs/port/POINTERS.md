@@ -132,7 +132,7 @@ declared with pointer types today, so on PC they are larger than the data; Phase
 | `tBasicTargetPath` (PTHD), `Scene36` | `waves.c:91`, `targets/group.c:59` | `trigPtr`, `pts`, `parent`, `resources` |
 | text bank header `gText` | 17 files, four views (`ShowPakError`, `runtime_a_text_helpers`, `runtime_a_menu_renderers`, `options_anim.c`) | `ptrs0/2/5`, `strings`, `msg`, `hdr->unk360` |
 | WHDR entry / `NameEntry` | `loadtrack.c:120`, `NewWorld.c:28` | `woff`/`node` |
-| GTLD keys | `targets/group.c:464`, `CheckTargetCollision.c:155` | key -> `Object *` in place |
+| GTLD keys | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | key -> `Object *` in place on the N64; done: a native side table of keys and targets (`struct pc_target_group`, 10.2) |
 | font letter (12 B) | `slot_sound/group.c:108` | `ptr` |
 | `ResPath`/`AltPath`/`DronePath` | `pathcommon_read/ReadPathData.c` | `pts`, `alt` |
 | `SampleRecord` | `include/sound_sample_record.h`, `groups.c` | `data`: done, u32 ([MUSYX_DATA.md](MUSYX_DATA.md)) |
@@ -377,10 +377,13 @@ element is larger on the PC than the size its initializer passes. Those lists ge
 | `gSmokeList` | puffs (UpdateSmoke) | 88 | 96 | `InitSmoke` |
 | `gAlwaysColList` | mine links (a heap block) | 8 | 16 | `initTargetStructs` |
 | `gSkidList` | skid-mark effects (doubly linked) | 36 | 56 | `InitSkids` |
+| `gTargetList` | the level-object nodes, `pc_target_nodes` (decoupled; 10.2) | 0x70 | 0x78 | `initTargetStructs` |
 
 The skid-mark views (skid_marks' `EffectObj`, `AnimateSkids`'s `Voice`, `InitSkids`'s `Node`) have a
 pointer-sized back link, and skid_marks reads the active list as the header's fourth pointer word on the PC (the
-fifth `s32` on the N64). Test: `assets_pool`.
+fifth `s32` on the N64). Test: `assets_pool`. The four list functions read the header as include/game's `tStatList`
+and the links as `tStatLLE`/`tDLLE`; every list's links are host pointers since the level-object nodes' were too
+(10.2: until then that one list's header carried an `n64` flag and its links were 32-bit window addresses).
 
 ### 9.6 Controller/pak records `gPaks`
 
@@ -553,8 +556,8 @@ layout when it holds host pointers (host functions, own storage, stack).
 | Record | N64 | PC | Storage on the PC | Layout, and why |
 |---|---:|---:|---|---|
 | target info `targetInfo` (122 records) | 0x30 | **0x40** | own (initialized data) | pointer-sized: the start and visual functions are host functions |
-| level-object nodes, the targets (130 at `gTargetArray`, pool `gTargetList`) | 0x70 | 0x70 | game arena (BSS), at its N64 address | N64 layout, 32-bit links and state: everything a node holds and everything that holds a node is a window address |
-| their category records, the dead-reckoning records `gBBoxModelStructs` | ROM sizes, 0x40 | same | heap | N64 layout: heap blocks with the ROM's sizes (`gTargetStructSizes`) |
+| level-object nodes, the targets (`pc_target_nodes`, 130, pool `gTargetList`) | 0x70 | **0x78** | own (decoupled, BSS; N64 `gTargetArray`) | pointer-sized: the link and the kind's record are pointers (since NATIVE.md step 3; before, the N64 layout with 32-bit links, in the arena) |
+| their category records, the bounding box models `gBBoxModelStructs` | ROM sizes, 0x40 | same | heap | N64 layout: heap blocks with the ROM's sizes (`gTargetStructSizes`); a box model keeps its box as a row index (10.2) |
 | input records `gPlayers` = `gPlayers` (4) | 0x4C | **0x50** | own (BSS) | the profile pointer at +0x48 points into `gJustPlayers` (own storage) |
 | ZOID windows `ZoidWinInfo` (4) | 0x48 | **0x50** | own (BSS) | `first` and `bounds` pointer-sized (9.1; the storage already was) |
 | frame records `frame_records` (2) | 0x80 | 0xD0 | own (BSS) | the native OSScTask (before this); one view from inside was not |
@@ -588,56 +591,47 @@ whole (`StartCone`'s `Node.f20`, `StartPathTarget`'s `CamNode.w14`, `StartCactus
 
 ### 10.2 The level-object nodes (the targets), their pool and their records
 
-MAT3's targets are the level-object nodes: `SetupTarget` takes one from the StatLL pool `gTargetList`,
-whose 130 elements are the arena block `gTargetArray` (0x8014D280-0x80150B60; `port/data/extents.txt` now gives its
-extent), and every target function receives one. A node: link (+0), flags (+4), model key (+8), scene-node handle
-(+0xC, an s32), type (+0x10, the info record), matrix and position (+0x14, +0x38), the place's transform (+0x44),
-texture or animation fields (+0x50-+0x5A), car or slot (+0x5C), sound (+0x60), state (+0x64), index or owner
-(+0x65), age (+0x68) and the state record (+0x6C).
+MAT3's targets are the level-object nodes: `SetupTarget` takes one from the StatLL pool `gTargetList`, and every
+target function receives one. Since 2026-11-09 ([NATIVE.md](NATIVE.md) step 3) a node is PC data in the host layout:
+`struct tTarget` in `pc_game_types.h` (the game C's `tTarget`, include/game/types.h, with the `TARGET_*` flags), 0x78
+bytes, MAT3's fields in MAT3's order: the link `next` (+0, a host pointer), `Flags` (+8), the model key `mbIdx` (+0xC),
+the scene-node handle `dlIdx` (+0x10, an s32 whose low half is the node's index), its kind `infoIdx` (+0x14), its
+matrix `mat` (orientation +0x18, position +0x3C), its world position `pos` (+0x48), the object definitions `type` and
+`otype` and the animation's `frames` (+0x54, +0x5C, +0x5E), its `radius` (+0x58), the car that hit it `slot` (+0x60),
+its sound and its state (+0x64, +0x68), `owner` (+0x69), a mine's age `timeStamp` (+0x6C) and its kind's record
+`data` (+0x70, a pointer). The pool is `pc_target_nodes[PC_TARGET_NODES]` (130, as on the N64), decoupled storage
+data.c defines ([DECOUPLE.md](DECOUPLE.md) 10); the N64's arena block `gTargetArray` (0x8014D280-0x80150B60) is retired.
 
-**Why the N64 layout.** What a node holds: the next node (arena); its state record, a heap block of its category
-(`gTargetOwnStructPtrs[c]`, `gTargetStructSizes[c]` bytes each), its place record (a track WAD record, heap) or an element of a
-static per-kind table (`gTargetStructInfoPtrs[c]`, game data). What holds a node: the visuals' 32-bit `data` (CARS.md 3),
-`Animation24.node`, and pointer-sized slots that don't care (the pool header, the GTLD side array `gTargetGroupList`, the
-camera list `CollisionTargetPtrs`, the mine links and slots). A host layout (0x78 bytes) would not fit the arena block
-(130 x 0x78 > 0x38E0), and a node anywhere else couldn't be held by a visual. Before, `level_objects`' `Node` and the
-mine's `Target` had the host layout (next and state 8 bytes), so a 0x78-byte node at a 0x70 stride wrote its state
-over the next node's link, while the other views had the N64 one.
+What a node holds, all pointers now: the next node; its kind's record, a heap block of its category
+(`gTargetOwnStructPtrs[c]`, `gTargetStructSizes[c]` bytes each), an element of a static per-kind table
+(`gTargetStructInfoPtrs[c]`, game data), or its world object (a flag's name: a track WAD record). What holds a node,
+all pointer-sized: an environment visual's data word (`struct pc_visual`, 0x28 bytes since step 3: CARS.md 3), the
+target groups' side table (`gTargetGroupList`, `struct pc_target_group`: ASSETS.md 4 #14), the path targets with a
+collision object (`CollisionTargetPtrs`, `tTarget *[30]`), the mines' slots (`gPlayerMines`), the always-colliding
+list's elements (`tAlwaysCol`) and the power-ups' (`gBattlePowerUps.tS`).
 
-- **32-bit links.** The generic StatLL code links elements through pointer-sized words (9.5). A list whose
-  elements keep their N64 layout is flagged `n64` in its header's first padding byte, and InitStatLL
-  (`ClearStatLL`), GetStatLLE and FreeStatLLE read and write the links
-  through `pc_statll_link`/`pc_statll_set_link` (pc_prelude.h). `initTargetStructs` sets the flag before it
-  builds the node pool (`PC_ONLY` on the `pool_init` line); InitStatLL clears it.
-- **Node views** with `enum n64p_` fields and `N64P()`/`N64W()` (N64W is main's `PC_N64W`): `level_objects`
-  (`Node`, `Matrix64`, and the camera controller's scene through `STATE_SCENE`/`SCENE_OF`), `StartCone` (the
-  motion), the mine `AnimateMine` (`next`, `data`), the debris `AnimateVelRotGeneric`, the flag `AnimateFlag` (its
-  place record's name), the coin `AnimateCoin`, the camera group (`Camera.ctl`, `CamCtl.scene`, `CamScene.link`,
-  `keys`, `cur`: about 65 uses, wrapped with `ptr64_u32fields.py`'s error-driven fixer), `GetTargetVelocity`, `TargetCollTrigger`,
-  and the dead-reckoning body in `TargetCollBBox`. The m2c functions read the state as a u32 (`StartCoin`,
-  `AnimateRotGeneric`, and `AnimateKnockdown` as a PC version, which also passes it to `RotateUV`
-  zero-extended: proto_check's last harmful view). The views of `StartWindow`, `StartKnockdown` and
-  `CheckTargetCollision` had the N64 layout and no pointers already.
-- **Walks of the node list outside `level_objects`** follow the 32-bit link too: `PauseTargets` (every node's
-  state 2 and no sound; `NODE_NEXT`), the pause screen's `PauseTargets` (the same, in the nonmatching draft of
-  `updatePauseScreen` the PC builds; `TARGET_NEXT`) and battle mode's power-up selection `InitBattlePowerUps` (`NEXT`), which walked
-  the active list `gTargetList_head` reading the link 8 bytes wide, with the node's flags at +4 as its upper half. The
-  power-ups' `Object` view (`runtime_b_resource_callbacks`: flags, handle, `resource` at +0x50) has the N64 layout,
-  and `InitBattlePowerUps`'s heap block of slots holds `count` 16-byte slots (it was sized for 8-byte ones). Test:
-  `assets_battle`.
-- **The target visuals' views of the visual** padded over `next` or had `data` as a pointer (`AnimateObjSwapGeneric`,
-  `AnimateFlag`, `AnimateCoin`): they have the visual's PC layout (CARS.md 3) with `data` a u32.
-- **The handle's low half.** The flag, the frame stepper, the debris and the camera views read the node's s32 handle
-  (+0xC) as an s16 at +0xE, the low half on the N64 but the high half on a little-endian host (0 for every handle).
-  Their PC views read the word. (`AnimateCoin`'s `Id` union came from main's byte-order work at the same time.)
-- **The records the nodes point to** keep their N64 sizes: the category records are heap blocks of
-  `gTargetStructSizes[c]` bytes (ROM data), and of their views only the camera controller `CamCtl` (72 bytes) has a pointer,
-  its scene (a PTHD record of the track WAD, which itself keeps its N64 layout: `link`, `keys`, `cur` u32). The
-  dead-reckoning records `gBBoxModelStructs` (64 bytes, a heap block; `UpdateMiniModelStruct` strides by 64) keep their body, game
-  data at `BBoxCollInfo + 32 x value`, as a u32, in each view: `level_objects`' `Matrix64`, `TargetCollBBox`'s hit
-  test and the collision response `setMiniFBCollisionForce` (`Reckon`, `BODY`). The mine data, the debris physics, the cone's motion, the coin and
-  battle mode's `Slot136` have no pointers.
-- `CollisionTargetPtrs`, the cameras with key paths, is pointer-sized already (`intptr_t[30]`, PROTOTYPES.md 5).
+- **The StatLL links.** Every StatLL list links its elements by host pointers (9.5): InitStatLL, ClearStatLL,
+  GetStatLLE and FreeStatLLE take include/game's `tStatList` and the elements' `tStatLLE`/`tDLLE` links. Until step 3
+  the node pool linked its nodes by 32-bit window addresses: its header was flagged `n64` and the four functions went
+  through `pc_statll_link`/`pc_statll_set_link` (pc_prelude.h), both gone.
+- **One type.** Every function that receives a node reads it as `tTarget`: the start functions (`StartCone`,
+  `StartCactus`, `StartFence`, `StartKnockdown`, `StartWindow`, `StartMine`, `StartCoin`, `StartWeaponIcon`), the
+  visuals (`AnimateCoin`, `AnimateFlag`, `AnimateMine`, `AnimateRotGeneric`, `AnimateKnockdown`,
+  `AnimateVelRotGeneric`, `AnimateObjSwapGeneric`, `AnimateWeaponIcon`, `AnimatePathTarget`), the collision tests
+  (`TargetCollBBox`, `TargetCollTrigger`), `GetTargetVelocity`, the walks of the list (`SetTargetDefs`,
+  `PauseTargets`, `InitBattlePowerUps`) and the power-ups. Before, 19 files had views of their own at the N64
+  offsets (`Target`, `Model`, `CollisionObject`, the pause screen's draft), with `enum n64p_` fields and `N64P()` for
+  the link and the record.
+- **The handle's low half.** The flag, the frame stepper, the debris and the coin read the s32 handle (`dlIdx`) as the
+  scene node's index, its low half: `(s16)` of it (the N64 views read an s16 at +0xE, the low half there).
+- **The records the nodes point to** keep their N64 sizes, for the heap's accounting ([NATIVE.md](NATIVE.md) 4.3): the
+  category records are heap blocks of `gTargetStructSizes[c]` bytes (ROM data). A path target's record
+  (`tTargetStructPath`, 72 bytes) keeps its path, a PTHD record of the track WAD, as a 32-bit window address
+  (`pathData`), and the PTHD record keeps its own (`trigPtr`, `pts`, `parent`): the WAD's records are step 7's. The
+  bounding box models `gBBoxModelStructs` (`tMiniModelData`, 64 bytes, a heap block; `UpdateMiniModelStruct` strides
+  by 64) keep their box as its row of `BBoxCollInfo` (`bboxRow`, the kind's `collVal`; MAT3 kept the row's address,
+  `bboxInfo`): `MINI_MODEL_BOX` (track.h) is the row, a `tBBoxColl`, which `TargetCollBBox` and
+  `setMiniFBCollisionForce` read. The mine data, the debris physics, the cone's motion and the coin have no pointers.
 
 ### 10.3 The input records `gPlayers`
 

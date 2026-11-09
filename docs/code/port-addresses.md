@@ -562,8 +562,8 @@ become ordinary definitions); scratch places become host buffers once the code u
 | `port/assets/tests/assetcheck.c:470` | `0x8011B5BC`, `0x8002E580` | `wave_rom_offsets` (the file table) read by its N64 address; `0x8002E580`: `gWaveSizes` (the file table) read by its N64 address | the symbol by name through the loader |
 | `port/assets/tests/assetcheck.c:471` | `0x80123564` | `wave_storage_kinds` (the file table) read by its N64 address | the symbol by name through the loader |
 | `port/assets/tests/support.c:161` | `0x80000000u`, `0x1FFFFFFFu` | KSEG0 base / mask in the test's own pc_n64_ptr | K0BASE, K0_TO_PHYS (libultra) |
-| `port/assets/tests/test_battle.c:33` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_battle.c:35` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_battle.c:33` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | gone (wave 3.1, NATIVE.md step 3): the nodes are host data, `pc_target_nodes`, which the tests define |
+| `port/assets/tests/test_battle.c:35` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | gone (wave 3.1, NATIVE.md step 3): the nodes are host data, `pc_target_nodes`, which the tests define |
 | `port/assets/tests/test_battle.c:36` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_cars.c:58` | `0x80151CE8` | `gCheckpoints` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_cars.c:59` | `0x80151CEE` | `checkpoints_start_pt` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
@@ -633,15 +633,15 @@ become ordinary definitions); scratch places become host buffers once the code u
 | `port/assets/tests/test_save.c:36` | `0x80000000u`, `0x80800000u` | IN_WINDOW: the 8 MiB window range | PC_RDRAM_BASE, PC_RDRAM_BASE + PC_RDRAM_SIZE |
 | `port/assets/tests/test_save.c:191` | `0x8017A640` | `game_bss_end / game_bss_end` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_save.c:192` | `0x80000318` | `osMemSize / osMemSize` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_targets.c:59` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
-| `port/assets/tests/test_targets.c:61` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_targets.c:59` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | gone (wave 3.1, NATIVE.md step 3): the nodes are host data, `pc_target_nodes`, which the tests define |
+| `port/assets/tests/test_targets.c:61` | `0x8014D280` | `gTargetArray` placed at (or read at) its N64 address | gone (wave 3.1, NATIVE.md step 3): the nodes are host data, `pc_target_nodes`, which the tests define |
 | `port/assets/tests/test_targets.c:62` | `0x80118C10` | `BBoxCollInfo` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
 | `port/assets/tests/test_targets.c:65` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_targets.c:321` | `0x80118C10u` | `BBoxCollInfo`: a node field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
 | `port/assets/tests/test_targets.c:564` | `0x80118C10u` | `BBoxCollInfo`: a node field holds its N64 address | N64A(&symbol) by name; wave 3: a host pointer |
 | `port/assets/tests/test_wad.c:129` | `0x80001000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_wad.c:132` | `0x80001000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
-| `port/assets/tests/test_weapons.c:40` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | the symbol by name; the ABS() lines go in wave 3 (ordinary definitions) |
+| `port/assets/tests/test_weapons.c:40` | `0x8014D280u` | `gTargetArray` placed at (or read at) its N64 address | gone (wave 3.1, NATIVE.md step 3): the nodes are host data, `pc_target_nodes`, which the tests define |
 | `port/assets/tests/test_weapons.c:41` | `0x80300000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |
 | `port/assets/tests/test_windows.c:56` | `0x1FFFFFFF` | KSEG mask (a stub osVirtualToPhysical) | K0_TO_PHYS |
 | `port/assets/tests/test_windows.c:152` | `0x80300000u`, `0x80340000u` | a scratch place in the window (test heap or buffer) | a named test constant (PC_RDRAM_BASE + offset), or a host buffer once the code takes host pointers |

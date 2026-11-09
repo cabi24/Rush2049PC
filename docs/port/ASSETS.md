@@ -225,7 +225,7 @@ views (`pakerr/group.c:50-56`, `circuitscr/circuitscr.c:720-726`,
 | WHDR | u32 count; count × `{u32 woff; char wname[16]}` (0x14), sorted by name | `woff += (u32)worldptr` once (`loadtrack.c:120`). `NewWorld` (`NewWorld` 0x800AC668) bsearches it with `NameEntry {Node104 *node; char name[16]}` |
 | WOBJ (world nodes) | `tModelPart` 0x68 [M `rush_types.h:2831`]: `char name[16]`; `f32 mat[12]` +0x10; `u32 dlflags` +0x40; `s16 next` +0x44, `child` +0x46, `sfx1` +0x48, `sfx2` +0x4A; `s32 tidx` +0x4C; `f32 min[3]` +0x50, `max[3]` +0x5C | none: next and child are indices. Placement: `NewWorldObject` 0x800AC3D8 |
 | GDAT | count × 0x1C `tTargetGroup`: `s16 parent; u8 unused; u8 flags; f32 minh, maxh, minv, maxv; u16 child[4]` [M]. N64 view `Tree` (`CheckTargetCollision.c:74`) | none |
-| GTLD | count × u32 target keys | **overwritten in place with `Object *`** at race setup (`targets/group.c:464-474`); read as `Object **` (`CheckTargetCollision.c:155`) |
+| GTLD | count × u32 target keys | **overwritten in place with `Object *`** at race setup on the N64 (`SetTargetDefs`); read as `Object **` (`CheckTargetCollision`). On the PC a native side table of keys and targets (§4 #14) |
 
 MAT3 swaps the world nodes while it walks them, with a reload flag, so a converting loader should swap the WOBJ
 chunk once as an array of 0x68 records, after checking that its length is a multiple of 0x68.
@@ -322,7 +322,7 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 11 | `displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | BE accessors |
 | 12 | `loadtrack.c:120` | `woff += (u32)worldptr` into a u32 field | window |
 | 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | `node` as u32 (else the stride becomes 24) |
-| 14 | `targets/group.c:464-474`, `CheckTargetCollision.c:155` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | native side array |
+| 14 | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | done: a native side table, `struct pc_target_group` (`pc_game_types.h`: each key and the target `SetTargetDefs` finds for it, NULL none), which `pc_world_chunk` (`port/assets/world.c`) builds from the file's keys when `LoadTrack` asks for GTLD; `CheckTargetCollision` reads `gTargetGroupList[i].target` (NATIVE.md step 3) |
 | 15 | `AdjustTextWavePointers.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | native `char *` side arrays; one shared `gText` definition |
 | 16 | `slot_sound/group.c:108, 135` | 12-byte font letter with a pointer written in place | u32 slot |
 | 17 | `slot_sound/group.c:148` (and its 3 copies), `StartSmoke.c:300` | TXHD stride `+ i * 36`; `gFontTextures[]` holds pointers as s32 | TXHD stays 0x24, pointer fields u32 |
@@ -495,7 +495,7 @@ every live view.
 | GDAT parent +0, byte +2 | 16 / byte | unread | OK |
 | GDAT flags +3 | byte | u8 `& 1` (`CheckTargetCollision`) | OK |
 | GDAT bounds, children | 32 / 16 | f32, u16 (`CheckTargetCollision`'s `Tree`, 0x1C) | OK |
-| GTLD keys | 32 | the native key array (`pc_world_chunk`); its count is `numgTargetGroupList`, the loop bound in `SetTargetDefs` | OK |
+| GTLD keys | 32 | the native side table (`pc_world_chunk`: `struct pc_target_group`, the keys as s32, the targets `SetTargetDefs` finds); its count is `numgTargetGroupList`, the loop bound in `SetTargetDefs` | OK |
 | TOC count words | — | WHDR: none (fetched with NULL). GTLD: a record count, as the game uses it. GDAT: stored in `numgTargetGroups`, never read. WOBJ: never fetched. The game reaches the nodes from WHDR only | see the fix below |
 
 ### 8.4 Road (`road.c`)

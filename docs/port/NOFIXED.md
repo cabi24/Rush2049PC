@@ -143,7 +143,7 @@ before and after) before the moved one runs. For speed, the prelude gets inline 
 | `reserved.txt` | `pc_matrix_spill` absolute at 0x8014A250 | relative, as the arenas |
 | The mods' region (`pi.c` `mods_at`) | cartridge offsets 0x04000000-0x0FC00000 | nothing: cartridge space, not RAM |
 | The controller pak and the saves | the PIF and pak files (`si.c`, `pakfs.c`, `pakstore.c`) see bytes; the game's Pfs C keeps its state in the boot arena by name; the save records hold host pointers (POINTERS.md 9.10) | nothing beyond the names (2.2) |
-| The StatLL lists' N64-flagged links (`pc_statll_link`, `pc_statll_set_link`, `pc_prelude.h:149-157`) | zero-extend and truncate | translate |
+| The StatLL lists' N64-flagged links (`pc_statll_link`, `pc_statll_set_link`, `pc_prelude.h:149-157`; gone with NATIVE.md step 3: every list links by host pointers) | zero-extend and truncate | translate |
 | The PC layer's by-name references (`main.c`, `pools.c`, `selftest.c`) | absolute names through the GOT | nothing (2.2); the self-test's "at its N64 address" checks become "at `pc_window` + offset" |
 | The test programs' own windows | 19 `MAP_FIXED`/fix-up sites in 13 test files and 116 literal window addresses in 12 (`support.c`, `wad_game.c`, `test_pc_data.c`, `test_musyx.c`, the gfx and audio tests: `port.*.tests`, section 4.1), and `rush2049pc_datacheck`'s window (`datacheck.c:93-94`) | phase C: each test's window and tables at a host address of its own |
 
@@ -379,7 +379,7 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
 `pc_window_base` is 0x80000000 until `pc_mem_init` sets it, so a test program that maps its own window there and links
 game C translates into it. The 47 casting `N64P` definitions (42 `_Generic`, 5 plain) and `find_best_gear.c`'s
 `M2C_N64P` are `(T *)PC_N64P(x)`; the 41 `N64W` definitions were `PC_N64W(x)` already; `pc_statll_link` and
-`pc_statll_set_link` translate. A site in game C uses a macro of its own file whose N64 side is the original tokens
+`pc_statll_set_link` translated (until NATIVE.md step 3 removed them). A site in game C uses a macro of its own file whose N64 side is the original tokens
 (`#define N64A(x) (u32)x`, `#define N64PTR(T, a) (T)a`, and `N64A0`/`N64PTR0` where the N64 has no cast), so
 n64_neutral sees the same token stream and IDO the same code.
 
