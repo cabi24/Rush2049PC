@@ -108,6 +108,9 @@ thousands of lines of typedefs, structs and externs, most of them unused ([PCONL
 | `basic.h` | `s8` ... `u64`, `f32`, `f64`, their volatile forms; `EXTENT` |
 | `types.h` | libultra's types first (`OSThread`, `OSMesgQueue`, `OSTask`, `Gfx` ...), then the game's structures, grouped by the subsystem that uses each first, every member with its offset; and the structures the headers only point to (`struct Car;`) |
 | `system.h`, `memory.h`, `maths.h`, `audio.h`, `scene.h`, `blit.h`, `text.h`, `input.h`, `save.h`, `track.h`, `cars.h`, `physics.h`, `race.h`, `camera.h`, `hud.h`, `frontend.h` | each subsystem's data (in N64 address order) and its functions' prototypes (by name) |
+| `heap.h`, `audiomgr.h`, `threads.h` | MAT3's heap records; the sound manager's records; the threads, their stacks and priorities (shared with `src/rom/boot.c`) |
+| `gbi.h` | the RSP and RDP command constants the game's display lists use (the SDK's values; `port/gfx/gfx_gbi.h` has the renderer's own) |
+| `zlib_deflate.h` | the deflater's three files' shared declarations |
 | `m2c.h` | what the decompiler's code still uses: `M2C_FIELD` (a field by raw offset), `M2C_UNK`, `M2C_ERROR` |
 | `view.h` | `VIEW`: a file's own view of a shared datum |
 
@@ -118,21 +121,12 @@ files see the array open-ended as they always did, since much of the C indexes a
 A datum a game file defines (a tentative definition with a type of its own, 14 of them) is declared only in
 `game_decls.c`, for the data loader.
 
-**Functions.** Each function a game file defines, with its definition's prototype (the parameter names too). A
-parameter that points to a structure only its own file defines is `struct Name *`, the structure declared but not
-defined in `types.h`; the defining file's own definition completes it. Left to their files' own declarations, for
-the per-area cleanup: a function that returns a pointer to such a structure (each caller reads the result through
-its own view: 33), takes or returns a structure by value (4), whose callers pass another number of arguments or
-whose file keeps its own type of a name in the prototype (15: `AddStunt`, `dotireforce`, `setFBCollisionForce`,
-`MBOX_FindPalette_WORK`, `sound_set_volume`, `sound_key_off`, `AudioSongStop`, `CountdownTimeOut`,
-`relocate_texture_loads`, `musyx_submit_audio_task`, `sound_seq_stop`,
-`zoid_load_palette`, `zoid_load_texture`, `zoid_draw_object`, `Traverse`), where a caller passes a 32-bit integer
-for a pointer, which the prototype would sign-extend where the file's own declaration passed it zero-extended (20:
-`RemoveBlit`, `ZOID_SetTexture`, `AudEmitEffect`, `ZOID_AddObject`, `PS_WriteFile`, `point_at_car`,
-`ChangePaneSize`, `ZOID_UpdatePoly`, `ZOID_RemovePoly`, `ShowPakError`, `SetupTarget`, `SavePlayerOption`,
-`lzss_decompress`, `inflate_decompress`, `GetPlayerOption`, `GetPasswordString`, `fixword`, `enginetorque`,
-`CompressGhost`, `AudUpdateEmitter`); the C library
-the build renames `n64_*`.
+**Functions.** Each function a game file defines, with its definition's prototype (the parameter names too), and
+every caller agreeing with it (wave 2c, PCONLY.md 4: the 33 that return a pointer to a structure of their own file,
+the 4 that take or return one by value and the 35 whose callers disagreed are declared here too now). A parameter
+that points to a structure only its own file defines is `struct Name *`, the structure declared but not defined in
+`types.h`; the defining file's own definition completes it. A game file declares only the C library's functions
+(the build renames them `n64_*`) and libultra's.
 
 **Types.** The structures the shared data and prototypes need, printed from the compiler's own record of them
 (DWARF), so each lays out as it did. A structure keeps the name the files gave it when no file uses that name for
@@ -145,7 +139,8 @@ include:
 
 - a **view**, where the file reads a shared datum through another type than the headers': `VIEW(Cam152[], gCamera);`
   then `#define gCamera gCamera_view`. VIEW declares `gCamera_view` with the file's type and the datum's own symbol
-  (an assembler label), so the code compiles exactly as with the file's old declaration (1,764 views);
+  (an assembler label), so the code compiles exactly as with the file's old declaration (1,764 views after the conversion, 109 after wave 2c: each left where the canonical type would change the
+  data loader's layout or the record still has several struct copies, PCONLY.md 4);
 - a **rename**, where the file's own type has a name the headers give another type: `#define Gfx GfxView   /* this
   file's own Gfx: include/game's Gfx is another type */` (150 of them, mostly libultra's types the decompiler
   wrote as opaque words).

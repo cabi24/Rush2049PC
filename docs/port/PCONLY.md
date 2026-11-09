@@ -131,6 +131,7 @@ The data's types no longer come from the files' declarations at all but from inc
 3. **Wave 3**: the memory model: the game's data out of the 0x80000000 window into ordinary PC storage (the recipe of
    [DECOUPLE.md](DECOUPLE.md), at scale), native pointers in data, the heap and the overlays as PC memory; the last
    data in the N64's byte order converted.
+   The plan, its census (`tools/port/window_census.py`) and its 14 steps: [NATIVE.md](NATIVE.md).
 
 ### Wave 1: flatten (2026-11-08)
 
@@ -336,3 +337,31 @@ and button bits defined in several places); the names the areas found wrong (eac
 error screens `cs_draw*_DC` are MAT3's `_DrawPakErr*`, `rear_traction_by_tune` is `carEngineFwdForce` ...); files
 still named after an address or misnamed; the shared records some files still view on their own (gPlayers, gPaks,
 the profile, `struct Target`); the 33 + 4 + 35 functions the headers leave to their files.
+
+### Wave 2c: one of each (2026-11-09)
+
+Five agents on main 254c4b01 took what wave 2b left, and a sixth wrote wave 3's plan; the reference builds of
+254c4b01 (`~/rush2049pc/w2c-ref` on Rocky) were both objsame's reference and the gate's base (`pconly_gate.sh
+--base`). The five merged in the order prototypes, constants, views (game side, then system side), names; their
+conflicts were nearly all one side taking out or rewriting lines next to the other's, merged edit by edit, and each
+merge commit lists the hunks done by hand.
+
+| Agent | What | Tool to re-run after merging |
+|---|---|---|
+| prototypes | every game function declared once in `include/game` (63 more; the files keep only the C library's and libultra's); the 35 calls that disagreed with their definitions made to agree, none a port bug on the PC | `tools/port/proto_check.py` |
+| constants | one name per meaning, defined once in its header: gGameState's bits are MAT3's `GS_*` (race.h), the race kinds, buttons, menu sounds, audio commands, tracks; the files' conversion abbreviations are the prelude's `PC_N64P`/`PC_N64W`/`PC_N64A`; new `game/gbi.h`, `game/threads.h`, `game/zlib_deflate.h`, `src/rom/sound/musyx.h`. Duplicated macro names 407 to 56, each left one listed with its reason | `tools/port/one_spelling.py --apply` (ctest `one_spelling` fails while a merge brings a copy back) |
+| views, game side | 692 of 693 file views of scene, cars, physics, maths, track, race, camera and HUD data gone: unitmatrix `f32[3][3]` (`unitmatrix_origin` after it), the model tables split by what they hold (MAT3's names), `gCamera` a `tCamera`, `CarParts`, `tStatList`, the stunt and battle records with MAT3's fields | |
+| views, system side | 645 of 755 gone: the input words and the frame timer by MAT3's types (volatile where another thread writes them), gOptions `s8[41]`, gJustPlayers, the text tables, the list headers, the pak and pak error records | |
+| names | the names wave 2b found wrong (the pak error dialogs are MAT3's `DrawPakErr*`, `carEngineFwdForce`, `carTransTraction_by_gear`, `UpdateArrowVis` ...), the last address names (none left in src/, include/, port/ but a gen_data test's on purpose), 56 files renamed for what they hold, the address-suffixed copies calling their globals, pc_car's and pc_model's fields by MAT3's names | `tools/port/rename.py --apply` (map `names/wave2c.tsv`); `objsame.py --renames MAP` reads a build through a map |
+
+Views left: 109 (of 1,409), each where the canonical type would change the data loader's layout (`gNumModels` is
+MAT3's `u8` but the loader gives it 4 bytes; `gTireRims`, `gUnlockedCars`, `gBattlePoints` ...), where one record
+still has several struct copies (the menu buttons' five), or in the frame pipeline that wave 3 changes anyway.
+
+Port bugs fixed toward the original game: the results screen's middle pane (`resultPane` had four entries, the
+N64's and MAT3's five, so `resultPane[4]` was the next variable, `rumble_msg`); the trophy's sheen scale (the N64
+writes the scene node's `w`, the PC wrote an unused copy); MusyX's SET_PITCH at an exact power-of-two rate read past
+its table (a new assets_musyx test); the Windows build without SDL2 didn't link (mingw's linker and a lone weak
+definition). After wave 2b, CI's UBSan job found `tCarSettings.settings` typed 10 bytes where the checksum and the
+setup screen use 12. No synthetic path changes for any of them; the gate on the merged tree is 63 of 63 `same`.
+
