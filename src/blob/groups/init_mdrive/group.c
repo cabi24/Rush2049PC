@@ -29,9 +29,6 @@ typedef struct tModelData {
 /* The car record (tCarData), the fields Init_MDrive reads and writes. */
 typedef struct tCarData {u8 pad0[4];float modelTime;u8 pad8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];s8 crash_state,dead;u8 pad35A[10];float strayAngle;u8 tail[0x380 - 0x368]; void *player; u8 tail_384[0x3B8 - 0x384];} tCarData;
 
-VIEW(volatile s16, modelrun);
-#define modelrun modelrun_view
-
 static void multiinit_n64(s16,s16);
 
 /* Start car `slot`'s simulation (`mode` INIT_MODE_START) or respawn it (INIT_MODE_CRASH). In death mode a car that

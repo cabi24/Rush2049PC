@@ -1,13 +1,6 @@
 /* animSpeed: the box behind the speedometer's digits, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Pos { s32 x, y; } Pos;
-
-VIEW(u8[4], hud_box_color);
-#define hud_box_color hud_box_color_view
-VIEW(Pos[][4], speedPos);
-#define speedPos speedPos_view
-
 /* The speedometer box of the window in animID's low nibble; its high nibble says for which screens (1: one window
  * only, 2: split screens only). Hidden on other screens (and its animation then stops), when the HUD hides the
  * speed or the car has finished; else placed left of speedPos by two digits of the speed's font, at the HUD's box

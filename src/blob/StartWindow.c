@@ -43,9 +43,6 @@ typedef struct GameCar {
 
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
-VIEW(Visual *, gEnvList);
-#define gEnvList gEnvList_view
-
 Visual *GrabEnvEntry(void);
 
 /* A car has hit the window: its animation gets 7 frames, and if an environment visual is free it plays; the window

@@ -34,8 +34,6 @@ VIEW(Cell[][2], gPakError);
 #define gPakError gPakError_view
 VIEW(StrTable, gText);
 #define gText gText_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 typedef struct Sched { u8 pad0[0x27C]; volatile u32 frameCount; } Sched; /* gScheduler: its retrace count */
 VIEW(Sched, gScheduler);

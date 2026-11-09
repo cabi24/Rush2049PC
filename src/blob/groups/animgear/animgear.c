@@ -5,8 +5,6 @@
 
 typedef struct tText { u16 numSingle; u8 **single; } tText;
 
-VIEW(s32[4][4][2], gearPos);
-#define gearPos gearPos_view
 VIEW(tText, gText);
 #define gText gText_view
 VIEW(OSMesgQueue, text_lock_queue);

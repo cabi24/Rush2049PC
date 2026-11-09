@@ -8,9 +8,6 @@ typedef struct Effect {
     f32 lifetime;
     f32 origin[3], previous[3], lower[3], upper[3];
 } Effect;
-typedef struct Pool Pool;
-VIEW(Pool, gStreakList);
-#define gStreakList gStreakList_view
 
 /* Takes a streak from gStreakList at position, its kind and half height by mode (0 to 3: 0.75, 0.5, 0.35 and 0.025;
  * mode 3 lives no time, the others 0.1 s), its four points all at position but for the top and bottom. NULL when

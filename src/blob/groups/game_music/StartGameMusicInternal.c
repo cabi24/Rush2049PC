@@ -5,8 +5,6 @@
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; u8 remaining[25]; } AudioCfg;
 VIEW(AudioCfg, gOptions);
 #define gOptions gOptions_view
-VIEW(s32[19], sTrackSongs);
-#define sTrackSongs sTrackSongs_view
 
 /* Start the race's music, if the music volume is not 0: the track's song (sTrackSongs[gTrackNum]; -1 a random one
  * of the first 12 but song 5) when the music option is 12 (the track's own), the song the option names when it is

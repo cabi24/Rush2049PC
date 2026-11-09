@@ -3,17 +3,8 @@
  * The race flow calls it when the cars may move (the countdown, the attract mode, after a pause). */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
-VIEW(u8, gNumActiveCars);
-#define gNumActiveCars gNumActiveCars_view
-
 /* The model record (tModelData, docs/port/CARS.md 4): no field is read here; the loop steps 0x808 bytes, its size. */
 typedef struct tModelData tModelData;
-
-VIEW(volatile short, modelrun);
-#define modelrun modelrun_view
 
 /* In the attract mode or a race, start every active car's engine sounds (StartCarSounds); outside the attract mode
  * let the Rumble Pak run (gRumble, MAT3 PS_RumbleGo); then let the model thread step the cars (modelrun). */

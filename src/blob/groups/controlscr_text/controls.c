@@ -30,9 +30,6 @@ extern PadState gPlayers[];
 VIEW(ContData[], gControllerData);
 #define gControllerData gControllerData_view
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 void TB_FlashTextColors(TextColor first, TextColor second);
 
 #define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */

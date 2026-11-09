@@ -25,16 +25,8 @@ typedef struct Blit {
     u32 AnimID;
 } Blit;
 
-typedef struct {
-    s32 x;
-    s32 y;
-} Pos;
-
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
-
-VIEW(Pos[][4], odometerPos);
-#define odometerPos odometerPos_view
 
 #define HW (blt->Width / 2)
 

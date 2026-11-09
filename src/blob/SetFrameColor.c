@@ -12,8 +12,6 @@ typedef struct CarParts {
     struct { short low; short high; } tires[4];
     char sparks[20];
 } CarParts;
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
 
 /* Give car `slot`'s frame, hood and four tires the colour *col (an RGBA word; CreateCar gives white), as MAT3's six
  * ZOID_SetColor calls do, written straight into the nodes. */

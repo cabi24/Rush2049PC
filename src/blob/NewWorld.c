@@ -17,9 +17,6 @@ typedef struct NameEntry {
     char name[16];
 } NameEntry;
 
-VIEW(tModelPart *, WorldBase);
-#define WorldBase WorldBase_view
-
 /* The root part of the world called `name`, into *out: the bsearch of WorldTable by name (world_name_compare); the
  * name must be there. PC: a world's name entry keeps its node's 32-bit N64 address, which the node found becomes
  * the pointer at (pc_prelude.h, docs/port/NOFIXED.md 2.3). */

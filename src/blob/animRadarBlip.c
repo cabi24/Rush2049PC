@@ -23,12 +23,6 @@ typedef struct CAR_DATA {
     s8 state;
     u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
 } CAR_DATA;
-typedef struct { s32 x, y; } Pos;
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-VIEW(Pos[][4], radarPos);
-#define radarPos radarPos_view
 
 /* The blip of car animID & 0xF on the radar of player (animID >> 8) & 0xF: the car's position relative to the
  * player's car, turned into the player's car's frame, scaled to the radar (RADAR_RANGE feet across; mirrored with

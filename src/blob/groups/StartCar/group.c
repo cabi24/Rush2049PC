@@ -16,15 +16,6 @@ typedef struct CarParts {
     u8 pad04[0x40 - 4];
 } CarParts;
 
-VIEW(s8, gCarWings);
-#define gCarWings gCarWings_view
-
-VIEW(s32, wingOffsets);
-#define wingOffsets wingOffsets_view
-
-VIEW(s32, gCarParts);
-#define gCarParts gCarParts_view
-
 /* Start car `slot`'s wing on side `side` (0 left, 1 right; VIS_WINGS + side, AnimateWing): an object of the wing
  * the car's owner chose (gCarWings, a row a player, row 0 the drones'; OBJLIST_WINGS, 4 a wing type), under the
  * frame at the body's wing height (wingOffsets), hidden until the wing opens, and the smoke it trails

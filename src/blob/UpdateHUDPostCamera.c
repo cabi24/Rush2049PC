@@ -4,9 +4,6 @@
 #define GAME_STATE_RACE 0x200000     /* gGameState: racing */
 #define GAME_STATE_RESULTS 0x400000  /* gGameState: the race's end */
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

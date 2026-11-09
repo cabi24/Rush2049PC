@@ -13,9 +13,6 @@ typedef struct tModelData {
 /* A scene node's matrix: its rotation and its position relative to its parent. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-VIEW(s8, gCarWings);
-#define gCarWings gCarWings_view
-
 tUVMatrix *ZOID_FindMatrix(s16 node);
 
 /* Start the flame of car `slot`'s wing on side `side` (0 left, 1 right; VIS_WING_FLAMES + side, AnimateWingFlame):

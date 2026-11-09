@@ -10,9 +10,6 @@ typedef struct Player {
 
 static s8 demo_preplayDone = 0;
 
-VIEW(s32, gSkipToGameState);
-#define gSkipToGameState gSkipToGameState_view
-
 static s16 gCurrentDemoTrack = -1;
 
 extern Player gPlayers[4];
@@ -20,8 +17,6 @@ extern Player gPlayers[4];
 static s8 demo_inited = 0;
 typedef struct DemoBlit DemoBlit;
 static DemoBlit *demo_blit = 0;
-VIEW(struct pc_multiblit[1], demo_multiblit);
-#define demo_multiblit demo_multiblit_view
 
 DemoBlit *NewMultiBlit(s16 x, s16 y, void *def, s16 count);
 void RemoveBlit(DemoBlit *sound);

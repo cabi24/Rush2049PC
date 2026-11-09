@@ -15,8 +15,6 @@ typedef struct Player {
 Player gPlayers[4];
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
-VIEW(s8[4], gDriveHulk);
-#define gDriveHulk gDriveHulk_view
 VIEW(Rec164A4, gCheatState);
 #define gCheatState gCheatState_view
 

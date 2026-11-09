@@ -15,8 +15,6 @@ typedef struct tModelData {
     unsigned char pad178[0x3A0 - 0x178];
     int lasttp[4];                  /* 0x3A0 each tire's last road-tree node: a 32-bit window address */
 } tModelData;
-VIEW(intptr_t, stree_nodes);
-#define stree_nodes stree_nodes_view
 /* The model's road-tree nodes keep 32-bit N64 addresses (CollideCarBody's enum n64p_QNode): N64A(p) is a window
  * pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)

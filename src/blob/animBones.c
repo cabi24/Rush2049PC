@@ -1,22 +1,11 @@
 /* animBones: the crossbones of deaths mode, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-VIEW(u8, gDeathMode);
-#define gDeathMode gDeathMode_view
-
-VIEW(u16, gNumWindows);
-#define gNumWindows gNumWindows_view
-
 float fabsf(float);
 float sqrtf(float);
 #pragma intrinsic (fabsf)
 #pragma intrinsic (sqrtf)
 
-/* PC: the crossbones' positions, {x, y} per window count and player: bonesPos[4][4][2] of the GC's hud.c. The
- * complete declaration gives the table its extent (an M2C_UNK described only its first word to the loader). */
-typedef struct { s32 x, y; } BonesPos;
-VIEW(BonesPos[4][4], bonesPos);
-#define bonesPos bonesPos_view
 /* The blit as this reads it (tBlit's layout; the animation function's slot read as an integer). */
 typedef struct BonesBlit {
     void *Name, *Image, *Info;

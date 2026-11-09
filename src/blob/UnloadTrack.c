@@ -3,12 +3,6 @@
 
 extern void *memset(void *s, s32 c, u32 n);
 
-VIEW(intptr_t, WorldTable);
-#define WorldTable WorldTable_view
-
-VIEW(intptr_t, WorldBase);
-#define WorldBase WorldBase_view
-
 /* Unloads the track's waves (track, world, collision; the path file's stays), clears the sky and the world's
  * tables and every part's load state. `track` is not read. */
 void UnloadTrack(s32 track) {

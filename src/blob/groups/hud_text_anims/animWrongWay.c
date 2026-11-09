@@ -12,18 +12,11 @@ typedef struct StrTable {
     TblHdr *hdr;
 } StrTable;
 
-typedef struct Pos {
-    s32 x, y;
-} Pos;
-
 VIEW(StrTable, gText);
 #define gText gText_view
 
 VIEW(volatile f32, gSeconds);
 #define gSeconds gSeconds_view
-
-VIEW(Pos[][4], wrongWayPos);
-#define wrongWayPos wrongWayPos_view
 
 /* HAL_SetFont: the text font, under the text lock; returns the one before. */
 s32 font_set_8AB0(s32 font)

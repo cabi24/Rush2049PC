@@ -9,9 +9,6 @@ typedef struct tVisual {
     struct tVisual *next;
 } tVisual;
 
-VIEW(tVisual *, gEnvList);
-#define gEnvList gEnvList_view
-
 /* Push visual v on the front of gEnvList. No C calls it; it is in gen_data's function table, so data could
  * (docs/port/LAYOUT.md 6). */
 void AddToEnvList(tVisual *v) {

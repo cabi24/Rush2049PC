@@ -3,11 +3,6 @@
 
 #define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
 
-typedef struct { s32 x, y; } Pos;
-
-VIEW(Pos[][4], lapTimePos);
-#define lapTimePos lapTimePos_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 

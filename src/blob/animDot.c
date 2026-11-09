@@ -26,11 +26,7 @@ typedef struct Model {
     u8 tail[2056 - 2028];
 } Model;
 
-typedef struct MapOrigin { s32 x, y; } MapOrigin;
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
-
-VIEW(MapOrigin[], hud_mapPos);
-#define hud_mapPos hud_mapPos_view
 
 
 VIEW(volatile Clock, gScheduler);

@@ -19,9 +19,6 @@ typedef struct tCarData
   tVisual visuals[21];          /* +0x110 */
 } tCarData;
 
-VIEW(s32, gCarParts);
-#define gCarParts gCarParts_view
-
 /* If car `slot` is in the scene, remove its frame object (and so the parts under it), then stop each of its
  * visuals: an animator is called with op 0 (stop: it hides its own objects), a visual without one has its object
  * hidden. MAT3 also frees the car's shadow strips here; the N64's shadow is a polygon (StartShadow). */

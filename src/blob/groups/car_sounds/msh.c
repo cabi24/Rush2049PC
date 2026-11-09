@@ -19,9 +19,6 @@ typedef struct AudioModel2056 {
 VIEW(volatile f32, gSeconds);
 #define gSeconds gSeconds_view
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 f32 fabsf(f32);
 
 /* gGameState's bit that silences the thumps. */

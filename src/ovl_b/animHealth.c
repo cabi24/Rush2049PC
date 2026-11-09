@@ -6,12 +6,6 @@
 
 
 #define PAL_BASE(p) PC_N64W(p)
-VIEW(s32[4][4][2], healthPos);
-#define healthPos healthPos_view
-VIEW(u8[4][2][4], healthColor);
-#define healthColor healthColor_view
-VIEW(tPalette[4], healthPal);
-#define healthPal healthPal_view
 
 /* The health bar of player animID >> 4 at healthPos: the frame (drawn with the alpha threshold), or the bar, as long
  * as the health left, in a colour from green through yellow to red (written into the player's palette, healthPal).

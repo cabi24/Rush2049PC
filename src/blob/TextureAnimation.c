@@ -48,12 +48,6 @@ typedef struct tTextureSwap {
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
 #define PC_SCROLL_RETRACES(d, ticks) (pc_fps60 && (ticks) > 0 ? 2 : (d))
 
-VIEW(tPaletteAnim *[], PaletteLists);
-#define PaletteLists PaletteLists_view
-VIEW(tTextureSwap *[], TextureSwapLists);
-#define TextureSwapLists TextureSwapLists_view
-VIEW(tTextureBase[], texture_swap_shared_frames);
-#define texture_swap_shared_frames texture_swap_shared_frames_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 VIEW(volatile int, gLastFrameCount);

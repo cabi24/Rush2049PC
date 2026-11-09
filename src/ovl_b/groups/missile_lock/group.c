@@ -15,8 +15,6 @@ typedef struct Object {
     s8 owner, unknown05, kind, flags;
     f32 lifetime, timer, elapsed, velocity[3], position[3], previous[3], uv[3][3];
 } Object;
-VIEW(s16, gNumCars);
-#define gNumCars gNumCars_view
 
 extern f32 sqrtf(f32);
 

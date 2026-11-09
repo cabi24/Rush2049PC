@@ -4,9 +4,6 @@
  * shock ring as having no scene objects yet (pc_blasts, pc_blast_rings: groups/blast). */
 #include "game/game.h"
 
-VIEW(void *[50], gBlastMats);
-#define gBlastMats gBlastMats_view
-
 /* tables of words, through a byte pointer: on the PC the blasts and their rings, pc_blasts and pc_blast_rings,
  * PC_MAX_LINKS long, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6), declared whole (OPTIMIZED.md
  * 2.7); InitBlasts sets up all PC_MAX_LINKS of them, on the N64 the 6 it has */

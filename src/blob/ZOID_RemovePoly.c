@@ -1,9 +1,6 @@
 /* ZOID_RemovePoly.c: take a flat polygon out of the scene (MAT3 zoidpoly.c, ZOID_RemovePoly()). */
 #include "game/game.h"
 
-VIEW(s32, PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-
 /* A flat polygon (MAT3 tPoly), 88 bytes: 0x2C halfwords. */
 typedef struct tPoly { s16 nverts; u8 pad[0x56]; } tPoly;
 

@@ -26,16 +26,11 @@ typedef struct tBlastObj {
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual { void *next; u8 pad4[2]; s16 objnum; s16 slot; u8 padA[0x14 - 0xA]; void *func; } tVisual;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct ObjInstance { unsigned int flags, culling; void *mat; float scale; float w; unsigned short index; short child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; unsigned int color; unsigned int envcolor; } ObjInstance;
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
 #define gBlastObjs pc_blasts
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
 
 /* The fireball's animator (a visual's func): `op` 0 removes it. The flame balls go when the fireball's 0.7 s run
  * out or the car starts its respawn; everything goes, and the visual ends, when the car is no longer crashed.

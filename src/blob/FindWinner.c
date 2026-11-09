@@ -4,12 +4,6 @@
 #define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
 #define kBattle 6
 
-/* A player's stunt session as this reads it (MAT3 tStuntPlayer): its points. */
-typedef struct { u8 pad0[20]; s32 totalPoints; u8 pad1[0x78 - 24]; } StuntPlayer;
-
-VIEW(StuntPlayer[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
-
 /* Sorts the players into gRankedPlayer, the winner first (a bubble sort): by stunt points in a stunt race, by points
  * and then by team points in a battle, else by place; counts the players who tie with the winner (ties, tied[]). */
 void FindWinner(void)

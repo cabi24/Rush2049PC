@@ -16,9 +16,6 @@ typedef struct ObjInstance {
     u32 color, envcolor;
 } ObjInstance;
 
-VIEW(ObjInstance[], ObjInstanceList);
-#define ObjInstanceList ObjInstanceList_view
-
 /* The world position of node `node` into pos[3]: its own position plus each ancestor's, up the tree
  * (ZOID_TrueObjParent). Only the positions add up: the ancestors' rotations are not applied (as in MAT3). */
 void MBOX_GetPosition(void *pos, int node)

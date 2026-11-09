@@ -8,9 +8,6 @@ typedef struct View {
     char pad30[0x68];
 } View; /* 0x98 */
 
-VIEW(View[], gCamera);
-#define gCamera gCamera_view
-
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 

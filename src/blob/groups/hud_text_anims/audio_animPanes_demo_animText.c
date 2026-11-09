@@ -5,9 +5,6 @@
 /* gGameState's front end states (the screen opened from the menus, not from the pause screen). */
 #define GAME_STATE_FRONT_END 0x7C03FFFE
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 typedef struct { s8 flag; s8 pad[15]; } Slot16;
 VIEW(Slot16[], gControllerData);
 #define gControllerData gControllerData_view

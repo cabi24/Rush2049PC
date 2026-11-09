@@ -1,9 +1,6 @@
 /* ZOID_GetFog.c: a window's fog (MAT3 zoidwindow.c, ZOID_GetFog()). */
 #include "game/game.h"
 
-VIEW(volatile char, ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* A window (MAT3 tWindowInfo): 0x48 bytes on the N64, 0x50 on the PC, whose viewport and scissor pointers are 8
  * bytes each (docs/port/POINTERS.md 10); the fog at its end. */
 typedef struct tWindowInfo { void *vp, *s; u8 pad08[0x40 - 8]; u16 fogmin, fogmax; u8 fogcolor[4]; } tWindowInfo;

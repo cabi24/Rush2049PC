@@ -15,9 +15,6 @@ typedef struct ModelDefTable {
     s32 count;
 } ModelDefTable;
 
-VIEW(ModelDefTable[], gRomObjDefPtrs);
-#define gRomObjDefPtrs gRomObjDefPtrs_view
-
 /* The radius of object `handle` ((model << 10) | index, MBOX_FindObject_WORK), or 0 if the handle names no loaded
  * object. */
 f32 MBOX_GetObjectRadius(s32 handle) {

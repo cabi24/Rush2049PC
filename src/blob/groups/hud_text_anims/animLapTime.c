@@ -3,13 +3,6 @@
 
 #define GAME_STATE_ATTRACT 0x8       /* gGameState: attract mode (the demo) */
 
-typedef struct Pos {
-    s32 x, y;
-} Pos;
-
-VIEW(Pos[][4], lapTimePos);
-#define lapTimePos lapTimePos_view
-
 /* The split time's box of window animID (past the windows: hidden, its animation stopped): shown while the split
  * time is (gCheckPtTimeout), fading out over its last 3 seconds; sized to seven digits and two separators of the
  * clock's font, centred on lapTimePos, in lapTimeBGColor, depth 100. Hidden in attract mode, when the HUD hides the

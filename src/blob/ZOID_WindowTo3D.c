@@ -20,9 +20,6 @@ typedef struct tWindowInfo {
     char pad52[72 - 52];
 } tWindowInfo;
 
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* PC: the HUD's horizontal offset for a wider screen (port/gfx), so a 3D object placed at a HUD position lands
  * where the HUD is drawn. 0 at the original width. */
 int pc_gfx_hud_dx(int x);

@@ -1,9 +1,6 @@
 /* InitCarObj.c: make one of a car's scene objects (MAT3 visuals.c, InitCarObj()). */
 #include "game/game.h"
 
-VIEW(s32, unitmatrix);
-#define unitmatrix unitmatrix_view
-
 s32 ZOID_AddObject(s32 id, void *owner, s16 parent, s32 flags);
 
 /* Add a scene object of definition `objnum` under `parent` (-1 none) and return its handle. `camlink` is the mask

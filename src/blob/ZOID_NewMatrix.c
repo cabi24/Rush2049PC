@@ -6,9 +6,6 @@
 /* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-VIEW(s32, unitmatrix);
-#define unitmatrix unitmatrix_view
-
 /* Matrix i of the pool. PC: the N64's PC_N64_MATRICES at gMatrices, then PC_MATRIX_SPILL more in pc_matrix_spill,
  * a range of the RDRAM window the PC reserves (pc_game_types.h, docs/port/MORECARS.md 8). Past those it says so
  * (pc_pool_overflow: a Debug build stops) and hands out the last one again. */
