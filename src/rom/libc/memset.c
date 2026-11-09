@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x3390 (rom/lib_3390)
- * layout map c7ac6d56b89794475c018024482797a9cf040f0a2f966b6830aa3981c391cf0e.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* The C library's memset, as the game links its own. */
 #include "static_debug_context.h"
 
-/* PROMOTED 2026-10-02 — memset
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills n bytes at s with c; returns s. */
 void* memset(register void* dest, register int c, register unsigned n) {
     unsigned char* p = dest;
     int alignment;

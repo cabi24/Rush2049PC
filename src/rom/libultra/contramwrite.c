@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0x10280 (rom/lib_10280)
- * layout map a7e16243b207e227e8df23c31a3396c01164d159748332ea08293dd2d2e25d2d.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's __osContRamWrite: writing a block of a Controller Pak's memory. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-11 — __osContRamWrite
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Writes the 32-byte block buffer at address (a block number) of the pak on controller channel; the write is
+ * checked by its CRC and tried twice more. Blocks 1-7 are written only with force. Returns 0 or PFS_ERR_*. */
 #define NULL ((void *)0)
 #define TRUE 1
 #define OS_READ 0

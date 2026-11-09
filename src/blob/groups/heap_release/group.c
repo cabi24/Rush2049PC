@@ -55,8 +55,6 @@ void DeallocateMemoryInternal(u32 address, s32 internal) {
 
 /* Frees the chunk whose data is at address (a window address), under the heap lock (MAT3 DeallocateMemory). */
 __inline void DeallocateMemory(u32 address) {
-    s32 u0, u1, u2, u3;
-
     osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
     DeallocateMemoryInternal(address, 0);
     osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);

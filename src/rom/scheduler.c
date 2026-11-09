@@ -1,7 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0x1050 (rom/lib_1050_sdk)
- * layout map c8f0857aebf4ea1ed90dde16bb4db378a8281234d10bd7a742394c75635cc457.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* The scheduler (libultra's sched.c, as the game has it): a thread that serves the VI's retraces and the RSP's and
+ * RDP's interrupts, sends each client (the main thread, the model thread, the audio manager) a message each
+ * retrace, and runs the tasks the game sends (gfx frames and audio) on the RSP and RDP, audio first, swapping the
+ * frame buffer when a frame is done. On the PC port/ultra implements the OS underneath: the interrupts are its
+ * events, the tasks its renderer and audio interpreter (docs/port/ULTRA.md). */
 
 #define __scAppendList pc_m2c_scAppendList   /* m2c_types.h's prototypes take its OSSched, not PcSched */
 #define __scExec pc_m2c_scExec
@@ -24,20 +25,20 @@ typedef struct PcSched {
     u8 padB0[0x260 - 0xB0];            /* 0x0B0: the scheduler thread */
     u8 pad260[0x27C - 0x260];          /* N64: clientList .. curRDPTask, 4-byte pointers */
     s32 retraceCount;                  /* 0x27C */
-    s32 audioListPending;              /* 0x280 */
+    s32 doAudio;                       /* 0x280: an audio task waits */
     OSScClient *clientList;            /* 0x288 */
-    OSScTask *rspTaskHead;
-    OSScTask *rspTaskTail;
-    OSScTask *rdpTaskHead;
-    OSScTask *rdpTaskTail;
+    OSScTask *audioListHead;
+    OSScTask *gfxListHead;
+    OSScTask *audioListTail;
+    OSScTask *gfxListTail;
     OSScTask *curRSPTask;              /* 0x2B0 */
     OSScTask *curRDPTask;
 } PcSched;
 #define OSSched PcSched
 typedef char pc_sched_layout_check[(sizeof(PcSched) == 0x2C0 && sizeof(void *) == 8) ? 1 : -1];
 
-/* owned .bss of __scMain (__scMain, __scExec): C definitions in place of the companion. Initialized, so that
- * they are definitions the aliases below can name (not common symbols). */
+/* The scheduler's data, and the frame timer's (timer.c). Initialized, so that they are definitions the aliases
+ * below can name (not common symbols). */
 volatile OSTime __osScRetraceTime = 0;
 OSSched gScheduler = {0};
 s32 scheduler_spare_word = 0;
@@ -65,13 +66,35 @@ __asm__(PC_ALIAS("scheduler_interrupt_queue", "gScheduler + 0x40")
         PC_ALIAS("scheduler_current_rsp_task", "gScheduler + 0x2B0"));  /* curRSPTask, host-sized: not at its N64 offset */
 #include "scheduler_declarations.h"
 
+/* The messages on the scheduler's command queue (libultra sched.c's names; the fifth is the game's). */
+#define VIDEO_MSG 666       /* a retrace */
+#define RSP_DONE_MSG 667
+#define RDP_DONE_MSG 668
+#define PRE_NMI_MSG 669     /* the reset button */
+#define SCHEDULE_MSG 670    /* software interrupt 1: schedule now */
+/* The events they come from (libultra's OS_EVENT_*). */
+#define OS_EVENT_SW1 0
+#define OS_EVENT_SP 4
+#define OS_EVENT_DP 9
+/* A task's type (OSTask.t.type: M_GFXTASK 1, M_AUDTASK 2), flags and state (sched.h's). */
+#define OS_SC_NEEDS_RDP 0x1
+#define OS_SC_NEEDS_RSP 0x2
+#define OS_SC_RCP_MASK 0x3
+#define OS_SC_TYPE_MASK 0x7
+#define OS_SC_XBUS 0x3          /* both processors, the RDP reading from the RSP */
+#define OS_SC_PARALLEL_TASK 0x10
+#define OS_SC_LAST_TASK 0x20
+#define OS_SC_SWAPBUFFER 0x40
+#define OS_SC_YIELD 0x10
+#define OS_SC_YIELDED 0x20
+/* The processors (availRCP): the RSP and the RDP. */
+#define OS_SC_SP 0x2
+#define OS_SC_DP 0x1
 
-/* PROMOTED 2026-10-02 — osCreateScheduler
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+
+/* Makes the scheduler: no tasks, no clients, its command and task queues, the VI manager and the video mode (from
+ * libultra's mode table), the screen black; the RSP, RDP and pre-NMI interrupts and the retrace (every numFields
+ * fields) as messages on its command queue; then its thread at priority. */
 void osCreateScheduler(OSSched *scheduler, void *stack, OSPri priority, u8 mode, u8 numFields)
 {
     gRenderInProgress = 0;
@@ -79,10 +102,10 @@ void osCreateScheduler(OSSched *scheduler, void *stack, OSPri priority, u8 mode,
     scheduler->curRDPTask = 0;
     scheduler->clientList = 0;
     scheduler->retraceCount = 0;
-    scheduler->rspTaskHead = 0;
-    scheduler->rspTaskTail = 0;
-    scheduler->rdpTaskHead = 0;
-    scheduler->rdpTaskTail = 0;
+    scheduler->audioListHead = 0;
+    scheduler->gfxListHead = 0;
+    scheduler->audioListTail = 0;
+    scheduler->gfxListTail = 0;
     scheduler->state = 1;
     scheduler->priority = 4;
     osCreateMesgQueue(&scheduler->cmdQueue, scheduler->cmdMsgs, 8);
@@ -90,21 +113,16 @@ void osCreateScheduler(OSSched *scheduler, void *stack, OSPri priority, u8 mode,
     osCreateViManager(254);
     osViSetMode(&osViModeTable[mode]);
     osViBlack(1);
-    osSetEventMesg(4, &scheduler->cmdQueue, (OSMesg)667);
-    osSetEventMesg(9, &scheduler->cmdQueue, (OSMesg)668);
-    osSetEventMesg(14, &scheduler->cmdQueue, (OSMesg)669);
-    osSetEventMesg(0, &scheduler->cmdQueue, (OSMesg)670);
-    osViSetEvent(&scheduler->cmdQueue, (OSMesg)666, numFields);
+    osSetEventMesg(OS_EVENT_SP, &scheduler->cmdQueue, (OSMesg)RSP_DONE_MSG);
+    osSetEventMesg(OS_EVENT_DP, &scheduler->cmdQueue, (OSMesg)RDP_DONE_MSG);
+    osSetEventMesg(OS_EVENT_PRENMI, &scheduler->cmdQueue, (OSMesg)PRE_NMI_MSG);
+    osSetEventMesg(OS_EVENT_SW1, &scheduler->cmdQueue, (OSMesg)SCHEDULE_MSG);
+    osViSetEvent(&scheduler->cmdQueue, (OSMesg)VIDEO_MSG, numFields);
     osCreateThread((OSThread *)scheduler->padB0, 4, __scMain, scheduler, stack, priority);
     osStartThread((OSThread *)scheduler->padB0);
 }
 
-/* PROMOTED 2026-10-02 — osScAddClient
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Adds client to the scheduler's clients, which get a message on queue each retrace. With interrupts off. */
 void osScAddClient(OSSched *scheduler,OSScClient *client,OSMesgQueue *queue) {
  u32 mask;
  mask=osSetIntMask(1);
@@ -114,12 +132,9 @@ void osScAddClient(OSSched *scheduler,OSScClient *client,OSMesgQueue *queue) {
  osSetIntMask(mask);
 }
 
-/* PROMOTED 2026-10-12 — __scMain
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The scheduler's thread: forever, a message from the command queue: a retrace (the frame time, the clients told,
+ * the next tasks started), the RSP done, the RDP done (the RDP's time for the frame), a request to schedule, or a
+ * pre-NMI (every client gets the pre-NMI message). */
 extern OSViMode osViModeTable[];
 extern s32 __osScPendingSwap,frame_cycle_count;
 extern u32 __osScSwapCount;
@@ -157,22 +172,22 @@ void __scMain(void *arg) {
  while(1) {
   osRecvMesg(&scheduler->cmdQueue,&message,OS_MESG_BLOCK);
   switch((s32)message) {
-   case 666:
+   case VIDEO_MSG:
     __osScFrameTime=osGetTime();
     __scHandleRetrace(scheduler);
     __scSchedule(scheduler);
     break;
-   case 667:
+   case RSP_DONE_MSG:
     __scHandleRSP(scheduler);
     break;
-   case 668:
+   case RDP_DONE_MSG:
     frame_cycle_count=(s32)(osGetTime()-__osScRetraceTime);
     __scHandleRDP(scheduler);
     break;
-   case 670:
+   case SCHEDULE_MSG:
     __scSchedule(scheduler);
     break;
-   case 669:
+   case PRE_NMI_MSG:
     for(client=scheduler->clientList;client!=0;client=client->next)
      osJamMesg(client->msgQueue,(OSMesg)&scheduler->priority,OS_MESG_BLOCK);
     break;
@@ -180,12 +195,8 @@ void __scMain(void *arg) {
  }
 }
 
-/* PROMOTED 2026-10-02 — __scSchedule
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Takes the tasks the game has sent into the scheduler's lists, then starts what the RSP and RDP can run: when an
+ * audio task waits while a graphics task runs, the graphics task is asked to yield. */
 void __scSchedule(OSSched *scheduler)
 {
     OSMesg message;
@@ -194,7 +205,7 @@ void __scSchedule(OSSched *scheduler)
     OSScTask *dp = 0;
     while (osRecvMesg(&scheduler->retQueue, &message, OS_MESG_NOBLOCK) != -1)
         __scAppendList(scheduler, (OSScTask *)message);
-    if (scheduler->audioListPending && scheduler->rspTaskHead && scheduler->curRSPTask) {
+    if (scheduler->doAudio && scheduler->audioListHead && scheduler->curRSPTask) {
         __scHandlePreNMI(scheduler);
     } else {
         state = ((scheduler->curRSPTask == 0) << 1) | (scheduler->curRDPTask == 0);
@@ -203,12 +214,8 @@ void __scSchedule(OSSched *scheduler)
     }
 }
 
-/* PROMOTED 2026-10-12 — __scHandleRetrace
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* A retrace: counts it; a frame buffer waiting to be shown is swapped in once PC_SWAP_RETRACES have passed since
+ * the last swap (the pending video mode with it); and every client gets the retrace message. */
 extern s32 __osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osViSwapBuffer(void *mode);
@@ -239,12 +246,8 @@ void __scHandleRetrace(OSSched *scheduler) {
     }
 }
 
-/* PROMOTED 2026-10-02 — __scHandleRSP
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The RSP finished or yielded: a yielded graphics task goes back to the head of the graphics list (to run on), a
+ * finished one is done with the RSP (and is done if the RDP is too); then the next tasks. */
 void __scHandleRSP(OSSched *scheduler)
 {
     OSScTask *task, *sp = 0, *dp = 0;
@@ -252,18 +255,20 @@ void __scHandleRSP(OSSched *scheduler)
     if (!scheduler->curRSPTask) { }
     task = scheduler->curRSPTask;
     scheduler->curRSPTask = 0;
-    if ((task->state & 0x10) && osSpTaskYielded(&task->type)) {
-        task->state |= 0x20;
-        if ((task->flags & 7) == 3) {
-            task->next = scheduler->rspTaskTail;
-            scheduler->rspTaskTail = task;
-            if (scheduler->rdpTaskTail == 0)
-                scheduler->rdpTaskTail = task;
+    if ((task->state & OS_SC_YIELD) && osSpTaskYielded(&task->type)) {
+        task->state |= OS_SC_YIELDED;
+        if ((task->flags & OS_SC_TYPE_MASK) == OS_SC_XBUS) {
+            task->next = scheduler->gfxListHead;
+            scheduler->gfxListHead = task;
+            if (scheduler->gfxListTail == 0)
+                scheduler->gfxListTail = task;
         }
     } else {
-        if (task->flags & 0x40) { }
-        else if (task->type == 2) { }
-        task->state &= ~2;
+        /* (sched.c's debug checks of the task here are empty in the retail library; the test stays so that the
+         * code stays the base's) */
+        if (task->flags & OS_SC_SWAPBUFFER) { }
+        else if (task->type == M_AUDTASK) { }
+        task->state &= ~OS_SC_SP;
         __scExecTask(scheduler, task);
     }
     state = ((scheduler->curRSPTask == 0) << 1) | (scheduler->curRDPTask == 0);
@@ -271,33 +276,21 @@ void __scHandleRSP(OSSched *scheduler)
         __scExec(scheduler, sp, dp);
 }
 
-/* PROMOTED 2026-10-02 — __scHandleRDP
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The RDP finished its task: it is done with the RDP (and is done if the RSP is too); then the next tasks. */
 void __scHandleRDP(OSSched *scheduler)
 {
     OSScTask *task, *sp = 0, *dp = 0;
     s32 state;
-    if (!scheduler->curRDPTask) { }
-    if (scheduler->curRDPTask->type != 1) { }
     task = scheduler->curRDPTask;
     scheduler->curRDPTask = 0;
-    task->state &= ~1;
+    task->state &= ~OS_SC_DP;
     __scExecTask(scheduler, task);
     state = ((scheduler->curRSPTask == 0) << 1) | (scheduler->curRDPTask == 0);
     if (__scScheduleCore(scheduler, &sp, &dp, state) != state)
         __scExec(scheduler, sp, dp);
 }
 
-/* PROMOTED 2026-10-02 — __scTaskReady
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Whether graphics task task can run: the last frame buffer swapped is on screen, and no swap waits. */
 OSScTask *__scTaskReady(OSSched *scheduler, OSScTask *task) {
     void *current;
     void *next;
@@ -311,21 +304,16 @@ OSScTask *__scTaskReady(OSSched *scheduler, OSScTask *task) {
     return 0;
 }
 
-/* PROMOTED 2026-10-02 — __scExecTask
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* If task has finished on both processors: tells the game (its message), and for a graphics frame counts it out
+ * of gRenderInProgress and swaps its frame buffer, now or (too soon after the last) later. Returns 1 then, else 0. */
 s32 __scExecTask(OSSched *scheduler, OSScTask *task)
 {
     int rv;
-    if ((task->state & 3) == 0) {
-        if (!task->msgQueue) { }
+    if ((task->state & (OS_SC_SP | OS_SC_DP)) == 0) {
         rv = osSendMesg(task->msgQueue, task->msg, OS_MESG_BLOCK);
-        if (task->type == 1) {
+        if (task->type == M_GFXTASK) {
             gRenderInProgress--;
-            if ((task->flags & 0x40) && (task->flags & 0x20)) {
+            if ((task->flags & OS_SC_SWAPBUFFER) && (task->flags & OS_SC_LAST_TASK)) {
                 if (scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
                     __osScSwapCount = scheduler->retraceCount;
                     osViSwapBuffer(task->framebuffer);
@@ -340,151 +328,129 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
     return 0;
 }
 
-/* PROMOTED 2026-10-12 — __scAppendList
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Appends task to the audio list or the graphics list, by its type (an audio task makes audio pending), with its
+ * state from its flags. */
 void __scAppendList(OSSched *scheduler, OSScTask *task)
 {
     long type = task->type;
 
-    if (!((type == 2) || (type == 1))) { }
-
-    if (type == 2) {
-        if (scheduler->rdpTaskHead)
-            scheduler->rdpTaskHead->next = task;
+    if (type == M_AUDTASK) {
+        if (scheduler->audioListTail)
+            scheduler->audioListTail->next = task;
         else
-            scheduler->rspTaskHead = task;
-        scheduler->rdpTaskHead = task;
-        if (scheduler->audioListPending) { }
-        scheduler->audioListPending = 1;
-        ;
+            scheduler->audioListHead = task;
+        scheduler->audioListTail = task;
+        scheduler->doAudio = 1;
     } else {
-        if (scheduler->rdpTaskTail)
-            scheduler->rdpTaskTail->next = task;
+        if (scheduler->gfxListTail)
+            scheduler->gfxListTail->next = task;
         else
-            scheduler->rspTaskTail = task;
-        scheduler->rdpTaskTail = task;
+            scheduler->gfxListHead = task;
+        scheduler->gfxListTail = task;
     }
     task->next = 0;
-    task->state = task->flags & 3;
+    task->state = task->flags & OS_SC_RCP_MASK;
 }
 
-/* PROMOTED 2026-10-12 — __scExec
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Starts sp on the RSP (an audio task's start time noted, a fresh graphics task's retrace time noted) and dp's
+ * output on the RDP. */
 #define OS_MESG_NOBLOCK 0
 #define OS_MESG_BLOCK 1
 void __scExec(OSSched *scheduler,OSScTask *sp,OSScTask *dp) {
  s32 rv;
- if(scheduler->curRSPTask) { }
  if(sp) {
-  if(sp->type==2) {
+  if(sp->type==M_AUDTASK) {
    __osScAudioStart=osGetTime();
    scheduler_audio_task=sp;
-  } else if(!(sp->state&0x20)) {
+  } else if(!(sp->state&OS_SC_YIELDED)) {
    __osScRetraceTime=__osScFrameTime;
   }
   osWritebackDCacheAll();
-  sp->state&=~0x30;
+  sp->state&=~(OS_SC_YIELD|OS_SC_YIELDED);
   osSpTaskLoad(&sp->type);
   osSpTaskStartGo(&sp->type);
   scheduler->curRSPTask=sp;
   if(sp==dp)scheduler->curRDPTask=dp;
  }
  if(dp && dp!=sp) {
-  if(!dp->unk38) { }
-  rv=osDpSetNextBuffer(dp->unk38,*(u64 *)dp->unk3C);
-  if(rv) { }
+  rv=osDpSetNextBuffer(dp->output_buff,*(u64 *)dp->output_buff_size);
   scheduler->curRDPTask=dp;
  }
 }
 
-/* PROMOTED 2026-10-02 — __scHandlePreNMI
- * Source:   module_campaign_20261002 SDK publication
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Asks the graphics task on the RSP to yield (for the audio task, or a reset). */
 void __scHandlePreNMI(OSSched *scheduler) {
- if(scheduler->curRSPTask->type==1) {
-  scheduler->curRSPTask->state|=0x10;
+ if(scheduler->curRSPTask->type==M_GFXTASK) {
+  scheduler->curRSPTask->state|=OS_SC_YIELD;
   osSpTaskYield();
- } else {
  }
 }
 
-/* PROMOTED 2026-10-02 — __scScheduleCore
- * Source:   module_campaign_20261002 scheduler core table audit
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Chooses the next RSP and RDP tasks for the processors free in availRCP (bit 1 the RSP, bit 0 the RDP): a
+ * pending audio task first (unless a yielded graphics task must finish), else the graphics list's head when its
+ * frame buffer may be drawn, on the processors its flags and state call for; repeats while it finds more. Returns
+ * the processors still free. */
 s32 __scScheduleCore(OSSched *scheduler, OSScTask **sp, OSScTask **dp, s32 availRCP)
 {
     s32 avail = availRCP;
-    OSScTask *gfx = scheduler->rspTaskTail;
-    OSScTask *audio = scheduler->rspTaskHead;
-    if (scheduler->audioListPending && (avail & 2)) {
-        if (gfx && (gfx->flags & 0x10)) {
+    OSScTask *gfx = scheduler->gfxListHead;
+    OSScTask *audio = scheduler->audioListHead;
+    if (scheduler->doAudio && (avail & OS_SC_SP)) {
+        if (gfx && (gfx->flags & OS_SC_PARALLEL_TASK)) {
             *sp = gfx;
-            avail &= ~2;
+            avail &= ~OS_SC_SP;
         } else {
             *sp = audio;
-            avail &= ~2;
-            scheduler->audioListPending = 0;
-            scheduler->rspTaskHead = scheduler->rspTaskHead->next;
-            if (scheduler->rspTaskHead == 0)
-                scheduler->rdpTaskHead = 0;
+            avail &= ~OS_SC_SP;
+            scheduler->doAudio = 0;
+            scheduler->audioListHead = scheduler->audioListHead->next;
+            if (scheduler->audioListHead == 0)
+                scheduler->audioListTail = 0;
         }
     } else {
         if (__scTaskReady(scheduler, gfx)) {
-            switch (gfx->flags & 7) {
-                case 3:
-                    if (gfx->state & 0x20) {
-                        if (avail & 2) {
+            switch (gfx->flags & OS_SC_TYPE_MASK) {
+                case OS_SC_XBUS:
+                    if (gfx->state & OS_SC_YIELDED) {
+                        if (avail & OS_SC_SP) {
                             *sp = gfx;
-                            avail &= ~2;
-                            if (gfx->state & 1) {
+                            avail &= ~OS_SC_SP;
+                            if (gfx->state & OS_SC_DP) {
                                 *dp = gfx;
-                                avail &= ~1;
-                                if ((avail & 1) == 0)
+                                avail &= ~OS_SC_DP;
+                                /* (an empty debug check, kept so that the code stays the base's) */
+                                if ((avail & OS_SC_DP) == 0)
                                     if (scheduler->curRDPTask != gfx) { }
                             }
-                            scheduler->rspTaskTail = scheduler->rspTaskTail->next;
-                            if (scheduler->rspTaskTail == 0)
-                                scheduler->rdpTaskTail = 0;
+                            scheduler->gfxListHead = scheduler->gfxListHead->next;
+                            if (scheduler->gfxListHead == 0)
+                                scheduler->gfxListTail = 0;
                         }
                     } else {
-                        if (avail == 3) {
+                        if (avail == (OS_SC_SP | OS_SC_DP)) {
                             *sp = *dp = gfx;
-                            avail &= ~3;
-                            scheduler->rspTaskTail = scheduler->rspTaskTail->next;
-                            if (scheduler->rspTaskTail == 0)
-                                scheduler->rdpTaskTail = 0;
+                            avail &= ~(OS_SC_SP | OS_SC_DP);
+                            scheduler->gfxListHead = scheduler->gfxListHead->next;
+                            if (scheduler->gfxListHead == 0)
+                                scheduler->gfxListTail = 0;
                         }
                     }
                     break;
                 case 7:
                 case 6:
                 case 2:
-                    if (gfx->state & 2) {
-                        if (avail & 2) {
+                    if (gfx->state & OS_SC_SP) {
+                        if (avail & OS_SC_SP) {
                             *sp = gfx;
-                            avail &= ~2;
+                            avail &= ~OS_SC_SP;
                         }
-                    } else if (gfx->state & 1) {
-                        if (avail & 1) {
+                    } else if (gfx->state & OS_SC_DP) {
+                        if (avail & OS_SC_DP) {
                             *dp = gfx;
-                            avail &= ~1;
-                            scheduler->rspTaskTail = scheduler->rspTaskTail->next;
-                            if (scheduler->rspTaskTail == 0)
-                                scheduler->rdpTaskTail = 0;
+                            avail &= ~OS_SC_DP;
+                            scheduler->gfxListHead = scheduler->gfxListHead->next;
+                            if (scheduler->gfxListHead == 0)
+                                scheduler->gfxListTail = 0;
                         }
                     }
                     break;

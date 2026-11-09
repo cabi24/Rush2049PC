@@ -1,15 +1,33 @@
-/* GENERATED ROM-aligned TU — segment 0x2cf0 (rom/lib_2cf0)
- * layout map 2fee9198d70b169d9db10078865019d23807b48148a346fda9e88851da0e576b.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* The game's start-up and its first threads (the boot segment; MAT3's start is its GameCube main): main starts
+ * libultra and the idle thread; the idle thread starts the PI manager and the main thread; the main thread makes
+ * the scheduler, inflates the game image, starts the background loader and the car simulation, runs InitSystem,
+ * starts the game thread, and then serves the scheduler's messages forever (process_scheduler_message). On the PC
+ * the threads are host threads and the inflate fills the RDRAM window from the cartridge (port/ultra). The
+ * threads' ids and priorities are system.h's THREAD_*. */
 #include "static_debug_context.h"
 
-/* PROMOTED 2026-10-02 — main
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The game threads' FPU control: flush denormals to zero (FS) and trap invalid operations, divide by zero and
+ * overflow. port/ultra records it. */
+#define FPCSR_GAME 0x01000E00
+/* The thread ids and priorities (include/game/system.h, which this boot code doesn't include). */
+#define THREAD_ID_IDLE 1
+#define THREAD_ID_MODEL 5
+#define THREAD_ID_MAIN 6
+#define THREAD_ID_GAME 7
+#define THREAD_ID_BG_LOAD 8
+#define THREAD_PRI_IDLE_START 2
+#define THREAD_PRI_BG_LOAD 3
+#define THREAD_PRI_MAIN 4
+#define THREAD_PRI_GAME 5
+#define THREAD_PRI_MODEL 7
+#define THREAD_PRI_SCHEDULER 12
+#define THREAD_PRI_PI_MANAGER 150
+/* The game thread's message asking the main thread to end a frame, and the main thread's to start one. */
+#define GAME_MSG_END_FRAME 0xABE
+#define GAME_MSG_START_FRAME 0xABF
+
+/* The N64's entry point (libultra's boot calls it): starts libultra, reads the cartridge header's first 64 bytes
+ * (unused), and starts the idle thread, which runs everything else. */
 void main(void *argument) {
     u32 index;
     u32 address;
@@ -19,30 +37,20 @@ void main(void *argument) {
     for (index = 0; index < 16; index++, address += 4) {
         osPiReadIo(address, &header[index]);
     }
-    osCreateThread(&gIdleThread, 1, idle_thread_entry, argument, gStackIdle + 0x190, 2);
+    osCreateThread(&gIdleThread, THREAD_ID_IDLE, idle_thread_entry, argument, gStackIdle + 0x190, THREAD_PRI_IDLE_START);
     osStartThread(&gIdleThread);
 }
 
-/* PROMOTED 2026-10-02 — idle_thread_entry
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The idle thread: starts the PI manager (the cartridge's DMA), drops to priority 0, starts the main thread and then
+ * idles for good. */
 void idle_thread_entry(void *argument) {
-    osCreatePiManager(150, &gViModeTable, gViModeLan1, 200);
+    osCreatePiManager(THREAD_PRI_PI_MANAGER, &gViModeTable, gViModeLan1, 200);
     osSetThreadPri(NULL, 0);
-    osCreateThread(&main_thread, 6, main_thread_entry, argument, main_thread_stack + 0x960, 4);
+    osCreateThread(&main_thread, THREAD_ID_MAIN, main_thread_entry, argument, main_thread_stack + 0x960, THREAD_PRI_MAIN);
     osStartThread(&main_thread);
     for (;;) { pc_os_idle(); }
 }
 
-/* PROMOTED 2026-10-12 — main_thread_entry
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
 typedef struct { s16 type; } MainThreadSchedulerMessage;
 typedef struct MainThreadScheduler MainThreadScheduler;
 extern OSMesgQueue rom_dma_queue, unzip_dma_queue, main_thread_queue, game_thread_queue, bg_load_idle_queue;
@@ -74,38 +82,43 @@ extern void InitSystem(void);
 extern void BlitInit(void);
 extern void BlitFinish(void);
 extern void process_scheduler_message(void);
+
+/* The main thread: the FPU mode; the queues (cartridge DMA, inflate DMA, the scheduler's messages to this thread,
+ * the frame-start messages to the game thread); the scheduler (one field a retrace, the TV's video mode); the game
+ * image inflated from the cartridge; the background loader (idle at first) and the car simulation started;
+ * InitSystem; the boot screen (BlitInit) and the game thread, started unless gInitFlag holds it. Then it waits for
+ * the game thread's first end of frame, ends the boot screen and serves the scheduler's messages forever. */
 void main_thread_entry(void *arg) {
-    s32 unused0, unused1, unused2, unused3, unused4, unused5; /* frame residual, see header */
     OSScClient client;
     OSMesg msg = 0;
     register s32 tvType;
 
-    __setfpcsr(0x01000E00);
+    __setfpcsr(FPCSR_GAME);
     osCreateMesgQueue(&rom_dma_queue, gDmaMesgBuf, 8);
     osCreateMesgQueue(&unzip_dma_queue, gInflateMesgBuf, 8);
     osCreateMesgQueue(&main_thread_queue, gRetraceMesgBuf, 60);
     osCreateMesgQueue(&game_thread_queue, gEventMesgBuf, 8);
-    tvType = video_mode_base_index(), osCreateScheduler(&gScheduler, gSchedulerStack + 0x640, 12, tvType, 1);
+    tvType = video_mode_base_index(), osCreateScheduler(&gScheduler, gSchedulerStack + 0x640, THREAD_PRI_SCHEDULER, tvType, 1);
     osInvalICache(gDecompressedDataStart, gDecompressedDataEnd1 - gDecompressedDataStart);
     osInvalDCache(gDecompressedDataEnd1, gBssStart - gDecompressedDataEnd1);
     unzipdata_from_rom(gRomCompressedData, gDecompressedDataStart, 0);
     osScAddClient(&gScheduler, &client, &main_thread_queue);
-    osCreateThread(&bg_load_thread, 8, BGLoadWaveMain, 0, bg_load_thread_stack + 0x960, 3);
+    osCreateThread(&bg_load_thread, THREAD_ID_BG_LOAD, BGLoadWaveMain, 0, bg_load_thread_stack + 0x960, THREAD_PRI_BG_LOAD);
     osCreateMesgQueue(&bg_load_idle_queue, gSyncMesgBuf, 1);
     osSendMesg(&bg_load_idle_queue, 0, 1);
     osStartThread(&bg_load_thread);
-    osCreateThread(&model_thread, 5, ModelThread, 0, model_thread_stack + 0x960, 7);
+    osCreateThread(&model_thread, THREAD_ID_MODEL, ModelThread, 0, model_thread_stack + 0x960, THREAD_PRI_MODEL);
     osStartThread(&model_thread);
     InitSystem();
     BlitInit();
-    osCreateThread(&game_thread, 7, (void (*)(void *))game_thread_entry, arg, game_thread_stack + 0x12C0, 5);
-    frame_start_msg = 0xABF;
+    osCreateThread(&game_thread, THREAD_ID_GAME, (void (*)(void *))game_thread_entry, arg, game_thread_stack + 0x12C0, THREAD_PRI_GAME);
+    frame_start_msg = GAME_MSG_START_FRAME;
     if (!gInitFlag) {
         osStartThread(&game_thread);
     }
     while (1) {
         osRecvMesg(&main_thread_queue, &msg, 1);
-        if (((MainThreadSchedulerMessage *)msg)->type == 0xABE) {
+        if (((MainThreadSchedulerMessage *)msg)->type == GAME_MSG_END_FRAME) {
             break;
         }
     }
@@ -116,11 +129,5 @@ void main_thread_entry(void *arg) {
     }
 }
 
-/* PROMOTED 2026-10-02 — game_thread_entry
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-void game_thread_entry(s32 arg) { __setfpcsr(0x01000E00); while(1) { GameLoop(); } }
-
+/* The game thread: the FPU mode, then GameLoop forever (a frame each call). */
+void game_thread_entry(s32 arg) { __setfpcsr(FPCSR_GAME); while(1) { GameLoop(); } }

@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0xb9f0 (rom/lib_b9f0)
- * layout map bb949529a461cb0d86ad90e99394bbb7c63d781016b2821bbc04d597c813e590.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsReadWriteFile (pfsreadwritefile.c): reading and writing a Controller Pak file. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — __osPfsGetNextPage (formerly labelled osPfsGetFileStat)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The page after page in a file's chain (inode), checking it is in range. Returns 0 or PFS_ERR_INCONSISTENT. */
 s32 __osPfsGetNextPage(OSPfs* pfs, u8* bank, __OSInode* inode, __OSInodeUnit* page) {
     s32 ret;
 
@@ -30,12 +22,8 @@ s32 __osPfsGetNextPage(OSPfs* pfs, u8* bank, __OSInode* inode, __OSInodeUnit* pa
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — osPfsReadWriteFile (formerly labelled osPfsGetFileSize)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads (flag PFS_READ) or writes size_in_bytes of file file_no at offset, a 32-byte block at a time, following
+ * the file's pages; a write updates the pak's write counter. Returns 0 or PFS_ERR_*. */
 s32 osPfsReadWriteFile(OSPfs* pfs, s32 file_no, u8 flag, int offset, int size_in_bytes, u8* data_buffer) {
     s32 ret;
     __OSDir dir;

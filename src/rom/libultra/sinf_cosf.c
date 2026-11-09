@@ -1,7 +1,4 @@
-/* GENERATED ROM-aligned TU — segment 0x9330 (rom/lib_9330)
- * layout map 030152813d73343687c493ddf9a7a7f8fe1c8cd4cdb4d934e7fc9618169c2e19.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's sinf and cosf (sinf.c, cosf.c): single-precision sine and cosine by a polynomial. */
 #include "../rom_tu.h"
 
 /* Canonical SDK math macros and real readonly constants; no new storage. */
@@ -13,12 +10,7 @@ extern const f64 gCosCoeffs[5],gCosAngleScale,gCosPiOver2Hi,gCosPiOver2Lo;
 extern const f32 gNaN,gCosOne,gNaNf;
 
 
-/* PROMOTED 2026-10-01 — sinf
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The sine of x (radians), single precision. */
 float
 sinf( float x )
 {
@@ -108,12 +100,7 @@ int	ix, xpt;
 	return ( gNaN );
 }
 
-/* PROMOTED 2026-10-01 — cosf
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The cosine of x (radians), single precision. */
 float
 cosf( float x )
 {

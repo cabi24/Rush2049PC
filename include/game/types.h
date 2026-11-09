@@ -611,12 +611,12 @@ typedef struct PcSched { /* 0x2C0 bytes */
     u8 padB0[432];                   /* 0xB0 */
     u8 pad260[28];                   /* 0x260 */
     s32 retraceCount;                /* 0x27C */
-    s32 audioListPending;            /* 0x280 */
+    s32 doAudio;                     /* 0x280 */
     struct OSScClient_s *clientList; /* 0x288 */
-    struct OSScTask_s *rspTaskHead;  /* 0x290 */
-    struct OSScTask_s *rspTaskTail;  /* 0x298 */
-    struct OSScTask_s *rdpTaskHead;  /* 0x2A0 */
-    struct OSScTask_s *rdpTaskTail;  /* 0x2A8 */
+    struct OSScTask_s *audioListHead; /* 0x290 */
+    struct OSScTask_s *gfxListHead;  /* 0x298 */
+    struct OSScTask_s *audioListTail; /* 0x2A0 */
+    struct OSScTask_s *gfxListTail;  /* 0x2A8 */
     struct OSScTask_s *curRSPTask;   /* 0x2B0 */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;

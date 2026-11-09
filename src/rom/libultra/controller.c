@@ -1,15 +1,9 @@
-/* GENERATED ROM-aligned TU — segment 0xa050 (rom/lib_a050)
- * layout map d5022908837d5caae1c6f954ab92b583231ad91b890aac766d00d270cadc95ee.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's controller start-up (controller.c): osContInit and the PIF commands it uses. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osContInit (formerly labelled __osContBuildPacket)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Starts the controllers: waits until half a second has passed since the CPU started (the PIF needs it), asks
+ * every port's status, and returns the ports with a controller in *bitpattern and each port's status in data.
+ * Makes the serial bus's lock. Once only; returns 0 or the serial bus's error. */
 s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
     OSMesg dummy;
     s32 ret = 0;
@@ -48,12 +42,7 @@ s32 osContInit(OSMesgQueue* mq, u8* bitpattern, OSContStatus* data) {
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — __osContGetInitData (ultralib name; formerly labelled __osContGetStatus)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads the status the PIF returned into data, and the ports that answered into *pattern. */
 void __osContGetInitData(u8* pattern, OSContStatus* data) {
     u8* ptr;
     __OSContRequesFormat requestHeader;
@@ -76,12 +65,7 @@ void __osContGetInitData(u8* pattern, OSContStatus* data) {
     *pattern = bits;
 }
 
-/* PROMOTED 2026-10-01 — __osPackRequestData (ultralib name; formerly labelled __osContRamReset)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills the PIF buffer with command cmd (status or read) for every controller. */
 void __osPackRequestData(u8 cmd) {
     u8* ptr;
     __OSContRequesFormat requestHeader;

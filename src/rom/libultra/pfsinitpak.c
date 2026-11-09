@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0xa810 (rom/lib_a810)
- * layout map d0906279f3a363c7867864e8022f124d57c55d485c021b2accf340401d72ea36.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsInitPak (pfsinitpak.c): starting a Controller Pak's file system. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsInitPak
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Starts the file system of the pak on controller channel: its status, its ID (repaired if need be), its banks and
+ * tables, into pfs. Returns 0 or PFS_ERR_*. */
 s32 osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, int channel) {
     s32 ret = 0;
     u16 sum;
@@ -84,12 +77,7 @@ s32 osPfsInitPak(OSMesgQueue* queue, OSPfs* pfs, int channel) {
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsCheckRamArea (ultralib name; formerly labelled __osTimerInterrupt)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Whether the pak has working RAM (a write and read back of a test block). Returns 0 or PFS_ERR_DEVICE. */
 s32 __osPfsCheckRamArea(OSPfs* pfs) {
     s32 i;
     s32 ret = 0;

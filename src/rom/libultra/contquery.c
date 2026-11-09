@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0xa330 (rom/lib_a330)
- * layout map a35c7b19bb677a9029630ff9414a70c9be081a07d21c4a5bb277be656d9b0153.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's controller status and read (contquery.c, contreaddata.c): osContStartQuery, osContGetQuery,
+ * osContStartReadData, osContGetReadData. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osContStartQuery
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Asks every controller its status (into the PIF), under the serial bus's lock. Returns the serial bus's result. */
 s32 osContStartQuery(OSMesgQueue* mq) {
     s32 ret = 0;
 
@@ -27,46 +20,32 @@ s32 osContStartQuery(OSMesgQueue* mq) {
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — osContGetQuery
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Each controller's status, from the last query, into data. */
 void osContGetQuery(OSContStatus* data) {
     u8 pattern;
     __osContGetInitData(&pattern, data);
 }
 
-/* PROMOTED 2026-10-01 — osContStartReadData (formerly labelled osContStartReadData2)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
-s32 osContStartReadData(OSMesgQueue *arg0) {
-    s32 temp_v0;
-    s32 sp1C;
+/* Asks every controller its buttons and stick (into the PIF), under the serial bus's lock. Returns the serial bus's
+ * result. */
+s32 osContStartReadData(OSMesgQueue *mq) {
+    s32 ret;
+    s32 unused;
 
     __osSiGetAccess();
-    if (__osContLastCmd != 1) {
+    if (__osContLastCmd != CONT_CMD_READ_BUTTON) {
         __osPackReadData();
-        __osSiRawStartDma(1, &__osSiDmaBuffer);
-        osRecvMesg(arg0, NULL, 1);
+        __osSiRawStartDma(OS_WRITE, &__osSiDmaBuffer);
+        osRecvMesg(mq, NULL, OS_MESG_BLOCK);
     }
-    temp_v0 = __osSiRawStartDma(0, &__osSiDmaBuffer);
-    sp1C = temp_v0;
-    __osContLastCmd = 1;
+    ret = __osSiRawStartDma(OS_READ, &__osSiDmaBuffer);
+    unused = ret;
+    __osContLastCmd = CONT_CMD_READ_BUTTON;
     __osSiRelAccess();
-    return temp_v0;
+    return ret;
 }
 
-/* PROMOTED 2026-10-01 — osContGetReadData
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Each controller's buttons and stick, from the last read, into data (errno set where none answered). */
 void osContGetReadData(OSContPad* data) {
     u8* ptr = (u8*)__osSiDmaBuffer.ramarray;
     __OSContReadFormat readformat;
@@ -86,12 +65,7 @@ void osContGetReadData(OSContPad* data) {
     }
 }
 
-/* PROMOTED 2026-10-01 — __osPackReadData
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills the PIF buffer with the read command for every controller. */
 void __osPackReadData(void) {
     u8* ptr = (u8*)__osSiDmaBuffer.ramarray;
     __OSContReadFormat readformat;
