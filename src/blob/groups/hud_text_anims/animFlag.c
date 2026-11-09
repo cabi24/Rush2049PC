@@ -56,16 +56,6 @@ VIEW(Checkpoints, gCheckpoints);
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-/* Sets blt's hidden flag to hide, redrawing it when that changes; returns the flag (MAT3 Hidden). */
-s32 Hidden_9F54(Blit *blt, s32 hide)
-{
-    if (hide != blt->hide) {
-        blt->hide = hide;
-        UpdateBlit(blt);
-    }
-    return blt->hide;
-}
-
 /* On the track map (one to four windows, the map shown, a lap race but not battle, stunt or obstacle, gRace 4-6),
  * from the last lap on: places the flag at the finish line's place on the map (mirrored for a mirrored track). On
  * the last lap, unless practising (1) or in the demo, the laps left are drawn there instead; else the flag waves,
@@ -74,8 +64,8 @@ s32 animFlag(Blit *blt)
 {
     s32 x, y, width, height, w, h, xoff, yoff;
 
-    if (Hidden_9F54(blt, gNumWindows > 4 || gNumLapsLeft > 1 || gRace == 6 || gRace == 4 ||
-                         gRace == 5 || !gShowTrackMap))
+    if (Hidden(blt, gNumWindows > 4 || gNumLapsLeft > 1 || gRace == 6 || gRace == 4 ||
+                    gRace == 5 || !gShowTrackMap))
         return 1;
     width = gPathMax[0] - gPathMin[0];
     height = gPathMax[2] - gPathMin[2];
@@ -97,7 +87,7 @@ s32 animFlag(Blit *blt)
     y += (gCheckpoints.points[gCheckpoints.finishPt].pos[2] - gPathMin[2]) * h / height;
     blt->x = x - blt->width / 2;
     blt->y = y - blt->width / 2;
-    if (Hidden_9F54(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & GAME_STATE_DEMO))) {
+    if (Hidden(blt, gRace == 1 || gNumLapsLeft > 1 || (gGameState & GAME_STATE_DEMO))) {
         if (gRace != 1 && !(gGameState & GAME_STATE_DEMO)) {
             if (gNumWindows < 4)
                 HAL_SetFont(6);

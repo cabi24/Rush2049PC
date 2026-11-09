@@ -918,8 +918,6 @@ Record **getNextGhost(Record **node,s8 direction)
 
 typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
 
-extern void sound_handles_array_clear(FiveParts *);
-
 extern void RemoveBlit(Blit *);
 
 /* Take the screen down: its waves, the grid backdrop, the "waiting" boxes, each player's buttons, turntable and part
@@ -936,7 +934,7 @@ void carscr_UninitScreen(void)
     } else if(gTrackNum>=6)UnloadWaveAll(80);
     else UnloadWaveAll(81);
     for(box=carscr_pane;box<carscr_pane+4;box++) {
-        if(*box) {sound_handles_array_clear(*box);*box=0;}
+        if(*box) {RemovePane((tBlitSet *)*box);*box=0;}
     }
     for(player=0;player<(count=gNumPlayers);player++) {
         carscr_uninitButtons(player);

@@ -8,12 +8,14 @@
  * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes. The pause screen's title
  * (animTitleText) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)). The pause
  * screen's pages (the title, the language list animPauseText, the two-choice page animSureText) show and hide their
- * blit through its Hide, at +0x26 of the Blit's host layout: the N64's +0x1A is the low byte of X (LAYOUT.md 9).
+ * blit through Hidden (animPause.c), its Hide at +0x26 of the Blit's host layout: the N64's +0x1A is the low
+ * byte of X (LAYOUT.md 9).
  * game: src/blob/UpdateRushControls.c src/blob/ClearRushControls.c src/blob/FindPlayerNum.c
  * game: src/blob/SetControls.c src/blob/groups/game_sounds/StartListeners.c
  * game: src/blob/groups/listeners/AudRemoveListener.c src/blob/UpdateListeners.c src/blob/NewCircuit.c
  * game: src/blob/groups/animTitleText/animTitleText.c src/blob/groups/animPauseText/animPauseText.c
  * game: src/blob/groups/animSureText/animSureText.c src/blob/groups/state/halfont.c src/blob/TB_CenterText.c
+ * game: src/blob/animPause.c
  */
 #include <stddef.h>
 #include <string.h>
@@ -243,6 +245,9 @@ _Static_assert(offsetof(PauseBlit, Hide) == 0x26 && offsetof(PauseBlit, X) == 0x
 static int g_updates;
 static PauseBlit g_seen;
 void UpdateBlit(void *item) { g_updates++, g_seen = *(PauseBlit *)item; }   /* UpdateBlit */
+/* animPause.c's other function, animPause, reads these (the pages show and hide through its Hidden) */
+int32_t pauseMenuSelect;
+uint32_t animPause_color;
 void HAL_SetTextDepth(float a) {}
 uint32_t HAL_GetTextWidth(void *text, int32_t n) { return 40; }
 void TB_SetTextColor(int32_t colour) {}

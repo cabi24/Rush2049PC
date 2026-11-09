@@ -33,7 +33,7 @@ typedef struct { void *object; int16_t active, count; } Slot;
 #define NODES TEST_N64(gTargetArray)  /* gTargetArray, 130 nodes of 0x70 bytes in the game arena */
 #define NODE(i) ((uint8_t *)WP(NODES + 0x70u * (i)))
 TEST_ABS(gTargetArray);
-#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap, audio_dma_sync) */
+#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap) */
 
 StatLL gTargetList, gAlwaysColList;
 
@@ -66,11 +66,6 @@ void *AllocateMemoryHeap(int32_t heap, int32_t size)
     g_heap += (uint32_t)size;
     memset(WP(g_heap), 0xAB, 64);    /* a guard after each block */
     return p;
-}
-/* audio_dma_sync, the overlays' old name for AllocateMemoryHeap */
-void *audio_dma_sync(void *heap, uint32_t size)
-{
-    return AllocateMemoryHeap(0, (int32_t)size);
 }
 float Random(float max) { return 0.0f; }   /* Random */
 static int16_t g_def_index;

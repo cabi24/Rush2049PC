@@ -1,4 +1,4 @@
-/* The options screen's text: its options and values, the flashing colours (MAT3 optionscr.c and TB_text.c). */
+/* The options screen's text: its options and values, the chosen one flashing (MAT3 optionscr.c). */
 #include "game/game.h"
 
 typedef union Color {
@@ -42,10 +42,6 @@ VIEW(u8[], gCamera);
 #define gCamera gCamera_view
 VIEW(Color[2], flashColors);
 #define flashColors flashColors_view
-VIEW(Color, gFlashColor1);
-#define gFlashColor1 gFlashColor1_view
-VIEW(Color, gFlashColor2);
-#define gFlashColor2 gFlashColor2_view
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
@@ -53,12 +49,9 @@ VIEW(s8[], gOptions);
 VIEW(s32[14], options_validOption);
 #define options_validOption options_validOption_view
 
-/* Sets the two colours flashing text moves between (MAT3 TB_text.c's TB_FlashTextColors). */
-void TB_FlashTextColors_AEAC(Color a, Color b)
-{
-    gFlashColor1.rgba = a.rgba;
-    gFlashColor2.rgba = b.rgba;
-}
+/* The two colours flashing text moves between (audio.c, MAT3 TB_text.c): passed as this file's Color, the same
+ * four bytes as audio.c's TextColor. */
+void TB_FlashTextColors(Color first, Color second);
 
 
 
@@ -68,10 +61,10 @@ void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 {
     if (options_buttonsInited == 1) {
         if (options_buttonInfo[item].ang < 1.5707964f) {
-            TB_FlashTextColors_AEAC(flashColors[0], flashColors[1]);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(1);
         } else {
-            TB_FlashTextColors_AEAC(flashColors[0], flashColors[1]);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(22);
         }
     } else {
@@ -160,7 +153,7 @@ void options_animButtonText(void)
     ZeroCameras();
     TB_SetJust(0, 3);
     HAL_SetTextTranslucency(-1.0f);
-    TB_FlashTextColors_AEAC(flashColors[0], flashColors[1]);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
 }
 
@@ -252,7 +245,7 @@ s32 options_animText(void *item)
         itemsDrawn++;
     }
     HAL_SetTextTranslucency(-1.0f);
-    TB_FlashTextColors_AEAC(flashColors[0], flashColors[1]);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

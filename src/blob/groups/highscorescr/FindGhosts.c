@@ -8,7 +8,6 @@ typedef struct Q { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(vo
 typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 pos[14]; s32 id0; s32 id1; } Ghost;
 typedef struct Player { void *w0, *w4; Q **qq; s32 id0; s32 id1; s8 name[4]; } Player;
 
-typedef struct Slot { u8 pad0; s8 formatted; u8 pad2[3]; s8 damaged; s8 full; u8 rest[5]; PcPfs pfs; u8 pad74[0x304 - 0x74]; } Slot;
 typedef struct PakState { s8 inserted; u8 rest[15]; } PakState;
 
 VIEW(Player **, gPlayers_save);
@@ -16,20 +15,15 @@ VIEW(Player **, gPlayers_save);
 
 VIEW(PakState[], gControllerData);
 #define gControllerData gControllerData_view
-VIEW(Slot[], gPaks);
-#define gPaks gPaks_view
 
 /* The ghost files on the paks (carscr.c's RecordList): first the list head. */
 typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Ghost **first, **last;} RecordList;
 VIEW(RecordList, gGhostFiles);
 #define gGhostFiles gGhostFiles_view
 
-/* Pak pak's formatted, damaged and full flags. */
-s32 pak_slot_b1(s32 pak) { return gPaks[pak].formatted; }
-s32 pak_slot_b5(s32 pak) { return gPaks[pak].damaged; }
-s32 pak_slot_b6(s32 pak) { return gPaks[pak].full; }
-
-/* Sets gGhostStatus[pak]: -4 no pak, -1 not formatted, -2 damaged, -3 full, else 0; in a ghost race (gRace 2) 1
+/* Sets gGhostStatus[pak]: -4 no controller, -1 no pak the pak system has read, -2 a damaged pak, -3 a Rumble Pak
+ * (the messages playerscr_draw shows for PAK_NO_CONTROLLER, PAK_NOT_INSERTED, PAK_DAMAGED and PAK_RUMBLE; MAT3
+ * _FindGhosts asks PS_PakInserted and PS_PakDamaged too), else 0; in a ghost race (gRace 2) 1
  * or 2 when the pak holds the first player's ghost of this track and direction (2 when it is another of the
  * player's records: its name or ids differ), whose list node goes to gPakGhosts[pak]. */
 void FindGhosts(s32 pak)
@@ -44,11 +38,11 @@ void FindGhosts(s32 pak)
     *ghosth = 0;
     if (gControllerData[pak].inserted == 0) {
         gGhostStatus[pak] = -4;
-    } else if (pak_slot_b1(pak) == 0) {
+    } else if (PS_PakInserted(pak) == 0) {
         gGhostStatus[pak] = -1;
-    } else if (pak_slot_b5(pak) != 0) {
+    } else if (PS_PakDamaged(pak) != 0) {
         gGhostStatus[pak] = -2;
-    } else if (pak_slot_b6(pak) != 0) {
+    } else if (PS_PakRumble(pak) != 0) {
         gGhostStatus[pak] = -3;
     } else {
         gGhostStatus[pak] = 0;

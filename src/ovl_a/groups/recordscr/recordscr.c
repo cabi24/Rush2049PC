@@ -187,15 +187,13 @@ void setRecordState(s32 mode)
 VIEW(MenuButton[RECORD_BUTTONS], recordscr_buttonInfo);
 #define recordscr_buttonInfo recordscr_buttonInfo_view
 
-/* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
-extern void sound_handles_array_clear(void *);
 extern void RemoveBlit(void *);
 
 /* Take the screen down: its buttons, its box, its text blit and the background. */
 void uninitRecordScreen(void) {
     recordscr_uninitButtons();
     if (recordscr_viewPane != 0) {
-        sound_handles_array_clear(recordscr_viewPane);
+        RemovePane(recordscr_viewPane);
         recordscr_viewPane = 0;
     }
     if (recordscr_blit != 0) {

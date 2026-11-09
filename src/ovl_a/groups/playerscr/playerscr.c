@@ -538,8 +538,6 @@ void playerscr_updateButtons(s8 p)
     playerscr_buttonsJustInited[p] = 0;
 }
 
-extern void player_mode_set ( s32 , s32 );
-
 VIEW(char *, gPlayerNameChars);
 #define gPlayerNameChars gPlayerNameChars_view
 
@@ -991,11 +989,11 @@ void updatePlayerScreen(void)
                             goto restart;
                         }
                     }
-                    if (i > 1) player_mode_set(i, 1);
+                    if (i > 1) SetControllerStickEdges(i, 1);
                     FindPlayerNum(i, 1);
                 }
                 for (; i < 4; i++)
-                    if (i > 1) player_mode_set(i, 0);
+                    if (i > 1) SetControllerStickEdges(i, 0);
                 CalcUnlockedStuff();
                 setGameState(GS_MODE);
                 return;
@@ -1058,7 +1056,7 @@ restart:;
                 if (!ReadPlayerData(gPlayers[p].owner)) break;
                 SaveSelectPlayer(gPlayers[p].owner);
                 PS_LockFile((void **)gPlayers[p].owner->body->fileh, 1);
-                if (p > 1) player_mode_set(p, 1);
+                if (p > 1) SetControllerStickEdges(p, 1);
                 FindPlayerNum(p, 1);
             }
             if (p < gNumPlayers) {
@@ -1070,7 +1068,7 @@ restart:;
                 break;
             }
             for (; p < 4; p++)
-                if (p > 1) player_mode_set(p, 0);
+                if (p > 1) SetControllerStickEdges(p, 0);
             CalcUnlockedStuff();
             playerscr_uninitScreen();
             setGameState(GS_MODE);

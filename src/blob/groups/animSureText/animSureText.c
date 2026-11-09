@@ -41,16 +41,6 @@ VIEW(s16[2], pause_titlePos);
 VIEW(StrTable, gText);
 #define gText gText_view
 
-/* Sets item's hidden flag to off, redrawing its blit when that changes; returns the flag. */
-s32 item_disable_B9C8(MenuItem *item, s32 off)
-{
-    if (off != item->dirty) {
-        item->dirty = off;
-        UpdateBlit(item);
-    }
-    return item->dirty;
-}
-
 /* For restart and quit (gPauseState 7 and 8: MAT3 kPauseRestart, kPauseQuit): the question (message 216) under
  * the title, and yes and no beside each other a quarter of its width from the centre, the chosen one (pause_gYes)
  * highlighted. Hidden in the other pause states. Returns 1: the blit stays. */
@@ -60,7 +50,7 @@ s32 animSureText(MenuItem *item) {
     s32 y;
     intptr_t str;
 
-    if (item_disable_B9C8(item, gPauseState < 7)) {
+    if (Hidden((struct Blit *)item, gPauseState < 7)) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);

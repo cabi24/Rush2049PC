@@ -274,8 +274,6 @@ VIEW(f32[3], buildStuntTrackMaps_mapPos);
 VIEW(f32[3], buildBattleTrackMaps_mapPos);
 #define buildBattleTrackMaps_mapPos buildBattleTrackMaps_mapPos_view
 
-extern void *audio_dma_sync(s32,s32);  /* AllocateMemoryHeap */
-
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 #define GFX(p,a,b) do { Gfx *_g = (p)++; _g->words.w0 = (a); _g->words.w1 = (b); } while (0)
@@ -957,10 +955,10 @@ void buildRaceTrackMaps(void)
             trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
             saved_map_lods[gTrackNum] = trackRomObjDef->lod[0];
             vtxSize = kNumMapSects * 64 + 64;
-            map_vertex_blocks[gTrackNum] = audio_dma_sync(0, vtxSize + 7);
+            map_vertex_blocks[gTrackNum] = AllocateMemoryHeap(0, vtxSize + 7);
             mapObj[gTrackNum].verts = vtx = (Vtx_t *)(((uintptr_t)map_vertex_blocks[gTrackNum] + 7) & ~7);
             dlSize = kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
-            map_display_list_blocks[gTrackNum] = audio_dma_sync(0, dlSize + 7);
+            map_display_list_blocks[gTrackNum] = AllocateMemoryHeap(0, dlSize + 7);
             mapObj[gTrackNum].displayList = (u32 *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
             dl[0].words.w0 = 0xD7000000; dl[0].words.w1 = 0xFFFFFFFF;
             dl[1].words.w0 = 0xE7000000; dl[1].words.w1 = 0;
@@ -1079,9 +1077,9 @@ void buildRaceTrackMaps(void)
     trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[TRACK_MAP_SELECTED], 0, gNumModels - 1, 1);
     trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
     saved_map_lods[MAP_LOD_SELECTED] = trackRomObjDef->lod[0];
-    map_vertex_blocks[MAP_LOD_SELECTED] = audio_dma_sync(0, kNumMapSects * 64 + 64 + 7);
+    map_vertex_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * 64 + 64 + 7);
     mapObj[MAP_LOD_SELECTED].verts = (void *)(((uintptr_t)map_vertex_blocks[MAP_LOD_SELECTED] + 7) & ~7);
-    map_display_list_blocks[MAP_LOD_SELECTED] = audio_dma_sync(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
+    map_display_list_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
     mapObj[MAP_LOD_SELECTED].displayList = (u32 *)(((uintptr_t)map_display_list_blocks[MAP_LOD_SELECTED] + 7) & ~7);
     mapObj[MAP_LOD_SELECTED].flags = 0;
     mapObj[MAP_LOD_SELECTED].texidx = 0;

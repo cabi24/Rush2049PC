@@ -479,8 +479,6 @@ VIEW(MenuButton[CIRCUIT_BUTTONS], circuitscr_buttonInfo);
 #define circuitscr_buttonInfo circuitscr_buttonInfo_view
 
 extern void RemoveBlit(Blit *);
-/* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
-extern void sound_handles_array_clear(s8 *);
 
 /* Take the screen down: its buttons, its text blit, its box, the trophy and the background. */
 void circuitscr_uninitScreen(void)
@@ -491,7 +489,7 @@ void circuitscr_uninitScreen(void)
         circuitscr_blit = 0;
     }
     if (circuitscr_pane) {
-        sound_handles_array_clear((s8 *)circuitscr_pane);
+        RemovePane((tBlitSet *)circuitscr_pane);
         circuitscr_pane = 0;
     }
     if (trophyObjIdx != -1) {

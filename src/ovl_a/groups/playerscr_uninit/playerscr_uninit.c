@@ -5,8 +5,6 @@ typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 
 #define PLAYER_BUTTONS 22           /* playerscr_buttonInfo[player][]: a window's buttons */
 
-/* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
-extern void sound_handles_array_clear ( FiveParts * );
 extern void RemoveBlit ( Blit * );
 
 /* Take the screen down: every player's buttons and pane, the controls screen, the text blit and the background; the
@@ -17,7 +15,7 @@ void playerscr_uninitScreen(void)
     for(i=0;i<gNumPlayers;i++) {
         playerscr_uninitButtons(i);
         if(playerscr_pane[i]) {
-            sound_handles_array_clear(playerscr_pane[i]);
+            RemovePane((tBlitSet *)playerscr_pane[i]);
             playerscr_pane[i]=0;
         }
     }
