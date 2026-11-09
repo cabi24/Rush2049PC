@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """objsame.py on objects compiled for the test: what must be `same` (declarations, local and static names, comments,
-moved lines) and what must not (code, data, a string, a reference to another symbol, a moved __LINE__).
+moved lines) and what must not (code, data, a string, a reference to another symbol, a moved __LINE__); --renames
+makes a renamed global and a moved unit `same`, but not a string that spells the new name.
 
     python3 tools/port/tests/test_objsame.py [--cc COMPILER]
 
@@ -127,6 +128,38 @@ def main():
         print(f"test_objsame: builds   {'ok' if ok else 'WRONG'}")
         if not ok:
             bad.append("builds")
+            print(out)
+        # --renames: a global defined (lookup), one referenced (gCount) and a unit's file (src/z.c) renamed by a map,
+        # one by the ledger's form; a string that spells a renamed name still differs (it is data)
+        renamed = BASE.replace("gCount", "gTotal").replace("int lookup(", "int find_entry(")
+        compile_c(a.cc, renamed, t / "renamed.o")
+        compile_c(a.cc, renamed.replace('"name"', '"find_entry"'), t / "renamed_str.o")
+        compile_c(a.cc, BASE.replace('"name"', '"lookup"'), t / "base_str.o")
+        (t / "map.tsv").write_text("# a map\nold\tnew\tkind\tsource\tconfidence\tnote\n"
+                                   "lookup\tfind_entry\tfunc\tcode\tsure\tthe test's\n"
+                                   "src/z.c\tsrc/zz.c\tfile\tcode\tsure\tthe test's\n")
+        (t / "ledger.tsv").write_text("# applied\ndata\tgCount\tgTotal\n")
+        cases = (("no map", ("base.o", "renamed.o"), (), 1),
+                 ("map", ("base.o", "renamed.o"), ("--renames", t / "map.tsv", "--renames", t / "ledger.tsv"), 0),
+                 ("string", ("base_str.o", "renamed_str.o"),
+                  ("--renames", t / "map.tsv", "--renames", t / "ledger.tsv"), 1))
+        for label, (oa, ob), extra, want in cases:
+            rc, out = objsame(t / oa, t / ob, *extra)
+            print(f"test_objsame: renames {label:7s} {'ok' if rc == want else 'WRONG'}")
+            if rc != want:
+                bad.append(f"renames {label}")
+                print(out)
+        zz = t / "B" / "CMakeFiles" / "game.dir" / "src" / "zz.c.o"
+        shutil.copy(t / "B" / "CMakeFiles" / "game.dir" / "src" / "z.c.o", zz)
+        (t / "C").mkdir()
+        (t / "C" / "game_objects.txt").write_text(
+            (t / "B" / "game_objects.txt").read_text().replace("/src/z.c.o", "/src/zz.c.o"))
+        (t / "files.tsv").write_text("src/z.c\tsrc/zz.c\tfile\tcode\tsure\tthe test's\n")
+        rc, out = objsame(t / "A", t / "C", "--renames", t / "files.tsv", "src/x.c", "src/z")
+        ok = rc == 0 and "src/zz.c" in out and "2 same" in out
+        print(f"test_objsame: renames units {'ok' if ok else 'WRONG'}")
+        if not ok:
+            bad.append("renames units")
             print(out)
         (t / "explained.txt").write_text("# unit  why\nsrc/y.c  the test's code change\n")
         rc, out = objsame(t / "A", t / "B", "--explained", t / "explained.txt", "src/x.c", "src/y.c", "src/z.c")
