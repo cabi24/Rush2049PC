@@ -23,6 +23,14 @@ if(NOT WIN32)
     # the same object, and a second run changes nothing (docs/code/README.md "The headers")
     add_test(NAME to_headers_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_to_headers.py --cc ${CMAKE_C_COMPILER})
 endif()
+# window_census.py (docs/port/NATIVE.md), wave 3's measure: its patterns on a made-up tree (each kind counts what it
+# is for and not its look-alikes, every kind in its place, --baseline), then the census over this tree and build
+# without the compiler pass (the tables, nm, the sources: seconds), which must run through.
+add_test(NAME window_census_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_window_census.py)
+if(NOT WIN32)
+    add_test(NAME window_census COMMAND ${PC_PYTHON} ${PORT_TOOLS}/window_census.py --build ${CMAKE_BINARY_DIR}
+        --no-compile --jobs 4)
+endif()
 # the gate script parses (it runs on Rocky against the base: tools/port/pconly_gate.sh)
 find_program(PC_BASH bash)
 if(PC_BASH)
