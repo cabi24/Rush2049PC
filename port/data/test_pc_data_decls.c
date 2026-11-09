@@ -3,7 +3,9 @@
  * gen_data.py --test-tables reads this object's DWARF as it reads the game's and writes the runs and the element
  * conflicts it finds for them (pc-data/test_pc_data_gen.h); test_pc_data.c loads them from its synthetic game image
  * and checks the bytes. Never linked: the pointer table only makes the compiler keep the declarations in the
- * DWARF. Each name is the N64 address in the test's game image (0x80010000-0x80010200), before its arena. */
+ * DWARF. Each name is the N64 address in the test's game image (0x80010000-0x80010200), before its arena: an
+ * address name on purpose, since gen_data.py takes such a name's address from its spelling (n64syms.address_of),
+ * the rule this test exercises; the game's own names have their addresses in the symbol tables. */
 #include <stdint.h>
 
 /* A colour union as the game declares them (TextColor, tRGBA): R, G, B, A in memory, the word only moves them.

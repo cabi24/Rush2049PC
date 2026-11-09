@@ -1,5 +1,5 @@
 /* port/assets/tests/test_cars.c: the car record (pc_cars, N64 gGameCar, 0x468 bytes a car on the PC) and the
- * model record (pc_models, N64 D_8014A250, 0x808 bytes, its N64 layout) through the game's own code
+ * model record (pc_models, MAT3 model[], 0x808 bytes, its N64 layout) through the game's own code
  * (docs/port/CARS.md): init_cars
  * (init_cars), StartEnvironment and StartCar with every visual starter, the car visuals' stop loop, the
  * environment visual pool, the code that reaches cars at raw offsets or strides, and the model set-up from the
@@ -374,14 +374,14 @@ static void test_raw(void)
     gGameState = 8;
     init_view3(c);
     CHECK(CF(c, 0x35E, int8_t) == 2 && CF(c, 0x35D, int8_t) == 2 && rear_y[4] == 5.0f && view3_switch[4] == 1);
-    /* AreWeSolid: a stride on D_80152B70 (car + 0x358) */
+    /* AreWeSolid: a stride on car + 0x358 */
     MF(MODEL(1), 0x640, int8_t) = 0, MF(MODEL(1), 0x6C4, int16_t) = -1;
     MF(MODEL(1), 0x7EB, int8_t) = 1, MF(MODEL(1), 0x7DF, int8_t) = 0;
     CF(c, 0x358, int8_t) = 0;
     CHECK(AreWeSolid(1) == 1);
     CF(c, 0x358, int8_t) = 1;
     CHECK(AreWeSolid(1) == 0);
-    /* gameover_validOption: a stride on D_80152907 (car + 0xEF) */
+    /* gameover_validOption: a stride on car + 0xEF */
     gRace = 3, gCircuitPlayer = 1;
     CF(c, 0xEF, int8_t) = 0;
     CHECK(gameover_validOption(5) == 0);

@@ -25,13 +25,13 @@ bzero                         0x80008590  ultralib:src/libc/bzero.s
 entrypoint                    0x80000400  handwritten:boot stub: clears BSS from 0x8002E8E0, sets sp, jumps to main
 gsm_rpe_decode                 0x800277D0  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
 gsm_long_term_synthesis                 0x800278C4  handwritten:reads its inline table PC-relatively via a never-taken bltzal $zero (libgsm RPE decoding / long-term synthesis)
-func_80027980                 0x80027980  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
-gsm_short_term_filter                 0x80027B44  handwritten:frameless bal calls into 0x80027980/0x80027C98 and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)
-func_80027C98                 0x80027C98  handwritten:reached by bal with no stack frame; 0x80027C98 calls its PC-relative callback through jalr t3 (libgsm short-term synthesis)
-func_80027D3C                 0x80027D3C  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
-func_80027D54                 0x80027D54  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
-func_80027D64                 0x80027D64  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into func_80027D7C (libgsm LAR interpolation)
-func_80027D7C                 0x80027D7C  handwritten:shared tail of the PC-relative coefficient callbacks (libgsm LARp_to_rp)
+gsm_lattice_filter                 0x80027980  handwritten:reached by bal with no stack frame; filters a part's samples through the lattice with the rp gsm_part_rp packed in t6..t9 (libgsm short-term synthesis)
+gsm_short_term_filter                 0x80027B44  handwritten:frameless bal calls into gsm_lattice_filter/gsm_part_rp and builds callback pointers as ra+imm after bltzal $zero (libgsm short-term synthesis)
+gsm_part_rp                 0x80027C98  handwritten:reached by bal with no stack frame; computes a part's eight rp through its PC-relative callback (jalr t3) (libgsm short-term synthesis)
+gsm_larp_0_12                 0x80027D3C  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into gsm_larp_to_rp (libgsm LAR interpolation)
+gsm_larp_13_26                 0x80027D54  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into gsm_larp_to_rp (libgsm LAR interpolation)
+gsm_larp_27_39                 0x80027D64  handwritten:callback entry formed as ra+imm after bltzal $zero; tail-branches into gsm_larp_to_rp (libgsm LAR interpolation)
+gsm_larp_to_rp                 0x80027D7C  handwritten:shared tail of the PC-relative coefficient callbacks (libgsm LARp_to_rp)
 dcache_create_dirty_lines                 0x8002C5E0  handwritten:cache 0xd (create dirty exclusive) loop; C cannot emit cache
 unzipdata_from_rom                 0x80006814  handwritten:hand-edited compiler output: li a1,12000 + addiu a0,zero,0 after a one-argument call; no C order reaches it
 unzipdata             0x8000697C  handwritten:same hand edit as unzipdata_from_rom

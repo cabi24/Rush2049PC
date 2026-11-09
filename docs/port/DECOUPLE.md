@@ -4,7 +4,7 @@ Most of the game's data sits at its N64 address in the RDRAM window ([DATA.md](D
 unchanged. That costs the port: an array can't grow (its neighbours follow it), address arithmetic between symbols
 is baked in, AddressSanitizer can't run on x86-64, and macOS arm64 can't map the address. Decoupling moves one item
 to storage the PC owns outright, with one PC declaration and no N64 address. The first item is the race roster
-(`D_80153E88`, arcade `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
+(the arcade's `D_80153E88`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
 (`gGameCar`, MAT3 `gGameCar`), which had host storage of their own already: steps toward 12 cars a race
 (`PC_MAX_LINKS`, 8 until 2026-10-29). 2026-10-28, the car records 2026-10-29.
 

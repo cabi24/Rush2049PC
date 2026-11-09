@@ -1,6 +1,5 @@
-/* Common includes for ROM-aligned TUs (004). Passthrough slots need nothing;
- * promoted bodies add what they use here (keep it additive and collision-free
- * — one definition per hardware register across all ROM TUs). */
+/* src/rom/rom_tu.h: what the boot segment's C files (src/rom) share: libultra's types and internals, the RCP's
+ * registers their libultra code names, and the boot code's data and functions. One definition each. */
 #include "types.h"
 #include "rom_auto.h"   /* auto-decomp type context (autodecomp promotion) */
 #include "PR/os_message.h"
@@ -10,22 +9,8 @@
 extern void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 extern void pc_mem_unregister_be(const void *start);
 
-/* Data symbols referenced by promoted libultra bodies. */
-extern OSThread *__osEmptyMesgQueue;   /* 0x8002C3D0 — empty mesg queue sentinel */
-
-/* Referenced by alloc_zip_mem (inflate's window allocator). C89 makes an
- * undeclared VARIABLE an error, so a promoted body that touches a global
- * needs it here even though the body compiles standalone with its own m2c
- * prelude. Types follow the body's use: a byte offset accumulated into a
- * base. The names come from symbol_addrs and read as display-list symbols in
- * inflate code, which is suspect — see docs/SYMBOL_MISATTRIBUTION.md. */
-extern s32 zmregion;            /* 0x800354C4 */
-extern unsigned int zmused;  /* 0x800354C8 (no volatile; the inflate TU's
-                                        * as1 -O1 recipe keeps its reloads) */
-
-/* N64 MMIO registers referenced by promoted libultra bodies. IDO compiles
- * these #define'd KSEG1 addresses to literal immediates (no relocation) —
- * the same fact behind 003's KSEG1 de-symbolization. */
+/* The RCP's registers the boot segment's libultra code names (KSEG1 addresses: on the PC port/ultra's
+ * libultra stands in for every function that touches them). */
 #define SP_STATUS_REG    (*(vu32 *)0xA4040010)
 #define SP_PC_REG        (*(vu32 *)0xA4080000)
 #define SP_STATUS_HALT     0x0001
@@ -129,18 +114,9 @@ typedef u32 OSIntMask;
  * Delivered thread/timer bodies select the verified pre-K behavior directly;
  * no BUILD_VERSION/VERSION_K shared macros are needed. */
 
-/* Additional queue context for verified static. */
-/* Required existing declaration corrections, not conflicting redeclarations:
- * The proven body at 0x80006D40 is SDK osViSetMode (named osSetThreadPri
- * ; include/PR/os_thread.h declares void osViSetMode(void *mode)).
- * mode points to OSViMode; the body casts it to OSViMode* before assigning it.
- * The second old priority argument is unused and its spill causes a strict
- * mismatch, so the old 2-argument prototype cannot remain for this definition.
- * Preserve old ROM gates and audit any linked callers before changing it.
- * Existing __osActiveQueue global should be OSThread*, not OSThread**.
- * Canonical SDK run-queue head has current historical name __osActiveQueue;
- * canonical active-list head has current historical name __osRunQueue (C3).
- */
+/* libultra's thread queues: the dispatcher and the run queue's pop. (__osActiveQueue and __osRunQueue keep the
+ * names the symbol file gave them: the SDK's run-queue head is __osActiveQueue here, its active list
+ * __osRunQueue.) */
 extern void __osDispatchThread(void);
 extern OSThread *__osPopThread(OSThread **);
 #define OS_STATE_WAITING 8

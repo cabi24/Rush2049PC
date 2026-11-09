@@ -223,8 +223,9 @@ because the library is the same.
   longer used here), `object_list_scale_view` (circuitscr.c's trophy sheen) writes the window's copy of
   `ObjInstanceList`, not the PC's own storage (a latent port bug PCONLY.md lists); `gFrontTireScale` and
   `gRearTireScale` are declared one row long and read rows 1-4, which are `gFrontTireScale_players` after them.
-- **Stale names** the screens still call: `player_mode_set` is `SetControllerStickEdges` and
-  `sound_handles_array_clear` is `RemovePane` (image A's symbol table keeps the old names).
+- **Stale names** the screens called until wave 2c: `player_mode_set` (`SetControllerStickEdges`) and
+  `sound_handles_array_clear` (`RemovePane`), image A's symbol table's names; the screens call them by the game's
+  names now.
 - **The profile's statistics** (MAT3 `tSaveData`): recordscr_draw.c and circuitscr.c have the first typed views
   (race, stunt, battle, obstacle and circuit records, the circuit state at 0x6F4); save.h's `StatsB` ... `StatsE`
   and `WeightRecord` are the same tables under guessed names.

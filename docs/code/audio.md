@@ -173,5 +173,5 @@ sent (`SetSoundVP`).
 - **The speech** streams' cartridge reads (async DMA) and its KSEG0 test in `speech_set_bank`.
 - **Dead or misnamed code** a later cleanup can take: `NewListener` (nothing calls it), `other_user` (a stand-in
   caller), the empty `ValidateEmitter`/`pc_ValidateEmitter`/`ValidateListener` with their N64-build leftovers,
-  `update_player_visibility` (MAT3's UpdateArrowVis), the library's own emitters and streams (unused by the game), the
+  `update_player_visibility` (MAT3 visuals.c), the library's own emitters and streams (unused by the game), the
   `AudPauseAllEffects` that stops (as MAT3's).

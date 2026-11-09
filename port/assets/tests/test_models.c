@@ -7,12 +7,12 @@
  * init_model_task sets the 6 records' model clock (an index walk); FinishResurrecting ends a resurrect through a record
  * pointer and sets another record's modelrun through what was the alias model_modelrun (+0x71C, a stride of 0x808),
  * whose record 0 it also reads as a scalar; multigo sets it through the same alias in m2c's spelling;
- * raise_ob_res_pt raises record 0's obResPt through what was D_8014AA14 (+0x7C4); modelgo hands each car's
- * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable through
- * what was D_8014AA3A (+0x7EA); collision, the car-to-car collision, walks the cars after one up to the
- * array's end, the next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1),
- * test_race_cars 12 (what pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to
- * the 12th, PC_MODELS_END being the end of the race's cars.
+ * raise_ob_res_pt raises record 0's obResPt (+0x7C4, a label of its own on the N64); modelgo hands each car's
+ * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable
+ * (+0x7EA, another label); collision, the car-to-car collision, walks the cars after one up to the array's end, the
+ * next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what
+ * pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to the 12th, PC_MODELS_END
+ * being the end of the race's cars.
  * game: src/blob/init_model_task.c src/blob/FinishResurrecting.c src/blob/multigo.c src/blob/groups/get_res_pt/path.c
  * game: src/blob/modelgo.c src/blob/TargetCollRadius.c src/blob/collision.c
  */
@@ -191,7 +191,7 @@ static void test_walk(void)
     CHECK(modelrun == 1 && untouched_from(0));
 }
 
-/* TargetCollRadius: a car near the point counts only if collidable (+0x7EA, what was D_8014AA3A[i]). */
+/* TargetCollRadius: a car near the point counts only if collidable (+0x7EA, record i's on the N64). */
 static void test_collidable(void)
 {
     float point[3] = {0, 0, 0}, radius = 0.0f, err = 0.0f;

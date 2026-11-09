@@ -10,25 +10,26 @@
 # the image when it loads the image (once, at startup) and leaves the rest zero, or with period=K continues them
 # (element i is element i - K). The build holds no value of it.
 
-# The race roster (arcade gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64 (0x80153E88-
-# 0x80153EF0). D_80153E8F was its [0].owner (+7), read with a stride of 8; the image symbol tables also name
-# D_80153E89 ([0].car), D_80153E97 ([1].owner) and D_80153EB8 (&[6], likely the end pointer of a 6-slot loop).
-pc_links   D_80153E88   0x68   D_80153E8F
+# The race roster (arcade and MAT3 gLink): struct pc_link[PC_LINK_SLOTS], 13 records of 8 bytes on the N64
+# (0x80153E88-0x80153EF0). The game C read [0].owner (+7) with a stride of 8 through a label of its own; the
+# image symbol tables also label [0].car, [1].owner and &[6] (likely the end pointer of a 6-slot loop), all
+# retired with the range.
+pc_links   D_80153E88   0x68
 
 # The model records (MAT3 model[], tModelData): struct pc_model[PC_MODEL_SLOTS], 6 records of 0x808 bytes on the N64
-# (0x8014A250-0x8014D280), the same layout on the PC. The aliases are the names inside it the game C reached: the
-# second symbol D_8014A250_alias, and [0]'s fields D_8014A258 (+0x8), D_8014A640 (+0x3F0), D_8014A890 (+0x640),
-# D_8014A914 (+0x6C4), D_8014A964 (+0x714), model_modelrun (+0x71C), D_8014AA14 (+0x7C4), D_8014AA16 (+0x7C6),
-# D_8014AA32 (+0x7E2) and D_8014AA3A (+0x7EA), read with a stride of 0x808; the image symbol tables name 12 more.
-pc_models  model  0x3030  D_8014A250_alias D_8014A258 D_8014A640 D_8014A890 D_8014A914 D_8014A964 model_modelrun D_8014AA14 D_8014AA16 D_8014AA32 D_8014AA3A
+# (0x8014A250-0x8014D280), the same layout on the PC. The alias is the name inside it the game C reached by name,
+# model_modelrun (+0x71C, read with a stride of 0x808); it also reached the array's second label and [0]'s
+# fields at +0x8, +0x3F0, +0x640, +0x6C4, +0x714, +0x7C4, +0x7C6, +0x7E2 and +0x7EA through labels of the image
+# symbol tables, retired with the range, as are the tables' other labels inside it.
+pc_models  model  0x3030  model_modelrun
 
 # The car records (MAT3 gGameCar, tCarData, gGameCar): struct pc_car[PC_CAR_SLOTS], 6 records of 0x3B8 bytes on
 # the N64 (0x80152818-0x80153E68; sample_dma_pi_queue, a message queue, follows), 0x468 on the PC (docs/port/CARS.md 2). They
-# were own storage already (host layout). The aliases are gGameCar and the names inside it the game C reached:
-# [0]'s fields D_801528F0 (seen from +0xD8), D_80152900 (+0xE8), D_80152906 (+0xEE), D_80152907 (+0xEF), D_80152908
-# (+0xF0), D_80152B70 (+0x358), D_80152B74 (+0x35C) and D_80152BBB (+0x3A3), and [1]'s car1_objnum (+0), car1_dr_pos
-# (+0x8) and car1_dr_car_uvs (+0x50), read with a stride of 0x3B8 (CAR_OFS on the PC).
-pc_cars    gGameCar  0x1650  gGameCar D_801528F0 D_80152900 D_80152906 D_80152907 D_80152908 D_80152B70 D_80152B74 D_80152BBB car1_objnum car1_dr_pos car1_dr_car_uvs
+# were own storage already (host layout). The aliases are gGameCar and the names inside it the game C reached by
+# name: [1]'s car1_objnum (+0), car1_dr_pos (+0x8) and car1_dr_car_uvs (+0x50), read with a stride of 0x3B8 (CAR_OFS
+# on the PC). It also reached [0]'s fields at +0xD8, +0xE8, +0xEE, +0xEF, +0xF0, +0x358, +0x35C and +0x3A3 through
+# labels of the image symbol tables, retired with the range.
+pc_cars    gGameCar  0x1650  gGameCar car1_objnum car1_dr_pos car1_dr_car_uvs
 
 # The effects' per-car arrays (docs/port/DECOUPLE.md 6), 6 cars each on the N64, PC_MAX_LINKS on the PC: the tire-effect
 # latches (u32), the smoke's grey (u8; 8 bytes by the gap to gRealJustPlayerData), the trails' last points (f32[6]), the blasts
@@ -72,8 +73,8 @@ pc_mp_dir       D_80153F88  0x48
 pc_mp_save_dir  D_80154138  0x48
 
 # CarSetup's flag per car slot (carsetup_flag): signed char[PC_MAX_LINKS], 6 bytes on the N64 (0x801439F8; the gap is
-# 8, the controllers' gAutoEdges after it). The image symbol tables name D_801439FE inside it, +6: the end of
-# PrePlay's clear of 6, which no C names.
+# 8, the controllers' gAutoEdges after it). The image symbol tables label +6 inside it: the end of PrePlay's
+# clear of 6, which no C names.
 pc_carsetup_flags  carsetup_flag  0x8
 
 # MusyX's per-voice storage (docs/port/DECOUPLE.md 9, AUDIO.md 10): 32 entries on the N64, in the boot segment's BSS,
