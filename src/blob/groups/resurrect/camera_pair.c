@@ -40,8 +40,9 @@ typedef struct tDronePath {
     SearchPoint *pts;
 } tDronePath;
 
-/* The drone's path state in the car record (MAT3 tPathPoint, tCarData.mpctl), the field used here. */
-typedef struct tPathPoint { u8 pad[0x28]; s16 path; } tPathPoint;
+/* The drone's path state in the car record (MAT3 tPathPoint, tCarData.mpctl; struct pc_car_nav), the fields used
+ * here: the point on the drone path and the path. */
+typedef struct tPathPoint { u8 pad[0x24]; s16 idx; s16 newIdx; s16 path; } tPathPoint;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here. */
 typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; tPathPoint mpctl; u8 rest[0x380 - 0x33E]; void *input; u8 rest_384[0x3B8 - 0x384]; } tCarData;
 
@@ -206,12 +207,9 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
             }
             SetDroneResPathIndex((struct State *)m, -1, gDemoPathPt);
             car = PC_CAR(m->slot);
-            /* Port bug, kept (it is the behaviour the gate checks): the point's index is mpctl.idx, the car's N64
-             * +0x338, at CAR_OFS(0x338) on the PC; this reads the raw N64 offset, which on the PC is
-             * visuals[17].index. */
-            m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[*(s16 *)((u8 *)car + 0x338)][0];
-            m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[*(s16 *)((u8 *)car + 0x338)][1];
-            m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[*(s16 *)((u8 *)car + 0x338)][2];
+            m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
+            m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
+            m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];
         } else if (gRace == 6 || gRace == 4) {   /* kBattle, kStunt */
 #define ARENA_START(slot) ((slot) == 0 ? 0 : ((slot) == 1 ? 2 : ((slot) == 2 ? 1 : 3)))
             m->resurrect_save_pos[0] = CP_POS(ARENA_START(m->slot), 0);

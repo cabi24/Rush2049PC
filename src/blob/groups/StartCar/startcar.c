@@ -55,11 +55,10 @@ void StartCar(s16 slot)
 
 /* On the night tracks (3 and 5) turn car `slot`'s lights on: the tail lights dim and the headlights lit, in its
  * palette. MAT3 makes headlight objects and a visual instead (headlights.c).
- * PC: the descriptor's data is a u32 window address, taken as the pointer by plain conversion, which is right in
- * the default builds; a RUSH_NOFIXED build would need PC_N64P here (as AnimateBrakeLights has). */
+ * PC: the descriptor's data is a u32 window address: the palette is at PC_N64P of it (as in AnimateBrakeLights). */
 static void StartHeadLights(s16 slot)
 {
-    CarTlut *tlut = car_palettes[slot].data;
+    CarTlut *tlut = (CarTlut *) PC_N64P(car_palettes[slot].data);
 
     if (gTrackNum == 3 || gTrackNum == 5) {
         tlut->taillights[0] = taillight_colors_dim.uv[0];

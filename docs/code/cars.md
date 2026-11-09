@@ -291,6 +291,9 @@ mode-0 branch never runs; `ZOID_InitializeWindow` writes the first viewport whic
 `zoid_draw_object`'s eye distance from depth 2 on comes from stale stack values; `displaylist_get_texture_image`
 returns nothing when a list has no image command. `DetectDroneAbort`'s `wait_time != 4` is always true (the N64 also has a stuck timer of 6 s, 12 with reverse held,
 which MAT3 lost); `GetResPt` leaves an index unset on an empty path; `UpdateModel`'s `(gRace != 6) || (gRace != 5)`
-is always true. A port bug, not the original game's, is commented and kept because fixing it changes the attract
-mode: `SetResurrectionData`'s attract-mode branch reads the drone path index at the N64 offset 0x338 of the PC car
-record (visual 17's `index`), not `mpctl`'s.
+is always true.
+
+Two port bugs found here are fixed (2026-11-08): `SetResurrectionData`'s attract-mode branch read the drone path
+point at the N64 offset 0x338 of the PC car record (visual 17's `index`) instead of `mpctl.idx`, so the demo's cars
+started from another point of the drone path; and `StartHeadLights` took `car_palettes`' window address as the
+palette's pointer without `PC_N64P` (the same pointer in the default builds, not under RUSH_NOFIXED).
