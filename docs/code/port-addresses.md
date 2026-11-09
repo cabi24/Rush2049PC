@@ -68,7 +68,7 @@ keeping a copy of the number. Where the port reached a game symbol by its addres
 | Tests: assets and game C (T4) | 118 | the game data tests place at its N64 address: `TEST_ABS(name)`, `TEST_AT(name)`, `TEST_N64(name)` from one table in port/assets/tests/support.h (the ABS() macros of six files gone); scratch places `TEST_SCRATCH + n` (`PC_RDRAM_BASE` + 3 MiB); assetcheck's image bases and file table by name from the symbol file; test_mods' cartridge by its own named layout |
 | Tests: the renderer and the audio interpreter (T5) | 29 | `N64_TO_PHYS`, `PC_RDRAM_BASE + n MiB` |
 | Tests: the GSM kernels (T6) | 8 | test_gsm.c takes each kernel's and table's address from its label in asm/us/boot_data/kernels.s (gsm_rpe_decode, gsm_small_xmaxc_table, ...) |
-| Tools (Y1-Y3) | 74 | n64syms.py's CODE, REGIONS and BSS_REGIONS derived from IMAGES and ARENAS (the same values, checked), the overlay rows from `OVERLAY_BASE`; gen_stubs.py, hash_compare.py, heap_check.py, nofixed_audit.py, names_check.py from n64syms; synth_rom.py's descriptors from `steady_leg_duration` + offset; alias_check.py's note by name. gen_data.py untouched (another agent's), its literals left (HEAP_LO, WINDOW_LO/HI, WINDOW_SECTION, KSEG0 in comments and a range test) |
+| Tools (Y1-Y3) | 74 | n64syms.py's CODE, REGIONS and BSS_REGIONS derived from IMAGES and ARENAS (the same values, checked), the overlay rows from `OVERLAY_BASE`; gen_stubs.py, hash_compare.py, heap_check.py, nofixed_audit.py, names_check.py from n64syms; synth_rom.py's descriptors from `steady_leg_duration` + offset (since wave 3 step 2 `car_descriptors`, their own name); alias_check.py's note by name. gen_data.py untouched (another agent's), its literals left (HEAP_LO, WINDOW_LO/HI, WINDOW_SECTION, KSEG0 in comments and a range test) |
 
 Comments: the addresses in port/'s comments became names (`game_bss_end`, `overlay_base`, `audio_ucode_text`,
 `track1Parts`, the kernels' names, PC_RDRAM_BASE ...), and the labels that still said an old name now say the new one
@@ -489,7 +489,7 @@ become `name + offset`. **Wave 3:** the symbol checks survive with the loader; t
 | `port/data/datacheck.c:157` | `0x803B3464` | `gEggs` + 0x4 | the symbol's name, looked up in the loader's table (`gEggs`) |
 | `port/data/datacheck.c:158` | `0x803B4134` | `gEggs` + 0xCD4 | the symbol's name, looked up in the loader's table (`gEggs`) |
 | `port/data/datacheck.c:159` | `0x803B41D8` | `start_screen_egg` + 0x4 | the symbol's name, looked up in the loader's table (`start_screen_egg`) |
-| `port/data/datacheck.c:163` | `0x801108D0` | `steady_leg_duration` + 0x8 | the symbol's name, looked up in the loader's table (`steady_leg_duration`) |
+| `port/data/datacheck.c:163` | `0x801108D0` | `steady_leg_duration` + 0x8 | the symbol's name, looked up in the loader's table (`steady_leg_duration`; since wave 3 step 2 `car_descriptors`) |
 | `port/data/datacheck.c:164` | `0x803B28C8` | `gTransStats` | the symbol's name, looked up in the loader's table (`gTransStats`) |
 | `port/data/datacheck.c:169` | `0x80118C10` | `BBoxCollInfo` | the symbol's name, looked up in the loader's table (`BBoxCollInfo`) |
 | `port/data/datacheck.c:170` | `0x801163F8` | `percentTable` | the symbol's name, looked up in the loader's table (`percentTable`) |
@@ -775,7 +775,7 @@ window offset into an N64 address; alias_check.py's message about a row that run
 | `tools/port/nofixed_audit.py:443` | `0xA0000000` | KSEG1 base: RDRAM versus cartridge aliases | K1BASE from n64syms |
 | `tools/port/nofixed_audit.py:522` | `0x80000000` | KSEG0 base / range (the audit of window uses) | K0BASE from n64syms; the audit goes with the window |
 | `tools/port/synth_rom.py:445` | `0x39B40` | MusyX's sample base, as a ROM offset (the game C's `sample_bank_rom`) | the game's symbol by name |
-| `tools/port/synth_rom.py:1645` | `0x801108D0`, `0x80110A00` | `steady_leg_duration` + 0x8: the car physics descriptors; `0x80110A00`: `steady_leg_duration` + 0x138: the descriptors' suspension part | base + offset (the base is already looked up by name two lines up) |
+| `tools/port/synth_rom.py:1645` | `0x801108D0`, `0x80110A00` | `steady_leg_duration` + 0x8: the car physics descriptors; `0x80110A00`: `steady_leg_duration` + 0x138: the descriptors' suspension part | base + offset (the base is already looked up by name two lines up); since wave 3 step 2 `car_descriptors` and `car_descriptors` + 0x130 |
 
 ## Not addresses
 

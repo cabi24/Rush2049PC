@@ -27,7 +27,7 @@ The records:
 
 | Record | Where | Layout | What |
 |---|---|---|---|
-| model, `tModelData` | `pc_models[12]` (port/include/pc_game_types.h `struct pc_model`) | the N64's, 0x808 bytes, which is MAT3's field for field | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
+| model, `tModelData` | `pc_models[12]` (port/include/pc_game_types.h `struct pc_model`) | MAT3's field for field, its five pointers host pointers: 0x830 bytes (the N64's 0x808) | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
 | car, `tCarData` | `pc_cars[12]` (`struct pc_car`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x468 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
 | visual, `tVisual` | in the car record (`visuals[21]`), and the environment pool `gEnvirons[100]` | host, 0x20 bytes | one animated thing: its scene node, a data word, a time and its animator `func(v, op)` |
 | car descriptor, `_tCar` | `gCarModels[13]`, through the model's `car` | the N64's (arena data), 0xB4 bytes | a car's fixed physics: inertia, springs, damping, the tire descriptors (`tires[4]`, window addresses), the tire arms `tireR[4][3]`, the drivetrain constants |
@@ -261,12 +261,11 @@ own copies and other spellings to it).
 
 ## 10. What is still N64-shaped (for wave 3)
 
-- **The model record** keeps the N64 layout in `pc_models`; its pointer fields (`car` +0, `tune` +4, `lasttp[4]`
-  +0x3A0, `torquecurve` +0x40C, `movingSurface` +0x648) are 32-bit window addresses, read through `PC_N64P` (or a
-  file's typed `N64P` over `enum n64p_*` fields) and written through `PC_N64W` (carsetup). The car descriptors
-  (`gCarModels`) and their tire pointers point into the arena; the road's nodes and polygons are in the road file.
-  Every file declares its own partial view of the record; one shared definition is for when the layout is the
-  PC's.
+- **The model record** (done in wave 3 step 2, [CARS.md](../port/CARS.md) 4): its pointer fields (`car` +0, `tune`
+  +4, `lasttp[4]` +0x3A0, `torquecurve` +0x40C, `movingSurface` +0x648, MAT3's offsets) are host pointers, and the
+  car descriptors (`car_descriptors`, own storage) hold host pointers to their tire records. Every file still declares
+  its own partial view of the record (with the five pointers); one shared definition, `struct pc_model`'s, could
+  replace them.
 - **The car record** is host data, but the views' padding is written in N64 offsets around `struct pc_visual
   visuals[21]` (CARS.md 2), and a few fields are reached through accessors (`PC_CAR_*`, `PC_MODEL_*`); since wave 2c
   the fields and accessors that were offsets or misread have MAT3's names (`camera`, `in_tunnel`, `stray_angle`,

@@ -133,9 +133,9 @@ the N64 draws by (`n64`) and updates the sky.
   `tBasicTargetPath`, `TargetPathPt`, `tMiniModelData`): their links are 32-bit window addresses read through
   `PC_N64P` and written through `PC_N64W` (targets, targetpaths, PauseTargets, InitBattlePowerUps ...).
   `gTargetList`'s header flags it (`n64`).
-- **The model record** (`tModelData`, 0x808 bytes) keeps the N64's layout; each file reads it through a view of
-  the fields it needs (MAT3's names). The tyres' tree nodes and the moving surface in it are window addresses
-  (TireSurf, CollideCarBody).
+- **The model record** (`tModelData`, 0x808 bytes on the N64) has host pointers on the PC (0x830 bytes,
+  [CARS.md](../port/CARS.md) 4); each file reads it through a view of the fields it needs (MAT3's names), which
+  declares the pointers too.
 - **The car record** (`pc_car`, 0x468 bytes on the PC) is the N64's with host pointers in its visuals and input
   record: the files' views pad over the visuals (`struct pc_visual visuals[21]`), and `CAR_OFS` maps an N64 offset.
   Many fields the files read (MAT3's `restart`, `camera`, `view`, `saveview`, `collidable`, `crash_state`,

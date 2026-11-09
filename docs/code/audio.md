@@ -156,7 +156,8 @@ sent (`SetSoundVP`).
 - **Window addresses in records.** A player record keeps its listener as a 32-bit window address (`PC_N64A`,
   `PC_N64P`: StartListeners, UpdateListeners, StopListeners). `musyx_samples` is a cartridge address
   (`sample_bank_rom`). The heap blocks are given to `PurgeableMemory` as window addresses.
-- **The model record** (`tModelData`, 0x808 bytes) is read in the N64's layout by the car sounds' views.
+- **The model record** (`tModelData`, 0x808 bytes on the N64, 0x830 on the PC) is read by the car sounds' views, which
+  declare its host pointers ([CARS.md](../port/CARS.md) 4).
 - **MusyX's voices** keep the N64's 0x1A0-byte layout, read through about 30 per-function views in macros.c,
   synth.c, voices.c, api.c and controllers.c; their macro pointers (+0, +4, +8, +0xC, +0x1C, +0x20) are 32-bit
   window addresses (`N64P`/`PC_N64W`) and +0x18 holds a handle node as an N64 address (`pc_voice_node`). One shared

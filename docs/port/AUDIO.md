@@ -590,7 +590,7 @@ by `sound_listener_add`) had the N64's +0xC for its vectors, before two host-siz
 arm64). The game never calls that 3D API, so it changed nothing audible.
 
 The other race sounds that start or update effects (the tires in `UpdateCarSounds`, the bumps and crashes in
-`UpdateBumps`, the tire visuals' `AnimateWing`) read the model record, which keeps its N64 layout
+`UpdateBumps`, the tire visuals' `AnimateWing`) read the model record through views with its host pointers
 ([CARS.md](CARS.md) 4), and tables the loader swaps at the widths they are read (`sPitchRange` f32, `gBumpLRTab` and
 `gBumpFBTab` s16); `offset_check --strict` reports no open view on either host.
 

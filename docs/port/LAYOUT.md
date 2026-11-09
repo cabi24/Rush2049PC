@@ -167,10 +167,10 @@ None of this ran on the PC yet: the ROM-less boot stops in AudioSfxInit, before 
 
 ### 4.2 The model record, the cars and their visuals
 
-- The model record keeps its N64 layout ([CARS.md](CARS.md) 4), and three readers took its u32 window addresses as
-  host pointers: the torque `enginetorque` (`EngineState`: the tune at +4 read 8 bytes wide from +8, and the indices
-  after it 8 bytes late; `TUNE`), `calcaa` (the descriptor through `void **`; `MODEL_CAR`) and
-  `transmission` (`*(s8 **)(arg0 + 0)` and `+ 4`; `MODEL_P`).
+- The model record kept its N64 layout then ([CARS.md](CARS.md) 4; since 2026-11-09 its five pointer fields are host
+  pointers), and three readers took its u32 window addresses as host pointers: the torque `enginetorque`
+  (`EngineState`: the tune at +4 read 8 bytes wide from +8, and the indices after it 8 bytes late; `TUNE`), `calcaa`
+  (the descriptor through `void **`; `MODEL_CAR`) and `transmission` (`*(s8 **)(arg0 + 0)` and `+ 4`; `MODEL_P`).
 - The car's scene-node handle (+0xF4, an s32): `Update_MDrive` and `UpdateRearCamera`'s `Cr` read its low half as the
   s16 at +0xF6, the high half on a little-endian host (ENDIAN.md 3.1; endian_check missed them, as one reaches the car
   through the name `car1_objnum` inside gGameCar).
@@ -317,7 +317,8 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
      (a callback passing its blit to UpdateBlit), and a parameter whose callers' storages all have one type has it;
    - `ROLES`: a function's parameter by its role, for a function only the ROM's tables call and nothing typed
      reaches (empty: section 9.4 found none that needs it).
-   A storage whose struct views all keep the N64 layout (the model record, the level-object nodes) holds an N64
+   A storage whose struct views all keep the N64 layout (the level-object nodes; the model record until its pointers
+   became host pointers, [CARS.md](CARS.md) 4) holds an N64
    record, and its raw offsets are right.
 3. **Judging an access** on a moved record, by the offset the function writes (its own, from its base):
    - in PC code (under `#ifdef TARGET_PC`) it is a host offset and must start a field of its width (score 3). Since
