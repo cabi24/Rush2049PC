@@ -165,18 +165,13 @@ void video_updateButtons(void) {
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-VIEW(u8[], gOptions);
-#define gOptions gOptions_view
-typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
-VIEW(Pad16[], gControllerData);
-#define gControllerData gControllerData_view
 
 s32 CountdownTimeOut(void);
 
 /* The video screen's frame: reads the controls (choose an option, change its value: the screen's offset, the
  * texture filter, the dither ...), applies the changes and leaves on a back or a confirm. */
 void updateVideoScreen(void) {
-    Pad16 *p;
+    volatile ControllerState *p;
     s32 v;
     s32 c;
     s32 btn;
@@ -265,8 +260,8 @@ void updateVideoScreen(void) {
     video_updateButtons();
     if (gGameState & 0x7C0000) {
         p = &gControllerData[playerInPause];
-        if (!p->b0 != video_gControllerRemoved) {
-            video_gControllerRemoved = !p->b0;
+        if (!p->attached != video_gControllerRemoved) {
+            video_gControllerRemoved = !p->attached;
             video_TitlePane();
         }
     }

@@ -4,11 +4,7 @@
 
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
-typedef struct { s16 x, y; } Pos;
 typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
-
-VIEW(Pos, pause_titlePos);
-#define pause_titlePos pause_titlePos_view
 
 VIEW(Rect[][4], pause_gPlayerRects);
 #define pause_gPlayerRects pause_gPlayerRects_view
@@ -39,8 +35,8 @@ void ps_updatePauseStateCreate(void)
         if (!pause_DimBlit) pause_DimBlit = NewMultiBlit(0, 0, &DimMultiBlit, 1);
         pause_TitlePane();
         ps_SetFont(13);
-        x = pause_titlePos.x;
-        y = pause_titlePos.y + 2 * TB_GetFontLineHeight();
+        x = pause_titlePos[0];
+        y = pause_titlePos[1] + 2 * TB_GetFontLineHeight();
         ps_SetFont(10);
         max = 0;
         for (i = 0; i < 8; i++) {
@@ -75,8 +71,8 @@ void ps_updatePauseStateCreate(void)
         pause_gYes = 0;
         pause_TitlePane();
         ps_SetFont(13);
-        x = pause_titlePos.x;
-        y = pause_titlePos.y + 2 * TB_GetFontLineHeight();
+        x = pause_titlePos[0];
+        y = pause_titlePos[1] + 2 * TB_GetFontLineHeight();
         ps_SetFont(10);
         width = HAL_GetTextWidth(gText.single[216], -1);
         InitPane(x - width / 2 - 8, y - 4, x + width / 2 + 8, y + 2 * TB_GetFontLineHeight() + 4, 176, 0, 0, 0);

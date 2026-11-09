@@ -9,13 +9,10 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
 struct PlayerFiles { u32 unknown0,  unknown4 ; void * head,  * tail ; };
 VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
-VIEW(Controller[4], gControllerData);
-#define gControllerData gControllerData_view
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 VIEW(MultiBlit[1], warningscr_blits);

@@ -125,9 +125,6 @@ struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
 VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 VIEW(TextBox, gScreenRect);
 #define gScreenRect gScreenRect_view
 VIEW(FiveParts *, recordscr_viewPane);

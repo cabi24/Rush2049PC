@@ -57,9 +57,6 @@ void InitPlayer(Handle h) {
     data[71] = 0;
 }
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 VIEW(s16[], gCheatState);
 #define gCheatState gCheatState_view
 

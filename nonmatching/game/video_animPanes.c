@@ -1,7 +1,5 @@
 #include "game/game.h"
 
-VIEW(s8[][16], gControllerData);
-#define gControllerData gControllerData_view
 VIEW(s32[3], video_menuRect);
 #define video_menuRect video_menuRect_view
 
@@ -17,7 +15,7 @@ s32 video_animPanes(void *item)
     if (!video_panesCreated) {
         if (!(gGameState & 0x7C03FFFE)) {
             HAL_SetFont(13);
-            c = gControllerData[playerInPause][0];
+            c = gControllerData[playerInPause].attached;
             video_gControllerRemoved = c == 0;
             video_TitlePane();
             h = TB_GetFontLineHeight() * 2 + 10;

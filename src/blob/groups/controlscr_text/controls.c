@@ -23,12 +23,7 @@ typedef struct PadState {
     PlayerProfile **profile; /* 0x48 its profile */
 } PadState;
 
-typedef struct ContData { s8 connected; u8 rest[15]; } ContData;   /* gControllerData: 16 bytes a controller */
-
 extern PadState gPlayers[];
-
-VIEW(ContData[], gControllerData);
-#define gControllerData gControllerData_view
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
@@ -163,7 +158,7 @@ s32 controls_animText(s32 blit)
             y = controls_gPlayerRects[gNumWindows - 1][p].y + 10;
             x = controls_gPlayerRects[gNumWindows - 1][p].cx;
             TB_SetTextColor(playerTextColor[p]);
-            if (!gControllerData[p].connected) {
+            if (!gControllerData[p].attached) {
                 TB_Sprintf(str1, controller_removed_format, p + 1, gText.single[TEXT_NO_CONTROLLER]);
             } else {
                 TB_EllipseText(pName, (*gPlayers[p].profile)->name, 69);

@@ -112,7 +112,6 @@ void recordscr_updateSelectInfo(void)
 }
 
 
-typedef struct { s8 enabled; unsigned char remaining[15]; } PlayerSlot;   /* gControllerData: a controller */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
  * the pak it is on. */
 typedef struct { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); unsigned char pak; } PakFile;
@@ -124,8 +123,6 @@ typedef struct { ProfileHandle *next, *prev; PakFileHandle *fileh; unsigned char
 /* A profile handle (MAT3 tPlayerProfile **): the profiles are reached and listed through these. */
 struct ListNode { PlayerProfile *body; };
 typedef struct { s32 prefix[2]; ProfileHandle *head, *tail; } ListRoot;   /* gPlayerFiles: every profile on a pak */
-VIEW(PlayerSlot[], gControllerData);
-#define gControllerData gControllerData_view
 VIEW(ListRoot, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
 
@@ -134,7 +131,7 @@ void recordscr_updatePakInfo(void) {
     s32 slot;
     ProfileHandle *node;
     for (slot = 0; slot < 4; slot++) {
-        if (!gControllerData[slot].enabled) { recordscr_gNumPakPlayers[slot] = PAK_NO_CONTROLLER; }
+        if (!gControllerData[slot].attached) { recordscr_gNumPakPlayers[slot] = PAK_NO_CONTROLLER; }
         else if (!PS_PakInserted(slot)) { recordscr_gNumPakPlayers[slot] = PAK_NOT_INSERTED; }
         else if (PS_PakDamaged(slot)) { recordscr_gNumPakPlayers[slot] = PAK_DAMAGED; }
         else if (PS_PakRumble(slot)) { recordscr_gNumPakPlayers[slot] = PAK_RUMBLE; }

@@ -13,23 +13,7 @@ typedef struct MenuItem {
     s8 dirty;
 } MenuItem;
 
-typedef struct {
-    u8 pad0[0x70];
-    u16 lang;
-} LangInfo;
-
-/* PC: gText's header has host pointers (port/assets/text.c), so its fields sit at host offsets */
-typedef struct {
-    void *pad0[3];
-    LangInfo *info;
-    intptr_t *strings;
-} StrTable;
-
-VIEW(s16[2], pause_titlePos);
-#define pause_titlePos pause_titlePos_view
-
-VIEW(StrTable, gText);
-#define gText gText_view
+#define TEXT_PAUSE 56             /* gText.tab[]: the pause screen's strings: "paused", the menu, quit, restart */
 
 /* Redraws item's blit once if it was marked dirty; returns the flag after (always 0). */
 s32 item_refresh_B7FC(MenuItem *item)
@@ -47,7 +31,7 @@ s32 animPauseText(MenuItem *item) {
     s32 i;
     s32 x;
     s32 y;
-    intptr_t str;
+    u8 *str;
 
     if (item_refresh_B7FC(item)) {
         return 1;
@@ -59,8 +43,8 @@ s32 animPauseText(MenuItem *item) {
     HAL_SetFont(10);
     for (i = 0; i < 8; i++) {
         TB_SetTextColor(i == pauseMenuSelect ? 22 : 1);
-        str = gText.strings[gText.info->lang + i + 1];
-        TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
+        str = gText.taba[gText.tab[TEXT_PAUSE] + i + 1];
+        TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
     }
     HAL_SetTextDepth(-1.0f);

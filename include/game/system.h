@@ -185,7 +185,7 @@ extern ScreenPos no_rumble_text_pos[EXTENT(4)][4];
 extern PaneColors hud_playerPaneColors[EXTENT(4)];
 extern char *options_buttonNames[EXTENT(9)];
 extern TPos pause_gPlayerRects[EXTENT(4)][4];
-extern ResourceRange pause_titlePos;
+extern s16 pause_titlePos[EXTENT(2)];   /* the pause screen title's centre: x, y */
 extern void *pause_DimBlit;
 extern void *pause_TitleBlit;
 extern void *pause_PauseBlit;

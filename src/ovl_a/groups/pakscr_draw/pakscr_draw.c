@@ -17,7 +17,6 @@ VIEW(u8, gBlocksNeeded);
 
 extern s32 game_sprintf(char *,const char *,...);
 
-typedef struct Slot { s8 present; u8 unknown[15]; } Slot;         /* gControllerData: 16 bytes a controller */
 /* A pak file record (MAT3 tPS_File) in its PC layout: only the pak it is on. */
 typedef struct Owner { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 slot; } Owner;
 /* A profile's and a ghost's list node: what they keep of their pak file. */
@@ -25,8 +24,6 @@ typedef struct OpenRecord OpenRecord;
 struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
 typedef struct SavedRecord SavedRecord;
 struct SavedRecord { SavedRecord **next; Owner **owner; };
-VIEW(Slot[], gControllerData);
-#define gControllerData gControllerData_view
 struct PlayerFiles { u32 unknown0,  unknown4 ; OpenRecord ** head,  ** tail ; };
 VIEW(struct PlayerFiles, gPlayerFiles);
 #define gPlayerFiles gPlayerFiles_view
@@ -116,7 +113,7 @@ void GetPakStatusStr(s32 player,char *str)
 {
     OpenRecord **open;
     SavedRecord **saved;
-    if (!gControllerData[player].present) TB_Sprintf(str,pakscr_status_no_controller_format,gText.single[165]);
+    if (!gControllerData[player].attached) TB_Sprintf(str,pakscr_status_no_controller_format,gText.single[165]);
     else if (!PS_PakInserted(player)) TB_Sprintf(str,pakscr_status_no_pak_format,gText.single[168]);
     else if (PS_PakDamaged(player)) TB_Sprintf(str,pakscr_status_damaged_format,gText.single[166]);
     else if (PS_PakRumble(player)) TB_Sprintf(str,pakscr_status_rumble_format,gText.single[169]);

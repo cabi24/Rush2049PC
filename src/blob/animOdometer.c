@@ -30,9 +30,6 @@ typedef struct {
     s32 y;
 } Pos;
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 VIEW(Pos[][4], odometerPos);
 #define odometerPos odometerPos_view
 

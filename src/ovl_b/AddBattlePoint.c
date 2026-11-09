@@ -15,9 +15,6 @@ typedef struct Event {
     u8 unknown15[3];
 } Event;
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 VIEW(Event[], battlePoint);
 #define battlePoint battlePoint_view
 

@@ -195,11 +195,6 @@ delete_retry:
     si_unlock();
 }
 
-/* ---- PS_PakServer and its private callees ---- */
-typedef struct ControllerData { s8 present; u8 opaque1[15]; } ControllerData;
-VIEW(ControllerData[], gControllerData);
-#define gControllerData gControllerData_view
-
 extern void *memcpy(void *, const void *, u32);
 
 /* Forgets every open file of pak's pak (MAT3 _RemovePak): each file's RemoveFile is told, its data freed under the
@@ -268,7 +263,7 @@ void PS_PakServer(s32 forceUpdate, s32 rumbleOnly)
     si_lock();
     for (i = 0; i < NUM_PAKS; i++) {
         if (gErrPak >= 0 && i != gErrPak) continue;
-        if (!gControllerData[i].present || !gPaks[i].plugged || gPaks[i].wasRemoved) {
+        if (!gControllerData[i].attached || !gPaks[i].plugged || gPaks[i].wasRemoved) {
             /* no pak: forget it */
             gPaks[i].wasRemoved = 0;
             if (gPaks[i].inserted) {

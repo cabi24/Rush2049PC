@@ -39,7 +39,6 @@ void PS_WriteFile(void **fileh, uintptr_t data, s32 size);
  * file (PS_WriteFile), active, its seed from the clock, the death option from the options, its difficulty the
  * type's. */
 void NewCircuit(s32 type) {
-    s8 *options = (s8 *) &gOptions;
     struct tCircuit *circuit;
 
     circuit = DATA_PTR(*M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
@@ -49,7 +48,7 @@ void NewCircuit(s32 type) {
     circuit->seed = *(s32 *) &gSeconds & 0xFFFFF;   /* the game time's float bits (MAT3: *(unsigned int *)&gSeconds) */
     circuit->active = 1;
     circuit->totalTime = 0.0f;
-    if (options[31] != 0) {
+    if (gOptions[kOptDeathMode] != 0) {
         circuit->death = 1;
     }
     circuit->difficulty = (s8) (&gCircuitDiff)[type];

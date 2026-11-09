@@ -1719,21 +1719,6 @@ typedef struct RecordOwner { /* 0x78 bytes */
     struct Profile **who[5]; /* 0x50 */
 } RecordOwner;
 
-typedef struct Settings { /* 0x29 bytes */
-    u8 unknown00[28]; /* 0x0 */
-    s8 mode;          /* 0x1C */
-    u8 unknown1D[3];  /* 0x1D */
-    s8 a;             /* 0x20 */
-    s8 b;             /* 0x21 */
-    s8 c;             /* 0x22 */
-    s8 d;             /* 0x23 */
-    s8 e;             /* 0x24 */
-    s8 f;             /* 0x25 */
-    s8 g;             /* 0x26 */
-    s8 h;             /* 0x27 */
-    s8 i;             /* 0x28 */
-} Settings;
-
 
 typedef struct tBlastMat { /* 0x8 bytes */
     struct tUVMatrix *mat; /* 0x0 */

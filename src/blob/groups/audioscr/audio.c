@@ -4,7 +4,6 @@
 
 typedef struct AuIdx { u8 pad0[32]; u16 songStrings; u8 pad34[44]; u16 optionNames; u16 musicTypes; } AuIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; AuIdx *indices; char **strings; } TextState;
-typedef struct Options { u8 pad[12]; s8 sfxVolume; s8 musicVolume; s8 pad14; s8 musicType; } Options;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
 
 VIEW(TextState, gText);
@@ -12,9 +11,6 @@ VIEW(TextState, gText);
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
-
-VIEW(Options, gOptions);
-#define gOptions gOptions_view
 
 VIEW(TextColor[2], flashColors);
 #define flashColors flashColors_view
@@ -94,10 +90,10 @@ void audio_animButtonText(void)
                       gText.strings[gText.indices->optionNames + i]);
         switch (i) {
         case 0:
-            TB_Sprintf(str, "%d", gOptions.musicVolume);
+            TB_Sprintf(str, "%d", gOptions[kOptEffectsVolume]);
             break;
         case 1:
-            TB_Sprintf(str, "%d", gOptions.sfxVolume);
+            TB_Sprintf(str, "%d", gOptions[kOptMusicVolume]);
             break;
         case 2:
             if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
@@ -105,7 +101,7 @@ void audio_animButtonText(void)
             else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            TB_Strcpy((u8 *)str, gText.strings[gOptions.musicType + gText.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.strings[gOptions[kOptMono] + gText.indices->musicTypes]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {
@@ -157,10 +153,10 @@ s32 audio_animText(s32 unused)
                       gText.strings[gText.indices->optionNames + i]);
         switch (i) {
         case 0:
-            TB_Sprintf(str, "%d", gOptions.musicVolume);
+            TB_Sprintf(str, "%d", gOptions[kOptEffectsVolume]);
             break;
         case 1:
-            TB_Sprintf(str, "%d", gOptions.sfxVolume);
+            TB_Sprintf(str, "%d", gOptions[kOptMusicVolume]);
             break;
         case 2:
             if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
@@ -168,7 +164,7 @@ s32 audio_animText(s32 unused)
             else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            TB_Strcpy((u8 *)str, gText.strings[gOptions.musicType + gText.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.strings[gOptions[kOptMono] + gText.indices->musicTypes]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {

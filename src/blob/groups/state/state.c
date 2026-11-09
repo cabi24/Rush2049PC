@@ -15,9 +15,6 @@ s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
 VIEW(u32, gNewGameState);
 #define gNewGameState gNewGameState_view
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 extern PadState gPlayers[];           /* gPlayers */
 
 VIEW(u8[][3], gFogColors);

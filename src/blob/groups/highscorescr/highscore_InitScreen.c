@@ -3,13 +3,6 @@
 #include "game/game.h"
 #define PlayerTail PlayerTailView   /* this file's own PlayerTail: include/game's PlayerTail is another type */
 
-typedef struct {
-    u8 pad0[12];
-    s8 musicVol;        /* +0x0C */
-    u8 pad0D;
-    s8 song;            /* +0x0E */
-} Options;
-
 typedef struct PlayerRec {
     void *next, *prev;
     void *f8;           /* the profile's pak file handle (pc_prelude.h) */
@@ -19,9 +12,6 @@ typedef struct {
     PlayerRec **rec;    /* gPlayers[i] + 0x4C */
     u8 pad[72];
 } PlayerTail;           /* 76 bytes */
-
-VIEW(Options, gOptions);
-#define gOptions gOptions_view
 
 VIEW(u8[], gUnlockedTracks);
 #define gUnlockedTracks gUnlockedTracks_view
@@ -70,9 +60,9 @@ void highscore_InitScreen(void)
     stuffUnlocked = 0;
     gSavedGhost = 0;
     AudKillSong();
-    if (gOptions.song < 13) {
+    if (gOptions[kOptSong] < 13) {
         AudPlaySong_TTL(5, 1);
-        AudSetMusicVol(gOptions.musicVol / 10.0f, 0.05f);
+        AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
     }
     memcpy(gPrevUnlockedTracks, gUnlockedTracks, 76);
     memcpy(gPrevUnlockedCars, gUnlockedCars, 52);

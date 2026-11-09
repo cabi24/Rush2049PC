@@ -9,13 +9,10 @@ typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 po
 typedef struct Player { void *w0, *w4; Q **qq; s32 id0; s32 id1; s8 name[4]; } Player;
 
 typedef struct Slot { u8 pad0; s8 formatted; u8 pad2[3]; s8 damaged; s8 full; u8 rest[5]; PcPfs pfs; u8 pad74[0x304 - 0x74]; } Slot;
-typedef struct PakState { s8 inserted; u8 rest[15]; } PakState;
 
 VIEW(Player **, gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
-VIEW(PakState[], gControllerData);
-#define gControllerData gControllerData_view
 VIEW(Slot[], gPaks);
 #define gPaks gPaks_view
 
@@ -42,7 +39,7 @@ void FindGhosts(s32 pak)
     player = *gPlayers_save;
     ghosth = &gPakGhosts[pak];
     *ghosth = 0;
-    if (gControllerData[pak].inserted == 0) {
+    if (gControllerData[pak].attached == 0) {
         gGhostStatus[pak] = -4;
     } else if (pak_slot_b1(pak) == 0) {
         gGhostStatus[pak] = -1;

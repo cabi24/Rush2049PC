@@ -86,8 +86,6 @@ typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack
 
 extern Player gPlayers[];        /* gPlayers */
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
 /* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */

@@ -12,34 +12,8 @@ typedef struct MenuItem {
     s8 dirty;
 } MenuItem;
 
-typedef struct {
-    u8 pad0[0x30];
-    u16 sel;
-    u8 pad32[0x70 - 0x32];
-    u16 lang;
-} LangInfo;
-
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct {
-    char *pad0[0x360 / 4];
-    intptr_t unk360;
-    char *pad364[(0x3A4 - 0x364) / 4];
-    intptr_t unk3A4;
-} TblHdr;
-
-typedef struct {
-    u8 pad0[4];
-    TblHdr *hdr;
-    u8 pad8[4];
-    LangInfo *info;
-    intptr_t *strings;
-} StrTable;
-
-VIEW(s16[2], pause_titlePos);
-#define pause_titlePos pause_titlePos_view
-
-VIEW(StrTable, gText);
-#define gText gText_view
+#define TEXT_YES_NO 24            /* gText.tab[]: yes, no */
+#define TEXT_SURE 216             /* gText.single[]: "are you sure?" */
 
 /* Sets item's hidden flag to off, redrawing its blit when that changes; returns the flag. */
 s32 item_disable_B9C8(MenuItem *item, s32 off)
@@ -58,7 +32,7 @@ s32 animSureText(MenuItem *item) {
     s32 w;
     s32 x;
     s32 y;
-    intptr_t str;
+    u8 *str;
 
     if (item_disable_B9C8(item, gPauseState < 7)) {
         return 1;
@@ -69,18 +43,18 @@ s32 animSureText(MenuItem *item) {
     y = pause_titlePos[1] + TB_GetFontLineHeight() * 2;
     HAL_SetFont(10);
     TB_SetTextColor(1);
-    str = gText.hdr->unk360;
-    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
+    str = gText.single[TEXT_SURE];
+    TB_DrawText(TB_CenterText(str, x), y, str);
     y += TB_GetFontLineHeight();
-    w = HAL_GetTextWidth((void *)gText.hdr->unk360, -1);
+    w = HAL_GetTextWidth(gText.single[TEXT_SURE], -1);
     x = pause_titlePos[0] - w / 4;
-    str = gText.strings[gText.info->sel];
+    str = gText.taba[gText.tab[TEXT_YES_NO]];
     TB_SetTextColor(pause_gYes ? 22 : 1);
-    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText(str, x), y, str);
     x = pause_titlePos[0] + w / 4;
-    str = gText.strings[gText.info->sel + 1];
+    str = gText.taba[gText.tab[TEXT_YES_NO] + 1];
     TB_SetTextColor(pause_gYes ? 1 : 22);
-    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText(str, x), y, str);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

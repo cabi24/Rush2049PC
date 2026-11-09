@@ -8,10 +8,6 @@
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-typedef struct { s8 flag; s8 pad[15]; } Slot16;
-VIEW(Slot16[], gControllerData);
-#define gControllerData gControllerData_view
-
 VIEW(s32[3], audio_menuRect);
 #define audio_menuRect audio_menuRect_view
 
@@ -38,7 +34,7 @@ s32 audio_animPanes(s32 blit)
     if (!audio_panesCreated) {
         if (!(gGameState & GAME_STATE_FRONT_END)) {
             HAL_SetFont(13);
-            audio_gControllerRemoved = !gControllerData[playerInPause].flag;
+            audio_gControllerRemoved = !gControllerData[playerInPause].attached;
             audio_TitlePane();
             y = 10 + 2 * TB_GetFontLineHeight();
             HAL_SetFont(10);

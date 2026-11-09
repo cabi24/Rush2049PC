@@ -20,9 +20,6 @@ VIEW(volatile u8, gNumModels);
 VIEW(Model68[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 s32 ZOID_AddObject(s32 model, void *matrix, s16 parent, s32 flags);
 
 /* For each window's two counters (gold coins, silver coins): makes its spinning 3D coin the first time, places it at

@@ -9,8 +9,6 @@
 typedef struct OSThread OSThread;
 typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
 
-/* A controller's record (16 bytes); its first byte is its Rumble Pak state. */
-typedef struct Rumble16 {u8 flag;u8 pad[15];} Rumble16;
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
 extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 extern void osSetEventMesg(s32,OSMesgQueue *,OSMesg);  /* SDK osSetEventMesg */
@@ -20,9 +18,6 @@ extern void osSetEventMesg(s32,OSMesgQueue *,OSMesg);  /* SDK osSetEventMesg */
 
 VIEW(OSMesg[8], si_event_msgs);
 #define si_event_msgs si_event_msgs_view
-
-VIEW(Rumble16[4], gControllerData);
-#define gControllerData gControllerData_view
 
 /* Make the serial-bus lock the first time: a queue of one message, the token, posted at once (free). */
 static void pak_queue_init(void)
@@ -57,6 +52,6 @@ void init_controllers(void)
     osContInit(&si_event_queue, &cont_bit_pattern, cont_status);
     si_unlock();
     for (i = 0; i < 4; i++) {
-        gControllerData[i].flag = 0;
+        gControllerData[i].attached = 0;
     }
 }

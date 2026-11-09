@@ -11,12 +11,9 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
 
 VIEW(MultiBlit, pakscr_mblit);
 #define pakscr_mblit pakscr_mblit_view
-VIEW(PlayerPresence[], gControllerData);
-#define gControllerData gControllerData_view
 
 extern void RemoveBlit(Blit *);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
@@ -105,7 +102,7 @@ void ControlPickPak(void)
     }
     if(gActiveEdges&BUTTON_A) {
         AudPlayEffect(SND_MENU_SELECT,0,1,0);
-        if(!gControllerData[gPickedPak].present) {
+        if(!gControllerData[gPickedPak].attached) {
             SetPakError(gPickedPak,PAK_ERR_NO_CONTROLLER,10,50,300,140);
             gPakErr=PAK_ERR_NO_CONTROLLER;
         } else if(!PS_PakInserted(gPickedPak)) {

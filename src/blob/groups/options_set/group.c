@@ -8,8 +8,6 @@ typedef struct Player { PlayerState *state; } Player;
 typedef struct InputRecord { u8 pad[72]; Player *player; } InputRecord;
 extern InputRecord gPlayers[];
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
 VIEW(u8[][5], gCircuitTracks);
 #define gCircuitTracks gCircuitTracks_view
 

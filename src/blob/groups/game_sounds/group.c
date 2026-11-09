@@ -7,9 +7,6 @@ s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 tAudioMsg *GetCmd(void);
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 /* gOptions' effects volume, 0 to 10 (the audio screen's). */
 #define OPTION_FX_VOLUME 13
 

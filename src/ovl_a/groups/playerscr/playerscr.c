@@ -242,10 +242,6 @@ void setPlayerState(s32 player,s32 mode)
     playerscr_updateSelectInfo(player);
 }
 
-typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
-VIEW(PlayerPresence[], gControllerData);
-#define gControllerData gControllerData_view
-
 /* Read the four paks: each one's profile count (gNumPakPlayers, or why it has none: no controller, no pak, damaged,
  * a Rumble Pak) and whether it is too full for a new profile (gPakFull: fewer free pages than a profile takes, or no
  * free note). A pak that has just become usable makes the windows on it put their buttons back in place. */
@@ -256,7 +252,7 @@ void playerscr_updatePakInfo(void)
     u32 available;
     for(i=0;i<4;i++) {
         gPakFull[i]=0;
-        if(!gControllerData[i].present)playerscr_gNumPakPlayers[i]=PAK_NO_CONTROLLER;
+        if(!gControllerData[i].attached)playerscr_gNumPakPlayers[i]=PAK_NO_CONTROLLER;
         else if(!PS_PakInserted(i))playerscr_gNumPakPlayers[i]=PAK_NOT_INSERTED;
         else if(PS_PakDamaged(i))playerscr_gNumPakPlayers[i]=PAK_DAMAGED;
         else if(PS_PakRumble(i))playerscr_gNumPakPlayers[i]=PAK_RUMBLE;

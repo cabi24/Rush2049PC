@@ -9,9 +9,6 @@
 #define INPUT_SIZE 80   /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */
 /* A player's record as this reads it: the handle of the player's profile first. */
 typedef struct { void **save; u8 rest[INPUT_SIZE - 8]; } PausePlayer;
-typedef struct { s16 x, y; } PauseTitlePos;
-VIEW(PauseTitlePos, pause_titlePos);
-#define pause_titlePos pause_titlePos_view
 VIEW(PausePlayer[], gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
@@ -41,8 +38,8 @@ void pause_TitlePane(void)
         TB_Sprintf(text,pause_title_name_format,(u8 *)*gPlayers_save[playerInPause].save+PROFILE_OFS(20),gText.taba[gText.tab[56]]);
         width=HAL_GetTextWidth(str,-1);
     }
-    x=pause_titlePos.x;
-    y=pause_titlePos.y;
+    x=pause_titlePos[0];
+    y=pause_titlePos[1];
     if(!pause_gTitlePane) pause_gTitlePane=InitPane(-20,0,-10,10,176,0,0,0);
     if(!width) {
         ChangePaneSize(pause_gTitlePane,-20,0,-10,10);

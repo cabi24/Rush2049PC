@@ -115,7 +115,7 @@ extern tBlastMat pak_file_handles[EXTENT(64)];
 extern AudioList gPS_Files[EXTENT(4)];
 extern f32 gBestLapTime[EXTENT(4)];
 extern PakFileRecord pak_file_records[EXTENT(64)];
-extern Settings gOptions;
+extern s8 gOptions[EXTENT(kNumOptions)];   /* the options, a byte each by kOpt* (MAT3: signed char gOptions[41]) */
 extern tBlastMat gJustPlayers[EXTENT(4)];
 extern s32 gBattlePoints;
 extern f32 gLapTimes[EXTENT(4)][8];

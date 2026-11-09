@@ -211,16 +211,6 @@ void options_updateButtons(void) {
 }
 
 
-typedef struct {
-    volatile s8 b0;
-    u8 pad[15];
-} Pad16;
-
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
-VIEW(Pad16[], gControllerData);
-#define gControllerData gControllerData_view
 
 /* The screen's frame. In the front end everyone's buttons count, in the pause menu only the pausing player's.
  * Start or B leaves; up and down (auto-repeating) move between the offered rows, the list scrolling to keep the
@@ -229,7 +219,7 @@ VIEW(Pad16[], gControllerData);
  * the pausing player's controller is pulled or put back. Leaving (or a soft reset) goes back to the start menu
  * (the title on a reset) or to the pause menu's main page. */
 void updateOptionScreen(void) {
-    Pad16 *p;
+    volatile ControllerState *p;
     s32 btn;
     s32 rep;
     s32 dir;
@@ -331,8 +321,8 @@ void updateOptionScreen(void) {
     options_updateButtons();
     if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
-        if (!p->b0 != options_gControllerRemoved) {
-            options_gControllerRemoved = !p->b0;
+        if (!p->attached != options_gControllerRemoved) {
+            options_gControllerRemoved = !p->attached;
             options_TitlePane();
         }
     }

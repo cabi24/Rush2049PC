@@ -2,9 +2,6 @@
 #include "game/game.h"
 
 
-VIEW(s8[0x15], gOptions);
-#define gOptions gOptions_view
-
 s32 SavePlayerOption();
 
 s32 GetPlayerOption();
