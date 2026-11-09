@@ -279,7 +279,7 @@ the loader reserves (step 6 makes it an offset). `RUNTIME_IMAGE_START`, `overlay
 | **A crossing counter** (`RUSH_COUNT_CROSSINGS`, a build option) | the probe of section 2 made a tool: every `PC_N64P/A/W/SLOT` crossing and the renderer's and audio's N64 addresses counted by site and target at exit; a step's proof includes "these sites cross 0 times along every path". The scratch probe (`w3probe.c`, `apply_probe.py` in the scratch tree) is the design: a weak hook from the prelude's macros, a table by site, a dump at exit, `addr2line` for the PC layer's callers | step 1: built (section 9) |
 | **The arena guard** (`RUSH2049_WINDOW_GUARD=arenas`) | after step 5 the window's arena ranges hold nothing: mapped with no access, any use faults with a note naming the datum and the instruction; after step 12 the whole range 0x80000000-0xBFFFFFFF is reserved with no access in this mode, so a stray N64 address faults wherever it comes from | step 1 (arenas): built in the counting build (section 9); step 12 (all) |
 | AddressSanitizer on x86-64 | a CI job (ASan and UBSan, every test, the synthetic paths); its redzones are step 13's proof | step 12 |
-| The gate | objsame, synth_compare 63 of 63 `same` (shots, audio), ctest and the realtime tests, the retail scripts on the Pi | every step |
+| The gate | objsame, synth_compare 64 of 64 `same` (shots, audio; 63 until step 8 added `language`), ctest and the realtime tests, the retail scripts on the Pi | every step |
 
 The moved build (`RUSH_NOFIXED`) and its CI job stay as they are during wave 3: every crossing still translates
 there, so a step that removes crossings must keep it building and its paths `same`. Step 12 retires it with the
@@ -289,7 +289,7 @@ window it moves.
 
 Each step is one agent's, one to three sessions, with files no other step of its wave edits. Sizes: small (under a
 session, a few files), medium (a session, 10-30 files), large (two or three sessions, 30-60 files). Every step's
-proof is the gate (objsame where code is unchanged, else synth_compare 63 of 63 `same` with shots and audio, ctest
+proof is the gate (objsame where code is unchanged, else synth_compare 64 of 64 `same` with shots and audio, ctest
 with the realtime tests, the lead's retail scripts on the Pi) plus what the step names, and the census's lines it
 targets at 0 (with `--sites` showing what's left of them). Each step updates the pages its subject has (DATA.md,
 CARS.md, POINTERS.md, ASSETS.md, GFX.md, AUDIO.md, MEMORY.md, ULTRA.md) and the comments it makes untrue
@@ -519,7 +519,7 @@ to 69 (`assets_world`'s window addresses: the three tests need no window now), `
 | `pconly_gate.sh --base ~/rush2049pc/w3b-ref --skip realtime --data-moved` (Rocky, Debug, against 786dec37) | PASS: ctest 572 of 572, synth_compare `--same --shots --audio` 63 of 63 `same` (first runs) |
 | RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 63 of 63 `same` |
 | `ctest --test-dir build/opt -LE realtime` | 572 of 572 (`assets_rom` skipped without a ROM) |
-| the language change: an options-screen run that switches the language three times (an ad hoc press script, not committed: the synthetic paths never change it), against the base | `same` (the text bank read into the same block three times; `assets_text` covers the switch, a larger bank and the release) |
+| the language change: an options-screen run that switches the language three times, against the base | `same` (the text bank read into the same block three times; `assets_text` covers the switch, a larger bank and the release). Then committed as the 64th synthetic path, `language` (below) |
 | `assets_text`, `assets_world`, `assets_path` (the records, the game's readers on them, no window); `assets_wad`, `assets_mods`, `assets_dispatch` | pass |
 | the data loader's tables (`data.c`, `data_layout.json`, `aliases.ld`, `stubs.c`) | the base's, byte for byte: the moved types have the same layouts |
 | `offset_check.py --strict` (Debug) | no open finding (3 reviewed, the base's); its rule for `pc_text_strings` (unused) goes with the function |
@@ -528,6 +528,18 @@ to 69 (`assets_world`'s window addresses: the three tests need no window now), `
 | `nofixed_audit.py --baseline` | no class grew; lowered by this step's moves: `cc.implicit.int_to_ptr` 24 to 18, `context.cc_warnings.int-conversion` 90 to 84, `port.rdram_base.tests` 40 to 37, `port.translate` 32 to 31, `port.trunc.tests` 19 to 17, `src.trunc` 3 to 2 |
 | the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_*`, `synth_.*`) and against the fixed build (`--runs 1 --same`) | builds; 93 of 93; 63 of 63 `same` |
 | boot without a ROM (CI's) | reaches wave 0 and stops where the base stops (`AudioSfxInit`'s allocation on the blank cartridge), the same log |
+
+**The `language` path** (`tools/port/synth/language.press`, added after the step, so the gate covers `ReplaceWave` and
+the converter's rebuild from now on): the options screen's language changed three times (Spanish, Italian, Spanish
+again: banks 1, 2 and 1 read into the first bank's block), then a single race in Spanish, its HUD drawn from bank 1's
+strings. Its checks: the wave loads in its log (`RUSH_TRACE_WAVES`: bank 1 twice, bank 2 once, no converter message),
+the race's screenshot drawn (`synth_shot.py`) with the HUD's text (491 black pixels, as `drive`'s). The synthetic
+front end draws no menu text (its screens are black but for one bar), and every language's strings are as long as
+English's with every letter the same box, so the picture can't tell the languages apart; the trace and the
+screenshot byte for byte against the base are the proof. Against 786dec37's builds: `same` (Debug and
+RelWithDebInfo, `--same --shots --audio --data-moved`); `synth_boot_language`, `replay_same_language` and
+`paced_same_language` pass (Debug, RelWithDebInfo); the moved build's `synth_boot_language` passes and its run is
+`same` as the fixed build's. ctest has 575 tests without the realtime ones now (572 before).
 
 **What this changes for later steps.**
 
@@ -691,8 +703,8 @@ The whole measure, on Rocky or any Linux host, in about a minute and a half once
     python3 tools/port/crossings.py --build build/count --guard -j 6 --out build/crossings/report.txt
 
 configures `build/count` the first time (Ninja, Debug, `-DRUSH_COUNT_CROSSINGS=ON`), builds it, makes its synthetic
-cartridge if it has none, runs the 63 synthetic paths (synth_compare.py's runs: on the virtual clock, its options,
-`pcsetup` left out), then each again in the guard's counting mode, and prints the report: one line per kind (always
+cartridge if it has none, runs the synthetic paths (synth_compare.py's runs: on the virtual clock, its options,
+`pcsetup` left out; 64 since step 8 added `language`, 63 in the measures of this page), then each again in the guard's counting mode, and prints the report: one line per kind (always
 all of them, in the same order), then each kind's sites sorted by name, then the guard's instructions. A site is a
 source line for the game C, `function file:line` (the call) for the PC layer. With the same tree, two runs give the
 same report but for a few counts (below), so a step's report diffs against the base's line by line. `--sort count`
