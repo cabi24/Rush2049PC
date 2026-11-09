@@ -57,6 +57,14 @@ static unsigned char **string_table(Bank *b, int t, unsigned char **table, const
 {
     uint32_t i, off;
 
+    /* A table with no strings (a bank of zeros: no ROM) is NULL, so that the game's read of a string in it faults
+     * at once, as its read through the bank's zero offsets did, instead of reading past an empty allocation. Every
+     * table of the retail cartridge's banks has strings. */
+    if (count == 0) {
+        free(table);
+        b->room[t] = 0;
+        return NULL;
+    }
     if (!table || b->room[t] < count) {
         size_t room = count ? count : 1;
         table = (unsigned char **)realloc(table, room * sizeof *table);
