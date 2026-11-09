@@ -1,3 +1,5 @@
+/* The pause screen's pages (MAT3 pausescr.c setPauseState and _updatePauseStateCreate): the panes and blits each
+ * page is made of. */
 #include "game/game.h"
 
 typedef struct Blit Blit;
@@ -29,7 +31,7 @@ VIEW(const MultiBlit, SureMultiBlit);
 #define SureMultiBlit SureMultiBlit_view
 VIEW(const MultiBlit, RumbleMultiBlit);
 #define RumbleMultiBlit RumbleMultiBlit_view
-            VIEW(Pos, pause_titlePos);
+VIEW(Pos, pause_titlePos);
 #define pause_titlePos pause_titlePos_view
 
 VIEW(Rect[][4], pause_gPlayerRects);
@@ -38,11 +40,16 @@ VIEW(Rect[][4], pause_gPlayerRects);
 void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
+/* HAL_SetFont without its result. */
 void ps_SetFont(s32 font)
 {
     HAL_SetFont(font);
 }
 
+/* Makes the page of the pause state just entered (gPauseState, MAT3 kPause*): the main page (1) dims the screen
+ * and puts a pane behind the eight lines of the menu, as wide as the widest; the rumble page (6) a pane for its
+ * title and one for each player's rumble state; restart and quit (7, 8) a pane behind the question. Each has the
+ * title pane and blit. updatePauseStateCleanup removed the last page's first. */
 void ps_updatePauseStateCreate(void)
 {
     s32 max;
@@ -103,6 +110,8 @@ void ps_updatePauseStateCreate(void)
     }
 }
 
+/* Goes to pause state state (MAT3 kNoPause ... kPauseQuit): the old page's panes and blits go, the new one's are
+ * made. */
 void setPauseState(s32 state)
 {
     gPauseState = state;

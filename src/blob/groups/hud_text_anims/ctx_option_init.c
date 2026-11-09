@@ -1,3 +1,4 @@
+/* The options screen's set-up (MAT3 optionscr.c calcOptionMenuMaxSize and initButtons). */
 #include "game/game.h"
 
 typedef struct TexDef TexDef;
@@ -22,6 +23,7 @@ void *memcpy(void *, const void *, u32);
 TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
 void ZOID_SetTexture(s16, TexDef *, s32);
 
+/* Counts the options offered (gMenuCount) and how many lines of them fit below the title (gOptionMenuSize). */
 void op_calcOptionMenuMaxSize(void)
 {
     s32 height;
@@ -38,6 +40,8 @@ void op_calcOptionMenuMaxSize(void)
     gOptionMenuSize = gMenuCount < height / TB_GetFontLineHeight() ? gMenuCount : height / TB_GetFontLineHeight();
 }
 
+/* Makes the options screen's 3D buttons that don't exist yet (the first three kinds lit differently), then sets up
+ * the cursor (28), the B button (29), its frame (30) and the title button (31), and resets the cameras. */
 void op_initButtons(void)
 {
     Color buttonColor = { { 255, 255, 255, 255 } };

@@ -1,3 +1,5 @@
+/* ZOID_SplitScreen (MAT3 zoidwindow.c): the scene's windows for one to four players, and their viewports and
+ * scissor boxes. */
 #include "game/game.h"
 
 VIEW(PcViewport, vp0);
@@ -31,6 +33,7 @@ VIEW(s16[4], scissorlr);
 VIEW(ArbEntry[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 
+/* Gives window k the viewport vp and the scissor box r (left, top, right, bottom); returns the window. */
 ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
     ZoidWinInfo[k].f0 = vp;
     ZoidWinInfo[k].f4 = r;
@@ -39,6 +42,9 @@ ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
 
 ArbEntry *ZOID_InitializeWindow(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
 
+/* Lays out n windows (nothing for n <= 0): one full screen (90-degree field of view); two, one above the other,
+ * each half the height with a wider field of view (127/90) and a line between them; three or four in quarters
+ * (0.95 the field of view), a line between them. Returns the split (gSplitScreen: 0 one window, 1 two, 2 four). */
 s32 ZOID_SplitScreen(s32 n) {
     if (n > 0) {
         gNumZoidWindows = n;

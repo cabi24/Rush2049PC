@@ -1,3 +1,5 @@
+/* build_far_node_matrix (the N64 scene draw's): the matrix of a far scenery node, pulled in toward the camera so
+ * that it stays inside the far plane, and the PC's check for a node with no place yet. */
 #include "game/game.h"
 
 typedef struct View {
@@ -37,6 +39,10 @@ s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute) {
     return !(x - x == 0.0f && y - y == 0.0f && z - z == 0.0f);   /* NaN or infinite */
 }
 
+/* Writes into m (an N64 fixed-point Mtx: integer halves in m[0..7], fractions in m[8..15]) the matrix of node obj
+ * for window idx's camera: its place relative to the camera (or absolute), pulled in to the draw reach and shrunk
+ * by as much when it is farther (and scaled down by a power of two past the depth range, pc_draw_range_scale), its
+ * rotation scaled by the same shrink, and scale in the w column. */
 void build_far_node_matrix(s32 idx, View *obj, u32 *m, f32 scale, s32 absolute) {
     f32 x, y, z;
     f32 s, reach;

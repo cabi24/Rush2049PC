@@ -1,3 +1,6 @@
+/* The video screen's text and test pattern (MAT3 videoscr.c animText, animButtonText): the screen offsets as a
+ * flat menu or beside the 3D buttons, the grey ramp and colour bars that help to set them, and the test and
+ * confirm panes of a refresh-rate change. */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -57,21 +60,26 @@ VIEW(TextColor[2], flashColors);
 extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
 void TB_FlashTextColors(TextColor first, TextColor second);   /* TB_FlashTextColors (ctx_flash.c) */
+/* The confirm pane's text width: 160. */
 void vs_setWidth(s16 *width)
 {
     *width = 160;
 }
 
+/* HAL_SetFont without its result. */
 void vs_SetFont(s32 font)
 {
     HAL_SetFont(font);
 }
+/* Whether line item of the video screen is offered (video_optionValid). */
 s8 vs_validOption(s32 item)
 {
     s8 valid = video_optionValid[item];
     return valid;
 }
 
+/* Draws the test pattern into the blit display list: a white block, a 32-step grey ramp and a black block (y 140-160),
+ * then white over black blocks with red, green and blue bars between them (y 160-200). */
 void vs_drawColorBars(void)
 {
     s32 x;
@@ -109,7 +117,10 @@ void vs_drawColorBars(void)
     gDPPipeSync(blit_dl++);
 }
 
-s32 video_animText(s32 arg0)
+/* The video screen's text, an animation function: the test pattern; with the 3D buttons up,
+ * video_animButtonText; else the title (or "CONTROLLER n removed" when a controller came out during a race's
+ * set-up) and the offered lines as a menu, the vertical and horizontal offsets with their signs. Returns 1. */
+s32 video_animText(s32 unused)
 {
     s32 i;
     s32 x;
@@ -125,7 +136,7 @@ s32 video_animText(s32 arg0)
     HAL_SetTextDepth(0.0f);
     vs_SetFont(13);
     TB_SetTextColor(1);
-    if ((gGameState & 0x7C0000) && video_gControllerRemoved) {
+    if ((gGameState & GAME_STATES_RACE_START) && video_gControllerRemoved) {
         TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
         TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {
@@ -158,6 +169,9 @@ s32 video_animText(s32 arg0)
     return 1;
 }
 
+/* The text of the video screen's 3D buttons: the title and each offered line's name and value at its buttons'
+ * projected places, turned-away buttons skipped, turning ones half translucent; then the panes of the refresh
+ * test (message 217) and its confirmation (218) while they are asked for (gTestFrequency, gConfirmFrequency). */
 void video_animButtonText(void)
 {
     s32 i;

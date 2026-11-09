@@ -1,8 +1,7 @@
+/* UpdateRushControls (MAT3 controls.c): the frame's input, into each player's input record. */
 #include "game/game.h"
 
-typedef struct Player76 {u8 index,selector;u8 gap[2];u32 previous,current,pressed;f32 horizontal,vertical;u8 opaque[0x48 - 0x18]; void *ref;} Player76;
-typedef struct Axes8 {f32 horizontal,vertical;} Axes8;
-extern Player76 gPlayers[];
+extern tPadState gPlayers[];
 
 VIEW(u32[], gContLevels);
 #define gContLevels gContLevels_view
@@ -10,27 +9,29 @@ VIEW(u32[], gContEdges);
 #define gContEdges gContEdges_view
 VIEW(u32[], gAutoEdges);
 #define gAutoEdges gAutoEdges_view
-VIEW(Axes8[], gContStick);
+VIEW(f32[][2], gContStick);
 #define gContStick gContStick_view
 
+/* Reads the controllers (UpdateControls), then copies each player's controller's held, pressed and auto-repeated
+ * buttons and stick into the player's record; a player past gNumPlayers, or without a controller, gets nothing. */
 void UpdateRushControls(void) {
- int player;
- Player76 *record;
+ int i;
+ tPadState *player;
  UpdateControls();
- for(player=0;player<4;player++) {
-  record=&gPlayers[player];
-  if(record->selector==5 || player>=gNumPlayers) {
-   record->current=0;
-   record->previous=0;
-   record->pressed=0;
-   record->horizontal=0.0f;
-   record->vertical=0.0f;
+ for(i=0;i<4;i++) {
+  player=&gPlayers[i];
+  if(player->controller==CONTROLLER_NONE || i>=gNumPlayers) {
+   player->levels=0;
+   player->edges=0;
+   player->autoEdges=0;
+   player->analog[0]=0.0f;
+   player->analog[1]=0.0f;
   } else {
-   record->current=gContLevels[record->selector];
-   record->previous=gContEdges[record->selector];
-   record->pressed=gAutoEdges[record->selector];
-   record->horizontal=gContStick[record->selector].horizontal;
-   record->vertical=gContStick[record->selector].vertical;
+   player->levels=gContLevels[player->controller];
+   player->edges=gContEdges[player->controller];
+   player->autoEdges=gAutoEdges[player->controller];
+   player->analog[0]=gContStick[player->controller][0];
+   player->analog[1]=gContStick[player->controller][1];
   }
  }
 }

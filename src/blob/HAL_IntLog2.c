@@ -1,22 +1,22 @@
+/* HAL_IntLog2 (MAT3 HAL_Support.c): an integer's base-2 logarithm, for the sound system's sizes. */
 #include "game/game.h"
 
-s32 HAL_IntLog2(s32 arg0)
+/* The highest set bit of value among bits 31 down to 1 (floor(log2(value)) for value > 1); 0 when none of those
+ * is set (value 0 or 1). */
+s32 HAL_IntLog2(s32 value)
 {
-  unsigned int temp_t9;
-  s32 var_v1;
-  var_v1 = 0x1F;
-  loop_1:
-  if ((1 << var_v1) & arg0)
+  s32 bit;
+  bit = 31;
+  for (;;)
   {
-    return var_v1;
+    if ((1 << bit) & value)
+    {
+      return bit;
+    }
+    bit = (bit - 1) & 0xFF;
+    if (bit == 0)
+    {
+      return 0;
+    }
   }
-
-  var_v1 = (var_v1 - 1) & 0xFF;
-  temp_t9 = var_v1;
-  var_v1 = temp_t9;
-  if (temp_t9 == 0)
-  {
-    return 0;
-  }
-  goto loop_1;
 }

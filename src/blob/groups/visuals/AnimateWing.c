@@ -1,3 +1,5 @@
+/* The cars' wings (MAT3 visuals.c AnimateWing): a car visual that slides the wing out (six steps) while the
+ * wings control is held, with its sound, and back in, tilting it with the car's pitch and puffing smoke. */
 #include "game/game.h"
 
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
@@ -18,18 +20,21 @@ VIEW(f32[9], unitmatrix);
  * between one frame and two, so the steps keep the N64's 30 a second. */
 #define PC_GAP30(x) (pc_fps60 ? (x) * 2.0f : (x))
 
+/* The wing's sound (effect 61 at three quarters pitch, half volume), on the car's player. */
 __inline void tire_sound_on(Model2056 *model)
 {
     model->sound = AudPlayEffect(61, model->player, 2, 2);
     AudChangeEffectPitch(model->sound, 0.75f);
     AudChangeEffectVol(model->sound, 0.5f);
 }
+/* Starts the wing sliding out: shown, flags out-and-moving (0x1110), the first step a moment from now. */
 __inline void tire_extend(Visual *v, Model2056 *model)
 {
     MBOX_ShowObject(v->object, 0, 15);
     v->flags |= 0x1110;
     v->time = gModelTime + PC_GAP30(0.015f); v->index = 0;
 }
+/* Stops the wing's sound. */
 __inline void tire_sound_off(Model2056 *model)
 {
     if (model->sound != -1) {
@@ -38,6 +43,12 @@ __inline void tire_sound_off(Model2056 *model)
     }
 }
 
+/* The wing visual v of a car, each frame (op != 0), or its removal (op 0). The flags: 0x10 the wing is out (or
+ * going out), 0x100 sliding out, 0x200 sliding in, 0x1000 moving. The wing goes in when the wings control is let
+ * go (model state 0) or the car coasts at the end, and out when it is held: a step every 0.015 s of model time
+ * (two at 60 fps), its offset (wingOffsets by car type, to the side the visual mirrors) scaled by the step; the
+ * sound plays while it moves. While out it tilts with the car's pitch and, for one player, smokes. It is hidden
+ * with the car (a hulk, a disabled car), at low detail, and see-through with the car. */
 void AnimateWing(Visual *v, s16 op)
 {
     s32 hulk, lucent;

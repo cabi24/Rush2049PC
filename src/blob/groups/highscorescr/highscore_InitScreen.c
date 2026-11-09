@@ -1,3 +1,5 @@
+/* The high score screen's start (MAT3 highscorescr.c _InitScreen): the music, the unlocks this race earned, the
+ * circuit's progress, and the first page to show. */
 #include "game/game.h"
 #define PlayerTail PlayerTailView   /* this file's own PlayerTail: include/game's PlayerTail is another type */
 
@@ -46,19 +48,22 @@ extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 extern void *memcpy(void *dst, const void *src, s32 n);
 
-/* GC AudPlaySong(song, loop): N64 wrapper over AudPlaySong (hypothesis) */
+/* AudPlaySong. */
 void AudPlaySong_TTL(s32 song, s32 loop)
 {
     AudPlaySong(song, loop);
 }
 
-/* GC AudSetMusicVol(vol, rate): N64 wrapper over AudSetMasterVol (hypothesis) */
-
-/* GC SaveFlush(0) after ClearRushControls: empty on the N64? (frame hypothesis) */
+/* Where MAT3 calls SaveFlush(0) after ClearRushControls: empty on the N64. */
 void SaveFlush_TTL(s32 x)
 {
 }
 
+/* Starts the high score screen: the high score music (song 5) unless the player chose no music, a copy of the
+ * unlock tables to compare with, the game over records (RecordGameOver); for a finished circuit race, the
+ * circuit's standings and, for a player without a profile, a circuit password; then the unlocks (each player's
+ * gStuffUnlocked when any table changed), the scores ranked for a race, ghost or circuit, the controls cleared, and
+ * the first page: the unlocks, the circuit password, the scores, or straight out. */
 void highscore_InitScreen(void)
 {
     s32 p;
@@ -129,10 +134,3 @@ void highscore_InitScreen(void)
     }
 }
 
-/* = AudKillSong (GC AudKillSong), inlined by umerge in retail (its locked copy is an -O2 single) */
-/* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
- * transform/group.c's AudChangeEffect says when). The stop of the song (command 1) posted here
- * is then dropped: with no message the lock is given back and nothing is sent, and a message the full queue
- * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,(void *)0,0);return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)((s8 *)(m))[3]=0

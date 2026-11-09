@@ -1,5 +1,8 @@
+/* The pause screen's menu text (MAT3 pausescr.c animPauseText): an animation function of a blit, run each frame
+ * the blit is drawn. */
 #include "game/game.h"
 
+/* The blit the animation function runs for (MAT3 _tBlit_2's leading fields). */
 typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
@@ -28,6 +31,7 @@ VIEW(s16[2], pause_titlePos);
 VIEW(StrTable, gText);
 #define gText gText_view
 
+/* Redraws item's blit once if it was marked dirty; returns the flag after (always 0). */
 s32 item_refresh_B7FC(MenuItem *item)
 {
     if (item->dirty) {
@@ -37,6 +41,8 @@ s32 item_refresh_B7FC(MenuItem *item)
     return item->dirty;
 }
 
+/* Draws the pause menu's eight lines (the language's pause words) under the title, centred, the chosen one
+ * (pauseMenuSelect) highlighted. Returns 1: the blit stays. */
 s32 animPauseText(MenuItem *item) {
     s32 i;
     s32 x;

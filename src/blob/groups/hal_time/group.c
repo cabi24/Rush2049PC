@@ -1,8 +1,12 @@
+/* The once-a-frame functions (MAT3 HAL_time.c): up to ten functions UpdateFrame calls every frame
+ * (HAL_CallOncePerFrameFuncs.c), such as the flashing text's colour cycle (TB_SetTextColor installs it). */
 #include "game/game.h"
 
+/* The functions, 0 for an empty place. On the N64 IDO took the loops' end, gOPPFuncs + 10, as the next variable's
+ * address (yf; docs/port/PROTOTYPES.md). */
 intptr_t gOPPFuncs[10];
-/* The table holds function pointers, 10 of them: the loops end at gOPPFuncs + 10 (on the N64 the address of the next
- * variable, yf, which IDO took for it; docs/port/PROTOTYPES.md). */
+
+/* Empties the table the first time (MAT3 HAL_InitTime). */
 void HAL_InitTime(void)
 {
   s32 i;
@@ -12,14 +16,16 @@ void HAL_InitTime(void)
       gOPPFuncs[i] = 0;
   }
 }
-void HAL_InstallOncePerFrameFunc(intptr_t arg0)
+
+/* Puts func in the first empty place of the table; nothing when the table is full. */
+void HAL_InstallOncePerFrameFunc(intptr_t func)
 {
   intptr_t *p;
   if (gInited_HALTime == 0) {
     HAL_InitTime();
   }
   for (p = gOPPFuncs; ; ) {
-    if (*p == 0) { *p = arg0; break; }
+    if (*p == 0) { *p = func; break; }
     p++;
     if (p == gOPPFuncs + 10) break;
   }

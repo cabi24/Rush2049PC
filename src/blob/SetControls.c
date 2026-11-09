@@ -1,21 +1,20 @@
+/* SetControls (MAT3 controls.c): each player's control layout into their input record, and into their profile when
+ * it changed. */
 #include "game/game.h"
 
-typedef struct Player {
-    u8 pad00;
-    u8 controller;        /* 0x01 */
-    u8 pad02[0x18 - 2];
-    u32 controls[10];     /* 0x18 */
-    u8 pad40[0x48 - 0x40];
-    void **save;          /* 0x48 */
-} Player;
-
-extern Player gPlayers[];         /* gPlayers */
+extern tPadState gPlayers[];
 VIEW(s8[10], gDefaultControls);
 #define gDefaultControls gDefaultControls_view
 
 VIEW(void *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
 
+/* For each player: takes the default layout (resetToDefault) or the layout chosen for their controller
+ * (gNewControls); if the controls screen changed that controller's layout (gControlsSet), saves it in the player's
+ * profile and, without a profile or when resetting, in the controller's own (gJustPlayers); then turns the layout's
+ * gControlTable indices into the button bits the car reads (tPadState.controls). MAT3 also keeps the rumble setting
+ * in the layout.
+ * Original game: a player without a controller (5) takes gNewControls[5], past the four layouts (MAT3 skips it). */
 void SetControls(s32 resetToDefault)
 {
     s32 p;
@@ -26,7 +25,7 @@ void SetControls(s32 resetToDefault)
         } else {
             controls = gNewControls[gPlayers[p].controller];
         }
-        if (gPlayers[p].controller != 5 && gControlsSet[gPlayers[p].controller]) {
+        if (gPlayers[p].controller != CONTROLLER_NONE && gControlsSet[gPlayers[p].controller]) {
             gControlsSet[gPlayers[p].controller] = 0;
             if (gPlayers[p].save) SavePlayerControls(gPlayers[p].save, controls);
             if (!gPlayers[p].save || resetToDefault) SavePlayerControls(&gJustPlayers[gPlayers[p].controller], controls);

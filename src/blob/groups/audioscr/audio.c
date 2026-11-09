@@ -1,3 +1,5 @@
+/* The audio screen's text (MAT3 audioscr.c animText and animButtonText): the title, and each option (music volume,
+ * effects volume, the song, the music type) with its value, as a flat menu or beside the 3D buttons. */
 #include "game/game.h"
 
 typedef struct AuIdx { u8 pad0[32]; u16 songStrings; u8 pad34[44]; u16 optionNames; u16 musicTypes; } AuIdx;
@@ -24,29 +26,36 @@ VIEW(u8[], gCamera);
 VIEW(s32[2], gJust);
 #define gJust gJust_view
 
-void TB_FlashTextColors(TextColor first, TextColor second)   /* TB_FlashTextColors (GC: two union __anon_21da) */
+/* The two colours flashing text alternates between (MAT3 TB_text.c TB_FlashTextColors). */
+void TB_FlashTextColors(TextColor first, TextColor second)
 {
     gFlashColor1.rgba = first.rgba;
     gFlashColor2.rgba = second.rgba;
 }
 
 
+/* The text's horizontal and vertical justification (gJust), as TB_SetJust sets it. */
 void au_SetJust(s32 h, s32 v)
 {
     gJust[1] = v;
     gJust[0] = h;
 }
 
+/* HAL_SetFont without its result. */
 void au_SetFont(s32 font)
 {
     HAL_SetFont(font);
 }
 
+/* Whether option i of the audio screen is offered: all are. */
 s8 au_validOption(s32 i)
 {
     return 1;
 }
 
+/* The text of the audio screen's 3D buttons: the title at its button, then each option's name and value at its
+ * buttons' projected places, skipped while its button is turned away (40 to 140 degrees), half translucent while it
+ * turns (20 to 160), highlighted when facing back. Values are upper-cased; song 12 and 13 have their own words. */
 void audio_animButtonText(void)
 {
     s32 i;
@@ -114,7 +123,10 @@ void audio_animButtonText(void)
     HAL_SetTextDepth(-1.0f);
 }
 
-s32 audio_animText(s32 arg0)
+/* The audio screen's text, an animation function: with the 3D buttons up, audio_animButtonText; else the title
+ * (or "CONTROLLER n removed" when a controller came out during a race's set-up) and the options as a menu, the
+ * chosen one highlighted. Returns 1: the blit stays. */
+s32 audio_animText(s32 unused)
 {
     s32 i;
     s32 x;
@@ -129,7 +141,7 @@ s32 audio_animText(s32 arg0)
     HAL_SetTextDepth(0.0f);
     au_SetFont(13);
     TB_SetTextColor(1);
-    if ((gGameState & 0x7C0000) && audio_gControllerRemoved) {
+    if ((gGameState & GAME_STATES_RACE_START) && audio_gControllerRemoved) {
         TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
         TB_DrawText(TB_CenterText(str, 160), 10, str);
     } else {

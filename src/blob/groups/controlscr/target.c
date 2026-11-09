@@ -1,3 +1,5 @@
+/* The controls screen's buttons (MAT3 controlscr.c updateButtons): one player's column of control buttons, which
+ * scrolls to keep the chosen one in view, turns the chosen button face up and spins the cursor beside it. */
 #include "game/game.h"
 
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
@@ -29,6 +31,12 @@ f32 fabsf(f32);
 #define TWO_PI 6.2831855f
 #define FOUR_PI 12.566371f
 
+/* Lays out player's control buttons for this frame: the cursor (button 14) spins beside the chosen control and
+ * follows it at a speed that grows with the distance (180 to 540 units a second at scale 1); the buttons stack
+ * downward from the chosen one's place, each turning face up (a half turn in a quarter second) when chosen and back
+ * when not, textured "selected" past a quarter turn; buttons beyond the column's top and bottom fade out over one
+ * button's spacing, and a line that isn't offered is hidden. Button 10 has a twin, 12, beside it. When every button
+ * has reached its place the scroll speed starts from 0 again. */
 void controls_updateButtons(s8 player) {
     s8 settled;
     s32 count;
@@ -50,7 +58,6 @@ void controls_updateButtons(s8 player) {
     s16 handle;
     f32 spacing;
     f32 top;
-    s32 frame_residual3;
 
     settled = 1;
     color.word = PC_RGBA(controls_updateButtonColor);
@@ -58,11 +65,9 @@ void controls_updateButtons(s8 player) {
         count = 0;
         before = 0;
         for (j = 0; j != 12; j++) {
-            if (j == 10) {}
             if (controls_validOption(player,j)) {
                 if (j < gControlSelect[player]) before++;
                 count++;
-                if (count) {}
             }
         }
         if ((controls_maxY - controls_minY) < (count-1) * controls_gButtonSpace * controls_gButtonScale) {
@@ -95,7 +100,6 @@ void controls_updateButtons(s8 player) {
         WPitchUV(HALF_PI,controls_buttonInfo[player][14].matrix);
         y = before * controls_gButtonSpace * controls_gButtonScale + selected_y;
         for (i = 0; i != 12; i++) {
-            if (i == 10) {}
             if (i == gControlSelect[player]) {
                 if (controls_buttonInfo[player][i].angle < PI) controls_buttonInfo[player][i].angle += FOUR_PI * gFrameSeconds;
                 if (controls_buttonInfo[player][i].angle > PI) controls_buttonInfo[player][i].angle = PI;
@@ -130,10 +134,8 @@ void controls_updateButtons(s8 player) {
             if (controls_buttonInfo[player][i].angle > HALF_PI) tex=(intptr_t)MBOX_FindTexture_WORK(controls_selected_texture_name,&texture,0,(s8)(gNumModels-1),1);
             else tex=(intptr_t)MBOX_FindTexture_WORK(controls_unselected_texture_name,&texture,0,(s8)(gNumModels-1),1);
             ZOID_SetTexture((s16)controls_buttonInfo[player][i].handle,(intptr_t)tex,-1);
-            if (i == 10) {}
             top = controls_maxY;
             spacing = controls_gButtonSpace*controls_gButtonScale;
-            if (spacing) {}
             if (controls_buttonInfo[player][i].position[1] > top + spacing || controls_buttonInfo[player][i].position[1] < controls_minY-spacing) controls_buttonInfo[player][i].alpha=0;
             else if (controls_buttonInfo[player][i].position[1] > controls_maxY) controls_buttonInfo[player][i].alpha=255-(controls_buttonInfo[player][i].position[1]-controls_maxY)*255.0f/(spacing);
             else if (controls_buttonInfo[player][i].position[1] < controls_minY) controls_buttonInfo[player][i].alpha=255-(controls_minY-controls_buttonInfo[player][i].position[1])*255.0f/(spacing);
@@ -173,6 +175,3 @@ void controls_updateButtons(s8 player) {
         controls_buttonsJustInited[player]=0;
     }
 }
-/* note: identity updateButtons@controlscr.c (MAT3 controlscr.c updateButtons, GC 0x8006D26C). Body is
- * packet unchanged; it now matches inside the group whose caller updateControlScreen also matches.
- * The 'nonmatching caller / no install claim' lines above are historical. */

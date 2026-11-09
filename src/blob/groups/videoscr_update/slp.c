@@ -1,3 +1,4 @@
+/* The video screen's title pane (MAT3 videoscr.c _TitlePane). */
 #include "game/game.h"
 
 void ChangePaneSize(void *, s32, s32, s32, s32);
@@ -5,8 +6,11 @@ void ChangePaneSize(void *, s32, s32, s32, s32);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
+/* HAL_SetFont: the text font, under the text lock; returns the one before. */
 s32 font_set_slp(s32 font) { s32 old; text_lock(); old = HAL_SetFontInternal(font); text_unlock(); return old; }
 
+/* Makes or resizes the pane behind the video screen's title (message 53, or "CONTROLLER n removed" while a
+ * controller is out), centred at the top of the 320-pixel screen. */
 void video_TitlePane(void)
 {
     s32 width;

@@ -651,18 +651,16 @@ typedef struct ScreenPos { /* 0x8 bytes */
     s32 y; /* 0x4 */
 } ScreenPos;
 
-typedef struct Segs { /* 0x1A0 bytes */
-    PcScTaskShape task0; /* 0x0 */
-    void *buf88;         /* 0xA0 */
-    s16 n92;             /* 0xA8 */
-    u8 other94[30];      /* 0xAA */
-    uintptr_t f124;      /* 0xC8 */
-    PcScTaskShape task1; /* 0xD0 */
-    void *buf216;        /* 0x170 */
-    s16 n220;            /* 0x178 */
-    u8 other222[30];     /* 0x17A */
-    uintptr_t f252;      /* 0x198 */
-} Segs;
+/* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index). The PC's
+ * layout: the scheduler's task is the PC's OSScTask. */
+typedef struct FrameRecord { /* 0xD0 bytes */
+    PcScTaskShape task;     /* 0x0: the frame's RSP task (StartGraphics, EndGraphics) */
+    u8 *commands;           /* 0xA0: its command buffer (pc_frame_dl): dynamic data, matrices from +1728, the
+                             * display list from PC_GLIST_OFFSET */
+    s16 doneMsgType;        /* 0xA8: the message the task sends the main thread when done: OS_SC_DONE_MSG */
+    u8 doneMsgRest[30];     /* 0xAA */
+    uintptr_t colorBuffer;  /* 0xC8: the frame buffer it draws into (a window address) */
+} FrameRecord;
 
 typedef struct SequenceSlotTrack { /* 0x18 bytes */
     void *start;  /* 0x0 */
@@ -1166,14 +1164,54 @@ typedef struct TextTables { /* 0x48 bytes */
 
 /* ---- input: controllers and the Rumble Pak */
 
+/* A controller as ControllerUpdate leaves it for ControlIRQ: gControllerData[4] (MAT3 tPadInfo, which also has the
+ * buttons the pad offers and moves the sticks to 0x0C). */
 typedef struct ControllerState { /* 0x10 bytes */
-    s8 connected; /* 0x0 */
-    u8 pad1[3];   /* 0x1 */
-    u32 buttons;  /* 0x4 */
-    s8 stick[2];  /* 0x8 */
-    s8 unkA[4];   /* 0xA */
-    u8 padE[2];   /* 0xE */
+    s8 attached;   /* 0x0: plugged in */
+    u8 pad1[3];    /* 0x1 */
+    u32 buttons;   /* 0x4: held, in the game's button bits (n64_button_map) */
+    s8 stick[2];   /* 0x8: x, y, about -80..80 */
+    s8 stick2[2];  /* 0xA: a second stick: the N64 has none (0) */
+    u8 analog[2];  /* 0xC: analog triggers, 0-255 (the controls 0x15 and 0x16): the N64 has none (0) */
+    u8 padE[2];    /* 0xE */
 } ControllerState;
+
+/* A player's input record (MAT3 tPadState), one of gPlayers[4], in the PC's layout (the save pointer is 8 bytes).
+ * Each frame UpdateRushControls copies its controller's state here; UpdateModelControls turns it into the car's
+ * steering, throttle, brake and gear. The record's type is still each file's own (gPlayers is declared by
+ * InitOptions.c); this is the input files' view of it. */
+typedef struct tPadState { /* 0x50 bytes */
+    u8 slot;                        /* 0x0: the car the player drives (model[], gGameCar[]) */
+    u8 controller;                  /* 0x1: the controller port, 5 for none */
+    u32 edges;                      /* 0x4: buttons newly pressed this frame */
+    u32 levels;                     /* 0x8: buttons held */
+    u32 autoEdges;                  /* 0xC: pressed, and repeated while held (UpdateControls) */
+    f32 analog[2];                  /* 0x10: the stick, x and y, -1..1 */
+    u32 controls[10];               /* 0x18: each control's button bits (gControlTable[gNewControls[...]]) */
+    u16 numCrashes;                 /* 0x40 */
+    s8 trans;                       /* 0x42 */
+    u8 pad43;
+    s32 listener;                   /* 0x44: the player's sound listener, -1 for none */
+    struct tPlayerProfile **save;   /* 0x48: the player's profile on a Controller Pak (a handle), or 0 */
+} tPadState;
+
+/* The controls the car reads, by their index in gNewControls[player][] and tPadState.controls[]
+ * (UpdateModelControls; 7 and 8 are the front end's). */
+#define CONTROL_GAS 0
+#define CONTROL_BRAKE 1
+#define CONTROL_STEER 2         /* how the stick steers (CONTROL_VALUE_STICK_DEAD or not) */
+#define CONTROL_SHIFT_UP 3
+#define CONTROL_SHIFT_DOWN 4
+#define CONTROL_REVERSE 5       /* held: reverse gear and full throttle */
+#define CONTROL_ABORT 6         /* pressed: abort the car (respawn) */
+#define CONTROL_WINGS 9         /* held: the wings */
+/* The values in tPadState.controls[] that aren't button bits (ReadGasAndBrake, ReadSteeringWheel). */
+#define CONTROL_VALUE_STICK_Y 0x13      /* the stick's y axis: up the gas, down the brake */
+#define CONTROL_VALUE_ANALOG_1 0x15     /* the first analog trigger (none on the N64) */
+#define CONTROL_VALUE_ANALOG_2 0x16     /* the second analog trigger (none on the N64) */
+#define CONTROL_VALUE_STICK_DEAD 0x19   /* the stick, with a dead zone: steering, or the y axis as above */
+/* The controller port of a player who has none. */
+#define CONTROLLER_NONE 5
 
 /* ---- save: the Controller Pak, profiles, records, options and passwords */
 

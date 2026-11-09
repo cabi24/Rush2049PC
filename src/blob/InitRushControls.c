@@ -1,15 +1,18 @@
+/* InitRushControls (MAT3 controls.c): the game's controls at start-up. */
 #include "game/game.h"
-
-VIEW(s8, gNewControls);
-#define gNewControls gNewControls_view
 
 M2C_UNK memcpy(s8 *, s32 *, M2C_UNK);               /* extern */
 
+/* Starts the controller system, makes the default control layout (gDefaultControls) and gives it to all four
+ * controllers (gNewControls[4][10], which ends where gFrontDistance begins). */
 void InitRushControls(void) {
-    s8 *var_s0;
+    s8 *controls;
 
     InitControlSys();
     SetDefaultControls(&gDefaultControls);
-    do { var_s0 = (s8 *) &gNewControls; do { memcpy(var_s0, &gDefaultControls, 0xA); var_s0 += 0xA; } while (var_s0 != (void *) &gFrontDistance); } while (0);
+    controls = (s8 *) gNewControls;
+    do {
+        memcpy(controls, &gDefaultControls, 10);
+        controls += 10;
+    } while (controls != (void *) &gFrontDistance);
 }
-

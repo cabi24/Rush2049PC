@@ -1,5 +1,7 @@
+/* The pause screen's title (MAT3 pausescr.c animTitleText): an animation function of a blit. */
 #include "game/game.h"
 
+/* The blit the animation function runs for (MAT3 _tBlit_2's leading fields). */
 typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
@@ -44,6 +46,7 @@ typedef struct PlayerRec {
 
 extern PlayerRec gPlayers[];
 
+/* Redraws item's blit once if it was marked dirty; returns the flag after (always 0). */
 s32 item_refresh_B5D0(MenuItem *item)
 {
     if (item->dirty) {
@@ -53,6 +56,9 @@ s32 item_refresh_B5D0(MenuItem *item)
     return item->dirty;
 }
 
+/* The pause screen's title: "controller N removed" when a controller was pulled out; else the restart or quit
+ * word (gPauseState 7, 8), nothing for the rumble screen (6), or the pausing player's name and "paused" in the
+ * player's colour. Returns 1: the blit stays. */
 s32 animTitleText(MenuItem *item) {
     s32 i;
     s32 x;

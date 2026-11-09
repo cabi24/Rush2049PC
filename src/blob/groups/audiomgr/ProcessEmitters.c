@@ -1,3 +1,5 @@
+/* ProcessEmitters (MAT3 audiomgr.c _ProcessEmitters): the 3D sound's mix, each audio manager pass: each emitter's
+ * volume, left-right pan and front-back pan from where the listeners are (one per player). */
 #include "game/game.h"
 
 /* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links and list host-sized (docs/port/SYNTH.md). */
@@ -36,11 +38,18 @@ static void pc_engines_gather(void)
     pc_engines_choose(gActiveListeners.count);
 }
 #define PC_ENGINE_GAIN(source, gain) pc_engine_gain((source)->handle, gain)
+/* *d = v clamped to 0..1. */
 void clamp_gain(f32 *d, f32 v)
 {
     *d = v<0.0f?0.0f:v>1.0f?1.0f:v;
 }
 
+/* Under the audio lock, for each active emitter: a one-shot effect (kind 2) that has finished frees its tag; a
+ * playing one gets, from each listener, a gain falling linearly from its near volume to its far volume over its
+ * radius (or its near volume), and the direction to it in the listener's frame (right, forward and their cross
+ * product); the gains' sum (clamped to 1) is the volume; the sideways component times (1 - gain) and the
+ * front-back component, each averaged weighted by the gains and clamped to -1..1, are the pans; the emitter's
+ * parameter is the pitch. */
 void ProcessEmitters(void)
 {
     Source *source, *next;
@@ -50,7 +59,6 @@ void ProcessEmitters(void)
     f32 distance, total, totalPan, totalDepth, weight;
     s32 i, kind;
     f32 direction[3], projected[3], basis[3][3];
-    s32 pad3;
     f32 panValues[5], depthValues[5], gains[5];
 
     audio_lock(); pc_engines_gather();
@@ -87,7 +95,6 @@ void ProcessEmitters(void)
                 projected[2]=basis[2][0]*direction[0]+basis[2][1]*direction[1]+basis[2][2]*direction[2];
                 panValues[i]=projected[0];
                 depthValues[i]=projected[2];
-                if (gains[i] != 0.0f) {}
                 if (source->radius>0.0f) {
                     gains[i]=source->nearVolume-(source->nearVolume-source->farVolume)*(distance/source->radius);
                     if (gains[i]<0.0f) gains[i]=0.0f;
@@ -95,7 +102,6 @@ void ProcessEmitters(void)
                 weight=gains[i];
                 total+=gains[i];
                 panValues[i] = panValues[i] - (panValues[i] * weight);
-                if (i == 5 || gActiveListeners.count == 1) {}
             }
             clamp_gain(&out[3],total);
             for (i=0; i<gActiveListeners.count; i++) {
