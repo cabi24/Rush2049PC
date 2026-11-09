@@ -17,9 +17,6 @@ extern PlayerRow gPlayers[];                   /* gPlayers */
 VIEW(Pos[][4], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
 
-VIEW(s8, gRankedPlayer);
-#define gRankedPlayer gRankedPlayer_view
-
 VIEW(tStuntPlayer[4], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
 
@@ -64,12 +61,12 @@ s32 animResults(s32 unused)
             resultPane[4] = InitPane(91, 106 - h, 229, h + 114, 192, 0, 0, 1);
         }
         TB_SetTextColor(22);
-        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(gRankedPlayer)) == 1) {
+        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(gRankedPlayer[0])) == 1) {
             TB_Sprintf(str, gText.single[200]);
         } else if (ties) {
             TB_Sprintf(str, gText.single[201], ties + 1);
         } else {
-            TB_Sprintf(str, gText.single[199], *gPlayers[gRankedPlayer].name + PROFILE_OFS(20));
+            TB_Sprintf(str, gText.single[199], *gPlayers[gRankedPlayer[0]].name + PROFILE_OFS(20));
         }
         TB_DrawTextScrollBox(160, 110, 160, 110, -1, 0, str);
     }

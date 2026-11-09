@@ -60,11 +60,6 @@ typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 #define TEXT_CIRCUIT_NAMES 44           /* the four circuit types */
 #define TEXT_PLACES 54                  /* the ordinals */
 
-VIEW(u8[], gUnlockedCircuits);
-#define gUnlockedCircuits gUnlockedCircuits_view
-VIEW(s8[][19], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-
 /* Which rows the profile's circuit allows: continue while a circuit is under way and not finished, the review once
  * one is under way. A circuit under way also unlocks its type and the ones before it (the intermediate type and
  * track 4, the advanced, with an Expansion Pak, and track 5, the extreme). An advanced circuit can't be continued
@@ -74,17 +69,17 @@ void resetEnabled(void)
     gContinueEnabled = !(gCircuit->track >= gCircuitSize) && gCircuit->active != 0;
     gStatsEnabled = gCircuit->active;
     if (gCircuit->type > 0) {
-        gUnlockedCircuits[1] = 1;
+        gUnlockedCircuits[0][1] = 1;
         gUnlockedTracks[0][4] = 1;
         gForceUnlockedCircuits[1] = 1;
     }
     if (gCircuit->type >= 2 && expansion_pak_present != 0) {
-        gUnlockedCircuits[2] = 1;
+        gUnlockedCircuits[0][2] = 1;
         gUnlockedTracks[0][5] = 1;
         gForceUnlockedCircuits[2] = 1;
     }
     if (gCircuit->type == kCircuitExtreme) {
-        gUnlockedCircuits[3] = 1;
+        gUnlockedCircuits[0][3] = 1;
         gForceUnlockedCircuits[3] = 1;
     }
     if (expansion_pak_present == 0 && gCircuit->type == 2) {

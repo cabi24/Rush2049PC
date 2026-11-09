@@ -7,8 +7,6 @@
 typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
 
 extern PlayerPad gPlayers[];
-VIEW(s8, gRankedPlayer);
-#define gRankedPlayer gRankedPlayer_view
 
 VIEW(s8[], gBattlePoints);
 #define gBattlePoints gBattlePoints_view
@@ -69,7 +67,7 @@ void RecordBattle(void)
                 }
             }
             stats->totalMatches = (u16) (stats->totalMatches + 1);
-            if (i == gRankedPlayer || gCarTeam[i] == gCarTeam[gRankedPlayer] || tied[i] == 1)
+            if (i == gRankedPlayer[0] || gCarTeam[i] == gCarTeam[gRankedPlayer[0]] || tied[i] == 1)
             {
                 stats->totalWins = (u16) (stats->totalWins + 1);
             }

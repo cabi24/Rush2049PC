@@ -57,9 +57,6 @@ void InitPlayer(Handle h) {
     data[71] = 0;
 }
 
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
-
 /* Checks the profile's file: its revision and every part's checksum. Returns 1 when something is wrong. With repair
  * each bad part is reset (the options and settings from the game's, the controls to the defaults, the records
  * zeroed) and written; a file of another revision is deleted instead (and 0 returned). Original game: only the first

@@ -6,7 +6,7 @@ s32 IsTrackUnlocked(s32 idx) {
     s32 unlocked = 0;
     s32 i;
     for (i = 0; i < gNumPlayers; i++) {
-        if (gUnlockedTracks[i].b[idx]) unlocked = 1;
+        if (gUnlockedTracks[i][idx]) unlocked = 1;
     }
     return unlocked;
 }

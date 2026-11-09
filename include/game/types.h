@@ -1424,10 +1424,6 @@ typedef struct tPakHandle {
     struct PakFileRecord *file;
 } tPakHandle;
 
-typedef struct Ent19 { /* 0x13 bytes */
-    s8 b[19]; /* 0x0 */
-} Ent19;
-
 typedef struct PakErrorState { /* 0x2C bytes */
     s8 busy;         /* 0x0 */
     s8 enabled;      /* 0x1 */
@@ -1715,17 +1711,6 @@ typedef struct tProfile { /* 0x40 bytes */
     s8 rumble;                 /* 0x37 */
     tSaveData **datah;         /* 0x38 its file's data once read (the pak file's data handle), else NULL */
 } tProfile;
-
-typedef struct Rec164A4 { /* 0x2A bytes */
-    s16 unk00[3]; /* 0x0 */
-    s16 unk06;    /* 0x6 */
-    s16 unk08[9]; /* 0x8 */
-    s16 unk1A;    /* 0x1A */
-    s16 unk1C;    /* 0x1C */
-    s16 unk1E;    /* 0x1E */
-    s16 unk20;    /* 0x20 */
-    s16 unk22[4]; /* 0x22 */
-} Rec164A4;
 
 typedef struct RecordOwner { /* 0x78 bytes */
     intptr_t names[2][5];    /* 0x0 */

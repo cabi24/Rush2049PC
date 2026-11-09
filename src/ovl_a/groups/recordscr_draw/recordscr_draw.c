@@ -142,20 +142,6 @@ VIEW(ObstacleStats[], gTotalObstacleStats);
 #define gTotalObstacleStats gTotalObstacleStats_view
 VIEW(CircuitStats[], gTotalCircuitStats);
 #define gTotalCircuitStats gTotalCircuitStats_view
-VIEW(s8[], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-VIEW(s8[], gUnlockedCircuits);
-#define gUnlockedCircuits gUnlockedCircuits_view
-VIEW(s8[], gUnlockedCars);
-#define gUnlockedCars gUnlockedCars_view
-VIEW(s8[], gUnlockedEngines);
-#define gUnlockedEngines gUnlockedEngines_view
-VIEW(s8[], gUnlockedFrames);
-#define gUnlockedFrames gUnlockedFrames_view
-VIEW(s8[], gUnlockedTrans);
-#define gUnlockedTrans gUnlockedTrans_view
-VIEW(s8[], gUnlockedTires);
-#define gUnlockedTires gUnlockedTires_view
 
 extern void TB_FlashTextColors(Color4,Color4);
 
@@ -338,7 +324,7 @@ void drawUnlockedParts(void)
     label=NAME(34,0);
     TB_DrawText(TB_CenterText(label,80),y,label);
     y+=TB_GetFontLineHeight();HAL_SetFont(12);empty=1;
-    for(i=3;i<9;i++)if(gUnlockedEngines[i]) {
+    for(i=3;i<9;i++)if(gUnlockedEngines[0][i]) {
         empty=0;label=NAME(6,i);
         TB_DrawText(TB_CenterText(label,80),y,label);y+=TB_GetFontLineHeight();
     }
@@ -365,7 +351,7 @@ void drawUnlockedParts(void)
     label=NAME(34,2);
     TB_DrawText(TB_CenterText(label,240),y,label);
     y+=TB_GetFontLineHeight();HAL_SetFont(12);empty=1;
-    for(i=2;i<8;i++)if(gUnlockedTrans[i]) {
+    for(i=2;i<8;i++)if(gUnlockedTrans[0][i]) {
         empty=0;label=NAME(4,i);
         TB_DrawText(TB_CenterText(label,240),y,label);y+=TB_GetFontLineHeight();
     }
@@ -378,7 +364,7 @@ void drawUnlockedParts(void)
     label=NAME(34,3);
     TB_DrawText(TB_CenterText(label,240),y,label);
     y+=TB_GetFontLineHeight();HAL_SetFont(12);empty=1;
-    for(i=1;i<5;i++)if(gUnlockedTires[i]) {
+    for(i=1;i<5;i++)if(gUnlockedTires[0][i]) {
         empty=0;label=NAME(7,i);
         TB_DrawText(TB_CenterText(label,240),y,label);y+=TB_GetFontLineHeight();
     }
@@ -413,22 +399,22 @@ void drawUnlockedTracks(void)
     first=0;second=0;
     for(i=0;i<19;i++) {
         if(i==0 || i==1 || i==2 || i==3 || i==14 || i==6 || i==7 || i==8 || i==9)continue;
-        if(!gUnlockedTracks[i])continue; if(i<14)first=1;else second=1;
+        if(!gUnlockedTracks[0][i])continue; if(i<14)first=1;else second=1;
     }
-    for(i=1;i<4;i++)if(gUnlockedCircuits[i])second=1;
+    for(i=1;i<4;i++)if(gUnlockedCircuits[0][i])second=1;
     HAL_SetFont(12);TB_SetTextColor(kTB_WhiteText);
     y=90;x=first && second ? 80 : 160;bottom=90;
     for(i=0;i<19;i++) {
         if(i==14) {x=first && second ? 240 : 160;if(first && second)y=90;}
         if(i==0 || i==1 || i==2 || i==3 || i==14 || i==6 || i==7 || i==8 || i==9)continue;
-        if(gUnlockedTracks[i]) {
+        if(gUnlockedTracks[0][i]) {
             width=(u32)HAL_GetTextWidth(gTrackTitles[i],-1)<(u32)width ? (u32)width : (u32)HAL_GetTextWidth(gTrackTitles[i],-1);
             TB_DrawText(TB_CenterText(gTrackTitles[i],x),y,gTrackTitles[i]);
             y+=TB_GetFontLineHeight();
         }
         if(y>=bottom)bottom=y;
     }
-    for(i=1;i<4;i++)if(gUnlockedCircuits[i]) {
+    for(i=1;i<4;i++)if(gUnlockedCircuits[0][i]) {
         TB_Sprintf(text,recordscr_unlocked_circuit_format,NAME(44,i),gText.single[42]);
         width=(u32)HAL_GetTextWidth(text,-1)<(u32)width ? (u32)width : (u32)HAL_GetTextWidth(text,-1);
         TB_DrawText(TB_CenterText(text,x),y,text);y+=TB_GetFontLineHeight();

@@ -58,7 +58,7 @@ extern u8 rumble_thread[EXTENT(432)];
 extern OSMesgQueue si_event_queue;
 extern s8 gSaveGhostFiles;
 extern s8 gCheatActive[EXTENT(21)];
-extern Rec164A4 gCheatState;
+extern s16 gCheatState[EXTENT(21)];   /* the cheats' states, by number (cheatscr.c; MAT3 signed short gCheatState[23]) */
 extern s16 cheat_all_cars;
 extern s16 cheat_all_tracks;
 extern s16 cheat_all_parts;
@@ -121,7 +121,10 @@ extern s32 gBattlePoints;
 extern f32 gLapTimes[EXTENT(4)][8];
 extern s32 ties;
 extern s8 tied[EXTENT(8)];
-extern Ent19 gUnlockedTracks[EXTENT(1)];
+/* What each player has unlocked (CalcUnlockedStuff), a row per player: MAT3 signed char [4][n]. The data loader
+ * gives gUnlockedTracks one row, gUnlockedCars 16 bytes and gUnlockedFrames 56 (the rest of their rows lie in
+ * the gaps after them, as on the N64). */
+extern s8 gUnlockedTracks[EXTENT(1)][19];
 extern u8 gUnlockedCars[EXTENT(16)];
 extern s8 gUnlockedCircuits[EXTENT(4)][4];
 extern s8 gUnlockedTrans[EXTENT(1)][8];

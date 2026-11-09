@@ -82,7 +82,7 @@ void InitOptions(void) {
     gFogColor = 0;
     gMineCones = 0;
     gCarMines = 0;
-    gCheatState.unk06 = 0;
+    gCheatState[3] = 0;
     gUpsideDownTrack = 0;
     gNoAutoAbort = 0;
     gInvincible = 0;
@@ -92,10 +92,10 @@ void InitOptions(void) {
     gSpecialTires = 0;
     gMassiveMass = 0;
     gSuicideMode = 0;
-    gCheatState.unk1A = 0;
-    gCheatState.unk1C = 0;
-    gCheatState.unk1E = 0;
-    gCheatState.unk20 = 0;
+    gCheatState[13] = 0;
+    gCheatState[14] = 0;
+    gCheatState[15] = 0;
+    gCheatState[16] = 0;
     gSuperSpeed = 0;
     gResurrectInPlace = 0;
     gFrameScale = 0;

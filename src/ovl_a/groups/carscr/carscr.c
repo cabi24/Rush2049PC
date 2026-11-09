@@ -50,8 +50,6 @@ extern Blit *NewMultiBlit(s16,s16,MultiBlit *,s16);
 
 VIEW(s8[], gCarTeamColor);
 #define gCarTeamColor gCarTeamColor_view
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
 
 VIEW(s8[][13], car_color_choice_a);
 #define car_color_choice_a car_color_choice_a_view

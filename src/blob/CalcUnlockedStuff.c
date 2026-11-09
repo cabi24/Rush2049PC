@@ -8,8 +8,6 @@ typedef struct {
 } PlayerPad; /* 0x4C */
 
 extern PlayerPad gPlayers[];
-VIEW(s8[][19], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
 VIEW(s8[][13], gUnlockedCars);
 #define gUnlockedCars gUnlockedCars_view
 

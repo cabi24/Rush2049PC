@@ -1,20 +1,6 @@
 /* The high score screen's start (MAT3 highscorescr.c _InitScreen): the music, the unlocks this race earned, the
  * circuit's progress, and the first page to show. */
 #include "game/game.h"
-VIEW(u8[], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-
-VIEW(u8[], gUnlockedCircuits);
-#define gUnlockedCircuits gUnlockedCircuits_view
-
-VIEW(u8[], gUnlockedTrans);
-#define gUnlockedTrans gUnlockedTrans_view
-
-VIEW(u8[], gUnlockedEngines);
-#define gUnlockedEngines gUnlockedEngines_view
-
-VIEW(u8[], gUnlockedTires);
-#define gUnlockedTires gUnlockedTires_view
 
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 
@@ -77,13 +63,13 @@ void highscore_InitScreen(void)
     }
     CalcUnlockedStuff();
     for (p = 0; p < gNumPlayers; p++) {
-        gStuffUnlocked[p] = game_memcmp(&gPrevUnlockedTracks[p * 19], &gUnlockedTracks[p * 19], 19) != 0
-                     || game_memcmp(&gPrevUnlockedCars[p * 13], &gUnlockedCars[p * 13], 13) != 0
-                     || game_memcmp(&gPrevUnlockedCircuits[p * 4], &gUnlockedCircuits[p * 4], 4) != 0
-                     || game_memcmp(&gPrevUnlockedTrans[p * 8], &gUnlockedTrans[p * 8], 8) != 0
-                     || game_memcmp(&gPrevUnlockedEngines[p * 9], &gUnlockedEngines[p * 9], 9) != 0
-                     || game_memcmp(&gPrevUnlockedTires[p * 5], &gUnlockedTires[p * 5], 5) != 0
-                     || game_memcmp(&gPrevUnlockedFrames[p * 6], &gUnlockedFrames[p * 6], 6) != 0;
+        gStuffUnlocked[p] = game_memcmp(gPrevUnlockedTracks[p], gUnlockedTracks[p], 19) != 0
+                     || game_memcmp(gPrevUnlockedCars[p], &gUnlockedCars[p * 13], 13) != 0
+                     || game_memcmp(gPrevUnlockedCircuits[p], gUnlockedCircuits[p], 4) != 0
+                     || game_memcmp(gPrevUnlockedTrans[p], gUnlockedTrans[p], 8) != 0
+                     || game_memcmp(gPrevUnlockedEngines[p], gUnlockedEngines[p], 9) != 0
+                     || game_memcmp(&gPrevUnlockedTires[p * 5], gUnlockedTires[p], 5) != 0
+                     || game_memcmp(gPrevUnlockedFrames[p], &gUnlockedFrames[p * 6], 6) != 0;
         if (gStuffUnlocked[p]) {
             stuffUnlocked = 1;
         }

@@ -292,13 +292,15 @@ extern s32 gHighScoreState;
 extern intptr_t gThisPlayer[EXTENT(4)];
 extern s16 gThisTrack;
 extern s8 gStuffUnlocked[EXTENT(5)];
-extern u8 gPrevUnlockedTracks[EXTENT(76)];
-extern u8 gPrevUnlockedCars[EXTENT(52)];
-extern u8 gPrevUnlockedCircuits[EXTENT(16)];
-extern u8 gPrevUnlockedTrans[EXTENT(32)];
-extern u8 gPrevUnlockedEngines[EXTENT(36)];
+/* The unlock tables as they were before the race (highscore_InitScreen), for what the race unlocked: rows as
+ * gUnlocked*'s (gPrevUnlockedTires is 24 bytes to the data loader, so flat). */
+extern s8 gPrevUnlockedTracks[EXTENT(4)][19];
+extern s8 gPrevUnlockedCars[EXTENT(4)][13];
+extern s8 gPrevUnlockedCircuits[EXTENT(4)][4];
+extern s8 gPrevUnlockedTrans[EXTENT(4)][8];
+extern s8 gPrevUnlockedEngines[EXTENT(4)][9];
 extern u8 gPrevUnlockedTires[EXTENT(24)];
-extern u8 gPrevUnlockedFrames[EXTENT(24)];
+extern s8 gPrevUnlockedFrames[EXTENT(4)][6];
 extern char gScoreName[EXTENT(4)][13];
 extern u8 circuitCode;
 extern u8 highscore_gCircuitCode[EXTENT(32)];

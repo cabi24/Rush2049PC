@@ -3,26 +3,10 @@
  * gHighScoreState is on. */
 #include "game/game.h"
 
-VIEW(s8[][19], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-VIEW(s8[][19], gPrevUnlockedTracks);
-#define gPrevUnlockedTracks gPrevUnlockedTracks_view
 VIEW(s8[][13], gUnlockedCars);
 #define gUnlockedCars gUnlockedCars_view
-VIEW(s8[][13], gPrevUnlockedCars);
-#define gPrevUnlockedCars gPrevUnlockedCars_view
-VIEW(s8[][4], gPrevUnlockedCircuits);
-#define gPrevUnlockedCircuits gPrevUnlockedCircuits_view
-VIEW(s8[][8], gPrevUnlockedTrans);
-#define gPrevUnlockedTrans gPrevUnlockedTrans_view
-VIEW(s8[][9], gPrevUnlockedEngines);
-#define gPrevUnlockedEngines gPrevUnlockedEngines_view
-VIEW(s8[][5], gPrevUnlockedTires);
-#define gPrevUnlockedTires gPrevUnlockedTires_view
 VIEW(s8[][6], gUnlockedFrames);
 #define gUnlockedFrames gUnlockedFrames_view
-VIEW(s8[][6], gPrevUnlockedFrames);
-#define gPrevUnlockedFrames gPrevUnlockedFrames_view
 
 extern void ChangePaneSize(void *, s32, s32, s32, s32);
 
@@ -47,7 +31,7 @@ void DrawUnlocked(void)
         for (i = 0; i < 4; i++) if (gUnlockedCircuits[p][i] && !gPrevUnlockedCircuits[p][i]) stuffCount++;
         for (i = 0; i < 8; i++) if (gUnlockedTrans[p][i] && !gPrevUnlockedTrans[p][i]) stuffCount++;
         for (i = 0; i < 9; i++) if (gUnlockedEngines[p][i] && !gPrevUnlockedEngines[p][i]) stuffCount++;
-        for (i = 0; i < 5; i++) if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) stuffCount++;
+        for (i = 0; i < 5; i++) if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p * 5 + i]) stuffCount++;
         for (i = 0; i < 6; i++) if (gUnlockedFrames[p][i] && !gPrevUnlockedFrames[p][i]) stuffCount++;
         x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
         y = highscore_gPlayerRects[gNumWindows - 1][p].cy - stuffCount * TB_GetFontLineHeight() / 2;
@@ -96,7 +80,7 @@ void DrawUnlocked(void)
             }
         }
         for (i = 0; i < 5; i++) {
-            if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) {
+            if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p * 5 + i]) {
                 TB_Sprintf(str, unlocked_tires_format, gText.taba[gText.tab[7] + i], gText.taba[gText.tab[2] + 4]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();

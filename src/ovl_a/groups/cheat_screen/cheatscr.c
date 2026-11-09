@@ -15,8 +15,6 @@ typedef struct MultiBlit {
 
 VIEW(const MultiBlit[], cheatscr_multiblit);
 #define cheatscr_multiblit cheatscr_multiblit_view
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
 
 extern void particle_lifetime_set(void);
 extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
