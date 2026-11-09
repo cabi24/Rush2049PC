@@ -156,7 +156,6 @@ struct N64Gfx;          /* a display list command in the N64's form, two 32-bit 
 struct ObjInstance;
 struct Owner;
 struct P3;
-struct PackedKey;
 struct PackedLeadingKey;
 struct Packet;
 struct PadConfig;
@@ -556,12 +555,11 @@ typedef struct Impact24 { /* 0x18 bytes */
     s32 bump;       /* 0x14: a settled hit for UpdateBumps to play */
 } Impact24;
 
-typedef struct LayerRecord { /* 0xC bytes */
-    u32 payload;    /* 0x0 */
-    u16 id;         /* 0x4 */
-    u16 type;       /* 0x6 */
-    u16 references; /* 0x8 */
-    u16 metadata;   /* 0xA */
+typedef struct LayerRecord { /* 0x10 bytes */
+    void *payload;  /* 0x0 the layers, in the pool */
+    u16 id;         /* 0x8 */
+    u16 count;      /* 0xA */
+    u16 references; /* 0xC */
 } LayerRecord;
 
 typedef struct PaneColors { /* 0x8 bytes */
@@ -726,11 +724,11 @@ typedef struct SequenceTrack { /* 0x38 bytes */
     u8 unknown18[16]; /* 0x28 */
 } SequenceTrack;
 
-typedef struct TableRecord { /* 0x8 bytes */
-    u32 payload;    /* 0x0 */
-    u16 id;         /* 0x4 */
-    u16 references; /* 0x6 */
-} TableRecord;
+typedef struct ResourceRecord { /* 0x10 bytes */
+    void *payload;  /* 0x0 the macro's steps, the table's bytes or the keymap's entries, in the pool */
+    u16 id;         /* 0x8 */
+    u16 references; /* 0xA */
+} ResourceRecord;
 
 typedef struct TrackLoadState { /* 0x8 bytes */
     s8 loading; /* 0x0 */
@@ -900,11 +898,6 @@ typedef struct LargeNode { /* 0x28 bytes */
     struct StateNode *object; /* 0x20 */
 } LargeNode;
 
-typedef union LayerRecordStorage { /* 0xC bytes */
-    LayerRecord fields;
-    u32 words[3];
-} LayerRecordStorage;
-
 typedef union RecordStorage { /* 0xC bytes */
     RecordFields fields;
     u32 words[2];
@@ -1048,11 +1041,6 @@ typedef struct tRoadNoises { /* 0x3C bytes */
     tSoundState water; /* 0x14 */
     tSoundState pave;  /* 0x28 */
 } tRoadNoises;
-
-typedef union TableRecordStorage { /* 0x8 bytes */
-    TableRecord fields;
-    u32 words[2];
-} TableRecordStorage;
 
 typedef struct TransferRequest { /* 0x18 bytes */
     void *destination; /* 0x0 */
