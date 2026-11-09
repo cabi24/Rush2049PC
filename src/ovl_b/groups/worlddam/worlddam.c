@@ -7,9 +7,17 @@ typedef struct tRGBA { u8 c[4]; } tRGBA;
 
 /* The model record (MAT3 tModelData): each tyre's height off the ground. */
 typedef struct tModelData {
-    u8 unknown000[0x5ec];
+    _tCar *car;
+    Tune44 *tune;
+    u8 unknown008[0x398];
+    streetyp *lasttp[4];
+    u8 unknown3B0[0x5c];
+    const s16 *torquecurve;
+    u8 unknown410[0x1dc];
     f32 airdist[4];
-    u8 unknown5fc[0x808 - 0x5fc];
+    u8 unknown5fc[0x648 - 0x5fc];
+    surftyp *movingSurface;
+    u8 unknown64c[0x808 - 0x64c];
 } tModelData;
 
 extern f32 fabsf(f32);

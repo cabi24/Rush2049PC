@@ -8,14 +8,22 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    char pad0[0x124];
+    _tCar *car;
+    Tune44 *tune;
+    char pad8[0x11C];
     f32 centerForce[3];         /* 0x124 the force on the body's centre this step, car frame */
-    char pad130[0x5C4 - 0x130];
+    char pad130[0x3A0 - 0x130];
+    streetyp *lasttp[4];
+    char pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    char pad410[0x5C4 - 0x410];
     f32 collisionmass;          /* 0x5C4 its mass in collisions */
     char pad5C8[0x63C - 0x5C8];
     f32 crashthreshold;         /* 0x63C the force that crashes it */
     s8 crashflag;               /* 0x640 */
-    char pad641[0x788 - 0x641];
+    char pad641[0x648 - 0x641];
+    surftyp *movingSurface;
+    char pad64C[0x788 - 0x64C];
     f32 reckon_rwv[3];          /* 0x788 reckon.rwv: the velocity the collisions use */
     f32 reckon_rwr[3];          /* 0x794 reckon.rwr: the position */
     f32 reckon_uvs[3][3];       /* 0x7A0 reckon.uvs: the orientation */

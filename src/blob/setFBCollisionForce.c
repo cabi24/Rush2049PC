@@ -7,19 +7,27 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    /* 0x000 */ char pad0[0xF4];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ char pad8[0xEC];
     /* 0x0F4 */ f32 bodyR[4][3];        /* the body's corners, car frame, feet: 0 front +x, 3 back -x */
     /* 0x124 */ f32 centerForce[3];     /* the force on the body's centre this step, car frame */
     /* 0x130 */ char pad130[0xF0];
     /* 0x220 */ f32 rwv[3];             /* the velocity in the world, feet a second */
-    /* 0x22C */ char pad22C[0x1C4];
+    /* 0x22C */ char pad22C[0x174];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ char pad3B0[0x40];
     /* 0x3F0 */ f32 magvel;             /* the speed */
-    /* 0x3F4 */ char pad3F4[0x1D0];
+    /* 0x3F4 */ char pad3F4[0x18];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ char pad410[0x1B4];
     /* 0x5C4 */ f32 collisionmass;      /* its mass in collisions */
     /* 0x5C8 */ char pad5C8[0x74];
     /* 0x63C */ f32 crashthreshold;     /* the force that crashes it */
     /* 0x640 */ s8 crashflag;
-    /* 0x641 */ char pad641[0x83];
+    /* 0x641 */ char pad641[0x7];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ char pad64C[0x78];
     /* 0x6C4 */ s16 resurrect_moving_state;   /* RES_IDLE when not respawning */
     /* 0x6C6 */ char pad6C6[0xC2];
     /* 0x788 */ f32 reckon_rwv[3];      /* reckon.rwv: the velocity the collisions use */

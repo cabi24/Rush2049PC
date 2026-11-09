@@ -1,14 +1,14 @@
 /* port/assets/tests/test_cars.c: the car record (pc_cars, N64 gGameCar, 0x468 bytes a car on the PC) and the
- * model record (pc_models, MAT3 model[], 0x808 bytes, its N64 layout) through the game's own code
- * (docs/port/CARS.md): init_cars
+ * model record (pc_models, MAT3 model[], 0x830 bytes on the PC: its five pointers are host pointers) through the
+ * game's own code (docs/port/CARS.md): init_cars
  * (init_cars), StartEnvironment and StartCar with every visual starter, the car visuals' stop loop, the
  * environment visual pool, the code that reaches cars at raw offsets or strides, and the model set-up from the
- * car physics descriptors, whose pointers are u32 window addresses, and the physics that read them (the torque
- * enginetorque, calcaa, transmission; docs/port/LAYOUT.md 5); Update_MDrive reads a car's node handle's
- * low half; the brake lights (AnimateBrakeLights) read their car's slot from the visual. The car and model arrays are
- * host storage, as in the game (PC data, docs/port/DECOUPLE.md); the checkpoint block and the tune and torque
- * tables sit at their N64 addresses in an RDRAM window the test maps (exit 77, skipped, if it can't), as the
- * game's arena does.
+ * car physics descriptors (car_descriptors, whose tire constants are pointers too), and the physics that read them
+ * (the torque enginetorque, calcaa, transmission; docs/port/LAYOUT.md 5); Update_MDrive reads a car's node handle's
+ * low half; the brake lights (AnimateBrakeLights) read their car's slot from the visual. The car and model arrays and
+ * the descriptors are host storage, as in the game (PC data, docs/port/DECOUPLE.md); the checkpoint block and the
+ * tune and torque tables sit at their N64 addresses in an RDRAM window the test maps (exit 77, skipped, if it
+ * can't), as the game's arena does.
  * game: src/blob/init_cars.c src/blob/InitCarVisuals.c src/blob/InitCarPath.c
  * game: src/blob/StartEnvironment.c src/blob/groups/StartCar/startcar.c src/blob/StartFrame.c
  * game: src/blob/StartSparks.c src/blob/groups/StartWingFlame/group.c src/blob/groups/StartCar/group.c
@@ -41,12 +41,16 @@ struct car {
 };
 
 #define CF(c, n, T) (*(T *)((uint8_t *)(c) + CAR_OFS(n)))   /* the car field at N64 offset n */
-#define MF(m, n, T) (*(T *)((uint8_t *)(m) + (n)))          /* the model field at offset n (N64 layout) */
+#define MF(m, n, T) (*(T *)((uint8_t *)(m) + (n)))          /* the field at host offset n */
+/* The model record's field at MAT3's (the N64's) offset n (MODEL_OFS: support.h). */
+#define MD(m, n, T) MF(m, MODEL_OFS(n), T)
+/* The physics descriptor's field at MAT3's offset n: its tires[] (+0x60) are 8-byte pointers on the PC. */
+#define DESC_OFS(n) ((n) < 0x60 ? (n) : (n) < 0x70 ? 0x60 + ((n) - 0x60) * 2 : (n) + 0x10)
+#define DF(d, n, T) MF(d, DESC_OFS(n), T)
 /* Names defined here in assembly (absolute N64 addresses, support.h's TEST_ABS, or offsets into the car array) are for
  * the game's objects only: this file reaches that data by its address, since the assembler can't take a GOT reference
  * to a symbol it defines with .set. */
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
-#define W32(p) ((uint32_t)(uintptr_t)(p))
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
@@ -63,10 +67,16 @@ TEST_ABS(gTune);                             /* the tune table, 44 bytes an entr
 TEST_ABS(stdtorquecurve);                    /* the torque curve */
 TEST_ABS(frontTire);                         /* the tire records after it (car_resistance names them) */
 #define TUNES ((float *)TEST_AT(gTune))
-#define DESC_AT TEST_SCRATCH                 /* the physics descriptors (0xB4 bytes) and tire curves, as game data */
-#define CURVES_AT (TEST_SCRATCH + 0x1000u)
 
 void *gCarModels[13];                      /* Car *[]: own storage, pointing into the game arena */
+/* The physics descriptors (MAT3 _tCar[6], include/game/types.h) in their host layout: own storage, as in the game. */
+struct desc {
+    float head[0x60 / 4];       /* +0x00 the inertia, springs, damping, steering and drag */
+    void *tires[4];             /* +0x60 each tire's constants: pointers */
+    float tireR[4][3];          /* +0x70 (host +0x80) each tire's position */
+    float tail[5];              /* +0xA0 the drivetrain's */
+} car_descriptors[6];
+static float g_tire_records[4][6];          /* the tire constants the descriptor's tires[] point at */
 uint8_t gPlayers[6 * 80] __attribute__((aligned(16)));   /* the input records */
 struct pc_link pc_links[PC_LINK_SLOTS];    /* gLink, the race roster (pc_game_types.h) */
 int8_t gCarHandling[7][13], gCarEngines[7][13], gCarTires[7][13], gCarFrame[7][13], gTireRims[7][13];
@@ -142,10 +152,10 @@ VFN(AnimateArrow) VFN(recorder)
 int32_t AnimateFrame(void) { return 0; }
 void StartWeapon(int16_t slot);
 /* The physics descriptor's tire set-up: what car_resistance passes. */
-static uint32_t g_tire_info[4];
+static void *g_tire_info[4];
 static float g_tire_x[4];
 static int g_ntire, g_nprev;
-void copy_tire_info(void *tire_info, void *tire) { if (g_ntire < 4) g_tire_info[g_ntire++] = W32(tire_info); }
+void copy_tire_info(void *tire_info, void *tire) { if (g_ntire < 4) g_tire_info[g_ntire++] = tire_info; }
 void tire_constants(void *m, void *tire, float x) { if (g_nprev < 4) g_tire_x[g_nprev++] = x; }
 float CalcMass(void *m) { return 1.5f; }
 float CalcOffroadTires(void *m) { return 2.5f; }
@@ -203,7 +213,7 @@ static void test_init_cars(void)
     struct car *c0 = &CARS[0], *c1 = &CARS[1], *c2 = &CARS[2];
 
     memset(pc_cars, 0xAA, sizeof pc_cars);
-    memset(MODEL(0), 0x55, 0x808 * 3);
+    memset(MODEL(0), 0x55, sizeof(struct pc_model) * 3);
     gNumCars = 3;
     gNumPlayers = 1;
     pc_links[0].car = 3, pc_links[0].place = 1, pc_links[0].flags = 0x80, pc_links[0].owner = 6;
@@ -212,12 +222,12 @@ static void test_init_cars(void)
     gPlayers[66] = 0x21;                       /* the humans' input record flags (+0x42) */
     gPlayers[2 * 80 + 66] = 0x42;
     collsize[0][0] = 4.0f, collsize[0][1] = 3.0f, collsize[0][2] = 1.5f, collsize[0][3] = 2.0f;
-    gCarModels[0] = (void *)(uintptr_t)DESC_AT;
+    gCarModels[0] = &car_descriptors[0];
     MF(gCheckpoints, 2, int16_t) = 0, MF(gCheckpoints, 8, int16_t) = 4;   /* Route first, count */
     init_cars();
 
     CHECK(c0->input == (void *)gPlayers && c1->input == NULL && c2->input == (void *)(gPlayers + 2 * 80));
-    CHECK(MF(MODEL(2), 9, int8_t) == 0x42 && MF(MODEL(2), 8, int8_t) == 4 && MF(MODEL(2), 0x7CC, int8_t) == 2);
+    CHECK(MD(MODEL(2), 9, int8_t) == 0x42 && MD(MODEL(2), 8, int8_t) == 4 && MD(MODEL(2), 0x7CC, int8_t) == 2);
     for (k = 0; k < 21; k++) {
         CHECK(c0->visuals[k].func == NULL && c0->visuals[k].objnum == -1 && c0->visuals[k].next == NULL);
         CHECK(c1->visuals[k].func == NULL && c1->visuals[k].objnum == -1 && c1->visuals[k].data == 0);
@@ -232,13 +242,14 @@ static void test_init_cars(void)
     /* InitCarPath (the car's checkpoint state, past the visuals) */
     CHECK(CF(c0, 0x334, float) == 12.5f && CF(c0, 0x33A, int16_t) == -1 && CF(c0, 0xFA, int16_t) == -1);
     CHECK(CF(c0, 0x338, int16_t) == 0 && CF(c0, 0x314, float) == 0.0f);
-    /* the models (N64 layout, in the window) */
-    CHECK(MF(MODEL(0), 0, uint32_t) == DESC_AT && MF(MODEL(1), 0, uint32_t) == DESC_AT);
-    CHECK(MF(MODEL(0), 0x7C6, int16_t) == 0 && MF(MODEL(1), 0x7C6, int16_t) == 1);
-    CHECK(MF(MODEL(0), 0x7CC, int8_t) == 2 && MF(MODEL(1), 0x7CC, int8_t) == 1);       /* human, drone */
-    CHECK(MF(MODEL(0), 8, int8_t) == 3 && MF(MODEL(0), 9, int8_t) == 0x21);           /* body, input flags */
-    CHECK(MF(MODEL(1), 268, float) == 1.5f && MF(MODEL(1), 288, float) == -3.0f);      /* the drone's box */
-    CHECK(MF(MODEL(0), 0x7DC, int8_t) == 1 && CF(c1, 0x33C, int16_t) == 0);
+    /* the models: the descriptor a host pointer, the record cleared through its PC tail */
+    CHECK(MD(MODEL(0), 0, void *) == &car_descriptors[0] && MD(MODEL(1), 0, void *) == &car_descriptors[0]);
+    CHECK(MD(MODEL(0), 4, void *) == NULL && MD(MODEL(0), 0x40C, void *) == NULL && MF(MODEL(0), 0x82C, int32_t) == 0);
+    CHECK(MD(MODEL(0), 0x7C6, int16_t) == 0 && MD(MODEL(1), 0x7C6, int16_t) == 1);
+    CHECK(MD(MODEL(0), 0x7CC, int8_t) == 2 && MD(MODEL(1), 0x7CC, int8_t) == 1);       /* human, drone */
+    CHECK(MD(MODEL(0), 8, int8_t) == 3 && MD(MODEL(0), 9, int8_t) == 0x21);           /* body, input flags */
+    CHECK(MD(MODEL(1), 268, float) == 1.5f && MD(MODEL(1), 288, float) == -3.0f);      /* the drone's box */
+    CHECK(MD(MODEL(0), 0x7DC, int8_t) == 1 && CF(c1, 0x33C, int16_t) == 0);
 }
 
 /* StartEnvironment: StartCar for every car in the game (StartFrame, StartSparks, StartWing, StartWingFlame,
@@ -252,9 +263,9 @@ static void start_all(int mode)
             CARS[i].visuals[k].func = NULL;
             CARS[i].visuals[k].objnum = -1;
         }
-        MF(MODEL(i), 0x7C8, int16_t) = 1;                  /* in_game */
-        MF(MODEL(i), 0x7CA, int16_t) = 0;
-        MF(MODEL(i), 8, uint8_t) = 1;                      /* body type */
+        MD(MODEL(i), 0x7C8, int16_t) = 1;                  /* in_game */
+        MD(MODEL(i), 0x7CA, int16_t) = 0;
+        MD(MODEL(i), 8, uint8_t) = 1;                      /* body type */
         for (k = 0; k < 4; k++)
             PARTS(i)[7 + k] = (uint32_t)(40 + 10 * i + k);    /* tires[4] at +0x1C */
         for (k = 0; k < 5; k++)
@@ -365,7 +376,7 @@ static void test_raw(void)
     /* SyncMaxpathToLastCheckpoint: car+0x33A = gCheckpoints.points[model+0x7E2].pathPts[car+0x33C + 1] (+0x30, 40 a
      * checkpoint) */
     CF(c, 0x33C, int16_t) = 3;
-    MF(MODEL(1), 0x7E2, int16_t) = 2;
+    MD(MODEL(1), 0x7E2, int16_t) = 2;
     table[3 + 2 * 40] = 1234;
     SyncMaxpathToLastCheckpoint(1);
     CHECK(CF(c, 0x33A, int16_t) == 1234);
@@ -375,8 +386,8 @@ static void test_raw(void)
     init_view3(c);
     CHECK(CF(c, 0x35E, int8_t) == 2 && CF(c, 0x35D, int8_t) == 2 && rear_y[4] == 5.0f && view3_switch[4] == 1);
     /* AreWeSolid: a stride on car + 0x358 */
-    MF(MODEL(1), 0x640, int8_t) = 0, MF(MODEL(1), 0x6C4, int16_t) = -1;
-    MF(MODEL(1), 0x7EB, int8_t) = 1, MF(MODEL(1), 0x7DF, int8_t) = 0;
+    MD(MODEL(1), 0x640, int8_t) = 0, MD(MODEL(1), 0x6C4, int16_t) = -1;
+    MD(MODEL(1), 0x7EB, int8_t) = 1, MD(MODEL(1), 0x7DF, int8_t) = 0;
     CF(c, 0x358, int8_t) = 0;
     CHECK(AreWeSolid(1) == 1);
     CF(c, 0x358, int8_t) = 1;
@@ -390,20 +401,20 @@ static void test_raw(void)
     /* CheckCrash: GameCar's pad0EC[0x26C/0x26D] are car + 0x358/0x359 */
     gRace = 0;
     CF(c, 0x358, int8_t) = 0, CF(c, 0x359, int8_t) = 0;
-    MF(MODEL(1), 0x640, int8_t) = 1, MF(MODEL(1), 0x714, float) = 7.0f;
+    MD(MODEL(1), 0x640, int8_t) = 1, MD(MODEL(1), 0x714, float) = 7.0f;
     CheckCrash(1);
     CHECK(CF(c, 0x358, int8_t) == 1 && CF(c, 0x10C, float) == 7.0f && CF(c, 0xED, int8_t) == -1);
-    MF(MODEL(1), 0x714, float) = 11.0f;
+    MD(MODEL(1), 0x714, float) = 11.0f;
     CheckCrash(1);
     CHECK(CF(c, 0x358, int8_t) == 2);
     /* BlinkResurrectingCars: a car's flash timer (car + 0xEC, 0x309, 0x310, 0x311, 0x30C, 0x359), N64 layout model flags */
-    memset(MODEL(0) + 0x7C8, 0, 2);
-    MF(MODEL(1), 0x7C8, int16_t) = 1, MF(MODEL(1), 0x7D4, uint32_t) = 0xFF;
+    memset(MODEL(0) + MODEL_OFS(0x7C8), 0, 2);
+    MD(MODEL(1), 0x7C8, int16_t) = 1, MD(MODEL(1), 0x7D4, uint32_t) = 0xFF;
     CF(c, 0xEC, int8_t) = 1, CF(c, 0x309, int8_t) = 0, CF(c, 0x310, int8_t) = 0, CF(c, 0x311, int8_t) = 0;
     CF(c, 0x30C, float) = 9.0f, CF(c, 0x359, int8_t) = 0;
-    MF(MODEL(1), 0x714, float) = 10.5f;
+    MD(MODEL(1), 0x714, float) = 10.5f;
     BlinkResurrectingCars();
-    CHECK(CF(c, 0x311, int8_t) == 1 && CF(c, 0x310, int8_t) == 0 && MF(MODEL(1), 0x7D4, uint32_t) == 0xF7);
+    CHECK(CF(c, 0x311, int8_t) == 1 && CF(c, 0x310, int8_t) == 0 && MD(MODEL(1), 0x7D4, uint32_t) == 0xF7);
     /* InitCPTime (race start): each car's +0x108 cleared and its position (+8) copied out, at the car stride */
     gNumActiveCars = 3;
     for (int i = 0; i < 3; i++) {
@@ -419,65 +430,67 @@ static void test_raw(void)
     }
 }
 
-/* The model from its physics descriptor (window addresses in u32 fields), and the descriptor's tire curves. */
+/* The model from its physics descriptor and tune (host pointers in the model record, as the descriptor's tire
+ * constants are), and the physics that read them through those pointers. Fields are given at MAT3's offsets. */
 static void test_model(void)
 {
-    uint8_t *m = MODEL(2), *desc = (uint8_t *)(uintptr_t)DESC_AT;
+    uint8_t *m = MODEL(2), *desc = (uint8_t *)&car_descriptors[4];
     int i;
 
-    memset(desc, 0, 0xB4);
+    CHECK(sizeof(struct desc) == 0xC8 && DESC_OFS(0x70) == offsetof(struct desc, tireR));
+    memset(desc, 0, sizeof(struct desc));
     for (i = 0; i < 4; i++) {
-        MF(desc, 0x60 + 4 * i, uint32_t) = CURVES_AT + 0x40 * (uint32_t)i;
-        MF(desc, 0x78 + 12 * i, float) = 2.75f + (float)i;    /* tire_positions[i].x (+0x90 is set below) */
+        DF(desc, 0x60 + 4 * i, void *) = g_tire_records[i];
+        DF(desc, 0x78 + 12 * i, float) = 2.75f + (float)i;    /* tireR[i][2], along the car (+0x90 is set below) */
     }
-    MF(desc, 0x50, float) = 1080.0f, MF(desc, 0x54, float) = 2.0f, MF(desc, 0x90, float) = 8.0f;
-    MF(desc, 0xA4, float) = 3.0f;
+    DF(desc, 0x50, float) = 1080.0f, DF(desc, 0x54, float) = 2.0f, DF(desc, 0x90, float) = 8.0f;
+    DF(desc, 0xA4, float) = 3.0f;
     gCarModels[4] = desc;
-    memset(m, 0, 0x808);
-    MF(m, 8, uint8_t) = 4;               /* car_type */
-    MF(m, 11, int8_t) = 2;               /* tune_type */
+    memset(m, 0, sizeof(struct pc_model));
+    MD(m, 8, uint8_t) = 4;               /* car_type */
+    MD(m, 11, int8_t) = 2;               /* tune_type */
     TUNES[2 * 11 + 3] = 0.5f;            /* tune +0xC */
     g_ntire = g_nprev = 0;
     carsetup(m);
-    CHECK(MF(m, 0, uint32_t) == DESC_AT && MF(m, 4, uint32_t) == W32(&TUNES[2 * 11]));
-    CHECK(MF(m, 4, uint32_t) == TEST_N64(gTune) + 2 * 44 && MF(m, 0x40C, uint32_t) == TEST_N64(stdtorquecurve));
+    CHECK(MD(m, 0, void *) == desc && MD(m, 4, void *) == &TUNES[2 * 11]);
+    CHECK(MD(m, 4, void *) == TEST_AT(gTune) + 2 * 44 && MD(m, 0x40C, void *) == TEST_AT(stdtorquecurve));
     CHECK(g_ntire == 4 && g_nprev == 4);
     for (i = 0; i < 4; i++)
-        CHECK(g_tire_info[i] == CURVES_AT + 0x40 * (uint32_t)i);
+        CHECK(g_tire_info[i] == g_tire_records[i]);
     CHECK(g_tire_x[0] == -8.0f && g_tire_x[1] == -5.75f && g_tire_x[2] == 2.75f && g_tire_x[3] == 3.75f);
-    /* steer_constants reads the descriptor through +0 */
-    MF(m, 0x5BC, float) = 4.0f, MF(m, 0x5C8, float) = 2.0f;
+    /* steer_constants reads the descriptor through the model's car */
+    MD(m, 0x5BC, float) = 4.0f, MD(m, 0x5C8, float) = 2.0f;
     steer_constants(m);
-    CHECK(MF(m, 0x3C4, float) == 540.0f / 1080.0f * 2.0f);
-    CHECK(MF(m, 0x3C8, float) == 2.0f * 1080.0f / (4.0f * (8.0f / 2.0f)));
-    /* find_best_gear: the up-shift gear from tune +0xC and descriptor +0xA4 (both through u32 fields) */
+    CHECK(MD(m, 0x3C4, float) == 540.0f / 1080.0f * 2.0f);
+    CHECK(MD(m, 0x3C8, float) == 2.0f * 1080.0f / (4.0f * (8.0f / 2.0f)));
+    /* find_best_gear: the up-shift gear from tune +0xC and descriptor +0xA4 (both through the model's pointers) */
     for (i = 0; i < 6; i++)
         carTransGearRatio[0][i] = 1.0f;
-    MF(m, 9, int8_t) = 0, MF(m, 0x41C, float) = 10.0f;    /* 10 * 0.5 * 3 = 15 */
+    MD(m, 9, int8_t) = 0, MD(m, 0x41C, float) = 10.0f;    /* 10 * 0.5 * 3 = 15 */
     find_best_gear(m, 14.0f, 0.0f);
-    CHECK(MF(m, 0x3F4, int16_t) == 4);
+    CHECK(MD(m, 0x3F4, int16_t) == 4);
     find_best_gear(m, 16.0f, 0.0f);
-    CHECK(MF(m, 0x3F4, int16_t) == 1);
-    /* the torque: the curve, scaled by tune +8 (through the u32 at +4) and the table at the model's +0xC, +0xB */
+    CHECK(MD(m, 0x3F4, int16_t) == 1);
+    /* the torque: the curve, scaled by tune +8 (through the model's tune) and the table at the model's +0xC, +0xB */
     {
         static int16_t curve[12 * 10];
         for (i = 0; i < 12 * 10; i++)
             curve[i] = 100;
         TUNES[2 * 11 + 2] = 2.0f;        /* tune +8 */
-        MF(m, 0xB, int8_t) = 1, MF(m, 0xC, int8_t) = 2;
+        MD(m, 0xB, int8_t) = 1, MD(m, 0xC, int8_t) = 2;
         carEngineTorque[2][1] = 1.5f;
         CHECK(enginetorque(m, 2000, 50, curve) == 300);
     }
     /* the descriptor's +0xC..+0x14 scale a vector (calcaa), tune +0xC and descriptor +0xA4 the gear force */
     {
         float in[3] = {1.0f, 2.0f, 3.0f}, out[3];
-        MF(desc, 0xC, float) = 2.0f, MF(desc, 0x10, float) = 3.0f, MF(desc, 0x14, float) = 4.0f;
+        DF(desc, 0xC, float) = 2.0f, DF(desc, 0x10, float) = 3.0f, DF(desc, 0x14, float) = 4.0f;
         calcaa(m, in, out);
         CHECK(out[0] == 2.0f && out[1] == 6.0f && out[2] == 12.0f);
-        MF(m, 0x3F4, int16_t) = 2, MF(m, 9, int8_t) = 1;
+        MD(m, 0x3F4, int16_t) = 2, MD(m, 9, int8_t) = 1;
         carTransGearRatio[1][2 + 1] = 4.0f;   /* [transmission][gear + 1] */
         transmission(m);
-        CHECK(MF(m, 0x428, float) == 0.5f * 4.0f && MF(m, 0x42C, float) == 3.0f * 2.0f);
+        CHECK(MD(m, 0x428, float) == 0.5f * 4.0f && MD(m, 0x42C, float) == 3.0f * 2.0f);
     }
 }
 

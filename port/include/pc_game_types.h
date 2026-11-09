@@ -132,19 +132,24 @@ extern struct pc_link pc_links[PC_LINK_SLOTS];
 #define PC_LINKP_OWNER(p) ((p)->owner)
 
 /* ---- The model records: MAT3 model[], tModelData (6 records of 0x808 bytes on the N64, BSS). One record per car slot:
- * its physics state, controls and race state. The record keeps its N64 layout on the PC (its pointer fields are u32
- * window addresses, docs/port/CARS.md 4), so its size is 0x808 here too and code that steps through it by 0x808 still
- * lands on the fields. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars, MAX_LINKS), so the
- * storage is PC_MODEL_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the
- * game reaches by index (and the labels the image's symbol tables have inside the array, record 0's slot ...) are named
- * here; code that takes a record's address (PC_MODEL) reads it through its own view, which view_audit.py checks against
- * the same layout. */
+ * its physics state, controls and race state. MAT3's five pointer fields are host pointers: the physics descriptor
+ * (car), its tune, each tire's last node of the road's surface tree (lasttp), the engine's torque curve and the moving
+ * surface under the car. The offsets in the comments and in the padding are MAT3's (the N64's): each pointer is 8 bytes
+ * on the PC, so a field lies further on than on the N64 by 8 after tune, 0x18 after lasttp, 0x20 after torquecurve
+ * (which the compiler aligns to 8) and 0x24 after movingSurface, and the record is 0x830 bytes (0x82C rounded up to the
+ * pointers' alignment). Code that steps through the records steps by the record's size (PC_MODEL(i)), never by the
+ * N64's 0x808. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars, MAX_LINKS), so the storage
+ * is PC_MODEL_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game
+ * reaches by index (and the labels the image's symbol tables have inside the array, record 0's slot ...) are named
+ * here; code that takes a record's address (PC_MODEL) reads it through its own view, which declares the five pointers
+ * too and which view_audit.py checks against this layout (docs/port/CARS.md 4). The pointees' types are include/game's
+ * (types.h), declared here by their tags. */
 #define PC_N64_MODEL_SLOTS 6
 #define PC_MODEL_SLOTS (PC_MAX_LINKS > PC_N64_MODEL_SLOTS ? PC_MAX_LINKS : PC_N64_MODEL_SLOTS)
 
 struct pc_model {
-    unsigned int car;                   /* +0x000 the physics descriptor (a u32 window address) */
-    unsigned int tune;                  /* +0x004 its tune record (a u32 window address) */
+    struct _tCar *car;                  /* +0x000 the physics descriptor: car_descriptors[], as gCarModels[body] */
+    struct Tune44 *tune;                /* +0x004 its tune: &gTune[handling] */
     unsigned char body;                 /* +0x008 the car's body, 0-12 (the roster's car) */
     signed char input_flags;            /* +0x009 the human's input flags (its input record's) */
     signed char autotrans;              /* +0x00A automatic transmission */
@@ -153,18 +158,24 @@ struct pc_model {
     unsigned char pad010[0x220 - 0x010];
     float rwv[3];                       /* +0x220 the velocity, feet a second (MAT3 RWV) */
     float rwr[3];                       /* +0x22C the position, feet (MAT3 RWR) */
-    unsigned char pad238[0x3F0 - 0x238];
+    unsigned char pad238[0x3A0 - 0x238];
+    struct streetyp *lasttp[4];         /* +0x3A0 each tire's last node of the road's surface tree (TireSurf) */
+    unsigned char pad3B0[0x3F0 - 0x3B0];
     float speed;                        /* +0x3F0 the speed (compared with 5; the stunt end's) */
     unsigned char pad3F4[0x400 - 0x3F4];
     float catchup;                      /* +0x400 the catch-up scale of the car's time step (MAT3 catchup) */
-    unsigned char pad404[0x544 - 0x404];
+    unsigned char pad404[0x40C - 0x404];
+    const short *torquecurve;           /* +0x40C the engine's torque curve: stdtorquecurve (aligned: PC +0x428) */
+    unsigned char pad410[0x544 - 0x410];
     float f544;                         /* +0x544 */
     unsigned char pad548[0x61C - 0x548];
     unsigned short viscode[4];          /* +0x61C each tire's visual code */
     unsigned char pad624[0x640 - 0x624];
     signed char crashflag;              /* +0x640 crashed: not drawn, not collidable */
     signed char topscrape;              /* +0x641 */
-    unsigned char pad642[0x660 - 0x642];
+    unsigned char pad642[0x648 - 0x642];
+    struct surftyp *movingSurface;      /* +0x648 the moving surface the car is on, or NULL (TireSurf) */
+    unsigned char pad64C[0x660 - 0x64C];
     float resurrect_pos[3];             /* +0x660 the resurrect's position (tResurrect at +0x660) */
     unsigned char pad66C[0x6C4 - 0x66C];
     short moving_state;                 /* +0x6C4 the resurrect's state (negative: resurrecting) */

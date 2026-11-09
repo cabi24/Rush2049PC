@@ -7,17 +7,23 @@ typedef struct tCar {
     u8 pad0[0x50];
     f32 steerratio;             /* +0x50 the steering ratio: steering-wheel angle over the road wheels' */
     f32 swtpg;                  /* +0x54 */
-    u8 pad58[0x90 - 0x58];
+    u8 pad58[0x60 - 0x58];
+    TireDesc *tires[4];         /* +0x60 each tire's constants */
+    u8 pad70[0x90 - 0x70];
     f32 tireR2z;                /* +0x90 tireR[2][2]: tire 2's (rear) position along the car */
 } tCar;
-/* The model record (tModelData), the fields steer_constants reads and writes. Its descriptor pointer is a u32 window
- * address: the record keeps its N64 layout (docs/port/CARS.md 4). */
+/* The model record (tModelData), the fields steer_constants reads and writes. */
 typedef struct tModelData {
-    u32 car;                    /* +0x000 the physics descriptor (tCar) */
-    u8 pad4[0x3C4 - 0x4];
+    tCar *car;                  /* +0x000 the physics descriptor */
+    Tune44 *tune;
+    u8 pad8[0x3A0 - 0x008];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x3C4 - 0x3B0];
     f32 steergain;              /* +0x3C4 the road wheels' angle at full lock, radians */
     f32 trail;                  /* +0x3C8 */
-    u8 pad3CC[0x5BC - 0x3CC];
+    u8 pad3CC[0x40C - 0x3CC];
+    const s16 *torquecurve;
+    u8 pad410[0x5BC - 0x410];
     f32 weight;                 /* +0x5BC */
     u8 pad5C0[0x5C8 - 0x5C0];
     f32 wheelbase;              /* +0x5C8 */
@@ -29,7 +35,7 @@ typedef struct tModelData {
 void steer_constants(tModelData *m)
 {
   tCar *car;
-  car = (tCar *) PC_N64P(m->car);
+  car = m->car;
   m->steergain = (540.0f / car->steerratio) * steer_deg_to_rad;
   m->trail = (car->swtpg * car->steerratio) / (m->weight * (car->tireR2z / m->wheelbase));
 }

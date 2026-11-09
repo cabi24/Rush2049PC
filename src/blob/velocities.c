@@ -6,14 +6,18 @@
 
 /* The model record (tModelData), the fields velocities reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0x28];f32 a[3],aa[3],v[3],w[3];   /* +0x028 the accelerations and velocities, car frame, feet and radians */
+    _tCar *car; Tune44 *tune;                 /* +0x000 the physics descriptor and its tune */
+    u8 pad8[0x20];f32 a[3],aa[3],v[3],w[3];   /* +0x028 the accelerations and velocities, car frame, feet and radians */
     u8 pad58[0x2FC - 0x58];f32 up;            /* +0x2FC uvs[1][1]: the car's up axis, vertically (1 upright, -1 upside down) */
-    u8 pad300[0x3D0 - 0x300];f32 throttle,brake;   /* +0x3D0 */
+    u8 pad300[0x3A0 - 0x300]; streetyp *lasttp[4];   /* +0x3A0 each tire's last road node */
+    u8 pad3B0[0x3D0 - 0x3B0];f32 throttle,brake;   /* +0x3D0 */
     u8 pad3D8[0x3F0 - 0x3D8];f32 magvel;      /* +0x3F0 the speed, feet a second */
-    u8 pad3F4[0x5EC - 0x3F4];f32 airdist[4];  /* +0x5EC each tire's height above the road */
+    u8 pad3F4[0x40C - 0x3F4]; const s16 *torquecurve;   /* +0x40C the torque curve */
+    u8 pad410[0x5EC - 0x410];f32 airdist[4];  /* +0x5EC each tire's height above the road */
     u8 pad5FC[0x634 - 0x5FC];f32 dt;          /* +0x634 the step, seconds */
     u8 pad638[0x640 - 0x638];s8 crashflag;    /* +0x640 */
-    u8 pad641[0x650 - 0x641];f32 bodyForces;  /* +0x650 the size of the body's contact force */
+    u8 pad641[0x648 - 0x641]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
+    u8 pad64C[0x650 - 0x64C];f32 bodyForces;  /* +0x650 the size of the body's contact force */
     u8 pad654[0x7C6 - 0x654];s16 slot;        /* +0x7C6 */
 } tModelData;
 

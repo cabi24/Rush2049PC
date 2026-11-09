@@ -3,9 +3,16 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields StartWing reads. */
 typedef struct tModelData {
-    u8 pad000[8];
+    _tCar *car;
+    Tune44 *tune;
     u8 body_type;                /* +0x008 the car, 0-12 */
-    u8 pad009[0x7CA - 9];
+    u8 pad009[0x3A0 - 0x9];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x7CA - 0x64C];
     s16 we_control;              /* +0x7CA the computer drives it (a drone) */
     u8 pad7CC[0x808 - 0x7CC];
 } tModelData;

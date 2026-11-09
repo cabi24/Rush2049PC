@@ -31,7 +31,15 @@ extern f32 sqrtf(f32), fabsf(f32), sinf(f32), cosf(f32);
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    u8 pad0[0x66C];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0x20];
     f32 resurrect_save_pos[3];  /* 0x66C resurrect.save_pos: the point to respawn from */
     f32 resurrect_uvs[9];       /* 0x678 resurrect.uvs: and the orientation there */
     u8 pad69C[0x6C0 - 0x69C];

@@ -17,7 +17,7 @@ extern f32 camera_nextSwitch[EXTENT(3)];
 extern f32 FSCLS_from_one[EXTENT(1)];
 extern PcFscls FSCLS;
 extern struct Respawn *trackSpots[EXTENT(6)];
-extern f32 steady_leg_duration[EXTENT(272)];
+extern f32 steady_leg_duration[EXTENT(2)];   /* the steady camera's two legs, seconds (MAT3 legDuration) */
 extern f32 fixed_cam_zoom_rate;
 extern f32 view3_speed_stretch;
 extern f32 view3_elastic_range;

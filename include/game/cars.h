@@ -103,7 +103,10 @@
 #define STREAK_STARTED       0x2000     /* the ribbon has its first edge */
 
 /* Data */
-extern struct Car *gCarModels[EXTENT(13)];
+/* The six physics descriptors (MAT3's basic, forward, backward, shortie, stretch and truck, in MAT3's order), which
+ * gCarModels points at by car type; nothing names them but the car set-up's pc_car_setup_data. */
+extern _tCar car_descriptors[EXTENT(6)];
+extern _tCar *gCarModels[EXTENT(13)];
 extern char *CarNames[EXTENT(13)];
 extern char *CarTitles[EXTENT(13)];
 extern f32 gCarBraking[EXTENT(13)];
@@ -166,8 +169,8 @@ extern u16 taillight_colors_dark[EXTENT(8)];
 extern tUVPair taillight_colors_dim;
 extern u16 taillight_colors_bright[EXTENT(8)];
 extern tUVPair headlight_colors_night;
-extern u16 stdtorquecurve[EXTENT(120)];
-extern f32 frontTire[EXTENT(2)][6];
+extern s16 stdtorquecurve[EXTENT(120)];   /* MAT3 signed short [10][12]: torque by throttle and rpm */
+extern TireDesc frontTire[EXTENT(2)];   /* MAT3 frontTire and backTire: the front and the rear tires' */
 extern Collision16 collsize[EXTENT(13)];
 extern f32 shadow_scales[EXTENT(14)][4];
 extern BlitColor paint_colors_rgb[EXTENT(745)];

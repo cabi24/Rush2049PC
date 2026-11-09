@@ -3,7 +3,15 @@
 
 /* The model record (MAT3 tModelData): its dead-reckoned position and orientation (reckon.rwr, reckon.uvs). */
 struct tModelData {
-    char pad0[0x794];
+    _tCar *car;
+    Tune44 *tune;
+    char pad8[0x398];
+    streetyp *lasttp[4];
+    char pad3B0[0x5C];
+    const s16 *torquecurve;
+    char pad410[0x238];
+    surftyp *movingSurface;
+    char pad64C[0x148];
     f32 reckon_rwr[3];
     f32 reckon_uvs[3][3];
 };

@@ -39,9 +39,16 @@ typedef struct tCarData {
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields AnimateShadow reads. */
 typedef struct tModelData {
-    /* 0x000 */ u8 pad0[8];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
     /* 0x008 */ u8 body_type;
-    /* 0x009 */ u8 pad9[0x6C4 - 9];
+    /* 0x009 */ u8 pad9[0x3A0 - 0x9];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x40C - 0x3B0];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x648 - 0x410];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
     /* 0x6C4 */ s16 moving_state;       /* resurrect.moving_state: RES_IDLE, else respawning */
     /* 0x6C6 */ u8 pad6C6[0x76C - 0x6C6];
     /* 0x76C */ f32 airdist[4];         /* reckon.airdist: each tire's dead-reckoned height off the ground, feet */

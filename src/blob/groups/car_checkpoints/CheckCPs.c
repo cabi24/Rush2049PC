@@ -15,7 +15,15 @@ typedef struct {
 
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct Model {
-    u8 pad0[0x6C4];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0x78];
     s16 moving_state;       /* +0x6C4 resurrect.moving_state: -1 unless being put back on the road */
     u8 pad6C6[0x7E4 - 0x6C6];
     s16 next_cp_index;      /* +0x7E4 the next checkpoint to pass */

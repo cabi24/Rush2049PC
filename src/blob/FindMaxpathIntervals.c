@@ -4,9 +4,17 @@
 
 /* The model record (MAT3 tModelData): the fields this reads. */
 typedef struct Model {
-    /* 0x000 */ char pad0[0x22C];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ char pad8[0x224];
     /* 0x22C */ f32 rwr[3];        /* its position */
-    /* 0x238 */ char pad238[0x58E];
+    /* 0x238 */ char pad238[0x168];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ char pad3B0[0x5C];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ char pad410[0x238];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ char pad64C[0x17A];
     /* 0x7C6 */ s16 slot;
     /* 0x7C8 */ char pad7C8[0x1A];
     /* 0x7E2 */ s16 last_cp_index; /* the last checkpoint it passed */

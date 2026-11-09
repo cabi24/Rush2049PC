@@ -10,18 +10,17 @@ typedef struct CCol {
     f32 dist;       /* how far the car is into it */
 } CCol;
 
-/* The model record (MAT3 tModelData): the corners' positions now and last step, and each tyre's node of the surface
- * tree. PC: the record keeps its N64 layout, and the nodes are u32 window addresses there (docs/port/CARS.md), as
- * TireSurf.c's view has them. */
-enum n64p_QNode { n64p_QNode_ };
+/* The model record (MAT3 tModelData): the corners' positions now and last step, and each tyre's last node of the
+ * surface tree (TireSurf finds it). */
 typedef struct VCar {
-    u8 p0[628];
+    _tCar *car;
+    Tune44 *tune;
+    u8 p8[620];
     f32 pos[4][3];      /* 0x274 bodyrwr: the corners' positions */
     f32 old[4][3];      /* 0x2A4 bodyrwr2: the same last step */
     u8 p724[204];
-    enum n64p_QNode node[4];     /* 0x3A0 each tyre's node of the surface tree */
+    streetyp *lasttp[4];   /* 0x3A0 each tyre's last node of the surface tree */
 } VCar;
-#define N64P(x) _Generic((x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
 
 #define FLOOR(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 
@@ -53,7 +52,7 @@ void CollideCarBody(VCar *car)
     s16 outIdx;
 
     for (j = 0; j < 4; j++) {
-        p = (surftyp *)updownleaf(N64P(car->node[j]), (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
+        p = (surftyp *)updownleaf(car->lasttp[j], (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
         if (p != NULL) {
             unique = 1;
             for (i = ncells - 1; i >= 0; i--) {

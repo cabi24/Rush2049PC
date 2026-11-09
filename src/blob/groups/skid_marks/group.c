@@ -31,11 +31,19 @@ typedef struct WheelSlot {
 
 /* The car record's fields the skids read (MAT3 tModelData). */
 typedef struct CarState {
-    /* 0x000 */ u8 pad0[0x5A0];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ u8 pad8[0x398];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x5C];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x190];
     /* 0x5A0 */ u16 surface[4];
     /* 0x5A8 */ u8 pad5A8[0x61C - 0x5A8];
     /* 0x61C */ u16 terrain[4];
-    /* 0x624 */ u8 pad624[0x6C4 - 0x624];
+    /* 0x624 */ u8 pad624[0x648 - 0x624];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
     /* 0x6C4 */ s16 airborne[4];
     /* 0x6CC */ u8 pad6CC[0x75C - 0x6CC];
     /* 0x75C */ f32 wheelHeight[4];

@@ -5,9 +5,16 @@
 
 /* The model record (tModelData), the fields syminit sets itself. */
 typedef struct tModelData {
-    char pad0[0x408];
+    _tCar *car;
+    Tune44 *tune;
+    char pad8[0x398];
+    streetyp *lasttp[4];
+    char pad3B0[0x58];
     f32 engangvel;              /* 0x408 the engine's speed, radians a second */
-    char pad40C[0x720 - 0x40C];
+    const s16 *torquecurve;
+    char pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    char pad64C[0x720 - 0x64C];
     volatile f32 wheel;         /* 0x720 mainin: the controls the model thread reads */
     volatile f32 clutch;        /* 0x724 */
     volatile f32 brake;         /* 0x728 */

@@ -147,7 +147,7 @@ extern OSMesg model_thread_msgs[EXTENT(8)];
 extern s8 gNoCarCollisions;
 extern s8 gSuicideMode;
 /* pc_pole_offsets: declared by its files (src/blob/groups/resurrect/resurrect.c: defines it) */
-/* pc_tire_records: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
+/* pc_car_setup_data: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
 
 /* Functions */
 void AbortCar(s16 slot, s32 death);
@@ -181,7 +181,7 @@ void downshift(struct tModelData *m);
 void drivetrain(struct tModelData *m);
 void End_MDrive(s16 slot);
 void engine(struct tModelData *m);
-s16 enginetorque(struct tModelData *m, s16 rpm, s16 throttle, s16 *torquecurve);
+s16 enginetorque(struct tModelData *m, s16 rpm, s16 throttle, const s16 *torquecurve);
 void fake_init(s8 track);
 void find_best_gear(struct tModelData *m, f32 usang, f32 dsang);
 void FindBestQuat(f32 *q1, f32 *q2);

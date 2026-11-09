@@ -13,9 +13,6 @@ typedef struct tCarData
   u8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
 } tCarData;
 
-/* The model record (tModelData): only its size, 0x808, matters here. */
-typedef struct tModelData tModelData;
-
 /* Abort car `slot`: from five seconds into the race on, note the crash for the stunt score (a stunt race) or reset
  * its battle state (a battle), save where and when it crashed as its respawn point (SetResurrectionData,
  * INIT_MODE_CRASH) and ask the model thread to respawn it (crash_state CRASH_RESPAWN). `death` is set when the car
@@ -24,14 +21,12 @@ typedef struct tModelData tModelData;
 void AbortCar(s16 slot, s32 death)
 {
   tCarData *car;
-  tModelData *models;
   int aborted;
   s32 abort_flag;   /* SetResurrectionData's third argument, which it ignores */
   if (!(gModelTime < 5.0f))
   {
     ;
     aborted = -1U;    /* CAR_ABORTED */
-    models = PC_MODELS;
     if (gRace == kStunt)
     {
       CrashedStunt((s32) slot);
@@ -40,7 +35,7 @@ void AbortCar(s16 slot, s32 death)
     {
       InitBattlePlayer(slot);
     }
-    SetResurrectionData(INIT_MODE_CRASH, (tModelData *) ((slot * 0x808) + ((u8 *) models)), abort_flag = 1);
+    SetResurrectionData(INIT_MODE_CRASH, PC_MODEL(slot), abort_flag = 1);
     car = PC_CAR(slot);
     car->crash_state = CRASH_RESPAWN;
     if ((((s8) gDeathMode) != 0) && (death != 0))

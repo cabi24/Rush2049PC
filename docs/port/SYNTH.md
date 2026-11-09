@@ -91,8 +91,8 @@ copies those as they are, so they are bytes, or zero.
 | | `drone_sched[12]` | the drones' update schedule (update_drone_models): row r is {drones, -1}, the race using row n for n drones and n + 7 with two humans or more. With zeros the walk never met -1 and went on through the tables after it, updating cars those values named; a row asking for more drones than there are updates players' cars with a time step of 0: NaN |
 | | `gCarBraking[13]` | a car type's brake factor: 1 (zero is a car without brakes) |
 | | `demo_path_points[12]`, `num_demo_ppoints[12]` | the demo paths' start points: one, point 0 |
-| | `gCarModels[13]`, `steady_leg_duration` | the cars' physics descriptor (0xB4 words at 0x801108D0, where CARS.md puts them): mass, inertia, tire positions, four tire curves (the records `frontTire`, below) |
-| | `carSuspensions[3]` | carSuspensions: one `_tSusp` (nine f32), in the same f32 table |
+| | `gCarModels[13]`, `car_descriptors[6]` | the cars' physics descriptor (MAT3 `_tCar`, the first of the six at 0x801108D0, CARS.md 4): the steering, tire positions, four tire curves (pointers to the records `frontTire`, below) |
+| | `carSuspensions[3]` | carSuspensions: one `_tSusp` (nine f32), in the second descriptor's floats |
 | | `gTrackColors[19]` | gTrackColors: sixteen greys |
 | | `HudMultiBlit[0, 1, 4..7]`, `speedPos` | the HUD set (ShowHUD): a BUTTON panel, a sprite whose draw function is the digital speedometer, animSpeedText (gShowSpeed is option 5, 1 by default), with its digits' place per view (speedPos), and the four players' crossbones (animBones, which only deaths mode shows). With zeros every HUD blit had no texture or size |
 | battle | `MineTexNames[5]`, `RipTexNames[5]` (image B) | the weapons' texture names: "" (ShotInit looks each up); their model names stay NULL (AAANULLOBJ) |
@@ -336,8 +336,9 @@ All game-C changes are `TARGET_PC` types, macros or function versions at file sc
    on the PC's one-thread-at-a-time scheduler that would hang. `PC_SPIN`.
 5. **The sorted-tag order** (stop 22): `OrderFx`, m2c, at N64 offsets. Test: `assets_sound`.
 6. **The model record's pointer fields** (stops 18, 23-25): `CollideCarBody`, `enginetorque`, `transmission`,
-   `calcaa`. The record keeps its N64 layout (CARS.md 2.2). Tests: `assets_model` (the three physics functions
-   on a record in the window), `views_model_road` (CollideCarBody and TireSurf against tModelData).
+   `calcaa`. The record kept its N64 layout then (CARS.md 2.2; its pointers are host pointers since 2026-11-09,
+   CARS.md 4). Tests: `assets_model` (the three physics functions on a record), `views_model_road` (CollideCarBody
+   and TireSurf against tModelData).
 7. **A walk bounded by the next symbol** (stop 29). `InitStunt` clears the player records gStuntInfo four
    0x7C-byte records at a time `while (p != &last_frame_dl_end)`, the symbol after them on the N64. With pointers in it,
    last_frame_dl_end has storage of its own on the PC, so the walk never met it. Under TARGET_PC its name means the records'
@@ -363,8 +364,9 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - **Data reached only through pointers.** The loader swaps what declarations describe. A table that initialized data
   points at, but no C declares, keeps the ROM's byte order: right for strings and byte tables, wrong for anything
   wider. The cartridge has some (the demo start points, s16, kept 0; the colours, bytes; the strings), and the race
-  needed more that real data has: the car descriptors (CARS.md puts them inside `steady_leg_duration`, an f32 array, which
-  would make them right), their tire curves and the suspension records (where in the ROM is unknown). The loader's
+  needed more that real data has: the car descriptors (declared since as `car_descriptors`, CARS.md 4; then inside
+  `steady_leg_duration`, an f32 array, which made them right), their tire curves and the suspension records (where in
+  the ROM is unknown). The loader's
   report lists every such pointer as `undescribed` (`PC_DATA_REPORT`, default `build/pc/data_report.txt`): with the
   ROM, read that list for tables of 16- or 32-bit values and give each a declaration or an `extents.txt` size.
 - **Tables indexed past a scalar** are covered by `index_check` (section 3, port bug 8). gSongNames' 12 entries in

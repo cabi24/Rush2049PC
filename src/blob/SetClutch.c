@@ -5,7 +5,15 @@
 
 /* The model record (tModelData), the fields SetClutch reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0x724];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad410[0x238];
+    surftyp *movingSurface;
+    u8 pad64C[0xD8];
     f32 clutch;                 /* +0x724 mainin.clutch: 1 disengaged (pedal down), 0 engaged */
     f32 brake;                  /* +0x728 mainin.brake 0..1 */
     f32 throttle;               /* +0x72C mainin.throttle 0..1 */

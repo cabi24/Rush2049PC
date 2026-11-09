@@ -306,7 +306,35 @@ Proof: objsame `same` (the default build doesn't change); the counting build's p
 probe's were); the guard mode on the normal layout finds the by-name accesses (as the experiment did). Depends on
 nothing. Risk: none to the game.
 
-### Step 2. The car record's pointers (medium-large)
+### Step 2. The car record's pointers (medium-large): done
+
+Done 2026-11-09 (wave 3.1), as [CARS.md](CARS.md) 4 describes. What was done:
+
+- The descriptors first (9.5): `steady_leg_duration` is MAT3's `legDuration[2]` (8 bytes), and the table after it is
+  `car_descriptors[6]` of MAT3's `_tCar` (`include/game/types.h`, `cars.h`; MAT3's six descriptors at
+  0x801108D0..0x80110D08), named for the loader by carsetup's `pc_car_setup_data` with `frontTire` (`TireDesc[2]`).
+  Its `tires[4]` are host pointers, so it is own storage (6 of 0xC8 bytes).
+- `struct pc_model`: `car`, `tune`, `lasttp[4]` (the plan's `node[4]`; MAT3's name), `torquecurve` and
+  `movingSurface` are host pointers; the record is 0x830 bytes, MAT3's field order. Every view of it (143 of its
+  whole size, the partial ones of the physics stages: 106 game files, a script split their padding over the
+  pointers) and of the descriptor (157) declares the pointers; the 0x808 strides (six, in five files) index the
+  records; the 17 files with arena crossings and the plan's 9 others read and store the pointers (no `N64P`,
+  `PC_N64W`, link enum or `CURVE` left); one raw MAT3 offset found (UpdateCarSounds' `+ 0x22C`, layout_check) is its
+  view's field.
+- The tests that name model fields by offset map them (`MODEL_OFS`, `port/assets/tests/support.h`); `assets_model`
+  runs the m2c readers on host records without a window.
+
+The numbers (the 63 synthetic paths): the crossings 243 sites / 73,179,946 → 199 / 44,476,345; `PC_N64P` 118 /
+32,127,082 → 80 / 5,310,101 (into the game arena 23,210,656 → 104,371: what is left is step 3's and 4's), `PC_N64W`
+30 / 1,975,908 → 25 / 106,968 (none into an arena), `PC_N64A` 58 → 57 (init_collision's `stree_nodes`); every
+other kind as before; `--zero-site` gives 0 for every one of the 26 files and for `road.c`, `copy_tire_info.c`,
+`selectcarload.c`. The census: `fields.link_enum` 87 → 63, `link_enum_types` 62 → 36, `fields.u32_address` 39 → 34,
+`conv.file_macros.uses` 227 → 172, `conv.PC_N64P/W.game` 64/90 → 59/84, `text.window.game` 205 → 175,
+`context.own` +1. The loader's summary line changes by the moved pointers (13 `own`, 9 fewer `arena`, 20 more
+`null` on the synthetic cartridge): the gate ran with `--data-moved` (synth_compare.py, pconly_gate.sh), which
+compares that line without its counts by class.
+
+The plan was:
 
 `struct pc_model` (`pc_models`, MAT3 `tModelData`, 0x808 bytes in the N64 layout today, [CARS.md](CARS.md) 4): `car`,
 `tune`, `torquecurve`, the road nodes `node[4]` and `movingSurface` become pointers; the car descriptor's `tires[4]`
@@ -742,7 +770,7 @@ traces leave out. Compare kinds and sites, not the last digits; `--baseline` all
 - **Step 2: the car descriptors have no declaration.** `m->car` points at 0x801108D0, inside `steady_leg_duration`,
   which `include/game/camera.h` declares `f32[EXTENT(272)]`: its extent runs over the descriptor table, so the loader
   names those crossings `steady_leg_duration+0x8...`. Step 2 needs the table declared with its own name and type (and
-  `steady_leg_duration` its own extent) before `car` can become a pointer to it.
+  `steady_leg_duration` its own extent) before `car` can become a pointer to it. Done: `car_descriptors[6]` (step 2).
 - Step 2's files with arena crossings are 17 of the 26 the plan lists; the other 9 (`forces2.c`, `antispin.c`,
   `init_collision.c`, `MovingSurfaceForce.c`, `CollideCarBody.c`, `TireSurf.c`, `UpdateSmoke.c`, `stunt/group.c`,
   `AnimateWing.c`) reach the heap (the road's nodes) or aren't reached on these paths: their sites are the counter's

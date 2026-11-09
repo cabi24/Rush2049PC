@@ -16,7 +16,9 @@ typedef struct tiredes {
 
 /* The model record (tModelData), the fields sym and ModelControls read and write. */
 typedef struct tModelData {
-    /* 0x000 */ u8 pad000[10];
+    /* 0x000 */ _tCar *car;
+    /* 0x004 */ Tune44 *tune;
+    /* 0x008 */ u8 pad008[2];
     /* 0x00A */ s8 autotrans;
     /* 0x00B */ u8 pad00B[0xC4 - 0xB];
     /* 0x0C4 */ f32 bodyForce[4][3];
@@ -26,7 +28,8 @@ typedef struct tModelData {
     /* 0x13C */ f32 centerMoment[3];
     /* 0x148 */ f32 peak_body_force[2][3];     /* the largest and smallest body force on each axis */
     /* 0x160 */ f32 peak_center_force[2][3];   /* the same of the centre force */
-    /* 0x178 */ u8 pad178[0x3B0 - 0x178];
+    /* 0x178 */ u8 pad178[0x3A0 - 0x178];
+    /* 0x3A0 */ streetyp *lasttp[4];
     /* 0x3B0 */ f32 steerangle;
     /* 0x3B4 */ f32 torque[4];
     /* 0x3C4 */ f32 steergain;
@@ -41,14 +44,17 @@ typedef struct tModelData {
     /* 0x3F6 */ s16 commandgear;
     /* 0x3F8 */ u8 pad3F8[0x408 - 0x3F8];
     /* 0x408 */ f32 engangvel;
-    /* 0x40C */ u8 pad40C[0x430 - 0x40C];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x430 - 0x410];
     /* 0x430 */ tiredes tires[4];
     /* 0x5A0 */ u8 pad5A0[0x634 - 0x5A0];
     /* 0x634 */ f32 dt;
     /* 0x638 */ f32 idt;
     /* 0x63C */ u8 pad63C[4];
     /* 0x640 */ s8 crashflag;
-    /* 0x641 */ u8 pad641[0x65C - 0x641];
+    /* 0x641 */ u8 pad641[0x648 - 0x641];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x65C - 0x64C];
     /* 0x65C */ s16 bogState;               /* 1 the engine bogs down, 3 it recovers */
     /* 0x65E */ u8 pad65E[0x710 - 0x65E];
     /* 0x710 */ s32 modelIteration;         /* fastin: the steps run, negative during the countdown */

@@ -16,34 +16,33 @@ typedef struct tCar {
  float steerratio,swtpg;        /* +0x50 */
  float srefpcybo2;              /* +0x58 the air drag coefficient */
  float rollresist;              /* +0x5C the rolling resistance */
- u32 tires[4];                  /* +0x60 each tire's constants (window addresses) */
+ TireDesc *tires[4];            /* +0x60 each tire's constants (frontTire's records) */
  Vec3 tireR[4];                 /* +0x70 each tire's position from the centre of mass */
 } tCar;
-enum n64p_tCar { n64p_tCar_ };
-enum n64p_void { n64p_void_ };
 /* The model record (tModelData), the fields forces1 reads and writes. */
 typedef struct tModelData {
- enum n64p_tCar car;u8 pad4[4];u8 body_type;u8 pad9[0x40 - 0x9];   /* +0x008 the car, 0..12 */
+ tCar *car;Tune44 *tune;        /* +0x000 the physics descriptor and its tune */
+ u8 body_type;u8 pad9[0x40 - 0x9];   /* +0x008 the car, 0..12 */
  Vec3 v,w;                      /* +0x040 the velocity and the angular velocity, in the car's frame */
  float d[3];                    /* +0x058 the drag and wind force: [0] sideways, [1] up, [2] along */
  Vec3 tireForce[4],tireV[4];    /* +0x064 each tire's force; +0x094 its contact patch's velocity */
  u8 padC4[0x178 - 0xC4];Basis tireuvs[4];   /* +0x178 each tire's frame */
  u8 pad208[0x2EC - 0x208];Basis uvs,roaduvs[4];   /* +0x2EC the orientation; +0x310 the road's under each tire */
- u8 pad3A0[0x3B0 - 0x3A0];float steerangle;      /* +0x3B0 the front wheels' angle, radians */
+ streetyp *lasttp[4];           /* +0x3A0 each tire's last road node */
+ float steerangle;              /* +0x3B0 the front wheels' angle, radians */
  float torque[4];               /* +0x3B4 each wheel's drive torque */
  u8 pad3C4[0x3D0 - 0x3C4];float throttle;        /* +0x3D0 0..1 */
  u8 pad3D4[0x3F8 - 0x3D4];s16 wing;              /* +0x3F8 the wing deployed */
- u8 pad3FA[0x430 - 0x3FA];u8 tires[4][92];       /* +0x430 the tires (anon_tradius_springK_5c) */
+ u8 pad3FA[0x40C - 0x3FA];const s16 *torquecurve;   /* +0x40C the torque curve */
+ u8 pad410[0x430 - 0x410];u8 tires[4][92];       /* +0x430 the tires (anon_tradius_springK_5c) */
  u8 pad5A0[0x5B4 - 0x5A0];float offroadtires;    /* +0x5B4 the tires' off-road factor (CalcOffroadTires) */
  u8 pad5B8[0x5CC - 0x5B8];float suscomp[4];      /* +0x5CC each corner's suspension compression */
  u8 pad5DC[0x60C - 0x5DC];int roadcode[4];       /* +0x60C each tire's road code */
- u8 pad61C[0x648 - 0x61C];enum n64p_void movingSurface;   /* +0x648 the moving surface under it, a window address */
+ u8 pad61C[0x648 - 0x61C];surftyp *movingSurface;   /* +0x648 the moving surface under it, or NULL */
  u8 pad64C[0x7C6 - 0x64C];s16 slot;              /* +0x7C6 */
  u8 pad7C8[0x7CC - 0x7C8];s8 drone_type;         /* +0x7CC DRONE_TYPE_* */
  u8 pad7CD[0x7D4 - 0x7CD];u32 appearance;u8 tail[0x808 - 0x7D8];   /* +0x7D4 APPEAR_* */
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 
 /* The forces on model m's tires and body for this step, in the car's frame:
  * - each tire's frame and contact-patch velocity (the front two steered), then its force from the suspension and
@@ -59,12 +58,12 @@ void forces1(tModelData *m)
  int poortract;
  float speed,drag_base,drag_scale;
  poortract=0;
- calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[0],m->steerangle,&m->uvs,&m->roaduvs[0],&m->tireuvs[0],&m->tireV[0]);
- calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[1],m->steerangle,&m->uvs,&m->roaduvs[1],&m->tireuvs[1],&m->tireV[1]);
- calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[2],0.0f,&m->uvs,&m->roaduvs[2],&m->tireuvs[2],&m->tireV[2]);
- calctireuv(&m->v,&m->w,&N64P(m->car)->tireR[3],0.0f,&m->uvs,&m->roaduvs[3],&m->tireuvs[3],&m->tireV[3]);
- dotireforce(m,&m->tireV[0],&m->tireuvs[0],m->tires[0],m->torque[0],&m->tireForce[0],m->suscomp[0],m->suscomp[1],N64P(m->car)->springrate[0],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[0],N64P(m->car)->rdamping[0],poortract);
- dotireforce(m,&m->tireV[1],&m->tireuvs[1],m->tires[1],m->torque[1],&m->tireForce[1],m->suscomp[1],m->suscomp[0],N64P(m->car)->springrate[1],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[1],N64P(m->car)->rdamping[1],poortract);
+ calctireuv(&m->v,&m->w,&m->car->tireR[0],m->steerangle,&m->uvs,&m->roaduvs[0],&m->tireuvs[0],&m->tireV[0]);
+ calctireuv(&m->v,&m->w,&m->car->tireR[1],m->steerangle,&m->uvs,&m->roaduvs[1],&m->tireuvs[1],&m->tireV[1]);
+ calctireuv(&m->v,&m->w,&m->car->tireR[2],0.0f,&m->uvs,&m->roaduvs[2],&m->tireuvs[2],&m->tireV[2]);
+ calctireuv(&m->v,&m->w,&m->car->tireR[3],0.0f,&m->uvs,&m->roaduvs[3],&m->tireuvs[3],&m->tireV[3]);
+ dotireforce(m,&m->tireV[0],&m->tireuvs[0],m->tires[0],m->torque[0],&m->tireForce[0],m->suscomp[0],m->suscomp[1],m->car->springrate[0],m->car->farspringrate,m->car->cdamping[0],m->car->rdamping[0],poortract);
+ dotireforce(m,&m->tireV[1],&m->tireuvs[1],m->tires[1],m->torque[1],&m->tireForce[1],m->suscomp[1],m->suscomp[0],m->car->springrate[1],m->car->farspringrate,m->car->cdamping[1],m->car->rdamping[1],poortract);
  {
  float tsc;
  tsc=(float)1.0-m->throttle;
@@ -73,8 +72,8 @@ void forces1(tModelData *m)
  }
  /* Original game: the second test reads tire 0 where tire 3 is meant (MAT3 has it too) */
  poortract=((m->roadcode[2]==ROADCODE_DIRT || m->roadcode[2]==ROADCODE_WATER) && (m->roadcode[3]==ROADCODE_DIRT || m->roadcode[0]==ROADCODE_WATER));
- dotireforce(m,&m->tireV[2],&m->tireuvs[2],m->tires[2],m->torque[2],&m->tireForce[2],m->suscomp[2],m->suscomp[3],N64P(m->car)->springrate[2],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[2],N64P(m->car)->rdamping[2],poortract);
- dotireforce(m,&m->tireV[3],&m->tireuvs[3],m->tires[3],m->torque[3],&m->tireForce[3],m->suscomp[3],m->suscomp[2],N64P(m->car)->springrate[3],N64P(m->car)->farspringrate,N64P(m->car)->cdamping[3],N64P(m->car)->rdamping[3],poortract);
+ dotireforce(m,&m->tireV[2],&m->tireuvs[2],m->tires[2],m->torque[2],&m->tireForce[2],m->suscomp[2],m->suscomp[3],m->car->springrate[2],m->car->farspringrate,m->car->cdamping[2],m->car->rdamping[2],poortract);
+ dotireforce(m,&m->tireV[3],&m->tireuvs[3],m->tires[3],m->torque[3],&m->tireForce[3],m->suscomp[3],m->suscomp[2],m->car->springrate[3],m->car->farspringrate,m->car->cdamping[3],m->car->rdamping[3],poortract);
  if(m->movingSurface)MovingSurfaceForce(m);
  /* PC_CAR_IN_TUNNEL is the car record's in_tunnel (MAT3): no wind in a tunnel */
  if(!PC_CAR_IN_TUNNEL(m->slot) && m->roadcode[0]==ROADCODE_AIRBORNE && m->roadcode[1]==ROADCODE_AIRBORNE && m->roadcode[2]==ROADCODE_AIRBORNE && m->roadcode[3]==ROADCODE_AIRBORNE) {
@@ -84,9 +83,9 @@ void forces1(tModelData *m)
  if(!PC_CAR_IN_TUNNEL(m->slot)) speed=m->v.z-(m->uvs.rows[2].x*gWind)*20.0f;
  else speed=m->v.z;
  if(m->appearance&APPEAR_HULK) {drag_base=5000.0f;drag_scale=10.0f;}
- else {drag_base=30.0f;drag_scale=N64P(m->car)->srefpcybo2;}
- if(speed>0.0f)m->d[2]=-(N64P(m->car)->rollresist+drag_base+(drag_scale*speed)*speed);
- else m->d[2]=N64P(m->car)->rollresist+drag_base+(drag_scale*speed)*speed;
+ else {drag_base=30.0f;drag_scale=m->car->srefpcybo2;}
+ if(speed>0.0f)m->d[2]=-(m->car->rollresist+drag_base+(drag_scale*speed)*speed);
+ else m->d[2]=m->car->rollresist+drag_base+(drag_scale*speed)*speed;
  if(m->wing) {
   m->d[2]*=gWingDrag[gCarWings[m->drone_type==DRONE_TYPE_HUMAN ? m->slot+1 : 0][m->body_type]];
  }

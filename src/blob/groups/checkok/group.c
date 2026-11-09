@@ -6,7 +6,9 @@
 
 /* The model record (tModelData), the fields checkok reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0x10];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x8];
     f32 f[3];                   /* +0x010 the total force */
     u8 pad1C[0x4C - 0x1C];
     f32 w[3];                   /* +0x04C the angular velocity (w[1]: the yaw rate) */
@@ -16,9 +18,13 @@ typedef struct tModelData {
     f32 bodyForce[4][3];        /* +0x0C4 the body corners' forces ([i][1] up: the road pushing the body) */
     u8 padF4[0x2EC - 0xF4];
     f32 uvs[3][3];              /* +0x2EC the orientation: uvs[1][1] the up axis vertically (1 upright) */
-    u8 pad310[0x3F0 - 0x310];
+    u8 pad310[0x3A0 - 0x310];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x3F0 - 0x3B0];
     f32 magvel;                 /* +0x3F0 the speed, feet a second */
-    u8 pad3F4[0x5DC - 0x3F4];
+    u8 pad3F4[0x40C - 0x3F4];
+    const s16 *torquecurve;
+    u8 pad410[0x5DC - 0x410];
     f32 tpcomp[4];              /* +0x5DC each suspension's compression */
     f32 airdist[4];             /* +0x5EC each tire's height above the road */
     u8 pad5FC[0x63C - 0x5FC];
@@ -28,7 +34,9 @@ typedef struct tModelData {
     s8 thumpflag;               /* +0x642 the hardest suspension thump this step, 0..3 */
     s8 pad643;
     s16 thump_side;             /* +0x644 the tires that thumped, a bit each */
-    u8 pad646[0x7C6 - 0x646];
+    u8 pad646[0x648 - 0x646];
+    surftyp *movingSurface;
+    u8 pad64C[0x7C6 - 0x64C];
     s16 slot;                   /* +0x7C6 */
     u8 pad7C8[0x7CC - 0x7C8];
     s8 drone_type;              /* +0x7CC DRONE_TYPE_* */

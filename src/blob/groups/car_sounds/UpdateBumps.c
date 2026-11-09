@@ -4,16 +4,16 @@
  * a bump for a settled hit, a scrape while a side rubs, and a thump when the car lands or hits harder than before. */
 #include "game/game.h"
 
-/* The model record's fields this file reads (MAT3 tModelData, the N64's layout): bodyForce (the four corners),
+/* The model record's fields this file reads (MAT3 tModelData): bodyForce (the four corners),
  * centerForceLast, the speed at +0x3F0, crashflag, thumpflag and mthumpflag (this frame's and the last thump's
  * kind), thump_side, slot. */
 typedef struct AudioModel2056 {
-    u8 to_body_force[196];f32 body_force[4][3];
+    _tCar *car; Tune44 *tune; u8 to_body_force[188];f32 body_force[4][3];
     u8 to_center_force[60];f32 center_force[3];
-    u8 to_speed[692];f32 speed;
-    u8 to_crash[588];s8 crash;u8 gap1601;
+    u8 to_lasttp[612]; streetyp *lasttp[4]; u8 to_speed[64];f32 speed;
+    u8 to_torquecurve[24]; const s16 *torquecurve; u8 to_crash[560];s8 crash;u8 gap1601;
     s8 collision_kind,last_collision_kind;s16 collision_direction;
-    u8 to_player[384];s16 player;u8 tail[64];
+    u8 to_movingSurface[2]; surftyp *movingSurface; u8 to_player[378];s16 player;u8 tail[64];
 } AudioModel2056;
 
 f32 fabsf(f32);

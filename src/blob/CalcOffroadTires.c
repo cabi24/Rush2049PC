@@ -5,7 +5,9 @@
 
 /* The model record (tModelData), the car's part it reads. */
 typedef struct tModelData {
-    u8 pad0[0xD];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x5];
     s8 tire_type;       /* +0x00D the tire choice */
 } tModelData;
 

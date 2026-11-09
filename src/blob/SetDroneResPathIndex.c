@@ -3,7 +3,15 @@
 
 /* The model record (MAT3 tModelData): the fields this reads. */
 struct tModelData {
-    u8 pad[0x7C6];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad_8[0x398];
+    streetyp *lasttp[4];
+    u8 pad_3B0[0x5C];
+    const s16 *torquecurve;
+    u8 pad_410[0x238];
+    surftyp *movingSurface;
+    u8 pad_64C[0x17A];
     s16 slot;          /* 0x7C6 the car slot */
     u8 pad7C8[0x7E2 - 0x7C8];
     s16 last_cp_index; /* 0x7E2 the last checkpoint it passed */

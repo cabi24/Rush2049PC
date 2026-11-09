@@ -33,7 +33,7 @@
 #define CARS 12                  /* the race's */
 #define SENTINEL 0xEE
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */
-#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + (off)))      /* model i's field */
+#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* model i's field at MAT3's offset */
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 

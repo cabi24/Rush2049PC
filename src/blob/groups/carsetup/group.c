@@ -12,17 +12,16 @@ typedef struct Tire {
  float slipflag_word;                          /* +0x58 slipflag, an s8, and padding */
 } Tire;
 
-enum n64p_tCar { n64p_tCar_ };
-enum n64p_Tune44 { n64p_Tune44_ };
-enum n64p_u16 { n64p_u16_ };
-enum n64p_void { n64p_void_ };
 /* The car's physics descriptor (MAT3 _tCar, gCarModels[body]). */
-typedef struct tCar {u8 pad0[0x50];float steerratio,swtpg;u8 pad58[8];enum n64p_void tires[4];   /* +0x60 the tire
- * constants (window addresses) */ Vec3 tireR[4];   /* +0x70 each tire's position from the centre of mass */} tCar;
+typedef struct tCar {
+ u8 pad0[0x50];float steerratio,swtpg;u8 pad58[8];   /* +0x50 the steering */
+ TireDesc *tires[4];            /* +0x60 each tire's constants (frontTire's records) */
+ Vec3 tireR[4];                 /* +0x70 each tire's position from the centre of mass */
+} tCar;
 /* The model record (tModelData), the fields carsetup reads and writes. */
 typedef struct tModelData {
- enum n64p_tCar car;            /* +0x000 the physics descriptor (a window address) */
- enum n64p_Tune44 tune;         /* +0x004 the tune record (a window address) */
+ tCar *car;                     /* +0x000 the physics descriptor */
+ Tune44 *tune;                  /* +0x004 the tune record */
  u8 body_type;                  /* +0x008 the car, 0..12 */
  u8 pad9[2];
  s8 handling;                   /* +0x00B */
@@ -43,7 +42,9 @@ typedef struct tModelData {
  Vec3 g;                        /* +0x208 gravity, car frame */
  u8 pad214[0x2D4 - 0x214];
  Vec3 grw;                      /* +0x2D4 gravity, world frame */
- u8 pad2E0[0x3C4 - 0x2E0];
+ u8 pad2E0[0x3A0 - 0x2E0];
+ streetyp *lasttp[4];
+ u8 pad3B0[0x3C4 - 0x3B0];
  float steergain,trail;         /* +0x3C4 (steer_constants) */
  u8 pad3CC[0x3D4 - 0x3CC];
  float brake;                   /* +0x3D4 */
@@ -54,7 +55,7 @@ typedef struct tModelData {
  u8 pad3FA[0x404 - 0x3FA];
  float engtorque;               /* +0x404 */
  u8 pad408[0x40C - 0x408];
- enum n64p_u16 torquecurve;     /* +0x40C the torque curve (a window address) */
+ const s16 *torquecurve;        /* +0x40C the torque curve */
  float dwtorque,dwinvmi,efdwinvmi,dwangvel,clutchtorque,clutchangvel,transratio,totalratio;   /* +0x410 the
  * drivetrain (whatslips, transmission) */
  Tire tires[4];                 /* +0x430 */
@@ -73,7 +74,9 @@ typedef struct tModelData {
  u8 pad5DC[0x638 - 0x5DC];
  float idt;                     /* +0x638 1 / dt */
  float crashthreshold;          /* +0x63C the impact that wrecks the car */
- u8 pad640[0x654 - 0x640];
+ u8 pad640[0x648 - 0x640];
+ surftyp *movingSurface;
+ u8 pad64C[0x654 - 0x64C];
  float colrad;                  /* +0x654 the collision sphere's radius */
  u8 pad658[0x730 - 0x658];
  u8 mainin_gear;                /* +0x730 mainin.gear */
@@ -83,18 +86,16 @@ typedef struct tModelData {
  s8 drone_type;                 /* +0x7CC DRONE_TYPE_* */
  u8 tail7CD[0x808 - 0x7CD];
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), enum n64p_Tune44: (Tune44 *)PC_N64P(x), enum n64p_u16: (u16 *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 
-/* The tables as the code indexes them: their own storage, through other types (include/game/view.h). */
-
-/* A PC datum: frontTire's address (the descriptors' tire constants), declared for the data loader in
- * port/data/game_decls.c. */
-float (*const pc_tire_records)[6] = frontTire;
+/* A PC datum that names the car tables only pointers reach: the six physics descriptors (gCarModels points at
+ * them) and the two tire records (the descriptors' tires[] point at those). The data loader places and fills the data
+ * some file names (docs/port/DATA.md 3), each by its declaration in include/game; nothing else names these two, and
+ * nothing reads this. */
+const void *const pc_car_setup_data[2] = {car_descriptors, frontTire};
 
 float sqrtf(float);
 
-/* Fill model m from its parts: the descriptor gCarModels[body] and the tune gTune[handling] (as window addresses);
+/* Fill model m from its parts: the descriptor gCarModels[body] and the tune gTune[handling];
  * the wing's size (a human's own wings, row slot + 1 of gCarWings, the drones' row 0); the mass (CalcMass), weight
  * and the durability's share of the collision mass (1000 per step) and crash threshold
  * (carsetup_crash_threshold_scale); the differential's flags (gCarDifferential bit 0 magic, bit 1 no thrust torque);
@@ -112,8 +113,8 @@ void carsetup(tModelData *m)
  if(m->drone_type==DRONE_TYPE_HUMAN)row=m->slot+1;else row=0;
  body=m->body_type;
  car=gCarModels[body];
- m->tune=PC_N64W(&gTune[m->handling]);
- m->car=PC_N64W(car);
+ m->tune=&gTune[m->handling];
+ m->car=car;
  m->wingEffect=gWingSizes[gCarWings[row][body]];
  m->mass=CalcMass(m);
  durability=carDurability[m->frame]-carsetup_durability_base;
@@ -123,7 +124,7 @@ void carsetup(tModelData *m)
  m->weight=m->mass*gGravity;
  m->magicdiff=gCarDifferential[body]&1;
  m->nothrusttorque=gCarDifferential[body]&2;
- m->torquecurve=PC_N64W(stdtorquecurve);
+ m->torquecurve=stdtorquecurve;
  m->offroadtires=CalcOffroadTires(m);
  drift=CalcDrift(m);m->drift=drift;
  m->sidefk=CalcTireSideForce(m);
@@ -138,7 +139,7 @@ void carsetup(tModelData *m)
  max_length=(size->rear<size->front)?size->front:size->rear;
  m->colrad=sqrtf(max_length*max_length+size->side*size->side+size->height*size->height);
  for(i=0;i<4;i++) {
-  copy_tire_info(N64P(car->tires[i]),&m->tires[i]);
+  copy_tire_info(car->tires[i],&m->tires[i]);
   if(i<2)tire_constants(m,&m->tires[i],-car->tireR[i+2].z);
   else tire_constants(m,&m->tires[i],car->tireR[i-2].z);
   m->tires[i].angvel=m->v2/m->tires[i].tradius;

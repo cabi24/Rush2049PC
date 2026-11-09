@@ -2153,6 +2153,42 @@ typedef struct Tune44 { /* 0x2C bytes */
     f32 drift;           /* 0x28 */
 } Tune44;
 
+/* A tire's constants (MAT3's anonymous 0x18-byte record): frontTire[0] the front tires', frontTire[1] the rear's
+ * (MAT3 frontTire and backTire), which a physics descriptor's tires[] point at; copy_tire_info copies them into the
+ * model record's tires. */
+typedef struct TireDesc { /* 0x18 bytes */
+    f32 tradius;         /* 0x0 the radius, feet */
+    f32 springK;         /* 0x4 the tire's spring rate */
+    f32 rubdamp;         /* 0x8 the rubber's damping */
+    f32 cstiff;          /* 0xC the cornering stiffness */
+    f32 cfmax;           /* 0x10 the most cornering force (a coefficient of friction) */
+    f32 invmi;           /* 0x14 the inverse moment of inertia */
+} TireDesc;
+
+/* A car type's physics descriptor (MAT3 _tCar): car_descriptors[], which gCarModels[body] points at, and the model
+ * record's car. Offsets are MAT3's (the N64's): tires[] are 8-byte host pointers on the PC (to frontTire's records),
+ * so the fields after them lie 0x10 further on and a descriptor is 0xC8 bytes (own storage, docs/port/CARS.md 4). */
+typedef struct _tCar { /* 0xB4 bytes */
+    f32 i[3];               /* 0x0 the moments of inertia about x, y, z (the car's frame) */
+    f32 invi[3];            /* 0xC their inverses */
+    f32 springrate[4];      /* 0x18 each corner's spring rate */
+    f32 farspringrate;      /* 0x28 the front anti-roll bar */
+    f32 rarspringrate;      /* 0x2C the rear one */
+    f32 cdamping[4];        /* 0x30 each corner's damping in compression */
+    f32 rdamping[4];        /* 0x40 and in rebound */
+    f32 steerratio;         /* 0x50 the steering ratio: steering-wheel angle over the road wheels' */
+    f32 swtpg;              /* 0x54 the trail's factor (steer_constants) */
+    f32 srefpcybo2;         /* 0x58 the air drag coefficient */
+    f32 rollresist;         /* 0x5C the rolling resistance */
+    TireDesc *tires[4];     /* 0x60 each tire's constants (frontTire's records) */
+    f32 tireR[4][3];        /* 0x70 each tire's position from the centre of mass, feet (the car's frame) */
+    f32 enginvmi;           /* 0xA0 the engine's inverse moment of inertia */
+    f32 dwratio;            /* 0xA4 the differential's ratio */
+    f32 clutchmaxt;         /* 0xA8 the clutch's most torque */
+    f32 upshiftangvel;      /* 0xAC the automatic gearbox's shift points: up, radians a second */
+    f32 downshiftangvel;    /* 0xB0 and down */
+} _tCar;
+
 typedef struct tUVPair { /* 0x10 bytes */
     u16 uv[8]; /* 0x0 */
 } tUVPair;

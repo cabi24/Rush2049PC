@@ -3,14 +3,22 @@
  * bumps (UpdateBumps.c), the horn and the bog. A human's car (drone_type 2) plays plain effects, a drone's 3D emitters. */
 #include "game/game.h"
 
-/* The model record's fields this file reads (MAT3 tModelData, the N64's layout, which MAT3 shares here:
- * docs/port/CARS.md). */
+/* The model record's fields this file reads (MAT3 tModelData, docs/port/CARS.md 4). */
 typedef struct ModelView {
-    u8 other0[0x8];
+    _tCar *car;
+    Tune44 *tune;
     u8 body_type;           /* 0x8: picks the horn */
-    u8 other9[0x61C - 0x9];
+    u8 other9[0x22C - 0x009];
+    f32 rwr[3];             /* 0x22C: the car's position (the screech's emitter) */
+    u8 other238[0x3A0 - 0x238];
+    streetyp *lasttp[4];
+    u8 other3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 other410[0x61C - 0x410];
     u16 sviscode[4];        /* 0x61C: each tire's surface: 0 pavement, 1 dirt, 2 and 3 water */
-    u8 other624[0x65C - 0x624];
+    u8 other624[0x648 - 0x624];
+    surftyp *movingSurface;
+    u8 other64C[0x65C - 0x64C];
     s16 bogState;           /* 0x65C: 1 start the bog sound, 3 stop it */
     u8 other65E[0x758 - 0x65E];
     s16 rwmph;              /* 0x758: the speed at the wheels (MAT3 reckon.rwmph) */
@@ -26,11 +34,19 @@ typedef struct ModelView {
 
 /* The engine update's view of the same record. */
 typedef struct MODELDAT {
-    u8 pad0[0x22C];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x224];
     f32 rwr[3];         /* 0x22C: the car's position */
-    u8 pad238[0x404 - 0x238];
+    u8 pad238[0x3A0 - 0x238];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x404 - 0x3B0];
     f32 engtorque;      /* 0x404 */
-    u8 pad408[0x7C6 - 0x408];
+    u8 pad408[0x40C - 0x408];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x7C6 - 0x64C];
     s16 slot;           /* 0x7C6 */
     u8 pad7C8[4];
     s8 drone_type;      /* 0x7CC */
@@ -254,9 +270,6 @@ void UpdateEngineSound(MODELDAT *m) {
     }
 }
 
-/* The model record as UpdateCarSounds reads it for the screech's emitter. */
-#define MODEL_RWR(model) ((f32 *)((u8 *)(model) + 0x22C))
-
 /* Each frame for each car: updates its sounds on every other frame (the cars alternate, pc_engine_phase): the
  * engine, and for a human's car the tire screech (from the tires' skids: volume up to 0.6 each, pitch from 0.5),
  * the road noises, the bumps and scrapes, the horn (its button, at most every 0.1 s) and the bog. */
@@ -294,7 +307,7 @@ void UpdateCarSounds(ModelView *model)
             if(model->drone_type==DRONE_TYPE_HUMAN) {
                 screech->sound=AudPlayEffect(SFX_SCREECH,model->slot,2,2);
             } else {
-                screech->sound=AudEmitEffect(MODEL_RWR(model),unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,SFX_SCREECH,slot,0,130);
+                screech->sound=AudEmitEffect(model->rwr,unitmatrix_origin,400.0f,0.0f,1.0f,0.0f,SFX_SCREECH,slot,0,130);
             }
         }
         if(screech->sound!=-1) {
@@ -314,7 +327,7 @@ void UpdateCarSounds(ModelView *model)
             } else {
                 if(pitch!=PC_SCREECH_STYLE(slot)) screech->pitch=pitch;
                 else pitch=-2.0f;
-                update_skid_emitter(screech,MODEL_RWR(model),vol,pitch);
+                update_skid_emitter(screech,model->rwr,vol,pitch);
             }
         }
     }

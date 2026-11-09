@@ -18,13 +18,21 @@ typedef struct PCar {
 
 /* The model record (MAT3 tModelData): the fields the stunts read. */
 typedef struct HudRec {
-    u8 pad000[0x3F8];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad008[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x48];
     s16 wing;                    /* 0x3F8 */
-    u8 pad3FA[0x5EC - 0x3FA];
+    u8 pad3FA[0x40C - 0x3FA];
+    const s16 *torquecurve;
+    u8 pad410[0x5EC - 0x410];
     f32 airdist[4];              /* 0x5EC each tyre's height off the ground */
     u8 pad5FC[0x61C - 0x5FC];
     u16 sviscode[4];             /* 0x61C each tyre's surface's visual code */
-    u8 pad624[0x6C4 - 0x624];
+    u8 pad624[0x648 - 0x624];
+    surftyp *movingSurface;
+    u8 pad64C[0x6C4 - 0x64C];
     s16 moving_state;            /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 pad6C6[0x808 - 0x6C6];
 } HudRec;

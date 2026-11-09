@@ -385,6 +385,11 @@ The report has a `reached` line per table (its address, count, and which of the 
 tables and elements. The counts come from the ROM at run time; the repository holds only the rules. `extents.txt`
 bounds the two animation pointer tables to their 19 tracks, which by the gap ran over the palette animations.
 
+A table only pointers reach that has an N64 address of its own can instead be declared in `include/game` and named
+by a PC datum in game C, which makes the loader place it as any symbol, by its declaration: carsetup's
+`pc_car_setup_data` names the car physics descriptors `car_descriptors` (own storage: their tire constants are
+pointers) and the tire records `frontTire` ([CARS.md](CARS.md) 4).
+
 Tests: `pc_reach_test` (`port/data/test_reach.c`: hand-written rules on a synthetic image: a sequence table ended by
 a zero count, its frames by the parent's count, one table reached by two pointers, frames inside a compatible symbol,
 s16 arrays swapped in place by a table of counts, the report, a reload); `datacheck --synthetic` plants NULL in the
@@ -467,7 +472,8 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
   asm's `D_801161B8`, `D_801161BC`), `carTransTraction_by_gear`, `fog_viewable_distance`, and image A's `carscr_msgPos`, `buildTrackMap_mapPos`,
   `buildBattleTrackMaps_mapPos`. A C reader added later must declare them.
 - f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
-  `tire_info` words (`steady_leg_duration`, QA.md round 3), and read-only constants.
+  `tire_info` words (then inside `steady_leg_duration`, QA.md round 3; since 2026-11-09 `car_descriptors`, whose
+  `tires` are pointers, [CARS.md](CARS.md) 4), and read-only constants.
 - Pass 5's other hits: the suspensions (`carSuspensions`) and the s16 tables of `demo_path_points`, which reached.txt's rules
   swap in place (the report's `reached` lines); the shared frames' `resource` pointers (`texture_swap_shared_frames`), which
   InitTextureAnimation sets from the WAD before any use; and byte pads in the `Car` and `Resource32` views, which

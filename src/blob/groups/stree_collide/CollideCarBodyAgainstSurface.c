@@ -14,14 +14,22 @@ typedef struct CCol {
 
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct CCar {
-    u8 p0[0x274];
+    _tCar *car;
+    Tune44 *tune;
+    u8 p8[0x26C];
     f32 bodyrwr[4][3];      /* 0x274 the corners' positions */
     f32 bodyrwr2[4][3];     /* 0x2A4 the same last step */
     u8 p724[24];
     f32 uvs[9];             /* 0x2EC the orientation */
-    u8 p784[816];
+    u8 p784[144];
+    streetyp *lasttp[4];
+    u8 p944[92];
+    const s16 *torquecurve;
+    u8 p1040[560];
     s8 crashflag;           /* 0x640 */
-    u8 p1601[131];
+    u8 p1601[7];
+    surftyp *movingSurface;
+    u8 p1612[120];
     s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 p1734[7];
     s8 waterAbort;          /* 0x6CD resurrect.waterAbort */

@@ -5,7 +5,9 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    unsigned char pad0[0xC4];
+    _tCar *car;
+    Tune44 *tune;
+    unsigned char pad8[0xBC];
     f32 bodyForce[4][3];            /* 0x0C4 the force on each body corner this step */
     unsigned char pad0F4[0x124 - 0xF4];
     f32 centerForce[3];             /* 0x124 the force on the body's centre this step */
@@ -13,7 +15,7 @@ typedef struct tModelData {
     f32 peak_body_force[2][3];      /* 0x148 */
     f32 peak_center_force[2][3];    /* 0x160 */
     unsigned char pad178[0x3A0 - 0x178];
-    int lasttp[4];                  /* 0x3A0 each tire's last road-tree node: a 32-bit window address */
+    streetyp *lasttp[4];            /* 0x3A0 each tire's last node of the road's surface tree */
 } tModelData;
 
 /* Clear model `m`'s centre force, its peak body and centre forces and each corner's body force, and start each
@@ -28,7 +30,7 @@ void init_collision(tModelData *m) {
         m->peak_body_force[1][i] = 0.0f;
     }
     for (i = 0; i < 4; i++) {
-        m->lasttp[i] = PC_N64A(stree_nodes);
+        m->lasttp[i] = stree_nodes;
         j = 0;
         do {
             j++;

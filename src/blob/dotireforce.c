@@ -19,19 +19,22 @@ typedef struct {
     f32 sidefk;             /* +0x1C the side grip's */
 } tTune;
 
-enum n64p_tTune { n64p_tTune_ };
 /* The model record (tModelData), the fields dotireforce reads. */
 typedef struct tModelData {
-    char pad0[4];
-    enum n64p_tTune tune;   /* +0x004 the tune record (a window address) */
+    _tCar *car;             /* +0x000 the physics descriptor */
+    tTune *tune;            /* +0x004 the tune record */
     char pad8[1];
     s8 trans;               /* +0x009 the transmission choice */
     s8 autotrans;           /* +0x00A */
     s8 handling;            /* +0x00B the handling (tune) choice */
     s8 engine_type;         /* +0x00C the engine choice */
-    char padD[0x3F4 - 0xD];
+    char padD[0x3A0 - 0x00D];
+    streetyp *lasttp[4];
+    char pad3B0[0x3F4 - 0x3B0];
     s16 gear;               /* +0x3F4 */
-    char pad3F6[0x430 - 0x3F6];
+    char pad3F6[0x40C - 0x3F6];
+    const s16 *torquecurve;
+    char pad410[0x430 - 0x410];
     Tire tires[4];          /* +0x430 */
     char pad5A0[16];
     f32 sidefk;             /* +0x5B0 the tires' side grip (CalcTireSideForce) */
@@ -41,11 +44,11 @@ typedef struct tModelData {
     f32 mass;               /* +0x5C0 */
     char pad5C4[0x638 - 0x5C4];
     f32 idt;                /* +0x638 1 / dt, steps a second */
-    char pad63C[0x720 - 0x63C];
+    char pad63C[0x648 - 0x63C];
+    surftyp *movingSurface;
+    char pad64C[0x720 - 0x64C];
     f32 wheel;              /* +0x720 mainin.wheel, the steering -1..1 */
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), default: (x))
 
 f32 fabsf(f32);
 
@@ -108,8 +111,8 @@ void dotireforce(tModelData *m, f32 *tirev, void *tireuvs, Tire *tire, f32 torqu
     if (tire == &m->tires[2] || tire == &m->tires[3]) {
         traction *= carEngineFwdForce[m->engine_type][m->handling];
         traction *= 1.0f + (carTransTraction_by_gear[m->trans][m->gear] - 1) * (1.0f - fabsf(m->wheel));
-        traction *= N64P(m->tune)->fwdfk;
-        sideforce *= m->sidefk * (1.0f - N64P(m->tune)->sidefk * dotireforce_side_drop);
+        traction *= m->tune->fwdfk;
+        sideforce *= m->sidefk * (1.0f - m->tune->sidefk * dotireforce_side_drop);
         if (poortract) {
             sideforce *= (gSpecialTires == 2) ? dotireforce_side_scale_mode2 : m->offroadtires * dotireforce_side_scale_slope + dotireforce_side_scale_base;
         }

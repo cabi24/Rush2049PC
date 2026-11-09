@@ -5,7 +5,9 @@
 
 /* The model record (tModelData), its orientation. */
 typedef struct tModelData {
-    u8 pad0[0x2EC];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x2E4];
     f32 uvs[3][3];              /* +0x2EC the orientation: rows the car's x, y and z axes */
 } tModelData;
 

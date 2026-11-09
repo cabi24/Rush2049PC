@@ -47,7 +47,7 @@ struct pc_car pc_cars[PC_CAR_SLOTS];
 struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */
-#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + (off)))     /* model i's field */
+#define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* model i's field at MAT3's offset */
 
 /* A StatLL list header, as every view has it on the PC (40 bytes): the element array, the active and free lists. */
 typedef struct { int8_t dbl; int32_t count, size; void *list, *head, *store; } StatLL;

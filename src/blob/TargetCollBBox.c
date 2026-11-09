@@ -12,11 +12,19 @@ typedef union {
 /* A track object (MAT3 tTarget): only owner, which for a box target is the index of its box record. */
 typedef struct CollisionObject { char unknown00[0x65]; s8 index; } CollisionObject;
 
-/* The model record's view (MAT3 tModelData, 0x808 bytes, kept in its N64 layout): what the test reads. */
+/* The model record's view (MAT3 tModelData): what the test reads. */
 typedef struct {
-    char unknown00[0xF4];
+    _tCar *car;
+    Tune44 *tune;
+    char unknown08[0xF4-0x08];
     f32 corners[4][3];      /* 0xF4 bodyR: the body's four corners, car space */
-    char unknown124[0x654-0x124];
+    char unknown124[0x3A0-0x124];
+    streetyp *lasttp[4];
+    char unknown3B0[0x40C-0x3B0];
+    const s16 *torquecurve;
+    char unknown410[0x648-0x410];
+    surftyp *movingSurface;
+    char unknown64C[0x654-0x64C];
     f32 radius;             /* 0x654 colrad: the car's collision radius */
     char unknown658[0x794-0x658];
     f32 position[3];        /* 0x794 reckon.rwr: the dead-reckoned position */

@@ -20,11 +20,19 @@ typedef struct Object {
 } Object;               /* 952 */
 /* The model record (MAT3 tModelData): the suspension and the fields this reads. */
 typedef struct Model {
-    u8 other0[1484];
+    _tCar *car;
+    Tune44 *tune;
+    u8 other8[920];
+    streetyp *lasttp[4];
+    u8 other944[92];
+    const s16 *torquecurve;
+    u8 other1040[444];
     f32 sus[4];         /* 1484 */
     u8 other1500[16];
     f32 comp[4];        /* 1516 */
-    u8 other1532[460];
+    u8 other1532[76];
+    surftyp *movingSurface;
+    u8 other1612[380];
     s16 active;         /* 1992 */
     u8 other1994[2];
     s8 f1996;           /* 1996 */

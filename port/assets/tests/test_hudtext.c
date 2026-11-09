@@ -1,7 +1,7 @@
 /* port/assets/tests/test_hudtext.c: two text callbacks of the game image, from their drafts in nonmatching/game:
  * animSpeedText, the HUD's digital speedometer, and video_animPanes (animPanes@videoscr.c), the video screen's panes.
  * The speedometer reads the car records in their PC layout (0x468 bytes, docs/port/CARS.md) by the model records'
- * slots (N64 layout), and its units from the text bank's string table (a host pointer at +8, ModelTables); the
+ * slots (MAT3's offset, MODEL_OFS), and its units from the text bank's string table (a host pointer at +8, ModelTables); the
  * panes' InitPane takes a pointer-sized sixth argument. The test stands in for the font and
  * text functions and records what they draw.
  * game: nonmatching/game/animSpeedText.c nonmatching/game/video_animPanes.c src/blob/TB_SetJust.c
@@ -107,7 +107,7 @@ static void test_speed(void)
     CHECK(animSpeedText(NULL) == 1 && g_ncalls == 0);
 
     gShowSpeed = 1, gNumWindows = 2, gShowMetric = 0;
-    NF(MODEL(0), 0x7C6, int16_t) = 2, NF(MODEL(1), 0x7C6, int16_t) = 0;
+    NF(MODEL(0), MODEL_OFS(0x7C6), int16_t) = 2, NF(MODEL(1), MODEL_OFS(0x7C6), int16_t) = 0;
     CF(CAR(2), 0xEF, int8_t) = 1;                    /* car 2 (window 0's) is locked in place */
     CF(CAR(1), 0xF8, int16_t) = 200;                 /* window 1 reads car 1: 200 >> 2 = 50, x 1.2 = 60 */
     CF(CAR(0), 0xF8, int16_t) = 999;
@@ -132,7 +132,7 @@ static void test_speed(void)
     CHECK(text_at(i + 7, 101, 57, "KPH", 0) && text_at(i + 8, 100, 56, "KPH", 1));
 
     /* one window: font 4 */
-    gNumWindows = 1, CF(CAR(2), 0xEF, int8_t) = 0, NF(MODEL(0), 0x7C6, int16_t) = 0, g_ncalls = 0;
+    gNumWindows = 1, CF(CAR(2), 0xEF, int8_t) = 0, NF(MODEL(0), MODEL_OFS(0x7C6), int16_t) = 0, g_ncalls = 0;
     speedPos[0][0][0] = 200, speedPos[0][0][1] = 30, CF(CAR(0), 0xF8, int16_t) = 40;   /* 10 x 1.2 = 12 */
     gShowMetric = 0;
     CHECK(animSpeedText(NULL) == 1);

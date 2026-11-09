@@ -8,12 +8,6 @@
  * shows (the appearance bits: brake lights, sparks, skid marks, smoke), then lets the model thread go on. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar, game data in the N64's layout), the field used here. */
-typedef struct _tCar {
-    /* 0x00 */ u8 pad0[0x70];
-    /* 0x70 */ f32 tireR[4][3];
-} _tCar;
-
 /* The car's tune record (MAT3 anon_diffbl_weight_scale_2c, gTune), the field used here. */
 typedef struct tTune {
     /* 0x00 */ u8 pad0[0x20];
@@ -23,12 +17,10 @@ typedef struct tTune {
 /* A tire's state in the model record (MAT3 anon_tradius_springK_5c), the fields used here. */
 typedef struct tTireState { u8 pad0[0x50]; f32 sideforce; f32 traction; u8 pad58[4]; } tTireState; /* 0x5C */
 
-enum n64p_tTune { n64p_tTune_ };
-enum n64p__tCar { n64p__tCar_ };
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    /* 0x000 */ enum n64p__tCar car;        /* its physics descriptor: a 32-bit window address */
-    /* 0x004 */ enum n64p_tTune tune;       /* its tune record: likewise */
+    /* 0x000 */ _tCar *car;                 /* its physics descriptor */
+    /* 0x004 */ tTune *tune;                /* its tune record */
     /* 0x008 */ u8 body_type;              /* the car, 0-12 */
     /* 0x009 */ u8 pad009[0x40 - 0x9];
     /* 0x040 */ f32 v[3];                  /* the velocity, car frame, feet a second */
@@ -38,11 +30,15 @@ typedef struct tModelData {
     /* 0x0C4 */ f32 bodyForce[4][3];       /* the force at each body corner (scraping) */
     /* 0x0F4 */ u8 pad0F4[0x2E0 - 0xF4];
     /* 0x2E0 */ f32 stuntW[3];             /* the spin since the last frame, for the stunt code */
-    /* 0x2EC */ u8 pad2EC[0x3D4 - 0x2EC];
+    /* 0x2EC */ u8 pad2EC[0x3A0 - 0x2EC];
+    /* 0x3A0 */ streetyp *lasttp[4];
+    /* 0x3B0 */ u8 pad3B0[0x3D4 - 0x3B0];
     /* 0x3D4 */ f32 brake;                 /* 0..1 */
     /* 0x3D8 */ u8 pad3D8[0x3F0 - 0x3D8];
     /* 0x3F0 */ f32 magvel;                /* the speed, feet a second */
-    /* 0x3F4 */ u8 pad3F4[0x430 - 0x3F4];
+    /* 0x3F4 */ u8 pad3F4[0x40C - 0x3F4];
+    /* 0x40C */ const s16 *torquecurve;
+    /* 0x410 */ u8 pad410[0x430 - 0x410];
     /* 0x430 */ tTireState tires[4];
     /* 0x5A0 */ u8 pad5A0[0x61C - 0x5A0];
     /* 0x61C */ u16 sviscode[4];           /* each tire's surface, SURF_VIS_* */
@@ -50,7 +46,9 @@ typedef struct tModelData {
     /* 0x62C */ u16 sound_flags[4];        /* each tire's road sound flags (0x100: in a tunnel) */
     /* 0x634 */ u8 pad634[0x642 - 0x634];
     /* 0x642 */ s8 thumpflag;              /* frames of an underbody hit */
-    /* 0x643 */ u8 pad643[0x710 - 0x643];
+    /* 0x643 */ u8 pad643[0x648 - 0x643];
+    /* 0x648 */ surftyp *movingSurface;
+    /* 0x64C */ u8 pad64C[0x710 - 0x64C];
     /* 0x710 */ s32 modelIteration;        /* fastin: the model step's count and time */
     /* 0x714 */ f32 modelTime;
     /* 0x718 */ u8 pad718[0x758 - 0x718];
@@ -72,8 +70,6 @@ typedef struct tModelData {
     /* 0x7EC */ u8 pad7EC[0x7F8 - 0x7EC];
     /* 0x7F8 */ f32 skidIntensity[4];      /* each skid direction's intensity, 0..1 (also the skid sounds') */
 } tModelData; /* 0x808 */
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tTune: (tTune *)PC_N64P(x), enum n64p__tCar: (_tCar *)PC_N64P(x), default: (x))
 
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields set here. */
 typedef struct tCarData {
@@ -186,7 +182,7 @@ void UpdateTireAppearance(s16 droneIndex)
                 break;
             }
             {
-                f32 scale = gRace == kBattle ? 3.0f : N64P(m->tune)->skidk;
+                f32 scale = gRace == kBattle ? 3.0f : m->tune->skidk;
                 f32 intensity;
                 s32 maxForce;
 
@@ -306,10 +302,10 @@ void update_game_data(void)
             gc->roll = PC_FILTER(0.7f) * gc->roll + PC_FILTER_REST(0.7f, 0.3f) * angle;
             RollUV(gc->roll, gc->dr_car_uvs);
             for (j = 0; j < 4; j++) {
-                gc->tireR[j][0] = N64P(m->car)->tireR[j][0];
-                gc->tireR[j][1] = N64P(m->car)->tireR[j][1];
-                gc->tireR[j][2] = N64P(m->car)->tireR[j][2];
-                WorldVector(N64P(m->car)->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
+                gc->tireR[j][0] = m->car->tireR[j][0];
+                gc->tireR[j][1] = m->car->tireR[j][1];
+                gc->tireR[j][2] = m->car->tireR[j][2];
+                WorldVector(m->car->tireR[j], gc->dr_tirepos[j], gc->dr_uvs);
                 gc->dr_tirepos[j][0] = gc->dr_tirepos[j][0] + gc->dr_pos[0];
                 gc->dr_tirepos[j][1] = gc->dr_tirepos[j][1] + gc->dr_pos[1];
                 gc->dr_tirepos[j][2] = gc->dr_tirepos[j][2] + gc->dr_pos[2];

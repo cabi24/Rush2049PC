@@ -6,7 +6,8 @@
 
 /* The car's physics descriptor (MAT3 _tCar), its tire positions. */
 typedef struct {
-    char pad0[0x70];
+    char pad0[0x60];
+    TireDesc *tires[4];     /* 0x60 each tire's constants */
     f32 tireR[4][3];        /* 0x70 each tire's position from the centre of mass, car frame */
 } tCar;
 
@@ -15,11 +16,11 @@ typedef struct {
     f32 fpuvs[3][3];
 } UVECT;
 
-enum n64p_tCar { n64p_tCar_ };
 /* The model record (tModelData), the fields positions reads and writes. */
 typedef struct tModelData {
-    enum n64p_tCar car;     /* 0x000 the physics descriptor (a window address) */
-    char pad4[0x24];
+    tCar *car;              /* 0x000 the physics descriptor */
+    Tune44 *tune;
+    char pad8[0x20];
     f32 a[3];               /* 0x028 the acceleration, car frame */
     char pad34[0xC];
     f32 v[3];               /* 0x040 the velocity, car frame */
@@ -36,15 +37,19 @@ typedef struct tModelData {
     char pad2A4[0x3C];
     f32 stuntW[3];          /* 0x2E0 the rotation summed for the stunt score */
     UVECT uvs;              /* 0x2EC the orientation */
-    char pad310[0x2CC];
+    char pad310[0x90];
+    streetyp *lasttp[4];
+    char pad3B0[0x5C];
+    const s16 *torquecurve;
+    char pad410[0x1CC];
     f32 tpcomp[4];          /* 0x5DC each tire's suspension compression (0 or more) */
     char pad5EC[0x48];
     f32 dt;                 /* 0x634 the step, seconds */
-    char pad638[0xD8];
+    char pad638[0x10];
+    surftyp *movingSurface;
+    char pad64C[0xC4];
     s32 modelIteration;     /* 0x710 fastin.modelIteration: the steps run */
 } tModelData;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_tCar: (tCar *)PC_N64P(x), default: (x))
 
 /* One step of model m's motion:
  * - the velocity and acceleration to the world frame, and the position moved by rwv dt (the old one kept in rwr2);
@@ -125,7 +130,7 @@ void positions(tModelData *m) {
 
     for (i = 0; i < 4; i++) {
         rwp = m->tireRwr[i];
-        bp = N64P(m->car)->tireR[i];
+        bp = m->car->tireR[i];
         temp[0] = bp[0];
         temp[1] = bp[1] + m->tpcomp[i];
         temp[2] = bp[2];

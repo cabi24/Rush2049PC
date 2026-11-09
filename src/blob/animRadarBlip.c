@@ -3,9 +3,17 @@
 
 #define RADAR_RANGE 480.0f       /* the radar's reach across, feet */
 
-/* A model record (MAT3 tModelData, 0x808 bytes) as this reads it. */
+/* A model record (MAT3 tModelData) as this reads it. */
 typedef struct MODELDAT {
-    u8 pad0[1990];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[920];
+    streetyp *lasttp[4];
+    u8 pad3B0[92];
+    const s16 *torquecurve;
+    u8 pad410[568];
+    surftyp *movingSurface;
+    u8 pad64C[378];
     s16 index;              /* 1990 */
     s16 in_game;            /* 1992 */
     u8 pad7CA[2];

@@ -24,11 +24,18 @@ typedef struct Car {
     Battle battle;        /* 0x384, PC 0x430 */
 } Car;
 typedef struct Model {
-    u8 pad00[8];
+    _tCar *car;
+    Tune44 *tune;
     u8 body_type;         /* 0x08 */
     u8 pad09[0xf4 - 9];
     f32 bodyR[2][3];      /* 0xf4: [0][2] at 0xfc, [1][2] at 0x108 */
-    u8 pad10c[0x654 - 0x10c];
+    u8 pad10c[0x3a0 - 0x10c];
+    streetyp *lasttp[4];
+    u8 pad3b0[0x40c - 0x3b0];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64c[0x654 - 0x64c];
     f32 colrad;           /* 0x654 */
     u8 pad658[0x808 - 0x658];
 } Model;

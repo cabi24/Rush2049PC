@@ -138,13 +138,14 @@ static void test_pickup(void)
     CHECK(CF(car, 0x398, float) == 0.05f && CF(car, 0x39C, float) == 0.0f);
 
     /* weapon 5 grows the car's collision body from its kind's size (collsize[body type]) */
-    memset(MODEL(3), 0, 0x808);
-    NF(MODEL(3), 8, uint8_t) = 1;
+    memset(MODEL(3), 0, sizeof(struct pc_model));
+    NF(MODEL(3), MODEL_OFS(8), uint8_t) = 1;
     t = icon(357, 0x04, 3);
     StartWeaponIcon(t);
     CHECK(CF(car, 0x384, int8_t) == 5 && CF(car, 0x385, int8_t) == 15);
-    CHECK(NF(MODEL(3), 0xFC, float) == 5.0f && NF(MODEL(3), 0x108, float) == 5.0f);
-    CHECK(fabsf(NF(MODEL(3), 0x654, float) - sqrtf(34.0f)) < 1e-5f && NF(MODEL(2), 0x654, float) == 0.0f);
+    CHECK(NF(MODEL(3), MODEL_OFS(0xFC), float) == 5.0f && NF(MODEL(3), MODEL_OFS(0x108), float) == 5.0f);
+    CHECK(fabsf(NF(MODEL(3), MODEL_OFS(0x654), float) - sqrtf(34.0f)) < 1e-5f);
+    CHECK(NF(MODEL(2), MODEL_OFS(0x654), float) == 0.0f);
 
     /* a car with appearance bit 0x10 takes nothing: the icon is flagged and nothing sounds */
     CF(car, 0xE8, uint32_t) = 0x10;

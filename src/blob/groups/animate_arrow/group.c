@@ -34,7 +34,15 @@ typedef struct tCarData {
 } tCarData;
 /* The model record (tModelData): the respawn's state, the slot, who drives. */
 typedef struct tModelData {
-    u8 pad0[1732];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[920];
+    streetyp *lasttp[4];
+    u8 pad3B0[92];
+    const s16 *torquecurve;
+    u8 pad410[568];
+    surftyp *movingSurface;
+    u8 pad64C[120];
     s16 resurrect_moving_state; /* 1732: RES_* */
     u8 pad6C6[1990 - 1734];
     s16 slot;               /* 1990 */

@@ -24,7 +24,11 @@ typedef struct tCarData
 /* The model record (tModelData), the fields BlinkResurrectingCars uses. */
 typedef struct tModelData
 {
-  u8 pad000[0x714]; f32 modelTime;              /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
+  _tCar *car; Tune44 *tune;                     /* +0x000 the physics descriptor and its tune */
+  u8 pad008[0x3A0 - 0x008]; streetyp *lasttp[4]; /* +0x3A0 each tire's last road node */
+  u8 pad3B0[0x40C - 0x3B0]; const s16 *torquecurve;   /* +0x40C the torque curve */
+  u8 pad410[0x648 - 0x410]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
+  u8 pad64C[0x714 - 0x64C]; f32 modelTime;      /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
   u8 pad718[0x7C8 - 0x718]; s16 in_game;        /* +0x7C8 in the race */
   u8 pad7CA[0x7D4 - 0x7CA]; s32 appearance;     /* +0x7D4 APPEAR_* bits */
 } tModelData;

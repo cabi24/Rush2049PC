@@ -61,6 +61,13 @@ int pc_fix_absolute_got(void);
  * blocks, tables, packets): from 3 MiB on, past where the game's data would be, as the game heap is. */
 #define TEST_SCRATCH (PC_RDRAM_BASE + 0x300000u)
 
+/* The host offset in a model record (struct pc_model, port/include/pc_game_types.h) of MAT3's (the N64's) offset n,
+ * for tests that name the record's fields by MAT3's offsets: its five pointers are 8 bytes on the PC (car and tune,
+ * the four lasttp, torquecurve aligned to 8, movingSurface), so a field after one lies further on. */
+#define MODEL_OFS(n) ((n) < 0x4 ? (n) : (n) < 0x8 ? (n) + 4 : (n) < 0x3A0 ? (n) + 8 : \
+                      (n) < 0x3B0 ? 0x3A8 + ((n) - 0x3A0) * 2 : (n) < 0x40C ? (n) + 0x18 : (n) < 0x410 ? 0x428 : \
+                      (n) < 0x648 ? (n) + 0x20 : (n) < 0x64C ? 0x668 : (n) + 0x24)
+
 /* Writing big-endian test files. */
 static inline void test_put16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
 static inline void test_put32(uint8_t *p, uint32_t v)

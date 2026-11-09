@@ -33,16 +33,22 @@ typedef struct tCarData {
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. (Its tag is ModelRecord because
  * include/game/system.h declares update_model with that name.) */
 typedef struct ModelRecord {
-    u8 pad0[0x10];
+    _tCar *car;                 /* 0x000 the physics descriptor */
+    Tune44 *tune;               /* 0x004 its tune */
+    u8 pad8[0x10 - 0x8];
     f32 f[3];                   /* 0x010 the force on the body this step */
     u8 pad01C[0x220 - 0x1C];
     f32 rwv[3];                 /* 0x220 the velocity in the world, feet a second */
     f32 rwr[3];                 /* 0x22C the position in the world, feet */
-    u8 pad238[0x1B8];
+    u8 pad238[0x3A0 - 0x238];
+    streetyp *lasttp[4];        /* 0x3A0 each tire's last node of the road's surface tree */
+    u8 pad3B0[0x3F0 - 0x3B0];
     f32 magvel;                 /* 0x3F0 the speed */
     u8 pad3F4[0x400 - 0x3F4];
     f32 catchup;                /* 0x400 the catch-up's time scale (SetCatchup) */
-    u8 pad404[0x488 - 0x404];
+    u8 pad404[0x40C - 0x404];
+    const s16 *torquecurve;     /* 0x40C the torque curve */
+    u8 pad410[0x488 - 0x410];
     s8 tire0_slipflag;          /* 0x488 tires[0].slipflag */
     u8 pad489[0x5B];
     s8 tire1_slipflag;          /* 0x4E4 tires[1].slipflag */
@@ -53,7 +59,9 @@ typedef struct ModelRecord {
     f32 idt;                    /* 0x638 */
     u8 pad63C[0x4];
     s8 crashflag;               /* 0x640 */
-    u8 pad641[0x83];
+    u8 pad641[0x648 - 0x641];
+    surftyp *movingSurface;     /* 0x648 the moving surface under the car */
+    u8 pad64C[0x6C4 - 0x64C];
     s16 resurrect_moving_state; /* 0x6C4 resurrect.moving_state: RES_IDLE, or the respawn's flight */
     u8 pad6C6[0x6];
     s8 resurrect_autoAbort;     /* 0x6CC resurrect.autoAbort */
@@ -179,7 +187,7 @@ void UpdateModel(s32 slot) {
 
     car = PC_CAR(slot);
     player = car->player;
-    if (((s8) car->dead == CAR_DYING) && ((dying = (tModelData *) ((slot * 0x808) + (u8 *) PC_MODELS), (dying->magvel < 5.0f)) || (dying->modelrun == 0))) {
+    if (((s8) car->dead == CAR_DYING) && ((dying = PC_MODEL(slot), (dying->magvel < 5.0f)) || (dying->modelrun == 0))) {
         *(s8 *)&car->dead = CAR_DEAD;
         car->crash_state = CRASH_NONE;
         dying->crashflag = 0;
@@ -205,7 +213,7 @@ void UpdateModel(s32 slot) {
         new_sched_to_use -= 1;
         return;
     }
-    m = (tModelData *) ((slot * 0x808) + (u8 *) PC_MODELS);
+    m = PC_MODEL(slot);
     CheckCrash(slot);
     FinishResurrecting(m);
     if (((s8) car->crash_state == CRASH_RESPAWN) && ((s8) car->dead <= CAR_ALIVE)) {

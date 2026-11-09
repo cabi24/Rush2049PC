@@ -10,10 +10,13 @@
 
 /* The model record (tModelData), the fields frictioncircle reads. */
 typedef struct tModelData {
-    char pad0[0x3B0]; f32 steerangle;   /* +0x3B0 the front wheels' angle, radians */
+    _tCar *car; Tune44 *tune;                  /* +0x000 the physics descriptor and its tune */
+    char pad8[0x398]; streetyp *lasttp[4];     /* +0x3A0 each tire's last road node */
+    f32 steerangle;                            /* +0x3B0 the front wheels' angle, radians */
     char pad3B4[0x3D4 - 0x3B4]; f32 brake;     /* +0x3D4 0..1 */
     char pad3D8[0x3F0 - 0x3D8]; f32 magvel;    /* +0x3F0 the speed, feet a second */
-    char pad3F4[0x5C0 - 0x3F4]; f32 mass;      /* +0x5C0 */
+    char pad3F4[0x40C - 0x3F4]; const s16 *torquecurve;   /* +0x40C the torque curve */
+    char pad410[0x5C0 - 0x410]; f32 mass;      /* +0x5C0 */
     char pad5C4[0x634 - 0x5C4]; f32 dt;        /* +0x634 the step, seconds */
 } tModelData;
 /* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */

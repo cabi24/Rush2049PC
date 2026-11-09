@@ -1635,34 +1635,34 @@ def race(c):
               index=t)
         c.set("game", "num_demo_ppoints", "u16", 1, "one start point" if t == 0 else "(same)", index=t)
 
-    # The cars' physics descriptors (gCarModels, Car *[13], docs/port/CARS.md): 0xB4-byte records of words, which
-    # the research puts 8 bytes into steady_leg_duration (f32[], so the loader swaps them as words). One descriptor
-    # for every car type: zero but for a mass, an engine inertia, four tire curves and the four tires' positions (x
-    # forward: the wheelbase is front x - rear x). The tire curves are the two six-float records after the torque
-    # curve, frontTire[2][6] (front, rear: copy_tire_info copies six), which only these u32 fields reach: declared in
-    # car_resistance for the PC, so the loader swaps them as floats (BRINGUP.md 3). Every value 1.
-    base = c.syms.addr("steady_leg_duration")
-    desc, susp = base + 0x8, base + 0x138   # the descriptors, and their suspension part
+    # The cars' physics descriptors (car_descriptors, _tCar[6]: MAT3's six, which gCarModels points at by car type;
+    # docs/port/CARS.md 4). One descriptor for every car type, the first: zero but for the steering ratio and swtpg
+    # (steer_constants divides by them), four tire curves and the tires' positions, written from +0x78 (x forward: the
+    # wheelbase is front x - rear x). The tire curves are the two six-float records after the torque curve,
+    # frontTire[2] (front, rear: copy_tire_info copies six), which only the descriptors' tires[] reach (the car
+    # set-up's pc_car_setup_data names them, so the loader fills them as floats). Every value 1.
+    desc = c.syms.addr("car_descriptors")
+    susp = desc + 0x130   # the suspension: floats in the second descriptor, which no car type uses here
     curves = c.syms.addr("frontTire")
     for i in range(12):
         c.set("game", "frontTire", "f32", 1.0, "the tire curves (front, rear): every value 1" if i == 0 else "(same)",
               index=i)
-    c.set("game", "steady_leg_duration", "f32", 3000.0, "car descriptor: mass", offset=desc + 80 - base)
-    c.set("game", "steady_leg_duration", "f32", 1.0, "car descriptor: engine inertia", offset=desc + 84 - base)
+    c.set("game", "car_descriptors", "f32", 3000.0, "car descriptor: steerratio", offset=0x50)
+    c.set("game", "car_descriptors", "f32", 1.0, "car descriptor: swtpg", offset=0x54)
     for i in range(4):
-        c.set("game", "steady_leg_duration", "u32", curves + 24 * (i // 2),
-              f"car descriptor: tire {i}'s curve (a u32 window address)", offset=desc + 96 + 4 * i - base, elem="f32")
+        c.set("game", "car_descriptors", "ptr", curves + 24 * (i // 2), f"car descriptor: tire {i}'s curve",
+              offset=0x60 + 4 * i)
     for i, pos in enumerate(((4.0, 0.0, 2.5), (4.0, 0.0, -2.5), (-4.0, 0.0, 2.5), (-4.0, 0.0, -2.5))):
         for k, v in enumerate(pos):
-            c.set("game", "steady_leg_duration", "f32", v, f"car descriptor: tire {i}'s position",
-                  offset=desc + 120 + 12 * i + 4 * k - base)
+            c.set("game", "car_descriptors", "f32", v, f"car descriptor: tire {i}'s position",
+                  offset=0x78 + 12 * i + 4 * k)
     for t in range(13):
         c.set("game", "gCarModels", "ptr", desc, "a car type's physics descriptor" if t == 0 else "(same)", index=t)
-    # The suspensions (carSuspensions, carSuspensions, const _tSusp *[3]): nine f32 each (forward, back, side: force
-    # minimum, force range, angle), in the same f32 table past the descriptor. One suspension, all three entries:
-    # no tilt until 1000 units of force, then up to 0.1 rad over another 1000.
+    # The suspensions (carSuspensions, const _tSusp *[3]): nine f32 each (forward, back, side: force minimum, force
+    # range, angle). One suspension, all three entries, in the second descriptor's floats: no tilt until 1000 units
+    # of force, then up to 0.1 rad over another 1000.
     for k, v in enumerate((1000.0, 1000.0, 0.1, -1000.0, 1000.0, -0.1, 1000.0, 1000.0, 0.1)):
-        c.set("game", "steady_leg_duration", "f32", v, "a suspension" if k == 0 else "(same)", offset=susp + 4 * k - base)
+        c.set("game", "car_descriptors", "f32", v, "a suspension" if k == 0 else "(same)", offset=susp + 4 * k - desc)
     for i in range(3):
         c.set("game", "carSuspensions", "ptr", susp, "carSuspensions: the one suspension" if i == 0 else "(same)",
               index=i)

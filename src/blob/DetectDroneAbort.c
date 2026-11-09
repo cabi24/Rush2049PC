@@ -8,9 +8,17 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
-    u8 pad0[0x3F0];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x398];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40];
     f32 magvel;                 /* 0x3F0 the speed, feet a second */
-    u8 pad3F4[0x6C4 - 0x3F4];
+    u8 pad3F4[0x40C - 0x3F4];
+    const s16 *torquecurve;
+    u8 pad410[0x648 - 0x410];
+    surftyp *movingSurface;
+    u8 pad64C[0x6C4 - 0x64C];
     s16 resurrect_moving_state; /* 0x6C4 resurrect.moving_state: RES_IDLE when not respawning */
     u8 pad6C6[0x6CC - 0x6C6];
     s8 resurrect_autoAbort;     /* 0x6CC resurrect.autoAbort: the game, not a crash, aborted it */

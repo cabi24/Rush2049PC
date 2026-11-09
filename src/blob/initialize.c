@@ -5,15 +5,19 @@
 
 /* The model record (tModelData), the fields initialize sets itself. */
 typedef struct tModelData {
-    u8 pad0[0x10]; f32 vectors[6][3];   /* +0x010 f, m, a, aa, v, w: the forces, accelerations and velocities */
+    _tCar *car; Tune44 *tune;   /* +0x000 the physics descriptor and its tune */
+    u8 pad8[0x8]; f32 vectors[6][3];   /* +0x010 f, m, a, aa, v, w: the forces, accelerations and velocities */
     u8 pad58[0x2EC - 0x58]; f32 uvs[9]; /* +0x2EC the orientation */
-    u8 pad310[0x3B4 - 0x310]; f32 torque[4];   /* +0x3B4 each wheel's drive torque */
+    u8 pad310[0x3A0 - 0x310]; streetyp *lasttp[4];   /* +0x3A0 each tire's last road node */
+    u8 pad3B0[0x3B4 - 0x3B0]; f32 torque[4];   /* +0x3B4 each wheel's drive torque */
     u8 pad3C4[0x3D8 - 0x3C4]; f32 brakeroll;   /* +0x3D8 */
     u8 pad3DC[0x3EC - 0x3DC]; f32 pitchangle;  /* +0x3EC */
     u8 pad3F0[0x408 - 0x3F0]; f32 engangvel;   /* +0x408 the engine's speed */
-    u8 pad40C[0x634 - 0x40C]; f32 dt;          /* +0x634 the model step, seconds */
+    const s16 *torquecurve;     /* +0x40C the torque curve */
+    u8 pad410[0x634 - 0x410]; f32 dt;          /* +0x634 the model step, seconds */
     u8 pad638[0x640 - 0x638]; u8 crashflag, topscrape, thumpflag;   /* +0x640 */
-    u8 pad643[0x64C - 0x643]; f32 thumpthreshold, bodyForces;       /* +0x64C the body force a thump takes; +0x650 */
+    u8 pad643[0x648 - 0x643]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
+    f32 thumpthreshold, bodyForces;            /* +0x64C the body force a thump takes; +0x650 */
     u8 pad654[0x658 - 0x654]; f32 shifttime; s16 bogState;          /* +0x658, +0x65C */
     u8 pad65E[0x7C6 - 0x65E]; s16 slot;        /* +0x7C6 */
 } tModelData;

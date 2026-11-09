@@ -61,16 +61,23 @@ typedef struct Car {
 } Car;
 
 typedef struct Model {
-    u8 pad00[8];
+    _tCar *car;
+    Tune44 *tune;
     u8 body_type;         /* 0x08 */
     u8 pad09[0xf4 - 9];
     f32 bodyR[4][3];      /* 0xf4 */
     f32 centerForce[3];   /* 0x124 */
     u8 pad130[0x13c - 0x130];
     f32 centerMoment[3];  /* 0x13c */
-    u8 pad148[0x640 - 0x148];
+    u8 pad148[0x3A0 - 0x148];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x640 - 0x410];
     s8 crashflag;         /* 0x640 */
-    u8 pad641[0x654 - 0x641];
+    u8 pad641[0x648 - 0x641];
+    surftyp *movingSurface;
+    u8 pad64C[0x654 - 0x64C];
     f32 colrad;           /* 0x654 */
     u8 pad658[0x6c4 - 0x658];
     s16 moving_state;     /* 0x6c4 */

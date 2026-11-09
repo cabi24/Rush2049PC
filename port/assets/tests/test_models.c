@@ -2,13 +2,14 @@
  * port/include/pc_game_types.h) through the game's own readers and writers, with more records declared than the
  * game walks (docs/port/DECOUPLE.md). This test and its game objects are built with PC_MAX_LINKS 16
  * (CMakeLists.txt), so the storage has 16 records where the game build has 12 and the N64 6. Every record starts as
- * a sentinel: the code must write and read the fields at their N64 offsets, step 0x808 between records, and stop at
- * the 6 it walks on the N64, whatever the storage's size.
+ * a sentinel: the code must write and read the fields where the record's host layout has them (MAT3's offsets, the
+ * five pointers 8 bytes wide: MODEL_OFS, support.h), step by the record's size (0x830) and stop at the 6 it walks
+ * on the N64, whatever the storage's size.
  * init_model_task sets the 6 records' model clock (an index walk); FinishResurrecting ends a resurrect through a record
- * pointer and sets another record's modelrun through what was the alias model_modelrun (+0x71C, a stride of 0x808),
- * whose record 0 it also reads as a scalar; multigo sets it through the same alias in m2c's spelling;
- * raise_ob_res_pt raises record 0's obResPt (+0x7C4, a label of its own on the N64); modelgo hands each car's
- * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable
+ * pointer and sets another record's modelrun through what was the alias model_modelrun (+0x71C, record by record),
+ * whose record 0 it also reads as a scalar; multigo sets it through the same alias; raise_ob_res_pt raises record
+ * 0's obResPt (+0x7C4, a label of its own on the N64); modelgo hands each car's record to StartCarSounds by index
+ * from the array's start; TargetCollRadius reads collidable
  * (+0x7EA, another label); collision, the car-to-car collision, walks the cars after one up to the array's end, the
  * next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what
  * pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to the 12th, PC_MODELS_END
@@ -28,11 +29,12 @@
 
 struct pc_model pc_models[PC_MODEL_SLOTS];  /* data.c defines it in the game */
 #define SENTINEL 0xEE
-#define RAW(i, off) (((const unsigned char *)pc_models)[(i) * 0x808 + (off)])
-#define M32(i, off) (*(int32_t *)((uint8_t *)&pc_models[i] + (off)))
-#define MF(i, off) (*(float *)((uint8_t *)&pc_models[i] + (off)))
-#define M16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
-#define M8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + (off)))
+#define SIZE sizeof(struct pc_model)
+#define RAW(i, off) (((const unsigned char *)pc_models)[(i) * SIZE + (off)])
+#define M32(i, off) (*(int32_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
+#define MF(i, off) (*(float *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
+#define M16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
+#define M8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
 
 int32_t gRace, gModelIteration, gGameState;
 float gRetraceTime = 1.0f / 60, gModelTime;
@@ -70,17 +72,18 @@ static void sentinels(void)
 static int untouched_from(int from)
 {
     for (int i = from; i < PC_MODEL_SLOTS; i++)
-        for (int k = 0; k < 0x808; k++)
+        for (size_t k = 0; k < SIZE; k++)
             if (RAW(i, k) != SENTINEL)
                 return 0;
     return 1;
 }
 
-/* Record i holds the sentinel everywhere but [lo, hi) and [lo2, hi2). */
+/* Record i holds the sentinel everywhere but MAT3's [lo, hi) and [lo2, hi2) (ranges without a pointer). */
 static int only(int i, int lo, int hi, int lo2, int hi2)
 {
-    for (int k = 0; k < 0x808; k++)
-        if (!(k >= lo && k < hi) && !(k >= lo2 && k < hi2) && RAW(i, k) != SENTINEL)
+    for (size_t k = 0; k < SIZE; k++)
+        if (!(k >= MODEL_OFS(lo) && k < MODEL_OFS(hi)) && !(k >= MODEL_OFS(lo2) && k < MODEL_OFS(hi2)) &&
+            RAW(i, k) != SENTINEL)
             return 0;
     return 1;
 }
@@ -88,40 +91,59 @@ static int only(int i, int lo, int hi, int lo2, int hi2)
 static int index_of(const void *p)
 {
     ptrdiff_t d = (const uint8_t *)p - (const uint8_t *)pc_models;
-    return d >= 0 && d % 0x808 == 0 && d / 0x808 < PC_MODEL_SLOTS ? (int)(d / 0x808) : -1;
+    return d >= 0 && d % SIZE == 0 && d / SIZE < PC_MODEL_SLOTS ? (int)(d / SIZE) : -1;
 }
 
 static void test_layout(void)
 {
     CHECK(PC_MODEL_SLOTS == 16 && PC_MAX_LINKS == 16 && PC_N64_MODEL_SLOTS == 6);   /* this test's build */
-    CHECK(sizeof(struct pc_model) == 0x808 && sizeof pc_models == 16 * 0x808);
-    CHECK(offsetof(struct pc_model, car) == 0x000 && offsetof(struct pc_model, tune) == 0x004);
-    CHECK(offsetof(struct pc_model, body) == 0x008 && offsetof(struct pc_model, input_flags) == 0x009);
-    CHECK(offsetof(struct pc_model, autotrans) == 0x00A && offsetof(struct pc_model, tire_rims) == 0x00F);
-    CHECK(offsetof(struct pc_model, rwv) == 0x220 && offsetof(struct pc_model, rwr) == 0x22C);
-    CHECK(offsetof(struct pc_model, speed) == 0x3F0 && offsetof(struct pc_model, catchup) == 0x400);
-    CHECK(offsetof(struct pc_model, f544) == 0x544 && offsetof(struct pc_model, viscode) == 0x61C);
-    CHECK(offsetof(struct pc_model, crashflag) == 0x640 && offsetof(struct pc_model, topscrape) == 0x641);
-    CHECK(offsetof(struct pc_model, resurrect_pos) == 0x660 && offsetof(struct pc_model, moving_state) == 0x6C4);
-    CHECK(offsetof(struct pc_model, iteration) == 0x710 && offsetof(struct pc_model, model_time) == 0x714);
-    CHECK(offsetof(struct pc_model, dt) == 0x718 && offsetof(struct pc_model, modelrun) == 0x71C);
-    CHECK(offsetof(struct pc_model, steer) == 0x720 && offsetof(struct pc_model, brake) == 0x728);
-    CHECK(offsetof(struct pc_model, gas) == 0x72C && offsetof(struct pc_model, gear) == 0x730);
-    CHECK(offsetof(struct pc_model, wing) == 0x731 && offsetof(struct pc_model, abort) == 0x732);
-    CHECK(offsetof(struct pc_model, suspension) == 0x75C && offsetof(struct pc_model, reckon_rwr) == 0x794);
-    CHECK(offsetof(struct pc_model, ob_res_pt) == 0x7C4 && offsetof(struct pc_model, slot) == 0x7C6);
-    CHECK(offsetof(struct pc_model, active) == 0x7C8 && offsetof(struct pc_model, we_control) == 0x7CA);
-    CHECK(offsetof(struct pc_model, drone_type) == 0x7CC && offsetof(struct pc_model, color) == 0x7CD);
-    CHECK(offsetof(struct pc_model, rpm) == 0x7D0 && offsetof(struct pc_model, flags) == 0x7D4);
-    CHECK(offsetof(struct pc_model, stuck_time) == 0x7D8 && offsetof(struct pc_model, can_cheat) == 0x7DE);
-    CHECK(offsetof(struct pc_model, hide_car) == 0x7DF && offsetof(struct pc_model, last_cp) == 0x7E2);
-    CHECK(offsetof(struct pc_model, drone_target) == 0x7E6 && offsetof(struct pc_model, lap) == 0x7E8);
-    CHECK(offsetof(struct pc_model, collidable) == 0x7EA && offsetof(struct pc_model, drone_scale) == 0x7EC);
-    CHECK(offsetof(struct pc_model, time_boost) == 0x7F0);
-    CHECK(PC_MODEL(3) == (void *)((uint8_t *)pc_models + 3 * 0x808) && PC_MODELS == (void *)pc_models);
-    CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 6 * 0x808));
+    CHECK(sizeof(struct pc_model) == 0x830 && sizeof pc_models == 16 * 0x830 && MODEL_OFS(0x808) == 0x82C);
+    /* the pointers: 8 bytes each, torquecurve after a 4-byte hole */
+    CHECK(offsetof(struct pc_model, car) == 0x000 && offsetof(struct pc_model, tune) == 0x008);
+    CHECK(offsetof(struct pc_model, lasttp) == 0x3A8 && sizeof pc_models[0].lasttp == 32);
+    CHECK(offsetof(struct pc_model, torquecurve) == 0x428 && offsetof(struct pc_model, movingSurface) == 0x668);
+    CHECK(MODEL_OFS(0x3A0) == 0x3A8 && MODEL_OFS(0x40C) == 0x428 && MODEL_OFS(0x648) == 0x668);
+    CHECK(offsetof(struct pc_model, body) == MODEL_OFS(0x008) &&
+          offsetof(struct pc_model, input_flags) == MODEL_OFS(0x009));
+    CHECK(offsetof(struct pc_model, autotrans) == MODEL_OFS(0x00A) &&
+          offsetof(struct pc_model, tire_rims) == MODEL_OFS(0x00F));
+    CHECK(offsetof(struct pc_model, rwv) == MODEL_OFS(0x220) && offsetof(struct pc_model, rwr) == MODEL_OFS(0x22C));
+    CHECK(offsetof(struct pc_model, speed) == MODEL_OFS(0x3F0) &&
+          offsetof(struct pc_model, catchup) == MODEL_OFS(0x400));
+    CHECK(offsetof(struct pc_model, f544) == MODEL_OFS(0x544) &&
+          offsetof(struct pc_model, viscode) == MODEL_OFS(0x61C));
+    CHECK(offsetof(struct pc_model, crashflag) == MODEL_OFS(0x640) &&
+          offsetof(struct pc_model, topscrape) == MODEL_OFS(0x641));
+    CHECK(offsetof(struct pc_model, resurrect_pos) == MODEL_OFS(0x660));
+    CHECK(offsetof(struct pc_model, moving_state) == MODEL_OFS(0x6C4));
+    CHECK(offsetof(struct pc_model, iteration) == MODEL_OFS(0x710) &&
+          offsetof(struct pc_model, model_time) == MODEL_OFS(0x714));
+    CHECK(offsetof(struct pc_model, dt) == MODEL_OFS(0x718) && offsetof(struct pc_model, modelrun) == MODEL_OFS(0x71C));
+    CHECK(offsetof(struct pc_model, steer) == MODEL_OFS(0x720) && offsetof(struct pc_model, brake) == MODEL_OFS(0x728));
+    CHECK(offsetof(struct pc_model, gas) == MODEL_OFS(0x72C) && offsetof(struct pc_model, gear) == MODEL_OFS(0x730));
+    CHECK(offsetof(struct pc_model, wing) == MODEL_OFS(0x731) && offsetof(struct pc_model, abort) == MODEL_OFS(0x732));
+    CHECK(offsetof(struct pc_model, suspension) == MODEL_OFS(0x75C));
+    CHECK(offsetof(struct pc_model, reckon_rwr) == MODEL_OFS(0x794));
+    CHECK(offsetof(struct pc_model, ob_res_pt) == MODEL_OFS(0x7C4) &&
+          offsetof(struct pc_model, slot) == MODEL_OFS(0x7C6));
+    CHECK(offsetof(struct pc_model, active) == MODEL_OFS(0x7C8) &&
+          offsetof(struct pc_model, we_control) == MODEL_OFS(0x7CA));
+    CHECK(offsetof(struct pc_model, drone_type) == MODEL_OFS(0x7CC) &&
+          offsetof(struct pc_model, color) == MODEL_OFS(0x7CD));
+    CHECK(offsetof(struct pc_model, rpm) == MODEL_OFS(0x7D0) && offsetof(struct pc_model, flags) == MODEL_OFS(0x7D4));
+    CHECK(offsetof(struct pc_model, stuck_time) == MODEL_OFS(0x7D8) &&
+          offsetof(struct pc_model, can_cheat) == MODEL_OFS(0x7DE));
+    CHECK(offsetof(struct pc_model, hide_car) == MODEL_OFS(0x7DF) &&
+          offsetof(struct pc_model, last_cp) == MODEL_OFS(0x7E2));
+    CHECK(offsetof(struct pc_model, drone_target) == MODEL_OFS(0x7E6) &&
+          offsetof(struct pc_model, lap) == MODEL_OFS(0x7E8));
+    CHECK(offsetof(struct pc_model, collidable) == MODEL_OFS(0x7EA));
+    CHECK(offsetof(struct pc_model, drone_scale) == MODEL_OFS(0x7EC) &&
+          offsetof(struct pc_model, time_boost) == MODEL_OFS(0x7F0));
+    CHECK(PC_MODEL(3) == (void *)((uint8_t *)pc_models + 3 * SIZE) && PC_MODELS == (void *)pc_models);
+    CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 6 * SIZE));
     test_race_cars = 12;
-    CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 12 * 0x808));
+    CHECK(PC_MODELS_END == (void *)((uint8_t *)pc_models + 12 * SIZE));
     test_race_cars = 6;
 }
 
@@ -161,7 +183,7 @@ static void test_resurrect(void)
     CHECK(M16(4, 0x71C) == 1 && PC_MODEL_MODELRUN(4) == 1 && only(4, 0x71C, 0x71E, 0, 0));
     CHECK(only(0, 0, 0, 0, 0) && only(1, 0, 0, 0, 0) && only(3, 0, 0, 0, 0) && only(5, 0, 0, 0, 0));
     CHECK(untouched_from(6));
-    /* multigo: the same field in m2c's spelling, *((s16 *) ((u8 *) &model_modelrun + (arg0 * 0x808))) */
+    /* multigo: the same field through record arg0 */
     sentinels();
     multigo(5);
     CHECK(M16(5, 0x71C) == 1 && only(5, 0x71C, 0x71E, 0, 0) && only(4, 0, 0, 0, 0) && untouched_from(6));
@@ -179,7 +201,7 @@ static void test_ob_res_pt(void)
     CHECK(only(1, 0, 0, 0, 0) && untouched_from(6));
 }
 
-/* modelgo: each car's record by a pointer walk of 0x808 from the array's start, gNumActiveCars of them. */
+/* modelgo: each car's record by index from the array's start, gNumActiveCars of them. */
 static void test_walk(void)
 {
     sentinels();

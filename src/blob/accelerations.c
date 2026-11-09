@@ -6,12 +6,18 @@
 
 /* The model record (tModelData), the fields accelerations reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0x10];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x8];
     f32 f[3];                   /* +0x010 the total force, in the car's frame */
     f32 m[3];                   /* +0x01C the total moment */
     f32 a[3];                   /* +0x028 the acceleration, feet a second squared */
     f32 aa[3];                  /* +0x034 the angular acceleration, radians a second squared */
-    u8 pad40[0x5BC - 0x40];
+    u8 pad40[0x3A0 - 0x040];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40C - 0x3B0];
+    const s16 *torquecurve;
+    u8 pad410[0x5BC - 0x410];
     f32 weight;                 /* +0x5BC the car's weight (a force: mass times gravity) */
 } tModelData;
 

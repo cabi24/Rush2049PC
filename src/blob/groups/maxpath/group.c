@@ -6,12 +6,18 @@
 
 /* The model record (MAT3 tModelData): the fields maxpath reads and sets. */
 typedef struct tModelData {
-    u8 pad0[0x220];
+    _tCar *car;
+    Tune44 *tune;
+    u8 pad8[0x218];
     f32 rwv[3];             /* 0x220 the velocity, feet a second */
     f32 rwr[3];             /* 0x22C the position */
-    u8 pad238[0x1B8];
+    u8 pad238[0x168];
+    streetyp *lasttp[4];
+    u8 pad3B0[0x40];
     f32 magvel;             /* 0x3F0 the speed */
-    u8 pad3F4[0x94];
+    u8 pad3F4[0x18];
+    const s16 *torquecurve;
+    u8 pad410[0x78];
     s8 slipflag0;           /* 0x488 tires[0].slipflag: the front tyres' surface flags (40 below: no gas, no brake) */
     u8 pad489[0x5B];
     s8 slipflag1;           /* 0x4E4 tires[1].slipflag */
@@ -20,7 +26,9 @@ typedef struct tModelData {
     f32 idt;                /* 0x638 its inverse, 0 while paused */
     u8 pad63C[0x4];
     s8 crashflag;           /* 0x640 */
-    u8 pad641[0x83];
+    u8 pad641[0x7];
+    surftyp *movingSurface;
+    u8 pad64C[0x78];
     s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back on the road */
     u8 pad6C6[0x6];
     s8 autoAbort;           /* 0x6CC resurrect.autoAbort */

@@ -147,8 +147,8 @@ holding pointers; the offsets themselves are N64 layout and wrong wherever the r
 `free_sequence/group.c` (20) and `hud_text_anims/gr3_e.c` are weak copies. `DrawBlits`, `ClearPlayerRecords`, `MBOX_GetChild`, `pak_get_free_bytes`/`35BC`/`35F8` and
 `ZOID_RemoveBlit` are done (section 9), and so is animBones `animBones`, the HUD's crossbones, whose blit offsets
 hid nothing on the PC ([BRINGUP.md](BRINGUP.md) 15). The car record's raw offsets (`StartFrame`, `InitCarVisuals`,
-`update_model/group.c` and the others) go through `CAR_OFS` now, and the model record keeps its N64 layout:
-[CARS.md](CARS.md).
+`update_model/group.c` and the others) go through `CAR_OFS` now, and the model record's pointers are host pointers
+since wave 3 (its views declare them, its strides are its size): [CARS.md](CARS.md) 4.
 
 ### 4.4 Storage still 32-bit, or ambiguous
 

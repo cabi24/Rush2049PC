@@ -178,10 +178,14 @@ static const struct {
     {"gEggs, the first cheat code's button masks", "gEggs", 4, 160, 2, 4},
     {"gEggs, the last cheat code's button masks", "gEggs", 0xCD4, 160, 2, 4},
     {"start_screen_egg, the main menu's code for the cheat screen", "start_screen_egg", 4, 160, 2, 4},
-    /* The six car physics descriptors gCarModels points at (0xB4 bytes each: floats and the u32 tire_info words),
-     * and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a
-     * narrower declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md round 3). */
-    {"the car physics descriptors, after steady_leg_duration", "steady_leg_duration", 8, 6 * 0xB4, 1, 4},
+    /* The car physics descriptors gCarModels points at (car_descriptors, 0xB4 bytes each on the N64: floats around
+     * the four tire pointers at +0x60, which are host pointers, own storage), the first and the last, and the car
+     * select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a narrower
+     * declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md round 3). */
+    {"car_descriptors[0], its floats before the tire pointers", "car_descriptors", 0, 0x60, 1, 4},
+    {"car_descriptors[0], its floats after them", "car_descriptors", 0x70, 0xB4 - 0x70, 1, 4},
+    {"car_descriptors[5], its floats before the tire pointers", "car_descriptors", 5 * 0xB4, 0x60, 1, 4},
+    {"car_descriptors[5], its floats after them", "car_descriptors", 5 * 0xB4 + 0x70, 0xB4 - 0x70, 1, 4},
     {"gTransStats..gFrameStats, the car select's stat factors", "gTransStats", 0, 0x1F0, 2, 4},
     /* Tables declared as one element, one row or bytes, which the game reads whole at wider widths (DATA.md 8):
      * the level objects' bodies and static states (all f32), the rumble thresholds (s32[36], walked by a

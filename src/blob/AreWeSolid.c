@@ -3,8 +3,12 @@
 
 /* The model record (tModelData, docs/port/CARS.md 4): the fields AreWeSolid reads. */
 typedef struct tModelData {
-  u8 pad000[0x640]; s8 crashflag;                       /* +0x640 crashed */
-  u8 pad641[0x6C4 - 0x641]; s16 resurrect_moving_state; /* +0x6C4 resurrect.moving_state: RES_IDLE, RES_START ... */
+  _tCar *car; Tune44 *tune;                     /* +0x000 the physics descriptor and its tune */
+  u8 pad008[0x3A0 - 0x008]; streetyp *lasttp[4]; /* +0x3A0 each tire's last road node */
+  u8 pad3B0[0x40C - 0x3B0]; const s16 *torquecurve;   /* +0x40C the torque curve */
+  u8 pad410[0x640 - 0x410]; s8 crashflag;       /* +0x640 crashed */
+  u8 pad641[0x648 - 0x641]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
+  u8 pad64C[0x6C4 - 0x64C]; s16 resurrect_moving_state;   /* +0x6C4 resurrect.moving_state: RES_IDLE, RES_START ... */
   u8 pad6C6[0x7DF - 0x6C6]; s8 hide_car;                /* +0x7DF hidden during the respawn's flight */
   u8 pad7E0[0x7EB - 0x7E0]; s8 solid;                   /* +0x7EB solid again after a respawn */
 } tModelData;

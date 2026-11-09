@@ -49,8 +49,8 @@ static int g_placed[PC_MODEL_SLOTS];
 void syminit(void *m)
 {
     ptrdiff_t d = (uint8_t *)m - (uint8_t *)pc_models;
-    if (d >= 0 && d % 0x808 == 0 && d / 0x808 < PC_MODEL_SLOTS)
-        g_placed[d / 0x808]++;
+    if (d >= 0 && d % sizeof(struct pc_model) == 0 && d / sizeof(struct pc_model) < PC_MODEL_SLOTS)
+        g_placed[d / sizeof(struct pc_model)]++;
 }
 static int g_faced = -1;
 void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3])
@@ -92,8 +92,8 @@ void StartCarSounds(void *m) { (void)m; }
 void Init_MDrive(int16_t action, int16_t index);
 
 /* The model record's fields Resurrect and multiinit reach (tModelData, N64 offsets = PC offsets). */
-#define MF(i, off) ((float *)((uint8_t *)&pc_models[i] + (off)))
-#define M16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + (off)))
+#define MF(i, off) ((float *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))      /* at MAT3's offset (support.h) */
+#define M16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))
 #define SAVE_POS 0x66C     /* resurrect.save_pos: the start point SetResurrectionData gives */
 #define SAVE_UVS 0x678     /* resurrect.uvs: its orientation */
 #define CRASH_TIME 0x6C0   /* resurrect.crash_time */

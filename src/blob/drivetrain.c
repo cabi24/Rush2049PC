@@ -15,15 +15,20 @@ typedef struct Tire {
 } Tire;
 /* The model record (tModelData), the fields drivetrain reads and writes. */
 typedef struct tModelData {
-    u8 pad0[0xA]; s8 autotrans; u8 padB[0x64 - 0xB];
+    _tCar *car; Tune44 *tune;   /* +0x000 the physics descriptor and its tune */
+    u8 pad8[0x2]; s8 autotrans; u8 padB[0x64 - 0xB];
     Vec3 tireForce[4];          /* +0x064 each tire's force; [i][1] its load (the road's push up) */
-    u8 pad94[0x3B4 - 0x94]; f32 torque[4];          /* +0x3B4 each wheel's drive torque */
-    u8 pad3C4[0x410 - 0x3C4]; f32 dwtorque;         /* +0x410 the torque at the driven wheels (whatslips) */
+    u8 pad94[0x3A0 - 0x094]; streetyp *lasttp[4];   /* +0x3A0 each tire's last road node */
+    u8 pad3B0[0x3B4 - 0x3B0]; f32 torque[4];        /* +0x3B4 each wheel's drive torque */
+    u8 pad3C4[0x40C - 0x3C4]; const s16 *torquecurve;   /* +0x40C the torque curve */
+    f32 dwtorque;               /* +0x410 the torque at the driven wheels (whatslips) */
     u8 pad414[0x418 - 0x414]; f32 efdwinvmi,dwangvel;   /* +0x418 the driveline's inverse inertia; +0x41C the
                                                          * driven wheels' mean speed */
     u8 pad420[0x430 - 0x420]; Tire tires[4];        /* +0x430 */
     u8 pad5A0[0x5A8 - 0x5A0]; s8 magicdiff;         /* +0x5A8 the "magic" (limited-slip) differential */
-    u8 tail[0x808 - 0x5A9];
+    u8 tail[0x648 - 0x5A9];
+    surftyp *movingSurface;
+    u8 tail_64C[0x808 - 0x64C];
 } tModelData;
 
 /* One step of model m's drivetrain: the automatic gearbox (autoshift), the engine's torque (engine) and the gear

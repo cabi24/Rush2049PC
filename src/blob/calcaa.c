@@ -7,16 +7,15 @@ typedef struct tCar {
     f32 invi[3];                /* +0x0C their inverses */
 } tCar;
 
-/* The model record (tModelData): its descriptor. The record keeps its N64 layout, so the pointer is a 32-bit window
- * address (docs/port/CARS.md 4). */
+/* The model record (tModelData): its descriptor. */
 typedef struct tModelData {
-    u32 car;                    /* +0x000 the physics descriptor (tCar), a window address */
+    tCar *car;                  /* +0x000 the physics descriptor */
 } tModelData;
 
 /* angaccel = moment / inertia, axis by axis (the car's frame, whose axes are the principal axes of inertia). */
 void calcaa(tModelData *m, f32 *moment, f32 *angaccel)
 {
-  tCar *car = (tCar *)PC_N64P(m->car);
+  tCar *car = m->car;
   angaccel[0] = moment[0] * car->invi[0];
   angaccel[1] = moment[1] * car->invi[1];
   angaccel[2] = moment[2] * car->invi[2];
