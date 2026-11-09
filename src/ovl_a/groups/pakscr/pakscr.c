@@ -27,7 +27,6 @@ VIEW(PlayerPresence[], gControllerData);
 
 extern void RemoveBlit(Blit *);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
-extern void particle_lifetime_set(void);
 
 extern void ShowPakError(s32,s8 *,s8 *,s8 *,s32 (*)(s32));
 
@@ -152,7 +151,7 @@ void updatePakScreen(void)
         MultiBlit descriptor;
         descriptor=pakscr_mblit;
         SetState(kStatePickPak);
-        if(gGameState&GS_FRONTEND_MASK)particle_lifetime_set();
+        if(gGameState&GS_FRONTEND_MASK)createBG();
         gBlit=NewMultiBlit(0,0,&descriptor,1);
         SetControllerActive(-1,1);
         pakscr_gInited=1;

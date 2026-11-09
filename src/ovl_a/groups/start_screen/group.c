@@ -44,7 +44,6 @@ VIEW(Egg *, gEgg);
 
 extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
-extern void particle_lifetime_set(void);      /* createBG */
 
 extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
 
@@ -216,7 +215,7 @@ void startscr_initScreen(void)
         AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
         AudPlaySong(SONG_MENU, 1);
     }
-    particle_lifetime_set();
+    createBG();
     startscr_initButtons();
     startscr_blit = NewMultiBlit(0, 0, startscr_mblit, 1);
     exitStartScreen = 0;

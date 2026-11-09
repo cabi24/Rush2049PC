@@ -44,9 +44,6 @@ VIEW(f32[12], unitmatrix);
 VIEW(MultiBlit[], carscr_mb);
 #define carscr_mb carscr_mb_view
 
-extern void audio_interrupt_handler(s32);
-
-extern void particle_lifetime_set(void);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 
@@ -390,9 +387,9 @@ void carscr_InitScreen(void)
         carscr_buttonZ = 15.0f;
         carscr_cursorZ = 11.25f;
     }
-    audio_interrupt_handler(1);
+    LoadCars(1);
     InitVisuals(1);
-    particle_lifetime_set();
+    createBG();
     for (p = 0; p < 4; p++) carscr_pane[p] = InitPane(-20, 0, -10, 10, PANE_STYLE_MESSAGE, 0, 0, 0);
     for (p = 0; p < gNumPlayers; p++) {
         pl = &gPlayers[p];

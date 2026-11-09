@@ -473,7 +473,6 @@ VIEW(volatile u8, gNumModels);
 
 VIEW(struct pc_multiblit[1], recordscr_mblit);
 #define recordscr_mblit recordscr_mblit_view
-extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
 
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned (docs/port/SANITIZE.md
@@ -494,7 +493,7 @@ void initRecordScreen(void)
     recordscr_gSelectMenuSelect = kSelectMenuTotals;
     gStatPlayer = 0;
     setRecordState(kRecordStateSelect);
-    particle_lifetime_set();
+    createBG();
     recordscr_initButtons();
     recordscr_viewPane = InitPane(-20, 0, -10, 10, 192, 0, 0, 0);
     recordscr_blit = NewMultiBlit(0, 0, recordscr_mblit, 1);

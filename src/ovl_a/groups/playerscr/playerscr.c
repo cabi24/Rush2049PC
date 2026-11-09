@@ -105,7 +105,6 @@ VIEW(u8[], gCarTeam);
 VIEW(MultiBlit[], multiBlit);
 #define multiBlit multiBlit_view
 
-extern void particle_lifetime_set(void);
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
@@ -159,7 +158,7 @@ void playerscr_initScreen(void)
         playerscr_cursorZ = 225.0f;
     }
     ZOID_SplitScreen(gNumWindows);
-    particle_lifetime_set();
+    createBG();
     for (p = 0; p < gNumPlayers; p++) {
         playerscr_pane[p] = InitPane(-20,0,-10,10,192,0,0,0);
     }

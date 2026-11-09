@@ -21,7 +21,6 @@ VIEW(s16[], gCheatState);
 VIEW(u32, gActiveAutoEdges);
 #define gActiveAutoEdges gActiveAutoEdges_view
 
-extern void particle_lifetime_set(void);
 extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 extern void RemoveBlit(Blit *);
 
@@ -222,7 +221,7 @@ void cheatscr_initScreen(void)
     } else if (gCheatState[CHEAT_FOG_COLOR] < 0) {
         gCheatState[CHEAT_FOG_COLOR] = FOG_COLORS;
     }
-    particle_lifetime_set();
+    createBG();
     cheatscr_blit = NewMultiBlit(0, 0, cheatscr_multiblit, 1);
     cheatscr_gSelectedOption = 0;
     gCheatMenuExit = 0;

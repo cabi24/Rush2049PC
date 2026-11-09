@@ -134,10 +134,9 @@ extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 
-extern void audio_bus_mix(Profile **,u8,s8);      /* SavePlayerOption */
+extern void SavePlayerOption(Profile **,u8,s8);
 extern s8 GetPlayerOption(Profile **,u8);
 
-extern void particle_lifetime_set(void);          /* createBG */
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
@@ -310,7 +309,7 @@ void updateTrackScreen(void)
     if ((gActiveEdges & BUTTON_ACCEPT) && (expansion_pak_present || gTrackNum != TRACK_NEEDS_EXPANSION)) {
         PlayStartABSound(gActiveEdges); setGameState(GS_CAR); trackscr_UninitScreen();
         for (j = 0; j < gNumPlayers; j++)
-            for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) audio_bus_mix(gPlayers[j].save, i, gOptions[i]);
+            for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) SavePlayerOption(gPlayers[j].save, i, gOptions[i]);
         return;
     }
     if (gActiveEdges & BUTTON_B) {
@@ -480,7 +479,7 @@ void updateTrackScreen(void)
             break;
         }
         SetOptions();
-        for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) audio_bus_mix(gPlayers[0].save, i, gOptions[i]);
+        for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) SavePlayerOption(gPlayers[0].save, i, gOptions[i]);
     } else if (gActiveAutoEdges & BUTTON_UP) {
         if (expansion_pak_present || gTrackNum != TRACK_NEEDS_EXPANSION) {
             AudPlayEffect(SND_MENU_UP, 0, 1, 0);
@@ -559,7 +558,7 @@ void trackscr_InitScreen(void)
             gOptions[i] = GetPlayerOption(gPlayers[0].save, i);
     }
     SetOptions();
-    particle_lifetime_set();
+    createBG();
     trackscr_initButtons();
     trackscr_blit = NewMultiBlit(0, 0, trackscr_mblit, 17);
     i = 0;

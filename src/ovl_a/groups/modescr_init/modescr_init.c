@@ -42,7 +42,6 @@ VIEW(Color4, modescr_button_color);
 
 VIEW(MultiBlit, modescr_mblit);
 #define modescr_mblit modescr_mblit_view
-extern void particle_lifetime_set ( void );
 
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
@@ -63,7 +62,7 @@ extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 void modescr_initScreen(void)
 {
     SaveFlush(1);
-    particle_lifetime_set();
+    createBG();
     modescr_initButtons();
     modescr_blit=NewMultiBlit(0,0,&modescr_mblit,1);
     exitModeScreen=0;

@@ -224,8 +224,6 @@ VIEW(MultiBlit[], circuitscr_mblit);
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 
-extern void particle_lifetime_set(void);
-
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
@@ -280,7 +278,7 @@ void circuitscr_initScreen(void)
     gConfirmNewCircuit = 0;
     circuitscr_gYes = 0;
     calcProgressSize();
-    particle_lifetime_set();
+    createBG();
     circuitscr_initButtons();
     circuitscr_pane = InitPane(-20, 0, -10, 10, 192, 0, 0, 0);
     circuitscr_blit = NewMultiBlit(0, 0, circuitscr_mblit, 1);
