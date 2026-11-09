@@ -2,25 +2,8 @@
  * text.c's). Not a sound function: it sits among the sound code in the N64 image. */
 #include "game/game.h"
 
-/* The text bank's header (gText): for each of its six sections a count and where it starts: string tables in
- * sections 0, 2 and 5, 16-bit data in 1, 3 and 4. */
-typedef struct {
-    /* 0x00 */ u16 count0;
-    /* 0x04 */ u32 *ptrs0;
-    /* 0x08 */ u16 count1;
-    /* 0x0A */ u16 count2;
-    /* 0x0C */ u16 *data1;
-    /* 0x10 */ u32 *ptrs2;
-    /* 0x14 */ u16 count3;
-    /* 0x16 */ u16 count4;
-    /* 0x18 */ u16 count5;
-    /* 0x1C */ u16 *data3;
-    /* 0x20 */ u16 *data4;
-    /* 0x24 */ u32 *ptrs5;
-} ModelTables;
-
-VIEW(ModelTables, gText);
-#define gText gText_view
+/* The text bank's header (gText, TextTables) has a count and a start for each of the bank's six sections: string
+ * tables in sections 0, 2 and 5 (single, taba, tab2b), 16-bit data in 1, 3 and 4 (tab, tab2, tab2a). */
 
 /* PC: the bank is already in host order (port/assets/text.c). The offsets stay in the file, since a host pointer
  * doesn't fit their 4-byte slots; the three pointer sections are native char * tables built from them, and the
@@ -36,21 +19,21 @@ void AdjustTextWavePointers(void) {
 
     base = GetWaveInstanceAddr(gTextWaveInst);
     p = base;
-    gText.count0 = *p++;
-    gText.ptrs0 = (u32 *)pc_text_strings(0, p, gText.count0, base);
-    p += gText.count0;
-    gText.count1 = *p++;
-    gText.data1 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((gText.count1 + 1) & ~1));
-    gText.count2 = *p++;
-    gText.ptrs2 = (u32 *)pc_text_strings(2, p, gText.count2, base);
-    p += gText.count2;
-    gText.count3 = *p++;
-    gText.data3 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((gText.count3 + 1) & ~1));
-    gText.count4 = *p++;
-    gText.data4 = (u16 *) p;
-    p = (u32 *) ((u16 *) p + ((gText.count4 + 1) & ~1));
-    gText.count5 = *p++;
-    gText.ptrs5 = (u32 *)pc_text_strings(5, p, gText.count5, base);
+    gText.numSingle = *p++;
+    gText.single = (u8 **) pc_text_strings(0, p, gText.numSingle, base);
+    p += gText.numSingle;
+    gText.numTab = *p++;
+    gText.tab = (u16 *) p;
+    p = (u32 *) ((u16 *) p + ((gText.numTab + 1) & ~1));
+    gText.numTabA = *p++;
+    gText.taba = (u8 **) pc_text_strings(2, p, gText.numTabA, base);
+    p += gText.numTabA;
+    gText.numTab2 = *p++;
+    gText.tab2 = (u16 *) p;
+    p = (u32 *) ((u16 *) p + ((gText.numTab2 + 1) & ~1));
+    gText.numTab2a = *p++;
+    gText.tab2a = (u16 *) p;
+    p = (u32 *) ((u16 *) p + ((gText.numTab2a + 1) & ~1));
+    gText.numTab2b = *p++;
+    gText.tab2b = (u8 **) pc_text_strings(5, p, gText.numTab2b, base);
 }

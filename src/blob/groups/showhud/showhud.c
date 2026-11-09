@@ -10,12 +10,6 @@ typedef struct MultiBlit {
 } MultiBlit;
 typedef struct RecordSlot { s16 id; u8 pad02[50]; } RecordSlot;   /* 52 bytes */
 typedef struct RecordRow { RecordSlot a, b; } RecordRow;              /* 104 bytes */
-/* Complete native resource-table layout, shared with its actual loader. */
-/* PC: gText's pointer sections are native char * tables (port/assets/text.c) */
-typedef struct ModelTables {
-    u16 count0; char **ptrs0; u16 count1,count2; u16 *data1; char **ptrs2;
-    u16 count3,count4,count5; u16 *data3,*data4; char **ptrs5;
-} ModelTables;
 
 VIEW(Voice *, HudBlit1);
 #define HudBlit1 HudBlit1_view
@@ -45,8 +39,6 @@ VIEW(MultiBlit[], HudMultiBlit);
 
 VIEW(char *[][11], cStrCreditNames);
 #define cStrCreditNames cStrCreditNames_view
-VIEW(ModelTables, gText);
-#define gText gText_view
 
 Voice *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 Pane *InitPane(s32,s32,s32,s32,s32,PaneAnimation,u32,s32);
@@ -158,7 +150,7 @@ void ShowHUD(void) {
             gCredit++;
             gCorner = Random(4.0f);
             HAL_SetFont(11);
-            gCreditWidth = HAL_GetTextWidth((void *)gText.ptrs2[gText.data1[0] + gCredit], -1);
+            gCreditWidth = HAL_GetTextWidth(gText.taba[gText.tab[0] + gCredit], -1);
             for (gNumCreditNames = 0; cStrCreditNames[gCredit][gNumCreditNames]; gNumCreditNames++) {
                 if (gCreditWidth < HAL_GetTextWidth(cStrCreditNames[gCredit][gNumCreditNames], -1)) {
                     gCreditWidth = HAL_GetTextWidth(cStrCreditNames[gCredit][gNumCreditNames], -1);

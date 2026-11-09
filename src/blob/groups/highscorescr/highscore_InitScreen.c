@@ -1,18 +1,6 @@
 /* The high score screen's start (MAT3 highscorescr.c _InitScreen): the music, the unlocks this race earned, the
  * circuit's progress, and the first page to show. */
 #include "game/game.h"
-#define PlayerTail PlayerTailView   /* this file's own PlayerTail: include/game's PlayerTail is another type */
-
-typedef struct PlayerRec {
-    void *next, *prev;
-    void *f8;           /* the profile's pak file handle (pc_prelude.h) */
-} PlayerRec;
-
-typedef struct {
-    PlayerRec **rec;    /* gPlayers[i] + 0x4C */
-    u8 pad[72];
-} PlayerTail;           /* 76 bytes */
-
 VIEW(u8[], gUnlockedTracks);
 #define gUnlockedTracks gUnlockedTracks_view
 
@@ -82,7 +70,7 @@ void highscore_InitScreen(void)
         oldCircuitTrack = gCircuitTrack;
         UpdateCircuit(ranks, PC_CAR_TIME(gCircuitPlayer));
         gCircuitTrack = oldCircuitTrack;
-        if ((*gPlayers_save[gCircuitPlayer].rec)->f8 == 0 && gCircuitTrack < gCircuitSize - 1) {
+        if ((*gPlayers_save[gCircuitPlayer].profile)->fileh == NULL && gCircuitTrack < gCircuitSize - 1) {
             circuitCode = 1;
             GetCircuitCode(highscore_gCircuitCode);
         }

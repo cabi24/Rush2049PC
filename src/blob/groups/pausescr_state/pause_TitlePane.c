@@ -6,12 +6,6 @@
 #define kPauseQuit 8
 #define PAUSE_TITLE_FONT 13
 
-#define INPUT_SIZE 80   /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (POINTERS.md 10) */
-/* A player's record as this reads it: the handle of the player's profile first. */
-typedef struct { void **save; u8 rest[INPUT_SIZE - 8]; } PausePlayer;
-VIEW(PausePlayer[], gPlayers_save);
-#define gPlayers_save gPlayers_save_view
-
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 void ChangePaneSize(void *,s32,s32,s32,s32);
@@ -35,7 +29,7 @@ void pause_TitlePane(void)
     } else if(gPauseState==kPauseRumbleScreen) {
         width=0;
     } else {
-        TB_Sprintf(text,pause_title_name_format,(u8 *)*gPlayers_save[playerInPause].save+PROFILE_OFS(20),gText.taba[gText.tab[56]]);
+        TB_Sprintf(text,pause_title_name_format,(*gPlayers_save[playerInPause].profile)->name,gText.taba[gText.tab[56]]);
         width=HAL_GetTextWidth(str,-1);
     }
     x=pause_titlePos[0];

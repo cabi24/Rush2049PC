@@ -21,19 +21,9 @@ typedef struct Cell {
     s32 levels;         /* 0x24: held */
     u32 timeout;        /* 0x28: the retrace count at which a waiting dialog closes itself */
 } Cell;                 /* 44 bytes */
-/* The game's text (gText): msg[] the messages by number, strings[] with lang[] the words of the language. */
-typedef struct {
-    u8 pad0[4];
-    char **msg;         /* +4 */
-    u8 pad8[4];
-    u16 *lang;          /* +12 */
-    char **strings;     /* +16 */
-} StrTable;
 
 VIEW(Cell[][2], gPakError);
 #define gPakError gPakError_view
-VIEW(StrTable, gText);
-#define gText gText_view
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
@@ -139,10 +129,10 @@ void DrawChoice(s32 row, s32 col, intptr_t text, char *a, char *b, s32 sel)
     y = c->height + c->top - fh * 3;
     HAL_SetFont(sel ? 11 : 10);
     TB_SetTextColor(sel ? 1 : 22);
-    TB_DrawText(x, y - (sel ? 0 : 1) + fh, gText.msg[944 / 4]);
+    TB_DrawText(x, y - (sel ? 0 : 1) + fh, gText.single[236]);
     HAL_SetFont(sel ? 10 : 11);
     TB_SetTextColor(sel ? 22 : 1);
-    TB_DrawText(x, y - (sel ? 1 : 0), gText.strings[gText.lang[25]]);
+    TB_DrawText(x, y - (sel ? 1 : 0), gText.taba[gText.tab[25]]);
     TB_SetJust(0, 3);
 }
 
@@ -159,8 +149,8 @@ void DrawPakErrNoPak(s32 row, s32 col)
     big = !(gGameState & GAME_STATES_FRONT_END);
     HAL_SetFont(11);
     TB_SetTextColor(1);
-    TB_Strcpy(buf, gText.msg[416 / 4]);
-    TB_Strcat(buf, (u8 *)(big ? gText.msg[412 / 4] : gText.msg[408 / 4]));
+    TB_Strcpy(buf, gText.single[104]);
+    TB_Strcat(buf, (u8 *)(big ? gText.single[103] : gText.single[102]));
     TB_SetJust(1, 1);
     TB_DrawTextScrollBox(gPakError[row][col].left + gPakError[row][col].width / 2, gPakError[row][col].top + (gPakError[row][col].height - (big ? 40 : 20)) / 2 + 20, gPakError[row][col].width, gPakError[row][col].height - (big ? 40 : 20),
                        -1, 0, buf);
@@ -170,10 +160,10 @@ void DrawPakErrNoPak(s32 row, s32 col)
         y = gPakError[row][col].top + gPakError[row][col].height - fh * 3;
         HAL_SetFont(gPakError[row][col].choice1 ? 11 : 10);
         TB_SetTextColor(gPakError[row][col].choice1 ? 1 : 22);
-        TB_DrawText(x, y - (gPakError[row][col].choice1 ? 0 : 1) + fh, gText.msg[944 / 4]);
+        TB_DrawText(x, y - (gPakError[row][col].choice1 ? 0 : 1) + fh, gText.single[236]);
         HAL_SetFont(gPakError[row][col].choice1 ? 10 : 11);
         TB_SetTextColor(gPakError[row][col].choice1 ? 22 : 1);
-        TB_DrawText(x, y - (gPakError[row][col].choice1 ? 1 : 0), gText.strings[gText.lang[25]]);
+        TB_DrawText(x, y - (gPakError[row][col].choice1 ? 1 : 0), gText.taba[gText.tab[25]]);
     }
     TB_SetJust(0, 3);
     HAL_SetFont(11);
@@ -188,9 +178,9 @@ void cs_draw1_DC(s32 row, s32 col)
 
     HAL_SetFont(11);
     TB_SetTextColor(1);
-    TB_Strcpy(str, gText.msg[404 / 4]);
+    TB_Strcpy(str, gText.single[101]);
     TB_Strcat(str, (u8 *)pakerr_newlines_no_controller);
-    TB_Strcat(str, (u8 *)gText.msg[408 / 4]);
+    TB_Strcat(str, (u8 *)gText.single[102]);
     TB_SetJust(1, 1);
     TB_DrawTextScrollBox(C.left + C.width / 2, C.top + (C.height - 20) / 2 + 20, C.width, C.height - 20, -1, 0, str);
     TB_SetJust(0, 3);
@@ -202,10 +192,10 @@ void cs_draw3_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, C.alt ? gText.msg[424 / 4] : gText.msg[428 / 4]);
+    TB_Strcpy(str, C.alt ? gText.single[106] : gText.single[107]);
     TB_Strcat(str, (u8 *)pakerr_newlines_new_pak);
-    TB_Strcat(str, (u8 *)gText.msg[432 / 4]);
-    DrawChoice(row, col, (intptr_t)str, gText.strings[gText.lang[25]], gText.msg[944 / 4], C.choice1);
+    TB_Strcat(str, (u8 *)gText.single[108]);
+    DrawChoice(row, col, (intptr_t)str, gText.taba[gText.tab[25]], gText.single[236], C.choice1);
 }
 
 /* The damaged (inconsistent) pak dialog (MAT3 _DrawPakErrInconsistent). */
@@ -213,9 +203,9 @@ void cs_drawT0_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, gText.msg[436 / 4]);
+    TB_Strcpy(str, gText.single[109]);
     TB_Strcat(str, (u8 *)pakerr_newlines_inconsistent);
-    TB_Strcat(str, (u8 *)gText.msg[440 / 4]);
+    TB_Strcat(str, (u8 *)gText.single[110]);
     DrawPakErrNQA(row, col, str);
 }
 
@@ -224,9 +214,9 @@ void cs_drawT1_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, gText.msg[444 / 4]);
+    TB_Strcpy(str, gText.single[111]);
     TB_Strcat(str, (u8 *)pakerr_newlines_unknown);
-    TB_Strcat(str, (u8 *)gText.msg[408 / 4]);
+    TB_Strcat(str, (u8 *)gText.single[102]);
     DrawPakErrNQA(row, col, str);
 }
 
@@ -235,9 +225,9 @@ void cs_drawT2_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, gText.msg[452 / 4]);
+    TB_Strcpy(str, gText.single[113]);
     TB_Strcat(str, (u8 *)pakerr_newlines_full);
-    TB_Strcat(str, (u8 *)gText.msg[456 / 4]);
+    TB_Strcat(str, (u8 *)gText.single[114]);
     DrawPakErrNQA(row, col, str);
 }
 
@@ -246,9 +236,9 @@ void cs_drawT3_DC(s32 row, s32 col)
 {
     u8 str[256];
 
-    TB_Strcpy(str, gText.msg[460 / 4]);
+    TB_Strcpy(str, gText.single[115]);
     TB_Strcat(str, (u8 *)pakerr_newlines_bad_data);
-    TB_Strcat(str, (u8 *)gText.msg[440 / 4]);
+    TB_Strcat(str, (u8 *)gText.single[110]);
     DrawPakErrNQA(row, col, str);
 }
 
@@ -257,21 +247,21 @@ void cs_drawT3_DC(s32 row, s32 col)
 void cs_wait11_DC(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.retraceCount) C.done = 1;
-    DrawPakErrNQA(row, col, (u8 *)gText.msg[476 / 4]);
+    DrawPakErrNQA(row, col, (u8 *)gText.single[119]);
 }
 
 /* As cs_wait11_DC, with message 120. */
 void cs_wait12_DC(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.retraceCount) C.done = 1;
-    DrawPakErrNQA(row, col, (u8 *)gText.msg[480 / 4]);
+    DrawPakErrNQA(row, col, (u8 *)gText.single[120]);
 }
 
 /* As cs_wait11_DC, with message 121. */
 void cs_wait13_DC(s32 row, s32 col)
 {
     if (C.timeout < gScheduler.retraceCount) C.done = 1;
-    DrawPakErrNQA(row, col, (u8 *)gText.msg[484 / 4]);
+    DrawPakErrNQA(row, col, (u8 *)gText.single[121]);
 }
 
 /* A three-answer dialog: down and up move the answer round (first, second, third), A takes it. */
@@ -370,11 +360,11 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
     case 5:
     case 7:
         ControlChoice(row, col);
-        DrawChoice(row, col, (intptr_t)gText.msg[444 / 4], (gText.strings + gText.lang[26])[1], gText.msg[944 / 4], C.choice1);
+        DrawChoice(row, col, (intptr_t)gText.single[111], (gText.taba + gText.tab[26])[1], gText.single[236], C.choice1);
         break;
     case 8:
         ControlChoice(row, col);
-        DrawChoice(row, col, (intptr_t)gText.msg[448 / 4], gText.strings[gText.lang[24]], (gText.strings + gText.lang[24])[1], C.choice1);
+        DrawChoice(row, col, (intptr_t)gText.single[112], gText.taba[gText.tab[24]], (gText.taba + gText.tab[24])[1], C.choice1);
         break;
     case 6:
         ControlChoice(row, col);
@@ -386,7 +376,7 @@ void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void)
         break;
     case 10:
         cs_ctl10_DC(&C);
-        DrawChoice3(row, col, (u8 *)gText.msg[472 / 4], gText.msg[944 / 4], gText.strings[gText.lang[26]], (gText.strings + gText.lang[26])[1], C.choice1, C.choice2);
+        DrawChoice3(row, col, (u8 *)gText.single[118], gText.single[236], gText.taba[gText.tab[26]], (gText.taba + gText.tab[26])[1], C.choice1, C.choice2);
         break;
     case 11:
         cs_wait11_DC(row, col);

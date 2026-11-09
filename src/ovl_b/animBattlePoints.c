@@ -6,10 +6,6 @@
 #define POINT_LOST_TEXT 27       /* gText.single: the "point lost" message */
 #define POINT_WON_FORMAT 28      /* gText.single: the "point from ..." message's format */
 
-/* A player's record as this reads it: its profile's handle. */
-typedef struct PlayerInfo { tProfile **profile; u8 unknown04[72]; } PlayerInfo;
-VIEW(PlayerInfo[], gPlayers_save);
-#define gPlayers_save gPlayers_save_view
 VIEW(s32[4][4][2], fragPos);
 #define fragPos fragPos_view
 VIEW(s32[4][4][2], wrongWayPos);

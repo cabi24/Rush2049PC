@@ -2,12 +2,11 @@
  * effects volume, the song, the music type) with its value, as a flat menu or beside the 3D buttons. */
 #include "game/game.h"
 
-typedef struct AuIdx { u8 pad0[32]; u16 songStrings; u8 pad34[44]; u16 optionNames; u16 musicTypes; } AuIdx;
-typedef struct TextState { void *word0; char **fixed; void *word8; AuIdx *indices; char **strings; } TextState;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
+#define TEXT_OFF_ON 16            /* gText.tab[]: off, on (the song list's "off") */
+#define TEXT_AUDIO_OPTIONS 39     /* gText.tab[]: the audio screen's options */
+#define TEXT_STEREO_MONO 40       /* gText.tab[]: stereo, mono */
 
-VIEW(TextState, gText);
-#define gText gText_view
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
@@ -68,7 +67,7 @@ void audio_animButtonText(void)
     ZOID_ProjectWindow(0, audio_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
-    TB_DrawText(TB_CenterText(gText.fixed[52], x), y, gText.fixed[52]);
+    TB_DrawText(TB_CenterText(gText.single[52], x), y, gText.single[52]);
     HAL_SetFont(11);
     for (i = 0; i < 4; i++) {
         if (audio_buttonInfo[i].angle > 0.69813168f && audio_buttonInfo[i].angle < 2.443461f) continue;
@@ -87,7 +86,7 @@ void audio_animButtonText(void)
         y = screenPos[1];
         x -= 55;
         TB_DrawText(x, y,
-                      gText.strings[gText.indices->optionNames + i]);
+                      gText.taba[gText.tab[TEXT_AUDIO_OPTIONS] + i]);
         switch (i) {
         case 0:
             TB_Sprintf(str, "%d", gOptions[kOptEffectsVolume]);
@@ -96,12 +95,12 @@ void audio_animButtonText(void)
             TB_Sprintf(str, "%d", gOptions[kOptMusicVolume]);
             break;
         case 2:
-            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
-            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.strings[gText.indices->songStrings]);
+            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.single[34]);
+            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.taba[gText.tab[TEXT_OFF_ON]]);
             else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            TB_Strcpy((u8 *)str, gText.strings[gOptions[kOptMono] + gText.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.taba[gOptions[kOptMono] + gText.tab[TEXT_STEREO_MONO]]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {
@@ -138,10 +137,10 @@ s32 audio_animText(s32 unused)
     au_SetFont(13);
     TB_SetTextColor(1);
     if ((gGameState & GAME_STATES_RACE_START) && audio_gControllerRemoved) {
-        TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
+        TB_Sprintf(str, "CONTROLLER %d %s", playerInPause + 1, gText.single[233]);
         TB_DrawText(TB_CenterText(str, 160), 10, str);
     } else {
-        TB_DrawText(TB_CenterText(gText.fixed[52], 160), 10, gText.fixed[52]);
+        TB_DrawText(TB_CenterText(gText.single[52], 160), 10, gText.single[52]);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
     HAL_SetFont(10);
@@ -149,8 +148,8 @@ s32 audio_animText(s32 unused)
     for (i = 0; i < 4; i++) {
         if (!au_validOption(i)) continue;
         TB_SetTextColor(i == gAudioMenuSelect ? 22 : 1);
-        TB_DrawText(TB_RightText(gText.strings[gText.indices->optionNames + i], x - 5), y,
-                      gText.strings[gText.indices->optionNames + i]);
+        TB_DrawText(TB_RightText(gText.taba[gText.tab[TEXT_AUDIO_OPTIONS] + i], x - 5), y,
+                      gText.taba[gText.tab[TEXT_AUDIO_OPTIONS] + i]);
         switch (i) {
         case 0:
             TB_Sprintf(str, "%d", gOptions[kOptEffectsVolume]);
@@ -159,12 +158,12 @@ s32 audio_animText(s32 unused)
             TB_Sprintf(str, "%d", gOptions[kOptMusicVolume]);
             break;
         case 2:
-            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.fixed[34]);
-            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.strings[gText.indices->songStrings]);
+            if (audio_gSong == 12) TB_Strcpy((u8 *)str, gText.single[34]);
+            else if (audio_gSong == 13) TB_Strcpy((u8 *)str, gText.taba[gText.tab[TEXT_OFF_ON]]);
             else TB_Strcpy((u8 *)str, gSongNames[audio_gSong]);
             break;
         case 3:
-            TB_Strcpy((u8 *)str, gText.strings[gOptions[kOptMono] + gText.indices->musicTypes]);
+            TB_Strcpy((u8 *)str, gText.taba[gOptions[kOptMono] + gText.tab[TEXT_STEREO_MONO]]);
             break;
         }
         for (charPtr = str; *charPtr != 0; charPtr++) {

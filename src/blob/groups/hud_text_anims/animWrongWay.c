@@ -1,23 +1,11 @@
 /* The HUD's "wrong way" warning (MAT3 hud.c animWrongWay): an animation function of a blit. */
 #include "game/game.h"
 
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct TblHdr {
-    char *pad0[0x68 / 4];
-    char *text;         /* message 26: "wrong way" */
-} TblHdr;
-
-typedef struct StrTable {
-    u8 pad0[4];
-    TblHdr *hdr;
-} StrTable;
+#define TEXT_WRONG_WAY 26         /* gText.single[]: "wrong way" */
 
 typedef struct Pos {
     s32 x, y;
 } Pos;
-
-VIEW(StrTable, gText);
-#define gText gText_view
 
 VIEW(Pos[][4], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
@@ -81,9 +69,9 @@ s32 animWrongWay(void *item)
         x = wrongWayPos[gNumWindows - 1][slot].x;
         y = wrongWayPos[gNumWindows - 1][slot].y;
         TB_SetTextColor(0);
-        TB_DrawText(x + 1, y + 1, gText.hdr->text);
+        TB_DrawText(x + 1, y + 1, gText.single[TEXT_WRONG_WAY]);
         TB_SetTextColor(14);
-        TB_DrawText(x, y, gText.hdr->text);
+        TB_DrawText(x, y, gText.single[TEXT_WRONG_WAY]);
     }
     TB_SetJust(0, 3);
     HAL_SetTextTranslucency(-1.0f);

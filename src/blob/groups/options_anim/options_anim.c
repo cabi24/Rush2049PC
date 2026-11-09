@@ -6,22 +6,7 @@ typedef union Color {
     u32 rgba;
 } Color;
 
-typedef struct TextHdr {
-    char *str[64];
-} TextHdr;
-
-typedef struct LangInfo {
-    u8 pad0[32];
-    u16 base;
-} LangInfo;
-
-typedef struct Text {
-    u8 pad0[4];
-    TextHdr *hdr;
-    u8 pad8[4];
-    LangInfo *info;
-    char **strings;
-} Text;
+#define TEXT_OFF_ON 16            /* gText.tab[]: the options' values: off, on ... */
 
 typedef struct ButtonInfo {
     u8 pad0[8];
@@ -32,8 +17,6 @@ typedef struct ButtonInfo {
     u8 pad3D[3];
 } ButtonInfo;
 
-VIEW(Text, gText);
-#define gText gText_view
 
 VIEW(ButtonInfo[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
@@ -71,7 +54,7 @@ void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
     TB_DrawText(x + 40, y, value);
 }
 
-#define OPT_VALUE(k) gText.strings[gText.info->base + gOptions[k]]
+#define OPT_VALUE(k) gText.taba[gText.tab[TEXT_OFF_ON] + gOptions[k]]
 
 /* Draws the options screen's title over its 3D buttons (projected from the title button's position). */
 void options_animButtonText(void)
@@ -90,7 +73,7 @@ void options_animButtonText(void)
     y = screenPos[1];
     HAL_SetFont(13);
     TB_SetTextColor(1);
-    str = gText.hdr->str[50];
+    str = gText.single[50];
     TB_DrawText(TB_CenterText(str, x), y, str);
     HAL_SetFont(11);
     for (i = 0; i < 14; i++) {
@@ -104,46 +87,46 @@ void options_animButtonText(void)
         y = screenPos[1];
         switch (i) {
         case 1:
-            options_printOption(x, y, 1, gText.hdr->str[13], OPT_VALUE(10));
+            options_printOption(x, y, 1, gText.single[13], OPT_VALUE(10));
             break;
         case 2:
-            options_printOption(x, y, 2, gText.hdr->str[15], OPT_VALUE(0));
+            options_printOption(x, y, 2, gText.single[15], OPT_VALUE(0));
             break;
         case 3:
-            options_printOption(x, y, 3, gText.hdr->str[16], OPT_VALUE(1));
+            options_printOption(x, y, 3, gText.single[16], OPT_VALUE(1));
             break;
         case 4:
-            options_printOption(x, y, 4, gText.hdr->str[17], OPT_VALUE(2));
+            options_printOption(x, y, 4, gText.single[17], OPT_VALUE(2));
             break;
         case 5:
-            options_printOption(x, y, 5, gText.hdr->str[18], OPT_VALUE(3));
+            options_printOption(x, y, 5, gText.single[18], OPT_VALUE(3));
             break;
         case 6:
-            options_printOption(x, y, 6, gText.hdr->str[19], OPT_VALUE(4));
+            options_printOption(x, y, 6, gText.single[19], OPT_VALUE(4));
             break;
         case 7:
-            options_printOption(x, y, 7, gText.hdr->str[20], OPT_VALUE(5));
+            options_printOption(x, y, 7, gText.single[20], OPT_VALUE(5));
             break;
         case 8:
-            options_printOption(x, y, 8, gText.hdr->str[21], OPT_VALUE(6));
+            options_printOption(x, y, 8, gText.single[21], OPT_VALUE(6));
             break;
         case 9:
-            options_printOption(x, y, 9, gText.hdr->str[22], OPT_VALUE(7));
+            options_printOption(x, y, 9, gText.single[22], OPT_VALUE(7));
             break;
         case 10:
-            options_printOption(x, y, 10, gText.hdr->str[23], OPT_VALUE(8));
+            options_printOption(x, y, 10, gText.single[23], OPT_VALUE(8));
             break;
         case 11:
-            options_printOption(x, y, 11, gText.hdr->str[24], OPT_VALUE(9));
+            options_printOption(x, y, 11, gText.single[24], OPT_VALUE(9));
             break;
         case 12:
-            options_printOption(x, y, 12, gText.hdr->str[26], OPT_VALUE(18));
+            options_printOption(x, y, 12, gText.single[26], OPT_VALUE(18));
             break;
         case 13:
-            options_printOption(x, y, 13, gText.hdr->str[14], OPT_VALUE(11));
+            options_printOption(x, y, 13, gText.single[14], OPT_VALUE(11));
             break;
         case 0:
-            options_printOption(x, y, 0, gText.hdr->str[25], cStrLanguageNames[gLang]);
+            options_printOption(x, y, 0, gText.single[25], cStrLanguageNames[gLang]);
             break;
         }
     }
@@ -175,10 +158,10 @@ s32 options_animText(void *item)
     TB_SetTextColor(1);
     gs = gGameState;
     if ((gs & 0x7C0000) && options_gControllerRemoved) {
-        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.hdr->str[233]);
+        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.single[233]);
         TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {
-        str = gText.hdr->str[50];
+        str = gText.single[50];
         TB_DrawText(TB_CenterText(str, 160), 10, str);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
@@ -196,46 +179,46 @@ s32 options_animText(void *item)
         }
         switch (i) {
         case 1:
-            options_printOption(160, y, 1, gText.hdr->str[13], OPT_VALUE(10));
+            options_printOption(160, y, 1, gText.single[13], OPT_VALUE(10));
             break;
         case 2:
-            options_printOption(160, y, 2, gText.hdr->str[15], OPT_VALUE(0));
+            options_printOption(160, y, 2, gText.single[15], OPT_VALUE(0));
             break;
         case 3:
-            options_printOption(160, y, 3, gText.hdr->str[16], OPT_VALUE(1));
+            options_printOption(160, y, 3, gText.single[16], OPT_VALUE(1));
             break;
         case 4:
-            options_printOption(160, y, 4, gText.hdr->str[17], OPT_VALUE(2));
+            options_printOption(160, y, 4, gText.single[17], OPT_VALUE(2));
             break;
         case 5:
-            options_printOption(160, y, 5, gText.hdr->str[18], OPT_VALUE(3));
+            options_printOption(160, y, 5, gText.single[18], OPT_VALUE(3));
             break;
         case 6:
-            options_printOption(160, y, 6, gText.hdr->str[19], OPT_VALUE(4));
+            options_printOption(160, y, 6, gText.single[19], OPT_VALUE(4));
             break;
         case 7:
-            options_printOption(160, y, 7, gText.hdr->str[20], OPT_VALUE(5));
+            options_printOption(160, y, 7, gText.single[20], OPT_VALUE(5));
             break;
         case 8:
-            options_printOption(160, y, 8, gText.hdr->str[21], OPT_VALUE(6));
+            options_printOption(160, y, 8, gText.single[21], OPT_VALUE(6));
             break;
         case 9:
-            options_printOption(160, y, 9, gText.hdr->str[22], OPT_VALUE(7));
+            options_printOption(160, y, 9, gText.single[22], OPT_VALUE(7));
             break;
         case 10:
-            options_printOption(160, y, 10, gText.hdr->str[23], OPT_VALUE(8));
+            options_printOption(160, y, 10, gText.single[23], OPT_VALUE(8));
             break;
         case 11:
-            options_printOption(160, y, 11, gText.hdr->str[24], OPT_VALUE(9));
+            options_printOption(160, y, 11, gText.single[24], OPT_VALUE(9));
             break;
         case 12:
-            options_printOption(160, y, 12, gText.hdr->str[26], OPT_VALUE(18));
+            options_printOption(160, y, 12, gText.single[26], OPT_VALUE(18));
             break;
         case 13:
-            options_printOption(160, y, 13, gText.hdr->str[14], OPT_VALUE(11));
+            options_printOption(160, y, 13, gText.single[14], OPT_VALUE(11));
             break;
         case 0:
-            options_printOption(160, y, 0, gText.hdr->str[25], cStrLanguageNames[gLang]);
+            options_printOption(160, y, 0, gText.single[25], cStrLanguageNames[gLang]);
             break;
         }
         y += TB_GetFontLineHeight();
