@@ -13,9 +13,9 @@
  * view of one element; a union no byte member covers is swapped; interleaved s16 columns declared to their true
  * size leave the flag after them alone; and a table declared too long is listed for running over its flag.
  *
- * It runs twice: with the arenas in host memory, and at their N64 addresses in an RDRAM window it maps at host
- * PC_RDRAM_BASE, as the game's are. There a pointer into an arena is its own N64 value, and a runtime image's arena,
- * which lies in the "heap", stays clear until the image is loaded. */
+ * The arenas are blocks of host memory, as the game's are (data.c's pc_arena_<image>, docs/port/DATA.md 3): a pointer
+ * into one is its block + the offset, a word holding an arena's N64 address can't reach it, and a runtime image's
+ * arena, which on the N64 lies in the "heap", stays clear after the first load until the image is loaded. */
 #define _GNU_SOURCE
 #include "pc_data.h"
 #include "pc_n64_map.h"
@@ -24,12 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <zlib.h>
-
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
 
 /* The synthetic layout's N64 addresses, KSEG0 addresses of the test's own (none is a game symbol's): the boot image,
  * the game image (where test_pc_data_decls.c's names put the generated arena: D_80010020 is GAME(0x20)), the heap's
@@ -80,16 +75,15 @@ static PcDataImage images[4] = {
     {"ovl_b", PC_IMG_DEFLATE, 0x5000, 0, 0x80, TEST_OVL},
 };
 
-/* The arenas' host memory: these arrays, or the window. Image B's (OVL(0x40) to OVL(0x80)) is inside image A's
- * code; the two runtime images' arenas are disjoint, as the game's are. */
-static uint8_t h_boot[0xC0], h_game[0x200], h_ovl_a[0x100], h_ovl_b[0x40], h_gen[PC_TEST_GEN_HI - PC_TEST_GEN_LO];
-static uint8_t *a_boot, *a_game, *a_ovl_a, *a_ovl_b, *a_gen;
-static PcDataArena arenas[5] = {
-    {0, BOOT(0x80), BOOT(0x100), BOOT(0x140), NULL, 0, 4},
-    {1, GAME(0x100), GAME(0x200), GAME(0x300), NULL, 4, 1},
-    {2, OVL(0x80), OVL(0x100), OVL(0x180), NULL, 5, 1},
-    {3, OVL(0x40), OVL(0x60), OVL(0x80), NULL, 0, 0},
-    {1, PC_TEST_GEN_LO, PC_TEST_GEN_HI, PC_TEST_GEN_HI, NULL, 16, PC_TEST_GEN_NRUNS},   /* gen_data's rules */
+/* The arenas' blocks. Image B's arena (OVL(0x40) to OVL(0x80)) is inside image A's code; the two runtime images'
+ * arenas are disjoint, as the game's are. */
+static uint8_t a_boot[0xC0], a_game[0x200], a_ovl_a[0x100], a_ovl_b[0x40], a_gen[PC_TEST_GEN_HI - PC_TEST_GEN_LO];
+static const PcDataArena arenas[5] = {
+    {0, BOOT(0x80), BOOT(0x100), BOOT(0x140), a_boot, 0, 4},
+    {1, GAME(0x100), GAME(0x200), GAME(0x300), a_game, 4, 1},
+    {2, OVL(0x80), OVL(0x100), OVL(0x180), a_ovl_a, 5, 1},
+    {3, OVL(0x40), OVL(0x60), OVL(0x80), a_ovl_b, 0, 0},
+    {1, PC_TEST_GEN_LO, PC_TEST_GEN_HI, PC_TEST_GEN_HI, a_gen, 16, PC_TEST_GEN_NRUNS},   /* gen_data's rules */
 };
 
 /* Own storage. S: { u32 a; void *p; u16 h; void (*fp)(void); long l; } (N64 20 B, host 40 B).
@@ -259,16 +253,8 @@ static int report_has(const char *report, const char *fmt, uint32_t a)
     return strstr(report, want) != NULL;
 }
 
-static void run(int window)
+static void run(void)
 {
-    const char *where = window ? "window" : "host";
-    a_boot = window ? (uint8_t *)(uintptr_t)arenas[0].n64_lo : h_boot;
-    a_game = window ? (uint8_t *)(uintptr_t)arenas[1].n64_lo : h_game;
-    a_ovl_a = window ? (uint8_t *)(uintptr_t)arenas[2].n64_lo : h_ovl_a;
-    a_ovl_b = window ? (uint8_t *)(uintptr_t)arenas[3].n64_lo : h_ovl_b;
-    a_gen = window ? (uint8_t *)(uintptr_t)arenas[4].n64_lo : h_gen;
-    arenas[0].host = a_boot, arenas[1].host = a_game, arenas[2].host = a_ovl_a, arenas[3].host = a_ovl_b;
-    arenas[4].host = a_gen;
     reset_state();
     memset(&S, 0, sizeof S), memset(P, 0, sizeof P), memset(Q, 0, sizeof Q);
     memset(F, 0x5A, sizeof F), memset(E, 0x5A, sizeof E);
@@ -343,9 +329,6 @@ static void run(int window)
     CHECK(E[0] == 5 && E[1] == 6 && E[2] == -7 && E[3] == 8);
     CHECK(E[4] == -7 && E[5] == 8 && E[6] == -7 && E[7] == 8 && E[8] == -7 && E[9] == 8);
     CHECK(memcmp(a_game + 0xA0, game + 0x1A0, 8) == 0 && memcmp(a_game + 0xB0, game + 0x1B0, 4) == 0);
-    /* in the window, an arena pointer is its N64 address */
-    if (window)
-        CHECK(S.p == (void *)(uintptr_t)BOOT(0x84) && P[9] == (void *)(uintptr_t)OVL(0x120));
     /* stats */
     CHECK(st->unresolved == 1 && st->raw == 2 && st->no_code == 1 && st->ambiguous == 1 && st->rdram == 2);
     CHECK(st->own == 6);   /* P[0], P[1], P[6], P[8], Q[1].y, P[14] */
@@ -356,19 +339,15 @@ static void run(int window)
     CHECK(P[13] == (void *)(a_game + 0x90) && memcmp(P[13], "1NYS", 4) == 0);
     CHECK(P[12] == (void *)(a_boot + 0x18) && memcmp(P[12], "HELLO", 6) == 0);
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */
-    /* both address-like words; the one of own storage can't be reached through a u32, nor the arena word when
-     * the arena is host memory */
-    CHECK(st->addr_words == 2 && st->addr_words_host == (window ? 1u : 2u));
+    /* both address-like words, neither of which a u32 can reach: own storage, and an arena's block */
+    CHECK(st->addr_words == 2 && st->addr_words_host == 2);
 
-    /* In the window, the runtime images' arenas (the "heap") are clear until loaded; in host memory they keep
-     * their data. */
+    /* The runtime images' arenas (on the N64, the "heap") are clear until their image is loaded. */
     memcpy(&w, a_ovl_a + 0x10, 4);
-    CHECK(window ? w == 0 && a_ovl_b[0x10] == 0 : w == 0xCAFEF00D && a_ovl_b[0x10] == 0x42);
-    if (window) {
-        CHECK(pc_data_load_image(&tables, 2) == 0 && pc_data_load_image(&tables, 3) == 0);
-        memcpy(&w, a_ovl_a + 0x10, 4);
-        CHECK(w == 0xCAFEF00D && a_ovl_b[0x10] == 0x42);
-    }
+    CHECK(w == 0 && a_ovl_b[0x10] == 0);
+    CHECK(pc_data_load_image(&tables, 2) == 0 && pc_data_load_image(&tables, 3) == 0);
+    memcpy(&w, a_ovl_a + 0x10, 4);
+    CHECK(w == 0xCAFEF00D && a_ovl_b[0x10] == 0x42);
 
     /* overlay reload: data back to its ROM values, BSS zeroed, game-C data back to its startup value */
     a_ovl_a[0x10] ^= 0xFF;
@@ -416,22 +395,12 @@ static void run(int window)
     images[3].size = 0x81;
     state.image[3] = NULL;
     CHECK(pc_data_load_image(&tables, 3) != 0);
-    fprintf(stderr, "pc_data_test: arenas in %s memory: %s\n", where, failures ? "failures so far" : "ok");
 }
 
 int main(void)
 {
     build_rom();
-    run(0);
-    /* An RDRAM window like port/ultra's (4 MiB is enough here). */
-    void *want = (void *)(uintptr_t)PC_RDRAM_BASE;
-    void *p = mmap(want, 0x400000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (p == want) {
-        run(1);
-    } else {
-        fprintf(stderr, "FAIL: cannot map a window at host 0x%08X\n", PC_RDRAM_BASE);
-        failures++;
-    }
+    run();
     reset_state();
 
     if (failures)

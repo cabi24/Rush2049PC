@@ -64,12 +64,14 @@ int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
-/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld), and data in the arenas at their N64
- * addresses (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data loader's
- * tables by name, and for the first three the N64's memory map (pc_n64_map.h) and the tables' heap start. */
+/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld: what the RDRAM window still holds), and data in
+ * the arenas' blocks (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data
+ * loader's tables by name, and for the first three the N64's memory map (pc_n64_map.h) and the tables' heap start. */
 extern uint8_t game_bss_end[], overlay_base[];
 extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
+/* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
+#define ARENA_PAGE 0x1000u
 #ifdef RUSH_NOFIXED
 /* RUSH_NOFIXED (docs/port/NOFIXED.md 2): those names are relative to the window, data.c's section pc_window: N64
  * address a at pc_window + (a - PC_RDRAM_BASE). The game C translates with pc_window_base (port/ultra/n64mem.c). */
@@ -391,6 +393,16 @@ static uint32_t abs_word(const uint32_t *name)
     return v;
 }
 
+/* A datum of an arena (port/data, docs/port/DATA.md 3): where the loader's tables put its N64 address (its arena's
+ * block + the offset), at its N64 address's offset in a page, as aligned as on the N64. The block is the executable's
+ * BSS, which "host addresses above 4 GiB" checks is high (g_log). */
+static int in_block(const uint8_t *p, const char *name)
+{
+    uint32_t a = pc_data_addr_of(&pc_data_tables, name);
+    return a && p == pc_data_host_of(&pc_data_tables, a, -1) &&
+           ((uintptr_t)p & (ARENA_PAGE - 1)) == (a & (ARENA_PAGE - 1));
+}
+
 /* Window addresses for the checks: PROBE 4 KiB into RDRAM, through KSEG0 and KSEG1 and as a physical address; a
  * block's base below 16 MiB (RELOC_LOW), whose relocations keep its physical address, and one at 16 MiB (RELOC_HIGH),
  * whose relocations keep its KSEG0 address (docs/port/MEMORY.md 3). */
@@ -459,10 +471,9 @@ static void t_memory(void)
               d);
     }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)gWaveSizes, (void *)wave_rom_offsets, (void *)gTrophyMat);
-    const PcDataTables *tables = &pc_data_tables;
-    check("game data at its N64 addresses", AT_N64(gWaveSizes, pc_data_addr_of(tables, "gWaveSizes")) &&
-                                                AT_N64(wave_rom_offsets, pc_data_addr_of(tables, "wave_rom_offsets")) &&
-                                                AT_N64(gTrophyMat, pc_data_addr_of(tables, "gTrophyMat")), d);
+    check("game data in its arena's block", in_block(gWaveSizes, "gWaveSizes") &&
+                                                in_block(wave_rom_offsets, "wave_rom_offsets") &&
+                                                in_block(gTrophyMat, "gTrophyMat"), d);
     int local;
     snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
     check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,
@@ -927,17 +938,9 @@ static void controller(void *arg)
     t_memory();
     t_rcp();
     t_ai_device();
-#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the boot arena's names are in the window, so the checks run (NOFIXED.md 6) */
-    if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the game's libultra C keeps its state in the boot arena (NOFIXED.md 5) */
-        fprintf(stderr, "selftest: guard: the controller and pak checks skipped: their game C reaches the boot arena "
-                "by name\n");
-    } else
-#endif
-    {
-        t_pif();
-        t_ports();
-        t_store();
-    }
+    t_pif();   /* the game's libultra C keeps its state in the boot arena's block, in every mode */
+    t_ports();
+    t_store();
     if (pc_time_paced()) {
         /* Paced mode: the virtual clock, moved at the wall clock's pace. One wait of 2 s of N64 time takes 2 s of wall
          * time (RUSH_PACE_SPEED's tests: that much less): not less but for a lag the checks before left, caught up

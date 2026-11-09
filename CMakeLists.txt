@@ -117,9 +117,10 @@ option(RUSH_CHECK_CASTS "Check the game's 32-bit N64 address stores for host add
 if(RUSH_CHECK_CASTS)
     target_compile_definitions(game_flags INTERFACE RUSH_CHECK_CASTS)
 endif()
-# No fixed address (docs/port/NOFIXED.md, phase B): the RDRAM window is pc_window, a zero-fill section of the
-# executable that data.c defines, and the game's names are relative to it (gen_data, gen_stubs, reserved.txt), so
-# nothing is mapped at a fixed host address and no GOT slot is fixed up; the game C's boundaries between a 32-bit N64
+# No fixed address (docs/port/NOFIXED.md, phase B): the RDRAM window (the game's heap, libultra's low memory) is
+# pc_window, a zero-fill section of the executable that data.c defines, and the names it holds are relative to it
+# (gen_data, gen_stubs; the arenas are blocks of their own in every build), so nothing is mapped at a fixed host
+# address and no GOT slot is fixed up; the game C's boundaries between a 32-bit N64
 # address and a host pointer translate (pc_prelude.h), with PC_N64W checked. Off by default: the fixed window stays
 # the default until phase D. ELF only for now (Linux).
 option(RUSH_NOFIXED "The RDRAM window anywhere: a section of the executable, the names relative to it" OFF)
@@ -137,7 +138,8 @@ endif()
 # The crossing counter and the arena guard (docs/port/NATIVE.md 9, wave 3's measure): every place the game or the PC
 # layer turns a 32-bit N64 address into a host pointer or back, counted by its site and written at exit
 # (RUSH2049_CROSSINGS=FILE; tools/port/crossings.py runs the synthetic paths and reports), and RUSH2049_WINDOW_GUARD=
-# arenas, the game's data arenas in the window without access. port/ultra/crossings.c is built only here, and the
+# arenas, the window's ranges where the game's data arenas were on the N64 without access (the arenas are blocks of
+# host memory: whatever reaches them by an N64 address faults). port/ultra/crossings.c is built only here, and the
 # hooks elsewhere (port/include/pc_crossings.h) are nothing without the option: the default build doesn't change. A
 # Debug build (crossings.py makes one), with no inlining in any case: the PC layer's sites are counted by their caller,
 # which inlining would hide. Linux only (mprotect, a SIGSEGV handler), and the default layout only: the moved and
@@ -283,7 +285,6 @@ add_custom_command(
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/port/data/asm_functions.txt
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
             ${CMAKE_SOURCE_DIR}/port/data/decoupled.txt
-            ${CMAKE_SOURCE_DIR}/port/data/reserved.txt
             ${CMAKE_SOURCE_DIR}/asm/us/blob/symbols.json ${CMAKE_SOURCE_DIR}/asm/us/ovl_a/symbols.json
             ${CMAKE_SOURCE_DIR}/asm/us/ovl_b/symbols.json ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
@@ -291,7 +292,7 @@ add_custom_command(
     VERBATIM)
 add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
 target_include_directories(pcdata PRIVATE port/data)
-target_compile_options(pcdata PRIVATE -fno-common)   # the .set aliases need the arenas in a section
+target_compile_options(pcdata PRIVATE -fno-common)   # the .set names need the arenas' blocks in a section
 set_target_properties(pcdata PROPERTIES PC_NO_SANITIZE ON)   # no redzones between own storages (SANITIZE.md)
 # Own storage in the order data.c defines it, which is N64 address order: GCC reorders top-level definitions from -O1
 # on (at -O2 it put them in reverse), and game C that walks from one symbol to the next relies on the N64's order

@@ -132,11 +132,11 @@ What they settle:
 
 ## 3. What depends on what
 
-Four things live in the window today:
+Four things lived in the window when this plan was written (the arenas left it with step 5):
 
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
-| the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's, done) |
+| the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses; since step 5 blocks of host memory | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's; all done, so nothing since step 5) |
 | the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API; the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers; ghosts, palettes, listeners; `osVirtualToPhysical` |
 | the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
@@ -424,7 +424,13 @@ What else keeps an arena address, and the renderer's two image addresses: the sk
 edits memory.c's other functions: rebase). Risk: the colour image's address also reaches the renderer's copies of
 the frame (screenshots, the high frame rate's targets, `gfx_api.c`), so the screenshots are the check.
 
-### Step 5. The arenas out of the window, as blocks (medium)
+### Step 5. The arenas out of the window, as blocks (medium): done
+
+Done 2026-11-09 (wave 3.2): what changed, the crossings and the guard before and after, the retail cartridge's words
+and the proof are section 11. In short: each arena is a block of host memory `data.c` defines, in the N64 layout,
+every name in it relative to its block; nothing reaches an arena by an N64 address along the 63 paths (the guard: 0
+faults, none stopped); objsame `same` for every unit; the census's `data.arena.*` and `data.reserved` at 0. The plan
+was:
 
 4.1. Files: `tools/port/gen_data.py` (the layout, `--check`, the reserved rules gone), `tools/port/n64syms.py`,
 `port/data/pc_data.c` and `pc_data.h` (an arena's host is its block; `at_n64_address` goes), `port/data/datacheck.c`,
@@ -782,11 +788,13 @@ crossings are the counter's `ovl_a_arena` and `ovl_b_arena`; step 12's guard of 
 call given an arena buffer would fail (EFAULT) rather than fault: none happens along the synthetic paths (every
 guarded run's trace, screenshots and sound included, is the default build's).
 
-Today the arenas are at their N64 addresses, so **every access by name faults too**: on this layout the guard proves
-it sees what it should, and its sites are the game's by-name accesses, which step 5 moves with no change to the code.
-It can't tell those from a crossing into an arena (both are the same address): steps 2-4's targets are the counter's
-arena regions (9.4). After step 5 the two are one: the guard, counting or stopping, must find nothing, and anything it
-finds is a crossing steps 2-4 left.
+Until step 5 the arenas were at their N64 addresses, so **every access by name faulted too**: on that layout the
+guard proved it sees what it should, and its sites were the game's by-name accesses, which step 5 moved with no change
+to the code. It couldn't tell those from a crossing into an arena (both were the same address): steps 2-4's targets
+were the counter's arena regions (9.4). Since step 5 the arenas are blocks of host memory and the window's pages over
+their N64 ranges hold nothing, so the two are one: the guard, counting or stopping, finds nothing along the 63 paths
+(section 5, step 5), and anything it finds would be a crossing into an arena (ctest `crossings_paths` and
+`crossings_guard_stop` check `--no-faults`).
 
 ### 9.4 The baseline (68069845, the 63 synthetic paths)
 
@@ -944,3 +952,121 @@ window address (`pc_n64_ptr`, 171 crossings into the heap, as before).
 - `pc_statll_link` and `pc_statll_set_link` stay in the counter's kinds (always 0 now), so a report still lists every
   kind; `port/assets/tests/support.h`'s `TEST_N64_gTargetArray` is unused (left to spare step 2's edits beside it a
   merge conflict).
+
+## 11. Step 5: the arenas as blocks (done 2026-11-09)
+
+Wave 3.2's step 5: each image's data and BSS is a block of host memory, no longer at its N64 addresses in the RDRAM
+window. Two commits: the state hash first (it finds the arenas through the loader's tables, so it hashes the same game
+on either layout), then the layout, the loader, their tests and checks.
+
+| What | Before | After |
+|---|---|---|
+| the four arenas | at their N64 addresses in the window: boot 0x800277D0-0x80086A50, game 0x8010FD7C-0x8017A640, the runtime images' in their heap block | blocks in `data.c`'s BSS: `pc_arena_boot` (0x5FA50 bytes, from 0x80027000), `pc_arena_game` (0x6B640, from 0x8010F000), `pc_arena_ovl_a` (0xBE20, from 0x803AF000), `pc_arena_ovl_b` (0x8440, from 0x80393000). Each is 4 KiB-aligned and starts at the page of its arena's first N64 address, so every datum keeps its N64 address's page offset, and so its alignment ([DATA.md](DATA.md) 3) |
+| the 1,633 names in them | `.set name, 0x8010xxxx`, absolute (`pc_window + off` in the moved build) | `.set name, pc_arena_game + (address - 0x8010F000)`, relocatable, in every build; the overlays' BSS ends one past their blocks. Each of `data.c`'s 1,645 `.set`s comes to the base's N64 address (block + offset) |
+| the loader's tables | an arena's host its N64 address | its block + the page offset; every other table the base's (`data.c` from `pc_runs` on, `data_symbols.txt`, `data_layout.txt`) |
+| the loader (`pc_data.c`) | `at_n64_address`, `arena_host` (the guard mode's window), a check that the window is mapped; a word holding an arena's address `[arena]`, reachable | all gone; a pointer into an arena is its block + the offset (undescribed bytes too); every arena above 4 GiB; such a word is "to host storage or code"; the runtime images' blocks cleared after the first load, as their window ranges were |
+| `port/data/reserved.txt`, gen_data's reserved rules | (empty since step 4) | gone |
+| the GOT fix-up (`absfix.c`) | `aliases.ld`'s and `data.c`'s absolute names (1,802 slots on aarch64) | `aliases.ld`'s alone |
+| the state hash (`statehash.c`) | the arenas were the window's bytes | a full-hash region `arenas`, by the window's rules; a host pointer into an arena hashed as its N64 address (the bytes the window held); the curated regions in an arena by the N64 rules; `RUSH_SIM_DESYNC` and `pc_n64_identity` through the tables; the report's `.window` with the arenas at their N64 places |
+| the self-test | "game data at its N64 addresses"; the controller and pak checks skipped in the guard mode (`RUSH2049_NOFIXED=guard`) | "game data in its arena's block"; those checks run in the guard mode too (41 of 41) |
+| the test programs | `pc_data_test` ran its tables twice, the second time with the arenas in a window it mapped at 0x80000000; `rush2049pc_datacheck` mapped the window | `pc_data_test` once, with blocks; `datacheck` maps nothing and checks each arena's page offset |
+| ctest `crossings_paths`, `crossings_guard_stop` | `--expect-faults` | `--check --no-faults` |
+| `endian_check.py --check-loader` | read an arena's row of `data.c` with its N64 address (or `pc_window` + offset) as its host | with its block + offset too |
+
+The renderer's game-arena values (`default_lights` in MOVEMEM, `cull_vertices` and `cull_box_vertices_a` in VTX: the
+data's own address in the game's native lists, 9.4) are host pointers now by themselves, with no change to any list:
+`gfx.native_list` lost the two sites that saw only those, and `pc_n64_ptr` (the renderer's `pcgfx_resolve`) its
+game-arena share.
+
+**The crossings** (`crossings.py --guard`, the 63 synthetic paths; 786dec37 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `pc_n64_ptr` | 8 | 18,224,444 | 8 | 16,614,662 | game_arena 1,609,782: the renderer resolving the native lists' arena pointers |
+| `gfx.native_list` | 7 | 7,895,283 | 5 | 6,285,501 | game_arena 1,609,782: `default_lights`, `cull_vertices`, `cull_box_vertices_a` |
+| the other twelve kinds | 166 | 17,617,809 | 166 | 17,617,808 | none (the last digit: 9.4's frames around the exit) |
+| total | 181 | 43,737,536 | 179 | 40,517,971 | |
+
+No kind has an arena region left (`crossings.py --report build/crossings/paths --check --zero-region
+game_arena,boot_arena,ovl_a_arena,ovl_b_arena` passes), and no translation sees a host pointer it would cut to 32
+bits: `PC_N64A`, `PC_N64W` and `PC_SLOT_SET` have no `host` region.
+
+**The guard** (`RUSH2049_WINDOW_GUARD=arenas,count`, then `arenas`): before, 4,428,357 faults at 449 instructions, the
+game's every access by name (9.3); after, 0 faults at 0 instructions, and 0 of the 63 stopping runs stopped
+(`crossings.py --build build/count --guard --stop --check --no-faults`: every run as its script expects, every guarded
+run's trace its plain run's). The heap's first page is the game arena's last on the N64 (0x8017A000): the heap's own
+accesses open it each frame, 2,909 such faults on "the guarded pages' other bytes" before and 46,595 after, since no
+access by name opens it first now. They aren't crossings (9.3).
+
+**The retail cartridge's words** (the lead's loader report, on the Pi). 8 u32 data words hold an N64 address into an
+arena. Six are numbers that look like addresses: the build date's and time's text, a colour word of
+`trophySheenColor`, a word of `track1Parts` that points at an unaligned place. The others are in `rsp_init_dl`
+(`Gfx[11]`, the gap to `gWaveSizes`): its words from +0x38 to +0x48 say where `frame_command_buffer_a`,
+`rsp_dram_stack`, `rsp_yield_buffer`, `rdp_fifo_buffer` and `rdp_fifo_buffer_end` were on the N64, an RSP task's
+buffers. Nothing on the PC reads them:
+
+- no N64 code names that place: no image's symbol table has a symbol from `rsp_init_dl` to `gWaveSizes`;
+- the renderer runs the list (`StartGraphics`' first call) to its G_ENDDL, which comes before them; were it to read
+  on, their first byte, 0x80, is no F3DEX2 opcode, which it counts as unknown (`--verbose`'s `gfx: task:` lines) and
+  never follows;
+- the frame's graphics task takes its buffers by name (`EndGraphics`: `rsp_dram_stack`, `rdp_fifo_buffer` ...), and
+  the scheduler and the audio task use their own records.
+
+So they stay the numbers the loader converted, which point at nothing on the PC; `include/game/text.h` says so at the
+declaration. The report still classes them `[arena]`, now counted "to host storage or code". The retail report's 1,358
+undescribed pointers resolve to their block + the offset as they resolved to the window (the loader's arena rule
+doesn't look at the description; `pc_data_test` checks one), and the 28 into low memory are kept as they were. For the
+lead's runs on the Pi: the census with `--report` as before; the retail scripts in the counting build with `--check
+--zero-region game_arena,boot_arena,ovl_a_arena,ovl_b_arena` and in the guard's modes (`--no-faults`), which see what
+the synthetic paths don't (songs, objects); and `--verbose`, whose `gfx: task:` lines count no unknown command if
+`rsp_init_dl` ends where it should.
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| objsame, Debug and RelWithDebInfo, against 786dec37's builds (`~/rush2049pc/w3b-ref`) | 966 of 966 units `same`, and of their -O0 copies (`types_objects.txt`) |
+| `data.c` against the base's | the 1,645 `.set`s each at the base's N64 address; from `pc_runs` on the same but `pc_arenas`' hosts; `data_symbols.txt` and `data_layout.txt` the same files |
+| `gen_data.py --check` (Debug) | 1,633 in 4 arenas' blocks, 12 inside own storage, 394 own in N64 order, 20 runtime-image C data in their C ranges, 39 decoupled, nothing else in the window: OK (RelWithDebInfo: 14 C data, as before) |
+| the gate: `pconly_gate.sh --base ~/rush2049pc/w3b-ref --skip realtime --data-moved` (Rocky, Debug) | PASS: ctest 572 of 572, synth_compare `--same --shots --audio` 63 of 63 `same` (`pause12` varied, alone `same`). The first run had found `endian_check` reading the arena rows by the old form (fixed in the step's commit) |
+| RelWithDebInfo against the base's (`synth_compare.py --same --shots --audio --data-moved -j6`) | 63 of 63 `same` (on the final tree `mods_big` varied once, its audio's last subframe between the step's own two runs, PCONLY.md 2's known variation; alone, `same`) |
+| `ctest --test-dir build/opt -LE realtime` | 572 of 572 (`assets_rom` skipped: no ROM on Rocky) |
+| the loader's summary line, the synthetic cartridge | the base's, its counts by class too: the paths are `same` without `--data-moved` |
+| the counting build | above: 0 faults, 0 of 63 stopped, no arena region, the zero checks |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug) | builds; `gen_data --check` OK (the 5 names the window holds at `pc_window` + their offsets); CI's ctest selection 93 of 93; 63 of 63 `same` against the fixed build (`synth_compare.py --runs 1 --same`, as CI's job) |
+| the guard mode (`RUSH2049_NOFIXED=guard rush2049pc --selftest --fast`) | 41 of 41, the controller and pak checks among them |
+| `offset_check.py --strict` (Debug), `alias_check.py`, `bounds_check.py` (RelWithDebInfo), `census.py` | no open finding (3 reviewed, as before); none open; none new; 1,070 of 1,070 compile |
+| PE (no mingw-w64 on Rocky; CI's cross build is the check) | `data.c` assembled for x86_64-w64-windows-gnu with clang: the blocks in a 4 KiB-aligned `.bss`, every name a `B` symbol at its block + offset (`gWaveSizes` at `pc_arena_boot` + 0x7580, `start_overlay_bss_end` one past `pc_arena_ovl_a`) |
+| `nofixed_audit.py --baseline` | no class grew; the baseline lowered for the classes the step moved (below) |
+
+The census (`window_census.py`, no compiler pass, the base's build against the step's): `data.arena.boot`, `game`,
+`ovl_a`, `ovl_b` 192, 965, 429, 47 to 0; `data.reserved` 0 (since step 4); `data.by_name.game` 608 to 7 (the objects
+that reach `aliases.ld`'s names); `data.by_name.port` 4 to 1; `conv.pc_n64_ptr.port` 27 to 25; `n64map.uses.port` 125
+to 120; `port.mapping` 22 to 19; `port.rdram_base` 51 to 46; `tests.window` 72 to 67; every other line the same.
+`nofixed_baseline.json` (`nofixed_audit.py`, the base's build measured against the step's): `symbols.arena.*` gone
+(192, 966, 429, 47), `symbols.by_name.game_objects` 608 to 8, `port_objects` 4 to 1, `symbols.names_reached.*` 1,639
+and 33 to 5 and 4, `port.mapping` 27 to 24 (`.tests` 19 to 16), `port.rdram_base` 48 to 45 (`.tests` 40 to 38),
+`port.translate` 32 to 30, `port.zext` 21 to 18 (`.tests` 42 to 32).
+
+**What this changes for the later steps.**
+
+- The RDRAM window holds the heap and low memory only; its pages over the arenas' N64 ranges are never touched. Step
+  12 takes it away with the heap.
+- A pointer to arena data is a host pointer above 4 GiB like any other: a `PC_N64A` or `PC_N64W` of one would cut it
+  to its low half, with nothing to fault. The counter shows that as the `host` region of `PC_N64A`, `PC_N64W` or
+  `PC_SLOT_SET` (none on these paths): a later step's run should keep those at 0, and so should the lead's retail runs.
+- The heap block `load_overlay` reserves for the runtime images (0x8038A400-0x803BB380) has nothing copied into it
+  now: it is the heap's accounting alone, which step 6 makes an offset.
+- The state hash's `arenas` region: data that later leaves the arenas (step 13's objects) joins the hash as decoupled
+  data does.
+- `window_census.py` and `nofixed_audit.py` read `data_layout.json`'s `absolute`, which gen_data keeps (empty); its
+  `blocks` and `arena_names` lists name the blocks and the names in them, for a tool that wants them.
+- Step 13 starts from the blocks: each datum its own object, each walk ended at its array or made a struct, under
+  AddressSanitizer.
+- The test programs that place game data at N64 addresses in windows of their own (`port/assets/tests/support.*`, the
+  20 files of `tests.window`, now 19) link `absfix.c` for that, and are step 11's.
+- PE: the blocks' names are section-relative symbols in `.bss`, as the names inside own storage always were there,
+  reached through `.refptr` slots that now get base relocations ([WINDOWS.md](WINDOWS.md) 3); CI's Windows cross build
+  links and checks them (`gen_data.py --check --pe`). Mach-O (never built): the relative `.set`s need `.alt_entry` as
+  [NOFIXED.md](NOFIXED.md) 2.2 says.
+- `n64syms.py` needed nothing: its `ARENAS` are the images' N64 ranges, the ROM's format.

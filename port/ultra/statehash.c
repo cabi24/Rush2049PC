@@ -2,19 +2,22 @@
  *
  * At each retrace, after the pads gate and while every N64 thread waits (loop.c's snapshot), the curated regions are
  * hashed: the model records, the car records, the roster, the random seed, the state words, the model tick, the race
- * time, the controllers as the game read them and the cameras. Every `full` retraces the whole RDRAM window, the
- * game's own storage (port/data's symbols kept outside the window because they hold pointers) and the decoupled data
- * (port/data/decoupled.txt) are hashed too.
+ * time, the controllers as the game read them and the cameras. Every `full` retraces the whole RDRAM window (the
+ * heap, low memory), the game's own storage (port/data's symbols that hold pointers), the decoupled data
+ * (port/data/decoupled.txt) and the arenas (port/data's blocks of the game's data and BSS in the N64 layout) are
+ * hashed too.
  *
  * Host pointers. Game data holds host pointers where the N64 held 32-bit addresses (the window's N64 addresses are the
  * same in every process: it is mapped at PC_RDRAM_BASE). A host pointer's value differs from one process to the next
  * (ASLR) and between Windows and Linux (other image layouts), though both point at the same thing. So it is hashed as
  * what port/data's tables say it points to: an own-storage symbol's N64 address and N64 offset (the same on every
- * OS), a game function's N64 address, a decoupled item and offset, a runtime image's C data; a pointer elsewhere in
- * the image (the PC's buffers in game C) only as such. Which values are pointers depends on the bytes (scan()):
- *   - N64-layout data (the window, own storage's untyped bytes): a u64 equal to a named target's first byte (or to a
- *     record's of a decoupled array the window's data points into, g_record_arrays: the level-object nodes) or to a
- *     function, which no pair of numbers or texels hits by chance;
+ * OS), a game function's N64 address, a decoupled item and offset, a runtime image's C data, an arena's datum as the
+ * N64 address it had in the window (the 8 bytes the window held there before docs/port/NATIVE.md step 5); a pointer
+ * elsewhere in the image (the PC's buffers in game C) only as such. Which values are pointers depends on the bytes
+ * (scan()):
+ *   - N64-layout data (the window, the arenas, own storage's untyped bytes): a u64 equal to a named target's first
+ *     byte (an arena's datum's among them, or a record's of a decoupled array the window's data points into,
+ *     g_record_arrays: the level-object nodes) or to a function, which no pair of numbers or texels hits by chance;
  *   - own storage's elements the tables type as pointers or as the N64's longs (8 bytes on the PC: intptr_t): any value
  *     but a 32-bit one (0, a window address, a number), one outside the image taken as "a heap pointer" (a table the
  *     loader copied, a converted file) without its address;
@@ -160,7 +163,7 @@ extern const unsigned char pc_image_base[] __asm__("__ImageBase");   /* the link
 extern char __executable_start[], _end[];
 #endif
 
-enum { K_OWN = 1, K_FUNC = 2, K_DECOUPLED = 3, K_CRANGE = 4, K_IMAGE = 5, K_HEAP = 6 };
+enum { K_OWN = 1, K_FUNC = 2, K_DECOUPLED = 3, K_CRANGE = 4, K_IMAGE = 5, K_HEAP = 6, K_ARENA = 7 };
 
 /* The decoupled data (port/data/decoupled.txt, docs/port/DECOUPLE.md): game data the PC owns with no N64 address,
  * outside the window. Every name of decoupled.txt, in its order (ctest hash_decoupled_list checks): a pointer into
@@ -193,7 +196,7 @@ static const struct {
 
 typedef struct {
     uintptr_t lo, hi;
-    uint32_t id;     /* the N64 address, or index << 24 */
+    uint32_t id;     /* the N64 address (an arena's: its first byte's), or index << 24 */
     uint8_t kind, image;
     int32_t sym;     /* K_OWN: its index in the tables, for the N64 offset of a host one */
 } Target;
@@ -239,6 +242,28 @@ static void add_target(uintptr_t lo, size_t size, uint32_t id, int kind, int ima
 
 static void pointers_build(void);
 static void hash_exclusions_resolve(void);
+
+/* The host address of N64 address a when an arena holds it (its block + the offset; NULL otherwise), but for the
+ * symbols with storage of their own inside an arena's range (port/data's own storage and game-C data): a pointer to
+ * one of those is to its own storage, never to the block's bytes under it. */
+static const uint8_t *arena_host(const PcDataTables *t, uint32_t a)
+{
+    uint32_t lo = 0, hi = t->n_syms;
+    while (lo < hi) {   /* the first symbol above a */
+        uint32_t mid = (lo + hi) / 2;
+        if (t->syms[mid].n64_addr <= a)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo && a - t->syms[lo - 1].n64_addr < (t->syms[lo - 1].n64_size ? t->syms[lo - 1].n64_size : 1))
+        return NULL;
+    for (uint32_t i = 0; i < t->n_arenas; i++)
+        if (a >= t->arenas[i].n64_lo && a < t->arenas[i].n64_hi)
+            return t->arenas[i].host + (a - t->arenas[i].n64_lo);
+    return NULL;
+}
+
 static pthread_once_t g_pointers_once = PTHREAD_ONCE_INIT;
 
 static void pointers_init(void)   /* any thread: pc_n64_identity is the game's */
@@ -271,13 +296,21 @@ static void pointers_build(void)
     for (uint32_t i = 0; i < t->n_cranges; i++)
         add_target((uintptr_t)t->cranges[i].start, (size_t)(t->cranges[i].end - t->cranges[i].start), 0, K_CRANGE,
                    t->cranges[i].image, -1);
+    for (uint32_t i = 0; i < t->n_arenas; i++)   /* each arena's block: its N64 range */
+        add_target((uintptr_t)t->arenas[i].host, t->arenas[i].n64_hi - t->arenas[i].n64_lo, t->arenas[i].n64_lo,
+                   K_ARENA, t->arenas[i].image, -1);
     qsort(P.t, (size_t)P.nt, sizeof *P.t, by_lo);
     size_t records = 0;
     for (int i = 0; i < N_RECORD_ARRAYS; i++)
         records += g_record_arrays[i].count;
-    P.starts = calloc((size_t)P.nt + t->n_funcs + records + 1, sizeof *P.starts);
+    P.starts = calloc((size_t)P.nt + t->n_names + t->n_funcs + records + 1, sizeof *P.starts);
     for (int i = 0; P.starts && i < P.nt; i++)
         P.starts[P.nstarts++] = P.t[i].lo;
+    for (uint32_t i = 0; P.starts && i < t->n_names; i++) {   /* each datum of an arena, at its place in the block */
+        const uint8_t *h = arena_host(t, t->names[i].n64_addr);
+        if (h)
+            P.starts[P.nstarts++] = (uintptr_t)h;
+    }
     for (int i = 0; P.starts && i < N_RECORD_ARRAYS; i++)
         for (uint32_t k = 1; k < g_record_arrays[i].count; k++)   /* record 0's start is the array's, above */
             P.starts[P.nstarts++] = (uintptr_t)g_record_arrays[i].p + (uintptr_t)k * g_record_arrays[i].stride;
@@ -386,6 +419,8 @@ static uint64_t canonical(uintptr_t v)
         if (v < P.t[k].hi) {
             const Target *g = &P.t[k];
             uint32_t off = (uint32_t)(v - g->lo);
+            if (g->kind == K_ARENA)   /* the N64 address itself, as the window held it */
+                return g->id + off;
             if (g->kind == K_OWN)
                 off = own_n64_offset(&pc_data_tables.syms[g->sym], off);
             return (uint64_t)TAG(g->kind, g->image) << 32 | (uint32_t)(g->id + off);
@@ -403,7 +438,7 @@ uint64_t pc_hash_pointer(uint64_t v)
 
 /* pc_prelude.h's pc_n64_identity, through port/ultra/n64mem.c's hook: the 32-bit N64 address a pointer stands for
  * where the game keeps one as a number (an id): a window pointer's own; own storage's, its symbol's N64 address and
- * offset, as on the N64; else the low half, as PC_N64A. */
+ * offset, as on the N64; an arena's datum's, its N64 address; else the low half, as PC_N64A. */
 static unsigned int n64_identity(const void *p)
 {
     uint32_t a = p ? pc_n64_addr(p) : 0;
@@ -411,8 +446,8 @@ static unsigned int n64_identity(const void *p)
     if (a || !p)
         return a;
     c = pc_hash_pointer((uintptr_t)p);
-    if (c && (uint32_t)(c >> 32) == TAG(K_OWN, (uint32_t)(c >> 32) & 0xFF))
-        return (uint32_t)c;
+    if (c && ((uint32_t)(c >> 32) == TAG(K_OWN, (uint32_t)(c >> 32) & 0xFF) || !(c >> 32)))
+        return (uint32_t)c;   /* own storage's, or an arena's (canonical gives those the N64 address alone) */
     return (unsigned int)(uintptr_t)p;
 }
 
@@ -505,15 +540,15 @@ static int is_start(uintptr_t v)
     return 0;
 }
 
-/* How a region's bytes are read for pointers. Data the game keeps in N64 layout (the window, own storage's bytes the
- * tables don't type as pointers) holds numbers and texels too, and two words of them can make a value in the image's
- * range in one process and not in another (where the image's high half is a small number, 16-bit texel data can be
- * it): there only a pointer to a named target's first byte, or to a function, is one, which no pair of numbers hits by
- * chance. The PC's own C structs (the curated and decoupled data) keep their pointers at 8-byte offsets: there any
- * 8-byte-aligned value pointing into a named target is one. */
+/* How a region's bytes are read for pointers. Data the game keeps in N64 layout (the window, the arenas, own storage's
+ * bytes the tables don't type as pointers) holds numbers and texels too, and two words of them can make a value in
+ * the image's range in one process and not in another (where the image's high half is a small number, 16-bit texel
+ * data can be it): there only a pointer to a named target's first byte, or to a function, is one, which no pair of
+ * numbers hits by chance. The PC's own C structs (the curated and decoupled data) keep their pointers at 8-byte
+ * offsets: there any 8-byte-aligned value pointing into a named target is one. */
 enum { SCAN_EXACT, SCAN_STRUCT };
 
-/* The patches of the bytes [p, p + n), in order; n64 is p's N64 address in the window (0 elsewhere). */
+/* The patches of the bytes [p, p + n), in order; n64 is p's N64 address in the window or an arena (0 elsewhere). */
 static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
 {
     const uintptr_t lo = P.img_lo, span = P.img_hi - P.img_lo;
@@ -623,7 +658,7 @@ static void typed_pointers(const uint8_t *p, size_t n, uint32_t k)
 }
 
 /* own: own storage's symbol index (typed pointers, the rest read as N64 data), -1 for the PC's C structs (curated,
- * decoupled), -2 for the window. */
+ * decoupled), -2 for N64 data (the window, an arena). */
 static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64, uint32_t *pointers,
                                   uint32_t *image, uint8_t *out)
 {
@@ -639,7 +674,7 @@ static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64
     return h;
 }
 
-/* A region in the window is N64 data (the window's rules); outside, the PC's own C structs. */
+/* A region in the window or an arena is N64 data (the window's rules); elsewhere, the PC's own C structs. */
 static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *pointers, uint32_t *image, uint8_t *out)
 {
     return hash_region_typed(p, n, n64 ? -2 : -1, n64, pointers, image, out);
@@ -678,10 +713,25 @@ static const Curated *curated(int *n)
     return c;
 }
 
-static uint32_t window_n64(const void *p)
+/* The N64 address of a curated region that is N64 data: in the window, or in an arena's block (0: the PC's own C
+ * structs). */
+static uint32_t data_n64(const void *p)
 {
+    const PcDataTables *t = &pc_data_tables;
     uintptr_t a = (uintptr_t)p, w = (uintptr_t)pc_rdram();
-    return w && a - w < pc_rdram_size() ? PC_RDRAM_BASE + (uint32_t)(a - w) : 0;
+    if (w && a - w < pc_rdram_size())
+        return PC_RDRAM_BASE + (uint32_t)(a - w);
+    for (uint32_t i = 0; i < t->n_arenas; i++)
+        if (a - (uintptr_t)t->arenas[i].host < t->arenas[i].n64_hi - t->arenas[i].n64_lo)
+            return t->arenas[i].n64_lo + (uint32_t)(a - (uintptr_t)t->arenas[i].host);
+    return 0;
+}
+
+/* The word RUSH_SIM_DESYNC changes, by its N64 address: where the game has it (an arena's block, own storage, the
+ * window), through port/data's tables. */
+static uint32_t *sim_word(uint32_t a)
+{
+    return pc_data_host_of(&pc_data_tables, a, -1);
 }
 
 /* ---------------------------------------------------------------- the per-retrace work */
@@ -765,7 +815,7 @@ static void sim_desync_read(void)
         a = strtoul(end + 1, &end, 16);
         if (*end == ':')
             x = strtoul(end + 1, &end, 16);
-        if (!*end && pc_n64_ptr((uint32_t)a) && (a & 3) == 0) {
+        if (!*end && sim_word((uint32_t)a) && (a & 3) == 0) {
             H.sim_retrace = (uint32_t)r, H.sim_addr = (uint32_t)a, H.sim_xor = (uint32_t)x;
             H.sim_on = 1;
             fprintf(stderr, "rush2049pc: test: the word at 0x%08X changes (xor 0x%X) at retrace %u (RUSH_SIM_DESYNC)\n",
@@ -773,8 +823,8 @@ static void sim_desync_read(void)
             return;
         }
     }
-    fprintf(stderr, "rush2049pc: RUSH_SIM_DESYNC takes RETRACE:ADDRESS[:XOR] (a word of the window, hex), not '%s'\n",
-            e);
+    fprintf(stderr, "rush2049pc: RUSH_SIM_DESYNC takes RETRACE:ADDRESS[:XOR] (a word of the game's data or the window, "
+            "by its N64 address, hex), not '%s'\n", e);
 }
 
 static void compute(uint32_t n, int full, uint8_t *keep_out)
@@ -794,7 +844,7 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         PcHashRegion *r = &h->region[h->n++];
         r->name = c[i].name;
         r->bytes = c[i].size;
-        r->hash = sums[i] = hash_region(c[i].p, c[i].size, window_n64(c[i].p), &ptrs, &img, keep_out);
+        r->hash = sums[i] = hash_region(c[i].p, c[i].size, data_n64(c[i].p), &ptrs, &img, keep_out);
         r->pointers = ptrs;
         r->unnamed = img;
         if (keep_out)
@@ -846,9 +896,25 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         d->hash = pc_xxh64_digest(&s);
         d->pointers = ptrs;
         d->unnamed = img;
+        /* The arenas: N64 data as the window's is (the same rules, their N64 addresses for TRUNCATED and SCRATCH), one
+         * region of the game's data and BSS that was in the window until docs/port/NATIVE.md step 5. */
+        PcHashRegion *ar = &h->region[h->n++];
+        ptrs = img = bytes = 0;
+        pc_xxh64_init(&s, 0);
+        for (uint32_t i = 0; i < t->n_arenas; i++) {
+            uint32_t size = t->arenas[i].n64_hi - t->arenas[i].n64_lo;
+            uint64_t one = hash_region_typed(t->arenas[i].host, size, -2, t->arenas[i].n64_lo, &ptrs, &img, NULL);
+            pc_xxh64_update(&s, &one, sizeof one);
+            bytes += size;
+        }
+        ar->name = "arenas";
+        ar->bytes = bytes;
+        ar->hash = pc_xxh64_digest(&s);
+        ar->pointers = ptrs;
+        ar->unnamed = img;
         h->full = 1;
-        sums[0] = w->hash, sums[1] = o->hash, sums[2] = d->hash;
-        h->full_hash = pc_xxh64(sums, 3 * sizeof sums[0], 0);
+        sums[0] = w->hash, sums[1] = o->hash, sums[2] = d->hash, sums[3] = ar->hash;
+        h->full_hash = pc_xxh64(sums, 4 * sizeof sums[0], 0);
     }
     H.have_last = 1;
 }
@@ -873,7 +939,7 @@ void pc_hash_retrace(uint32_t n)
     if (!H.sim_read)
         sim_desync_read();
     if (H.sim_on && n == H.sim_retrace) {   /* the mutation check: before this retrace's hash */
-        uint32_t *w = pc_n64_ptr(H.sim_addr);
+        uint32_t *w = sim_word(H.sim_addr);
         *w ^= H.sim_xor;
         fprintf(stderr, "rush2049pc: test: retrace %u: the word at 0x%08X is now 0x%08X (RUSH_SIM_DESYNC)\n", n,
                 H.sim_addr, *w);
@@ -951,7 +1017,7 @@ int pc_hash_report(const char *path, uint32_t n)
             total += c[i].size;
         bytes = malloc(total);
         for (int i = 0, at = 0; bytes && i < nc; at += (int)c[i].size, i++)
-            hash_region(c[i].p, c[i].size, window_n64(c[i].p), &ptrs, &img, bytes + at);
+            hash_region(c[i].p, c[i].size, data_n64(c[i].p), &ptrs, &img, bytes + at);
     }
     if (bytes) {
         const uint8_t *q = bytes;
@@ -967,7 +1033,13 @@ int pc_hash_report(const char *path, uint32_t n)
         uint32_t ptrs = 0, img = 0, total = 0;
         uint8_t *w = malloc(pc_rdram_size());
         if (w) {
+            /* the window, with each arena (hashed apart, "arenas") at its N64 place, as the window held them before
+             * docs/port/NATIVE.md step 5: hash_compare.py --reports names the words by data_symbols.txt */
             hash_region_typed(pc_rdram(), pc_rdram_size(), -2, PC_RDRAM_BASE, &ptrs, &img, w);
+            for (uint32_t i = 0; i < t->n_arenas; i++)
+                if (t->arenas[i].n64_hi - PC_RDRAM_BASE <= pc_rdram_size())
+                    hash_region_typed(t->arenas[i].host, t->arenas[i].n64_hi - t->arenas[i].n64_lo, -2,
+                                      t->arenas[i].n64_lo, &ptrs, &img, w + (t->arenas[i].n64_lo - PC_RDRAM_BASE));
             write_file(path, ".window", w, pc_rdram_size());
             free(w);
         }

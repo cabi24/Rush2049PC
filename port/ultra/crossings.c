@@ -9,8 +9,8 @@
  * are return addresses there (the executable's offset): tools/port/crossings.py names their functions and lines.
  *
  * The arena guard: RUSH2049_WINDOW_GUARD=arenas (stop at the first access) or arenas,count (count every access and go
- * on). Once the game's data is loaded, the boot and game arenas' pages in the RDRAM window (both views, KSEG0 and
- * KSEG1) are mapped without access, so whatever reaches that data by its N64 address faults:
+ * on). Once the game's data is loaded, the RDRAM window's pages over the boot and game arenas' N64 ranges (both views,
+ * KSEG0 and KSEG1) are mapped without access, so whatever reaches that data by its N64 address faults:
  *   - stop: a note names the datum and the instruction, and the fault handler (misc.c) the N64 thread and the stack;
  *   - count: the fault is counted by its instruction and the page opened until the next graphics task, when every page
  *     closes again. So a run counts each page's first touch in a frame, which on the virtual clock (--fast) is the same
@@ -20,9 +20,10 @@
  * guarded: they lie in the heap block the game reserves for an image, which is heap memory (filled by the heap's free,
  * reused) whenever the image isn't loaded; the counter's ovl_a_arena and ovl_b_arena regions see their crossings.
  *
- * In the layout of today (port/data, docs/port/DATA.md 3) the arenas are at their N64 addresses, so every access by
- * name faults too: the guard proves it sees what it should. Once the arenas leave the window (NATIVE.md step 5), only
- * an N64 address that still reaches one does. POSIX only (mprotect and a SIGSEGV handler). */
+ * The arenas are blocks of host memory (port/data, docs/port/DATA.md 3; NATIVE.md step 5), so the window holds nothing
+ * there and an access by name never faults: only an N64 address that still reaches an arena does, which the synthetic
+ * paths have none of (crossings.py --guard --stop --check --no-faults). Until step 5 the arenas were at their N64
+ * addresses and every access by name faulted too. POSIX only (mprotect and a SIGSEGV handler). */
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <errno.h>
@@ -448,8 +449,8 @@ static void guard_start(const char *mode)
     sigaction(SIGSEGV, &sa, &g_prev);
     g_active = 1;
     protect_all(PROT_NONE);
-    fprintf(stderr, "rush2049pc: window guard (RUSH2049_WINDOW_GUARD=%s): the boot and game arenas' pages in the "
-            "window without access, %s (docs/port/NATIVE.md 9)\n", mode,
+    fprintf(stderr, "rush2049pc: window guard (RUSH2049_WINDOW_GUARD=%s): the window's pages over the boot and game "
+            "arenas' N64 ranges without access, %s (docs/port/NATIVE.md 9)\n", mode,
             g_guard == 1 ? "the first access stops the program" : "every page's first access in a frame counted");
 }
 

@@ -106,6 +106,16 @@ What each format allows:
 names; the loader's tables give each arena's host as `pc_window + off`, and `at_n64_address` becomes "inside the
 window".
 
+**Since [NATIVE.md](NATIVE.md) step 5 (2026-11-09) the arenas are no longer in any window**, in either build: each is
+a block of its own in `data.c` (`pc_arena_boot`, `pc_arena_game`, `pc_arena_ovl_a`, `pc_arena_ovl_b`, [DATA.md](DATA.md)
+3), and every arena name is `.set D_x, pc_arena_game + (a - the block's first N64 address)`: the same relative form, per
+arena instead of per window, with the same properties in each format (the table above: a section-relative symbol,
+GOT or `.refptr` slots with relocations, a file's own definitions PC-relative). `reserved.txt` and `at_n64_address` are
+gone. What stays at an N64 address is what the window still holds (the heap, low memory): `aliases.ld`'s names in the
+fixed build, `pc_window` + offset in the moved one. On PE the relative `.set` is what the names inside own storage
+already were there (CI's Windows cross build links and checks them: `gen_data.py --check --pe`); Mach-O's `.alt_entry`
+question above applies to the blocks as it did to the window.
+
 ### 2.3 The one translation
 
 Every boundary between a 32-bit N64 address and a host pointer takes one translation, the one `pc_n64_ptr` and
@@ -279,7 +289,7 @@ Build host, the branch's Debug build, the synthetic cartridge (`--no-rom-check -
 | Run | Reaches | Stops at, and why |
 |---|---|---|
 | the program's start | the options and settings, the ROM and its check, the mods' preparation, the window, the fault handler | |
-| `--selftest` | all 28 checks it runs pass: the threads, queues, events, timers, busy-waits, the window (K0, K1, physical through the translation, `osVirtualToPhysical`, `pc_rcp_reloc`), the absolute names' addresses and the low-memory words through the window, the RCP and AI checks, and `guard: window elsewhere` | the controller and pak checks are skipped in this mode (a line says so): without the skip `osContInit` (game C, `src/rom/libultra/controller.c:20`) faults at 0x8002C3B0, boot data it reaches by name |
+| `--selftest` | all 28 checks it runs pass: the threads, queues, events, timers, busy-waits, the window (K0, K1, physical through the translation, `osVirtualToPhysical`, `pc_rcp_reloc`), the absolute names' addresses and the low-memory words through the window, the RCP and AI checks, and `guard: window elsewhere` | the controller and pak checks are skipped in this mode (a line says so): without the skip `osContInit` (game C, `src/rom/libultra/controller.c:20`) faults at 0x8002C3B0, boot data it reaches by name. Since [NATIVE.md](NATIVE.md) step 5 the boot arena is a block of host memory: the skip is gone, and all 41 checks pass in this mode |
 | the synthetic cartridge | `pc_os_initialize` (the low-memory globals through `pc_n64_ptr`), the loader: all four images, every arena filled in the moved window, its summary line the same as the fixed run's | `mods_install` (`port/mods/mods.c:1173`, from `port/main.c:571`) reads `gWaveSizes` (`gWaveSizes`, boot data) by name. The arena names are absolute: everything after this that touches game data by name faults the same way, which is what phase B's relative names remove |
 
 ### 5.2 The unit tests under the guard
@@ -340,7 +350,8 @@ So the inventory's live casts are the work order, and the heap's (`audio_heap`, 
 target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and macOS (phase D).
 
 - **The window**: `data.c` defines `pc_window`, a `.n64window` section (`%nobits`, 64 KiB aligned, 0x10000000 bytes,
-  `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names,
+  `PC_RDRAM_MAX`), and every name at an N64 address as `.set x, pc_window + (a - 0x80000000)`: the 1,748 arena names
+  (until [NATIVE.md](NATIVE.md) step 5, since when they are relative to their arenas' blocks in both builds),
   `reserved.txt`'s items (`pc_matrix_spill` until [NATIVE.md](NATIVE.md) step 4), and the six names gen_stubs made absolute (`osTvType`/`osTvType`, `osMemSize`, `game_bss_end`,
   `overlay_base`, and the cartridge address `sample_bank_rom` at `pc_window + 0x30039B40`, past the section's end: the game
   only takes its 32-bit value, through the translation, `AudioInitSys.c:110`). Those six are `data.c`'s because a
@@ -350,9 +361,9 @@ target and passes `--nofixed` to gen_data and gen_stubs; it refuses Windows and 
   rule both use (the PC layer's definitions and the aliases count), and gen_stubs refuses an absolute name in that
   build. Measured: no absolute symbol in the moved `rush2049pc` (6 in the fixed one), and none of the GOT fix-up's to
   do.
-- **The tables**: each arena's host is `pc_window + off` and `PcDataTables.window` names the window; the loader
-  (`pc_data.c`) fills the arenas there and gives a kept heap value its place in it (`kept`). `pc_data_set_window`
-  stays the fixed build's guard mode's.
+- **The tables**: each arena's host was `pc_window + off` (its block since NATIVE.md step 5) and
+  `PcDataTables.window` names the window; the loader (`pc_data.c`) gives a kept heap value its place in it (`kept`).
+  `pc_data_set_window` stays the fixed build's guard mode's.
 - **`gen_data.py --check`**, the moved layout: `pc_window` a section symbol, 64 KiB aligned, its size; every name at
   `pc_window` + its offset; nothing else linked inside the section; no absolute symbol at an N64 address. On
   `rush2049pc_datacheck`: "1748 at pc_window + their N64 offsets in 4 arenas, 6 outside them, 49 inside own storage,

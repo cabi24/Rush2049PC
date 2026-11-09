@@ -95,34 +95,39 @@ zero (SIGFPE, reported with a backtrace like any fault): where a NaN or an infin
 **The RDRAM window is load-bearing.** The game addresses RDRAM outside its symbols with 32-bit arithmetic. It does
 this in the heap (`align32(0x8017A640)` to `osMemSize | K0BASE`, where every loaded file is relocated in place,
 [ASSETS.md](ASSETS.md)), the low-memory globals at 0x80000300 and the runtime images' region at 0x8038A400. The
-game's pointer-free data and BSS are in the window too, at their N64 addresses (port/data's arenas, [DATA.md](DATA.md)
-§3: boot 0x800277D0–0x80086A50, game 0x8010FD7C–0x8017A640, the runtime images' inside their heap block), so a
-32-bit N64 address of game data is a host address. An 8 MiB memfd (with `game.memory`, 16-256 MiB: [MEMORY.md](MEMORY.md))
-is mapped at host 0x80000000 (KSEG0) and again at 0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is
-filled. On Linux the mapping is required and
-the program stops if it fails, and on Windows too, where a file mapping is viewed at both addresses
-([WINDOWS.md](WINDOWS.md)). Elsewhere it falls back to a translated window (`pc_n64_ptr`), the game's literal
-addresses fault, and `pc_data_init` refuses to fill data that isn't mapped.
+game's pointer-free data and BSS are not in it: port/data's arenas are blocks of host memory in the executable, laid
+out as on the N64 ([DATA.md](DATA.md) §3; they were at their N64 addresses in the window until [NATIVE.md](NATIVE.md)
+step 5), so the window holds the heap and low memory only, and nothing is at the arenas' N64 ranges. An 8 MiB memfd
+(with `game.memory`, 16-256 MiB: [MEMORY.md](MEMORY.md)) is mapped at host 0x80000000 (KSEG0) and again at
+0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is loaded. On Linux the mapping is required and the
+program stops if it fails, and on Windows too, where a file mapping is viewed at both addresses
+([WINDOWS.md](WINDOWS.md)). Elsewhere it falls back to a translated window (`pc_n64_ptr`), and the game's literal
+addresses fault.
 
 **Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'
 stacks are mapped high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical,
 segmented), and game data in the window is simply RDRAM to it. The game gives the renderer its colour and depth
 images as the buffers' pointers; there is no `osVirtualToPhysical` (until [NATIVE.md](NATIVE.md) step 4 it made
-their physical addresses). In a window of more than 16 MiB the display lists' relocations keep the K0 address past
-16 MiB, where a physical one would read to the RSP as a segmented one ([MEMORY.md](MEMORY.md) 3).
+their physical addresses). Pointers to the game's data in the arenas are host pointers like any other's (until step
+5 the renderer saw `default_lights` and the cull vertices in native lists as window addresses). In a window of more
+than 16 MiB the display lists' relocations keep the K0 address past 16 MiB, where a physical one would read to the
+RSP as a segmented one ([MEMORY.md](MEMORY.md) 3).
 
 **Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
 (`osTvType`, `osTvType`, `osMemSize` for osMemSize), the heap start `game_bss_end`, the images' base
 `overlay_base`, `gDecompressedDataStart`, and the ROM offset `sample_bank_rom`. gen_stubs makes them absolute symbols
 (`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI
-and MusyX address callbacks accept). port/data's arena names are absolute symbols too (`data.c`, about 1,800). The
-game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a
-PIE a RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in
-`main` before anything else runs, puts the values back (1,802 slots). It only touches RELATIVE relocations whose
+and MusyX address callbacks accept). port/data's arena names were absolute symbols too until [NATIVE.md](NATIVE.md)
+step 5 (`data.c`, about 1,800); they are relative to their arenas' blocks now, which the executable's own relocations
+place. The game reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute
+symbol in a PIE a RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`,
+called in `main` before anything else runs, puts the values back (1,802 slots with the arenas' names, a handful now:
+`aliases.ld`'s). It only touches RELATIVE relocations whose
 addend is at 0x80000000 or above, where nothing the linker places can be (`gen_data.py --check` verifies that),
 and whose slot holds exactly base + addend. Initialized pointers to them are resolved at link time. On x86-64 with
-binutils 2.41 only the 6 `aliases.ld` names' slots carry such a relocation (6 slots fixed); data.c's names get slots
-that hold the bare value with no relocation, which needs nothing. The plan for a window at any address, and the guard
+binutils 2.41 only the 6 `aliases.ld` names' slots carry such a relocation (6 slots fixed); data.c's absolute names
+got slots that held the bare value with no relocation, and its block-relative ones get RELATIVE relocations as any
+relocatable symbol's do. The plan for a window at any address, and the guard
 mode that moves it now (`RUSH2049_NOFIXED=guard`), are in [NOFIXED.md](NOFIXED.md).
 
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
@@ -491,8 +496,8 @@ the libgsm kernels, now `gsm.c` (§8).
   - events: `osSetEventMesg`; the VI retrace at 60 Hz (12 in about 200 ms);
   - time: one-shot and periodic timers and `osStopTimer`; `osGetTime`'s rate;
   - busy-waits: both yield paths;
-  - memory: the window and its KSEG1 alias, the absolute symbols, game data at its N64 addresses, host addresses
-    above 4 GiB, big-endian ranges;
+  - memory: the window and its KSEG1 alias, the absolute symbols, game data in its arena's block (at the N64
+    address's offset in a page, above 4 GiB), host addresses above 4 GiB, big-endian ranges;
   - RSP tasks and DP buffers, a queued graphics task yielding (real time only), and the AI rate and event;
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;

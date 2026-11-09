@@ -88,7 +88,8 @@ The readers of the records:
 
 The car palette descriptors `car_palettes` are palette records to the model draw (`Model.palette`). So every view of
 them takes the PLHD N64 layout: 24 bytes, with `data` a u32 that holds a heap block. They now live in the game
-arena at their N64 addresses, which also makes `heap_release`'s `RaceEntry` view of `car_palettes_palBase` right.
+arena in its N64 layout (at their N64 addresses until [NATIVE.md](NATIVE.md) step 5, in its block since), which also
+makes `heap_release`'s `RaceEntry` view of `car_palettes_palBase` right.
 `SetupCarColor` copies the car's WAD palette into its working buffer as native RGBA16 (`TLUT_COPY_IN`). The
 descriptor's block is then native, which port/gfx reads natively because it isn't registered.
 

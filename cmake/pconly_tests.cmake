@@ -45,18 +45,18 @@ endif()
 add_test(NAME crossings_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_crossings.py)
 # In the counting build (cmake -DRUSH_COUNT_CROSSINGS=ON; ctest -L crossings): a few synthetic paths counted, then again
 # in the arena guard's counting mode, each run ending as its script expects with its dump written, and every guarded
-# run's trace its plain run's (the guard changes nothing). On today's layout the arenas are at their N64 addresses, so
-# the guard faults on the game's every access by name (--expect-faults); NATIVE.md step 5 makes that --no-faults.
+# run's trace its plain run's (the guard changes nothing). The arenas are blocks of host memory (NATIVE.md step 5), so
+# nothing reaches the window's pages over their N64 ranges: the guard finds no fault (--no-faults).
 if(RUSH_COUNT_CROSSINGS)
     add_test(NAME crossings_paths COMMAND ${PC_PYTHON} ${PORT_TOOLS}/crossings.py --exe $<TARGET_FILE:rush2049pc>
-        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test --guard --check --expect-faults -j 3
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test --guard --check --no-faults -j 3
         menu race2p stunt)
     set_tests_properties(crossings_paths PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
-    # The guard's stopping mode (RUSH2049_WINDOW_GUARD=arenas): the first access to an arena by its N64 address stops
-    # the program with a note naming the datum and the instruction, then the fault handler's report. Today the first
-    # access by name does (--expect-faults); step 5 makes this --check --no-faults: every path runs through.
+    # The guard's stopping mode (RUSH2049_WINDOW_GUARD=arenas): the first access to an arena by its N64 address would
+    # stop the program with a note naming the datum and the instruction, then the fault handler's report. None does:
+    # every path runs through (--check --no-faults).
     add_test(NAME crossings_guard_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/crossings.py --exe $<TARGET_FILE:rush2049pc>
-        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test-stop --stop --expect-faults -j 2 menu race2p)
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test-stop --stop --check --no-faults -j 2 menu race2p)
     set_tests_properties(crossings_guard_stop PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
 endif()
 # the gate script parses (it runs on Rocky against the base: tools/port/pconly_gate.sh)

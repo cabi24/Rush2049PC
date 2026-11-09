@@ -1,8 +1,11 @@
 # Decoupling game data from its N64 address
 
-Most of the game's data sits at its N64 address in the RDRAM window ([DATA.md](DATA.md) 3), so the decompiled C runs
-unchanged. That costs the port: an array can't grow (its neighbours follow it), address arithmetic between symbols
-is baked in, AddressSanitizer can't run on x86-64, and macOS arm64 can't map the address. Decoupling moves one item
+Most of the game's data sits in its image's arena, a block of host memory laid out as the N64's data and BSS were
+([DATA.md](DATA.md) 3; until [NATIVE.md](NATIVE.md) step 5 the arenas were at their N64 addresses in the RDRAM window),
+so the decompiled C runs unchanged. That costs the port: an array can't grow (its neighbours follow it), and address
+arithmetic between symbols is baked in, so AddressSanitizer can't put a redzone between two data (NATIVE.md step 13).
+And while the RDRAM window (the heap's, until step 12) is at a fixed address, AddressSanitizer can't run on x86-64 and
+macOS arm64 can't map it. Decoupling moves one item
 to storage the PC owns outright, with one PC declaration and no N64 address. The first item is the race roster
 (the arcade's `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
 (`gGameCar`, MAT3 `gGameCar`), which had host storage of their own already: steps toward 12 cars a race

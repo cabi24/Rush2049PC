@@ -16,24 +16,19 @@
  * with an independent decoder, known_widths against the images, and an overlay reload is checked. It tests the
  * generated tables and the loader together.
  *
- * The game's arenas are at their N64 addresses, so both map the RDRAM window at host PC_RDRAM_BASE first, as
- * port/ultra does for the game. Every place checked is a game symbol's, by its name (pc_data_addr_of), or one the
- * symbol file names (symbol_file_addr). */
+ * The game's arenas are blocks of host memory data.c defines (docs/port/DATA.md 3), so neither needs the RDRAM
+ * window: the heap's addresses a pointer keeps are only compared, never followed. Every place checked is a game
+ * symbol's, by its name (pc_data_addr_of), or one the symbol file names (symbol_file_addr). */
 #define _GNU_SOURCE
 #include "pc_data.h"
-#include "pc_n64_map.h"   /* the RDRAM window, the runtime images' load address */
+#include "pc_n64_map.h"   /* the runtime images' load address, the heap's place in the window */
 #include "pc_symbol_file.h"   /* the inflate tables' addresses, by name */
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <zlib.h>
-
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
 
 int pc_data_init(const uint8_t *rom, size_t rom_size);
 void pc_data_overlay_load(int overlay);
@@ -105,26 +100,6 @@ static void *at_name(const char *name, int image)
 static uint32_t symbol_file_addr(const char *name)
 {
     return pc_symbol_file_addr(PC_SYMBOL_FILE, name);
-}
-
-/* The RDRAM window (port/ultra/memory.c maps it for the game): the N64's 8 MiB at host PC_RDRAM_BASE. A RUSH_NOFIXED
- * build's is data.c's section, in the executable already (docs/port/NOFIXED.md 2.1). */
-static int map_window(void)
-{
-#ifdef RUSH_NOFIXED
-    return 0;
-#endif
-    void *want = (void *)(uintptr_t)PC_RDRAM_BASE;
-    void *p = mmap(want, PC_RDRAM_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1,
-                   0);
-    if (p != want) {
-        if (p != MAP_FAILED)
-            munmap(p, PC_RDRAM_SIZE);
-        printf("FAIL: cannot map the RDRAM window at host 0x%08X, where the game's data belongs\n", PC_RDRAM_BASE);
-        failures++;
-        return -1;
-    }
-    return 0;
 }
 
 static int contains(const uint8_t *p, size_t n, const char *s)
@@ -558,18 +533,22 @@ static int synthetic(void)
     return failures != 0;
 }
 
+/* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
+#define ARENA_PAGE 0x1000u
+
 int main(int argc, char **argv)
 {
-    /* The arenas are at their N64 addresses, in the window. The renderer reads every other value below 4 GB as
-     * an N64 address too, so the rest of the game's data must sit above it (PIE). */
+    /* The arenas are blocks of host memory, each datum at its N64 address's offset in an ARENA_PAGE page, so as aligned
+     * as on the N64. The renderer reads every value below 4 GB as an N64 address, so all of the game's data must sit
+     * above it (PIE): own storage and game-C data here, the blocks too (pc_data_load_all refuses them below it). */
     const PcDataTables *tab = &pc_data_tables;
     int placed = 1, high = 1;
-    for (uint32_t i = 0; i < tab->n_arenas; i++)   /* or at their place in the tables' window (RUSH_NOFIXED) */
-        placed &= tab->window ? tab->arenas[i].host == tab->window + (tab->arenas[i].n64_lo - PC_RDRAM_BASE)
-                              : (uintptr_t)tab->arenas[i].host == tab->arenas[i].n64_lo;
+    for (uint32_t i = 0; i < tab->n_arenas; i++)
+        placed &= ((uintptr_t)tab->arenas[i].host & (ARENA_PAGE - 1)) == (tab->arenas[i].n64_lo & (ARENA_PAGE - 1));
     for (uint32_t i = 0; i < tab->n_syms; i++)
         high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
-    CHECK(placed, "%u arenas at their N64 addresses (game: %p)", tab->n_arenas, (void *)tab->arenas[1].host);
+    CHECK(placed, "%u arenas in their blocks, each datum at its N64 address's place in a page (game: %p)",
+          tab->n_arenas, (void *)tab->arenas[1].host);
     CHECK(high, "own storage and game-C data above 4 GB (%s at %p)", tab->syms[0].name, tab->syms[0].host);
     /* Both runtime images have a function at their load address, N64_OVERLAY_BASE (image A's updateWarningScreen,
      * image B's worlddam entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
@@ -590,7 +569,7 @@ int main(int argc, char **argv)
         named &= pc_data_addr_of(tab, checked[i]) != 0;
     CHECK(named, "the places checked have their names (the loader's tables, %s)", PC_SYMBOL_FILE);
     if (argc > 1 && strcmp(argv[1], "--synthetic") == 0)
-        return map_window() != 0 ? 1 : synthetic();
+        return synthetic();
     const char *path = argc > 1 ? argv[1] : PC_DATA_ROM;
     FILE *fp = fopen(path, "rb");
     if (!fp) {
@@ -615,8 +594,6 @@ int main(int argc, char **argv)
     }
     printf("ok: ROM SHA-1\n");
 
-    if (map_window() != 0)
-        return 1;
     CHECK(pc_data_init(rom, (size_t)size) == 0, "pc_data_init");
     const PcDataStats *st = pc_data_stats();
     /* Both runtime images loaded, as the game loads them, so their arenas hold their data too. */

@@ -212,8 +212,8 @@ Outside the overlay loaders, every address literal used as a pointer is an m2c `
 
 | Site | Address | Target | Storage on PC | Done |
 |---|---|---|---|---|
-| `GetControllerActive` | `0x80150000 - 0x649C + arg0` | `gActiveControllers[arg0]` | arena, at its N64 address | symbol-relative under `TARGET_PC` (the literal would work too now) |
-| `GetControllerStickEdges` | `0x80150000 - 0x648C + arg0` | `gStickEdges[arg0]` | arena, at its N64 address | symbol-relative |
+| `GetControllerActive` | `0x80150000 - 0x649C + arg0` | `gActiveControllers[arg0]` | arena (at its N64 address then; in its block since [NATIVE.md](NATIVE.md) step 5) | symbol-relative under `TARGET_PC` (the literal worked too while the arena was in the window; it wouldn't now) |
+| `GetControllerStickEdges` | `0x80150000 - 0x648C + arg0` | `gStickEdges[arg0]` | arena (likewise) | symbol-relative |
 | `MBOX_GetChild` | `0x80130000 - 0x18EA + arg0*0x44` | `ObjInstanceList[arg0]` +0x16 | own (layout differs) | PC version (9.2) |
 | `ZOID_RemoveBlit` | `0x80140000 + 0xC06 + arg0*32` | `gBlitInstanceList[arg0]` +0x16 (Sprite) | own | PC version (9.3) |
 | `PS_PakDamaged`, `PS_GetFreeBlocks`, `pak_get_free_bytes` | `0x80140000 + 0x4035/0x40A8 + arg0*0x304` | `gPaks[arg0]` +5/+0x78 (PakRecord) | own | PC versions (9.6) |

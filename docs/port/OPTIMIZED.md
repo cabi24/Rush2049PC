@@ -224,8 +224,8 @@ The data tables: gen_data ranks every file's declaration of a symbol (DATA.md 1)
 winner. The first try (`[]` for all) changed `gBlitInstanceList`'s and `gContStickRange`'s winning types (no layout); with
 their true sizes the winners are the old ones. `data.c` and `data_symbols.txt` are the files before but for two
 arena BSS symbols the tables had as one word and that are now as long as the code reaches: `gNewStick` 4 -> 8 bytes
-and `gAutoEdgeTimes` 4 -> 512 (the next known address bounds both; they sit in the RDRAM window at their N64 addresses, so
-nothing moves). Debug and RelWithDebInfo give the same files, on GCC 13 and 14.
+and `gAutoEdgeTimes` 4 -> 512 (the next known address bounds both; they sit in the game arena in its N64 layout, at
+their N64 addresses then and in its block since [NATIVE.md](NATIVE.md) step 5, so nothing moves). Debug and RelWithDebInfo give the same files, on GCC 13 and 14.
 
 The other findings were judged by class, and each is in `tools/port/bounds_reviewed.txt` with its verdict: a *view*
 whose functions reach one place of the symbol, or only read it; *const* offsets; *tmr* references with no other place
