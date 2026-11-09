@@ -97,9 +97,9 @@ static void test_layout(void)
     CHECK(sizeof(struct pc_model) == 0x808 && sizeof pc_models == 16 * 0x808);
     CHECK(offsetof(struct pc_model, car) == 0x000 && offsetof(struct pc_model, tune) == 0x004);
     CHECK(offsetof(struct pc_model, body) == 0x008 && offsetof(struct pc_model, input_flags) == 0x009);
-    CHECK(offsetof(struct pc_model, autotrans) == 0x00A && offsetof(struct pc_model, b00F) == 0x00F);
+    CHECK(offsetof(struct pc_model, autotrans) == 0x00A && offsetof(struct pc_model, tire_rims) == 0x00F);
     CHECK(offsetof(struct pc_model, rwv) == 0x220 && offsetof(struct pc_model, rwr) == 0x22C);
-    CHECK(offsetof(struct pc_model, speed) == 0x3F0 && offsetof(struct pc_model, scale) == 0x400);
+    CHECK(offsetof(struct pc_model, speed) == 0x3F0 && offsetof(struct pc_model, catchup) == 0x400);
     CHECK(offsetof(struct pc_model, f544) == 0x544 && offsetof(struct pc_model, viscode) == 0x61C);
     CHECK(offsetof(struct pc_model, crashflag) == 0x640 && offsetof(struct pc_model, topscrape) == 0x641);
     CHECK(offsetof(struct pc_model, resurrect_pos) == 0x660 && offsetof(struct pc_model, moving_state) == 0x6C4);
@@ -107,12 +107,12 @@ static void test_layout(void)
     CHECK(offsetof(struct pc_model, dt) == 0x718 && offsetof(struct pc_model, modelrun) == 0x71C);
     CHECK(offsetof(struct pc_model, steer) == 0x720 && offsetof(struct pc_model, brake) == 0x728);
     CHECK(offsetof(struct pc_model, gas) == 0x72C && offsetof(struct pc_model, gear) == 0x730);
-    CHECK(offsetof(struct pc_model, flag_b) == 0x731 && offsetof(struct pc_model, flag_a) == 0x732);
+    CHECK(offsetof(struct pc_model, wing) == 0x731 && offsetof(struct pc_model, abort) == 0x732);
     CHECK(offsetof(struct pc_model, suspension) == 0x75C && offsetof(struct pc_model, reckon_rwr) == 0x794);
     CHECK(offsetof(struct pc_model, ob_res_pt) == 0x7C4 && offsetof(struct pc_model, slot) == 0x7C6);
     CHECK(offsetof(struct pc_model, active) == 0x7C8 && offsetof(struct pc_model, we_control) == 0x7CA);
     CHECK(offsetof(struct pc_model, drone_type) == 0x7CC && offsetof(struct pc_model, color) == 0x7CD);
-    CHECK(offsetof(struct pc_model, s7D0) == 0x7D0 && offsetof(struct pc_model, flags) == 0x7D4);
+    CHECK(offsetof(struct pc_model, rpm) == 0x7D0 && offsetof(struct pc_model, flags) == 0x7D4);
     CHECK(offsetof(struct pc_model, stuck_time) == 0x7D8 && offsetof(struct pc_model, can_cheat) == 0x7DE);
     CHECK(offsetof(struct pc_model, hide_car) == 0x7DF && offsetof(struct pc_model, last_cp) == 0x7E2);
     CHECK(offsetof(struct pc_model, drone_target) == 0x7E6 && offsetof(struct pc_model, lap) == 0x7E8);

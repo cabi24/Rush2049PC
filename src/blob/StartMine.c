@@ -21,7 +21,7 @@ typedef struct Target {
 } Target;
 
 
-/* The weapon (pc_car.kind, MAT3 battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
+/* The weapon (pc_car.weapon_type, MAT3 battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
  * makes the same exception for it. */
 #define WEAPON_FRONT_ARMOUR 5
 #define MINE_DAMAGE_FRONT_ARMOUR 280
@@ -37,7 +37,7 @@ void StartMine(Target *t)
 
     if (PC_MODEL_CRASHFLAG(t->slot) == 0) {
         car = PC_CAR(t->slot);
-        if (car->kind == WEAPON_FRONT_ARMOUR) {
+        if (car->weapon_type == WEAPON_FRONT_ARMOUR) {
             delta[0] = t->pos[0] - car->pos[0];
             delta[1] = t->pos[1] - car->pos[1];
             delta[2] = t->pos[2] - car->pos[2];

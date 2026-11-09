@@ -131,8 +131,8 @@ void AnimateCoin(Visual *v, s16 op)
                 coin->cameras |= 1 << i;
             } else {
                 car = PC_CAR(i);
-                MBOX_HideObject(t->dlIdx.handle, 1, VIEW_BIT(car->view));
-                MBOX_HideObject(coin->dlIdx.handle, 1, VIEW_BIT(car->view));
+                MBOX_HideObject(t->dlIdx.handle, 1, VIEW_BIT(car->camera));
+                MBOX_HideObject(coin->dlIdx.handle, 1, VIEW_BIT(car->camera));
             }
         }
         if (foundByAll) {
