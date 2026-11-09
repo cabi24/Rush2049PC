@@ -365,3 +365,17 @@ its table (a new assets_musyx test); the Windows build without SDL2 didn't link 
 definition). After wave 2b, CI's UBSan job found `tCarSettings.settings` typed 10 bytes where the checksum and the
 setup screen use 12. No synthetic path changes for any of them; the gate on the merged tree is 63 of 63 `same`.
 
+### Wave 3: the memory model (2026-11-09, in progress)
+
+The plan and each step's results are [NATIVE.md](NATIVE.md) (its census, `tools/port/window_census.py`; its crossing
+counter and arena guard, `tools/port/crossings.py`, section 9). Done: step 1 (the counter and the guard), wave 3.1
+(steps 2, 3, 4: the car record's, the level objects', the sky's and palettes' pointers; the images by pointer) and
+wave 3.2 (step 5, the arenas out of the RDRAM window as blocks of host memory; step 6, the heap's own code on host
+pointers with the N64's accounting; step 8, the text bank, the world and the paths as native records; a synthetic
+path `language`, so the gate is 64 paths). Along the 64 paths the game and the PC layer crossed between a host pointer
+and an N64 address 73.2 million times at 243 places before step 1, 30.6 million at 47 after wave 3.2; the arena guard
+finds no access by an N64 address. The gate compares the data loader's summary with `--data-moved` since step 2 (its
+pointer counts by class move as data leaves the arenas). Left: the WAD records and MusyX (wave 3.3), the display lists
+and the rest that holds heap addresses (3.4), the window itself (3.5), one object per datum under ASan and the last of
+the N64's byte order (3.6).
+
