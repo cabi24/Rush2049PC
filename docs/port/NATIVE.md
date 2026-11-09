@@ -20,6 +20,7 @@ inventory, what depends on what, the steps, and the measuring tool that shows ea
 | Piece | Where |
 |---|---|
 | The census: what is still tied to the window, by kind | `tools/port/window_census.py` (section 1), its test `tools/port/tests/test_window_census.py` |
+| The crossing counter and the arena guard: what still crosses, by site, along every path | `cmake -DRUSH_COUNT_CROSSINGS=ON`, `tools/port/crossings.py` (section 9) |
 | The window today | [ULTRA.md](ULTRA.md) 2, [DATA.md](DATA.md) 3, [MEMORY.md](MEMORY.md), [NOFIXED.md](NOFIXED.md) |
 | The experiments behind this plan | section 2; scratch code on Rocky in `~/rush2049pc/w3-plan-exp` (not in the repository) |
 
@@ -275,8 +276,8 @@ the loader reserves (step 6 makes it an offset). `RUNTIME_IMAGE_START`, `overlay
 | Check | What | Built in |
 |---|---|---|
 | `window_census.py` | the counts by kind; `--baseline` in CI holds the line, each step lowers it | this commit |
-| **A crossing counter** (`RUSH_COUNT_CROSSINGS`, a build option) | the probe of section 2 made a tool: every `PC_N64P/A/W/SLOT` crossing and the renderer's and audio's N64 addresses counted by site and target at exit; a step's proof includes "these sites cross 0 times along every path". The scratch probe (`w3probe.c`, `apply_probe.py` in the scratch tree) is the design: a weak hook from the prelude's macros, a table by site, a dump at exit, `addr2line` for the PC layer's callers | step 1 |
-| **The arena guard** (`RUSH2049_WINDOW_GUARD=arenas`) | after step 5 the window's arena ranges hold nothing: mapped with no access, any use faults with a note naming the datum (the fault handler's `pc_mem_fault_note`); after step 12 the whole range 0x80000000-0xBFFFFFFF is reserved with no access in this mode, so a stray N64 address faults wherever it comes from | step 1 (arenas), step 12 (all) |
+| **A crossing counter** (`RUSH_COUNT_CROSSINGS`, a build option) | the probe of section 2 made a tool: every `PC_N64P/A/W/SLOT` crossing and the renderer's and audio's N64 addresses counted by site and target at exit; a step's proof includes "these sites cross 0 times along every path". The scratch probe (`w3probe.c`, `apply_probe.py` in the scratch tree) is the design: a weak hook from the prelude's macros, a table by site, a dump at exit, `addr2line` for the PC layer's callers | step 1: built (section 9) |
+| **The arena guard** (`RUSH2049_WINDOW_GUARD=arenas`) | after step 5 the window's arena ranges hold nothing: mapped with no access, any use faults with a note naming the datum and the instruction; after step 12 the whole range 0x80000000-0xBFFFFFFF is reserved with no access in this mode, so a stray N64 address faults wherever it comes from | step 1 (arenas): built in the counting build (section 9); step 12 (all) |
 | AddressSanitizer on x86-64 | a CI job (ASan and UBSan, every test, the synthetic paths); its redzones are step 13's proof | step 12 |
 | The gate | objsame, synth_compare 63 of 63 `same` (shots, audio), ctest and the realtime tests, the retail scripts on the Pi | every step |
 
@@ -294,7 +295,9 @@ targets at 0 (with `--sites` showing what's left of them). Each step updates the
 CARS.md, POINTERS.md, ASSETS.md, GFX.md, AUDIO.md, MEMORY.md, ULTRA.md) and the comments it makes untrue
 (`text.window.game`).
 
-### Step 1. The crossing counter and the arena guard (small; port only)
+### Step 1. The crossing counter and the arena guard (small; port only): done
+
+Done 2026-11-09 (wave 3.0): how to run it, what it counts and the baseline it measured are section 9. The plan was:
 
 `RUSH_COUNT_CROSSINGS` and the guard mode of 4.8. Files: `port/include/pc_prelude.h` (the option's block),
 `port/ultra/crossings.c` (new), `port/ultra/memory.c`, `port/gfx/gfx_rsp.c`, `port/audio/musyx.c` (one hook each),
@@ -513,3 +516,194 @@ merging").
   counter on the retail scripts (the lead, on the Pi) gives the sites they add.
 - `fields.u32_address` and `text.window.game` read comments; `api.u32_address` reads parameter names. They are
   pointers to the work, not proofs of its end; the crossing counter and the guard mode are.
+
+## 9. The crossing counter and the arena guard
+
+Built 2026-11-09 (step 1, wave 3.0) from the probe of section 2. The census (section 1) reads the sources; this runs
+the game and says which crossings happen, where, how often and into what. It is every later step's proof: "these
+sites cross 0 times along every path", and after step 5 "nothing reaches an arena by its N64 address".
+
+| Piece | Where |
+|---|---|
+| The option: a Debug build with `-DRUSH_COUNT_CROSSINGS=ON`, compiled with `-fno-inline` so that the PC layer's sites are their real callers (Linux; not with `RUSH_NOFIXED` or `RUSH_CHECK_CASTS`) | `CMakeLists.txt` |
+| The hooks and the kinds; every hook is nothing without the option | `port/include/pc_crossings.h` |
+| The game C's translations counted at their lines | `port/include/pc_prelude.h` (the block before `pc_game_types.h`) |
+| The counter, the dump, the guard (built only with the option) | `port/ultra/crossings.c` |
+| The PC layer's hooks | `port/ultra/memory.c` (`pc_n64_ptr`, `pc_n64_addr`, `osVirtualToPhysical`), `port/gfx/gfx_rsp.c` (`pcgfx_resolve`, `pcgfx_segment_value`, the list's form, the guard's frame), `port/audio/musyx.c` (`n64ptr`, `resolve`), `port/data/pc_data.c` (the guard paused while an image loads), `port/main.c` (start, finish) |
+| The runs and the report | `tools/port/crossings.py`, its test `tools/port/tests/test_crossings.py` |
+| ctest | `crossings_tool` (every build); in the counting build `crossings_paths` and `crossings_guard_stop` (`ctest -L crossings`) |
+
+The default build doesn't change: objsame gives `same` for all 966 game units in Debug and RelWithDebInfo, and all
+865 other objects of the build compare `same` with a build of the base at a path of the same length (they hold
+`__FILE__`, the checkout's path). The counting build plays the same game: `synth_compare.py --same --shots --audio`
+gives 63 of 63 `same` against the default build, and so does the counting build with the guard on (`--env-b
+RUSH2049_WINDOW_GUARD=arenas,count`).
+
+### 9.1 How to run it
+
+The whole measure, on Rocky or any Linux host, in about a minute and a half once built:
+
+    python3 tools/port/crossings.py --build build/count --guard -j 6 --out build/crossings/report.txt
+
+configures `build/count` the first time (Ninja, Debug, `-DRUSH_COUNT_CROSSINGS=ON`), builds it, makes its synthetic
+cartridge if it has none, runs the 63 synthetic paths (synth_compare.py's runs: on the virtual clock, its options,
+`pcsetup` left out), then each again in the guard's counting mode, and prints the report: one line per kind (always
+all of them, in the same order), then each kind's sites sorted by name, then the guard's instructions. A site is a
+source line for the game C, `function file:line` (the call) for the PC layer. With the same tree, two runs give the
+same report but for a few counts (below), so a step's report diffs against the base's line by line. `--sort count`
+puts the largest first, `--top N` keeps each kind's N largest, `--json FILE` writes the numbers, `--logs DIR` keeps the
+runs' logs and dumps (default `build/crossings/paths`), `--exe` runs a counting build that exists, `--report DUMPS`
+reports on dumps already written.
+
+A step's proof is a run with checks, each failing the command (exit 1) with the sites it found:
+
+    python3 tools/port/crossings.py --build build/count --check \
+        --zero-region game_arena,boot_arena,ovl_a_arena,ovl_b_arena       steps 2-4 together: nothing into an arena
+    python3 tools/port/crossings.py --build build/count --check --zero-site src/blob/forces1.c     one file's sites
+    python3 tools/port/crossings.py --build build/count --check --zero-kind pc_statll_link,pc_statll_set_link
+    python3 tools/port/crossings.py --build build/count --guard --stop --check --no-faults          step 5
+    python3 tools/port/crossings.py --build build/count --baseline FILE      no kind grew (--write-baseline FILE)
+
+`--check` also makes each run end as its press script says and write its dump, and each guarded run's trace be its
+plain run's. `--stop` runs every path once more in the guard's stopping mode and lists where each stopped.
+
+By hand: `RUSH2049_CROSSINGS=FILE` makes a counting build write its counts to FILE at exit (`%p` in it becomes the
+process id; without it, one line on stderr gives the totals), `crossings.py --report FILE --exe build/count/rush2049pc`
+reads it. `RUSH2049_WINDOW_GUARD=arenas` stops at the first access with a note and the stack; on today's layout the
+first access by name is the PC layer's own, as the mods are installed:
+
+    rush2049pc: window guard: the datum at 0x8002E580 (gWaveSizes+0x0, the boot_arena) reached by its N64 address,
+    by the instruction at rush2049pc+0x1e04b6 (RUSH2049_WINDOW_GUARD=arenas, docs/port/NATIVE.md 9)
+
+    rush2049pc: Segmentation fault at address 0x8002e580 in N64 thread main
+      #1  on_fault at port/ultra/crossings.c:392
+      #2  /lib64/libc.so.6+0x411bf
+      #3  pc_mods_install at port/mods/mods.c:1196
+      #4  mods_install at port/main.c:656 ...
+
+The retail cartridge (the lead, on the Pi; the counts stay there): build the counting build on the Pi, then
+
+    RUSH2049_CROSSINGS=build/crossings/retail-%p.crossings build/count/rush2049pc --rom ROM ... (a retail script)
+    RUSH2049_CROSSINGS=build/crossings/retail-guard-%p.crossings RUSH2049_WINDOW_GUARD=arenas,count \
+        build/count/rush2049pc --rom ROM ...
+    python3 tools/port/crossings.py --report build/crossings --exe build/count/rush2049pc
+
+### 9.2 What it counts
+
+| Kind | Where it is counted | Site |
+|---|---|---|
+| `PC_N64P`, `PC_N64A`, `PC_N64W` | the prelude's translations, and so each file's own macros (`N64P`, `N64W`, `LINK` ...) | the line that uses it |
+| `PC_SLOT_N64`, `PC_SLOT_SET` | a heap handle's slot read or written as an N64 address | the line |
+| `pc_statll_link`, `pc_statll_set_link` | a StatLL list's link, when the list is in its N64-linked form | the list function's line |
+| `pc_n64_ptr`, `pc_n64_addr` | port/ultra's translations | the caller |
+| `osVirtualToPhysical` | the colour and depth images' addresses | the caller |
+| `gfx.rom_list`, `gfx.native_list` | a value below 4 GiB the renderer takes for an N64 address (`pcgfx_resolve`, `pcgfx_segment_value`), by the form of the list the command came from: a ROM list (N64 form, big-endian) or a native one. Host pointers aren't counted | the caller (`dl_at`, `movemem`, the VTX case, `pcgfx_rdp_command`'s image commands, `pc_gfx_present`'s frame) |
+| `audio.n64ptr` | every N64 address the audio interpreter reads (`n64ptr`): an N64-form record's decoder, or `resolve` for a native field (null pointers aren't counted) | the caller |
+| `audio.field` | `resolve`'s share of those: a native record's pointer field holding an N64 address | the record's reader |
+
+Each count is also split by where the address points (a host pointer for the kinds that go from a pointer to an
+address): `game_arena`, `boot_arena`, `ovl_a_arena`, `ovl_b_arena` (the data loader's arenas), `image_block` (the heap
+block reserved for the runtime images, outside their arenas), `heap`, `low_memory` (the boot parameters), `window` (the
+window's other bytes: the N64's code ranges, where nothing lives on the PC), `kseg1`, `cart` (the cartridge through
+KSEG1), `phys`, `segmented`, `other`, `null`, `host` (a pointer above 4 GiB). For RDRAM outside the heap the report
+names the data (the loader's name for the first address in each region; offsets left out).
+
+Not counted: the loader's and the asset converters' own decoding of the ROM's addresses (they are where N64
+addresses belong); `pc_rcp_reloc` and `pc_rdram_k0_high` (`rcpaddr.c`, the display lists' relocation: step 10's,
+`lit.reloc` in the census); the PC layer's own `pc_rdram() + offset` arithmetic (`port.rdram_base`); `pc_n64_identity`
+(the state hash's ids). And whatever builds an address with integer arithmetic and no macro: the guard sees those
+once step 5 has emptied the arenas' range.
+
+### 9.3 The arena guard
+
+`RUSH2049_WINDOW_GUARD=arenas` (stop) or `arenas,count`, in the counting build. Once the game's data is loaded
+(`main.c`), the pages of the boot and game arenas in the window, in both views (KSEG0 and KSEG1), are mapped with no
+access:
+
+- **stop**: the first access stops the program: the note names the datum, its region and the instruction, then the
+  fault handler (`misc.c`) the N64 thread and the stack.
+- **count**: every fault is counted by its instruction (a library's, such as `memcpy`'s, with the program's call of
+  it when that is the return address the routine left) and the page is opened; at the start of every graphics task
+  all the pages close again. So a run counts each page's first access in a frame, which on the virtual clock is the
+  same every run; an access to a page another instruction opened earlier in the frame isn't seen. The dump lists the
+  instructions; the report names them.
+
+A fault on a guarded page outside the arenas' bytes only opens the page if it is the heap's (the heap's first chunk
+shares the game arena's last page: 2,909 such faults along the 63 paths), and is counted as a stray access if it is
+anywhere else (the N64 code ranges around the arenas). The guard is paused while the data loader fills an image
+(`pc_data_load_image`). The runtime images' arenas are not guarded: they lie in the heap block the game reserves for
+an image, which is heap memory (filled by the heap's free, then reused) whenever the image isn't loaded, so their
+crossings are the counter's `ovl_a_arena` and `ovl_b_arena`; step 12's guard of the whole window covers them. A system
+call given an arena buffer would fail (EFAULT) rather than fault: none happens along the synthetic paths (every
+guarded run's trace, screenshots and sound included, is the default build's).
+
+Today the arenas are at their N64 addresses, so **every access by name faults too**: on this layout the guard proves
+it sees what it should, and its sites are the game's by-name accesses, which step 5 moves with no change to the code.
+It can't tell those from a crossing into an arena (both are the same address): steps 2-4's targets are the counter's
+arena regions (9.4). After step 5 the two are one: the guard, counting or stopping, must find nothing, and anything it
+finds is a crossing steps 2-4 left.
+
+### 9.4 The baseline (68069845, the 63 synthetic paths)
+
+| Kind | Sites | Crossings | Where they point |
+|---|---:|---:|---|
+| `PC_N64P` | 118 | 32,127,099 | game_arena 23,210,666, heap 8,814,247, null 96,046, ovl_a_arena 5,085, ovl_b_arena 933, image_block 122 |
+| `PC_N64A` | 58 | 1,651,346 | heap 1,650,904, image_block 309, game_arena 70, cart 63 |
+| `PC_N64W` | 30 | 1,975,912 | heap 1,932,064, null 24,236, game_arena 13,592, ovl_a_arena 5,085, ovl_b_arena 935 |
+| `PC_SLOT_N64` | 5 | 1,682,453 | heap |
+| `PC_SLOT_SET` | 2 | 216 | null 210, heap 6 |
+| `pc_statll_link` | 1 | 8 | game_arena (`gTargetArray`) |
+| `pc_statll_set_link` | 3 | 7,418 | game_arena 7,359 (`gTargetArray`), null 59 |
+| `pc_n64_ptr` | 8 | 18,224,444 | heap 16,614,536, game_arena 1,609,782, low_memory 126 |
+| `pc_n64_addr` | 4 | 332,729 | heap 332,725, host 4 (the state hash's ids) |
+| `osVirtualToPhysical` | 3 | 307,446 | heap (`StartGraphics.c`: the colour and depth images) |
+| `gfx.rom_list` | 1 | 7,001,069 | phys 6,657,479, heap 343,590 (the VTX case: the ROM lists' relocated vertices) |
+| `gfx.native_list` | 7 | 7,895,283 | heap 5,993,297, game_arena 1,609,782, phys 292,204 |
+| `audio.n64ptr` | 1 | 987,272 | heap (all through `resolve`: no N64-form record) |
+| `audio.field` | 2 | 987,272 | heap (`read_sfd`, `voice_output`) |
+| total | 243 | 73,179,967 | |
+
+The crossings into the arenas, steps 2-4's targets: 52 sites in 27 game files.
+
+| Step | Sites (crossings) | What |
+|---|---|---|
+| 2, the car record | `forces1.c` (11 sites, 9.65 M), `update_game_data.c` (5, 3.73 M), `positions.c` (1.86 M), `autoshift.c`, `dotireforce.c` (1.84 M each), `torques.c`, `transmission.c` (0.92 M each), `whatslips/group.c` (0.92 M), `calcaa.c`, `engine.c`, `enginetorque.c` (0.46 M each), `carsetup/group.c` (the PC_N64W stores of `tune`, `car` and `torquecurve`, a tyre's PC_N64P), `AnimateTire.c`, `init_road.c`, `steer_constants.c`, `find_best_gear.c`, `init_cars.c` | `m->car` (the car descriptors), `gTune`, `stdtorquecurve`, `frontTire` |
+| 3, the level objects | `ClearStatLL.c` (7,353), `GetStatLLE.c` (14), `PauseTargets.c` (3), `targets/group.c` (6), `InitBattlePowerUps.c` (6) | `gTargetArray` |
+| 4, sky and palettes | `SkyUpdate.c` (2 sites, 104,356), `SkyInit.c` (70), `trackscr.c` (5,085), `animHealth.c` (935), `zoid_draw/group.c` (6,018) | `gMatrices`, `trackscr_fogColor`, `healthColor` |
+
+The rest of the game-arena counts are the renderer's: `default_lights` (MOVEMEM, `light_read`) and
+`cull_box_vertices_a`, `cull_vertices` (VTX), pointers to arena data in the game's own native lists, which become host
+pointers by themselves when the data leaves the window (section 2, point 3): 1,609,782 in `gfx.native_list` and again
+in `pc_n64_ptr`.
+
+The guard on this layout (counting, the 63 paths): 4,429,021 faults at 452 instructions in 266 functions and 208
+files, into 249 data, 3,318,405 in the game arena and 1,110,616 in the boot arena; by tree `src/blob` 2.54 M,
+`src/rom` 1.11 M, `port/main.c` 0.49 M (the log's state lines read `gGameState`, `gRace`, `gNumWindows`,
+`gNumActiveCars`, `gTrackNum` by name), `port/gfx` 0.21 M (`default_lights`, `cull_vertices`,
+`zoid_poly_vertex_buffers` through the lists' pointers), `src/ovl_a` 70 k, the C library 4,704 (`sprintf` reading
+`car_part_name_format`), `port/ultra` 189 (`pools.c`'s report), `port/mods` 62 (`gWaveSizes`). The most touched:
+`gNumActiveCars`, `gTrackNum`, `gNumChannels`, `gStoppedChannels`, `zoid_poly_vertex_buffers`, `cull_vertices`,
+`sound_initialized`, `sound_output_frozen`, `__osScSwapCount`, `frame_cycle_count`: each about once a frame. The full
+list is the report's last section.
+
+Runs of one tree give the same sites and the same guard instructions; a few counts differ by a handful, in sites
+that run every frame (`scheduler.c:233` and `autoshift.c` by 2, the total by up to 20 of 73 M; in the guard the audio's
+and the scheduler's per-frame instructions, its total by about 25 of 4.4 M): the frames around the exit, which the
+traces leave out. Compare kinds and sites, not the last digits; `--baseline` allows them 0.1%.
+
+### 9.5 What this changes in the plan
+
+- **Step 2: the car descriptors have no declaration.** `m->car` points at 0x801108D0, inside `steady_leg_duration`,
+  which `include/game/camera.h` declares `f32[EXTENT(272)]`: its extent runs over the descriptor table, so the loader
+  names those crossings `steady_leg_duration+0x8...`. Step 2 needs the table declared with its own name and type (and
+  `steady_leg_duration` its own extent) before `car` can become a pointer to it.
+- Step 2's files with arena crossings are 17 of the 26 the plan lists; the other 9 (`forces2.c`, `antispin.c`,
+  `init_collision.c`, `MovingSurfaceForce.c`, `CollideCarBody.c`, `TireSurf.c`, `UpdateSmoke.c`, `stunt/group.c`,
+  `AnimateWing.c`) reach the heap (the road's nodes) or aren't reached on these paths: their sites are the counter's
+  heap lines, and they still change with the record.
+- Step 4: on these paths only `StartGraphics.c` calls `osVirtualToPhysical` (3 sites, the colour and depth images);
+  the renderer's physical image addresses are `pcgfx_rdp_command`'s (292,204 in `gfx.native_list`). `ClearScreen.c` and
+  `scheduler.c` reach the frame buffer through `PC_N64P`/`PC_N64A` (heap), not through an image address.
+- The runtime images' block (`image_block`: `overlay_loader.c`, `alloc_at.c`, `state.c`, 431 crossings) is step 6's.
+- The guard can't give steps 2-4 their targets before step 5 (9.3); the counter's arena regions do, and step 5's
+  guard run with no fault is the proof that they found them all on these paths.

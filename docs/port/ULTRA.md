@@ -19,6 +19,7 @@ owns `main()`. About 3,300 lines of C11.
 | `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, `osVirtualToPhysical`, big-endian ranges, the absolute-symbol fix-up |
 | `rcpaddr.c` | addresses past 16 MiB of a larger window: the display lists' relocation ([MEMORY.md](MEMORY.md) 3) |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
+| `crossings.c` | only in the counting build (`cmake -DRUSH_COUNT_CROSSINGS=ON`): every crossing between an N64 address and a host pointer counted by site, and the arena guard (`RUSH2049_WINDOW_GUARD=arenas`) ([NATIVE.md](NATIVE.md) 9) |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
 | `loop.c` | the host main loop |
 | `defaults.c` | weak no-op versions of the other parts' interfaces |
