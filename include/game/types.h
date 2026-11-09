@@ -1597,8 +1597,7 @@ typedef struct tCircuitStats { /* 0x1C bytes */
 /* A car's settings (the car setup screen's sliders). */
 typedef struct tCarSettings { /* 0x10 bytes */
     u32 checksum;      /* 0x0 */
-    s8 settings[10];   /* 0x4 */
-    u8 pad0E[2];       /* 0xE */
+    s8 settings[12];   /* 0x4 the checksum covers all 12 (SavePlayerCarSetting) */
 } tCarSettings;
 
 /* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
