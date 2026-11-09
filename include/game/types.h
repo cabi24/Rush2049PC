@@ -216,11 +216,9 @@ struct SoundListenerAddView;
 struct SoundListenerUpdateView;
 struct SoundState;
 struct SpatialState;
-struct SpeechStreamDecodeView;
 struct Sprite;
 struct State;
 struct StateNode;
-struct StreamState;
 struct Surface;
 struct SynthVoiceMacroView;
 struct SynthVoicePanView;
@@ -972,46 +970,46 @@ typedef struct SpeechServiceHooks { /* 0x40 bytes */
 } SpeechServiceHooks;
 
 typedef struct SpeechStream { /* 0x1268 bytes */
-    u8 unknown_0000[358];                                        /* 0x0 */
-    u16 block_count;                                             /* 0x166 */
-    u8 unknown_0168[40];                                         /* 0x168 */
-    void (*callback)(void *, void *, u32, struct OSMesgQueue_s *); /* 0x190 */
-    void *data;                                                  /* 0x198 */
-    void *argument2;                                             /* 0x1A0 */
-    u32 argument3;                                               /* 0x1A8 */
-    u8 unknown_01A0[4096];                                       /* 0x1AC */
-    u16 read_count;                                              /* 0x11AC */
-    u16 write_count;                                             /* 0x11AE */
-    u32 buffered;                                                /* 0x11B0 */
+    u8 gsm_history[358];                                         /* 0x0 */
+    u16 gsm_last_lag;                                            /* 0x166 */
+    u8 gsm_rest[40];                                             /* 0x168 */
+    void (*read_input)(void *, void *, u32, struct OSMesgQueue_s *); /* 0x190 */
+    void *input;                                                 /* 0x198 */
+    void *output;                                                /* 0x1A0 */
+    u32 capacity;                                                /* 0x1A8 */
+    u8 input_ring[4096];                                         /* 0x1AC */
+    u16 remaining_blocks;                                        /* 0x11AC */
+    u16 header_low;                                              /* 0x11AE */
+    u32 remaining_input;                                         /* 0x11B0 */
     s32 remaining;                                               /* 0x11B4 */
     OSMesgQueue queue;                                           /* 0x11B8 */
     OSMesg message;                                              /* 0x11E0 */
-    u32 field_11C8;                                              /* 0x11E8 */
-    u32 field_11CC;                                              /* 0x11EC */
-    u32 field_11D0;                                              /* 0x11F0 */
+    u32 bit_position;                                            /* 0x11E8 */
+    u32 consumed_input;                                          /* 0x11EC */
+    u32 received;                                                /* 0x11F0 */
     u32 consumed;                                                /* 0x11F4 */
     u32 available;                                               /* 0x11F8 */
-    s8 field_11DC;                                               /* 0x11FC */
+    s8 pending;                                                  /* 0x11FC */
     s8 state;                                                    /* 0x11FD */
-    s8 scale;                                                    /* 0x11FE */
-    u8 unknown_11DF;                                             /* 0x11FF */
+    s8 budget;                                                   /* 0x11FE */
+    u8 pad11FF;                                                  /* 0x11FF */
     OSMesgQueue request_queue;                                   /* 0x1200 */
     OSMesg request_messages[2];                                  /* 0x1228 */
     volatile u8 busy;                                            /* 0x1238 */
-    u8 value1;                                                   /* 0x1239 */
-    u8 value2;                                                   /* 0x123A */
-    u8 value3;                                                   /* 0x123B */
-    u8 option;                                                   /* 0x123C */
-    u8 unknown_1205[3];                                          /* 0x123D */
+    u8 volume;                                                   /* 0x1239 */
+    u8 pan;                                                      /* 0x123A */
+    u8 span;                                                     /* 0x123B */
+    u8 priority;                                                 /* 0x123C */
+    u8 pad123D[3];                                               /* 0x123D */
     u32 rate;                                                    /* 0x1240 */
     s32 handle;                                                  /* 0x1244 */
     s16 *buffer;                                                 /* 0x1248 */
     u32 buffer_count;                                            /* 0x1250 */
-    u8 request_state;                                            /* 0x1254 */
-    u8 mode;                                                     /* 0x1255 */
-    u8 unknown_121A[2];                                          /* 0x1256 */
+    u8 stop_countdown;                                           /* 0x1254 */
+    u8 aux;                                                      /* 0x1255 */
+    u8 pad1256[2];                                               /* 0x1256 */
     u32 processed;                                               /* 0x1258 */
-    f32 field_1220;                                              /* 0x125C */
+    f32 duration;                                                /* 0x125C */
     u32 token;                                                   /* 0x1260 */
 } SpeechStream;
 

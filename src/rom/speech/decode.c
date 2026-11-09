@@ -50,7 +50,7 @@ typedef struct SpeechStream {
     signed char pending;                        /* 0x11FC: an input read is in flight */
     signed char state;                          /* 0x11FD: SPEECH_DECODE_* */
     signed char budget;                         /* 0x11FE: frames to decode per call (2; 4 at half rate) */
-    unsigned char unknown_11DF;                 /* 0x11FF */
+    unsigned char pad11FF;                      /* 0x11FF */
     OSMesgQueue request_queue;                  /* 0x1200: made by speech_play, read by nothing */
     OSMesg request_messages[2];                 /* 0x1228 */
     volatile unsigned char busy;                /* 0x1238: SPEECH_STREAM_* (streams.c) */
@@ -58,14 +58,14 @@ typedef struct SpeechStream {
     unsigned char pan;                          /* 0x123A */
     unsigned char span;                         /* 0x123B: front/back */
     unsigned char priority;                     /* 0x123C: the voice's priority */
-    unsigned char unknown_1205[3];              /* 0x123D */
+    unsigned char pad123D[3];                   /* 0x123D */
     unsigned int rate;                          /* 0x1240: sample rate, Hz */
     int handle;                                 /* 0x1244: the stream voice (sound_stream_start), -1 for none */
     short *buffer;                              /* 0x1248: the PCM ring */
     unsigned int buffer_count;                  /* 0x1250: its length in samples */
     unsigned char stop_countdown;               /* 0x1254: frames until a stopping stream's voice stops, then frees */
     unsigned char aux;                          /* 0x1255: the voice's effect send */
-    unsigned char unknown_121A[2];              /* 0x1256 */
+    unsigned char pad1256[2];                   /* 0x1256 */
     unsigned int processed;                     /* 0x1258: samples played */
     float duration;                             /* 0x125C: seconds, set when the voice starts */
     unsigned int token;                         /* 0x1260: the caller's handle (speech_assign_token) */

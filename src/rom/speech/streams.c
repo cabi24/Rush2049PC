@@ -52,7 +52,7 @@ typedef struct SpeechStream {
     signed char pending;
     signed char state;                  /* SPEECH_DECODE_* */
     signed char budget;
-    unsigned char unknown_11DF;
+    unsigned char pad11FF;
     OSMesgQueue request_queue;
     OSMesg request_messages[2];
     volatile unsigned char busy;        /* SPEECH_STREAM_* */
@@ -60,14 +60,14 @@ typedef struct SpeechStream {
     unsigned char pan;
     unsigned char span;
     unsigned char priority;
-    unsigned char unknown_1205[3];
+    unsigned char pad123D[3];
     unsigned int rate;
     int handle;                         /* the stream voice, -1 for none */
     short *buffer;                      /* the PCM ring */
     unsigned int buffer_count;          /* its length in samples */
     unsigned char stop_countdown;       /* SPEECH_STREAM_STOPPING: frames until the voice stops (at 2) and the stream frees (0) */
     unsigned char aux;
-    unsigned char unknown_121A[2];
+    unsigned char pad1256[2];
     unsigned int processed;             /* samples played */
     float duration;                     /* seconds */
     unsigned int token;

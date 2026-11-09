@@ -19,7 +19,7 @@
  * this frame and the last, j says which is this frame's. repeat and silence are the stream form's run counters. */
 typedef struct GsmState { short dp0[180]; short LARpp[2][8]; short j; short repeat; short silence; unsigned char unknown18E[2]; } GsmState;
 
-/* PC: the stream (decode.c's SpeechStreamDecodeView) has host pointers after the decoder state, so the
+/* PC: the stream (decode.c's SpeechStream) has host pointers after the decoder state, so the
  * input ring and the bit position are where its native layout puts them */
 typedef struct GsmStream { GsmState gsm; void *callback; unsigned char *input; void *output; unsigned int capacity; unsigned int input_ring[GSM_RING_WORDS]; unsigned short remaining_blocks; unsigned short header_low; unsigned int remaining_input; int remaining; OSMesgQueue queue; OSMesg message; int bit_position; } GsmStream;
 

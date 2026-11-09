@@ -1517,18 +1517,18 @@ class UF:
 REVIEWED = [
     (r"src/blob/UpdateSmoke\.c|src/blob/AnimateCoin\.c|src/blob/AnimateNewBlastRing\.c",
      r"id\.part\.index|EntityHdr", "fixed: the PC view's index is the s32 handle's low half"),
-    (r"src/blob/groups/start_smoke/entity_spawn_init\.c", r"handle\.part\.id",
+    (r"src/blob/groups/start_smoke/StartSmoke\.c", r"handle\.part\.id",
      "fixed: the PC view's id is the s32 handle's low half"),
-    (r"src/blob/SetFrameColor\.c|src/blob/groups/SetupCarColor/carcolor\.c", r"PlayerRec|halves\.id",
+    (r"src/blob/SetFrameColor\.c|src/blob/groups/SetupCarColor/SetupCarColor\.c", r"PlayerRec|halves\.id",
      "fixed: the PC views' a..f and id are the s32 handles' low halves"),
-    (r"src/ovl_b/groups/runtime_b_resource_callbacks/group\.c", r"handle\.parts\.index",
+    (r"src/ovl_b/groups/powerups/powerups\.c", r"handle\.parts\.index",
      "fixed: the PC view's index is the s32 handle's low half"),
     (r"src/blob/groups/pathcommon_sync/group\.c", r"TrackerLen",
      "not a conflict: LEN(k) is element k+1's word at +8, the counts read are element 0's"),
     (r"src/blob/relocate_model_dl\.c", r"^relocate_model_dl$",
      "not a conflict: `if (cmd[0] & 0x00FF0000) {}` reads a big-endian command word natively and discards it "
      "(kept for matching); every other read goes through pc_be32_get"),
-    (r"src/rom/lib_(b120|b300|b570|b9f0|be40|bfe0|f700)\.c", r".",
+    (r"src/rom/libultra/(pfsfilestate|pfsdeletefile|pfsallocatefile|pfsreadwritefile|pfsfreeblocks|pfschecker|contpfs)\.c", r".",
      "by design: the controller pak image keeps native u16 links next to {bank, page} bytes (docs/port/ULTRA.md)"),
 ]
 # Initialized data whose conflicts are left to other parts (docs/port/ENDIAN.md 4): a conflict whose values all come

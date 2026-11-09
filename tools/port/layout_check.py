@@ -1335,20 +1335,20 @@ REFERENCE = [
      "the dead-reckoning records gBBoxModelStructs: N64 layout, body a u32 window address (POINTERS.md 10.2)"),
     (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tFxSequence",
      "the audio manager's FX tags, MAT3 audiomgr.c's tFxSequence: InsertLLE's two links are pointers"),
-    (r"src/blob/groups/save/hud_setup\.c$", "Voice",
+    (r"src/blob/groups/save/AudioInit\.c$", "Voice",
      "the FX tag pool gFxTags that AudioInit allocates: the tags", r"audiomgr/audiomgr_thread\.c$",
      "tFxSequence"),
     (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_ll_id_3c",
      "the audio manager's sequence tags, MAT3 audiomgr.c's: InsertLLE's two links are pointers"),
     (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_te_tag_c",
      "the sorted-tag tree's nodes, MAT3 audiomgr.c's: left, right and the tag, pointers"),
-    (r"src/blob/groups/save/hud_setup\.c$", "Chan",
+    (r"src/blob/groups/save/AudioInit\.c$", "Chan",
      "the sequence tag pool gSequences that AudioInit allocates", r"audiomgr/audiomgr_thread\.c$",
      "anon_ll_id_3c"),
-    (r"src/blob/groups/audiomgr/engine_sound_sync\.c$", "Source",
+    (r"src/blob/groups/audiomgr/ProcessEmitters\.c$", "Source",
      "the 3D-sound sources (an FX tag's data): InsertLLE's two links are pointers"),
     (r"src/blob/groups/audiomgr_emitters/group\.c$", "CamSlot", "an FX tag's data, a 3D-sound source",
-     r"src/blob/groups/audiomgr/engine_sound_sync\.c$", "Source"),
+     r"src/blob/groups/audiomgr/ProcessEmitters\.c$", "Source"),
     (r"src/blob/NewMultiBlit\.c$", "Blit", "a blit, NewMultiBlit.c's (POINTERS.md 9.3)"),
     (r".", "Blit", "a blit: NewMultiBlit.c's layout (POINTERS.md 9.3)", r"src/blob/NewMultiBlit\.c$", "Blit"),
 ]
@@ -1365,19 +1365,19 @@ REVIEWED = [
     (r".", r"^pc_statll_(set_)?link$",
      "by design: the StatLL helpers take a link at the width the list's n64 flag gives (POINTERS.md 10.2); the other "
      "width never runs on that list"),
-    (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/lib_1050_sdk\.c$", r"^(Sched|PcSched)$",
+    (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/scheduler\.c$", r"^(Sched|PcSched)$",
      "by design: audio_retrace_thread_entry's Sched is a PC view of the native scheduler (scheduler.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),
-    (r"src/blob/groups/audiomgr/engine_sound_sync\.c$", r"^Effect$",
+    (r"src/blob/groups/audiomgr/ProcessEmitters\.c$", r"^Effect$",
      "by design: ProcessEmitters's Effect is a PC view of the FX tag padded in host bytes; each access is the "
      "tag's field"),
-    (r"src/rom/lib_17dc0\.c$", r"^(Seq_|SequenceContext)",
+    (r"src/rom/sound/sequencer\.c$", r"^(Seq_|SequenceContext)",
      "by design: sequencer.c's PC views of a sequence slot are padded in host bytes (SEQ_PC_OFF, "
      "include/sequence_context.h), so each access is the slot's field whatever N64 position the padding gives"),
     (r"src/blob/groups/(update_fx/updatefx|aud_stop_effect/group)\.c$", r"^(AudioMsg|Msg)$",
      "by design: a stop or interrupt message's tag follows the header (tAudioMsg's startEffect, host +8); the "
      "union's N64 positions are its largest member's"),
-    (r"src/blob/groups/save/ctx_slot\.c$", r"^DecodeGhost$",
+    (r"src/blob/groups/save/ghost_files\.c$", r"^DecodeGhost$",
      "by design: a heap handle slot is 8 bytes holding a zero-extended window address, and a u32 reader takes its "
      "low half (POINTERS.md 9.10)"),
     (r"src/blob/initTargetStructs\.c$", r"Rec20",
@@ -1394,7 +1394,7 @@ REVIEWED = [
      "u32 flags word that no code reads whole"),
     (r"src/blob/game_memcmp\.c$", r"^game_memcmp$",
      "by design: game_memcmp compares bytes (memcmp); its callers pass typed pointers"),
-    (r"src/blob/groups/interrupt_fx_tag/ap\.c$|audio_effect_setup_b132\.c$|src/blob/RemoveLLE\.c$",
+    (r"src/blob/groups/interrupt_fx_tag/InterruptFxTag\.c$|ProcessSequences\.c$|src/blob/RemoveLLE\.c$",
      r"^\*caller_[ab]\.arg0$",
      "dead: InterruptFxTag.c's caller_a and caller_b are stand-in callers kept for matching (never called); their walk through "
      "the tag's list field is not the tags' link"),
