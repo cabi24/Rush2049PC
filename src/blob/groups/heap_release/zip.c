@@ -151,8 +151,6 @@ typedef struct internal_state {
 #define Buf_size (8 * 2*sizeof(char))
 #define TOO_FAR 4096
 
-VIEW(config[10], configuration_table);
-#define configuration_table configuration_table_view
 #define NIL 0
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */

@@ -1,11 +1,7 @@
 /* MovePlayerFile: a profile's or ghost's file got a new handle (MAT3 save.c). */
 #include "game/game.h"
 
-/* The profile and ghost lists: their first handles. */
-typedef struct { u32 unknown0, unknown4; tProfile **head, **tail; } ProfileList;
 typedef struct { u8 indirect, doubly, unknown02[2]; s32 count; tGhostFile **first, **last; } GhostList;
-VIEW(ProfileList, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 VIEW(GhostList, gGhostFiles);
 #define gGhostFiles gGhostFiles_view
 

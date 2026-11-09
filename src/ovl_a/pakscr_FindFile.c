@@ -1,14 +1,6 @@
 /* pakscr_FindFile: the controller-pak manager's file lookup (MAT3 pakscr.c FindFile). */
 #include "game/game.h"
 
-/* Each pak's open files (paksysdc's tDLList, MAT3 tDLList): head the first. */
-typedef struct tDLList {
-    u8 indirect, doubly, opaque2[2];
-    unsigned int count;
-    void **head, **tail;
-} tDLList;
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
 
 /* A pak file record (MAT3 tPS_File, paksysdc) in its PC layout, 96 bytes: its links and its two functions are
  * pointers, so the rest is later than on the N64 (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */

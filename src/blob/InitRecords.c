@@ -4,10 +4,6 @@
 typedef struct Table {intptr_t value[3][5];} Table;   /* a name index or a profile handle (docs/port/CASTS.md) */
 VIEW(Table[12], gTotalNames);
 #define gTotalNames gTotalNames_view
-VIEW(u8[260], gTempNames);
-#define gTempNames gTempNames_view
-VIEW(unsigned short[20], gTempNameAges);
-#define gTempNameAges gTempNameAges_view
 
 extern void *memset(void *,int,u32);
 

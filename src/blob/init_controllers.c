@@ -18,11 +18,6 @@ extern void osSetEventMesg(s32,OSMesgQueue *,OSMesg);  /* SDK osSetEventMesg */
 /* libultra's event of a serial interface transfer done (OS_EVENT_SI). */
 #define OS_EVENT_SI 5
 
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
-
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
 VIEW(OSMesg[8], si_event_msgs);
 #define si_event_msgs si_event_msgs_view
 

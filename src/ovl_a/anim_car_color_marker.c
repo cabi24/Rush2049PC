@@ -12,8 +12,6 @@ typedef struct Blit {
 } Blit;
 typedef struct Color { u8 r,g,b,a; } Color;
 
-VIEW(Color[][3], carscr_marker_colors);
-#define carscr_marker_colors carscr_marker_colors_view
 VIEW(Color[], paint_colors_rgb);
 #define paint_colors_rgb paint_colors_rgb_view
 

@@ -18,8 +18,6 @@ extern PlayerRec gPlayers[];
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
-VIEW(Vec3, unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
 VIEW(f32[][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 VIEW(s8[], gOptions);

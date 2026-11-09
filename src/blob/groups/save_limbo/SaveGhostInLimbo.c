@@ -4,12 +4,6 @@
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-VIEW(tGhostFile **, gLimboGhosts);
-#define gLimboGhosts gLimboGhosts_view
-
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 

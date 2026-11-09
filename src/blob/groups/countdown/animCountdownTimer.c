@@ -12,7 +12,6 @@
 
 #define sc gScheduler_view
 #define mapPos hud_mapPos_view
-#define gFontSem text_lock_queue_view
 
 typedef struct tSchedCtl { u8 pad000[0x27C]; s32 frameCount; } tSchedCtl;
 
@@ -21,8 +20,6 @@ VIEW(volatile tSchedCtl, gScheduler);
 VIEW(s32[4][2], countdownTimerPos);
 #define countdownTimerPos countdownTimerPos_view
 VIEW(s32[4][2], hud_mapPos);
-
-VIEW(OSMesgQueue, text_lock_queue);
 
 /* Draws the time left (GetCountdownTimeRemaining, seconds) as m:ss in yellow with a black shadow, centred on
  * countdownTimerPos (a split-screen stunt race: on the map's place), without a leading zero; beeps at 30 seconds and

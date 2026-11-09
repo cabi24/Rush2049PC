@@ -3,9 +3,6 @@
 
 extern void RemoveBlit(intptr_t blit);
 
-VIEW(s32, gPaneBlits);
-#define gPaneBlits gPaneBlits_view
-
 /* Removes every pane in use and its blits, the permanent ones too when permanent is set. */
 void RemovePanes(s32 permanent)
 {

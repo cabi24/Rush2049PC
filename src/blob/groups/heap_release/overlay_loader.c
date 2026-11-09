@@ -6,8 +6,6 @@ extern u8 extra_overlay_bss_end [ ];
 VIEW(u8[], extra_overlay_bss_start);
 #define extra_overlay_bss_start extra_overlay_bss_start_view
 extern u8 start_overlay_bss_end [ ];
-VIEW(u8[], start_overlay_bss_start);
-#define start_overlay_bss_start start_overlay_bss_start_view
 
 #define N64A(x) PC_N64A(x)
 #define N64A0(x) PC_N64A(x)

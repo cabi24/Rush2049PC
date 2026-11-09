@@ -43,9 +43,6 @@ typedef union {
     _g->words.w1 = (unsigned int)(muxs1); \
 }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* Clears the BLIT_ATTR_* bits of mask that are set, undoing what each did: the alpha threshold off, the depth from the
  * pixels again; the depth and translucency bits choose the render mode and combiner, so blit_set_mode sets the current
  * mode again. */

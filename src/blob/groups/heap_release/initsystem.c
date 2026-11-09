@@ -21,13 +21,6 @@ VIEW(intptr_t, zbuffer);
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
 #define DL_BUFFER_0 pc_frame_dl[0]
 #define DL_BUFFER_1 pc_frame_dl[1]
-VIEW(u8 *, frame_dynamic);
-#define frame_dynamic frame_dynamic_view
-VIEW(u8 *, frame_dl);
-#define frame_dl frame_dl_view
-
-VIEW(void *, gEmitters);
-#define gEmitters gEmitters_view
 
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);

@@ -22,17 +22,6 @@ typedef struct {
     char pad82[0x282];
 } Controller;
 
-VIEW(OSMesgQueue, rumble_queue);
-#define rumble_queue rumble_queue_view
-
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
-
-VIEW(s32, gScheduler);
-#define gScheduler gScheduler_view
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
-
 VIEW(Controller[4], gPaks);
 #define gPaks gPaks_view
 

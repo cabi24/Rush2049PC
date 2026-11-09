@@ -1,11 +1,6 @@
 /* RemoveBlit: give a blit and its children back to the pool (MAT3 blit.c). */
 #include "game/game.h"
 
-VIEW(tBlitInstance[], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
-VIEW(tBlit *[], BlitPtrs);
-#define BlitPtrs BlitPtrs_view
-
 /* Removes blit and the rest of its multiblit (its children): frees each one's zoid blit list entry (ZOID_RemoveBlit,
  * inline) and swaps it with the last blit in use in BlitPtrs, so the first NumBlits entries stay the ones in use.
  * Not in include/game: its callers pass a blit as a pointer or as an integer (PCONLY.md 4, "Wave 2: headers"). */

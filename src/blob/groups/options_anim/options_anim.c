@@ -42,16 +42,9 @@ VIEW(u8[], gCamera);
 #define gCamera gCamera_view
 VIEW(Color[2], flashColors);
 #define flashColors flashColors_view
-VIEW(Color, gFlashColor1);
-#define gFlashColor1 gFlashColor1_view
-VIEW(Color, gFlashColor2);
-#define gFlashColor2 gFlashColor2_view
 
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
-
-VIEW(s32[14], options_validOption);
-#define options_validOption options_validOption_view
 
 /* Sets the two colours flashing text moves between (MAT3 TB_text.c's TB_FlashTextColors). */
 void TB_FlashTextColors_AEAC(Color a, Color b)

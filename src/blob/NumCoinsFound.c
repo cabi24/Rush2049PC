@@ -7,8 +7,6 @@
 typedef struct PlayerPad {u8 first;u8 selector;u8 opaque[70];tProfile **profile;} PlayerPad;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* The number of the current track's coins player has found (of its 16 bits: lane 1 the high 8 only, lane 2 the low
  * 8, 0 all), from its profile; a player without one is given its "just play" profile here, for good. 16 for a

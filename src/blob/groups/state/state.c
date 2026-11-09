@@ -20,15 +20,10 @@ VIEW(s8[], gOptions);
 
 extern PadState gPlayers[];           /* gPlayers */
 
-struct PlayerFiles { u32 unknown0,  unknown4 ; PlayerData ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 VIEW(u8[][3], gFogColors);
 #define gFogColors gFogColors_view
 
 extern u8 overlay_base[];                 /* runtime image base (A and B) */
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win);
 

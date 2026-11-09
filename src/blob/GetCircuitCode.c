@@ -14,14 +14,6 @@ struct tCircuit {
     u32 seed;           /* 0x0C */
 };
 
-/* A player's profile (SaveSlot): its save data, read pointer-sized (intptr_t: the profile's PC layout). */
-typedef struct
-{
-    u8 pad0[8];
-    s32 unk8;
-} SavedPlayerSlot;
-VIEW(SavedPlayerSlot **, gPlayers_save);
-#define gPlayers_save gPlayers_save_view
 
 void GetPasswordString(intptr_t code);
 

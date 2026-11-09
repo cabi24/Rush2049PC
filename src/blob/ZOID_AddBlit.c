@@ -1,9 +1,6 @@
 /* ZOID_AddBlit: take an entry of the zoid blit list (MAT3 zoidblit.c). */
 #include "game/game.h"
 
-VIEW(tBlitInstance[MAX_BLITS], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
-
 /* Hands out the first free entry of the zoid blit list (a freed one, else a new one at the end: gNumBlitInsts grows,
  * gMaxBlitInsts keeps the most ever used) and fills it: texture texIndex/texture, colours palette, position x, y,
  * size width x height, depth 0, opaque, the whole texture, shown, no flags. Returns its index, or -1 when all

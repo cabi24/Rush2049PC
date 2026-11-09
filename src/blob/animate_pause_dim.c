@@ -3,9 +3,6 @@
  * PS_ErrorFunc's box (PS_ErrorFunc_dimMultiBlit). */
 #include "game/game.h"
 
-VIEW(BlitColor, pause_dim_color);
-#define pause_dim_color pause_dim_color_view
-
 /* PC: the blit's host layout (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): the Image is the pointer at +8, the
  * AnimFunc slot pointer-sized at +0x38. */
 typedef struct HostBlit {

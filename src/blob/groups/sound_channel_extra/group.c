@@ -10,8 +10,6 @@ typedef struct FontHeaderS {
 } FontHeaderS;
 VIEW(FontHeaderS *, gFontHeader);
 #define gFontHeader gFontHeader_view
-VIEW(s16[256], gCharMap);
-#define gCharMap gCharMap_view
 
 /* Makes the current font fixed width (value 1) or proportional (0), changing the font's header itself, and returns
  * what it was. HAL_SetFont makes font 0 fixed width whenever it is chosen. */

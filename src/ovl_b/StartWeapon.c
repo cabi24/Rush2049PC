@@ -24,8 +24,6 @@ typedef struct tCarParts {
 VIEW(tCarParts[], gCarParts);
 #define gCarParts gCarParts_view
 extern f32 weaponOffsets[8][13][3];
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
 
 /* Puts the weapon on car `slot` if it has none: its weapon visual (visual 20) animates it (AnimateWeapon), the
  * weapon's object (object definition 217) on the car's frame at the car body's offset. */

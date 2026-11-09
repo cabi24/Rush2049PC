@@ -17,8 +17,6 @@ typedef struct {
 } CircuitResult;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 VIEW(CircuitResult, gCircuitCars);
 #define gCircuitCars gCircuitCars_view

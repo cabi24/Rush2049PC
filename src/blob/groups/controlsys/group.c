@@ -24,10 +24,6 @@ VIEW(u32[4][32], gAutoEdgeTimes);           /* when each held button last auto-r
 #define gAutoEdgeTimes gAutoEdgeTimes_view
 VIEW(volatile s32[4], gContLevels);
 #define gContLevels gContLevels_view
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-VIEW(s32[4], gAutoEdges);
-#define gAutoEdges gAutoEdges_view
 VIEW(f32[4][2], gContStick);
 #define gContStick gContStick_view
 VIEW(s32[4], gRealLevels);

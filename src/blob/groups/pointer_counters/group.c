@@ -6,9 +6,6 @@
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* The size in bytes of the chunk whose data is at address (a multiple of 32). Takes the heap lock.
  * PC: the result is read as a pointer at the size field, so its upper half is the chunk's master link; the callers
  * keep its low 32 bits, the size. */

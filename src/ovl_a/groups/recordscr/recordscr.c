@@ -182,11 +182,6 @@ void setRecordState(s32 mode)
     recordscr_buttonsJustInited = 1;
 }
 
-/* The buttons with their count: the optimizer orders the stores to a table of known size as the original
- * declaration had it. */
-VIEW(MenuButton[RECORD_BUTTONS], recordscr_buttonInfo);
-#define recordscr_buttonInfo recordscr_buttonInfo_view
-
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear(void *);
 extern void RemoveBlit(void *);
@@ -473,8 +468,6 @@ VIEW(f32[3][3], unitmatrix);
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(struct pc_multiblit[1], recordscr_mblit);
-#define recordscr_mblit recordscr_mblit_view
 extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
 

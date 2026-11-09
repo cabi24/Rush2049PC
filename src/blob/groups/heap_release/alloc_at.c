@@ -28,9 +28,6 @@ typedef struct Heap {
 
 /* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
 
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 s32 osRecvMesg(void *mq, void **msg, s32 flags);
 s32 osSendMesg(void *mq, void *msg, s32 flags);
 

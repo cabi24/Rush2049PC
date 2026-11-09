@@ -10,9 +10,6 @@ VIEW(Color4, gFlashColor2);
 VIEW(Color4, gFlashColor1);
 #define gFlashColor1 gFlashColor1_view
 
-VIEW(Color8[], gFontColors);
-#define gFontColors gFontColors_view
-
 /* Makes the text colour entry color of the colour table (kTB_*Text; each entry's second colour is unused here), or for
  * kTB_FlashText the mix of gFlashColor2 and gFlashColor1 by gColorCycle, which then changes every frame: the first
  * flashing text starts TB_TextOncePerFrame (MAT3's TB_TextInit, inline). */

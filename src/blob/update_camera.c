@@ -30,8 +30,6 @@ VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 VIEW(Vec3[], cur_acc);
 #define cur_acc cur_acc_view
-VIEW(OSThread, model_thread);
-#define model_thread model_thread_view
 
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);

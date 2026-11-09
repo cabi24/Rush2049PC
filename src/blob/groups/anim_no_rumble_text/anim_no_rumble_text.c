@@ -33,22 +33,12 @@ typedef struct Control {
     u8 pad74[0x304 - 0x74];
 } Control;
 
-typedef struct Pos {
-    s32 x, y;
-} Pos;
 
 typedef struct Pair {
     s32 a, b;
 } Pair;
 
-VIEW(Pair, gJust);
-#define gJust gJust_view
-
 extern Player gPlayers[];
-VIEW(Control[], gPaks);
-#define gPaks gPaks_view
-VIEW(Pos[][4], no_rumble_text_pos);
-#define no_rumble_text_pos no_rumble_text_pos_view
 
 /* The text's horizontal and vertical justification (gJust), as TB_SetJust sets it. */
 void TB_SetJust_6B3C(u32 first, u32 second)

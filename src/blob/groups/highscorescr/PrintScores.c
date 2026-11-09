@@ -17,10 +17,6 @@ VIEW(Player **[][3][5], gTotalNames);
 VIEW(RaceStats[], gTotalRaceStats);
 #define gTotalRaceStats gTotalRaceStats_view
 
-VIEW(char[5][10], gScoreTimes);
-#define gScoreTimes gScoreTimes_view
-VIEW(char *[5], gScoreNames);
-#define gScoreNames gScoreNames_view
 VIEW(void *, scorePanes);
 #define scorePanes scorePanes_view
 

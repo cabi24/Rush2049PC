@@ -5,19 +5,11 @@
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-VIEW(OSMesgQueue, controlsys_lock_queue);
-#define controlsys_lock_queue controlsys_lock_queue_view
 extern int osRecvMesg(OSMesgQueue *, void **, int);
 extern int osSendMesg(OSMesgQueue *, void *, int);
 
 VIEW(f32[4][2], gContStick);
 #define gContStick gContStick_view
-VIEW(s32[4], gAutoEdges);
-#define gAutoEdges gAutoEdges_view
-VIEW(s32[4], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
 
 /* Clears the frame's held, pressed and auto-repeated buttons and sticks, each controller's and the active ones'
  * union, and the presses ControlIRQ has gathered since the last frame; under the controls' lock. */

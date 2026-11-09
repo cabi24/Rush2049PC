@@ -3,8 +3,6 @@
 
 VIEW(unsigned char[4], gFontColor);
 #define gFontColor gFontColor_view
-VIEW(intptr_t, blitColors);
-#define blitColors blitColors_view
 
 /* Makes red, green, blue, alpha the text's colour; a new colour forgets the blitter's colour cache so that the next
  * glyph loads it (MAT3 calls BlitClearColors). */

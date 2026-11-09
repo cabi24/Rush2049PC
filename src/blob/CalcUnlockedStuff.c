@@ -15,8 +15,6 @@ VIEW(s8[][13], gUnlockedCars);
 
 VIEW(s8[][6], gUnlockedFrames);
 #define gUnlockedFrames gUnlockedFrames_view
-VIEW(s8[], gForceUnlockedCircuits);
-#define gForceUnlockedCircuits gForceUnlockedCircuits_view
 
 /* Fills the unlock tables (gUnlockedCars, gUnlockedTrans, gUnlockedEngines, gUnlockedTires, gUnlockedFrames,
  * gUnlockedTracks, gUnlockedCircuits) for each player from its profile, or all of them with the cheats:

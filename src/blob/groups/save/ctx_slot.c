@@ -8,9 +8,6 @@
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
@@ -70,10 +67,7 @@ typedef struct Slot {
 } Slot;
 typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
 #define START_VIEW HeaderStart
-typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
 
-VIEW(List, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 VIEW(Handle[4], gGhosts);
 #define gGhosts gGhosts_view
 

@@ -31,30 +31,8 @@ void *NewMultiBlit(s16, s16, void *, s16);
 
 extern PadState gPlayers[4];           /* gPlayers */
 
-VIEW(s8[4], prevControlScrActive);
-#define prevControlScrActive prevControlScrActive_view
-VIEW(s16[4], gControlSelect);
-#define gControlSelect gControlSelect_view
-VIEW(s16[4], gControlFirst);
-#define gControlFirst gControlFirst_view
-
-VIEW(s8[4][10], gConflict);
-#define gConflict gConflict_view
-VIEW(s8[4], gConflictExists);
-#define gConflictExists gConflictExists_view
-VIEW(s8[4][10], gNewControls);
-#define gNewControls gNewControls_view
 VIEW(Profile *[4], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
-VIEW(s8[4], gControlsSet);
-#define gControlsSet gControlsSet_view
-
-VIEW(struct pc_multiblit[81], buttonsFrontEnd);
-#define buttonsFrontEnd buttonsFrontEnd_view
-VIEW(struct pc_multiblit[21], buttonsPauseSingle);
-#define buttonsPauseSingle buttonsPauseSingle_view
-VIEW(struct pc_multiblit[41], buttonsPauseMulti);
-#define buttonsPauseMulti buttonsPauseMulti_view
 
 /* The list's rows (gControlSelect): the ten controls, then these two. */
 #define CONTROLS_ROW_RUMBLE 10      /* the rumble setting (0-2), offered when the player's pak is a Rumble Pak */

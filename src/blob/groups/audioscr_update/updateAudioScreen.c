@@ -146,9 +146,6 @@ typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
 VIEW(Stick[4], gContStick);
 #define gContStick gContStick_view
 
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-
 VIEW(AudioCfg, gOptions);
 #define gOptions gOptions_view
 VIEW(Pad16[], gControllerData);

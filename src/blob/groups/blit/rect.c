@@ -31,9 +31,6 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 VIEW(u8[4], blitPrimColor);
 #define blitPrimColor blitPrimColor_view
 

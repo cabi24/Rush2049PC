@@ -1198,8 +1198,6 @@ typedef struct tPoly {
     } u;
 } tPoly;
 
-VIEW(Gfx *, frame_dl);
-#define frame_dl frame_dl_view
 VIEW(tWindowInfo[], ZoidWinInfo);
 #define ZoidWinInfo ZoidWinInfo_view
 

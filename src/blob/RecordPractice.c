@@ -11,8 +11,6 @@ typedef struct PlayerPad { u8 car; u8 selector; u8 pad2[0x46]; tProfile **profil
 typedef struct CarDistance { u8 pad[264]; f32 dist; u8 pad2[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad2_308[0x380 - 0x308]; void *input; u8 pad2_384[0x3B8 - 0x384]; } CarDistance;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* Adds the distance each player drove (in tenths of a mile, kept whole) to its profile's stats for the track (the
  * backward ones when gBackwards) and to the totals, then writes the profile's stats. A player without a profile uses

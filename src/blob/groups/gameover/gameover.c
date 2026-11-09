@@ -17,31 +17,9 @@ typedef struct {
 #define AUDIO_CMD_STOP_SONG 1           /* stop the music */
 #define AUDIO_CMD_STOP_ALL_EFFECTS 7    /* stop every sound effect and sequence */
 
-/* The game's texts (gText): single strings, and tables of strings indexed through tab. */
-typedef struct {
-    void *unk0;
-    void **single;
-    void *unk8;
-    u16 *tab;
-    void **taba;
-} TextTable;
 #define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
 #define TEXT_GAME_OVER_MENU 45      /* gText.tab[]: the first of the menu's seven rows */
 #define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
-
-VIEW(TextTable, gText);
-#define gText gText_view
-
-VIEW(u8[2], gameover_titlePos);
-#define gameover_titlePos gameover_titlePos_view
-
-VIEW(struct pc_multiblit[1], gameover_multiblit);
-#define gameover_multiblit gameover_multiblit_view
-
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(OSMesgQueue, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
 
 VIEW(void *, gEnvList);
 #define gEnvList gEnvList_view

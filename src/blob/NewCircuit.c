@@ -21,18 +21,7 @@ typedef struct {
     u8 pad0[8];
     s32 unk8;
 } SavedPlayerSlot;
-VIEW(SavedPlayerSlot **, gPlayers_save);
-#define gPlayers_save gPlayers_save_view
 
-/* The game options, a byte each: [31] the circuit's death option. */
-typedef struct {
-    u8 pad00[0x0C];
-    u8 unk0C;
-    u8 unk0D;
-    u8 unk0E;
-} CircuitOptions;
-VIEW(CircuitOptions, gOptions);
-#define gOptions gOptions_view
 
 extern void *memset(void *s, s32 c, u32 n);
 

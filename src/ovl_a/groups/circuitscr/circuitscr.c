@@ -95,8 +95,6 @@ void resetEnabled(void)
 VIEW(u32, gActiveAutoEdges);
 #define gActiveAutoEdges gActiveAutoEdges_view
 
-VIEW(u8[20], circuitscr_gCircuitCode);
-#define circuitscr_gCircuitCode circuitscr_gCircuitCode_view
 VIEW(u8 *, gPasswordAlphabet);
 #define gPasswordAlphabet gPasswordAlphabet_view
 
@@ -210,8 +208,6 @@ VIEW(PlayerStats[], gCircuitCars);
 VIEW(u8, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(f32[12], gTrophyMat);
-#define gTrophyMat gTrophyMat_view
 VIEW(f32[12], unitmatrix);
 #define unitmatrix unitmatrix_view
 
@@ -472,11 +468,6 @@ void controlShowTrophy(void)
         circuitscr_buttonsJustInited = 1;
     }
 }
-
-/* The buttons with their count: the optimizer orders the stores to a table of known size as the original
- * declaration had it. */
-VIEW(MenuButton[CIRCUIT_BUTTONS], circuitscr_buttonInfo);
-#define circuitscr_buttonInfo circuitscr_buttonInfo_view
 
 extern void RemoveBlit(Blit *);
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */

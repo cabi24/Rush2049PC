@@ -8,9 +8,6 @@ typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
 VIEW(unsigned char, gNumModels);
 #define gNumModels gNumModels_view
 
-VIEW(OSMesgQueue, bg_load_idle_queue);
-#define bg_load_idle_queue bg_load_idle_queue_view
-
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 

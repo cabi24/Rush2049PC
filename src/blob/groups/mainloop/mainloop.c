@@ -9,10 +9,6 @@
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 typedef struct { u8 pad[636]; s32 frameCount; } Sched;
 
-VIEW(OSMesgQueue, main_thread_queue);
-#define main_thread_queue main_thread_queue_view
-VIEW(OSMesgQueue, game_thread_queue);
-#define game_thread_queue game_thread_queue_view
 VIEW(u8[], frame_start_msg);
 #define frame_start_msg frame_start_msg_view
 VIEW(volatile s8, frame_start_pending);

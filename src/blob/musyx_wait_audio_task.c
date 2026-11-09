@@ -4,9 +4,6 @@
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
-VIEW(s32, musyx_task_done_queue);
-#define musyx_task_done_queue musyx_task_done_queue_view
-
 /* Block until the scheduler reports the audio task musyx_submit_audio_task sent done (a message on
  * musyx_task_done_queue). */
 void musyx_wait_audio_task(void) {

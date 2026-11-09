@@ -18,18 +18,8 @@ typedef struct tTexture {
 VIEW(FontHeader *, gFontHeader);
 #define gFontHeader gFontHeader_view
 
-VIEW(tTexture *[16], gFontTextures);
-#define gFontTextures gFontTextures_view
-VIEW(s16[256], gCharMap);
-#define gCharMap gCharMap_view
 VIEW(anon_fore_4, gFontColor);
 #define gFontColor gFontColor_view
-
-VIEW(s32, gFontAttribute);
-#define gFontAttribute gFontAttribute_view
-
-VIEW(void *, blitColors);
-#define blitColors blitColors_view
 
 /* Draws length bytes of text (a single- or double-byte string, its mark and ending zeros counted) at the text position
  * in the current font, colour, translucency and depth, now: the blitter's state set from gFontAttribute, the scissor

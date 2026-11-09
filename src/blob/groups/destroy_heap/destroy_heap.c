@@ -8,9 +8,6 @@ typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* Unlinks heap from the chain of heaps that starts at gMainHeap and frees the chunk of its parent that holds it,
  * with everything still allocated in it. Takes the heap lock. */
 void destroy_heap(tHeap *heap)

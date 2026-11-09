@@ -3,12 +3,6 @@
 
 extern tPadState gPlayers[];
 
-VIEW(s32[4], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-VIEW(s32[4], gAutoEdges);
-#define gAutoEdges gAutoEdges_view
 VIEW(f32[4][2], gContStick);
 #define gContStick gContStick_view
 

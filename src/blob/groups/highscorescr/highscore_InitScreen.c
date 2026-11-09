@@ -38,12 +38,6 @@ VIEW(u8[], gUnlockedEngines);
 VIEW(u8[], gUnlockedTires);
 #define gUnlockedTires gUnlockedTires_view
 
-VIEW(PlayerTail[], gPlayers_save);
-#define gPlayers_save gPlayers_save_view
-
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 extern void *memcpy(void *dst, const void *src, s32 n);

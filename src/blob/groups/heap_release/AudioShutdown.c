@@ -7,14 +7,6 @@
 #define audiomgr_gCmds (*(volatile tAudioMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 
-/* The three blocks as plain addresses, as this file always passed them. */
-VIEW(uintptr_t, gFxTags);
-#define gFxTags gFxTags_view
-VIEW(uintptr_t, gSortedFxTags);
-#define gSortedFxTags gSortedFxTags_view
-VIEW(uintptr_t, gSequences);
-#define gSequences gSequences_view
-
 /* If the sound manager is up: frees the 3D sound, stops the song and every effect (post_type1, post_type7), waits
  * until the audio manager thread has run every message of the pool, shuts the sound system down
  * (AudioShutdownSys) and frees the fx tags, the tag tree's nodes and the sequences.

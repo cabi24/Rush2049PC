@@ -107,9 +107,6 @@ VIEW(s32[36], percentTable);
 #define percentTable percentTable_view
 #define RUMBLE_STEPS percentTable
 
-VIEW(s8[], gPaks);
-#define gPaks gPaks_view
-
 VIEW(intptr_t, gGhosts);
 #define gGhosts gGhosts_view
 

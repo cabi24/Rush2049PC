@@ -11,9 +11,6 @@ VIEW(const MultiBlit, options_frontEndBlit);
 VIEW(const MultiBlit, options_pauseBlit);
 #define options_pauseBlit options_pauseBlit_view
 
-VIEW(s32[14], options_validOption);
-#define options_validOption options_validOption_view
-
 VIEW(ContData[], gControllerData);
 #define gControllerData gControllerData_view
 

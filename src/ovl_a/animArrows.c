@@ -16,8 +16,6 @@ typedef struct Texture { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, 
 
 VIEW(Point[][4], trackscr_arrowPos);
 #define trackscr_arrowPos trackscr_arrowPos_view
-VIEW(Texture[], gBlitInstanceList);
-#define gBlitInstanceList gBlitInstanceList_view
 
 #define TEXT_TRACK_OPTIONS 1        /* gText.tab[]: the race options' names (trackscr_gOpts indexes them) */
 #define ARROW_LEFT 0                /* the item (AnimID bits 4-7) */

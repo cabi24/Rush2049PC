@@ -14,14 +14,6 @@ typedef struct MultiBlit {
 VIEW(s8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 
-VIEW(u32[4], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-
-VIEW(MultiBlit[], licensescr_blits);
-#define licensescr_blits licensescr_blits_view
-
 extern Blit *NewMultiBlit(short, short, const MultiBlit *, short);
 extern void RemoveBlit(Blit *);
 

@@ -3,21 +3,6 @@
 
 extern void *memset(void *s, s32 c, u32 n);
 
-VIEW(s32, gTotalRaceStats);
-#define gTotalRaceStats gTotalRaceStats_view
-
-VIEW(s32, gTotalStuntStats);
-#define gTotalStuntStats gTotalStuntStats_view
-
-VIEW(s32, gTotalBattleStats);
-#define gTotalBattleStats gTotalBattleStats_view
-
-VIEW(s32, gTotalObstacleStats);
-#define gTotalObstacleStats gTotalObstacleStats_view
-
-VIEW(s32, gTotalCircuitStats);
-#define gTotalCircuitStats gTotalCircuitStats_view
-
 /* Clears the race, stunt, battle, obstacle and circuit totals (gTotalRaceStats ...), before the profiles are added
  * up again. */
 void ClearTotalStats(void) {

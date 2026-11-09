@@ -44,13 +44,9 @@ typedef struct Dynamic {
     u8 pad[PC_GLIST_OFFSET];
     Gfx glist[GLIST_LEN];
 } Dynamic;
-VIEW(Dynamic *, frame_dynamic);
-#define frame_dynamic frame_dynamic_view
 VIEW(s32, gfx_tasks_pending);
 #define gfx_tasks_pending gfx_tasks_pending_view
 
-VIEW(OSMesgQueue, main_thread_queue);
-#define main_thread_queue main_thread_queue_view
 extern OSMesgQueue scheduler_task_queue;
 extern u8 scheduler_thread[];                  /* thread */
 

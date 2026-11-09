@@ -6,8 +6,6 @@
 
 VIEW(FontHeader *, gFontHeader);
 #define gFontHeader gFontHeader_view
-VIEW(s16[256], gCharMap);
-#define gCharMap gCharMap_view
 
 /* The width in pixels of the first maxlen characters of str (all of it when negative; it stops at a newline), in the
  * current font: each letter's width and the spacing between letters, less the kerning, a space's width for spaces,

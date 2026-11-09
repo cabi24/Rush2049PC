@@ -8,12 +8,6 @@ typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,ms
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
 extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
-
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
-
 /* Makes the serial bus lock (a one-message queue) the first time it is needed (a copy of pfs_queue_init). */
 static void pak_queue_init(void)
 {

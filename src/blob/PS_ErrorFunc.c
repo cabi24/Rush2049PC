@@ -5,9 +5,6 @@
 
 typedef struct OSThread OSThread;
 
-VIEW(struct pc_multiblit[1], PS_ErrorFunc_dimMultiBlit);
-#define PS_ErrorFunc_dimMultiBlit PS_ErrorFunc_dimMultiBlit_view
-
 extern intptr_t NewMultiBlit(s16 ulx, s16 uly, void *mblit, s16 nblits);
 extern void RemoveBlit(intptr_t blit);
 

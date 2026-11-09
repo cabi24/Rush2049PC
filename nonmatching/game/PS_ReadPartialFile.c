@@ -51,21 +51,9 @@ struct tPS_File {
     u32 size, blocks;
     u8 **data;
 };
-typedef struct tDLList {
-    u8 indirect, doubly, opaque2[2];
-    u32 count;
-    PakHandle *head, *tail;
-} tDLList;
 
 VIEW(volatile PakRecord[], gPaks);
 #define gPaks gPaks_view
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
-VIEW(tDLList, pak_free_handles);
-#define pak_free_handles pak_free_handles_view
-
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
 
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
@@ -97,9 +85,6 @@ PakHandle *pfs_get_node(void)
 }
 
 /* 0x800A2D4C */
-
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 void pdf_heap_lock(void)
 {
@@ -190,9 +175,6 @@ read_retry:
     si_unlock();
     gPaks[pak].files[fileNo].flag2 = numBytes != psfile->size;
 }
-
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 /* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
 

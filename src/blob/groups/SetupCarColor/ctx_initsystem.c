@@ -5,11 +5,6 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { u32 opaque[6]; } OSMesgQueue;
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
-
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 /* PC: the two frame command buffers hold 16-byte commands, so they are larger than the N64's frame_command_buffer_a /
  * frame_command_buffer_b (docs/port/POINTERS.md), and have room for 12 cars in two views: PC_FRAME_MATRICES matrices from +1728

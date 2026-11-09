@@ -121,14 +121,6 @@ VIEW(Color, trackscr_update_button_color);
 VIEW(MultiBlit[], trackscr_mblit);
 #define trackscr_mblit trackscr_mblit_view
 
-VIEW(s16[21], trackscr_gOpts);
-#define trackscr_gOpts trackscr_gOpts_view
-VIEW(TrackSlot[19], gTracks);
-#define gTracks gTracks_view
-
-VIEW(f32[3], trackscr_InitScreen_fogPos);
-#define trackscr_InitScreen_fogPos trackscr_InitScreen_fogPos_view
-
 /* game functions */
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
@@ -187,15 +179,9 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 }
 typedef struct { s16 ob[3]; u16 flag; s16 tc[2]; u8 cn[4]; } Vtx;
 
-VIEW(s8[19], trackReady);
-#define trackReady trackReady_view
-
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
-
-VIEW(u8[8], trackscr_fogColor);
-#define trackscr_fogColor trackscr_fogColor_view
 
 /* PC: the fog blit's palette n64FogPal is a Palette (gfx's draw reads its colour table palBase, at +0x14, as a u32
  * window address), which must stay in the arena at its N64 address. palBase holds the colour pair trackscr_fogColor's
@@ -215,17 +201,6 @@ extern void RemoveBlit(Blit *);   /* RemoveBlit (ZOID_RemovePoly on N64: blits) 
 typedef struct RomObjDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lod[4];} RomObjDef;   /* 88 B */
 typedef struct ModelBank {RomObjDef *romObjDefs;s32 count;} ModelBank;
 
-VIEW(TrackMapEntry[20], trackMap);
-#define trackMap trackMap_view
-
-VIEW(MapLod[7], saved_map_lods);
-#define saved_map_lods saved_map_lods_view
-VIEW(MapLod[7], mapObj);
-#define mapObj mapObj_view
-VIEW(void *[7], map_display_list_blocks);
-#define map_display_list_blocks map_display_list_blocks_view
-VIEW(void *[7], map_vertex_blocks);
-#define map_vertex_blocks map_vertex_blocks_view
 VIEW(ModelBank[], gRomObjDefPtrs);
 #define gRomObjDefPtrs gRomObjDefPtrs_view
 
@@ -242,10 +217,6 @@ VIEW(Color, loadTrackScreen_backColor);
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
 #define MAP_DL_SECTION_BYTES 80
 #define MAP_DL_FIXED_BYTES 112
-VIEW(f32[12], trackMapMat);
-#define trackMapMat trackMapMat_view
-VIEW(f32[3], buildTrackMap_mapPos);
-#define buildTrackMap_mapPos buildTrackMap_mapPos_view
 extern Blit *NewBlit(char *,s16,s16,s16);
 #define DISPLAY_WORDS(p,a,b) do {DisplayCommand *command=(p)++; command->w0=(a);command->w1=(b);} while(0)
 #define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
@@ -265,14 +236,6 @@ VIEW(Checkpoints, gCheckpoints);
 
 VIEW(Color, race_map_vertex_color);
 #define race_map_vertex_color race_map_vertex_color_view
-VIEW(f32[3], buildRaceTrackMaps_mapPos);
-#define buildRaceTrackMaps_mapPos buildRaceTrackMaps_mapPos_view
-VIEW(f32[3], buildRaceTrackMaps_selMapPos);
-#define buildRaceTrackMaps_selMapPos buildRaceTrackMaps_selMapPos_view
-VIEW(f32[3], buildStuntTrackMaps_mapPos);
-#define buildStuntTrackMaps_mapPos buildStuntTrackMaps_mapPos_view
-VIEW(f32[3], buildBattleTrackMaps_mapPos);
-#define buildBattleTrackMaps_mapPos buildBattleTrackMaps_mapPos_view
 
 extern void *audio_dma_sync(s32,s32);  /* AllocateMemoryHeap */
 

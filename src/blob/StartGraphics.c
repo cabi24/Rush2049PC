@@ -101,18 +101,8 @@ typedef struct {
     void *colorBuffer; /* 124 */
 } FrameBuf;
 
-VIEW(Gfx *, frame_dl);
-#define frame_dl frame_dl_view
-
-VIEW(FrameBuf[], frame_records);
-#define frame_records frame_records_view
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
-
-VIEW(Gfx[], rsp_init_dl);
-#define rsp_init_dl rsp_init_dl_view
-VIEW(Gfx[], rdp_init_dl);
-#define rdp_init_dl rdp_init_dl_view
 
 u32 osVirtualToPhysical(void *);
 void osViSetSpecialFeatures(u32);

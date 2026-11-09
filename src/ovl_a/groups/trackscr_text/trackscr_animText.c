@@ -4,9 +4,6 @@
 
 typedef struct Color4 { u32 word; } Color4;
 
-VIEW(f32[3], trackscr_title_button_position);
-#define trackscr_title_button_position trackscr_title_button_position_view
-
 VIEW(Color4, flashColors);
 #define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);

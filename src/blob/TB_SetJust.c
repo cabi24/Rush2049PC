@@ -2,8 +2,6 @@
 #include "game/game.h"
 
 typedef struct { u32 h, v; } Justification;
-VIEW(Justification, gJust);
-#define gJust gJust_view
 
 /* Sets the justification TB_DrawText and the text boxes use: hJust kTB_JustLeft, kTB_JustCenter or kTB_JustRight
  * against x, vJust kTB_JustTop, kTB_JustCenter or kTB_JustBottom against y. */

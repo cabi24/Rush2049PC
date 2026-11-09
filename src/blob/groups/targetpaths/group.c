@@ -38,10 +38,6 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
 #define OBJ_PATH_MOVING 348
 #define OBJ_PATH_STOPPED 349
 
-/* unitmatrix's fourth row, the origin: the sounds' orientation */
-VIEW(s32, unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
-
 VIEW(s32[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 

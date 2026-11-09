@@ -17,8 +17,6 @@ extern u8 D_00039B40[];
 /* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
  * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
 #define N64AS(x) (s32)PC_N64A(x)
-VIEW(void (*[8])(void), audio_driver_services);
-#define audio_driver_services audio_driver_services_view
 
 extern void osCreateMesgQueue(void *,void *,s32);
 extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);

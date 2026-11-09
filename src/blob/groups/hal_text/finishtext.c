@@ -3,19 +3,8 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { s32 opaque[6]; } OSMesgQueue;
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-
-VIEW(s32, gFontColor);
-#define gFontColor gFontColor_view
-
-VIEW(s32, gFontAttribute);
-#define gFontAttribute gFontAttribute_view
-
-VIEW(u8[800], gBuffer);
-#define gBuffer gBuffer_view
 
 /* Runs the text commands HAL_DrawText buffered since HAL_StartText (TEXT_CMD_*), drawing the strings with DrawText,
  * from the default font, colour and position; under the text lock. end becomes gFinished (HAL_StartText clears it

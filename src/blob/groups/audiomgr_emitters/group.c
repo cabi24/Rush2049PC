@@ -3,10 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-/* gTagMask as a signed word, as this file always read it (only the matching leftover below writes it). */
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
-
 s32 osRecvMesg(void *, void *, s32);
 s32 osSendMesg(void *, void *, s32);
 

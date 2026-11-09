@@ -37,15 +37,9 @@ typedef struct VsIdx { u8 pad0[48]; u16 yesNo; u8 pad50[32]; u16 optionNames; } 
 typedef struct TextState { void *word0; char **fixed; void *word8; VsIdx *indices; char **strings; } TextState;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;   /* 64 B */
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 VIEW(TextState, gText);
 #define gText gText_view
 
-typedef struct { s32 x, w, h, cx; } MenuRect;          /* MAT3 videoscr.c menuRect */
-VIEW(MenuRect, video_menuRect);
-#define video_menuRect video_menuRect_view
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view

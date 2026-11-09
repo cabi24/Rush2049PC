@@ -31,8 +31,6 @@ typedef struct Heap {
 #define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 

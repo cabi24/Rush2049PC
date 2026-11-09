@@ -1241,10 +1241,6 @@ ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
     {{255, 0, 0}, 0, {255, 0, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
 };
-VIEW(s16[11], componentToName);
-#define componentToName componentToName_view
-VIEW(char *[5], carComponentNames);
-#define carComponentNames carComponentNames_view
 
 VIEW(ObjInstance[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view

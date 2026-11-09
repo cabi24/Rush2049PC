@@ -116,16 +116,10 @@ void DrawUnlocked(void)
 #define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles */
 #define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
-VIEW(char[], highscore_gCircuitCode);
-#define highscore_gCircuitCode highscore_gCircuitCode_view
-
 VIEW(s8[][5], gNewTotalScore);
 #define gNewTotalScore gNewTotalScore_view
 
 extern s32 sprintf(char *, const char *, ...);
-
-VIEW(char *, gPlayerNameChars);
-#define gPlayerNameChars gPlayerNameChars_view
 
 /* SaveInit' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;

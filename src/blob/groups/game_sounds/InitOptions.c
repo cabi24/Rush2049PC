@@ -17,8 +17,6 @@ VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 VIEW(s8[4], gDriveHulk);
 #define gDriveHulk gDriveHulk_view
-VIEW(Rec164A4, gCheatState);
-#define gCheatState gCheatState_view
 
 /* One player in one window. */
 static void reset_player_counts(void) {

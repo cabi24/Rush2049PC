@@ -6,9 +6,6 @@ extern void *memcpy(void *, const void *, u32);
 VIEW(u32, gFontColor);
 #define gFontColor gFontColor_view
 
-VIEW(u8[800], gBuffer);
-#define gBuffer gBuffer_view
-
 
 /* The number of bytes of text that numChars characters take (all of it when numChars < 0), its double-byte mark and
  * its ending zero (or zeros) included. (MAT3's _TextLen.) */

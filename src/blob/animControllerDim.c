@@ -2,9 +2,6 @@
  * a button (idle_warning_multiblit) (MAT3 animControllerDim, a game.c animator). */
 #include "game/game.h"
 
-VIEW(BlitColor, controller_dim_color);
-#define controller_dim_color controller_dim_color_view
-
 /* PC: the blit's host layout (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): the Image is the pointer at +8. The
  * m2c body's 8-byte store at the N64 +4 split the colour's address over the Name and the Image, and the draw read
  * the colour from NULL. */

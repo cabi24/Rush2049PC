@@ -56,8 +56,6 @@ typedef struct Surface {
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
-VIEW(u32[4], skid_tire_flags);
-#define skid_tire_flags skid_tire_flags_view
 
 VIEW(u8[], gShadowColor);
 #define gShadowColor gShadowColor_view

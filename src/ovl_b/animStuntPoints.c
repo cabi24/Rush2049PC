@@ -12,18 +12,9 @@ typedef struct tStuntCoin {
     s16 screenPos[2], startPos[2], destPos[2];
     f32 scrollTime;
 } tStuntCoin;
-typedef struct tText {
-    u16 numSingle;
-    u8 **single;
-    u16 numTab, numTabA;
-    u16 *tab;
-    u8 **taba;
-} tText;
 
 VIEW(tStuntPlayer[4], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
-VIEW(tText, gText);
-#define gText gText_view
 VIEW(s32[4][4][2], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
 VIEW(s32[4][4][2], stuntPos);

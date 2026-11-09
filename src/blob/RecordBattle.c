@@ -7,8 +7,6 @@
 typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 VIEW(s8, gRankedPlayer);
 #define gRankedPlayer gRankedPlayer_view
 

@@ -15,9 +15,6 @@ VIEW(volatile u8, gNumModels);
 VIEW(f32[3][3], unitmatrix);
 #define unitmatrix unitmatrix_view
 
-VIEW(s32[14], options_validOption);
-#define options_validOption options_validOption_view
-
 void *memcpy(void *, const void *, u32);
 
 TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);

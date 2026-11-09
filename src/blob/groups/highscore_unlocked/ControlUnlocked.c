@@ -10,9 +10,6 @@ typedef struct InputRecord {
 
 extern InputRecord gPlayers[];
 
-VIEW(s8, circuitCode);
-#define circuitCode circuitCode_view
-
 s32 CountdownTimeOut(s32 arg0);
 
 /* Each player who unlocked something reads its notice until Start or A (or the page's time runs out); a player

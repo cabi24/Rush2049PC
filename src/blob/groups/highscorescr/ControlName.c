@@ -13,9 +13,6 @@ typedef struct InputRecord {
 } InputRecord;
 extern InputRecord gPlayers[];
 
-VIEW(u8[][13], gScoreName);
-#define gScoreName gScoreName_view
-
 VIEW(intptr_t[12][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
 VIEW(s8[3][5], gNewTotalScore);

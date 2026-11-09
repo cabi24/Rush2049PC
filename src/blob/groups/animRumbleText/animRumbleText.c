@@ -46,8 +46,6 @@ typedef struct Control {
 } Control;
 
 extern Player gPlayers[];
-VIEW(Control[], gPaks);
-#define gPaks gPaks_view
 
 VIEW(StrTable, gText);
 #define gText gText_view

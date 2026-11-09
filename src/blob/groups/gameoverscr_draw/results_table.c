@@ -29,9 +29,6 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w0 = (_SHIFTL(G_FILLRECT, 24, 8) | _SHIFTL((lrx), 14, 10) | _SHIFTL((lry), 2, 10)); \
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* Fill the screen rectangle (x, y, w, h) with color (r, g, b, a) straight into the blit display list. */
 void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
 {
@@ -63,9 +60,6 @@ VIEW(PlayerStats[], gStuntPlayer);
 VIEW(s32[2], gJust);
 #define gJust gJust_view
 
-
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
 
 extern s32 osRecvMesg(OSMesgQueue *,void **,s32),osSendMesg(OSMesgQueue *,void *,s32);
 

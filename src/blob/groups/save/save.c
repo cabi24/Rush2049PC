@@ -36,21 +36,6 @@ VIEW(SaveSlot *[4], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
 VIEW(SaveSlot[4], gRealJustPlayers);
 #define gRealJustPlayers gRealJustPlayers_view
-VIEW(SaveData *[4], gJustPlayerData);
-#define gJustPlayerData gJustPlayerData_view
-VIEW(SaveData[4], gRealJustPlayerData);
-#define gRealJustPlayerData gRealJustPlayerData_view
-
-VIEW(ListHead, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-VIEW(ListHead, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
-
-VIEW(s8, gNumLimbo);
-#define gNumLimbo gNumLimbo_view
-
-VIEW(u8, gGlobalsSet);
-#define gGlobalsSet gGlobalsSet_view
 
 s32 sprintf(char *, const char *, ...);
 

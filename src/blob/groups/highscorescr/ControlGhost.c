@@ -6,8 +6,6 @@
 typedef struct PadRecord { u8 pad00[0x48]; void *profile; } PadRecord;
 extern PadRecord gPlayers[];
 
-VIEW(s32[4], gGhostStatus);
-#define gGhostStatus gGhostStatus_view
 VIEW(u32, gActiveLevels);
 #define gActiveLevels gActiveLevels_view
 VIEW(u32, gActiveEdges);

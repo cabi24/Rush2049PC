@@ -13,13 +13,6 @@ typedef struct MultiBlit {
 } MultiBlit;
 typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
 
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-VIEW(u32, gActiveLevels);
-#define gActiveLevels gActiveLevels_view
-
 VIEW(MultiBlit, pakscr_mblit);
 #define pakscr_mblit pakscr_mblit_view
 VIEW(PlayerPresence[], gControllerData);

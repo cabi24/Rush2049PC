@@ -11,9 +11,6 @@ typedef struct OSMesgQueue OSMesgQueue;
 #define audiomgr_gCmds (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
 
-VIEW(s32, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
-
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 ShutdownMsg *GetCmd(void);
 

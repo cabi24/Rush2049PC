@@ -12,8 +12,6 @@ typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } Play
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 typedef struct Pos { s32 x, y; } Pos;
 
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
 VIEW(TextState, gText);
 #define gText gText_view
 

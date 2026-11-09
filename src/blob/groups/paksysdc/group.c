@@ -30,10 +30,6 @@ typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
 
 VIEW(volatile tPak[], gPaks);
 #define gPaks gPaks_view
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
-VIEW(tDLList, pak_free_handles);
-#define pak_free_handles pak_free_handles_view
 
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
@@ -149,9 +145,6 @@ tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company,
     return fileh;
 }
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 
@@ -206,11 +199,6 @@ delete_retry:
 typedef struct ControllerData { s8 present; u8 opaque1[15]; } ControllerData;
 VIEW(ControllerData[], gControllerData);
 #define gControllerData gControllerData_view
-
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 extern void *memcpy(void *, const void *, u32);
 
@@ -491,8 +479,6 @@ flush:
 
 VIEW(tPakHandle[], pak_file_handles);
 #define pak_file_handles pak_file_handles_view
-VIEW(PakFileRecord[], pak_file_records);
-#define pak_file_records pak_file_records_view
 
 extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
 extern void osStartThread(void *);

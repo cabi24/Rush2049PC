@@ -4,33 +4,9 @@
 
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
-typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
 typedef struct { s16 x, y; } Pos;
 typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
 
-VIEW(TextState, gText);
-#define gText gText_view
-
-VIEW(Blit *, pause_DimBlit);
-#define pause_DimBlit pause_DimBlit_view
-VIEW(Blit *, pause_TitleBlit);
-#define pause_TitleBlit pause_TitleBlit_view
-VIEW(Blit *, pause_PauseBlit);
-#define pause_PauseBlit pause_PauseBlit_view
-VIEW(Blit *, pause_SureBlit);
-#define pause_SureBlit pause_SureBlit_view
-VIEW(Blit *, pause_RumbleBlit);
-#define pause_RumbleBlit pause_RumbleBlit_view
-VIEW(const MultiBlit, DimMultiBlit);
-#define DimMultiBlit DimMultiBlit_view
-VIEW(const MultiBlit, TitleMultiBlit);
-#define TitleMultiBlit TitleMultiBlit_view
-VIEW(const MultiBlit, PauseMultiBlit);
-#define PauseMultiBlit PauseMultiBlit_view
-VIEW(const MultiBlit, SureMultiBlit);
-#define SureMultiBlit SureMultiBlit_view
-VIEW(const MultiBlit, RumbleMultiBlit);
-#define RumbleMultiBlit RumbleMultiBlit_view
 VIEW(Pos, pause_titlePos);
 #define pause_titlePos pause_titlePos_view
 

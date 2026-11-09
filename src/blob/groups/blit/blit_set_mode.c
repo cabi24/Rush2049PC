@@ -51,9 +51,6 @@ typedef union {
     gDPSetColor(pkt, cmd, (_SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8)))
 #define gDPSetEnvColor(pkt, r, g, b, a) sDPRGBColor(pkt, G_SETENVCOLOR, r, g, b, a)
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* Puts the RDP into one of the blitter's modes (BLIT_MODE_*): its cycle type, render mode and colour combiner, the
  * combiner and render mode also chosen by BLIT_ATTR_XLU (the alpha from the primitive colour) and BLIT_ATTR_ZDIST
  * (depth-tested render modes). The cycle type is set only when the mode before (blitMode) had another; blitMode is

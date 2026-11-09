@@ -9,8 +9,6 @@ typedef struct PlayerPad {u8 index,selector;u8 other2[62];u16 numCrashes;u8 othe
 typedef struct StuntPlayer {u8 other0[8];u32 maxStuntPoints;u8 other12[8];s32 totalPoints;u8 other24[48];s16 totalStunts[10];u8 other92[28];} StuntPlayer;
 extern PlayerPad gPlayers[];
 
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 VIEW(StuntPlayer[], gStuntPlayer);
 #define gStuntPlayer gStuntPlayer_view
 

@@ -2,10 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-/* The command queue in this file's view of the header's: volatile, and its tail (MAT3's, at +0x10) a command. */
-typedef struct CmdQueue { s32 words[3]; tSfxCmd *tail; } CmdQueue;
-VIEW(volatile CmdQueue, gCmdQ);
-#define gCmdQ gCmdQ_view
 
 /* The change command queued for instance sound, or NULL: the setters (AudioSetEffectVolume ...) add to it rather
  * than queue another. Walks the queue from its tail (the oldest) through the links' prev, as AudioSfxServer runs

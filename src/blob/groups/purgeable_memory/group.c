@@ -6,9 +6,6 @@
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-VIEW(s32, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 /* Unlocks (purgeable != 0: the count goes down, not below 0) or locks (up, not above 255) the chunk whose data is at

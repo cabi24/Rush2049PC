@@ -1,14 +1,7 @@
 /* SetHighScoreState: the high-score screen's page changes (MAT3 highscorescr.c SetHighScoreState). */
 #include "game/game.h"
 
-VIEW(s8 *[3], ghostPanes);
-#define ghostPanes ghostPanes_view
-VIEW(s8 *[2], scorePanes);
-#define scorePanes scorePanes_view
 
-
-VIEW(struct pc_multiblit[1], highscore_mblit);
-#define highscore_mblit highscore_mblit_view
 extern void RemoveBlit(intptr_t);
 
 extern void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);

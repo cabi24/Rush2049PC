@@ -1,8 +1,6 @@
 /* InitPane: make a pane, a bordered rectangle of five blits (MAT3 pane.c). */
 #include "game/game.h"
 
-VIEW(tBlitSet[], gPaneBlits);
-#define gPaneBlits gPaneBlits_view
 extern tBlit *NewBlit();
 extern void ChangePaneSize(tBlitSet *,s32,s32,s32,s32);
 

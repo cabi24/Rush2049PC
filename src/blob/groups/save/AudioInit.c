@@ -40,10 +40,6 @@ typedef struct Slot24 { u8 pad0[3]; u8 used; u8 pad4[28]; } Slot24;   /* a comma
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(Slot24 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(OSMesg[1], audio_lock_msg);
-#define audio_lock_msg audio_lock_msg_view
 VIEW(OSThread, audio_manager_thread);
 #define audio_manager_thread audio_manager_thread_view
 
