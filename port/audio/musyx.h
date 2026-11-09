@@ -7,8 +7,9 @@
 
 #include "musyx_abi.h"
 
-/* Run count SFDs (pc_audio.h's PC_AUDIO_FORM_*). */
-void musyx_run_task(const void *sfds, size_t count, int form);
+/* Run count SFDs: the game's records (musyx_abi.h's PcMusyxSfd), pc_audio_sfd_size(pc_audio_sfd_voices()) bytes
+ * apart. */
+void musyx_run_task(const void *sfds, size_t count);
 
 /* Decode frames 32-sample ADPCM frames from src (40-byte blocks of two frames: both frames' first two samples
  * as big-endian s16, then each frame's header byte and 15 bytes of nibbles), starting at the first frame

@@ -80,7 +80,7 @@ int main(void)
     /* 1. An SFD without voices writes silence (its output pointer is in voice 0). */
     memset(state, 0, sizeof state);
     sfd_setup(0, v, 0, 0);
-    pc_audio_run_task_form(sfds, 1, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 1);
     CHECK(all(out[0], 0, 0), "empty SFD output %d %d", out[0][0], out[0][1]);
 
     /* An empty SFD leaves the slots' last samples alone: slot 0's record survives it and fades later. */
@@ -89,7 +89,7 @@ int main(void)
     sfd_setup(0, v, 1, 0);
     sfd_setup(1, v, 0, 0);
     sfd_setup(2, v, 0, 1);
-    pc_audio_run_task_form(sfds, 3, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 3);
     CHECK(all(out[2], (int16_t)decay(19999), 0), "slot 0 after an empty SFD: %d", out[2][0]);
 
     /* 2. The voice list ends at the voice naming the output: voice 2 isn't mixed. */
@@ -98,7 +98,7 @@ int main(void)
     dc_voice(&v[1], dc20k, 0x2000, 0, 0, 0);
     sfd_setup(0, v, 2, 0);
     dc_voice(&sfds[0].voices[2], dc20k, 0x7FFF, 0x7FFF, 0, 0);
-    pc_audio_run_task_form(sfds, 1, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 1);
     CHECK(all(out[0], (20000 * 0x1000 >> 15) + (20000 * 0x2000 >> 15), 0), "two voices %d", out[0][0]);
 
     /* 3. A stopped voice fades: slot 2's last output enters the base volumes and decays by 0xF850 / 2^16 per
@@ -111,7 +111,7 @@ int main(void)
     sfd_setup(1, v, 0, 1u << 2);
     sfd_setup(2, v, 0, 0);
     sfd_setup(3, v, 0, 0);
-    pc_audio_run_task_form(sfds, 4, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 4);
     {
         int16_t l0 = (int16_t)(2 * (20000 * 0x100 >> 15) + 19999), r0 = (int16_t)(2 * (20000 * 0x100 >> 15) + 10000);
         int32_t bl = decay(19999), br = decay(10000);
@@ -123,7 +123,7 @@ int main(void)
         CHECK(all(out[3], (int16_t)bl, (int16_t)br), "decay 3: %d", out[3][0]);
         sfd_setup(0, v, 0, 0);
         sfd_setup(1, v, 0, 0);
-        pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
+        pc_audio_run_task(sfds, 2);
         bl = decay(bl), br = decay(br);
         CHECK(all(out[0], (int16_t)bl, (int16_t)br), "next task: %d, expected %d", out[0][0], bl);
         bl = decay(bl), br = decay(br);
@@ -137,8 +137,8 @@ int main(void)
     sfd_setup(1, v, 1, 0);
     sfd_setup(2, v, 0, 0);
     sfd_setup(3, v, 0, 0);
-    pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
-    pc_audio_run_task_form(sfds + 2, 2, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 2);
+    pc_audio_run_task(sfds + 2, 2);
     int16_t sv = (int16_t)dc_mix(16384, 0x4000);   /* about 8192 */
     CHECK(all(out[0], 0, 0), "surround, first subframe: %d %d", out[0][0], out[0][1]);
     CHECK(all(out[1], sv, (int16_t)-sv), "surround, second: %d %d", out[1][0], out[1][1]);
@@ -149,7 +149,7 @@ int main(void)
     memset(state, 0, sizeof state);
     sfd_setup(0, v, 1, 0);
     sfd_setup(1, v, 0, 1);
-    pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 2);
     {
         int32_t bs = decay(sv);
         CHECK(all(out[1], (int16_t)(sv + bs), (int16_t)(-sv - bs)), "surround base: %d %d (base %d)", out[1][0],
@@ -176,12 +176,12 @@ int main(void)
                 sfds[k].voices[0].output = out[k];
             }
             if (pass == 0) {
-                pc_audio_run_task_form(sfds, 6, PC_AUDIO_FORM_NATIVE);
+                pc_audio_run_task(sfds, 6);
                 memcpy(a, out, sizeof a);
                 memcpy(st_a, state, sizeof st_a);
             } else {
-                pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
-                pc_audio_run_task_form(sfds + 2, 4, PC_AUDIO_FORM_NATIVE);
+                pc_audio_run_task(sfds, 2);
+                pc_audio_run_task(sfds + 2, 4);
                 CHECK(!memcmp(a, out, sizeof a), "split tasks differ");
                 CHECK(!memcmp(st_a, state, sizeof st_a), "split tasks leave a different state");
             }

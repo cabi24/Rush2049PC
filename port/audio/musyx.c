@@ -28,7 +28,6 @@
 
 #include "musyx.h"
 #include "pc_audio.h"
-#include "pc_crossings.h"   /* the counting build's hooks (docs/port/NATIVE.md 9): nothing in the default build */
 
 #define BUF 0x200          /* the microcode's decoded-sample buffer, in samples */
 #define BUF_PAD 8          /* reads just past it see zeros */
@@ -101,30 +100,7 @@ static inline uint32_t ld32(const uint8_t *p, int be)
     return v;
 }
 
-/* An N64 address read from a record. The counting build counts each one (but 0) by its reader: an N64-form record's,
- * or resolve for a native one's field (docs/port/NATIVE.md 9). */
-static inline void *n64ptr(uint32_t addr)
-{
-    PC_CROSS_CALLER(PC_CROSS_AUDIO_N64PTR, addr);
-    return addr ? pc_n64_ptr(addr) : NULL;
-}
-
-/* A native-form pointer field: a host pointer, or below 4 GB an N64 address (the RDRAM window at host
- * PC_RDRAM_BASE, K0, K1 or physical). Host data is never below 4 GB on a 64-bit host: the executable is PIE. The
- * counting build counts the N64 ones by the record's reader. */
-static inline void *resolve(const void *p)
-{
-#if UINTPTR_MAX > 0xFFFFFFFFu
-    uintptr_t v = (uintptr_t)p;
-    if (v < ((uintptr_t)1 << 32)) {
-        PC_CROSS_CALLER(PC_CROSS_AUDIO_FIELD, v);
-        return n64ptr((uint32_t)v);
-    }
-#endif
-    return (void *)(uintptr_t)p;
-}
-
-/* ---------------------------------------------------------------- records, decoded from either form */
+/* ---------------------------------------------------------------- records, decoded */
 
 typedef struct {
     const uint8_t *ptr[2];
@@ -146,11 +122,10 @@ typedef struct {
     uint16_t delay_index;
     uint32_t mask;
     uint8_t *state;
-    const uint8_t *delay;   /* N64 form: raw bytes; native form: a PcMusyxDelay */
-    const uint8_t *voices;
+    const PcMusyxDelay *delay;
+    const PcMusyxVoice *voices;
     const uint8_t *mask_ext;   /* slots 32 and up: MX_MASK_WORDS(n) u32 words after the voice records, or NULL */
-    unsigned n;             /* voice records */
-    int be;                 /* N64 form, big-endian */
+    unsigned n;                /* voice records */
 } Sfd;
 
 /* The voice records an SFD holds (pc_audio_set_sfd_voices): the N64's 32 unless the game gives more. */
@@ -166,10 +141,10 @@ unsigned pc_audio_sfd_voices(void)
     return sfd_voices;
 }
 
-size_t pc_audio_sfd_size(unsigned n, int form)
+size_t pc_audio_sfd_size(unsigned n)
 {
     n = n < MX_VOICES ? MX_VOICES : n > MX_VOICES_MAX ? MX_VOICES_MAX : n;
-    return form == PC_AUDIO_FORM_N64 ? MX_SFD_SIZE_N(n) : MX_NATIVE_SFD_SIZE(n);
+    return MX_NATIVE_SFD_SIZE(n);
 }
 
 typedef struct {
@@ -182,39 +157,31 @@ typedef struct {
     int16_t filter[4];
 } Delay;
 
-static void read_sfd(Sfd *s, const uint8_t *p, int form, unsigned voices)
+/* The records are the game's own structs (hardware.c's SfdBlock, SfdVoice and SoundDelayState, which musyx_abi.h
+ * spells as PcMusyxSfd, PcMusyxVoice and PcMusyxDelay), in host byte order, with host pointers. */
+static void read_sfd(Sfd *s, const uint8_t *p, unsigned voices)
 {
+    const PcMusyxSfd *n = (const PcMusyxSfd *)p;
     s->n = voices;
-    if (form == PC_AUDIO_FORM_N64) {
-        int be = pc_mem_is_be(p);
-        s->be = be;
-        s->delay_index = ld16(p + MX_SFD_DELAY_INDEX, be);
-        s->mask = ld32(p + MX_SFD_RELEASE_MASK, be);
-        s->state = n64ptr(ld32(p + MX_SFD_STATE, be));
-        s->delay = n64ptr(ld32(p + MX_SFD_DELAY, be));
-        s->voices = p + MX_SFD_VOICES;
-        s->mask_ext = voices > MX_VOICES ? p + MX_SFD_MASK_AT(voices) : NULL;
-    } else {
-        const PcMusyxSfd *n = (const PcMusyxSfd *)p;
-        s->be = 0;
-        s->delay_index = n->delay_index;
-        s->mask = n->release_mask;
-        s->state = resolve(n->state);
-        s->delay = resolve(n->delay);
-        s->voices = (const uint8_t *)n->voices;
-        s->mask_ext = voices > MX_VOICES ? p + MX_NATIVE_MASK_AT(voices) : NULL;
-    }
+    s->delay_index = n->delay_index;
+    s->mask = n->release_mask;
+    s->state = n->state;
+    s->delay = n->delay;
+    s->voices = n->voices;
+    s->mask_ext = voices > MX_VOICES ? p + MX_NATIVE_MASK_AT(voices) : NULL;
 }
 
 /* Bit `slot` of the release mask: the header's word for slots 0-31, the words after the voice records past them. */
 static int released(const Sfd *s, unsigned slot)
 {
+    uint32_t word;
     if (slot < MX_VOICES)
         return (int)(s->mask >> slot & 1);
     if (!s->mask_ext || slot >= s->n)
         return 0;
     slot -= MX_VOICES;
-    return (int)(ld32(s->mask_ext + 4 * (slot / 32), s->be) >> (slot % 32) & 1);
+    memcpy(&word, s->mask_ext + 4 * (slot / 32), 4);
+    return (int)(word >> (slot % 32) & 1);
 }
 
 /* A slot's last output in the state block: the N64's s16[32][4] at 0, then past the block's 0x298 bytes. */
@@ -223,105 +190,52 @@ static uint8_t *last_at(uint8_t *st, unsigned slot)
     return slot < MX_VOICES ? st + MX_ST_LAST + slot * 8 : st + MX_STATE_SIZE + (slot - MX_VOICES) * 8;
 }
 
-static const uint8_t *voice_at(const Sfd *s, int i, int form)
-{
-    return s->voices + (size_t)i * (form == PC_AUDIO_FORM_N64 ? MX_V_SIZE : sizeof(PcMusyxVoice));
-}
-
 /* Bytes in voice 0's main range: zero means the SFD has no voices. */
-static unsigned first_size(const Sfd *s, int form)
+static unsigned first_size(const Sfd *s)
 {
-    const uint8_t *p = voice_at(s, 0, form);
-    if (form == PC_AUDIO_FORM_N64)
-        return ld16(p + MX_V_SRC + MX_CAT_SIZE1, s->be);
-    return (uint16_t)((const PcMusyxVoice *)p)->src[0].size1;
+    return (uint16_t)s->voices[0].src[0].size1;
 }
 
-static int16_t *voice_output(const Sfd *s, int i, int form)
+static int16_t *voice_output(const Sfd *s, int i)
 {
-    const uint8_t *p = voice_at(s, i, form);
-    if (form == PC_AUDIO_FORM_N64)
-        return n64ptr(ld32(p + MX_V_OUTPUT, s->be));
-    return resolve(((const PcMusyxVoice *)p)->output);
+    return s->voices[i].output;
 }
 
-static void read_voice(Voice *v, const Sfd *s, int i, int form)
+static void read_voice(Voice *v, const Sfd *s, int i)
 {
-    const uint8_t *p = voice_at(s, i, form);
-    if (form == PC_AUDIO_FORM_N64) {
-        int be = s->be;
-        for (int k = 0; k < 4; k++) {
-            v->env[k] = (int32_t)ld32(p + MX_V_ENV + 4 * k, be);
-            v->step[k] = (int32_t)ld32(p + MX_V_ENV_STEP + 4 * k, be);
-        }
-        v->frac = ld16(p + MX_V_PITCH_FRAC, be);
-        v->pitch = ld16(p + MX_V_PITCH, be);
-        for (int seg = 0; seg < 2; seg++) {
-            const uint8_t *c = p + MX_V_SRC + seg * MX_CAT_SIZE;
-            v->src[seg].ptr[0] = n64ptr(ld32(c + MX_CAT_PTR1, be));
-            v->src[seg].ptr[1] = n64ptr(ld32(c + MX_CAT_PTR2, be));
-            v->src[seg].size[0] = ld16(c + MX_CAT_SIZE1, be);
-            v->src[seg].size[1] = ld16(c + MX_CAT_SIZE2, be);
-        }
-        memcpy(v->frames, p + MX_V_FRAMES, 2);
-        memcpy(v->skip, p + MX_V_SKIP, 2);
-        v->book = v->frames[0] ? n64ptr(ld32(p + MX_V_BOOK, be)) : NULL;
-        v->count[0] = ld16(p + MX_V_PCM_COUNT, be);
-        v->count[1] = ld16(p + MX_V_PCM_COUNT + 2, be);
-        v->output = n64ptr(ld32(p + MX_V_OUTPUT, be));
-        v->end = ld16(p + MX_V_END, be);
-        v->restart = ld16(p + MX_V_RESTART, be);
-        v->start = ld16(p + MX_V_START, be);
-    } else {
-        const PcMusyxVoice *n = (const PcMusyxVoice *)p;
-        memcpy(v->env, n->env, sizeof v->env);
-        memcpy(v->step, n->env_step, sizeof v->step);
-        v->frac = n->pitch_frac;
-        v->pitch = n->pitch;
-        for (int seg = 0; seg < 2; seg++) {
-            v->src[seg].ptr[0] = resolve(n->src[seg].ptr1);
-            v->src[seg].ptr[1] = resolve(n->src[seg].ptr2);
-            v->src[seg].size[0] = (uint16_t)n->src[seg].size1;
-            v->src[seg].size[1] = (uint16_t)n->src[seg].size2;
-        }
-        memcpy(v->frames, n->frames, 2);
-        memcpy(v->skip, n->skip, 2);
-        v->book = v->frames[0] ? resolve(n->u.book) : NULL;
-        v->count[0] = (uint16_t)n->u.pcm.count[0];
-        v->count[1] = (uint16_t)n->u.pcm.count[1];
-        v->output = resolve(n->output);
-        v->end = n->end;
-        v->restart = n->restart;
-        v->start = n->start;
+    const PcMusyxVoice *n = &s->voices[i];
+    memcpy(v->env, n->env, sizeof v->env);
+    memcpy(v->step, n->env_step, sizeof v->step);
+    v->frac = n->pitch_frac;
+    v->pitch = n->pitch;
+    for (int seg = 0; seg < 2; seg++) {
+        v->src[seg].ptr[0] = n->src[seg].ptr1;
+        v->src[seg].ptr[1] = n->src[seg].ptr2;
+        v->src[seg].size[0] = (uint16_t)n->src[seg].size1;
+        v->src[seg].size[1] = (uint16_t)n->src[seg].size2;
     }
+    memcpy(v->frames, n->frames, 2);
+    memcpy(v->skip, n->skip, 2);
+    v->book = v->frames[0] ? n->u.book : NULL;
+    v->count[0] = (uint16_t)n->u.pcm.count[0];
+    v->count[1] = (uint16_t)n->u.pcm.count[1];
+    v->output = n->output;
+    v->end = n->end;
+    v->restart = n->restart;
+    v->start = n->start;
 }
 
-static int read_delay(Delay *d, const uint8_t *p, int form)
+static int read_delay(Delay *d, const PcMusyxDelay *n)
 {
-    if (!p)
+    if (!n)
         return 0;
-    if (form == PC_AUDIO_FORM_N64) {
-        int be = pc_mem_is_be(p);
-        d->buffer = n64ptr(ld32(p + MX_D_BUFFER, be));
-        d->length = ld32(p + MX_D_LENGTH, be);
-        d->taps = ld16(p + MX_D_TAPS, be);
-        d->feedback = (int16_t)ld16(p + MX_D_FEEDBACK, be);
-        for (int i = 0; i < 8; i++) {
-            d->tap_delay[i] = ld32(p + MX_D_TAP_DELAY + 4 * i, be);
-            d->tap_gain[i] = (int16_t)ld16(p + MX_D_TAP_GAIN + 2 * i, be);
-        }
-        for (int i = 0; i < 4; i++)
-            d->filter[i] = (int16_t)ld16(p + MX_D_FILTER + 2 * i, be);
-    } else {
-        const PcMusyxDelay *n = (const PcMusyxDelay *)p;
-        d->buffer = resolve(n->buffer);
-        d->length = n->length;
-        d->taps = n->taps;
-        d->feedback = n->feedback;
-        memcpy(d->tap_delay, n->tap_delay, sizeof d->tap_delay);
-        memcpy(d->tap_gain, n->tap_gain, sizeof d->tap_gain);
-        memcpy(d->filter, n->filter, sizeof d->filter);
-    }
+    d->buffer = n->buffer;
+    d->length = n->length;
+    d->taps = n->taps;
+    d->feedback = n->feedback;
+    memcpy(d->tap_delay, n->tap_delay, sizeof d->tap_delay);
+    memcpy(d->tap_gain, n->tap_gain, sizeof d->tap_gain);
+    memcpy(d->filter, n->filter, sizeof d->filter);
     if (d->taps > 8)
         d->taps = 8;
     return d->buffer && d->length;
@@ -543,17 +457,16 @@ static void render_voice(Mix *m, const Voice *v, int16_t last[4])
     }
 }
 
-/* Returns the output buffer the voice list names. */
 /* Returns the output buffer the voice list names; *rendered gets the voices mixed. */
-static int16_t *voice_stage(Mix *m, const Sfd *s, int form, uint8_t *st, unsigned *rendered)
+static int16_t *voice_stage(Mix *m, const Sfd *s, uint8_t *st, unsigned *rendered)
 {
     *rendered = 0;
-    if (first_size(s, form) == 0)
-        return voice_output(s, 0, form);
+    if (first_size(s) == 0)
+        return voice_output(s, 0);
     for (unsigned i = 0; i < s->n; i++) {
         Voice v;
         int16_t last[4];
-        read_voice(&v, s, (int)i, form);
+        read_voice(&v, s, (int)i);
         render_voice(m, &v, last);
         memcpy(last_at(st, i), last, sizeof last);
         ++*rendered;
@@ -563,10 +476,10 @@ static int16_t *voice_stage(Mix *m, const Sfd *s, int form, uint8_t *st, unsigne
     return NULL;   /* no voice named an output: the microcode would run off the record */
 }
 
-static void delay_stage(Mix *m, const Sfd *s, int form)
+static void delay_stage(Mix *m, const Sfd *s)
 {
     Delay d;
-    if (!read_delay(&d, s->delay, form))
+    if (!read_delay(&d, s->delay))
         return;
 
     int64_t len = d.length;
@@ -635,12 +548,12 @@ static uint64_t cpu_ns(void)
 #endif
 }
 
-void musyx_run_task(const void *sfds, size_t count, int form)
+void musyx_run_task(const void *sfds, size_t count)
 {
     static uint8_t scratch_state[MX_STATE_SIZE_N(MX_VOICES_MAX)];   /* if an SFD has no state block */
     const uint8_t *p = sfds;
     unsigned voices = sfd_voices;
-    size_t stride = pc_audio_sfd_size(voices, form);
+    size_t stride = pc_audio_sfd_size(voices);
     Mix m;
     Sfd s;
     uint8_t *st;
@@ -652,17 +565,17 @@ void musyx_run_task(const void *sfds, size_t count, int form)
     musyx_lut_init();
     t0 = cpu_ns();
 
-    read_sfd(&s, p, form, voices);
+    read_sfd(&s, p, voices);
     st = s.state ? s.state : scratch_state;
     load_state(&m, st);
     for (size_t n = 0; n < count; n++) {
         unsigned rendered;
-        read_sfd(&s, p + n * stride, form, voices);
+        read_sfd(&s, p + n * stride, voices);
         st = s.state ? s.state : scratch_state;
         update_base(&m, &s, st);
         init_subframe(&m);
-        int16_t *out = voice_stage(&m, &s, form, st, &rendered);
-        delay_stage(&m, &s, form);
+        int16_t *out = voice_stage(&m, &s, st, &rendered);
+        delay_stage(&m, &s);
         memcpy(m.surround, m.ch[2], sizeof m.surround);
         if (out) {
             interleave(&m, out);
@@ -761,12 +674,13 @@ static void be32(uint8_t *p, uint32_t v)
 
 /* A region holding size bytes from src at a fresh address with src's alignment mod 8; returns the address of src's
  * first byte there. The region runs from the 8-byte boundary before src to the one after its end, plus 8 bytes, as
- * the RSP's DMA reads whole 8-byte units: inside the RDRAM window those bytes are copied too, elsewhere they are
- * zero. PCM16 (swap16) is stored big-endian, whatever src's order; a NULL src gives zeros. */
+ * the RSP's DMA reads whole 8-byte units: inside the game's RDRAM (its heap, which holds the sample caches, the
+ * codebooks and the outputs) those bytes are copied too, elsewhere they are zero. PCM16 (swap16) is stored big-endian,
+ * whatever src's order; a NULL src gives zeros. */
 static uint32_t cap_region(const void *src, size_t size, int swap16)
 {
     unsigned lead = (unsigned)((uintptr_t)src & 7);
-    int window = src && pc_n64_addr(src);
+    int window = src && pc_n64_addr(src);   /* in RDRAM (until docs/port/NATIVE.md step 12 takes the window away) */
     size_t n = ((lead + size + 7) & ~(size_t)7) + 8;
     uint32_t at = (cap.next + 15) & ~15u;
     if (at + n > CAP_ARENA_END)
@@ -797,14 +711,7 @@ static uint32_t cap_region(const void *src, size_t size, int swap16)
     return at + lead;
 }
 
-static uint16_t sfd_count_field(const uint8_t *p, int form)
-{
-    if (form == PC_AUDIO_FORM_N64)
-        return ld16(p + MX_SFD_COUNT, pc_mem_is_be(p));
-    return ((const PcMusyxSfd *)p)->count;
-}
-
-static void capture_inputs(const void *sfds, size_t count, int form)
+static void capture_inputs(const void *sfds, size_t count)
 {
     if (!cap.checked) {
         const char *path = getenv("RUSH2049_AUDIO_CAPTURE");
@@ -823,7 +730,7 @@ static void capture_inputs(const void *sfds, size_t count, int form)
      * SFD array's size over the count gives the records an SFD holds. */
     unsigned nv = sfd_voices;
     const uint8_t *p = sfds;
-    size_t stride = pc_audio_sfd_size(nv, form), isz = MX_SFD_SIZE_N(nv);
+    size_t stride = pc_audio_sfd_size(nv), isz = MX_SFD_SIZE_N(nv);
     uint8_t *img = calloc(count, isz);
     if (!img)
         return;
@@ -834,8 +741,8 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     for (size_t n = 0; n < count; n++) {
         Sfd s;
         uint8_t *o = img + n * isz;
-        read_sfd(&s, p + n * stride, form, nv);
-        be16(o + MX_SFD_COUNT, sfd_count_field(p + n * stride, form));
+        read_sfd(&s, p + n * stride, nv);
+        be16(o + MX_SFD_COUNT, ((const PcMusyxSfd *)(p + n * stride))->count);
         be16(o + MX_SFD_DELAY_INDEX, s.delay_index);
         be32(o + MX_SFD_RELEASE_MASK, s.mask);
         be32(o + MX_SFD_STATE, CAP_STATE);
@@ -843,15 +750,15 @@ static void capture_inputs(const void *sfds, size_t count, int form)
         if (s.delay)
             fprintf(stderr, "audio: capture: an SFD has a delay effect; not captured\n");
         for (unsigned w = 0; w < MX_MASK_WORDS(nv); w++)
-            be32(o + MX_SFD_MASK_AT(nv) + 4 * w, ld32(s.mask_ext + 4 * w, s.be));
-        int empty = first_size(&s, form) == 0;
+            be32(o + MX_SFD_MASK_AT(nv) + 4 * w, ld32(s.mask_ext + 4 * w, 0));
+        int empty = first_size(&s) == 0;
         for (int i = 0; i < (int)nv; i++) {
             Voice v;
             uint8_t *r = o + MX_SFD_VOICES + i * MX_V_SIZE;
             if (empty) {
-                v.output = voice_output(&s, 0, form);
+                v.output = voice_output(&s, 0);
             } else {
-                read_voice(&v, &s, i, form);
+                read_voice(&v, &s, i);
                 for (int k = 0; k < 4; k++) {
                     be32(r + MX_V_ENV + 4 * k, (uint32_t)v.env[k]);
                     be32(r + MX_V_ENV_STEP + 4 * k, (uint32_t)v.step[k]);
@@ -898,7 +805,7 @@ static void capture_inputs(const void *sfds, size_t count, int form)
     /* Flag 1: the game set the state block up again (a new block, or the bytes changed since the last task); the
      * replay then starts both states from zero. Flag 2: and it isn't zero. */
     Sfd s0;
-    read_sfd(&s0, p, form, nv);
+    read_sfd(&s0, p, nv);
     uint32_t flags = 0;
     if (s0.state && (s0.state != cap.state || memcmp(s0.state, cap.state_after, MX_STATE_SIZE))) {
         flags = 1;
@@ -943,30 +850,9 @@ static void capture_outputs(void)
 
 /* ---------------------------------------------------------------- pc_port.h entry points */
 
-#ifndef PC_AUDIO_DEFAULT_FORM
-#define PC_AUDIO_DEFAULT_FORM PC_AUDIO_FORM_NATIVE
-#endif
-
-static int task_form = PC_AUDIO_DEFAULT_FORM;
-
-void pc_audio_set_task_form(int form)
-{
-    task_form = form == PC_AUDIO_FORM_N64 ? PC_AUDIO_FORM_N64 : PC_AUDIO_FORM_NATIVE;
-}
-
-int pc_audio_task_form(void)
-{
-    return task_form;
-}
-
-void pc_audio_run_task_form(const void *sfds, size_t count, int form)
-{
-    musyx_run_task(sfds, count, form);
-}
-
 void pc_audio_run_task(const void *cmdlist, size_t data_size)
 {
-    capture_inputs(cmdlist, data_size, task_form);
-    musyx_run_task(cmdlist, data_size, task_form);
+    capture_inputs(cmdlist, data_size);
+    musyx_run_task(cmdlist, data_size);
     capture_outputs();
 }

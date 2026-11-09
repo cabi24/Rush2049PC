@@ -80,7 +80,7 @@ int main(void)
     setup(0, 0, 1);
     for (int k = 1; k < 4; k++)
         setup(k, (unsigned)k, 0);
-    pc_audio_run_task_form(sfds, 4, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 4);
     int16_t aux = (int16_t)aux_level(), echo = (int16_t)mulf(aux, 0x4000);
     CHECK(line[0] == aux && line[SUB - 1] == aux && line[SUB] == 0, "line %d %d %d", line[0], line[SUB - 1], line[SUB]);
     CHECK(all(out[0], 0, 0) && all(out[1], 0, 0), "early echo %d %d", out[0][0], out[1][0]);
@@ -94,7 +94,7 @@ int main(void)
     setup(0, 0, 1);
     for (int k = 1; k < 8; k++)
         setup(k, (unsigned)k, 0);
-    pc_audio_run_task_form(sfds, 8, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 8);
     {
         int h3 = mulf(32767, 0x4000);   /* the filter's tap times the feedback: 16384 */
         int w2 = mulf(aux, 0x4000);
@@ -114,7 +114,7 @@ int main(void)
     d.tap_delay[0] = 100;
     d.tap_gain[0] = 0x7FFF;
     setup(0, 0, 0);
-    pc_audio_run_task_form(sfds, 1, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 1);
     {
         int bad = 0;
         for (int i = 0; i < SUB; i++) {
@@ -137,7 +137,7 @@ int main(void)
     d.filter[2] = 32767;
     setup(0, 4, 0);   /* pos 768: wet from line[0..191], written to line[768..959] */
     setup(1, 5, 0);   /* pos 960: wet from line[192..383] */
-    pc_audio_run_task_form(sfds, 2, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, 2);
     {
         int h2 = mulf(0x7FFF, 32767), bad = 0;
         for (int k = 0; k < 2; k++) {

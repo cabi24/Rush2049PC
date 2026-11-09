@@ -33,7 +33,7 @@ static void run(int sfd_count, const int *voices)
         sfds[k].count = (uint16_t)voices[k];
         sfds[k].voices[voices[k] ? voices[k] - 1 : 0].output = out[k];
     }
-    pc_audio_run_task_form(sfds, (size_t)sfd_count, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(sfds, (size_t)sfd_count);
 }
 
 static int all(const int16_t *o, int16_t l, int16_t r)

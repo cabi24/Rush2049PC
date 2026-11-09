@@ -22,7 +22,7 @@ static void run_voice(const PcMusyxVoice *v)
     sfd.state = state;
     sfd.voices[0] = *v;
     sfd.voices[0].output = out;
-    pc_audio_run_task_form(&sfd, 1, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(&sfd, 1);
 }
 
 /* A main-segment voice at input position a, unity volume 0.5 on the left. */
