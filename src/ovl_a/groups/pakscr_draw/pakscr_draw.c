@@ -24,13 +24,6 @@ typedef struct OpenRecord OpenRecord;
 struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
 typedef struct SavedRecord SavedRecord;
 struct SavedRecord { SavedRecord **next; Owner **owner; };
-struct PlayerFiles { u32 unknown0,  unknown4 ; OpenRecord ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-/* The ghost files on the paks (carscr.c's RecordList): first the list head. */
-typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;SavedRecord **first, **last;} RecordList;
-VIEW(RecordList, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 
 /* The note list: the delete combination's instructions (while the selected slot has a note), the columns' heads,
  * the 8 rows shown (number, name with its suffix or "empty", pages; the selected one flashing, its name also
@@ -121,7 +114,7 @@ void GetPakStatusStr(s32 player,char *str)
         for (open=gPlayerFiles.head;open;open=(*open)->next) {
             if ((*open)->owner && (*(*open)->owner)->slot==player) break;
         }
-        for (saved=gGhostFiles.first;saved;saved=(*saved)->next) {
+        for (saved=gGhostFiles.head;saved;saved=(*saved)->next) {
             if ((*saved)->owner && (*(*saved)->owner)->slot==player) break;
         }
         if (open || saved) TB_Sprintf(str,pakscr_status_in_use_format,gText.single[159]);

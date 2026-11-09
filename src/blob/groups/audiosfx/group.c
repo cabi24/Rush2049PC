@@ -5,10 +5,6 @@
 #include "game/audiomgr.h"
 
 /* The queues in this file's view of the header's (gCmdQ without its volatile). */
-VIEW(AudioList, gFreeQ);
-#define gFreeQ gFreeQ_view
-VIEW(AudioList, gCmdQ);
-#define gCmdQ gCmdQ_view
 
 tSfxCmd *FindChangeCmd(tSfxVoice *sound);
 /* PC: an effect start that finds no free entry (AudioSfxInit's, gNumInstances of them) is counted (--log-voices,

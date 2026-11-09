@@ -7,11 +7,6 @@ typedef struct Q { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(vo
     s8 name[14]; } Q;
 typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 pos[14]; s32 id0; s32 id1; } Ghost;
 
-/* The ghost files on the paks (carscr.c's RecordList): first the list head. */
-typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Ghost **first, **last;} RecordList;
-VIEW(RecordList, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
-
 /* Pak pak's formatted, damaged and full flags. */
 s32 pak_slot_b1(s32 pak) { return gPaks[pak].inserted; }
 s32 pak_slot_b5(s32 pak) { return gPaks[pak].damaged; }
@@ -41,7 +36,7 @@ void FindGhosts(s32 pak)
     } else {
         gGhostStatus[pak] = 0;
         if (gRace == 2) {
-            for (node = gGhostFiles.first; node != 0; node = ghost->next) {
+            for (node = gGhostFiles.head; node != 0; node = ghost->next) {
                 ghost = *node;
                 if (ghost->q != 0 && (*ghost->q)->id == pak && ghost->track == gTrackNum &&
                     ghost->backwards == gBackwards &&

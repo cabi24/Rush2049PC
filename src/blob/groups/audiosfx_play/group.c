@@ -6,10 +6,6 @@
 #include "game/audiomgr.h"
 
 /* The queues in this file's view of the header's (gCmdQ without its volatile). */
-VIEW(AudioList, gFreeQ);
-#define gFreeQ gFreeQ_view
-VIEW(AudioList, gCmdQ);
-#define gCmdQ gCmdQ_view
 
 /* Declared without a prototype, as this file always had it: AudioSfxServer passes the handle a second time,
  * which the callee ignores. */

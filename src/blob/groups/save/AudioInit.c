@@ -48,18 +48,6 @@ VIEW(Voice *, gFxTags);
 VIEW(void *, gSortedFxTags);
 #define gSortedFxTags gSortedFxTags_view
 
-VIEW(List, gFreeFxTags);
-#define gFreeFxTags gFreeFxTags_view
-VIEW(List, gPlayingFxTags);
-#define gPlayingFxTags gPlayingFxTags_view
-VIEW(List, gInterruptedFxTags);
-#define gInterruptedFxTags gInterruptedFxTags_view
-
-VIEW(List, gFreeSequences);
-#define gFreeSequences gFreeSequences_view
-VIEW(List, gActiveSequences);
-#define gActiveSequences gActiveSequences_view
-
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 void osCreateThread(OSThread *thread, s32 id, void (*entry)(void *), void *arg, void *sp, s32 priority);

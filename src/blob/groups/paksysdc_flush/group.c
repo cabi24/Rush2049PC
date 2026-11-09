@@ -20,15 +20,6 @@ extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osWritebackDCache(void *, s32);
 
-/* Each pak's open files (MAT3 tDLList): head the first. */
-typedef struct tDLList {
-    u8 indirect, doubly, opaque2[2];
-    u32 count;
-    tPakHandle *head, *tail;
-} tDLList;
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
-
 VIEW(void (*)(s32,  s32,  s32,  s32,  s8 *,  s8 *,  s32), gErrorFunc);
 #define gErrorFunc gErrorFunc_view
 

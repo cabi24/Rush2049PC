@@ -22,9 +22,6 @@ VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(Profile **[], gSelectedPlayer);
 #define gSelectedPlayer gSelectedPlayer_view
-struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 
 VIEW(u8 *[], gPS_PakName);
 #define gPS_PakName gPS_PakName_view

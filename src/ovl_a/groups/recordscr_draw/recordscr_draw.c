@@ -121,9 +121,6 @@ extern Player gPlayers[];
 
 VIEW(Profile **, gStatPlayer);
 #define gStatPlayer gStatPlayer_view
-struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 
 VIEW(TextBox, gScreenRect);
 #define gScreenRect gScreenRect_view

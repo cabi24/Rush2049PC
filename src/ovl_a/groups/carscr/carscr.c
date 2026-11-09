@@ -20,10 +20,6 @@ typedef struct Record Record;
  * pointers (docs/port/CASTS.md). */
 struct Record {Record **next;FileInfo **fileh;s8 track;u8 backward,name[14];u32 id0,id1;f32 finish;void *datah;SaveHeader **header;};
 extern Player gPlayers[];
-/* A doubly linked list's header (MAT3 tDLList): the ghost files on the paks. */
-typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Record **first, **last;} RecordList;
-VIEW(RecordList, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
 
@@ -169,7 +165,7 @@ void setGhosts(void)
     for (i = 1; i < 4; i++) gLastCar[i] = -1;
     if (gRace != kGhost) return;
     if (!gGhostSelect) {
-        for (ghosth = gGhostFiles.first; ghosth; ghosth = nextGhost) {
+        for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
             ghost = *ghosth;
             nextGhost = ghost->next;
             if (ghost->track == gTrackNum && ghost->backward == gBackwards &&
@@ -188,7 +184,7 @@ void setGhosts(void)
             }
         }
         if (!best) {
-            for (ghosth = gGhostFiles.first; ghosth; ghosth = nextGhost) {
+            for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
                 ghost = *ghosth;
                 nextGhost = ghost->next;
                 if (ghost->track == gTrackNum && ghost->backward == gBackwards) {
@@ -224,7 +220,7 @@ void setGhosts(void)
             }
         } else {
             nearGhosts[2] = best;
-            for (ghosth = gGhostFiles.first; ghosth; ghosth = nextGhost) {
+            for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
                 ghost = *ghosth;
                 nextGhost = ghost->next;
                 if (ghost->track == gTrackNum && ghost->backward == gBackwards) {
@@ -280,7 +276,7 @@ void setGhosts(void)
             }
         }
     } else {
-        for (ghosth = gGhostFiles.first; ghosth; ghosth = nextGhost) {
+        for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
             ghost = *ghosth;
             nextGhost = ghost->next;
             if (ghost->track == gTrackNum && ghost->backward == gBackwards) {
@@ -524,7 +520,7 @@ void updateCarScreen(void)
         gSkipToGameState = SKIP_NONE;
     }
     for (i = 1; i < 4; i++) {
-        for (ghosth = gGhostFiles.first; ghosth; ghosth = nextGhost) {
+        for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
             ghost = *ghosth;
             nextGhost = ghost->next;
             if (ghost->fileh && !PS_PakInserted((*ghost->fileh)->pak)) continue;
@@ -831,7 +827,7 @@ after_options:
         if (gRace == kGhost) {
             {
                 Record **gh;
-                for (gh = gGhostFiles.first; gh; gh = (*gh)->next) PurgeGhostData((void **)gh);
+                for (gh = gGhostFiles.head; gh; gh = (*gh)->next) PurgeGhostData((void **)gh);
             }
             for (i = 1; i < gNumGhosts; i++) {
                 if (!gGhosts[i]) { gGhosts[i] = gGhosts[i + 1]; gGhosts[i + 1] = 0; }
@@ -887,15 +883,15 @@ Record **getNextGhost(Record **node,s8 direction)
     Record **next;
     Record *record;
     if(!node) {
-        if(direction>0)node=gGhostFiles.first;
+        if(direction>0)node=gGhostFiles.head;
         else node=limboGhosts+2;
     }
     while(node) {
         record=*node;
         if(direction>0)next=record->next;
-        else if(node==gGhostFiles.first)next=0;
+        else if(node==gGhostFiles.head)next=0;
         else {
-            for(next=gGhostFiles.first;next && (*next)->next!=node;next=(*next)->next) {}
+            for(next=gGhostFiles.head;next && (*next)->next!=node;next=(*next)->next) {}
         }
         if(record->track==gTrackNum && record->backward==gBackwards &&
            node!=gGhosts[1] && node!=gGhosts[2] && node!=gGhosts[3] &&
@@ -903,7 +899,7 @@ Record **getNextGhost(Record **node,s8 direction)
         if(!next) {
             if(node==limboGhosts) {
                 if(direction>0)next=limboGhosts+1;
-                else next=gGhostFiles.last;
+                else next=gGhostFiles.tail;
             } else if(node==limboGhosts+1) {
                 if(direction>0)next=limboGhosts+2;
                 else next=limboGhosts;

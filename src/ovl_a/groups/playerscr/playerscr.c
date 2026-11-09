@@ -181,10 +181,6 @@ void calcSelectMenuMaxSize(void)
     gSelectMenuMaxSize = rectHeight / TB_GetFontLineHeight();
 }
 
-struct PlayerFiles { u32 unknown0,  unknown4 ; Owner * head,  * tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-
 extern void *memset(void *,s32,u32);
 
 /* Put player's window in state mode (kPlayerState*).

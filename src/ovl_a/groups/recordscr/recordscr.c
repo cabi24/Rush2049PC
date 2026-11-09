@@ -122,9 +122,6 @@ typedef struct ListNode ProfileHandle;   /* struct ListNode: the name include/ga
 typedef struct { ProfileHandle *next, *prev; PakFileHandle *fileh; unsigned char id[8]; char name[24]; void *datah; } PlayerProfile;
 /* A profile handle (MAT3 tPlayerProfile **): the profiles are reached and listed through these. */
 struct ListNode { PlayerProfile *body; };
-typedef struct { s32 prefix[2]; ProfileHandle *head, *tail; } ListRoot;   /* gPlayerFiles: every profile on a pak */
-VIEW(ListRoot, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 
 /* Read the four paks: each one's profile count, or why it has none (no controller, no pak, damaged, a Rumble Pak). */
 void recordscr_updatePakInfo(void) {

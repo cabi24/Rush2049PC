@@ -10,9 +10,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-struct PlayerFiles { u32 unknown0,  unknown4 ; void * head,  * tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 VIEW(MultiBlit[1], warningscr_blits);

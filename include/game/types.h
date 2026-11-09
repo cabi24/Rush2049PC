@@ -475,13 +475,15 @@ typedef struct OSThread { /* 0x1C8 bytes */
 
 /* ---- system: start-up, threads, the scheduler, timers, the frame pipeline, video, decompression, the overlays */
 
+/* A linked list's header (MAT3 ll.c's tDLList): the records (or, when indirect, the handles of the records) are
+ * linked through their first words (tDLLE: next, then prev when doubly); InsertLLE and RemoveLLE keep it. */
 typedef struct AudioList { /* 0x18 bytes */
-    u8 indirect;       /* 0x0 */
+    u8 indirect;       /* 0x0 a list of handles */
     u8 doubly;         /* 0x1 */
     u8 pad[2];         /* 0x2 */
     u32 count;         /* 0x4 */
-    struct Link *head; /* 0x8 */
-    struct Link *tail; /* 0x10 */
+    void *head;        /* 0x8 the first record (handle), NULL when empty */
+    void *tail;        /* 0x10 */
 } AudioList;
 
 typedef struct AudioMenuRect { /* 0x10 bytes */
@@ -961,10 +963,11 @@ typedef struct SequenceNode { /* 0x20 bytes */
     s32 whole14;                   /* 0x1C */
 } SequenceNode;
 
+/* The sound commands' free list (gFreeQ): a list header as AudioList, its first two words read as words. */
 typedef struct SfxQueue { /* 0x18 bytes */
-    u32 pad0[2];       /* 0x0 */
-    struct Node *tail; /* 0x8 */
-    struct Node *head; /* 0x10 */
+    u32 pad0[2];       /* 0x0 indirect, doubly; count */
+    void *head;        /* 0x8 */
+    void *tail;        /* 0x10 */
 } SfxQueue;
 
 typedef struct SmallNode { /* 0x18 bytes */
@@ -1457,11 +1460,13 @@ typedef struct PakFileRecord { /* 0x60 bytes */
                                                                *      dirty map; NULL until read */
 } PakFileRecord;
 
+/* The profiles on the paks (gPlayerFiles): a list header as AudioList (of handles), its first two words read as
+ * words. */
 typedef struct PlayerFileList { /* 0x18 bytes */
-    u32 unknown0;             /* 0x0 */
-    u32 unknown4;             /* 0x4 */
-    struct PlayerData **head; /* 0x8 */
-    struct PlayerData **tail; /* 0x10 */
+    u32 unknown0;             /* 0x0 indirect, doubly */
+    u32 unknown4;             /* 0x4 count */
+    void *head;               /* 0x8 */
+    void *tail;               /* 0x10 */
 } PlayerFileList;
 
 /* The parts of a profile file (tSaveData). Each starts with the checksum of the rest (CalcChecksumInternal), which
