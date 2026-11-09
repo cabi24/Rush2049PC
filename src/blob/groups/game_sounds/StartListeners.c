@@ -7,12 +7,16 @@ typedef struct Vec3 { f32 x, y, z; } Vec3;
 typedef struct PlayerRec {
     /* 0x00 */ u8 slot;
     /* 0x01 */ u8 pad1[0x43];
-    /* 0x44 */ s32 listener;
+    /* 0x44 */ s32 listener;   /* its number in gListeners, -1 for none */
     /* 0x48 */ void *ref;
 } PlayerRec; /* 0x4C */
-/* PC: an input record is 80 bytes; +0x44 stays 32 bits: a listener is a heap block, so its window address
- * (docs/port/POINTERS.md 10; pc_prelude.h's PC_N64A, docs/port/NOFIXED.md 2.3). */
-#define LISTENER_WORD(p) (s32)PC_N64A(p)
+/* A player record keeps its listener as the listener's number in gListeners (AudInit3D's array), -1 for none: MAT3's
+ * tPlayer keeps a pointer, which the record's 4 bytes at +0x44 can't hold (the save pointer after them fills the
+ * 80-byte record). AudAddListener gives -1 (as a pointer) when the sound manager has no listeners. */
+static s32 listener_number(tSfxListener *listener)
+{
+    return listener == (tSfxListener *)-1 ? -1 : (s32)(listener - gListeners);
+}
 
 extern PlayerRec gPlayers[];
 
@@ -28,7 +32,8 @@ void StartListeners(void)
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
             if (gRace != kGhost || gPlayers[i].slot == 0)
-                gPlayers[i].listener = LISTENER_WORD(AudAddListener(&unitmatrix_origin, &unitmatrix_origin, (Vec3 *) unitmatrix[2], (Vec3 *) unitmatrix[1]));
+                gPlayers[i].listener = listener_number(AudAddListener(&unitmatrix_origin, &unitmatrix_origin,
+                                                                      (Vec3 *)unitmatrix[2], (Vec3 *)unitmatrix[1]));
             else gPlayers[i].listener = -1;
         }
         AudSetMasterVol((f32)gOptions[kOptEffectsVolume] / 10.0f, 0.1f, 0, 1);

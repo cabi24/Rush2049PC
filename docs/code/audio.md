@@ -153,25 +153,30 @@ sent (`SetSoundVP`).
 - **The threads and the lock.** On the N64 the sound manager runs on its own thread with a message queue and a
   lock; MAT3 calls the same functions directly. The PC keeps the threads (host threads) and adds guards for a pool or
   queue that runs out on a loaded host (`PC_CMD_OR_UNLOCK` ..., docs/port/QA.md "Integration soak").
-- **Window addresses in records.** A player record keeps its listener as a 32-bit window address (`PC_N64A`,
-  `PC_N64P`: StartListeners, UpdateListeners, StopListeners). `musyx_samples` is a cartridge address
-  (`sample_bank_rom`). The heap blocks are given to `PurgeableMemory` as window addresses.
+- **Listeners and samples** (no window addresses since [NATIVE.md](../port/NATIVE.md) step 9). A player record
+  keeps its listener as the listener's number in `gListeners` (StartListeners, UpdateListeners, StopListeners: the
+  record's 4 bytes at +0x44 can't hold MAT3's pointer). `musyx_samples` is the sample bank's ROM offset, which MusyX
+  makes a cartridge address (`sound_hw_cart_address`); the samples stay in the cartridge, named by that 32-bit
+  number of the cartridge's bus.
 - **The model record** (`tModelData`, 0x808 bytes on the N64, 0x830 on the PC) is read by the car sounds' views, which
   declare its host pointers ([CARS.md](../port/CARS.md) 4).
-- **MusyX's voices** keep the N64's 0x1A0-byte layout, read through about 30 per-function views in macros.c,
-  synth.c, voices.c, api.c and controllers.c; their macro pointers (+0, +4, +8, +0xC, +0x1C, +0x20) are 32-bit
-  window addresses (`N64P`/`PC_N64W`) and +0x18 holds a handle node as an N64 address (`pc_voice_node`). One shared
-  `SynthVoice` type would replace the views (macros.c's byte map is its spec); the voice flags, the controller numbers
-  and the faders are src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
-- **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; samples and
-  codebooks are addressed by 32-bit cartridge or window addresses; the DMA list's sources are 32-bit; the cache
-  bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD records).
-- **The sequencer** adds song offsets to a 32-bit song address; `sound_seq_studio_groups` is a label inside slot 0;
+- **MusyX's voices** keep the N64's layout after their head, read through 56 per-function views in macros.c,
+  synth.c, voices.c, api.c and controllers.c, each beginning with musyx.h's `SynthVoiceHead` (the macro pointers and
+  the handle node as host pointers, the chain's voice ids) and naming its other fields by their N64 offsets (0x1C
+  further on, on the PC: ctest `views_musyx_voice` holds them together). One shared `SynthVoice` type would replace
+  the views (macros.c's byte map is its spec); the voice flags, the controller numbers and the faders are
+  src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
+- **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; the
+  registries hold pointers into it; samples and codebooks are addressed by 32-bit cartridge addresses, the DMA
+  list's sources too; the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD
+  records) from the low 32 bits of the records' addresses, which nothing reads memory by.
+- **The sequencer**: `sound_seq_studio_groups` is a label inside slot 0;
   `sound_volume_fader_types` is the type byte inside `sound_volume_faders`; `sound_macro_get_variable` reaches
   `sound_global_variables` 32 bytes past `sound_seq_current_index`, by the data's N64 order.
 - **The RSP task** (`sound_task`, `musyx_submit_audio_task`'s `OSScTask`) and the microcode pointers; the AI output
   thread, the D-cache calls and the cartridge DMA are port/ultra's on the PC.
-- **The speech** streams' cartridge reads (async DMA) and its KSEG0 test in `speech_set_bank`.
+- **The speech** streams' cartridge reads (async DMA), which carry cartridge addresses in pointers (dma_queue.c);
+  `speech_set_bank` tells a bank in the cartridge from one in RAM by the cartridge's ranges.
 - **Dead or misnamed code** a later cleanup can take: `NewListener` (nothing calls it), `other_user` (a stand-in
   caller), the empty `ValidateEmitter`/`pc_ValidateEmitter`/`ValidateListener` with their N64-build leftovers,
   the library's own emitters and streams (unused by the game), the `AudPauseAllEffects` that stops (as

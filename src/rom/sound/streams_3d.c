@@ -46,9 +46,6 @@
  * docs/port/DECOUPLE.md 9): a stream plays on the voice sound_alloc_stream_voice gives it, so its record is that voice's. */
 #define sound_streams (*(SampleBuffer (*)[PC_MX_VOICE_SLOTS])pc_mx_streams)
 
-#pragma pack(1)
-typedef struct SoundHwSampleInfo { unsigned int frequency; void *data; unsigned int offset; unsigned int length; unsigned int loopStart; unsigned int loopLength; unsigned char format; } SoundHwSampleInfo;
-#pragma pack()
 
 /* The emitter record, as sound_emitter_compute reads it (the same record as StateNode, sound_sample_record.h, and
  * SoundEmitterAddView below: next, previous, flags, then these). */
@@ -101,7 +98,7 @@ extern void sound_hw_flush_stream_wrap(short *, unsigned int);
 extern void sound_hw_lock(void);
 extern void sound_hw_unlock(void);
 extern int sound_alloc_stream_voice(unsigned char);
-extern void sound_hw_set_voice_sample(unsigned int, SoundHwSampleInfo *, unsigned char);
+extern void sound_hw_set_voice_sample(unsigned int, SoundSampleInfo *, unsigned char);
 extern void sound_hw_set_pitch(int, unsigned short);
 extern void sound_hw_set_volume(unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
 extern void sound_hw_start_voice(unsigned int);
@@ -195,7 +192,7 @@ int sound_stream_start(unsigned char priority, short *buffer, unsigned int sampl
                   SampleCallback callback, unsigned int context)
 {
     int index;
-    SoundHwSampleInfo info;
+    SoundSampleInfo info;
     float ratio;
     if (sound_initialized) {
         sound_hw_lock();
@@ -205,7 +202,7 @@ int sound_stream_start(unsigned char priority, short *buffer, unsigned int sampl
             sound_streams[index].mode = SOUND_STREAM_PLAYING;
             sound_streams[index].context = context;
             sound_streams[index].position = 0;
-            info.frequency = frequency | 0x400000;
+            info.info = frequency | 0x400000;
             info.offset = 0;
             info.loopStart = 0;
             info.format = 0;
@@ -213,7 +210,8 @@ int sound_stream_start(unsigned char priority, short *buffer, unsigned int sampl
             info.length = samples;
             info.loopLength = samples;
             sound_streams[index].buffer = buffer;
-            info.data = buffer;
+            info.data = buffer;   /* in RAM */
+            info.cart_address = 0;
             sound_hw_set_voice_sample(index, &info, 1);
             ratio = (float)frequency / (float)sound_synth_frequency;
             sound_hw_set_pitch(index, (unsigned int)(ratio * 4096.0f));

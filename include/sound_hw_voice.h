@@ -4,7 +4,8 @@
  * sound_hw_alloc_voices). The synth above sets a voice's sample, pitch, gains and envelope through the sound_hw_*
  * setters; each subframe sound_hw_build_voice_command turns the record into the voice's SFD record and advances its
  * envelope and play position. Only hardware.c reads the fields. The offsets in the comments are the N64's; on the PC
- * the record is in host layout (data is a host-sized pointer, so the fields after it move). */
+ * the record is in host layout (data is a host-sized pointer, and cart_address is the PC's, so the fields after them
+ * move). */
 #ifndef BOOT_TAIL_AUDIO_RECORD_H
 #define BOOT_TAIL_AUDIO_RECORD_H
 
@@ -27,8 +28,10 @@ typedef struct SoundHwVoice {
     float sustain_level;                  /* 0x24 */
     unsigned short release_ms;            /* 0x28 */
     unsigned char pad2A[2];
-    unsigned char *data;                  /* 0x2C: the sample: a cartridge or RDRAM-window address (ADPCM: its
+    unsigned char *data;                  /* 0x2C: a sample in RAM (a stream's buffer): its first byte (ADPCM: its
                                            * 0x100-byte codebook, then the blocks) */
+    unsigned int cart_address;            /* (the PC's) a sample in the cartridge (VOICE_FLAG_CARTRIDGE): its
+                                           * cartridge address; the N64 kept it in data */
     unsigned int length;                  /* 0x30: in samples */
     unsigned int loop_start;              /* 0x34 */
     unsigned int loop_length;             /* 0x38: 0 for a sample that does not loop */

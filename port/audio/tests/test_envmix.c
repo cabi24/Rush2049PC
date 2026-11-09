@@ -48,7 +48,7 @@ static void run(int voices)
     sfd.count = (uint16_t)voices;
     sfd.state = state;
     sfd.voices[voices - 1].output = out;
-    pc_audio_run_task_form(&sfd, 1, PC_AUDIO_FORM_NATIVE);
+    pc_audio_run_task(&sfd, 1);
 }
 
 int main(void)

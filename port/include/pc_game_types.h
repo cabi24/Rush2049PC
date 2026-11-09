@@ -851,16 +851,18 @@ int pc_mx_voices(void);
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters);
 
 /* The library's per-voice storage, 32 entries in the boot segment's BSS on the N64 (docs/port/DECOUPLE.md 9), each
- * indexed by a voice's number (the low byte of its id): its state (0x1A0 bytes, the N64 layout: macros.c's and
- * the other units' views, MUSYX_DATA.md 8.3), its sequence node (voices.c's SequenceNode: two host pointers, the
- * key and the voice id, packed), its links in the priority lists and in the free list ({u8 previous, next; u16},
- * 255 for none), an effect voice's 134 MIDI controllers (an effect voice is its own channel in set 255,
- * controllers.c), its two per-channel bytes there (sound_midi_set_last_key, sound_midi_set_portamento_state) and its legato owner (macros.c's
- * sound_synth_claim_channel), and a stream's buffer record (streams_3d.c's SampleBuffer). Each reader's N64 name is the PC array
- * seen in its own view, PC_MX_VOICE_SLOTS long, so the uses keep their N64 tokens. */
-extern unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0];   /* N64 sound_synth_voices */
+ * indexed by a voice's number (the low byte of its id): its state (PC_MX_VOICE_SIZE bytes: the N64's 0x1A0 with a
+ * head of host pointers, src/rom/sound/musyx.h's SynthVoiceHead, which macros.c's and the other units' views
+ * begin with, MUSYX_DATA.md 8.3), its handle node (voices.c's HandleNode: two host pointers, the key and the voice
+ * id, packed), its links in the priority lists and in the free list ({u8 previous, next; u16}, 255 for none), an
+ * effect voice's 134 MIDI controllers (an effect voice is its own channel in set 255, controllers.c), its two
+ * per-channel bytes there (sound_midi_set_last_key, sound_midi_set_portamento_state) and its legato owner (macros.c's
+ * sound_synth_claim_channel), and a stream's buffer record (streams_3d.c's SampleBuffer). Each reader's N64 name is
+ * the PC array seen in its own view, PC_MX_VOICE_SLOTS long, so the uses keep their N64 tokens. */
+#define PC_MX_VOICE_SIZE 0x1C0
+extern unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][PC_MX_VOICE_SIZE];   /* N64 sound_synth_voices */
 #pragma pack(1)
-struct pc_mx_node { struct pc_mx_node *next, *previous; unsigned int key; int value; };
+struct pc_mx_node { struct pc_mx_node *next, *previous; unsigned int key; int voice; };
 #pragma pack()
 extern struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];      /* N64 sound_handle_nodes */
 struct pc_mx_link { unsigned char previous, next; unsigned short flags; };

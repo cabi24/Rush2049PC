@@ -18,10 +18,7 @@
 /* A synth voice, as this file reads it (macros.c has the whole voice). */
 #pragma pack(1)
 typedef struct VoiceState {
-    u32 addr00;            /* the macro's first step; 0: no macro runs */
-    u8 unknown04[12];
-    u32 child10;           /* the next voice of the chain, or VOICE_NONE */
-    u8 unknown14[16];
+    SynthVoiceHead head;    /* the macro's place and the chain (musyx.h) */
     u32 flags24;
     u8 unknown28[4];
     u8 unknown2C[2];
@@ -34,6 +31,7 @@ typedef struct VoiceState {
     u8 unknown56[10];
     u32 identifier60;      /* the voice's id; VOICE_NONE when free */
     u8 unknown64[316];
+    u8 tail[SYNTH_VOICE_TAIL];  /* the PC's: the record rounded to 8 bytes (SYNTH_VOICE_SIZE) */
 } VoiceState;
 #pragma pack(0)
 
@@ -97,7 +95,7 @@ int sound_set_modulation(u32 identifier, u16 value)
                     sound_midi_set_controller(CTRL_MODULATION_LOW, index, sound_synth_voices[index].midiSet4B, low);
                 }
                 result = 0;
-                identifier = sound_synth_voices[index].child10;
+                identifier = sound_synth_voices[index].head.next;
             } else {
                 sound_hw_unlock();
                 return result;
@@ -125,7 +123,7 @@ int sound_set_reverb(u32 identifier, u8 value)
                 } else {
                     sound_midi_set_controller(CTRL_REVERB, index, sound_synth_voices[index].midiSet4B, value);
                 }
-                identifier = sound_synth_voices[index].child10;
+                identifier = sound_synth_voices[index].head.next;
             } else {
                 sound_hw_unlock();
                 return result;
@@ -228,7 +226,7 @@ int sound_set_pedal(u32 identifier, u8 value)
                 } else {
                     sound_midi_set_controller(CTRL_PEDAL, index, sound_synth_voices[index].midiSet4B, value);
                 }
-                identifier = sound_synth_voices[index].child10;
+                identifier = sound_synth_voices[index].head.next;
             } else {
                 sound_hw_unlock();
                 return result;

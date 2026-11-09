@@ -75,4 +75,32 @@
 /* A DMA list entry on the N64, which the cache-line bookkeeping counts (dma_queue.c, hardware.c). */
 #define DMA_ENTRY_N64_BYTES  12
 
+/* ---- The synth voice (sound_synth_voices[i], pc_mx_voice on the PC: pc_game_types.h)
+ * Each file reads a voice through views of its own (macros.c has the whole map). Every view starts with the voice's
+ * head, the same in all of them: where its macro is (the steps in the pool, wave 7), where a GOSUB returns to and a
+ * key off jumps to, the voices chained behind one handle, and the handle's node. On the N64 the head was nine words,
+ * +0x00 to +0x23; on the PC its seven pointers are host pointers, so it is 0x40 bytes and every later field lies
+ * SYNTH_VOICE_GROWTH bytes past the N64 offset its name ends in (flags24 is the N64's +0x24, the PC's +0x40). A
+ * voice is SYNTH_VOICE_SIZE bytes: the N64's 0x1A0, the head's growth, and a tail that keeps the next voice's
+ * pointers aligned. */
+typedef struct MacroCommand { u32 word[2]; } MacroCommand;   /* a macro's step: opcode and parameters (macros.c) */
+struct HandleNode;                                              /* a handle's node (voices.c) */
+typedef struct SynthVoiceHead {
+    MacroCommand *addr;          /* the macro's first step; NULL: no macro runs */
+    MacroCommand *curAddr;       /* the next step to run */
+    MacroCommand *retAddr;       /* GOSUB's return: the macro (NULL: none) */
+    MacroCommand *retCurAddr;    /* and the step after the GOSUB */
+    u32 next;                    /* the next voice of the handle's chain (a voice id), or VOICE_NONE */
+    u32 previous;                /* the previous one; VOICE_NONE for the first */
+    struct HandleNode *node;     /* the chain's handle node (voices.c), kept on its first voice */
+    MacroCommand *trapAddr;      /* TRAP_KEY_OFF: the macro a key off jumps to (NULL: none) */
+    MacroCommand *trapCurAddr;   /* and its step */
+} SynthVoiceHead;
+#define SYNTH_VOICE_N64_HEAD  0x24                                      /* the head's bytes on the N64 */
+#define SYNTH_VOICE_N64_SIZE  0x1A0
+#define SYNTH_VOICE_GROWTH    (sizeof(SynthVoiceHead) - SYNTH_VOICE_N64_HEAD)
+#define SYNTH_VOICE_SIZE      PC_MX_VOICE_SIZE                          /* 0x1C0 */
+#define SYNTH_VOICE_TAIL      (SYNTH_VOICE_SIZE - SYNTH_VOICE_N64_SIZE - SYNTH_VOICE_GROWTH)
+_Static_assert(SYNTH_VOICE_TAIL > 0 && SYNTH_VOICE_SIZE % 8 == 0, "the voice holds the head and stays aligned");
+
 #endif /* MUSYX_H */

@@ -36,12 +36,12 @@ static inline int test_rand(unsigned *seed)
 
 /* ---------------------------------------------------------------- stubs.c: port/ultra stand-ins */
 
-/* A fake RDRAM at N64 address PC_RDRAM_BASE (the window's KSEG0 address), for N64-form records. */
+/* A fake RDRAM: buffers standing for the game's heap, where its sample caches, codebooks and outputs are (the task
+ * capture copies a region's neighbours there, stubs.c's pc_n64_addr). */
 #define TEST_RDRAM_SIZE 0x400000u
 extern uint8_t test_rdram[TEST_RDRAM_SIZE];
 void *rdram_alloc(size_t size);   /* zeroed, 16-byte aligned */
 void rdram_reset(void);
-uint32_t rdram_addr(const void *p);   /* K0 address */
 void test_set_rom(const uint8_t *rom, size_t size);
 
 /* ---------------------------------------------------------------- ref.c */

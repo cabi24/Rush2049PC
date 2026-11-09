@@ -440,11 +440,23 @@ def musyx_song():
 # each of the game's sound indices (0-227: gEffectLoop's extent; the sound manager starts sfx `index`), each a macro on
 # one of two ADPCM samples: a loop for the sounds the game loops (gEffectLoop, set here: the engines' two layers and the
 # screech) and a short one-shot for the rest; and the engine table gives every car its two layers, with levels.
+# The songs (SONG_GROUP below): every song of the game (waves 10-21) is the same short song, so the front end's music
+# and every race's play it through the sequencer.
 SOUND_IDS = 228
 SOUND_LOOPS = (1, 2, 36)        # the engines' layers (the engine table below) and the screech (UpdateCarSounds)
 SAMPLE_BASE_ROM = 0x39B40       # MusyX's sample base: AudioInitSys's sample_bank_rom
 LOOP_SAMPLE, SHOT_SAMPLE = 5, 6
 LOOP_MACRO, SHOT_MACRO = 1, 2
+
+# The song group (type 0) and what its notes play: a note macro that branches, calls a subroutine, starts a child voice,
+# loops, waits and is trapped by its key off (so the interpreter's every macro pointer and the voice chain are used), a
+# keymap and a layer list (the keymap and layer registries), and an envelope table (the table registry).
+SONG_GROUP = 16
+SONG_MACRO, SONG_RELEASE_MACRO, SONG_SUB_MACRO, SONG_CHILD_MACRO, SONG_HIGH_MACRO = 3, 4, 5, 6, 7
+SONG_KEYMAP = 0x4001            # a keymap's id has bit 14 (synth.c's sound_synth_start_note)
+SONG_LAYERS = 0x8002            # a layer list's has bit 15
+SONG_ENVELOPE = 1               # the envelope table SET_ADSR names
+SONGS = 12                      # gSongNames: waves 10-21, MIDI setups for song ids 0-11
 
 
 def adpcm_square(samples, half, level):
@@ -504,8 +516,73 @@ def musyx_sound_project(sfx_groups):
             b.u16(0)
             b.u16(0)
         b.at32(g, b.align(4) - g)
+    song_group(b)
     b.u32(0xFFFFFFFF)
     return b.b
+
+
+def song_group(b):
+    """The song group (MUSYX_DATA.md 3.1, type 0): its id lists (the song macros, both samples, the envelope,
+    the keymap, the layer list), its normal page {u16 macro; u8 priority; u8 max voices; u8 channel; u8 program; 2
+    bytes} (program 0 a macro, 1 the keymap, 2 the layer list, each set on its channel at the start) and drum page
+    (program 0, SONG_HIGH_MACRO, channel 10), ended by program 0xFF, and a MIDI setup for each song id {u16 id; u16;
+    16 x {program, volume, pan, reverb, chorus, 3 bytes}}, ended by id 0xFFFF."""
+    g = b.u32(0)
+    b.u16(SONG_GROUP)
+    b.u16(0)
+    offs = [b.u32(0) for _ in range(8)]
+    lists = ([SONG_MACRO, SONG_RELEASE_MACRO, SONG_SUB_MACRO, SONG_CHILD_MACRO, SONG_HIGH_MACRO], [LOOP_SAMPLE, SHOT_SAMPLE],
+             [SONG_ENVELOPE], [SONG_KEYMAP], [SONG_LAYERS])
+    for k, ids in enumerate(lists):
+        b.at32(offs[k], len(b) - g - 8)
+        for i in ids:
+            b.u16(i)
+        b.u16(0xFFFF)
+    b.align(4)
+    b.at32(offs[5], len(b) - g - 8)
+    for macro, channel, program in ((SONG_MACRO, 0, 0), (SONG_KEYMAP, 1, 1), (SONG_LAYERS, 2, 2)):
+        b.u16(macro), b.u8(0x40), b.u8(8), b.u8(channel), b.u8(program), b.u16(0)
+    b.raw(bytes([0, 0, 0, 0, 0, 0xFF, 0, 0]))
+    b.at32(offs[6], len(b) - g - 8)
+    b.u16(SONG_HIGH_MACRO), b.u8(0x30), b.u8(4), b.u8(9), b.u8(0), b.u16(0)
+    b.raw(bytes([0, 0, 0, 0, 0, 0xFF, 0, 0]))
+    b.at32(offs[7], len(b) - g - 8)
+    for song in range(SONGS):
+        b.u16(song), b.u16(0)
+        for ch in range(16):
+            program = ch if ch < 3 else 0
+            b.raw(bytes([program, 100 if ch != 9 else 90, 0x40 + 8 * (ch % 3) - 8, 0, 0, 0, 0, 0]))
+    b.u16(0xFFFF)
+    b.u16(0)
+    b.at32(g, b.align(4) - g)
+
+
+def song_macros():
+    """The song group's macros as (id, steps), each step two u32 words (macros.c's handlers say what each holds):
+    SONG_MACRO, a note: SPLIT_KEY to SONG_HIGH_MACRO for keys from 72; SET_ADSR; TRAP_KEY_OFF to SONG_RELEASE_MACRO;
+    GOSUB SONG_SUB_MACRO (starts the sample, RETURNs); PLAY_MACRO SONG_CHILD_MACRO an octave up (a second voice in the
+    chain); WAIT 2 ticks, LOOPed three times; then WAITMS until the key off, which the trap takes."""
+    return (
+        (SONG_MACRO, (
+            (0x02 | 72 << 8 | SONG_HIGH_MACRO << 16, 0),          # SPLIT_KEY: keys from 72 play SONG_HIGH_MACRO
+            (0x0C | SONG_ENVELOPE << 8, 0),                       # SET_ADSR from the envelope table
+            (0x28 | SONG_RELEASE_MACRO << 16, 0),                 # TRAP_KEY_OFF: a key off runs SONG_RELEASE_MACRO
+            (0x06 | SONG_SUB_MACRO << 16, 0),                     # GOSUB SONG_SUB_MACRO at its step 0
+            (0x08 | 12 << 8 | SONG_CHILD_MACRO << 16, 0xFF400000),  # PLAY_MACRO: +12, priority 0x40, no voice limit
+            (0x04, 2 << 16),                                      # WAIT 2 ticks
+            (0x05, 3 << 16 | 5),                                  # LOOP to step 5, three times
+            (0x07 | 1 << 8, 0xFFFF << 16),                        # WAITMS until the key off
+            (0x00, 0))),                                          # END (the trap takes the key off first)
+        (SONG_RELEASE_MACRO, ((0x11, 0), (0x00, 0))),             # STOPSAMPLE, END
+        (SONG_SUB_MACRO, ((0x10 | LOOP_SAMPLE << 8, 0),           # STARTSAMPLE, at 0
+                          (0x01 | 1 << 8, 0))),                   # RETURN
+        (SONG_CHILD_MACRO, ((0x10 | SHOT_SAMPLE << 8, 0),         # STARTSAMPLE the one-shot
+                            (0x07 | 1 << 24, 0xFFFF << 16),       # WAITMS until the sample ends
+                            (0x00, 0))),                          # END
+        (SONG_HIGH_MACRO, ((0x10 | LOOP_SAMPLE << 8, 0),          # STARTSAMPLE
+                           (0x07 | 1 << 8, 0xFFFF << 16),         # WAITMS until the key off
+                           (0x11, 0), (0x00, 0))),                # STOPSAMPLE, END
+    )
 
 
 def musyx_sound_pool():
@@ -513,7 +590,11 @@ def musyx_sound_pool():
     its sample, waits until it is keyed off (WAITMS 0xFFFF, the key-off bit) and stops its sample (STOPSAMPLE: the
     driver's voice fades out; END alone would leave a looping sample playing on a voice the library has freed); the
     one-shot starts its sample and waits until the sample has played (the sample-end bit); each then ends, which
-    frees the voice."""
+    frees the voice. Then the song group's: its macros (song_macros), its envelope table (four u16, attack and decay
+    in ms, sustain 4.12, release in ms, each stored little-endian: sound_macro_set_adsr swaps them), its keymap (128 x
+    {u16 macro; s8 transpose; u8 pan; s16 priority; 2 bytes}: the keys from 36 play SONG_HIGH_MACRO an octave down,
+    the others nothing) and its layer list ({u16; u16 count} then count x {u16 macro; u8 low key; u8 high key; s8
+    transpose; u8 volume; s16 priority; u8 pan; 3 bytes}: SONG_MACRO and, from key 48, SONG_CHILD_MACRO a fifth up)."""
     b = Buf()
     offs = [b.u32(0) for _ in range(4)]
     b.at32(offs[0], len(b))
@@ -526,9 +607,33 @@ def musyx_sound_pool():
         if stop:
             b.u32(0x11), b.u32(0)                    # STOPSAMPLE
         b.u32(0), b.u32(0)                           # END
+    for mid, steps in song_macros():
+        b.u32(8 + 8 * len(steps))
+        b.u16(mid)
+        b.u16(0)
+        for w0, w1 in steps:
+            b.u32(w0), b.u32(w1)
     b.u32(0xFFFFFFFF)
-    for k in range(1, 4):
-        b.at32(offs[k], b.u32(0xFFFFFFFF))
+    b.at32(offs[1], len(b))
+    b.u32(16), b.u16(SONG_ENVELOPE), b.u16(0)
+    for v in (5, 60, 0xC00, 120):                    # attack 5 ms, decay 60 ms, sustain 0.75, release 120 ms
+        b.raw(struct.pack("<H", v))
+    b.u32(0xFFFFFFFF)
+    b.at32(offs[2], len(b))
+    b.u32(8 + 128 * 8), b.u16(SONG_KEYMAP), b.u16(0)
+    for key in range(128):
+        if key >= 36:
+            b.u16(SONG_HIGH_MACRO), b.u8(-12 & 0xFF), b.u8(0x40 + (key % 5) * 4), b.u16(key % 3), b.u16(0)
+        else:
+            b.u16(0xFFFF), b.u8(0), b.u8(0), b.u16(0), b.u16(0)
+    b.u32(0xFFFFFFFF)
+    b.at32(offs[3], len(b))
+    layers = ((SONG_MACRO, 0, 127, 0, 127, 0, 0x40), (SONG_CHILD_MACRO, 48, 127, 7, 100, 1, 0x30))
+    b.u32(12 + 12 * len(layers)), b.u16(SONG_LAYERS), b.u16(0), b.u16(0), b.u16(len(layers))
+    for mid, low, high, transpose, volume, priority, pan in layers:
+        b.u16(mid), b.u8(low), b.u8(high), b.u8(transpose & 0xFF), b.u8(volume), b.u16(priority), b.u8(pan)
+        b.raw(bytes(3))
+    b.u32(0xFFFFFFFF)
     return b.b
 
 
@@ -545,17 +650,136 @@ def musyx_sound_sdir(loop_len, shot_len, shot_off):
     return b.b
 
 
+def note_events(notes):
+    """A pattern's note events (MUSYX_DATA.md 3.4, sequencer.c's sound_seq_play_note_events): each (delta in ticks,
+    kind, a, b): "note" key a, velocity b, its length (6 bytes); "program" a (4 bytes: key 0x80 | a, velocity 0);
+    "pressure" a; "control" controller a to b. Ended by key and velocity 0xFF."""
+    b = Buf()
+    for delta, kind, x, y, *length in notes:
+        b.u16(delta)
+        if kind == "note":
+            b.u8(x), b.u8(y), b.u16(length[0])
+        elif kind == "program":
+            b.u8(0x80 | x), b.u8(0)
+        elif kind == "pressure":
+            b.u8(0x80 | x), b.u8(1)
+        else:
+            b.u8(0x80 | y), b.u8(0x80 | x)
+    b.u16(0), b.u8(0xFF), b.u8(0xFF)
+    return b.b
+
+
+def stream(changes):
+    """A pitch-bend or modulation stream: (delta, change) pairs, each a byte (7 bits; the change signed for a pitch
+    bend) or two with the top bit (15 bits), ended by 0x80 0x00."""
+    b = Buf()
+    for delta, change in changes:
+        if delta < 0x80:
+            b.u8(delta)
+        else:
+            b.u16(0x8000 | delta)
+        if -64 <= change < 64:
+            b.u8(change & 0x7F)
+        else:
+            b.u16(0x8000 | (change & 0x7FFF))
+    b.u8(0x80), b.u8(0)
+    return b.b
+
+
+def musyx_sound_song():
+    """The song every song wave holds (MUSYX_DATA.md 3.4; sequencer.c reads it): five tracks, each a list of 12-byte
+    events {u32 time; u8 program; u8 volume; u16; u16 pattern (0xFFFF ends, 0xFFFE loops to entry `index`); s8
+    transpose, s8 velocity offset (or u16 index)}; three patterns {u32; u32 pitch-bend stream; u32 modulation stream}
+    and their note events; the channel of each track; a tempo track (120, then 140 beats a minute); 120 to start; the
+    loop's time 0, the time of the entries the tracks loop to. Tracks 0-2 play the normal page's programs 0-2 (a macro,
+    the keymap, the layer list) on channels 1-3, tracks 3 and 4 the drum page on channel 10, track 4 once, then it
+    ends. A bar is 1536 ticks (384 a beat); the tracks loop every two bars. No track holds two notes at once, and only
+    tracks 0 and 2 play SONG_MACRO, whose PLAY_MACRO adds a voice a note, so the song never needs more than the 16
+    voices the music has: the voices tests count every start MusyX refuses."""
+    b = Buf()
+    hdr = [b.u32(0) for _ in range(6)]
+    b.at32(hdr[0], b.align(4))
+    tracks = [b.u32(0) for _ in range(64)]
+    b.at32(hdr[1], len(b))
+    patterns = [b.u32(0) for _ in range(3)]
+    b.at32(hdr[2], len(b))
+    channels = [0, 1, 2, 9, 9] + [0] * 59
+    b.raw(bytes(channels))
+    b.at32(hdr[3], b.align(4))
+    for t, tempo in ((0, 120), (1536, 140), (0xFFFFFFFF, 0)):
+        b.u32(t), b.u32(tempo)
+    b.at32(hdr[4], 120)
+    b.at32(hdr[5], 0)
+    lists = (
+        ((0, 0xFF, 100, 0, 0, 0), (1536, 0xFF, 0xFF, 1, 5, -10), (3072, 0xFF, 0xFF, 0xFFFE, 0)),
+        ((0, 0xFF, 90, 1, -12, 0), (3072, 0xFF, 0xFF, 0xFFFE, 0)),
+        ((768, 0xFF, 0xFF, 0, 7, 5), (3072, 0xFF, 0xFF, 0xFFFE, 0)),
+        ((0, 0xFF, 110, 2, 0, 0), (1536, 0xFF, 0xFF, 2, 0, 0), (3072, 0xFF, 0xFF, 0xFFFE, 0)),
+        ((0, 0, 0xFF, 2, 0, 0), (200, 0xFF, 0xFF, 0xFFFF, 0)),
+    )
+    for k, events in enumerate(lists):
+        b.at32(tracks[k], b.align(4))
+        for time, program, volume, code, x, *y in events:
+            b.u32(time), b.u8(program), b.u8(volume), b.u16(0), b.u16(code)
+            if code in (0xFFFE, 0xFFFF):
+                b.u16(x)
+            else:
+                b.u8(x & 0xFF), b.u8(y[0] & 0xFF)
+    bend = stream(((96, 20), (96, -40), (0x120, 0x400), (200, -0x400), (64, 20)))
+    modulation = stream(((48, 30), (0x100, 0x200), (100, -0x200)))
+    melody = note_events((
+        (0, "note", 60, 100, 300), (384, "note", 64, 90, 300), (384, "note", 67, 80, 300),
+        (0, "control", 7, 110), (384, "note", 74, 100, 300), (192, "pressure", 64, 0),
+        (192, "note", 62, 70, 100), (96, "control", 10, 30), (96, "note", 55, 110, 200)))
+    chords = note_events((
+        (0, "note", 48, 80, 300), (384, "program", 1, 0), (0, "note", 43, 90, 300), (384, "note", 30, 90, 100)))
+    drums = note_events(((0, "note", 36, 120, 60), (384, "note", 38, 100, 60), (384, "note", 36, 120, 60),
+                         (192, "note", 42, 60, 30), (192, "note", 38, 100, 60)))
+    for k, (events, pb, mod) in enumerate(((melody, bend, modulation), (chords, None, None), (drums, None, modulation))):
+        b.at32(patterns[k], b.align(4))
+        p = b.u32(0)
+        b.u32(0), b.u32(0)
+        b.raw(events)
+        if pb:
+            b.at32(p + 4, len(b))
+            b.raw(pb)
+        if mod:
+            b.at32(p + 8, len(b))
+            b.raw(mod)
+    b.align(4)
+    return b.b
+
+
 def sound_bank(c):
-    """--sounds: the sound bank, the loop flags and the engine table (see SOUND_IDS)."""
+    """--sounds: the sound bank, the loop flags and the engine table (see SOUND_IDS), and the songs (every song wave
+    the same song, every song's group SONG_GROUP: song_groups[] {u16; u16 group})."""
     loop_pcm, shot_pcm = 4096, 1024
     loop = adpcm_square(loop_pcm, 24, 6144)
     shot = adpcm_square(shot_pcm, 12, 4096)
     shot_off = (len(loop) + 15) & ~15
     c.rom_at(SAMPLE_BASE_ROM, loop, "the looping sample (ADPCM square wave)")
     c.rom_at(SAMPLE_BASE_ROM + shot_off, shot, "the one-shot sample (ADPCM square wave)")
-    c.file(6, musyx_sound_project(SFX_GROUPS), "MusyX project: an sfx for every sound index (--sounds)")
-    c.file(7, musyx_sound_pool(), "MusyX pool: a looping and a one-shot macro (--sounds)")
+    c.file(6, musyx_sound_project(SFX_GROUPS), "MusyX project: an sfx for every sound index and a song group (--sounds)")
+    c.file(7, musyx_sound_pool(), "MusyX pool: a looping and a one-shot macro, the song group's (--sounds)")
     c.file(8, musyx_sound_sdir(loop_pcm, shot_pcm, shot_off), "MusyX sample directory: two samples (--sounds)")
+    # The MusyX tables a voice is heard through (gains.c), computed from what each means: a semitone's ratio and the
+    # ratios n semitones up and down (2^(n/12): sound_note_to_pitch; zero, every note but a sample's own key played at
+    # rate 0, so its sample never moved or ended), the volume curve (volume 0..127, and its 128th point for the
+    # interpolation, to a gain: (v/127)^2) and the pan curve (a pan of 0, 64 and 128 to the near side's gain: 1, -3 dB,
+    # 0). Zero, every gain was 0 and the bank played silence.
+    c.set("boot", "sound_semitone_ratio", "f32", 2.0 ** (1 / 12), "a semitone's ratio, 2^(1/12) (--sounds)")
+    c.set_all("boot", "sound_semitone_up_ratios", "f32", [2.0 ** (n / 12) for n in range(128)],
+              "n semitones up, 2^(n/12) (--sounds)")
+    c.set_all("boot", "sound_semitone_down_ratios", "f32", [2.0 ** (-n / 12) for n in range(128)],
+              "n semitones down, 2^(-n/12) (--sounds)")
+    c.set_all("boot", "sound_volume_curve", "f32", [min(1.0, (v / 127) ** 2) for v in range(129)],
+              "a volume's gain, (v/127)^2 (--sounds)")
+    c.set_all("boot", "sound_pan_curve", "f32", [1.0, math.sqrt(0.5), 0.0], "the pan's gain at 0, 64, 128 (--sounds)")
+    song = musyx_sound_song()
+    for s in range(SONGS):
+        c.file(10 + s, song, f"song {s}: five tracks, three patterns, a tempo track (--sounds)")
+        c.set("game", "song_groups", "u16", SONG_GROUP, "every song's sound group (--sounds)" if s == 0 else "(same)",
+              offset=4 * s + 2)
     for i in SOUND_LOOPS:
         c.set("game", "gEffectLoop", "u8", 1, "a sound the sound manager loops (--sounds)", index=i)
     # The engine table (gEngineSpecs, Definitions64[9]: a car category's two layers, each {s32 sound; u16 rev points

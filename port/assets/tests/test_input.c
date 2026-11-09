@@ -2,8 +2,8 @@
  * the PC, where the profile pointer at +0x48 is 8 bytes) through the game's own code (docs/port/POINTERS.md 10):
  * the per-frame fill (UpdateRushControls), the clear (ClearRushControls) and the controller hand-over
  * (FindPlayerNum), which add 80-byte strides by hand, the controls set-up through the profile pointer
- * (SetControls), and the packet slot at +0x44, which stays 32 bits (StartListeners posts a packet, a heap
- * block, or -1; StopListeners activates it; UpdateListeners hands it on), and a new record of the player's save
+ * (SetControls), and the listener at +0x44, which stays 32 bits: its number in gListeners, or -1 (StartListeners
+ * adds one; UpdateListeners hands it on; StopListeners gives it back), and a new record of the player's save
  * data reached from its input record (NewCircuit: the profile, SaveSlot.data, the data pointer read whole). Every
  * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes. The pause screen's title
  * (animTitleText) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)). The pause
@@ -30,7 +30,7 @@ typedef struct {
     float horizontal, vertical;
     uint32_t controls[10];
     uint8_t pad40[4];
-    uint32_t packet;                 /* +0x44: a packet's window address, or -1 */
+    uint32_t listener;               /* +0x44: the listener's number in gListeners, or -1 */
     void **profile;                  /* +0x48 */
 } Input;
 _Static_assert(sizeof(Input) == 80 && offsetof(Input, profile) == 0x48, "the input record's host layout");
@@ -59,10 +59,12 @@ void ClearControls(void) {}
 static int g_active[8];
 void SetControllerActive(int32_t player, int32_t value) { g_active[player & 7] = value; }
 void AudSetMasterVol(float blend, float amount, int32_t first, int32_t second) {}
-#define PACKET(i) (TEST_SCRATCH + 0x21000u + 0x40u * (i))   /* the listeners' packets: window addresses */
-static uint32_t g_packets[4] = {PACKET(0), PACKET(1), PACKET(2), PACKET(3)};
-static int g_npacket;
-void *AudAddListener(void *a, void *b, void *c, void *d) { return (void *)(uintptr_t)g_packets[g_npacket++ & 3]; }
+/* The sound manager's listeners (gListeners: AudInit3D's array of tSfxListener, 0x48 bytes each on the PC). */
+#define LISTENER_SIZE 0x48
+static uint8_t g_listeners[4][LISTENER_SIZE] __attribute__((aligned(8)));
+void *gListeners = g_listeners;
+static int g_nlistener;
+void *AudAddListener(void *a, void *b, void *c, void *d) { return g_listeners[g_nlistener++ & 3]; }
 int32_t osRecvMesg(void *q, void *m, int32_t f) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t f) { return 0; }
 void ValidateListener(int32_t *node) {}
@@ -121,11 +123,11 @@ static void test_fill_and_clear(void)
         }
         CHECK(r->controller == (p == 2 ? 5 : p + 1) && r->profile == &gJustPlayers[p]);
     }
-    gPlayers[3].packet = 0x12345678u;
+    gPlayers[3].listener = 0x12345678u;
     ClearRushControls();
     for (p = 0; p < 4; p++)
         CHECK(gPlayers[p].current == 0 && gPlayers[p].pressed == 0 && gPlayers[p].vertical == 0.0f);
-    CHECK(gPlayers[3].controller == 4 && gPlayers[3].profile == &gJustPlayers[3] && gPlayers[3].packet == 0x12345678u);
+    CHECK(gPlayers[3].controller == 4 && gPlayers[3].profile == &gJustPlayers[3] && gPlayers[3].listener == 0x12345678u);
 }
 
 /* A pad taking over record 3 (forced), and record 1 only when it has no pad and the button is down. */
@@ -159,25 +161,24 @@ static void test_controls(void)
     CHECK(gPlayers[2].controls[0] == 0x1000u && gPlayers[2].controls[9] == 0x1000u << 9);
 }
 
-/* The packet slot: posted, activated (zero-extended; -1 is none) and handed on. */
-static void test_packets(void)
+/* The listeners: added (each player's number in gListeners; -1 is none), handed on and given back. */
+static void test_listeners(void)
 {
     int p;
 
-    gNumPlayers = 3, gRace = 2, gGameState = 0, g_npacket = 0;
+    gNumPlayers = 3, gRace = 2, gGameState = 0, g_nlistener = 0;
     gPlayers[0].index = 0, gPlayers[1].index = 1, gPlayers[2].index = 0;
     StartListeners();
-    CHECK(gPlayers[0].packet == PACKET(0) && gPlayers[1].packet == 0xFFFFFFFFu);
-    CHECK(gPlayers[2].packet == PACKET(1) && gPlayers[2].profile == &gJustPlayers[2]);
+    CHECK(gPlayers[0].listener == 0 && gPlayers[1].listener == 0xFFFFFFFFu);
+    CHECK(gPlayers[2].listener == 1 && gPlayers[2].profile == &gJustPlayers[2]);
     g_nhanded = 0;
     UpdateListeners();
-    CHECK(g_nhanded == 2 && g_handed[0] == (void *)(uintptr_t)PACKET(0));
-    CHECK(g_handed[1] == (void *)(uintptr_t)PACKET(1));
+    CHECK(g_nhanded == 2 && g_handed[0] == (void *)g_listeners[0] && g_handed[1] == (void *)g_listeners[1]);
     g_nmoved = 0;
     StopListeners();
-    CHECK(g_nmoved == 2 && g_moved[0] == (void *)(uintptr_t)PACKET(0) && g_moved[1] == (void *)(uintptr_t)PACKET(1));
+    CHECK(g_nmoved == 2 && g_moved[0] == (void *)g_listeners[0] && g_moved[1] == (void *)g_listeners[1]);
     for (p = 0; p < 3; p++)
-        CHECK(gPlayers[p].packet == 0xFFFFFFFFu && gPlayers[p].profile == &gJustPlayers[p]);
+        CHECK(gPlayers[p].listener == 0xFFFFFFFFu && gPlayers[p].profile == &gJustPlayers[p]);
 }
 
 /* The player's new record: through record 2's profile pointer to its save data, in the window. */
@@ -330,7 +331,7 @@ static void test_pause_choice(void)
 
 int main(void)
 {
-    uint8_t *w = test_rdram();   /* the packets are heap blocks: window addresses */
+    uint8_t *w = test_rdram();   /* the save record's block (test_save_record) */
 
     if (!w) {
         fprintf(stderr, "test_input: the RDRAM window can't be mapped here: skipped\n");
@@ -340,7 +341,7 @@ int main(void)
     test_fill_and_clear();
     test_hand_over();
     test_controls();
-    test_packets();
+    test_listeners();
     test_save_record(w);
     test_pause_title();
     test_pause_languages();

@@ -1021,7 +1021,7 @@ void modescr_uninitButtons(void);
 void modescr_uninitScreen(void);
 void modescr_updateButtons(void);
 void *musyx_alloc(s32 size, s32 alignment);
-intptr_t musyx_cart_address(intptr_t offset);
+u32 musyx_cart_address(u32 offset);
 void musyx_clear_retrace_callback(s32 callback);
 void musyx_free(void *ptr);
 s32 musyx_set_retrace_callback(intptr_t callback);

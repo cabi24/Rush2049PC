@@ -33,17 +33,8 @@ void *rdram_alloc(size_t size)
     return p;
 }
 
-uint32_t rdram_addr(const void *p)
-{
-    return pc_n64_addr(p);
-}
-
-void *pc_n64_ptr(uint32_t addr)
-{
-    uint32_t off = N64_TO_PHYS(addr);
-    return off < TEST_RDRAM_SIZE ? test_rdram + off : NULL;
-}
-
+/* The capture (musyx.c's cap_region) asks whether a region is in RDRAM, to copy its neighbours as the RSP reads them:
+ * here the fake RDRAM is. */
 uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;

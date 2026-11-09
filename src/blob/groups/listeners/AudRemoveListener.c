@@ -3,7 +3,8 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-/* The player record's field this file reads (MAT3 tPlayer.listener). */
+/* The player record's field this file reads (MAT3 tPlayer.listener): its listener's number in gListeners
+ * (StartListeners), -1 for none. */
 typedef struct PlayerRec {
     /* 0x00 */ s32 unk0[17];
     /* 0x44 */ s32 listener;
@@ -38,7 +39,7 @@ void StopListeners(void)
     s32 i;
 
     for (i = 0; i < gNumPlayers; i++) {
-        AudRemoveListener(((gPlayers[i].listener) == -1 ? (tSfxListener *)-1 : (tSfxListener *)PC_N64P((u32)(gPlayers[i].listener))));
+        AudRemoveListener(gPlayers[i].listener == -1 ? (tSfxListener *)-1 : &gListeners[gPlayers[i].listener]);
         gPlayers[i].listener = -1;
     }
 }

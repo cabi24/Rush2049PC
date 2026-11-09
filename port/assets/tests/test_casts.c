@@ -458,6 +458,7 @@ typedef struct { void *next, *prev; uint8_t type, posted, pad[2]; float a[3], b[
 int __unit_dead[8];
 uint8_t audio_lock_queue[24];
 struct { uint8_t indirect, doubly, pad[2]; uint32_t count; void *head, *tail; } gFreeListeners, gActiveListeners;
+void *gListeners;   /* the listeners StopListeners (in AudRemoveListener.c) finds by number */
 void AudUpdateListener(void *node, float *a, float *b, float *c, float *d);
 void AudRemoveListener(void *packet);
 

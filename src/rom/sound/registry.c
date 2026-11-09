@@ -7,9 +7,9 @@
  * (sound_bsearch). The synth (synth.c), the macro interpreter (macros.c) and the effect start (sound_start_sfx) find
  * their resources here.
  *
- * MusyX is the N64's sound library: no MAT3 counterpart. N64-shaped: a record keeps its payload (a pointer into the
- * pool, wave 7, in the heap) as a 32-bit address of the RDRAM window, so the records keep the N64's sizes and strides
- * (docs/port/MUSYX_DATA.md 2); the sample records keep their samples' cartridge addresses. */
+ * MusyX is the N64's sound library: no MAT3 counterpart. A record holds its payload (in the pool, wave 7) as a
+ * pointer; a sample directory's records hold their samples' cartridge addresses, 32 bits, as the file has room for
+ * (docs/port/MUSYX_DATA.md 2, 4). */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "sound_sample_record.h"
@@ -27,24 +27,13 @@
 #define SAMPLE_ID_END 0xFFFF            /* ends a sample directory */
 #define SAMPLE_LENGTH_MASK 0xFFFFFF     /* a sample's length word: format << 24 | length in samples */
 
-/* PC: the keymap and macro registries hold window addresses into the pool (wave 7, in the heap) as u32, so a
- * record stays 8 bytes with its id at +4: sound_find_macro searches with a stride of 8, and the comparators read
- * the id at +4 (docs/port/MUSYX_DATA.md). */
-#pragma pack(1)
-typedef struct { unsigned int payload; u16 id; u16 references; } KeymapRecord;
-#pragma pack()
-typedef union { KeymapRecord fields; unsigned int words[2]; } KeymapRecordStorage;
+/* A registered macro, table or keymap: its payload in the pool (a macro's steps, a table's bytes, a keymap's 128
+ * entries), its id, and how many pushed groups hold it. The registries are sorted by id. */
+typedef struct ResourceRecord { void *payload; u16 id; u16 references; } ResourceRecord;
 
-/* A layer list: count is the number of layers at payload (synth.c's LayerEntry), which sound_find_layer returns. */
-#pragma pack(1)
-typedef struct { unsigned int payload; u16 id; u16 count; u16 references; u16 metadata; } LayerRecord;
-#pragma pack()
-typedef union { LayerRecord fields; unsigned int words[3]; } LayerRecordStorage;
-
-#pragma pack(1)
-typedef struct { unsigned int payload; u16 id; u16 references; } TableRecord;
-#pragma pack()
-typedef union { TableRecord fields; unsigned int words[2]; } TableRecordStorage;
+/* A registered layer list: its layers in the pool, count of them (synth.c's LayerEntry), its id, and how many pushed
+ * groups hold it. */
+typedef struct LayerRecord { void *payload; u16 id; u16 count; u16 references; } LayerRecord;
 
 /* An effect of an effect table, 12 bytes (synth.c's Preset reads it whole): the effect's id, the macro, keymap or
  * layer it plays, its voice limit, priority, default volume and pan, key, and its volume group, the one byte the
@@ -74,23 +63,10 @@ typedef union { RecordFields fields; unsigned int words[2]; } RecordStorage;
 typedef struct ResourceRange { u16 count; u16 first; } ResourceRange;
 #pragma pack(0)
 
-/* PC: a u32 window address, as KeymapRecord. */
-#pragma pack(1)
-typedef struct { unsigned int payload; u16 id; u16 references; } MacroRecord;
-#pragma pack()
-typedef union { MacroRecord fields; unsigned int words[2]; } MacroRecordStorage;
-
-/* The comparators' view of a record: its id at +4. */
-#pragma pack(1)
-typedef struct PackedKey { unsigned char unknown00[4]; unsigned short key; } PackedKey;
-#pragma pack()
-
 /* The sample information in a sample directory record (SampleRecord.descriptor): key << 24 | rate, format << 24 |
  * length in samples, the loop's start and length. */
-/* PC: the layout sound_hw_set_voice_sample (hardware.c) reads, whose data pointer is 8 bytes: offset is a u32 there. */
 #pragma pack(1)
 typedef struct SampleDirectoryInfo { u32 info; u32 length; u32 loopOffset; u32 loopLength; } SampleDirectoryInfo;
-typedef struct SampleLookup { u32 info; void *addr; u32 offset; u32 length; u32 loop; u32 loopLength; u8 compType; } SampleLookup;
 #pragma pack()
 
 /* The comparator's view of an effect: its id first. */
@@ -101,22 +77,22 @@ typedef struct SfxSearchKey { u16 id; unsigned char unknown02[10]; } SfxSearchKe
 
 /* The registries */
 extern int sound_keymap_count;
-extern KeymapRecordStorage sound_keymaps[];
+extern ResourceRecord sound_keymaps[];
 extern void sound_hw_lock(void);
 extern void sound_hw_unlock(void);
 extern int sound_layer_count;
-extern LayerRecordStorage sound_layers[];
+extern LayerRecord sound_layers[];
 extern int sound_table_count;
-extern TableRecordStorage sound_tables[];
+extern ResourceRecord sound_tables[];
 extern int sound_sample_directory_count;
 extern RegisteredSamples sound_sample_directories[];
-extern void sound_hw_save_sample(void **, void **);
+extern void sound_hw_save_sample(void **, unsigned int *);
 extern void sound_hw_remove_sample(void *, unsigned int);
 extern int sound_sfx_table_count;
 extern RecordStorage sound_sfx_tables[];
 extern int sound_macro_count;
 extern ResourceRange sound_macro_buckets[512];
-extern MacroRecordStorage sound_macros[];
+extern ResourceRecord sound_macros[];
 void *sound_bsearch(const void *key, const void *base, int count, int size, int (*compare)(const void *, const void *));
 extern void sound_hw_init_sample_memory(void);
 
@@ -127,10 +103,10 @@ int sound_add_keymap(u16 id, void *payload)
     int i;
     int j;
     sound_hw_lock();
-    for (i = 0; i < sound_keymap_count && ((KeymapRecord *)&sound_keymaps[i])->id < id; i++) {
+    for (i = 0; i < sound_keymap_count && sound_keymaps[i].id < id; i++) {
     }
     if (i < sound_keymap_count) {
-        if (((KeymapRecord *)&sound_keymaps[i])->id != id) {
+        if (sound_keymaps[i].id != id) {
             if (sound_keymap_count < MAX_KEYMAPS) {
                 for (j = sound_keymap_count - 1; j >= i; j--) {
                     sound_keymaps[j + 1] = sound_keymaps[j];
@@ -141,7 +117,7 @@ int sound_add_keymap(u16 id, void *payload)
                 return 0;
             }
         } else {
-            ((KeymapRecord *)&sound_keymaps[i])->references++;
+            sound_keymaps[i].references++;
             sound_hw_unlock();
             return 0;
         }
@@ -153,9 +129,9 @@ int sound_add_keymap(u16 id, void *payload)
             return 0;
         }
     }
-    ((KeymapRecord *)&sound_keymaps[i])->payload = PC_N64A(payload);
-    ((KeymapRecord *)&sound_keymaps[i])->id = id;
-    ((KeymapRecord *)&sound_keymaps[i])->references = 1;
+    sound_keymaps[i].payload = payload;
+    sound_keymaps[i].id = id;
+    sound_keymaps[i].references = 1;
     sound_hw_unlock();
     return 1;
 }
@@ -166,10 +142,10 @@ int sound_remove_keymap(u16 id)
     int i;
     int j;
     sound_hw_lock();
-    for (i = 0; i < sound_keymap_count && ((KeymapRecord *)&sound_keymaps[i])->id != id; i++) {
+    for (i = 0; i < sound_keymap_count && sound_keymaps[i].id != id; i++) {
     }
     if (i != sound_keymap_count) {
-        if (--((KeymapRecord *)&sound_keymaps[i])->references == 0) {
+        if (--sound_keymaps[i].references == 0) {
             for (j = i + 1; j < sound_keymap_count; j++) {
                 sound_keymaps[j - 1] = sound_keymaps[j];
             }
@@ -189,10 +165,10 @@ int sound_add_layer(u16 id, void *payload, u16 count)
     long i;
     long j;
     sound_hw_lock();
-    for (i = 0; i < sound_layer_count && ((LayerRecord *)&sound_layers[i])->id < id; ++i) {
+    for (i = 0; i < sound_layer_count && sound_layers[i].id < id; ++i) {
     }
     if (i < sound_layer_count) {
-        if (((LayerRecord *)&sound_layers[i])->id != id) {
+        if (sound_layers[i].id != id) {
             if (sound_layer_count < MAX_LAYERS) {
                 for (j = sound_layer_count - 1; j >= i; --j) {
                     sound_layers[j + 1] = sound_layers[j];
@@ -203,7 +179,7 @@ int sound_add_layer(u16 id, void *payload, u16 count)
                 return 0;
             }
         } else {
-            ((LayerRecord *)&sound_layers[i])->references++;
+            sound_layers[i].references++;
             sound_hw_unlock();
             return 0;
         }
@@ -213,10 +189,10 @@ int sound_add_layer(u16 id, void *payload, u16 count)
         sound_hw_unlock();
         return 0;
     }
-    ((LayerRecord *)&sound_layers[i])->id = id;
-    ((LayerRecord *)&sound_layers[i])->payload = PC_N64A(payload);
-    ((LayerRecord *)&sound_layers[i])->count = count;
-    ((LayerRecord *)&sound_layers[i])->references = 1;
+    sound_layers[i].id = id;
+    sound_layers[i].payload = payload;
+    sound_layers[i].count = count;
+    sound_layers[i].references = 1;
     sound_hw_unlock();
     return 1;
 }
@@ -227,10 +203,10 @@ int sound_remove_layer(u16 id)
     int i;
     int j;
     sound_hw_lock();
-    for (i = 0; i < sound_layer_count && ((LayerRecord *)&sound_layers[i])->id != id; i++) {
+    for (i = 0; i < sound_layer_count && sound_layers[i].id != id; i++) {
     }
     if (i != sound_layer_count) {
-        if (--((LayerRecord *)&sound_layers[i])->references == 0) {
+        if (--sound_layers[i].references == 0) {
             for (j = i + 1; j < sound_layer_count; j++) {
                 sound_layers[j - 1] = sound_layers[j];
             }
@@ -250,10 +226,10 @@ int sound_add_table(u16 id, void *payload)
     long i;
     long j;
     sound_hw_lock();
-    for (i = 0; i < sound_table_count && ((TableRecord *)&sound_tables[i])->id < id; ++i) {
+    for (i = 0; i < sound_table_count && sound_tables[i].id < id; ++i) {
     }
     if (i < sound_table_count) {
-        if (((TableRecord *)&sound_tables[i])->id != id) {
+        if (sound_tables[i].id != id) {
             if (sound_table_count < MAX_TABLES) {
                 for (j = sound_table_count - 1; j >= i; --j) {
                     sound_tables[j + 1] = sound_tables[j];
@@ -265,7 +241,7 @@ int sound_add_table(u16 id, void *payload)
             }
         } else {
             sound_hw_unlock();
-            ((TableRecord *)&sound_tables[i])->references++;
+            sound_tables[i].references++;
             return 0;
         }
     } else if (sound_table_count < MAX_TABLES) {
@@ -274,9 +250,9 @@ int sound_add_table(u16 id, void *payload)
         sound_hw_unlock();
         return 0;
     }
-    ((TableRecord *)&sound_tables[i])->id = id;
-    ((TableRecord *)&sound_tables[i])->payload = PC_N64A(payload);
-    ((TableRecord *)&sound_tables[i])->references = 1;
+    sound_tables[i].id = id;
+    sound_tables[i].payload = payload;
+    sound_tables[i].references = 1;
     sound_hw_unlock();
     return 1;
 }
@@ -287,10 +263,10 @@ int sound_remove_table(u16 id)
     int i;
     int j;
     sound_hw_lock();
-    for (i = 0; i < sound_table_count && ((TableRecord *)&sound_tables[i])->id != id; i++) {
+    for (i = 0; i < sound_table_count && sound_tables[i].id != id; i++) {
     }
     if (i != sound_table_count) {
-        if (--((TableRecord *)&sound_tables[i])->references == 0) {
+        if (--sound_tables[i].references == 0) {
             for (j = i + 1; j < sound_table_count; j++) {
                 sound_tables[j - 1] = sound_tables[j];
             }
@@ -303,10 +279,10 @@ int sound_remove_table(u16 id)
     return 0;
 }
 
-/* Registers a sample directory (records, ended by id SAMPLE_ID_END; base: the samples' address, which each record's
- * offset counts from), clearing its records' reference counts. Returns 1 when it is registered (now or before), 0
- * when MAX_SAMPLE_DIRECTORIES are. */
-int sound_add_sample_directory(SampleRecord *records, void *base)
+/* Registers a sample directory (records, ended by id SAMPLE_ID_END; cart_base: the samples' cartridge address, which
+ * each record's offset counts from), clearing its records' reference counts. Returns 1 when it is registered (now or
+ * before), 0 when MAX_SAMPLE_DIRECTORIES are. */
+int sound_add_sample_directory(SampleRecord *records, unsigned int cart_base)
 {
     int index;
     SampleRecord *entry;
@@ -326,7 +302,7 @@ int sound_add_sample_directory(SampleRecord *records, void *base)
             entry = records;
             sound_hw_lock();
             sound_sample_directories[sound_sample_directory_count].records = records;
-            sound_sample_directories[sound_sample_directory_count].base = base;
+            sound_sample_directories[sound_sample_directory_count].cart_base = cart_base;
             sound_sample_directories[sound_sample_directory_count].count = count;
             for (i = 0; i < count; ++i, ++entry) {
                 entry->references = 0;
@@ -360,8 +336,8 @@ int sound_remove_sample_directory(SampleRecord *records)
     return 0;
 }
 
-/* Takes a reference to the sample with this id in the directory records: the first one sets the record's address
- * (the directory's base plus the sample's offset). Always returns 1. */
+/* Takes a reference to the sample with this id in the directory records: the first one sets the record's cartridge
+ * address (the directory's plus the sample's offset). Always returns 1. */
 int sound_add_sample(u16 id, SampleRecord *records)
 {
     u32 index;
@@ -372,9 +348,9 @@ int sound_add_sample(u16 id, SampleRecord *records)
     while (records->identifier != SAMPLE_ID_END) {
         if (records->identifier == id) {
             if (records->references == 0) {
-                records->data = PC_N64A(sound_sample_directories[index].base + records->offset);
+                records->cart_address = sound_sample_directories[index].cart_base + records->offset;
                 descriptor = records->descriptor;
-                sound_hw_save_sample(&descriptor, &records->data);
+                sound_hw_save_sample(&descriptor, &records->cart_address);
             }
             ++records->references;
             break;
@@ -472,12 +448,12 @@ int sound_add_macro(u16 id, void *payload)
         pos = base = sound_macro_buckets[bucket].first = sound_macro_count;
     } else {
         base = sound_macro_buckets[bucket].first;
-        for (i = 0; i < sound_macro_buckets[bucket].count && ((MacroRecord *)&sound_macros[base + i])->id < id; ++i) {
+        for (i = 0; i < sound_macro_buckets[bucket].count && sound_macros[base + i].id < id; ++i) {
         }
         if (i < sound_macro_buckets[bucket].count) {
             pos = base + i;
-            if (((MacroRecord *)&sound_macros[pos])->id == id) {
-                ((MacroRecord *)&sound_macros[pos])->references++;
+            if (sound_macros[pos].id == id) {
+                sound_macros[pos].references++;
                 sound_hw_unlock();
                 return 0;
             }
@@ -495,9 +471,9 @@ int sound_add_macro(u16 id, void *payload)
         for (; i >= pos; --i) {
             sound_macros[i + 1] = sound_macros[i];
         }
-        ((MacroRecord *)&sound_macros[pos])->id = id;
-        ((MacroRecord *)&sound_macros[pos])->payload = PC_N64A(payload);
-        ((MacroRecord *)&sound_macros[pos])->references = 1;
+        sound_macros[pos].id = id;
+        sound_macros[pos].payload = payload;
+        sound_macros[pos].references = 1;
         sound_macro_buckets[bucket].count++;
         sound_macro_count++;
         sound_hw_unlock();
@@ -517,10 +493,10 @@ int sound_remove_macro(u16 id)
     bucket = id >> MACRO_BUCKET_SHIFT;
     if (sound_macro_buckets[bucket].count != 0) {
         base = sound_macro_buckets[bucket].first;
-        for (i = 0; i < sound_macro_buckets[bucket].count && ((MacroRecord *)&sound_macros[base + i])->id != id; ++i) {
+        for (i = 0; i < sound_macro_buckets[bucket].count && sound_macros[base + i].id != id; ++i) {
         }
         if (i < sound_macro_buckets[bucket].count) {
-            if (--((MacroRecord *)&sound_macros[base + i])->references == 0) {
+            if (--sound_macros[base + i].references == 0) {
                 for (i = base + i + 1; i < sound_macro_count; ++i) {
                     sound_macros[i - 1] = sound_macros[i];
                 }
@@ -538,10 +514,10 @@ int sound_remove_macro(u16 id)
     return 0;
 }
 
-/* sound_bsearch's comparator for macro records: by the id at +4. */
-int sound_compare_macro_ids(const PackedKey *left, const PackedKey *right)
+/* sound_bsearch's comparator for macro records: by id. */
+int sound_compare_macro_ids(const ResourceRecord *left, const ResourceRecord *right)
 {
-    return left->key - right->key;
+    return left->id - right->id;
 }
 
 /* The steps of the macro with this id, or NULL. The search key and result are static, as in the original. */
@@ -549,16 +525,16 @@ void *sound_find_macro(u16 id)
 {
     static long base;
     static long bucket;
-    static MacroRecord key;
-    static MacroRecord *result;
+    static ResourceRecord key;
+    static ResourceRecord *result;
 
     bucket = id >> MACRO_BUCKET_SHIFT;
     if (sound_macro_buckets[bucket].count != 0) {
         base = sound_macro_buckets[bucket].first;
         key.id = id;
-        if ((result = sound_bsearch(&key, &sound_macros[base], sound_macro_buckets[bucket].count, sizeof(MacroRecord),
+        if ((result = sound_bsearch(&key, &sound_macros[base], sound_macro_buckets[bucket].count, sizeof(ResourceRecord),
                                     (int (*)(const void *, const void *))sound_compare_macro_ids)) != 0) {
-            return ((void *)PC_N64P(result->payload));
+            return result->payload;
         }
     }
     return 0;
@@ -570,9 +546,9 @@ int sound_compare_sample_ids(const unsigned short *left, const unsigned short *r
     return *left - *right;
 }
 
-/* Fills *sample with the sample with this id from the first directory that has it: its address, key and rate,
- * length, loop and format. Returns 0, or -1 if no directory has it. */
-int sound_find_sample(u16 id, SampleLookup *sample)
+/* Fills *sample with the sample with this id from the first directory that has it: its cartridge address, key and
+ * rate, length, loop and format. Returns 0, or -1 if no directory has it. */
+int sound_find_sample(u16 id, SoundSampleInfo *sample)
 {
     static SampleRecord key;
     static SampleRecord *result;
@@ -585,34 +561,35 @@ int sound_find_sample(u16 id, SampleLookup *sample)
                                     (int (*)(const void *, const void *))sound_compare_sample_ids)) != 0) {
             info = (SampleDirectoryInfo *)result->descriptor;
             sample->info = info->info;
-            sample->addr = result->data;
+            sample->cart_address = result->cart_address;
+            sample->data = 0;
             sample->offset = 0;
-            sample->loop = info->loopOffset;
+            sample->loopStart = info->loopOffset;
             sample->length = info->length & SAMPLE_LENGTH_MASK;
             sample->loopLength = info->loopLength;
-            sample->compType = info->length >> 24;
+            sample->format = info->length >> 24;
             return 0;
         }
     }
     return -1;
 }
 
-/* sound_bsearch's comparator for table and keymap records: by the id at +4. */
-int sound_compare_record_ids(const PackedKey *left, const PackedKey *right)
+/* sound_bsearch's comparator for table and keymap records: by id. */
+int sound_compare_record_ids(const ResourceRecord *left, const ResourceRecord *right)
 {
-    return left->key - right->key;
+    return left->id - right->id;
 }
 
 /* The table with this id, or NULL. */
 void *sound_find_table(u16 id)
 {
-    static TableRecord key;
-    static TableRecord *result;
+    static ResourceRecord key;
+    static ResourceRecord *result;
 
     key.id = id;
-    if ((result = sound_bsearch(&key, sound_tables, sound_table_count, sizeof(TableRecord),
+    if ((result = sound_bsearch(&key, sound_tables, sound_table_count, sizeof(ResourceRecord),
                                 (int (*)(const void *, const void *))sound_compare_record_ids)) != 0) {
-        return ((void *)PC_N64P(result->payload));
+        return result->payload;
     }
     return 0;
 }
@@ -620,21 +597,21 @@ void *sound_find_table(u16 id)
 /* The keymap with this id (128 entries, one per key), or NULL. */
 void *sound_find_keymap(u16 id)
 {
-    static KeymapRecord key;
-    static KeymapRecord *result;
+    static ResourceRecord key;
+    static ResourceRecord *result;
 
     key.id = id;
-    if ((result = sound_bsearch(&key, sound_keymaps, sound_keymap_count, sizeof(KeymapRecord),
+    if ((result = sound_bsearch(&key, sound_keymaps, sound_keymap_count, sizeof(ResourceRecord),
                                 (int (*)(const void *, const void *))sound_compare_record_ids)) != 0) {
-        return ((void *)PC_N64P(result->payload));
+        return result->payload;
     }
     return 0;
 }
 
-/* sound_bsearch's comparator for layer records: by the id at +4. */
-int sound_compare_layer_ids(const PackedKey *left, const PackedKey *right)
+/* sound_bsearch's comparator for layer records: by id. */
+int sound_compare_layer_ids(const LayerRecord *left, const LayerRecord *right)
 {
-    return left->key - right->key;
+    return left->id - right->id;
 }
 
 /* The layer list with this id, its count of layers in *count; NULL if there is none. */
@@ -647,7 +624,7 @@ void *sound_find_layer(u16 id, u16 *count)
     if ((result = sound_bsearch(&key, sound_layers, sound_layer_count, sizeof(LayerRecord),
                                 (int (*)(const void *, const void *))sound_compare_layer_ids)) != 0) {
         *count = result->count;
-        return ((void *)PC_N64P(result->payload));
+        return result->payload;
     }
     return 0;
 }

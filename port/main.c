@@ -187,7 +187,7 @@ extern void musyx_wait_audio_task(void);                                /* 1: wa
 extern int32_t musyx_set_retrace_callback(intptr_t callback);                    /* 2: set the retrace callback */
 extern void musyx_clear_retrace_callback(int32_t unused);                          /* 3: clear it */
 extern int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
-extern intptr_t musyx_cart_address(intptr_t address);                    /* 5: cartridge address */
+extern uint32_t musyx_cart_address(uint32_t offset);                     /* 5: cartridge address */
 extern void *musyx_alloc(int32_t size, int32_t mode);       /* 6: allocate */
 extern void musyx_free(void *ptr);                         /* 7: free */
 
@@ -591,7 +591,7 @@ static int from_command_line(const PcSettingValue *over, int n, const char *sect
 /* ---------------------------------------------------------------- the mods folder (docs/port/MODS.md) */
 
 /* The ROM offset the sample directory's offsets count from: the sample base AudioInitSys hands sndPushGroup,
- * sample_bank_rom's cartridge address (groups/AudioInitSys/AudioInitSys.c, docs/port/MUSYX_DATA.md). */
+ * SAMPLE_BANK_ROM_OFFSET (groups/AudioInitSys/AudioInitSys.c, docs/port/MUSYX_DATA.md). */
 #define MODS_SAMPLE_BASE 0x39B40u
 
 static PcMenuMod g_menu_mods[PC_MENU_MODS];

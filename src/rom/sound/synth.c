@@ -9,15 +9,14 @@
  * the volume group faders (sound_volume_faders) advance their fades. The sfx setters (sound_set_sfx_*_unlocked) write a
  * sound's MIDI controllers along its voice chain.
  *
- * MusyX is the N64's sound library: no MAT3 counterpart. The voices are seen through this file's partial views, at the
- * N64 offsets (each field's name ends in its offset); on the PC their storage is PC data, PC_MX_VOICE_SLOTS long
- * (pc_game_types.h, docs/port/DECOUPLE.md 9). Pitches are 16.16 note numbers until sound_synth_key_to_pitch turns
+ * MusyX is the N64's sound library: no MAT3 counterpart. The voices are seen through this file's partial views: the
+ * head (musyx.h's SynthVoiceHead), then fields named after their N64 offsets (SYNTH_VOICE_GROWTH further on, on the
+ * PC); their storage is PC data, PC_MX_VOICE_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9). Pitches are 16.16 note numbers until sound_synth_key_to_pitch turns
  * them into the hardware's 4.12 playback rate; volumes and pans are 16.16, 0x7F0000 the loudest or rightmost. */
 #include "../rom_tu.h"
 #include "musyx.h"
 
 #define TICK_RATE_SFX 8            /* sound_tick_rates: [0..7] the song players', [8] the effects' */
-#define VOICE_MIDI_SET_BYTE 0x4B   /* a voice's midiSet4B, as sound_synth_get_tick_rate reads it */
 
 #define CONTROLLER_SWITCH_ON 0x1F80        /* a 14-bit switch controller (pedal, portamento) above this is on */
 #define PITCH_BEND_CENTER 0x2000
@@ -29,13 +28,13 @@
 
 /* sound_synth_apply_portamento's view of a voice. */
 #pragma pack(1)
-typedef struct RampState { u8 unknown00[36]; u32 flags24; u8 unknown28[100]; u32 portTime8C; u32 portDuration90; u32 portCurrent94; } RampState;
+typedef struct RampState { SynthVoiceHead head; u32 flags24; u8 unknown28[100]; u32 portTime8C; u32 portDuration90; u32 portCurrent94; } RampState;
 #pragma pack(0)
 
 /* sound_synth_start_portamento's (and sound_synth_copy_controllers') view of a voice. */
 #pragma pack(1)
 typedef struct VoiceState {
-    u8 unknown00[36];
+    SynthVoiceHead head;    /* the macro's place and the chain (musyx.h) */
     u32 flags24;
     u8 unknown28[34];
     u8 midi4A;             /* the MIDI channel, or NO_CHANNEL */
@@ -53,10 +52,7 @@ typedef struct VoiceState {
 /* The voices as most of this file reads them. */
 #pragma pack(1)
 typedef struct SynthVoiceLegatoView {
-    u32 addr00;            /* the macro's first step; 0: no macro runs */
-    u8 unknown04[12];
-    u32 child10, parent14; /* the voice chain: next and previous voice ids */
-    u8 unknown18[12];
+    SynthVoiceHead head;    /* the macro's place and the chain (musyx.h) */
     u32 flags24;
     u32 age28;
     u8 unknown2C[2];
@@ -93,6 +89,7 @@ typedef struct SynthVoiceLegatoView {
     u32 lfoPeriod178;
     u16 lfoValue17C;
     u8 unknown17E[34];
+    u8 tail[SYNTH_VOICE_TAIL];  /* the PC's: the record rounded to 8 bytes (SYNTH_VOICE_SIZE) */
 } SynthVoiceLegatoView;
 #pragma pack(0)
 /* On the PC the voices are PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
@@ -115,7 +112,7 @@ typedef struct Keymap { u16 id; s8 transpose; u8 panning; s16 priority; u8 unkno
 /* sound_synth_key_to_pitch's view: the sample's key and rate (key << 24 | rate in Hz), set by the macro's sample
  * start. */
 #pragma pack(1)
-typedef struct VoicePrefix { u8 unknown00[92]; u32 sampleInfo5C; } VoicePrefix;
+typedef struct VoicePrefix { SynthVoiceHead head; u8 unknown24[0x38]; u32 sampleInfo5C; } VoicePrefix;
 #pragma pack(0)
 
 /* A volume group fader, the view sound_is_group_fading_out and sound_synth_init read. */
@@ -125,8 +122,8 @@ extern ChannelState sound_volume_faders[32];
 /* sound_synth_update_voices's view of a voice. */
 #pragma pack(1)
 typedef struct SynthLfo { u32 time; u32 period; s16 value; s16 lastValue; } SynthLfo;
-/* PC: +0 is the voice's macro start, a 32-bit window address (macros.c) */
-typedef struct SynthVoice { u32 addr00; u8 unknown04[0x20]; u32 cFlags24; u32 age28; u16 ageSpeed2C; u8 unknown2E; u8 track2F; s32 volume30; u8 unknown34[4]; s32 panning38; s32 panDelta3C; s32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 fxFlag4C; u8 unknown4D[3]; u16 curNote50; u8 unknown52[0x18]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u32 vibCurTime6C; u32 vibPeriod70; s32 vibCurOffset74; u8 vibKeyRange78; u8 vibCentRange79; u8 unknown7A[2]; s32 sweepAdd7C[2]; s32 envDelta84; s32 envTarget88; u8 unknown8C[0xD]; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B[0xD]; u32 panTimeA8; s32 panTargetAC; u8 sweepCntB0[2]; u8 unknownB2[2]; u32 envTimeB4; u16 pbLastB8; u8 unknownBA[3]; u8 blockedBD; u8 vGroupBE; u8 unknownBF; s8 curDetuneC0; u8 unknownC1; u16 curOutputVolumeC2; u8 unknownC4[0xA4]; SynthLfo lfo168[2]; s16 localVars180[16]; } SynthVoice;
+/* (the head's addr: the macro's first step, NULL when no macro runs) */
+typedef struct SynthVoice { SynthVoiceHead head; u32 cFlags24; u32 age28; u16 ageSpeed2C; u8 unknown2E; u8 track2F; s32 volume30; u8 unknown34[4]; s32 panning38; s32 panDelta3C; s32 sweepOff40[2]; u8 sweepNum48[2]; u8 midi4A; u8 midiSet4B; u8 fxFlag4C; u8 unknown4D[3]; u16 curNote50; u8 unknown52[0x18]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u32 vibCurTime6C; u32 vibPeriod70; s32 vibCurOffset74; u8 vibKeyRange78; u8 vibCentRange79; u8 unknown7A[2]; s32 sweepAdd7C[2]; s32 envDelta84; s32 envTarget88; u8 unknown8C[0xD]; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B[0xD]; u32 panTimeA8; s32 panTargetAC; u8 sweepCntB0[2]; u8 unknownB2[2]; u32 envTimeB4; u16 pbLastB8; u8 unknownBA[3]; u8 blockedBD; u8 vGroupBE; u8 unknownBF; s8 curDetuneC0; u8 unknownC1; u16 curOutputVolumeC2; u8 unknownC4[0xA4]; SynthLfo lfo168[2]; s16 localVars180[16]; u8 tail[SYNTH_VOICE_TAIL]; } SynthVoice;
 #pragma pack(0)
 /* A volume group fader as the update reads it: the volume and its fade, the song a fade then stops, pauses or mutes,
  * and the pause volume with its own fade. */
@@ -217,7 +214,8 @@ void sound_synth_set_tempo(unsigned int tempo, unsigned char player)
 /* The tick rate of the player whose MIDI set the voice has (an effect's voice: the effects'). */
 unsigned int sound_synth_get_tick_rate(unsigned char *state)
 {
-    return sound_tick_rates[state[VOICE_MIDI_SET_BYTE] == 255 ? TICK_RATE_SFX : state[VOICE_MIDI_SET_BYTE]];
+    VoiceState *voice = (VoiceState *)state;
+    return sound_tick_rates[voice->midiSet4B == 255 ? TICK_RATE_SFX : voice->midiSet4B];
 }
 
 /* Glides the voice's pitch toward target (a 16.16 note) while portamento is on: one tick's share of what is left of the
@@ -286,13 +284,13 @@ u32 sound_synth_retrigger_legato(u8 key,u8 channel,u8 set)
             state->flags24|=VOICE_LEGATO|VOICE_PORTAMENTO;
             sound_unlink_voice(&sound_synth_voices[i]);
             if (result==VOICE_NONE) {
-                state->child10=VOICE_NONE;
-                state->parent14=VOICE_NONE;
+                state->head.next=VOICE_NONE;
+                state->head.previous=VOICE_NONE;
                 result=sound_new_handle(&sound_synth_voices[i]);
                 previous=state->identifier60;
             } else {
-                sound_synth_voices[(previous&VOICE_INDEX_MASK)].child10=state->identifier60;
-                state->parent14=previous;
+                sound_synth_voices[(previous&VOICE_INDEX_MASK)].head.next=state->identifier60;
+                state->head.previous=previous;
                 previous=state->identifier60;
             }
         }
@@ -365,8 +363,8 @@ u32 sound_synth_start_layer(u32 packed, u16 allocation, u8 key, u8 volume,
                     current = sound_macro_start(nextPacked, allocation, note | (key & 128), layer_volume,
                         pan, channel, set, offset, section, 0, group);
                     if (current != VOICE_NONE) {
-                        sound_synth_voices[previous & VOICE_INDEX_MASK].child10 = current;
-                        sound_synth_voices[current & VOICE_INDEX_MASK].parent14 = previous;
+                        sound_synth_voices[previous & VOICE_INDEX_MASK].head.next = current;
+                        sound_synth_voices[current & VOICE_INDEX_MASK].head.previous = previous;
                         previous = current;
                     }
                 }
@@ -474,12 +472,12 @@ void sound_synth_update_voices(void)
     u8 midi;
 
     for (i = 0, sv = (SynthVoice *)sound_synth_voices; i < sound_voice_count; i++, sv++) {
-        if (sv->addr00 != 0) {
+        if (sv->head.addr != 0) {
             sound_macro_run(sv);
         } else if (!sound_hw_is_voice_active(i)) {
             continue;
         }
-        if (sv->addr00 == 0) pc_mx_note_macroless(i);   /* PC: --log-voices counts the voices playing without a macro */
+        if (sv->head.addr == 0) pc_mx_note_macroless(i);   /* PC: --log-voices counts the voices playing without a macro */
         if (sv->blockedBD != 0) {
             continue;
         }
@@ -729,7 +727,7 @@ int sound_set_sfx_pan_unlocked(u32 identifier, u8 value)
             } else {
                 sound_midi_set_controller(CTRL_PAN, index, sound_synth_voices[index].midiSet4B, value);
             }
-            identifier = sound_synth_voices[index].child10;
+            identifier = sound_synth_voices[index].head.next;
         } else {
             return result;
         }
@@ -752,7 +750,7 @@ int sound_set_sfx_span_unlocked(u32 identifier, u8 value)
             } else {
                 sound_midi_set_controller(CTRL_SPAN, index, sound_synth_voices[index].midiSet4B, value);
             }
-            identifier = sound_synth_voices[index].child10;
+            identifier = sound_synth_voices[index].head.next;
         } else {
             return result;
         }
@@ -779,7 +777,7 @@ int sound_set_sfx_doppler_unlocked(u32 identifier, u16 value)
                 sound_midi_set_controller(CTRL_DOPPLER_LOW, index, sound_synth_voices[index].midiSet4B, low);
             }
             result = 0;
-            identifier = sound_synth_voices[index].child10;
+            identifier = sound_synth_voices[index].head.next;
         } else {
             return result;
         }
@@ -806,7 +804,7 @@ int sound_set_sfx_pitch_bend_unlocked(u32 identifier, u16 value)
                 sound_midi_set_controller(CTRL_PITCH_BEND_LOW, index, sound_synth_voices[index].midiSet4B, low);
             }
             result = 0;
-            identifier = sound_synth_voices[index].child10;
+            identifier = sound_synth_voices[index].head.next;
         } else {
             return result;
         }
@@ -839,7 +837,7 @@ int sound_set_sfx_volume_unlocked(u32 identifier, u8 value)
             } else {
                 sound_midi_set_controller(CTRL_VOLUME, index, sound_synth_voices[index].midiSet4B, value);
             }
-            identifier = sound_synth_voices[index].child10;
+            identifier = sound_synth_voices[index].head.next;
         } else {
             return result;
         }
@@ -862,7 +860,7 @@ int sound_key_off_unlocked(u32 key)
                 sound_synth_voices[index].flags24 |= VOICE_KEY_OFF;
                 result = 0;
             }
-            key = sound_synth_voices[index].child10;
+            key = sound_synth_voices[index].head.next;
         }
     }
     return result;
@@ -1034,7 +1032,7 @@ void sound_synth_init(u32 frequency)
     sound_mono = 0;
     for (i=0;i<PC_MX_LOOP(32);i++) {
         sound_synth_voices[i].identifier60 = VOICE_NONE;
-        sound_synth_voices[i].addr00 = 0;
+        sound_synth_voices[i].head.addr = 0;
         sound_synth_voices[i].flags24 = 0;
         sound_synth_voices[i].age28 = 0;
         sound_synth_voices[i].priority2E = 0;

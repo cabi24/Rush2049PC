@@ -156,7 +156,6 @@ struct N64Gfx;          /* a display list command in the N64's form, two 32-bit 
 struct ObjInstance;
 struct Owner;
 struct P3;
-struct PackedKey;
 struct PackedLeadingKey;
 struct Packet;
 struct PadConfig;
@@ -190,7 +189,6 @@ struct Respawn;
 struct Row20;
 struct SalMatrix;
 struct SalVector;
-struct SampleLookup;
 struct SampleRecord;
 struct SaveData;
 struct Sequence20;
@@ -205,7 +203,7 @@ struct Slot;
 struct Slot18;
 struct SongHeader;
 struct SoundEmitterUpdateView;
-struct SoundHwSampleInfo;
+struct SoundSampleInfo;
 struct SoundHwVoice;
 struct SoundListenerAddView;
 struct SoundListenerUpdateView;
@@ -554,12 +552,11 @@ typedef struct Impact24 { /* 0x18 bytes */
     s32 bump;       /* 0x14: a settled hit for UpdateBumps to play */
 } Impact24;
 
-typedef struct LayerRecord { /* 0xC bytes */
-    u32 payload;    /* 0x0 */
-    u16 id;         /* 0x4 */
-    u16 type;       /* 0x6 */
-    u16 references; /* 0x8 */
-    u16 metadata;   /* 0xA */
+typedef struct LayerRecord { /* 0x10 bytes */
+    void *payload;  /* 0x0 the layers, in the pool */
+    u16 id;         /* 0x8 */
+    u16 count;      /* 0xA */
+    u16 references; /* 0xC */
 } LayerRecord;
 
 typedef struct PaneColors { /* 0x8 bytes */
@@ -724,11 +721,11 @@ typedef struct SequenceTrack { /* 0x38 bytes */
     u8 unknown18[16]; /* 0x28 */
 } SequenceTrack;
 
-typedef struct TableRecord { /* 0x8 bytes */
-    u32 payload;    /* 0x0 */
-    u16 id;         /* 0x4 */
-    u16 references; /* 0x6 */
-} TableRecord;
+typedef struct ResourceRecord { /* 0x10 bytes */
+    void *payload;  /* 0x0 the macro's steps, the table's bytes or the keymap's entries, in the pool */
+    u16 id;         /* 0x8 */
+    u16 references; /* 0xA */
+} ResourceRecord;
 
 typedef struct TrackLoadState { /* 0x8 bytes */
     s8 loading; /* 0x0 */
@@ -876,21 +873,16 @@ typedef struct LargeNode { /* 0x28 bytes */
     struct StateNode *object; /* 0x20 */
 } LargeNode;
 
-typedef union LayerRecordStorage { /* 0xC bytes */
-    LayerRecord fields;
-    u32 words[3];
-} LayerRecordStorage;
-
 typedef union RecordStorage { /* 0xC bytes */
     RecordFields fields;
     u32 words[2];
 } RecordStorage;
 
-typedef struct RegisteredSamples { /* 0x18 bytes */
+typedef struct RegisteredSamples { /* 0x10 bytes */
     struct SampleRecord *records; /* 0x0 */
-    u8 *base;                     /* 0x8 */
-    u16 count;                    /* 0x10 */
-    u16 unknown0A;                /* 0x12 */
+    u32 cart_base;                /* 0x8 the samples' cartridge address */
+    u16 count;                    /* 0xC */
+    u16 unknown0A;                /* 0xE */
 } RegisteredSamples;
 
 typedef struct SequenceContext { /* 0x1628 bytes */
@@ -932,7 +924,7 @@ typedef struct SequenceContext { /* 0x1628 bytes */
     u16 valueFEC;                              /* 0x1610 */
     u8 flagsFEE;                               /* 0x1612 */
     u8 unknownFEF;                             /* 0x1613 */
-    uintptr_t pendingFF0;                      /* 0x1618 */
+    u32 *pendingFF0;                           /* 0x1618 */
     u8 unknownFF4[4];                          /* 0x1620 */
 } SequenceContext;
 
@@ -1024,11 +1016,6 @@ typedef struct tRoadNoises { /* 0x3C bytes */
     tSoundState water; /* 0x14 */
     tSoundState pave;  /* 0x28 */
 } tRoadNoises;
-
-typedef union TableRecordStorage { /* 0x8 bytes */
-    TableRecord fields;
-    u32 words[2];
-} TableRecordStorage;
 
 typedef struct TransferRequest { /* 0x18 bytes */
     void *destination; /* 0x0 */
@@ -1342,7 +1329,7 @@ typedef struct tPadState { /* 0x50 bytes */
     u16 numCrashes;                 /* 0x40 */
     s8 trans;                       /* 0x42 */
     u8 pad43;
-    s32 listener;                   /* 0x44: the player's sound listener, -1 for none */
+    s32 listener;                   /* 0x44: the player's sound listener: its number in gListeners, -1 for none */
     struct tPlayerProfile **save;   /* 0x48: the player's profile on a Controller Pak (a handle), or 0 */
 } tPadState;
 

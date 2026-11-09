@@ -9,19 +9,21 @@
  * MIDI channel's legato (sound_synth_*_channel).
  *
  * MusyX is the N64's sound library; MAT3, the GameCube build, has its own sound code, so there is no MAT3
- * counterpart. N64-shaped: the voice keeps its N64 layout (below), which every handler reads through its own view
- * with fields named after their N64 offsets, and its macro pointers are 32-bit window addresses (N64P, PC_N64W). */
+ * counterpart. The voice keeps the N64's layout after its head (below), which every handler reads through its own
+ * view with fields named after their N64 offsets; the head, the macro's place and the voice chain, holds pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
+#include "sound_sample_record.h"
 
 /* ---- The synth voice ----
- * sound_synth_voices[i], 0x1A0 bytes, keeps the N64 layout on the PC (docs/port/MUSYX_DATA.md 8.3). Each handler
- * below sees it through a view of the fields it touches; the fields are named after their offset. The map:
- *   +0x00 addr, +0x04 curAddr        the macro's first step and the next step to run (window addresses)
- *   +0x08 retAddr, +0x0C retCurAddr  GOSUB's return point (0: none)
- *   +0x10 next, +0x14 previous       the voice ids chained behind one sound handle (PLAYMACRO adds children)
- *   +0x18                            the handle's node (voices.c)
- *   +0x1C trapAddr, +0x20 trapCurAddr where a key off jumps to (TRAP_KEY_OFF; 0: no trap)
+ * sound_synth_voices[i] (docs/port/MUSYX_DATA.md 8.3). Each handler below sees it through a view of the fields it
+ * touches, every view beginning with the head (musyx.h's SynthVoiceHead); the fields after it are named after their
+ * N64 offset, and on the PC each lies SYNTH_VOICE_GROWTH (0x1C) bytes further on. The map, by N64 offset:
+ *   +0x00 head                       on the N64 nine words: addr, curAddr (the macro's first step and the next step
+ *                                    to run), retAddr, retCurAddr (GOSUB's return point, 0: none), next, previous
+ *                                    (the voice ids chained behind one sound handle: PLAYMACRO adds children), the
+ *                                    handle's node (voices.c), trapAddr, trapCurAddr (where a key off jumps to:
+ *                                    TRAP_KEY_OFF, 0: no trap); on the PC 0x40 bytes, the pointers host pointers
  *   +0x24 flags                      VOICE_* below
  *   +0x28 age, +0x2C ageSpeed        the voice-stealing age (15-bit fraction) and how fast it falls per tick
  *   +0x2E priority, +0x2F track      the allocation priority; the track whose volume applies (255: none)
@@ -34,7 +36,8 @@
  *   +0x4E orgNote, +0x50 curNote     the key it started on; the note now
  *   +0x52..+0x56 setupVol, setupPan, setupChannel, setupSet, setupTrack: what sound_macro_start stores and the first
  *                                    run applies
- *   +0x58 sampleAddress, +0x5C sampleInfo  the sample playing; its root key (bits 31..24) and rate (23..0)
+ *   +0x58 sampleAddress, +0x5C sampleInfo  the sample playing: its cartridge address (written, not read); its root
+ *                                    key (bits 31..24) and rate (23..0)
  *   +0x60 id                         (macro << 16) | (key << 8) | voice index
  *   +0x64 macroId, +0x68 loop        the macro's id; the LOOP counter
  *   +0x6A, +0x6B                     the pitch wheel's range down and up, in semitones
@@ -54,7 +57,8 @@
  *   +0xC2 curOutputVolume
  *   +0xC4 inputs[9]                  18 bytes each: the controller mixes of SYNTH_INPUT_* (controllers.c)
  *   +0x168 lfo[2]                    12 bytes each: time, period, value
- *   +0x180 localVars[16]             the macro's variables (the globals are sound_global_variables) */
+ *   +0x180 localVars[16]             the macro's variables (the globals are sound_global_variables)
+ *   +0x1A0 (the PC's) tail           SYNTH_VOICE_TAIL bytes: a voice is SYNTH_VOICE_SIZE (0x1C0) */
 
 /* The voice's controller inputs (+0xC4), in controllers.c's order. */
 enum SynthInput {
@@ -98,7 +102,7 @@ enum MacroCombine { MACRO_COMBINE_SET, MACRO_COMBINE_ADD, MACRO_COMBINE_MULTIPLY
 
 /* The view of the voice the channel-owner functions and sound_synth_key_off_voice use. */
 #pragma pack(1)
-typedef struct VoiceState { u8 unknown00[36]; u32 flags24; u8 unknown28[34]; u8 channel4A; u8 set4B; u8 unknown4C[20]; u32 id60; u8 unknown64[268]; s16 lfo170; u8 unknown172[10]; s16 lfo17C; u8 unknown17E[34]; } VoiceState;
+typedef struct VoiceState { SynthVoiceHead head; u32 flags24; u8 unknown28[34]; u8 channel4A; u8 set4B; u8 unknown4C[20]; u32 id60; u8 unknown64[268]; s16 lfo170; u8 unknown172[10]; s16 lfo17C; u8 unknown17E[34]; u8 tail[SYNTH_VOICE_TAIL]; } VoiceState;
 #pragma pack(0)
 /* On the PC the library's per-voice storage is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9), seen here in this file's views: the voices and an effect voice's legato owner.
@@ -106,22 +110,15 @@ typedef struct VoiceState { u8 unknown00[36]; u32 flags24; u8 unknown28[34]; u8 
 #define sound_synth_voices (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
 #define sound_voice_channel_owners (*(u8 (*)[PC_MX_VOICE_SLOTS])pc_mx_fx_legato)
 
-/* The generic voice (the handlers' first parameter where they need no fields) and a macro step. */
-typedef struct MacroState { u8 unknown00[0x30]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroState;
-typedef struct MacroCommand { u32 word[2]; } MacroCommand;
-/* PC: the voice's macro and trap pointers (+0, +4, +8, +0xC, +0x1C, +0x20) point into the pool, in the game heap, so
- * on the PC they are 32-bit window addresses: N64P(x) is such a field as a pointer, PC_N64W(x) a pointer stored into
- * one, and N64_NEXT(x) moves one to the next step (docs/port/MUSYX_DATA.md 8.3). */
-enum n64p_MacroCommand { n64p_MacroCommand_ };
-#define N64P(x) _Generic((x), enum n64p_MacroCommand: (MacroCommand *)PC_N64P(x), default: (x))
-#define N64_NEXT(x) ((x) = PC_N64W(N64P(x) + 1))
+/* The generic voice (the handlers' first parameter where they need no fields); a macro's step is musyx.h's
+ * MacroCommand. */
+typedef struct MacroState { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroState;
 
 /* ---- What the file uses from the rest of the library ---- */
 struct MacroStateSplitModulation;
 struct MacroStatePlayMacro;
 struct MacroStatePortamento;
 struct MacroStateStart;
-struct MacroSampleInfo;
 struct Envelope;
 struct VoiceControls;
 /* data */
@@ -153,11 +150,11 @@ extern u16 sound_macro_get_controller(VoiceState *voice, u8 controller);
 extern void sound_macro_set_controller(VoiceState *voice, u8 controller, s16 value);
 /* the registries (registry.c) */
 extern MacroCommand *sound_find_macro(u16);
-extern int sound_find_sample(u16, struct MacroSampleInfo *);
+extern int sound_find_sample(u16, SoundSampleInfo *);
 extern void *sound_find_table(u16);
 /* the hardware layer (hardware.c) */
 extern u8 sound_hw_is_voice_active(int);
-extern void sound_hw_set_voice_sample(u32, struct MacroSampleInfo *, u8);
+extern void sound_hw_set_voice_sample(u32, SoundSampleInfo *, u8);
 extern void sound_hw_stop_sample(u32, u8);
 extern void sound_hw_set_envelope(u32, const struct Envelope *);
 extern void sound_hw_break_voice(int);
@@ -247,7 +244,7 @@ void sound_synth_init_channel_owners(void)
 }
 
 #pragma pack(1)
-typedef struct MacroStateWait { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x38]; u32 id60; u8 unknown64[0x38]; u32 wait9C; u32 waitTimeA0; u32 timeA4; } MacroStateWait;
+typedef struct MacroStateWait { SynthVoiceHead head; u32 flags24; u8 unknown28[0x38]; u32 id60; u8 unknown64[0x38]; u32 wait9C; u32 waitTimeA0; u32 timeA4; } MacroStateWait;
 #pragma pack()
 
 /* The handlers. Each takes the voice (in its own view) and the step, and returns nonzero when the voice stops
@@ -319,22 +316,22 @@ u8 sound_macro_end(MacroState *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateReturn { u32 addr00; u32 curAddr04; u32 retAddr08; u32 retCurAddr0C; u8 unknown10[0xC]; enum n64p_MacroCommand trapAddr1C; enum n64p_MacroCommand trapCurAddr20; u8 unknown24[0xA]; u8 priority2E; } MacroStateReturn;
+typedef struct MacroStateReturn { SynthVoiceHead head; u8 unknown24[0xA]; u8 priority2E; } MacroStateReturn;
 #pragma pack(0)
 /* RETURN: back to where the last GOSUB left; with byte 1 zero, or no GOSUB to return from, it ends the macro as END
  * does. */
 u8 sound_macro_return(MacroStateReturn *state, MacroCommand *command)
 {
-    if (((command->word[0] >> 8) & 0xFF) == 0 || state->retAddr08 == 0) {
+    if (((command->word[0] >> 8) & 0xFF) == 0 || state->head.retAddr == 0) {
         return sound_macro_end((MacroState *)state, command);
     }
-    state->addr00 = state->retAddr08;
-    state->curAddr04 = state->retCurAddr0C;
+    state->head.addr = state->head.retAddr;
+    state->head.curAddr = state->head.retCurAddr;
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateSplitKey { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; enum n64p_MacroCommand retCurAddr0C; u8 unknown10[0x20]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitKey;
+typedef struct MacroStateSplitKey { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitKey;
 #pragma pack(0)
 /* The SPLIT_* steps jump to another macro (bytes 2-3: its id; word[1]'s low half: the step to start at) when a value
  * reaches byte 1, else go on. SPLIT_KEY: when the note does. */
@@ -343,15 +340,15 @@ u8 sound_macro_split_key(MacroStateSplitKey *state, MacroCommand *command)
     MacroCommand *address;
     if (state->curNote50 >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = PC_N64W(address);
-            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
+            state->head.addr = address;
+            state->head.curAddr = address + (command->word[1] & 0xFFFF);
         }
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateSplitVelocity { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; enum n64p_MacroCommand retCurAddr0C; u8 unknown10[0x20]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitVelocity;
+typedef struct MacroStateSplitVelocity { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitVelocity;
 #pragma pack(0)
 /* SPLIT_VELOCITY: jumps when the volume (the note's velocity, 0..127) reaches byte 1. */
 u8 sound_macro_split_velocity(MacroStateSplitVelocity *state, MacroCommand *command)
@@ -359,15 +356,15 @@ u8 sound_macro_split_velocity(MacroStateSplitVelocity *state, MacroCommand *comm
     MacroCommand *address;
     if ((state->volume30 >> 16) >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = PC_N64W(address);
-            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
+            state->head.addr = address;
+            state->head.curAddr = address + (command->word[1] & 0xFFFF);
         }
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateSplitModulation { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; enum n64p_MacroCommand retCurAddr0C; u8 unknown10[0x20]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitModulation;
+typedef struct MacroStateSplitModulation { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitModulation;
 #pragma pack(0)
 /* SPLIT_MODULATION: jumps when the modulation input (0..127) reaches byte 1; never without a MIDI channel. */
 u8 sound_macro_split_modulation(MacroStateSplitModulation *state, MacroCommand *command)
@@ -378,8 +375,8 @@ u8 sound_macro_split_modulation(MacroStateSplitModulation *state, MacroCommand *
         modulation = sound_synth_get_modulation_input(state) >> 7;
         if (modulation >= (u8)(command->word[0] >> 8)) {
             if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-                state->addr00 = PC_N64W(address);
-                state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
+                state->head.addr = address;
+                state->head.curAddr = address + (command->word[1] & 0xFFFF);
             }
         }
     }
@@ -387,7 +384,7 @@ u8 sound_macro_split_modulation(MacroStateSplitModulation *state, MacroCommand *
 }
 
 #pragma pack(1)
-typedef struct MacroStateSplitRandom { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; enum n64p_MacroCommand retCurAddr0C; u8 unknown10[0x20]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitRandom;
+typedef struct MacroStateSplitRandom { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateSplitRandom;
 #pragma pack(0)
 /* SPLIT_RANDOM: jumps when a random byte reaches byte 1. */
 u8 sound_macro_split_random(MacroStateSplitRandom *state, MacroCommand *command)
@@ -395,15 +392,15 @@ u8 sound_macro_split_random(MacroStateSplitRandom *state, MacroCommand *command)
     MacroCommand *address;
     if ((u8)sound_random() >= (u8)(command->word[0] >> 8)) {
         if ((address = sound_find_macro((u16)(command->word[0] >> 16))) != 0) {
-            state->addr00 = PC_N64W(address);
-            state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
+            state->head.addr = address;
+            state->head.curAddr = address + (command->word[1] & 0xFFFF);
         }
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateGosub { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; enum n64p_MacroCommand retCurAddr0C; u8 unknown10[0x20]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateGosub;
+typedef struct MacroStateGosub { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x16]; u8 channel4A; u8 unknown4B[5]; u16 curNote50; } MacroStateGosub;
 #pragma pack(0)
 /* GOSUB: runs another macro (bytes 2-3: its id; word[1]'s low half: the step), remembering where to RETURN (one
  * level). A missing macro ends this one. */
@@ -411,17 +408,17 @@ u8 sound_macro_gosub(MacroStateGosub *state, MacroCommand *command)
 {
     MacroCommand *address;
     if ((address = sound_find_macro(command->word[0] >> 16)) != 0) {
-        state->retAddr08 = state->addr00;
-        state->retCurAddr0C = state->curAddr04;
-        state->addr00 = PC_N64W(address);
-        state->curAddr04 = PC_N64W(address + (command->word[1] & 0xFFFF));
+        state->head.retAddr = state->head.addr;
+        state->head.retCurAddr = state->head.curAddr;
+        state->head.addr = address;
+        state->head.curAddr = address + (command->word[1] & 0xFFFF);
         return 0;
     }
     return sound_macro_end((MacroState *)state, command);
 }
 
 #pragma pack(1)
-typedef struct MacroStateTrapKeyOff { u32 addr00; u32 curAddr04; u32 retAddr08; u32 retCurAddr0C; u8 unknown10[0xC]; enum n64p_MacroCommand trapAddr1C; enum n64p_MacroCommand trapCurAddr20; u8 unknown24[0xA]; u8 priority2E; } MacroStateTrapKeyOff;
+typedef struct MacroStateTrapKeyOff { SynthVoiceHead head; u8 unknown24[0xA]; u8 priority2E; } MacroStateTrapKeyOff;
 #pragma pack(0)
 /* TRAP_KEY_OFF: from now on a key off jumps to the macro of bytes 2-3 at word[1]'s low half (sound_macro_run takes
  * the jump), unless the sustain pedal holds the key. */
@@ -430,25 +427,25 @@ u8 sound_macro_trap_key_off(MacroStateTrapKeyOff *state, MacroCommand *command)
     MacroCommand *start;
     start = sound_find_macro((command->word[0] >> 16) & 0xFFFF);
     if (start != 0) {
-        state->trapAddr1C = PC_N64W(start);
-        state->trapCurAddr20 = PC_N64W(start + (command->word[1] & 0xFFFF));
+        state->head.trapAddr = start;
+        state->head.trapCurAddr = start + (command->word[1] & 0xFFFF);
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateUntrapKeyOff { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateUntrapKeyOff;
+typedef struct MacroStateUntrapKeyOff { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateUntrapKeyOff;
 #pragma pack(0)
 typedef struct MacroCommandUntrapKeyOff { u32 word[2]; } MacroCommandUntrapKeyOff;
 /* UNTRAP_KEY_OFF: a key off no longer jumps. */
 u8 sound_macro_untrap_key_off(MacroStateUntrapKeyOff *state, MacroCommandUntrapKeyOff *command)
 {
-    state->trapAddr1C = state->trapCurAddr20 = 0;
+    state->head.trapAddr = state->head.trapCurAddr = 0;
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateLoop { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; u8 unknown08[0x1C]; u32 flags24; u8 unknown28[0x38]; u32 id60; u8 unknown64[4]; u16 loop68; } MacroStateLoop;
+typedef struct MacroStateLoop { SynthVoiceHead head; u32 flags24; u8 unknown28[0x38]; u32 id60; u8 unknown64[4]; u16 loop68; } MacroStateLoop;
 #pragma pack()
 /* LOOP: jumps back to a step of this macro (word[1]'s low half) a number of times (word[1]'s top half; byte 2 bit 0:
  * a random number below it; 0xFFFF: for ever). Byte 1 bit 0: stop looping once the key is off (and the pedal up);
@@ -478,13 +475,13 @@ skip:
             state->loop68 = 0;
             return 0;
         }
-        state->curAddr04 = PC_N64W(N64P(state->addr00) + (command->word[1] & 0xFFFF));
+        state->head.curAddr = state->head.addr + (command->word[1] & 0xFFFF);
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStatePlayMacro { u8 unknown00[0x10]; u32 next10; u32 previous14; u8 unknown18[0x17]; u8 track2F; u32 volume30; u8 unknown34[4]; u32 panning38; u8 unknown3C[0xE]; u8 channel4A; u8 set4B; u8 fxFlag4C; u8 unknown4D; u16 orgNote4E; u8 unknown50[0x10]; u32 id60; u8 unknown64[0x56]; u16 allocIdBA; u8 unknownBC; u8 blockedBD; u8 vGroupBE; u8 unknownBF[0xE1]; } MacroStatePlayMacro;
+typedef struct MacroStatePlayMacro { SynthVoiceHead head; u8 unknown24[0xB]; u8 track2F; u32 volume30; u8 unknown34[4]; u32 panning38; u8 unknown3C[0xE]; u8 channel4A; u8 set4B; u8 fxFlag4C; u8 unknown4D; u16 orgNote4E; u8 unknown50[0x10]; u32 id60; u8 unknown64[0x56]; u16 allocIdBA; u8 unknownBC; u8 blockedBD; u8 vGroupBE; u8 unknownBF[0xE1]; u8 tail[SYNTH_VOICE_TAIL]; } MacroStatePlayMacro;
 #pragma pack()
 /* PLAY_MACRO: starts another macro on a new voice that joins this voice's handle: its id (bytes 2-3), priority and
  * voice limit (word[1]'s bytes 2 and 3) and first step (word[1]'s low half), on this voice's key plus byte 1 (signed),
@@ -505,19 +502,19 @@ u8 sound_macro_play_macro(MacroStatePlayMacro *state, MacroCommand *command)
         state->set4B, command->word[1], state->track2F, 0, state->vGroupBE);
     state->blockedBD = 0;
     if (child != VOICE_NONE) {
-        ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(child)])->previous14 = state->id60;
-        if (state->next10 != VOICE_NONE) {
-            ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(child)])->next10 = state->next10;
-            ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(state->next10)])->previous14 = child;
+        ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(child)])->head.previous = state->id60;
+        if (state->head.next != VOICE_NONE) {
+            ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(child)])->head.next = state->head.next;
+            ((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(state->head.next)])->head.previous = child;
         }
-        state->next10 = child;
+        state->head.next = child;
         if (state->fxFlag4C) sound_synth_copy_controllers((MacroStatePlayMacro *)&sound_synth_voices[VOICE_INDEX(child)], state);
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateSendKeyOff { u8 unknown00[0x4E]; u16 orgNote4E; } MacroStateSendKeyOff;
+typedef struct MacroStateSendKeyOff { SynthVoiceHead head; u8 unknown24[0x2A]; u16 orgNote4E; } MacroStateSendKeyOff;
 #pragma pack(0)
 /* SEND_KEY_OFF: keys off every voice that plays the macro of bytes 2-3 on this voice's key plus byte 1 (a voice id
  * is (macro << 16) | (key << 8) | voice). */
@@ -536,7 +533,7 @@ u8 sound_macro_send_key_off(MacroStateSendKeyOff *voice, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateAddAge { u8 unknown00[0x28]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateAddAge;
+typedef struct MacroStateAddAge { SynthVoiceHead head; u8 unknown24[0x4]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateAddAge;
 #pragma pack(0)
 typedef struct MacroCommandAddAge { u32 word[2]; } MacroCommandAddAge;
 /* The age steps: a voice's age (+0x28, 15 bits of fraction) falls by ageSpeed each tick (synth.c), and among the
@@ -559,7 +556,7 @@ u8 sound_macro_add_age(MacroStateAddAge *state, MacroCommandAddAge *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetAge { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetAge;
+typedef struct MacroStateSetAge { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetAge;
 #pragma pack(0)
 typedef struct MacroCommandSetAge { u32 word[2]; } MacroCommandSetAge;
 /* SET_AGE: the age becomes bytes 2-3. */
@@ -570,7 +567,7 @@ u8 sound_macro_set_age(MacroStateSetAge *state, MacroCommandSetAge *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetAgeSpeed { u8 unknown00[0x28]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateSetAgeSpeed;
+typedef struct MacroStateSetAgeSpeed { SynthVoiceHead head; u8 unknown24[0x4]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateSetAgeSpeed;
 #pragma pack(0)
 typedef struct MacroCommandSetAgeSpeed { u32 word[2]; } MacroCommandSetAgeSpeed;
 /* SET_AGE_SPEED: the age falls to 0 in word[1] ticks (0: it stays). */
@@ -587,7 +584,7 @@ u8 sound_macro_set_age_speed(MacroStateSetAgeSpeed *state, MacroCommandSetAgeSpe
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetAgeByVelocity { u8 unknown00[0x28]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateSetAgeByVelocity;
+typedef struct MacroStateSetAgeByVelocity { SynthVoiceHead head; u8 unknown24[0x4]; u32 age28; u16 ageSpeed2C; u8 unknown2E[2]; u32 volume30; u8 unknown34[4]; s32 panning38; u8 unknown3C[0x14]; u16 curNote50; } MacroStateSetAgeByVelocity;
 #pragma pack(0)
 typedef struct MacroCommandSetAgeByVelocity { u32 word[2]; } MacroCommandSetAgeByVelocity;
 /* SET_AGE_BY_VELOCITY: the age becomes bytes 2-3 plus word[1]'s low half scaled by the velocity (the volume, /128),
@@ -606,7 +603,7 @@ u8 sound_macro_set_age_by_velocity(MacroStateSetAgeByVelocity *state, MacroComma
 }
 
 #pragma pack(1)
-typedef struct MacroStateAddPriority { u32 addr00; u32 curAddr04; u32 retAddr08; u32 retCurAddr0C; u8 unknown10[0xC]; enum n64p_MacroCommand trapAddr1C; enum n64p_MacroCommand trapCurAddr20; u8 unknown24[0xA]; u8 priority2E; } MacroStateAddPriority;
+typedef struct MacroStateAddPriority { SynthVoiceHead head; u8 unknown24[0xA]; u8 priority2E; } MacroStateAddPriority;
 #pragma pack(0)
 /* ADD_PRIORITY: adds bytes 2-3 (signed) to the voice's priority, clamped to 0..255. */
 u8 sound_macro_add_priority(MacroStateAddPriority *state, MacroCommand *command)
@@ -632,7 +629,7 @@ u8 sound_macro_set_priority(MacroState *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateSendFlag { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSendFlag;
+typedef struct MacroStateSendFlag { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSendFlag;
 #pragma pack(0)
 typedef struct MacroCommandSendFlag { u32 word[2]; } MacroCommandSendFlag;
 /* SEND_FLAG: sets the global macro variable of byte 1 to byte 2 (the variables macros share,
@@ -644,7 +641,7 @@ u8 sound_macro_send_flag(MacroStateSendFlag *state, MacroCommandSendFlag *comman
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetPitchWheelRange { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetPitchWheelRange;
+typedef struct MacroStateSetPitchWheelRange { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetPitchWheelRange;
 #pragma pack(0)
 typedef struct MacroCommandSetPitchWheelRange { u32 word[2]; } MacroCommandSetPitchWheelRange;
 /* SET_PITCH_WHEEL_RANGE: how many semitones the pitch wheel bends down (byte 2) and up (byte 1). */
@@ -656,7 +653,7 @@ u8 sound_macro_set_pitch_wheel_range(MacroStateSetPitchWheelRange *state, MacroC
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetNote { u8 unknown00[0x4A]; u8 channel4A; u8 set4B; u8 unknown4C[4]; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; u8 lastNoteC1; } MacroStateSetNote;
+typedef struct MacroStateSetNote { SynthVoiceHead head; u8 unknown24[0x26]; u8 channel4A; u8 set4B; u8 unknown4C[4]; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; u8 lastNoteC1; } MacroStateSetNote;
 #pragma pack()
 /* The note steps set the note and detune (byte 2, cents, signed), make it the channel's last key if the voice owns
  * the channel, then wait as WAIT does with word[1] (the step's word[0] becomes a plain WAIT's).
@@ -673,7 +670,7 @@ u8 sound_macro_set_note(MacroStateSetNote *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateAddNote { u8 unknown00[0x4A]; u8 channel4A; u8 set4B; u8 unknown4C[2]; u16 orgNote4E; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; } MacroStateAddNote;
+typedef struct MacroStateAddNote { SynthVoiceHead head; u8 unknown24[0x26]; u8 channel4A; u8 set4B; u8 unknown4C[2]; u16 orgNote4E; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; } MacroStateAddNote;
 #pragma pack()
 /* ADD_NOTE: adds byte 1 (signed) to the note, or with byte 3 set to the key the voice started on; clamped to
  * 0..127. */
@@ -694,7 +691,7 @@ u8 sound_macro_add_note(MacroStateAddNote *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateLastNote { u8 unknown00[0x4A]; u8 channel4A; u8 set4B; u8 unknown4C[4]; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; u8 lastNoteC1; } MacroStateLastNote;
+typedef struct MacroStateLastNote { SynthVoiceHead head; u8 unknown24[0x26]; u8 channel4A; u8 set4B; u8 unknown4C[4]; u16 curNote50; u8 unknown52[0x6E]; s8 curDetuneC0; u8 lastNoteC1; } MacroStateLastNote;
 #pragma pack()
 /* LAST_NOTE: the note becomes the channel's previous key (when the voice started) plus byte 1 (signed), clamped
  * to 0..127. Unlike the others it records the note whether or not the voice owns the channel. */
@@ -710,13 +707,8 @@ u8 sound_macro_last_note(MacroStateLastNote *state, MacroCommand *command)
     return sound_macro_wait((MacroState *)state, command);
 }
 
-/* PC: the record sound_find_sample fills and sound_hw_set_voice_sample reads, both with a pointer-sized, packed address field
- * (a stream's host buffer in sound_stream_start's call); here it holds the sample's cartridge address. */
 #pragma pack(1)
-typedef struct MacroSampleInfo { u32 info; void *address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } MacroSampleInfo;
-#pragma pack()
-#pragma pack(1)
-typedef struct MacroStateStartSample { u8 unknown00[0x24]; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x24]; u32 sampleAddress58; u32 sampleInfo5C; u32 id60; } MacroStateStartSample;
+typedef struct MacroStateStartSample { SynthVoiceHead head; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x24]; u32 sampleAddress58; u32 sampleInfo5C; u32 id60; } MacroStateStartSample;
 #pragma pack(0)
 /* Steps sound_macro_run has run in this tick (a file static, not a local, as in the original). */
 static u8 macro_steps_this_update;
@@ -725,7 +717,7 @@ static u8 macro_steps_this_update;
  * tick to start. Without a SET_ADSR the hardware voice's envelope is reset too. */
 u8 sound_macro_start_sample(MacroStateStartSample *state, MacroCommand *command)
 {
-    static MacroSampleInfo sample;
+    static SoundSampleInfo sample;
     u32 index;
     if (sound_find_sample(command->word[0] >> 8, &sample) == 0) {
         switch ((u8)(command->word[0] >> 24)) {
@@ -751,14 +743,14 @@ u8 sound_macro_start_sample(MacroStateStartSample *state, MacroCommand *command)
             sound_hw_set_voice_sample(index, &sample, 0);
         }
         state->sampleInfo5C = sample.info;
-        state->sampleAddress58 = sample.address;
+        state->sampleAddress58 = sample.cart_address;
         state->flags24 |= VOICE_START_SAMPLE;
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct MacroStateStopSample { u8 unknown00[0x30]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroStateStopSample;
+typedef struct MacroStateStopSample { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroStateStopSample;
 #pragma pack(0)
 /* STOP_SAMPLE: stops the hardware voice's sample (through its release). */
 u8 sound_macro_stop_sample(MacroStateStopSample *state, MacroCommand *command)
@@ -768,7 +760,7 @@ u8 sound_macro_stop_sample(MacroStateStopSample *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateKeyOff { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateKeyOff;
+typedef struct MacroStateKeyOff { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateKeyOff;
 #pragma pack(0)
 typedef struct MacroCommandKeyOff { u32 word[2]; } MacroCommandKeyOff;
 /* KEY_OFF: the synth's next tick releases the hardware voice (its envelope's release), once the pedal is up. */
@@ -779,7 +771,7 @@ u8 sound_macro_key_off(MacroStateKeyOff *state, MacroCommandKeyOff *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateVibrato { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x44]; u32 vibCurTime6C; u32 vibPeriod70; u8 unknown74[4]; u8 vibKeyRange78; u8 vibCentRange79; } MacroStateVibrato;
+typedef struct MacroStateVibrato { SynthVoiceHead head; u32 flags24; u8 unknown28[0x44]; u32 vibCurTime6C; u32 vibPeriod70; u8 unknown74[4]; u8 vibKeyRange78; u8 vibCentRange79; } MacroStateVibrato;
 #pragma pack()
 /* VIBRATO: depth byte 1 semitones and byte 2 cents (signed: a negative depth starts half a period in, the other way
  * round), period word[1]'s top half in ticks or milliseconds (word[1] byte 1 bit 0); a period of 0 turns it off.
@@ -838,7 +830,7 @@ u8 sound_macro_vibrato(MacroStateVibrato *state, MacroCommand *command)
 typedef struct MacroCommandSetupLfo { u32 word[2]; } MacroCommandSetupLfo;
 #pragma pack(1)
 typedef struct MacroLfoControl { u32 time; u32 period; s16 value; s16 lastValue; } MacroLfoControl;
-typedef struct MacroStateSetupLfo { u8 unknown00[0x168]; MacroLfoControl lfo168[2]; } MacroStateSetupLfo;
+typedef struct MacroStateSetupLfo { SynthVoiceHead head; u8 unknown24[0x144]; MacroLfoControl lfo168[2]; } MacroStateSetupLfo;
 #pragma pack(0)
 /* SETUP_LFO: sets the period of the voice's LFO of byte 1 (0 or 1) to bytes 2-3 milliseconds (0: off). The synth
  * turns each LFO into a sine wave the inputs can read as the controllers 0xA0 and 0xA1. A running LFO restarts its
@@ -860,7 +852,7 @@ u8 sound_macro_setup_lfo(MacroStateSetupLfo *state, MacroCommandSetupLfo *comman
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetPitch { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x28]; u16 curNote50; u8 unknown52[0xA]; u32 sampleInfo5C; u8 unknown60[0x60]; s8 curDetuneC0; } MacroStateSetPitch;
+typedef struct MacroStateSetPitch { SynthVoiceHead head; u32 flags24; u8 unknown28[0x28]; u16 curNote50; u8 unknown52[0xA]; u32 sampleInfo5C; u8 unknown60[0x60]; s8 curDetuneC0; } MacroStateSetPitch;
 #pragma pack(0)
 typedef struct MacroCommandSetPitch { u32 word[2]; } MacroCommandSetPitch;
 /* The semitone search's end: i once it has run past kf[0] (the N64's unsigned i at -1). */
@@ -939,7 +931,7 @@ u8 sound_macro_set_pitch(MacroStateSetPitch *state, MacroCommandSetPitch *comman
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetAdsr { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x38]; u32 id60; } MacroStateSetAdsr;
+typedef struct MacroStateSetAdsr { SynthVoiceHead head; u32 flags24; u8 unknown28[0x38]; u32 id60; } MacroStateSetAdsr;
 typedef struct PackedEnvelope { u16 attack, decay, sustain, release; } PackedEnvelope;
 #pragma pack()
 typedef struct Envelope { u16 attack, decay, sustain, release; } Envelope;
@@ -960,7 +952,7 @@ u8 sound_macro_set_adsr(MacroStateSetAdsr *state, MacroCommand *command)
     return 0;
 }
 
-typedef struct MacroStatePitchSweep { u8 unknown00[0x40]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 unknown4A[0x32]; u32 sweepAdd7C[2]; u8 unknown84[0x2C]; u8 sweepCntB0[2]; } MacroStatePitchSweep;
+typedef struct MacroStatePitchSweep { SynthVoiceHead head; u8 unknown24[0x1C]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 unknown4A[0x32]; u32 sweepAdd7C[2]; u8 unknown84[0x2C]; u8 sweepCntB0[2]; } MacroStatePitchSweep;
 /* PITCH_SWEEP_1 and _2 (index 0, 1): each tick the synth adds a step (bytes 2-3, signed, as a pitch rate) to the
  * sweep's pitch offset, and back to 0 every byte-1 ticks: a repeating ramp. Then waits as WAIT does with word[1]. */
 u8 sound_macro_pitch_sweep(MacroStatePitchSweep *state, MacroCommand *command, int index)
@@ -981,7 +973,7 @@ u8 sound_macro_pitch_sweep(MacroStatePitchSweep *state, MacroCommand *command, i
 }
 
 #pragma pack(1)
-typedef struct SynthVoicePanView { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x10]; u32 panning38; u32 panDelta3C; u8 unknown40[0x68]; u32 panTimeA8; u32 panTargetAC; } SynthVoicePanView;
+typedef struct SynthVoicePanView { SynthVoiceHead head; u32 flags24; u8 unknown28[0x10]; u32 panning38; u32 panDelta3C; u8 unknown40[0x68]; u32 panTimeA8; u32 panTargetAC; } SynthVoicePanView;
 #pragma pack(0)
 /* PANNING: pans from byte 1 (0..127, 64 centre) by word[1]'s low byte (signed) over bytes 2-3 milliseconds; the
  * synth moves it each tick. */
@@ -1045,7 +1037,7 @@ u32 sound_macro_apply_curve(u32 volume, u16 curve)
 }
 
 #pragma pack(1)
-typedef struct MacroStateScaleVolume { u8 unknown00[0x30]; u32 volume30; u32 orgVolume34; } MacroStateScaleVolume;
+typedef struct MacroStateScaleVolume { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u32 orgVolume34; } MacroStateScaleVolume;
 #pragma pack()
 /* SCALE_VOLUME: the volume becomes the volume (with word[1] byte 1 set: the volume it started with) times byte 1
  * / 128, plus byte 2, at most 127, through the curve of byte 3 and word[1]'s low byte (sound_macro_apply_curve). */
@@ -1068,7 +1060,7 @@ u8 sound_macro_scale_volume(MacroStateScaleVolume *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateStartEnvelope { u8 unknown00[0x24]; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x50]; s32 envDelta84; u32 envTarget88; u8 unknown8C[0x28]; u32 envTimeB4; } MacroStateStartEnvelope;
+typedef struct MacroStateStartEnvelope { SynthVoiceHead head; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x50]; s32 envDelta84; u32 envTarget88; u8 unknown8C[0x28]; u32 envTimeB4; } MacroStateStartEnvelope;
 #pragma pack()
 #define ENVELOPE_VOICE ((MacroStateStartEnvelope *)state)
 /* Starts a volume envelope from `start` to a target, over word[1]'s top half in ticks or milliseconds (word[1]
@@ -1101,7 +1093,7 @@ u8 sound_macro_start_envelope(MacroState *state, MacroCommand *command, u32 star
 }
 
 #pragma pack(1)
-typedef struct MacroStateEnvelope { u8 unknown00[0x30]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroStateEnvelope;
+typedef struct MacroStateEnvelope { SynthVoiceHead head; u8 unknown24[0xC]; u32 volume30; u8 unknown34[0x2C]; u32 id60; } MacroStateEnvelope;
 #pragma pack(0)
 /* ENVELOPE: a volume envelope from the current volume. */
 u8 sound_macro_envelope(MacroStateEnvelope *state, MacroCommand *command)
@@ -1152,7 +1144,7 @@ u8 sound_macro_random_note(MacroStateSetNote *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateTrackPitchWheel { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateTrackPitchWheel;
+typedef struct MacroStateTrackPitchWheel { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateTrackPitchWheel;
 #pragma pack(0)
 typedef struct MacroCommandTrackPitchWheel { u32 word[2]; } MacroCommandTrackPitchWheel;
 /* TRACK_PITCH_WHEEL: the pitch wheel bends this voice. */
@@ -1163,7 +1155,7 @@ u8 sound_macro_track_pitch_wheel(MacroStateTrackPitchWheel *state, MacroCommandT
 }
 
 #pragma pack(1)
-typedef struct MacroStateSetReverbSend { u8 unknown00[0x1C]; u32 trapAddr1C; u32 trapCurAddr20; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetReverbSend;
+typedef struct MacroStateSetReverbSend { SynthVoiceHead head; u32 flags24; u32 age28; u8 unknown2C[0x3E]; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x2D]; u8 revVolScale99; u8 revVolOffset9A; } MacroStateSetReverbSend;
 #pragma pack(0)
 typedef struct MacroCommandSetReverbSend { u32 word[2]; } MacroCommandSetReverbSend;
 /* SET_REVERB_SEND: the reverb send's scale (byte 1) and offset (byte 2). */
@@ -1182,7 +1174,7 @@ typedef struct MacroCommandSelectVolume { u32 word[2]; } MacroCommandSelectVolum
 #pragma pack(1)
 typedef struct MacroInputSource { u8 controller; u8 combination; s16 scale; } MacroInputSource;
 struct MacroInput { MacroInputSource entries[4]; u8 count; u8 unknown11; };
-struct MacroStateSelectVolume { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x9C]; MacroInput inputsC4[SYNTH_INPUT_COUNT]; };
+struct MacroStateSelectVolume { SynthVoiceHead head; u32 flags24; u8 unknown28[0x9C]; MacroInput inputsC4[SYNTH_INPUT_COUNT]; };
 #pragma pack()
 /* The SELECT_* steps add a source to one of the voice's inputs (`control`): the controller of byte 1 (a macro's
  * number, sound_macro_map_controller), scaled by bytes 2-3 (signed percent), combined as word[1]'s low byte says.
@@ -1274,7 +1266,7 @@ u8 sound_macro_select_doppler(MacroStateSelectVolume *state, MacroCommandSelectV
 }
 
 #pragma pack(1)
-typedef struct MacroStatePortamento { u8 unknown00[0x24]; u32 flags24; u8 unknown28[0x22]; u8 channel4A; u8 set4B; u8 unknown4C[0x44]; u32 portDuration90; u8 unknown94[4]; u8 portType98; } MacroStatePortamento;
+typedef struct MacroStatePortamento { SynthVoiceHead head; u32 flags24; u8 unknown28[0x22]; u8 channel4A; u8 set4B; u8 unknown4C[0x44]; u32 portDuration90; u8 unknown94[4]; u8 portType98; } MacroStatePortamento;
 #pragma pack()
 /* PORTAMENTO: byte 1 0 turns portamento off, 1 on (both take it from the portamento controller: the macro decides
  * now); byte 2 is the glide's mode, word[1]'s top half its time in ticks or milliseconds (word[1] byte 1 bit 0). */
@@ -1304,7 +1296,7 @@ u8 sound_macro_portamento(MacroStatePortamento *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct SynthVoiceVariablesView { u8 unknown000[0x180]; s16 localVars180[16]; } SynthVoiceVariablesView;
+typedef struct SynthVoiceVariablesView { SynthVoiceHead head; u8 unknown024[0x15C]; s16 localVars180[16]; u8 tail[SYNTH_VOICE_TAIL]; } SynthVoiceVariablesView;
 #pragma pack(0)
 /* The variables of the arithmetic and comparison steps: with isController, a controller (a macro's number,
  * sound_macro_get_controller); else variable `index` & 31: 0..15 the voice's own, 16..31 the globals
@@ -1373,7 +1365,7 @@ u8 sound_macro_set_variable_immediate(MacroState *state, MacroCommand *command)
 }
 
 #pragma pack(1)
-typedef struct MacroStateCompare { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; } MacroStateCompare;
+typedef struct MacroStateCompare { SynthVoiceHead head; } MacroStateCompare;
 #pragma pack(0)
 /* IF_EQUAL, IF_LESS: compares the variable of bytes 1-2 with the variable of byte 3 and word[1]'s low byte; when it
  * holds (or with word[1] byte 1 set, when it doesn't) jumps to the step of word[1]'s top half in this macro. */
@@ -1392,13 +1384,13 @@ u8 sound_macro_compare(MacroStateCompare *voice, MacroCommand *command, u8 compa
         condition = !condition;
     }
     if (condition) {
-        voice->curAddr04 = PC_N64W(((command->word[1] >> 16) & 65535) + N64P(voice->addr00));
+        voice->head.curAddr = ((command->word[1] >> 16) & 65535) + voice->head.addr;
     }
     return 0;
 }
 
 #pragma pack(1)
-typedef struct SynthVoiceMacroView { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; u8 unknown08[0x14]; enum n64p_MacroCommand trapAddr1C; enum n64p_MacroCommand trapCurAddr20; u32 flags24; u8 unknown28[7]; u8 track2F; u32 volume30; u32 orgVolume34; u32 panning38; u8 unknown3C[4]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 channel4A; u8 set4B; u8 unknown4C[2]; u16 orgNote4E; u8 unknown50[2]; u8 setupVol52; u8 setupPan53; u8 setupChannel54; u8 setupSet55; u8 setupTrack56; u8 unknown57[5]; u32 sampleInfo5C; u32 id60; u8 unknown64[4]; u16 loop68; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x20]; u32 portTime8C; u32 portDuration90; u8 unknown94[4]; u8 portType98; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B; u32 wait9C; u32 waitTimeA0; u32 timeA4; u8 unknownA8[0x10]; u16 pbLastB8; u8 unknownBA[4]; u8 vGroupBE; u8 setupVGroupBF; u8 unknownC0; u8 lastNoteC1; u16 curOutputVolumeC2; u8 unknownC4[0xA8]; u32 lfoPeriod16C; s16 lfoValue170; u8 unknown172[6]; u32 lfoPeriod178; s16 lfoValue17C; u8 unknown17E[2]; s16 localVars180[16]; } SynthVoiceMacroView;
+typedef struct SynthVoiceMacroView { SynthVoiceHead head; u32 flags24; u8 unknown28[7]; u8 track2F; u32 volume30; u32 orgVolume34; u32 panning38; u8 unknown3C[4]; u32 sweepOff40[2]; u8 sweepNum48[2]; u8 channel4A; u8 set4B; u8 unknown4C[2]; u16 orgNote4E; u8 unknown50[2]; u8 setupVol52; u8 setupPan53; u8 setupChannel54; u8 setupSet55; u8 setupTrack56; u8 unknown57[5]; u32 sampleInfo5C; u32 id60; u8 unknown64[4]; u16 loop68; u8 pbLowerKeyRange6A; u8 pbUpperKeyRange6B; u8 unknown6C[0x20]; u32 portTime8C; u32 portDuration90; u8 unknown94[4]; u8 portType98; u8 revVolScale99; u8 revVolOffset9A; u8 unknown9B; u32 wait9C; u32 waitTimeA0; u32 timeA4; u8 unknownA8[0x10]; u16 pbLastB8; u8 unknownBA[4]; u8 vGroupBE; u8 setupVGroupBF; u8 unknownC0; u8 lastNoteC1; u16 curOutputVolumeC2; u8 unknownC4[0xA8]; u32 lfoPeriod16C; s16 lfoValue170; u8 unknown172[6]; u32 lfoPeriod178; s16 lfoValue17C; u8 unknown17E[2]; s16 localVars180[16]; u8 tail[SYNTH_VOICE_TAIL]; } SynthVoiceMacroView;
 #pragma pack(0)
 /* Runs a voice's macro for one tick (synth.c calls it for every active voice). A just-started voice is first set up
  * from what sound_macro_start stored: default inputs, volume, pan, channel, track, volume group, last key, pitch-wheel
@@ -1450,8 +1442,8 @@ void sound_macro_run(SynthVoiceMacroView *voice)
             voice->lfoValue170 = 0;
             voice->lfoPeriod178 = 0;
             voice->lfoValue17C = 0;
-            voice->trapAddr1C = 0;
-            voice->trapCurAddr20 = 0;
+            voice->head.trapAddr = 0;
+            voice->head.trapCurAddr = 0;
             voice->sampleInfo5C = (64 << 24) | 44100;   /* root key 64 at 44,100 Hz until a sample says otherwise */
             voice->pbLastB8 = 0x2000;                   /* the pitch wheel centred */
             voice->curOutputVolumeC2 = 0;
@@ -1467,11 +1459,11 @@ void sound_macro_run(SynthVoiceMacroView *voice)
             return;
         }
     }
-    if (voice->trapCurAddr20 != 0 && !(voice->flags24 & VOICE_PEDAL_DOWN) && (voice->flags24 & VOICE_KEY_OFF)) {
-        voice->addr00 = voice->trapAddr1C;
-        voice->curAddr04 = voice->trapCurAddr20;
+    if (voice->head.trapCurAddr != 0 && !(voice->flags24 & VOICE_PEDAL_DOWN) && (voice->flags24 & VOICE_KEY_OFF)) {
+        voice->head.addr = voice->head.trapAddr;
+        voice->head.curAddr = voice->head.trapCurAddr;
         voice->wait9C = 0;
-        voice->trapAddr1C = voice->trapCurAddr20 = 0;
+        voice->head.trapAddr = voice->head.trapCurAddr = 0;
     }
     if (voice->wait9C == 0) {
         macro_steps_this_update = 0;
@@ -1479,9 +1471,9 @@ void sound_macro_run(SynthVoiceMacroView *voice)
             if (++macro_steps_this_update > MACRO_STEPS_PER_RUN) {
                 break;
             }
-            macro_step_copy.word[0] = N64P(voice->curAddr04)->word[0];
-            macro_step_copy.word[1] = N64P(voice->curAddr04)->word[1];
-            N64_NEXT(voice->curAddr04);
+            macro_step_copy.word[0] = voice->head.curAddr->word[0];
+            macro_step_copy.word[1] = voice->head.curAddr->word[1];
+            voice->head.curAddr++;
             switch (macro_step_copy.word[0] & MACRO_OPCODE_MASK) {
             case MACRO_END:
                 stop = sound_macro_end((MacroState *)voice, &macro_step_copy);
@@ -1688,7 +1680,7 @@ void sound_macro_run(SynthVoiceMacroView *voice)
 }
 
 #pragma pack(1)
-typedef struct MacroStateStart { enum n64p_MacroCommand addr00; enum n64p_MacroCommand curAddr04; enum n64p_MacroCommand retAddr08; u8 unknown0C[4]; u32 next10; u32 previous14; u8 unknown18[12]; u32 flags24; u32 age28; u16 ageSpeed2C; u8 unknown2E[0x1E]; u8 fxFlag4C; u8 unknown4D; u16 orgNote4E; u16 curNote50; u8 setupVol52; u8 setupPan53; u8 setupChannel54; u8 setupSet55; u8 setupTrack56; u8 unknown57[9]; u32 id60; u16 macroId64; u8 unknown66[0x36]; u32 wait9C; u8 unknownA0[0x1A]; u16 allocIdBA; u8 unknownBC[3]; u8 setupVGroupBF; u8 curDetuneC0; u8 unknownC1[0xDF]; } MacroStateStart;
+typedef struct MacroStateStart { SynthVoiceHead head; u32 flags24; u32 age28; u16 ageSpeed2C; u8 unknown2E[0x1E]; u8 fxFlag4C; u8 unknown4D; u16 orgNote4E; u16 curNote50; u8 setupVol52; u8 setupPan53; u8 setupChannel54; u8 setupSet55; u8 setupTrack56; u8 unknown57[9]; u32 id60; u16 macroId64; u8 unknown66[0x36]; u32 wait9C; u8 unknownA0[0x1A]; u16 allocIdBA; u8 unknownBC[3]; u8 setupVGroupBF; u8 curDetuneC0; u8 unknownC1[0xDF]; u8 tail[SYNTH_VOICE_TAIL]; } MacroStateStart;
 #pragma pack()
 /* Starts a macro on a voice. packed: the macro's id (bits 31..16), the voice's priority (15..8) and the most voices
  * of this allocation id that may play (7..0); allocation: the allocation id; key: the note, with bit 7 (MACRO_KEY_EFFECT)
@@ -1733,17 +1725,17 @@ u32 sound_macro_start(u32 packed, u16 allocation, u8 key, u8 volume,
             state->allocIdBA = allocation;
             state->age28 = 60000U << 15;
             state->ageSpeed2C = 1024;
-            state->addr00 = PC_N64W(program);
-            state->curAddr04 = PC_N64W(program + offset);
+            state->head.addr = program;
+            state->head.curAddr = program + offset;
             state->orgNote4E = key;
             state->curNote50 = key;
             state->curDetuneC0 = 0;
             state->setupVol52 = volume;
             state->setupPan53 = panning;
             state->setupTrack56 = track;
-            state->retAddr08 = 0;
-            state->next10 = VOICE_NONE;
-            state->previous14 = VOICE_NONE;
+            state->head.retAddr = 0;
+            state->head.next = VOICE_NONE;
+            state->head.previous = VOICE_NONE;
             state->setupVGroupBF = group;
             state->id60 = (macro << 16) | ((u32)key << 8) | (u32)index;
             sound_set_voice_priority((MacroState *)state, priority);

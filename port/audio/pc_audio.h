@@ -13,15 +13,6 @@
 extern "C" {
 #endif
 
-/* Which form of the task records pc_audio_run_task reads (musyx_abi.h). The build's default comes from the
- * CMake cache variable PC_AUDIO_TASK_FORM (NATIVE or N64). */
-enum { PC_AUDIO_FORM_NATIVE = 0, PC_AUDIO_FORM_N64 = 1 };
-void pc_audio_set_task_form(int form);
-int pc_audio_task_form(void);
-
-/* Run a task in an explicit form; pc_audio_run_task uses the current one. */
-void pc_audio_run_task_form(const void *sfds, size_t count, int form);
-
 /* Output. Backends: "auto" (SDL2, then ALSA, then null), "sdl", "alsa", "null" (discards in real time),
  * "wav" (null plus the dump file, which it requires), "manual" (holds samples until pc_audio_pull; tests).
  * Without pc_audio_init, the first call initializes from the environment: RUSH2049_AUDIO (backend) and
@@ -44,11 +35,11 @@ const char *pc_audio_backend_name(void);
 void pc_audio_note_rendered(const int16_t *buf);
 
 /* More voices (docs/port/AUDIO.md 10): the voice records each SFD holds, 32 (the N64's) to MX_VOICES_MAX, which the
- * game sets as it allocates its SFDs (hardware.c, sound_hw_alloc_voices). pc_audio_sfd_size: an SFD of n records in a form,
- * with its release mask's words for slots 32 and up. */
+ * game sets as it allocates its SFDs (hardware.c, sound_hw_alloc_voices). pc_audio_sfd_size: the bytes of an SFD of
+ * n records, with its release mask's words for slots 32 and up. */
 void pc_audio_set_sfd_voices(unsigned n);
 unsigned pc_audio_sfd_voices(void);
-size_t pc_audio_sfd_size(unsigned n, int form);
+size_t pc_audio_sfd_size(unsigned n);
 
 /* The mixer's counters, from every task run (the report's "audio: mixer:" line): subframes (SFDs) and the voices
  * mixed in them, how many subframes had each count (the last entry: that many or more), and the thread CPU time

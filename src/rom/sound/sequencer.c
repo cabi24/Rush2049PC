@@ -9,8 +9,8 @@
  * (controller 104), through a copy of the request kept in the slot. Times are song ticks (384 a beat) in 16.16.
  *
  * MusyX library code with no MAT3 counterpart. The game plays its music through it (AudioSongPlay starts songs,
- * AudioSongStop stops them). N64-shaped: the song's internal offsets are added to the song's address truncated
- * to 32 bits (the song data lies in the N64 RDRAM window on the PC). */
+ * AudioSongStop stops them). A song (waves 10-21) holds offsets from its start to its tables, tracks, patterns and
+ * streams; the sequencer adds them to the song's pointer (docs/port/MUSYX_DATA.md 3.4). */
 #include "../rom_tu.h"
 #include "sequence_context.h"
 
@@ -216,9 +216,8 @@ extern void sound_seq_resume(unsigned int);
 extern void sound_seq_set_track_mask(unsigned int, unsigned int, unsigned int);
 extern void sound_seq_set_speed(unsigned int, unsigned short);
 extern void sound_seq_fade(unsigned char, unsigned short, unsigned int, unsigned char);
-/* Pointers passed as integers: pointer-sized on the PC (groups.c). */
-extern int sound_start_song_in_group(unsigned short, unsigned short, uintptr_t, uintptr_t, unsigned char);
-extern int sound_start_song(unsigned short, unsigned short, uintptr_t, uintptr_t);
+extern int sound_start_song_in_group(unsigned short, unsigned short, SongHeader *, SequencePlayParams *, unsigned char);
+extern int sound_start_song(unsigned short, unsigned short, SongHeader *, SequencePlayParams *);
 extern void sound_seq_init_notes(void);
 extern void sound_seq_reset_ids(void);
 
@@ -534,7 +533,7 @@ unsigned int sound_seq_start(SequencePageEntry *norm, SequencePageEntry *drum, M
     nseq->tempo = arr->tempo;
     sound_synth_set_tempo(nseq->tempo, seqId);
     if (arr->tempo_track != 0) {
-        nseq->tempo_track = (u32 *)(arr->tempo_track + (u32)arr);
+        nseq->tempo_track = (u32 *)((u8 *)arr + arr->tempo_track);
         nseq->tempo_cursor = nseq->tempo_track;
         nseq->tempo_fraction = 0;
         nseq->tempo_time = 0;
@@ -542,7 +541,7 @@ unsigned int sound_seq_start(SequencePageEntry *norm, SequencePageEntry *drum, M
         nseq->tempo_track = NULL;
     }
     nseq->loop_disabled = 0;
-    tracktab = (u32 *)(arr->track_table + (u32)arr);
+    tracktab = (u32 *)((u8 *)arr + arr->track_table);
     for (j = 0; j < SEQ_TRACKS; j++) {
         sound_track_volumes[j] = 127;
         nseq->track[j].fraction = 0;
@@ -551,7 +550,7 @@ unsigned int sound_seq_start(SequencePageEntry *norm, SequencePageEntry *drum, M
         nseq->patterns[j].pitch_bend = 0;
         nseq->patterns[j].modulation = 0;
         if (tracktab[j] != 0) {
-            nseq->track[j].cursor = nseq->track[j].start = (u8 *)(tracktab[j] + (u32)arr);
+            nseq->track[j].cursor = nseq->track[j].start = (u8 *)arr + tracktab[j];
         } else {
             nseq->track[j].cursor = nseq->track[j].start = NULL;
         }
@@ -886,29 +885,29 @@ u8 sound_seq_play_tracks(void)
                     break;
                 default:
                     sequence = HEADER;
-                    patterns = (u32 *)(sequence->pattern_table + (u32)sequence);
+                    patterns = (u32 *)((u8 *)sequence + sequence->pattern_table);
                     index = event->code;
-                    pattern = (SongPattern *)(patterns[index] + (u32)sequence);
+                    pattern = (SongPattern *)((u8 *)sequence + patterns[index]);
                     PATTERN(i).whole = 0;
                     PATTERN(i).fraction = 0;
                     PATTERN(i).events = pattern->data;
                     PATTERN(i).event_time = 0;
                     if (pattern->pitch_bend) {
-                        PATTERN(i).pitch_bend = (u8 *)(pattern->pitch_bend + (u32)HEADER);
+                        PATTERN(i).pitch_bend = (u8 *)HEADER + pattern->pitch_bend;
                     } else {
                         PATTERN(i).pitch_bend = 0;
                     }
                     PATTERN(i).pitch_time = 0;
                     PATTERN(i).pitch_value = 0x2000;
                     if (pattern->modulation) {
-                        PATTERN(i).modulation = (u8 *)(pattern->modulation + (u32)HEADER);
+                        PATTERN(i).modulation = (u8 *)HEADER + pattern->modulation;
                     } else {
                         PATTERN(i).modulation = 0;
                     }
                     PATTERN(i).modulation_time = 0;
                     PATTERN(i).modulation_value = 0;
                     sequence = HEADER;
-                    PATTERN(i).channel = ((u8 *)(sequence->channel_table + (u32)sequence))[i];
+                    PATTERN(i).channel = ((u8 *)sequence + sequence->channel_table)[i];
                     PATTERN(i).velocity_offset = event->value.bytes.velocity_offset;
                     PATTERN(i).transpose = event->value.bytes.transpose;
                     PATTERN(i).number = i;
@@ -1228,8 +1227,7 @@ unsigned char sound_seq_get_volume_group(unsigned int identifier)
     unsigned int index;
     if (sound_initialized) {
         index = sound_seq_find_slot(identifier);
-        if (index != 0xFFFFFFFF) return (*(SequenceContext *)((uintptr_t)sound_seq_players +
-                index * sizeof(SequenceContext))).channelFC4;
+        if (index != 0xFFFFFFFF) return sound_seq_players[index].channelFC4;
     }
     return 0;
 }
@@ -1265,7 +1263,7 @@ void sound_seq_crossfade_unlocked(void *request, unsigned int *result, unsigned 
             *(SequenceRequest *)sound_seq_players[index].unknownFC8 = *state;
             sound_seq_players[index].unknownFF4[0] = 1;
             sound_seq_players[index].flagsFEE &= ~SEQ_REQUEST_AT_MARKER;
-            sound_seq_players[index].pendingFF0 = (uintptr_t)result;
+            sound_seq_players[index].pendingFF0 = result;
             *result = state->song | SEQ_REQUEST_BIT;
         } else {
             if (unlocked) {
@@ -1304,10 +1302,10 @@ void sound_seq_crossfade_unlocked(void *request, unsigned int *result, unsigned 
                     options.fade_volume = state->next_volume;
                     options.faded_count = 0;
                     if (unlocked) {
-                        *result = sound_start_song_in_group(state->group,state->song_number,(uintptr_t)state->next_data,(uintptr_t)&options,1);
+                        *result = sound_start_song_in_group(state->group,state->song_number,state->next_data,&options,1);
                         if (*result != 0xFFFFFFFFU && (state->flags & SEQ_REQUEST_NEW_MUTED)) sound_seq_set_track_mask_unlocked(*result,0,0);
                     } else {
-                        *result = sound_start_song(state->group,state->song_number,(uintptr_t)state->next_data,(uintptr_t)&options);
+                        *result = sound_start_song(state->group,state->song_number,state->next_data,&options);
                         if (*result != 0xFFFFFFFFU && (state->flags & SEQ_REQUEST_NEW_MUTED)) sound_seq_set_track_mask(*result,0,0);
                     }
                 }

@@ -12,8 +12,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 endif()
 
-set(PC_AUDIO_TASK_FORM NATIVE CACHE STRING "Form of the audio task records pc_audio_run_task reads: NATIVE or N64")
-set_property(CACHE PC_AUDIO_TASK_FORM PROPERTY STRINGS NATIVE N64)
 option(PC_AUDIO_SDL2 "Build the SDL2 output backend when SDL2 is found" ON)
 option(PC_AUDIO_ALSA "Build the ALSA output backend when the ALSA headers are found" ON)
 
@@ -28,7 +26,6 @@ add_library(pcaudio STATIC
 set_target_properties(pcaudio PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
     POSITION_INDEPENDENT_CODE ON)
 target_include_directories(pcaudio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../include)
-target_compile_definitions(pcaudio PRIVATE PC_AUDIO_DEFAULT_FORM=PC_AUDIO_FORM_${PC_AUDIO_TASK_FORM})
 target_link_libraries(pcaudio PUBLIC Threads::Threads)
 if(NOT WIN32)
     target_link_libraries(pcaudio PUBLIC m)
@@ -79,8 +76,7 @@ if(PC_AUDIO_ALSA AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 # ---------------------------------------------------------------- tests
-# Each test links its own copy of the port/ultra functions the library calls (tests/stubs.c). Tests are PIE,
-# as the game is: native-form pointers below 4 GB are taken for N64 addresses.
+# Each test links its own copy of the port/ultra functions the library calls (tests/stubs.c).
 enable_testing()
 include(CheckPIESupported)
 check_pie_supported()
@@ -89,17 +85,6 @@ if(PCAUDIO_HAVE_SDL2 OR ALSA_FOUND)
     list(APPEND PCAUDIO_TESTS backends)   # SDL2's disk driver, ALSA's null device
 endif()
 add_custom_target(pcaudio_tests)
-# game.memory (docs/port/MEMORY.md 6): a scene's records and samples in port/ultra's own RDRAM window (memory.c) at 64
-# MiB, at 1, 18 and 63 MiB, through K0 and physical addresses; skipped (77) where the window can't be mapped.
-add_executable(test_audio_window tests/test_window.c tests/ref.c ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/memory.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/rcpaddr.c)
-set_target_properties(test_audio_window PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
-    POSITION_INDEPENDENT_CODE ON EXPORT_COMPILE_COMMANDS OFF)
-target_link_libraries(test_audio_window PRIVATE pcaudio Threads::Threads)
-target_include_directories(test_audio_window PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests ${CMAKE_CURRENT_SOURCE_DIR}/../ultra)
-add_test(NAME audio_window COMMAND test_audio_window)
-set_tests_properties(audio_window PROPERTIES SKIP_RETURN_CODE 77)
-add_dependencies(pcaudio_tests test_audio_window)
 foreach(t ${PCAUDIO_TESTS})
     add_executable(test_audio_${t} tests/test_${t}.c tests/stubs.c tests/ref.c)
     set_target_properties(test_audio_${t} PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF

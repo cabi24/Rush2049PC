@@ -2,12 +2,12 @@
  * "MusyX"; N64 only, no MAT3 counterpart). */
 #include "game/game.h"
 
-/* PC: the MusyX library calls it through its service table as void *(*)(void *), so the word is pointer-sized
- * (docs/port/MUSYX_DATA.md 8.1). */
-#define CART_WORD intptr_t
+/* The cartridge's bus: the PI reads the ROM at this address plus the offset. */
+#define CART_BUS_BASE 0xB0000000U
+#define CART_OFFSET_MASK 0x0FFFFFFFU
 
-/* Turn a sample's cartridge offset into its address in the N64's uncached cartridge window (0xB0000000 up), which
- * the DMA service reads from. */
-CART_WORD musyx_cart_address(CART_WORD offset) {
-    return (offset & 0x0FFFFFFF) | 0xB0000000;
+/* Turns an offset in the ROM (the sample bank's, sound_hw_cart_address) into its cartridge address, which the DMA
+ * service reads from (docs/port/MUSYX_DATA.md 8.1). */
+u32 musyx_cart_address(u32 offset) {
+    return (offset & CART_OFFSET_MASK) | CART_BUS_BASE;
 }

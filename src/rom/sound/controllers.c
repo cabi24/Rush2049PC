@@ -33,17 +33,17 @@ enum SynthInput {
 typedef struct ControlSource { u8 controller; u8 combine; u16 scale; } ControlSource;
 typedef struct ControlInput { ControlSource source[4]; u8 count; u8 unknown11; } ControlInput;
 /* The voice as the inputs see it: the nine inputs at +0xC4. */
-typedef struct VoiceControls { u8 unknown00[196]; ControlInput input[SYNTH_INPUT_COUNT]; } VoiceControls;
+typedef struct VoiceControls { SynthVoiceHead head; u8 unknown24[0xA0]; ControlInput input[SYNTH_INPUT_COUNT]; } VoiceControls;
 #pragma pack()
 
 /* The voice as the controller readers see it: its channel and set, its id, its two LFOs' values. */
 #pragma pack(1)
-typedef struct VoiceState { u8 unknown00[36]; u32 flags24; u8 unknown28[34]; u8 channel4A; u8 set4B; u8 unknown4C[20]; u32 id60; u8 unknown64[268]; s16 lfo170; u8 unknown172[10]; s16 lfo17C; u8 unknown17E[34]; } VoiceState;
+typedef struct VoiceState { SynthVoiceHead head; u32 flags24; u8 unknown28[34]; u8 channel4A; u8 set4B; u8 unknown4C[20]; u32 id60; u8 unknown64[268]; s16 lfo170; u8 unknown172[10]; s16 lfo17C; u8 unknown17E[34]; u8 tail[SYNTH_VOICE_TAIL]; } VoiceState;
 #pragma pack(0)
 
 /* The voice as sound_midi_copy_voice_controller sees it: its id. */
 #pragma pack(1)
-typedef struct VoicePrefix { u8 unknown00[96]; u32 id60; } VoicePrefix;
+typedef struct VoicePrefix { SynthVoiceHead head; u8 unknown24[0x3C]; u32 id60; } VoicePrefix;
 #pragma pack()
 
 /* The song players' channel state (library data) ... */

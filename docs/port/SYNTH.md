@@ -146,6 +146,7 @@ need to make, read, change and delete a profile and to save and race a ghost.
 | 0-5 | text bank | six sections: 1024 single strings, 256 in each other table, all short ("EN0.12") |
 | 6, 7, 8 | MusyX project, pool, sample directory | the four sfx groups with empty lists; empty pool; no samples |
 | 10-21 | songs | no tracks |
+| 6, 7, 8, 10-21 (`--sounds`) | the sound bank | an sfx for every sound index (group 12: a looping and a one-shot macro on two ADPCM square waves in the cartridge from ROM 0x39B40), and a song group (16) that every song uses (`song_groups`): five macros (a note that branches by key with SPLIT_KEY, sets an envelope from a table, traps its key off, calls a subroutine that starts the sample and RETURNs, starts a child voice with PLAY_MACRO, LOOPs a WAIT, then waits for the key off), a keymap, a layer list of two, normal and drum pages, a MIDI setup for each song id; every song wave the same song: five tracks (the note macro, the keymap, the layer list, the drums on channel 10, drums that play once and end), three patterns with notes, a program change, controllers and channel pressure, pitch-bend and modulation streams, a tempo track (120, then 140), loops every two bars; no track holds two notes at once and only the macro's and the layers' tracks start child voices, so it stays within the music's 16 voices (the voices tests count every start MusyX refuses); and MusyX's tables a voice is heard through, computed from their meaning (the semitone ratios 2^(n/12), the volume curve (v/127)^2, the pan curve 1, -3 dB, 0): zero, every gain was 0 and every note but a sample's own key played at rate 0 |
 | 22-37, 38-53 | font WADs, font metrics | one solid I4 page; 95 letters, each the same 6 x 8 box |
 | 54 | front-end WAD | a texture for every name the C looks up (BACKGROUND_SFX, BUTTON, CURSOR, ... and ""), the models it looks up (AAANULLOBJ, which MBOX_FindModel takes for a NULL or empty name, MINEG1, the 20 map objects), a palette named "" (the car paint's name comes from a format string, zero here) |
 | 55-60 | front-end screen WADs | empty WADs (a TOC, no chunks) |
@@ -387,8 +388,12 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
   missed two views found here (`CollideCarBody`, `enginetorque`) and two m2c readers; the flow-based layout check
   ([LAYOUT.md](LAYOUT.md)) finds each of them when its fix is reverted, and found one more (the brake lights'
   car slot, LAYOUT.md 4.4); what it can't follow is in its section 8.
-- **Sound.** The cartridge has no sounds and no songs: the sequencer, the voices and sample DMA did not run (MUSYX_DATA.md
-  7 and 8.7 stand).
+- **Sound.** The default cartridge has no sounds and no songs. The one `--sounds` makes (ctest's
+  `rush2049_synth_snd.z64`, the voices and engines tests' cartridge) has both since [NATIVE.md](NATIVE.md) step 9:
+  the races play its song through the sequencer, the macro interpreter takes every kind of macro pointer and the
+  keymap and layer registries are used; a comparison of two builds on it (`synth_compare.py --rom
+  build/pc/synth/rush2049_synth_snd.z64 --audio`) covers the library byte for byte. Speech and the delay effect
+  still never run (the game never starts them); MUSYX_DATA.md 7 and 8.7 list what the retail cartridge checks.
 - **Graphics.** The models are untextured boxes and a checker of tiles with their own render state, and the menus'
   blit tables and button records are zero (black menus): texture loads, the combiners the real models set, fog,
   lighting, the front end's 3D buttons and 2D panes, and mirroring have not been drawn on the synthetic cartridge.

@@ -286,9 +286,9 @@ static void mx_pool(Mx *m)
 
 /* ---------------------------------------------------------------- sample directory (wave 8)
  *
- * 0x1C-byte records until id 0xFFFF (sound_add_sample_directory, sound_add_sample, sound_find_sample): u16 id; u16 reference count
- * and u32 address, both written at run time; u32 offset of the sample from the sample base (ROM 0x39B40);
- * u32 info (key << 24 | rate); u32 length (format << 24 | samples); u32 loop start; u32 loop length. */
+ * 0x1C-byte records until id 0xFFFF (sound_add_sample_directory, sound_add_sample, sound_find_sample): u16 id; u16
+ * reference count and u32 cartridge address, both written at run time; u32 offset of the sample from the sample base
+ * (ROM 0x39B40); u32 info (key << 24 | rate); u32 length (format << 24 | samples); u32 loop start; u32 loop length. */
 
 static void mx_sdir(Mx *m)
 {

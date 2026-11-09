@@ -137,7 +137,7 @@ Four things lived in the window when this plan was written (the arenas left it w
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
 | the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses; since step 5 blocks of host memory | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's; all done, so nothing since step 5) |
-| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers; ghosts, palettes, listeners; `osVirtualToPhysical` |
+| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers and the players' listeners (pointers since step 9); ghosts, palettes; `osVirtualToPhysical` |
 | the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | nothing since step 6: an offset in the heap (`runtime_image_block`); was the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
 
@@ -260,7 +260,8 @@ registries' payloads (`{payload, id, refs}`), the macro interpreter's command po
 `hardware.c`'s sample addresses. They become pointers; the registry records grow (the library's 8-byte keymap and
 macro records, [MUSYX_DATA.md](MUSYX_DATA.md) 4, become structs). The samples stay where they are: in the ROM, read
 by offset. The synthetic cartridge has no songs, so the sequencer's paths need the retail cartridge (the lead's
-runs on the Pi, with `--audio` captures compared byte for byte).
+runs on the Pi, with `--audio` captures compared byte for byte). Done in step 9 (section 14), which gave the
+`--sounds` cartridge a song.
 
 ### 4.6 The runtime images
 
@@ -578,7 +579,10 @@ the car record's pointers into its tree are step 2's. Proof: the gate (every pat
 apart) or 7 and 9. Risk: the text bank has four views in 17 files (ASSETS.md 4 #15), and `ReplaceWave` swaps the
 bank under them when the language changes.
 
-### Step 9. MusyX native (large)
+### Step 9. MusyX native (large): done
+
+Done 2026-11-09 (wave 3.3): what changed, the crossings before and after, the synthetic song and the proof are
+section 14. The plan was:
 
 4.5. Files: `src/rom/sound/*.c` (`registry.c`, `macros.c`, `voices.c`, `sequencer.c`, `synth.c`, `hardware.c`,
 `dma_queue.c`, `groups.c`), `src/rom/speech/streams.c`, `AudioInitSys.c`, `musyx_cart_address.c`,
@@ -1307,3 +1311,130 @@ the compiler converted silently before: `conv.cc.implicit` fell by 15), `context
 - `SetupWaveModel`'s `first` stays (MAT3's) and is always 1; `gWaveInstance[].lastPtr` is unused.
 - The census's WAD rules (`WADP`, `MBGetFromWad`) find nothing left; `fields.u32_address` and `api.u32_address` are
   down to steps 9-11's.
+
+
+
+## 14. Step 9: MusyX native (done 2026-11-09)
+
+Wave 3.3's step 9: what in the MusyX library and the sound manager held 32-bit window addresses holds pointers, the
+audio interpreter reads the game's records as they are, and the samples, which stay in the cartridge, are named by
+their cartridge address apart from anything in RAM. Eight commits: the synthetic cartridge's song first (so the
+sequencer runs on the synthetic paths), then the interpreter, the registries, the voices, the songs and samples, the
+listeners, the song made to fit the music's voices, and the tables that make the cartridge's sound heard (below).
+
+| What | Before | After |
+|---|---|---|
+| the audio interpreter (`port/audio/musyx.c`) | two forms: N64-form records (32-bit addresses through `pc_n64_ptr`, maybe big-endian), and native ones whose pointer fields below 4 GiB were taken for N64 addresses (`resolve`, `n64ptr`); `PC_AUDIO_TASK_FORM`, `pc_audio_set_task_form` | the game's records only (`PcMusyx*`, hardware.c's structs), every pointer read as it is: no translation, no 4 GiB rule. The task capture still writes the microcode's N64 form ([AUDIO.md](AUDIO.md) 8); `test_audio_window`, which tested the N64 form in a window of its own, went |
+| the registries (`registry.c`) | `{u32 payload; u16 id; u16 refs}` (8 bytes; layers 12): the payload a window address (`PC_N64A` in, `PC_N64P` out); searched with a stride of 8 and the id read at +4 | `ResourceRecord {void *payload; u16 id; u16 references}` (macros, tables, keymaps) and `LayerRecord {void *payload; u16 id; u16 count; u16 references}`, 16 bytes, searched as those types; own storage of the host layout, each its N64 room (2048, 256, 256, 2048: `include/game/audio.h`'s extents, which had stopped at two stale labels of the symbol file) |
+| a synth voice (`pc_mx_voice`) | 0x1A0 bytes, the N64 layout: the macro's steps, GOSUB's return and the key-off trap at +0, +4, +8, +0xC, +0x1C, +0x20 as window addresses (`enum n64p_MacroCommand`, `N64P`, `PC_N64W`, `N64_NEXT`), the handle node at +0x18 as its N64 address (`HANDLE_NODES_N64`, `pc_voice_node`) | every view (56, in macros.c, synth.c, voices.c, controllers.c, api.c) begins with `src/rom/sound/musyx.h`'s `SynthVoiceHead`: six `MacroCommand` pointers, the chain's two voice ids, the handle node (`struct HandleNode *`), 0x40 bytes; the fields after it keep their N64-offset names, 0x1C further on; a voice is 0x1C0 bytes (`PC_MX_VOICE_SIZE`). The one raw offset (`sound_synth_get_tick_rate`'s byte 0x4B) reads its view's field. ctest `views_musyx_voice` (`view_check.py`, given `--ref`) checks every view against macros.c's whole one |
+| the sequencer (`sequencer.c`) | the song's offsets added to its address cut to 32 bits (`(u32)arr + offset`); `sound_start_song` took the song and options as `uintptr_t`; a slot kept a deferred request's result word as a `uintptr_t` | the song's pointer plus the offsets (`(u8 *)song + offset`); pointers (`SongHeader *`, `SequencePlayParams *`, `unsigned int *pendingFF0`) |
+| a sample | one pointer-sized field held a cartridge address or a RAM pointer (the sample directory's u32 `data`, `RegisteredSamples.base`, four views of the sample info, `SoundHwVoice.data`), told apart by a range test (below 4 GiB and not KSEG0); the bank's base `PC_N64A(sample_bank_rom)`, a cartridge alias | named for what it is: a sample in the cartridge by its 32-bit cartridge address (`SampleRecord.cart_address`, `RegisteredSamples.cart_base`, `SoundHwVoice.cart_address`), a stream's buffer in RAM by its pointer (`data`), carried apart by one record (`include/sound_sample_record.h`'s `SoundSampleInfo`); the hardware layer fetches by the cartridge address, the caches keyed by it, and no range test says which. AudioInitSys hands MusyX the bank's ROM offset (`SAMPLE_BANK_ROM_OFFSET`, `musyx_samples` a u32), which the library makes the cartridge address through the game's service (`sound_hw_cart_address`, `musyx_cart_address` on u32s); `sample_bank_rom` and its alias went |
+| the speech bank (`speech_set_bank`, unused by the game) | a cartridge bank told from one in RAM by `(u32)source & 0xF0000000 != 0x80000000`, which a host pointer would fail | by the cartridge's own ranges (`sound_hw_is_cartridge`: an offset below 0x10000000 or a cartridge address); the speech code still carries the cartridge addresses it reads from in pointers (`dma_queue.c`) |
+| a player's listener (`UpdateListeners.c`, `StartListeners.c`, `AudRemoveListener.c`) | the listener's window address in the record's 4 bytes at +0x44 (`PC_N64A`, `PC_N64P`) | the listener's number in `gListeners`, -1 for none (MAT3's pointer doesn't fit the 80-byte record's 4 bytes there) |
+
+**The synthetic song** (`tools/port/synth_rom.py --sounds`, [SYNTH.md](SYNTH.md) 1). The default cartridge has no
+sounds, so the gate's `--audio` compares silence and the library's voices never run on it; the `--sounds` cartridge
+(ctest's `rush2049_synth_snd.z64`, the voices and engines tests') had sfx but no songs, and was silent too: MusyX's
+volume and pan curves and semitone ratios (gains.c) were zero, so every gain was 0 and every note but a sample's own
+key played at rate 0. It now has those tables, computed from what they mean (2^(n/12), (v/127)^2, 1, -3 dB, 0), so a
+race on it is heard (`race`: 10% of the WAV's samples nonzero, peak 23,640), and a song group (16)
+that every song uses: five macros (a note that branches by key with SPLIT_KEY, sets an envelope from a table, traps
+its key off, calls a subroutine that starts the sample and RETURNs, starts a child voice with PLAY_MACRO, LOOPs a
+WAIT, then waits for the key off; the release, the subroutine, the child and the high note), an envelope table, a
+keymap and a layer list of two, normal and drum pages, a MIDI setup for each song id; and every song wave holds one
+song: five tracks (the note macro, the keymap, the layer list, the drums on channel 10, drums once and an end),
+three patterns with notes, a program change, controllers and channel pressure, pitch-bend and modulation streams, a
+tempo track (120, then 140 beats a minute) and loops every two bars. The races play it (57 of the 64 paths). Along
+the 64 paths it runs every voice-head pointer the interpreter stores (SPLIT_KEY, GOSUB, TRAP_KEY_OFF, LOOP, the step
+loop, the macro start), the keymap, layer, table and macro registries' adds and finds, the sample lookup, and the
+sequencer's tracks, patterns, streams, tempo track and loops. RETURN, the key-off trap's jump and the chain's links
+run but cross nothing countable. No track holds two notes at once and only the note macro's and the layers' tracks
+start child voices, so the song stays within the music's 16 voices: the voices tests (`voices_check.py`) count every
+start MusyX refuses, and a song that needed more (before the tables, when a child voice's sample never ended) failed
+`synth_voices_race12` (the 96-voice run refused as many as the 64-voice one: the songs' quota doesn't grow with the
+voices). The base and the step play it the same (below).
+
+**The crossings** (`crossings.py`, the 64 paths; 6543cff7 before, the step after). The default cartridge, with the
+guard:
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 22 | 444,726 | 20 | 346,625 | `UpdateListeners.c` (98,092), `AudRemoveListener.c` (9) |
+| `PC_N64A` | 9 | 113,513 | 7 | 113,378 | `AudioInitSys.c` (64, `cart`: the sample bank), `StartListeners.c` (71) |
+| `pc_n64_ptr` | 5 | 14,508,300 | 4 | 13,503,358 | the interpreter's `n64ptr` (1,004,942) |
+| `audio.n64ptr` | 1 | 1,004,942 | 0 | 0 | all (`resolve`) |
+| `audio.field` | 2 | 1,004,942 | 0 | 0 | all (`read_sfd`, `voice_output`) |
+| the other nine kinds | 8 | 14,494,549 | 8 | 14,486,549 | none (the frames around the exit, 9.4) |
+| total | 47 | 30,562,972 | 39 | 27,449,910 | 8 sites, 3,113,062 crossings |
+
+The `--sounds` cartridge (the song and the tables), every path (the base's counting build and the step's, both on
+it):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 30 | 821,276 | 20 | 346,625 | the macro registry's find and the table, keymap and layer finds (`registry.c` 561, 615, 629, 650: 35,870), the interpreter's step fetch (`macros.c` 1482-1484: 335,655), LOOP's step (481: 5,025), the listeners (98,101) |
+| `PC_N64A` | 14 | 114,305 | 7 | 113,378 | the registries' adds (`registry.c` 156, 217, 278, 499), a sample's cartridge address (375, `cart` 128), the bank's (`AudioInitSys.c`, `cart` 64), `StartListeners.c` |
+| `PC_N64W` | 11 | 174,268 | 1 | 3 | the voice head's stores: SPLIT_KEY, GOSUB, TRAP_KEY_OFF, LOOP, the step loop, the macro start (`macros.c` 346, 347, 416, 417, 433, 434, 481, 1484, 1736, 1737: 174,265); left the ghost's (step 11) |
+| `pc_n64_ptr` | 5 | 15,981,538 | 4 | 13,486,906 | `n64ptr` (2,494,632) |
+| `audio.n64ptr` / `audio.field` | 1 / 6 | 2,494,632 each | 0 / 0 | 0 | all: `read_sfd`, `read_voice` (its four pointer fields), `voice_output` |
+| the other kinds | 7 | 13,470,094 | 7 | 13,470,094 | none |
+| total | 74 | 35,550,745 | 39 | 27,417,006 | 35 sites, 8,133,739 crossings |
+
+What the step still crosses on it is the same sites as on the default cartridge (the renderer's, and the holders
+steps 7, 10 and 11 take): none is the sound's.
+
+`--check --zero-kind audio.n64ptr,audio.field` passes on both (and `--no-faults`: the guard 0 faults at 0
+instructions, as before), and `--zero-site` gives 0 on both for `src/rom/sound/`, `src/rom/speech/`,
+`UpdateListeners.c`, `StartListeners.c`, `AudRemoveListener.c`, `AudAddListener.c`, `AudioInitSys.c`,
+`AudioSongPlay.c`, `musyx_cart_address.c`, `port/audio/musyx.c` and `n64ptr`; the control, `car_palette_init.c`,
+fails. No region `cart` is left in any kind.
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3c-ref --skip realtime --data-moved` (Rocky, Debug, against 6543cff7) | PASS: builds, ctest 575 of 575 (`assets_rom` skipped: no ROM on Rocky), 64 of 64 `same` |
+| the `--sounds` cartridge (the song and the tables), base against step: `synth_compare.py --rom <it> --same --shots --audio --data-moved -j6`, Debug and RelWithDebInfo | Debug: 64 of 64 agree, 63 `same` and `mods_off` `varies` (the base's own two runs, apart at the exit); `mods_off` alone varied once more the same way (one build's two WAVs, 768 bytes apart in length), then was `same` in every later run: the base against the step three times (the last with three runs a side), the base against itself twice and the step against itself once. RelWithDebInfo: 64 of 64 `same` |
+| the same at the voices commit and at the songs-and-samples commit, on the first song (silent, before the tables) and on the default cartridge, Debug | 64 of 64 `same` each |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`, the default cartridge) | 64 of 64 `same` |
+| `ctest --test-dir build/opt -LE realtime` | 575 of 575 (`assets_rom` skipped: no ROM on Rocky) |
+| the realtime tests that run the sound (`audio_realtime`, `audio_realtime_game60`, `paced_audio`, `paced_realtime`), alone under `flock ~/rush2049pc/.realtime.lock`, Debug and RelWithDebInfo | RelWithDebInfo: 4 of 4. Debug: `audio_realtime`, `audio_realtime_game60`, `paced_realtime` pass; `paced_audio` failed once (one underrun after the first second, the host's lag; its trace and sound the same as `--fast`'s), then passed twice, and the base's build failed it once the same way (one underrun) between them |
+| the voices and engines tests on the `--sounds` cartridge (`synth_voices_race12`, `_race2p12`, `synth_engines_*`), Debug and RelWithDebInfo | pass, 7 of 7 in each (the cartridge's test with them); no run refuses a start, 96 voices or 64 |
+| `assets_musyx` (the game's readers in ordinary host memory now: no mapping below 4 GiB), `assets_mxvoices`, `assets_sound`, `assets_input`, `assets_casts`, the 15 `audio_*`, `views_musyx_voice` (56 views against macros.c's whole one) | pass |
+| the counting build (`crossings.py --build build/count --guard --check --zero-kind audio.n64ptr,audio.field --no-faults`) and the `--zero-site` checks above | pass |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_*`, `synth_.*`) and against the fixed build (`synth_compare.py --runs 1 --same`) | builds; 94 of 94; 64 of 64 `same` |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, as before) |
+| `alias_check.py` (RelWithDebInfo) | none open |
+| `bounds_check.py` (RelWithDebInfo) | one new key, reviewed (`bounds_reviewed.txt`): `sound_track_volumes` in `sound_seq_start`, indexed by the loop optimizer, j below the declaration's 64 |
+| `census.py` | 1,071 of 1,071 compile |
+| `nofixed_audit.py --baseline` | no class grew past the baseline, which this step moved: up `src.trunc` 2 to 3 and `src.zext` 14 to 16 (`speech_set_bank`'s two conversions; 15 was already the base's, 02c32122's zero extension of the sample bank, which went), `symbols.own` 397 to 400; down `src.n64p` 6 to 1, `src.n64p_field` 14 to 1, `src.n64w` 23 to 6, `src.def.n64p.generic` 2 to 1, `src.def.translate` 10 to 9, `src.lit.annotation` 3 to 2, `src.lit.comment` 11 to 10, `src.lit.code.k1` and `.region` 2 to 0, `symbols.aliases.cartridge` 1 to 0, `symbols.by_name.game_objects` 6 to 5, `symbols.names_reached.game_objects` 3 to 2, `port.host_test` 21 to 19 (`.tests` 3 to 2), `port.mapping.tests` 16 to 12, `port.rdram_base.tests` 36 to 33, `port.translate` 24 to 23 (`.tests` 48 to 43), `port.trunc.tests` 9 to 7, `port.zext` 18 to 17 (`.tests` 30 to 20); the compiler's classes (`cc.*`) left as they were, for CI's GCC 13 |
+| the loader's summary line (the synthetic cartridge) | 4 more symbols with storage of their own (the registries), 1 fewer (`musyx_samples`, a u32 now): `--data-moved` |
+
+**The census** (`window_census.py`, Debug, with the compiler pass; 6543cff7's build before): `conv.PC_N64P.game` 34
+to 28, `conv.PC_N64A.game` 18 to 12, `conv.PC_N64W.game` 22 to 6, `conv.file_macros.defs` and `uses` 16 and 38 to 13
+and 32, `conv.pc_n64_ptr.port` 19 to 18, `conv.cc.ptr_to_int` 29 to 10, `conv.cc.int_to_ptr` 8 to 0,
+`conv.cc.implicit` 28 to 25, `fields.link_enum` 15 to 1 and `link_enum_types` 3 to 1, `lit.region.game` 2 to 0,
+`lit.k1.game` 1 to 0, `lit.reloc.game` 7 to 6 (`pc_rdram_k0_high` in the sample bank's test), `port.below_4g` 12 to
+11, `port.n64_reads` 13 to 3, `tests.window` 65 to 59, `be.ranges` 39 to 38, `text.window.game` 116 to 98,
+`context.cartridge_aliases` 1 to 0; up: `conv.silent.trunc` 2 to 3 and `zext` 14 to 15 (`speech_set_bank`'s
+conversions of the cartridge addresses the speech code carries in pointers), `context.own` 397 to 400 (the four
+registries, less `musyx_samples`).
+
+**What this changes for later steps.**
+
+- **Nothing in the sound reads the window any more but through the heap's own pointers**: the interpreter, the
+  library and the sound manager hold pointers (into the heap, which is still the window until step 12) and the
+  samples' 32-bit cartridge addresses. Step 12 needs no change in the sound for the heap to leave the window; the
+  state hash meets the voices' heap pointers then (`pc_mx_voice`'s head: macro pointers into the pool, each 8-byte
+  aligned in a 0x1C0-byte voice; the node pointers already point into `pc_mx_nodes`, which it names).
+- **The sound's coverage**: the gate's default cartridge plays no sound. A comparison on the `--sounds` cartridge
+  (`synth_compare.py --rom build/pc/synth/rush2049_synth_snd.z64 --same --audio`, base against step) covers the
+  library's voices, registries, sequencer and samples byte for byte; a step that touches the sound should run it as
+  well as the gate.
+- **Left in the sound** (none an N64 address of RAM): the hardware layer's D-cache bookkeeping, which counts the
+  N64's record sizes from the low 32 bits of the records' addresses (`dcache_create_dirty_lines` is arithmetic on
+  the PC: nothing reads memory by them) and the microcode sizes' pointer differences; the speech module's cartridge
+  addresses carried in pointers (`dma_queue.c`, `streams.c`; the game never starts speech); the task capture's
+  `pc_n64_addr`, which asks whether a region is in RDRAM to copy its neighbours as the RSP reads them (step 12).
+- `include/game/types.h`'s `tPadState.listener`, and every view of `gPlayers` at +0x44, hold a listener's number;
+  `port/assets/tests/test_input.c` and `test_casts.c` define `gListeners` for it.

@@ -12,15 +12,10 @@
  *   sound_hw_alloc_voices  allocations: SFDs at 2576 (0xA10) bytes each, the 664-byte (0x298) state block (both larger on
  *                  the PC with more than 32 voices: MX_VOICES_MAX below)
  *
- * Two forms of the same records:
- *   N64 form     byte offsets below, 32-bit N64 addresses (K0, K1 or physical) resolved with pc_n64_ptr().
- *                Multi-byte fields are big-endian when the SFD (or delay block) is in a pc_mem_is_be() range,
- *                native otherwise.
- *   native form  the game's structs compiled for the host: the same members in the same order, pointer
- *                members widened, natural alignment. PcMusyx* below are those structs. A pointer member holds a
- *                host pointer or, when below 4 GB, an N64 address resolved with pc_n64_ptr() (the game's heap
- *                and the sample caches are in the RDRAM window at host PC_RDRAM_BASE; the executable is PIE, so
- *                no host data sits below 4 GB). Byte order is native. */
+ * The records the interpreter reads are the game's structs compiled for the host (PcMusyx* below): the N64's members
+ * in the same order, the pointer members host pointers, natural alignment, host byte order. The N64 form below (byte
+ * offsets, 32-bit N64 addresses, big-endian) is the microcode's: the task capture (port/audio/musyx.c,
+ * RUSH2049_AUDIO_CAPTURE) writes its images in it, for a replay on the microcode (docs/port/AUDIO.md 8). */
 #ifndef MUSYX_ABI_H
 #define MUSYX_ABI_H
 
@@ -41,7 +36,7 @@
 #define MX_STATE_SIZE_N(n) (MX_STATE_SIZE + ((n) > MX_VOICES ? ((n) - MX_VOICES) * 8 : 0))
 #define MX_ALIGN8(x) (((x) + 7) & ~(size_t)7)
 
-/* ---------------------------------------------------------------- N64 form: byte offsets */
+/* ---------------------------------------------------------------- N64 form (the capture's images): byte offsets */
 
 enum {
     /* SFD, 0xA10 bytes */
@@ -93,7 +88,7 @@ enum {
     MX_ST_HIST = 0x290,          /* s16[4] last wet samples, the feedback FIR's history */
 };
 
-/* ---------------------------------------------------------------- native form */
+/* ---------------------------------------------------------------- the records: the game's structs on the host */
 
 /* SfdSampleRange */
 typedef struct PcMusyxCat {

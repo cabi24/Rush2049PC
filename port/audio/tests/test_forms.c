@@ -1,7 +1,6 @@
-/* The two record forms: one scene (looping PCM16 big-endian, ADPCM with a big-endian book, native PCM16, a
- * release mask, the delay effect) rendered from native structs, from N64-form bytes in native order and
- * from N64-form bytes big-endian, all in a fake RDRAM. The outputs and states must be identical. Also the
- * native layout on this host. */
+/* The records: one scene (looping PCM16 big-endian, ADPCM with a big-endian book, native PCM16, a release mask, the
+ * delay effect) rendered from the game's structs (musyx_abi.h's PcMusyx*) in one task and in two; the outputs, the
+ * state block and the delay line must be the same. Also the records' layout on this host. */
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,122 +12,18 @@
 #define LINE (SUB * 6)
 
 typedef struct {
-    PcMusyxSfd *sfds;     /* native form */
-    uint8_t *n64;         /* N64 form */
+    PcMusyxSfd *sfds;
     uint8_t *state;
     int16_t *line;
-    PcMusyxDelay *delay;  /* native */
-    uint8_t *delay_n64;
+    PcMusyxDelay *delay;
     int16_t *out[NSFD];
 } Scene;
 
-static const uint8_t *pcm_be, *adpcm, *pcm_native;   /* in the fake RDRAM */
+static const uint8_t *pcm_be, *adpcm, *pcm_native;
 enum { PCM_LEN = 6000, ADPCM_LEN = 4096 };
 
-static void put16(uint8_t *p, uint32_t v, int be)
-{
-    uint16_t x = (uint16_t)v;
-    if (be) {
-        p[0] = (uint8_t)(x >> 8);
-        p[1] = (uint8_t)x;
-    } else {
-        memcpy(p, &x, 2);
-    }
-}
-
-static void put32(uint8_t *p, uint32_t v, int be)
-{
-    if (be) {
-        put16(p, v >> 16, 1);
-        put16(p + 2, v, 1);
-    } else {
-        memcpy(p, &v, 4);
-    }
-}
-
-static void voice_to_n64(const PcMusyxVoice *v, uint8_t *p, int be)
-{
-    for (int k = 0; k < 4; k++) {
-        put32(p + MX_V_ENV + 4 * k, (uint32_t)v->env[k], be);
-        put32(p + MX_V_ENV_STEP + 4 * k, (uint32_t)v->env_step[k], be);
-    }
-    put16(p + MX_V_PITCH_FRAC, v->pitch_frac, be);
-    put16(p + MX_V_PITCH, v->pitch, be);
-    for (int s = 0; s < 2; s++) {
-        uint8_t *c = p + MX_V_SRC + s * MX_CAT_SIZE;
-        put32(c + MX_CAT_PTR1, v->src[s].ptr1 ? rdram_addr(v->src[s].ptr1) : 0, be);
-        put32(c + MX_CAT_PTR2, v->src[s].ptr2 ? rdram_addr(v->src[s].ptr2) : 0, be);
-        put16(c + MX_CAT_SIZE1, (uint16_t)v->src[s].size1, be);
-        put16(c + MX_CAT_SIZE2, (uint16_t)v->src[s].size2, be);
-    }
-    memcpy(p + MX_V_FRAMES, v->frames, 2);
-    memcpy(p + MX_V_SKIP, v->skip, 2);
-    if (v->frames[0]) {
-        put32(p + MX_V_BOOK, rdram_addr(v->u.book), be);
-    } else {
-        put16(p + MX_V_PCM_COUNT, (uint16_t)v->u.pcm.count[0], be);
-        put16(p + MX_V_PCM_COUNT + 2, (uint16_t)v->u.pcm.count[1], be);
-    }
-    put32(p + MX_V_OUTPUT, v->output ? rdram_addr(v->output) : 0, be);
-    put16(p + MX_V_END, v->end, be);
-    put16(p + MX_V_RESTART, v->restart, be);
-    put16(p + MX_V_4C, v->unused4c, be);
-    put16(p + MX_V_START, v->start, be);
-}
-
-static void delay_to_n64(const PcMusyxDelay *d, uint8_t *p, int be)
-{
-    put32(p + MX_D_BUFFER, rdram_addr(d->buffer), be);
-    put32(p + MX_D_LENGTH, d->length, be);
-    put16(p + MX_D_TAPS, d->taps, be);
-    put16(p + MX_D_FEEDBACK, (uint16_t)d->feedback, be);
-    for (int i = 0; i < 8; i++) {
-        put32(p + MX_D_TAP_DELAY + 4 * i, d->tap_delay[i], be);
-        put16(p + MX_D_TAP_GAIN + 2 * i, (uint16_t)d->tap_gain[i], be);
-    }
-    for (int i = 0; i < 4; i++)
-        put16(p + MX_D_FILTER + 2 * i, (uint16_t)d->filter[i], be);
-}
-
-static void sfd_to_n64(const PcMusyxSfd *s, uint8_t *p, const uint8_t *delay_n64, int be)
-{
-    put16(p + MX_SFD_COUNT, s->count, be);
-    put16(p + MX_SFD_DELAY_INDEX, s->delay_index, be);
-    put32(p + MX_SFD_RELEASE_MASK, s->release_mask, be);
-    put32(p + MX_SFD_STATE, rdram_addr(s->state), be);
-    put32(p + MX_SFD_DELAY, s->delay ? rdram_addr(delay_n64) : 0, be);
-    for (int i = 0; i < MX_VOICES; i++)
-        voice_to_n64(&s->voices[i], p + MX_SFD_VOICES + i * MX_V_SIZE, be);
-}
-
-/* Native records whose pointers into the fake RDRAM hold K0 addresses instead (the delay block itself stays
- * a host pointer): what the game's builder stores when its heap is the RDRAM window. */
-static void *k0(const void *p)
-{
-    return p ? (void *)(uintptr_t)rdram_addr(p) : NULL;
-}
-
-static void to_k0(Scene *sc)
-{
-    sc->delay->buffer = k0(sc->delay->buffer);
-    for (int k = 0; k < NSFD; k++) {
-        PcMusyxSfd *s = &sc->sfds[k];
-        s->state = k0(s->state);
-        for (int i = 0; i < MX_VOICES; i++) {
-            PcMusyxVoice *v = &s->voices[i];
-            for (int seg = 0; seg < 2; seg++) {
-                v->src[seg].ptr1 = k0(v->src[seg].ptr1);
-                v->src[seg].ptr2 = k0(v->src[seg].ptr2);
-            }
-            if (v->frames[0])
-                v->u.book = k0(v->u.book);
-            v->output = k0(v->output);
-        }
-    }
-}
-
 /* The scene, from the same voice histories every time. */
-static void build(Scene *sc, int be)
+static void build(Scene *sc)
 {
     TbVoice tv[3] = {
         {pcm_be, 0, PCM_LEN, 2000, 1111, 1900.5, 0x1C71, {0}, 1},
@@ -136,11 +31,9 @@ static void build(Scene *sc, int be)
         {pcm_native, 0, PCM_LEN, 0, 0, 5.0, 0x1000, {0}, 1},
     };
     sc->sfds = calloc(NSFD, sizeof *sc->sfds);
-    sc->n64 = rdram_alloc(NSFD * MX_SFD_SIZE);
     sc->state = rdram_alloc(MX_STATE_SIZE);
     sc->line = rdram_alloc(LINE * 2);
     sc->delay = calloc(1, sizeof *sc->delay);
-    sc->delay_n64 = rdram_alloc(MX_D_SIZE);
     sc->delay->buffer = sc->line;
     sc->delay->length = LINE;
     sc->delay->taps = 2;
@@ -153,7 +46,6 @@ static void build(Scene *sc, int be)
     sc->delay->filter[1] = 0x1000;
     sc->delay->filter[2] = 0x2000;
     sc->delay->filter[3] = 0x3000;
-    delay_to_n64(sc->delay, sc->delay_n64, be);
     for (int k = 0; k < NSFD; k++) {
         PcMusyxSfd *s = &sc->sfds[k];
         int n = 0;
@@ -171,7 +63,6 @@ static void build(Scene *sc, int be)
         s->count = (uint16_t)n;
         s->release_mask = k == 5 ? 1u << 2 : 0;
         s->voices[n - 1].output = sc->out[k];
-        sfd_to_n64(s, sc->n64 + k * MX_SFD_SIZE, sc->delay_n64, be);
     }
 }
 
@@ -208,46 +99,28 @@ int main(void)
         free(pcm);
     }
 
-    static Scene native, nk0, n64le, n64be;   /* static: what they hold lives to the end (LeakSanitizer) */
-    build(&native, 0);
-    build(&nk0, 0);
-    to_k0(&nk0);
-    build(&n64le, 0);
-    build(&n64be, 1);
-    pc_mem_register_be(n64be.n64, NSFD * MX_SFD_SIZE);
-    pc_mem_register_be(n64be.delay_n64, MX_D_SIZE);
+    static Scene split, whole;   /* static: what they hold lives to the end (LeakSanitizer) */
+    build(&split);
+    build(&whole);
 
-    pc_audio_run_task_form(native.sfds, 3, PC_AUDIO_FORM_NATIVE);
-    pc_audio_run_task_form(native.sfds + 3, NSFD - 3, PC_AUDIO_FORM_NATIVE);
-    pc_audio_run_task_form(nk0.sfds, NSFD, PC_AUDIO_FORM_NATIVE);
-    pc_audio_set_task_form(PC_AUDIO_FORM_N64);
-    CHECK(pc_audio_task_form() == PC_AUDIO_FORM_N64, "form not set");
-    pc_audio_run_task(n64le.n64, 3);
-    pc_audio_run_task(n64le.n64 + 3 * MX_SFD_SIZE, NSFD - 3);
-    pc_audio_run_task_form(n64be.n64, 3, PC_AUDIO_FORM_N64);
-    pc_audio_run_task_form(n64be.n64 + 3 * MX_SFD_SIZE, NSFD - 3, PC_AUDIO_FORM_N64);
+    pc_audio_run_task(split.sfds, 3);
+    pc_audio_run_task(split.sfds + 3, NSFD - 3);
+    pc_audio_run_task(whole.sfds, NSFD);
 
     double energy = 0;
     for (int k = 0; k < NSFD; k++) {
-        CHECK(!memcmp(native.out[k], nk0.out[k], 2 * SUB * 2), "subframe %d: native form with K0 addresses differs", k);
-        CHECK(!memcmp(native.out[k], n64le.out[k], 2 * SUB * 2), "subframe %d: N64 form (native order) differs", k);
-        CHECK(!memcmp(native.out[k], n64be.out[k], 2 * SUB * 2), "subframe %d: N64 form (big-endian) differs", k);
+        CHECK(!memcmp(split.out[k], whole.out[k], 2 * SUB * 2), "subframe %d: one task and two differ", k);
         for (int i = 0; i < 2 * SUB; i++)
-            energy += (double)native.out[k][i] * native.out[k][i];
+            energy += (double)split.out[k][i] * split.out[k][i];
     }
     CHECK(energy > 1e9, "scene is too quiet to prove anything (%g)", energy);
-    CHECK(!memcmp(native.state, n64le.state, MX_STATE_SIZE) && !memcmp(native.state, n64be.state, MX_STATE_SIZE) &&
-              !memcmp(native.state, nk0.state, MX_STATE_SIZE),
-          "states differ");
-    CHECK(!memcmp(native.line, n64le.line, LINE * 2) && !memcmp(native.line, n64be.line, LINE * 2), "lines differ");
+    CHECK(!memcmp(split.state, whole.state, MX_STATE_SIZE), "states differ");
+    CHECK(!memcmp(split.line, whole.line, LINE * 2), "lines differ");
 
-    /* The native layout: the game's members in order, pointers widened. On a 32-bit host it is the N64's. */
-    printf("native form: voice %zu bytes, SFD %zu, delay %zu (pointers %zu)\n", sizeof(PcMusyxVoice),
+    /* The records' layout: the game's members in order, pointers widened. On a 32-bit host it is the N64's. */
+    printf("records: voice %zu bytes, SFD %zu, delay %zu (pointers %zu)\n", sizeof(PcMusyxVoice),
            sizeof(PcMusyxSfd), sizeof(PcMusyxDelay), sizeof(void *));
     if (sizeof(void *) == 8) {
-        /* The range test needs host data above 4 GB (a PIE executable). */
-        CHECK((uintptr_t)&native >> 32 && (uintptr_t)test_rdram >> 32 && (uintptr_t)native.sfds >> 32,
-              "host data below 4 GB: %p %p %p", (void *)&native, (void *)test_rdram, (void *)native.sfds);
         CHECK(sizeof(PcMusyxVoice) == 120 && sizeof(PcMusyxSfd) == 3864 && sizeof(PcMusyxDelay) == 80, "LP64 sizes");
         CHECK(offsetof(PcMusyxVoice, src) == 40 && offsetof(PcMusyxVoice, frames) == 88 &&
                   offsetof(PcMusyxVoice, u) == 96 && offsetof(PcMusyxVoice, output) == 104 &&
