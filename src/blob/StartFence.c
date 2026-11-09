@@ -1,39 +1,45 @@
+/* StartFence: the start function of the breakable fence track object (MAT3 targets.c _StartFence). It runs when a
+ * car first hits the fence (CheckTargetCollision through targetInfo[].start); the fence then plays its breaking
+ * animation, an environment visual that swaps through its models (AnimateObjSwapGeneric). */
 #include "game/game.h"
 
-float fabsf(float);
-float sqrtf(float);
-#pragma intrinsic (fabsf)
-#pragma intrinsic (sqrtf)
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+typedef struct Target {
+    u8 pad00[4];
+    u8 flags;               /* 0x04 Flags: TARGET_ACTIVE, TARGET_HIT */
+    u8 pad05[11];
+    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
+    u8 pad12[0x38 - 0x12];
+    f32 matPos[3];          /* 0x38 its position, where its sounds play */
+    u8 pad44[0x5A - 0x44];
+    s16 frames;             /* 0x5A the animation's frame count */
+    s8 slot;                /* 0x5C the car that hit it */
+} Target;
 
-VIEW(M2C_UNK, targetInfo);
-#define targetInfo targetInfo_view
+#define TARGET_ACTIVE 2         /* the target collides */
+#define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
-VIEW(void *, gEnvList);
-#define gEnvList gEnvList_view
+struct pc_visual *GrabEnvEntry();
 
-/* callees outside the group */
-intptr_t GrabEnvEntry();
-
-/* PC: the target arg0 (a level-object node) keeps its N64 layout, but its visual is a struct pc_visual (data a
- * 32-bit window address) and its target info record is 0x40 bytes with the visual function a pointer; the m2c body
- * uses the N64 offsets of both (docs/port/CARS.md, POINTERS.md 10). */
-void StartFence(void *arg0) {
+/* Start the fence a car has just hit: an environment visual (the next free one, if any) runs its 12-frame
+ * animation, the fence stops colliding and its start sound plays. */
+void StartFence(Target *t)
+{
     struct pc_visual *v;
-    u8 *info;
+    TargInfo *info;
 
-    info = (u8 *) &targetInfo + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30);
-    M2C_FIELD(arg0, s16 *, 0x5A) = 0xC;
-    v = (struct pc_visual *) GrabEnvEntry();
+    info = &targetInfo[t->infoIdx];
+    t->frames = 12;
+    v = GrabEnvEntry();
     if (v != NULL) {
         v->index = 0;
-        v->func = M2C_FIELD(info, void (**)(void *, short), TINFO_OFS(0xC));
-        v->data = PC_N64W(arg0);
-        v->timeStamp = (f32) fence_frame_time;
-        M2C_FIELD(arg0, u8 *, 4) = (u8) (M2C_FIELD(arg0, u8 *, 4) & 0xFFF9);
+        v->func = info->visFunc;
+        v->data = PC_N64W(t);
+        v->timeStamp = fence_frame_time;
+        t->flags = (u8) (t->flags & ~(TARGET_ACTIVE | TARGET_HIT));
         v->next = gEnvList;
-        gEnvList = v;
-        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
-        PlayTargetSound(*(s32 *)((u8 *) &targetInfo + (M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30)) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *) arg0 + 0x38, 2);
+        gEnvList = (struct Node *) v;
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
     }
 }
-

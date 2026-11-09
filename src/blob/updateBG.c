@@ -1,6 +1,9 @@
+/* updateBG: the front end's scrolling background (MAT3 front.c updateBG): four textured quads (backPolys) whose
+ * texture coordinates drift each frame, wrapping by a whole texture so the numbers stay small. */
 #include "game/game.h"
 #define MotionFrame MotionFrameView   /* this file's own MotionFrame: include/game's MotionFrame is another type */
 
+/* A vertex of a background quad: its texture coordinates (s, t, in 1/32 texels). */
 typedef struct {
     s16 x;
     s16 y;
@@ -27,8 +30,9 @@ typedef struct {
     f32 dy;
     f32 xs[4];
     f32 ys[4];
-} Motion; /* 0x38 */
+} Motion; /* 0x38: one quad's drift (dx, dy textures a second) and its corners' coordinates */
 
+/* gBackRects[windows - 1]: the four quads' motion for each split-screen layout. */
 typedef struct {
     Motion slot[4];
 } MotionFrame; /* 0xE0 */
@@ -41,6 +45,9 @@ VIEW(Dims *, bg_texture);
 VIEW(MotionFrame[], gBackRects);
 #define gBackRects gBackRects_view
 
+/* Each frame, for each of the four quads that is up: move its corners' texture coordinates by its drift times the
+ * frame's length; when all four corners are past one texture width (height) the same way, shift them all back by
+ * one; keep the result in gBackRects (offsetsValid says it is there, for createBG to start from next time). */
 void updateBG(void) {
     s32 slot;
     s32 i;

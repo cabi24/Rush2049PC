@@ -1,24 +1,25 @@
+/* UnloadSelectCar: a car select screen's car model unloaded (MAT3 selectcarload.c UnloadSelectCar). */
 #include "game/game.h"
 
-typedef struct { s32 a; s8 b; s8 c; u8 pad[6]; } SelectCarWave;
-VIEW(SelectCarWave[], gSelectCarWavePtrs);
-#define gSelectCarWavePtrs gSelectCarWavePtrs_view
+#define SELECT_CAR_LOADS 16
 
+/* Unload the model loaded for car slot id: wait for its wave to finish loading, unload it, free the car's palette
+ * and free the load slot. Nothing happens if nothing is loaded for it. */
 void UnloadSelectCar(s16 id)
 {
     s32 i;
-    SelectCarWave *p;
+    SelectCarWaveSlot *p;
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < SELECT_CAR_LOADS; i++) {
         p = &gSelectCarWavePtrs[i];
-        if (p->c == id) {
-            while (WaveInstanceReady(p->a) == 0) {
+        if (p->slot == id) {
+            while (WaveInstanceReady(p->wave) == 0) {
             }
-            UnloadWaveInstance(p->a);
+            UnloadWaveInstance(p->wave);
             free_car_palette(id);
-            p->a = -1;
-            p->c = -1;
-            p->b = 0;
+            p->wave = -1;
+            p->slot = -1;
+            p->loading = 0;
             return;
         }
     }

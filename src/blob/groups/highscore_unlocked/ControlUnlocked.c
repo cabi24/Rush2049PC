@@ -1,8 +1,10 @@
+/* ControlUnlocked: the input of the high-score screen's "unlocked" page (MAT3 highscorescr.c ControlUnlocked). */
 #include "game/game.h"
 
+/* A player's pad record (MAT3 tPadState, gPlayers). */
 typedef struct InputRecord {
     u8 pad00[4];
-    s32 unk04;
+    s32 edges;              /* 0x04 the buttons newly pressed */
     u8 pad08[0x48 - 0x8]; void *ref;
 } InputRecord;
 
@@ -13,6 +15,9 @@ VIEW(s8, circuitCode);
 
 s32 CountdownTimeOut(s32 arg0);
 
+/* Each player who unlocked something reads its notice until Start or A (or the page's time runs out); a player
+ * with nothing (left) to read has its box removed. When nobody is reading, the next page: the circuit's code if
+ * there is one, else name entry after a single, circuit or ghost race, else the end of the screen. */
 void ControlUnlocked(void)
 {
     s32 i;
@@ -21,8 +26,8 @@ void ControlUnlocked(void)
     done = 1;
     for (i = 0; i < gNumPlayers; i++) {
         if (gStuffUnlocked[i] == 1) {
-            if ((gPlayers[i].unk04 & 3) || CountdownTimeOut(gPlayers[i].unk04)) {
-                PlayStartABSound(gPlayers[i].unk04);
+            if ((gPlayers[i].edges & BUTTON_ACCEPT) || CountdownTimeOut(gPlayers[i].edges)) {
+                PlayStartABSound(gPlayers[i].edges);
                 gStuffUnlocked[i] = 0;
             }
         } else if (namePanes[i] != 0) {
@@ -37,12 +42,11 @@ void ControlUnlocked(void)
     }
     if (done == 1) {
         if (circuitCode) {
-            SetHighScoreState(2);
-        } else if (gRace == 0 || gRace == 3 || gRace == 2) {
-            SetHighScoreState(3);
+            SetHighScoreState(kHighScoreCircuitCode);
+        } else if (gRace == kOneRace || gRace == kCircuit || gRace == kGhost) {
+            SetHighScoreState(kHighScoreNames);
         } else {
-            SetHighScoreState(0);
+            SetHighScoreState(kHighScoreNone);
         }
     }
 }
-

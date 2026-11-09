@@ -1,11 +1,9 @@
+/* The start menu's text and which rows it offers (MAT3 startscr.c animText, animButtonText and optionValid). */
 #include "game/game.h"
 
 typedef struct Color4 { u32 word; } Color4;
-typedef struct Language { s32 unknown0; char **text; s32 unknown8; u16 *indices; char **indexed; } Language;
 typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
-VIEW(Language, gText);
-#define gText gText_view
 VIEW(ButtonInfo[], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
 VIEW(Camera[], gCamera);
@@ -29,6 +27,19 @@ const char *pc_start_label(int index, const char *label);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_LABEL(i, s) ((void *)pc_start_label((i), (s)))
 
+#define TEXT_START_TITLE 39         /* gText.single[]: the menu's title */
+#define TEXT_START_ROWS 20          /* gText.tab[]: the rows' names */
+#define START_ROWS 10
+#define START_ROW_PLAYERS 0
+#define START_ROW_CHEAT 6
+#define START_ROW_DEBUG 7
+#define DEBUG_BUTTON 0x100          /* game button 8: held, it offers the debug row */
+#define CHEAT_MENU_UNLOCKED 21      /* gCheatActive[]: the start menu's code has been entered */
+
+/* The menu's text over its 3D buttons: the title on its button, each offered row's name beside its button (skipped
+ * while the button faces away, half see-through while it turns, flashing on the selected one), and after the player
+ * count's row the counts 1-4 (grey past the controllers plugged in, the chosen one flashing while the row is
+ * selected). */
 void startscr_animButtonText(void)
 {
     s32 i;
@@ -38,40 +49,40 @@ void startscr_animButtonText(void)
     char text[32];
     s16 point[2];
     HAL_SetTextDepth(0.0f);
-    TB_SetJust(0,1);
+    TB_SetJust(kTB_JustLeft, kTB_JustCenter);
     ZOID_ProjectWindow(0,startscr_title_button_position,&gCamera[0],0,point);
     x=point[0]; y=point[1];
     HAL_SetFont(13);
-    TB_SetTextColor(1);
-    TB_DrawText(TB_CenterText(gText.text[39],x),(s16)y,gText.text[39]);
+    TB_SetTextColor(kTB_WhiteText);
+    TB_DrawText(TB_CenterText(gText.single[TEXT_START_TITLE],x),(s16)y,gText.single[TEXT_START_TITLE]);
     HAL_SetFont(10);
-    for(i=0;i<10;i++) {
+    for(i=0;i<START_ROWS;i++) {
         if(!startscr_optionValid(i))continue;
         position=startscr_buttonInfo[i].position;
-        if(startscr_buttonInfo[i].angle>0.6981316804885864f && startscr_buttonInfo[i].angle<2.4434609413146973f)continue;
-        if(startscr_buttonInfo[i].angle>0.3490658402442932f && startscr_buttonInfo[i].angle<2.7925267219543457f)HAL_SetTextTranslucency(128.0f);
+        if(startscr_buttonInfo[i].angle>0.6981317f && startscr_buttonInfo[i].angle<2.443461f)continue;
+        if(startscr_buttonInfo[i].angle>0.34906584f && startscr_buttonInfo[i].angle<2.7925267f)HAL_SetTextTranslucency(128.0f);
         else HAL_SetTextTranslucency(-1.0f);
-        if(startscr_buttonInfo[i].angle<1.5707963705062866f) {
+        if(startscr_buttonInfo[i].angle<1.5707964f) {
             TB_FlashTextColors(flashColors,flashColors_at_1);
             HAL_SetTextColor(224,224,224,255);
         } else {
             TB_FlashTextColors(flashColors,flashColors_at_1);
-            TB_SetTextColor(22);
+            TB_SetTextColor(kTB_FlashText);
         }
         ZOID_ProjectWindow(0,position,&gCamera[0],0,point);
         x=point[0]-35; y=point[1];
-        TB_DrawText(x,(s16)y,PC_START_LABEL(i,gText.indexed[gText.indices[20]+i]));
-        if(i==0) {
+        TB_DrawText(x,(s16)y,PC_START_LABEL(i,gText.taba[gText.tab[TEXT_START_ROWS]+i]));
+        if(i==START_ROW_PLAYERS) {
             ZOID_ProjectWindow(0,startscr_players_button_position,&gCamera[0],0,point);
             x=point[0]-18; y=point[1];
             for(j=0;j<4;j++) {
                 TB_Sprintf(text,startscr_button_player_count_format,j+1);
-                if(gStartMenuSelect==0) {
-                    if(j>=gMaxPlayers)TB_SetTextColor(3);
-                    else if(j+1==gNumPlayers)TB_SetTextColor(22);
+                if(gStartMenuSelect==START_ROW_PLAYERS) {
+                    if(j>=gMaxPlayers)TB_SetTextColor(kTB_MedGryText);
+                    else if(j+1==gNumPlayers)TB_SetTextColor(kTB_FlashText);
                     else TB_SetTextColor(0);
                 } else {
-                    if(j>=gMaxPlayers)TB_SetTextColor(3);
+                    if(j>=gMaxPlayers)TB_SetTextColor(kTB_MedGryText);
                     else TB_SetTextColor(0);
                 }
                 TB_DrawText(TB_CenterText(text,x),(s16)y,text);
@@ -80,11 +91,13 @@ void startscr_animButtonText(void)
         }
     }
     HAL_SetTextTranslucency(-1.0f);
-    TB_SetJust(0,3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     TB_FlashTextColors(flashColors,flashColors_at_1);
     HAL_SetTextDepth(-1.0f);
 }
 
+/* The menu's text blit callback: over the 3D buttons once they are up, else a flat list (the title, the rows, the
+ * player counts with the chosen one shadowed). Always 1. */
 s32 startscr_animText(void *callback_context)
 {
     s32 i;
@@ -96,25 +109,25 @@ s32 startscr_animText(void *callback_context)
         return 1;
     }
     HAL_SetTextDepth(0.0f);
-    TB_SetJust(1,3);
+    TB_SetJust(kTB_JustCenter, kTB_JustTop);
     HAL_SetFont(13);
-    TB_SetTextColor(1);
+    TB_SetTextColor(kTB_WhiteText);
     y=10.0f;
-    TB_DrawText(160,(s16)y,gText.text[39]);
+    TB_DrawText(160,(s16)y,gText.single[TEXT_START_TITLE]);
     TB_GetFontLineHeight();
     HAL_SetFont(10);
     y=40.0f;
-    for(i=0;i<10;i++) {
+    for(i=0;i<START_ROWS;i++) {
         if(!startscr_optionValid(i))continue;
-        if(i==gStartMenuSelect)TB_SetTextColor(22);
+        if(i==gStartMenuSelect)TB_SetTextColor(kTB_FlashText);
         else HAL_SetTextColor(224,224,224,255);
-        TB_DrawText(160,(s16)y,PC_START_LABEL(i,gText.indexed[gText.indices[20]+i]));
-        if(i==0) {
+        TB_DrawText(160,(s16)y,PC_START_LABEL(i,gText.taba[gText.tab[TEXT_START_ROWS]+i]));
+        if(i==START_ROW_PLAYERS) {
             x=230;
             for(j=0;j<4;j++) {
                 TB_Sprintf(text,startscr_player_count_format,j+1);
-                if(gStartMenuSelect==0) {
-                    if(j+1==gNumPlayers)TB_SetTextColor(22);
+                if(gStartMenuSelect==START_ROW_PLAYERS) {
+                    if(j+1==gNumPlayers)TB_SetTextColor(kTB_FlashText);
                     else HAL_SetTextColor(64,64,64,255);
                 } else if(j+1==gNumPlayers) {
                     HAL_SetTextColor(0,0,0,255);
@@ -130,22 +143,25 @@ s32 startscr_animText(void *callback_context)
         y+=22.5f;
     }
     HAL_SetTextTranslucency(-1.0f);
-    TB_SetJust(0,3);
+    TB_SetJust(kTB_JustLeft, kTB_JustTop);
     TB_FlashTextColors(flashColors,flashColors_at_1);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
 
+/* Is the menu's row `index` offered? By its startscr_validOption entry; the debug row only while game button 8 is
+ * held, the cheat menu once the start menu's code has been entered. The PC settings can add PC SETUP and the cheat
+ * menu (PC_START_VALID). */
 s8 startscr_optionValid(s32 index)
 {
     s8 *entry = &startscr_validOption[index];
     s32 value = *entry;
 
-    if (index == 7 && !(gActiveLevels & 0x100)) {
+    if (index == START_ROW_DEBUG && !(gActiveLevels & DEBUG_BUTTON)) {
         value = 0;
     }
-    if (index == 6) {
-        value = gCheatActive[21];
+    if (index == START_ROW_CHEAT) {
+        value = gCheatActive[CHEAT_MENU_UNLOCKED];
     }
     return PC_START_VALID(index, value);
 }

@@ -1,31 +1,44 @@
+/* AnimateKnockdown: the animation of the signs and meters a car knocks down (MAT3 targets.c _AnimateKnockdown). It
+ * is the environment visual StartKnockdown sets up: each frame it tips the target over by its spin rate, for the
+ * frame count StartKnockdown gave it, then lets the visual go. */
 #include "game/game.h"
 
-/* PC: arg0 is a visual (struct pc_visual) whose data is the target, a level-object node in its N64 layout; both the
- * data and the target's state (+0x6C, the spin rate RotateUV reads) are 32-bit window addresses, and the
- * state goes to RotateUV zero-extended, as the pointer it is (docs/port/CARS.md, POINTERS.md 10). */
-void AnimateKnockdown(void *arg0, s16 arg1)
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+typedef struct Target {
+    u8 pad00[0x14];
+    f32 uvs[3][3];          /* 0x14 mat: its orientation */
+    u8 pad38[0x5A - 0x38];
+    s16 frames;             /* 0x5A the frames of the fall left */
+    u8 pad5C[0x6C - 0x5C];
+    u32 data;               /* 0x6C its spin a frame, f32[3] radians about x, y, z (a window address) */
+} Target;
+
+/* One frame of the fall: turn the target by its spin and count a frame off; when none are left, release the
+ * visual. Nothing moves while the game is paused. op 0 releases the visual. */
+void AnimateKnockdown(struct pc_visual *v, s16 op)
 {
-  u8 *target;
-  void *rate;
-  s16 var_v1;
-  if (arg1 == 0)
-  {
-    ReleaseEnviron(arg0, 1);
-  }
-  if (gPauseState == 0)
-  {
-    target = (u8 *) PC_N64P(((struct pc_visual *) arg0)->data);
-    rate = (void *) PC_N64P(*((u32 *) (target + 0x6C)));
-    var_v1 = *((s16 *) (target + 0x5A));
-    if (var_v1 != 0)
-    {
-      *((s16 *) (target + 0x5A)) = (s16) (var_v1 - 1);
-      RotateUV(rate, target + 0x14);
-      var_v1 = *((s16 *) (target + 0x5A));
+    Target *t;
+    void *spin;
+    s16 framesLeft;
+
+    /* Original game: op 0 releases the visual but doesn't return (MAT3 the same), so an unpaused release goes on to
+     * animate the target, and releases the visual a second time if the fall is over. */
+    if (op == 0) {
+        ReleaseEnviron(v, 1);
     }
-    if (var_v1 == 0)
-    {
-      ReleaseEnviron(arg0, 1);
+    if (gPauseState == 0) {
+        t = (void *) PC_N64P(v->data);
+        /* the spin goes to RotateUV zero-extended, as the pointer it is */
+        spin = (void *) PC_N64P(t->data);
+        framesLeft = t->frames;
+        if (framesLeft != 0) {
+            t->frames = (s16) (framesLeft - 1);
+            RotateUV(spin, t->uvs);
+            framesLeft = t->frames;
+        }
+        if (framesLeft == 0) {
+            ReleaseEnviron(v, 1);
+        }
     }
-  }
 }

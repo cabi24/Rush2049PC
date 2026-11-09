@@ -1,3 +1,5 @@
+/* carscr_animNewSlider: the car select screen's sliders (MAT3 carscr.c animNewSlider): the bar beside the tyre size
+ * options' value buttons, filled to the size chosen. */
 #include "game/game.h"
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
@@ -8,23 +10,18 @@ typedef struct Blit {
     s16 Top, Bot, Left, Right, Color; u16 reserved26;
     s32 (*AnimFunc)(struct Blit *); u32 AnimID; intptr_t AnimDTA; u16 BLIdx, reserved36; void *data, *child;
 } Blit;
-/* PC: the record as cleanup_colortrace's Slot has it (kind, handle, angle, matrix, position, then the alpha byte),
- * which the PC loader then fills element by element. Seen as matrix[16] it would swap the alpha byte with the
- * three after it as one f32 (docs/port/ENDIAN.md). */
-typedef union MenuSlot {
-    float matrix[16];
-    struct { s32 x,y; float depth; float rest[12]; u8 alpha; u8 tail[3]; } state;
-} MenuSlot;
-typedef struct ProjectContext {
-    float rotation[3][3], position[3]; u8 opaque[104];
-} ProjectContext;
 
-VIEW(MenuSlot[][44], carscr_buttonInfo);
-#define carscr_buttonInfo carscr_buttonInfo_view
+#define CAR_OPT_FRONT_TIRE_SCALE 13     /* carscr.c's options */
+#define CAR_OPT_REAR_TIRE_SCALE 14
+#define CAR_OPTS 19                     /* an option's value button is carscr_buttonInfo[p][option + 19] */
+#define SLIDER_FILLED 1                 /* the AnimID's type: the filled part (0 the empty bar) */
 
-VIEW(ProjectContext[], gCamera);
-#define gCamera gCamera_view
-
+/* One slider blit, each frame. The AnimID packs its type (bits 0-3: 0 the empty bar, 1 the filled part), its player
+ * (4-7) and its option (16 up). Hidden for a player not playing (for good), while the car is locked, while the
+ * option's button faces away or is invisible. It sits on the option's value button with the button's alpha: a
+ * quarter-height strip of the slider texture (the second half while the button shows its selected face, the
+ * filled strip a quarter further down), the filled one as wide as the tyre scale (0.75 up, a step a notch, 15
+ * notches). Always 1. */
 s32 carscr_animNewSlider(Blit *blt)
 {
     s32 type=blt->AnimID&15;
@@ -41,28 +38,28 @@ s32 carscr_animNewSlider(Blit *blt)
         return 1;
     }
     if (Hidden(blt,
-        (carscr_slider_hide_angle_min<carscr_buttonInfo[p][opt].state.depth && carscr_buttonInfo[p][opt].state.depth<carscr_slider_hide_angle_max) || !carscr_buttonInfo[p][opt].state.alpha))
+        (carscr_slider_hide_angle_min<carscr_buttonInfo[p][opt].angle && carscr_buttonInfo[p][opt].angle<carscr_slider_hide_angle_max) || !carscr_buttonInfo[p][opt].alpha))
         return 1;
-    ZOID_ProjectWindow(p,&carscr_buttonInfo[p][opt+19].matrix[12],&gCamera[p],0,screenPos);
+    ZOID_ProjectWindow(p,carscr_buttonInfo[p][opt+CAR_OPTS].position,&gCamera[p],0,screenPos);
     blt->X=screenPos[0]-blt->Width/2;
     blt->Y=screenPos[1]-(blt->Height/4)/2;
     blt->Left=0;
     blt->Right=blt->Width-1;
     blt->Top=0;
     blt->Bot=(blt->Height/4)-1;
-    blt->Alpha=carscr_buttonInfo[p][opt].state.alpha;
-    if (carscr_slider_flip_angle < carscr_buttonInfo[p][opt].state.depth) {
+    blt->Alpha=carscr_buttonInfo[p][opt].alpha;
+    if (carscr_slider_flip_angle < carscr_buttonInfo[p][opt].angle) {
         blt->Top += blt->Height/2;
         blt->Bot += blt->Height/2;
     }
-    if (type==1) {
+    if (type==SLIDER_FILLED) {
         blt->Top+=(blt->Height/4);
         blt->Bot+=(blt->Height/4);
         switch (opt) {
-        case 13:
+        case CAR_OPT_FRONT_TIRE_SCALE:
             blt->Right=(gFrontTireScale_players[p][gThisCar[p]]-.75f)/carscr_front_tire_scale_step*(blt->Width-1)/15.0f;
             break;
-        case 14:
+        case CAR_OPT_REAR_TIRE_SCALE:
             blt->Right=(gRearTireScale_players[p][gThisCar[p]]-.75f)/carscr_rear_tire_scale_step*(blt->Width-1)/15.0f;
             break;
         }

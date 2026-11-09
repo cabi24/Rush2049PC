@@ -1,14 +1,18 @@
+/* TargetCollCylinder: collision test 1 of the track objects (gTargetCollFuncPtrs[1], MAT3 targets.c
+ * _TargetCollCylinder): a car against an upright cylinder (in MAT3's table, the battle weapon icons). */
 #include "game/game.h"
 
+/* The car record's view (MAT3 tCarData) in the PC layout: only its position. */
 typedef struct GameCar {
     u8 pad0[8];
-    f32 RWR[3];             /* 0x08 */
+    f32 RWR[3];             /* 0x08 dr_pos: the position, feet */
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
 } GameCar;                  /* 0x3B8 */
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
+/* Does car *slotp touch the cylinder of radius *radiusp standing at pos? The car counts as a 3.5 ft circle; it
+ * hits when the circles overlap and the car is between 2 ft below the cylinder's base and 18 ft above it. dist, if
+ * not NULL, gets the squared distance minus the squared radius (not positive: overlapping). A car that isn't
+ * collidable never hits. */
 s32 TargetCollCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
 {
     f32 dsq, gap;

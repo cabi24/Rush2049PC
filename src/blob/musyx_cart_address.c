@@ -1,10 +1,13 @@
+/* musyx_cart_address: the MusyX sound library's cartridge-address service (one of its eight services, docs/code/r5.md
+ * "MusyX"; N64 only, no MAT3 counterpart). */
 #include "game/game.h"
 
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Map a physical/cart address into the uncached cartridge address window. */
-/* PC: the MusyX library calls it through its service table as void *(*)(void *), so the word is
- * pointer-sized (docs/port/MUSYX_DATA.md 8.1) */
-#define FD60_WORD intptr_t
-FD60_WORD musyx_cart_address(FD60_WORD arg0) {
-    return (arg0 & 0x0FFFFFFF) | 0xB0000000;
+/* PC: the MusyX library calls it through its service table as void *(*)(void *), so the word is pointer-sized
+ * (docs/port/MUSYX_DATA.md 8.1). */
+#define CART_WORD intptr_t
+
+/* Turn a sample's cartridge offset into its address in the N64's uncached cartridge window (0xB0000000 up), which
+ * the DMA service reads from. */
+CART_WORD musyx_cart_address(CART_WORD offset) {
+    return (offset & 0x0FFFFFFF) | 0xB0000000;
 }

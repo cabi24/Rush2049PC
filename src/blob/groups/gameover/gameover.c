@@ -1,15 +1,23 @@
+/* The game-over screen (MAT3 gameoverscr.c): the menu after a race (score, race again, new mode, track or car,
+ * the circuit's next race, quit) and the score page. updateGameOverScreen runs each frame in GS_GAME_OVER; leaving
+ * for another screen stops the race's sound, unloads the track and sends the game to the front end with
+ * gSkipToGameState saying which screen to open. The menu's and the scores' drawing is results_table.c. */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 typedef struct Voice Voice;
 
+/* An audio manager command (GetCmd's message, audiomgr_thread.c's tAudioMsg): only the command byte is set here. */
 typedef struct {
-    s16 id;
-    u8 unk2, used;
+    s16 type;
+    u8 cmd, used;
     u32 payload[5];
 } SceneMsg;
+#define AUDIO_CMD_STOP_SONG 1           /* stop the music */
+#define AUDIO_CMD_STOP_ALL_EFFECTS 7    /* stop every sound effect and sequence */
 
+/* The game's texts (gText): single strings, and tables of strings indexed through tab. */
 typedef struct {
     void *unk0;
     void **single;
@@ -17,6 +25,9 @@ typedef struct {
     u16 *tab;
     void **taba;
 } TextTable;
+#define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
+#define TEXT_GAME_OVER_MENU 45      /* gText.tab[]: the first of the menu's seven rows */
+#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 
 VIEW(TextTable, gText);
 #define gText gText_view
@@ -55,6 +66,8 @@ void RemoveBlit(Voice *);
 
 Voice *NewMultiBlit(s16, s16, const void *, s32);
 
+/* Switch the screen to state mode (kGameOverState*). Leaving the menu removes its panes; entering it puts up a box
+ * for the title and one sized to the widest of the rows gameover_validOption offers. */
 void setGameOverState(s32 mode)
 {
     s32 width;
@@ -67,23 +80,23 @@ void setGameOverState(s32 mode)
     if (mode == gGameOverState) {
         return;
     }
-    if (gGameOverState == 1) {
+    if (gGameOverState == kGameOverStateMain) {
         RemovePanes(0);
     }
     gGameOverState = mode;
-    if (gGameOverState == 1) {
+    if (gGameOverState == kGameOverStateMain) {
         HAL_SetFont(13);
-        width = HAL_GetTextWidth(gText.single[63], -1);
+        width = HAL_GetTextWidth(gText.single[TEXT_GAME_OVER_TITLE], -1);
         x = gameover_titlePos[0];
         y = gameover_titlePos[1];
         h = TB_GetFontLineHeight();
-        InitPane(x - width / 2 - 8, y - 4, width / 2 + x + 8, h + y + 4, 176, 0, 0, 0);
+        InitPane(x - width / 2 - 8, y - 4, width / 2 + x + 8, h + y + 4, PANE_STYLE, 0, 0, 0);
         HAL_SetFont(10);
         width = 0;
         count = 0;
-        for (i = 0; i < 7; i++) {
+        for (i = 0; i < kGameOverMainMenuCount; i++) {
             if (gameover_validOption(i) == 1) {
-                y = HAL_GetTextWidth(gText.taba[gText.tab[45] + i], -1);
+                y = HAL_GetTextWidth(gText.taba[gText.tab[TEXT_GAME_OVER_MENU] + i], -1);
                 count++;
                 if (width < y) {
                     width = y;
@@ -91,14 +104,15 @@ void setGameOverState(s32 mode)
             }
         }
         h = TB_GetFontLineHeight();
-        InitPane(x - width / 2 - 8, 114, width / 2 + x + 8, h * count + 122, 176, 0, 0, 0);
+        InitPane(x - width / 2 - 8, 114, width / 2 + x + 8, h * count + 122, PANE_STYLE, 0, 0, 0);
     }
 }
 
+/* Take the screen down: no state, its panes and its text blit gone; the next update sets it up again. */
 void gameover_uninitScreen(void)
 {
     Voice *voice;
-    setGameOverState(0);
+    setGameOverState(kGameOverStateNone);
     RemovePanes(1);
     voice = gameover_blit;
     if (voice) {
@@ -117,21 +131,28 @@ static SceneMsg pc_scratch_msg;
 static SceneMsg *pc_cmd(SceneMsg *m) { return m ? m : &pc_scratch_msg; }
 #define PC_CMD(m) pc_cmd(m)
 #define PC_CMD_SEND(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
+
+/* The menu's input. Start or A takes the row:
+ * - score: the score page;
+ * - race again: after a ghost race the game goes back through the race's set-up (GS_GAME_INIT, so the ghost is
+ *   loaded again); else the race restarts (gRestartGame) with every effect stopped;
+ * - new mode, track, car, the circuit's next race, quit: the music stops, the track and the race's visuals go, and
+ *   the front end opens at that screen (gSkipToGameState: GS_MODE, GS_TRACK, GS_CAR, GS_CIRCUIT, GS_START).
+ * Up and down (auto-repeating) move between the offered rows, wrapping round. */
 void controlMain(void)
 {
     SceneMsg *msg;
 
-    if (gActiveEdges & 3) {
+    if (gActiveEdges & BUTTON_ACCEPT) {
         PlayStartABSound(gActiveEdges);
-        if (gActiveEdges) {}
         switch (gMainSelect) {
-        case 0:
-            setGameOverState(2);
+        case kGameOverMainMenuScore:
+            setGameOverState(kGameOverStateScore);
             break;
-        case 1:
-            if (gRace == 2) {
+        case kGameOverMainMenuRaceAgain:
+            if (gRace == kGhost) {
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->unk2 = 1;
+                (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_SONG;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND(&audio_command_queue, msg);
                 UnloadTrack(gTrackNum);
@@ -146,25 +167,25 @@ void controlMain(void)
                     multiPlayerBlit = 0;
                 }
                 gameover_uninitScreen();
-                gSkipToGameState = 0x40000;
-                gNewGameState = 4;
+                gSkipToGameState = GS_GAME_INIT;
+                gNewGameState = GS_TITLE;
             } else {
                 gameover_uninitScreen();
                 gRestartGame = 1;
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->unk2 = 7;
+                (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_ALL_EFFECTS;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND(&audio_command_queue, msg);
                 AbortGame();
             }
             break;
-        case 2:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
+        case kGameOverMainMenuNewMode:
+        case kGameOverMainMenuNewTrack:
+        case kGameOverMainMenuNewCar:
+        case kGameOverMainMenuNextRace:
+        case kGameOverMainMenuQuit:
             osRecvMesg(&audio_lock_queue, 0, 1);
-            (msg = PC_CMD(GetCmd()))->unk2 = 1;
+            (msg = PC_CMD(GetCmd()))->cmd = AUDIO_CMD_STOP_SONG;
             osSendMesg(&audio_lock_queue, 0, 0);
             PC_CMD_SEND(&audio_command_queue, msg);
             UnloadTrack(gTrackNum);
@@ -178,49 +199,53 @@ void controlMain(void)
                 RemoveBlit(multiPlayerBlit);
                 multiPlayerBlit = 0;
             }
-            if (gMainSelect == 2) {
-                gSkipToGameState = 0x40;
-            } else if (gMainSelect == 3) {
-                gSkipToGameState = 0x80;
-            } else if (gMainSelect == 4) {
-                gSkipToGameState = 0x100;
-            } else if (gMainSelect == 5) {
-                gSkipToGameState = 0x4000;
-            } else if (gMainSelect == 6) {
-                gSkipToGameState = 0x10;
+            if (gMainSelect == kGameOverMainMenuNewMode) {
+                gSkipToGameState = GS_MODE;
+            } else if (gMainSelect == kGameOverMainMenuNewTrack) {
+                gSkipToGameState = GS_TRACK;
+            } else if (gMainSelect == kGameOverMainMenuNewCar) {
+                gSkipToGameState = GS_CAR;
+            } else if (gMainSelect == kGameOverMainMenuNextRace) {
+                gSkipToGameState = GS_CIRCUIT;
+            } else if (gMainSelect == kGameOverMainMenuQuit) {
+                gSkipToGameState = GS_START;
             }
             gameover_uninitScreen();
-            gNewGameState = 4;
+            gNewGameState = GS_TITLE;
             break;
         }
-    } else if (gActiveAutoEdges & 0x400) {
+    } else if (gActiveAutoEdges & BUTTON_UP) {
         PlayUDSound(gActiveAutoEdges);
         do {
             if (--gMainSelect < 0) {
-                gMainSelect = 6;
+                gMainSelect = kGameOverMainMenuCount - 1;
             }
         } while (gameover_validOption(gMainSelect) == 0);
-    } else if (gActiveAutoEdges & 0x800) {
+    } else if (gActiveAutoEdges & BUTTON_DOWN) {
         PlayUDSound(gActiveAutoEdges);
         do {
-            if (++gMainSelect >= 7) {
+            if (++gMainSelect >= kGameOverMainMenuCount) {
                 gMainSelect = 0;
             }
         } while (gameover_validOption(gMainSelect) == 0);
     }
 }
 
+/* The screen's frame (GS_GAME_OVER). The first frame puts up the menu on its first offered row and the text blit.
+ * The resurrecting cars keep blinking behind it. A soft reset stops the music, unloads the track and restarts the
+ * game from the title (SKIP_NONE: no screen to skip to). Then the menu's input, or on the score page any
+ * of Start, A or B goes back to the menu. */
 void updateGameOverScreen(void)
 {
     SceneMsg *msg;
     void *entity;
     if (gameover_inited == 0) {
-        setGameOverState(1);
+        setGameOverState(kGameOverStateMain);
         gMainSelect = 0;
         if (!gameover_validOption(0)) {
             do {
                 gMainSelect++;
-                if (gMainSelect >= 7) {
+                if (gMainSelect >= kGameOverMainMenuCount) {
                     gMainSelect = 0;
                     break;
                 }
@@ -232,7 +257,7 @@ void updateGameOverScreen(void)
     BlinkResurrectingCars();
     if (gSoftReset) {
         osRecvMesg(&audio_lock_queue, 0, 1);
-        msg = PC_CMD(GetCmd()); msg->unk2 = 1; osSendMesg(&audio_lock_queue, 0, 0);
+        msg = PC_CMD(GetCmd()); msg->cmd = AUDIO_CMD_STOP_SONG; osSendMesg(&audio_lock_queue, 0, 0);
         PC_CMD_SEND(&audio_command_queue, msg);
         UnloadTrack(gTrackNum);
         entity = gEnvList;
@@ -250,17 +275,17 @@ void updateGameOverScreen(void)
             multiPlayerBlit = 0;
         }
         ClearScreen(1);
-        gSkipToGameState = 1;
+        gSkipToGameState = SKIP_NONE;
         gameover_uninitScreen();
-        gNewGameState = 4;
+        gNewGameState = GS_TITLE;
         return;
     }
     switch (gGameOverState) {
-    case 1: controlMain(); break;
-    case 2:
-        if (gActiveEdges & 7) {
-            PlayStartABSound(4);
-            setGameOverState(1);
+    case kGameOverStateMain: controlMain(); break;
+    case kGameOverStateScore:
+        if (gActiveEdges & (BUTTON_ACCEPT | BUTTON_B)) {
+            PlayStartABSound(BUTTON_B);
+            setGameOverState(kGameOverStateMain);
         }
         break;
     }

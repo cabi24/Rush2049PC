@@ -1,3 +1,7 @@
+/* The options screen (MAT3 optionscr.c): the language and thirteen on/off game options (gOptions), a list of 3D
+ * buttons in the front end (GS_OPTIONS), a flat list in the pause menu. This file has its frame
+ * (updateOptionScreen), its tear-down and its buttons' layout; option_init.c sets it up and
+ * optionscr's animators draw its text. */
 #include "game/game.h"
 
 typedef union Color {
@@ -13,7 +17,14 @@ typedef struct {
     f32 pos[3];          /* 0x30 */
     u8 alpha;            /* 0x3C */
     u8 pad3D[3];
-} Button; /* 0x40 */
+} Button; /* 0x40, MAT3 tMenuButton */
+
+/* options_buttonInfo[]: the rows' buttons, a label and a value button for each of the 14 rows, then the cursor. */
+#define OPTIONS_ROWS 14
+#define OPTIONS_VALUE_BUTTON(i) ((i) + OPTIONS_ROWS)
+#define OPTIONS_CURSOR 28
+#define OPTIONS_BUTTONS 32
+#define OPTION_ROW_LANGUAGE 0
 
 VIEW(Color, options_buttonColor);
 #define options_buttonColor options_buttonColor_view
@@ -38,9 +49,10 @@ VIEW(intptr_t, options_blit);
 
 void RemoveBlit(intptr_t sound_id);
 
+/* Take the screen down: the pause menu's panes, the text blit, the background and the buttons. */
 void options_uninitScreen(void)
 {
-    if (!(gGameState & 0x7C03FFFE)) {
+    if (!(gGameState & GS_FRONTEND_MASK)) {
         RemovePanes(0);
         options_gTitlePane = 0;
     }
@@ -51,7 +63,7 @@ void options_uninitScreen(void)
     removeBG();
     {
         s32 i;
-        for (i = 0; i < 32; i++) {
+        for (i = 0; i < OPTIONS_BUTTONS; i++) {
             if (options_buttonInfo[i].handle != -1) {
                 RemoveObjectTree(options_buttonInfo[i].handle, 0, 0);
                 options_buttonInfo[i].handle = -1;
@@ -62,6 +74,11 @@ void options_uninitScreen(void)
     options_inited = 0;
 }
 
+/* Lay the 3D buttons out for this frame (front end only, once they exist). The cursor spins beside the selected
+ * row and eases towards it (its speed follows the distance, 180 to 540 a second). Each row's two buttons turn to
+ * show their selected face when the row is selected (a half turn at 4 pi a second), scroll so the selection stays in
+ * view (at most 540 a second), fade out at the top and bottom of the screen, and hide when the row isn't offered
+ * (options_validOption). */
 void options_updateButtons(void) {
     static f32 cursorSpeed;
     static f32 scrollSpeed;
@@ -71,14 +88,13 @@ void options_updateButtons(void) {
     f32 y;
     f32 old[3];
     f32 sel_y;
-    s8 flag;
+    s8 settled;
     intptr_t name;
     s32 yi;
-    s32 u0;
     s16 tex;
     Color color;
 
-    flag = 1;
+    settled = 1;
     color.rgba = options_buttonColor.rgba;
     if (options_buttonsInited == 0)
         return;
@@ -87,17 +103,17 @@ void options_updateButtons(void) {
         if (options_validOption[j] != 0)
             n++;
     }
-    memcpy(old, options_buttonInfo[28].pos, 12);
-    options_buttonInfo[28].ang += 6.2831855f * gFrameSeconds;
-    if (6.2831855f < options_buttonInfo[28].ang)
-        options_buttonInfo[28].ang -= 6.2831855f;
-    memcpy(options_buttonInfo[28].mat, unitmatrix, 36);
+    memcpy(old, options_buttonInfo[OPTIONS_CURSOR].pos, 12);
+    options_buttonInfo[OPTIONS_CURSOR].ang += 6.2831855f * gFrameSeconds;
+    if (6.2831855f < options_buttonInfo[OPTIONS_CURSOR].ang)
+        options_buttonInfo[OPTIONS_CURSOR].ang -= 6.2831855f;
+    memcpy(options_buttonInfo[OPTIONS_CURSOR].mat, unitmatrix, 36);
     sel_y = 75.0f - n * 165.0f / (gMenuCount - 1);
-    options_buttonInfo[28].pos[0] = -160.0f;
-    options_buttonInfo[28].pos[2] = 225.0f;
-    options_buttonInfo[28].pos[1] = sel_y;
+    options_buttonInfo[OPTIONS_CURSOR].pos[0] = -160.0f;
+    options_buttonInfo[OPTIONS_CURSOR].pos[2] = 225.0f;
+    options_buttonInfo[OPTIONS_CURSOR].pos[1] = sel_y;
     if (options_buttonsJustInited == 0) {
-        y = options_buttonInfo[28].pos[1];
+        y = options_buttonInfo[OPTIONS_CURSOR].pos[1];
         if (cursorSpeed < fabsf(y - old[1]) * 60.0f / 10.0f) {
             cursorSpeed = fabsf(y - old[1]) * 60.0f / 10.0f;
             if (!(cursorSpeed < 540.0f))
@@ -106,18 +122,17 @@ void options_updateButtons(void) {
                 cursorSpeed = 180.0f;
         }
         if (old[1] + cursorSpeed * gFrameSeconds < y)
-            options_buttonInfo[28].pos[1] = old[1] + cursorSpeed * gFrameSeconds;
+            options_buttonInfo[OPTIONS_CURSOR].pos[1] = old[1] + cursorSpeed * gFrameSeconds;
         else if (y < old[1] - cursorSpeed * gFrameSeconds)
-            options_buttonInfo[28].pos[1] = old[1] - cursorSpeed * gFrameSeconds;
+            options_buttonInfo[OPTIONS_CURSOR].pos[1] = old[1] - cursorSpeed * gFrameSeconds;
         else
             cursorSpeed = 180.0f;
     }
-    WRollUV(options_buttonInfo[28].ang, options_buttonInfo[28].mat);
-    WPitchUV(1.5707964f, options_buttonInfo[28].mat);
-    do {} while (0);
-    ScaleUV(options_buttonInfo[28].mat, options_buttonInfo[28].mat, 0.4f);
+    WRollUV(options_buttonInfo[OPTIONS_CURSOR].ang, options_buttonInfo[OPTIONS_CURSOR].mat);
+    WPitchUV(1.5707964f, options_buttonInfo[OPTIONS_CURSOR].mat);
+    ScaleUV(options_buttonInfo[OPTIONS_CURSOR].mat, options_buttonInfo[OPTIONS_CURSOR].mat, 0.4f);
     yi = sel_y * 1.33f + n * 40;
-    for (i = 0; i < 14; i++) {
+    for (i = 0; i < OPTIONS_ROWS; i++) {
         if (i == options_gSelectedOption) {
             if (options_buttonInfo[i].ang < 3.1415927f)
                 options_buttonInfo[i].ang += 12.566371f * gFrameSeconds;
@@ -147,10 +162,10 @@ void options_updateButtons(void) {
                     scrollSpeed = 540.0f;
             }
             if (old[1] + scrollSpeed * gFrameSeconds < options_buttonInfo[i].pos[1]) {
-                flag = 0;
+                settled = 0;
                 options_buttonInfo[i].pos[1] = old[1] + scrollSpeed * gFrameSeconds;
             } else if (options_buttonInfo[i].pos[1] < old[1] - scrollSpeed * gFrameSeconds) {
-                flag = 0;
+                settled = 0;
                 options_buttonInfo[i].pos[1] = old[1] - scrollSpeed * gFrameSeconds;
             }
         }
@@ -175,7 +190,6 @@ void options_updateButtons(void) {
             options_buttonInfo[i].alpha = 255;
         options_buttonInfo[i + 14].alpha = options_buttonInfo[i].alpha;
         color.c[3] = options_buttonInfo[i].alpha;
-        do {} while (0);
         ZOID_SetColor(options_buttonInfo[i].handle, &color);
         ZOID_SetColor(options_buttonInfo[i + 14].handle, &color);
         if (options_validOption[i] == 0) {
@@ -193,9 +207,7 @@ void options_updateButtons(void) {
             yi -= 40.0f;
         }
     }
-    if (yi) {}
-    if (yi) {}
-    if (flag == 1)
+    if (settled == 1)
         scrollSpeed = 0.0f;
     options_buttonsJustInited = 0;
 }
@@ -212,6 +224,12 @@ VIEW(s8[], gOptions);
 VIEW(Pad16[], gControllerData);
 #define gControllerData gControllerData_view
 
+/* The screen's frame. In the front end everyone's buttons count, in the pause menu only the pausing player's.
+ * Start or B leaves; up and down (auto-repeating) move between the offered rows, the list scrolling to keep the
+ * selection in its middle; left or right changes the row: the language (one of six, which reloads the texts) or
+ * flips the row's game option. In the pause menu a change applies at once (SetOptions), and the title changes when
+ * the pausing player's controller is pulled or put back. Leaving (or a soft reset) goes back to the start menu
+ * (the title on a reset) or to the pause menu's main page. */
 void updateOptionScreen(void) {
     Pad16 *p;
     s32 btn;
@@ -219,7 +237,7 @@ void updateOptionScreen(void) {
     s32 dir;
     s32 x;
 
-    if (gGameState & 0x7C03FFFE) {
+    if (gGameState & GS_FRONTEND_MASK) {
         btn = gActiveEdges;
         rep = gActiveAutoEdges;
     } else {
@@ -228,21 +246,21 @@ void updateOptionScreen(void) {
     }
     if (options_inited == 0)
         options_initScreen();
-    if (btn & 5) {
+    if (btn & (BUTTON_START | BUTTON_B)) {
         PlayStartABSound(btn);
         exitOptionScreen = 2;
-    } else if (rep & 0x400) {
+    } else if (rep & BUTTON_UP) {
         PlayUDSound(rep);
         do {
             options_gSelectedOption--;
             if (options_gSelectedOption < 0)
-                options_gSelectedOption = 13;
+                options_gSelectedOption = OPTIONS_ROWS - 1;
         } while (!options_validOption[options_gSelectedOption]);
-    } else if (rep & 0x800) {
+    } else if (rep & BUTTON_DOWN) {
         PlayUDSound(rep);
         do {
             options_gSelectedOption++;
-            if (options_gSelectedOption >= 14)
+            if (options_gSelectedOption >= OPTIONS_ROWS)
                 options_gSelectedOption = 0;
         } while (!options_validOption[options_gSelectedOption]);
     }
@@ -251,12 +269,12 @@ void updateOptionScreen(void) {
         options_gFirstOption = x;
     if (x < options_gFirstOption)
         options_gFirstOption = x;
-    if (14 - gOptionMenuSize < options_gFirstOption)
-        options_gFirstOption = 14 - gOptionMenuSize;
+    if (OPTIONS_ROWS - gOptionMenuSize < options_gFirstOption)
+        options_gFirstOption = OPTIONS_ROWS - gOptionMenuSize;
     if (options_gFirstOption < 0)
         options_gFirstOption = 0;
-    if (btn & 0x3000) {
-        dir = (btn & 0x1000) ? -1 : 1;
+    if (btn & (BUTTON_LEFT | BUTTON_RIGHT)) {
+        dir = (btn & BUTTON_LEFT) ? -1 : 1;
         PlayLRSound(btn);
         switch (options_gSelectedOption) {
         case 1:
@@ -298,7 +316,7 @@ void updateOptionScreen(void) {
         case 13:
             gOptions[11] ^= 1;
             break;
-        case 0:
+        case OPTION_ROW_LANGUAGE:
             gLang += dir;
             if (gLang < 0)
                 gLang = 5;
@@ -309,11 +327,11 @@ void updateOptionScreen(void) {
             LoadTextWave();
             break;
         }
-        if (!(gGameState & 0x7C03FFFE))
+        if (!(gGameState & GS_FRONTEND_MASK))
             SetOptions();
     }
     options_updateButtons();
-    if (gGameState & 0x7C0000) {
+    if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
         if (!p->b0 != options_gControllerRemoved) {
             options_gControllerRemoved = !p->b0;
@@ -322,15 +340,15 @@ void updateOptionScreen(void) {
     }
     if (gSoftReset) {
         options_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
-            gNewGameState = 4;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_TITLE;
         else
-            setPauseState(1);
+            setPauseState(kPauseMainScreen);
     } else if (exitOptionScreen) {
         options_uninitScreen();
-        if (gGameState & 0x7C03FFFE)
-            gNewGameState = 16;
+        if (gGameState & GS_FRONTEND_MASK)
+            gNewGameState = GS_START;
         else
-            setPauseState(1);
+            setPauseState(kPauseMainScreen);
     }
 }

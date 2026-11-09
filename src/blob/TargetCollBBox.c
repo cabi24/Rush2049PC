@@ -1,26 +1,39 @@
+/* TargetCollBBox: collision test 4 of the track objects (gTargetCollFuncPtrs[4], MAT3 targets.c _TargetCollBBox):
+ * a car against a target's box, for the solid moving targets (in MAT3's table: boulders, elevators, gondolas,
+ * trolleys). On a hit it applies the push itself (setMiniFBCollisionForce) and still reports no hit, so the
+ * target's start function never runs. */
 #include "game/game.h"
 
 typedef union {
     struct { f32 x, y, z; } c;
     f32 v[3];
 } Vector3;
+
+/* A track object (MAT3 tTarget): only owner, which for a box target is the index of its box record. */
 typedef struct CollisionObject { char unknown00[0x65]; s8 index; } CollisionObject;
+
+/* The model record's view (MAT3 tModelData, 0x808 bytes, kept in its N64 layout): what the test reads. */
 typedef struct {
     char unknown00[0xF4];
-    f32 corners[4][3];
+    f32 corners[4][3];      /* 0xF4 bodyR: the body's four corners, car space */
     char unknown124[0x654-0x124];
-    f32 radius;
+    f32 radius;             /* 0x654 colrad: the car's collision radius */
     char unknown658[0x794-0x658];
-    f32 position[3];
-    f32 basis[3][3];
+    f32 position[3];        /* 0x794 reckon.rwr: the dead-reckoned position */
+    f32 basis[3][3];        /* 0x7A0 reckon.uvs: its orientation */
     char unknown7C4[0x7EA-0x7C4];
-    s8 collidable;
+    s8 collidable;          /* 0x7EA */
     char unknown7EB[0x808-0x7EB];
 } CollisionModel;
+
+/* A box's extent (MAT3 tBBoxColl, BBoxCollInfo), in the box's own space. */
 typedef struct {
     f32 xmin, xmax, zmax, zmin, ymax, ymin, radius;
     f32 mass;
 } CollisionBounds;
+
+/* A moving box (MAT3 tMiniModelData, gBBoxModelStructs): its extent (a window address), orientation, position and
+ * velocity. */
 typedef struct CollisionReckon {
     unsigned int body;
     f32 basis[3][3];
@@ -31,7 +44,10 @@ typedef struct CollisionReckon {
 VIEW(CollisionReckon *, gBBoxModelStructs);
 #define gBBoxModelStructs gBBoxModelStructs_view
 
-s32 TargetCollBBox(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
+/* Test car *index against the box of target `object`. Nothing happens if the car isn't collidable or its circle
+ * doesn't reach the box's; else each of the car's four corners is taken into the box's space, and at the first
+ * that lies inside the box the push is applied. Always returns 0. */
+s32 TargetCollBBox(CollisionObject *object, s16 *index, void *unused3, s32 unused4) {
     CollisionModel *car;
     CollisionReckon *other;
     s32 mnum;

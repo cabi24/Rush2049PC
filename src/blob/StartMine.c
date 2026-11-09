@@ -1,48 +1,57 @@
+/* StartMine: the start function of a battle mine (MAT3 targets.c _StartMine). It runs when a car drives over a
+ * mine another car dropped (CheckTargetCollision through targetInfo[].start): the mine damages the car, and the
+ * mine's owner gets the credit. The mine's own animation (AnimateMine) then sees it stopped colliding and blows it
+ * up. */
 #include "game/game.h"
 
-typedef struct {
-    u8 pad000[0xE8];
-    s32 unkE8;
-    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad0EC_308[0x35B - 0x308];
-    u8 unk35B;
-    u8 pad35C[0x380 - 0x35C];
-    void *unk380;
-    u8 pad384[0x3A3 - 0x384];
-    u8 unk3A3;
-    u8 pad3A4[0x3B8 - 0x3A4];
-} GameCar;
+/* A track object (MAT3 tTarget, 0x70 bytes): a level-object node, kept in its N64 layout on the PC (its link and
+ * its per-kind data are 32-bit window addresses, docs/port/POINTERS.md 10). Only the fields this file reads. */
+typedef struct Target {
+    u8 pad00[4];
+    u8 flags;               /* 0x04 Flags: TARGET_ACTIVE */
+    u8 pad05[11];
+    s16 infoIdx;            /* 0x10 its kind: the index of its targetInfo record */
+    u8 pad12[0x38 - 0x12];
+    f32 matPos[3];          /* 0x38 mat's position, where its sounds play */
+    f32 pos[3];             /* 0x44 its position */
+    u8 pad50[0x5C - 0x50];
+    s8 slot;                /* 0x5C the car that hit it */
+    u8 pad5D[0x65 - 0x5D];
+    s8 owner;               /* 0x65 the car that dropped it */
+} Target;
 
-float fabsf(float);
-float sqrtf(float);
-#pragma intrinsic (fabsf)
-#pragma intrinsic (sqrtf)
+#define TARGET_ACTIVE 2         /* the target collides: AnimateMine blows up a mine without it */
 
-VIEW(M2C_UNK, targetInfo);
-#define targetInfo targetInfo_view
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The weapon (pc_car.kind, MAT3 battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
+ * makes the same exception for it. */
+#define WEAPON_FRONT_ARMOUR 5
+#define MINE_DAMAGE_FRONT_ARMOUR 280
+#define MINE_DAMAGE 800
 
-void StartMine(void *arg0) {
-    s32 pad;
-    GameCar *car;
+/* A car has driven over the mine: unless the car is already wrecked, it takes 800 damage (280 if it has the
+ * front-armour weapon and the mine is ahead of it), the mine is spent, and the mine's start sound plays. */
+void StartMine(Target *t)
+{
+    struct pc_car *car;
     f32 delta[3];
     f32 local[3];
-    if (PC_MODEL_CRASHFLAG(M2C_FIELD(arg0, s8 *, 0x5C)) == 0) {
-        car = PC_CAR(M2C_FIELD(arg0, s8 *, 0x5C));
-        if (M2C_FIELD(car, s8 *, CAR_OFS(0x384)) == 5) {
-            delta[0] = M2C_FIELD(arg0, f32 *, 0x44) - M2C_FIELD(car, f32 *, 8);
-            delta[1] = M2C_FIELD(arg0, f32 *, 0x48) - M2C_FIELD(car, f32 *, 12);
-            delta[2] = M2C_FIELD(arg0, f32 *, 0x4C) - M2C_FIELD(car, f32 *, 16);
-            BodyVector(delta, local, (u8 *)car + 0x2C);
+
+    if (PC_MODEL_CRASHFLAG(t->slot) == 0) {
+        car = PC_CAR(t->slot);
+        if (car->kind == WEAPON_FRONT_ARMOUR) {
+            delta[0] = t->pos[0] - car->pos[0];
+            delta[1] = t->pos[1] - car->pos[1];
+            delta[2] = t->pos[2] - car->pos[2];
+            BodyVector(delta, local, car->uvs[0]);
             if (local[2] >= 0.0f) {
-                BattleDamage(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x118);
+                BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE_FRONT_ARMOUR);
             } else {
-                BattleDamage(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x320);
+                BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
             }
         } else {
-            BattleDamage(PC_CAR(M2C_FIELD(arg0, s8 *, 0x65)), car, 0x320);
+            BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
         }
-        M2C_FIELD(arg0, u8 *, 4) &= 0xFFFD;
-        /* the target type's start sound, targetInfo[type].startSnd (N64 +0x1C) */
-        PlayTargetSound(*(s32 *)((u8 *)&targetInfo + M2C_FIELD(arg0, s16 *, 0x10) * TINFO_OFS(0x30) + TINFO_OFS(0x1C)), M2C_FIELD(arg0, s8 *, 0x5C), (u8 *)arg0 + 0x38, 2);
+        t->flags &= ~TARGET_ACTIVE;
+        PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
     }
 }

@@ -1,8 +1,165 @@
-/* include/game/frontend.h: the front end's screens (runtime image A) */
+/* include/game/frontend.h: the front end's screens (runtime image A and the game image's option, controls, pause,
+ * high-score and game-over screens), the track objects' start and animation functions, and the MusyX glue
+ * (docs/code/frontend.md). */
 #ifndef GAME_FRONTEND_H
 #define GAME_FRONTEND_H
 
 #include "game/types.h"
+
+/* ---- Constants. Names from MAT3 where it has them: the GS_ states are its rush_flags.h's, the k names its
+ * rush_types.h enums'. Macros, each spelled as MAT3 spells it, so that a file that defines the same one
+ * (resurrect.c: kOneRace ... kBattle, GS_DEMO) agrees with this one. The game states, the buttons, the race types
+ * and the pause states are the whole game's: they belong in race.h and input.h once the areas are merged. */
+
+/* gGameState: the game's state, one bit set. setGameState asks for one; updateGameState switches at the top of the
+ * next frame (uninitGameState, initGameState). The front-end states are dispatched by updateFrontEnd, the race's by
+ * UpdateGame. */
+#define GS_BOOT          0x1        /* one-time init, then GS_LICENSE */
+#define GS_LICENSE       0x2        /* updateLicenseScreen */
+#define GS_TITLE         0x4        /* updateTitleScreen */
+#define GS_DEMO          0x8        /* the attract-mode race, every car a drone */
+#define GS_START         0x10       /* updateStartScreen */
+#define GS_PLAYER        0x20       /* updatePlayerScreen */
+#define GS_MODE          0x40       /* updateModeScreen */
+#define GS_TRACK         0x80       /* updateTrackScreen */
+#define GS_CAR           0x100      /* updateCarScreen */
+#define GS_OPTIONS       0x200      /* updateOptionScreen */
+#define GS_CONTROLS      0x400      /* updateControlScreen */
+#define GS_AUDIO         0x800      /* updateAudioScreen */
+#define GS_VIDEO         0x1000     /* updateVideoScreen */
+#define GS_RECORDS       0x2000     /* updateRecordScreen */
+#define GS_CIRCUIT       0x4000     /* updateCircuitScreen */
+#define GS_GAME_INIT     0x40000    /* the race's set-up */
+#define GS_PREPLAY       0x80000    /* the track streams in, then GS_COUNTDOWN */
+#define GS_GO            0x100000   /* the countdown hit zero */
+#define GS_COUNTDOWN     0x200000   /* the start countdown */
+#define GS_RACING        0x400000   /* the race proper */
+#define GS_GAME_OVER     0x800000   /* updateGameOverScreen */
+#define GS_END_GAME      0x1000000  /* the race torn down */
+#define GS_HIGH_SCORE    0x2000000  /* updateHighScoreScreen */
+#define GS_PAK           0x4000000  /* updatePakScreen: the controller-pak manager */
+#define GS_CHEAT         0x8000000  /* updateCheatScreen */
+#define GS_WARNING       0x40000000 /* updateWarningScreen */
+#define GS_FRONTEND_MASK 0x7C03FFFE /* every state updateFrontEnd handles (the menus, title, demo, pak and warning) */
+#define GS_RACE_MASK     0x7C0000   /* the race's set-up through the race: GS_GAME_INIT ... GS_RACING */
+
+/* gSkipToGameState: the screen the front end goes straight on to after a race (the game-over menu's new mode,
+ * track, car ...: each screen on the way passes the player through until it reaches it), or SKIP_NONE. */
+#define SKIP_NONE        GS_BOOT
+
+/* The game's buttons, as gActiveEdges, gActiveAutoEdges and the per-pad edge words hold them. ControllerUpdate maps
+ * the pad's buttons into these bits through the cartridge's n64_button_map; ControlIRQ adds the stick as the d-pad
+ * for the menus. Start, A and B by PlayStartABSound, the directions by PlayUDSound, PlayLRSound and ControlIRQ. */
+#define BUTTON_START     0x1
+#define BUTTON_A         0x2
+#define BUTTON_B         0x4
+#define BUTTON_UP        0x400
+#define BUTTON_DOWN      0x800
+#define BUTTON_LEFT      0x1000
+#define BUTTON_RIGHT     0x2000
+#define BUTTON_ACCEPT    (BUTTON_START | BUTTON_A)  /* what every menu takes as "go on" */
+
+/* gRace: the race type (MAT3 enum_kNumRaceTypes); the mode menu's rows in this order. */
+#define kOneRace 0
+#define kPractice 1
+#define kGhost 2
+#define kCircuit 3
+#define kStunt 4
+#define kObstacle 5
+#define kBattle 6
+#define kNumRaceTypes 7
+
+/* gPauseState (MAT3 enum_kNumPauseStates): kNoPause while the race runs. */
+#define kNoPause 0
+#define kPauseMainScreen 1
+#define kPauseAudioScreen 2
+#define kPauseVideoScreen 3
+#define kPauseControlsScreen 4
+#define kPauseOptionsScreen 5
+#define kPauseRumbleScreen 6
+#define kPauseRestart 7
+#define kPauseQuit 8
+
+/* The text engine's justification (TB_SetJust(horizontal, vertical); MAT3 enum_kTB_JustBottom) and colours
+ * (TB_SetTextColor; MAT3 enum_kTB_FlashText: kTB_FlashText alternates between the two colours TB_FlashTextColors
+ * set, the selected row's look). The text engine's: they belong in text.h once the areas are merged. */
+#define kTB_JustLeft 0
+#define kTB_JustCenter 1
+#define kTB_JustRight 2
+#define kTB_JustTop 3
+#define kTB_JustBottom 4
+#define kTB_BlackText 0
+#define kTB_WhiteText 1
+#define kTB_GrayText 2
+#define kTB_MedGryText 3
+#define kTB_DrkGryText 4
+#define kTB_RedText 5
+#define kTB_MagentaText 6
+#define kTB_BlueText 7
+#define kTB_MedBlueText 8
+#define kTB_DrkBlueText 9
+#define kTB_CyanText 10
+#define kTB_GreenText 11
+#define kTB_MedGrnText 12
+#define kTB_DrkGrnText 13
+#define kTB_YellowText 14
+#define kTB_DrkYelText 15
+#define kTB_YelBlkText 16
+#define kTB_YelRedText 17
+#define kTB_RedYelText 18
+#define kTB_RedRedText 19
+#define kTB_CynCynText 20
+#define kTB_CynGrnText 21
+#define kTB_FlashText 22
+
+/* The controller-pak manager's state (gState, MAT3 enum_kNumStates). */
+#define kStatePickPak 0
+#define kStateFileDel 1
+#define kStateFileDelVerify 2
+#define kStateRumblePak 3           /* the chosen pak is a Rumble Pak: a notice */
+#define kStateDamaged 4             /* the chosen pak is damaged: a notice */
+
+/* The player (profile select) screen: each window's state (gPlayerState[], MAT3 enum_kPlayerStateCount). */
+#define kPlayerStateSelect 0
+#define kPlayerStateWait 1          /* chosen: waiting for the others */
+#define kPlayerStateControls 2
+#define kPlayerStateCreatePlayer 3
+#define kPlayerStateDeletePlayer 4
+#define kPlayerStatePakFull 5
+#define kPlayerStatePakDamaged 6
+#define kPlayerStatePaks 7
+
+/* The high-score screen's state (gHighScoreState, MAT3 enum_kNumHighScoreStates): the pages after a race, in the
+ * order they come. */
+#define kHighScoreNone 0            /* off: the screen is torn down and the game goes on to the game-over menu */
+#define kHighScoreUnlocked 1        /* what the race unlocked, per player */
+#define kHighScoreCircuitCode 2     /* the circuit's code */
+#define kHighScoreNames 3           /* name entry for the players who made the tables */
+#define kHighScoreGhost 4           /* the ghost save menu */
+#define kHighScoreScores 5          /* the tables */
+/* Its ghost menu's rows (gGhostMenuSelect) and a pak's ghost for this track (gGhostStatus[pak]). */
+#define kGhostMenuPak 0             /* left and right pick the pak */
+#define kGhostMenuStatus 1          /* the pak's status: never selectable */
+#define kGhostMenuSave 2
+#define kGhostMenuNoSave 3
+#define kGhostMenuCount 4
+#define kGhostNone 0                /* no ghost of this track there: save */
+#define kGhostMine 1                /* this profile's: ask before overwriting it */
+#define kGhostOther 2               /* another profile's: can't save */
+#define kGhostNotSame 3
+
+/* The game-over screen (gameover.c): its state (gGameOverState) and its menu's rows (gMainSelect). */
+#define kGameOverStateNone 0
+#define kGameOverStateMain 1
+#define kGameOverStateScore 2
+#define kGameOverMainMenuScore 0
+#define kGameOverMainMenuRaceAgain 1
+#define kGameOverMainMenuNewMode 2
+#define kGameOverMainMenuNewTrack 3
+#define kGameOverMainMenuNewCar 4
+#define kGameOverMainMenuNextRace 5
+#define kGameOverMainMenuQuit 6
+#define kGameOverMainMenuCount 7
 
 /* Data */
 extern s32 build_date_text;
@@ -666,16 +823,16 @@ extern f32 trackscr_InitScreen_fogPos[EXTENT(3)];
 /* Functions */
 s32 anim_car_color_marker(struct Blit *blt);
 s32 animArrows(struct Blit *blt);
-s32 animate_blit_unchanged(s32 arg0);
-s32 animate_pause_dim(void *arg0);
-void AnimateCoin(struct Node *node, s16 update);
-void AnimateFlag(struct Obj *obj, s16 mode);
-void AnimateKnockdown(void *arg0, s16 arg1);
+s32 animate_blit_unchanged(s32 blit);
+s32 animate_pause_dim(void *blit);
+void AnimateCoin(struct Visual *v, s16 op);
+void AnimateFlag(struct Visual *v, s16 op);
+void AnimateKnockdown(struct pc_visual *v, s16 op);
 void AnimateMine(struct Visual *v, s16 op);
-void AnimateRotGeneric(void *arg0, s16 arg1);
-void AnimateVelRotGeneric(struct Obj *obj, s16 mode);
+void AnimateRotGeneric(struct pc_visual *v, s16 op);
+void AnimateVelRotGeneric(struct Visual *v, s16 op);
 void AnimateWeaponIcon(struct Visual *v, s16 op);
-s32 animControllerDim(void *arg0);
+s32 animControllerDim(void *blit);
 s32 animControls(struct Blit *blt);
 s32 animPause(struct Blit *blt);
 s32 animPauseText(struct MenuItem *item);
@@ -700,7 +857,7 @@ void calcProgressSize(void);
 void calcSelectMenuMaxSize(void);
 void calcStats(s32 player);
 void calcValidOptions(s32 player);
-s32 CancelFunc(s32 arg0);
+s32 CancelFunc(s32 pak);
 s32 carscr_animNewSlider(struct Blit *blt);
 s32 carscr_animText(struct Blit *blt);
 void carscr_initButtons(s8 p);
@@ -709,7 +866,7 @@ void carscr_uninitButtons(s8 p);
 void carscr_UninitScreen(void);
 void carscr_updateButtons(s8 p);
 s32 carscr_validOption(s32 player, s32 item);
-u8 censor(intptr_t arg);
+u8 censor(intptr_t name);
 s32 cheatscr_animText(struct Blit *blit);
 void cheatscr_initScreen(void);
 void cheatscr_printOption(s32 x, s32 y, s32 item, u8 *name, u8 *value);
@@ -742,7 +899,7 @@ void controlPakFull(s32 p);
 void ControlPickPak(void);
 void ControlRumblePak(void);
 void controls_animButtonText(s8 p);
-s32 controls_animText(s32 arg0);
+s32 controls_animText(s32 blit);
 void controls_initButtons(s8 player);
 void controls_uninitButtons(s8 row);
 void controlShowTrophy(void);
@@ -785,9 +942,9 @@ void drawUnlockedParts(void);
 void drawUnlockedTracks(void);
 void drawWait(s32 player);
 void FindGhosts(s32 pak);
-s32 gameover_animText(s32 arg0);
+s32 gameover_animText(s32 blit);
 void gameover_uninitScreen(void);
-s32 gameover_validOption(s32 arg0);
+s32 gameover_validOption(s32 option);
 void getFinishedStr(u8 *destination);
 void getFinishPlaceStr(s32 p, u8 *str);
 struct Record **getNextGhost(struct Record **node, s8 direction);
@@ -802,7 +959,7 @@ void InitEgg(s32 egg);
 void initRecordScreen(void);
 void InitSelectCarLoad(void);
 void InitVisualsCarScr(void);
-s32 licensescr_animText(s32 arg0);
+s32 licensescr_animText(s32 blit);
 void loadPathData(void);
 s32 LoadSelectCar(s16 slot, s16 index, s32 *waveInst);
 void loadTrackScreen(void);
@@ -814,12 +971,12 @@ s32 modescr_optionValid(s32 index);
 void modescr_uninitButtons(void);
 void modescr_uninitScreen(void);
 void modescr_updateButtons(void);
-void *musyx_alloc(s32 arg0, s32 arg1);
-intptr_t musyx_cart_address(intptr_t arg0);
-void musyx_clear_retrace_callback(s32 arg0);
+void *musyx_alloc(s32 size, s32 alignment);
+intptr_t musyx_cart_address(intptr_t offset);
+void musyx_clear_retrace_callback(s32 callback);
 void musyx_free(u32 address);
-s32 musyx_set_retrace_callback(intptr_t arg0);
-s32 musyx_start_dma_list(intptr_t arg0, s32 arg1, intptr_t arg2);
+s32 musyx_set_retrace_callback(intptr_t callback);
+s32 musyx_start_dma_list(intptr_t reqs, s32 count, intptr_t doneQueue);
 void musyx_wait_audio_task(void);
 s32 options_animText(void *item);
 void options_initScreen(void);
@@ -869,12 +1026,12 @@ void SetState(s32 mode);
 void showCarSelect(void);
 void showGridMap(s32 enabled);
 void showTrackSelect(void);
-void StartCactus(void *arg0);
-void StartCoin(void *arg0);
-void StartCone(struct Obj *obj);
-void StartFence(void *arg0);
+void StartCactus(struct Target *t);
+void StartCoin(struct Target *t);
+void StartCone(struct Target *t);
+void StartFence(struct Target *t);
 void StartKnockdown(struct Target *t);
-void StartMine(void *arg0);
+void StartMine(struct Target *t);
 void startscr_animButtonText(void);
 s32 startscr_animText(void *callback_context);
 void startscr_initButtons(void);
@@ -886,13 +1043,13 @@ void startscr_uninitScreen(void);
 void startscr_updateButtons(void);
 void StartWeaponIcon(struct Target *t);
 void StartWindow(struct Target *t);
-s32 TargetColl3Piece(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
-s32 TargetCollBBox(struct CollisionObject *object, s16 *index, void *arg2, s32 arg3);
+s32 TargetColl3Piece(s32 target, s32 slotp, s32 unused2, s32 unused3);
+s32 TargetCollBBox(struct CollisionObject *object, s16 *index, void *unused3, s32 unused4);
 s32 TargetCollCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist);
 s32 TargetCollMineCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist);
 s32 TargetCollRadius(s16 *player_index, f32 *point, f32 *radius_in, f32 *radial_error);
-s32 TargetCollTrigger(struct Camera *cam, s16 *player, s32 arg2, s32 arg3);
-s32 titlescr_animText(s32 arg0);
+s32 TargetCollTrigger(struct Target *t, s16 *player, s32 unused3, s32 unused4);
+s32 titlescr_animText(s32 blit);
 void trackscr_animButtonText(void);
 s32 trackscr_animNewSlider(struct Blit *blt);
 s32 trackscr_animText(void *callback_context);
@@ -937,6 +1094,6 @@ void updateWarningScreen(void);
 void video_animButtonText(void);
 s32 video_animPanes(void *item);
 s32 video_animText(s32 arg0);
-s32 warningscr_animText(s32 arg0);
+s32 warningscr_animText(s32 blit);
 
 #endif /* GAME_FRONTEND_H */

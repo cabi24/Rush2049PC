@@ -1,3 +1,6 @@
+/* updateTitleScreen: the title screen (MAT3 titlescr.c updateTitleScreen), GS_TITLE: Start goes on to the start
+ * menu, five seconds without it start the attract mode (GS_DEMO). After a race it passes the player straight on
+ * (gSkipToGameState). */
 #include "game/game.h"
 
 typedef struct Blit Blit;
@@ -9,8 +12,9 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
+/* A player's pad record (MAT3 tPadState, gPlayers). */
 typedef struct PlayerStatus {
-    unsigned char header, state, rest[0x48 - 2]; void *ref;
+    unsigned char slot, controller, rest[0x48 - 2]; void *ref;
 } PlayerStatus;
 
 VIEW(MultiBlit[], titlescr_blits);
@@ -24,16 +28,23 @@ extern void RemoveBlit(Blit *);
 
 extern s32 CountdownTimeOut(void);
 
+#define SND_START 0x4F              /* the effect Start plays here */
+#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
+
+/* The screen's frame. The first frame puts up its blits and starts a 5-second timer; a soft reset is over once the
+ * title is back. Start: player 1 takes controller 1 (the others none, until the player screen) and the start
+ * menu opens; the time running out starts the attract mode. */
 void updateTitleScreen(void)
 {
     s32 i;
-    if (gSkipToGameState != 1) {
+    if (gSkipToGameState != SKIP_NONE) {
         if (gSkipToGameState != gGameState) {
-            setGameState(0x10);
+            setGameState(GS_START);
             return;
         }
-        gSkipToGameState = 1;
+        gSkipToGameState = SKIP_NONE;
     }
+    /* What is left of the intro movie (MAT3 plays one): no movie, so this only counts gIntroMovieShown up to 2. */
     if (movieIdx != -1)
         movieIdx = -1;
     if (movieIdx == -1 && gIntroMovieShown < 2) {
@@ -52,7 +63,7 @@ void updateTitleScreen(void)
         }
         ClearRushControls();
     }
-    if (gActiveEdges & 1) {
+    if (gActiveEdges & BUTTON_START) {
         if (movieIdx != -1)
             movieIdx = -1;
         if (titlescr_blit) {
@@ -60,17 +71,17 @@ void updateTitleScreen(void)
             titlescr_blit = 0;
         }
         titlescr_inited = 0;
-        AudPlayEffect(0x4F, 0, 1, 0);
-        gPlayers[0].state = 0;
+        AudPlayEffect(SND_START, 0, 1, 0);
+        gPlayers[0].controller = 0;
         for (i = 1; i < 4; i++)
-            gPlayers[i].state = 5;
-        setGameState(0x10);
+            gPlayers[i].controller = CONTROLLER_NONE;
+        setGameState(GS_START);
     } else if (CountdownTimeOut()) {
         if (titlescr_blit) {
             RemoveBlit(titlescr_blit);
             titlescr_blit = 0;
         }
         titlescr_inited = 0;
-        setGameState(8);
+        setGameState(GS_DEMO);
     }
 }
