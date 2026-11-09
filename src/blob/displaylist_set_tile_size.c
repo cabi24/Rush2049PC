@@ -5,13 +5,6 @@
 
 /* A display list command: two big-endian words. */
 typedef struct Command {u32 w0,w1;} Command;
-/* PC: the WAD's TXLD lists stay in N64 form, 8-byte big-endian commands (port/assets/wad.c). */
-#define DLW(w) pc_be32_get(&(w))
-#define DLW_SET(w, v) pc_be32_set(&(w), v)
-
-/* The F3DEX2 commands looked for, in a command's top byte. */
-#define GBI_SETTILESIZE 0xF2
-#define GBI_ENDDL       0xDF
 
 /* In every G_SETTILESIZE of the display list `commands` up to its G_ENDDL, set the tile's corners: uls and ult the
  * upper left (bits 12-23 and 0-11 of the first word), lrs and lrt the lower right (of the second word), in the
@@ -24,7 +17,7 @@ void displaylist_set_tile_size(Command *commands,s32 uls,s32 ult,s32 lrs,s32 lrt
     for(;;commands++){
         opcode=(DLW(commands->w0)&0xff000000)>>24;
         if((opcode&0xc0)==0x40 || (opcode&0xc0)==0x80 || (opcode>=9 && opcode<64) || (opcode>=192 && opcode<214))continue;
-        if(opcode==GBI_SETTILESIZE){
+        if(opcode==G_SETTILESIZE){
             if(uls>=0){
                 size=((DLW(commands->w1)&0x00fff000)>>12)+4;
                 if(width<0)width=size;
@@ -41,6 +34,6 @@ void displaylist_set_tile_size(Command *commands,s32 uls,s32 ult,s32 lrs,s32 lrt
             }
             if(lrs>=0)DLW_SET(commands->w1, (DLW(commands->w1)&0xff000fff)|(lrs<<12));
             if(lrt>=0)DLW_SET(commands->w1, (DLW(commands->w1)&0xfffff000)|lrt);
-        }else if(opcode==GBI_ENDDL)break;
+        }else if(opcode==G_ENDDL)break;
     }
 }

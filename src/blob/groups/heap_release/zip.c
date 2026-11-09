@@ -1,4 +1,5 @@
 #include "game/game.h"
+#include "game/zlib_deflate.h"
 
 /* zip (MAT3 zip.c): the game's one-shot compressor, zlib's deflate in one call: a z_stream on the stack, zlib
  * 1.0.4's deflateInit2_ (without its checks), deflateReset and lm_init written out, one deflate_slow pass over all
@@ -7,21 +8,6 @@
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
-
-#define local  /* zlib's file-static functions: globals made internal by uld -kp */
-#define OF(args) args
-#define FAR
-#define Z_NULL 0
-#define zmemcpy memcpy
-#define zmemzero(dest, len) memset(dest, 0, len)
-#define Assert(cond, msg)
-#define Trace(x)
-#define Tracev(x)
-#define Tracevv(x)
-#define Tracec(c, x)
-#define Tracecv(c, x)
-#define TRUNCATE_BLOCK
-#define check_match(s, start, match, length)
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
@@ -36,11 +22,6 @@ typedef unsigned short ush;
 typedef ush FAR ushf;
 typedef unsigned int  ulg;
 
-#define Z_NO_FLUSH      0
-#define Z_FINISH        4
-#define Z_BINARY   0
-#define Z_ASCII    1
-
 /* the game's z_stream: 1.0.4 minus msg and everything after state */
 typedef struct z_stream_s {
     Bytef    *next_in;
@@ -52,25 +33,6 @@ typedef struct z_stream_s {
     struct internal_state FAR *state;
 } z_stream;
 typedef z_stream FAR *z_streamp;
-
-#define STORED_BLOCK 0
-#define STATIC_TREES 1
-#define DYN_TREES    2
-#define MIN_MATCH  3
-#define MAX_MATCH  258
-
-#define LENGTH_CODES 29
-#define LITERALS  256
-#define L_CODES (LITERALS+1+LENGTH_CODES)
-#define D_CODES   30
-#define BL_CODES  19
-#define HEAP_SIZE (2*L_CODES+1)
-#define MAX_BITS 15
-
-#define Freq fc.freq
-#define Code fc.code
-#define Dad  dl.dad
-#define Len  dl.len
 
 typedef struct static_tree_desc_s  static_tree_desc;
 
@@ -141,24 +103,9 @@ typedef struct internal_state {
     int bi_valid;
 } FAR deflate_state;
 
-#define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
-#define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
-#define MAX_DIST(s)  ((s)->w_size-MIN_LOOKAHEAD)
-#define d_code(dist) \
-   ((dist) < 256 ? dist_code[dist] : dist_code[256+((dist)>>7)])
-
-#define NIL 0
-#define Buf_size (8 * 2*sizeof(char))
-#define TOO_FAR 4096
-
 VIEW(config[10], configuration_table);
 #define configuration_table configuration_table_view
-#define NIL 0
 
-/* The heap's API takes N64 addresses: PC_N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define FREECALL(p) zcfree((voidpf)(p))
-
-#define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }
 
 /* Compresses avail_in bytes at next_in into next_out (avail_out bytes of room) at zlib level level, with a window

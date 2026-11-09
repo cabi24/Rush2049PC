@@ -7,6 +7,7 @@
 
 #include "game/m2c.h"       /* what the decompiler left in the code: M2C_FIELD, M2C_UNK */
 #include "game/view.h"      /* VIEW: a file's own view of a shared datum */
+#include "game/gbi.h"       /* the display-list encodings (F3DEX2 and RDP commands, modes, formats) */
 
 #include "game/system.h"    /* start-up, threads, the scheduler, timers, the frame pipeline, video, the overlays */
 #include "game/memory.h"    /* the heap, the asset wads and waves, lists and trees */

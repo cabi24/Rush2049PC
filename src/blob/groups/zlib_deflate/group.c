@@ -8,6 +8,7 @@
  */
 
 #include "game/game.h"
+#include "game/zlib_deflate.h"
 
 /* zlib name -> game label */
 #define _tr_stored_block    tr_stored_block
@@ -18,21 +19,6 @@
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
-
-#define local  /* zlib's file-static functions: globals made internal by uld -kp */
-#define OF(args) args
-#define FAR
-#define Z_NULL 0
-#define zmemcpy memcpy
-#define zmemzero(dest, len) memset(dest, 0, len)
-#define Assert(cond, msg)
-#define Trace(x)
-#define Tracev(x)
-#define Tracevv(x)
-#define Tracec(c, x)
-#define Tracecv(c, x)
-#define TRUNCATE_BLOCK
-#define check_match(s, start, match, length)
 
 typedef unsigned char  Byte;
 typedef unsigned int   uInt;
@@ -49,11 +35,6 @@ typedef ush FAR ushf;
 typedef unsigned int  ulg;
 #define N64_LONG int
 
-#define Z_NO_FLUSH      0
-#define Z_FINISH        4
-#define Z_BINARY   0
-#define Z_ASCII    1
-
 /* the game's z_stream: 1.0.4 minus msg and everything after state */
 typedef struct z_stream_s {
     Bytef    *next_in;
@@ -65,25 +46,6 @@ typedef struct z_stream_s {
     struct internal_state FAR *state;
 } z_stream;
 typedef z_stream FAR *z_streamp;
-
-#define STORED_BLOCK 0
-#define STATIC_TREES 1
-#define DYN_TREES    2
-#define MIN_MATCH  3
-#define MAX_MATCH  258
-
-#define LENGTH_CODES 29
-#define LITERALS  256
-#define L_CODES (LITERALS+1+LENGTH_CODES)
-#define D_CODES   30
-#define BL_CODES  19
-#define HEAP_SIZE (2*L_CODES+1)
-#define MAX_BITS 15
-
-#define Freq fc.freq
-#define Code fc.code
-#define Dad  dl.dad
-#define Len  dl.len
 
 typedef struct static_tree_desc_s  static_tree_desc;
 
@@ -154,16 +116,6 @@ typedef struct internal_state {
     int bi_valid;
 } FAR deflate_state;
 
-#define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
-#define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
-#define MAX_DIST(s)  ((s)->w_size-MIN_LOOKAHEAD)
-#define d_code(dist) \
-   ((dist) < 256 ? dist_code[dist] : dist_code[256+((dist)>>7)])
-
-#define NIL 0
-#define Buf_size (8 * 2*sizeof(char))
-#define TOO_FAR 4096
-
 typedef enum {
     need_more,
     block_done,
@@ -210,7 +162,6 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
 #define REPZ_11_138  18
 /* repeat a zero length 11-138 times  (7 bits of repeat count) */
 
-
 VIEW(int[LENGTH_CODES], extra_lbits);
 #define extra_lbits extra_lbits_view
 VIEW(int[D_CODES], extra_dbits);
@@ -248,13 +199,6 @@ VIEW(config[10], configuration_table);
      { if (verbose>2) fprintf(stderr,"\ncd %3d ",(c)); \
        send_bits(s, tree[c].Code, tree[c].Len); }
 #endif
-
-#define d_code(dist) \
-   ((dist) < 256 ? dist_code[dist] : dist_code[256+((dist)>>7)])
-/* Mapping from a distance to a distance code. dist is the distance - 1 and
- * must not have side effects. dist_code[256] and dist_code[257] are never
- * used.
- */
 
 /* ===========================================================================
  * Output a short LSB first on the stream.
@@ -311,7 +255,6 @@ local void send_bits(s, value, length)
   }\
 }
 #endif /* DEBUG */
-
 
 #define MAX(a,b) (a >= b ? a : b)
 /* the arguments must not have side effects */
@@ -434,7 +377,6 @@ local void init_block(s)
 
 #define SMALLEST 1
 /* Index within the heap array of least frequent node in the Huffman tree */
-
 
 /* ===========================================================================
  * Remove the smallest element from the heap and recreate the heap with
@@ -852,7 +794,6 @@ ulg _tr_flush_block(s, buf, stored_len, eof)
     /* Build the Huffman trees unless a stored block is forced */
     if (s->level > 0) {
 
-
 	/* Construct the literal and distance trees */
 	build_tree(s, (tree_desc *)(&(s->l_desc)));
 	Tracev((stderr, "\nlit data: dyn %ld, stat %ld", s->opt_len,
@@ -1091,7 +1032,6 @@ local void copy_block(s, buf, len, header)
 
 #define UPDATE_HASH(s,h,c) (h = (((h)<<s->hash_shift) ^ (c)) & s->hash_mask)
 
-
 /* ===========================================================================
  * Insert string str in the dictionary and set match_head to the previous head
  * of the hash chain (the most recent string with same hash key). Return
@@ -1112,7 +1052,6 @@ local void copy_block(s, buf, len, header)
 #define CLEAR_HASH(s) \
     s->head[s->hash_size-1] = NIL; \
     zmemzero((charf *)s->head, (unsigned)(s->hash_size-1)*sizeof(*s->head));
-
 
 local void flush_pending(strm)
     z_streamp strm;
@@ -1396,7 +1335,6 @@ local void fill_window(s)
    if (s->strm->avail_out == 0) return (eof) ? finish_started : need_more; \
 }
 
-
 local block_state deflate_slow(s)
     deflate_state *s;
 {
@@ -1510,8 +1448,6 @@ extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
 VIEW(char[], heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
-
-#define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 
 /* Frees ptr's heap chunk under the heap lock (zlib's TRY_FREE). */
 __inline void zfree_locked(voidpf ptr)

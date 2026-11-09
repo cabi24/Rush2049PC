@@ -112,7 +112,6 @@ void DrawUnlocked(void)
     }
 }
 
-#define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles */
 #define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
 VIEW(char[], highscore_gCircuitCode);

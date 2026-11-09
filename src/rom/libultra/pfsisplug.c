@@ -81,7 +81,6 @@ void __osPfsRequestData(u8 cmd) {
 }
 
 /* Reads the status osPfsIsPlug asked into data, and the ports with a pak into *pattern. */
-#define CHNL_ERR(format) (((format).rxsize & 0xC0) >> 4)
 extern u8 __osPfsPifRam[64];
 extern u8 __osMaxControllers;
 void __osPfsGetInitData(u8* pattern, OSContStatus* data) {
@@ -106,4 +105,3 @@ void __osPfsGetInitData(u8* pattern, OSContStatus* data) {
     }
     *pattern = bits;
 }
-

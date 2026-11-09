@@ -57,7 +57,6 @@ extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 #define TEXT_PLAYER 29                  /* single[]: "player", in each window's title */
 #define TEXT_CONTROLS_BUTTON 51         /* single[]: the controls button's label */
 #define TEXT_SELECT_ROWS 21             /* tab[]: the select menu's rows' names */
-#define TEXT_YES_NO 24                  /* tab[]: yes, no */
 
 /* 1 if profile `owner` is held by a player other than `skip`, else 0 (also for no profile). */
 s32 playerClaimed(s32 skip,Profile **owner)

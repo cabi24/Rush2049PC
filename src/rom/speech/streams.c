@@ -12,7 +12,6 @@
 #include "../rom_tu.h"
 
 #define SPEECH_STREAMS 2                        /* streams that can play at once */
-#define SPEECH_FRAME_SAMPLES 160                /* one GSM frame */
 #define SPEECH_FLAG_STATIC_BUFFERS 1            /* speech_init's flags: allocate both rings once, at the largest size */
 #define SPEECH_STATIC_BUFFER_SAMPLES 4320       /* the ring speech_play sizes for 16 kHz */
 

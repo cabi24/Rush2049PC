@@ -17,11 +17,6 @@ typedef struct surftyp {
 
 /* A vertex's position in feet (sverttyp: whole feet and 32nds). */
 
-#define DECODE(v, e) \
-    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
-    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
-    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
-
 /* Does the segment from `p1` down to `p2` pass through surface `poly`? Both ends go into the surface's frame (`mat`
  * gets it): p1 must be on or above it and p2 on or below it; the crossing point then walks the edges as in
  * PointInSurf: outside an edge it is a miss when `flag` is positive, else it counts if within sqrt(`rad2`) of the
@@ -50,7 +45,7 @@ s16 CylinderInSurf(surftyp *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *m
     *outIdx = DecodeVlist((u8 *) (stree_vlist + poly->vli), n, (s16 *) idx);
     i = idx[0];
     e = i + stree_svert;
-    DECODE(v0, e);
+    DECODE_SVERT(v0, e);
     va[0] = p1[0] - v0[0];
     va[1] = p1[1] - v0[1];
     va[2] = p1[2] - v0[2];
@@ -79,7 +74,7 @@ s16 CylinderInSurf(surftyp *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *m
     }
     i = idx[n - 1];
     e = i + stree_svert;
-    DECODE(ve, e);
+    DECODE_SVERT(ve, e);
     c = ((ve[2] - vp[2]) * ve[0]) - ((ve[0] - vp[0]) * ve[2]);
     if (c < 0) {
         if (flag > 0) {
@@ -93,7 +88,7 @@ s16 CylinderInSurf(surftyp *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *m
     }
     i = idx[1];
     e = i + stree_svert;
-    DECODE(ve, e);
+    DECODE_SVERT(ve, e);
     c = (vp[2] * ve[0]) - (vp[0] * ve[2]);
     if (c < 0) {
         if (flag > 0) {
@@ -110,7 +105,7 @@ s16 CylinderInSurf(surftyp *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *m
         vprev[2] = ve[2];
         i = idx[k];
         e = i + stree_svert;
-        DECODE(ve, e);
+        DECODE_SVERT(ve, e);
         va[0] = ve[0] - vprev[0];
         va[1] = 0.0f;
         va[2] = ve[2] - vprev[2];

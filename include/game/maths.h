@@ -4,6 +4,13 @@
 
 #include "game/types.h"
 
+/* The words of a fixed-point matrix (build_node_matrix): of a pair of elements a, b, each times 65536 already, the
+ * integer halves (MTX_HI) and the fractions (MTX_LO). */
+#define MTX_HI(a, b) (((u32)(a) & 0xFFFF0000) | ((u32)(b) >> 16))
+#define MTX_LO(a, b) (((u32)(a) << 16) | ((u32)(b) & 0xFFFF))
+/* A 3x3 orientation's element (row, col) at p, f32s by rows (UVECT). */
+#define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
+
 /* Data */
 extern UnitMatrix unitmatrix;
 extern f32 uvector[EXTENT(3)];

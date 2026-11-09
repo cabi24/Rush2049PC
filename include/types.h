@@ -98,23 +98,6 @@ typedef f32 Mat4f[4][4];
 #endif
 #define PFS_LABEL_SIZE      28
 
-/* N64 Matrix constants */
-#define G_MTX_MODELVIEW  0x00
-#define G_MTX_PROJECTION 0x04
-#define G_MTX_MUL        0x00
-#define G_MTX_LOAD       0x02
-#define G_MTX_NOPUSH     0x00
-#define G_MTX_PUSH       0x01
-
-/* N64 AA render mode constants */
-#define G_RM_AA_ZB_OPA_SURF  0x0C184000
-#define G_RM_AA_ZB_OPA_SURF2 0x03124000
-#define G_RM_AA_ZB_XLU_SURF  0x00504A00
-#define G_RM_AA_ZB_XLU_SURF2 0x00104A40
-
-/* Combine mode macros */
-#define G_CC_MODULATEIA_PRIM 0
-
 /* Float matrix type alias */
 typedef f32 MtxF[4][4];
 
@@ -134,28 +117,6 @@ struct OSPfs;
 #define M_HVQTASK   4
 
 #define SP_UCODE_DATA_SIZE 0x800
-
-/* N64 RDP Image Format constants */
-#define G_IM_FMT_RGBA    0
-#define G_IM_FMT_YUV     1
-#define G_IM_FMT_CI      2
-#define G_IM_FMT_IA      3
-#define G_IM_FMT_I       4
-
-#define G_IM_SIZ_4b      0
-#define G_IM_SIZ_8b      1
-#define G_IM_SIZ_16b     2
-#define G_IM_SIZ_32b     3
-
-/* N64 RDP Render Mode constants */
-#define G_RM_OPA_SURF    0x0C084000
-#define G_RM_OPA_SURF2   0x03024000
-#define G_RM_XLU_SURF    0x00404200
-#define G_RM_XLU_SURF2   0x00104240
-#define G_RM_ZB_OPA_SURF 0x0C184000
-#define G_RM_ZB_OPA_SURF2 0x03124000
-#define G_RM_ZB_XLU_SURF 0x00504A00
-#define G_RM_ZB_XLU_SURF2 0x00104A40
 
 /* N64 OS Message Priority */
 #define OS_MESG_PRI_NORMAL 0
@@ -192,56 +153,5 @@ typedef struct {
 typedef struct {
     OSTask_t t;
 } OSTask;
-
-/* N64 GBI Texture/Tile constants */
-#define G_TX_RENDERTILE  0
-#define G_TX_LOADTILE    7
-#define G_TX_WRAP        0
-#define G_TX_CLAMP       2
-#define G_TX_MIRROR      1
-#define G_TX_NOMASK      0
-#define G_TX_NOLOD       0
-
-/* N64 GBI Geometry Mode flags */
-#define G_ZBUFFER        0x00000001
-#define G_SHADE          0x00000004
-#define G_CULL_FRONT     0x00000200
-#define G_CULL_BACK      0x00000400
-#define G_FOG            0x00010000
-#define G_LIGHTING       0x00020000
-#define G_TEXTURE_GEN    0x00040000
-#define G_SHADING_SMOOTH 0x00200000
-#define G_CLIPPING       0x00800000
-
-/* N64 GBI Texture settings */
-#define G_ON             1
-#define G_OFF            0
-#define G_TP_PERSP       (1 << 11)
-#define G_TP_NONE        0
-#define G_TL_TILE        (1 << 14)
-#define G_TL_LOD         0
-#define G_TT_NONE        0
-#define G_TT_RGBA16      (2 << 16)
-#define G_TD_CLAMP       0
-#define G_TD_WRAP        (1 << 18)
-#define G_TC_FILT        (2 << 19)
-#define G_TC_FILTL       (3 << 19)
-#define G_CK_NONE        0
-#define G_AC_NONE        0
-#define G_ZS_PIXEL       0
-#define G_ZS_PRIM        (1 << 2)
-
-/* N64 GBI Cycle type */
-#define G_CYC_1CYCLE     0
-#define G_CYC_2CYCLE     (1 << 20)
-#define G_CYC_COPY       (2 << 20)
-#define G_CYC_FILL       (3 << 20)
-
-/* N64 GBI Combine modes (simplified - actual values are complex) */
-#define G_CC_MODULATERGBA    0
-#define G_CC_MODULATEIA      0
-#define G_CC_SHADE           0
-#define G_CC_DECALRGBA       0
-#define G_CC_BLENDRGBA       0
 
 #endif /* TYPES_H */

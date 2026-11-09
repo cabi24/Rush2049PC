@@ -8,6 +8,7 @@
  * Still N64-shaped: the sources are 32-bit cartridge addresses, and the list's cache-line bookkeeping counts the
  * N64's 12-byte entries. */
 #include "../rom_tu.h"
+#include "musyx.h"
 
 /* A queued read: where to, from where in the cartridge, how many bytes (rounded up to 16) */
 typedef struct TransferRequest { void *destination; void *source; unsigned int size; } TransferRequest;
@@ -18,7 +19,6 @@ typedef struct SoundDmaEntry { int length; unsigned int source; unsigned char *d
 #define DMA_SOURCE(x) ((unsigned int) (uintptr_t) (x))
 
 #define MAX_REQUESTS 4                 /* reads queued for one frame */
-#define DMA_ENTRY_N64_BYTES 12          /* a DMA list entry on the N64, which the cache-line bookkeeping counts */
 
 /* The queue and the hardware layer's DMA list */
 extern TransferRequest sound_dma_requests[];

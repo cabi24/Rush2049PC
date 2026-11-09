@@ -11,6 +11,7 @@
  * pool, wave 7, in the heap) as a 32-bit address of the RDRAM window, so the records keep the N64's sizes and strides
  * (docs/port/MUSYX_DATA.md 2); the sample records keep their samples' cartridge addresses. */
 #include "../rom_tu.h"
+#include "musyx.h"
 #include "sound_sample_record.h"
 
 /* The registries' capacities. */
@@ -24,7 +25,6 @@
 #define MAX_SAMPLE_DIRECTORIES 8
 
 #define SAMPLE_ID_END 0xFFFF            /* ends a sample directory */
-#define SFX_DEFAULT_VOLUME_GROUP 31     /* the volume group an effect has until sound_set_sfx_volume_group */
 #define SAMPLE_LENGTH_MASK 0xFFFFFF     /* a sample's length word: format << 24 | length in samples */
 
 /* PC: the keymap and macro registries hold window addresses into the pool (wave 7, in the heap) as u32, so a

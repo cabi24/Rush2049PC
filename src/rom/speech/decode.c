@@ -8,7 +8,6 @@
  * speech_init). N64-shaped: the input is read by cartridge DMA. */
 #include "../rom_tu.h"
 
-#define SPEECH_FRAME_SAMPLES 160         /* one GSM frame */
 #define SPEECH_INPUT_BLOCK 1024          /* bytes per input read */
 #define SPEECH_INPUT_RING 4096           /* bytes of input ring */
 #define SPEECH_INPUT_AHEAD 3072          /* read another block when no more than this is buffered */

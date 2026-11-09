@@ -162,8 +162,6 @@ OSScTask *__scTaskReady(OSSched *,OSScTask *);
 s32 __scExecTask(OSSched *,OSScTask *);
 void __scAppendList(OSSched *,OSScTask *),__scExec(OSSched *,OSScTask *,OSScTask *),__scHandlePreNMI(OSSched *);
 s32 __scScheduleCore(OSSched *,OSScTask **,OSScTask **,s32);
-#define OS_MESG_NOBLOCK 0
-#define OS_MESG_BLOCK 1
 void __scMain(void *arg) {
  OSMesg message;
  OSSched *scheduler=(OSSched *)arg;
@@ -351,8 +349,6 @@ void __scAppendList(OSSched *scheduler, OSScTask *task)
 
 /* Starts sp on the RSP (an audio task's start time noted, a fresh graphics task's retrace time noted) and dp's
  * output on the RDP. */
-#define OS_MESG_NOBLOCK 0
-#define OS_MESG_BLOCK 1
 void __scExec(OSSched *scheduler,OSScTask *sp,OSScTask *dp) {
  s32 rv;
  if(sp) {

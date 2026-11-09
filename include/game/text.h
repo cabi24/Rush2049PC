@@ -51,6 +51,12 @@ enum {
 };
 #define TEXT_BUFFER_SIZE 800   /* gBuffer */
 
+/* gText.tab[]: the tables several screens read (gText.taba[gText.tab[n] + i] the i-th string of table n). */
+#define TEXT_YES_NO 24         /* "yes", "no" */
+#define TEXT_SCORE_TITLES 27   /* the high score tables' titles (gTable 0-2) */
+#define TEXT_GAME_OVER_MENU 45 /* the game over menu's seven rows */
+#define TEXT_PLACES 54         /* the ordinals, first to sixth */
+
 /* Data */
 extern u64 gspF3DEX2_NoN_fifoTextStart[EXTENT(626)];
 extern u64 gspF3DEX2_NoN_fifoDataStart[EXTENT(132)];

@@ -11,9 +11,6 @@ typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32
 typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
 typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
 
-/* The loaded records keep their N64 layout on PC (port/assets/wad.c swaps their scalars in place): their pointer
- * fields are 32-bit RDRAM-window addresses, which widen to host pointers (docs/port/ASSETS.md section 5). */
-#define WADP(type) u32
 /* A handle wave's ptr is a heap master slot, a u32 window address (the heap's handle tables keep N64 layout). */
 #define HANDLE_BLOCK(h) ((u8 *)PC_N64P(PC_SLOT_N64(h)))
 

@@ -5,7 +5,6 @@
 
 /* PC: the OBHD records (MAT3 tModelDef, 0x58 bytes) keep their N64 layout (port/assets/wad.c): a level of detail's
  * display list is a 32-bit window address. */
-#define PART_DL u32
 typedef struct { u8 pad0[8]; PART_DL dl; u8 padC[4]; } Part;           /* MAT3 tLod */
 typedef struct Model { u8 pad0[0x18]; Part part[4]; } Model;            /* MAT3 tModelDef: name, radius, LODs */
 typedef struct { Model *models; s32 count; } ModelList;                 /* a gRomObjDefPtrs entry */

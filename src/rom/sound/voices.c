@@ -16,9 +16,8 @@
  * long (pc_game_types.h, docs/port/DECOUPLE.md 9), where the N64 has 32 voices; each voice keeps the N64's layout, its
  * handle node as the node's N64 address (pc_voice_node, pc_voice_node_address below: docs/port/MUSYX_DATA.md 8.3). */
 #include "../rom_tu.h"
+#include "musyx.h"
 
-#define VOICE_NONE 0xFFFFFFFFU     /* no voice, the end of a voice chain, an invalid handle */
-#define VOICE_INDEX_MASK 255       /* a voice id's low byte is the voice's index */
 #define LINK_END 255               /* ends a voice list (priority and free links, sound_priority_first_voice) */
 #define LEVEL_END 65535            /* ends the list of priorities in use */
 #define ALLOC_ID_NONE 65535        /* the allocation id of a stream voice */

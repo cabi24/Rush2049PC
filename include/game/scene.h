@@ -55,6 +55,15 @@
 #define TEX_IMAGE_DIRECT           0x08000000  /* texBase is the image (else a display list that loads it) */
 #define TEX_NOPALETTE         0x20000000  /* has no palette of its own */
 
+/* The display lists the track and car files hold stay in N64 form on the PC: 8-byte big-endian commands with 32-bit
+ * N64 addresses (docs/port/POINTERS.md). DLW(w) reads a command word, DLW_SET(w, v) writes one, DL_AT(addr) is the
+ * display list at an N64 address; PART_DL is an object definition's display list field (tModelDef, a WAD's OBHD
+ * record, which keeps its N64 layout: port/assets/wad.c). */
+#define DLW(w)                pc_be32_get(&(w))
+#define DLW_SET(w, v)         pc_be32_set(&(w), v)
+#define DL_AT(addr)           ((u32 *)pc_n64_ptr(addr))
+#define PART_DL               u32
+
 /* MBOX_FindObject_WORK, MBOX_FindTexture_WORK: warn, the last argument, complains when the name isn't found. */
 #define MBOX_WARN             1
 

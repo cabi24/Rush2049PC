@@ -9,7 +9,7 @@
 #define BOOT_TAIL_AUDIO_RECORD_H
 
 typedef struct SoundHwVoice {
-    unsigned char active;                 /* 0x00: VOICE_OFF, VOICE_STARTING (its first subframe), VOICE_PLAYING */
+    unsigned char active;                 /* 0x00: HW_VOICE_OFF, HW_VOICE_STARTING (its first subframe), HW_VOICE_PLAYING */
     unsigned char key_held;               /* 0x01: 1 until key-off; then the envelope releases and a looping
                                            * sample plays its tail */
     unsigned short flags;                 /* 0x02: VOICE_FLAG_CARTRIDGE: the sample is fetched by DMA */

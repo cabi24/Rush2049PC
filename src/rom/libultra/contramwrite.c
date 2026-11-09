@@ -3,24 +3,6 @@
 
 /* Writes the 32-byte block buffer at address (a block number) of the pak on controller channel; the write is
  * checked by its CRC and tried twice more. Blocks 1-7 are written only with force. Returns 0 or PFS_ERR_*. */
-#define NULL ((void *)0)
-#define TRUE 1
-#define OS_READ 0
-#define OS_WRITE 1
-#define OS_MESG_BLOCK 1
-#define BLOCKSIZE 32
-#define PFS_LABEL_AREA 7
-#define PFS_ERR_NOPACK 1
-#define PFS_ERR_CONTRFAIL 4
-#define CONT_CMD_REQUEST_STATUS 0
-#define CONT_CMD_WRITE_PAK 3
-#define CONT_CMD_WRITE_PAK_TX 35
-#define CONT_CMD_WRITE_PAK_RX 1
-#define CONT_CMD_EXE 1
-#define CONT_CMD_NOP 0xFF
-#define CONT_CMD_END 0xFE
-#define CHNL_ERR(format) (((format).rxsize & 0xC0) >> 4)
-#define READFORMAT(ptr) ((__OSContRamReadFormat*)(ptr))
 extern void bcopy(const void *src, void *dst, s32 len);
 extern s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 extern void __osSiGetAccess(void);
@@ -98,4 +80,3 @@ s32 __osContRamWrite(OSMesgQueue* mq, int channel, u16 address, u8* buffer, int 
 
     return ret;
 }
-

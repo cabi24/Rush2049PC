@@ -24,7 +24,6 @@ typedef struct {
     void **taba;
 } TextTable;
 #define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
-#define TEXT_GAME_OVER_MENU 45      /* gText.tab[]: the first of the menu's seven rows */
 
 VIEW(TextTable, gText);
 #define gText gText_view

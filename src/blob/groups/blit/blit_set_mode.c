@@ -8,22 +8,6 @@ typedef union {
 } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define G_SETCOMBINE 0xFC
-#define G_SETENVCOLOR 0xFB
-#define G_SETPRIMDEPTH 0xEE
-#define G_SETOTHERMODE_L 0xE2
-#define G_SETOTHERMODE_H 0xE3
-#define G_MDSFT_ALPHACOMPARE 0
-#define G_MDSFT_ZSRCSEL 2
-#define G_MDSFT_RENDERMODE 3
-#define G_MDSFT_CYCLETYPE 20
-#define G_CYC_1CYCLE (0 << G_MDSFT_CYCLETYPE)
-#define G_CYC_2CYCLE (1 << G_MDSFT_CYCLETYPE)
-#define G_CYC_COPY (2 << G_MDSFT_CYCLETYPE)
-#define G_AC_NONE (0 << G_MDSFT_ALPHACOMPARE)
-#define G_AC_THRESHOLD (1 << G_MDSFT_ALPHACOMPARE)
-#define G_ZS_PIXEL (0 << G_MDSFT_ZSRCSEL)
-#define G_ZS_PRIM (1 << G_MDSFT_ZSRCSEL)
 
 #define gSPSetOtherMode(pkt, cmd, sft, len, data) \
 { \

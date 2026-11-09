@@ -19,6 +19,16 @@
 #define NUM_TRACKS 19             /* the tracks the menu offers */
 #define TRACK_BACKWARD_FIRST 19   /* the records' number of the first race track run backwards */
 
+/* The road tree's vertices (sverttyp): v[0..2] the position of vertex e in feet, whole feet and 32nds (stree's
+ * collisions, the shots' world collision). */
+#define DECODE_SVERT(v, e) \
+    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
+    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
+    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
+
+/* A target path's points (TargetPath.pts, a 32-bit window address in the path's N64-layout record). */
+#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
+
 /* Data */
 extern f32 ghostRaceTimes[EXTENT(6)];
 extern f32 gravitySpeedIncrease[EXTENT(4)];

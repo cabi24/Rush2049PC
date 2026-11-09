@@ -5,9 +5,6 @@
  * MakeUvsFromQuat. */
 #include "game/game.h"
 
-/* Element (row, col) of the matrix by its byte offset, as the decompiled code reaches it (plain indexing gives other
- * unoptimised code). */
-#define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
 /* Component i of the quaternion, likewise. */
 #define Q_AT(q, i) (*((f32 *) (((s8 *) (q)) + (i) * 4)))
 

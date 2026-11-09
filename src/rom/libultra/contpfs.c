@@ -221,15 +221,7 @@ s32 __osCheckId(OSPfs* pfs) {
 
 /* Reads (flag PFS_READ) or writes the inode table of bank: on a write, its checksum and the backup copy too; on a
  * read, the backup when the table's checksum is bad. Returns 0 or PFS_ERR_*. */
-#define FALSE 0
-#define PFS_READ 0
-#define PFS_WRITE 1
-#define PFS_ONE_PAGE 8
-#define BLOCKSIZE 32
 #define PFS_INODE_SIZE_PER_PAGE 128
-#define PFS_ERR_INCONSISTENT 3
-#define ERRCK(fn) ret=fn; if(ret!=0) return ret
-#define SET_ACTIVEBANK_TO_ZERO() if(pfs->activebank!=0) { ERRCK(__osPfsSelectBank(pfs,0)); } (void)0
 extern void bcopy(const void *src, void *dst, s32 len);
 extern u16 __osSumcalc(u8 *ptr, int length);
 extern s32 __osPfsSelectBank(OSPfs *pfs, u8 bank);
@@ -302,4 +294,3 @@ s32 __osPfsRWInode(OSPfs* pfs, __OSInode* inode, u8 flag, u8 bank) {
 
     return 0;
 }
-

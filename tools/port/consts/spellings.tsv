@@ -106,3 +106,15 @@ AUDIO_CMD_MONO	kAudioCmdMono	11	audiomgr_thread.c
 SONG_MENU	AUDIO_FRONT_END_SONG	6	start_screen/group.c
 SND_HORNS	SND_HORN_FIRST	26	carscr.c
 SFX_HORN_FIRST	SND_HORN_FIRST	26	car_sounds/mode.c
+# The display-list commands: gbi.h's G_ names (the files' GBI_ names for the same opcodes).
+GBI_ENDDL	G_ENDDL	0xDF	displaylist_*.c
+GBI_SETTIMG	G_SETTIMG	0xFD	displaylist_*.c, relocate_texture_loads.c
+GBI_SETTILESIZE	G_SETTILESIZE	0xF2	displaylist_set_tile_size.c
+GBI_RDPHALF_1	G_RDPHALF_1	0xE1	display_list_traverse.c
+GBI_BRANCH_Z	G_BRANCH_Z	0x04	display_list_traverse.c
+# The sound library (src/rom/sound/musyx.h).
+SFX_GROUP_DEFAULT	SFX_DEFAULT_VOLUME_GROUP	31	api.c
+# Shared helpers under a name a header can hold (scene.h, maths.h, track.h).
+DECODE	DECODE_SVERT	(v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f	stree_collide, shot_world_collision
+HI	MTX_HI	((u32)(a) & 0xFFFF0000) | ((u32)(b) >> 16)	build_node_matrix*.c
+LO	MTX_LO	((u32)(a) << 16) | ((u32)(b) & 0xFFFF)	build_node_matrix*.c

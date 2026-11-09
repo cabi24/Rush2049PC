@@ -63,13 +63,7 @@ void mats2fcopy(void *in, void *out) {
     o[8] = (f32) p[8] * 0.00006103515625f;
 }
 
-
 /* A vertex's position in feet (sverttyp: whole feet and 32nds). */
-
-#define DECODE(v, e) \
-    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
-    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
-    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
 
 /* Is point `wp` over surface `poly`? Turns wp, from the surface's first vertex, into the surface's frame (`pt`;
  * `mat` gets the frame), and misses if it is no higher than `zmin` above the surface or higher than *bound. Then
@@ -97,7 +91,7 @@ s16 PointInSurf(surftyp *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx
     mats2fcopy(poly->uvs, mat);
     i = idx[0];
     e = i + stree_svert;
-    DECODE(vb, e);
+    DECODE_SVERT(vb, e);
     va[0] = wp[0] - vb[0];
     va[1] = wp[1] - vb[1];
     va[2] = wp[2] - vb[2];
@@ -107,7 +101,7 @@ s16 PointInSurf(surftyp *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx
     }
     i = idx[n - 1];
     e = i + stree_svert;
-    DECODE(vb, e);
+    DECODE_SVERT(vb, e);
     c = ((vb[2] - pt[2]) * vb[0]) - ((vb[0] - pt[0]) * vb[2]);
     if (c < 0) {
         if (VectorToSurfEdge(vb, pt, vc, point_in_surf_edge_radius_last) == 0) {
@@ -118,7 +112,7 @@ s16 PointInSurf(surftyp *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx
     }
     i = idx[1];
     e = i + stree_svert;
-    DECODE(vb, e);
+    DECODE_SVERT(vb, e);
     c = (pt[2] * vb[0]) - (pt[0] * vb[2]);
     if (c < 0) {
         if (VectorToSurfEdge(vb, pt, vc, point_in_surf_edge_radius_first) == 0) {
@@ -132,7 +126,7 @@ s16 PointInSurf(surftyp *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx
         ve[2] = vb[2];
         i = idx[k];
         e = i + stree_svert;
-        DECODE(vb, e);
+        DECODE_SVERT(vb, e);
         va[0] = vb[0] - ve[0];
         va[1] = 0.0f;
         va[2] = vb[2] - ve[2];
@@ -153,7 +147,7 @@ done:
     if ((q != NULL) && (((poly->flags & 0xF) == 5) || ((poly->flags & 0xF) == 6))) {
         i = idx[0];
     e = i + stree_svert;
-    DECODE(vb, e);
+    DECODE_SVERT(vb, e);
         va[0] = q[0] - vb[0];
         va[1] = q[1] - vb[1];
         va[2] = q[2] - vb[2];
@@ -299,4 +293,3 @@ void CarApplyCollision(CCar *car, CCol *col) {
         car->bodyForce[idx][2] += w[2];
     }
 }
-

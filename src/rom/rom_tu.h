@@ -115,10 +115,7 @@ typedef u32 OSIntMask;
 #define FPCSR_FS 0x01000000
 #define FPCSR_EV 0x800
 #define FPCSR_RM_RN 0
-#define OS_STATE_STOPPED 1
 #define CONT_CMD_REQUEST_STATUS 0
-#define OS_WRITE 1
-#define OS_READ 0
 /* OS_MESG_BLOCK already exists from PR/os_message.h.
  * __osContLastCmd was supplied by C1; __osSiDmaBuffer exists in m2c_types.h.
  * Existing __osTimerList declaration is __OSTimerNode*. The delivered timer
@@ -143,9 +140,6 @@ typedef u32 OSIntMask;
  */
 extern void __osDispatchThread(void);
 extern OSThread *__osPopThread(OSThread **);
-#define OS_STATE_WAITING 8
-#define OS_STATE_RUNNABLE 2
-#define OS_STATE_STOPPED 1
 #define MQ_IS_EMPTY(mq) ((mq)->validCount == 0)
 /* OS_MESG_NOBLOCK/BLOCK already exist from PR/os_message.h.
  * __osCleanupThread(OSThread**) already declared in m2c_types.h and is current
@@ -199,7 +193,6 @@ extern const f64 gOrthoScale;
 #define ERRCK(fn) ret=fn; if(ret!=0) return ret
 #define ARRLEN(a) ((int)(sizeof(a)/sizeof((a)[0])))
 #define PFS_PAGE_NOT_USED 3
-#define PFS_ONE_PAGE 8
 #define BLOCKSIZE 32
 #define FTOFIX32(x) ((long)((x)*(float)0x00010000))
 
@@ -246,7 +239,6 @@ extern s32 __osPfsGetNextPage(OSPfs *, u8 *, __OSInode *, __OSInodeUnit *);
  * OSPri/OS_STATE_STOPPED/OS_STATE_RUNNABLE and thread context already suffice.
  * osSetThreadPri(OSThread*,OSPri) was named osCreateViManager. */
 
-
 /* Verified canonical PFS identity/motor context, . */
 /* Minimal C9 context; existing OSPfs/__OSInode/OSPifRam/thread types suffice. */
 typedef struct {
@@ -286,7 +278,6 @@ extern u8 __osContAddressCrc(u16);
  * PFS_INITIALIZED, PFS_ID_BROKEN, PFS_MOTOR_INITIALIZED.
  * C8 requires __osPfsGetStatus(OSMesgQueue*,int) (osContStartReadData).
  * Existing C6 osPfsReadWriteFile_pages(OSPfs*) declaration remains correct. */
-
 
 extern s32 __osMotorAccess(OSPfs *, s32);
 
@@ -335,3 +326,6 @@ extern OSPiHandle *__osPiDevList[2];
 #define PFS_DIR_FULL 8
 #define DIR_STATUS_OCCUPIED 2
 #define DIR_STATUS_EMPTY 0
+
+/* The speech decoder (src/rom/speech): the samples of one GSM frame. */
+#define SPEECH_FRAME_SAMPLES 160

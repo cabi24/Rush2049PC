@@ -46,10 +46,8 @@ typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 #define CIRCUIT_BUTTONS 12
 
 /* gText's tables (gText.tab[]) */
-#define TEXT_YES_NO 24
 #define TEXT_CIRCUIT_MENU 43            /* the menu's rows */
 #define TEXT_CIRCUIT_NAMES 44           /* the four circuit types */
-#define TEXT_PLACES 54                  /* the ordinals */
 
 VIEW(u8[], gUnlockedCircuits);
 #define gUnlockedCircuits gUnlockedCircuits_view

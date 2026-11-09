@@ -4,8 +4,6 @@
  * object is named by a packed handle, its model's number times 1024 plus its index in that table. */
 #include "game/game.h"
 
-#define DEBUG_PRINT(args)
-
 extern char *strcpy(char *, const char *);
 
 /* An object definition (MAT3 tModelDef; 88 bytes on the N64, which the model files keep): only its name matters

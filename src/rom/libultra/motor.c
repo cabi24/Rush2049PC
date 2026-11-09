@@ -129,9 +129,6 @@ s32 osMotorInit(OSMesgQueue* mq, OSPfs* pfs, int channel) {
 }
 
 /* Repairs the pak's ID block (__osRepairPackId). Returns 0 or PFS_ERR_*. */
-#define PFS_INITIALIZED 0x1
-#define PFS_ID_BROKEN 0x4
-#define PFS_ERR_INVALID 5
 extern s32 __osGetId(OSPfs *);
 s32 osPfsRepairId(OSPfs* pfs) {
     s32 ret = 0;
@@ -148,4 +145,3 @@ s32 osPfsRepairId(OSPfs* pfs) {
 
     return ret;
 }
-

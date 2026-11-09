@@ -15,6 +15,7 @@
  * N64-shaped: samples are addressed by 32-bit cartridge or RDRAM-window addresses, and the cache-line bookkeeping
  * (dcache_create_dirty_lines, the *_cache_cursor and *_end words) counts the N64's record sizes. */
 #include "../rom_tu.h"
+#include "musyx.h"
 #include "sound_hw_voice.h"
 
 /* This unit's own BSS: the delay line, the audio task and the codebook cache. */
@@ -37,7 +38,7 @@ unsigned char *sound_codebook_cache;
 #define OS_EVENT_AI 6                  /* libultra's event number for the AI */
 
 /* SoundHwVoice.active */
-enum { VOICE_OFF, VOICE_STARTING, VOICE_PLAYING };
+enum { HW_VOICE_OFF, HW_VOICE_STARTING, HW_VOICE_PLAYING };
 /* SoundHwVoice.envelope_stage: the ADSR stages (the times are in milliseconds) */
 enum { ENVELOPE_ATTACK, ENVELOPE_DECAY, ENVELOPE_SUSTAIN, ENVELOPE_RELEASE };
 /* SoundHwVoice.format */
@@ -67,7 +68,6 @@ enum { ENVELOPE_ATTACK, ENVELOPE_DECAY, ENVELOPE_SUSTAIN, ENVELOPE_RELEASE };
 #define SOUND_INIT_HALF_RATE 0x100000
 
 /* The N64's record sizes, which the D-cache bookkeeping and writebacks still count by */
-#define DMA_ENTRY_N64_BYTES 12          /* a DMA list entry */
 #define SFD_N64_BYTES 2576              /* an SFD: a 16-byte header and 32 voice records */
 #define SFD_HEADER_N64_BYTES 16
 #define SFD_VOICE_N64_BYTES 0x50
@@ -467,7 +467,7 @@ void sound_hw_alloc_voices(unsigned short voice_count, unsigned int frequency)
     sound_hw_voices = sound_hw_voice_block;
     sound_sfd_set = 0;
     for (i = 0; i < sound_hw_voice_count; i++) {
-        ((SoundHwVoice *)sound_hw_voice_block)[i].active = VOICE_OFF;
+        ((SoundHwVoice *)sound_hw_voice_block)[i].active = HW_VOICE_OFF;
         ((SoundHwVoice *)sound_hw_voice_block)[i].release_pending = 0;
         ((SoundHwVoice *)sound_hw_voice_block)[i].sfd_slot = 255;
     }
@@ -597,7 +597,7 @@ void sound_hw_release_envelope(SoundHwVoice *audio)
 
 /* Advances a voice's envelope by one subframe of samples and sets envelope_level, the factor on its gains. A voice
  * let go of goes to its release; at the end of a stage the attack goes on to the decay (from 1.0 to the sustain
- * level), the decay to the sustain (which holds), and the release ends the voice (*active = VOICE_OFF). In a stage
+ * level), the decay to the sustain (which holds), and the release ends the voice (*active = HW_VOICE_OFF). In a stage
  * the level moves linearly from stage_start to stage_target over stage_ms. */
 void sound_hw_advance_envelope(SoundHwVoice *audio, unsigned short samples, unsigned char *active)
 {
@@ -627,7 +627,7 @@ void sound_hw_advance_envelope(SoundHwVoice *audio, unsigned short samples, unsi
             audio->envelope_level = audio->sustain_level;
             return;
         case ENVELOPE_RELEASE:
-            *active = VOICE_OFF;
+            *active = HW_VOICE_OFF;
             audio->envelope_level = 0.0f;
             return;
         }
@@ -647,7 +647,7 @@ void sound_hw_reset_voice(unsigned short index, unsigned short flags)
 {
     SoundHwVoice *audio;
     audio = &sound_hw_voices[index];
-    audio->active = VOICE_OFF;
+    audio->active = HW_VOICE_OFF;
     audio->flags = flags;
     audio->rate = PITCH_UNITY;
     audio->key_held = 1;
@@ -666,7 +666,7 @@ void sound_hw_activate_voice(unsigned short index)
 {
     SoundHwVoice *audio = &sound_hw_voices[index];
     sound_hw_start_envelope(audio);
-    audio->active = VOICE_STARTING;
+    audio->active = HW_VOICE_STARTING;
 }
 
 /* Waits for the DMA list last started, if any. */
@@ -1045,7 +1045,7 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
     frames += 6;
     position = sound_truncate(audio->sample_position);
     end = audio->loop_start + audio->loop_length;
-    state = VOICE_PLAYING;
+    state = HW_VOICE_PLAYING;
     /* The window: the input this subframe reads, as a main segment and, when it runs past the loop's end, a loop
      * segment from the loop's start; with where the microcode stops (end) or jumps back (restart). */
     if (audio->loop_length != 0 && (audio->key_held != 0 || audio->tail == 0) && end >= position) {
@@ -1085,7 +1085,7 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
             length[0] = audio->length - position + 0x20;
             length[1] = 0;
             restart_offset = WINDOW_SAMPLE_ENDS;
-            state = VOICE_OFF;
+            state = HW_VOICE_OFF;
         } else {
             address[0] = position;
             offset = 0;
@@ -1199,7 +1199,7 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
     /* The gains: the targets times the envelope, reached at once in a voice's first subframe, else by a ramp over
      * the subframe from where the last one ended. */
     sound_hw_advance_envelope(audio, SUBFRAME_FRAMES, &state);
-    if (audio->active == VOICE_STARTING) {
+    if (audio->active == HW_VOICE_STARTING) {
         cmd->volume[0] = (audio->level[0] = audio->target[0] * audio->envelope_level) << 16;
         cmd->volume[1] = (audio->level[1] = audio->target[1] * audio->envelope_level) << 16;
         cmd->volume[2] = (audio->level[2] = audio->target[2] * audio->envelope_level) << 16;

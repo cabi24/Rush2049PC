@@ -15,7 +15,6 @@ extern void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern intptr_t NewMultiBlit(s32,s32,void *,s32);
 
 #define PANE_STYLE_CODE 192         /* the circuit code's box */
-#define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles (gTable 0-2) */
 
 /* Go to page newState (kHighScore*): the text blit goes, the old page's boxes go, the new page's come up and its
  * time limit starts (CountdownTimeOut): the unlocked notices and name entry a box per player, the circuit code one

@@ -9,7 +9,6 @@ typedef struct Record { void *next, *prev; void (*RemoveFile)(void *), (*MoveFil
 VIEW(Record **, gDeleteFile);
 #define gDeleteFile gDeleteFile_view
 
-#define TEXT_YES_NO 24              /* gText.tab[]: "yes", "no" */
 #define TEXT_DELETE_ACTION 47       /* gText.tab[]: the two lines of the delete combination's instructions */
 
 VIEW(u8, gBlocksNeeded);
@@ -153,7 +152,6 @@ void DrawPickPak(void)
         TB_DrawText(x,y-(player==gPickedPak ? 1 : 0)+12,status);
     }
 }
-
 
 /* "Delete this note?": the question, the note's name, and no / yes, the answer flashing. */
 void DrawFileDelVerify(void)

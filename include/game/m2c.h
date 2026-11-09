@@ -16,6 +16,9 @@ typedef s32 M2C_UNK;
 #define M2C_ERROR(desc) (0)
 
 /* The constants its context gave the code it wrote (the game's files include no C library header). */
+/* The original's debug print, compiled out on the N64 (DEBUG_PRINT(("format", ...))). */
+#define DEBUG_PRINT(args)
+
 #define NULL ((void *)0)
 #define TRUE 1
 #define FALSE 0

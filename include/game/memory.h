@@ -4,6 +4,11 @@
 
 #include "game/types.h"
 
+/* A pointer field of a loaded WAD record: the records keep their N64 layout on the PC (port/assets/wad.c swaps their
+ * scalars in place), so the field is a 32-bit RDRAM-window address, which widens to a host pointer
+ * (docs/port/ASSETS.md 5). WADP(type) names what it points to. */
+#define WADP(type) u32
+
 /* Data */
 extern u32 gWaveSizes[EXTENT(183)];
 extern u8 gLargestTextWave;

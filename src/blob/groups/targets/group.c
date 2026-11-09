@@ -31,7 +31,6 @@ typedef struct tBasicTargetPath {
     u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
     s32 parent;     /* 0x20 its target's record (a window address), here the key the world's groups know it by */
 } tBasicTargetPath;
-#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
 
 /* A world object (MAT3 tModelPart), the track WAD's: a target where its name matches a kind's. */
 typedef struct tModelPart {
@@ -452,4 +451,3 @@ void SetTargetDefs(void)
         InitBattlePowerUps(Restarting);
     }
 }
-

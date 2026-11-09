@@ -14,8 +14,9 @@ the old way or keeps a file's own copy, and it changes only what is left. Three 
 
 1. spell (tools/port/consts/spellings.tsv: `old  new  old_value  note`): another name for a meaning becomes the
    meaning's name, as a whole identifier token, in code and comments, in src/, include/, nonmatching/ and the
-   docs (docs/code/*.md but README.md, docs/port/*.md but PCONLY.md). A file's own `#define old ...` becomes `#define
-   new ...` (pass 3 then drops it as a copy). The rename is checked per C file: the value `old` has there (the
+   area pages (docs/code/*.md but README.md). A file's own `#define old ...` becomes `#define
+   new ...` (pass 3 then drops it as a copy). In the docs only a name with one row, an underscore (or MAT3's kName
+   form) and no inlined namesake is renamed. The rename is checked per C file: the value `old` has there (the
    file's own definition, else the table's old_value, which was the value of the header definition the old name
    had) must be the value `new` has in the file's headers, or the file is left and reported. An old name may have
    rows for several values (a name two files gave two meanings): the row whose value is the file's is used.
@@ -32,7 +33,9 @@ the old way or keeps a file's own copy, and it changes only what is left. Three 
    (or declares NAME as an enumerator) with the same value: integer expressions are evaluated with the macros and
    enumerators the file sees (and a literal's type counted: 8 and 8U differ), anything else compared token for
    token. A copy with another value is reported, never dropped (two meanings under one name, or a bug). A copy
-   inside a conditional block (other than the header guard), or before the file's first #include, is left.
+   inside a conditional block (other than the header guard), or before the file's first #include, is left. The
+   files are the C files and the headers other than the homes (include/game, libultra's include/PR): the boot
+   segment's rom_tu.h loses what the libultra headers it includes define.
 
 Removing lines: a definition's continuation lines (a backslash, or a comment that goes on below it) go with it; an
 #undef of the name just above it goes too; a comment block directly above a run of definitions that all went
@@ -54,8 +57,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CONSTS = Path(__file__).resolve().parent / "consts"
 C_DIRS = ("src", "include", "nonmatching")
 C_SUFFIXES = (".c", ".h", ".inc")
-DOC_GLOBS = ("docs/code/*.md", "docs/port/*.md")
-DOC_EXCLUDE = ("docs/code/README.md", "docs/port/PCONLY.md")
+DOC_GLOBS = ("docs/code/*.md",)
+DOC_EXCLUDE = ("docs/code/README.md",)
 INCLUDE_DIRS = ("include", "include/PR")
 PRELUDE = "port/include/pc_prelude.h"   # every game unit gets it (CMakeLists.txt: -include)
 
@@ -630,6 +633,7 @@ class Run:
         if not by_old:
             return
         olds = set(by_old)
+        inlined = {r[1][0] for r in read_tsv(CONSTS / "inline.tsv", 4)}
         for rel in sorted(self.tree.text):
             if rel == PRELUDE:
                 continue
@@ -644,6 +648,8 @@ class Run:
             for old in sorted(used):
                 if old in own:
                     have = value_of(own[old].body, env)
+                elif old in inlined:
+                    continue   # a spelling with another meaning elsewhere (inline.tsv): only where it is defined
                 else:
                     cands = {r[1] for r in by_old[old]}
                     if len(cands) != 1:
@@ -680,11 +686,13 @@ class Run:
                 for o in mapping:
                     self.changes[f"spell {o} -> {mapping[o]}"] += 1
         # the docs: the names as words
+        # in prose only a name that can't be a word or another meaning's: one row, an underscore or MAT3's kName,
+        # and no inlined abbreviation of the same spelling (a file's MAX_LINKS was LINK_OWNER_HUMAN, another's not)
+        inlined = {r[1][0] for r in read_tsv(CONSTS / "inline.tsv", 4)}
         simple = {}
         for old, rs in by_old.items():
-            news = {r[0] for r in rs}
-            if len(news) == 1:
-                simple[old] = news.pop()
+            if len(rs) == 1 and old not in inlined and ("_" in old or re.fullmatch(r"k[A-Z]\w+", old)):
+                simple[old] = rs[0][0]
         for pattern in DOC_GLOBS:
             for p in sorted(self.root.glob(pattern)):
                 rel = p.relative_to(self.root).as_posix()
@@ -760,8 +768,9 @@ class Run:
     # ---- pass 3
     def dedupe(self):
         for rel in sorted(self.tree.text):
-            # a source file's copies; a header's duplicates of another header's are a hand decision (--census)
-            if not rel.endswith((".c", ".inc")) or rel.startswith("port/"):
+            # a file's copies of what its includes define; not the canonical homes (include/game, libultra's
+            # include/PR: their duplicates of each other are a hand decision, --census) or the PC layer
+            if rel.startswith(("port/", "include/game/", "include/PR/")) or rel == PRELUDE:
                 continue
             defs = [d for d in self.tree.defines(rel) if self.wanted(d.name)]
             if not defs:

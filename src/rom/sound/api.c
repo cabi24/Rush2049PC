@@ -10,22 +10,9 @@
  * MusyX is the N64's sound library: no MAT3 counterpart. The voices are seen through this file's view at the N64
  * offsets (each field's name ends in its offset); on the PC their storage is PC data, PC_MX_VOICE_SLOTS long. */
 #include "../rom_tu.h"
+#include "musyx.h"
 
-#define VOICE_NONE 0xFFFFFFFFU     /* no voice, the end of a voice chain, an invalid handle */
-#define VOICE_INDEX_MASK 255       /* a voice id's low byte is the voice's index */
-#define VOICE_STARTING 2           /* flags24: a macro was just started on the voice and has not run yet */
-
-/* MIDI controllers (sound_midi_set_controller). */
-#define CTRL_MODULATION 1          /* 14 bits: 1 the high 7, 33 the low 7 */
-#define CTRL_MODULATION_LOW 33
-#define CTRL_PEDAL 64
-#define CTRL_REVERB 91
-
-#define FADER_MUSIC 21             /* the music's master volume fader */
-#define FADER_SFX 22               /* the effects' master volume fader */
 #define SFX_GROUP_RESET 254        /* sound_set_sfx_volume_group: back to the default group */
-#define SFX_GROUP_DEFAULT 31
-#define FADER_TYPE_SFX 3           /* a volume group an effect was given (synth.c) */
 #define SFX_VOLUME_GROUP_BYTE 9    /* an effect's volume group: byte 9 of its 12 (registry.c's Descriptor) */
 
 /* A synth voice, as this file reads it (macros.c has the whole voice). */
@@ -49,7 +36,6 @@ typedef struct VoiceState {
     u8 unknown64[316];
 } VoiceState;
 #pragma pack(0)
-
 
 /* the 8 service callbacks are function pointers (docs/port/MUSYX_DATA.md 8.1) */
 typedef struct CallbackWords { void (*words[8])(void); } CallbackWords;
@@ -339,7 +325,7 @@ void sound_set_sfx_volume_group(unsigned short identifier, unsigned char group)
             if (group != SFX_GROUP_RESET) {
                 effect[SFX_VOLUME_GROUP_BYTE] = group;
                 sound_set_group_type(group, FADER_TYPE_SFX);
-            } else effect[SFX_VOLUME_GROUP_BYTE] = SFX_GROUP_DEFAULT;
+            } else effect[SFX_VOLUME_GROUP_BYTE] = SFX_DEFAULT_VOLUME_GROUP;
         }
         sound_hw_unlock();
     }
