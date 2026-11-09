@@ -4,9 +4,6 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-VIEW(OSMesgQueue, bg_load_idle_queue);
-#define bg_load_idle_queue bg_load_idle_queue_view
-
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
@@ -38,7 +35,7 @@ void InitWaves(void)
 {
     int i;
     _BGLoadWaveCheck(1);
-    while (*(volatile s16 *)&gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
+    while (gRenderInProgress) { pc_os_spin_yield("InitWaves"); }
     ZOID_Reset(); InitBlits();
     for (i = 0; i < 64; i++) {
         if (gWaveInstance[i].ptr && !gWaveInstance[i].locked) UnloadWaveInstance(i);

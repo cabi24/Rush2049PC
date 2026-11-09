@@ -138,7 +138,7 @@ sent (`SetSoundVP`).
 | Data | What |
 |---|---|
 | `gFxTags`, `gNumFxTags`, `gTagShift`, `gTagMask`, `gNextFxId` | the fx tags and their handles' fields (AudioInit sizes them: `max(min(2 gMaxSfx, 64), gMaxSfx + emitters)`) |
-| `gFreeFxTags`, `gInterruptedFxTags`, `gPlayingFxTags` | the tags' lists (`AudioList`) |
+| `gFreeFxTags`, `gInterruptedFxTags`, `gPlayingFxTags` | the tags' lists (`AudioList`; `gPlayingFxTags` is `FxTagList`, the same header with MAT3's field names) |
 | `pc_snd_msgs` (N64 `audiomgr_gCmds`), `audio_command_queue`, `audio_lock_queue` | the message pool, the thread's queue, the lock |
 | `gEmitters`, `gListeners`, `gSequences` and their free and active lists | the 3D sources, listeners and sequences (heap blocks) |
 | `gSortedFxTags`, `gSortedFxTagTree`, `pc_snd_start_cmds`, `pc_snd_stop_cmds` | the priority pass's tree and its start and stop messages |

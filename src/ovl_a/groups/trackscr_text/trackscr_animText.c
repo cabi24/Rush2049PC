@@ -4,9 +4,6 @@
 
 typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 
-VIEW(f32[3], trackscr_title_button_position);
-#define trackscr_title_button_position trackscr_title_button_position_view
-
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
@@ -109,39 +106,39 @@ void trackscr_animButtonText(void)
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_STUNT_MODE:
-                if (gOptions.a == 0) label = gText.single[208];
-                else if (gOptions.a == 1) label = gText.single[130];
+                if (gOptions[kOptStuntMode] == 0) label = gText.single[208];
+                else if (gOptions[kOptStuntMode] == 1) label = gText.single[130];
                 else label = gText.single[12];
                 TB_DrawText(x, y, label);
                 break;
             case 4:
-                TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OPTION4_VALUES] + (gOptions.b == 0 ? 0 : 1)]);
+                TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OPTION4_VALUES] + (gOptions[kOptStuntFlow] == 0 ? 0 : 1)]);
                 break;
             case TRACK_OPT_STUNT_POINTS:
-                sprintf(text, trackscr_option5_format, gOptions.c);
+                sprintf(text, trackscr_option5_format, gOptions[kOptStuntPoints]);
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_STUNT_TIME:
-                sprintf(text, trackscr_option6_format, gOptions.d);
+                sprintf(text, trackscr_option6_format, gOptions[kOptStuntMinutes]);
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_STUNT_DEATH:
-                sprintf(text, trackscr_option7_format, gOptions.e);
+                sprintf(text, trackscr_option7_format, gOptions[kOptStuntDeaths]);
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_BATTLE_MODE:
-                TB_DrawText(x, y, gOptions.f == 1 ? gText.single[208] : gText.single[130]);
+                TB_DrawText(x, y, gOptions[kOptBattleMode] == 1 ? gText.single[208] : gText.single[130]);
                 break;
             case TRACK_OPT_BATTLE_POINTS:
-                sprintf(text, trackscr_option9_format, gOptions.g);
+                sprintf(text, trackscr_option9_format, gOptions[kOptBattlePoints]);
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_BATTLE_TIME:
-                sprintf(text, trackscr_option10_format, gOptions.h);
+                sprintf(text, trackscr_option10_format, gOptions[kOptBattleMinutes]);
                 TB_DrawText(x, y, text);
                 break;
             case TRACK_OPT_BATTLE_11:
-                TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gOptions.i == 0 ? 0 : 1)]);
+                TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gOptions[kOptBattleNeg] == 0 ? 0 : 1)]);
                 break;
             case TRACK_OPT_BACKWARDS:
                 TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gBackwards == 0 ? 0 : 1)]);
@@ -149,10 +146,10 @@ void trackscr_animButtonText(void)
             case TRACK_OPT_MIRROR:
                 if (gRace == kCircuit) {
                     TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gCircuitTracks[gCircuitTrack].mirror == 0 ? 0 : 1)]);
-                } else if (gOptions.mode == MIRROR_SECRET) {
+                } else if (gOptions[kOptMirror] == MIRROR_SECRET) {
                     TB_DrawText(x, y, gText.taba[gText.tab[TEXT_MIRROR_SECRET] + 2]);
                 } else {
-                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gOptions.mode == 0 ? 0 : 1)]);
+                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gOptions[kOptMirror] == 0 ? 0 : 1)]);
                 }
                 break;
             case TRACK_OPT_DRONES:

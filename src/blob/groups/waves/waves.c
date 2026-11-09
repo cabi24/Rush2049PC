@@ -57,11 +57,6 @@ typedef struct tBasicTargetPath {   /* 0x24 */
 } tBasicTargetPath;
 
 
-VIEW(s32[], gWaveSizes);
-#define gWaveSizes gWaveSizes_view
-VIEW(OSMesgQueue, rom_dma_queue);
-#define rom_dma_queue rom_dma_queue_view
-
 /* A model WAD's tables, by tag. */
 #define WAD_TAG_OBHD 0x4F424844     /* 'OBHD': the models (tModelDef) */
 #define WAD_TAG_TXHD 0x54584844     /* 'TXHD': the textures (tTexture) */

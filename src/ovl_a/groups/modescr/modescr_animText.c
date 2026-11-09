@@ -4,11 +4,6 @@
 typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
 
-VIEW(f32[3], modescr_title_button_position);
-#define modescr_title_button_position modescr_title_button_position_view
-
-VIEW(Slot[], modescr_buttonInfo);
-#define modescr_buttonInfo modescr_buttonInfo_view
 
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view

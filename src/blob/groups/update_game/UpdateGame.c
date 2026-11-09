@@ -13,9 +13,6 @@ typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah;
 
 extern Player76 gPlayers[];   /* gPlayers */
 
-VIEW(s8[4], gTeamPoints);
-#define gTeamPoints gTeamPoints_view
-
 VIEW(Ghost40 **[], gGhosts);
 #define gGhosts gGhosts_view
 

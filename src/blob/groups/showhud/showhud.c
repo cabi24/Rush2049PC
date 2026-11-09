@@ -8,18 +8,7 @@ typedef struct MultiBlit {
     const char *texname; s16 dulx,duly,width,height,top,bot,left,right;
     u32 zdepth,alpha; s32 (*animfunc)(Voice *); u32 animid;
 } MultiBlit;
-/* Complete native resource-table layout, shared with its actual loader. */
-/* PC: gText's pointer sections are native char * tables (port/assets/text.c) */
-typedef struct ModelTables {
-    u16 count0; char **ptrs0; u16 count1,count2; u16 *data1; char **ptrs2;
-    u16 count3,count4,count5; u16 *data3,*data4; char **ptrs5;
-} ModelTables;
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
-VIEW(ModelTables, gText);
-#define gText gText_view
 
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
  * set (RaceMultiBlit, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
@@ -128,7 +117,7 @@ void ShowHUD(void) {
             gCredit++;
             gCorner = Random(4.0f);
             HAL_SetFont(11);
-            gCreditWidth = HAL_GetTextWidth((void *)gText.ptrs2[gText.data1[0] + gCredit], -1);
+            gCreditWidth = HAL_GetTextWidth(gText.taba[gText.tab[0] + gCredit], -1);
             for (gNumCreditNames = 0; cStrCreditNames[gCredit].names[gNumCreditNames]; gNumCreditNames++) {
                 if (gCreditWidth < HAL_GetTextWidth(cStrCreditNames[gCredit].names[gNumCreditNames], -1)) {
                     gCreditWidth = HAL_GetTextWidth(cStrCreditNames[gCredit].names[gNumCreditNames], -1);

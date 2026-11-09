@@ -7,22 +7,6 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct { u8 pad[636]; s32 frameCount; } Sched;
-
-VIEW(OSMesgQueue, main_thread_queue);
-#define main_thread_queue main_thread_queue_view
-VIEW(OSMesgQueue, game_thread_queue);
-#define game_thread_queue game_thread_queue_view
-VIEW(u8[], frame_start_msg);
-#define frame_start_msg frame_start_msg_view
-VIEW(volatile s8, frame_start_pending);
-#define frame_start_pending frame_start_pending_view
-VIEW(volatile s8, game_frame_building);
-#define game_frame_building game_frame_building_view
-VIEW(volatile Sched, gScheduler);
-#define gScheduler gScheduler_view
-VIEW(volatile s32, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
@@ -77,11 +61,11 @@ void process_scheduler_message(void)
     case OS_SC_RETRACE_MSG:
         cur = (intptr_t)osViGetCurrentFramebuffer();
         if ((intptr_t)osViGetNextFramebuffer() == cur && !game_frame_building && !frame_start_pending && !frame_end_requested &&
-            gLastFrameCount != gScheduler.frameCount && gfx_tasks_pending < 2) {
+            gLastFrameCount != gScheduler.retraceCount && gfx_tasks_pending < 2) {
             retraces_since_frame = 0;
             StartGraphics();
             frame_start_pending = 1;
-            osSendMesg(&game_thread_queue, frame_start_msg, 1);
+            osSendMesg(&game_thread_queue, &frame_start_msg, 1);
         }
         cur = retraces_since_frame;
         retraces_since_frame = cur + 1;

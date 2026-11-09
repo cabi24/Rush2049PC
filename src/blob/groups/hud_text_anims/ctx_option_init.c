@@ -9,9 +9,6 @@ typedef union Color { u8 c[4]; u32 rgba; } Color;
 
 VIEW(Button[32], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
-VIEW(s32[14], options_validOption);
-#define options_validOption options_validOption_view
-
 void *memcpy(void *, const void *, u32);
 
 /* Counts the options offered (gMenuCount) and how many lines of them fit below the title (gOptionMenuSize). */

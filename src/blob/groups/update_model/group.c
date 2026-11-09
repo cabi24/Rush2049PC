@@ -96,9 +96,6 @@ typedef struct ModelRecord {
 /* The rumble's strength steps (MAT3 percentTable[36]): the force sums at which the next step starts. */
 #define RUMBLE_STEPS percentTable
 
-VIEW(s8[], gPaks);
-#define gPaks gPaks_view
-
 VIEW(intptr_t, gGhosts);
 #define gGhosts gGhosts_view
 

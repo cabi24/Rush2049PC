@@ -73,9 +73,6 @@ typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
 extern Player gPlayers[];
 
-VIEW(MultiBlit[], multiBlit);
-#define multiBlit multiBlit_view
-
 extern void particle_lifetime_set(void);
 
 /* Set the screen up: lock the players' profile files, read the paks, start every window on the select menu (on
@@ -150,12 +147,6 @@ void calcSelectMenuMaxSize(void)
     gSelectMenuMaxSize = rectHeight / TB_GetFontLineHeight();
 }
 
-struct PlayerFiles { u32 unknown0,  unknown4 ; Owner * head,  * tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-VIEW(Owner[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
-
 extern void *memset(void *,s32,u32);
 
 /* Put player's window in state mode (kPlayerState*).
@@ -211,10 +202,6 @@ void setPlayerState(s32 player,s32 mode)
     playerscr_updateSelectInfo(player);
 }
 
-typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
-VIEW(PlayerPresence[], gControllerData);
-#define gControllerData gControllerData_view
-
 /* Read the four paks: each one's profile count (gNumPakPlayers, or why it has none: no controller, no pak, damaged,
  * a Rumble Pak) and whether it is too full for a new profile (gPakFull: fewer free pages than a profile takes, or no
  * free note). A pak that has just become usable makes the windows on it put their buttons back in place. */
@@ -225,7 +212,7 @@ void playerscr_updatePakInfo(void)
     u32 available;
     for(i=0;i<4;i++) {
         gPakFull[i]=0;
-        if(!gControllerData[i].present)playerscr_gNumPakPlayers[i]=PAK_NO_CONTROLLER;
+        if(!gControllerData[i].attached)playerscr_gNumPakPlayers[i]=PAK_NO_CONTROLLER;
         else if(!PS_PakInserted(i))playerscr_gNumPakPlayers[i]=PAK_NOT_INSERTED;
         else if(PS_PakDamaged(i))playerscr_gNumPakPlayers[i]=PAK_DAMAGED;
         else if(PS_PakRumble(i))playerscr_gNumPakPlayers[i]=PAK_RUMBLE;
@@ -323,8 +310,6 @@ void playerscr_initButtons(s8 player)
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* Lay player p's buttons out for this frame. Waiting: only the title and the B icon show. Creating, or deleting with
  * a question or notice up: the title and the A and B icons. Controls, a full or damaged pak: nothing (the controls
@@ -499,9 +484,6 @@ void playerscr_updateButtons(s8 p)
 }
 
 extern void player_mode_set ( s32 , s32 );
-
-VIEW(char *, gPlayerNameChars);
-#define gPlayerNameChars gPlayerNameChars_view
 
 /* The delete menu's input for player p (MAT3 playerscr.c controlDeletePlayer): pick a profile on a pak (up and
  * down through the profiles of the chosen pak, skipping the ones other players hold; left and right change the pak),
@@ -943,7 +925,7 @@ void updatePlayerScreen(void)
                 s32 i;
                 Owner *player;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (gPlayers[i].owner != &gJustPlayers[i]) {
+                    if (gPlayers[i].owner != (Owner *) &gJustPlayers[i]) {   /* Owner: this file's profile handle */
                         for (player = gPlayerFiles.head; player; player = player->body->next)
                             if (gPlayers[i].owner == player) break;
                         if (!player) {

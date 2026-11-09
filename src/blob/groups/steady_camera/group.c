@@ -7,9 +7,6 @@ float sqrtf(float);
 
 typedef struct V3 { float x, y, z; } V3;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 
 /* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
 typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;

@@ -103,8 +103,6 @@ typedef struct internal_state {
     int bi_valid;
 } FAR deflate_state;
 
-VIEW(config[10], configuration_table);
-#define configuration_table configuration_table_view
 
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }
 

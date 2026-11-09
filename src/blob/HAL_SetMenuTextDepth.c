@@ -1,9 +1,6 @@
 /* HAL_SetMenuTextDepth: the depth of menu text, through a curve (MAT3 HAL_text.c). */
 #include "game/game.h"
 
-VIEW(MenuDepthPoint[], menu_text_depth_curve);
-#define menu_text_depth_curve menu_text_depth_curve_view
-
 /* Sets the depth text is drawn at like HAL_SetTextDepth, but first maps value through menu_text_depth_curve, a
  * piecewise-linear curve of (x, y) points whose last x is 32000 or more (a value at or below the first x is used as
  * it is). MAT3 uses the value as it is. */

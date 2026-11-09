@@ -3,10 +3,6 @@
 #include "game/audiomgr.h"
 
 /* The sound server's lists, in this file's view of the header's (the same layout, without the volatile). */
-VIEW(AudioList, gCmdQ);
-#define gCmdQ gCmdQ_view
-VIEW(AudioList, gFreeQ);
-#define gFreeQ gFreeQ_view
 
 void *memset(void *, s32, u32);
 

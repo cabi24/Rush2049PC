@@ -17,10 +17,6 @@ typedef struct PlayerStatus {
     unsigned char slot, controller, rest[0x48 - 2]; void *ref;
 } PlayerStatus;
 
-VIEW(MultiBlit[], titlescr_blits);
-#define titlescr_blits titlescr_blits_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
 extern PlayerStatus gPlayers[4];
 
 #define SND_START 0x4F              /* the effect Start plays here */

@@ -1,9 +1,6 @@
 /* DrawBlits: run every blit's animation function, once a frame (MAT3 blit.c). */
 #include "game/game.h"
 
-VIEW(intptr_t, BlitPtrs);
-#define BlitPtrs BlitPtrs_view
-
 /* Calls the animation function of each blit in use that has one and a texture (a text blit's function is the
  * renderer's to call), in BlitPtrs order. A function that returns 0 asks for its blit to go: RemoveBlit moves the last
  * blit in use into its slot, so the same slot is looked at again. */

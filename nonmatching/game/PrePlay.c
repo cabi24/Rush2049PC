@@ -9,9 +9,6 @@ extern Player76 gPlayers[];   /* gPlayers */
  * is called on the frames that complete a 30 Hz frame: the countdown begins within a retrace of original's. */
 #define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)
 
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
-
 void *memset(void *, s32, u32);
 
 void leStartLoadingEffect(void)

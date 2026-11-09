@@ -15,29 +15,7 @@ typedef struct {
     u32 payload[5];
 } SceneMsg;
 
-/* The game's texts (gText): single strings, and tables of strings indexed through tab. */
-typedef struct {
-    void *unk0;
-    void **single;
-    void *unk8;
-    u16 *tab;
-    void **taba;
-} TextTable;
 #define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
-
-VIEW(TextTable, gText);
-#define gText gText_view
-
-VIEW(u8[2], gameover_titlePos);
-#define gameover_titlePos gameover_titlePos_view
-
-VIEW(struct pc_multiblit[1], gameover_multiblit);
-#define gameover_multiblit gameover_multiblit_view
-
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(OSMesgQueue, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag);

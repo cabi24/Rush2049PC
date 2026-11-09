@@ -10,8 +10,6 @@ typedef struct {
 } PlayerPad; /* 0x4C */
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* Adds the circuit the circuit player (gCircuitPlayer) finished to its profile's stats for that circuit (the type of
  * its circuit in progress) and to the totals: a circuit, a first, second or third place, the death mode attempts and

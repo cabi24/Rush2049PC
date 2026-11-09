@@ -1,10 +1,6 @@
 /* The audio options screen's menu size (MAT3 audioscr.c's calcMenuRect). */
 #include "game/game.h"
 
-typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
-
-VIEW(TextState, gText);
-#define gText gText_view
 
 /* Sizes the menu box (audio_menuRect) for its widest line name and widest value (a volume, a song name in
  * capitals, mono or stereo), centred on the screen; cx is where the values start. */

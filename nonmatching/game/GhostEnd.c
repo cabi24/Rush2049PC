@@ -37,9 +37,6 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     GhostHeader **header;         /* 0x28 */
 } Ghost;
 
-VIEW(Ghost **[], gGhosts);
-#define gGhosts gGhosts_view
-
 void GhostEnd(void)
 {
     GhostHeader *g;

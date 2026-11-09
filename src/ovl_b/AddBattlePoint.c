@@ -15,9 +15,6 @@ typedef struct Event {
     u8 unknown15[3];
 } Event;
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 /* Records `delta` points for car `row` against car `column` (RecordBattlePoints for a loss); a lost point takes one
  * off the car (none below 0) when the option for it (gOptions[40]) is on, else stops there. Starts a marker flying
  * from `column`'s place on the HUD (wrongWayPos) to `row`'s score (fragPos), in the next of four marker slots. */

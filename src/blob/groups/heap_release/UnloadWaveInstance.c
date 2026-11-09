@@ -3,8 +3,6 @@
  * (include/game/types.h). */
 #include "game/game.h"
 
-VIEW(volatile s16, gRenderInProgress);
-#define gRenderInProgress gRenderInProgress_view
 void *memset(void *, int, u32);
 
 /* Waits until the RSP has finished the frame being drawn (gRenderInProgress), which may still read the wave. */

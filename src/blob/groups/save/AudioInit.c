@@ -39,10 +39,6 @@ typedef struct Slot24 { u8 pad0[3]; u8 used; u8 pad4[28]; } Slot24;   /* a comma
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(Slot24 (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-VIEW(OSMesgQueue, audio_lock_queue);
-#define audio_lock_queue audio_lock_queue_view
-VIEW(OSMesg[1], audio_lock_msg);
-#define audio_lock_msg audio_lock_msg_view
 VIEW(OSThread, audio_manager_thread);
 #define audio_manager_thread audio_manager_thread_view
 
@@ -50,22 +46,6 @@ VIEW(Voice *, gFxTags);
 #define gFxTags gFxTags_view
 VIEW(void *, gSortedFxTags);
 #define gSortedFxTags gSortedFxTags_view
-
-VIEW(List, gFreeFxTags);
-#define gFreeFxTags gFreeFxTags_view
-VIEW(List, gPlayingFxTags);
-#define gPlayingFxTags gPlayingFxTags_view
-VIEW(List, gInterruptedFxTags);
-#define gInterruptedFxTags gInterruptedFxTags_view
-VIEW(s32, gTagShift);
-#define gTagShift gTagShift_view
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
-
-VIEW(List, gFreeSequences);
-#define gFreeSequences gFreeSequences_view
-VIEW(List, gActiveSequences);
-#define gActiveSequences gActiveSequences_view
 
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);

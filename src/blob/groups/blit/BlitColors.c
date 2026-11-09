@@ -81,9 +81,6 @@ typedef union {
     gDPPipeSync(pkt); \
 }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* Loads the colours a texture of this format draws with, unless they are the ones loaded last (blitColors):
  *   colors      a colour-indexed texture's palette (RGBA16 entries), or for intensity textures two RGBA colours
  *   format      the texture's format: 2 colour-indexed (5: the two-tile form), 3 IA, 4 I (G_IM_FMT_*)

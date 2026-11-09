@@ -4,8 +4,6 @@
 
 typedef union Gfx {struct {u32 w0; uintptr_t w1;} words;double align;} Gfx;
 
-VIEW(int, blitAttribute);
-#define blitAttribute blitAttribute_view
 /* SDK forms from reference/repos/ultralib/include/PR/gbi.h: _SHIFTL,
    gImmp1 and gSPTextureRectangle, F3DEX2 command values. */
 #define _SHIFTL(v,s,w) ((u32)(((u32)(v)&((0x01U<<(w))-1))<<(s)))

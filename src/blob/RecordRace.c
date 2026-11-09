@@ -24,8 +24,6 @@ typedef struct CarRecord {
 } CarRecord;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* The high score tables' owners for a track (gTotalNames): 15 slots, the laps', the averages' and the ghost times'. */
 VIEW(tProfile **[][15], gTotalNames);

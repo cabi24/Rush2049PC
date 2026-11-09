@@ -1,16 +1,7 @@
 #include "game/game.h"
 
 
-#define gFontSem text_lock_queue_view
 
-typedef struct tText { u16 numSingle; u8 **single; } tText;
-typedef struct tFontHeader { u8 pad0[2]; u8 ascent; u8 descent; } tFontHeader;
-
-VIEW(tText, gText);
-#define gText gText_view
-VIEW(tFontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
-VIEW(OSMesgQueue, text_lock_queue);
 
 s32 animSpeedText(void *blt)
 {

@@ -28,13 +28,6 @@ typedef struct tDLList {
 typedef s32 (*PakPredicate)(s32);
 typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
 
-VIEW(volatile tPak[], gPaks);
-#define gPaks gPaks_view
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
-VIEW(tDLList, pak_free_handles);
-#define pak_free_handles pak_free_handles_view
-
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 
@@ -146,9 +139,6 @@ tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company,
     return fileh;
 }
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* Deletes the open file fileh from its pak and closes it: its RemoveFile is told, its data freed, its handle given
  * back. A failure goes to the error function; the deletion is retried if the player asks and the file is still open. */
 void PS_DeleteFile(tPakHandle *fileh)
@@ -195,16 +185,6 @@ delete_retry:
     pdf_release(fileh);
     si_unlock();
 }
-
-/* ---- PS_PakServer and its private callees ---- */
-typedef struct ControllerData { s8 present; u8 opaque1[15]; } ControllerData;
-VIEW(ControllerData[], gControllerData);
-#define gControllerData gControllerData_view
-
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 extern void *memcpy(void *, const void *, u32);
 
@@ -274,7 +254,7 @@ void PS_PakServer(s32 forceUpdate, s32 rumbleOnly)
     si_lock();
     for (i = 0; i < NUM_PAKS; i++) {
         if (gErrPak >= 0 && i != gErrPak) continue;
-        if (!gControllerData[i].present || !gPaks[i].plugged || gPaks[i].wasRemoved) {
+        if (!gControllerData[i].attached || !gPaks[i].plugged || gPaks[i].wasRemoved) {
             /* no pak: forget it */
             gPaks[i].wasRemoved = 0;
             if (gPaks[i].inserted) {
@@ -482,11 +462,6 @@ flush:
     for (i = 0; i < NUM_PAKS; i++) gPaks[i].changed = changed[i];
     if (forceUpdate) {}
 }
-
-VIEW(tPakHandle[], pak_file_handles);
-#define pak_file_handles pak_file_handles_view
-VIEW(PakFileRecord[], pak_file_records);
-#define pak_file_records pak_file_records_view
 
 extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
 extern void osStartThread(void *);

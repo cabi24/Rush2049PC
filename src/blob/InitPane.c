@@ -1,8 +1,6 @@
 /* InitPane: make a pane, a bordered rectangle of five blits (MAT3 pane.c). */
 #include "game/game.h"
 
-VIEW(tBlitSet[], gPaneBlits);
-#define gPaneBlits gPaneBlits_view
 
 /* Makes a pane over the rectangle (x1, y1)-(x2, y2) (either corner first) from the first free one of gPaneBlits: a
  * dark blue inside (0, 0, 16) and a light blue border (0, 0, 192), both of alpha; each of its five blits gets the

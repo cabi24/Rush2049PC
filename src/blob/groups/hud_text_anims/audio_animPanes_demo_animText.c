@@ -2,20 +2,6 @@
  * animation functions, run each frame through their blits. */
 #include "game/game.h"
 
-typedef struct { s8 flag; s8 pad[15]; } Slot16;
-VIEW(Slot16[], gControllerData);
-#define gControllerData gControllerData_view
-
-VIEW(s32[3], audio_menuRect);
-#define audio_menuRect audio_menuRect_view
-
-typedef struct { u32 first, second; } Pair;
-VIEW(Pair, gJust);
-#define gJust gJust_view
-
-/* The menu box's left, width and height (audio_menuRect, audio_calcMenuRect's). */
-typedef struct { s32 x, w, h; } MenuRect;
-
 /* The audio screen's panes, made once: in the pause screen the title pane (with "controller removed" if the
  * pausing player's controller is out) and the menu's backing pane around audio_menuRect. blit is unused; returns 1
  * (keep animating). The unused locals x, unused1 and unused2 are left from the N64 build's stack frame. */
@@ -29,13 +15,13 @@ s32 audio_animPanes(s32 blit)
     if (!audio_panesCreated) {
         if (!(gGameState & GS_FRONTEND_MASK)) {
             HAL_SetFont(13);
-            audio_gControllerRemoved = !gControllerData[playerInPause].flag;
+            audio_gControllerRemoved = !gControllerData[playerInPause].attached;
             audio_TitlePane();
             y = 10 + 2 * TB_GetFontLineHeight();
             HAL_SetFont(10);
-            InitPane(((MenuRect *)audio_menuRect)->x - 8, y - 4,
-                              ((MenuRect *)audio_menuRect)->x + ((MenuRect *)audio_menuRect)->w + 8,
-                              y + ((MenuRect *)audio_menuRect)->h + 4, 176, 0, 0, 0);
+            InitPane(audio_menuRect.x - 8, y - 4,
+                              audio_menuRect.x + audio_menuRect.w + 8,
+                              y + audio_menuRect.h + 4, 176, 0, 0, 0);
         }
         audio_panesCreated = 1;
     }
@@ -61,8 +47,8 @@ s32 demo_animText(s32 blit)
         TB_DrawTextScrollBox(160, 185, 320, 110, -1, 0, gText.single[32]);
         TB_SetTextColor(1);
     }
-    gJust.second = 3;
-    gJust.first = 0;
+    gJust.v = kTB_JustTop;
+    gJust.h = kTB_JustLeft;
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

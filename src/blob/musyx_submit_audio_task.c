@@ -23,8 +23,6 @@ typedef struct OSScTask_s {
     OSMesg msg;
 } OSScTask;
 
-VIEW(OSMesgQueue, musyx_task_done_queue);
-#define musyx_task_done_queue musyx_task_done_queue_view
 extern OSMesgQueue scheduler_task_queue;
 extern OSMesgQueue scheduler_interrupt_queue;
 extern void *memcpy(void *, const void *, unsigned int);

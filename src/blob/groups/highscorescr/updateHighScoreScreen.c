@@ -5,18 +5,12 @@
 /* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
 typedef struct Rec76 { s32 w0; u32 edges; s32 rest[16]; void *profile; } Rec76;
 
-VIEW(s8, highscore_inited);
-#define highscore_inited highscore_inited_view
-
 extern Rec76 gPlayers[];
 
 /* PC: game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt"): the save prompt
    after a ghost race for every profile, not only the developer's (gSaveGhostFiles, LoadPlayerData); off, the N64's. */
 int pc_ghost_prompt(int developer);
 #define PC_GHOST_PROMPT(v) pc_ghost_prompt(v)
-
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
 
 #define WAVE_TRACK_MUSIC_BASE 139   /* the track's wave, gTrackNum + this (freed for the ghost's compression) */
 

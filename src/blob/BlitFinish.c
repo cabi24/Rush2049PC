@@ -12,9 +12,6 @@ typedef union
   u64 force_structure_alignment;
 } Gfx;
 
-VIEW(intptr_t, blit_dl);
-#define blit_dl blit_dl_view
-
 /* The two display lists the blitter fills alternately (groups/blit/init.c): host Gfx, 16 bytes a command. */
 extern Gfx pc_text_dl[2][2400];
 

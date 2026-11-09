@@ -126,9 +126,6 @@ typedef struct HitPoly { struct HitPoly *next; void *poly; } HitPoly;
 /* A texture definition (MAT3 tTexture, 36 bytes): only its size matters here. */
 typedef struct tTexture { u8 b[36]; } TexDef;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);

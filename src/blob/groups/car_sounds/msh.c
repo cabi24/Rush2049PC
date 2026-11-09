@@ -16,9 +16,6 @@ typedef struct AudioModel2056 {
     u8 to_player[384];s16 player;u8 tail[64];
 } AudioModel2056;
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
 f32 fabsf(f32);
 
 /* The effects (fxid): the first of 13 bump sounds, the scrape loop, the thumps of the three collision kinds. */

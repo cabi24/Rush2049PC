@@ -3,12 +3,6 @@
 
 #define GHOST_SCORES 2            /* tRaceStats.scores[2]: the best ghost race times */
 
-/* The high score tables' owners for a track (gTotalNames): two lists of five by name index or handle, then the
- * ghost race times' owners (pointer-sized on the PC, docs/port/CASTS.md). */
-typedef struct Owner {
-    intptr_t names[2][5];
-    tProfile **who[5];          /* 0x28 */
-} Owner;
 
 /* A player's input record as this reads it: the car, which "just play" profile, the crashes, the profile. */
 typedef struct PlayerPad {     /* 0x4C */
@@ -31,11 +25,6 @@ typedef struct CarData {       /* 0x3B8 */
 } CarData;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
-
-VIEW(Owner[], gTotalNames);
-#define gTotalNames gTotalNames_view
 
 /* Adds each player's ghost race to its profile's stats for the track (the backward ones when gBackwards) and to the
  * totals: a finisher's time into the five best ghost race times (in the totals with its owner, a profile with a pak

@@ -1,9 +1,6 @@
 /* UpdateHUDPostCamera: the HUD's work after the camera has moved (MAT3 hud.c). */
 #include "game/game.h"
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* During a race and its end: turns the HUD's 3D objects (hudObjAngle, unless paused), draws the coin counters of the
  * race types with coins (all but obstacle and battle), and the battle and stunt extras' (UpdateHUDExtraPostCamera). */
 void UpdateHUDPostCamera(void) {

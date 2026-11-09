@@ -12,16 +12,7 @@ typedef struct tStuntCoin {
     s16 screenPos[2], startPos[2], destPos[2];
     f32 scrollTime;
 } tStuntCoin;
-typedef struct tText {
-    u16 numSingle;
-    u8 **single;
-    u16 numTab, numTabA;
-    u16 *tab;
-    u8 **taba;
-} tText;
 
-VIEW(tText, gText);
-#define gText gText_view
 
 /* Draws each stunt player's points, the stunt just landed and its bonus, and scrolls the coins won to the player's
  * coin row (stuntCoin), for the stunt race HUD. Returns 1. */

@@ -1,34 +1,6 @@
 /* SetPakError: open a pak's error dialog (MAT3 pakerr.c). */
 #include "game/game.h"
 
-/* One of a pak's two error dialogs (gPakError; PakErrorState's layout). */
-typedef struct Slot {
-    /* 0x00 */ s8 busy;
-    /* 0x01 */ s8 enabled;
-    /* 0x02 */ s8 unk2;
-    /* 0x03 */ s8 player;
-    /* 0x04 */ u8 primary[4];
-    /* 0x08 */ u8 secondary[4];
-    /* 0x0C */ u8 previous[4];
-    /* 0x10 */ s8 present;
-    /* 0x14 */ s32 mode;
-    /* 0x18 */ s16 arg[4];
-    /* 0x20 */ u8 pad20[8];
-    /* 0x28 */ u32 deadline;
-} Slot; /* 0x2C */
-
-/* The scheduler as this reads it: its retrace count. */
-typedef struct {
-    u8 pad0[0x27C];
-    volatile u32 frameCount;
-} Sched;
-
-VIEW(Slot[4][2], gPakError);
-#define gPakError gPakError_view
-
-VIEW(Sched, gScheduler);
-#define gScheduler gScheduler_view
-
 /* Opens an error dialog of mode (kPS_Err*) for player's pak in its first closed slot, over the rectangle x, y, w, h,
  * with a 3-second deadline: the controllers' active flags and stick edges are saved and only the pak's player (or
  * every controller, for kPS_ErrNoCont and kPS_ErrNoPak) may answer. kPS_ErrRecognize is noted
@@ -45,29 +17,29 @@ void SetPakError(s32 player, s32 mode, s32 x, s32 y, s32 w, s32 h) {
     if (!sInited) {
         for (j = 0; j < 4; j++) {
             for (i = 0; i < 2; i++) {
-                gPakError[j][i].mode = 0;
-                gPakError[j][i].busy = 1;
+                gPakError[j][i].err = 0;
+                gPakError[j][i].done = 1;
             }
         }
         sInited = 1;
     }
     for (j = 0; j < 2; j++) {
-        if (gPakError[player][j].mode == 0) {
+        if (gPakError[player][j].err == 0) {
             break;
         }
     }
     /* Original game: when both of the pak's records are in use the loop ends with j == 2 and the error is written
      * into the record past the row: the next pak's first one, or past gPakError for pak 3. MAT3 pakerr.c has the
      * same loop over three records. Kept as retail. */
-    gPakError[player][j].busy = 0;
-    gPakError[player][j].deadline = (s32)(3.0f * gRetraceRate) + gScheduler.frameCount;
-    gPakError[player][j].enabled = 1;
-    gPakError[player][j].unk2 = 0;
-    gPakError[player][j].mode = mode;
+    gPakError[player][j].done = 0;
+    gPakError[player][j].timeout = (s32)(3.0f * gRetraceRate) + gScheduler.retraceCount;
+    gPakError[player][j].choice1 = 1;
+    gPakError[player][j].choice2 = 0;
+    gPakError[player][j].err = mode;
     for (i = 0; i < 4; i++) {
-        gPakError[player][j].primary[i] = GetControllerActive(i);
-        gPakError[player][j].secondary[i] = GetControllerStickEdges(i);
-        gPakError[player][j].previous[i] = 0;
+        gPakError[player][j].contActive[i] = GetControllerActive(i);
+        gPakError[player][j].contStick[i] = GetControllerStickEdges(i);
+        gPakError[player][j].contDebug[i] = 0;
     }
     SetControllerActive(-1, 0);
     SetControllerStickEdges(-1, 0);
@@ -75,19 +47,19 @@ void SetPakError(s32 player, s32 mode, s32 x, s32 y, s32 w, s32 h) {
         SetControllerActive(-1, 1);
         SetControllerStickEdges(-1, 1);
     } else {
-        gPakError[player][j].player = player;
+        gPakError[player][j].cont = player;
         if (mode == kPS_ErrNoPak) {
             SetControllerActive(-1, 1);
             SetControllerStickEdges(-1, 1);
         } else {
-            SetControllerActive(gPakError[player][j].player, 1);
-            SetControllerStickEdges(gPakError[player][j].player, 1);
+            SetControllerActive(gPakError[player][j].cont, 1);
+            SetControllerStickEdges(gPakError[player][j].cont, 1);
         }
     }
     present = gPaks[player].rumble;
-    gPakError[player][j].arg[0] = x;
-    gPakError[player][j].present = present;
-    gPakError[player][j].arg[1] = y;
-    gPakError[player][j].arg[2] = w;
-    gPakError[player][j].arg[3] = h;
+    gPakError[player][j].left = x;
+    gPakError[player][j].rumble = present;
+    gPakError[player][j].top = y;
+    gPakError[player][j].width = w;
+    gPakError[player][j].height = h;
 }

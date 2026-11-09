@@ -12,8 +12,6 @@ typedef struct Blit {
 } Blit;
 typedef struct Color { u8 r,g,b,a; } Color;
 
-VIEW(Color[][3], carscr_marker_colors);
-#define carscr_marker_colors carscr_marker_colors_view
 
 /* One swatch blit, each frame. The AnimID packs its player (bits 0-3), its option (16-23) and, written here, the
  * palette entry shown (28-31). Hidden for a player not playing (for good), while the car is locked, or while the

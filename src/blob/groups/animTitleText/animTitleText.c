@@ -12,30 +12,8 @@ typedef struct MenuItem {
     s8 dirty;
 } MenuItem;
 
-typedef struct {
-    u8 pad0[0x70];
-    u16 lang;
-} LangInfo;
-
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct {
-    char *pad0[0x3A4 / 4];
-    intptr_t unk3A4;
-} TblHdr;
-
-typedef struct {
-    u8 pad0[4];
-    TblHdr *hdr;
-    u8 pad8[4];
-    LangInfo *info;
-    intptr_t *strings;
-} StrTable;
-
-VIEW(s16[2], pause_titlePos);
-#define pause_titlePos pause_titlePos_view
-
-VIEW(StrTable, gText);
-#define gText gText_view
+#define TEXT_PAUSE 56             /* gText.tab[]: the pause screen's strings: "paused", the menu, quit, restart */
+#define TEXT_REMOVED 233          /* gText.single[]: "removed" (a controller) */
 
 typedef struct PlayerRec {
     u8 pad0[0x48];
@@ -63,7 +41,7 @@ s32 animTitleText(MenuItem *item) {
     s32 i;
     s32 x;
     s32 y;
-    intptr_t str;
+    u8 *str;
     char buf[40];
     s32 v;
 
@@ -74,23 +52,23 @@ s32 animTitleText(MenuItem *item) {
     HAL_SetFont(13);
     x = pause_titlePos[0];
     y = pause_titlePos[1];
-    str = (intptr_t)buf;
+    str = (u8 *) buf;
     if (pause_gControllerRemoved) {
-        TB_Sprintf(buf, pause_controller_removed_format, playerInPause + 1, gText.hdr->unk3A4);
+        TB_Sprintf(buf, pause_controller_removed_format, playerInPause + 1, gText.single[TEXT_REMOVED]);
         TB_SetTextColor(1);
     } else {
         v = gPauseState;
         if (v == 7 || v == 8) {
-            str = gText.strings[gText.info->lang + v];
+            str = gText.taba[gText.tab[TEXT_PAUSE] + v];
             TB_SetTextColor(1);
         } else if (v == 6) {
             buf[0] = 0;
         } else {
-            TB_Sprintf(buf, pause_player_title_format, *gPlayers[playerInPause].name + PROFILE_OFS(20), gText.strings[gText.info->lang]);
+            TB_Sprintf(buf, pause_player_title_format, *gPlayers[playerInPause].name + PROFILE_OFS(20), gText.taba[gText.tab[TEXT_PAUSE]]);
             TB_SetTextColor(playerTextColor[playerInPause]);
         }
     }
-    TB_DrawText(TB_CenterText((void *)str, x), y, (void *)str);
+    TB_DrawText(TB_CenterText(str, x), y, str);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

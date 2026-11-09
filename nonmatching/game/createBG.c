@@ -32,14 +32,10 @@ typedef struct SoundState SoundState;
 
 VIEW(BackRect[4][4], gBackRects);
 #define gBackRects gBackRects_view
-VIEW(s32[4][4], gBackCamera);
-#define gBackCamera gBackCamera_view
 VIEW(Poly *[4], backPolys);
 #define backPolys backPolys_view
 VIEW(void *, bg_texture);
 #define bg_texture bg_texture_view
-VIEW(s32[4], offsetsValid);
-#define offsetsValid offsetsValid_view
 void ZOID_ShowPoly_bg(Poly *poly)
 {
     poly->flags &= ~0x8000;

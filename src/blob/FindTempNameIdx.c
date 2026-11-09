@@ -1,10 +1,6 @@
 /* FindTempNameIdx: a slot for a name typed on the high score screen (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-VIEW(u8[20][13], gTempNames);
-#define gTempNames gTempNames_view
-VIEW(u16[20], gTempNameAges);
-#define gTempNameAges gTempNameAges_view
 VIEW(intptr_t[12][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
 

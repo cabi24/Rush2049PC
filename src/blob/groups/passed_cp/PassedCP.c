@@ -34,9 +34,6 @@ typedef struct GameCar {
     u8 pad312[0x380 - 0x312]; void *input; u8 pad312_384[0x3B8 - 0x384];
 } GameCar;
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-
 /* Model `m` has crossed its next checkpoint at race time `time`. It becomes the car's last checkpoint; crossing
  * the finish line once started completes a lap (not in practice, nor in the attract mode's demo races). For a car
  * this machine drives (link owner 6): the finish line shows the checkpoint time, gOneMoreCP says the next

@@ -1,14 +1,7 @@
 /* DrawNoControllers: the scrolling message that a player's controller is unplugged (MAT3 game.c). */
 #include "game/game.h"
 
-/* A controller's state (gControllerData): attached or not. */
-typedef struct { s8 attached; u8 pad1[15]; } ControllerData;
-typedef struct { void *unk0; char **single; } TextTable;
 
-VIEW(volatile ControllerData[], gControllerData);
-#define gControllerData gControllerData_view
-VIEW(TextTable, gText);
-#define gText gText_view
 
 s32 sprintf(char *, const char *, ...);
 

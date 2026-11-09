@@ -20,15 +20,6 @@ extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg 
 /* Retraces between status queries (which find a Controller Pak being plugged in or out). */
 #define CONT_QUERY_INTERVAL 30
 
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
-
-VIEW(OSMesgQueue, si_event_queue);
-#define si_event_queue si_event_queue_view
-
-VIEW(u32[19], n64_button_map);
-#define n64_button_map n64_button_map_view
-
 /* Makes the serial bus's lock the first time (MAT3 controlsys.c's _InitSemaphore, the N64 form). */
 static void pak_queue_init(void)
 {

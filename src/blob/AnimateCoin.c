@@ -51,8 +51,6 @@ typedef struct Visual {
 /* A player's window bit; a view of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
 #define VIEW_BIT(s) 1 << ((s) & 31)
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* One frame of a coin (op 1), or release its visual (op 0). Gold coins are numbered from 8 (gWhichGoldCoin + 8),
  * silver ones from 0, in the order their visuals first run; a coin every player has already found is removed at

@@ -2,9 +2,6 @@
  * uses its own copy (heap_release/initsystem.c's InitGraphics_Init). */
 #include "game/game.h"
 
-VIEW(u8 *, frame_dl);
-#define frame_dl frame_dl_view
-
 /* The video and frames (InitGfx), the scene objects, the blits, the cameras. */
 void InitGraphics(void)
 {

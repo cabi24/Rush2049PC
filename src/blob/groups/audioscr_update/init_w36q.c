@@ -5,9 +5,6 @@ typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
-typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
-VIEW(AudioCfg, gOptions);
-#define gOptions gOptions_view
 VIEW(Button[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 void *memcpy(void *,const void *,u32);
@@ -75,10 +72,10 @@ void audio_initScreen(void)
     } else audio_blit = NewMultiBlit(0,0,&audio_pauseBlit,2);
     ClearRushControls();
     exitAudioScreen = 0;
-    audio_gSong = gOptions.track;
+    audio_gSong = gOptions[kOptSong];
     if (gAudioMenuSelect == 1 || gAudioMenuSelect == 2) {
         AudKillSong();
-        AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
+        AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
         if (audio_gSong < AUDIO_SONG_TRACKS) AudPlaySong(audio_gSong,1);
         else if (audio_gSong == AUDIO_SONG_TRACKS) {
             if (gGameState & GS_FRONTEND_MASK) AudPlaySong(AUDIO_FRONT_END_SONG,1);

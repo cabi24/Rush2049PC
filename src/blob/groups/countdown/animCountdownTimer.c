@@ -3,14 +3,7 @@
 
 #define SOUND_COUNTDOWN_BEEP 2
 
-#define sc gScheduler_view
-#define gFontSem text_lock_queue_view
 
-typedef struct tSchedCtl { u8 pad000[0x27C]; s32 frameCount; } tSchedCtl;
-
-VIEW(volatile tSchedCtl, gScheduler);
-
-VIEW(OSMesgQueue, text_lock_queue);
 
 /* Draws the time left (GetCountdownTimeRemaining, seconds) as m:ss in yellow with a black shadow, centred on
  * countdownTimerPos (a split-screen stunt race: on the map's place), without a leading zero; beeps at 30 seconds and
@@ -47,7 +40,7 @@ skip:
                 nextBeep--;
             PlayGameSound_Countdown(SOUND_COUNTDOWN_BEEP, 0, 2, 0);
         }
-        if (sec <= 5 && (sc.frameCount & 8))
+        if (sec <= 5 && (gScheduler.retraceCount & 8))
             return 1;
     } else
         nextBeep = 30;

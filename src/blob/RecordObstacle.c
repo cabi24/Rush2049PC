@@ -8,8 +8,6 @@ typedef struct PlayerPad {u8 index,selector;u8 opaque[62];u16 numCrashes;u8 rest
 typedef struct CarTime {u8 opaque[240];f32 time;u8 rest[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 rest_308[0x380 - 0x308]; void *input; u8 rest_384[0x3B8 - 0x384];} CarTime;
 
 extern PlayerPad gPlayers[];
-VIEW(tProfile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* Adds each player's run to its profile's obstacle stats and to the totals: the time, a race, a finish (one lap) and
  * the best finishing time, the crashes, and the death mode runs; then writes the profile's stats (SavePlayerStats).

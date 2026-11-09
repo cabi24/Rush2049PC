@@ -2,9 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-VIEW(volatile u8, gStopAllEffects);
-#define gStopAllEffects gStopAllEffects_view
-
 /* Marks every effect instance in use to be stopped; AudioSfxServer then stops them over the next retraces (a
  * quarter of them at most per retrace on the N64). */
 void AudioStopAllEffects(void)

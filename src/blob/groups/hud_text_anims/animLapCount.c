@@ -3,13 +3,6 @@
 
 #define LAP_FORMAT 206   /* gText.single: the "lap n of m" format */
 
-typedef struct Justification {
-    s32 h, v;
-} Justification;
-
-VIEW(Justification, gJust);
-#define gJust gJust_view
-
 /* Draws each window's lap ("lap n of m", centred on lapCountPos, with a black shadow) while it races, in the HUD font
  * for the number of windows, at no depth; nothing in attract mode, outside a race, in practice or the obstacle course,
  * or when the HUD hides the place. Returns 1. */

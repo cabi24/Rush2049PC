@@ -14,11 +14,6 @@ typedef struct {
 void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
-VIEW(OSMesg, text_lock_msg);
-#define text_lock_msg text_lock_msg_view
-
 /* Makes the text lock once (a one-message queue holding its one message: text_lock takes it, text_unlock gives it
  * back; MAT3's semaphore) and forgets the current font, so the next HAL_SetFont loads one. */
 void HAL_InitText(void)

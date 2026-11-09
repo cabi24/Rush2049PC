@@ -18,9 +18,6 @@ typedef struct tCarData {
 
 typedef struct OSThread OSThread;
 
-VIEW(OSThread, model_thread);
-#define model_thread model_thread_view
-
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
 

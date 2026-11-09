@@ -11,8 +11,6 @@ typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSScMsg { s16 type; s8 misc[30]; } OSScMsg;
 
-VIEW(u8[], gScheduler);
-#define gScheduler gScheduler_view
 
 extern void __setfpcsr(u32 value);
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
@@ -35,7 +33,7 @@ void ModelThread(void *arg)
     init_controllers();
     modelrun = 0;
     init_model_task(0);
-    osScAddClient(gScheduler, &client, &model_thread_queue);
+    osScAddClient(&gScheduler, &client, &model_thread_queue);
     while (1) {
         osRecvMesg(&model_thread_queue, &msg, 1);   /* OS_MESG_BLOCK */
         do {

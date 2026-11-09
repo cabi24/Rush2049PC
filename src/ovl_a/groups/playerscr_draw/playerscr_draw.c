@@ -15,19 +15,11 @@ typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;
 typedef struct FiveParts FiveParts;
 
 extern Player gPlayers[];
-VIEW(Profile *[], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(Profile **[], gSelectedPlayer);
 #define gSelectedPlayer gSelectedPlayer_view
-struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-
-VIEW(u8 *[], gPS_PakName);
-#define gPS_PakName gPS_PakName_view
 
 /* How many profile rows away from the selected one a row is. */
 #define PROFILE_DISTANCE(x) ((x)>=0 ? (x) : -(x))

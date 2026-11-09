@@ -5,8 +5,6 @@
 
 float sqrtf(float);
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x20 bytes). */
 struct tCarData {

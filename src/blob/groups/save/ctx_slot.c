@@ -5,9 +5,6 @@
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
@@ -66,10 +63,7 @@ typedef struct Slot {
 } Slot;
 typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
 #define START_VIEW HeaderStart
-typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
 
-VIEW(List, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 VIEW(Handle[4], gGhosts);
 #define gGhosts gGhosts_view
 
@@ -83,23 +77,6 @@ s32 unzipdata(void *, s32, void *);
 
 #define SLOT_S32(h) (s32)PC_SLOT_N64(h)
 
-/* The seats are the record's 16 file entries (0x28 bytes from +0x84 on the N64); the N64 view starts them 0x20
- * early, at +0x64, with busy at +0x22. */
-typedef struct {
-    u8 pad0[2];
-    u8 busy;          /* file entry +2 */
-    u8 pad3[37];
-} SeatEntry;
-typedef struct {
-    u8 pad0[12];
-    PcPfs pfs;
-    s32 error, FreeSpace;
-    u8 pad7C[8];
-    SeatEntry seat[16];  /* the file entries */
-} PlayerSeats;
-VIEW(PlayerSeats[], gPaks);
-#define gPaks gPaks_view
-
 /* Frees an open pak file's data (it is read again when needed) and clears the file's lock flag. */
 void PS_PurgeFile(Handle h) {
     Slot *s = *(Slot **)h;
@@ -110,7 +87,7 @@ void PS_PurgeFile(Handle h) {
         DeallocateMemoryInternal(PC_N64A(data), 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         s->data = NULL;
-        gPaks[s->id].seat[s->seat].busy = 0;
+        gPaks[s->id].files[s->seat].flag2 = 0;
     }
 }
 

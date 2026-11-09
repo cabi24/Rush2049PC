@@ -49,11 +49,6 @@ typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 #define TEXT_CIRCUIT_MENU 43            /* the menu's rows */
 #define TEXT_CIRCUIT_NAMES 44           /* the four circuit types */
 
-VIEW(u8[], gUnlockedCircuits);
-#define gUnlockedCircuits gUnlockedCircuits_view
-VIEW(s8[][19], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-
 /* Which rows the profile's circuit allows: continue while a circuit is under way and not finished, the review once
  * one is under way. A circuit under way also unlocks its type and the ones before it (the intermediate type and
  * track 4, the advanced, with an Expansion Pak, and track 5, the extreme). An advanced circuit can't be continued
@@ -63,17 +58,17 @@ void resetEnabled(void)
     gContinueEnabled = !(gCircuit->track >= gCircuitSize) && gCircuit->active != 0;
     gStatsEnabled = gCircuit->active;
     if (gCircuit->type > 0) {
-        gUnlockedCircuits[1] = 1;
+        gUnlockedCircuits[0][1] = 1;
         gUnlockedTracks[0][4] = 1;
         gForceUnlockedCircuits[1] = 1;
     }
     if (gCircuit->type >= 2 && expansion_pak_present != 0) {
-        gUnlockedCircuits[2] = 1;
+        gUnlockedCircuits[0][2] = 1;
         gUnlockedTracks[0][5] = 1;
         gForceUnlockedCircuits[2] = 1;
     }
     if (gCircuit->type == kCircuitExtreme) {
-        gUnlockedCircuits[3] = 1;
+        gUnlockedCircuits[0][3] = 1;
         gForceUnlockedCircuits[3] = 1;
     }
     if (expansion_pak_present == 0 && gCircuit->type == 2) {
@@ -81,11 +76,6 @@ void resetEnabled(void)
     }
 }
 
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-
-VIEW(u8[20], circuitscr_gCircuitCode);
-#define circuitscr_gCircuitCode circuitscr_gCircuitCode_view
 VIEW(u8 *, gPasswordAlphabet);
 #define gPasswordAlphabet gPasswordAlphabet_view
 
@@ -183,12 +173,7 @@ typedef struct MultiBlit {
 
 extern Player gPlayers[];
 
-VIEW(f32[12], gTrophyMat);
-#define gTrophyMat gTrophyMat_view
 
-
-VIEW(MultiBlit[], circuitscr_mblit);
-#define circuitscr_mblit circuitscr_mblit_view
 
 extern void particle_lifetime_set(void);
 
@@ -249,9 +234,6 @@ void circuitscr_initScreen(void)
     circuitscr_blit = NewMultiBlit(0, 0, circuitscr_mblit, 1);
     circuitscr_inited = 1;
 }
-
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 /* Is the menu row `mode` offered? The code entry only to a guest (no pak file), continue and the review only when
  * resetEnabled allows them. */
@@ -435,11 +417,6 @@ void controlShowTrophy(void)
         circuitscr_buttonsJustInited = 1;
     }
 }
-
-/* The buttons with their count: the optimizer orders the stores to a table of known size as the original
- * declaration had it. */
-VIEW(MenuButton[CIRCUIT_BUTTONS], circuitscr_buttonInfo);
-#define circuitscr_buttonInfo circuitscr_buttonInfo_view
 
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear(s8 *);

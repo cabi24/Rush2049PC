@@ -6,9 +6,6 @@
 s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 /* Asks the audio manager thread to fade the music (music nonzero) and/or the effects (sfx nonzero) to volume
  * (clamped to 0..1) over time seconds (not below 0). */
 void AudSetMasterVol(f32 volume,f32 time,s32 music,s32 sfx) {

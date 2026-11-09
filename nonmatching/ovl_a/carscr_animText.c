@@ -8,16 +8,9 @@ typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]
 typedef struct Record Record;
 /* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
 struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
-typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
-typedef struct Slot { s32 kind, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, unknown3D[3]; } Slot;
 typedef struct Blit Blit;
 
-VIEW(Language, gText);
-#define gText gText_view
-
 extern Player gPlayers[];
-VIEW(Slot[][44], carscr_buttonInfo);
-#define carscr_buttonInfo carscr_buttonInfo_view
 
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
@@ -79,7 +72,7 @@ static void animButtonText(s32 p)
             x = screenPos[0];
             y = screenPos[1];
             if (!gGhosts[ghostIdx]) {
-                str = !ghosts_enabled ? gText.text[225] : gText.text[224];
+                str = !ghosts_enabled ? gText.single[225] : gText.single[224];
                 TB_SetTextColor(1);
                 TB_DrawText(TB_CenterText(str, x), y, str);
             } else {
@@ -111,14 +104,14 @@ static void animButtonText(s32 p)
             str = (u8 *)"GET READY TO RACE";
             TB_SetTextColor(1);
         } else {
-            str = gText.text[151];
+            str = gText.single[151];
             TB_SetTextColor(1);
             TB_DrawText(TB_CenterText(str, x), y, str);
             y += TB_GetFontLineHeight();
             if (notReadyCount == 1) {
                 TB_SetTextColor(playerTextColor[notReadyIdx]);
                 str = (*gPlayers[notReadyIdx].owner)->name;
-            } else str = gText.text[31];
+            } else str = gText.single[31];
         }
         TB_DrawText(TB_CenterText(str, x), y, str);
         TB_SetJust(0, 3);
@@ -141,34 +134,34 @@ static void animButtonText(s32 p)
         ZOID_ProjectWindow(p, carscr_buttonInfo[p][item].position, &gCamera[p], 0, screenPos);
         x = screenPos[0] - 45.0f * gTextPosScale * 300.0f / carscr_buttonZ;
         y = screenPos[1];
-        str = gNumWindows == 1 ? gText.indexed[gText.indices[2] + item]
-                              : gText.indexed[gText.indices[3] + item];
+        str = gNumWindows == 1 ? gText.taba[gText.tab[2] + item]
+                              : gText.taba[gText.tab[3] + item];
         TB_DrawText(x, y, str);
         switch (item) {
         case 0: str = CarTitles[gThisCar[p]]; break;
-        case 1: str = gText.indexed[gText.indices[4] + gCarTrans[p+1][gThisCar[p]]]; break;
-        case 2: str = gText.indexed[gText.indices[5] + gCarHandling[p+1][gThisCar[p]]]; break;
-        case 3: str = gText.indexed[gText.indices[6] + gCarEngines[p+1][gThisCar[p]]]; break;
-        case 4: str = gText.indexed[gText.indices[7] + gCarTires[p+1][gThisCar[p]]]; break;
-        case 5: str = gText.indexed[gText.indices[8] + gCarFrame[p+1][gThisCar[p]]]; break;
-        case 6: str = gText.indexed[gText.indices[9] + gCarWings[p+1][gThisCar[p]]]; break;
-        case 10: str = gText.indexed[gText.indices[12] + gCarTeam[p]]; break;
-        case 11: str = gText.indexed[gText.indices[10] + TIRE_RIMS(p+1)[gThisCar[p]]]; break;
-        case 12: str = gText.indexed[gText.indices[11] + gCarHorn[p+1][gThisCar[p]]]; break;
+        case 1: str = gText.taba[gText.tab[4] + gCarTrans[p+1][gThisCar[p]]]; break;
+        case 2: str = gText.taba[gText.tab[5] + gCarHandling[p+1][gThisCar[p]]]; break;
+        case 3: str = gText.taba[gText.tab[6] + gCarEngines[p+1][gThisCar[p]]]; break;
+        case 4: str = gText.taba[gText.tab[7] + gCarTires[p+1][gThisCar[p]]]; break;
+        case 5: str = gText.taba[gText.tab[8] + gCarFrame[p+1][gThisCar[p]]]; break;
+        case 6: str = gText.taba[gText.tab[9] + gCarWings[p+1][gThisCar[p]]]; break;
+        case 10: str = gText.taba[gText.tab[12] + gCarTeam[p]]; break;
+        case 11: str = gText.taba[gText.tab[10] + TIRE_RIMS(p+1)[gThisCar[p]]]; break;
+        case 12: str = gText.taba[gText.tab[11] + gCarHorn[p+1][gThisCar[p]]]; break;
         case 15: TB_Sprintf(str1, "%d", gCarSheen[p] + 1); str = str1; break;
         case 16:
             if (gGhosts[1]) TB_Strcpy(str1, (*gGhosts[1])->name);
-            else TB_Strcpy(str1, gText.indexed[gText.indices[15]]);
+            else TB_Strcpy(str1, gText.taba[gText.tab[15]]);
             str = str1;
             break;
         case 17:
             if (gGhosts[2]) TB_Strcpy(str1, (*gGhosts[2])->name);
-            else TB_Strcpy(str1, gText.indexed[gText.indices[15]]);
+            else TB_Strcpy(str1, gText.taba[gText.tab[15]]);
             str = str1;
             break;
         case 18:
             if (gGhosts[3]) TB_Strcpy(str1, (*gGhosts[3])->name);
-            else TB_Strcpy(str1, gText.indexed[gText.indices[15]]);
+            else TB_Strcpy(str1, gText.taba[gText.tab[15]]);
             str = str1;
             break;
         default: str = 0; break;

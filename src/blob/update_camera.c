@@ -26,8 +26,6 @@ typedef struct Model {
     s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 other1734[322];
 } Model;                    /* 0x808 */
-VIEW(OSThread, model_thread);
-#define model_thread model_thread_view
 
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);

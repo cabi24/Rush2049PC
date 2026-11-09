@@ -26,9 +26,6 @@ typedef struct EngineSounds {Definitions64 *specs;tSoundState state[2];tSoundSta
 /* The model record's fields this file reads (MAT3 tModelData, the N64's layout). */
 typedef struct Vehicle2056 {u8 prefix[12];s8 engine_type;u8 gap13[1587];s8 crashflag;u8 gap1601[389];s16 slot;u8 gap1992[4];s8 drone_type;u8 tail[59];} Vehicle2056;
 
-VIEW(char[], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
-
 /* Starts the sounds of the car of model vehicle, unless the game's sounds are off or the car has crashed: its
  * engine type's two layers (silent effects for a human's car, emitters for a drone), its other records empty, and
  * for the first four slots its road noises, scrape, bumps, horn and bog reset. Then marks its sounds on

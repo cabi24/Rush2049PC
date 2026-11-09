@@ -27,11 +27,6 @@ typedef struct Model {
 /* gPlayers[0].slot: the first player's car slot, the first byte of its input record. */
 extern u8 gPlayers;
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* Adds the distance each car drove since the last frame to its mileage, and passes a car through its next
  * checkpoint (PassedCP) when it crossed the checkpoint's plane within its radius: a car driven here or by the
  * network's dead reckoning (link owner 0 or 6), not crashed nor being put back. The passing time is the frame's

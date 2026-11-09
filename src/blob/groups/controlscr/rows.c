@@ -1,9 +1,6 @@
 /* The controller-setup screen's tear-down (MAT3 controlscr.c uninitButtons and cleanupControlScreen). */
 #include "game/game.h"
 
-VIEW(s8[4], prevControlScrActive);
-#define prevControlScrActive prevControlScrActive_view
-
 /* Remove player row's 17 buttons (3D models) from the scene and mark them gone (handle -1). */
 void controls_uninitButtons(s8 row) {
     int i;

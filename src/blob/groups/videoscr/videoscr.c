@@ -33,19 +33,8 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-typedef struct VsIdx { u8 pad0[48]; u16 yesNo; u8 pad50[32]; u16 optionNames; } VsIdx;
-typedef struct TextState { void *word0; char **fixed; void *word8; VsIdx *indices; char **strings; } TextState;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;   /* 64 B */
-
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
-VIEW(TextState, gText);
-#define gText gText_view
-
-typedef struct { s32 x, w, h, cx; } MenuRect;          /* MAT3 videoscr.c menuRect */
-VIEW(MenuRect, video_menuRect);
-#define video_menuRect video_menuRect_view
+#define TEXT_VIDEO_OPTIONS 41     /* gText.tab[]: the video screen's options */
 
 VIEW(ButtonInfo[], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
@@ -127,10 +116,10 @@ s32 video_animText(s32 unused)
     vs_SetFont(13);
     TB_SetTextColor(1);
     if ((gGameState & GS_RACE_MASK) && video_gControllerRemoved) {
-        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.fixed[233]);
+        TB_Sprintf(str1, "CONTROLLER %d %s", playerInPause + 1, gText.single[233]);
         TB_DrawText(TB_CenterText(str1, 160), 10, str1);
     } else {
-        str = gText.fixed[53];
+        str = gText.single[53];
         TB_DrawText(TB_CenterText(str, 160), 10, str);
     }
     y = TB_GetFontLineHeight() * 2 + 10;
@@ -139,7 +128,7 @@ s32 video_animText(s32 unused)
     for (i = 0; i < 4; i++) {
         if (!video_optionValid[i]) continue;
         TB_SetTextColor(i == gVideoMenuSelect ? 22 : 1);
-        str = gText.strings[gText.indices->optionNames + i];
+        str = gText.taba[gText.tab[TEXT_VIDEO_OPTIONS] + i];
         TB_DrawText(TB_RightText(str, video_menuRect.cx - 5), y, str);
         switch (i) {
         case 0:
@@ -184,7 +173,7 @@ void video_animButtonText(void)
     ZOID_ProjectWindow(0, video_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
-    str = gText.fixed[53];
+    str = gText.single[53];
     TB_DrawText(TB_CenterText(str, x), y, str);
     HAL_SetFont(11);
     for (i = 0; i < 4; i++) {
@@ -202,7 +191,7 @@ void video_animButtonText(void)
             ZOID_ProjectWindow(0, video_buttonInfo[i].pos, gCamera, 0, screenPos);
             x = screenPos[0] - 55;
             y = screenPos[1];
-            str = gText.strings[gText.indices->optionNames + i];
+            str = gText.taba[gText.tab[TEXT_VIDEO_OPTIONS] + i];
             TB_DrawText(x, y, str);
             ZOID_ProjectWindow(0, video_buttonInfo[i + 4].pos, gCamera, 0, screenPos);
             x = screenPos[0] - 35;
@@ -227,11 +216,11 @@ void video_animButtonText(void)
         static s16 height = 1;
         HAL_SetFont(10);
         if (gTestPane == 0) {
-            lines = TB_GetTextNumLines(testWidth, gText.fixed[217]);
+            lines = TB_GetTextNumLines(testWidth, gText.single[217]);
             height = TB_GetFontLineHeight() * lines;
             gTestPane = InitPane(152 - testWidth / 2, 51, testWidth / 2 + 168, height + 59, 176, 0, 0, 0);
         }
-        TB_DrawTextScrollBox(160, 55, testWidth, height, -1, 0, gText.fixed[217]);
+        TB_DrawTextScrollBox(160, 55, testWidth, height, -1, 0, gText.single[217]);
     } else if (gTestPane != 0) {
         RemovePane(gTestPane);
         gTestPane = 0;
@@ -240,18 +229,18 @@ void video_animButtonText(void)
         static s16 height = 1;
         HAL_SetFont(10);
         if (gConfirmPane == 0) {
-            lines = TB_GetTextNumLines(confirmWidth, gText.fixed[218]) + 1;
+            lines = TB_GetTextNumLines(confirmWidth, gText.single[218]) + 1;
             height = TB_GetFontLineHeight() * lines;
             gConfirmPane = InitPane(152 - confirmWidth / 2, 51, confirmWidth / 2 + 168, height + 59, 176, 0, 0, 0);
         }
-        TB_DrawTextScrollBox(160, 55, confirmWidth, height, -1, 0, gText.fixed[218]);
+        TB_DrawTextScrollBox(160, 55, confirmWidth, height, -1, 0, gText.single[218]);
         y = height - TB_GetFontLineHeight() + 55;
         x = 160 - confirmWidth / 4;
-        str = gText.strings[gText.indices->yesNo];
+        str = gText.taba[gText.tab[TEXT_YES_NO]];
         TB_SetTextColor(gYesFrequency ? 22 : 1);
         TB_DrawText(x, y, str);
         x = confirmWidth / 4 + 160;
-        str = gText.strings[gText.indices->yesNo + 1];
+        str = gText.taba[gText.tab[TEXT_YES_NO] + 1];
         TB_SetTextColor(gYesFrequency ? 1 : 22);
         TB_DrawText(x, y, str);
     } else if (gConfirmPane != 0) {

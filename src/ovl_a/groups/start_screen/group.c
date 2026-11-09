@@ -16,24 +16,9 @@ typedef struct MultiBlit MultiBlit;
 struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                    s32 (*animfunc)(Blit *); u32 animid; };
 
-typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
-
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-
-VIEW(Controller[4], gControllerData);
-#define gControllerData gControllerData_view
 
 VIEW(ButtonInfo[18], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
-
-VIEW(MultiBlit[], startscr_mblit);
-#define startscr_mblit startscr_mblit_view
 
 VIEW(Egg *, gEgg);
 #define gEgg gEgg_view

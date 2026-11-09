@@ -16,28 +16,6 @@ typedef struct OSPfs {
     s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
     u8 banks, activebank;
 } OSPfs;
-typedef struct OSPfsState {
-    u32 file_size, game_code;
-    u16 company_code;
-    u8 ext_name[4], game_name[16];
-} OSPfsState;
-/* one Controller Pak file slot (40 bytes; offsets from retail) */
-typedef struct PakFile {
-    s8 flush, flag1, flag2, opaque3;
-    u16 mapBytes, opaque6;
-    OSPfsState state;
-} PakFile;
-/* gPaks[pak] (GC anon_changed_inserted_25c; N64 772 bytes) */
-typedef struct PakRecord {
-    u8 changed;
-    s8 inserted, opaque2, opaque3, opaque4, damaged, opaque6, flushing, flushed, opaque9, opaque10, flush;
-    OSPfs pfs;
-    s32 error, FreeSpace;
-    u8 motorOn, request, level, opaque127;   /* rumble thread state (rumble_thread) */
-    s16 phase;
-    u8 opaque130[2];
-    PakFile files[16];
-} PakRecord;
 typedef struct tPS_File tPS_File;
 typedef struct PakHandle { tPS_File *file; } PakHandle;
 /* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
@@ -51,21 +29,6 @@ struct tPS_File {
     u32 size, blocks;
     u8 **data;
 };
-typedef struct tDLList {
-    u8 indirect, doubly, opaque2[2];
-    u32 count;
-    PakHandle *head, *tail;
-} tDLList;
-
-VIEW(volatile PakRecord[], gPaks);
-#define gPaks gPaks_view
-VIEW(tDLList[], gPS_Files);
-#define gPS_Files gPS_Files_view
-VIEW(tDLList, pak_free_handles);
-#define pak_free_handles pak_free_handles_view
-
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
 
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
@@ -97,9 +60,6 @@ PakHandle *pfs_get_node(void)
 }
 
 /* 0x800A2D4C */
-
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 void pdf_heap_lock(void)
 {
@@ -187,9 +147,6 @@ read_retry:
     gPaks[pak].files[fileNo].flag2 = numBytes != psfile->size;
 }
 
-VIEW(OSMesgQueue, heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
-
 /* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
 
 /* 0x800A3724: _ClearPak (private IPA: pak in a3) */
@@ -211,7 +168,7 @@ s32 _FileChanged(tPS_File *psfile)
 /* inlined: motor off and rumble state cleared */
 void _StopRumble(s32 pak)
 {
-    gPaks[pak].opaque6 = 0;
+    gPaks[pak].rumble = 0;
     gPaks[pak].phase = 0;
     gPaks[pak].level = 0;
     gPaks[pak].request = 0;

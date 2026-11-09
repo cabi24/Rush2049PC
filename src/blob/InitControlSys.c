@@ -6,9 +6,6 @@
 typedef struct OSThread OSThread;
 typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
 
-VIEW(OSMesgQueue, controlsys_lock_queue);
-#define controlsys_lock_queue controlsys_lock_queue_view
-
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 

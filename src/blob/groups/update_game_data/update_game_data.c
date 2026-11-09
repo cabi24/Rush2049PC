@@ -123,9 +123,6 @@ typedef struct _tSusp {
     f32 sideangle;
 } _tSusp;
 
-VIEW(u8[], model_thread);
-#define model_thread model_thread_view
-
 void osStopThread(void *t);
 void osStartThread(void *t);
 
@@ -257,7 +254,7 @@ void update_game_data(void)
     const _tSusp *susp;
     u16 tsf;
 
-    osStopThread(model_thread);
+    osStopThread(&model_thread);
     game_reckon_all(gModelTime);
     for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
@@ -374,5 +371,5 @@ void update_game_data(void)
             gc->data_valid = m->data_valid;
         }
     }
-    osStartThread(model_thread);
+    osStartThread(&model_thread);
 }

@@ -2,13 +2,6 @@
 #include "game/game.h"
 
 typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
-typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
-VIEW(ButtonInfo[], startscr_buttonInfo);
-#define startscr_buttonInfo startscr_buttonInfo_view
-VIEW(f32[3], startscr_title_button_position);
-#define startscr_title_button_position startscr_title_button_position_view
-VIEW(f32[3], startscr_players_button_position);
-#define startscr_players_button_position startscr_players_button_position_view
 
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view

@@ -1,8 +1,6 @@
 /* GetForceAndPeak: the peak of a hit on a part of a car, for the bump sounds (MAT3 audio.c's _GetForceAndPeak). */
 #include "game/game.h"
 
-VIEW(volatile f32, gSeconds);
-#define gSeconds gSeconds_view
 f32 sqrtf(f32);
 
 /* Follows the force vec on part index (0-3 the body's corners, 4 its centre) of the car in slot player

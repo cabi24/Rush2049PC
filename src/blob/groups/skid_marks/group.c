@@ -48,13 +48,9 @@ typedef struct CarState {
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
 #define gNewSkid pc_skids
 
-VIEW(u32[4], skid_tire_flags);
-#define skid_tire_flags skid_tire_flags_view
 
 extern f32 gDummyVtx[];
 
-VIEW(f32[], gSeconds);
-#define gSeconds gSeconds_view
 
 /* Moves skid slot's leading edge to tyre wheel of player's car: across the axle (the direction from tyre wheel & 2
  * to tyre wheel | 1, with their heights), 0.75 to either side of the tyre and lifted by skid_lift; stamps the time
@@ -83,7 +79,7 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     up = skid_lift;
     slot->left[1] += up;
     slot->right[1] += up;
-    obj->f8 = *(f32 *) ((uintptr_t) &gSeconds[0]);
+    obj->f8 = gSeconds;
     obj->color[0] = color[0];
     obj->color[1] = color[1];
     obj->color[2] = color[2];

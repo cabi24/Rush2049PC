@@ -5,13 +5,6 @@
 #include "game/audiomgr.h"
 
 /* The queues in this file's view of the header's (gCmdQ without its volatile). */
-VIEW(AudioList, gFreeQ);
-#define gFreeQ gFreeQ_view
-VIEW(AudioList, gCmdQ);
-#define gCmdQ gCmdQ_view
-
-VIEW(u32, gNumInstances);
-#define gNumInstances gNumInstances_view
 
 /* PC: an effect start that finds no free entry (AudioSfxInit's, gNumInstances of them) is counted (--log-voices,
  * port/config/voices.c, docs/port/AUDIO.md 10). */

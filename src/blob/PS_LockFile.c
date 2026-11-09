@@ -1,9 +1,6 @@
 /* PS_LockFile: keep a pak file while it is in use (MAT3 paksysdc.c). */
 #include "game/game.h"
 
-VIEW(volatile tPak[], gPaks);
-#define gPaks gPaks_view
-
 /* Locks (active set) or unlocks the open file handle. A pak with a locked file keeps its files when it is taken out
  * (PS_PakServer), so a profile in use survives the pak coming out and going back in. Unlocking its last locked file
  * unlocks the pak, and a pak that is not the original one is then forgotten as inserted. */

@@ -6,11 +6,6 @@
 typedef struct Effect {u8 pad0[28];s32 kind;u8 pad32[4];s8 state,delay;u8 persistent;u8 pad39[33];s32 voice;void *data;} Effect;
 typedef struct Source {struct Source *next,*prev;u32 flags;f32 position[3];f32 radius,nearVolume,farVolume,parameter;s32 handle;} Source;
 typedef struct Listener {struct Listener *next,*prev;u32 flags;f32 position[3];u8 pad24[12];f32 right[3],forward[3];} Listener;
-typedef struct List {u8 flags[4];s32 count;Listener *head,*tail;} List;
-VIEW(List, gActiveListeners);
-#define gActiveListeners gActiveListeners_view
-VIEW(List, gActiveEmitters);
-#define gActiveEmitters gActiveEmitters_view
 
 /* PC: [audio] engines (port/config/voices.c, docs/port/AUDIO.md 10). Before the pass, each drone engine layer's
  * distance to each listener goes to pc_engines_note (the voices module knows which emitters are the drones' engines),

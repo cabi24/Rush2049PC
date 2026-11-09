@@ -22,9 +22,6 @@ typedef struct Blit {
     u32 AnimID;
 } Blit;
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 #define HW (blt->Width / 2)
 
 /* Digit animID & 0xF (0 hundreds .. 3 tenths of a mile, or of a kilometre with kOptMetric) of the odometer of the

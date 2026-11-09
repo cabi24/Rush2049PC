@@ -4,24 +4,15 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue OSMesgQueue;
-typedef struct ArIdx { u16 h[64]; } ArIdx;
-typedef struct TextState { void *word0; char **fixed; void *word8; ArIdx *indices; char **strings; } TextState;
+#define TEXT_PLACE_SUFFIXES 55            /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 
-VIEW(OSMesgQueue, text_lock_queue);
-#define text_lock_queue text_lock_queue_view
-VIEW(TextState, gText);
-#define gText gText_view
-
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern PlayerRow gPlayers[];                   /* gPlayers */
-
-VIEW(s8, gRankedPlayer);
-#define gRankedPlayer gRankedPlayer_view
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
@@ -59,12 +50,12 @@ s32 animResults(s32 unused)
             resultPane[4] = InitPane(91, 106 - h, 229, h + 114, 192, 0, 0, 1);
         }
         TB_SetTextColor(22);
-        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(gRankedPlayer)) == 1) {
-            TB_Sprintf(str, gText.fixed[200]);
+        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(gRankedPlayer[0])) == 1) {
+            TB_Sprintf(str, gText.single[200]);
         } else if (ties) {
-            TB_Sprintf(str, gText.fixed[201], ties + 1);
+            TB_Sprintf(str, gText.single[201], ties + 1);
         } else {
-            TB_Sprintf(str, gText.fixed[199], *gPlayers[gRankedPlayer].name + PROFILE_OFS(20));
+            TB_Sprintf(str, gText.single[199], *gPlayers[gRankedPlayer[0]].name + PROFILE_OFS(20));
         }
         TB_DrawTextScrollBox(160, 110, 160, 110, -1, 0, str);
     }
@@ -82,10 +73,10 @@ s32 animResults(s32 unused)
         }
         if (gRace == kStunt) {
             TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gStuntPlayer[playerIdx].totalPoints,
-                         gText.fixed[130]);
+                         gText.single[130]);
         } else if (gRace == kObstacle) {
             if (gLap[playerIdx] != 1) {
-                TB_Sprintf(str, "%s\n%s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.fixed[214]);
+                TB_Sprintf(str, "%s\n%s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.single[214]);
             } else {
                 u32 min;
                 u32 sec;
@@ -96,20 +87,20 @@ s32 animResults(s32 unused)
                 sec = (u32)PC_CAR_TIME(gPlayers[playerIdx].vehicle) % 60;
                 thou = (u32)(1000.0f * PC_CAR_TIME(gPlayers[playerIdx].vehicle));
                 thou %= 1000;
-                TB_Sprintf(str, "%s\n%s %d:%02d.%03d", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.fixed[208],
+                TB_Sprintf(str, "%s\n%s %d:%02d.%03d", *gPlayers[playerIdx].name + PROFILE_OFS(20), gText.single[208],
                              min, sec, thou);
             }
         } else if (gRace == kBattle) {
             TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), PC_CAR_POINTS(playerIdx),
-                         gText.fixed[130]);
+                         gText.single[130]);
         } else {
             char str1[32], str2[32];
             s32 place = PC_CAR_PLACE(gPlayers[playerIdx].vehicle);
 
-            TB_Sprintf(str1, gText.fixed[198], place + 1,
-                         gText.strings[gText.indices->h[55] + place]);
+            TB_Sprintf(str1, gText.single[198], place + 1,
+                         gText.taba[gText.tab[TEXT_PLACE_SUFFIXES] + place]);
             if (gNumLaps != PC_MODEL_LAP(gPlayers[playerIdx].vehicle)) {
-                TB_Sprintf(str2, gText.fixed[207], PC_MODEL_LAP(gPlayers[playerIdx].vehicle), gNumLaps);
+                TB_Sprintf(str2, gText.single[207], PC_MODEL_LAP(gPlayers[playerIdx].vehicle), gNumLaps);
             } else {
                 u32 min;
                 u32 sec;
@@ -120,7 +111,7 @@ s32 animResults(s32 unused)
                 sec = (u32)PC_CAR_TIME(gPlayers[playerIdx].vehicle) % 60;
                 thou = (u32)(1000.0f * PC_CAR_TIME(gPlayers[playerIdx].vehicle));
                 thou %= 1000;
-                TB_Sprintf(str2, "%s %d:%02d.%03d", gText.fixed[208], min, sec, thou);
+                TB_Sprintf(str2, "%s %d:%02d.%03d", gText.single[208], min, sec, thou);
             }
             TB_Sprintf(str, "%s\n%s\n%s", *gPlayers[playerIdx].name + PROFILE_OFS(20), str1, str2);
         }

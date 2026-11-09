@@ -9,19 +9,9 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
-struct PlayerFiles { u32 unknown0,  unknown4 ; void * head,  * tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-VIEW(Controller[4], gControllerData);
-#define gControllerData gControllerData_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
-VIEW(MultiBlit[1], warningscr_blits);
-#define warningscr_blits warningscr_blits_view
 
 /* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (findDamageSlot, worlddam.c),
  * which the loader's tables name for both. Image A's is updateWarningScreen, which updateFrontEnd calls in

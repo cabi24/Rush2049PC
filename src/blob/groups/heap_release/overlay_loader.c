@@ -6,8 +6,6 @@ extern u8 extra_overlay_bss_end [ ];
 VIEW(u8[], extra_overlay_bss_start);
 #define extra_overlay_bss_start extra_overlay_bss_start_view
 extern u8 start_overlay_bss_end [ ];
-VIEW(u8[], start_overlay_bss_start);
-#define start_overlay_bss_start start_overlay_bss_start_view
 
 /* The game heap's region the runtime images are loaded into (the N64's addresses, which the heap still keeps; the
  * memory model's wave 3 makes it PC memory). */

@@ -31,8 +31,6 @@ typedef struct MultiBlit {
 VIEW(Color4, modescr_button_color);
 #define modescr_button_color modescr_button_color_view
 
-VIEW(MultiBlit, modescr_mblit);
-#define modescr_mblit modescr_mblit_view
 extern void particle_lifetime_set ( void );
 
 

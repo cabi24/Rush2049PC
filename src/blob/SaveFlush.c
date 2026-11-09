@@ -1,15 +1,6 @@
 /* SaveFlush: write every pak file's changes (MAT3 save.c). */
 #include "game/game.h"
 
-/* Each pak's open files (MAT3 tDLList). */
-typedef struct PakFileList {
-    unsigned char indirect, doubly, unknown02[2];
-    u32 count;
-    tPakHandle *head;
-    tPakHandle *tail;
-} PakFileList;
-VIEW(PakFileList[4], gPS_Files);
-#define gPS_Files gPS_Files_view
 
 /* Writes the changes of every open file that has been read (PS_FlushFile), on every pak; action is the flush's mode
  * (0: a failure asks the player). */

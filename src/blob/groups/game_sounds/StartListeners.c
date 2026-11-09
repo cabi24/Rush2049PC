@@ -16,10 +16,6 @@ typedef struct PlayerRec {
 
 extern PlayerRec gPlayers[];
 
-VIEW(Vec3, unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
 
 
 /* Outside the demo: gives each player a listener at the origin, at rest, looking along z with y up (each frame

@@ -6,8 +6,6 @@
  * extents are the fields' room, not a promise of a terminator (tools/port/capacity.py has the producers' bounds). */
 typedef struct Record { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak, fileNo;
     char name[35]; char suffix[15]; u32 blocks; } Record;
-VIEW(Record **, gDeleteFile);
-#define gDeleteFile gDeleteFile_view
 
 #define TEXT_DELETE_ACTION 47       /* gText.tab[]: the two lines of the delete combination's instructions */
 
@@ -16,7 +14,6 @@ VIEW(u8, gBlocksNeeded);
 
 extern s32 game_sprintf(char *,const char *,...);
 
-typedef struct Slot { s8 present; u8 unknown[15]; } Slot;         /* gControllerData: 16 bytes a controller */
 /* A pak file record (MAT3 tPS_File) in its PC layout: only the pak it is on. */
 typedef struct Owner { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 slot; } Owner;
 /* A profile's and a ghost's list node: what they keep of their pak file. */
@@ -24,15 +21,6 @@ typedef struct OpenRecord OpenRecord;
 struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
 typedef struct SavedRecord SavedRecord;
 struct SavedRecord { SavedRecord **next; Owner **owner; };
-VIEW(Slot[], gControllerData);
-#define gControllerData gControllerData_view
-struct PlayerFiles { u32 unknown0,  unknown4 ; OpenRecord ** head,  ** tail ; };
-VIEW(struct PlayerFiles, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-/* The ghost files on the paks (carscr.c's RecordList): first the list head. */
-typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;SavedRecord **first, **last;} RecordList;
-VIEW(RecordList, gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 
 /* The note list: the delete combination's instructions (while the selected slot has a note), the columns' heads,
  * the 8 rows shown (number, name with its suffix or "empty", pages; the selected one flashing, its name also
@@ -115,7 +103,7 @@ void GetPakStatusStr(s32 player,char *str)
 {
     OpenRecord **open;
     SavedRecord **saved;
-    if (!gControllerData[player].present) TB_Sprintf(str,pakscr_status_no_controller_format,gText.single[165]);
+    if (!gControllerData[player].attached) TB_Sprintf(str,pakscr_status_no_controller_format,gText.single[165]);
     else if (!PS_PakInserted(player)) TB_Sprintf(str,pakscr_status_no_pak_format,gText.single[168]);
     else if (PS_PakDamaged(player)) TB_Sprintf(str,pakscr_status_damaged_format,gText.single[166]);
     else if (PS_PakRumble(player)) TB_Sprintf(str,pakscr_status_rumble_format,gText.single[169]);
@@ -123,7 +111,7 @@ void GetPakStatusStr(s32 player,char *str)
         for (open=gPlayerFiles.head;open;open=(*open)->next) {
             if ((*open)->owner && (*(*open)->owner)->slot==player) break;
         }
-        for (saved=gGhostFiles.first;saved;saved=(*saved)->next) {
+        for (saved=gGhostFiles.head;saved;saved=(*saved)->next) {
             if ((*saved)->owner && (*(*saved)->owner)->slot==player) break;
         }
         if (open || saved) TB_Sprintf(str,pakscr_status_in_use_format,gText.single[159]);
@@ -163,8 +151,8 @@ void DrawFileDelVerify(void)
     s32 height;
     s32 y=130;
     title[0]=0;
-    TB_Strcpy(name,(*gDeleteFile)->name);
-    TB_Strcpy(suffix,(*gDeleteFile)->suffix);
+    TB_Strcpy(name,gDeleteFile->file->name);
+    TB_Strcpy(suffix,gDeleteFile->file->ext);
     if (suffix[0]) {
         TB_Strcat(name,pakscr_verify_name_separator);
         TB_Strcat(name,suffix);

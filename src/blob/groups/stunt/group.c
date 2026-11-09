@@ -475,7 +475,7 @@ void CheckForStunt(void) {
     s32 ok;
     f32 *pdt;
 
-    pdt = (f32 *)(uintptr_t)&gFrameSeconds;
+    pdt = (f32 *) &gFrameSeconds;
     if (gCoastFlag != 0) {
         ok = 1;
         for (i = 0; i < gNumPlayers; i++) {

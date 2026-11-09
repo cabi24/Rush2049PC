@@ -9,17 +9,6 @@ typedef struct SequenceHead {
     s8 free;            /* 0x14: in gFreeSequences */
     s8 active;          /* 0x15: in gActiveSequences */
 } SequenceHead;
-/* The two lists' headers (MAT3 tDLList). */
-typedef struct SequenceList { u8 handle, dbl, pad[2]; s32 numElements; SequenceHead *head, *tail; } SequenceList;
-
-VIEW(s32, gTagMask);
-#define gTagMask gTagMask_view
-
-VIEW(SequenceList, gFreeSequences);
-#define gFreeSequences gFreeSequences_view
-
-VIEW(SequenceList, gActiveSequences);
-#define gActiveSequences gActiveSequences_view
 
 /* Drops sequence's instance bits from its id, takes it out of the active list if it is there, and puts it at the
  * head of the free list. */

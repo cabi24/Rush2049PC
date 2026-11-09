@@ -28,12 +28,6 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
-VIEW(u8[4], blitPrimColor);
-#define blitPrimColor blitPrimColor_view
-
 /* Fills the rectangle x0..x1, y0..y1 (inclusive, clipped to the scissor box) with the RGBA colour color: the primitive
  * colour, a fill combiner (BLIT_ATTR_FILL, cleared again after), a G_FILLRECT. The colour's alpha becomes the
  * blitter's (blitPrimColor) and the colour is remembered as the last loaded (BlitColors with no format). */
@@ -55,7 +49,7 @@ void BlitRect(s32 x0, s32 y0, s32 x1, s32 y1, u8 *color) {
     }
     gDPPipeSync(blit_dl++);
     gDPSetPrimColor(blit_dl++, 0, 0, color[0], color[1], color[2], color[3]);
-    blitPrimColor[3] = color[3];
+    blitPrimColor.a = color[3];
     BlitColors(color, -1, -1, 0);
     blit_set_mode(BLIT_MODE_TEXTURE);
     BlitSetAttribute(BLIT_ATTR_FILL);

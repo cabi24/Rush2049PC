@@ -8,8 +8,6 @@ typedef struct Player { PlayerState *state; } Player;
 typedef struct InputRecord { u8 pad[72]; Player *player; } InputRecord;
 extern InputRecord gPlayers[];
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
 
 /* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
  * parts, and the race settings of the race type (gRace) from its options, or fixed ones in attract mode (3 laps, 6

@@ -14,11 +14,6 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 extern void osSetThreadPri(OSThread *thread, OSPri priority);
 
-VIEW(s32, bg_load_idle_queue);
-#define bg_load_idle_queue bg_load_idle_queue_view
-VIEW(s32, bg_load_request_queue);
-#define bg_load_request_queue bg_load_request_queue_view
-
 /* The background loader thread (MAT3 BGLoadWaveMain; main_thread_entry starts it). Waits for a request from
  * _BGLoadWave (the wave instance to read, in bg_load_request), reads the wave (ReadWave) and says it is done on
  * bg_load_idle_queue, which _BGLoadWave and InitWaves wait on before the next request. */

@@ -10,9 +10,6 @@ typedef struct OSMesgQueue OSMesgQueue;
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 
-VIEW(s32, audio_command_queue);
-#define audio_command_queue audio_command_queue_view
-
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;

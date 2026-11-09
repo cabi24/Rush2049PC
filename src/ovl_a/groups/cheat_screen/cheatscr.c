@@ -13,14 +13,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-VIEW(const MultiBlit[], cheatscr_multiblit);
-#define cheatscr_multiblit cheatscr_multiblit_view
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
-
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-
 extern void particle_lifetime_set(void);
 
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every

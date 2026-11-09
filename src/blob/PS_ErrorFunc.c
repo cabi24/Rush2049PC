@@ -5,9 +5,6 @@
 
 typedef struct OSThread OSThread;
 
-VIEW(struct pc_multiblit[1], PS_ErrorFunc_dimMultiBlit);
-#define PS_ErrorFunc_dimMultiBlit PS_ErrorFunc_dimMultiBlit_view
-
 extern OSId osGetThreadId(OSThread *thread);
 
 #define GAME_THREAD_ID 7   /* the game thread's id: only it may draw frames */

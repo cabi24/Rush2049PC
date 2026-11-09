@@ -7,18 +7,9 @@ typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
-typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
-typedef struct { s32 x, w, h, cx; } MenuRect;
 
-VIEW(TextState, gText);
-#define gText gText_view
-VIEW(MenuRect, video_menuRect);
-#define video_menuRect video_menuRect_view
 VIEW(Button[12], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 void *memcpy(void *, const void *, u32);
 
 /* Sets the font under the text lock (HAL_SetFont, inline). */

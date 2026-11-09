@@ -44,18 +44,9 @@ typedef union {
 }
 #define gSPClearGeometryMode(pkt, c) gSPGeometryMode(pkt, c, 0)
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* PC: the two text display lists hold 16-byte host Gfx; blit_display_lists is sized for 8-byte commands. */
 Gfx pc_text_dl[2][2400];
 #define TEXT_DL pc_text_dl
-
-VIEW(u8[4], blitPrimColor);
-#define blitPrimColor blitPrimColor_view
-
-VIEW(intptr_t, blitColors);
-#define blitColors blitColors_view
 
 /* Starts the blitter for a frame, once (nothing when blit_dl is already set): resets its state (no attributes, the
  * scissor box the whole screen, depth 0, opaque, no mode, no palette, nothing cached), switches to the other of its two
@@ -71,7 +62,7 @@ void BlitInit(void)
         blitXmax = screen_width - 1;
         blitYmax = screen_height - 1;
         blitZDist = 0;
-        blitPrimColor[3] = 255;
+        blitPrimColor.a = 255;
         blit_cache_image = 0;
         blit_cache_tile = 0;
         if (++blitDLnum >= 2) blitDLnum = 0;

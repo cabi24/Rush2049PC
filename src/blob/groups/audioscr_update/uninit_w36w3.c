@@ -7,9 +7,6 @@ typedef struct {
     u8 pad08[0x38];
 } UButton; /* 0x40 */
 
-VIEW(intptr_t, audio_blit);
-#define audio_blit audio_blit_view
-
 VIEW(UButton[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 

@@ -1,7 +1,6 @@
 /* DrawText: draw a string with the blitter, glyph by glyph (MAT3 HAL_text.c's _DrawText). */
 #include "game/game.h"
 
-typedef struct anon_fore_4 { unsigned char rgba[4]; } anon_fore_4;
 /* PC: a font texture is a TXHD record of the font's WAD, which keeps its N64 layout (port/assets/wad.c): image is a
  * 32-bit RDRAM-window address. */
 #define TXHD_IMAGE unsigned int image
@@ -12,22 +11,6 @@ typedef struct tTexture {
     unsigned char pad14[4];
     TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
-
-VIEW(FontHeader *, gFontHeader);
-#define gFontHeader gFontHeader_view
-
-VIEW(tTexture *[16], gFontTextures);
-#define gFontTextures gFontTextures_view
-VIEW(s16[256], gCharMap);
-#define gCharMap gCharMap_view
-VIEW(anon_fore_4, gFontColor);
-#define gFontColor gFontColor_view
-
-VIEW(s32, gFontAttribute);
-#define gFontAttribute gFontAttribute_view
-
-VIEW(void *, blitColors);
-#define blitColors blitColors_view
 
 /* Draws length bytes of text (a single- or double-byte string, its mark and ending zeros counted) at the text position
  * in the current font, colour, translucency and depth, now: the blitter's state set from gFontAttribute, the scissor
@@ -55,7 +38,7 @@ void DrawText(const unsigned char *text, unsigned short length)
     BlitClearAttribute(~gFontAttribute);
     blitColors = 0;
     if (gFontAttribute & BLIT_ATTR_XLU)
-        gFontColor.rgba[3] = gTrans;
+        gFontColor.c[3] = gTrans;
     BlitColors(&gFontColor, font_image_format, font_texel_size, 0);
     lastPage = 0;
     blit_load_texture(gFontTextures[0]->image, font_image_format, font_texel_size, gFontTextures[0]->width, gFontTextures[0]->height, 0, 0, gFontTextures[0]->width - 1, gFontTextures[0]->height - 1, 0, 0);

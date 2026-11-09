@@ -1,13 +1,7 @@
 /* animGear: the gear shown by the speedometer, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-#define gFontSem text_lock_queue_view
 
-typedef struct tText { u16 numSingle; u8 **single; } tText;
-
-VIEW(tText, gText);
-#define gText gText_view
-VIEW(OSMesgQueue, text_lock_queue);
 
 /* Draws, for each window's player who shifts by hand and races on, the gear label right of gearPos's x and the gear
  * (R, N or its number) left of it, each with a black shadow a pixel down and right, in the HUD font for the number of

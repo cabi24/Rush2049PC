@@ -108,9 +108,6 @@ typedef union {
         ((uls)+(width)-1) << G_TEXTURE_IMAGE_FRAC, ((ult)+(height)-1) << G_TEXTURE_IMAGE_FRAC) \
 }
 
-VIEW(Gfx *, blit_dl);
-#define blit_dl blit_dl_view
-
 /* The four ways of loading: a rectangle of the texture (TILE) or whole rows from row ult down (BLOCK), 4-bit texels
  * apart (TILE4, BLOCK4); clamped, masked to the size's power of two. */
 #define TILE(fmt, sz) gDPLoadTextureTile(blit_dl++, img, fmt, G_IM_SIZ_##sz, width, height, uls, ult, lrs, lrt, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)

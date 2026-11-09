@@ -18,7 +18,6 @@ struct AltPath;
 struct AudioCacheNode;
 struct AudioModel2056;
 struct AudioNode;
-struct Bank;
 struct Basis;
 struct Blit;
 struct Block;
@@ -35,7 +34,6 @@ struct CarA;
 struct CarB;
 struct CarE;
 struct CarState;
-struct Cell;
 struct Chan;
 struct CollisionObject;
 struct CollisionReckon;
@@ -490,13 +488,15 @@ typedef struct OSThread { /* 0x1C8 bytes */
 
 /* ---- system: start-up, threads, the scheduler, timers, the frame pipeline, video, decompression, the overlays */
 
+/* A linked list's header (MAT3 ll.c's tDLList): the records (or, when indirect, the handles of the records) are
+ * linked through their first words (tDLLE: next, then prev when doubly); InsertLLE and RemoveLLE keep it. */
 typedef struct AudioList { /* 0x18 bytes */
-    u8 indirect;       /* 0x0 */
+    u8 indirect;       /* 0x0 a list of handles */
     u8 doubly;         /* 0x1 */
     u8 pad[2];         /* 0x2 */
     u32 count;         /* 0x4 */
-    struct Link *head; /* 0x8 */
-    struct Link *tail; /* 0x10 */
+    void *head;        /* 0x8 the first record (handle), NULL when empty */
+    void *tail;        /* 0x10 */
 } AudioList;
 
 typedef struct AudioMenuRect { /* 0x10 bytes */
@@ -640,20 +640,22 @@ typedef struct PcSched { /* 0x2C0 bytes */
     u8 retMsgs[32];                  /* 0x90 */
     u8 padB0[432];                   /* 0xB0 */
     u8 pad260[28];                   /* 0x260 */
-    s32 retraceCount;                /* 0x27C */
+    volatile s32 retraceCount;       /* 0x27C: the retraces since start-up (the scheduler's thread counts them) */
     s32 doAudio;                     /* 0x280 */
     struct OSScClient_s *clientList; /* 0x288 */
     struct OSScTask_s *audioListHead; /* 0x290 */
     struct OSScTask_s *gfxListHead;  /* 0x298 */
     struct OSScTask_s *audioListTail; /* 0x2A0 */
     struct OSScTask_s *gfxListTail;  /* 0x2A8 */
-    struct OSScTask_s *curRSPTask;   /* 0x2B0 */
+    struct OSScTask_s *volatile curRSPTask; /* 0x2B0: the task on the RSP (scheduler_current_rsp_task) */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;
 
+/* An input record (gPlayers, 80 bytes) from its profile handle on (MAT3 tPadState.profile, at +0x48): what
+ * gPlayers_save, a label at gPlayers + 0x48, reads per player. */
 typedef struct PlayerTail { /* 0x50 bytes */
-    struct PlayerRec **rec; /* 0x0 */
-    u8 pad[72];             /* 0x8 */
+    struct tProfile **profile; /* 0x0 the player's profile (a handle) */
+    u8 pad[72];                /* 0x8 the next player's record up to its profile */
 } PlayerTail;
 
 typedef struct __attribute__((packed)) RecordFields { /* 0xC bytes */
@@ -694,6 +696,13 @@ typedef struct ScreenPos { /* 0x8 bytes */
     s32 y; /* 0x4 */
 } ScreenPos;
 
+/* How TB_DrawText and the text boxes place a string against its position (gJust, TB_SetJust; MAT3 anon_h_v_8):
+ * across against x (kTB_JustLeft, kTB_JustCenter, kTB_JustRight), down against y (kTB_JustTop ...). */
+typedef struct TextJust { /* 0x8 bytes */
+    s32 h; /* 0x0 */
+    s32 v; /* 0x4 */
+} TextJust;
+
 /* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index). The PC's
  * layout: the scheduler's task is the PC's OSScTask. */
 typedef struct FrameRecord { /* 0xD0 bytes */
@@ -721,12 +730,6 @@ typedef struct SequenceTrack { /* 0x38 bytes */
     u8 *active14;     /* 0x20 */
     u8 unknown18[16]; /* 0x28 */
 } SequenceTrack;
-
-typedef struct TPos { /* 0x18 bytes */
-    s32 pad0[4]; /* 0x0 */
-    s32 x;       /* 0x10 */
-    s32 y;       /* 0x14 */
-} TPos;
 
 typedef struct TableRecord { /* 0x8 bytes */
     u32 payload;    /* 0x0 */
@@ -971,10 +974,11 @@ typedef struct SequenceNode { /* 0x20 bytes */
     s32 whole14;                   /* 0x1C */
 } SequenceNode;
 
+/* The sound commands' free list (gFreeQ): a list header as AudioList, its first two words read as words. */
 typedef struct SfxQueue { /* 0x18 bytes */
-    u32 pad0[2];       /* 0x0 */
-    struct Node *tail; /* 0x8 */
-    struct Node *head; /* 0x10 */
+    u32 pad0[2];       /* 0x0 indirect, doubly; count */
+    void *head;        /* 0x8 */
+    void *tail;        /* 0x10 */
 } SfxQueue;
 
 typedef struct SmallNode { /* 0x18 bytes */
@@ -1456,23 +1460,25 @@ typedef struct tPakHandle {
     struct PakFileRecord *file;
 } tPakHandle;
 
-typedef struct Ent19 { /* 0x13 bytes */
-    s8 b[19]; /* 0x0 */
-} Ent19;
-
+/* A pak error dialog (gPakError[4][2], two a pak; MAT3 pakerr.c's anon_done_choice1_34, whose names these are, in
+ * the N64's order). SetPakError opens one, ShowPakError runs and draws it, CancelPakError closes it. */
 typedef struct PakErrorState { /* 0x2C bytes */
-    s8 busy;         /* 0x0 */
-    s8 enabled;      /* 0x1 */
-    s8 unk2;         /* 0x2 */
-    s8 player;       /* 0x3 */
-    u8 primary[4];   /* 0x4 */
-    u8 secondary[4]; /* 0x8 */
-    u8 previous[4];  /* 0xC */
-    s8 present;      /* 0x10 */
-    s32 mode;        /* 0x14 */
-    s16 arg[4];      /* 0x18 */
-    u8 pad20[8];     /* 0x20 */
-    u32 deadline;    /* 0x28 */
+    s8 done;          /* 0x0 answered or timed out */
+    s8 choice1;       /* 0x1 the first answer chosen (of two or three) */
+    s8 choice2;       /* 0x2 the second answer chosen (of three) */
+    s8 cont;          /* 0x3 the controller that answers (any, for kPS_ErrNoCont and kPS_ErrNoPak) */
+    s8 contActive[4]; /* 0x4 the controllers' active flags before the dialog, put back after it */
+    s8 contStick[4];  /* 0x8 their stick edges before it */
+    s8 contDebug[4];  /* 0xC */
+    s8 rumble;        /* 0x10 a Rumble Pak is in (the new-pak dialog says so) */
+    s32 err;          /* 0x14 the dialog (kPS_Err*), 0 when closed */
+    s16 left;         /* 0x18 its box on the screen */
+    s16 top;          /* 0x1A */
+    s16 width;        /* 0x1C */
+    s16 height;       /* 0x1E */
+    u32 edges;        /* 0x20 the buttons pressed this frame */
+    u32 levels;       /* 0x24 held */
+    u32 timeout;      /* 0x28 the retrace count at which a waiting dialog closes itself */
 } PakErrorState;
 
 /* An open pak file (MAT3 tPS_File), in the PC's layout: pak_file_records holds 64, their handles pak_file_handles;
@@ -1492,11 +1498,13 @@ typedef struct PakFileRecord { /* 0x60 bytes */
                                                                *      dirty map; NULL until read */
 } PakFileRecord;
 
+/* The profiles on the paks (gPlayerFiles): a list header as AudioList (of handles), its first two words read as
+ * words. */
 typedef struct PlayerFileList { /* 0x18 bytes */
-    u32 unknown0;             /* 0x0 */
-    u32 unknown4;             /* 0x4 */
-    struct PlayerData **head; /* 0x8 */
-    struct PlayerData **tail; /* 0x10 */
+    u32 unknown0;             /* 0x0 indirect, doubly */
+    u32 unknown4;             /* 0x4 count */
+    void *head;               /* 0x8 */
+    void *tail;               /* 0x10 */
 } PlayerFileList;
 
 /* The parts of a profile file (tSaveData). Each starts with the checksum of the rest (CalcChecksumInternal), which
@@ -1745,36 +1753,10 @@ typedef struct tProfile { /* 0x40 bytes */
     tSaveData **datah;         /* 0x38 its file's data once read (the pak file's data handle), else NULL */
 } tProfile;
 
-typedef struct Rec164A4 { /* 0x2A bytes */
-    s16 unk00[3]; /* 0x0 */
-    s16 unk06;    /* 0x6 */
-    s16 unk08[9]; /* 0x8 */
-    s16 unk1A;    /* 0x1A */
-    s16 unk1C;    /* 0x1C */
-    s16 unk1E;    /* 0x1E */
-    s16 unk20;    /* 0x20 */
-    s16 unk22[4]; /* 0x22 */
-} Rec164A4;
-
 typedef struct RecordOwner { /* 0x78 bytes */
     intptr_t names[2][5];    /* 0x0 */
     struct Profile **who[5]; /* 0x50 */
 } RecordOwner;
-
-typedef struct Settings { /* 0x29 bytes */
-    u8 unknown00[28]; /* 0x0 */
-    s8 mode;          /* 0x1C */
-    u8 unknown1D[3];  /* 0x1D */
-    s8 a;             /* 0x20 */
-    s8 b;             /* 0x21 */
-    s8 c;             /* 0x22 */
-    s8 d;             /* 0x23 */
-    s8 e;             /* 0x24 */
-    s8 f;             /* 0x25 */
-    s8 g;             /* 0x26 */
-    s8 h;             /* 0x27 */
-    s8 i;             /* 0x28 */
-} Settings;
 
 
 typedef struct tBlastMat { /* 0x8 bytes */

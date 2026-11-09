@@ -1,9 +1,6 @@
 /* pak_encode_name: a name in the pak's character set (the N64's own). */
 #include "game/game.h"
 
-VIEW(u16[256], pak_charset);
-#define pak_charset pak_charset_view
-
 /* Turns the string input (single- or double-byte) into limit pak characters at output, each character the index of
  * its code in pak_charset (one it lacks is left out), padded with zeros. */
 void pak_encode_name(u8 *output, u8 *input, u8 limit)

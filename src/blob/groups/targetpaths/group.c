@@ -37,10 +37,6 @@ typedef struct tBasicTargetPath { /* 0x24 bytes */
 #define OBJ_PATH_MOVING 348
 #define OBJ_PATH_STOPPED 349
 
-/* unitmatrix's fourth row, the origin: the sounds' orientation */
-VIEW(s32, unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
-
 extern tTarget *CollisionTargetPtrs[];
 
 /* Starts sound `id` at the target's position (unless game sounds are off or it is -1, which give -1), fading over
@@ -315,7 +311,7 @@ void PlacePathTargetPos(tTarget *target) {
         v[0] = target->mat.pos[0] - state->lastPos[0];
         v[1] = target->mat.pos[1] - state->lastPos[1];
         v[2] = target->mat.pos[2] - state->lastPos[2];
-        state->curVel = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / *(volatile f32 *) &gFrameSeconds;
+        state->curVel = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / gFrameSeconds;
         if (path->flags & 0x20) {
             near = 1;
             if (gRace == kObstacle) {
@@ -564,7 +560,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
         }
         if (!(path->flags & 0x100)) {
             i = 0;
-            state->timeElapsed += *(f32 *)(uintptr_t)&gFrameSeconds;
+            state->timeElapsed += gFrameSeconds;
             idx = state->ptOn;
             do {
                 fr = state->timeElapsed;
@@ -655,7 +651,7 @@ void AnimatePathTarget(struct pc_visual *node, s16 flag) {
             }
             info = &targetInfo[target->infoIdx];
             if (info->objListIdx != -1) {
-                node->timeStamp -= *(f32 *)(intptr_t)&gFrameSeconds;
+                node->timeStamp -= gFrameSeconds;
                 if (node->timeStamp <= 0.0f) {
                     idx = info->objListIdx;
                     if (idx == 0x169) {

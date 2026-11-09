@@ -13,9 +13,9 @@ s32 VectorToSurfEdge(f32 *a, f32 *p, f32 *out, f32 rad2) {
     f32 t;
     t = ((a[2] * p[2]) + (p[0] * a[0])) / lsq(a);
     if (t < 0.0f) {
-        out[0] = unitmatrix_origin.x - p[0];
+        out[0] = unitmatrix_origin[0] - p[0];
         out[1] = 0.0f;
-        out[2] = unitmatrix_origin.z - p[2];
+        out[2] = unitmatrix_origin[2] - p[2];
     } else if (t > 1.0f) {
         out[0] = a[0] - p[0];
         out[1] = 0.0f;

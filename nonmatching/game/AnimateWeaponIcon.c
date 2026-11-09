@@ -22,9 +22,6 @@ typedef struct Target {
     u32 data;             /* 0x6c: a window address (the node keeps its N64 layout) */
 } Target;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 void AnimateWeaponIcon(Visual *v, s16 op)
 {
     Target *t;

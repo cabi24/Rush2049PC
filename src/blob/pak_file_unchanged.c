@@ -8,9 +8,6 @@ typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,ms
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
 extern s32 osSendMesg ( OSMesgQueue * , OSMesg , s32 ), osRecvMesg ( OSMesgQueue * , OSMesg * , s32 );
 
-VIEW(OSMesgQueue, si_lock_queue);
-#define si_lock_queue si_lock_queue_view
-
 /* Whether the pak is in. */
 static s32 pak_enabled(tPak *pak)
 {

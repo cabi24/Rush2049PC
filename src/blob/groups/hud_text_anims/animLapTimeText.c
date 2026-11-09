@@ -1,9 +1,6 @@
 /* animLapTimeText: a checkpoint's split time, a text blit's draw function (MAT3 hud.c). */
 #include "game/game.h"
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-
 /* For each window whose split time shows (gCheckPtTimeout, counted down here while not paused): the time since the
  * last checkpoint (gLapTime) as m:ss.hhh centred on lapTimePos, each digit over a dim "8", in the flashing colour,
  * fading out over its last 3 seconds. Nothing in attract mode or when the HUD hides the clock. Returns 1. */

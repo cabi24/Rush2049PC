@@ -11,19 +11,6 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
-
-VIEW(u32, gActiveAutoEdges);
-#define gActiveAutoEdges gActiveAutoEdges_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-VIEW(u32, gActiveLevels);
-#define gActiveLevels gActiveLevels_view
-
-VIEW(MultiBlit, pakscr_mblit);
-#define pakscr_mblit pakscr_mblit_view
-VIEW(PlayerPresence[], gControllerData);
-#define gControllerData gControllerData_view
 
 extern void particle_lifetime_set(void);
 
@@ -102,7 +89,7 @@ void ControlPickPak(void)
     }
     if(gActiveEdges&BUTTON_A) {
         AudPlayEffect(SND_MENU_A,0,1,0);
-        if(!gControllerData[gPickedPak].present) {
+        if(!gControllerData[gPickedPak].attached) {
             SetPakError(gPickedPak,PAK_ERR_NO_CONTROLLER,10,50,300,140);
             gPakErr=PAK_ERR_NO_CONTROLLER;
         } else if(!PS_PakInserted(gPickedPak)) {
@@ -139,7 +126,7 @@ void updatePakScreen(void)
     s8 result;
     s8 choice;
     if(!pakscr_gInited) {
-        MultiBlit descriptor;
+        HudBlitDef descriptor;
         descriptor=pakscr_mblit;
         SetState(kStatePickPak);
         if(gGameState&GS_FRONTEND_MASK)particle_lifetime_set();

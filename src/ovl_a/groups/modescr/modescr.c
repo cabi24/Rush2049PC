@@ -17,11 +17,6 @@ typedef struct Owner { void *unknown0,*unknown4; Resource **fileh; } Owner;
 typedef struct Player76 { u8 unknown0[72]; Owner **profile; } Player76;
 typedef struct Blit Blit;
 
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
 extern Player76 gPlayers[];

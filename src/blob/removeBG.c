@@ -2,10 +2,6 @@
  * scrolls it. */
 #include "game/game.h"
 
-VIEW(intptr_t, backBlit);
-#define backBlit backBlit_view
-VIEW(s16 *[4], backPolys);
-#define backPolys backPolys_view
 
 /* Remove the background's blit and its four polygons, if they are up. */
 void removeBG(void)

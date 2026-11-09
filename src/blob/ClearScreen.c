@@ -37,15 +37,7 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-/* frame_color_buffers is a label 0xC8 bytes into frame_records, so its element i starts with
- * frame_records[i].colorBuffer (a FrameRecord read from its last field on). */
-typedef struct { void *buf; PcScTaskShape task; u8 *commands; s16 n; u8 pad[30]; } FrameBuf;
 
-VIEW(Gfx *, frame_dl);
-#define frame_dl frame_dl_view
-
-VIEW(FrameBuf[], frame_color_buffers);
-#define frame_color_buffers frame_color_buffers_view
 u32 osVirtualToPhysical(void *);
 
 /* Adds to the frame's display list a fill of the whole screen (screen_width x screen_height) of the frame's colour

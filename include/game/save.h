@@ -61,7 +61,7 @@ extern u8 rumble_thread[EXTENT(432)];
 extern OSMesgQueue si_event_queue;
 extern s8 gSaveGhostFiles;
 extern s8 gCheatActive[EXTENT(21)];
-extern Rec164A4 gCheatState;
+extern s16 gCheatState[EXTENT(21)];   /* the cheats' states, by number (cheatscr.c; MAT3 signed short gCheatState[23]) */
 extern s16 cheat_all_cars;
 extern s16 cheat_all_tracks;
 extern s16 cheat_all_parts;
@@ -104,7 +104,7 @@ extern u8 password_gData[EXTENT(32)];
 extern PlayerFileList gPlayerFiles;
 extern struct Record **gLimboGhosts;
 extern tProfile gRealJustPlayers[EXTENT(4)];
-extern struct SaveData *gJustPlayerData[EXTENT(4)];
+extern tSaveData *gJustPlayerData[EXTENT(4)];   /* their data (gRealJustPlayerData), through these handles */
 extern tSaveData gRealJustPlayerData[EXTENT(4)];
 extern void **player_profile_handles[EXTENT(4)][16];
 extern tProfile player_profile_records[EXTENT(4)][16][1];
@@ -114,17 +114,21 @@ extern s8 gRankedPlayer[EXTENT(4)];
 extern void (*gErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, s32 (*)(s32));
 extern u8 gLap[EXTENT(4)];
 extern tPak gPaks[EXTENT(4)];
-extern tBlastMat pak_file_handles[EXTENT(64)];
+extern tPakHandle pak_file_handles[EXTENT(64)];   /* the open files' handles, one a pak_file_records entry */
 extern AudioList gPS_Files[EXTENT(4)];
 extern f32 gBestLapTime[EXTENT(4)];
 extern PakFileRecord pak_file_records[EXTENT(64)];
-extern Settings gOptions;
-extern tBlastMat gJustPlayers[EXTENT(4)];
+extern s8 gOptions[EXTENT(kNumOptions)];   /* the options, a byte each by kOpt* (MAT3: signed char gOptions[41]) */
+extern tProfile *gJustPlayers[EXTENT(4)];   /* the controllers' own profiles, "Player n" (gRealJustPlayers) */
 extern s32 gBattlePoints;
 extern f32 gLapTimes[EXTENT(4)][8];
 extern s32 ties;
 extern s8 tied[EXTENT(8)];
-extern Ent19 gUnlockedTracks[EXTENT(1)];
+/* What each player has unlocked (CalcUnlockedStuff), a row per player: MAT3 signed char [4][n]. The data loader
+ * has other sizes for three of them: one row of gUnlockedTracks (the other three lie in the gap after it, as on the
+ * N64), 16 bytes of gUnlockedCars (MAT3 52) and 56 of gUnlockedFrames (MAT3 24); the files that read the rows of the
+ * last two view them as [][13] and [][6]. */
+extern s8 gUnlockedTracks[EXTENT(1)][19];
 extern u8 gUnlockedCars[EXTENT(16)];
 extern s8 gUnlockedCircuits[EXTENT(4)][4];
 extern s8 gUnlockedTrans[EXTENT(1)][8];

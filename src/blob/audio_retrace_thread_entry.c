@@ -11,13 +11,6 @@ typedef struct { s32 w[6]; } OSMesgQueue;
 /* A scheduler client (libultra's OSScClient): the scheduler sends its messages to msgQ. */
 typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
 
-typedef struct {
-    char pad[0x2B0];   /* gScheduler's curRSPTask (scheduler_current_rsp_task) natively: docs/port/ULTRA.md */
-    void *volatile cur;
-} Sched;
-VIEW(Sched, gScheduler);
-#define gScheduler gScheduler_view
-
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
@@ -40,7 +33,7 @@ void audio_retrace_thread_entry(void *arg) {
         switch (*msg) {
         case OS_SC_RETRACE_MSG:
             if (musyx_retrace_callback != 0) {
-                while (scheduler_audio_task != 0 && scheduler_audio_task == gScheduler.cur) { pc_os_spin_yield("audio_retrace_thread_entry");
+                while (scheduler_audio_task != 0 && scheduler_audio_task == gScheduler.curRSPTask) { pc_os_spin_yield("audio_retrace_thread_entry");
                 }
                 musyx_retrace_callback(musyx_retrace_callback);
             }

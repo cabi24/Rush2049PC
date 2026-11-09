@@ -257,7 +257,7 @@ extern s8 audio_panesCreated;
 extern s32 audio_gSong;
 extern intptr_t audio_gTitlePane;
 extern s8 audio_gControllerRemoved;
-extern Vector unitmatrix_origin;
+extern f32 unitmatrix_origin[EXTENT(3)];   /* unitmatrix's fourth row, its position: where a sound fixed to the listener is */
 extern s32 song_handle;
 extern s8 audio_driver_started;
 extern void (*audio_driver_services[EXTENT(8)])(void);

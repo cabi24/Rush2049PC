@@ -85,7 +85,6 @@ void recordscr_updateSelectInfo(void)
     }
 }
 
-typedef struct { s8 enabled; unsigned char remaining[15]; } PlayerSlot;   /* gControllerData: a controller */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
  * the pak it is on. */
 typedef struct { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); unsigned char pak; } PakFile;
@@ -96,18 +95,13 @@ typedef struct ListNode ProfileHandle;   /* struct ListNode: the name include/ga
 typedef struct { ProfileHandle *next, *prev; PakFileHandle *fileh; unsigned char id[8]; char name[24]; void *datah; } PlayerProfile;
 /* A profile handle (MAT3 tPlayerProfile **): the profiles are reached and listed through these. */
 struct ListNode { PlayerProfile *body; };
-typedef struct { s32 prefix[2]; ProfileHandle *head, *tail; } ListRoot;   /* gPlayerFiles: every profile on a pak */
-VIEW(PlayerSlot[], gControllerData);
-#define gControllerData gControllerData_view
-VIEW(ListRoot, gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
 
 /* Read the four paks: each one's profile count, or why it has none (no controller, no pak, damaged, a Rumble Pak). */
 void recordscr_updatePakInfo(void) {
     s32 slot;
     ProfileHandle *node;
     for (slot = 0; slot < 4; slot++) {
-        if (!gControllerData[slot].enabled) { recordscr_gNumPakPlayers[slot] = PAK_NO_CONTROLLER; }
+        if (!gControllerData[slot].attached) { recordscr_gNumPakPlayers[slot] = PAK_NO_CONTROLLER; }
         else if (!PS_PakInserted(slot)) { recordscr_gNumPakPlayers[slot] = PAK_NOT_INSERTED; }
         else if (PS_PakDamaged(slot)) { recordscr_gNumPakPlayers[slot] = PAK_DAMAGED; }
         else if (PS_PakRumble(slot)) { recordscr_gNumPakPlayers[slot] = PAK_RUMBLE; }
@@ -154,11 +148,6 @@ void setRecordState(s32 mode)
     }
     recordscr_buttonsJustInited = 1;
 }
-
-/* The buttons with their count: the optimizer orders the stores to a table of known size as the original
- * declaration had it. */
-VIEW(MenuButton[RECORD_BUTTONS], recordscr_buttonInfo);
-#define recordscr_buttonInfo recordscr_buttonInfo_view
 
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear(void *);
@@ -208,11 +197,6 @@ void updateRecordScreen(void)
     }
     recordscr_updateButtons();
 }
-
-VIEW(char[], gDeleteName);
-#define gDeleteName gDeleteName_view
-VIEW(ProfileHandle[4], gJustPlayers);
-#define gJustPlayers gJustPlayers_view
 
 /* The select menu's input (MAT3 recordscr.c controlSelect). The selection first moves off a row that isn't offered.
  * With the "clear" button turned (left and right on a profile row) A asks to clear that profile's records (or all
@@ -439,8 +423,6 @@ void controlView(void)
 }
 
 typedef struct { u8 red, green, blue, alpha; } Color4;
-VIEW(struct pc_multiblit[1], recordscr_mblit);
-#define recordscr_mblit recordscr_mblit_view
 extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
 
@@ -548,9 +530,6 @@ void recordscr_initButtons(void)
     recordscr_buttonsJustInited = 1;
     ZeroCameras();
 }
-
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)

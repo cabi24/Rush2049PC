@@ -56,13 +56,17 @@ extern const f32 gNaNf;
 extern volatile OSTime __osScRetraceTime;
 extern PcSched gScheduler;
 extern s32 scheduler_spare_word;
-extern s16 gRenderInProgress;
+/* The frames handed to the RSP and not yet shown: EndGraphics counts one up, the scheduler's thread one down when the
+ * frame is swapped in (src/rom/scheduler.c), and whoever must not change what a frame reads waits for zero. */
+extern volatile s16 gRenderInProgress;
 extern volatile OSTime __osScAudioStart;
 extern volatile OSTime __osScFrameTime;
 extern u64 scheduler_spare_time;
-extern f32 gSeconds;
-extern f32 gFrameSeconds;
-extern s32 gLastFrameCount;
+/* The frame timer (UpdateFrameTimer, src/rom/timer.c, once a frame): the game time since the countdown, the last
+ * frame's length and its retraces; volatile, as MAT3 declares them. */
+extern volatile f32 gSeconds;
+extern volatile f32 gFrameSeconds;
+extern volatile s32 gLastFrameCount;
 extern s32 gCountdownEnd;
 extern s32 gCountdownStart;
 extern volatile s32 gLastFrameCounter;
@@ -128,8 +132,8 @@ extern u8 highscore_inited;
 extern ScreenPos no_rumble_text_pos[EXTENT(4)][4];
 extern PaneColors hud_playerPaneColors[EXTENT(4)];
 extern char *options_buttonNames[EXTENT(9)];
-extern TPos pause_gPlayerRects[EXTENT(4)][4];
-extern ResourceRange pause_titlePos;
+extern PlayerRect pause_gPlayerRects[EXTENT(4)][4];   /* each window's box (and centre) on the pause screen, by players */
+extern s16 pause_titlePos[EXTENT(2)];   /* the pause screen title's centre: x, y */
 extern void *pause_DimBlit;
 extern void *pause_TitleBlit;
 extern void *pause_PauseBlit;
@@ -256,7 +260,7 @@ void cart_free(void **address);
 void cart_free_direct(void **address);
 void ClearScreen(u16 color);
 s32 CountdownTimeOut(void);
-void cs_ctl10_DC(struct Cell *c);
+void cs_ctl10_DC(PakErrorState *c);
 void cs_draw1_DC(s32 row, s32 col);
 void cs_draw3_DC(s32 row, s32 col);
 void cs_drawT0_DC(s32 row, s32 col);

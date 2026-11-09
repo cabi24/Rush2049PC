@@ -2,9 +2,6 @@
 #include "game/game.h"
 
 
-VIEW(s8[0x15], gOptions);
-#define gOptions gOptions_view
-
 /* The first profile chosen gives the game its options (and the screen offset, options 19 and 20); every later one
  * takes the game's options into its file. */
 void SaveSelectPlayer(tProfile **profile)

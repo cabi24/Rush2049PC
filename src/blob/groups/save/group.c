@@ -50,12 +50,6 @@ void InitPlayer(Handle h) {
     data[71] = 0;
 }
 
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
-VIEW(s16[], gCheatState);
-#define gCheatState gCheatState_view
-
 /* Checks the profile's file: its revision and every part's checksum. Returns 1 when something is wrong. With repair
  * each bad part is reset (the options and settings from the game's, the controls to the defaults, the records
  * zeroed) and written; a file of another revision is deleted instead (and 0 returned). Original game: only the first
@@ -265,13 +259,6 @@ void DeletePlayer(Handle h) {
 
 typedef struct { char c[9]; } Name9;
 
-VIEW(u8[], gPlayerFiles);
-#define gPlayerFiles gPlayerFiles_view
-VIEW(u8[][24], gPS_Files);
-#define gPS_Files gPS_Files_view
-VIEW(int[], gScheduler);
-#define gScheduler gScheduler_view
-
 /* 10 to the power exp (MAT3 _Pow). */
 s32 Pow(s32 exp) {
     s32 result = 1;
@@ -332,7 +319,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
                 src--;
             }
         }
-        for (before = F(gPS_Files[pak], Handle, 8); before != NULL; before = *(Handle *)*before) {
+        for (before = gPS_Files[pak].head; before != NULL; before = *(Handle *)*before) {
             if (game_strcmp((u8 *)*before + PSF_OFS(18), file) == 0 && game_strcmp((u8 *)*before + PSF_OFS(53), player_file_ext_match) == 0) {
                 break;
             }
@@ -352,7 +339,7 @@ void **CreatePlayer(s32 pak, u8 *name) {
     F(p, Handle, PROFILE_OFS(8)) = fileh;
     F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
     F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = MovePlayerFile;
-    F(data, s32, 4) = gScheduler[159];
+    F(data, s32, 4) = gScheduler.retraceCount;
     F(data, s32, 8) = (pc_n64_identity(player) << 3) | pak;
     game_strcpy(data + 13, name);
     F(data, s32, 0) = CalcChecksumInternal(data + 4, (data + 28) - (data + 4));
@@ -361,12 +348,12 @@ void **CreatePlayer(s32 pak, u8 *name) {
     PS_WriteFile(F(p, Handle, PROFILE_OFS(8)), data, PROFILE_FILE_SIZE);
     PS_FlushFile(F(p, Handle, PROFILE_OFS(8)), 0);
     PS_FlushPak(((u8 *)*F(p, Handle, PROFILE_OFS(8)))[PSF_OFS(16)], 1);
-    for (before = F(gPlayerFiles, Handle, 8); before != NULL; before = *(Handle *)*before) {
+    for (before = gPlayerFiles.head; before != NULL; before = *(Handle *)*before) {
         if (game_strcmp((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
             break;
         }
     }
-    InsertLLE(gPlayerFiles, player, before);
+    InsertLLE(&gPlayerFiles, player, before);
     return player;
 }
 
@@ -381,7 +368,7 @@ void **ReadPlayer(void **fileh) {
     Handle before;
     s32 i;
 
-    for (player = F(gPlayerFiles, Handle, 8); player != NULL; player = *(Handle *)*player) {
+    for (player = gPlayerFiles.head; player != NULL; player = *(Handle *)*player) {
         if (F(*player, Handle, PROFILE_OFS(8)) == fileh) {
             return NULL;
         }
@@ -402,7 +389,7 @@ void **ReadPlayer(void **fileh) {
     memcpy(p + PROFILE_OFS(20), (u8 *)*F(p, Handle, SLOT_DATA) + 13, 13);
     memcpy(p + PROFILE_OFS(12), (u8 *)*F(p, Handle, SLOT_DATA) + 4, 8);
     memcpy(p + PROFILE_OFS(33), (u8 *)*F(p, Handle, SLOT_DATA) + 60, 11);
-    if (!gGlobalsSet && F(gPlayerFiles, Handle, 8) == NULL) {
+    if (!gGlobalsSet && gPlayerFiles.head == NULL) {
         for (i = 0; i < 21; i++) {
             gOptions[i] = GetPlayerOption(player, i);
         }
@@ -411,12 +398,12 @@ void **ReadPlayer(void **fileh) {
         LoadTextWave();
         video_set_offset(gOptions[19], gOptions[20]);
     }
-    for (before = F(gPlayerFiles, Handle, 8); before != NULL; before = *(Handle *)*before) {
+    for (before = gPlayerFiles.head; before != NULL; before = *(Handle *)*before) {
         if (game_strcmp((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
             break;
         }
     }
-    InsertLLE(gPlayerFiles, player, before);
+    InsertLLE(&gPlayerFiles, player, before);
     AddPlayerScores(player);
     PurgePlayerData(player);
     return player;
@@ -549,8 +536,6 @@ s8 PS_PakInserted(s32 pak) {
 s8 PS_PakRumble(s32 pak) {
     return gPaks[pak].rumble;
 }
-VIEW(u8[], gGhostFiles);
-#define gGhostFiles gGhostFiles_view
 
 /* SaveServer calls it before touching a0/a1, so on the N64 it receives SaveServer's own forceUpdate and
  * rumbleOnly; the decomp's call passes nothing (docs/port/PROTOTYPES.md). */
@@ -570,7 +555,7 @@ Handle _ReadGhostHeader(Handle fileh) {
     Handle before;
     GhostHeader *header;
 
-    for (ghosth = F(gGhostFiles, Handle, 8); ghosth != NULL; ghosth = *(Handle *)*ghosth) {
+    for (ghosth = gGhostFiles.head; ghosth != NULL; ghosth = *(Handle *)*ghosth) {
         if (((Ghost *)*ghosth)->fileh == fileh) {
             return NULL;
         }
@@ -601,12 +586,12 @@ Handle _ReadGhostHeader(Handle fileh) {
     ghost->finish = header->finish;
     PS_PurgeFile(fileh);
     ghost->header = NULL;
-    for (before = F(gGhostFiles, Handle, 8); before != NULL; before = *(Handle *)*before) {
+    for (before = gGhostFiles.head; before != NULL; before = *(Handle *)*before) {
         if (ghost->finish < ((Ghost *)*before)->finish) {
             break;
         }
     }
-    InsertLLE(gGhostFiles, ghosth, before);
+    InsertLLE(&gGhostFiles, ghosth, before);
     return ghosth;
 }
 
@@ -638,7 +623,7 @@ void SaveServer(s32 forceUpdate, s32 rumbleOnly) {
         if (sLastPak == pak) {
             continue;
         }
-        fileh = F(gPS_Files[pak], Handle, 8);
+        fileh = gPS_Files[pak].head;
         sLastPak = pak;
         while (fileh != NULL) {
             if (PS_PakInserted(pak) == 0) {

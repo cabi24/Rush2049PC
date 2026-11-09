@@ -76,7 +76,7 @@ extern MenuDepthPoint menu_text_depth_curve[EXTENT(14)];
 extern s8 text_lock_inited;
 extern void *pause_gTitlePane;
 extern s8 gInited_TBText;
-extern ScreenPos gJust;
+extern TextJust gJust;
 extern TextColor gFlashColor1;
 extern TextColor gFlashColor2;
 extern volatile f32 gColorCycleTime;
@@ -89,13 +89,13 @@ extern u8 gTextWave;
 extern s32 gTextWaveInst;
 extern s32 gFontDatWaveInst;
 extern s32 gFontTexWaveInst;
-extern struct Bank *gFontHeader;
+extern FontHeader *gFontHeader;   /* the current font's header (SetupFontData): the start of its data wave */
 extern FontLetter *gFontLetters;
 extern struct tTexture *gFontTextures[EXTENT(16)];
 extern s16 gCharMap[EXTENT(256)];
 extern s32 font_image_format;
 extern s32 font_texel_size;
-extern PcText4 gFontColor;
+extern TextColor gFontColor;   /* the text's colour, R, G, B, A (HAL_SetTextColor) */
 extern s8 gLeading;
 extern s8 gSpacing;
 extern u32 gFontAttribute;

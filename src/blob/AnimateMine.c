@@ -57,8 +57,6 @@ typedef struct tTexture {u8 bytes[36];} Texture36;
 /* An always-colliding entry (MAT3 tAlwaysCol): the link, then the target it stands for. */
 typedef struct Link {struct Link *next;Target *target;} Link;
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 
 
 

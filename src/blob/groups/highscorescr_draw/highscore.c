@@ -3,26 +3,10 @@
  * gHighScoreState is on. */
 #include "game/game.h"
 
-VIEW(s8[][19], gUnlockedTracks);
-#define gUnlockedTracks gUnlockedTracks_view
-VIEW(s8[][19], gPrevUnlockedTracks);
-#define gPrevUnlockedTracks gPrevUnlockedTracks_view
 VIEW(s8[][13], gUnlockedCars);
 #define gUnlockedCars gUnlockedCars_view
-VIEW(s8[][13], gPrevUnlockedCars);
-#define gPrevUnlockedCars gPrevUnlockedCars_view
-VIEW(s8[][4], gPrevUnlockedCircuits);
-#define gPrevUnlockedCircuits gPrevUnlockedCircuits_view
-VIEW(s8[][8], gPrevUnlockedTrans);
-#define gPrevUnlockedTrans gPrevUnlockedTrans_view
-VIEW(s8[][9], gPrevUnlockedEngines);
-#define gPrevUnlockedEngines gPrevUnlockedEngines_view
-VIEW(s8[][5], gPrevUnlockedTires);
-#define gPrevUnlockedTires gPrevUnlockedTires_view
 VIEW(s8[][6], gUnlockedFrames);
 #define gUnlockedFrames gUnlockedFrames_view
-VIEW(s8[][6], gPrevUnlockedFrames);
-#define gPrevUnlockedFrames gPrevUnlockedFrames_view
 
 /* The "unlocked" page: in each window of a player who unlocked something, centred and its box sized to fit, a
  * two-line heading, then (flashing) each track, car, circuit, transmission, engine, tyre and frame the race
@@ -45,7 +29,7 @@ void DrawUnlocked(void)
         for (i = 0; i < 4; i++) if (gUnlockedCircuits[p][i] && !gPrevUnlockedCircuits[p][i]) stuffCount++;
         for (i = 0; i < 8; i++) if (gUnlockedTrans[p][i] && !gPrevUnlockedTrans[p][i]) stuffCount++;
         for (i = 0; i < 9; i++) if (gUnlockedEngines[p][i] && !gPrevUnlockedEngines[p][i]) stuffCount++;
-        for (i = 0; i < 5; i++) if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) stuffCount++;
+        for (i = 0; i < 5; i++) if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p * 5 + i]) stuffCount++;
         for (i = 0; i < 6; i++) if (gUnlockedFrames[p][i] && !gPrevUnlockedFrames[p][i]) stuffCount++;
         x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
         y = highscore_gPlayerRects[gNumWindows - 1][p].cy - stuffCount * TB_GetFontLineHeight() / 2;
@@ -94,7 +78,7 @@ void DrawUnlocked(void)
             }
         }
         for (i = 0; i < 5; i++) {
-            if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) {
+            if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p * 5 + i]) {
                 TB_Sprintf(str, unlocked_tires_format, gText.taba[gText.tab[7] + i], gText.taba[gText.tab[2] + 4]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
@@ -112,21 +96,14 @@ void DrawUnlocked(void)
 
 #define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
-VIEW(char[], highscore_gCircuitCode);
-#define highscore_gCircuitCode highscore_gCircuitCode_view
-
 VIEW(s8[][5], gNewTotalScore);
 #define gNewTotalScore gNewTotalScore_view
 
 extern s32 sprintf(char *, const char *, ...);
 
-VIEW(char *, gPlayerNameChars);
-#define gPlayerNameChars gPlayerNameChars_view
-
-/* SaveInit' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
+/* A ghost on a pak (tGhostFile), the struct gPakGhosts points to; its link and file handle are pointer-sized on the
+ * PC (docs/port/CASTS.md). */
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
-VIEW(Ghost **, gSavedGhost);
-#define gSavedGhost gSavedGhost_view
 
 /* HAL_SetFont, called through a file static of its own (MAT3's DrawName and DrawGhost each inline one). */
 void hs_SetFont(s32 font)
@@ -273,8 +250,8 @@ void DrawGhost(void)
     TB_DrawText(TB_CenterText(str, 160), y, str);
     y += TB_GetFontLineHeight();
     gh_SetFont(2);
-    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gSavedGhost)->time / 60.0f), (s32)(*gSavedGhost)->time % 60,
-                 (s32)((*gSavedGhost)->time * 1000.0f) % 1000);
+    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gSavedGhost)->finish / 60.0f), (s32)(*gSavedGhost)->finish % 60,
+                 (s32)((*gSavedGhost)->finish * 1000.0f) % 1000);
     TB_DrawText(TB_CenterText(time, 160), y, time);
     if (gGhostMenuConflict == 1) {
         gh_SetFont(10);

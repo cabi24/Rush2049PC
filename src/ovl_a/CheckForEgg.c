@@ -12,13 +12,6 @@ typedef union InputSequence {
     u32 words[41];
 } InputSequence;
 
-VIEW(volatile float, gSeconds);
-#define gSeconds gSeconds_view
-VIEW(u32, gActiveEdges);
-#define gActiveEdges gActiveEdges_view
-VIEW(u32, gActiveLevels);
-#define gActiveLevels gActiveLevels_view
-
 #define EGG_STEP_TIME 1.0f          /* seconds to make the next step */
 
 /* Follow the code InitEgg chose (gEgg) for this frame's buttons. A pause of over a second or a press of a button

@@ -1,9 +1,6 @@
 /* RemovePanes: remove the panes (MAT3 pane.c). */
 #include "game/game.h"
 
-VIEW(s32, gPaneBlits);
-#define gPaneBlits gPaneBlits_view
-
 /* Removes every pane in use and its blits, the permanent ones too when permanent is set. */
 void RemovePanes(s32 permanent)
 {

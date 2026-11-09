@@ -43,10 +43,6 @@ typedef struct tTextureSwap {
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
 #define PC_SCROLL_RETRACES(d, ticks) (pc_fps60 && (ticks) > 0 ? 2 : (d))
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
-VIEW(volatile int, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
 
 /* One frame of the track's (gTrackNum) texture animations, none in the attract demo without the Expansion Pak.
  * Each palette animation whose period is up starts the next and does its step (the PALANIM_* states; the light

@@ -46,11 +46,6 @@ typedef struct {
     Handle *handle;     /* 72 */
 } Player76;
 
-VIEW(s32[4], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-
 extern Player76 gPlayers[];
 
 

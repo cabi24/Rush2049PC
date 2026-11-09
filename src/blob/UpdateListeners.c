@@ -13,8 +13,6 @@ typedef struct CarRec {
 
 
 extern CarRec gPlayers[];
-VIEW(f32[], unitmatrix_origin);
-#define unitmatrix_origin unitmatrix_origin_view
 
 /* For each player with a listener: places it at the car's position (its model's rwr), at rest, looking along the
  * camera's forward axis with the camera's up. */

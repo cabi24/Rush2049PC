@@ -37,14 +37,6 @@ typedef struct {
     Motion slot[4];
 } MotionFrame; /* 0xE0 */
 
-VIEW(PointList *[4], backPolys);
-#define backPolys backPolys_view
-VIEW(Dims *, bg_texture);
-#define bg_texture bg_texture_view
-
-VIEW(MotionFrame[], gBackRects);
-#define gBackRects gBackRects_view
-
 /* Each frame, for each of the four quads that is up: move its corners' texture coordinates by its drift times the
  * frame's length; when all four corners are past one texture width (height) the same way, shift them all back by
  * one; keep the result in gBackRects (offsetsValid says it is there, for createBG to start from next time). */

@@ -5,14 +5,7 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-VIEW(s8, gStopAllEffects);
-#define gStopAllEffects gStopAllEffects_view
-
 /* The queues in this file's view of the header's (gCmdQ without its volatile). */
-VIEW(AudioList, gFreeQ);
-#define gFreeQ gFreeQ_view
-VIEW(AudioList, gCmdQ);
-#define gCmdQ gCmdQ_view
 
 
 /* PC: the volume and pan conversions of AudioPlayEffectInternal are IDO's (N64_F2U, pc_prelude.h). AudioSfxServer's

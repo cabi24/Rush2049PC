@@ -6,8 +6,6 @@ typedef f32 Mat3[3][3];
 typedef struct tCarData { u8 other[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other_308[0x35B - 0x308]; s8 slot,camera; } tCarData;
 
 
-VIEW(volatile s32, gLastFrameCount);
-#define gLastFrameCount gLastFrameCount_view
 
 /* game.frame_rate 60: the elasticity is per frame of two retraces, e; a frame of one gets e^(1/2), so two of them
  * follow the car as one of two retraces does (docs/port/FRAMERATE.md 7). The N64's own scaling stays for 3-5. */

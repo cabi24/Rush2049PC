@@ -13,19 +13,9 @@ typedef struct Blit {
     s8 hidden;
 } Blit;
 
-/* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
-typedef struct TblHdr {
-    char *pad0[0x2A8 / 4];
-    char *rumbleOff;    /* message 170 */
-    char *rumbleOn;     /* message 171 */
-    char *pad2B0[(0x388 - 0x2B0) / 4];
-    char *title;        /* message 226 */
-} TblHdr;
-
-typedef struct StrTable {
-    u8 pad0[4];
-    TblHdr *hdr;
-} StrTable;
+#define TEXT_RUMBLE_OFF 170       /* gText.single[]: the rumble page's "off" */
+#define TEXT_RUMBLE_ON 171        /* "on" */
+#define TEXT_RUMBLE_TITLE 226     /* its title */
 
 typedef struct Player {   /* gPlayers' record (tPadState) */
     u8 b0;
@@ -46,11 +36,6 @@ typedef struct Control {
 } Control;
 
 extern Player gPlayers[];
-VIEW(Control[], gPaks);
-#define gPaks gPaks_view
-
-VIEW(StrTable, gText);
-#define gText gText_view
 
 /* Whether controller ctl has a Rumble Pak in. */
 s32 getB6_BC84(s32 ctl)
@@ -83,26 +68,26 @@ s32 animRumbleText(Blit *blt)
     }
     if (!ok) {
         HAL_SetFont(10);
-        x = pause_gPlayerRects[0][1].x;
-        y = pause_gPlayerRects[0][1].y - TB_GetFontLineHeight() / 2;
+        x = pause_gPlayerRects[0][1].cx;
+        y = pause_gPlayerRects[0][1].cy - TB_GetFontLineHeight() / 2;
         TB_SetTextColor(22);
-        str = gText.hdr->title;
+        str = gText.single[TEXT_RUMBLE_TITLE];
         TB_DrawText(TB_CenterText(str, x), y, str);
     }
     HAL_SetFont(11);
     TB_SetTextColor(1);
     for (i = 0; i < gNumPlayers; i++) {
-        x = pause_gPlayerRects[gNumPlayers - 1][i].x;
-        y = pause_gPlayerRects[gNumPlayers - 1][i].y - TB_GetFontLineHeight();
+        x = pause_gPlayerRects[gNumPlayers - 1][i].cx;
+        y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
         TB_SetTextColor(playerTextColor[i]);
         str = (char *)(*gPlayers[i].name + PROFILE_OFS(20));
         TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
         ctl = gPlayers[i].control;
         if (getB6_BC84(ctl)) {
-            str = gText.hdr->rumbleOn;
+            str = gText.single[TEXT_RUMBLE_ON];
         } else {
-            str = gText.hdr->rumbleOff;
+            str = gText.single[TEXT_RUMBLE_OFF];
         }
         TB_SetTextColor(1);
         TB_DrawText(TB_CenterText(str, x), y, str);

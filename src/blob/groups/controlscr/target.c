@@ -7,8 +7,6 @@ typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 VIEW(Item[4][17], controls_buttonInfo);
 #define controls_buttonInfo controls_buttonInfo_view
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 typedef struct NameEntry NameEntry;
 
 void *memcpy(void *,const void *,u32);

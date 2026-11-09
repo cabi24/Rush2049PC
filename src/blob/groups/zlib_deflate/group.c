@@ -162,33 +162,10 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
 #define REPZ_11_138  18
 /* repeat a zero length 11-138 times  (7 bits of repeat count) */
 
-VIEW(int[LENGTH_CODES], extra_lbits);
-#define extra_lbits extra_lbits_view
-VIEW(int[D_CODES], extra_dbits);
-#define extra_dbits extra_dbits_view
-VIEW(int[BL_CODES], extra_blbits);
-#define extra_blbits extra_blbits_view
 /* PC: only static_bl_desc's extra_bits reaches extra_blbits, so no code names it, and the data loader left it in the
  * ROM's byte order (the bit-length tree's extra bits, when a ghost is compressed). Referenced here, it is described
  * as the int[19] it is (docs/port/BRINGUP.md 13). */
 int *const pc_extra_blbits = extra_blbits;
-VIEW(uch[BL_CODES], bl_order);
-#define bl_order bl_order_view
-VIEW(ct_data[L_CODES + 2], static_ltree);
-#define static_ltree static_ltree_view
-VIEW(ct_data[D_CODES], static_dtree);
-#define static_dtree static_dtree_view
-VIEW(uch[512], dist_code);
-#define dist_code dist_code_view
-VIEW(uch[MAX_MATCH - MIN_MATCH + 1], length_code);
-#define length_code length_code_view
-VIEW(int[LENGTH_CODES], base_length);
-#define base_length base_length_view
-VIEW(int[D_CODES], base_dist);
-#define base_dist base_dist_view
-
-VIEW(config[10], configuration_table);
-#define configuration_table configuration_table_view
 
 #ifndef DEBUG
 #  define send_code(s, c, tree) send_bits(s, tree[c].Code, tree[c].Len)
@@ -1446,17 +1423,15 @@ local block_state deflate_slow(s)
 #define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
-VIEW(char[], heap_lock_queue);
-#define heap_lock_queue heap_lock_queue_view
 
 /* Frees ptr's heap chunk under the heap lock (zlib's TRY_FREE). */
 __inline void zfree_locked(voidpf ptr)
 {
     voidpf heap; /* never set; unused (the free takes ptr's address) */
 
-    osRecvMesg(heap_lock_queue, Z_NULL, 1);
+    osRecvMesg(&heap_lock_queue, Z_NULL, 1);
     DeallocateMemoryInternal(heap, ptr, 0);
-    osSendMesg(heap_lock_queue, Z_NULL, 0);
+    osSendMesg(&heap_lock_queue, Z_NULL, 0);
 }
 #define TRY_FREE(ptr) { if (ptr) zfree_locked(ptr); }
 

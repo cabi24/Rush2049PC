@@ -3,9 +3,6 @@
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): scale is N64 +0x10, host +0x14. */
 typedef struct Pos { s16 x, y; } Pos;
-VIEW(s8[], gOptions);
-#define gOptions gOptions_view
-
 /* For each window's two counters (gold coins, silver coins): makes its spinning 3D coin the first time, places it at
  * coinPos (coinStuntPos in stunt races) turned by hudObjAngle, and with the HUD's coins shown and the race on shows it
  * with the count found (NumCoinsFound) beside it, in white with a black shadow; else hides it. Returns 1. */

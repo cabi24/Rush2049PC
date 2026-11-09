@@ -10,33 +10,13 @@
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-/* The pad state shared between the two threads, with the types MAT3 gives it (include/game declares some of these
- * with other widths). */
-VIEW(volatile s8[4][2], gContStickRange);   /* each stick's calibration: the raw value that reads as full */
-#define gContStickRange gContStickRange_view
-VIEW(volatile s8[4][2], gNewStick);         /* the raw sticks */
-#define gNewStick gNewStick_view
-VIEW(volatile s32[4], gNewLevels);          /* the buttons held at the last ControlIRQ */
+/* The buttons held at the last ControlIRQ, one word a controller: MAT3's volatile unsigned int[4]. include/game
+ * declares the 4 bytes the data loader gives its symbol (the 16 are free on the N64 as on the PC: scissorul follows). */
+VIEW(volatile s32[4], gNewLevels);
 #define gNewLevels gNewLevels_view
-VIEW(volatile s32[4], gNewEdges);           /* the buttons pressed since the last UpdateControls */
-#define gNewEdges gNewEdges_view
-VIEW(u32[4][32], gAutoEdgeTimes);           /* when each held button last auto-repeated (a retrace count) */
-#define gAutoEdgeTimes gAutoEdgeTimes_view
-VIEW(volatile s32[4], gContLevels);
-#define gContLevels gContLevels_view
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-VIEW(s32[4], gAutoEdges);
-#define gAutoEdges gAutoEdges_view
-VIEW(f32[4][2], gContStick);
-#define gContStick gContStick_view
-VIEW(s32[4], gRealLevels);
-#define gRealLevels gRealLevels_view
-VIEW(s32[4], gRealEdges);
-#define gRealEdges gRealEdges_view
 
 /* The scheduler's retrace count (gScheduler.retraceCount), the controls' clock. */
-#define gTick (*(volatile s32 *) &gScheduler.retraceCount)
+#define gTick gScheduler.retraceCount
 
 /* The stick's calibration when a controller is plugged in or its reset button pressed. */
 #define STICK_RANGE_DEFAULT 70

@@ -20,8 +20,6 @@ typedef struct {
 VIEW(Button[], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 
-VIEW(volatile f32, gFrameSeconds);
-#define gFrameSeconds gFrameSeconds_view
 f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
 
@@ -124,21 +122,6 @@ void audio_updateButtons(void) {
     audio_buttonsJustInited = 0;
 }
 
-typedef struct { f32 x, y; } Stick;
-typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
-typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
-
-VIEW(Stick[4], gContStick);
-#define gContStick gContStick_view
-
-VIEW(s32[4], gContEdges);
-#define gContEdges gContEdges_view
-
-VIEW(AudioCfg, gOptions);
-#define gOptions gOptions_view
-VIEW(Pad16[], gControllerData);
-#define gControllerData gControllerData_view
-
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* Each frame of the audio screen: reads the controller (the first in the front end, the pausing player's in the
@@ -147,7 +130,7 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
  * moves the buttons, notes a pulled controller in the title, and on leaving (or a soft reset) goes back to the
  * options or the pause screen. */
 void updateAudioScreen(void) {
-    Pad16 *p;
+    volatile ControllerState *p;
     s32 padB;
     s32 btn;
     f32 stick[2];
@@ -155,13 +138,13 @@ void updateAudioScreen(void) {
     s32 dz;
 
     if (gGameState & GS_FRONTEND_MASK) {
-        stick[0] = gContStick[0].x;
-        stick[1] = gContStick[0].y;
+        stick[0] = gContStick[0][0];
+        stick[1] = gContStick[0][1];
         btn = gActiveEdges;
     } else {
         btn = gContEdges[playerInPause];
-        stick[0] = gContStick[playerInPause].x;
-        stick[1] = gContStick[playerInPause].y;
+        stick[0] = gContStick[playerInPause][0];
+        stick[1] = gContStick[playerInPause][1];
     }
     if (audio_inited == 0)
         audio_initScreen();
@@ -176,7 +159,7 @@ void updateAudioScreen(void) {
             break;
         case AUDIO_MENU_SONG:
             AudKillSong();
-            AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
+            AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
@@ -198,7 +181,7 @@ void updateAudioScreen(void) {
                 gAudioMenuSelect = 3;
         } while (!audio_validOption(gAudioMenuSelect));
         if (gAudioMenuSelect == AUDIO_MENU_MUSIC || gAudioMenuSelect == AUDIO_MENU_SONG) {
-            AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
+            AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
@@ -213,20 +196,20 @@ void updateAudioScreen(void) {
         PlayLRSound(btn);
         switch (gAudioMenuSelect) {
         case AUDIO_MENU_SFX:
-            gOptions.sfx += dz;
-            if (gOptions.sfx > 10)
-                gOptions.sfx = 0;
-            else if (gOptions.sfx < 0)
-                gOptions.sfx = 10;
-            AudSetFxVol(gOptions.sfx / 10.0f, 0.05f);
+            gOptions[kOptEffectsVolume] += dz;
+            if (gOptions[kOptEffectsVolume] > 10)
+                gOptions[kOptEffectsVolume] = 0;
+            else if (gOptions[kOptEffectsVolume] < 0)
+                gOptions[kOptEffectsVolume] = 10;
+            AudSetFxVol(gOptions[kOptEffectsVolume] / 10.0f, 0.05f);
             break;
         case AUDIO_MENU_MUSIC:
-            gOptions.music += dz;
-            if (gOptions.music > 10)
-                gOptions.music = 0;
-            else if (gOptions.music < 0)
-                gOptions.music = 10;
-            AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
+            gOptions[kOptMusicVolume] += dz;
+            if (gOptions[kOptMusicVolume] > 10)
+                gOptions[kOptMusicVolume] = 0;
+            else if (gOptions[kOptMusicVolume] < 0)
+                gOptions[kOptMusicVolume] = 10;
+            AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
             break;
         case AUDIO_MENU_SONG:
             AudKillSong();
@@ -237,8 +220,8 @@ void updateAudioScreen(void) {
             else if (audio_gSong < 0)
                 audio_gSong = AUDIO_SONG_LAST;
             gLastSong = audio_gSong;
-            gOptions.track = audio_gSong;
-            AudSetMusicVol(gOptions.music / 10.0f, 0.05f);
+            gOptions[kOptSong] = audio_gSong;
+            AudSetMusicVol(gOptions[kOptMusicVolume] / 10.0f, 0.05f);
             if (audio_gSong < AUDIO_SONG_TRACKS)
                 AudPlaySong(audio_gSong, 1);
             else if (audio_gSong == AUDIO_SONG_TRACKS) {
@@ -249,16 +232,16 @@ void updateAudioScreen(void) {
             }
             break;
         case AUDIO_MENU_MONO:
-            gOptions.mono = !gOptions.mono;
-            AudMono(gOptions.mono);
+            gOptions[kOptMono] = !gOptions[kOptMono];
+            AudMono(gOptions[kOptMono]);
             break;
         }
     }
     audio_updateButtons();
     if (gGameState & GS_RACE_MASK) {
         p = &gControllerData[playerInPause];
-        if (!p->b0 != audio_gControllerRemoved) {
-            audio_gControllerRemoved = !p->b0;
+        if (!p->attached != audio_gControllerRemoved) {
+            audio_gControllerRemoved = !p->attached;
             audio_TitlePane();
         }
     }
