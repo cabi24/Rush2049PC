@@ -1,5 +1,8 @@
+/* The attract mode's demo race (MAT3 demo.c): every 30 seconds the title gives way to a drones' race on the next
+ * track in turn, with the credits after the last. */
 #include "game/game.h"
 
+/* A player's input record (gPlayers): its node. */
 typedef struct Player {
     u8 node;
     u8 pad1[0x48 - 0x1]; void *ref;
@@ -25,6 +28,9 @@ void RemoveBlit(DemoBlit *sound);
 
 s32 CountdownTimeOut(void);
 
+/* One frame of the demo (state GS_DEMO): set it up the first time, run it (playDemoGame); a soft reset or a button
+ * (A, B or Start) once it runs, or its 30 seconds out, ends it back to the title (state 4: the start button takes
+ * it on to state 16, and after the last track's demo the credits, state 2). */
 void updateDemoGame(void) {
     s32 x;
 
@@ -51,6 +57,7 @@ void updateDemoGame(void) {
     }
 }
 
+/* Sets the demo up: its "demo" blit, its 30 seconds, the next track. */
 void initDemoGame(void) {
 
         demo_blit = NewMultiBlit(0, 0, &demo_multiblit, 1);
@@ -60,6 +67,7 @@ void initDemoGame(void) {
         ClearRushControls();
     }
 
+/* Ends the demo: its blit, its race. */
 void uninitDemoGame(void) {
         if (demo_blit) {
             RemoveBlit(demo_blit);
@@ -69,6 +77,9 @@ void uninitDemoGame(void) {
         demo_inited = 0;
 }
 
+/* With `on`, runs the demo race: the first time a one-window single race on the demo track (fake_init; but in the
+ * high score state), loaded and placed (PrePlay) before it plays (PlayGame). Without it, ends the race and unloads
+ * its track. `x` is not read. */
 void playDemoGame(s32 on, s32 x) {
     static s8 gDemoInited = 0;
 
@@ -76,13 +87,13 @@ void playDemoGame(s32 on, s32 x) {
         if (!gDemoInited) {
             gDemoInited = 1;
             gNumWindows = 1;
-            if (!(gGameState & 0x02000000)) {
-                gRace = 0;
+            if (!(gGameState & GS_HIGH_SCORE)) {
+                gRace = kOneRace;
                 fake_init(gCurrentDemoTrack);
             }
         }
         if (x) {}
-        if (!demo_preplayDone && PrePlay(gGameState & 8, 0)) {
+        if (!demo_preplayDone && PrePlay(gGameState & GS_DEMO, 0)) {
             CarSetup();
             Update_MDrive();
             InitCPTime();
@@ -94,12 +105,13 @@ void playDemoGame(s32 on, s32 x) {
         gDemoInited = 0;
         demo_preplayDone = 0;
         endDemoGame();
-        if (!(gGameState & 0x02000000)) {
+        if (!(gGameState & GS_HIGH_SCORE)) {
             UnloadTrack(gTrackNum);
         }
     }
 }
 
+/* The demo race's end: the cars' models and the model thread stop, the HUD, environment and cars go. */
 void endDemoGame(void) {
     s16 i;
         for (i = 0; i < gNumActiveCars; i++) {
@@ -117,6 +129,7 @@ void endDemoGame(void) {
         }
 }
 
+/* The next demo track: 0 to 5 in turn (0 to 4 without the Expansion Pak), the credits shown after the last. */
 void nextAvailDemoTrack(void) {
         gCurrentDemoTrack++;
         gShowCredits = 0;

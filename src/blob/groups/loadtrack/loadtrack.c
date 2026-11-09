@@ -1,33 +1,18 @@
+/* LoadTrack: a track's files loaded and the track set up (MAT3 tracks.c). */
 #include "game/game.h"
-#define TrackLoadInfo TrackLoadInfoView   /* this file's own TrackLoadInfo: include/game's TrackLoadInfo is another type */
 
-typedef struct LoadState {     /* GC tracks.c __anon_10faf9 */
-    s8 loading;                /* 0x00 */
-    s8 loaded;                 /* 0x01 */
-    s8 inited;                 /* 0x02 */
-    s8 ready;                  /* 0x03 */
-    s32 idx;                   /* 0x04 */
-} LoadState;
-typedef struct TrackLoadInfo { /* GC tracks.c __anon_10fbbb (gTrackLoadInfo), 0x2C */
-    s8 trackInited;            /* 0x00 */
-    LoadState track;           /* 0x04 */
-    LoadState world;           /* 0x0C */
-    LoadState collision;       /* 0x14 */
-    LoadState path;            /* 0x1C */
-    LoadState other;           /* 0x24 */
-} TrackLoadInfo;
-typedef struct WorldHdr {      /* GC world.c __anon_10fd25 */
+/* A world group's header (MAT3 world.c's anon_woff_wname_14): its offset in the world WAD and its name. */
+typedef struct WorldHdr {
     u32 woff;                  /* 0x00 */
     char wname[16];            /* 0x04 */
 } WorldHdr;
-typedef struct Wad {           /* GC mb_wad.c __anon_87656 */
+/* A WAD being read (MAT3 mb_wad.c's anon_base_TOCentries_c). */
+typedef struct Wad {
     u32 *base;
     s32 TOCentries;
     void *TOC;
 } Wad;
 
-VIEW(TrackLoadInfo, gTrackLoadInfo);
-#define gTrackLoadInfo gTrackLoadInfo_view
 VIEW(s32 *, gWorldData);
 #define gWorldData gWorldData_view
 VIEW(WorldHdr *, WorldTable);
@@ -50,6 +35,13 @@ uintptr_t pc_world_chunk(u32 addr, s32 tag, s32 *count);
 /* The world headers' offsets become 32-bit N64 addresses: N64A(p) is a window pointer's (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+/* Loads track `track` a step at a time (`background`: the loads go to the background loader), each part's state in
+ * gTrackLoadInfo: its track wave (101 + track), its world WAD (120 + track: the world headers, the target groups),
+ * its collision WAD (139 + track: gRoadDat), its path file (158 + track, 177 + track backwards: gPathWave), then
+ * the race's other waves (by race kind, track, the Expansion Pak and the windows; none in state 0x100). Returns 0
+ * while a part is still loading. Once all are in, sets the track up once (unless already): targets, sky, world,
+ * environment, dynamic objects, the cars (but on a reload or in state 0x100), visuals, checkpoints, paths, the demo
+ * path point, skids, smoke, blasts and world damage. Then returns 1. */
 s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     Wad wad;
     WorldHdr *whdr;
@@ -118,10 +110,10 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
     if (!gTrackLoadInfo.other.loading) {
         gTrackLoadInfo.other.loading = 1;
         if (!(gGameState & 0x100)) {
-            if (gRace == 6 || (track >= 6 && track < 14)) {
+            if (gRace == kBattle || (track >= 6 && track < 14)) {
                 LoadWave(76, 0, 0, 0, 0);
             }
-            if (!(gGameState & 8) || ((gGameState & 8) && expansion_pak_present)) {
+            if (!(gGameState & GS_DEMO) || ((gGameState & GS_DEMO) && expansion_pak_present)) {
                 LoadWave(68, 0, 0, 0, 0);
                 if (track == 18) {
                     LoadWave(78, 0, 0, 0, 0);
@@ -149,15 +141,16 @@ s32 LoadTrack(s32 track, s32 background, s32 reloading) {
                     LoadWave(65, 0, 0, 0, 0);
                 }
             }
-            if (gRace == 6) {
+            if (gRace == kBattle) {
                 LoadWave(63, 0, 0, 0, 0);
-            } else if (gRace == 4) {
+            } else if (gRace == kStunt) {
                 LoadWave(67, 0, 0, 0, 0);
             }
-            if (gGameState & 8) {
-            } else if (gGameState & 8) {
+            /* the N64 code tests the demo state here three times and does nothing */
+            if (gGameState & GS_DEMO) {
+            } else if (gGameState & GS_DEMO) {
             }
-            if (gGameState & 8) {
+            if (gGameState & GS_DEMO) {
             }
         }
         gTrackLoadInfo.other.loaded = 1;

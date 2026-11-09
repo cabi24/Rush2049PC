@@ -198,7 +198,7 @@ s32 TraceToCheckpoint(s32 inPath, s32 inIdx, s32 *cp, s32 depth);
 s32 TraceToEnd(s32 inPath, s32 inIdx, s32 *outPath, s32 *outIdx, s32 *numPts, s32 honorAltRes, s32 depth);
 void TraceToIndex(s32 inPath, s32 inIdx, s32 toIdx, s32 *outPath, s32 *outIdx);
 s32 TraceToMain(s32 inPath, s32 inIdx, s32 *outIdx, s32 *numPts, s32 depth);
-void UnloadTrack(s32 arg0);
+void UnloadTrack(s32 track);
 void update_frame_on_game_thread(s32 unused, s32 passed);
 void UpdateMiniModelStruct(s32 miniIdx, f32 *vel, f32 *pos, void *uvs);
 void *updownleaf(streetyp *n, s16 x, s16 y, s16 *out);

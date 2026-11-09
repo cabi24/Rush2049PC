@@ -1,9 +1,7 @@
+/* UnloadTrack: a track's files unloaded (MAT3 tracks.c). */
 #include "game/game.h"
 
 extern void *memset(void *s, s32 c, u32 n);
-
-VIEW(s8, gTrackLoadInfo);
-#define gTrackLoadInfo gTrackLoadInfo_view
 
 VIEW(intptr_t, WorldTable);
 #define WorldTable WorldTable_view
@@ -11,10 +9,10 @@ VIEW(intptr_t, WorldTable);
 VIEW(intptr_t, WorldBase);
 #define WorldBase WorldBase_view
 
-void UnloadTrack(s32 arg0) {
-    /* gTrackLoadInfo, loadtrack.c's TrackLoadInfo: each part's load state, idx its wave instance. */
-    typedef struct { s8 loading, loaded, inited, ready; s32 idx; } LoadState;
-    struct { s8 trackInited; LoadState track, world, collision, path, other; } *info = (void *) &gTrackLoadInfo;
+/* Unloads the track's waves (track, world, collision; the path file's stays), clears the sky and the world's
+ * tables and every part's load state. `track` is not read. */
+void UnloadTrack(s32 track) {
+    TrackLoadInfo *info = &gTrackLoadInfo;
 
     WorldTable = 0;
     WorldBase = 0;
