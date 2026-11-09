@@ -474,6 +474,34 @@ struct pc_target_group {
     struct tTarget *target;             /* the target whose mbIdx is the key (SetTargetDefs), NULL none */
 };
 
+/* ---- The game's files as native records (docs/port/NATIVE.md 4.4, docs/port/ASSETS.md 4). On the N64 the game wrote
+ * pointers into some of the files it loaded, as 32-bit addresses: the text bank's string offsets, a world's name
+ * table, a path file's headers. On the PC each stays in its heap block as the game allocated it, converted to the
+ * host's byte order, and its converter (port/assets) builds these records beside it when it loads, with host
+ * pointers into the block; the game asks for them by the block. They go with the block (port/assets/records.c). */
+
+/* The strings of one language (MAT3 text.c's sections; the game's TextTables, gText): the text bank's (text wave's)
+ * six sections, each a count and its table. The three string tables are host pointers to the bank's strings, built
+ * from the file's offsets; the three 16-bit tables are the file's own. gText.taba[gText.tab[n] + i] is the i-th
+ * string of table n (include/game/text.h). */
+struct TextTables {                     /* 0x48 */
+    unsigned short numSingle;           /* +0x00 section 0 */
+    unsigned char **single;             /* +0x08 the single strings */
+    unsigned short numTab;              /* +0x10 section 1 */
+    unsigned short numTabA;             /* +0x12 section 2 */
+    unsigned short *tab;                /* +0x18 where each of taba's tables starts */
+    unsigned char **taba;               /* +0x20 the strings of the tables */
+    unsigned short numTab2;             /* +0x28 section 3 */
+    unsigned short numTab2a;            /* +0x2A section 4 */
+    unsigned short numTab2b;            /* +0x2C section 5 */
+    unsigned short *tab2;               /* +0x30 */
+    unsigned short *tab2a;              /* +0x38 */
+    unsigned char **tab2b;              /* +0x40 */
+};
+/* The tables of the text bank in the heap block `file`: port/assets/text.c builds them when the bank loads, and again
+ * when ReplaceWave reads another language into the block, where they were. */
+const struct TextTables *pc_text_bank(const void *file);
+
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
  * clear every slot (InitSmoke, InitBlasts, InitSkids: PC_MAX_LINKS on the PC), and the rest reaches

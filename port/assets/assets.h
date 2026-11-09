@@ -74,6 +74,16 @@ void pc_assets_wave_released(int wave, uint8_t *buf);
 void pc_heap_block_freed(void *p, size_t size);
 void pc_assets_wad_block_freed(uint8_t *p, size_t size);
 
+/* The native records a converter builds beside a file, kept by the file's heap block (records.c, docs/port/NATIVE.md
+ * 4.4): the game reads them in place of what it wrote into the file on the N64. */
+enum { PC_RECORDS_TEXT = 1, PC_RECORDS_WORLD, PC_RECORDS_PATH };
+/* Keeps records (of kind PC_RECORDS_*) for the file in block, size bytes; release(records) frees them when the block
+ * goes. Whatever was kept for memory this block overlaps goes first: that file isn't there any more. */
+void pc_records_keep(void *block, size_t size, int kind, void *records, void (*release)(void *records));
+void *pc_records_find(const void *block, int kind);     /* NULL: none */
+void *pc_records_detach(const void *block, int kind);   /* the records, no longer kept (not released), or NULL */
+void pc_records_drop(const void *p, size_t size);       /* releases the records of every block [p, p + size) overlaps */
+
 /* Byte order. */
 static inline uint16_t pc_be16(const void *p)
 {

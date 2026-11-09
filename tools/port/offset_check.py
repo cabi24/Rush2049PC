@@ -71,9 +71,6 @@ REVIEWED = [
     (r"src/blob/NewListener\.c$", r"^NewListener$",
      "unreachable: no C calls NewListener, no asm references it, no C takes its address, and no table of "
      "the ROM's data holds it (the loader's conversions, LAYOUT.md 9.3)"),
-    (r".", r"^\*pc_text_strings\(\)",
-     "by design: the text bank's string table holds host pointers (port/assets/text.c), read by index (strs[22]) "
-     "8 bytes wide: PC code"),
     (r"src/blob/groups/gameoverscr_draw/results_table\.c$", r"^(drawBattleScore|drawStuntScore|gameover_animText)$",
      "by design: the name pointer is made with PROFILE_OFS(20) a few lines before the call (POINTERS.md 9.10)"),
     (r"src/ovl_b/animBattlePoints\.c$", r"^animBattlePoints$",

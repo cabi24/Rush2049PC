@@ -1332,20 +1332,10 @@ typedef union TextColor { /* 0x4 bytes */
     u32 rgba;
 } TextColor;
 
-typedef struct TextTables { /* 0x48 bytes */
-    u16 numSingle; /* 0x0 */
-    u8 **single;   /* 0x8 */
-    u16 numTab;    /* 0x10 */
-    u16 numTabA;   /* 0x12 */
-    u16 *tab;      /* 0x18 */
-    u8 **taba;     /* 0x20 */
-    u16 numTab2;   /* 0x28 */
-    u16 numTab2a;  /* 0x2A */
-    u16 numTab2b;  /* 0x2C */
-    u16 *tab2;     /* 0x30 */
-    u16 *tab2a;    /* 0x38 */
-    u8 **tab2b;    /* 0x40 */
-} TextTables;
+/* The strings of one language (MAT3 text.c's sections, gText): the text bank's six sections, each a count and a
+ * table. Declared in pc_game_types.h, where the text bank's converter builds one for each bank it loads
+ * (port/assets/text.c), which AdjustTextWavePointers copies into gText. */
+typedef struct TextTables TextTables;
 
 /* ---- input: controllers and the Rumble Pak */
 

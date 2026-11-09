@@ -1,7 +1,8 @@
-/* port/assets/tests/test_text.c: the text bank converter (port/assets/text.c) on synthetic big-endian banks, then
- * the game's own _AdjustTextWavePointers and three readers that view gText differently: by field
- * (titlescr_animText's strings by index, gText.single) and by raw N64 offsets (pause_TitlePane). A second bank in the same
- * block stands in for the language switch.
+/* port/assets/tests/test_text.c: the text bank converter (port/assets/text.c) on synthetic big-endian banks: the
+ * bank's records (its struct TextTables, built beside the file), the game's own AdjustTextWavePointers, which copies
+ * them into gText, and two readers (titlescr_animText's strings by index, pause_TitlePane's tables). A second bank in
+ * the same block stands in for the language switch (its string tables stay where they were), a larger one moves them,
+ * and the records go with the block.
  * game: src/blob/groups/slot_sound/AdjustTextWavePointers.c src/ovl_a/titlescr_animText.c
  * game: src/blob/groups/pausescr_state/pause_TitlePane.c
  */
@@ -9,21 +10,11 @@
 #include <string.h>
 
 #include "assets.h"
+#include "pc_game_types.h"
 #include "support.h"
 
-char **pc_text_strings(int section, const uint32_t *offsets, int count, void *base);
-
-/* gText as the game's PC views see it (host layout of ModelTables): single, the single table, at +8. */
-struct TextHeader {
-    uint16_t count0;
-    char **single;
-    uint16_t count1, count2;
-    uint16_t *tab;
-    char **taba;
-    uint16_t count3, count4, count5;
-    uint16_t *tab2, *tab2a;
-    char **tab2b;
-} gText;
+/* The game's gText: its one declaration (pc_game_types.h). */
+struct TextTables gText;
 
 /* Stand-ins for what the game files reference. */
 static uint8_t *g_bank;
@@ -71,14 +62,14 @@ void AdjustTextWavePointers(void);
 int32_t titlescr_animText(int32_t arg0);
 void pause_TitlePane(void);
 
-/* Section sizes of the synthetic banks. */
-enum { N0 = 240, N1 = 60, N2 = 12, N3 = 3, N4 = 1, N5 = 2 };
+/* Section sizes of the synthetic banks; a long bank has MORE single strings than the others. */
+enum { N0 = 240, N1 = 60, N2 = 12, N3 = 3, N4 = 1, N5 = 2, MORE = 30 };
 
-/* Writes a big-endian bank: string offsets point to "<tag><section letter><index>", tab[i] = i * 3 + seed,
- * tab[56] = 3. Returns the file size. */
-static size_t make_bank(uint8_t *f, char tag, uint16_t seed)
+/* Writes a big-endian bank of n0 single strings: string offsets point to "<tag><section letter><index>",
+ * tab[i] = i * 3 + seed, tab[56] = 3. Returns the file size. */
+static size_t make_bank(uint8_t *f, char tag, uint16_t seed, int n0)
 {
-    static const int counts[6] = {N0, N1, N2, N3, N4, N5};
+    const int counts[6] = {n0, N1, N2, N3, N4, N5};
     static const char letter[6] = {'S', 0, 'A', 0, 0, 'B'};
     size_t pos = 0, str, tables[6];
     int s, i;
@@ -102,48 +93,45 @@ static size_t make_bank(uint8_t *f, char tag, uint16_t seed)
     return str;
 }
 
-static void check_bank(uint8_t *f, char tag, uint16_t seed)
+static void check_bank(uint8_t *f, char tag, uint16_t seed, int n0)
 {
     char want[16];
     int i;
 
-    CHECK(gText.count0 == N0 && gText.count1 == N1 && gText.count2 == N2);
-    CHECK(gText.count3 == N3 && gText.count4 == N4 && gText.count5 == N5);
-    for (i = 0; i < N0; i++) {
+    CHECK(gText.numSingle == n0 && gText.numTab == N1 && gText.numTabA == N2);
+    CHECK(gText.numTab2 == N3 && gText.numTab2a == N4 && gText.numTab2b == N5);
+    for (i = 0; i < n0; i++) {
         sprintf(want, "%cS%d", tag, i);
-        CHECK(strcmp(gText.single[i], want) == 0);
+        CHECK(strcmp((char *)gText.single[i], want) == 0);
     }
     for (i = 0; i < N2; i++) {
         sprintf(want, "%cA%d", tag, i);
-        CHECK(strcmp(gText.taba[i], want) == 0);
+        CHECK(strcmp((char *)gText.taba[i], want) == 0);
     }
     sprintf(want, "%cB1", tag);
-    CHECK(strcmp(gText.tab2b[1], want) == 0);
+    CHECK(strcmp((char *)gText.tab2b[1], want) == 0);
     CHECK(gText.tab[56] == 3 && gText.tab[2] == 6 + seed);
     CHECK(gText.tab2[2] == 6 + seed && gText.tab2a[0] == seed);
-    CHECK((uint8_t *)gText.tab == f + 4 + N0 * 4 + 4);
-    /* The file keeps its offsets: the pointers live in the native tables. */
+    CHECK((uint8_t *)gText.tab == f + 4 + n0 * 4 + 4);
+    /* The file keeps its offsets: the pointers live in the bank's records. */
     CHECK(pc_be32(f + 4) != 0 && *(uint32_t *)(f + 4) == (uint32_t)((uint8_t *)gText.single[0] - f));
 }
 
 int main(void)
 {
-    uint8_t *w = test_rdram();
-    static uint8_t host[0x4000];
-    uint8_t *f = w ? w + 0x100000 : host;   /* a heap block in the window when it can be mapped */
-    size_t size;
+    static uint8_t f[0x4000];   /* the bank's heap block */
+    unsigned char **single, **taba;
 
-    if (!w)
-        fprintf(stderr, "test_text: no RDRAM window here, using host memory\n");
     g_bank = f;
 
-    /* A bank that runs past its block is left as it is. */
-    size = make_bank(f, 'e', 0);
+    /* A bank that runs past its block is left as it is, with no tables. */
+    make_bank(f, 'e', 0, N0);
     pc_assets_text(0, f, 64);
     CHECK(pc_be32(f) == N0);
+    CHECK(pc_text_bank(f)->numSingle == 0 && !pc_text_bank(f)->single);
 
-    /* English, converted and parsed by the game. */
-    pc_assets_text(0, f, 0x4000);
+    /* English, converted, and its tables taken by the game. */
+    pc_assets_text(0, f, sizeof f);
     {
         uint32_t n;
         uint16_t h;
@@ -153,7 +141,10 @@ int main(void)
         CHECK(h == 6);
     }
     AdjustTextWavePointers();
-    check_bank(f, 'e', 0);
+    check_bank(f, 'e', 0, N0);
+    CHECK(memcmp(&gText, pc_text_bank(f), sizeof gText) == 0);
+    single = gText.single;
+    taba = gText.taba;
 
     /* The readers. */
     attract_alt_text_flag = 0;
@@ -162,11 +153,11 @@ int main(void)
     CHECK(g_value == gText.single[235]);
     pause_gControllerRemoved = 1;
     pause_TitlePane();
-    CHECK(g_formatted == gText.single[233]);
+    CHECK(g_formatted == (char *)gText.single[233]);
     pause_gControllerRemoved = 0;
     gPauseState = 7;
     pause_TitlePane();
-    CHECK(g_measured == gText.taba[3 + 7]);
+    CHECK(g_measured == (char *)gText.taba[3 + 7]);
     gPauseState = 5;
     {
         static char name[32] = "....................PLAYER";   /* static: pause_TitlePane reads it after the block */
@@ -174,19 +165,36 @@ int main(void)
         memcpy(gPlayers_save, &p, sizeof p);
     }
     pause_TitlePane();
-    CHECK(g_formatted == gText.taba[3]);
+    CHECK(g_formatted == (char *)gText.taba[3]);
 
-    /* The language switch: ReplaceWave reads another bank into the block, LoadTextWave parses it again. */
-    memset(f, 0, 0x4000);
-    CHECK(make_bank(f, 'd', 5) <= 0x4000);
-    pc_assets_text(3, f, 0x4000);
+    /* The language switch: ReplaceWave reads another bank into the block, LoadTextWave takes its tables again. They
+     * are where the last language's were, so gText's tables never point at freed memory between the two. */
+    memset(f, 0, sizeof f);
+    CHECK(make_bank(f, 'd', 5, N0) <= sizeof f);
+    pc_assets_text(3, f, sizeof f);
+    CHECK(pc_text_bank(f)->single == single && pc_text_bank(f)->taba == taba);
     AdjustTextWavePointers();
-    check_bank(f, 'd', 5);
+    check_bank(f, 'd', 5, N0);
     pause_gControllerRemoved = 1;
     pause_TitlePane();
     CHECK(strcmp(g_formatted, "dS233") == 0);
 
-    CHECK(pc_text_strings(1, NULL, 0, f) == NULL);
-    (void)size;
+    /* A language with more strings than the tables have room for. */
+    memset(f, 0, sizeof f);
+    CHECK(make_bank(f, 'f', 2, N0 + MORE) <= sizeof f);
+    pc_assets_text(4, f, sizeof f);
+    AdjustTextWavePointers();
+    check_bank(f, 'f', 2, N0 + MORE);
+
+    /* The records go with the block: when the heap frees it, or another file is loaded over part of it. */
+    pc_heap_block_freed(f, sizeof f);
+    CHECK(pc_text_bank(f)->numSingle == 0);
+    memset(f, 0, sizeof f);
+    make_bank(f, 'g', 1, N0);
+    pc_assets_text(1, f, sizeof f);
+    CHECK(pc_text_bank(f)->numSingle == N0);
+    pc_records_keep(f + 0x100, 0x100, PC_RECORDS_PATH, NULL, NULL);
+    CHECK(pc_text_bank(f)->numSingle == 0);
+    pc_records_drop(f, sizeof f);
     return TEST_DONE();
 }
