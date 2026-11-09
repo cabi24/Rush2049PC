@@ -11,12 +11,15 @@
  *
  * On the PC the microcode is not run: port/audio interprets the SFDs (docs/port/AUDIO.md has their layout), and the
  * AI, the RSP task, the D-cache calls and the cartridge DMA under this code are port/ultra's. The records here are in host
- * layout; an SFD grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). Still
- * N64-shaped: samples are addressed by 32-bit cartridge or RDRAM-window addresses, and the cache-line bookkeeping
- * (dcache_create_dirty_lines, the *_cache_cursor and *_end words) counts the N64's record sizes. */
+ * layout; an SFD grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). A
+ * voice's sample is in the cartridge, named by its 32-bit cartridge address (the caches are keyed by those), or in
+ * RAM (a stream's buffer), named by its pointer (include/sound_sample_record.h). Still N64-shaped: the cache-line
+ * bookkeeping (dcache_create_dirty_lines, the *_cache_cursor and *_end words) counts the N64's record sizes from the
+ * low 32 bits of the records' addresses, which nothing reads memory by. */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "sound_hw_voice.h"
+#include "sound_sample_record.h"
 
 /* This unit's own BSS: the delay line, the audio task and the codebook cache. */
 void *sound_delay_line;
@@ -128,10 +131,6 @@ typedef char pc_audio_block_check[sizeof(AudioBlock) == sizeof(SfdBlock) ? 1 : -
 /* What sound_get_output_info reports: the output rate, mode, sample bits and the driver's name */
 typedef struct AudioConfiguration { unsigned int frequency; unsigned char mode; unsigned char sample_bits; unsigned char unknown06[256]; signed char text[256]; } AudioConfiguration;
 
-/* A sample, as the synth hands it to sound_hw_set_voice_sample (offset, lengths and loop in samples) */
-#pragma pack(1)
-typedef struct SoundHwSampleInfo { unsigned int frequency; void *data; unsigned int offset; unsigned int length; unsigned int loopStart; unsigned int loopLength; unsigned char format; } SoundHwSampleInfo;
-#pragma pack()
 
 /* ---- What the unit uses from elsewhere */
 
@@ -217,7 +216,7 @@ extern void (*sound_services)(OSTask *);
 extern void (*sound_service_start_dma)(void *, unsigned short, void *);
 extern void (*sound_service_add_callback)(void (*)(void));
 extern void (*sound_service_remove_callback)(void (*)(void));
-extern void *(*sound_service_translate_address)(void *);
+extern unsigned int (*sound_service_translate_address)(unsigned int);
 extern void (*sound_dma_flush_hook)(void);
 extern void (*sound_frame_hook)(void);
 
@@ -1106,7 +1105,7 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
         case SAMPLE_FORMAT_ADPCM:
             if (length[1] != 0) {
                 loopRem = address[1] & 0x3F;
-                sound_hw_fetch_sample_range(&cmd->loop, (address[1] >> 6) * ADPCM_BLOCK_BYTES + (unsigned int)audio->data + ADPCM_CODEBOOK_BYTES, ((((padded[1] + (loopRem & 0x1F) + 0x1F) >> 5) + (loopRem >> 5) + 1) >> 1) * ADPCM_BLOCK_BYTES, (unsigned int)audio->data + ADPCM_CODEBOOK_BYTES);
+                sound_hw_fetch_sample_range(&cmd->loop, (address[1] >> 6) * ADPCM_BLOCK_BYTES + audio->cart_address + ADPCM_CODEBOOK_BYTES, ((((padded[1] + (loopRem & 0x1F) + 0x1F) >> 5) + (loopRem >> 5) + 1) >> 1) * ADPCM_BLOCK_BYTES, audio->cart_address + ADPCM_CODEBOOK_BYTES);
                 cmd->loop_offset = loopRem;
                 loopRem &= 0x1F;
                 cmd->loop_blocks = (padded[1] + loopRem + 0x1F) >> 5;
@@ -1115,13 +1114,13 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
                 cmd->loop_blocks = 0;
             }
             mainRem = address[0] & 0x3F;
-            sound_hw_fetch_sample_range(&cmd->main, (address[0] >> 6) * ADPCM_BLOCK_BYTES + (unsigned int)audio->data + ADPCM_CODEBOOK_BYTES, ((((padded[0] + (mainRem & 0x1F) + 0x1F) >> 5) + (mainRem >> 5) + 1) >> 1) * ADPCM_BLOCK_BYTES, (unsigned int)audio->data + ADPCM_CODEBOOK_BYTES);
-            cmd->u.book = sound_hw_fetch_codebook((unsigned int)audio->data);
+            sound_hw_fetch_sample_range(&cmd->main, (address[0] >> 6) * ADPCM_BLOCK_BYTES + audio->cart_address + ADPCM_CODEBOOK_BYTES, ((((padded[0] + (mainRem & 0x1F) + 0x1F) >> 5) + (mainRem >> 5) + 1) >> 1) * ADPCM_BLOCK_BYTES, audio->cart_address + ADPCM_CODEBOOK_BYTES);
+            cmd->u.book = sound_hw_fetch_codebook(audio->cart_address);
             goto adpcm_tail;
         case SAMPLE_FORMAT_PCM16:
             if (length[1] != 0) {
                 loopRem = address[1] & 3;
-                sound_hw_fetch_sample_range(&cmd->loop, (unsigned int)((address[1] & 0xFFFC) * 2 + audio->data), ((padded[1] + loopRem + 3) & 0xFFFC) * 2, (unsigned int)audio->data);
+                sound_hw_fetch_sample_range(&cmd->loop, (address[1] & 0xFFFC) * 2 + audio->cart_address, ((padded[1] + loopRem + 3) & 0xFFFC) * 2, audio->cart_address);
                 cmd->u.pcm.loop_count = padded[1];
                 cmd->loop_offset = loopRem;
             } else {
@@ -1129,7 +1128,7 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
                 cmd->u.pcm.loop_count = 0;
             }
             mainRem = address[0] & 3;
-            sound_hw_fetch_sample_range(&cmd->main, (unsigned int)((address[0] & 0xFFFC) * 2 + audio->data), ((padded[0] + mainRem + 3) & 0xFFFC) * 2, (unsigned int)audio->data);
+            sound_hw_fetch_sample_range(&cmd->main, (address[0] & 0xFFFC) * 2 + audio->cart_address, ((padded[0] + mainRem + 3) & 0xFFFC) * 2, audio->cart_address);
             goto pcm_tail;
         }
     } else {
@@ -1600,12 +1599,11 @@ int sound_hw_is_busy(void)
     return 0;
 }
 
-/* Gives voice index a new sample (sample: data, start offset, length and loop in samples, format), resetting the
- * voice; with reset, also an envelope that is full at once (no attack or decay, sustain 1.0, a 20 ms release). A
- * sample after its loop keeps a tail of 10 samples or more. A sample outside RAM (the RDRAM window's K0 segment) is
- * in the cartridge: its data is fetched through the caches. PC: a host pointer (at or above 4 GiB) is RAM too; only
- * cartridge addresses are fetched by DMA. */
-void sound_hw_set_voice_sample(unsigned int index, SoundHwSampleInfo *sample, unsigned char reset)
+/* Gives voice index a new sample (sample: where it is, start offset, length and loop in samples, format), resetting
+ * the voice; with reset, also an envelope that is full at once (no attack or decay, sustain 1.0, a 20 ms release). A
+ * sample after its loop keeps a tail of 10 samples or more. A sample in the cartridge (a cartridge address) is
+ * fetched through the caches; one in RAM (a stream's buffer) is read where it is. */
+void sound_hw_set_voice_sample(unsigned int index, SoundSampleInfo *sample, unsigned char reset)
 {
     sound_hw_reset_voice(index, 0);
     if (reset) {
@@ -1615,6 +1613,7 @@ void sound_hw_set_voice_sample(unsigned int index, SoundHwSampleInfo *sample, un
         sound_hw_voices[index].release_ms = DEFAULT_RELEASE_MS;
     }
     sound_hw_voices[index].data = sample->data;
+    sound_hw_voices[index].cart_address = sample->cart_address;
     sound_hw_voices[index].sample_position = sample->offset;
     sound_hw_voices[index].latched_position = sound_hw_voices[index].position = sample->offset;
     sound_hw_voices[index].length = sample->length;
@@ -1628,7 +1627,7 @@ void sound_hw_set_voice_sample(unsigned int index, SoundHwSampleInfo *sample, un
     } else {
         sound_hw_voices[index].tail = 0;
     }
-    if (((uintptr_t)sample->data >> 32) == 0 && ((unsigned long)sample->data & 0xF0000000UL) != 0x80000000UL) {
+    if (sample->cart_address != 0) {
         sound_hw_voices[index].flags |= VOICE_FLAG_CARTRIDGE;
     }
 }
@@ -1756,18 +1755,28 @@ void sound_hw_flush_stream_wrap(short *buffer, unsigned int samples)
     osWritebackDCache(&buffer[samples], 8);
 }
 
-/* A sample's address for the hardware: RAM (K0) and cartridge (0xB0000000) addresses as they are, anything else
- * through the game's service (musyx_cart_address: an offset in the cartridge). */
-/* PC: a host pointer (at or above 4 GiB) is RAM, not a cartridge offset: returned as it is; so is a K0 address past
- * 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3), where the N64's region test sees no RAM. */
-void *sound_hw_translate_address(void *address)
+/* The cartridge's bus: the PI reads the ROM at CART_BUS_BASE + its offset (0xB0000000 up, 256 MiB). */
+#define CART_BUS_BASE 0xB0000000U
+#define CART_BUS_SIZE 0x10000000U
+
+/* Where samples are in the cartridge, as a cartridge address: a cartridge address as it is, an offset in the ROM
+ * through the game's service (musyx_cart_address). The N64's library also took a sample bank in RAM (a K0 address,
+ * as it was); a sample directory's records keep 32 bits, so on the PC the samples are the cartridge's. */
+unsigned int sound_hw_cart_address(unsigned int samples)
 {
-    unsigned int region;
-    if ((uintptr_t)address >> 32 || pc_rdram_k0_high((unsigned int)(uintptr_t)address)) return address; region = (unsigned int)address & 0xFF000000;
-    if (region != 0x80000000 && region != 0xB0000000) {
-        address = sound_service_translate_address(address);
+    if (samples - CART_BUS_BASE >= CART_BUS_SIZE) {
+        samples = sound_service_translate_address(samples);
     }
-    return address;
+    return samples;
+}
+
+/* Whether an address names a place in the cartridge, a ROM offset or a cartridge address, rather than RAM (the
+ * speech bank, streams.c). The cartridge's two ranges are below 0x10000000 and from CART_BUS_BASE; RAM on the PC is
+ * host memory, which is never there (docs/port/MUSYX_DATA.md 4). */
+int sound_hw_is_cartridge(const void *address)
+{
+    uintptr_t a = (uintptr_t)address;
+    return a < CART_BUS_SIZE || a - CART_BUS_BASE < CART_BUS_SIZE;
 }
 
 /* (A hook for setting sample memory up: nothing to do on this hardware.) */
@@ -1776,12 +1785,12 @@ void sound_hw_init_sample_memory(void)
 }
 
 /* (A hook for keeping a sample's data: nothing to do.) */
-void sound_hw_save_sample(void **descriptor, void **data)
+void sound_hw_save_sample(void **descriptor, unsigned int *cart_address)
 {
 }
 
 /* (A hook for dropping a sample's data: nothing to do.) */
-void sound_hw_remove_sample(void **descriptor, void *data)
+void sound_hw_remove_sample(void *descriptor, unsigned int offset)
 {
 }
 

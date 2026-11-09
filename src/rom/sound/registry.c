@@ -65,10 +65,8 @@ typedef struct ResourceRange { u16 count; u16 first; } ResourceRange;
 
 /* The sample information in a sample directory record (SampleRecord.descriptor): key << 24 | rate, format << 24 |
  * length in samples, the loop's start and length. */
-/* PC: the layout sound_hw_set_voice_sample (hardware.c) reads, whose data pointer is 8 bytes: offset is a u32 there. */
 #pragma pack(1)
 typedef struct SampleDirectoryInfo { u32 info; u32 length; u32 loopOffset; u32 loopLength; } SampleDirectoryInfo;
-typedef struct SampleLookup { u32 info; void *addr; u32 offset; u32 length; u32 loop; u32 loopLength; u8 compType; } SampleLookup;
 #pragma pack()
 
 /* The comparator's view of an effect: its id first. */
@@ -88,7 +86,7 @@ extern int sound_table_count;
 extern ResourceRecord sound_tables[];
 extern int sound_sample_directory_count;
 extern RegisteredSamples sound_sample_directories[];
-extern void sound_hw_save_sample(void **, void **);
+extern void sound_hw_save_sample(void **, unsigned int *);
 extern void sound_hw_remove_sample(void *, unsigned int);
 extern int sound_sfx_table_count;
 extern RecordStorage sound_sfx_tables[];
@@ -281,10 +279,10 @@ int sound_remove_table(u16 id)
     return 0;
 }
 
-/* Registers a sample directory (records, ended by id SAMPLE_ID_END; base: the samples' address, which each record's
- * offset counts from), clearing its records' reference counts. Returns 1 when it is registered (now or before), 0
- * when MAX_SAMPLE_DIRECTORIES are. */
-int sound_add_sample_directory(SampleRecord *records, void *base)
+/* Registers a sample directory (records, ended by id SAMPLE_ID_END; cart_base: the samples' cartridge address, which
+ * each record's offset counts from), clearing its records' reference counts. Returns 1 when it is registered (now or
+ * before), 0 when MAX_SAMPLE_DIRECTORIES are. */
+int sound_add_sample_directory(SampleRecord *records, unsigned int cart_base)
 {
     int index;
     SampleRecord *entry;
@@ -304,7 +302,7 @@ int sound_add_sample_directory(SampleRecord *records, void *base)
             entry = records;
             sound_hw_lock();
             sound_sample_directories[sound_sample_directory_count].records = records;
-            sound_sample_directories[sound_sample_directory_count].base = base;
+            sound_sample_directories[sound_sample_directory_count].cart_base = cart_base;
             sound_sample_directories[sound_sample_directory_count].count = count;
             for (i = 0; i < count; ++i, ++entry) {
                 entry->references = 0;
@@ -338,8 +336,8 @@ int sound_remove_sample_directory(SampleRecord *records)
     return 0;
 }
 
-/* Takes a reference to the sample with this id in the directory records: the first one sets the record's address
- * (the directory's base plus the sample's offset). Always returns 1. */
+/* Takes a reference to the sample with this id in the directory records: the first one sets the record's cartridge
+ * address (the directory's plus the sample's offset). Always returns 1. */
 int sound_add_sample(u16 id, SampleRecord *records)
 {
     u32 index;
@@ -350,9 +348,9 @@ int sound_add_sample(u16 id, SampleRecord *records)
     while (records->identifier != SAMPLE_ID_END) {
         if (records->identifier == id) {
             if (records->references == 0) {
-                records->data = PC_N64A(sound_sample_directories[index].base + records->offset);
+                records->cart_address = sound_sample_directories[index].cart_base + records->offset;
                 descriptor = records->descriptor;
-                sound_hw_save_sample(&descriptor, &records->data);
+                sound_hw_save_sample(&descriptor, &records->cart_address);
             }
             ++records->references;
             break;
@@ -548,9 +546,9 @@ int sound_compare_sample_ids(const unsigned short *left, const unsigned short *r
     return *left - *right;
 }
 
-/* Fills *sample with the sample with this id from the first directory that has it: its address, key and rate,
- * length, loop and format. Returns 0, or -1 if no directory has it. */
-int sound_find_sample(u16 id, SampleLookup *sample)
+/* Fills *sample with the sample with this id from the first directory that has it: its cartridge address, key and
+ * rate, length, loop and format. Returns 0, or -1 if no directory has it. */
+int sound_find_sample(u16 id, SoundSampleInfo *sample)
 {
     static SampleRecord key;
     static SampleRecord *result;
@@ -563,12 +561,13 @@ int sound_find_sample(u16 id, SampleLookup *sample)
                                     (int (*)(const void *, const void *))sound_compare_sample_ids)) != 0) {
             info = (SampleDirectoryInfo *)result->descriptor;
             sample->info = info->info;
-            sample->addr = result->data;
+            sample->cart_address = result->cart_address;
+            sample->data = 0;
             sample->offset = 0;
-            sample->loop = info->loopOffset;
+            sample->loopStart = info->loopOffset;
             sample->length = info->length & SAMPLE_LENGTH_MASK;
             sample->loopLength = info->loopLength;
-            sample->compType = info->length >> 24;
+            sample->format = info->length >> 24;
             return 0;
         }
     }

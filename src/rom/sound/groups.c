@@ -41,8 +41,8 @@ enum { POOL_MACROS, POOL_TABLES, POOL_KEYMAPS, POOL_LAYERS };
 /* A pool entry of the layer list (LAYER_ENTRY_HEADER bytes, then layer_count 12-byte layers: synth.c's LayerEntry). */
 typedef struct ResourceEntry { unsigned int next_offset; u16 id; u16 unknown06; u16 unknown08; u16 layer_count; } ResourceEntry;
 
-/* PC: the sample directory's 0x1C-byte record, as include/sound_sample_record.h declares it there. */
-typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; u32 data; u8 descriptor[16]; } SampleRecord;
+/* The sample directory's 0x1C-byte record, as include/sound_sample_record.h declares it there. */
+typedef struct SampleRecord { u16 identifier; u16 references; u32 offset; u32 cart_address; u8 descriptor[16]; } SampleRecord;
 
 /* A group of the project: the next group is size bytes on. offsets[] index the enum above. */
 typedef struct ResourceGroup { int size; u16 id; u16 type; u32 offsets[6]; } ResourceGroup;
@@ -83,8 +83,8 @@ extern int sound_remove_macro(u16);
 extern int sound_remove_table(u16);
 extern int sound_remove_keymap(u16);
 extern int sound_remove_layer(u16);
-extern void *sound_hw_translate_address(void *);
-extern int sound_add_sample_directory(SampleRecord *, void *);
+extern unsigned int sound_hw_cart_address(unsigned int);
+extern int sound_add_sample_directory(SampleRecord *, unsigned int);
 extern int sound_add_sample(u16, SampleRecord *);
 extern int sound_remove_sample(u16);
 extern int sound_add_sfx_table(unsigned short, void *, unsigned short);
@@ -243,12 +243,12 @@ void sound_unregister_layers(u16 *ids)
     }
 }
 
-/* Registers the sample directory records (once: its base is the samples' cartridge address, address translated by
- * the platform hook), then each sample of the id list. */
-void sound_register_samples(u16 *ids, void *samples_address, SampleRecord *records)
+/* Registers the sample directory records (once: their base is the samples' cartridge address, sound_hw_cart_address
+ * of samples), then each sample of the id list. */
+void sound_register_samples(u16 *ids, unsigned int samples, SampleRecord *records)
 {
     u16 id;
-    if (sound_add_sample_directory(records, sound_hw_translate_address(samples_address))) {
+    if (sound_add_sample_directory(records, sound_hw_cart_address(samples))) {
         while ((id = *ids) != SOUND_ID_LIST_END) {
             sound_add_sample(*ids++, records);
         }
@@ -283,11 +283,11 @@ void sound_unregister_sfx_table(unsigned short id)
     sound_remove_sfx_table(id);
 }
 
-/* MusyX's sndPushGroup: finds group id in the project (groups) and registers its macros, samples (samples_address:
- * the samples' cartridge address; records: the sample directory), tables, keymaps and layers from the pool (resources), and an
- * effect group's effect table. Returns 1, or 0 if the library is not started, SOUND_MAX_GROUPS groups are pushed, or
- * the project has no such group. */
-int sound_push_group(u8 *groups, u16 id, void *samples_address, SampleRecord *records, ResourceOffsets *resources)
+/* MusyX's sndPushGroup: finds group id in the project (groups) and registers its macros, samples (samples: where the
+ * samples are in the cartridge, a ROM offset or a cartridge address; records: the sample directory), tables, keymaps
+ * and layers from the pool (resources), and an effect group's effect table. Returns 1, or 0 if the library is not
+ * started, SOUND_MAX_GROUPS groups are pushed, or the project has no such group. */
+int sound_push_group(u8 *groups, u16 id, unsigned int samples, SampleRecord *records, ResourceOffsets *resources)
 {
     u8 *group;
     if (sound_initialized != 0 && sound_group_count < SOUND_MAX_GROUPS) {
@@ -296,7 +296,7 @@ int sound_push_group(u8 *groups, u16 id, void *samples_address, SampleRecord *re
             if (((ResourceGroup *)group)->id == id) {
                 sound_groups[sound_group_count] = (ResourceGroup *)group;
                 { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_MACRO_IDS]; p += GROUP_OFFSETS_BASE; sound_register_macros((u16 *)p, resources); }
-                { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_SAMPLE_IDS]; p += GROUP_OFFSETS_BASE; sound_register_samples((u16 *)p, samples_address, records); }
+                { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_SAMPLE_IDS]; p += GROUP_OFFSETS_BASE; sound_register_samples((u16 *)p, samples, records); }
                 { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_TABLE_IDS]; p += GROUP_OFFSETS_BASE; sound_register_tables((u16 *)p, resources); }
                 { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_KEYMAP_IDS]; p += GROUP_OFFSETS_BASE; sound_register_keymaps((u16 *)p, resources); }
                 { u8 *p = group; p += ((ResourceGroup *)group)->offsets[GROUP_LAYER_IDS]; p += GROUP_OFFSETS_BASE; sound_register_layers((u16 *)p, resources); }
@@ -339,10 +339,10 @@ int sound_set_studio(unsigned int unused0, unsigned int unused1, unsigned int un
 }
 
 /* Starts a song with a pushed song group's program pages and its MIDI setup for song_id (sound_seq_start), under the
- * library lock unless the caller holds it (unlocked). stream is the song's data (a SongHeader, wave 10-21), options
- * the play parameters or 0; both are pointers carried as integers. Returns the song's handle, or -1 if the library is
- * not started or the group or the setup is not there. */
-int sound_start_song_in_group(u16 id, u16 song_id, uintptr_t song, uintptr_t options, u8 unlocked)
+ * library lock unless the caller holds it (unlocked). song is the song's data (wave 10-21), options the play
+ * parameters or NULL. Returns the song's handle, or -1 if the library is not started or the group or the setup is not
+ * there. */
+int sound_start_song_in_group(u16 id, u16 song_id, SongHeader *song, SequencePlayParams *options, u8 unlocked)
 {
     int i;
     ResourceHeader *resource;
@@ -363,11 +363,11 @@ int sound_start_song_in_group(u16 id, u16 song_id, uintptr_t song, uintptr_t opt
                     for (; setup->id != SOUND_ID_LIST_END; setup++) {
                         if (setup->id == song_id) {
                             if (unlocked) {
-                                result = sound_seq_start(normal_page, drum_page, (MidiSetup *)setup, (SongHeader *)song, (SequencePlayParams *)options);
+                                result = sound_seq_start(normal_page, drum_page, (MidiSetup *)setup, song, options);
                             }
                             else {
                                 sound_hw_lock();
-                                result = sound_seq_start(normal_page, drum_page, (MidiSetup *)setup, (SongHeader *)song, (SequencePlayParams *)options);
+                                result = sound_seq_start(normal_page, drum_page, (MidiSetup *)setup, song, options);
                                 sound_hw_unlock();
                             }
                             return result;
@@ -382,7 +382,7 @@ int sound_start_song_in_group(u16 id, u16 song_id, uintptr_t song, uintptr_t opt
 }
 
 /* MusyX's sndSeqPlay: sound_start_song_in_group, taking the library lock. */
-int sound_start_song(unsigned short group, unsigned short song_id, uintptr_t song, uintptr_t options)
+int sound_start_song(unsigned short group, unsigned short song_id, SongHeader *song, SequencePlayParams *options)
 {
     return sound_start_song_in_group(group, song_id, song, options, 0);
 }

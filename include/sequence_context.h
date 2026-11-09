@@ -98,7 +98,7 @@ typedef struct SequenceContext {
     unsigned short valueFEC;                  /* its speed */
     unsigned char flagsFEE;                   /* the request's SEQ_REQUEST_* flags */
     unsigned char unknownFEF;
-    uintptr_t pendingFF0;                     /* the caller's result word (an unsigned int *), 0 when cancelled */
+    unsigned int *pendingFF0;                 /* the caller's result word, NULL when cancelled */
     unsigned char unknownFF4[4];              /* [0]: a deferred request is waiting */
 } SequenceContext;
 

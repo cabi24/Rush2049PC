@@ -13,6 +13,7 @@
  * view with fields named after their N64 offsets; the head, the macro's place and the voice chain, holds pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
+#include "sound_sample_record.h"
 
 /* ---- The synth voice ----
  * sound_synth_voices[i] (docs/port/MUSYX_DATA.md 8.3). Each handler below sees it through a view of the fields it
@@ -118,7 +119,6 @@ struct MacroStateSplitModulation;
 struct MacroStatePlayMacro;
 struct MacroStatePortamento;
 struct MacroStateStart;
-struct MacroSampleInfo;
 struct Envelope;
 struct VoiceControls;
 /* data */
@@ -150,11 +150,11 @@ extern u16 sound_macro_get_controller(VoiceState *voice, u8 controller);
 extern void sound_macro_set_controller(VoiceState *voice, u8 controller, s16 value);
 /* the registries (registry.c) */
 extern MacroCommand *sound_find_macro(u16);
-extern int sound_find_sample(u16, struct MacroSampleInfo *);
+extern int sound_find_sample(u16, SoundSampleInfo *);
 extern void *sound_find_table(u16);
 /* the hardware layer (hardware.c) */
 extern u8 sound_hw_is_voice_active(int);
-extern void sound_hw_set_voice_sample(u32, struct MacroSampleInfo *, u8);
+extern void sound_hw_set_voice_sample(u32, SoundSampleInfo *, u8);
 extern void sound_hw_stop_sample(u32, u8);
 extern void sound_hw_set_envelope(u32, const struct Envelope *);
 extern void sound_hw_break_voice(int);
@@ -707,11 +707,6 @@ u8 sound_macro_last_note(MacroStateLastNote *state, MacroCommand *command)
     return sound_macro_wait((MacroState *)state, command);
 }
 
-/* PC: the record sound_find_sample fills and sound_hw_set_voice_sample reads, both with a pointer-sized, packed address field
- * (a stream's host buffer in sound_stream_start's call); here it holds the sample's cartridge address. */
-#pragma pack(1)
-typedef struct MacroSampleInfo { u32 info; void *address; u32 offset; u32 length; u32 loopStart; u32 loopLength; u8 type; } MacroSampleInfo;
-#pragma pack()
 #pragma pack(1)
 typedef struct MacroStateStartSample { SynthVoiceHead head; u32 flags24; u8 unknown28[8]; u32 volume30; u8 unknown34[0x24]; u32 sampleAddress58; u32 sampleInfo5C; u32 id60; } MacroStateStartSample;
 #pragma pack(0)
@@ -722,7 +717,7 @@ static u8 macro_steps_this_update;
  * tick to start. Without a SET_ADSR the hardware voice's envelope is reset too. */
 u8 sound_macro_start_sample(MacroStateStartSample *state, MacroCommand *command)
 {
-    static MacroSampleInfo sample;
+    static SoundSampleInfo sample;
     u32 index;
     if (sound_find_sample(command->word[0] >> 8, &sample) == 0) {
         switch ((u8)(command->word[0] >> 24)) {
@@ -748,7 +743,7 @@ u8 sound_macro_start_sample(MacroStateStartSample *state, MacroCommand *command)
             sound_hw_set_voice_sample(index, &sample, 0);
         }
         state->sampleInfo5C = sample.info;
-        state->sampleAddress58 = sample.address;
+        state->sampleAddress58 = sample.cart_address;
         state->flags24 |= VOICE_START_SAMPLE;
     }
     return 0;

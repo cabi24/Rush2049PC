@@ -401,8 +401,8 @@ static int verdicts(int argc, char **argv)
 
 /* A synthetic cartridge: a boot and a game image at KSEG0 addresses of the test's own, the file table's four symbols at
  * places of its own in them (handed to pc_mods_cart_read as main.c hands it the game's, found by name), the files
- * after. SAMPLE_BASE is the ROM offset the sample directory's offsets count from (the game's sample_bank_rom), and
- * SAMPLE_BASE_K1 the cartridge address the game adds them to. */
+ * after. SAMPLE_BASE is the ROM offset the sample directory's offsets count from (AudioInitSys.c's
+ * SAMPLE_BANK_ROM_OFFSET), and SAMPLE_BASE_K1 the cartridge address the game adds them to. */
 #define BOOT_BASE (N64_KSEG0 + 0x2E000u)
 #define GAME_BASE (N64_KSEG0 + 0x11B000u)
 #define IMG_SIZE 0x9000u

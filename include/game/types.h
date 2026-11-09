@@ -206,7 +206,7 @@ struct Slot;
 struct Slot18;
 struct SongHeader;
 struct SoundEmitterUpdateView;
-struct SoundHwSampleInfo;
+struct SoundSampleInfo;
 struct SoundHwVoice;
 struct SoundListenerAddView;
 struct SoundListenerUpdateView;
@@ -903,11 +903,11 @@ typedef union RecordStorage { /* 0xC bytes */
     u32 words[2];
 } RecordStorage;
 
-typedef struct RegisteredSamples { /* 0x18 bytes */
+typedef struct RegisteredSamples { /* 0x10 bytes */
     struct SampleRecord *records; /* 0x0 */
-    u8 *base;                     /* 0x8 */
-    u16 count;                    /* 0x10 */
-    u16 unknown0A;                /* 0x12 */
+    u32 cart_base;                /* 0x8 the samples' cartridge address */
+    u16 count;                    /* 0xC */
+    u16 unknown0A;                /* 0xE */
 } RegisteredSamples;
 
 typedef struct SequenceContext { /* 0x1628 bytes */
@@ -949,7 +949,7 @@ typedef struct SequenceContext { /* 0x1628 bytes */
     u16 valueFEC;                              /* 0x1610 */
     u8 flagsFEE;                               /* 0x1612 */
     u8 unknownFEF;                             /* 0x1613 */
-    uintptr_t pendingFF0;                      /* 0x1618 */
+    u32 *pendingFF0;                           /* 0x1618 */
     u8 unknownFF4[4];                          /* 0x1620 */
 } SequenceContext;
 
@@ -1357,7 +1357,7 @@ typedef struct tPadState { /* 0x50 bytes */
     u16 numCrashes;                 /* 0x40 */
     s8 trans;                       /* 0x42 */
     u8 pad43;
-    s32 listener;                   /* 0x44: the player's sound listener, -1 for none */
+    s32 listener;                   /* 0x44: the player's sound listener: its number in gListeners, -1 for none */
     struct tPlayerProfile **save;   /* 0x48: the player's profile on a Controller Pak (a handle), or 0 */
 } tPadState;
 

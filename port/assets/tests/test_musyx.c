@@ -5,9 +5,9 @@
  *    and every other byte must be unchanged. Shared lists and patterns are swapped once.
  * 2. Damaged files: truncated, garbage, self-overlapping, empty. Nothing is written past the block.
  * 3. The game's own readers (src/rom/sound/groups.c, registry.c, sequencer.c, util.c, voices.c, macros.c,
- *    built with the game's flags) run on the converted files, placed below 4 GiB as the heap is in the RDRAM
- *    window: sndPushGroup and its registries, the resource lookups, the sample lookup with the sample base, the
- *    song start, and the macro steps that read envelopes, start samples and wait in milliseconds.
+ *    built with the game's flags) run on the converted files, in host memory (every record holds pointers):
+ *    sndPushGroup and its registries, the resource lookups, the sample lookup with the sample base, the song start,
+ *    and the macro steps that read envelopes, start samples and wait in milliseconds.
  * 4. The library's own state on LP64 (docs/port/MUSYX_DATA.md 8): the song plays for 60 frames through the
  *    sequencer's per-frame units, each with its own view of the slot (notes, programs, controllers, pitch bend,
  *    modulation, tempo, loop, note-offs); voices start macros, step them through the interpreter (envelope,
@@ -15,15 +15,10 @@
  *    (musyx_start_dma_list, sample_dma_next) walks a request list as the driver builds it. */
 #define _GNU_SOURCE
 #include <string.h>
-#include <sys/mman.h>
 
 #include "assets.h"
 #include "pc_game_types.h"
 #include "support.h"
-
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
 
 /* ---------------------------------------------------------------- building big-endian files */
 
@@ -239,9 +234,10 @@ static void pool_build(Pool *P)
     b32(B, 0xFFFFFFFF);
 }
 
-/* MusyX's sample base: the cartridge address (KSEG1) of ROM offset 0x39B40, where the game's sample data starts (its
- * sample_bank_rom). */
-#define SAMPLE_BASE (N64_CART_KSEG1 | 0x39B40u)
+/* MusyX's sample base: ROM offset 0x39B40, where the game's sample data starts (AudioInitSys.c's
+ * SAMPLE_BANK_ROM_OFFSET), and its cartridge address, which the sample records hold. */
+#define SAMPLE_BANK_ROM 0x39B40u
+#define SAMPLE_BASE (N64_CART_KSEG1 | SAMPLE_BANK_ROM)
 
 static void sdir_build(Build *B)
 {
@@ -439,9 +435,9 @@ static void test_damaged(void)
 /* ---------------------------------------------------------------- part 3: the game's readers */
 
 /* The game's functions (PC prototypes). */
-int sound_push_group(uint8_t *groups, uint16_t id, void *address, void *records, void *resources);
+int sound_push_group(uint8_t *groups, uint16_t id, uint32_t samples, void *records, void *resources);
 int sound_pop_group(void);
-int sound_start_song_in_group(uint16_t id, uint16_t program, uintptr_t stream, uintptr_t options, uint8_t unlocked);
+int sound_start_song_in_group(uint16_t id, uint16_t program, void *song, void *options, uint8_t unlocked);
 void sound_reset_registries(void);
 void *sound_find_macro(uint16_t id);
 void *sound_find_table(uint16_t id);
@@ -476,11 +472,10 @@ int32_t sample_dma_next(void);
 /* The request list's header, in its own storage on the PC (sample_dma_next.c's DmaList). */
 extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_sample_dma_list;
 
-/* sound_hw_set_voice_sample's view (hardware.c, streams_3d.c): the PC layout every sample-info writer must match. */
-#pragma pack(1)
-typedef struct { uint32_t frequency; void *data; uint32_t offset, length, loopStart, loopLength; uint8_t format; }
+/* include/sound_sample_record.h's SoundSampleInfo, which sound_find_sample fills and sound_hw_set_voice_sample reads: a
+ * sample in the cartridge by its cartridge address, one in RAM by its pointer. */
+typedef struct { uint32_t info, cart_address; void *data; uint32_t offset, length, loopStart, loopLength; uint8_t format; }
     SampleInfo;
-#pragma pack()
 
 /* A sequence slot as the game lays it out on the PC (include/sequence_context.h, which every view of a slot in
  * sequencer.c follows), with the header's storage names moved out of the way of this test's own. */
@@ -579,10 +574,14 @@ static unsigned seen_samples;
 
 void sound_hw_lock(void) {}
 void sound_hw_unlock(void) {}
-void *sound_hw_translate_address(void *address) { return address; }   /* the sample base is a cartridge address */
+/* hardware.c's: an offset in the ROM made a cartridge address (as musyx_cart_address does), a cartridge address kept. */
+uint32_t sound_hw_cart_address(uint32_t samples)
+{
+    return samples - N64_CART_KSEG1 < 0x10000000u ? samples : (samples & 0x0FFFFFFFu) | N64_CART_KSEG1;
+}
 void sound_hw_init_sample_memory(void) {}
-void sound_hw_save_sample(void **descriptor, void **data) {}
-void sound_hw_remove_sample(void *descriptor, unsigned int data) {}
+void sound_hw_save_sample(void **descriptor, uint32_t *cart_address) {}
+void sound_hw_remove_sample(void *descriptor, unsigned int offset) {}
 void sound_synth_set_tempo(unsigned int value, unsigned char index)
 {
     seen_bpm = value;
@@ -653,19 +652,9 @@ void sound_midi_set_portamento_state(uint8_t a, uint8_t b, uint8_t c) {}
 void sound_synth_start_portamento(void *state) {}
 void sound_synth_copy_controllers(void *a, void *b) {}
 
-/* The heap is in the RDRAM window at PC_RDRAM_BASE; the registries keep 32-bit addresses into the files there. */
-static uint8_t *low_window(size_t size)
-{
-    void *p = mmap((void *)(uintptr_t)PC_RDRAM_BASE, size, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (p == MAP_FAILED)
-        return NULL;
-    if ((uintptr_t)p + size > 0x100000000ull) {
-        munmap(p, size);
-        return NULL;
-    }
-    return p;
-}
+/* The files, where the game's heap would have them: anywhere in host memory, as every record holds pointers (the
+ * registries' payloads, the voices' macro pointers, the song's) and the samples are named by cartridge address. */
+static uint8_t game_memory[0x20000] __attribute__((aligned(16)));
 
 /* The song plays: sound_seq_tick runs the sequencer's units, each reading the slot through its own view. 60 frames
  * of 384 samples at 22050 Hz: 13.4 ticks a frame at 120 bpm, 15.6 at 140 (from tick 0x100), one loop at 0x300.
@@ -698,7 +687,7 @@ static void test_play(const SequenceContext *seq)
     request.first = 11, request.value = 0x2222, request.stream = &request;
     sound_seq_crossfade_unlocked(&request, &result, 1);
     /* the result: the top bit (pending) with the request's identifier, 0 */
-    CHECK(result == (1u << 31 | 0) && seq->pendingFF0 == (uintptr_t)&result && seq->unknownFF4[0] == 1);
+    CHECK(result == (1u << 31 | 0) && seq->pendingFF0 == &result && seq->unknownFF4[0] == 1);
     CHECK(seq->valueFE0 == 7 && seq->firstFE4 == 11 && seq->valueFEC == 0x2222 && seq->flagsFEE == 2 &&
           seq->streamFD8 == &request);
     for (frame = 0; frame < 60; frame++)
@@ -784,7 +773,8 @@ static void test_voices(uint8_t *pl)
     CHECK(sound_handles_used == (void *)sound_handle_nodes);
     sound_macro_run(v0);
     CHECK(seen_envelope[0] == 0x1234 && seen_envelope[3] == 0x0ABC);
-    CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100);
+    CHECK(seen_samples == 1 && seen_sample.cart_address == SAMPLE_BASE && seen_sample.data == NULL &&
+          seen_sample.offset == 100);
     /* The end freed the voice and its node, after three steps. */
     CHECK(rdp(v0 + V_CUR) == m1 + 24 && rd32(v0 + V_AT(0x60)) == 0xFFFFFFFFu && rdp(v0 + V_ADDR) == NULL);
     CHECK(sound_handles_used == NULL && sound_handles_free == (void *)sound_handle_nodes && sound_resolve_handle(key) == -1);
@@ -877,38 +867,34 @@ static void test_set_pitch(void)
 
 static void test_game(void)
 {
-    uint8_t *w = low_window(0x20000), *prj, *pl, *sd, *sg, *base_ptr;
+    uint8_t *w = game_memory, *prj, *pl, *sd, *sg;
     uint8_t state[0x200], step[8];
     uint16_t count;
     SampleInfo si;
     const SequenceContext *seq;
     const uint32_t *prg;
 
-    if (!w) {
-        fprintf(stderr, "test_musyx: no mapping below 4 GiB; the game's readers were not run\n");
-        return;
-    }
     prj = w + 0x1000, pl = w + 0x5000, sd = w + 0x9000, sg = w + 0xA000;
     convert(6, prj, &project.B, project.B.n);
     convert(7, pl, &pool.B, pool.B.n);
     convert(8, sd, &sdir, sdir.n);
     convert(10, sg, &song.B, song.B.n);
 
-    /* sndPushGroup with the sample base as AudioInitSys passes it: (s32) of the cartridge address. */
+    /* sndPushGroup with the sample base as AudioInitSys passes it: the sample bank's ROM offset, which the library
+     * makes the cartridge address (sound_hw_cart_address). */
     sound_reset_registries();
     sound_initialized = 1;
-    base_ptr = (uint8_t *)(intptr_t)(int32_t)SAMPLE_BASE;
     {
         /* A blank cartridge's project: sndPushGroup finds nothing, and stops. */
         uint8_t *blank = w + 0x10000;
         memset(blank, 0, 0x200);
         pc_wave_loaded(6, blank, 0x200);
-        CHECK(sound_push_group(blank, 12, base_ptr, sd, pl) == 0);
+        CHECK(sound_push_group(blank, 12, SAMPLE_BANK_ROM, sd, pl) == 0);
     }
-    CHECK(sound_push_group(prj, 12, base_ptr, sd, pl) == 1);
-    CHECK(sound_push_group(prj, 99, base_ptr, sd, pl) == 0);
+    CHECK(sound_push_group(prj, 12, SAMPLE_BANK_ROM, sd, pl) == 1);
+    CHECK(sound_push_group(prj, 99, SAMPLE_BANK_ROM, sd, pl) == 0);
 
-    /* The registries hold window addresses into the pool, found by id. */
+    /* The registries hold pointers into the pool, found by id. */
     CHECK(sound_find_macro(1) == pl + pool.macro[0] + 8);
     CHECK(sound_find_macro(2) == pl + pool.macro[1] + 8);
     CHECK(sound_find_macro(3) == NULL);
@@ -929,8 +915,8 @@ static void test_game(void)
     CHECK(rd16(sd + 0x1C + 2) == 1 && rd32(sd + 0x1C + 8) == SAMPLE_BASE + 0x2B40);
     memset(&si, 0xAB, sizeof si);
     CHECK(sound_find_sample(7, &si) == 0);
-    CHECK(si.data == (void *)(uintptr_t)(SAMPLE_BASE + 0x2B40) && si.offset == 0 && si.length == 0x800 &&
-          si.format == 0 && si.frequency == (64u << 24 | 16000) && si.loopStart == 0 && si.loopLength == 0);
+    CHECK(si.cart_address == SAMPLE_BASE + 0x2B40 && si.data == NULL && si.offset == 0 && si.length == 0x800 &&
+          si.format == 0 && si.info == (64u << 24 | 16000) && si.loopStart == 0 && si.loopLength == 0);
     CHECK(sound_find_sample(5, &si) == 0 && si.length == 0x1000 && si.format == 3 && si.loopStart == 0x200 &&
           si.loopLength == 0xE00);
     CHECK(sound_find_sample(6, &si) == -1);
@@ -946,9 +932,9 @@ static void test_game(void)
     memcpy(step, pl + pool.macro[0] + 16, 8);
     seen_samples = 0;
     sound_macro_start_sample(state, step);
-    CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100 &&
+    CHECK(seen_samples == 1 && seen_sample.cart_address == SAMPLE_BASE && seen_sample.offset == 100 &&
           seen_sample.length == 0x1000 && seen_sample.format == 3 && seen_sample.loopStart == 0x200 &&
-          seen_sample.loopLength == 0xE00 && seen_sample.frequency == (60u << 24 | 22050));
+          seen_sample.loopLength == 0xE00 && seen_sample.info == (60u << 24 | 22050));
     CHECK(rd32(state + V_AT(0x58)) == SAMPLE_BASE && rd32(state + V_AT(0x5C)) == (60u << 24 | 22050));
     /* WAITMS: 250 ms is 250 * 256 in the voice's clock (sound_ms_to_time); as ticks it would be 7812. */
     memcpy(step, pl + pool.macro[1] + 8, 8);
@@ -959,12 +945,12 @@ static void test_game(void)
     test_voices(pl);
 
     /* The song group: its pages and MIDI setup start the song through sound_seq_start. */
-    CHECK(sound_push_group(prj, 20, base_ptr, sd, pl) == 1);
+    CHECK(sound_push_group(prj, 20, SAMPLE_BANK_ROM, sd, pl) == 1);
     sound_seq_init();
     memset(seen_controls, 0, sizeof seen_controls);
     /* Started, as the first song (identifier 0) in slot 0, and active. */
-    CHECK(sound_start_song_in_group(20, 0, (uintptr_t)sg, 0, 1) == 0);
-    CHECK(sound_start_song_in_group(20, 1, (uintptr_t)sg, 0, 1) == -1);
+    CHECK(sound_start_song_in_group(20, 0, sg, NULL, 1) == 0);
+    CHECK(sound_start_song_in_group(20, 1, sg, NULL, 1) == -1);
     seq = (const SequenceContext *)sound_seq_players;
     prg = (const uint32_t *)seq->unknownF80;
     CHECK(seq->identifier == 0 && seq->activeFC0 == 1 && seq->inactiveFC1 == 0 && seq->channelFC4 == 23);
@@ -998,7 +984,6 @@ static void test_game(void)
     CHECK(sound_pop_group() == 0);
     CHECK(sound_find_macro(1) == NULL && sound_find_keymap(0x4001) == NULL && sound_find_layer(0x8001, &count) == NULL);
     CHECK(sound_find_sfx(0x100) == NULL && sound_find_sample(5, &si) == -1);
-    munmap(w, 0x20000);
 }
 
 int main(void)

@@ -95,7 +95,8 @@ extern void (*sound_service_free)(void *);
 extern volatile unsigned char speech_stream_busy[][sizeof(SpeechStream)];
 extern SpeechServiceHooks sound_services;
 extern unsigned char speech_bank_owned;
-extern void *(*sound_service_translate_address)(void *);
+extern unsigned int sound_hw_cart_address(unsigned int);
+extern int sound_hw_is_cartridge(const void *);
 extern void *speech_bank;
 extern void (*sound_frame_hook)(void);
 
@@ -437,10 +438,11 @@ float speech_get_position(unsigned int token, float *duration)
     return 0.0f;
 }
 
-/* Selects the speech bank. A bank in the cartridge (source not a KSEG0 RAM address) has its count and offset table
- * read into allocated memory by DMA, its entries' data following them; a bank in RAM is used where it is, with
- * its entries' data at `data` (a cartridge address). Frees the previous table if it was allocated here. Returns 1,
- * or 0 when the module is not initialized or out of memory. */
+/* Selects the speech bank. A bank in the cartridge (source a ROM offset or a cartridge address: sound_hw_is_cartridge)
+ * has its count and offset table read into allocated memory by DMA, its entries' data following them; a bank in RAM
+ * is used where it is, with its entries' data at `data` (in the cartridge). The speech code carries the cartridge
+ * addresses it reads from in pointers (dma_queue.c). Frees the previous table if it was allocated here. Returns 1, or
+ * 0 when the module is not initialized or out of memory. */
 int speech_set_bank(void *source, void *data)
 {
     unsigned int *count;
@@ -449,8 +451,8 @@ int speech_set_bank(void *source, void *data)
         if (speech_bank_offsets && speech_bank_owned) {
             sound_service_free(speech_bank_offsets);
         }
-        if (((unsigned int)source & 0xF0000000) != 0x80000000) {
-            speech_bank_data = speech_bank = sound_service_translate_address(source);
+        if (sound_hw_is_cartridge(source)) {
+            speech_bank_data = speech_bank = (void *)(uintptr_t)sound_hw_cart_address((unsigned int)(uintptr_t)source);
             count = sound_service_alloc(4, 0);
             if (!count) {
                 return 0;
@@ -466,7 +468,7 @@ int speech_set_bank(void *source, void *data)
             speech_bank_owned = 1;
         } else {
             speech_bank = source;
-            speech_bank_data = sound_service_translate_address(data);
+            speech_bank_data = (void *)(uintptr_t)sound_hw_cart_address((unsigned int)(uintptr_t)data);
             speech_bank_offsets = (unsigned int *)source + 1;
             speech_bank_count = *(unsigned int *)source;
             speech_bank_owned = 0;
