@@ -17,7 +17,8 @@ views are the complete struct definitions with one of those tags and at most the
 prefixes), in every object (or only those --in the given source files); those whose object has no live function are
 marked. An array view whose element is a whole fraction of the reference (in both layouts) is compared element by
 element, and a struct view that runs into the next element field by field in the element each field falls in.
-Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
+--ref names the reference view instead (a record whose views all have its pointers, where the most members
+would pick a partial one). Exit status 1 if a live view disagrees. docs/port/POINTERS.md 9.
 """
 import argparse
 import re
@@ -116,6 +117,7 @@ def main():
     ap.add_argument("--tag", help="struct tags (comma-separated) of a record passed by pointer")
     ap.add_argument("--n64-size", type=lambda s: int(s, 0), help="N64 size of the --tag record")
     ap.add_argument("--in", dest="within", default="", help="with --tag: only the views in these source files")
+    ap.add_argument("--ref", help="with --tag: the reference is this tag's view (TAG, or TAG@FILE for one file's)")
     ap.add_argument("--readelf", default="readelf")
     a = ap.parse_args()
     if bool(a.sym) == bool(a.tag) or (a.tag and not a.n64_size):
@@ -162,8 +164,15 @@ def main():
         print("no views found")
         return 1
     lays = [(v, layout(v[2])) for v in views]
-    ref_v, (ref, ref_size) = max(lays, key=lambda x: (sum(1 for h, c in x[1][0].values() if c == gd.K_PTR),
-                                                      len(x[1][0]), x[0][3] is not False))
+    cands = lays
+    if a.ref:
+        tag, _, src = a.ref.partition("@")
+        cands = [x for x in lays if x[0][1] == tag and (not src or src + ".o" in x[0][0])]
+        if not cands:
+            print(f"no view {a.ref} for the reference")
+            return 1
+    ref_v, (ref, ref_size) = max(cands, key=lambda x: (sum(1 for h, c in x[1][0].values() if c == gd.K_PTR),
+                                                       len(x[1][0]), x[0][3] is not False))
     rel = lambda o: re.split(r"game(?:_types)?\.dir/", o)[-1].replace("./", "").replace(".c.o", ".c")
     print(f"reference: {rel(ref_v[0])} ({ref_v[1]}): N64 {ref_size[0]} B, host {ref_size[1]} B")
     bad = 0

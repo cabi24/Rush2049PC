@@ -523,15 +523,24 @@ STORAGE(sound_seq_next_id, 4);
 STORAGE(sound_tick_step, 4);
 STORAGE(sound_global_variables, 512);
 /* The library's per-voice storage is the PC's (pc_game_types.h, docs/port/DECOUPLE.md 9), PC_MX_VOICE_SLOTS each. */
-unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0] __attribute__((aligned(16)));
+unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][PC_MX_VOICE_SIZE] __attribute__((aligned(16)));
 struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];
 struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS], pc_mx_free_links[PC_MX_VOICE_SLOTS];
 unsigned char pc_mx_fx_legato[PC_MX_VOICE_SLOTS];
 #define sound_synth_voices ((uint8_t *)pc_mx_voice)
 #define sound_handle_nodes ((uint8_t *)pc_mx_nodes)
-/* The 32-bit token src/rom/sound/voices.c keeps for node i in a voice's link: the node's N64 address on the N64
- * (sound_handle_nodes there, 16 bytes a node). */
-#define NODE_TOKEN(i) (0x80050A50u + 16u * (i))
+/* A voice (src/rom/sound/musyx.h): its head, the macro's place and the chain (seven pointers and two voice ids, 0x40
+ * bytes), then the N64's fields, each 0x1C bytes past its N64 offset (V_AT). */
+#define V_ADDR 0x00         /* the macro's first step */
+#define V_CUR 0x08          /* the next step */
+#define V_RET 0x10          /* GOSUB's return: the macro */
+#define V_RETCUR 0x18       /* and the step */
+#define V_NEXT 0x20         /* the chain's next voice id */
+#define V_PREV 0x24         /* and the previous one */
+#define V_NODE 0x28         /* the handle's node */
+#define V_TRAP 0x30         /* TRAP_KEY_OFF's macro */
+#define V_TRAPCUR 0x38      /* and its step */
+#define V_AT(n64) ((n64) + 0x1C)
 STORAGE(sound_track_volumes, 64);
 STORAGE(sound_synth_frequency, 4);
 STORAGE(sound_samples_per_tick, 4);
@@ -736,21 +745,30 @@ static void test_play(const SequenceContext *seq)
     CHECK(seq->activeFC0 == 1);
 }
 
-/* Voices: sound_macro_start starts a macro on a voice of sound_synth_voices and sound_macro_run steps it. The voice keeps its
- * N64 layout on the PC: the macro pointers at +0, +4, +8, +0xC, +0x1C and +0x20 as 32-bit window addresses, the
- * sequence node at +0x18 as its N64 address (docs/port/MUSYX_DATA.md 8.3). */
+/* A pointer in a voice. */
+static uint8_t *rdp(const uint8_t *p)
+{
+    uint8_t *v;
+    memcpy(&v, p, sizeof v);
+    return v;
+}
+
+/* Voices: sound_macro_start starts a macro on a voice of sound_synth_voices and sound_macro_run steps it. The voice's
+ * head holds its macro pointers and its handle node as pointers (docs/port/MUSYX_DATA.md 8.3). */
 static void test_voices(uint8_t *pl)
 {
-    uint8_t *v0 = sound_synth_voices, *v1 = sound_synth_voices + 0x1A0;
-    uint32_t m1 = (uint32_t)(uintptr_t)(pl + pool.macro[0] + 8), m2 = (uint32_t)(uintptr_t)(pl + pool.macro[1] + 8);
-    uint32_t m6 = (uint32_t)(uintptr_t)(pl + pool.macro[2] + 8), key, id;
+    uint8_t *v0 = sound_synth_voices, *v1 = sound_synth_voices + PC_MX_VOICE_SIZE;
+    uint8_t *m1 = pl + pool.macro[0] + 8, *m2 = pl + pool.macro[1] + 8, *m6 = pl + pool.macro[2] + 8;
+    uint8_t *node0 = (uint8_t *)&pc_mx_nodes[0];
+    uint32_t key, id;
     int i;
 
     /* As the synth's init leaves them: 32 voices, all free, their identifiers clear. */
     sound_voice_count[0] = 32, sound_music_voice_limit[0] = 32, sound_sfx_voice_limit[0] = 32;
-    memset(sound_synth_voices, 0, 32 * 0x1A0);
+    memset(sound_synth_voices, 0, 32 * PC_MX_VOICE_SIZE);
     for (i = 0; i < 32; i++)
-        memset(sound_synth_voices + i * 0x1A0 + 0x10, 0xFF, 8), memset(sound_synth_voices + i * 0x1A0 + 0x60, 0xFF, 4);
+        memset(sound_synth_voices + i * PC_MX_VOICE_SIZE + V_NEXT, 0xFF, 8),
+            memset(sound_synth_voices + i * PC_MX_VOICE_SIZE + V_AT(0x60), 0xFF, 4);
     sound_init_voice_allocation();
     sound_init_handles();
     sound_synth_init_channel_owners();
@@ -761,38 +779,38 @@ static void test_voices(uint8_t *pl)
     key = sound_macro_start(1u << 16 | 0x40 << 8 | 4, 0x100, 60, 100, 64, 0, 0, 0, 0, 1, 23);
     id = 1u << 16 | 60 << 8 | 0;
     CHECK(key == 0 && sound_resolve_handle(key) == (int)id);
-    CHECK(rd32(v0 + 0) == m1 && rd32(v0 + 4) == m1 && rd32(v0 + 8) == 0 && rd32(v0 + 0x60) == id);
-    CHECK(rd32(v0 + 0x18) == NODE_TOKEN(0) && rd32(v0 + 0x10) == 0xFFFFFFFFu && rd32(v0 + 0x14) == 0xFFFFFFFFu);
+    CHECK(rdp(v0 + V_ADDR) == m1 && rdp(v0 + V_CUR) == m1 && rdp(v0 + V_RET) == NULL && rd32(v0 + V_AT(0x60)) == id);
+    CHECK(rdp(v0 + V_NODE) == node0 && rd32(v0 + V_NEXT) == 0xFFFFFFFFu && rd32(v0 + V_PREV) == 0xFFFFFFFFu);
     CHECK(sound_handles_used == (void *)sound_handle_nodes);
     sound_macro_run(v0);
     CHECK(seen_envelope[0] == 0x1234 && seen_envelope[3] == 0x0ABC);
     CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100);
     /* The end freed the voice and its node, after three steps. */
-    CHECK(rd32(v0 + 4) == m1 + 24 && rd32(v0 + 0x60) == 0xFFFFFFFFu && rd32(v0 + 0) == 0);
+    CHECK(rdp(v0 + V_CUR) == m1 + 24 && rd32(v0 + V_AT(0x60)) == 0xFFFFFFFFu && rdp(v0 + V_ADDR) == NULL);
     CHECK(sound_handles_used == NULL && sound_handles_free == (void *)sound_handle_nodes && sound_resolve_handle(key) == -1);
 
     /* Macro 6 on voice 1: a trap for key-off, then a subroutine (macro 2) that waits 250 ms. */
     key = sound_macro_start(6u << 16 | 0x40 << 8 | 4, 0x100, 62, 100, 64, 0, 0, 0, 0, 1, 23);
     id = 6u << 16 | 62 << 8 | 1;
-    CHECK(key == 1 && sound_resolve_handle(key) == (int)id && rd32(v1 + 0x60) == id &&
-          rd32(v1 + 0x18) == NODE_TOKEN(0));
+    CHECK(key == 1 && sound_resolve_handle(key) == (int)id && rd32(v1 + V_AT(0x60)) == id &&
+          rdp(v1 + V_NODE) == node0);
     sound_macro_run(v1);
-    CHECK(rd32(v1 + 0) == m2 && rd32(v1 + 4) == m2 + 8);            /* in the subroutine, after its wait */
-    CHECK(rd32(v1 + 8) == m6 && rd32(v1 + 0xC) == m6 + 16);         /* where it returns */
-    CHECK(rd32(v1 + 0x1C) == m1 && rd32(v1 + 0x20) == m1);          /* the trap */
-    CHECK(rd32(v1 + 0x9C) == 250 * 256);
-    sound_macro_run(v1);                                              /* still waiting */
-    CHECK(rd32(v1 + 4) == m2 + 8 && seen_samples == 1);
+    CHECK(rdp(v1 + V_ADDR) == m2 && rdp(v1 + V_CUR) == m2 + 8);         /* in the subroutine, after its wait */
+    CHECK(rdp(v1 + V_RET) == m6 && rdp(v1 + V_RETCUR) == m6 + 16);      /* where it returns */
+    CHECK(rdp(v1 + V_TRAP) == m1 && rdp(v1 + V_TRAPCUR) == m1);         /* the trap */
+    CHECK(rd32(v1 + V_AT(0x9C)) == 250 * 256);
+    sound_macro_run(v1);                                                  /* still waiting */
+    CHECK(rdp(v1 + V_CUR) == m2 + 8 && seen_samples == 1);
     /* Key-off: the trap runs macro 1, which starts its sample and ends the voice. */
     CHECK(sound_synth_key_off_voice(id) == 0);
     sound_macro_run(v1);
-    CHECK(seen_samples == 2 && rd32(v1 + 0x1C) == 0 && rd32(v1 + 0x20) == 0 && rd32(v1 + 4) == m1 + 24);
-    CHECK(rd32(v1 + 0x60) == 0xFFFFFFFFu && sound_handles_used == NULL && sound_resolve_handle(key) == -1);
+    CHECK(seen_samples == 2 && rdp(v1 + V_TRAP) == NULL && rdp(v1 + V_TRAPCUR) == NULL && rdp(v1 + V_CUR) == m1 + 24);
+    CHECK(rd32(v1 + V_AT(0x60)) == 0xFFFFFFFFu && sound_handles_used == NULL && sound_resolve_handle(key) == -1);
 
     /* A voice stopped by its key (sound_stop_unlocked) while it waits. */
     key = sound_macro_start(2u << 16 | 0x40 << 8 | 4, 0x100, 64, 100, 64, 0, 0, 0, 0, 1, 23);
     CHECK(key == 2 && sound_handles_used != NULL);
-    sound_macro_run(sound_synth_voices + 2 * 0x1A0);
+    sound_macro_run(sound_synth_voices + 2 * PC_MX_VOICE_SIZE);
     CHECK(sound_stop_unlocked(key) == 0 && sound_handles_used == NULL && sound_resolve_handle(key) == -1);
 }
 
@@ -824,8 +842,8 @@ static void test_dma(void)
 /* SET_PITCH (macros.c's sound_macro_set_pitch): the note and detune that play a sample of root key 60 at 16000 Hz at
  * another rate. A rate an exact power-of-two multiple of the sample's leaves the semitone search with no entry of
  * its table below the ratio: the N64 reads the halfword before the table and plays one note lower and 100 cents up
- * (the exact pitch); the PC read 8 GiB past the table. The voice's fields: flags +0x24, note +0x50, the sample's
- * root key and rate +0x5C, detune +0xC0. */
+ * (the exact pitch); the PC read 8 GiB past the table. The voice's fields (N64 offsets: V_AT): flags +0x24, note
+ * +0x50, the sample's root key and rate +0x5C, detune +0xC0. */
 uint8_t sound_macro_set_pitch(void *state, void *command);
 static void test_set_pitch(void)
 {
@@ -837,23 +855,23 @@ static void test_set_pitch(void)
         { 8000, 49, -100 },   /* an octave down: 48 as 49 and 100 cents down */
         { 12000, 56, -98 },   /* a fourth down: 4 semitones and 98 cents (ratio 5461, between 5160 and 5467) */
     };
-    static uint8_t voice[0x100];
+    static uint8_t voice[PC_MX_VOICE_SIZE] __attribute__((aligned(16)));
     uint32_t command[2];
 
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
         uint32_t flags, info = 60u << 24 | 16000;
         uint16_t note;
         memset(voice, 0, sizeof voice);
-        memcpy(voice + 0x5C, &info, 4);
+        memcpy(voice + V_AT(0x5C), &info, 4);
         command[0] = cases[i].rate << 8;
         command[1] = 0;
         CHECK(sound_macro_set_pitch(voice, command) == 0);
-        memcpy(&note, voice + 0x50, 2);
-        memcpy(&flags, voice + 0x24, 4);
-        if (note != cases[i].note || (int8_t)voice[0xC0] != cases[i].detune || !(flags & 0x100))
+        memcpy(&note, voice + V_AT(0x50), 2);
+        memcpy(&flags, voice + V_AT(0x24), 4);
+        if (note != cases[i].note || (int8_t)voice[V_AT(0xC0)] != cases[i].detune || !(flags & 0x100))
             fprintf(stderr, "set pitch %u Hz: note %u detune %d flags %#x\n", (unsigned)cases[i].rate, note,
-                    (int8_t)voice[0xC0], (unsigned)flags);
-        CHECK(note == cases[i].note && (int8_t)voice[0xC0] == cases[i].detune && (flags & 0x100));
+                    (int8_t)voice[V_AT(0xC0)], (unsigned)flags);
+        CHECK(note == cases[i].note && (int8_t)voice[V_AT(0xC0)] == cases[i].detune && (flags & 0x100));
     }
 }
 
@@ -919,7 +937,7 @@ static void test_game(void)
 
     /* Macro steps, copied word by word as the interpreter does (sound_macro_run). */
     memset(state, 0, sizeof state);
-    state[0x60] = 3;   /* the voice index */
+    state[V_AT(0x60)] = 3;   /* the voice index */
     memcpy(step, pl + pool.macro[0] + 8, 8);
     CHECK((rd32(step) & 0x7F) == 0x0C);
     sound_macro_set_adsr(state, step);
@@ -931,13 +949,13 @@ static void test_game(void)
     CHECK(seen_samples == 1 && seen_sample.data == (void *)(uintptr_t)SAMPLE_BASE && seen_sample.offset == 100 &&
           seen_sample.length == 0x1000 && seen_sample.format == 3 && seen_sample.loopStart == 0x200 &&
           seen_sample.loopLength == 0xE00 && seen_sample.frequency == (60u << 24 | 22050));
-    CHECK(rd32(state + 0x58) == SAMPLE_BASE && rd32(state + 0x5C) == (60u << 24 | 22050));
+    CHECK(rd32(state + V_AT(0x58)) == SAMPLE_BASE && rd32(state + V_AT(0x5C)) == (60u << 24 | 22050));
     /* WAITMS: 250 ms is 250 * 256 in the voice's clock (sound_ms_to_time); as ticks it would be 7812. */
     memcpy(step, pl + pool.macro[1] + 8, 8);
-    CHECK(sound_macro_wait_ms(state, step) == 1 && rd32(state + 0x9C) == 250 * 256);
+    CHECK(sound_macro_wait_ms(state, step) == 1 && rd32(state + V_AT(0x9C)) == 250 * 256);
     memcpy(step, pl + pool.macro[1] + 8, 8);
-    memset(state + 0x9C, 0, 12);
-    CHECK(sound_macro_wait(state, step) == 1 && rd32(state + 0x9C) == (((250u << 16) / 0x10000) * 1000) >> 5);
+    memset(state + V_AT(0x9C), 0, 12);
+    CHECK(sound_macro_wait(state, step) == 1 && rd32(state + V_AT(0x9C)) == (((250u << 16) / 0x10000) * 1000) >> 5);
     test_voices(pl);
 
     /* The song group: its pages and MIDI setup start the song through sound_seq_start. */

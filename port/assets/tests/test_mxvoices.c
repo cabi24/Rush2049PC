@@ -32,7 +32,7 @@
 
 /* ---------------------------------------------------------------- the storage and the library's other globals */
 
-unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][0x1A0];
+unsigned char pc_mx_voice[PC_MX_VOICE_SLOTS][PC_MX_VOICE_SIZE] __attribute__((aligned(16)));
 struct pc_mx_node pc_mx_nodes[PC_MX_VOICE_SLOTS];
 struct pc_mx_link pc_mx_prio_links[PC_MX_VOICE_SLOTS], pc_mx_free_links[PC_MX_VOICE_SLOTS];
 unsigned char pc_mx_fx_ctrl[PC_MX_VOICE_SLOTS][134];
@@ -74,18 +74,21 @@ void sound_synth_release_channel(void *v) { (void)v; }
 void sound_hw_lock(void) {}
 void sound_hw_unlock(void) {}
 
-/* A voice's fields at their N64 offsets (voices.c's VoiceState). */
+/* A voice's fields (voices.c's VoiceState): the head (src/rom/sound/musyx.h's SynthVoiceHead: the macro's place as
+ * pointers, the chain's voice ids, the handle node; 0x40 bytes), then the N64's fields, each 0x1C bytes past its N64
+ * offset. */
 #define VF(i, off, T) (*(T *)(pc_mx_voice[i] + (off)))
-#define V_COMMAND 0x00
-#define V_NEXT 0x10
-#define V_PARENT 0x14
-#define V_FLAGS 0x24
-#define V_AGE 0x28
-#define V_CHANNEL 0x2E
-#define V_EXTERNAL 0x4C
-#define V_ID 0x60
-#define V_ALLOC 0xBA
-#define V_BLOCK 0xBD
+#define V_AT(n64) ((n64) + 0x1C)
+#define V_COMMAND 0x00          /* head.addr: the macro's first step */
+#define V_NEXT 0x20             /* head.next */
+#define V_PARENT 0x24           /* head.previous */
+#define V_FLAGS V_AT(0x24)
+#define V_AGE V_AT(0x28)
+#define V_CHANNEL V_AT(0x2E)
+#define V_EXTERNAL V_AT(0x4C)
+#define V_ID V_AT(0x60)
+#define V_ALLOC V_AT(0xBA)
+#define V_BLOCK V_AT(0xBD)
 
 /* The voices as the synth's init leaves them, with n of them: free, ids clear, the lists and nodes linked. */
 static void setup(int n, int effects, int songs)
@@ -95,7 +98,7 @@ static void setup(int n, int effects, int songs)
     memset(pc_mx_prio_links, SENT, sizeof pc_mx_prio_links);
     memset(pc_mx_free_links, SENT, sizeof pc_mx_free_links);
     for (int i = 0; i < n; i++) {
-        memset(pc_mx_voice[i], 0, 0x1A0);
+        memset(pc_mx_voice[i], 0, PC_MX_VOICE_SIZE);
         VF(i, V_ID, unsigned int) = VF(i, V_NEXT, unsigned int) = VF(i, V_PARENT, unsigned int) = 0xFFFFFFFFu;
     }
     memset(driver_active, 0, sizeof driver_active);
@@ -117,7 +120,7 @@ static int start(int fx, unsigned short alloc, unsigned char prio)
     VF(v, V_ALLOC, unsigned short) = alloc;
     VF(v, V_FLAGS, unsigned int) = 0;
     VF(v, V_AGE, unsigned int) = 0x75300000u - (unsigned)v;   /* the newest the youngest */
-    VF(v, V_COMMAND, unsigned int) = 1;
+    VF(v, V_COMMAND, void *) = pc_mx_voice[v];   /* a macro runs */
     VF(v, V_ID, unsigned int) = (unsigned)alloc << 16 | (unsigned)v;
     driver_active[v] = 1;
     sound_set_voice_priority(pc_mx_voice[v], prio);
@@ -162,7 +165,7 @@ int main(void)
     CHECKF(song >= 0 && song < 96 && !seen[song] && sound_music_voices_used == 1 && test_snd_count[PC_SND_MX_STOLEN_SONG] == 0,
            "a song's voice from the free ones (%d)", song);
     for (i = 0; i < 96; i++)
-        if (VF(i, V_COMMAND, unsigned int)) {
+        if (VF(i, V_COMMAND, void *)) {
             VF(i, V_ID, unsigned int) = (unsigned)i;
             sound_free_voice(pc_mx_voice[i]);   /* back to the free list */
         }
@@ -178,7 +181,7 @@ int main(void)
         key[i] = sound_new_handle(pc_mx_voice[i]);
         keys += key[i] != 0xFFFFFFFFu;
     }
-    unsigned char spare[0x1A0] = {0};
+    _Alignas(8) unsigned char spare[PC_MX_VOICE_SIZE] = {0};
     CHECKF(keys == 96 && sound_new_handle(spare) == 0xFFFFFFFFu, "96 keys, then none (%u)", keys);
     CHECKF(sound_resolve_handle(key[95]) == 95 && sound_resolve_handle(key[40]) == 40, "a key's voice: %d %d",
            sound_resolve_handle(key[95]), sound_resolve_handle(key[40]));

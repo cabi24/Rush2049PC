@@ -1411,6 +1411,24 @@ if(NOT WIN32)
     # moving surface at +0x648 are host pointers (docs/port/CARS.md 4).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
         --in src/blob/groups/stree_collide/CollideCarBody.c,src/blob/groups/stree_tiresurf/TireSurf.c,src/blob/groups/update_game_data/update_game_data.c)
+    # MusyX's synth voice (pc_mx_voice): every view in the library's five files has the head of host pointers
+    # (src/rom/sound/musyx.h's SynthVoiceHead) and every field after it at its N64 offset past the head's growth, as
+    # macros.c's whole view has them (N64 0x1A0 bytes and the PC's tail, docs/port/MUSYX_DATA.md 8.3).
+    set(MUSYX_VOICE_VIEWS
+        VoiceState,MacroState,MacroStateWait,MacroStateReturn,MacroStateSplitKey,MacroStateSplitVelocity
+        MacroStateSplitModulation,MacroStateSplitRandom,MacroStateGosub,MacroStateTrapKeyOff,MacroStateUntrapKeyOff
+        MacroStateLoop,MacroStatePlayMacro,MacroStateSendKeyOff,MacroStateAddAge,MacroStateSetAge,MacroStateSetAgeSpeed
+        MacroStateSetAgeByVelocity,MacroStateAddPriority,MacroStateSendFlag,MacroStateSetPitchWheelRange
+        MacroStateSetNote,MacroStateAddNote,MacroStateLastNote,MacroStateStartSample,MacroStateStopSample
+        MacroStateKeyOff,MacroStateVibrato,MacroStateSetupLfo,MacroStateSetPitch,MacroStateSetAdsr
+        MacroStatePitchSweep,SynthVoicePanView,MacroStateScaleVolume,MacroStateStartEnvelope,MacroStateEnvelope
+        MacroStateTrackPitchWheel,MacroStateSetReverbSend,MacroStatePortamento,SynthVoiceVariablesView
+        MacroStateCompare,SynthVoiceMacroView,MacroStateStart,MacroStateSelectVolume,RampState,SynthVoiceLegatoView
+        VoicePrefix,SynthVoice,SynthVoicePriorityView,SynthVoiceAllocView,VoiceControls)
+    string(REPLACE ";" "," MUSYX_VOICE_VIEWS "${MUSYX_VOICE_VIEWS}")
+    add_test(NAME views_musyx_voice COMMAND ${VIEW_CHECK} --n64-size 0x1A4 --tag ${MUSYX_VOICE_VIEWS}
+        --ref SynthVoiceMacroView@src/rom/sound/macros.c
+        --in src/rom/sound/macros.c,src/rom/sound/synth.c,src/rom/sound/voices.c,src/rom/sound/controllers.c,src/rom/sound/api.c)
 endif()
 # tools/port/layout_check.py (docs/port/LAYOUT.md): the layout check on its synthetic cases (it reads the same GIMPLE,
 # so not on Windows either).

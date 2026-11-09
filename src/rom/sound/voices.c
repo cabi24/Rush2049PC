@@ -1,8 +1,9 @@
 /* src/rom/sound/voices.c: the MusyX sound library's voice allocation and sound handles.
  *
- * A sound plays on one or more synth voices (sound_synth_voices, 0x1A0 bytes each), chained by voice id (child10,
- * parent14). The caller holds a handle: a key in a sorted list of handle nodes (sound_handle_nodes) whose node names
- * the chain's first voice, so a handle stays valid, or turns invalid, when voices are stolen and reused
+ * A sound plays on one or more synth voices (sound_synth_voices, SYNTH_VOICE_SIZE bytes each), chained by voice id
+ * (the head's next and previous). The caller holds a handle: a key in a sorted list of handle nodes
+ * (sound_handle_nodes) whose node names the chain's first voice, so a handle stays valid, or turns invalid, when
+ * voices are stolen and reused
  * (sound_new_handle, sound_resolve_handle, sound_unlink_voice). A voice id is (macro << 16 | key << 8 | voice index);
  * VOICE_NONE ends a chain and means "no voice".
  *
@@ -13,8 +14,8 @@
  * A stream voice (streams_3d.c) is allocated here and blocked from the synth (sound_alloc_stream_voice).
  *
  * MusyX is the N64's sound library: no MAT3 counterpart. On the PC the per-voice storage is PC data, PC_MX_VOICE_SLOTS
- * long (pc_game_types.h, docs/port/DECOUPLE.md 9), where the N64 has 32 voices; each voice keeps the N64's layout, its
- * handle node as the node's N64 address (pc_voice_node, pc_voice_node_address below: docs/port/MUSYX_DATA.md 8.3). */
+ * long (pc_game_types.h, docs/port/DECOUPLE.md 9), where the N64 has 32 voices; each voice keeps the N64's layout
+ * after its head of pointers (musyx.h's SynthVoiceHead: docs/port/MUSYX_DATA.md 8.3). */
 #include "../rom_tu.h"
 #include "musyx.h"
 
@@ -36,19 +37,11 @@ typedef struct VoicePriorityLink { u8 previous, next; u16 active; } VoicePriorit
  * run's voices where the N64 links its 32 (docs/port/AUDIO.md 10). */
 #define sound_handle_nodes (*(HandleNode (*)[PC_MX_VOICE_SLOTS])pc_mx_nodes)
 
-/* A synth voice, as this file reads it (macros.c has the whole voice). */
+/* A synth voice, as this file reads it (macros.c has the whole voice): its head's node is the chain's handle node,
+ * one of sound_handle_nodes. */
 #pragma pack(1)
-/* PC: the voice keeps its N64 layout (macros.c), so the node at +0x18, one of sound_handle_nodes's, is kept as its N64
- * address, HANDLE_NODES_N64 + 16 * index: pc_voice_node(x) gives the node, pc_voice_node_address(x) the word
- * (docs/port/MUSYX_DATA.md 8.3). */
-enum n64p_HandleNode { n64p_HandleNode_ };
 typedef struct VoiceState {
-    u32 addr00;                             /* the macro's first step; 0: no macro runs */
-    u8 unknown04[12];
-    u32 child10;                            /* the next voice of the chain, or VOICE_NONE */
-    u32 parent14;                           /* the previous voice of the chain; VOICE_NONE for the first */
-    enum n64p_HandleNode handleNode18;    /* the first voice's handle node */
-    u8 unknown1C[8];
+    SynthVoiceHead head;    /* the macro's place and the chain (musyx.h) */
     u32 flags24;
     u32 age28;                              /* counts down; the lowest is stolen first */
     u8 unknown2C[2];
@@ -60,13 +53,13 @@ typedef struct VoiceState {
     u8 unknown64[89];
     u8 blockedBD;                           /* 1: a stream's voice, which the synth leaves alone */
     u8 unknownBE[226];
+    u8 tail[SYNTH_VOICE_TAIL];  /* the PC's: the record rounded to 8 bytes (SYNTH_VOICE_SIZE) */
 } VoiceState;
 #pragma pack(0)
-#define HANDLE_NODES_N64 0x80050A50U        /* the N64 address of sound_handle_nodes, for the voice's node word */
 #define sound_synth_voices (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)   /* the voices (pc_game_types.h) */
 
 #pragma pack(1)
-typedef struct SynthVoicePriorityView { u8 unknown00[46]; u8 priority2E; u8 unknown2F[49]; u32 identifier60; } SynthVoicePriorityView;
+typedef struct SynthVoicePriorityView { SynthVoiceHead head; u8 unknown24[0xA]; u8 priority2E; u8 unknown2F[49]; u32 identifier60; } SynthVoicePriorityView;
 #pragma pack(0)
 /* A priority's link in the list of priorities in use. */
 typedef struct PriorityLevelLink { u16 next, previous; } PriorityLevelLink;
@@ -77,7 +70,7 @@ typedef struct ChannelLink { u8 previous; u8 next; u16 flags; } ChannelLink;
 #define sound_voice_free_links (*(ChannelLink (*)[PC_MX_VOICE_SLOTS])pc_mx_free_links)   /* pc_game_types.h */
 
 #pragma pack(1)
-typedef struct SynthVoiceAllocView { u8 unknown00[0xBA]; u16 allocIdBA; u8 unknownBC; u8 blockedBD; u8 unknownBE[226]; } SynthVoiceAllocView;
+typedef struct SynthVoiceAllocView { SynthVoiceHead head; u8 unknown24[0x96]; u16 allocIdBA; u8 unknownBC; u8 blockedBD; u8 unknownBE[226]; u8 tail[SYNTH_VOICE_TAIL]; } SynthVoiceAllocView;
 #pragma pack(0)
 #define ALLOC(i) (((SynthVoiceAllocView *)sound_synth_voices)[i])
 
@@ -115,16 +108,6 @@ void sound_init_handles(void)
     previous->next = 0;
 }
 
-/* PC: a voice's handle node from the N64 address its node word holds, and back (0 for none). */
-static HandleNode *pc_voice_node(enum n64p_HandleNode address)
-{
-    return address != 0 ? &sound_handle_nodes[(address - HANDLE_NODES_N64) / 16] : 0;
-}
-static enum n64p_HandleNode pc_voice_node_address(HandleNode *node)
-{
-    return (enum n64p_HandleNode)(node != 0 ? HANDLE_NODES_N64 + (u32)(node - sound_handle_nodes) * 16 : 0);
-}
-
 /* The used handle node with this key, or NULL (the list is sorted, so the walk stops at a larger key). */
 HandleNode *sound_find_handle(u32 key)
 {
@@ -153,28 +136,28 @@ void sound_unlink_voice(VoiceState *state)
 {
     sound_synth_release_channel(state);
     if (state->identifier60 != VOICE_NONE) {
-        if (state->parent14 != VOICE_NONE) {
-            sound_synth_voices[(state->parent14 & VOICE_INDEX_MASK)].child10=state->child10;
-            if (state->child10 != VOICE_NONE) {
-                sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].parent14=state->parent14;
+        if (state->head.previous != VOICE_NONE) {
+            sound_synth_voices[(state->head.previous & VOICE_INDEX_MASK)].head.next=state->head.next;
+            if (state->head.next != VOICE_NONE) {
+                sound_synth_voices[(state->head.next & VOICE_INDEX_MASK)].head.previous=state->head.previous;
             }
-        } else if (state->child10 != VOICE_NONE) {
-            pc_voice_node(state->handleNode18)->voice=state->child10;
-            sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].parent14=VOICE_NONE;
-            sound_synth_voices[(state->child10 & VOICE_INDEX_MASK)].handleNode18=state->handleNode18;
+        } else if (state->head.next != VOICE_NONE) {
+            state->head.node->voice=state->head.next;
+            sound_synth_voices[(state->head.next & VOICE_INDEX_MASK)].head.previous=VOICE_NONE;
+            sound_synth_voices[(state->head.next & VOICE_INDEX_MASK)].head.node=state->head.node;
         } else {
-            if (pc_voice_node(state->handleNode18)->previous != 0) {
-                pc_voice_node(state->handleNode18)->previous->next=pc_voice_node(state->handleNode18)->next;
+            if (state->head.node->previous != 0) {
+                state->head.node->previous->next=state->head.node->next;
             } else {
-                sound_handles_used=pc_voice_node(state->handleNode18)->next;
+                sound_handles_used=state->head.node->next;
             }
-            if (pc_voice_node(state->handleNode18)->next != 0) {
-                pc_voice_node(state->handleNode18)->next->previous=pc_voice_node(state->handleNode18)->previous;
+            if (state->head.node->next != 0) {
+                state->head.node->next->previous=state->head.node->previous;
             }
-            pc_voice_node(state->handleNode18)->next=sound_handles_free;
-            if (sound_handles_free != 0) sound_handles_free->previous=pc_voice_node(state->handleNode18);
-            pc_voice_node(state->handleNode18)->previous=0;
-            sound_handles_free=pc_voice_node(state->handleNode18);
+            state->head.node->next=sound_handles_free;
+            if (sound_handles_free != 0) sound_handles_free->previous=state->head.node;
+            state->head.node->previous=0;
+            sound_handles_free=state->head.node;
         }
     }
 }
@@ -205,7 +188,7 @@ u32 sound_new_handle(VoiceState *state)
     if (current != 0) current->previous = node;
     node->key = key;
     node->voice = state->identifier60;
-    state->handleNode18 = pc_voice_node_address(node);
+    state->head.node = node;
     return key;
 }
 
@@ -441,7 +424,7 @@ void sound_free_voice(VoiceState *state)
     sound_remove_voice_priority((SynthVoicePriorityView *)state);
     index = state->identifier60 & VOICE_INDEX_MASK;
     link = &sound_voice_free_links[index];
-    state->addr00 = 0;
+    state->head.addr = 0;
     state->priority2E = 0;
     if (link->flags == 0) {
         link->flags = 1;
@@ -502,7 +485,7 @@ int sound_alloc_stream_voice(u8 priority)
         sound_unlink_voice(state);
         state->identifier60 = (u32)index | 0xFFFFFF00U;
         if (sound_hw_is_voice_active(index)) sound_hw_break_voice(index);
-        state->addr00 = 0;
+        state->head.addr = 0;
         sound_set_voice_priority(state, priority);
     }
     return index;
@@ -543,10 +526,10 @@ int sound_stop_unlocked(u32 key)
         key = sound_resolve_handle(key);
         while (key != VOICE_NONE) {
             index = key & VOICE_INDEX_MASK;
-            next = sound_synth_voices[index].child10;
+            next = sound_synth_voices[index].head.next;
             if (key == sound_synth_voices[index].identifier60) {
                 result = 0;
-                if (sound_synth_voices[index].addr00 != 0) {
+                if (sound_synth_voices[index].head.addr != 0) {
                     sound_end_voice(&sound_synth_voices[index]);
                 }
                 sound_hw_key_off(index);
@@ -563,11 +546,11 @@ void sound_stop_all_voices(u8 preserve_external)
 {
     int i;
     for (i = 0; i < sound_voice_count; i++) {
-        if (sound_synth_voices[i].addr00 != 0) {
+        if (sound_synth_voices[i].head.addr != 0) {
             if (!preserve_external ||
                 (preserve_external && !sound_synth_voices[i].fxFlag4C)) {
                 sound_end_voice(&sound_synth_voices[i]);
-                sound_synth_voices[i].addr00 = 0;
+                sound_synth_voices[i].head.addr = 0;
                 sound_synth_voices[i].flags24 &= ~3U;
             } else {
                 continue;
