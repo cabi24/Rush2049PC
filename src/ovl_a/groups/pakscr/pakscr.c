@@ -25,11 +25,7 @@ VIEW(MultiBlit, pakscr_mblit);
 VIEW(PlayerPresence[], gControllerData);
 #define gControllerData gControllerData_view
 
-extern void RemoveBlit(Blit *);
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 extern void particle_lifetime_set(void);
-
-extern void ShowPakError(s32,s8 *,s8 *,s8 *,s32 (*)(s32));
 
 #define PAK_ERR_NO_CONTROLLER 1     /* gPakErr: SetPakError's box for a missing controller */
 #define PAK_ERR_NO_PAK 2            /* gPakErr: for a controller without a pak */

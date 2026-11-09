@@ -22,8 +22,6 @@ VIEW(u32, gActiveAutoEdges);
 #define gActiveAutoEdges gActiveAutoEdges_view
 
 extern void particle_lifetime_set(void);
-extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-extern void RemoveBlit(Blit *);
 
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
    cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT

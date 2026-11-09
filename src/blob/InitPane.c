@@ -3,15 +3,13 @@
 
 VIEW(tBlitSet[], gPaneBlits);
 #define gPaneBlits gPaneBlits_view
-extern tBlit *NewBlit();
-extern void ChangePaneSize(tBlitSet *,s32,s32,s32,s32);
 
 /* Makes a pane over the rectangle (x1, y1)-(x2, y2) (either corner first) from the first free one of gPaneBlits: a
  * dark blue inside (0, 0, 16) and a light blue border (0, 0, 192), both of alpha; each of its five blits gets the
  * animation function animFunc with animID (left uncalled here: the caller's DrawBlits calls it), the first one also
  * the pane itself as animDTA. permanent panes outlive RemovePanes(0). Returns the pane. (MAT3 also keeps the pane's
  * blits out of the "draw first" pass, ZOID_IgnoreDrawFirstBlit; the N64 doesn't.) */
-tBlitSet *InitPane(s32 x1,s32 y1,s32 x2,s32 y2,s32 alpha,intptr_t animFunc,s32 animID,s32 permanent)
+tBlitSet *InitPane(s32 x1,s32 y1,s32 x2,s32 y2,s32 alpha,s32 (*animFunc)(tBlit *),u32 animID,s32 permanent)
 {
     tBlitSet *pane=gPaneBlits;
     s32 i;
@@ -38,7 +36,7 @@ tBlitSet *InitPane(s32 x1,s32 y1,s32 x2,s32 y2,s32 alpha,intptr_t animFunc,s32 a
         pane->blits[i]=NewBlit((void *)0,x1,y1,0);
         pane->blits[i]->alpha=alpha;
         pane->blits[i]->palette=pane->blackColor;
-        pane->blits[i]->animFunc=(void *)animFunc;
+        pane->blits[i]->animFunc=animFunc;
         pane->blits[i]->animID=animID;
         pane->blits[i]->animDTA=0;
     }

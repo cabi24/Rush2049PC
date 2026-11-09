@@ -1,8 +1,6 @@
 /* RemovePanes: remove the panes (MAT3 pane.c). */
 #include "game/game.h"
 
-extern void RemoveBlit(intptr_t blit);
-
 VIEW(s32, gPaneBlits);
 #define gPaneBlits gPaneBlits_view
 
@@ -20,7 +18,7 @@ void RemovePanes(s32 permanent)
       {
         if (pane->blits[i] != 0)
         {
-          RemoveBlit((intptr_t) pane->blits[i]);
+          RemoveBlit(pane->blits[i]);
           pane->blits[i] = 0;
         }
       }

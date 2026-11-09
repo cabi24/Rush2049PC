@@ -23,11 +23,7 @@ typedef struct {
     Profile **save;      /* 0x48 */
 } PadState;              /* tPadState, 0x4C */
 
-s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 void *memcpy(void *, const void *, u32);
-
-void *NewMultiBlit(s16, s16, void *, s16);
 
 extern PadState gPlayers[4];           /* gPlayers */
 

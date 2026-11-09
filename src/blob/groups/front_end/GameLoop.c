@@ -22,9 +22,6 @@ VIEW(intptr_t, blit_dl);
 VIEW(OSMesgQueue *, frame_dl_start);
 #define frame_dl_start frame_dl_start_view
 
-void *NewMultiBlit(s16, s16, void *, s32);
-void RemoveBlit(void *);
-
 /* One frame of the game: a change of game state starts a new frame's graphics (waiting for the last to finish
  * drawing) and reads the controls; the idle warning after 5 minutes without a key (but in the attract, demo and
  * front-end states 0x4000000F); the state's own update (updateGameState), the front end's screens, the pause screen

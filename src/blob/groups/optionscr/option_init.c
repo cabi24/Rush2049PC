@@ -17,10 +17,6 @@ VIEW(s32[14], options_validOption);
 VIEW(ContData[], gControllerData);
 #define gControllerData gControllerData_view
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-
 #define OPTIONS_ROWS 14
 #define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 

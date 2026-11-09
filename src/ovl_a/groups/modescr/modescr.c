@@ -36,7 +36,6 @@ extern void *memcpy(void *,const void *,u32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
 
-extern void RemoveBlit ( Blit * );
 extern f32 fabsf(f32);
 
 /* The menu's rows (gModeMenuSelect, MAT3 enum_kModeMenuCount): row n sets gRace n. */

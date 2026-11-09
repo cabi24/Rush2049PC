@@ -189,7 +189,6 @@ VIEW(MenuButton[RECORD_BUTTONS], recordscr_buttonInfo);
 
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear(void *);
-extern void RemoveBlit(void *);
 
 /* Take the screen down: its buttons, its box, its text blit and the background. */
 void uninitRecordScreen(void) {
@@ -484,10 +483,6 @@ extern void *memcpy(void *, const void *, u32);
 
 extern void *MBOX_FindTexture_WORK(char *, s16 *, s32, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
-
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-extern void *NewMultiBlit(s16, s16, void *, s16);
 
 /* Set the screen up on the totals: the select menu, the buttons, a box (off screen until a page sizes it) and the
  * text blit. */

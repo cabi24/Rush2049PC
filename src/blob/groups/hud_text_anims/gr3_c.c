@@ -2,9 +2,6 @@
  * _TitlePane). */
 #include "game/game.h"
 
-void ChangePaneSize(intptr_t, s32, s32, s32, s32);
-intptr_t InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 /* Makes or resizes the audio screen's title pane for its title, or for "player N: controller removed" when the
  * pausing player's controller is out. */
 void audio_TitlePane(void)
@@ -20,9 +17,9 @@ void audio_TitlePane(void)
         w = HAL_GetTextWidth(gText.single[52], -1);
     }
     if (audio_gTitlePane) {
-        ChangePaneSize(audio_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);
+        ChangePaneSize((tBlitSet *) audio_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);
     } else {
-        audio_gTitlePane = InitPane(152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
+        audio_gTitlePane = (intptr_t) InitPane(152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
     }
 }
 
@@ -41,9 +38,9 @@ void options_TitlePane(void)
         w = HAL_GetTextWidth(gText.single[50], -1);
     }
     if (options_gTitlePane) {
-        ChangePaneSize(options_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);
+        ChangePaneSize((tBlitSet *) options_gTitlePane, 152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14);
     } else {
-        options_gTitlePane = InitPane(152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
+        options_gTitlePane = (intptr_t) InitPane(152 - w / 2, 6, w / 2 + 168, TB_GetFontLineHeight() + 14, 176, 0, 0, 0);
     }
 }
 

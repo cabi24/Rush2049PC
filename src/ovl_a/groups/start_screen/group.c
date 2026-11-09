@@ -46,10 +46,6 @@ extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
 extern void particle_lifetime_set(void);      /* createBG */
 
-extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
-
-extern void RemoveBlit(Blit *);
-
 extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
 

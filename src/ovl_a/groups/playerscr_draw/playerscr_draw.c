@@ -33,7 +33,6 @@ VIEW(u8 *[], gPS_PakName);
 
 extern void TB_FlashTextColors(Color4,Color4);
 
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 /* How many profile rows away from the selected one a row is. */
 #define PROFILE_DISTANCE(x) ((x)>=0 ? (x) : -(x))
 

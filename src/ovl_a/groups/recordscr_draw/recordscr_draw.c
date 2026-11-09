@@ -165,8 +165,6 @@ VIEW(s8[], gUnlockedTires);
 
 extern void TB_FlashTextColors(Color4,Color4);
 
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
-
 /* gText.tab[g]'s entry i: one of a table of texts. */
 #define NAME(g,i) (gText.taba[gText.tab[g]+(i)])
 

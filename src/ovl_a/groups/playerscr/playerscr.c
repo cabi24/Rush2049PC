@@ -106,8 +106,6 @@ VIEW(MultiBlit[], multiBlit);
 #define multiBlit multiBlit_view
 
 extern void particle_lifetime_set(void);
-extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 /* Set the screen up: lock the players' profile files, read the paks, start every window on the select menu (on
  * the first profile row) with its buttons, split the screen (three players get four windows), set the buttons'

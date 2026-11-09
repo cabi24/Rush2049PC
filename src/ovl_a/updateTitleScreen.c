@@ -23,9 +23,6 @@ VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 extern PlayerStatus gPlayers[4];
 
-extern Blit *NewMultiBlit(short, short, const MultiBlit *, short);
-extern void RemoveBlit(Blit *);
-
 extern s32 CountdownTimeOut(void);
 
 #define SND_START 0x4F              /* the effect Start plays here */

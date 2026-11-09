@@ -37,9 +37,6 @@ VIEW(Pos, pause_titlePos);
 VIEW(Rect[][4], pause_gPlayerRects);
 #define pause_gPlayerRects pause_gPlayerRects_view
 
-void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-
 /* HAL_SetFont without its result. */
 void ps_SetFont(s32 font)
 {

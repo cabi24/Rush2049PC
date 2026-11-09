@@ -30,8 +30,6 @@ VIEW(void *, scorePanes);
 
 extern void sprintf(char *, char *, ...);
 
-extern void ChangePaneSize(void *, s32, s32, s32, s32);
-
 /* Fill gScoreNames and gScoreTimes with the five rows of table gTable (0 and 1 a race's two tables, 2 the ghost
  * race's) of this track and direction (gThisTrack: the track, plus 6 backwards). Rows nobody holds yet get a name from
  * gDefaultNames and a time a little worse than the one before, from the track's default time; the made-up

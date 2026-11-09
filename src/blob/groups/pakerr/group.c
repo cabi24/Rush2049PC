@@ -308,18 +308,19 @@ void cs_ctl10_DC(Cell *c)
     }
 }
 
-/* Runs pak row's dialog for this frame (MAT3 ShowPakError): poll, when given, may cancel it (the pak is back). The
- * later of the pak's two dialogs that is up is shown (a closed one that never finished is finished first: it reports
- * done with no choice); its title says the controller; the frame's buttons go to it, and it is drawn by its error.
- * When it is done its answers go to *choice1 and *choice2 and the controllers' active and stick settings it holds
- * are applied (and the controls read again). *done says whether it is. */
-void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(void))
+/* Runs pak row's dialog for this frame (MAT3 ShowPakError): poll, when given, is asked about the pak (pak_removed,
+ * CancelFunc: MAT3 passes it the pak, as the N64 leaves row in its first argument register) and may cancel the
+ * dialog. The later of the pak's two dialogs that is up is shown (a closed one that never finished is finished first:
+ * it reports done with no choice); its title says the controller; the frame's buttons go to it, and it is drawn by its
+ * error. When it is done its answers go to *choice1 and *choice2 and the controllers' active and stick settings it
+ * holds are applied (and the controls read again). *done says whether it is. */
+void ShowPakError(s32 row, s8 *choice1, s8 *choice2, s8 *done, s32 (*poll)(s32))
 {
     s32 col;
     s32 i;
     char num[72];
 
-    if (poll != 0 && poll() != 0) {
+    if (poll != 0 && poll(row) != 0) {
         CancelPakError(row);
     }
     for (col = 1; col >= 0; col--) {

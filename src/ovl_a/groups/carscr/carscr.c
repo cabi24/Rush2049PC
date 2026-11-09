@@ -47,10 +47,6 @@ VIEW(MultiBlit[], carscr_mb);
 extern void audio_interrupt_handler(s32);
 
 extern void particle_lifetime_set(void);
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-
-extern Blit *NewMultiBlit(s16,s16,MultiBlit *,s16);
 
 VIEW(s8[], gCarTeamColor);
 #define gCarTeamColor gCarTeamColor_view
@@ -65,8 +61,6 @@ VIEW(s8[][13], car_color_choice_c);
 #define car_color_choice_c car_color_choice_c_view
 VIEW(s8[][13], gTireRims);
 #define gTireRims gTireRims_view
-
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
 /* carscr_gOpts[]: the screen's options, in their order down the list (calcValidOptions keeps the offered ones). */
 #define CAR_OPT_CAR 0
@@ -919,8 +913,6 @@ Record **getNextGhost(Record **node,s8 direction)
 typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
 
 extern void sound_handles_array_clear(FiveParts *);
-
-extern void RemoveBlit(Blit *);
 
 /* Take the screen down: its waves, the grid backdrop, the "waiting" boxes, each player's buttons, turntable and part
  * models, the text blit and the background; one full-screen window again, and the horns stopped. */

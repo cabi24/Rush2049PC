@@ -23,9 +23,6 @@ VIEW(u8, gBlocksNeeded);
 VIEW(MultiBlit[1], warningscr_blits);
 #define warningscr_blits warningscr_blits_view
 
-extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
-extern void RemoveBlit(Blit *);
-
 /* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (findDamageSlot, worlddam.c),
  * which the loader's tables name for both. Image A's is updateWarningScreen, which updateFrontEnd calls in
  * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics

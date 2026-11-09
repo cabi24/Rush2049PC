@@ -4,8 +4,6 @@
 VIEW(s8[4], prevControlScrActive);
 #define prevControlScrActive prevControlScrActive_view
 
-void RemoveBlit(intptr_t);
-
 /* Remove player row's 17 buttons (3D models) from the scene and mark them gone (handle -1). */
 void controls_uninitButtons(s8 row) {
     int i;

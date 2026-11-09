@@ -1,9 +1,6 @@
 /* NewMultiBlit: make a chain of blits from a table (MAT3 blit.c). */
 #include "game/game.h"
 
-extern tBlit *NewBlit();
-extern void RemoveBlit(tBlit *);
-
 /* Makes one blit for each of the nblits entries of mblit, at (ulx, uly) plus each entry's offset, with the entry's
  * alpha, depth, crop and (unless -1) size, and chains them through child: the first is returned and removing it removes
  * them all. An entry with an animation function: for a texture, the function becomes the blit's and is called at once,

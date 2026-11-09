@@ -30,8 +30,6 @@ void *memcpy(void *, const void *, u32);
 TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
 void ZOID_SetTexture(s16, TexDef *, s32);
 
-Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-
 /* Sets the font under the text lock (HAL_SetFont, inline). */
 void vi_SetFont(s32 font)
 {

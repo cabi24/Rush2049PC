@@ -226,9 +226,6 @@ extern void ZOID_SetTexture(s16,intptr_t,s32);
 
 extern void particle_lifetime_set(void);
 
-extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
-
 /* Set the screen up: the players' race type is saved as circuit; a circuit that is active but has run no race is
  * dropped; an active one is continued (ContinueCircuit sets the race up), and if it is finished the trophy for the
  * first player's place (on the podium only) is made, turning in front of the camera. Then the menu, the review
@@ -478,7 +475,6 @@ void controlShowTrophy(void)
 VIEW(MenuButton[CIRCUIT_BUTTONS], circuitscr_buttonInfo);
 #define circuitscr_buttonInfo circuitscr_buttonInfo_view
 
-extern void RemoveBlit(Blit *);
 /* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
 extern void sound_handles_array_clear(s8 *);
 
@@ -818,8 +814,6 @@ VIEW(u8 *[], gDefaultNames);
 #define gDefaultNames gDefaultNames_view
 
 extern void TB_FlashTextColors(Color,Color);
-
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
 /* The review: the six cars' places, names and points, in two columns of three by place, the players' in their
  * colour, over the whole circuit so far (the review on its last race) or for the reviewed race (a race a car didn't

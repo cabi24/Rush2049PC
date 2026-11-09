@@ -7,8 +7,7 @@ VIEW(tBlit *[], BlitPtrs);
 #define BlitPtrs BlitPtrs_view
 
 /* Removes blit and the rest of its multiblit (its children): frees each one's zoid blit list entry (ZOID_RemoveBlit,
- * inline) and swaps it with the last blit in use in BlitPtrs, so the first NumBlits entries stay the ones in use.
- * Not in include/game: its callers pass a blit as a pointer or as an integer (PCONLY.md 4, "Wave 2: headers"). */
+ * inline) and swaps it with the last blit in use in BlitPtrs, so the first NumBlits entries stay the ones in use. */
 void RemoveBlit(tBlit *blit) {
     s32 i;
     s32 entry;

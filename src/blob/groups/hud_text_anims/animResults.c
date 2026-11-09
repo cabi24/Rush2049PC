@@ -31,9 +31,6 @@ VIEW(tStuntPlayer[4], gStuntPlayer);
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-
 /* HAL_SetFont without its result. */
 void ar_SetFont(s32 font)
 {

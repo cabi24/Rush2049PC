@@ -33,8 +33,6 @@ VIEW(intptr_t, video_blit);
 VIEW(intptr_t, video_gTitlePane);
 #define video_gTitlePane video_gTitlePane_view
 
-void RemoveBlit(intptr_t sound_id);
-
 /* Removes the video screen's panes (the permanent ones stay). */
 void video_uninitButtons(void) {
     RemovePanes(0);
@@ -56,7 +54,7 @@ void video_uninitScreen(void) {
         video_uninitButtons();
         video_gTitlePane = 0;
         if (video_blit != 0) {
-            RemoveBlit(video_blit);
+            RemoveBlit((tBlit *) video_blit);
             video_blit = 0;
         }
         removeBG();

@@ -138,7 +138,6 @@ extern void audio_bus_mix(Profile **,u8,s8);      /* SavePlayerOption */
 extern s8 GetPlayerOption(Profile **,u8);
 
 extern void particle_lifetime_set(void);          /* createBG */
-extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
@@ -209,8 +208,6 @@ typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 VIEW(volatile s16, gRenderInProgress);
 #define gRenderInProgress gRenderInProgress_view
 
-extern void RemoveBlit(Blit *);   /* RemoveBlit (ZOID_RemovePoly on N64: blits) */
-
 #define MAPLOD_PTR(x) (uintptr_t) x
 typedef struct RomObjDef {char name[16];f32 radius;s16 unused,lodCount;MapLod lod[4];} RomObjDef;   /* 88 B */
 typedef struct ModelBank {RomObjDef *romObjDefs;s32 count;} ModelBank;
@@ -246,7 +243,6 @@ VIEW(f32[12], trackMapMat);
 #define trackMapMat trackMapMat_view
 VIEW(f32[3], buildTrackMap_mapPos);
 #define buildTrackMap_mapPos buildTrackMap_mapPos_view
-extern Blit *NewBlit(char *,s16,s16,s16);
 #define DISPLAY_WORDS(p,a,b) do {DisplayCommand *command=(p)++; command->w0=(a);command->w1=(b);} while(0)
 #define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
 #define DISPLAY_VERTEX(p,v,n,first) DISPLAY_WORDS(p,0x01000000u|((n)<<12)|(((first)+(n))<<1),(u32)(v))

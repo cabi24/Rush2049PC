@@ -47,8 +47,6 @@ void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
 VIEW(intptr_t, options_blit);
 #define options_blit options_blit_view
 
-void RemoveBlit(intptr_t sound_id);
-
 /* Take the screen down: the pause menu's panes, the text blit, the background and the buttons. */
 void options_uninitScreen(void)
 {
@@ -57,7 +55,7 @@ void options_uninitScreen(void)
         options_gTitlePane = 0;
     }
     if (options_blit != 0) {
-        RemoveBlit(options_blit);
+        RemoveBlit((tBlit *) options_blit);
         options_blit = 0;
     }
     removeBG();

@@ -9,11 +9,6 @@ VIEW(s8 *[2], scorePanes);
 
 VIEW(struct pc_multiblit[1], highscore_mblit);
 #define highscore_mblit highscore_mblit_view
-extern void RemoveBlit(intptr_t);
-
-extern void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-
-extern intptr_t NewMultiBlit(s32,s32,void *,s32);
 
 #define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
 #define PANE_STYLE_CODE 192         /* the circuit code's box */
@@ -31,7 +26,7 @@ void SetHighScoreState(s32 newState)
 
     if (newState == gHighScoreState) return;
     if (highscore_blit != 0) {
-        RemoveBlit(highscore_blit);
+        RemoveBlit((tBlit *) highscore_blit);
         highscore_blit = 0;
     }
     switch (gHighScoreState) {
@@ -157,6 +152,6 @@ void SetHighScoreState(s32 newState)
         break;
     }
     if (gHighScoreState != kHighScoreNone) {
-        highscore_blit = NewMultiBlit(0, 0, highscore_mblit, 1);
+        highscore_blit = (intptr_t) NewMultiBlit(0, 0, highscore_mblit, 1);
     }
 }
