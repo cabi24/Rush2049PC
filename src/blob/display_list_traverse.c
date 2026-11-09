@@ -1,11 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Display-list walker (0xDF end, 0xDE call/branch, 0xE1+0x04 branch-z); no quirks. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
  * (docs/port/POINTERS.md). */

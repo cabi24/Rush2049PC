@@ -1,12 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Direct ancestor: rushtherock/game/drivsym.c:forces2 and vecmath.h.
- * Native Y is vertical; the N64 port blends rear thrust selectively,
- * computes gravity each step, and measures the summed body contact force. */
-typedef float f32;
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef int s32;
+#include "game/game.h"
+
 typedef f32 Vec3[3];
 typedef struct Parameters {f32 rear_force_blend;} Parameters;
 enum n64p_Parameters { n64p_Parameters_ };
@@ -50,11 +43,7 @@ typedef struct Model2056 {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-extern f32 gGravity;
-extern f32 gWingLift[];
-extern s8 gCarWings[][13];
-extern void BodyVector(f32 *,f32 *,f32 *);
-extern f32 vector_magnitude(f32 *);
+
 #define vecadd(a,b,r) {r[0]=a[0]+b[0];r[1]=a[1]+b[1];r[2]=a[2]+b[2];}
 void forces2(Model2056 *m)
 {

@@ -1,40 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TB_DrawTextScrollBox (0x800BE078, 1084 B) = MAT3 TB_text.c TB_DrawTextScrollBox (GC 0x8004fd1c): draws `text`
- * word-wrapped into a box, starting at `page`/`line` (the historical label is wrong). , .
- * Direct typed port of the MAT3 body; callees (N64 names): TB_GetFontLineHeight,
- * TB_GetTextNumLines = TB_GetTextNumLines (locked), camera_shake_update = HAL_GetCharWidth, HAL_GetTextWidth =
- * HAL_GetTextWidth, HAL_DrawText; HAL_GetFontSpacing = HAL_GetFontSpacing and HAL_SetTextPos =
- * HAL_SetTextPos (N64 version keeps the -32768 "unchanged" sentinel) are the locked kept getters, inlined by -O3
- * and therefore defined here verbatim (same precedent as TB_GetTextNumLines.c's HAL_GetFontSpacing).
- * Data: gJust = gJust {h, v}; gSpacing gSpacing; gFontXpos/gFontYpos gFontXpos/gFontYpos.
- * N64 differences from the GC C (all from the retail words, no devices):
- *  - `tw` is a function-scope s32 declared first (its slot is the frame's top word; GC has a block `short tw`),
- *    and the justified x is passed straight to HAL_SetTextPos as one conditional expression (GC: `xpos` if/else);
- *    the if/else forms colour the two arms the other way round.
- *  - `str = (u8 *)s + charSize` (GC `(unsigned char *)(s + charSize)`) gives retail's addu operand order.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct { s32 h, v; } Just;
-extern Just gJust;
-extern s8 gSpacing;
-extern s16 gFontXpos;
-extern s16 gFontYpos;
-extern s16 TB_GetFontLineHeight(void);
-extern s16 TB_GetTextNumLines(s16 width, void *text);
-extern u32 HAL_GetCharWidth(u16 ch);
-extern u32 HAL_GetTextWidth(void *text, s16 numChars);
-extern void HAL_DrawText(void *text, s16 numChars);
-
-s8 HAL_GetFontSpacing(void);
-
-void HAL_SetTextPos(s16 x, s16 y);
+VIEW(Just, gJust);
+#define gJust gJust_view
 
 void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 line, void *text)
 {

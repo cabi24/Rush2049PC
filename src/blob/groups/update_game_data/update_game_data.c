@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_800E847C = update_game_data (MAT3 GameSource/src/mdrive.c, GC 0x8002B064) and its static callee
- * UpdateTireAppearance = _UpdateTireAppearance (MAT3 mdrive.c, GC 0x8002B6CC). The callee is called only from
- * update_game_data and is a private IPA procedure (clobbers s0-s5 without saving them), so the pair is one
- * -O3 group: func_800E847C kept, UpdateTireAppearance internal.
- *
- * Base: (update_game_data/best.c = v/u16.c: MAT3 typed port, N64 tCarData/tModelData offsets,
- * force[3] stack array, if-body loop form, zero spellings). changes, all in the callee:
- *  - `intensity` named float local for the skid intensity (retail keeps the value in $f0 for the store and
- *    the compare; the assignment-expression form shares cfe's float temp with the fabsf ?: temps -> $f18);
- *  - `maxForce` holds forceTable[4] for the clamp and stays live to after the bracket search through a
- *    compiled-out read `if (maxForce) {}` (stands in for a debug statement the N64 build compiles out).
- *    Its colour web (t3) is what pushes forceLow/the skidIntensity IV/the bracket pointer to t4/t5/s0 and
- *    makes the callee clobber s0-s5, which is what the caller's s-register colouring needs;
- *  - a redundant `index = 0;` before maxForce gives index the lower web number (index t2, maxForce t3).
- * The MAT3 locals `scale`, `airborne`, `wet`, `intensity`, `maxForce` are not in the GC DWARF (index, side,
- * force, forceLow, m, skidData); they are N64 source shaping, disclosed here.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct _tCar {
     /* 0x00 */ u8 pad0[0x70];
@@ -131,40 +106,23 @@ typedef struct _tSusp {
     f32 sideangle;
 } _tSusp;
 
-typedef struct tLink { u8 pad[7]; u8 owner; } tLink;
-
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 gModelTime;
-extern const _tSusp *carSuspensions[]; /* carSuspensions */
-extern s8 gCarSuspensions[];           /* gCarSuspensions */
-extern u8 model_thread[];           /* model thread */
+VIEW(u8[], model_thread);
+#define model_thread model_thread_view
 
 void osStopThread(void *t);
 void osStartThread(void *t);
-void game_reckon_all(f32 time);
-void CopyUV(void *src, void *dst);
-void PitchUV(f32 angle, f32 uv[][3]);
-void RollUV(f32 angle, f32 uv[][3]);
-void WorldVector(f32 *v, f32 *out, f32 uv[][3]);
-void UpdateTireAppearance(s16 droneIndex);
-
-typedef struct tSkidData {
-    s32 forceTable[5];
-    f32 skidThreshold;
-    f32 smokeThreshold;
-} tSkidData; /* 0x1C */
 
 typedef struct tTireState { u8 pad0[0x50]; f32 sideforce; f32 traction; u8 pad58[4]; } tTireState; /* 0x5C */
 #define TIRES(m) ((tTireState *)((u8 *)(m) + 0x430))
 
-extern u32 sSmoke[4];          /* sSmoke */
-extern u32 sSmoke2[4];          /* sSmoke2 */
-extern u32 sSkid[4];          /* sSkid */
-extern tSkidData sSkidData[4];    /* sSkidData */
-extern s8 gCoastFlag;
-extern s32 gRace;
+VIEW(u32[4], sSmoke);
+#define sSmoke sSmoke_view
+VIEW(u32[4], sSmoke2);
+#define sSmoke2 sSmoke2_view
+VIEW(u32[4], sSkid);
+#define sSkid sSkid_view
+VIEW(tSkidData[4], sSkidData);
+#define sSkidData sSkidData_view
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)

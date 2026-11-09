@@ -1,33 +1,10 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TargetCollMineCylinder: N64 OverlapTarget (arcade game/targets.c OverlapTarget(slot, pos, radius, *dist)),
- * reached through a function pointer (no direct callers). Sibling of
- * TargetCollCylinder/TargetCollMineCylinder (identical bodies except the upper height limit: 18.0f / 4.0f).
- *   returns 0 unless model[slot].collidable (D_8014A250, 0x808-byte MODELDAT, +0x7EA);
- *   copies pos into a local array (veccopy), vec = game_car[slot].RWR - pos (vecsub);
- *   N64 change: the distance test is horizontal only (x, z); radius += CAR_RADIUS (3.5f);
- *   gap = dsq - radius^2, stored through dist when non-null; returns 0 when gap > 0;
- *   N64 addition: then requires -2.0f < vec[1] < 4.0f.
- * slot and radius arrive by pointer (first s16 of the record / f32 *).
- * Shaping quirks: `gc = gGameCar; gc += slot;` (not &gGameCar[slot]) -- the typed
- *   &array[i] form gives ugen a .noalias for the car pointer and as1 then hoists the RWR loads
- *   above the local-array stores; vec is declared before p (p at sp+0, vec at sp+12); the dot is
- *   written x*x + z*z.  Also MATCH at -O2.  Whole-program unit: EQUAL.
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
-typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef struct GameCar {
     u8 pad0[8];
     f32 RWR[3];             /* 0x08 */
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
 } GameCar;                  /* 0x3B8 */
-
-typedef struct ModelDat {
-    u8 pad0[0x7EA];
-    s8 collidable;          /* 0x7EA */
-    u8 pad7EB[0x808 - 0x7EB];
-} ModelDat;                 /* 0x808 */
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */

@@ -1,16 +1,6 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Initialize a one-message synchronization queue once, then reset a state byte.
- * N64-specific adaptation using libultra queues. No direct arcade equivalent is
- * established; the Rush The Rock reference checkout is unavailable here.
- *
- * The named initialized value is the actual byte written to the guard. Its
- * local lifetime preserves the native IDO O2 address/constant scheduling.
- * No extra operation, argument, helper, volatile access or stack pad is used.
- */
-typedef signed char s8;
-typedef int s32;
-typedef void *OSMesg;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct {
     void *mtqueue;
     void *fullqueue;
@@ -22,10 +12,11 @@ typedef struct {
 
 void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern s8 text_lock_inited;
-extern s8 gFontIndex;
-extern OSMesgQueue text_lock_queue;
-extern OSMesg text_lock_msg;
+
+VIEW(OSMesgQueue, text_lock_queue);
+#define text_lock_queue text_lock_queue_view
+VIEW(OSMesg, text_lock_msg);
+#define text_lock_msg text_lock_msg_view
 
 void HAL_InitText(void)
 {

@@ -1,50 +1,11 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * visuals.c (MAT3 GameSource/src/visuals.c), N64 game code:
- *   entity_tick_main  0x800930A4, 671 words = AnimateRocketFlame (GC 0x80055C3C, static; slot arrives in s5)
- *   drone_ai_update   0x80093B20, 820 words = AnimateFrame       (GC 0x8005667C, static; tVisual callback)
- *   GetCarsIRColor    (GC 0x800563B0) and ZOID_SetObjectDef are inlined into AnimateFrame; they are written
- * non-static and kept off the keep list so their deleted-procedure stubs carry a symbol.
- * Built on (MAT3 Rocket/Frame
- * bodies, N64 field offsets, gTrackBaseColors as s32, 4 palette samples at 0x344) and the first pass.
- * MATCH in group visual_tire_module and in the whole-program unit.
- *
- * N64 differences from the GC body: no per-camera Show/Hide pass in AnimateRocketFlame; no trim (tobj) or
- * body-type-3 extra part (eobj), no rear-view test and no IR colour smoothing (weights) in AnimateFrame.
- * Shaping levers (each measured):
- *  - GetCarsIRColor: the palette table expression gTrackColors[gTrackNum] is used directly (one CSE web, a3),
- *    four index variables declared after a per-channel sum variable (v0), blend through unsigned a/b.
- *  - PickCar is declared int as in MAT3 (`int PickCar`): gives retail's beq operand order.
- *  - `tex` names ObjInstanceList[hobj].index (retail keeps it in v1 ahead of the branch).
- * - `if (car->lightIdx) {}` (compiled out, no code) before ZOID_ObjectFlags(hobj): a read holder
- *    that lets uopt PRE load the camera ahead of the index test and reload it after ZOID_SetObjectDef's
- *    store, as retail does; the camera web then interferes with tex and takes a3 (oracle: p1:w505=c6).
- * Unused locals (exact frame residuals only; each named local takes a 4-byte slot, inlined callee
- * locals/params follow the caller's in call order):
- *  - entity_tick_main: retail frame 368; named offsets flames 344..352, clr 340, scale1 336, pos 324..332
- *    (the GC's unreferenced `float r` has no slot). Without u1..u6 the frame is 344 with every named local
- *    24 B low; u1..u6 (6 x 4 B, below b) reproduce every offset.
- *  - drone_ai_update: retail frame 400; hulk 396, slot 392 (s16; a 2-byte slot above it: u0), def 380,
- *    hobj 372, sobj 360, clr 356, sclr1 352, sclr2 348, nextclr 332; inline GetCarsIRColor clr 308,
- *    sclr2 300, rgb 296. tobj/eobj (MAT3 donor names, unused on N64) fill 368/364; rear/u5 fill 340/336
- *    beside tex 344; in GetCarsIRColor u6 (304) and u8..u11 (four slots below its locals).
- *    Without these ten fillers (u0 is 2 bytes) the frame is 368 and 82 words differ, every one a stack
- *    immediate (aligned rows normalised: 0); without u1..u6 entity_tick_main differs in 47 stack words.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 float sqrtf(float);
 float fabsf(float);
 #pragma intrinsic (sqrtf)
 #pragma intrinsic (fabsf)
 
-typedef union {
+typedef union Color {
     u8 b[4];
     u32 w;
 } Color;
@@ -135,51 +96,24 @@ typedef struct Entity {
     /* 0x14 */ intptr_t field14;
 } Entity;
 
-extern ModelSlot ObjInstanceList[];
-extern CarModels gCarParts[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern s32 rand_seed;          /* rng state */
-extern Color D_8011B464;
-extern s32 gGameState;
-extern s8 gInvisibleCar;
-extern s8 gCarMines;
-extern s8 gFogIntensity;
-extern volatile u8 gNumModels;
+VIEW(ModelSlot[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(CarModels[], gCarParts);
+#define gCarParts gCarParts_view
 
-extern s8 gTrackNum;
-extern s16 gNumWindows;
-/* The scene's object definitions by kind: three a car slot from 1, the mine a car shows at 236 (MAT3
- * gObjList[550]). */
-extern u16 gObjList[];
-extern u8 car_mine_model_name[];
-extern u8 *gTrackColors[];        /* palette base per track */
-extern s32 gTrackBaseColors[];         /* stride 4 */
-extern s32 SheenColors[][2];
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
 
-void MBOX_HideObject(s32, s32, u32);
-void MBOX_ShowObject(s32, s32, u32);
-s32 CheckVisible(Entity *,s32,s32);
-void CopyUV(f32 *, f32 *);
-void ScaleUV(f32 *, f32 *, f32);
-void SetFrameColor(s16, u32 *);
-void SetSheenColor(s16, Color *, Color *);
-int PickCar(s16, u8);
-s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
+VIEW(volatile unsigned char, gNumModels);
+#define gNumModels gNumModels_view
 
-f32 Random(f32 max);
+VIEW(unsigned char *[], gTrackColors);
+#define gTrackColors gTrackColors_view
+
+VIEW(s32[][2], SheenColors);
+#define SheenColors SheenColors_view
 
 Node *ZOID_FindMatrix(s16 objnum);
-
-void ZOID_SetColor(s16 objnum, Color *color);
-
-void AnimateRocketFlame(s16 ipa_s5, s32 flag);
-
-/* ZOID_SetObjectDef (inlined on the N64: this file had a second copy of it), ZOID_ObjectFlags, ZOID_SetObjectFlags */
-void ZOID_SetObjectDef(s16 objnum, u16 def);
-u32 ZOID_ObjectFlags(s16 objnum);
-
 
 /* GetCarsIRColor: N64 form (no colour smoothing); inlined into AnimateFrame. */
 Color GetCarsIRColor(Car *car, CarState *m)

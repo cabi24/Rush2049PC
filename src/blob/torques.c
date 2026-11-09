@@ -1,18 +1,5 @@
-/* torques: sum tire and body torques, apply airborne controller
- * correction, and add the center moment.
- * Arcade: reference/repos/rushtherock/game/drivsym.c:torques;
- * vector spelling from reference/repos/rushtherock/game/vecmath.h.
- * N64 uses its vertical Y axis, parameter-held tire arms, and an added
- * per-player airborne steering correction. Tier: portable physics with
- * native field layout adaptation.
- * Exact flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul.
- * Ordinary O3 also matches; no helper, local-pool, or hidden ABI dependency.
- */
-typedef float f32;
-typedef int s32;
-typedef short s16;
-typedef signed char s8;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef f32 Vec3[3];
 typedef struct Model { u8 pad[16]; f32 x, y; } Model;
 typedef struct Player { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; Model *model; u8 rest[52]; } Player;
@@ -48,9 +35,7 @@ typedef struct State {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-extern s32 gRace;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gMirrorWaves;
+
 /* Native Y is the arcade vertical Z; vectors follow native axes.
  * Arcade ancestry: drivsym.c:torques, vecmath.h vector macros.
  * N64 adds four-body unrolling and controller correction. */

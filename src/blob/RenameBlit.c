@@ -1,20 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * RenameBlit: N64 RenameBlit (arcade LIB/blit.c, pasted). Stores the new name; with
- * `preserve` it looks the texture up again and keeps the blit's other state, otherwise it
- * re-initialises the blit with InitBlit. Either way the blit is then
- * pushed to the display with UpdateBlit.
- * The arcade MBOX_FindTexture(name, &idx) is inlined here as MBOX_FindTexture_Sub
- * (MBOX_FindTexture_WORK) with lo 0, hi = table count - 1 and err MBOX_WARN (retail stores 1 in the
- * fifth outgoing slot, as in InitBlit). The arcade `if (!ti) FatalMsg(...)` is compiled out;
- * the empty `if` is kept for fidelity (the bytes are the same without it).
- * Matches at -O3 only (-O2 keeps blit in s0 with a 40-byte frame).
- */
-typedef unsigned short u16;
-typedef signed short s16;
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed int s32;
+#include "game/game.h"
 
 typedef struct TexDef {
     char name[16];
@@ -37,12 +21,9 @@ typedef struct Blit {
 
 #define MBOX_WARN 1
 
-extern u8 default_blit_image[];
-extern volatile u8 gNumModels; /* MBOX texture-table count */
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 extern TexDef *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
-
-extern void InitBlit(Blit *blit);
-extern void UpdateBlit(Blit *blit);
 
 void RenameBlit(Blit *blit, char *name, s32 preserve) {
     TexDef *ti;

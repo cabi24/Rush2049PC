@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* Tire load and polynomial-coefficient setup, 0x800D08E4..0x800D09E8.
  * Historical target label retained; this is not a track-preview renderer.

@@ -1,49 +1,27 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* controls_updateButtons = updateButtons@controlscr.c (proven), not name entry; source not
- * original-source recovery. Genuine D91A0 caller and D8154 predicate retained.
- * Stock IDO 5.3: strict MATCH, 699 words; frame232 and owned literals agree.
- * Group/private ABI only: caller D91A0 remains nonmatching; no install claim.
- *
- * Disclosed shaping: four unused scalar homes (span, distance, current_y,
- * frame_residual3), 16 bytes total; deleting all four gives frame216 and
- * 20/699 differences. Three are historical carrier slots after their values
- * were restored to repeated expressions. Five compiled-out reads below set
- * constant/index/spacing/count web priorities; no original spelling is asserted.
- * The first-loop count increment follows the conditional before increment.
- * as1 hoists it and leaves a distinct empty target block, preventing the second
- * branch delay-copy. The following no-code count read restores its priority.
- * D8002EB94 and D80140BDC volatile views follow accepted sibling interfaces
- * and native repeated reads, not proof of asynchronous writers. See RESULTS.
- */
-typedef signed char s8; typedef unsigned char u8;
-typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
-extern Item controls_buttonInfo[4][17];
-extern Node ObjInstanceList[];
-extern f32 unitmatrix[3][3];
-extern volatile f32 gFrameSeconds;
-extern f32 controls_gButtonScale,controls_gButtonSpace,controls_buttonX,controls_maxY,controls_minY,controls_buttonZ,controls_cursorZ;
-extern s32 controls_buttonsInited[],controls_buttonsJustInited[],controls_updateButtonColor;
-/* PC: the button colour controls_updateButtonColor is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared;
- * PC_RGBA gives back the word whose bytes the alpha store and the scene node's colour expect (docs/port/ENDIAN.md). */
-extern f32 controls_cursorSpeed[],controls_scrollSpeed[];
-extern s16 gControlSelect[];
-extern volatile u8 gNumModels;
-extern char controls_selected_texture_name[],controls_unselected_texture_name[];
-void ScaleUV(f32[3][3],f32[3][3],f32);
-s32 controls_validOption(s8,s32);
+VIEW(Item[4][17], controls_buttonInfo);
+#define controls_buttonInfo controls_buttonInfo_view
+VIEW(Node[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
 void ZOID_SetTexture(s16,intptr_t,s32);
 typedef struct NameEntry NameEntry;
 NameEntry *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
-void WPitchUV(f32,f32[3][3]);
-void WRollUV(f32,f32[3][3]);
+
 void *memcpy(void *,const void *,u32);
-void MBOX_HideObject(s32,s32,u32);
-void MBOX_ShowObject(s32,s32,u32);
+
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 #define PI 3.1415927f

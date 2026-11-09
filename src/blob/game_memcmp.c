@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;typedef signed short s16;typedef unsigned short u16;typedef int s32;typedef unsigned int u32;typedef float f32;
+#include "game/game.h"
+
 s32 game_memcmp(void *memory,u8 *right,s32 count) {
  if(count!=0) {
   u8 *left=memory;

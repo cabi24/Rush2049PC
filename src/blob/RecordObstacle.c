@@ -1,19 +1,19 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;typedef signed char s8;typedef unsigned short u16;typedef signed short s16;typedef float f32;
+#include "game/game.h"
+
 typedef struct Resource {u8 *data;} Resource;
 typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 index,selector;u8 opaque[62];u16 count;u8 rest[6];Handle *handle;} Player;
 typedef struct Model952 {u8 opaque[240];f32 time;u8 rest[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 rest_308[0x380 - 0x308]; void *input; u8 rest_384[0x3B8 - 0x384];} Model952;
 typedef struct Stats24 {int unknown;f32 minimum,total;u16 count,finished,sum,enabled,enabled_finished;u8 tail[2];} Stats24;
-extern s8 gTrackNum,gDeathMode;
-extern s16 gNumPlayers;
+
 extern Player gPlayers[];
-extern Object *gJustPlayers[];
-extern u8 gLap[];
-extern Stats24 gTotalObstacleStats[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern void SavePlayerStats(Handle *,u8);
+VIEW(Object *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
+VIEW(Stats24[], gTotalObstacleStats);
+#define gTotalObstacleStats gTotalObstacleStats_view
+
 void RecordObstacle(void) {
  int player,which,table=gTrackNum-18;
  Player *record;

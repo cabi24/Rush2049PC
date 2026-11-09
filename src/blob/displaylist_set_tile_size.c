@@ -1,4 +1,5 @@
-typedef signed int s32;typedef unsigned int u32;typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Command {u32 first,second;} Command;
 /* PC: the WAD's TXLD lists stay in N64 form, 8-byte big-endian commands (port/assets/wad.c). */
 #define DLW(w) pc_be32_get(&(w))

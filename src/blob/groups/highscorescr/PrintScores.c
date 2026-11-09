@@ -1,21 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_800F0914 = GC `_PrintScores` (highscorescr.c, confident pair): fills the five high-score rows
- * of the current track/table. Empty rows (-1) get a random default name and a time derived from the
- * track's default start time (seed = defTime * 6969); otherwise the name comes from the temp-name table
- * (index 0..20) or the player record (+0x14), and the time from gTotalRaceStats[track].scores[table][i].
- * Then the title pane (GC namePanes+0x1b0, N64 BlitPtrs+0x228) is resized around the table's title.
- * Internal (no callee saves); real callers updateHighScoreScreen and func_800F1210. Rand_r (seeded_rand) and
- * HAL_SetFont (font switch) are locked and inlined by umerge. No shaping devices.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
 typedef struct Player {                 /* GC struct __anon_3bdf (0x4c) */
     void *next, *prev; void *fileh; u32 id[2];   /* the profile's host layout (pc_prelude.h) */
@@ -28,34 +11,24 @@ typedef struct RaceStats {              /* GC struct __anon_2dfd (0x60) */
 } RaceStats;
 typedef struct TextIndices { u8 other[54]; u16 tableNames; } TextIndices;
 typedef struct TextState { void *word0; char **fixed; void *word8; TextIndices *indices; char **strings; } TextState;
-typedef struct ScoreScreen { u8 other[0x228]; void *titlePane; } ScoreScreen;
 
-extern s8 gBackwards;
-extern s8 gTrackNum;
-extern s8 gTable;
-extern s16 gThisTrack;
-extern Player **gTotalNames[][3][5];     /* gTotalNames */
-extern RaceStats gTotalRaceStats[];          /* gTotalRaceStats */
-extern f32 gDefStartTimes[];                /* gDefStartTimes */
-extern char *gDefaultNames[];              /* gDefaultNames (55 on N64) */
-extern char gTempNames[][13];           /* gTempNames */
-extern char gScoreTimes[5][10];          /* score strings */
-extern char *gScoreNames[5];             /* name pointers */
-extern void *scorePanes;              /* GC namePanes title pane */
-extern TextState gText;
-extern OSMesgQueue text_lock_queue;
-extern char default_score_time_format[], score_time_format[];
+VIEW(Player **[][3][5], gTotalNames);
+#define gTotalNames gTotalNames_view
+VIEW(RaceStats[], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+
+VIEW(char[5][10], gScoreTimes);
+#define gScoreTimes gScoreTimes_view
+VIEW(char *[5], gScoreNames);
+#define gScoreNames gScoreNames_view
+VIEW(void *, scorePanes);
+#define scorePanes scorePanes_view
+VIEW(TextState, gText);
+#define gText gText_view
 
 extern void sprintf(char *, char *, ...);
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32);
-extern s32 HAL_SetFont(s32);          /* font_set wrapper, locked (credits_scroll_grp) */
-extern s32 HAL_GetTextWidth(void *, s32);
-extern s16 TB_GetFontLineHeight(void);
-extern void ChangePaneSize(void *, s32, s32, s32, s32);
 
-extern s32 seeded_rand(u32 *seed);   /* rand_r, locked, inlined by umerge */
+extern void ChangePaneSize(void *, s32, s32, s32, s32);
 
 void PrintScores(void)
 {

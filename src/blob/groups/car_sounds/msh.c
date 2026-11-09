@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * UpdateBumps (0x800DEF68, 2976 B): EQUAL (744 words) in the whole-program unit, with its real
@@ -26,11 +28,7 @@
  */
 #ifndef ROOT_IMPACT_SOUND_H
 #define ROOT_IMPACT_SOUND_H
-typedef signed char s8;typedef unsigned char u8;
-typedef signed short s16;typedef unsigned short u16;
-typedef int s32;typedef unsigned int u32;typedef float f32;
-typedef struct Impact24 {f32 force;f32 vector[3];f32 timestamp;s32 flag;} Impact24;
-typedef struct Impact120 {Impact24 point[5];} Impact120;
+
 typedef struct AudioModel2056 {
     u8 to_body_force[196];f32 body_force[4][3];
     u8 to_center_force[60];f32 center_force[3];
@@ -39,22 +37,17 @@ typedef struct AudioModel2056 {
     s8 collision_kind,last_collision_kind;s16 collision_direction;
     u8 to_player[384];s16 player;u8 tail[64];
 } AudioModel2056;
-extern Impact120 gBump[];
-extern volatile f32 gSeconds;
-extern f32 gBumpTime[],gScrapeTime[],gThumpTime[];
-extern s32 rand_seed,gScrapes[],gGameState;
-extern s16 gBumpLRTab[],gBumpFBTab[],gScrapeState[];
-void GetForceAndPeak(s16,s32,f32*,f32);
-void InitBumps(s16);
-u32 AudPlayEffectVP(u32,u32,u32,u8,f32,f32,f32);
-void AudStopEffect(s32);
-f32 Random(f32 max);
+
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
+
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 #endif
 
-
-void CheckForces(AudioModel2056 *m);
 #define range(a,b,c) ((a<b)?b:((a>c)?c:a))
 
 void UpdateBumps(AudioModel2056 *m) {

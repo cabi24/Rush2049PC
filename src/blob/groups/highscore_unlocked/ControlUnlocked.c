@@ -1,32 +1,17 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct InputRecord {
     u8 pad00[4];
     s32 unk04;
     u8 pad08[0x48 - 0x8]; void *ref;
 } InputRecord;
 
-extern s16 gNumPlayers;
-extern s32 gRace;
 extern InputRecord gPlayers[];
-extern s8 gStuffUnlocked[];
-extern s8 circuitCode;
-extern s8 *namePanes[];
-extern s32 gHighScoreState;
-extern intptr_t highscore_blit;
 
-void RemovePane(s8 *arg0);
+VIEW(s8, circuitCode);
+#define circuitCode circuitCode_view
+
 s32 CountdownTimeOut(s32 arg0);
-void PlayStartABSound(s32 arg0);
-void RemoveBlit(s32 arg0);
-
-extern s8 *codePane;
-extern s8 *ghostPanes[3];
-
-void SetHighScoreState(s32 mode);
 
 void ControlUnlocked(void)
 {

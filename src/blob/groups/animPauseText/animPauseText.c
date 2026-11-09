@@ -1,26 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animPauseText (0x8010B7FC, 460 B): menu page listing 8 language strings (StrTable strings[lang + i + 1]) centred
- * on pause_titlePos[0], starting at pause_titlePos[1] + 2 line heights, selection pauseMenuSelect in colour 22; font 13 then 10.
- * Levers: TB_CenterText inlined (GC TB_text.c; the family's narrowing-through-temp residual) 42 -> 2 words;
- * `y = pause_titlePos[1] + TB_GetFontLineHeight() * 2` operand order (ugen ring t6 = the shift) -> EQUAL.
- * Body otherwise (item_refresh returns the dirty flag, kept in v1 by retail).
- * MATCH in group / unit EQUAL. Shaping (disclosed): inlined helpers gfx_lock, gfx_unlock, font_set, item_refresh, TB_CenterText (non-static *_B7FC);
- * gfx_lock/gfx_unlock definitions placement as in (as1 line tie).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
-/* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
- * layout (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
- * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
-typedef struct {
+typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
     s16 X, Y;
@@ -42,23 +22,11 @@ typedef struct {
     intptr_t *strings;
 } StrTable;
 
-extern OSMesgQueue text_lock_queue;
-extern s16 pause_titlePos[2];
-extern s32 pauseMenuSelect;
-extern StrTable gText;
+VIEW(s16[2], pause_titlePos);
+#define pause_titlePos pause_titlePos_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void UpdateBlit(void *);
-void HAL_SetTextDepth(f32);
-s16 TB_GetFontLineHeight(void);
-u32 HAL_GetTextWidth(void *, s32);
-void TB_SetTextColor(s32);
-void TB_DrawText(s16, s16, void *);
-
-
-
+VIEW(StrTable, gText);
+#define gText gText_view
 
 s32 item_refresh_B7FC(MenuItem *item)
 {
@@ -69,9 +37,6 @@ s32 item_refresh_B7FC(MenuItem *item)
     return item->dirty;
 }
 
-
-s32 HAL_SetFont(s32 fontID);
-s16 TB_CenterText(void *text, s16 centerX);
 s32 animPauseText(MenuItem *item) {
     s32 i;
     s32 x;

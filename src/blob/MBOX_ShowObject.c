@@ -1,30 +1,9 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * MBOX_ShowObject: "show object" on the scene-object table (the twin of
- * MBOX_HideObject, which hides).  Shape of the arcade MBOX_ShowObject modes
- * (MB/mb_util.h: SHOW_ALL 0, SHOW_EACHCHILD 1, SHOW_RECURSIVE 2; no body in the
- * reference tree) with an N64 per-viewport mask v: clear the hidden bit
- * 0x80000000 and the mask bits (v << 8) of object record ObjInstanceList[a]
- * (0x44 bytes: flags@0, child@0x16, sibling@0x18).  Mode 1 shows the root and
- * then its children recursively (IDO turns the call into a jump back to the
- * top); mode 2 walks the sibling chain, recursing into children.  The second
- * `mode == 0` arm is dead (copied from the hide routine's HIDE_ONLY) but IDO
- * keeps it.
- *
- * Shaping: a compiled-out diagnostic after the flag update in the two
- * child-walking arms (`if (a < 0) DEBUG_PRINT(...)`; the condition is not
- * recoverable -- any test of a or t gives the same code).  It ends the basic
- * block before the child load, so the child web no longer shares a block with
- * the incoming index and takes a0 directly (no `move a0,a3`), and it lowers the
- * priority of the 0x80000000 constant web so that `1` takes v1 and 0x80000000
- * takes a2 (uopt trace: save 5.5 vs 5.0 before).  Read index (s16)a, write
- * index a, as in MBOX_HideObject.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child; s16 sibling; s16 mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Ent;
-extern Ent ObjInstanceList[];
+VIEW(Ent[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 #define DEBUG_PRINT(args)
 

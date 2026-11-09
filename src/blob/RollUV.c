@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_8009EA68 — arcade RollUV(angle, uv): columns uv[0][i]/uv[1][i], epsilon 0.0001f (N64 change); arcade signs.

@@ -1,24 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AllocateMemoryHeapHigh (0x800CC3C0; the name is a historical label): allocate from the END of a game
- * heap under the heap lock: round size to 32, walk heap->last backwards for the first free block
- * that fits (tracking total/largest free like AllocateMemory), split its tail off as the new block
- * when the remainder is >= 64 bytes, mark used (owner 0, tag 0), return the data pointer.
- * Mirror image of AllocateMemory in src/blob/groups/memsys (same Block/Heap layout).
- *
- * Shaping quirk: the dead reassignment `bs = b->size;` right after computing n. It kills the
- * availability of n's defining expression (b + bs - size), so uopt does not copy-propagate it into
- * the two link blocks; n stays one web (a0), the post-loop load keeps v1, and both osJamMesg zero
- * arguments are hoisted as in retail. `bs -= size;` in the same place also matches. Found with the
- * traced uopt (force n=a0 / load=v1 on a variant reproduced retail first). Earlier residual
- * (14/83, ~300 variants) was exactly this copy-propagation split of n.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
 enum n64p_void { n64p_void_ };
@@ -42,8 +24,9 @@ typedef struct Heap {
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 typedef struct OSMesgQueue OSMesgQueue;
-extern Heap *gMainHeap;
-extern OSMesgQueue heap_lock_queue;
+
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 

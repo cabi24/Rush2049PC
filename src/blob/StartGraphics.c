@@ -1,29 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * attract_or_transition (0x800EDDC0, 2,076 B), historical label: per-frame display-list prologue. Selects the
- * frame-buffer record frame_records[frame_record_index] (128-byte records shared with the matched ClearScreen; volatile
- * s8 index), sets the command buffer (frame_dynamic/frame_matrix_cursor, frame_dl = +0x9CC0), then segment 0, two static
- * display lists, the depth image, a FILL-cycle clear of the depth buffer (0xFFFC) and of the colour buffer
- * (gBgColor), the split-screen divider bars by ZOID_SplitMenuScreen(0)'s layout (1: 3/4-width panes, 2: halves,
- * with the 4th quadrant blanked for 3 players), texture filter and colour dither from the options
- * (video_texture_filter, video_color_dither), VI dither filter / divot from video_dither_filter / video_divot, then BlitInit and
- * world_trigger_check. N64-only (no arcade or GC counterpart: correlation has only weak immediate leads).
- * , from 's command list rewritten with the SDK GBI macros (copied from the
- * matched sibling ClearScreen's local definitions plus the F3DEX2 gSPSegment/gSPDisplayList/gDPSetDepthImage/
- * gDPSetCycleType/gSPSetGeometryMode/gDPSetTextureFilter/gDPSetColorDither forms). No shaping devices.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -117,11 +93,6 @@ typedef union {
 }
 #define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, word)
 
-/* PC: the native OSScTask's shape, pointer fields where it has them (N64 0x58 bytes, host 0xA0) */
-typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
-                 void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
-                 void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
-                 void *msgQ; void *msg; } PcScTaskShape;
 typedef struct {
     PcScTaskShape task;
     u8 *commands;      /* 88 */
@@ -129,28 +100,25 @@ typedef struct {
     void *colorBuffer; /* 124 */
 } FrameBuf;
 
-extern Gfx *frame_dl;
-extern s32 screen_width;
-extern s32 screen_height;
-extern volatile s8 frame_record_index;
-extern FrameBuf frame_records[];
-extern u8 *frame_dynamic;
-extern u8 *frame_matrix_cursor;
-extern Gfx rsp_init_dl[];
-extern Gfx rdp_init_dl[];
-extern void *zbuffer;
-extern u32 gBgColor;
-extern s16 gNumWindows;
-extern s32 video_texture_filter, video_color_dither, video_dither_filter, video_divot;
+VIEW(Gfx *, frame_dl);
+#define frame_dl frame_dl_view
+
+VIEW(FrameBuf[], frame_records);
+#define frame_records frame_records_view
+VIEW(u8 *, frame_dynamic);
+#define frame_dynamic frame_dynamic_view
+
+VIEW(Gfx[], rsp_init_dl);
+#define rsp_init_dl rsp_init_dl_view
+VIEW(Gfx[], rdp_init_dl);
+#define rdp_init_dl rdp_init_dl_view
+
 u32 osVirtualToPhysical(void *);
 void osViSetSpecialFeatures(u32);
 #define OS_VI_DIVOT_ON 0x0010
 #define OS_VI_DIVOT_OFF 0x0020
 #define OS_VI_DITHER_FILTER_ON 0x0040
 #define OS_VI_DITHER_FILTER_OFF 0x0080
-s32 ZOID_SplitMenuScreen(s32);
-void BlitInit(void);
-void HAL_StartText(void);
 
 void StartGraphics(void) {
     u32 color;

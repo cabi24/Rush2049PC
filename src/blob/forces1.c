@@ -1,8 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Vec3 {float x,y,z;} Vec3;
 typedef struct Basis {Vec3 rows[3];} Basis;
 typedef struct Parameters {float values[40];} Parameters;
@@ -21,14 +18,9 @@ typedef struct VehicleModel {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-typedef struct GameCar {u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x35A - 0x308];s8 disabled;u8 tail[0x380 - 0x35B]; void *input; u8 tail_384[0x3B8 - 0x384];} GameCar;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gWind,gSpecialTires,gCarWings[][13];
-extern float D_801243CC,D_801243D0,D_801243D4;
-extern float rear_dirt_drag_factor,rear_water_drag_factor,offroad_tires_drag_factor,gWingDrag[];
-extern void calctireuv(Vec3 *,Vec3 *,Vec3 *,float,Basis *,Basis *,Basis *,Vec3 *);
+
 extern void dotireforce(VehicleModel *,Vec3 *,Basis *,void *,float,Vec3 *,float,float,float,float,float,float,int,float);
-extern void MovingSurfaceForce(VehicleModel *);
+
 void forces1(VehicleModel *vehicle)
 {
  /* Original forces1 declarations from drivsym.c; the N64 game-over

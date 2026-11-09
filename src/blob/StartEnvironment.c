@@ -1,21 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * StartEnvironment (0x800B1B48, 248 words) = StartEnvironment, MAT3 visuals.c (GC 0x80055404). (The
- * correlation row's StartArrow is right only for the inlined second half.) Two passes over the six cars:
- * CreateCar + StartCar for every car in the game, then StartShadow and,
- * with more than one player and a human-owned car, StartArrow. Both static starters are inlined, as is
- * ZOID_SetPolyZ (N64 sets z = 1; GC 10000). N64 StartShadow is the poly part only (visuals[11], AnimateShadow =
- * AnimateShadow, gShadowColor alpha 192, gTexList[6]); the GC packed-shadow strips do not exist on N64.
- * Levers: the StartShadow flag word as an OR chain `(... ? 1 : 15) | 0x200 | 0x8000` (retail ori/ori);
- * `if (i == slot) continue;` in StartArrow's window loop (the GC `if (i != slot) {...}` form leaves the
- * gNumWindows reload after the division trap code and swaps the car base v1/a0: 20 words).
- * Unused locals (exact frame residual): StartShadow keeps the GC donor locals i, vv, shadow1-3 (no N64 use)
- * plus u0/u1, StartArrow u2. Retail frame 160 with StartArrow's slot home at 114 and clr at 96; without the
- * eight fillers the frame is 128 (13 words differ, all stack immediates; aligned rows normalised 0).
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tVisual {
@@ -28,36 +11,24 @@ typedef struct tVisual {
     float timeStamp;            /* 0x10 */
     void (*func)(struct tVisual *, s16);   /* 0x14 */
 } tVisual;
-/* PC: the view counts the car's visuals from 0xF8, one before the first (+0x110). Visuals are 0x20 bytes on
- * the PC, so that fake one can't stay in place: the PC view starts at the first, and VISUAL(n) is n - 1. */
-typedef struct tCarData { u8 pad0[0x110]; tVisual visuals[21]; u8 pad308[0x380 - 0x308]; void *input; u8 pad308_384[0x3B8 - 0x384]; } tCarData;
-#define VISUAL(n) ((n) - 1)
-typedef struct tModelData { u8 pad0[0x7C8]; s16 in_game; u8 pad7CA[0x808 - 0x7CA]; } tModelData;
-typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; } tPoly;
-typedef struct tLink { u8 pad0; u8 car; u8 pad2[5]; u8 owner; } tLink;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 gModelTime;
-extern tRGBA gShadowColor;
+#define VISUAL(n) ((n) - 1)
+
+typedef struct tPoly { s16 nverts; u16 flags; u16 texidx; s16 z; u8 verts[80]; } tPoly;
+
+VIEW(tRGBA, gShadowColor);
+#define gShadowColor gShadowColor_view
 extern f32 gDummyVtx[4][3];            /* gDummyVtx */
-extern u16 gTexList[];                /* gTexList */
-extern tPoly PolyInstanceList[];              /* PolyInstanceList */
-extern u32 gGameState;
-extern tRGBA arrowColors[5];             /* arrowColors */
-extern s8 gCarTeam[];                 /* gCarTeam */
-extern s32 gRace;
-extern s16 gNumWindows;
-extern s16 gNumPlayers;
+
+VIEW(tPoly[], PolyInstanceList);
+#define PolyInstanceList PolyInstanceList_view
+
+VIEW(tRGBA[5], arrowColors);
+#define arrowColors arrowColors_view
+
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
-void CreateCar(s16 slot, s16 camlink, int for_game);
-void StartCar(s16 slot);
 tPoly *ZOID_NewPoly(int nverts, f32 (*xyz)[3], u16 texidx, tRGBA *color, u16 flags, int useTidx);
-void AnimateShadow(tVisual *v, s16 op);
-void AnimateArrow(tVisual *v, s16 op);
-
-void ZOID_SetPolyZ(tPoly *poly, s16 z);   /* the game's own ZOID_SetPolyZ (this file had a static copy: the same code) */
 
 static void StartShadow(s16 slot)
 {

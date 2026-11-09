@@ -1,51 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: claims three deleted-inline stubs, in the post-order the IPA layout uses
- * (updateRecordScreen's calls visited last first): updateViewButtons = updateViewButtons (the helper formerly named
- * recordscr_updateViewButtons, renamed after its stub), controlView = controlView (case 1 of updateRecordScreen
- * moved verbatim into a helper; MAT3 block-local step variables) and recordscr_uninitButtons = uninitButtons@recordscr.c
- * (the button loop of uninitRecordScreen uninitRecordScreen moved verbatim into a helper). Every old member MATCHes;
- * updateRecordScreen no longer needs its two unused residual slots or the `mode` carrier. */
-/* superseding revision: recordscr_updateButtons is now a claimed member, a direct typed port of MAT3
- * recordscr.c updateButtons + inlined updateViewButtons (see its header below).  The six old members are unchanged
- * and still MATCH; the only shared-declaration change is `extern volatile u8 gNumModels` (gNumModels; its other
- * user here is the context initRecordScreen, whose retail code also has the volatile lui/addiu/lbu 0(reg) form). */
-/* merge: revision as installed + (updateSelectButtons, recordscr_controlSelect) + (initRecordScreen,
- * recordscr_initButtons); each block is taken verbatim, shared declarations agree (volatile gNumModels/gFrameSeconds). */
-/* superseding revision: initRecordScreen (GC initRecordScreen@recordscr.c + inlined initButtons) is now a member, with its
- * deleted inlined-procedure stub recordscr_initButtons; see the header at the function. Every earlier member is unchanged. */
-/* Image A availability-screen input root, updateRecordScreen (1292 bytes).
- * Reconstructed from native targets; no proven arcade-source ancestor.
- * Complete genuine 923B0 renderer, 9338C input and 93B3C initializer are
- * nonmatching context. Their real IPA clobbers, particularly six FP save
- * pairs from the renderer, are required to reproduce the kept root's ABI.
- * The native mode read has its own s32 carrier. Two actual signed-byte
- * input steps retain separate homes; every root statement is inherited.
- * (the former SHAPING residual_slot0/residual_slot1 and the
- * `mode` carrier are gone. The 8 + 8 frame bytes they stood in for are
- * umerge's reservation for the inlined controlView call: case 1 is MAT3
- * controlView, now the non-kept helper controlView whose deleted procedure
- * is the retail stub 0x803932D4. Root frame 128 with no unused locals.)
- * Earlier strict helpers are preservation members, with no new credit.
- * Context FP/data discrepancies remain unclaimed; root owns no data.
- * : adds members/claims updateSelectButtons = updateSelectButtons@recordscr.c (MAT3
- * GameSource recordscr.c, GC 0x80084f38) and recordscr_controlSelect = controlSelect@recordscr.c (GC
- * 0x80080874; replaces the earlier native-led context body), direct typed ports. The family is
- * MAT3 recordscr.c: 94058 updateRecordScreen (controlView inlined), 9338C controlSelect,
- * 93B3C initRecordScreen, 923B0 updateButtons (updateViewButtons inlined), 931C0 setRecordState.
- * gFrameSeconds gFrameSeconds and gNumModels gNumModels are volatile (MAT3 rush_protos.h).
- * SHAPING in updateSelectButtons: unusedA/unusedB are two unused s32 locals before prevPos (the same
- * two-slot residual as updateButtons@playerscr playerscr_updateButtons): retail frame 128, prevPos at sp+100;
- * without them prevPos is at sp+108 and the frame is 120. 2 slots, 8 bytes. No padding arrays.
- * 255.f / 255.0f are deliberately different spellings (one shared 255 web is hoisted into $f30
- * and spills buttonY); the type-11 x is `buttonX + 0 * gButtonScale` (int zero, as 94DD8).
- */
-/* Complete genuine A:931C0 -> {930B8,93004,92F28} call family. */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef float f32;
-extern s8 gRecordTrack;
-extern s32 gTrackType;
-extern s8 gRecordCircuit;
-extern s8 gViewMenuValid[];
-extern s8 gViewMenuVisible[];
+#include "game/game.h"
 
 void updateViewInfo(void)
 {
@@ -79,11 +32,6 @@ void updateViewInfo(void)
     }
 }
 
-extern s8 recordscr_gSelectMenuValid[];
-extern s8 recordscr_gSelectMenuVisible[];
-extern s32 recordscr_gNumPakPlayers[];
-extern s8 recordscr_gSelectPakIdx;
-
 void recordscr_updateSelectInfo(void)
 {
     unsigned int i;
@@ -113,11 +61,11 @@ typedef struct ListNode ListNode;
 typedef struct { ListNode *next, *prev; ListObject *object; unsigned char unknown0C[8]; char text[24]; void *flags2C; } ListPayload;
 struct ListNode { ListPayload *payload; };
 typedef struct { s32 prefix[2]; ListNode *head, *tail; } ListRoot;
-extern PlayerSlot gControllerData[];
-extern ListRoot gPlayerFiles;
-extern s32 PS_PakInserted(s32);
-extern s32 PS_PakDamaged(s32);
-extern s32 PS_PakRumble(s32);
+VIEW(PlayerSlot[], gControllerData);
+#define gControllerData gControllerData_view
+VIEW(ListRoot, gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+
 void recordscr_updatePakInfo(void) {
     s32 slot;
     ListNode *node;
@@ -139,21 +87,6 @@ void recordscr_updatePakInfo(void) {
         }
     }
 }
-
-void recordscr_updatePakInfo(void);
-void recordscr_updateSelectInfo(void);
-void updateViewInfo(void);
-extern s32 gRecordState;
-extern ListNode *gStatPlayer;
-extern s8 gDeleteConfirm;
-extern s8 gDeleteNotify;
-extern s8 recordscr_gYes;
-extern s8 gSelectMenuClear;
-extern s8 gRecordTrack;
-extern s32 gTrackType;
-extern s32 gViewStatType[];
-extern s8 gViewStatValid[][13];
-extern s32 recordscr_buttonsJustInited;
 
 void setRecordState(s32 mode)
 {
@@ -184,15 +117,12 @@ void setRecordState(s32 mode)
 
 /* Image A: complete 168-byte cleanup. Native clobbers s0-s2; standalone is research. */
 typedef struct { s32 fields[2]; f32 angle; f32 matrix[3][3]; f32 position[3]; u8 alpha; u8 remaining[3]; } MenuRecord;
-extern MenuRecord recordscr_buttonInfo[23];
-extern s32 recordscr_buttonsInited;
-extern void *recordscr_viewPane, *recordscr_blit;
-extern s8 recordscr_inited;
-extern void ZOID_RemoveObject(s16);
+VIEW(MenuRecord[23], recordscr_buttonInfo);
+#define recordscr_buttonInfo recordscr_buttonInfo_view
+
 extern void sound_handles_array_clear(void *);
 extern void RemoveBlit(void *);
-extern void removeBG(void);
-void recordscr_uninitButtons(void);
+
 void uninitRecordScreen(void) {
     recordscr_uninitButtons();
     if (recordscr_viewPane != 0) {
@@ -207,22 +137,6 @@ void uninitRecordScreen(void) {
     recordscr_inited = 0;
 }
 
-/* Full image-A entry root. Only witnessed fields and control flow are named. */
-extern s8 gSoftReset;
-extern s32 gActiveLevels, gActiveEdges, gActiveAutoEdges;
-extern s32 gViewMenuSelect;
-extern s8 gViewTrackValid[];
-extern void initRecordScreen(void);
-extern void recordscr_controlSelect(void);
-extern void recordscr_updateButtons(void);
-extern void setGameState(s32);
-extern void PlayLRSound(s32);
-extern void PlayUDSound(s32);
-extern void PlayStartABSound(s32);
-extern void PS_LockFile(ListObject *, s32);
-extern void PurgePlayerData(ListNode *);
-
-void controlView(void);
 void updateRecordScreen(void)
 {
     if (recordscr_inited == 0) {
@@ -252,22 +166,10 @@ void updateRecordScreen(void)
     recordscr_updateButtons();
 }
 
-extern s32 recordscr_gSelectMenuSelect;
-extern char gDeleteName[];
-extern ListNode gJustPlayers[4];
-/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
-typedef struct TextTables {
-    unsigned short numSingle; unsigned char **single;
-    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
-    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
-} TextTables;
-extern TextTables gText;
-extern s32 ClearPlayerRecords(ListNode *);
-extern s32 ReadPlayerData(ListNode *);
-extern void TB_Strcpy(char *, const char *);
-extern void ClearTotalStats(void);
-extern void AddPlayerStats(ListNode *);
-extern void AddPlayerScores(ListNode *);
+VIEW(char[], gDeleteName);
+#define gDeleteName gDeleteName_view
+VIEW(ListNode[4], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
 
 /* recordscr_controlSelect = controlSelect@recordscr.c (MAT3 GameSource recordscr.c, GC 0x80080874, size 0x788).
  * Direct typed port. Globals: recordscr_gSelectMenuSelect gSelectMenuSelect, recordscr_gSelectMenuValid gSelectMenuValid[11], gSelectMenuClear
@@ -494,53 +396,28 @@ void controlView(void)
     }
 }
 
-
-/* Complete initializer; slot geometry follows the witnessed 64-byte records. */
-typedef unsigned int u32;
 typedef struct { u8 red, green, blue, alpha; } Color4;
-extern Color4 recordscr_init_button_color;
-extern char *recordscr_buttonNames[];
-extern f32 unitmatrix[3][3];
-extern volatile u8 gNumModels;
-extern char recordscr_title_texture_name[], recordscr_cursor_texture_name[], recordscr_a_button_texture_name[], recordscr_b_button_texture_name[];
-extern struct pc_multiblit recordscr_mblit[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
-extern void particle_lifetime_set(void), ZeroCameras(void);
+
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(struct pc_multiblit[1], recordscr_mblit);
+#define recordscr_mblit recordscr_mblit_view
+extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
-extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
-extern s32 MBOX_NewObject(s32, f32 (*)[3], s32, u32);
-extern void ZOID_SetColor(s16, Color4 *);
+
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
-extern void MBOX_HideObject(s32, s32, s32), MBOX_ShowObject(s32, s32, s32);
+
 extern void *MBOX_FindTexture_WORK(char *, s16 *, s32, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
-extern void WPitchUV(f32, f32 (*)[3]), WRollUV(f32, f32 (*)[3]);
-extern void ScaleUV(f32 (*)[3], f32 (*)[3], f32);
+
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 extern void *NewMultiBlit(s16, s16, void *, s16);
-
-/* initRecordScreen = initRecordScreen@recordscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/recordscr.c, GC 0x8008077C)
- * with initButtons@recordscr.c (GC 0x80084A5C) inlined; direct typed port. The caller-less `jr ra; nop` at 0x80393B34
- * is the deleted procedure of the inlined initButtons: it is defined here as the non-static recordscr_initButtons (not on keep, so
- * uld/umerge inline it exactly as a static) so that its stub carries a symbol and cannot be counted as extra words of a
- * neighbouring member (packaging rule). Names: gSelectMenuSelect recordscr_gSelectMenuSelect, gStatPlayer gStatPlayer,
- * setRecordState setRecordState, createBG particle_lifetime_set, buttonInfo recordscr_buttonInfo (23 x 64 B), buttonNames recordscr_buttonNames,
- * MBOX_NewObject MBOX_NewObject, MBOX_FindObject_WORK MBOX_FindObject_WORK, ZOID_SetColor ZOID_SetColor, MBOX_HideObject
- * MBOX_HideObject, MBOX_ShowObject MBOX_ShowObject, MBOX_FindTexture_WORK MBOX_FindTexture_WORK, ZOID_SetTexture ZOID_SetTexture,
- * WPitchUV/WRollUV WPitchUV/WRollUV, ScaleUV ScaleUV, buttonsInited/JustInited recordscr_buttonsInited/recordscr_buttonsJustInited,
- * ZeroCameras ZeroCameras, InitPane InitPane (viewPane recordscr_viewPane), NewMultiBlit NewMultiBlit (blit
- * recordscr_blit, mblit recordscr_mblit), gDeleteConfirm/gDeleteNotify/gYes/gSelectMenuClear gDeleteConfirm/854/850/80C, inited recordscr_inited.
- * N64 differences from the GC bodies (from the retail words): no gSelectPakIdx store; the button y is 55.2f (GC 59.2f);
- * where the GC object has its "no-op copies" (records 17, 21, 22) the N64 multiplies all three position coordinates by a
- * constant 1.0: written `*= (1.0f / 1.0f)`, a constant expression that cfe folds to 1.0f but does not treat as the literal
- * 1.0f (a plain `*= 1.0f` is deleted; a propagated `f32 scale = 1.0f` keeps the mul but stores through absolute addresses,
- * retail stores through the s0 base). initRecordScreen is defined before initButtons, as in the MAT3 file: as1 breaks
- * scheduling ties by source line and the &buttonColor address (caller line) must win over the loop preheader.
- * Own data: .data white colour template {255,255,255,255} (retail 0x803B65A8 = FFFFFFFF) and 7 .rodata floats
- * (-1.5707964f 55.2f 75.1f pi 87.1f -75.1f -87.1f at 0x803B9454..0x803B946C), all checked against image A (tools/rocheck.py). */
-void recordscr_initButtons(void);
 
 void initRecordScreen(void)
 {
@@ -644,28 +521,16 @@ void recordscr_initButtons(void)
     ZeroCameras();
 }
 
-/* updateSelectButtons = updateSelectButtons@recordscr.c (MAT3 GC 0x80084f38, size 0xa60). Direct typed port.
- * Globals (N64 address = MAT3 name): recordscr_buttonInfo buttonInfo[23] (64-byte tMenuButton: buttonType, objIdx, angle,
- * mat.uvs[3][3], mat.uvs[3] position, alpha), recordscr_gButtonScale gButtonScale, recordscr_gButtonSpace gButtonSpace, recordscr_buttonX buttonX,
- * recordscr_maxY maxY, recordscr_minY minY, recordscr_buttonZ buttonZ, recordscr_cursorZ cursorZ, recordscr_cursorSpeed cursorSpeed,
- * recordscr_scrollSpeed scrollSpeed, recordscr_buttonsJustInited buttonsJustInited, recordscr_gSelectMenuVisible gSelectMenuVisible[11], recordscr_gSelectMenuSelect
- * gSelectMenuSelect, gSelectMenuClear gSelectMenuClear, gDeleteConfirm gDeleteConfirm, gDeleteNotify gDeleteNotify,
- * gFrameSeconds gFrameSeconds (volatile), gNumModels gNumModels (volatile), unitmatrix unitmatrix.
- * Calls: MBOX_ShowObject, MBOX_HideObject, MBOX_FindTexture_WORK =
- * MBOX_FindTexture_WORK, ZOID_SetTexture, ZOID_SetColor, WRollUV,
- * WPitchUV, ScaleUV = ScaleUV. */
-extern f32 recordscr_gButtonScale, recordscr_gButtonSpace, recordscr_buttonX, recordscr_maxY, recordscr_minY, recordscr_buttonZ, recordscr_cursorZ;
-extern f32 recordscr_cursorSpeed, recordscr_scrollSpeed;
-extern volatile f32 gFrameSeconds;
-extern f32 unitmatrix[3][3];
-extern s32 recordscr_buttonsJustInited, recordscr_gSelectMenuSelect;
-extern s8 recordscr_gSelectMenuVisible[], gSelectMenuClear, gDeleteConfirm, gDeleteNotify;
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
 extern void *memcpy(void *, const void *, u32);
-extern void MBOX_HideObject(s32, s32, s32), MBOX_ShowObject(s32, s32, s32);
+
 extern void *MBOX_FindTexture_WORK(char *, s16 *, s32, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
-extern void WPitchUV(f32, f32 (*)[3]), WRollUV(f32, f32 (*)[3]);
-extern void ScaleUV(f32 (*)[3], f32 (*)[3], f32);
+
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
@@ -827,39 +692,11 @@ void updateSelectButtons(void)
     }
 }
 
-/* : recordscr_updateButtons = MAT3 recordscr.c updateButtons (GC 0x80084EE8, 0x50 B) with updateViewButtons
- * (GC 0x80085998, 0x8B4 B) inlined by umerge; updateSelectButtons (GC 0x80084F38) stays the call updateSelectButtons.
- * Direct typed port of the MAT3 bodies; local list and ORDER from the GC DWARF (rush_d_dwarf.c: buttonIdx, i,
- * prevPos, gViewMenuCount, whichItem, buttonY, selectedPos, clearScrollSpeed, tex, texIdx, buttonColor; the MAT3 C
- * moved clearScrollSpeed up for CodeWarrior).  clearScrollSpeed keeps its initialiser, gViewMenuCount/whichItem are
- * assigned after the declarations (as in MAT3 updateSelectButtons): that statement order puts `li t7,1` in the
- * dispatch delay slot.  updateViewButtons (symbol updateViewButtons, unique so it cannot clash with other
- * groups) is a NON-static function off `keep` (umerge inlines it; its deleted stub is retail's caller-less 0x803915E0).
- * N64 differences (from the retail displacements/constants): 23 buttons at recordscr_buttonInfo (0x40 stride), statics
- * gButtonScale, gButtonSpace, buttonX, maxY, minY, buttonZ, cursorZ = recordscr_gButtonScale..recordscr_cursorZ, cursorSpeed/scrollSpeed
- * = recordscr_cursorSpeed/DC, buttonsInited/JustInited = recordscr_buttonsInited/D4, gRecordState, gViewMenuVisible =
- * gViewMenuVisible, gViewMenuSelect; the alpha fades linearly over one pitch
- * (255 - d * 255 / (space * scale)) instead of GC's flat 80; the two trailing MBOX_HideObject(buttonInfo[19/20])
- * calls are absent; associations follow the matched carscr updateButtons (`-140.0f * scale + buttonX`,
- * `scale * 0.4f`, fabsf on the right of the speed comparisons).  Callees: MBOX_HideObject,
- * MBOX_ShowObject, ZOID_SetTexture, ZOID_SetColor,
- * MBOX_FindTexture_WORK, WPitchUV, WRollUV, ScaleUV = ScaleUV.
- * SHAPING (disclosed frame residual): pad0 and pad1 are unused s32 locals of updateButtons.  Retail frame 144; the
- * same source without them 136 (every other offset already retail: prevPos 108, clearScrollSpeed 91, texIdx 82,
- * buttonColor 76, temp 52); 2 slots x 4 B = 8 B above the inlined callee's locals.  Two unused int parameters of
- * updateViewButtons give the identical object.  No pad arrays.
- */
-typedef unsigned short u16;
-extern void updateSelectButtons(void);
-extern f32 recordscr_gButtonScale, recordscr_gButtonSpace, recordscr_buttonX, recordscr_maxY;
-extern f32 recordscr_minY, recordscr_buttonZ, recordscr_cursorZ;
-extern f32 recordscr_cursorSpeed, recordscr_scrollSpeed;
-extern volatile f32 gFrameSeconds;
-extern char recordscr_select_texture_name[], recordscr_button_texture_name[];
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
-
-void updateViewButtons(void);
 
 void recordscr_updateButtons(void)
 {

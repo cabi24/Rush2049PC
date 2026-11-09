@@ -1,38 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * SetupCarColor (0x800B10D4, 1248 B; historical label) = N64 SetupCarColor: builds a car's 128-entry RGBA5551
- * palette and installs it on the car's two models. Semantics:
- * . ; earlier drafts (134-135/312 words).
- *   1. mark the slot's paint job inited, allocate 512 bytes, load the palette texture named by `palette` and copy it;
- *   2. first == 0: brighten entries 1..31 (red channel x8 x1.25, clamp 255, repack grey); else second == 0: 33..63;
- *   3. three colour-table entries -> endpoints 32/64/96 and ramps 33..63, 65..95, 97..126 toward black (alpha set),
- *      through the internal interpolator blend_rgb5551 (MakeRamps, deleted after inlining);
- *   4. copy into the slot's palette descriptor, free the buffer (heap lock / internal DeallocateMemoryInternal(a1, a2) /
- *      unlock), point the two models' palette at the descriptor.
- * Structure facts (each one measured):
- *  - blend_rgb5551's parameter order is (left, right, ratio). IPA still passes ratio in a0 (the callee's code is
- *    identical for every order) but the call's argument order puts `move a0,t0` in the jal delay slot as retail.
- *  - The ramps are the single-site helper MakeRamps (its retail stub sits right after blend_rgb5551); brightening
- *    is written in place. A brightening helper makes `colors` the highest-priority web (its in-loop uses count) and
- *    breaks the t1/t2/t3/t4 colouring of first/second/colors/third; in place plus the ramp helper gives retail's.
- *  - MakeRamps returns its palette pointer (unused by the caller): the extra occurrence of `colors` puts its priority
- *    below second_color's (44/11 = 4.0 tie -> 45/12), so colors takes t3 as retail.
- *  - Separate r/g/b channel statements: the bigger loop body makes uopt unroll the brightening loops by 2 (not 4).
- *    `(u16)(r | g | b) | 1`: ugen emits the u16 mask (one temp-ring pop) that as1 then deletes; this is retail's
- *    t7/t9 temp phase in every brightened element.
- *  - second/third colour loads on one source line: as1 breaks the tie on line number and schedules the third load
- *    before the second, as retail.
- *  - Heap lock/unlock are the memsys helpers heap_lock/heap_unlock called in place (both inlined, 8 frame bytes
- *    each), and SetModelPalette keeps a `Model68 *` local: together they make the inline area end at 140 so the
- *    descriptor's spill temp is sp+48 with frame 192.
- * No unused locals, no compiled-out tests.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define Handle HandleView   /* this file's own Handle: include/game's Handle is another type */
+
 /* PC: Resource24 is a palette record, a WAD's PLHD (MBOX_FindPalette_WORK) or a car's descriptor car_palettes, both
  * in the N64 layout (port/assets/wad.c): data is a 32-bit window address. The WAD's TLUT stays big-endian; the
  * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
@@ -56,23 +24,22 @@ typedef union Handle { s32 value; struct { s16 id, bank; } halves; } Handle;
 typedef struct Handles64 { Handle root; u32 unknown04[3]; Handle secondary, body; u32 unknown18[10]; } Handles64;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Model68 { u32 flags, w4; void *obj; float scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip; Resource24 *palette; u32 texture0, texture1; } Model68;
-extern u8 gCarPaintJobInited[];          /* gCarPaintJobInited */
-extern u32 paint_colors[];         /* paint colour table */
-extern Resource24 car_palettes[];  /* per-slot palette descriptors */
-extern Handles64 gCarParts[];   /* per-slot model handles */
-extern Model68 ObjInstanceList[];     /* models */
-extern volatile u8 gNumModels;
-extern char car_palette_name_format[];        /* palette texture name format */
-extern void *AllocateMemoryHeap(void *, u32);                          /* AllocateMemory */
+
+VIEW(Resource24[], car_palettes);
+#define car_palettes car_palettes_view
+VIEW(Handles64[], gCarParts);
+#define gCarParts gCarParts_view
+VIEW(Model68[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
 extern Resource24 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, s32);    /* texture lookup */
 extern s32 sprintf(char *, char *, ...);
 extern void *memcpy(void *, const void *, u32);
-extern void DeallocateMemoryInternal(u32, s32);                         /* _DeallocateMemory (internal, IPA a1/a2) */
-void heap_lock(void);   /* _GetSemaphore@memsys.c */
-void heap_unlock(void);   /* _ReleaseSemaphore@memsys.c */
-/* Their manifest owners are empty deleted-procedure stubs (src/blob/heap_lock.c, heap_unlock.c); the
- * bodies (heap_release/audio_sfx_shutdown.c) were inlined here (docs/port/PROTOTYPES.md). */
-extern struct OSMesgQueue heap_lock_queue;
+
+VIEW(struct OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 int osRecvMesg(struct OSMesgQueue *, void **, int);
 int osSendMesg(struct OSMesgQueue *, void *, int);
 #define heap_lock() osRecvMesg(&heap_lock_queue, 0, 1)

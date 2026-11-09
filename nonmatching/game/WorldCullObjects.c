@@ -1,21 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * best for WorldCullObjects = WorldCullObjects@world.c (MAT3 world.c, WorldDistance inlined).
- * NOT A MATCH: unit `FAIL WorldCullObjects: 32 of 294 words differ; compiled body is 293 words` (best: 52).
- * Built on f7 (best + `&&` spelling of the dead ptr_no_clip clause + one unused float `e`
- * WorldDistance: frame 136 and every home fp-exact; DISCLOSED shaping, frame 136 with it, 128 without).
- * levers (all compiled-out, disclosed): `if (show) {}` at the top and bottom of the cull loop and `if (parts) {}`
- * after it (they colour t0/t1/t2 as retail, so the ugen ring and every pre-loop row is retail's), and `w++; mask = 1;`
- * (retail order of the `li v0,1`). Residual: show is coloured t0 (retail keeps it in memory) and the loop IVs
- * i*68 / w*4 / ptr+w*4 are a1/a2/a3 (retail a3/a2/t0): retail has an a1 blocker and the w*4 IV numbered first.
- */
-typedef float f32;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef signed char s8;
-typedef unsigned char u8;
+#include "game/game.h"
 
 typedef struct {
     char name[16];          /* 0x00 */
@@ -35,19 +18,12 @@ typedef struct {
     u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
 } ObjInstance;
 
-extern tModelPart *WorldBase;
-extern s8 gTrackNum;
-extern s16 Worlddlidx;
-extern s8 gInvisibleTrack;
-extern ObjInstance ObjInstanceList[];    /* ObjInstanceList */
-extern u8 trackParts[];             /* trackParts */
-extern u32 showAllParts[];            /* showAllParts */
-extern u32 track1Parts[][4], track2Parts[][4], track3Parts[][4], track4Parts[][4], track5Parts[][4], track6Parts[][4];
-extern u32 track7Parts[][4], track8Parts[][4], track9Parts[][4], track10Parts[][4], track11Parts[][4], track12Parts[][4];
-extern u32 track13Parts[][4], track14Parts[][4], track15Parts[][4], track16Parts[][4], track17Parts[][4], track18Parts[][4];
-extern u32 track19Parts[][4];
+VIEW(tModelPart *, WorldBase);
+#define WorldBase WorldBase_view
 
-void ShowCull();
+VIEW(ObjInstance[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
 float sqrtf(float);
 #pragma intrinsic(sqrtf)
 

@@ -1,14 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Complete 216-byte record-score routine at 0x80098710.
- * The record layout is a minimal native offset view. The audio-priority
- * interpretation is inferred from its caller; no direct arcade donor is known.
- * The existing wrapped-time helper is genuine complete inline context and
- * receives no additional matching credit. No artificial padding or operations.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
+
 /* PC: the record is an fx tag (audiomgr_thread.c's tFxSequence: state, loop, priority, startTime, vol), whose
  * links and list are host-sized (docs/port/SYNTH.md). */
 typedef struct Record {
@@ -23,9 +14,6 @@ typedef struct Record {
     f32 start;
     f32 scale;
 } Record;
-extern f32 gAudioSeconds;
-
-f32 AudioTimeoutPerc(f32 arg0, f32 arg1);
 
 s32 WeightedPriority(Record *record) {
     s32 result;

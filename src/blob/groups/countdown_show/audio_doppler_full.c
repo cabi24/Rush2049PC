@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * audio_doppler_full (0x800B61FC, 952 B) = ShowCountdown(int active) of countdown.c. The N64 label is
- * wrong: GC rush_d.elf ShowCountdown (countdown.c, 0x8000E518) is the same function (strings
- * "CNTDWN3"/"CNTDWN%d", locals xyz[4][3], dist, i, winidx, str[20], function-local statics
- * poly/polyTidx/lastCountDown/polyColor/polyXYZ). Per window: while active, scale the 4-corner
- * countdown quad by 12 * frac(time remaining - 0.001) (min 5), transform it into camera space
- * (WorldVector = U64WorldVector on &gCamera[w].mat, then + gCamera[w].pos), create the poly on the
- * first frame (MBOX_FindTexture_Sub "CNTDWN3", ZOID_NewPoly), and when gCountDown drops below
- * lastCountDown swap the texture to "CNTDWN%d" (last window only), play sound 75/76/77 for 3/2/other
- * (PlayGameSound, gated by gGameSoundsEnabled), update and show the poly. Inactive: remove the poly and
- * reset gCountDown to -1.
- * Shaping (all natural, from the GC source): the five statics are function-local (as on GC; as
- * externs the polyTidx address web is coloured and takes polyColor's s8); PlayGameSound and
- * ZOID_ShowPoly are inlined static helpers (frame 256 needs both; the sound gate is an early
- * `return 0;`); gNumModels gNumModels is volatile (address form, as in locked MBOX_FindTexture_WORK); the
- * poly flags are written as the OR of four constants 0x8000|0x200|0x80|0x40 (a folded constant
- * `0x82C0` leaves the ugen temp ring 3 registers behind retail).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Poly {
     s16 active;
@@ -36,25 +11,16 @@ typedef struct Camera {
     u8 mat[0x98 - 0x30];
 } Camera;
 
-extern s16 gNumWindows;
-extern s16 gCountDown;
-extern Camera gCamera[];     /* gCamera */
-extern volatile u8 gNumModels;
-extern s8 gGameSoundsEnabled;
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
-f32 GetCountdownTimeRemaining(void);
-void U64WorldVector(void *, void *, void *);
 void *MBOX_FindTexture_WORK(char *name, u16 *out, s8 lo, s8 hi, s32 err);
 Poly *ZOID_NewPoly(s32, f32 *, u16, u8 *, u16, s32);
 void ZOID_UpdatePoly(Poly *, s32, f32 *, u16, u8 *, u16, s32);
 void ZOID_RemovePoly(Poly *);
 s32 sprintf(char *, const char *, ...);
-
-/* The game's own PlayGameSound and ZOID_ShowPoly. This file had static copies: ZOID_ShowPoly the same code;
- * PlayGameSound without the global's fxid == -1 test and returning 0, not -1, when game sounds are off, which
- * changes nothing here (the sounds are 75 to 77 and the result is not read). */
-s32 PlayGameSound(s32 fxid, s32 subId, s32 replace, u8 priority);
-void ZOID_ShowPoly(Poly *poly);
 
 void ShowCountdown(s32 active)
 {

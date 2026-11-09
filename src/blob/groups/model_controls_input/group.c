@@ -1,41 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (whole-program group; keep = UpdateModelControls) */
-/*
- * Per-player control input into each car's model record (0x808 bytes at 0x8014A250):
- *   ReadSteeringWheel  steering (+0x720)                     -- already locked, source unchanged
- *                  except that InputRecord has `u32 map[13]` (in->steerSrc -> in->map[2])
- *   ReadGasAndBrake  throttle (+0x72C) / brake (+0x728), quantised to 1/15 (internal)
- *   UpdateModelControls  the per-player loop and the two button bytes (+0x731/+0x732) (kept)
- *   ReadShifter  manual gear selection (+0x730); a deleted static: inlined at its single call
- *                  site in UpdateModelControls, its retail remains are the caller-less `jr ra; nop`
- *                  stub at 0x800E6AE8 that this definition reproduces.
- * No arcade ancestor (arcade reads pots/shifter in mdrive.c / pots.c).  Supersedes the
- * stand-in group src/blob/groups/model_controls_input: with the real caller kept, neither callee
- * needs a stand-in caller to stay out of line.
- *
- * What closed UpdateModelControls (was 16/179 words, three loop invariants rematerialised
- * the first call coloured &gRealLevels / 2 / &gRace instead of retail's 2 / &gRace /
- * &gRealLevels): the gear code is its own function ReadShifter(st, in), written with early
- * `return`s (the autoGear test included), defined AFTER UpdateModelControls so that its stub lands at
- * 0x800E6AE8. The early returns replace `goto pick` join; the inlined copy changes the
- * web creation order and the colouring falls out right.  The next stub, stub_before_model_iteration, is not
- * the button code (writing the buttons as stub_before_model_iteration gives 18 words).
- *
- * Earlier shaping that still matters:
- *  - every button test is `gRealLevels[in->pad] & in->map[k]` (two subscripted operands keep the
- *    retail order: map load first);
- *  - throttle/brake are `volatile F32`, `gear` is `volatile s8`; `st->gear += 1;` for the
- *    up-shift, `--st->gear <= 0` for the down-shift; no `car` local;
- *  - the last test is `if (...) { st->button30 = 1; continue; } else { st->button30 = 0; }`.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct InputRecord {
     /* 0x00 */ u8 player;
     /* 0x01 */ u8 pad;
     /* 0x02 */ u8 pad2[0x18 - 2];
@@ -43,7 +8,7 @@ typedef struct {
     /* 0x48 */ void *ref;
 } InputRecord;                          /* 0x4C */
 
-typedef struct {
+typedef struct CarState {
     /* 0x000 */ u8 pad0[0x640];
     /* 0x640 */ s8 autoGear;
     /* 0x641 */ u8 pad641[0x720 - 0x641];
@@ -60,14 +25,6 @@ typedef struct {
 } CarState;                             /* 0x808 */
 
 typedef struct {
-    /* 0x000 */ u8 pad0[0xF8];
-    /* 0x0F8 */ s16 speed;
-    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 padFA_308[0x359 - 0x308];
-    /* 0x359 */ s8 f359;
-    /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
-} Car;                                  /* 0x3B8 */
-
-typedef struct {
     /* 0x0 */ u8 pad0[0xC];
     /* 0xC */ u8 throttle;
     /* 0xD */ u8 brake;
@@ -75,26 +32,12 @@ typedef struct {
 } PadState;                             /* 0x10 */
 
 extern InputRecord gPlayers[];
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s16 gNumPlayers;
-extern s32 gGameState;
-extern s32 gPauseState;
-extern s8 gCoastFlag;                   /* controls locked */
-extern u32 gRealLevels[];
-extern u32 gRealEdges[];
-extern s32 gRace;
-extern f32 gRealStick[][2];             /* analog stick per pad */
-extern f32 steer_dead_zone_low, steer_dead_zone_offset, steer_dead_zone_high, steer_change_up, steer_change_down, brake_stick_dead_zone;
-extern s8 gUpsideDownTrack;
-extern s8 gMirrorWaves;
-extern s8 gMirrorControls;
-extern s8 gNoBrakes;
-extern PadState gControllerData[];
 
-void ReadSteeringWheel(CarState *st, InputRecord *in);
-void ReadGasAndBrake(CarState *st, InputRecord *in);
-void UpdateModelControls(void);
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
+VIEW(PadState[], gControllerData);
+#define gControllerData gControllerData_view
 
 /* steering */
 void ReadSteeringWheel(CarState *st, InputRecord *in)
@@ -197,7 +140,7 @@ void ReadGasAndBrake(CarState *st, InputRecord *in)
 /* The manifest owner of ReadShifter is the empty deleted-procedure stub (src/blob/ReadShifter.c), which
  * the call below binds to on PC. The gear code written here gets its own name (docs/port/PROTOTYPES.md). */
 #define ReadShifter pc_ReadShifter
-void ReadShifter(CarState *st, InputRecord *in);
+
 void UpdateModelControls(void)
 {
     InputRecord *in;

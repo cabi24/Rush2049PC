@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * zip (historical label): the game's one-shot zlib compressor,
@@ -46,9 +48,7 @@ typedef unsigned int   uInt;
 typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
-typedef int   FAR intf;
-typedef uInt  FAR uIntf;
-typedef uLong FAR uLongf;
+
 typedef void  FAR *voidpf;
 typedef unsigned char  uch;
 typedef uch FAR uchf;
@@ -86,17 +86,6 @@ typedef z_stream FAR *z_streamp;
 #define BL_CODES  19
 #define HEAP_SIZE (2*L_CODES+1)
 #define MAX_BITS 15
-
-typedef struct ct_data_s {
-    union {
-        ush  freq;
-        ush  code;
-    } fc;
-    union {
-        ush  dad;
-        ush  len;
-    } dl;
-} FAR ct_data;
 
 #define Freq fc.freq
 #define Code fc.code
@@ -182,34 +171,13 @@ typedef struct internal_state {
 #define Buf_size (8 * 2*sizeof(char))
 #define TOO_FAR 4096
 
-typedef enum {
-    need_more,
-    block_done,
-    finish_started,
-    finish_done
-} block_state;
-
-typedef struct config_s {
-   ush good_length;
-   ush max_lazy;
-   ush nice_length;
-   ush max_chain;
-} config;
-
-extern config configuration_table[10];
+VIEW(config[10], configuration_table);
+#define configuration_table configuration_table_view
 #define NIL 0
-extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
-extern int osRecvMesg(void *mq, void *msg, int flag);
-extern int osSendMesg(void *mq, void *msg, int flag);
-extern void DeallocateMemoryInternal(unsigned int address, int tag);
-extern char heap_lock_queue[];
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define FREECALL(p) zcfree((voidpf)(p))
-
-extern void tr_init(deflate_state *s);
-extern int deflate_slow(deflate_state *s);
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }

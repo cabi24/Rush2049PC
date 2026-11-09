@@ -286,6 +286,8 @@ When the maps are applied (`tools/port/rename.py`), in this order:
 7. **Declarations**: the arcade headers `include/game/*.h` (no source includes them; 125 of their names now clash
    with other signatures, e.g. `SetCountdownTimer(int)` against the real `f32` one); the extern declarations of
    dropped labels in the context preambles (335 entries); the stale `extern u8 gspF3DEX2_fifoTextStart[]` lines.
+   Done (2026-11-08, [PCONLY.md](../port/PCONLY.md) 4 "Wave 2: headers"): the arcade headers are gone and the
+   preambles with them; include/game declares what the files share.
 8. **Interior labels** (about 120, notes say "interior", "biased", "view of" or "_players"): replace each with the
    element or field expression (`gText_single` with `gText.single`, `gObjList_tire` with `gObjList[156]`,
    `gObjList_biased[def + 314]` with `gObjList[def]`, `carTransGearRatio_biased`, `gPlayerRects_biased`,

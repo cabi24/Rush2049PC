@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * N64 NewMultiBlit (historical symbol NewMultiBlit), 0x800B37E8..0x800B39BC.
- * Donor: historicalsource/rushtherock 845329d7b36f5a384c5625ed9a0aef584ab46139,
- * LIB/blit.c NewMultiBlit and LIB/blit.h. Native fields and 36-byte descriptor
- * layout differ from arcade. In particular the N64 sentinel texture name -1
- * uses Info as an opaque callback/address carrier and Image as the Blit itself.
- *
- * The fourth NewBlit call argument is the native descriptor high bit. Its
- * callee does not read it, so the declaration remains old-style rather than
- * inventing a fourth formal in that callee. The direct descriptor indexing
- * and call through the just-assigned output AnimFunc follow the authentic
- * donor and eliminate the prior cursor/local-callback reconstruction residual.
- * No unused locals, dummy reads, volatile qualifiers or compiler shaping.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Blit Blit;
 struct Blit {
     const char *Name;
@@ -48,7 +29,7 @@ typedef struct MultiBlit {
  u32 animid;
 } MultiBlit;
 extern Blit *NewBlit();
-extern void UpdateBlit(Blit *);
+
 extern void RemoveBlit(Blit *);
 Blit *NewMultiBlit(s16 ulx, s16 uly, const MultiBlit *mblit, s16 nblits)
 {

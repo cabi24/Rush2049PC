@@ -1,54 +1,28 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_800F1210 = GC `_SetHighScoreState(newState)` (highscorescr.c, confident pair). newState in $s2
- * (IPA register parameter). Old state's panes are removed (RemovePane = sound_handles_array_clear), the new
- * state's panes are built (InitPane) and the countdown timer set (SetCountdownTimer =
- * SetCountdownTimer). GC names: gHighScoreState D_80140B20, blit highscore_blit (RemoveBlit,
- * NewMultiBlit, mblit highscore_mblit), namePanes D_80149418[], codePane D_80146208, ghost panes
- * ghostPanes[3], score panes scorePanes[2], gNumPlayers gNumPlayers, gNumWindows gNumWindows,
- * gPlayerRects highscore_gPlayerRects, gRace gRace, gTable gTable, gGhostMenuSelect gGhostMenuSelect,
- * gGhostPak gGhostPak, _UninitScreen highscore_UninitScreen, _FindGhosts func_800F0F44, _PrintScores func_800F0914,
- * HAL_SetFont = HAL_SetFont (inlined font_set), HAL_GetTextWidth,
- * TB_GetFontLineHeight = TB_GetFontLineHeight.
- * Shaping notes: the second switch reads the global back (`switch (D_80140B20)` after the store),
- * which is what makes uopt reload it per case for the final test; the font switches go through the
- * non-static internal helpers hs_font_set/hs_gfx_lock/hs_gfx_unlock (umerge inlines the split form, not a
- * one-piece wrapper with 4 sites); one function-level `p` for the player loops, block-scoped `i`/`pak`.
- * No unused locals, no compiled-out reads.
- */
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Rect { s16 x,y,w,h; s16 unknown[2]; } Rect;
 typedef struct TextInfo { char unknown[54]; u16 index; } TextInfo;
 /* PC: gText's header has host pointers (port/assets/text.c), so info and strings sit at host offsets. */
 typedef struct TextState { void *unknown[3]; TextInfo *info; char **strings; } TextState;
-extern TextState gText;
-extern intptr_t highscore_blit;
-extern s32 gHighScoreState, gRace, gGhostMenuSelect;
-extern s16 gNumPlayers, gNumWindows;
-extern s8 *namePanes[], *codePane, *ghostPanes[3], *scorePanes[2];
-extern s8 gGhostPak, gTable;
-extern Rect highscore_gPlayerRects[][4];
-extern char ghost_menu_title_text[];
-extern struct pc_multiblit highscore_mblit[1];   /* NewMultiBlit's descriptor (pc_prelude.h) */
+VIEW(TextState, gText);
+#define gText gText_view
+
+VIEW(s8 *[3], ghostPanes);
+#define ghostPanes ghostPanes_view
+VIEW(s8 *[2], scorePanes);
+#define scorePanes scorePanes_view
+
+VIEW(Rect[][4], highscore_gPlayerRects);
+#define highscore_gPlayerRects highscore_gPlayerRects_view
+
+VIEW(struct pc_multiblit[1], highscore_mblit);
+#define highscore_mblit highscore_mblit_view
 extern void RemoveBlit(intptr_t);
-extern void RemovePane(s8 *);
-extern void highscore_UninitScreen(void);
+
 extern void *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-extern void SetCountdownTimer(f32);
-typedef struct { s32 opaque[6]; } OSMesgQueue;
-extern OSMesgQueue text_lock_queue;
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32);
-extern s32 HAL_GetTextWidth(char *,s32);
-extern s16 TB_GetFontLineHeight(void);
-extern void FindGhosts(s32), PrintScores(void);
+
 extern intptr_t NewMultiBlit(s32,s32,void *,s32);
 
-s32 HAL_SetFont(s32 fontID);
 void SetHighScoreState(s32 newState)
 {
     s32 p;

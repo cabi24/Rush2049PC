@@ -1,36 +1,16 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Car body versus surface, historical name CollideCarBodyAgainstSurface, 0x800C5644.
- * MAT3 matched CollideCarBodyAgainstSurface reconstruction supports reusing ka
- * in the corner and endpoint loops. It is not recovered original source text.
- * Source shaping: ex * 1.0f (two occurrences) makes the operand an expression
- * before IDO folds the identity. Removing both leaves one commuted mul.s word.
- * This is NOT a general IEEE-754 identity assertion, especially for NaNs,
- * signaling exceptions, or flush-to-zero modes. The stock target compile is
- * word-identical and emits no extra multiplication. No FP mode is changed.
- * The mixed zero literal spellings and named locals are inherited.
- */
-#define NULL ((void *)0)
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct PV { s16 x, y, z; u16 w; } PV;
-extern PV *stree_svert;
-extern intptr_t stree_vlist;
-extern s8 BodyVerts[16];
-void AddBattlePoint(s8, s8, s8);
-void BodyVector(void *, void *, void *);
-s32 DecodeVlist(u8 *, s32, s16 *);
-s32 PlayGameSound(s32, s32, s32, unsigned char);
-void AbortCar(s16, s32);
-void CopyUV(void *, void *);
-void mats2fcopy(void *, void *);
+VIEW(PV *, stree_svert);
+#define stree_svert stree_svert_view
+VIEW(intptr_t, stree_vlist);
+#define stree_vlist stree_vlist_view
+VIEW(s8[16], BodyVerts);
+#define BodyVerts BodyVerts_view
+
 float fabsf(float);
 #pragma intrinsic (fabsf)
-extern s8 tireIndex[];
+
 typedef struct Poly {
     u16 type;
     u16 cnt;
@@ -59,20 +39,6 @@ typedef struct CCar {
     u8 p1742[248];
     s16 pidx;
 } CCar;
-typedef struct PCar {
-    u8 p0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 p0_308[0x358 - 0x308];
-    s8 f358;
-    s8 f359;
-    u8 p35A[0x380 - 0x35A]; void *input; u8 p35A_384[0x3B8 - 0x384];
-} PCar;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-typedef struct Link {
-    u8 p0[7];
-    u8 kind;
-} Link;
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-void CarApplyCollision(CCar *car, CCol *col);
-void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col);
 
 #define DECODE(v, e) \
     (v)[0] = (f32) (((e)->x << 5) + (((e)->w & 0x7C00) >> 10)) * 0.03125f; \

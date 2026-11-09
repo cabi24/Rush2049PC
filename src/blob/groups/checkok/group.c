@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct CarView {
-    u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x359 - 0x308];
-    s8 state;
-    u8 remaining[0x380 - 0x35A]; void *input; u8 remaining_384[0x3B8 - 0x384];
-} CarView;
-
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern s8 gInvincible;
-extern f32 D_80124394, D_80124398, D_8012439C, D_801243A0;
-extern f32 D_801243A4, D_801243A8, D_801243AC, D_801243B0;
-extern f32 vector_magnitude(f32 *);
-extern void AddBattlePointInternal(s8, s8, s8);
-void AddBattlePoint(s8 a,s8 b,s8 c);
 
 #define MF(offset) (*(f32 *)(model + (offset)))
 #define MB(offset) (*(s8 *)(model + (offset)))

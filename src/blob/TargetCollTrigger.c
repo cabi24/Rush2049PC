@@ -1,27 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TargetCollTrigger: per-player trigger callback for a camera/scene object (no direct callers; reached
- * through a function pointer with four arguments, the last two unused and homed).
- * For player *player (record model[], 0x808 bytes), when the record's +0x640 byte is 0 and its
- * +0x6C4 halfword is negative, it reads the 24-byte polygon records stree_surf[] under the four
- * wheel polygon indices (+0x5A0..+0x5A6).  If any wheel polygon has flag 0x20 set and its 5-bit
- * id (bits 11..15) equals the scene id, the scene gets bit (24 + player) set (plus 0x200 when no
- * player bit was set yet or flag 0x4000 is set); otherwise that player's bit is cleared.
- * Always returns 0.  No arcade ancestor identified.
- * Shaping: the empty `if (cam == NULL)` (a compiled-out debug message) is what gives the camera
- * parameter its register priority, so it stays in a0 and ctl/sc take a1/a2 (found with the traced
- * uopt: forcing ctl=a1, sc=a2 reproduced retail exactly); `idx` as a variable (kept in v0 for the
- * bit shift); `id = sc->id; id <<= 11;` as two statements. The 's group/ring label is a
- * false positive.  Also matches at -O2.
- */
-#define NULL ((void *)0)
+#include "game/game.h"
+
+
 #define DEBUG_PRINT(args)
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
 
 typedef struct Poly24 {
     u16 pad0;
@@ -59,16 +39,9 @@ typedef struct Camera {
 } Camera;
 #define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), default: (x))
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Poly24 *stree_surf;
+VIEW(Poly24 *, stree_surf);
+#define stree_surf stree_surf_view
 
-/* PC: a scene's cars (docs/port/MORECARS.md 3.1). Bits 24-31 of its flags are cars 0-7, as on the N64; a race of
- * more cars has no bit there for car 8 on (1 << 32 is undefined in C, and a shift that takes its count's low 5 bits,
- * as sllv and x86-64's do, would set the scene's flag 1). Car 8 and up keep theirs in their car record instead,
- * PC_CAR_SCENES: bit n while the car is in a scene whose trigger is collision index n, the 0-31 the test below can
- * match (pc_game_types.h). The car records of the race are cleared at its start (init_cars), as the scenes' bits
- * are when their track's file loads. A scene has a car when either says so. */
-extern volatile s16 gNumCars;
 static u32 scene_cars_past_8(CamScene *sc)
 {
     s32 j;

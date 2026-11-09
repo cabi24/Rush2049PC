@@ -1,52 +1,21 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-#define TRUE 1
-typedef struct { u32 opaque[6]; } OSMesgQueue;   /* 24-byte libultra queue */
-extern OSMesgQueue text_lock_queue;
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
-typedef struct TextTables {
-    unsigned short numSingle; unsigned char **single;
-    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
-    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
-} TextTables;
-extern TextTables gText;
-extern s32 gGameState;
-extern s32 playerInPause;
+#include "game/game.h"
+
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
 typedef struct { s8 flag; s8 pad[15]; } Slot16;
-extern Slot16 gControllerData[];
-extern s8 audio_panesCreated;
-extern s8 audio_gControllerRemoved;
-extern s32 audio_gTitlePane;
-extern s32 audio_menuRect[3];
-extern char audio_title_player_format[];
-extern s8 options_gControllerRemoved;
-extern s32 options_gTitlePane;
-extern char options_title_format[];
+VIEW(Slot16[], gControllerData);
+#define gControllerData gControllerData_view
+
+VIEW(s32[3], audio_menuRect);
+#define audio_menuRect audio_menuRect_view
+
 typedef struct { u32 first, second; } Pair;
-extern Pair gJust;   /* defined here: the two tail stores share one lui at */
-void TB_SetJust(u32 first, u32 second);
-extern s8 attract_alt_text_flag;
-extern char demo_alt_message[];
-void TB_Sprintf(char *, char *, ...);
-s32 HAL_GetTextWidth(char *, s32);
-s16 TB_GetFontLineHeight(void);
-void ChangePaneSize(s32, s32, s32, s32, s32);
+VIEW(Pair, gJust);
+#define gJust gJust_view
+
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 s32 InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-void HAL_SetTextDepth(f32);
-void TB_SetTextColor(s32);
-void TB_DrawTextScrollBox(s32, s32, s32, s32, s32, s32, char *);
-void audio_TitlePane(void);
-void options_TitlePane(void);
-
 
 /* audio_animPanes = animPanes@audioscr.c (MAT3 GameCube audioscr.c animPanes, GC 0x800662D0):
  * font_set_g3d = HAL_SetFont (inlined), audio_TitlePane = _TitlePane@audioscr.c, TB_GetFontLineHeight =
@@ -55,7 +24,7 @@ void options_TitlePane(void);
  * alone the frame is 112 (y at sp+110, 5 words differ); x (declared before y) puts y in retail's slot (sp+116)
  * and u1/u2 supply the remaining local area (with 8 bytes of locals or less the frame stays 112). */
 typedef struct { s32 x, w, h; } MenuRect;
-s32 HAL_SetFont(s32 fontID);
+
 s32 audio_animPanes(s32 arg0)
 {
     s16 x;

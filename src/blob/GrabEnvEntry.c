@@ -1,8 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Node {
@@ -15,10 +11,6 @@ typedef struct Node {
     f32 field10;
     void *field14;
 } Node;
-
-extern Node *gFreeVis;
-extern s16 gEnvCount;
-extern s16 gEnvCountMax;
 
 Node *GrabEnvEntry(void)
 {

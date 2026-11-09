@@ -1,32 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animTitleText (0x8010B5D0, 556 B): pause/option menu-page callback drawing one text line centred on
- * pause_titlePos (fcvt "%d"-style controller line when pause_gControllerRemoved, language string for modes 7/8, empty for 6,
- * else the formatted player-name line in its colour playerTextColor[..]).
- * draft -> 2/139 -> unit EQUAL.
- * Shaping devices (disclosed):
- * - inlined helpers (non-static, uniquely named, not on keep: stub rule) gfx_lock/gfx_unlock/font_set/item_refresh/TB_CenterText (GC TB_text.c `s16
- *    TB_CenterText(void *text, s16 centerX)`); item_refresh returns the dirty flag.
- * - the three lock/font helpers are written on ONE source line (lever, as video_TitlePane): with one
- *    inlined font_set site umerge keeps the helpers' own .loc lines, and as1 then breaks the tie between
- *    font_set's `sw v0,68(sp)` (old) and gfx_unlock's osSendMesg argument moves by source line. On one line the
- *    tie falls back to ugen order: lui/addiu a0, sw v0,68(sp), move a1, jal, move a2 (retail).
- *  - `s32 i` is an UNUSED local = exact frame residual: retail frame 152; without it 144 (16 words differ,
- *    every named home 4/8 B off); one 4-byte slot at the top of the locals.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
-/* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
- * layout (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
- * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
-typedef struct {
+typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
     s16 X, Y;
@@ -55,38 +29,21 @@ typedef struct {
     intptr_t *strings;
 } StrTable;
 
-extern OSMesgQueue text_lock_queue;
-extern s16 pause_titlePos[2];
-extern s32 pauseMenuSelect;
-extern StrTable gText;
+VIEW(s16[2], pause_titlePos);
+#define pause_titlePos pause_titlePos_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void UpdateBlit(void *);
-void HAL_SetTextDepth(f32);
-s16 TB_GetFontLineHeight(void);
-u32 HAL_GetTextWidth(void *, s32);
-void TB_SetTextColor(s32);
-void TB_Sprintf(char *, char *, ...);
+VIEW(StrTable, gText);
+#define gText gText_view
 
-typedef struct {
+typedef struct PlayerRec {
     u8 pad0[0x48];
     intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
 } PlayerRec;
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
 
-extern s8 pause_gControllerRemoved;
-extern s32 gPauseState;
-extern s32 playerInPause;
-extern char pause_controller_removed_format[];
-extern char pause_player_title_format[];
 extern PlayerRec gPlayers[];
-extern s32 playerTextColor[];
-void TB_DrawText(s16, s16, void *);
 
-  
 s32 item_refresh_B5D0(MenuItem *item)
 {
     if (item->dirty) {
@@ -96,9 +53,6 @@ s32 item_refresh_B5D0(MenuItem *item)
     return item->dirty;
 }
 
-
-s32 HAL_SetFont(s32 fontID);
-s16 TB_CenterText(void *text, s16 centerX);
 s32 animTitleText(MenuItem *item) {
     s32 i;
     s32 x;

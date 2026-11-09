@@ -1,12 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef float f32;
-/* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links, list and data host-sized; a command
- * (tAudioMsg) 32: a change's four floats from +4, its tag at +24; a stop's tag at +8 (docs/port/SYNTH.md). */
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Entity {
     void *pad0[3]; s32 id; s32 state; u8 pad20[6];
     u8 msgCount; u8 pad27[9]; f32 x,y,z,w; u8 pad40[16]; void *data;
@@ -18,13 +11,15 @@ typedef struct Msg {
     Entity *ent;
 } Msg;
 #define target t.target
-extern Entity *gFxTags;
-extern s32 gTagMask;
+
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-extern s32 audio_lock_queue, audio_command_queue;
+VIEW(s32, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(s32, audio_command_queue);
+#define audio_command_queue audio_command_queue_view
 s32 osRecvMesg(void *,void *,s32);
 s32 osSendMesg(void *,void *,s32);
 Entity *ConvertTag(s32 h);

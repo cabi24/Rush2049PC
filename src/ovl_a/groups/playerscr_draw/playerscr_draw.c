@@ -1,28 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image-A profile-selection renderer A7B58, complete native3196-byte extent.
- * Actual96FA0 controller supplies eligibility-helper call frequency; the two
- * one-formal helpers use the stable player-count bound, preserving their
- * complete92-byte native bodies and genuine skip=a1 private convention.
- * Indexed slots, guarded walks, split seen postincrement and direct selection
- * reads recover native control/data lifetimes. A real profile pointer is
- * reused across traversal and label selection. The u16 width-choice boundary
- * and one compiled-out label read are explicit source shaping: the latter
- * raises the traced name-pointer allocation priority above width. Neither
- * changes the consumed values or emits an extra native instruction.
- * The one temporary text writer is bounded by native format and all six
- * supported languages:10 bytes including NUL for player0..3,20 for the
- * formatter's independent signed32 domain.32-byte storage plus native home
- * order is a safe reconstruction; exact original capacity remains UNKNOWN.
- * No forced compiler, false formal, padding or unused scalar is introduced.
- * All2508 inherited bytes are exact. A9088/A9EEC/96FA0 remain NONMATCH context.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { s32 kind,handle; f32 angle,matrix[3][3],position[3]; u8 alpha,unknown3D[3]; } Slot;
@@ -34,46 +11,34 @@ struct Profile { Profile **next,**previous; FileInfo **file; u8 unknown0C[8]; u8
 typedef struct Player { u8 unknown00[4];u32 pressed;u8 unknown08[4];u32 repeat;u8 unknown10[56]; Profile **owner; } Player;
 typedef struct Layout { s32 unknown0,y,width,height,x,unknown14; } Layout;
 typedef struct FiveParts FiveParts;
-extern Language gText;
-extern Slot playerscr_buttonInfo[][22];
-extern Camera gCamera[];
-extern Layout playerscr_gPlayerRects[][4];
-extern f32 playerscr_gButtonScale,playerscr_buttonZ;
-extern s16 gNumPlayers;
+VIEW(Language, gText);
+#define gText gText_view
+VIEW(Slot[][22], playerscr_buttonInfo);
+#define playerscr_buttonInfo playerscr_buttonInfo_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(Layout[][4], playerscr_gPlayerRects);
+#define playerscr_gPlayerRects playerscr_gPlayerRects_view
+
 extern Player gPlayers[];
-extern Profile *gJustPlayers[];
-extern s32 playerTextColor[];
-extern Color4 flashColors,flashColors_at_1;
-extern Profile **gSelectedPlayer[];
-extern struct PlayerFiles { u32 unknown0, unknown4; Profile **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
-extern void *gPakFull[];
-extern FiveParts *playerscr_pane[];
-extern s32 gPlayerState[],playerscr_gSelectMenuSelect[];
-extern s8 gSelectMenuControls[],playerscr_gSelectPakIdx[],gSelectPlayerNum[],gDeleteMenuSelect[],gDeleteMenuConfirm[],gDeleteMenuYes[],gDeleteMenuNotify[];
-extern s8 playerscr_gSelectMenuValid[][14];
-extern u8 gCreatePlayerNames[][13],gDeleteMenuName[][13];
-extern s16 playerscr_gNameSelect[];
-extern u8 *gPlayerNameChars,*gPS_PakName[];
-extern u8 playerscr_del[],playerscr_end[],playerscr_spc[];
-extern u8 playerscr_player_title_format[],playerscr_delete_message_format[],playerscr_pak_full_title_format[],playerscr_pak_full_text[],playerscr_pak_damaged_title_format[],playerscr_pak_damaged_text[];
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern void TB_SetJust(u32,u32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern s16 TB_RightText(void *,s16);
-extern s16 TB_GetFontLineHeight(void);
-extern s32 HAL_GetTextWidth(u8 *,s16);
-extern void TB_DrawText(s16,s16,void *);
-extern void TB_Sprintf(u8 *,const u8 *,...);
-extern void HAL_SetTextTranslucency(f32);
+VIEW(Profile *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
+VIEW(Color4, flashColors);
+#define flashColors flashColors_view
+VIEW(Color4, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
+VIEW(Profile **[], gSelectedPlayer);
+#define gSelectedPlayer gSelectedPlayer_view
+struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
+VIEW(struct PlayerFiles, gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+
+VIEW(u8 *[], gPS_PakName);
+#define gPS_PakName gPS_PakName_view
+
 extern void TB_FlashTextColors(Color4,Color4);
-extern void HAL_SetMenuTextDepth(f32);
-extern void HAL_SetFontSpacing(s32);
-extern void TB_DrawTextScrollBox(s16,s16,s16,s16,s16,s16,u8 *);
-extern s16 TB_GetTextNumLines(s16,u8 *);
-extern void TB_DrawEllipseText(s16,s16,s16,void *);
+
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 /* The native integer absolute-value expression repeats its operand. */
 #define ABS(x) ((x)<0 ? -(x) : (x))
@@ -95,11 +60,7 @@ s32 playerClaimed(s32 skip,Profile **owner)
  * (src/ovl_a/playerBeingDeleted.c, playerBeingCreated.c) read it as a second parameter after a dummy, and these calls
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
-s32 playerBeingDeleted(PC_IPA_A0 s32 skip);
-s32 playerBeingCreated(PC_IPA_A0 s32 skip);
-s32 playerClaimed(s32,Profile **);
-s32 playerBeingCreated(PC_IPA_A0 s32);
-s32 playerBeingDeleted(PC_IPA_A0 s32);
+
 #define playerBeingDeleted(skip) playerBeingDeleted(0, skip)
 #define playerBeingCreated(skip) playerBeingCreated(0, skip)
 void playerscr_drawSelect(s32 player)
@@ -344,7 +305,7 @@ void drawCreatePlayer(s32 player)
     y+=10;
     ChangePaneSize(playerscr_pane[player],playerscr_gPlayerRects[gNumPlayers-1][player].x-56,top,playerscr_gPlayerRects[gNumPlayers-1][player].x+56,y+4);
 }
-s32 playerClaimed(s32,Profile **);
+
 void drawDeletePlayer(s32 player)
 {
     f32 scale=playerscr_gButtonScale;
@@ -496,10 +457,7 @@ void drawDeletePlayer(s32 player)
     HAL_SetTextTranslucency(-1.0f);
     HAL_SetTextDepth(0.0f);
 }
-void playerscr_drawSelect(s32);
-void drawWait(s32);
-void drawCreatePlayer(s32);
-void drawDeletePlayer(s32);
+
 s32 playerscr_animText(void *callback_context)
 {
     s32 player,x,y;
@@ -552,14 +510,4 @@ s32 playerscr_animText(void *callback_context)
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
-
-/* Genuine image-A profile-selection controller. Native entry consumes player in
- * s0 under its actual parent. This kept reconstruction is context, not a match; its genuine parent is absent. */
-extern void PlayStartABSound(u32);
-extern void PlayLRSound(u32),PlayUDSound(u32);
-extern void playerscr_updateSelectInfo(s32),setPlayerState(s32,s32);
-extern s32 ReadPlayerData(Profile **);
-extern void PS_LockFile(FileInfo **,s8);
-extern s8 controlScrActive[];
-extern s32 playerscr_buttonsJustInited[],exitPlayerScreen;
 

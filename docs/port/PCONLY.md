@@ -244,3 +244,58 @@ One agent took what the apply left in the game's code (each commit through the g
 - **Locals** sharing a global's name: DoDrones' lists, maxpath's `interp`.
 - **Original-game bugs**, commented where they are and kept: InitPane, RemoveBlit, FindWinner, CalcUnlockedStuff,
   ZOID_ChangeTexture, UpdateModel, SetPakError, CalcChecksumInternal, updateBG (`/* Original game: ... */`).
+
+### Wave 2: headers (2026-11-08)
+
+Every game file began with the context m2c wrote: 3,500 to 4,200 lines of typedefs, structs and externs, then its
+own code (AnimateKnockdown.c: 4,223 lines, its function at line 4,195). The game's shared declarations are
+`include/game` now, and each file holds its code and only what is its own ([docs/code/README.md](../code/README.md)
+"The headers"). Made on 2e88259e and brought onto the merged tree 23cfc766 (wave 2's leftovers and port addresses:
+the headers written again from its DWARF, the conversion run again on it). The headers' commits change no game code
+(objsame.py: every unit `same`, data.c the merged tree's); the conversion went through the gate (ctest 567 of 567,
+assets_rom skipped as on the base, and the 60 realtime tests; every one of the 63 synthetic paths `same` against the
+base, shots and audio; the RUSH_NOFIXED build's `--check` OK and its 63 paths `same` as the fixed build's):
+
+1. **The data's layout from one declaration per datum.** include/game declares each datum once, with the type
+   gen_data.py chose from the files' declarations until then; `port/data/game_decls.c` compiles those declarations
+   alone and `gen_data.py --decls` lays every datum out by them ([DATA.md](DATA.md) 1), so which file declares what,
+   and how, decides nothing. `EXTENT(n)` gives an array its extent there only; the game's files see it open-ended,
+   as before. gen_data's tie-break by the type names the maps replaced is gone (one declaration has no ties). Proof:
+   data.c the base's but for the type names in its comments, data_symbols.txt the base's in every column but the
+   type's spelling, in Debug, RelWithDebInfo and RUSH_NOFIXED, gen_data `--check` OK in each, no datum placed by the
+   files' declarations. `tools/port/objsame.py` compares two builds' game objects unit by unit, debug info left out
+   (ctest `objsame_tool`).
+2. **The headers**: `basic.h`, `types.h` (libultra's types, then 184 structures printed from the merged tree's DWARF,
+   so each lays out as it did; 259 structures named only through pointers), 16 subsystem headers (2,054 data in N64
+   address order, 1,937 prototypes from the definitions), `m2c.h`, `view.h`. Gone, as nothing included them: the 57
+   arcade headers `include/game/*.h` (125 of their names clashed with real signatures) and `include/game_types.h`,
+   `game_globals.h`, `macros.h`. Left to their files: 33 functions that return a pointer to a structure of their own
+   file, 4 that take or return a structure by value, the 8 C library names the build renames `n64_*`, and 35
+   whose callers disagree with the definition (another number of arguments;
+   a 32-bit integer passed where the definition takes a pointer, which through the prototype would be sign-extended:
+   `RemoveBlit`, `ZOID_SetTexture`, `AudEmitEffect` ... the per-area cleanup makes them agree).
+3. **The conversion**, `tools/port/to_headers.py --build build/pc --apply` (re-runnable: a second run changes
+   nothing; its docstring has the rules): the 918 files of src/blob, src/ovl_a, src/ovl_b and nonmatching/ include
+   game.h and keep their code, their own types (150 renamed in their file by a macro where the headers give the name
+   another type: `#define Gfx GfxView`), 1,764 views of shared data (`VIEW(Cam152[], gCamera);` and `#define gCamera
+   gCamera_view`: the datum's own symbol through an assembler label, so the code is the old declaration's), and their
+   declarations of what the headers lack. The four types still named after an address (`D_8012E6E0_Node` ...) have
+   names (`tools/port/names/headers.tsv`). src/ went from 1,061,648 lines to 87,883; lines with an address name in
+   src/, include/, port/ and nonmatching/ from 227,997 to 110 (src 26, include 4, port 79, nonmatching 1).
+   objsame against the base: 886 of the 971 units `same` in Debug, 901 in RelWithDebInfo; each of the others
+   (90, five of them only -O2's) makes a call through the definition's prototype where the file had its own
+   declaration (`docs/port/headers-units.txt`, one line per unit with what changed, in PROTOTYPES.md's classes, none
+   harmful; a call that was unprototyped now also lacks x86-64's `mov $0, %eax` for variadic callees), and the tree
+   converted with the headers but without their prototypes is `same` in every unit but ReadPathData.c (GCC orders the
+   two GOT loads of `gResPath.alt = gAltPaths = 0` by declaration). The checks: offset_check `--strict` no open
+   finding, alias_check none open, bounds_check none new (a view's findings are its datum's), names_check no error;
+   nofixed_audit's implicit pointer and integer conversions grew (int_to_ptr 23 to 24, ptr_to_int 12 to 66,
+   int-conversion 35 to 90; its port classes are the merged port's) because calls the files' own declarations hid now convert where the compiler sees them
+   (a pointer passed where the definition takes a 32-bit integer, which the callee read 32 bits of before too): the
+   baseline is the new count. The game files' warnings are the base's. ctest `to_headers_tool` converts a made-up
+   tree.
+
+After merging other work that edits the game's files: apply the maps (`rename.py --apply`, which renames in
+include/game too), build Debug, `to_headers.py --build build/pc --apply`, build, and check with objsame against the
+merged tree before the conversion and the gate. to_headers reports a name the headers declare that a file gives
+another kind; a prototype a merged definition no longer matches is a compile error to fix in the header.

@@ -1,29 +1,14 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* func_800E73D8 (0x800E73D8, 596 B): N64 per-frame controller read (model thread; no MAT3/arcade ancestor).
- * Under the SI/pak lock (pak_queue_init/pak_lock/pak_unlock statics, as in the matched init_controllers and
- * pak_file_unchanged): drain the SI event queue si_event_queue; every 30th call (function-local static counter, retail
- * .data byte 0x1D = 29 so the first call queries) re-query the pads (osContStartQuery, wait for SI message 5,
- * osContGetQuery(cont_status), pak_poll_inserted()); start a read (osContStartReadData; on failure unlock and return 0),
- * wait, osContGetReadData(pads), unlock; per controller: connected flag from the status/pad errno bit 8
- * (CONT_NO_RESPONSE_ERROR), disconnected pads read as zero, 19-entry button map n64_button_map -> game button mask,
- * stick copied, record bytes 10..13 cleared; then ControlIRQ() and return 1.
- * Base: best (4 words: the counter web in v1, retail v0). : the compiled-out block end
- * `do {} while (0);` (disclosed; emits no code) after the drain splits uopt's basic block between the
- * osRecvMesg call and the counter, so v0 (the call's precoloured return) no longer forbids v0 for the counter web.
- */
-typedef unsigned char u8;typedef signed char s8;typedef unsigned short u16;typedef short s16;
-typedef unsigned int u32;typedef int s32;
-typedef void *OSMesg;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
+
 typedef struct OSThread OSThread;
 typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
-typedef struct OSContStatus {u16 type;u8 status,errno;} OSContStatus;
+
 typedef struct OSContPad {u16 button;s8 stick_x,stick_y;u8 errno;} OSContPad;
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
 extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
-extern s32 osContStartQuery(OSMesgQueue *);
-extern void osContGetQuery(OSContStatus *);
-extern s32 osContStartReadData(OSMesgQueue *);
-extern void osContGetReadData(OSContPad *);
+
 typedef struct {
     s8 connected;       /* 0x0 */
     u8 pad1[3];
@@ -32,15 +17,17 @@ typedef struct {
     s8 unkA[4];         /* 0xA */
     u8 padE[2];
 } ContRec16;
-extern s8 si_lock_inited;
-extern OSMesgQueue si_lock_queue;
-extern OSMesg si_lock_msg;
-extern OSMesgQueue si_event_queue;
-extern OSContStatus cont_status[];
-extern volatile ContRec16 gControllerData[4];
-extern u32 n64_button_map[19];
-void pak_poll_inserted(void);
-void ControlIRQ(void);
+
+VIEW(OSMesgQueue, si_lock_queue);
+#define si_lock_queue si_lock_queue_view
+
+VIEW(OSMesgQueue, si_event_queue);
+#define si_event_queue si_event_queue_view
+
+VIEW(volatile ContRec16[4], gControllerData);
+#define gControllerData gControllerData_view
+VIEW(u32[19], n64_button_map);
+#define n64_button_map n64_button_map_view
 
 static void pak_queue_init(void)
 {
@@ -57,8 +44,6 @@ static void pak_lock(void)
     pak_queue_init();
     osRecvMesg(&si_lock_queue,&message,1);
 }
-
-void si_unlock(void);
 
 s32 ControllerUpdate(void)
 {

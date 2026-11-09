@@ -1,13 +1,5 @@
-/* Exact whole-group flags: -g0 -O3 -mips2 -G 0 -non_shared
- * -Wab,-r4300_mul; cc and all optimization/codegen stages use O3.
- * uld merges this one real entry with the protected keep list.
- * Ordinary O2 also produces exact text and literals.
- */
-/* Direct ancestor: rushtherock/game/drivetra.c:whatslips.
- * The N64 port uses a single crossing test for the clutch integration. */
-typedef float f32;
-typedef signed short s16;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Parameters {u8 prefix[160]; f32 enginvmi; u8 gap164[4]; f32 clutchmaxt;} Parameters;
 typedef struct Tuning {u8 prefix[16]; f32 clutch_gain;} Tuning;
 enum n64p_Parameters { n64p_Parameters_ };

@@ -1,37 +1,4 @@
-/*
- * Game heap ("audio_*" names are historical): a first-fit block allocator
- * (32-byte block headers, magic 0xFEDCBA98) with a per-heap table of handles.
- * Hand-written from the assembly.
- *
- * Frontier changes against src/blob/groups/memsys/group.c:
- *  - AllocateMemory's real parameter order is (heap, size, owner, tag). IPA still
- *    colours size->a0 and heap->a2, so the callee's words are unchanged, but
- *    the callers evaluate the heap argument first.
- *  - ConvertHeap() is a deleted static with two returns, inlined at its
- *    three call sites (probably the jr-ra stub ConvertHeap). Its inlined
- *    result temp is the v0 that retail moves into a2/s2; a ternary or an
- *    if-assignment at the call site is coloured straight into a2 instead.
- *  - audio_task_complete: declaration order h, slot, t, i gives the 48-byte frame.
- *
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- *  - heap_or_default is now the non-static ConvertHeap (its retail stub
- *    address, between AllocateMemory and audio_dma_sync). Same code; as a named
- *    function its stub no longer lands unnamed after a member in the group
- * object (the scorer counted it as an extra word of InitMemory).
- *  - InitMemory (heap init, now a member): the run-once flag is a
- *    function-local static (retail 0x80116488, only referenced here; own .data
- *    verified) so its load and store keep separate lui's; the heap-pointer
- *    setup (align the end of BSS to 32, set end = osMemSize | K0BASE, flag the
- *    expansion pak when end > 0x80400000) is the deleted static
- *    locate_main_heap (the caller-less stub right before InitMemory), inlined.
- *    Written inline, as1 schedules the &gMainHeap lui two words early.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_HandleTable { n64p_HandleTable_ };
@@ -79,10 +46,10 @@ typedef struct Heap {
  * holds, which the N64 game takes as a null block, are reported; nothing in the game's own code changes. */
 
 extern u8 game_bss_end[];
-extern Heap *gMainHeap;
-extern s32 heap_lock_queue[];
-extern s32 heap_lock_msg;
-extern s8 expansion_pak_present;
+
+VIEW(s32[], heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
+
 extern u32 osMemSize;
 
 s32 osRecvMesg();
@@ -93,13 +60,6 @@ void *memset(void *, int, unsigned int);   /* the slots are enum n64p_u32 window
  * pointer's N64 address, N64PTR(T, a) the pointer at N64 address a (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 #define N64PTR(T, a) ((T)PC_N64P(a))
-
-void *AllocateMemory(Heap *heap, u32 size, void *owner, s32 tag);
-void InitHeap(Heap *heap, u16 count, u16 a);
-void *AllocateMemoryHeap(Heap *heap, u32 size);
-void *AllocateHandleHeap(Heap *heap, u32 size);
-void *create_heap(Heap *heap, u32 size, u16 count, u16 a);
-void InitMemory(u16 count, u16 a);
 
 Heap *ConvertHeap(Heap *heap)
 {

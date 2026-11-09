@@ -1,6 +1,7 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-extern s8 gBattlePowerUps;
+#include "game/game.h"
+
+VIEW(s8, gBattlePowerUps);
+#define gBattlePowerUps gBattlePowerUps_view
 
 void IncBattlePowerUps(void)
 {

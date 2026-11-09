@@ -1,25 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * downleaf (0x800AC9BC, 224 bytes): quadtree descent, the N64 port of the arcade downleaf()
- * (reference/repos/rushtherock/game/stree.c):
- *     midh = (tp->minh + tp->maxh) >> 1;  midv = (tp->minv + tp->maxv) >> 1;
- *     q = (pos[HPOS] < midh) ? 0 : 1;  if (pos[VPOS] < midv) q += 2;
- *     child = tp->child[q]; if (child > 0) return downleaf(&stree[child], pos, quad);
- *     else { *quad = q; return tp; }
- * N64 changes: s16 x/y instead of pos[3]; a leaf bit mask at +3 decides "descend" (bit q set) vs "found";
- * child indices are u16 into the 20-byte node array stree_nodes; child node == the array base means
- * "no node" (return 0). The tail recursion is written as a loop (a recursive tail call re-truncates the
- * s16 x/y every iteration, retail does not).
- * The midpoint is a signed halving written out (`if (s < 0) s++; s >>= 1;`): retail's
- * `bgezl s; addiu s,s,1; sra` modifies the sum in place, which `/ 2` (as1's div expansion through at)
- * does not give; this idiom occurs nowhere else in the game code. Both shifts after both sums puts
- * midh >> 1 in ugen's first ring temp (t6), as in retail.
- * No shaping devices (no compiled-out reads, volatile, unused locals).
- */
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
+#include "game/game.h"
 
 typedef struct QNode {
     u8 f0[3];
@@ -29,7 +8,8 @@ typedef struct QNode {
     u16 child[4];   /* 0x0C: node indices into stree_nodes */
 } QNode; /* 0x14 */
 
-extern QNode *stree_nodes;
+VIEW(QNode *, stree_nodes);
+#define stree_nodes stree_nodes_view
 
 QNode *downleaf(QNode *tp, s16 x, s16 y, s16 *quad)
 {

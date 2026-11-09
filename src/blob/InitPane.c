@@ -1,19 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-/* A view of the Blit (NewMultiBlit.c): word8 is its Info pointer and word40 its AnimFunc, so on the PC both
- * are pointer-sized and the fields after them land where Blit has them (docs/port/PROTOTYPES.md). */
-typedef struct {
+#include "game/game.h"
+
+typedef struct PadConfig {
     void *data; u8 *bytes4; intptr_t word8; u16 half12; s16 x,y; u16 half18;
     s16 width,height;u8 status,flag; s8 disabled; u8 other27;
     s16 left,bottom,right,top; u8 other36[4];intptr_t word40; s32 word44;void *link48;
 } PadConfig;
-typedef struct { s8 active; u8 own,a,b,c,d,e,f,g,h;u8 other10[2];PadConfig *part[5]; } FiveParts;
-extern FiveParts gPaneBlits[];
+typedef struct FiveParts { s8 active; u8 own,a,b,c,d,e,f,g,h;u8 other10[2];PadConfig *part[5]; } FiveParts;
+VIEW(FiveParts[], gPaneBlits);
+#define gPaneBlits gPaneBlits_view
 extern PadConfig *NewBlit();
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 FiveParts *InitPane(s32 x1,s32 y1,s32 x2,s32 y2,s32 style,intptr_t word40,s32 word44,s32 own)

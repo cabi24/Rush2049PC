@@ -1,30 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CalcUnlockedStuff @ 0x800F2A28, 2,728 bytes (from -> best.c, 9/682).
- * Names are historical labels.
- *
- * Unlock-table refresh, no networking: for each of gNumPlayers players it fills five s8 tables from the save
- * record reached through gPlayers[i].ref->car->data->base (medal bit counts per track/cup, summed track
- * values / 10 against thresholds, summed cup values and stunt counts against thresholds, three mode records),
- * with three cheat words (cheat_all_cars/C2/C4 == 1) that set everything. CountBits is a bit count.
- * No arcade ancestor found.
- *
- * Quirks this match depends on (each measured; see and the. notes):
- *  - section 3: `total = 0` before the 19-wide zero loop (row pointer in a1);
- *  - section 4 reads expansion_pak_present directly in the `if`s (no `flag` local);
- *  - section 4's loop is written `i = 0; if (i < gNumPlayers) { do { ... } while (++i < gNumPlayers);
- *    if (data4) {} }`: an empty (compiled-out) check of data4 after the loop. It extends data4's live range
- *    past the loop, which lowers its colouring priority below the gForceUnlockedCircuits address (retail a3 vs a2).
- *    Inside the guard data4 is defined on every path to the check, so uopt adds no home store; the same check
- * after a plain `for` loop costs a store and a stack slot. Probably a debug print in the original.
- *  - the cheat branch clears gUnlockedCircuits[i][2] with i == player count (one row past the last player), as retail.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct {
     /* 0x00 */ u8 pad0[0x58];
@@ -67,7 +41,7 @@ typedef struct {
     /* 0x00 */ SaveBase *base;
 } Data;
 
-typedef struct {
+typedef struct Car {
     /* 0x00 */ void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
     /* 0x2C */ Data *data;
 } Car;
@@ -81,22 +55,16 @@ typedef struct {
     /* 0x48 */ Ref *ref;
 } Player76; /* 0x4C */
 
-extern s16 cheat_all_cars;
-extern s16 cheat_all_tracks;
-extern s16 cheat_all_parts;
-extern s16 gNumPlayers;
 extern Player76 gPlayers[];
-extern s8 gUnlockedTracks[][19];
-extern s8 gUnlockedCars[][13];
-extern s8 gUnlockedCircuits[][4];
-extern s8 gUnlockedTrans[][8];
-extern s8 gUnlockedEngines[][9];
-extern s8 gUnlockedTires[][5];
-extern s8 gUnlockedFrames[][6];
-extern s8 gForceUnlockedCircuits[];
-extern s8 expansion_pak_present;
+VIEW(s8[][19], gUnlockedTracks);
+#define gUnlockedTracks gUnlockedTracks_view
+VIEW(s8[][13], gUnlockedCars);
+#define gUnlockedCars gUnlockedCars_view
 
-extern s32 CountBits(u32 x, u8 n);
+VIEW(s8[][6], gUnlockedFrames);
+#define gUnlockedFrames gUnlockedFrames_view
+VIEW(s8[], gForceUnlockedCircuits);
+#define gForceUnlockedCircuits gForceUnlockedCircuits_view
 
 void CalcUnlockedStuff(void) {
     s16 i;

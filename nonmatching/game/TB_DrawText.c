@@ -1,18 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct { s32 h, v; } TBJust;
-extern TBJust gJust;
-s16 TB_CenterText(void *text, s16 centerX);
-s16 TB_RightText(void *text, s16 rightX);
-s16 TB_GetFontHeight(void);
-void HAL_SetTextPos(s16 x, s16 y);
-void HAL_DrawText(void *text, s16 numChars);
+VIEW(TBJust, gJust);
+#define gJust gJust_view
 
 void TB_DrawText(s16 x, s16 y, void *text)
 {

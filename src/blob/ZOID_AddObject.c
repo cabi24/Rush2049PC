@@ -1,30 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ZOID_AddObject: allocate a 0x44-byte scene record in ObjInstanceList[] and link it under `parent`.
- *   Takes the first slot whose id (+0x14) is 0xFFFF, else appends one (count gNumObjects, high-water
- *   mark gMaxObjects); fills it (word +0 = d, +4 = 0, +8 = owner pointer b, scale 1.0/1.0, id = a,
- *   the three links +0x16/+0x18/+0x1A = -1, nine zero words) and calls ZOID_InsertObject(index,
- *   parent). Returns the index narrowed to s16. No arcade ancestor identified.
- *
- * STRICT MATCH. Shaping quirks (compile-affecting):
- *   - the byte offset is its own local computed right after the search loop (`off = i * sizeof(Ent)`)
- *     and the base is added after the two count updates: that is retail's i*68 in a3 at the loop
- *     exits and `addu v0,a3,t6` after the ifs (`&ObjInstanceList[i]` anywhere costs 59-68 words);
- *   - the compiled-out index check after the link call (`if (i < 0 || i >= gNumObjects) DEBUG_PRINT`)
- *     keeps i live across the call: that is retail's `sw v1,32(sp)` home store that is never
- *     reloaded, while the returned (s16)i is the narrowed argument spilled at sp+24. A check against
- *     a constant does not work (uopt rewrites it onto `off`); `return (s16)i` (not a saved idx local);
- *   - declaration order `e, i, off` puts i's home at sp+32.
- * Earlier attempts reproduced the dead store with an address-taken index written through an
- *   inlined static's out-parameter; that form cannot hoist the offset without splitting the index web.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 
 #define DEBUG_PRINT(args)
 
@@ -44,11 +19,8 @@ typedef struct Ent {
     /* 0x64 */ s32 w64;
 } Ent; /* size 0x68 */
 
-extern Ent ObjInstanceList[600];   /* to 0x80138660: the table's extent, for gen_data */
-extern s32 gNumObjects;  /* records in use */
-extern s32 gMaxObjects;  /* high-water mark */
-
-void ZOID_InsertObject(s16 index, s16 parent);
+VIEW(Ent[600], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 /* PC: the same record by field. The N64 body's byte offset (`off`) and its nine-word clear are N64 layout. */
 s32 ZOID_AddObject(s32 a, void *b, s16 parent, s32 d) {

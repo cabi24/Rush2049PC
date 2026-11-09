@@ -1,7 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef float f32;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 void mtx_rotation_to_fixed(f32 matrix[4][4], u32 *fixed) {
     s32 i, first, second;
     u32 *integer = fixed;

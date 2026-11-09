@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * MBOX_FindObject_WORK (historical label): look an 88-byte record up by name across a range of sorted
@@ -15,10 +17,6 @@
  * globalcolor trace (forbidden mask of the name web lacked a3). Matches in the whole-program unit too.
  */
 #define DEBUG_PRINT(args)
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
 
 extern char *strcpy(char *, const char *);
 #pragma intrinsic (strcpy)
@@ -32,13 +30,10 @@ typedef struct RecTable {
     u32 count;
 } RecTable;
 
-extern RecTable gRomObjDefPtrs[];
-extern volatile u8 gNumModels;
-
-s8 ModelActive(s32 arg0);
-char *game_strncpy(char *dst, char *src, s32 n);
-void *game_bsearch(void *key, void *base, u32 n, u32 size, s32 (*compar)(void *, void *));
-s32 objcmp(void *, void *);
+VIEW(RecTable[], gRomObjDefPtrs);
+#define gRomObjDefPtrs gRomObjDefPtrs_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
 s32 MBOX_FindObject_WORK(char *name, s8 first, s8 last, s8 complain) {
     s32 i;

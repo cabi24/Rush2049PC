@@ -1,19 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Runtime image A startup/input gate at 0x8039A2A0, complete 416-byte body.
- * Checks bit 0 for each of four controller words before initialization calls.
- * First-entry input takes an immediate state transition; otherwise it creates
- * a two-BLIT timed prompt and later releases it on deadline or gated input.
- * Historical helper names are retained as address identities, not semantics.
- * No exact arcade donor or original function name is claimed.
- *
- * Natural O3 four-element loop unrolling and declaration order reproduce the
- * target. Both locals are used; there are no dummy reads, unused locals,
- * invented formal arguments, forced volatility, assembly, or owned data.
- */
-typedef signed char s8;
-typedef unsigned int u32;
-typedef int s32;
+#include "game/game.h"
+
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     const char *texname;
@@ -22,29 +8,21 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-extern s8 pfsInited;
-extern s8 lcdInited;
-extern s8 gBlocksNeeded;
-extern s8 licensescr_inited;
-extern s8 gLicenseShown;
-extern u32 gContLevels[4];
-extern u32 gActiveEdges;
-extern Blit *licensescr_blit;
-extern MultiBlit licensescr_blits[];
-/* The seven-argument callback contract is evidenced by its actual dispatcher:
- * player/code, two unused incoming words, two signed-byte pointers and an
- * integer predicate. The nested predicate's argument contract is unresolved;
- * this function carries the callback address and invokes neither callback. */
-typedef s32 (*StartupPredicate)();
-typedef void (*StartupHandler)(s32, s32, s32, s32, s8 *, s8 *, StartupPredicate);
-extern void PS_ErrorFunc(s32, s32, s32, s32, s8 *, s8 *, StartupPredicate);
-extern void PS_InitPakSys(StartupHandler);
-extern void PS_PakServer(s32, s32);
-extern s32 PS_GetBlocks(s32);
-extern void setGameState(s32);
+
+VIEW(s8, gBlocksNeeded);
+#define gBlocksNeeded gBlocksNeeded_view
+
+VIEW(u32[4], gContLevels);
+#define gContLevels gContLevels_view
+VIEW(u32, gActiveEdges);
+#define gActiveEdges gActiveEdges_view
+
+VIEW(MultiBlit[], licensescr_blits);
+#define licensescr_blits licensescr_blits_view
+
 extern Blit *NewMultiBlit(short, short, const MultiBlit *, short);
 extern void RemoveBlit(Blit *);
-extern void SetCountdownTimer(float);
+
 extern s32 CountdownTimeOut(void);
 
 void updateLicenseScreen(void)

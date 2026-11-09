@@ -1,30 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* ReplaceWave = ReplaceWave (MAT3 GameSource/src/waves.c ReplaceWave, GC 0x8005B6EC) with
- * _ReplaceWaveInstance (GC 0x8005BAC4) inlined.
- * Author: (unchanged code). packaging: the inlined
- * helper is non-static, named after its retail deleted stub ReplaceWaveInstance, so the stub carries a symbol. */
-typedef signed char s8;
-typedef signed short s16;
-typedef struct anon_loaded_ready_14 {
-    signed char loaded;
-    signed char ready;
-    signed char locked;
-    signed char model;
-    unsigned char mirrored;
-    signed char handle;
-    unsigned char wave;
-    unsigned int size;
-    unsigned char *ptr;
-    unsigned char *lastPtr;
-} anon_loaded_ready_14;
+#include "game/game.h"
 
-extern anon_loaded_ready_14 gWaveInstance[64];  /* gWaveInstance */
-extern s16 gRenderInProgress;
-
-int FindWaveInstanceInternal(int waveNum, signed char handle);           /* _FindWaveInstance */
-void ValidateWaveInstance(int idx, int loaded, int ready);           /* _ValidateWaveInstance */
-void SetWaveInstanceModel(int idx);                                  /* _SetWaveInstanceModel */
-void ReadWave(int idx);                                  /* _ReadWave */
+VIEW(anon_loaded_ready_14[64], gWaveInstance);
+#define gWaveInstance gWaveInstance_view
 
 void ReplaceWaveInstance(int idx, int newWave)  /* _ReplaceWaveInstance (deleted stub 0x800A5014) */
 {

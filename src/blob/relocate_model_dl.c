@@ -1,32 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* relocate_model_dl (0x80096734, 716 B): display-list walker with a 10-entry DL stack.
- * For every command that is not a vertex/triangle-class word ((op & 0xC0) == 0x40/0x80, 9..0x3F, 0xC0..0xD5):
- *  - relocate the segment address in w1 for G_VTX (0x01), 0xDA, 0xDC, 0xDD, G_DL (0xDE), 0xE1 followed by
- *    0x04/0xDD, and >= 0xFD (image pointers): addr = ((w1 + base) & 0xFFFFFF) | segment nibble (kept from w1 when
- *    seg < 0, else (seg & 0xF) << 24);
- *  - 0xE0 with type byte 1 is a LOD marker: when bit idx (w0 & 0xFFFF) is clear in mask it is rewritten into a
- *    G_DL branch (0xDE010000) to the relocated w1;
- *  - the first G_VTX calls mirror_vertex_texcoords(vtx, flag); 0xE1 latches w1, 0x04 jumps to it; 0xDF pops the stack.
- * N64-only code (GBI walker); no arcade ancestor.
- *
- * Shaping, disclosed:
- *  - `head = stk[depth]` beside `cmd = *slot`: a second pointer local for the current command, used only for the
- *    opcode read. Its code-free web takes v0 over the opcode block, which puts the and-temp in v1 and the
- * `op & 0xC0` temp in a0 as in retail (- residual). Removing it gives 5 words.
- *  - The named temporaries (start, slot, nextcmd, segnib/segbits, newaddr, w0, one, bit, hit, islod, sum,
- *    hiaddr, sum2, segnib2, segbits2, branch, target, up, vtx, step) are all used and compile to retail's
- *    instructions; together with the declaration order they give the 232-byte frame (every declared local owns
- *    a home). The retail local set is unknown; this set is frame-equivalent, not recovered.
- *  - `if (cmd[0] & 0x00FF0000) {}` in the G_VTX case is a compiled-out read (load-bearing: 179 words without it;
- *    it keeps 0x00FF0000 in s3).
- * Own rodata: the 7-entry jump table at 0x80123A70 (the scorer verifies it).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands with 32-bit N64 addresses
  * (docs/port/POINTERS.md). */
@@ -39,7 +11,6 @@ typedef unsigned int u32;
 #define RELOC_SEG(w, b, bits) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
 #define LOD_KEEP(sum, bits, w, b) pc_rcp_reloc(w, b, -1)
 #define LOD_SEG(sum, bits, w, b) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
-void mirror_vertex_texcoords(s32 arg0, s32 arg1);
 
 void relocate_model_dl(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
     u32 *cmd;

@@ -1,42 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CheckCameraView (0x800EB90C, 2,000 B): per-frame camera view selection for every viewport = arcade
- * game/camera.c CheckCameraView() (+ the suspension average and the drone-camera placement of setcamview()).
- *  - In gameplay mode 2 with the second controller's gContLevels[1] bit 1 and gContEdges[1] bit 2: bump viewport 0's
- *    target car to the next
- *    active car (arcade "bump target drone"; car record gGameCar[] 952 B, model D_8014A250[] 0x808 B).
- *  - Per viewport i < gNumWindows (camera gCamera[i], its target car obj/model, player record pl):
- *    demo/attract (gGameState & 8): every camera_nextSwitch[slot] seconds (lastSwitch = last switch time,
- *    gModelTime = race clock) and if GetCountdownTimeRemaining() > 3, pick a random view (arcade
- *    `switch ((long)Random(11.0))`, here (u32), 0..4 + default: fixed-on-track via init_camera_on_track
- *    = respawn-point picker, lag 3 s); otherwise D_80110680[player] forces view 5, else the view button
- *    (pl->edges & pl->mask) cycles views 0..3 (SavePlayerCarView notifies the player's object, view 1 clears
- *    cur_acc cur_acc, view 2/3 re-init View3Cam via init_view3). Then update_camera (setcamview's
- *    switch) and the tire-suspension average (gTireCnt count / gSusAvg avg, gSusAvg).
- *  - BlinkResurrectingCars(), then place the drone cameras (ObjInstanceList[node].cam) at each active car + 0.25 up.
- * rand/Random are verbatim copies of the locked kept game_rand/Random (inlined in the unit, as in
- * pick_random_masked_bit); node_camera is an inlined static (its s16 parameter is retail's a0 narrowing).
- * Shaping devices (disclosed):
- *  - SIX UNUSED LOCALS (new_view3, block, delta, extra_lag, edge, view3_lim -- the names of arcade
- *    CheckCameraView's locals, which the N64 port dropped the uses of): exact frame residual. Retail frame
- *    200; without them 176 (`v/p7.c`, otherwise code-identical apart from the i home slot); 6 slots
- *    (5 gives 192). The 7 used locals declared before i put i's home at 168(sp) as in retail.
- *  - `extern volatile s16 gNumCars` (car count): retail reloads it every iteration of the bump loop
- *    through a hoisted address (lh t4,0(a0)); non-volatile hoists the load (459 words).
- * Other natural levers: index-form bump loop (`gGameCar[n].slot`, strength-reduced as in retail), both
- * suspension resets on one line and `pl++` in the for header (as1 line tie-breaks), `= 0` (not 0.0f) for
- * gSusAvg (separate zero web from the $f22 0.0f), `Random(1.0f) + 2.5` (double add as in retail).
- * Own .rodata: jump table 0x8012455C (5 entries).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-typedef struct {
+typedef struct Object {
     u8 other0[8];
     Vec3 pos;           /* 8 */
     u8 other20[60];
@@ -50,7 +16,7 @@ typedef struct {
     s8 view2;           /* 862 */
     u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
 } Object;               /* 952 */
-typedef struct {
+typedef struct Model {
     u8 other0[1484];
     f32 sus[4];         /* 1484 */
     u8 other1500[16];
@@ -63,7 +29,7 @@ typedef struct {
     s8 f2015;           /* 2015 */
     u8 other2016[40];
 } Model;                /* 0x808 */
-typedef struct {
+typedef struct Camera {
     Mat3 uvs;           /* 0 */
     Vec3 pos;           /* 36 */
     u8 other48[48];
@@ -74,7 +40,7 @@ typedef struct {
     u8 other149[3];
 } Camera;               /* 152 */
 typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;   /* the profile, pc_prelude.h */
-typedef struct { HObject *object; } Handle;
+typedef struct Handle { HObject *object; } Handle;
 typedef struct {
     u8 index;
     u8 other1[3];
@@ -84,38 +50,23 @@ typedef struct {
     u8 other56[16];
     Handle *handle;     /* 72 */
 } Player76;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, w4; Camera *cam; f32 scale, w; unsigned short model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } Node68;
-extern s32 gRace;
-extern s32 gContLevels[4], gContEdges[4];   /* each controller's held buttons, new presses */
-extern s32 gGameState;
-extern volatile s16 gNumCars;
-extern s16 gNumWindows;
-extern f32 gModelTime;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Camera gCamera[];
+
+VIEW(s32[4], gContLevels);
+#define gContLevels gContLevels_view
+VIEW(s32[4], gContEdges);
+#define gContEdges gContEdges_view
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
 extern Player76 gPlayers[];
-extern Vec3 cur_acc[];
-extern f32 lastSwitch[], camera_nextSwitch[];
+VIEW(Vec3[], cur_acc);
+#define cur_acc cur_acc_view
+
 /* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7), and
  * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */
 #define RACE_CARS PC_RACE_CARS
-extern s8 gTireCnt[];
-extern f32 gSusAvg[];
-extern Node68 ObjInstanceList[];
-extern s32 rand_seed;
-extern f32 GetCountdownTimeRemaining(void);
-extern void SavePlayerCarView(Handle *handle, u8 view);
-extern void init_view3(Object *object);
-extern void init_camera_on_track(Object *object);
-extern void update_camera(Object *object);
-extern void BlinkResurrectingCars(void);
-extern void CopyUV(void *src, void *dst);
-
-int game_rand(void);
-
-f32 Random(f32 max);
 
 Camera *ZOID_FindMatrix(s16 node);
 

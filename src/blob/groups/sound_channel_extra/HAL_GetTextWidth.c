@@ -1,31 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * HAL_GetTextWidth (historical label): width in pixels of a text string in the current font.
- *   str[0] == 0xFF marks a 2-byte (wide) string; maxlen < 0 means unlimited. Monospace fonts add
- *   fixedWidth + gSpacing (letter spacing) per character; space or code >= 256 adds spaceWidth;
- *   '\n' stops; otherwise the glyph index gCharMap[ch] (-1 = missing -> spaceWidth) gives
- *   right - left + spacing + 1, minus the kerning byte glyph.kern[prev] when the font has kerning.
- *   Returns width - gSpacing (no spacing after the last character).
- * SetupFontData (locked, internal) refreshes the cached font bank first and preserves t1/t4 by
- * IPA, which is why str lives in t1 across the call: this matches only with the real sound closure
- * (group, or the whole-program unit), never as a lone ABI file.
- *
- * STRICT MATCH. Shaping quirks (compile-affecting):
- *   - `width = 0` is written AFTER the wide/narrow if/else, not next to `pos = 0`: that takes two
- *     blocks out of width's live range (uopt priority save = totalsave / blocks: 102/10 -> 102/8),
- *     so width is coloured before the cached s[pos] byte and takes a1 (byte a2) as in retail.
- * Found with the instrumented uopt globalcolor trace; replaces fake dead read.
- *   - the parameter `str` is reused as the character counter (`str = 0; ... (s32) str < maxlen; str++`):
- *     retail keeps both in t1; a separate `s32 i` costs 27-33 words;
- *   - `prev = ch` in the monospace arm reads `ch` before any write (retail homes ch at 48(sp));
- *   - `prev = ...` is assigned in each arm, not once after the if/else (merged form is 95 words off).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct FontHdr {
     /* 0x0 */ u8 pad0;
@@ -56,12 +29,12 @@ typedef struct Glyph {
 } Glyph;
 #define FONT_KERNS(k) ((u8 *)PC_N64P(k))
 
-extern FontHdr *gFontHeader;
-extern Glyph *gFontLetters;
-extern s16 gCharMap[256];
-extern s8 gSpacing;
-
-void SetupFontData(s32 force);
+VIEW(FontHdr *, gFontHeader);
+#define gFontHeader gFontHeader_view
+VIEW(Glyph *, gFontLetters);
+#define gFontLetters gFontLetters_view
+VIEW(s16[256], gCharMap);
+#define gCharMap gCharMap_view
 
 s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
 {

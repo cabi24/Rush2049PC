@@ -1,25 +1,10 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Runtime image B: 0x80393518..0x803936A8. */
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned char u8;
-typedef struct Player952 {
-    u8 before_kind[0x110 - 0x0]; struct pc_visual visuals[21]; u8 before_kind_308[0x380 - 0x308]; void *input;
-    s8 kind;
-    s8 lives;
-    u8 tail[0x32];
-} Player952;
+#include "game/game.h"
+
 typedef struct TextPosition { s16 x, y; } TextPosition;
-extern s16 gNumWindows;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern TextPosition ammoPos[4][4];
-extern char ammo_count_format[];
-extern void HAL_SetTextDepth(float);
-extern int HAL_SetFont(int);
-extern void TB_SetJust(unsigned int, unsigned int);
-extern void TB_Sprintf(char *, char *, ...);
-extern void TB_SetTextColor(int);
-extern void TB_DrawText(s16, s16, char *);
+
+VIEW(TextPosition[4][4], ammoPos);
+#define ammoPos ammoPos_view
+
 int animAmmoCounts(void *callback_context)
 {
     s16 i;

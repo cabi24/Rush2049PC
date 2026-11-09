@@ -1,21 +1,12 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
+#include "game/game.h"
+
 typedef struct Vec3 {float x,y,z;} Vec3;
 typedef struct Vehicle2056 {
  u8 prefix[244];Vec3 corners[4];u8 gap292[1328];float radius;
  u8 gap1624[316];Vec3 position;float basis[9];u8 gap1988[4];s16 active;
  u8 gap1994[32];s8 enabled;u8 tail[29];
 } Vehicle2056;
-extern s8 gNoCarCollisions;
-extern int gRace;
-/* The loop's end is the model records' end, the next symbol on the N64 (gTargetArray, the level-object nodes): on
- * the PC the records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md), and the end is
- * that of the race's cars, PC_RACE_CARS records (docs/port/MORECARS.md 3.1). */
-extern void WorldVector(Vec3 *,Vec3 *,float *);
-extern void BodyVector(Vec3 *,Vec3 *,float *);
-extern int PointInBody(Vehicle2056 *,Vec3 *,float);
+
 extern void setFBCollisionForce(Vehicle2056 *,Vehicle2056 *,Vehicle2056 *,Vec3 *,Vec3 *,float);
 void collision(Vehicle2056 *vehicle)
 {

@@ -1,27 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Historical label only. Scrolls up to four point lists (backPolys[slot],
- * a 20-byte header with an s16 count followed by 20-byte points whose first
- * two s16 are x and y) by the current frame's per-slot velocity
- * gBackRects[gNumWindows - 1].slot[slot].dx/dy * gFrameSeconds * (dimension << 5),
- * then wraps: every point votes -1 / +1 when it is beyond +/- (dimension << 5);
- * a unanimous vote (exactly -4 or +4, i.e. four points) shifts the whole list
- * by one dimension. The resulting x/y are recorded as floats in the frame
- * record (xs[i], ys[i]) and offsetsValid[gNumWindows - 1] is set to 1.
- * No arcade ancestor identified.
- *
- * Retail facts kept as they are: the second y test is `y <= +(height << 5)`
- * (not a negated bound), and the negations are `(-dim) << 5`.
- * Shaping: the two "no shift" stores are the int literal 0 while the
- * initialisers are 0.0f (retail keeps two separate zero registers, f0 and
- * f16). Also MATCH at -O2 with the same source. Prior attempt:
- * (235/254; raw s16 list and byte-offset macro).
- */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned char u8;
-typedef float f32;
+#include "game/game.h"
+#define MotionFrame MotionFrameView   /* this file's own MotionFrame: include/game's MotionFrame is another type */
 
 typedef struct {
     s16 x;
@@ -29,13 +7,13 @@ typedef struct {
     char pad4[0x10];
 } Point; /* 0x14 */
 
-typedef struct {
+typedef struct PointList {
     s16 count;
     char pad2[0x12];
     Point pts[1];
 } PointList;
 
-typedef struct {
+typedef struct Dims {
     char pad0[0x10];
     u16 width;
     u16 height;
@@ -55,12 +33,13 @@ typedef struct {
     Motion slot[4];
 } MotionFrame; /* 0xE0 */
 
-extern PointList *backPolys[4];
-extern Dims *bg_texture;
-extern s32 offsetsValid[];
-extern s16 gNumWindows;
-extern f32 gFrameSeconds;
-extern MotionFrame gBackRects[];
+VIEW(PointList *[4], backPolys);
+#define backPolys backPolys_view
+VIEW(Dims *, bg_texture);
+#define bg_texture bg_texture_view
+
+VIEW(MotionFrame[], gBackRects);
+#define gBackRects gBackRects_view
 
 void updateBG(void) {
     s32 slot;

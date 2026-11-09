@@ -1,8 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Direct ancestor: rushtherock/game/drivetra.c:autoshift. */
-typedef float f32;
-typedef signed short s16;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Parameters {u8 prefix[172]; f32 upshift,downshift;} Parameters;
 typedef struct Tuning {u8 prefix[20]; f32 shift_gain;} Tuning;
 enum n64p_Parameters { n64p_Parameters_ };
@@ -17,9 +14,7 @@ typedef struct Model2056 {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Parameters: (Parameters *)PC_N64P(x), enum n64p_Tuning: (Tuning *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-extern void find_best_gear(Model2056 *,f32,f32);
-extern void upshift(Model2056 *);
-extern void downshift(Model2056 *);
+
 void autoshift(Model2056 *m)
 {
     f32 modupshiftangvel,moddownshiftangvel,fact;

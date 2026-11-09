@@ -1,27 +1,4 @@
-/*
- * ---- unit: UpdateSkids + UpdateSkid + StartSkid (agent) ----
- * Skid marks, N64 port of the arcade code in reference/repos/rushtherock/game/visuals.c (labels are
- * historical; nothing here is Controller Pak or save code):
- *   UpdateSkids      = the per-car skid driver: arcade DoSkid() for each of the four tires, written as one loop
- *   UpdateSkid  = UpdateSkid(ns, slot, tire, color)
- *   StartSkid  = StartSkid(ns, slot, tire, color), with GetSkid() inlined
- *   ContinueSkid  = ContinueSkid() -- inlined into UpdateSkids; retail keeps its `jr ra` stub at 0x800AFD54
- *   GetSkid  = GetSkid()      -- inlined into StartSkid; stub at 0x800AFB30 (0x800AFB28 is a
- *                                      second deleted static next to it, not identified)
- *   StopSkid  = StopSkid(ns), FreeStatLLE = ReleaseSkid-style list unlink (context)
- * WheelSlot is the arcade NewSkid (obj=skid, start, pos=end, lenSq, dir, quad/left/right = vert[4][3]);
- * EffectObj is the arcade Skid (pool link, f8=lastTime as f32, dl=objnum, pos, colour instead of xlu).
- * This is a CLOSED unit: every callee is present as context (unchanged copies of the locked sources), and
- * there are no stand-in callers.  StopSkid must NOT be in `keep`: only then does IPA know it leaves
- * $t0-$t4 alone, which is what puts UpdateSkids's loop state in $t0/$t2/$t3/$t4 instead of $s1/$s4/$s5.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
@@ -36,7 +13,7 @@ typedef struct EffectObj {
     /* 0x20 */ s32 f20;
 } EffectObj;
 
-typedef struct {
+typedef struct WheelSlot {
     /* 0x00 */ EffectObj *obj;
     /* 0x04 */ f32 start[3];
     /* 0x10 */ f32 pos[3];
@@ -47,15 +24,7 @@ typedef struct {
     /* 0x50 */ f32 right[3];
 } WheelSlot;                            /* 0x5C */
 
-typedef struct {
-    /* 0x000 */ u8 pad0[0x74];
-    /* 0x074 */ f32 wheelPos[4][3];
-    /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
-    /* 0x0E8 */ u32 wheelFlags;
-    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x380 - 0x308]; void *input; u8 padEC_384[0x3B8 - 0x384];
-} Car;                                  /* 0x3B8 */
-
-typedef struct {
+typedef struct CarState {
     /* 0x000 */ u8 pad0[0x5A0];
     /* 0x5A0 */ u16 surface[4];
     /* 0x5A8 */ u8 pad5A8[0x61C - 0x5A8];
@@ -67,7 +36,7 @@ typedef struct {
     /* 0x76C */ u8 pad76C[0x808 - 0x76C];
 } CarState;                             /* 0x808 */
 
-typedef struct {
+typedef struct Surface {
     /* 0x0 */ u8 pad0[2];
     /* 0x2 */ u16 flags;
     /* 0x4 */ u8 pad4[0x18 - 4];
@@ -78,36 +47,33 @@ typedef struct {
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
 #define gNewSkid pc_skids
-extern s16 gNumPlayers;
-extern s32 gGameState;
-extern u32 skid_tire_flags[4];               /* per-wheel flag masks */
-extern u8 gDirtColor[];                 /* default mark colour */
-extern u8 gShadowColor[];                 /* colour on terrain 0 */
+
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+VIEW(u32[4], skid_tire_flags);
+#define skid_tire_flags skid_tire_flags_view
+
+VIEW(u8[], gShadowColor);
+#define gShadowColor gShadowColor_view
 extern f32 gDummyVtx[];
-extern Surface *stree_surf;
-extern f32 skid_lift;
-extern f32 skid_min_length_sq;                  /* minimum travel before a mark starts */
-extern f32 gSeconds[];
-extern char gSkidList[];               /* EffectObj pool */
+VIEW(Surface *, stree_surf);
+#define stree_surf stree_surf_view
+
+VIEW(f32[], gSeconds);
+#define gSeconds gSeconds_view
+VIEW(char[], gSkidList);
+#define gSkidList gSkidList_view
 #define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */
 typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
 } CamXform;
-extern CamXform gCamera;             /* camera matrix + position (pos = old D_80150B94) */
-extern u16 gTexList[];   /* the car textures by kind (InitVisuals): the skid mark's at 8 */
+VIEW(CamXform, gCamera);
+#define gCamera gCamera_view
 
-extern EffectObj *GetStatLLE(void *pool);
-extern void FreeStatLLE(void *pool, EffectObj *obj);
 extern void ZOID_RemovePoly(void *dl);
 extern void *ZOID_NewPoly(s32, f32 *, u16, u8 *, s32, s32);
 extern void ZOID_UpdatePoly(void *dl, s32 n, f32 *quad, s32, u8 *color, s32, s32);
-extern void vector_direction(f32 *in, f32 *out);
-extern void StopSkid(WheelSlot *slot);
-
-void UpdateSkids(s32 slot);
-void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
-void StartSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color);
 
 /* UpdateSkid (0x800AF8C0, 113 words) = arcade UpdateSkid: place the skid's leading edge across the
  * axle (tires tire|1 and tire&2), 0.75 either side of the tire, lifted 0.8; stamp time and colour; update

@@ -1,25 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (also MATCH at -O2) */
-/*
- * Encode a fixed-width code string (callers pass lengths 16 and 4; called
- * from track_process_main and PS_PakServer) through the u16 table
- * pak_charset.  Trailing 0 / 15 codes are trimmed, remaining 0 codes become
- * 15 (blank).  If every code is <= 65 the output is one byte per code plus a
- * zero terminator; otherwise it is 0xFF, two bytes (high, low) per code and
- * two zero bytes.  No arcade ancestor identified.
- *
- * Shaping facts, each verified necessary:
- * - both pointer parameters are copied to locals first and only the copies
- *   are used (using `out` / `in` directly moves them out of a0 / a1 or
- * spills them; this was the wall);
- * - no byte temporary: src[i] / buf[i] are re-read in the source;
- * - `& 0xFF` on the low-byte store (one extra temp-ring step, no code).
- * buf[64] is the capacity implied by the 104-byte frame with buf at sp+32.
- */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef int s32;
-
-extern u16 pak_charset[];
+#include "game/game.h"
 
 void pak_decode_name(u8 *out, u8 *in, u8 len) {
     s32 i;

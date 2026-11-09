@@ -1,28 +1,5 @@
-/*
- * heap_total_free (0x800BAF98; the name is a historical label): total free
- * bytes in a game heap, taken under the heap lock (message queue heap_lock_queue).
- * A null heap means the default heap gMainHeap.
- *
- * heap_total_free_unlocked (the caller-less `jr ra; nop` stub at 0x800BAF90) is the
- * deleted worker: one call site, so umerge inlines it and leaves the stub.
- * heap_or_default is the same two-return deleted static as in
- * src/blob/groups/memsys (its v0 result temp is the retail `move v0,v1`).
- *
- * Shaping facts, each checked by removing it:
- *  - the worker must be DEFINED AFTER its caller in the file. as1 pulls the
- *    osJamMesg argument set-up (la a0; move a1; move a2) up over the inlined
- *    loop, and places `move a2,zero` before the inlined `sum = 0` only when
- *    the call's source line is lower than the worker's lines. With the worker
- *    defined first the two moves swap (2 words).
- *  - heap_or_default as a function (ternary / if-assignment: 18-29 words).
- *  - `block = ...; sum = 0;` in that order.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
@@ -49,13 +26,11 @@ typedef struct Heap {
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-extern Heap *gMainHeap;
-extern OSMesgQueue heap_lock_queue;
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-
-u32 heap_total_free_unlocked(Heap *heap);
 
 Heap *ConvertHeap(Heap *heap);
 

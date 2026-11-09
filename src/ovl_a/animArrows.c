@@ -1,23 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Image A [0x803AE940,0x803AECC4), 900 bytes: front-end list-control
- * BLIT callback. Native-authoritative C reconstruction; no exact arcade
- * donor or original variable-name claim. Packed descriptor nibbles are
- * snapshotted before callbacks, while geometry and globals are read after
- * side-effecting helpers. Geometry is a four-point row, texture names have
- * two states per entry, and texture records have a 32-byte stride.
- * ResourceTables uses the accessed prefix independently established by
- * src/blob/groups/slot_sound/AdjustTextWavePointers.c. BLIT uses its accessed prefix.
- * Table bounds and actual resource contents are not inferred from strides.
- * Float-to-u32 behavior is C-defined only for representable finite values;
- * byte assignment then applies unsigned narrowing. Signed-halfword stores
- * follow the target implementation when the mathematical result is wider.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Blit {
     char *Name; void *Image; void *Info;
     s16 TexIndex, X, Y; u16 State;
@@ -34,19 +16,14 @@ typedef struct ResourceTables {
 } ResourceTables;
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Texture { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } Texture;
-extern s32 trackscr_buttonsInited;
-extern s16 trackscr_gFirstOption, trackscr_gNumOptions, trackscr_gActiveOption, trackscr_gOpts[];
-extern s8 trackscr_gActiveOptionEnabled;
-extern char *trackscr_arrowNames[][2];
-extern Point trackscr_arrowPos[][4];
-extern ResourceTables gText;
-extern Texture gBlitInstanceList[];
-extern s8 Hidden(Blit *, s32);
-extern void RenameBlit(Blit *, char *, s32);
-extern float TB_GetFlashTextCycle(void);
-extern void HAL_SetFont(s32);
-extern s32 HAL_GetTextWidth(char *, s32);
-extern void UpdateBlit(Blit *);
+
+VIEW(Point[][4], trackscr_arrowPos);
+#define trackscr_arrowPos trackscr_arrowPos_view
+VIEW(ResourceTables, gText);
+#define gText gText_view
+VIEW(Texture[], gBlitInstanceList);
+#define gBlitInstanceList gBlitInstanceList_view
+
 s32 animArrows(Blit *blt)
 {
     s16 pulse = blt->AnimID & 15;

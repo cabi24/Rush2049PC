@@ -1,22 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Runtime image A: menu-state update and its three genuine IPA helpers.
- * New root updatePakScreen keeps the existing executable statements and ABI.
- * superseding revision: this is MAT3 pakscr.c. updatePakScreen calls
- * _ControlFileDelVerify / _ControlRumblePak / _ControlDamaged for states 2/3/4; they are now the non-kept helpers
- * ControlFileDelVerify / ControlRumblePak / ControlDamaged named after their retail deleted stubs, and _SetState
- * (SetState) calls _BuildFileDelList = BuildFileDelList. Post-order of updatePakScreen (last call first):
- * _BuildFileDelList 98B38, _SetState 98B40, _ControlDamaged 98BE0, _ControlRumblePak 98BE8, _FindFile 98BF0 (single),
- * _ControlFileDelVerify 98C34, _ControlFileDel 98C3C, _ControlPickPak 98E70, updatePakScreen 990D0 = retail layout.
- * The former four unused s32 frame slots are gone: the inlined calls' frame areas plus MAT3's local order
- * (`int i` first, the blit descriptor block-local in the init branch) give the retail frame 112 and homes. The
- * case bodies moved verbatim.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     const char *texname;
@@ -26,33 +9,25 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
-extern s32 gState,gMaxMenuHeight,gPakErr;
-extern s8 pakscr_gYes,pakscr_gInited,gDrawText,gLicenseShown;
-extern s16 gPickedPak,pakscr_gFreePages,gDeleteSize,gDeleteSelect;
-extern s16 gDeleteSelTop,gDeleteHeight,gDeleteSelPos;
-extern void **gDeleteFile;
-extern u32 gActiveAutoEdges,gActiveEdges,gActiveLevels,gGameState;
-extern Blit *gBlit;
-extern MultiBlit pakscr_mblit;
-extern PlayerPresence gControllerData[];
-extern u32 PS_GetFreeBlocks(s32);
-extern s8 PS_PakInserted(s32),PS_PakDamaged(s32),PS_PakRumble(s32),PS_PakChanged(s32);
-extern void **pakscr_FindFile(s32);
-extern void PS_DeleteFile(void **);
-extern u32 AudPlayEffect(u32,u32,u32,u8);
-extern void SetPakError(s32,s32,s32,s32,s32,s32);
-extern void PlayStartABSound(u32);
-extern void PlayLRSound(u32);
-extern void setGameState(s32);
-extern void removeBG(void);
+
+VIEW(u32, gActiveAutoEdges);
+#define gActiveAutoEdges gActiveAutoEdges_view
+VIEW(u32, gActiveEdges);
+#define gActiveEdges gActiveEdges_view
+VIEW(u32, gActiveLevels);
+#define gActiveLevels gActiveLevels_view
+
+VIEW(MultiBlit, pakscr_mblit);
+#define pakscr_mblit pakscr_mblit_view
+VIEW(PlayerPresence[], gControllerData);
+#define gControllerData gControllerData_view
+
 extern void RemoveBlit(Blit *);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 extern void particle_lifetime_set(void);
-extern void SetControllerActive(s32,s32);
-extern s32 CancelFunc(s32);
+
 extern void ShowPakError(s32,s8 *,s8 *,s8 *,s32 (*)(s32));
 
-void BuildFileDelList(void);
 void SetState(s32 mode)
 {
     switch(mode) {
@@ -143,9 +118,6 @@ void ControlPickPak(void)
     }
 }
 
-void ControlFileDelVerify(void);
-void ControlRumblePak(void);
-void ControlDamaged(void);
 void updatePakScreen(void)
 {
     s32 i;

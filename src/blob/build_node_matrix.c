@@ -1,19 +1,17 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef u32 Mtx[16];
 typedef struct {
     u8 pad0[36];
     f32 pos[3];
     u8 pad1[152 - 48];
 } Ent;
-typedef struct {
+typedef struct XForm {
     f32 m[9];
     f32 pos[3];
 } XForm;
-extern Ent gCamera[];
+VIEW(Ent[], gCamera);
+#define gCamera gCamera_view
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 

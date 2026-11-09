@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
+#include "game/game.h"
+
 u8 *TB_Strcpy(u8 *destination,u8 *source) {
     u8 *out,*in; u8 c;
     out=destination; in=source;

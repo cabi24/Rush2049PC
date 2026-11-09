@@ -1,64 +1,29 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Audio-options screen text (GC audioscr.c). draft, levers, closing lever.
- * game_results_render (0x800FF298, kept) = GC animText@audioscr.c; game_results_update (0x800FEE04, internal,
- * only caller game_results_render) = GC animButtonText@audioscr.c; TB_FlashTextColors = GC TB_FlashTextColors with
- * GC's parameter type union __anon_21da {u8 c[4]; u32 rgba;} (same 7 words as the locked Color4 single).
- * Labels are wrong (not results screens): proposed audio_animText / audio_animButtonText.
- * Shaping devices (all GC-attested shapes, disclosed):
- *  - inlined non-static helpers au_gfx_lock/au_gfx_unlock/au_font_set (HAL lock + font), au_CenterText /
- *    au_RightText (GC TB_CenterText/TB_RightText), au_SetJust (GC TB_SetJust), au_SetFont (void wrapper of the
- *    font helper, GC HAL_SetFont: +8 B inline area), au_validOption (GC validOption@audioscr.c = `return 1`,
- *    inlined: it switches off LICM/strength reduction in the option loops as in retail);
- * - the toupper loop as GC's unconditional ternary store with an explicit `!= 0` loop test: with
- *    `*charPtr` as the test and an if/else store, uopt keeps cvt.J(*charPtr) as its own PRE web beside the
- *    loop-carried load (one extra `move v1,v0`); this form gives them one register as retail.
- * No unused locals.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct OSMesgQueue OSMesgQueue;
-typedef struct Color4 { u8 r, g, b, a; } Color4;
+#include "game/game.h"
+
 typedef struct AuIdx { u8 pad0[32]; u16 songStrings; u8 pad34[44]; u16 optionNames; u16 musicTypes; } AuIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; AuIdx *indices; char **strings; } TextState;
 typedef struct Options { u8 pad[12]; s8 sfxVolume; s8 musicVolume; s8 pad14; s8 musicType; } Options;
 typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
 
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern s32 audio_buttonsInited;                           /* buttonsInited */
-extern s32 gGameState;
-extern s8 audio_gControllerRemoved;                            /* gControllerRemoved */
-extern s32 playerInPause;
-typedef struct AudioMenuRect { s32 x,w,h,cx; } AudioMenuRect;   /* MAT3 audioscr.c menuRect */
-extern AudioMenuRect audio_menuRect;                     /* menuRect: cx, the right edge of the option column */
-extern s32 gAudioMenuSelect;
-extern s32 audio_gSong;                           /* gSong */
-extern char *gSongNames[];                       /* gSongNames */
-extern Options gOptions;
-typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
-extern TextColor flashColors[2];                  /* flashColors */
-extern ButtonInfo audio_buttonInfo[];                  /* buttonInfo (N64 copy starts at the first button) */
+VIEW(TextState, gText);
+#define gText gText_view
 
-extern u8 gCamera[];                          /* gCamera */
-extern s32 gJust[2];                        /* TB_SetJust pair */
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s16, char *);
-extern s32 TB_Sprintf(char *, char *, ...);
-extern void HAL_SetTextDepth(f32);
-extern void HAL_SetTextTranslucency(f32);
-extern u8 *TB_Strcpy(u8 *, void *);
-extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);
-extern TextColor gFlashColor1, gFlashColor2;
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
+VIEW(Options, gOptions);
+#define gOptions gOptions_view
+
+VIEW(TextColor[2], flashColors);
+#define flashColors flashColors_view
+VIEW(ButtonInfo[], audio_buttonInfo);
+#define audio_buttonInfo audio_buttonInfo_view
+
+VIEW(u8[], gCamera);
+#define gCamera gCamera_view
+VIEW(s32[2], gJust);
+#define gJust gJust_view
+
 void TB_FlashTextColors(TextColor first, TextColor second)   /* TB_FlashTextColors (GC: two union __anon_21da) */
 {
     gFlashColor1.rgba = first.rgba;
@@ -72,7 +37,6 @@ void au_SetJust(s32 h, s32 v)
     gJust[0] = h;
 }
 
-s32 HAL_SetFont(s32 fontID);
 void au_SetFont(s32 font)
 {
     HAL_SetFont(font);
@@ -83,7 +47,6 @@ s8 au_validOption(s32 i)
     return 1;
 }
 
-s16 TB_CenterText(void *text, s16 centerX);
 void audio_animButtonText(void)
 {
     s32 i;
@@ -151,8 +114,6 @@ void audio_animButtonText(void)
     HAL_SetTextDepth(-1.0f);
 }
 
-
-s16 TB_RightText(void *text, s16 rightX);
 s32 audio_animText(s32 arg0)
 {
     s32 i;

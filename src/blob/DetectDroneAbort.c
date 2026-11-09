@@ -1,32 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * DetectDroneAbort (0x800CF69C, 1548 B) -- the N64 port of arcade detect_drone_abort()
- * (reference/repos/rushtherock/game/resurrect.c). The name is a historical label.
- * - first 5 s of a race: clear model[i].stuck_time and game_car[i].fwd_progress_t / stray angle;
- * - per active car we control: falling below y = -190 aborts at once (AbortCar); otherwise the
- *   arcade "stuck" timer (stuck_time vs model time, wait 6 s x wait_time) triggers the resurrection
- *   (SetResurrectionData(2, m, 1) = set_resurrection_data, we_died = 2);
- * - per player viewport (the arcade's single this_node): wrong-way / help-arrow angle, walking the
- *   max path 5 points ahead (NextResPathPt) and fatan2 of the body-frame offset.
- * MODELDAT = model (stride 0x808), CAR_DATA = game_car gGameCar (stride 0x3B8).
- *
- * Disclosed: index1, index2, dist1, dist2, pos[3] and angle are the arcade function's declaration
- * list and are unused here; they are exactly the frame residual: retail frame 168, 144 without them
- * (12 words of sp offsets differ); 24 B for six declarations (2 x s16, 3 x f32, 1 x f32[3], with the
- * frame's 8-byte rounding). Measured: without index1/index2 sp offsets are 4 B off (20 words); without
- * pos[3] as well the frame is 152. The player loop counts with `node` and the 5-step walk with `i` (arcade reuses i the same
- * way); gPlayers[node].node is written twice (model first), not through a local (temp ring).
- * Own.rodata (0.1f at 0x80124124) verified by the scorer. Unit: EQUAL, 0 locked bodies differ.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct MODELDAT {
     u8 pad0[0x3F0];
     f32 magvel;             /* 0x3F0 */
     u8 pad3F4[0x6C4 - 0x3F4];
@@ -71,7 +45,7 @@ typedef struct {
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
 } CAR_DATA;
 
-typedef struct {
+typedef struct Player {
     u8 node;
     u8 pad1[7];
     s32 unk8;
@@ -92,31 +66,9 @@ typedef struct {
     PathBranch *branch;
 } PathData;
 
-typedef struct {
-    u8 pad0[7];
-    u8 unk7;
-} NodeInfo;
-
-extern f32 gModelTime;
-extern s8 gNumActiveCars;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern u32 gGameState;
-extern s8 gNoAutoAbort;
-extern s8 gEndGame;
-extern s8 gCoastFlag;
-extern s16 gNumPlayers;
 extern Player gPlayers[];
-extern PathData gResPath;
-
-void AbortCar(s16 node, s32 arg1);
-s32 AreWeSolid(s16 node);
-void SetResurrectionData(s32 what, MODELDAT *m, s32 arg2);
-void NextResPathPt(s32 idx, s32 seg, s32 *nidx, s32 *nseg);
-void BodyVector(f32 *in, f32 *out, f32 (*uvs)[3]);
-f32 fatan2(f32 x, f32 z);
+VIEW(PathData, gResPath);
+#define gResPath gResPath_view
 
 void DetectDroneAbort(void) {
     s16 i;

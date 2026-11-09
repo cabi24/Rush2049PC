@@ -1,28 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * game_results_input (0x800FF724, 1,732 B) = animControls(struct _tBlit *blt) of controlscr.c (GC rush_d.elf
- * animControls 0x8006BC2C: string "CONTROLS_SM", same branch structure). The N64 label is wrong: it animates
- * one controls-screen button blit (data word +0x2C packs id/conflict/uninited/player/value nibbles).
- * Called only through a function pointer (no direct callers).
- * Unit EQUAL. Starting draft (157/433, colour only).
- * GC-derived: validOption takes (player, item): GC animControls passes r3 = extsb(p), r4 = gControlFirst[p] + j
- * (GC's DWARF prototype "static int validOption(void)" lost the parameters). On N64 the player parameter is u8.
- * Shaping devices (disclosed):
- *  - validOption() and Hidden() are inlined static helpers (GC has both as functions); the named local `valid`
- *    inside validOption gives the retail frame (120; 112 without it).
- *  - three compiled-out reads of the u8 player value: `if (player) {}` in validOption, and `if ((u8)p) {}` once
- *    before gTextPosScale and once after the loop. They give the hoisted (u8)p web (no code: as1 drops the dead
- *    `andi a3`) a priority of 13/5 > first's 12/5, so it takes a3 and leaves retail's t0..t5/ra colouring
- *    (first t0, blt t1, id t2, action t3, p t4, conflict t5, uninited ra). Any two of the three: 41 or 133 words.
- *  - field extraction order conflict, uninited, p, id, val (ugen temp ring t6,t7,t8,t9,t6,t7 as retail).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
@@ -57,25 +33,15 @@ typedef struct TextPos {
     s32 pad0, y, pad8, padC, x, pad14;
 } TextPos;
 
-extern s16 gControlFirst[];          /* gControlFirst */
-extern s16 gControlMenuSize;
-extern s16 gNumWindows;
-extern s8 gConflict[][10];       /* gConflict */
-extern s8 controlScrActive[];           /* controlScrActive */
 extern Player gPlayers[];       /* gPlayers */
-extern s32 controls_buttonsInited[];          /* buttonsInited */
-extern ButtonName controls_buttonInfo[][17]; /* buttonNames */
-extern u8 gCamera[][152];      /* gCamera */
-extern f32 controls_gButtonScale;            /* gButtonScale */
-extern f32 controls_buttonZ;            /* buttonZ */
-extern TextPos controls_gPlayerRects[][4];
-extern s32 controls_idMap_conflict;
-extern s32 controls_idMap[];          /* button textures */
-extern s8 gNewControls[][10];       /* gNewControls */
-extern void UpdateBlit(Blit *);
-extern void RenameBlit(Blit *, char *, s32);
-extern void ZOID_ProjectWindow(s32, f32 *, void *, f32 *, s16 *);
-extern void SelectBlit(Blit *, s32, s32, s32);
+
+VIEW(ButtonName[][17], controls_buttonInfo);
+#define controls_buttonInfo controls_buttonInfo_view
+VIEW(u8[][152], gCamera);
+#define gCamera gCamera_view
+
+VIEW(TextPos[][4], controls_gPlayerRects);
+#define controls_gPlayerRects controls_gPlayerRects_view
 
 static s32 validOption(u8 player, s32 item)
 {
@@ -88,8 +54,6 @@ static s32 validOption(u8 player, s32 item)
     }
     return valid;
 }
-
-s32 Hidden(Blit *blt, s32 hide);
 
 s32 animControls(Blit *blt)
 {

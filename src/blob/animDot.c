@@ -1,31 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animDot -- minimap dot Blit AnimFunc, N64 port of arcade game/hud.c AnimateDot (Hidden is the
- * arcade hud.c helper; umerge inlines it, so it is a static copy here -- animPause.c defines
- * the kept Hidden).
- * Picks the player slot from AnimID, hides the dot when the race has 5+ players / no slot / map off,
- * scales the car position into the minimap (map size kMapSize - 8, aspect from the track bounds
- * gPathMax/gPathMin, mirrored when gMirrorWaves is clear), flashes the dot (alpha 64/255 on clock
- * bit 3) when the car is dead/crashed/not collidable/hidden/targeted, and draws it via SelectBlit.
- *
- * Shaping (each measured in the whole-program unit, -> ->):
- *  - gNumCars and the clock struct gScheduler are volatile (retail `lui; addiu; lh 0()` / `la; lw 636()`).
- *  - u32 id = blt->AnimID: retail keeps AnimID in a coloured web (v1).
- *  - the map size `kMapSize - 8` is written twice per branch: uopt's CSE temp (a0) is copied into
- *    map_width/map_height and pushes blt off a0 into t0, as in retail.
- *  - the product is `(s32)(world_height * (u32)(kMapSize - 8))`: an unsigned conversion is a cfe node
- * that demotes its operand to the right-hand side, giving retail's `multu a3,a0` .
- *  - `if (size) { }` (compiled out) after the render-flag store: one more use in size's web raises its
- *    priority (traced: save 8/7 = 1.14 over 7 blocks) above the gNumWindows PRE web (save 1.0), so size
- * takes t3 and the count t4 as in retail. It also replaces artificial `if (flash) { }` (read of an uninitialised local).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Blit {
     const char *Name;
@@ -70,29 +43,19 @@ typedef struct Model {
     u8 tail[2056 - 2028];
 } Model;
 
-typedef struct WorldPoint { s16 x, y, z; } WorldPoint;
 typedef struct MapOrigin { s32 x, y; } MapOrigin;
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct RenderRec { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } RenderRec;
 typedef struct Clock { u8 pad0[636]; u32 tick; } Clock;
 
-extern s8 dot_order_list[];
-extern s16 gNumWindows;
-extern s8 gShowTrackMap;
-extern WorldPoint gPathMax, gPathMin;
-extern s32 kMapSize;
-extern MapOrigin hud_mapPos[];
-extern s8 gMirrorWaves;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern RenderRec gBlitInstanceList[];
-extern volatile s16 gNumCars;
-extern volatile Clock gScheduler;
+VIEW(MapOrigin[], hud_mapPos);
+#define hud_mapPos hud_mapPos_view
 
-void UpdateBlit(Blit *blt);
-void SelectBlit(Blit *blt, s32 index, s32 w, s32 h);
+VIEW(RenderRec[], gBlitInstanceList);
+#define gBlitInstanceList gBlitInstanceList_view
 
-s32 Hidden(Blit *blt, s32 hide);
+VIEW(volatile Clock, gScheduler);
+#define gScheduler gScheduler_view
 
 s32 animDot(Blit *blt)
 {

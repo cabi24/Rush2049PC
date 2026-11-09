@@ -1,23 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * MBOX_FindTexture_WORK: MBOX_FindTexture_Sub (arcade MB/zmb.a mb_model.o, 5 formals: name, &index,
- * lo, hi, err).  Looks a 36-byte texture record (TEXDEF) up by name across the texture tables
- * lo..hi.  Copies the name (game_strcpy is strcpy; the arcade upper-cased it here) into a
- * local key, clamps [lo, hi] to the table count, and for every table that ModelActive reports
- * as usable runs a bsearch (game_bsearch is libc bsearch; texcmp is its
- * comparator) over gTexDefPtrs[i] = { base, count }.  Writes (index | table << 10) to *out
- * (0 when not found) and returns the record.  `err` (MBOX_NOERR/WARN/FATAL) only selects the
- * not-found message, compiled out on N64, so it is never read; callers still pass it
- * (MBOX_FindTexture_Err passes its err, 1 = MBOX_WARN; MBOX_FindTexture passes 0).
- * Quirks the match depends on: gNumModels (table count) is read address-form twice, which
- * needs `volatile`; `i` is declared before the key buffer so the buffer sits at sp+64; the
- * skip is a `continue`, not a nested if.  Also matches at -O2.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct NameEntry {
     char name[36];
@@ -33,12 +14,10 @@ typedef struct NameTable {
 #define MBOX_FATAL 2
 #define WARN_MSG(s)
 
-extern volatile u8 gNumModels;
-extern NameTable gTexDefPtrs[];
-extern char *game_strcpy(char *dst, char *src);
-extern s8 ModelActive(s32 arg0);
-extern void *game_bsearch(void *key, void *base, u32 n, u32 size, s32 (*compar)(void *, void *));
-extern s32 texcmp(void *, void *);
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(NameTable[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
 
 NameEntry *MBOX_FindTexture_WORK(char *name, s16 *out, s8 lo, s8 hi, s32 err) {
     s32 i;

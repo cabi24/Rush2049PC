@@ -1,7 +1,5 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-extern s8 gInited_HALTime;
+#include "game/game.h"
+
 intptr_t gOPPFuncs[10];
 /* The table holds function pointers, 10 of them: the loops end at gOPPFuncs + 10 (on the N64 the address of the next
  * variable, yf, which IDO took for it; docs/port/PROTOTYPES.md). */

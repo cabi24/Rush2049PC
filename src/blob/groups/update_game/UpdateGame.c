@@ -1,63 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* UpdateGame (0x800FBF88, 668 words) = MAT3 game.c _UpdateGame (GC 0x80014340, size 0x9E0), the per-frame
- * race state machine called by GameLoop (= GameLoop) when gGameState & 0x3FC0000. The N64 label is WRONG
- * (proposed name: _UpdateGame). Direct typed port of the MAT3 body (statement order, gotos preplay/UpdateGame,
- * locals i/allSolid/p/numDeaths, static startCountdown, static _EndGame defined after it).
- * N64 differences from GC: no gPakInserted loop; no SwitchFrameMode/DisableDrawFace/EnableDrawFace/
- * UpdateStationaryEmitters; SaveServer(0, 1) after the countdown frame and a 3-second SaveServer tick
- * (save_server_tick_time vs game time gModelTime) at the start of the race state; gRetireGame heads the race-state
- * else-if chain; kCircuit (3) joins the one-race/practice branch; N64 sound ids 78/2/22; the second battle
- * loop indexes with i (GC: p).
- * Callee map (N64 -> GC): .
- *
- * Matching levers (all natural; no unused locals, no compiled-out code):
- *  - setGameState is the kept 1-statement setGameState (as in GC). umerge inlines its 7 calls; they use up
- *    UpdateGame's inline budget, so PlayGameSound and _CheckButtons (CheckButtons) stay
- *    `jal` calls as in retail with no inline blockers (writing `gNewGameState = X` inlines one
- *    PlayGameSound and _CheckButtons).
- *  - startCountdown is a function-local `static s8 = 0` (.data 0x801146F0); as an extern its address web is
- *    coloured into s0.
- *  - _EndGame is a static helper defined after UpdateGame (umerge inlines it; its later line numbers give as1
- *    retail's store-before-reload order at the end of the 0x1000000 state).
- *  - SetCountdownTimer(3.5) and `3.5f * gRetraceRate`: two spellings, two constants (retail rematerialises
- *    3.5 after the call; one spelling keeps it in $f20).
- *  - coast loop `if (gDeathMode) continue;` (retail reloads gNumPlayers only on the AreWeSolid path; the
- *    `&&` form reloads at the join and colours &gNumPlayers into s3).
- *  - the two-store blocks (gCoastFlag = 1; gOutOfTime = 1;) on separate lines in stunt case 2 and battle
- *    case 1 (as1 store order).
- * Needs to be INTERNAL (not kept): retail uses s0-s6/$f20/$f22 unsaved (IPA; GameLoop saves them).
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-typedef struct Car952 {
-    u8 pad000[232];
-    s32 appearance;         /* 0x0E8 */
-    u8 pad0EC[3];
-    s8 place_locked;        /* 0x0EF */
-    u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad0F0_308[0x359 - 0x308];
-    s8 dead;                /* 0x359 */
-    u8 pad35A;
-    s8 slot;                /* 0x35B */
-    u8 pad35C[896 - 860];
-    Player76 *player;       /* 0x380 */
-    u8 pad384[931 - 900];
-    s8 battlePoints;        /* 0x3A3 */
-    u8 pad3A4[952 - 932];
-} Car952;
-typedef struct Model2056 {
-    u8 pad000[1990];
-    s16 slot;               /* 0x7C6 */
-    u8 pad7C8[2024 - 1992];
-    s8 laps;                /* 0x7E8 */
-    u8 pad7E9[2056 - 2025];
-} Model2056;
+
 typedef struct Stunt120 { u8 pad00[20]; s32 totalPoints; u8 pad18[96]; } Stunt120;
 typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
 typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
@@ -65,80 +9,22 @@ typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
  * (docs/port/CASTS.md). */
 typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **header; } Ghost40;
 
-extern u32 gGameState;
-extern u32 gNewGameState;
-extern u32 gSkipToGameState;
-
-extern s8 gRestartGame;
-extern s8 gGamePointPlayed;
-extern s32 gRace;
-extern s16 gNumPlayers;
 extern Player76 gPlayers[];   /* gPlayers */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gUseCatchup;
-extern s8 gCatchup;
-extern s32 gStuntMode;
-extern s32 gStuntModeMins;
-extern s32 gBattleMode;
-extern s32 gBattleModeMins;
-extern s32 gStuntModePoints;
-extern s32 gStuntModeDeaths;
-extern s32 gBattleModePoints;
-extern f32 save_server_tick_time;          /* last SaveServer tick time */
-extern f32 gModelTime;          /* game time */
-extern s8 gCoastFlag;
-extern s8 gRetireGame;
-extern s8 gOutOfTime;
-extern s8 gDeathMode;
-extern Stunt120 gStuntPlayer[];   /* gStuntPlayer */
-extern s8 gTeamPoints[4];        /* gTeamPoints */
-extern s8 gCarTeam[];         /* gCarTeam */
-extern s32 gAPlayerReallyFinished;
-extern f32 gDeathWaitEnd;
-extern s16 gNumLaps;
-extern Ghost40 **gGhosts[];  /* gGhosts */
-extern s8 gNumActiveCars;
-extern s16 gNumWindows;
-extern Cam152 gCamera[];
-extern f32 gRetraceRate;
 
-void SetOptions(void);
-void CalcPolePositions(void);         /* _CalcPolePositions */
-s32 PrePlay(s32 useHud, s32 cancel);
-void ClearRushControls(void);
-void SaveServer(s32 forceUpdate, s32 rumbleOnly);
-void CarSetup(void);
-void Update_MDrive(void);
-void TextureAnimation(void);
-void CheckTargetCollision(s16 slot);
-void SetCountdownTimer(f32 time);
+VIEW(Stunt120[], gStuntPlayer);
+#define gStuntPlayer gStuntPlayer_view
+VIEW(s8[4], gTeamPoints);
+#define gTeamPoints gTeamPoints_view
+
+VIEW(Ghost40 **[], gGhosts);
+#define gGhosts gGhosts_view
+
+VIEW(Cam152[], gCamera);
+#define gCamera gCamera_view
+
 s32 CountdownTimeOut(void);
-void init_model_task(s32 ticks);
-void CountDown(void);
-void CheckButtons(void);               /* _CheckButtons */
-f32 CalcRaceTime(void);
-s32 PlayGameSound(s32 sound, s32 slot, s32 a2, u8 a3);
-void StartGameMusic(void);
-void InitCPTime(void);
-void PlayGame(void);
-void FindWinner(void);
-void GhostEnd(void);
-void RemoveHUD(void);
-s32 AreWeSolid(s16 p);
-s32 are_all_cars_stopped(void);
-void AudSetMusicVol(f32 vol, f32 time);
-void *memset(void *, s32, u32);
-void End_MDrive(s16 slot);
-void UpdateVisuals(s16 slot);
-void modelstop(void);
-void StopListeners(void);
-void updateHighScoreScreen(void);
-void updateGameOverScreen(void);
-void WorldFogDensity(s32 i, f32 *pos);
-void setGameState(u32 state);
 
-void EndGame(void);  /* GC _EndGame: names the static after its retail deleted-procedure stub */
+void *memset(void *, s32, u32);
 
 void UpdateGame(void)
 {

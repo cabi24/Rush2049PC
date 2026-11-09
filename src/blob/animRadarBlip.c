@@ -1,34 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animRadarBlip: split-screen radar-car Blit AnimFunc, N64 port of arcade game/hud.c AnimateTraffic
- * (Hidden is the arcade hud.c helper; umerge inlines the kept Hidden from animPause.c, so it is
- * a static copy here, as in animDot).  AnimID bits 8-11 = viewing player `me`, bits 0-3 = car `slot`.
- * Hidden (and AnimFunc cleared) when `me` is not a player in this race, gGameState bit 3 is set or
- * gNumCars < 2; hidden when the radar is off (gShowRadar) or the viewer's car state (+0xEF) is 1; hidden
- * (AnimFunc cleared) when model[slot] is not in game; hidden when slot != me and !are_we_solid(slot)
- * (AreWeSolid).  Otherwise lpos = car[slot].dr_pos - car[me].dr_pos (arcade vecsub, written out),
- * frwtobod (BodyVector) into the viewer's frame, then X = radar width/2 +- rpos[0]/480 * width
- * (mirrored when gMirrorWaves), Y = 16 - rpos[2]/480 * height; clipped to the radar frame (size
- * radarWidth x radarHeight, published by animRadar) less the car icon size (Width/8, Height); offset by
- * the split-screen row radarPos[count-1][me]; SelectBlit picks the human/drone icon;
- * centred and re-applied with UpdateBlit.
- * the scorer fn: MATCH; whole-program unit: EQUAL, 0 locked bodies differ.
- *
- * Shaping / disclosures:
- *  - UNUSED LOCALS (exact frame residual): `ldir[3]`, `angle`, `flip` (arcade AnimateTraffic names; the N64
- *    port dropped the arcade direction/angle code).  Retail frame 168: me@164, m/gc/mc/scale@148..160,
- *    slot@146, rpos@132, lpos@120, [104..119], hw@100, hh@96.  Without these three declarations the frame
- *    is 152 and hw/hh sit at 116/112; they take exactly the 16 bytes 104..119 (4 slots: 12 + 2 x 2).
- *  - `scale` is assigned the same literal in both arms: retail has two copies of 1/480 in .rodata
- *    (0x801248CC, 0x801248D0) and reuses the arm's $f0 (negated) for Y.
- *  - the viewer's car-state byte is read through gGameCar (CAR_DATA +0xEF), not D_801528F0 as in
- *    animRadar: with the separate symbol the car base address becomes a coloured web (t0).
- *  - gc = &car[slot] is assigned before the in_game test (retail gets no .noalias for it, so the slot
- *    car's loads stay behind the lpos stores); `X = ...` precedes `Y = 16`; `+=` for the commutative
- *    operand order of the add.s.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef struct Blit {
     /* 0x00 */ char *Name;
@@ -68,20 +38,10 @@ typedef struct CAR_DATA {
 } CAR_DATA;
 typedef struct { s32 x, y; } Pos;
 
-extern s16 gNumWindows;
-extern volatile s16 gNumCars;
-extern s8 gShowRadar;
-extern s8 gMirrorWaves;
-extern s32 gGameState, radarWidth, radarHeight;
-extern Pos radarPos[][4];
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern void UpdateBlit(void *);
-extern s32 AreWeSolid(s16);
-extern void BodyVector(f32 *, f32 *, f32 *);
-extern void SelectBlit(Blit *, s32, s32, s32);
-
-s32 Hidden(Blit *blt, s32 hide);
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+VIEW(Pos[][4], radarPos);
+#define radarPos radarPos_view
 
 s32 animRadarBlip(Blit *blt) {
     s32 me;

@@ -1,15 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed short s16;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Vec3 {float x,y,z;} Vec3;
 typedef struct Vertex20 {float x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct Record88 {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Record88;
 typedef struct Texture36 {u8 prefix[16];u16 width,height;u8 middle[8];u32 flags;u32 tail;} Texture36;
 typedef struct TextureList8 {Texture36 *entries;int count;} TextureList8;
-extern TextureList8 gTexDefPtrs[];
-extern signed char gMirrorWaves;
+VIEW(TextureList8[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+
 void ZOID_UpdatePoly(Record88 *record,int count,Vec3 *positions,u16 parameter,u8 *color,u16 flags,int indexed)
 {
     Texture36 *texture;

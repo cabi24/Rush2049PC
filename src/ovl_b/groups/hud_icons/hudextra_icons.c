@@ -1,38 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B: update each player's flag/kind-selected HUD scene objects.
- * Strict members: inherited animPowerupIcons (532 bytes), new animWeaponIcons
- * (668 bytes). Genuine kept UpdateHUDExtraPostCamera remains NONMATCH context.
- * Native caller passes the unused argument in stack slot zero; both internal
- * helpers return one, ignored by that caller. No invented caller/signature.
- * In the inherited flag helper, Point precedes kind/i/status to reproduce point at sp+84 and kind at sp+80
- * in the unchanged 88-byte frame. The status pointer is evaluated after the
- * real flag selection. Direct indexed UV references recover native induction
- * order. These change no storage capacities and add no locals or dead reads.
- * The inherited volatile resource-count declaration is removed. Explicit
- * 32-bit pointer round-trips preserve native address materialization, without
- * volatile semantics. They assume the native 32-bit address model; original
- * source spelling and declaration order are unknown.
- * Valid status-helper inputs: 0..4 players, backed arrays and scene handles;
- * on the first iteration flags must be zero or include bit 1/2. Other nonzero
- * flags may retain an earlier kind, or read an uninitialized kind initially,
- * as in native. Original names and whole-function arcade donor are unknown.
- * Full gameplay, helper implementations and arbitrary invalid inputs are not
- * behaviorally tested. Context limitations are retained.
- */
-/* Image-B kind-scene sibling. Genuine consumed player/status kind carriers keep
- * native loads separate; each is refreshed after a helper can mutate it.
- * The direct indexed fields preserve native aliasing and induction order.
- * Original local spellings are unknown. No padding or capacity change.
- * Accepted 80391650 and genuine NONMATCH 80391B00 are preserved unchanged.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; s8 kind, lives; u8 unknown386[6]; s32 flags; u8 unknown390[0x28]; } Player;
+#include "game/game.h"
+
 typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
 typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
@@ -44,7 +11,7 @@ typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
  * undefined in C, so it goes through an int and keeps its low byte, as the N64's trunc.w.s and sb do
  * (docs/port/SANITIZE.md). */
 #define ALPHA_U8 (u8)(s32)
-typedef struct NameQuad { char *name[4]; } NameQuad;
+
 typedef struct ScoreState {
     s16 active, lock;
     f32 started;
@@ -59,39 +26,42 @@ typedef struct ScoreState {
     s32 multiplier, pending, state;
 } ScoreState;
 typedef struct Effect { s16 state, handle; f32 uv[3][3], position[3], alpha; s16 x,y,from_x,from_y,to_x,to_y; f32 timer; } Effect;
-extern s16 gNumWindows, gNumPlayers;
-extern s32 gRace, hudextra_whichCam[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Status weaponIcon[], powerupIcon[];
-extern Handle battleCoin[];
-extern Camera gCamera[];
-extern Scene ObjInstanceList[];
-extern char *powerupIconNames[], *stuntCoinTexNames[];
-extern u8 gNumModels;
-extern f32 hudObjAngle, gModelTime, gFrameSeconds;
-extern Point powerupPos[4][4], ammoPos[4][4];
-extern s32 fragPos[4][4][2], stuntCoinPos[4][4][2], wrongWayPos[4][4][2];
-extern Color weapon_icon_color, hudextra_playerColor[], stunt_coin_color;
-extern NameQuad battle_coin_object_names;
-extern s8 gCarTeam[];
-extern u16 gObjList[];
-extern ScoreState gStuntPlayer[];
-extern Effect stuntCoin[4][10];
-extern char stunt_coin_object_format[];
-extern u32 gGameState;
-extern s32 gPauseState;
-extern s32 MBOX_FindObject_WORK(char *,s8,s8,s8);
-extern s32 MBOX_NewObject(s32,f32[3][3],s32,u32);
-extern void ZOID_RemoveObject(s16);
-extern void MBOX_HideObject(s32,s32,u32);
-extern void MBOX_ShowObject(s32,s32,u32);
-extern void ScaleUV(f32[3][3],f32[3][3],f32);
-extern void YawUV(f32,f32[3][3]);
-extern void PitchUV(f32,f32[3][3]);
-extern void ZOID_WindowTo3D(s32,s16 *,Camera *,f32,f32 *);
-extern void ZOID_SetColor(s16,u32 *);
-extern void ZOID_SetObjectDef(s16,u16);
-extern void TB_Sprintf(char *,char *,...);
+
+VIEW(Status[], weaponIcon);
+#define weaponIcon weaponIcon_view
+VIEW(Status[], powerupIcon);
+#define powerupIcon powerupIcon_view
+VIEW(Handle[], battleCoin);
+#define battleCoin battleCoin_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(Scene[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(Point[4][4], powerupPos);
+#define powerupPos powerupPos_view
+VIEW(Point[4][4], ammoPos);
+#define ammoPos ammoPos_view
+VIEW(s32[4][4][2], fragPos);
+#define fragPos fragPos_view
+VIEW(s32[4][4][2], stuntCoinPos);
+#define stuntCoinPos stuntCoinPos_view
+VIEW(s32[4][4][2], wrongWayPos);
+#define wrongWayPos wrongWayPos_view
+VIEW(Color, weapon_icon_color);
+#define weapon_icon_color weapon_icon_color_view
+VIEW(Color[], hudextra_playerColor);
+#define hudextra_playerColor hudextra_playerColor_view
+VIEW(Color, stunt_coin_color);
+#define stunt_coin_color stunt_coin_color_view
+
+VIEW(ScoreState[], gStuntPlayer);
+#define gStuntPlayer gStuntPlayer_view
+VIEW(Effect[4][10], stuntCoin);
+#define stuntCoin stuntCoin_view
 
 s32 animPowerupIcons(void *unused)
 {
@@ -176,8 +146,7 @@ s32 animWeaponIcons(void *unused)
     }
     return 1;
 }
-s32 animPowerupIcons(void *);
-s32 animWeaponIcons(void *);
+
 void UpdateHUDExtraPostCamera(void)
 {
     s32 i, j, kind, y_offset;

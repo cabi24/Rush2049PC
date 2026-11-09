@@ -1,27 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * RecordGhost (0x800F4FEC, 1236 B): historical label. This is the N64 end-of-race records update
- * (reconstruction). For each player (count gNumPlayers, Player records gPlayers stride 0x4C):
- * resolve the cached profile pointer (else &gJustPlayers[slot]); stop if the profile has no save block;
- * then for the profile's own record (*(*prof)->save)->rec[track] and the global gTotalRaceStats[track]:
- * insert the car's finish time into the ascending 5-entry times[] (for the global set also shift the
- * owner bytes gNewTotalScore[n+9 -> n+10] and owner pointers D_80151690[track].who[]), bump races/u54,
- * add laps, the lap-time sum gLapTimes[i][0..laps) and car distance / 528.0f. Finally
- * SavePlayerStats(prof, (u8)track2). With the mirror flag gBackwards, track += 6 and track2 += 19.
- *
- * Source-form notes (no shaping devices, no unused locals):
- * - track/track2 are each assigned from gTrackNum (retail keeps the loaded byte as its own value in v0,
- *   copies it to track and track2, and forms +6 from it); track2 += 19 reads the variable (ugen temp ring).
- * - car is assigned the record address, the finished test indexes gGameCar[] directly and the time read
- *   goes through car: retail computes the address in v0 and copies it to car (move s5,v0).
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Record {        /* 0x60 per track */
     u8 pad00[0x2C];
@@ -74,18 +51,14 @@ typedef struct CarData {       /* 0x3B8 */
     u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x380 - 0x308]; void *input; u8 pad10C_384[0x3B8 - 0x384];
 } CarData;
 
-extern s8 gTrackNum;          /* track */
-extern s8 gBackwards;          /* mirror / reverse flag */
-extern s16 gNumPlayers;         /* player count */
 extern Player gPlayers[];
-extern Profile *gJustPlayers[];
-extern u8 gLap[];        /* laps driven per player */
-extern f32 gLapTimes[][8];    /* lap times per player */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Record gTotalRaceStats[];
-extern Owner gTotalNames[];
-extern s8 gNewTotalScore[];
-void SavePlayerStats(Profile **prof, u8 track);
+VIEW(Profile *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
+VIEW(Record[], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+VIEW(Owner[], gTotalNames);
+#define gTotalNames gTotalNames_view
 
 void RecordGhost(void)
 {

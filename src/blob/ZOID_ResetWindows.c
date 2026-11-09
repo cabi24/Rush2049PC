@@ -1,39 +1,14 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ZOID_ResetWindows (0x800A5A40, 252 B) -- full-screen viewport 0 setup.
- * Calls ZOID_InitializeWindow(0, ...) with the screen size screen_width/screen_height (w, h), their halves
- * and 0.0f, then re-binds entry 0 of ZoidWinInfo (stride 0x48) to &vp0 and the s16 rect
- * scissor0 = {0, 0, (u16)w, (u16)h}. N64-specific (no arcade counterpart found).
- *
- * Shaping devices (disclosed):
- *  - ZOID_InitializeWindow returns its entry pointer (retail ZOID_InitializeWindow reloads &ZoidWinInfo[idx] into v0
- *    before `jr ra`), so it is declared returning ArbEntry *; the result is kept in `e` and read by a
- *    compiled-out `if (e) {}` at the end. That keeps v0 busy (h/w colour a0/v1 as retail) and ends the
- *    block before the epilogue (retail `lw ra` after the stores, `jr ra; nop`).
- *  - `w = ...; h = ...;` on ONE source line: as1 breaks aftercycles ties by .loc line, and retail's
- *    lui/lhu interleave (lui v1, lui a0, lhu a0, lhu v1) needs both loads on the same line.
- * Unit: the whole-program unit score ZOID_ResetWindows --neighbours -> EQUAL, 0 locked bodies differ.
- */
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
-    void *f0;
-    void *f4;
-    u8 unk8[0x40]; /* fields 0x08-0x47 set by ZOID_InitializeWindow */
-} ArbEntry;
+VIEW(u8, gSplitScreen);
+#define gSplitScreen gSplitScreen_view
+VIEW(s32, vp0);
+#define vp0 vp0_view
+VIEW(s16[4], scissor0);
+#define scissor0 scissor0_view
 
-extern s32 screen_width;
-extern s32 screen_height;
-extern u8 gNumZoidWindows;
-extern u8 gSplitScreen;
-extern s32 vp0;
-extern s16 scissor0[4];
-extern f32 HFOV;   /* the field of view (90.0f): ZOID_InitializeWindow takes it as an f32 */
-extern ArbEntry ZoidWinInfo[];
+VIEW(ArbEntry[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
 
 ArbEntry *ZOID_InitializeWindow(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
 

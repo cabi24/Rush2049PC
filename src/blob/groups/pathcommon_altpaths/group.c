@@ -1,19 +1,6 @@
-/*
- * Track path graph: nodes (16 bytes each) linking runs of points, and the
- * searches that connect them. Hand-written from the assembly (cloud A).
- * Frontier: SyncAltPaths is now a member and the two stand-
- * callers are gone (it is the real caller of FindClosestPt and TraceToCheckpoint).
- * The same module contains FindResPtRecurse / TraceToIndex /
- * TraceToMain (group FindResPtRecurse).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct PathPoint {
     s16 x, y, z;
 } PathPoint;
 
@@ -44,16 +31,11 @@ typedef struct {
     /* 0x38 */ s16 nodeStart[12];
 } Section;                    /* 0x50 */
 
-extern PathGraph gResPath;
-extern s32 gPathTrace[];      /* nodes visited by the current walk */
-extern f32 path_closest_start_distance;        /* initial (large) best distance */
-extern Section gCheckpoints[];
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
 
-s32 TraceCheck(s32 node, s32 depth);
-void FindClosestPt(s32 skip, s32 atStart, s32 *outNode, PathPoint *pos, s32 *outIdx);
-s32 TraceToEnd(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 *dist, s32 stopAtTyped, s32 depth);
-void SyncAltPaths(void);
-s32 TraceToCheckpoint(s32 node, s32 pos, s32 *out, s32 depth);
+VIEW(Section[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
 /* record `node` at `depth` in the walk; 0 if it was already visited or is a dead end */
 s32 TraceCheck(s32 node, s32 depth)

@@ -1,27 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * road: per-tire road contact update, N64 port of arcade game/road.c road(MODELDAT *m).
- *
- * Callees (all locked): CollideCarBody (new N64 pre-pass on the model), TireSurf = tiresurf
- * (m, TIRERWR[i], igpos, &roadcode[i], roaduvs[i].fpuvs, i), collision = collision(m).
- * Differences from the arcade: no CENTERFORCE clear, m->(0x648) cleared once before the tire loop,
- * suscomp = tpcomp - igpos[Y] (the arcade adds igpos[ZCOMP]), makesuvs/bodysurf and the body-velocity
- * code are gone, all literals single precision.
- *
- * Literal spellings (uopt constant-web keys): the force-clear zero is `0.f` (retail keeps it
- * $f0, apart from the loop's 0.0f in $f20); the clamp stores `3.f` / `40.f` are separate constants from
- * the compares `3.0f` / `40.0f` (retail holds 3.0 twice, in $f26 and $f28, and rematerialises 40.0 for
- * the store).
- *
- * DISCLOSED unused locals (exact frame residual, owner rule): `BODYRWV[3]` (an arcade global, here a
- * local declared before igpos) and `temp[3]` (arcade road() local, its body-velocity code is gone).
- * Retail frame 192 with igpos at sp+168; without both locals the frame is 168 (igpos at sp+156); with
- * temp only, 176. 12 + 12 bytes = 6 slots (192 - 168 = 24).
- */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct ROADUVS { f32 fpuvs[3][3]; } ROADUVS;
 typedef struct MODELDAT {
     u8 pad0[196];
@@ -42,9 +20,6 @@ typedef struct MODELDAT {
     u8 pad1596[1608 - 1596];
     s32 unk648;                 /* 0x648, cleared each frame before the tire loop */
 } MODELDAT;
-void CollideCarBody(MODELDAT *m);
-void TireSurf(MODELDAT *m, f32 *rwr, f32 *igpos, s32 *code, f32 *uvs, s32 i);
-void collision(MODELDAT *m);
 
 void road(MODELDAT *m)
 {

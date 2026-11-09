@@ -1,69 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Controller Pak system (MAT3 paksysdc.c, N64 osPfs form). , superseded.
- * One file, GC paksysdc.c names:
- * PS_CreateFile (0x800A2D4C) - body, unchanged
- *   pak_insert_file (0x800A2D0C)           - one-parameter InsertLLE(&gPS_Files[psfile->pak], fileh, head) helper
- * RemovePak = _RemovePak - body (osSendMesg), private IPA (unsaved s-registers); MATCH
- *                                       (the group needs ctx_heap.c: DeallocateMemory's IPA a1/a2 convention)
- *   ClearPak = _ClearPak         - memset of the 772-byte gPaks record keeping .damaged; pak in a3 (IPA)
- * PS_PakServer = PS_PakServer (0x800A377C) - MATCH
- * PS_DeleteFile = PS_DeleteFile (0x800A2680) - MATCH; its inlined helpers pdf_free_blocks and pdf_release
- *                                       are retail's caller-less stubs 0x800A2678 / 0x800A2670 (locked singles, not claimed);
- *                                       DeallocateMemory as the heap group's three-level DeallocateMemory_stub (pdf_dealloc,
- *                                       pdf_heap_lock, pdf_heap_unlock). No device, no unused local.
- * PS_InitPakSys = PS_InitPakSys (0x800A4508) - MATCH: MAT3 indexed handle loop
- *     `for (i = 0; i < 64; i++) { gFileHandles[i].file = &gPsFiles[i]; InsertLLE(&gFree, &gFileHandles[i], head); }`
- * (the pointer do-while coloured the free-list/end address webs s3/s4 the wrong way round; the indexed
- *     loop lets uopt build the end bound from the induction variable, giving retail s4 list / s3 end).
- *
- * Provenance: MAT3 decomp/src/GameSource/src/paksysdc.c (GC/PS2 platform layer: names, statement order of
- * PS_PakServer/PS_InitPakSys, ClearLL/InitLL use) + rush_d_dwarf.c locals (i, j, changed[4], dup, same, psfileh);
- * N64 osPfs bodies reconstructed from retail with candidate.c
- * as the starting skeleton; (PS_CreateFile), (InitPakSys,
- * _ClearPak), (_RemovePak). Rumble field names from rumble_thread.
- *
- * Shaping in PS_PakServer (all source-level; then):
- *  - no pak/other pointer locals (volatile gPaks indexed directly, as PS_CreateFile);
- *  - removed-pak branch: `if (locked) goto rj; if (!flush) { if (flushing) goto rj; _RemovePak; _ClearPak; } rj:`.
- *    Retail's CFG has the flush exit and the call path joining in a block of their own before the
- *    `damaged = 0; changed[i] = 1` block (the &changed[i] reload sits there), while the locked/flushing exits get
- * edge reload blocks; every plain &&/nested-if spelling compiles 4 words short;
- *  - `if (!flushing) { ...; same = 1; goto flush; } continue;` (retail's dead `b next` block);
- *  - other-port loop: `if (i == j) continue;` then `if (inited && !memcmp) { ... move: ... break; }` (the extra
- * continue block is retail's ugen temp pop; with `i != j &&` the t6-t9 ring runs one phase off)
- *  - the directory loop reuses `ret` for osPfsFileState (one variable = one register: retail keeps it in s0 as in
- * the init section) ; `if (file_size) {.}`;
- *  - ClearLL(&gPS_Files[j]) = ClearLL inlined; the first rumble clear is the one-site inlined helper
- *    _StopRumble (retail's +8 inline area above the first lock), the second is inline code;
- *  - `s8 status = 0; s8 retry = 0;` initialisers; `dup = 0; same = 0; memcpy(...)` on one line (as1 line tie);
- * - DISCLOSED DEVICE: ONE compiled-out `if (forceUpdate) {}` at the end (needed three; levers made
- *    two redundant). Without it umerge also inlines retail's first `jal si_lock` (the public pak lock):
- *    retail's caller is one branch larger at the IR level. Retail also stores forceUpdate to its home at entry
- *    (`sw a0,432(sp)`) and never loads it, so retail references the parameter in code that compiles away.
- *  - DISCLOSED UNUSED LOCALS (exact frame residual): `s32 err` (sp+416) and `s8 X` (sp+311) are unreferenced.
- *    Retail frame 432: i 428, j 424, ret 420, [416], pfs 312-415, [311], status 310, retry 309, changed 304-307,
- *    dup 303, same 302, fileh 296, psfile 292 (retail touches j 424, pfs 312/316, 311-302 and 296 exactly as
- *    here). Without err pfs moves to 316 (unit: 41 words differ); without X status/retry/changed/dup/same move up
- *    one byte (12 words differ). The frame stays 432 either way; two slots, 5 bytes, identities unknown.
- *
- * Shaping in PS_DeleteFile (source-level, nothing compiled out): the retry is a goto loop (`delete_retry:`, the
- *  matched _PS_FlushFile's `write_retry:` style); `fileNo` and `state` are locals; `error` is declared after psfile
- *  (retail's psfile 208 / retry 215 / status 214; the last-declared 4-byte local lives in a register).
- *
- * Shaping in the shared free-list helper pfs_get_node (inlined in PS_CreateFile and PS_PakServer):
- *  - DISCLOSED DEVICE: a compiled-out `if (pak_free_handles.head) {}` before `fileh = pak_free_handles.head;`, and fileh (not a
- *    second head load) passed to RemoveLLE. It splits the head load across two uopt blocks, which makes the loaded
- *    head a global expression web: in PS_PakServer it then gets its own spill home (retail's ext/game name pointers
- *    at 96/100, not 100/104) and v0 (retail `lui v0; lw a1,24808(v0)`). PS_CreateFile stays EQUAL with it.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef void *OSMesg;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
+
 typedef struct OSThread OSThread;
 typedef struct OSMesgQueue {
     OSThread *mtqueue, *fullqueue;
@@ -121,34 +59,17 @@ typedef struct tDLList {
 typedef s32 (*PakPredicate)(s32);
 typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
 
-extern volatile PakRecord gPaks[];   /* gPaks */
-extern tDLList gPS_Files[];               /* gPS_Files */
-extern tDLList pak_free_handles;                 /* free tPS_File handles */
-extern s8 si_lock_inited, gErrPak;           /* lock queue initialised; gErrPak */
-extern OSMesgQueue si_lock_queue;
-extern OSMesg si_lock_msg;
-extern PakErrorFunc gErrorFunc;
-extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
+VIEW(volatile PakRecord[], gPaks);
+#define gPaks gPaks_view
+VIEW(tDLList[], gPS_Files);
+#define gPS_Files gPS_Files_view
+VIEW(tDLList, pak_free_handles);
+#define pak_free_handles pak_free_handles_view
+
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-extern s32 osPfsAllocateFile(OSPfs *, u16, u32, u8 *, u8 *, s32, s32 *);
-extern s32 osPfsFileState(OSPfs *, s32, OSPfsState *);
-extern s32 osPfsFreeBlocks(OSPfs *, s32 *);
-extern void pak_encode_name(u8 *, u8 *, u8);          /* ASCII -> pak font */
-extern void pak_decode_name(u8 *, u8 *, u8);          /* pak font -> ASCII */
-extern s32 game_strcmp(u8 *, u8 *);               /* strcmp */
-extern s32 pak_removed(s32);                      /* !gPaks[pak].inserted */
-extern void PS_DeleteFile(PakHandle *);
-extern void RemoveLLE(tDLList *, PakHandle *);
-extern void InsertLLE(tDLList *, PakHandle *, PakHandle *);
-extern void *AllocateHandleHeap(void *, u32);
-extern void *memset(void *, s32, u32);
-void pak_insert_file(PakHandle *fileh);
-/* context: byte-identical copy of the locked pfs_status body (internal here: IPA register facts) */
-s32 pak_error_from_pfs(s32 error);
 
-/* the inlined pak lock helpers (bodies as group pak_write_cluster pfs_*; own names: the unit renames duplicated internal names) */
-void paksys_lock(void);
+extern void *memset(void *, s32, u32);
 
 /* 0x800A2D0C: InsertLLE(&gPS_Files[file->pak], fileh, head) */
 void pak_insert_file(PakHandle *fileh)
@@ -159,7 +80,6 @@ void pak_insert_file(PakHandle *fileh)
 /* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
 PakHandle *pfs_get_node(void);
 
-void si_unlock(void);
 /* 0x800A2D4C */
 PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode)
 {
@@ -257,15 +177,8 @@ PakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, 
     return fileh;
 }
 
-
-
-/* ---- PS_DeleteFile (0x800A2680) ---- */
-extern s32 osPfsDeleteFile(OSPfs *, u16, u32, u8 *, u8 *);
-extern OSMesgQueue heap_lock_queue;          /* heap semaphore */
-extern void DeallocateMemoryInternal(u32, s32);  /* DeallocateMemory core (IPA a1/a2) */
-void pdf_dealloc(u32 address);
-void pdf_free_blocks(s32 pak);
-void pdf_release(PakHandle *fileh);
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 /* 0x800A2680: PS_DeleteFile */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -317,19 +230,15 @@ delete_retry:
 
 /* ---- PS_PakServer and its private callees ---- */
 typedef struct ControllerData { s8 present; u8 opaque1[15]; } ControllerData;
-extern ControllerData gControllerData[];     /* gControllerData */
-extern s8 gPakSysInited;                   /* gInited */
-extern OSMesgQueue si_event_queue;          /* SI message queue */
-extern OSMesgQueue heap_lock_queue;          /* heap semaphore */
-extern void si_lock(void);        /* pak lock (public; the first call stays a jal: umerge budget) */
-extern s32 osPfsInitPak(OSMesgQueue *, OSPfs *, s32);
-extern s32 osMotorInit(OSMesgQueue *, OSPfs *, s32);
-extern s32 osPfsRepairId(OSPfs *);
-extern s32 game_memcmp(u8 *, u8 *, s32);   /* memcmp */
-extern s32 PS_FlushPak(s32, s32);
+VIEW(ControllerData[], gControllerData);
+#define gControllerData gControllerData_view
+
+VIEW(OSMesgQueue, si_event_queue);
+#define si_event_queue si_event_queue_view
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
+
 extern void *memcpy(void *, const void *, u32);
-extern void DeallocateMemoryInternal(u32, s32);  /* DeallocateMemory */
-extern void ClearLL(tDLList *);
 
 /* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
 void RemovePak(s32 pak)
@@ -367,12 +276,6 @@ void ClearPak(u8 pak)
     memset((void *)&gPaks[pak], 0, sizeof(PakRecord));
     gPaks[pak].damaged = damaged;
 }
-
-/* inlined: does the file's write bitmap have dirty bytes */
-s32 _FileChanged(tPS_File *psfile);
-
-/* inlined: motor off and rumble state cleared */
-void _StopRumble(s32 pak);
 
 /* 0x800A377C: PS_PakServer */
 void PS_PakServer(s32 forceUpdate, s32 rumbleOnly)
@@ -598,16 +501,13 @@ flush:
     if (forceUpdate) {}     /* disclosed umerge-budget device (one branch) */
 }
 
-/* ---- PS_InitPakSys ---- */
-extern PakHandle pak_file_handles[];          /* the 64 tPS_File handles */
-extern tPS_File pak_file_records[];           /* the 64 tPS_File records (76 bytes) */
-extern u8 rumble_thread[];                 /* pak thread */
-extern u8 rumble_thread_stack_top[];                 /* pak thread stack top */
-extern void rumble_thread_entry(void *);    /* rumble/pak thread entry */
+VIEW(PakHandle[], pak_file_handles);
+#define pak_file_handles pak_file_handles_view
+VIEW(tPS_File[], pak_file_records);
+#define pak_file_records pak_file_records_view
+
 extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
 extern void osStartThread(void *);
-extern void pak_poll_inserted(void);        /* poll pak presence (_CompleteCallback slot) */
-extern void InitLL(tDLList *, u8, u8);   /* InitLL (MAT3 char = unsigned) */
 
 /* 0x800A4508: PS_InitPakSys */
 void PS_InitPakSys(PakErrorFunc errorFunc)

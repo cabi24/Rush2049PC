@@ -1,13 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* controls_validOption = validOption (MAT3 controlscr.c validOption(signed char p, int option); GC body is
- * `return 1`, the N64 port rejects option 8). Same six words as the locked single; the switch form
- * is the source size at which umerge inlines it into updateButtons (D816C) and
- * calcControlMenuMaxSize (D9058) but not into updateControlScreen (D91A0, six jal sites), as retail.
- * It replaces `if (0) { var_v1 = 1; }` lever (that form also stopped uopt folding
- * `i + k == 8` in D9058's unrolled loop). The unused player parameter is the private-ABI stack word.
- */
-typedef signed char s8;
-typedef signed int s32;
+#include "game/game.h"
+
 s32 controls_validOption(s8 player, s32 item) {
     s32 var_v1;
 

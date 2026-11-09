@@ -1,15 +1,13 @@
-/* Full native save-menu input flow; all unavailable helpers remain external. */
-typedef signed char s8;
-typedef signed int s32;
-typedef unsigned int u32;
-extern s32 gGhostMenuSelect;
-extern s8 gGhostPak, gGhostMenuConfirm, highscore_gYes, gGhostMenuConflict, gGhostMenuNotify;
-extern s32 gGhostStatus[4];
-extern u32 gActiveLevels, gActiveEdges;
-extern void *gPlayers_save, *gSavedGhost;
-extern s32 SaveGhost(s32, void *, void *, s32);
-extern void SetHighScoreState(s32);
-extern void FindGhosts(s32);
+#include "game/game.h"
+
+VIEW(s32[4], gGhostStatus);
+#define gGhostStatus gGhostStatus_view
+VIEW(u32, gActiveLevels);
+#define gActiveLevels gActiveLevels_view
+VIEW(u32, gActiveEdges);
+#define gActiveEdges gActiveEdges_view
+VIEW(void *, gPlayers_save);
+#define gPlayers_save gPlayers_save_view
 
 void ControlGhost(void)
 {

@@ -1,48 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * StartSmoke (0x8008EA10): spawn N smoke/dust/exhaust effect objects for car `slot`, effect `type` 0..7.
- * Behavioural ancestor: arcade game/visuals.c StartSmoke (surface/mph gates, smoke object pick, per-tire
- * position); the N64 routine is heavily expanded (8 types, state-bit toggles in gCarSmokeDir, trail
- * interpolation for types 6/7, per-type colours).
- * STATE: EQUAL in the whole-program unit. It inlines the locked Random 19x and two file-static
- * helpers. Scorer (Pi): the whole-program unit --tag score StartSmoke --with <this file> --neighbours ->
- *   "EQUAL StartSmoke: 1386 words", "locked bodies that differ in this unit: 0".
- * lever (7 words -> 0): two inlined static helpers, defined after the function with prototypes first.
- *   - get_car(slot) returns &gGameCar[slot]. car is then assigned from the inlined return value (v0), so uopt
- *     keeps it as a variable (s1) instead of substituting the address expression. That removes car's spill-temp
- *     home, and the helper's 8-byte inline area makes the named area 632. Result: retail's homes (model address
- *     92, switch type copy 84). Defined after the function: the inlined addu carries the helper's line number,
- *     and as1 breaks the aftercycles tie with `sw zero,644(sp)` (i = 0) by the lower line, as in retail.
- *   - get_mph(car) returns car->mph >> 2. Without it, uopt propagates the v0 return into `car->mph`, v0 is in
- *     use in mph's block, and mph gets v1. With it, mph is the second helper's v0 return, as in retail.
- *   Neither helper's identity is known. Neither is a kept function in retail (no tiny function computes
- *   &gGameCar[x] or loads 248(a0)). Like attach() in the locked StartWater group, they are file statics
- *   with one call site each. In the shadow unit they leave two unsymbolled `jr ra; nop` stubs before
- *   StartSmoke, which retail does not have (same as attach()'s stub before StartWater).
- * Shaping devices / hypotheses (all disclosed):
- *   - `if (type) {}` at the top of the loop body: a compiled-out read (weight-10 use). The two helper return
- *     labels add one uopt block each to type's live range (nocs 46 -> 47, save 192/47 = 4.085). type then loses
- *     callee-saved s4 to the constants 0 and 68 (save 150/36 = 4.1667), and s4/s5/s6 are permuted. The read
- * raises type's total to 202. No natural source form found.
- *   - `*(s16 *)&surface == 8`: surface is address-taken through this one use, so it stays memory-only as in
- * retail (`volatile` is wrong). Still required: plain `surface == 8` gives 1114 words.
- *   - Unused locals pB0, pB1, pB2, pC1..pC3, pD00..pD43 (50 slots: 49 s32 and one u16) are the exact frame
- *     residual. Retail frame 728; frame without them 528. With one pD fewer the frame is 720 (159 words).
- *     One more still gives 728 (8-byte granularity). They reproduce every retail named-local offset: pos 708,
- *     delta 696, spacing 692, previous 668, surface 666, mph 664, first 662, count 648, i 644, colours
- *     628..608.
- *   - Lifetime sites 2 and 4 spell 0.5 as `.5f`: uopt keys real constants by their text, so these are
- *     separate constants and are rematerialised (lui 0x3f00) as in retail. The other 0.5 uses share $f22.
- *   - Position accumulation is written `pos[k] = pos[k] + B * A`, which gives retail's add(prod,pos) and
- *     mul(A,B) operand order. `pos[1] += suspension` stays `+=` (retail add(pos,susp)).
- *   - Each colour store uses a block local: `{ s16 h = v->handle.word; ... }`. Retail colours that value v0.
- *     The identity of the helper or macro is a hypothesis (inlined ZOID_SetColor does not fit umerge's budget).
- *   - `MBOX_ShowObject(v->handle.word, first = 0, 15)` places the `first = 0` store after the a0 load.
- * - The six state-bit cases are written `if (bit) { clear; break; } set; .; break;` (lever, no device).
- */
-typedef signed char s8; typedef unsigned char u8;
-typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 typedef struct Car { u8 pad0[8]; f32 pos[3]; f32 dir[3]; u8 pad32[12]; f32 right[3]; f32 up[3]; f32 forward[3]; u8 pad80[36]; f32 wheel[4][3]; u8 pad164[84]; s16 mph; u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad250_308[0x35C - 0x308]; s8 viewport; s8 visibility; u8 pad862[0x380 - 0x35E]; void *input; u8 pad862_384[0x3B8 - 0x384]; } Car;
 typedef struct Model {u8 pad0[8];u8 type;u8 pad9[1555];u16 surface[8];u8 pad1580[304];f32 suspension[4];u8 pad1900[156];} Model;
 /* PC: the handle is the s32 MBOX_NewObject returned, and id its low half: the second s16 on the N64, the first on a
@@ -51,34 +8,25 @@ typedef struct Effect { void *next; f32 basis[9]; f32 pos[3]; union { s32 word; 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Scene { u32 flags; u32 flags4; void *owner; f32 scaleA; f32 scaleB; u16 id; s16 links[3]; void *words[8]; union { u8 byte[4]; u32 word; } rgba; s32 tail; } Scene;
 typedef struct Bank {u8 *data;u32 other;} Bank;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Scene ObjInstanceList[];
+VIEW(Scene[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 /* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
 #define gCarBlastSmokeClr pc_smoke_shade
 #define gCarWingSmokePos pc_trail_pts
-extern u8 gSmokeList[];
-extern u16 gFireTexs[];
-/* The scene's object definitions by kind (InitTrackDynamicObjs): the one smoke model of a race track without the
- * Expansion Pak (195), the smoke models (196..203) and the fire (204). */
-extern u16 gObjList[];
-extern Bank gTexDefPtrs[];
-/* The wing option by player row (1..4) and car type; row 0 the default (MAT3 gCarWings[slot + 1][type]). */
-extern s8 gCarWings[][13];
-extern f32 gCarMiddles[];
-extern s32 smoke_white,smoke_wing_color1,smoke_wing_color2,smoke_wing_color3,smoke_road_color,smoke_dirt_color;
+VIEW(u8[], gSmokeList);
+#define gSmokeList gSmokeList_view
+
+VIEW(Bank[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+
 /* PC: the six surface colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
  * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
 void ZOID_SetTexture(s16 handle,void *resource,s32 mode);
-f32 NormalVector(f32 *v);
+
 s32 ZOID_AddObject(s32 object,void *basis,s16 parent,s32 flags);
-Effect *GetStatLLE(void *pool);
-void StartWater(s16 slot,u32 type);
-void MBOX_HideObject(s32 handle,s32 mode,u32 viewport);
-void MBOX_ShowObject(s32 handle,s32 mode,u32 viewport);
-f32 Random(f32 max);
+
 f32 fabsf(f32 x);
 
 
@@ -93,8 +41,8 @@ f32 fabsf(f32 x);
 #define C_8012399C 2.5999999f
 #define C_801239A0 0.100000001f
 #define C_801239A4 0.075000003f
-extern s8 gGoodFrameRate, gTrackNum, expansion_pak_present;
-extern s16 gNumPlayers;
+VIEW(s8, gGoodFrameRate);
+#define gGoodFrameRate gGoodFrameRate_view
 
 static s16 get_mph(Car *c);
 static Car *get_car(s16 slot);

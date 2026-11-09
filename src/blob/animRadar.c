@@ -1,19 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animRadar: per-player save_player_car_view/HUD node update.  Hides the node (byte +0x1A = 1,
- * word +0x28 = 0) when its player index is out of range, gGameState bit 3 is set or
- * gNumCars < 2; otherwise hidden = !gShowRadar || player[index].state(+0x17) == 1,
- * re-applying UpdateBlit when the flag changes.  A visible node takes its x/y
- * from the 4-entry row radarPos[count - 1][index] (count = gNumWindows), gets
- * RenameBlit(node, radar_md_blit_name, 0) and alpha 0x60 in multi-player, and publishes its
- * size (+0x14/+0x16) to radarWidth/radarHeight.  Returns the hidden flag / 1.
- * Also matches at -O2.  Whole-program unit: EQUAL.
- * Shaping quirk: gNumCars is `volatile` (retail reads it through `la; lh 0(reg)`,
- * like the other readers of this word, e.g. fake_init's store).  Body otherwise from
- * the heads_B13 structmode draft.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32;
+#include "game/game.h"
 
 /* PC: the node is a blit (NewMultiBlit.c's Blit, 0x68 bytes, docs/port/POINTERS.md 9.3): its name, image and info
  * are pointers, so the rest is 0x0C later, and the AnimFunc slot (word28) is pointer-sized at +0x38 with the AnimID
@@ -38,18 +23,11 @@ typedef struct MenuNode {
 } MenuNode;
 
 typedef struct { s32 x, y; } Pos;
-/* PC: a car record seen from +0xD8 (a name inside gGameCar): only its stride, PC_CAR_SIZE, matters here. */
-typedef struct { u8 pad[0x17]; s8 state; u8 pad18[PC_CAR_SIZE - 0x18]; } Player;
 
-extern s16 gNumWindows;                  /* player count */
-extern volatile s16 gNumCars;
-extern s8 gShowRadar;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gGameState, radarWidth, radarHeight;
-extern Pos radarPos[][4];     /* row = player count - 1 */
-extern char radar_md_blit_name[];
-extern void UpdateBlit(void *);
-extern void RenameBlit(void *, char *, s32);
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+VIEW(Pos[][4], radarPos);
+#define radarPos radarPos_view
 
 s32 animRadar(MenuNode *node) {
     s32 index;

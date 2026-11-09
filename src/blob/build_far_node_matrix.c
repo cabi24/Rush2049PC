@@ -1,32 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (-O3 required: at -O2 `scale` is spilled to its home slot) */
-/*
- * Builds an N64 fixed-point Mtx (16 words: integer halves 0..7, fraction
- * halves 8..15) from a 3x3 rotation and a position.  Unless `absolute` is set
- * the position is taken relative to view record gCamera[idx] (0x98 bytes,
- * same rot/pos layout).  If the offset is longer than 1600 units it is pulled
- * in to 1600 and the rotation is scaled by the same factor, so far objects
- * are drawn nearer and smaller.  Positions are stored x16 (2^20 instead of
- * 2^16); element [3][3] is `scale`.  The [n][3] elements of the rotation
- * rows are 0.  N64-only (no arcade ancestor identified).
- *
- * Shaping quirks:
- *   - the distance reuses `s` (a separate `dist` local takes $f20 and a frame);
- *   - `s *= 65536` with an int literal: `65536.0f` joins the web of the
- *     `scale * 65536.0f` literal and is kept in a register;
- *   - `(s32)(scale * 65536.0f)` is written out twice instead of going through
- *     a local: as a local it takes a2 and moves `m` to a3.
- */
-typedef float f32;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct View {
     f32 rot[3][3];
     f32 pos[3];
     char pad30[0x68];
 } View; /* 0x98 */
 
-extern View gCamera[];
+VIEW(View[], gCamera);
+#define gCamera gCamera_view
 
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)

@@ -1,37 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * RotateCollisionObject (0x800BF838) is a historical label.  Real semantics: for every 32-byte record of
- * stree_save[0 .. stree_savenum) whose tag equals `tag`, rotate the record's packed 3x3 orientation by m1 then m2
- * and write it (s16, scale 16384) to stree_surf[rec->matrix], and rotate its packed position (s16 + 5-bit
- * fraction, 1/32 units) about `origin` by m1 then m2 and write it back packed to stree_svert[rec->point].
- * No arcade ancestor identified (N64 record format); the vector add is the arcade `vecadd` macro shape.
- *
- * Whole-program context: the callee mats2fcopy is internal (register parameters by colouring) and its
- * source parameter order is (in, out) - retail sets up a1 (out) before a0 (in).  That internal callee is what
- * gives this function the four-wide t6-t9 temp ring; it does not reproduce standalone.
- * INTEGRATION: the locked mats2fcopy (src/blob/groups/stree_collide/group.c) is written (void *out,
- * void *in); it must become (in, out) first -- corrected copy, still MATCH for all three members, in
- * With that file, `the whole-program unit score
- * RotateCollisionObject mats2fcopy CarApplyCollision updownleaf DecodeVlist` is 5/5 EQUAL.
- * The kept __standin_mats2fcopy_a only keeps the callee out of line in this standalone group (retail's
- * other callers live in the VectorToSurfEdge group); it is not a claimed member and is not retail code.
- *
- * Quirks the match depends on:
- *  - `count` is never read; the empty `if (count == 0) {}` keeps its increment alive (retail keeps `addiu s7`).
- *    The original statement there is unknown (a compiled-out report, probably).
- *  - unused0/unused1/unused2 are not original names: three scalar slots at sp+236, sp+220, sp+216.
- *  - `pos[k] = rel[k] + origin[k]` (rel first): with origin first uopt forwards the sums and the three
- *    reloads of pos[] disappear (2 words short).
- *  - packed fraction written `((x & 31) << 10) + ((y & 31) << 5) + (z & 31)`: any other operand order changes
- *    which value ugen spills at sp+88, and with it the temp-ring phase of the whole function.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 
 #define vecadd(a,b,r)	{r[0]=a[0]+b[0]; r[1]=a[1]+b[1]; r[2]=a[2]+b[2];}
 typedef struct Item {
@@ -54,15 +22,12 @@ typedef struct OutPoint {
     /* 0x06 */ u16 frac;
 } OutPoint;
 
-extern u16 stree_savenum;
-extern Item *stree_save;
-extern OutMatrix *stree_surf;
-extern OutPoint *stree_svert;
-
-void mats2fcopy(s16 *in, f32 *out);
-
-void MulUVS(f32 m[3][3], f32 in[3][3], f32 out[3][3]);
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2);
+VIEW(Item *, stree_save);
+#define stree_save stree_save_view
+VIEW(OutMatrix *, stree_surf);
+#define stree_surf stree_surf_view
+VIEW(OutPoint *, stree_svert);
+#define stree_svert stree_svert_view
 
 void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     s32 unused0;
@@ -119,8 +84,6 @@ void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     if (count == 0) {
     }
 }
-
-void mats2fcopy(s16 *p, f32 *o);
 
 /* stand-in: retail mats2fcopy has callers outside this group (PointInSurf, CylinderInSurf);
  * this kept caller only keeps it out of line here.  Not a claimed member. */

@@ -1,32 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (-O3 required: at -O2 the slot-pointer web takes s0 and the frame grows, 136/144) */
-/*
- * End-of-race statistics update for the current player (gCircuitPlayer), N64-only.
- * Two 28-byte records are updated with the same code: first the one inside
- * the player's save data (base + 0x684 + sel * 0x1C, sel = s8 at base+0x6FC),
- * then the session copy gTotalCircuitStats[sel].  Per record: total++, one of three
- * counters by gCircuitCars.unk1 (0/1/2), two more counters when gDeathMode is
- * set (the second only for unk1 < 3), sum += gCircuitCars.unk2, best =
- * max(best, unk2), and bestTime = base->unk704 when bestTime is 0 or greater
- * than it.  Finally SavePlayerCircuitStats(ref, sel) re-checksums the save record
- * (it stores CalcChecksumInternal(rec+4, 24) at rec+0 and marks the slot).
- *
- * `ref` (Player76 +0x48) points into the pointer table gJustPlayers and is
- * filled in lazily from the byte at +1, as in IsCoinFound.
- *
- * What mattered (no quirks): every access is spelled
- * gPlayers[gCircuitPlayer].ref, never through a local `Player76 *p`.  The
- * value of that expression is then one CSE web for the whole function (t1 at
- * the top and again in front of the final call), which pushes the constants
- * to t1/t2 as in retail.  With a pointer local the top and the end are two
- * webs (v1 and a0) and 20 words differ.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct {
     /* 0x00 */ s32 checksum;
@@ -52,7 +24,7 @@ typedef struct {
     Base *base;
 } Data;
 
-typedef struct {
+typedef struct Car {
     void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC];
     Data *data;
 } Car;
@@ -70,14 +42,14 @@ typedef struct {
     u16 unk2;
 } Result;
 
-extern u8 gCircuitPlayer;
 extern Player76 gPlayers[];
-extern Car *gJustPlayers[];
-extern Rec gTotalCircuitStats[];
-extern s8 gDeathMode;
-extern Result gCircuitCars;
+VIEW(Car *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+VIEW(Rec[], gTotalCircuitStats);
+#define gTotalCircuitStats gTotalCircuitStats_view
 
-void SavePlayerCircuitStats(Car **ref, u8 idx);
+VIEW(Result, gCircuitCars);
+#define gCircuitCars gCircuitCars_view
 
 void RecordCircuit(void) {
     s32 i;

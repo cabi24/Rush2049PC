@@ -1,16 +1,9 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+
 /* PC: the skid effect's host layout (skid_marks' EffectObj, InitSkids's PcEffectObj): its two links and its
  * display handle are pointers, so the midpoint is at +0x20 and the flag at +0x30. */
 typedef struct {void *pad0[2];f32 f8;void *dl;f32 midpoint[3];u32 pad1C;u32 ready;} Dest;
-typedef struct {Dest *dest;f32 first[3],second[3];} Pending;
+typedef struct Pending {Dest *dest;f32 first[3],second[3];} Pending;
 void StopSkid(Pending *p) {
  s32 i;
  Dest *d=p->dest;

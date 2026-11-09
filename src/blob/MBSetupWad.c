@@ -1,11 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Binds a table header and rebases its 12-byte entries; no quirks beyond storing through table->header. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct Entry {
     s32 unk0;

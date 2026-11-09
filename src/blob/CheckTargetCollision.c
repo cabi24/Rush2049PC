@@ -1,36 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (identical words at -O2) */
-/*
- * NOT STRICT: code identical, own jump table unverified by the scorer.
- * Checked by hand: the object's .rodata is six R_MIPS_32 .text entries
- * +0x2d8 x3, +0x2e8 x3 = 0x800BED78 x3, 0x800BED88 x3, equal to the retail
- * words at 0x80123E5C..0x80123E70 that the code references.
- *
- * Historical label CheckTargetCollision is misleading.  This is the per-car object
- * collision pass: (1) when the mode word gRace is 6, walk the transient
- * object list gAlwaysColList.active, test each object with its shape callback
- * gTargetCollFuncPtrs[type->shape] and remove hits from the pool (FreeStatLLE);
- * (2) descend the 28-byte quadtree at gTargetGroups with the car position and
- * test every object of the leaf (gTargetGroupList[first + i]).  Shapes 0-2 are
- * called as (&player, obj+0x44, obj+0x54, 0), shapes 3-5 as (obj, &player,
- * 0, 0).  A hit sets flag 4, records the player and calls type->onHit.
- *
- * Shaping facts:
- * - the box test must enclose the split test (`if (inside) { if (flags & 1)
- *   {...} else break; } else return;`); early-return form reloads pos[] (19
- *   aligned rows);
- * - `gTargetGroups[tree->child2].maxz/.maxx` directly (a named `sub` pointer
- *   swaps the addu operands: 1 word);
- * - unusedA/unusedB are frame filler: 24 bytes above and 36 bytes below
- *   pos[] are never touched by retail (frame 136).  Their real declarations
- *   are unknown (not the original source).
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef unsigned short u16;
-typedef short s16;
-typedef unsigned int u32;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Object {
     char pad0[4];
@@ -42,8 +10,6 @@ typedef struct Object {
     f32 unk54[2];
     s8 player;
 } Object;
-
-typedef s32 (*HitFunc)(void *, void *, void *, s32);
 
 /* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
  * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
@@ -95,16 +61,13 @@ typedef struct Tree {
     u16 child3;
 } Tree;
 
-extern s32 gGameState;
-extern s32 gRace;
-extern s8 expansion_pak_present;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Pool gAlwaysColList;
-extern ObjType targetInfo[];
-extern HitFunc gTargetCollFuncPtrs[];
-extern Tree *gTargetGroups;
-extern Object **gTargetGroupList;
-extern void FreeStatLLE(Pool *, Node *);
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
+VIEW(Pool, gAlwaysColList);
+#define gAlwaysColList gAlwaysColList_view
+VIEW(ObjType[], targetInfo);
+#define targetInfo targetInfo_view
 
 void CheckTargetCollision(s16 player) {
     s32 unusedA[6];

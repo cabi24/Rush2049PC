@@ -1,19 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/*
- * Runtime image B only: 0x8038CA24..0x8038CB10, 236 bytes.
- * Reset per-player battle/HUD state, group handle/timer, and five slot handles.
- * Reconstructed from the protected B-image body and its game callers; no
- * known arcade analogue or original N64 declarations are claimed.
- * Field names are descriptive hypotheses; widths/offsets/strides are native.
- * Caller supplies a signed 16-bit player index backed by every named array.
- * Tests establish whole-object behavior for fixture indices 0..3; neither
- * broader caller bounds nor negative C-array indexing are asserted valid.
- * Unknown record bytes preserve observed layout; they are not stack padding.
- */
-typedef signed char s8;
-typedef signed short s16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct CarBattleView {
     unsigned char unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; unsigned char unknown000_308[0x380 - 0x308]; void *input;
@@ -30,25 +15,14 @@ typedef struct CarBattleView {
     unsigned char unknown3a8[0x10];
 } CarBattleView;
 
-typedef struct tCMuzzleObj {
-    unsigned char unknown000[0x104];
-    s32 handle;
-    unsigned char unknown108[0x30];
-    s8 selection;
-    unsigned char unknown139[0xB];
-    f32 timer;
-} tCMuzzleObj;
-
 typedef struct tMuzzleObj {
     s32 handle[5];
     unsigned char unknown014[0xF4];
     f32 timer;
 } tMuzzleObj;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gCurWeaponType[];
-extern tCMuzzleObj gCannMuzzleObjs[];
-extern tMuzzleObj gGattMuzzleObjs[];
+VIEW(tMuzzleObj[], gGattMuzzleObjs);
+#define gGattMuzzleObjs gGattMuzzleObjs_view
 
 void InitBattlePlayer(s16 player)
 {

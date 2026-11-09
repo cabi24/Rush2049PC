@@ -1,20 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * stop_sequence (0x800FE7A4; historical label): under the audio_lock_queue event-queue lock, look up
- * the timed event with handle h in the event table gSequences (slot = h & gTagMask, valid only if
- * the slot's handle still equals h; h == -1 is "none") and set its flag at +0x0E. Event layout as in
- * src/blob/AudPlaySequence.c (0x3C bytes, handle @8).
- *
- * The lookup is a deleted inlined helper: the caller-less `jr ra; nop` stub find_sequence right before
- * this function (same two-return shape as ConvertTag in src/blob/groups/aud_stop_effect). Written
- * static here so the standalone scorer inlines it; in the whole-program unit the non-static form named
- * find_sequence also scores EQUAL with `the whole-program unit score stop_sequence --internal find_sequence`.
- * The two separate `gSequences[h & gTagMask]` address computations (test vs return) are retail's.
- */
-typedef float f32;
-typedef unsigned char u8;
-typedef unsigned int u32;
-typedef int s32;
+#include "game/game.h"
 
 /* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links, so its fields follow from +0x10, 72 bytes
  * (docs/port/SYNTH.md). */
@@ -40,9 +24,11 @@ typedef struct Event {
     int link;       /* 56 */
 } Event;
 
-extern char audio_lock_queue[];
-extern Event *gSequences;
-extern u32 gTagMask;
+VIEW(char[], audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(Event *, gSequences);
+#define gSequences gSequences_view
+
 int osRecvMesg(void *, void *, int);
 int osSendMesg(void *, void *, int);
 

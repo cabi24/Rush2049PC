@@ -1,26 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * anim_no_rumble_text (0x80106B3C, 600 B): per-window HUD title text (StrTable +0x388), hidden unless gGameState bit 22;
- * font 11, or font 12 when the text is wider than the window limit + 8; drawn for each window whose player's
- * controller record (gPaks[ctl], stride 772) has b6 == 0, while gGameState bit 21 is set and gPauseState == 0.
- * MATCH in group / unit EQUAL (draft was 50/150, EQUIVALENT 4,832 calls on race + pause_menus).
- * Levers: TB_SetJust(1,1)/(0,3) = the locked TB_SetJust body inlined (pointer to gJust; GC name);
- * `ctl = gPlayers[i].control` as a named local (fixes s5-s7); the b6 test through an inlined getter whose
- * value return takes v0 (w15 inlined-value-return mechanism; a named local `b` got v1); the lock/font helpers
- * DEFINED AFTER the function (prototypes before): as1 breaks the osRecvMesg-argument vs TB_SetJust-store tie by
- * .loc line, retail's stores come first.
- * Shaping (disclosed): inlined helpers Hidden, TB_SetJust, getB6, gfx_lock, gfx_unlock, font_set (non-static, *_6B3C) (identity
- * getB6/TB_SetJust as separate source helpers is a hypothesis; the font_set family is the established idiom);
- * helper definition placement after the function (as1 line-number tie).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
+#define Control ControlView   /* this file's own Control: include/game's Control is another type */
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
@@ -37,23 +16,12 @@ typedef struct Blit {
     intptr_t state;     /* AnimFunc */
 } Blit;
 
-/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
-typedef struct TextTables {
-    unsigned short numSingle; unsigned char **single;
-    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
-    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
-} TextTables;
-
 typedef struct Player {
     u8 b0;
     u8 control;
     u8 pad2[0x48 - 0x2]; void *ref;
 } Player;
 
-/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
- * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
-typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
-    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
 typedef struct Control {
     u8 pad0[6];
     s8 b6;
@@ -70,24 +38,14 @@ typedef struct Pair {
     s32 a, b;
 } Pair;
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern Pair gJust;
-extern TextTables gText;
-extern s16 gNumWindows;
-extern s32 gPauseState;
-extern Player gPlayers[];
-extern Control gPaks[];
-extern Pos no_rumble_text_pos[][4];
-extern s32 playerTextColor[];
+VIEW(Pair, gJust);
+#define gJust gJust_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void UpdateBlit(void *);
-u32 HAL_GetTextWidth(void *, s32);
-void TB_SetTextColor(s32);
-void TB_DrawText(s16, s16, void *);
+extern Player gPlayers[];
+VIEW(Control[], gPaks);
+#define gPaks gPaks_view
+VIEW(Pos[][4], no_rumble_text_pos);
+#define no_rumble_text_pos no_rumble_text_pos_view
 
 void TB_SetJust_6B3C(u32 first, u32 second)
 {
@@ -103,10 +61,6 @@ s32 getB6_6B3C(s32 ctl)
     return gPaks[ctl].b6;
 }
 
-s32 HAL_SetFont(s32 fontID);
-void text_lock(void);
-void text_unlock(void);
-s32 Hidden(Blit *blt, s32 hide);
 s32 anim_no_rumble_text(Blit *blt)
 {
     u32 width;

@@ -1,41 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Historical label TB_GetTextNumLines is misleading: this counts the lines a
- * string occupies when word-wrapped to `width` pixels. A leading 0xFF byte
- * selects 16-bit big-endian characters (step 2). Per line it skips leading
- * spaces, adds each glyph's width (camera_shake_update is the glyph-width
- * lookup) plus the inter-character gap for non-space characters, remembers the
- * last space that starts a run, and breaks the line at that space once the
- * width is exceeded. CR, LF and NUL end a line; NUL or 0x7FFF lines end the
- * count. No arcade ancestor identified (N64 front-end text code).
- *
- * HAL_GetFontSpacing (the gap getter, locked at 0x800BDEB0) is inlined by -O3 and
- * must be defined in the same file: `lb v0; sll s8,v0,16; sra; move` is the
- * inlined s8 return converted to the s16 local.
- *
- * Shaping notes:
- *  - n (characters on the line) is counted but never read; its increment is
- *    the last statement of the inner loop (after the break test).
- *  - `start = step + p` sits after the exit test; as1 hoists the addu above
- *    both branches, and its position relative to `li at,32767` follows the
- *    source line order (test line < assignment line).
- *  - QUIRK: the empty `if (start) {}` after the inner loop is code-free; it
- *    only lengthens start's live range so that uopt colours space (s3) before
- *    start (s4). It is probably the remains of a use of the line start in the
- *    drawing sibling (TB_DrawTextScrollBox), not proven original source.
- *  - Three separate `break` tests (0, 13, 10) rather than one `||` chain keep
- *    13 and 10 out of callee-saved registers.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-
-extern s8 gSpacing;
-s32 HAL_GetCharWidth(u16 ch);
-
-s8 HAL_GetFontSpacing(void);
+#include "game/game.h"
 
 s16 TB_GetTextNumLines(s16 width, u8 *text) {
     u8 *start;

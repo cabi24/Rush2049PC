@@ -1,7 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef float f32;
-extern f32 zoid_lookat_matrix[];
-extern f32 upright_min_length;
+#include "game/game.h"
+
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 

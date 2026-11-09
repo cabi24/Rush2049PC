@@ -1,9 +1,6 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
-/* PC: the header's host layout (docs/port/POINTERS.md 9), with the n64 flag of a list whose elements keep their
- * N64 layout and are linked by 32-bit window addresses (the level-object nodes, POINTERS.md 10). */
-typedef struct { u8 doubly; u8 n64; u8 pad2[2]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
+#include "game/game.h"
+
+typedef struct Pool { u8 doubly; u8 n64; u8 pad2[2]; s32 count; s32 size; u8 *mem; intptr_t f16; u8 *free; } Pool;
 void ClearStatLL(Pool *p) {
     u8 *m = p->mem;
     s32 i;

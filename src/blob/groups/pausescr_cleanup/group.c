@@ -1,19 +1,18 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Resource Resource;
 typedef struct Object { void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC]; Resource *resource; } Object;
 typedef struct Handle { Object *object; } Handle;
 typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
-extern u32 gPauseState;
-extern void *pause_DimBlit,*pause_TitleBlit,*pause_PauseBlit,*pause_SureBlit,*pause_RumbleBlit;
-extern uintptr_t pause_gTitlePane;
+VIEW(u32, gPauseState);
+#define gPauseState gPauseState_view
+
+VIEW(uintptr_t, pause_gTitlePane);
+#define pause_gTitlePane pause_gTitlePane_view
 extern Player gPlayers[];
-extern s16 gNumPlayers;
+
 extern void RemoveBlit(void *);
-extern void SaveSelectPlayer(Handle *);
-extern void RemovePanes(int);
+
 void updatePauseStateCleanup(void)
 {
     int i;

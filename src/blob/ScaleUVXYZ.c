@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed int s32;
+#include "game/game.h"
+
 void ScaleUVXYZ(float *src, float *dst, float sx, float sy, float sz) {
     s32 i;
     for (i = 0; i < 3; i++) {

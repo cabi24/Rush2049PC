@@ -1,38 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Arcade ancestor: positions(MODELDAT *m) in
- * reference/repos/rushtherock/game/drivsym.c (proven by structure: bodtorw of
- * A and V, RWR += RWV*dt, rotuv(W*dt), rwtobod, then the TIRER/BODYR
- * body-to-world loops). Callees: WorldVector = bodtorw, BodyVector =
- * rwtobod, RotateUV = rotuv (historical label), invmagnitude =
- * reciprocal vector length, make_super_speed = (historical label) the
- * alternative UV re-orthonormaliser.
- * N64 differences from the arcade body: the previous RWR is saved first;
- * scalmul/vecadd are open-coded; W*dt is also accumulated into m->angle when
- * gRace == 4; every 1024 frames the three UV rows are renormalised; the
- * suspension compressions tpcomp[] are clamped to 0.5 and the largest excess
- * is moved into the body position; TIRER comes from the car-type record at
- * m->car and tpcomp is added to its y component; no thetime update.
- * MODELDAT offsets here are N64 offsets recovered from this function only.
- *
- * Shaping quirks (all needed for MATCH):
- *  - the lastRWR copy is one comma expression (three separate statements load
- *    and store in the opposite order / with the opposite temp numbering);
- *  - operand order of the sums as written (`temp + RWR`, `rwp + RWR`,
- *    `bp[1] + tpcomp`);
- *  - the unused arcade locals stay declared: they supply the 176-byte frame
- *    (arcade's `moveup` and `ptch` are dropped; which two scalars the retail
- *    source dropped is not known). `movef` is reused as the scratch scalar.
- * Also MATCH at -O2 with the same source. Prior attempt:
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef f32 F32;
 
 #define XCOMP 0
@@ -78,15 +45,6 @@ typedef struct MODELDAT {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_CARTYPE: (CARTYPE *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-
-extern s32 gRace;
-extern s8 gSuperSpeed;
-
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2);
-void BodyVector(f32 *arg0, f32 *arg1, f32 *arg2);
-void RotateUV(void *arg0, void *arg1);
-f32 invmagnitude(f32 *v);
-void make_super_speed(void *arg0);
 
 void positions(MODELDAT *m) {
     F32 temp[3], temp1[3], temp2[3], *bp, *rwp;

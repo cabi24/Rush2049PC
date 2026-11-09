@@ -1,7 +1,9 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed char s8; typedef signed short s16; typedef signed int s32; typedef unsigned char u8; typedef float f32;
+#include "game/game.h"
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
-extern f32 invmagnitude(f32 *); extern f32 super_speed_scale_x,super_speed_scale_y,super_speed_scale_z;
+
 void make_super_speed(void *arg0) {
     f32 temp_f2;
     f32 temp_f2_2;

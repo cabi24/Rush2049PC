@@ -1,36 +1,11 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (also MATCH at -O2) */
-/*
- * Append the eight corner vertices of an axis-aligned box (min, max; fixed
- * point x16) to the Vtx pool cull_vertices at the running index cull_vertex_count, tag
- * the 0x44-byte record ObjInstanceList[idx] with (first index << 3) | 7 in its
- * flags word, advance the index by 8 and keep the high-water mark
- * cull_vertex_max.  No arcade ancestor (N64 display-list side).
- *
- * Shaping fact: the vertex pointer is post-incremented after each of the
- * first seven vertices (IDO folds the increments into one `addiu v0,v0,112`
- * with negative offsets); indexing vtx[0..7] leaves 25 aligned rows.
- */
-typedef float f32;
-typedef short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef unsigned char u8;
-typedef unsigned short u16;
+#include "game/game.h"
 
-typedef struct {
-    s16 ob[3];
-    u16 flag;
-    s16 tc[2];
-    u8 cn[4];
-} Vtx_t;
-
-typedef union {
+typedef union Vtx {
     Vtx_t v;
     long long force_structure_alignment;
 } Vtx;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct {
+typedef struct Entry {
     u32 unk0;
     u32 flags;
     void *obj;
@@ -41,10 +16,10 @@ typedef struct {
     u32 prim, env;
 } Entry;
 
-extern s32 cull_vertex_count;
-extern s32 cull_vertex_max;
-extern Vtx cull_vertices[];
-extern Entry ObjInstanceList[];
+VIEW(Vtx[], cull_vertices);
+#define cull_vertices cull_vertices_view
+VIEW(Entry[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 void ZOID_BuildCullingList(f32 *min, f32 *max, s16 idx) {
     Vtx *vtx;

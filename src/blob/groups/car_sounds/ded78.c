@@ -1,15 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* GetForceAndPeak: N64 per-player get_force_and_peak.
- * Arcade donor: historicalsource/rushtherock 845329d7, game/carsnd.c.
- * N64 uses float seconds, five 24-byte impact records per player.
- */
-typedef signed short s16;
-typedef int s32;
-typedef float f32;
-typedef struct Impact24 { f32 force, vector[3], timestamp; s32 flag; } Impact24;
-typedef struct Impact120 { Impact24 point[5]; } Impact120;
-extern Impact120 gBump[];
-extern volatile f32 gSeconds;
+#include "game/game.h"
+
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
 f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 

@@ -1,25 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * NewBlit: arcade NewBlit (LIB/blit.c) with a fourth N64 argument.
- *   if (NumBlits >= MAXBLITS) return 0;   (arcade FatalError compiled out)
- *   blit = BlitPtrs[NumBlits++] (BlitPtrs / NumBlits); Name, X, Y, Hide = Flip = 0, Init = 1,
- *   child = AnimFunc = 0, AnimID = AnimDTA = -1, data = 0; InitBlit;
- *   BLIdx = ZOID_AddBlit(TexIndex, 0, 0, x, y, -1, -1) (ZOID_AddBlit, N64 adds the two NULLs);
- *   UpdateBlit; return blit.
- * Arcade blit.h types matter: AnimID is U32 and AnimDTA S32, so the two -1 stores are two
- * different constants (separate `li`), not one shared register web.
- * Fourth parameter: every caller passes one (NewMultiBlit: `animid & 0x80000000`, InitPane: 0).
- * SHAPING DEVICE (disclosed): the compiled-out read `if (flags) {}` before the pop. It keeps the
- * fourth parameter's a3 web live over `name`, so name's copy is coloured t0 as in retail (forced-colour
- * oracle: name w14 -> t0 alone gives 0 rows; without the read name takes a3, 14 words). Probably a
- * compiled-out debug use of the flag. Placed right before `blit->name;` it also matches.
- * Whole-program unit: EQUAL.
- */
-typedef unsigned short u16;
-typedef signed short s16;
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed int s32;
+#include "game/game.h"
 
 typedef struct Blit {
     /* 0x00 */ char *name;
@@ -46,13 +25,6 @@ typedef struct Blit {
 } Blit;
 
 #define MAXBLITS 200
-
-extern s32 NumBlits;
-extern Blit *BlitPtrs[];      /* BlitPtrs */
-
-void InitBlit(Blit *blit);
-s32 ZOID_AddBlit(s32 id, void *p4, void *p0, s32 a, s32 b, s32 w, s32 h);
-void UpdateBlit(Blit *blit);
 
 Blit *NewBlit(char *name, s32 x, s32 y, s32 flags)
 {

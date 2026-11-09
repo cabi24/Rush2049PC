@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 char *game_strncat(char *s1, const char *s2, unsigned int n) {
     char *r = s1;

@@ -1,8 +1,10 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef short s16;typedef signed char s8;typedef unsigned char u8;typedef int s32;typedef float f32;
+#include "game/game.h"
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(p,t,o) (*(t)((u8*)(p)+(o)))
-extern f32 fixed_cam_zoom_rate;extern f32 fixed_cam_pos[][3];extern s8 fixed_cam_mode[];extern f32 elastic_factor[];
-extern f32 vector_magnitude(f32 *);extern void point_at_car(void*,void*,intptr_t,f32*);
+
+extern void point_at_car(void*,void*,intptr_t,f32*);
 void fix_camera_in_space(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
     f32 vector[3];
     f32 temp_f0;
@@ -46,4 +48,4 @@ void fix_camera_in_space(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
 
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
-f32 vector_magnitude(f32 *v);
+

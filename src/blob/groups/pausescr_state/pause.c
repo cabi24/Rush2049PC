@@ -1,58 +1,43 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_800B4FB0 (0x800B4FB0, 1472 B) = GC setPauseState@pausescr.c (MAT3 pausescr.c, GC 0x80078F08) with GC
- * updatePauseStateCreate (GC 0x800788A4) inlined; updatePauseStateCleanup = updatePauseStateCleanup (jal), _TitlePane = pause_TitlePane.
- * : first typed port; levers: GC `width /= 2` / `max /= 2` are halvings inside the InitPane arguments
- * on the N64 (retail divides after the TB_GetFontLineHeight() argument call, and the rumble-pane loop's half width is
- * hoisted into the loop preheader), and the rumble-pane loop counter is `i` (GC reuses `max`: one variable = one web
- * gives max and the loop counter one register; retail has s2 / s1). Helpers ps_gfx_lock/ps_gfx_unlock/ps_font_set/
- * ps_SetFont (GC HAL_SetFont) and ps_updatePauseStateCreate are non-static and not on keep (stub rule).
- * No unused locals, no block breaks.
- * N64 differences: the pause menu has 8 entries (text table 56, entries +1..+8, no GC i>3 skip) and its pane is
- * 8 lines tall; string indices single[226/171/170/216] (GC 238/181/180/227).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct OSMesgQueue OSMesgQueue;
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
 typedef struct { s16 x, y; } Pos;
 typedef struct { s32 x, y, w, h, cx, cy; } Rect;   /* 0x18 */
 
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern s32 gPauseState;
-extern Blit *pause_DimBlit;                   /* DimBlit */
-extern Blit *pause_TitleBlit;                   /* TitleBlit */
-extern Blit *pause_PauseBlit;                   /* PauseBlit */
-extern Blit *pause_SureBlit;                   /* SureBlit */
-extern Blit *pause_RumbleBlit;                   /* RumbleBlit */
-extern const MultiBlit DimMultiBlit, TitleMultiBlit, PauseMultiBlit, SureMultiBlit, RumbleMultiBlit;
-            /* DimMultiBlit, TitleMultiBlit, PauseMultiBlit, SureMultiBlit, RumbleMultiBlit */
-extern Pos pause_titlePos;                     /* titlePos */
-extern s8 pause_gYes;                      /* gYes */
-extern Rect pause_gPlayerRects[][4];               /* gPlayerRects */
-extern s16 gNumPlayers;
+VIEW(TextState, gText);
+#define gText gText_view
 
-s32 osRecvMesg(OSMesgQueue *, void *, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32);
-u32 HAL_GetTextWidth(void *, s16);
-s16 TB_GetFontLineHeight(void);
+VIEW(Blit *, pause_DimBlit);
+#define pause_DimBlit pause_DimBlit_view
+VIEW(Blit *, pause_TitleBlit);
+#define pause_TitleBlit pause_TitleBlit_view
+VIEW(Blit *, pause_PauseBlit);
+#define pause_PauseBlit pause_PauseBlit_view
+VIEW(Blit *, pause_SureBlit);
+#define pause_SureBlit pause_SureBlit_view
+VIEW(Blit *, pause_RumbleBlit);
+#define pause_RumbleBlit pause_RumbleBlit_view
+VIEW(const MultiBlit, DimMultiBlit);
+#define DimMultiBlit DimMultiBlit_view
+VIEW(const MultiBlit, TitleMultiBlit);
+#define TitleMultiBlit TitleMultiBlit_view
+VIEW(const MultiBlit, PauseMultiBlit);
+#define PauseMultiBlit PauseMultiBlit_view
+VIEW(const MultiBlit, SureMultiBlit);
+#define SureMultiBlit SureMultiBlit_view
+VIEW(const MultiBlit, RumbleMultiBlit);
+#define RumbleMultiBlit RumbleMultiBlit_view
+            VIEW(Pos, pause_titlePos);
+#define pause_titlePos pause_titlePos_view
+
+VIEW(Rect[][4], pause_gPlayerRects);
+#define pause_gPlayerRects pause_gPlayerRects_view
+
 void *InitPane(s32, s32, s32, s32, s32, void *, s32, s32);
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
-void updatePauseStateCleanup(void);
-void pause_TitlePane(void);                     /* _TitlePane@pausescr.c */
-s32 animControllerDimInternal();                       /* animRumblePane */
 
-s32 HAL_SetFont(s32 fontID);
 void ps_SetFont(s32 font)
 {
     HAL_SetFont(font);

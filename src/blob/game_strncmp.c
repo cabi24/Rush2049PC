@@ -1,7 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned int u32;
-typedef int s32;
-typedef signed char s8;
+#include "game/game.h"
 
 int game_strncmp(const unsigned char *s1, const unsigned char *s2, unsigned int n) {
     if (n == 0) return 0;

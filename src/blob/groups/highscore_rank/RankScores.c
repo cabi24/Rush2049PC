@@ -1,8 +1,4 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct {            /* the profile's host layout (pc_prelude.h): unk08 is its pak file handle */
     void *next, *prev;
@@ -11,30 +7,22 @@ typedef struct {            /* the profile's host layout (pc_prelude.h): unk08 i
     char name[1];
 } PlayerProfile;
 
-typedef struct {
+typedef struct InputRecord {
     u8 pad00;
     u8 active;
     u8 pad02[0x48 - 2];
     PlayerProfile **profile;
 } InputRecord;
 
-extern s16 gNumPlayers;
 extern InputRecord gPlayers[];
-/* Each player's name slot (an index into gTempNames, -1 for none) or profile handle (&gJustPlayers[n], host storage),
- * pointer-sized on the PC like the high-score table gTotalNames it is copied into (docs/port/CASTS.md). */
-extern intptr_t gThisPlayer[];
+
 #define NO_NAME (-1)
-extern s8 gDrawName[];
-extern char gScoreName[][13];
-extern s16 highscore_gNameSelect[];
-extern s16 highscore_gNameLen[];
-extern s8 gNewTotalScore[3][5];
-extern char gTempNames[][13];
-extern s32 gLastPlayer[];
+
+VIEW(s8[3][5], gNewTotalScore);
+#define gNewTotalScore gNewTotalScore_view
 
 void *memset(void *dst, s32 c, u32 n);
 u32 strlen(const char *s);
-void game_strcpy(char *dst, char *src);
 
 void RankScores(void)
 {

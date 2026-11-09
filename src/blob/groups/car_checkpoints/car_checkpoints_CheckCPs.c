@@ -1,38 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CheckCPs -- N64 descendant of arcade CheckCPs() (game/checkpoint.c:866, scp.c:860).
- * For every car (count gNumCars): accumulate the distance driven since last frame into
- * CarData.distance (+0x108) and remember the position (D_80152218[car]); for a live car
- * (player type 0 or 6, not crashed) whose model is not resurrecting (moving == -1), take the
- * side of its next checkpoint's plane; on a side change inside the checkpoint radius report the
- * interpolated crossing time (time - frame_dt * plane / (plane - last_plane)) through
- * PassedCP (arcade PassedCP); keep the plane value per car (D_801527E8).
- * Then, unless gRace == 1: FindMaxpathIntervals (arcade find_maxpath_intervals),
- * PlaceUnlockedCars (the place sort), expire the first-place timer after 3 s, and start the
- * first-place effect (arcade SOUND(S_LEADERLIGHT) = PlayGameSound(16, car, 1, 1), the locked
- * sound wrapper, inlined by umerge).
- *
- * Shaping (each one measured in the whole-program unit):
- *  - the model pointer goes through an integer cast, (Model *)((u32)D_8014A250 + ...): with
- *    &model[index] ugen emits `.noalias $4,$sp` and as1 hoists the m->next_cp reloads and the
- *    m->side store across the diff[] stack stores (57 -> 28 words);
- *  - calling PlayGameSound instead of an open-coded `if (gGameSoundsEnabled) AudPlayEffect(...)`:
- *    gives the argument set-up before the test, `li a3,1` and the inverted branch, and also
- *    removes three hoisted invariants from s6-s8 (244 -> 58 words);
- *  - `if (plane < 0) side = -1; else side = 1;` (the empty-else `b`), `diff . normal` in
- *    x, y, z order, gNumCars / gSeconds / gFrameSeconds / num_humans volatile;
- *  - the crossing time goes through one named local assigned twice (cent_dist), which puts
- *    the quotient and the product in $f0;
- *  - frame: arcade declarations reordered; cent_dist and an unused `s16 i` above diff[3],
- *    the scalars between diff[3] and move[3], an unused zvec[3] below (168 bytes, diff at
- *    148, move at 112).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned int u32;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct {
     u8 pad0[4];
@@ -47,7 +13,7 @@ typedef struct {
     u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
 } CarData;                  /* 0x3B8 */
 
-typedef struct {
+typedef struct Model {
     u8 pad0[0x6C4];
     s16 moving;             /* +0x6C4 */
     u8 pad6C6[0x7E4 - 0x6C6];
@@ -57,50 +23,12 @@ typedef struct {
     u8 pad7EA[0x808 - 0x7EA];
 } Model;                    /* 0x808 */
 
-/* The checkpoints (resurrect.c's tCheckpoints, MAT3 CheckCPs' planes): position, normal and radius each. */
-typedef struct tCheckpoint {
-    float pos[3];
-    float normal[3];
-    int radius;
-    s16 flags;
-    s16 time[2];
-    s16 pathPts[20];
-    float distToNext;
-} tCheckpoint;
-typedef struct tCheckpoints {
-    s16 startTime;
-    s16 loopPt;
-    s16 finishPt;
-    s16 startPt;
-    s16 numPoints;
-    tCheckpoint points[10];
-} tCheckpoints;
-
-typedef struct {
-    u8 pad0[7];
-    u8 type;
-} Player;                   /* 8 */
-
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the cars' checkpoint state is PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-extern tCheckpoints gCheckpoints;
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern volatile s16 gNumCars;
-extern s32 gRace;
-extern f32 gFirstPlaceTime;
-extern volatile s16 num_humans;
-extern s8 gInFirstPlace;
 extern u8 gPlayers;
-extern u32 gGameState;
-extern s8 gGameSoundsEnabled;
-extern volatile f32 gSeconds;
-extern volatile f32 gFrameSeconds;
-extern f32 vector_magnitude(f32 *v);
-extern void PassedCP(Model *m, f32 t);
-extern void FindMaxpathIntervals(void);
-extern void PlaceUnlockedCars(void);
-extern s32 PlayGameSound(s32 arg0, s32 arg1, s32 arg2, u8 arg3);
+
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
 
 void CheckCPs(void)
 {

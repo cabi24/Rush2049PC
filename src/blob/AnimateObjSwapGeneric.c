@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AnimateObjSwapGeneric (0x80094888, 332 B) -- animation-frame stepper (setup callback installed by AnimateFlag).
- * mode 0 -> ReleaseEnviron(obj, 1).  Otherwise (unless gPauseState) timer -= gFrameSeconds (volatile f32
- * frame time); when it runs out: frame++, timer = 0.0625; at frame >= model->count look up the kind flags
- * targetInfo[model->type].flags: 0x1000 -> remove (shared apply tail), 0x2000 -> RemoveObjectTree(model->id,
- * 0, 0) then remove, else frame = 0.  Then f = (s16)(model->base + frame); if f != model->cur:
- * ObjInstanceList[model->id].tex = gObjList[f], model->cur = f. (Semantics)
- *
- * (strict MATCH, -O3 and -O2 standalone; EQUAL in the whole-program unit, 0 locked bodies differ).
- * Shaping device, disclosed: the compiled-out read `if (gObjList[f]) {}` placed BEFORE `id = m->id`.
- *  - Retail's `lui a2; addu a2,a2,t2; lhu a1,%lo(a2)` is as1 copy coalescing: ugen loads the table value into a
- *    coloured EXPRESSION web (a2) and copies it (u16 `and`) into the `tex` variable web (a1).  The extra read makes
- *    `gObjList[f]` a multi-occurrence expression web, so it is coloured instead of loaded straight into `tex`.
- *  - Its position before `id = m->id` puts id and tex in one block with equal priority (save 2.0); the tie goes
- *    to the lower web number (id), so id = v1, tex = a1, the expression = a2 as in retail (ctrace).  With the read
- *    after `id = m->id` (7 words) the force oracle p1:w48=c2,w54=c4,w53=c5 already gave 0 rows.
- * Arcade ancestor: not identified.
- */
-typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
-typedef int s32; typedef float f32;
+#include "game/game.h"
+
 typedef struct Model {
     /* PC: id is the low half of the target's handle (an s32 at +0xC), at +0xC on a little-endian host, not +0xE:
      * the view reads the word (docs/port/POINTERS.md 10). */
@@ -57,13 +38,14 @@ typedef struct Kind {
     s32 sound, w20, w24, w28;
     f32 f2C;
 } Kind;
-extern s32 gPauseState;
-extern volatile f32 gFrameSeconds;
-extern Kind targetInfo[];
-extern u16 gObjList[];
-extern Ent ObjInstanceList[];
-void ReleaseEnviron(void *node, s32 unlink);
-void RemoveObjectTree(s16 idx, s32 freeChildren, s32 freeSiblings);
+
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(Kind[], targetInfo);
+#define targetInfo targetInfo_view
+
+VIEW(Ent[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 void AnimateObjSwapGeneric(Obj *obj, s16 mode)
 {

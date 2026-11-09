@@ -1,27 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * LoadTrack (0x800BB9B0, 2,104 B) = MAT3/GC/DC tracks.c LoadTrack(track, background, reloading), N64 version:
- *   load + wait on the track / world / collision / path waves (LoadWave, WaveInstanceReady =
- *   WaveInstanceReady, GetWaveInstanceAddr; N64 wave numbers track+101/+120/+139, path 158/177),
- *   world wad setup (func_80096C28 = MBSetupWad, lookup_with_output = MBGetFromWad: WDHR / GDAT / GTLD), the
- * "other" .81 by race/track/window count, then once: initTargetStructs, SkyInit
- *   (SkyInit), NewWorld (NewWorld, locked, inlined), InitEnvs, InitTrackDynamicObjs, LoadCars,
- *   InitVisuals, InitCheckpointData (locked: clears D_80110680[0..1] and calls InitCheckpointData; inlined),
- *   InitPathData, InitDemoPathPoint, InitSkids, InitSmoke, InitBlast and the image-B call initWorldDamage (GC
- *   initWorldDamage) when expansion_pak_present or track >= 6.
- * Base: draft (39/526 words). levers (39 -> 0):
- *   - the Dreamcast tracks.c keeps three empty gGameState & 8 checks after the gRace tests (`if (x & 8) {} else
- *     if (x & 8) {}` + `if (x & 8) {}`); they compile to nothing but supply the missing t6-t9 ring pop
- *     (workbench L65 class) -> 12 words;
- *   - NewWorld is the locked NewWorld (its out-parameter store gives retail's separate lui at / lui a0
- *     WorldBase store and reload) and the D_80110680 clear is the locked InitCheckpointData, both called and
- *     umerge-inlined, instead of the draft's private NewWorld/FindWorld/clear copies -> 0;
- *   - `track >= 6` for the final condition (uopt turns it into retail's &gWorldNames[track] compare).
- * No shaping devices: the empty checks are the Dreamcast decomp's source, every helper is a real locked function.
- */
-typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
-typedef signed int s32;typedef unsigned int u32;typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+#define TrackLoadInfo TrackLoadInfoView   /* this file's own TrackLoadInfo: include/game's TrackLoadInfo is another type */
 
 typedef struct LoadState {     /* GC tracks.c __anon_10faf9 */
     s8 loading;                /* 0x00 */
@@ -48,44 +26,20 @@ typedef struct Wad {           /* GC mb_wad.c __anon_87656 */
     void *TOC;
 } Wad;
 
-extern TrackLoadInfo gTrackLoadInfo;
-extern s32 *gWorldData;
-extern WorldHdr *WorldTable;
-extern void *gTargetGroups;
-extern s32 numgTargetGroups;
-extern void *gTargetGroupList;
-extern s32 numgTargetGroupList;
-extern void *gRoadDat;
-extern void *gPathWave;
-extern s8 gBackwards;
-extern u32 gGameState;
-extern s32 gRace;
-extern s8 expansion_pak_present;
-extern s8 gTrackNum;
-extern s16 gNumWindows;
-extern char *gWorldNames[];         /* gWorldNames (N64: indexed by track) */
+VIEW(TrackLoadInfo, gTrackLoadInfo);
+#define gTrackLoadInfo gTrackLoadInfo_view
+VIEW(s32 *, gWorldData);
+#define gWorldData gWorldData_view
+VIEW(WorldHdr *, WorldTable);
+#define WorldTable WorldTable_view
+VIEW(void *, gTargetGroups);
+#define gTargetGroups gTargetGroups_view
 
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-s32 LoadWave(s32 wave, s32 a1, s32 background, s32 a3, void *heap);
-s8 WaveInstanceReady(s32 idx);                                            /* GC WaveInstanceReady */
-void *GetWaveInstanceAddr(s32 idx);                                           /* GC GetWaveInstanceAddr */
-void MBSetupWad(Wad *wad, void *ptr);                                 /* GC MBSetupWad */
-u32 MBGetFromWad(Wad *wad, s32 tag, s32 *count);       /* a WAD entry: a 32-bit window address */
-void initTargetStructs(s16 track);                                    /* GC initTargetStructs */
-void SkyInit(void);                                                 /* GC SkyInit */
-void InitEnvs(void);                                                /* GC InitEnvs */
-void InitTrackDynamicObjs(void);                                            /* GC InitTrackDynamicObjs */
-void LoadCars(s32 x);                                     /* GC LoadCars */
-void InitVisuals(s32 x);                                             /* GC InitVisuals */
-void InitPathData(void);                                          /* GC InitPathData */
-void InitDemoPathPoint(void);                                                /* GC InitDemoPathPoint */
-void InitSkids(void);                                                /* GC InitSkids */
-void InitSmoke(void);                                       /* GC InitSmoke */
-void InitBlast(void);                                           /* GC InitBlast */
-void initWorldDamage(void);                                                /* overlay call (GC initWorldDamage?) */
+VIEW(void *, gTargetGroupList);
+#define gTargetGroupList gTargetGroupList_view
 
-s16 NewWorld(u8 *World, s16 Parent);                        /* GC NewWorld (world.c, locked) */
-void InitCheckpointData(void);                                            /* N64 InitCheckpointData wrapper (locked) */
+VIEW(void *, gRoadDat);
+#define gRoadDat gRoadDat_view
 
 /* PC: the GTLD keys become object pointers at race setup (SetTargetDefs), which don't fit the file's 4-byte
  * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned

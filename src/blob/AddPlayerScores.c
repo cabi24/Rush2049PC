@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AddPlayerScores (0x800C734C, 556 bytes) -- the name is a historical label.
- *
- * Real semantics: merge one save slot's best times into the global top-5
- * tables.  For 12 tracks x 3 categories, walk the five global ranks k and the
- * slot's own sorted list with a separate cursor l: whenever the slot's next
- * positive time beats (or fills an empty) global rank k, shift the tail of
- * gTotalRaceStats[i].times[j] and of the owner table D_80151690[i][j] down one place,
- * insert the time and the owning entry at k, and advance l.
- * No arcade ancestor found (N64 save/records code).
- *
- * Shaping (earlier best 103/139 words):
- *  - the slot list is read through an index l (src[l], l++), not a walking
- *    pointer: the extra induction web raises the interference degree of the
- *    loop-invariant webs (bounds 4/5/60/12, &gTotalRaceStats, the j*20 and
- *    srcbase IVs) to 22, so uopt colours them in its priority phase into
- *    a1-a3/t0-t3 as retail does, instead of last in phase two (s4-s8);
- *  - times/owners are assigned at the j level before the k loop: phase-two
- *    webs are coloured in order of first appearance, and retail has times (t4)
- *    and owners (t5) before k (s0).
- * Also matches standalone at -O2.
- */
-typedef float f32;
-typedef signed int s32;
-typedef unsigned char u8;
+#include "game/game.h"
 
 typedef struct TrackTimes {
     /* 0x00 */ s32 unk0;
@@ -49,8 +24,10 @@ typedef struct Entry {
     /* 0x00 */ Owner *owner;
 } Entry;
 
-extern TrackTimes gTotalRaceStats[12];
-extern Entry *gTotalNames[12][3][5];
+VIEW(TrackTimes[12], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+VIEW(Entry *[12][3][5], gTotalNames);
+#define gTotalNames gTotalNames_view
 
 void AddPlayerScores(Entry *entry)
 {

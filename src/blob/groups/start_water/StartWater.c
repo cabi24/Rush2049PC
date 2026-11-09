@@ -1,34 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * StartWater(idx, type): spawn the two "wheel effect" objects for car idx, wheel `type` (0..3).
- *   - once-per-wheel latch: bit 0x100<<type in gCarSmokeDir[idx]; returns if already set.
- *   - two objects from the pool gSmokeList (GetStatLLE): f64 = 0.0333333f, h84 = idx,
- *     w80 = (type << 17) | 0x10; orientation = basis(normalize(car->dir)) (NormalVector,
- *     LookInDir, CopyUV copy), scaled when |speed| < 90
- *     (speed = car->h248 >> 2; reverse: |s|/70*0.75+0.25, forward: |s|/90*0.85+0.15);
- *     pos = car->wheel[type], vel = car->vel * (Random(1.0f) - 0.5f), pos += vel, pos.y += 1.25;
- *     w52 = ZOID_AddObject(gObjList[205 + h86], &o->m, -1, 0x40000) with h86 = 0 / 4.
- * No arcade ancestor identified.
- * STATE: EQUAL in the whole-program unit (was 22/386).
- * Frame shaping (all disclosed):
- *   - The last ZOID_AddObject call is an inlined static helper attach(o) whose named
- * local h holds the result. Mechanism: umerge places each inlined callee's
- *     area at an 8-aligned start in call order. The two inlined Random areas leave
- *     the merged frame at 200; attach's 4-byte area after them gives retail's 204, so
- *     every uopt spill-temp home lands +4 as in retail (no extra coloured web needed).
- *     The helper's real identity is unknown; it leaves no stub (static, one call site).
- *   - Unused locals pB1, pC1..pC7, pD1, pD2, pE1..pE3, pF0..pF4 (18 words) are the exact
- *     frame residual: they reproduce every retail local offset (dir 228, scale 216,
- * speed 186, aspeed 184, o 172, snap 168, basis 120). needed 22; with the
- *     helper area the bottom four (pF5..pF8) are no longer needed (3 or 4 removed both match).
- *   - Random() = Random(1.0f) (locked, inlined; keeps the *1.0f multiply);
- *   - `snap = start_water_sentinel` + compiled-out check before the second alloc = retail's dead sw 168(sp);
- *   - `if (type > 3) DEBUG_PRINT` before the switch fixes car t4 / seed t3 colouring;
- *   - u32 type stops the switch's `case 3` sharing the loop-bound register (li at,3);
- *   - pos = pos + vel in order 0,1,2; first lookup is gObjList[205], second gObjList[205 + o->h86].
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 float fabsf(float);
 #pragma intrinsic (fabsf)
 
@@ -57,24 +28,15 @@ typedef struct Obj {
     s16 h86;             /* +0x56 */
 } Obj;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 start_water_sentinel;
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
-extern u8 gSmokeList[];
-/* The scene's object definitions by kind (InitTrackDynamicObjs): the spray's from 205 (MAT3 gObjList[516]). */
-extern u16 gObjList[];
-extern int rand_seed;
+VIEW(u8[], gSmokeList);
+#define gSmokeList gSmokeList_view
+
 #define DEBUG_PRINT(args)
 
-Obj *GetStatLLE(void *pool);
-f32 NormalVector(f32 *v);
-void LookInDir(f32 *dir, f32 m[3][3]);
-void CopyUV(void *src, void *dst);
 s32 ZOID_AddObject(s32 a, void *b, s16 parent, s32 d);
-
-f32 Random(f32 max);
 
 static void attach(Obj *o) {
     s32 h;

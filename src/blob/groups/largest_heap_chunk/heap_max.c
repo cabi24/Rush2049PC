@@ -1,23 +1,5 @@
-/*
- * Largest free block in a selected game heap, under its message-queue lock.
- * LargestAvailableMemoryHeapChunk: 0x800E79F8..0x800E7A98, 160 bytes.
- *
- * The two-return heap selector and wrapper/worker structure follow the
- * accepted heap_free_total group. The immediately preceding
- * callerless stub LargestAvailableMemoryChunk has the same placement as that group's
- * heap_total_free_unlocked worker. Its assignment here is a source-boundary inference,
- * not a recovered original declaration or an arcade ancestry claim.
- *
- * The meaningful worker is defined after the wrapper, as in free-total.
- * IDO O3 inlines it, leaves the real 8-byte stub, and schedules the unlock
- * arguments before the scan. No filler locals or artificial reads are used.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
@@ -44,13 +26,11 @@ typedef struct Heap {
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-extern Heap *gMainHeap;
-extern OSMesgQueue heap_lock_queue;
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-
-u32 LargestAvailableMemoryChunk(Heap *heap);
 
 Heap *ConvertHeap(Heap *heap);
 

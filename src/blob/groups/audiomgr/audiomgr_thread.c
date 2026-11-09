@@ -1,41 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * N64 audio manager thread pair (audiomgr.c), :
- *   audio_manager_thread_entry (0x800992AC, 2180 B) = the audio-manager thread created by AudioInit: it receives
- *     scheduler retrace messages (type 1) and audio commands on the queue audio_command_queue, runs _PeriodicMaintenance for a
- *     retrace and MAT3 _ProcessCommand's twelve cases (written in place, under the audio_lock_queue mutex) for a command.
- *   PeriodicMaintenance (0x80098FB8, 756 B) = _PeriodicMaintenance with _ProcessPriorities inlined.
- * Reconstruction base: thread drafts (MAT3 audiomgr.c _ProcessCommand GC 0x800A1F38, _PeriodicMaintenance
- * GC 0x800A1EA4, _ProcessPriorities GC 0x800A3208, _PlayFxTag, _StopAllSequences, _InsertSorted; bstree.c
- * ClearBST/InsertBSTE/WalkBST); Dreamcast audiomgr.c for the LOCK/UNLOCK shape.
- * Code-free devices (each measured; has the traces):
- *  (1) `_AudioNop();` (inlined int function, result discarded) at nine places: case 1 when audiomgr_gSong < 0, case 2 after
- *      `startTime = -1.0f`, case 3 when sysId == -1, the ends of cases 4/7/8/9, and `default:`. Each keeps a block
- *      that retail shows as a separate `b end` (or, for 7/8/9, the empty-list `beqz` target), and each inline site
- *      is one 8-byte frame reserve (frame 208 exact). Probably an N64 debug/trace call; the name is invented.
- *  (2) `if (x) {}` holders, no code: `cmd->hdr.type` (the type load becomes a coloured web: `lh v1` and `bne s6,v1`),
- *      `numCmds` before the decrement in cases 2-4 (`lbu v0`), and the audio clock before `startTime = ...` ($f0).
- *  (3) `goto skip; skip:` before `case 0:` (unreachable): the switch dispatch then has no fall-through successor, so
- *      uopt's live-range DFS visits case 1 before case 0; f_split carves the &gSong piece of case 1 first (it takes
- *      the switch-end block) and case 0's piece {test, test, store+call, join} is coloured v0: `move a0,v1`
- *      forwarding and `lui v0; addiu v0,576` as retail. Without it the case-0 piece reaches the switch end and stays
- * uncoloured (oracle traces).
- * No unused locals, no pad arrays, no volatile.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef void *OSMesg;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSSched OSSched;
 
 typedef struct tDLLE { void *next; void *prev; } tDLLE;
 typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
-typedef struct tOrderedList { int (*OrderFunc)(void *, void *); int numElements; void *root; } tOrderedList;
+
 typedef struct tBSTE { void *left; void *right; } tBSTE;
 
 typedef struct tFxSequence {
@@ -97,60 +69,35 @@ typedef union tAudioMsg {
     anon_hdr_mono_6 mono;
 } tAudioMsg;
 
-extern OSSched gScheduler;                 /* scheduler */
-extern OSMesgQueue audio_lock_queue;             /* audio mutex queue */
-extern OSMesgQueue audio_command_queue;             /* audio command queue */
-extern OSMesg audio_cmd_queue_msgs[];                /* its 128 messages */
-extern signed char gInited_AudioMgr;             /* gInited */
-extern int audiomgr_gSong;                     /* MAT3 audiomgr.c gSong: the song playing, -1 for none */
-extern anon_te_tag_c *gSortedFxTags;
-extern int gNumStartCmds;
-extern int gNumStopCmds;
-extern int gNumFxPlaying;                     /* gNumFxPlaying */
-extern int gNumFxPending;                     /* gNumFxPending */
-extern int gNumFxInterrupted;                     /* gNumFxInterrupted */
+VIEW(OSSched, gScheduler);
+#define gScheduler gScheduler_view
+VIEW(OSMesgQueue, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(OSMesgQueue, audio_command_queue);
+#define audio_command_queue audio_command_queue_view
+
 /* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
  * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
  * queue holds the run's messages, PC_SND_MSG_LOOP(128): 128 at original. */
 #define gStartCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 #define gStopCmds (*(tAudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-extern tOrderedList gSortedFxTagTree;
-extern tDLList gPlayingFxTags;
-extern tDLList gInterruptedFxTags;
-extern tDLList gActiveSequences;
-extern float gAudioSeconds;                   /* audio clock */
+
+VIEW(tDLList, gPlayingFxTags);
+#define gPlayingFxTags gPlayingFxTags_view
+VIEW(tDLList, gInterruptedFxTags);
+#define gInterruptedFxTags gInterruptedFxTags_view
+VIEW(tDLList, gActiveSequences);
+#define gActiveSequences gActiveSequences_view
 
 #define gInited gInited_AudioMgr
 
 void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-void osScAddClient(OSSched *, OSScClient *, OSMesgQueue *);
+
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
-void AudioSongPlay(int song, int loop);
 void AudioSongStop(int song);
-void FreeFxTag(tFxSequence *tag);                   /* _FreeFxTag (IPA s0) */
-void InterruptFxTag(tFxSequence *tag);                   /* _InterruptFxTag (IPA s0) */
-unsigned int AudioPlayEffect(int fxid, float vol, float lrpan);
-void AudioStopEffect(unsigned int sysId);
-void AudioSetEffectVolume(unsigned int sysId, float vol);
-void AudioSetEffectLRPan(unsigned int sysId, float lrpan);
-void AudioSetEffectFBPan(unsigned int sysId, float fbpan);
-void AudioSetEffectPitch(unsigned int sysId, float pitch);
-void AudioStopAllEffects(void);
-void AudioSetMasterVolume(float vol, unsigned int time, int music, int sfx);
-void AudioSetMono(int mono);
-void RemoveLLE(tDLList *list, void *el);
-void InsertLLE(tDLList *list, void *el, void *before);
-s32 AudioEffectPlaying(unsigned int sysId);
-int WeightedPriority(tFxSequence *tag);                         /* _WeightedPriority */
-void InsertBSTEInternal(tOrderedList *tree, void *root, void *element);  /* _InsertBSTE */
-void WalkBSTInternal(tOrderedList *tree, void *root, int *num, void (*WalkFunc)(void *, int)); /* _WalkBST */
-void ProcessEmitters(void);                                /* _ProcessEmitters */
-void ProcessSequences(void);                                    /* _ProcessSequences */
-void AudioSfxServer(void);                                 /* AudioPeriodicMaintenance */
-void UpdateFx(void *element, int elNum);        /* _UpdateFx */
 
 /* ClearBST and WalkBST of the fx tag tree, whose tOrderedList has the PC's layout (the pointers are the host's, so
  * the root is at +16): the game's own ClearBST and WalkBST read the N64's offsets (the root at +8). */
@@ -159,8 +106,6 @@ static void clear_fx_tag_tree(tOrderedList *tree)
     tree->root = 0;
     tree->numElements = 0;
 }
-
-void InsertBSTE(tOrderedList *tree, void *element);
 
 static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
 {
@@ -171,9 +116,6 @@ static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
  * holds it survives jump threading; ugen emits `move v0,zero` and as1 deletes it, leaving retail's separate
  * `b end; nop` blocks (see the header of audio_manager_thread_entry). Stands in for an unknown N64 statement. */
 static int _AudioNop(void) { return 0; }
-/* N64 UNLOCK (audio mutex queue). Its inlined lines sit above the thread, so as1 puts `cmd->hdr.used = 0` (a later
- * line) in the jal delay slot as retail does. */
-void audio_unlock(void);
 
 static void _InsertSorted(tFxSequence *tag)
 {

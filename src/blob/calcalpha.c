@@ -1,6 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef float f32;
-extern f32 calcalpha_far_scale_positive,calcalpha_far_scale_negative;
+#include "game/game.h"
+
 f32 calcalpha(f32 *vector) {
     f32 value;
     f32 result;

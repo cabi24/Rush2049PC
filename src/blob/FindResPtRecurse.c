@@ -1,34 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * FindResPtRecurse @ 0x800D2FA8, 1,160 bytes: track path graph search (N64 code, no arcade ancestor
- * found). From (node, pos) find the node/point the path continues at:
- * - records `node` in the visited list gPathSearch[depth]; returns 0 when it was seen before;
- * - a node whose `next` and `prev` links are the same node is mapped proportionally onto the span
- *   nextPos..prevPos of that node (wrapping round the lap when next == -1), then the search
- *   recurses from there unless the result is the main path (< 0) or a typed node with stopAtTyped;
- * - otherwise the distances both ways round are measured with TraceToMain (follow `next`)
- *   and TraceToEnd (follow `prev`), and TraceToIndex walks back the proportional
- *   remainder. Returns 1 on success. The callee names are historical labels.
- *
- * Matches standalone at -O3 (the 's `group` label is a false positive) and is EQUAL
- * the whole-program unit. -O2: 278 words differ.
- *
- * Shaping facts (each needed):
- * - `v` is one scratch variable: first the `next` link, then the span length, later the wrap
- *   distance; the fields are re-read in source (no named copies of nextPos/prevPos);
- * - two unused locals declared before the seven address-taken ones give the 112-byte frame;
- * - operand orders: `nextPos + pos * v / numPoints`, `*outPos + start - numPoints`, and the last
- *   test written `start2 - start1 > start1 + numPoints - start2`;
- * - `dist1` is updated before `start1 = start2` (it uses the old start1).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct PathPoint {
     s16 x, y, z;
 } PathPoint;
 
@@ -61,16 +33,11 @@ typedef struct {
     /* 0x38 */ s16 nodeStart[12];
 } Section;                    /* 0x50 */
 
-extern PathGraph gResPath;
-extern s32 gPathTrace[];      /* nodes visited by the current walk */
-extern f32 path_closest_start_distance;        /* initial (large) best distance */
-extern Section gCheckpoints[];
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
 
-s32 TraceToEnd(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 *dist, s32 stopAtTyped, s32 depth);
-extern s32 gPathSearch[];      /* nodes visited by the current search */
-s32 TraceToMain(s32 node, s32 pos, s32 *outNode, s32 *dist, s32 depth);
-void TraceToIndex(s32 node, s32 pos, s32 remain, s32 *outNode, s32 *outPos);
-s32 FindResPtRecurse(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 stopAtTyped, s32 depth);
+VIEW(Section[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
 s32 FindResPtRecurse(s32 node, s32 pos, s32 *outNode, s32 *outPos, s32 stopAtTyped, s32 depth)
 {

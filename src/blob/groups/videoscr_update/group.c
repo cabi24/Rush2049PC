@@ -1,39 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* group updateVideoScreen: the pause-menu file tail, five bodies, all EQUAL in the whole-program unit
- * with their real callers (no stand-ins, no implicit int, no false prototype):
- *   video_uninitButtons  (2 w)   deleted static-like helper: RemovePanes(0); inlined into video_uninitScreen.
- *                          Its retail remains are the caller-less stub at 0x800B55F4 (locked stub).
- *   video_uninitScreen  (49 w)  menu teardown: release the 12 button models, clear the button count, sounds.
- *   video_validOption  (2 w)   getter video_optionValid[i] (entry visible); inlined into video_updateButtons and
- *                          updateVideoScreen. Its retail remains are the caller-less stub at 0x800B59E8.
- * video_updateButtons (343 w) pause-menu 3D buttons update (semantics).
- *   updateVideoScreen    (313 w) pause-menu input handler, reached through a pointer table (kept).
- * updateVideoScreen: btn/rep/hold = pressed/repeat/held pad words (gActiveEdges/gActiveAutoEdges/gActiveLevels when
- * gGameState & 0x7C03FFFE, else per-controller gContEdges/gAutoEdges/gContLevels[playerInPause]).
- *
- * Disclosed shaping (owner review):
- * 1. Unused locals that are the exact frame residual: updateVideoScreen `v`, `c`, `pad` (each removal ->
- *    frame 144, 10-14 words); video_updateButtons `cur`, `d` (removal -> frame 104). video_updateButtons's
- *    declaration order (i, name, y first) is set by its homes (old 84, tex 70, sel_y 76).
- * 2. Helper identities: video_uninitButtons (one call, RemovePanes(0)) and video_validOption (getter) are
- *    hypotheses supported by (a) their caller-less 2-word stubs sitting exactly where a definition in this
- *    source order leaves them, and (b) traced compiler evidence: the inlined helper body carries the
- *    helper's (earlier) line numbers, which is the only listing order that gives retail's
- *    `sw zero,video_buttonsInited` in the jal delay slot (asm.sh oracle), and the getter's inlined parameter/return
- * temps are the "invisible holders" of v0/a0 in updateVideoScreen's selection loop and of v0
- * video_updateButtons (vis -> v1, implicit-int residual).
- * 3. updateVideoScreen's reset branch reads back the just-zeroed globals (gOptions[19] = gHorzCenter ...,
- * video_set_offset(gHorzCenter, gVertCenter)) (w_e); `volatile` on the controller-present byte.
- * 4. Old-style declarations with the right return type: MBOX_FindTexture_WORK(), MBOX_HideObject(),
- * MBOX_ShowObject (not false prototypes).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct {
     s32 type;            /* 0x00 */
@@ -44,37 +9,30 @@ typedef struct {
     u8 pad3C[4];
 } Button; /* 0x40 */
 
-extern s32 video_buttonsInited;
-extern s32 video_buttonsJustInited;
-extern f32 video_buttonSlideScale;
-extern Button video_buttonInfo[];
-extern s8 video_optionValid[];
-extern s32 gVideoMenuSelect;
-extern f32 unitmatrix[];
-extern volatile f32 gFrameSeconds;
-extern volatile u8 gNumModels;
-extern f32 video_buttonSlideSpeed;
+VIEW(Button[], video_buttonInfo);
+#define video_buttonInfo video_buttonInfo_view
+
+VIEW(f32[], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
 intptr_t MBOX_FindTexture_WORK();
-void WPitchUV(f32 angle, f32 uv[][3]);
-void WRollUV(f32 angle, f32 uv[][3]);
-void ScaleUV(f32 (*dst)[3], f32 (*src)[3], f32 s);
-void MBOX_HideObject();
-void MBOX_ShowObject();
+
 void ZOID_SetTexture(s16 arg0, intptr_t arg1, s32 arg2);
 
-extern s8 video_inited;
-extern intptr_t video_blit;
-extern s8 video_panesCreated;
-extern intptr_t video_gTitlePane;
-void SaveFlush(s32 arg0);
-void RemovePanes(s32 arg0);
+VIEW(intptr_t, video_blit);
+#define video_blit video_blit_view
+
+VIEW(intptr_t, video_gTitlePane);
+#define video_gTitlePane video_gTitlePane_view
+
 void RemoveBlit(intptr_t sound_id);
-void removeBG(void);
-void RemoveObjectTree(s16 arg0, s32 arg1, s32 arg2);
 
 void video_uninitButtons(void) {
     RemovePanes(0);
@@ -201,39 +159,16 @@ void video_updateButtons(void) {
 }
 
 
-extern s32 gGameState;
-extern s32 gNewGameState;
-extern s32 gActiveEdges;
-extern s32 gActiveAutoEdges;
-extern s32 gActiveLevels;
-extern s32 playerInPause;
-extern s32 gContEdges[];
-extern s32 gAutoEdges[];
-extern s32 gContLevels[];
-extern s8 video_inited;
-extern s8 gTestFrequency;
-extern s8 gConfirmFrequency;
-extern s8 gYesFrequency;
-extern s32 exitVideoScreen;
-extern s32 video_resetChoice;
-extern s32 gVertCenter;
-extern s32 gHorzCenter;
-extern s8 video_gControllerRemoved;
-extern s8 gSoftReset;
-extern s32 video_dither_filter;
-extern u8 gOptions[];
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
+VIEW(u8[], gOptions);
+#define gOptions gOptions_view
 typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
-extern Pad16 gControllerData[];
+VIEW(Pad16[], gControllerData);
+#define gControllerData gControllerData_view
 
 s32 CountdownTimeOut(void);
-void video_set_offset(s32 x, s32 y);
-void video_initScreen(void);
-void PlayStartABSound(s32 a);
-void PlayLRSound(s32 a);
-void PlayUDSound(s32 a);
-void video_TitlePane(void);
-void video_uninitScreen(void);
-void setPauseState(s32 a);
 
 void updateVideoScreen(void) {
     Pad16 *p;

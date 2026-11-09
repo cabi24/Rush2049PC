@@ -1,7 +1,9 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed char s8; typedef signed short s16; typedef signed int s32; typedef unsigned char u8; typedef float f32;
+#include "game/game.h"
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
-extern f32 carTransGearRatio[][6];
+
 /* PC: the model record keeps its N64 layout; its descriptor (+0) and tune (+4) pointers are u32 window
  * addresses (docs/port/CARS.md). */
 #define M2C_N64P(e, o) ((void *) PC_N64P(M2C_FIELD(e, unsigned int *, o)))

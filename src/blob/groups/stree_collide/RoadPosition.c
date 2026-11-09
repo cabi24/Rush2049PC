@@ -1,11 +1,5 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+
 float fabsf(float);
 #pragma intrinsic (fabsf)
 
@@ -19,7 +13,8 @@ typedef struct QNode {
     s16 y1;
     u16 child[4];
 } QNode;
-extern QNode *stree_nodes;
+VIEW(QNode *, stree_nodes);
+#define stree_nodes stree_nodes_view
 
 typedef struct Poly {
     u16 type;
@@ -27,50 +22,8 @@ typedef struct Poly {
     u8 body[0x12];
     u16 off;
 } Poly;
-extern Poly *stree_surf;
-extern u8 *stree_slist;
-
-void *updownleaf(QNode *n, s16 x, s16 y, s16 *out);
-void DecodeSlist(u8 *input, s32 count, u16 *front, u32 marker);
-s16 PointInSurf(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin);
-void CopyUV(void *, void *);
-void fHalfPipeInterp(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold);
-void fPathInterp(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
-f32 NormalVector(f32 *v);
-
-typedef struct EUCar {
-    u8 pad0[928];
-    QNode *node[4];
-    u8 pad944[1440 - 944];
-    u16 hint[4];
-    u8 pad1448[1564 - 1448];
-    s16 kind[4];
-    s16 slope[4];
-    u16 attr[4];
-    u8 pad1588[1600 - 1588];
-    u8 b1600;
-    u8 pad1601[7];
-    Poly *p1608;
-    u8 pad1612[1732 - 1612];
-    s16 s1732;
-    u8 pad1734[1741 - 1734];
-    u8 b1741;
-    u8 pad1742[1990 - 1742];
-    s16 id;
-} EUCar;
-typedef struct EUSlot {
-    u8 pad0[856];
-    s8 b856;
-    s8 b857;
-    u8 pad858[952 - 858];
-} EUSlot;
-extern EUSlot gGameCar[];
-extern s8 gGameSoundsEnabled;
-extern f32 unitmatrix[];
-void AddBattlePoint(s8 a, s8 b, s8 c);
-void AbortCar(s16 arg0, s32 arg1);
-u32 AudPlayEffect(u32 index, u32 other, u32 value, u8 mode);
-s16 CylinderInSurf(f32 *p1, f32 *p2, f32 *out, Poly *poly, s16 *outIdx, s32 flag, f32 *vcOut, f32 *mat, f32 rad2);
+VIEW(Poly *, stree_surf);
+#define stree_surf stree_surf_view
 
 /*
  * RoadPosition (0x800C4200, 308 words) -- , .

@@ -1,45 +1,25 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A projected seven-option callback: 964 fresh exact bytes.
- * Real 80399394 eligibility context and existing group identity are preserved.
- * Reconstructed text36 replaces unproven text50. Independently authenticated
- * formats and all six native language tables bound the only writer at17 bytes
- * including NUL for the entire signed16 count domain. Original capacity unknown.
- * The full stack census and stock diagnostic metadata establish frame144,
- * point88/text92, and nonoverlapping scalar homes. See.
- * No pad arrays, fake signatures, unused locals, artificial reads, register
- * forcing, inline assembly or modified compiler. Color4 is native by-value
- * word-aligned; no original typedef or arcade ancestor is claimed.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Language { s32 unknown0; char **text; s32 unknown8; u16 *indices; char **indexed; } Language;
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
 typedef struct Camera { f32 uv[3][3], position[3]; u8 unknown30[104]; } Camera;
-extern Language gText;
-extern s32 modescr_buttonsInited, gModeMenuSelect;
-extern f32 modescr_title_button_position[3];
-extern Camera gCamera[];
-extern s16 gNumPlayers;
-extern Slot modescr_buttonInfo[];
-extern char modescr_one_player_format[], modescr_players_format[];
-extern Color4 flashColors, flashColors_at_1;
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern void TB_SetJust(u32,u32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_DrawText(s16,s16,void *);
-extern void TB_Sprintf(char *,char *,...);
-extern s32 modescr_optionValid(s32);
-extern void HAL_SetTextTranslucency(f32);
+VIEW(Language, gText);
+#define gText gText_view
+
+VIEW(f32[3], modescr_title_button_position);
+#define modescr_title_button_position modescr_title_button_position_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+
+VIEW(Slot[], modescr_buttonInfo);
+#define modescr_buttonInfo modescr_buttonInfo_view
+
+VIEW(Color4, flashColors);
+#define flashColors flashColors_view
+VIEW(Color4, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
+
 extern void TB_FlashTextColors(Color4,Color4);
 
 s32 modescr_animText(void *callback_context)

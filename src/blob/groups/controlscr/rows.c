@@ -1,13 +1,16 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Item { int type, handle; float angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-extern Item controls_buttonInfo[4][17];
-extern int controls_buttonsInited[4];
-extern void *controls_blit;
-extern s8 controlScrActive[4],prevControlScrActive[4],controls_inited;
-void RemoveObjectTree(s16,int,int);
+VIEW(Item[4][17], controls_buttonInfo);
+#define controls_buttonInfo controls_buttonInfo_view
+VIEW(int[4], controls_buttonsInited);
+#define controls_buttonsInited controls_buttonsInited_view
+
+VIEW(s8[4], controlScrActive);
+#define controlScrActive controlScrActive_view
+VIEW(s8[4], prevControlScrActive);
+#define prevControlScrActive prevControlScrActive_view
+
 void RemoveBlit(intptr_t);
 void controls_uninitButtons(s8 row) {
     int i;

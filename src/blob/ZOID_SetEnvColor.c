@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 /* ZOID_SetEnvColor: replacement source for the locked single. Struct form against the
  * ObjInstanceList table ObjInstanceList (MAT3 zoid.c / zoidtexture.c / visuals.c); matches standalone and in
@@ -18,9 +20,9 @@ typedef struct ObjInstance {
     unsigned int color;         /* 0x60 */
     unsigned int envcolor;      /* 0x64 */
 } ObjInstance;
-typedef struct CarParts { int frame; int extraparts[3]; int hood; int sheen; char tail[0x28]; } CarParts;
-extern ObjInstance ObjInstanceList[];
-extern CarParts gCarParts[];
+
+VIEW(ObjInstance[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 /* ZOID_SetEnvColor */
 void ZOID_SetEnvColor(short objnum, Color *col)

@@ -1,11 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Bank {
     /* 0x0 */ u8 pad0;
@@ -22,30 +15,12 @@ typedef struct Bank {
     /* 0xC */ u8 f12;
 } Bank;
 
-/* PC: a font letter is 12 bytes as in the file, its kern slot a 4-byte window address (port/assets/font.c). */
-typedef struct { u32 ptr; u8 id; u8 pad[7]; } Entry;
-typedef struct { Bank *bank; } Hdr;
-typedef struct { Hdr *hdr; s32 pad[4]; } Tbl;
-typedef struct { s32 first; s32 second; } Pair;
+typedef struct Entry { u32 ptr; u8 id; u8 pad[7]; } Entry;
 
-extern Bank *gFontHeader;
-extern s32 gFontDatWaveInst;
-extern s32 gFontTexWaveInst;
-extern Tbl gWaveInstance_ptr[];
-extern Entry *gFontLetters;
-extern s16 gCharMap[256];
-extern intptr_t gFontTextures[];
-extern Pair gTexDefPtrs[];
-extern s8 gLeading;
-extern u8 gSpacing;
-extern s32 font_image_format;
-extern s32 font_texel_size;
-
-extern s32 FindWaveInstanceInternal(s32, s32);
-
-void SetupFontData(s32 force);
-
-
+VIEW(Entry *, gFontLetters);
+#define gFontLetters gFontLetters_view
+VIEW(s16[256], gCharMap);
+#define gCharMap gCharMap_view
 
 s8 HAL_SetFontFixedWidth(s8 value) {
  s8 old;

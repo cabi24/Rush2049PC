@@ -1,30 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_80108AB0 (0x80108AB0, 760 B) = GC animWrongWay@hud.c ("WRONG WAY" text per window): gRace,
- * gNumWindows, gGameCar = gGameCar (heading +868, f239 = GC +0xEF), gGameState bit 0x400000,
- * gShowWrongWay, wrongWayTime, gSeconds, wrongWayPos,
- * wasStrayed = function-local static (0x8013F2F8, GC wasStrayed$1766), TB_SetJust_8AB0 pair gJust,
- * HAL_SetTextDepth, HAL_SetTextTranslucency, TB_GetFlashTextCycle_8AB0 = gColorCycle,
- * TB_SetTextColor, TB_DrawText = TB_DrawText. GC locals x, y, slot (same here).
- * draft 184/190 -> unit EQUAL. Levers:
- *  - HAL_SetFont_8AB0 nests one level deeper than the lock/font helper (HAL_SetFont_8AB0 -> font_set_8AB0 -> gfx_lock_8AB0 /
- *    font_select_8AB0 / gfx_unlock_8AB0): with font_select_8AB0 nested the callee-saved cost rises and the FP constants
- *    (+-pi/2, 2.0, 255.0, -1.0) are rematerialised per use as in retail instead of hoisted into $f20-$f26
- *    (184 -> 41 rows); the HAL_SetFont_8AB0 level supplies the last 16 B of frame (two call sites, 8 B each).
- *  - `extern volatile f32 gSeconds` (gSeconds): retail reloads it in each arm through an address register (-> 11).
- *  - the reset arm stores wrongWayTime before wasStrayed (web order: wrongWayTime s6, wasStrayed s7 as retail).
- * Shaping devices (disclosed): inlined helpers (non-static *_8AB0, not on keep: stub rule) gfx_lock_8AB0/gfx_unlock_8AB0/font_select_8AB0/font_set_8AB0/HAL_SetFont_8AB0/TB_SetJust_8AB0/
- * TB_GetFlashTextCycle_8AB0 (the GC names; GC calls HAL_SetFont_8AB0/TB_SetJust_8AB0/TB_GetFlashTextCycle_8AB0 as functions, the
- * N64 nesting depth is inferred from the frame); volatile gSeconds.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
@@ -41,44 +15,15 @@ typedef struct Pos {
     s32 x, y;
 } Pos;
 
-typedef struct Pair {
-    s32 h, v;
-} Pair;
+VIEW(StrTable, gText);
+#define gText gText_view
 
-typedef struct Car {
-    u8 pad0[239];
-    s8 f239;
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x364 - 0x308];
-    f32 heading;
-    u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
-} Car;
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern s32 gRace;
-extern s8 gShowWrongWay;
-extern Pair gJust;
-extern StrTable gText;
-extern s16 gNumWindows;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 wrongWayTime[];
-extern volatile f32 gSeconds;
-extern f32 gColorCycle;
-extern Pos wrongWayPos[][4];
+VIEW(Pos[][4], wrongWayPos);
+#define wrongWayPos wrongWayPos_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void HAL_SetTextDepth(f32);
-void HAL_SetTextTranslucency(f32);
-void TB_SetTextColor(s32);
-void TB_DrawText(s16, s16, void *);
-
-
-
-
-void text_lock(void);
-void text_unlock(void);
 s32 font_set_8AB0(s32 font)
 {
     s32 old;
@@ -100,7 +45,6 @@ void HAL_SetFont_8AB0(s32 font)
     font_set_8AB0(font);
 }
 
-void TB_SetJust(u32 first, u32 second);
 s32 animWrongWay(void *item)
 {
     s32 x;

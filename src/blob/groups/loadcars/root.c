@@ -1,30 +1,14 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed short s16;
-typedef signed char s8;
-typedef unsigned char u8;
-typedef float f32;
-typedef struct Selection8 {u8 reserved;u8 model;s8 type;s8 tune;s8 variant;u8 tail[3];} Selection8;
+#include "game/game.h"
+
 enum n64p_void { n64p_void_ };
-typedef struct Vehicle2056 {enum n64p_void car;enum n64p_void parameters;u8 opaque[1988];s8 mode;u8 tail[59];} Vehicle2056;
+
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_void: (void *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u32 gWaveSizes[];
-extern u32 gGameState;
-extern s16 gNumPlayers;
-extern s16 gCarModelNums[13];
-extern s8 car_color_choice_a[],car_color_choice_b[],car_color_choice_c[];
-typedef struct Heap Heap;
-extern u32 heap_total_free(Heap *);
-extern s32 LoadWave(s32,s32,s32,s32,void *);
-extern void car_palette_init(s32,s32,void *);
-extern void InitSelectCarLoad(void);
-extern f32 Random(f32 max);
-s32 FindWaveInstance(s32 waveNum);
+
+VIEW(s16[13], gCarModelNums);
+#define gCarModelNums gCarModelNums_view
+
 /* PC: the heap too short for a car type's file, where LoadCars picks another type or shares one, is logged the first
  * time and counted (port/ultra/heap.c, docs/port/MEMORY.md 5); the choice is the N64's. */
 

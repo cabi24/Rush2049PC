@@ -1,20 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * antispin (0x800E1AA0, 400 bytes): N64-only car drag/brake term (no arcade ancestor
- * found; 12000.0f = 100 * 120 is an N64 constant).  Subtracts from the car's f320 accumulator:
- *  - unless both tyre-surface words (+1548, +1552) are 8: f1824 * min(f1008,100) * 120 * scale,
- *    scale = min(f1452 + f980 * 0.5, 1); the clamped case is written with the folded 12000.0f
- *    (own .rodata 0x801243C0, verified by the scorer);
- *  - when f72 >= 0: if h1994 != 0 and f64 * f80 > 0, f64 * 100; otherwise, when f64 * f80 > 0
- *    and f980 < 0.5, f64 * 100 * sub->f36.
- * Skipped entirely when flags2004 & 0x10.  Field names are offsets (car record as in
- * src/blob/groups/stree_collide: w1548[4] surface types, flags2004).
- * Shaping: `scale = f1452; scale += f980 * 0.5f;` (two statements) puts f1452 straight into
- * f0 and fixes the whole FP ring; the f72 test is written with int 0 (`f72 < 0`) so that its
- * zero is a separate constant web from the 0.0f of the two product tests (with 0.0f everywhere
- * uopt hoists one shared zero into the join block).  Also matches at -O2.
- */
-typedef float f32; typedef int s32; typedef short s16; typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Sub { u8 p0[36]; f32 f36; } Sub;
 enum n64p_Sub { n64p_Sub_ };
 typedef struct Car {

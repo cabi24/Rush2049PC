@@ -1,15 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* DrawText = _DrawText (MAT3 GameSource/src/HAL_text.c static _DrawText, GC 0x8001B410).
- * Private IPA callee of HAL_FinishText: text in s2, length in s0.
- * N64: screen-size scissor, BlitColors(color, format, size, 0), the font texture page is loaded
- * (blit_load_texture) for page 0 and on every page change, BlitDraw has no texture argument and no +1s. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct anon_version_type_10 {
     unsigned char version, type, ascent, descent, leading, totalHeight, maxWidth, spaceWidth;
@@ -35,31 +24,21 @@ typedef struct tTexture {
     TXHD_IMAGE;                     /* 0x18 */
 } tTexture;
 
-extern anon_version_type_10 *gFontHeader;
-extern anon_kerns_value_c *gFontLetters;
-extern tTexture *gFontTextures[16];            /* gFontTextures */
-extern s16 gCharMap[256];                 /* gCharMap */
-extern anon_fore_4 gFontColor;
-extern s8 gLeading;
-extern s8 gSpacing;
-extern s32 gFontAttribute;
-extern s32 font_image_format;                      /* font texture format */
-extern s32 font_texel_size;                      /* font texture size */
-extern s16 gFontXpos;
-extern s16 gFontYpos;
-extern f32 gTrans;
-extern s32 screen_width, screen_height;          /* screen width, height */
-extern void *blitColors;                    /* current blit palette */
+VIEW(anon_version_type_10 *, gFontHeader);
+#define gFontHeader gFontHeader_view
 
-void SetupFontData(s32 force);        /* _SetupFontData */
-void BlitScissor(s32 ulx, s32 uly, s32 lrx, s32 lry);
-void BlitSetAttribute(u32 attribute);
-void BlitClearAttribute(u32 attribute);
-void BlitColors(void *colors, s32 fmt, s32 siz, s32 bank);
-void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls, u16 ult, u16 lrs, u16 lrt,
-                   u16 pal, s32 tile);       /* load a texture block */
-void BlitDraw(s32 x0, s32 y0, s32 x1, s32 y1, s32 s, s32 t);
+VIEW(tTexture *[16], gFontTextures);
+#define gFontTextures gFontTextures_view
+VIEW(s16[256], gCharMap);
+#define gCharMap gCharMap_view
+VIEW(anon_fore_4, gFontColor);
+#define gFontColor gFontColor_view
 
+VIEW(s32, gFontAttribute);
+#define gFontAttribute gFontAttribute_view
+
+VIEW(void *, blitColors);
+#define blitColors blitColors_view
 
 void DrawText(const unsigned char *text, unsigned short length)
 {

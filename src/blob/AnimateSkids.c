@@ -1,8 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef float f32;
-typedef int s32;
-typedef unsigned int u32;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Voice Voice;
 struct Voice {
     Voice *next;
@@ -22,11 +19,12 @@ typedef struct VoiceLists {
     Voice *active;
     Voice *other;
 } VoiceLists;
-extern VoiceLists gSkidList;
-extern f32 gSeconds;
+VIEW(VoiceLists, gSkidList);
+#define gSkidList gSkidList_view
+
 extern void ZOID_UpdatePoly(intptr_t, s32, s32, s32, u8 *, s32, s32);
 extern void ZOID_RemovePoly(intptr_t);
-extern void FreeStatLLE(VoiceLists *, Voice *);
+
 /* PC: a float to u32 that is negative while a voice's start is ahead of the clock. Undefined in C, and the hosts
  * differ: x86-64 and IDO's code for the N64 go through a signed conversion and keep the bits (-125 is 0xFFFFFF83, no
  * fade), aarch64's fcvtzu gives 0 (the fade at full). So through s32 below 0, as the N64 (docs/port/SANITIZE.md). */

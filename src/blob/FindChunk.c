@@ -1,7 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned int u32;
-typedef int s32;
-typedef signed char s8;
+#include "game/game.h"
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };

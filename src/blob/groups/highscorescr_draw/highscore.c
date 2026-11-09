@@ -1,99 +1,38 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * (integration, coordinator decision): group highscore_anim landed with members DrawName, DrawGhost and
- *   DrawUnlocked PROVISIONAL ON THE CALLER FORM. The members are byte-exact (group MATCH; DrawGhost's two-region own
- *   .rodata proven by the splice replay) and EQUAL in the whole-program unit, but their only caller highscore_animText
- *   below is an EQUIVALENT draft (27/445, frame 704 vs retail 584) kept as context, not a match. The calling
- * conventions it imposes are regmap-verified (DrawName takes p in s5, ipa_callees.json). precedent: the
- * ShowPakError cells on ShowPakError. When highscore_animText closes, add it as a member here.
- */
-/*
- * : DrawUnlocked now EQUAL in the unit (was 588/629, 48 ops). Levers, in order of effect:
- * (1) GC type: `x` is `int` (GC DrawUnlocked locals x,y,i,p int; str[64]; stuffCount int) -- the s16 x of -
- *       was the whole 48-op residual (588 -> 68 words, ops 0);
- *   (2) DISCLOSED SHAPING DEVICE: compiled-out `if (p) {}` at the head of the player loop raises p's priority over the
- *       &str address web (p 42.25 vs &str 42.86 per block, ctrace) so p takes s5 and &str s6 as in retail (68 -> 4);
- *   (3) du_gfx_unlock DEFINED AFTER du_font_set (prototype before): as1 breaks the ready-list tie by source line, so
- *       the font helper's `move s0,v0` is scheduled before the unlock's argument set-up and the osSendMesg delay slot
- *       gets `move a2,zero` (retail) (4 -> 0).
- */
-/*
- * : DrawGhost now EQUAL in the unit: a compiled-out `do {} while (0);` after the status-1/2 time
- *   sprintf (DISCLOSED SHAPING DEVICE) ends the block holding the TB_Sprintf call, so the PRE reload of
- *   gGhostStatus[pak] after it no longer shares that block and uopt lets the status web take v0 (retail).
- * high-score unit (GC highscorescr.c), complete drafts of all four N64 functions:
- *   DrawUnlocked = DrawUnlocked (internal), DrawName = DrawName(p) (internal, p in s5 by IPA),
- *   DrawGhost = DrawGhost (internal), highscore_animText = animText@highscorescr.c (kept; DrawCircuitCode and
- *   DrawScores are inlined into it).
- * Unit (Pi): the whole-program unit --tag score highscore_animText DrawName DrawGhost DrawUnlocked --with THIS
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- *   -> EQUAL DrawName (260 words, internal); DrawGhost 17/601 (6 unverified own-.rodata rows; colour);
- *      highscore_animText 27/445 (frame 704 vs 584: helper inline areas); DrawUnlocked 588/629 (frame/length exact; colour).
- * NOT a match deliverable: DrawName's only caller highscore_animText is unmatched (provisional).
- * Shaping devices (disclosed): non-static inlined helpers (not on keep) hs_SetFont (void HAL_SetFont wrapper,
- *   DrawName), hs_SetJust (TB_SetJust, DrawGhost), gh_font_set/gh_SetFont (DrawGhost's own font helper copy + void
- *   wrapper), hs_CenterText at the 9 DrawUnlocked sites; one unused local `s16 gFreePages` in DrawGhost (GC local;
- *   exact frame residual 568 -> 576, one slot).
- * The rest of this header is the DrawUnlocked note (historical).
- */
-/*
- * DrawUnlocked = GC DrawUnlocked (highscorescr.c): per player with new unlocks (gStuffUnlocked[p] =
- * gStuffUnlocked), count the items unlocked this race (new flag set, old flag clear) over seven categories,
- * resize the player's name pane (D_80149418[p], ChangePaneSize) around the list and draw
- * the header lines (fixed[55], fixed[56]) and one line per new item, centred on the player rect.
- * Internal (no callee saves); only caller highscore_animText (unmatched) -> provisional at best.
- * draft, complete. Measured KEPT (the whole-program unit without --internal, so +9 callee saves):
- *   FAIL DrawUnlocked: 619 of 629 words differ; compiled body is 631 words | words 573 ops 103 | frame 264/232
- * The ops rows are the save/restore block, the x/y narrowing copies and the spill homes; the control flow,
- * category order/sizes, globals and every call's arguments agree with retail. Internal measurement needs a
- * real caller: umerge inlines it into any C stand-in (1, 2 or 6 sites, with the whole-program unit's dead block, with a
- * 600-byte caller frame, stand-in defined first: all inlined), so it waits for highscore_animText (GC DrawScores?).
- * GC names: gStuffUnlocked gStuffUnlocked, namePanes D_80149418, gPlayerRects highscore_gPlayerRects (Rect.cx/cy at +8/+10),
- * gNumWindows gNumWindows, gTrackTitles gTrackTitles, CarTitles CarTitles, ChangePaneSize ChangePaneSize,
- * TB_GetFontLineHeight TB_GetFontLineHeight, HAL_GetTextWidth HAL_GetTextWidth (u32: retail `srl`),
- * TB_Sprintf TB_Sprintf ("%s %s" style formats unlocked_circuit_format..unlocked_frame_format), header lines fixed[55]/fixed[56].
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct OSMesgQueue OSMesgQueue;
+#include "game/game.h"
+
 typedef struct Rect { s16 x, y, w, h; s16 cx, cy; } Rect;
 typedef struct UIdx { u16 h[48]; } UIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; UIdx *indices; char **strings; } TextState;
 
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern s16 gNumPlayers, gNumWindows;      /* gNumPlayers, gNumWindows */
-extern Rect highscore_gPlayerRects[][4];                     /* gPlayerRects */
-extern s8 *namePanes[];                         /* namePanes */
-extern s8 gStuffUnlocked[];                          /* gStuffUnlocked[p] */
-extern s8 gUnlockedTracks[][19], gPrevUnlockedTracks[][19];    /* tracks: unlocked now / before */
-extern s8 gUnlockedCars[][13], gPrevUnlockedCars[][13];    /* cars */
-extern s8 gUnlockedCircuits[][4], gPrevUnlockedCircuits[][4];
-extern s8 gUnlockedTrans[][8], gPrevUnlockedTrans[][8];
-extern s8 gUnlockedEngines[][9], gPrevUnlockedEngines[][9];
-extern s8 gUnlockedTires[][5], gPrevUnlockedTires[][5];
-extern s8 gUnlockedFrames[][6], gPrevUnlockedFrames[][6];
-extern char *gTrackTitles[];                       /* gTrackTitles */
-extern char *CarTitles[];                       /* CarTitles */
-extern char unlocked_circuit_format[], unlocked_trans_format[], unlocked_engine_format[], unlocked_tires_format[], unlocked_frame_format[];
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);
-extern s16 TB_GetFontLineHeight(void);
+VIEW(TextState, gText);
+#define gText gText_view
+
+VIEW(Rect[][4], highscore_gPlayerRects);
+#define highscore_gPlayerRects highscore_gPlayerRects_view
+
+VIEW(s8[][19], gUnlockedTracks);
+#define gUnlockedTracks gUnlockedTracks_view
+VIEW(s8[][19], gPrevUnlockedTracks);
+#define gPrevUnlockedTracks gPrevUnlockedTracks_view
+VIEW(s8[][13], gUnlockedCars);
+#define gUnlockedCars gUnlockedCars_view
+VIEW(s8[][13], gPrevUnlockedCars);
+#define gPrevUnlockedCars gPrevUnlockedCars_view
+VIEW(s8[][4], gPrevUnlockedCircuits);
+#define gPrevUnlockedCircuits gPrevUnlockedCircuits_view
+VIEW(s8[][8], gPrevUnlockedTrans);
+#define gPrevUnlockedTrans gPrevUnlockedTrans_view
+VIEW(s8[][9], gPrevUnlockedEngines);
+#define gPrevUnlockedEngines gPrevUnlockedEngines_view
+VIEW(s8[][5], gPrevUnlockedTires);
+#define gPrevUnlockedTires gPrevUnlockedTires_view
+VIEW(s8[][6], gUnlockedFrames);
+#define gUnlockedFrames gUnlockedFrames_view
+VIEW(s8[][6], gPrevUnlockedFrames);
+#define gPrevUnlockedFrames gPrevUnlockedFrames_view
+
 extern void ChangePaneSize(void *, s32, s32, s32, s32);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s16, char *);
-extern s32 TB_Sprintf(char *, char *, ...);
 
-
-
-s32 HAL_SetFont(s32 fontID);
-s16 TB_CenterText(void *text, s16 centerX);
 void DrawUnlocked(void)
 {
     s32 x;
@@ -181,39 +120,22 @@ void DrawUnlocked(void)
 
 /* ---- highscore_animText = GC animText@highscorescr.c (draft) ---- */
 typedef struct HsIdx { u8 pad54[54]; u16 tableNames; u8 pad56[54]; u16 scoreNames; } HsIdx;
-extern s32 gHighScoreState;
-extern char highscore_gCircuitCode[];                        /* gCircuitCode */
-extern s8 gTable;
-extern s8 gNewTotalScore[][5];                       /* gNewTotalScore[table][5] */
-extern s32 playerTextColor[];                         /* playerTextColor */
-extern char *gScoreNames[];                       /* gScoreNames */
-extern char gScoreTimes[][10];                    /* gScoreTimes */
-extern s8 gDrawName[];                          /* gDrawName */
-extern void HAL_SetTextDepth(f32);
-extern u32 TB_Strlen(char *);                /* strlen */
+
+VIEW(char[], highscore_gCircuitCode);
+#define highscore_gCircuitCode highscore_gCircuitCode_view
+
+VIEW(s8[][5], gNewTotalScore);
+#define gNewTotalScore gNewTotalScore_view
+
 extern s32 sprintf(char *, const char *, ...);
-extern void TB_EllipseText(char *, char *, s32);
-extern char *gPlayerNameChars;
-extern s16 highscore_gNameSelect[];                         /* gNameSelect[p] */
-extern char gScoreName[][13];                    /* gScoreName[p] */
-extern char name_entry_del_label[], name_entry_end_label[], name_entry_space_label[];   /* DrawName statics del$1225 "DEL", end$1226 "END", spc$1227 "SPC" */
+
+VIEW(char *, gPlayerNameChars);
+#define gPlayerNameChars gPlayerNameChars_view
+
 /* SaveInit' Ghost: its link and file handle are pointer-sized on the PC (docs/port/CASTS.md). */
 typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
-extern Ghost **gSavedGhost;
-extern Ghost **gPakGhosts[];                     /* gPakGhosts[pak] */
-extern s8 gGhostPak;
-extern s8 gGhostMenuConflict;
-extern s8 gGhostMenuConfirm;
-extern s8 gGhostMenuNotify;
-extern s8 highscore_gYes;                            /* confirm menu selection (two options) */
-extern s32 gGhostMenuSelect;
-extern s32 gGhostStatus[];                         /* gGhostStatus[pak] */
-extern char *gPS_PakName[];                       /* gPS_PakName[pak] ("1".."4") */
-extern s32 gJust[2];                        /* TB_SetJust pair */
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
-
-
-
+VIEW(Ghost **, gSavedGhost);
+#define gSavedGhost gSavedGhost_view
 
 void hs_SetFont(s32 font)
 {
@@ -291,7 +213,6 @@ void DrawCircuitCode(void)
     }
 }
 
-s16 TB_RightText(void *text, s16 rightX);
 void DrawScores(void)
 {
     s32 i;
@@ -332,7 +253,6 @@ void gh_SetFont(s32 font)
     HAL_SetFont(font);
 }
 
-void TB_SetJust(u32 first, u32 second);
 void DrawGhost(void)
 {
     s32 i;

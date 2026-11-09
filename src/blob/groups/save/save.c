@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * SaveInit (historical label): save-slot table initialiser.
- *   - binds the four save slots (gJustPlayers[i] -> gRealJustPlayers[i] -> gJustPlayerData[i] -> gRealJustPlayerData[i]),
- *     resets each through InitPlayer and names it with sprintf(player_name_format, i + 1);
- *   - initialises two list heads with InitLL;
- *   - allocates n = (expansion_pak_present ? 12 : 1) * 3 44-byte records plus an index of pointers to them.
- * Whole-program facts this depends on (it cannot match alone):
- *   - InitPlayer is internal: its handle arrives in s5 and it leaves s0/s1/s2/s4/s6 unsaved, so this
- *     function saves every callee-saved register (and f20/f22) and spills s0/s1 around the call;
- *   - InitLL(list, a, b) is inlined twice, and it in turn inlines ClearLL(list). That nesting is
- *     what gives the 160-byte frame (24 bytes per inlined call) and the retail store order b0, b1, w8, wC, w4.
- *     Both helpers are redefined here in that natural form; each still produces its own locked body.
- * Quirk: gGlobalsSet / save_gInited must be unsigned char so the final `= 1` is not commoned with the s8 `1`
- * that the inlined InitLL arguments and gNumLimbo share in a1.
- * No arcade ancestor (N64 controller-pak / options code).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
 
@@ -49,25 +30,28 @@ typedef struct Record {     /* a ghost (SaveInit' Ghost), 64 bytes on the PC (do
     void **header;
 } Record;
 
-extern SaveSlot *gJustPlayers[4];
-extern SaveSlot gRealJustPlayers[4];
-extern SaveData *gJustPlayerData[4];
-extern SaveData gRealJustPlayerData[4];
-extern char player_name_format[];
-extern ListHead gPlayerFiles;
-extern ListHead gGhostFiles;
-extern s8 expansion_pak_present;
-extern s8 gNumLimbo;
-extern Record *gRealLimboGhosts;
-extern Record **gLimboGhosts;
-extern u8 gGlobalsSet;
-extern u8 save_gInited;
+VIEW(SaveSlot *[4], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+VIEW(SaveSlot[4], gRealJustPlayers);
+#define gRealJustPlayers gRealJustPlayers_view
+VIEW(SaveData *[4], gJustPlayerData);
+#define gJustPlayerData gJustPlayerData_view
+VIEW(SaveData[4], gRealJustPlayerData);
+#define gRealJustPlayerData gRealJustPlayerData_view
 
-void InitPlayer(SaveSlot **h);
+VIEW(ListHead, gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+VIEW(ListHead, gGhostFiles);
+#define gGhostFiles gGhostFiles_view
+
+VIEW(s8, gNumLimbo);
+#define gNumLimbo gNumLimbo_view
+
+VIEW(u8, gGlobalsSet);
+#define gGlobalsSet gGlobalsSet_view
+
 s32 sprintf(char *, const char *, ...);
-void game_strcpy(void *, char *);
-void *AllocateMemoryHeap(s32 arg0, s32 arg1);
-void PurgeableMemory(u32 arg0, s32 arg1);
+
 void *memset(void *, s32, u32);
 
 void ClearLL(ListHead *list) {

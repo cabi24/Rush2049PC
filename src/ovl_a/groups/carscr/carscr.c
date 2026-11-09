@@ -1,45 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: claims the three deleted-inline stubs before _UninitScreen (carscr_UninitScreen):
- * clearCarComponents clearCarComponents, carscr_uninitButtons uninitButtons@carscr.c, releaseGridMap releaseGridMap (see the
- * D05C header). Every old member MATCHes; D05C needs no shaping device now. */
-/* superseding revision: setGhosts (GC setGhosts@carscr.c) and updateCarComponents (GC updateCarComponents@carscr.c) are
- * now members (MAT3 ports, headers at the functions). Every earlier member is unchanged; the one shared-declaration change is
- * the 4th parameter of MBOX_FindObject_WORK (s8 -> s32). */
-/* superseding revision: carscr_initButtons (GC initButtons@carscr.c) and carscr_updateButtons (GC updateButtons@carscr.c) are now
- * members, ported from reference/repos/mat3 carscr.c; see their headers below. Old members and their text are unchanged. */
-/* Image-A selected car-stat product: D300, 404 newly strict-matched bytes.
- * The genuine pausescr_cleanup/car-selection group retains all five accepted members.
- * D300 uses direct per-component indexed factors, letting stock IDO hoist the
- * complete row-address expressions while preserving the five selection reads.
- * Two do/while(0) statement regions deliberately establish CFE block boundaries:
- * the first pair assignment and third-factor update coalesce into one store;
- * the next region and final update retain three native stores per component.
- * This is disclosed source shaping under the live block-boundary rule,
- * not a claim that these original source macros or blocks have been recovered.
- * The initial pair's source operand order and compound third-factor update
- * reproduce the native floating operand order without reassociating its stages.
- * No volatile, unused local, capacity change, false signature, artificial caller,
- * assembly, forced register, or compiler modification is used.
- */
-/* Overlay A cleanup (8039D05C), complete 676-byte body.
- * , record-context group at d725fbe089ba81b36386b849f492035261af4883.
- * Authentic reconstructed callers/callees are preserved as nonclaiming context.
- * Arcade ancestry is unknown. This is a private-ABI no-argument helper that
- * clobbers s0-s8; its real caller updateCarScreen saves/restores that set.
- * This is MAT3 carscr.c _UninitScreen. Its three inlined statics are now the non-kept helpers
- * clearCarComponents clearCarComponents(int p), carscr_uninitButtons uninitButtons(signed char p) and releaseGridMap
- * releaseGridMap (empty in the N64 build, like createGridMap), called where MAT3 calls them
- * (releaseGridMap under `gNumPlayers == 1 && gRace != 2` right after the first wave unload). Their deleted
- * procedures are the retail stubs 0x8039D044/4C/54 in that order (post-order, last call first). The former
- * shaping device (a code-free `if (player) {}` read in the panel loop) is no longer needed and is removed.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller;} FileInfo;
 typedef struct Profile Profile;
@@ -51,14 +11,11 @@ typedef struct Record Record;
 struct Record {Record **next;FileInfo **file;s8 track;u8 mode,name[14];u32 id0,id1;f32 time;void *unknown24;RecordedCar **active;};
 extern Player gPlayers[];
 typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Record **first, **last;} RecordList;
-extern RecordList gGhostFiles;
-extern Record **limboGhosts,**gGhosts[4];
-extern s16 gLastCar_at_1[3];
-extern s32 gRace;
-extern s8 gGhostSelect,gTrackNum,gBackwards,expansion_pak_present;
-extern s32 game_strcmp(u8 *,u8 *);
-extern s32 ReadGhostData(Record **);
-extern void PurgeGhostData(void **);
+VIEW(RecordList, gGhostFiles);
+#define gGhostFiles gGhostFiles_view
+VIEW(Record **[4], gGhosts);
+#define gGhosts gGhosts_view
+
 typedef struct Language {s32 unknown0;u8 **text;s32 unknown8;u16 *indices;u8 **indexed;} Language;
 typedef struct Camera {f32 uv[3][3],position[3];u8 unknown30[104];} Camera;
 typedef struct Slot {s32 kind,handle;f32 angle,matrix[3][3],position[3];u8 alpha,unknown3D[3];} Slot;
@@ -66,101 +23,56 @@ typedef struct CarSlot {f32 selection,angle;s8 position,car;u8 unknown0A[2];} Ca
 typedef struct FiveParts FiveParts;
 typedef struct Blit Blit;
 typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
-extern Language gText;
-extern s16 gNumPlayers,gNumWindows;
-extern Camera gCamera[];
-extern s8 allLocked,gCarLocked[],carscr_gActiveOptionEnabled[],gThisCar[],gThisCarIndex[],gCars[][13],gCarOrder[];
-extern s16 gNumCarsActive[],gLastCar[];
-extern s32 carscr_gActiveOption[],carscr_gFirstOption[],gHornSnd[],gTurntableIdx[][2];
-extern void *gCarMatrices[48];
-extern u8 gDriveHulk[4];
-extern volatile u8 gNumModels;
-extern s8 gEnableTireScaling,carscr_inited;
-extern f32 HFOV,carscr_gButtonZoom,carscr_gButtonScale,carscr_gButtonSpace,carscr_buttonX,carscr_maxY,carscr_minY,carscr_buttonZ,carscr_cursorZ;
-extern f32 gTurntableMat[][2][12],unitmatrix[12];
-extern FiveParts *carscr_pane[];
-extern s8 D_80111589[][13];
-extern f32 gFrontTireScale[][13],gRearTireScale[][13];
-extern CarSlot carscr_cars[][13];
-extern MultiBlit carscr_mb[];
-extern Blit *carscr_blit;
-extern char carscr_turntable_model_name[],carscr_turntable_base_model_name[];
-/* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
-extern void LoadWave(s32,s32,s32,s32,void *);
-extern void *ZOID_NewMatrix(void);
-extern void SetOptions(void);
-extern void ZOID_ResetWindows(void);
-extern void ZOID_SplitScreen(s16);
+VIEW(Language, gText);
+#define gText gText_view
+
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+
+VIEW(void *[48], gCarMatrices);
+#define gCarMatrices gCarMatrices_view
+VIEW(u8[4], gDriveHulk);
+#define gDriveHulk gDriveHulk_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(f32[12], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(CarSlot[][13], carscr_cars);
+#define carscr_cars carscr_cars_view
+VIEW(MultiBlit[], carscr_mb);
+#define carscr_mb carscr_mb_view
+
 extern void audio_interrupt_handler(s32);
-extern void InitVisuals(s32);
+
 extern void particle_lifetime_set(void);
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
-extern void CopyUV(void *,void *);
-extern s32 MBOX_FindObject_WORK(char *,s8,s8,s32); /* : 4th parameter int (MAT3 MBOX_FindObject_WORK) */
-extern s32 MBOX_NewObject(s32,void *,s32,u32);
-extern void MBOX_HideObject(s32,s32,u32);
-extern void MBOX_ShowObject(s32,s32,u32);
-extern s8 GetPlayerCarSetting(Profile **,u8,u8);
-extern void SavePlayerCarSetting(Profile **,u8,u8,s8);
-extern u8 GetPlayerCar(Profile **);
-extern u8 GetPlayerCarTrans(void **);
-extern void SavePlayerCar(Profile **,u8);
-extern s8 IsEngineUnlocked(s32,s32);
-extern s8 IsTiresUnlocked(s32,s32);
-extern s8 IsFrameUnlocked(s32,s32);
-extern s8 IsCarUnlocked(s32,s32);
-extern s8 IsTransUnlocked(s32,s32);
-extern Blit *NewMultiBlit(s16,s16,MultiBlit *,s16);
-extern void ZeroCameras(void);
-extern void UpdateCameras(void);
-extern void ClearRushControls(void);
-/* Genuine low-image services, reconstructed below with natural source inputs. */
-extern void carscr_initButtons(s8);
-extern void calcValidOptions(s32);
-typedef struct Vec3 {f32 v[3];} Vec3;
-typedef struct PreparedCar {u8 unknown0,car;s8 color[3];u8 unknown5,flags,unknown7;} PreparedCar;
-extern Record **gLimboGhosts;
-extern u32 gSkipToGameState,gGameState;
-extern s32 carscr_wait,carscr_gNumOptions[],carscr_gOpts[][19],carscr_buttonsJustInited[],ghosts_enabled;
-extern s8 gSoftReset,carscr_gActiveZ[],gCarTeam[],gCarTeamColor[];
-extern s16 gCheatState[],gCarSheen[];   /* gCheatState[13]: battle paints the cars in team colours while it is 0 */
-extern Slot carscr_buttonInfo[][44];
-extern Vec3 carscr_msgPos;
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u8 carscr_ready_text[],carscr_ghost_width_text_first[],carscr_ghost_width_text_second[];
-extern s8 gCarTrans[][13],gCarHandling[][13],gCarEngines[][13],gCarTires[][13],gCarFrame[][13],gCarWings[][13];
-extern s8 car_color_choice_a[][13],car_color_choice_b[][13],car_color_choice_c[][13],gTireRims[][13],gCarHorn[][13];
-extern s8 PS_PakInserted(s32);
-extern s8 PS_PakChanged(s32);
-extern void setGameState(s32);
-extern void carscr_UninitScreen(void);
-extern void showCarSelect(void);
-extern void carscr_updateButtons(s8);
-extern Record **getNextGhost(Record **,s8);
-extern s32 AudPlayEffect(u32,u32,u32,u8);
-extern void PlayLRSound(s32);
-extern void PlayStartABSound(u32);
-extern void AudStopEffect(s32);
-extern void SavePlayerCarTrans(Profile **,u8);
-extern void SetSheen(s16,s16,s32);
-extern void AudSetMusicVol(f32,f32);
-extern void ContinueCircuit(void);
-extern void SetControls(s32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern void *HAL_SetFont(s32);
-extern s16 TB_GetFontLineHeight(void);
-extern u32 HAL_GetTextWidth(u8 *,s16);
-extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
-extern s8 gNumGhosts;
 
-extern s8 gThisCar[];
-extern float gTransStats[][4];
-extern float gHandlingStats[][4];
-extern float gEngineStats[][4];
-extern float gTireStats[][4];
-extern float gFrameStats[][4];
-extern float gStats[][4];
+extern Blit *NewMultiBlit(s16,s16,MultiBlit *,s16);
+
+typedef struct Vec3 {f32 v[3];} Vec3;
+
+VIEW(s8[], gCarTeamColor);
+#define gCarTeamColor gCarTeamColor_view
+VIEW(s16[], gCheatState);
+#define gCheatState gCheatState_view
+VIEW(Slot[][44], carscr_buttonInfo);
+#define carscr_buttonInfo carscr_buttonInfo_view
+VIEW(Vec3, carscr_msgPos);
+#define carscr_msgPos carscr_msgPos_view
+
+VIEW(s8[][13], car_color_choice_a);
+#define car_color_choice_a car_color_choice_a_view
+VIEW(s8[][13], car_color_choice_b);
+#define car_color_choice_b car_color_choice_b_view
+VIEW(s8[][13], car_color_choice_c);
+#define car_color_choice_c car_color_choice_c_view
+VIEW(s8[][13], gTireRims);
+#define gTireRims gTireRims_view
+
+extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
 void calcStats(s32 player)
 {
@@ -352,8 +264,7 @@ void setGhosts(void)
         if (gGhosts[3]) { PurgeGhostData((void **)gGhosts[3]); gGhosts[3] = 0; }
     }
 }
-void setGhosts(void);
-void calcStats(s32);
+
 /* Overlay A 0x803A0FD8, 3796 bytes: GC _InitScreen@carscr.c (MAT3 0x8008f904, 0xbc8 B), static.
  * Source: reference/repos/mat3 decomp/src/GameSource/src/carscr.c _InitScreen (typed port); the N64 build is an earlier
  * revision: 62/80/61/81 audio loads, ghost count by expansion_pak_present, 12 per-car settings (8,9 bytes; 10,11 tire scales),
@@ -543,9 +454,7 @@ void carscr_InitScreen(void)
     ClearRushControls();
     carscr_inited = 1;
 }
-void setGhosts(void);
-void carscr_InitScreen(void);
-void calcStats(s32);
+
 /* Overlay A 0x803A1EAC, 7104 bytes: GC updateCarScreen@carscr.c (MAT3 carscr.c line ~340), the image-A carscr root (kept).
  * Source: reference/repos/mat3 decomp/src/GameSource/src/carscr.c updateCarScreen (typed port by: MAT3 declaration order,
  * per-iteration block locals at the top of the player loop, [5][13] per-player byte tables indexed p+1, u32 gSkipToGameState /
@@ -902,7 +811,6 @@ after_options:
     }
 }
 
-extern s8 carscr_color_option_masks[];
 s32 carscr_validOption(s32 player, s32 item)
 {
     s32 available = 1;
@@ -965,22 +873,12 @@ Record **getNextGhost(Record **node,s8 direction)
     return node;
 }
 
-/* A car-select component model (MAT3 carscr.c gCarComponents[][11]): its scene object, the level of detail it
- * was made for, then its matrix and position (CarComponent below). The data loader converts the table by this
- * declaration, which keeps those 48 bytes as bytes: changing it would change the loaded data. */
-typedef struct CarComponentSlot { s16 idx, level; u8 matrix_and_pos[48]; } CarComponentSlot;
 typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
-extern CarComponentSlot gCarComponents[][11];
-extern s32 gCarPartFrame,carscr_buttonsInited[];
-extern void UnloadWaveAll(s32);
+
 extern void sound_handles_array_clear(FiveParts *);
-extern void ZOID_RemoveObject(s16);
+
 extern void RemoveBlit(Blit *);
-extern void removeBG(void);
-extern void ZOID_Reset(void);
-void clearCarComponents(s32);
-void carscr_uninitButtons(s8);
-void releaseGridMap(void);
+
 void carscr_UninitScreen(void)
 {
     s32 player,count;
@@ -1038,15 +936,12 @@ void carscr_uninitButtons(s8 p)
 }
 
 typedef union Color4 {u8 c[4];u32 word;} Color4;
-extern char *carscr_buttonNames[];
-extern char carscr_title_texture_name[],carscr_cursor_texture_name[],carscr_a_button_texture_name[],carscr_b_button_texture_name[];
+
 extern void *memcpy(void *,const void *,u32);
-extern void ZOID_SetColor(s16,Color4 *);
+
 extern void *MBOX_FindTexture_WORK(char *,u16 *,s32,s8,s32);
 extern void ZOID_SetTexture(s16,void *,s16);
-extern void WPitchUV(f32,void *);
-extern void WRollUV(f32,void *);
-extern void ScaleUV(void *,void *,f32);
+
 /* carscr_initButtons = GC initButtons@carscr.c (MAT3 0x80093b10, 0x564 B): creates the button models of one player's
  * car-select menu and lays out the cursor/A/B arrow records. Direct typed port of the MAT3 body
  * (reference/repos/mat3/decomp/src/GameSource/src/carscr.c) with N64 offsets from the displacements:
@@ -1138,8 +1033,9 @@ void carscr_initButtons(s8 p)
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
-extern volatile f32 gFrameSeconds;
-extern char carscr_select_texture_name[],carscr_button_texture_name[];
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+
 /* carscr_updateButtons = GC updateButtons@carscr.c (MAT3 0x80094108, 0x8b8 B): per-frame scroll of the car-select option
  * buttons. Direct typed port of the MAT3 body with the N64 differences read from the retail displacements:
  *   - 19 option records per side (GC 17), right-hand copies at +19; cursor is record 39 (GC 35), A/B arrows 40..43.
@@ -1284,8 +1180,12 @@ void carscr_updateButtons(s8 p)
 }
 
 typedef struct CarHandles {s32 main;u8 unknown04[12];s32 parts[7];u8 unknown2C[20];} CarHandles;
-extern CarHandles gCarParts[];
-extern Color4 carscr_solidColor,carscr_normalColor;
+VIEW(CarHandles[], gCarParts);
+#define gCarParts gCarParts_view
+VIEW(Color4, carscr_solidColor);
+#define carscr_solidColor carscr_solidColor_view
+VIEW(Color4, carscr_normalColor);
+#define carscr_normalColor carscr_normalColor_view
 void showGridMap(s32 enabled)
 {
     if(enabled==1) {
@@ -1313,34 +1213,6 @@ void showGridMap(s32 enabled)
     }
 }
 
-/* updateCarComponents = updateCarComponents@carscr.c (MAT3 reference/repos/mat3/decomp/src/GameSource/src/carscr.c, GC 0x800910F8,
- * size 0x830), : direct typed port of the MAT3 body, replacing context stand-. Private-ABI member: p arrives in s6
- * from its caller showCarSelect; every callee-saved register is clobbered.
- * Names: gCarComponents ([4][11] x 52 B: idx, level, mat), compLight (2 x 40 B, Lights2 layout),
- * componentToName = componentToName (s16[11]), carComponentNames, gCarPartFrame, gCarParts
- * (CarHandles; frame = main, tires[k] = parts[3+k]), ObjInstanceList (68 B), MBOX_HideObject MBOX_HideObject,
- * ZOID_SetObjectParent ZOID_SetObjectParent, MBOX_NewObjectCam MBOX_NewObjectCam, MBOX_NewObject MBOX_NewObject, MBOX_FindObject_WORK
- * MBOX_FindObject_WORK, ZOID_FindMatrix ZOID_FindMatrix, TB_GetFlashTextCycle TB_GetFlashTextCycle, BodyVector BodyVector,
- * ZOID_RemoveObject ZOID_RemoveObject, ScaleUV ScaleUV, YawUV YawUV, MBOX_ShowObject MBOX_ShowObject,
- * ZOID_SetObjLights ZOID_SetObjLights, gThisCar gThisCar, gOpts carscr_gOpts, gActiveOption carscr_gActiveOption, gCarLocked gCarLocked.
- * N64 differences from the GC body (all from the retail words):
- *  - compLight is the N64 Lights2 (bytes): the flash writes compLight[1] ambient col[0] = 255.0f * cycle (u8), and both
- *    lights' dir bytes are (s8)(lightVec[k] * 10.0f) computed from lightVec itself; BodyVector still writes a scratch
- *    vector (lightDir, never read: the retail reloads lightVec after the call). No ZOID_SetColor / buttonColor, no printf.
- *  - compLight is DEFINED here (initialiser = image A bytes at 0x803B2858): the shared `lui at` of the six dir-byte stores
- * only appears when the symbol is defined in the unit (rule); as extern every store gets its own lui.
- *  - the early-out is one condition (`locked || option not in 1..5`); the MAT3 goto chain gives other register webs.
- *  - MBOX_FindObject_WORK's 4th parameter is int (MAT3 rush_protos.h): retail passes the shared constant-1 register
- * unnarrowed. This changed the shared prototype of MBOX_FindObject_WORK; all old members still MATCH.
- *  - the case 0/1/10 zero is spelled 0.f (its own constant, retail $f30; the gNumWindows block zero is 0.0f in $f26),
- *    the two YawUV arguments 3.1415927f / 3.14159265f (two literals, neither hoisted, as retail's two rodata words).
- *  - loop top order currentLevel, whichLight, compScale (as1 tie), and `mask = 1 << p;` is a named local assigned just
- *    before MBOX_ShowObject: its declared slot is the one 4-byte local the retail frame has beyond the MAT3 list
- *    (frame 144; without it 136, every home 4/8 bytes low). The variable is used, not padding.
- * Own data checked against image A (tools/owncheck2.py): lightVec template 0x803B303C, compLight 0x803B2858 (80 B),
- * 0.1f 0x803B9628, pi 0x803B966C/0x803B9670, jump tables 0x803B962C (5) and 0x803B9640 (11), all entries equal. */
-typedef struct ComponentLight { u8 col[3], pad0, colc[3], pad1; s8 dir[3], pad2; u8 pad3[4]; } ComponentLight;
-typedef struct ComponentLights { u8 col[3], pad0, colc[3], pad1; ComponentLight l[2]; } ComponentLights;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): mat is N64 +0x08. */
 typedef struct ObjInstance { u32 flags, w4; void *mat; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInstance;
 typedef struct ZMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;
@@ -1348,17 +1220,16 @@ ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
     {{255, 0, 0}, 0, {255, 0, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
 };
-extern s16 componentToName[11];
-extern char *carComponentNames[5];
-extern char carscr_part_frame_model_name[];
-extern ObjInstance ObjInstanceList[];
-extern void BodyVector(f32 *, f32 *, f32 *);
-extern f32 TB_GetFlashTextCycle(void);
-extern s32 MBOX_NewObjectCam(s32, void *, s32, s32, s32);
+VIEW(s16[11], componentToName);
+#define componentToName componentToName_view
+VIEW(char *[5], carComponentNames);
+#define carComponentNames carComponentNames_view
+
+VIEW(ObjInstance[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
 extern s32 sprintf(char *, const char *, ...);
-extern void ZOID_SetObjectParent(s32, s32);
-extern void YawUV(f32, void *);
-extern void ZOID_SetObjLights(s32, s32, ComponentLights *);
+
 extern ZMatrix *ZOID_FindMatrix(s16);
 void updateCarComponents(s32 p)
 {
@@ -1529,12 +1400,9 @@ void updateCarComponents(s32 p)
  * sites, rocheck.py).
  */
 #define CAR_MIN(a,b) ((a) < (b) ? (a) : (b))
-extern void UpdateSelectCar(s16,s16,u8,u8,u8,s16,f32 *,f32 (*)[3],u32);
-extern void PitchUV(f32,void *);
-extern void YawUV(f32,void *);
-extern void RollUV(f32,void *);
-extern void ScaleUV(void *,void *,f32);
-extern s8 gCarTeamColor[];
+
+VIEW(s8[], gCarTeamColor);
+#define gCarTeamColor gCarTeamColor_view
 /* Overlay A 0x8039EF00, 8 bytes: GC createGridMap@carscr.c, empty in this N64 revision (MAT3 builds the grid display list).
  * Called (and inlined) only by showCarSelect; non-static so its deleted-procedure body keeps a symbol (packaging rule). */
 void createGridMap(void)

@@ -1,23 +1,17 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct { s32 opaque[6]; } OSMesgQueue;
-extern OSMesgQueue text_lock_queue;
+VIEW(OSMesgQueue, text_lock_queue);
+#define text_lock_queue text_lock_queue_view
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32 selection);
 
-extern s32 gFontColor;
-extern f32 gTrans;
-extern s16 gFontXpos, gFontYpos;
-extern s8 gFontIndex, gLeading, gSpacing;
-extern s32 gFontAttribute;
-extern s32 screen_height;
-extern s8 gBufferInited, gFinished;
+VIEW(s32, gFontColor);
+#define gFontColor gFontColor_view
 
-void SetDefaults(u8 *rgba,f32 *amount,s16 *x,s16 *y,s8 *bank,s8 *mode,s8 *variant);
+VIEW(s32, gFontAttribute);
+#define gFontAttribute gFontAttribute_view
 
 void HAL_StartText(void)
 {

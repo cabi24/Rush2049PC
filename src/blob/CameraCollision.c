@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * CameraCollision @ 0x800C69C0, 224 bytes (56 words) -- MATCH (the scorer fn standalone; unit EQUAL).
@@ -19,7 +21,6 @@ typedef struct Surface Surface;
 
 extern Surface *ShotToWorldCollision(float *old, float *newpos,
     float (*uvs)[3], float radius, int interp, int ignore);
-extern float NormalVector(float *vector);
 
 Surface *CameraCollision(float *ipos, float *lookat)
 {

@@ -1,36 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * SaveGhostInLimbo: score-table insertion.  Picks the 3-slot row for (mode,
- * player) in the flat Record44 * table *gLimboGhosts, finds the first slot whose
- * stored entry has the same player/mode and a score not above the new one,
- * releases the handle of the entry that falls off (osRecvMesg / internal
- * DeallocateMemoryInternal(address, 0) / osJamMesg under the heap message queue),
- * memmoves the rows down and fills the slot (name 13 bytes, id 8 bytes, score,
- * a fresh heap copy of the 88-byte header plus payload).  No arcade ancestor.
- *
- * Calls the internal DeallocateMemoryInternal (address in a1), so it only scores in
- * the heap group (heap_release + this file) or in the unit.
- *
- * Shaping (body, one change):
- *   - the release is a single-use static helper defined AFTER the caller (a
- *     forward declaration first).  as1 breaks list-scheduling ties by source
- *     line: with the helper's lines above the caller, its argument set-up
- *     (line 62) was scheduled before the caller's spill of the handle
- *     (`sw v0,40(sp)`, line 88), which then fell into the jal delay slot.
- *     With the helper below, retail's order (spill first, `sw t0,52(sp)` in
- *     the slot) follows; read from the as1 -R selection trace;
- *   - table indexed `[((mode ? 6 : 0) + player) * 3]`, `row[i]` everywhere, a
- * named handle local `h` for the scan;
- *   - two unused locals (`j`, `k`) between h and row: the frame is 72 bytes
- *     with i at 68 and row at 52.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct Header88 {
     /* 0x00 */ u8 pad0[6];
@@ -64,17 +33,16 @@ typedef struct Record44 {
 
 typedef struct OSMesgQueue OSMesgQueue;
 
-extern s8 expansion_pak_present;
-extern Record44 **gLimboGhosts;
-extern u8 gNumLimbo;
-extern s32 heap_lock_queue;
+VIEW(Record44 **, gLimboGhosts);
+#define gLimboGhosts gLimboGhosts_view
+
+VIEW(s32, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-void DeallocateMemoryInternal(u32 address, s32 tag);
-void *game_memmove(void *dst, const void *src, u32 n);
+
 void *memcpy(void *, const void *, u32);
-void *AllocateHandleHeap(s32, s32);
 
 static void release_handle(u32 address);
 

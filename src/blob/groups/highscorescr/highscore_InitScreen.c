@@ -1,45 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * track_texture_load (0x800F5F90, 1,348 B) = GC highscorescr.c `static void _InitScreen(void)` (high-score screen
- * init; found it from the unlock script).
- * Whole-program unit: EQUAL (337 words, frame 120/120) with `--internal track_texture_load --internal AudKillSong_TTL
- * --internal AudSetMusicVol_TTL --internal AudPlaySong_TTL --internal SaveFlush_TTL`; `the scorer` MATCH inside
- * updateHighScoreScreen (its only caller updateHighScoreScreen is there; IPA-internal: retail saves none of s0-s8).
- * Inlined helpers (non-static, force_internal, not kept; every inlined call reserves 8 B of frame here):
- *   - AudKillSong_TTL = the body of the locked -O2 single AudKillSong (GC AudKillSong; audio msg cmd 1),
- *     which retail inlines (msg kept in s0); `msg = GetCmd(); msg->cmd = 1;` on one line (as1 then puts
- *     `move s0,v0` after the store, as retail) and defined AFTER track_texture_load (its .loc lines put `li a2,1`
- *     in the osRecvMesg delay slot, as retail).
- *   - AudSetMusicVol_TTL(vol, rate) -> AudSetMasterVol(vol, rate, 1, 0): the same body as the LOCKED AudSetMusicVol
- * (vsync; = GC AudSetMusicVol). Calling AudSetMusicVol itself is EQUAL in the unit too, but the
- *     group compile then schedules the 0.05f lwc1 into the jal delay slot (4 words); the in-file copy matches both.
- *   - AudPlaySong_TTL(song, loop) -> AudPlaySong(song, loop): HYPOTHESIS (GC AudPlaySong; the locked
- *     AudPlaySong is an -O2 single, retail calls it by jal through this 8-B inline level).
- * SHAPING DEVICES (disclosed): (1) SaveFlush_TTL(0): an EMPTY inlined helper after ClearRushControls (= GC
- *   ClearRushControls; GC then calls SaveServer(1, 0); SaveFlush(0), the N64 has no code there) - identity
- *   unknown, it supplies one 8-B inline area; (2) unused local `j`: exact frame residual (retail 120; without it
- *   112; 1 named slot above stuffUnlocked, +8 with alignment); (3) `(s8)circuitCode` in the circuitCode test:
- *   circuitCode/inited are declared u8 so their `= 1` stores share one constant web (retail s3) apart from the
- *   s32 1 arguments, while retail reads circuitCode with lb.
- * Other levers: memcmp (game_memcmp) size parameter u32 (separates the size constants 13/9/5/6 from the s32
- * multipliers kept in s5-s8); a separate counter `i` for the 6-entry ranks loop (IDO unrolls it 2 + 4).
- * GC-derived names: AudKillSong, AudPlaySong, AudSetMusicVol =
- * AudSetMusicVol, gPrevUnlockedTracks.. = namePanes+0x90.. copies of gUnlockedTracks/Cars/Circuits/Trans/Engines/Tires/
- * Frames (gUnlockedTracks/E30/E88/EB8/ED8/F00/F40), RecordGameOver, highscore_inited = inited,
- * circuitCode, gCircuitPlayer, gCircuitTrack, gCircuitSize,
- * gGameCar = gGameCar (+0xEE place, +0xEF finished, +0xF0 time), gPlayers_save = gPlayers[].+0x4C (76-B stride),
- * UpdateCircuit = UpdateCircuit(ranks, time), GetCircuitCode = GetCircuitCode(namePanes+0x190 = highscore_gCircuitCode),
- * CalcUnlockedStuff, game_memcmp = memcmp, gStuffUnlocked, gDrawName =
- * gDrawName, gThisTrack, RankScores = _RankScores, ClearRushControls,
- * highscore_UninitScreen = _UninitScreen, gSavedGhost, gOptions = gOptions (+0xC musicVol, +0xE song).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+#define PlayerTail PlayerTailView   /* this file's own PlayerTail: include/game's PlayerTail is another type */
 
 typedef struct {
     u8 pad0[12];
@@ -48,15 +8,7 @@ typedef struct {
     s8 song;            /* +0x0E */
 } Options;
 
-typedef struct {
-    u8 pad0[0xEE];
-    s8 place;           /* +0xEE */
-    s8 finished;        /* +0xEF */
-    f32 time;           /* +0xF0 */
-    u8 padF4[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 padF4_308[0x380 - 0x308]; void *input; u8 padF4_384[0x3B8 - 0x384];
-} GameCar;              /* 952 bytes */
-
-typedef struct {
+typedef struct PlayerRec {
     void *next, *prev;
     void *f8;           /* the profile's pak file handle (pc_prelude.h) */
 } PlayerRec;
@@ -66,59 +18,33 @@ typedef struct {
     u8 pad[72];
 } PlayerTail;           /* 76 bytes */
 
-extern void *gSavedGhost;
-extern Options gOptions;
-extern u8 gPrevUnlockedTracks[];
-extern u8 gUnlockedTracks[];
-extern u8 gPrevUnlockedCars[];
-extern u8 gUnlockedCars[];
-extern u8 gPrevUnlockedCircuits[];
-extern u8 gUnlockedCircuits[];
-extern u8 gPrevUnlockedTrans[];
-extern u8 gUnlockedTrans[];
-extern u8 gPrevUnlockedEngines[];
-extern u8 gUnlockedEngines[];
-extern u8 gPrevUnlockedTires[];
-extern u8 gUnlockedTires[];
-extern u8 gPrevUnlockedFrames[];
-extern u8 gUnlockedFrames[];
-extern s32 gHighScoreState;
-extern u8 highscore_inited;               /* inited */
-extern u8 circuitCode;
-extern s32 gRace;
-extern u8 gCircuitPlayer;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gCircuitTrack;
-extern PlayerTail gPlayers_save[];
-extern s8 gCircuitSize;
-extern u8 highscore_gCircuitCode[];
-extern s16 gNumPlayers;
-extern s8 gStuffUnlocked[];             /* gStuffUnlocked */
-extern s8 gDrawName[];             /* gDrawName */
-extern s8 gBackwards;
-extern s8 gTrackNum;
-extern s16 gThisTrack;
+VIEW(Options, gOptions);
+#define gOptions gOptions_view
 
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct { u8 pad0[2]; s8 cmd; } AudMsg;
-extern OSMesgQueue audio_lock_queue;
-extern OSMesgQueue audio_command_queue;
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
+VIEW(u8[], gUnlockedTracks);
+#define gUnlockedTracks gUnlockedTracks_view
+
+VIEW(u8[], gUnlockedCircuits);
+#define gUnlockedCircuits gUnlockedCircuits_view
+
+VIEW(u8[], gUnlockedTrans);
+#define gUnlockedTrans gUnlockedTrans_view
+
+VIEW(u8[], gUnlockedEngines);
+#define gUnlockedEngines gUnlockedEngines_view
+
+VIEW(u8[], gUnlockedTires);
+#define gUnlockedTires gUnlockedTires_view
+
+VIEW(PlayerTail[], gPlayers_save);
+#define gPlayers_save gPlayers_save_view
+
+VIEW(OSMesgQueue, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+
 extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-extern AudMsg *GetCmd(void);
 
-extern void AudPlaySong(s32 song, s32 loop);
-extern void AudSetMasterVol(f32 blend, f32 amount, s32 first, s32 second);
 extern void *memcpy(void *dst, const void *src, s32 n);
-extern s32 RecordGameOver();
-extern void UpdateCircuit(u8 *ranks, f32 time);
-extern void GetCircuitCode(u8 *code);
-extern void CalcUnlockedStuff(void);
-extern s32 game_memcmp(void *a, void *b, u32 n);
-extern void RankScores(void);
-extern void ClearRushControls(void);
-extern void SetHighScoreState(s32);
-extern void highscore_UninitScreen(void);
 
 /* GC AudPlaySong(song, loop): N64 wrapper over AudPlaySong (hypothesis) */
 void AudPlaySong_TTL(s32 song, s32 loop)
@@ -133,8 +59,6 @@ void SaveFlush_TTL(s32 x)
 {
 }
 
-void AudSetMusicVol(f32 blend, f32 amount);
-void AudKillSong(void);
 void highscore_InitScreen(void)
 {
     s32 p;

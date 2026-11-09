@@ -1,17 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ResetHighScores (0x800F7EB0): reset routine. For the first gNumPlayers entries, clear the byte array
- * gLap and set the float array gBestLapTime to 5999.999f; then set all fifteen bytes of the
- * three 5-byte records at gNewTotalScore to -1. Also matches at -O2.
- *
- * The float is the function's own .rodata literal (0x80124618 = 0x45BB7FFE). Earlier research
- * (tiny_A47) spelled it `extern float D_80124618`, which is a different
- * symbol to as1 and left 4 words in a different (dependency-valid) order; the natural literal closes it.
- */
-extern short gNumPlayers;
-extern float gBestLapTime[];
-extern unsigned char gLap[];
-extern signed char gNewTotalScore[3][5];
+#include "game/game.h"
+
+VIEW(signed char[3][5], gNewTotalScore);
+#define gNewTotalScore gNewTotalScore_view
 
 void ResetHighScores(void)
 {

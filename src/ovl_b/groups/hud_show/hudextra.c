@@ -1,34 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B, 0x803925D0..0x80392894 (708 bytes): ShowHUDExtra. On first call
- * builds the battle or stunt HUD multi-blit (stunt: font by window count and
- * one coloured pane per player sized from "8888888"), clears the battle-point
- * ring and resets every player's weapon/power-up icon, battle coin and stunt
- * coin records.
- * Donor: MAT3 GameCube decomp, GameSource/src/hudextra.c ShowHUDExtra
- * (GC 0x8002271c, size 0x218) with the static ClearBattlePoints
- * (GC 0x80024204) inlined; typed port, MAT3 names/order, N64 offsets.
- * N64 differences: the pane half-sizes are written as w/2, h/2 in the
- * InitPane arguments (MAT3 has `w /= 2; h /= 2;`): retail halves inside the
- * player-count guard, which only the loop-invariant argument form gives.
- * ClearBattlePoints is defined after ShowHUDExtra, as in the original file
- * order: the inlined statements keep its (later) source lines, and as1 breaks
- * scheduling ties by line (defined first, two stores schedule early).
- * The object starts with ClearBattlePoints' 8-byte deleted-procedure stub
- * (`jr ra; nop`, no symbol), which is retail's ClearBattlePoints.
- * Earlier research: (CLAIMS 2026-10-12, 13/177; lean
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Historical callee names: NewMultiBlit, HAL_SetFont =
- * HAL_SetFont, HAL_GetTextWidth, TB_GetFontLineHeight
- * = TB_GetFontLineHeight, InitPane, ChangePaneColor =
- * ChangePaneColor. No unused locals.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+#define tHudIcon tHudIconView   /* this file's own tHudIcon: include/game's tHudIcon is another type */
+#define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
 
 typedef struct tUVMatrix { f32 uvs[4][3]; } tUVMatrix;
 typedef struct tHudIcon { s16 type, idx; tUVMatrix mat; } tHudIcon;          /* anon_type_idx_34 */
@@ -53,31 +25,34 @@ typedef struct tBlitDef tBlitDef;
 struct tBlitDef { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                   s32 (*animfunc)(void *); u32 animid; };
 
-extern void *hudextra_blit;
-extern s16 gNumWindows, gNumPlayers;
-extern s32 gRace;
-extern tHudIcon weaponIcon[4], powerupIcon[4];
-extern tBattleCoin battleCoin[4];
-extern tStuntCoin stuntCoin[4][10];
-extern s8 battlePointCnt;
-extern tBattlePoint battlePoint[4];
-extern s32 stuntPos[4][4][2];
-extern u8 hudextra_playerPaneColors[4][2][4];
-extern tBlitDef BattleMultiBlit[], StuntMultiBlit[];
-extern char stunt_pane_width_sample[];
+VIEW(tHudIcon[4], weaponIcon);
+#define weaponIcon weaponIcon_view
+VIEW(tHudIcon[4], powerupIcon);
+#define powerupIcon powerupIcon_view
+VIEW(tBattleCoin[4], battleCoin);
+#define battleCoin battleCoin_view
+VIEW(tStuntCoin[4][10], stuntCoin);
+#define stuntCoin stuntCoin_view
+
+VIEW(tBattlePoint[4], battlePoint);
+#define battlePoint battlePoint_view
+VIEW(s32[4][4][2], stuntPos);
+#define stuntPos stuntPos_view
+VIEW(u8[4][2][4], hudextra_playerPaneColors);
+#define hudextra_playerPaneColors hudextra_playerPaneColors_view
+VIEW(tBlitDef[], BattleMultiBlit);
+#define BattleMultiBlit BattleMultiBlit_view
+VIEW(tBlitDef[], StuntMultiBlit);
+#define StuntMultiBlit StuntMultiBlit_view
+
 #define blit hudextra_blit
 #define playerPaneColors hudextra_playerPaneColors
 #define kBattle 6
 #define kStunt 4
 
 extern void *NewMultiBlit(s16, s16, tBlitDef *, s16);
-extern s32 HAL_SetFont(s32);
-extern u32 HAL_GetTextWidth(void *, s16);
-extern s16 TB_GetFontLineHeight(void);
-extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32);
-extern void ChangePaneColor(tBlitSet *, u8 *, u8 *);
 
-void ClearBattlePoints(void);
+extern tBlitSet *InitPane(s32, s32, s32, s32, s32, void *, u32, s32);
 
 void ShowHUDExtra(void) /* ShowHUDExtra */
 {

@@ -1,31 +1,20 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Group vsync, extended by: the command-0x0A writer
- * AudSetMasterVol (internal; receives blend/amount in f20/f22 and the two byte
- * flags in s1/s2 through IPA, clobbers s0/s3) with all four of its in-unit
- * callers: EnableGameSounds (already locked), AudSetMusicVol,
- * AudSetFxVol and PauseGameMusic.
- * Source of AudSetMasterVol/EnableGameSounds is 's.
- * Shaping quirk: the three one-call wrappers must be written on several lines.
- * Written on one line each, as1 sinks the IPA saves of s3/s0 below the
- * argument moves (6/22, 6/22, 10/23 words off); the multi-line layout gives
- * retail's prologue order. PauseGameMusic's literal is written as 0.05f
- * (own .rodata 0x80124280 = 0x3D4CCCCD, verified by the scorer).
- */
-typedef signed char s8;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct OSMesgQueue OSMesgQueue;
-#define NULL ((void *)0)
+
+#undef M2C_FIELD
 #define M2C_FIELD(p,t,o) (*(t)((char *)(p)+(o)))
-extern s32 audio_lock_queue,audio_command_queue;
+VIEW(s32, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(s32, audio_command_queue);
+#define audio_command_queue audio_command_queue_view
 extern void *GetCmd(void);
 extern s32 osRecvMesg(OSMesgQueue *,void *,s32);
 extern s32 osSendMesg(OSMesgQueue *,void *,s32);
-extern f32 fx_volume_fade_time;
-extern s8 gGameSoundsEnabled;
-/* The game options, a byte each (Settings): [13] the effects volume, 0..10 (MAT3 updateAudioScreen). */
-extern s8 gOptions[];
+
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). A volume change (command 10) is then dropped: with no
  * message the lock is given back and nothing is sent, and a message the full queue refuses is given back (its

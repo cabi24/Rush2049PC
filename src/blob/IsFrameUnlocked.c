@@ -1,10 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-extern s8 gUnlockedFrames[][6];
+#include "game/game.h"
+
+VIEW(s8[][6], gUnlockedFrames);
+#define gUnlockedFrames gUnlockedFrames_view
 s8 IsFrameUnlocked(s32 row,s32 col) {return gUnlockedFrames[row][col];}

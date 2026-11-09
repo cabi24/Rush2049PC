@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned int u32;
+#include "game/game.h"
+
 void *game_memmove(void *dst, const void *src, u32 n) {
     char *d = (char *)dst;
     const char *s = (const char *)src;

@@ -1,40 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_8010DCFC (0x8010DCFC, 660 B) = GC _StartCone@targets.c (rush_d.elf 0x8004E6BC; static void
- * _StartCone(struct tTarget *t)). Starts a hit traffic cone flying: with gCarMines and target id
- * 236 (GC 0x226) the car's f863 flag is set and the model hidden (MBOX_HideObject = MBOX_HideObject(model, 0,
- * 15)); with gMineCones the cone explodes instead (StartBlast = StartBlast(pos, 0, 0.4f, 1))
- * and the car's lap-record byte +1600 is set once (GC: model[car] stride 0x808, byte 0x640); otherwise a tVisual
- * entry is grabbed (GrabEnvEntry), filled (index 0, func = targetInfo[type].func, data = target,
- * timeStamp 5.0), the target's velocity set to the car's velocity * 0.125, LookInDir,
- * vel[1] += 1.0 for kinds 339/237 (GC 0x28D/0x227) else 2.0, angular velocity (0, 12, 15), CopyUV =
- * CopyUV(tmat, pos), the entry linked into the environment list (AddToEnvList inlined: head gEnvList)
- * and PlayTargetSound = PlayTargetSound(targetInfo[type].sound, car, pos2, 2).
- * GC locals v (here `vis`, a tVisual), tmat, vel, angV, car, tInfo; N64 names follow them.
- *
- * draft 145/165 -> 147/165 -> MATCH. Levers:
- *  - `vel = t->motion->vel;` computed from the target directly, BEFORE `angV = t->motion;` (147 -> 51 words;
- *    with vel derived from angV uopt folds the three vel stores into angV+12 offsets and tInfo loses t0);
- *  - the lap-flag helper takes the record pointer (`Flag1600(&model[car])`), not the car index (-> 28);
- *  - tVisual stores in retail order index, func, data, timeStamp (-> 19);
- *  - angular-velocity stores in GC order 0, 12, 15 (FP ring $f16/$f18 as retail; -> 11);
- *  - GrabEnvEntry/AddToEnvList NOT helpers (GC calls them, N64 retail inlines/calls directly): only one
- *    inlined helper area (8 B, Flag1600) under the named locals.
- * Shaping devices (disclosed):
- *  - Flag1600 is an inlined static helper of unknown identity (GC has the same test-and-set inline in
- *    _StartCone); it supplies the 8-byte inline area at 32..39 and the retail colouring of the record pointer.
- *  - FIVE UNUSED locals u1..u5 = exact frame residual. Retail frame 136, 112 without them (17 words differ:
- *    every spill home 8-20 B off). Measured homes (spcensus): vis 132, tmat 84..131, u1..u3 72..80, vel 68,
- *    angV 64, car 60, u4/u5 52..56, tInfo 48 = retail's `sw v1,132`, `sw a0,68`, `sw v0,64`, `sw a3,60`,
- *    `sw t0,48`. Their identity is unknown (N64-only locals absent from the GC build).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Motion {
     f32 f0, f4, f8;
@@ -105,19 +69,11 @@ typedef struct Node {
 
 #define N64P(x) _Generic((x), enum n64p_Motion: (Motion *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-extern s8 gCarMines;
-extern s8 gMineCones;
-extern ObjType targetInfo[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Node *gEnvList;
 
-void MBOX_HideObject(s32, s32, s32);
-void StartBlast(void *, s32, f32, s32);
+VIEW(ObjType[], targetInfo);
+#define targetInfo targetInfo_view
+
 Node *GrabEnvEntry(void);
-void LookInDir(void *, void *);
-void CopyUV(void *, void *);
-s32 PlayTargetSound(s32, s32, void *, u8);
 
 static void Flag1600(Lap *lap)
 {

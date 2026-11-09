@@ -1,42 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Controller-pak write cluster (-> ->): 7/7 EQUAL in the whole-program unit, the scorer MATCH.
- * N64-only (no arcade ancestor; GC paksysdc.c is a different platform layer). Members: ClearFlush (clear the
- * channel's modified flag when no open file is still dirty), pak_find_dirty_run (find the next dirty 32-byte run),
- * pak_mark_dirty (mark/clear the dirty bitmap for a byte range), PS_FlushFileInternal (write dirty runs with
- * osPfsReadWriteFile, retry via the error callback), track_collision_setup / MaxPathZeroControls (locked flush
- * wrappers), slot_state_lookup (mark a range dirty).
- * Unit command (repo root):
- * python3 -m the whole-program unit --tag score ClearFlush pak_find_dirty_run pak_mark_dirty \
- *     PS_FlushFileInternal track_collision_setup MaxPathZeroControls slot_state_lookup --with THIS.c \
- *     --internal ClearFlush --internal pak_find_dirty_run --internal pak_mark_dirty --internal PS_FlushFileInternal \
- *     --internal pfs_queue_init --internal pfs_lock --internal pfs_unlock --neighbours
- * Shaping devices (disclosed):
- * - `extern volatile C96Channel gPaks` (the pak records are volatile).
- *  - pak_mark_dirty: the empty range check `if (address < base || address >= base + size) {}` (from the research base;
- *    its loads survive and are retail's).
- *  - slot_state_lookup: `if (...slots[slot].flag2) {}` (compiled-out test of a volatile byte; emits only retail's lb).
- *  - pfs_queue_init/pfs_lock/pfs_unlock are non-static internal helpers (static ones leave deleted-procedure stubs).
- *  - ClearFlush: dead stores `next = p = 0` (early-return block, reached by `goto out`) and `next = 0` (found
- *    block), kept alive to ugen by the compiled-out holder `out: if (next) {}`; as1 deletes them as dead, which
- * leaves retail's tail-duplicated `jr ra; nop` early return and the `b exit; nop` found-path jump-around.
- *  - pak_mark_dirty: `first = bytes;` (the byte offset) is never used except by the compiled-out holder
- *    `if (first) {}` after the loop: a codeless web that occupies a3 (retail's skipped register); `bytes >>= 5`
- * pops the ugen temp that retail pops (dest == operand). Frame 0, so no frame cost.
- * Base: / game_C96 (types), bodies.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
+
 typedef struct OSThread_s OSThread;
-typedef void *OSMesg;
-typedef struct OSMesgQueue_s {
-    OSThread *mtqueue, *fullqueue;
-    s32 validCount, first, msgCount;
-    OSMesg *msg;
-} OSMesgQueue;
+
 typedef struct OSPfs {
     s32 status;
     OSMesgQueue *queue;
@@ -50,7 +16,6 @@ extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osWritebackDCache(void *, s32);
-extern s32 osPfsReadWriteFile(OSPfs *, s32, u8, int, int, u8 *);
 
 typedef struct C96File C96File;
 typedef struct C96Handle { C96File *file; } C96Handle;
@@ -93,13 +58,14 @@ typedef struct tDLList {
     u32 count;
     C96Handle *head, *tail;
 } tDLList;
-extern volatile C96Channel gPaks[];
-extern tDLList gPS_Files[];
-extern OSMesgQueue si_lock_queue;
-extern OSMesg si_lock_msg;
-extern s8 si_lock_inited, gErrPak;
-extern void (*gErrorFunc)(s32,s32,s32,s32,s8 *,s8 *,s32);
-extern s32 pak_error_from_pfs(s32);
+VIEW(volatile C96Channel[], gPaks);
+#define gPaks gPaks_view
+VIEW(tDLList[], gPS_Files);
+#define gPS_Files gPS_Files_view
+
+VIEW(void (*)(s32,  s32,  s32,  s32,  s8 *,  s8 *,  s32), gErrorFunc);
+#define gErrorFunc gErrorFunc_view
+
 void pfs_queue_init(void) {
     if (!si_lock_inited) {
         si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
@@ -176,7 +142,7 @@ void pak_mark_dirty(C96Handle *handle, u8 *address, u32 bytes, s32 mark) {
     }
     if (first) {}
 }
-void si_unlock(void);
+
 s32 PS_FlushFileInternal(C96Handle *handle, s32 mode) {
     s32 result;
     s32 index, slot_index;

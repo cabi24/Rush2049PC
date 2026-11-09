@@ -1,6 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed short s16;
-typedef unsigned short u16;
+#include "game/game.h"
+
 typedef struct Track80 {
     unsigned char prefix[28];
     s16 flags;
@@ -18,8 +17,9 @@ typedef struct Track812 {
     s16 reserved;
     Track80 tracks[10];
 } Track812;
-extern Track812 gCheckpoints;
-extern void *gPathWave;
+VIEW(Track812, gCheckpoints);
+#define gCheckpoints gCheckpoints_view
+
 extern void *memcpy(void *,const void *,unsigned int);
 void ReadCheckpointData(void)
 {

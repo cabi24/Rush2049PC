@@ -1,37 +1,4 @@
-/*
- * allocate_memory_at (0x800A0FDC) is a historical label: this is the game heap's
- * "allocate at a fixed address" (N64-only; same block allocator as
- * src/blob/groups/memsys).  allocate_memory_at(addr, size): under the heap lock
- * (queue heap_lock_queue) find the heap that owns addr (FindHeap), round size
- * up to 32, find the block that contains addr, split off the part in front of
- * addr (or give it to the previous block when it is under 64 bytes), split
- * off the tail when 64 or more bytes remain, mark the block used and return
- * addr.  Its only caller is the overlay loader load_overlay (0x800A11E4).
- *
- * Whole-program context: FindHeap must be an internal procedure of the
- * same -O3 unit (not in `keep`, with its real callers).  Its register summary
- * is what lets retail keep addr/size in t0/t2 across that call and what
- * narrows the temp ring to t6-t9; with FindHeap kept, uopt spreads the
- * short webs over t3-t5 and reloads t0/t2 after the call instead. The group is src/blob/groups/heap_release (group.c
- * unchanged, all members still MATCH) plus this file.  allocate_memory_at itself is
- * kept: retail passes its arguments in a0/a1 and did not inline it into its
- * single caller.
- *
- * Shaping quirks (match the bytes, may not be the original spelling):
- *   - the empty `if ((u32) b + b->size + 32 < addr + size) { }` is retail's
- *     compare-and-branch whose two arms are identical (probably a removed
- *     "does not fit" report);
- *   - `prev` is assigned twice around the `b->prev->next = n` store: retail
- *     holds both loads in a0 and reloads b->prev for the store;
- *   - frame: `result` is the eleventh local (slot 28 of a 72-byte frame);
- *     unused1..unused5 stand for five locals whose names and uses are unknown.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
@@ -60,11 +27,11 @@ typedef struct Heap {
 
 /* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
 
-extern s32 heap_lock_queue;
+VIEW(s32, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 s32 osRecvMesg(void *mq, void **msg, s32 flags);
 s32 osSendMesg(void *mq, void *msg, s32 flags);
-Heap *FindHeap(u32 addr);
 
 /* The block's place is a 32-bit N64 address: N64A(p) is a window pointer's, N64PTR(T, a) the pointer at one
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */

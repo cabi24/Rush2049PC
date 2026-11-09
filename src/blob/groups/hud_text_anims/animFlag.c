@@ -1,30 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_80109F54 (0x80109F54, 1504 B) = GC hud.c animFlag (MAT3 decomp/src/GameSource/src/hud.c animFlag,
- * GC 0x80021DE4; GC locals x, y, width, height, w, h). Checkered-flag blit drawn on the track map at the
- * finish checkpoint (gCheckpoints.points[finishPt]), with the laps-left digit printed over it on the last lap.
- * Globals: gNumWindows, gNumLapsLeft, gRace, gShowTrackMap, gPathMax/Min =
- * gPathMax/gPathMin, kMapSize, mapPos = hud_mapPos, gMirrorWaves, gCheckpoints =
- * gCheckpoints, gGameState, gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
- * TB_SetJust pair = gJust; UpdateBlit, HAL_SetFont = HAL_SetFontInternal (s2 IPA
- * parameter), HAL_SetTextDepth, TB_SetTextColor, TB_Printf =
- * TB_Printf, SelectBlit = SelectBlit.
- * N64 differences from GC: no gGameState 0x400000 term in the first Hidden; the map-centre offsets are two more
- * named locals (xoff, yoff: frame 136 = two slots more than GC's six; computed before mapPos) without GC's outer
- * /2; the finish offset is not halved; blt->x/y subtract width/2 once.
- * Levers: operand order `(pos - min) * w / width`, `gFrameSeconds * 1000.0f`; TB_SetJust stores .h then .v.
- * Shaping (disclosed): `(0 + width)` / `(0 + height)` on the variable side of the two aspect multiplies (no code;
- * uopt puts a plain variable second in a commutative op, retail multiplies with the variable first). Helpers
- * gfx_lock/gfx_unlock/font_set/TB_SetJust/Hidden_9F54 are inlined, non-static, not on keep (stub rule).
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- */typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
 typedef struct Blit {
     /* 0x00 */ char *name;
@@ -66,38 +40,19 @@ typedef struct Checkpoints {
     CheckPoint points[10];
 } Checkpoints;
 
-typedef struct Pair {
-    s32 h, v;
-} Pair;
+VIEW(s16[3], gPathMax);
+#define gPathMax gPathMax_view
+VIEW(s16[3], gPathMin);
+#define gPathMin gPathMin_view
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern s32 gRace;
-extern s16 gNumWindows;
-extern s8 gNumLapsLeft;
-extern s8 gShowTrackMap;
-extern s16 gPathMax[3];       /* gPathMax */
-extern s16 gPathMin[3];       /* gPathMin */
-extern s32 kMapSize;
-extern s32 hud_mapPos[4][2];    /* mapPos */
-extern s8 gMirrorWaves;
-extern Checkpoints gCheckpoints;
-extern s32 gPauseState;
-extern volatile f32 gFrameSeconds;
-extern Pair gJust;
+VIEW(s32[4][2], hud_mapPos);
+#define hud_mapPos hud_mapPos_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void UpdateBlit(Blit *);
-void HAL_SetTextDepth(f32);
-void TB_SetTextColor(s32);
-void TB_Printf(s16, s16, char *, ...);
-void SelectBlit(Blit *blt, s32 index, s32 w, s32 h);
+VIEW(Checkpoints, gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
-
-
-
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
 
 s32 Hidden_9F54(Blit *blt, s32 hide)
 {
@@ -108,8 +63,6 @@ s32 Hidden_9F54(Blit *blt, s32 hide)
     return blt->hide;
 }
 
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 s32 animFlag(Blit *blt)
 {
     s32 x, y, width, height, w, h, xoff, yoff;

@@ -1,16 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: modescr_initScreen = initScreen@modescr.c calls initButtons (MAT3 modescr.c) as the
- * non-kept helper modescr_initButtons, defined after its caller (MAT3 order); its deleted procedure is the retail stub
- * 0x803998B8 right before initScreen. The button set-up moved verbatim except that MAT3's nested call shape
- * `MBOX_NewObject(MBOX_FindObject_WORK(...), ..., type <= 1 ? 0x42000 : 0)` replaces the native `object`/`flags`
- * carriers: those two locals were standing in for umerge's 8-byte reservation for the inlined call (frame 80). */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Slot64 {
     s32 unknown0,id;
     f32 angle,matrix[3][3],position[3];
@@ -21,31 +10,22 @@ typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveF
 typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;   /* the profile, pc_prelude.h */
 typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
 typedef struct Blit Blit;
-extern s16 gNumPlayers;
-extern s8 modescr_validOption_biased[][7],modescr_inited,gSoftReset;
-extern s32 modescr_buttonsInited,modescr_buttonsJustInited,gModeMenuSelect,exitModeScreen,gRace;
-extern u32 gSkipToGameState,gGameState,gActiveEdges;
-extern f32 modescr_gButtonScale,modescr_gButtonSpace,modescr_buttonX,modescr_maxY,modescr_buttonZ,modescr_cursorZ;
-extern f32 modescr_cursorSpeed,unitmatrix[3][3];
-extern f32 gFrameSeconds;
-extern Slot64 modescr_buttonInfo[13];
-extern u8 gNumModels;
-extern char modescr_select_texture_name[],modescr_button_texture_name[];
+
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(Slot64[13], modescr_buttonInfo);
+#define modescr_buttonInfo modescr_buttonInfo_view
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
+
 extern Player76 gPlayers[];
-extern Blit *modescr_blit;
-extern s32 IsTrackUnlocked(s32);
-extern s8 PS_PakChanged(s32);
+
 extern void *memcpy(void *,const void *,u32);
-extern void CopyUV(void *,void *);
-extern void WPitchUV(f32,f32 (*)[3]);
-extern void WRollUV(f32,f32 (*)[3]);
-extern void ScaleUV(f32 (*)[3],f32 (*)[3],f32);
+
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
-extern void MBOX_HideObject(s32,s32,u32),MBOX_ShowObject(s32,s32,u32);
-extern void setGameState(s32),modescr_initScreen(void);
-extern void PlayStartABSound(u32),PlayUDSound(u32);
-extern void ZOID_RemoveObject(s16),RemoveBlit(Blit *),removeBG(void);
+
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 
@@ -59,22 +39,18 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-extern Color4 modescr_button_color;
-extern char *modescr_buttonNames[];
-extern char modescr_cursor_texture_name[],modescr_a_button_texture_name[],modescr_b_button_texture_name[],modescr_title_texture_name[];
-extern MultiBlit modescr_mblit;
-extern void SaveFlush(s32),particle_lifetime_set(void);
-extern void ZeroCameras(void),ClearRushControls(void);
-extern s32 MBOX_FindObject_WORK(char *,s8,s8,s8);
-extern s32 MBOX_NewObject(u32,uintptr_t,s32,u32);
-extern void ZOID_SetColor(s16,Color4 *);
+VIEW(Color4, modescr_button_color);
+#define modescr_button_color modescr_button_color_view
+
+VIEW(MultiBlit, modescr_mblit);
+#define modescr_mblit modescr_mblit_view
+extern void particle_lifetime_set ( void );
+
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
-extern u8 GetPlayerRaceType(void **);
 
-void modescr_initButtons(void);
 void modescr_initScreen(void)
 {
     SaveFlush(1);

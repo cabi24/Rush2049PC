@@ -1,60 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * NOT STRICT: 2 words reference `D_8014A250_alias` (unresolved), .
- * Arcade CarReportsGameOver (game/checkpoint.c), N64 form: CarReportsGameOver(slot, score).
- * Locks the car's place, re-sorts the locked cars by score (bubble sort over parallel place[] /
- * scores[] arrays), gives finished-but-lapped cars (unk359 > 0 and model.unk7E8 < gNumLaps) a
- * score of 5999.999f + (s32)(9.0f * gLapDistance) - distance and a place counted from the back, ends
- * the race clock when all humans are locked, then calls PlaceUnlockedCars (places of the unlocked cars).
- * The human count test compares &model[index] with the address 0x8014A250 through a web that is NOT
- * the model array base used for indexing (retail materialises lui/addiu in the loop instead of using
- * s0): every spelling on `model` itself is commoned with the base. A second symbol for the same
- * address reproduces all 221 words.
- * Quirks: place[7] (frame), scores before ftemp; the final loop indexes place[i] directly.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
-    /* 0x000 */ char pad0[0x7C6];
-    /* 0x7C6 */ s16 slot;
-    /* 0x7C8 */ char pad7C8[4];
-    /* 0x7CC */ s8 drone_type;
-    /* 0x7CD */ char pad7CD[0x1B];
-    /* 0x7E8 */ s8 unk7E8;
-    /* 0x7E9 */ char pad7E9[0x1F];
-} Model; /* 0x808 */
-
-typedef struct {
-    /* 0x000 */ char pad0[0xEE];
-    /* 0x0EE */ s8 place;
-    /* 0x0EF */ s8 place_locked;
-    /* 0x0F0 */ f32 score;
-    /* 0x0F4 */ char padF4[0xC];
-    /* 0x100 */ f32 distance;
-    /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x359 - 0x308];
-    /* 0x359 */ s8 unk359;
-    /* 0x35A */ char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
-} GameCar; /* 0x3B8 */
-
-extern s8 gNumActiveCars;
-extern s16 gNumLaps;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern s16 gNumPlayers;
-extern s8 gEndGame;
-extern f32 gLapDistance;
-extern s16 gNumCars;
-
-f32 GetCountdownTimeRemaining(void);
-void AddCountdownTime(f32);
-void PlaceUnlockedCars(void);
+VIEW(s16, gNumCars);
+#define gNumCars gNumCars_view
 
 /* PC: the locked cars in score order, by slot, and their scores, as many as the race's cars (up to PC_MAX_LINKS,
  * pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's are 7 and 6, the 7 for its frame. */

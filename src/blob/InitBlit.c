@@ -1,22 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * InitBlit: N64 InitBlit (arcade LIB/blit.c). Looks the blit's texture up by name
- * with MBOX_FindTexture_Err(blit->Name, &blit->TexIndex, MBOX_WARN), which umerge inlined
- * as MBOX_FindTexture_Sub(name, &index, 0, MBOX_NumTexTables - 1, MBOX_WARN): that is
- * MBOX_FindTexture_WORK, whose fifth formal `err` (MBOX_NOERR/WARN/FATAL) only selects compiled-out
- * warning prints, so the callee never reads it but every caller still passes it (proved
- * from the arcade library zmb.a: MBOX_FindTexture_Err stores its err argument to the fifth
- * outgoing slot of MBOX_FindTexture_Sub; MBOX_FindTexture stores 0 there).
- * The N64 version adds two special names: 0 selects the built-in image default_blit_image and
- * (char *)-1 selects nothing. It then resets the blit's state, alpha (255) and the five
- * crop fields to -1 (arcade Top/Bot/Left/Right/color).
- * Shaping: separate field assignments in field order (a chained `a = b = -1` reloads).
- */
-typedef unsigned short u16;
-typedef signed short s16;
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed int s32;
+#include "game/game.h"
 
 typedef struct TexDef {
     char name[16];
@@ -39,8 +21,8 @@ typedef struct Blit {
 
 #define MBOX_WARN 1
 
-extern u8 default_blit_image[];
-extern volatile u8 gNumModels; /* MBOX texture-table count */
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 extern TexDef *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
 
 void InitBlit(Blit *blit) {

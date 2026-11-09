@@ -1,18 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Runtime image A LoadSelectCar = LoadSelectCar (MAT3 GameCube GameSource selectcarload.c, LoadSelectCar,
- * GC 0x8003b97c, size 0x2a4). Finds or allocates the car-select wave slot for `slot`, loads
- * the car model wave and records it in gCarModelNums.
- * N64 differences read from the retail words: the wave index is index + 88 (GC + 64), and the N64 build calls
- * car_palette_init(slot, index, 0) after recording the model number. The loop bound is a local `count`
- * (retail keeps 16 in a register for the slt/bne loop tests instead of slti, and keeps the counters: no LFTR).
- * Code shape of the search loops from the earlier
- * (5 words off); the MAT3 chained assignment
- * `*waveInst = gSelectCarWavePtrs[i].wave = LoadWave(...)` and direct array indexing close it.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
+#include "game/game.h"
 
 typedef struct SelectCarWave {   /* anon_wave_loading_c */
     s32 wave;
@@ -21,10 +7,8 @@ typedef struct SelectCarWave {   /* anon_wave_loading_c */
     u8 pad[6];
 } SelectCarWave;
 
-extern SelectCarWave gSelectCarWavePtrs[];   /* gSelectCarWavePtrs[16] */
-extern s16 gCarModelNums[];             /* gCarModelNums */
-extern s32 LoadWave(s32 index, s32 a, s32 b, s32 c, void *d);
-extern void car_palette_init(s32 slot, s32 index, void *data);
+VIEW(SelectCarWave[], gSelectCarWavePtrs);
+#define gSelectCarWavePtrs gSelectCarWavePtrs_view
 
 s32 LoadSelectCar(s16 slot, s16 index, s32 *waveInst)
 {

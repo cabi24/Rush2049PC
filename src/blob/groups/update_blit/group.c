@@ -1,18 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared (IPA group: ZOID_UpdateBlit is inlined into UpdateBlit) */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
-/* The sprite list gBlitInstanceList: palette and texture are pointer-sized (particle_knot's Sprite on the PC). */
-typedef struct {uintptr_t word0,word4;u16 half8,halfA,halfC,padE,half10,half12;u8 tail[12];} Record;
-extern Record gBlitInstanceList[];
-
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9): Name, the
- * palette (Image) and the texture (Info) are pointer-sized, and so are AnimFunc and AnimDTA in the tail. */
-typedef struct {
+typedef struct Sprite {
     /* 0x00 */ intptr_t unk0;
     /* 0x08 */ uintptr_t unk4;
     /* 0x10 */ uintptr_t unk8;
@@ -37,13 +25,6 @@ typedef struct {
     /* 0x48 */ intptr_t animDTA;
     /* 0x50 */ u16 index;
 } Sprite;
-
-void ZOID_CropBlit(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
-void ZOID_SetBlitData(s32 arg0, s32 arg1, s32 arg2, unsigned short arg3);
-void ZOID_FlipBlit(s32 arg0, s32 arg1);
-void ZOID_TextBlit(s32 arg0, s32 arg1);
-
-void ZOID_UpdateBlit(u32 index,u32 h8,uintptr_t w4,uintptr_t w0,u32 hA,u32 hC,u32 h10,u32 h12);
 
 void UpdateBlit(Sprite *spr) {
     ZOID_UpdateBlit(spr->index, spr->unkC, spr->unk8, spr->unk4, spr->unkE, spr->unk10, spr->unk14, spr->unk16);

@@ -1,16 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -102,8 +91,8 @@ typedef union {
     gDPPipeSync(pkt); \
 }
 
-extern Gfx *blit_dl;
-extern u8 *blitColors;
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
 
 void BlitColors(u8 *img, s32 mode, s32 pal, s32 bank) {
     if (img == blitColors) {

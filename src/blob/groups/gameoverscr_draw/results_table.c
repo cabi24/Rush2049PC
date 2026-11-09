@@ -1,69 +1,9 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Game-over results screens, results-table family (group results_table).
- * gameover_animText (kept): results dispatcher (GC gameoverscr.c draw dispatch) + race standings table
- *   (GC drawRaceScore: rows = laps+3, cols = players+1, str1[40] = value, c[4] = color);
- * func_8010221C = GC drawMain (menu items 0..6 via validOption = func_800F84B0, then the per-mode table);
- * drawBattleStandings / drawStuntStandings (stunt/battle standings tables, GC drawBattle/StuntStandings family);
- * drawRect = GC drawRect(x, y, w, h, color) (IPA registers t1,t3,t2,t4,a2).
- * drawStuntScore = per-player stunt records table (13 rows; F30 calls it for gRace 4).
- * func_80102980 = GC drawBattleScore (battle head-to-head matrix: rows = players+2, cols = players+1;
- * F30 calls it for gRace 6) .
- * func_80100E58 = GC drawRaceStandings@gameoverscr.c (from MAT3 typed port f0e58/best_port.c and
- * drafts): rows = players+1, cols = 3 or 4 (volatile gNumCars == 1, or circuit and not place_locked),
- *   loop 1 cell backgrounds (drawRect, rank colours), loop 2 text: name column (inlined TB_DrawEllipseText =
- *   rs_DrawEllipseText with its char[160] buffer, "DRONE" for drones), header row fixed[208]/[210]/[22], best race
- *   time / best lap "%d:%02d.%03d" (font 3) or fixed[215], finishing place text. Frame 528, every anchor as retail.
- *   Helpers rs_DrawEllipseText / rs_SetJust (GC TB_DrawEllipseText / TB_SetJust): non-static, internal, inlined.
- * SOURCE FORMS (each is a spelling of the GC code; disclosed):
- *   - loop 1 computes the cell position right before drawRect (`x = ...; bgY = 36 + row * 14;` after the colour
- *     switch; GC computes them at the loop top): uopt numbers col*60 after gRankedPlayer[row-1], which gives retail's
- *     spill homes and the header-block order of the s-register values in loop 2;
- *   - the final text call is written `col * 60 - cols * 60 / 2 + 190` (= GC's x + 30): with `x + 30` the constant
- *     160 becomes a loop-invariant live-range candidate in the draw block, a 21st interferer of the cols split piece
- *     (uopt f_addadjacents needs numintf <= 20 to add the column==0 header block); proven with a split oracle;
- *   - loop 1 else-branch colour init on two lines (as GC drawStuntStandings writes it): as1 store order;
- *   - two f32 locals time/time2 for the two time columns (GC: two block-local `time`), x/y/bgY declared first.
- *   No unused locals, no pads.
- * Helpers: rt_gfx_lock/rt_gfx_unlock (the text_lock_queue font lock), rt_font_set (lock; HAL_SetFontInternal;
- *   unlock, 24 B inline area) and rt_font_set_b (lock helper + osSendMesg written out, 16 B inline area).
- *   Non-static so umerge leaves no deleted-procedure stubs; internal (not on keep). HELPER IDENTITY
- * HYPOTHESIS: F30's six font-11 sites use the rt_font_set_b shape and its three font-3 sites the
- *   rt_font_set shape; this is what gives retail's 640-byte frame and every stack offset (all nine
- *   inlined sites are code-identical, only the inline-area size differs).
- * DEVICES (disclosed):
- *  - drawBattleStandings/drawStuntStandings: written-out font sites with `if (previous) {}` holders; unused locals as
- * exact frame residual `other` (1904, D84) and block `s32 i` (D84); colour-init on four lines.
- *  - gameover_animText: two unused locals `unused1`, `unused2` = exact frame residual (retail frame 640;
- *    without them 632, with one 632 and 89 words off; 2 slots at the top of the frame, between `cell`
- *    and `y`). `cell = 60` is a real named local (it makes column*60 a propagated expression, which
- *    numbers the x web after the left/colour-table webs as in retail).
- * - func_8010221C: none (`if (!func_800F84B0(item)) continue;` replaced do {} while (0)).
- * - drawStuntScore: written-out pre-loop font site with `if (previous) {}` holder; VARIABLE REUSE:
- *    `left = 60` before the loops and `x = column*left` in the fill loop (left is reassigned in the header
- *    block): makes column*60 a propagated expression so x is numbered after `160 - width/2` as in retail
- *    (same cause as F30's `cell`; 2448's frame is exact without a new local).
- *  - func_80102980: written-out pre-loop font site (rt_gfx_lock(); previous = HAL_SetFontInternal(11);
- * osSendMesg(.); if (previous) {} -- one inlined helper level, retail's 8 B inline area);
- * colour-init on four lines in the switch arms. CELL WIDTH THROUGH A VARIABLE: the
- *    existing local `other = 60` is the cell width everywhere the 60 is a column multiplier
- *    (160-columns*other/2, x = column*other, column*other-columns*other/2+190): uopt then enters these
- *    expressions only after copy propagation, so &gPlayers[col] is numbered (and emitted) before
- *    160-columns*60/2 and the x web after the left web, as in retail (same cause as F30's `cell`).
- * Unit: the whole-program unit score F30 221C 1904 D84 2448 2980 D5C --with this file --internal <all but F30, rt_*>
- * --neighbours -> 7/7 EQUAL (+ HAL_SetFontInternal), 0 locked bodies differ. See.
- */
-/* Shared source model for native results callbacks. External record gaps are
- * observed offsets/strides, not compiler-pressure stack storage. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct OSMesgQueue OSMesgQueue;
-typedef struct { u32 w0; uintptr_t w1; } Gwords;
+
 typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
 
 #define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
@@ -85,8 +25,8 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w0 = (_SHIFTL(G_FILLRECT, 24, 8) | _SHIFTL((lrx), 14, 10) | _SHIFTL((lry), 2, 10)); \
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); }
 
-extern Gfx *blit_dl;
-extern s32 blitMode;
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
 
 void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
 {
@@ -100,52 +40,29 @@ void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
 
 typedef struct RGBA {u8 r,g,b,a;} RGBA;
 typedef struct PlayerRow {u8 vehicle;u8 other[71];char **name;} PlayerRow;
-/* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 (PROFILE_OFS,
- * pc_prelude.h; docs/port/POINTERS.md 9.10). */
-/* PC: a car record seen from +0x3A3 (a name inside gGameCar): only its stride, PC_CAR_SIZE, matters here. */
-typedef struct VehicleScore {s8 score;u8 other[PC_CAR_SIZE - 1];} VehicleScore;
+
 typedef struct PlayerStats {s32 words[18];s16 laps[24];} PlayerStats;
 typedef struct TextIndices {u8 other[74];u16 records;u8 other2[14];u16 menu;} TextIndices;
 typedef struct TextState {void *word0;char **fixed;void *word8;TextIndices *indices;char **strings;} TextState;
-extern s8 gNumActiveCars,gRankedPlayer[],gCarTeam[];
-extern s8 gBattlePoints[][4];
-extern s16 gNumPlayers;
+
+VIEW(s8[][4], gBattlePoints);
+#define gBattlePoints gBattlePoints_view
+
 extern PlayerRow gPlayers[];
-extern PlayerStats gStuntPlayer[];
-extern s32 playerTextColor[],gJust[2],gMainSelect,gRace;
-extern u8 gameover_titlePos[];
-extern char battle_score_total_format[],battle_score_cell_format[],stunt_score_total_format[],stunt_score_best_format[],stunt_score_count_format[],battle_standings_drone_name[],battle_standings_total_format[],stunt_standings_drone_name[],stunt_standings_points_format[],stunt_standings_best_format[];
-/* PC: a car record seen from +0xEE (a name inside gGameCar): only its stride, PC_CAR_SIZE, matters here. */
-typedef struct CarB6 {s8 lap;u8 rest[PC_CAR_SIZE - 1];} CarB6;
-/* PC: a car record seen from +0xEF (a name inside gGameCar): only its stride, PC_CAR_SIZE, matters here. */
-typedef struct CarB7 {s8 flag;u8 rest[PC_CAR_SIZE - 1];} CarB7;
-/* PC: a car record seen from +0xF0 (a name inside gGameCar): only its stride, PC_CAR_SIZE, matters here. */
-typedef struct CarF8 {f32 best;u8 rest[PC_CAR_SIZE - 4];} CarF8;
-typedef struct Rec808 {s16 car;u8 rest[2054];} Rec808;
+VIEW(PlayerStats[], gStuntPlayer);
+#define gStuntPlayer gStuntPlayer_view
+VIEW(s32[2], gJust);
+#define gJust gJust_view
+
 typedef struct TextIdx2 {u8 other[108];u16 cars;} TextIdx2;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern volatile s16 gNumCars;
-extern s16 gNumLaps;
-extern u8 gCircuitPlayer,gLap[];
-extern f32 gBestLapTime[];
-extern char race_standings_drone_name[],race_standings_time_format[],race_standings_lap_format[];
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern s32 blitMode;
-extern void HAL_SetTextDepth(f32);
-extern void TB_SetTextColor(s32);
-extern void TB_EllipseText(char *,char *,s32);
-extern void TB_DrawText(s16,s16,char *);
-extern s32 TB_Sprintf(char *,char *,...);
+
+VIEW(OSMesgQueue, text_lock_queue);
+#define text_lock_queue text_lock_queue_view
+VIEW(TextState, gText);
+#define gText gText_view
+
 extern s32 osRecvMesg(OSMesgQueue *,void **,s32),osSendMesg(OSMesgQueue *,void *,s32);
-extern s32 HAL_SetFontInternal(s32);
-void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color);
-extern void drawBattleStandings(void),drawStuntStandings(void),drawBattleScore(void);
-void drawRaceStandings(void);
-void drawStuntScore(void);
-extern s32 gameover_validOption(s32),TB_GetFontLineHeight(void);
-s16 rs_CenterText(char *text, s16 centerX);
+
 void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text)
 {
     char str[160];
@@ -184,8 +101,6 @@ static char *pc_place_text(char **strings, s32 first, s32 place)
 }
 #define PC_PLACE_TEXT(strings, first, place) pc_place_text(strings, first, place)
 
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 void drawRaceStandings(void)
 {
     s32 x;
@@ -583,11 +498,6 @@ void drawMain(void)
     }
 }
 
-
-extern s32 gGameOverState;
-extern f32 gLapTimes[][8];
-extern char race_score_time_format[],race_score_best_lap_format[],race_score_lap_time_format[];
-void text_lock(void);
 void drawBattleScore(void)
 {
     s32 x;

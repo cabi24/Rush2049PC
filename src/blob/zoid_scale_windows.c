@@ -1,12 +1,9 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Record {void *first; u16 *bounds; u8 pad8[28]; f32 x0, y0, x1, y1; u8 pad52[20];} Record;
-extern u8 gNumZoidWindows;
-extern Record ZoidWinInfo[];
+
+VIEW(Record[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
 void zoid_scale_windows(f32 x, f32 y) {
     s32 i;
     Record *record;

@@ -1,32 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ClearMemoryHeap (historical label) @ 0x800A51E0, 680 bytes: heap compaction.
- * Under the heap message-queue lock (heap_lock_queue): (1) releases every used block that has no
- * owner pointer, no tag and a zero lock count; (2) for each remaining movable block (used, owner
- * pointer set, lock count zero) looks for an earlier free block that is large enough, or the free
- * block directly in front of it, moves the payload down with memmove (game_memmove), repoints
- * the owner (*ref = new payload), splits off the remainder as a new header (when adjacent, or
- * when at least 64 bytes remain) and releases the old block (DeallocateMemoryInternal = heap release).
- * No arcade ancestor found; N64 allocator module (0xFEDCBA98 block marker).
- *
- * ConvertHeap, the "heap or the main heap" getter, was inlined here on the N64 (its empty 8-byte stub lies
- * directly in front of this function).
- * DeallocateMemoryInternal is internal in retail (arguments arrive in a1/a2), so this body only
- * reproduces with the real release module in the unit (group.c and alloc_at.c, unchanged
- * copies of src/blob/groups/heap_release).
- *
- * Shaping facts (each needed):
- * - the scan loop keeps `next` as a variable set on both paths (not `cursor = cursor->next`);
- * - no variable for the payload address: `(u8 *)block + 32` is written at both uses;
- * - `size` is assigned, then the memmove argument re-reads `block->size`;
- * - the remainder's size is stored before its ref/used/tag/lock fields;
- * - `if (block->magic != MAGIC) after = previous->next; else after = block->next;`.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
-#define NULL ((void *)0)
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
+
 #define BLOCK_MAGIC 0xFEDCBA98
 
 enum n64p_Block { n64p_Block_ };
@@ -55,11 +30,10 @@ typedef struct Heap {
 #define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
-extern s32 heap_lock_queue;
+VIEW(s32, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-void DeallocateMemoryInternal(u32 address, s32 tag);
-void *game_memmove(void *dst, const void *src, u32 n);
 
 Heap *ConvertHeap(Heap *heap);   /* the heap, or the main heap for NULL (memsys/group.c) */
 

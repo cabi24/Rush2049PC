@@ -1,14 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Image B: native object selection and random phase initialization.
- * No whole-function arcade donor is established. The allocator is the accepted
- * audio_heap group's ordinary (Heap *, u32) boundary; historical names are not
- * a claim that this is an audio routine. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 /* PC: the objects are the level-object nodes of the pool gTargetList (its head is the active list). They keep their
  * N64 layout in the arena block gTargetArray: the link is a 32-bit window address and the flags byte is at +4
  * (docs/port/POINTERS.md 10). A slot holds a host pointer, so it is 16 bytes, and the heap block holds count of them. */
@@ -25,12 +16,14 @@ typedef struct State {
     Slot *slots;
 } State;
 typedef struct Heap Heap;
-extern State gBattlePowerUps;
+VIEW(State, gBattlePowerUps);
+#define gBattlePowerUps gBattlePowerUps_view
 /* The level-object node pool (initTargetStructs.c's Pool): head, its active list. */
 typedef struct TargetPool { u8 b0, n64, pad2[2]; s32 count, size; u8 *mem; Object *head; u8 *free; } TargetPool;
-extern s32 gTargetList;
+VIEW(s32, gTargetList);
+#define gTargetList gTargetList_view
 extern void *audio_dma_sync(Heap *, u32);
-extern f32 Random(f32);
+
 void InitBattlePowerUps(s32 reuse)
 {
     Object *object;

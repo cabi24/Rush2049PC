@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * func_80090F44 — arcade PitchUV(angle, uv): columns uv[1][i]/uv[2][i], epsilon 0.0001f (N64 change); arcade signs.

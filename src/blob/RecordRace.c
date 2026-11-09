@@ -1,18 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Complete reconstruction from retail instructions at 0x800F56E0 (2072 bytes).
- * Purpose: update resource-local and aggregate per-course race statistics,
- * inserting this player's samples and mean into sorted top-five tables.
- * No corresponding persistence routine was found in the Rush The Rock source.
- * Names below describe observed offsets; unknown members are actual record
- * storage needed to represent the confirmed game layouts.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct RaceStats {
     u32 unknown00;
@@ -61,21 +47,14 @@ typedef struct CarRecord {
     u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
 } CarRecord;
 
-extern s8 gTrackNum;
-extern s8 gBackwards;
-extern s16 gNumPlayers;
 extern PlayerRecord gPlayers[];
-extern ResourceRoot *gJustPlayers[];
-extern u8 gLap[];
-extern float gLapTimes[][8];
-extern RaceStats gTotalRaceStats[];
-extern ResourceHandle gTotalNames[][15];
-extern s8 gNewTotalScore[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gNumActiveCars;
-extern s8 gDeathMode;
-extern s16 gNumLaps;
-extern void SavePlayerStats(ResourceHandle, u8);
+VIEW(ResourceRoot *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
+VIEW(RaceStats[], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+VIEW(ResourceHandle[][15], gTotalNames);
+#define gTotalNames gTotalNames_view
 
 void RecordRace(void)
 {

@@ -1,51 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * FindMaxpathIntervals (0x800ECC18; the name is a historical label): for every
- * active car, find the path point nearest to the car and derive its distance
- * along the track (Car +0x100).
- *   1. five successors of the current point (Car +0xFE) on the main path;
- *   2. if farther than 100 units: the current side set (Car +0xFA/+0xFC) or the
- *      five successors of the last found point;
- *   3. if farther than 200 units: the checkpoint segment, then every side set
- *      (type != 2), then the whole main path with wrap-around;
- *   4. distance = lap base + checkpoint segment lengths + path length to the
- *      point (GetPathDistance, itself a mislabel) + projection onto the
- *      segment direction.
- * Rush 2049 specific; no arcade ancestor found (path_dist code in scp.c is the
- * nearest relative).
- *
- * Code identical; five own float literals (10000, 2500, 1e20, 40000, 40000 at
- * 0x80124574..0x80124584, bits checked against the image) score as
- * "section-relative relocations unverified" in the unpatched scorer.
- *
- * What the match depends on (each found by removing it):
- *  - m2: a second pointer to the same Model, used only in the two loop
- *    conditions `idx < m2->unk7E2` (retail keeps s8 and s6 = `move s6,s8`).
- *    Without it uopt gives s8 to &idx and recomputes the model pointer.
- *  - element access written out (`gResPath.points[idx].pos[0]`), never
- *    through a pointer temporary: a `p = &points[idx]` local swaps the addu
- *    operands; `set = &sets[k]` is not strength-reduced.
- *  - `end = 5; for (j = 0; j < end; j++)` in the first and third search loop
- *    (a literal 5 gives slti / li at,5).
- *  - `gc->unkFE != gc->unkFC` operand order; `for (j = gc->unkFE;;)` with two
- *    breaks for the wrap-around scan (a do/while spills gc and uses multu).
- *  - `rel[0] * d[0] + rel[2] * d[2]` operand order.
- *  - `best` is reused for the projection (a separate local costs 8 frame bytes).
- *  - declaration order fixes the stack offsets; `limit`, `best`, `last` sit in
- *    the two gaps the retail frame has (after idx and after next). Which
- *    locals really sat there is not known.
- *  - TrackLen view: the per-checkpoint length is read at +0x58 from an
- *    0x50-stride index, i.e. the checkpoint records start 8 or 16 bytes into
- *    gCheckpoints (header s16 fields at +2, +4, +8). Layout of that block is
- *    still open.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct PathPoint {
     s16 pos[3];
@@ -105,19 +58,10 @@ typedef struct Car {
     /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x380 - 0x308]; void *input; char pad104_384[0x3B8 - 0x384];
 } Car; /* 0x3B8 */
 
-extern s8 gNumActiveCars;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern PathGraph gResPath;
-extern Track gCheckpoints[];
-extern f32 gLapDistance;
-extern f32 gFirstLapDistance;
-
-s32 AreWeSolid(s16 slot);
-void NextResPathPt(s32 set, s32 index, s32 *outSet, s32 *outIndex);
-s32 FindResPt(s32 set, s32 index, s32 *outSet, s32 *outIndex, s32 flags);
-f32 normalize_vector_or_x(f32 *v);
-f32 GetPathDistance(s32 from, s32 to);
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
+VIEW(Track[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
 void FindMaxpathIntervals(void)
 {

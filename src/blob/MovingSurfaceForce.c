@@ -1,25 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * MovingSurfaceForce: apply a track "push" record (car + 1608) to a car.  The record's halfword
- * flags carry a strength in bits 11..15, 0x10 (direct push along the record's s16 direction,
- * scaled 1/16384) and 0x20 (direction taken from the scripted path of id `mag`, GetTargetVelocity).
- *   - 0x10 with strength*8 > 50: the difference between the target speed (strength * 88/60,
- *     i.e. mph -> ft/s) and the speed along the direction becomes an impulse, rotated into
- *     body space (BodyVector) and added to the car's force vector (+292).
- *   - otherwise count the tyres with no load (+1516 <= 0) standing on a surface whose
- *     flags have 0x30 (surface table stree_surf, index +1440); with three or more, add the
- *     push to the torque/yaw terms (+556, +564), else push each such wheel (+100 + 12*i).
- * No arcade ancestor found (N64-specific). Shaping quirks (all compile-affecting):
- *   - `d` is assigned twice (difference, then `d *= mass`): one expression gives other FP temps;
- *   - the tyre test is written `<= 0.0f` (c.le.s + bc1fl);
- *   - an empty compiled-out check after the body-space transform in the wheel loop
- *     (`if (i) {}`) adds a block to the live ranges of the 30.0f and 4 webs, which is what
- *     gives the 1/16384 constant f20 and &out s7 as in retail (proved with the traced uopt:
- *     forcing those two colour pairs alone gave identical code).  Any condition works.
- * Also matches at -O2.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef struct Push {
     u16 pad0;
@@ -59,10 +38,8 @@ typedef struct Car {
 #define N64P(x) _Generic((x), enum n64p_Push: (Push *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-extern Surface *stree_surf;
-extern void BodyVector(f32 *in, f32 *out, f32 *uv);
-extern void GetTargetVelocity(s32 id, f32 *out);
-extern f32 NormalVector(f32 *v);
+VIEW(Surface *, stree_surf);
+#define stree_surf stree_surf_view
 
 void MovingSurfaceForce(Car *m) {
     Push *p;

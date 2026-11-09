@@ -1,41 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Group route_cross (installed),
- * routes/unsigned_above.c as scored.
- * SyncCheckpointsToPaths: SyncCheckpointsToPaths @ 0x800BA7C4, 732 native bytes.
- * FindAltPathIntersect: FindAltPathIntersect @ 0x800BA46C, 432 native bytes;
- * provisional internal 108/108, reverified in this group.
- * Helper names: the PR's private gc_lane_FindPathDistances is named
- * FindPathDistances after its GC counterpart; gc_lane_GetNextCheckpoint is
- * route_next_checkpoint_u, because the locked GetNextCheckpoint is N64's
- * GetNextCheckpoint with a different (index+1 == count) body. Both are static
- * and inlined (no symbols).
- *
- * GC DWARF supplies unsigned GetNextCheckpoint(unsigned int) and a static
- * FindPathDistances(void) boundary. These are hypotheses about the N64 source.
- * No GC endian swaps or GC record layouts are transplanted. The exact N64
- * Route/Tracker views and FindAltPathIntersect body are preserved.
- *
- * Shaping disclosure: the baseline's unused s32 pad[2] is removed; actual
- * source helpers now represent the proposed inline nesting.
- * (2026-10-14): TWO UNUSED s32 LOCALS (unused1, unused2) are the exact
- * frame residual: retail frame 80; without them 72 (a0 home at sp+72, 6 words
- * differ, everything else identical); 2 slots = 8 B. One unused local gives
- * 3 words differ. Disclosed per the owner's unused-locals rule; no pad array. pos[3] and its assignments are retained
- * from as an unproved N64 source feature (absent from GC's synchronizer).
- * The partial Tracker.idx[17] view is inherited; physical checkpoint records
- * carry 20 slots, as loops already use. Retyping it would be another
- * experiment and is deliberately not mixed into this boundary test.
- *
- * The locked GetNextCheckpoint definition/prototype is never changed or included;
- * route_next_checkpoint_u is not a stub identity (no retail stub is claimed).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct {
     s16 x;
@@ -81,8 +44,10 @@ typedef struct {
     f32 len;
 } TrackerLen;
 
-extern RouteSet gResPath;
-extern Tracker gCheckpoints[];
+VIEW(RouteSet, gResPath);
+#define gResPath gResPath_view
+VIEW(Tracker[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
 s32 FindAltPathIntersect(s16 who, s16 route) {
     s16 i;
@@ -125,12 +90,6 @@ s32 FindAltPathIntersect(s16 who, s16 route) {
     }
     return -1;
 }
-
-extern f32 gFirstLapDistance;
-extern f32 gLapDistance;
-s16 FindResPathIntersect(s16 who);
-s16 FindDronePathIntersect(s16 who, s16 path);
-f32 GetPathDistance(s32 from, s32 to);
 
 #define LEN(n) (((TrackerLen *)&gCheckpoints[n])->len)
 

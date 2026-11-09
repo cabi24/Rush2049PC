@@ -1,37 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ShowPakError group TU (superseding): DrawPakErrNQA (0x800DC88C),
- * DrawChoice3 (0x800DC99C), ControlPakErrNQA + ControlChoice (LOCKED bodies, verbatim m2c text),
- * DrawChoice (0x800DCDF4), DrawPakErrNoPak (0x800DD0C0) and ShowPakError (0x800DD4AC) -- the N64 pak
- * error dialog: ShowPakError finds the active cell of a row, draws the header and dispatches on the cell type.
- * STATE: unit EQUAL for all seven (the whole-program unit, locked bodies differing 0);
- * levers (ShowPakError, from 636/638 rows 277):
- *  - GC-style per-dialog draw/control helpers inlined into ShowPakError (cs_draw1/3, cs_drawT0..3, cs_wait11..13,
- *    cs_ctl10): each owns `u8 str[256]`, which reproduces retail's buffer offsets and its 24 B of inline areas; the
- *    header = two font sets with return copies (fsS_DC single-level, fsL_DC with the nested gfx lock) + an inlined
- *    GC TB_CenterText (TB_CenterText_DC; s16 return copy `move a0,t8`); pair_set_DC writes gJust directly (an
- * inlined `Pair *p` local is one inline-area slot too many, as animPlace).
- *  - DrawChoice/text3 parameter order (row, col, text, a, b, sel) / (row, col, text, s1, s2, s3, sel1, sel2):
- *    ugen evaluates IPA register arguments in prototype order, and retail loads sel/sel1 last; the callee bodies are
- *    unchanged and stay byte-identical (their IPA colours do not depend on the order).
- *  - (strings + lang[n])[1] for the second of a strings pair (retail CSEs the row address), `C.x + C.w / 2` /
- *    `C.y + (C.h - 20) / 2 + 20` operand order (temp ring), the timeout test written on one line (as1 delay slot).
- *  - Source-line layout is load-bearing (as1 ties on line numbers): fsS_DC/fsL_DC keep `old = ...; osSendMesg(...)`
- *    on one line; TB_CenterText_DC and fsL_DC are defined after ShowPakError.
- * DEVICE (disclosed): one compiled-out `if (row) {}` in ShowPakError' column-search loop (had three).
- * No unused locals. Earlier levers: TB_SetJust pair takes s32; text2/text3 separate fh/x locals declared
- * c, y, fh, x; DrawPakErrNoPak indexes the cell directly, declarations x, y, fh, buf, big.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct { s32 first, second; } Pair;
-typedef struct {
+#include "game/game.h"
+
+typedef struct Cell {
     s8 done;            /* 0 */
     s8 sel1;            /* 1 */
     s8 sel2;            /* 2 */
@@ -54,49 +23,20 @@ typedef struct {
     u16 *lang;          /* +12 */
     char **strings;     /* +16 */
 } StrTable;
-extern OSMesgQueue text_lock_queue;
-extern Pair gJust;
-extern Cell gPakError[][2];
-extern StrTable gText;
-extern s32 gGameState;
-extern s32 gActiveEdges;
-extern s32 gActiveLevels;
+
+VIEW(Cell[][2], gPakError);
+#define gPakError gPakError_view
+VIEW(StrTable, gText);
+#define gText gText_view
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
 typedef struct Sched { u8 pad0[0x27C]; volatile u32 frameCount; } Sched; /* gScheduler; SetPakError.c */
-extern Sched gScheduler;
-extern char pak_error_title_format[];
-extern char pakerr_newlines_no_controller[];
-extern char pakerr_newlines_new_pak[];
-extern char pakerr_newlines_inconsistent[];
-extern char pakerr_newlines_full[];
-extern char pakerr_newlines_bad_data[];
-extern char pakerr_newlines_unknown[];
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
+VIEW(Sched, gScheduler);
+#define gScheduler gScheduler_view
+
 extern s32 sprintf(char *, const char *, ...);
-extern s32 HAL_SetFontInternal(s32 selection);
-extern void TB_SetTextColor(s32);
-extern s32 TB_GetFontLineHeight(void);
-extern u32 HAL_GetTextWidth(void *, s32);
-extern void TB_DrawText(s16, s16, char *);
-extern void TB_DrawTextScrollBox(s16 arg0, s16 arg1, s16 arg2, s16 arg3, s16 arg4, s16 arg5, u8 *arg6);
-extern u8 *TB_Strcpy(u8 *arg0, void *arg1);
-extern u8 *TB_Strcat(u8 *arg0, u8 *arg1);
-extern void PlayLRSound(s32 arg0);
-extern void PlayStartABSound(s32 arg0);
-extern void CancelPakError(s32 arg0);
-extern void PlayUDSound(s32 arg0);
-extern s32 AudPlayEffect(s32 arg0, s32 arg1, s32 arg2, u8 arg3);
-extern void SetControllerActive(s32, s32);
-extern void SetControllerStickEdges(s32, s32);
-extern void UpdateRushControls(void);
 
-
-
-
-
-
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 void DrawPakErrNQA(s32 row, s32 col, u8 *text)
 {
     Cell *c;
@@ -337,7 +277,6 @@ void cs_ctl10_DC(Cell *c)
     }
 }
 
-s16 TB_CenterText(void *text, s16 centerX);
 void ShowPakError(s32 row, s8 *sel1, s8 *sel2, s8 *done, s32 (*poll)(void))
 {
     s32 col;

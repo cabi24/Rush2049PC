@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared  (whole-program group; keep = sym) */
 /*
  * sym = N64 descendant of arcade sym()      (reference/repos/rushtherock/game/drivsym.c)
@@ -99,13 +101,6 @@ typedef struct CAR_DATA {
     /* 0x359 */ S8 unk359;
     /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
 } CAR_DATA;
-
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern S8 gEndGame;
-extern S8 gCoastFlag;
-extern void drivetrain(MODELDAT *m);
-extern void regular(MODELDAT *m);
-extern void checkok(MODELDAT *m);
 
 void ModelControls(MODELDAT *m) {
     F32 rolloff;

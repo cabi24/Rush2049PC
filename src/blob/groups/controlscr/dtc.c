@@ -1,60 +1,25 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Retained pause-menu setup body, now with the genuine D91A0 caller.
- * It creates missing models for17 menu entries and sets title/cursor textures.
- * No stand-in caller remains. The private caller-slot player convention is
- * retained in this group; the caller is still nonmatching, and owned literals
- * occupy two native regions that the default strict checker refuses.
- *
- * Code: identical to retail (the scorer: only the 20 own-.rodata relocations unverified; gate
- * dry run: 0 word diffs, own.rodata verified in two retail regions).
- *
- * Disclosed shaping (owner review):
- * 1. Unused locals that are the exact frame residual: `k`, `u0`, `u1`, `u2` (4 slots, 16 B). Retail
- * frame 112; without them 96 (9 words differ: frame and the home slots). They replace
- * `char pad[12]` (pad arrays are not acceptable); measured both forms code-identical.
- * 2. `if (player < 0) {}` compiled-out read at the top: gives `color` a longer live range so it is
- *    spilled to sp+108 as in retail.
- * 3. `scale = 1.0f` held in a local: retail multiplies the stored positions by 1.0 (f20); a literal folds.
- * 4. `s16 none = -1` held in a variable gives retail's sll/sra of the parent argument.
- * Prototypes follow the locked definitions (src/blob/ZOID_AddObject.c etc.); MBOX_FindTexture_WORK's opaque NameEntry * return is explicitly converted to the
- * 32-bit texture token. Item/Node views are normalized across this group.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Node { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 tail[4]; } Node;
 
-extern s32 controls_initButtonColor;
-/* PC: the button colour is R,G,B,A bytes in the ROM, which the loader swaps as the word it is declared; PC_RGBA gives
- * back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
-extern Item controls_buttonInfo[4][17];
-extern char *controls_buttonNames[];
-extern f32 unitmatrix[3][3];
-extern volatile u8 gNumModels;
-extern s16 gNumWindows;
-extern Node ObjInstanceList[];
-extern s32 controls_buttonsInited[];
-extern s32 controls_buttonsJustInited[];
+VIEW(Item[4][17], controls_buttonInfo);
+#define controls_buttonInfo controls_buttonInfo_view
 
-void CopyUV(void *dst, void *src);
-s32 MBOX_FindObject_WORK(char *name, s8 first, s8 last, s8 complain);
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(Node[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
 s32 ZOID_AddObject(s32 name, void *mat, s16 parent, s32 flags);
-void MBOX_HideObject(s32 a, s32 mode, u32 v);
-void MBOX_ShowObject(s32 a, s32 mode, u32 v);
+
 typedef struct NameEntry NameEntry;
 NameEntry *MBOX_FindTexture_WORK(char *name, s16 *out, s8 lo, s8 hi, s32 err);
 void ZOID_SetTexture(s16 handle, intptr_t tex, s32 c);
-void WPitchUV(f32 angle, f32 uv[][3]);
-void ScaleUV(f32 (*dst)[3], f32 (*src)[3], f32 s);
-void ZeroCameras(void);
-
 
 void controls_initButtons(s8 player) {
     s32 color;
@@ -129,8 +94,6 @@ void controls_initButtons(s8 player) {
     ZeroCameras();
 }
 
-/* STAND-IN callers (not retail): the real caller is updateControlScreen. */
-extern s8 D_zz;
 /* note: controls_initButtons = initButtons@controlscr.c (GC 0x8006CE5C; the N64 label is wrong).
  * body via, unchanged; matches with its real caller updateControlScreen in this group. The unused
  * locals k/u0/u1/u2 above remain the disclosed frame residual (112 vs 96). */

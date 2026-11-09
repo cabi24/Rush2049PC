@@ -1,36 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * STATE: code identical, own-rodata unverified (not strict, not spliceable
- * until the scorer/splicer can place a function's own .rodata):
- *   MATCH (6 section-relative relocations unverified: .rodata+0x0 at +0x10,
- *   .rodata+0x0 at +0x74, .rodata+0x4 at +0x8c, .rodata+0x4 at +0x90,
- *   .rodata+0x8 at +0x170, .rodata+0x8 at +0x1b0)
- * The three literals are, in order, 0.1f, 0.025f, .025f = retail words at
- * 0x801243B4/B8/BC (3DCCCCCD, 3CCCCCCD, 3CCCCCCD), which are the addresses the
- * retail HI16/LO16 pairs at those sites encode.
- *
- * Arcade ancestor: velocities(MODELDAT *m) in
- * reference/repos/rushtherock/game/drivsym.c (V += A*dt, clamp |V|, W += AA*dt),
- * with N64 additions: axis stop under light brake, 300 fps clamp with early
- * return, angular damping, quadratic angular drag when all four tires touch
- * or the car slides (coefficients gWingAngVDrag / gWingAngVDrag_1 in .data), and
- * low-speed stops. vector_magnitude = vector magnitude.
- *
- * Shaping quirks (each one is needed):
- *  - `0.025f` and `.025f` are spelled differently on purpose: uopt identifies
- *    float constants by spelling, so the same spelling twice becomes one
- *    web that is loaded early and reloaded after the call (retail has two
- *    separate rodata words and two separate loads);
- *  - the contact test compares against the int literal 0 (separate zero
- *    register f0), every other zero is 0.0f;
- *  - vecadd operand order is the arcade's (`V + temp`, `W + temp`);
- *  - the drag factor is built in `speed` in two steps with an if/else for the
- *    coefficient, and is a different variable from the clamp's `velfact`.
- * An `extern f32 D_801243B8` cannot replace the middle literal: it is
- * reloaded after the store to V[0] (195 words differ).
- * Prior attempts: (202/237).
- */
-typedef unsigned char u8;typedef signed char s8;typedef short s16;typedef float f32;
+#include "game/game.h"
+
 typedef struct ModelView {
     u8 other0[40];f32 A[3],AA[3],V[3],W[3];
     u8 other88[676];f32 up;u8 other768[208];f32 brake,throttle;
@@ -38,10 +7,8 @@ typedef struct ModelView {
     u8 other1532[56];f32 dt;u8 other1592[8];s8 sliding;
     u8 other1601[15];f32 damping;u8 other1620[370];s16 node;
 } ModelView;
-typedef struct Car952 {u8 other0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 other0_308[0x359 - 0x308];s8 mode;u8 other858[0x380 - 0x35A]; void *input; u8 other858_384[0x3B8 - 0x384];} Car952;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 gWingAngVDrag,gWingAngVDrag_1;
-extern f32 fabsf(f32),vector_magnitude(f32 *);
+
+extern f32 fabsf ( f32 );
 #pragma intrinsic (fabsf)
 void velocities(ModelView *m)
 {

@@ -1,22 +1,10 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * BlitDraw (historical label; 1780 B): clipped textured-rectangle emitter. Clips (x, y, right, bottom) against the
- * clip window blitXmin/blitYmin (left/top) and blitXmax/blitYmax (right/bottom), adjusting the texture origin
- * (s, t) on the side the flip bits of blitAttribute select (4 = flip in x, 8 = flip in y); returns on an empty rectangle;
- * then appends one gSPTextureRectangle (E4/E1/F1 words) to the display list blit_dl for the four flip
- * combinations. blitMode != 0 selects the second mode (inclusive right/bottom, 1024 step, and with blitAttribute & 0x8000
- * a doubled height at step 512 / offset 16). No arcade or MAT3/Dreamcast ancestor identified (N64 RDP code).
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Shaping (disclosed): `do {} while (0);` at the end of the second mode's both-flips arm. It compiles to nothing; it
- * only moves uopt's alias-closure block for the blit_dl base inside the arm (texture_rect_compiler_boundary
- * diagnosis: that closure, emitted after the arm's unconditional exit, became an extra predecessor of the x-flip-only
- * test and kept as1's cross-block hoist of `texture_edge = s + right` out of that test's delay slot).
- * the scorer fn: MATCH. Unit (the whole-program unit --neighbours): EQUAL BlitDraw: 445 words (kept); locked bodies that differ: 0.
- */
-typedef unsigned int u32;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
+
 typedef union Gfx {struct {u32 w0; uintptr_t w1;} words;double align;} Gfx;
-extern Gfx *blit_dl;
-extern int blitAttribute,blitXmin,blitXmax,blitYmin,blitYmax,blitMode;
+
+VIEW(int, blitAttribute);
+#define blitAttribute blitAttribute_view
 /* SDK forms from reference/repos/ultralib/include/PR/gbi.h: _SHIFTL,
    gImmp1 and gSPTextureRectangle, F3DEX2 command values. */
 #define _SHIFTL(v,s,w) ((u32)(((u32)(v)&((0x01U<<(w))-1))<<(s)))

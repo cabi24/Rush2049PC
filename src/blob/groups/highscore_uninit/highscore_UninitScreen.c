@@ -1,17 +1,9 @@
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
+#include "game/game.h"
 
-extern s16 gNumPlayers;
-extern s32 gNewGameState;
-extern u8 highscore_inited;
-extern s8 *codePane;
-extern s8 *namePanes[];
-extern s8 *scorePanes[2];
-extern s8 *ghostPanes[3];
-
-void RemovePane(s8 *arg0);
+VIEW(s8 *[2], scorePanes);
+#define scorePanes scorePanes_view
+VIEW(s8 *[3], ghostPanes);
+#define ghostPanes ghostPanes_view
 
 void highscore_UninitScreen(void)
 {

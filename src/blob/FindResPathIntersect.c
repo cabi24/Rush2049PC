@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (same words at -O2) */
-/*
- * FindResPathIntersect @ 0x800BA61C, 424 bytes: path point for a checkpoint-like record.
- * Walks the track path points (gResPath.points[], gResPath.numPoints of them, wrapping) and returns
- * the first point where the record gCheckpoints[arg0] (0x50 bytes: position +0x0C/+0x14, heading
- * +0x18/+0x20, s32 radius +0x24) is passed: this and the previous point are both within `radius`
- * (squared distances are compared with the radius as written) and the heading side changes sign.
- * If no such point exists it returns the nearest point. N64 code; the arcade equivalent is the
- * linear track-centre search in InitCPS (checkpoint.c), not a direct ancestor.
- *
- * State: code identical (106/106, EQUAL in the whole-program unit); the one own literal 1e20f
- * (0x60AD78EC at 0x80123E00) is unverified by the unpatched scorer, checked by hand.
- * With `extern f32 D_80123E00` instead of the literal the scorer prints strict MATCH.
- *
- * Shaping facts (each needed):
- * - two never-used locals: a 4-byte one declared before prevDist (without it 14 words) and an
- *   s16 before prevSide (without it 4 words). They only place the frame slots (56-byte frame,
- *   prevDist at sp+48, prevSide at sp+20); probably leftovers of removed debug code;
- * - the record is indexed directly (no local pointer); d and dir are two-element arrays;
- * - `for (i = -1, j = 0; ...; j++, i++)`, distance computed before the side test.
- * Earlier work: (found the body and the two slots).
- */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct PathPt {
     s16 x;
@@ -43,10 +18,12 @@ typedef struct Obj80 {
     char pad28[0x28];
 } Obj80;
 
-extern Obj80 gCheckpoints[];
+VIEW(Obj80[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 /* The track's path (FindResPtRecurse.c's PathGraph): its points, and its alternative paths (nodes). */
 typedef struct { u16 numPoints; PathPt *points; unsigned char numNodes; void *nodes; } PathGraph;
-extern PathGraph gResPath;
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
 
 s16 FindResPathIntersect(s16 arg0) {
     f32 unused0;

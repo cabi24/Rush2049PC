@@ -1,24 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Screen-to-world unprojection (historical label ZOID_WindowTo3D).
- * Takes a viewport index, an s16 screen point, a camera (3x3 rotation
- * followed by its position) and a depth; builds the view-space vector
- * ((sx - cx) * depth / (scale_x * proj_x), (cy - sy) * depth / (scale_y * proj_y), depth),
- * mirrors it for the two mirror flags, rotates it with WorldVector
- * (row-vector x matrix) and adds the camera position. No arcade ancestor
- * found (N64 viewport code). Also matches at -O2.
- * On the PC the screen point moves as the race HUD does in widescreen (pc_gfx_hud_dx, docs/port/GFX.md "The HUD at
- * the screen's edges"): the game places the coin icons, and the battle and stunt HUD's models, at HUD points.
- *
- * Shaping quirks: the viewport pointer is formed as `v = ZoidWinInfo; v += view;`
- * -- the typed `&ZoidWinInfo[view]` gives ugen a `.noalias v,$sp` and lets as1
- * hoist the y-row loads above the in[0] stack store (6 rows off). `world` is
- * declared before `in` (stack order), and the output sums are written
- * `world[i] + cam->pos[i]`.
- */
-typedef float f32;
-typedef short s16;
-typedef signed char s8;
+#include "game/game.h"
 
 typedef struct View {
     void *first; void *bounds; char pad0_8[0x1C - 0x8];
@@ -36,10 +16,9 @@ typedef struct Camera {
     f32 pos[3];
 } Camera;
 
-extern View ZoidWinInfo[];
-extern s8 gMirrorWaves;
-extern s8 gUpsideDownTrack;
-void WorldVector(f32 *in, f32 *out, Camera *cam);
+VIEW(View[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
+
 int pc_gfx_hud_dx(int x);
 #define HUD_X(x) ((x) + pc_gfx_hud_dx(x))
 

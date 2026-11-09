@@ -1,33 +1,6 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Image A formatted menu callback, [0x803AF744, 0x803AF978).
- * N64-specific renderer; witnessed sibling: A:803AE51C.
- * The callback argument is unused but homed by the original O32 body.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
-/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
-typedef struct TextTables {
-    unsigned short numSingle; unsigned char **single;
-    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
-    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
-} TextTables;
-extern TextTables gText;
-extern u8 num_paks_found;
-extern s8 gPakScr;
-extern char warningscr_message_format[];
-void HAL_SetTextDepth(f32);
-void TB_SetJust(u32, u32);
-void *HAL_SetFont(s32);
-void TB_SetTextColor(s32);
-s32 PS_GetBlocks(s32);
+#include "game/game.h"
+
 s32 sprintf(char *, const char *, ...);
-void TB_DrawTextScrollBox(s16, s16, s16, s16, s16, s16, void *);
-s16 TB_GetFontLineHeight(void);
-void TB_DrawText(s16, s16, void *);
 
 s32 warningscr_animText(s32 arg0)
 {

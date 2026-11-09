@@ -1,22 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TB_Strcat: strcat for the game's two string encodings, returns destination.
- * A string is either plain bytes (0-terminated) or "wide": a leading 255 followed by 2-byte
- * characters ending in a 0,0 pair.  If both are plain this is strcat.  Otherwise the result is
- * wide: a plain destination is first converted in place (copied to a 256-byte local buffer,
- * rewritten as 255 then 0,c pairs), then the source is appended as pairs (a plain source
- * gets a 0 high byte per character) and the 0,0 terminator is written.  Sibling of
- * TB_Strcpy (the matching strcpy, which follows it in the image).  No arcade ancestor
- * (N64 text code).
- * Quirks the match depends on:
- *   - the return value is a separate local `ret` that doubles as the copy pointer into buf and
- *     is reset afterwards; `destination` itself is then advanced past the 255 (`*destination++`)
- *     so IDO cannot copy-propagate `ret` back into `destination` (retail keeps ret in v1);
- *   - `while (*in)` and `while (*out)` are truth tests, not `!= 0`: with `!= 0` the reloads of
- *     *source land in a0 instead of t1 (5 words off).
- * Also matches at -O2.
- */
-typedef unsigned char u8;
+#include "game/game.h"
 
 u8 *TB_Strcat(u8 *destination, u8 *source) {
     u8 *ret;

@@ -1,48 +1,20 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* LoadWave = LoadWave (MAT3 GameSource/src/waves.c LoadWave, GC 0x8005B648) with
- * _NewWaveInstance (GC 0x8005B9BC) inlined. N64: background load hand-off to the loader
- * thread (two message queues) instead of the GC/PS2 _BGLoadWaveCheck path.
- * Author: (unchanged code). packaging: the inlined
- * helpers are non-static so their deleted-procedure stubs carry symbols in the group object:
- * _NewWaveInstance = NewWaveInstance (its retail stub), _BGLoadWave (no retail stub found; invented name). */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef void *OSMesg;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
 
-typedef struct anon_loaded_ready_14 {
-    signed char loaded;
-    signed char ready;
-    signed char locked;
-    signed char model;
-    unsigned char mirrored;
-    signed char handle;
-    unsigned char wave;
-    unsigned int size;
-    unsigned char *ptr;
-    unsigned char *lastPtr;
-} anon_loaded_ready_14;
+VIEW(anon_loaded_ready_14[64], gWaveInstance);
+#define gWaveInstance gWaveInstance_view
 
-extern anon_loaded_ready_14 gWaveInstance[64];  /* gWaveInstance */
-extern unsigned int gWaveSizes[];           /* gWaveSizes */
-extern OSMesgQueue bg_load_idle_queue;              /* loader: ready queue */
-extern OSMesgQueue bg_load_request_queue;              /* loader: request queue */
-extern int bg_load_request;                      /* loader: wave instance to read */
+VIEW(OSMesgQueue, bg_load_idle_queue);
+#define bg_load_idle_queue bg_load_idle_queue_view
+VIEW(OSMesgQueue, bg_load_request_queue);
+#define bg_load_request_queue bg_load_request_queue_view
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-int FindWaveInstanceInternal(int waveNum, signed char handle);          /* _FindWaveInstance */
-void MirrorWaveInstance(int idx);
-unsigned char *AllocateHandleHeap(void *heap, unsigned int size);
-unsigned char *AllocateMemoryHeap(void *heap, unsigned int size);
-/* GetPtrSize's definition takes the block's 32-bit N64 address: N64A(p) is a window pointer's (pc_prelude.h,
- * docs/port/NOFIXED.md 2.3). */
-unsigned int GetPtrSize(unsigned int ptr);
+
 #define N64A(x) PC_N64A(x)
-void SetWaveInstanceModel(int idx);                                 /* _SetWaveInstanceModel */
-void ReadWave(int idx);                                 /* _ReadWave */
 
 int NewWaveInstance(int waveNum, int handle, void *heap)  /* _NewWaveInstance (deleted stub 0x800972BC) */
 {

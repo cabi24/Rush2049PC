@@ -1,12 +1,13 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef int s32;
-typedef unsigned int u32;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef struct Table {intptr_t value[3][5];} Table;   /* a name index or a profile handle (docs/port/CASTS.md) */
-extern Table gTotalNames[12];
-extern u8 gTempNames[260];
-extern unsigned short gTempNameAges[20];
-extern void ClearTotalStats(void);
+VIEW(Table[12], gTotalNames);
+#define gTotalNames gTotalNames_view
+VIEW(u8[260], gTempNames);
+#define gTempNames gTempNames_view
+VIEW(unsigned short[20], gTempNameAges);
+#define gTempNameAges gTempNameAges_view
+
 extern void *memset(void *,int,u32);
 void InitRecords(void) {
     s32 i,j,k;

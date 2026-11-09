@@ -1,24 +1,6 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Historical label GetPathDistance is misleading: this returns the
- * horizontal path length between two path-point indices of the track graph
- * gResPath (u16 count, 6-byte s16[3] points), walking successors with
- * NextResPathPt. When `to` is behind `from` the walk runs to the end of the
- * path and continues from the loop point gCheckpoints[gCheckpoints[0].unk2].unk2E;
- * it returns -1 when `to` lies before that loop point. Arcade relative: the
- * path_dist accumulation in reference/repos/rushtherock/game/scp.c.
- *
- * The y delta is computed and then overwritten with 0 (retail stores both).
- * No compile-shaping quirks: only the declaration order of the locals
- * (which fixes the stack offsets) was chosen to fit the frame.
- */
-typedef float f32;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef signed char s8;
+#include "game/game.h"
 
-typedef struct {
+typedef struct PathPoint {
     s16 pos[3];
 } PathPoint;
 
@@ -35,12 +17,13 @@ typedef struct {
     char pad30[0x20];
 } Track; /* 0x50 */
 
-extern PathGraph gResPath;
-extern Track gCheckpoints[];
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
+VIEW(Track[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
-void NextResPathPt(s32 arg0, s32 arg1, s32 *arg2, s32 *arg3);
 
 f32 GetPathDistance(s32 from, s32 to) {
     s32 i;

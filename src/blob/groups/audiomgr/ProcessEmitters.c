@@ -1,56 +1,16 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* ProcessEmitters (0x80098AE4, 1236 B) + clamp_gain (0x80098ADC, locked 2-word stub given a body).
- * : EQUAL in the whole-program unit with audio_effect_setup_b132.c (this group):
- * the whole-program unit --tag score ProcessEmitters FreeFxTag clamp_gain --with audio_effect_setup_b132.c
- *     --with ProcessEmitters.c --internal FreeFxTag --internal clamp_gain --neighbours
- * PACKAGING: audio_lock/audio_unlock (locked jr-ra stubs of heap_release, the slot-queue lock and
- *   unlock) are defined again at the END of this file as group context, same bodies as the locked copies. Their
- *   position sets the source line of the inlined `la a0,audio_lock_queue`, which as1 uses to break scheduling ties: as
- *   separate files (73 "audio_lock.c" line 14) the lui stays after the register saves (16 words differ in
- * the scorer); defined before the function it is hoisted above `sw ra`; after the function it lands at +8
- *   as in retail (and as in the whole-program unit, where the inlined code carries the call-site line).
- * Semantics: per frame, under the slot-queue lock (inlined audio_lock/AF8), walk the active sound sources
- * (gActiveEmitters.head); an effect of kind 2 that is not persistent, not delayed and whose voice has finished is released
- * (FreeFxTag); otherwise, for every listener (gActiveListeners list, at most 5), project source - listener onto
- * the listener's basis (forward, right and their arcade crossprod), compute a distance-attenuated gain
- * (near - (near - far) * d / radius, clamped at 0) and accumulate gain-weighted pan/depth; then send gain (clamped
- * 0..1 by clamp_gain), pan, depth (clamped -1..1) and the source parameter to AudChangeEffect.
- * History: drafts (see for the out[4] array, kind local, clamp helper levers).
- * levers (each measured in the unit):
- *  - cross product in the arcade vecmath.h crossprod(a,b,r) operand order (a = basis[1], b = basis[2]);
- *  - projection written basis-first (`basis[k][j]*direction[j]`), as the arcade BodyVector-style dot products;
- *  - listener loop as a for loop (`listener = listener->next, i++` in the increment), `weight = gains[i]` as the
- *    pan multiplier (a plain variable is the second operand) and `total += gains[i]`.
- * HYPOTHESIS (helper identity): clamp_gain = the inlined gain clamp writing through a pointer.
- * SHAPING (disclosed; identity unknown, both compile to no code):
- *  - `if (gains[i] != 0.0f) {}` before the radius test: an early code-free read of gains[i] that numbers the
- *    gains[i] reload expression (PRE bit) before the nearVolume load, so the reload web wins the save-300 tie
- *    against nearVolume and takes $f2 (retail), nearVolume $f12 (retail);
- * - `if (i == 5 || gActiveListeners.count == 1) {}` at the end of the listener loop: code-free uses that give
- *    retail's s5 = &gActiveListeners, s8 = 1 and the unsaved array bases.
- *  An assert/debug macro that compiles to nothing is the natural candidate for both.
- * UNUSED LOCAL (exact frame residual): pad3, 1 slot at sp+252 between basis and panValues. Retail frame 376;
- *   without it the frame still rounds to 376 but panValues/depthValues/gains move up 4 bytes (6 words differ).
- */
-typedef signed char s8; typedef unsigned char u8;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 /* PC: an fx tag (audiomgr_thread.c's tFxSequence) is 88 bytes, its links and list host-sized (docs/port/SYNTH.md). */
 typedef struct Effect {u8 pad0[28];s32 kind;u8 pad32[4];s8 state,delay;u8 persistent;u8 pad39[33];s32 voice;void *data;} Effect;
 typedef struct Source {struct Source *next,*prev;u32 flags;f32 position[3];f32 radius,nearVolume,farVolume,parameter;s32 handle;} Source;
 typedef struct Listener {struct Listener *next,*prev;u32 flags;f32 position[3];u8 pad24[12];f32 right[3],forward[3];} Listener;
 typedef struct List {u8 flags[4];s32 count;Listener *head,*tail;} List;
-extern List gActiveListeners;
-extern List gActiveEmitters;   /* the active sound sources: head is a Source */
-extern u8 audio_lock_queue[];
-void FreeFxTag(Effect *);
+VIEW(List, gActiveListeners);
+#define gActiveListeners gActiveListeners_view
+VIEW(List, gActiveEmitters);
+#define gActiveEmitters gActiveEmitters_view
+
 Effect *ConvertTag(s32);
-s32 AudioEffectPlaying(s32);
-f32 normalize_vector_or_x(f32 *);
-void AudChangeEffect(s32,f32,f32,f32,f32);
-s32 osRecvMesg(void *,void *,s32);
-s32 osSendMesg(void *,void *,s32);
-void audio_lock(void);
-void audio_unlock(void);
 
 /* PC: [audio] engines (port/config/voices.c, docs/port/AUDIO.md 10). Before the pass, each drone engine layer's
  * distance to each listener goes to pc_engines_note (the voices module knows which emitters are the drones' engines),
@@ -153,6 +113,3 @@ void ProcessEmitters(void)
     audio_unlock();
 }
 
-void audio_lock(void);
-
-void audio_unlock(void);

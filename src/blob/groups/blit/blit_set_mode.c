@@ -1,26 +1,5 @@
-/*
- * blit_set_mode(mode): emit cycle type, render mode and combiner for render mode 0..4 (variants chosen
- * by bits 4/5 of blitAttribute and by the previous mode blitMode), then record the mode.
- * Same 387 words as the locked src/blob/groups/func_80086A50/f.c, rewritten with SDK GBI macros
- * . The macro form matters to the CALLERS: each macro's block-scoped `_g` is coloured
- * uopt (a2, a3 in turn), so the callee's IPA register summary includes a2/a3 although the emitted
- * code only touches a0, a1, v0, v1, t6-t9. With the hand-pushed locked form the callers pick a2/a3
- * for values they keep across the call, where retail uses t0/t1.
- * gDPSetRenderModeRaw / gDPSetCombine take raw words; the named G_RM_* / G_CC_* modes are not yet
- * identified.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -71,9 +50,8 @@ typedef union {
     gDPSetColor(pkt, cmd, (_SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8)))
 #define gDPSetEnvColor(pkt, r, g, b, a) sDPRGBColor(pkt, G_SETENVCOLOR, r, g, b, a)
 
-extern u32 blitAttribute;
-extern Gfx *blit_dl;
-extern s32 blitMode;
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
 
 void blit_set_mode(s32 mode)
 {

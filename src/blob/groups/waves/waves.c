@@ -1,58 +1,11 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * waves.c: _SetupWaveModel (SetupWaveModel 0x80096CA8, 1,204 B), the inlined DMA-read helper
- * (wave_rom_read, deleted stub 0x8009715C), _ReadWave (ReadWave 0x80097164, 344 B) and the handle-wave re-setup
- * (relocate_wave_model 0x800AC6F4, 104 B).
- *
- * Provenance: MAT3 GameSource/src/waves.c _SetupWaveModel (GC 0x8005BF8C) / _ReadWave (GC 0x8005BE10) for the
- * statement order, names and types; Dreamcast src/waves.c func_8C06588C (= _SetupWaveModel; DC status `differs`,
- * used as a structural lead) for the `modelIdx` copy: every gRomObjDefPtrs/gTexDefPtrs/gPalDefPtrs index goes
- * through modelIdx, gWaveInstance through idx. uopt copy-propagates modelIdx -> idx outside the loop back-edges and
- * counts every propagated occurrence toward idx's colour priority: that is what gives retail's IPA convention
- * (idx in s8, first in t0) and the `sw s8,68(sp)` / reloaded bound of the model loops. Dreamcast func_8C065862 is
- * relocate_wave_model (re-relocates a handle wave after the heap moved it: first = 0).
- * Builds on (resource-loader drafts: offsets, the uninitialised `offset` read on the first path,
- * tables as {ptr,count} pairs, gTargetPaths as one struct, `x = x + (first ? WADptr : offset)` fixups).
- * N64 differences: no byte swapping (big-endian), no AddTexture/RegisterObjName/strstr arms; the model display lists
- * are walked by relocate_model_dl (N64 DL relocation) with render flags computed up front (player count, gBackwards)
- * and gMirrorWaves; texture and palette data pointers are relocated by IMAGptr; target-path waves are
- * 101..119; _ReadWave loads raw ROM (DMA), lzss or inflate data per wave.
- * DISCLOSED SHAPING DEVICE: the empty `do {} while (0);` between the texture and palette loops (an empty debug-macro
- * expansion, as in the locked ZOID_AddBlit) ends a uopt basic block: it lengthens IMAGptr's and offset's live ranges
- * (colour divisors 3->4 and 14->15) so the gTexDefPtrs address outranks IMAGptr (s0/s1) and i*88 outranks offset
- * (s4/s5) as in retail; force.sh proved those two inversions were the whole residual. `if (IMAGptr) {}` at the same
- * place is equivalent. No unused locals, no pad, no volatile.
- * wave_rom_read: the caller-less locked 8-byte stub between SetupWaveModel and _ReadWave is this inlined static. Its
- * inline site is _ReadWave's frame (112 exact; needed three unused locals) and, defined before _ReadWave, its
- * lower .loc lines give as1's tie-break retail's `move a0,s0` before `lw s3`.
- * All are private IPA callees (SetupWaveModel: idx s8, first t0; _ReadWave: idx s8): internal, not on keep.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+#define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
+#define OSIoMesgHdr OSIoMesgHdrView   /* this file's own OSIoMesgHdr: include/game's OSIoMesgHdr is another type */
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef void *OSMesg;
 typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32 first; s32 msgCount; OSMesg *msg; } OSMesgQueue;
 typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
 typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
-
-typedef struct anon_loaded_ready_14 {   /* gWaveInstance[64], 0x14 */
-    signed char loaded;     /* 0x0 */
-    signed char ready;      /* 0x1 */
-    signed char locked;     /* 0x2 */
-    signed char model;      /* 0x3 */
-    unsigned char mirrored; /* 0x4 */
-    signed char handle;     /* 0x5 */
-    unsigned char wave;     /* 0x6 (u16 on GC) */
-    unsigned int size;      /* 0x8 */
-    unsigned char *ptr;     /* 0xc */
-    unsigned char *lastPtr; /* 0x10 */
-} anon_loaded_ready_14;
 
 typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } anon_base_TOCentries_c; /* mb_wad.c */
 
@@ -115,30 +68,26 @@ typedef struct anon_texDefs_count_8 { tTexture *texDefs; s32 count; } anon_texDe
 typedef struct anon_palDefs_count_8 { anon_name_start_18 *palDefs; s32 count; } anon_palDefs_count_8;
 typedef struct anon_paths_count_8 { tBasicTargetPath *paths; s32 count; } anon_paths_count_8;
 
-extern anon_loaded_ready_14 gWaveInstance[];        /* 0x80156D38 */
-extern anon_romObjDefs_count_8 gRomObjDefPtrs[];    /* 0x801161F4 */
-extern anon_texDefs_count_8 gTexDefPtrs[];          /* 0x80151AE8 */
-extern anon_palDefs_count_8 gPalDefPtrs[];          /* 0x80138670 */
-extern anon_paths_count_8 gTargetPaths;
-extern s16 gNumPlayers;
-extern s8 gBackwards;                               /* render mode flag: DL flags 0x10 / 0x08 */
-extern s8 gMirrorWaves;                               /* relocate_model_dl flag */
-extern s32 wave_storage_kinds[];                            /* per-wave storage kind: 0 raw ROM, 1 lzss, 2 inflate */
-extern s32 wave_rom_offsets[];                            /* per-wave ROM address */
-extern s32 gWaveSizes[];                            /* gWaveSizes */
-extern OSMesgQueue rom_dma_queue;                      /* PI DMA completion queue */
+VIEW(anon_romObjDefs_count_8[], gRomObjDefPtrs);
+#define gRomObjDefPtrs gRomObjDefPtrs_view
+VIEW(anon_texDefs_count_8[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+VIEW(anon_palDefs_count_8[], gPalDefPtrs);
+#define gPalDefPtrs gPalDefPtrs_view
+VIEW(anon_paths_count_8, gTargetPaths);
+#define gTargetPaths gTargetPaths_view
 
-void MBSetupWad(anon_base_TOCentries_c *wad, u8 *WADptr);
-void MBOffsetWad(anon_base_TOCentries_c *wad, s32 WADptr, s32 offset);
-/* A TOC entry's address is a u32 window address: zero-extended, not sign-extended, into a pointer. */
-u32 MBGetFromWad(anon_base_TOCentries_c *wad, s32 tag, s32 *count);
+VIEW(s32[], gWaveSizes);
+#define gWaveSizes gWaveSizes_view
+VIEW(OSMesgQueue, rom_dma_queue);
+#define rom_dma_queue rom_dma_queue_view
+
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
 /* relocate_texture_loads walks TXLD from start to end as Gfx pointers. */
 void relocate_texture_loads(void *start, void *end, s32 IMAGptr);
 #define relocate_texture_loads(start, end, IMAGptr) \
     relocate_texture_loads((void *)PC_N64P((u32)(start)), (void *)PC_N64P((u32)(end)), IMAGptr)
-void relocate_model_dl(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask);
-void MirrorWaveInstance(s32 idx);
+
 void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);

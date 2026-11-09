@@ -1,21 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * InitCarObj (0x800AF5E0; historical label): create a scene record (ZOID_AddObject: allocate a
- * 0x44-byte record in ObjInstanceList[], word0 = flags, owner pointer, id, linked under `parent`) whose
- * owner is either a fresh object from ZOID_NewMatrix() (dynamic != 0), the fixed object unitmatrix
- * (col == -1, which also sets flag 0x80), or the pointer table entry gCarMatrices[row / 13 * 12 + col].
- * The flag word is ((layer << 8) ^ 0xF00) | flags, the same encoding SkyInit uses.
- *
- * Shaping: the table is indexed flat (`row / 13 * 12 + col`); a 2-D `[12]` declaration gives
- * the same instructions with ugen's mul-by-48 in one register (8 words of register naming).
- * -O3 only (26/44 at -O2).
- */
-typedef short s16;
-typedef int s32;
+#include "game/game.h"
 
-extern s32 unitmatrix;
-extern s32 *gCarMatrices[];
-void *ZOID_NewMatrix(void);
+VIEW(s32, unitmatrix);
+#define unitmatrix unitmatrix_view
+
 s32 ZOID_AddObject(s32 id, void *owner, s16 parent, s32 flags);
 
 /* This wrapper ends in a call to ZOID_AddObject (MBOX_NewObject), whose result stays in v0 through the void

@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * WRollUV — arcade WRollUV(angle, uv): rows uv[i][0..1], epsilon 0.001f; arcade signs.

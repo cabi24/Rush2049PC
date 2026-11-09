@@ -1,43 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Respawning cars (GC resurrect.c), N64 typed port of the MAT3 GameCube decomp
- * (reference/repos/mat3/decomp/src/GameSource/src/resurrect.c; GC Resurrect 0x80033FD4,
- * FindHumanResPt 0x80034EC0, FindDroneResPt 0x80035550, FindSurfaceUvsInPlace 0x80035D9C,
- * FindBestQuat 0x80036160), cross-checked with the arcade game/resurrect.c resurrect_car.
- *   FindHumanResPt       = FindHumanResPt (static; private IPA in the unit: m/outPath/outIdx in s0/s2/s3)
- *   Resurrect = Resurrect (old label is wrong)
- *   FindBestQuat       = FindBestQuat (static, inlined into Resurrect; the deleted-procedure stub)
- * FindDroneResPt and FindSurfaceUvsInPlace are written inline in the N64 Resurrect (only one deleted-static
- * stub precedes Resurrect, and the umerge/cfe frame layout puts their locals in Resurrect's own area).
- * Field names follow MAT3 rush_types.h; every offset is the N64 displacement (tModelData is 0x808 on both;
- * N64 tCarData is 0x3B8 with mpctl at 0x314; gLink records are 8 bytes, owner at +7).
- * N64 differences from the GC body: humans respawn at the multiplayer grid offsets pole_pos_offset[6 + slot]
- * (row 6 in ghost races), rotated by WorldVector into the respawn point; the race-type tests are explicit
- * == chains (CodeWarrior's unsigned range forms do not apply); the demo speed is divided by int 2 (IDO turns
- * "/ 2.0f" into "* 0.5f"); FindHumanResPt skips the alternate paths in practice too and keeps path + 5 and
- * the last loop bound in their own variables (k, end).
- *
- * Disclosed shaping / frame residual (all verified in the whole-program unit and the group):
- *  - Unused locals = exact frame residual, named after the arcade resurrect_car leftovers (cf. the arcade
- *    xv/yv/zv/last_cp_index/dp/chkpnt that SetResurrectionData keeps): Resurrect declares 24 unused slots
- *    (dp; new_dist..dist2; pos, delta1, track_width, angle; c_dist..half_dist; ipos, temp) = 96 B, placing every
- *    used home where retail has it (node 390, startPath..endIdx 356..344, jumpPts 340, time_scale 300,
- *    crash_time 296, vel 284, human 276, in-place sine..snapPos 244..220, drone y/z 176/172; cfe area 252,
- *    FindBestQuat inline area -> 280; frame 400). FindHumanResPt declares 12 (new_dist..dist2, pos, delta1)
- *    = 48 B: retail frame 200 with the path/idx homes at 132/128.
- *  - "} else {}" after the in-place block: retail has a block on the !inPlace edge (PRE inserts the uvs address
- *    temps there, and the extra blocks raise the callee-saved cost so m stays in t0 with home spills).
- *  - "dp = 0;" (dead store) after SetNewPathIndex: gives the PRE-inserted gResPath address a later line number
- *    than the call, which is the as1 tie retail shows (lui t4, lui t2, addiu t4, lw, lw, addiu t2).
- *  - FindHumanResPt's alternate-path "if (dist < min)" body on separate lines (as1 tie on the numPts reload).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct tTire {          /* anon_tradius_springK_5c */
     float tradius;              /* 0x00 */
@@ -154,11 +115,6 @@ typedef struct tCarData {       /* N64 0x3B8 */
     u8 pad34C[0x380 - 0x34C]; void *input; u8 pad34C_384[0x3B8 - 0x384];
 } tCarData;
 
-typedef struct tLink {          /* GC gLink (0x0A); N64 0x08 */
-    u8 track, car, PaintJob, b3, b4, b5, flags;
-    u8 owner;                   /* 0x07 */
-} tLink;
-
 typedef struct tDronePt {       /* anon_pos_mph_8 */
     s16 pos[3];
     u8 mph;
@@ -188,25 +144,6 @@ typedef struct tResPath {       /* anon_numPts_pts_10 */
     tAltPath *alt;              /* 0xc */
 } tResPath;
 
-typedef struct tCheckpoint {    /* anon_pos_normal_50 */
-    float pos[3];               /* 0x00 */
-    float normal[3];            /* 0x0c */
-    int radius;                 /* 0x18 */
-    s16 flags;                  /* 0x1c */
-    s16 time[2];                /* 0x1e */
-    s16 pathPts[20];            /* 0x22 */
-    float distToNext;           /* 0x4c */
-} tCheckpoint;
-
-typedef struct tCheckpoints {   /* anon_startTime_loopPt_32c */
-    s16 startTime;              /* 0x0 */
-    s16 loopPt;                 /* 0x2 */
-    s16 finishPt;               /* 0x4 */
-    s16 startPt;                /* 0x6 */
-    s16 numPoints;              /* 0x8 */
-    tCheckpoint points[10];     /* 0xc */
-} tCheckpoints;
-
 typedef struct surftyp {
     u16 flags;
 } surftyp;
@@ -225,22 +162,19 @@ typedef struct surftyp {
 #define RES_START 0
 #define MPH_TO_FTPS 1.4666667f
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern float unitmatrix[3][3];      /* unitmatrix */
-extern s8 gDeathMode;
-extern int gRace;
-extern tDronePath gDronePaths[];     /* gDronePaths */
-extern tCheckpoints gCheckpoints;
-extern tResPath gResPath;
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern u32 gGameState;
-extern s8 gResurrectInPlace;
-extern s16 gNumPlayers;
-extern s16 gNumLaps;
-extern float resurrectTime;
-extern float res_last_time[4];         /* res_last_time */
-extern float pole_pos_offset[12][3];     /* pole_pos_offset */
+VIEW(float[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(tDronePath[], gDronePaths);
+#define gDronePaths gDronePaths_view
+
+VIEW(tResPath, gResPath);
+#define gResPath gResPath_view
+
+VIEW(float[4], res_last_time);
+#define res_last_time res_last_time_view
+VIEW(float[12][3], pole_pos_offset);
+#define pole_pos_offset pole_pos_offset_view
 
 
 extern float sinf(float);
@@ -248,26 +182,9 @@ extern float cosf(float);
 extern float fabsf(float);
 #pragma intrinsic(fabsf)
 
-void CopyUV(float (*src)[3], float (*dst)[3]);
-void syminit(tModelData *m);
-void ExtractYaw(float (*mat)[3], float *yaw);
 surftyp *RoadPosition(float *ipos, float *opos, float (*uvs)[3]);
-void fyaw(float sint, float cost, float (*uv)[3]);
-void MakeQuatFromUvs(float (*uvs)[3], float *q);
-void WorldVector(float *src, float *dst, float (*uvs)[3]);
-void SetNewPathIndex(tModelData *m, s16 idx);
-s16 FindClosestPathPt(s16 *pos, s16 path);
-int NumPtsToCheckpoint(int res, int inPath, int inIdx, int cp);
-void TracePathPtForward(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx);
-int CountdownTimeOut(void);
-void PassedCP(tModelData *m, float time);
-void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3]);
-int FindResPt(int inPath, int inIdx, int *outPath, int *outIdx, int honorAltRes);
-void InitBattlePlayer(int slot);
-f32 Random(f32 max);
 
-void FindHumanResPt(tModelData *m, int *outPath, int *outIdx);
-void FindBestQuat(float *q1, float *q2);
+int CountdownTimeOut(void);
 
 /* PC: a start-grid row for each of PC_MAX_LINKS places (pc_game_types.h, docs/port/MORECARS.md 4). Places 0-5 are
  * pole_pos_offset's rows, read from the loaded table when a car is placed, so the build holds none of its values.

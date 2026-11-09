@@ -1,15 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * WalkBSTInternal -- recursive in-order walk of a child/next tree: for each node, visit its children
- * first, then call fn(node, *count) and bump the shared counter, then continue with the next sibling.
- * arg0 is only passed down. (The name is a historical label.)
- *
- * Shaping: written as plain double recursion. uopt turns the tail call on n->next into the loop
- * itself, which gives retail's colouring (count s0, n s1, entry test on s1 after the moves). The
- * hand-written while/for/do loops (12 rows) colour n before count (n save 25.5 vs 20) instead.
- * Also MATCH at -O2.
- */
-typedef int s32;
+#include "game/game.h"
+
 typedef struct Node { struct Node *child; struct Node *next; } Node;
 
 void WalkBSTInternal(intptr_t arg0, Node *n, s32 *count, void (*fn)(Node *, s32)) {

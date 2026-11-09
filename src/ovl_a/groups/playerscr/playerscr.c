@@ -1,64 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: updatePlayerScreen updatePlayerScreen (MAT3 playerscr.c, GC 0x80079f80) becomes a
- * claimed member, with the four deleted-inline stubs of its switch: controlWait = controlWait (case 1),
- * controlControls = controlControls (case 2), controlPakFull = controlPakFull (case 5), controlPakDamaged =
- * controlPakDamaged (case 6), written as MAT3-style helpers (non-static, not kept) and emitted at their retail slots.
- * The helper form needs no unused locals and no `q` (the root's cfe locals area is 64 = retail: 36 B of root locals
- * plus the four 8-byte inlined-call areas). Disclosed shaping in updatePlayerScreen, both code-free:
- * 1. (installed) `do {} while (0);` between `if (!screenInited) initScreen;` and the player loop:
- *      the extra block boundary lets the gNumPlayers preheader load be coloured a1 as in retail.
- * 2. the loop body starts `p = playerIdx; do {} while (0); switch (gPlayerState[p])`: the switch reads the
- *      state array through a copy that only global copy propagation resolves, so uopt creates the
- *      &gPlayerState[playerIdx] expression late (its itable bit comes from the allReady loop, after the case
- *      expressions); f_spilltemps then gives that walking pointer the third temp home (sp+116) and the reset-loop
- *      pointer the first (sp+124), frame 192 = retail. With the expression created at the switch (bit 53, before
- *      the case webs) the pointer takes the second home (frame 184, 22 words). The cases still pass playerIdx.
- * Every old member is unchanged and still strict MATCH. */
-/* superseding revision: claims the two deleted-inline stubs whose helpers this unit already defines:
- * calcSelectMenuMaxSize = calcSelectMenuMaxSize (inlined into initScreen playerscr_initScreen) and claimPlayer, renamed from
- * controlWait to claimPlayer: the compiled object emits its deleted procedure right after controlDeletePlayer
- * controlDeletePlayer and before controlCreatePlayer controlCreatePlayer, i.e. at retail 0x803968B8 (post-order: controlCreatePlayer
- * calls claimPlayer, controlSelect's later calls find it visited). Retail 0x80396ED8/0x80396EE0 are the stubs of
- * controlControls/controlWait, inlined into the unmatched root updatePlayerScreen (not claimed). No body changed. */
-/* Image A player-select screen (MAT3 GameSource playerscr.c), one IPA unit rooted at the kept updatePlayerScreen
- * (updatePlayerScreen, GC 0x80079f80). Claimed members (all strict in this group):
- *   playerscr_updateSelectInfo updateSelectInfo, playerscr_updatePakInfo updatePakInfo, setPlayerState setPlayerState, playerscr_initButtons
- * initButtons (the bodies, unchanged); playerscr_initScreen initScreen (GC 0x8007a49c); controlCreatePlayer
- *   controlCreatePlayer (GC 0x8007b464); controlDeletePlayer controlDeletePlayer (GC 0x8007b9f8); playerscr_updateButtons
- *   updateButtons(signed char) (GC 0x8007fc14). Context only: updatePlayerScreen (122/451 words), playerscr_controlSelect
- *   controlSelect (GC 0x8007a854, 262/718), playerscr_uninitScreen uninitScreen, playerClaimed playerClaimed,
- *   playerBeingDeleted / playerBeingCreated (installed exact bodies, copied verbatim).
- * Donor: MAT3 playerscr.c, direct typed ports; N64 differences are from the retail words: 14 menu items and 22
- * buttons (GC 15 / 23), no gCreateMenuNotify, B deletes a character in name entry, a pak-changed test in the
- * wait state, a "controls" arrow button (index 14) next to the selected item, 0.0f lower angle limit, and
- * gFrameSeconds / gNumModels are volatile.
- * Inlined statics (their 8-byte deleted stubs are non-static symbols, not on keep): calcSelectMenuMaxSize =
- * calcSelectMenuMaxSize (inlined into initScreen), claimPlayer = claimPlayer (inlined 4x into controlSelect and 1x
- * into controlCreatePlayer). Their parameters are what the frame needs: defining them as helpers replaced the
- * `screens` local of the earlier research body and two unused locals.
- * Shaping devices (each needed for the exact frame; disclosed per the rule):
- *   playerscr_updateButtons: two unused s32 locals before prevPos (frame 152 -> 160, locals at sp+104/110/119/132).
- * updatePlayerScreen: see the note at the top (no unused locals any more).
- * Float zero in the type-9 button x is `0 * gButtonScale` (int zero; a float zero is folded by uopt), 255.f and
- * 255.0f are deliberately different spellings (one shared 255 constant is wrongly CSE'd).
- * All source names are reconstructions; none is asserted as original.
- * : playerscr_controlSelect = controlSelect@playerscr.c (MAT3 GC 0x8007a854) becomes a claimed member. Its body
- * is unchanged from except one compiled-out statement `do {} while (0);` between the edges chain and the
- * autoFlags chain (SHAPING, disclosed; plausibly an empty release-build macro). The extra block boundary changes the
- * colouring order: the constant-13 web (whole-web save 0.5758 vs the lda gSelectMenuControls web 0.44, both split) no longer
- * reaches a3 first, so the first-loop lda piece takes a3 as in retail (traced: forcing the 13 web to split gives the
- * same object). Own .rodata = its 14-entry jump table (retail 0x803B9484), entries hand-checked equal.
- * Context updatePlayerScreen (kept root, not claimed) gets the same kind of compiled-out `do {} while (0);` before the
- * main player loop: its gNumPlayers preheader load is then coloured a1 as in retail (122 -> 2 words; the last 2 are
- * the spill home of the reset loop's walking pointer, sp+120 vs retail sp+124).
- */
-typedef signed char s8;typedef unsigned char u8;
-typedef short s16;typedef unsigned short u16;typedef int s32;typedef unsigned int u32;typedef float f32;
-extern s16 gNumPlayers;
-extern s8 playerscr_gSelectPakIdx[],gSelectPlayerNum[],playerscr_gSelectMenuCount[];
-extern intptr_t gPakFull[];
-extern s32 playerscr_gNumPakPlayers[], gPlayerState[];
-extern s8 playerscr_gSelectMenuValid[][14],playerscr_gSelectMenuVisible[][14];
+#include "game/game.h"
+
+VIEW(intptr_t[], gPakFull);
+#define gPakFull gPakFull_view
 
 void playerscr_updateSelectInfo(s32 player)
 {
@@ -104,32 +47,20 @@ typedef struct Player {u8 unaccessed0,id;u16 unaccessed2;u32 flags;u32 unaccesse
 typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
 extern Player gPlayers[];
-extern u8 gCarTeam[];
-extern s32 playerscr_gSelectMenuSelect[];
+VIEW(u8[], gCarTeam);
+#define gCarTeam gCarTeam_view
+
 /* Each player's menu rectangle (playerscr_draw.c's Layout), by number of players less one and player. */
 typedef struct Layout { s32 unknown0,y,width,height,x,unknown14; } Layout;
-extern Layout playerscr_gPlayerRects[][4];
-extern s8 gSelectMenuMaxSize,screenInited;
-extern s16 gNumWindows;
-extern f32 playerscr_gButtonZoom,playerscr_gButtonScale,playerscr_gButtonSpace,playerscr_buttonX,playerscr_maxY,playerscr_minY,playerscr_buttonZ,playerscr_cursorZ;
-extern FiveParts *playerscr_pane[];
-extern MultiBlit multiBlit[];
-extern Blit *playerscr_blit;
-extern s32 exitPlayerScreen;
-extern void PS_LockFile(void **,s32);
-extern void playerscr_updatePakInfo(void);
-extern void setPlayerState(s32,s32);
-extern void *HAL_SetFont(s32);
-extern s16 TB_GetFontLineHeight(void);
-extern void playerscr_initButtons(s8);
-extern void ZOID_SplitScreen(s32);
+VIEW(Layout[][4], playerscr_gPlayerRects);
+#define playerscr_gPlayerRects playerscr_gPlayerRects_view
+
+VIEW(MultiBlit[], multiBlit);
+#define multiBlit multiBlit_view
+
 extern void particle_lifetime_set(void);
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
-extern void ClearRushControls(void);
-
-void calcSelectMenuMaxSize(void);
-
 
 void playerscr_initScreen(void)
 {
@@ -199,13 +130,12 @@ void calcSelectMenuMaxSize(void)
     gSelectMenuMaxSize = rectHeight / TB_GetFontLineHeight();
 }
 
-extern Owner *gSelectedPlayer[];
-extern struct PlayerFiles { u32 unknown0,unknown4; Owner *head,*tail; } gPlayerFiles;   /* the profiles on the paks */
-extern Owner gJustPlayers[];
-extern s8 gSelectMenuControls[],gDeleteMenuSelect[],gDeleteMenuConfirm[],gDeleteMenuYes[],gDeleteMenuNotify[];
-extern u8 gCreatePlayerNames[][13];
-extern s16 playerscr_gNameSelect[],playerscr_gNameLen[];
-extern s32 playerscr_buttonsJustInited[];
+struct PlayerFiles { u32 unknown0,  unknown4 ; Owner * head,  * tail ; };
+VIEW(struct PlayerFiles, gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+VIEW(Owner[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
 extern void *memset(void *,s32,u32);
 
 void setPlayerState(s32 player,s32 mode)
@@ -256,11 +186,8 @@ void setPlayerState(s32 player,s32 mode)
 }
 
 typedef struct PlayerPresence { s8 present; u8 unknown1[15]; } PlayerPresence;
-extern PlayerPresence gControllerData[];
-extern s32 playerscr_buttonsJustInited[];
-extern s8 PS_PakInserted(s32),PS_PakDamaged(s32),PS_PakRumble(s32);
-extern u32 PS_GetFreeBlocks(s32);
-extern s32 PS_GetBlocks(s32),PS_GetFreeFiles(s32);
+VIEW(PlayerPresence[], gControllerData);
+#define gControllerData gControllerData_view
 
 void playerscr_updatePakInfo(void)
 {
@@ -294,31 +221,22 @@ typedef struct Slot64 {
     f32 angle,matrix[3][3],position[3];
     u8 alpha,unknown3D[3];
 } Slot64;
-extern Slot64 playerscr_buttonInfo[][22];
-extern s32 playerscr_buttonsInited[];
-extern f32 HFOV;
-extern void ZOID_RemoveObject(s16),sound_handles_array_clear(FiveParts *);
-extern void cleanupControlScreen(void),RemoveBlit(Blit *),removeBG(void);
-extern void ZOID_ResetWindows(void),ZOID_Reset(void);
+VIEW(Slot64[][22], playerscr_buttonInfo);
+#define playerscr_buttonInfo playerscr_buttonInfo_view
 
-void playerscr_uninitScreen(void);
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
-extern volatile u8 gNumModels;
-extern char *playerscr_buttonNames[];
-extern char playerscr_title_texture_name[],playerscr_cursor_texture_name[],playerscr_a_button_texture_name[],playerscr_b_button_texture_name[];
-extern f32 unitmatrix[3][3];
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
 extern void *memcpy(void *,const void *,u32);
-extern void *MBOX_FindObject_WORK(char *,s32,s8,s32);
-extern s32 MBOX_NewObject(void *,f32 (*)[3],s32,u32);
-extern void ZOID_SetColor(s16,u8 *),MBOX_HideObject(s32,s32,s32),MBOX_ShowObject(s32,s32,s32);
+
 /* PC: ZOID_SetColor reads a colour as one word, so the colours passed to it are word-aligned, as IDO's
  * frame has them (docs/port/SANITIZE.md 3.2) */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,void *,s32);
-extern void WPitchUV(f32,f32 (*)[3]),WRollUV(f32,f32 (*)[3]);
-extern void ScaleUV(f32 (*)[3],f32 (*)[3],f32);
-extern void ZeroCameras(void);
+
 /* Complete native-led 97AD8 model-slot initialization: strict 327-word match
  * in this genuine context. The consumed scale local preserves the native
  * multiply-by-one operations that literal folding removed, including their
@@ -402,14 +320,12 @@ void playerscr_initButtons(s8 player)
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
-extern volatile f32 gFrameSeconds;
-extern volatile u8 gNumModels;
-extern f32 unitmatrix[3][3];
-extern f32 playerscr_gButtonScale,playerscr_gButtonSpace,playerscr_buttonX,playerscr_maxY,playerscr_minY,playerscr_buttonZ,playerscr_cursorZ;
-extern s32 playerscr_buttonsJustInited[];
-extern f32 playerscr_cursorSpeed[],playerscr_scrollSpeed[];
-extern s32 playerscr_buttonsInited[];
-extern s8 playerscr_gSelectMenuCount[],playerscr_gSelectMenuVisible[][14];
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
 
 void playerscr_updateButtons(s8 p)
 {
@@ -578,27 +494,10 @@ void playerscr_updateButtons(s8 p)
     playerscr_buttonsJustInited[p] = 0;
 }
 
-extern u32 gSkipToGameState,gGameState;
-extern s8 controlScrActive[],gSoftReset;
-extern void player_mode_set(s32,s32),FindPlayerNum(s32,s32);
-extern void CalcUnlockedStuff(void),setGameState(s32);
-extern s8 PS_PakChanged(s32);
-extern void PlayStartABSound(u32),SaveFlush(s32);
-extern void PurgePlayerData(Owner *),updateControlScreen(void);
-extern s32 ReadPlayerData(Owner *);
-extern void SaveSelectPlayer(Owner *);
-extern void TB_Strcpy(u8 *,u8 *);
-extern void DeletePlayer(Owner *);
-extern s8 gDeleteMenuSelect[],gDeleteMenuConfirm[],gDeleteMenuYes[],gDeleteMenuNotify[];
-extern u8 gDeleteMenuName[][13];
-extern s32 playerscr_buttonsJustInited[];
-extern s8 playerscr_gSelectMenuValid[][14];
-/* playerClaimed: installed body of group runtime_a_profile_menu (IPA context: owner in a0, skip in a2) */
-s32 playerClaimed(s32 skip,Owner *owner);
-extern void PlayLRSound(u32),PlayUDSound(u32);
-extern void censor(char *);
-extern Owner *CreatePlayer(s8,char *);
-extern char *gPlayerNameChars;
+extern void player_mode_set ( s32 , s32 );
+
+VIEW(char *, gPlayerNameChars);
+#define gPlayerNameChars gPlayerNameChars_view
 
 /* Drop one navigation step to the next/previous profile on the same pak (inlined statics in the original; written out). */
 void controlDeletePlayer(s32 p)
@@ -767,12 +666,10 @@ void controlDeletePlayer(s32 p)
  * (src/ovl_a/playerBeingDeleted.c, playerBeingCreated.c) read it as a second parameter after a dummy, and these calls
  * pass it alone. On the PC the dummy is explicit (docs/port/PROTOTYPES.md). */
 #define PC_IPA_A0 s32 pc_a0,
-/* playerBeingDeleted / playerBeingCreated: installed bodies, IPA context */
-s32 playerBeingDeleted(PC_IPA_A0 s32 skip);
-s32 playerBeingCreated(PC_IPA_A0 s32 skip);
+
 #define playerBeingDeleted(skip) playerBeingDeleted(0, skip)
 #define playerBeingCreated(skip) playerBeingCreated(0, skip)
-void claimPlayer(s32,Owner *);
+
 void playerscr_controlSelect(s32 p)
 {
     while (!playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]] ||
@@ -1010,10 +907,6 @@ void controlCreatePlayer(s32 p)
     }
 }
 
-void controlWait(s32);
-void controlControls(s32);
-void controlPakFull(s32);
-void controlPakDamaged(s32);
 void updatePlayerScreen(void)
 {
     s32 playerIdx;

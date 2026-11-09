@@ -1,32 +1,13 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * NOT a strict match: the scorer prints "MATCH (6 section-relative relocations
- * unverified: .data+0x0 ...)". Text words are identical.
- *
- * Per-car reset: clears fields at +0x314..+0x33E / +0xFA..+0xFE of the second
- * record and, for kind == 1 cars, hands out a round-robin id 0..3 from a
- * counter at 0x801161D0.
- *
- * The counter must be a function-local `static s32 ... = 0;` (retail .data,
- * initial value 0 at 0x801161D0). With any file-scope or extern declaration
- * (plain, volatile, array, struct member, defined in the unit) IDO -O2 hoists
- * the address into a register (lui/addiu + 0(reg)) and 7-26 words differ; the
- * target's lui/lw + two lui at/sw pairs only come from a function static.
- * The scorer cannot check a .data-relative relocation, hence "unverified".
- */
-typedef float f32;
-typedef short s16;
-typedef int s32;
-typedef signed char s8;
+#include "game/game.h"
 
-typedef struct {
+typedef struct CarA {
     char pad0[0x7CC];
     s8 unk7CC;
     char pad7CD[0xF];
     s8 unk7DC;
 } CarA;
 
-typedef struct {
+typedef struct CarB {
     char pad0[0xFA];
     s16 unkFA;
     s16 unkFC;
@@ -41,27 +22,6 @@ typedef struct {
     s16 unk33C;
     s16 unk33E;
 } CarB;
-
-extern f32 gModelTime;
-/* The checkpoints (resurrect.c's tCheckpoints): startPt, the checkpoint the race starts at. */
-typedef struct tCheckpoint {
-    float pos[3];
-    float normal[3];
-    int radius;
-    s16 flags;
-    s16 time[2];
-    s16 pathPts[20];
-    float distToNext;
-} tCheckpoint;
-typedef struct tCheckpoints {
-    s16 startTime;
-    s16 loopPt;
-    s16 finishPt;
-    s16 startPt;
-    s16 numPoints;
-    tCheckpoint points[10];
-} tCheckpoints;
-extern tCheckpoints gCheckpoints;
 
 void InitCarPath(CarA *a, CarB *b) {
     static s32 next_path = 0;

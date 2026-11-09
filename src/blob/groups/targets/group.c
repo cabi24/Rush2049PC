@@ -1,46 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Level-object instantiation (the function names are historical labels).
- *
- *   SetTargetDefs()        walks the scene list gTargetPaths.paths[gTargetPaths.count] (36-byte scenes, 68-byte
- *                                resources), instantiates every enabled resource through
- *                                SetupTarget, allocates the per-category arenas, resolves the
- *                                key references in gTargetGroupList, resets the 16 category-5 slots in mode 6,
- *                                and runs SetTargetDef on every node of the pool list.
- *   SetupTarget(...)  looks the record's name up in the 122-entry metadata table targetInfo,
- *                                applies the mode/team filters, allocates and fills a 112-byte node,
- *                                places and registers it, and (gGameState bit 22) initialises it at once.
- *   SetTargetDef(node)     per-node set-up: state pointer per category, Matrix64 for kind 4, a free
- *                                Slot136 for category 5, texture id, animation link and callbacks.
- *                                Internal: node arrives in s1 (IPA) and s0/s2-s4 are clobbered unsaved.
- *   set_target_data(...)           the retail stub just before SetTargetDef: the deleted helper
- *                                holding the state-assignment block, inlined into its only caller.
- * NewWorldObject(.) (NewWorldObject.c) recursive placement of a node tree; it
- *                                inlines its node-flags getter get_world_part_flags, defined after it.
- *
- * Shaping quirks (they match the bytes; they may not be the original spelling):
- *   - `if (gTargetPaths.paths) {}` in set_target_data is a code-free dead read (probably a compiled-out debug
- *     check). It gives retail's &gTargetPaths address live range in a0 and moves node to s1/matrix to s0.
- *   - set_target_data is defined after SetTargetDef (later source lines change as1's prologue order).
- *   - `(node->flags & 16) == 0` (not `!(...)`) is a ugen temp-ring pop: it gives the struct copy t8.
- *   - `gTargetOwnStructPtrs[c] = gTargetOwnStructPtrs[c] + gTargetStructSizes[c]` operand order sets the t7/t8 temps.
- *   - unused locals set the frames: `scene` in set_target_data, `slot` in SetTargetDefs, and the
- *     pad/tail locals in SetupTarget (its spill-temp homes need cfe locals 88 plus the
- *     &targetInfo[i] induction web; `md` is reassigned from the index on every iteration).
- *   - the entity-flags read is a real inlined getter (its a-register webs and the 8-byte frame
- *     rounding are retail's): the kept entity getter ZOID_ObjectFlags (0x8008AE64, `return
- * ObjInstanceList[id].flags`), which umerge inlines across files. moved the caller-less stub
- *     get_world_part_flags to NewWorldObject.c: it is that function's node-flags getter (stub
- * directly after its only inliner); attribution of it to this getter was a hypothesis.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { f32 x, y, z; } Vec3;
+#include "game/game.h"
+
+typedef struct Vec3 { f32 x, y, z; } Vec3;
 
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Ent {
@@ -143,61 +103,51 @@ typedef struct Animation24 {
 } Animation24;
 typedef struct Pool { u8 b0; s32 count; s32 size; u8 *mem; Node *head; u8 *free; } Pool;
 
-extern u32 gGameState;
-extern s8 expansion_pak_present;
 /* The level's path scenes (waves.c's anon_paths_count_8, MAT3 gTargetPaths): count of them at paths. */
 typedef struct anon_paths_count_8 { Scene36 *paths; s32 count; } anon_paths_count_8;
-extern anon_paths_count_8 gTargetPaths;
-extern s32 gRace;
-extern s16 gNumPlayers;
-extern s8 gBackwards;
-extern s8 Restarting;
-extern s8 gTargetStructCount[8];
-extern u8 gTargetStructSizes[];
-extern u8 *gTargetStructPtrs[8];
-extern u8 *gTargetOwnStructPtrs[8];
-extern u8 *gTargetStructInfoPtrs[];
-extern s32 gBBoxModelCount;
-extern s32 gBBoxModelUsed;
-extern Matrix64 *gBBoxModelStructs;
-extern s32 numgTargetGroupList;
-extern void **gTargetGroupList;
-extern Pool gTargetList;
-extern Pool gAlwaysColList;
-extern Metadata48 targetInfo[122];
-extern u16 gObjList[];
-extern Ent ObjInstanceList[];
-extern Animation24 *gEnvList;
-extern f32 unitmatrix[];
-/* PC: BBoxCollInfo is ROM data the loader byte-swaps by its declaration, and every word of it is an f32: bodies of 32
- * bytes (CollisionReckon's Body in setMiniFBCollisionForce.c: the bounds, then mass at +0x1C), then the static state records
- * of categories 0-2 (gTargetStructInfoPtrs). As u8[] the floats stayed big-endian, so a kind-4 object's bounds and mass read as
- * about 0 (docs/port/DATA.md 8). The record address is still taken in bytes. */
-extern f32 BBoxCollInfo[115];
+VIEW(anon_paths_count_8, gTargetPaths);
+#define gTargetPaths gTargetPaths_view
+
+VIEW(s8[8], gTargetStructCount);
+#define gTargetStructCount gTargetStructCount_view
+
+VIEW(u8 *[8], gTargetStructPtrs);
+#define gTargetStructPtrs gTargetStructPtrs_view
+VIEW(u8 *[8], gTargetOwnStructPtrs);
+#define gTargetOwnStructPtrs gTargetOwnStructPtrs_view
+
+VIEW(Matrix64 *, gBBoxModelStructs);
+#define gBBoxModelStructs gBBoxModelStructs_view
+
+VIEW(void **, gTargetGroupList);
+#define gTargetGroupList gTargetGroupList_view
+VIEW(Pool, gTargetList);
+#define gTargetList gTargetList_view
+VIEW(Pool, gAlwaysColList);
+#define gAlwaysColList gAlwaysColList_view
+VIEW(Metadata48[122], targetInfo);
+#define targetInfo targetInfo_view
+
+VIEW(Ent[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(Animation24 *, gEnvList);
+#define gEnvList gEnvList_view
+VIEW(f32[], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(f32[115], BBoxCollInfo);
+#define BBoxCollInfo BBoxCollInfo_view
 #define BODY_TABLE ((u8 *)BBoxCollInfo)
-extern Vec3 zero_velocity;
-extern volatile u8 gNumModels;
-extern s32 gGoldCoinCnt;
-extern s32 gSilverCoinCnt;
+VIEW(Vec3, zero_velocity);
+#define zero_velocity zero_velocity_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
-extern void *AllocateMemoryHeap(s32, s32);
-extern void RemoveCollisionObject(u32);
-extern void ResetCollisionObject(s32);
-extern void CopyUV(void *, void *);
 extern Animation24 *GrabEnvEntry(void);
-extern void UpdateMiniModelStruct(s32, f32 *, f32 *, void *);
-extern void InitBattlePowerUps(s32);
-extern int strlen(const char *);
-extern int game_strncmp(const char *, const char *, unsigned int);
-extern char *game_strstr(char *, char *);
-extern void *GetStatLLE(Pool *);
-extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
-extern s32 ZOID_AddObject(s32, void *, s16, s32);
-extern s32 FindWorldGroup(f32 *);
-extern f32 MBOX_GetObjectRadius(s32);
-extern void MBOX_GetPosition(void *, s32);
 
-void set_target_data(Node *node,Metadata48 *metadata,s32 category);
+extern int strlen(const char *);
+
+extern s32 ZOID_AddObject(s32, void *, s16, s32);
+
 void SetTargetDef(Node *node)
 {
     Metadata48 *metadata;
@@ -273,7 +223,6 @@ void set_target_data(Node *node,Metadata48 *metadata,s32 category)
         node->state=N64W(gTargetOwnStructPtrs[category]+gTargetStructSizes[category]*index);
     }
 }
-s32 ZOID_ObjectFlags(s16 id);
 
 /* PC: video.detail high gives a level object whose metadata says one player only (0x100) its scene node in split
  * screen too, as one player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */

@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 typedef struct {
     u8 b0;
     u8 b1;
@@ -14,8 +14,8 @@ typedef struct {
     f32 f16;
     f32 f20;
 } Rec24;
-extern Rec24 gSelectCar[];
-extern u8 gCarPaintJobInited[];
+VIEW(Rec24[], gSelectCar);
+#define gSelectCar gSelectCar_view
 
 void InitVisualsCarScr(void)
 {

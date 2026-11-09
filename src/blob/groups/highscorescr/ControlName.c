@@ -1,15 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Per-player name entry. Native input index arrives in s0 from updateHighScoreScreen.
- * A 9-column grid has 54 characters plus -1 finish, -2 erase, -3 space.
- * The name has at most 12 bytes plus terminator. A completed name is assigned
- * a cache slot, then propagated to the matching 3-by-5 result entries.
- * Reconstructed directly from the complete registered retail function.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct InputRecord {
     u8 unk0, player_id;
     u8 unk2[2];
@@ -19,22 +9,16 @@ typedef struct InputRecord {
     u8 unk10[0x48 - 0x10]; void *ref;
 } InputRecord;
 extern InputRecord gPlayers[];
-extern s16 highscore_gNameSelect[];
-extern s16 highscore_gNameLen[];
-extern u8 gScoreName[][13];
-extern s8 gDrawName[];
-extern s32 gLastPlayer[];
-extern intptr_t gThisPlayer[];
-extern s16 gThisTrack;
-extern intptr_t gTotalNames[12][3][5];
-extern s8 gNewTotalScore[3][5];
-extern u8 *gPlayerNameChars;
-extern void PlayUDSound(u32);
-extern void PlayLRSound(u32);
-extern void PlayStartABSound(u32);
+
+VIEW(u8[][13], gScoreName);
+#define gScoreName gScoreName_view
+
+VIEW(intptr_t[12][3][5], gTotalNames);
+#define gTotalNames gTotalNames_view
+VIEW(s8[3][5], gNewTotalScore);
+#define gNewTotalScore gNewTotalScore_view
+
 extern s32 CountdownTimeOut(void);
-extern u8 censor(intptr_t);
-extern s16 FindTempNameIdx(u8 *);
 
 void ControlName(s32 player)
 {

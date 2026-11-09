@@ -1,14 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Xcpluscomm -Wab,-r4300_mul */
-/* N64 game: AnimateWingFlame, 0x80091874, 636 bytes.
- * Arcade/MAT3 ancestor: visual.c AnimateWingFlame. Adaptation tier.
- * Shows a car wing flame, scales its matrix, and applies visibility/translucency.
- * The genuine ZOID_FindMatrix boundary is essential to IDO's inline allocation.
- * N64 uses a separate side index and appearance hulk, and a pre-mode slot read.
- * All seven locals are used. No padding, dead guards, or forced registers.
- * The complete genuine group is required for private visibility-call registers.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
-typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct ModelObj {void *opaque0;u8 opaque4[2];s16 model,player;u16 opaque10;u32 flags,opaque16;intptr_t active;} ModelObj;
 typedef struct Pose {f32 values[9];} Pose;
@@ -18,15 +9,11 @@ typedef struct Model68 { u32 flags, opaque4; Pose *pose; f32 scale, w; u16 model
  * visual's next pointer are host pointers. */
 typedef struct Side24 {u32 flags;u8 opaque4[4];void *func,*next;u8 opaque24[8];} Side24;
 typedef struct Player952 {u8 opaque0[232];u32 flags;u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[16]; void *opaque236_290; u8 opaque236_294[0x29C - 0x294];Side24 side[2];u8 opaque716[0x2D4 - 0x2CC]; void *opaque716_2D4; struct pc_visual opaque716_2D8[2]; u8 opaque716_308[0x35C - 0x308];s8 shift,quality,opaque862,disabled;u8 opaque864[32];Pose *pose;u8 opaque900[52];} Player952;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Model68 ObjInstanceList[];
-extern Pose unitmatrix;
-extern s8 gInvisibleCar;
-void MBOX_HideObject(s16,s32,s32);
-void MBOX_ShowObject(s16,s32,s32);
-void CopyUV(void *,void *);
-s32 CheckVisibleAll(ModelObj *,s32);
-s32 CheckVisible(ModelObj *,s32,s32);
+VIEW(Model68[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(Pose, unitmatrix);
+#define unitmatrix unitmatrix_view
+
 Pose *ZOID_FindMatrix(s16 objnum);
 /* MAT3 helper/body evidence with N64 separate side-index lifetime and
  * trace-supported native homes for the used inv and pose locals. */

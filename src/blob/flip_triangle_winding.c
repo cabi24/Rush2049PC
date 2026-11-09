@@ -1,13 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* flip_triangle_winding: flip the winding of one F3DEX2 triangle command in a display list. For opcode 0x05
- * (G_TRI1) it swaps the last two vertex-index bytes of word 0; for 0x06 (G_TRI2) and 0x07 (G_QUAD) it swaps them in
- * both words. Returns 2 (the command's word count). N64-only, no arcade ancestor.
- * Shape: every read goes through `*gfx` (no word local) and the opcode is tested as three separate
- * `(*gfx & 0xFF000000)` expressions. A `w = *gfx` local or an `op` variable makes uopt propagate the byte
- * pieces into ugen temps (29 words); reading memory keeps `mid`/`low` as coloured webs (v1/a1) and
- * the load in v0 as in retail. No shaping devices, no unused locals. */
-typedef unsigned int u32;
-typedef int s32;
+#include "game/game.h"
 
 /* ROM display lists stay in N64 form on PC: 8-byte big-endian commands (docs/port/POINTERS.md). */
 #define DLW(w) pc_be32_get(&(w))

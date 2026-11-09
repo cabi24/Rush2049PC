@@ -1,101 +1,39 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Controls screen text, controlscr.c (MAT3/Dreamcast controlscr.c).
- *   controls_animText (0x80100564, kept: blit anim callback) = animText@controlscr.c
- *   controls_animButtonText (0x800FFDE8, internal, only caller controls_animText; p passed in the caller's
- *     outgoing slot 0 by the private IPA convention) = animButtonText@controlscr.c(signed char p)
- * N64 differences from MAT3/DC: 12 controls (MAT3 13), rumble row i == 10 (MAT3 11), centred row i == 11,
- * no /2 on projected coordinates, `x - 35/55/45/25 * scale * 300 / buttonZ` operand order, the N64 validOption
- * (controls_validOption, rejects option 8) and PS_PakRumble inlined.
- * Inlined helpers, non-static and not on keep (stub rule), disclosed:
- *   ct_gfx_lock / ct_gfx_unlock / ct_font_set = the two-level HAL_SetFont (_GetSemaphore; old = _HAL_SetFont;
- *   _ReleaseSemaphore), ct_SetJust = TB_SetJust, ct_CenterText / ct_RightText = TB_CenterText / TB_RightText,
- * ct_DrawEllipseText = TB_DrawEllipseText (defined after its caller: as1 line ties).
- * levers (each measured in the unit):
- *   animButtonText: the ellipse width as its own statement `w = gNumWindows == 1 ? 150 : 69;` (its line precedes
- *     the name load, as1 then orders `li v0,69` before the gPlayers reload, as retail) and the name in `str`
- *     (str and the inlined `text` parameter share a3, retail `lw a3; addiu a1,a3,20` / `move a2,a3`).
- *   animText: `continue` after the animButtonText call (retail's call path carries its own p+1/gNumWindows
- *     copy into the loop test: body 390 -> 394 words); TB_SetJust as the helper at the scroll-box site and
- *     HAL_SetFont called directly (frame 352 -> 360, every spill home at retail's offset); itemsDrawn = 0
- *     first in the menu branch (as1 line tie on `move s5,zero`).
- * DISCLOSED shaping:
- *   - animText `if (i == 10) {}` (compiled out, emits nothing): one more use of the constant 10 so its
- *     loop-wide web (retail s8, two `bne s2,s8`) wins the 11.11-save tie against the PS_PakRumble address and
- *     stride webs (lower web numbers); without it s8 goes to p*2 (unit: 362 of 394 words differ).
- *   - animButtonText `u8 str1[64]` is UNUSED: exact frame residual (retail frame 544 with screenPos at sp+456
- *     and the incoming p byte at sp+547; without it the frame is 480 and p is read at sp+483: unit 7 of 479
- *     words differ). One 64-byte slot, declared before screenPos; animText declares the same `str1[64]` text
- *     buffer. MAT3/GC DWARF list no such local (i, x, y, str, screenPos, gTextPosScale). `w` (used) is
- *     declared after screenPos.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct OSMesgQueue OSMesgQueue;
+#include "game/game.h"
+
 typedef struct CtIdx { u8 pad0[32]; u16 rumbleOff; u16 rumbleNames; u8 pad36[2]; u16 controlNames; } CtIdx;
 typedef struct TextState { void *word0; char **fixed; void *word8; CtIdx *indices; char **strings; } TextState;
 typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } PlayerRow;   /* 76 B */
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 typedef struct CtRect { s32 f0; s32 y; s32 w; s32 h; s32 x; s32 f20; } CtRect;          /* 24 B */
-typedef struct PakSlot { s8 b0, b1, b2, b3, b4, b5, b6; u8 rest[765]; } PakSlot;          /* 772 B */
+
 typedef struct ContData { s8 b0; u8 rest[15]; } ContData;                                   /* 16 B */
 
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern s16 gNumWindows;
-extern s32 controls_buttonsInited[];                         /* buttonsInited[p] */
+VIEW(TextState, gText);
+#define gText gText_view
+
 extern PlayerRow gPlayers[];                   /* gPlayers */
-extern s8 controlScrActive[];                          /* controlScrActive[p] */
-extern CtRect controls_gPlayerRects[][4];                   /* gPlayerRects (24-byte form) */
-extern ContData gControllerData[];                    /* gControllerData */
-extern s32 playerTextColor[];                         /* playerTextColor */
-extern s32 gGameState;
-extern s16 gControlFirst[];                         /* gControlFirst[p] */
-extern s16 gControlSelect[];                         /* gControlSelect[p] */
-extern s16 gControlMenuSize;
-extern PakSlot gPaks[];
-extern s32 gJust[2];   /* gJust (TB_SetJust pair): tentative definition, as hud_text_anims/audio_animPanes_demo_animText.c, countdown,
-                        coins: the two TB_SetJust stores share one `lui at` only with gJust defined in the group's
-                        program; in the shadow unit audio_animPanes_demo_animText.c is the one definition (unit_overrides extern_data) */
-extern char controller_removed_format[];                        /* "CONTROLLER %d %s" */
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32);
-extern u32 HAL_GetTextWidth(char *, s32);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s16, char *);
-extern s32 TB_Sprintf(char *, char *, ...);
-extern void HAL_SetTextDepth(f32);
-extern void TB_EllipseText(char *, char *, s16);   /* TB_EllipseText (retail narrows the width: s16) */
-extern void TB_DrawTextScrollBox(s16, s16, s16, s16, s32, s32, char *);
+
+VIEW(CtRect[][4], controls_gPlayerRects);
+#define controls_gPlayerRects controls_gPlayerRects_view
+VIEW(ContData[], gControllerData);
+#define gControllerData gControllerData_view
+
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+
 typedef struct CtButton { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[8]; f32 depth; u8 alpha; u8 pad61[3]; } CtButton; /* 64 B */
 typedef struct CtCamera { u8 data[152]; } CtCamera;
-extern CtButton controls_buttonInfo[][17];                /* buttonInfo[p][17] */
-extern CtCamera gCamera[];                    /* gCamera[p] */
-extern f32 controls_gButtonScale;                           /* gButtonScale */
-extern f32 controls_buttonZ;                           /* buttonZ */
-extern void ZOID_ProjectWindow(s32, void *, void *, void *, s16 *);
-extern void HAL_SetTextTranslucency(f32);
-extern void HAL_SetMenuTextDepth(f32);
-typedef union TextColor { u8 c[4]; u32 rgba; } TextColor;   /* GC union __anon_21da */
-extern TextColor flashColors[2];                  /* flashColors */
-extern TextColor gFlashColor1, gFlashColor2;
+VIEW(CtButton[][17], controls_buttonInfo);
+#define controls_buttonInfo controls_buttonInfo_view
+VIEW(CtCamera[], gCamera);
+#define gCamera gCamera_view
+
+VIEW(TextColor[2], flashColors);
+#define flashColors flashColors_view
+
 void TB_FlashTextColors(TextColor first, TextColor second);   /* TB_FlashTextColors (locked, audioscr) */
-void controls_animButtonText(s8 p);
-void TB_DrawEllipseText(s16 x, s16 y, s16 width, void *name);   /* TB_DrawEllipseText (locked, kept) */
 
-s8 PS_PakRumble(s32 pak);                       /* PS_PakRumble (locked, SaveInit) */
-s32 controls_validOption(s8 player, s32 item);          /* validOption (group member) */
-
-void ct_DrawEllipseText(s16 x, s16 y, s16 w, void *text);
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 void controls_animButtonText(s8 p)
 {
     s32 i;
@@ -178,8 +116,7 @@ void ct_DrawEllipseText(s16 x, s16 y, s16 w, void *text)
     TB_EllipseText((char *)str, text, w);
     TB_DrawText(x, y, (char *)str);
 }
-s16 TB_CenterText(void *text, s16 centerX);
-s16 TB_RightText(void *text, s16 rightX);
+
 s32 controls_animText(s32 arg0)
 {
     s32 i;

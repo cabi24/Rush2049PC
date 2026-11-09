@@ -1,47 +1,27 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Projected option menu, image A, [0x803ADDA8,0x803AE1C0).
- * Keep the position pointer, rather than the whole slot, as the local: this
- * gives the native pointer/index lifetime and instruction order under O3 IPA.
- * The projected text buffer is reconstructed as 32 bytes. The native 112-byte
- * frame has point at +56, text at +60 and i at +108; declaring i first places
- * the other four scalar homes in +92..+107. The fixed decimal format and
- * j=0..3 require only two output bytes including NUL. Original source capacity
- * is unknown; this is a bounded, non-overlapping reconstruction, not a padding
- * trick. See for the writer/lifetime proof and 48-byte control.
- * The installed AE1C0/F744 bodies below are preserved without source changes.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Language { s32 unknown0; char **text; s32 unknown8; u16 *indices; char **indexed; } Language;
 typedef struct ButtonInfo { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; } ButtonInfo;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
-extern Language gText;
-extern ButtonInfo startscr_buttonInfo[];
-extern Camera gCamera[];
-extern f32 startscr_title_button_position[3],startscr_players_button_position[3];
-extern s32 startscr_buttonsInited,gStartMenuSelect,gMaxPlayers;
-extern s16 gNumPlayers;
-extern Color4 flashColors,flashColors_at_1;
-extern char startscr_player_count_format[],startscr_button_player_count_format[];
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern void TB_SetJust(u32,u32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_DrawText(s16,s16,void *);
-extern void TB_Sprintf(char *,char *,...);
-extern s8 startscr_optionValid(s32);
-extern void HAL_SetTextTranslucency(f32);
+VIEW(Language, gText);
+#define gText gText_view
+VIEW(ButtonInfo[], startscr_buttonInfo);
+#define startscr_buttonInfo startscr_buttonInfo_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(f32[3], startscr_title_button_position);
+#define startscr_title_button_position startscr_title_button_position_view
+VIEW(f32[3], startscr_players_button_position);
+#define startscr_players_button_position startscr_players_button_position_view
+
+VIEW(Color4, flashColors);
+#define flashColors flashColors_view
+VIEW(Color4, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
+
 extern void TB_FlashTextColors(Color4,Color4);
-extern void HAL_SetTextColor(u8,u8,u8,u8);
+
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
 int pc_start_valid(int index, int value);
@@ -104,7 +84,7 @@ void startscr_animButtonText(void)
     TB_FlashTextColors(flashColors,flashColors_at_1);
     HAL_SetTextDepth(-1.0f);
 }
-void startscr_animButtonText(void);
+
 s32 startscr_animText(void *callback_context)
 {
     s32 i;
@@ -155,10 +135,6 @@ s32 startscr_animText(void *callback_context)
     HAL_SetTextDepth(-1.0f);
     return 1;
 }
-
-extern s8 startscr_validOption[];
-extern s32 gActiveLevels;
-extern s8 gCheatActive[];   /* the cheats on; [21] the start screen's code (the cheats menu) */
 
 s8 startscr_optionValid(s32 index)
 {

@@ -1,6 +1,4 @@
-/* AnimateArrow: source-backed original local order and genuine HidePoly context. */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
 typedef union Color4 {struct {u8 r,g,b,a;} c;u32 rgba;} Color4;
@@ -52,23 +50,24 @@ typedef struct View {
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct Mesh {s16 count;u16 flags,parameter,unknown;Vertex20 vertices[4];} Mesh;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Camera gCamera[];
-extern View ZoidWinInfo[];
-extern Mesh PolyInstanceList[];
-extern s8 gShowPlayerArrows, gSplitScreen, gFadePlayerArrow[4][4], gCarTeam[];
-extern s32 gGameState, gRace;
-extern Color4 arrowColors[5];
-extern Color4 arrow_base_color;
-extern u8 arrowinvsColor[];
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(View[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
+VIEW(Mesh[], PolyInstanceList);
+#define PolyInstanceList PolyInstanceList_view
+VIEW(s8[4][4], gFadePlayerArrow);
+#define gFadePlayerArrow gFadePlayerArrow_view
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
+VIEW(Color4[5], arrowColors);
+#define arrowColors arrowColors_view
+VIEW(Color4, arrow_base_color);
+#define arrow_base_color arrow_base_color_view
+
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };
 extern void ZOID_UpdatePoly(Mesh *, s32, f32 (*)[3], u16, Color4 *, u16, s32);
-extern void U64WorldVector(f32 *, f32 *, f32 (*)[3]);
-extern f32 fatan2(f32, f32);
-extern f32 vector_magnitude(f32 *);
 
-void ZOID_HidePoly(Mesh *poly);   /* the game's own ZOID_HidePoly (this file had a static copy: the same code) */
 void AnimateArrow(Effect *effect, s16 op) {
     CAR_DATA *record;
     MODELDAT *vehicle;

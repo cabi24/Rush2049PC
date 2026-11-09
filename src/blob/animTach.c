@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * N64 per-player HUD bar animation. Packed AnimID chooses player (bits 4..7)
- * and crop kind (bits 0..3). Hide inactive/unavailable players, select the
- * split-screen texture, position it, and crop the bar from a signed car value.
- * The native crop assignment order is Right, Top, Bot. Reordering the final
- * independent stores changes IDO's temporary register cycle.
- *
- * Shared source contract: arcade game/hud.c Hidden and LIB/blit.h, revision
- * 845329d7b36f5a384c5625ed9a0aef584ab46139. The complete N64 bar callback and
- * per-player tables are platform-specific. Object prefixes/strides below are
- * observed native layouts, not fabricated local storage. No padding locals,
- * dead reads, stand-ins, altered call contracts, or keep settings are used.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Blit {
     const char *Name;
     void *image;
@@ -36,17 +17,7 @@ typedef struct Blit {
     s32 (*AnimFunc)(struct Blit *);
     u32 AnimID;
 } Blit;
-typedef struct { u8 other0[10]; s8 flag; u8 other11[1979]; s16 index; u8 other1992[8]; s16 value; u8 other2002[54]; } Car2056;
-typedef struct { u8 other0[239]; s8 mode; u8 other240[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 other240_308[0x380 - 0x308]; void *input; u8 other240_384[0x3B8 - 0x384]; } Object952;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s16 gNumWindows,gNumPlayers;
-extern s8 gShowTach;
-extern char tachometer_md_name[],tachometer_sm_name[];
-extern s32 tachPos[][4][2];
 
-extern void UpdateBlit(Blit *);
-extern void RenameBlit(Blit *,const char *,s32);
 s32 animTach(Blit *blt)
 {
     s32 slot, kind, hide;

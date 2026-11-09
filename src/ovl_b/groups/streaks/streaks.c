@@ -1,32 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B trail callback: age active fade nodes, release expired nodes, and
- * emit a four-corner quad when an eligible trail requests another segment.
- * No whole-function arcade ancestor has been established.
- *
- * Matching reconstruction: x/y/z are genuine origin-coordinate carriers;
- * lower is written before upper for each coordinate. Their declaration order
- * retains the native corners home at sp+140. The compiled-out pool-active read
- * raises the existing pool-address web's priority (30/17 -> 40/17), restoring
- * its native s4 allocation; it has no emitted load or behavioral side effect.
- *
- * Frame-only shaping, allowed by the repository's rule: the two unused
- * s32 locals each reserve four bytes. Without both, the complete instruction
- * body differs only in its 216-byte frame versus native 224. Adding both before
- * corners gives M100/T28/P4 instead of M92/T28/P4, retaining every other word
- * and the native corners home. Original identities are unknown. No pad array,
- * fake callee signature, stand-in, volatile, assembly, or compiler change.
- *
- * Assumptions: finite timer/coordinate values; well-formed acyclic active lists,
- * valid pool/node/object pointers, and valid backing for the external tables.
- * External allocation/free/object helpers retain their ordinary native ABI;
- * their implementation and full gameplay are outside this matching proof.
- */
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Record88 Record88;
 typedef struct Trail Trail;
 typedef struct Fade Fade;
@@ -36,14 +9,15 @@ struct Fade { Fade *next; u32 unknown04; Record88 *object; f32 lifetime, interva
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct FadePool { u8 dbl; s32 numElements, elementSize; void *list; Fade *active; void *store; } FadePool;
 typedef struct TrailPool { u8 dbl; s32 numElements, elementSize; void *list; Trail *active; void *store; } TrailPool;
-extern FadePool gStreakPolyList;
-extern TrailPool gStreakList;
-extern f32 gFrameSeconds;
-extern s16 gNumPlayers;
-extern u8 gStreakColors[4][4];
+VIEW(FadePool, gStreakPolyList);
+#define gStreakPolyList gStreakPolyList_view
+VIEW(TrailPool, gStreakList);
+#define gStreakList gStreakList_view
+
+VIEW(u8[4][4], gStreakColors);
+#define gStreakColors gStreakColors_view
 extern void ZOID_RemovePoly(Record88 *);
-extern void FreeStatLLE(void *,void *);
-extern void *GetStatLLE(void *);
+
 extern Record88 *ZOID_NewPoly(s32,f32 *,u16,u8 *,u16,s32);
 extern void ZOID_UpdatePoly(Record88 *,s32,f32 *,u16,u8 *,u16,s32);
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a fade whose interval is 0 steps once a frame, 1/30 s on the N64; at

@@ -1,7 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* game_bsearch is a historical label: this is a libc-style bsearch(key, base, nmemb, size, compar). */
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 void *game_bsearch(void *key, void *base, u32 n, u32 size, s32 (*compar)(void *, void *)) {
     s32 adjust;

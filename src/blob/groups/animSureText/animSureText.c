@@ -1,26 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * animSureText (0x8010B9C8, 700 B): two-choice menu page (header string centred, two option strings at x -/+ w/4,
- * selection pause_gYes highlighted), disabled while gPauseState >= 7 (item_disable returns the flag).
- * Levers: TB_CenterText inlined (GC TB_text.c) 108 -> 30 words; dropping frame devices (nested
- * font_select, unused `s32 i`: the inlined TB_CenterText sites now give retail's 152-byte frame) -> 3; `y =
- * pause_titlePos[1] + TB_GetFontLineHeight() * 2` operand order -> EQUAL. No unused locals.
- * MATCH in group / unit EQUAL. Shaping (disclosed): inlined helpers gfx_lock, gfx_unlock, font_set, item_disable, TB_CenterText (non-static *_B9C8);
- * gfx_lock/gfx_unlock definitions placement as in (as1 line tie).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
-/* PC: the page's blit (the pause screen's NewMultiBlit set; the page runs as its AnimFunc), over the Blit's host
- * layout (NewMultiBlit.c's, docs/port/POINTERS.md 9.3): `dirty` is its Hide, at +0x26. The N64's +0x1A is the low
- * byte of X on the PC, so the page moved its blit and never showed or hid it (docs/port/LAYOUT.md 9). */
-typedef struct {
+typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
     s16 X, Y;
@@ -53,36 +33,11 @@ typedef struct {
     intptr_t *strings;
 } StrTable;
 
-extern OSMesgQueue text_lock_queue;
-extern s16 pause_titlePos[2];
-extern s32 pauseMenuSelect;
-extern StrTable gText;
+VIEW(s16[2], pause_titlePos);
+#define pause_titlePos pause_titlePos_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void UpdateBlit(void *);
-void HAL_SetTextDepth(f32);
-s16 TB_GetFontLineHeight(void);
-u32 HAL_GetTextWidth(void *, s32);
-void TB_SetTextColor(s32);
-void TB_Sprintf(char *, char *, ...);
-
-typedef struct {
-    u8 pad0[0x48];
-    s32 *name;
-} PlayerRec;
-
-extern s8 pause_gControllerRemoved;
-extern s8 pause_gYes;
-extern s32 gPauseState;
-extern s32 playerInPause;
-extern char pause_controller_removed_format[];
-extern char pause_player_title_format[];
-extern PlayerRec gPlayers[];
-extern s32 playerTextColor[];
-void TB_DrawText(s16, s16, void *);
-
+VIEW(StrTable, gText);
+#define gText gText_view
 
 s32 item_disable_B9C8(MenuItem *item, s32 off)
 {
@@ -93,9 +48,6 @@ s32 item_disable_B9C8(MenuItem *item, s32 off)
     return item->dirty;
 }
 
-
-s32 HAL_SetFont(s32 fontID);
-s16 TB_CenterText(void *text, s16 centerX);
 s32 animSureText(MenuItem *item) {
     s32 w;
     s32 x;

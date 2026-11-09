@@ -1,26 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * NumPtsToCheckpoint (0x800D2A74, 412 bytes; historical label, also aliased lap_counter_display):
- * N64-only path-distance helper, no arcade ancestor found.  Returns how many path points lie
- * ahead of `point` up to section `sec`'s marker on path `path`, wrapping by the path length:
- *   mode == 0          main path `path`: marker gCheckpoints[sec].first[path], wrap length
- *                      gDronePaths[path].total minus the loop section's marker (record 0 .anchor).
- *   mode != 0, path<0  same on the main loop: .total, wrap gResPath.total.
- *   mode != 0, path>=0 branch `path`: marker .second[path]; if it is unset (<0) or behind
- *                      `point`, recurse into the parent branch (nodes[path].parent) from the
- *                      branch's join point (nodes[path].end) and add the branch length (.delta).
- * Types (from loads; consistent with CalcResPathBounds and notes):
- *   gCheckpoints[] 80-byte section records (record 0 +2 = loop/anchor section);
- *   gResPath path graph header {u16 total; ...; u8 nbranches @8; Branch *branches @12},
- *   Branch 16 bytes {u8 kind; .. s8 parent @4; u16 end @6; .. u16 count @10; Vertex *pts @12}.
- * Shaping: NO named locals.  Every named local costs a frame slot (retail frame is 32 bytes with
- * only the call-spill slots), so each table read is written out in full and CSE'd by uopt.  The
- * recursive term is written `delta + recursion` (retail adds the call result first).
- * Does not match at -O2 (s0/s1 saved instead of the caller-home spill).
- */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed char s8;
+#include "game/game.h"
+
 typedef struct TrackRecord {
     u16 prefix;
     s16 anchor;
@@ -45,9 +24,12 @@ typedef struct Header {
     Descriptor *nodes;
 } Header;
 typedef struct Count {u16 total;unsigned char opaque[14];} Count;
-extern TrackRecord gCheckpoints[];
-extern Header gResPath;
-extern Count gDronePaths[];
+VIEW(TrackRecord[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
+VIEW(Header, gResPath);
+#define gResPath gResPath_view
+VIEW(Count[], gDronePaths);
+#define gDronePaths gDronePaths_view
 
 int NumPtsToCheckpoint(int mode, int path, int point, int sec) {
     if (mode == 0) {

@@ -1,9 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* ZOID_InitializeWindow (0x800A5908, 312 bytes).
- * Restore the window-record return and the donor's narrowing-before-alpha
- * packed-color expression. Keep native clip/fog and viewport behavior.
- */
-typedef unsigned char u8;typedef unsigned short u16;typedef short s16;typedef unsigned int u32;typedef float f32;
+#include "game/game.h"
+
 typedef struct Viewport16 {s16 scale[4],translate[4];} Viewport16;
 typedef struct Descriptor72 {
     void *first,*bounds;
@@ -13,11 +9,11 @@ typedef struct Descriptor72 {
     s16 range_start,range_end;
     u8 red,green,blue,alpha;
 } Descriptor72;
-extern Descriptor72 ZoidWinInfo[];
-extern Viewport16 vp0;
-extern f32 gViewableDistance;
-extern u32 gBgColor;
-void ZOID_SetBGColor(u16 color);
+VIEW(Descriptor72[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
+VIEW(Viewport16, vp0);
+#define vp0 vp0_view
+
 extern Descriptor72 *ZOID_SetWindow(int,f32,f32,f32,f32,f32,f32);
 /* Exact SDK macro from reference/repos/ultralib/include/PR/gbi.h. */
 #define GPACK_RGBA5551(r,g,b,a) ((((r)<<8)&0xf800)|(((g)<<3)&0x7c0)|(((b)>>2)&0x3e)|((a)&1))

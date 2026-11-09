@@ -1,13 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* N64 scene-parent search. Record layout is corroborated by the accepted
- * child/sibling accessors; no complete arcade ancestor is established.
- * Search each record's first-child/sibling chain and return the first owning
- * record. The comparison precedes the -1 terminator check, so querying -1
- * can return an owner as well. Input and return are signed halfwords; the
- * record counter itself is full-width. Requires valid terminating chains. */
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned char u8;
+#include "game/game.h"
+
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct SceneRecord {
     unsigned int flags, w4;
@@ -20,8 +12,8 @@ typedef struct SceneRecord {
     void *light, *tex[4], *rect, *clip, *pal;
     unsigned int prim, env;
 } SceneRecord;
-extern SceneRecord ObjInstanceList[];
-extern s32 gNumObjects;
+VIEW(SceneRecord[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 
 s16 ZOID_TrueObjParent(s16 child)
 {

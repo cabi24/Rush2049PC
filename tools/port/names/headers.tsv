@@ -1,0 +1,7 @@
+# Name map headers: the types the decompiler's context named after the datum they view (`D_8012E6E0_Node`), which
+# the files still use after the shared headers (wave 2, docs/port/PCONLY.md 4 "Wave 2: headers"): each named for
+# what it is. The datum's own name is in applied.tsv (D_8012E6E0 is gPlayerFiles_head ...).
+D_8012E6E0_Node	PlayerFileNode	type	code	sure	MovePlayerFile's view of a node of gPlayerFiles_head's list (gPlayerFiles: the player profiles on the pak): its next pointer, which it follows to the list's end
+D_80143FD8_Record	TargetListNode	type	code	sure	PauseTargets' view of a node of gTargetList_head (the level objects' active list): flags at +0, the state words at +0x60 and +0x64 it pauses
+D_8014A160_Target	SavedPlayerSlot	type	code	likely	NewCircuit's and GetCircuitCode's view of what gPlayers_save points to (a player's save slot; its data pointer at +8, SLOT_DATA)
+D_80146108_Record	CircuitOptions	type	code	likely	NewCircuit's view of gOptions: the three option bytes at +0x0C to +0x0E it copies into the new circuit

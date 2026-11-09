@@ -1,9 +1,10 @@
-typedef unsigned char u8;
-typedef signed char s8;
-typedef unsigned int u32;
+#include "game/game.h"
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(expr, type, offset) (*(type)((u8 *)(expr) + (offset)))
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
-extern u32 CalcChecksumInternal(u8 *, u32);
+
 extern void PS_WriteFile(void *, void *, u32);
 typedef struct Setting { u32 checksum; s8 fields[12]; } Setting;
 typedef struct SaveData { u8 prior[1856]; Setting settings[13]; } SaveData;

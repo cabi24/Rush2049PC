@@ -1,44 +1,36 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ZOID_SplitMenuScreen (0x800A6BE4, 2072 B): historical label. Twin of ZOID_SplitScreen (0x800A6404): the
- * same N64 split-screen viewport layout, except the 2-player layout uses two 3/4-width panes starting at
- * x = 2 (width 3W/4 + 2, centre 3W/8 + 2) with the unscaled fov. Cases 1 and 3/4 are identical to
- * ZOID_SplitScreen (0.95f quarter fov). No arcade counterpart.
- *
- * Source-form notes: as ZOID_SplitScreen (helper here view_bind_w, non-static, force_internal in the unit) (inlined static view_bind whose unused return value is the dead
- * v0 copy before each next call; block-scoped u16 rect locals; per-pane store order). The constant 3 is
- * one coloured web here (n == 3 compare, pane index 3, the W * 3 / H * 3 multiplies: multu by s4).
- * The second 2-player pane stores h, x, w, y (as1 order). No unused locals.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
-    void *f0;
-    void *f4;
-    u8 unk8[0x40];
-} ArbEntry;
-
-extern u8 gNumZoidWindows;
-extern s8 gSplitScreen;
-extern s32 screen_width, screen_height;
-extern f32 HFOV;
-/* PC: the windows' viewports are Vp records (s16 scale[4], translate[4]; window_init's Viewport16). The PC loader
- * fills initialized data by its declarations: as s32 the first two halves would be swapped together and the rest
- * left big-endian (docs/port/ENDIAN.md). */
-typedef struct { s16 scale[4], translate[4]; } PcViewport;
-extern PcViewport vp0, vp1, vp2, vpul, vpur, vpll, vplr;
-extern s16 scissor0[4], scissor1[4], scissor2[4], scissorul[4], scissorur[4], scissorll[4], scissorlr[4];
-extern ArbEntry ZoidWinInfo[];
-
+VIEW(PcViewport, vp0);
+#define vp0 vp0_view
+VIEW(PcViewport, vp1);
+#define vp1 vp1_view
+VIEW(PcViewport, vp2);
+#define vp2 vp2_view
+VIEW(PcViewport, vpul);
+#define vpul vpul_view
+VIEW(PcViewport, vpur);
+#define vpur vpur_view
+VIEW(PcViewport, vpll);
+#define vpll vpll_view
+VIEW(PcViewport, vplr);
+#define vplr vplr_view
+VIEW(s16[4], scissor0);
+#define scissor0 scissor0_view
+VIEW(s16[4], scissor1);
+#define scissor1 scissor1_view
+VIEW(s16[4], scissor2);
+#define scissor2 scissor2_view
+VIEW(s16[4], scissorul);
+#define scissorul scissorul_view
+VIEW(s16[4], scissorur);
+#define scissorur scissorur_view
+VIEW(s16[4], scissorll);
+#define scissorll scissorll_view
+VIEW(s16[4], scissorlr);
+#define scissorlr scissorlr_view
 
 ArbEntry *ZOID_InitializeWindow(s32 idx, void *a, void *b, f32 c, f32 d, f32 e, f32 f, f32 g, f32 h);
 
-ArbEntry *view_bind(s32 k, void *vp, s16 *r);
 s32 ZOID_SplitMenuScreen(s32 n) {
     if (n > 0) {
         gNumZoidWindows = n;

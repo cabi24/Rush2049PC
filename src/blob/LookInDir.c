@@ -1,27 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Historical label LookInDir is misleading: this builds an
- * orthonormal 3x3 basis from a direction.
- *   m[2] = normalize(dir)            (vector_direction = normalise src->dst)
- *   m[0] = (dir.z, 0, -dir.x), normalised; when its length (vector_magnitude)
- *          is <= 0.01 it falls back to the constant vector rvector (1,0,0)
- *   m[1] = m[2] x m[0]
- *   m[0] = m[1] x m[2]
- * The two cross products are written out in place (a three-pointer crossprod
- * helper is not inlined by -O3 and gives a different body). No arcade ancestor
- * identified.
- *
- * 0.01f is this function's own literal (retail .rodata 0x8012388C =
- * 0x3C23D70A); the unpatched scorer reports the two references to it as
- * unverified, the splice verifies the bytes. Also matches at -O2.
- * No compile-shaping quirks.
- */
-typedef float f32;
-typedef int s32;
+#include "game/game.h"
 
-extern f32 rvector[3];
-f32 vector_magnitude(f32 *v);
-void vector_direction(f32 *a, f32 *b);
+VIEW(f32[3], rvector);
+#define rvector rvector_view
 
 void LookInDir(f32 *dir, f32 m[3][3]) {
     f32 len;

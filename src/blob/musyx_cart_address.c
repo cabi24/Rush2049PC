@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O2 -mips2 -G 0 -non_shared */
 /* Map a physical/cart address into the uncached cartridge address window. */
 /* PC: the MusyX library calls it through its service table as void *(*)(void *), so the word is

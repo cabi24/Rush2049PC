@@ -1,15 +1,13 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef int s32;
-typedef short s16;
-typedef unsigned char u8;
+#include "game/game.h"
+
 /* Each pak's open files (paksysdc's tDLList, MAT3 tDLList): head the first. */
 typedef struct tDLList {
     u8 indirect, doubly, opaque2[2];
     unsigned int count;
     void **head, **tail;
 } tDLList;
-extern tDLList gPS_Files[];
-extern s16 gPickedPak;
+VIEW(tDLList[], gPS_Files);
+#define gPS_Files gPS_Files_view
 
 void **pakscr_FindFile(s32 id)
 {

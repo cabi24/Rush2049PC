@@ -1,18 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A:803AE63C..803AE940, complete projected settings-bar callback.
- * Native-authoritative 64-byte slot views; the accessed record is slot+21.
- * BLIT callback contract is witnessed by NewMultiBlit and DrawBlits.
- * Direct global indexing lets uopt home the derived slot address at sp+44;
- * the removed pointer local used sp+40. Both frames are 64 bytes. No buffer,
- * extra declaration, artificial read or ABI change is needed. Three natural
- * angle literals own the verified range 803B99D4..803B99E0.
- * No exact arcade donor is claimed. */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Blit {
     char *Name; void *Image; void *Info;
     s16 TexIndex, X, Y; u16 State; s16 Width, Height;
@@ -27,12 +14,11 @@ typedef union MenuSlot {
 typedef struct ProjectContext {
     float rotation[3][3], position[3]; u8 opaque[104];
 } ProjectContext;
-extern MenuSlot trackscr_buttonInfo[];
-extern ProjectContext gCamera[];
-extern s8 gFogIntensity, gWind, gDifficulty, gCatchup;
-extern s8 Hidden(Blit *,s32);
-extern void ZOID_ProjectWindow(s32,float *,ProjectContext *,void *,s16 *);
-extern void UpdateBlit(Blit *);
+VIEW(MenuSlot[], trackscr_buttonInfo);
+#define trackscr_buttonInfo trackscr_buttonInfo_view
+VIEW(ProjectContext[], gCamera);
+#define gCamera gCamera_view
+
 s32 trackscr_animNewSlider(Blit *blt)
 {
     s32 segment=blt->AnimID&15;

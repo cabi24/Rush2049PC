@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Translate packed vertices: for every 0x20-byte record in the table at
- * *0x801525EC (count u16 0x8015267C) whose u16 id (+0) equals `id`, unpack
- * the 8-byte vertex stree_svert[rec->vtx] (three s16 integer parts plus a
- * u16 holding three 5-bit fractions, 1/32 units), add off[0..2], round to
- * nearest 1/32 and pack it again.  Only caller: PlacePathTargetPos.
- * No arcade ancestor (N64 vertex format).
- *
- * Needs -O3 (-O2 saves s0 and uses a 40-byte frame).
- * Quirks the match depends on:
- *  - `n` counts the matches and is never returned; the trailing
- *    `if (n == 0) return;` (most likely a compiled-out diagnostic) is what
- *    keeps the counter alive and puts it in v0.  `return n;` instead puts
- *    the record pointer in v0 and adds a `move v0,v1`.
- *  - ipos[4]/pos[4] (not [3]) give the retail slots sp+16 / sp+0 in the
- *    32-byte frame; element 3 of each is unused.
- *  - `pos[k] = pos[k] + off[k]` (not `+=`, not `off[k] + pos[k]`) gives the
- *    retail add operand order and the reload of pos[0] before rounding.
- *  - the fraction word is OR-ed in the order x, y, z.
- */
-typedef float f32;
-typedef int s32;
-typedef unsigned int u32;
-typedef short s16;
-typedef unsigned short u16;
+#include "game/game.h"
 
 typedef struct {
     /* 0x00 */ u16 id;
@@ -37,9 +12,10 @@ typedef struct {
     /* 0x06 */ u16 frac;
 } PVtx;
 
-extern u16 stree_savenum;
-extern Rec20 *stree_save;
-extern PVtx *stree_svert;
+VIEW(Rec20 *, stree_save);
+#define stree_save stree_save_view
+VIEW(PVtx *, stree_svert);
+#define stree_svert stree_svert_view
 
 void MoveCollisionObject(s32 id, f32 *off) {
     s32 ipos[4];

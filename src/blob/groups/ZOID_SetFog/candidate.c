@@ -1,14 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* ZOID_SetFog (0x800A7480, 136 bytes). Genuine donor pointer return,
- * unsigned color/index types and RGB narrowing before the opaque-alpha OR.
- * No pointer laundering or allocation-only locals. */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef short s16;
-typedef signed char s8;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Descriptor72 {
     void *first, *bounds;
     s32 orthographic;
@@ -17,12 +8,10 @@ typedef struct Descriptor72 {
     s16 range_start; u16 range_end;
     u8 red, green, blue, alpha;
 } Descriptor72;
-extern Descriptor72 ZoidWinInfo[];
-extern u32 gBgColor;
+VIEW(Descriptor72[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
 
 #define GPACK_RGBA5551(r, g, b, a) ((((r) << 8) & 0xf800) | (((g) << 3) & 0x7c0) | (((b) >> 2) & 0x3e) | ((a) & 1))
-
-void ZOID_SetBGColor(u16 color);
 
 Descriptor72 *ZOID_SetFog(s16 range_start, s16 range_end, u8 red, u8 green, u8 blue, u8 alpha, u32 index)
 {

@@ -1,31 +1,16 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * SendCmd unit (sound command queue; N64-only, no arcade ancestor found).
- * Free list gFreeQ, active list gCmdQ, 24-byte sound entries gSfxInstances indexed by handle & 255.
- * SendCmd is internal (IPA: node in s4, s0-s3 left to the callers); FindChangeCmd (locked single,
- * byte-identical copy in FindChangeCmd.c) is internal too (its callers keep a2 live across the call).
- * Deleted inlined helpers, non-static and named after their retail stubs so each stub lands in its own slot
- * : sfx_cmd_list_add = list_append, GetSfxInstance = entry_alloc (stub identity among the three stubs
- * SendCmd is a HYPOTHESIS: the stubs are identical `jr ra; nop`), NewCmd = node_alloc (the stub
- * right before AudioSetMono, its first caller). FreeSfxInstance stays the locked empty stub (unclaimed).
- * DISCLOSED SHAPING DEVICES:
- * 1. SendCmd: compiled-out `if (node->kind == 2) {}` first in the then-arm: gives the constant
- *     2 a second, codeless use so it is a coloured web (retail `li a0,2`).
- * 2. node_alloc (NewCmd): compiled-out `do {} while (0);` after the head load, e.g. a compiled-out
- *     ASSERT(node). It ends the basic block before the unlink call; the &gFreeQ web then spans two blocks and
- *     a0 (precoloured for the call's argument in the second block) is forbidden to it, so it takes a2 as in retail
- *     AudioSetMono (`lui a2; addiu a0,a2,...`). Inert for the other five node_alloc callers.
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- */
-typedef signed char s8;typedef unsigned char u8;typedef signed int s32;typedef unsigned int u32;typedef float f32;
+#include "game/game.h"
+
 typedef struct Entry {s8 flags[6];u8 pad6[2];s32 handle;s32 resource;u32 state16;s32 state20;} Entry;
 typedef struct Node {struct Node *prev,*next;u8 kind,busy;u8 pad10[2];Entry *entry;f32 value,stream,priority,route;} Node;
 typedef struct List {u32 pad0[2];Node *tail,*head;} List;
-extern List gFreeQ,gCmdQ;
-extern Entry *gSfxInstances;
-extern u32 gNumInstances,gNextIndex;
-void RemoveLLE(List *,Node *);
-void InsertLLE(List *,Node *,Node *);
+VIEW(List, gFreeQ);
+#define gFreeQ gFreeQ_view
+VIEW(List, gCmdQ);
+#define gCmdQ gCmdQ_view
+
+VIEW(u32, gNumInstances);
+#define gNumInstances gNumInstances_view
+
 Node *FindChangeCmd(Entry *key);
 /* PC: an effect start that finds no free entry (AudioSfxInit's, gNumInstances of them) is counted (--log-voices,
  * port/config/voices.c, docs/port/AUDIO.md 10). */

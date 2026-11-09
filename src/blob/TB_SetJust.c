@@ -1,10 +1,6 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct { u32 first,second; } Pair;
-extern Pair gJust;
+VIEW(Pair, gJust);
+#define gJust gJust_view
 void TB_SetJust(u32 first,u32 second) {Pair *p=&gJust;p->first=first;p->second=second;}

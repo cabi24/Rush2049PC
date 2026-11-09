@@ -1,21 +1,11 @@
-/* N64 _StartGameMusic and its two actual public wrappers.
- * MAT3 audio.c supplies the one song local, conditional track-table selection
- * and genuine music-volume/Random calls. The N64 twelve-song limit, retry for
- * song five, nonempty resume wrapper and queued audio backend remain native.
- * MAT3 source status is reported 100% fuzzy, not a fresh strict acceptance.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; u8 remaining[25]; } AudioCfg;
-extern AudioCfg gOptions;
-extern s32 sTrackSongs[19];
-extern s8 gTrackNum;
-extern void AudPlaySong(s32, s32);
-f32 Random(f32);
-void AudSetMusicVol(f32,f32);
-void StartGameMusicInternal(s32);
+VIEW(AudioCfg, gOptions);
+#define gOptions gOptions_view
+VIEW(s32[19], sTrackSongs);
+#define sTrackSongs sTrackSongs_view
+
 void StartGameMusicInternal(s32 resume)
 {
  s32 song;

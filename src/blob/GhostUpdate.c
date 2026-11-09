@@ -1,11 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct ReplayStream {
     u8 pad0[5];
@@ -21,23 +14,7 @@ typedef struct ReplayStream {
 typedef struct ReplayOwner { void *ll; void **fileh; u8 pad10[0x24 - 0x08]; void **datah; ReplayStream **stream; } ReplayOwner;
 #define DATA(s) ((u8 *)PC_N64P((s)->data))
 typedef struct ReplaySlot { ReplayOwner *owner; } ReplaySlot;
-typedef struct Model {
-    u8 pad0[0x720];
-    volatile f32 steer;
-    u8 pad724[4];
-    f32 brake;
-    f32 gas;
-    s8 gear;
-    s8 flagB;
-    s8 flagA;
-    u8 pad733[0x808 - 0x733];
-} Model;
-typedef struct Car { u8 pad0[239]; s8 locked; u8 pad1[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad1_308[0x380 - 0x308]; void *input; u8 pad1_384[0x3B8 - 0x384]; } Car;
 
-extern f32 gRetraceTime;
-extern volatile s8 gEndingGhosts;
-extern ReplaySlot *gGhosts[];
-extern s32 gModelIteration;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 

@@ -1,17 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* StartWeaponIcon = _StartWeaponIcon (MAT3 targets.c, GC 0x8004DC94, size 0x428). */
-/* PC (compiled into the PC build, CMakeLists.txt): the weapon icons' start function in the target info table
- * targetInfo (its +0x08 slot, PC +0x10; docs/port/POINTERS.md 10). SetTargetDef calls it with the node when
- * the record's flag 4 or 0x4000 is set (the second without a NULL check), and CheckTargetCollision calls it when a car hits
- * the icon, with flag 4 set and the car in t->slot. No direct callers. The node keeps its N64 layout (arena); the
- * car and the info record have their PC layouts below, the model (arena) its N64 one. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Defense {
     u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
@@ -75,17 +62,13 @@ typedef struct Target {
     s8 slot;              /* 0x5c */
 } Target;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern TargetInfo targetInfo[]; /* targetInfo */
-/* PC: the eight weapons' counts. Without a size the loader would take its extent from the gap to the next known
- * address and swap the 48 bytes after it as words too. */
-extern s32 ammoCnts[8];       /* ammoCnts */
-extern CollSize collsize[];   /* collsize */
-/* PC: the definitions' prototypes. */
-s32 PlayTargetSound(s32 sound, s32 slot, f32 *position, u8 mode);
-void MBOX_HideObject(s32 a, s32 mode, u32 v);
-void IncBattlePowerUps(void);
+VIEW(TargetInfo[], targetInfo);
+#define targetInfo targetInfo_view
+VIEW(s32[8], ammoCnts);
+#define ammoCnts ammoCnts_view
+VIEW(CollSize[], collsize);
+#define collsize collsize_view
+
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 

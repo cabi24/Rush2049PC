@@ -1,30 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* : cheatscr.c of runtime image A. Direct typed port of reference/repos/mat3
- * decomp/src/GameSource/src/cheatscr.c (cross-checked with reference/repos/dreamcast src/cheatscr.c):
- *   updateCheatScreen = updateCheatScreen (GC 0x800675B4, 0x5CC B);
- *   cheatscr_initScreen = initScreen (GC 0x80067B80) and cheatscr_uninitScreen = uninitScreen (GC 0x80067CE0), both inlined
- *   into updateCheatScreen by umerge; their deleted bodies are the caller-less `jr ra; nop` stubs (non-static, off
- *   the keep list, so each stub keeps its symbol; names follow this group's emission order, uninitScreen first).
- * InitEgg@eggs.c (GC 0x80012704) is inlined too; it lives in eggs.c of (its retail stub is one of the
- * eggs.c stubs startscr_uninitButtons/startscr_uninitScreen, not claimed). CheckForEgg is the locked CheckForEgg.
- * N64 names: gCheatState gCheatState (s16[21]), gCheatActive gCheatActive, gSelectedOption cheatscr_gSelectedOption,
- * gCheatMenuExit gCheatMenuExit, blit cheatscr_blit, inited cheatscr_inited, multiblit cheatscr_multiblit, gActiveEdges gActiveEdges,
- * gActiveAutoEdges gActiveAutoEdges, gSoftReset gSoftReset; cheat flags (s8): gNoCarCollisions gNoCarCollisions, gMineCones
- * gMineCones, gCarMines gCarMines, gNoAutoAbort gNoAutoAbort, gSuperSpeed gSuperSpeed, gInvincible gInvincible,
- * gInvisibleCar gInvisibleCar, gInvisibleTrack gInvisibleTrack, gNoBrakes gNoBrakes, gSpecialTires gSpecialTires,
- * gMassiveMass gMassiveMass, gSuicideMode gSuicideMode, gResurrectInPlace gResurrectInPlace, gFrameScale gFrameScale,
- * gEnableTireScaling gEnableTireScaling, gFogColor gFogColor. AudPlayEffect AudPlayEffect, PlayLRSound PlayLRSound,
- * createBG particle_lifetime_set, NewMultiBlit NewMultiBlit, RemoveBlit RemoveBlit, removeBG removeBG,
- * setGameState setGameState.
- * N64 differences read from the retail words: 21 cheats, not 23 (GC 14 gDemolitionBattle and 15 gRandomWeapons are
- * gone: N64 13..16 are state-only toggles, 17..20 = GC 19..22); sound ids 46/38/40/39; InitEgg stores gNextTimeOut
- * before gEggIdx.
- * Shaping, measured: (1) gActiveEdges is `s32` here (with MAT3's unsigned int the edges/dir/option webs rotate
- * through a0/a1/a2: 114 words); (2) initScreen/uninitScreen are defined after updateCheatScreen (MAT3 file order);
- * defined before it, as1 swaps two address words at the join after the init block.
- * Own data: the 21-entry switch table (.rodata), verified locally against build/ovl/a/image.bin (base 0x803B95BC). */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Blit Blit;
 typedef struct MultiBlit {
     const char *texname;
@@ -33,41 +8,24 @@ typedef struct MultiBlit {
     s32 (*animfunc)(Blit *);
     u32 animid;
 } MultiBlit;
-typedef struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; } Egg;
-extern s8 cheatscr_inited;           /* inited */
-extern Blit *cheatscr_blit;        /* blit */
-extern s32 cheatscr_gSelectedOption;          /* gSelectedOption */
-extern s32 gCheatMenuExit;
-extern const MultiBlit cheatscr_multiblit[];
-extern s16 gCheatState[];        /* gCheatState */
-extern s8 gCheatActive[];         /* gCheatActive */
-extern Egg gEggs[];        /* gEggs */
-extern Egg *gEgg;
-extern f32 gNextTimeOut;
-extern s32 gEggIdx;
-extern s32 gActiveEdges;
-extern u32 gActiveAutoEdges;
-extern s8 gSoftReset;
-extern s8 gNoCarCollisions, gMineCones, gCarMines, gNoAutoAbort, gSuperSpeed, gInvincible, gInvisibleCar, gInvisibleTrack;
-extern s8 gNoBrakes, gSpecialTires, gMassiveMass, gSuicideMode, gResurrectInPlace, gFrameScale, gEnableTireScaling, gFogColor;
-extern u32 AudPlayEffect(u32, u32, u32, u8);
-extern void PlayLRSound(s32);
+
+VIEW(const MultiBlit[], cheatscr_multiblit);
+#define cheatscr_multiblit cheatscr_multiblit_view
+VIEW(s16[], gCheatState);
+#define gCheatState gCheatState_view
+
+VIEW(u32, gActiveAutoEdges);
+#define gActiveAutoEdges gActiveAutoEdges_view
+
 extern void particle_lifetime_set(void);
 extern Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 extern void RemoveBlit(Blit *);
-extern void removeBG(void);
-extern void setGameState(s32);
-extern s32 CheckForEgg(void);
+
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
    cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT
    switch it and draw it bright take it as set. The flags aren't written; off, the N64's. */
 int pc_cheat_active(int active);
 #define PC_CHEAT_ACTIVE(a) pc_cheat_active(a)
-
-extern void InitEgg(s32 egg);
-void cheatscr_initScreen(void);
-void cheatscr_uninitScreen(void);
-
 
 void updateCheatScreen(void)
 {
@@ -270,24 +228,6 @@ void cheatscr_uninitScreen(void)
  * Shaping, measured: the value index is written `(u32)tab2a[...] + gCheatState[cheat] + 1` (the unsigned label
  * offset first, as found): MAT3's `state + 1 + tab2a[.]`
  * emits 190 instructions (the label*4 is not shared between the two branches). */
-
-typedef struct TextTables {
-    u16 numSingle; u8 **single;
-    u16 numTab, numTabA; u16 *tab; u8 **taba;
-    u16 numTab2, numTab2a, numTab2b; u16 *tab2; u16 *tab2a; u8 **tab2b;
-} TextTables;
-extern TextTables gText;
-extern char cheatscr_number_format[];       /* "%d" */
-extern void HAL_SetTextDepth(f32);
-extern void *HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern s16 TB_CenterText(void *, s16);
-extern s16 TB_RightText(void *, s16);
-extern u8 HAL_GetFontAscent(void);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_DrawText(s16, s16, void *);
-extern void TB_Sprintf(u8 *, const char *, ...);
-void cheatscr_printOption(s32 x, s32 y, s32 item, u8 *name, u8 *value);
 
 s32 cheatscr_animText(Blit *blit)
 {

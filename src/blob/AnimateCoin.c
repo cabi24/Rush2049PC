@@ -1,31 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AnimateCoin @ 0x8010E0FC, 1,000 bytes -- strict MATCH (from 65/250 best.c).
- * Gold/silver coin object update (string names COIN_GLOWG1 / GOLDCOIN / SILVERCOIN at 0x80121DB0..,
- * colours 0xFFC800FF / 0xC8E6FFFF from coin_gold_glow_color/18). update == 0: ReleaseEnviron and return.
- * Flag 0x80: release the coin and entity records and return. First update (flag 1 clear): number the
- * coin from the gold (flag 0x40, +8) or silver counter, look up its models with MBOX_FindObject_WORK
- * (= MBOX_FindObject), create the scene record with ZOID_AddObject, colour it, then for every player
- * either mark the coin missing (IsCoinFound collected-bit test) or make it visible to that player
- * (MBOX_HideObject); when every player already has it, release it like flag 0x80. Every frame: spin
- * the matrix by spin * dt (RotateUV). Names are historical labels.
- * Shaping (each measured with the traced uopt):
- *  - resource_set_object / resource_set_color are inlined static setters (index into v1); the colour
- *    setter takes the colour by pointer (`u32 gold[1]` passed as an array): a by-value colour parameter
- *    becomes a register web (a0) and renumbers the temp ring (65 -> 27 words);
- *  - the compiled-out check `if (entity) {}` after the spin call extends entity's live range by one
- *    block (save 28/9 -> 29/10 < alone's 12/4), so `alone` and the ObjInstanceList base take s3 and entity
- *    s4 as in retail (27 -> 0);
- *  - the colours live in memory (u32 gold[1], silver[1]) and pad[29] is frame filler below the named
- * locals (retail frame), as found.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef f32 Mat3[3][3];
 typedef struct Coin {
     s32 model;          /* 0 */
@@ -59,37 +33,24 @@ typedef struct EntityHdr { s16 handle; u8 pad2[2]; } EntityHdr;
 typedef struct Node { void *next; u8 pad8[8]; enum n64p_Entity entity; } Node;
 #define N64P(x) _Generic((x), enum n64p_Coin: (Coin *)PC_N64P(x), enum n64p_Entity: (Entity *)PC_N64P(x), \
     default: (x))
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Resource { u32 flags, w4; void *obj; f32 scale, w; s16 object; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad64[4]; } Resource;
+
 typedef struct Player { u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x35C - 0x308]; s8 slot; u8 pad861[0x380 - 0x35D]; void *input; u8 pad861_384[0x3B8 - 0x384]; } Player;
 /* PC: a player's view bit; a slot of -1 shifts by a negative count, undefined in C. The N64's sllv, x86-64's shl and
  * aarch64's lsl all take the count's low 5 bits, so this does (docs/port/SANITIZE.md). */
 #define SLOT_BIT(s) 1 << ((s) & 31)
-extern s32 gPauseState;
-extern u32 coin_gold_glow_color, coin_silver_glow_color;
-/* PC: the gold and silver colours are R,G,B,A bytes in the ROM, which the loader swaps as the words they are declared;
- * PC_RGBA gives back the word a scene node's colour (read as bytes) must hold (docs/port/ENDIAN.md). */
-extern s32 gWhichGoldCoin, gWhichSilverCoin;
-extern u8 gNumModels;
-extern s16 gNumPlayers;
-extern char coin_glow_object_name[], gold_coin_object_name[], silver_coin_object_name[];
-extern Mat3 unitmatrix;
-extern Resource ObjInstanceList[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern volatile f32 gFrameSeconds;
-extern s32 gTargetList;
-extern void ReleaseEnviron(Node *, s32);
-extern void RemoveObjectTree(s16, s32, s32);
-extern void FreeStatLLE(void *, void *);
-extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
-extern s32 ZOID_AddObject(s32, void *, s16, s32);
-extern void CopyUV(void *, void *);
-extern u32 IsCoinFound(s32, s32);
-extern void MBOX_HideObject(s32, s32, u32);
-extern void RotateUV(void *, void *);
-void ZOID_SetObjectDef(s16 index, s16 object);
 
-void ZOID_SetColor(s16 index, u32 *color);
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(Mat3, unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(s32, gTargetList);
+#define gTargetList gTargetList_view
+
+extern s32 ZOID_AddObject(s32, void *, s16, s32);
 
 void AnimateCoin(Node *node, s16 update)
 {

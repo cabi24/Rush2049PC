@@ -1,35 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ShowHUD (0x800F0100, 1,396 B; historical label) = MAT3 ShowHUD@hud.c (GC 0x8001C980, 904 B;
- * reference/repos/mat3/decomp/src/GameSource/src/hud.c). Creates the HUD blit sets on first call (clears the
- * per-player checkpoint/lap/elapsed timers and coin records, then NewMultiBlit = NewMultiBlit: overlay set for
- * attract/credits, 2/3-player divider sets, ShowHUDExtra (image B 0x803925D0) for battle/stunt or the race set,
- * then the HUD set), and in attract mode with credits on cycles the credit panes (SetCountdownTimer =
- * SetCountdownTimer, GetCountdownTimeRemaining, Random = Random inlined, HAL_SetFont,
- * HAL_GetTextWidth, RemovePanes, InitPane).
- * N64 constants differ from the GC (race/HUD blit counts 89/8, credit delay /13, bottom row 145; the 2/3-player
- * sets only when expansion_pak_present || gTrackNum >= 6).
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * function-local statics delay/nextSwitch, credit-name for-loop, x-before-y corner order), unchanged except
- * one lever: HAL_SetFont is inlined (as in retail: osRecvMesg + HAL_SetFontInternal(s2=11) + osSendMesg)
- * through non-static copies HAL_SetFont_ShowHUD/_GetSemaphore_ShowHUD/_ReleaseSemaphore_ShowHUD defined after the
- * caller (not on keep, the locked HAL_SetFont is kept and stays a jal in the unit, 335/349 words off).
- * Shaping (disclosed): _ReleaseSemaphore_ShowHUD and HAL_SetFont_ShowHUD are written on ONE source line. as1 breaks
- * ready-list ties by source line; in the group compile the inlined bodies keep their own .loc lines, and retail's
- * order (addiu a0 / move s0,v0 / move a1 before osSendMesg) needs the osSendMesg and `old = HAL_SetFontInternal()`
- * statements on the same line (the whole-program unit gives every inlined instruction the call-site line, where
- * the placement does not matter: unit EQUAL either way; group 2 words swapped otherwise).
- * gSeconds is `extern volatile float` as in MAT3 rush_protos.h (gSeconds).
- * The block-local loop index `i` is a reconstruction (absent from the DWARF local list of ShowHUD).
- * MATCH: whole-program unit EQUAL (the whole-program unit --tag); group showhud (the scorer) MATCH.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct Blit Voice;
 typedef struct Pane Pane;
@@ -47,41 +16,42 @@ typedef struct ModelTables {
     u16 count3,count4,count5; u16 *data3,*data4; char **ptrs5;
 } ModelTables;
 
-extern Voice *HudBlit1;
-extern Voice *HudBlit2;
-extern Voice *multiPlayerBlit;
-extern RecordRow gPlayerCoin[];
-extern f32 gCheckPtTimeout[4], gLapTime[4], gElapsedTime[4];
-extern u32 gGameState;
-extern s8 expansion_pak_present;
-extern s8 gTrackNum;
-extern s16 gNumWindows;
-extern s32 gRace;
-extern MultiBlit OverlayMultiBlit[], TwoPlayerMultiBlit[], ThreePlayerMultiBlit[], RaceMultiBlit[], HudMultiBlit[];
-extern s16 markers_valid;
-extern s32 gShowCredits;
-extern s32 gCredit;
-extern volatile f32 gSeconds;
-extern s32 gCorner;
-extern s32 gCreditWidth;
-extern s32 gNumCreditNames;
-extern char *cStrCreditNames[][11];
-extern ModelTables gText;
+VIEW(Voice *, HudBlit1);
+#define HudBlit1 HudBlit1_view
+VIEW(Voice *, HudBlit2);
+#define HudBlit2 HudBlit2_view
+VIEW(Voice *, multiPlayerBlit);
+#define multiPlayerBlit multiPlayerBlit_view
+VIEW(RecordRow[], gPlayerCoin);
+#define gPlayerCoin gPlayerCoin_view
+VIEW(f32[4], gCheckPtTimeout);
+#define gCheckPtTimeout gCheckPtTimeout_view
+VIEW(f32[4], gLapTime);
+#define gLapTime gLapTime_view
+VIEW(f32[4], gElapsedTime);
+#define gElapsedTime gElapsedTime_view
+
+VIEW(MultiBlit[], OverlayMultiBlit);
+#define OverlayMultiBlit OverlayMultiBlit_view
+VIEW(MultiBlit[], TwoPlayerMultiBlit);
+#define TwoPlayerMultiBlit TwoPlayerMultiBlit_view
+VIEW(MultiBlit[], ThreePlayerMultiBlit);
+#define ThreePlayerMultiBlit ThreePlayerMultiBlit_view
+VIEW(MultiBlit[], RaceMultiBlit);
+#define RaceMultiBlit RaceMultiBlit_view
+VIEW(MultiBlit[], HudMultiBlit);
+#define HudMultiBlit HudMultiBlit_view
+
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
+
+VIEW(char *[][11], cStrCreditNames);
+#define cStrCreditNames cStrCreditNames_view
+VIEW(ModelTables, gText);
+#define gText gText_view
 
 Voice *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 Pane *InitPane(s32,s32,s32,s32,s32,PaneAnimation,u32,s32);
-void RemovePanes(s32 arg0);
-void SetCountdownTimer(f32);
-f32 GetCountdownTimeRemaining(void);
-void ShowHUDExtra(void);
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-extern OSMesgQueue text_lock_queue;
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 fontID);
-extern u32 HAL_GetTextWidth(void *, s16);
-
-extern f32 Random(f32);
 
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
  * set (RaceMultiBlit, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
@@ -95,8 +65,6 @@ extern f32 Random(f32);
 #define PC_HUD_RACE_MAX (PC_HUD_RACE_ROM + PC_HUD_RACE_RUNS * (PC_MAX_LINKS - 8))
 static MultiBlit pc_hud_race[PC_HUD_RACE_MAX];
 static s16 pc_hud_race_count;
-s32 animDot(Voice *);   /* AnimateDot */
-s32 animRadarBlip(Voice *);   /* AnimateTraffic */
 
 static void pc_hud_race_build(void)
 {
@@ -136,7 +104,6 @@ static s16 pc_hud_race_n(void)
 #define PC_HUD_RACE_SET pc_hud_race_set()
 #define PC_HUD_RACE_N pc_hud_race_n()
 
-s32 HAL_SetFont(s32 fontID);
 void ShowHUD(void) {
     s32 created = 0;
     s32 x;

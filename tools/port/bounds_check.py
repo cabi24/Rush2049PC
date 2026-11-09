@@ -558,7 +558,8 @@ def main():
         if not r:
             continue
         for (sym, source), e in sorted(findings(r).items()):
-            key = (r["src"], sym, source)
+            # a file's view of a datum is the datum (`gCamera_view`: VIEW, include/game/view.h)
+            key = (r["src"], re.sub(r"_view$", "", sym), source)
             seen.add(key)
             sev = ",".join(sorted(e["sev"]))
             decl = r["decl"].get(sym, ("?", None))

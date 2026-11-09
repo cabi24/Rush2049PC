@@ -1,20 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Runtime image B: 0x8038D054..0x8038D1A8, allocate a four-position effect.
- * Inherited exact body;
- * adds no new matching credit and changes no executable source.
- * Native reconstruction; no original names or whole-function arcade donor.
- * Valid C domain: mode 0..3, three accessible source floats, and a returned
- * allocation with this 64-byte target prefix. Other modes leave offset
- * uninitialized in native code and are not claimed valid C inputs.
- * The real FCE0 caller supplies the same position pointer in a1/a2; the third
- * formal is genuinely homed but unused. The accepted pool allocator returns
- * its removed free-list node in v0. No invented helper or extra pressure.
- * All position loads are kept in source order, including possible overlap
- * with the allocation. Pool ownership and wider gameplay remain external.
- */
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Effect {
     struct Effect *next;
     u32 unknown04;
@@ -23,8 +8,9 @@ typedef struct Effect {
     f32 origin[3], previous[3], lower[3], upper[3];
 } Effect;
 typedef struct Pool Pool;
-extern Pool gStreakList;
-extern Effect *GetStatLLE(Pool *);
+VIEW(Pool, gStreakList);
+#define gStreakList gStreakList_view
+
 Effect *NewStreak(s32 mode, f32 *position, f32 *unused_position)
 {
     Effect *effect;

@@ -1,18 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * GetTargetVelocity: velocity of the scripted camera path that drives scene `id`.
- * Walks the cameras registered by StartPathTarget (CollisionTargetPtrs[0..numCollisionTargetPtrs-1], scenes
- * with flag 0x20); for the first whose scene id matches, writes the current key's direction
- * vector (keys[ctl->idx].dir) scaled by the controller's rate ctl->f10, negated while the
- * controller runs backwards (mode bit 8).  Writes zero when no camera matches.
- * Types follow the camera structures of src/blob/groups/targetpaths.  No arcade ancestor
- * identified.  Plain C, no shaping quirks; also matches at -O2.
- */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned char u8;
-typedef float f32;
+#include "game/game.h"
 
 typedef struct CamKey {          /* 0x44 bytes */
     f32 pos[3];                  /* 0x00 */
@@ -53,7 +39,6 @@ typedef struct Camera {
 #define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
 
 extern Camera *CollisionTargetPtrs[];
-extern s32 numCollisionTargetPtrs;
 
 void GetTargetVelocity(s32 id, f32 *out) {
     s32 i;

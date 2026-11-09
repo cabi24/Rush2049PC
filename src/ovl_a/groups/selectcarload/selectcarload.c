@@ -1,27 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision of runtime_a_joint_transforms: UpdateSelectCar UpdateSelectCar
- * (MAT3 selectcarload.c, GC 0x8003bf00; N64 nine-argument form with r, g, b) becomes a claimed member, with the
- * deleted-inline stub of its helper CreateSelectCar = CreateSelectCar (MAT3 static, inlined at its one call site;
- * written non-static and not kept so its deleted procedure is emitted under that name). Member SetSelectTireSizes
- * (SetSelectTireSizes) is the installed text, unchanged.
- * Frame (retail 232 = save area 88 + merged locals area 116 + six temp homes 92..112, rounded to 8):
- *   - the inlined CreateSelectCar has one 4-byte local (`car`, used). umerge starts each inlined area on an
- *     8-byte boundary but does not round the last one, so its 8-byte call reserve plus that local make the merged
- *     area 4 mod 8 (116); with no callee local the area is 112 or 120 and every temp home is 4 bytes off (33 words).
- *   - DISCLOSED: eleven unused s32 locals in UpdateSelectCar, x0 (between cam and alphaCol: retail alphaCol is at
- * sp+184, cam at sp+192) and u0.u9 below wheelTex. They are the exact frame residual (measured,
- *     90DCC/fr): none -> frame 184, x0 only -> 192, x0 + u0..u8 -> 224 (59 words each), x0 + u0..u9 -> 232 = retail;
- *     without x0 alphaCol moves to sp+188 (3 words). Retail's locals area holds these 44 bytes untouched by any
- *     instruction; their identity is unknown.
- * - CreateSelectCar's cam parameter is s32 (stops the cam-load CSE web across the calls).
- * alphaCol keeps MAT3's aggregate initializer {255, 255, 255, 255}: its 4-byte image is this function's own data,
- * retail 0x803B65B4 = FF FF FF FF (the installed context read it as the extern selectcarload_alphaCol; same code).
- * Every old member is unchanged and still strict MATCH. */
-/* (installed) A:80390A28 local group candidate, 100/100 words, 400 bytes. */
-typedef signed char s8;typedef unsigned char u8;
-typedef short s16;typedef unsigned short u16;
-typedef int s32;typedef unsigned int u32;typedef float f32;
-typedef union Color {u32 word;u8 channel[4];} Color;
+#include "game/game.h"
+
 typedef union tRGBA {u8 c[4];u32 rgba;} tRGBA;      /* MAT3 rush_types.h */
 typedef struct ModelState {
     s32 handle,parts[5];
@@ -40,39 +18,24 @@ typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 typedef struct ModelDescription {u8 unaccessed[112];f32 joint_position[4][3];} ModelDescription;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjectFlags { u32 flags, word4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjectFlags;
-extern ModelState gCarParts[];
-extern LoadState gSelectCar[];
-extern ModelDescription *gCarModels[13];
-extern f32 gFrontTireScale[][13],gRearTireScale[][13];
-extern s8 D_80111589[][13];
-extern s8 gTireRims[5][13];      /* gTireRims */
-extern intptr_t gWheelTextures[];
-extern f32 unitmatrix[3][3],FSCLS_from_one[];
-/* FSCLS (MAT3 camera.c: the car's y stretch by frame scale) and after it, up to trackSpots, the tracks' respawn
- * records init_camera_on_track reads ({s8 flag; f32 pos[3]}, 16 bytes; trackSpots points at each track's: MAT3's
- * track1Spots..track6Spots). The loader has one symbol for all of it and converts its data by this declaration: as
- * f32[] each flag byte was swapped as part of an f32 and read as 0 (docs/port/DATA.md 8). */
-typedef struct PcRespawn { s8 flag; u8 pad1[3]; f32 pos[3]; } PcRespawn;
-extern struct PcFscls { f32 fscls[3]; PcRespawn respawn[30]; } FSCLS;
-extern s16 gNumWindows,gCarModelNums[];
-extern s8 gFrameScale,expansion_pak_present,gTrackNum;
-extern Color selectcarload_alphaCol;
-extern ObjectFlags ObjInstanceList[];
+VIEW(ModelState[], gCarParts);
+#define gCarParts gCarParts_view
+VIEW(LoadState[], gSelectCar);
+#define gSelectCar gSelectCar_view
+VIEW(ModelDescription *[13], gCarModels);
+#define gCarModels gCarModels_view
+
+VIEW(s8[5][13], gTireRims);
+#define gTireRims gTireRims_view
+VIEW(intptr_t[], gWheelTextures);
+#define gWheelTextures gWheelTextures_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(ObjectFlags[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
 extern intptr_t ZOID_FindMatrix(s16);
-extern void ScaleUV(f32 (*)[3],f32 (*)[3],f32);
-extern void CopyUV(void *,void *);
-extern void MBOX_HideObject(s32,s32,u32);
-extern void MBOX_ShowObject(s32,s32,u32);
-extern s32 WaveInstanceReady(s32);
-extern void UnloadSelectCar(s16);
-extern s32 LoadSelectCar(s16,s16,s32 *);
-extern void ZOID_RemoveObjectTree(s16,s32);
-extern void InitCarDynamicObjs(s16,s16,s16);
-extern void CreateCar(s16,s16,s32);
-extern void SetSheen(s16,s16,s16);
-extern void SetupCarColor(s16,s16,u8,u8,u8);
-extern void SetFrameColor(s16,s32 *);
-extern void ZOID_UpdateObject(s16,void *,void *);
+
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 
 void SetSelectTireSizes(s16 id,s16 player)

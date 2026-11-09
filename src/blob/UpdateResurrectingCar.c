@@ -1,41 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Historical label UpdateResurrectingCar is misleading: this is the N64 port
- * of arcade update_resurrecting_car() (reference/repos/rushtherock/game/
- * resurrect.c:1303), "move a resurrecting car the next step closer to its
- * destination". Proven by structure and constants: magnitude/8 clamped to 100,
- * the three interpolate() calls (Interpolate is arcade interpolate), the
- * 2*t*t/T ease, 1 - 2*scale/T velocity damping with the .01 cut-off,
- * moving_state++ / = -2.
- * N64 differences: RESURRECT_TIME is the float global resurrectTime; the state
- * time is float (m->time - resurrect_time) with no S16 copy; the hand-of-god
- * lift is added to Y (save_pos[node][1] += temp); the HULK-bit clear is a
- * guarded `if (appearance & 0x10)` in both arms; vecsub and the final RWR copy
- * are written out; uvs are copied with CopyUV and make_super_speed(m)
- * (arcade makesuvs position) runs when gSuperSpeed is set.
- * Callees by behaviour: vector_magnitude = magnitude, MakeUvsFromQuat =
- * make_uvs_from_quat, CopyUV = nine-float copy.
- *
- * Quirks the match depends on:
- *  - arcade declaration list order (pos, pos2, f32_state, temp, scale, uvs,
- *    quat; S16 i, node = m->net_node; unused `gc` pointer) gives the 160-byte
- *    frame and every home;
- *  - literal spelling: the first interpolate() passes 0.0f (retail `li a3,0`),
- *    the two in the first-half branch pass 0.0 (retail `mtc1 zero,f14; mfc1
- *    a3,f14`, sharing the zero with `RWV[i] = 0`); `/ 8`, `> 100`, `/ 2`,
- *    `2 *`, `1 -` are int literals as in the arcade.
- * .01f is this function's own literal (retail .rodata 0x80124128 =
- * 0x3C23D70A): the unpatched scorer reports its two references as unverified.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct MODELDAT {
     char pad0[0x220];
     f32 RWV[3];                 /* 0x220 */
     f32 RWR[3];                 /* 0x22C */
@@ -64,23 +29,9 @@ typedef struct {
     s8 hide_car;                /* 0x7DF */
 } MODELDAT;
 
-typedef struct {
-    char pad0[7];
-    u8 state;
-} NodeInfo;
-
-extern f32 resurrectTime;
 /* On the PC the resurrect's midpoints are pc_resurrect_mid, PC_MAX_LINKS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 6). */
 #define resurrect_save_pos pc_resurrect_mid
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gSuperSpeed;
-
-f32 vector_magnitude(f32 *v);
-void Interpolate(f32 *a, f32 *b, s16 n, f32 lo, f32 hi, f32 t, f32 *out);
-void MakeUvsFromQuat(f32 *quat, f32 uvs[3][3]);
-void CopyUV(f32 *src, f32 *dst);
-void make_super_speed(MODELDAT *m);
 
 #define ABS(x) (((x) < 0) ? -(x) : (x))
 extern f32 fabsf(f32);

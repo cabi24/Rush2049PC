@@ -6577,3 +6577,7 @@ func	func_80090F44	PitchUV
 func	func_8009EA68	RollUV
 func	func_800A5A40	ZOID_ResetWindows
 func	func_800CD104	CreatePlayer
+type	D_8012E6E0_Node	PlayerFileNode
+type	D_80143FD8_Record	TargetListNode
+type	D_80146108_Record	CircuitOptions
+type	D_8014A160_Target	SavedPlayerSlot

@@ -8,6 +8,8 @@
  * tools/zlib-1.0.4/README for the licence.
  */
 
+#include "game/game.h"
+
 /* zlib name -> game label */
 #define _tr_stored_block    tr_stored_block
 #define _tr_flush_block     tr_flush_block
@@ -39,8 +41,7 @@ typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
 typedef Byte  FAR Bytef;
 typedef char  FAR charf;
 typedef int   FAR intf;
-typedef uInt  FAR uIntf;
-typedef uLong FAR uLongf;
+
 typedef void  FAR *voidpf;
 typedef unsigned char  uch;
 typedef uch FAR uchf;
@@ -79,17 +80,6 @@ typedef z_stream FAR *z_streamp;
 #define BL_CODES  19
 #define HEAP_SIZE (2*L_CODES+1)
 #define MAX_BITS 15
-
-typedef struct ct_data_s {
-    union {
-        ush  freq;
-        ush  code;
-    } fc;
-    union {
-        ush  dad;
-        ush  len;
-    } dl;
-} FAR ct_data;
 
 #define Freq fc.freq
 #define Code fc.code
@@ -182,13 +172,6 @@ typedef enum {
     finish_done
 } block_state;
 
-typedef struct config_s {
-   ush good_length;
-   ush max_lazy;
-   ush nice_length;
-   ush max_chain;
-} config;
-
 void _tr_init         OF((deflate_state *s));
 int  _tr_tally        OF((deflate_state *s, unsigned dist, unsigned lc));
 ulg  _tr_flush_block  OF((deflate_state *s, charf *buf, ulg stored_len, int eof));
@@ -229,35 +212,33 @@ local void copy_block     OF((deflate_state *s, charf *buf, unsigned len, int he
 /* repeat a zero length 11-138 times  (7 bits of repeat count) */
 
 
-/* zlib's tables at their game addresses. Derived from the relocation sites of
- * the compiled members against the target words; the .data ones sit in
- * exactly zlib 1.0.4's source order (extra_lbits, extra_dbits, extra_blbits,
- * bl_order, static_l/d/bl_desc, then tr_static_init's static_init_done). */
-extern int extra_lbits[LENGTH_CODES];
-extern int extra_dbits[D_CODES];
-extern int extra_blbits[BL_CODES];
+VIEW(int[LENGTH_CODES], extra_lbits);
+#define extra_lbits extra_lbits_view
+VIEW(int[D_CODES], extra_dbits);
+#define extra_dbits extra_dbits_view
+VIEW(int[BL_CODES], extra_blbits);
+#define extra_blbits extra_blbits_view
 /* PC: only static_bl_desc's extra_bits reaches extra_blbits, so no code names it, and the data loader left it in the
  * ROM's byte order (the bit-length tree's extra bits, when a ghost is compressed). Referenced here, it is described
  * as the int[19] it is (docs/port/BRINGUP.md 13). */
 int *const pc_extra_blbits = extra_blbits;
-extern uch bl_order[BL_CODES];
-extern ct_data static_ltree[L_CODES+2];
-extern ct_data static_dtree[D_CODES];
-extern uch dist_code[512];
-extern uch length_code[MAX_MATCH-MIN_MATCH+1];
-extern int base_length[LENGTH_CODES];
-extern int base_dist[D_CODES];
-struct static_tree_desc_s {
-    ct_data *static_tree;
-    intf    *extra_bits;
-    int     extra_base;
-    int     elems;
-    int     max_length;
-};
-extern static_tree_desc static_l_desc;
-extern static_tree_desc static_d_desc;
-extern static_tree_desc static_bl_desc;
-extern config configuration_table[10];
+VIEW(uch[BL_CODES], bl_order);
+#define bl_order bl_order_view
+VIEW(ct_data[L_CODES + 2], static_ltree);
+#define static_ltree static_ltree_view
+VIEW(ct_data[D_CODES], static_dtree);
+#define static_dtree static_dtree_view
+VIEW(uch[512], dist_code);
+#define dist_code dist_code_view
+VIEW(uch[MAX_MATCH - MIN_MATCH + 1], length_code);
+#define length_code length_code_view
+VIEW(int[LENGTH_CODES], base_length);
+#define base_length base_length_view
+VIEW(int[D_CODES], base_dist);
+#define base_dist base_dist_view
+
+VIEW(config[10], configuration_table);
+#define configuration_table configuration_table_view
 
 #ifndef DEBUG
 #  define send_code(s, c, tree) send_bits(s, tree[c].Code, tree[c].Len)
@@ -1525,21 +1506,11 @@ local block_state deflate_slow(s)
     return block_done; /* the game returns 1 here */
 }
 
-
-/* ===========================================================================
- * The game's one-shot compressor (not part of zlib): deflateInit2_,
- * deflateReset and lm_init inlined, one deflate_slow pass, deflateEnd.
- * Hand-written from the assembly; NOT MATCHING yet (context), see STATUS.md.
- */
-extern void *AllocateMemoryHeap(voidpf opaque, uInt size);
-/* DeallocateMemoryInternal(address, tag) takes its arguments in a1/a2 under IDO's IPA, so the N64 call passes a
- * dummy first; on the PC the address goes first. Heap blocks are RDRAM-window addresses
- * (docs/port/PROTOTYPES.md). */
-extern void DeallocateMemoryInternal(unsigned int address, int tag);
 #define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal(PC_N64A(ptr), (flag))   /* NOFIXED.md 2.3 */
 extern int osRecvMesg(void *mq, void *msg, int flag);
 extern int osSendMesg(void *mq, void *msg, int flag);
-extern char heap_lock_queue[];
+VIEW(char[], heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 

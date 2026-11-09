@@ -1,28 +1,9 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * RemovePlayerScores (0x80094A54, 468 B): remove every occurrence of `handle` from the 12 x 3 x 5
- * handle table D_80151690, closing each gap: the later entries of the same 5-slot row shift down one place,
- * the parallel f32 weight row in the 96-byte record gTotalRaceStats[outer] (weights at +4) shifts with them, and
- * the freed last slot becomes handle -1 / weight 0.0f. The slot index is re-tested after a removal (slot--).
- *
- * No shaping devices. The match came from the plain index form: `row` is an index 0.2 that uopt
- * strength-reduces to the byte offset row*20 (retail a0, bound 60), the parameter is used directly as the id
- * (its web is numbered at its first use, after slot -> t0), and `weights` is assigned at the top of the row
- * loop next to `handles`; uopt sinks it into the if-block, and its earlier first occurrence numbers the weights
- * web right after `outer`, so phase-2 colouring gives retail's outer v0 / weights v1 / row a0 order
- * (11 words with a byte-offset `row` and the weights pointer formed inside the if).
- */
-typedef float f32;
-typedef unsigned char u8;
+#include "game/game.h"
 
-typedef struct WeightRecord {
-    u8 prefix[4];
-    f32 weight[3][5];
-    u8 suffix[32];
-} WeightRecord;
-
-extern WeightRecord gTotalRaceStats[12];
-extern intptr_t gTotalNames[12][3][5];   /* a name slot or a profile handle (docs/port/CASTS.md) */
+VIEW(WeightRecord[12], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+VIEW(intptr_t[12][3][5], gTotalNames);
+#define gTotalNames gTotalNames_view
 
 void RemovePlayerScores(intptr_t handle) {
     int outer, row, slot, index;

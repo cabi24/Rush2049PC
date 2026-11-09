@@ -1,19 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: the two inlined helpers formerly named modescr_uninitButtons
- * modescr_uninitScreen are renamed after their retail deleted stubs, modescr_uninitButtons (uninitButtons@modescr.c) and
- * modescr_uninitScreen (uninitScreen@modescr.c), and claimed. Post-order of updateModeScreen (its last calls are the three
- * uninitScreen calls): uninitButtons 99384, uninitScreen 9938C, optionValid 99394, updateButtons 993EC, initButtons
- * stub 998B8, initScreen 998C0, updateModeScreen 99D10 = the retail layout. No code changed. */
-/* superseding revision: modescr_updateButtons (modescr updateButtons) and updateModeScreen are
- * now claimed members; modescr_optionValid and modescr_animText.c's modescr_animText are unchanged.  Shared-declaration change:
- * gNumModels and gFrameSeconds are volatile (only the new bodies use them). */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Slot64 {
     s32 unknown0,id;
     f32 angle,matrix[3][3],position[3];
@@ -24,32 +10,27 @@ typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveF
 typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;   /* the profile, pc_prelude.h */
 typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
 typedef struct Blit Blit;
-extern s16 gNumPlayers;
-extern s8 modescr_inited,gSoftReset;
-extern s8 modescr_validOption[][7];   /* MAT3 validOption: the modes valid by number of players less one */
-extern s32 modescr_buttonsInited,modescr_buttonsJustInited,gModeMenuSelect,exitModeScreen,gRace;
-extern u32 gSkipToGameState,gGameState,gActiveEdges;
-extern f32 modescr_gButtonScale,modescr_gButtonSpace,modescr_buttonX,modescr_maxY,modescr_buttonZ,modescr_cursorZ;
-extern f32 modescr_cursorSpeed,unitmatrix[3][3];
-extern volatile f32 gFrameSeconds;
-extern Slot64 modescr_buttonInfo[13];
-extern volatile u8 gNumModels;
-extern char modescr_select_texture_name[],modescr_button_texture_name[];
+
+VIEW(u32, gActiveEdges);
+#define gActiveEdges gActiveEdges_view
+
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(Slot64[13], modescr_buttonInfo);
+#define modescr_buttonInfo modescr_buttonInfo_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+
 extern Player76 gPlayers[];
-extern Blit *modescr_blit;
-extern s32 IsTrackUnlocked(s32);
-extern s8 PS_PakChanged(s32);
+
 extern void *memcpy(void *,const void *,u32);
-extern void CopyUV(void *,void *);
-extern void WPitchUV(f32,f32 (*)[3]);
-extern void WRollUV(f32,f32 (*)[3]);
-extern void ScaleUV(f32 (*)[3],f32 (*)[3],f32);
+
 extern void ZOID_SetTexture(s16,intptr_t,s32);
 extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
-extern void MBOX_HideObject(s32,s32,u32),MBOX_ShowObject(s32,s32,u32);
-extern void setGameState(s32),modescr_initScreen(void);
-extern void PlayStartABSound(u32),PlayUDSound(u32);
-extern void ZOID_RemoveObject(s16),RemoveBlit(Blit *),removeBG(void);
+
+extern void RemoveBlit ( Blit * );
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 
@@ -137,19 +118,6 @@ void modescr_updateButtons(void)
     modescr_buttonsJustInited = 0;
 }
 
-/* : updateModeScreen = MAT3 modescr.c updateModeScreen (GC 0x80073A38, 0x2B8 B), the game-called root.
- * Direct typed port; uninitScreen (GC 0x80073DE8) and uninitButtons (GC 0x8007457C) are real NON-static functions off
- * `keep` (unique symbols modescr_uninitScreen / modescr_uninitButtons), defined after the root, inlined three times by
- * umerge (retail's caller-less stubs 0x80399384/0x8039938C).
- * N64 differences: none in structure; gPlayers[i].save->fileh/pak = gPlayers[i].owner->resource->player, PS_PakChanged =
- * PS_PakChanged, ZOID_RemoveObject, RemoveBlit, removeBG,
- * setGameState, PlayStartABSound, PlayUDSound,
- * gSkipToGameState/gGameState = gSkipToGameState/gGameState, inited = modescr_inited, blit = modescr_blit, exitModeScreen =
- * exitModeScreen, gRace, gSoftReset, gActiveEdges, initScreen = modescr_initScreen.
- * MATCH on the first typed port.
- */
-void modescr_uninitScreen(void);
-
 void updateModeScreen(void)
 {
     s32 i;
@@ -201,8 +169,6 @@ void updateModeScreen(void)
         exitModeScreen = 0;
     }
 }
-
-void modescr_uninitButtons(void);
 
 void modescr_uninitScreen(void)
 {

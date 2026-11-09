@@ -1,32 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* updateControlScreen = updateControlScreen (controlscr.c, the CONTROLS screen; map: proven).
- * Provenance: direct typed port of MAT3 controlscr.c updateControlScreen (GC 0x8006AFCC; locals and their
- * order from rush_d_dwarf.c: forcedExit, p, i, j, menuItem, maxFirstItem, controls + block-scope skipInit,
- * rumble, rumble, conflict, playerCont), built on
- * (itself on), which supplied every N64
- * offset and the private-ABI group context. N64 differences from the GC body, all read from the retail words:
- * ten controls (GC eleven), option 10 = rumble and 11 = defaults (GC 11/12); the conflict reset runs before the
- * profile copy; the defaults option does not reset rumble and the rumble options do not set gControlsSet; the
- * 21->8 / 22->9 fold loop is absent and SetControls(0) follows the memcmp.
- * PS_PakRumble / PS_PakInserted = the locked kept getters PS_PakRumble / PS_PakInserted, inlined by umerge
- * (their per-site areas give retail's frame 240). validOption = controls_validOption, called by jal here (umerge's
- * budget) and inlined in updateButtons / calcControlMenuMaxSize.
- * Shaping (disclosed): `j`, dead after the duplicate scan, carries gPlayers[p].edges through the 0x1000/0x2000
- * else-if chain and the &5 test (retail keeps both loads in a0; found the &5 half). The two clear loops
- * put their two stores on separate lines (as1 store order). memcmp's count is size_t (u32): the locked
- * declaration says s32; with s32 the 10 shares the t1 constant web. No unused locals, no compiled-out reads.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct { void *next, *prev; void (*RemoveFile)(void *); void (*MoveFile)(void *, void *); u8 pak; } PSFile;
-typedef struct {
+typedef struct Profile {
     void *next, *prev;
     PSFile **fileh;
     u8 padC[21];
@@ -42,49 +18,43 @@ typedef struct {
     u8 pad8[64];
     Profile **save;      /* 0x48 */
 } PadState;              /* tPadState, 0x4C */
-typedef struct { s32 x, y, w, h, cx, cy; } PlayerRect;        /* 0x18 */
 
 s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
-void SetControls(s32);
-s32 AudPlayEffect(s32, s32, s32, u8);
-s32 game_memcmp(u8 *, u8 *, u32);                              /* memcmp (size_t count) */
-void setPauseState(s32);
-void SetDefaultControls(void *);
-s32 controls_validControl(s8);                                           /* validControl */
-s32 controls_validOption(s8, s32);                                      /* validOption */
-void calcControlMenuMaxSize(void);
+
 void *memcpy(void *, const void *, u32);
-void cleanupControlScreen(void);
-void PlayStartABSound(s32);
+
 void *NewMultiBlit(s16, s16, void *, s16);
-void RemovePanes(s32);
-void controls_initButtons(s8);                                    /* initButtons */
-void controls_updateButtons(s8);                                          /* updateButtons */
-void controls_uninitButtons(s8);                                       /* uninitButtons */
 
-extern u32 gGameState;
 extern PadState gPlayers[4];           /* gPlayers */
-extern s16 gNumWindows;
-extern s8 controlScrActive[4];                 /* controlScrActive */
-extern PlayerRect controls_gPlayerRects[4][4];      /* gPlayerRects */
-extern s8 prevControlScrActive[4];                 /* prevControlScrActive */
-extern s16 gControlSelect[4];                /* gControlSelect */
-extern s16 gControlFirst[4];                /* gControlFirst */
-extern s16 gControlMenuSize;
-extern s8 gConflict[4][10];             /* gConflict */
-extern s8 gConflictExists[4];                 /* gConflictExists */
-extern s8 gNewControls[4][10];             /* gNewControls */
-extern Profile *gJustPlayers[4];           /* gJustPlayers */
-extern s8 gControlsSet[4];                 /* gControlsSet */
-extern s8 gSoftReset;
-extern s8 controls_inited;                    /* inited */
-extern void *controls_blit;                 /* blit: pointer-sized storage */
-extern s32 exitControlScreen;
-extern f32 controls_gButtonZoom, controls_gButtonScale, controls_gButtonSpace, controls_buttonX, controls_maxY, controls_minY, controls_buttonZ, controls_cursorZ;
-extern struct pc_multiblit buttonsFrontEnd[81], buttonsPauseSingle[21], buttonsPauseMulti[41];   /* NewMultiBlit's (pc_prelude.h) */
 
-s8 PS_PakRumble(s32 pak);                                       /* PS_PakRumble (locked, SaveInit) */
-s8 PS_PakInserted(s32 pak);                                       /* PS_PakInserted (locked, SaveInit) */
+VIEW(s8[4], controlScrActive);
+#define controlScrActive controlScrActive_view
+VIEW(PlayerRect[4][4], controls_gPlayerRects);
+#define controls_gPlayerRects controls_gPlayerRects_view
+VIEW(s8[4], prevControlScrActive);
+#define prevControlScrActive prevControlScrActive_view
+VIEW(s16[4], gControlSelect);
+#define gControlSelect gControlSelect_view
+VIEW(s16[4], gControlFirst);
+#define gControlFirst gControlFirst_view
+
+VIEW(s8[4][10], gConflict);
+#define gConflict gConflict_view
+VIEW(s8[4], gConflictExists);
+#define gConflictExists gConflictExists_view
+VIEW(s8[4][10], gNewControls);
+#define gNewControls gNewControls_view
+VIEW(Profile *[4], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+VIEW(s8[4], gControlsSet);
+#define gControlsSet gControlsSet_view
+
+VIEW(struct pc_multiblit[81], buttonsFrontEnd);
+#define buttonsFrontEnd buttonsFrontEnd_view
+VIEW(struct pc_multiblit[21], buttonsPauseSingle);
+#define buttonsPauseSingle buttonsPauseSingle_view
+VIEW(struct pc_multiblit[41], buttonsPauseMulti);
+#define buttonsPauseMulti buttonsPauseMulti_view
 
 void updateControlScreen(void) {
     s32 forcedExit;

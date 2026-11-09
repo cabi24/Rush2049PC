@@ -1,31 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* props_render (0x800F6AB8, 545 words) = GC ghost.c GhostStart, N64 form (label is historical:
- * the function sets up the ghost players at race start). Fresh draft from the GC disassembly
- * (reference/gc/disasm/ghost.c/GhostStart.s) + the N64 words. EQUAL in the whole-program unit
- * (the whole-program unit --tag score props_render --with THIS --internal ReadGhostData --neighbours: 0 locked differ).
- * GC-derived names (source GhostStart unless noted): gRace, gInited = ghost_gInited,
- *   gRestartGame, gNumCars = gNumCars (volatile, as in animRadar/fake_init),
- *   gNumPlayers, num_humans = num_humans (volatile), gGhostPlayers
- *   (player records gRealGhostPlayers, 0x30 each) / gNewGhostHeaders (header pointers to gRealNewGhostHeaders, 0x58 each) /
- *   gNewGhosts (ghost slots to gRealNewGhosts ghosts, 0x2C each), gGhosts, gPlayers
- *   (0x4C each: node 0, slot 1, carTrans 0x42, handle 0x48), gLink = D_80153E88 (8 B each), model = D_8014A250
- *   (0x808 each: frameTime 0x718, state 0x7CC), gTrackNum, gBackwards, gRetraceTime =
- *   gRetraceTime, gRetraceRate, ghostRaceTimes, gCarHandling/Engines/Tires/Frame/Wings/
- *   TireRims/Horn = gCarHandling/gCarEngines/gCarTires/gCarFrame/gCarWings/gTireRims/gCarHorn ([5][13] s8),
- *   gFrontTireScale/gRearTireScale = gFrontTireScale/gRearTireScale ([5][13] f32), GetPlayerCarTrans,
- *   AllocateMemoryHeap = audio_dma_sync, _ReadGhostData = ReadGhostDataInternal (IPA ghosth s1, decode s0, select s3).
- * N64 differences from GC: the slot count n = expansion_pak_present ? 4 : 2 (GC 4); the ghost header's best time comes
- *   from the player data's TrackRec table at +0xE0 (96 B per entry, +6 entries when backwards); gLink has three
- *   more header bytes (settings[5..7]); the per-player car settings are 12 bytes from data + 0x744 + car*16.
- * Helper: ReadGhostData = GC save.c ReadGhostData(ghosth) { return _ReadGhostData(ghosth, 1, 1); } (GC passes
- *   the same 1, 1), non-static, inlined, not on keep (its parameter is retail's v0 copy before `move s1,v0`).
- * Source-form evidence (no devices, no unused locals): `bk`/`size` are named locals (retail frame 184 and the
- *   named-slot offsets n 160 / np 168 need g, i, j, np, car, n, ghost, bk, size in this order); the car-settings
- *   source is indexed as CarCfg[car] so ugen evaluates the data chain before car*16; the final chained store
- *   `num_humans = gNumPlayers = np` sets the temp-ring registers of the tail. */
-typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
-typedef signed int s32;typedef unsigned int u32;typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+
 /* PC: the ghost header keeps its N64 layout, file data; the profile record is 64 bytes (docs/port/POINTERS.md 9.10) */
 #define N64W(x) PC_N64W(x)
 
@@ -83,57 +57,26 @@ typedef struct Player {           /* GC gPlayers (0x50); N64 0x4C */
     PlayerRec **handle;           /* 0x48 */
 } Player;
 
-typedef struct Link {             /* GC gLink (0x0A); N64 0x08 */
-    s8 track;
-    u8 car;
-    s8 b2, b3, b4;
-    u8 np;
-    u8 b6, b7;
-} Link;
-
-typedef struct Model { u8 pad[0x718]; f32 frameTime; u8 pad71C[0x7CC - 0x71C]; u8 state; u8 pad7CD[0x808 - 0x7CD]; } Model;
 typedef struct CarCfg { u8 s[16]; } CarCfg;
 typedef struct TrackRec { u16 time; u8 pad[94]; } TrackRec;
 
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
-u8 GetPlayerCarTrans(PlayerRec **handle);                       /* GC GetPlayerCarTrans */
-void *AllocateMemoryHeap(void *heap, u32 size);                 /* GC AllocateMemoryHeap */
-s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select);  /* GC _ReadGhostData (IPA s1, s0, s3) */
-/* The game's own ReadGhostData (this file had a second copy of it: the same code). */
-s32 ReadGhostData(Ghost **ghosth);
 
-extern s8 expansion_pak_present;
-extern s32 gRace;                                   /* GC gRace */
-extern s8 ghost_gInited;                                       /* GC gInited */
-extern s8 gRestartGame;                                       /* GC gRestartGame */
-extern volatile s16 gNumCars;                                      /* GC gNumCars */
-extern s16 gNumPlayers;                             /* GC gNumPlayers */
-extern volatile s16 num_humans;                                      /* GC num_humans */
-extern PlayerRec *gGhostPlayers[];                             /* GC gGhostPlayers[0..3] */
-extern PlayerRec gRealGhostPlayers[];
-extern GhostHeader *gNewGhostHeaders[];                           /* GC gGhostPlayers + 0x140 */
-extern GhostHeader gRealNewGhostHeaders[];
-extern Ghost *gNewGhosts[];                                 /* GC gGhostPlayers + 0x360 */
-extern Ghost gRealNewGhosts[];                                  /* GC gGhostPlayers + 0x2A0 */
-extern Ghost **gGhosts[];                                /* GC gGhosts */
+VIEW(PlayerRec[], gRealGhostPlayers);
+#define gRealGhostPlayers gRealGhostPlayers_view
+
+VIEW(GhostHeader[], gRealNewGhostHeaders);
+#define gRealNewGhostHeaders gRealNewGhostHeaders_view
+
+VIEW(Ghost[], gRealNewGhosts);
+#define gRealNewGhosts gRealNewGhosts_view
+VIEW(Ghost **[], gGhosts);
+#define gGhosts gGhosts_view
 extern Player gPlayers[];                                 /* GC gPlayers */
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gTrackNum;                                       /* GC gTrackNum */
-extern s8 gBackwards;                                       /* GC gBackwards */
-extern f32 gRetraceTime;                                      /* GC gRetraceTime */
-extern f32 gRetraceRate;                                      /* GC gRetraceRate */
-extern f32 ghostRaceTimes[];                                    /* GC ghostRaceTimes */
-extern s8 gCarHandling[][13];                                 /* GC gCarHandling */
-extern s8 gCarEngines[][13];                                 /* GC gCarEngines */
-extern s8 gCarTires[][13];                                 /* GC gCarTires */
-extern s8 gCarFrame[][13];                                 /* GC gCarFrame */
-extern s8 gCarWings[][13];                                 /* GC gCarWings */
-extern s8 gTireRims[][13];                                 /* GC gTireRims */
-extern s8 gCarHorn[][13];                                 /* GC gCarHorn */
-extern f32 gFrontTireScale[][13];                                /* GC gFrontTireScale */
-extern f32 gRearTireScale[][13];                                /* GC gRearTireScale */
+
+VIEW(s8[][13], gTireRims);
+#define gTireRims gTireRims_view
 
 void GhostStart(void) {
     GhostHeader *g;

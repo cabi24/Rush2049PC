@@ -1,19 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Unless bit 3 of the state word at 0x801174B4 is set, initialise the five
- * 0x18-byte callback slots at +0x12C of car record `idx` (0x3B8-byte records
- * at 0x80152818): handler pointer (0x8008BD9C, 0x8008BC94, 0x8008BB8C,
- * 0x8008BA84, 0x8008B964), state = -1, owner = idx, and a 16-bit id taken
- * from the five words at +0x2C of the 0x40-byte record idx at 0x80139320.
- * No arcade ancestor identified.  Also matches at -O2.
- * Shaping: per slot the statement order is func, state, owner, id (the other
- * 23 orders of the four stores give 6..39 differing words); as1 then moves
- * the loads and stores into the retail order.
- */
-typedef float f32;
-typedef int s32;
-typedef unsigned int u32;
-typedef short s16;
+#include "game/game.h"
 
 typedef struct {
     /* 0x00 */ s16 state;
@@ -25,7 +10,7 @@ typedef struct {
     /* 0x14 */ void *pad14;          /* the next visual's next pointer */
 } CarSlot;
 
-typedef struct {
+typedef struct Car {
     char pad0[0x110 - 0x0]; struct pc_visual visuals[1]; void *pad0_128;
     CarSlot slot[5];
     char pad1[0x1B4 - 0x1A4]; void *pad1_1B4; struct pc_visual pad1_1B8[14]; char pad1_308[0x380 - 0x308]; void *input; char pad1_384[0x3B8 - 0x384];
@@ -36,14 +21,8 @@ typedef struct {
     s32 id[5];
 } Rec40;
 
-extern u32 gGameState;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Rec40 gCarParts[];
-extern void AnimateLFSpark();
-extern void AnimateLRSpark();
-extern void AnimateRFSpark();
-extern void AnimateRRSpark();
-extern void AnimateBSpark();
+VIEW(Rec40[], gCarParts);
+#define gCarParts gCarParts_view
 
 void StartSparks(s16 idx) {
     Car *car;

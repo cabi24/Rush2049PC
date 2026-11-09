@@ -1,29 +1,5 @@
-/*
- * A 5-bit password codec, not championship logic (names are historical).
- *   password_gData  bit buffer (bytes)
- *   gNumBytes  buffer size in bytes
- *   gDataBits  payload length in bits
- *   gChecksumBits  checksum length in bits (appended after the payload)
- *   gNumBits  write position in bits
- *   gInversePasswordAlphabet  character -> 5-bit value table (0xFF = invalid)
- *   gPasswordAlphabet  pointer to the 32-character alphabet
- */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
-extern u8 password_gData[];
-extern u16 gNumBytes;
-extern u16 gDataBits;
-extern u16 gChecksumBits;
-extern u16 gNumBits;
-extern u8 gInversePasswordAlphabet[];
-extern char *gPasswordAlphabet;
-
-s32 SetPasswordString(u8 *str);
-s32 CalcChecksum(void);
-s32 StorePasswordElement(u32 value, u32 nbits);
 void GetPasswordString(char *out);
 
 /*
@@ -97,9 +73,6 @@ s32 CalcChecksum(void)
     }
     return sum;
 }
-
-/* append the low `nbits` bits of `value` (also called by GetCircuitCode); locked source src/blob/StorePasswordElement.c, unchanged */
-s32 StorePasswordElement(u32 value, u32 nbits);
 
 /*
  * append the checksum to the bit buffer and encode the whole buffer as password characters

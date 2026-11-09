@@ -1,35 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B [0x8038D798,0x8038DA78): apply a distance-weighted effect.
- * Native-led matching reconstruction using the CURRENT ACCEPTED shared-count
- * view: extern volatile s16 gNumCars, present in EC914/108DA8/108F40/109A60/
- * init_cars production sources. count_contract.py binds those current
- * sources and their image-gate records, game/B symbol identity, and EB90C's
- * independent call/store-free continuing-loop count read. This is reuse of an
- * accepted project contract, not a claim to recover original qualification or
- * prove an asynchronous writer. Original source spelling remains unknown.
- *
- * For each enabled, unblocked, non-disabled player within the strict squared
- * radius, apply trunc(((radius-distance)/radius)^2 * integer magnitude).
- * Kind 5 first transforms endpoint-origin into target-local space and applies
- * the native binary32 0.35 multiplier if the native angle magnitude is <1.35.
- * The three vectors are real three-float values. Moving the two existing
- * pointer declarations recovers direction/transformed/delta homes at
- * sp+152/+140/+124. Original declaration order and arcade ancestry are unknown.
- * No buffer change, fake formal, artificial caller, extra local or assembly.
- *
- * Ordinary O32: two vector pointers, signed source index, binary32 squared
- * radius in a3 bits, signed integer magnitude in the first stack-argument slot.
- * Valid backed player/model/vector storage and indices, finite in-range float
- * conversions, and genuine helper contracts are assumed. Origin/endpoint may
- * alias each other. Arbitrary partial overlaps, exceptional FCSR behavior,
- * helper implementation, concurrency and full gameplay remain unproved.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Player {
     u8 unknown000[8]; f32 position[3];
     u8 unknown014[0x110 - 0x14]; struct pc_visual visuals[21]; s8 active;
@@ -38,13 +8,7 @@ typedef struct Player {
     u8 unknown35C[0x380 - 0x35C]; void *input; s8 kind;
     u8 unknown385[51];
 } Player;
-typedef struct Vehicle { u8 unknown000[1600]; s8 disabled; u8 unknown641[455]; } Vehicle;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern volatile s16 gNumCars;
-extern void BodyVector(f32 *,f32 *,f32 *);
-extern f32 fatan2(f32,f32);
-extern void BattleDamage(Player *,Player *,s32);
+
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 

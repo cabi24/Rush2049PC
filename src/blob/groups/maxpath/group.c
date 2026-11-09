@@ -1,69 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* maxpath_controls: the N64 drone path-following code, a port of the arcade
- * game/maxpath.c rev 3.48 (historicalsource/rushtherock 845329d7, (c) 1996 Atari Corporation).
- *
- *   MaxPathControls  MaxPathControls (kept root).  Inlines MP_FindInterval, unload_extra_overlay,
- *                  AudioPlayEffectInternal, AdjustSpeed, PS_PurgeFile; calls avoid_areas.
- *   AvoidAreas  avoid_areas(drone_index): IPA register parameter in s7, clobbers s0-s8 and
- *                  $f20-$f30 unsaved (MaxPathControls saves them).
- *   IntervalPosChange  MP_IntervalPos (m in s5, cp in s6), inlines mp_interval_pos.
- *   FindClosestDronePathPtEfficiently  nearest track point search used by MP_IntervalPos.
- *   Inlined helpers, named after the locked 2-word stubs they leave (unit order proves the
- *   mapping: the stubs land at E397C, E3984 | E42E8, E42F0, E42F8 | E4B50 exactly as in retail):
- *     AdjustSteer PS_PurgeFile, AdjustSpeed AdjustSpeed, TargetSteerPos AudioPlayEffectInternal,
- *     TargetSpeed unload_extra_overlay, IntervalPos mp_interval_pos, FindInterval MP_FindInterval.
- *
- * Disclosures (no stand-ins, no implicit int, no pad arrays, no compiled-out reads):
- * - Unused locals, all genuine arcade declarations, each the exact frame residual:
- *     AdjustSpeed `i, slip, spddir, cur_time` (4 slots): MaxPathControls frame 304 (retail),
- *       288 without them; with them every home matches (cp 296, tgtdist 200, 144/120/116).
- *     unload_extra_overlay `TrackPt *mp, *nmp` (2 slots, unused: retail keeps both addresses in ring
- *       temps, so the expressions index gDronePaths directly): frame 296 without them.
- *     avoid_areas `tmp2, temp[3], dir_list[6][3], dir_weight[6], cur_rate[3]` (31 slots):
- *       frame 288 (retail), 160 without them; rpos/pos/tpos/own_rwr/dir/save_dir homes match.
- * mp_interval_pos: `invdist` is computed and unused, as in the earlier (arcade source).
- * - Float literal spellings are chosen per site: uopt keys constants by their spelling (`0`,
- *   `0.0f`, `0.f`, `1`, `1.0f` are different constants), which decides which uses share a
- *   register web, which are hoisted, and which are rematerialised. Each literal is the value
- * the arcade source uses; only the spelling was selected (traced).
- * - Integer literals kept from the arcade where the float form would change code:
- *   AdjustSpeed `/ 4` (not strength-reduced, unlike `/ 4.0f`), AudioPlayEffectInternal `interp = 1`.
- * - veccopy/vecsub/scalmul are one-line macros (the arcade function names): as1 orders the
- *   three stores by source line, which gives retail's [1],[0],[2] store orders.
- * - avoid_areas reassigns `m` in the traffic loop as the arcade does; the N64-only
- *   `m->s6C4 >= 0` hint test therefore reads the last scanned car (retail reloads 60(sp)).
- * - MP_IntervalPos: num_drones volatile s16 as in src/blob/munge_gLink_data.c (earlier).
- * - TB_DrawText is unmatched; its prototype is include/game_types.h's.
- */
-/* Match candidate: IntervalPosChange (1,588 bytes); canonical score 0/397, complete
- * extent, no unresolved/unverified sites or errors. E4300 is unchanged context
- * and remains 0/135; it earns no duplicate credit. Outer E398C/E4B58 are real,
- * complete NONMATCH reconstructions. The only kept ABI root is E4B58.
- *
- * Base f2e8380d3b368d00efc9cac3e37cdc7059b1f6e2; context derives from
- *Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Algorithm/declarations derive from historicalsource/rushtherock
- * 845329d7b36f5a384c5625ed9a0aef584ab46139 game/maxpath.c:MP_IntervalPos and
- * IntervalPos (revision 3.48, copyright 1996 Atari Corporation).
- *
- * Disclosed restoration: unused nx/ny and the unused reciprocal calculation
- * are actual donor source, already preserved in the historical wave-1 draft.
- * They explain the native frame/local layout and post-call float allocation.
- * The same num_drones volatile-s16 declaration is reused from accepted
- * src/blob/munge_gLink_data.c:66 at the base above; this is qualification
- * provenance, not a claim of proven interrupt or concurrent mutation behavior.
- * No fake caller, new dummy carrier, padding array, or assembly was added.
- * No claim that the original N64 source or every parent detail is recovered.
- * Independent checker owns whole-program acceptance and ROM integration.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct {
+#include "game/game.h"
+
+typedef struct ModelRecord {
     u8 pad0[0x220];
     f32 vx; /* 0x220 */
     f32 vy; /* 0x224 */
@@ -138,41 +75,13 @@ typedef struct {
 typedef struct { /* 0x0 */ s16 x, y, z; /* 0x6 */ u8 flag; /* 0x7 */ u8 pad7; } TrackPt;
 typedef struct { /* 0x0 */ u16 numPoints; /* 0x2 */ u16 pad2; /* 0x4 */ TrackPt *points; } Track;
 
-typedef struct GameCar {
-    u8 prefix[0x110 - 0x0]; struct pc_visual visuals[21]; u8 prefix_308[0x314 - 0x308];
-    Nav nav;
-    u8 suffix[0x380 - 0x340]; void *input; u8 suffix_384[0x3B8 - 0x384];
-} GameCar;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Section gCheckpoints[];
-extern Track gDronePaths[];
-extern volatile s16 num_drones;
-/* On the PC the drone list and maxpath's controls per car slot are pc_drones, pc_mp_steer, pc_mp_brake, pc_mp_gas,
- * pc_mp_dir and pc_mp_save_dir, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 8). */
-extern s16 current_drone;
-extern s8 gNumActiveCars;
-extern s8 gGravityScale;
-/* PC: target_steer_zero_dist_message is TB_DrawText's message, characters in the ROM. The PC loader fills initialized data by its
- * declarations: as an s32 it would swap the first four (docs/port/ENDIAN.md). The rest up to the next symbol is
- * copied as it is. */
-typedef struct PcText4 { char c[4]; } PcText4;
-extern PcText4 target_steer_zero_dist_message;
-extern f32 gravitySpeedIncrease[], gravitySpeedMin[];
-extern f32 gLastPathSwitchTime, gModelTime;
+VIEW(Section[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
+VIEW(Track[], gDronePaths);
+#define gDronePaths gDronePaths_view
 
 extern f32 sqrtf(f32), fabsf(f32);
 #pragma intrinsic(sqrtf, fabsf)
-extern f32 vector_magnitude(f32 *);
-extern f32 fatan2(f32, f32);
-extern void BodyVector(f32 *, f32 *, f32 *);
-extern s16 NextPathPt(s16, s16), PrevPathPt(s16, s16);
-extern f32 TB_Vector2Normalize(f32 *);
-extern void TargetPathAvoid(void *, f32 *);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s32, void *);
-void IntervalPosChange(ModelRecord *, Nav *, s32);
-void AvoidAreas(s16);
 
 s16 FindClosestDronePathPtEfficiently(s16 *pos, s16 prev, s16 ptIdx, s16 row, s16 cur) {
     Section *ent;
@@ -543,12 +452,6 @@ void AvoidAreas(s16 drone_index) {
 }
 
 #define range_it(v,l,h)		( ((v) < (l)) ? (l) : (((v) > (h)) ? (h) : (v)) )
-
-void FindInterval(ModelRecord *m, Nav *cp);
-void TargetSpeed(ModelRecord *m, Nav *cp);
-void TargetSteerPos(ModelRecord *m, Nav *cp);
-void AdjustSpeed(ModelRecord *m, f32 tspd);
-void AdjustSteer(ModelRecord *m, f32 *pos);
 
 /* arcade MaxPathControls; defined before its helpers as in maxpath.c */
 void MaxPathControls(ModelRecord *m)

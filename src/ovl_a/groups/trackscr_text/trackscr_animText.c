@@ -1,56 +1,31 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A:803AECE4..803AF744, complete projected settings-label/value callback.
- * This callback is MAT3 trackscr.c animText; its body is animButtonText, now the non-kept
- * helper trackscr_animButtonText (inlined; its deleted procedure is the retail stub 0x803AECDC right before animText).
- * umerge's 8-byte area for that inlined call sits exactly where the native x/y homes were (retail never
- * touches sp+208..215; i is the memory-resident counter at sp+204), so the helper declares i first and x, y
- * last, and the native `slot` carrier is gone (trackscr_buttonInfo[index] directly). N64 animText has no
- * `else drawOptions()` (a second inlined call would add 8 more bytes). Frame 216, buffer capacities unchanged. Native expressions
- * evaluate the selected table base before the language offset; three existing
- * label assignments preserve text evaluation before argument narrowing.
- * Reordered existing vector writes and a split Y subtraction preserve the
- * native named value and floating temporary sequence. No padding, artificial
- * read, volatile, fake caller, extra parameter or compiler patch is used.
- * Color4 is the word-aligned native view of the two four-byte by-value colors.
- * Six natural angle literals and the 21-entry switch table own 108 verified
- * bytes at 803B99E0..803B9A4C. No exact arcade donor is claimed. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Language { s32 unknown0; char **text; s32 unknown8; u16 *indices; char **indexed; } Language;
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 alpha,unknown3D[3]; } Slot;
 typedef struct Camera { f32 uv[3][3],position[3]; u8 unknown30[104]; } Camera;
-typedef struct Settings { u8 unknown00[28]; s8 mode; u8 unknown1D[3]; s8 a,b,c,d,e,f,g,h,i; } Settings;
-extern s32 trackscr_buttonsInited,gRace;
-extern f32 trackscr_title_button_position[3],trackscr_gButtonSpace,trackscr_gButtonScale;
-extern s8 expansion_pak_present,gTrackNum,gGhostSelect,gBackwards,gCircuitTrack,gDeathMode;
-extern s16 gNumLaps,gNumDrones,trackscr_gNumOptions,trackscr_gOpts[];
-extern Slot trackscr_buttonInfo[];
-extern Camera gCamera[];
-extern Language gText;
-extern Color4 flashColors,flashColors_at_1;
-extern char *gTrackTitles[];
-extern Settings gOptions;
-extern u8 gCircuitTracks[][5];   /* the circuit's tracks (trackscr.c's CircuitTrack): [2] the mirror flag */
-extern char trackscr_laps_format[],trackscr_option5_format[],trackscr_option6_format[],trackscr_option7_format[],trackscr_option9_format[],trackscr_option10_format[],trackscr_drones_format[];
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern void TB_SetJust(u32,u32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern void TB_DrawText(s16,s16,void *);
-extern void TB_Sprintf(char *,char *,...);
+
+VIEW(f32[3], trackscr_title_button_position);
+#define trackscr_title_button_position trackscr_title_button_position_view
+
+VIEW(Slot[], trackscr_buttonInfo);
+#define trackscr_buttonInfo trackscr_buttonInfo_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(Language, gText);
+#define gText gText_view
+VIEW(Color4, flashColors);
+#define flashColors flashColors_view
+VIEW(Color4, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
+
+VIEW(u8[][5], gCircuitTracks);
+#define gCircuitTracks gCircuitTracks_view
+
 extern int sprintf(char *,const char *,...);
-extern void HAL_SetTextTranslucency(f32);
+
 extern void TB_FlashTextColors(Color4,Color4);
 
-void trackscr_animButtonText(void);
 s32 trackscr_animText(void *callback_context)
 {
     if (trackscr_buttonsInited == 1) trackscr_animButtonText();

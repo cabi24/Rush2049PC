@@ -1,50 +1,35 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ZOID_SplitScreen (0x800A6404, 2016 B): historical label. N64 split-screen viewport layout for n players
- * (no arcade counterpart: the cabinet has one screen). Stores n in gNumZoidWindows; for n = 1, 2 and 3/4 it
- * calls ZOID_InitializeWindow(k, &vp[k], rect, fov, 0, width, height, centre x, centre y) for each pane (fov
- * scaled by 127/90 for the 2-player halves, by 0.95 for the 3/4-player quarters), then fills the pane's
- * s16 rect {x, y, w, h} from the screen size screen_width/screen_height and binds entry k of the 72-byte view
- * table ZoidWinInfo to (vp, rect). gSplitScreen = layout id (0 full, 1 halves, 2 quarters), returned.
- * Case 1 is the same code as the matched sibling ZOID_ResetWindows.
- *
- * Source-form notes:
- * - INTEGRATION: the helper is non-static and must be internal in the shadow unit (unit_overrides
- *   force_internal); as a `static` it leaves a 2-word deleted-procedure stub after the body that retail
- * does not have (the whole-program unit: "stub tail: 2 words. NOT as in the image").
- * - view_bind is an inlined helper (umerge inlines it at all 7 sites). Its unused return value
- * &ZoidWinInfo[k] is the dead `move v0,t0` / `lui v0` before the next ZOID_InitializeWindow call (lever:
- *   an inlined static's return value is not optimised away), and it stops uopt from holding
- *   &ZoidWinInfo in a callee-saved register. Disclosed as a helper-identity hypothesis.
- * - rect values go through block-scoped u16 locals (u16 narrows the screen-size reloads to lhu 2(x)
- *   and gives the a0/a1/a3/v0 copies); each pane stores h, w, then x/y (y first when nonzero), then binds.
- * - fov is passed as f32 in a3 (lw a3 for the plain case).
- * No unused locals.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
-    void *f0;
-    void *f4;
-    u8 unk8[0x40];
-} ArbEntry;
-
-extern u8 gNumZoidWindows;
-extern s8 gSplitScreen;
-extern s32 screen_width, screen_height;
-extern f32 HFOV;
-/* PC: the windows' viewports are Vp records (s16 scale[4], translate[4]; window_init's Viewport16). The PC loader
- * fills initialized data by its declarations: as s32 the first two halves would be swapped together and the rest
- * left big-endian (docs/port/ENDIAN.md). */
-typedef struct { s16 scale[4], translate[4]; } PcViewport;
-extern PcViewport vp0, vp1, vp2, vpul, vpur, vpll, vplr;
-extern s16 scissor0[4], scissor1[4], scissor2[4], scissorul[4], scissorur[4], scissorll[4], scissorlr[4];
-extern ArbEntry ZoidWinInfo[];
+VIEW(PcViewport, vp0);
+#define vp0 vp0_view
+VIEW(PcViewport, vp1);
+#define vp1 vp1_view
+VIEW(PcViewport, vp2);
+#define vp2 vp2_view
+VIEW(PcViewport, vpul);
+#define vpul vpul_view
+VIEW(PcViewport, vpur);
+#define vpur vpur_view
+VIEW(PcViewport, vpll);
+#define vpll vpll_view
+VIEW(PcViewport, vplr);
+#define vplr vplr_view
+VIEW(s16[4], scissor0);
+#define scissor0 scissor0_view
+VIEW(s16[4], scissor1);
+#define scissor1 scissor1_view
+VIEW(s16[4], scissor2);
+#define scissor2 scissor2_view
+VIEW(s16[4], scissorul);
+#define scissorul scissorul_view
+VIEW(s16[4], scissorur);
+#define scissorur scissorur_view
+VIEW(s16[4], scissorll);
+#define scissorll scissorll_view
+VIEW(s16[4], scissorlr);
+#define scissorlr scissorlr_view
+VIEW(ArbEntry[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
 
 ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
     ZoidWinInfo[k].f0 = vp;

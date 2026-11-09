@@ -1,35 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * heap_move_block_low (0x800CB9D0): game-heap compaction step. Under the heap lock
- * (message queue heap_lock_queue) find the block holding addr, then scan the heap
- * from the front for a free block before it that is large enough (or the free
- * block immediately in front of it). Move the allocation there (memmove
- * game_memmove), repoint its owner handle, split off the remainder as a new
- * free block header (magic 0xFEDCBA98), and free the old copy through the
- * internal DeallocateMemoryInternal(address in a1, tag in a2), which coalesces.
- * When the two blocks are adjacent the new header covers the tail and is
- * what gets freed. Hand-written from the assembly; no arcade ancestor.
- *
- * Calls the internal DeallocateMemoryInternal, so it only scores in the real group
- * or the whole-program
- * unit (the whole-program unit score --with this file: EQUAL).
- *
- * What the match depends on (each found by removing it):
- *  - `if (adjacent) old = n;` and `DeallocateMemoryInternal((u8 *)old + 32, 0)`:
- *    the freed address is the CSE'd memmove source `old + 32` (spilled at
- *    36(sp), reloaded into a1). A separate `src` variable is coloured a0 or
- *    t3 and costs a `move a1` (18-39 words).
- *  - `n->size = b->size - used;` before `n->owner = 0; n->used = adjacent;`
- *    (as1 then hoists the b->size load over the two stores; 7 words).
- *  - `s32 pad[7]` after the named locals gives the 104-byte frame; which real
- *    locals occupied those words is not known.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 enum n64p_Block { n64p_Block_ };
 enum n64p_Heap { n64p_Heap_ };
@@ -57,17 +27,15 @@ typedef struct Heap {
 #define N64W(x) PC_N64W(x)
 
 typedef struct OSMesgQueue OSMesgQueue;
-extern OSMesgQueue heap_lock_queue;
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-/* The heap's functions take a block's 32-bit N64 address (their definitions' u32): N64A(p) is a window pointer's
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-Heap *FindHeap(u32 addr);
+
 Block *FindChunk(Heap *heap, u32 addr, s32 tag);
-void DeallocateMemoryInternal(u32 addr, s32 tag);
+
 #define N64A(x) PC_N64A(x)
-void *game_memmove(void *dst, void *src, u32 n);
 
 void heap_move_block_low(void *addr)
 {

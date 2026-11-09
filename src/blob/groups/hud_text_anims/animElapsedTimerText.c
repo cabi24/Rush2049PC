@@ -1,50 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * lap_complete (0x8010761C, 1,232 B) -- historical label; = GC hud.c animElapsedTimerText (static int (void);
- * GC locals t, digits[9], str[2], digitW, colonW, fixedWidth, x, y, digitIdx; gModelTime,
- * gShowElapsed, elapsedTimerPos, HAL_SetFontFixedWidth,
- * camera_shake_update = HAL_GetCharWidth, gJust = TB_SetJust's pair). Draws the race clock as "mm:ss.hh"
- * with a shadow pass. drafts, match (unit EQUAL, 0 locked bodies differ). No devices.
- * Levers: GC local list/order and statement forms (digitIdx index loop, `str[0] = digits[digitIdx]` then the
- * ':'/'.' test on str[0] through `if ((str[0] = digits[digitIdx]) != ':' && ...)`, `str[1] = 0;` before
- * y/x, y assigned before x); s32 y with TB_DrawText(s16, s16, char *) (retail narrows both at every call);
- * the TB_SetJust pair written by an inlined pair_set(s32, s32) storing .second then .first on an s32 pair (as
- * the matched sibling animLapCount; the s32 1 joins the gNumWindows == 1 / osRecvMesg constant piece in v0,
- * and the two inlined sites size the 184-byte frame). gfx_lock/gfx_unlock/font_set/pair_set are the family's
- * inlined helpers, non-static (suffix _761C) so umerge leaves no deleted-procedure stubs (as animLapCount.c).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct { s32 first, second; } Pair;
+#include "game/game.h"
+
 typedef struct { s32 x, y; } Pos;
-extern OSMesgQueue text_lock_queue;
-extern s32 gGameState;
-extern s8 gShowElapsed;
-extern f32 gModelTime;
-extern s16 gNumWindows;
-extern Pair gJust;
-extern Pos elapsedTimerPos[];
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32 selection);
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_GetCharWidth(u16 id);
-extern s8 HAL_SetFontFixedWidth(s8 value);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s16, char *);
 
+VIEW(s32, gGameState);
+#define gGameState gGameState_view
 
+VIEW(Pos[], elapsedTimerPos);
+#define elapsedTimerPos elapsedTimerPos_view
 
-
-
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 s32 animElapsedTimerText(s32 arg0)
 {
     s32 t;

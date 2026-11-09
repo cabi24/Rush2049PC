@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * N64 model-to-reckon snapshot, adapting arcade game/communic.c mcommunication
@@ -16,9 +18,6 @@
  */
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 
-typedef unsigned char u8;
-typedef signed short s16;
-typedef float f32;
 typedef struct ModelSnapshot {
     u8 other0[748];
     f32 uv[9];
@@ -43,7 +42,6 @@ typedef struct ModelSnapshot {
     f32 reckon_uv[9];
 } ModelSnapshot;
 
-extern void CopyUV(f32 *,f32 *);
 void dead_reckon_posuv(ModelSnapshot *object)
 {
     CopyUV(object->uv,object->reckon_uv);

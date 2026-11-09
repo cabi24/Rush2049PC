@@ -1,18 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Complete image-A A3DA4 projected gauge callback, 912 bytes.
- * Standalone source. No caller, inlined helper, deleted-static stub or own data.
- * Original carscr animNewSlider evidence establishes exactly type, p, opt and
- * signed-short screenPos[2], with no declared slot or quarter-height cache.
- * Native-specific button offsets, tire indices, geometry and arithmetic remain.
- * Hidden returns int in the original contract; all used native blit offsets
- * and the 64-byte record are checked separately. No extra local storage.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
     char *Name; void *Image; void *Info;
@@ -31,15 +18,13 @@ typedef union MenuSlot {
 typedef struct ProjectContext {
     float rotation[3][3], position[3]; u8 opaque[104];
 } ProjectContext;
-extern s16 gNumPlayers;
-extern s8 gCarLocked[], gThisCar[];
-extern MenuSlot carscr_buttonInfo[][44];
-extern float carscr_slider_hide_angle_min, carscr_slider_hide_angle_max, carscr_slider_flip_angle, carscr_front_tire_scale_step, carscr_rear_tire_scale_step;
-extern float gFrontTireScale_players[][13], gRearTireScale_players[][13];
-extern ProjectContext gCamera[];
-extern s32 Hidden(Blit *,s32);
-extern void ZOID_ProjectWindow(s32,float *,ProjectContext *,float *,s16 *);
-extern void UpdateBlit(Blit *);
+
+VIEW(MenuSlot[][44], carscr_buttonInfo);
+#define carscr_buttonInfo carscr_buttonInfo_view
+
+VIEW(ProjectContext[], gCamera);
+#define gCamera gCamera_view
+
 s32 carscr_animNewSlider(Blit *blt)
 {
     s32 type=blt->AnimID&15;

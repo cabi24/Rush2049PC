@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * Historical TargetCollRadius is a target-overlap sphere callback.
@@ -16,10 +18,7 @@
  */
 #define mvecsub(a,b,r) {r[0]=a[0]-b[0]; r[1]=a[1]-b[1]; r[2]=a[2]-b[2];}
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
-typedef struct ProximityEnabled {
-    signed char enabled;
-    unsigned char unknown[0x807];
-} ProximityEnabled;
+
 typedef struct ProximityPlayer {
     unsigned char unknown0[8];
     float position[3];

@@ -1,6 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Link {struct Link *next, *prev;} Link;
 typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
 void InsertLLE(List *list, Link *object, Link *before) {

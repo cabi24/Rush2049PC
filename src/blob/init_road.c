@@ -1,33 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Historical label init_road is misleading: this is the N64
- * version of arcade initroad() (reference/repos/rushtherock/game/road.c):
- * build the car's unit vectors from the start orientation, place the car at
- * start position + body offset, and initialise the four tire and body-corner
- * world positions and road state.
- *
- * N64 differences from the arcade body: three copies of the start uvs
- * (CopyUV is the 3x3 copy, i.e. fmatcopy) instead of fmatcopy+makesuvs,
- * an optional call (make_super_speed) gated by gSuperSpeed, the position
- * is also written to the per-car record gGameCar[slot], tire rest positions
- * come from the model record at m->car + 0x70 (no `veccopy(..., temp)`), the
- * road code written is 8 and it is copied to a 32-bit per-tire word.
- * WorldVector(in, out, uvs) is bodtorw.
- *
- * No compile-shaping quirks.  What mattered: vectors must be F32[3] arrays (as
- * in the arcade) and the vecadd operand orders the arcade ones:
- * `vecadd(initin.pos, temp, RWR)` and
- * `vecadd(TIRERWR[i], RWR, TIRERWR[i])`.  With a struct {x,y,z} position, or
- * with the operands commuted, the six loop adds load their operands in the
- * other order (12/164, the residual).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 
 #define vecadd(a, b, r) { r[0] = a[0] + b[0]; r[1] = a[1] + b[1]; r[2] = a[2] + b[2]; }
 #define veccopy(a, r) { r[0] = a[0]; r[1] = a[1]; r[2] = a[2]; }
@@ -44,7 +16,7 @@ typedef struct {
 } CarRec; /* 0x3B8 */
 
 enum n64p_CarRec { n64p_CarRec_ };
-typedef struct {
+typedef struct MODELDAT {
     /* 0x000 */ enum n64p_CarRec car;
     /* 0x004 */ u8 pad4[0xF0];
     /* 0x0F4 */ f32 BODYR[4][3];
@@ -81,12 +53,7 @@ typedef struct {
 #define N64P(x) _Generic((x), enum n64p_CarRec: (CarRec *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
 
-extern s8 gSuperSpeed;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
-void CopyUV(f32 (*src)[3], f32 (*dst)[3]);
-void WorldVector(f32 *in, f32 *out, f32 (*uvs)[3]);
-void make_super_speed(MODELDAT *m);
 
 void init_road(MODELDAT *m) {
     f32 temp[3];

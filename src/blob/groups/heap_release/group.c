@@ -1,5 +1,8 @@
-typedef signed char s8;typedef unsigned char u8;typedef signed int s32;typedef unsigned int u32;
-#define NULL ((void *)0)
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 enum n64p_Block { n64p_Block_ };
 enum n64p_Pool { n64p_Pool_ };
@@ -19,16 +22,17 @@ typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool p
 #define N64PTR(T, a) ((T)PC_N64P(a))
 #define SLOT_CLEAR(o) PC_SLOT_SET(PC_N64P(o), 0)
 typedef struct OSMesgQueue OSMesgQueue;
-extern intptr_t gMainHeap;
-extern s32 heap_lock_queue;
-extern s8 extra_overlay_loaded,start_overlay_loaded;
+
+VIEW(s32, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
+
 extern u8 overlay_base[];
 /* The car palette descriptors (car_palette_init.c): data is the u32 window address of the palette's heap block. */
 typedef struct Slot24 { u8 flag; u8 other1[15]; u8 active, marker; unsigned short value; u32 data; } Slot24;
-extern Slot24 car_palettes[];
+VIEW(Slot24[], car_palettes);
+#define car_palettes car_palettes_view
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
-void FillFreeMem(void *,u32);
-void *FindHeap(u32 arg0);
+
 Block *FindChunk(Heap *heap, u32 addr, s32 tag);
 /* PC: the free's first step poisons the freed block (block + 32, size). Whatever was registered big-endian in
  * it (a wave's file) goes with it (port/assets). The other two calls clear merged headers. */
@@ -225,11 +229,10 @@ void ReallocateMemory(u32 address, u32 desired) {
     pc_heap_allocated(heap); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
 }
 
-/* : AudFree3D -- frees the two cached audio heap handles gListeners / gEmitters (the first half
- * AudioShutdown's shutdown): for each non-zero handle, DeallocateMemory(handle) (inlined), then zero it.
- * DeallocateMemoryInternal is internal and clobbers s0/s1, which is why this caller saves them unused. */
-extern uintptr_t gListeners;
-extern uintptr_t gEmitters;
+VIEW(uintptr_t, gListeners);
+#define gListeners gListeners_view
+VIEW(uintptr_t, gEmitters);
+#define gEmitters gEmitters_view
 
 void AudFree3D(void) {
     if (gListeners) {

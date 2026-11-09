@@ -1,9 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef float f32;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). The
- * debug guard's placeholder operands read record 0's modelrun. */
-void CopyUV(void *arg0, void *arg1);
-void syminit(void *arg0);
+#include "game/game.h"
+
 /* N64 port of the arcade check_if_finished_resurrecting (game/resurrect.c),
  * applied to one model. */
 void FinishResurrecting(void *arg0)

@@ -1,15 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Entity handle lookup and the small message/camera-slot helpers built on it.
- * Hand-written from the assembly (round 5).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* PC: the audio manager's records have host-sized links and pointers (audiomgr_thread.c's views): an emitter
  * (AudEmitEffect's Cam) is 56 bytes, an fx tag (tFxSequence) 88, a command (tAudioMsg) 32 (docs/port/SYNTH.md). */
@@ -42,26 +31,23 @@ typedef struct Msg {
     u8 pad10[16];
 } Msg; /* 0x20 */
 
-extern Entity *gFxTags;
-extern s32 gTagMask;
+VIEW(s32, gTagMask);
+#define gTagMask gTagMask_view
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
 #define audiomgr_gCmds (*(Msg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 #define PC_SND_MSG_LOOP(n) (pc_snd_messages())
-extern s32 audio_lock_queue;
-extern s32 audio_command_queue;
+VIEW(s32, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
 
 s32 osRecvMesg(void *, void *, s32);
 s32 osSendMesg(void *, void *, s32);
-s32 AudioEffectPlaying(s32);
 
 Entity *ConvertTag(s32 h);
 /* The manifest owner of ValidateEmitter is an empty deleted-procedure stub (src/blob/ValidateEmitter.c),
  * which this group's calls bind to on PC. The body written here gets its own name
  * (docs/port/PROTOTYPES.md). */
 #define ValidateEmitter pc_ValidateEmitter
-void ValidateEmitter(CamSlot *c);
-Msg *GetCmd(void);
 
 Entity *ConvertTag(s32 h);
 
@@ -85,12 +71,6 @@ void ValidateEmitter(CamSlot *c)
         }
     }
 }
-
-Msg *GetCmd(void);
-
-void AudStopEmitter(s32 h);
-s32 AudEffectPlaying(s32 h);
-void AudStopEffect(s32 h);
 
 void AudStopEmitter(s32 h)
 {
@@ -122,8 +102,6 @@ s32 AudEmitterPlaying(s32 h)
     return AudEffectPlaying(h);
 }
 
-s32 AudEffectPlaying(s32 h);
-
 void AudUpdateEmitter(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
 {
     Entity *e;
@@ -149,6 +127,4 @@ void AudUpdateEmitter(s32 h, f32 *p, intptr_t unused, f32 a, f32 b)
     }
     osSendMesg(&audio_lock_queue, 0, 0);
 }
-
-void AudStopEffect(s32 h);
 

@@ -1,39 +1,11 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef signed int s32;
-typedef float f32;
-typedef struct Entity {
-    u8 pad0[12]; s32 id; s32 state; u8 pad14[6];
-    u8 msgCount; u8 pad1B[9]; f32 x,y,z,w; u8 pad34[16];
-} Entity;
-typedef struct Msg {
-    s16 id; s8 type,used;
-    union { struct { f32 x,y,z,w; } value; Entity *target; } payload;
-    Entity *ent;
-} Msg;
-extern Entity *gFxTags;
-extern s32 gTagMask;
-extern Msg audiomgr_gCmds[128];
-extern s32 audio_lock_queue, audio_command_queue;
-s32 osRecvMesg(void *,void *,s32);
-s32 osSendMesg(void *,void *,s32);
-Entity *ConvertTag(s32 h);
-Msg *GetCmd(void);
-void AudChangeEffect(s32 h,f32 x,f32 y,f32 z,f32 w);
-void AudChangeEffectVol(s32 h,f32 opacity);
-void AudChangeEffectPitch(s32 h,f32 value);
-void AudStopEffect(s32 h);
+#include "game/game.h"
+
 typedef struct LayerState {s32 handle;f32 level,style;u8 other12[8];} LayerState;
 typedef struct LayerSet {LayerState layer[3];} LayerSet;
 typedef struct ModelView {u8 other0[1564];u16 contact[4];u8 other1572[308];s16 steering;u8 other1882[108];s16 index;u8 other1992[48];f32 power[4];} ModelView;
-extern LayerSet gRoadNoises[];
+VIEW(LayerSet[], gRoadNoises);
+#define gRoadNoises gRoadNoises_view
 
-s32 AudPlayEffect(s32,s32,s32,s32);
-void InitSoundState(LayerState *);
 void SetSoundVP(LayerState *state,f32 level,f32 style)
 {
     if (level!=state->level) {
@@ -122,17 +94,16 @@ void UpdateRoadSounds(ModelView *model)
 #define FIELD(p,t,o) (*(t *)((u8 *)(p)+(o)))
 /* PC: an input record (gPlayers) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
 #define INPUT_SIZE 80
-/* On the PC the cars' sound records are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-extern s8 gGameSoundsEnabled;
-extern s8 gCarHorn[][13];   /* the horn by row (player + 1; row 0 the default) and car type */
-extern volatile f32 gSeconds;
-extern f32 sPitchRange[],sLastHornTime[],D_8012438C,D_80124390;
-extern s32 gHornSounds[],gBogSounds[];
-extern f32 unitmatrix_origin[3];
+
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
+
+VIEW(f32[3], unitmatrix_origin);
+#define unitmatrix_origin unitmatrix_origin_view
 extern u8 gPlayers[];
-void UpdateBumps(ModelView *);
+
 s32 AudEmitEffect(f32 *,intptr_t,f32,f32,f32,f32,s32,s32,s32,u8);
-void AudStopEmitter(s32);
+
 void AudUpdateEmitter(s32,f32 *,f32 *,f32,f32);
 
 typedef struct {
@@ -152,7 +123,7 @@ typedef struct {
     EngTbl *tbl;
     LayerState rec[4];
 } SndSet; /* 0x54 */
-typedef struct {
+typedef struct MODELDAT {
     u8 pad0[0x22C];
     f32 pos[3];      /* 0x22C */
     u8 pad238[0x404 - 0x238];
@@ -164,13 +135,7 @@ typedef struct {
     u8 pad7CD[3];
     s16 rpm;         /* 0x7D0 */
 } MODELDAT;
-extern u32 gGameState;
-extern s32 gRace;
-extern s16 gNumPlayers;
-extern s16 gCountDown;
-s32 AudEmitterPlaying(s32 handle);
-f32 Random(f32 max);
-void StopSound(LayerState *rec, s32 arg1);
+
 /*
  * update_skid_emitter (HYPOTHESIS): the one deleted-static stub in this file (jr ra; nop before E0050).
  * Modelled as a non-static internal wrapper around E05F0's AudUpdateEmitter call.  Its 4-parameter

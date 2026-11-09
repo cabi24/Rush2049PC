@@ -1,22 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Runtime image B only: the weapons.c cluster, 0x8038A95C..0x8038C910.
- * RemoveCannMFlash = _RemoveCannMFlash, RemoveGattMFlash = _RemoveGattMFlash, AnimateWeapon
- * (MAT3 GameCube weapons.c, GameSource tree; 2.2).
- * Direct typed port of the MAT3 bodies with N64 offsets. AnimateWeapon's position accumulations are
- * written `pos = pos + uvs * off`: that gives retail's commutative operand order for the add.s/mul.s
- * pairs (the old "FP temp rotation" residual). Disclosed: pad1/pad2 are two unused locals that make
- * the frame 136 bytes like retail. AnimateWeapon is address-taken by StartWeapon,
- * hence kept; the two muzzle-flash removers are private to this unit. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
-typedef struct UVMat { f32 uvs[3][3]; f32 pos[3]; } UVMat;
 
 typedef struct Defense {
     u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
@@ -68,13 +52,6 @@ typedef struct CarParts {
     u8 pad1c[0x24];
 } CarParts;
 
-typedef struct MuzzleMat { UVMat mat; } MuzzleMat;
-typedef struct MuzzleObj {
-    s32 mdls[5];          /* 0x00 */
-    MuzzleMat mats[5];    /* 0x14 */
-    s32 on;               /* 0x104 */
-    f32 onTime;           /* 0x108 */
-} MuzzleObj;
 typedef struct CMuzzleObj {
     s32 mdls[5];          /* 0x00 */
     MuzzleMat mats[5];    /* 0x14 */
@@ -91,27 +68,20 @@ typedef struct CMuzzleObj {
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 
-extern volatile f32 gFrameSeconds;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern CarParts gCarParts[];            /* gCarParts */
-extern u16 gObjList[];                        /* the object definitions by kind: the weapon models at 216..223 */
-extern s32 gWfxObjList[7];                /* gWfxObjList */
-extern u16 gRipTextures[5];                /* gRipTextures */
-extern TexDefSet gTexDefPtrs[];           /* gTexDefPtrs */
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(CarParts[], gCarParts);
+#define gCarParts gCarParts_view
 
-extern void ZOID_RemoveObject(s16 obj);
-extern void ZOID_SetColor(s16 obj, RGBA *clr);
-extern void MBOX_HideObject(s32 obj, s32 a, s32 mask);
-extern void MBOX_ShowObject(s32 obj, s32 a, s32 mask);
+VIEW(s32[7], gWfxObjList);
+#define gWfxObjList gWfxObjList_view
+VIEW(u16[5], gRipTextures);
+#define gRipTextures gRipTextures_view
+VIEW(TexDefSet[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+
 extern UVMat *ZOID_FindMatrix(s16 idx);
-extern void ZOID_SetObjectDef(s16 obj, s32 def);
-extern void ZOID_UpdateObject(s16 obj, f32 *pos, s32 a);
-extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
-extern void CopyUV(f32 *src, f32 *dst);
-extern void RollUV(f32 a, f32 *uvs);       /* RollUV */
-extern void ScaleUV(f32 *src, f32 *dst, f32 s);
-extern f32 Random(f32 scale);
+
 extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
 
 f32 weaponOffsets[8][13][3] = {
@@ -148,9 +118,12 @@ f32 weaponOffsets[8][13][3] = {
  * addresses a C-defined symbol covers to it, and a ninth row took the next data's. */
 static const f32 pc_no_weapon[13][3];
 #define WEAPON_OFF(type) ((type) < 8 ? weaponOffsets[type] : pc_no_weapon)
-WEAPON_STATE s8 gCurWeaponType[4];            /* gCurWeaponType */
-WEAPON_STATE MuzzleObj gGattMuzzleObjs[4];     /* gGattMuzzleObjs */
-WEAPON_STATE CMuzzleObj gCannMuzzleObjs[4];    /* gCannMuzzleObjs */
+VIEW(s8[4], gCurWeaponType);
+#define gCurWeaponType gCurWeaponType_view
+VIEW(MuzzleObj[4], gGattMuzzleObjs);
+#define gGattMuzzleObjs gGattMuzzleObjs_view
+VIEW(CMuzzleObj[4], gCannMuzzleObjs);
+#define gCannMuzzleObjs gCannMuzzleObjs_view
 
 /* 0x8038AA14 _RemoveGattMFlash */
 void RemoveGattMFlash(s16 slot)

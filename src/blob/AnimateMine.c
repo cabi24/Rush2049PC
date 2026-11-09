@@ -1,32 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AnimateMine (0x8010C974, 2,636 B) = _AnimateMine@targets.c (MAT3 0x8004D428), the weapon-mine visual callback:
- * op 0 releases the environ; otherwise (unpaused) the first frame retires the owner's oldest mine when it already
- * has three (age 121), takes a free slot, aligns the mine to the road (RoadPosition), builds
- * the base object (white, N64 flag 0x2000 on the mine model), the team-coloured glow rings and their matrices;
- * every frame it flashes the base texture (0.25 s), grows/fades the two glow rings (scale += 0.25 every 1/30 s,
- * alpha -8 from step 20, the other ring restarts at step 25, reset at step 45), and after 120 s or when hit removes
- * the always-collide links, the slot, the objects, damages (ProximityDamage) and blasts.
- * , from mine/best.c (MAT3 port; 49 rows). MATCH: the scorer fn MATCH (own.rodata verified),
- * whole-program unit EQUAL (kept).
- * What closed it (all traced):
- *  - Retail keeps the oldest-mine index, the uvs-copy inner index and the scale loop's OUTER index in one variable
- *    j (a1 in all three loops) and the scale loop's inner index in k (v1): MAT3 port with j outer / k inner.
- *  - DISCLOSED SHAPING: `j = -1;` after the uvs copy is a dead store (no code). Without it the unrolled search's
- *    `j = 0` is partially available at the scale loop's `j = 0`, uopt's PRE moves that store into the CopyUV
- *    call block (pretrace: str j,0 DELETE 58 INSERT 57) and j is spilled around the call (661 words). Any non-zero
- *    store to j after the uvs copy and before the glow loop gives the same code.
- * - DISCLOSED SHAPING: ZOID_ObjectFlags / ZOID_SetObjectFlags each reach the object through one more
- *    inlined level (_ObjFlags / _SetObjFlags): two 8-byte umerge inline reserves = retail's 16-byte frame gap
- *    (392). Which single-call helper chain carries the 16 bytes is not determined by the bytes.
- *  - mat[1] position adds written `x = x + uv` (retail add.s operand order) with the [1] and [2] adds on one source
- *    line (as1 line tie: retail loads mat[1][1][2] before the [1] reload); the scale loop's inner body in braces
- *    (as1 delay-slot choice of the inner loop).
- *  - Locals i, j, k, t, m are the five slots above clr; no unused locals.
- */
-typedef signed char s8; typedef unsigned char u8;
-typedef signed short s16; typedef unsigned short u16;
-typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 typedef union Color {struct {u8 r,g,b,a;} c;u32 word;} Color;
 typedef struct MineData {
  s32 base,ring[2]; f32 timer; f32 mat[2][4][3];
@@ -46,44 +19,32 @@ typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enu
 #define N64P(x) _Generic((x), enum n64p_Target: (Target *)PC_N64P(x), \
     enum n64p_MineData: (MineData *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). The colour is a member of its own:
- * a union of the eight pointer slots and the colour would be padded to 72 bytes. */
-typedef struct Object68 {u32 flags;s32 w4;void *owner;f32 scaleA,scaleB;u16 id;s16 link[3];void *slots[8];Color color;s32 w64;} Object68;
+
 typedef struct Texture36 {u8 bytes[36];} Texture36;
 typedef struct TextureBank {Texture36 *base;u32 other;} TextureBank;
-typedef struct MineSlots {Target *target[4];s32 count;} MineSlots;
+
 typedef struct Link {struct Link *next;Target *target;} Link;
 /* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
  * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
 typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
-extern s32 gPauseState;
-extern s32 gWprObjList[10];   /* image B's weapon models: the mine at 5, its glow ring at 6 (MAT3 _AnimateMine) */
-extern volatile f32 gFrameSeconds;
-extern MineSlots gPlayerMines[];
-extern Object68 ObjInstanceList[];
-extern TextureBank gTexDefPtrs[];
-extern u16 gMineTextures[];
-extern s8 gCarTeam[];
-extern u8 gMineRingColors[][3];
-extern Pool gAlwaysColList,gTargetList;
-extern void ReleaseEnviron(Visual *,s32);
+
+VIEW(s32[10], gWprObjList);
+#define gWprObjList gWprObjList_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+
+VIEW(TextureBank[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+
+VIEW(Pool, gAlwaysColList);
+#define gAlwaysColList gAlwaysColList_view
+VIEW(Pool, gTargetList);
+#define gTargetList gTargetList_view
+
 extern void *RoadPosition(f32 *,f32 *,f32 (*)[3]);
-extern s16 ZOID_AddObject(s32,void *,s16,s32);
+
 extern void ZOID_SetTexture(s16,Texture36 *,s32);
-extern void CopyUV(void *,void *);
-extern void MBOX_HideObject(s32,s32,u32),MBOX_ShowObject(s32,s32,u32);
-extern void FreeStatLLE(Pool *,void *);
-extern void ProximityDamage(f32 *,f32 *,s32,f32,s32);
-extern void StartBlast(f32 *,s32,f32,s32);
-extern void RemoveObjectTree(s16,s32,s32);
-/* The game's own MBOX_NewObject, ZOID_GetColor, ZOID_ObjectFlags, ZOID_SetObjectFlags and ZOID_RemoveObject (this
- * file had static copies of each: the same code). */
-s16 MBOX_NewObject(s32 obj,void *mat,s32 parent,u32 flags);
-void ZOID_SetColor(s16 objnum,Color *col);
-Color *ZOID_GetColor(s16 objnum);
-u32 ZOID_ObjectFlags(s16 objnum);
-void ZOID_SetObjectFlags(s32 objnum,u32 flags);
-void ZOID_RemoveObject(s16 objnum);
+
 void AnimateMine(Visual *v, s16 op)
 {
     int i;

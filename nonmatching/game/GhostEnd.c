@@ -1,13 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * GhostEnd (MAT3 ghost.c GhostEnd): the end of a ghost race (gRace 2). Every player's ghost is let go
- * (gGhosts[i], the car model's modelrun); then, by its recording header's flag, a ghost played back (flag > 0)
- * has its data purged (PurgeGhostData), and the recording of a player's run (flag < 0) ends: a finished car's
- * keeps its time and length and becomes gGhostToSave, an unfinished one is dropped. One player again after it.
- * nonmatching/README.md: the C was written from the N64's 440 bytes, the GameCube build's GhostEnd its model.
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16;
-typedef signed int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
     u32 headerChecksum;           /* 0x00 */
@@ -46,16 +37,8 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     GhostHeader **header;         /* 0x28 */
 } Ghost;
 
-typedef struct GhostPlayer { u8 pad0[239]; s8 ready; f32 value; u8 tail[0x110 - 0xF4]; struct pc_visual visuals[21]; u8 tail_308[0x380 - 0x308]; void *input; u8 tail_384[0x3B8 - 0x384]; } GhostPlayer;
-typedef struct GhostObject { u8 pad0[1820]; s16 reset; u8 tail[234]; } GhostObject;
-extern Ghost **gGhosts[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern GhostHeader *gGhostToSave;
-extern s16 gNumPlayers;
-extern s32 gRace;
-extern volatile s8 gEndingGhosts;
-extern void PurgeGhostData(Ghost **handle);
+VIEW(Ghost **[], gGhosts);
+#define gGhosts gGhosts_view
 
 void GhostEnd(void)
 {

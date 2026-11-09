@@ -1,29 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * FindDronePathIntersect(gate, path): index of the path point where the closed point list gDronePaths[path]
- * crosses the gate line of gCheckpoints[gate] (0x50-byte records: pos[3] at 0x0C, direction at 0x18,
- * integer radius at 0x24). Walks the points (8 bytes: s16 x, y, z, flag) with wrap-around, tracks the
- * nearest one in the XZ plane, and stops at the first point where this and the previous point are both
- * within the gate radius (squared distance compared with the unsquared integer radius) and the side of the gate line changed.
- * Returns the nearest point when the whole list was walked without a crossing, else the crossing index.
- * No arcade ancestor proven (N64 checkpoint/path set-up; arcade init_cp_data is the closest relative).
- *
- * Frontier. Code identical; own literal 1e20f = 0x60AD78EC equals the retail word at
- * 0x80123DFC (checked by hand; the unpatched scorer reports it as 2 unverified section-relative relocs).
- * Shaping quirks, all compile-affecting:
- *   - lastDist and lastSign are read before they are first written (guarded by n >= 0), as in retail,
- *     which loads both from their stack homes before the loop;
- *   - `f32 dot` is unused: it supplies the 4-byte slot that puts the s16 locals at sp+16..22;
- *   - the side test is the inline expression, sums written x-term first;
- *   - `sign != (s32) lastSign` (cast on the right operand) gives retail's `bne sign,lastSign`; without
- *     the cast uopt canonicalises both spellings to `bne lastSign,sign`;
- *   - the for-increment is `i++, n++`.
- */
-typedef float f32;
-typedef signed int s32;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef unsigned char u8;
+#include "game/game.h"
 
 typedef struct PathPoint {
     /* 0x0 */ s16 x;
@@ -46,8 +21,10 @@ typedef struct Gate {
     /* 0x28 */ u8 pad28[40];
 } Gate; /* 0x50 */
 
-extern Gate gCheckpoints[];
-extern PathDesc gDronePaths[];
+VIEW(Gate[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
+VIEW(PathDesc[], gDronePaths);
+#define gDronePaths gDronePaths_view
 
 s16 FindDronePathIntersect(s16 gate, s16 path)
 {

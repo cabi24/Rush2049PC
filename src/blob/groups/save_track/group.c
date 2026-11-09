@@ -1,14 +1,11 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Resource {u8 *data;} Resource;
 typedef struct Object {void *next; void *prev;void *lookup;u8 other12[32];Resource *resource;} Object;
 typedef struct Handle {Object *object;} Handle;
-extern u32 CalcChecksumInternal(u8 *,u32);
-extern void PS_WriteFile(void *,u32 *,int);
-u32 CalcChecksumInternal(u8 *data,u32 size);
 
-extern void SavePlayerRaceType(Handle *,int);
+extern void PS_WriteFile(void *,u32 *,int);
+
 void SavePlayerTrack(Handle *handle,int selector,u8 value)
 {
     u8 *data=handle->object->resource->data;

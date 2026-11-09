@@ -1,123 +1,53 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A start screen (title "press start" menu): updateStartScreen (updateStartScreen, kept root) and its
- * IPA-internal updateButtons (startscr_updateButtons). Donor: MAT3 GameSource startscr.c, updateStartScreen (GC 0x8008624c)
- * and static updateButtons (GC 0x800871e4); direct typed port, N64 offsets/addresses from the retail words.
- *
- * N64 differences from MAT3 (all read from the retail code): gOptions[14] <= 12 (GC 18); AudPlaySong(6,1) (GC 19);
- * PlayLRSound() runs before the `gStartMenuSelect == 0` test; exit case 7 -> 0x10000000 (GC has no case 7);
- * lower angle limit in updateButtons is 0.0f (GC 0.08726646f); the gNumPlayers clamp is
- * `if (n > max) { if (max < 1) n = 1; else n = max; }`; the 17th button x is `gNumPlayers * 22.5f` (ugen operand order).
- * gFrameSeconds is volatile (MAT3 declares it volatile) and gNumModels is volatile u8 (every use is lui/addiu/lbu 0(reg)).
- * uninitScreen and uninitButtons are inlined statics (inlined twice into the root). startscr_optionValid (optionValid) is the
- * installed body of group runtime_a_option_eligibility, present only as IPA context (without it the
- * root keeps &gStartMenuSelect in s0 instead of a2).
- *
- * supersession: adds initScreen (startscr_initScreen, MAT3 startscr.c initScreen GC 0x800865f8) with
- * initButtons (GC 0x80086da4) inlined as non-kept startscr_initButtons (retail deleted stub 0x8038FFD0) and eggs.c
- * InitEgg(23) inlined (non-kept `InitEgg`; store order gEgg, gNextTimeOut, gEggIdx; its `= 0` spelling keeps it off
- * initButtons' 0.0f web). N64 differences from MAT3: gOptions[14] <= 12, AudPlaySong(6, 1), texture "BUTTON_TITLE"
- * for button 11, the two 55.2f spellings (55.2f / 55.20f: retail has two rodata words), no MBOX_HideObject of
- * buttons 14/15, volatile gNumModels. Functions are in MAT3 file order: as1 breaks scheduling ties by source line,
- * so the inlined initButtons must follow initScreen (with initButtons first, `addiu s2,sp,76` lost a tie: 7 words).
- * The bodies of updateStartScreen, updateButtons, optionValid, uninitScreen and uninitButtons are unchanged.
- *
- * : uninitButtons and uninitScreen are non-static functions named after their retail deleted stubs
- * startscr_uninitButtons / startscr_uninitScreen (post-order of updateStartScreen: CheckForEgg F648, then uninitScreen's subtree
- * uninitButtons F734, uninitScreen F73C, then optionValid F744, updateButtons F79C, InitEgg = locked single FF90,
- * initButtons FFD0, initScreen FFD8). Off keep, so umerge still inlines them; as statics they had no symbol.
- *
- * Frame shaping, disclosed (rule): updateButtons has retail frame 96. Without the three unused f32 locals
- * below the frame is 88 and the locals sit at sp+56/66/72 instead of retail's sp+52/62/68. Udef is 32 bytes with
- * the MAT3 locals (buttonIdx, prevPos[3], tex, texIdx, buttonY, selectedY) and 44 with three more 4-byte slots
- * (frame = align8(52 + Udef)). The three unused locals reproduce this exactly; their original use is unknown.
- */
-typedef signed char s8;typedef unsigned char u8;
-typedef short s16;typedef unsigned short u16;typedef int s32;typedef unsigned int u32;typedef float f32;
+#include "game/game.h"
+
 typedef struct Blit Blit;
 typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]; } ButtonInfo;
 typedef union tRGBA { u8 c[4]; u32 w; } tRGBA;
 typedef struct MultiBlit MultiBlit;
-typedef struct Egg Egg;
+
 /* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/NewMultiBlit.c (MultiBlit)
    and src/ovl_a/groups/cheat_screen/eggs.c (Egg). */
 struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot, left, right; u32 zdepth, alpha;
                    s32 (*animfunc)(Blit *); u32 animid; };
-struct Egg { u8 size; u8 pad[3]; u32 levels[20]; u32 edges[20]; };
+
 typedef struct Controller { s8 attached; u8 rest[15]; } Controller;
 
-extern volatile f32 gFrameSeconds;
-extern f32 unitmatrix[3][3];      /* unitmatrix */
-extern volatile u8 gNumModels;
-extern s8 gOptions[];           /* gOptions */
-extern s8 gGameStarted;
-extern s8 gSoftReset;
-extern u32 gGameState, gSkipToGameState;/* gGameState, gSkipToGameState */
-extern u32 gActiveEdges;
-extern s16 gNumPlayers;
-extern Controller gControllerData[4];  /* gControllerData */
-extern s8 gCheatActive[];             /* the cheats on; [21] the start screen's code (MAT3 gCheatActive[23]) */
-extern s8 startscr_validOption[];           /* validOption */
-extern u32 gActiveLevels;
-extern ButtonInfo startscr_buttonInfo[18]; /* buttonInfo */
-extern s8 startscr_inited;             /* inited */
-extern Blit *startscr_blit;          /* blit */
-extern s32 startscr_buttonsInited;            /* buttonsInited */
-extern s32 startscr_buttonsJustInited;            /* buttonsJustInited */
-extern f32 startscr_gButtonScale;            /* gButtonScale */
-extern f32 startscr_gButtonSpace;            /* gButtonSpace */
-extern f32 startscr_buttonX;            /* buttonX */
-extern f32 startscr_maxY;            /* maxY */
-extern f32 startscr_buttonZ;            /* buttonZ */
-extern f32 startscr_cursorZ;            /* cursorZ */
-extern s32 gStartMenuSelect;
-extern s32 gMaxPlayers;
-extern s32 exitStartScreen;
-extern f32 startscr_cursorSpeed;            /* cursorSpeed */
-extern f32 playerCursorSpeed;
-extern char *startscr_buttonNames[];        /* buttonNames */
-extern MultiBlit startscr_mblit[];    /* mblit */
-extern Egg start_screen_egg[];          /* gEggs + 23 entries is the start-screen egg */
-extern Egg *gEgg;
-extern f32 gNextTimeOut;
-extern s32 gEggIdx;
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
+
+VIEW(u32, gActiveEdges);
+#define gActiveEdges gActiveEdges_view
+
+VIEW(Controller[4], gControllerData);
+#define gControllerData gControllerData_view
+
+VIEW(ButtonInfo[18], startscr_buttonInfo);
+#define startscr_buttonInfo startscr_buttonInfo_view
+
+VIEW(MultiBlit[], startscr_mblit);
+#define startscr_mblit startscr_mblit_view
+
+VIEW(Egg *, gEgg);
+#define gEgg gEgg_view
 
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 extern void *memcpy(void *, const void *, u32);
 extern void particle_lifetime_set(void);      /* createBG */
-extern s32 MBOX_FindObject_WORK(char *, s8, s8, s8);
-extern s32 MBOX_NewObject(s32, f32 (*)[3], s32, s32);
-extern void ZOID_SetColor(s16, tRGBA *);
-extern void ZeroCameras(void);
+
 extern Blit *NewMultiBlit(s16, s16, MultiBlit *, s16);
-extern void ClearRushControls(void);
-extern s8 CheckForEgg(void);
-extern void setGameState(s32);
-extern void AudSetMusicVol(f32, f32);
-extern void AudPlaySong(s32, s32);
-extern void PlayStartABSound(u32);
-extern void PlayLRSound(u32);
-extern void PlayUDSound(u32);
+
 extern void RemoveBlit(Blit *);
-extern void removeBG(void);
-extern void ZOID_RemoveObject(s16);
-extern void AudKillSong(void);
-extern void AudStopAllEffects(void);
-extern void MBOX_HideObject(s32, s32, s32);
-extern void MBOX_ShowObject(s32, s32, s32);
+
 extern void *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
 extern void ZOID_SetTexture(s16, void *, s32);
-extern void ScaleUV(f32 *, f32 *, f32);
-extern void WPitchUV(f32, f32 *);
-extern void WRollUV(f32, f32 *);
-extern void ScaleUVXYZ(f32 *, f32 *, f32, f32, f32);
 
-void startscr_initScreen(void);
-s8 startscr_optionValid(s32);
-void startscr_initButtons(void);
-void startscr_uninitButtons(void); /* uninitButtons@startscr.c: deleted stub 0x8038F734 */
-void startscr_uninitScreen(void); /* uninitScreen@startscr.c: deleted stub 0x8038F73C */
-void startscr_updateButtons(void);
 /* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, start_screen_egg;
    eggs.c's InitEgg at cheat `egg` of gEggs. Under one name the PC linked eggs.c's for both, so InitEgg(23)
    pointed past the table and the cheat screen could never be opened (docs/port/QA.md). */
@@ -127,15 +57,6 @@ int pc_start_valid(int index, int value);
 int pc_start_exit(int exit, int select);
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
 #define PC_START_EXIT(e) ((e) = pc_start_exit((e), gStartMenuSelect))
-void startscr_InitEgg(s32);
-void updateStartScreen(void);
-
-
-
-
-
-
-
 
 void startscr_InitEgg(s32 egg)
 {
@@ -273,9 +194,6 @@ void startscr_uninitScreen(void) /* uninitScreen (non-static, named after its re
     startscr_uninitButtons();
     startscr_inited = 0;
 }
-
-/* optionValid: installed body (group runtime_a_option_eligibility), IPA context only */
-s8 startscr_optionValid(s32 index);
 
 void startscr_initButtons(void) /* initButtons */
 {

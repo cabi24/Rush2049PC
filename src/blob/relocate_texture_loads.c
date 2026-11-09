@@ -1,12 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-/* Display-list segment rebase over [start, end). Quirk: the block-local copy `off = base` only
- * serves to found base's web before the w1 load (base then lands in a3); it is copy-propagated away. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef struct Gfx {
     u32 w0;

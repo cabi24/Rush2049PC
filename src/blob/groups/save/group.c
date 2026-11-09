@@ -1,47 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * SaveInit: the N64 save unit (GC GameSource/src/save.c counterparts).
- * Supersedes the locked group of the same name (members DeletePlayer, ReadPlayerData, InitPlayer,
- * SaveInit, InitLL, ClearLL: unchanged; this file was its group.c, history).
- * New members (all EQUAL in the whole-program unit, 0 locked bodies differing):
- * CheckAndRepairPlayer = GC _CheckAndRepairPlayer(player, repair); IPA player in s8 (separate `j` counter for the
- *                       option-repair loops, stats loops indexed by `i`).
- * ReadPlayer = GC _ReadPlayer(fileh); IPA fileh in s0.
- *   NewPlayer     = caller-less stub: GC _NewPlayer, N64 form (pak, slot), inlined into ReadPlayer and CreatePlayer.
- * CheckAndRepairGhost = GC _CheckAndRepairGhost(ghosth, data, repair); IPA t0, t2, t1.
- *   ReadGhostDataInternal     = GC _ReadGhostData(ghosth, decode) + N64 flag `select`; IPA decode s0, ghosth s1, select s3.
- *   FreeGhost     = caller-less stub: GC _FreeGhost(ghosth) (`*ghosth = NULL`), inlined into _ReadGhostHeader.
- *   Pow     = caller-less stub: GC _Pow(exp) (num 10 folded), inlined into CreatePlayer (context).
- *   PS_PakChanged, PS_PakInserted, PS_PakRumble = locked pak-TU getters of gPaks[pak] bytes 0/1/6, re-typed
- *                       here on the gPaks record (same bodies) so umerge's inlined copies in SaveServer share
- *                       one &gPaks[pak] address web; their single files are superseded (--revert-single).
- * adds two members: SaveServer (GC SaveServer) and func_800CC040 (GC SaveGhost, in ctx_slot.c).
- *   SaveServer's group-compile miss (176/225: sInitCountdown not reloaded in the pak loop) came from game_strncmp
- *   (strncmp) being an UNDEFINED external in the group program: uopt assumes an undefined callee cannot modify the
- *   TU's function-local statics, a defined one can. In the whole-program unit game_strncmp is defined (locked
- *   single, kept), so retail reloads. ctx_strncmp.c = byte-identical copy of src/blob/game_strncmp.c (context, keep).
- * Context (not members): CreatePlayer (GC CreatePlayer, draft, 241/272 words), SetDefaultCarSettings (locked elsewhere),
- *   game_strncmp (strncmp, ctx_strncmp.c).
- * Context files: ctx_hash.c, ctx_slot.c, ctx_newghost.c (locked group sources; see group.json note).
- * Non-member helper: _ReadGhostHeader (GC static _ReadGhostHeader with GC _AlreadyReadGhost's loop inside it):
- *   non-static, not keep; umerge inlines it into SaveServer; retail has no stub for it.
- * Decisions / devices to review:
- *   - SaveServer is defined with GC's two parameters (s32 forceUpdate, s32 rumbleOnly), matching the locked callers'
- * declared prototype (PS_ErrorFunc/input_aux call (0, 0), updateHighScoreScreen (1, 0) and (0, 0)). Retail never
- *     reads them; DEVICE (disclosed): a compiled-out `if (forceUpdate | rumbleOnly) {}` at the top -- without it ugen
- *     stores a0/a1 to their homes (210/225). The (void) form is also MATCH without any device.
- *   - SaveServer's sInitCountdown/sLastPak/sReadingPak are function-local statics: the TU's own .data at 0x8011742C
- *     (= 3), 0x80117430 (= -1), 0x80117434 ({0,0,0,0}); only SaveServer references them in the image.
- *   - _ReadGhostHeader declares GC's `pak` local nowhere; no unused locals in any member.
- * GC-derived names: _CalcChecksum = CalcChecksumInternal, PS_ReadFile = PS_ReadPartialFile, PS_WriteFile, PS_FlushFile,
- *   PS_FlushPak, PS_CreateFile, PS_PakServer, InsertLLE, strncmp = game_strncmp,
- *   strcmp = game_strcmp, _NewGhost = NewGhost, SavePlayerOption = audio_bus_mix, gOptions,
- *   gTrackNum, _DecodeGhost = menu_back, gGhostFiles, gPlayerFiles,
- *   gPS_Files = gPS_Files (+8 = head).
- */
-typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
-typedef signed int s32;typedef unsigned int u32;typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+
+
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
 /* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
  * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
@@ -53,42 +12,11 @@ typedef void **Handle;
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 s32 sprintf(char *, const char *, ...);
-u32 CalcChecksumInternal(u8 *, u32);
-void SetDefaultControls(void *);
+
 void SavePlayerOption(Handle, u8, s8);
-s8 GetDefaultOption(s32);
-void SavePlayerCar(Handle, s32);
-void SavePlayerCarView(Handle, s32);
-s32 game_strcmp(void *, void *);
+
 Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
 void PS_WriteFile(Handle, void *, u32);
-s32 PS_FlushFile(Handle, s32);
-s32 PS_FlushPak(s32, s32);
-void InsertLLE(void *, Handle, Handle);
-void game_strcpy(void *, char *);
-void PS_DeleteFile(Handle);
-void RemovePlayerFile(void);
-void MovePlayerFile(void);
-
-/* ---- SetDefaultCarSettings: copied from src/blob/groups/save_default_car/dn.c (matched there) ---- */
-extern s8 gCarHandling[];
-extern s8 gCarEngines[];
-extern s8 gCarTires[];
-extern s8 gCarFrame[];
-extern s8 gCarWings[];
-extern s8 car_color_choice_a[];
-extern s8 car_color_choice_b[];
-extern s8 car_color_choice_c[];
-extern s8 gTireRims[];
-extern s8 gCarHorn[];
-extern float gFrontTireScale[];
-extern float gRearTireScale[];
-
-extern void SavePlayerCarSetting(void *p, u8 idx, u8 slot, s8 val);
-
-void SetDefaultCarSettings(void *p, s32 idx);
-
-extern s8 gTrackNum;
 
 void InitPlayer(Handle h) {
     u8 *data;
@@ -123,13 +51,11 @@ void InitPlayer(Handle h) {
     data[71] = 0;
 }
 
-extern s8 gOptions[];
-void PS_ReadPartialFile(Handle, s32, s32);
-void SavePlayerControls(Handle, void *);
-extern char cheat_profile_name[];
-extern s8 gCheatActive[];   /* the cheats on; [21] the start screen's code (the cheats menu) */
-extern s16 gCheatState[];
-extern s8 gSaveGhostFiles;
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
+
+VIEW(s16[], gCheatState);
+#define gCheatState gCheatState_view
 
 s32 CheckAndRepairPlayer(Handle h, s32 repair) {
     s32 dirty;
@@ -332,15 +258,15 @@ void DeletePlayer(Handle h) {
 }
 
 typedef struct { char c[9]; } Name9;
-extern Handle player_profile_handles[][16];
-/* the profile records (save.c's SaveSlot, 64 bytes; one-element arrays, so player_profile_records[pak][slot] is a pointer as
- * the N64's byte array is) and the four tDLLists (24 bytes) */
-typedef struct { void *next, *prev; Handle fileh; u8 pad0C[0x2C - 0x0C]; Handle data; } ProfileRec;
-extern ProfileRec player_profile_records[][16][1];
-extern u8 gPlayerFiles[];
-extern u8 gPS_Files[][24];
-extern s32 gScheduler[];
-extern char player_file_prefix[], player_file_ext_match[], player_file_ext[], player_file_digits_format[];
+
+VIEW(ProfileRec[][16][1], player_profile_records);
+#define player_profile_records player_profile_records_view
+VIEW(u8[], gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+VIEW(u8[][24], gPS_Files);
+#define gPS_Files gPS_Files_view
+VIEW(int[], gScheduler);
+#define gScheduler gScheduler_view
 
 /* deleted static at 0x800CD0FC (caller-less stub): GC save.c _Pow(int num, int exp) */
 s32 Pow(s32 exp) {
@@ -441,12 +367,6 @@ void **CreatePlayer(s32 pak, u8 *name) {
 
 /* ===== ReadPlayer = GC save.c _ReadPlayer(fileh); IPA: fileh in s0 ===== */
 s8 GetPlayerOption(Handle player, u8 option);      /* GC GetPlayerOption */
-void video_set_offset(s8 x, s8 y);               /* GC VideoSetOffset */
-void LoadTextWave(void);                       /* GC LoadTextWave */
-void AddPlayerScores(Handle player);                  /* GC AddPlayerScores */
-void PurgePlayerData(Handle player);      /* GC PurgePlayerData */
-extern s8 gGlobalsSet;                           /* GC gGlobalsSet */
-extern s16 gLang;                          /* GC gLang */
 
 void **ReadPlayer(void **fileh) {
     Handle player;
@@ -570,15 +490,7 @@ s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
     return result;
 }
 
-/* ===== ReadGhostDataInternal = GC save.c _ReadGhostData(ghosth, decode) + an N64-only third flag;
- * IPA: decode s0, ghosth s1, select s3 ===== */
-void PurgeGhostData(Ghost **ghosth);            /* frees the ghost data (GC _FreeGhostData-like) */
-void DecodeGhost(Ghost **ghosth);                  /* GC _DecodeGhost */
-/* The heap's resize takes the handle's 32-bit N64 address (its definition's u32): N64A0(p) is a window pointer's
- * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-void ReallocateMemory(u32 headerh, s32 offset);
 #define N64A0(x) PC_N64A(x)
-void heap_move_block_low(void *h);
 
 s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
     Ghost *ghost;
@@ -615,13 +527,6 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
     return 1;
 }
 
-/* ===== func_800C813C = GC save.c SaveServer(forceUpdate, rumbleOnly) ===== */
-extern char save_file_name_prefix[];      /* "RUSH2049" */
-extern char player_file_ext_prefix[];      /* "P" */
-/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
- * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
-typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
-    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
 typedef struct PakChannel {
     s8 present;                /* 0x00 */
     s8 state;                  /* 0x01 */
@@ -631,7 +536,8 @@ typedef struct PakChannel {
     PcPfs pfs;
     u8 pad74[0x304 - 0x74];
 } PakChannel;
-extern PakChannel gPaks[];
+VIEW(PakChannel[], gPaks);
+#define gPaks gPaks_view
 /* pak-TU channel getters (locked singles, re-typed on the gPaks record so the inlined copies share one
  * address CSE in SaveServer; each still compiles to its locked body) */
 s8 PS_PakChanged(s32 pak) {
@@ -645,15 +551,12 @@ s8 PS_PakInserted(s32 pak) {
 s8 PS_PakRumble(s32 pak) {
     return gPaks[pak].busy;
 }
-extern u8 gGhostFiles[];        /* GC gGhostFiles (list head at +8) */
-void PS_PakServer(s32 forceUpdate, s32 rumbleOnly);
+VIEW(u8[], gGhostFiles);
+#define gGhostFiles gGhostFiles_view
+
 /* SaveServer calls it before touching a0/a1, so on the N64 it receives SaveServer's own forceUpdate and
  * rumbleOnly; the decomp's call passes nothing (docs/port/PROTOTYPES.md). */
 #define PS_PakServer() PS_PakServer(forceUpdate, rumbleOnly)
-                 /* GC PS_PakServer */
-s32 game_strncmp(char *, char *, s32);          /* strncmp */
-Handle NewGhost(void);                      /* GC _NewGhost */
-void PS_PurgeFile(Handle fileh);
 
 /* deleted static at 0x800C7300 (caller-less stub): GC save.c _ReadGhostHeader(fileh), with GC _AlreadyReadGhost
  * written inline (one `ghosth` variable for the search and the new ghost) */

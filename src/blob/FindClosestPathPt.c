@@ -1,24 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * FindClosestPathPt (0x800D2C10): index of the point nearest to pos (squared distance on s16
- * coordinates converted to float) in point set gDronePaths[set] ({u16 n; P3 *pts}, 8-byte P3).
- * Returns the index as s16; if the set is empty (or no point is closer than 1e20) the result
- * is the uninitialised `best`, exactly as retail (which is why `best` lives on the stack, sp+6).
- * Own .rodata literal 1e20f (0x8012417C) verified by the scorer.
- *
- * Shaping quirks, each needed:
- *  - goto loop: a for/while/do loop with an s32 counter is unrolled by -O3; an s16 counter adds
- *    sll/sra narrowing; the loop bound re-reads gDronePaths[set].n (CSE'd with the guard load);
- *  - no named pointer to the set record (a `PSet *s` local swaps v0/v1);
- *  - `s32 pad0[4]`, an unused 16-byte local, gives retail's 32-byte frame with best at sp+6.
- *    It is a filler, not recovered structure.
- */
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct P3 {
     s16 x, y, z, pad;
 } P3;
 
@@ -27,7 +9,8 @@ typedef struct {
     P3 *pts;
 } PSet;
 
-extern PSet gDronePaths[];
+VIEW(PSet[], gDronePaths);
+#define gDronePaths gDronePaths_view
 
 s16 FindClosestPathPt(P3 *pos, s16 set)
 {

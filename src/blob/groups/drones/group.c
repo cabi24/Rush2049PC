@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * DoDrones @ 0x800F93A0 (1413 words) -- the name is a historical
@@ -47,7 +49,7 @@ typedef unsigned char U8;
 typedef signed short S16;
 typedef unsigned short U16;
 typedef signed int S32;
-typedef unsigned int U32;
+
 typedef float F32;
 
 /* DoDrones' locals are indexed by a car slot or count the cars: on the PC as many as a race may hold
@@ -56,7 +58,7 @@ typedef float F32;
 #define DRONE 1
 #define HUMAN 2
 
-typedef struct {
+typedef struct MODELDAT {
     /* 0x000 */ U8 pad0[0x400];
     /* 0x400 */ F32 catchup;
     /* 0x404 */ U8 pad404[0x7C6 - 0x404];
@@ -89,26 +91,20 @@ typedef struct {
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 #define game_car gGameCar
-extern S8 gNumActiveCars;
+
 #define num_active_cars gNumActiveCars
-extern S32 gGameState;
-extern F32 gModelTime;
-extern S32 gRace;
-extern S8 gTrackNum;
-extern S8 gBackwards;
+VIEW(S32, gGameState);
+#define gGameState gGameState_view
+
 /* The circuit's cars (MAT3 tCircuitCar, 76 bytes; ContinueCircuit.c): skill, by track (+6 run backwards). */
 typedef struct { U8 id; U8 b1; U16 h2; U8 b4[24]; U8 b28[24]; S16 skill[12]; } Rec;
-extern Rec gCircuitCars[];
-extern S8 gCoastFlag;
-extern S8 gEndGame;
-extern S8 gOneMoreCP;
-extern S8 gDifficulty;
+VIEW(Rec[], gCircuitCars);
+#define gCircuitCars gCircuitCars_view
+
 #define coast_flag gCoastFlag
 #define end_game_flag gEndGame
 #define lap_flag gOneMoreCP
 
-void SetCatchup(void);
-F32 LinearInterp(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 out_bound2);
 #define FoundCoin LinearInterp
 
 F32 LinearInterp(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 out_bound2)

@@ -1,17 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image A:803A3A6C..803A3D9C; full select-screen marker color callback.
- * Native-authoritative reconstruction. Projection-reaching descriptors must
- * identify player 0..3 and marker 7..9. Earlier hide-only exits are wider.
- * This is a 64-byte slot view, not a claim of recovered original N64 types.
- * Each player has a native 2816-byte stride, 44 slots. Projection observes
- * three floats at slot +19, float +12; visibility is +8/+60 in this slot.
- */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+#define Color ColorView   /* this file's own Color: include/game's Color is another type */
+
 typedef struct Blit {
     char *Name; void *Image; void *Info;
     s16 TexIndex, X, Y; u16 State; s16 Width, Height;
@@ -30,18 +19,18 @@ typedef struct Color { u8 r,g,b,a; } Color;
 typedef struct ProjectContext {
     float rotation[3][3], position[3]; u8 opaque[104];
 } ProjectContext;
-extern s16 gNumPlayers;
-extern s8 gCarLocked[], gThisCar[];
-extern MenuSlot carscr_buttonInfo[][44];
-extern float carscr_marker_hide_angle_min, carscr_marker_hide_angle_max;
-extern ProjectContext gCamera[];
-/* The car colour settings, s8[5][13] by row (player + 1; row 0 the defaults) and car: palette indexes
- * (paint_colors_rgb). */
-extern s8 car_color_choice_a[],car_color_choice_b[],car_color_choice_c[];
-extern Color carscr_marker_colors[][3],paint_colors_rgb[];
-extern s8 Hidden(Blit *,s32);
-extern void ZOID_ProjectWindow(s32,float *,ProjectContext *,void *,s16 *);
-extern void UpdateBlit(Blit *);
+
+VIEW(MenuSlot[][44], carscr_buttonInfo);
+#define carscr_buttonInfo carscr_buttonInfo_view
+
+VIEW(ProjectContext[], gCamera);
+#define gCamera gCamera_view
+
+VIEW(Color[][3], carscr_marker_colors);
+#define carscr_marker_colors carscr_marker_colors_view
+VIEW(Color[], paint_colors_rgb);
+#define paint_colors_rgb paint_colors_rgb_view
+
 s32 anim_car_color_marker(Blit *blt)
 {
     s8 (*color_a)[13] = (s8 (*)[13]) car_color_choice_a;

@@ -1,14 +1,14 @@
-/* Context copy of src/blob/groups/menu_cc040_20261004/group.c (slot_release) with its ReadGhostDataInternal context draft
- * removed (the real body is in group.c). Callers of ReadGhostDataInternal (func_800CC040, ReadGhostData) and its IPA
- * callee menu_back (s1) must be in this group's program for ReadGhostDataInternal's register convention. */
-typedef signed char s8;typedef unsigned char u8;typedef short s16;typedef unsigned short u16;
-typedef signed int s32;typedef unsigned int u32;typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
+
+#undef M2C_FIELD
 #define M2C_FIELD(expr,type,offset) (*(type)((s8 *)(expr)+(offset)))
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
-extern intptr_t gMainHeap;
-extern OSMesgQueue heap_lock_queue;
+
+VIEW(OSMesgQueue, heap_lock_queue);
+#define heap_lock_queue heap_lock_queue_view
 
 /* ---- heap release (copied from src/blob/groups/heap_release, matched there) ---- */
 enum n64p_Block { n64p_Block_ };
@@ -16,14 +16,10 @@ enum n64p_Pool { n64p_Pool_ };
 enum n64p_u32 { n64p_u32_ };
 typedef struct Block {u32 pad0;enum n64p_Block next;u32 pad8[3];s8 pad14; s8 tag; u8 counter;u8 pad23[9];} Block;
 typedef struct Pool {s32 count;enum n64p_u32 base;enum n64p_Pool next;} Pool;
-typedef struct Heap {u32 pad0;u32 pad4;enum n64p_Block blocks;u32 padc[3];Pool pool;} Heap;
+
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Pool: (struct Pool *)PC_N64P(x), enum n64p_u32: (u32 *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-void FillFreeMem(void *,u32);
-void DeallocateMemoryInternal(u32 address,s32 tag);
-
-void *GetPtrSize(u32 address);
 
 /* ---- menu objects ---- */
 typedef struct MenuData {
@@ -75,38 +71,25 @@ typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
 #define START_VIEW HeaderStart
 typedef struct List { s32 pad0; s32 pad4; Handle head, tail; } List;
 
-extern List gGhostFiles;
-extern Handle gGhosts[4];
-extern char ghost_file_name_format[], ghost_backward_suffix[], ghost_forward_suffix[], ghost_file_ext[];
-void RemovePlayerFile(void);
-void MovePlayerFile(void);
+VIEW(List, gGhostFiles);
+#define gGhostFiles gGhostFiles_view
+VIEW(Handle[4], gGhosts);
+#define gGhosts gGhosts_view
+
 s32 sprintf(char *, const char *, ...);
 void *memcpy(void *, const void *, u32);
-s32 game_strcmp(char *, char *);
-void SaveGhostInLimbo(void *, void *);
-void PS_DeleteFile(void *);
+
 Handle PS_CreateFile(s32, char *, char *, u32, s32, s32);
 void PS_WriteFile(void *, void *, u32);
-s32 PS_FlushFile(void *, s32);
-s32 PS_FlushPak(s32, s32);
-void InsertLLE(List *, Handle, Handle);
-void PS_ReadPartialFile(void *, s32, s32);
-void *AllocateHandleHeap(void *, s32);
+
 /* The ghost's buffer is kept as its 32-bit N64 address (MenuData.buffer), read from its handle's slot (PC_SLOT_N64);
  * unzipdata and CalcChecksumInternal take the pointer at it, N64PTR0(T, a) (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
 s32 unzipdata(void *, s32, void *);
-s32 CalcChecksumInternal(void *, s32);
+
 #define N64PTR0(T, a) ((T)PC_N64P(a))
 #define SLOT_S32(h) (s32)PC_SLOT_N64(h)
-s32 CheckAndRepairGhost(Handle, s32, s32);
-void ReallocateMemory(void *, s32);
-void heap_move_block_low(void *);
 
-/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
- * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
-typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
-    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
 /* The seats are the record's 16 file entries (0x28 bytes from +0x84 on the N64); the N64 view starts them 0x20
  * early, at +0x64, with busy at +0x22. */
 typedef struct {
@@ -121,7 +104,8 @@ typedef struct {
     u8 pad7C[8];
     SeatEntry seat[16];  /* the file entries */
 } PlayerSeats;
-extern PlayerSeats gPaks[];
+VIEW(PlayerSeats[], gPaks);
+#define gPaks gPaks_view
 
 /* PS_PurgeFile (historical label): release a slot's data block and clear its seat flag. */
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -171,8 +155,6 @@ void DecodeGhost(Handle h) {
     }
 }
 
-s32 ReadGhostDataInternal(Handle h, s32 back, s32 select);  /* defined in group.c */
-
 /* GC DeallocateMemory as used by SaveGhost's main path: heap lock/unlock as nested inlined helpers (frame
  * evidence: the inlined `address` slot sits at retail's 80(sp) only with the two nested 8 B areas below it, as
  * PS_DeleteFile's pak_buffer_free). Non-static, internal (not on keep). */
@@ -198,7 +180,6 @@ void slot_forget(Handle node) {
     }
 }
 
-void FreeGhost(Handle ghosth);   /* GC _FreeGhost (group.c member, stub 0x800C7300) */
 /* SaveGhost's limbo-path free: the same heap free written without nested helpers (one 8 B inline area; frame
  * evidence). Identity hypothesis: disclosed. */
 void cart_free_direct(void **address) {

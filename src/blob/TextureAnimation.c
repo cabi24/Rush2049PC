@@ -1,33 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TextureAnimation (0x800BD2C8, 1,884 bytes) -- historical label; real semantics:
- * per-frame palette / display-list animation updater. No arcade ancestor found.
- *   loop 1: PaletteAnimation20 records of the current track (PaletteLists[track]),
- *           11 actions: rotate up/down, 2- and 3-way block swaps, a three-state
- *           light sequence (6 -> 5 -> 4 -> 6), two chaser patterns, and two
- *           texture-scroll actions that call the G_SETTILESIZE patcher
- *           (historical label displaylist_set_tile_size).
- *   loop 2: ObjectAnimation20 records (TextureSwapLists[track]): frame flip-book that
- *           swaps or copies an object's display list (displaylist_set_texture_image).
- *
- * STATE: code identical, own-rodata unverified. Scorer output:
- *   MATCH (4 section-relative relocations unverified: .rodata+0x0 at +0x94,
- *   .rodata+0x0 at +0x98, .rodata+0x4 at +0xc4, .rodata+0x4 at +0xcc)
- * The object's .rodata (0.0333333f then the 11-entry jump table) was compared
- * by hand with the image at 0x80123E28..0x80123E57: all 48 bytes agree.
- *
- * Shaping facts the match depends on:
- * - gFrameSeconds (frame time, f32) and gLastFrameCount (frame count, int) are volatile:
- *   that is what makes IDO materialise the address (lui/addiu, 0(reg)).
- * - cases 0/1: `i = last; saved = palette[i]; for (i--; ...)` (i carries the
- *   index before the loop). With `saved = palette[last]; for (i = last-1; ...)`
- *   one more temp exists and uopt hoists the constant 321 into a1.
- * - the two fill loops must have the body on its own source line. as1 does not
- *   move an instruction across a source-line boundary, so the layout decides
- *   whether the pointer increment or the first store lands in the delay slot.
- * - source order of the three light cases is 6, 5, 4 (image order).
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
+
 typedef struct Gfx { u32 w0; uintptr_t w1; } Gfx;
 typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
 typedef struct PaletteAnimation20 { void *owner; s16 first,last; s8 step; u8 action; s16 ticks; f32 delay; AnimatedData data; } PaletteAnimation20;
@@ -47,15 +20,18 @@ typedef struct ObjectAnimation20 { s16 count,object_index,direction,index; f32 d
  * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
 #define PC_SCROLL_RETRACES(d, ticks) (pc_fps60 && (ticks) > 0 ? 2 : (d))
-extern u32 gGameState;
-extern s8 expansion_pak_present,gTrackNum;
-extern PaletteAnimation20 *PaletteLists[];
-extern ObjectAnimation20 *TextureSwapLists[];
-extern AnimationFrame12 texture_swap_shared_frames[];
-extern volatile f32 gFrameSeconds;
-extern volatile int gLastFrameCount;
-extern void displaylist_set_tile_size(Gfx *,int,int,int,int);
-extern void displaylist_set_texture_image(Gfx *,Gfx *);
+
+VIEW(PaletteAnimation20 *[], PaletteLists);
+#define PaletteLists PaletteLists_view
+VIEW(ObjectAnimation20 *[], TextureSwapLists);
+#define TextureSwapLists TextureSwapLists_view
+VIEW(AnimationFrame12[], texture_swap_shared_frames);
+#define texture_swap_shared_frames texture_swap_shared_frames_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(volatile int, gLastFrameCount);
+#define gLastFrameCount gLastFrameCount_view
+
 void TextureAnimation(void)
 {
     PaletteAnimation20 *palette_animation;

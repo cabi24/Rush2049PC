@@ -1,29 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B battle power-ups (MAT3 GameSource/src/powerups.c). Superseded in place by:
- * UpdateBattlePowerUps = UpdateBattlePowerUps (GC 0x80033c94) is now a strict member/claim.
- *   UpdateBattleHealth = UpdateBattleHealth (GC 0x80033618)  - inherited member, source unchanged
- *   UpdateBattleShield = UpdateBattleShield (GC 0x80033840)  - inherited member, source unchanged
- *   UpdateBattleInvs = UpdateBattleInvs   (GC 0x80033a68)  - inlined into F60; 8-byte deleted stub (member)
- *   UpdateInvs = UpdateInvs         (GC 0x800334d0)  - inlined into UpdateBattleInvs; 8-byte stub (member)
- * rewrote the two inlined bodies as MAT3 typed ports: UpdateBattleInvs calls UpdateInvs first and keeps
- * MAT3's early `return` and `else if ((invsTLeft -= gFrameSeconds) < 0.f)`; UpdateInvs keeps MAT3's
- * `fadeAlpha + 8 > 255` form and invsColor table. N64 differences: `car` is a function-level local declared
- * between i and invsColor (fixes the table home sp+56; MAT3 has it block-local), gFrameSeconds is MAT3's
- * `extern volatile float` (per-use lui/addiu + lwc1 0(reg)), and the invs-phase compare is spelled `0.f`
- * (keeps its zero web distinct from UpdateInvs' `0.0f`, as the inherited packet found). Field names below are
- * the inherited descriptive ones; MAT3 names: State = tBattlePowerUps {num, hIdx, sIdx, iIdx, healthTLeft,
- * invsTLeft, shieldTLeft, tS}, Slot = tBattlePowerUpT {t, last, type}, Player.{flags & 1 = battle.defense.active
- * invisibility, countdown = battle.shoot, alpha = battle.fadeAlpha, phase = battle.fadeState, timer = fadeTime}.
- * Inherited (runtime_b_resource_callbacks) credited for layouts and the B10/D38 bodies.
- * No unused locals.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 /* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
 #define OBJECT_HANDLE union { s32 scene; struct { s16 index, upper; } parts; }
@@ -55,16 +31,11 @@ typedef struct Player {
     f32 timer;
     u8 unknown3AC[12];
 } Player;
-extern State gBattlePowerUps;
-extern volatile f32 gFrameSeconds;   /* MAT3 declares it volatile */
-/* The scene's object definitions by kind: the power-ups' (MAT3 gObjList[0x2A1..0x2A3]) are the N64's 353 (health), 354
- * (invisibility) and 359 (shield). */
-extern u16 gObjList[];
-extern s16 gNumPlayers;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern f32 Random(f32);
-extern void ZOID_SetObjectDef(s16, u16);
-extern void MBOX_ShowObject(s32, s32, u32);
+VIEW(State, gBattlePowerUps);
+#define gBattlePowerUps gBattlePowerUps_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+
 /* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
  * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */
 #define PC_FADE_STEP(n, a) (pc_fps60 && PC_STEPS(n) > (a) ? (a) : PC_STEPS(n))

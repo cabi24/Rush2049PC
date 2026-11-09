@@ -1,25 +1,6 @@
-/*
- * BlitInit (0x800A4934, 400 bytes): begin a double-buffered display list.
- * Historical name; this is N64 graphics-state initialization, not audio.
- * No arcade ancestor: N64-specific RDP/RSP state-cache and GBI setup.
- *
- * Matches in the real -O3 group described by recipe.json. Keep this public
- * no-argument entry and the existing gfx_modes roots; blit_set_mode remains
- * internal so its genuine register summary preserves the height address.
- * The accepted blit_load_texture.c owns blit_cache_tile as s64 in that same group.
- * Do not replace its definition with an extern-only unit or invent a second
- * object owner here. No accepted source file is modified.
- *
- * The four SDK-style macros each have their own block-local Gfx pointer.
- * Their source lifetimes reproduce the retail allocator without fake locals,
- * keepers, assembly, volatile steering, or unrelated callers.
- */
-typedef signed int s32;
-typedef unsigned int u32;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed long long s64;
-typedef struct { u32 w0; uintptr_t w1; } Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
+
 typedef union {
     Gwords words;
     s64 force_structure_alignment;
@@ -67,22 +48,18 @@ typedef union {
 }
 #define gSPClearGeometryMode(pkt, c) gSPGeometryMode(pkt, c, 0)
 
-extern Gfx *blit_dl;
-extern Gfx blit_display_lists[2][2400];
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
+
 /* PC: the two text display lists hold 16-byte host Gfx; blit_display_lists is sized for 8-byte commands. */
 Gfx pc_text_dl[2][2400];
 #define TEXT_DL pc_text_dl
-extern u32 blitAttribute;
-extern s32 blitXmin, blitYmin, blitXmax;
-extern s32 screen_width, screen_height, blitYmax;
-extern s16 blitZDist;
-extern u8 blitPrimColor[4];   /* the primitive colour, R, G, B, A */
-extern void *blit_cache_image;
-extern intptr_t blitColors;
-extern s32 blitDLnum, blitMode, blitLUT;
-extern s64 blit_cache_tile;
-extern void blit_set_mode(s32);
-extern void BlitSetAttribute(u32);
+
+VIEW(u8[4], blitPrimColor);
+#define blitPrimColor blitPrimColor_view
+
+VIEW(intptr_t, blitColors);
+#define blitColors blitColors_view
 
 void BlitInit(void)
 {

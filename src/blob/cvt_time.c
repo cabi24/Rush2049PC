@@ -1,8 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef float f32;
-typedef unsigned int u32;
-typedef unsigned char u8;
-typedef int s32;
+#include "game/game.h"
+
 s32 cvt_time(f32 value, u8 *digits, u8 format) {
     u32 integer, minutes, seconds, hundredths;
     if (value < 0.0f) value = 0.0f;

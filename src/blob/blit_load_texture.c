@@ -1,24 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * blit_load_texture, natural form. Code identical to retail (2,512 words); the only scorer difference is
- * the three unresolved `jal __ll_lshift` (IDO's 64-bit shift helper, retail 0x8000D994, labelled
- * `__ashldi3` in this repository). See for the full header and for the
- * strict-MATCH spelling with explicit helper calls.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed long long s64;
-typedef unsigned long long u64;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -176,15 +157,9 @@ typedef union {
     gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls) << G_TEXTURE_IMAGE_FRAC, (ult) << G_TEXTURE_IMAGE_FRAC, \
         ((uls)+(width)-1) << G_TEXTURE_IMAGE_FRAC, ((ult)+(height)-1) << G_TEXTURE_IMAGE_FRAC) \
 }
-extern u32 blitAttribute;
-extern s32 blitLUT;
-extern void *blit_cache_image;
-extern s64 blit_cache_tile;
-extern Gfx *blit_dl;
-extern s32 blitMode;
-extern void blit_set_mode();
-extern void BlitSetAttribute();
-extern s32 blit_mask_bits();
+
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
 
 #define TILE(fmt, sz) gDPLoadTextureTile(blit_dl++, img, fmt, G_IM_SIZ_##sz, width, height, uls, ult, lrs, lrt, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)
 #define TILE4(fmt) gDPLoadTextureTile_4b(blit_dl++, img, fmt, width, height, uls, ult, lrs, lrt, pal, G_TX_CLAMP, G_TX_CLAMP, masks, maskt, G_TX_NOLOD, G_TX_NOLOD)

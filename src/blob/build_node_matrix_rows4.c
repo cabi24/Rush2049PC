@@ -1,29 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (-O2: 170 words differ, saves s0 in an 8-byte frame) */
-/*
- * Sibling of build_node_matrix (same body, already matched): build an N64
- * fixed-point Mtx from a float orientation given as three rows of four
- * floats (only columns 0..2 are read; the Mtx gets m[row][col] transposed
- * pairs with a zero fourth column), a translation `pos` (taken absolute, or
- * relative to the view origin gCamera[idx].pos) scaled by 2^20 and a
- * homogeneous `w` scaled by 2^16.  Returns 0 without writing when any
- * relative coordinate is outside (-2048, 2048), else 1.
- *
- * Source is build_node_matrix's with the 4-wide row type and a separate position
- * pointer; no quirks beyond that file's (single `sc` local for 65536.0f,
- * a/b/c/d temporaries reused).  build_node_matrix is recorded at -O2; this one
- * only matches at -O3.
- */
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef u32 Mtx[16];
 typedef struct {
     u8 pad0[36];
     f32 pos[3];
     u8 pad1[152 - 48];
 } Ent;
-extern Ent gCamera[];
+VIEW(Ent[], gCamera);
+#define gCamera gCamera_view
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 

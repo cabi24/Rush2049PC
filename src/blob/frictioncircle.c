@@ -1,42 +1,17 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Tire friction-circle force update. The historical frictioncircle label is
- * misleading: the direct arcade equivalent is frictioncircle in
- * reference/repos/rushtherock/game/tires.c. Its companion calcalpha is
- * the arcade calcalpha helper.
- *
- * Computes longitudinal traction and lateral tire force from wheel torque,
- * tire loading, contact-patch slip, and a cubic lateral friction curve.
- * Updates wheel angular velocity, contact-patch lateral displacement,
- * slip torque, and the original signed-byte slip diagnostic.
- *
- * N64 differences observed in native instructions:
- * - Longitudinal velocity is tirev[2], lateral velocity is tirev[0].
- * - The nonpositive-loading branch runs before friction/slip calculations;
- *   positive brake adds angular drag and clamps negative wheel speed to zero.
- * - The under-rotating-wheel branch can blend toward road angular velocity
- *   using the brake threshold and the magnitude of model value944.
- * - Above model speed 20, that branch softens lateral force with a denominator
- *   of 2 plus full horizontal contact speed.
- * - The tire record is compacted; pad fields preserve only native offsets.
- *
- * Retains the original arcade scalar locals and coefficient calculations.
- * sqrtf/fabsf are genuine IDO intrinsics matching native sqrt.s/abs.s.
- */
-typedef float f32;
-typedef struct {
+#include "game/game.h"
+
+typedef struct Model {
     char pad0[944]; f32 value944; char pad948[32]; f32 brake;
     char pad984[24]; f32 speed; char pad1012[460]; f32 mass;
     char pad1476[112]; f32 dt;
 } Model;
-typedef struct {
+typedef struct Tire {
     f32 tradius,springK,rubdamp,unk12,Cfmax,invmi,unk24,Afmax,k1,k2,k3;
     char pad44[24];
     f32 patchy,angvel,sliptorque,sideforce,traction;
     signed char slipflag;
 } Tire;
-extern f32 frictioncircle_brake_threshold;
-extern f32 calcalpha(f32 *);
+
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)

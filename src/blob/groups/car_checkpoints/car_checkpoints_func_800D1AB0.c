@@ -1,32 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef float f32;
-typedef short s16;
-typedef int s32;
-typedef signed char s8;
-
-typedef struct {
-    char pad0[0x7C6];
-    s16 slot;
-    char pad7C8[0x20];
-    s8 unk7E8;
-    char pad7E9[0x1F];
-} Model; /* 0x808 */
-
-typedef struct {
-    char pad0[0xEE];
-    s8 place;
-    s8 unkEF;
-    char padF0[0x10];
-    f32 distance;
-    char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x359 - 0x308];
-    s8 unk359;
-    char pad35A[0x380 - 0x35A]; void *input; char pad35A_384[0x3B8 - 0x384];
-} GameCar; /* 0x3B8 */
-
-extern s8 gNumActiveCars;
-extern s16 gNumLaps;
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+
+#include "game/game.h"
 
 /* PC: the cars still racing, by slot, and their distances by slot, as many as the race's cars (up to
  * PC_MAX_LINKS, pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's 6. */

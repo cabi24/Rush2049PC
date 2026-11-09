@@ -1,28 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * UpdateFx (0x800951E0, 444 B; historical label) = _UpdateFx@audiomgr.c (MAT3 GC 0x800A3080, DC
- * 8C014C68): the WalkBST callback of _ProcessPriorities (its address is loaded by PeriodicMaintenance). For a sorted fx tag
- * that is not pending (state 1): when it is beyond the voice budget (elNum >= gMaxSfx * 0.75f) or is a silent looping
- * playing tag whose 0.2 s timeout has passed, queue an interrupt command (5) for a playing tag in gStopCmds; else, for
- * a tag not playing that is audible (vol > 0.1f) or a one-shot of type 1, queue a start command (3) in gStartCmds.
- * Commands come from _GetCmd (GetCmd, IPA context: retail keeps stag in a2 across the call). AudioTimeout
- * (AudioTimeout, kept out of line at 0x80095198) is inlined from its own file (timeout.c), as in retail.
- * MAT3 typed port. Differences from the MAT3/DC text, each measured:
- *  - no `tag` local: every access is `stag->tag->...` (retail CSEs the state load into one register and colours
- *    stag a2 / tag a3 / the constant 2 t0; with MAT3's `tag` local the tag web outranks stag: 19 rows);
- *  - `gMaxSfx * 0.75f` (MAT3 `0.75f * gMaxSfx`): retail's mul.s has the converted gMaxSfx first.
- * SHAPING (disclosed, compiles to no code): the first line. Retail starts with `beq t0(2),v1(state),next; nop`, a
- *  branch to the next instruction. IDO leaves one only when the guarded block still holds a computation when ugen
- *  runs (uopt sinks `t` into it; ugen drops the empty `if (t)`s; as1 deletes the dead set). An empty `if` alone is
- *  removed (24 rows). A compiled-out debug/assert macro is the natural candidate. Same device family as the
- *  installed ValidateWaveInstance (slot_sound group). `!elNum` instead of `elNum == 2` gives the same code.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct FxTag {
     void *next, *prev;      /* 0x00 ll */
     void *list;             /* 0x08 */
@@ -47,14 +24,11 @@ typedef struct AudioMsg {
     s8 used;                /* 0x03 */
     FxTag *tag;             /* 0x04 */
 } AudioMsg;
-extern s32 gMaxSfx;
-extern s32 gNumStopCmds;
-extern s32 gNumStartCmds;
+
 /* PC: PC data, PC_SND_MSG_SLOTS long (pc_game_types.h, docs/port/DECOUPLE.md 9) */
 #define gStopCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_stop_cmds)
 #define gStartCmds (*(AudioMsg *(*)[PC_SND_MSG_SLOTS])pc_snd_start_cmds)
 AudioMsg *GetCmd(void);      /* _GetCmd */
-s32 AudioTimeout(f32 startTime, f32 interval);
 
 /* PC: a start or stop that finds the message pool empty (transform/group.c says when) waits for the next
  * priority pass. */

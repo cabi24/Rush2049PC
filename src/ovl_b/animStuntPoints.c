@@ -1,43 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Image B, 0x80392894..0x80392FE4 (1872 bytes): animStuntPoints, the stunt-mode
- * HUD text callback (blit animFunc; draws the per-coin "X n" counts, the running
- * and total stunt points, the bonus multiplier and the landing/wing messages).
- * Donor: MAT3 GameCube decomp, GameSource/src/hudextra.c animStuntPoints
- * (GC 0x80022a94, size 0x534); typed port with MAT3 names, N64 offsets.
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * (2/468), which supplied the N64 record layouts and the named bonus copy.
- * N64 differences from the GC body: coin screen positions are used unhalved,
- * the coin record is the older 0x48-byte form (no *_Coin fields), the text
- * table indices are 181/179/180 and tab[38], and the callback takes the blit.
- * Shaping (disclosed):
- * - `showBonus` is read into a local through gStuntPlayer[i] (global-array
- *   root): uopt then emits `.noalias` for the bonuscnt pointer against p, which
- *   lets as1 schedule `li v0,-2` before the showBonus store as retail does
- *   (proven first by adding that one directive to the ugen listing).
- * - The decrement/sentinel pair and the stuntsHud clear loop body sit on their
- *   own lines: as1 breaks scheduling ties by source line.
- * - unused0/unused1 are the exact frame residual (rule): retail
- *   frame 184; 176 without them; two 4-byte slots. Not recovered names.
- * Format strings are the image's own data (stunt_coin_count_format.."%i"/"X %i"/"%s X %i").
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+#define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
 
 typedef struct tUVMatrix { f32 uvs[4][3]; } tUVMatrix;
-typedef struct tStuntPlayer {
-    s16 show, crash;
-    f32 time;
-    s32 maxStuntPoints, points, pointsHud, totalPoints, numstunts, lastStuntType;
-    s16 stunts[10], stuntsHud[10], totalStunts[10], unused;
-    f32 wingTime;
-    s8 wingBonus, wingBonusHud, doneBonus, doneBonusHud;
-    s32 bonus, bonusHud, showBonus, done;
-} tStuntPlayer;
+
 typedef struct tStuntCoin {
     s16 type, idx;
     tUVMatrix mat;
@@ -53,26 +18,20 @@ typedef struct tText {
     u8 **taba;
 } tText;
 
-extern u32 gGameState;
-extern s16 gNumWindows, gNumPlayers;
-extern f32 gModelTime;
-extern tStuntPlayer gStuntPlayer[4];
-extern tText gText;
-extern s32 wrongWayPos[4][4][2];
-extern s32 stuntPos[4][4][2], stuntCoinPos[4][4][2];
-extern s32 bonuscnt[4];
-extern tStuntCoin stuntCoin[4][10];
-extern char stunt_coin_count_format[], stunt_points_format[], stunt_bonus_format[], stunt_landed_bonus_format[], stunt_total_points_format[];
-
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetJust(u32, u32);
-extern void HAL_SetTextTranslucency(f32);
-extern void TB_Sprintf(void *, void *, ...);
-extern void TB_SetTextColor(s32);
-extern s16 TB_CenterText(void *, s16);
-extern void TB_DrawText(s16, s16, void *);
-extern s16 TB_GetFontLineHeight(void);
+VIEW(tStuntPlayer[4], gStuntPlayer);
+#define gStuntPlayer gStuntPlayer_view
+VIEW(tText, gText);
+#define gText gText_view
+VIEW(s32[4][4][2], wrongWayPos);
+#define wrongWayPos wrongWayPos_view
+VIEW(s32[4][4][2], stuntPos);
+#define stuntPos stuntPos_view
+VIEW(s32[4][4][2], stuntCoinPos);
+#define stuntCoinPos stuntCoinPos_view
+VIEW(s32[4], bonuscnt);
+#define bonuscnt bonuscnt_view
+VIEW(tStuntCoin[4][10], stuntCoin);
+#define stuntCoin stuntCoin_view
 
 int animStuntPoints(void *blt) /* animStuntPoints */
 {

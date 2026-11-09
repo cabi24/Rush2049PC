@@ -1,49 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: claims three more deleted-inline stubs of the circuitscr.c unit, in the
- * post-order the IPA layout uses (updateCircuitScreen's calls visited last first): circuitscr_uninitButtons = uninitButtons
- * (the button loop of uninitScreen circuitscr_uninitScreen, moved verbatim), controlShowTrophy = controlShowTrophy (the former
- * C140_ANIMATION_ARM of updateCircuitScreen updateCircuitScreen) and getPlayerStr = getPlayerStr (the name copy of
- * calcProgressSize calcProgressSize). All 17 old members MATCH; C140 loses its two carriers and BB80 four of its
- * eight unused homes (the inlined calls' frame areas). */
-/* superseding revision: circuitscr_updateButtons (updateButtons@circuitscr.c, formerly context) and
- * circuitscr_animText (animText@circuitscr.c with animButtonText and getFinishPlaceStr inlined) plus its two
- * deleted-inline stubs getFinishPlaceStr/circuitscr_animButtonText are new members; see their headers below. All thirteen
- * old members and their text are unchanged. */
-/* Image-A A5658 strict match: 736 new bytes. This same-name group preserves
- * all eleven installed text_helpers members and pending BB80 (712 B).
- * BB80 is preserved-only credit here, not another new match.
- * BB80 computes the configuration panel width/height from localized labels
- * and up to two player names/statistics. N64 reconstruction; arcade ancestor
- * is not established. Its private ABI saves ra, and clobbers s0..s8.
- *
- * BB80 SHAPING: the two genuine player/text helpers use player-first formal
- * order. Both helper bodies remain byte-identical; every real in-group call
- * is updated. This recovers native private-argument evaluation ordering.
- * Four disclosed unused s32 homes are the exact frame residual (was
- * eight): getPlayerStr is now the inlined helper getPlayerStr (MAT3
- * calcProgressSize calls getPlayerStr(p, str)), whose inline area accounts
- * for 16 of the 32 bytes. Frame 160 = 144 + 4*4; three homes give 152 (5
- * words), five give the same object as four. Original purpose unknown.
- *
- * C140: the former C140_ANIMATION_ARM macro and its two operand
- * carriers (matrix, angle) are MAT3 controlShowTrophy, now the inlined helper
- * controlShowTrophy; umerge's reservation for that inlined call is the 8 bytes
- * the carriers stood in for (frame 136 with neither carrier). Inherited
- * volatile clock declaration and pointer/record hypotheses are unchanged.
- * B560 retains separate same-value 55.2 literal spellings and owned float data.
- * No false return types, fabricated callees, forced registers, compiler/object
- * patches, padding arrays, or historical-source spelling claims are used.
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef unsigned int u32; typedef float f32;
-typedef struct { u8 pad0[4]; u8 u4; u8 pad5[3]; s8 b8; s8 b9; } tCircuit;
-extern tCircuit *gCircuit;
-extern s8 gCircuitSize;
-extern s8 gContinueEnabled;
-extern s8 gStatsEnabled;
-extern u8 gUnlockedCircuits[];
-extern s8 gUnlockedTracks[][19];   /* the tracks unlocked, by circuit */
-extern u8 gForceUnlockedCircuits[];
-extern s8 expansion_pak_present;
+#include "game/game.h"
+
+typedef struct tCircuit { u8 pad0[4]; u8 u4; u8 pad5[3]; s8 b8; s8 b9; } tCircuit;
+VIEW(tCircuit *, gCircuit);
+#define gCircuit gCircuit_view
+
+VIEW(u8[], gUnlockedCircuits);
+#define gUnlockedCircuits gUnlockedCircuits_view
+VIEW(s8[][19], gUnlockedTracks);
+#define gUnlockedTracks gUnlockedTracks_view
 
 void resetEnabled(void)
 {
@@ -68,16 +32,13 @@ void resetEnabled(void)
     }
 }
 
-extern u32 gActiveAutoEdges;
-extern s32 gActiveEdges;
-extern s16 gCodeSelect, gCodeLen, gReviewTrack;
-extern u8 circuitscr_gCircuitCode[20];
-extern u8 *gPasswordAlphabet;
-extern s8 gInvalidCode, gWrongNumPlayers, gEnterCircuitCode;
-extern s32 circuitscr_buttonsJustInited;
-extern u32 AudPlayEffect(u32,u32,u32,u8);
-extern s32 SetCircuitCode(u8 *);
-extern void PlayExitSound(s32);
+VIEW(u32, gActiveAutoEdges);
+#define gActiveAutoEdges gActiveAutoEdges_view
+
+VIEW(u8[20], circuitscr_gCircuitCode);
+#define circuitscr_gCircuitCode circuitscr_gCircuitCode_view
+VIEW(u8 *, gPasswordAlphabet);
+#define gPasswordAlphabet gPasswordAlphabet_view
 
 void controlCircuitCode(void)
 {
@@ -138,12 +99,6 @@ void controlCircuitCode(void)
     }
 }
 
-/* The main-blob wrapper forwards the allocator's s32 result unchanged.
- * Its genuine returning body is supplied separately in wrapper_return.c;
- * it must not be inlined into this separately compiled runtime image.
- * Production definitions and locks are unchanged. */
-extern s32 MBOX_NewObject(u32 value, uintptr_t data, s32 index, u32 flags);
-
 /* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
 typedef struct Item { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Item;
 typedef struct Selection { Item *item; } Selection;
@@ -170,40 +125,32 @@ typedef struct MultiBlit {
     s32 (*callback)(Blit *);
     u32 descriptor;
 } MultiBlit;
-extern s16 gNumPlayers;
-extern s32 gRace;
+
 extern Player gPlayers[];
-extern s32 newCircuitType;
-extern s8 gShowTrophy;
+
 /* The circuit's cars (MAT3 tCircuitCar): rank, the car's place over the circuit (MAT3 totalPlace). */
 typedef struct PlayerStats {u8 other0,rank;unsigned short count;u8 other4[72];} PlayerStats;
-extern PlayerStats gCircuitCars[];
-extern u8 gNumModels;
-extern char *gTrophyNames[], *gTrophySheenNames[];
-extern f32 gTrophyMat[12], unitmatrix[12];
-extern s32 trophyObjIdx, trophySheenObjIdx;
-extern char circuitscr_sheen_texture_name[];
-extern f32 circuitscr_trophy_scale;
-extern Object object_list_scale_view[];
-extern s32 trophySheenColor[];
-extern s32 gCircuitMenuSelect;
-extern s8 gConfirmNewCircuit, circuitscr_gYes, circuitscr_inited;
-extern FiveParts *circuitscr_pane;
-extern MultiBlit circuitscr_mblit[];
-extern Blit *circuitscr_blit;
-extern void SavePlayerRaceType(u8 ***,s32);
-extern void ContinueCircuit(void);
-extern s32 MBOX_FindObject_WORK(char *,s8,s8,s8);
+VIEW(PlayerStats[], gCircuitCars);
+#define gCircuitCars gCircuitCars_view
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
+
+VIEW(f32[12], gTrophyMat);
+#define gTrophyMat gTrophyMat_view
+VIEW(f32[12], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(Object[], object_list_scale_view);
+#define object_list_scale_view object_list_scale_view_view
+
+VIEW(MultiBlit[], circuitscr_mblit);
+#define circuitscr_mblit circuitscr_mblit_view
+
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
-extern void ZOID_SetColor(s16,s32 *);
-extern void ZOID_SetEnvColor(s16,s32 *);
-extern void MBOX_ShowObject(s32,s32,u32);
-extern void CopyUV(void *,void *);
-extern void ZeroCameras(void);
+
 extern void particle_lifetime_set(void);
-extern void calcProgressSize(void);
-extern void circuitscr_initButtons(void);
+
 extern FiveParts *InitPane(s32,s32,s32,s32,s32,intptr_t,s32,s32);
 extern Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
 
@@ -257,27 +204,8 @@ void circuitscr_initScreen(void)
     circuitscr_inited = 1;
 }
 
-extern u8 gCircuitPlayer;
-extern u32 gSkipToGameState, gGameState;
-extern s32 gCircuitScreenExit;
-/* Existing same-symbol contract hypothesis; see pinned README references.
- * Native reloads support this access model, not asynchronous-writer claims. */
-extern volatile f32 gFrameSeconds;
-extern f32 circuitscr_degrees_to_radians;
-extern s8 gSoftReset;
-extern u8 circuitscr_empty_code_text[];
-extern void setGameState(s32);
-extern void YawUV(f32, f32 (*)[3]);
-extern void ZOID_RemoveObject(s16);
-extern u8 *TB_Strcpy(u8 *, u8 *);
-extern void NewCircuit(s32);
-extern void PlayUDSound(s32);
-extern void PlayStartABSound(s32);
-extern void PlayLRSound(s32);
-extern s32 IsCircuitUnlocked(s32);
-extern s8 PS_PakChanged(s32);
-extern void circuitscr_uninitScreen(void);
-extern void circuitscr_updateButtons(void);
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
 
 s32 menuItemValid(s32 mode)
 {
@@ -286,7 +214,6 @@ s32 menuItemValid(s32 mode)
         && (!(mode == 1) || gStatsEnabled != 0);
 }
 
-void controlShowTrophy(void);
 void updateCircuitScreen(void)
 {
     s32 i;
@@ -462,12 +389,12 @@ typedef struct tMenuButton {
     f32 position[3];
     u8 alpha,unaccessed[3];
 } tMenuButton;
-extern tMenuButton circuitscr_buttonInfo[12];
-extern s32 circuitscr_buttonsInited;
+VIEW(tMenuButton[12], circuitscr_buttonInfo);
+#define circuitscr_buttonInfo circuitscr_buttonInfo_view
+
 extern void RemoveBlit(Blit *);
 extern void sound_handles_array_clear(s8 *);
-extern void removeBG(void);
-void circuitscr_uninitButtons(void);
+
 void circuitscr_uninitScreen(void)
 {
     circuitscr_uninitButtons();
@@ -507,23 +434,17 @@ void circuitscr_uninitButtons(void)
 }
 
 typedef union Color {u32 word;u8 channel[4];} Color;
-extern Color circuitscr_button_color;
-extern f32 circuitscr_gButtonScale,circuitscr_gButtonSpace,circuitscr_buttonX,circuitscr_maxY,circuitscr_minY,circuitscr_buttonZ,circuitscr_cursorZ;
-extern f32 circuitscr_updatebuttons_constant_first,circuitscr_updatebuttons_constant_second,circuitscr_updatebuttons_constant_third,circuitscr_updatebuttons_constant_fourth,circuitscr_updatebuttons_constant_fifth,circuitscr_updatebuttons_constant_sixth;
-extern f32 circuitscr_cursorSpeed,circuitscr_scrollSpeed;
-extern char circuitscr_select_texture_name[],circuitscr_button_texture_name[];
-extern u8 gNumModels;
+VIEW(Color, circuitscr_button_color);
+#define circuitscr_button_color circuitscr_button_color_view
+
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
-extern void MBOX_ShowObject(s32,s32,u32);
-extern void MBOX_HideObject(s32,s32,u32);
-extern void ScaleUV(f32 [3][3],f32 [3][3],f32);
-extern void WPitchUV(f32,f32 [][3]);
-extern void WRollUV(f32,f32 [][3]);
+
 extern Texture *MBOX_FindTexture_WORK(char *,s16 *,s8,s8,s32);
 extern void ZOID_SetTexture(s16,intptr_t,s32);
-extern void ZOID_SetColor(s16,s32 *);
 
 /* : circuitscr_updateButtons = updateButtons@circuitscr.c (MAT3 GC 0x8006A730, 0x89C B): per-frame scroll, fade and
  * texture of the four circuit-menu buttons, their right-hand value buttons (4, 5) and the cursor (7, 9). Direct
@@ -721,7 +642,6 @@ void circuitscr_updateButtons(void)
     circuitscr_buttonsJustInited = 0;
 }
 
-typedef unsigned short u16;
 typedef struct LanguageIndex {u8 other[108];u16 name_base;} LanguageIndex;
 typedef struct Language {
     void *other0;
@@ -730,14 +650,8 @@ typedef struct Language {
     LanguageIndex *indices;
     u8 **names;
 } Language;
-extern Language gText;
-extern u8 circuitscr_finished_count_format[],circuitscr_to_go_count_format[],circuitscr_place_separator[],circuitscr_points_format[];
-extern s16 gProgressWidth,gProgressHeight,gProgressTop,gMenuBottom;
-extern void TB_Sprintf(u8 *,const u8 *,...);
-extern u8 *TB_Strcat(u8 *,const u8 *);
-extern void *HAL_SetFont(s32);
-extern s32 HAL_GetTextWidth(u8 *,s16);
-extern u8 HAL_GetFontAscent(void);
+VIEW(Language, gText);
+#define gText gText_view
 
 void getPointsStr(s32 player,u8 *destination)
 {
@@ -835,25 +749,17 @@ void calcProgressSize(void)
     gProgressWidth += 20;
     gProgressTop = gMenuBottom + (220 - gMenuBottom - gProgressHeight) / 2;
 }
-/* Additional real image-A rendering context, appended to config_text/group.c. */
-typedef struct CameraView { f32 uv[3][3],position[3]; u8 unknown30[104]; } CameraView;
-extern CameraView gCamera[];
-extern Color flashColors,flashColors_at_1;
-extern u8 *gDefaultNames[],*circuitscr_del;
-extern s32 gNumCircuitTracks[];
-extern u8 circuitscr_review_track_format[],circuitscr_trophy_title_format[],circuitscr_new_circuit_title_format[],circuitscr_new_circuit_tracks_format[],circuitscr_progress_title_format[],circuitscr_finished_title_format[],circuitscr_review_place_format[],circuitscr_review_points_format[],circuitscr_finish_place_separator[];
-extern void HAL_SetTextDepth(f32);
-extern void TB_SetJust(u32,u32);
-extern void TB_SetTextColor(s32);
-extern void ZOID_ProjectWindow(s32,f32 *,CameraView *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern s16 TB_GetFontLineHeight(void);
-extern void TB_DrawText(s16,s16,void *);
-extern void HAL_SetTextTranslucency(f32);
+
+VIEW(Color, flashColors);
+#define flashColors flashColors_view
+VIEW(Color, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
+VIEW(u8 *[], gDefaultNames);
+#define gDefaultNames gDefaultNames_view
+
 extern void TB_FlashTextColors(Color,Color);
-extern void TB_DrawTextScrollBox(s16,s16,s16,s16,s16,s16,u8 *);
+
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
-extern void TB_DrawEllipseText(s16,s16,s16,u8 *);
 
 /* A5658 renders the six competitor ranking/name/count entries. The selected
  * result-table selector is compared first in both equality expressions; the
@@ -906,44 +812,9 @@ void drawReview(void)
     }
 }
 
-/* : circuitscr_animText = animText@circuitscr.c (MAT3 GC 0x800695FC), with animButtonText@circuitscr.c
- * (GC 0x80068850) and getFinishPlaceStr@circuitscr.c (GC 0x8006A000) inlined into it by umerge; their
- * deleted bodies are the caller-less `jr ra; nop` stubs circuitscr_animButtonText and getFinishPlaceStr (non-static, off
- * the keep list, so each stub keeps its symbol). Direct typed port of reference/repos/mat3
- * decomp/src/GameSource/src/circuitscr.c animButtonText/animText/getFinishPlaceStr; N64 names below:
- * buttonInfo circuitscr_buttonInfo (tMenuButton[12], 64 B), buttonsInited circuitscr_buttonsInited, gButtonScale circuitscr_gButtonScale,
- * gEnterCircuitCode gEnterCircuitCode, gConfirmNewCircuit gConfirmNewCircuit, gInvalidCode gInvalidCode,
- * gWrongNumPlayers gWrongNumPlayers, gContinueEnabled gContinueEnabled, gStatsEnabled gStatsEnabled, gShowTrophy
- * gShowTrophy, gCircuitMenuSelect gCircuitMenuSelect, newCircuitType newCircuitType, gCircuit gCircuit (b8 type,
- * b9 track), gCircuitCode circuitscr_gCircuitCode, gCodeSelect gCodeSelect, gReviewTrack gReviewTrack, gYes circuitscr_gYes,
- * pane circuitscr_pane, gPasswordAlphabet gPasswordAlphabet, gNumCircuitTracks gNumCircuitTracks, gCircuitCars gCircuitCars,
- * flashColors flashColors/C0, gCamera gCamera, gText gText (single +4, tab +0xC, taba +0x10);
- * HAL_SetTextDepth HAL_SetTextDepth, TB_SetJust TB_SetJust, ZOID_ProjectWindow ZOID_ProjectWindow,
- * HAL_SetFont HAL_SetFont, TB_SetTextColor TB_SetTextColor, TB_CenterText TB_CenterText,
- * TB_DrawText TB_DrawText, TB_DrawTextScrollBox TB_DrawTextScrollBox, TB_GetFontLineHeight
- * TB_GetFontLineHeight, HAL_SetTextTranslucency HAL_SetTextTranslucency, TB_FlashTextColors TB_FlashTextColors (tRGBA
- * by value on N64), TB_Sprintf TB_Sprintf, TB_Strcpy TB_Strcpy, TB_Strcat TB_Strcat,
- * HAL_GetTextWidth (MAT3 returns unsigned int: text_width below gives these calls that type), ChangePaneSize
- * ChangePaneSize, getPointsStr getPointsStr, getPlaceStr getPlaceStr, getToGoStr getToGoStr,
- * getFinishedStr getFinishedStr, drawReview drawReview.
- * N64 differences from the GC body, all read from the retail words: text indices and layout constants
- * (59/75/126/129/153, pane boxes), screenPos used unhalved, the 5-track cap when expansion_pak_present == 0, a
- * code-entry loop that steps x before the row test, and the del static at circuitscr_del (its "DEL" literal
- * is the image's circuitscr_del_text, written as that symbol like the group's other literals). Shaping, measured:
- * - Local order i, str1, str, screenPos, x, y and a 192-byte str1 (GC: i, x, y, str1[64], str, screenPos)
- *   are the only layout that reproduces the retail frame (str1 +140, str +136, screenPos +132, x/y homes
- *   below; 344 bytes). No unused locals.
- * - getFinishPlaceStr is defined after animText (MAT3 file order); defined before it, umerge emits its
- *   parameter copy one instruction early.
- * - The two button-label strings go through `str` before TB_DrawText (as1 order of the argument loads).
- * - del is a block static as in MAT3: as an extern, uopt keeps &circuitscr_del in s0 across TB_CenterText.
- * Own data: three float literals (bits checked against the image at 0x803B9814..1C) and the del word
- * (0x803B3454 = 0x803B8758 in the image). */
-extern u8 circuitscr_del_text[];
 /* A line's width in the current font, as MAT3's HAL_GetTextWidth returns it: an unsigned int (the panes below
  * compare it unsigned). */
 static u32 text_width(u8 *str) { return HAL_GetTextWidth(str, -1); }
-void getFinishPlaceStr(s32 p, u8 *str);
 
 void circuitscr_animButtonText(void)
 {
@@ -1166,21 +1037,13 @@ void getFinishPlaceStr(s32 p, u8 *str)
 }
 
 
-/* B560 initializes twelve native 64-byte slots and six special transforms.
- * Float literals are authenticated against current-tree image A. Distinct
- * 55.2f/55.20f spellings preserve the two native constant webs.
- */
-extern tMenuButton circuitscr_buttonInfo[12];
-extern s32 circuitscr_buttonsInited;
+VIEW(tMenuButton[12], circuitscr_buttonInfo);
+#define circuitscr_buttonInfo circuitscr_buttonInfo_view
+
 extern void *memcpy(void *,const void *,u32);
-extern void ScaleUV(f32 [3][3],f32 [3][3],f32);
-extern void WPitchUV(f32,f32 [][3]);
-extern void WRollUV(f32,f32 [][3]);
-extern Color circuitscr_init_button_color;
-extern char *circuitscr_buttonNames[];
-extern char circuitscr_title_texture_name[],circuitscr_cursor_texture_name[],circuitscr_a_button_texture_name[],circuitscr_b_button_texture_name[];
-extern f32 circuitscr_flat_pitch,circuitscr_a_button_x,circuitscr_a_button_y,circuitscr_a_arrow_x,circuitscr_half_turn;
-extern f32 circuitscr_b_button_x,circuitscr_b_button_y,circuitscr_b_arrow_x;
+
+VIEW(Color, circuitscr_init_button_color);
+#define circuitscr_init_button_color circuitscr_init_button_color_view
 
 void circuitscr_initButtons(void)
 {

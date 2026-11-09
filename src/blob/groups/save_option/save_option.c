@@ -1,12 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* audio_bus_mix = SavePlayerOption and SaveRaceSetting = _SaveRaceSetting (MAT3 GameSource/src/save.c,
- * GC 0x800389xx SavePlayerOption, 0x80038BB0 _SaveRaceSetting; _SaveBattleSetting 0x80038CA4,
- * _SaveStuntSetting, _SaveObstacleSetting 0x80038E74 inlined into SavePlayerOption).
- * N64 save layout: no raceType byte (settings blocks 4 bytes earlier than GC), datah at profile+0x2C. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 typedef struct { unsigned int checksum; unsigned char track, car, trans, carView;
     signed char laps, drones, gravity, difficulty, catchup, backwards, mirror, fog, wind, deaths; } anon_checksum_track_14;
@@ -41,9 +33,6 @@ typedef struct tPlayerProfile {
     tSaveData **datah;              /* 0x2C */
 } tPlayerProfile;
 
-extern signed char gTrackNum;
-
-unsigned int CalcChecksumInternal(void *data, int size);          /* _CalcChecksum */
 void PS_WriteFile(tPS_File **fileh, void *data, int size);
 
 void SaveRaceSetting(tPlayerProfile **player, unsigned char option, signed char value, unsigned char track)

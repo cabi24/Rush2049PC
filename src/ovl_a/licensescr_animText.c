@@ -1,35 +1,7 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Image A menu text callback. N64-specific rendering; no arcade donor found.
- * Complete native extent: [0x803A6A28, 0x803A6B50), 296 bytes.
- * Typed callback and draw-state sequence follow the witnessed A:803AE51C
- * sibling. The unused argument is part of the externally addressed callback.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
-/* The text tables (port/assets/text.c fills them with host pointers): single, the strings by index. */
-typedef struct TextTables {
-    unsigned short numSingle; unsigned char **single;
-    unsigned short numTab, numTabA; unsigned short *tab; unsigned char **taba;
-    unsigned short numTab2, numTab2a, numTab2b; unsigned short *tab2; unsigned short *tab2a; unsigned char **tab2b;
-} TextTables;
-extern TextTables gText;
-extern u32 gContLevels;
-extern s8 expansion_pak_present;
-extern u8 licensescr_build_info_format[];
-extern s32 build_date_text, build_time_text;
-void HAL_SetTextDepth(f32);
-void *HAL_SetFont(s32);
-s8 HAL_SetFontFixedWidth(s8);
-void HAL_SetFontSpacing(s16);
-void TB_SetJust(u32, u32);
-void TB_SetTextColor(s32);
-void TB_DrawTextScrollBox(s16, s16, s16, s16, s16, s16, u8 *);
-void TB_Printf(s16, s16, u8 *, ...);
-void TB_DrawText(s16, s16, void *);
+#include "game/game.h"
+
+VIEW(u32, gContLevels);
+#define gContLevels gContLevels_view
 
 s32 licensescr_animText(s32 arg0)
 {

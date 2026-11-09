@@ -1,49 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* superseding revision: recordscr_drawSelect (MAT3 recordscr drawSelect) is now a claimed member; the eleven
- * old members are unchanged and still MATCH; the recordscr_animText root stays context (improved: drawView + nested drawStuntTotals). */
-/* Image-A aggregate statistics ABEC8: separate race/track/record pointers and
- * scan/display counters follow native lifetimes. The scaled quotient is a
- * shared expression; useful locals retain native declaration order. Buffer
- * text[48] is unchanged. Stock frame152, native text at sp+72 and x/y at
- * sp+146/sp+144. No new padding, unused local, forced register, volatile,
- * helper or call convention. All ten inherited members are unchanged. */
-/* Image-A per-track statistics AD0D4: preserve the native zero-initialized
- * average and conditional division, unsigned-halfword bit-count arguments,
- * and local declaration order (x/y at sp+132/128, text at sp+76).
- * Its real text buffer remains 48 bytes; frame remains 144 bytes. No unused
- * local or artificial access is introduced. Original spelling is unknown.
- * All nine earlier exact statistics members remain unchanged and claimed. */
-/* Image-A cumulative statistics ACA94: row-count initialization follows the
- * two native setup calls; bit masks retain unsigned-halfword narrowing.
- * Existing declaration order recovers native text/x/y homes without changing
- * the real 48-byte text buffer. One disclosed unused s32 precedes all locals:
- * stock UGEN M88 -> M92, T20/P4 unchanged, aligned frame120 ->128.
- * Without it x/y/text homes are four bytes low. Original local identity is
- * unknown; this is the exact frame residual, not inferred behavior.
- * All eight earlier exact bodies remain unchanged and claimed. */
-/* Image-A unlock panel AB848: all six unsigned maximum-result arms retain
- * signed-halfword narrowing. Flag initialization follows profile restoration;
- * the first scan exits early for locked entries. The existing first flag
- * precedes saved_owner in the declaration order. The real 44-byte buffer is
- * safely above the 24-byte maximum across all six authentic languages;
- * original capacity and source types remain unknown. Profile setup writes
- * its pointer before count. No artificial local or helper/signature change.
- * Seven prior exact members from draft stay claimed without new credit. */
-/* Image-A extra-car panel AB5FC: two unsigned maximum-result arms retain
- * native signed-halfword narrowing, and profile-pointer setup precedes the
- * temporary one-player count. No signature, local capacity, helper body,
- * private call convention or other function is changed by this continuation.
- * Six prior exact candidates from draft remain in their original group.
- * Their inherited numeric buffers are 40 bytes, safely above the 12/10/6-byte
- * write bounds for AC54C/AC7F4/ACD5C. Capacities and original types are inferred.
- * Only the genuine AD57C root is kept. No ROM or accepted-image claim. */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Language { s32 unknown0; u8 **text; s32 unknown8; u16 *indices; u8 **indexed; } Language;
 typedef struct Color4 { u32 word; } Color4;
 typedef struct Slot { s32 kind,handle; f32 angle,matrix[3][3],position[3]; u8 alpha,unknown3D[3]; } Slot;
@@ -55,54 +11,72 @@ struct Profile { Profile **next,**previous; FileInfo **file; u8 unknown0C[8]; u8
 typedef struct Player { u8 unknown00[72]; Profile **owner; } Player;
 typedef struct FiveParts FiveParts;
 typedef struct TextBox {s16 x,y,width,height;} TextBox;
-extern Language gText;
-extern Slot recordscr_buttonInfo[];
-extern Camera gCamera[];
-extern Color4 flashColors,flashColors_at_1;
+VIEW(Language, gText);
+#define gText gText_view
+VIEW(Slot[], recordscr_buttonInfo);
+#define recordscr_buttonInfo recordscr_buttonInfo_view
+VIEW(Camera[], gCamera);
+#define gCamera gCamera_view
+VIEW(Color4, flashColors);
+#define flashColors flashColors_view
+VIEW(Color4, flashColors_at_1);
+#define flashColors_at_1 flashColors_at_1_view
 extern Player gPlayers[];
-extern s16 gNumPlayers;
-extern Profile **gStatPlayer;
-extern struct PlayerFiles { u32 unknown0, unknown4; Profile **head, **tail; } gPlayerFiles;   /* the profiles on the paks */
-extern s32 gRecordState,recordscr_gSelectMenuSelect,gViewStatType[],recordscr_gNumPakPlayers[],gTrackType;
-extern s8 gDeleteConfirm,recordscr_gYes,gDeleteNotify,gRecordTrack,gRecordCircuit,recordscr_gSelectPakIdx;
-/* The game options, a byte each (Settings): [9] metric units (MAT3 recordscr tests gOptions[9]). */
-extern s8 gOptions[];
-extern u8 gDeleteName[];
-extern f32 recordscr_gButtonScale,recordscr_buttonZ,gDefTime;
-extern TextBox gScreenRect;
-extern FiveParts *recordscr_viewPane;
-extern u8 *gPS_PakName[],*gTrackTitles[],*CarTitles[];
-extern u8 gTotalStuntStats[],gTotalRaceStats[],gTotalBattleStats[],gTotalObstacleStats[],gTotalCircuitStats[];
-extern s8 gUnlockedTracks[],gUnlockedCircuits[],gUnlockedCars[],gUnlockedEngines[],gUnlockedFrames[],gUnlockedTrans[],gUnlockedTires[];
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_SetFont(s32);
-extern void TB_SetTextColor(s32);
-extern void TB_SetJust(u32,u32);
-extern void ZOID_ProjectWindow(s32,f32 *,Camera *,void *,s16 *);
-extern s16 TB_CenterText(void *,s16);
-extern s16 TB_RightText(void *,s16);
-extern s16 TB_GetFontLineHeight(void);
-extern s32 HAL_GetTextWidth(u8 *,s16);
-extern void TB_DrawText(s16,s16,void *);
-extern void TB_Sprintf(u8 *,const u8 *,...);
-extern void HAL_SetTextTranslucency(f32);
+
+VIEW(Profile **, gStatPlayer);
+#define gStatPlayer gStatPlayer_view
+struct PlayerFiles { u32 unknown0,  unknown4 ; Profile ** head,  ** tail ; };
+VIEW(struct PlayerFiles, gPlayerFiles);
+#define gPlayerFiles gPlayerFiles_view
+
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
+
+VIEW(TextBox, gScreenRect);
+#define gScreenRect gScreenRect_view
+VIEW(FiveParts *, recordscr_viewPane);
+#define recordscr_viewPane recordscr_viewPane_view
+VIEW(u8 *[], gPS_PakName);
+#define gPS_PakName gPS_PakName_view
+VIEW(u8 *[], gTrackTitles);
+#define gTrackTitles gTrackTitles_view
+VIEW(u8 *[], CarTitles);
+#define CarTitles CarTitles_view
+VIEW(u8[], gTotalStuntStats);
+#define gTotalStuntStats gTotalStuntStats_view
+VIEW(u8[], gTotalRaceStats);
+#define gTotalRaceStats gTotalRaceStats_view
+VIEW(u8[], gTotalBattleStats);
+#define gTotalBattleStats gTotalBattleStats_view
+VIEW(u8[], gTotalObstacleStats);
+#define gTotalObstacleStats gTotalObstacleStats_view
+VIEW(u8[], gTotalCircuitStats);
+#define gTotalCircuitStats gTotalCircuitStats_view
+VIEW(s8[], gUnlockedTracks);
+#define gUnlockedTracks gUnlockedTracks_view
+VIEW(s8[], gUnlockedCircuits);
+#define gUnlockedCircuits gUnlockedCircuits_view
+VIEW(s8[], gUnlockedCars);
+#define gUnlockedCars gUnlockedCars_view
+VIEW(s8[], gUnlockedEngines);
+#define gUnlockedEngines gUnlockedEngines_view
+VIEW(s8[], gUnlockedFrames);
+#define gUnlockedFrames gUnlockedFrames_view
+VIEW(s8[], gUnlockedTrans);
+#define gUnlockedTrans gUnlockedTrans_view
+VIEW(s8[], gUnlockedTires);
+#define gUnlockedTires gUnlockedTires_view
+
 extern void TB_FlashTextColors(Color4,Color4);
-extern void HAL_SetMenuTextDepth(f32);
-extern void HAL_SetFontSpacing(s32);
-extern void TB_DrawTextScrollBox(s16,s16,s16,s16,s16,s16,u8 *);
-extern s16 TB_GetTextNumLines(s16,u8 *);
-extern void TB_DrawEllipseText(s16,s16,s16,void *);
+
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
-extern u8 *TB_Strcpy(u8 *,u8 *);
-extern void CalcUnlockedStuff(void);
-extern s32 CountBits(u32,u8);
+
 #define ABS(x) ((x)<0 ? -(x) : (x))
 #define U16_AT(p,o) (*(u16 *)((u8 *)(p)+(o)))
 #define U32_AT(p,o) (*(u32 *)((u8 *)(p)+(o)))
 #define F32_AT(p,o) (*(f32 *)((u8 *)(p)+(o)))
 #define NAME(g,i) (gText.indexed[gText.indices[g]+(i)])
 #define PROFILE_DATA (*(*gStatPlayer)->stats)
-extern u8 recordscr_no_time_text[],recordscr_time_format[],recordscr_battle_matches_format[],recordscr_battle_wins_format[],recordscr_battle_kills_format[],recordscr_battle_deaths_format[],recordscr_stunt_best_format[],recordscr_stunt_best_average_format[],recordscr_stunt_points_format[],recordscr_stunt_time_format[],recordscr_stunt_crashes_format[],recordscr_stunt_count_format[],recordscr_stunt_coins_a_format[],recordscr_stunt_coins_b_format[],recordscr_stunt_kind_label_format[],recordscr_stunt_kind_count_format[],recordscr_obstacle_races_format[],recordscr_obstacle_finished_format[],recordscr_obstacle_crashes_format[],recordscr_obstacle_death_attempted_format[],recordscr_obstacle_death_completed_format[],recordscr_circuit_count_format[],recordscr_circuit_first_format[],recordscr_circuit_second_format[],recordscr_circuit_third_format[],recordscr_circuit_death_attempted_format[],recordscr_circuit_death_completed_format[],recordscr_circuit_best_points_format[],recordscr_circuit_total_points_format[],recordscr_total_km_format[],recordscr_total_miles_format[],recordscr_total_stunt_points_format[],recordscr_total_battle_points_format[],recordscr_silver_race_coins_format[],recordscr_gold_race_coins_format[],recordscr_silver_stunt_coins_format[],recordscr_gold_stunt_coins_format[],recordscr_unlocked_circuit_format[],recordscr_race_laps_format[],recordscr_race_count_format[],recordscr_race_first_format[],recordscr_race_second_format[],recordscr_race_third_format[],recordscr_race_crashes_format[],recordscr_race_death_attempted_format[],recordscr_race_death_completed_format[],recordscr_race_ghosts_format[],recordscr_race_distance_format[],recordscr_race_coins_a_format[],recordscr_race_coins_b_format[],recordscr_circuit_title_format[],recordscr_track_variant_title_format[];
 
 /* Every genuine caller writes zero in outgoing word +8. Its original role is
  * unknown; the observed specialized body does not read it. */
@@ -402,7 +376,7 @@ void drawUnlockedTracks(void)
     if(y>=bottom)bottom=y;
     ChangePaneSize(recordscr_viewPane,152-width/2,86,168+width/2,bottom+4);
 }
-void getScoreStr(u8 *,f32,s32);
+
 void drawRaceStats(void)
 {
     s32 track,i,x,y;
@@ -534,7 +508,7 @@ void drawUnlockedCars(void)
     }
     ChangePaneSize(recordscr_viewPane,152-width/2,86,168+width/2,y+4);
 }
-void getScoreStr(u8 *,f32,s32);
+
 void drawScores(s32 category)
 {
     s32 track,y,i;
@@ -674,30 +648,7 @@ void drawObstacleStats(void)
     }
     ChangePaneSize(recordscr_viewPane,40,86,280,94+TB_GetFontLineHeight()*4);
 }
-void recordscr_drawSelect(void);
-void drawUnlockedParts(void);
-void drawUnlockedCars(void);
-void drawUnlockedTracks(void);
-void drawTotalStats(void);
-void drawCircuitStats(void);
-void drawObstacleStats(void);
-void drawStuntStats(void);
-void drawBattleStats(void);
-void drawScores(s32);
-void drawRaceStats(void);
-/* Image-A recordscr animText callback AD57C (GC recordscr.c animText 0x8008451C): HAL_SetTextDepth(0); switch (gRecordState)
- * { case 0: drawSelect() [the call recordscr_drawSelect]; case 1: recordscr_drawView() [inlined by umerge, stub 0x803AD574] }
- * HAL_SetTextDepth(-1); return 1. drawView (GC 0x80081C78) is a direct typed MAT3 port; its kViewStuntTotals arm
- * calls drawStuntTotals (GC 0x80082B30), a REAL function nested-inlined by umerge (its deleted stub is retail's
- * caller-less 0x803ACA8C between drawObstacleStats and drawStuntStats).  Both are NON-static and off `keep`, with unique
- * symbols recordscr_drawView / recordscr_drawStuntTotals.
- * GC's dead block-scope `Color4 c1, c2;` survives in ONE flash-colour arm only: with that the cfe area is 170 (retail
- * <= 172), frame 312 and every local/home/spill slot is retail's (traced the spill homes with tools/trace/spill.sh).
- * NOT A MATCH (context): strict 497/523 from a one-word shift at the state dispatch (as1 hoists the case-1 `li at,1` into
- * the `lw` stall; retail's as1 input had a block boundary there: a label between the lw and the beqz reproduces retail),
- * plus three more as1 placements; 30 non-equal-run words. See */
-void recordscr_drawStuntTotals(void);
-void recordscr_drawView(void);
+
 void recordscr_drawView(void)
 {
     s32 i, x, y, cx;
@@ -756,7 +707,7 @@ void recordscr_drawView(void)
         }
         TB_SetJust(0,3);
 }
-void recordscr_drawStuntTotals(void);
+
 void recordscr_drawStuntTotals(void)
 {
             s32 statIdx, x, y;

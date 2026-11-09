@@ -1,27 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* hud_animTrackMap: split-screen minimap Blit AnimFunc (N64-only; no arcade ancestor). Hidden for 5+ views or
- * when gShowTrackMap is 0; renamed to "MAP_MD" for 4 views; on the first update (AnimID & 0x10) it positions the
- * blit from hud_mapPos[views-1]. Scales the track bounds (gPathMax max - gPathMin min, x/z) into the
- * texture (kMapSize = blit Width, 8-pixel margin, aspect kept), clears the 4-bit texture and plots every
- * main-path point of gResPath (PathGraph) as a 5x5 dot (inner 3x3 colour 0xE, border 0xD unless already
- * 0xE), mirrored in x unless gMirrorWaves; points of disabled side sets are skipped.
- *
- * Shaping (each measured; found the body, closed the colouring):
- *  - the clear loop reuses pz (rows) and px (columns) as counters: one variable = one live range, so px/pz
- *    get the clear loop's weight and are coloured before the point pointer (px v0, pz a1, pointer v1);
- *  - the size - 8 term goes through a temporary t in each arm (w = t; h = dz * t / dx): it gives the arm a
- *    register piece (v0) instead of a store plus `move`;
- *  - row = data + ... is a single statement after col (row and its base are separate webs: a1, v1);
- *  - `w`/`h` operand order is that of multu; `hide` declared last;
- *  - the `if (i >= gResPath.count)` test inside the loop is in retail (re-tests at the loop top).
- * Own .rodata: the "MAP_MD" string (verified by the scorer). */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* PC: TexDef is a WAD's TXHD record, which keeps its N64 layout (port/assets/wad.c): data is a 32-bit window
  * address of the texels. */
@@ -79,18 +56,16 @@ typedef struct {
     s32 y;
 } Pos;
 
-extern s16 gNumWindows;
-extern s8 gShowTrackMap;
-extern s32 kMapSize;
-extern Pos hud_mapPos[];
-extern s16 gPathMax[3];
-extern s16 gPathMin[3];
-extern PathGraph gResPath;
-extern PathPoint *gResPathPtList;
-extern s8 gMirrorWaves;
-
-void UpdateBlit(Blit *blt);
-void RenameBlit(Blit *blt, char *name, s32 preserve);
+VIEW(Pos[], hud_mapPos);
+#define hud_mapPos hud_mapPos_view
+VIEW(s16[3], gPathMax);
+#define gPathMax gPathMax_view
+VIEW(s16[3], gPathMin);
+#define gPathMin gPathMin_view
+VIEW(PathGraph, gResPath);
+#define gResPath gResPath_view
+VIEW(PathPoint *, gResPathPtList);
+#define gResPathPtList gResPathPtList_view
 
 s32 hud_animTrackMap(Blit *blt) {
     s32 dx;

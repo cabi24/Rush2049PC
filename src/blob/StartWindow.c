@@ -1,23 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * StartWindow: N64 StartKnockdown-style target hit handler (arcade game/targets.c
- * StartGeneric / StartKnockdown / StartCone family; reached through the target type table,
- * no direct callers).
- *   t->state = 7; v = GrabEnvEntry() (GrabEnvEntry) or return;
- *   v->index = 0; v->func = gTargInfo[t->type].VisFunc (targetInfo, 48-byte records);
- *   v->data = t; v->timeStamp = 0.0333333f;
- *   if the hitting car's velocity (gGameCar[t->slot].RWV) points along t->dir
- *   (dot > 0) call YawUV(3.1415927f, t->pos);
- *   t->flags &= ~6 (arcade t->active = false); AddToEnvList(v) inlined (gEnvList);
- *   target_sound inlined as PlayTargetSound(info[t->type].sound, t->slot, t->soundPos, 2).
- * Shaping quirks: the dot product is one named f32 written in natural x+y+z order; the
- *   declaration order v, car, info, dot gives the 40-byte frame (info home sp+28, v spill sp+36:
- *   register-only locals still take slots in declaration order). Literals 0.0333333f
- *   (0x3D088880) and 3.1415927f (0x40490FDB) are own .rodata, verified by the scorer.
- *   -O2 does not match. Whole-program unit: EQUAL.
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
-typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
 
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual {
@@ -30,23 +11,6 @@ typedef struct Visual {
     f32 timeStamp;          /* 0x10 */
     void *func;             /* 0x14 */
 } Visual;
-
-/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function are
- * pointers. Every field is spelled out, whichever view the loader converts the ROM's records by
- * (docs/port/POINTERS.md 10). */
-typedef struct TargInfo {
-    char *name, *file;
-    void *start;
-    void *visFunc;          /* 0x0C */
-    s16 kind;               /* 0x10 */
-    u16 flags;
-    s16 shape;
-    s8 category, element;
-    f32 value;
-    s32 sound;              /* 0x1C */
-    s32 w20, w24, w28;
-    f32 f2C;
-} TargInfo;
 
 typedef struct Target {
     u8 pad0[4];
@@ -71,13 +35,11 @@ typedef struct GameCar {
 
 #define N64P(x) ((void *)PC_N64P(x))
 #define N64W(x) PC_N64W(x)
-extern TargInfo targetInfo[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Visual *gEnvList;
+
+VIEW(Visual *, gEnvList);
+#define gEnvList gEnvList_view
 
 Visual *GrabEnvEntry(void);
-void YawUV(f32 arg0, void *arg1);
-s32 PlayTargetSound(s32 sound, s32 slot, f32 *position, u8 mode);
 
 void StartWindow(Target *t)
 {

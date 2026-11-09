@@ -1,21 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * createBG (historical label) = GC createBG@front.c (MAT3 front.c createBG, GC 0x80013C00, size 0x220):
- * builds the four scrolling menu-background polys.
- * : bgDist (only this function references it) is a function-local static (N64 BG_DIST source, an int 1025
- * converted to float; GC #define BG_DIST 16777000.0f). Unit: 51 of 183 words differ (best: 65). Residual: as1
- * order of the static store vs `sw ra`, and the ugen temp ring two registers behind retail from the gBackCamera load
- * on. NOT a match.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef union {
+typedef union Color {
     u8 c[4];
     u32 rgba;
 } Color;
@@ -36,30 +21,28 @@ typedef struct {
     u8 pad4[16];
 } PolyVert; /* 0x14 */
 
-typedef struct {
+typedef struct Poly {
     s16 nverts;          /* 0x00 */
     u16 flags;           /* 0x02 */
     u8 pad4[16];
     PolyVert verts[4];   /* 0x14 */
 } Poly;
 
-typedef struct SoundClearRecord SoundClearRecord;
 typedef struct SoundState SoundState;
-/* gcc rejects arrays of an incomplete type, which IDO accepts. NewMultiBlit's descriptor (MultiBlit): its first
- * word is the texture name, a pointer, so the data loader gives the two tables the PC layout (pc_prelude.h). */
-struct SoundClearRecord { struct pc_multiblit m; };
 
-extern BackRect gBackRects[4][4];        /* gBackRects */
-extern s32 gBackCamera[4][4];             /* gBackCamera */
-extern Poly *backPolys[4];              /* backPolys */
-extern void *bg_texture;                 /* background texture (N64) */
-extern s32 offsetsValid[4];                /* offsetsValid */
-extern SoundState *backBlit;
-extern SoundClearRecord frontBack[];    /* frontBack */
-extern SoundClearRecord trackBack[];    /* trackBack */
-extern s16 gNumWindows;
-extern volatile u8 gNumModels;
-extern u32 gGameState;
+VIEW(BackRect[4][4], gBackRects);
+#define gBackRects gBackRects_view
+VIEW(s32[4][4], gBackCamera);
+#define gBackCamera gBackCamera_view
+VIEW(Poly *[4], backPolys);
+#define backPolys backPolys_view
+VIEW(void *, bg_texture);
+#define bg_texture bg_texture_view
+VIEW(s32[4], offsetsValid);
+#define offsetsValid offsetsValid_view
+
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
 
 void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
 Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);

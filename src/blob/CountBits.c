@@ -1,7 +1,4 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef unsigned int u32;
-typedef signed int s32;
+#include "game/game.h"
 
 s32 CountBits(u32 x, u8 n)
 {

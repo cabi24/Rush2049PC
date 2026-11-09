@@ -1,21 +1,4 @@
-/*
- * animLapCount (0x80107EDC, 632 B): per-window lap counter text (HUD). Shown unless gGameState bit 3,
- * when bit 22 is set, the race state gRace is not 1/5 and gShowPlace is set; font 11 (one window) or
- * 12; for each window whose lap model[i].lap (+2024, stride 2056) differs from gNumLaps and whose
- * car gGameCar[i].f239 != 1: drop-shadowed text (colour 0 at x+1,y+1 then colour 1) of the format at
- * StrTable header +0x338 with lap+1 and gNumLaps (TB_Printf is the formatted-text print).
- * Shaping (disclosed): gfx_lock/gfx_unlock/font_set are the family's inlined helpers (non-static so umerge
- * leaves no deleted-procedure stubs); the two `continue` guards give retail's s0..s3 order (nested ifs
- * colour the strength-reduced lap pointer first).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
@@ -36,41 +19,14 @@ typedef struct Pair {
     s32 a, b;
 } Pair;
 
-typedef struct Lap {
-    u8 pad0[2024];
-    s8 lap;
-    u8 pad7E9[2056 - 2025];
-} Lap;
+VIEW(Pair, gJust);
+#define gJust gJust_view
+VIEW(StrTable, gText);
+#define gText gText_view
 
-typedef struct Car {
-    u8 pad0[239];
-    s8 f239;
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-} Car;
+VIEW(Pos[][4], lapCountPos);
+#define lapCountPos lapCountPos_view
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern s32 gRace;
-extern s8 gShowPlace;
-extern Pair gJust;
-extern StrTable gText;
-extern s16 gNumWindows;
-extern s16 gNumLaps;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Pos lapCountPos[][4];
-
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void HAL_SetTextDepth(f32);
-void TB_SetTextColor(s32);
-void TB_Printf(s16, s16, char *, s32, s32);
-
-
-
-
-s32 HAL_SetFont(s32 fontID);
 s32 animLapCount(void *item)
 {
     s32 i;

@@ -1,5 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef int s32;
+#include "game/game.h"
+
 s32 pak_error_from_pfs(s32 error) {
     switch (error) {
         case 0: return 0;

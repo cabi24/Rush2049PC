@@ -1,42 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared  (also identical at -O2) */
-/*
- * NOT a strict match: every text word equals retail, but the scorer cannot
- * verify the four references to this function's own .data object
- * (`MATCH (4 section-relative relocations unverified ...)`).
- *
- * Historical label SetPakError is misleading: this arms a rumble/"event"
- * slot for a player (N64-only).  gPakError is a 4-player x 2-slot table of
- * 0x2C-byte records.  On first use every slot is cleared (mode 0, busy 1).
- * The first free slot of `player` (mode == 0; if both are taken the index
- * runs to 2, as in retail) gets: busy 0, deadline = (s32)(3.0f * gRetraceRate)
- * + scheduler frame count, enabled 1, mode, a snapshot of the four per-port
- * values from GetControllerActive/GetControllerStickEdges, and the four s16 arguments plus
- * the controller-present flag gPaks[player].present.  SetControllerActive /
- * player_mode_set are then cleared for all ports and re-set for all ports
- * (mode 1 or 2) or for this player only.  mode == 10 also sets pak_recognize_error_seen.
- *
- * What mattered (all recovered from the code):
- *   - the "initialised" flag at 0x80116DB8 is a function-local static (it is
- *     referenced by no other function; retail word is 0 in .data).  As an
- *     extern its address is kept in a register and `mode` leaves a1;
- *   - the scheduler frame counter is volatile (unfolded `lui/addiu; lw 636`);
- *   - busy/enabled are s8 like the two flags, so every stored 1 and the
- *     `mode == 1` test share one constant web (s3);
- *   - the slot is always written as gPakError[player][j].  Through a pointer
- *     local (slot = ...; slot->x) the instructions are the same but ugen no
- *     longer emits `.noalias reg,$sp`, and as1 then keeps the argument-home
- *     loads behind the slot stores (22 aligned rows / 59 words);
- *   - the controller flag goes through the local `present` (a uopt web in v0;
- *     written inline it is a ugen temp and the tail differs by 21 words).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct Slot {
     /* 0x00 */ s8 busy;
     /* 0x01 */ s8 enabled;
     /* 0x02 */ s8 unk2;
@@ -51,10 +15,6 @@ typedef struct {
     /* 0x28 */ u32 deadline;
 } Slot; /* 0x2C */
 
-/* PC: the controller/pak record's host layout (paksys' PakRecord, docs/port/POINTERS.md 9): its OSPfs at +0x0C
- * holds a pointer, so from there on the record is 4..12 bytes later and 0x310 bytes long. */
-typedef struct { s32 status; void *queue; s32 channel; u8 id[32], label[32]; s32 version, dir_size, inode_table,
-    minode_table, dir_table, inode_start_page; u8 banks, activebank; } PcPfs;   /* OSPfs */
 typedef struct {
     u8 pad0[6];
     s8 present;
@@ -68,16 +28,13 @@ typedef struct {
     volatile u32 unk27C;
 } Sched;
 
-extern s8 pak_recognize_error_seen;
-extern Slot gPakError[4][2];
-extern Controller gPaks[];
-extern f32 gRetraceRate;
-extern Sched gScheduler;
+VIEW(Slot[4][2], gPakError);
+#define gPakError gPakError_view
+VIEW(Controller[], gPaks);
+#define gPaks gPaks_view
 
-s8 GetControllerActive(s32 arg0);
-s8 GetControllerStickEdges(s32 arg0);
-void SetControllerActive(s32 arg0, s32 arg1);
-void SetControllerStickEdges(s32 arg0, s32 arg1);
+VIEW(Sched, gScheduler);
+#define gScheduler gScheduler_view
 
 void SetPakError(s32 player, s32 mode, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
     s32 i;

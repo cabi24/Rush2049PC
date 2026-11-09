@@ -1,17 +1,14 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef unsigned char u8;
-typedef signed char s8;
-typedef unsigned short u16;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Resource {u8 *data;} Resource;
 typedef struct Object {void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC];Resource *resource;} Object;
 typedef struct Handle {Object *object;} Handle;
 typedef struct Player {u8 index,selector;u8 opaque[70];Handle *handle;} Player;
-extern u32 gGameState;
-extern s8 gTrackNum;
+
 extern Player gPlayers[];
-extern Object *gJustPlayers[];
-extern void SavePlayerCoins(Handle *,u8);
+VIEW(Object *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+
 #define FLAGS(base,stride,state,offset) (*(u16 *)((base)+(stride)*(state)+(offset)))
 void FoundCoin(int player,int bit) {
  Player *record;

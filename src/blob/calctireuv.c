@@ -1,21 +1,8 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * calctireuv: offset `origin` by first x second (cross product) into
- * `point`; transform source->second by `transform` into output->second
- * (BodyVector(in, out, basis)); set output->first = (cos a, 0, -sin a) and
- * re-orthogonalise: third = first x second, first = second x third; finally
- * transform `point` by the new basis into *position.  -O3 only (-O2 allocates
- * differently).  Whole-program unit: EQUAL.
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Shaping quirk: an unused 16-byte local array declared after `point`
- * (`f32 pad[4]`) supplies retail's 120-byte frame and puts point at sp+108;
- * without it the code is identical but the frame is 104 (14 rows).  A
- * Vec3-sized unused local does not move the frame.
- */
-typedef float f32;
+#include "game/game.h"
+
 typedef struct Vec3 {f32 x,y,z;} Vec3;
 typedef struct Basis {Vec3 first,second,third;} Basis;
-extern void BodyVector(const Vec3 *,Vec3 *,const Basis *);
+
 extern f32 cosf(f32),sinf(f32);
 void calctireuv(const Vec3 *origin,const Vec3 *first,const Vec3 *second,f32 angle,const Basis *transform,const Basis *source,Basis *output,Vec3 *position) {
  Vec3 point;

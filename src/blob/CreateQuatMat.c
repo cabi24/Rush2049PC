@@ -1,13 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CreateQuatMat (0x800BFBE8, 384 bytes): quaternion -> 3x3 rotation matrix (row stride 4 floats,
- * i.e. a 3x4 / 4x3 matrix).  Arcade ancestor: CreateQuatMat() in LIB/fmath.c
- * (rushtherock), copied verbatim with float literals (2.0f/0.0f/1.0f instead of 2.0/0.0/1.0).
- * `normal` != 0 means q is already unit length (s = 2); otherwise s = 2/|q|^2 (0 if |q| == 0).
- * The block-scoped xx/yy/zz/xy/... locals of the arcade source are what give retail its
- * 32-byte frame and the stack round-trips of xs/xx/yy/zz.  Also matches at -O2.
- */
-typedef float f32;
+#include "game/game.h"
 
 void CreateQuatMat(f32 *mat, f32 q[], int normal)
 {

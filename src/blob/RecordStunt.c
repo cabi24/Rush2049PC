@@ -1,10 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct Resource {u8 *data;} Resource;
 typedef struct Object {void *next; void *prev; void *fileh; u8 other_C[0x2C - 0xC];Resource *resource;} Object;
 typedef struct Handle {Object *object;} Handle;
@@ -12,13 +7,14 @@ typedef struct Player76 {u8 index,selector;u8 other2[62];u16 half64;u8 other66[6
 typedef struct {u32 word0,maximum,rate,total;u16 frames,extra;u32 counters[10];u32 other60;} Stats64;
 typedef struct {u8 other0[8];u32 maximum;u8 other12[8];s32 total;u8 other24[48];s16 counters[10];u8 other92[28];} Live120;
 extern Player76 gPlayers[];
-extern s16 gNumPlayers;
-extern s8 gTrackNum;
-extern Object *gJustPlayers[];
-extern Stats64 gTotalStuntStats[];
-extern Live120 gStuntPlayer[];
-extern s32 gStuntModeMins;
-extern void SavePlayerStats(Handle *,u8);
+
+VIEW(Object *[], gJustPlayers);
+#define gJustPlayers gJustPlayers_view
+VIEW(Stats64[], gTotalStuntStats);
+#define gTotalStuntStats gTotalStuntStats_view
+VIEW(Live120[], gStuntPlayer);
+#define gStuntPlayer gStuntPlayer_view
+
 void RecordStunt(void)
 {
     s32 player,which,j;

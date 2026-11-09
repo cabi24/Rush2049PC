@@ -1,5 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef float f32;
+#include "game/game.h"
+
 typedef struct State {
     unsigned char prefix[0xC4];
     f32 matrix[4][3];
@@ -10,7 +10,8 @@ typedef struct State {
     unsigned char tail[0x228];
     int state[4];
 } State;
-extern intptr_t stree_nodes;
+VIEW(intptr_t, stree_nodes);
+#define stree_nodes stree_nodes_view
 /* The model's quad nodes keep 32-bit N64 addresses (CollideCarBody's enum n64p_QNode): N64A(p) is a window pointer's
  * (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)

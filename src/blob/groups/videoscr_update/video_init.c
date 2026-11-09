@@ -1,80 +1,36 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Video-options screen setup (GC videoscr.c), for the updateVideoScreen group (updateVideoScreen):
- *  particle_render    (0x800B8650, 448 B) = GC calcMenuRect@videoscr.c (MAT3 0x8006519C)
- *  particle_collision (0x800B8820, 1012 B) = GC initScreen@videoscr.c (MAT3 0x8006425C) with GC initButtons@videoscr.c
- *                       (MAT3 0x80065338) written in place.
- * . Pattern from the audio pair (groups/audioscr_update/init_w36q.c; for audioscr).
- * Helpers vi_gfx_lock / vi_gfx_unlock / vi_SetFont (GC HAL_SetFont: no old-font value is kept, retail has no
- * `move s0,v0`) are non-static and not on keep (stub rule); the button colours go through ZOID_SetColor, as MAT3.
- * DISCLOSED DEVICE: unused locals u0..u3 in particle_collision = the exact frame residual: retail frame 136, without
- * them 120 (4 slots, 16 B at the frame top; every sp-relative access is identical with and without them). The same
- * 16 B appear in drone_pathfind_main (GC initScreen@audioscr.c, also with initButtons written in place): most likely
- * retail's umerge inline area for initButtons, which the shadow unit cannot inline (umerge's knapsack is global).
- * N64 differences from GC: calcMenuRect uses font 11 and text tables 41/42 (GC 10, 42/43); validOption is the
- * group's getter video_validOption (optionValid[i] only); NewMultiBlit gets 2 entries for both defs; B1/arrow y is 55.2.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct OSMesgQueue OSMesgQueue;
 typedef struct TexDef TexDef;
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 color; u8 pad40[4]; } Ent;
+
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 typedef struct TextState { void *word0; char **single; void *word8; u16 *tab; char **taba; } TextState;
 typedef struct { s32 x, w, h, cx; } MenuRect;
 
-extern OSMesgQueue text_lock_queue;
-extern TextState gText;
-extern MenuRect video_menuRect;                /* menuRect */
-extern Button video_buttonInfo[12];              /* buttonInfo */
-extern char *video_buttonNames[];                 /* buttonNames */
-extern Ent ObjInstanceList[];
-extern volatile u8 gNumModels;
-extern f32 unitmatrix[3][3];               /* unitmatrix */
-extern const struct pc_multiblit video_frontEndBlit[2], video_pauseBlit[2];   /* frontEndBlit, pauseBlit: two blits each, as
-                                         * NewMultiBlit gets them (the second ran past a one-blit table) */
-extern Blit *video_blit;                   /* blit */
-extern s32 video_buttonsInited, video_buttonsJustInited;         /* buttonsInited, buttonsJustInited */
-extern s8 gOptions[];                    /* gOptions */
-extern s32 gVertCenter, gHorzCenter;         /* gVertCenter, gHorzCenter */
-extern s32 gVideoMenuSelect;
-extern s8 gTestFrequency, gConfirmFrequency, gYesFrequency;   /* gTestFrequency, gConfirmFrequency, gYesFrequency */
-extern s32 exitVideoScreen;
-extern s8 video_inited;                      /* inited */
-extern u32 gGameState;
+VIEW(TextState, gText);
+#define gText gText_view
+VIEW(MenuRect, video_menuRect);
+#define video_menuRect video_menuRect_view
+VIEW(Button[12], video_buttonInfo);
+#define video_buttonInfo video_buttonInfo_view
 
-s32 osRecvMesg(OSMesgQueue *, void *, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32);
-u32 HAL_GetTextWidth(void *, s16);
-s16 TB_GetFontLineHeight(void);
-s32 TB_Sprintf(char *, char *, ...);
-s32 video_validOption(s32 i);                  /* validOption (updateVideoScreen getter) */
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
+
 void *memcpy(void *, const void *, u32);
-s32 MBOX_FindObject_WORK(char *, s8, s8, s32);
-s16 MBOX_NewObject(s32, void *, s32, u32);       /* MBOX_NewObject wrapper */
+
 TexDef *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, s32);
 void ZOID_SetTexture(s16, TexDef *, s32);
-void WPitchUV(f32, f32 [3][3]);
-void ScaleUV(f32 [3][3], f32 [3][3], f32);
-void SaveGlobals(void);
-void createBG(void);
-void ZeroCameras(void);
-void ClearRushControls(void);
+
 Blit *NewMultiBlit(s16, s16, const MultiBlit *, s16);
 
-void text_lock(void);
-void text_unlock(void);
 void vi_SetFont(s32 font)
 {
     text_lock();
@@ -114,8 +70,6 @@ void video_calcMenuRect(void)
     video_menuRect.cx = video_menuRect.x + optionWidth + 5;
 }
 
-
-void ZOID_SetColor(s16 objnum, Color *col);
 void video_initScreen(void)
 {
     s32 u0, u1, u2, u3;

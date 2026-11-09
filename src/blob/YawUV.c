@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * YawUV — YawUV(angle, uv) variant: columns uv[0][i]/uv[2][i], epsilon 0.0001f; N64 sign is the reverse of the arcade (ut = a*cos + b*sin; b = b*cos - a*sin).

@@ -1,7 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed char s8;
+#include "game/game.h"
+
 typedef struct TrackRecord {
     u16 prefix;
     s16 anchor;
@@ -27,10 +25,12 @@ typedef struct Header {
     unsigned char opaque[22];
     Descriptor *nodes;
 } Header;
-typedef struct Count {u16 total;unsigned char opaque[14];} Count;
-extern TrackRecord gCheckpoints[];
-extern Header gResPath;
-extern Count gDronePaths[];
+
+VIEW(TrackRecord[], gCheckpoints);
+#define gCheckpoints gCheckpoints_view
+VIEW(Header, gResPath);
+#define gResPath gResPath_view
+
 void TraceToIndex(int segment,int distance,int amount,int *out_segment,int *out_distance) {
  if(segment<0) {
   *out_segment=segment;

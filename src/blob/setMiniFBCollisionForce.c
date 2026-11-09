@@ -1,54 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/*
- * Historical label setMiniFBCollisionForce is misleading: this is the N64 descendant of
- * arcade setFBCollisionForce() (reference/repos/rushtherock/game/collision.c
- * :337), the car-to-car corner collision force. Proven by structure: relative
- * centre and relative velocity taken into the other car's frame
- * (BodyVector = arcade frwtobod/rwtobod), beside/behind overlap tests
- * against the body rectangle, "major overlap - blast apart" early exit through
- * ForceApart (MiniForceApart, already matched), per-axis force = rvel * K with a
- * minimum push away from the corner, then the force rotated back
- * (WorldVector = bodtorw) into the car's CENTERFORCE.
- * N64 differences from the Rush The Rock source: (arg0 unused, m, m2, dir,
- * pos); forward is Z and side is X; K is 2500 with a 4000 floor instead of
- * 4000/8000; a penetration term (pos - edge) * (10000|20000 * |pos - edge|)
- * is added when the other overlap test passes; vertical force is rvel * 100;
- * the result is scaled by m2 mass / mean mass and always subtracted from
- * m->CENTERFORCE; the damage call is replaced by the crash-flag logic at the
- * end (gSuicideMode mode, magnitude > m->unk63C * 0.8).
- *
- * Quirks the match depends on:
- *  - an unused three-float local between temp and rvel (12 bytes of frame;
- *    arcade has dist[6]/mindist there) and five scalar locals in this order;
- *  - `force[i] = 0.0` (double literal, own zero register) but `> 0.0f`
- *    comparisons (shared zero register), as retail has two zero webs;
- *  - `temp[i] *= K * fabsf(temp[i])`: the compound form keeps K on the left
- *    and mints the compiler temp that puts the UV-pointer spill at 28(sp);
- *    `temp = temp * (K * fabsf(temp))` flips both multiplies;
- *  - `flag = (m->unk7CC == 2)` is evaluated before the mode test.
- * Own literals (retail .rodata 0x80124808..0x80124820: 2500, 10000, 10000,
- * 2500, 20000, 20000, 0.8 -- one slot per use, in source order): the unpatched
- * scorer reports the 14 references as unverified; the splice verifies them.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
 
-/* PC: the car record's layout (its visuals and input pointer are pointer-sized). This view's CENTERFORCE is
- * MODELDAT's (below), never read through a car. */
-typedef struct {
-    char pad0[0x110];
-    struct pc_visual visuals[21];
-    char pad308[0x359 - 0x308];
-    s8 unk359;
-    char pad35A[0x380 - 0x35A];
-    void *input;
-    char pad384[0x3B8 - 0x384];
-} Car;
-
-typedef struct {
+typedef struct MODELDAT {
     char pad0[0x124];
     f32 CENTERFORCE[3];         /* 0x124 */
     char pad130[0x5C4 - 0x130];
@@ -72,10 +24,7 @@ typedef struct {
     f32 mass;                   /* 0x1C */
 } Body;
 
-/* PC: a dead-reckoning record (gBBoxModelStructs, a heap block of 64-byte records) keeps its N64 layout, its body a 32-bit
- * window address of game data at BBoxCollInfo (TargetCollBBox's CollisionReckon, level_objects' Matrix64;
- * docs/port/POINTERS.md 10.2). */
-typedef struct {
+typedef struct Reckon {
     unsigned int body;          /* 0x00 */
     f32 UV[3][3];               /* 0x04 */
     f32 RWR[3];                 /* 0x28 */
@@ -83,17 +32,10 @@ typedef struct {
 } Reckon;
 #define BODY(r) ((Body *)PC_N64P((r)->body))
 
-extern s8 gSuicideMode;
-extern s32 gRace;
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
-
-void BodyVector(f32 *arg0, f32 *arg1, f32 *arg2);
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2);
-f32 vector_magnitude(f32 *v);
-void MiniForceApart(MODELDAT *car, f32 *dir);
 
 void setMiniFBCollisionForce(s32 arg0, MODELDAT *m, Reckon *m2, f32 *dir, f32 *pos) {
     f32 force[3], temp[3], unused[3], rvel[3], cent[3];

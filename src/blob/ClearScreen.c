@@ -1,25 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ClearScreen(u16 color): clear the current frame buffer to a 16-bit fill colour. Appends to the global
- * display-list pointer frame_dl: pipe sync; SetColorImage(RGBA16, width screen_width,
- * osVirtualToPhysical(frame_color_buffers[frame_record_index].buf)) (128-byte frame-buffer records, volatile s8 index);
- * SetFillColor(color << 16 | color); FillRectangle(0, 0, width - 1, height screen_height - 1); pipe sync.
- * SDK GBI macros. N64-only; no arcade ancestor.
- * Shaping: the fill word is `((u32)color << 16) | color` -- without the cast uopt gives `color` a register web
- * (a2) and the _g temp ring shifts by one (t1 for t0); a `fill` local is worse.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -62,20 +42,13 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-/* PC: frame_color_buffers is the colour buffer of frame record 0 (frame_records + 0x7C), and a record seen from there runs
- * into the next record's scheduler task, the native OSScTask (pointer fields where it has them): 208 bytes a
- * record, as the record views have it (docs/port/POINTERS.md 10). */
-typedef struct { void *next; u32 state, flags; void *fb; u32 type, tflags; void *boot; u32 boot_size;
-                 void *ucode; u32 ucode_size; void *udata; u32 udata_size; void *stack; u32 stack_size;
-                 void *out; void *out_size; void *data; u32 data_size; void *yield; u32 yield_size;
-                 void *msgQ; void *msg; } PcScTaskShape;
 typedef struct { void *buf; PcScTaskShape task; u8 *commands; s16 n; u8 pad[30]; } FrameBuf;
 
-extern Gfx *frame_dl;
-extern s32 screen_width;
-extern s32 screen_height;
-extern volatile s8 frame_record_index;
-extern FrameBuf frame_color_buffers[];
+VIEW(Gfx *, frame_dl);
+#define frame_dl frame_dl_view
+
+VIEW(FrameBuf[], frame_color_buffers);
+#define frame_color_buffers frame_color_buffers_view
 u32 osVirtualToPhysical(void *);
 
 void ClearScreen(u16 color)

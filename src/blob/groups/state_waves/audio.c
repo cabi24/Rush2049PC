@@ -1,12 +1,8 @@
-/* IPA group LockAndLoad, file 1 of 2: the audio-side leaf.
- * audio_user is a stand-in caller: in the game FindWaveInstanceInternal's other callers
- * live in the audio code; one is needed here so -O3 keeps the leaf out of line.
- */
-typedef signed char s8; typedef unsigned char u8; typedef int s32;
-typedef struct { u8 pad0[5]; s8 sub; u8 id; u8 pad7[5]; void *ptr; u8 pad10[4]; } Voice;
-extern Voice gWaveInstance[64];
-extern s32 LoadWave(s32 a, s32 b, s32 c, s32 d, s32 e);
-extern void display_list_alloc(s32 a);
+#include "game/game.h"
+
+typedef struct Voice { u8 pad0[5]; s8 sub; u8 id; u8 pad7[5]; void *ptr; u8 pad10[4]; } Voice;
+VIEW(Voice[64], gWaveInstance);
+#define gWaveInstance gWaveInstance_view
 
 s32 FindWaveInstanceInternal(s32 arg0, s8 arg1)
 {

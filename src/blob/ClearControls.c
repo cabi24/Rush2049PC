@@ -1,35 +1,23 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ClearControls (historical label) -- controller-state reset.
- * Under the pad message-queue lock (osRecvMesg(&controlsys_lock_queue, NULL, OS_MESG_BLOCK) ...
- * osJamMesg(..., NULL, OS_MESG_NOBLOCK)) it clears the three combined pad masks
- * and, for each of the four pads, the stick vector and the four per-pad masks.
- * It is the same block UpdateControls runs in its skip-frames branch.
- * No arcade ancestor (N64 SI controller code).
- *
- * Shaping (both visible in the code):
- *  - the three combined masks are one chained assignment; the chain is what
- *    puts &gActiveLevels / &gActiveAutoEdges in v0/v1 (separate statements give lui at).
- *  - the stick vector array is *defined* (tentative/common definition) in this
- *    translation unit: as1 then shares one `lui at` between its two swc1 stores
- *    per pad; with an extern declaration every store gets its own lui.
- */
-typedef float f32;
-typedef int s32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
+
 typedef struct OSMesgQueue OSMesgQueue;
 
-extern OSMesgQueue controlsys_lock_queue;
+VIEW(OSMesgQueue, controlsys_lock_queue);
+#define controlsys_lock_queue controlsys_lock_queue_view
 extern int osRecvMesg(OSMesgQueue *, void **, int);
 extern int osSendMesg(OSMesgQueue *, void *, int);
 
-extern s32 gActiveLevels;      /* all pads: held mask */
-extern s32 gActiveAutoEdges;      /* all pads: repeat-pressed mask */
-extern s32 gActiveEdges;      /* all pads: pressed mask */
-extern f32 gContStick[4][2];       /* per pad stick x, y (defined in this TU) */
-extern s32 gNewEdges[4];   /* per pad pressed latch */
-extern s32 gAutoEdges[4];   /* per pad repeat-pressed mask */
-extern s32 gContLevels[4];   /* per pad held mask */
-extern s32 gContEdges[4];   /* per pad pressed mask */
+VIEW(f32[4][2], gContStick);
+#define gContStick gContStick_view
+VIEW(s32[4], gNewEdges);
+#define gNewEdges gNewEdges_view
+VIEW(s32[4], gAutoEdges);
+#define gAutoEdges gAutoEdges_view
+VIEW(s32[4], gContLevels);
+#define gContLevels gContLevels_view
+VIEW(s32[4], gContEdges);
+#define gContEdges gContEdges_view
 
 void ClearControls(void)
 {

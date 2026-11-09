@@ -1,10 +1,5 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Direct ancestor: rushtherock/game/drivetra.c:drivetrain.
- * Native coordinates reverse the vertical load sign. Tire92 is the compact
- * record independently established by the accepted frictioncircle source. */
-typedef float f32;
-typedef signed char s8;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef f32 Vec3[3];
 typedef struct Tire92 {
     f32 tradius,springK,rubdamp,unk12,Cfmax,invmi,unk24,Afmax,k1,k2,k3;
@@ -22,10 +17,7 @@ typedef struct Model2056 {
     u8 to_tires[16]; Tire92 tires[4];
     u8 gap1440[8]; s8 magicdif; u8 tail[607];
 } Model2056;
-extern void autoshift(Model2056 *);
-extern void engine(Model2056 *);
-extern void transmission(Model2056 *);
-extern void whatslips(Model2056 *);
+
 void drivetrain(Model2056 *m)
 {
     f32 rearload;

@@ -1,33 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * TireSurf (0x800C6AA0, 391 words) -- tire surface probe for one wheel.
- * Arcade ancestor: game/stree.c tiresurf(m, ipos, opos, roadcode, uvs, whl): walk the quadtree
- * leaf from the wheel's last node, scan the poly list, keep the best surface, set
- * *surf = flags & 0xF; on a miss opos = ipos with the default plane 200 below and uvs = identity.
- * N64 additions: the per-wheel hint (+1440), the 0x2000/0x1000 snap handlers and the 3/4/7
- * surface effects gated on game_car[car->id] (gGameCar, CAR_DATA, 952 bytes) state bytes.
- * Whole-program -O3 unit (the whole-program unit EQUAL, 0 locked bodies differ). History: 27 -> 10 -> 0.
- * Shaping quirks (disclosed):
- *  1. eu_nop(): an empty static helper called after PlayGameSound(21,0,1,2).  umerge 8-aligns
- *     each inlined callee's frame area in call-site order; this trailing inlined call aligns the
- * spill-temp area start 204 -> 208, which retail needs. Probably a stubbed-out N64
- *     call; it leaves no code and no stub in the unit.
- *  2. `if (gGameCar[car->id].place) {}`: a compiled-out (debug) read of the game_car record.
- *     It emits no code but adds one use to the slot-address PRE web, raising its uopt p1
- *     priority (save) above the *surf reload web (both were 1.5; the tie went to *surf by lower
- * web number). The slot address then takes v0 and *surf v1, as in retail.
- *     Any field the real code does not load works (dr_pos[0], pad bytes at 0/858; tested before
- *     or inside the state test, or in the surf==4 arm); a read of b856/b857 CSEs with the real
- *     load and changes the code.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-#define NULL ((void *)0)
+#include "game/game.h"
+
 float fabsf(float);
 #pragma intrinsic (fabsf)
 
@@ -41,7 +13,6 @@ typedef struct QNode {
     s16 y1;
     u16 child[4];
 } QNode;
-extern QNode *stree_nodes;
 
 typedef struct Poly {
     u16 type;
@@ -49,16 +20,8 @@ typedef struct Poly {
     u8 body[0x12];
     u16 off;
 } Poly;
-extern Poly *stree_surf;
-extern u8 *stree_slist;
-
-void *updownleaf(QNode *n, s16 x, s16 y, s16 *out);
-void DecodeSlist(u8 *input, s32 count, u16 *front, u32 marker);
-s16 PointInSurf(Poly *poly, f32 *wp, f32 *q, f32 *pt, f32 *bound, s16 *outIdx, f32 *mat, f32 zmin);
-void CopyUV(void *, void *);
-void fHalfPipeInterp(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold);
-void fPathInterp(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]);
-f32 NormalVector(f32 *v);
+VIEW(Poly *, stree_surf);
+#define stree_surf stree_surf_view
 
 enum n64p_Poly { n64p_Poly_ };
 enum n64p_QNode { n64p_QNode_ };
@@ -85,23 +48,9 @@ typedef struct EUCar {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_Poly: (Poly *)PC_N64P(x), enum n64p_QNode: (QNode *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-typedef struct EUSlot {
-    f32 dr_pos[3];          /* 0x000 arcade CAR_DATA dr_pos */
-    u8 pad00C[0x110 - 0xC]; struct pc_visual visuals[21]; u8 pad00C_308[0x358 - 0x308];
-    s8 b856;
-    s8 b857;                /* 0x359 state (game_reckon_all) */
-    u8 pad35A;
-    s8 place;               /* 0x35B (munge_gLink_data) */
-    u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
-} EUSlot;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gGameSoundsEnabled;
-extern f32 unitmatrix[];
-void AddBattlePoint(s8 a, s8 b, s8 c);
-void AbortCar(s16 arg0, s32 arg1);
-u32 AudPlayEffect(u32 index, u32 other, u32 value, u8 mode);
-s16 CylinderInSurf(f32 *p1, f32 *p2, f32 *out, Poly *poly, s16 *outIdx, s32 flag, f32 *vcOut, f32 *mat, f32 rad2);
-s32 PlayGameSound(s32 arg0, s32 arg1, s32 arg2, unsigned char arg3);
+
+VIEW(f32[], unitmatrix);
+#define unitmatrix unitmatrix_view
 
 static void eu_nop(void) {}
 void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 wheel) {

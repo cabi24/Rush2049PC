@@ -1,42 +1,12 @@
-/* hal_drawtext.c: HAL_DrawText = HAL_DrawText and _TextLen = TextLen,
- * MAT3 HAL_text.c ports (GameSource/src/HAL_text.c). The last-state variables are MAT3's function-local
- * statics (own .bss, verified by address: 0x80153F60..0x8015419C); the semaphore helpers are MAT3's
- * _GetSemaphore/_ReleaseSemaphore, non-static and not on keep (convention, as countdown), inlined.
- * N64 differences from the GameCube text:
- * no halving of spacing/position, and every computed byte stored into gBuffer is masked `& 255`.
- * DISCLOSED shaping: the empty `else ;` on the first size test (a zero-footprint uopt block; it lowers the
- * gFontIndex address web's save below the gLeading/gSpacing webs, giving retail's t4/t5 assignment).
- * flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef void *OSMesg;
-typedef struct OSMesgQueue { s32 w[6]; } OSMesgQueue;
-extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern void *memcpy(void *, const void *, u32);
-extern void game_strcpy(void *, void *);          /* strcpy */
-extern void game_strncpy(void *, void *, s32);     /* strncpy */
-extern void DrawText(void *text, u16 length);  /* _DrawText */
-extern void SetDefaults(u32 *, f32 *, s16 *, s16 *, s8 *, s8 *, s8 *);  /* _SetDefaults */
+#include "game/game.h"
 
-extern f32 gDepth;
-extern s8 gFinished;
-extern f32 gTrans;
-extern s8 gBufferInited;
-extern OSMesgQueue text_lock_queue;
-extern u32 gFontColor;
-extern s8 gLeading;
-extern s8 gSpacing;
-extern s16 gFontXpos;
-extern s16 gFontYpos;
-extern s8 gFontIndex;
-extern s32 gBufLen;
-extern u8 gBuffer[800];  /* gBuffer */
+extern void *memcpy(void *, const void *, u32);
+
+VIEW(u32, gFontColor);
+#define gFontColor gFontColor_view
+
+VIEW(u8[800], gBuffer);
+#define gBuffer gBuffer_view
 
 
 u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
@@ -60,8 +30,6 @@ u32 TextLen(const u8 *text, s16 numChars)      /* _TextLen (MAT3 HAL_text.c) */
     return len;
 }
 
-void text_lock(void);
-void text_unlock(void);
 void HAL_DrawText(void *text, s16 numChars)
 {
     s32 size;

@@ -1,36 +1,10 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Collision callback: select a model using a signed 16-bit index and a
- * dead-reckoned collision record using the object's signed byte at +0x65.
- * After a bounding-sphere test, transform up to four model corners into the
- * other record's frame. The first inclusive box hit invokes setMiniFBCollisionForce,
- * the historical name of the accepted corner-collision-force routine.
- * Every path returns zero. The two unused incoming slots are retained because
- * the native entry homes both a2 and a3; their concrete callback types remain
- * unknown. The force callee's five-argument ABI is independently accepted.
- *
- * Matching source-form details: the world point has named components and an
- * array view of the same three floats. Named component writes reproduce the
- * native reloads between translation and relative-position subtraction;
- * a plain float array incorrectly commoned three of those loads. The union
- * keeps array access within a real three-element object. The named radius
- * and radius_squared values are both used. Declaration order places mnum
- * before the vectors. No unused locals, stack buffers, or helper keepers.
- *
- * Arcade collision.c is a semantic relative, not an exact donor: this callback
- * handles one selected pair and only its first four corners, with N64 box
- * ordering x-min/x-max/z-max/z-min/y-max/y-min and a model stride of 0x808.
- * Read-only evidence and reproducible checks are in this directory.
- */
-typedef signed char s8;
-typedef short s16;
-typedef int s32;
-typedef float f32;
+#include "game/game.h"
+
 typedef union {
     struct { f32 x, y, z; } c;
     f32 v[3];
 } Vector3;
-typedef struct { char unknown00[0x65]; s8 index; } CollisionObject;
+typedef struct CollisionObject { char unknown00[0x65]; s8 index; } CollisionObject;
 typedef struct {
     char unknown00[0xF4];
     f32 corners[4][3];
@@ -47,20 +21,15 @@ typedef struct {
     f32 xmin, xmax, zmax, zmin, ymax, ymin, radius;
     f32 mass;
 } CollisionBounds;
-/* PC: the dead-reckoning records (gBBoxModelStructs, a heap block of 64-byte records) keep their N64 layout: body is a
- * 32-bit window address of arena data (level_objects' Matrix64, docs/port/POINTERS.md 10). */
-typedef struct {
+typedef struct CollisionReckon {
     unsigned int body;
     f32 basis[3][3];
     f32 position[3];
     f32 velocity[3];
 } CollisionReckon;
 #define BODY(r) ((CollisionBounds *)PC_N64P((r)->body))
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern CollisionReckon *gBBoxModelStructs;
-void WorldVector(f32 *, f32 *, f32 *);
-void BodyVector(f32 *, f32 *, f32 *);
-void setMiniFBCollisionForce(s32, CollisionModel *, CollisionReckon *, f32 *, f32 *);
+VIEW(CollisionReckon *, gBBoxModelStructs);
+#define gBBoxModelStructs gBBoxModelStructs_view
 
 s32 TargetCollBBox(CollisionObject *object, s16 *index, void *arg2, s32 arg3) {
     CollisionModel *car;

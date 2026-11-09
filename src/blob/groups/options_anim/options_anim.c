@@ -1,32 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_8010AEAC = GC animText@optionscr.c (options screen text), func_8010A8D0 = animButtonText (button-mode
- * labels at projected 3D positions), func_8010A7A4 = printOption(x, y, item, name, value) (internal, register
- * parameters x=s1, y=s2, name=s3, value=s4, item=a0: IPA from the prototype order, GC signature
- * `static void printOption(int x, int y, int item, const unsigned char *name, const unsigned char *value)`).
- * draft (AEAC 357/413, A8D0 325/375, A7A4 16/75) -> (290/241/16) -> : all three unit EQUAL.
- * Levers:
- *  - TB_FlashTextColors_AEAC takes the GC colour union (`union { u8 c[4]; u32 rgba; }`, GC __anon_21da) BY VALUE and
- *    copies `.rgba` (GC TB_text.c: two lwz/stw; GC callers pass flashColors[0]/[1] = flashColors[2]): by-value
- *    aggregate parameters have stack homes, so retail's `sw t8,40(sp)`/`sw t9,44(sp)` (and 32/36) are the
- *    inlined parameter homes, the values stay in ring temps. A7A4 16 -> 0 words; A8D0 frame 160 -> 152.
- *    (Union-to-union assignment instead compiles to an `at` block copy.)
- *  - `case 0:` written LAST in both switches (retail places its code after case 13): A8D0 -> EQUAL, AEAC ops 0.
- *  - AEAC: gGameState read into a named local `gs` (retail keeps it in v0).
- * Shaping devices (disclosed): helpers non-static and uniquely named (*_AEAC, not on keep: stub rule);
- *  - inlined helpers gfx_lock_AEAC/gfx_unlock_AEAC/font_set_AEAC (family lock/font helpers), TB_SetJust_AEAC (= locked
- *    TB_SetJust's body), TB_CenterText_AEAC (GC TB_text.c), TB_FlashTextColors_AEAC (GC TB_text.c).
- *  - AEAC `s32 u0` is an UNUSED local = exact frame residual: retail frame 240; without it the frame is still 240
- *    but str1/itemsDrawn sit 4 B higher (180/222 vs retail 176/218: 5 words differ); one 4-byte named slot.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
+#include "game/game.h"
 
 typedef union Color {
     u8 c[4];
@@ -59,46 +31,26 @@ typedef struct ButtonInfo {
     u8 pad3D[3];
 } ButtonInfo;
 
-typedef struct Pair {
-    s32 h, v;
-} Pair;
+VIEW(Text, gText);
+#define gText gText_view
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern s32 playerInPause;
-extern Text gText;
-extern s32 options_buttonsInited;
-extern s16 options_gSelectedOption;
-extern ButtonInfo options_buttonInfo[];
+VIEW(ButtonInfo[], options_buttonInfo);
+#define options_buttonInfo options_buttonInfo_view
 
-extern u8 gCamera[];
-extern Color flashColors[2];
-extern Color gFlashColor1;
-extern Color gFlashColor2;
-extern Pair gJust;
-extern s8 gOptions[];
-extern s16 gLang;
-extern char *cStrLanguageNames[];
-extern s32 options_validOption[14];
-extern s16 options_gFirstOption;
-extern s16 gOptionMenuSize;
-extern s8 options_gControllerRemoved;
+VIEW(u8[], gCamera);
+#define gCamera gCamera_view
+VIEW(Color[2], flashColors);
+#define flashColors flashColors_view
+VIEW(Color, gFlashColor1);
+#define gFlashColor1 gFlashColor1_view
+VIEW(Color, gFlashColor2);
+#define gFlashColor2 gFlashColor2_view
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-s32 HAL_SetFontInternal(s32 selection);
-void HAL_SetTextDepth(f32);
-void HAL_SetTextTranslucency(f32);
-void TB_SetTextColor(s32);
-void TB_DrawText(s16, s16, void *);
-u32 HAL_GetTextWidth(void *, s32);
-s16 TB_GetFontLineHeight(void);
-void ZOID_ProjectWindow(s32, f32 *, void *, f32 *, s16 *);
-void ZeroCameras(void);
-void TB_Sprintf(char *, char *, ...);
+VIEW(s8[], gOptions);
+#define gOptions gOptions_view
 
-
-
+VIEW(s32[14], options_validOption);
+#define options_validOption options_validOption_view
 
 void TB_FlashTextColors_AEAC(Color a, Color b)
 {
@@ -127,9 +79,6 @@ void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 
 #define OPT_VALUE(k) gText.strings[gText.info->base + gOptions[k]]
 
-s32 HAL_SetFont(s32 fontID);
-s16 TB_CenterText(void *text, s16 centerX);
-void TB_SetJust(u32 first, u32 second);
 void options_animButtonText(void)
 {
     s32 i;

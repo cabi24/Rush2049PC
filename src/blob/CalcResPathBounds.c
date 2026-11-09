@@ -1,20 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CalcResPathBounds @ 0x800B9740, 408 bytes (102 words) -- MATCH (the scorer fn standalone; unit EQUAL).
- * Identity: GameCube CalcResPathBounds (pathcommon.c, 0x800331B4; void CalcResPathBounds(void), locals
- * int i, j, validPt), proposed rename (not applied). Computes the bounding box of the resurrection path
- * points: gPathMin, gPathMax = gPathMax (s16[3]), gResPath, gResPathPtList =
- * gResPathPtList (s16[3] points), gNumResPathPts = gNumResPathPts. A point counts when it is one of the first
- * numPrimary points, or lies inside an alternate range of type 1 (pointer range test, no early break).
- * Port of the GC body: s16 extrema, `validPt`, indexed alternate ranges `alt[j]`, no break, and a
- * ternary store per axis (min = min < p ? min : p; max = max > p ? max : p) in an axis loop; the chained
- * extrema initialisers give retail's reload-and-copy. Layout field names follow GC (types.h has no
- * DWARF struct for gResPath; offsets are N64 retail's). No shaping devices, pads or false prototypes.
- * (break on hit, pointer-walk vertex, if-form updates) plateaued at 83/102.
- */
-typedef signed short s16;
-typedef unsigned short u16;
-typedef unsigned char u8;
+#include "game/game.h"
+
 typedef s16 Vertex[3];
 typedef struct AltPath {
     u8 type;
@@ -30,11 +15,12 @@ typedef struct ResPath {
     u8 unk09[3];
     AltPath *alt;
 } ResPath;
-extern s16 gPathMin[3];
-extern s16 gPathMax[3];
-extern ResPath gResPath;
-extern Vertex *gResPathPtList;
-extern u16 gNumResPathPts;
+VIEW(s16[3], gPathMin);
+#define gPathMin gPathMin_view
+VIEW(s16[3], gPathMax);
+#define gPathMax gPathMax_view
+VIEW(ResPath, gResPath);
+#define gResPath gResPath_view
 
 void CalcResPathBounds(void)
 {

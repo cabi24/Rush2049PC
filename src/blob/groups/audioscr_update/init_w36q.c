@@ -1,68 +1,26 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * drone_pathfind_main (0x800D71D0, 1124 B; historical label) = GC initScreen@audioscr.c (MAT3 audioscr.c, GC 0x8006600C)
- * with GC initButtons@audioscr.c (GC 0x80066DD8) written in place. Internal: sole caller updateAudioScreen =
- * updateAudioScreen (this group); unsaved s0-s8 (the caller saves them).
- * Body: (mat3_ui_audio_init_20261017/group/init.c, credited), adapted for the
- * whole-program unit by:
- *  - initButtons is written in place: as a helper the unit's umerge knapsack (umerge f_pack_knapsack is global over the
- *    program) does not inline it once the other helpers here are inlined; retail inlined it.
- *  - it calls AudKillSong, as MAT3 does (the N64 inlined it).
- * - the button colours go through ZOID_SetColor, as MAT3 initButtons does (the N64 inlined it).
- * N64 differences from GC kept as in: 12 named songs + random/off, table indices, random song 6, button y 55.2.
- * DISCLOSED DEVICES:
- *  1. `do {} while (0);` after the last ZOID_SetTexture (ZOID_SetTexture(buttonInfo[11]...)): a block end that adds a
- *     live block to the unitmatrix address web (unitmatrix), breaking its exact priority tie (save 13/7 each) with the
- *     gNumModels address web, so &gNumModels takes s8 and unitmatrix is rematerialised per memcpy as in retail
- *     (force oracle p1:w123=s,p1:w125=c22 -> only frame rows left).
- *  2. Unused locals u0..u3 = the exact frame residual: retail frame 168, without them 152 (4 slots, 16 B, all at the
- *     frame top: every sp-relative access is identical with and without them). Probably retail's umerge inline area
- *     of initButtons, which the unit cannot reproduce (see above).
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16; typedef int s32; typedef unsigned int u32; typedef float f32;
+#include "game/game.h"
+
 typedef struct TexDef TexDef; typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Ent {
-    /* 0x00 */ s32 w0;
-    /* 0x04 */ s32 w4;
-    /* 0x08 */ void *owner;
-    /* 0x10 */ f32 scaleA;
-    /* 0x14 */ f32 scaleB;
-    /* 0x18 */ u16 id;          /* 0xFFFF = free */
-    /* 0x1A */ s16 link[3];     /* -1 = none */
-    /* 0x20 */ void *w28[8];
-    u32 color;
-    /* 0x64 */ s32 w64;
-} Ent; /* size 0x68 */
-
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
-extern AudioCfg gOptions;
-extern Button audio_buttonInfo[12]; extern Ent ObjInstanceList[];
-extern char *audio_buttonNames[]; extern u8 gNumModels; extern f32 unitmatrix[3][3];
-extern char audio_init_texture_name_1[],audio_init_texture_name_2[],audio_init_texture_name_3[];
-extern const struct pc_multiblit audio_frontEndBlit[1],audio_pauseBlit[2];   /* one blit and two, as NewMultiBlit gets them */
-extern Blit *audio_blit;
-extern s32 audio_buttonsInited,audio_buttonsJustInited,gAudioMenuSelect,exitAudioScreen,audio_gSong;
-extern s8 gGlobalsSet,audio_inited; extern u32 gGameState;
+VIEW(AudioCfg, gOptions);
+#define gOptions gOptions_view
+VIEW(Button[12], audio_buttonInfo);
+#define audio_buttonInfo audio_buttonInfo_view
+VIEW(u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(f32[3][3], unitmatrix);
+#define unitmatrix unitmatrix_view
+
 void *memcpy(void *,const void *,u32);
-s32 MBOX_FindObject_WORK(char *,s8,s8,s32);
-s16 ZOID_AddObject(s32,void *,s16,s32);
+
 TexDef *MBOX_FindTexture_WORK(char *,u16 *,s8,s8,s32);
 void ZOID_SetTexture(s16,TexDef *,s32);
-void WPitchUV(f32,f32 [3][3]); void ScaleUV(f32 [3][3],f32 [3][3],f32);
-void createBG(void); void ZeroCameras(void); void ClearRushControls(void);
+
 Blit *NewMultiBlit(s16,s16,const MultiBlit *,s16);
-void audio_calcMenuRect(void);void AudKillSong(void);void AudSetMusicVol(f32,f32);void AudPlaySong(s32,s32);void StartGameMusic(void);
-s16 MBOX_NewObject(s32,void *,s32,u32);void SaveGlobals(void);
-typedef struct OSMesgQueue OSMesgQueue;
-typedef struct Msg { s16 id; s8 type, used; u8 payload[20]; } Msg;
-extern s32 audio_command_queue;
-Msg *GetCmd(void);
-void audio_lock(void);
-void audio_unlock(void);
+
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). The stop of the song (command 1) that di_post_type1 posts
@@ -70,8 +28,7 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
  * refuses is given back (its in-use byte, +3). Nothing else is made here; the song plays on to the next stop. */
 #define PC_CMD_OR_UNLOCK(m) if((m)==0){audio_unlock();return;}
 #define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->used=0
-extern void SaveGlobals(void);
-void ZOID_SetColor(s16 objnum, Color *col);
+
 void audio_initScreen(void)
 {
     s32 u0, u1, u2, u3;

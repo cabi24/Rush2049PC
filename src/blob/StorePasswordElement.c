@@ -1,17 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-
-extern u8 password_gData[];
-extern u16 gNumBytes;
-extern u16 gDataBits;
-extern u16 gChecksumBits;
-extern u16 gNumBits;
-extern u8 gInversePasswordAlphabet[];
-extern char *gPasswordAlphabet;
-
+#include "game/game.h"
 
 s32 StorePasswordElement(u32 value, u32 nbits)
 {

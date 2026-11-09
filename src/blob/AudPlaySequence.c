@@ -1,25 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Schedule a timed event (historical label AudPlaySequence; N64 code, no
- * arcade ancestor found). Under the audio_lock_queue message-queue lock
- * (osRecvMesg ... osJamMesg), take a node from the free pool (NewSequence,
- * which also stamps a fresh handle), fill type, start time (gAudioSeconds, the
- * elapsed-time clock), delay, callback, data and up to four int varargs
- * (missing ones -1), link -1, insert it at the head of the active list
- * gActiveSequences (InsertLLE), mark it active and return its handle.
- *
- * Variadic: (int type, f32 delay, int func, int data, int nargs, ...);
- * va_arg uses the align-then-advance spelling ((ap + 3) & -4, +4, [-1]).
- * The start time is read through an inlined getter: in the whole-program
- * unit this is the kept GetAudioTime() (never called by jal anywhere in
- * retail: umerge inlines it at every site) -- the whole-program unit score is EQUAL with
- * Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10.
- * Standalone, the static get_time() below reproduces it (f0 return web).
- * Declaration order e, ap, i, handle sets the spill homes. -O3 only.
- */
-typedef float f32;
-typedef unsigned char u8;
-typedef unsigned int u32;
+#include "game/game.h"
 
 /* PC: IDO's va_list walks the o32 stack after the last named argument; a host ABI passes the variable arguments
  * in registers (docs/port/SYNTH.md). */
@@ -58,15 +37,14 @@ typedef struct EventList {
     Event *head, *tail;
 } EventList;
 
-extern char audio_lock_queue[];
-extern EventList gActiveSequences;
-extern f32 gAudioSeconds;
+VIEW(char[], audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(EventList, gActiveSequences);
+#define gActiveSequences gActiveSequences_view
+
 int osRecvMesg(void *, void *, int);
 int osSendMesg(void *, void *, int);
 Event *NewSequence(void);
-void InsertLLE(EventList *, Event *, Event *);
-
-f32 GetAudioTime(void);
 
 u32 AudPlaySequence(int type, f32 delay, int func, int data, int nargs, ...)
 {

@@ -1,30 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * NOT STRICT: code identical, own-rodata unverified (4 x 0.0001f at retail
- * 0x80123AEC..0x80123AF8, all 0x38D1B717).
- *
- * Historical label lookat_reflect_fill is misleading: this is a cut-down libultra
- * guLookAtReflectF that fills only the LookAt (no matrix, Up not
- * re-normalised, float constants).  Sole caller: zoid_draw_object.
- *
- * Needs -O3 and invsqr (already matched; no jal callers in the image)
- * defined in the same unit: it is inlined twice.  Its 0.0001f literals then
- * become this function's own .rodata, which is why they cannot be spelled as
- * externs (the inlined copies would reference invsqr's own
- * D_80123884).
- *
- * Shaping facts, each verified necessary:
- * - Up is assigned back to the xUp/yUp/zUp parameters as in the SDK (using
- *   the cross products directly as FTOFRAC8 arguments leaves 106 aligned
- *   rows: the Right components are then kept in registers across the clamp);
- * - FTOFRAC8 keeps the SDK's `& 0xFF` (one extra integer temp per use);
- * - declaration order len, xRight.., xLook.. (SDK order moves the three
- *   Right homes: 6 words).
- */
-typedef float f32;
-typedef signed char s8;
-typedef unsigned char u8;
-typedef int s32;
+#include "game/game.h"
 
 typedef struct {
     u8 col[3];
@@ -36,13 +10,12 @@ typedef struct {
     char pad4[4];
 } Light_t;
 
-typedef struct {
+typedef struct LookAt {
     Light_t l[2];
 } LookAt;
 
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
-f32 invsqr(f32 value);
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define FTOFRAC8(x) ((s32) MIN(((x) * 128.0f), 127.0f) & 0xFF)
@@ -94,5 +67,3 @@ void lookat_reflect_fill(LookAt *l, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 y
     l->l[1].colc[1] = 0x80;
 }
 
-/* Inlined twice above at -O3; defined after its caller so lookat_reflect_fill starts the section. */
-f32 invsqr(f32 value);

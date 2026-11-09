@@ -1,7 +1,7 @@
-/* flags: -g0 -O2 -mips2 -G 0 -non_shared */
-typedef unsigned char u8;typedef signed short s16;typedef int s32;typedef float f32;
+#include "game/game.h"
+
 typedef struct Box104 {u8 pad0[52];f32 origin[3];u8 pad64[4];s16 next;u8 pad70[10];f32 minimum[3];f32 maximum[3];} Box104;
-extern Box104 *WorldBase;extern s32 ZOID_FindObjInstance(Box104 *);
+
 s32 FindWorldGroup(f32 *position) {
  f32 offset[3];Box104 *base=WorldBase,*box=base;s32 next;
  for(;;) {

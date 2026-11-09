@@ -1,59 +1,27 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * ContinueCircuit @ 0x800F34D8, 3,568 bytes (from the bigfish natural rewrite
- * , 692/892 at -O3). Names are historical labels.
- *
- * Tournament setup, no networking (reading): seeds the LCG gCircuitSeed from the save record, picks
- * drone cars without repeats, shuffles the drone order and the 12 skill columns, builds the race list
- * (track/mirror/reverse; no track twice in a row or four times), decodes finished-race results (3 bits per
- * race) into finish positions and points, then sorts the six entrants by points and stores each place.
- * No arcade ancestor found. Leaf after inlining (no jal).
- *
- * Structure this match depends on (each measured):
- *  - random numbers are the kept seeded LCG seeded_rand(u32 *seed) (locked; defined here so umerge
- *    inlines it, as it does in the whole-program unit) wrapped by a one-statement helper
- *    `(u32)seeded_rand(&gCircuitSeed) % (max + 1)` returning u16 (the stub CircuitRandom_stub directly before
- *    this function is most likely that helper's remains; a non-static CircuitRandom_stub with --internal is also
- *    EQUAL in the unit). The (u32) cast gives retail's divu; without it every site is a signed div;
- *  - the mirror bit is `(u16)(seeded_rand(&gCircuitSeed) & 1)`, the reverse bit irand(1);
- *  - entrant layout: skill[12] at 0x34 (b28 is 24 bytes); gTempCircuitPoints rows are u16[6];
- *  - variable identity: one `i` for every outer loop (retail's t0 + s3 = i+1 pair), the order shuffle draws
- *    into `k` (the sort's inner variable). Measured: with any other variable there, uopt's second colouring
- *    pass (p2, which goes in web-number order) gives the sort's gCircuitCars[idx[i]].h2 v1 before &idx[k]
- *    and idx[k] (19 words); the CDX oracle with the three swapped gives 0. Inferred: an earlier idx[k]
- *    gives those two expressions lower bit numbers. The skill
- *    shuffle runs k over columns and draws into x, the entrant count for the results decode is a second
- *    variable `m` (retail t5) declared after idx so idx stays at sp+264;
- *  - the sort's inner loop tests `k < 6`, the final places are one `for (i = 0; i < 6; i++)` loop;
- *  - frame filler `u8 pad[8]` (frame 312; unexplained, probably more inlined-helper slots).
- */
-typedef signed char s8; typedef unsigned char u8; typedef signed short s16; typedef unsigned short u16;
-typedef signed int s32; typedef unsigned int u32;
+#include "game/game.h"
+
 typedef struct { u8 pad[6]; u8 flag6; u8 pad1; s8 mode; s8 lim; u8 pad2[2]; u32 seed; u8 pad3[4]; u8 bits[6 * 9]; } Info;
 typedef struct { u8 pad[0x6F4]; Info info; } Sess;
 typedef struct { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Sess **s; } A;
 typedef struct { u8 id; u8 b1; u16 h2; u8 b4[24]; u8 b28[24]; s16 skill[12]; } Rec;
-typedef struct { u8 a, b, c, d, e; } Slot;
+typedef struct Slot { u8 a, b, c, d, e; } Slot;
 typedef struct { u16 hi, lo; } Pair;
 typedef struct { u8 pad0; u8 b1; u8 pad[0x46]; A **a; } InRec;
 extern InRec gPlayers[];
-extern Rec gCircuitCars[];
-extern Slot gCircuitTracks[];
-extern u8 gCircuitPlayer;
-extern s8 expansion_pak_present;
-extern s16 gNumPlayers;
-extern s32 gNumCircuitTracks[];
-extern s32 gCircuitPoints[];
-extern Pair gCircuitFog[];
-extern Pair gCircuitWind[];
-extern s32 circuit_drone_skills[][12];
-extern u32 gCircuitSeed;
-extern s8 gCircuitSize, gCircuitTrack;
-extern u8 gCircuitNumTrackRaces[];
-extern u8 gTempCircuitFirstTrack[];
-extern u16 gTempCircuitPoints[][6];
+VIEW(Rec[], gCircuitCars);
+#define gCircuitCars gCircuitCars_view
+VIEW(Slot[], gCircuitTracks);
+#define gCircuitTracks gCircuitTracks_view
+
+VIEW(s32[], gCircuitPoints);
+#define gCircuitPoints gCircuitPoints_view
+VIEW(Pair[], gCircuitFog);
+#define gCircuitFog gCircuitFog_view
+VIEW(Pair[], gCircuitWind);
+#define gCircuitWind gCircuitWind_view
+
 #define RI(e) gCircuitCars[(e) + gNumPlayers]
-s32 seeded_rand(u32 *seed);
+
 static u16 irand(u16 max) {
     return (u32)seeded_rand(&gCircuitSeed) % (max + 1);
 }

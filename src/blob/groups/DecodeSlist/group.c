@@ -1,10 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared -Wab,-r4300_mul */
-/* Expand a big-endian run word; matching values fill from the front,
- * others from the back. No direct arcade equivalent is established. */
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
+#include "game/game.h"
 
 void DecodeSlist(u8 *input, s32 count, u16 *front, u32 marker)
 {

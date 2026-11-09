@@ -1,38 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * setFBCollisionForce (historical label) @ 0x800CE358, 2,356 bytes: car-to-car collision force.
- * N64 descendant of arcade setFBCollisionForce (reference/repos/rushtherock/game/collision.c):
- * m1 has a corner inside m2's box, `pos` is that corner in m2's frame. Computes whether m1's
- * centre is beside/behind m2, calls ForceApart (label ForceApart) on a major overlap,
- * otherwise builds a force in m2's frame from the relative velocity (2000 per unit, clamped to
- * +-4000 by the corner's side, plus a 20000*d*|d| penetration term when beside), rotates it to
- * world and to m1's frame (WorldVector = bodtorw, BodyVector = rwtobod) and applies it to
- * both cars split by mass. N64 additions: the
- * `collidable` hand-off flags at the top (car +0x35F, model +0x640, velocity halved), a battle-mode
- * (gRace == 6) hit rule that takes a life (car +0x385) and calls BattleDamage(car, other,
- * time) for a rear hit of more than 2.25 units, and the crash flag at model +0x640 when the
- * applied force exceeds half of model +0x63C (vector_magnitude = vector magnitude).
- * Axis order differs from the arcade: BODYR column 2 is front/back here, column 0 is the side.
- *
- * State: code identical (589/589 words; EQUAL in the whole-program unit), own-rodata unverified
- * by the unpatched scorer: four literals at 0x80124108 (3EAAAAAA 3EAAAAAA 469C4000 469C4000),
- * checked by hand against the compiled .rodata. Needs -O3 (-O2: s-registers, 582 words differ).
- *
- * Shaping facts (each needed, found by removing it):
- * - `time = 160; time += x * 7.0f;` with an int variable: the compound assignment keeps the
- *   constant as the left operand of add.s (any `160.0f + x * 7.0f` expression puts it right);
- * - `k = 20000; temp[0] *= k * fabsf(temp[0]);` for the same reason (mul.s K, |d|);
- * - `m2->CENTERFORCE[i] = m2->CENTERFORCE[i] + force[i]` written out: IDO reverses the operands
- *   of a plain binary add, `+=` does not;
- * - int `0` for the two force stores and for `unk3AC <= 0`, `0.0f` for the pos comparisons
- *   (different constants: retail shares one zero register only among the pos comparisons);
- * - the timer store before the life decrement (`unk3AC = ...; unk385--;`);
- * - `f32 unused[3]` between temp and rvel (12 frame bytes), declaration order as below.
- */
-typedef float f32;
-typedef int s32;
-typedef signed char s8;
-typedef signed short s16;
+#include "game/game.h"
 
 typedef struct Model {
     /* 0x000 */ char pad0[0xF4];
@@ -75,16 +41,6 @@ typedef struct Car {
     /* 0x3B0 */ char pad3B0[8];
 } Car;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern s8 gCarTeam[];
-extern s8 gSuicideMode;
-
-void BodyVector(f32 *arg0, f32 *arg1, f32 *arg2);
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2);
-f32 vector_magnitude(f32 *v);
-void ForceApart(Model *car, Model *a, Model *b, f32 *dir);
-void BattleDamage(Car *a, Car *b, s32 c);
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 

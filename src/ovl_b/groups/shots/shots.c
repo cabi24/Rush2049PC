@@ -1,53 +1,7 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* Runtime image B: the shots.c cluster.
- * Direct typed port of MAT3 GameSource/src/shots.c (reference/repos/mat3, GameCube addresses in the MAT3 comments):
- * ShotToCarCollision 0x8003d108, SonicCarCollision 0x8003d4c4, ShotDone 0x8003da24, _CreateShotObject 0x8003dad0,
- * _UpdateShotObject 0x8003db80, _InitNewShot 0x8003dcb4, UpdateDefense 0x8003dd4c, UpdateShots 0x8003e078,
- * ShotUpdate 0x8003f0f4, ElevateGun 0x8003cb84. Field names from MAT3 rush_types.h, offsets from the N64 code.
- * One -O3 uld -kp unit: the static helpers keep IDO's private register conventions only with their real callers.
- * N64 differences found while matching:
- *  - gFrameSeconds, gNumCars and gNumModels are volatile (per-use lui/addiu address);
- *  - PlayGameSound returns int (as MAT3 declares it);
- *  - gShieldSizes is a plain (non-const) static as in MAT3: retail keeps it in .data (0x80394358);
- *  - ShotUpdate: AnimateCase is written inline; _InitNewShot is a real function inlined by umerge (its deleted
- *    stub is InitNewShot); `incTime = 0` (int spelling) and vel[] zeroed 2,1,0; UpdateShots: one pointer variable
- *    `o = shot->obj` / `o = shot->obj2` re-read before every ZOID_SetColor in the loaded==2 block, an explicit
- *    `default: break;` in the final switch, case 3 of the motion switch assigns the (dead) `vel = shot->vel[2]
- *    * gFrameSeconds` (case 4's line), an explicit `break;` after SetupTarget in the collision switch's case 3,
- *    and EmitGameSound's id is `70.0f + Random(3.0f)` (N64 sound ids differ from the GameCube's 21).
- *  - UpdateShots frame residual (disclosed): `padx` (first local) and `pady` (after off[3]) are never accessed;
- *    retail's homes at sp+284 and sp+224 are unused. Without them the frame is -280 instead of -288 and every
- *    home shifts (54 words). Two 4-byte slots, nothing else.
- *  - ElevateGun: the first (5-way) skip test is `goto next;` with `next:;` closing the loop body (the second
- *    test keeps `continue`; the label's extra block sets retail's register priorities), yaw declared before
- *    pitch (`yaw = 0`, `pitch = 0.0f`), `pos[i] = pos[i] + uvs[1][i] * h`.
- *  - DISCLOSED LEVER: `if (gShotList.head) {}` before the _InitNewShot call in ShotUpdate is a compiled-out read
- *    (no code): it adds the block that keeps ShotUpdate's callee-saved cost at retail's value and the gShotList
- *    address reference that orders the case-1 colouring. No natural source form for it has been found.
- * superseding revision: claims the deleted-inline stub AnimateCase = AnimateCase (MAT3 shots.c
- * static, called first by ShotUpdate; post-order places its 8-byte stub immediately before ShotUpdate).
- * The casing loop moves verbatim out of ShotUpdate into the helper (non-static, not on keep, named after the stub;
- * locals casing, next and the s32 `idx` carrier that keeps retail's `lw; sll; sra; move` argument path).
- * Frame accounting (spill.sh, cfe locals area): installed 88; helper inlined as-is 96 (umerge's 8-byte inline-call
- * area plus the helper's locals rounded to 8 replace the 12 root bytes of casing/next/idx), every home +8
- * (47/764). Retail's root therefore has 13 words of named locals: i (sp+204), StartStreak, streaktype
- * (sp+196), seven 4-byte locals, then off[3] (sp+156..164). This revision gets there with two SHAPING changes
- * (disclosed; text otherwise unchanged): (1) `defense` is not a local: UpdateDefense's test and argument use
- * `car->battle.defense` directly (code-identical); (2) the hit-poly cleanup loop keeps its successor in the dead
- * `shot` pointer (`shot = (Shot *)hp->next`) instead of a separate nexth (shot is not read after the main loop).
- * `z` (case 5) and `sizep` are function-scope locals declared before off[3]. Result: area 88, frame 208, all eleven
- * members text-identical (variant, h/shot reused for hp/nexth, is equally exact).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
-typedef struct UVMat { f32 uvs[3][3]; f32 pos[3]; } UVMat;
+
 typedef struct StatLL { s8 dbl; s32 numElements; s32 elementSize; void *list; void *head; void *store; } StatLL;
 
 typedef struct Pad {
@@ -168,74 +122,65 @@ typedef struct ShotCase {
 
 typedef struct HitPoly { struct HitPoly *next; void *poly; } HitPoly;
 
-typedef struct Shield { s32 dlIdx; UVMat mat; } Shield;
 typedef struct TexDef { u8 b[36]; } TexDef;
 typedef struct TexDefSet { TexDef *texDefs; s32 num; } TexDefSet;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 typedef struct ObjInst { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } ObjInst;
 
-extern volatile f32 gFrameSeconds;
-extern f32 gGravity;
-extern volatile s16 gNumCars;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gCarTeam[];         /* gCarTeam */
-extern ColSize collsize[];    /* collsize */
-extern f32 unitmatrix[];        /* unitmatrix */
-extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
-extern StatLL gShotObjList;
-extern Shield gCarShield[4];    /* gCarShield */
-extern StatLL gShotList;
-extern StatLL gHitPolyList;
-extern StatLL gShotCaseList;
-extern s32 gWprObjList[10];      /* gWprObjList */
-extern s32 gWfxObjList[7];       /* gWfxObjList */
-extern u16 gMineTextures[5];       /* gMineTextures */
-extern TexDefSet gTexDefPtrs[];  /* gTexDefPtrs */
-extern ObjInst ObjInstanceList[];    /* ObjInstanceList */
-extern u16 wallTidx;
-extern volatile u8 gNumModels;
-extern RGBA hitColor;
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
 
-extern void *GetStatLLE(void *list);
-extern void FreeStatLLE(void *list, void *e);
-extern void ZOID_RemoveObject(s16 obj);
-extern void ZOID_SetColor(s16 obj, RGBA *clr);
+VIEW(ColSize[], collsize);
+#define collsize collsize_view
+VIEW(f32[], unitmatrix);
+#define unitmatrix unitmatrix_view
+extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
+VIEW(StatLL, gShotObjList);
+#define gShotObjList gShotObjList_view
+VIEW(Shield[4], gCarShield);
+#define gCarShield gCarShield_view
+VIEW(StatLL, gShotList);
+#define gShotList gShotList_view
+VIEW(StatLL, gHitPolyList);
+#define gHitPolyList gHitPolyList_view
+VIEW(StatLL, gShotCaseList);
+#define gShotCaseList gShotCaseList_view
+VIEW(s32[10], gWprObjList);
+#define gWprObjList gWprObjList_view
+VIEW(s32[7], gWfxObjList);
+#define gWfxObjList gWfxObjList_view
+VIEW(u16[5], gMineTextures);
+#define gMineTextures gMineTextures_view
+VIEW(TexDefSet[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+VIEW(ObjInst[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
+VIEW(volatile u8, gNumModels);
+#define gNumModels gNumModels_view
+VIEW(RGBA, hitColor);
+#define hitColor hitColor_view
+
 extern void ZOID_RemovePoly(void *poly);
-extern s32 MBOX_NewObject(s32 obj, void *mat, s32 parent, u32 flags);
-extern void CopyUV(f32 *src, f32 *dst);
-extern void PitchUV(f32 a, f32 *uvs);     /* PitchUV */
-extern void YawUV(f32 a, f32 *uvs);
-extern void RollUV(f32 a, f32 *uvs);     /* RollUV */
-extern f32 Random(f32 scale);
-extern f32 fatan2(f32 y, f32 x);
-extern void BodyVector(f32 *v, f32 *out, f32 *uvs);
-extern s32 PlayGameSound(s32 fx, s32 slot, s32 a, s32 b);
+
 extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2);
-extern void UpdateStreaks(void);
+
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);
 #pragma intrinsic(sqrtf)
 #pragma intrinsic(fabsf)
-extern void UpdateShotObject(Shot *shot, s32 unt);
+
 extern ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);
-extern void ShotDone(Shot *shot);
+
 extern Car *ShotToCarCollision(Shot *shot, f32 *old);
-extern void SonicCarCollision(Shot *shot);
-extern void UpdateShots(void);
-void InitNewShot(Shot *shot, Car *car);       /* _InitNewShot */
-extern void BattleDamage(Car *car, Car *hit, s32 damage);
-extern void ProximityDamage(f32 *pos, f32 *old, s32 owner, f32 radiussq, s32 damage);
-extern void MissileLock(Shot *shot);
+
 extern intptr_t ShotToWorldCollision(f32 *old, f32 *pos, f32 *uvs, f32 radius, s32 a, s32 b);
-extern void WorldVector(f32 *v, f32 *out, f32 *uvs);
+
 extern void ZOID_SetTexture(s16 obj, void *tex, s32 a);
-extern void ScaleUV(f32 *src, f32 *dst, f32 s);
+
 extern void *ZOID_NewPoly(s32 n, f32 *verts, u16 tidx, RGBA *color, s32 flags, s32 a);
 extern void MBOX_FindTexture_WORK(char *name, u16 *out, s8 a, s8 b, s32 c);
 extern void SetupTarget(char *name, s32 a, f32 *pos, s32 b, s32 slot, s32 c, s32 d);
-extern s32 EmitGameSound(f32 *pos, f32 *pos2, f32 a, f32 b, f32 c, f32 d, s32 e, s32 slot, s32 f, s32 g);
-extern void StartBlast(f32 *pos, s32 a, f32 b, s32 c);
 
 static const f32 CaseOffsets[1][3] = { 0.6f, 0.65f, -0.69f };
 static const f32 ShotOffsets[10][3] = {
@@ -969,7 +914,6 @@ void InitNewShot(Shot *shot, Car *car)
     CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
 }
 
-void AnimateCase(void);
 /* AnimateCase (MAT3 shots.c): inlined into ShotUpdate ShotUpdate; deleted stub 0x8038FCD8. Loop moved verbatim. */
 void AnimateCase(void)
 {

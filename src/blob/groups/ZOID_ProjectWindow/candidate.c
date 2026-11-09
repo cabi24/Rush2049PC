@@ -1,18 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/* ZOID_ProjectWindow (0x800A6244, 448 bytes).
- * N64 world-to-screen projection. The real window getter is inlined by stock
- * IDO; this genuine call boundary produces the native frame without padding.
- * Keep the N64 2.5f depth clamp and projection scale, which differ from MAT3.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
-typedef struct {
+typedef struct View {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
 } View;
@@ -27,12 +15,6 @@ typedef struct {
     /* 0x30 */ f32 unk30;
     /* 0x34 */ u8 pad34[0x14];
 } Port; /* 0x48 */
-
-extern Port ZoidWinInfo[];
-
-void BodyVector(f32 *v, f32 *out, f32 *m);
-
-void *ZOID_GetWindow(s32 idx);
 
 void ZOID_ProjectWindow(s32 idx, f32 *pos, View *view, f32 *vout, s16 *sout) {
     f32 d[3];

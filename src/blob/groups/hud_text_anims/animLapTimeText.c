@@ -1,63 +1,13 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * func_801084D4 (0x801084D4, 1500 B) = GC hud.c animLapTimeText (MAT3 decomp/src/GameSource/src/hud.c
- * animLapTimeText; GC locals t, remaining, digits[9], str[2], digitW, colonW, x, y, digitIdx, slot,
- * fixedWidth). Per-window lap split "m:ss.hhh" with a shadow pass, fading out over the last 3 s of
- * gCheckPtTimeout. gCheckPtTimeout, gLapTime, gShowElapsed,
- * lapTimePos, gPauseState, gFrameSeconds = gFrameSeconds (volatile, as MAT3),
- * HAL_SetTextTranslucency, TB_DrawText, TB_SetTextColor,
- * HAL_GetCharWidth = camera_shake_update, HAL_SetFontFixedWidth, HAL_SetFont =
- * HAL_SetFontInternal (s2 IPA parameter), TB_SetJust pair = gJust.
- * N64 differences from GC: an unused s32 parameter (stored to its home, as the sibling animElapsedTimerText);
- * `remaining` declared last and assigned after the continue test; the loop's zero is spelled `0.f` (a different
- * uopt constant from HAL_SetTextDepth's 0.0f: retail hoists only the loop zero); gLapTime * 1000.0f and
- * remaining * 255.0f operand order. No shaping devices. Helpers gfx_lock/gfx_unlock/font_set/pair_set are the
- * family's inlined helpers, non-static (suffix _84D4), not on keep (stub rule).
- */typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct { s32 first, second; } Pair;
+#include "game/game.h"
+
 typedef struct { s32 x, y; } Pos;
 
-typedef struct Car {
-    u8 pad0[239];
-    s8 place_locked;
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-} Car;
+VIEW(Pos[][4], lapTimePos);
+#define lapTimePos lapTimePos_view
 
-extern OSMesgQueue text_lock_queue;
-extern u32 gGameState;
-extern s8 gShowElapsed;
-extern s16 gNumWindows;
-extern Pair gJust;
-extern f32 gCheckPtTimeout[];
-extern f32 gLapTime[];
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Pos lapTimePos[][4];
-extern s32 gPauseState;
-extern volatile f32 gFrameSeconds;
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
 
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
-extern s32 HAL_SetFontInternal(s32 selection);
-extern void HAL_SetTextDepth(f32);
-extern s32 HAL_GetCharWidth(u16 id);
-extern s8 HAL_SetFontFixedWidth(s8 value);
-extern void TB_SetTextColor(s32);
-extern void TB_DrawText(s16, s16, u8 *);
-extern void HAL_SetTextTranslucency(f32);
-
-
-
-
-
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 s32 animLapTimeText(s32 arg0)
 {
     s32 t;

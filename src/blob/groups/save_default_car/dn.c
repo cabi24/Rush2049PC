@@ -1,21 +1,22 @@
-typedef signed int s32;
-typedef signed char s8;
-typedef unsigned char u8;
+#include "game/game.h"
 
-extern s8 gCarHandling[];
-extern s8 gCarEngines[];
-extern s8 gCarTires[];
-extern s8 gCarFrame[];
-extern s8 gCarWings[];
-extern s8 car_color_choice_a[];
-extern s8 car_color_choice_b[];
-extern s8 car_color_choice_c[];
-extern s8 gTireRims[];
-extern s8 gCarHorn[];
-extern float gFrontTireScale[];
-extern float gRearTireScale[];
+VIEW(s8[], gCarHandling);
+#define gCarHandling gCarHandling_view
+VIEW(s8[], gCarEngines);
+#define gCarEngines gCarEngines_view
+VIEW(s8[], gCarTires);
+#define gCarTires gCarTires_view
+VIEW(s8[], gCarFrame);
+#define gCarFrame gCarFrame_view
+VIEW(s8[], gCarWings);
+#define gCarWings gCarWings_view
 
-extern void SavePlayerCarSetting(void *p, u8 idx, u8 slot, s8 val);
+VIEW(s8[], gCarHorn);
+#define gCarHorn gCarHorn_view
+VIEW(float[], gFrontTireScale);
+#define gFrontTireScale gFrontTireScale_view
+VIEW(float[], gRearTireScale);
+#define gRearTireScale gRearTireScale_view
 
 void SetDefaultCarSettings(void *p, s32 idx)
 {

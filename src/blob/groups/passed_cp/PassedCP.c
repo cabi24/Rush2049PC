@@ -1,10 +1,4 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+#include "game/game.h"
 
 /* Accessed 0x7EC prefix of the authentic 0x808 model record. This function
  * receives one pointer; it never uses sizeof(Model) or model-array indexing. */
@@ -39,11 +33,6 @@ typedef struct GameCar {
     u8 pad312[0x380 - 0x312]; void *input; u8 pad312_384[0x3B8 - 0x384];
 } GameCar;
 
-typedef struct Player {
-    u8 pad0[7];
-    u8 type;
-} Player;
-
 /* Accessed ten-byte prefix of the checkpoint header; no array indexing. */
 typedef struct Track {
     s16 unknown0;
@@ -53,24 +42,11 @@ typedef struct Track {
     s16 count;
 } Track;
 
-extern Track gCheckpoints;
-/* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s32 gRace;
-extern u32 gGameState;
-extern s16 gNumLaps;
-extern s8 gNumLapsLeft;
-extern s8 gOneMoreCP;
-/* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7). */
-extern volatile f32 gSeconds;
-void ShowCheckpointTime(s32 player, f32 time);
-void RecordLap(s32 player, f32 time);
-void CarReportsGameOver(s32 player, f32 time);
-s32 PlayGameSound(s32 code, s32 player, s32 value, u8 mode);
-u32 AudPlaySequence(s32 type, f32 delay, s32 callback, s32 data,
-                      s32 nargs, ...);
+VIEW(Track, gCheckpoints);
+#define gCheckpoints gCheckpoints_view
 
-s32 GetNextCheckpoint(s32 index);
+VIEW(volatile f32, gSeconds);
+#define gSeconds gSeconds_view
 
 void PassedCP(Model *m, f32 time)
 {
@@ -144,6 +120,4 @@ void PassedCP(Model *m, f32 time)
         }
     }
 }
-extern signed char gGameSoundsEnabled;
-s32 AudPlayEffect(s32, s32, s32, u8);
-s32 PlayGameSound(s32 a0, s32 a1, s32 a2, u8 a3);
+

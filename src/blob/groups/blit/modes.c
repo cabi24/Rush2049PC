@@ -1,25 +1,5 @@
-/*
- * BlitClearAttribute(mask): clear bits in the render-state word blitAttribute and emit the matching RDP
- *   other-mode resets (bit 0 -> gDPSetAlphaCompare(G_AC_NONE), bit 4 -> gDPSetDepthSource(G_ZS_PIXEL)),
- *   then re-emit the current render mode through blit_set_mode(blitMode) for bits 4 and 5.
- * BlitSetAttribute(mask): set bits; bit 14 -> combine 0xFCFFFFFF/0xFFFDF6FB (+ 1-cycle unless the current
- *   mode is 1..3) and mode = -1, bit 0 -> G_AC_THRESHOLD, bit 4 -> G_ZS_PRIM, bits 4/5 re-emit the mode.
- * No arcade ancestor (N64 RDP state cache). No shaping quirks: SDK GBI macros on the global Gfx *.
- * Needs the real blit_set_mode (GBI-macro form, blit_set_mode.c) in the same -O3 unit as an internal
- * procedure: its register summary (a0-a3, v0, v1, t6-t9) is what puts mask in t0 and &blitMode in t1.
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -61,10 +41,8 @@ typedef union {
     _g->words.w1 = (unsigned int)(muxs1); \
 }
 
-extern u32 blitAttribute;
-extern Gfx *blit_dl;
-extern s32 blitMode;
-extern void blit_set_mode();
+VIEW(Gfx *, blit_dl);
+#define blit_dl blit_dl_view
 
 void BlitClearAttribute(u32 mask)
 {

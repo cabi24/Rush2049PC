@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /* AnimateTire: direct ancestor rushtherock/game/visuals.c:AnimateTire (suscomp spring, DIRT bounce with
  * Random, spring_save, wheel object swap at vel 64, rpy, CheckXlu). CheckVisibleAll is arcade
@@ -15,15 +17,9 @@
  */
 #ifndef VISUAL_TIRE_TYPES_H
 #define VISUAL_TIRE_TYPES_H
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef int s32;
-typedef unsigned int u32;
-typedef float f32;
+
 typedef f32 Vec3[3];
-typedef f32 Matrix3[3][3];
+
 /* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct Visual {
     void *prefix;
@@ -82,29 +78,20 @@ typedef struct Control152 {
 typedef struct Object68 {
     u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env;
 } Object68;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern CarConfig *gCarModels[];
-extern Control152 gCamera[];
-extern Object68 ObjInstanceList[];
-extern s8 gInvisibleCar,expansion_pak_present,gTrackNum;
-extern u8 tire_blur_texture[];
-extern intptr_t gWheelTextures[];
-extern f32 gFrontTireScale[][13],gRearTireScale[][13];
-extern f32 gModelTime;
-extern f32 D_8012393C,D_80123940,D_80123944,D_80123948;
-extern s32 game_rand(void);
-extern void MBOX_HideObject(s16,s32,s32);
-extern void MBOX_ShowObject(s16,s32,s32);
-extern s32 CheckVisibleAll(Visual *,s32);
-extern s32 CheckVisible(Visual *,s32,s32);
+VIEW(CarConfig *[], gCarModels);
+#define gCarModels gCarModels_view
+VIEW(Control152[], gCamera);
+#define gCamera gCamera_view
+VIEW(Object68[], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+
+VIEW(intptr_t[], gWheelTextures);
+#define gWheelTextures gWheelTextures_view
+
 extern void ZOID_SetTexture(s16,intptr_t,s32);
-extern void CreateYPRMatrix(Matrix3,Vec3);
-extern void ScaleUV(Matrix3,Matrix3,f32);
-extern void ZOID_UpdateObject(s16,Vec3,Matrix3);
+
 #endif
 
-extern f32 Random(f32);
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
  * so the bob keeps the N64's spread (an AR(1) whose stationary variance is the same), instead of stepping once a 30 Hz

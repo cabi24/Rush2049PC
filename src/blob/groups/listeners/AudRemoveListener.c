@@ -1,33 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AudRemoveListener (0x800D52D4) and StopListeners (0x800D5374), one translation unit.
- * AudRemoveListener(node): unless node == (Node *)-1, under the queue lock audio_lock_queue (osRecvMesg blocking /
- * osJamMesg) call the debug check ValidateListener(node), unlink the node from list gActiveListeners if its
- * "in that list" byte (+9) is set, push it at the head of list gFreeListeners (InsertLLE = list insert,
- * RemoveLLE = list remove; List {u8 indirect, doubly; u32 count; head; tail}) and set byte +8.
- * StopListeners: for every active player record (gPlayers, 76 bytes, count gNumPlayers s16) activate the
- * pending node at +0x44 and clear the slot to -1. No arcade ancestor (N64 object lists).
- *
- * Whole-program shape (proved with the scorer and the whole-program unit):
- *  - AudRemoveListener is a *kept* function that umerge inlines into StopListeners because it is defined
- * `__inline` in the same file (mechanism). Its inlined statements carry the call's.loc, which is
- *    what makes as1 put the loop-end `sll` in the bne delay slot (an internal static helper or a goto in the
- *    loop body leaves it in the load-delay slot instead).
- *  - early `return` for the -1 node (not `if (node != -1) {...}`): the return gives the skip path its own
- *    block, so uopt's test replacement turns `i < gNumPlayers` into the retail pointer compare against
- *    gPlayers + count*76 recomputed on both paths; with the if-block form the loop keeps `i` and needs
- *    a ninth s-register.
- *  - the slot field is an int (`= -1`) while the node is a pointer: two distinct -1 webs (s4 compare,
- *    s5 store) as in retail.
- *  - ValidateListener is the group's internal empty function (AudUpdateListener.c), called by jal.
- * INTEGRATION: supersedes AudUpdateListener (revert it, splice this group); the old locked
- * AudRemoveListener source (if-block form, not __inline) is replaced by this one.
- */
-typedef signed char s8;
-typedef signed short s16;
-typedef signed int s32;
-typedef unsigned char u8;
-typedef unsigned int u32;
+#include "game/game.h"
+#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct Link { struct Link *next, *prev; } Link;
 typedef struct List { u8 indirect, doubly, pad[2]; u32 count; Link *head, *tail; } List;
@@ -48,17 +20,16 @@ typedef struct Entry {
  * and -1 keeps (docs/port/POINTERS.md 10). */
 #define OBJECT(x) ((x) == -1 ? (s32 *)-1 : (s32 *)PC_N64P((u32)(x)))
 
-extern OSMesgQueue audio_lock_queue;
-extern List gFreeListeners;
-extern List gActiveListeners;
-extern s16 gNumPlayers;
+VIEW(OSMesgQueue, audio_lock_queue);
+#define audio_lock_queue audio_lock_queue_view
+VIEW(List, gFreeListeners);
+#define gFreeListeners gFreeListeners_view
+VIEW(List, gActiveListeners);
+#define gActiveListeners gActiveListeners_view
+
 extern Entry gPlayers[];
 s32 osRecvMesg(OSMesgQueue *mq, void *msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
-void RemoveLLE(List *list, s32 *object);
-void InsertLLE(List *list, s32 *object, Link *before);
-
-void ValidateListener(s32 *arg0);
 
 __inline void AudRemoveListener(s32 *arg0)
 {

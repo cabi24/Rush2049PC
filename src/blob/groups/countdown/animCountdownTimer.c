@@ -1,71 +1,20 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * emitter_update (0x800EEDB0, 1,240 B; historical label) = MAT3 animCountdownTimer@hud.c (GC 0x8001F048, 852 B;
- * reference/repos/mat3/decomp/src/GameSource/src/hud.c): the remaining-time "M:SS" countdown. Hidden unless the
- * race is running with gShowRemaining, not for battle mode 0, point-stunt mode, single race, practice or circuit;
- * beeps (PlayGameSound 2) at 30 s and each second from 5 s, blinks below 5 s (sc.frameCount & 8); draws the five
- * characters (leading zero skipped) with shadow, at countdownTimerPos or mapPos (stunt, split screen).
- * Direct typed port of the MAT3 body: locals (t, digits[5], str[2], digitW, colonW, x, y, digitIdx), function-local
- * statics sec / nextBeep = 30, statement order; HAL_SetFont (+ semaphore helpers), TB_SetJust and PlayGameSound
- * (MAT3 audio.c, with its `fxid == -1` test: frame 216 needs it) inlined as in retail.
- * N64 differences: `gRace == 0 || gRace == 1` (GC `(unsigned)gRace <= 1`), sound id 2 (GC 54), the "digit" test
- * reads str[0] back (retail re-masks the stored byte: `andi t6,t8,0xff`).
- * Callee identities: GetCountdownTimeRemaining, AudPlayEffect,
- * HAL_SetTextDepth, HAL_SetFontInternal = _HAL_SetFont (s2 parameter), camera_shake_update =
- * HAL_GetCharWidth, TB_SetTextColor, TB_DrawText; gScheduler = sc (volatile).
- * Shaping (disclosed):
- *  - the early-exit tests are four `if (...) goto skip;` statements sharing one `return 1` (MAT3: one || chain).
- *    With the single || chain the code is identical but uopt hoists &gRace into s3 (save 0.125, nocs 8) over the
- *    constant 4 (save 0.125, nocs 8; the tie goes to the lower web): 33 rows. As separate statements the constant's
- *    live range is one block shorter (nocs 7) and it takes s3 as in retail; separate `return 1`s cost 24 rows.
- * - gJust is a tentative definition here, as in hud_text_anims/audio_animPanes_demo_animText.c: with an extern
- *    the group compile gives the two TB_SetJust(0, 3) tail stores two `lui at` (the unit, where it is defined,
- *    gives one, as retail);
- * - helpers are non-static, not on keep, defined after the caller; _ReleaseSemaphore_Countdown and
- *    HAL_SetFont_Countdown share one source line (as1 line tie in the group compile, see ShowHUD).
- */
-#define sc gScheduler
-#define mapPos hud_mapPos
-#define gFontSem text_lock_queue
+#include "game/game.h"
 
-typedef unsigned char u8;
-typedef signed char s8;
-typedef short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef float f32;
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-typedef struct tJust { s32 h, v; } tJust;
+
+#define sc gScheduler_view
+#define mapPos hud_mapPos_view
+#define gFontSem text_lock_queue_view
+
 typedef struct tSchedCtl { u8 pad000[0x27C]; s32 frameCount; } tSchedCtl;
 
-extern u32 gGameState;
-extern s8 gShowRemaining;
-extern s32 gRace;
-extern s32 gBattleMode;
-extern s32 gStuntMode;
-extern s8 gGameSoundsEnabled;
-extern volatile tSchedCtl sc;
-extern s16 gNumWindows;
-extern s32 countdownTimerPos[4][2];
-extern s32 mapPos[4][2];
-extern tJust gJust;   /* tentative definition (as hud_text_anims/audio_animPanes_demo_animText.c): the two TB_SetJust tail stores share one lui at in the group compile */
-extern OSMesgQueue gFontSem;
+VIEW(volatile tSchedCtl, gScheduler);
 
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-f32 GetCountdownTimeRemaining(void);
-s32 AudPlayEffect(s32 fxid, s32 subId, s32 replace, u8 priority);
-void HAL_SetTextDepth(f32 depth);
-s32 HAL_SetFontInternal(s32 fontID);              /* _HAL_SetFont */
-u32 HAL_GetCharWidth(u16 ch);
-void TB_SetTextColor(s32 color);
-void TB_DrawText(s16 x, s16 y, void *text);
+VIEW(s32[4][2], countdownTimerPos);
+#define countdownTimerPos countdownTimerPos_view
+VIEW(s32[4][2], hud_mapPos);
 
-s32 PlayGameSound_Countdown(s32 fxid, s32 subId, s32 replace, u8 priority);
+VIEW(OSMesgQueue, text_lock_queue);
 
-s32 HAL_SetFont(s32 fontID);
-void TB_SetJust(u32 first, u32 second);
 s32 animCountdownTimer(void *blt)
 {
     s32 t;

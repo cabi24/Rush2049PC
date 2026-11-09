@@ -1,72 +1,25 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AudioInitSys (0x800A5D34, 836 B) -- historical label; really the N64 AudioInitSys
- * (MAT3 audiosysps2.c AudioInitSys(maxVoices, maxSfx), GC 0x8009ED90: the GC body is the PS2 layer,
- * only the final AudioSfxInit(maxSfx) call is shared -- AudioSfxInit, here
- * AudioSfxInit(control)). N64 platform part reconstructed from the disassembly, building on the
- * frozen A142 reconstruction (72/209) -- credit A142.
- *
- * Calls: LoadWave, LockWaveInstance = display_list_alloc,
- * _ValidateWaveInstance = ValidateWaveInstance; GetWaveInstanceAddr (MAT3 waves.c, GC 0x8005B7B4:
- * `_ValidateWaveInstance(idx,0,0); return gWaveInstance[idx].ptr;`) is umerge-inlined three times, which
- * is what leaves the header pointer in v0 before each LoadWave call. gWaveInstance holds
- * 20-byte records, ptr at +0xC. Static-library prototypes are the promoted ones (src/rom/sound/init.c,
- * groups.c, api.c): sound_stop_everything(void), sound_is_idle returns u8, sound_lib_init/sound_lib_init_shared_output
- * (u32 frequency, u8 voices, u8, u8, u16 count, u32 flags), sound_fade_volume(u8, u16, u8), sound_fade_master_volume(u8, u16, u8, u8).
- *
- * D_00039B40 is the ROM offset of an asset (retail builds it with lui 0x4 / addiu -0x64C0, i.e. as a
- * symbol address, not as the integer 0x39B40 which IDO would build with lui/ori); it is passed to
- * sound_push_group as the sample `address`. Absolute symbol allowed by the owner (2026-10-25); it needs no
- * symbol_addrs/GAME_SYMBOLS entry: the D_XXXXXXXX name encodes the address (the image splice.address_named),
- * as D_00BE4C70/D_00BDA100 in groups/heap_release/overlay_loader.c.
- * GetWaveInstanceAddr is a non-static, non-kept definition (no deleted-static stub).
- */
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef struct { u8 id,other1,mode,other3; s32 word4,word8; void *hdr; s32 word16; } Resource20;
+#include "game/game.h"
+
 typedef struct { u16 other,id; } Instrument4;
-extern u8 music_disabled;
-extern s8 audio_driver_started;
-extern s32 song_handle;
-extern u8 musyx_task_done_queue[],musyx_task_done_msg[];
-extern u8 sample_dma_thread[],audio_retrace_thread[],sample_dma_thread_stack_top[],audio_retrace_thread_stack_top[];
-extern Resource20 gWaveInstance[];
-extern Instrument4 boot_sfx_groups[4];   /* the four sfx groups pushed at boot; the song names' text follows */
-extern void *musyx_project,*musyx_pool,*musyx_sdir;
-extern intptr_t musyx_samples;
+
+VIEW(u8[], musyx_task_done_queue);
+#define musyx_task_done_queue musyx_task_done_queue_view
+
+VIEW(Instrument4[4], boot_sfx_groups);
+#define boot_sfx_groups boot_sfx_groups_view
+
+VIEW(intptr_t, musyx_samples);
+#define musyx_samples musyx_samples_view
 extern u8 D_00039B40[];
 /* D_00039B40 is a cartridge address, 0xB0039B40: in a RUSH_NOFIXED build a name at pc_window + 0x30039B40, whose
  * 32-bit value the translation gives back (N64AS; pc_prelude.h, docs/port/NOFIXED.md 9.1). */
 #define N64AS(x) (s32)PC_N64A(x)
-/* the MusyX service table: 8 function addresses, which the data loader makes host functions
- * (docs/port/MUSYX_DATA.md 8.1) */
-extern void (*audio_driver_services[8])(void);
-extern void sample_dma_thread_entry(void *);
-extern void audio_retrace_thread_entry(void *);
+VIEW(void (*[8])(void), audio_driver_services);
+#define audio_driver_services audio_driver_services_view
+
 extern void osCreateMesgQueue(void *,void *,s32);
 extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);
 extern void osStartThread(void *);
-extern void InitWaves(void);
-extern s32 LoadWave(s32,s32,s32,s32,intptr_t);
-extern void LockWaveInstance(s32);
-extern void ValidateWaveInstance(s32,s32,s32);
-extern void sound_set_services(void *);
-extern void sound_stop_everything(void);
-extern u8 sound_is_idle(void);
-extern s32 sound_pop_group(void);
-extern void sound_lib_exit_shared_output(void);
-extern s32 sound_lib_init_shared_output(u32,u8,u8,u8,u16,u32);
-extern s32 sound_lib_init(u32,u8,u8,u8,u16,u32);
-extern s32 sound_push_group(void *,u16,void *,void *,void *);
-extern void sound_fade_volume(u8,u16,u8);
-extern void sound_fade_master_volume(u8,u16,u8,u8);
-extern void AudioSfxInit(s32);
-
-/* The game's own GetWaveInstanceAddr (this file had a second copy of it: the same code). */
-void *GetWaveInstanceAddr(s32 idx);
 
 void AudioInitSys(s32 channels,s32 control,s32 enabled)
 {

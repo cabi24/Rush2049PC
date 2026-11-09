@@ -1,15 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * GetDefaultOption: default value of option `selector` (0..40) for the settings initialiser
- * InitPlayer (selectors 0..20 then 21..40, each stored through audio_bus_mix) and InitOptions.
- * Case 9 is "PAL console": osTvType (0x80000300) == OS_TV_PAL.  Own .rodata: the 41-entry jump table.
- * Case 9 needs `|| <compile-time 0>` to reproduce the bytes; it is written as a compiled-out
- * development switch (DEBUG_FORCE_PAL).  That switch is INFERRED from the bytes, not evidenced: no
- * symbol or string for it survives.  The bare `(osTvType == 0) || 0` spelling had been rejected
- * ; held, accepted by the owner
- * (2026-10-06) with this disclosure.
- */
-typedef signed char s8;
+#include "game/game.h"
+
+
 #define OS_TV_PAL 0
 #define DEBUG_FORCE_PAL 0 /* compiled-out development switch */
 extern unsigned int osTvType;

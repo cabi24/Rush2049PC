@@ -1,23 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * AnimateVelRotGeneric (historical label): falling-debris object callback (Obj *, s16 mode), sibling of the
- * matched AnimateFlag (same Obj/Model records, same `mode == 0` -> ReleaseEnviron(obj, 1)
- * unlink and gPauseState pause test). Each frame the model's physics record (m->phys, +0x6C) gets
- * velocity V += gravity * 0.15 (gravity = velrot_gravity = {0, -0.25, 0}) and position RWR (+0x38) moves by
- * V + gravity * 0.15; the orientation UV (+0x14) is rotated by W * frame time through
- * RotateUV (= arcade rotateuv, see game_reckon_all.c); frame time gFrameSeconds is volatile
- * (re-read for every use). obj->timer (+0x10) counts down by the frame time; at <= 0 the debris is
- * removed: if its kind record targetInfo[m->type] (0x30 bytes) has flag 0x2000, RemoveObjectTree
- * (m->id, 0, 0); unlink the model from the list gTargetList (FreeStatLLE) and free the object.
- * No arcade ancestor (N64 object system). Own literal 0.15f (0x3E19999A at 0x801249CC), verified.
- * Shaping quirks: the removal block is an inlined static helper taking the kind-record pointer (retail
- * forms &targetInfo[type] in a register and loads +0x12 from it; it also supplies 8 bytes of the frame);
- * the unused `f32 a[6]` gives the 104-byte frame with temp at sp+60 and m's spill home at sp+96
- * (INFERRED filler, like AnimateFlag's unused buf[16]); `v = p->V` (retail hoists p+12).
- * -O3 only (-O2 is 103/108 off).
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef unsigned short u16;
-typedef int s32; typedef float f32;
+#include "game/game.h"
+
 typedef struct Phys {
     f32 W[3];
     f32 V[3];
@@ -61,15 +43,15 @@ typedef struct Kind {
     s32 sound, w20, w24, w28;
     f32 f2C;
 } Kind;
-extern s32 gPauseState;
-extern f32 velrot_gravity[3];
-extern volatile f32 gFrameSeconds;
-extern Kind targetInfo[];
-extern u8 gTargetList[];
-void ReleaseEnviron(void *node, s32 unlink);
-void RotateUV(f32 *rv, void *uvs);
-void RemoveObjectTree(s16 arg0, s32 arg1, s32 arg2);
-void FreeStatLLE(void *list, void *node);
+
+VIEW(f32[3], velrot_gravity);
+#define velrot_gravity velrot_gravity_view
+VIEW(volatile f32, gFrameSeconds);
+#define gFrameSeconds gFrameSeconds_view
+VIEW(Kind[], targetInfo);
+#define targetInfo targetInfo_view
+VIEW(u8[], gTargetList);
+#define gTargetList gTargetList_view
 
 static void debris_remove(Obj *obj, Model *m, Kind *k) {
     if (k->flags & 0x2000) {

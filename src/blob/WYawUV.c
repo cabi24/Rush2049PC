@@ -1,3 +1,5 @@
+#include "game/game.h"
+
 /* flags: -g0 -O3 -mips2 -G 0 -non_shared */
 /*
  * WYawUV — WYawUV(angle, uv) variant (historical label is wrong): rows uv[i][0]/uv[i][2], epsilon 0.001f; N64 sign is the reverse of the arcade (ut = a*cos + b*sin; b = b*cos - a*sin).

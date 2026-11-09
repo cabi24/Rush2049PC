@@ -1,17 +1,6 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * game_reckon_all (historical label): game-task dead reckoning of every model, the "we control"
- * branch of arcade game_reckon_all() (game/reckon.c), N64 form: for each of the 6 MODELDAT records
- * (0x8014A250, 0x808 bytes) that is in game and whose CAR_DATA (0x80152818, 0x3B8 bytes) state byte
- * at +857 is < 2: deltime = (time - lasttime) * time_fudge (time is a float argument here);
- * reckon.RWR = RWR + RWV * deltime; reckon.UV = UV (CopyUV = fmatcopy, 9 floats);
- * rotateuv(W * deltime, reckon.UV) (RotateUV, historical label).
- * The arcade scalmul/vecadd calls are written out per component; the add is RWR + temp (temp + RWR
- * reorders the schedule). Field names taken from the arcade function; offsets are N64 evidence.
- * No compile-shaping quirks. Also MATCH at -O2.
- */
-typedef signed char s8; typedef unsigned char u8; typedef short s16; typedef int s32; typedef float f32;
-typedef f32 F32; typedef s32 S32; typedef s16 S16; typedef s8 S08;
+#include "game/game.h"
+
+typedef f32 F32; typedef s32 S32; typedef s16 S16;
 typedef struct MODELDAT {
     u8 pad0[76];
     F32 W[3];               /* 76 */
@@ -31,15 +20,6 @@ typedef struct MODELDAT {
     F32 time_fudge;         /* 2036 */
     u8 pad7F8[2056 - 2040];
 } MODELDAT;
-typedef struct CAR_DATA {
-    u8 pad0[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad0_308[0x359 - 0x308];
-    S08 state;              /* 857 */
-    u8 pad35A[0x380 - 0x35A]; void *input; u8 pad35A_384[0x3B8 - 0x384];
-} CAR_DATA;
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-void CopyUV(void *src, void *dst);
-void RotateUV(F32 *rv, void *uvs);
 
 void game_reckon_all(F32 time) {
     MODELDAT *m;

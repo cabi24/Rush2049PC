@@ -1,71 +1,5 @@
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Particle-system knot (component 13), + 2026-10-05. Names are historical labels.
- *
- * The whole-program -O3 unit decides parameter registers and unsaved callee registers for this chain
- * over all of its callers, so the bodies only reproduce together:
- *
- *   ZOID_EndFrame (kept; per-frame pass: lights, views, 2D sprite list; also calls the
- *    |                        external BlitDraw, which stays an ABI call)
- *    `-> zoid_draw_window(view, eye) (per-view scene setup + polygon list; eye arrives in a3 by IPA)
- *     |-> Traverse (scene-graph walk, recursive)
- *     |     `-> zoid_draw_object (draw one node: LOD, billboard, texture, colours, display list)
- *     |           |-> zoid_load_texture (texture load: TLUT, tile/block loads)   IPA params s4,s1,s0,s3,s5
- *     |           |     `-> zoid_load_palette (TLUT load)
- *     |           `-> farcsine (asin/acos kernel, x in $f16)   <- fasin = asinf,
- *     `-> zoid_load_texture                                          facos = acosf
- *
- * No stand-ins. Status (the scorer, this directory): every member MATCH, zoid_draw_window included
- * (own.rodata verified at 0x80123B60.0x80123B68). See,
- * and. zoid_draw_window is the N64 per-window scene setup (Camera =
- * tWindowInfo ZoidWinInfo[] of MAT3 zoidwindow.c; no GameCube body: the GC renders through ngcZoid.c).
- *
- * Shaping facts, each one tested (a different spelling changes code):
- *  zoid_load_texture: params (gp, tex, rect, clip, pals) -- callers set gp first; the clip/rect
- *    SetTileSize rewrite in the tail is int-typed (G_SETTILESIZE << 24), not the SDK _SHIFTL form, so
- *    the 0xF2000000 constant does not share a register web with the tile sections.
- *  farcsine(f32 x, s32 flag): `/ 2.0f` (folded to *0.5 after CSE, so it is a separate constant),
- *    one return of `r`, `(a[i] + r) + a[i]` operand order. x arrives in $f16 (IPA).
- *  zoid_draw_object: LodSet is 88 bytes and is indexed as set->lv[lod].field (no level pointer);
- *    `parent + node` operand order; distance through x/y/z locals; texture address written
- *    `(id & 0x3FF) + gTexDefPtrs[id >> 10].tex`; named yaw/pitch locals.
- *  Traverse: explicit `goto next` continues; the scale loop's inner counter is reused by
- *    the following loop (otherwise uopt unrolls it); two separate filter ifs at the loop bottom;
- *    `pushed = 0, total = 0, saved = 0` initialised on one line; 16 bytes of unexplained frame filler.
- *  zoid_draw_window: `Camera *cam` initialised at its declaration (otherwise ugen marks $16 noalias $sp
- *    and as1 reorders the ortho arm) and declared BEFORE `Vp *vp` (f_spilltemps hands out spill homes
- *    in itable order: with cam's &ZoidWinInfo[view] first, the spilled &gCamera[view] web gets home 0 =
- *    72(sp) as in retail; vp first gives view*16 home 0 and t0 68(sp)); the ortho arm passes a local
- *    `Mtx *m = &frame_dynamic->proj[view]` to guOrtho (its slot puts perspNorm at 322(sp)); FillRectangle takes (s16) coordinates and ORs the y term first;
- *    the view count goes through `i` and `(i < 2) != 0`; the texture address is recomputed as the
- *    zoid_load_texture argument; SDK gSPFogPosition (128000); fov factor 57.295776f. Two parameters
- *    (view, eye): with (view, a1, a2, eye) the caller has to store the dead a1/a2 to their stack homes.
- *  ZOID_EndFrame: `if (gNumLights >= 0) switch (...)` (retail's bltz before the case chain);
- *    volatile frame_record_index (lui/addiu/lb 0); only `i` at function level, the sprite loop body declares its
- *    15 locals itself (e first, x 8th, tile 10th: frame offsets 180/152/144), four of them unused;
- *    `lines` also carries the doubled height and the fill-rect y1, `flip` the texture width and the
- *    fill-rect x1 (the shared variables cross calls, hence s3/s0); callback test re-reads e->tex;
- *    `flip = 1;` before BlitSetAttribute(8); t0 clamp as if/else; strip loops without a `next` variable
- *    (`t + lines` is one CSE temp), flipped strip's ult written `height - (t + lines)` (no shared
- *    height - t temp, which freed v0); y advanced as `if (hi-res) y += lines; t += lines; y += lines;`;
- *    the palette pointer `pal` set inside each branch (`pal = e->pal` after the test).
- */
-
-#define NULL ((void *)0)
-typedef signed char s8;
-typedef unsigned char u8;
-typedef signed short s16;
-typedef unsigned short u16;
-typedef signed int s32;
-typedef unsigned int u32;
-typedef signed long long s64;
-typedef unsigned long long u64;
-typedef float f32;
-
-typedef struct {
-    u32 w0;
-    uintptr_t w1;
-} Gwords;
+#include "game/game.h"
+#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 typedef union {
     Gwords words;
@@ -240,7 +174,7 @@ typedef union {
  * pointers by zero extension. */
 #define WADP(type) u32
 #define WAD_ADDR u32
-typedef struct {
+typedef struct Texture {
     u8 pad0[16];
     u16 width;
     u16 height;
@@ -251,18 +185,16 @@ typedef struct {
     u32 flags;
     u32 unk20;
 } Texture;
-typedef struct {
+typedef struct TexRect {
     u16 x0, y0, x1, y1;
 } TexRect;
-typedef struct {
+typedef struct Palette {
     u8 pad0[16];
     u8 first;
     u8 last;
     u8 pad12[2];
     WAD_ADDR table;
 } Palette;
-extern s32 zoid_tlut_mode;
-extern s32 blit_mask_bits();
 
 #define G_LOADTLUT 0xF0
 #define G_RDPTILESYNC 0xE8
@@ -487,13 +419,8 @@ typedef union {
     Vp_t vp;
     long long int force_structure_alignment[2];
 } Vp;
-typedef struct {
-    short ob[3];
-    unsigned short flag;
-    short tc[2];
-    unsigned char cn[4];
-} Vtx_t;
-typedef union {
+
+typedef union Vtx {
     Vtx_t v;
     long long int force_structure_alignment;
 } Vtx;
@@ -519,11 +446,11 @@ typedef union {
     Ambient_t l;
     long long int force_structure_alignment[1];
 } Ambient;
-typedef struct {
+typedef struct Lights2 {
     Ambient a;
     Light l[2];
 } Lights2;
-typedef struct {
+typedef struct LookAt {
     Light l[2];
 } LookAt;
 typedef f32 MtxF[4][4];
@@ -538,8 +465,7 @@ typedef struct {
     Mtx ident;      /* 0x680 */
 } GfxBuf;
 
-/* view record gCamera[] (0x98 bytes) */
-typedef struct {
+typedef struct View {
     f32 rot[3][3];
     f32 pos[3];
     u8 pad30[0x98 - 0x30];
@@ -593,47 +519,48 @@ typedef struct {
     s32 count;
 } PalTable;
 
-extern GfxBuf *frame_dynamic;
-extern Mtx *frame_matrix_cursor;
-/* PC: the table's extent, 600 nodes to 0x80138660, for gen_data (every other view is open-ended). This Node is
- * the layout every view of the table has on the PC (docs/port/POINTERS.md 9). */
-extern Node ObjInstanceList[600];
-extern View gCamera[];
-extern LodTable gRomObjDefPtrs[];
-extern TexTable gTexDefPtrs[];
-extern PalTable gPalDefPtrs[];
-extern f32 node_eye_distance;
-extern f32 zoid_view_matrix[4][4];
-extern f32 zoid_upright_matrix[4][4];
-extern f32 zoid_scaled_matrix[4][4];
-extern f32 zoid_node_position[3];
-extern s8 frame_lookat_count;
-extern s16 zoid_late_pass_a;
-extern s16 zoid_late_node_a;
-extern s16 zoid_late_pass_b;
-extern s16 zoid_late_node_b;
-extern Texture *zoid_current_texture;
-extern Vtx cull_vertices[];
-extern Vtx cull_box_vertices_a[];
-extern Vtx cull_box_vertices_b[];
-extern f32 gViewableDistance;
+VIEW(GfxBuf *, frame_dynamic);
+#define frame_dynamic frame_dynamic_view
+VIEW(Mtx *, frame_matrix_cursor);
+#define frame_matrix_cursor frame_matrix_cursor_view
+VIEW(Node[600], ObjInstanceList);
+#define ObjInstanceList ObjInstanceList_view
+VIEW(View[], gCamera);
+#define gCamera gCamera_view
+VIEW(LodTable[], gRomObjDefPtrs);
+#define gRomObjDefPtrs gRomObjDefPtrs_view
+VIEW(TexTable[], gTexDefPtrs);
+#define gTexDefPtrs gTexDefPtrs_view
+VIEW(PalTable[], gPalDefPtrs);
+#define gPalDefPtrs gPalDefPtrs_view
 
-void lookat_reflect_fill(LookAt *l, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt,
-                     f32 xUp, f32 yUp, f32 zUp);
-f32 NormalVector(f32 *v);
-f32 fatan2(f32 y, f32 x);
-s32 zoid_node_visible(Node *node, s32 view);
-s32 build_node_matrix_rows4(s32 idx, f32 (*m)[4], f32 *pos, Mtx *out, f32 w, s32 absolute);
-void build_far_node_matrix(s32 idx, View *obj, Mtx *m, f32 scale, s32 absolute);
-s32 build_node_matrix(s32 idx, View *src, Mtx *out, f32 w, s32 absolute);
+VIEW(f32[4][4], zoid_view_matrix);
+#define zoid_view_matrix zoid_view_matrix_view
+VIEW(f32[4][4], zoid_upright_matrix);
+#define zoid_upright_matrix zoid_upright_matrix_view
+VIEW(f32[4][4], zoid_scaled_matrix);
+#define zoid_scaled_matrix zoid_scaled_matrix_view
+VIEW(f32[3], zoid_node_position);
+#define zoid_node_position zoid_node_position_view
+
+VIEW(Texture *, zoid_current_texture);
+#define zoid_current_texture zoid_current_texture_view
+VIEW(Vtx[], cull_vertices);
+#define cull_vertices cull_vertices_view
+VIEW(Vtx[], cull_box_vertices_a);
+#define cull_box_vertices_a cull_box_vertices_a_view
+VIEW(Vtx[], cull_box_vertices_b);
+#define cull_box_vertices_b cull_box_vertices_b_view
+
 float sqrtf(float);
 #pragma intrinsic(sqrtf)
 float fabsf(float);
 #pragma intrinsic(fabsf)
-extern Gfx *zoid_branch_slot;
+VIEW(Gfx *, zoid_branch_slot);
+#define zoid_branch_slot zoid_branch_slot_view
 s32 zoid_draw_object(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32 view, Palette *pal);
 s32 Traverse(Gfx **gp, Node *parent, Node *node, s32 view, s32 count, s32 more_in, s32 flags6, Palette *pal);
-f32 farcsine(f32 input, s32 arg0);
+
 void zoid_load_texture(Gfx **gp, Texture *tex, TexRect *rect, TexRect *clip, Palette *palettes);
 void zoid_load_palette(Gfx **gfxp, Palette *tex);
 #define gDPSetTileSizeS(pkt, t, uls, ult, lrs, lrt) \
@@ -642,7 +569,6 @@ void zoid_load_palette(Gfx **gfxp, Palette *tex);
     _g->words.w0 = (G_SETTILESIZE << 24) | (((uls) & 0xFFF) << 12) | ((ult) & 0xFFF); \
     _g->words.w1 = (((t) & 7) << 24) | (((lrs) & 0xFFF) << 12) | ((lrt) & 0xFFF); \
 }
-extern s32 zoid_current_tlut;
 
 void zoid_load_palette(Gfx **gfxp, Palette *tex) {
     Gfx *gfx = *gfxp;
@@ -785,7 +711,8 @@ RDL_STORAGE void zoid_load_texture(Gfx **gp, Texture *tex, TexRect *rect, TexRec
     *gp = gfx;
 }
 
-extern f32 asin_offsets[4];
+VIEW(f32[4], asin_offsets);
+#define asin_offsets asin_offsets_view
 f32 farcsine(f32 x, s32 flag)
 {
     f32 g;
@@ -840,9 +767,7 @@ f32 farcsine(f32 x, s32 flag)
 #define PC_LOD_REACH(d, flags) (((flags) & 0x200000) ? (d) : PC_DRAW_REACH(d))
 #define PC_LOD_FORCED(l) (pc_detail() == PC_DETAIL_HIGH ? 0 : (l))   /* CreateCar's tires at level 1 in split screen */
 #define PC_VIEW_BEGIN pc_scene_view();
-/* far scenery with no finite place from the eye (build_far_node_matrix.c's pc_scenery_unplaced: a camera not placed yet), left
- * out and counted as the cull's */
-s32 pc_scenery_unplaced(s32 idx, void *obj, s32 absolute);
+
 #define PC_SCENERY_CHECK(view, obj, count) if (pc_scenery_unplaced(view, obj, count)) { PC_SCENE(VIEW_HIDDEN) goto next; }
 s32 zoid_draw_object(Gfx **gp, Node *parent, s32 count, s32 flag, Node *node, s32 view, Palette *pal)
 {
@@ -1167,7 +1092,7 @@ s32 Traverse(Gfx **gp, Node *parent, Node *node, s32 view, s32 count, s32 more_i
     return total;
 }
 
-typedef struct {
+typedef struct Camera {
     Vp *vp;          /* 0x00 */
     u16 *scissor;    /* 0x04 */
     s32 ortho;       /* 0x08 */
@@ -1192,7 +1117,7 @@ typedef struct {
     u8 cn[4];
 } PolyVtx; /* 20 bytes */
 
-typedef struct {
+typedef struct Poly {
     s16 count;       /* 0x00 */
     u16 flags;       /* 0x02 */
     u16 tex;         /* 0x04 */
@@ -1208,30 +1133,23 @@ typedef struct {
     } u;
 } Poly; /* 0x58 */
 
-extern Gfx *frame_dl;
-extern Camera ZoidWinInfo[];
-extern s8 gUpsideDownTrack;
-extern s8 gMirrorWaves;
-extern f32 gGlobalCameraFacingScale;
-extern MtxF zoid_lookat_matrix;
-extern s16 gNumPlayers;
-extern s16 ObjHead;
-extern s32 gNumPolyInsts;
-extern Poly PolyInstanceList[];
-extern Vtx *zoid_poly_vertices;
+VIEW(Gfx *, frame_dl);
+#define frame_dl frame_dl_view
+VIEW(Camera[], ZoidWinInfo);
+#define ZoidWinInfo ZoidWinInfo_view
 
-void WorldCullObjects(s32 view, f32 *pos, s32 arg2);
+VIEW(MtxF, zoid_lookat_matrix);
+#define zoid_lookat_matrix zoid_lookat_matrix_view
+
+VIEW(s16, ObjHead);
+#define ObjHead ObjHead_view
+
+VIEW(Poly[], PolyInstanceList);
+#define PolyInstanceList PolyInstanceList_view
+VIEW(Vtx *, zoid_poly_vertices);
+#define zoid_poly_vertices zoid_poly_vertices_view
+
 void *memcpy(void *, const void *, unsigned int);
-void CopyUV(void *arg0, void *arg1);
-void RollUV(f32 angle, f32 uv[][3]);
-void zoid_build_upright_matrix(f32 *m);
-void mtx_rotation_to_fixed(f32 matrix[4][4], u32 *fixed);
-void WorldVector(f32 *arg0, f32 *arg1, f32 *arg2);
-void guOrtho(Mtx *m, f32 l, f32 r, f32 b, f32 t, f32 n, f32 f, f32 scale);
-void guPerspective(Mtx *m, u16 *perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale);
-void guLookAtF(f32 mf[4][4], f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 yAt, f32 zAt, f32 xUp, f32 yUp,
-               f32 zUp);
-void guMtxIdent(Mtx *m);
 
 void zoid_draw_window(s32 view, View *eye)
 {
@@ -1512,7 +1430,7 @@ void zoid_draw_window(s32 view, View *eye)
 #define G_MDSFT_TEXTFILT 12
 #define G_TF_POINT (0 << G_MDSFT_TEXTFILT)
 #define gDPSetTextureFilter(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTFILT, 2, type)
-typedef struct {
+typedef struct Sprite {
     Palette *pal;   /* 0x00 palette (textured) or u8 colour (fill) */
     Texture *tex;   /* 0x04 texture, or a callback when flags & 0x80 */
     u16 model;      /* 0x08 >>10 palette table */
@@ -1525,27 +1443,19 @@ typedef struct {
     u8 pad17;
     s16 t0, s0, t1, s1; /* 0x18 */
 } Sprite;
-extern s32 screen_width;
-extern s32 screen_height;
-extern Lights2 *gLights;
-extern s16 gNumLights;
-extern volatile s8 frame_record_index;
-extern Vtx zoid_poly_vertex_buffers[][3200];
-extern u8 gNumZoidWindows;
-extern s32 gNumBlitInsts;
-extern Sprite gBlitInstanceList[200];   /* the sprite list's extent, to 0x801424F0, for gen_data */
-extern u8 blit_ia_palette[4];
-extern u16 blit_tile_lines[];
-void BlitClearAttribute(u32 mask);
-void BlitSetAttribute(u32 mask);
-void BlitColors(u8 *img, s32 mode, s32 pal, s32 bank);
-void BlitXLU(u16 arg0);
-void BlitScissor(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
-void BlitRect(s32 x0, s32 y0, s32 x1, s32 y1, u8 *color);
-void BlitZDist(unsigned short arg0);
-void blit_load_texture(void *img, u16 type, u16 siz, u16 width, u16 height, u16 uls, u16 ult, u16 lrs, u16 lrt,
-                   u16 pal, s32 tile);
-void BlitDraw(s32 x, s32 y, s32 right, s32 bottom, s32 s, s32 t);
+
+VIEW(Lights2 *, gLights);
+#define gLights gLights_view
+VIEW(s16, gNumLights);
+#define gNumLights gNumLights_view
+
+VIEW(Vtx[][3200], zoid_poly_vertex_buffers);
+#define zoid_poly_vertex_buffers zoid_poly_vertex_buffers_view
+
+VIEW(Sprite[200], gBlitInstanceList);
+#define gBlitInstanceList gBlitInstanceList_view
+VIEW(u8[4], blit_ia_palette);
+#define blit_ia_palette blit_ia_palette_view
 
 /* A palette's table is a 32-bit N64 address its loader reads through: N64PTR(T, a) the pointer at one (pc_prelude.h,
  * docs/port/NOFIXED.md 2.3). */
