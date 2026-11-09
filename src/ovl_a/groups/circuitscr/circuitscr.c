@@ -175,8 +175,6 @@ extern Player gPlayers[];
 
 
 
-extern void particle_lifetime_set(void);
-
 /* Set the screen up: the players' race type is saved as circuit; a circuit that is active but has run no race is
  * dropped; an active one is continued (ContinueCircuit sets the race up), and if it is finished the trophy for the
  * first player's place (on the podium only) is made, turning in front of the camera. Then the menu, the review
@@ -228,7 +226,7 @@ void circuitscr_initScreen(void)
     gConfirmNewCircuit = 0;
     circuitscr_gYes = 0;
     calcProgressSize();
-    particle_lifetime_set();
+    createBG();
     circuitscr_initButtons();
     circuitscr_pane = InitPane(-20, 0, -10, 10, 192, 0, 0, 0);
     circuitscr_blit = NewMultiBlit(0, 0, circuitscr_mblit, 1);
@@ -418,8 +416,6 @@ void controlShowTrophy(void)
     }
 }
 
-/* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
-extern void sound_handles_array_clear(s8 *);
 
 /* Take the screen down: its buttons, its text blit, its box, the trophy and the background. */
 void circuitscr_uninitScreen(void)
@@ -430,7 +426,7 @@ void circuitscr_uninitScreen(void)
         circuitscr_blit = 0;
     }
     if (circuitscr_pane) {
-        sound_handles_array_clear((s8 *)circuitscr_pane);
+        RemovePane((tBlitSet *)circuitscr_pane);
         circuitscr_pane = 0;
     }
     if (trophyObjIdx != -1) {

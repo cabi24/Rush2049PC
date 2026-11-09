@@ -12,7 +12,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-extern void particle_lifetime_set(void);
 
 #define PAK_ERR_NO_CONTROLLER 1     /* gPakErr: SetPakError's box for a missing controller */
 #define PAK_ERR_NO_PAK 2            /* gPakErr: for a controller without a pak */
@@ -129,7 +128,7 @@ void updatePakScreen(void)
         HudBlitDef descriptor;
         descriptor=pakscr_mblit;
         SetState(kStatePickPak);
-        if(gGameState&GS_FRONTEND_MASK)particle_lifetime_set();
+        if(gGameState&GS_FRONTEND_MASK)createBG();
         gBlit=NewMultiBlit(0,0,&descriptor,1);
         SetControllerActive(-1,1);
         pakscr_gInited=1;

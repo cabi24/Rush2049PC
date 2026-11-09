@@ -1,4 +1,4 @@
-/* path.c: the obstacle course's respawn high-water mark (MAT3 resurrect.c, GetResPt()).
+/* GetResPt and raise_ob_res_pt: the obstacle course's respawn high-water mark (MAT3 resurrect.c, GetResPt()).
  *
  * In an obstacle race a crashed car respawns at the furthest point of the resurrection path it has reached
  * (tModelData.obResPt). The path's points come in pairs, each pair marking a gate: reaching the pair's second

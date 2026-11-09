@@ -5,6 +5,7 @@
     python3 tools/port/objsame.py BUILD_A BUILD_B src/blob/AbortCar.c   only these units (source paths, or parts of them)
     python3 tools/port/objsame.py A B --list types_objects.txt        another object list of the build (the -O0 copy)
     python3 tools/port/objsame.py A B --explained FILE                units FILE lists may differ (`path  reason`)
+    python3 tools/port/objsame.py A B --renames tools/port/names/x.tsv   A's names read through a name map first
     python3 tools/port/objsame.py A.o B.o                             two objects
 
 A unit is `same` when everything the linker and the program get from it is: every allocated section (code, data,
@@ -26,6 +27,13 @@ Line numbers: the default builds compile none into code. The checking builds do:
 pass __FILE__ and __LINE__ to their PC_N64W checks (port/include/pc_prelude.h), so a change that moves lines in a
 file that uses PC_N64W changes that unit's code there. Compare default builds (Debug's build/pc, RelWithDebInfo's
 build/opt), and prove the checking builds with their own checks (docs/port/NOFIXED.md).
+
+Renames: a global's name is compared, so a change that renames one (tools/port/rename.py, a name map) shows in every
+unit that defines or references it, and a moved file's unit is in one build only. --renames MAP (repeatable) reads
+build A through the map first: a name map (`old new kind ...`, PCONLY.md 3) or the ledger applied.tsv (`kind old
+new`); its func, data and type rows rename A's global, undefined and common symbols and the targets of its
+relocations, its file rows (a file or a folder) A's units' source paths. A rename and nothing else is then `same` in
+every unit; a string that spells a renamed name (a literal in .rodata) still differs, as it should: it is data.
 
 Units are matched by their source path (an object's path after `CMakeFiles/<target>.dir/`). Exit status: 0 when
 every unit compared is `same` (or listed in --explained), 1 when one differs or exists in one build only, 2 on bad
@@ -122,14 +130,15 @@ class Elf:
         return {i: s for i, s in enumerate(self.sections)
                 if s["flags"] & SHF_ALLOC and s["type"] not in (SHT_RELA, SHT_REL, SHT_SYMTAB)}
 
-    def sym_key(self, idx, addend):
+    def sym_key(self, idx, addend, names=None):
         """A relocation's target as text: a global by name (and the addend), a local by its section and offset."""
         if idx == 0:
             return f"<none>{addend:+#x}" if addend is not None else "<none>"
         s = self.symbols[idx]
         a = addend or 0
         if s["bind"] != STB_LOCAL:
-            return f"{s['name']}{a:+#x}" if a else s["name"]
+            name = names.get(s["name"], s["name"]) if names else s["name"]
+            return f"{name}{a:+#x}" if a else name
         if s["shndx"] == SHN_ABS:
             return f"<abs {s['value'] + a:#x}>"
         if 0 < s["shndx"] < len(self.sections):
@@ -150,15 +159,17 @@ def _cstr(blob, off):
     return blob[off:end if end >= 0 else len(blob)].decode("utf-8", "replace")
 
 
-def describe(o):
-    """What objsame compares in one object, as plain values: {sections}, {relocations}, {symbols}."""
+def describe(o, names=None):
+    """What objsame compares in one object, as plain values: {sections}, {relocations}, {symbols}; names (old ->
+    new) renames its global symbols and its relocations' targets first (--renames)."""
+    names = names or {}
     secs = o.compared_sections()
     sections = {}
     for i, s in secs.items():
         sections[s["key"]] = (s["type"], s["flags"], s["align"], s["entsize"], s["size"], s["data"])
     relocs = {}
     for i, s in secs.items():
-        rl = sorted((off, typ, o.sym_key(sym, add)) for off, typ, sym, add in o.relocs.get(i, ()))
+        rl = sorted((off, typ, o.sym_key(sym, add, names)) for off, typ, sym, add in o.relocs.get(i, ()))
         if rl:
             relocs[s["key"]] = rl
     glob, undef, common = {}, set(), {}
@@ -168,10 +179,10 @@ def describe(o):
             continue
         if s["shndx"] == SHN_UNDEF:
             if s["bind"] != STB_LOCAL:
-                undef.add((s["name"], STB_NAMES.get(s["bind"], s["bind"])))
+                undef.add((names.get(s["name"], s["name"]), STB_NAMES.get(s["bind"], s["bind"])))
             continue
         if s["shndx"] == SHN_COMMON:
-            common[s["name"]] = (s["size"], s["value"])
+            common[names.get(s["name"], s["name"])] = (s["size"], s["value"])
             continue
         where = "ABS" if s["shndx"] == SHN_ABS else o.sections[s["shndx"]]["key"] if s["shndx"] < len(o.sections) \
             else s["shndx"]
@@ -179,16 +190,18 @@ def describe(o):
             # GCC's local labels for statics (`counter.0`) and the statics themselves count by place, not name
             local[(where, s["value"], s["size"], STT_NAMES.get(s["type"], s["type"]))] += 1
         else:
-            glob[s["name"]] = (where, s["value"], s["size"], STT_NAMES.get(s["type"], s["type"]),
-                               STB_NAMES.get(s["bind"], s["bind"]), s["vis"])
+            glob[names.get(s["name"], s["name"])] = (where, s["value"], s["size"],
+                                                    STT_NAMES.get(s["type"], s["type"]),
+                                                    STB_NAMES.get(s["bind"], s["bind"]), s["vis"])
     return {"sections": sections, "relocs": relocs, "globals": glob, "undefined": undef, "commons": common,
             "locals": local}
 
 
-def compare(pa, pb, detail=3):
-    """[] when the objects are the same, else a list of differences (text), at most `detail` per kind."""
+def compare(pa, pb, detail=3, names=None):
+    """[] when the objects are the same, else a list of differences (text), at most `detail` per kind; names renames
+    A's symbols first (--renames)."""
     oa, ob = Elf(pa), Elf(pb)
-    da, db = describe(oa), describe(ob)
+    da, db = describe(oa, names), describe(ob)
     out = []
     sa, sb = da["sections"], db["sections"]
     for k in sorted(set(sa) | set(sb)):
@@ -270,6 +283,43 @@ def objects(build, listname):
     return {unit_of(p): p for p in lst.read_text().split()}
 
 
+RENAME_KINDS = ("func", "data", "type", "field", "file")
+
+
+def load_renames(paths):
+    """The rows of name maps (`old new kind ...`) and of the ledger applied.tsv (`kind old new`): {old: new} for
+    symbols (func, data and type rows), [(old, new)] for files and folders (file rows)."""
+    names, files = {}, []
+    for path in paths:
+        for line in Path(path).read_text().splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            f = [x for x in line.split("\t") if x != ""]
+            if len(f) < 3:
+                continue
+            if f[0] in RENAME_KINDS:
+                kind, old, new = f[0], f[1], f[2]
+            elif f[2] in RENAME_KINDS:
+                old, new, kind = f[0], f[1], f[2]
+            else:
+                continue   # a header row
+            if kind == "file":
+                files.append((old.rstrip("/"), new.rstrip("/")))
+            elif kind != "field":
+                names[old] = new
+    return names, files
+
+
+def renamed_unit(unit, files):
+    """A unit's source path after the file rows: a file renamed, or a folder (and every path in it)."""
+    for old, new in files:
+        if unit == old:
+            return new
+        if unit.startswith(old + "/"):
+            return new + unit[len(old):]
+    return unit
+
+
 def load_explained(path):
     """`unit  reason` lines (# comments): units that may differ, each with why that is harmless."""
     out = {}
@@ -282,9 +332,9 @@ def load_explained(path):
 
 
 def _job(args):
-    unit, pa, pb, detail = args
+    unit, pa, pb, detail, names = args
     try:
-        return unit, compare(pa, pb, detail)
+        return unit, compare(pa, pb, detail, names)
     except (OSError, ValueError) as e:
         return unit, [f"error: {e}"]
 
@@ -297,22 +347,27 @@ def main(argv=None):
     ap.add_argument("units", nargs="*", help="only units whose source path contains one of these")
     ap.add_argument("--list", default="game_objects.txt", help="the build's object list (default game_objects.txt)")
     ap.add_argument("--explained", type=Path, help="`unit  reason` lines: units allowed to differ")
+    ap.add_argument("--renames", type=Path, action="append", default=[],
+                    help="a name map or applied.tsv: A's names and source paths read through it (repeatable)")
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 2)
     ap.add_argument("--detail", type=int, default=3, help="differences shown per kind (default 3)")
     ap.add_argument("-q", "--quiet", action="store_true", help="only the units that differ and the summary")
     a = ap.parse_intermixed_args(argv)
+    names, files = load_renames(a.renames)
     if Path(a.a).is_file() and Path(a.b).is_file():
-        d = compare(a.a, a.b, a.detail)
+        d = compare(a.a, a.b, a.detail, names)
         print("same" if not d else "DIFFERS\n  " + "\n  ".join(d))
         return 1 if d else 0
     ua, ub = objects(a.a, a.list), objects(a.b, a.list)
+    if files:
+        ua = {renamed_unit(u, files): p for u, p in ua.items()}
     units = sorted(set(ua) | set(ub))
     if a.units:
         units = [u for u in units if any(p in u for p in a.units)]
     explained = load_explained(a.explained) if a.explained else {}
     counts = collections.Counter()
     bad = []
-    jobs = [(u, ua[u], ub[u], a.detail) for u in units if u in ua and u in ub]
+    jobs = [(u, ua[u], ub[u], a.detail, names) for u in units if u in ua and u in ub]
     for u in units:
         if u not in ua or u not in ub:
             counts["only in one"] += 1

@@ -13,7 +13,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-extern void particle_lifetime_set(void);
 
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
    cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT
@@ -207,7 +206,7 @@ void cheatscr_initScreen(void)
     } else if (gCheatState[CHEAT_FOG_COLOR] < 0) {
         gCheatState[CHEAT_FOG_COLOR] = FOG_COLORS;
     }
-    particle_lifetime_set();
+    createBG();
     cheatscr_blit = NewMultiBlit(0, 0, cheatscr_multiblit, 1);
     cheatscr_gSelectedOption = 0;
     gCheatMenuExit = 0;

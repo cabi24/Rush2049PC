@@ -3,30 +3,6 @@
 
 #define TEXT_WRONG_WAY 26         /* gText.single[]: "wrong way" */
 
-/* HAL_SetFont: the text font, under the text lock; returns the one before. */
-s32 font_set_8AB0(s32 font)
-{
-    s32 old;
-
-    text_lock();
-    old = HAL_SetFontInternal(font);
-    text_unlock();
-    return old;
-}
-
-
-/* The flashing text's brightness, 0-1 (gColorCycle). */
-f32 TB_GetFlashTextCycle_8AB0(void)
-{
-    return gColorCycle;
-}
-
-/* HAL_SetFont without its result. */
-void HAL_SetFont_8AB0(s32 font)
-{
-    font_set_8AB0(font);
-}
-
 /* For each window's car, during the race (not obstacle or practice, gRace 5 and 1): once it has faced backwards
  * along the track (heading beyond a quarter turn) for two seconds, a flashing "wrong way" at the window's place;
  * the time restarts while it faces the right way or has finished. Returns 1: the blit stays. */
@@ -54,11 +30,11 @@ s32 animWrongWay(void *item)
             continue;
         }
         if (gNumWindows == 1) {
-            HAL_SetFont_8AB0(10);
+            HAL_SetFont(10);
         } else {
-            HAL_SetFont_8AB0(11);
+            HAL_SetFont(11);
         }
-        HAL_SetTextTranslucency(255.0f * TB_GetFlashTextCycle_8AB0());
+        HAL_SetTextTranslucency(255.0f * TB_GetFlashTextCycle());
         x = wrongWayPos[gNumWindows - 1][slot].x;
         y = wrongWayPos[gNumWindows - 1][slot].y;
         TB_SetTextColor(0);

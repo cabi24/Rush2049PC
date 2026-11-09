@@ -15,16 +15,6 @@ typedef struct MenuItem {
 
 #define TEXT_PAUSE 56             /* gText.tab[]: the pause screen's strings: "paused", the menu, quit, restart */
 
-/* Redraws item's blit once if it was marked dirty; returns the flag after (always 0). */
-s32 item_refresh_B7FC(MenuItem *item)
-{
-    if (item->dirty) {
-        item->dirty = 0;
-        UpdateBlit(item);
-    }
-    return item->dirty;
-}
-
 /* Draws the pause menu's eight lines (the language's pause words) under the title, centred, the chosen one
  * (pauseMenuSelect) highlighted. Returns 1: the blit stays. */
 s32 animPauseText(MenuItem *item) {
@@ -33,7 +23,7 @@ s32 animPauseText(MenuItem *item) {
     s32 y;
     u8 *str;
 
-    if (item_refresh_B7FC(item)) {
+    if (Hidden((struct Blit *)item, 0)) {
         return 1;
     }
     HAL_SetTextDepth(0.0f);

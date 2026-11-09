@@ -1,22 +1,11 @@
-/* LLM-grown type context for auto-decompilation (autodecomp #1).
- *
- * m2c produces `void *` for globals it can't type and then dereferences them
- * (`g->unk8`), which won't compile. Each struct/typedef/extern added here
- * gives m2c real layouts, so every function that touches that symbol compiles
- * and can be searched. One definition typically unlocks a cluster.
- *
- * Rules: types/typedefs/struct defs and `extern` global declarations only, no
- * function bodies. Field names may be `unkN` (offset N) until known. Keep it
- * self-consistent; `autodecomp clusters` re-measures after every edit.
- */
+/* include/m2c_types.h: libultra's internal records (the VI context, the PIF RAM block, the scheduler, the timer
+ * list, the PI manager) and the boot code's data and functions that the boot segment's C (src/rom, through
+ * rom_auto.h and rom_tu.h) shares. Types and declarations only. */
 #ifndef M2C_TYPES_H
 #define M2C_TYPES_H
 
-/* --- VI (video interface) context: matches libultra __OSViContext. -----
- * osViInit (func_8000C540) builds this struct at
- * D_8002C430/D_8002C400 and stores its address into __osViContext
- * (D_8002C464); offsets 0x0/0x2/0x4/0x8/0xC line up exactly with the real
- * SGI/Nintendo layout (state, retraceCount, framep, modep, control). */
+/* --- The VI (video interface) context, libultra's __OSViContext: osViInit builds its two records and points
+ * __osViContext at the current one (state, retraceCount, framep, modep, control: the SDK's layout). */
 typedef struct {
     u32 ctrl, width, burst, vSync, hSync, leap, hStart, xScale, vCurrent;
 } OSViCommonRegs;
@@ -51,9 +40,8 @@ typedef struct {
 
 extern __OSViContext *__osViContext;
 
-/* --- Thread scheduling internals (libultra osint.h), same signatures as
- * the real SDK (0x8000CFC4 and 0x8000C050; named __osCleanupThread and
- * dll_remove by an earlier auto-naming pass). */
+/* --- Thread scheduling internals (libultra osint.h), with the SDK's signatures (an earlier naming pass called
+ * these two __osCleanupThread and dll_remove). */
 extern void __osEnqueueAndYield(OSThread **queue);
 void __osDequeueThread(OSThread **queue, OSThread *thread);
 
@@ -84,7 +72,7 @@ extern s32 __osContRamWrite(OSMesgQueue *mq, s32 channel, u16 address,
  * which also documents adjacent video_default_extra_width/YExtra 4 bytes
  * earlier in the same table. */
 /* PC: the table at video_default_extra_width is s16[3][4], a row per TV type (video_tv_type = osTvType, 0-2), up to
- * video_pending_frames at 0x8002B010. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
+ * video_pending_frames. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
  * last one read. Declared s16[32], they ran over video_pending_frames, video_adjusted_mode, gInitFlag and
  * decompress_lock_ready, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
 extern s16 video_default_x[9];
@@ -96,9 +84,8 @@ extern s32 acquire_decompress_lock(s32 blocking);
 extern void release_decompress_lock(void);
 
 /* --- SI DMA retry counter: the last word of the __osSiDmaBuffer/OSPifRam
- * block (0x80037ADC = __osSiDmaBuffer + 0x3C, i.e. its pifstatus field),
- * but symbol_addrs.us.txt gives it its own symbol so m2c needs its own
- * extern too. */
+ * block (__osSiDmaBuffer + 0x3C, its pifstatus field), which the symbol file
+ * gives a symbol of its own. */
 extern s32 __osSiDmaRetry;
 
 /* --- Controller Pak raw read (PRinternal/controller.h counterpart to
@@ -197,8 +184,7 @@ extern void __osSpSetStatus(u32 status);
 extern void osSpTaskYield(void);
 
 /* --- __setfpcsr/GameLoop: game_thread_entry sets the FPU control/status
- * register once then loops calling the dynamic per-frame game state
- * machine at 0x800FD464 (symbol_addrs.us.txt: GameLoop, 704 bytes). */
+ * register once, then calls the game's state machine, GameLoop, forever. */
 extern void __setfpcsr(u32 value);
 extern void GameLoop(void);
 
@@ -210,7 +196,7 @@ extern void __osSiRelAccess(void);
 extern void __osPackReadData(void);
 
 /* --- Timer queue head (symbol_addrs.us.txt: "timer queue head pointer
- * (TimerQueueHead*)"); dll_init (func_8000C090) sets up this node as its
+ * (TimerQueueHead*)"); dll_init sets up this node as its
  * own circular-list sentinel, touching offsets 0x0/0x4/0x10/0x14/0x18/0x1C
  * -- the same 0x20-byte TimerNode layout documented in src/os/dll.c
  * (next/prev/reload_hi/reload_lo/delta_hi/delta_lo/msgQueue/msg). */

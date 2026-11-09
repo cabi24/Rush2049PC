@@ -7,11 +7,11 @@
  * InitCPTime clears the race start's +0x108 and copies the positions of gNumActiveCars cars, at m2c's byte strides
  * of CAR_OFS(952) from the array; DetectDroneAbort clears 6 cars' progress and heading (an index walk), and
  * then reaches a player's car through its input record's node, a record pointer in its own view, where
- * AreWeSolid reads the car's +0x358 through what was the alias D_80152B70 (a stride of 0x3B8 on the N64);
+ * AreWeSolid reads the car's +0x358 (a stride of 0x3B8 on the N64, through a label of its own);
  * MissileLock (image B's homing) walks the cars of the race from the array to its end, gGameCar +
  * gNumCars on the N64; initialize resets a car's battle state through the model's slot; Update_MDrive hands
  * cars 1 to 3 to the cameras through what were car1_objnum, car1_dr_pos and car1_dr_car_uvs, car 1's +0, +8 and +0x50;
- * gameover_validOption reads a car's finish through what was D_80152907, +0xEF with a stride of 0x3B8.
+ * gameover_validOption reads a car's finish, +0xEF with a stride of 0x3B8 (another label on the N64).
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c):
  * DetectDroneAbort clears 12 cars' progress; CarReportsGameOver locks 12 cars' places in
  * the order they finish, and PlaceUnlockedCars (CalcPlaces) orders the rest by distance, with locals for 12;
@@ -124,13 +124,14 @@ static void test_layout(void)
     CHECK(sizeof(struct pc_car) == PC_CAR_SIZE && sizeof pc_cars == 16 * PC_CAR_SIZE);
 #define AT(f, n) (offsetof(struct pc_car, f) == CAR_OFS(n))
     CHECK(AT(pos, 0x008) && AT(uvs, 0x02C) && AT(uvs50, 0x050) && AT(wheel_pos, 0x074) && AT(flags, 0x0E8));
-    CHECK(AT(place, 0x0EE) && AT(finished, 0x0EF) && AT(time, 0x0F0) && AT(node, 0x0F4) && AT(mph, 0x0F8));
-    CHECK(AT(distance, 0x100) && AT(f108, 0x108) && AT(visuals, 0x110) && AT(nav, 0x314));
+    CHECK(AT(place, 0x0EE) && AT(place_locked, 0x0EF) && AT(score, 0x0F0) && AT(node, 0x0F4) && AT(mph, 0x0F8));
+    CHECK(AT(distance, 0x100) && AT(mileage, 0x108) && AT(visuals, 0x110) && AT(nav, 0x314));
     CHECK(AT(fwd_progress, 0x340) && AT(ir_color, 0x34C) && AT(prev_ir_color, 0x350) && AT(weight_index, 0x356));
-    CHECK(AT(b358, 0x358) && AT(state, 0x359) && AT(disabled, 0x35A) && AT(slot, 0x35B) && AT(view, 0x35C));
-    CHECK(AT(sheen_alpha, 0x360) && AT(heading, 0x364) && AT(input, 0x380) && AT(kind, 0x384));
-    CHECK(AT(lives, 0x385) && AT(health, 0x386) && AT(battle_flags, 0x38C) && AT(b3A0, 0x3A0));
-    CHECK(AT(b3A2, 0x3A2) && AT(points, 0x3A3) && AT(reloading_time, 0x3AC) && AT(f3B0, 0x3B0) && AT(f3B4, 0x3B4));
+    CHECK(AT(crash_state, 0x358) && AT(dead, 0x359) && AT(in_tunnel, 0x35A) && AT(slot, 0x35B) && AT(camera, 0x35C));
+    CHECK(AT(sheen_alpha, 0x360) && AT(stray_angle, 0x364) && AT(input, 0x380) && AT(weapon_type, 0x384));
+    CHECK(AT(ammo_count, 0x385) && AT(health, 0x386) && AT(defense_active, 0x38C) && AT(shoot, 0x3A0));
+    CHECK(AT(fade_state, 0x3A2) && AT(points, 0x3A3) && AT(reloading_time, 0x3AC) && AT(battle_pitch, 0x3B0));
+    CHECK(AT(battle_yaw, 0x3B4));
 #undef AT
     CHECK(offsetof(struct pc_car, visuals[20]) == CAR_OFS(0x110 + 20 * 0x18) && sizeof(struct pc_visual) == 0x20);
     CHECK(PC_CAR(3) == (void *)((uint8_t *)pc_cars + 3 * 0x468) && PC_CARS == (void *)pc_cars);
@@ -138,7 +139,7 @@ static void test_layout(void)
 }
 
 /* InitCPTime, the race start: for each of gNumActiveCars cars, +0x108 cleared and the position (+0x8) copied into
- * pc_cp_last_pos[i] (D_80152218 on the N64), at m2c's strides of CAR_OFS(952) from the array; nothing else. */
+ * pc_cp_last_pos[i] (MAT3 checkpoint.c's gPrevPos), at m2c's strides of CAR_OFS(952) from the array; nothing else. */
 static void test_start(void)
 {
     static const int f108[] = {0x108, 0x10C};
@@ -350,8 +351,8 @@ static void test_cameras(void)
               && g_cam[k].uvs == (void *)PC_CAR_UVS50(k + 1));
 }
 
-/* gameover_validOption in a stunt (gRace 3): option 5 only once car gCircuitPlayer has finished (+0xEF, what
- * was D_80152907 with a stride of 0x3B8), here car 7. */
+/* gameover_validOption in a stunt (gRace 3): option 5 only once car gCircuitPlayer has finished (+0xEF, with a
+ * stride of 0x3B8 on the N64), here car 7. */
 static void test_finished(void)
 {
     sentinels();

@@ -6,8 +6,8 @@
  * InitSelectCarLoad names the 13 slots' cars; fake_init resets the attract demo's cars; CalcPolePositions
  * (init_state_continue) fills them for a race; munge_gLink_data counts the active ones into the
  * race's car count gNumActiveCars and builds the human and drone lists (pc_drones, pc_our_drones: PC_MAX_LINKS long,
- * docs/port/DECOUPLE.md 8); PlayTargetSound reads a slot's owner through what was the alias D_80153E8F, +7 with a
- * stride of 8.
+ * docs/port/DECOUPLE.md 8); PlayTargetSound reads a slot's owner, +7 with a stride of 8 (on the N64 through a label of
+ * its own).
  * A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what pc_race_cars() returns, support.c): the
  * demo's 12 drones and its camera's car going round them; CalcPolePositions for 1 or 2 humans and 10 or 11 drones,
  * the Drones option capped at the race's cars, and the circuit kept at the N64's 6; slots an earlier race of more
@@ -343,7 +343,7 @@ static void test_munge12(void)
     }
 }
 
-/* PlayTargetSound goes on only for a human's slot (owner 6), read where the alias D_80153E8F reached it. */
+/* PlayTargetSound goes on only for a human's slot (owner 6), read at +7 with a stride of 8 as on the N64. */
 static void test_alias(void)
 {
     float pos[3] = {0, 0, 0};

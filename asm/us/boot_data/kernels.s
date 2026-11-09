@@ -145,9 +145,9 @@ dlabel gsm_ltp_gain_levels
     /* 2857C 8002797C 53337FFF */  .word 0x53337FFF
 enddlabel gsm_ltp_gain_levels
 
-nonmatching func_80027980, 0x1C4
+nonmatching gsm_lattice_filter, 0x1C4
 
-glabel func_80027980
+glabel gsm_lattice_filter
     /* 28580 80027980 852A0000 */  lh         $t2, 0x0($t1)
     /* 28584 80027984 25290002 */  addiu      $t1, $t1, 0x2
     /* 28588 80027988 00196C00 */  sll        $t5, $t9, 16
@@ -258,11 +258,11 @@ glabel func_80027980
     /* 28728 80027B28 314AFFF8 */  andi       $t2, $t2, 0xFFF8
     /* 2872C 80027B2C A50A0000 */  sh         $t2, 0x0($t0)
     /* 28730 80027B30 25080002 */  addiu      $t0, $t0, 0x2
-    /* 28734 80027B34 1D60FF92 */  bgtz       $t3, func_80027980
+    /* 28734 80027B34 1D60FF92 */  bgtz       $t3, gsm_lattice_filter
     /* 28738 80027B38 256BFFFF */   addiu     $t3, $t3, -0x1
     /* 2873C 80027B3C 03E00008 */  jr         $ra
     /* 28740 80027B40 00000000 */   nop
-endlabel func_80027980
+endlabel gsm_lattice_filter
 
 /* Handwritten function */
 nonmatching gsm_short_term_filter, 0x154
@@ -292,41 +292,41 @@ glabel gsm_short_term_filter
     /* 28798 80027B98 8C360018 */  lw         $s6, 0x18($at)
     /* 2879C 80027B9C 8C37001C */  lw         $s7, 0x1C($at)
     /* 287A0 80027BA0 84870164 */  lh         $a3, 0x164($a0)
-    /* 287A4 80027BA4 04100065 */  bltzal     $zero, func_80027D3C
+    /* 287A4 80027BA4 04100065 */  bltzal     $zero, gsm_larp_0_12
     /* 287A8 80027BA8 00000000 */   nop
     /* 287AC 80027BAC 27EB0190 */  addiu      $t3, $ra, 0x190
-    /* 287B0 80027BB0 04110039 */  bal        func_80027C98 /* handwritten instruction */
+    /* 287B0 80027BB0 04110039 */  bal        gsm_part_rp /* handwritten instruction */
     /* 287B4 80027BB4 00000000 */   nop
     /* 287B8 80027BB8 24A90000 */  addiu      $t1, $a1, 0x0
     /* 287BC 80027BBC 24C80000 */  addiu      $t0, $a2, 0x0
-    /* 287C0 80027BC0 0411FF6F */  bal        func_80027980 /* handwritten instruction */
+    /* 287C0 80027BC0 0411FF6F */  bal        gsm_lattice_filter /* handwritten instruction */
     /* 287C4 80027BC4 340B000C */   ori       $t3, $zero, 0xC
-    /* 287C8 80027BC8 04100062 */  bltzal     $zero, func_80027D54
+    /* 287C8 80027BC8 04100062 */  bltzal     $zero, gsm_larp_13_26
     /* 287CC 80027BCC 00000000 */   nop
     /* 287D0 80027BD0 27EB0184 */  addiu      $t3, $ra, 0x184
-    /* 287D4 80027BD4 04110030 */  bal        func_80027C98 /* handwritten instruction */
+    /* 287D4 80027BD4 04110030 */  bal        gsm_part_rp /* handwritten instruction */
     /* 287D8 80027BD8 00000000 */   nop
     /* 287DC 80027BDC 24A9001A */  addiu      $t1, $a1, 0x1A
     /* 287E0 80027BE0 24C8001A */  addiu      $t0, $a2, 0x1A
-    /* 287E4 80027BE4 0411FF66 */  bal        func_80027980 /* handwritten instruction */
+    /* 287E4 80027BE4 0411FF66 */  bal        gsm_lattice_filter /* handwritten instruction */
     /* 287E8 80027BE8 340B000D */   ori       $t3, $zero, 0xD
-    /* 287EC 80027BEC 0410005D */  bltzal     $zero, func_80027D64
+    /* 287EC 80027BEC 0410005D */  bltzal     $zero, gsm_larp_27_39
     /* 287F0 80027BF0 00000000 */   nop
     /* 287F4 80027BF4 27EB0170 */  addiu      $t3, $ra, 0x170
-    /* 287F8 80027BF8 04110027 */  bal        func_80027C98 /* handwritten instruction */
+    /* 287F8 80027BF8 04110027 */  bal        gsm_part_rp /* handwritten instruction */
     /* 287FC 80027BFC 00000000 */   nop
     /* 28800 80027C00 24A90036 */  addiu      $t1, $a1, 0x36
     /* 28804 80027C04 24C80036 */  addiu      $t0, $a2, 0x36
-    /* 28808 80027C08 0411FF5D */  bal        func_80027980 /* handwritten instruction */
+    /* 28808 80027C08 0411FF5D */  bal        gsm_lattice_filter /* handwritten instruction */
     /* 2880C 80027C0C 340B000C */   ori       $t3, $zero, 0xC
-    /* 28810 80027C10 0410005A */  bltzal     $zero, func_80027D7C
+    /* 28810 80027C10 0410005A */  bltzal     $zero, gsm_larp_to_rp
     /* 28814 80027C14 00000000 */   nop
     /* 28818 80027C18 27EB0164 */  addiu      $t3, $ra, 0x164
-    /* 2881C 80027C1C 0411001E */  bal        func_80027C98 /* handwritten instruction */
+    /* 2881C 80027C1C 0411001E */  bal        gsm_part_rp /* handwritten instruction */
     /* 28820 80027C20 00000000 */   nop
     /* 28824 80027C24 24A90050 */  addiu      $t1, $a1, 0x50
     /* 28828 80027C28 24C80050 */  addiu      $t0, $a2, 0x50
-    /* 2882C 80027C2C 0411FF54 */  bal        func_80027980 /* handwritten instruction */
+    /* 2882C 80027C2C 0411FF54 */  bal        gsm_lattice_filter /* handwritten instruction */
     /* 28830 80027C30 340B0077 */   ori       $t3, $zero, 0x77
     /* 28834 80027C34 24810140 */  addiu      $at, $a0, 0x140
     /* 28838 80027C38 AC300000 */  sw         $s0, 0x0($at)
@@ -355,9 +355,9 @@ glabel gsm_short_term_filter
     /* 28894 80027C94 27BD0044 */   addiu     $sp, $sp, 0x44
 endlabel gsm_short_term_filter
 
-nonmatching func_80027C98, 0xA4
+nonmatching gsm_part_rp, 0xA4
 
-glabel func_80027C98
+glabel gsm_part_rp
     /* 28898 80027C98 84810188 */  lh         $at, 0x188($a0)
     /* 2889C 80027C9C 24880168 */  addiu      $t0, $a0, 0x168
     /* 288A0 80027CA0 10200003 */  beqz       $at, .L80027CB0
@@ -400,42 +400,42 @@ glabel func_80027C98
     /* 28930 80027D30 01A0F821 */  addu       $ra, $t5, $zero
     /* 28934 80027D34 03E00008 */  jr         $ra
     /* 28938 80027D38 032AC825 */   or        $t9, $t9, $t2
-endlabel func_80027C98
+endlabel gsm_part_rp
 
-nonmatching func_80027D3C, 0x18
+nonmatching gsm_larp_0_12, 0x18
 
-glabel func_80027D3C
+glabel gsm_larp_0_12
     /* 2893C 80027D3C 000A5083 */  sra        $t2, $t2, 2
     /* 28940 80027D40 000C6043 */  sra        $t4, $t4, 1
     /* 28944 80027D44 014C5021 */  addu       $t2, $t2, $t4
     /* 28948 80027D48 000C6043 */  sra        $t4, $t4, 1
-    /* 2894C 80027D4C 1000000B */  b          func_80027D7C
+    /* 2894C 80027D4C 1000000B */  b          gsm_larp_to_rp
     /* 28950 80027D50 014C5021 */   addu      $t2, $t2, $t4
-endlabel func_80027D3C
+endlabel gsm_larp_0_12
 
-nonmatching func_80027D54, 0x10
+nonmatching gsm_larp_13_26, 0x10
 
-glabel func_80027D54
+glabel gsm_larp_13_26
     /* 28954 80027D54 000A5043 */  sra        $t2, $t2, 1
     /* 28958 80027D58 000C6043 */  sra        $t4, $t4, 1
-    /* 2895C 80027D5C 10000007 */  b          func_80027D7C
+    /* 2895C 80027D5C 10000007 */  b          gsm_larp_to_rp
     /* 28960 80027D60 014C5021 */   addu      $t2, $t2, $t4
-endlabel func_80027D54
+endlabel gsm_larp_13_26
 
-nonmatching func_80027D64, 0x18
+nonmatching gsm_larp_27_39, 0x18
 
-glabel func_80027D64
+glabel gsm_larp_27_39
     /* 28964 80027D64 000A5043 */  sra        $t2, $t2, 1
     /* 28968 80027D68 000C6083 */  sra        $t4, $t4, 2
     /* 2896C 80027D6C 018A6021 */  addu       $t4, $t4, $t2
     /* 28970 80027D70 000A5043 */  sra        $t2, $t2, 1
-    /* 28974 80027D74 10000001 */  b          func_80027D7C
+    /* 28974 80027D74 10000001 */  b          gsm_larp_to_rp
     /* 28978 80027D78 014C5021 */   addu      $t2, $t2, $t4
-endlabel func_80027D64
+endlabel gsm_larp_27_39
 
-nonmatching func_80027D7C, 0x54
+nonmatching gsm_larp_to_rp, 0x54
 
-glabel func_80027D7C
+glabel gsm_larp_to_rp
     /* 2897C 80027D7C 05410003 */  bgez       $t2, .L80027D8C
     /* 28980 80027D80 00006021 */   addu      $t4, $zero, $zero
     /* 28984 80027D84 000A5023 */  negu       $t2, $t2
@@ -461,4 +461,4 @@ glabel func_80027D7C
   .L80027DC8:
     /* 289C8 80027DC8 03E00008 */  jr         $ra
     /* 289CC 80027DCC 314AFFFF */   andi      $t2, $t2, 0xFFFF
-endlabel func_80027D7C
+endlabel gsm_larp_to_rp

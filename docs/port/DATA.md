@@ -522,7 +522,10 @@ All resolved from the image symbol tables. Data (each is placed like any other s
 | `gNumPlayers` | 0x8014A108 | BSS | arena (also gNumPlayers) | `s16` (gNumPlayers) |
 
 Functions: labels of a defined function, so `data.c` defines each as a one-instruction branch thunk (aarch64 `b`,
-x86-64 `jmp`):
+x86-64 `jmp`). The table is the list as it was written. Wave 2 left six of them, the runtime images' stale labels
+of another function that image A's screens called (the five rows that name another function, and the label of
+`createBG` below); since wave 2c (2026-11-09) the screens call those functions by their own names, so
+the generator makes no thunk:
 
 | Name | N64 | Is |
 |---|---|---|
@@ -537,8 +540,8 @@ x86-64 `jmp`):
 | `SetOptions` | 0x800C9BE0 | `SetOptions` |
 | `func_80090F44`, `func_8009EA68`, `func_800A5A40`, `func_800CD104` | | `PitchUV`, `RollUV`, `ZOID_ResetWindows`, `CreatePlayer` |
 
-Left, with no C yet at their address: `PrePlay` (0x800FB2C8) and `particle_lifetime_set`
-(0x800B8374 = `createBG`). The `rom_symbol_aliases.ld` names (`osEPiRaw*`, `__osPi*`, `__osTLBLookup`,
+Left when this was written, with no C yet at their address: `PrePlay` (0x800FB2C8) and `createBG` (0x800B8374);
+both have C now (nonmatching/game). The `rom_symbol_aliases.ld` names (`osEPiRaw*`, `__osPi*`, `__osTLBLookup`,
 `__osPfsDataChecksum`) are left to the libultra layer.
 
 ## Verification

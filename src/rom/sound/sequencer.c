@@ -142,7 +142,7 @@ SEQ_PC_SAME(SequencePlayer, released_notes, released_notes); SEQ_PC_SAME(Sequenc
 SEQ_PC_SAME(SequencePlayer, free, inactiveFC1); SEQ_PC_SAME(SequencePlayer, speed, speed);
 SEQ_PC_SAME(SequencePlayer, volume_group, channelFC4); SEQ_PC_SAME(SequencePlayer, loop_count, loop_count);
 SEQ_PC_SAME(SequencePlayer, request_waiting, unknownFF4);
-typedef char pc_seq_800178B0_size[sizeof(SequencePlayer) == sizeof(SequenceContext) ? 1 : -1];
+typedef char pc_seq_player_size_check[sizeof(SequencePlayer) == sizeof(SequenceContext) ? 1 : -1];
 
 /* sound_seq_play_note_events's view of a slot. PC: the slot's native layout (sequence_context.h) */
 typedef struct SequenceContextEvents { unsigned char unknown000[SEQ_PC_OFF(track_mask)]; unsigned int track_mask[2]; unsigned char unknown118[8]; unsigned int lookahead; unsigned char unknown124[SEQ_PC_SPAN(rate124, track_groups)]; unsigned char track_groups[SEQ_TRACKS]; SequenceTrack tracks[SEQ_TRACKS]; unsigned char unknownF68[SEQ_PC_SPAN(timingStartF68, unknownF80)]; unsigned int programs[SEQ_CHANNELS]; unsigned char unknownFC0[8]; unsigned char request[SEQ_PC_SPAN(unknownFC8, pendingFF0)]; unsigned int *result; unsigned char pending; unsigned char unknownFF5[3]; } SequenceContextEvents;

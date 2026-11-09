@@ -7,12 +7,12 @@
  * init_model_task sets the 6 records' model clock (an index walk); FinishResurrecting ends a resurrect through a record
  * pointer and sets another record's modelrun through what was the alias model_modelrun (+0x71C, a stride of 0x808),
  * whose record 0 it also reads as a scalar; multigo sets it through the same alias in m2c's spelling;
- * raise_ob_res_pt raises record 0's obResPt through what was D_8014AA14 (+0x7C4); modelgo hands each car's
- * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable through
- * what was D_8014AA3A (+0x7EA); collision, the car-to-car collision, walks the cars after one up to the
- * array's end, the next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1),
- * test_race_cars 12 (what pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to
- * the 12th, PC_MODELS_END being the end of the race's cars.
+ * raise_ob_res_pt raises record 0's obResPt (+0x7C4, a label of its own on the N64); modelgo hands each car's
+ * record to StartCarSounds by a pointer walk of 0x808 from the array's start; TargetCollRadius reads collidable
+ * (+0x7EA, another label); collision, the car-to-car collision, walks the cars after one up to the array's end, the
+ * next symbol (gTargetArray) on the N64. A race of more cars (docs/port/MORECARS.md 3.1), test_race_cars 12 (what
+ * pc_race_cars() returns, support.c): the clock of 12 records, and the collision's walk to the 12th, PC_MODELS_END
+ * being the end of the race's cars.
  * game: src/blob/init_model_task.c src/blob/FinishResurrecting.c src/blob/multigo.c src/blob/groups/get_res_pt/path.c
  * game: src/blob/modelgo.c src/blob/TargetCollRadius.c src/blob/collision.c
  */
@@ -97,9 +97,9 @@ static void test_layout(void)
     CHECK(sizeof(struct pc_model) == 0x808 && sizeof pc_models == 16 * 0x808);
     CHECK(offsetof(struct pc_model, car) == 0x000 && offsetof(struct pc_model, tune) == 0x004);
     CHECK(offsetof(struct pc_model, body) == 0x008 && offsetof(struct pc_model, input_flags) == 0x009);
-    CHECK(offsetof(struct pc_model, autotrans) == 0x00A && offsetof(struct pc_model, b00F) == 0x00F);
+    CHECK(offsetof(struct pc_model, autotrans) == 0x00A && offsetof(struct pc_model, tire_rims) == 0x00F);
     CHECK(offsetof(struct pc_model, rwv) == 0x220 && offsetof(struct pc_model, rwr) == 0x22C);
-    CHECK(offsetof(struct pc_model, speed) == 0x3F0 && offsetof(struct pc_model, scale) == 0x400);
+    CHECK(offsetof(struct pc_model, speed) == 0x3F0 && offsetof(struct pc_model, catchup) == 0x400);
     CHECK(offsetof(struct pc_model, f544) == 0x544 && offsetof(struct pc_model, viscode) == 0x61C);
     CHECK(offsetof(struct pc_model, crashflag) == 0x640 && offsetof(struct pc_model, topscrape) == 0x641);
     CHECK(offsetof(struct pc_model, resurrect_pos) == 0x660 && offsetof(struct pc_model, moving_state) == 0x6C4);
@@ -107,12 +107,12 @@ static void test_layout(void)
     CHECK(offsetof(struct pc_model, dt) == 0x718 && offsetof(struct pc_model, modelrun) == 0x71C);
     CHECK(offsetof(struct pc_model, steer) == 0x720 && offsetof(struct pc_model, brake) == 0x728);
     CHECK(offsetof(struct pc_model, gas) == 0x72C && offsetof(struct pc_model, gear) == 0x730);
-    CHECK(offsetof(struct pc_model, flag_b) == 0x731 && offsetof(struct pc_model, flag_a) == 0x732);
+    CHECK(offsetof(struct pc_model, wing) == 0x731 && offsetof(struct pc_model, abort) == 0x732);
     CHECK(offsetof(struct pc_model, suspension) == 0x75C && offsetof(struct pc_model, reckon_rwr) == 0x794);
     CHECK(offsetof(struct pc_model, ob_res_pt) == 0x7C4 && offsetof(struct pc_model, slot) == 0x7C6);
     CHECK(offsetof(struct pc_model, active) == 0x7C8 && offsetof(struct pc_model, we_control) == 0x7CA);
     CHECK(offsetof(struct pc_model, drone_type) == 0x7CC && offsetof(struct pc_model, color) == 0x7CD);
-    CHECK(offsetof(struct pc_model, s7D0) == 0x7D0 && offsetof(struct pc_model, flags) == 0x7D4);
+    CHECK(offsetof(struct pc_model, rpm) == 0x7D0 && offsetof(struct pc_model, flags) == 0x7D4);
     CHECK(offsetof(struct pc_model, stuck_time) == 0x7D8 && offsetof(struct pc_model, can_cheat) == 0x7DE);
     CHECK(offsetof(struct pc_model, hide_car) == 0x7DF && offsetof(struct pc_model, last_cp) == 0x7E2);
     CHECK(offsetof(struct pc_model, drone_target) == 0x7E6 && offsetof(struct pc_model, lap) == 0x7E8);
@@ -191,7 +191,7 @@ static void test_walk(void)
     CHECK(modelrun == 1 && untouched_from(0));
 }
 
-/* TargetCollRadius: a car near the point counts only if collidable (+0x7EA, what was D_8014AA3A[i]). */
+/* TargetCollRadius: a car near the point counts only if collidable (+0x7EA, record i's on the N64). */
 static void test_collidable(void)
 {
     float point[3] = {0, 0, 0}, radius = 0.0f, err = 0.0f;

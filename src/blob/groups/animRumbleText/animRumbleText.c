@@ -1,6 +1,5 @@
 /* The pause screen's rumble page (MAT3 pausescr.c's rumble screen text): an animation function of a blit. */
 #include "game/game.h"
-#define Control ControlView   /* this file's own Control: include/game's Control is another type */
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Blit {
@@ -26,22 +25,7 @@ typedef struct Player {   /* gPlayers' record (tPadState) */
 /* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
  * docs/port/POINTERS.md 9.10). */
 
-/* A Controller Pak's record (gPaks[4]); the PC's layout. */
-typedef struct Control {
-    u8 pad0[6];
-    s8 rumble;          /* a Rumble Pak is in */
-    u8 pad7[5];
-    PcPfs pfs;
-    u8 pad74[0x304 - 0x74];
-} Control;
-
 extern Player gPlayers[];
-
-/* Whether controller ctl has a Rumble Pak in. */
-s32 getB6_BC84(s32 ctl)
-{
-    return gPaks[ctl].rumble;
-}
 
 /* On the pause screen's rumble page (gPauseState 6, MAT3 kPauseRumbleScreen): a title (message 226) when some
  * player has no Rumble Pak, then each player's name in their colour at their place on the page with their rumble
@@ -62,7 +46,7 @@ s32 animRumbleText(Blit *blt)
     HAL_SetTextDepth(0.0f);
     for (i = 0; i < gNumPlayers; i++) {
         ctl = gPlayers[i].control;
-        if (!getB6_BC84(ctl)) {
+        if (!PS_PakRumble(ctl)) {
             ok = 0;
         }
     }
@@ -84,7 +68,7 @@ s32 animRumbleText(Blit *blt)
         TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
         ctl = gPlayers[i].control;
-        if (getB6_BC84(ctl)) {
+        if (PS_PakRumble(ctl)) {
             str = gText.single[TEXT_RUMBLE_ON];
         } else {
             str = gText.single[TEXT_RUMBLE_OFF];

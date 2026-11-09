@@ -25,7 +25,6 @@ VIEW(Egg *, gEgg);
 
 extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
-extern void particle_lifetime_set(void);      /* createBG */
 
 /* startscr_InitEgg is this file's InitEgg (inlined on the N64): it points at the main menu's code, start_screen_egg;
    eggs.c's InitEgg at cheat `egg` of gEggs. Under one name the PC linked eggs.c's for both, so InitEgg(23)
@@ -186,7 +185,7 @@ void startscr_initScreen(void)
         AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
         AudPlaySong(AUDIO_FRONT_END_SONG, 1);
     }
-    particle_lifetime_set();
+    createBG();
     startscr_initButtons();
     startscr_blit = NewMultiBlit(0, 0, startscr_mblit, 1);
     exitStartScreen = 0;

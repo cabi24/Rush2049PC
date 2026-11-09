@@ -32,8 +32,8 @@ No ROM bytes are read here or written into the build.
    address (layout/*.json, the symbol file, port/data/asm_functions.txt) go in a table, through weak references, so
    the loader can turn N64
    function pointers into host ones; the game's data defined in C is listed the same way.
-5. Names the game calls under another label of a defined function (audio_dma_sync = AllocateMemoryHeap) get a
-   branch thunk.
+5. Names the game calls under another label of a defined function (a runtime image's stale label of a game
+   function) get a branch thunk.
 
 Outputs: data.c, data_layout.txt (what was decided, the conflicts, what is left), data_layout.json (for
 --check, which verifies placements and sizes in the linked executable, and that nothing else is linked at a

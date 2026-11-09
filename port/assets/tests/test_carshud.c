@@ -249,10 +249,10 @@ static void test_place(void)
     CHECK(text_at(15, 250, 120, "/", 5, 1) && text_at(18, 258, 120, "1", 6, 1) && text_at(20, 264, 120, "2", 6, 1));
     CHECK(g_ncalls == 21);
     /* a finished player has none */
-    pc_cars[1].finished = 1, g_ncalls = 0;
+    pc_cars[1].place_locked = 1, g_ncalls = 0;
     animPlace(0);
     CHECK(count('T') == 8);
-    pc_cars[1].finished = 0, gNumWindows = 1;
+    pc_cars[1].place_locked = 0, gNumWindows = 1;
 }
 
 /* ---------------------------------------------------------------- the HUD order */

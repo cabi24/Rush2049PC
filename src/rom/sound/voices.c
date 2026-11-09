@@ -25,7 +25,7 @@
 
 /* A handle node: the handle's key and the id of its chain's first voice. sound_handles_used is sorted by key. */
 #pragma pack(1)
-typedef struct SequenceNode { struct SequenceNode *next; struct SequenceNode *previous; u32 key; int voice; } SequenceNode;
+typedef struct HandleNode { struct HandleNode *next; struct HandleNode *previous; u32 key; int voice; } HandleNode;
 #pragma pack(0)
 
 /* A voice's link in its priority's list. */
@@ -34,20 +34,20 @@ typedef struct VoicePriorityLink { u8 previous, next; u16 active; } VoicePriorit
 /* On the PC the library's per-voice storage is PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9): the handle nodes, one a voice, seen here in this file's view; PC_MX_LOOP(32) is the
  * run's voices where the N64 links its 32 (docs/port/AUDIO.md 10). */
-#define sound_handle_nodes (*(SequenceNode (*)[PC_MX_VOICE_SLOTS])pc_mx_nodes)
+#define sound_handle_nodes (*(HandleNode (*)[PC_MX_VOICE_SLOTS])pc_mx_nodes)
 
 /* A synth voice, as this file reads it (macros.c has the whole voice). */
 #pragma pack(1)
 /* PC: the voice keeps its N64 layout (macros.c), so the node at +0x18, one of sound_handle_nodes's, is kept as its N64
  * address, HANDLE_NODES_N64 + 16 * index: pc_voice_node(x) gives the node, pc_voice_node_address(x) the word
  * (docs/port/MUSYX_DATA.md 8.3). */
-enum n64p_SequenceNode { n64p_SequenceNode_ };
+enum n64p_HandleNode { n64p_HandleNode_ };
 typedef struct VoiceState {
     u32 addr00;                             /* the macro's first step; 0: no macro runs */
     u8 unknown04[12];
     u32 child10;                            /* the next voice of the chain, or VOICE_NONE */
     u32 parent14;                           /* the previous voice of the chain; VOICE_NONE for the first */
-    enum n64p_SequenceNode handleNode18;    /* the first voice's handle node */
+    enum n64p_HandleNode handleNode18;    /* the first voice's handle node */
     u8 unknown1C[8];
     u32 flags24;
     u32 age28;                              /* counts down; the lowest is stolen first */
@@ -82,8 +82,8 @@ typedef struct SynthVoiceAllocView { u8 unknown00[0xBA]; u16 allocIdBA; u8 unkno
 #define ALLOC(i) (((SynthVoiceAllocView *)sound_synth_voices)[i])
 
 extern unsigned int sound_handle_counter;
-extern SequenceNode *sound_handles_used;
-extern SequenceNode *sound_handles_free;
+extern HandleNode *sound_handles_used;
+extern HandleNode *sound_handles_free;
 extern void sound_synth_release_channel(VoiceState *);
 extern u8 sound_voice_count;
 extern u8 sound_priority_first_voice[256];
@@ -101,7 +101,7 @@ extern void sound_hw_key_off(int);
 /* Empties the handle list and links every handle node into the free list (the library's start-up). */
 void sound_init_handles(void)
 {
-    SequenceNode *previous;
+    HandleNode *previous;
     int i;
     sound_handle_counter = 0;
     sound_handles_used = 0;
@@ -116,19 +116,19 @@ void sound_init_handles(void)
 }
 
 /* PC: a voice's handle node from the N64 address its node word holds, and back (0 for none). */
-static SequenceNode *pc_voice_node(enum n64p_SequenceNode address)
+static HandleNode *pc_voice_node(enum n64p_HandleNode address)
 {
     return address != 0 ? &sound_handle_nodes[(address - HANDLE_NODES_N64) / 16] : 0;
 }
-static enum n64p_SequenceNode pc_voice_node_address(SequenceNode *node)
+static enum n64p_HandleNode pc_voice_node_address(HandleNode *node)
 {
-    return (enum n64p_SequenceNode)(node != 0 ? HANDLE_NODES_N64 + (u32)(node - sound_handle_nodes) * 16 : 0);
+    return (enum n64p_HandleNode)(node != 0 ? HANDLE_NODES_N64 + (u32)(node - sound_handle_nodes) * 16 : 0);
 }
 
 /* The used handle node with this key, or NULL (the list is sorted, so the walk stops at a larger key). */
-SequenceNode *sound_find_handle(u32 key)
+HandleNode *sound_find_handle(u32 key)
 {
-    SequenceNode *node;
+    HandleNode *node;
     node = sound_handles_used;
     while (node != 0) {
         if (key == node->key) return node;
@@ -183,9 +183,9 @@ void sound_unlink_voice(VoiceState *state)
  * order with a free node that names the voice. Returns the key, or VOICE_NONE if no node is free. */
 u32 sound_new_handle(VoiceState *state)
 {
-    SequenceNode *current;
-    SequenceNode *previous;
-    SequenceNode *node;
+    HandleNode *current;
+    HandleNode *previous;
+    HandleNode *node;
     u32 key;
     key = sound_next_handle_key();
     previous = 0;
@@ -212,7 +212,7 @@ u32 sound_new_handle(VoiceState *state)
 /* The id of the first voice a handle names, or -1 if the handle is no longer valid. */
 int sound_resolve_handle(u32 key)
 {
-    SequenceNode *node;
+    HandleNode *node;
     if (key != VOICE_NONE) {
         node = sound_find_handle(key);
         if (node != 0) return node->voice;

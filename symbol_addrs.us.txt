@@ -742,7 +742,7 @@ dma_complete_wait = 0x8009614C; // type:func DMA completion wait
 dma_request = 0x800962D4; // type:func DMA request with queue
 audio_queue_recv = 0x80097184; // type:func audio queue receive only
 GetPtrSize = 0x8009731C; // type:func audio buffer synchronization
-AllocateMemoryHeap = 0x80097470; // type:func GC memsys.c AllocateMemoryHeap (renamed from audio_dma_sync)
+AllocateMemoryHeap = 0x80097470; // type:func GC memsys.c AllocateMemoryHeap (renamed from a stale label)
 AllocateHandleHeap = 0x800974EC; // type:func GC memsys.c AllocateHandleHeap (renamed from audio_task_complete)
 LoadWave = 0x80097798; // type:func audio per-frame sync
 ProcessEmitters = 0x80098AE4; // type:func engine/sound synchronization
@@ -1327,7 +1327,7 @@ steering_angle_calc = 0x800AD0A0; // type:func steering angle calculation
 fHalfPipeInterp = 0x800AD128; // type:func steering sensitivity adjust
 CylinderInSurf = 0x800AD734; // type:func process controller input
 ShotToWorldCollision = 0x800ADD58; // type:func apply input deadzone
-update_player_visibility = 0x800AEB54; // type:func camera position update
+update_player_visibility = 0x800AEB54; // type:func GC visuals.c
 object_init_cleared = 0x800AED2C; // type:func initialize cleared object
 AudEmitEffect = 0x800AED64; // type:func camera target tracking
 EmitGameSound = 0x800AEFE8; // type:func camera collision avoidance
@@ -1385,7 +1385,7 @@ RemovePanes = 0x800B45BC; // type:func stops and clears sound handles in object 
 CalcChecksumInternal = 0x800B466C; // type:func format string parser with jump table (55 calls)
 // Text/UI Functions (0x800B4700 - 0x800B5xxx)
 SaveRaceSetting = 0x800B4738; // type:func text formatting helper function (224 bytes)
-SavePlayerOption = 0x800B4818; // type:func GC save.c SavePlayerOption (renamed from audio_bus_mix)
+SavePlayerOption = 0x800B4818; // type:func GC save.c SavePlayerOption (renamed from a stale label)
 GetPlayerOption = 0x800B4B94; // type:func arcade.carsnd.c.init_reverb configure reverb effect for environment type (536 bytes)
 audio_pause = 0x800B4DAC; // type:func pause/resume all game audio
 audio_ducking = 0x800B4E70; // type:func audio ducking - reduce lower priority sounds
@@ -1421,7 +1421,7 @@ SkyUpdate = 0x800B80C8; // type:func spawn particles for specific emitter index
 // dup-addr(kept UpdateCameras): particle_type_set = 0x800B811C; // type:func set particle type/behavior
 ZeroCamera = 0x800B821C; // type:func set particle spawn position
 ZeroCameras = 0x800B82C8; // type:func set particle initial velocity
-createBG = 0x800B8374; // type:func GC front.c createBG (renamed from particle_lifetime_set)
+createBG = 0x800B8374; // type:func GC front.c createBG (renamed from a stale label)
 video_calcMenuRect = 0x800B8650; // type:func GC videoscr.c calcMenuRect (file static; prefixed with the screen file) (renamed from particle_render)
 video_initScreen = 0x800B8820; // type:func GC videoscr.c initScreen (file static; prefixed with the screen file) (renamed from particle_collision)
 // Physics Functions (0x800B9xxx)
@@ -1443,7 +1443,7 @@ ReadCheckpointData = 0x800BADE0; // type:func DSP processing - reverb/EQ effects
 InitCheckpointData = 0x800BAF64; // type:func clear audio mode flags
 heap_total_free = 0x800BAF98; // type:func configure audio output mode (408 bytes)
 audio_hw_sync = 0x800BB044; // type:func sync audio buffer submission with hardware (392 bytes)
-LoadCars = 0x800BB140; // type:func GC carload.c LoadCars (renamed from audio_interrupt_handler)
+LoadCars = 0x800BB140; // type:func GC carload.c LoadCars (renamed from a stale label)
 // Camera Functions (0x800BBxxx - 0x800BCxxx)
 SkyInit = 0x800BB69C; // type:func reset camera to default state (292 bytes)
 initTargetStructs = 0x800BB834; // type:func lerp camera position toward target (808 bytes)
@@ -1617,7 +1617,7 @@ PurgePlayerData = 0x800C7308; // type:func cleanup object render reference
 UnloadFrontEndWaves = 0x800C70BC; // type:func GC state.c _UnloadFrontEndWaves (renamed from scene_cleanup_slots)
 
 // Player/Mode Functions (UI-related)
-SetControllerStickEdges = 0x800C84C0; // type:func GC controlsys.c SetControllerStickEdges (renamed from player_mode_set)
+SetControllerStickEdges = 0x800C84C0; // type:func GC controlsys.c SetControllerStickEdges (renamed from a stale label)
 SetControllerActive = 0x800C9158; // type:func GC controlsys.c SetControllerActive (renamed from SetControllerActive)
 HAL_PurgeFonts = 0x800C90E0; // type:func cleanup player mode slots
 
@@ -1841,7 +1841,7 @@ AudPauseAllEffects = 0x800DB7B4; // type:func create object type 7 alternative
 // Championship and Unlock UI
 SetPasswordString = 0x800DC248; // type:func shows championship points (432 bytes)
 trophy_award_championship = 0x800DC3F8; // type:func awards championship trophy (924 bytes)
-RemovePane = 0x800DC720; // type:func GC pane.c RemovePane (renamed from sound_handles_array_clear)
+RemovePane = 0x800DC720; // type:func GC pane.c RemovePane (renamed from a stale label)
 ChangePaneColor = 0x800DC794; // type:func shows unlock popup (248 bytes)
 // dup-addr(kept attract_mode_handler): attract_mode_start = 0x800DC88C; // type:func initializes attract mode demo (1272 bytes)
 // dup-addr(kept attract_demo_handler): attract_demo_play = 0x800DC99C; // type:func plays back recorded demo race (1016 bytes)

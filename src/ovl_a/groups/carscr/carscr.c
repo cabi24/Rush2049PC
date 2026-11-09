@@ -29,9 +29,6 @@ typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;
 
 VIEW(void *[48], gCarMatrices);
 #define gCarMatrices gCarMatrices_view
-extern void audio_interrupt_handler(s32);
-
-extern void particle_lifetime_set(void);
 
 
 VIEW(s8[][13], car_color_choice_a);
@@ -335,9 +332,9 @@ void carscr_InitScreen(void)
         carscr_buttonZ = 15.0f;
         carscr_cursorZ = 11.25f;
     }
-    audio_interrupt_handler(1);
+    LoadCars(1);
     InitVisuals(1);
-    particle_lifetime_set();
+    createBG();
     for (p = 0; p < 4; p++) carscr_pane[p] = InitPane(-20, 0, -10, 10, PANE_STYLE_MESSAGE, 0, 0, 0);
     for (p = 0; p < gNumPlayers; p++) {
         pl = &gPlayers[p];
@@ -863,8 +860,6 @@ Record **getNextGhost(Record **node,s8 direction)
 
 typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarComponent;
 
-extern void sound_handles_array_clear(FiveParts *);
-
 /* Take the screen down: its waves, the grid backdrop, the "waiting" boxes, each player's buttons, turntable and part
  * models, the text blit and the background; one full-screen window again, and the horns stopped. */
 void carscr_UninitScreen(void)
@@ -879,7 +874,7 @@ void carscr_UninitScreen(void)
     } else if(gTrackNum>=6)UnloadWaveAll(80);
     else UnloadWaveAll(81);
     for(box=carscr_pane;box<carscr_pane+4;box++) {
-        if(*box) {sound_handles_array_clear(*box);*box=0;}
+        if(*box) {RemovePane((tBlitSet *)*box);*box=0;}
     }
     for(player=0;player<(count=gNumPlayers);player++) {
         carscr_uninitButtons(player);

@@ -364,7 +364,7 @@ static void test_sched_retire(void)
     start_race(11, 1);                          /* 11 drones (slots 15 to 5) with two humans: a PC row */
     CHECK(round_once(11, 6, 5, seen));
     /* The list's first drone, slot 15, is done when the next round updates it: 6 asked, 5 updated. */
-    pc_cars[15].state = 1;
+    pc_cars[15].dead = 1;
     memset(seen, 0, sizeof seen);
     CHECK(round_once(10, 5, 5, seen));
     CHECK(new_sched_to_use == PC_DRONE_SCHED_TWO + 10 && sched_to_use == PC_DRONE_SCHED_TWO + 11);
@@ -373,7 +373,7 @@ static void test_sched_retire(void)
         CHECK(seen[i] == (i >= 5 && i < 15));
     /* A human (slot 0, with an input record) is done: the next round uses the one-human row of 10 drones. */
     pc_cars[0].input = input;
-    pc_cars[0].state = 1;
+    pc_cars[0].dead = 1;
     UpdateModel(0);
     CHECK(new_sched_to_use == 10 && num_our_drones == 10);
     memset(seen, 0, sizeof seen);

@@ -149,14 +149,12 @@ void setRecordState(s32 mode)
     recordscr_buttonsJustInited = 1;
 }
 
-/* RemovePane, under the stale name image A's symbol table still has for it (symbol_addrs.us.txt) */
-extern void sound_handles_array_clear(void *);
 
 /* Take the screen down: its buttons, its box, its text blit and the background. */
 void uninitRecordScreen(void) {
     recordscr_uninitButtons();
     if (recordscr_viewPane != 0) {
-        sound_handles_array_clear(recordscr_viewPane);
+        RemovePane(recordscr_viewPane);
         recordscr_viewPane = 0;
     }
     if (recordscr_blit != 0) {
@@ -423,7 +421,6 @@ void controlView(void)
 }
 
 typedef struct { u8 red, green, blue, alpha; } Color4;
-extern void particle_lifetime_set ( void );
 extern void *memcpy(void *, const void *, u32);
 
 
@@ -434,7 +431,7 @@ void initRecordScreen(void)
     recordscr_gSelectMenuSelect = kSelectMenuTotals;
     gStatPlayer = 0;
     setRecordState(kRecordStateSelect);
-    particle_lifetime_set();
+    createBG();
     recordscr_initButtons();
     recordscr_viewPane = InitPane(-20, 0, -10, 10, 192, 0, 0, 0);
     recordscr_blit = NewMultiBlit(0, 0, recordscr_mblit, 1);

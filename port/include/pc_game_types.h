@@ -6,7 +6,7 @@
 #ifndef PC_GAME_TYPES_H
 #define PC_GAME_TYPES_H
 
-/* ---- The race roster: arcade gLink, N64 D_80153E88 (13 records of 8 bytes, BSS).
+/* ---- The race roster: arcade and MAT3 gLink (13 records of 8 bytes on the N64, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
  * per-car arrays are 6 long), but LoadCars, InitVisuals and InitSelectCarLoad walk all 13, so the storage is never
  * shorter than that. PC_MAX_LINKS is the most cars a race may hold on the PC (12, twice the N64's 6); nothing
@@ -96,13 +96,13 @@ extern float pc_matrix_spill[PC_MATRIX_SPILL][12];
  * and the matrices' end) and keeps their high-water marks; it returns 1 if either ran past its end. */
 void pc_pool_overflow(const char *pool, int used, int capacity);
 int pc_frame_pools(const void *frame, const void *glist_end, const void *matrices_end);
-/* The start grid. Resurrect offsets a car from the start point by its place's row of pole_pos_offset (D_801210E8,
- * f32[12][3], game data): rows 0-5 the N64's grid, rows 6-9 the humans' respawns. On the N64 a respawn is coded as a
- * place of 6 or more (index + 6, 6 in a ghost race), so places 6-11 have no grid row. On the PC a respawn is a place
- * of PC_RESPAWN_BASE or more and reads the ROM's respawn rows as before (place - PC_RESPAWN_BASE + 6), and
- * pc_pole_row gives every start place a row: 0-5 the loaded table's, 6 on the two columns continued backwards at
- * the loaded rows' spacing; a place from 6 on starts from the resurrection path's point its row's distance behind the
- * start point, so the rows follow the road (groups/resurrect/resurrect.c: pc_grid_start). */
+/* The start grid. Resurrect offsets a car from the start point by its place's row of pole_pos_offset (MAT3
+ * resurrect.c's, f32[12][3], game data): rows 0-5 the N64's grid, rows 6-9 the humans' respawns. On the N64 a respawn
+ * is coded as a place of 6 or more (index + 6, 6 in a ghost race), so places 6-11 have no grid row. On the PC a respawn
+ * is a place of PC_RESPAWN_BASE or more and reads the ROM's respawn rows as before (place - PC_RESPAWN_BASE + 6), and
+ * pc_pole_row gives every start place a row: 0-5 the loaded table's, 6 on the two columns continued backwards at the
+ * loaded rows' spacing; a place from 6 on starts from the resurrection path's point its row's distance behind the start
+ * point, so the rows follow the road (groups/resurrect/resurrect.c: pc_grid_start). */
 #define PC_RESPAWN_BASE PC_MAX_LINKS
 float *pc_pole_row(int place);
 
@@ -132,14 +132,14 @@ extern struct pc_link pc_links[PC_LINK_SLOTS];
 #define PC_LINKP_FLAGS(p) ((p)->flags)
 #define PC_LINKP_OWNER(p) ((p)->owner)
 
-/* ---- The model records: MAT3 model[], tModelData, N64 D_8014A250 (6 records of 0x808 bytes, BSS). One record per
- * car slot: its physics state, controls and race state. The record keeps its N64
- * layout on the PC (its pointer fields are u32 window addresses, docs/port/CARS.md 4), so its size is 0x808 here
- * too and code that steps through it by 0x808 still lands on the fields. Every walk of it stops at 6 (the cars in
- * the race, gNumCars, gNumActiveCars, MAX_LINKS), so the storage is PC_MODEL_SLOTS = the larger of 6 and
- * PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game reaches by index (and the names inside
- * the array: D_8014AA16 is [0].slot) are named here; code that takes a record's address (PC_MODEL) reads it
- * through its own view, which view_audit.py checks against the same layout. */
+/* ---- The model records: MAT3 model[], tModelData (6 records of 0x808 bytes on the N64, BSS). One record per car slot:
+ * its physics state, controls and race state. The record keeps its N64 layout on the PC (its pointer fields are u32
+ * window addresses, docs/port/CARS.md 4), so its size is 0x808 here too and code that steps through it by 0x808 still
+ * lands on the fields. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars, MAX_LINKS), so the
+ * storage is PC_MODEL_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the
+ * game reaches by index (and the labels the image's symbol tables have inside the array, record 0's slot ...) are named
+ * here; code that takes a record's address (PC_MODEL) reads it through its own view, which view_audit.py checks against
+ * the same layout. */
 #define PC_N64_MODEL_SLOTS 6
 #define PC_MODEL_SLOTS (PC_MAX_LINKS > PC_N64_MODEL_SLOTS ? PC_MAX_LINKS : PC_N64_MODEL_SLOTS)
 
@@ -150,14 +150,14 @@ struct pc_model {
     signed char input_flags;            /* +0x009 the human's input flags (its input record's) */
     signed char autotrans;              /* +0x00A automatic transmission */
     unsigned char pad00B[0x00F - 0x00B];
-    signed char b00F;                   /* +0x00F a per-car table value (init_cars: gTireRims) */
+    signed char tire_rims;              /* +0x00F the rims (MAT3 tireRims; init_cars: gTireRims) */
     unsigned char pad010[0x220 - 0x010];
     float rwv[3];                       /* +0x220 the velocity, feet a second (MAT3 RWV) */
     float rwr[3];                       /* +0x22C the position, feet (MAT3 RWR) */
     unsigned char pad238[0x3F0 - 0x238];
     float speed;                        /* +0x3F0 the speed (compared with 5; the stunt end's) */
     unsigned char pad3F4[0x400 - 0x3F4];
-    float scale;                        /* +0x400 */
+    float catchup;                      /* +0x400 the catch-up scale of the car's time step (MAT3 catchup) */
     unsigned char pad404[0x544 - 0x404];
     float f544;                         /* +0x544 */
     unsigned char pad548[0x61C - 0x548];
@@ -180,8 +180,8 @@ struct pc_model {
     float brake;                        /* +0x728 brake 0..1 */
     float gas;                          /* +0x72C gas 0..1 */
     signed char gear;                   /* +0x730 */
-    signed char flag_b;                 /* +0x731 */
-    signed char flag_a;                 /* +0x732 */
+    signed char wing;                   /* +0x731 the wing button (MAT3 mainin.wing) */
+    signed char abort;                  /* +0x732 the abort button (MAT3 mainin.abort) */
     unsigned char pad733[0x75C - 0x733];
     float suspension[4];                /* +0x75C */
     unsigned char pad76C[0x794 - 0x76C];
@@ -193,7 +193,7 @@ struct pc_model {
     short we_control;                   /* +0x7CA this node drives it */
     signed char drone_type;             /* +0x7CC 1 a drone, 2 a human */
     unsigned char color[3];             /* +0x7CD the roster's three colours */
-    short s7D0;                         /* +0x7D0 */
+    short rpm;                          /* +0x7D0 the engine's rpm shown (MAT3 rpm; animTach) */
     unsigned char pad7D2[0x7D4 - 0x7D2];
     unsigned int flags;                 /* +0x7D4 appearance flags */
     float stuck_time;                   /* +0x7D8 */
@@ -224,11 +224,11 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_BODY(i) (pc_models[i].body)
 #define PC_MODEL_INPUT_FLAGS(i) (pc_models[i].input_flags)
 #define PC_MODEL_AUTOTRANS(i) (pc_models[i].autotrans)
-#define PC_MODEL_B00F(i) (pc_models[i].b00F)
+#define PC_MODEL_B00F(i) (pc_models[i].tire_rims)
 #define PC_MODEL_RWV(i) (pc_models[i].rwv)
 #define PC_MODEL_RWR(i) (pc_models[i].rwr)
 #define PC_MODEL_SPEED(i) (pc_models[i].speed)
-#define PC_MODEL_SCALE(i) (pc_models[i].scale)
+#define PC_MODEL_SCALE(i) (pc_models[i].catchup)
 #define PC_MODEL_F544(i) (pc_models[i].f544)
 #define PC_MODEL_VISCODE(i) (pc_models[i].viscode)
 #define PC_MODEL_CRASHFLAG(i) (pc_models[i].crashflag)
@@ -243,8 +243,8 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_BRAKE(i) (pc_models[i].brake)
 #define PC_MODEL_GAS(i) (pc_models[i].gas)
 #define PC_MODEL_GEAR(i) (pc_models[i].gear)
-#define PC_MODEL_FLAG_B(i) (pc_models[i].flag_b)
-#define PC_MODEL_FLAG_A(i) (pc_models[i].flag_a)
+#define PC_MODEL_FLAG_B(i) (pc_models[i].wing)
+#define PC_MODEL_FLAG_A(i) (pc_models[i].abort)
 #define PC_MODEL_SUSPENSION(i) (pc_models[i].suspension)
 #define PC_MODEL_RECKON_RWR(i) (pc_models[i].reckon_rwr)
 #define PC_MODEL_OB_RES_PT(i) (pc_models[i].ob_res_pt)
@@ -255,7 +255,7 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_COLOR0(i) (pc_models[i].color[0])
 #define PC_MODEL_COLOR1(i) (pc_models[i].color[1])
 #define PC_MODEL_COLOR2(i) (pc_models[i].color[2])
-#define PC_MODEL_S7D0(i) (pc_models[i].s7D0)
+#define PC_MODEL_S7D0(i) (pc_models[i].rpm)
 #define PC_MODEL_FLAGS(i) (pc_models[i].flags)
 #define PC_MODEL_STUCK_TIME(i) (pc_models[i].stuck_time)
 #define PC_MODEL_CAN_CHEAT(i) (pc_models[i].can_cheat)
@@ -267,16 +267,16 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_MODEL_DRONE_SCALE(i) (pc_models[i].drone_scale)
 #define PC_MODEL_TIME_BOOST(i) (pc_models[i].time_boost)
 
-/* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar (6 records of 0x3B8 bytes, BSS; sample_dma_pi_queue,
- * a message queue, follows). One record per car slot: its position and
- * orientation for the cameras and effects, its visuals, its place and finish, and its battle state. On the PC a
- * record is 0x468 bytes (docs/port/CARS.md 2): its 21 visuals hold host pointers (0x20 bytes each, not 0x18) and
- * its input record pointer at N64 +0x380 is 8 bytes, so a field's PC offset is CAR_OFS of its N64 one
- * (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized members, as in every view. Every walk
- * of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars), so the storage is PC_CAR_SLOTS = the larger of
- * 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the game reaches by index (and the names
- * inside the array: D_80152907 is [0].finished) are named here; code that takes a record's address (PC_CAR) reads
- * it through its own view, which view_audit.py checks against the same layout. */
+/* ---- The car records: MAT3 gGameCar, tCarData, N64 gGameCar (6 records of 0x3B8 bytes, BSS; sample_dma_pi_queue, a
+ * message queue, follows). One record per car slot: its position and orientation for the cameras and effects, its
+ * visuals, its place and finish, and its battle state. On the PC a record is 0x468 bytes (docs/port/CARS.md 2): its 21
+ * visuals hold host pointers (0x20 bytes each, not 0x18) and its input record pointer at N64 +0x380 is 8 bytes, so a
+ * field's PC offset is CAR_OFS of its N64 one (pc_prelude.h); the padding below is in N64 bytes, between pointer-sized
+ * members, as in every view. Every walk of it stops at 6 (the cars in the race, gNumCars, gNumActiveCars), so the
+ * storage is PC_CAR_SLOTS = the larger of 6 and PC_MAX_LINKS; nothing activates more than 6 yet. Only the fields the
+ * game reaches by index (and the labels the image's symbol tables have inside the array, record 0's finished ...) are
+ * named here; code that takes a record's address (PC_CAR) reads it through its own view, which view_audit.py checks
+ * against the same layout. */
 #define PC_N64_CAR_SLOTS 6
 #define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
 
@@ -318,14 +318,14 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     unsigned int flags;                 /* +0x0E8 appearance flags (0x8, 0x10, 0x1000, 0x100000) */
     unsigned char pad0EC[0x0EE - 0x0EC];
     signed char place;                  /* +0x0EE the race place, 0 the first */
-    signed char finished;               /* +0x0EF 1 once it has finished: its place is locked */
-    float time;                         /* +0x0F0 the finish time (CarReportsGameOver: a score) */
+    signed char place_locked;           /* +0x0EF 1 once it has finished: its place is locked (MAT3 place_locked) */
+    float score;                        /* +0x0F0 the finish time or score CarReportsGameOver ranks by (MAT3 score) */
     int node;                           /* +0x0F4 the scene node handle, -1 none (its low half: ENDIAN.md 3.1) */
     short mph;                          /* +0x0F8 the speed shown, mph x 4 */
     unsigned char pad0FA[0x100 - 0x0FA];
     float distance;                     /* +0x100 the distance along the track */
     unsigned char pad104[0x108 - 0x104];
-    float f108;                         /* +0x108 zeroed at the race start (InitCPTime) */
+    float mileage;                      /* +0x108 the distance driven (MAT3 mileage; InitCPTime zeroes it) */
     unsigned char pad10C[0x110 - 0x10C];
     struct pc_visual visuals[21];       /* +0x110 the car's visuals (tVisual; the weapon's is [20]) */
     unsigned char pad308[0x314 - 0x308];
@@ -336,30 +336,30 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     unsigned int prev_ir_color;         /* +0x350 the one before */
     unsigned char pad354[0x356 - 0x354];
     short weight_index;                 /* +0x356 a drone's weight row (maxpath) */
-    signed char b358;                   /* +0x358 cleared with the state (init_mdrive, the battle reset) */
-    signed char state;                  /* +0x359 0 racing; below 2 still in the race; 1 out of a deaths race */
-    signed char disabled;               /* +0x35A no speed from the wheels (forces1) */
+    signed char crash_state;            /* +0x358 MAT3 crash_state (init_mdrive and the battle reset clear it) */
+    signed char dead;                   /* +0x359 MAT3 dead: 0 racing, below 2 in the race, 1 out of a deaths race */
+    signed char in_tunnel;              /* +0x35A MAT3 in_tunnel: forces1 turns the wind off, the sheen fades */
     signed char slot;                   /* +0x35B its own slot, the index (the roster's, the model's) */
-    signed char view;                   /* +0x35C the window showing it, -1 none (a bit of the windows' mask) */
+    signed char camera;                 /* +0x35C the window showing it, -1 none (MAT3 camera; a bit of the mask) */
     unsigned char pad35D[0x360 - 0x35D];
     int sheen_alpha;                    /* +0x360 */
-    float heading;                      /* +0x364 */
+    float stray_angle;                  /* +0x364 its angle to the way round (MAT3 strayAngle: the WRONG WAY sign) */
     unsigned char pad368[0x380 - 0x368];
     void *input;                        /* +0x380 the input record &gPlayers[i] (a host pointer), NULL for drones */
-    signed char kind;                   /* +0x384 battle: the record's type (animAmmoCounts tests it for 8) */
-    signed char lives;                  /* +0x385 battle: lives left, shown when not negative */
+    signed char weapon_type;            /* +0x384 battle: the weapon (MAT3 battle.weapon.type; WEAPON_NONE 8) */
+    signed char ammo_count;             /* +0x385 battle: its ammunition, shown when not negative (weapon.ammoCnt) */
     short health;                       /* +0x386 battle: 800 full */
     unsigned char pad388[0x38C - 0x388];
-    unsigned int battle_flags;          /* +0x38C battle: 1 and 2 pick the status shown */
+    unsigned int defense_active;        /* +0x38C battle: the defence on (MAT3 defense.active; 1 and 2 pick the icon) */
     unsigned char pad390[0x3A0 - 0x390];
-    unsigned char b3A0;                 /* +0x3A0 battle */
+    unsigned char shoot;                /* +0x3A0 battle: MAT3 battle.shoot */
     unsigned char pad3A1[0x3A2 - 0x3A1];
-    unsigned char b3A2;                 /* +0x3A2 battle */
+    unsigned char fade_state;           /* +0x3A2 battle: MAT3 battle.fadeState */
     signed char points;                 /* +0x3A3 battle: points, or what is left (FindWinner ranks by it) */
     unsigned char pad3A4[0x3AC - 0x3A4];
     float reloading_time;               /* +0x3AC battle */
-    float f3B0;                         /* +0x3B0 battle */
-    float f3B4;                         /* +0x3B4 battle */
+    float battle_pitch;                 /* +0x3B0 battle: MAT3 battle.pitch */
+    float battle_yaw;                   /* +0x3B4 battle: MAT3 battle.yaw */
     unsigned int scenes;                /* PC +0x464, in the record's alignment padding, no N64 field: car 8 and up,
                                          * bit n set while it is in a scene trigger of collision index n (0-31),
                                          * which the trigger's flags have no bit for (TargetCollTrigger) */
@@ -382,38 +382,38 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_WHEEL_POS(i) (pc_cars[i].wheel_pos)
 #define PC_CAR_FLAGS(i) (pc_cars[i].flags)
 #define PC_CAR_PLACE(i) (pc_cars[i].place)
-#define PC_CAR_FINISHED(i) (pc_cars[i].finished)
-#define PC_CAR_TIME(i) (pc_cars[i].time)
+#define PC_CAR_FINISHED(i) (pc_cars[i].place_locked)
+#define PC_CAR_TIME(i) (pc_cars[i].score)
 #define PC_CAR_NODE(i) (pc_cars[i].node)
 #define PC_CAR_MPH(i) (pc_cars[i].mph)
 #define PC_CAR_DISTANCE(i) (pc_cars[i].distance)
-#define PC_CAR_F108(i) (pc_cars[i].f108)
+#define PC_CAR_F108(i) (pc_cars[i].mileage)
 #define PC_CAR_VISUALS(i) (pc_cars[i].visuals)
 #define PC_CAR_NAV(i) (pc_cars[i].nav)
 #define PC_CAR_FWD_PROGRESS(i) (pc_cars[i].fwd_progress)
 #define PC_CAR_IR_COLOR(i) (pc_cars[i].ir_color)
 #define PC_CAR_PREV_IR_COLOR(i) (pc_cars[i].prev_ir_color)
 #define PC_CAR_WEIGHT_INDEX(i) (pc_cars[i].weight_index)
-#define PC_CAR_B358(i) (pc_cars[i].b358)
-#define PC_CAR_STATE(i) (pc_cars[i].state)
-#define PC_CAR_DISABLED(i) (pc_cars[i].disabled)
+#define PC_CAR_B358(i) (pc_cars[i].crash_state)
+#define PC_CAR_STATE(i) (pc_cars[i].dead)
+#define PC_CAR_DISABLED(i) (pc_cars[i].in_tunnel)
 #define PC_CAR_SLOT(i) (pc_cars[i].slot)
-#define PC_CAR_VIEW(i) (pc_cars[i].view)
+#define PC_CAR_VIEW(i) (pc_cars[i].camera)
 #define PC_CAR_SHEEN_ALPHA(i) (pc_cars[i].sheen_alpha)
-#define PC_CAR_HEADING(i) (pc_cars[i].heading)
+#define PC_CAR_HEADING(i) (pc_cars[i].stray_angle)
 #define PC_CAR_INPUT(i) (pc_cars[i].input)
 #define PC_CAR_INPUT_AS(T, i) ((T *)pc_cars[i].input)
-#define PC_CAR_KIND(i) (pc_cars[i].kind)
-#define PC_CAR_LIVES(i) (pc_cars[i].lives)
+#define PC_CAR_KIND(i) (pc_cars[i].weapon_type)
+#define PC_CAR_LIVES(i) (pc_cars[i].ammo_count)
 #define PC_CAR_HEALTH(i) (pc_cars[i].health)
-#define PC_CAR_BATTLE_FLAGS(i) (pc_cars[i].battle_flags)
-#define PC_CAR_B3A0(i) (pc_cars[i].b3A0)
-#define PC_CAR_B3A2(i) (pc_cars[i].b3A2)
+#define PC_CAR_BATTLE_FLAGS(i) (pc_cars[i].defense_active)
+#define PC_CAR_B3A0(i) (pc_cars[i].shoot)
+#define PC_CAR_B3A2(i) (pc_cars[i].fade_state)
 #define PC_CAR_POINTS(i) (pc_cars[i].points)
 #define PC_CAR_RELOADING_TIME(i) (pc_cars[i].reloading_time)
 #define PC_CAR_SCENES(i) (pc_cars[i].scenes)
-#define PC_CAR_F3B0(i) (pc_cars[i].f3B0)
-#define PC_CAR_F3B4(i) (pc_cars[i].f3B4)
+#define PC_CAR_F3B0(i) (pc_cars[i].battle_pitch)
+#define PC_CAR_F3B4(i) (pc_cars[i].battle_yaw)
 
 /* ---- The effects' per-car arrays (docs/port/DECOUPLE.md 6, MORECARS.md 2.3): the tire effects, the blasts, the skid
  * marks and the resurrect's path, one entry per car slot, 6 on the N64 (game BSS), PC_MAX_LINKS here. The resets
@@ -525,14 +525,14 @@ extern float pc_finish_cam_time[PC_MAX_LINKS];
 #define PC_FINISH_CAM(i) (pc_finish_cam[i])
 #define PC_FINISH_CAM_TIME(i) (pc_finish_cam_time[i])
 
-/* ---- The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[], N64 D_801527D8 and D_80152808 (s16 lists
- * of car slots, 6 long, BSS): the drones in the race (num_drones of them) and those this node drives (num_our_drones),
- * built by munge (munge_gLink_data) and PrePlay's restart, read by maxpath's camera pick (IntervalPosChange) and
- * update_drone_models. And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake
- * and gas PS_PurgeFile and AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last
- * direction and last direction to the target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones
- * (the attract demo), so each is PC_MAX_LINKS long. The N64's extents end at the next symbol, or at one of
- * HAL_DrawText's statics (lastFontColor, lastTrans, lastFontXpos, lastFontYpos), which are host statics on the PC. */
+/* ---- The drones (docs/port/DECOUPLE.md 8): MAT3 drones[] and our_drones[] (s16 lists of car slots, 6 long on the N64,
+ * BSS): the drones in the race (num_drones of them) and those this node drives (num_our_drones), built by munge
+ * (munge_gLink_data) and PrePlay's restart, read by maxpath's camera pick (IntervalPosChange) and update_drone_models.
+ * And maxpath's controls per car slot (arcade maxpath.c), BSS, 6 on the N64: the steer, brake and gas PS_PurgeFile and
+ * AdjustSpeed keep (D_80153F28, D_80153F48, D_80153F68: f32), and avoid_areas' last direction and last direction to the
+ * target (D_80153F88, D_80154138: f32[3]). The race's 12 cars may all be drones (the attract demo), so each is
+ * PC_MAX_LINKS long. The N64's extents end at the next symbol, or at one of HAL_DrawText's statics (lastFontColor,
+ * lastTrans, lastFontXpos, lastFontYpos), which are host statics on the PC. */
 extern short pc_drones[PC_MAX_LINKS];
 extern short pc_our_drones[PC_MAX_LINKS];
 extern float pc_mp_steer[PC_MAX_LINKS];
@@ -553,7 +553,7 @@ extern float pc_mp_save_dir[PC_MAX_LINKS][3];
 extern signed char pc_carsetup_flags[PC_MAX_LINKS];
 #define PC_CARSETUP_FLAG(slot) (pc_carsetup_flags[slot])
 
-/* The drone schedule's rows (MAT3 drone_sched, N64 D_80120E74, ROM data, Row3[12]: rows 0-6 for 0-6 drones with one
+/* The drone schedule's rows (MAT3 drone_sched, ROM data, Row3[12]: rows 0-6 for 0-6 drones with one
  * human or none, rows 7-11 for 0-4 with two or more). init_cars picks row num_our_drones, plus 7 with two
  * humans; a human's retirement takes 7 off, a drone's 1. On the PC the second kind starts at PC_DRONE_SCHED_TWO,
  * past the most drones a race may hold, and update_drone_models reads the N64's rows where it has them and a PC

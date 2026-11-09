@@ -56,5 +56,6 @@ carTransGearRatio 0xC0
 playerscr_buttonInfo 0x1600
 
 # Tables declared as their first element or row, which the game reads whole (docs/port/DATA.md 8).
-wingOffsets 0x9C     # f32[13][3], per car type (AnimateWing, the wings; StartWing reads [type][1]); D_8011B550 follows
+wingOffsets 0x9C     # f32[13][3], per car type (AnimateWing, the wings; StartWing reads [type][1]); an unnamed
+                      # 8-byte datum follows (arrowColors after it)
 gravityArray 0x10     # gravityArray f32[4] (PrePlay: by the gravity option); by the gap it ran over strings

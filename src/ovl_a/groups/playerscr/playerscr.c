@@ -73,7 +73,6 @@ typedef struct Blit Blit;typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
 extern Player gPlayers[];
 
-extern void particle_lifetime_set(void);
 
 /* Set the screen up: lock the players' profile files, read the paks, start every window on the select menu (on
  * the first profile row) with its buttons, split the screen (three players get four windows), set the buttons'
@@ -125,7 +124,7 @@ void playerscr_initScreen(void)
         playerscr_cursorZ = 225.0f;
     }
     ZOID_SplitScreen(gNumWindows);
-    particle_lifetime_set();
+    createBG();
     for (p = 0; p < gNumPlayers; p++) {
         playerscr_pane[p] = InitPane(-20,0,-10,10,192,0,0,0);
     }
@@ -482,8 +481,6 @@ void playerscr_updateButtons(s8 p)
     if (clearScrollSpeed == 1) playerscr_scrollSpeed[p] = 0;
     playerscr_buttonsJustInited[p] = 0;
 }
-
-extern void player_mode_set ( s32 , s32 );
 
 /* The delete menu's input for player p (MAT3 playerscr.c controlDeletePlayer): pick a profile on a pak (up and
  * down through the profiles of the chosen pak, skipping the ones other players hold; left and right change the pak),
@@ -933,11 +930,11 @@ void updatePlayerScreen(void)
                             goto restart;
                         }
                     }
-                    if (i > 1) player_mode_set(i, 1);
+                    if (i > 1) SetControllerStickEdges(i, 1);
                     FindPlayerNum(i, 1);
                 }
                 for (; i < 4; i++)
-                    if (i > 1) player_mode_set(i, 0);
+                    if (i > 1) SetControllerStickEdges(i, 0);
                 CalcUnlockedStuff();
                 setGameState(GS_MODE);
                 return;
@@ -1000,7 +997,7 @@ restart:;
                 if (!ReadPlayerData(gPlayers[p].owner)) break;
                 SaveSelectPlayer(gPlayers[p].owner);
                 PS_LockFile((void **)gPlayers[p].owner->body->fileh, 1);
-                if (p > 1) player_mode_set(p, 1);
+                if (p > 1) SetControllerStickEdges(p, 1);
                 FindPlayerNum(p, 1);
             }
             if (p < gNumPlayers) {
@@ -1012,7 +1009,7 @@ restart:;
                 break;
             }
             for (; p < 4; p++)
-                if (p > 1) player_mode_set(p, 0);
+                if (p > 1) SetControllerStickEdges(p, 0);
             CalcUnlockedStuff();
             playerscr_uninitScreen();
             setGameState(GS_MODE);

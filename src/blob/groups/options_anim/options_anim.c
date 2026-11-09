@@ -1,4 +1,4 @@
-/* The options screen's text: its options and values, the flashing colours (MAT3 optionscr.c and TB_text.c). */
+/* The options screen's text: its options and values, the chosen one flashing (MAT3 optionscr.c). */
 #include "game/game.h"
 
 /* A colour (MAT3 tRGBA): include/game's TextColor, the flashing colours' type. */

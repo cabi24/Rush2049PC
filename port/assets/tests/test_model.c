@@ -1,6 +1,6 @@
-/* port/assets/tests/test_model.c: the model thread's m2c readers of a car's model record (D_8014A250, docs/port/CARS.md
- * 2.2), which keeps its N64 layout on the PC: its car descriptor and tune pointers at +0 and +4 are u32 window
- * addresses. calcaa (body scale by the descriptor), transmission (engine inertia from the tune and the
+/* port/assets/tests/test_model.c: the model thread's m2c readers of a car's model record (MAT3 model[],
+ * docs/port/CARS.md 2.2), which keeps its N64 layout on the PC: its car descriptor and tune pointers at +0 and +4 are
+ * u32 window addresses. calcaa (body scale by the descriptor), transmission (engine inertia from the tune and the
  * descriptor) and enginetorque (torque from the curve, scaled by the tune) read them as 8-byte host pointers before
  * (docs/port/SYNTH.md): the first race of the synthetic cartridge faulted in each. The record, the descriptor and
  * the tune are in an RDRAM window the test maps (exit 77, skipped, if it can't), as the game's are.

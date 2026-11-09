@@ -31,7 +31,6 @@ typedef struct MultiBlit {
 VIEW(Color4, modescr_button_color);
 #define modescr_button_color modescr_button_color_view
 
-extern void particle_lifetime_set ( void );
 
 
 /* modescr_buttonInfo[]: the seven rows' buttons, then these. */
@@ -46,7 +45,7 @@ extern void particle_lifetime_set ( void );
 void modescr_initScreen(void)
 {
     SaveFlush(1);
-    particle_lifetime_set();
+    createBG();
     modescr_initButtons();
     modescr_blit=NewMultiBlit(0,0,&modescr_mblit,1);
     exitModeScreen=0;

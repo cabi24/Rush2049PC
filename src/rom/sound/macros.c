@@ -1407,7 +1407,7 @@ typedef struct SynthVoiceMacroView { enum n64p_MacroCommand addr00; enum n64p_Ma
  * only advances its clock and ends its wait at key off, at the sample's end or when it's due. */
 void sound_macro_run(SynthVoiceMacroView *voice)
 {
-    static MacroCommand cstep_80056228;   /* the step being run (a copy: some handlers rewrite it) */
+    static MacroCommand macro_step_copy;   /* the step being run (a copy: some handlers rewrite it) */
     u8 i;
     u8 lastNote;
     u8 stop;
@@ -1479,189 +1479,189 @@ void sound_macro_run(SynthVoiceMacroView *voice)
             if (++macro_steps_this_update > MACRO_STEPS_PER_RUN) {
                 break;
             }
-            cstep_80056228.word[0] = N64P(voice->curAddr04)->word[0];
-            cstep_80056228.word[1] = N64P(voice->curAddr04)->word[1];
+            macro_step_copy.word[0] = N64P(voice->curAddr04)->word[0];
+            macro_step_copy.word[1] = N64P(voice->curAddr04)->word[1];
             N64_NEXT(voice->curAddr04);
-            switch (cstep_80056228.word[0] & MACRO_OPCODE_MASK) {
+            switch (macro_step_copy.word[0] & MACRO_OPCODE_MASK) {
             case MACRO_END:
-                stop = sound_macro_end((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_end((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_RETURN:
-                stop = sound_macro_return((struct MacroStateReturn *)voice, &cstep_80056228);
+                stop = sound_macro_return((struct MacroStateReturn *)voice, &macro_step_copy);
                 break;
             case MACRO_SPLIT_KEY:
-                stop = sound_macro_split_key((struct MacroStateSplitKey *)voice, &cstep_80056228);
+                stop = sound_macro_split_key((struct MacroStateSplitKey *)voice, &macro_step_copy);
                 break;
             case MACRO_SPLIT_VELOCITY:
-                stop = sound_macro_split_velocity((struct MacroStateSplitVelocity *)voice, &cstep_80056228);
+                stop = sound_macro_split_velocity((struct MacroStateSplitVelocity *)voice, &macro_step_copy);
                 break;
             case MACRO_WAIT:
-                stop = sound_macro_wait((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_wait((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_LOOP:
-                stop = sound_macro_loop((struct MacroStateLoop *)voice, &cstep_80056228);
+                stop = sound_macro_loop((struct MacroStateLoop *)voice, &macro_step_copy);
                 break;
             case MACRO_GOSUB:
-                stop = sound_macro_gosub((struct MacroStateGosub *)voice, &cstep_80056228);
+                stop = sound_macro_gosub((struct MacroStateGosub *)voice, &macro_step_copy);
                 break;
             case MACRO_WAIT_MS:
-                stop = sound_macro_wait_ms((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_wait_ms((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_PLAY_MACRO:
-                stop = sound_macro_play_macro((struct MacroStatePlayMacro *)voice, &cstep_80056228);
+                stop = sound_macro_play_macro((struct MacroStatePlayMacro *)voice, &macro_step_copy);
                 break;
             case MACRO_SEND_KEY_OFF:
-                stop = sound_macro_send_key_off((struct MacroStateSendKeyOff *)voice, &cstep_80056228);
+                stop = sound_macro_send_key_off((struct MacroStateSendKeyOff *)voice, &macro_step_copy);
                 break;
             case MACRO_SPLIT_MODULATION:
-                stop = sound_macro_split_modulation((struct MacroStateSplitModulation *)voice, &cstep_80056228);
+                stop = sound_macro_split_modulation((struct MacroStateSplitModulation *)voice, &macro_step_copy);
                 break;
             case MACRO_PIANO_PAN:
-                stop = sound_macro_piano_pan((struct MacroStateAddAge *)voice, &cstep_80056228);
+                stop = sound_macro_piano_pan((struct MacroStateAddAge *)voice, &macro_step_copy);
                 break;
             case MACRO_SET_ADSR:
-                stop = sound_macro_set_adsr((struct MacroStateSetAdsr *)voice, &cstep_80056228);
+                stop = sound_macro_set_adsr((struct MacroStateSetAdsr *)voice, &macro_step_copy);
                 break;
             case MACRO_SCALE_VOLUME:
-                stop = sound_macro_scale_volume((struct MacroStateScaleVolume *)voice, &cstep_80056228);
+                stop = sound_macro_scale_volume((struct MacroStateScaleVolume *)voice, &macro_step_copy);
                 break;
             case MACRO_PANNING:
-                stop = sound_macro_panning((struct SynthVoicePanView *)voice, &cstep_80056228);
+                stop = sound_macro_panning((struct SynthVoicePanView *)voice, &macro_step_copy);
                 break;
             case MACRO_ENVELOPE:
-                stop = sound_macro_envelope((struct MacroStateEnvelope *)voice, &cstep_80056228);
+                stop = sound_macro_envelope((struct MacroStateEnvelope *)voice, &macro_step_copy);
                 break;
             case MACRO_START_SAMPLE:
-                stop = sound_macro_start_sample((struct MacroStateStartSample *)voice, &cstep_80056228);
+                stop = sound_macro_start_sample((struct MacroStateStartSample *)voice, &macro_step_copy);
                 break;
             case MACRO_STOP_SAMPLE:
-                stop = sound_macro_stop_sample((struct MacroStateStopSample *)voice, &cstep_80056228);
+                stop = sound_macro_stop_sample((struct MacroStateStopSample *)voice, &macro_step_copy);
                 break;
             case MACRO_KEY_OFF:
-                stop = sound_macro_key_off((struct MacroStateKeyOff *)voice, (struct MacroCommandKeyOff *)&cstep_80056228);
+                stop = sound_macro_key_off((struct MacroStateKeyOff *)voice, (struct MacroCommandKeyOff *)&macro_step_copy);
                 break;
             case MACRO_SPLIT_RANDOM:
-                stop = sound_macro_split_random((struct MacroStateSplitRandom *)voice, &cstep_80056228);
+                stop = sound_macro_split_random((struct MacroStateSplitRandom *)voice, &macro_step_copy);
                 break;
             case MACRO_FADE_IN:
-                stop = sound_macro_fade_in((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_fade_in((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_RANDOM_NOTE:
-                stop = sound_macro_random_note((struct MacroStateSetNote *)voice, &cstep_80056228);
+                stop = sound_macro_random_note((struct MacroStateSetNote *)voice, &macro_step_copy);
                 break;
             case MACRO_ADD_NOTE:
-                stop = sound_macro_add_note((struct MacroStateAddNote *)voice, &cstep_80056228);
+                stop = sound_macro_add_note((struct MacroStateAddNote *)voice, &macro_step_copy);
                 break;
             case MACRO_SET_NOTE:
-                stop = sound_macro_set_note((struct MacroStateSetNote *)voice, &cstep_80056228);
+                stop = sound_macro_set_note((struct MacroStateSetNote *)voice, &macro_step_copy);
                 break;
             case MACRO_LAST_NOTE:
-                stop = sound_macro_last_note((struct MacroStateLastNote *)voice, &cstep_80056228);
+                stop = sound_macro_last_note((struct MacroStateLastNote *)voice, &macro_step_copy);
                 break;
             case MACRO_PORTAMENTO:
-                stop = sound_macro_portamento((struct MacroStatePortamento *)voice, &cstep_80056228);
+                stop = sound_macro_portamento((struct MacroStatePortamento *)voice, &macro_step_copy);
                 break;
             case MACRO_VIBRATO:
-                stop = sound_macro_vibrato((struct MacroStateVibrato *)voice, &cstep_80056228);
+                stop = sound_macro_vibrato((struct MacroStateVibrato *)voice, &macro_step_copy);
                 break;
             case MACRO_PITCH_SWEEP_1:
-                stop = sound_macro_pitch_sweep((struct MacroStatePitchSweep *)voice, &cstep_80056228, 0);
+                stop = sound_macro_pitch_sweep((struct MacroStatePitchSweep *)voice, &macro_step_copy, 0);
                 break;
             case MACRO_PITCH_SWEEP_2:
-                stop = sound_macro_pitch_sweep((struct MacroStatePitchSweep *)voice, &cstep_80056228, 1);
+                stop = sound_macro_pitch_sweep((struct MacroStatePitchSweep *)voice, &macro_step_copy, 1);
                 break;
             case MACRO_SET_PITCH:
-                stop = sound_macro_set_pitch((struct MacroStateSetPitch *)voice, (struct MacroCommandSetPitch *)&cstep_80056228);
+                stop = sound_macro_set_pitch((struct MacroStateSetPitch *)voice, (struct MacroCommandSetPitch *)&macro_step_copy);
                 break;
             case MACRO_TRAP_KEY_OFF:
-                stop = sound_macro_trap_key_off((struct MacroStateTrapKeyOff *)voice, &cstep_80056228);
+                stop = sound_macro_trap_key_off((struct MacroStateTrapKeyOff *)voice, &macro_step_copy);
                 break;
             case MACRO_UNTRAP_KEY_OFF:
-                stop = sound_macro_untrap_key_off((struct MacroStateUntrapKeyOff *)voice, (struct MacroCommandUntrapKeyOff *)&cstep_80056228);
+                stop = sound_macro_untrap_key_off((struct MacroStateUntrapKeyOff *)voice, (struct MacroCommandUntrapKeyOff *)&macro_step_copy);
                 break;
             case MACRO_ADD_AGE:
-                stop = sound_macro_add_age((struct MacroStateAddAge *)voice, (struct MacroCommandAddAge *)&cstep_80056228);
+                stop = sound_macro_add_age((struct MacroStateAddAge *)voice, (struct MacroCommandAddAge *)&macro_step_copy);
                 break;
             case MACRO_SET_AGE:
-                stop = sound_macro_set_age((struct MacroStateSetAge *)voice, (struct MacroCommandSetAge *)&cstep_80056228);
+                stop = sound_macro_set_age((struct MacroStateSetAge *)voice, (struct MacroCommandSetAge *)&macro_step_copy);
                 break;
             case MACRO_SEND_FLAG:
-                stop = sound_macro_send_flag((struct MacroStateSendFlag *)voice, (struct MacroCommandSendFlag *)&cstep_80056228);
+                stop = sound_macro_send_flag((struct MacroStateSendFlag *)voice, (struct MacroCommandSendFlag *)&macro_step_copy);
                 break;
             case MACRO_SET_PITCH_WHEEL_RANGE:
-                stop = sound_macro_set_pitch_wheel_range((struct MacroStateSetPitchWheelRange *)voice, (struct MacroCommandSetPitchWheelRange *)&cstep_80056228);
+                stop = sound_macro_set_pitch_wheel_range((struct MacroStateSetPitchWheelRange *)voice, (struct MacroCommandSetPitchWheelRange *)&macro_step_copy);
                 break;
             case MACRO_SET_REVERB_SEND:
-                stop = sound_macro_set_reverb_send((struct MacroStateSetReverbSend *)voice, (struct MacroCommandSetReverbSend *)&cstep_80056228);
+                stop = sound_macro_set_reverb_send((struct MacroStateSetReverbSend *)voice, (struct MacroCommandSetReverbSend *)&macro_step_copy);
                 break;
             case MACRO_TRACK_PITCH_WHEEL:
-                stop = sound_macro_track_pitch_wheel((struct MacroStateTrackPitchWheel *)voice, (struct MacroCommandTrackPitchWheel *)&cstep_80056228);
+                stop = sound_macro_track_pitch_wheel((struct MacroStateTrackPitchWheel *)voice, (struct MacroCommandTrackPitchWheel *)&macro_step_copy);
                 break;
             case MACRO_SET_PRIORITY:
-                stop = sound_macro_set_priority((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_set_priority((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_ADD_PRIORITY:
-                stop = sound_macro_add_priority((struct MacroStateAddPriority *)voice, &cstep_80056228);
+                stop = sound_macro_add_priority((struct MacroStateAddPriority *)voice, &macro_step_copy);
                 break;
             case MACRO_SET_AGE_SPEED:
-                stop = sound_macro_set_age_speed((struct MacroStateSetAgeSpeed *)voice, (struct MacroCommandSetAgeSpeed *)&cstep_80056228);
+                stop = sound_macro_set_age_speed((struct MacroStateSetAgeSpeed *)voice, (struct MacroCommandSetAgeSpeed *)&macro_step_copy);
                 break;
             case MACRO_SET_AGE_BY_VELOCITY:
-                stop = sound_macro_set_age_by_velocity((struct MacroStateSetAgeByVelocity *)voice, (struct MacroCommandSetAgeByVelocity *)&cstep_80056228);
+                stop = sound_macro_set_age_by_velocity((struct MacroStateSetAgeByVelocity *)voice, (struct MacroCommandSetAgeByVelocity *)&macro_step_copy);
                 break;
             case MACRO_SELECT_VOLUME:
-                stop = sound_macro_select_volume((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_volume((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_PAN:
-                stop = sound_macro_select_pan((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_pan((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_PITCH_BEND:
-                stop = sound_macro_select_pitch_bend((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_pitch_bend((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_MODULATION:
-                stop = sound_macro_select_modulation((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_modulation((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_PEDAL:
-                stop = sound_macro_select_pedal((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_pedal((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_PORTAMENTO:
-                stop = sound_macro_select_portamento((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_portamento((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_REVERB:
-                stop = sound_macro_select_reverb((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_reverb((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_SPAN:
-                stop = sound_macro_select_span((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_span((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SELECT_DOPPLER:
-                stop = sound_macro_select_doppler((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&cstep_80056228);
+                stop = sound_macro_select_doppler((struct MacroStateSelectVolume *)voice, (struct MacroCommandSelectVolume *)&macro_step_copy);
                 break;
             case MACRO_SETUP_LFO:
-                stop = sound_macro_setup_lfo((struct MacroStateSetupLfo *)voice, (struct MacroCommandSetupLfo *)&cstep_80056228);
+                stop = sound_macro_setup_lfo((struct MacroStateSetupLfo *)voice, (struct MacroCommandSetupLfo *)&macro_step_copy);
                 break;
             case MACRO_ADD_VARIABLES:
-                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &cstep_80056228, MACRO_ARITH_ADD);
+                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &macro_step_copy, MACRO_ARITH_ADD);
                 break;
             case MACRO_SUBTRACT_VARIABLES:
-                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &cstep_80056228, MACRO_ARITH_SUBTRACT);
+                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &macro_step_copy, MACRO_ARITH_SUBTRACT);
                 break;
             case MACRO_MULTIPLY_VARIABLES:
-                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &cstep_80056228, MACRO_ARITH_MULTIPLY);
+                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &macro_step_copy, MACRO_ARITH_MULTIPLY);
                 break;
             case MACRO_DIVIDE_VARIABLES:
-                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &cstep_80056228, MACRO_ARITH_DIVIDE);
+                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &macro_step_copy, MACRO_ARITH_DIVIDE);
                 break;
             case MACRO_ADD_TO_VARIABLE:
-                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &cstep_80056228, MACRO_ARITH_ADD_IMMEDIATE);
+                stop = sound_macro_variable_arithmetic((struct SynthVoiceVariablesView *)voice, &macro_step_copy, MACRO_ARITH_ADD_IMMEDIATE);
                 break;
             case MACRO_SET_VARIABLE:
-                stop = sound_macro_set_variable_immediate((MacroState *)voice, &cstep_80056228);
+                stop = sound_macro_set_variable_immediate((MacroState *)voice, &macro_step_copy);
                 break;
             case MACRO_IF_EQUAL:
-                stop = sound_macro_compare((struct MacroStateCompare *)voice, &cstep_80056228, MACRO_COMPARE_EQUAL);
+                stop = sound_macro_compare((struct MacroStateCompare *)voice, &macro_step_copy, MACRO_COMPARE_EQUAL);
                 break;
             case MACRO_IF_LESS:
-                stop = sound_macro_compare((struct MacroStateCompare *)voice, &cstep_80056228, MACRO_COMPARE_LESS);
+                stop = sound_macro_compare((struct MacroStateCompare *)voice, &macro_step_copy, MACRO_COMPARE_LESS);
                 break;
             default:
                 stop = 0;
