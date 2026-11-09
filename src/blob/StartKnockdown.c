@@ -47,7 +47,6 @@ typedef struct MATRIX {
 #define N64P(x) ((void *)PC_N64P(x))
 #define N64W(x) PC_N64W(x)
 
-#define TARGET_ACTIVE 2         /* the target collides */
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
 VIEW(Visual *, gEnvList);

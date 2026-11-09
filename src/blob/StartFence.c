@@ -17,7 +17,6 @@ typedef struct Target {
     s8 slot;                /* 0x5C the car that hit it */
 } Target;
 
-#define TARGET_ACTIVE 2         /* the target collides */
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
 struct pc_visual *GrabEnvEntry();

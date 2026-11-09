@@ -25,7 +25,6 @@ typedef struct GameCar {
     u8 pad020[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad308[0x380 - 0x308]; void *input; u8 pad384[0x3B8 - 0x384];
 } GameCar;
 
-#define TARGET_ACTIVE 2         /* the target collides */
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
 struct pc_visual *GrabEnvEntry();

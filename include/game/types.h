@@ -1532,7 +1532,9 @@ typedef struct tTarget { /* 0x70 bytes */
 
 /* tTarget.Flags */
 #define TARGET_SET_UP 0x1    /* its first frame is done (a path target's StartPathTarget) */
-#define TARGET_ACTIVE 0x2    /* still in play: a path target whose flag is cleared is removed (AnimatePathTarget) */
+#define TARGET_ACTIVE 0x2    /* still in play: CheckTargetCollision tests only these (with TARGET_COLLIDES); a hit
+                              * object's start function clears it, and a path target without it is removed
+                              * (AnimatePathTarget) */
 #define TARGET_COLLIDES 0x8  /* it has a collision test (collFuncIdx not 6) */
 #define TARGET_IN_WORLD 0x10 /* a path target the world placed (not from a PTHD record) */
 #define TARGET_GOLD 0x40     /* a gold coin */

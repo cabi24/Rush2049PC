@@ -32,13 +32,7 @@ typedef struct {
     f32 weight;                 /* 0x1C */
 } tBBoxColl;
 
-/* A track object as a body (MAT3 tMiniModelData, 0x40 bytes; N64 layout, in the window). */
-typedef struct tMiniModelData {
-    unsigned int bboxInfo;      /* 0x00 its tBBoxColl: a 32-bit window address */
-    f32 uvs[3][3];              /* 0x04 its orientation */
-    f32 pos[3];                 /* 0x28 its position */
-    f32 vel[3];                 /* 0x34 its velocity */
-} tMiniModelData;
+/* A track object as a body: tMiniModelData (game/types.h), whose bboxInfo is its tBBoxColl's window address. */
 #define BBOX(m2) ((tBBoxColl *)PC_N64P((m2)->bboxInfo))
 
 extern f32 fabsf(f32);

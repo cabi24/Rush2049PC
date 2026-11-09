@@ -4,15 +4,9 @@
  * updownleaf climbs from a node until the point is inside it, then calls this to go back down. */
 #include "game/game.h"
 
-/* A quadtree node (MAT3 streetyp, 0x14 bytes). */
-typedef struct streetyp {
-    u8 f0[3];           /* 0x00 parent (s16), unused */
-    u8 flags;           /* 0x03 bit q set: quadrant q has a child node */
-    s16 minh, maxh;     /* 0x04 the horizontal (x) bounds */
-    s16 minv, maxv;     /* 0x08 the vertical (z) bounds */
-    u16 child[4];       /* 0x0C the quadrants' child nodes, indexes into stree_nodes */
-} streetyp; /* 0x14 */
-
+/* A quadtree node: streetyp (game/types.h). Bit q of flags is set when quadrant q has a child node; minh, maxh are
+ * the horizontal (x) bounds, minv, maxv the vertical (z); child[] the quadrants' child nodes, indexes into
+ * stree_nodes. */
 VIEW(streetyp *, stree_nodes);
 #define stree_nodes stree_nodes_view
 

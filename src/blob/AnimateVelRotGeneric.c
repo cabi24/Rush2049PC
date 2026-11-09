@@ -36,7 +36,7 @@ typedef struct Visual {
 #define N64P(x) _Generic((x), enum n64p_VelRot: (VelRot *)PC_N64P(x), enum n64p_Target: (Target *)PC_N64P(x), \
     default: (x))
 
-/* targetInfo[].flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
+/* targetInfo[].Flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
 #define TINFO_REMOVE_WHEN_DONE 0x2000
 
 VIEW(volatile f32, gFrameSeconds);
@@ -44,7 +44,7 @@ VIEW(volatile f32, gFrameSeconds);
 
 /* The end of the flight: remove the scene object if the kind says so, free the target and release the visual. */
 static void debris_remove(Visual *v, Target *t, TargInfo *info) {
-    if (info->flags & TINFO_REMOVE_WHEN_DONE) {
+    if (info->Flags & TINFO_REMOVE_WHEN_DONE) {
         RemoveObjectTree(t->dlIdx, 0, 0);
     }
     FreeStatLLE(&gTargetList, t);

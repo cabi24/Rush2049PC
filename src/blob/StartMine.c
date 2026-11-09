@@ -20,7 +20,6 @@ typedef struct Target {
     s8 owner;               /* 0x65 the car that dropped it */
 } Target;
 
-#define TARGET_ACTIVE 2         /* the target collides: AnimateMine blows up a mine without it */
 
 /* The weapon (pc_car.kind, MAT3 battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
  * makes the same exception for it. */
@@ -51,7 +50,7 @@ void StartMine(Target *t)
         } else {
             BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
         }
-        t->flags &= ~TARGET_ACTIVE;
+        t->flags &= ~TARGET_ACTIVE; /* AnimateMine blows up a mine without it */
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
     }
 }

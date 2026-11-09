@@ -53,7 +53,7 @@ typedef struct Visual {struct Visual *next;s16 index,model,owner;u8 pad10[2];enu
 #define N64W(x) PC_N64W(x)
 
 #define TARGET_STARTED 1        /* registered and given its models */
-#define TARGET_ACTIVE 2         /* it collides; StartMine clears it when a car sets the mine off */
+/* TARGET_ACTIVE (game/types.h): it collides; StartMine clears it when a car sets the mine off */
 #define TARGET_HIT 4            /* a car has hit it (CheckTargetCollision sets it before the start function) */
 
 typedef struct Texture36 {u8 bytes[36];} Texture36;
