@@ -10,12 +10,6 @@ typedef struct V3 { float x, y, z; } V3;
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-VIEW(V3[], steady_start_pos);
-#define steady_start_pos steady_start_pos_view
-
-
-VIEW(V3[], cur_acc);
-#define cur_acc cur_acc_view
 
 void point_at_car(void *car, intptr_t pos, intptr_t uvs, f32 *offset);
 
@@ -119,9 +113,9 @@ void steady_move_cam(s16 mode, Cr *car, f32 *pos, intptr_t uvs) {
             car->mode = v;
             car->mode2 = v;
             if (car->mode == 1) {
-                cur_acc[car->player].x = 0;
-                cur_acc[car->player].y = 0;
-                cur_acc[car->player].z = 0;
+                cur_acc[car->player][0] = 0;
+                cur_acc[car->player][1] = 0;
+                cur_acc[car->player][2] = 0;
             }
         }
         break;

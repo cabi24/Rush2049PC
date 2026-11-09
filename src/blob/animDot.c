@@ -53,8 +53,8 @@ s32 animDot(tBlit *blt)
     m = PC_MODEL(slot);
     car = PC_CAR(slot);
 
-    world_width = gPathMax.x - gPathMin.x;
-    world_height = gPathMax.z - gPathMin.z;
+    world_width = gPathMax[0] - gPathMin[0];
+    world_height = gPathMax[2] - gPathMin[2];
     size = blt->height;
     if (world_height < world_width) {
         map_width = kMapSize - 8;
@@ -68,11 +68,11 @@ s32 animDot(tBlit *blt)
     blt->x = hud_mapPos[gNumWindows - 1].x + xo - (size + kMapSize) / 2;
     blt->y = hud_mapPos[gNumWindows - 1].y + yo - (size + kMapSize) / 2;
     if (gMirrorWaves) {
-        blt->x += (car->position[0] - gPathMin.x) * map_width / world_width;
+        blt->x += (car->position[0] - gPathMin[0]) * map_width / world_width;
     } else {
-        blt->x += ((map_width - 1) - (car->position[0] - gPathMin.x) * map_width / world_width);
+        blt->x += ((map_width - 1) - (car->position[0] - gPathMin[0]) * map_width / world_width);
     }
-    blt->y += (car->position[2] - gPathMin.z) * map_height / world_height;
+    blt->y += (car->position[2] - gPathMin[2]) * map_height / world_height;
     gBlitInstanceList[blt->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (size) { }
     flash = car->dead || m->crash || !m->collidable || m->hide || m->hit_target != -1;

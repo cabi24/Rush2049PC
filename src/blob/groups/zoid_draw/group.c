@@ -1118,14 +1118,6 @@ typedef struct tPoly {
 
 VIEW(Gfx *, frame_dl);
 #define frame_dl frame_dl_view
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
-VIEW(s16, ObjHead);
-#define ObjHead ObjHead_view
-
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
 
 void *memcpy(void *, const void *, unsigned int);
 
@@ -1436,11 +1428,6 @@ typedef struct BlitInstance {
     u8 pad17;
     s16 top, left, bot, right;  /* 0x18 the part of the texture drawn, texels */
 } BlitInstance;
-
-VIEW(Lights2 *, gLights);
-#define gLights gLights_view
-VIEW(s16, gNumLights);
-#define gNumLights gNumLights_view
 
 VIEW(BlitInstance[200], gBlitInstanceList);
 #define gBlitInstanceList gBlitInstanceList_view

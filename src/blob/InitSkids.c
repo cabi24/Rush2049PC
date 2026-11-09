@@ -18,20 +18,6 @@ typedef struct tSkid {
  * pc_skids, PC_MAX_LINKS cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
 #define SKID_TABLE_BYTES sizeof (pc_skids)
 
-/* The list header (tStatList), with the active list typed. */
-typedef struct SkidList {
-    u8 dbl;
-    int numElements;
-    int elementSize;
-    void *list;
-    tSkid *head;     /* the marks in use */
-    tSkid *store;    /* the whole StatLL header (shots.c), as every view has it on the PC */
-} SkidList;
-
-VIEW(SkidList, gSkidList);
-#define gSkidList gSkidList_view
-VIEW(PcEffectObj[100], gSkidArray);
-#define gSkidArray gSkidArray_view
 #define gNewSkid PC_SKIDS
 
 void ZOID_RemovePoly(void *poly);

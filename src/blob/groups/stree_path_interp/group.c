@@ -4,7 +4,7 @@
 
 /* A point of the road path (MAT3 pathtyp, gRoadPath[gRoadHead->pnum], the collision WAD's): a cross-section of the
  * road. The names say what the code does with each; MAT3's are in the comments. */
-typedef struct {
+typedef struct pathtyp {
     /* 0x00 */ f32 pos[3];      /* pos: its centre */
     /* 0x0C */ f32 uvs[3][3];   /* uvs: its frame */
     /* 0x30 */ f32 right[3];    /* ve: across the road */
@@ -22,11 +22,6 @@ typedef struct {
     /* 0x78 */ f32 hR;          /* m0r: right */
     /* 0x7C */ f32 pad7C[2];    /* m1l, m1r */
 } PathRec; /* 0x84 */
-VIEW(PathRec *, gRoadPath);
-#define gRoadPath gRoadPath_view
-
-VIEW(u16 *, gRoadHead);
-#define gRoadHead gRoadHead_view
 
 f32 fabsf(f32);
 
@@ -57,7 +52,7 @@ void fHalfPipeInterp(s32 unused, u16 idx, f32 *position, f32 *outPosition, f32 (
     f32 rel[3];
 
     r0 = &gRoadPath[idx];
-    if (idx + 1 < *gRoadHead) {
+    if (idx + 1 < gRoadHead->pnum) {
         r1 = r0 + 1;
     } else {
         r1 = gRoadPath;
@@ -150,7 +145,7 @@ void fPathInterp(s32 unused, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]) {
     f32 off;
     f32 rel[3];
 
-    next = idx + 1 < *gRoadHead ? idx + 1 : 0;
+    next = idx + 1 < gRoadHead->pnum ? idx + 1 : 0;
     r0 = &gRoadPath[idx];
     r1 = &gRoadPath[next];
     surfpos(r0->pos, r0->uvs[0], pos, rel);

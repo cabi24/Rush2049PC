@@ -15,8 +15,6 @@ typedef struct PlayerRec {
 #define LISTENER_WORD(p) (s32)PC_N64A(p)
 
 extern PlayerRec gPlayers[];
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 VIEW(Vec3, unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view

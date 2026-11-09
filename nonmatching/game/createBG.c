@@ -40,10 +40,6 @@ VIEW(void *, bg_texture);
 #define bg_texture bg_texture_view
 VIEW(s32[4], offsetsValid);
 #define offsetsValid offsetsValid_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 void *MBOX_FindTexture_WORK(char *name, u16 *index, s8 firstModel, s8 lastModel, s32 flag);   /* MBOX_FindTexture */
 Poly *ZOID_NewPoly(s32 nverts, f32 (*xyz)[3], u16 texidx, Color *color, u16 flags, s32 useTidx);
 extern SoundState *NewMultiBlit(s16 ulx, s16 uly, SoundClearRecord *mblit, s16 nblits);
@@ -64,7 +60,7 @@ void createBG(void)
     for (polyIdx = 0; polyIdx < 4; polyIdx++) {
         Color backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
 
-        bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels - 1, 1);
+        bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels[0] - 1, 1);
         polyVerts[0][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;
         polyVerts[0][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxY;
         polyVerts[0][2] = (f32)bgDist;

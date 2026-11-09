@@ -6,8 +6,6 @@
 
 /* A flat polygon (MAT3 tPoly, 88 bytes): what this file sets. */
 typedef struct tPoly { s16 nverts; u16 flags, texidx; unsigned char rest[82]; } tPoly;
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
 
 extern void ZOID_UpdatePoly(tPoly *, int, f32 *, u16, u8 *, u16, int);
 

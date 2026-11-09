@@ -5,8 +5,6 @@
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
 
-typedef struct StatLL { s8 dbl; s32 numElements; s32 elementSize; void *list; void *head; void *store; } StatLL;
-
 typedef struct Pad {
     u8 slot, controller; u8 pad02[2];
     u32 edges;            /* 0x04 */
@@ -131,31 +129,7 @@ typedef struct tTexture { u8 b[36]; } TexDef;
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
-VIEW(ColSize[], collsize);
-#define collsize collsize_view
 extern f32 weaponOffsets[8][13][3];/* weaponOffsets */
-VIEW(StatLL, gShotObjList);
-#define gShotObjList gShotObjList_view
-VIEW(Shield[4], gCarShield);
-#define gCarShield gCarShield_view
-VIEW(StatLL, gShotList);
-#define gShotList gShotList_view
-VIEW(StatLL, gHitPolyList);
-#define gHitPolyList gHitPolyList_view
-VIEW(StatLL, gShotCaseList);
-#define gShotCaseList gShotCaseList_view
-VIEW(s32[10], gWprObjList);
-#define gWprObjList gWprObjList_view
-VIEW(s32[7], gWfxObjList);
-#define gWfxObjList gWfxObjList_view
-VIEW(u16[5], gMineTextures);
-#define gMineTextures gMineTextures_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-VIEW(RGBA, hitColor);
-#define hitColor hitColor_view
-
 extern void ZOID_RemovePoly(void *poly);
 
 extern Streak *NewStreak(s32 type, f32 *pos, f32 *pos2);
@@ -788,7 +762,7 @@ wallHit:
                         verts[3][2] = verts[3][2] + v1[2];
                     }
                     if (!wallTidx)
-                        MBOX_FindTexture_WORK("HIT_WALL", &wallTidx, 0, gNumModels - 1, 1);
+                        MBOX_FindTexture_WORK("HIT_WALL", &wallTidx, 0, gNumModels[0] - 1, 1);
                     h = GetStatLLE(&gHitPolyList);
                     h->poly = ZOID_NewPoly(4, &verts[0][0], wallTidx, &hitColor, 0x20f, 1);
                     if (!h->poly)

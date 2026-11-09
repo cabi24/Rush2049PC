@@ -9,9 +9,6 @@ struct tTexture {
 };
 
 #define MBOX_WARN 1 /* MBOX_FindTexture_WORK: complain when the texture isn't found */
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
 extern struct tTexture *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
 
 /* Sets up blit from its name: a NULL name is a plain coloured rectangle (default_blit_image's colour, no size yet),
@@ -31,7 +28,7 @@ void InitBlit(tBlit *blit) {
         blit->height = 0;
         blit->palette = 0;
     } else {
-        blit->texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels - 1, MBOX_WARN);
+        blit->texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels[0] - 1, MBOX_WARN);
         blit->width = blit->texture->width;
         blit->height = blit->texture->height;
         blit->palette = 0;

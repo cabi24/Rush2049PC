@@ -2,10 +2,6 @@
  * runtime image B). */
 #include "game/game.h"
 
-typedef struct Status { s16 kind, handle; f32 uv[3][3], position[3]; } Status;
-typedef struct Handle { s16 handle, unknown2; f32 uv[3][3], position[3]; } Handle;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Point { s16 x, y; } Point;
 typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
 /* PC: the fade's alpha passes 255 while a score's start is ahead of the clock; a float out of a u8's range is
  * undefined in C, so it goes through an int and keeps its low byte, as the N64's trunc.w.s and sb do
@@ -26,46 +22,13 @@ typedef struct ScoreState {
     s32 multiplier, pending, state;
 } ScoreState;
 typedef struct Effect { s16 state, handle; f32 uv[3][3], position[3], alpha; s16 x,y,from_x,from_y,to_x,to_y; f32 timer; } Effect;
-
-VIEW(Status[], weaponIcon);
-#define weaponIcon weaponIcon_view
-VIEW(Status[], powerupIcon);
-#define powerupIcon powerupIcon_view
-VIEW(Handle[], battleCoin);
-#define battleCoin battleCoin_view
-
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
-VIEW(Point[4][4], powerupPos);
-#define powerupPos powerupPos_view
-VIEW(Point[4][4], ammoPos);
-#define ammoPos ammoPos_view
-VIEW(s32[4][4][2], fragPos);
-#define fragPos fragPos_view
-VIEW(s32[4][4][2], stuntCoinPos);
-#define stuntCoinPos stuntCoinPos_view
-VIEW(s32[4][4][2], wrongWayPos);
-#define wrongWayPos wrongWayPos_view
-VIEW(Color, weapon_icon_color);
-#define weapon_icon_color weapon_icon_color_view
-VIEW(Color[], hudextra_playerColor);
-#define hudextra_playerColor hudextra_playerColor_view
-VIEW(Color, stunt_coin_color);
-#define stunt_coin_color stunt_coin_color_view
-
-VIEW(ScoreState[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
-VIEW(Effect[4][10], stuntCoin);
-#define stuntCoin stuntCoin_view
-
 /* Shows each window's powerup icon, a 3D object turning by hudObjAngle at powerupPos, for the powerup its car has
  * (made or swapped when that changes, removed when none). Returns 1. */
 s32 animPowerupIcons(void *unused)
 {
-    Point point;
+    ScreenPos16 point;
     s32 kind, i;
-    Status *status;
+    tHudIcon *status;
     for (i = 0; i < gNumWindows; i++) {
         if (PC_CAR_BATTLE_FLAGS(i)) {
             if (PC_CAR_BATTLE_FLAGS(i) & 1) kind = 1;
@@ -74,49 +37,49 @@ s32 animPowerupIcons(void *unused)
             kind = 0;
         }
         status = &powerupIcon[i];
-        if (kind != status->kind) {
-            if (status->handle != -1) {
-                ZOID_RemoveObject(status->handle);
-                status->handle = -1;
+        if (kind != status->type) {
+            if (status->idx != -1) {
+                ZOID_RemoveObject(status->idx);
+                status->idx = -1;
             }
-            status->kind = kind;
+            status->type = kind;
         }
-        if (status->kind && status->handle == -1) {
-            status->handle = MBOX_NewObject(
-                MBOX_FindObject_WORK(powerupIconNames[status->kind], 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1),
-                powerupIcon[i].uv, -1, 0);
-            MBOX_HideObject(status->handle, 1, 15);
-            MBOX_ShowObject(status->handle, 0, hudextra_whichCam[i]);
-            ObjInstanceList[status->handle].w = 1.5f;
+        if (status->type && status->idx == -1) {
+            status->idx = MBOX_NewObject(
+                MBOX_FindObject_WORK(powerupIconNames[status->type], 0, gNumModels[0] - 1, 1),
+                powerupIcon[i].mat.uvs, -1, 0);
+            MBOX_HideObject(status->idx, 1, 15);
+            MBOX_ShowObject(status->idx, 0, hudextra_whichCam[i]);
+            ObjInstanceList[status->idx].w = 1.5f;
         }
-        ScaleUV(gCamera[i].mat.uvs, powerupIcon[i].uv, 0.025f);
-        YawUV(hudObjAngle, powerupIcon[i].uv);
+        ScaleUV(gCamera[i].mat.uvs, powerupIcon[i].mat.uvs, 0.025f);
+        YawUV(hudObjAngle, powerupIcon[i].mat.uvs);
         point.x = powerupPos[gNumWindows - 1][i].x;
         point.y = powerupPos[gNumWindows - 1][i].y;
-        ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, status->position);
+        ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, status->mat.uvs[3]);
     }
     return 1;
 }
 /* The same for each window's weapon icon (weaponPos), the weapon its car carries. Returns 1. */
 s32 animWeaponIcons(void *unused)
 {
-    Point point;
+    ScreenPos16 point;
     s32 i, kind, resource;
     Color color;
     s32 player_kind;
     for (i = 0; i < gNumWindows; i++) {
         player_kind = PC_CAR_KIND(i);
-        kind = weaponIcon[i].kind;
+        kind = weaponIcon[i].type;
         if (player_kind != kind) {
-            if (weaponIcon[i].handle != -1) {
-                ZOID_RemoveObject(weaponIcon[i].handle);
-                weaponIcon[i].handle = -1;
+            if (weaponIcon[i].idx != -1) {
+                ZOID_RemoveObject(weaponIcon[i].idx);
+                weaponIcon[i].idx = -1;
                 player_kind = PC_CAR_KIND(i);
             }
-            weaponIcon[i].kind = player_kind;
-            kind = weaponIcon[i].kind;
+            weaponIcon[i].type = player_kind;
+            kind = weaponIcon[i].type;
         }
-        if (kind != 8 && weaponIcon[i].handle == -1) {
+        if (kind != 8 && weaponIcon[i].idx == -1) {
             color.word = weapon_icon_color.word;
             switch (kind) {
             case 0: resource = 216; break;
@@ -128,20 +91,20 @@ s32 animWeaponIcons(void *unused)
             case 6: resource = 222; break;
             case 7: resource = 223; break;
             }
-            weaponIcon[i].handle = MBOX_NewObject(gObjList[resource], weaponIcon[i].uv, -1, 0x42000);
-            ZOID_SetColor(weaponIcon[i].handle, &color.word);
-            ObjInstanceList[weaponIcon[i].handle].w = 1.5f;
-            MBOX_HideObject(weaponIcon[i].handle, 1, 15);
-            MBOX_ShowObject(weaponIcon[i].handle, 0, hudextra_whichCam[i]);
-            kind = weaponIcon[i].kind;
+            weaponIcon[i].idx = MBOX_NewObject(gObjList[resource], weaponIcon[i].mat.uvs, -1, 0x42000);
+            ZOID_SetColor(weaponIcon[i].idx, &color.word);
+            ObjInstanceList[weaponIcon[i].idx].w = 1.5f;
+            MBOX_HideObject(weaponIcon[i].idx, 1, 15);
+            MBOX_ShowObject(weaponIcon[i].idx, 0, hudextra_whichCam[i]);
+            kind = weaponIcon[i].type;
         }
-        if (kind == 7) ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].uv, 0.175f);
-        else ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].uv, 0.069f);
-        YawUV(hudObjAngle, weaponIcon[i].uv);
+        if (kind == 7) ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].mat.uvs, 0.175f);
+        else ScaleUV(gCamera[i].mat.uvs, weaponIcon[i].mat.uvs, 0.069f);
+        YawUV(hudObjAngle, weaponIcon[i].mat.uvs);
         point.x = ammoPos[gNumWindows - 1][i].x;
         point.y = ammoPos[gNumWindows - 1][i].y;
-        if (weaponIcon[i].kind == 7) ZOID_WindowTo3D(i, &point.x, &gCamera[i], 5.75f, weaponIcon[i].position);
-        else ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, weaponIcon[i].position);
+        if (weaponIcon[i].type == 7) ZOID_WindowTo3D(i, &point.x, &gCamera[i], 5.75f, weaponIcon[i].mat.uvs[3]);
+        else ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, weaponIcon[i].mat.uvs[3]);
     }
     return 1;
 }
@@ -151,12 +114,12 @@ s32 animWeaponIcons(void *unused)
 void UpdateHUDExtraPostCamera(void)
 {
     s32 i, j, kind, y_offset;
-    Point point;
+    ScreenPos16 point;
     NameQuad names;
     Color color;
     Color player_color;
     char name[32];
-    Handle *handle;
+    tBattleCoin *handle;
     ScoreState *score;
     Effect *effect, *selected, *previous;
     f32 alpha, fraction;
@@ -166,24 +129,24 @@ void UpdateHUDExtraPostCamera(void)
         animPowerupIcons(0);
         for (i = 0; i < gNumWindows; i++) {
             handle = &battleCoin[i];
-            if (handle->handle == -1) {
+            if (handle->idx == -1) {
                 names = battle_coin_object_names;
                 player_color.rgba.r = hudextra_playerColor[gCarTeam[i]].rgba.r;
                 player_color.rgba.g = hudextra_playerColor[gCarTeam[i]].rgba.g;
                 player_color.rgba.b = hudextra_playerColor[gCarTeam[i]].rgba.b;
                 player_color.rgba.a = 255;
-                handle->handle = MBOX_NewObject(
-                    MBOX_FindObject_WORK(names.name[gCarTeam[i]], 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1),
-                    handle->uv, -1, 0);
-                ObjInstanceList[handle->handle].w = 1.5f;
-                MBOX_HideObject(handle->handle, 1, 15);
-                MBOX_ShowObject(handle->handle, 0, hudextra_whichCam[i]);
+                handle->idx = MBOX_NewObject(
+                    MBOX_FindObject_WORK(names.name[gCarTeam[i]], 0, gNumModels[0] - 1, 1),
+                    handle->mat.uvs, -1, 0);
+                ObjInstanceList[handle->idx].w = 1.5f;
+                MBOX_HideObject(handle->idx, 1, 15);
+                MBOX_ShowObject(handle->idx, 0, hudextra_whichCam[i]);
             }
-            ScaleUV(gCamera[i].mat.uvs, handle->uv, gNumPlayers >= 3 ? 0.012f : 0.009f);
-            PitchUV(-1.5707963267948966f, handle->uv);
+            ScaleUV(gCamera[i].mat.uvs, handle->mat.uvs, gNumPlayers >= 3 ? 0.012f : 0.009f);
+            PitchUV(-1.5707963267948966f, handle->mat.uvs);
             point.x = fragPos[gNumWindows - 1][i][0];
             point.y = fragPos[gNumWindows - 1][i][1];
-            ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, handle->position);
+            ZOID_WindowTo3D(i, &point.x, &gCamera[i], 2.0f, handle->mat.uvs[3]);
         }
     }
     if (gRace == 4) {
@@ -206,17 +169,17 @@ void UpdateHUDExtraPostCamera(void)
                             if (effect->state == 11) {
                                 TB_Sprintf(name, stunt_coin_object_format, stuntCoinTexNames[kind]);
                                 if (effect->handle != -1) {
-                                    ZOID_SetObjectDef(effect->handle, (u16)MBOX_FindObject_WORK(name, 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1));
+                                    ZOID_SetObjectDef(effect->handle, (u16)MBOX_FindObject_WORK(name, 0, gNumModels[0] - 1, 1));
                                 } else {
                                     effect->handle = MBOX_NewObject(
-                                        MBOX_FindObject_WORK(name, 0, *(u8 *)(uintptr_t)&gNumModels - 1, 1), effect->uv, -1, 0x42000);
+                                        MBOX_FindObject_WORK(name, 0, gNumModels[0] - 1, 1), effect->uv, -1, 0x42000);
                                 }
                                 ObjInstanceList[effect->handle].w = 1.5f;
                                 effect->state = kind;
                                 effect->timer = 0.5f;
                                 y_offset = gNumWindows == 1 ? -28 : gNumWindows == 2 ? -16 : -12;
-                                selected->from_x = wrongWayPos[gNumWindows - 1][i][0];
-                                selected->from_y = wrongWayPos[gNumWindows - 1][i][1] + y_offset;
+                                selected->from_x = wrongWayPos[gNumWindows - 1][i].x;
+                                selected->from_y = wrongWayPos[gNumWindows - 1][i].y + y_offset;
                                 selected->to_x = stuntCoinPos[gNumWindows - 1][i][0];
                                 selected->to_y = stuntCoinPos[gNumWindows - 1][i][1] + y_offset;
                                 for (j--; j >= 0; j--) {

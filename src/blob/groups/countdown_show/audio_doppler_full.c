@@ -6,9 +6,6 @@ typedef struct Poly {
     s16 active;
     u16 flags;
 } Poly;
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 void *MBOX_FindTexture_WORK(char *name, u16 *out, s8 lo, s8 hi, s32 err);
 Poly *ZOID_NewPoly(s32, f32 *, u16, u8 *, u16, s32);
 void ZOID_UpdatePoly(Poly *, s32, f32 *, u16, u8 *, u16, s32);
@@ -48,13 +45,13 @@ void ShowCountdown(s32 active)
                 xyz[i][2] += gCamera[winidx].mat.pos[2];
             }
             if (poly[winidx] == 0) {
-                MBOX_FindTexture_WORK("CNTDWN3", &polyTidx, 0, gNumModels - 1, 1);
+                MBOX_FindTexture_WORK("CNTDWN3", &polyTidx, 0, gNumModels[0] - 1, 1);
                 poly[winidx] = ZOID_NewPoly(4, xyz[0], polyTidx, polyColor, (1 << winidx) | 0x8000 | 0x200 | 0x80 | 0x40, 1);
                 lastCountDown = 4;
             } else if (lastCountDown > gCountDown) {
                 if (winidx == gNumWindows - 1) {
                     sprintf(str, "CNTDWN%d", gCountDown);
-                    MBOX_FindTexture_WORK(str, &polyTidx, 0, gNumModels - 1, 1);
+                    MBOX_FindTexture_WORK(str, &polyTidx, 0, gNumModels[0] - 1, 1);
                     lastCountDown = gCountDown;
                     if (gCountDown == 3) {
                         PlayGameSound(75, 0, 1, 0);

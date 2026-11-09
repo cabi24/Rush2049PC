@@ -3,8 +3,6 @@
 
 extern void RemoveBlit(intptr_t blit);
 
-VIEW(intptr_t, multiPlayerBlit);
-#define multiPlayerBlit multiPlayerBlit_view
 /* Removes the multiplayer HUD's blits (multiPlayerBlit), if there are any. */
 void RemoveMultiplayerHUD(void)
 {

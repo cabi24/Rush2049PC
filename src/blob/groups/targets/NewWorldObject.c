@@ -14,12 +14,6 @@ typedef struct tModelPart {
     u8 opaque72[8];     /* +0x48 sfx1, sfx2, tidx */
     f32 min[3],max[3];  /* +0x50 its bounding box, for the culling list */
 } tModelPart;
-VIEW(tModelPart *, WorldBase);
-#define WorldBase WorldBase_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern int SetupTarget(tModelPart *,s16,int,int,int,int,int);
 extern int ZOID_AddObject ( int , f32 * , s16 , u32 );
 
@@ -42,7 +36,7 @@ void NewWorldObject(tModelPart *wnode,s16 parent)
         cur_world_obj=ptr;
         if(!SetupTarget(ptr,parent,0,1,-1,1,0)) {
             dlindex=parent;
-            mbobj=MBOX_FindObject_WORK(ptr,0,gNumModels-1,1);
+            mbobj=MBOX_FindObject_WORK(ptr,0,gNumModels[0]-1,1);
             if(gGameState & 8)
                 dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,get_world_part_flags(ptr)|0xE00);
             else

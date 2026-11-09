@@ -214,9 +214,8 @@ because the library is the same.
   start menu's debug row bit 8).
 - **The cartridge window**: `musyx_cart_address` turns a sample's offset into an address in the N64's 0xB0000000
   window, which the PC's DMA emulation reads.
-- **Views of shared data** (`VIEW(...)`) remain where a file reads a datum through another type than the header's
-  (`gNumModels` as volatile, `unitmatrix` as a matrix, `gCamera` as bytes); each is the old declaration, kept so the
-  code compiles the same.
+- **`gNumModels[0]`**: the model count is an array of 4 bytes in include/game (the data loader's layout: the gap to the
+  next datum), so the screens read `gNumModels[0]`; MAT3's `unsigned char gNumModels` is for wave 3.
 - **The track maps** (trackscr.c): `MapLod.displayList` and `verts` are 32-bit fields given host pointers to the
   display lists `buildTrackMaps` makes; that holds only while the heap is in the fixed window.
 - **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no

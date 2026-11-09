@@ -9,9 +9,6 @@ struct tTexture {
 };
 
 #define MBOX_WARN 1 /* MBOX_FindTexture_WORK: complain when the texture isn't found */
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
 extern struct tTexture *MBOX_FindTexture_WORK(char *name, s16 *index, s8 lo, s8 hi, s32 err);
 
 /* Makes blit show the texture name. With preserve the blit keeps its size, crop and colours and only the texture
@@ -21,7 +18,7 @@ void RenameBlit(tBlit *blit, char *name, s32 preserve) {
 
     blit->name = name;
     if (preserve) {
-        if (!(texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels - 1, MBOX_WARN))) {
+        if (!(texture = MBOX_FindTexture_WORK(blit->name, &blit->texIndex, 0, gNumModels[0] - 1, MBOX_WARN))) {
         }
         blit->texture = texture;
     } else {

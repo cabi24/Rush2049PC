@@ -1,10 +1,8 @@
 /* The options screen's text: its options and values, the flashing colours (MAT3 optionscr.c and TB_text.c). */
 #include "game/game.h"
 
-typedef union Color {
-    u8 c[4];
-    u32 rgba;
-} Color;
+/* A colour (MAT3 tRGBA): include/game's TextColor, the flashing colours' type. */
+typedef TextColor Color;
 
 typedef struct TextHdr {
     char *str[64];
@@ -38,8 +36,6 @@ VIEW(Text, gText);
 VIEW(ButtonInfo[], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 
-VIEW(Color[2], flashColors);
-#define flashColors flashColors_view
 VIEW(Color, gFlashColor1);
 #define gFlashColor1 gFlashColor1_view
 VIEW(Color, gFlashColor2);

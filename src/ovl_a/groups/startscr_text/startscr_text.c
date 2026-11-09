@@ -10,12 +10,10 @@ VIEW(f32[3], startscr_title_button_position);
 VIEW(f32[3], startscr_players_button_position);
 #define startscr_players_button_position startscr_players_button_position_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
-extern void TB_FlashTextColors(Color4,Color4);
+extern void TB_FlashTextColors(TextColor first, TextColor second);
 
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
@@ -60,10 +58,10 @@ void startscr_animButtonText(void)
         if(startscr_buttonInfo[i].angle>0.34906584f && startscr_buttonInfo[i].angle<2.7925267f)HAL_SetTextTranslucency(128.0f);
         else HAL_SetTextTranslucency(-1.0f);
         if(startscr_buttonInfo[i].angle<1.5707964f) {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             HAL_SetTextColor(224,224,224,255);
         } else {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(kTB_FlashText);
         }
         ZOID_ProjectWindow(0,position,&gCamera[0],0,point);
@@ -89,7 +87,7 @@ void startscr_animButtonText(void)
     }
     HAL_SetTextTranslucency(-1.0f);
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    TB_FlashTextColors(flashColors,flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
 }
 
@@ -141,7 +139,7 @@ s32 startscr_animText(void *callback_context)
     }
     HAL_SetTextTranslucency(-1.0f);
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    TB_FlashTextColors(flashColors,flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

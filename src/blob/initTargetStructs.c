@@ -4,17 +4,6 @@
 /* The node pool as these lists' header (gTargetList's TargetNodePool; gAlwaysColList's tStatList lays out alike). */
 typedef TargetNodePool Pool;
 
-VIEW(u8[130 * 112], gTargetArray);
-#define gTargetArray gTargetArray_view
-
-VIEW(u8[8], gTargetStructCount);
-#define gTargetStructCount gTargetStructCount_view
-
-/* gPlayerMines' records, each word pointer-sized as the PC lays MineSlots out: four targets and the count. */
-typedef struct { intptr_t w[5]; } Rec20;
-VIEW(Rec20[4], gPlayerMines);
-#define gPlayerMines gPlayerMines_view
-
 /* InitStatLL, as the N64 code has it here: `count` elements of `size` bytes at `mem`, none in use. */
 static void pool_init(Pool *p, void *mem, s32 count, s32 size) {
     p->list = mem;
@@ -41,11 +30,11 @@ void initTargetStructs(s32 unused) {
     }
     gBattleMineCnt = 0;
     for (i = 0; i < 4; i++) {
-        gPlayerMines[i].w[0] = 0;
-        gPlayerMines[i].w[1] = 0;
-        gPlayerMines[i].w[2] = 0;
-        gPlayerMines[i].w[3] = 0;
-        gPlayerMines[i].w[4] = 0;
+        gPlayerMines[i].target[0] = 0;
+        gPlayerMines[i].target[1] = 0;
+        gPlayerMines[i].target[2] = 0;
+        gPlayerMines[i].target[3] = 0;
+        gPlayerMines[i].count = 0;
     }
     if (gRace == kBattle) {
         if (Restarting == 0) {

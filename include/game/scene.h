@@ -126,13 +126,16 @@ extern s32 skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
 extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;
-extern u16 gNumLights;
+extern s16 gNumLights;
 extern s8 gInvisibleTrack;
 extern struct Lights2 *gLights;
-extern u8 gNumModels[EXTENT(4)];
+/* How many wave instances the model searches look through (MAT3 unsigned char gNumModels): gNumModels[0]. The
+ * data loader lays the datum out as 4 bytes (to the next one), so it stays an array until the layout may change
+ * (wave 3). Volatile: the background loader raises it (SetWaveInstanceModel) while the game reads it. */
+extern volatile u8 gNumModels[EXTENT(4)];
 extern s32 gMaxPolyInsts;
 extern u8 gNumZoidWindows;
-extern u32 *gWorldData;
+extern s32 *gWorldData;
 extern struct NameEntry *WorldTable;
 extern s16 scissor0[EXTENT(4)];
 extern s16 scissor1[EXTENT(4)];
@@ -141,7 +144,7 @@ extern s16 scissorul[EXTENT(4)];
 extern s16 scissorur[EXTENT(4)];
 extern s16 scissorll[EXTENT(4)];
 extern s16 scissorlr[EXTENT(4)];
-extern struct Box104 *WorldBase;
+extern struct tModelPart *WorldBase;   /* the track's world parts (FindWorld), linked by index */
 extern s16 Worlddlidx;
 extern struct Node104 *cur_world_obj;
 extern f32 gViewableDistance;

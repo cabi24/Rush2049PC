@@ -18,15 +18,6 @@ typedef struct tUVMatrix {
     /* 0x24 */ f32 pos[3];
 } tUVMatrix;
 
-/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
-typedef struct CarParts {
-    /* 0x00 */ s32 frame;
-    /* 0x04 */ s32 extraparts[3];   /* the rocket car's flames */
-    /* 0x10 */ s32 hood;
-    /* 0x14 */ s32 sheen;
-    /* 0x18 */ s32 pad18[10];
-} CarParts;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields these functions use. */
 typedef struct tCarData {
     /* 0x000 */ u8 pad0[0xE8];
@@ -81,22 +72,6 @@ typedef struct tVisual {
     /* 0x0E */ u8 padE[0x18 - 0xE];
     /* 0x18 */ intptr_t func;
 } tVisual;
-
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
-VIEW(volatile unsigned char, gNumModels);
-#define gNumModels gNumModels_view
-
-VIEW(unsigned char *[], gTrackColors);
-#define gTrackColors gTrackColors_view
-
-VIEW(s32[][2], SheenColors);
-#define SheenColors SheenColors_view
-
 tUVMatrix *ZOID_FindMatrix(s16 objnum);
 
 /* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four
@@ -198,8 +173,8 @@ void AnimateFrame(tVisual *v, s16 op)
     clr.w = nextclr.w;
     car->prevIRclr = car->IRclr;
     car->IRclr = clr.w;
-    sclr1.w = SheenColors[gTrackNum][0];
-    sclr2.w = SheenColors[gTrackNum][1];
+    sclr1.w = SheenColors[gTrackNum][0].rgba;
+    sclr2.w = SheenColors[gTrackNum][1].rgba;
 
     if (car->in_tunnel != 0) {
         if (car->sheenAlpha < 0x20) {
@@ -239,7 +214,7 @@ void AnimateFrame(tVisual *v, s16 op)
         return;
     }
     if ((gGameState & 0x100) && gCarMines != 0 && car->carMine == 0) {
-        gObjList[OBJLIST_MINE] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels - 1, 0);
+        gObjList[OBJLIST_MINE] = MBOX_FindObject_WORK((char *)car_mine_model_name, 0, gNumModels[0] - 1, 0);
         car->carMine = 1;
     }
     if ((gGameState & 0x100) && gCarMines == 0 && car->carMine != 0) {

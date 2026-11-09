@@ -15,17 +15,7 @@ struct tStreak { tStreak *next; u32 prev, flags; f32 delay; f32 newpos[3], lastp
 /* A ribbon segment (MAT3 tStreakPoly; types.h's PcFade): its polygon, the seconds it has left, the time to its next
  * fade step, its colour and the streak it belongs to. */
 struct tStreakPoly { tStreakPoly *next; u32 prev; Record88 *poly; f32 lifeTime, incTime; u8 clr[4]; tStreak *s; };
-/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
- * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
-typedef struct StreakPolyList { u8 dbl; s32 numElements, elementSize; void *list; tStreakPoly *head; void *store; } StreakPolyList;
-typedef struct StreakList { u8 dbl; s32 numElements, elementSize; void *list; tStreak *head; void *store; } StreakList;
-VIEW(StreakPolyList, gStreakPolyList);
-#define gStreakPolyList gStreakPolyList_view
-VIEW(StreakList, gStreakList);
-#define gStreakList gStreakList_view
 
-VIEW(u8[4][4], gStreakColors);
-#define gStreakColors gStreakColors_view
 extern void ZOID_RemovePoly(Record88 *);
 
 extern Record88 *ZOID_NewPoly(s32,f32 *,u16,u8 *,u16,s32);

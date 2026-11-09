@@ -13,19 +13,6 @@ typedef struct Wad {
     void *TOC;
 } Wad;
 
-VIEW(s32 *, gWorldData);
-#define gWorldData gWorldData_view
-VIEW(WorldHdr *, WorldTable);
-#define WorldTable WorldTable_view
-VIEW(void *, gTargetGroups);
-#define gTargetGroups gTargetGroups_view
-
-VIEW(void *, gTargetGroupList);
-#define gTargetGroupList gTargetGroupList_view
-
-VIEW(void *, gRoadDat);
-#define gRoadDat gRoadDat_view
-
 /* PC: the GTLD keys become object pointers at race setup (SetTargetDefs), which don't fit the file's 4-byte
  * slots, so LoadTrack gets GTLD as a native array of the keys (port/assets/world.c); other chunks are returned
  * as they are. */

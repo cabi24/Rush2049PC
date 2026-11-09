@@ -1,9 +1,5 @@
 /* controls_initButtons: the controller-setup screen's 3D buttons for one player (MAT3 controlscr.c initButtons). */
 #include "game/game.h"
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* controls_buttonInfo[player][]: the rows' buttons, then these four (MAT3 has one more row, so its are 14-17). */
 #define CONTROLS_TITLE 13           /* the title's button */
 #define CONTROLS_CURSOR 14          /* the cursor */
@@ -38,7 +34,7 @@ void controls_initButtons(s8 player) {
         if (e->handle == none) {
             mask = 1 << player;
             CopyUV(unitmatrix, e->matrix);
-            h = ZOID_AddObject(MBOX_FindObject_WORK(controls_buttonNames[e->type], 0, (s8)(gNumModels - 1), 1), e->matrix, none,
+            h = ZOID_AddObject(MBOX_FindObject_WORK(controls_buttonNames[e->type], 0, (s8)(gNumModels[0] - 1), 1), e->matrix, none,
                                       (e->type == 0 || e->type == 1 || e->type == 2 || e->type == 9 || e->type == 10) ? 0x42000 : 0);
             e->handle = h;
             ObjInstanceList[h].color = color;
@@ -46,7 +42,7 @@ void controls_initButtons(s8 player) {
             MBOX_ShowObject(e->handle, 0, mask);
         }
     }
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_TITLE].handle, (intptr_t)MBOX_FindTexture_WORK("BUTTON_TITLE", &tex, 0, (s8)(gNumModels - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_TITLE].handle, (intptr_t)MBOX_FindTexture_WORK("BUTTON_TITLE", &tex, 0, (s8)(gNumModels[0] - 1), 1), -1);
     CopyUV(unitmatrix, controls_buttonInfo[player][CONTROLS_TITLE].matrix);
     WPitchUV(-1.5707964f, controls_buttonInfo[player][CONTROLS_TITLE].matrix);
     controls_buttonInfo[player][CONTROLS_TITLE].position[0] = 0.0f;
@@ -58,8 +54,8 @@ void controls_initButtons(s8 player) {
     controls_buttonInfo[player][CONTROLS_TITLE].position[0] *= scale;
     controls_buttonInfo[player][CONTROLS_TITLE].position[1] *= scale;
     controls_buttonInfo[player][CONTROLS_TITLE].position[2] *= scale;
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_CURSOR].handle, (intptr_t)MBOX_FindTexture_WORK("CURSOR", &tex, 0, (s8)(gNumModels - 1), 1), -1);
-    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_B_ICON].handle, (intptr_t)MBOX_FindTexture_WORK("B1", &tex, 0, (s8)(gNumModels - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_CURSOR].handle, (intptr_t)MBOX_FindTexture_WORK("CURSOR", &tex, 0, (s8)(gNumModels[0] - 1), 1), -1);
+    ZOID_SetTexture(controls_buttonInfo[player][CONTROLS_B_ICON].handle, (intptr_t)MBOX_FindTexture_WORK("B1", &tex, 0, (s8)(gNumModels[0] - 1), 1), -1);
     CopyUV(unitmatrix, controls_buttonInfo[player][CONTROLS_B_ICON].matrix);
     WPitchUV(-1.5707964f, controls_buttonInfo[player][CONTROLS_B_ICON].matrix);
     controls_buttonInfo[player][CONTROLS_B_ICON].position[0] = -75.1f;

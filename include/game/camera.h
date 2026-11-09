@@ -47,7 +47,7 @@ extern s8 gUpsideDownTrack;
 extern s8 view3_switch[EXTENT(4)];
 extern s8 gTireCnt[EXTENT(4)];
 extern f32 gSusAvg[EXTENT(4)];
-extern Vector cur_acc[EXTENT(4)];
+extern f32 cur_acc[EXTENT(4)][3];   /* each camera's smoothed acceleration, which the chase views lag by */
 extern f32 rear_y[EXTENT(4)];
 extern f32 rear_z[EXTENT(4)];
 extern f32 elasticity[EXTENT(4)];

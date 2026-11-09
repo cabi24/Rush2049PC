@@ -14,10 +14,6 @@ typedef struct tTexture {
 #define MBOX_WARN 1
 #define MBOX_FATAL 2
 #define WARN_MSG(s)
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* The texture called `name` (texcmp: the whole name) in models firstModel to lastModel (a negative bound means the
  * first or the last model), searching only the active models: returns its definition and writes its handle,
  * (model << 10) | index, to *handle; NULL and handle 0 if none has it. */
@@ -31,8 +27,8 @@ tTexture *MBOX_FindTexture_WORK(char *name, s16 *handle, s8 firstModel, s8 lastM
     if (firstModel < 0) {
         firstModel = 0;
     }
-    if (lastModel < 0 || lastModel >= gNumModels) {
-        lastModel = gNumModels - 1;
+    if (lastModel < 0 || lastModel >= gNumModels[0]) {
+        lastModel = gNumModels[0] - 1;
     }
     for (i = firstModel; i <= lastModel; i++) {
         if (!ModelActive(i)) {

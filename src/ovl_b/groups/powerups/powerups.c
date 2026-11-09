@@ -2,30 +2,8 @@
  * in turn (each kind's countdown, then its object shown until a car takes it), and the invisible cars fade. */
 #include "game/game.h"
 
-/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first on a
- * little-endian host (docs/port/ENDIAN.md). */
-#define OBJECT_HANDLE union { s32 scene; struct { s16 index, upper; } parts; }
-/* A power-up spot, a target (tTarget: its flags, scene object and object definition). */
-typedef struct Object {
-    /* PC: the power-ups are level-object nodes (InitBattlePowerUps's slots), which keep their N64 layout in the arena:
-     * the link is a 32-bit window address, so flags, the handle and resource (+0x50) are where the N64 has them
-     * (docs/port/POINTERS.md 10). */
-    u32 next;
-    u8 flags;
-    u8 unknown05[7];
-    OBJECT_HANDLE handle;
-    u8 unknown10[64];
-    s16 resource;
-} Object;
-/* A power-up spot (tBattlePowerUpT): its target, the kind it last gave (1 none, 2 invisibility, 3 a shield, 4
- * health) and the kind it shows now (1 none). */
-typedef struct Slot { Object *t; s16 last, type; } Slot;
-/* The power-ups (tBattlePowerUps), the spot each kind last came at, the time to each kind's next (-2 out now). */
-typedef struct State {
-    s8 num, hIdx, sIdx, iIdx;
-    f32 healthTLeft, invsTLeft, shieldTLeft;
-    Slot *tS;
-} State;
+/* A power-up spot is a target (tTarget, gBattlePowerUps.tS[].t): its scene object dlIdx is the s32 MBOX_NewObject
+ * returned, whose low half is the node. */
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): its invisibility (battle.defense: active bit 1,
  * its fade's state, alpha, countdown and time). */
 typedef struct Player {
@@ -39,8 +17,6 @@ typedef struct Player {
     f32 timer;
     u8 unknown3AC[12];
 } Player;
-VIEW(State, gBattlePowerUps);
-#define gBattlePowerUps gBattlePowerUps_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
@@ -98,7 +74,7 @@ void UpdateBattleInvs(void)
     s32 i;
     UpdateInvs();
     if (gBattlePowerUps.invsTLeft == -2.0f) {
-        if (gBattlePowerUps.tS[gBattlePowerUps.iIdx].t->flags & 2) {
+        if (gBattlePowerUps.tS[gBattlePowerUps.iIdx].t->Flags & 2) {
             return;
         }
         gBattlePowerUps.invsTLeft = 90.0f + Random(60.0f);
@@ -119,10 +95,10 @@ void UpdateBattleInvs(void)
         gBattlePowerUps.iIdx = i;
         gBattlePowerUps.tS[i].last = 1;
         gBattlePowerUps.tS[i].type = 2;
-        gBattlePowerUps.tS[i].t->flags |= 2;
-        gBattlePowerUps.tS[i].t->resource = 354;
-        ZOID_SetObjectDef(gBattlePowerUps.tS[i].t->handle.parts.index, gObjList[354]);
-        MBOX_ShowObject(gBattlePowerUps.tS[i].t->handle.scene, 0, 15);
+        gBattlePowerUps.tS[i].t->Flags |= 2;
+        gBattlePowerUps.tS[i].t->type = 354;
+        ZOID_SetObjectDef((s16)gBattlePowerUps.tS[i].t->dlIdx, gObjList[354]);
+        MBOX_ShowObject(gBattlePowerUps.tS[i].t->dlIdx, 0, 15);
         gBattlePowerUps.invsTLeft = -2.0f;
     }
 }
@@ -131,7 +107,7 @@ void UpdateBattleShield(void)
 {
     s32 i;
     if (gBattlePowerUps.shieldTLeft == -2.0f) {
-        if (!(gBattlePowerUps.tS[gBattlePowerUps.sIdx].t->flags & 2)) {
+        if (!(gBattlePowerUps.tS[gBattlePowerUps.sIdx].t->Flags & 2)) {
             gBattlePowerUps.shieldTLeft = Random(60.0f) + 90.0f;
             for (i = 0; i < gBattlePowerUps.num; i++) {
                 if (gBattlePowerUps.tS[i].last == 3) {
@@ -151,10 +127,10 @@ void UpdateBattleShield(void)
             gBattlePowerUps.sIdx = i;
             gBattlePowerUps.tS[i].last = 1;
             gBattlePowerUps.tS[i].type = 3;
-            gBattlePowerUps.tS[i].t->flags |= 2;
-            gBattlePowerUps.tS[i].t->resource = 359;
-            ZOID_SetObjectDef(gBattlePowerUps.tS[i].t->handle.parts.index, gObjList[359]);
-            MBOX_ShowObject(gBattlePowerUps.tS[i].t->handle.scene, 0, 15);
+            gBattlePowerUps.tS[i].t->Flags |= 2;
+            gBattlePowerUps.tS[i].t->type = 359;
+            ZOID_SetObjectDef((s16)gBattlePowerUps.tS[i].t->dlIdx, gObjList[359]);
+            MBOX_ShowObject(gBattlePowerUps.tS[i].t->dlIdx, 0, 15);
             gBattlePowerUps.shieldTLeft = -2.0f;
         }
     }
@@ -164,7 +140,7 @@ void UpdateBattleHealth(void)
 {
     s32 i;
     if (gBattlePowerUps.healthTLeft == -2.0f) {
-        if (!(gBattlePowerUps.tS[gBattlePowerUps.hIdx].t->flags & 2)) {
+        if (!(gBattlePowerUps.tS[gBattlePowerUps.hIdx].t->Flags & 2)) {
             gBattlePowerUps.healthTLeft = Random(10.0f) + 5.0f;
             for (i = 0; i < gBattlePowerUps.num; i++) {
                 if (gBattlePowerUps.tS[i].last == 4) {
@@ -184,10 +160,10 @@ void UpdateBattleHealth(void)
             gBattlePowerUps.hIdx = i;
             gBattlePowerUps.tS[i].last = 1;
             gBattlePowerUps.tS[i].type = 4;
-            gBattlePowerUps.tS[i].t->flags |= 2;
-            gBattlePowerUps.tS[i].t->resource = 353;
-            ZOID_SetObjectDef(gBattlePowerUps.tS[i].t->handle.parts.index, gObjList[353]);
-            MBOX_ShowObject(gBattlePowerUps.tS[i].t->handle.scene, 0, 15);
+            gBattlePowerUps.tS[i].t->Flags |= 2;
+            gBattlePowerUps.tS[i].t->type = 353;
+            ZOID_SetObjectDef((s16)gBattlePowerUps.tS[i].t->dlIdx, gObjList[353]);
+            MBOX_ShowObject(gBattlePowerUps.tS[i].t->dlIdx, 0, 15);
             gBattlePowerUps.healthTLeft = -2.0f;
         }
     }

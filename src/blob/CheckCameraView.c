@@ -52,8 +52,6 @@ VIEW(s32[4], gContEdges);
 #define gContEdges gContEdges_view
 
 extern Player76 gPlayers[];
-VIEW(Vec3[], cur_acc);
-#define cur_acc cur_acc_view
 
 /* On the PC the finish cameras are PC data, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 7), and
  * the drone cameras are placed for every car the race holds (docs/port/MORECARS.md 3.1). */

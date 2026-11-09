@@ -15,9 +15,6 @@ VIEW(Button[], video_buttonInfo);
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
@@ -113,9 +110,9 @@ void video_updateButtons(void) {
         WPitchUV(video_buttonInfo[i].ang - 1.5707964f, video_buttonInfo[i].mat);
         memcpy(video_buttonInfo[i + 4].mat, video_buttonInfo[i].mat, 36);
         if (1.5707964f < video_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(video_buttonInfo[i].handle, name, -1);
         ZOID_SetTexture(video_buttonInfo[i + 4].handle, name, -1);
         if ((vis = video_validOption(i)) == 0) {
@@ -157,10 +154,6 @@ void video_updateButtons(void) {
     ScaleUV(video_buttonInfo[8].mat, video_buttonInfo[8].mat, 0.4f);
     video_buttonsJustInited = 0;
 }
-
-
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 VIEW(u8[], gOptions);
 #define gOptions gOptions_view

@@ -1,14 +1,6 @@
 /* CollideCarBody: a car against the track's walls (MAT3 stree.c). */
 #include "game/game.h"
 
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
-
 /* A contact with a wall (MAT3 anon_surf_uvs_30). */
 typedef struct CCol {
     surftyp *surf;  /* the wall, NULL none */
@@ -30,9 +22,6 @@ typedef struct VCar {
     enum n64p_QNode node[4];     /* 0x3A0 each tyre's node of the surface tree */
 } VCar;
 #define N64P(x) _Generic((x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
-
-VIEW(surftyp *, stree_surf);
-#define stree_surf stree_surf_view
 
 #define FLOOR(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 

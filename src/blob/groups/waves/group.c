@@ -16,10 +16,6 @@ extern void osSetThreadPri(OSThread *thread, OSPri priority);
 
 VIEW(s32, bg_load_idle_queue);
 #define bg_load_idle_queue bg_load_idle_queue_view
-
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(s32, bg_load_request_queue);
 #define bg_load_request_queue bg_load_request_queue_view
 
@@ -42,8 +38,8 @@ void BGLoadWaveMain(void *arg) {
  * instances the model searches look through, to cover it (MAT3 _SetWaveInstanceModel). */
 void SetWaveInstanceModel(s32 index) {
     if ((gWaveInstance[index].model = wave_is_model[gWaveInstance[index].wave]) != 0) {
-        if (!(index < gNumModels)) {
-            gNumModels = index + 1;
+        if (!(index < gNumModels[0])) {
+            gNumModels[0] = index + 1;
         }
     }
 }

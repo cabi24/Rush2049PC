@@ -11,9 +11,6 @@
 float fabsf(float);
 float sqrtf(float);
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-
 /* The players' input records (tPadState: the car each drives, its controller, its profile). */
 extern tPadState gPlayers[];
 
@@ -32,12 +29,6 @@ typedef struct tCarData {
     s16 damageThisFrame;        /* 0x388 battle.damageThisFrame */
     u8 pad38A[0x3B8 - 0x38A];
 } tCarData;
-
-VIEW(u8, gCoastFlag);
-#define gCoastFlag gCoastFlag_view
-
-VIEW(u8, gDeathMode);
-#define gDeathMode gDeathMode_view
 
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. (Its tag is ModelRecord because
  * include/game/system.h declares update_model with that name.) */
@@ -103,8 +94,6 @@ typedef struct ModelRecord {
 } tModelData;
 
 /* The rumble's strength steps (MAT3 percentTable[36]): the force sums at which the next step starts. */
-VIEW(s32[36], percentTable);
-#define percentTable percentTable_view
 #define RUMBLE_STEPS percentTable
 
 VIEW(s8[], gPaks);
@@ -308,7 +297,7 @@ rumble_off:
         /* Original game: `(gRace != 6) || (gRace != 5)` (not battle or not obstacle) is always true, so every mode
          * takes the 5-second solid delay as well, and battle and obstacle become solid at whichever of the two
          * delays comes first; `&&` was meant. MAT3 marks the same line as a bug. Kept as retail. */
-        if ((((s8) gCoastFlag != 0) || (((gRace != 6) || (gRace != 5)) && (since >= 5.0f)) || (((gRace == 6) || (gRace == 5)) && (solid_delay_arena < since))) && ((id = PC_LINK_OWNER(m->slot), (id == 0)) || (id == 6))) {   /* kBattle, kObstacle; LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
+        if (((gCoastFlag != 0) || (((gRace != 6) || (gRace != 5)) && (since >= 5.0f)) || (((gRace == 6) || (gRace == 5)) && (solid_delay_arena < since))) && ((id = PC_LINK_OWNER(m->slot), (id == 0)) || (id == 6))) {   /* kBattle, kObstacle; LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
             m->collidable = 1;
             m->solid = 1;
             car->collide_time = 0.0f;
@@ -400,7 +389,7 @@ void model_iteration(void) {
                     SetClutch(m);
                     if ((m->abort != 0) && ((gRace != 6) || (m->crashflag != 0)) && (gGameState & 0x400000) && (m->resurrect_moving_state == RES_IDLE)) {   /* kBattle; GS_RACING */
                         gc = &((tCarData *) PC_CARS)[rec->slot];
-                        if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && ((s8) gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
+                        if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && (gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
                             if (gRace == 4) {   /* kStunt */
                                 CrashedStunt(i);
                             }

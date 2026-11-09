@@ -3,16 +3,6 @@
 
 float fabsf(float);
 
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
-VIEW(surftyp *, stree_surf);
-#define stree_surf stree_surf_view
-
 enum n64p_Poly { n64p_Poly_ };
 enum n64p_QNode { n64p_QNode_ };
 /* The model record (MAT3 tModelData): the fields this reads and sets. Its pointers are u32 window addresses on the

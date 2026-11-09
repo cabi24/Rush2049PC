@@ -1,6 +1,6 @@
 #include "game/game.h"
 
-typedef struct {
+typedef struct tModelPart {
     char name[16];          /* 0x00 */
     f32 uvs[4][3];          /* 0x10 mat; pos = uvs[3] at 0x34 */
     u32 dlflags;            /* 0x40 */
@@ -13,8 +13,6 @@ typedef struct {
     f32 max[3];             /* 0x5C */
 } tModelPart; /* 0x68 */
 
-VIEW(tModelPart *, WorldBase);
-#define WorldBase WorldBase_view
 
 
 float sqrtf(float);

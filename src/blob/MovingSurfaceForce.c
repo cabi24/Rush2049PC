@@ -4,15 +4,6 @@
  * mark it as moving: a boost strip pushes the car up to a speed, a platform or conveyor carries it. */
 #include "game/game.h"
 
-/* A road surface (MAT3 surftyp, 0x18 bytes): the road tree's polygons (stree_surf) and the surface the car is on. */
-typedef struct surftyp {
-    u16 flags;              /* +0x00 the road flags (road code, visual code, boost) */
-    u16 snd_flags;          /* +0x02 0x10 a push strip, 0x20 moved by a target, 0x30 moving at all; bits 11-15 the
-                             * speed (in 8 mph steps for a push strip) or the target */
-    s16 uvs[3][3];          /* +0x04 the surface's orientation, units of 1/16384: uvs[0] the direction it moves */
-    u16 vli;                /* +0x16 */
-} surftyp;
-
 enum n64p_surftyp { n64p_surftyp_ };
 /* The model record (tModelData), the fields MovingSurfaceForce reads and writes. */
 typedef struct tModelData {
@@ -39,9 +30,6 @@ typedef struct tModelData {
 /* N64-address fields (tools/port/ptr64_u32fields.py) */
 #define N64P(x) _Generic((x), enum n64p_surftyp: (surftyp *)PC_N64P(x), default: (x))
 #define N64W(x) PC_N64W(x)
-
-VIEW(surftyp *, stree_surf);
-#define stree_surf stree_surf_view
 
 /* Apply model m's moving surface (m->movingSurface) for this step:
  * - a push strip (snd_flags 0x10) faster than 50 mph: a force at the centre along the strip's direction, mass times

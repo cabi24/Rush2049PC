@@ -10,12 +10,10 @@ VIEW(f32[3], modescr_title_button_position);
 VIEW(Slot[], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
-extern void TB_FlashTextColors(Color4,Color4);
+extern void TB_FlashTextColors(TextColor first, TextColor second);
 
 #define TEXT_MODE_TITLE 40          /* gText.single[]: the screen's title */
 #define TEXT_ONE_PLAYER 29          /* gText.single[]: "player" */
@@ -69,10 +67,10 @@ s32 modescr_animText(void *callback_context)
                     HAL_SetTextTranslucency(-1.0f);
                 }
                 if (slot->angle < 1.5707964f) {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_WhiteText);
                 } else {
-                    TB_FlashTextColors(flashColors, flashColors_at_1);
+                    TB_FlashTextColors(flashColors[0], flashColors[1]);
                     TB_SetTextColor(kTB_FlashText);
                 }
                 ZOID_ProjectWindow(0, slot->position, &gCamera[0], 0, point);
@@ -87,7 +85,7 @@ s32 modescr_animText(void *callback_context)
     }
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
     HAL_SetTextTranslucency(-1.0f);
-    TB_FlashTextColors(flashColors, flashColors_at_1);
+    TB_FlashTextColors(flashColors[0], flashColors[1]);
     HAL_SetTextDepth(-1.0f);
     return 1;
 }

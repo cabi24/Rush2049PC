@@ -1,15 +1,6 @@
 /* CalcPolePositions: the race's roster and starting places (MAT3 game.c). */
 #include "game/game.h"
 
-/* A circuit's car (tCircuitCar, gCircuitCars): its id, the place it starts from. */
-typedef struct Player {
-    /* 0 */ u8 pad0;
-    /* 1 */ u8 id;
-    /* 2 */ u8 pad2[74];
-} Player; /* 0x4C */
-
-VIEW(Player[], gCircuitCars);
-#define gCircuitCars gCircuitCars_view
 /* The race roster is the PC's pc_links (pc_game_types.h, docs/port/DECOUPLE.md); the number of cars a race holds
  * is the PC's setting (PC_RACE_CARS: 6 by default), a circuit always the N64's 6 (docs/port/MORECARS.md). */
 #define PC_LATCH_CARS() if (!(gGameState & GS_HIGH_SCORE)) pc_race_cars_begin();
@@ -38,7 +29,7 @@ void CalcPolePositions(void)
     gNumCars = gNumPlayers + extra;
     for (slot = 0, config = PC_LINKS; slot < LINK_SLOTS; slot++, config++) {
         if (gRace == kCircuit && slot < gNumCars && gCircuitTrack > 0) {
-            PC_LINKP_PLACE(config) = gCircuitCars[(slot == 0) ? gCircuitPlayer : ((slot == 1) ? gCircuitPlayer ^ 1 : slot)].id;
+            PC_LINKP_PLACE(config) = gCircuitCars[(slot == 0) ? gCircuitPlayer : ((slot == 1) ? gCircuitPlayer ^ 1 : slot)].totalPlace;
             PC_LINKP_FLAGS(config) = 176;
             if (slot < gNumPlayers) {
                 PC_LINKP_OWNER(config) = 6;

@@ -3,7 +3,6 @@
  * The N64's cars are painted through their palette (TLUT): the three colours a player picks become 32-step ramps
  * in a copy of the car type's palette, which the frame and the hood draw with. MAT3 swaps textures instead. */
 #include "game/game.h"
-#define Handle HandleView   /* this file's own Handle: include/game's Handle is another type */
 
 /* PC: Resource24 is a palette record, a WAD's PLHD (MBOX_FindPalette_WORK) or a car's descriptor car_palettes, both
  * in the N64 layout (port/assets/wad.c): data is a 32-bit window address. The WAD's TLUT stays big-endian; the
@@ -25,17 +24,6 @@ static void tlut_copy_in(u16 *dst, u32 src, u32 size)
 typedef struct Resource24 { u8 directory_fields[20]; PAL_DATA; } Resource24;
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */
-typedef union Handle { s32 value; struct { s16 id, bank; } halves; } Handle;
-/* gCarParts[slot]: the car's scene objects (MAT3 CarParts, the N64's 0x40 bytes: CreateCar.c). */
-typedef struct CarParts { Handle frame; u32 extraparts[3]; Handle hood, sheen; u32 rest[10]; } CarParts;
-
-VIEW(Resource24[], car_palettes);
-#define car_palettes car_palettes_view
-VIEW(CarParts[], gCarParts);
-#define gCarParts gCarParts_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern Resource24 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, s32);    /* texture lookup */
 extern s32 sprintf(char *, char *, ...);
 extern void *memcpy(void *, const void *, u32);
@@ -61,7 +49,6 @@ u32 blend_rgb5551(u32 left, u32 right, s32 ratio)
     return red | green | blue | 1;
 }
 
-
 /* Draw scene node `id` with the palette `descriptor`. */
 void SetModelPalette(s32 id, Resource24 *descriptor)
 {
@@ -69,8 +56,6 @@ void SetModelPalette(s32 id, Resource24 *descriptor)
     m = &ObjInstanceList[id];
     m->palette = descriptor;
 }
-
-
 
 /* Write the three paint ramps into the palette `colors`: entry 32 the first colour, then 31 steps from it toward
  * black (blend_rgb5551 with 1, black with alpha), 64 on the second colour, 96 on the third; returns colors.
@@ -113,7 +98,7 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     gCarPaintJobInited[slot]=1;
     colors=AllocateMemoryHeap(0,512);
     sprintf(name,car_palette_name_format,car+1);
-    TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,gNumModels-1,1)->data,512);
+    TLUT_COPY_IN(colors,MBOX_FindPalette_WORK(name,&handle,0,gNumModels[0]-1,1)->data,512);
     if (first == 0) {
         for (i = 1; i < 32; i++) {
             value = (s32)((((colors[i] >> 11) & 0x7f) << 3) * 1.25f);
@@ -141,6 +126,6 @@ void SetupCarColor(s16 slot,s16 car,u8 first,u8 second,u8 third)
     heap_lock();
     DeallocateMemoryInternal(N64A(colors), 0);
     heap_unlock();
-    SetModelPalette(gCarParts[slot].frame.halves.id,descriptor);
-    SetModelPalette(gCarParts[slot].hood.halves.id,descriptor);
+    SetModelPalette((s16)gCarParts[slot].frame,descriptor);
+    SetModelPalette((s16)gCarParts[slot].hood,descriptor);
 }

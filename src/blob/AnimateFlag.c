@@ -34,10 +34,6 @@ typedef struct Visual {
 
 #define TARGET_STARTED 1        /* the flag has been coloured */
 #define FLAG_FRAMES 10          /* the wave's models */
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* PC: retail calls it through an implicit declaration (an int result) with a fifth word; the definition
  * returns the palette record, which an int would cut to 32 bits. Old-style, so the five-word call stays. */
 intptr_t MBOX_FindPalette_WORK();
@@ -72,7 +68,7 @@ void AnimateFlag(Visual *v, s16 op) {
         } else {
             i = 0;
         }
-        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels - 1), 1);
+        palette = MBOX_FindPalette_WORK(flag_pals[i], &paletteHandle, 0, (s8)(gNumModels[0] - 1), 1);
         i = t->dlIdx;
         ObjInstanceList[i].palette = (void *) palette;
         offSuffix = game_strstr(N64P(t->data), "_OFF");

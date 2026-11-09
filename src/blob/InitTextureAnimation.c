@@ -41,13 +41,6 @@ typedef struct tTextureSwap {
     f32 time, initTime;
     Item12 *swapTexs;   /* the frames (MAT3 tTextureBase: name, tex, texBase) */
 } tTextureSwap;
-
-VIEW(tPaletteAnim *[], PaletteLists);
-#define PaletteLists PaletteLists_view
-VIEW(tTextureSwap *[], TextureSwapLists);
-#define TextureSwapLists TextureSwapLists_view
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
 extern Resource32 *MBOX_FindTexture_WORK(char *, u16 *, s8, s8, int);
 extern Resource32 *MBOX_FindPalette_WORK(char *, u16 *, s8, s8, int);
 
@@ -70,9 +63,9 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels - 1, 1)->texBase);
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = N64PTR0(void *, MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1)->texBase);
         else {
-            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels - 1, 1);
+            resource = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1);
             if (resource) plist->ptr = N64PTR0(void *, resource->palBase);
         }
         plist++;
@@ -84,9 +77,9 @@ flipbooks:
     while (tlist->num) {
         for (i = 0; i < tlist->num; i++) {
             if (expansion_pak_present || gTrackNum >= 6) {
-                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else if (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6 && tlist->swapTexs != texture_swap_shared_frames) {
-                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels - 1, 1);
+                tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else continue;
             resource = tlist->swapTexs[i].tex;
             if (resource->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = resource->texBase;

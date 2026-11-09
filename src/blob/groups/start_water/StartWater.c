@@ -38,8 +38,6 @@ typedef struct SmokePuff {
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
-VIEW(u8[], gSmokeList);
-#define gSmokeList gSmokeList_view
 
 #define DEBUG_PRINT(args)
 
@@ -82,7 +80,7 @@ void StartWater(s16 slot, u32 tire) {
     case 3: if (gCarSmokeDir[slot] & SMOKE_WATER_T3) return; gCarSmokeDir[slot] |= SMOKE_WATER_T3; break;
     }
 
-    smk = GetStatLLE(gSmokeList);
+    smk = GetStatLLE(&gSmokeList);
     if (smk == 0) return;
     smk->swTime = 0.0333333f;
     smk->slot = slot;
@@ -123,7 +121,7 @@ void StartWater(s16 slot, u32 tire) {
     smk->mbIdx = ZOID_AddObject(gObjList[205], smk->uvs, -1, 0x40000);
 
     if (snap != start_water_sentinel) DEBUG_PRINT(("x"));
-    smk = GetStatLLE(gSmokeList);
+    smk = GetStatLLE(&gSmokeList);
     if (smk == 0) return;
     smk->swTime = 0.0333333f;
     smk->data = data;

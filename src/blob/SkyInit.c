@@ -1,12 +1,5 @@
 /* SkyInit.c: make each window's sky dome (MAT3 sky.c, SkyInit()). */
 #include "game/game.h"
-
-VIEW(u16, gNumWindows);
-#define gNumWindows gNumWindows_view
-
-VIEW(volatile char, gNumModels);
-#define gNumModels gNumModels_view
-
 s32 ZOID_AddObject();
 
 /* PC: video.fog off keeps the sky dome with the track select's fog option on (docs/port/DETAIL.md 2.4): the N64 makes
@@ -36,7 +29,7 @@ void SkyInit(void)
   }
   dst = skyMatrices;
   for (i = 0; i < (s16) gNumWindows; i++) {
-    handle = MBOX_FindObject_WORK(sky_object_name, 0, gNumModels - 1, 1);
+    handle = MBOX_FindObject_WORK(sky_object_name, 0, gNumModels[0] - 1, 1);
     matrix = ZOID_NewMatrix();
     *dst = N64A(matrix);
     ZOID_AddObject(handle, matrix, -1, (((s16) (1 << i)) << 8) ^ 0xF00);

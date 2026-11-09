@@ -45,8 +45,6 @@ typedef struct Kind {
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(Kind[], targetInfo);
-#define targetInfo targetInfo_view
 
 
 /* Every SWAP_FRAME_TIME seconds (not while paused) shows the next of the target's models (base .. base + count - 1

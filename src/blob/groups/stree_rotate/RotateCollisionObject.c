@@ -3,21 +3,6 @@
 
 #define vecadd(a,b,r)	{r[0]=a[0]+b[0]; r[1]=a[1]+b[1]; r[2]=a[2]+b[2];}
 
-/* A surface (MAT3 surftyp, stree_surf[]): its orientation. */
-typedef struct surftyp {
-    u16 flags;      /* 0x00 */
-    u16 snd_flags;  /* 0x02 */
-    s16 uvs[9];     /* 0x04 its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    u16 vli;        /* 0x16 */
-} surftyp;
-
-VIEW(savetyp *, stree_save);
-#define stree_save stree_save_view
-VIEW(surftyp *, stree_surf);
-#define stree_surf stree_surf_view
-VIEW(sverttyp *, stree_svert);
-#define stree_svert stree_svert_view
-
 /* Turns collision object `num` about `origin`: each saved surface's orientation (as the track had it) is turned
  * by m1 then m2 (MulUVS), and its vertex's position by m1 then m2 about the origin (WorldVector), truncated to 1/32
  * foot. A target path turns its collision object so, m1 its first point's orientation transposed (undoing it) and
@@ -45,7 +30,7 @@ void RotateCollisionObject(s32 num, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
             mats2fcopy(s->uvs, (f32 *) mat);
             MulUVS(m1, mat, tmp);
             MulUVS(m2, tmp, mat);
-            out = stree_surf[s->snum].uvs;
+            out = stree_surf[s->snum].uvs[0];
             out[0] = mat[0][0] * 16384.0f;
             out[1] = mat[0][1] * 16384.0f;
             out[2] = mat[0][2] * 16384.0f;

@@ -6,7 +6,6 @@
  * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
-typedef struct Vec3 { f32 x, y, z; } Vec3;
 typedef union tRGBA {struct {u8 r,g,b,a;} c;u32 rgba;} tRGBA;
 /* A car visual (MAT3 tVisual). PC: 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
 typedef struct tVisual {
@@ -54,19 +53,6 @@ typedef struct tWindowInfo {
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
 
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-VIEW(tPoly[], PolyInstanceList);
-#define PolyInstanceList PolyInstanceList_view
-VIEW(s8[4][4], gFadePlayerArrow);
-#define gFadePlayerArrow gFadePlayerArrow_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
-VIEW(tRGBA[5], arrowColors);
-#define arrowColors arrowColors_view
-VIEW(tRGBA, arrow_base_color);
-#define arrow_base_color arrow_base_color_view
-
 /* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };
 extern void ZOID_UpdatePoly(tPoly *, s32, f32 (*)[3], u16, tRGBA *, u16, s32);
@@ -86,7 +72,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     f32 scale;
     s32 oslot;
     s32 i;
-    tRGBA clr;
+    ArrowColor clr;
     f32 vec[3];
     tWindowInfo *window;
     f32 x, y, z, border, vscale, voffset;
@@ -114,13 +100,13 @@ void AnimateArrow(tVisual *v, s16 op) {
     }
     if (m->drone_type == 2) {                         /* DRONE_TYPE_HUMAN */
         if (gRace == 6) {
-            clr.c.r = arrowColors[gCarTeam[m->slot]].c.r;
-            clr.c.g = arrowColors[gCarTeam[m->slot]].c.g;
-            clr.c.b = arrowColors[gCarTeam[m->slot]].c.b;
+            clr.c.r = arrowColors[gCarTeam[m->slot]].c[0];
+            clr.c.g = arrowColors[gCarTeam[m->slot]].c[1];
+            clr.c.b = arrowColors[gCarTeam[m->slot]].c[2];
         } else {
-            clr.c.r = arrowColors[m->slot].c.r;
-            clr.c.g = arrowColors[m->slot].c.g;
-            clr.c.b = arrowColors[m->slot].c.b;
+            clr.c.r = arrowColors[m->slot].c[0];
+            clr.c.g = arrowColors[m->slot].c[1];
+            clr.c.b = arrowColors[m->slot].c[2];
         }
         if (gFadePlayerArrow[m->slot][oslot] && clr.c.a > 112) {
             clr.c.a = 112;
@@ -129,9 +115,9 @@ void AnimateArrow(tVisual *v, s16 op) {
             clr.c.a = 128;
         }
     } else {
-        clr.c.r = arrowColors[4].c.r;
-        clr.c.g = arrowColors[4].c.g;
-        clr.c.b = arrowColors[4].c.b;
+        clr.c.r = arrowColors[4].c[0];
+        clr.c.g = arrowColors[4].c[1];
+        clr.c.b = arrowColors[4].c[2];
     }
     vec[0] = car->dr_pos[0] - gCamera[oslot].mat.pos[0];
     vec[1] = car->dr_pos[1] - gCamera[oslot].mat.pos[1];

@@ -8,9 +8,6 @@ typedef struct tVisual {
     M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
 } tVisual;
 
-VIEW(tVisual *, gEnvList);
-#define gEnvList gEnvList_view
-
 /* Call each visual's animator on gEnvList with op 1 (update), then the skid marks'. The next visual is read before
  * the call, since an animator may release its own visual (ReleaseEnviron unlinks it). */
 void UpdateEnvirons(void) {

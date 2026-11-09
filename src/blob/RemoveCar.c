@@ -33,7 +33,7 @@ void RemoveCar(s16 slot)
   do {
     car = PC_CAR(slot);
     if (car->objnum >= 0) {
-      MBOX_HideObject(*((s32 *) (((u8 *) (&gCarParts)) + (slot << 6))), 2, 15);   /* gCarParts[slot].frame */
+      MBOX_HideObject(gCarParts[slot].frame, 2, 15);
       v = car->visuals;
       i = 0;
       do {

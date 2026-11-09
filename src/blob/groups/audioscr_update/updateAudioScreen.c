@@ -29,9 +29,6 @@ VIEW(Button[], audio_buttonInfo);
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
 intptr_t MBOX_FindTexture_WORK();
@@ -94,9 +91,9 @@ void audio_updateButtons(void) {
         WPitchUV(audio_buttonInfo[i].ang - 1.5707964f, audio_buttonInfo[i].mat);
         memcpy(audio_buttonInfo[i + 4].mat, audio_buttonInfo[i].mat, 36);
         if (1.5707964f < audio_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[i].handle, name, -1);
         ZOID_SetTexture(audio_buttonInfo[i + 4].handle, name, -1);
         if ((vis = audio_validOption(i)) == 0) {
@@ -136,7 +133,6 @@ void audio_updateButtons(void) {
     audio_buttonsJustInited = 0;
 }
 
-
 typedef struct { f32 x, y; } Stick;
 typedef struct { volatile s8 b0; u8 pad[15]; } Pad16;
 typedef struct { u8 pad0[12]; s8 music; s8 sfx; s8 track; s8 mono; } AudioCfg;
@@ -153,7 +149,6 @@ VIEW(Pad16[], gControllerData);
 #define gControllerData gControllerData_view
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-
 
 /* Each frame of the audio screen: reads the controller (the first in the front end, the pausing player's in the
  * pause screen); A or start leaves, B restarts the chosen song, up and down move between the lines, left and right

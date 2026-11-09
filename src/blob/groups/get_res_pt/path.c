@@ -5,23 +5,12 @@
  * point, or going past its first along the pair's direction, counts. */
 #include "game/game.h"
 
-/* A point of the resurrection path, feet. */
-typedef struct Point {
-    s16 pos[3];
-} Point;
-/* The resurrection path (MAT3 gResPath, anon_numPts_pts_10): the main path's points. */
-typedef struct tResPath {
-    u16 numPts;
-    Point *pts;
-} tResPath;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here. */
 typedef struct tCarData {
     u8 pad0[8];
     f32 dr_pos[3];              /* 0x08 the position, feet */
     u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
 } tCarData; /* 0x3B8 */
-VIEW(tResPath, gResPath);
-#define gResPath gResPath_view
 
 /* Raise car 0's obResPt to the point of the resurrection path nearest it: the pair's first point when it is
  * nearest the second (odd) one; when it is nearest the first (even) one, that point if the car is past it towards
@@ -45,9 +34,9 @@ void GetResPt(void) {
     z = PC_CAR_POS(0)[2];
     c_dist = 1e20;
     for (i = 0; i < gResPath.numPts; i++) {
-        dx = gResPath.pts[i].pos[0] - x;
-        dy = gResPath.pts[i].pos[1] - y;
-        dz = gResPath.pts[i].pos[2] - z;
+        dx = gResPath.pts[i][0] - x;
+        dy = gResPath.pts[i][1] - y;
+        dz = gResPath.pts[i][2] - z;
         dist = dx * dx + dy * dy + dz * dz;
         if (dist < c_dist) {
             c_dist = dist;
@@ -60,7 +49,7 @@ void GetResPt(void) {
         return;
     }
     /* p[0..2] the pair's first point, p[3..5] its second */
-    p = gResPath.pts[close_index].pos;
+    p = gResPath.pts[close_index];
     delta1[0] = (f32) p[3] - (f32) p[0];
     delta1[1] = (f32) p[4] - (f32) p[1];
     delta1[2] = (f32) p[5] - (f32) p[2];

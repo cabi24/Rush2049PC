@@ -22,8 +22,6 @@ typedef struct tTexture { u8 bytes[36]; } tTexture;
 #define gCarSmokeDir pc_tire_fx
 #define gCarBlastSmokeClr pc_smoke_shade
 #define gCarWingSmokePos pc_trail_pts
-VIEW(u8[], gSmokeList);
-#define gSmokeList gSmokeList_view
 
 
 void ZOID_SetTexture(s16 handle,void *resource,s32 mode);
@@ -32,8 +30,6 @@ s32 ZOID_AddObject(s32 object,void *basis,s16 parent,s32 flags);
 
 f32 fabsf(f32 x);
 #pragma intrinsic (fabsf)
-VIEW(s8, gGoodFrameRate);
-#define gGoodFrameRate gGoodFrameRate_view
 
 static s16 get_mph(tCarData *c);
 static tCarData *get_car(s16 slot);
@@ -124,7 +120,7 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
         }
     }
     do {
-        smk = GetStatLLE(gSmokeList);
+        smk = GetStatLLE(&gSmokeList);
         if (!smk) return;
         smk->swTime = 0.0333333015f;    /* seconds a frame of its animation shows */
         smk->data = type << PUFF_TYPE_SHIFT;

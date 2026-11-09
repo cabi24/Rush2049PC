@@ -30,22 +30,6 @@ typedef struct Target {
     enum n64p_VelRot data;  /* 0x6C its VelRot (a window address) */
 } Target;
 
-/* A target info record (MAT3 tTargetInfo; targetInfo) in its PC layout, 0x40 bytes: its name, model file, start
- * function and visual function are pointers. */
-typedef struct TargetInfo {
-    char *name, *mboxname;
-    void *startFunc;
-    void *animFunc;         /* the visual's function */
-    s16 collFuncIdx;
-    u16 flags;
-    s16 objListIdx;         /* 0x24 (N64 0x14) the kind's object: OBJ_CONE for the cone */
-    s8 structureID, structureIdx;
-    f32 collVal;
-    s32 startSnd;           /* 0x2C (N64 0x1C) the sound when a car hits it */
-    s32 moveSnd, stopSnd, replace;
-    f32 fadeDist;
-} TargetInfo;
-
 /* The car record's view (MAT3 tCarData) in the PC layout: the velocity and the picked-up-mine flag. */
 typedef struct GameCar {
     u8 pad000[0x14];
@@ -82,9 +66,6 @@ typedef struct Visual {
 #define OBJ_LIGHT_DEBRIS_A 339  /* the two objects that fly up only a foot a frame (MAT3 653 and 551) */
 #define OBJ_LIGHT_DEBRIS_B 237
 
-VIEW(TargetInfo[], targetInfo);
-#define targetInfo targetInfo_view
-
 Visual *GrabEnvEntry(void);
 
 /* Wreck the model's car, unless it already is (MAT3: `if (!model[slot].crashflag) model[slot].crashflag = 1`). */
@@ -106,7 +87,7 @@ void StartCone(Target *t)
     f32 *vel;
     VelRot *motion;
     GameCar *car;
-    TargetInfo *info;
+    TargInfo *info;
 
     info = &targetInfo[t->infoIdx];
     car = PC_CAR(t->slot);
@@ -128,7 +109,7 @@ void StartCone(Target *t)
         return;
     }
     v->index = 0;
-    v->func = info->animFunc;
+    v->func = info->visFunc;
     v->data = N64W(t);
     v->timeStamp = 5.0f;
     t->flags &= ~(TARGET_ACTIVE | TARGET_HIT);
@@ -151,6 +132,6 @@ void StartCone(Target *t)
     }
     CopyUV(tmat, t->uvs);
     v->next = gEnvList;
-    gEnvList = (struct Node *) v;
-    PlayTargetSound(targetInfo[t->infoIdx].startSnd, t->slot, t->matPos, 2);
+    gEnvList = (struct tVisual *) v;
+    PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->matPos, 2);
 }

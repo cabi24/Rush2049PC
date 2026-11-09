@@ -1,8 +1,6 @@
 /* SkyUpdate.c: keep a window's sky dome on its camera (MAT3 sky.c, SkyUpdate()). */
 #include "game/game.h"
 
-VIEW(s32, skyMatrices);
-#define skyMatrices skyMatrices_view
 
 
 /* skyMatrices holds each window's camera matrix (ZOID_NewMatrix's pool in the game arena) as a 32-bit RDRAM-window
@@ -22,7 +20,7 @@ void SkyUpdate(s32 winidx)
   MTX_WORD *slot;
   MTX_WORD sky;
   tCamera *camera;
-  slot = &(&skyMatrices)[winidx];
+  slot = (MTX_WORD *)&skyMatrices[winidx];
   sky = *slot;
   if (sky != 0)
   {

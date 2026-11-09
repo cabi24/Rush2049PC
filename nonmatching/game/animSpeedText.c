@@ -6,8 +6,6 @@
 typedef struct tText { u16 numSingle; u8 **single; } tText;
 typedef struct tFontHeader { u8 pad0[2]; u8 ascent; u8 descent; } tFontHeader;
 
-VIEW(s32[4][4][2], speedPos);
-#define speedPos speedPos_view
 VIEW(tText, gText);
 #define gText gText_view
 VIEW(tFontHeader *, gFontHeader);
@@ -40,9 +38,9 @@ s32 animSpeedText(void *blt)
             mph *= 1.61f;
         if (mph < 0.0f)
             mph = -mph;
-        x = speedPos[gNumWindows - 1][slot][0];
+        x = speedPos[gNumWindows - 1][slot].x;
         x -= digitW;
-        y = speedPos[gNumWindows - 1][slot][1];
+        y = speedPos[gNumWindows - 1][slot].y;
         digits[0] = ((s32)(mph / 100.0f) % 10) + '0';
         digits[1] = ((s32)(mph / 10.0f) % 10) + '0';
         digits[2] = ((s32)mph % 10) + '0';
@@ -62,7 +60,7 @@ s32 animSpeedText(void *blt)
             TB_DrawText(x, y, str);
             x += digitW;
         }
-        x = speedPos[gNumWindows - 1][slot][0];
+        x = speedPos[gNumWindows - 1][slot].x;
         y += TB_GetFontHeight() - 4;
         HAL_SetFont(12);
         if (gShowMetric) {

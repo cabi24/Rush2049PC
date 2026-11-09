@@ -3,19 +3,6 @@
 
 float fabsf(float);
 
-VIEW(streetyp *, stree_nodes);
-#define stree_nodes stree_nodes_view
-
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
-VIEW(surftyp *, stree_surf);
-#define stree_surf stree_surf_view
-
 /* Finds the road surface under `pos` (MAT3 RoadPosition): the surfaces of the tree's leaf under the point but walls
  * (kinds 5 and 6) and removed ones (15) are tested (PointInSurf, from 20 feet below to the best height so far), and
  * the one nearest in height wins: `out` gets the point on it below `pos`, `mat` its frame (a half-pipe's rounded

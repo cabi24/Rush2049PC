@@ -1,22 +1,8 @@
 /* CollideCarBodyAgainstSurface: a car's body against one wall (MAT3 stree.c). */
 #include "game/game.h"
 
-VIEW(sverttyp *, stree_svert);
-#define stree_svert stree_svert_view
-VIEW(intptr_t, stree_vlist);
-#define stree_vlist stree_vlist_view
-VIEW(s8[16], BodyVerts);
-#define BodyVerts BodyVerts_view
-
 float fabsf(float);
 
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
 /* A contact with a wall (MAT3 anon_surf_uvs_30). */
 typedef struct CCol {
     surftyp *surf;  /* the wall, NULL none yet */
@@ -90,7 +76,7 @@ void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
     conv = 0;
     n = poly->snd_flags;
     n &= 0xF;
-    DecodeVlist((u8 *) (poly->vli + stree_vlist), n, (s16 *) idx);
+    DecodeVlist(poly->vli + stree_vlist, n, (s16 *) idx);
     i = idx[0];
     v = &stree_svert[i];
     DECODE(org, v);

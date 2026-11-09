@@ -5,35 +5,6 @@
  * show. ZOID_SplitScreen is the race's version. */
 #include "game/game.h"
 
-VIEW(PcViewport, vp0);
-#define vp0 vp0_view
-VIEW(PcViewport, vp1);
-#define vp1 vp1_view
-VIEW(PcViewport, vp2);
-#define vp2 vp2_view
-VIEW(PcViewport, vpul);
-#define vpul vpul_view
-VIEW(PcViewport, vpur);
-#define vpur vpur_view
-VIEW(PcViewport, vpll);
-#define vpll vpll_view
-VIEW(PcViewport, vplr);
-#define vplr vplr_view
-VIEW(s16[4], scissor0);
-#define scissor0 scissor0_view
-VIEW(s16[4], scissor1);
-#define scissor1 scissor1_view
-VIEW(s16[4], scissor2);
-#define scissor2 scissor2_view
-VIEW(s16[4], scissorul);
-#define scissorul scissorul_view
-VIEW(s16[4], scissorur);
-#define scissorur scissorur_view
-VIEW(s16[4], scissorll);
-#define scissorll scissorll_view
-VIEW(s16[4], scissorlr);
-#define scissorlr scissorlr_view
-
 ArbEntry *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height, f32 hcenter,
                                 f32 vcenter);
 

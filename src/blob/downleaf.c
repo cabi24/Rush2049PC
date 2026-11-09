@@ -7,8 +7,6 @@
 /* A quadtree node: streetyp (game/types.h). Bit q of flags is set when quadrant q has a child node; minh, maxh are
  * the horizontal (x) bounds, minv, maxv the vertical (z); child[] the quadrants' child nodes, indexes into
  * stree_nodes. */
-VIEW(streetyp *, stree_nodes);
-#define stree_nodes stree_nodes_view
 
 /* From node tp, go down to the leaf that holds the point (posh, posv): at each node the quadrant is 0 or 1 by the
  * horizontal half (1 the upper), plus 2 for the lower vertical half; descend while that quadrant has a child. The

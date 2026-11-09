@@ -18,8 +18,6 @@ extern Player gPlayers[];
 VIEW(Profile *[], gJustPlayers);
 #define gJustPlayers gJustPlayers_view
 
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(Profile **[], gSelectedPlayer);
@@ -31,7 +29,7 @@ VIEW(struct PlayerFiles, gPlayerFiles);
 VIEW(u8 *[], gPS_PakName);
 #define gPS_PakName gPS_PakName_view
 
-extern void TB_FlashTextColors(Color4,Color4);
+extern void TB_FlashTextColors(TextColor first, TextColor second);
 
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 /* How many profile rows away from the selected one a row is. */
@@ -138,10 +136,10 @@ void playerscr_drawSelect(s32 player)
         if(!playerscr_buttonInfo[player][i].alpha)continue;
         HAL_SetTextTranslucency((f32)(u32)playerscr_buttonInfo[player][i].alpha);
         if(playerscr_buttonInfo[player][i].angle<1.5707963705062866f) {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(kTB_WhiteText);
         } else {
-            TB_FlashTextColors(flashColors,flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(kTB_FlashText);
         }
         HAL_SetMenuTextDepth(playerscr_buttonInfo[player][i].position[2]-10.0f);
@@ -232,10 +230,10 @@ void playerscr_drawSelect(s32 player)
         if((playerscr_buttonInfo[player][PLAYER_BUTTON_CONTROLS].angle<=EDGE_ON_FROM || playerscr_buttonInfo[player][PLAYER_BUTTON_CONTROLS].angle>=EDGE_ON_TO) && playerscr_buttonInfo[player][PLAYER_BUTTON_CONTROLS].alpha) {
             HAL_SetTextTranslucency((f32)(u32)playerscr_buttonInfo[player][PLAYER_BUTTON_CONTROLS].alpha);
             if(playerscr_buttonInfo[player][PLAYER_BUTTON_CONTROLS].angle<1.5707963705062866f) {
-                TB_FlashTextColors(flashColors,flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors,flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             TB_DrawText(x,y,gText.single[TEXT_CONTROLS_BUTTON]);
@@ -410,10 +408,10 @@ void drawDeletePlayer(s32 player)
             if(!playerscr_buttonInfo[player][i].alpha)continue;
             HAL_SetTextTranslucency((f32)(u32)playerscr_buttonInfo[player][i].alpha);
             if(playerscr_buttonInfo[player][i].angle<1.5707963705062866f) {
-                TB_FlashTextColors(flashColors,flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors,flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             HAL_SetMenuTextDepth(playerscr_buttonInfo[player][i].position[2]-10.0f);

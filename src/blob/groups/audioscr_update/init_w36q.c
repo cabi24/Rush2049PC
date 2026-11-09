@@ -17,9 +17,6 @@ VIEW(AudioCfg, gOptions);
 #define gOptions gOptions_view
 VIEW(Button[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
 void *memcpy(void *,const void *,u32);
 
 TexDef *MBOX_FindTexture_WORK(char *,u16 *,s8,s8,s32);
@@ -51,7 +48,7 @@ void audio_initScreen(void)
                 memcpy(audio_buttonInfo[buttonIdx].mat, unitmatrix, 36);
                 audio_buttonInfo[buttonIdx].handle = MBOX_NewObject(
                     MBOX_FindObject_WORK(audio_buttonNames[audio_buttonInfo[buttonIdx].type], 0,
-                                       (s8)(gNumModels - 1), 1),
+                                       (s8)(gNumModels[0] - 1), 1),
                     &audio_buttonInfo[buttonIdx].mat, -1,
                     (audio_buttonInfo[buttonIdx].type == 0 ||
                      audio_buttonInfo[buttonIdx].type == 1 ||
@@ -59,9 +56,9 @@ void audio_initScreen(void)
                 ZOID_SetColor(audio_buttonInfo[buttonIdx].handle, &buttonColor);
             }
         }
-        tex = MBOX_FindTexture_WORK(audio_init_texture_name_1, &texIdx, 0, (s8)(gNumModels - 1), 1);
+        tex = MBOX_FindTexture_WORK(audio_init_texture_name_1, &texIdx, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[8].handle, tex, -1);
-        tex = MBOX_FindTexture_WORK(audio_init_texture_name_2, &texIdx, 0, (s8)(gNumModels - 1), 1);
+        tex = MBOX_FindTexture_WORK(audio_init_texture_name_2, &texIdx, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[9].handle, tex, -1);
         memcpy(audio_buttonInfo[9].mat, unitmatrix, 36);
         WPitchUV(-1.5707964f, audio_buttonInfo[9].mat);
@@ -74,7 +71,7 @@ void audio_initScreen(void)
         audio_buttonInfo[10].pos[0] = -87.1f;
         audio_buttonInfo[10].pos[1] = 55.2f;
         audio_buttonInfo[10].pos[2] = 100.0f;
-        tex = MBOX_FindTexture_WORK(audio_init_texture_name_3, &texIdx, 0, (s8)(gNumModels - 1), 1);
+        tex = MBOX_FindTexture_WORK(audio_init_texture_name_3, &texIdx, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[11].handle, tex, -1);
         do {} while (0);
         memcpy(audio_buttonInfo[11].mat, unitmatrix, 36);
@@ -102,5 +99,4 @@ void audio_initScreen(void)
     }
     audio_inited = 1;
 }
-
 

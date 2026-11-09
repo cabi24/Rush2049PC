@@ -196,20 +196,6 @@ typedef struct MultiBlit {
 
 extern Player gPlayers[];
 
-/* The circuit's six cars (MAT3 tCircuitCar, gCircuitCars): the players' first, then the drones. */
-typedef struct PlayerStats {
-    u8 name;                /* 0x00 a drone's name (gDefaultNames) */
-    u8 totalPlace;          /* 0x01 its place over the circuit so far, 0 first */
-    u16 totalPoints;        /* 0x02 */
-    u8 places[24];          /* 0x04 its place in each race */
-    u8 points[24];          /* 0x1C its points from each race */
-    u8 skill[24];           /* 0x34 */
-} PlayerStats;
-VIEW(PlayerStats[], gCircuitCars);
-#define gCircuitCars gCircuitCars_view
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(f32[12], gTrophyMat);
 #define gTrophyMat gTrophyMat_view
 
@@ -250,12 +236,12 @@ void circuitscr_initScreen(void)
             selected = (s8) gCircuitCars[0].totalPlace;
             gShowTrophy = 1;
             if (selected < 3) {
-                model = MBOX_FindObject_WORK(gTrophyNames[selected], 0, gNumModels - 1, 1);
+                model = MBOX_FindObject_WORK(gTrophyNames[selected], 0, gNumModels[0] - 1, 1);
                 trophyObjIdx = MBOX_NewObject(model, (uintptr_t)gTrophyMat, -1, 0);
-                model = MBOX_FindObject_WORK(gTrophySheenNames[selected], 0, gNumModels - 1, 1);
+                model = MBOX_FindObject_WORK(gTrophySheenNames[selected], 0, gNumModels[0] - 1, 1);
                 trophySheenObjIdx = MBOX_NewObject(model, (uintptr_t)unitmatrix, trophyObjIdx, 0x2C6084);
                 ZOID_SetTexture((s16)trophySheenObjIdx,
-                    (intptr_t)MBOX_FindTexture_WORK(circuitscr_sheen_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+                    (intptr_t)MBOX_FindTexture_WORK(circuitscr_sheen_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
                 /* PC: object_list_scale_view is a label 0x10 before ObjInstanceList's N64 address, read as 0x44-byte
                  * records: this writes the float at +0x10 of the sheen's N64 instance record. The PC's ObjInstanceList
                  * has storage of its own (host records), so the write lands in the unused window copy and the
@@ -523,8 +509,6 @@ typedef union Color {u32 word;u8 channel[4];} Color;
 VIEW(Color, circuitscr_button_color);
 #define circuitscr_button_color circuitscr_button_color_view
 
-VIEW(u8, gNumModels);
-#define gNumModels gNumModels_view
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -611,9 +595,9 @@ void circuitscr_updateButtons(void)
             ScaleUV(unitmatrix, circuitscr_buttonInfo[buttonIdx].matrix, circuitscr_gButtonScale);
             WPitchUV(circuitscr_buttonInfo[buttonIdx].angle - 1.5707964f, circuitscr_buttonInfo[buttonIdx].matrix);
             if (circuitscr_buttonInfo[buttonIdx].angle > 1.5707964f)
-                tex = MBOX_FindTexture_WORK(circuitscr_select_texture_name, &texIdx, 0, *(volatile u8 *)&gNumModels - 1, 1);
+                tex = MBOX_FindTexture_WORK(circuitscr_select_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
             else
-                tex = MBOX_FindTexture_WORK(circuitscr_button_texture_name, &texIdx, 0, *(volatile u8 *)&gNumModels - 1, 1);
+                tex = MBOX_FindTexture_WORK(circuitscr_button_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(circuitscr_buttonInfo[buttonIdx].handle, (intptr_t)tex, -1);
             if (circuitscr_buttonInfo[buttonIdx].position[1] > circuitscr_maxY + circuitscr_gButtonSpace * circuitscr_gButtonScale
                 || circuitscr_buttonInfo[buttonIdx].position[1] < circuitscr_minY - circuitscr_gButtonSpace * circuitscr_gButtonScale)
@@ -808,14 +792,12 @@ void calcProgressSize(void)
     gProgressTop = gMenuBottom + (220 - gMenuBottom - gProgressHeight) / 2;
 }
 
-VIEW(Color, flashColors);
-#define flashColors flashColors_view
 VIEW(Color, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(u8 *[], gDefaultNames);
 #define gDefaultNames gDefaultNames_view
 
-extern void TB_FlashTextColors(Color,Color);
+extern void TB_FlashTextColors(TextColor first, TextColor second);
 
 extern void ChangePaneSize(FiveParts *,s32,s32,s32,s32);
 
@@ -953,10 +935,10 @@ void circuitscr_animButtonText(void)
             x = screenPos[0] - 35.0f * circuitscr_gButtonScale;
             y = screenPos[1];
             if (circuitscr_buttonInfo[i].angle < 1.5707964f) {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_WhiteText);
             } else {
-                TB_FlashTextColors(flashColors, flashColors_at_1);
+                TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(kTB_FlashText);
             }
             str = gText.taba[gText.tab[TEXT_CIRCUIT_MENU] + i];
@@ -1107,14 +1089,14 @@ void circuitscr_initButtons(void)
         if (circuitscr_buttonInfo[i].handle == -1) {
             memcpy(circuitscr_buttonInfo[i].matrix, unitmatrix, 36);
             circuitscr_buttonInfo[i].handle = MBOX_NewObject(
-                MBOX_FindObject_WORK(circuitscr_buttonNames[circuitscr_buttonInfo[i].type], 0, gNumModels - 1, 1),
+                MBOX_FindObject_WORK(circuitscr_buttonNames[circuitscr_buttonInfo[i].type], 0, gNumModels[0] - 1, 1),
                 (uintptr_t)circuitscr_buttonInfo[i].matrix, -1,
                 (circuitscr_buttonInfo[i].type == 0 || circuitscr_buttonInfo[i].type == 1 || circuitscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
             ZOID_SetColor((s16)circuitscr_buttonInfo[i].handle, (s32 *)&color);
         }
     }
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_title_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(circuitscr_title_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].matrix, unitmatrix, 36);
     yaw = -1.5707963705062866f;
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].matrix);
@@ -1122,9 +1104,9 @@ void circuitscr_initButtons(void)
     circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].position[1] = 115.0f;
     circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].position[2] = 200.0f;
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_cursor_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(circuitscr_cursor_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_a_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(circuitscr_a_button_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_A_ICON].matrix);
 
@@ -1139,7 +1121,7 @@ void circuitscr_initButtons(void)
     circuitscr_buttonInfo[CIRCUIT_BUTTON_A_BACK].position[1] = 55.2f;
     circuitscr_buttonInfo[CIRCUIT_BUTTON_A_BACK].position[2] = 100.0f;
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(circuitscr_b_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(circuitscr_b_button_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, circuitscr_buttonInfo[CIRCUIT_BUTTON_B_ICON].matrix);
 

@@ -1,9 +1,6 @@
 /* ZOID_InsertObject.c: link a scene node into the tree (MAT3 zoid.c, ZOID_InsertObject()). */
 #include "game/game.h"
 
-VIEW(s16, ObjHead);
-#define ObjHead ObjHead_view
-
 /* Link node `node` in as the last child of `parent`, or as the last root (the list from ObjHead) when `parent`
  * is negative. The node's own next link must be -1 already. */
 void ZOID_InsertObject(s16 node, s16 parent) {

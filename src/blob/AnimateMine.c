@@ -61,20 +61,11 @@ typedef struct tTexture {u8 bytes[36];} Texture36;
 
 /* An always-colliding entry (MAT3 tAlwaysCol): the link, then the target it stands for. */
 typedef struct Link {struct Link *next;Target *target;} Link;
-/* PC: a StatLL list header's host layout, as every view has it (docs/port/POINTERS.md 9): doubly flag, element
- * count and size, then the element array, the active list and the free list pointer-sized (40 bytes). */
-typedef struct Pool {u8 doubly;s32 count,size;void *mem;Link *active,*free;} Pool;
 
-VIEW(s32[10], gWprObjList);
-#define gWprObjList gWprObjList_view
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
 
 
-VIEW(Pool, gAlwaysColList);
-#define gAlwaysColList gAlwaysColList_view
-VIEW(Pool, gTargetList);
-#define gTargetList gTargetList_view
 
 extern void *RoadPosition(f32 *,f32 *,f32 (*)[3]);
 
@@ -228,7 +219,7 @@ void AnimateMine(Visual *v, s16 op)
     }
     t->timeStamp += gFrameSeconds;
     if (!(t->flags & TARGET_ACTIVE) || (t->flags & TARGET_HIT) || t->timeStamp > 120.0f) {
-        acol = gAlwaysColList.active;
+        acol = gAlwaysColList.head;
         while (acol) {
             acolnext = acol->next;
             if (acol->target == t) FreeStatLLE(&gAlwaysColList, acol);

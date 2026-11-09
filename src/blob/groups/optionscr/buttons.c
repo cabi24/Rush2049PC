@@ -33,9 +33,6 @@ VIEW(Button[], options_buttonInfo);
 
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
@@ -173,9 +170,9 @@ void options_updateButtons(void) {
         WPitchUV(options_buttonInfo[i].ang - 1.5707964f, options_buttonInfo[i].mat);
         WPitchUV(options_buttonInfo[i + 14].ang - 1.5707964f, options_buttonInfo[i + 14].mat);
         if (1.5707964f < options_buttonInfo[i].ang)
-            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
-            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels - 1), 1);
+            name = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(options_buttonInfo[i].handle, name, -1);
         ZOID_SetTexture(options_buttonInfo[i + 14].handle, name, -1);
         if (140.0f < options_buttonInfo[i].pos[1] || options_buttonInfo[i].pos[1] < -160.0f)
@@ -209,7 +206,6 @@ void options_updateButtons(void) {
         scrollSpeed = 0.0f;
     options_buttonsJustInited = 0;
 }
-
 
 typedef struct {
     volatile s8 b0;

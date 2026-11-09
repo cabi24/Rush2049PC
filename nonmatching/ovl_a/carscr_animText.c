@@ -21,17 +21,10 @@ VIEW(Slot[][44], carscr_buttonInfo);
 
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
-VIEW(Color4, flashColors);
-#define flashColors flashColors_view
 VIEW(Color4, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
-VIEW(u8 *[], CarTitles);
-#define CarTitles CarTitles_view
 
-VIEW(s8[][13], gTireRims);
-#define gTireRims gTireRims_view
-
-extern void TB_FlashTextColors(Color4, Color4);
+extern void TB_FlashTextColors(TextColor first, TextColor second);
 
 static void animButtonText(s32 p);
 static void drawOptions(s32 p);
@@ -138,10 +131,10 @@ static void animButtonText(s32 p)
         if ((carscr_buttonInfo[p][item].angle > 0.6981317f && carscr_buttonInfo[p][item].angle < 2.443461f) || !carscr_buttonInfo[p][item].alpha) continue;
         HAL_SetTextTranslucency(carscr_buttonInfo[p][item].alpha);
         if (carscr_buttonInfo[p][item].angle < 1.5707964f) {
-            TB_FlashTextColors(flashColors, flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(1);
         } else {
-            TB_FlashTextColors(flashColors, flashColors_at_1);
+            TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(22);
         }
         HAL_SetMenuTextDepth(carscr_buttonInfo[p][item].position[2] - 10.0f);
@@ -160,7 +153,7 @@ static void animButtonText(s32 p)
         case 5: str = gText.indexed[gText.indices[8] + gCarFrame[p+1][gThisCar[p]]]; break;
         case 6: str = gText.indexed[gText.indices[9] + gCarWings[p+1][gThisCar[p]]]; break;
         case 10: str = gText.indexed[gText.indices[12] + gCarTeam[p]]; break;
-        case 11: str = gText.indexed[gText.indices[10] + gTireRims[p+1][gThisCar[p]]]; break;
+        case 11: str = gText.indexed[gText.indices[10] + TIRE_RIMS(p+1)[gThisCar[p]]]; break;
         case 12: str = gText.indexed[gText.indices[11] + gCarHorn[p+1][gThisCar[p]]]; break;
         case 15: TB_Sprintf(str1, "%d", gCarSheen[p] + 1); str = str1; break;
         case 16:

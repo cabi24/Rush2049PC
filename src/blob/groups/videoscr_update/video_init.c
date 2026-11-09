@@ -16,10 +16,6 @@ VIEW(MenuRect, video_menuRect);
 #define video_menuRect video_menuRect_view
 VIEW(Button[12], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
@@ -90,16 +86,16 @@ void video_initScreen(void)
                 if (video_buttonInfo[buttonIdx].handle == -1) {
                     memcpy(video_buttonInfo[buttonIdx].mat, unitmatrix, 36);
                     video_buttonInfo[buttonIdx].handle = MBOX_NewObject(
-                        MBOX_FindObject_WORK(video_buttonNames[video_buttonInfo[buttonIdx].type], 0, gNumModels - 1, 1),
+                        MBOX_FindObject_WORK(video_buttonNames[video_buttonInfo[buttonIdx].type], 0, gNumModels[0] - 1, 1),
                         &video_buttonInfo[buttonIdx].mat, -1,
                         (video_buttonInfo[buttonIdx].type == 0 || video_buttonInfo[buttonIdx].type == 1 ||
                          video_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
                     ZOID_SetColor(video_buttonInfo[buttonIdx].handle, &buttonColor);
                 }
             }
-            tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);
+            tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(video_buttonInfo[8].handle, tex, -1);
-            tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels - 1, 1);
+            tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(video_buttonInfo[9].handle, tex, -1);
             memcpy(video_buttonInfo[9].mat, unitmatrix, 36);
             WPitchUV(-1.5707964f, video_buttonInfo[9].mat);
@@ -112,7 +108,7 @@ void video_initScreen(void)
             video_buttonInfo[10].pos[0] = -87.1f;
             video_buttonInfo[10].pos[1] = 55.2f;
             video_buttonInfo[10].pos[2] = 100.0f;
-            tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels - 1, 1);
+            tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(video_buttonInfo[11].handle, tex, -1);
             memcpy(video_buttonInfo[11].mat, unitmatrix, 36);
             WPitchUV(-1.5707964f, video_buttonInfo[11].mat);

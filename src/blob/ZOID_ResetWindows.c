@@ -4,13 +4,6 @@
  * a viewport (vp0 ...) and a scissor rectangle (scissor0 ...). */
 #include "game/game.h"
 
-VIEW(u8, gSplitScreen);
-#define gSplitScreen gSplitScreen_view
-VIEW(s32, vp0);
-#define vp0 vp0_view
-VIEW(s16[4], scissor0);
-#define scissor0 scissor0_view
-
 /* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): its
  * viewport and scissor, then the projection's numbers (ZOID_SetWindow), the clip planes and the fog. */
 typedef struct tWindowInfo {
@@ -18,8 +11,6 @@ typedef struct tWindowInfo {
     void *s;
     u8 rest[64];
 } tWindowInfo;
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
 
 tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height, f32 hcenter,
                                    f32 vcenter);

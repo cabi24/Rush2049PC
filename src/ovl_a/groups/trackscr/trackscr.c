@@ -23,8 +23,6 @@ typedef struct Profile Profile;
 struct Profile {Profile **next,**previous;FileInfo **fileh;u32 id0,id1;u8 name[24];u8 **stats;};
 /* A player's pad record (MAT3 tPadState, gPlayers): its buttons and its profile. */
 typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;
-/* A circuit's race (gCircuitTracks): the track and its set direction, mirror, fog and wind. */
-typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack;
 
 /* trackscr_gOpts[]: the race options, in their order down the list (OptionValid keeps the offered ones). The
  * gOptions entry each changes is in updateTrackScreen; 3-11 are gOptions[32..40]. */
@@ -100,14 +98,8 @@ VIEW(u32, gActiveLevels);
 VIEW(u32, gActiveAutoEdges);
 #define gActiveAutoEdges gActiveAutoEdges_view
 
-VIEW(CircuitTrack[], gCircuitTracks);
-#define gCircuitTracks gCircuitTracks_view
-
 VIEW(volatile f32, gFrameSeconds);
 #define gFrameSeconds gFrameSeconds_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(tMenuButton[48], trackscr_buttonInfo);
 #define trackscr_buttonInfo trackscr_buttonInfo_view
 
@@ -246,17 +238,6 @@ extern Blit *NewBlit(char *,s16,s16,s16);
 #define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
 #define DISPLAY_VERTEX(p,v,n,first) DISPLAY_WORDS(p,0x01000000u|((n)<<12)|(((first)+(n))<<1),(u32)(v))
 #define DISPLAY_TRIANGLES(p,a,b,c,d,e,f) DISPLAY_WORDS(p,0x06000000u|((a)*2<<16)|((b)*2<<8)|((c)*2),((d)*2<<16)|((e)*2<<8)|((f)*2))
-
-typedef struct ResPath {u16 numPts;s16 (*pts)[3];} ResPath;
-typedef struct Checkpoints {s16 startTime,loopPt,finishPt,startPt,numPoints;} Checkpoints;
-VIEW(s16[3], gPathMax);
-#define gPathMax gPathMax_view
-VIEW(s16[3], gPathMin);
-#define gPathMin gPathMin_view
-VIEW(ResPath, gResPath);
-#define gResPath gResPath_view
-VIEW(Checkpoints, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
 
 VIEW(Color, race_map_vertex_color);
 #define race_map_vertex_color race_map_vertex_color_view
@@ -709,9 +690,9 @@ void SetFogIntensity(s32 initialize)
     u8 color[3];
     if (gFogColor < 19)
         gFogColor = gTrackNum;
-    color[0] = gFogColors[gFogColor].r;
-    color[1] = gFogColors[gFogColor].g;
-    color[2] = gFogColors[gFogColor].b;
+    color[0] = gFogColors[gFogColor][0];
+    color[1] = gFogColors[gFogColor][1];
+    color[2] = gFogColors[gFogColor][2];
     if (initialize) {
         trackscr_fogColor[0] = color[0];
         trackscr_fogColor[1] = color[1];
@@ -835,7 +816,7 @@ void buildTrackMap(void)
         }
     } else if ((desiredTrackMap >= TRACK_BATTLE_FIRST && desiredTrackMap <= TRACK_BATTLE_LAST) || (desiredTrackMap >= TRACK_STUNT_FIRST && desiredTrackMap <= TRACK_STUNT_LAST)) {
         if (trackMapObj == -1) {
-            trackMapObj = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[desiredTrackMap], 0, gNumModels - 1, 1), (uintptr_t)trackMapMat, -1, 0);
+            trackMapObj = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[desiredTrackMap], 0, gNumModels[0] - 1, 1), (uintptr_t)trackMapMat, -1, 0);
             ScaleUV(unitmatrix, (f32 (*)[3])trackMapMat, 2.0f);
             WPitchUV(-0.785398185f, (f32 (*)[3])trackMapMat);
             trackMapMat[9] = buildTrackMap_mapPos[0];
@@ -948,7 +929,7 @@ void buildRaceTrackMaps(void)
             yoffset = -(gPathMin[2] + gPathMax[2]) / 2;
             zoffset = -(gPathMin[1] + gPathMax[1]) / 2;
             trackMap[gTrackNum].scale_to = 5000.0f / ((gPathMax[0] - gPathMin[0] > gPathMax[2] - gPathMin[2]) ? gPathMax[0] - gPathMin[0] : gPathMax[2] - gPathMin[2]);
-            trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels - 1, 1);
+            trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels[0] - 1, 1);
             trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
             saved_map_lods[gTrackNum] = trackRomObjDef->lod[0];
             vtxSize = kNumMapSects * 64 + 64;
@@ -1071,7 +1052,7 @@ void buildRaceTrackMaps(void)
         }
     }
     gTrackNum = saveTrackNum;
-    trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[TRACK_MAP_SELECTED], 0, gNumModels - 1, 1);
+    trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[TRACK_MAP_SELECTED], 0, gNumModels[0] - 1, 1);
     trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
     saved_map_lods[MAP_LOD_SELECTED] = trackRomObjDef->lod[0];
     map_vertex_blocks[MAP_LOD_SELECTED] = audio_dma_sync(0, kNumMapSects * 64 + 64 + 7);
@@ -1100,7 +1081,7 @@ void buildStuntTrackMaps(void)
     for (gTrackNum = TRACK_STUNT_FIRST; gTrackNum <= TRACK_STUNT_LAST; gTrackNum++) {
         if (!IsTrackUnlocked(gTrackNum)) continue;
         if (trackMap[gTrackNum].handle == -1) {
-            trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
+            trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels[0] - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
             ScaleUV(unitmatrix, trackMap[gTrackNum].matrix, 1.0f);
             WPitchUV(-1.5707963705062866f, trackMap[gTrackNum].matrix);
             trackMap[gTrackNum].position[0] = buildStuntTrackMaps_mapPos[0];
@@ -1119,7 +1100,7 @@ void buildBattleTrackMaps(void)
     for (gTrackNum = TRACK_BATTLE_FIRST; gTrackNum <= TRACK_BATTLE_LAST; gTrackNum++) {
         if (!IsTrackUnlocked(gTrackNum)) continue;
         if (trackMap[gTrackNum].handle == -1) {
-            trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
+            trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels[0] - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
             ScaleUV(unitmatrix, trackMap[gTrackNum].matrix, 1.0f);
             WPitchUV(-1.5707963705062866f, trackMap[gTrackNum].matrix);
             trackMap[gTrackNum].position[0] = buildBattleTrackMaps_mapPos[0];
@@ -1150,7 +1131,7 @@ void clearTrackMaps(void)
         }
         while (gRenderInProgress) { pc_os_spin_yield("clearTrackMaps"); }
         for (i = 0; i < 7; i++) {
-            model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels - 1,1);
+            model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels[0] - 1,1);
             def = &gRomObjDefPtrs[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = saved_map_lods[i];
             if (map_display_list_blocks[i]) DeallocateMemory(N64A0(map_display_list_blocks[i]));
@@ -1274,14 +1255,14 @@ void trackscr_initButtons(void)
         if (trackscr_buttonInfo[i].handle == -1) {
             memcpy(trackscr_buttonInfo[i].matrix, unitmatrix, 36);
             trackscr_buttonInfo[i].handle = MBOX_NewObject(
-                MBOX_FindObject_WORK(trackscr_buttonNames[trackscr_buttonInfo[i].type], 0, gNumModels - 1, 1),
+                MBOX_FindObject_WORK(trackscr_buttonNames[trackscr_buttonInfo[i].type], 0, gNumModels[0] - 1, 1),
                 (uintptr_t)trackscr_buttonInfo[i].matrix, -1,
                 (trackscr_buttonInfo[i].type == 0 || trackscr_buttonInfo[i].type == 1 || trackscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
             ZOID_SetColor((s16)trackscr_buttonInfo[i].handle, (s32 *)&color);
         }
     }
     ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_TITLE].handle,
-        (intptr_t)MBOX_FindTexture_WORK(trackscr_title_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(trackscr_title_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(trackscr_buttonInfo[TRACK_BUTTON_TITLE].matrix, unitmatrix, 36);
     yaw = -1.5707963705062866f;
     WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_TITLE].matrix);
@@ -1289,9 +1270,9 @@ void trackscr_initButtons(void)
     trackscr_buttonInfo[TRACK_BUTTON_TITLE].position[1] = 115.0f;
     trackscr_buttonInfo[TRACK_BUTTON_TITLE].position[2] = 200.0f;
     ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_CURSOR].handle,
-        (intptr_t)MBOX_FindTexture_WORK(trackscr_cursor_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(trackscr_cursor_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_A_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(trackscr_a_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(trackscr_a_button_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix);
     trackscr_buttonInfo[TRACK_BUTTON_A_ICON].position[0] = 75.1f;
@@ -1305,7 +1286,7 @@ void trackscr_initButtons(void)
     trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].position[1] = 55.2f;
     trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].position[2] = 100.0f;
     ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_B_ICON].handle,
-        (intptr_t)MBOX_FindTexture_WORK(trackscr_b_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
+        (intptr_t)MBOX_FindTexture_WORK(trackscr_b_button_texture_name, &texture_index, 0, gNumModels[0] - 1, 1), -1);
     memcpy(trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix, unitmatrix, 36);
     WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix);
     trackscr_buttonInfo[TRACK_BUTTON_B_ICON].position[0] = -75.1f;
@@ -1413,11 +1394,11 @@ void trackscr_updateButtons(void)
             ScaleUV(unitmatrix, trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].matrix, trackscr_gButtonScale);
             WPitchUV(trackscr_buttonInfo[buttonIdx].angle - 1.5707963705062866f, trackscr_buttonInfo[buttonIdx].matrix);
             WPitchUV(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle - 1.5707963705062866f, trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].matrix);
-            if (trackscr_buttonInfo[buttonIdx].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_left_select_texture_name, &texIdx, 0, gNumModels - 1, 1);
-            else tex = MBOX_FindTexture_WORK(trackscr_left_button_texture_name, &texIdx, 0, gNumModels - 1, 1);
+            if (trackscr_buttonInfo[buttonIdx].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_left_select_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
+            else tex = MBOX_FindTexture_WORK(trackscr_left_button_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(trackscr_buttonInfo[buttonIdx].handle, (intptr_t)tex, -1);
-            if (trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_right_select_texture_name, &texIdx, 0, gNumModels - 1, 1);
-            else tex = MBOX_FindTexture_WORK(trackscr_right_button_texture_name, &texIdx, 0, gNumModels - 1, 1);
+            if (trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_right_select_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
+            else tex = MBOX_FindTexture_WORK(trackscr_right_button_texture_name, &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, (intptr_t)tex, -1);
             if (trackscr_buttonInfo[buttonIdx].position[1] > trackscr_maxY + trackscr_gButtonSpace * trackscr_gButtonScale || trackscr_buttonInfo[buttonIdx].position[1] < trackscr_minY - trackscr_gButtonSpace * trackscr_gButtonScale) trackscr_buttonInfo[buttonIdx].alpha = 0;
             else if (trackscr_buttonInfo[buttonIdx].position[1] > trackscr_maxY) trackscr_buttonInfo[buttonIdx].alpha = 255 - (trackscr_buttonInfo[buttonIdx].position[1] - trackscr_maxY) * 255.0f / (trackscr_gButtonSpace * trackscr_gButtonScale);

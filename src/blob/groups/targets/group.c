@@ -6,20 +6,6 @@
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
 
-/* A scene node (ObjInstanceList), host layout (docs/port/POINTERS.md 9). */
-typedef struct Ent {
-    s32 flags;
-    s32 w4;
-    f32 *mat;       /* its matrix (MAT3 tUVMatrix *): [9..11] its position */
-    f32 scaleA;
-    f32 scaleB;
-    u16 model;      /* its object definition */
-    s16 link[3];
-    void *w28[8];
-    s32 w60;
-    s32 w64;
-} Ent;
-
 /* A target path (MAT3 tBasicTargetPath, a PTHD record; targetpaths/group.c has it all). N64 layout. */
 typedef struct tBasicTargetPath {
     char name[16];  /* 0x00 */
@@ -58,27 +44,9 @@ typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16
 /* A kind's start function (TargInfo.startFunc, a void * in the table). */
 #define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
-
-VIEW(s8[8], gTargetStructCount);
-#define gTargetStructCount gTargetStructCount_view
-
-VIEW(u8 *[8], gTargetStructPtrs);
-#define gTargetStructPtrs gTargetStructPtrs_view
-VIEW(u8 *[8], gTargetOwnStructPtrs);
-#define gTargetOwnStructPtrs gTargetOwnStructPtrs_view
-
 /* The keys of gTargetGroupList, before SetTargetDefs turns them into targets */
-VIEW(void **, gTargetGroupList);
-#define gTargetGroupList gTargetGroupList_view
 
-VIEW(struct pc_visual *, gEnvList);
-#define gEnvList gEnvList_view
 #define BODY_TABLE ((u8 *)BBoxCollInfo)
-VIEW(Vec3, zero_velocity);
-#define zero_velocity zero_velocity_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 extern struct pc_visual *GrabEnvEntry(void);
 
 extern int strlen(const char *);
@@ -96,7 +64,7 @@ void SetTargetDef(tTarget *t)
     s32 resource;
     u16 value;
     struct pc_visual *v;
-    Vec3 transform;
+    Vector transform;
     info=&targetInfo[t->infoIdx];
     category=info->structureID;
     set_target_data(t,info,category);
@@ -240,7 +208,7 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, void *fromWorld, s8 owner
         if (typeFlags & 0x8000) {
             gBBoxModelCount++;
         }
-        t->mbIdx = MBOX_FindObject_WORK(info->mboxname, 0, (s8)(gNumModels - 1), 1);
+        t->mbIdx = MBOX_FindObject_WORK(info->mboxname, 0, (s8)(gNumModels[0] - 1), 1);
         t->infoIdx = i;
         objListIdx = info->objListIdx;
         t->slot = -1;

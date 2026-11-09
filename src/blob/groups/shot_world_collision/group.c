@@ -1,20 +1,6 @@
 /* CylinderInSurf: a segment through a surface of the track (MAT3 stree.c). */
 #include "game/game.h"
 
-VIEW(sverttyp *, stree_svert);
-#define stree_svert stree_svert_view
-
-VIEW(intptr_t, stree_vlist);
-#define stree_vlist stree_vlist_view
-
-/* A surface (MAT3 surftyp, stree_surf[]). */
-typedef struct surftyp {
-    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
-    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
-    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
-    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
-} surftyp;
-
 /* A vertex's position in feet (sverttyp: whole feet and 32nds). */
 
 #define DECODE(v, e) \
@@ -47,7 +33,7 @@ s16 CylinderInSurf(surftyp *poly, f32 *p1, f32 *p2, f32 *out, f32 *vcOut, f32 *m
     res = 1;
     mats2fcopy(poly->uvs, mat);
     n = poly->snd_flags & 0xF;
-    *outIdx = DecodeVlist((u8 *) (stree_vlist + poly->vli), n, (s16 *) idx);
+    *outIdx = DecodeVlist(stree_vlist + poly->vli, n, (s16 *) idx);
     i = idx[0];
     e = i + stree_svert;
     DECODE(v0, e);

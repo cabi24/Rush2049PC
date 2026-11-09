@@ -1,11 +1,6 @@
 /* MoveCollisionObject: moves a collision object's surfaces with its target (MAT3 stree.c). */
 #include "game/game.h"
 
-VIEW(savetyp *, stree_save);
-#define stree_save stree_save_view
-VIEW(sverttyp *, stree_svert);
-#define stree_svert stree_svert_view
-
 /* Moves the vertices of collision object `num`'s saved surfaces by `trans` (feet), keeping 1/32-foot positions
  * rounded to nearest. A target path moves its collision object so (PlacePathTargetPos). */
 void MoveCollisionObject(s32 num, f32 *trans) {

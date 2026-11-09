@@ -127,7 +127,10 @@ extern f32 gRearTireScale[EXTENT(1)][13];
 extern s8 gCarDifferential[EXTENT(124)];
 extern const struct _tSusp *carSuspensions[EXTENT(3)];
 extern s8 gCarSuspensions[EXTENT(16)];
+/* The tire rims chosen (MAT3 gTireRims[5][13]): row 0 the cars' own, row 1 + player each player's, a column per car.
+ * Declared flat as the data loader lays it out (68 bytes, to the next datum); TIRE_RIMS(row) is a row. */
 extern s8 gTireRims[EXTENT(68)];
+#define TIRE_RIMS(row) (&gTireRims[(row) * 13])
 extern s8 gCarHorn[EXTENT(1)][13];
 extern Tune44 gTune[EXTENT(3)];
 extern u8 gDirtColor[EXTENT(4)];
@@ -181,11 +184,11 @@ extern f32 wing_flame_height;
 extern s16 gEnvCount;
 extern s16 gEnvCountMax;
 extern s8 gCarTeam[EXTENT(4)];
-extern BlitColor gCarTeamColor;
+extern s8 gCarTeamColor[EXTENT(4)];   /* each team's paint (a colour choice) */
 /* gEnvirons: declared by its files (src/blob/InitEnvs.c: defines it) */
-extern struct Node *gEnvList;
+extern struct tVisual *gEnvList;
 extern struct Node *gFreeVis;
-extern CarPartSet gCarParts[EXTENT(52)];
+extern CarParts gCarParts[EXTENT(52)];
 extern s16 gBlastMatCnt;
 extern tBlastMat gBlastMats[EXTENT(50)];
 extern PcPuff gSmokeObjs[EXTENT(100)];
@@ -210,7 +213,7 @@ extern s8 gFadePlayerArrow[EXTENT(4)][4];
 extern u8 gStreakColors[EXTENT(4)][4];
 extern tStatList gStreakList;
 extern PcTrail gStreakArray[EXTENT(50)];
-extern tStatList gStreakPolyList[EXTENT(1)];
+extern tStatList gStreakPolyList;
 extern PcFade gStreakPolyArray[EXTENT(150)];
 
 /* Functions */

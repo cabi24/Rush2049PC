@@ -9,10 +9,6 @@ typedef union Color { u8 c[4]; u32 rgba; } Color;
 
 VIEW(Button[32], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(s32[14], options_validOption);
 #define options_validOption options_validOption_view
 
@@ -51,16 +47,16 @@ void op_initButtons(void)
         if (options_buttonInfo[buttonIdx].handle == -1) {
             memcpy(options_buttonInfo[buttonIdx].mat, unitmatrix, 36);
             options_buttonInfo[buttonIdx].handle = MBOX_NewObject(
-                MBOX_FindObject_WORK(options_buttonNames[options_buttonInfo[buttonIdx].type], 0, gNumModels - 1, 1),
+                MBOX_FindObject_WORK(options_buttonNames[options_buttonInfo[buttonIdx].type], 0, gNumModels[0] - 1, 1),
                 &options_buttonInfo[buttonIdx].mat, -1,
                 (options_buttonInfo[buttonIdx].type == 0 || options_buttonInfo[buttonIdx].type == 1 ||
                  options_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
             ZOID_SetColor(options_buttonInfo[buttonIdx].handle, &buttonColor);
         }
     }
-    tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels - 1, 1);
+    tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels[0] - 1, 1);
     ZOID_SetTexture(options_buttonInfo[28].handle, tex, -1);
-    tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels - 1, 1);
+    tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels[0] - 1, 1);
     ZOID_SetTexture(options_buttonInfo[29].handle, tex, -1);
     memcpy(options_buttonInfo[29].mat, unitmatrix, 36);
     WPitchUV(-1.5707964f, options_buttonInfo[29].mat);
@@ -73,7 +69,7 @@ void op_initButtons(void)
     options_buttonInfo[30].pos[0] = -87.1f;
     options_buttonInfo[30].pos[1] = 55.2f;
     options_buttonInfo[30].pos[2] = 100.0f;
-    tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels - 1, 1);
+    tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels[0] - 1, 1);
     ZOID_SetTexture(options_buttonInfo[31].handle, tex, -1);
     memcpy(options_buttonInfo[31].mat, unitmatrix, 36);
     WPitchUV(-1.5707964f, options_buttonInfo[31].mat);

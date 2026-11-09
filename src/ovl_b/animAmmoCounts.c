@@ -3,11 +3,6 @@
 
 #define WEAPON_NONE 8   /* a car's weapon kind: none */
 
-typedef struct TextPosition { s16 x, y; } TextPosition;
-
-VIEW(TextPosition[4][4], ammoPos);
-#define ammoPos ammoPos_view
-
 /* Draws each window's ammunition left (when its car has a weapon and a count) at ammoPos, centred, in white with a
  * black shadow, at no depth. Returns 1. */
 int animAmmoCounts(void *callback_context)

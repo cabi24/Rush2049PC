@@ -4,9 +4,6 @@
 #define CAR_WAVE 88             /* the wave (asset file) of car type 0; type c is CAR_WAVE + c */
 #define CAR_PALETTE_BYTES 512   /* what a car needs besides its file: its palette's copy (car_palette_init) */
 
-VIEW(s16[13], gCarModelNums);
-#define gCarModelNums gCarModelNums_view
-
 /* Load the cars of a race, or with `select` the car screen's (InitSelectCarLoad). For each of the race's slots: a
  * drone (or any car of the attract demo) gets a random car type no earlier slot has and that type's colours
  * (car_color_choice_a/b/c); a human keeps the type it chose. The type's file is loaded (LoadWave, its model number in

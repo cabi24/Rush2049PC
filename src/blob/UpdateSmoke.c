@@ -42,17 +42,6 @@ typedef struct tCarData {
     u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384];
 } tCarData;
 
-/* PC: a StatLL list header's host layout, as every view has it (InitSmoke.c, docs/port/POINTERS.md 9): the active
- * list is head. */
-typedef struct SmokeList {
-    u8 dbl;
-    int numElements;
-    int elementSize;
-    void *list;
-    void *head, *store;
-} SmokeList;
-VIEW(SmokeList, gSmokeList);
-#define gSmokeList gSmokeList_view
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,

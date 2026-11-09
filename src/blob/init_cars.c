@@ -92,19 +92,6 @@ typedef struct tCarData {
 typedef struct Bounds {float front,rear,side,height;} Bounds;
 
 extern PadTrans gPlayers[];
-VIEW(Bounds[], collsize);
-#define collsize collsize_view
-
-VIEW(s8[][13], gTireRims);
-#define gTireRims gTireRims_view
-
-VIEW(volatile s16, sched_to_use);
-#define sched_to_use sched_to_use_view
-
-VIEW(void *, gCarModels);
-#define gCarModels gCarModels_view
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
 
 extern float sqrtf(float);
 #pragma intrinsic (sqrtf)
@@ -140,7 +127,7 @@ void init_cars(void) {
         m->dt=dt;
         for(j=0;j<sizeof(tCarData);j++)
             ((s8 *)car)[j]=0;
-        m->car=N64W(gCarModels);
+        m->car=N64W(gCarModels[0]);
         m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
         car->saveview=2;
         car->camera=-1;
@@ -188,7 +175,7 @@ void init_cars(void) {
                 m->engine_type=gCarEngines[m->slot+1][(u8)m->body_type];
                 m->tire_type=gCarTires[m->slot+1][(u8)m->body_type];
                 m->frame=gCarFrame[m->slot+1][(u8)m->body_type];
-                m->tireRims=gTireRims[m->slot+1][(u8)m->body_type];
+                m->tireRims=TIRE_RIMS(m->slot+1)[(u8)m->body_type];
                 m->color[0]=PC_LINK_COLOR0(i);
                 m->color[1]=PC_LINK_COLOR1(i);
                 m->color[2]=PC_LINK_COLOR2(i);
@@ -202,7 +189,7 @@ void init_cars(void) {
                 m->engine_type=m->slot&3;
                 m->tire_type=gCarTires[0][(u8)m->body_type];
                 m->frame=gCarFrame[0][(u8)m->body_type];
-                m->tireRims=gTireRims[0][(u8)m->body_type];
+                m->tireRims=TIRE_RIMS(0)[(u8)m->body_type];
                 m->color[0]=PC_LINK_COLOR0(i);
                 m->color[1]=PC_LINK_COLOR1(i);
                 m->color[2]=PC_LINK_COLOR2(i);

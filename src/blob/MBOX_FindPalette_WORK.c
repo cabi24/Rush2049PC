@@ -4,10 +4,6 @@
  * Each model file has a table of 24-byte palette definitions sorted by name (gPalDefPtrs[model]); a palette is
  * named by a packed handle, its model's number times 1024 plus its index in that table. */
 #include "game/game.h"
-
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 /* The palette called `name` (texcmp: the whole name) in models firstModel to lastModel (a negative bound means the
  * first or the last model), searching only the active models: returns its definition and writes its handle,
  * (model << 10) | index, to *handle; NULL and handle 0 if none has it. */
@@ -20,8 +16,8 @@ char *MBOX_FindPalette_WORK(char *name, u16 *handle, s8 firstModel, s8 lastModel
     if (firstModel < 0) {
         firstModel = 0;
     }
-    if (lastModel < 0 || lastModel >= gNumModels) {
-        lastModel = gNumModels - 1;
+    if (lastModel < 0 || lastModel >= gNumModels[0]) {
+        lastModel = gNumModels[0] - 1;
     }
     for (i = firstModel; i <= lastModel; i++) {
         if (ModelActive(i) == 0) {

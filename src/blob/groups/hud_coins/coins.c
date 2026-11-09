@@ -3,17 +3,8 @@
 
 #define kStunt 4      /* gRace (MAT3 enum kNumRaceTypes) */
 
-typedef struct RecordSlot { s16 id; u8 pad02[2]; f32 pos[9]; u8 obj[12]; } RecordSlot;   /* 52 bytes; +4 transform, +40 */
-typedef struct RecordRow { RecordSlot slot[2]; } RecordRow;                                /* 104 bytes */
-
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9): scale is N64 +0x10, host +0x14. */
 typedef struct Pos { s16 x, y; } Pos;
-
-VIEW(RecordRow[], gPlayerCoin);
-#define gPlayerCoin gPlayerCoin_view
-VIEW(volatile u8, gNumModels);
-#define gNumModels gNumModels_view
-
 VIEW(s8[], gOptions);
 #define gOptions gOptions_view
 
@@ -39,7 +30,7 @@ s32 animCoins(void *blit) {
         for (j = 0; j < 2; j++) {
             if (gPlayerCoin[i].slot[j].id == -1) {
                 char *names[2] = { coin_gold_name, coin_silver_name };
-                gPlayerCoin[i].slot[j].id = ZOID_AddObject(MBOX_FindObject_WORK(names[j], 0, gNumModels - 1, 1), gPlayerCoin[i].slot[j].pos, -1, 0);
+                gPlayerCoin[i].slot[j].id = ZOID_AddObject(MBOX_FindObject_WORK(names[j], 0, gNumModels[0] - 1, 1), gPlayerCoin[i].slot[j].pos, -1, 0);
                 MBOX_HideObject(gPlayerCoin[i].slot[j].id, 1, 15);
                 ObjInstanceList[gPlayerCoin[i].slot[j].id].w = 10.0f;
             }

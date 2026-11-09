@@ -3,7 +3,6 @@
 #define tRGBA tRGBAView   /* this file's own tRGBA: include/game's tRGBA is another type */
 
 typedef struct tPoly tPoly;
-typedef struct surftyp surftyp;
 typedef struct tRGBA { u8 c[4]; } tRGBA;
 
 /* The model record (MAT3 tModelData): each tyre's height off the ground. */

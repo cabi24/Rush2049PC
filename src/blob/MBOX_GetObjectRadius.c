@@ -17,7 +17,7 @@ f32 MBOX_GetObjectRadius(s32 handle) {
     ModelDefTable *table;
 
     model = handle >> 10;
-    if (model >= (s32) *(volatile u8 *) gNumModels) {
+    if (model >= (s32) gNumModels[0]) {
         return 0.0f;
     }
     table = &gRomObjDefPtrs[model];

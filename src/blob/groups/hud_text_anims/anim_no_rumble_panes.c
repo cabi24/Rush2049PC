@@ -42,10 +42,6 @@ VIEW(Control[], gPaks);
 #define gPaks gPaks_view
 VIEW(Pos[][4], no_rumble_text_pos);
 #define no_rumble_text_pos no_rumble_text_pos_view
-VIEW(u8[4][2][4], no_rumble_pane_colors);
-#define no_rumble_pane_colors no_rumble_pane_colors_view
-VIEW(void *[4], resultPane);
-#define resultPane resultPane_view
 
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 void *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);

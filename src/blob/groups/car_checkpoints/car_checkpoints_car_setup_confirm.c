@@ -1,9 +1,6 @@
 /* CarReportsGameOver: a car's race is over: its place among the cars that are done (MAT3 checkpoint.c). */
 #include "game/game.h"
 
-VIEW(s16, gNumCars);
-#define gNumCars gNumCars_view
-
 /* PC: the locked cars in score order, by slot, and their scores, as many as the race's cars (up to PC_MAX_LINKS,
  * pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's are 7 and 6, the 7 for its frame. */
 #define PLACE_N (PC_MAX_LINKS + 1)
