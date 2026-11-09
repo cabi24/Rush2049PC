@@ -7,9 +7,11 @@ how assets ("waves") are loaded, and how the controllers become a car's steering
 whole game's map. Where a function is MAT3's (the user's GameCube decomp of the same game), the MAT3 file is
 named; the rest is the N64's own.
 
-The headers: [include/game/system.h](../../include/game/system.h) (the threads' ids and priorities, the main
-thread's messages, the game states), [memory.h](../../include/game/memory.h), [input.h](../../include/game/input.h),
-[heap.h](../../include/game/heap.h) (the heap's own headers, for the heap's files only), and these sections of
+The headers: [include/game/system.h](../../include/game/system.h) (the frame's buffers) with
+[threads.h](../../include/game/threads.h) (the threads' ids and priorities, the main thread's messages, which the
+boot code includes too; the game states are race.h's `GS_*`), [memory.h](../../include/game/memory.h),
+[input.h](../../include/game/input.h) (the game's buttons, `BUTTON_*`), [heap.h](../../include/game/heap.h) (the
+heap's own headers, for the heap's files only), and these sections of
 [types.h](../../include/game/types.h): system (`PcSched`, `FrameRecord`, `PcScTaskShape` ...), memory
 (`anon_loaded_ready_14`, the wave instance; `WadHandle`, `WadEntry`, `WadFileHeader`), input (`ControllerState`,
 `tPadState`, the `CONTROL_*` indices).

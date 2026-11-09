@@ -254,8 +254,10 @@ car's `dead` state, `RES_*`, `INIT_MODE_*`, `SURF_VIS_*`, `DRONE_TYPE_*`, `MPH_T
 code (`ROADCODE_*`, `VIS_*`, `OBJLIST_*`, `SMOKE_*`, `PUFF_*`, `STREAK_*`, `OBJ_*`, `LOD_*`, `TEX_*`, `POLY_*`,
 `PALANIM_*`), and the shared ones of other areas by their names: the race kinds (`gRace == kBattle`, race.h),
 the game states (`GS_*`, race.h), the roster's owners (`LINK_OWNER_HUMAN`, physics.h, MAT3's), `TRUNC_W` and
-`FEET_PER_TENTH_MILE` (physics.h). Each meaning has one name, defined once in its header
-(`tools/port/one_spelling.py`, which brings a file's own copies and other spellings to it).
+`FEET_PER_TENTH_MILE` (physics.h). The display lists the scene draw and the blitter write use include/game/gbi.h's
+encodings (`G_*`, libultra's names); the display lists the files hold are read with scene.h's `DLW`, `DLW_SET` and
+`DL_AT`. Each meaning has one name, defined once in its header (`tools/port/one_spelling.py`, which brings a file's
+own copies and other spellings to it).
 
 ## 10. What is still N64-shaped (for wave 3)
 
