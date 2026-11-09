@@ -1,7 +1,7 @@
+/* CollideCarBodyAgainstSurface: a car's body against one wall (MAT3 stree.c). */
 #include "game/game.h"
 
-typedef struct PV { s16 x, y, z; u16 w; } PV;
-VIEW(PV *, stree_svert);
+VIEW(sverttyp *, stree_svert);
 #define stree_svert stree_svert_view
 VIEW(intptr_t, stree_vlist);
 #define stree_vlist stree_vlist_view
@@ -9,47 +9,55 @@ VIEW(s8[16], BodyVerts);
 #define BodyVerts BodyVerts_view
 
 float fabsf(float);
-#pragma intrinsic (fabsf)
 
-typedef struct Poly {
-    u16 type;
-    u16 cnt;
-    u8 body[0x12];
-    u16 off;
-} Poly;
+/* A surface (MAT3 surftyp, stree_surf[]). */
+typedef struct surftyp {
+    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
+    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
+    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
+    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
+} surftyp;
+/* A contact with a wall (MAT3 anon_surf_uvs_30). */
 typedef struct CCol {
-    Poly *poly;
-    f32 m[9];
-    s16 idx;
-    s16 edge;
-    f32 k;
+    surftyp *surf;  /* the wall, NULL none yet */
+    f32 uvs[9];     /* its frame */
+    s16 carEdge;    /* the car's corner (tireIndex) */
+    s16 index;      /* the wall's edge */
+    f32 dist;       /* how far the car is into it */
 } CCol;
+
+/* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct CCar {
-    u8 p0[628];
-    f32 B628[4][3];
-    f32 C676[4][3];
+    u8 p0[0x274];
+    f32 bodyrwr[4][3];      /* 0x274 the corners' positions */
+    f32 bodyrwr2[4][3];     /* 0x2A4 the same last step */
     u8 p724[24];
-    f32 mat[9];
+    f32 uvs[9];             /* 0x2EC the orientation */
     u8 p784[816];
-    s8 b1600;
+    s8 crashflag;           /* 0x640 */
     u8 p1601[131];
-    s16 f6C4;
+    s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 p1734[7];
-    s8 b1741;
+    s8 waterAbort;          /* 0x6CD resurrect.waterAbort */
     u8 p1742[248];
-    s16 pidx;
+    s16 slot;               /* 0x7C6 */
 } CCar;
 
 #define DECODE(v, e) \
-    (v)[0] = (f32) (((e)->x << 5) + (((e)->w & 0x7C00) >> 10)) * 0.03125f; \
-    (v)[1] = (f32) (((e)->y << 5) + (((e)->w & 0x3E0) >> 5)) * 0.03125f; \
-    (v)[2] = (f32) (((e)->z << 5) + ((e)->w & 0x1F)) * 0.03125f
+    (v)[0] = (f32) (((e)->pos[0] << 5) + (((e)->overflow & 0x7C00) >> 10)) * 0.03125f; \
+    (v)[1] = (f32) (((e)->pos[1] << 5) + (((e)->overflow & 0x3E0) >> 5)) * 0.03125f; \
+    (v)[2] = (f32) (((e)->pos[2] << 5) + ((e)->overflow & 0x1F)) * 0.03125f
 
-void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
+/* Tests model `car`'s body (its corners, BodyVerts) against wall `poly`: finds how deep the car's outline, flattened
+ * into the wall's plane, is into the wall's outline and on which edge; keeps the deepest contact of the step in
+ * `col` (a wall facing the car's up more than 45 degrees away is no wall). A wall's kind can end the car, unless it
+ * is out, crashed or being put back already: kind 4 crashes it (a battle point lost), kind 7 (water) and kind 3
+ * abort it (kind 3 with sound 21 for a car driven here). */
+void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
     u32 n;
     s32 type;
     u16 idx[16];
-    PV *v;
+    sverttyp *v;
     f32 org[3];
     f32 d[3];
     f32 pts[8][3];
@@ -77,31 +85,31 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
     f32 hz;
     f32 ez;
     s32 i;
-    Poly *old;
+    surftyp *old;
 
     conv = 0;
-    n = poly->cnt;
+    n = poly->snd_flags;
     n &= 0xF;
-    DecodeVlist((u8 *) (poly->off + stree_vlist), n, (s16 *) idx);
+    DecodeVlist((u8 *) (poly->vli + stree_vlist), n, (s16 *) idx);
     i = idx[0];
     v = &stree_svert[i];
     DECODE(org, v);
-    mats2fcopy(poly->body, mtx);
+    mats2fcopy(poly->uvs, mtx);
     for (ka = 0; ka < 4; ka++) {
-        d[0] = car->B628[tireIndex[ka]][0] - org[0];
-        d[1] = car->B628[tireIndex[ka]][1] - org[1];
-        d[2] = car->B628[tireIndex[ka]][2] - org[2];
+        d[0] = car->bodyrwr[tireIndex[ka]][0] - org[0];
+        d[1] = car->bodyrwr[tireIndex[ka]][1] - org[1];
+        d[2] = car->bodyrwr[tireIndex[ka]][2] - org[2];
         BodyVector(d, pts[ka], mtx);
     }
-    type = poly->type & 0xF;
+    type = poly->flags & 0xF;
     if (type == 5 || type == 6) {
         dz = -3.0f;
-    } else if (mtx[3] * car->mat[3] + mtx[4] * car->mat[4] + mtx[5] * car->mat[5] < -0.707f) {
+    } else if (mtx[3] * car->uvs[3] + mtx[4] * car->uvs[4] + mtx[5] * car->uvs[5] < -0.707f) {
         dz = -4.5f;
     } else {
         dz = -0.5f;
     }
-    BodyVector(&car->mat[3], d, mtx);
+    BodyVector(&car->uvs[3], d, mtx);
     for (ka = 0; ka < 4; ka++) {
         pts[ka + 4][0] = pts[ka][0] + d[0] * dz;
         pts[ka + 4][1] = pts[ka][1] + d[1] * dz;
@@ -118,8 +126,8 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
             if (conv == 0) {
                 for (k = n - 1; k > 0; k--) {
                     v = &stree_svert[idx[k]];
-                    pv[k][0] = (f32) ((v->x << 5) + ((v->w & 0x7C00) >> 10)) * 0.03125f;
-                    pv[k][1] = (f32) ((v->z << 5) + (v->w & 0x1F)) * 0.03125f;
+                    pv[k][0] = (f32) ((v->pos[0] << 5) + ((v->overflow & 0x7C00) >> 10)) * 0.03125f;
+                    pv[k][1] = (f32) ((v->pos[2] << 5) + (v->overflow & 0x1F)) * 0.03125f;
                 }
                 conv = 1;
             }
@@ -165,7 +173,7 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
                     }
                     if (!(pz * hx < px * hz)) {
                         u = px * dz - pz * dx;
-                        type = poly->type & 0xF;
+                        type = poly->flags & 0xF;
                         if (u != 0.0f) {
                             u = (pz * hx - px * hz) / u;
                             if (u > 0.0f && u < t) {
@@ -173,20 +181,20 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
                             }
                         }
                         if (type == 4) {
-                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
-                                AddBattlePoint(car->pidx, car->pidx, -1);
-                                car->b1600 = 1;
+                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                                AddBattlePoint(car->slot, car->slot, -1);
+                                car->crashflag = 1;
                             }
                         } else if (type == 7) {
-                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
-                                car->b1741 = 1;
-                                AbortCar(car->pidx, 1);
+                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                                car->waterAbort = 1;
+                                AbortCar(car->slot, 1);
                             }
                         } else if (type == 3) {
-                            if (PC_CAR_STATE(car->pidx) == 0 && PC_CAR_B358(car->pidx) == 0 && car->f6C4 == -1) {
-                                car->b1741 = 1;
-                                AbortCar(car->pidx, 1);
-                                if (PC_LINK_OWNER(car->pidx) == 6) {
+                            if (PC_CAR_STATE(car->slot) == 0 && PC_CAR_B358(car->slot) == 0 && car->moving_state == -1) {
+                                car->waterAbort = 1;
+                                AbortCar(car->slot, 1);
+                                if (PC_LINK_OWNER(car->slot) == 6) {
                                     PlayGameSound(21, 0, 1, 2);
                                 }
                             }
@@ -198,9 +206,9 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
                         }
                         if (best < t) {
                             k = (-da / db < 1.0f) ? ka : kb;
-                            org[0] = car->B628[tireIndex[k]][0] - car->C676[tireIndex[k]][0];
-                            org[1] = car->B628[tireIndex[k]][1] - car->C676[tireIndex[k]][1];
-                            org[2] = car->B628[tireIndex[k]][2] - car->C676[tireIndex[k]][2];
+                            org[0] = car->bodyrwr[tireIndex[k]][0] - car->bodyrwr2[tireIndex[k]][0];
+                            org[1] = car->bodyrwr[tireIndex[k]][1] - car->bodyrwr2[tireIndex[k]][1];
+                            org[2] = car->bodyrwr[tireIndex[k]][2] - car->bodyrwr2[tireIndex[k]][2];
                             BodyVector(org, d, mtx);
                             if (!(d[1] >= 0.0f)) {
                                 best = t;
@@ -215,30 +223,30 @@ void CollideCarBodyAgainstSurface(CCar *car, Poly *poly, CCol *col) {
 next:;
     }
     if (bestk >= 0) {
-        if (col->poly != NULL) {
-            if (col->k < best) {
+        if (col->surf != NULL) {
+            if (col->dist < best) {
                 CarApplyCollision(car, col);
-                col->poly = NULL;
+                col->surf = NULL;
                 CollideCarBodyAgainstSurface(car, poly, col);
                 return;
             } else {
-                old = col->poly;
-                col->poly = poly;
-                CopyUV(mtx, col->m);
-                col->idx = bestk;
-                col->edge = beste;
-                col->k = best;
+                old = col->surf;
+                col->surf = poly;
+                CopyUV(mtx, col->uvs);
+                col->carEdge = bestk;
+                col->index = beste;
+                col->dist = best;
                 CarApplyCollision(car, col);
-                col->poly = NULL;
+                col->surf = NULL;
                 CollideCarBodyAgainstSurface(car, old, col);
                 return;
             }
         } else {
-            col->poly = poly;
-            CopyUV(mtx, col->m);
-            col->idx = bestk;
-            col->edge = beste;
-            col->k = best;
+            col->surf = poly;
+            CopyUV(mtx, col->uvs);
+            col->carEdge = bestk;
+            col->index = beste;
+            col->dist = best;
         }
     }
 end:;

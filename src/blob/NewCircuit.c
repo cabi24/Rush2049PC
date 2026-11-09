@@ -1,19 +1,22 @@
+/* NewCircuit: a player starts a circuit (MAT3 circuit.c). */
 #include "game/game.h"
 
-typedef struct InputRecord {
-    u8 pad00[1];
-    u8 active;
-    u8 pad02[2];
-    s32 unk04;
-    s32 unk08;
-    s32 unk0C;
-    f32 unk10;
-    f32 unk14;
-    u8 _pad18[0x4D - 0x18];
-    u8 unk4D;
-} InputRecord;
-extern InputRecord gPlayers;
+/* A player's circuit in progress (MAT3 tCircuit), in their profile's save data at 0x6F4. */
+struct tCircuit {
+    u32 checksum;       /* 0x00 */
+    u8 active;          /* 0x04 */
+    u8 death;           /* 0x05 the death option */
+    u8 temp;            /* 0x06 */
+    u8 difficulty;      /* 0x07 */
+    s8 type;            /* 0x08 */
+    s8 track;           /* 0x09 */
+    u8 pad0A[2];
+    u32 seed;           /* 0x0C */
+    f32 totalTime;      /* 0x10 */
+    u8 ranks[6][9];     /* 0x14 */
+};
 
+/* A player's profile (SaveSlot, host layout): what this reads through its offsets. */
 typedef struct {
     u8 pad0[8];
     s32 unk8;
@@ -21,6 +24,7 @@ typedef struct {
 VIEW(SavedPlayerSlot **, gPlayers_save);
 #define gPlayers_save gPlayers_save_view
 
+/* The game options, a byte each: [31] the circuit's death option. */
 typedef struct {
     u8 pad00[0x0C];
     u8 unk0C;
@@ -38,27 +42,29 @@ VIEW(s32, gSeconds);
 VIEW(s32[4], gCircuitDiff);
 #define gCircuitDiff gCircuitDiff_view[0]
 
-void PS_WriteFile(void **arg0, uintptr_t arg1, s32 arg2);
+void PS_WriteFile(void **fileh, uintptr_t data, s32 size);
 
 #define SLOT_DATA PROFILE_OFS(0x2C)  /* SaveSlot.data: the profile record's PC layout (pc_prelude.h) */
 #define INPUT_SIZE 80  /* an input record (gPlayers): its pointer at +0x48 is 8 bytes (docs/port/POINTERS.md 10);
                        * the profile's save data, at SaveSlot.data, is read pointer-sized (intptr_t) */
 #define DATA_PTR(x) (void *)(x)
 
-void NewCircuit(s32 arg0) {
-    s8 *options = (s8 *) &gOptions;   /* the game options, a byte each: [31] the circuit's death option */
-    void *temp_a0;
+/* Starts a circuit of type `type` for the circuit player: their circuit record cleared and written to their pak
+ * file (PS_WriteFile), active, its seed from the clock, the death option from the options, its difficulty the
+ * type's. */
+void NewCircuit(s32 type) {
+    s8 *options = (s8 *) &gOptions;
+    struct tCircuit *circuit;
 
-    temp_a0 = DATA_PTR(*M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
-    memset(temp_a0, 0, 0x4CU);
-    PS_WriteFile(M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (uintptr_t) temp_a0, 0x4C);
-    M2C_FIELD(temp_a0, s8 *, 8) = (s8) arg0;
-    M2C_FIELD(temp_a0, s32 *, 0xC) = (s32) (gSeconds & 0xFFFFF);
-    M2C_FIELD(temp_a0, s8 *, 4) = 1;
-    M2C_FIELD(temp_a0, f32 *, 0x10) = 0.0f;
+    circuit = DATA_PTR(*M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), intptr_t **, SLOT_DATA) + 0x6F4);
+    memset(circuit, 0, sizeof(struct tCircuit));
+    PS_WriteFile(M2C_FIELD(**((SavedPlayerSlot ***) ((u8 *) &gPlayers_save + (gCircuitPlayer * INPUT_SIZE))), void ***, PROFILE_OFS(8)), (uintptr_t) circuit, sizeof(struct tCircuit));
+    circuit->type = (s8) type;
+    circuit->seed = (s32) (gSeconds & 0xFFFFF);
+    circuit->active = 1;
+    circuit->totalTime = 0.0f;
     if (options[31] != 0) {
-        M2C_FIELD(temp_a0, s8 *, 5) = 1;
+        circuit->death = 1;
     }
-    M2C_FIELD(temp_a0, s8 *, 7) = (s8) (&gCircuitDiff)[arg0];
+    circuit->difficulty = (s8) (&gCircuitDiff)[type];
 }
-

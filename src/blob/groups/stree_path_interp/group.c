@@ -1,22 +1,26 @@
+/* The road path's surfaces (MAT3 stree.c): the frame of a point on a surface built along the road path (flag
+ * 0x1000, fPathInterp) and on a half-pipe's rounded edge (0x2000, fHalfPipeInterp). */
 #include "game/game.h"
 
+/* A point of the road path (MAT3 pathtyp, gRoadPath[gRoadHead->pnum], the collision WAD's): a cross-section of the
+ * road. The names say what the code does with each; MAT3's are in the comments. */
 typedef struct {
-    /* 0x00 */ f32 pos[3];
-    /* 0x0C */ f32 uvs[3][3];
-    /* 0x30 */ f32 right[3];
-    /* 0x3C */ f32 fwdL[3];
-    /* 0x48 */ f32 fwdR[3];
-    /* 0x54 */ f32 halfWidth;
-    /* 0x58 */ f32 len0;
-    /* 0x5C */ f32 skew0;
-    /* 0x60 */ f32 skew1;
-    /* 0x64 */ f32 wL0;
-    /* 0x68 */ f32 wL1;
-    /* 0x6C */ f32 wR0;
-    /* 0x70 */ f32 wR1;
-    /* 0x74 */ f32 hL;
-    /* 0x78 */ f32 hR;
-    /* 0x7C */ f32 pad7C[2];
+    /* 0x00 */ f32 pos[3];      /* pos: its centre */
+    /* 0x0C */ f32 uvs[3][3];   /* uvs: its frame */
+    /* 0x30 */ f32 right[3];    /* ve: across the road */
+    /* 0x3C */ f32 fwdL[3];     /* vl: along the road at its left edge */
+    /* 0x48 */ f32 fwdR[3];     /* vr: at its right edge */
+    /* 0x54 */ f32 halfWidth;   /* width */
+    /* 0x58 */ f32 len0;        /* w */
+    /* 0x5C */ f32 skew0;       /* m0 */
+    /* 0x60 */ f32 skew1;       /* m1 */
+    /* 0x64 */ f32 wL0;         /* wl */
+    /* 0x68 */ f32 wL1;         /* ml */
+    /* 0x6C */ f32 wR0;         /* wr */
+    /* 0x70 */ f32 wR1;         /* mr */
+    /* 0x74 */ f32 hL;          /* m0l: the height curve's slope, left */
+    /* 0x78 */ f32 hR;          /* m0r: right */
+    /* 0x7C */ f32 pad7C[2];    /* m1l, m1r */
 } PathRec; /* 0x84 */
 VIEW(PathRec *, gRoadPath);
 #define gRoadPath gRoadPath_view
@@ -25,6 +29,8 @@ VIEW(u16 *, gRoadHead);
 #define gRoadHead gRoadHead_view
 
 f32 fabsf(f32);
+
+/* Sets `out` to `position` from `origin` in the frame `basis`. */
 void surfpos(f32 *origin, f32 *basis, f32 *position, f32 *out) {
     f32 delta[3];
     delta[0] = position[0] - origin[0];
@@ -33,43 +39,11 @@ void surfpos(f32 *origin, f32 *basis, f32 *position, f32 *out) {
     BodyVector(delta, out, basis);
 }
 f32 sqrtf(f32);
-#pragma intrinsic (sqrtf)
-#pragma intrinsic (fabsf)
-/*
- * : fHalfPipeInterp (0x800AD128, 232 words) -- strict MATCH in this
- * real -O3 group (no stand-ins; the four context bodies are the locked
- * fPathInterp sources, unchanged).
- *
- * fHalfPipeInterp(unused, idx, position, outPosition, outMatrix,
- * threshold) is a historical label; no arcade ancestor found (N64-only path
- * code, like fPathInterp).  It places a world position in the cross
- * section of path segment idx (next record wraps to 0):
- *   outMatrix = the segment's basis (CopyUV); rel = position in that
- *   frame (surfpos, register-parameter internal callee);
- *   the forward coordinate rel[2] is clamped to [0, skew1] and gives the
- *   fraction along the segment; width (+0x58) and halfWidth (+0x54) are
- *   lerped between the two records; height = halfWidth - width - 2.5.
- *   If the basis is upside down (outMatrix[1][1] < 0) it is turned over
- *   (froll(0, -1)) and x/y are mirrored (y measured from the other
- *   side, + 5.0).  Inside the flat part (|x| <= width) outPosition[1] is the
- *   height above/below and returns; otherwise the point is in a rounded
- *   corner of radius `height`: dist from the corner centre, outPosition[1] =
- *   height - dist, and below `threshold` the basis is rotated onto the
- *   curved surface (fpitch / froll with sine/cosine pairs).
- *
- * Shaping that the retail bytes require (each one moved the colouring, found
- * with the traced uopt):
- *   - one variable `frac` first holds r0->skew1 and then z / skew1 (gives the
- *     shared $f0 web);
- *   - `z = 0;` int literal (a second zero web: two mtc1 zero);
- *   - `height -= width; height -= 2.5f;` as separate statements (height in
- *     $f20 and the final subtract in the bc1f delay slot);
- *   - `x = rel[0]; x += r0->skew0;` after the lerps (x before width in web
- *     order, loads after the lerp loads);
- *   - `y = rel[1];` is dead on the else path, which re-reads rel[1].
- *   0.01f is the function's own .rodata word at 0x80123BFC (verified).
- */
-void fHalfPipeInterp(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold) {
+/* Places `position` on the half-pipe edge of road path point `idx`'s stretch (to the next point, round to 0):
+ * `outMatrix` the stretch's frame, the position in it lerped along the stretch; on the flat part `outPosition[1]` is
+ * its height above the surface, on a rounded corner its height above the curve, and under `threshold` the frame
+ * turns to lie on the curve (fpitch, froll). An upside-down frame is turned over first. `unused` is the surface. */
+void fHalfPipeInterp(s32 unused, u16 idx, f32 *position, f32 *outPosition, f32 (*outMatrix)[3], f32 threshold) {
     PathRec *r0;
     PathRec *r1;
     f32 height;
@@ -150,7 +124,10 @@ void fHalfPipeInterp(s32 arg0, u16 idx, f32 *position, f32 *outPosition, f32 (*o
     }
 }
 
-void fPathInterp(s32 arg0, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]) {
+/* Places `pos` on the road surface of road path point `idx`'s stretch: `outMat` the frame there, from the left and
+ * right edges' directions and the cross direction lerped across and along, and `outPos` the position in it from
+ * the surface, whose height follows a cubic between the two points' slopes. `unused` is the surface. */
+void fPathInterp(s32 unused, u16 idx, f32 *pos, f32 *outPos, f32 (*outMat)[3]) {
     s32 next;
     PathRec *r0;
     PathRec *r1;

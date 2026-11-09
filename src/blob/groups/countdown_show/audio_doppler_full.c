@@ -1,17 +1,12 @@
+/* ShowCountdown: the countdown's numbers in front of each window's camera (MAT3 countdown.c). */
 #include "game/game.h"
 
+/* A 3D polygon of the scene (ZOID_NewPoly): the fields this file needs. */
 typedef struct Poly {
     s16 active;
     u16 flags;
 } Poly;
-
-typedef struct Camera {
-    u8 pad0[0x24];
-    f32 pos[3];
-    u8 mat[0x98 - 0x30];
-} Camera;
-
-VIEW(Camera[], gCamera);
+VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
@@ -22,6 +17,9 @@ void ZOID_UpdatePoly(Poly *, s32, f32 *, u16, u8 *, u16, s32);
 void ZOID_RemovePoly(Poly *);
 s32 sprintf(char *, const char *, ...);
 
+/* With `active`, shows the countdown's number (texture CNTDWN3, 2, 1) on a square in front of each window's camera,
+ * swinging in from the distance each second, and says the number (sounds 75, 76, 77) as it changes; without it,
+ * removes the squares. */
 void ShowCountdown(s32 active)
 {
     f32 xyz[4][3];
@@ -46,10 +44,10 @@ void ShowCountdown(s32 active)
             }
             for (i = 0; i < 4; i++) {
                 polyXYZ[i][2] = dist;
-                U64WorldVector(polyXYZ[i], xyz[i], gCamera[winidx].mat);
-                xyz[i][0] += gCamera[winidx].pos[0];
-                xyz[i][1] += gCamera[winidx].pos[1];
-                xyz[i][2] += gCamera[winidx].pos[2];
+                U64WorldVector(polyXYZ[i], xyz[i], gCamera[winidx].n64.uvs);
+                xyz[i][0] += gCamera[winidx].mat.pos[0];
+                xyz[i][1] += gCamera[winidx].mat.pos[1];
+                xyz[i][2] += gCamera[winidx].mat.pos[2];
             }
             if (poly[winidx] == 0) {
                 MBOX_FindTexture_WORK("CNTDWN3", &polyTidx, 0, gNumModels - 1, 1);

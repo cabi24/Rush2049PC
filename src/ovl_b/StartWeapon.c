@@ -1,5 +1,7 @@
+/* StartWeapon: a car's weapon appears on it (MAT3 weapons.c). */
 #include "game/game.h"
 
+/* A visual (MAT3 tVisual; the PC's 0x20-byte struct pc_visual: next and func are host pointers). */
 typedef struct tVisual tVisual;
 struct tVisual {
     tVisual *next;      /* 0x00 */
@@ -11,6 +13,7 @@ struct tVisual {
     void (*func)(tVisual *, s16); /* 0x14 */
 };
 
+/* A car's parts (gCarParts): its frame's and its weapon's scene objects. */
 typedef struct tCarParts {
     s32 frame;                      /* 0x00 */
     u8 unknown04[0x14];
@@ -20,11 +23,12 @@ typedef struct tCarParts {
 
 VIEW(tCarParts[], gCarParts);
 #define gCarParts gCarParts_view
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern f32 weaponOffsets[8][13][3];
 VIEW(volatile f32, gSeconds);
 #define gSeconds gSeconds_view
 
+/* Puts the weapon on car `slot` if it has none: its weapon visual (visual 20) animates it (AnimateWeapon), the
+ * weapon's object (object definition 217) on the car's frame at the car body's offset. */
 void StartWeapon(s16 slot)
 {
     tVisual *v;

@@ -1,69 +1,66 @@
+/* SetDroneResPathIndex: puts a respawned drone back on its drone path (MAT3 maxpath.c). */
 #include "game/game.h"
 
-typedef struct Position { s16 x,y,z; } Position;
-typedef struct SearchPoint { s16 x,y,z,flag; } SearchPoint;
-typedef struct PositionEntry { u8 pad[12]; Position *points; } PositionEntry;
-/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (ReadPathData), so these views take host offsets and strides */
-typedef struct CountEntry { u16 count; u8 pad[14]; } CountEntry;
-/* gDronePaths' elements as this code reads them: the point count and the points. */
-typedef struct DronePath { u16 count; SearchPoint *points; } DronePath;
-typedef struct Region { u8 pad[40]; s16 path; } Region;
+/* The model record (MAT3 tModelData): the fields this reads. */
+struct tModelData {
+    u8 pad[0x7C6];
+    s16 slot;          /* 0x7C6 the car slot */
+    u8 pad7C8[0x7E2 - 0x7C8];
+    s16 last_cp_index; /* 0x7E2 the last checkpoint it passed */
+    s16 next_cp_index; /* 0x7E4 the next one */
+};
 
-typedef struct State { u8 pad[1990]; s16 player; u8 gap[26]; s16 next, previous; } State;
-/* The track's path (FindResPtRecurse.c's PathGraph): its points, and its alternative paths (nodes). */
-typedef struct { u16 numPoints; Position *points; u8 numNodes; PositionEntry *nodes; } PathGraph;
-VIEW(PathGraph, gResPath);
-#define gResPath gResPath_view
-VIEW(CountEntry[], gDronePaths);
-#define gDronePaths gDronePaths_view
-
-void SetDroneResPathIndex(State *state, s16 selector, s16 point) {
-    DronePath *drone_paths = (DronePath *) gDronePaths;
-    f32 x,y,z;
-    f32 best;
-    f32 dx,dy,dz,distance;
-    Position *position;
-    SearchPoint *scan;
-    Region *region;
-    s32 stop;
-    s16 nextPoint;
+/* Sets the drone of model `m`, respawned at point `idx` of the resurrection path (alternative path `path`, or the
+ * main one when `path` is negative), on the nearest point of its drone path within its checkpoint section (from
+ * its last checkpoint to its next), then that many points further on as its slot number, so drones put back at the
+ * same place don't sit on the same point. */
+void SetDroneResPathIndex(struct tModelData *m, s16 path, s16 idx) {
+    DronePath *drone_paths = gDronePaths;
+    f32 x, y, z;
+    f32 min;
+    f32 dx, dy, dz, dist;
+    s16 *resPt;
+    DronePathPt *pt;
+    struct pc_car_nav *ctl;
+    s32 end;
+    s16 next;
     s32 i;
-    best=drone_res_path_start_distance;
-    if(selector>=0) {
-        position=&gResPath.nodes[selector].points[point];
-        x=(f32)position->x;
-        y=(f32)position->y;
-        z=(f32)position->z;
+    min = drone_res_path_start_distance;
+    if (path >= 0) {
+        resPt = gResPath.alt[path].pts[idx];
+        x = (f32) resPt[0];
+        y = (f32) resPt[1];
+        z = (f32) resPt[2];
     } else {
-        x=(f32)gResPath.points[point].x;
-        y=(f32)gResPath.points[point].y;
-        z=(f32)gResPath.points[point].z;
+        x = (f32) gResPath.pts[idx][0];
+        y = (f32) gResPath.pts[idx][1];
+        z = (f32) gResPath.pts[idx][2];
     }
-    region=&PC_CAR_NAV(state->player);
-    if(state->previous<state->next) stop=gDronePaths[region->path].count;
-    else stop=gCheckpoints.points[state->previous].pathPts[region->path + 1];
-    i=gCheckpoints.points[state->next].pathPts[region->path + 1];
-    point=0;
-    if(i<stop) {
-        scan=&drone_paths[region->path].points[i];
+    ctl = &PC_CAR_NAV(m->slot);
+    if (m->next_cp_index < m->last_cp_index) end = gDronePaths[ctl->path].numPts;
+    else end = gCheckpoints.points[m->next_cp_index].pathPts[ctl->path + 1];
+    i = gCheckpoints.points[m->last_cp_index].pathPts[ctl->path + 1];
+    idx = 0;
+    if (i < end) {
+        pt = &drone_paths[ctl->path].pts[i];
         do {
-            dx=(f32)scan->x-x;
-            dy=(f32)scan->y-y;
-            dz=(f32)scan->z-z;
-            distance=dx*dx+dy*dy+dz*dz;
-            if(distance<best) {
-                best=distance;
-                point=i;
+            dx = (f32) pt->pos[0] - x;
+            dy = (f32) pt->pos[1] - y;
+            dz = (f32) pt->pos[2] - z;
+            dist = dx * dx + dy * dy + dz * dz;
+            if (dist < min) {
+                min = dist;
+                idx = i;
             }
             i++;
-            scan++;
-        } while(i<stop);
+            pt++;
+        } while (i < end);
     }
-    i=0;
-    while(i<state->player) {
-        nextPoint=NextPathPt(point,region->path);
+    i = 0;
+    while (i < m->slot) {
+        next = NextPathPt(idx, ctl->path);
         i++;
-        point=nextPoint;
+        idx = next;
     }
-    SetNewPathIndex(state,point);
+    SetNewPathIndex(m, idx);
 }

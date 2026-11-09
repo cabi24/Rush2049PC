@@ -1,18 +1,18 @@
+/* FVecInterp: a point between two (MAT3 fmath.c). */
 #include "game/game.h"
 
-void FVecInterp(f32 *arg0, f32 *arg1, f32 arg2, f32 *arg3)
+/* Sets `out` to the point fraction `t` of the way from `a` to `b` (a * (1 - t) + b * t). */
+void FVecInterp(f32 *a, f32 *b, f32 t, f32 *out)
 {
-  s16 i;
-  f32 c;
-  i = 0;
-  do
-  {
-    i += 1;
-    c = 1.0f - arg2;
-    *arg3 = arg0[0] * c + arg1[0] * arg2;
-    arg3++;
-    arg0++;
-    arg1++;
-  }
-  while (i < 3);
+    s16 i;
+    f32 c;
+    i = 0;
+    do {
+        i += 1;
+        c = 1.0f - t;
+        *out = a[0] * c + b[0] * t;
+        out++;
+        a++;
+        b++;
+    } while (i < 3);
 }

@@ -1,5 +1,7 @@
+/* AddBattlePointInternal: a battle point won or lost, and its marker flying across the HUD (MAT3 hudextra.c). */
 #include "game/game.h"
 
+/* A battle point's marker (battlePoint[4]): it flies from the victim's place on the HUD to the scorer's. */
 typedef struct Event {
     s8 active;
     s8 age;
@@ -22,6 +24,9 @@ VIEW(Event[], battlePoint);
 VIEW(s32[][4][2], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
 
+/* Records `delta` points for car `row` against car `column` (RecordBattlePoints for a loss); a lost point takes one
+ * off the car (none below 0) when the option for it (gOptions[40]) is on, else stops there. Starts a marker flying
+ * from `column`'s place on the HUD (wrongWayPos) to `row`'s score (fragPos), in the next of four marker slots. */
 void AddBattlePointInternal(s8 row, s8 column, s8 delta) {
     Event *event;
     s32 index;

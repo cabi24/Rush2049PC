@@ -235,6 +235,7 @@ struct Tire;
 struct TireDesc;
 struct TrackNode;
 struct Tree;
+struct surftyp;
 struct V3s;
 struct VCar;
 struct Vec3;
@@ -258,6 +259,7 @@ struct anon_kerns_value_c;
 struct anon_te_tag_c;
 struct internal_state;
 struct tCircuit;
+struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
 struct tMiniModelData;
 struct tModelData;
@@ -731,15 +733,31 @@ typedef struct ct_data_s { /* 0x4 bytes */
     union { u16 dad; u16 len; } dl;   /* 0x2 */
 } ct_data;
 
+/* A checkpoint (MAT3 anon_pos_normal_50, gCheckpoints.points[]; it belongs with the track's types below): a gate
+ * across the road, read from the track's path file (ReadCheckpointData). A car passes it when it crosses the plane
+ * through pos along normal within the radius (CheckCPs). */
 typedef struct tCheckpoint { /* 0x50 bytes */
-    f32 pos[3];      /* 0x0 */
-    f32 normal[3];   /* 0xC */
-    s32 radius;      /* 0x18 */
-    s16 flags;       /* 0x1C */
-    s16 time[2];     /* 0x1E */
-    s16 pathPts[20]; /* 0x22 */
-    f32 distToNext;  /* 0x4C */
+    f32 pos[3];      /* 0x0 the gate's centre */
+    f32 normal[3];   /* 0xC the direction a car crosses it in */
+    s32 radius;      /* 0x18 the gate's radius, squared (compared with dx * dx + dz * dz) */
+    s16 flags;       /* 0x1C CP_FLAG_FINISH, CP_FLAG_START, CP_FLAG_LOOP */
+    s16 time[2];     /* 0x1E seconds the drone paths take from here to the next checkpoint: [0] on the first lap
+                      * (from the start), [1] on the others (CalcCheckpointTimes) */
+    union {
+        s16 pathPts[20];         /* 0x22 where each path crosses this gate (SyncCheckpointsToPaths): */
+        struct {
+            s16 resPathPt;       /* 0x22 pathPts[0]: the point of the resurrection path gResPath */
+            s16 dronePathPt[4];  /* 0x24 pathPts[1 + n]: the point of drone path n (gDronePaths[n]) */
+            s16 altPathPt[15];   /* 0x2C pathPts[5 + n]: the point of alternative path n (gResPath.alt[n]), -1 none */
+        };
+    };
+    f32 distToNext;  /* 0x4C the resurrection path's length from here to the next checkpoint (FindPathDistances) */
 } tCheckpoint;
+
+/* tCheckpoint.flags */
+#define CP_FLAG_FINISH 1 /* the finish line: gCheckpoints.finishPt */
+#define CP_FLAG_START 2  /* the starting grid's checkpoint: gCheckpoints.startPt */
+#define CP_FLAG_LOOP 4   /* where a lap begins once the first one is done: gCheckpoints.loopPt */
 
 /* ---- memory: the heap, the asset wads and waves, lists and trees
  *
@@ -1402,52 +1420,229 @@ typedef struct tStatList { /* 0x28 bytes */
 
 /* ---- track: tracks, the road tree, targets, paths and checkpoints */
 
-typedef struct DronePathPoint { /* 0x10 bytes */
-    u16 count;                /* 0x0 */
-    u16 other2;               /* 0x2 */
-    struct PathPoint *points; /* 0x8 */
-} DronePathPoint;
+/* A point of a drone path (MAT3 anon_pos_mph_8): where the computer cars drive, and how fast. */
+typedef struct DronePathPt { /* 0x8 bytes */
+    s16 pos[3]; /* 0x0 */
+    u8 mph;     /* 0x6 the speed to drive at here (CalcCheckpointTimes: mph * 1.4666667 is feet a second) */
+    s8 hints;   /* 0x7 driving hints for the drones here */
+} DronePathPt;
+
+/* A drone path (MAT3 anon_numPts_pts_8, gDronePaths[4]): a loop of points round the track that the computer cars
+ * follow (maxpath.c), read from the track's path file (ReadPathData). Host layout: pts is a host pointer. */
+typedef struct DronePath { /* 0x10 bytes */
+    u16 numPts;       /* 0x0 */
+    u16 pad02;        /* 0x2 the path file's padding, copied with numPts (ReadPathData) */
+    DronePathPt *pts; /* 0x8 */
+} DronePath;
+
+/* An alternative path (MAT3 anon_resurrect_firstPath_10, gResPath.alt[] = gAltPaths): a branch of the resurrection
+ * path, a shortcut or a second route, whose ends join the main path or another branch (SyncAltPaths links them). On
+ * the PC ReadPathData keeps them in a host array of its own (pts is a host pointer). */
+typedef struct AltPath { /* 0x18 bytes */
+    u8 resurrect;    /* 0x0 0 a branch no car is put back on (a respawn point on it is traced on to the path it
+                      * joins: FindResPt); ALT_PATH_RESURRECT one cars may be put back on (its points count in the
+                      * track's bounds, CalcResPathBounds); ALT_PATH_ALONE one joined to nothing (SyncAltPaths) */
+    s8 firstPath;    /* 0x1 the path its first point joins: an alternative path, or -1 the main path */
+    u16 firstIdx;    /* 0x2 the point of firstPath it joins there */
+    s8 lastPath;     /* 0x4 the path its last point joins */
+    u16 lastIdx;     /* 0x6 the point of lastPath it joins there */
+    s8 startSection; /* 0x8 the checkpoint section it starts in (TraceToCheckpoint), -1 none */
+    u16 numPts;      /* 0xA */
+    s16 (*pts)[3];   /* 0x10 */
+} AltPath;
+
+/* AltPath.resurrect */
+#define ALT_PATH_RESURRECT 1
+#define ALT_PATH_ALONE 2
 
 typedef struct MineSlots { /* 0x28 bytes */
     struct Target *target[4]; /* 0x0 */
     s32 count;                /* 0x20 */
 } MineSlots;
 
+/* The resurrection path (MAT3 anon_numPts_pts_10, gResPath): the line down the middle of the road that a crashed car
+ * is put back on (resurrect.c) and that measures the cars' progress (maxpath.c), with its branches. Host layout. */
 typedef struct ResurrectPath { /* 0x20 bytes */
-    u16 numPoints;         /* 0x0 */
-    struct PathPt *points; /* 0x8 */
-    u8 numNodes;           /* 0x10 */
-    void *nodes;           /* 0x18 */
+    u16 numPts;    /* 0x0 the main path's points */
+    s16 (*pts)[3]; /* 0x8 = gResPathPtList */
+    u8 numAlt;     /* 0x10 */
+    AltPath *alt;  /* 0x18 = gAltPaths, NULL when there are none */
 } ResurrectPath;
 
+/* A kind of target (MAT3 tTargetInfo, targetInfo[122], ROM data): a name the track's objects are matched by, its
+ * model, its functions and its collision. Host layout, 0x40 bytes (N64 0x30): its first four members are pointers
+ * (TINFO_OFS). MAT3's names but visFunc and sound (MAT3 animFunc, startSnd: the names other files use). */
 typedef struct TargInfo { /* 0x40 bytes */
-    char *name;    /* 0x0 */
-    char *file;    /* 0x8 */
-    void *start;   /* 0x10 */
-    void *visFunc; /* 0x18 */
-    s16 kind;      /* 0x20 */
-    u16 flags;     /* 0x22 */
-    s16 shape;     /* 0x24 */
-    s8 category;   /* 0x26 */
-    s8 element;    /* 0x27 */
-    f32 value;     /* 0x28 */
-    s32 sound;     /* 0x2C */
-    s32 w20;       /* 0x30 */
-    s32 w24;       /* 0x34 */
-    s32 w28;       /* 0x38 */
-    f32 f2C;       /* 0x3C */
+    char *name;         /* 0x0 the start of the track objects' names it matches (SetupTarget) */
+    char *mboxname;     /* 0x8 its model's name */
+    void *startFunc;    /* 0x10 the function that starts it (StartCactus ...) */
+    void *visFunc;      /* 0x18 its visual's animator (AnimateCoin ...) */
+    s16 collFuncIdx;    /* 0x20 its collision test (gTargetCollFuncPtrs; 4 a bounding box, 6 none) */
+    u16 Flags;          /* 0x22 2 an environment visual animates it, 4 its start function runs then too, 8 a record
+                         * of its own kind (gTargetOwnStructPtrs), 0x20 kept without the Expansion Pak, 0x100 one
+                         * player only, 0x400 its data is the track's object record, 0x800 in no world group,
+                         * 0x4000 started when defined, 0x8000 a bounding box model (gBBoxModelStructs) */
+    s16 objListIdx;     /* 0x24 its object definition (gObjList) */
+    s8 structureID;     /* 0x26 the kind of record its data is (gTargetStructPtrs[]): 4 a path, 5 a weapon, 6 a coin */
+    s8 structureIdx;    /* 0x27 its record among its kind's static ones (gTargetStructInfoPtrs) */
+    f32 collVal;        /* 0x28 its collision radius, or for a box its row of BBoxCollInfo; -1 the model's radius */
+    s32 sound;          /* 0x2C the sounds: starting (MAT3 startSnd), moving and stopping, -1 none */
+    s32 moveSnd;        /* 0x30 */
+    s32 stopSnd;        /* 0x34 */
+    s32 replace;        /* 0x38 the sound's replace mode */
+    f32 fadeDist;       /* 0x3C the sound's fade distance */
 } TargInfo;
 
+/* gTargetList, the targets' node pool (MAT3 tStatList): 130 nodes of 0x70 bytes in gTargetArray. Host layout; the
+ * nodes themselves keep the N64's (tTarget). */
 typedef struct TargetNodePool { /* 0x28 bytes */
-    u8 b0;        /* 0x0 */
-    u8 n64;       /* 0x1 */
-    u8 pad2[2];   /* 0x2 */
-    s32 count;    /* 0x4 */
-    s32 size;     /* 0x8 */
-    u8 *mem;      /* 0x10 */
-    intptr_t f16; /* 0x18 */
-    u8 *free;     /* 0x20 */
+    u8 dbl;          /* 0x0 doubly linked (not this one) */
+    u8 n64;          /* 0x1 PC: the nodes link by 32-bit window addresses (pc_statll_link) */
+    u8 pad2[2];      /* 0x2 */
+    s32 numElements; /* 0x4 */
+    s32 elementSize; /* 0x8 */
+    u8 *list;        /* 0x10 the nodes */
+    intptr_t head;   /* 0x18 the first target in use (a tTarget *), 0 none */
+    u8 *store;       /* 0x20 the first free node */
 } TargetNodePool;
+
+/* A target (MAT3 tTarget): one of the track's objects that take part in the race: a cone, a cactus, a fence, a
+ * window, a coin, a mine, a weapon, a moving object on a path. Each is a node of gTargetList (SetupTarget), with a
+ * kind (targetInfo[infoIdx]) and maybe a record of its kind's (data). In the N64's layout on the PC: its link and
+ * its data are 32-bit window addresses (PC_N64P; docs/port/POINTERS.md 10). */
+typedef struct tTarget { /* 0x70 bytes */
+    u32 next;      /* 0x00 ll.next: the next target in its list, a window address; 0 the last */
+    u8 Flags;      /* 0x04 TARGET_* */
+    s32 mbIdx;     /* 0x08 its model (MBOX_FindObject_WORK); a path target's or a world object's key, once set up */
+    s32 dlIdx;     /* 0x0C its scene object (ZOID_AddObject), -1 none */
+    s16 infoIdx;   /* 0x10 its kind: its index in targetInfo */
+    UVMat mat;     /* 0x14 its orientation and position, which its scene object is drawn at */
+    f32 pos[3];    /* 0x44 its position in the world (MBOX_GetPosition) */
+    s16 type;      /* 0x50 the object definition it shows now (gObjList) */
+    f32 radius;    /* 0x54 its collision radius */
+    s16 otype;     /* 0x58 the object definition it started with */
+    s16 frames;    /* 0x5A its animation's frames */
+    s8 slot;       /* 0x5C the car that hit it, -1 none */
+    s32 sound;     /* 0x60 its sound emitter, -1 none */
+    s8 sndState;   /* 0x64 its sound: 0 starting, 1 moving, 2 stopped */
+    s8 owner;      /* 0x65 the car that owns it (a mine); a path target's path; a box's mini model */
+    f32 timeStamp; /* 0x68 */
+    u32 data;      /* 0x6C its kind's record (gTargetStructPtrs[structureID]), a window address; 0 none */
+} tTarget;
+
+/* tTarget.Flags */
+#define TARGET_SET_UP 0x1    /* its first frame is done (a path target's StartPathTarget) */
+#define TARGET_ACTIVE 0x2    /* still in play: a path target whose flag is cleared is removed (AnimatePathTarget) */
+#define TARGET_COLLIDES 0x8  /* it has a collision test (collFuncIdx not 6) */
+#define TARGET_IN_WORLD 0x10 /* a path target the world placed (not from a PTHD record) */
+#define TARGET_GOLD 0x40     /* a gold coin */
+
+/* A point of a target path (MAT3 anon_pos_norm_44), the track WAD's PTHD records' points. N64 layout, 0x44 bytes. */
+typedef struct TargetPathPt {
+    f32 pos[3];     /* 0x00 */
+    f32 norm[3];    /* 0x0C the direction on to the next point */
+    f32 scale[3];   /* 0x18 the target's scale here */
+    f32 quat[4];    /* 0x24 its orientation here */
+    f32 distToNext; /* 0x34 the distance to the next point (a stretch whose flags have 0x10000008: moved evenly) */
+    f32 timeToNext; /* 0x38 the time to the next point */
+    f32 speed;      /* 0x3C the speed here (between points it changes evenly) */
+    s32 flags;      /* 0x40 */
+} TargetPathPt;
+
+/* A path target's record (MAT3 tTargetStructPath, tTarget.data of a target whose structureID is 4): where it is on
+ * its path. A heap record in the N64's layout: pathData is a 32-bit window address. */
+typedef struct tTargetStructPath { /* 0x48 bytes */
+    u32 pathData;       /* 0x00 its path (a PTHD record, tBasicTargetPath), a window address */
+    f32 timeElapsed;    /* 0x04 the time since it left point ptOn (or, going backwards, to reach it) */
+    f32 curDistToNext;  /* 0x08 */
+    s16 ptOn;           /* 0x0C the point it is at or last passed */
+    u16 flags;          /* 0x0E TPATH_FORWARD or TPATH_BACKWARD */
+    f32 curVel;         /* 0x10 its speed, feet a second */
+    f32 maxVel;         /* 0x14 the path's top speed */
+    f32 lastPos[3];     /* 0x18 its position the frame before */
+    f32 lastUVS[3][3];  /* 0x24 its orientation at its last point, transposed (for its collision object) */
+} tTargetStructPath;
+
+/* tTargetStructPath.flags */
+#define TPATH_FORWARD 4
+#define TPATH_BACKWARD 8
+
+/* A node of the targets' quadtree (MAT3 tTargetGroup, the track WAD's GDAT records, gTargetGroups): a rectangle of
+ * the ground; a node split in four (flags 1) has four children, a leaf a run of gTargetGroupList. */
+typedef struct tTargetGroup { /* 0x1C bytes */
+    s16 parent;   /* 0x00 */
+    u8 unused;    /* 0x02 */
+    u8 flags;     /* 0x03 1 split in four */
+    f32 minh;     /* 0x04 x from */
+    f32 maxh;     /* 0x08 x to */
+    f32 minv;     /* 0x0C z from */
+    f32 maxv;     /* 0x10 z to */
+    u16 child[4]; /* 0x14 split: its children (south-west, south-east ...: CheckTargetCollision picks by the
+                   * middle, child[2]'s top corner); a leaf: [0] how many targets, [1] the first in
+                   * gTargetGroupList */
+} tTargetGroup;
+
+/* A bounding box model (MAT3 tMiniModelData, gBBoxModelStructs[]): a moving target the cars collide with as a box.
+ * A heap record in the N64's layout: bboxInfo is a 32-bit window address. */
+typedef struct tMiniModelData { /* 0x40 bytes */
+    u32 bboxInfo;  /* 0x00 its box, a row of BBoxCollInfo (a window address) */
+    f32 uvs[3][3]; /* 0x04 its orientation */
+    f32 pos[3];    /* 0x28 */
+    f32 vel[3];    /* 0x34 */
+} tMiniModelData;
+
+/* The surface tree (MAT3 stree.c): the track's collision surfaces, from its collision WAD (InitSTree). No pointers,
+ * the same layout on both; the files read stree_save, stree_svert and stree_nodes (declared u8 *) through views of
+ * these. A vertex position is in 1/32 feet: whole feet in pos, the three axes' 5-bit fractions in overflow. */
+/* The collision WAD's header (MAT3 stheadertyp, gRoadHead): how many of each record follow it, in this order: the
+ * road path (gRoadPath, MAT3 pathtyp, 0x84 bytes each), the tree's nodes, the surfaces, the vertices, the saved
+ * surfaces, the vertex lists, the surface lists (InitSTree). */
+typedef struct stheadertyp { /* 0x10 bytes */
+    u16 pnum;     /* 0x0 road path points */
+    u16 tnum;     /* 0x2 tree nodes */
+    u16 snum;     /* 0x4 surfaces */
+    u16 vnum;     /* 0x6 vertices */
+    u16 savenum;  /* 0x8 saved surfaces */
+    u16 vlnum;    /* 0xA bytes of vertex lists */
+    u32 slnum;    /* 0xC bytes of surface lists */
+} stheadertyp;
+
+typedef struct sverttyp { /* 0x8 bytes, stree_svert[] */
+    s16 pos[3];   /* 0x0 whole feet */
+    u16 overflow; /* 0x6 the fractions: x << 10 | y << 5 | z, 32nds */
+} sverttyp;
+
+/* A saved surface of a collision object (MAT3 savetyp, stree_save[stree_savenum]): a surface and one of its
+ * vertices as the track had them, which moving targets move and turn (MoveCollisionObject, RotateCollisionObject)
+ * and ResetCollisionObject puts back. */
+typedef struct savetyp { /* 0x20 bytes */
+    u16 object;     /* 0x00 the collision object it belongs to (a target path's collIdx) */
+    u16 snum;       /* 0x02 the surface (stree_surf[]) */
+    s16 uvs[3][3];  /* 0x04 the surface's orientation as the track had it, 1.0 = 0x4000 */
+    u16 vnum;       /* 0x16 the vertex (stree_svert[]) */
+    s16 pos[3];     /* 0x18 the vertex as the track had it (sverttyp) */
+    u16 overflow;   /* 0x1E */
+} savetyp;
+
+/* A node of the surface tree (MAT3 streetyp, stree_nodes[]): a rectangle of the ground, in feet; split in four
+ * (flags 1), or a leaf with a run of surfaces. */
+typedef struct streetyp { /* 0x14 bytes */
+    s16 parent;   /* 0x0 */
+    u8 unused;    /* 0x2 */
+    u8 flags;     /* 0x3 */
+    s16 minh;     /* 0x4 */
+    s16 maxh;     /* 0x6 */
+    s16 minv;     /* 0x8 */
+    s16 maxv;     /* 0xA */
+    u16 child[4]; /* 0xC */
+} streetyp;
+
+/* An element of gAlwaysColList (MAT3 tAlwaysCol): a target every car is tested against, wherever it is (battle's
+ * weapons). Host layout: both are host pointers (16 bytes). */
+typedef struct tAlwaysCol {
+    struct tAlwaysCol *next; /* ll.next */
+    tTarget *t;
+} tAlwaysCol;
 
 typedef struct TrackLoadInfo { /* 0x2C bytes */
     s8 trackInited;           /* 0x0 */
@@ -1636,12 +1831,13 @@ typedef struct tStuntPlayer { /* 0x78 bytes */
 
 /* ---- race: the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
 
+/* A race of a circuit (MAT3 tCircuitTrack, gCircuitTracks[]: the arena holds them all; ContinueCircuit). */
 typedef struct CircuitTrackSlot { /* 0x5 bytes */
-    u8 a; /* 0x0 */
-    u8 b; /* 0x1 */
-    u8 c; /* 0x2 */
-    u8 d; /* 0x3 */
-    u8 e; /* 0x4 */
+    u8 trackNum; /* 0x0 */
+    u8 backward; /* 0x1 */
+    u8 mirror;   /* 0x2 */
+    u8 fog;      /* 0x3 0 none to 3 thick */
+    u8 wind;     /* 0x4 */
 } CircuitTrackSlot;
 
 typedef struct GhostFile { /* 0x40 bytes */
@@ -1742,11 +1938,13 @@ typedef struct RGB { /* 0x3 bytes */
     u8 b; /* 0x2 */
 } RGB;
 
+/* The scorch marks on the track (MAT3 worlddam.c's DamagePolys, anon_full_oldest_68): a ring of 25 polygons, the
+ * oldest replaced once full. Host layout. */
 typedef struct RingState { /* 0xD0 bytes */
-    s8 wrapped;        /* 0x0 */
+    s8 full;           /* 0x0 all 25 used */
     u8 unknown01;      /* 0x1 */
-    u16 next;          /* 0x2 */
-    void *objects[25]; /* 0x8 */
+    u16 oldest;        /* 0x2 the next to replace */
+    void *polys[25];   /* 0x8 */
 } RingState;
 
 typedef struct Shield { /* 0x34 bytes */
@@ -1759,40 +1957,65 @@ typedef struct StuntInfo { /* 0x7C bytes */
     u8 pad[120]; /* 0x4 */
 } StuntInfo;
 
+/* A power-up on the battle arena (MAT3 tBattlePowerUpT, gBattlePowerUps.tS[]): its target. Host layout. */
+typedef struct tBattlePowerUpT { /* 0x10 bytes */
+    tTarget *t;  /* 0x0 */
+    s16 last;    /* 0x8 */
+    s16 type;    /* 0xA */
+} tBattlePowerUpT;
+
+/* The battle arena's power-ups (MAT3 tBattlePowerUps, gBattlePowerUps): how many, and the time left until each kind
+ * appears again (health, invisibility, shield). */
 typedef struct tBattlePowerUps { /* 0x18 bytes */
-    s8 count;           /* 0x0 */
-    u8 unknown_1[3];    /* 0x1 */
-    f32 delay;          /* 0x4 */
-    f32 phase_a;        /* 0x8 */
-    f32 phase_b;        /* 0xC */
-    struct Slot *slots; /* 0x10 */
+    s8 num;               /* 0x0 */
+    u8 idx[3];            /* 0x1 MAT3 hIdx, sIdx, iIdx: the power-up each kind last came at */
+    f32 healthTLeft;      /* 0x4 */
+    f32 invsTLeft;        /* 0x8 */
+    f32 shieldTLeft;      /* 0xC */
+    tBattlePowerUpT *tS;  /* 0x10 the power-ups (a heap block) */
 } tBattlePowerUps;
 
+/* A car's cannon flash (MAT3 tCMuzzleObj, gCannMuzzleObjs[4]). The data loader lays it out by this declaration, so
+ * its other members stay bytes; weapons.c reads it whole as CMuzzleObj. */
 typedef struct tCMuzzleObj { /* 0x148 bytes */
-    u8 unknown000[260]; /* 0x0 */
-    s32 handle;         /* 0x104 */
-    u8 unknown108[48];  /* 0x108 */
-    s8 selection;       /* 0x138 */
-    u8 unknown139[11];  /* 0x139 */
-    f32 timer;          /* 0x144 */
+    u8 mdls_mats[260];  /* 0x0 mdls[5] (s32), mats[5] (UVMat) */
+    s32 ripdl;          /* 0x104 the ripple's scene object, -1 none */
+    u8 mat[48];         /* 0x108 the ripple's UVMat */
+    s8 ripCnt;          /* 0x138 -1 none */
+    u8 ripTIdx_ripTime[11]; /* 0x139 ripTIdx, on, ripScale, ripTime */
+    f32 onTime;         /* 0x144 */
 } tCMuzzleObj;
 
+/* A car of a circuit (MAT3 tCircuitCar, gCircuitCars[6]: the arena holds six; the data loader knows the first):
+ * its driver, its standing and its results race by race. */
 typedef struct tCircuitCar { /* 0x4C bytes */
-    u8 id;         /* 0x0 */
-    u8 b1;         /* 0x1 */
-    u16 h2;        /* 0x2 */
-    u8 b4[24];     /* 0x4 */
-    u8 b28[24];    /* 0x1C */
-    s16 skill[12]; /* 0x34 */
+    u8 name;          /* 0x0 its driver (the roster's car) */
+    u8 totalPlace;    /* 0x1 its place in the circuit so far */
+    u16 totalPoints;  /* 0x2 its points so far */
+    u8 places[24];    /* 0x4 its place in each race */
+    u8 points[24];    /* 0x1C its points from each race */
+    s16 skill[12];    /* 0x34 a drone's skill in each race */
 } tCircuitCar;
 
 /* ---- camera: the cameras */
 
+/* A camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. The data loader lays gCamera
+ * out by this declaration, its bytes from 0x30 as bytes; the camera files read it whole as tCamera (below). */
 typedef struct CameraView { /* 0x98 bytes */
-    f32 uv[3][3];      /* 0x0 */
-    f32 position[3];   /* 0x24 */
-    u8 unknown30[104]; /* 0x30 */
+    f32 uvs[3][3];     /* 0x0 its orientation */
+    f32 pos[3];        /* 0x24 its position */
+    u8 rest[104];      /* 0x30 n64, fcam, view2spring, slot */
 } CameraView;
+
+/* A camera whole (MAT3 anon_mat_n64_98): the camera files' view of gCamera (VIEW(tCamera[], gCamera)). */
+typedef struct tCamera { /* 0x98 bytes */
+    UVMat mat;        /* 0x00 its orientation and position, as the cameras set them */
+    UVMat n64;        /* 0x30 what the N64 draws by: mat with four elements negated (UpdateCameras) */
+    UVMat fcam;       /* 0x60 the fixed camera's: its pos is where the crash and finish views look from */
+    f32 view2spring;  /* 0x90 */
+    u8 slot;          /* 0x94 the car it shows (ZeroCamera starts camera i on car i) */
+    u8 pad95[3];
+} tCamera;
 
 typedef struct PcFscls { /* 0x1EC bytes */
     f32 fscls[3];          /* 0x0 */

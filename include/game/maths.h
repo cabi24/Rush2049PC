@@ -57,7 +57,6 @@ extern struct Texture *zoid_current_texture;
 extern s32 zoid_tlut_mode;
 
 /* Functions */
-void AnimatePathTarget(struct CamNode *node, s16 flag);
 void BodyVector(f32 *src, f32 *dst, f32 *uvs);
 void build_far_node_matrix(s32 idx, struct View *obj, u32 *m, f32 scale, s32 absolute);
 s32 build_node_matrix(s32 view, struct XForm *src, u32 (*out)[16], f32 w, s32 depth);
@@ -89,7 +88,6 @@ void MulUVS(f32 (*m)[3], f32 (*in)[3], f32 (*out)[3]);
 f32 NormalVector(f32 *v);
 void PitchUV(f32 angle, f32 (*uv)[3]);
 f32 Random(f32 max);
-void ResetPath(struct Camera *cam, s32 idx);
 void RollUV(f32 angle, f32 (*uv)[3]);
 void RotateUV(f32 *pyr, f32 (*uvs)[3]);
 void ScaleUV(f32 (*src)[3], f32 (*dst)[3], f32 scale);

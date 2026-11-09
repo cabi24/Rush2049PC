@@ -1,68 +1,40 @@
+/* FindMaxpathIntervals: where each car is along the resurrection path, and from that how far round the race it has
+ * got, which orders the cars (MAT3 maxpath.c). */
 #include "game/game.h"
 
-typedef struct PathPoint {
-    s16 pos[3];
-} PathPoint;
-
-typedef struct PathSet {
-    /* 0x0 */ u8 type;
-    /* 0x1 */ u8 pad1[9];
-    /* 0xA */ u16 count;
-    /* 0xC */ PathPoint *points;
-} PathSet; /* 0x10 */
-
-typedef struct PathGraph {
-    /* 0x0 */ u16 count;
-    /* 0x4 */ PathPoint *points;
-    /* 0x8 */ u8 numSets;
-    /* 0xC */ PathSet *sets;
-} PathGraph;
-
-typedef struct Track {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ char padA[0x24];
-    /* 0x2E */ s16 unk2E;
-    /* 0x30 */ char pad30[0x20];
-} Track; /* 0x50 */
-
-typedef struct TrackLen {
-    /* 0x00 */ char pad0[0x58];
-    /* 0x58 */ f32 unk58;
-} TrackLen;
-
+/* The model record (MAT3 tModelData): the fields this reads. */
 typedef struct Model {
     /* 0x000 */ char pad0[0x22C];
-    /* 0x22C */ f32 pos[3];
+    /* 0x22C */ f32 rwr[3];        /* its position */
     /* 0x238 */ char pad238[0x58E];
     /* 0x7C6 */ s16 slot;
     /* 0x7C8 */ char pad7C8[0x1A];
-    /* 0x7E2 */ s16 unk7E2;
-    /* 0x7E4 */ s16 unk7E4;
-    /* 0x7E6 */ s16 unk7E6;
-    /* 0x7E8 */ s8 unk7E8;
+    /* 0x7E2 */ s16 last_cp_index; /* the last checkpoint it passed */
+    /* 0x7E4 */ s16 next_cp_index; /* the next one */
+    /* 0x7E6 */ s16 drone_target;
+    /* 0x7E8 */ s8 laps;           /* laps completed */
     /* 0x7E9 */ char pad7E9[0x1F];
 } Model; /* 0x808 */
 
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
 typedef struct Car {
     /* 0x000 */ char pad0[0xEF];
-    /* 0x0EF */ s8 unkEF;
+    /* 0x0EF */ s8 place_locked;   /* 1 once it has finished */
     /* 0x0F0 */ char padF0[0xA];
-    /* 0x0FA */ s16 unkFA;
-    /* 0x0FC */ s16 unkFC;
-    /* 0x0FE */ s16 unkFE;
-    /* 0x100 */ f32 unk100;
+    /* 0x0FA */ s16 lastResPath;   /* the path of the point last found for it: an alternative path, -1 the main one */
+    /* 0x0FC */ s16 lastResIdx;    /* that point */
+    /* 0x0FE */ s16 resIdx;        /* its point on the main path, where the searches start */
+    /* 0x100 */ f32 distance;      /* how far round the race it has got, in feet (the HUD, the places) */
     /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x380 - 0x308]; void *input; char pad104_384[0x3B8 - 0x384];
 } Car; /* 0x3B8 */
 
-VIEW(PathGraph, gResPath);
-#define gResPath gResPath_view
-VIEW(Track[], gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-
+/* For each car that is solid and still racing: finds the nearest point of the resurrection path to it, looking
+ * first at the 5 main-path points from its last one, then (more than 100 feet off) on along the branch it was on or
+ * at the 5 from its last point, then (more than 200 feet off) through its checkpoint section of the main path,
+ * every branch cars may be put back on, and the whole main path from its point; each search stops early on a point
+ * close enough. A point on a branch is mapped onto the main path (FindResPt). If that point lies in the car's
+ * checkpoint section, its distance round the race is the laps done, the checkpoint stretches since the lap's
+ * start, the path from its last checkpoint to the point, and how far past the point it is along the path. */
 void FindMaxpathIntervals(void)
 {
     s16 i;
@@ -75,7 +47,7 @@ void FindMaxpathIntervals(void)
     Car *gc;
     s32 idx;
     s32 limit;
-    s32 bestSet;
+    s32 bestPath;
     s32 bestIdx;
     s32 next;
     f32 best;
@@ -94,21 +66,21 @@ void FindMaxpathIntervals(void)
         m2 = PC_MODEL(slot);
         if (AreWeSolid(slot)) {
             gc = PC_CAR(slot);
-            if (gc->unkEF == 1) {
+            if (gc->place_locked == 1) {
                 continue;
             }
-            pos[0] = m->pos[0];
-            pos[1] = m->pos[1];
-            pos[2] = m->pos[2];
+            pos[0] = m->rwr[0];
+            pos[1] = m->rwr[1];
+            pos[2] = m->rwr[2];
             best = 1e20f;
             bestIdx = 0;
-            bestSet = -1;
+            bestPath = -1;
             end = 5;
-            idx = gc->unkFE;
+            idx = gc->resIdx;
             for (j = 0; j < end; j++) {
-                dx = gResPath.points[idx].pos[0] - pos[0];
-                dy = gResPath.points[idx].pos[1] - pos[1];
-                dz = gResPath.points[idx].pos[2] - pos[2];
+                dx = gResPath.pts[idx][0] - pos[0];
+                dy = gResPath.pts[idx][1] - pos[1];
+                dz = gResPath.pts[idx][2] - pos[2];
                 dist = dx * dx + dy * dy + dz * dz;
                 if (dist < best) {
                     best = dist;
@@ -117,161 +89,164 @@ void FindMaxpathIntervals(void)
                 NextResPathPt(-1, idx, 0, &idx);
             }
             if (best > 10000.0f) {
-                if (gc->unkFA >= 0) {
-                    if (gResPath.sets[gc->unkFA].count - gc->unkFC >= 6) {
-                        end = gc->unkFC + 5;
+                /* more than 100 feet off: along the branch it was on, or the main path from its last point */
+                if (gc->lastResPath >= 0) {
+                    if (gResPath.alt[gc->lastResPath].numPts - gc->lastResIdx >= 6) {
+                        end = gc->lastResIdx + 5;
                     } else {
-                        end = gResPath.sets[gc->unkFA].count;
+                        end = gResPath.alt[gc->lastResPath].numPts;
                     }
-                    for (j = gc->unkFC; j < end; j++) {
-                        dx = gResPath.sets[gc->unkFA].points[j].pos[0] - pos[0];
-                        dy = gResPath.sets[gc->unkFA].points[j].pos[1] - pos[1];
-                        dz = gResPath.sets[gc->unkFA].points[j].pos[2] - pos[2];
+                    for (j = gc->lastResIdx; j < end; j++) {
+                        dx = gResPath.alt[gc->lastResPath].pts[j][0] - pos[0];
+                        dy = gResPath.alt[gc->lastResPath].pts[j][1] - pos[1];
+                        dz = gResPath.alt[gc->lastResPath].pts[j][2] - pos[2];
                         dist = dx * dx + dy * dy + dz * dz;
                         if (dist < best) {
                             bestIdx = j;
-                            bestSet = gc->unkFA;
+                            bestPath = gc->lastResPath;
                             best = dist;
                         }
                     }
-                } else if (gc->unkFE != gc->unkFC) {
+                } else if (gc->resIdx != gc->lastResIdx) {
                     end = 5;
-                    idx = gc->unkFC;
+                    idx = gc->lastResIdx;
                     for (j = 0; j < end; j++) {
-                        dx = gResPath.points[idx].pos[0] - pos[0];
-                        dy = gResPath.points[idx].pos[1] - pos[1];
-                        dz = gResPath.points[idx].pos[2] - pos[2];
+                        dx = gResPath.pts[idx][0] - pos[0];
+                        dy = gResPath.pts[idx][1] - pos[1];
+                        dz = gResPath.pts[idx][2] - pos[2];
                         dist = dx * dx + dy * dy + dz * dz;
                         if (dist < best) {
                             best = dist;
                             bestIdx = idx;
-                            bestSet = -1;
+                            bestPath = -1;
                         }
                         NextResPathPt(-1, idx, 0, &idx);
                     }
                 }
             }
             if (best > 40000.0f) {
-                if (m->unk7E4 < m->unk7E2) {
-                    end = gResPath.count;
+                /* more than 200 feet off: its checkpoint section, then the branches, then the whole main path */
+                if (m->next_cp_index < m->last_cp_index) {
+                    end = gResPath.numPts;
                 } else {
-                    end = gCheckpoints[m->unk7E4].unk2E;
+                    end = gCheckpoints.points[m->next_cp_index].resPathPt;
                 }
-                for (j = gCheckpoints[m->unk7E2].unk2E; j < end; j++) {
-                    dx = gResPath.points[j].pos[0] - pos[0];
-                    dy = gResPath.points[j].pos[1] - pos[1];
-                    dz = gResPath.points[j].pos[2] - pos[2];
+                for (j = gCheckpoints.points[m->last_cp_index].resPathPt; j < end; j++) {
+                    dx = gResPath.pts[j][0] - pos[0];
+                    dy = gResPath.pts[j][1] - pos[1];
+                    dz = gResPath.pts[j][2] - pos[2];
                     dist = dx * dx + dy * dy + dz * dz;
                     if (dist < best) {
                         best = dist;
                         bestIdx = j;
-                        bestSet = -1;
+                        bestPath = -1;
                         if (dist <= 10000.0f) {
                             break;
                         }
                     }
                 }
                 if (j == end) {
-                    for (k = 0; k < gResPath.numSets; k++) {
-                        if (gResPath.sets[k].type == 2) {
+                    for (k = 0; k < gResPath.numAlt; k++) {
+                        if (gResPath.alt[k].resurrect == ALT_PATH_ALONE) {
                             continue;
                         }
-                        for (j = 0; j < gResPath.sets[k].count; j++) {
-                            dx = gResPath.sets[k].points[j].pos[0] - pos[0];
-                            dy = gResPath.sets[k].points[j].pos[1] - pos[1];
-                            dz = gResPath.sets[k].points[j].pos[2] - pos[2];
+                        for (j = 0; j < gResPath.alt[k].numPts; j++) {
+                            dx = gResPath.alt[k].pts[j][0] - pos[0];
+                            dy = gResPath.alt[k].pts[j][1] - pos[1];
+                            dz = gResPath.alt[k].pts[j][2] - pos[2];
                             dist = dx * dx + dy * dy + dz * dz;
                             if (dist < best) {
                                 best = dist;
                                 bestIdx = j;
-                                bestSet = k;
+                                bestPath = k;
                                 if (dist <= 2500.0f) {
                                     break;
                                 }
                             }
                         }
-                        if (j < gResPath.sets[k].count) {
+                        if (j < gResPath.alt[k].numPts) {
                             break;
                         }
                     }
-                    if (k == gResPath.numSets) {
-                        for (j = gc->unkFE;;) {
-                            dx = gResPath.points[j].pos[0] - pos[0];
-                            dy = gResPath.points[j].pos[1] - pos[1];
-                            dz = gResPath.points[j].pos[2] - pos[2];
+                    if (k == gResPath.numAlt) {
+                        for (j = gc->resIdx;;) {
+                            dx = gResPath.pts[j][0] - pos[0];
+                            dy = gResPath.pts[j][1] - pos[1];
+                            dz = gResPath.pts[j][2] - pos[2];
                             dist = dx * dx + dy * dy + dz * dz;
                             if (dist < best) {
                                 best = dist;
                                 bestIdx = j;
-                                bestSet = -1;
+                                bestPath = -1;
                                 if (dist <= 10000.0f) {
                                     break;
                                 }
                             }
                             j++;
-                            if (j >= gResPath.count) {
+                            if (j >= gResPath.numPts) {
                                 j = 0;
                             }
-                            if (j == gc->unkFE) {
+                            if (j == gc->resIdx) {
                                 break;
                             }
                         }
                     }
                 }
             }
-            gc->unkFA = bestSet;
-            gc->unkFC = bestIdx;
+            gc->lastResPath = bestPath;
+            gc->lastResIdx = bestIdx;
             if (best > 40000.0f) {
                 continue;
             }
-            if (bestSet >= 0) {
-                FindResPt(bestSet, bestIdx, &bestSet, &bestIdx, 0);
+            if (bestPath >= 0) {
+                FindResPt(bestPath, bestIdx, &bestPath, &bestIdx, 0);
             }
-            if (bestIdx < gCheckpoints[m->unk7E2].unk2E) {
+            if (bestIdx < gCheckpoints.points[m->last_cp_index].resPathPt) {
                 continue;
             }
-            if (m->unk7E4 < m->unk7E2) {
-                limit = gResPath.count;
+            if (m->next_cp_index < m->last_cp_index) {
+                limit = gResPath.numPts;
             } else {
-                limit = gCheckpoints[m->unk7E4].unk2E;
+                limit = gCheckpoints.points[m->next_cp_index].resPathPt;
             }
             if (bestIdx >= limit) {
                 continue;
             }
-            gc->unkFE = bestIdx;
-            if (gc->unkFA >= 0) {
+            gc->resIdx = bestIdx;
+            if (gc->lastResPath >= 0) {
                 best = 0.0f;
             } else {
                 NextResPathPt(-1, bestIdx, 0, &next);
-                d[0] = gResPath.points[next].pos[0] - gResPath.points[bestIdx].pos[0];
-                d[1] = gResPath.points[next].pos[1] - gResPath.points[bestIdx].pos[1];
-                d[2] = gResPath.points[next].pos[2] - gResPath.points[bestIdx].pos[2];
+                d[0] = gResPath.pts[next][0] - gResPath.pts[bestIdx][0];
+                d[1] = gResPath.pts[next][1] - gResPath.pts[bestIdx][1];
+                d[2] = gResPath.pts[next][2] - gResPath.pts[bestIdx][2];
                 d[1] = 0.0f;
                 normalize_vector_or_x(d);
-                rel[0] = m->pos[0] - gResPath.points[bestIdx].pos[0];
-                rel[1] = m->pos[1] - gResPath.points[bestIdx].pos[1];
-                rel[2] = m->pos[2] - gResPath.points[bestIdx].pos[2];
+                rel[0] = m->rwr[0] - gResPath.pts[bestIdx][0];
+                rel[1] = m->rwr[1] - gResPath.pts[bestIdx][1];
+                rel[2] = m->rwr[2] - gResPath.pts[bestIdx][2];
                 best = rel[0] * d[0] + rel[2] * d[2];
             }
-            gc->unk100 = 0.0f;
-            if (m->unk7E8 > 0) {
-                gc->unk100 += gFirstLapDistance + (m->unk7E8 - 1) * gLapDistance;
-                last = (m->unk7E2 < gCheckpoints[0].unk4) ? gCheckpoints[0].unk8 : m->unk7E2;
-                for (idx = gCheckpoints[0].unk4; idx < last; idx++) {
-                    gc->unk100 += ((TrackLen *)&gCheckpoints[idx])->unk58;
+            /* how far round the race: the laps done, the stretches since the lap's start, then within this one */
+            gc->distance = 0.0f;
+            if (m->laps > 0) {
+                gc->distance += gFirstLapDistance + (m->laps - 1) * gLapDistance;
+                last = (m->last_cp_index < gCheckpoints.finishPt) ? gCheckpoints.numPoints : m->last_cp_index;
+                for (idx = gCheckpoints.finishPt; idx < last; idx++) {
+                    gc->distance += gCheckpoints.points[idx].distToNext;
                 }
-                if (last != m->unk7E2) {
-                    for (idx = gCheckpoints[0].unk2; idx < m2->unk7E2; idx++) {
-                        gc->unk100 += ((TrackLen *)&gCheckpoints[idx])->unk58;
+                if (last != m->last_cp_index) {
+                    for (idx = gCheckpoints.loopPt; idx < m2->last_cp_index; idx++) {
+                        gc->distance += gCheckpoints.points[idx].distToNext;
                     }
                 }
             } else {
-                for (idx = 0; idx < m2->unk7E2; idx++) {
-                    gc->unk100 += ((TrackLen *)&gCheckpoints[idx])->unk58;
+                for (idx = 0; idx < m2->last_cp_index; idx++) {
+                    gc->distance += gCheckpoints.points[idx].distToNext;
                 }
             }
-            gc->unk100 += GetPathDistance(gCheckpoints[m->unk7E2].unk2E, bestIdx);
-            gc->unk100 += best;
+            gc->distance += GetPathDistance(gCheckpoints.points[m->last_cp_index].resPathPt, bestIdx);
+            gc->distance += best;
         }
     }
 }

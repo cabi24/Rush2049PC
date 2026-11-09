@@ -1,52 +1,29 @@
+/* TracePathPtForward: the point some way further along a path (MAT3 maxpath.c). */
 #include "game/game.h"
 
-typedef struct TrackRecord {
-    u16 prefix;
-    s16 anchor;
-    unsigned char opaque[42];
-    s16 total;
-    s16 first[4];
-    s16 second[12];
-} TrackRecord;
-/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (ReadPathData), so these views take host offsets and strides */
-typedef struct Descriptor {
-    unsigned char prefix;
-    s8 previous;
-    u16 previous_end;
-    s8 parent;
-    unsigned char gap;
-    u16 end;
-    unsigned char gap2[2];
-    u16 delta;
-    unsigned char tail[12];   /* the native pts pointer */
-} Descriptor;
-typedef struct Header {
-    u16 total;
-    unsigned char opaque[22];
-    Descriptor *nodes;
-} Header;
-typedef struct Count {u16 total;unsigned char opaque[14];} Count;
-VIEW(TrackRecord[], gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-VIEW(Header, gResPath);
-#define gResPath gResPath_view
-VIEW(Count[], gDronePaths);
-#define gDronePaths gDronePaths_view
-void TracePathPtForward(int mode,int segment,int distance,int increment,int *out_segment,int *out_distance) {
- if(mode==0 || segment<0) {
-  *out_segment=segment;
-  *out_distance=distance+increment;
-  if(mode) {
-   while(*out_distance>=gResPath.total)
-    *out_distance=*out_distance+gCheckpoints[gCheckpoints[0].anchor].total-gResPath.total;
-  } else {
-   while(*out_distance>=gDronePaths[segment].total)
-    *out_distance=gCheckpoints[gCheckpoints[0].anchor].first[segment]+*out_distance-gDronePaths[segment].total;
-  }
- } else if(distance+increment<gResPath.nodes[segment].delta) {
-  *out_segment=segment;
-  *out_distance=distance+increment;
- } else {
-  TracePathPtForward(mode,gResPath.nodes[segment].parent,gResPath.nodes[segment].end,increment-gResPath.nodes[segment].delta+distance,out_segment,out_distance);
- }
+/* Steps `numPts` points on from point `inIdx` of a path and sets *outPath and *outIdx to where that lands.
+ * `res` 0: drone path `inPath`; else the resurrection path: the main one when `inPath` is negative, else
+ * alternative path `inPath`, whose end continues on the path it joins. Past the end of the main path or a drone
+ * path the count goes on round the lap, from the point where the path crosses the lap's first checkpoint
+ * (gCheckpoints.loopPt). */
+void TracePathPtForward(int res, int inPath, int inIdx, int numPts, int *outPath, int *outIdx) {
+    if (res == 0 || inPath < 0) {
+        *outPath = inPath;
+        *outIdx = inIdx + numPts;
+        if (res) {
+            while (*outIdx >= gResPath.numPts)
+                *outIdx = *outIdx + gCheckpoints.points[gCheckpoints.loopPt].resPathPt - gResPath.numPts;
+        } else {
+            while (*outIdx >= gDronePaths[inPath].numPts)
+                *outIdx = gCheckpoints.points[gCheckpoints.loopPt].dronePathPt[inPath] + *outIdx
+                    - gDronePaths[inPath].numPts;
+        }
+    } else if (inIdx + numPts < gResPath.alt[inPath].numPts) {
+        *outPath = inPath;
+        *outIdx = inIdx + numPts;
+    } else {
+        /* off the branch's end: go on along the path it joins */
+        TracePathPtForward(res, gResPath.alt[inPath].lastPath, gResPath.alt[inPath].lastIdx,
+                           numPts - gResPath.alt[inPath].numPts + inIdx, outPath, outIdx);
+    }
 }

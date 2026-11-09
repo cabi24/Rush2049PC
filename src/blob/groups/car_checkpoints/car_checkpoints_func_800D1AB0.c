@@ -1,11 +1,12 @@
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
+/* PlaceUnlockedCars: the places of the cars still racing, by the distance they have driven (MAT3 checkpoint.c). */
 #include "game/game.h"
 
 /* PC: the cars still racing, by slot, and their distances by slot, as many as the race's cars (up to
  * PC_MAX_LINKS, pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's 6. */
 #define CARS_N PC_MAX_LINKS
+/* Places the cars that haven't finished, furthest first (their distance along the track, PC_CAR_DISTANCE), after
+ * the cars that have finished and before those out of the race (state positive before the last lap), which
+ * CarReportsGameOver placed at the end. A selection sort; the swap is by exclusive or. */
 void PlaceUnlockedCars(void) {
     s16 i;
     s16 j;

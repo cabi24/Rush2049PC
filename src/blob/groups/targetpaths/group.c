@@ -1,204 +1,118 @@
+/* Target paths (MAT3 targetpaths.c): the track's objects that move along paths, the trams, the trains, the
+ * doors, the lifts: each is a target (tTarget) whose record (tTargetStructPath) says where on its path it is. The
+ * paths are the track WAD's PTHD records (tBasicTargetPath, gTargetPaths), each a list of points with a position,
+ * an orientation, a scale and the time to the next; a path with collision (flag 0x20) moves its collision object
+ * with the target (MoveCollisionObject, RotateCollisionObject). An environment visual animates each one every frame
+ * (AnimatePathTarget), and each plays its start, move and stop sounds. The PTHD records, the targets and their
+ * records keep the N64's layout on the PC: their pointers are 32-bit window addresses (PC_N64P, PC_N64W;
+ * docs/port/POINTERS.md 10). */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * Camera unit cluster (builds on). All camera-unit functions in one file:
- * PlayStartSound, PlayStopSound, ResetPath, PlacePathTargetQuat, camera_look_at_point,
- * PlacePathTargetPos, ZOID_SetObjectDef_TargetPaths (the inlined slot setter = retail stub), StartPathTarget,
- * AnimatePathTarget.
- * the whole-program unit --tag score StartPathTarget ZOID_SetObjectDef_TargetPaths AnimatePathTarget PlacePathTargetQuat
- *       camera_look_at_point PlacePathTargetPos PlayStartSound PlayStopSound ResetPath
- *       --with group.c --internal ZOID_SetObjectDef_TargetPaths --neighbours
- * change to a locked member: ResetPath's parameters are (Camera *cam, s32 idx) -- retail
- * passes cam (IPA register s3) before idx (a0); the code of ResetPath and StartPathTarget
- * is unchanged (both EQUAL). Residuals and every disclosed quirk: .
- * : AnimatePathTarget body replaced by (5/719; two disclosed compiled-out
- * reads, see its header and). The other members are byte-identical to group.c.
- * : AnimatePathTarget body replaced by (EQUAL 719/719; adds the
- * disclosed `idx * 1 + 1 == sc->count` identity at the two do-loop end tests, see its header and
- *); D_80123E8C is now the natural literal 0.0425f (own.rodata) and its
- * extern declaration is dropped. Every other function is byte-identical to group.c.
- */
 float fabsf(float);
 float sqrtf(float);
-#pragma intrinsic (fabsf)
-#pragma intrinsic (sqrtf)
 
-/* : camera structures (hand-derived from the retail words) */
-/* PC: a target info record (targetInfo) is 0x40 bytes: its name, file, start function and visual function (w0C)
- * are pointers. A camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a
- * track WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
- * (docs/port/POINTERS.md 10). */
-enum n64p_Camera { n64p_Camera_ };
-enum n64p_CamCtl { n64p_CamCtl_ };
-enum n64p_CamScene { n64p_CamScene_ };
-enum n64p_CamKey { n64p_CamKey_ };
-/* Every field is spelled out, whichever view the loader converts the ROM's records by: +0x16 and +0x17 are the
- * kind's category and element, +0x18 its value. */
-typedef struct CamTbl {
-    char *name, *file;
-    void *start;
-    void *w0C;
-    s16 mode;                    /* 0x10 */
-    s16 s12;
-    s16 s14;
-    s8 category, element;
-    f32 value;
-    s32 trackA;                  /* 0x1C */
-    s32 s20;
-    s32 trackB;                  /* 0x24 */
-    s32 s28;
-    f32 f2C;
-} CamTbl;
-VIEW(CamTbl[], targetInfo);
-#define targetInfo targetInfo_view
-#define N64P(x) _Generic((x), enum n64p_Camera: (struct Camera *)PC_N64P(x), enum n64p_CamCtl: (struct CamCtl *)PC_N64P(x), enum n64p_CamScene: (struct CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
-typedef struct CamNode {         /* pool entry from GrabEnvEntry */
-    struct CamNode *next;        /* 0x00 */
-    s16 s04;
-    u8 pad06[6];
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-    enum n64p_Camera cam;        /* 0x0C: the camera's window address */
-    f32 f10;                     /* 0x10 */
-    void *w14;
-} CamNode;
+/* A target path (MAT3 tBasicTargetPath, the track WAD's PTHD record; waves.c has its own view). N64 layout. */
+typedef struct tBasicTargetPath { /* 0x24 bytes */
+    char name[16];  /* 0x00 */
+    s32 flags;      /* 0x10 1 back and forth, 2 a loop, 4 in forward races, 8 in backward races, 0x10 the target
+                     * doesn't collide, 0x20 a collision object moves with it, 0x40 worked by a trigger
+                     * (trigPtr), 0x80 stops at its end, 0x100 stopped, 0x8000 its object definition never
+                     * changes, 0x100000 showing OBJ_PATH_MOVING, 0x200000 showing OBJ_PATH_STOPPED */
+    s16 numPts;     /* 0x14 */
+    s16 collIdx;    /* 0x16 its collision object, 0 none */
+    u32 trigPtr;    /* 0x18 the path that triggers it, a window address */
+    u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
+    u32 parent;     /* 0x20 the record of the target on it (tTargetStructPath), a window address */
+} tBasicTargetPath;
 
-typedef struct CamKey {          /* 0x44 bytes */
-    f32 pos[3];                  /* 0x00 */
-    f32 dir[3];                  /* 0x0C */
-    f32 scale[3];                /* 0x18 */
-    f32 rot[4];                  /* 0x24 */
-    f32 f34;
-    f32 dur;                     /* 0x38 */
-    f32 f3C;
-    s32 flags;                   /* 0x40 */
-} CamKey;
-typedef struct CamScene {
-    u8 pad00[0x10];
-    s32 flags;                   /* 0x10 */
-    s16 count;                   /* 0x14 */
-    s16 id;                      /* 0x16 */
-    enum n64p_CamScene link;     /* 0x18 */
-    enum n64p_CamKey keys;       /* 0x1C */
-    enum n64p_CamCtl cur;        /* 0x20 */
-} CamScene;
-typedef struct CamCtl {
-    enum n64p_CamScene scene;    /* 0x00 */
-    f32 t;                       /* 0x04 */
-    u8 pad08[4];
-    s16 idx;                     /* 0x0C */
-    u16 mode;                    /* 0x0E */
-    f32 f10;                     /* 0x10 */
-    f32 f14;
-    f32 look[3];                 /* 0x18 */
-    f32 mat[9];                  /* 0x24 */
-} CamCtl;
-typedef struct Camera {
-    u8 pad00[4];
-    u8 flags;                    /* 0x04 */
-    /* PC: the slot is the low half of the camera node's handle (an s32 at +0xC), at +0xC on a little-endian
-     * host, not +0xE: the view reads the word (docs/port/POINTERS.md 10). */
-    u8 pad05[7];
-    s32 slot;                    /* 0x0C */
-    s16 tbl;                     /* 0x10 */
-    u8 pad12[2];
-    f32 m[3][3];                 /* 0x14 */
-    f32 pos[3];                  /* 0x38 */
-    u8 pad44[0xC];
-    s16 s50;
-    u8 pad52[6];
-    s16 s58;
-    s16 s5A;
-    u8 pad5C[4];
-    s32 handle;                  /* 0x60 */
-    s8 state;                    /* 0x64 */
-    s8 s65;
-    u8 pad66[6];
-    enum n64p_CamCtl ctl;        /* 0x6C */
-} Camera;
+/* The N64-layout records' links, as host pointers: a target's record, a record's path, a path's points, trigger and
+ * target record, and the target an environment visual animates (its data). */
+#define TARGET_STATE(t) ((tTargetStructPath *) PC_N64P((t)->data))
+#define STATE_PATH(s) ((tBasicTargetPath *) PC_N64P((s)->pathData))
+#define PATH_PTS(p) ((TargetPathPt *) PC_N64P((p)->pts))
+#define PATH_TRIGGER(p) ((tBasicTargetPath *) PC_N64P((p)->trigPtr))
+#define PATH_PARENT(p) ((tTargetStructPath *) PC_N64P((p)->parent))
+#define VISUAL_TARGET(v) ((tTarget *) PC_N64P((v)->data))
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
+/* The object definitions (gObjList) a worked path target shows, moving and stopped. */
+#define OBJ_PATH_MOVING 348
+#define OBJ_PATH_STOPPED 349
 
-typedef struct ModelRecord {
-    u8 pad000[0x7C6];
-    u16 unk7C6;
-    u8 pad7C8[0x7E8 - 0x7C8];
-    u8 unk7E8;
-} ModelRecord;
-extern ModelRecord model;
-
+/* unitmatrix's fourth row, the origin: the sounds' orientation */
 VIEW(s32, unitmatrix_origin);
 #define unitmatrix_origin unitmatrix_origin_view
 
 VIEW(s32[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
 
-VIEW(struct CamNode *, gEnvList);
+VIEW(struct pc_visual *, gEnvList);
 #define gEnvList gEnvList_view
 
-extern struct Camera *CollisionTargetPtrs[];
+extern tTarget *CollisionTargetPtrs[];
 
 VIEW(u16, gObjList);
 #define gObjList gObjList_view
 
-VIEW(s32, gTargetList);
-#define gTargetList gTargetList_view
+void AudUpdateEmitter(s32 tag, intptr_t pos, intptr_t dir, f32 maxVol, f32 pitch);
 
-void AudUpdateEmitter(s32 arg0, intptr_t arg1, intptr_t arg2, f32 arg3, f32 arg4);
+s32 AudEmitEffect(void *pos, intptr_t dir, f32 fade, f32 a, f32 b, f32 c, s32 id, s32 slot, s32 replace, s32 vol);
 
-s32 AudEmitEffect(void *arg0, intptr_t arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9);
+struct pc_visual *GrabEnvEntry(void);
 
-struct CamNode *GrabEnvEntry(void);
-
-/* the pair of tests around AudEmitEffect is an inlined helper */
-static __inline s32 camera_track_entry(Camera *cam, f32 f2C, s32 id, s32 s28) {
+/* Starts sound `id` at the target's position (unless game sounds are off or it is -1, which give -1), fading over
+ * `fadeDist` with replace mode `replace`; returns the emitter. */
+static __inline s32 target_emit_sound(tTarget *target, f32 fadeDist, s32 id, s32 replace) {
     if (gGameSoundsEnabled == 0) {
         return -1;
     }
     if (id == -1) {
         return -1;
     }
-    return AudEmitEffect(&cam->pos, (s32) &unitmatrix_origin, f2C, 0.0f, 1.0f, 0.0f, id, 0, s28, 0x80);
+    return AudEmitEffect(&target->mat.pos, (s32) &unitmatrix_origin, fadeDist, 0.0f, 1.0f, 0.0f, id, 0, replace, 0x80);
 }
 
-void PlayStartSound(Camera *cam) {
-    CamTbl *t;
+/* The target starts moving: its kind's start sound replaces whatever it was playing. */
+void PlayStartSound(tTarget *target) {
+    TargInfo *info;
 
-    AudStopEmitter(cam->handle);
-    t = &targetInfo[cam->tbl];
-    if (t->trackA != -1) {
-        cam->handle = camera_track_entry(cam, t->f2C, t->trackA, t->s28);
+    AudStopEmitter(target->sound);
+    info = &targetInfo[target->infoIdx];
+    if (info->sound != -1) {
+        target->sound = target_emit_sound(target, info->fadeDist, info->sound, info->replace);
     } else {
-        cam->handle = -1;
+        target->sound = -1;
     }
-    cam->state = 0;
+    target->sndState = 0;
 }
 
-void PlayStopSound(Camera *cam) {
-    CamTbl *t;
+/* The target stops: its kind's stop sound, once (not again while stopped), and not over a start sound still
+ * playing. */
+void PlayStopSound(tTarget *target) {
+    TargInfo *info;
 
-    if (cam->state != 2 && (cam->state != 0 || AudEmitterPlaying(cam->handle) == 0)) {
-        AudStopEmitter(cam->handle);
-        t = &targetInfo[cam->tbl];
-        if (t->trackB != -1) {
-            cam->handle = camera_track_entry(cam, t->f2C, t->trackB, t->s28);
+    if (target->sndState != 2 && (target->sndState != 0 || AudEmitterPlaying(target->sound) == 0)) {
+        AudStopEmitter(target->sound);
+        info = &targetInfo[target->infoIdx];
+        if (info->stopSnd != -1) {
+            target->sound = target_emit_sound(target, info->fadeDist, info->stopSnd, info->replace);
         } else {
-            cam->handle = -1;
+            target->sound = -1;
         }
-        cam->state = 2;
+        target->sndState = 2;
     }
 }
 
 
-void PlacePathTargetQuat(Camera *cam) {
+/* Sets the target's orientation on its path: its point's (a point flagged 0x20, or one with no time to the next,
+ * holds it), else turning evenly (InterpQuats) towards the next point's by the time on the stretch. A path with a
+ * collision object turns it too, but in the obstacle course only within 150 feet of the first car. */
+void PlacePathTargetQuat(tTarget *target) {
     f32 out[4];
     f32 d[3];
-    CamCtl *ctl;
-    CamScene *sc;
-    CamKey *k;
-    CamKey *keys;
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
+    TargetPathPt *pt;
+    TargetPathPt *pts;
     f32 t;
     f32 dur;
     s32 next;
@@ -206,67 +120,67 @@ void PlacePathTargetQuat(Camera *cam) {
     s32 near;
     f32 dist;
 
-    ctl = N64P(cam->ctl);
-    sc = N64P(N64P(cam->ctl)->scene);
-    idx = ctl->idx;
-    k = &N64P(sc->keys)[idx];
-    keys = N64P(sc->keys);
-    if (k->flags & 0x20) {
+    state = TARGET_STATE(target);
+    path = STATE_PATH(TARGET_STATE(target));
+    idx = state->ptOn;
+    pt = &PATH_PTS(path)[idx];
+    pts = PATH_PTS(path);
+    if (pt->flags & 0x20) {
         goto plain;
     }
-    if (ctl->mode & 8) {
-        t = k->dur;
-        t -= ctl->t;
+    if (state->flags & TPATH_BACKWARD) {
+        t = pt->timeToNext;
+        t -= state->timeElapsed;
     } else {
-        t = ctl->t;
+        t = state->timeElapsed;
     }
-    dur = k->dur;
+    dur = pt->timeToNext;
     if (dur == 0.0f) {
 plain:
-        CreateQuatMat(cam->m[0], k->rot, 1);
+        CreateQuatMat(target->mat.uvs[0], pt->quat, 1);
     } else {
         next = idx + 1;
-        if (next >= sc->count && (sc->flags & 2)) {
+        if (next >= path->numPts && (path->flags & 2)) {
             next = 0;
         }
-        InterpQuats(t / dur, k->rot, keys[next].rot, out);
-        CreateQuatMat(cam->m[0], out, 1);
+        InterpQuats(t / dur, pt->quat, pts[next].quat, out);
+        CreateQuatMat(target->mat.uvs[0], out, 1);
     }
-    if (sc->flags & 0x20) {
+    if (path->flags & 0x20) {
         near = 1;
-        if (gRace == 5) {
-            d[0] = cam->pos[0] - ((f32 *) PC_CARS)[2];
-            d[1] = cam->pos[1] - ((f32 *) PC_CARS)[3];
-            d[2] = cam->pos[2] - ((f32 *) PC_CARS)[4];
+        if (gRace == kObstacle) {
+            d[0] = target->mat.pos[0] - ((f32 *) PC_CARS)[2];
+            d[1] = target->mat.pos[1] - ((f32 *) PC_CARS)[3];
+            d[2] = target->mat.pos[2] - ((f32 *) PC_CARS)[4];
             dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
             if (22500.0f < dist) {
                 near = 0;
             }
         }
         if (near != 0) {
-            RotateCollisionObject(sc->id, cam->pos, ctl->mat, cam->m[0]);
+            RotateCollisionObject(path->collIdx, target->mat.pos, state->lastUVS, target->mat.uvs[0]);
         }
     }
 }
 
-/* camera_look_at_point = targetpaths.c _PlayMoveSound: the Dreamcast decomp's text, which keeps two
- * N64-era empty statements GC dropped (`if ((maxVel < 0 && curVel > 0) || (maxVel > 0 && curVel < 0)) ;` = retail's
- * empty `bgez v1`, and `if ((int)ratio < 0 || (int)ratio > 1) ;` in the clamp); path_abs as a macro (MAT3's static
- * inline function costs 167 words); `0.75f * ratio` operand order (retail mul.s $f10,$f6,$f0). */
 #define path_abs(x) ((x) < 0 ? -(x) : (x))
 
-void PlayMoveSound(Camera *cam) {
-    CamCtl *dPtr;
+/* Keeps the target's moving sound going: while moving, the emitter follows the target, its volume and pitch by its
+ * speed against the path's top speed for a moving sound 1 (two other sounds have fixed ones); after a stop it
+ * starts over with the start sound; once the start sound is over, the moving sound loops. The two empty
+ * statements are the original's (the N64 code tests them and does nothing). */
+void PlayMoveSound(tTarget *target) {
+    tTargetStructPath *state;
     f32 ratio;
     s32 maxVel;
     s32 curVel;
 
-    if (cam->state == 1) {
-        if (cam->handle != -1) {
-            if (targetInfo[cam->tbl].s20 == 1) {
-                dPtr = N64P(cam->ctl);
-                maxVel = dPtr->f14;
-                curVel = dPtr->f10;
+    if (target->sndState == 1) {
+        if (target->sound != -1) {
+            if (targetInfo[target->infoIdx].moveSnd == 1) {
+                state = TARGET_STATE(target);
+                maxVel = state->maxVel;
+                curVel = state->curVel;
                 if (!maxVel) {
                     if (curVel) maxVel = curVel;
                     else maxVel = 1;
@@ -280,70 +194,79 @@ void PlayMoveSound(Camera *cam) {
                     else ratio = 1.0f;
                 }
             } else ratio = 1.0f;
-            if (targetInfo[cam->tbl].s20 == 0x12)
-                AudUpdateEmitter(cam->handle, (intptr_t) cam->pos, (intptr_t) &unitmatrix_origin, 0.8f, 1.0f);
-            else if (targetInfo[cam->tbl].s20 == 0x61)
-                AudUpdateEmitter(cam->handle, (intptr_t) cam->pos, (intptr_t) &unitmatrix_origin, 1.0f, 0.75f);
-            else AudUpdateEmitter(cam->handle, (intptr_t) cam->pos, (intptr_t) &unitmatrix_origin, 0.75f * ratio + 0.25f, ratio);
+            if (targetInfo[target->infoIdx].moveSnd == 0x12)
+                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.8f, 1.0f);
+            else if (targetInfo[target->infoIdx].moveSnd == 0x61)
+                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 1.0f, 0.75f);
+            else AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.75f * ratio + 0.25f, ratio);
         }
-    } else if (cam->state == 2) PlayStartSound(cam);
-    else if (!AudEmitterPlaying(cam->handle)) {
-        AudStopEmitter(cam->handle);
-        if (targetInfo[cam->tbl].s20 != -1) {
-            cam->handle = camera_track_entry(cam, targetInfo[cam->tbl].f2C, targetInfo[cam->tbl].s20, targetInfo[cam->tbl].s28);
-            if (targetInfo[cam->tbl].s20 == 1)
-                AudUpdateEmitter(cam->handle, (intptr_t) cam->pos, (intptr_t) &unitmatrix_origin, 0.0f, 1.0f);
-        } else cam->handle = -1;
-        cam->state = 1;
+    } else if (target->sndState == 2) PlayStartSound(target);
+    else if (!AudEmitterPlaying(target->sound)) {
+        AudStopEmitter(target->sound);
+        if (targetInfo[target->infoIdx].moveSnd != -1) {
+            target->sound = target_emit_sound(target, targetInfo[target->infoIdx].fadeDist, targetInfo[target->infoIdx].moveSnd, targetInfo[target->infoIdx].replace);
+            if (targetInfo[target->infoIdx].moveSnd == 1)
+                AudUpdateEmitter(target->sound, (intptr_t) target->mat.pos, (intptr_t) &unitmatrix_origin, 0.0f, 1.0f);
+        } else target->sound = -1;
+        target->sndState = 1;
     }
 }
 
-void ResetPath(Camera *cam, s32 idx) {
-    CamCtl *ctl;
-    CamScene *sc;
+/* Puts the target at point `idx` of its path, standing still: heading forwards, or backwards from the last point
+ * of a back-and-forth path; with its point's orientation and scale, which its collision object starts from. A path
+ * that stops (or is triggered) is stopped and records this target as its own; one worked by a trigger is marked
+ * to start again. */
+void ResetPath(tTarget *target, s32 idx) {
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
     s32 i;
 
-    ctl = N64P(cam->ctl);
-    sc = N64P(ctl->scene);
-    if ((sc->flags & 1) && idx >= sc->count - 1) {
-        ctl->mode = 8;
+    state = TARGET_STATE(target);
+    path = STATE_PATH(state);
+    if ((path->flags & 1) && idx >= path->numPts - 1) {
+        state->flags = TPATH_BACKWARD;
     } else {
-        ctl->mode = 4;
+        state->flags = TPATH_FORWARD;
     }
-    ctl->idx = idx;
-    ctl->t = 0.0f;
-    ctl->f10 = 0.0f;
-    cam->pos[0] = N64P(sc->keys)[ctl->idx].pos[0];
-    cam->pos[1] = N64P(sc->keys)[ctl->idx].pos[1];
-    cam->pos[2] = N64P(sc->keys)[ctl->idx].pos[2];
-    ctl->look[0] = N64P(sc->keys)[ctl->idx].pos[0];
-    ctl->look[1] = N64P(sc->keys)[ctl->idx].pos[1];
-    ctl->look[2] = N64P(sc->keys)[ctl->idx].pos[2];
-    if (sc->flags & 0xC0) {
-        sc->flags |= 0x100;
-        sc->cur = N64W(ctl);
+    state->ptOn = idx;
+    state->timeElapsed = 0.0f;
+    state->curVel = 0.0f;
+    target->mat.pos[0] = PATH_PTS(path)[state->ptOn].pos[0];
+    target->mat.pos[1] = PATH_PTS(path)[state->ptOn].pos[1];
+    target->mat.pos[2] = PATH_PTS(path)[state->ptOn].pos[2];
+    state->lastPos[0] = PATH_PTS(path)[state->ptOn].pos[0];
+    state->lastPos[1] = PATH_PTS(path)[state->ptOn].pos[1];
+    state->lastPos[2] = PATH_PTS(path)[state->ptOn].pos[2];
+    if (path->flags & 0xC0) {
+        path->flags |= 0x100;
+        path->parent = PC_N64W(state);
     }
-    if (sc->flags & 0x5000) {
-        sc->flags |= 0x400;
+    if (path->flags & 0x5000) {
+        path->flags |= 0x400;
     }
-    CreateQuatMat(cam->m, N64P(sc->keys)[ctl->idx].rot, 1);
-    CopyUV(cam->m, ctl->mat);
-    TransposeUV(ctl->mat);
+    CreateQuatMat(target->mat.uvs, PATH_PTS(path)[state->ptOn].quat, 1);
+    CopyUV(target->mat.uvs, state->lastUVS);
+    TransposeUV(state->lastUVS);
     for (i = 0; i < 3; i++) {
-        cam->m[0][i] = N64P(sc->keys)[ctl->idx].scale[0] * cam->m[0][i];
-        cam->m[1][i] = N64P(sc->keys)[ctl->idx].scale[1] * cam->m[1][i];
-        cam->m[2][i] = N64P(sc->keys)[ctl->idx].scale[2] * cam->m[2][i];
+        target->mat.uvs[0][i] = PATH_PTS(path)[state->ptOn].scale[0] * target->mat.uvs[0][i];
+        target->mat.uvs[1][i] = PATH_PTS(path)[state->ptOn].scale[1] * target->mat.uvs[1][i];
+        target->mat.uvs[2][i] = PATH_PTS(path)[state->ptOn].scale[2] * target->mat.uvs[2][i];
     }
 }
 
-void PlacePathTargetPos(Camera *cam) {
+/* Sets the target's position on its path from the time on its stretch: along the stretch's direction, either
+ * evenly (a point flagged 0x10000008: the stretch's length in its time) or with the speed changing evenly from this
+ * point's to the next's; the offset is rounded to 1/32 of a foot. Its speed (curVel) is the distance moved this
+ * frame over the frame's time. A path with a collision object moves it too, but in the obstacle course only within
+ * 450 feet of the first car. A path that stops at its end doesn't move past its last point. */
+void PlacePathTargetPos(tTarget *target) {
     f32 v[3];
     f32 w[3];
     f32 u[3];
-    CamCtl *ctl;
-    CamScene *sc;
-    CamKey *k;
-    CamKey *keys;
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
+    TargetPathPt *pt;
+    TargetPathPt *pts;
     s32 idx;
     s32 n;
     s32 next;
@@ -356,46 +279,46 @@ void PlacePathTargetPos(Camera *cam) {
     s32 i;
     s32 j;
 
-    ctl = N64P(cam->ctl);
-    idx = ctl->idx;
-    sc = N64P(ctl->scene);
-    k = &N64P(sc->keys)[idx];
-    n = sc->count;
-    keys = N64P(sc->keys);
-    if (idx < n - 1 || (sc->flags & 2) != 0 || !(sc->flags & 0x80)) {
-        if (k->flags & 0x10000008) {
-            if (ctl->mode & 8) {
-                t = k->dur - ctl->t;
+    state = TARGET_STATE(target);
+    idx = state->ptOn;
+    path = STATE_PATH(state);
+    pt = &PATH_PTS(path)[idx];
+    n = path->numPts;
+    pts = PATH_PTS(path);
+    if (idx < n - 1 || (path->flags & 2) != 0 || !(path->flags & 0x80)) {
+        if (pt->flags & 0x10000008) {
+            if (state->flags & TPATH_BACKWARD) {
+                t = pt->timeToNext - state->timeElapsed;
             } else {
-                t = ctl->t;
+                t = state->timeElapsed;
             }
-            d = k->f34 * (t / k->dur);
+            d = pt->distToNext * (t / pt->timeToNext);
         } else {
             next = idx + 1;
-            if (next >= n && (sc->flags & 2)) {
+            if (next >= n && (path->flags & 2)) {
                 next = 0;
             }
-            a = k->f3C;
-            d = keys[next].f3C;
+            a = pt->speed;
+            d = pts[next].speed;
             dv = d - a;
-            if (ctl->mode & 8) {
-                t = k->dur - ctl->t;
+            if (state->flags & TPATH_BACKWARD) {
+                t = pt->timeToNext - state->timeElapsed;
             } else {
-                t = ctl->t;
+                t = state->timeElapsed;
             }
-            c = (t * t * dv) / (k->dur * 2);
+            c = (t * t * dv) / (pt->timeToNext * 2);
             if (d < a) {
                 d = a * t + c;
             } else {
                 d = a * t + c;
             }
         }
-        v[0] = k->dir[0];
-        v[1] = k->dir[1];
-        v[2] = k->dir[2];
-        ctl->look[0] = cam->pos[0];
-        ctl->look[1] = cam->pos[1];
-        ctl->look[2] = cam->pos[2];
+        v[0] = pt->norm[0];
+        v[1] = pt->norm[1];
+        v[2] = pt->norm[2];
+        state->lastPos[0] = target->mat.pos[0];
+        state->lastPos[1] = target->mat.pos[1];
+        state->lastPos[2] = target->mat.pos[2];
         v[0] = v[0] * d;
         v[1] = v[1] * d;
         v[2] = v[2] * d;
@@ -403,194 +326,162 @@ void PlacePathTargetPos(Camera *cam) {
             j = v[i] * 32.0f;
             v[i] = j * 0.03125f;
         }
-        cam->pos[0] = k->pos[0] + v[0];
-        cam->pos[1] = k->pos[1] + v[1];
-        cam->pos[2] = k->pos[2] + v[2];
-        v[0] = cam->pos[0] - ctl->look[0];
-        v[1] = cam->pos[1] - ctl->look[1];
-        v[2] = cam->pos[2] - ctl->look[2];
-        ctl->f10 = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / *(volatile f32 *) &gFrameSeconds;
-        if (sc->flags & 0x20) {
+        target->mat.pos[0] = pt->pos[0] + v[0];
+        target->mat.pos[1] = pt->pos[1] + v[1];
+        target->mat.pos[2] = pt->pos[2] + v[2];
+        v[0] = target->mat.pos[0] - state->lastPos[0];
+        v[1] = target->mat.pos[1] - state->lastPos[1];
+        v[2] = target->mat.pos[2] - state->lastPos[2];
+        state->curVel = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) / *(volatile f32 *) &gFrameSeconds;
+        if (path->flags & 0x20) {
             near = 1;
-            if (gRace == 5) {
-                w[0] = cam->pos[0] - ((f32 *) PC_CARS)[2];
-                w[1] = cam->pos[1] - ((f32 *) PC_CARS)[3];
-                w[2] = cam->pos[2] - ((f32 *) PC_CARS)[4];
+            if (gRace == kObstacle) {
+                w[0] = target->mat.pos[0] - ((f32 *) PC_CARS)[2];
+                w[1] = target->mat.pos[1] - ((f32 *) PC_CARS)[3];
+                w[2] = target->mat.pos[2] - ((f32 *) PC_CARS)[4];
                 d = w[0] * w[0] + w[1] * w[1] + w[2] * w[2];
                 if (202500.0f < d) {
                     near = 0;
                 }
             }
             if (near != 0) {
-                MoveCollisionObject(sc->id, v);
+                MoveCollisionObject(path->collIdx, v);
             }
         }
     }
 }
 
-/*
- * ZOID_SetObjectDef_TargetPaths (retail: caller-less `jr ra; nop` stub between AnimatePathTarget and StartPathTarget):
- * the slot setter ObjInstanceList[slot].x14 = v (0x44-byte records), inlined by umerge at every call site
- * (AnimatePathTarget x4, StartPathTarget x1) and therefore deleted.  Must stay INTERNAL (non-static,
- * not kept) so that the stub remains.  Its two parameters give retail's v0/v1 pair; with its two
- * locals it reserves the four frame slots per call site that both callers' frames need.
- */
-/* PC: the scene node's host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. The node's
- * model id (N64 +0x14, D_8012E714 of node 0). */
+/* A scene node (ObjInstanceList), host layout (docs/port/POINTERS.md 9): 0x68 bytes, pointer slots pointer-sized. */
 typedef struct { u32 flags, w4; void *obj; f32 scale, w; u16 model; s16 child, next, mode; void *light, *tex[4], *rect, *clip, *pal; u32 prim, env; } PcNode;
+
+/* Gives scene node `slot` object definition `v` (MAT3 ZOID_SetObjectDef, which the N64 compiler inlined here; this
+ * file's own copy). */
 void ZOID_SetObjectDef_TargetPaths(s32 slot, u16 v) {
     ((PcNode *) &ObjInstanceList)[slot].model = v;
 }
 
-/*
- * StartPathTarget(cam): first-frame set-up of a scripted camera.  state = 2; unless already started
- * (cam->flags & 1): reset the controller (mode 0, t 0); in gameplay mode 2 with a scene id > 0 snap the
- * camera to every key flagged 0x1000000 and do the first-person set-up from key 0; otherwise register the
- * camera (CollisionTargetPtrs[numCollisionTargetPtrs++]), store the largest key f3C in ctl->f14, build the view matrix of the
- * first key flagged 1 but not 0x1000 (and flag it 0x1000), set the s5A period from the table's s14
- * (361 -> 4, 365 -> 20), start the scene (flags 0x100000 -> 0x200400 and the entity slot value
- * definition gObjList[349] unless 0x8000) and link a new update node from GrabEnvEntry (period 0.25 / 0.0425).  Then
- * cam->flags |= 1.  N64-only (scripted attract/replay cameras); no arcade ancestor.
- * Quirks, all needed for the 248-byte frame (every stack offset checked against retail):
- *  - `u8 col[4] = {255, 0, 0, 255}`: initialised local aggregate; IDO copies it from an anonymous .data
- *    word (retail 0x8011750C = 0xFF0000FF) to 200(sp) and never reads it (debug colour whose user is
- *    compiled out).  Own .data: verified by the scorer/splice, not a reference to a named global.
- *  - DISCLOSED: `s32 unused[11]` (top 44 bytes, 204..247) and `unused1`/`unused2` (two slots between the
- *    function's locals and the mode-2 block) are unused locals.  They are the exact frame residual;
- *    nothing natural found explains them (block-scoped and inlined locals are always allocated below the
- *    function-level ones; natural splits of the existing variables change the code).
- *  - the mode-2 locals are block-scoped, `k` in its own loop-body block (allocated after `mat`).
- */
-void StartPathTarget(Camera *cam) {
-    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]): a path target's when stopped at 349 */
+/* A path target's start function (its kind's startFunc): the first time, stops it on its path. In a ghost race a
+ * path with a collision object is set where its points flagged 0x1000000 put it, its collision object moved and
+ * turned to match, and nothing else. Otherwise it is registered for GetTargetVelocity (with a collision object),
+ * takes its path's top speed, starts at the first point flagged 1 (marking it 0x1000, used), sets up its
+ * animation's frames (object 361: 4 frames a quarter second apart, 365: 20 of 0.0425 s), is shown stopped if its
+ * path is worked by a trigger, and gets an environment visual to animate it (AnimatePathTarget). The local colour
+ * and the unused locals are the N64 code's (it never reads them). */
+void StartPathTarget(tTarget *target) {
+    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind */
     s32 unused[11];
     u8 col[4] = { 255, 0, 0, 255 };
-    CamTbl *tbl;
-    CamScene *sc;
-    CamCtl *ctl;
+    TargInfo *info;
+    tBasicTargetPath *path;
+    tTargetStructPath *state;
     s32 i;
     f32 mx;
-    CamNode *node;
+    struct pc_visual *node;
     s32 unused1;
     s32 unused2;
 
-    cam->state = 2;
-    tbl = &targetInfo[cam->tbl];
-    ctl = N64P(cam->ctl);
-    sc = N64P(N64P(cam->ctl)->scene);
-    if (!(cam->flags & 1)) {
-        ctl->mode = 0;
-        ctl->t = 0.0f;
-        if (gRace == 2 && sc->id > 0) {
-            CamScene *s;
+    target->sndState = 2;
+    info = &targetInfo[target->infoIdx];
+    state = TARGET_STATE(target);
+    path = STATE_PATH(TARGET_STATE(target));
+    if (!(target->Flags & TARGET_SET_UP)) {
+        state->flags = 0;
+        state->timeElapsed = 0.0f;
+        if (gRace == kGhost && path->collIdx > 0) {
+            tBasicTargetPath *s;
             s32 j;
             f32 v[3];
             f32 delta[3];
             f32 mat[9];
 
-            s = N64P(N64P(cam->ctl)->scene);
-            for (j = 0; j < s->count; j++) {
-                CamKey *k = &N64P(s->keys)[j];
+            s = STATE_PATH(TARGET_STATE(target));
+            for (j = 0; j < s->numPts; j++) {
+                TargetPathPt *pt = &PATH_PTS(s)[j];
 
-                if (N64P(s->keys)[j].flags & 0x1000000) {
-                    cam->pos[0] = k->pos[0];
-                    cam->pos[1] = k->pos[1];
-                    cam->pos[2] = k->pos[2];
-                    CreateQuatMat(cam->m, k->rot, 1);
+                if (PATH_PTS(s)[j].flags & 0x1000000) {
+                    target->mat.pos[0] = pt->pos[0];
+                    target->mat.pos[1] = pt->pos[1];
+                    target->mat.pos[2] = pt->pos[2];
+                    CreateQuatMat(target->mat.uvs, pt->quat, 1);
                 }
             }
             if (s->flags & 0x20) {
-                v[0] = N64P(s->keys)[0].pos[0];
-                v[1] = N64P(s->keys)[0].pos[1];
-                v[2] = N64P(s->keys)[0].pos[2];
-                CreateQuatMat(mat, N64P(s->keys)[0].rot, 1);
+                v[0] = PATH_PTS(s)[0].pos[0];
+                v[1] = PATH_PTS(s)[0].pos[1];
+                v[2] = PATH_PTS(s)[0].pos[2];
+                CreateQuatMat(mat, PATH_PTS(s)[0].quat, 1);
                 TransposeUV(mat);
-                delta[0] = cam->pos[0] - v[0];
-                delta[1] = cam->pos[1] - v[1];
-                delta[2] = cam->pos[2] - v[2];
-                MoveCollisionObject(s->id, delta);
-                RotateCollisionObject(s->id, cam->pos, mat, cam->m);
+                delta[0] = target->mat.pos[0] - v[0];
+                delta[1] = target->mat.pos[1] - v[1];
+                delta[2] = target->mat.pos[2] - v[2];
+                MoveCollisionObject(s->collIdx, delta);
+                RotateCollisionObject(s->collIdx, target->mat.pos, mat, target->mat.uvs);
             }
         } else {
-            if (sc->flags & 0x20) {
-                CollisionTargetPtrs[numCollisionTargetPtrs++] = cam;
+            if (path->flags & 0x20) {
+                CollisionTargetPtrs[numCollisionTargetPtrs++] = target;
             }
             mx = 0.0f;
-            for (i = 0; i < sc->count; i++) {
-                if (mx < N64P(sc->keys)[i].f3C) {
-                    mx = N64P(sc->keys)[i].f3C;
+            for (i = 0; i < path->numPts; i++) {
+                if (mx < PATH_PTS(path)[i].speed) {
+                    mx = PATH_PTS(path)[i].speed;
                 }
             }
-            ctl->f14 = mx;
-            for (i = 0; i < sc->count; i++) {
-                if ((N64P(sc->keys)[i].flags & 1) && !(N64P(sc->keys)[i].flags & 0x1000)) {
-                    ResetPath(cam, i);
-                    N64P(sc->keys)[i].flags |= 0x1000;
-                    i = sc->count;
+            state->maxVel = mx;
+            for (i = 0; i < path->numPts; i++) {
+                if ((PATH_PTS(path)[i].flags & 1) && !(PATH_PTS(path)[i].flags & 0x1000)) {
+                    ResetPath(target, i);
+                    PATH_PTS(path)[i].flags |= 0x1000;
+                    i = path->numPts;
                 }
             }
-            if (tbl->s14 == 361) {
-                cam->s5A = 4;
-            } else if (tbl->s14 == 365) {
-                cam->s5A = 20;
+            if (info->objListIdx == 361) {
+                target->frames = 4;
+            } else if (info->objListIdx == 365) {
+                target->frames = 20;
             }
-            if ((sc->flags & 0x40) && !(sc->flags & 0x4000)) {
-                sc->flags &= ~0x100000;
-                sc->flags |= 0x200400;
-                if (!(sc->flags & 0x8000)) {
-                    ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
+            if ((path->flags & 0x40) && !(path->flags & 0x4000)) {
+                path->flags &= ~0x100000;
+                path->flags |= 0x200400;
+                if (!(path->flags & 0x8000)) {
+                    ZOID_SetObjectDef_TargetPaths(target->dlIdx, objects[OBJ_PATH_STOPPED]);
                 }
             }
             node = GrabEnvEntry();
             if (node != NULL) {
-                node->s04 = 0;
-                node->w14 = tbl->w0C;
-                node->cam = N64W(cam);
-                if (tbl->s14 == 361) {
-                    node->f10 = 0.25f;
-                } else if (tbl->s14 == 365) {
-                    node->f10 = 0.0425f;
+                node->index = 0;
+                node->func = info->visFunc;
+                node->data = PC_N64W(target);
+                if (info->objListIdx == 361) {
+                    node->timeStamp = 0.25f;
+                } else if (info->objListIdx == 365) {
+                    node->timeStamp = 0.0425f;
                 }
                 node->next = gEnvList;
                 gEnvList = node;
             }
         }
-        cam->flags |= 1;
+        target->Flags |= TARGET_SET_UP;
     }
 }
 
-/* AnimatePathTarget (0x800C0AC0, 2,876 B): the camera-script key stepper.  Advances ctl->t by the frame time, walks
- * the scene's key list (sc->keys[], sc->count) forwards (mode 4) or backwards (mode 8) with wrap / ping-pong /
- * stop flags, then runs the spline / free-look / look-at updates, the per-node texture-index animation
- * (gObjList table, ZOID_SetObjectDef_TargetPaths setter) and the mode-4 key-direction drift.
- * : EQUAL in the whole-program unit (719/719 words, frame 248/248). Compile inside the camera
- * cluster (groups/targetpaths/group.c).
- * Shaping carried over from: ResetPath(cam, idx) parameter order;
- * m = gObjList[..] before the flag test and the empty-then `if (flags & 0x8000) {} else {setter}`; one variable
- * per register (idx = key flags / tb->s14 / s04 counter / block_99 index; fr = do-loop t and fraction; f = dur);
- * `cam->m[k][i] *= sv[k]`; `node->f10 -= dt`.
- * From: the s50 texture index is the parameter `flag` reused (s16), for its
- * formal-parameter copy relation (a1); DISCLOSED compiled-out read `lk = sc->link; if (lk) {}` after m's load
- * (a v1 holder: m -> a0, tb -> a2); DISCLOSED compiled-out read `if (sc->keys[idx].dur != 0.0f) {}` after the
- * division (tt -> f14).  Both are still needed (without them: 8 / 4 words).
- * New, DISCLOSED shaping device: both do-loop end tests are written `idx * 1 + 1 == sc->count`. The
- * `* 1` folds away (no code) but makes the idx side an expression, not a plain variable, when uopt's
- * readnxtinst builds the compare.  For equ/neq it keeps the operand order only when op1 is a plain variable and
- * otherwise swaps, and it moves a `var + const` constant to the other side; so `idx + 1 == count` becomes
- * equ(idx, count - 1) and `count == idx + 1` becomes equ(idx + 1, count), both idx-first.  With the identity op
- * the tree is equ(count, idx*1 + 1): ugen evaluates count first (t6 / t9), as retail does.  `(idx ^ 0)` and
- * `(idx >> 0)` give the same object. Traced.
- * No implicit int, no unused locals, no pad arrays.  0.0425f is AnimatePathTarget's own .rodata word at
- * 0x80123E8C (retail bits 0x3D2E147B, checked against the image).
- */
-void AnimatePathTarget(CamNode *node, s16 flag) {
-    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind (u16[]): a path target's when it starts (348), stops (349) */
-    Camera *cam;
-    CamCtl *ctl;
-    CamScene *sc;
-    CamScene *lk;
-    CamCtl *lc;
-    CamTbl *tb;
+/* A path target's environment visual (MAT3 _AnimatePathTarget), every frame of a race or the demo while not paused;
+ * `flag` 0 releases the visual. First a path worked by a trigger follows it: it starts, stops, turns round or swaps
+ * its object definition (moving, stopped) as its trigger path stops and starts. Then a path not stopped advances by
+ * the frame's time over as many points as that takes: forwards to the end, then round again (a loop), back (back
+ * and forth) or stop (stops at its end); backwards to point 0, then forwards again or stop; a point flagged 0x40
+ * stops it. Then it is placed (PlacePathTargetPos, PlacePathTargetQuat, unless its point holds them) and its sound
+ * kept up; an animated kind steps its object definition through its frames; a mini model (collFuncIdx 4) follows
+ * its velocity; its scale changes evenly between points. A target no longer active goes: its scene object, its
+ * node and this visual. */
+void AnimatePathTarget(struct pc_visual *node, s16 flag) {
+    u16 *objects = (u16 *) &gObjList;   /* the object definitions by kind */
+    tTarget *target;
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
+    tBasicTargetPath *trig;
+    tTargetStructPath *trigState;
+    TargInfo *info;
     u16 m;
     s32 idx;
     s32 i;
@@ -607,260 +498,252 @@ void AnimatePathTarget(CamNode *node, s16 flag) {
         ReleaseEnviron(node, 1);
         return;
     }
-    if (((gGameState & 0x7C0000) || (gGameState & 8)) && gPauseState == 0) {
-        cam = N64P(node->cam);
-        ctl = N64P(cam->ctl);
-        sc = N64P(ctl->scene);
-        if (sc->flags & 0x40) {
-            if (sc->flags & 0x4000) {
-                if (!(sc->flags & 0x200)) {
-                    if (!(sc->flags & 0x400)) {
-                        if (ctl->mode & 4) {
-                            ctl->mode &= ~4;
-                            ctl->mode |= 8;
-                            ctl->t = N64P(sc->keys)[ctl->idx].dur - ctl->t;
+    if (((gGameState & 0x7C0000) || (gGameState & GS_DEMO)) && gPauseState == 0) {
+        target = VISUAL_TARGET(node);
+        state = TARGET_STATE(target);
+        path = STATE_PATH(state);
+        if (path->flags & 0x40) {
+            if (path->flags & 0x4000) {
+                if (!(path->flags & 0x200)) {
+                    if (!(path->flags & 0x400)) {
+                        if (state->flags & TPATH_FORWARD) {
+                            state->flags &= ~TPATH_FORWARD;
+                            state->flags |= TPATH_BACKWARD;
+                            state->timeElapsed = PATH_PTS(path)[state->ptOn].timeToNext - state->timeElapsed;
                         }
-                        if (sc->flags & 0x100) {
-                            PlayStartSound(cam);
+                        if (path->flags & 0x100) {
+                            PlayStartSound(target);
                         }
-                        sc->flags = sc->flags & ~0x100;
+                        path->flags = path->flags & ~0x100;
                     }
                 } else {
-                    if (sc->flags & 0x400) {
-                        sc->flags = sc->flags & ~0x500;
-                        PlayStartSound(cam);
+                    if (path->flags & 0x400) {
+                        path->flags = path->flags & ~0x500;
+                        PlayStartSound(target);
                     }
-                    sc->flags = sc->flags & ~0x200;
+                    path->flags = path->flags & ~0x200;
                 }
             } else {
-                if ((sc->flags & 0x2000) && (sc->flags & 0x100000)) {
-                    if (N64P(sc->link)->flags & 0x100) {
-                        sc->flags &= ~0x100000;
-                        sc->flags |= 0x200400;
-                        if (!(sc->flags & 0x8000)) {
-                            ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
+                if ((path->flags & 0x2000) && (path->flags & 0x100000)) {
+                    if (PATH_TRIGGER(path)->flags & 0x100) {
+                        path->flags &= ~0x100000;
+                        path->flags |= 0x200400;
+                        if (!(path->flags & 0x8000)) {
+                            ZOID_SetObjectDef_TargetPaths(target->dlIdx, objects[OBJ_PATH_STOPPED]);
                         }
-                        PlayStopSound(cam);
+                        PlayStopSound(target);
                         return;
                     }
                 }
-                if ((sc->flags & 0x400) && (sc->flags & 0x200)) {
-                    lk = N64P(sc->link);
-                    if (lk->flags & 0x100) {
-                        lk->flags &= ~0x100;
-                    } else if (sc->flags & 0x1000) {
-                        lc = N64P(lk->cur);
-                        if (lc->mode & 8) {
-                            lc->mode &= ~8;
-                            lc->mode |= 4;
-                            lc->t = N64P(lk->keys)[lc->idx].dur - lc->t;
+                if ((path->flags & 0x400) && (path->flags & 0x200)) {
+                    trig = PATH_TRIGGER(path);
+                    if (trig->flags & 0x100) {
+                        trig->flags &= ~0x100;
+                    } else if (path->flags & 0x1000) {
+                        trigState = PATH_PARENT(trig);
+                        if (trigState->flags & TPATH_BACKWARD) {
+                            trigState->flags &= ~TPATH_BACKWARD;
+                            trigState->flags |= TPATH_FORWARD;
+                            trigState->timeElapsed = PATH_PTS(trig)[trigState->ptOn].timeToNext - trigState->timeElapsed;
                         } else {
-                            lc->mode &= ~4;
-                            lc->mode |= 8;
-                            lc->t = N64P(lk->keys)[lc->idx].dur - lc->t;
+                            trigState->flags &= ~TPATH_FORWARD;
+                            trigState->flags |= TPATH_BACKWARD;
+                            trigState->timeElapsed = PATH_PTS(trig)[trigState->ptOn].timeToNext - trigState->timeElapsed;
                         }
                     }
-                    sc->flags = sc->flags & ~0x700;
-                    if (sc->flags & 0x1000) {
-                        if (sc->flags & 0x200000) {
-                            sc->flags &= ~0x200000;
-                            sc->flags |= 0x100000;
-                            if (!(sc->flags & 0x8000)) {
-                                ZOID_SetObjectDef_TargetPaths(cam->slot, objects[348]);
+                    path->flags = path->flags & ~0x700;
+                    if (path->flags & 0x1000) {
+                        if (path->flags & 0x200000) {
+                            path->flags &= ~0x200000;
+                            path->flags |= 0x100000;
+                            if (!(path->flags & 0x8000)) {
+                                ZOID_SetObjectDef_TargetPaths(target->dlIdx, objects[OBJ_PATH_MOVING]);
                             }
-                            PlayStartSound(cam);
+                            PlayStartSound(target);
                         } else {
-                            sc->flags &= ~0x100000;
-                            sc->flags |= 0x200000;
-                            if (!(sc->flags & 0x8000)) {
-                                ZOID_SetObjectDef_TargetPaths(cam->slot, objects[349]);
+                            path->flags &= ~0x100000;
+                            path->flags |= 0x200000;
+                            if (!(path->flags & 0x8000)) {
+                                ZOID_SetObjectDef_TargetPaths(target->dlIdx, objects[OBJ_PATH_STOPPED]);
                             }
-                            PlayStopSound(cam);
+                            PlayStopSound(target);
                         }
-                    } else if (sc->flags & 0x200000) {
-                        sc->flags &= ~0x200000;
-                        sc->flags |= 0x100000;
-                        if (!(sc->flags & 0x8000)) {
-                            ZOID_SetObjectDef_TargetPaths(cam->slot, objects[348]);
+                    } else if (path->flags & 0x200000) {
+                        path->flags &= ~0x200000;
+                        path->flags |= 0x100000;
+                        if (!(path->flags & 0x8000)) {
+                            ZOID_SetObjectDef_TargetPaths(target->dlIdx, objects[OBJ_PATH_MOVING]);
                         }
-                        PlayStartSound(cam);
+                        PlayStartSound(target);
                     }
                 }
             }
         }
-        if (!(sc->flags & 0x100)) {
+        if (!(path->flags & 0x100)) {
             i = 0;
-            ctl->t += *(f32 *)(uintptr_t)&gFrameSeconds;
-            idx = ctl->idx;
+            state->timeElapsed += *(f32 *)(uintptr_t)&gFrameSeconds;
+            idx = state->ptOn;
             do {
-                fr = ctl->t;
-                f = N64P(sc->keys)[idx].dur;
+                fr = state->timeElapsed;
+                f = PATH_PTS(path)[idx].timeToNext;
                 if (f <= fr) {
-                    ctl->t = fr - f;
-                    if (ctl->mode & 8) {
+                    state->timeElapsed = fr - f;
+                    if (state->flags & TPATH_BACKWARD) {
                         if (idx == 0) {
-                            if (sc->flags & 0x4000) {
-                                ResetPath(cam, 0);
+                            if (path->flags & 0x4000) {
+                                ResetPath(target, 0);
                                 i = 1;
-                                PlayStopSound(cam);
+                                PlayStopSound(target);
                             } else {
-                                ctl->mode &= ~8;
-                                ctl->mode |= 4;
-                                if (sc->flags & 0x80) {
-                                    sc->flags |= 0x100;
+                                state->flags &= ~TPATH_BACKWARD;
+                                state->flags |= TPATH_FORWARD;
+                                if (path->flags & 0x80) {
+                                    path->flags |= 0x100;
                                     i = 1;
-                                    ctl->t = 0.0f;
+                                    state->timeElapsed = 0.0f;
                                 }
                             }
-                            if (sc->flags & 0x20) {
-                                ResetCollisionObject(sc->id);
+                            if (path->flags & 0x20) {
+                                ResetCollisionObject(path->collIdx);
                             }
                         } else {
-                            ctl->idx = idx - 1;
+                            state->ptOn = idx - 1;
                         }
-                    } else if (idx * 1 + 1 == sc->count) {
-                        if (sc->flags & 0x80) {
-                            ctl->mode &= ~4;
-                            ctl->mode |= 8;
-                            ctl->idx = idx - 1;
+                    } else if (idx + 1 == path->numPts) {
+                        if (path->flags & 0x80) {
+                            state->flags &= ~TPATH_FORWARD;
+                            state->flags |= TPATH_BACKWARD;
+                            state->ptOn = idx - 1;
                         } else {
-                            ctl->idx = 0;
-                            if (sc->flags & 0x20) {
-                                ResetCollisionObject(sc->id);
+                            state->ptOn = 0;
+                            if (path->flags & 0x20) {
+                                ResetCollisionObject(path->collIdx);
                             }
                         }
                     } else {
-                        ctl->idx = idx + 1;
-                        idx = ctl->idx;
-                        if (N64P(sc->keys)[idx].flags & 0x40) {
+                        state->ptOn = idx + 1;
+                        idx = state->ptOn;
+                        if (PATH_PTS(path)[idx].flags & 0x40) {
                             i = 1;
-                            sc->flags |= 0x100;
-                            ctl->t = 0.0f;
-                        } else if (idx * 1 + 1 == sc->count) {
-                            if (sc->flags & 1) {
-                                ctl->mode &= ~4;
-                                ctl->mode |= 8;
-                                ctl->idx = idx - 1;
-                            } else if (sc->flags & 0x4000) {
-                                ctl->mode &= ~4;
-                                ctl->mode |= 8;
-                                ctl->idx = idx - 1;
-                                ctl->t = 0.0f;
-                                sc->flags |= 0x100;
-                            } else if (!(sc->flags & 2)) {
-                                ResetPath(cam, 0);
-                                if (sc->flags & 0x20) {
-                                    ResetCollisionObject(sc->id);
+                            path->flags |= 0x100;
+                            state->timeElapsed = 0.0f;
+                        } else if (idx + 1 == path->numPts) {
+                            if (path->flags & 1) {
+                                state->flags &= ~TPATH_FORWARD;
+                                state->flags |= TPATH_BACKWARD;
+                                state->ptOn = idx - 1;
+                            } else if (path->flags & 0x4000) {
+                                state->flags &= ~TPATH_FORWARD;
+                                state->flags |= TPATH_BACKWARD;
+                                state->ptOn = idx - 1;
+                                state->timeElapsed = 0.0f;
+                                path->flags |= 0x100;
+                            } else if (!(path->flags & 2)) {
+                                ResetPath(target, 0);
+                                if (path->flags & 0x20) {
+                                    ResetCollisionObject(path->collIdx);
                                 }
                             }
                         }
                     }
-                    idx = ctl->idx;
+                    idx = state->ptOn;
                 } else {
                     i = 1;
                 }
             } while (i == 0);
-            idx = N64P(sc->keys)[idx].flags;
+            idx = PATH_PTS(path)[idx].flags;
             if (!(idx & 2)) {
-                PlacePathTargetPos(cam);
+                PlacePathTargetPos(target);
                 moved = 1;
-                idx = N64P(sc->keys)[ctl->idx].flags;
+                idx = PATH_PTS(path)[state->ptOn].flags;
             }
             if (!(idx & 0x10) || !(idx & 4)) {
                 moved = 1;
-                PlacePathTargetQuat(cam);
+                PlacePathTargetQuat(target);
             }
             if (moved != 0) {
-                if (sc->flags & 0x100) {
-                    PlayStopSound(cam);
+                if (path->flags & 0x100) {
+                    PlayStopSound(target);
                 } else {
-                    PlayMoveSound(cam);
+                    PlayMoveSound(target);
                 }
             } else {
-                PlayStopSound(cam);
+                PlayStopSound(target);
             }
-            tb = &targetInfo[cam->tbl];
-            if (tb->s14 != -1) {
-                node->f10 -= *(f32 *)(intptr_t)&gFrameSeconds;
-                if (node->f10 <= 0.0f) {
-                    idx = tb->s14;
+            info = &targetInfo[target->infoIdx];
+            if (info->objListIdx != -1) {
+                node->timeStamp -= *(f32 *)(intptr_t)&gFrameSeconds;
+                if (node->timeStamp <= 0.0f) {
+                    idx = info->objListIdx;
                     if (idx == 0x169) {
-                        node->f10 = 0.25f;
+                        node->timeStamp = 0.25f;
                     } else if (idx == 0x16D) {
-                        node->f10 = 0.0425f;
+                        node->timeStamp = 0.0425f;
                     }
-                    idx = ++node->s04;
-                    if (idx >= cam->s5A) {
-                        node->s04 = 0;
+                    idx = ++node->index;
+                    if (idx >= target->frames) {
+                        node->index = 0;
                         idx = 0;
                     }
-                    flag = cam->s58 + idx;
-                    if (flag != cam->s50) {
+                    flag = target->otype + idx;
+                    if (flag != target->type) {
                         m = objects[flag];
-                        lk = N64P(sc->link);
-                        if (lk) {}
-                        if (sc->flags & 0x8000) {
+                        trig = PATH_TRIGGER(path);
+                        if (trig) {} /* the N64 code reads the trigger here and does nothing with it */
+                        if (path->flags & 0x8000) {
                         } else {
-                            ZOID_SetObjectDef_TargetPaths(cam->slot, m);
+                            ZOID_SetObjectDef_TargetPaths(target->dlIdx, m);
                         }
-                        cam->s50 = flag;
+                        target->type = flag;
                     }
-                    goto block_99;
+                    goto motion; /* MAT3 returns when the frame timer has not run out; so does this, past the else */
                 }
             } else {
-block_99:
-                if (tb->mode == 4) {
-                    if (ctl->mode & 8) {
-                        dv[0] = N64P(sc->keys)[ctl->idx].dir[0] * -ctl->f10;
-                        dv[1] = N64P(sc->keys)[ctl->idx].dir[1] * -ctl->f10;
-                        dv[2] = N64P(sc->keys)[ctl->idx].dir[2] * -ctl->f10;
+motion:
+                if (info->collFuncIdx == 4) {
+                    if (state->flags & TPATH_BACKWARD) {
+                        dv[0] = PATH_PTS(path)[state->ptOn].norm[0] * -state->curVel;
+                        dv[1] = PATH_PTS(path)[state->ptOn].norm[1] * -state->curVel;
+                        dv[2] = PATH_PTS(path)[state->ptOn].norm[2] * -state->curVel;
                     } else {
-                        dv[0] = N64P(sc->keys)[ctl->idx].dir[0] * ctl->f10;
-                        dv[1] = N64P(sc->keys)[ctl->idx].dir[1] * ctl->f10;
-                        dv[2] = N64P(sc->keys)[ctl->idx].dir[2] * ctl->f10;
+                        dv[0] = PATH_PTS(path)[state->ptOn].norm[0] * state->curVel;
+                        dv[1] = PATH_PTS(path)[state->ptOn].norm[1] * state->curVel;
+                        dv[2] = PATH_PTS(path)[state->ptOn].norm[2] * state->curVel;
                     }
-                    UpdateMiniModelStruct(cam->s65, dv, cam->pos, cam->m);
+                    UpdateMiniModelStruct(target->owner, dv, target->mat.pos, target->mat.uvs);
                 }
-                idx = ctl->idx;
-                if (!(N64P(sc->keys)[idx].flags & 0x10)) {
+                idx = state->ptOn;
+                if (!(PATH_PTS(path)[idx].flags & 0x10)) {
                     nx = idx + 1;
-                    if (nx >= sc->count) {
+                    if (nx >= path->numPts) {
                         nx = 0;
                     }
-                    if (ctl->mode & 8) {
-                        f = N64P(sc->keys)[idx].dur;
-                        tt = f - ctl->t;
+                    if (state->flags & TPATH_BACKWARD) {
+                        f = PATH_PTS(path)[idx].timeToNext;
+                        tt = f - state->timeElapsed;
                     } else {
-                        tt = ctl->t;
-                        f = N64P(sc->keys)[idx].dur;
+                        tt = state->timeElapsed;
+                        f = PATH_PTS(path)[idx].timeToNext;
                     }
                     fr = tt / f;
-                    if (N64P(sc->keys)[idx].dur != 0.0f) {}
+                    if (PATH_PTS(path)[idx].timeToNext != 0.0f) {} /* likewise, a test that does nothing */
                     for (i = 0; i < 3; i++) {
-                        sv[i] = N64P(sc->keys)[ctl->idx].scale[i] + (N64P(sc->keys)[nx].scale[i] - N64P(sc->keys)[ctl->idx].scale[i]) * fr;
+                        sv[i] = PATH_PTS(path)[state->ptOn].scale[i] + (PATH_PTS(path)[nx].scale[i] - PATH_PTS(path)[state->ptOn].scale[i]) * fr;
                     }
                     for (i = 0; i < 3; i++) {
-                        cam->m[0][i] *= sv[0];
-                        cam->m[1][i] *= sv[1];
-                        cam->m[2][i] *= sv[2];
+                        target->mat.uvs[0][i] *= sv[0];
+                        target->mat.uvs[1][i] *= sv[1];
+                        target->mat.uvs[2][i] *= sv[2];
                     }
                 }
-                if (!(cam->flags & 2)) {
-                    if (!(sc->flags & 0x8000)) {
-                        RemoveObjectTree(cam->slot, 0, 0);
+                if (!(target->Flags & TARGET_ACTIVE)) {
+                    if (!(path->flags & 0x8000)) {
+                        RemoveObjectTree(target->dlIdx, 0, 0);
                     }
-                    FreeStatLLE(&gTargetList, (s32 *) cam);
+                    FreeStatLLE(&gTargetList, (s32 *) target);
                     ReleaseEnviron(node, 1);
                 }
             }
         }
     }
 }
-
-/* stand-in caller: keeps PlayStartSound out of line under -O3 */
-
-/* stand-in caller: keeps PlayStopSound out of line under -O3 */
-
-/* stand-in caller: keeps PlacePathTargetQuat out of line under -O3 */
-
-/* stand-in caller: keeps camera_look_at_point out of line under -O3 */

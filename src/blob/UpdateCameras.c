@@ -1,35 +1,35 @@
+/* UpdateCameras: the cameras ready for drawing, each frame (MAT3 camera.c). */
 #include "game/game.h"
 
 VIEW(u16, gNumWindows);
 #define gNumWindows gNumWindows_view
 
-VIEW(s32[], gCamera);
+VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 
-typedef struct { u8 pad0[0x24]; f32 f24, f28, f2C; u8 pad30[4]; f32 f34, f38, f3C; u8 pad40[8]; f32 f48; u8 pad4C[8]; f32 f54, f58, f5C; u8 pad60[0x38]; } EmitA;
-typedef struct { u8 pad0[0x98]; } EmitB;
-
+/* For each window's camera: the matrix the N64 draws by (n64: mat with four elements negated, its handedness), and
+ * the sky for it but while paused; then the HUD's camera-dependent parts and the countdown. */
 void UpdateCameras(void)
 {
-  s32 i;
-  EmitA *e;
-  EmitB *b;
+    s32 i;
+    tCamera *cam;
+    UVMat *n64;
 
-  for (i = 0; i < (s16) gNumWindows; i++) {
-    e = (EmitA *) &gCamera + i;
-    b = (EmitB *) ((u8 *) e + 0x30);   /* the camera's handedness-flipped copy of its matrix (gCamera[i].n64, +0x30) */
-    e->f54 = e->f24;
-    e->f58 = e->f28;
-    e->f5C = e->f2C;
-    CopyUV(e, b);
-    e->f34 = -e->f34;
-    e->f38 = -e->f38;
-    e->f3C = -e->f3C;
-    e->f48 = -e->f48;
-    if (gPauseState == 0) {
-      SkyUpdate(i);
+    for (i = 0; i < (s16) gNumWindows; i++) {
+        cam = &gCamera[i];
+        n64 = &cam->n64;
+        cam->n64.pos[0] = cam->mat.pos[0];
+        cam->n64.pos[1] = cam->mat.pos[1];
+        cam->n64.pos[2] = cam->mat.pos[2];
+        CopyUV(cam, n64);
+        cam->n64.uvs[0][1] = -cam->n64.uvs[0][1];
+        cam->n64.uvs[0][2] = -cam->n64.uvs[0][2];
+        cam->n64.uvs[1][0] = -cam->n64.uvs[1][0];
+        cam->n64.uvs[2][0] = -cam->n64.uvs[2][0];
+        if (gPauseState == 0) {
+            SkyUpdate(i);
+        }
     }
-  }
-  UpdateHUDPostCamera();
-  ShowCountdown(gCountDown > 0);
+    UpdateHUDPostCamera();
+    ShowCountdown(gCountDown > 0);
 }

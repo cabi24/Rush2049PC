@@ -1,39 +1,28 @@
+/* ShotToWorldCollision: a shot against the track's surfaces (MAT3 stree.c). */
 #include "game/game.h"
 
 float fabsf(float);
-#pragma intrinsic (fabsf)
 
-typedef struct QNode {
-    s16 next;
-    u8 pad2;
-    u8 mask;
-    s16 x0;
-    s16 x1;
-    s16 y0;
-    s16 y1;
-    u16 child[4];
-} QNode;
-VIEW(QNode *, stree_nodes);
+VIEW(streetyp *, stree_nodes);
 #define stree_nodes stree_nodes_view
 
-typedef struct Poly {
-    u16 type;
-    u16 cnt;
-    u8 body[0x12];
-    u16 off;
-} Poly;
-VIEW(Poly *, stree_surf);
+/* A surface (MAT3 surftyp, stree_surf[]). */
+typedef struct surftyp {
+    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
+    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
+    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
+    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
+} surftyp;
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
 
 #define FLOORF(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 
-/* ShotToWorldCollision, 0x800ADD58, 3580 bytes.
- * Reconstructed from the historical N64 candidate with MAT3 donor guidance.
- * The collision result has the callee's signed-short type. Quadtree z floors
- * are evaluated in their call arguments. Traversal interpolation is written
- * as current position plus scaled displacement. No forced compiler events.
- */
-Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 snap, s32 skipType) {
+/* Does the segment from `start` to `end` hit a surface? Walks the surface tree's leaves along it, testing their
+ * surfaces (CylinderInSurf, within `radius`) but removed ones (kind 15) and kind `skipType`, leaf by leaf from the
+ * start: `end` moves to the hit point and `mat` gets the surface's frame, with `snap` interpolated on a half-pipe
+ * edge (flag 0x2000) or a road path surface (0x1000). Returns the surface hit, or NULL. The weapons' shots. */
+surftyp *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 snap, s32 skipType) {
     f32 m[3][3];
     u32 i;
     s16 quad;
@@ -57,10 +46,10 @@ Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
     s16 maxz;
     f32 x;
     f32 z;
-    QNode *node;
-    QNode *endNode;
-    Poly *poly;
-    Poly *best;
+    streetyp *node;
+    streetyp *endNode;
+    surftyp *poly;
+    surftyp *best;
     u8 *p;
 
     best = NULL;
@@ -79,22 +68,22 @@ Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
     }
     endNode = updownleaf(stree_nodes, (s32)x, (s32)(z = FLOORF(end[2])), &endQuad);
     for (;;) {
-        mx = node->x0 + node->x1;
+        mx = node->minh + node->maxh;
         if (mx < 0) {
             mx++;
         }
-        mz = node->y0 + node->y1;
+        mz = node->minv + node->maxv;
         if (mz < 0) {
             mz++;
         }
         mx >>= 1;
         mz >>= 1;
-        minx = (quad & 1) ? mx : node->x0;
-        maxx = (quad & 1) ? node->x1 : mx;
-        minz = (quad & 2) ? node->y0 : mz;
-        maxz = (quad & 2) ? mz : node->y1;
+        minx = (quad & 1) ? mx : node->minh;
+        maxx = (quad & 1) ? node->maxh : mx;
+        minz = (quad & 2) ? node->minv : mz;
+        maxz = (quad & 2) ? mz : node->maxv;
         off = node->child[quad];
-        if (node->mask & (16 << quad)) {
+        if (node->flags & (16 << quad)) {
             off |= 0x10000;
         }
         if (off != 0) {
@@ -103,7 +92,7 @@ Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
             DecodeSlist(p, n, list, -1);
             for (i = 0; i < n; i++) {
                 poly = &stree_surf[list[i]];
-                if ((poly->type & 0xF) == 15 || (poly->type & 0xF) == skipType) {
+                if ((poly->flags & 0xF) == 15 || (poly->flags & 0xF) == skipType) {
                     continue;
                 }
                 state = CylinderInSurf(poly, cur, end, np, vc, (f32 *)m, 0, (s16 *)&idx, radius * radius);
@@ -122,9 +111,9 @@ Poly *ShotToWorldCollision(f32 *start, f32 *end, f32 (*mat)[3], f32 radius, s32 
         }
         if (best != NULL) {
             if (snap != 0) {
-                if (best->type & 0x2000) {
+                if (best->flags & 0x2000) {
                     fHalfPipeInterp((intptr_t)best, bestIdx, end, vc, mat, 250.0f);
-                } else if (best->type & 0x1000) {
+                } else if (best->flags & 0x1000) {
                     fPathInterp((intptr_t)best, bestIdx, end, vc, mat);
                     NormalVector(mat[0]);
                     NormalVector(mat[1]);

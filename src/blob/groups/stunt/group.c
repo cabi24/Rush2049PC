@@ -1,65 +1,44 @@
+/* The stunt arena's scoring (MAT3 stunt.c): each frame every player's car is watched for flips, spins, rolls, air
+ * time, two-wheel driving and wild combinations of them (CheckForStunt), each one adding a trick (AddStunt) to the
+ * run, which the landing banks for its points and a crash loses (CrashedStunt). */
 #include "game/game.h"
 
-float fabsf(float); /* : m2c emits fabsf for abs.s; undeclared it was an implicit int call */
-#pragma intrinsic (fabsf)
+float fabsf(float);
 
-/* : trick-score records, hand-derived from the retail words */
-typedef struct Stunt {           /* gStuntPlayer[player], 0x78 bytes */
-    s16 active;                  /* 0x00 */
-    s16 done;                    /* 0x02 */
-    f32 time;                    /* 0x04 */
-    s32 best;                    /* 0x08 */
-    s32 cur;                     /* 0x0C */
-    s32 last;                    /* 0x10 */
-    s32 total;                   /* 0x14 */
-    s32 count;                   /* 0x18 */
-    s32 lastcode;                /* 0x1C */
-    s16 cnt[10];                 /* 0x20 */
-    s16 prevcnt[10];             /* 0x34 */
-    s16 hist[10];                /* 0x48 */
-    u8 pad5C[4];
-    f32 f60;                     /* 0x60 */
-    s8 s64;
-    s8 s65;
-    s8 s66;
-    s8 s67;
-    s32 mult;                    /* 0x68 */
-    s32 prev;                    /* 0x6C */
-    s32 s70;
-    s32 flag;                    /* 0x74 */
-} Stunt;
-VIEW(Stunt[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
-typedef struct Ply {             /* gStuntInfo[player], 0x7C bytes */
-    s32 flags;                   /* 0x00 */
-    f32 a04, a08, a0C;
-    f32 a10, a14, a18;
-    f32 a1C, a20, a24;
-    f32 a28, a2C, a30;
-    f32 t34, t38, t3C, t40, t44, t48, t4C, t50, t54;
-    u8 pad58[0x24];
+/* A player's stunt in progress (MAT3 tStuntInfo, gStuntInfo[4], 0x7C bytes; include/game lays it out as bytes). */
+typedef struct Ply {
+    s32 flags;                   /* 0x00 active: the trackers running (0x1 on the two wheels of a side, 0x2 on the front
+                                  * wheels, 0x4 on the back ones, 0x10 a spin, 0x20 a roll, 0x40 a flip, 0x80 the
+                                  * combination, 0x100 air time; above, each axis's turn direction) */
+    f32 stuntW[4][3];            /* 0x04 rotation snapshots and sums (MAT3 stuntW) */
+    f32 t34, t38, t3C, t40, t44, t48, t4C, t50; /* 0x34 time[4]: each tracker's start and end times */
+    f32 t54;                     /* 0x54 endTime */
+    u8 pad58[0x24];              /* 0x58 initUV */
 } Ply;
 VIEW(Ply[], gStuntInfo);
 #define gStuntInfo gStuntInfo_view
-typedef struct PCar {            /* gGameCar[], 0x3B8 bytes */
+
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields the stunts read. */
+typedef struct PCar {
     u8 pad00[0xE8];
-    s32 fE8;
+    s32 appearance;              /* 0x0E8 */
     u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x358 - 0x308];
-    s8 f358;
+    s8 crash_state;              /* 0x358 */
     u8 pad359[0x368 - 0x359];
-    f32 vx, vy, vz;
+    f32 vx, vy, vz;              /* 0x368 stuntW: its rotation this step about its axes */
     u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
 } PCar;
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-typedef struct HudRec {          /* model[], 0x808 bytes */
+
+/* The model record (MAT3 tModelData): the fields the stunts read. */
+typedef struct HudRec {
     u8 pad000[0x3F8];
-    s16 f3F8;
+    s16 wing;                    /* 0x3F8 */
     u8 pad3FA[0x5EC - 0x3FA];
-    f32 f5EC, f5F0, f5F4, f5F8;
+    f32 airdist[4];              /* 0x5EC each tyre's height off the ground */
     u8 pad5FC[0x61C - 0x5FC];
-    u16 s61C, s61E, s620, s622;
+    u16 sviscode[4];             /* 0x61C each tyre's surface's visual code */
     u8 pad624[0x6C4 - 0x624];
-    s16 f6C4;
+    s16 moving_state;            /* 0x6C4 resurrect.moving_state: -1 unless being put back */
     u8 pad6C6[0x808 - 0x6C6];
 } HudRec;
 
@@ -68,52 +47,33 @@ extern void *memset(void *s, s32 c, u32 n);
 VIEW(f32[3], stunt_GCabsW);
 #define stunt_GCabsW stunt_GCabsW_view
 
-void AddStunt();
+void AddStunt(s32 idx, s32 code);
 
-/* ---- unit: AddStunt and its callers (agent) ----
- * Stunt / trick scoring (labels are historical; nothing here is a camera):
- *   AddStunt(idx, code)  record one trick event for player idx (code 11 = landing: bank the combo)
- *   Check2WheelBack / Check2WheelFront / CheckFlip / CheckSpin / CheckRoll   per-player trackers
- *   CrashedStunt(idx)        end of run: bank and clear
- *   CheckForStunt()    per-frame driver over all players
- * CheckFlip/26C4/2944 are the three already-locked members of src/blob/groups/stunt,
- * unchanged except that their calls now pass (idx, code) -- see the note on AddStunt.
- * No stand-ins: every function has its real callers in this unit.
- */
-/* AddStunt (0x800C1B60, 297 words).
- * IPA: idx arrives in $t1, code in $a0; $s0 is used without being saved.
- * Three things were needed beyond the earlier hand-written body:
- *  - the source parameter order is (idx, code): every caller sets $t1 before $a0
- *    (`move t1,s1; jal; li a0,7`), and callers evaluate arguments in source order;
- *  - `hits` is not a local but a third, never-passed parameter (old-style definition, callers pass two
- *    arguments).  Retail's frame has exactly two local words (p, i); as a local, hits is a third and the
- *    frame is 40 instead of 32; reusing `code` for it moves the incoming parameter from $a0 to $a1;
- *  - the points to add are kept in `i` (the later loop counter): one variable, one register ($v1),
- *    written to its home in every switch arm because the default arm leaves it unset.
- * The two jump tables (0x80123E94, 0x80123EC4) are this function's own .rodata: 4 relocations unverified.
- */
-void AddStunt(idx, code, hits)
-s32 idx;
-s32 code;
-s32 hits;
+/* Adds trick `code` to player `idx`'s run: 0-4 and 7-8 (flips, spins, rolls ...) 5 points, 5 and 6 (the combination,
+ * two wheels) 3, 9 (air time) 5; a new kind of trick in a run of more than one adds to the bonus multiplier. Code 11
+ * is the landing: unless crashed, the run's bonuses (a clean single trick or two with air: 15 or 25 and its name; a
+ * wing bonus by how long the wing showed; 3 to 10 kinds of trick: 10 to 1000) multiply its points, which bank into
+ * the total and the best; the HUD's copies take the run, which then clears. */
+void AddStunt(s32 idx, s32 code)
 {
-    Stunt *p;
+    s32 hits;
+    tStuntPlayer *p;
     s32 i;
 
     p = &gStuntPlayer[idx];
-    p->flag = 0;
-    p->active = 1;
+    p->done = 0;
+    p->show = 1;
     p->time = gModelTime;
     if (code != 11) {
-        if (p->cnt[code] == 0 && p->count > 0) {
-            p->mult++;
-            p->s70++;
+        if (p->stunts[code] == 0 && p->numstunts > 0) {
+            p->bonus++;
+            p->showBonus++;
         }
-        p->cnt[code]++;
+        p->stunts[code]++;
     }
-    if (code != p->lastcode) {
-        p->lastcode = code;
-        p->count++;
+    if (code != p->lastStuntType) {
+        p->lastStuntType = code;
+        p->numstunts++;
     }
     switch (code) {
     case 0:
@@ -133,76 +93,76 @@ s32 hits;
         i = 5;
         break;
     case 11:
-        p->flag = 1;
+        p->done = 1;
         i = 0;
         break;
     }
-    p->cur += i;
-    p->prev = p->mult;
+    p->points += i;
+    p->bonusHud = p->bonus;
     if (code == 11) {
         hits = 0;
-        if (p->done == 0) {
+        if (p->crash == 0) {
             for (i = 0; i < 10; i++) {
-                if (p->cnt[i] > 0) {
+                if (p->stunts[i] > 0) {
                     hits++;
                 }
-                p->hist[i] += p->cnt[i];
+                p->totalStunts[i] += p->stunts[i];
             }
-            if ((p->cnt[0] != 0 || p->cnt[1] != 0 || p->cnt[2] != 0 || p->cnt[3] != 0 || p->cnt[4] != 0) && p->f60 <= 1.0f && (hits == 1 || (hits == 2 && p->cnt[9] != 0))) {
-                if (p->cnt[4] != 0) {
-                    p->s66 = 11;
-                    p->mult += 15;
-                } else if (p->cnt[0] != 0 || p->cnt[1] != 0) {
-                    p->mult += 25;
-                    p->s66 = 13;
+            if ((p->stunts[0] != 0 || p->stunts[1] != 0 || p->stunts[2] != 0 || p->stunts[3] != 0 || p->stunts[4] != 0) && p->wingTime <= 1.0f && (hits == 1 || (hits == 2 && p->stunts[9] != 0))) {
+                if (p->stunts[4] != 0) {
+                    p->doneBonus = 11;
+                    p->bonus += 15;
+                } else if (p->stunts[0] != 0 || p->stunts[1] != 0) {
+                    p->bonus += 25;
+                    p->doneBonus = 13;
                 } else {
-                    p->mult += 25;
-                    p->s66 = 12;
+                    p->bonus += 25;
+                    p->doneBonus = 12;
                 }
-            } else if (p->cnt[9] != 0 || p->cnt[5] != 0 || p->cnt[0] != 0 || p->cnt[1] != 0 || p->cnt[2] != 0 || p->cnt[3] != 0 || p->cnt[4] != 0) {
-                if (p->f60 == 0.0f) {
-                    p->mult += 7;
-                    p->s64 = 1;
-                } else if (p->f60 <= 3.0f) {
-                    p->mult += 2;
-                    p->s64 = 2;
+            } else if (p->stunts[9] != 0 || p->stunts[5] != 0 || p->stunts[0] != 0 || p->stunts[1] != 0 || p->stunts[2] != 0 || p->stunts[3] != 0 || p->stunts[4] != 0) {
+                if (p->wingTime == 0.0f) {
+                    p->bonus += 7;
+                    p->wingBonus = 1;
+                } else if (p->wingTime <= 3.0f) {
+                    p->bonus += 2;
+                    p->wingBonus = 2;
                 }
             }
             if (hits >= 3) {
-                p->s66 = hits;
+                p->doneBonus = hits;
                 switch (hits) {
-                case 3: p->mult += 10; break;
-                case 4: p->mult += 20; break;
-                case 5: p->mult += 40; break;
-                case 6: p->mult += 60; break;
-                case 7: p->mult += 80; break;
-                case 8: p->mult += 100; break;
-                case 9: p->mult += 500; break;
-                case 10: p->mult += 1000; break;
+                case 3: p->bonus += 10; break;
+                case 4: p->bonus += 20; break;
+                case 5: p->bonus += 40; break;
+                case 6: p->bonus += 60; break;
+                case 7: p->bonus += 80; break;
+                case 8: p->bonus += 100; break;
+                case 9: p->bonus += 500; break;
+                case 10: p->bonus += 1000; break;
                 }
             }
-            if (p->mult >= 2) {
-                p->cur = p->cur * p->mult;
+            if (p->bonus >= 2) {
+                p->points = p->points * p->bonus;
             }
-            p->total += p->cur;
-            if (p->best < p->cur) {
-                p->best = p->cur;
+            p->totalPoints += p->points;
+            if (p->maxStuntPoints < p->points) {
+                p->maxStuntPoints = p->points;
             }
         }
-        p->s67 = p->s66;
-        p->last = p->cur;
-        p->s65 = p->s64;
+        p->doneBonusHud = p->doneBonus;
+        p->pointsHud = p->points;
+        p->wingBonusHud = p->wingBonus;
         for (i = 0; i < 10; i++) {
-            p->prevcnt[i] = p->cnt[i];
-            p->cnt[i] = 0;
+            p->stuntsHud[i] = p->stunts[i];
+            p->stunts[i] = 0;
         }
-        p->s66 = 0;
-        p->s64 = 0;
-        p->mult = 1;
-        p->s70 = 0;
-        p->count = 0;
-        p->cur = 0;
-        p->f60 = 0.0f;
+        p->doneBonus = 0;
+        p->wingBonus = 0;
+        p->bonus = 1;
+        p->showBonus = 0;
+        p->numstunts = 0;
+        p->points = 0;
+        p->wingTime = 0.0f;
         memset(&gStuntInfo[idx], 0, 0x7C);
         gStuntInfo[idx].flags |= 0x15000000;
     }
@@ -210,7 +170,11 @@ s32 hits;
 
 
 
-/* AddStunt and the callers below are hand-written from the retail words */
+/* The flip tracker (flag 0x40) of player `idx`: started when the car turns mostly about its x axis, it sums the
+ * turn; too much about the other axes aborts it; a flip's worth (within flip_window_min..max, or past
+ * flip_landing_min once the car turns back, lands or is touched by the road: appearance 0x100000) adds a forward
+ * (0) or backward (1) flip and unwinds the sum. CheckSpin (0x10, y: 4) and CheckRoll (0x20, z: 2 and 3) are its
+ * siblings. stunt_j counts the tyres on the ground, stunt_chW0..2 say an axis's turn changed direction. */
 void CheckFlip(s32 idx) {
     Ply *p;
     PCar *c;
@@ -224,38 +188,39 @@ void CheckFlip(s32 idx) {
             p->flags = fl & ~0x40;
         } else {
             c = (PCar *)(uintptr_t)PC_CAR(idx);
-            p->a10 += c->vx;
-            p->a14 += c->vy;
-            p->a18 += c->vz;
+            p->stuntW[1][0] += c->vx;
+            p->stuntW[1][1] += c->vy;
+            p->stuntW[1][2] += c->vz;
         }
-        v[0] = fabsf(p->a10);
-        v[1] = fabsf(p->a14);
-        v[2] = fabsf(p->a18);
+        v[0] = fabsf(p->stuntW[1][0]);
+        v[1] = fabsf(p->stuntW[1][1]);
+        v[2] = fabsf(p->stuntW[1][2]);
         if (flip_abort_angle < v[1] || flip_abort_angle < v[2]) {
             p->flags &= ~0x40;
             return;
         }
-        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->fE8 & 0x100000)) && flip_landing_min < v[0])) {
+        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->appearance & 0x100000)) && flip_landing_min < v[0])) {
             p->flags &= ~0x80;
-            if (p->a10 > 0.0f) {
+            if (p->stuntW[1][0] > 0.0f) {
                 AddStunt(idx, 0);
-                p->a10 += flip_unwind_negative;
+                p->stuntW[1][0] += flip_unwind_negative;
             } else {
                 AddStunt(idx, 1);
-                p->a10 += flip_unwind_positive;
+                p->stuntW[1][0] += flip_unwind_positive;
             }
-            p->a18 = 0.0f;
-            p->a14 = 0.0f;
+            p->stuntW[1][2] = 0.0f;
+            p->stuntW[1][1] = 0.0f;
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[0] && stunt_GCabsW[2] < stunt_GCabsW[0]) {
         p->flags = fl | 0x40;
         c = (PCar *)(uintptr_t)PC_CAR(idx);
-        p->a10 = c->vx;
-        p->a14 = c->vy;
-        p->a18 = c->vz;
+        p->stuntW[1][0] = c->vx;
+        p->stuntW[1][1] = c->vy;
+        p->stuntW[1][2] = c->vz;
     }
 }
 
+/* The spin tracker (flag 0x10, about y): as CheckFlip. */
 void CheckSpin(s32 idx) {
     Ply *p;
     PCar *c;
@@ -270,34 +235,35 @@ void CheckSpin(s32 idx) {
             p->flags = fl & ~0x10;
         } else {
             c = (PCar *)(uintptr_t)PC_CAR(idx);
-            p->a1C += c->vx;
-            p->a20 += c->vy;
-            p->a24 += c->vz;
+            p->stuntW[2][0] += c->vx;
+            p->stuntW[2][1] += c->vy;
+            p->stuntW[2][2] += c->vz;
         }
-        v[0] = fabsf(p->a1C);
-        v[1] = fabsf(p->a20);
-        v[2] = fabsf(p->a24);
+        v[0] = fabsf(p->stuntW[2][0]);
+        v[1] = fabsf(p->stuntW[2][1]);
+        v[2] = fabsf(p->stuntW[2][2]);
         if (spin_abort_angle < v[0] || spin_abort_angle < v[2]) {
             p->flags &= ~0x10;
             return;
         }
-        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->fE8 & 0x100000)) && spin_landing_min < v[1])) {
+        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->appearance & 0x100000)) && spin_landing_min < v[1])) {
             p->flags &= ~0x80;
             AddStunt(idx, 4);
-            d = (p->a20 > 0.0f) ? spin_unwind_negative : spin_unwind_positive;
-            p->a24 = 0.0f;
-            p->a1C = 0.0f;
-            p->a20 = p->a20 + d;
+            d = (p->stuntW[2][1] > 0.0f) ? spin_unwind_negative : spin_unwind_positive;
+            p->stuntW[2][2] = 0.0f;
+            p->stuntW[2][0] = 0.0f;
+            p->stuntW[2][1] = p->stuntW[2][1] + d;
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[0] < stunt_GCabsW[1] && stunt_GCabsW[2] < stunt_GCabsW[1]) {
         p->flags = fl | 0x10;
         c = (PCar *)(uintptr_t)PC_CAR(idx);
-        p->a1C = c->vx;
-        p->a20 = c->vy;
-        p->a24 = c->vz;
+        p->stuntW[2][0] = c->vx;
+        p->stuntW[2][1] = c->vy;
+        p->stuntW[2][2] = c->vz;
     }
 }
 
+/* The roll tracker (flag 0x20, about z, both ways): as CheckFlip. */
 void CheckRoll(s32 idx) {
     Ply *p;
     PCar *c;
@@ -311,42 +277,41 @@ void CheckRoll(s32 idx) {
             p->flags = fl & ~0x20;
         } else {
             c = (PCar *)(uintptr_t)PC_CAR(idx);
-            p->a04 += c->vx;
-            p->a08 += c->vy;
-            p->a0C += c->vz;
+            p->stuntW[0][0] += c->vx;
+            p->stuntW[0][1] += c->vy;
+            p->stuntW[0][2] += c->vz;
         }
-        v[0] = fabsf(p->a04);
-        v[1] = fabsf(p->a08);
-        v[2] = fabsf(p->a0C);
+        v[0] = fabsf(p->stuntW[0][0]);
+        v[1] = fabsf(p->stuntW[0][1]);
+        v[2] = fabsf(p->stuntW[0][2]);
         if (roll_abort_angle_x < v[0] || roll_abort_angle_y < v[1]) {
             p->flags &= ~0x20;
             return;
         }
         if ((roll_window_min < v[2] && v[2] < roll_window_max) || ((stunt_chW2 != 0 || stunt_j > 0 || (PC_CAR_FLAGS(idx) & 0x100000)) && roll_landing_min < v[2])) {
             p->flags &= ~0x80;
-            if (p->a0C > 0.0f) {
+            if (p->stuntW[0][2] > 0.0f) {
                 AddStunt(idx, 3);
-                p->a0C += roll_unwind_negative;
+                p->stuntW[0][2] += roll_unwind_negative;
             } else {
                 AddStunt(idx, 2);
-                p->a0C += roll_unwind_positive;
+                p->stuntW[0][2] += roll_unwind_positive;
             }
-            p->a08 = 0.0f;
-            p->a04 = 0.0f;
+            p->stuntW[0][1] = 0.0f;
+            p->stuntW[0][0] = 0.0f;
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[2] && stunt_GCabsW[0] < stunt_GCabsW[2]) {
         p->flags = fl | 0x20;
         c = (PCar *)(uintptr_t)PC_CAR(idx);
-        p->a04 = c->vx;
-        p->a08 = c->vy;
-        p->a0C = c->vz;
+        p->stuntW[0][0] = c->vx;
+        p->stuntW[0][1] = c->vy;
+        p->stuntW[0][2] = c->vz;
     }
 }
 
-/* Check2WheelBack (0x800C2004, 130 words): two-wheel (side) tracker; Check2WheelFront is its mirror image.
- * idx is an IPA parameter in $s1.  The repeat loop is a plain `while (r > 0.0f)` with the literal 0.15f:
- * uopt hoists zero and 0.15f into $f22/$f24 by itself and the 0.25f pair lands in $f0.  0.15f is own
- * .rodata (0x80123EE4): 2 relocations unverified (an extern is not hoisted out of the loop). */
+/* The back-wheels tracker (flag 4, tricks 7): started with only the back tyres down, the front ones well up; when it
+ * ends, a trick for each 0.15 seconds of it past the first quarter second. Check2WheelFront (flag 2, tricks 8) is
+ * its mirror. */
 void Check2WheelBack(s32 idx) {
     Ply *p;
     HudRec *h;
@@ -359,7 +324,7 @@ void Check2WheelBack(s32 idx) {
     h = PC_MODEL(idx);
     fl = p->flags;
     if (fl & 4) {
-        if (stunt_j >= 3 || stunt_f > 0 || h->f5F4 > 0.75f || h->f5F8 > 0.75f || h->f5EC < 1.0f || h->f5F0 < 1.0f) {
+        if (stunt_j >= 3 || stunt_f > 0 || h->airdist[2] > 0.75f || h->airdist[3] > 0.75f || h->airdist[0] < 1.0f || h->airdist[1] < 1.0f) {
             p->flags = fl & ~4;
             p->t50 = gModelTime;
             r = p->t50 - p->t4C;
@@ -371,13 +336,14 @@ void Check2WheelBack(s32 idx) {
                 }
             }
         }
-    } else if ((stunt_j == 2 && stunt_b == 2) || ((h->f5F4 < 0.75f || h->f5F8 < 0.75f) && h->f5EC > 2.5f && h->f5F0 > 2.5f)) {
+    } else if ((stunt_j == 2 && stunt_b == 2) || ((h->airdist[2] < 0.75f || h->airdist[3] < 0.75f) && h->airdist[0] > 2.5f && h->airdist[1] > 2.5f)) {
         p->flags = fl | 4;
         p->t4C = gModelTime;
         p->t50 = -1.0f;
     }
 }
 
+/* The front-wheels tracker (flag 2, tricks 8): Check2WheelBack's mirror. */
 void Check2WheelFront(s32 idx) {
     Ply *p;
     HudRec *h;
@@ -390,7 +356,7 @@ void Check2WheelFront(s32 idx) {
     h = PC_MODEL(idx);
     fl = p->flags;
     if (fl & 2) {
-        if (stunt_j >= 3 || stunt_b > 0 || h->f5EC > 0.75f || h->f5F0 > 0.75f || h->f5F4 < 1.0f || h->f5F8 < 1.0f) {
+        if (stunt_j >= 3 || stunt_b > 0 || h->airdist[0] > 0.75f || h->airdist[1] > 0.75f || h->airdist[2] < 1.0f || h->airdist[3] < 1.0f) {
             p->flags = fl & ~2;
             p->t48 = gModelTime;
             r = p->t48 - p->t44;
@@ -402,53 +368,30 @@ void Check2WheelFront(s32 idx) {
                 }
             }
         }
-    } else if ((stunt_j == 2 && stunt_f == 2) || ((h->f5EC < 0.75f || h->f5F0 < 0.75f) && h->f5F4 > 2.5f) || h->f5F8 > 2.5f) {
+    } else if ((stunt_j == 2 && stunt_f == 2) || ((h->airdist[0] < 0.75f || h->airdist[1] < 0.75f) && h->airdist[2] > 2.5f) || h->airdist[3] > 2.5f) {
         p->flags = fl | 2;
         p->t44 = gModelTime;
         p->t48 = -1.0f;
     }
 }
 
-/* CrashedStunt (0x800C3578, 37 words): no locals at all -- with a named `p` the pointer saved around
- * memset lands at 32(sp) instead of 36(sp). */
+/* Player `idx` crashed: the run lands without its points (AddStunt 11 with crash set) and the trackers clear. */
 void CrashedStunt(s32 idx) {
-    gStuntPlayer[idx].done = 1;
-    if (gStuntPlayer[idx].count != 0) {
+    gStuntPlayer[idx].crash = 1;
+    if (gStuntPlayer[idx].numstunts != 0) {
         AddStunt(idx, 11);
     }
     memset(&gStuntInfo[idx], 0, 0x7C);
     gStuntInfo[idx].flags |= 0x15000000;
 }
-/* CheckForStunt: NOT matched. */
-/* The manifest owners of Check2WheelSide, CheckAirTime and CheckMulti are empty deleted-procedure
- * stubs (src/blob/Check2WheelSide.c, CheckAirTime.c, CheckMulti.c), which this group's calls bind
- * to on PC. The bodies written here get their own names (docs/port/PROTOTYPES.md). */
+/* The trackers below are separate functions in this file, called by CheckForStunt; the game also has empty
+ * Check2WheelSide, CheckAirTime and CheckMulti (src/blob/*.c, reached through the function table), so these take
+ * pc_ names (docs/port/PROTOTYPES.md). */
 #define Check2WheelSide pc_Check2WheelSide
 #define CheckAirTime pc_CheckAirTime
 #define CheckMulti pc_CheckMulti
-/* CheckForStunt (0x800C2BE0, 614 words) -- strict MATCH in this real -O3 unit.
- * Per-frame stunt/trick driver over all players (nothing here is a camera; the label is historical):
- * idle-timer bookkeeping (stunt_eTime, 2.69 s), wheel-contact counters from the HUD record, axis-flip
- * detection on the car velocity, then the per-axis trackers (CheckRoll/26C4/2430, called with idx in
- * $t1 by IPA), three more trackers that umerge inlined (below), the side trackers Check2WheelFront/2004
- * (idx in $s1), and the landing check that banks the combo (AddStunt(i, 11)).
- *
- * Source structure that the match depends on (each verified by compile):
- *  - Check2WheelSide / CheckAirTime / CheckMulti are real functions inlined by umerge (one call site,
- *    not kept): they leave the three caller-less `jr ra; nop` stubs at 0x800C2418/2420/2428, and retail
- *    calls run in reverse address order 2944, 26C4, 2430, 2428, 2420, 2418, 220C, 2004.  They are written
- *    like their siblings but WITHOUT a cached `fl` local (p->flags directly; uopt's CSE gives retail's
- *    reloads).  The 0x80 tracker needs the sum in a named float (`s`), assigned inside the condition.
- *  - Both player loops index by `i` (gStuntInfo[i], gGameCar[i]); uopt strength-reduces them into
- *    $s2/$s4 in the preheader, and the first loop's induction pointer shares $s2 with the second.
- *  - The stunt record is addressed as gStuntPlayer[i] (no pointer local): a store through a Stunt* local
- *    kills the PRE web of stunt_j in the tail and rotates v0/v1/a1 through the whole body.
- *  - No `fl` local at all for ply->flags; the flip pairs are two stores (`&= ~A; |= B`) as in retail.
- *  - `*(f32 *)(u32)&stunt_eTime += *pdt` (address-laundered) makes the store go through the hoisted
- *    address register like the loads; `pdt` is the laundered &gFrameSeconds (frame delta).
- * - Chained zeroing assignments, `x++` counters, int 1 in `(gModelTime - t38) > 1` (findings).
- * Literals (2.69f, 0.15f, 0.4712389f, 3.1415927f) are natural; own .rodata verified at 0x80123F38..0x80123F54.
- */
+
+/* The two-wheels-on-one-side tracker (flag 1, tricks 6), as Check2WheelBack. */
 void Check2WheelSide(s32 idx) {
     Ply *p;
     f32 r;
@@ -474,6 +417,7 @@ void Check2WheelSide(s32 idx) {
     }
 }
 
+/* The air time tracker (flag 0x100, tricks 9): a trick for each second in the air past 5. */
 void CheckAirTime(s32 idx) {
     Ply *p;
     f32 r;
@@ -496,6 +440,8 @@ void CheckAirTime(s32 idx) {
     }
 }
 
+/* The combination tracker (flag 0x80, trick 5): turns about two axes or more, more than 27 degrees each and 180 in
+ * all, while in the air. */
 void CheckMulti(s32 idx) {
     Ply *p;
     PCar *c;
@@ -509,34 +455,38 @@ void CheckMulti(s32 idx) {
         if (stunt_j >= 3) {
             p->flags &= ~0x80;
         } else if (stunt_j == 0) {
-            p->a28 += fabsf(c->vx);
-            p->a2C += fabsf(c->vy);
-            p->a30 += fabsf(c->vz);
+            p->stuntW[3][0] += fabsf(c->vx);
+            p->stuntW[3][1] += fabsf(c->vy);
+            p->stuntW[3][2] += fabsf(c->vz);
         }
-        if (0.4712389f < p->a28) {
+        if (0.4712389f < p->stuntW[3][0]) {
             n = 1;
         }
-        if (0.4712389f < p->a2C) {
+        if (0.4712389f < p->stuntW[3][1]) {
             n++;
         }
-        if (0.4712389f < p->a30) {
+        if (0.4712389f < p->stuntW[3][2]) {
             n++;
         }
-        if (n >= 2 && 3.1415927f <= (s = p->a30 + (p->a28 + p->a2C))) {
+        if (n >= 2 && 3.1415927f <= (s = p->stuntW[3][2] + (p->stuntW[3][0] + p->stuntW[3][1]))) {
             p->flags &= ~0x70;
             AddStunt(idx, 5);
-            p->a28 = 0.0f;
-            p->a2C = 0.0f;
-            p->a30 = 0.0f;
+            p->stuntW[3][0] = 0.0f;
+            p->stuntW[3][1] = 0.0f;
+            p->stuntW[3][2] = 0.0f;
         }
     } else if (stunt_okToStart != 0) {
         p->flags |= 0x80;
-        p->a28 = fabsf(c->vx);
-        p->a2C = fabsf(c->vy);
-        p->a30 = fabsf(c->vz);
+        p->stuntW[3][0] = fabsf(c->vx);
+        p->stuntW[3][1] = fabsf(c->vy);
+        p->stuntW[3][2] = fabsf(c->vz);
     }
 }
 
+/* One frame of the stunt arena: once coasting with no stunt under way for 2.69 seconds the stunts are done
+ * (gStuntsDone). For each player: the wing's time during a stunt; a crash or a respawn clears the trackers; else
+ * the tyres on the ground (stunt_j, l, r, f, b), the turn about each axis and its changes of direction, the
+ * trackers, and a landing a second after the air time ended banks the run (AddStunt 11). */
 void CheckForStunt(void) {
     Ply *ply;
     PCar *car;
@@ -565,34 +515,34 @@ void CheckForStunt(void) {
         ply = &gStuntInfo[i];
         car = PC_CAR(i);
         hud = PC_MODEL(i);
-        if ((ply->flags & 0x1F0) && hud->f3F8 != 0) {
-            gStuntPlayer[i].f60 += *pdt;
+        if ((ply->flags & 0x1F0) && hud->wing != 0) {
+            gStuntPlayer[i].wingTime += *pdt;
         }
-        if ((ply->flags & 0xC08FFFFF) && (car->f358 != 0 || hud->f6C4 != -1)) {
+        if ((ply->flags & 0xC08FFFFF) && (car->crash_state != 0 || hud->moving_state != -1)) {
             ply->flags = 0x15000000;
         } else {
             stunt_j = stunt_l = stunt_r = stunt_f = stunt_b = 0;
-            if (hud->s61C != 8) {
+            if (hud->sviscode[0] != 8) {
                 stunt_j++;
                 stunt_l++;
                 stunt_f++;
             }
-            if (hud->s61E != 8) {
+            if (hud->sviscode[1] != 8) {
                 stunt_j++;
                 stunt_r++;
                 stunt_f++;
             }
-            if (hud->s620 != 8) {
+            if (hud->sviscode[2] != 8) {
                 stunt_j++;
                 stunt_l++;
                 stunt_b++;
             }
-            if (hud->s622 != 8) {
+            if (hud->sviscode[3] != 8) {
                 stunt_j++;
                 stunt_r++;
                 stunt_b++;
             }
-            stunt_okToStart = stunt_j < 3 && car->f358 == 0 && hud->f6C4 == -1;
+            stunt_okToStart = stunt_j < 3 && car->crash_state == 0 && hud->moving_state == -1;
             stunt_GCabsW[0] = fabsf(car->vx);
             stunt_GCabsW[1] = fabsf(car->vy);
             stunt_GCabsW[2] = fabsf(car->vz);
@@ -641,20 +591,20 @@ void CheckForStunt(void) {
             if (ply->flags & 0x1F7) {
                 ply->t54 = -1.0f;
             } else if (stunt_j >= 3) {
-                if (gStuntPlayer[i].count == 0) {
-                    gStuntPlayer[i].f60 = 0.0f;
+                if (gStuntPlayer[i].numstunts == 0) {
+                    gStuntPlayer[i].wingTime = 0.0f;
                 }
-                if (ply->t54 == -1.0f && gStuntPlayer[i].count != 0) {
+                if (ply->t54 == -1.0f && gStuntPlayer[i].numstunts != 0) {
                     ply->t54 = gModelTime;
                 }
             }
-            if (stunt_j >= 3 && gStuntPlayer[i].count != 0) {
+            if (stunt_j >= 3 && gStuntPlayer[i].numstunts != 0) {
                 if (ply->t38 != -1.0f && (gModelTime - ply->t38) > 1) {
                     ply->t38 = -1.0f;
                     AddStunt(i, 11);
                 }
             }
-            car->fE8 &= 0xFFEFFFFF;
+            car->appearance &= 0xFFEFFFFF;
         }
     }
 }

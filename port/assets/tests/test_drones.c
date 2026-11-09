@@ -141,8 +141,8 @@ static void setup_cars(int n)
         MS16(s, 0x6C4) = -1;                    /* not resurrecting */
         MF(s, 0x7EC) = 0;                       /* drone_scale: no target speed */
         PC_MODEL_SLOT(s) = (short)s;
-        PC_CAR_NAV(s).pt = (short)(20 * s);
-        PC_CAR_NAV(s).flag = -1;
+        PC_CAR_NAV(s).idx = (short)(20 * s);
+        PC_CAR_NAV(s).newIdx = -1;
     }
 }
 

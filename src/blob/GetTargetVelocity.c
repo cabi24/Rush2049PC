@@ -1,66 +1,43 @@
+/* GetTargetVelocity: the velocity of the target that moves a collision object (MAT3 targetpaths.c). */
 #include "game/game.h"
 
-typedef struct CamKey {          /* 0x44 bytes */
-    f32 pos[3];                  /* 0x00 */
-    f32 dir[3];                  /* 0x0C */
-    f32 scale[3];                /* 0x18 */
-    f32 rot[4];                  /* 0x24 */
-    f32 f34;
-    f32 dur;                     /* 0x38 */
-    f32 f3C;
-    s32 flags;                   /* 0x40 */
-} CamKey;
-/* PC: a camera (a level-object node), its state CamCtl (a heap record of its category) and the scene, a track
- * WAD's PTHD record with its key list, keep their N64 layout: their pointers are 32-bit window addresses
- * (docs/port/POINTERS.md 10). */
-enum n64p_CamCtl { n64p_CamCtl_ };
-enum n64p_CamScene { n64p_CamScene_ };
-enum n64p_CamKey { n64p_CamKey_ };
-typedef struct CamScene {
+/* A target path (MAT3 tBasicTargetPath, a PTHD record; targetpaths/group.c has it all): the fields this reads. N64
+ * layout: pts is a 32-bit window address. */
+typedef struct tBasicTargetPath {
     u8 pad00[0x10];
-    s32 flags;                   /* 0x10 */
-    s16 count;                   /* 0x14 */
-    s16 id;                      /* 0x16 */
-    enum n64p_CamScene link;     /* 0x18 */
-    enum n64p_CamKey keys;       /* 0x1C */
-} CamScene;
-typedef struct CamCtl {
-    enum n64p_CamScene scene;    /* 0x00 */
-    f32 t;                       /* 0x04 */
-    u8 pad08[4];
-    s16 idx;                     /* 0x0C */
-    u16 mode;                    /* 0x0E */
-    f32 f10;                     /* 0x10 */
-} CamCtl;
-typedef struct Camera {
-    u8 pad00[0x6C];
-    enum n64p_CamCtl ctl;        /* 0x6C */
-} Camera;
-#define N64P(x) _Generic((x), enum n64p_CamCtl: (CamCtl *)PC_N64P(x), enum n64p_CamScene: (CamScene *)PC_N64P(x), enum n64p_CamKey: (CamKey *)PC_N64P(x), default: (x))
+    s32 flags;      /* 0x10 */
+    s16 numPts;     /* 0x14 */
+    s16 collIdx;    /* 0x16 its collision object */
+    u32 trigPtr;    /* 0x18 */
+    u32 pts;        /* 0x1C its points (TargetPathPt) */
+} tBasicTargetPath;
 
-extern Camera *CollisionTargetPtrs[];
+extern tTarget *CollisionTargetPtrs[];
 
-void GetTargetVelocity(s32 id, f32 *out) {
+/* Sets `vel` to the velocity of the path target whose collision object is `collIdx` (registered by
+ * StartPathTarget): its speed along its stretch's direction, backwards if it goes backwards; zero if no target
+ * moves that object. A car on a moving surface moves with it (MovingSurfaceForce). */
+void GetTargetVelocity(s32 collIdx, f32 *vel) {
     s32 i;
-    CamCtl *ctl;
-    CamScene *sc;
+    tTargetStructPath *state;
+    tBasicTargetPath *path;
 
-    out[0] = 0.0f;
-    out[1] = 0.0f;
-    out[2] = 0.0f;
+    vel[0] = 0.0f;
+    vel[1] = 0.0f;
+    vel[2] = 0.0f;
     for (i = 0; i < numCollisionTargetPtrs; i++) {
-        ctl = N64P(CollisionTargetPtrs[i]->ctl);
-        sc = N64P(ctl->scene);
-        if (id == sc->id) {
-            if (ctl->mode & 8) {
-                out[0] = N64P(sc->keys)[ctl->idx].dir[0] * -ctl->f10;
-                out[1] = N64P(sc->keys)[ctl->idx].dir[1] * -ctl->f10;
-                out[2] = N64P(sc->keys)[ctl->idx].dir[2] * -ctl->f10;
+        state = (tTargetStructPath *) PC_N64P(CollisionTargetPtrs[i]->data);
+        path = (tBasicTargetPath *) PC_N64P(state->pathData);
+        if (collIdx == path->collIdx) {
+            if (state->flags & TPATH_BACKWARD) {
+                vel[0] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[0] * -state->curVel;
+                vel[1] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[1] * -state->curVel;
+                vel[2] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[2] * -state->curVel;
                 return;
             }
-            out[0] = N64P(sc->keys)[ctl->idx].dir[0] * ctl->f10;
-            out[1] = N64P(sc->keys)[ctl->idx].dir[1] * ctl->f10;
-            out[2] = N64P(sc->keys)[ctl->idx].dir[2] * ctl->f10;
+            vel[0] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[0] * state->curVel;
+            vel[1] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[1] * state->curVel;
+            vel[2] = ((TargetPathPt *) PC_N64P(path->pts))[state->ptOn].norm[2] * state->curVel;
             return;
         }
     }

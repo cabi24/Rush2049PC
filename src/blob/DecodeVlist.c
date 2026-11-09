@@ -1,37 +1,33 @@
+/* DecodeVlist: unpacks a surface's list of vertices (MAT3 stree.c). */
 #include "game/game.h"
 
-s32 DecodeVlist(u8 *arg0, s32 arg1, s16 *arg2)
+/* Unpacks `vnum` vertex numbers from the packed list at `vlp` into `vlnum`: each entry is a big-endian u16, then,
+ * if a byte of 0xE0 or more follows (and more than one vertex is left), its low 5 bits are how many vertices follow
+ * on in sequence. Returns the u16 after the list (the surface list's start). */
+s32 DecodeVlist(u8 *vlp, s32 vnum, s16 *vlnum)
 {
-  u32 val;
-  s32 cnt;
-  s32 t;
-  if (arg1 > 0)
-  {
-    do
-    {
-      val = (arg0[0] << 8) + arg0[1];
-      arg0 += 2;
-      if ((arg1 >= 2) && ((t = *arg0), (t >= 0xE0)))
-      {
-        cnt = t & ~0xE0;
-        arg0 += 1;
-      }
-      else
-      {
-        cnt = 0;
-      }
-      arg1 = (arg1 - cnt) - 1;
-      do
-      {
-        *arg2 = val;
-        cnt -= 1;
-        val += 1;
-        arg2 += 1;
-      }
-      while (cnt >= 0);
+    u32 next;
+    s32 cnt;
+    s32 t;
+    if (vnum > 0) {
+        do {
+            next = (vlp[0] << 8) + vlp[1];
+            vlp += 2;
+            if ((vnum >= 2) && ((t = *vlp), (t >= 0xE0))) {
+                cnt = t & ~0xE0;
+                vlp += 1;
+            } else {
+                cnt = 0;
+            }
+            vnum = (vnum - cnt) - 1;
+            do {
+                *vlnum = next;
+                cnt -= 1;
+                next += 1;
+                vlnum += 1;
+            } while (cnt >= 0);
+        } while (vnum > 0);
     }
-    while (arg1 > 0);
-  }
-  val = (arg0[0] << 8) + arg0[1];
-  return val & 0xFFFF;
+    next = (vlp[0] << 8) + vlp[1];
+    return next & 0xFFFF;
 }

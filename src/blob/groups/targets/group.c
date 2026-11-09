@@ -1,110 +1,65 @@
+/* Targets (MAT3 targets.c): setting up the track's targets, the objects of its world and the path targets of its
+ * PTHD records whose names match a kind in targetInfo (SetupTarget), giving each its kind's record, its environment
+ * visual and its start (SetTargetDef, SetTargetDefs). The targets and their records keep the N64's layout on the
+ * PC: their pointers are 32-bit window addresses (PC_N64W, PC_N64P; docs/port/POINTERS.md 10). */
 #include "game/game.h"
 
 typedef struct Vec3 { f32 x, y, z; } Vec3;
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
+/* A scene node (ObjInstanceList), host layout (docs/port/POINTERS.md 9). */
 typedef struct Ent {
     s32 flags;
     s32 w4;
-    f32 *owner;
+    f32 *mat;       /* its matrix (MAT3 tUVMatrix *): [9..11] its position */
     f32 scaleA;
     f32 scaleB;
-    u16 id;
+    u16 model;      /* its object definition */
     s16 link[3];
     void *w28[8];
     s32 w60;
     s32 w64;
 } Ent;
 
-typedef struct Resource68 { u8 prefix[64]; u32 flags; } Resource68;
+/* A target path (MAT3 tBasicTargetPath, a PTHD record; targetpaths/group.c has it all). N64 layout. */
+typedef struct tBasicTargetPath {
+    char name[16];  /* 0x00 */
+    u32 flags;      /* 0x10 4 in forward races, 8 in backward races, 0x10 the target doesn't collide, 0x800 its
+                     * collision object goes when not in this race's direction, 0x8000 not shown */
+    s16 numPts;     /* 0x14 */
+    s16 collIdx;    /* 0x16 its collision object, 0 none */
+    u32 trigPtr;    /* 0x18 */
+    u32 pts;        /* 0x1C its points (TargetPathPt), a window address */
+    s32 parent;     /* 0x20 its target's record (a window address), here the key the world's groups know it by */
+} tBasicTargetPath;
+#define PATH_PTS(path) ((TargetPathPt *) PC_N64P((path)->pts))
 
-/* PC: Scene36 is a track WAD's PTHD record, which keeps its N64 layout (port/assets/wad.c): resources (pts) is a
- * 32-bit window address of the path points. */
-#define PTHD_PTS_FIELD u32 resources
-#define PTHD_PTS(scene) ((Resource68 *)PC_N64P((scene)->resources))
-typedef struct Scene36 {
-    char name[16];
-    u32 flags;
-    s16 count;
-    s16 action;
-    u32 field24;
-    PTHD_PTS_FIELD;
-    s32 key;
-} Scene36;
+/* A world object (MAT3 tModelPart), the track WAD's: a target where its name matches a kind's. */
+typedef struct tModelPart {
+    char name[16];  /* 0x00 */
+    UVMat mat;      /* 0x10 its orientation and position */
+    u32 dlflags;    /* 0x40 its scene object's flags */
+    s32 w68;
+    s32 w72;
+    s32 tidx;       /* 0x4C the key the world's groups (gTargetGroupList) know it by */
+} tModelPart;
 
-/* PC: a level-object node (a target, 112 bytes) keeps its N64 layout: the nodes are the arena block gTargetArray, and
- * next and state hold 32-bit window addresses (state: a heap record of the node's category, a track WAD record or
- * a static table). So does the dead-reckoning record Matrix64 (a heap block), whose record is arena data
- * (docs/port/POINTERS.md 10). */
-enum n64p_Node { n64p_Node_ };
-enum n64p_void { n64p_void_ };
-enum n64p_u8 { n64p_u8_ };
-typedef struct Node {
-    enum n64p_Node next;
-    u8 flags;
-    s32 key;
-    s32 handle;
-    s16 metadata;
-    f32 matrix[9];
-    f32 pos[3];
-    u8 xform[12];
-    s16 f80;
-    f32 f84;
-    s16 texture;
-    s16 f90;
-    s8 f92;
-    s32 f96;
-    s8 f100;
-    s8 index;
-    f32 f104;
-    enum n64p_void state;
-} Node;
+/* A mine's record (MAT3 tTargetStructMine, battle's 16 in gTargetStructPtrs[5]): the fields read here. */
+typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16 used; } tTargetStructMine;
 
-/* PC: every field spelled out, whichever view the loader converts the ROM's records by (docs/port/POINTERS.md 10). */
-typedef struct Metadata48 {
-    char *name;
-    char *file;
-    void (*callback)(Node *);
-    void *animation;
-    s16 kind;
-    u16 flags;
-    s16 f20;
-    s8 category;
-    s8 element;
-    f32 value;
-    s32 sound, w20, w24, w28;
-    f32 f2C;
-} Metadata48;
-
-typedef struct Place { char name[16]; f32 matrix[9]; f32 pos[3]; u32 flags; s32 w68; s32 w72; s32 key; } Place;
-typedef struct Slot136 { s32 object[3]; u8 gap12[122]; s16 active; } Slot136;
-typedef struct Matrix64 { enum n64p_u8 record; f32 matrix[9]; f32 position[3]; f32 velocity[3]; } Matrix64;
-#define N64P(x) _Generic((x), enum n64p_Node: (Node *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), \
-    enum n64p_u8: (u8 *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
-/* A camera node's state (CamCtl, groups/targetpaths) starts with its scene (a PTHD record) as a u32. */
-#define STATE_SCENE(s) (*(u32 *)N64P(s))
-#define SCENE_OF(s) ((Scene36 *)PC_N64P(*(u32 *)N64P(s)))
+/* A path target's record starts with its path (a PTHD record) as a window address. */
+#define STATE_SCENE(s) (*(u32 *)PC_N64P(s))
+#define SCENE_OF(s) ((tBasicTargetPath *)PC_N64P(*(u32 *)PC_N64P(s)))
 /* GTLD keys: the side array holds them sign-extended (docs/port/LOADERS.md), and so does this. */
 #define KEY(k) (void *)(intptr_t)k
-/* An info record with flag 0x400 keeps the place record as the node's state, a 32-bit window address. A place record
- * is the track WAD's (the heap, in the window), except for the mine shots.c drops, which passes its name, a host
- * string: that one is not kept, the state stays 0 (docs/port/LAYOUT.md 6). */
-#define PLACE_STATE(x) ((uintptr_t)(x) >> 16 >> 16 ? 0u : N64W(x))
-typedef struct Animation24 {
-    struct Animation24 *next;
-    s16 state;
-    u16 field6;
-    u32 field8;
-/* PC: a visual (tVisual) is 0x20 bytes: next and func are host pointers, data a u32 (docs/port/CARS.md). */
-    u32 node;
-    f32 time;
-    void *data;
-} Animation24;
-typedef struct Pool { u8 b0; s32 count; s32 size; u8 *mem; Node *head; u8 *free; } Pool;
+/* A kind with flag 0x400 keeps the world object as the target's data, a 32-bit window address. A world object is
+ * the track WAD's (the heap, in the window), except for the mine shots.c drops, which passes its name, a host
+ * string: that one is not kept, the data stays 0 (docs/port/LAYOUT.md 6). */
+#define PLACE_STATE(x) ((uintptr_t)(x) >> 16 >> 16 ? 0u : PC_N64W(x))
+/* A kind's start function (TargInfo.startFunc, a void * in the table). */
+#define START_FUNC(info) ((void (*)(tTarget *)) (info)->startFunc)
 
-/* The level's path scenes (waves.c's anon_paths_count_8, MAT3 gTargetPaths): count of them at paths. */
-typedef struct anon_paths_count_8 { Scene36 *paths; s32 count; } anon_paths_count_8;
+/* The level's target paths (MAT3 gTargetPaths; waves.c's anon_paths_count_8): count of them at paths. */
+typedef struct anon_paths_count_8 { tBasicTargetPath *paths; s32 count; } anon_paths_count_8;
 VIEW(anon_paths_count_8, gTargetPaths);
 #define gTargetPaths gTargetPaths_view
 
@@ -116,302 +71,316 @@ VIEW(u8 *[8], gTargetStructPtrs);
 VIEW(u8 *[8], gTargetOwnStructPtrs);
 #define gTargetOwnStructPtrs gTargetOwnStructPtrs_view
 
-VIEW(Matrix64 *, gBBoxModelStructs);
-#define gBBoxModelStructs gBBoxModelStructs_view
-
+/* The keys of gTargetGroupList, before SetTargetDefs turns them into targets */
 VIEW(void **, gTargetGroupList);
 #define gTargetGroupList gTargetGroupList_view
-VIEW(Pool, gTargetList);
-#define gTargetList gTargetList_view
-VIEW(Pool, gAlwaysColList);
-#define gAlwaysColList gAlwaysColList_view
-VIEW(Metadata48[122], targetInfo);
-#define targetInfo targetInfo_view
 
 VIEW(Ent[], ObjInstanceList);
 #define ObjInstanceList ObjInstanceList_view
-VIEW(Animation24 *, gEnvList);
+VIEW(struct pc_visual *, gEnvList);
 #define gEnvList gEnvList_view
 VIEW(f32[], unitmatrix);
 #define unitmatrix unitmatrix_view
-VIEW(f32[115], BBoxCollInfo);
-#define BBoxCollInfo BBoxCollInfo_view
 #define BODY_TABLE ((u8 *)BBoxCollInfo)
 VIEW(Vec3, zero_velocity);
 #define zero_velocity zero_velocity_view
 VIEW(volatile u8, gNumModels);
 #define gNumModels gNumModels_view
 
-extern Animation24 *GrabEnvEntry(void);
+extern struct pc_visual *GrabEnvEntry(void);
 
 extern int strlen(const char *);
 
 extern s32 ZOID_AddObject(s32, void *, s16, s32);
 
-void SetTargetDef(Node *node)
+/* Defines target `t` once the race's targets are counted: its kind's record (set_target_data), its scene object's
+ * object definition, its environment visual (a kind with flag 2: the kind's visFunc animates it, and with flag 4 the
+ * start function runs now too), and a kind with flag 0x4000 starts now, or a path target the world placed has its
+ * bounding box model put where it stands. */
+void SetTargetDef(tTarget *t)
 {
-    Metadata48 *metadata;
+    TargInfo *info;
     s32 category;
     s32 resource;
     u16 value;
-    Animation24 *animation;
+    struct pc_visual *v;
     Vec3 transform;
-    metadata=&targetInfo[node->metadata];
-    category=metadata->category;
-    set_target_data(node,metadata,category);
-    if(node->texture!=-1) {
-        resource=(s16)node->handle;
-        value=gObjList[node->texture];
-        ObjInstanceList[resource].id=value;
+    info=&targetInfo[t->infoIdx];
+    category=info->structureID;
+    set_target_data(t,info,category);
+    if(t->otype!=-1) {
+        resource=(s16)t->dlIdx;
+        value=gObjList[t->otype];
+        ObjInstanceList[resource].model=value;
     }
-    if(metadata->flags&2) {
-        animation=GrabEnvEntry();
-        if(animation) {
-            animation->state=0;
-            animation->data=metadata->animation;
-            animation->node=N64W(node);
-            animation->time=0.0f;
-            animation->next=gEnvList;
-            gEnvList=animation;
-            if((metadata->flags&4) && metadata->callback) metadata->callback(node);
+    if(info->Flags&2) {
+        v=GrabEnvEntry();
+        if(v) {
+            v->index=0;
+            v->func=info->visFunc;
+            v->data=PC_N64W(t);
+            v->timeStamp=0.0f;
+            v->next=gEnvList;
+            gEnvList=v;
+            if((info->Flags&4) && info->startFunc) START_FUNC(info)(t);
         }
     }
-    if(metadata->flags&0x4000) {
-        if((node->flags&16)==0) metadata->callback(node);
+    if(info->Flags&0x4000) {
+        if((t->Flags&16)==0) START_FUNC(info)(t);
         else {
             transform=zero_velocity;
-            UpdateMiniModelStruct(node->index,(f32 *)&transform,(f32 *)node->xform,node->matrix);
+            UpdateMiniModelStruct(t->owner,(f32 *)&transform,(f32 *)t->pos,t->mat.uvs[0]);
         }
     }
 }
-void set_target_data(Node *node,Metadata48 *metadata,s32 category)
+/* Gives target `t` (of kind `info`, record kind `category` = info->structureID) its record: its own of its kind's
+ * array (gTargetOwnStructPtrs, kinds with flag 8; a path target's starts with its PTHD record, whose flag 0x10 makes
+ * it not collide), else its kind's static one (gTargetStructInfoPtrs[category], record structureIdx; none for kind
+ * 7). A box (collFuncIdx 4) takes the next bounding box model, at rest, with its row of BBoxCollInfo (collVal). In
+ * a race under way (state bit 0x400000: battle drops mines then) a mine takes the first free mine record. */
+void set_target_data(tTarget *t,TargInfo *info,s32 category)
 {
     s32 index,j;
-    Matrix64 *matrix;
-    Scene36 *scene;
-    Slot136 *slot;
+    tMiniModelData *matrix;
+    tBasicTargetPath *scene;
+    tTargetStructMine *mine;
     if(!(gGameState&0x400000)) {
-        if(metadata->flags&8) {
-            node->state=N64W(gTargetOwnStructPtrs[category]);
-            if(!(node->flags&16) && category==4) {
-                j=node->index;
-                STATE_SCENE(node->state)=N64W(&gTargetPaths.paths[j]);
+        if(info->Flags&8) {
+            t->data=PC_N64W(gTargetOwnStructPtrs[category]);
+            if(!(t->Flags&16) && category==4) {
+                j=t->owner;
+                STATE_SCENE(t->data)=PC_N64W(&gTargetPaths.paths[j]);
                 if(gTargetPaths.paths) {}
-                if((SCENE_OF(node->state))->flags&16) node->flags&=~8;
+                if((SCENE_OF(t->data))->flags&16) t->Flags&=~8;
             }
             gTargetOwnStructPtrs[category]=gTargetOwnStructPtrs[category]+gTargetStructSizes[category];
         } else if(category!=7) {
-            node->state=N64W(gTargetStructInfoPtrs[category]+gTargetStructSizes[category]*metadata->element);
+            t->data=PC_N64W(gTargetStructInfoPtrs[category]+gTargetStructSizes[category]*info->structureIdx);
         }
-        if(metadata->kind==4) {
-            node->index=gBBoxModelUsed++;
-            matrix=&gBBoxModelStructs[node->index];
-            CopyUV(unitmatrix,matrix->matrix);
+        if(info->collFuncIdx==4) {
+            t->owner=gBBoxModelUsed++;
+            matrix=&gBBoxModelStructs[t->owner];
+            CopyUV(unitmatrix,matrix->uvs[0]);
             for(index=0;index<3;index++) {
-                matrix->velocity[index]=0.0f;
-                matrix->position[index]=0.0f;
+                matrix->vel[index]=0.0f;
+                matrix->pos[index]=0.0f;
             }
-            index=(s32)targetInfo[node->metadata].value;
-            matrix->record=N64W(BODY_TABLE+index*32);
+            index=(s32)targetInfo[t->infoIdx].collVal;
+            matrix->bboxInfo=PC_N64W(BODY_TABLE+index*32);
         }
-    } else if((metadata->flags&8) && metadata->category==5) {
-        slot=(Slot136 *)gTargetStructPtrs[5];
-        for(index=0;index<16;index++,slot++) {
-            if(!slot->active && slot->object[0]==-1 && slot->object[1]==-1 && slot->object[2]==-1) break;
+    } else if((info->Flags&8) && info->structureID==5) {
+        mine=(tTargetStructMine *)gTargetStructPtrs[5];
+        for(index=0;index<16;index++,mine++) {
+            if(!mine->used && mine->dlIdx==-1 && mine->glowdls[0]==-1 && mine->glowdls[1]==-1) break;
         }
-        slot->active=1;
-        node->state=N64W(gTargetOwnStructPtrs[category]+gTargetStructSizes[category]*index);
+        mine->used=1;
+        t->data=PC_N64W(gTargetOwnStructPtrs[category]+gTargetStructSizes[category]*index);
     }
 }
 
-/* PC: video.detail high gives a level object whose metadata says one player only (0x100) its scene node in split
- * screen too, as one player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
-s32 SetupTarget(Place *rec, s16 parent, f32 *pos, void *src, s8 index, s32 place, s32 other)
+/* Makes a target of `obj` if its name starts with a kind's in targetInfo: a world object (`fromWorld`, under world
+ * group `parent`, -2 the group at `pos`), a PTHD record (the target path `owner`), or a dropped mine (its name; at
+ * `pos`, `owner` the car). Not made: in the demo without the Expansion Pak, a box in a ghost race when `col`, a kind
+ * that needs the Expansion Pak without it, a kind with no flags but 4, one for the other direction (_FW, _BW). The
+ * new node of gTargetList gets its model, kind, object definitions, place (`vis`: its scene object, unless the kind
+ * is one player only in split screen), radius, collision flag and key; coins count gold and silver; boxes and
+ * kinds with records are counted for SetTargetDefs. In a race under way it is defined at once (and in battle tested
+ * against every car). Returns 1 if a kind matched (made or not), 0 if none did.
+ * PC: video.detail high gives a kind that is one player only (0x100) its scene object in split screen too, as one
+ * player has it (docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
+s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, void *fromWorld, s8 owner, s32 vis, s32 col)
 {
     s32 i;
     s32 pad152;
     s32 pad148;
-    s32 res;
-    f32 *owner;
-    Node *node;
-    u32 flags;
+    s32 superGroup;
+    f32 *groupMat;
+    tTarget *t;
+    u32 dlflags;
     s32 pad128;
     s32 pad124;
-    s8 team;
-    Metadata48 *md;
-    u16 mflags;
-    s16 shape;
+    s8 targDir;
+    TargInfo *info;
+    u16 typeFlags;
+    s16 objListIdx;
     s32 tail[8];
 
-    if (src != 0) {
-        flags = rec->flags;
+    if (fromWorld != 0) {
+        dlflags = obj->dlflags;
     } else {
-        flags = 0;
+        dlflags = 0;
     }
     for (i = 0; i < 122; i++) {
-        md = &targetInfo[i];
-        if (game_strncmp(rec->name, md->name, strlen(md->name)) != 0) {
+        info = &targetInfo[i];
+        if (game_strncmp(obj->name, info->name, strlen(info->name)) != 0) {
             continue;
         }
-        if ((gGameState & 8) && !expansion_pak_present) {
+        if ((gGameState & GS_DEMO) && !expansion_pak_present) {
             return 1;
         }
-        if (gRace == 2 && md->kind == 4 && other) {
+        if (gRace == kGhost && info->collFuncIdx == 4 && col) {
             return 1;
         }
-        if (!expansion_pak_present && !(md->flags & 0x20)) {
+        if (!expansion_pak_present && !(info->Flags & 0x20)) {
             return 1;
         }
-        if (!(md->flags & ~4)) {
+        if (!(info->Flags & ~4)) {
             return 1;
         }
-        team = -1;
-        if (game_strstr(rec->name, "_BW") != 0) {
-            team = 1;
+        targDir = -1;
+        if (game_strstr(obj->name, "_BW") != 0) {
+            targDir = 1;
         }
-        if (game_strstr(rec->name, "_FW") != 0) {
-            team = 0;
+        if (game_strstr(obj->name, "_FW") != 0) {
+            targDir = 0;
         }
-        if ((gBackwards && team == 0) || (!gBackwards && team == 1)) {
+        if ((gBackwards && targDir == 0) || (!gBackwards && targDir == 1)) {
             return 1;
         }
-        node = GetStatLLE(&gTargetList);
-        if (node == 0) {
+        t = GetStatLLE(&gTargetList);
+        if (t == 0) {
             return 1;
         }
-        mflags = md->flags;
-        if (mflags & 8) {
-            gTargetStructCount[md->category]++;
+        typeFlags = info->Flags;
+        if (typeFlags & 8) {
+            gTargetStructCount[info->structureID]++;
         }
-        if (mflags & 0x8000) {
+        if (typeFlags & 0x8000) {
             gBBoxModelCount++;
         }
-        node->key = MBOX_FindObject_WORK(md->file, 0, (s8)(gNumModels - 1), 1);
-        node->metadata = i;
-        shape = md->f20;
-        node->f92 = -1;
-        node->f80 = shape;
-        node->texture = shape;
-        node->index = index;
-        node->f90 = 0;
-        node->f96 = -1;
-        node->f104 = 0.0f;
-        if (mflags & 0x400) {
-            node->state = PLACE_STATE(rec);
+        t->mbIdx = MBOX_FindObject_WORK(info->mboxname, 0, (s8)(gNumModels - 1), 1);
+        t->infoIdx = i;
+        objListIdx = info->objListIdx;
+        t->slot = -1;
+        t->type = objListIdx;
+        t->otype = objListIdx;
+        t->owner = owner;
+        t->frames = 0;
+        t->sound = -1;
+        t->timeStamp = 0.0f;
+        if (typeFlags & 0x400) {
+            t->data = PLACE_STATE(obj);
         }
-        if (mflags & 0x80) {
-            flags |= 0x8000;
+        if (typeFlags & 0x80) {
+            dlflags |= 0x8000;
         }
-        if (md->flags & 0x40) {
-            flags |= 0x400000;
+        if (info->Flags & 0x40) {
+            dlflags |= 0x400000;
         }
-        if (!(mflags & 4)) {
-            if (md->category == 5) {
-                node->flags = 0;
+        if (!(typeFlags & 4)) {
+            if (info->structureID == 5) {
+                t->Flags = 0;
             } else {
-                node->flags = 2;
+                t->Flags = 2;
             }
         } else {
-            node->flags = 0;
+            t->Flags = 0;
         }
-        if (md->category == 4 && src != 0) {
-            node->flags |= 0x10;
+        if (info->structureID == 4 && fromWorld != 0) {
+            t->Flags |= 0x10;
         }
-        if (md->category == 6) {
-            if (game_strstr(rec->name, "GOLD") != 0) {
-                node->flags |= 0x40;
+        if (info->structureID == 6) {
+            if (game_strstr(obj->name, "GOLD") != 0) {
+                t->Flags |= 0x40;
                 gGoldCoinCnt++;
             } else {
                 gSilverCoinCnt++;
             }
         }
-        if (place) {
-            if (src != 0) {
-                node->pos[0] = rec->pos[0];
-                node->pos[1] = rec->pos[1];
-                node->pos[2] = rec->pos[2];
-                CopyUV(rec->matrix, node->matrix);
+        if (vis) {
+            if (fromWorld != 0) {
+                t->mat.pos[0] = obj->mat.pos[0];
+                t->mat.pos[1] = obj->mat.pos[1];
+                t->mat.pos[2] = obj->mat.pos[2];
+                CopyUV(obj->mat.uvs[0], t->mat.uvs[0]);
             } else {
-                node->pos[0] = pos[0];
-                node->pos[1] = pos[1];
-                node->pos[2] = pos[2];
-                CopyUV(unitmatrix, node->matrix);
+                t->mat.pos[0] = pos[0];
+                t->mat.pos[1] = pos[1];
+                t->mat.pos[2] = pos[2];
+                CopyUV(unitmatrix, t->mat.uvs[0]);
             }
-            if (mflags & 0x800) {
-                flags |= 0x40000;
-                res = -1;
+            if (typeFlags & 0x800) {
+                dlflags |= 0x40000;
+                superGroup = -1;
             } else if (parent == -2) {
-                res = FindWorldGroup(pos);
+                superGroup = FindWorldGroup(pos);
             } else {
-                res = parent;
+                superGroup = parent;
             }
-            if (md->category == 6) {
-                res = -1;
-                CopyUV(unitmatrix, node->matrix);
-                flags |= 0x52000;
+            if (info->structureID == 6) {
+                superGroup = -1;
+                CopyUV(unitmatrix, t->mat.uvs[0]);
+                dlflags |= 0x52000;
             }
-            if (PC_DETAIL_PLAYERS(gNumPlayers) < 2 || !(mflags & 0x100)) {
-                node->handle = ZOID_AddObject(node->key, node->matrix, res, flags);
+            if (PC_DETAIL_PLAYERS(gNumPlayers) < 2 || !(typeFlags & 0x100)) {
+                t->dlIdx = ZOID_AddObject(t->mbIdx, t->mat.uvs[0], superGroup, dlflags);
             }
-            if ((mflags & 0x300) && res >= 0) {
-                owner = ObjInstanceList[res].owner;
-                node->pos[0] -= owner[9];
-                node->pos[1] -= owner[10];
-                node->pos[2] -= owner[11];
+            if ((typeFlags & 0x300) && superGroup >= 0) {
+                groupMat = ObjInstanceList[superGroup].mat;
+                t->mat.pos[0] -= groupMat[9];
+                t->mat.pos[1] -= groupMat[10];
+                t->mat.pos[2] -= groupMat[11];
             }
-            if (md->category == 4 && MBOX_GetObjectRadius(node->key) < 50.0f) {
-                ObjInstanceList[node->handle].flags = ZOID_ObjectFlags(node->handle) | 0x20;
+            if (info->structureID == 4 && MBOX_GetObjectRadius(t->mbIdx) < 50.0f) {
+                ObjInstanceList[t->dlIdx].flags = ZOID_ObjectFlags(t->dlIdx) | 0x20;
             }
-            MBOX_GetPosition(node->xform, node->handle);
+            MBOX_GetPosition(t->pos, t->dlIdx);
         }
-        if (md->value == -1.0f) {
-            node->f84 = MBOX_GetObjectRadius(node->key);
+        if (info->collVal == -1.0f) {
+            t->radius = MBOX_GetObjectRadius(t->mbIdx);
         } else {
-            node->f84 = md->value;
+            t->radius = info->collVal;
         }
-        if (md->kind != 6) {
-            node->flags |= 8;
+        if (info->collFuncIdx != 6) {
+            t->Flags |= 8;
         }
-        if (src != 0) {
-            node->key = rec->key;
-        } else if (md->category == 4) {
-            node->key = gTargetPaths.paths[index].key;
+        if (fromWorld != 0) {
+            t->mbIdx = obj->tidx;
+        } else if (info->structureID == 4) {
+            t->mbIdx = gTargetPaths.paths[owner].parent;
         }
         if (gGameState & 0x400000) {
-            if (gRace == 6) {
-                ((Node **)GetStatLLE(&gAlwaysColList))[1] = node;
+            if (gRace == kBattle) {
+                ((tTarget **)GetStatLLE(&gAlwaysColList))[1] = t;
             }
-            SetTargetDef(node);
+            SetTargetDef(t);
         }
         return 1;
     }
     return 0;
 }
 
-#define SCENE ((Scene36 *)((u8 *)gTargetPaths.paths + offset))
+/* path i, as the N64 code reaches it: by its byte offset (offset = 36 * i) */
+#define SCENE ((tBasicTargetPath *)((u8 *)gTargetPaths.paths + offset))
 
+/* Sets up the target paths of this race's direction (a ghost race only those with a point flagged 0x1000000, the
+ * others' collision objects removed): a target at each point flagged 1; a path for the other direction loses its
+ * collision object if flagged 0x800. On a fresh load it allocates the kinds' records and the bounding box models
+ * and turns gTargetGroupList's keys into the targets they name (0 for none); in battle the mine records are made
+ * free. Then defines every target (SetTargetDef) and, in battle, the power-ups. Not in the demo without the
+ * Expansion Pak. */
 void SetTargetDefs(void)
 {
     s32 i, j, offset, enabled, other;
-    Node *node;
+    tTarget *t;
     Vec3 zero;
     void *key;
-    Slot136 *slot;
+    tTargetStructMine *mine;
 
-    if ((gGameState & 8) && !expansion_pak_present) {
+    if ((gGameState & GS_DEMO) && !expansion_pak_present) {
         return;
     }
     if (gTargetPaths.count) {
         zero.z = zero.x = zero.y = 0.0f;
         for (i = 0, offset = 0; i < gTargetPaths.count; i++, offset += 36) {
-            if (gRace == 2 && SCENE->action > 0) {
-                for (j = 0; j < SCENE->count; j++) {
-                    if (PTHD_PTS(SCENE)[j].flags & 0x01000000) {
+            if (gRace == kGhost && SCENE->collIdx > 0) {
+                for (j = 0; j < SCENE->numPts; j++) {
+                    if (PATH_PTS(SCENE)[j].flags & 0x01000000) {
                         goto process;
                     }
                 }
-                if (SCENE->action > 0) {
-                    RemoveCollisionObject(SCENE->action);
+                if (SCENE->collIdx > 0) {
+                    RemoveCollisionObject(SCENE->collIdx);
                 }
                 continue;
             }
@@ -420,19 +389,19 @@ void SetTargetDefs(void)
                 (!gBackwards && (SCENE->flags & 4))) {
                 enabled = (SCENE->flags & 0x8000) ? 0 : 1;
                 other = (SCENE->flags & 0x10) ? 0 : 1;
-                for (j = 0; j < SCENE->count; j++) {
+                for (j = 0; j < SCENE->numPts; j++) {
                     if (Restarting) {
-                        PTHD_PTS(SCENE)[j].flags &= ~0x1000;
+                        PATH_PTS(SCENE)[j].flags &= ~0x1000;
                     }
-                    if (PTHD_PTS(SCENE)[j].flags & 1) {
-                        SetupTarget((Place *)SCENE, -1, &zero.x, 0, i, enabled, other);
+                    if (PATH_PTS(SCENE)[j].flags & 1) {
+                        SetupTarget((tModelPart *)SCENE, -1, &zero.x, 0, i, enabled, other);
                     }
                 }
-                if (Restarting && SCENE->action > 0) {
-                    ResetCollisionObject(SCENE->action);
+                if (Restarting && SCENE->collIdx > 0) {
+                    ResetCollisionObject(SCENE->collIdx);
                 }
             } else if (SCENE->flags & 0x800) {
-                RemoveCollisionObject(SCENE->action);
+                RemoveCollisionObject(SCENE->collIdx);
             }
         }
     }
@@ -447,25 +416,25 @@ void SetTargetDefs(void)
         }
         for (i = 0; i < numgTargetGroupList; i++) {
             key = gTargetGroupList[i];
-            node = gTargetList.head;
-            while (node != 0) {
-                if ((node->flags & 8) && KEY(node->key) == key) {
-                    gTargetGroupList[i] = node;
+            t = (tTarget *) ((tTarget *) gTargetList.head);
+            while (t != 0) {
+                if ((t->Flags & 8) && KEY(t->mbIdx) == key) {
+                    gTargetGroupList[i] = t;
                     break;
                 }
-                node = N64P(node->next);
+                t = (tTarget *) PC_N64P(t->next);
             }
             if (key == gTargetGroupList[i]) {
                 gTargetGroupList[i] = 0;
             }
         }
     }
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         for (i = 0; i < 16; i++) {
-            ((Slot136 *)gTargetStructPtrs[5])[i].active = 0;
-            ((Slot136 *)gTargetStructPtrs[5])[i].object[0] = -1;
-            ((Slot136 *)gTargetStructPtrs[5])[i].object[1] = -1;
-            ((Slot136 *)gTargetStructPtrs[5])[i].object[2] = -1;
+            ((tTargetStructMine *)gTargetStructPtrs[5])[i].used = 0;
+            ((tTargetStructMine *)gTargetStructPtrs[5])[i].dlIdx = -1;
+            ((tTargetStructMine *)gTargetStructPtrs[5])[i].glowdls[0] = -1;
+            ((tTargetStructMine *)gTargetStructPtrs[5])[i].glowdls[1] = -1;
         }
     }
     gBBoxModelUsed = 0;
@@ -474,12 +443,12 @@ void SetTargetDefs(void)
             gTargetOwnStructPtrs[i] = gTargetStructPtrs[i];
         }
     }
-    node = gTargetList.head;
-    while (node != 0) {
-        SetTargetDef(node);
-        node = N64P(node->next);
+    t = (tTarget *) ((tTarget *) gTargetList.head);
+    while (t != 0) {
+        SetTargetDef(t);
+        t = (tTarget *) PC_N64P(t->next);
     }
-    if (gRace == 6) {
+    if (gRace == kBattle) {
         InitBattlePowerUps(Restarting);
     }
 }

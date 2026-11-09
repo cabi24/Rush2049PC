@@ -1,23 +1,16 @@
+/* PrevPathPt: the point before another along a drone path (MAT3 pathcommon.c). */
 #include "game/game.h"
 
-VIEW(u16, gDronePaths);
-#define gDronePaths gDronePaths_view
-
-VIEW(s32, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-
-/* PC: gDronePaths is native (ReadPathData), 16 bytes a path. */
-#define DRONE_PATH_SIZE 16
-s16 PrevPathPt(s16 arg0, s16 arg1)
+/* Returns the point before point `idx` of drone path `path`: NextPathPt backwards. Before the point where the path
+ * crosses the lap's first checkpoint (gCheckpoints.loopPt) comes the path's last point, and before point 0 too,
+ * unless the lap starts from a later checkpoint than the first: then point 0 stays where it is. */
+s16 PrevPathPt(s16 idx, s16 path)
 {
-  if ((arg0 == 0) && ((*((s16 *) (((s8 *) (&gCheckpoints)) + 2))) > 0))
-  {
-    return arg0;
-  }
-  if ((arg0 == 0) || (arg0 == ((s16 (*)[0x28]) (((s8 *) (&gCheckpoints)) + 0x30))[(*((s16 *) (((s8 *) (&gCheckpoints)) + 2)))][arg1]))
-  {
-    return (s16) ((*((u16 *) (((u8 *) (&gDronePaths)) + (arg1 * DRONE_PATH_SIZE)))) - 1);
-  }
-  return (s16) (arg0 - 1);
+    if (idx == 0 && gCheckpoints.loopPt > 0) {
+        return idx;
+    }
+    if (idx == 0 || idx == gCheckpoints.points[gCheckpoints.loopPt].dronePathPt[path]) {
+        return gDronePaths[path].numPts - 1;
+    }
+    return idx - 1;
 }
-

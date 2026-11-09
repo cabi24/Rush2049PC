@@ -1,35 +1,28 @@
+/* RotateCollisionObject: turns a collision object's surfaces with its target (MAT3 stree.c). */
 #include "game/game.h"
 
-
 #define vecadd(a,b,r)	{r[0]=a[0]+b[0]; r[1]=a[1]+b[1]; r[2]=a[2]+b[2];}
-typedef struct Item {
-    /* 0x00 */ u16 tag;
-    /* 0x02 */ u16 matrix;
-    /* 0x04 */ s16 rot[9];
-    /* 0x16 */ u16 point;
-    /* 0x18 */ s16 pos[3];
-    /* 0x1E */ u16 frac;
-} Item;
 
-typedef struct OutMatrix {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ s16 rot[9];
-    /* 0x16 */ s16 pad;
-} OutMatrix;
+/* A surface (MAT3 surftyp, stree_surf[]): its orientation. */
+typedef struct surftyp {
+    u16 flags;      /* 0x00 */
+    u16 snd_flags;  /* 0x02 */
+    s16 uvs[9];     /* 0x04 its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
+    u16 vli;        /* 0x16 */
+} surftyp;
 
-typedef struct OutPoint {
-    /* 0x00 */ s16 pos[3];
-    /* 0x06 */ u16 frac;
-} OutPoint;
-
-VIEW(Item *, stree_save);
+VIEW(savetyp *, stree_save);
 #define stree_save stree_save_view
-VIEW(OutMatrix *, stree_surf);
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
-VIEW(OutPoint *, stree_svert);
+VIEW(sverttyp *, stree_svert);
 #define stree_svert stree_svert_view
 
-void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
+/* Turns collision object `num` about `origin`: each saved surface's orientation (as the track had it) is turned
+ * by m1 then m2 (MulUVS), and its vertex's position by m1 then m2 about the origin (WorldVector), truncated to 1/32
+ * foot. A target path turns its collision object so, m1 its first point's orientation transposed (undoing it) and
+ * m2 its present one (PlacePathTargetQuat, StartPathTarget). */
+void RotateCollisionObject(s32 num, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     s32 unused0;
     s32 ipos[3];
     s32 unused1;
@@ -38,21 +31,21 @@ void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     f32 rel[3];
     f32 mat[3][3];
     f32 tmp[3][3];
-    Item *item;
+    savetyp *s;
     s16 *out;
-    OutPoint *pt;
+    sverttyp *pt;
     u32 i;
     s32 count;
 
     count = 0;
-    item = stree_save;
-    for (i = 0; i < stree_savenum; i++, item++) {
-        if (tag == item->tag) {
+    s = stree_save;
+    for (i = 0; i < stree_savenum; i++, s++) {
+        if (num == s->object) {
             count++;
-            mats2fcopy(item->rot, (f32 *) mat);
+            mats2fcopy(s->uvs, (f32 *) mat);
             MulUVS(m1, mat, tmp);
             MulUVS(m2, tmp, mat);
-            out = stree_surf[item->matrix].rot;
+            out = stree_surf[s->snum].uvs;
             out[0] = mat[0][0] * 16384.0f;
             out[1] = mat[0][1] * 16384.0f;
             out[2] = mat[0][2] * 16384.0f;
@@ -62,9 +55,9 @@ void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
             out[6] = mat[2][0] * 16384.0f;
             out[7] = mat[2][1] * 16384.0f;
             out[8] = mat[2][2] * 16384.0f;
-            pos[0] = ((item->pos[0] << 5) + ((item->frac & 0x7C00) >> 10)) * 0.03125f;
-            pos[1] = ((item->pos[1] << 5) + ((item->frac & 0x3E0) >> 5)) * 0.03125f;
-            pos[2] = ((item->pos[2] << 5) + (item->frac & 0x1F)) * 0.03125f;
+            pos[0] = ((s->pos[0] << 5) + ((s->overflow & 0x7C00) >> 10)) * 0.03125f;
+            pos[1] = ((s->pos[1] << 5) + ((s->overflow & 0x3E0) >> 5)) * 0.03125f;
+            pos[2] = ((s->pos[2] << 5) + (s->overflow & 0x1F)) * 0.03125f;
             rel[0] = pos[0] - origin[0];
             rel[1] = pos[1] - origin[1];
             rel[2] = pos[2] - origin[2];
@@ -74,8 +67,8 @@ void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
             ipos[0] = pos[0] * 32.0f;
             ipos[1] = pos[1] * 32.0f;
             ipos[2] = pos[2] * 32.0f;
-            pt = &stree_svert[item->point];
-            pt->frac = (((ipos[0] & 0x1F) << 10) + ((ipos[1] & 0x1F) << 5)) + (ipos[2] & 0x1F);
+            pt = &stree_svert[s->vnum];
+            pt->overflow = (((ipos[0] & 0x1F) << 10) + ((ipos[1] & 0x1F) << 5)) + (ipos[2] & 0x1F);
             pt->pos[0] = ipos[0] >> 5;
             pt->pos[1] = ipos[1] >> 5;
             pt->pos[2] = ipos[2] >> 5;
@@ -84,6 +77,3 @@ void RotateCollisionObject(s32 tag, f32 *origin, f32 m1[3][3], f32 m2[3][3]) {
     if (count == 0) {
     }
 }
-
-/* stand-in: retail mats2fcopy has callers outside this group (PointInSurf, CylinderInSurf);
- * this kept caller only keeps it out of line here.  Not a claimed member. */

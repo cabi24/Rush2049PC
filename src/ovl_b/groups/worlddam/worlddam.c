@@ -1,3 +1,4 @@
+/* Scorch marks on the track where weapons hit (MAT3 worlddam.c): a ring of 25 polygons, the oldest reused. */
 #include "game/game.h"
 #define tRGBA tRGBAView   /* this file's own tRGBA: include/game's tRGBA is another type */
 
@@ -5,12 +6,14 @@ typedef struct tPoly tPoly;
 typedef struct surftyp surftyp;
 typedef struct tRGBA { u8 c[4]; } tRGBA;
 
+/* The model record (MAT3 tModelData): each tyre's height off the ground. */
 typedef struct tModelData {
     u8 unknown000[0x5ec];
     f32 airdist[4];
     u8 unknown5fc[0x808 - 0x5fc];
 } tModelData;
 
+/* DamagePolys (RingState; MAT3 anon_full_oldest_68). */
 typedef struct DamageRing {
     s8 full;
     u16 oldest;
@@ -31,9 +34,9 @@ extern tPoly *ZOID_NewPoly(s32, f32 (*)[3], u16, tRGBA *, u16, s32);
 extern void ZOID_UpdatePoly(tPoly *, s32, f32 (*)[3], u16, tRGBA *, u16, s32);
 
 extern f32 fabsf(f32);
-#pragma intrinsic(fabsf)
 
-
+/* Returns the next scorch mark of the ring: a new polygon until there are 25, then the oldest, hidden. The four
+ * after it in the ring (the oldest) get paler colours (damColor), so old marks fade. */
 s32 findDamageSlot(void)
 {
     s32 i;
@@ -66,7 +69,10 @@ s32 findDamageSlot(void)
     return i;
 }
 
-void newWorldDamage(f32 *pos, s32 slot) /* newWorldDamage */
+/* Leaves a scorch mark 12 feet square on the road at `pos` (each corner put on the road a quarter foot up,
+ * RoadPosition), unless car `slot` is in the air or the road there is too steep or broken (an edge rising more
+ * than 3 feet or longer than about 14). The unused locals are the N64 code's. */
+void newWorldDamage(f32 *pos, s32 slot)
 {
     f32 newpos[3];
     f32 uvs[3][3];

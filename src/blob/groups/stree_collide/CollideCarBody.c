@@ -1,51 +1,48 @@
+/* CollideCarBody: a car against the track's walls (MAT3 stree.c). */
 #include "game/game.h"
 
-typedef struct QNode {
-    s16 next;
-    u8 pad2;
-    u8 mask;
-    s16 x0;
-    s16 x1;
-    s16 y0;
-    s16 y1;
-    u16 child[4];
-} QNode;
+/* A surface (MAT3 surftyp, stree_surf[]). */
+typedef struct surftyp {
+    /* 0x00 */ u16 flags;     /* low nibble: the surface's kind (5 and 6 walls) */
+    /* 0x02 */ u16 snd_flags; /* low nibble: its vertices */
+    /* 0x04 */ s16 uvs[9];    /* its orientation, 1.0 = 0x4000 (MAT3 s16[3][3]) */
+    /* 0x16 */ u16 vli;       /* its vertex list, a byte offset in stree_vlist */
+} surftyp;
 
-typedef struct Poly {
-    u16 type;
-    u16 cnt;
-    u8 body[0x12];
-    u16 off;
-} Poly;
-
+/* A contact with a wall (MAT3 anon_surf_uvs_30). */
 typedef struct CCol {
-    Poly *poly;
-    f32 m[9];
-    s16 idx;
-    s16 idx2;
-    f32 k;
+    surftyp *surf;  /* the wall, NULL none */
+    f32 uvs[9];     /* its frame */
+    s16 carEdge;    /* the car's corner (tireIndex) */
+    s16 index;
+    f32 dist;       /* how far the car is into it */
 } CCol;
 
-/* PC: the car's model record (D_8014A250) keeps its N64 layout, and its tires' road nodes are u32 window addresses
- * there (docs/port/CARS.md), as TireSurf.c's view has them. */
+/* The model record (MAT3 tModelData): the corners' positions now and last step, and each tyre's node of the surface
+ * tree. PC: the record keeps its N64 layout, and the nodes are u32 window addresses there (docs/port/CARS.md), as
+ * TireSurf.c's view has them. */
 enum n64p_QNode { n64p_QNode_ };
 typedef struct VCar {
     u8 p0[628];
-    f32 pos[4][3];      /* 628: wheel positions */
-    f32 old[4][3];      /* 676: previous wheel positions */
+    f32 pos[4][3];      /* 0x274 bodyrwr: the corners' positions */
+    f32 old[4][3];      /* 0x2A4 bodyrwr2: the same last step */
     u8 p724[204];
-    enum n64p_QNode node[4];     /* 928 */
+    enum n64p_QNode node[4];     /* 0x3A0 each tyre's node of the surface tree */
 } VCar;
-#define N64P(x) _Generic((x), enum n64p_QNode: (QNode *)PC_N64P(x), default: (x))
+#define N64P(x) _Generic((x), enum n64p_QNode: (streetyp *)PC_N64P(x), default: (x))
 
-VIEW(Poly *, stree_surf);
+VIEW(surftyp *, stree_surf);
 #define stree_surf stree_surf_view
 
 #define FLOOR(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 
+/* Tests model `car`'s body against the walls round its four tyres: the surfaces of the tree's leaves under them
+ * (each leaf once) but those already tested this step (flag 0x4000, set while testing), soft ones (0x2000) and
+ * removed ones (kind 15); the deepest contact pushes the car back (CarApplyCollision). Then a corner that went down
+ * through a half-pipe surface (0x2000) since the last step is pushed back up out of it. */
 void CollideCarBody(VCar *car)
 {
-    QNode *cells[4];
+    streetyp *cells[4];
     s16 cellIdx[4];
     u16 polys[142];
     s32 npoly;
@@ -59,26 +56,26 @@ void CollideCarBody(VCar *car)
     s32 unique;
     u32 off;
     u8 *q;
-    Poly *p;
-    Poly *poly;
+    surftyp *p;
+    surftyp *poly;
     f32 bound;
     f32 pt[3];
     f32 w[3];
     s16 outIdx;
 
     for (j = 0; j < 4; j++) {
-        p = (Poly *)updownleaf(N64P(car->node[j]), (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
+        p = (surftyp *)updownleaf(N64P(car->node[j]), (s32)FLOOR(car->pos[j][0]), (s32)FLOOR(car->pos[j][2]), &out);
         if (p != NULL) {
             unique = 1;
             for (i = ncells - 1; i >= 0; i--) {
-                if ((QNode *)p == cells[i] && out == cellIdx[i]) {
+                if ((streetyp *)p == cells[i] && out == cellIdx[i]) {
                     unique = 0;
                     break;
                 }
             }
             if (unique) {
                 cellIdx[ncells] = out;
-                cells[ncells] = (QNode *)p;
+                cells[ncells] = (streetyp *)p;
                 ncells++;
             }
         }
@@ -86,7 +83,7 @@ void CollideCarBody(VCar *car)
     npoly = 0;
     for (j = 0; j < ncells; j++) {
         off = cells[j]->child[cellIdx[j]];
-        if (cells[j]->mask & (16 << cellIdx[j])) {
+        if (cells[j]->flags & (16 << cellIdx[j])) {
             off |= 0x10000;
         }
         if (off != 0) {
@@ -95,26 +92,26 @@ void CollideCarBody(VCar *car)
             DecodeSlist(q, cnt, &polys[npoly], 0);
             for (i = npoly; i < cnt + npoly; i++) {
                 p = &stree_surf[polys[i]];
-                if (col.poly == p || (p->type & 0x4000) || (p->type & 0x2000) || (p->type & 0xF) == 15) {
+                if (col.surf == p || (p->flags & 0x4000) || (p->flags & 0x2000) || (p->flags & 0xF) == 15) {
                     continue;
                 }
                 CollideCarBodyAgainstSurface(car, p, &col);
-                p->type |= 0x4000;
+                p->flags |= 0x4000;
             }
             npoly += cnt;
         }
     }
-    if (col.poly != NULL) {
+    if (col.surf != NULL) {
         CarApplyCollision(car, &col);
     }
     for (j = 0; j < npoly; j++) {
         poly = &stree_surf[polys[j]];
-        poly->type &= ~0x4000;
-        if (poly->type & 0x2000) {
+        poly->flags &= ~0x4000;
+        if (poly->flags & 0x2000) {
             for (i = 0; i < 4; i++) {
                 bound = 250.0f;
-                if (PointInSurf(poly, car->pos[tireIndex[i]], car->old[tireIndex[i]], pt, &bound, &outIdx, col.m, -5.0f) != 0) {
-                    fHalfPipeInterp((intptr_t)poly, outIdx, car->pos[i], pt, (f32 (*)[3])col.m, 0.0f);
+                if (PointInSurf(poly, car->pos[tireIndex[i]], car->old[tireIndex[i]], pt, &bound, &outIdx, col.uvs, -5.0f) != 0) {
+                    fHalfPipeInterp((intptr_t)poly, outIdx, car->pos[i], pt, (f32 (*)[3])col.uvs, 0.0f);
                     bound = pt[1];
                     if (bound < -5.0f || bound >= 0.0f) {
                         continue;
@@ -122,14 +119,14 @@ void CollideCarBody(VCar *car)
                     pt[0] = car->pos[tireIndex[i]][0] - car->old[tireIndex[i]][0];
                     pt[1] = car->pos[tireIndex[i]][1] - car->old[tireIndex[i]][1];
                     pt[2] = car->pos[tireIndex[i]][2] - car->old[tireIndex[i]][2];
-                    BodyVector(pt, w, col.m);
+                    BodyVector(pt, w, col.uvs);
                     if (w[1] >= 0.0f) {
                         continue;
                     }
-                    col.poly = poly;
-                    col.idx = i;
-                    col.idx2 = i;
-                    col.k = -bound;
+                    col.surf = poly;
+                    col.carEdge = i;
+                    col.index = i;
+                    col.dist = -bound;
                     CarApplyCollision(car, &col);
                 }
             }

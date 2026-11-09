@@ -57,18 +57,19 @@ struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
 /* ---------------------------------------------------------------- what the code under test calls */
 
 static uint32_t g_heap = HEAP;
+static uint32_t g_slots_size;        /* the last block's size: InitBattlePowerUps' slots */
 void *AllocateMemoryHeap(int32_t heap, int32_t size)
 {
     void *p = WP(g_heap);
+    g_slots_size = (uint32_t)size;
     memset(p, 0, (size_t)size);
     g_heap += (uint32_t)size;
     memset(WP(g_heap), 0xAB, 64);    /* a guard after each block */
     return p;
 }
-static uint32_t g_slots_size;
+/* audio_dma_sync, the overlays' old name for AllocateMemoryHeap */
 void *audio_dma_sync(void *heap, uint32_t size)
 {
-    g_slots_size = size;
     return AllocateMemoryHeap(0, (int32_t)size);
 }
 float Random(float max) { return 0.0f; }   /* Random */

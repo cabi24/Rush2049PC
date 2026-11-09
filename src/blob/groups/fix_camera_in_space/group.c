@@ -1,51 +1,51 @@
+/* fix_camera_in_space: a camera fixed at a point of the track, watching the car (MAT3 camera.c). */
 #include "game/game.h"
 
-
-#undef M2C_FIELD
-#define M2C_FIELD(p,t,o) (*(t)((u8*)(p)+(o)))
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its camera. */
+struct tCarData { u8 pad0[0x110]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308]; s8 camera; };
 
 extern void point_at_car(void*,void*,intptr_t,f32*);
-void fix_camera_in_space(s16 arg0, void *arg1, void *arg2, intptr_t arg3) {
-    f32 vector[3];
-    f32 temp_f0;
-    f32 temp_f2;
-    s8 temp_v1;
-    f32 *temp_v0;
 
-    temp_v1 = M2C_FIELD(arg1, s8 *, CAR_OFS(0x35C));
-    if (arg0 == 0) {
-        fixed_cam_mode[temp_v1] = 0;
-        temp_v0 = fixed_cam_pos[temp_v1];
-        M2C_FIELD(temp_v0, f32 *, 0) = (f32) M2C_FIELD(arg2, f32 *, 0);
-        M2C_FIELD(temp_v0, f32 *, 4) = (f32) M2C_FIELD(arg2, f32 *, 4);
-        M2C_FIELD(temp_v0, f32 *, 8) = (f32) M2C_FIELD(arg2, f32 *, 8);
+/* Car `car`'s track camera (view 6). `mode` 0 fixes the camera at `pos`, 1 there too but zooming in on the car as
+ * it goes away; else (2) it points from where it was fixed at the car, now at `pos` (its orientation into `uvs`:
+ * point_at_car), a zooming one kept 20 feet off and closing in by fixed_cam_zoom_rate a foot past 50. */
+void fix_camera_in_space(s16 mode, struct tCarData *car, f32 *pos, intptr_t uvs) {
+    f32 vector[3];
+    f32 dist;
+    f32 scale;
+    s8 camera;
+    f32 *fixed;
+
+    camera = car->camera;
+    if (mode == 0) {
+        fixed_cam_mode[camera] = 0;
+        fixed = fixed_cam_pos[camera];
+        fixed[0] = (f32) pos[0];
+        fixed[1] = (f32) pos[1];
+        fixed[2] = (f32) pos[2];
         return;
     }
-    if (arg0 == 1) {
-        fixed_cam_mode[temp_v1] = 1;
-        temp_v0 = fixed_cam_pos[temp_v1];
-        M2C_FIELD(temp_v0, f32 *, 0) = (f32) M2C_FIELD(arg2, f32 *, 0);
-        M2C_FIELD(temp_v0, f32 *, 4) = (f32) M2C_FIELD(arg2, f32 *, 4);
-        M2C_FIELD(temp_v0, f32 *, 8) = (f32) M2C_FIELD(arg2, f32 *, 8);
+    if (mode == 1) {
+        fixed_cam_mode[camera] = 1;
+        fixed = fixed_cam_pos[camera];
+        fixed[0] = (f32) pos[0];
+        fixed[1] = (f32) pos[1];
+        fixed[2] = (f32) pos[2];
         return;
     }
-    temp_v0 = fixed_cam_pos[temp_v1];
-    vector[0] = M2C_FIELD(temp_v0, f32 *, 0) - M2C_FIELD(arg2, f32 *, 0);
-    vector[1] = M2C_FIELD(temp_v0, f32 *, 4) - M2C_FIELD(arg2, f32 *, 4);
-    vector[2] = M2C_FIELD(temp_v0, f32 *, 8) - M2C_FIELD(arg2, f32 *, 8);
-    elastic_factor[temp_v1] = 0.0f;
-    if (fixed_cam_mode[temp_v1] != 0) {
-        temp_f0 = vector_magnitude(vector);
-        if (temp_f0 != 0.0f) {
-            temp_f2 = (((temp_f0 - 50.0f) * fixed_cam_zoom_rate) + 20.0f) / temp_f0;
-            vector[0] *= temp_f2;
-            vector[1] *= temp_f2;
-            vector[2] *= temp_f2;
+    fixed = fixed_cam_pos[camera];
+    vector[0] = fixed[0] - pos[0];
+    vector[1] = fixed[1] - pos[1];
+    vector[2] = fixed[2] - pos[2];
+    elastic_factor[camera] = 0.0f;
+    if (fixed_cam_mode[camera] != 0) {
+        dist = vector_magnitude(vector);
+        if (dist != 0.0f) {
+            scale = (((dist - 50.0f) * fixed_cam_zoom_rate) + 20.0f) / dist;
+            vector[0] *= scale;
+            vector[1] *= scale;
+            vector[2] *= scale;
         }
     }
-    point_at_car(arg1, arg2, arg3, vector);
+    point_at_car(car, pos, uvs, vector);
 }
-
-extern f32 sqrtf(f32);
-#pragma intrinsic (sqrtf)
-

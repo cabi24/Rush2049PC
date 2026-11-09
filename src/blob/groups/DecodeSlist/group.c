@@ -1,24 +1,28 @@
+/* DecodeSlist: unpacks a tree node's list of surfaces (MAT3 stree.c). */
 #include "game/game.h"
 
-void DecodeSlist(u8 *input, s32 count, u16 *front, u32 marker)
+/* Unpacks `snum` surface numbers from the packed list at `slp` into `slnum`: each entry is a big-endian u16 whose
+ * top 3 bits are how many surfaces follow on in sequence and the rest the first. Surface `sli` goes to the front of
+ * the list, the others fill it from the back, so the surface last found comes first. */
+void DecodeSlist(u8 *slp, s32 snum, u16 *slnum, u32 sli)
 {
-    u16 *back = front + count - 1;
-    u32 value;
-    s32 run;
+    u16 *back = slnum + snum - 1;
+    u32 next;
+    s32 cnt;
 
-    while (count > 0) {
-        value = ((u32)input[0] << 8) + input[1];
-        input += 2;
-        run = value >> 13;
-        value &= 0x1FFF;
-        count = count - run - 1;
+    while (snum > 0) {
+        next = ((u32)slp[0] << 8) + slp[1];
+        slp += 2;
+        cnt = next >> 13;
+        next &= 0x1FFF;
+        snum = snum - cnt - 1;
         do {
-            run--;
-            if (value == marker) {
-                *front++ = value++;
+            cnt--;
+            if (next == sli) {
+                *slnum++ = next++;
             } else {
-                *back-- = value++;
+                *back-- = next++;
             }
-        } while (run >= 0);
+        } while (cnt >= 0);
     }
 }

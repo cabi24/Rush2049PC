@@ -1,27 +1,28 @@
+/* init_view3: a car's camera to the rear chase view (MAT3 camera.c). */
 #include "game/game.h"
 
-VIEW(s32, gGameState);
-#define gGameState gGameState_view
+/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its camera and views. */
+struct tCarData {
+    u8 pad0[0x110]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
+    s8 camera;      /* 0x35C its camera, the window showing it */
+    s8 view;        /* 0x35D its camera's view */
+    s8 saveview;    /* 0x35E the view to go back to after the crash view */
+};
 
-VIEW(s8, view3_switch);
-#define view3_switch view3_switch_view
+/* Sets car `gc`'s camera to view 2 (the high rear chase view, view3's), starting from its rest distance: 5 feet up
+ * and 20 back in the demo, 3 and 16 otherwise. */
+void init_view3(struct tCarData *gc) {
+    s8 camera;
 
-#define rear_y (rear_y[0])
-
-#define rear_z (rear_z[0])
-
-void init_view3(void *arg0) {
-    s8 temp_v0;
-
-    M2C_FIELD(arg0, s8 *, CAR_OFS(0x35E)) = 2;
-    temp_v0 = M2C_FIELD(arg0, s8 *, CAR_OFS(0x35C));
-    M2C_FIELD(arg0, s8 *, CAR_OFS(0x35D)) = (s8) M2C_FIELD(arg0, s8 *, CAR_OFS(0x35E));
-    if (gGameState & 8) {
-        (&rear_y)[temp_v0] = 5.0f;
-        (&rear_z)[temp_v0] = 20.0f;
+    gc->saveview = 2;
+    camera = gc->camera;
+    gc->view = gc->saveview;
+    if (gGameState & GS_DEMO) {
+        rear_y[camera] = 5.0f;
+        rear_z[camera] = 20.0f;
     } else {
-        (&rear_y)[temp_v0] = 3.0f;
-        (&rear_z)[temp_v0] = 16.0f;
+        rear_y[camera] = 3.0f;
+        rear_z[camera] = 16.0f;
     }
-    (&view3_switch)[temp_v0] = 1;
+    view3_switch[camera] = 1;
 }

@@ -1,9 +1,11 @@
+/* UpdateGame and EndGame: a race from its set-up to the high score screen, one turn of the game loop at a time
+ * (MAT3 game.c). */
 #include "game/game.h"
 
+/* A player's input record (gPlayers): its car slot and its crashes. */
 typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
 
-typedef struct Stunt120 { u8 pad00[20]; s32 totalPoints; u8 pad18[96]; } Stunt120;
-typedef struct Cam152 { u8 pad00[36]; f32 pos[3]; u8 pad30[104]; } Cam152;
+/* A ghost's save header (GhostSaveHeader): the flag that says it is a ghost to race against. */
 typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
 /* A ghost (SaveInit' Ghost): link, file and data handles before its header, pointer-sized on the PC
  * (docs/port/CASTS.md). */
@@ -11,21 +13,28 @@ typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah;
 
 extern Player76 gPlayers[];   /* gPlayers */
 
-VIEW(Stunt120[], gStuntPlayer);
-#define gStuntPlayer gStuntPlayer_view
 VIEW(s8[4], gTeamPoints);
 #define gTeamPoints gTeamPoints_view
 
 VIEW(Ghost40 **[], gGhosts);
 #define gGhosts gGhosts_view
 
-VIEW(Cam152[], gCamera);
+VIEW(tCamera[], gCamera);
 #define gCamera gCamera_view
 
 s32 CountdownTimeOut(void);
 
 void *memset(void *, s32, u32);
 
+/* One turn of a race, by game state: SETUP (the options, the pole positions, the catch-up) goes on to LOAD
+ * (PrePlay until it is done, then the countdown of 3.5 seconds starts the model thread's clock); COUNTDOWN moves
+ * the cars to the start and counts down (CountDown ends it); START sets the race's clock (practice 30 minutes,
+ * stunt and battle by their modes, the obstacle course 5, else CalcRaceTime), plays the start and the music; PLAY
+ * runs the race (PlayGame) and decides its end: retiring, or once coasting all the cars stopped (all humans solid);
+ * stunt by time, points or crashes; battle by time or a team's points ("game point" one short); a lap race when
+ * every human has finished; any other when the clock runs out (the "time's up" call for a human short of the
+ * laps). At the end the race END (EndGame), then the high score and game over screens. In the countdown and the
+ * race, every window's fog follows its camera. */
 void UpdateGame(void)
 {
     s32 i;
@@ -34,26 +43,26 @@ void UpdateGame(void)
     s32 numDeaths;
     static s8 startCountdown = 0;
 
-    if (gGameState & 0x40000) {
+    if (gGameState & GS_RACE_SETUP) {
         gSkipToGameState = 1;
         SetOptions();
         CalcPolePositions();
         gUseCatchup = gCatchup;
-        setGameState(0x80000);
-        goto preplay;
-    } else if (gGameState & 0x80000) {
-    preplay:
+        setGameState(GS_RACE_LOAD);
+        goto load;
+    } else if (gGameState & GS_RACE_LOAD) {
+    load:
         if (PrePlay(1, 0)) {
             startCountdown = 1;
-            setGameState(0x200000);
+            setGameState(GS_RACE_COUNTDOWN);
             ClearRushControls();
-            goto UpdateGame;
+            goto countdown;
         } else {
             SaveServer(0, 1);
             goto done;
         }
-    } else if (gGameState & 0x200000) {
-    UpdateGame:
+    } else if (gGameState & GS_RACE_COUNTDOWN) {
+    countdown:
         if (gRestartGame) goto done;
         CarSetup();
         Update_MDrive();
@@ -67,22 +76,22 @@ void UpdateGame(void)
         CountDown();
         CheckButtons();
         SaveServer(0, 1);
-    } else if (gGameState & 0x100000) {
-        if (gRace == 1) SetCountdownTimer(1800.0f);
-        else if (gRace == 4) {
+    } else if (gGameState & GS_RACE_START) {
+        if (gRace == kPractice) SetCountdownTimer(1800.0f);
+        else if (gRace == kStunt) {
             if (gStuntMode == 0) SetCountdownTimer(gStuntModeMins * 60);
             else SetCountdownTimer(600.0f);
-        } else if (gRace == 5) SetCountdownTimer(300.0f);
-        else if (gRace == 6) {
+        } else if (gRace == kObstacle) SetCountdownTimer(300.0f);
+        else if (gRace == kBattle) {
             if (gBattleMode == 1) SetCountdownTimer(gBattleModeMins * 60);
             else SetCountdownTimer(1200.0f);
         } else SetCountdownTimer(CalcRaceTime());
         PlayGameSound(78, 0, 1, 0);
         StartGameMusic();
         InitCPTime();
-        setGameState(0x400000);
+        setGameState(GS_RACE_PLAY);
         save_server_tick_time = gModelTime;
-    } else if (gGameState & 0x400000) {
+    } else if (gGameState & GS_RACE_PLAY) {
         if (save_server_tick_time + 3.0f < gModelTime) {
             SaveServer(0, 1);
             save_server_tick_time = gModelTime;
@@ -91,7 +100,7 @@ void UpdateGame(void)
         CheckButtons();
         if (gRetireGame) {
             FindWinner();
-            setGameState(0x1000000);
+            setGameState(GS_RACE_END);
             GhostEnd();
             RemoveHUD();
         } else if (gCoastFlag) {
@@ -101,16 +110,16 @@ void UpdateGame(void)
                 if (!AreWeSolid(p)) allSolid = 0;
             }
             if (are_all_cars_stopped() && allSolid) {
-                if (gRace == 4) FindWinner();
-                setGameState(0x1000000);
+                if (gRace == kStunt) FindWinner();
+                setGameState(GS_RACE_END);
                 GhostEnd();
                 RemoveHUD();
             }
-            if (!CountdownTimeOut() && gRace != 4 && gRace != 5 && gRace != 6) {
+            if (!CountdownTimeOut() && gRace != kStunt && gRace != kObstacle && gRace != kBattle) {
                 gCoastFlag = 0;
                 gOutOfTime = 0;
             }
-        } else if (gRace == 4) {
+        } else if (gRace == kStunt) {
             switch (gStuntMode) {
             case 0:
                 if (CountdownTimeOut()) { gCoastFlag = 1; gOutOfTime = 1; }
@@ -131,7 +140,7 @@ void UpdateGame(void)
                 }
                 break;
             }
-        } else if (gRace == 6) {
+        } else if (gRace == kBattle) {
             switch (gBattleMode) {
             case 1:
                 if (CountdownTimeOut()) {
@@ -154,7 +163,7 @@ void UpdateGame(void)
                 }
                 break;
             }
-        } else if (gRace == 0 || gRace == 1 || gRace == 3) {
+        } else if (gRace == kOneRace || gRace == kPractice || gRace == kCircuit) {
             for (i = 0; i < gNumPlayers; i++) if (!PC_CAR_FINISHED(gPlayers[i].slot)) goto done;
             gAPlayerReallyFinished = 0;
             for (i = 0; i < gNumPlayers; i++) if (gNumLaps == PC_MODEL_LAP(i)) gAPlayerReallyFinished = 1;
@@ -173,7 +182,7 @@ void UpdateGame(void)
                 }
                 for (i = 0; i < gNumPlayers; i++) {
                     if (gNumLaps != PC_MODEL_LAP(gPlayers[i].slot)) {
-                        if (gRace != 2 || !gGhosts[gPlayers[i].slot] || (*gGhosts[gPlayers[i].slot])->header[0]->flag < 0)
+                        if (gRace != kGhost || !gGhosts[gPlayers[i].slot] || (*gGhosts[gPlayers[i].slot])->header[0]->flag < 0)
                             PlayGameSound(22, 0, 1, 0);
                         gOutOfTime = 1;
                         break;
@@ -181,16 +190,18 @@ void UpdateGame(void)
                 }
             }
         }
-    } else if (gGameState & 0x1000000) {
+    } else if (gGameState & GS_RACE_END) {
         EndGame();
-    } else if (gGameState & 0x2000000) updateHighScoreScreen();
-    else if (gGameState & 0x800000) updateGameOverScreen();
+    } else if (gGameState & GS_HIGH_SCORE) updateHighScoreScreen();
+    else if (gGameState & GS_GAME_OVER) updateGameOverScreen();
 done:
-    if (gGameState & 0x600000) {
-        for (i = 0; i < gNumWindows; i++) WorldFogDensity(i, gCamera[i].pos);
+    if (gGameState & (GS_RACE_COUNTDOWN | GS_RACE_PLAY)) {
+        for (i = 0; i < gNumWindows; i++) WorldFogDensity(i, gCamera[i].mat.pos);
     }
 }
 
+/* Ends the race: every car's model stops (End_MDrive), its flag 8 cleared, the model thread and the listeners
+ * stop, and the high score screen follows in 4 seconds. */
 void EndGame(void)
 {
     s16 i;
@@ -202,5 +213,5 @@ void EndGame(void)
     modelstop();
     StopListeners();
     SetCountdownTimer(4.0f);
-    setGameState(0x2000000);
+    setGameState(GS_HIGH_SCORE);
 }

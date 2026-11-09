@@ -1,5 +1,7 @@
+/* DrawNoControllers: the scrolling message that a player's controller is unplugged (MAT3 game.c). */
 #include "game/game.h"
 
+/* A controller's state (gControllerData): attached or not. */
 typedef struct { s8 attached; u8 pad1[15]; } ControllerData;
 typedef struct { void *unk0; char **single; } TextTable;
 
@@ -15,6 +17,9 @@ s32 sprintf(char *, const char *, ...);
 /* game.frame_rate 60: the scroller moves a pixel a 30 Hz frame, as on the N64 (docs/port/FRAMERATE.md 7) */
 #define PC_SCROLL_DEC(v) ((v) -= PC_STEPS(1))
 
+/* Finds the first player (of the race's players; a ghost race has one) whose controller isn't attached
+ * (first_unplugged_controller, the players' count if none) and scrolls a message asking for it across the screen,
+ * at the top in the attract and demo states, at the bottom otherwise (none in states 1 and 2). */
 void DrawNoControllers(void)
 {
     char str[256];
@@ -23,7 +28,7 @@ void DrawNoControllers(void)
     s32 i;
     static s32 x = 320;
 
-    numPlayers = gRace == 2 ? 1 : gNumPlayers;
+    numPlayers = gRace == kGhost ? 1 : gNumPlayers;
     for (i = 0; i < numPlayers; i++) {
         if (!gControllerData[i].attached) break;
     }

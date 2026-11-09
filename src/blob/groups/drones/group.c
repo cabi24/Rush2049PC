@@ -1,48 +1,9 @@
+/* The drones' catch-up (MAT3 drones.c, model.c's SetCatchup): each frame every drone this machine drives gets a
+ * speed scale (drone_scale) and a boost (time_boost) by how it stands against the humans. The code keeps the arcade
+ * game's style (its types, game_car, FoundCoin); RecordGhost and RecordPractice are folded in. */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * DoDrones @ 0x800F93A0 (1413 words) -- the name is a historical
- * label. This is the N64 descendant of arcade DoDrones() with RecordGhost()
- * (reference/repos/rushtherock/game/drones.c) and RecordPractice()
- * (maxpath.c) folded in; LinearInterp is FoundCoin() (drones.c) with the
- * N64 parameter order (in1, in2, input, out1, out2), and SetCatchup is
- * set_catchup() (model.c).
- *
- * State: code identical (the scorer: "MATCH (214 section-relative
- * relocations unverified ...)" for the root, "MATCH (2 ...)" for
- * LinearInterp); the unverified references are the function's own float
- * literals. The object's .rodata (109 words) was compared by hand with the
- * retail words 0x80124638..0x801247E8 and is identical, including the one
- * unreferenced 0.01f at 0x8012464C. the whole-program unit score: EQUAL (1413 words)
- * the whole-program unit with LinearInterp internal.
- *
- * LinearInterp is internal (IPA float registers f16/f18/f20): this file is
- * a group, keep = DoDrones only.
- *
- * What the match depends on:
- * - the arcade body and its declaration list. Every declared local owns a
- *   frame slot whether or not it is used, so the list sets the 472-byte
- *   frame: ten S16 scalars, total_drones[] (unused), the unused slope/offset/
- *   m, and a place[] array after ttype. The arcade's rel_drone, old_index,
- *   num_to_assign, okay_to_cheat and cp_tmp are gone (equivalent removals
- *   cannot be told apart; only the sizes are evidence).
- * - place[] caches game_car[].place at entry; the ordering loop and my_place
- *   read the cache. The loop that fills it uses its own index variable
- *   (high_place here): with `index` it costs a register permutation over the
- *   whole first half.
- * - max_boost/min_boost/max_brake/min_brake are plain variables assigned once
- *   as in the arcade; uopt re-evaluates them at each use, which is why retail
- *   has a separate literal set per branch. Literals are float (.02f), and the
- *   constant differences are written as in the arcade ((1.0f - 1.1f) folds to
- *   0xBDCCCCD0, not -0.1f).
- * - diff_scale is assigned AFTER the place_scale if/else. Before it, uopt
- *   gives the last free saved register to &gDifficulty instead of the
- *   constant 5.
- * - the mode offset is `if (x) v = 6; else v = 0;`, not `v = 0; if (x) v = 6;`.
- */
 float fabsf(float);
-#pragma intrinsic (fabsf)
 
 typedef signed char S8;
 typedef unsigned char U8;
@@ -58,6 +19,7 @@ typedef float F32;
 #define DRONE 1
 #define HUMAN 2
 
+/* The model record (MAT3 tModelData): the fields the catch-up reads and sets. */
 typedef struct MODELDAT {
     /* 0x000 */ U8 pad0[0x400];
     /* 0x400 */ F32 catchup;
@@ -88,18 +50,11 @@ typedef struct {
     /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
 } CAR_DATA;
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The arcade's names for the game's data. */
 #define game_car gGameCar
 
 #define num_active_cars gNumActiveCars
-VIEW(S32, gGameState);
-#define gGameState gGameState_view
 
-/* The circuit's cars (MAT3 tCircuitCar, 76 bytes; ContinueCircuit.c): skill, by track (+6 run backwards). */
-typedef struct { U8 id; U8 b1; U16 h2; U8 b4[24]; U8 b28[24]; S16 skill[12]; } Rec;
-VIEW(Rec[], gCircuitCars);
-#define gCircuitCars gCircuitCars_view
 
 #define coast_flag gCoastFlag
 #define end_game_flag gEndGame
@@ -107,6 +62,8 @@ VIEW(Rec[], gCircuitCars);
 
 #define FoundCoin LinearInterp
 
+/* Maps `input` from the range in_bound1..in_bound2 to out_bound1..out_bound2, clamped to its ends (the arcade's
+ * FoundCoin); the middle of the outputs when the range is empty. */
 F32 LinearInterp(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 out_bound2)
 {
     F32 slope, offset;
@@ -134,6 +91,14 @@ F32 LinearInterp(F32 in_bound1, F32 in_bound2, F32 input, F32 out_bound1, F32 ou
 
 
 
+/* Sets every drone's catch-up for this frame. The cars are ranked by place; in the demo every drone runs at scale 1.
+ * In the first 5 seconds the drones get a small boost by their place. Then each human not in a pack with another
+ * gets the nearest drone just ahead of or behind them as its rival (drone_target); a drone with a rival speeds up
+ * (time_boost) when behind it and brakes (drone_scale) when ahead, by distance; the leading drone without one keeps
+ * near the second car, the last near the one before it, a middle one between its neighbours or with the side that
+ * has more humans. How hard is set by the difficulty, the drone's place and, in a circuit, the drone's skill on the
+ * track (gCircuitCars). No boost once coasting or ended; no push past the last human on the last lap. Each value
+ * moves to its new one by at most 0.01 a frame (PC_FSCALE: per 30 Hz frame). */
 void DoDrones(void)
 {
     S16 i, j, k, indx, index, index2, index3, temp, high_index;
@@ -177,7 +142,7 @@ void DoDrones(void)
     for (i = 0, j = 0; i < drone_count; i++)
         PC_CAR_WEIGHT_INDEX(drones[i]) = i;
 
-    if (gGameState & 8) {
+    if (gGameState & GS_DEMO) {
         for (i = 0; i < num_active_cars; i++) {
             index = PC_MODEL_SLOT(i);
 
@@ -278,7 +243,7 @@ void DoDrones(void)
                         place_scale = (F32)my_place / (num_active_cars - 1);
                     diff_scale = 1.0f - (F32)gDifficulty / 5.0f;
 
-                    if (gRace == 3) {
+                    if (gRace == kCircuit) {
                         temp = gTrackNum;
                         if (gBackwards)
                             high_index = 6;

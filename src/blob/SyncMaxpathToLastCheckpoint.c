@@ -1,18 +1,12 @@
+/* SyncMaxpathToLastCheckpoint: sends a drone back to its last checkpoint on its drone path (MAT3 maxpath.c). */
 #include "game/game.h"
 
-VIEW(s32, gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-
-void SyncMaxpathToLastCheckpoint(s16 arg0)
+/* Sets the drone in car slot `slot` to jump (its maxpath control's newIdx) to the point where its drone path crosses
+ * the last checkpoint it passed. */
+void SyncMaxpathToLastCheckpoint(s16 slot)
 {
-  /* gCheckpoints, resurrect.c's tCheckpoints: pathPts[0] the main path's point at a checkpoint, pathPts[1 + n] drone
-   * path n's. */
-  typedef struct { f32 pos[3], normal[3]; s32 radius; s16 flags, time[2], pathPts[20]; f32 distToNext; } Checkpoint;
-  struct { s16 startTime, loopPt, finishPt, startPt, numPoints; Checkpoint points[10]; } *checkpoints = (void *) &gCheckpoints;
-  s8 *car;
+    struct pc_car *car;
 
-  car = (s8 *) (PC_CAR(arg0));
-  /* the car's path point (+0x33A): the last checkpoint's on the car's drone path (+0x33C) */
-  *((s16 *) (car + CAR_OFS(0x33A))) = checkpoints->points[PC_MODEL_LAST_CP(arg0)].pathPts[*((s16 *) (car + CAR_OFS(0x33C))) + 1];
+    car = PC_CAR(slot);
+    car->nav.newIdx = gCheckpoints.points[PC_MODEL_LAST_CP(slot)].pathPts[car->nav.path + 1];
 }
-

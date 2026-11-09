@@ -1,54 +1,30 @@
+/* NumPtsToCheckpoint: how many path points lie between a point and a checkpoint (MAT3 maxpath.c). */
 #include "game/game.h"
 
-typedef struct TrackRecord {
-    u16 prefix;
-    s16 anchor;
-    unsigned char opaque[42];
-    s16 total;
-    s16 first[4];
-    s16 second[12];
-} TrackRecord;
-/* PC: gResPath and gDronePaths are native structs and the alternative paths a native array (ReadPathData), so these views take host offsets and strides */
-typedef struct Descriptor {
-    unsigned char prefix[4];
-    s8 parent;
-    unsigned char gap;
-    u16 end;
-    unsigned char gap2[2];
-    u16 delta;
-    unsigned char tail[12];   /* the native pts pointer */
-} Descriptor;
-typedef struct Header {
-    u16 total;
-    unsigned char opaque[22];
-    Descriptor *nodes;
-} Header;
-typedef struct Count {u16 total;unsigned char opaque[14];} Count;
-VIEW(TrackRecord[], gCheckpoints);
-#define gCheckpoints gCheckpoints_view
-VIEW(Header, gResPath);
-#define gResPath gResPath_view
-VIEW(Count[], gDronePaths);
-#define gDronePaths gDronePaths_view
-
-int NumPtsToCheckpoint(int mode, int path, int point, int sec) {
-    if (mode == 0) {
-        if (gCheckpoints[sec].first[path] < point) {
-            return gDronePaths[path].total - point + gCheckpoints[sec].first[path]
-                - ((sec >= gCheckpoints[0].anchor) ? gCheckpoints[gCheckpoints[0].anchor].first[path] : 0);
+/* Returns the number of points from point `inIdx` of a path on to where the path crosses checkpoint `cp`.
+ * `res` 0: the path is drone path `inPath`; else the resurrection path: the main one when `inPath` is negative,
+ * else alternative path `inPath`, followed on through the paths it joins until one crosses the checkpoint. Past a
+ * path's end the count goes on round the lap: from the point where the path crosses the lap's first checkpoint
+ * (gCheckpoints.loopPt). */
+int NumPtsToCheckpoint(int res, int inPath, int inIdx, int cp) {
+    if (res == 0) {
+        if (gCheckpoints.points[cp].dronePathPt[inPath] < inIdx) {
+            return gDronePaths[inPath].numPts - inIdx + gCheckpoints.points[cp].dronePathPt[inPath]
+                - ((cp >= gCheckpoints.loopPt) ? gCheckpoints.points[gCheckpoints.loopPt].dronePathPt[inPath] : 0);
         }
-        return gCheckpoints[sec].first[path] - point;
+        return gCheckpoints.points[cp].dronePathPt[inPath] - inIdx;
     }
-    if (path < 0) {
-        if (gCheckpoints[sec].total < point) {
-            return gResPath.total - point + gCheckpoints[sec].total
-                - ((sec >= gCheckpoints[0].anchor) ? gCheckpoints[gCheckpoints[0].anchor].total : 0);
+    if (inPath < 0) {
+        if (gCheckpoints.points[cp].resPathPt < inIdx) {
+            return gResPath.numPts - inIdx + gCheckpoints.points[cp].resPathPt
+                - ((cp >= gCheckpoints.loopPt) ? gCheckpoints.points[gCheckpoints.loopPt].resPathPt : 0);
         }
-        return gCheckpoints[sec].total - point;
+        return gCheckpoints.points[cp].resPathPt - inIdx;
     }
-    if (gCheckpoints[sec].second[path] >= 0 && gCheckpoints[sec].second[path] >= point)
-        return gCheckpoints[sec].second[path] - point;
-    return gResPath.nodes[path].delta
-        + NumPtsToCheckpoint(mode, gResPath.nodes[path].parent, gResPath.nodes[path].end, sec)
-        - point;
+    if (gCheckpoints.points[cp].altPathPt[inPath] >= 0 && gCheckpoints.points[cp].altPathPt[inPath] >= inIdx)
+        return gCheckpoints.points[cp].altPathPt[inPath] - inIdx;
+    /* the branch doesn't cross it: the rest of the branch, then on from where it joins */
+    return gResPath.alt[inPath].numPts
+        + NumPtsToCheckpoint(res, gResPath.alt[inPath].lastPath, gResPath.alt[inPath].lastIdx, cp)
+        - inIdx;
 }

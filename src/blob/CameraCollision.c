@@ -1,27 +1,14 @@
+/* CameraCollision: a camera kept out of the walls (MAT3 stree.c). */
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * CameraCollision @ 0x800C69C0, 224 bytes (56 words) -- MATCH (the scorer fn standalone; unit EQUAL).
- * Identity: GameCube CameraCollision (stree.c, 0x80045D5C), proposed rename (not applied).
- * No arcade ancestor in reference/repos/rushtherock.
- *
- * Trace the camera from lookat to ipos through the world collision
- * (ShotToWorldCollision = GC ShotToWorldCollision(old, new, uvs, radius, interp, ignore)).
- * On a hit, normalise lookat - ipos (NormalVector = GC NormalVector) and move ipos a
- * quarter of the unit vector toward lookat. Always returns a null surface pointer.
- *
- * Lever: the update is written in GC's fmadds operand form,
- * `ipos[k] = ipos[k] + 0.25f * temp[k]` -- uopt keeps the product as the first add operand, so
- * ugen evaluates temp*0.25 before the ipos load (retail's FP temp order). `+=` and
- * `temp * 0.25f + ipos` both left ipos first (15/56). Locals as GC: surface pointer,
- * float[3][3], float[3] (frame 88 exact). No shaping devices, pads or false prototypes.
- */
 typedef struct Surface Surface;
 
 extern Surface *ShotToWorldCollision(float *old, float *newpos,
     float (*uvs)[3], float radius, int interp, int ignore);
 
+/* Traces from `lookat` (what the camera looks at) to the camera's position `ipos` through the track's surfaces
+ * (ShotToWorldCollision, half a foot wide, skipping kind 6); on a hit `ipos` is the hit point, moved a quarter foot
+ * back towards `lookat`. Returns NULL always. */
 Surface *CameraCollision(float *ipos, float *lookat)
 {
     Surface *surfaceptr;
