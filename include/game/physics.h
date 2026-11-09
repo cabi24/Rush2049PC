@@ -147,7 +147,7 @@ extern OSMesg model_thread_msgs[EXTENT(8)];
 extern s8 gNoCarCollisions;
 extern s8 gSuicideMode;
 /* pc_pole_offsets: declared by its files (src/blob/groups/resurrect/resurrect.c: defines it) */
-/* pc_tire_records: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
+/* pc_car_setup_data: declared by its files (src/blob/groups/carsetup/group.c: defines it) */
 
 /* Functions */
 void AbortCar(s16 slot, s32 death);

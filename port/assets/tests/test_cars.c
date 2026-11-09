@@ -67,6 +67,7 @@ TEST_ABS(frontTire);                         /* the tire records after it (car_r
 #define CURVES_AT (TEST_SCRATCH + 0x1000u)
 
 void *gCarModels[13];                      /* Car *[]: own storage, pointing into the game arena */
+uint8_t car_descriptors[6][0xB4];          /* only named (carsetup's pc_car_setup_data): the test's are at DESC_AT */
 uint8_t gPlayers[6 * 80] __attribute__((aligned(16)));   /* the input records */
 struct pc_link pc_links[PC_LINK_SLOTS];    /* gLink, the race roster (pc_game_types.h) */
 int8_t gCarHandling[7][13], gCarEngines[7][13], gCarTires[7][13], gCarFrame[7][13], gTireRims[7][13];

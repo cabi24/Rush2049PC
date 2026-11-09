@@ -21,4 +21,4 @@ extern u8 pc_frame_dl[2][296128];   /* src/blob/groups/heap_release/initsystem_s
 extern f32 pc_pole_offsets[12][3];   /* src/blob/groups/resurrect/resurrect.c: defines it */
 extern DmaList pc_sample_dma_list;   /* src/blob/groups/sample_dma_next/sample_dma_next.c: defines it */
 extern Gfx pc_text_dl[2][2400];   /* src/blob/groups/blit/init.c: defines it */
-extern f32 (*const pc_tire_records)[6];   /* src/blob/groups/carsetup/group.c: defines it */
+extern const void *const pc_car_setup_data[2];   /* src/blob/groups/carsetup/group.c: defines it */

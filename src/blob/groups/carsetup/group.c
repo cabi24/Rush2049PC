@@ -88,9 +88,11 @@ typedef struct tModelData {
 
 /* The tables as the code indexes them: their own storage, through other types (include/game/view.h). */
 
-/* A PC datum: frontTire's address (the descriptors' tire constants), declared for the data loader in
- * port/data/game_decls.c. */
-float (*const pc_tire_records)[6] = frontTire;
+/* A PC datum that names the car tables only pointers reach: the six physics descriptors (gCarModels points at
+ * them) and the two tire records (the descriptors' tires[] point at those). The data loader places and fills the data
+ * some file names (docs/port/DATA.md 3), each by its declaration in include/game; nothing else names these two, and
+ * nothing reads this. */
+const void *const pc_car_setup_data[2] = {car_descriptors, frontTire};
 
 float sqrtf(float);
 

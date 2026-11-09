@@ -8,12 +8,6 @@
  * shows (the appearance bits: brake lights, sparks, skid marks, smoke), then lets the model thread go on. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar, game data in the N64's layout), the field used here. */
-typedef struct _tCar {
-    /* 0x00 */ u8 pad0[0x70];
-    /* 0x70 */ f32 tireR[4][3];
-} _tCar;
-
 /* The car's tune record (MAT3 anon_diffbl_weight_scale_2c, gTune), the field used here. */
 typedef struct tTune {
     /* 0x00 */ u8 pad0[0x20];

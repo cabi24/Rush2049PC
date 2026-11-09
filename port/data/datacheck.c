@@ -178,10 +178,11 @@ static const struct {
     {"gEggs, the first cheat code's button masks", "gEggs", 4, 160, 2, 4},
     {"gEggs, the last cheat code's button masks", "gEggs", 0xCD4, 160, 2, 4},
     {"start_screen_egg, the main menu's code for the cheat screen", "start_screen_egg", 4, 160, 2, 4},
-    /* The six car physics descriptors gCarModels points at (0xB4 bytes each: floats and the u32 tire_info words),
-     * and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte elements, so a
-     * narrower declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md round 3). */
-    {"the car physics descriptors, after steady_leg_duration", "steady_leg_duration", 8, 6 * 0xB4, 1, 4},
+    /* The six car physics descriptors gCarModels points at (car_descriptors, 0xB4 bytes each: floats and the u32
+     * tires words), and the car select's stat factor tables (f32[][4], indexed by each car's parts): all 4-byte
+     * elements, so a narrower declaration over either (the engine table gEngineSpecs's kind of bug) shows here (QA.md
+     * round 3). */
+    {"car_descriptors, the car physics descriptors", "car_descriptors", 0, 6 * 0xB4, 1, 4},
     {"gTransStats..gFrameStats, the car select's stat factors", "gTransStats", 0, 0x1F0, 2, 4},
     /* Tables declared as one element, one row or bytes, which the game reads whole at wider widths (DATA.md 8):
      * the level objects' bodies and static states (all f32), the rumble thresholds (s32[36], walked by a

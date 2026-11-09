@@ -2,15 +2,7 @@
  * copy_tire_info()). Part of the car set-up (carsetup). */
 #include "game/game.h"
 
-/* A tire's constants in the car's physics descriptor (MAT3 anon_tradius_springK_18; _tCar.tires[i]). */
-typedef struct TireDesc {
-    f32 tradius;                /* +0x00 the radius, feet */
-    f32 springK;                /* +0x04 the tire's spring rate */
-    f32 rubdamp;                /* +0x08 the rubber's damping */
-    f32 cstiff;                 /* +0x0C the cornering stiffness */
-    f32 cfmax;                  /* +0x10 the most cornering force (a coefficient of friction) */
-    f32 invmi;                  /* +0x14 the inverse moment of inertia */
-} TireDesc;
+/* TireDesc (include/game/types.h): a tire's constants, which the car's physics descriptor's tires[] point at. */
 
 /* A tire in the model record (MAT3 anon_tradius_springK_5c; tModelData.tires[i]): the same six first. */
 typedef struct Tire {

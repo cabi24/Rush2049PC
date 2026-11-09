@@ -4095,6 +4095,7 @@ camera_nextSwitch = 0x801106B4; // type:data renamed
 FSCLS_from_one = 0x801106C0; // type:data renamed
 trackSpots = 0x801108B0; // type:data renamed
 steady_leg_duration = 0x801108C8; // type:data renamed
+car_descriptors = 0x801108D0; // type:data size:0x438 the six physics descriptors (MAT3 _tCar[6])
 gCarModels = 0x80110D08; // type:data renamed
 CarNames = 0x80110D3C; // type:data renamed
 CarTitles = 0x80110D70; // type:data renamed
