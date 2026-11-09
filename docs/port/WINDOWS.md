@@ -147,6 +147,12 @@ details differ:
 - nm shows a PE weak definition as `w`, as it shows an undefined weak reference. `n64syms.py` counts it as `W`
   when its `.weak.` body is in a section.
 - gen_weak skips the compiler's `.refptr.*` names.
+- A weak definition alone does not satisfy another object's reference: with no strong definition anywhere, ld
+  2.40 reports an undefined reference (`__attribute__((weak)) int f(void)` in one object, a call in another). So
+  port/ultra/defaults.c's weak no-op versions only ever give way to strong ones on Windows; a part that may be
+  missing defines its own fallbacks strongly. A build without SDL2 had no `pc_gfx_set_event_hook` and
+  `pc_gfx_window_closed` (gfx_sdl.c's) and failed to link port/app's netwait.c and netplay.c; port/gfx/gfx_api.c now
+  defines both without SDL2 (no window: -1, never closed), as the weak defaults behaved on Linux.
 
 **The rest of the generators.**
 
