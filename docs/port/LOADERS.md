@@ -10,7 +10,31 @@ has its own file in `port/assets/`. Tests: `port/assets/tests/`, run by ctest.
 Waves 22–37 (font textures), 54–119 (models, cars, tracks) and 120–138 (worlds, before `world.c` converts their own
 chunks).
 
-### The converter
+### Since 2026-11-09: native records beside the file
+
+[NATIVE.md](NATIVE.md) step 7 changed what follows: the converter no longer swaps the file's table of contents and
+record chunks in place. It reads them as the file has them (big-endian) and builds the four record chunks beside the
+file, native, MAT3's fields with host pointers (`struct pc_wad_records`: `struct tModelDef` with its `struct tLod`
+levels, `struct tTexture`, `struct tPaletteDef`, `struct tBasicTargetPath`; `port/include/pc_game_types.h`), kept by
+the file's heap block (`port/assets/records.c`). Where the N64's `SetupWaveModel` added the file's or IMAG's address
+to an offset in place, the converter makes the pointer: `displayList`, `vtxList` and `pts` into the file, `texBase`
+and `palBase` past IMAG (32-bit arithmetic, as the game's: a texture's load list lies before IMAG), `trigPtr` to the
+record of the same chunk it names (NULL for 0), `parent` NULL until `ResetPath` gives the path its target's record,
+and the file's word there kept as `key`. The PATH points are still swapped in place (the game reads them through
+`pts`); the display lists, texture loads, vertices and IMAG stay big-endian, and `SetupWaveModel` relocates the lists
+and texture loads in place with the N64 addresses of the file and of IMAG (until step 10). Every game view of the
+records went (the model draw, the texture, object and palette lookups, the blits, the fonts, the track map, the
+texture animation, the target paths, the car palettes, the effects' strides: 42 game files changed); `MBSetupWad`,
+`MBGetFromWad`, `MBOffsetWad`, `MBFindInWad` and `relocate_wave_model` are gone. The car palettes `car_palettes` are
+palette records to the model draw, so they are `struct tPaletteDef` too (own storage, 52 of them: a race's slots or
+the car select's 4 x 13), and so are the blits' own palettes `healthPal` and `n64FogPal` (they were `tBlitPalette`,
+the same layout). Messages: a chunk that doesn't fit the file gives no records ("... is outside the file: none"); a
+trigger that is no path record, a model with more than 4 levels, a display list that isn't an 8-aligned place in the
+file, a texture without IMAG say so.
+
+The rest of this section is the converter as it was written on 2026-10-27.
+
+### The converter (2026-10-27)
 
 In place, keeping every N64 record size (the game indexes records by hard-coded strides):
 
@@ -96,18 +120,21 @@ descriptor's block is then native, which port/gfx reads natively because it isn'
 ### Tests
 
 - **`assets_wad`** (`tests/test_wad.c`). The converter on a synthetic big-endian WAD (`tests/wad_build.h`), built
-  from the format as the game's code reads it. It checks:
-  - every field comes out native, with shared path points swapped once;
-  - the payload is untouched and registered;
-  - each release path drops the registration (one wave, the heap free, a sub-heap, a stale block);
-  - non-WADs and oversized chunks are left alone.
+  from the format as the game's code reads it. It checks (since NATIVE.md step 7, no window):
+  - every record field comes out native beside the file, its pointers into the file (past IMAG for the texels and
+    colours) or to the trigger's record, with shared path points swapped once in the file;
+  - the file's table of contents, records and payload are untouched, and the payload registered;
+  - each release path drops the registration and the records (one wave, the heap free, a sub-heap, a stale block);
+  - a world WAD keeps its WAD's records beside its world's; a missing chunk gives NULL and 0, as `MBGetFromWad` did;
+  - non-WADs, oversized chunks, a trigger that is no record and a model with 7 levels.
 - **`assets_wad_game`** (`tests/wad_game.c`). The game's own code, built with the game flags, over the same WAD in
   an RDRAM window the test maps at 0x80000000. It exits 77 (skipped) if it can't map it. The test:
   - loads the WAD through `_ReadWave` (a PI DMA from a synthetic cartridge, then the conversion and
     `SetupWaveModel`);
-  - checks the relocated tables and records, the TXLD rebase, the display-list relocation and LOD conditionals (one
-    player and two), the vertex pass, and the mirror pass with its winding flips through a call and a branch;
-  - checks `MBOX_FindTexture_Sub` and `MBOffsetWad` over a moved copy;
+  - checks the tables (the WAD's native records since NATIVE.md step 7), the TXLD rebase, the display-list relocation
+    and LOD conditionals (one player and two), the vertex pass, and the mirror pass with its winding flips through a
+    call and a branch;
+  - checks `MBOX_FindTexture_Sub` (and, until step 7, `MBOffsetWad` over a moved copy);
   - runs the texture animation: set-up with `MBOX_FindPalette_WORK`, then one update (a light sequence, a texture
     scroll, flip-books on a TXLD and a texel texture).
 
@@ -144,14 +171,15 @@ was to be looked at:
   No release call is needed there: the heap free reports the block.
 - **`ovl_a/groups/trackscr/trackscr.c`**: the `MapLod` view of the OBHD LOD (`u32 *displayList; void
   *verts;`) needs u32 fields under `TARGET_PC`. The records are struct-copied to and from `saved_map_lods`/`mapObj`,
-  which then take the N64 size. The heap addresses stored there fit in u32.
+  which then take the N64 size. The heap addresses stored there fit in u32. (Done otherwise since NATIVE.md step 7:
+  `mapObj` and `saved_map_lods` are `struct tLod`, own storage, copied whole into the native records.)
 
 **Record pointers kept in game structs.** The scene nodes (`ZOID_SetTexture`, `AnimateFlag`'s palette), the
 blits and the sprite list now keep texture and palette pointers whole, in one host layout (POINTERS.md 9). Left:
 - **Overlay B's health palettes** `healthPal` have a palette record's shape but point at game data (`healthColor`).
   Since [NATIVE.md](NATIVE.md) step 4 they and the track select's fog palette `n64FogPal` are `tBlitPalette`
-  records (own storage, `palBase` a pointer), which the blit draw reads as such; the WAD's PLHD records keep the N64
-  layout until step 7.
+  records (own storage, `palBase` a pointer), which the blit draw reads as such; since step 7 the WAD's PLHD records
+  are native too, and all of them are one type, `struct tPaletteDef`.
 
 ## Text bank, font data, world, road and paths (2026-10-27)
 
@@ -164,7 +192,7 @@ leaves a file that doesn't as it is (with a message): a bogus file is not half c
 | Format | Waves | Converter | Game edits under `TARGET_PC` |
 |---|---|---|---|
 | Text bank | 0–5 | swap: six u32 counts, the three u32 offset tables, the three u16 tables (padded to even counts); then the bank's `struct TextTables` beside the file (since 2026-11-09, [NATIVE.md](NATIVE.md) step 8) | `AdjustTextWavePointers` (`_AdjustTextWavePointers`) copies the bank's tables into gText (`pc_text_bank`): the offsets stay in the file, and gText's three pointer sections are native `char *` tables. The 19 reader files whose views of gText or its string table assumed N64 offsets got host ones (below), and since wave 2 every reader uses the one declaration |
-| Font data | 38–53 | none (all bytes); checks the letters and kern table fit | the 12-byte letter keeps its 4-byte kern slot as a u32 window address in `SetupFontData` (writer), `_DrawText`, `HAL_GetTextWidth`, `HAL_GetCharWidth`; `SetupFontData` reads the u32 heap handle slot |
+| Font data | 38–53 | none (all bytes); checks the letters and kern table fit; since 2026-11-09 ([NATIVE.md](NATIVE.md) step 7) builds the letters beside the file (`struct FontLetter`, 0x10, its kerning row a pointer into a copy of the table), kept with the block as the heap moves it | until step 7 the 12-byte letter kept its 4-byte kern slot as a u32 window address in `SetupFontData` (writer), `_DrawText`, `HAL_GetTextWidth`, `HAL_GetCharWidth`; since, `SetupFontData` takes the converter's letters (`pc_font_letters`) and the readers read `kerns` as the pointer it is |
 | World WAD | 120–138 | swap WHDR (count, offsets), WOBJ (0x68-byte nodes), GDAT (0x1C), GTLD (u32 keys). Chunks are found through the WAD TOC in either byte order; then the world's records beside the file (`struct pc_world_records`: the name table with host pointers to the roots, GDAT, GTLD's keys with room for their targets; since 2026-11-09) | `LoadTrack` points the world's globals at the records (`pc_world_records`) instead of finding the chunks with `MBSetupWad`/`MBGetFromWad` and relocating the names; `NewWorld` bsearches the native `NameEntry` table (24 bytes, `node` a pointer); its comparator `world_name_compare` takes the name and an entry and returns its result |
 | Road | 139–157 | swap by section; vlist and slist stay bytes | `ResetCollisionObject`'s save-record cursor is `intptr_t` |
 | Path | 158–182 | swap the checkpoint block, the resurrection, alternative and drone path headers and points (drone mph and hints stay bytes); then the headers decoded beside the file (`struct pc_path_records`, the points host pointers into it; since 2026-11-09) | `ReadPathData` copies the decoded headers into the native `gResPath`/`gDronePaths`, the alternative paths into its own array; eleven reader files got host offsets or strides (below) |

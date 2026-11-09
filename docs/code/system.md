@@ -137,11 +137,15 @@ handle, wave, size, ptr, lastPtr):
   background loader (`_BGLoadWave` -> `BGLoadWaveMain`, which waits on `bg_load_request_queue` and signals
   `bg_load_idle_queue`).
 - `ReadWave` (waves/waves.c) DMAs or decompresses the file (`wave_rom_read`, `lzss_decompress`,
-  `inflate_decompress`, one at a time under the decompression lock), then `SetupWaveModel`: for a model WAD
-  (`MBSetupWad`, `MBGetFromWad`: tags OBHD, TXHD, PLHD, PTHD, TXLD, IMAG) the model, texture and palette tables
-  (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`), rebased to the block, and each model's display lists relocated
-  (`relocate_model_dl`, keeping the sections for the player count and the track's direction) and mirrored for a
-  mirrored track (`MirrorWaveInstance`).
+  `inflate_decompress`, one at a time under the decompression lock), has the PC layer convert it
+  (`pc_wave_loaded`: port/assets), then `SetupWaveModel`: for a model WAD the model, texture and palette tables
+  (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`; a track's target paths `gTargetPaths`) point at the WAD's records,
+  which its converter built beside the file (`pc_wad_records`: OBHD, TXHD, PLHD, PTHD; on the N64 `MBSetupWad` and
+  `MBGetFromWad` rebased the file's own records in place), the texture loads (TXLD) are relocated to the texels
+  (IMAG), and each model's display lists relocated (`relocate_model_dl`, keeping the sections for the player count
+  and the track's direction) and mirrored for a mirrored track (`MirrorWaveInstance`). The converters' records go
+  with the block when the heap frees it, and follow it when the heap moves it (the font data, a handle:
+  `pc_heap_block_moved`; port/assets/records.c).
 - `InitWaves` frees every unlocked wave between states; `LockWaveInstance` keeps one (the fonts); `UnloadWaveAll`
   frees every instance of a wave; `ReplaceWave` reads another wave into an instance's block.
 
@@ -184,12 +188,13 @@ same input.
 
 - **The heap** is native since [NATIVE.md](../port/NATIVE.md) step 6 (its headers, its interface and the image block),
   but its memory is still the N64's place in the RDRAM window (`pc_heap_memory`) until step 12, and what the game
-  keeps in its blocks may still hold 32-bit addresses (the WAD records, a ghost header's start, a car palette's data:
-  steps 7 and 11). Every heap file still declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its
-  own way.
-- **The WADs and model data** stay in the N64's form: big-endian display lists with 32-bit addresses
-  (`relocate_model_dl`, `display_list_traverse`, `mirror_vertex_texcoords` read them through `pc_be32_get` ...),
-  tables with 32-bit addresses (`WadEntry.address`, `MBGetFromWad` returns a u32).
+  keeps in its blocks may still hold 32-bit addresses (a ghost header's start: step 11; the display lists' relocated
+  words: step 10). The WAD's records and the font's letters are native beside the file since step 7. Every heap file
+  still declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
+- **The WADs' display lists and texture loads** stay in the N64's form: big-endian commands with 32-bit addresses
+  (`relocate_model_dl`, `relocate_texture_loads`, `display_list_traverse`, `mirror_vertex_texcoords` read them through
+  `pc_be32_get` ...), relocated with the N64 addresses of the file and its IMAG chunk (NATIVE.md step 10). Their
+  records are native (step 7).
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
   the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`), still in the window; `frame_color_buffers`
   is a label 0xC8 bytes into `frame_records`.
@@ -202,5 +207,5 @@ same input.
 - **gPlayers** has no shared declaration: each file declares it with its own type (InitOptions.c defines it).
   `tPadState` (types.h) is the record; the 67 files that read it could use it once the header declares it.
 - Dead code the PC links but never calls: `InitGraphics`, `InitGfx`, `UpdateGraphics`, `unload_start_overlay`,
-  `relocate_wave_model`, `pak_set_error_func`, `pak_shutdown`, `audio_user`, the ordered list's `InitBST`,
+  `pak_set_error_func`, `pak_shutdown`, `audio_user`, the ordered list's `InitBST`,
   `ClearBST`, `WalkBST` (audiomgr_thread.c has its own clear and walk because a test links it without them).

@@ -468,7 +468,13 @@ them (after step 3, which edits `targets/group.c` and `initTargetStructs.c`, and
 and 8. Risk: the allocator's arithmetic must come out the same with pointers (the 32-byte header, the 64 bytes
 before the first chunk, alignment from a block 64 KiB aligned); the save code's views of the heap.
 
-### Step 7. The WAD's records native (large)
+### Step 7. The WAD's records native (large): done
+
+Done 2026-11-09 (wave 3.3): what changed, the crossings before and after, the proof and what it changes for the
+later steps are section 13. In short: the WAD's converter builds the OBHD, TXHD, PLHD and PTHD records beside the file,
+MAT3's fields with host pointers, and the game reads only those (one declaration each, in `pc_game_types.h`); the
+font's converter builds its letters; a path target's record names its path by index; the car palettes and the
+blits' palettes are the WAD's palette record. The plan was:
 
 4.4 for the records: OBHD, TXHD, PLHD, PTHD (and the PATH points they reach) built native by `port/assets/wad.c`;
 the relocation of `SetupWaveModel` (`waves.c`), `MBSetupWad.c`, `MBOffsetWad.c`, `MBGetFromWad.c` moved into the
@@ -1200,3 +1206,104 @@ now with the block's pointer.
 - `heap.allocate_at` in the census counts the overlay loader's call of `allocate_memory_at`, which now takes the
   block's pointer: the kind stays at 1 while the heap reserves the images' block. `port/assets/tests/support.h`'s
   `TEST_N64_game_bss_end` is unused (left to spare step 5's edits of the test windows a conflict).
+
+## 13. Step 7: the WAD's records native (done 2026-11-09)
+
+Wave 3.3's step 7: the game reads the model WADs' records (OBHD, TXHD, PLHD, PTHD) and the fonts' letters as native
+records the converters build beside the file, MAT3's fields with host pointers, one declaration each; it no longer
+rebases a file's records in place. Three commits: the records and their readers, the audit's baseline, the documents.
+
+| What | Before | After |
+|---|---|---|
+| a WAD's records (`port/assets/wad.c`) | swapped in place in the file, the N64's sizes (0x58, 0x24, 0x18, 0x24) with 32-bit offsets, which `SetupWaveModel` rebased in place to window addresses (`MBSetupWad`'s table, `MBGetFromWad`, `+= (u32)base`; `MBOffsetWad` for a moved handle) | built beside the file when it loads, `struct pc_wad_records` (`pc_game_types.h`): `struct tModelDef` (0x78, its four `struct tLod` of 0x18), `struct tTexture` (0x28), `struct tPaletteDef` (0x20), `struct tBasicTargetPath` (0x38), MAT3's fields in MAT3's order, host pointers into the file (display lists, vertices, points; texels and colours past IMAG in 32-bit arithmetic) or to the trigger's record; kept by the file's heap block (`records.c`). The file's table of contents and record chunks stay as the file has them (big-endian); the PATH points are swapped in place, as before |
+| `SetupWaveModel` (`waves.c`) | the four tag lookups and rebases, `lastPtr` for `MBOffsetWad` | the tables from `pc_wad_records(file)`; it relocates only the texture loads and the display lists, in the file, in the N64's form, with the file's and IMAG's N64 addresses (`PC_N64A`: step 10's) |
+| `MBSetupWad`, `MBGetFromWad`, `MBOffsetWad`, `MBFindInWad`, `relocate_wave_model`, `WadHandle`/`WadEntry`/`WadFileHeader`, `WADP`, `PART_DL` | the N64's WAD functions and types | gone (`relocate_wave_model`, `SetupWaveModel` with `first` clear, had no caller; a model WAD is never a handle) |
+| the records' views | 42 game files read them through views of their own: `tTexture` of 36 bytes or its first fields (the blits, the fonts, the track map, the effects' strides), `tModelDef` of 88 (`LodDef`, `Part`, `MapLod`, `RomObjDef`), `Palette`, `Resource24`, `Resource32`, `tPalette`, `Texture`, `TexDef`, three `tBasicTargetPath`s, `TargetPath`/`PathData` (TargetCollTrigger) | every one reads the shared type; the strides (36, 24, 88) are the types' |
+| the track map's levels (`trackscr.c`) | `mapObj`, `saved_map_lods`: `MapLod`, 0x10 with two u32 pointers, in overlay A's arena | `tLod` (0x18), own storage (BSS, cleared on the image's load as before); copied whole into and out of the map models' records |
+| the car palettes `car_palettes` | `CarPalette` in the PLHD layout (24 bytes, `data` a u32 window address: `PC_N64A` stored, `PC_N64P` read in five files), in the game arena, declared `EXTENT(1)` | `tPaletteDef` (MAT3's palette record, `palBase` a pointer), own storage of 52: a race's slots or the car select's 4 players x 13 cars (the N64's range to `gRealEdges`, as `gCarParts` and `gCarPaintJobInited`; with 12 the car select faulted) |
+| the blits' palettes `healthPal`, `n64FogPal` | `tBlitPalette` (step 4's, the native layout already) | `tPaletteDef`: the WAD's type |
+| the TLUT cache `zoid_current_tlut` | `s32`, compared with a palette's u32 word | `void *` (own storage) |
+| a path target's record (`tTargetStructPath`, a heap record of `gTargetStructSizes[4]` = 0x48 bytes) | `pathData`, the PTHD record's window address (`PC_N64W` stored, `PC_N64P` read in 4 files) | `pathIdx`, the path's index (`TARGET_PATH`, track.h): the heap's accounting keeps the record's size (section 10) |
+| a PTHD record's `parent` | the key the world's target groups know the path by, until `ResetPath` wrote the target's record's address over it | `parent` the record (NULL until set), `key` the file's word, which `SetupTarget` gives the target. On the N64 a restart's `SetupTarget` read the record's address as the key: only `SetTargetDefs`' group search reads a target's key, and a restart skips it |
+| a path's trigger (`trigPtr`) | the file's offset plus the file's address: 0 became the file's own address | the record of the same chunk it names; NULL for 0 (rush2049pc_assetcheck checks that every path whose trigger the game reads has one) |
+| a font's letters (`port/assets/font.c`, `SetupFontData`) | the file's 12-byte letters, the first word a slot `SetupFontData` filled with the kerning row's window address (`FONT_SLOT` = `PC_N64A`; `PC_N64P` in the text draw and `HAL_GetTextWidth`), again whenever the heap moved the file | `struct FontLetter` (0x10) built beside the file with a copy of the kerning table, `kerns` a pointer to its row (`pc_font_letters`); nothing written into the file |
+| a handle's block moved by the heap (`ClearMemoryHeap`, `heap_move_block_low`) | the converters' records were kept by the old block and dropped when it was freed | `pc_heap_block_moved(from, to, size)` (heap.h, `assets.c`): the records follow the block (`records.c`); only the font data is a handle, and its letters hold no pointer into it |
+| `records.c` | a file's records of one kind | a file may have two kinds (a world WAD: its WAD's and its world's): a keep drops what an earlier file left in the memory, not the same block's other kind |
+| the texture animation's flipbooks | a frame's image copied as a 32-bit word between a texture's `texBase` and a load list's `G_SETTIMG` | the same in the fixed build; a texel frame's pointer goes into a list as `PC_N64A` of it (`FRAME_IMAGE_IN_LIST`), so the moved build writes the window address and not a cut host pointer |
+
+**The crossings** (`crossings.py --guard`, the 64 synthetic paths; 6543cff7 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 22 | 444,726 | 9 | 119,224 | `waves.c`'s record lookups and rebases (137, 138, 139, 141, 145, 157: 68,676), `MBSetupWad.c:24` (8,655), the car palettes' word (`AnimateBrakeLights.c` 237,007, `SetupCarColor.c` 13,176, `car_palette_init.c` 6,250, `startcar.c` 338), `InitTextureAnimation.c` (55) |
+| `PC_N64A` | 9 | 113,513 | 3 | 8,790 | `MBSetupWad.c` (24, 25, 28: 56,598), `waves.c`'s rebases (155, 156, 157: 50,064), `car_palette_init.c:36` (6,716); new: `waves.c:93`, the file's N64 address for the display lists' relocation, once a wave (8,655; step 10's) |
+| the other twelve kinds | 16 | 30,004,733 | 16 | 30,004,733 | none |
+| total | 47 | 30,562,972 | 28 | 30,132,747 | 19 sites, 430,225 crossings |
+
+No crossing went to the arenas or the image block (none did before), and the guard
+(`RUSH2049_WINDOW_GUARD=arenas,count`) found 0 faults at 0 instructions before and after; each of the 128 runs ended
+as its script expects, every guarded run's trace its plain run's. `--check --no-faults --zero-site` passes for each of
+the step's 41 game files but `waves.c` (whose one site is the display lists' relocation, step 10), and for
+`MBSetupWad.c`, `wad.c`, `font.c` and `records.c`; the control, `UpdateListeners.c` (step 9's listeners), fails. The
+synthetic cartridge's WADs have no texture loads (TXLD), no track paths (PTHD) and no flipbook of two kinds, so the
+texture loads' relocation (`PC_N64A` of IMAG, `waves.c:91`), the path targets and `FRAME_IMAGE_IN_LIST` make no
+crossing here; the tests run them (`assets_wad_game`, `assets_targets`), and the lead's retail scripts.
+
+**The census** (`window_census.py`, the counting builds, with the compiler pass; 6543cff7 before): `conv.PC_N64P.game`
+34 to 6, `conv.PC_N64A.game` 18 to 8, `conv.PC_N64W.game` 22 to 20, `conv.file_macros.defs` and `uses` 16 and 38 to 7
+and 22, `conv.cc.implicit` 28 to 13, `conv.cc.ptr_to_int` 29 to 28, `fields.link_enum` 15 to 14, `link_enum_types` 3 to
+2, `fields.u32_address` 25 to 2 (the two left: a frame record's colour buffer and a ghost's start, step 11),
+`api.u32_address` 5 to 4 (the WAD's API gone), `n64map.uses.port` 118 to 116, `port.rdram_base` 47 to 46,
+`tests.window` 65 to 63, `text.window.game` 116 to 83, `context.lit_bit.game` 19 to 17; up: `conv.silent.trunc` 2 to 3
+and `conv.silent.zext` 14 to 15 (the texture animation's frame images in a load list's N64 form, explicit casts where
+the compiler converted silently before: `conv.cc.implicit` fell by 15), `context.own` 397 to 401 (`car_palettes`,
+`zoid_current_tlut`, `mapObj`, `saved_map_lods`).
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3c-ref --skip realtime --data-moved` (Rocky, Debug, against 6543cff7) | PASS: ctest 575 of 575, synth_compare `--same --shots --audio` 64 of 64 `same` |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 64 of 64 `same` |
+| `ctest --test-dir build/opt -LE realtime` | 575 of 575 (`assets_rom` skipped) |
+| the whole Debug ctest before the gate (`-LE realtime`) | 575 of 575 (`assets_rom` skipped: no ROM on Rocky) |
+| the counting build (`crossings.py --guard`, 128 runs) | every run as its script expects, every guarded run's trace its plain run's; 0 faults; the zero checks above |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_rom`, `pc_data_synthetic`, `synth_.*`), and against the fixed build (`synth_compare.py --runs 1 --same`) | builds; 94 of 94; 64 of 64 `same` |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, as before) |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; none new |
+| `census.py` | 1,067 of 1,067 compile (the four WAD functions' files deleted) |
+| `nofixed_audit.py --baseline` | no class grew past the baseline, which this step raised for `symbols.own` (397 to 401: the four own storages above), `src.trunc` (2 to 3) and `src.zext` (14 to 15: the base had 15 already, `AudioInitSys.c:62` from 02c32122; this step swaps `MBSetupWad.c:9` for the texture animation's frame image), and lowered for the classes it moved (`cc.implicit.int_to_ptr` 18 to 5, `cc.implicit.ptr_to_int` 66 to 8, `src.n64p` 6 to 5, `src.n64w` 23 to 21, `src.def.translate` 10 to 3 ...: the commit lists each) |
+| the game C's pointer/integer warnings (every game unit compiled again with `-Wint-conversion -Wincompatible-pointer-types`, the base's against the step's) | none new; 25 of the base's gone (the records' views, `MBSetupWad`, the font slot, the track map's `u32` fields, the opaque `TexDef`/`Texture` views) |
+| boot without a ROM (CI's) | reaches wave 0 and stops where the base stops (`DrawNoControllers` on the blank cartridge), with the same wave loads |
+| the loader's tables (`data.c`, `data_layout.json`) | the base's but for the four symbols now own storage (`gen_data --check`: 1,626 in the arenas' blocks, 401 own); the loader's summary line counts them (`--data-moved`) |
+| `assets_wad`, `assets_wad_game`, `assets_font`, `assets_targets`, `assets_cars`, `assets_endian`, `assets_fxcars`, `assets_mods`, `assets_dispatch`, `assets_world`, `hash_aslr`, `replay_same_*`, `net_session_*` | pass |
+
+**What this changes for the later steps.**
+
+- **Step 10 (the display lists) starts from the records.** A level of detail's `displayList` and a listed texture's
+  `texBase` (no `TEX_IMAGE_DIRECT`) are host pointers to lists in the file in the N64's form; when step 10's converter
+  builds the native lists it can point the records at them as it builds both (one pass over the file).
+  `SetupWaveModel` keeps the two N64 addresses the lists' relocation needs (`PC_N64A` of the file and of IMAG, once a
+  wave), and the texture animation two places that move an image between a record and a list's `G_SETTIMG`: a listed
+  frame's image is the N64 word its own list had (`displaylist_get_texture_image`, kept in a pointer), and a texel
+  frame's is written into a list as `PC_N64A` of its pointer (`FRAME_IMAGE_IN_LIST`). Native lists make both plain
+  pointers. The track map's own lists, which it puts into its models' first level, are native already.
+- **Step 11 has less.** The car palettes (`car_palette_init.c`, `SetupCarColor.c`, `startcar.c`,
+  `AnimateBrakeLights.c`), the font's kerning rows (`HAL_GetTextWidth.c`, `hal_text/drawtext.c`) and the track map's
+  levels (`trackscr.c`) hold pointers now; what step 11 has of those files is their other holders.
+- **The native records are in no hashed region.** The state hash covered the WAD's records as heap bytes (the window);
+  the converters' records live in host memory the hash doesn't walk (as step 8's do). What changes in them during a
+  race is a path's flags, its target's record, a texture's `texBase` (the flipbooks) and a level's texture (sparks:
+  `ZOID_ChangeTexture`); the targets' positions and records, which follow from the paths, are hashed (the target
+  nodes, the heap). The tables that point at the records (`gRomObjDefPtrs` ...: own storage) hash them as "a heap
+  pointer", without the address. `hash_aslr` passes. A later step can hash the records as the curated regions are
+  (records.c knows them all).
+- **No heap block holds a pointer to a native record**: a path target's record names its path by index; every other
+  holder (the scene nodes, the blits' list, the font textures, the wheel textures, the flipbook frames) is own storage
+  with typed pointers or PC data.
+- **Step 12**: the records' pointers into the file are host pointers already; when the heap leaves the window nothing in
+  them changes. A model WAD loaded as a handle (none is) would need its records' pointers moved with it
+  (`pc_records_move` only re-keys: the font's letters have no pointer into their block).
+- `SetupWaveModel`'s `first` stays (MAT3's) and is always 1; `gWaveInstance[].lastPtr` is unused.
+- The census's WAD rules (`WADP`, `MBGetFromWad`) find nothing left; `fields.u32_address` and `api.u32_address` are
+  down to steps 9-11's.

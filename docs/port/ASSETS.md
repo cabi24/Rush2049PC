@@ -177,6 +177,20 @@ Model handle = `(waveSlot << 10) | index` (`zoid_draw_object` 0x8009C8F0, really
 `groups/zoid_draw/group.c:838`). The per-slot `{pointer, count}` tables are `gRomObjDefPtrs` 0x801161F4,
 `gTexDefPtrs` 0x80151AE8, `gPalDefPtrs` 0x80138670 and `gTargetPaths` 0x801392D0 (one pair).
 
+**On the PC** (since [NATIVE.md](NATIVE.md) step 7) the tables above are what the N64 did. The WAD's converter
+(`port/assets/wad.c`) builds the four record chunks beside the file when it loads, native, MAT3's fields with host
+pointers where the file has offsets (`port/include/pc_game_types.h`): `struct tModelDef` (0x78, its four `struct tLod`
+0x18 each: `displayList` and `vtxList` pointers into the file for the levels below `lodCount`, NULL past it),
+`struct tTexture` (0x28: `texBase` IMAG's offset plus the record's in 32 bits, in the file), `struct tPaletteDef`
+(0x20: `palBase` in the file past IMAG), `struct tBasicTargetPath` (0x38: `trigPtr` the record of the same chunk it
+names, NULL for 0; `pts` in the file; `parent` the target's record once `ResetPath` sets it; `key` the file's word in
+`parent`'s place). `SetupWaveModel` points the tables at them (`pc_wad_records`) and relocates only the display lists
+and the texture loads, in the file, in the N64's form (step 10). The file's table of contents and record chunks stay
+as the file has them, big-endian; the PATH points are swapped in place, as the game reads them through `pts`. The
+records are kept by the file's heap block (`port/assets/records.c`) and go with it. `MBSetupWad`, `MBGetFromWad`,
+`MBOffsetWad` and `MBFindInWad` are gone, and `relocate_wave_model` (`SetupWaveModel` with `first` clear, for a moved
+handle WAD, which no model WAD is) with them.
+
 ### 3.2 Display-list relocation and the post-load passes
 
 | Function | Address | What it does to the loaded file | Tag |
@@ -283,6 +297,12 @@ map reads the same waves (§2.3).
 - No byte swapping is needed. The 12-byte letter is declared `{u8 *ptr; u8 id; u8 pad[7]}` (`:108`), so the slot
   must stay 4 bytes.
 - The textures are TXHD of the font WAD wave: `gFontTextures[i] = texDefs + i * 36` (`:148`).
+- **On the PC** (since [NATIVE.md](NATIVE.md) step 7) the font's converter (`port/assets/font.c`) builds the letters
+  beside the file when it loads (`struct FontLetter`, 0x10, `pc_game_types.h`), with a copy of the kerning table and
+  each letter's `kerns` a pointer to its row; `SetupFontData` takes them (`pc_font_letters`) and writes nothing into
+  the file. The font data is a handle the heap's compaction may move: the letters are kept by the block and follow it
+  (`pc_heap_block_moved`, called by `ClearMemoryHeap` and `heap_move_block_low`), and hold no pointer into it.
+  `gFontTextures[i]` is `&texDefs[i]`.
 
 ### 3.8 MusyX sound data (waves 6–8, 10–21; samples in ROM)
 
@@ -315,10 +335,10 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 
 | # | Site | Assumption | PC fix |
 |---|---|---|---|
-| 1 | `MBSetupWad.c:35-41` | TOC word replaced by the absolute address; "relocated" means bit 31 set; `offset += (u32)header` | heap in the window; swap the TOC first |
-| 2 | `MBOffsetWad.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | keep the handle three 32-bit words, or rewrite with fields |
-| 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | window |
-| 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | window; u32 fields |
+| 1 | `MBSetupWad.c:35-41` | TOC word replaced by the absolute address; "relocated" means bit 31 set; `offset += (u32)header` | done: the converter reads the TOC and builds the records beside the file; `MBSetupWad` is gone ([NATIVE.md](NATIVE.md) step 7) |
+| 2 | `MBOffsetWad.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | done: gone (a moved handle's records follow the block, `pc_heap_block_moved`) |
+| 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | done: `struct pc_wad_records`' pointers; the display-list relocation still takes IMAG's and the file's N64 addresses (step 10) |
+| 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | done: the converter's pointers; `lastPtr` unused |
 | 5 | `waves.c:163`, `slot_sound/group.c:127` vs `memsys/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
 | 6 | `relocate_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | window (RDRAM ≤ 16 MB); BE32 accessors |
 | 7 | `relocate_texture_loads.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | BE32; keep its local `Gfx` 8 bytes even after the `TARGET_PC` widening of `Gfx` |
@@ -330,14 +350,14 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | done: `NameEntry` is the native table's entry (`pc_game_types.h`, 24 bytes, `node` a pointer), and the bsearch's stride is its size |
 | 14 | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | done: a native side table, `struct pc_target_group` (`pc_game_types.h`: each key and the target `SetTargetDefs` finds for it, NULL none), which the world's converter (`port/assets/world.c`) builds from the file's keys when the file loads (NATIVE.md step 8; step 3 made it a side table); `CheckTargetCollision` reads `gTargetGroupList[i].target` (NATIVE.md step 3) |
 | 15 | `AdjustTextWavePointers.c:61-70` + 17 readers | text offsets `+= (u32)base`, read as `char **` | done: one `struct TextTables` (`pc_game_types.h`) that every reader uses; the converter builds the bank's tables beside the file when it loads, the string tables native `char *` arrays, and `AdjustTextWavePointers` copies them into `gText` (NATIVE.md step 8) |
-| 16 | `slot_sound/group.c:108, 135` | 12-byte font letter with a pointer written in place | u32 slot |
-| 17 | `slot_sound/group.c:148` (and its 3 copies), `StartSmoke.c:300` | TXHD stride `+ i * 36`; `gFontTextures[]` holds pointers as s32 | TXHD stays 0x24, pointer fields u32 |
-| 18 | `ZOID_FindObjInstance.c:14` | OBHD stride `* 88` | OBHD stays 0x58 |
-| 19 | `MBOX_GetObjectRadius.c:3704` | `(u8 *)&gRomObjDefPtrs + idx * 8` (the pair is 8 B); `slot_sound/group.c:109` declares the pairs `{s32 first; s32 second}` | pair tables keep a u32 pointer |
-| 20 | `zoid_draw/group.c:544-556` | OBHD overlaid as `LodSet`/`LodLevel`: levels start at +0x14 with stride 0x10, `Gfx *dl` | u32 `dl` |
-| 21 | `trackscr/trackscr.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`saved_map_lods`) | u32 fields |
+| 16 | `slot_sound/group.c:108, 135` | 12-byte font letter with a pointer written in place | done: native letters beside the file, `kerns` a pointer (`struct FontLetter`, NATIVE.md step 7) |
+| 17 | `slot_sound/group.c:148` (and its 3 copies), `StartSmoke.c:300` | TXHD stride `+ i * 36`; `gFontTextures[]` holds pointers as s32 | done: `struct tTexture` records, indexed by type; every 36-byte view gone |
+| 18 | `ZOID_FindObjInstance.c:14` | OBHD stride `* 88` | done: `struct tModelDef` |
+| 19 | `MBOX_GetObjectRadius.c:3704` | `(u8 *)&gRomObjDefPtrs + idx * 8` (the pair is 8 B); `slot_sound/group.c:109` declares the pairs `{s32 first; s32 second}` | done: the typed tables (`ModelDefTable` ...) |
+| 20 | `zoid_draw/group.c:544-556` | OBHD overlaid as `LodSet`/`LodLevel`: levels start at +0x14 with stride 0x10, `Gfx *dl` | done: `struct tLod` |
+| 21 | `trackscr/trackscr.c:264-265` | `MapLod` 0x10 with two pointers; whole records saved and restored (`saved_map_lods`) | done: `mapObj` and `saved_map_lods` are `struct tLod` (own storage), copied whole into and out of the native records |
 | 22 | `ReadPathData.c:75, 96, 100` | `memcpy` of 16 B / 8 B file headers into structs with pointers; `AltPath.pts` written in place | done: the path converter decodes the headers beside the file when it loads (`struct pc_path_records`, the points host pointers into the file) and `ReadPathData` copies them into the track's paths, the branches into its own array (NATIVE.md step 8) |
-| 23 | `targets/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)gTargetPaths + offset` | u32 fields |
+| 23 | `targets/group.c:59-67, 406` | PTHD as `Scene36` (0x24) with `Resource68 *resources`; byte-offset indexing `(u8 *)gTargetPaths + offset` | done: `struct tBasicTargetPath` indexed by type; a path target's record (a heap record of the N64's 72 bytes) names its path by index (`pathIdx`) |
 | 24 | `sound_add_sample`, `sound_sample_record.h` | `SampleRecord.data` (`void *`, 0x1C record) set in place to a cart address | done: u32 under `TARGET_PC` (MUSYX_DATA.md §4) |
 | 25 | `sound_hw_translate_address`, `sound_hw_set_voice_sample` (`hardware.c`) | address class by the top byte (0x80 RAM, 0xB0 cart) | cart addresses stay 32-bit; host pointers (≥ 4 GiB) count as RAM |
 | 26 | `sound_seq_start`, `sound_seq_play_tracks` (`sequencer.c`) | song offsets `+ (u32)arr` | window |
@@ -354,10 +374,10 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Format | Waves | Strategy | Fields | Game edits under `TARGET_PC` |
 |---|---|---|---|---|
 | WAD TOC | 22–37, 54–138 | swap | header 2 × u32, entries 3 × u32 | §4 #1–3 |
-| OBHD | WADs | swap | 0x10 (32), 0x14/0x16 (16), LODs 16/16/32/32/32 | u32 `displayList`/`vtxList` in `waves.c:59-72`, `zoid_draw/group.c:544`, `trackscr/trackscr.c:264` and the other OBHD readers (13 files) |
-| TXHD | WADs | swap | 16 at 0x10, 0x12, 0x16; 32 at 0x18, 0x1C, 0x20 | u32 `texBase`/`image` (25 files) |
-| PLHD | WADs | swap | 16 at 0x12; 32 at 0x14 | u32 `palBase`/`table` (4 files) |
-| PTHD + PATH points | 101–119 | swap | §3.1 | u32 `pts`/`trigPtr`/`parent`/`resources` (2 files) |
+| OBHD | WADs | side: done since NATIVE.md step 7 (before: swap in place, u32 pointer fields) | 0x10 (32), 0x14/0x16 (16), LODs 16/16/32/32/32 | `struct tModelDef` in every reader |
+| TXHD | WADs | side: done since NATIVE.md step 7 (before: swap) | 16 at 0x10, 0x12, 0x16; 32 at 0x18, 0x1C, 0x20 | `struct tTexture` in every reader |
+| PLHD | WADs | side: done since NATIVE.md step 7 (before: swap) | 16 at 0x12; 32 at 0x14 | `struct tPaletteDef` in every reader, the car palettes too |
+| PTHD + PATH points | 101–119 | side (the records) and swap (the points): done since NATIVE.md step 7 | §3.1 | `struct tBasicTargetPath`; a path target's record names its path by index |
 | TXLD, OBJS DLs, Vtx, IMAG texels and TLUTs | WADs | BE | none; register the buffer | §4 #6–11 (about 12 functions) |
 | WHDR | 120–138 | swap + side: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)): the name table native beside the file | u32 count, u32 woff | §4 #12–13 |
 | World nodes (WOBJ) | 120–138 | swap: done | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
@@ -366,7 +386,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | Road | 139–157 | swap: done, `port/assets/road.c` | §3.5 | none |
 | Path | 158–182 | swap + side: done, `port/assets/path.c`: the headers decoded beside the file, which ReadPathData copies | §3.6 | §4 #22 |
 | Text bank | 0–5 | swap + side: done, `port/assets/text.c` ([LOADERS.md](LOADERS.md)): the bank's `TextTables` built beside the file | counts u32, offset tables u32, tables u16 | §4 #15 (17 files); redone by the converter after `ReplaceWave` |
-| Font data | 38–53 | none: done, `port/assets/font.c` (needs `waves.c` to read handle slots as u32) | only the 4-byte slot | §4 #16 |
+| Font data | 38–53 | side: the letters beside the file, done since NATIVE.md step 7 (`port/assets/font.c`) | none swapped (bytes) | §4 #16 |
 | MusyX project, pool, sample directory, songs | 6–8, 10–21 | swap: done, `port/assets/musyx.c` ([MUSYX_DATA.md](MUSYX_DATA.md)). The readers use whole-field loads except a few, handled by how the fields are swapped | MUSYX_DATA.md §3 | §4 #24; registries, sample-info views, WAITMS (MUSYX_DATA.md §4) |
 | Samples | ROM 0x39B40 | BE: PC DMA is a `memcpy` from the ROM | none | audio interpreter reads ADPCM bytes |
 | Game image, runtime images | — | skip | — | `main_thread_entry` inflate and `load_overlay` under `TARGET_PC` |
@@ -374,7 +394,8 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 
 Status, 2026-10-27: the WAD rows are done in `port/assets/wad.c`. That covers the TOC, OBHD, TXHD, PLHD, PTHD with
 its PATH points, the big-endian payload and its release, together with the game edits for §4 #1–11. What was done
-and what is left is in [LOADERS.md](LOADERS.md).
+and what is left is in [LOADERS.md](LOADERS.md). Since 2026-11-09 ([NATIVE.md](NATIVE.md) step 7) the four record
+chunks are native records beside the file (§3.1), and the font's letters too (§3.7).
 
 ## 6. Bring-up order
 
@@ -403,7 +424,8 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
    addresses. Game data in the window is RDRAM to it, the same memory either way.
 3. **Multiple struct views of the same records** (OBHD three views, `gText` four, `gWaveInstance` four, the
    `{ptr,count}` pairs two). Every view must change together, or the PC layout silently diverges. `gen_bss` doesn't
-   yet give pointer-bearing structs their own storage.
+   yet give pointer-bearing structs their own storage. (Settled: one declaration each since wave 2 and NATIVE.md
+   steps 7 and 8.)
 4. **The `Gfx` widening must not reach code that walks ROM lists** (`relocate_texture_loads`'s local `Gfx`, `u32 *`
    walkers): those lists stay 8-byte commands.
 5. **MusyX** parses its files throughout the boot library with native loads. Audited (MUSYX_DATA.md §4): every
@@ -414,7 +436,7 @@ Expansion Pak waves (61, 65, 78, 82–87), which is a smaller first target. Swit
    chunk are settled (§8.1–8.3). The storage kind per wave is ROM data, so read it from the table rather than
    guessing.
 7. **Handle blocks move** during compaction. Only font data uses handles today; a BE registration on a moving block
-   would also have to move.
+   would also have to move. (The records the converters keep by block follow a move: `pc_heap_block_moved`.)
 
 ## 8. The converter sweep (2026-10-28)
 
@@ -486,7 +508,8 @@ fits" or "doesn't parse". Per format:
 
 Every view of these records keeps the N64 size on the host (pointer fields u32 or `enum n64p_*` under TARGET_PC).
 Strides are literal 88/36/24, or `sizeof` of such a view. The `{pointer, count}` slot tables are 16 bytes in
-every live view.
+every live view. (2026-10-28. Since 2026-11-09, [NATIVE.md](NATIVE.md) step 7, the game reads the converter's native
+records instead, one declaration each, and the converter reads these fields from the file at the widths above.)
 
 ### 8.3 World (`world.c`)
 

@@ -127,9 +127,10 @@ tires, `steer_constants`), then `init_road`, `init_collision`, `road` and `posit
   objects `InitTrackDynamicObjs`), `SetupCar` and `PickCar` (which body), `SetupCarColor`, `MakeRamps`,
   `SetFrameColor`, `SetSheen`, `SetSheenColor` (the paint). `gCarParts[52]` holds each slot's object handles (13 cars
   for each of the car screen's four players; a race uses slots 0-5).
-- **Paint**: the N64 paints through the palette: `car_palettes[slot]` points at a 512-byte palette (32-step ramps of
-  the three colours at 32, 64 and 96, the tail lights at 160-167, the headlights at 168-175); the frame and hood
-  draw with it, and the brake and head lights rewrite its entries. MAT3 swaps textures instead.
+- **Paint**: the N64 paints through the palette: `car_palettes[slot]` (a palette record, `tPaletteDef`, the whole
+  TLUT: one per slot of `gCarParts`, 52) points at a 512-byte palette (32-step ramps of the three colours at 32, 64
+  and 96, the tail lights at 160-167, the headlights at 168-175); the frame and hood draw with it, and the brake and
+  head lights rewrite its entries. MAT3 swaps textures instead.
 - **The visuals**: `StartEnvironment` (with `StartShadow`, `StartArrow`) and `StartCar` (`StartFrame`,
   `StartSparks`, `StartWing`, `StartWingFlame`, `StartWeapon`, `StartHeadLights`, `StartBrakeLights`, `StartTire`)
   fill the car's 21 visuals (`VIS_*` in cars.h: brake lights 0, sparks 1-5, tires 6-9, shadow 10, arrows 11-13, the
@@ -198,7 +199,9 @@ tires, `steer_constants`), then `init_road`, `init_collision`, `road` and `posit
   view shows), `MBOX_HideObject`, `MBOX_ShowObject` (`OBJ_HIDDEN`, or bits 8-11 for each view), `MBOX_GetChild`,
   `MBOX_GetNext`, `MBOX_GetPosition`, `MBOX_GetObjectRadius`; `MBOX_FindObject_WORK`, `MBOX_FindTexture_WORK`,
   `MBOX_FindPalette_WORK` find a definition by name, a binary search in each loaded model's sorted tables
-  (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`), and return its handle.
+  (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`), and return its handle. The tables point at the model WAD's records
+  (MAT3's `tModelDef` with its `tLod` levels, `tTexture`, `tPaletteDef`, and a track's `tBasicTargetPath`), which the
+  WAD's converter builds beside the file with host pointers (`pc_game_types.h`, `port/assets/wad.c`, ASSETS.md 3.1).
 - **Windows** (MAT3 zoidwindow.c): `ZoidWinInfo[4]` (MAT3 `tWindowInfo`) with their viewports and scissors;
   `ZOID_ResetWindows`, `ZOID_SplitMenuScreen` and `ZOID_SplitScreen` lay them out from the screen's size;
   `ZOID_InitializeWindow`, `ZOID_SetWindow` the field of view (the near plane 2.5 ft, the far one 2,000);
@@ -223,7 +226,7 @@ tires, `steer_constants`), then `init_road`, `init_collision`, `road` and `posit
   regions.
 - **Texture animation** (`InitTextureAnimation`, `TextureAnimation`; MAT3 textureanim.c): `PaletteLists` (palette
   rotations, traffic lights, lamp chasers, texture scrolls through `displaylist_set_tile_size`; `PALANIM_*`) and
-  `TextureSwapLists` (flipbooks: a new `texBase`, or a new image command through
+  `TextureSwapLists` (flipbooks: a new `texBase` in the texture's record, or a new image command through
   `displaylist_set_texture_image`); `relocate_texture_loads` rebases a wave's texture loads when it arrives,
   `flip_triangle_winding` reverses a model's triangles for the mirrored tracks.
 
@@ -272,11 +275,12 @@ own copies and other spellings to it).
   `crash_state`, `shoot`, `fade_state`, `catchup`, `tire_rims` ...); left: `struct pc_model`'s `speed` is MAT3's
   `magvel`, `lap` its `laps`.
 - **The scene** emits N64 display lists (libultra's gbi.h macros, F3DEX2, s15.16 `Mtx`, viewports in quarter
-  pixels) that port/gfx interprets; the wad records (TXHD, PLHD, OBHD) keep the N64 layout with window addresses
-  (`texBase`, `palBase`, `displayList`); `gMatrices` is in the window (`pc_matrix_spill`, the spill past it, is PC
-  storage); the texture loads and the models' display lists stay big-endian (`pc_be32_get`/`set`); `FindChunk` walks
-  the N64-layout heap; the world table holds window addresses (the sky's matrices are pointers since
-  [NATIVE.md](../port/NATIVE.md) step 4); `car_palettes`' data is a window address.
+  pixels) that port/gfx interprets; the WAD's records (TXHD, PLHD, OBHD, PTHD) are native beside the file since
+  [NATIVE.md](../port/NATIVE.md) step 7, with host pointers to the texels, colours and display lists, and the car
+  palettes `car_palettes` are the same palette record (own storage); the texture loads and the models' display lists
+  stay big-endian in the file (`pc_be32_get`/`set`) with 32-bit addresses, until step 10; the sky's matrices are
+  pointers since step 4, the arenas host blocks since step 5, the heap's headers native since step 6, the world
+  table native since step 8.
 - **The pools** keep their N64 element order with pointer-sized links (the StatLL headers' 40-byte host layout; the
   puffs, skids and streaks are larger than on the N64); scene handles are `s32` whose low half is the node (read
   through an endian-aware union, ENDIAN.md).

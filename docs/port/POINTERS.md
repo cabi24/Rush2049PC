@@ -109,7 +109,8 @@ in the N64's sizes and its API takes and returns pointers, MAT3's; what follows 
 loaders' relocations remain.) Files: `ptr64_edit.py` `N64_WORLD` (heap: `audio_heap`, the `alloc_at`/heap-group copies,
 `FindChunk`, `ClearMemoryHeap`, `deflate_mem` frees, `save/ctx_slot`/`ctx_newghost`/`AudioInit`/`save`, `paksys`,
 `state_audio`, `musyx_alloc`; ROM records: `MBSetupWad`, `waves.c`, the text bank `AdjustTextWavePointers` copies,
-`loadtrack`, the sample base in `AudioInitSys`). The heap's own headers keep their N64 layout on PC: `Block` (0x20),
+`loadtrack`, the sample base in `AudioInitSys`; the WAD's, the text bank's, the world's and the paths' are native records
+built beside the file since [NATIVE.md](NATIVE.md) steps 7 and 8). The heap's own headers keep their N64 layout on PC: `Block` (0x20),
 `Heap`, `HandleTable` and the `Pool` view have their pointer fields as 4-byte `enum n64p_X` window addresses
 (`ptr64_u32fields.py`) in the running heap code: `audio_heap`, `counter_guard`,
 `heap_release/{group,alloc_at,ClearMemoryHeap,heap_move_block_low}.c`, `FindChunk`, `AllocateMemoryHeapHigh`,
@@ -123,19 +124,21 @@ item 5): on the PC the slots are 8 bytes now (9.10).
 
 Records overlaid on loaded ROM data, whose pointer fields are 32-bit N64 addresses (ASSETS.md §3, §4). They are
 declared with pointer types today, so on PC they are larger than the data; Phase 4 declares those fields `u32` under
-`TARGET_PC` in every view:
+`TARGET_PC` in every view. (History: since [NATIVE.md](NATIVE.md) steps 7 and 8 the converters build these records
+beside the file, native with host pointers, one declaration each in `port/include/pc_game_types.h`, and the game reads
+those; the rows below say where each went.)
 
 | Record | Where declared (views) | Pointer fields |
 |---|---|---|
-| WAD TOC entry, handle | `MBSetupWad.c`, `MBGetFromWad.c`, `MBOffsetWad.c` | offset, base, TOC |
-| `tModelDef`/`tLod` (OBHD) | `waves.c:59`, `zoid_draw/group.c:544` (`LodSet`), `trackscr/trackscr.c:267` (`MapLod`) | `displayList`, `vtxList`/`verts` |
-| `tTexture` (TXHD) | `waves.c:73` and ~25 readers | `texBase`/`image` |
-| PLHD | `waves.c:84`, `zoid_draw/group.c` (`pal->table`) | `palBase`/`table` |
-| `tBasicTargetPath` (PTHD), `Scene36` | `waves.c:91`, `targets/group.c:59` | `trigPtr`, `pts`, `parent`, `resources` |
+| WAD TOC entry, handle | `MBSetupWad.c`, `MBGetFromWad.c`, `MBOffsetWad.c` | offset, base, TOC; done: the functions are gone, the converter reads the table (step 7) |
+| `tModelDef`/`tLod` (OBHD) | `waves.c:59`, `zoid_draw/group.c:544` (`LodSet`), `trackscr/trackscr.c:267` (`MapLod`) | `displayList`, `vtxList`/`verts`; done: `struct tModelDef`, `struct tLod` (0x78, 0x18; the track map's `mapObj` and `saved_map_lods` are `tLod`, own storage) |
+| `tTexture` (TXHD) | `waves.c:73` and ~25 readers | `texBase`/`image`; done: `struct tTexture` (0x28), every view gone |
+| PLHD | `waves.c:84`, `zoid_draw/group.c` (`pal->table`) | `palBase`/`table`; done: `struct tPaletteDef` (0x20), which the car palettes `car_palettes` and the blits' own (`healthPal`, `n64FogPal`) are too |
+| `tBasicTargetPath` (PTHD), `Scene36` | `waves.c:91`, `targets/group.c:59` | `trigPtr`, `pts`, `parent`, `resources`; done: `struct tBasicTargetPath` (0x38: the trigger a record pointer, the points a pointer into the file, the target's record a pointer, the file's key its own field) |
 | text bank header `gText` | 17 files, four views (`ShowPakError`, `runtime_a_text_helpers`, `runtime_a_menu_renderers`, `options_anim.c`) | `ptrs0/2/5`, `strings`, `msg`, `hdr->unk360` |
 | WHDR entry / `NameEntry` | `loadtrack.c:120`, `NewWorld.c:28` | `woff`/`node` |
 | GTLD keys | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | key -> `Object *` in place on the N64; done: a native side table of keys and targets (`struct pc_target_group`, 10.2) |
-| font letter (12 B) | `slot_sound/group.c:108` | `ptr` |
+| font letter (12 B) | `slot_sound/group.c:108` | `ptr`; done: `struct FontLetter` (0x10) built by the font's converter with its kerning row a pointer (step 7) |
 | `ResPath`/`AltPath`/`DronePath` | `pathcommon_read/ReadPathData.c` | `pts`, `alt` |
 | `SampleRecord` | `include/sound_sample_record.h`, `groups.c` | `data`: done, u32 ([MUSYX_DATA.md](MUSYX_DATA.md)) |
 
@@ -297,9 +300,9 @@ every node after the first that MBOX_NewObject made overwrote the next symbols. 
 | 0x0C | 0x10 | `f32 scale, w` | |
 | 0x14 | 0x18 | `u16 model`, `s16 child, next, mode` | |
 | 0x1C | 0x20 | `Lights2 *light` | overlay A's `ComponentLights` (C data) |
-| 0x20 | 0x28 | `Texture *tex[4]` (LODs) | WAD records (window), any texture |
+| 0x20 | 0x28 | `Texture *tex[4]` (LODs) | WAD records (native, beside the file since NATIVE.md step 7), any texture |
 | 0x30 | 0x48 | `TexRect *rect`, `*clip` | `clip` is set to a stack rectangle by the draw |
-| 0x38 | 0x58 | `Palette *pal` | WAD palettes, the car palettes `car_palettes` (game arena) |
+| 0x38 | 0x58 | `Palette *pal` | WAD palettes, the car palettes `car_palettes` (own storage since NATIVE.md step 7, MAT3's palette record) |
 | 0x3C | 0x60 | `u8 prim[4]`, `env[4]` | |
 | 0x44 | 0x68 | | |
 
@@ -315,7 +318,8 @@ every node after the first that MBOX_NewObject made overwrote the next symbols. 
   lookup) as `intptr_t`. `AnimateFlag` declares MBOX_FindPalette_WORK, old-style (the call passes a fifth word),
   with a pointer-sized result. `ZOID_SetObjLights` (the light), `zoid_set_obj_tile_size` (clip) and `zoid_set_obj_palette` (palette)
   take `uintptr_t`. (Since wave 2c every caller goes through scene.h's one prototype: the textures, matrices and
-  lights are pointers, `MBOX_FindPalette_WORK` takes four arguments and returns a `tPalette *`; PROTOTYPES.md 7.)
+  lights are pointers, `MBOX_FindPalette_WORK` takes four arguments and returns a `tPalette *`, a `tPaletteDef *` since
+  NATIVE.md step 7; PROTOTYPES.md 7.)
 - Test: `assets_zoid`.
 
 ### 9.3 Sprites `gBlitInstanceList` and blits
@@ -629,8 +633,9 @@ list's elements (`tAlwaysCol`) and the power-ups' (`gBattlePowerUps.tS`).
   scene node's index, its low half: `(s16)` of it (the N64 views read an s16 at +0xE, the low half there).
 - **The records the nodes point to** keep their N64 sizes, for the heap's accounting ([NATIVE.md](NATIVE.md) 4.3): the
   category records are heap blocks of `gTargetStructSizes[c]` bytes (ROM data). A path target's record
-  (`tTargetStructPath`, 72 bytes) keeps its path, a PTHD record of the track WAD, as a 32-bit window address
-  (`pathData`), and the PTHD record keeps its own (`trigPtr`, `pts`, `parent`): the WAD's records are step 7's. The
+  (`tTargetStructPath`, 72 bytes) names its path, a PTHD record of the track WAD, by its index (`pathIdx`, MAT3's
+  `pathData`; `TARGET_PATH` in track.h), where it kept the record's 32-bit window address until [NATIVE.md](NATIVE.md)
+  step 7; the PTHD records are native since (`trigPtr`, `pts`, `parent` pointers). The
   bounding box models `gBBoxModelStructs` (`tMiniModelData`, 64 bytes, a heap block; `UpdateMiniModelStruct` strides
   by 64) keep their box as its row of `BBoxCollInfo` (`bboxRow`, the kind's `collVal`; MAT3 kept the row's address,
   `bboxInfo`): `MINI_MODEL_BOX` (track.h) is the row, a `tBBoxColl`, which `TargetCollBBox` and
