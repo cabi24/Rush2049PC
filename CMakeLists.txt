@@ -932,10 +932,12 @@ set_tests_properties(hfr_paced_queue PROPERTIES FIXTURES_REQUIRED synth_rom TIME
     SKIP_RETURN_CODE 77 LABELS realtime)
 # An exact 60.000 Hz display, its vblanks 0.05 of a refresh after the retraces (the worst phase: 1114 of 1200 ticks
 # lost, none drawn between): the retraces are moved once to sit halfway between two vblanks (FRAMERATE.md 2), and
-# at most 10% of the vblanks are lost to skipped ticks (2 measured), frames drawn between as hfr_paced's.
+# at most 15% of the vblanks are lost to skipped ticks (2 measured on rocky; on CI's 4-core x86 runner 10.5-12%,
+# since a due retrace goes out before a tick between, FRAMERATE.md 2: the failure this catches loses over 90%),
+# frames drawn between as hfr_paced's.
 add_test(NAME hfr_paced_60 COMMAND ${PC_PYTHON} ${PORT_TOOLS}/realtime_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/hfr_paced_60 --seconds 30 --pacing display
-    --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank --max-late-run 30)
+    --timer-step-us 0 --vsync-hz 60 --vsync-phase 0.05 --display-timing vblank --max-late-run 30 --max-lost 0.15)
 set_tests_properties(hfr_paced_60 PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 300 RUN_SERIAL TRUE
     SKIP_RETURN_CODE 77 LABELS realtime)
 # game.frame_rate 60 (docs/port/FRAMERATE.md 7). The game at 60 against original along the synthetic paths, on the
